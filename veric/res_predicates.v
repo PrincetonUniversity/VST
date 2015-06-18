@@ -1244,6 +1244,106 @@ inv H9; auto. inv H9; auto.
 auto.
 Qed.
 
+Lemma VALspec_range_exp_address_mapsto:
+  forall ch rsh sh l,
+    (align_chunk ch | snd l) ->
+    VALspec_range (size_chunk ch) rsh sh l |-- EX v: val, address_mapsto ch v rsh sh l.
+Proof.
+  intros.
+  intros w ?.
+  unfold VALspec_range in H0.
+  simpl in H0 |- *.
+  cut (exists (b0 : list memval),
+     length b0 = size_chunk_nat ch /\
+     (forall b1 : address,
+      if adr_range_dec l (size_chunk ch) b1
+      then
+       exists p : nonunit sh,
+         w @ b1 =
+         YES rsh (mk_lifted sh p)
+           (VAL (nth (nat_of_Z (snd b1 - snd l)) b0 Undef))
+           (SomeP ((Void:Type) :: nil)
+              (approx (level w) oo (fun _ : Void * unit => FF)))
+      else identity (w @ b1))).
+  Focus 1. {
+    intros.
+    destruct H1 as [b0 [? ?]].
+    exists (decode_val ch b0), b0.
+    tauto.
+  } Unfocus.
+  rewrite !size_chunk_conv in *.
+  forget (size_chunk_nat ch) as n; clear - H0.
+  
+  cut (exists b0 : list memval,
+     length b0 = n /\
+     (forall b1 : address,
+        adr_range l (Z.of_nat n) b1 ->
+       exists p : nonunit sh,
+         w @ b1 =
+         YES rsh (mk_lifted sh p)
+           (VAL (nth (nat_of_Z (snd b1 - snd l)) b0 Undef))
+           (SomeP ((Void:Type) :: nil)
+              (approx (level w) oo (fun _ : Void * unit => FF))))).
+  Focus 1. {
+    intros.
+    destruct H as [b0 H].
+    exists b0.
+    split; [tauto |].
+    intros b; specialize (H0 b).
+    if_tac; [apply (proj2 H) |]; auto.
+  } Unfocus.
+
+  assert (forall b : address,
+    adr_range l (Z.of_nat n) b ->
+        exists (b0 : memval) (p : nonunit sh),
+          w @ b =
+          YES rsh (mk_lifted sh p) (VAL b0)
+            (SomeP ((Void:Type) :: nil)
+               (approx (level w) oo (fun _ : Void * unit => FF)))).
+  Focus 1. {
+    intros.
+    specialize (H0 b).
+    if_tac in H0; tauto.
+  } Unfocus.
+  clear H0.
+
+  destruct l as [bl ofs].
+  revert ofs H; induction n; intros.
+  + exists nil.
+    split; auto.
+    intros b.
+    specialize (H b).
+    auto.
+    intros.
+    apply adr_range_non_zero in H0.
+    simpl in H0; omega.
+  + specialize (IHn (ofs + 1)).
+    spec IHn.
+    - clear - H; intros b; specialize (H b).
+      intros; spec H; auto.
+      apply adr_range_shift_1; auto.
+    - assert (adr_range (bl, ofs) (Z.of_nat (S n)) (bl, ofs))
+        by (rewrite Nat2Z.inj_succ; repeat split; auto; omega).
+      destruct (H _ H0) as [b_hd ?H]; clear H0.
+      destruct IHn as [b_tl ?H].
+      exists (b_hd :: b_tl).
+      split; [simpl; omega |]; destruct H0 as [_ ?].
+      intros.
+      apply adr_range_S_split in H2.
+      destruct H2.
+      * destruct (H0 b1 H2) as [p ?H].
+        destruct b1; destruct H2 as [_ ?].
+        exists p; clear - H2 H3.
+        unfold snd in *.
+        replace (nat_of_Z (z - ofs)) with (S (nat_of_Z (z - (ofs + 1)))); [exact H3 |].
+        unfold nat_of_Z.
+        replace (z - ofs) with (Z.succ (z - (ofs + 1))) by omega.
+        rewrite Z2Nat.inj_succ; auto.
+        omega.
+      * subst. rewrite Z.sub_diag. simpl nth.
+        exact H1.
+Qed.
+
 Lemma address_mapsto_VALspec_range:
   forall ch v rsh sh l,
         address_mapsto ch v rsh sh l |-- VALspec_range (size_chunk ch) rsh sh l.
@@ -1260,7 +1360,6 @@ destruct H as [p ?].
 exists p.
 auto.
 Qed.
-
 
 Lemma approx_eq_i:
   forall (P Q: pred rmap) (w: rmap),

@@ -232,6 +232,61 @@ Proof.
 Qed.
 Hint Rewrite @FF_andp @andp_FF : norm.
 
+Lemma FF_orp: forall {A: Type} `{NatDed A} (P: A), FF || P = P.
+Proof.
+  intros.
+  apply pred_ext.
+  + apply orp_left.
+    apply FF_left.
+    apply derives_refl.
+  + apply orp_right2.
+    apply derives_refl.
+Qed.
+
+Lemma allp_forall: forall {A B: Type} `{NatDed A} P Q (x:B), (forall x:B, (P x = Q)) -> (allp P = Q).
+Proof.
+  intros.
+  apply pred_ext.
+  + apply (allp_left _ x).
+    rewrite H0.
+    apply derives_refl.
+  + apply allp_right.
+    intros.
+    rewrite H0.
+    apply derives_refl.
+Qed.
+
+Lemma allp_derives: 
+       forall {A: Type}  {NA: NatDed A} (B: Type) (P Q: B -> A), 
+               (forall x:B, P x |-- Q x) -> (allp P |-- allp Q).
+Proof.
+intros.
+apply allp_right; intro x; apply allp_left with x; auto.
+Qed.
+
+Lemma allp_andp: forall {A B: Type} `{NatDed A} (P Q: B -> A), allp (P && Q) = allp P && allp Q.
+Proof.
+  intros.
+  apply pred_ext.
+  + apply andp_right; apply allp_derives; intros;
+    simpl; [apply andp_left1|apply andp_left2]; apply derives_refl.
+  + apply allp_right; intros.
+    simpl; apply andp_right; [apply andp_left1|apply andp_left2];
+    apply (allp_left _ v); apply derives_refl.
+Qed.
+
+Lemma prop_derives {A}{ND: NatDed A}: 
+ forall (P Q: Prop), (P -> Q) -> prop P |-- prop Q.
+Proof.
+intros; apply prop_left; intro; apply prop_right; auto.
+Qed.
+
+Lemma ND_prop_ext {A}{ND: NatDed A}: forall P Q, (P <-> Q) -> !! P = !! Q.
+Proof.
+  intros.
+  apply pred_ext; apply prop_derives; tauto.
+Qed.
+
 Lemma wand_derives {A}{ND: NatDed A}{SL: SepLog A}:
     forall P P' Q Q': A , P' |-- P -> Q |-- Q' ->  P -* Q |-- P' -* Q'.
 Proof.
@@ -425,14 +480,6 @@ Lemma imp_extract_exp_left {B A: Type} {NA: NatDed A}:
 Proof.
 intros.
 apply exp_left. auto.
-Qed.
-
-Lemma allp_derives: 
-       forall {A: Type}  {NA: NatDed A} (B: Type) (P Q: B -> A), 
-               (forall x:B, P x |-- Q x) -> (allp P |-- allp Q).
-Proof.
-intros.
-apply allp_right; intro x; apply allp_left with x; auto.
 Qed.
 
 Hint Rewrite @sepcon_emp @emp_sepcon @TT_andp @andp_TT 

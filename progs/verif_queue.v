@@ -54,7 +54,7 @@ Definition mallocN_spec :=
      EX v: val,
      PROP (malloc_compatible n v) 
      LOCAL (temp ret_temp v) 
-     SEP (`(memory_block Tsh (Int.repr n) v)).
+     SEP (`(memory_block Tsh n v)).
 
 Definition freeN_spec :=
  DECLARE _freeN
@@ -62,7 +62,7 @@ Definition freeN_spec :=
   PRE [ 1%positive OF tptr tvoid , 2%positive OF tint]  
      (* we should also require natural_align_compatible (eval_id 1) *)
       PROP() LOCAL (temp 1%positive p; temp 2%positive (Vint (Int.repr n)))
-      SEP (`(memory_block Tsh (Int.repr n) p))
+      SEP (`(memory_block Tsh n p))
   POST [ tvoid ]  
     PROP () LOCAL () SEP ().
 
@@ -147,7 +147,7 @@ Definition Gprog : funspecs :=
 Lemma memory_block_fifo:
  forall p, 
   field_compatible t_struct_fifo nil p ->
-  memory_block Tsh (Int.repr 8) p = field_at_ Tsh t_struct_fifo nil p.
+  memory_block Tsh 8 p = field_at_ Tsh t_struct_fifo nil p.
 Proof.
  intros.
  change 8 with (sizeof cenv_cs t_struct_fifo).
@@ -264,7 +264,10 @@ forward_if
      normalize.
      apply exp_right with (prefix ++ t :: nil).
      entailer.
-     remember (field_at Tsh t_struct_elem [StructField _next] nullval p') as A. (* prevent it from canceling! *)
+     match goal with
+     | |- _ |-- _ * _ * ?AA => remember AA as A
+     end.
+     (* prevent it from canceling! *)
      cancel. subst A.
      eapply derives_trans; [ | apply links_cons_right ].
      cancel.
@@ -374,7 +377,7 @@ forward_call' (*  freeN(p, sizeof( *p)); *)
  unfold data_at_, field_at_.
  unfold default_val; simpl.
  unfold_field_at 6%nat.
- cancel.
+ cancel. (* should solve the problem *) Abort.
  rewrite data_at__memory_block by reflexivity. entailer.
 }
 unfold map.

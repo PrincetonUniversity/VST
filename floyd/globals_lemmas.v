@@ -49,7 +49,7 @@ Lemma mapsto_zeros_memory_block: forall sh n b ofs,
   0 <= n < Int.modulus ->
   Int.unsigned ofs+n <= Int.modulus ->
   mapsto_zeros n sh (Vptr b ofs) |--
-  memory_block sh (Int.repr n) (Vptr b ofs).
+  memory_block sh n (Vptr b ofs).
 Proof.
   unfold mapsto_zeros.
   intros.
@@ -57,7 +57,6 @@ Proof.
 Transparent memory_block.
   unfold memory_block.
 Opaque memory_block.
-  rewrite (Int.unsigned_repr n) by (unfold Int.max_unsigned; omega).
   repeat rewrite Int.unsigned_repr by omega.
   apply andp_right.
   + apply prop_right; auto.
@@ -173,16 +172,16 @@ Definition init_data2pred' {cs: compspecs} {csl: compspecs_legal cs}
   | Init_space n => if zeq n (sizeof cenv_cs ty)
                                    then `(data_at_ sh ty v)
                                    else if zlt n 0 then TT
-                                   else`(memory_block sh (Int.repr n) v)
+                                   else`(memory_block sh n v)
   | Init_addrof symb ofs => 
       match (var_types Delta) ! symb, (glob_types Delta) ! symb with
       | None, Some (Tarray t n' att) =>
          EX s:val, local (gvar symb s) && `(mapsto sh (Tpointer t noattr) v (offset_val ofs s))
       | None, Some Tvoid => TT
       | None, Some t => `(mapsto sh (Tpointer t noattr) v) (`(offset_val ofs) (eval_sgvar symb t))
-      | Some _, Some (Tarray t _ att) => `(memory_block sh (Int.repr 4) v)
+      | Some _, Some (Tarray t _ att) => `(memory_block sh 4 v)
       | Some _, Some Tvoid => TT
-      | Some _, Some (Tpointer (Tfunction _ _ _) _) => `(memory_block sh (Int.repr 4) v) 
+      | Some _, Some (Tpointer (Tfunction _ _ _) _) => `(memory_block sh 4 v) 
       | _, _ => TT
       end
  end.
@@ -200,11 +199,11 @@ Lemma unpack_globvar_aux1 {cs: compspecs} {csl: compspecs_legal cs}:
   forall sh t b v i_ofs, 
   Int.unsigned i_ofs + sizeof cenv_cs (Tpointer t noattr) <= Int.max_unsigned ->
                mapsto sh (Tpointer t noattr) (Vptr b i_ofs) v
-                   |-- memory_block sh (Int.repr 4) (Vptr b i_ofs).
+                   |-- memory_block sh 4 (Vptr b i_ofs).
 Proof.
  intros.
  eapply derives_trans; [ apply mapsto_mapsto_ | ].
- rewrite (memory_block_mapsto_ _ _ (Tpointer t noattr)); auto.
+ rewrite (memory_block_mapsto_ _ (Tpointer t noattr)); auto.
  unfold size_compatible; unfold Int.max_unsigned in H; omega.
  admit. (* align_compatible can be FOUND inside mapsto *)
 Qed.
@@ -893,8 +892,6 @@ Qed.
 Definition Ers (* Extern read share *) := 
     Share.splice extern_retainer Share.Lsh.
 
-Print init_data.
-
 Definition is_Tint sz t :=
   match t with 
   | Tint s _ _ => s = sz
@@ -906,26 +903,6 @@ Inductive init_rep : list init_data -> forall {t}, reptype t -> Prop :=
   | IRi8: forall {t} i, is_Tint I8 t -> init_rep (Init_int8 i :: nil) (valinject t (Vint i))
   | IRi16: forall {t} i, is_Tint I16 t -> init_rep (Init_int16 i :: nil) (valinject t (Vint i))
   | IRi32: forall {t} i, is_Tint I32 t -> init_rep (Init_int32 i :: nil) (valinject t (Vint i))
-
-Print tvolatile.
-Print tattr.
-Print globvar2pred.
-Print init_data_list2pred.
-Print init_data2pred.
-Print  veric.Clight_new.cl_step.
-Print sem_binary_operation.
-Print sem_binary_operation'.
-Print sem_sub.
-Print sem_sub_pi.
-Print sizeof.
-Print classify_sub.
-Locate OrderedType.
-
-Print Memory.Mem.mem'.
-Print Clight.eval_expr.
-Print deref_loc.
-Print access_mode.
-Print type_is_volatile.
 *)
 
 Ltac simpl_main_pre' := 

@@ -232,9 +232,9 @@ Fixpoint memory_block' (sh: share) (n: nat) (b: block) (i: Z) : mpred :=
          * memory_block' sh n' b (i+1)
  end.
 
-Definition memory_block (sh: share) (n: int) (v: val) : mpred :=
+Definition memory_block (sh: share) (n: Z) (v: val) : mpred :=
  match v with 
- | Vptr b ofs => (!! (Int.unsigned ofs + Int.unsigned n <= Int.modulus)) && memory_block' sh (nat_of_Z (Int.unsigned n)) b (Int.unsigned ofs)
+ | Vptr b ofs => (!! (Int.unsigned ofs + n <= Int.modulus)) && memory_block' sh (nat_of_Z n) b (Int.unsigned ofs)
  | _ => FF
  end.
 
@@ -262,15 +262,12 @@ Lemma memory_block_split:
   0 <= m ->
   n + m < Int.modulus ->
   n + m <= n + m + ofs <= Int.modulus ->
-  memory_block sh (Int.repr (n + m)) (Vptr b (Int.repr ofs)) =
-  memory_block sh (Int.repr n) (Vptr b (Int.repr ofs)) *
-  memory_block sh (Int.repr m) (Vptr b (Int.repr (ofs + n))).
+  memory_block sh (n + m) (Vptr b (Int.repr ofs)) =
+  memory_block sh n (Vptr b (Int.repr ofs)) *
+  memory_block sh m (Vptr b (Int.repr (ofs + n))).
 Proof.
   intros.
   unfold memory_block.
-  rewrite (Int.unsigned_repr (n + m)) by (unfold Int.max_unsigned; omega).
-  rewrite (Int.unsigned_repr n) by (unfold Int.max_unsigned; omega).
-  rewrite (Int.unsigned_repr m) by (unfold Int.max_unsigned; omega).
   rewrite memory_block'_split with (i := n); [| omega |].
   Focus 2. {
     pose proof Int.unsigned_range (Int.repr ofs).
@@ -322,7 +319,7 @@ end.
 
 Definition var_block (sh: Share.t) {cs: compspecs} (idt: ident * type) : environ -> mpred :=
   !! (sizeof cenv_cs (snd idt) <= Int.max_unsigned) &&
-  `(memory_block sh (Int.repr (sizeof cenv_cs (snd idt))))
+  `(memory_block sh (sizeof cenv_cs (snd idt)))
              (eval_lvar (fst idt) (snd idt)).
 
 Definition stackframe_of {cs: compspecs} (f: Clight.function) : environ->mpred :=
@@ -1083,24 +1080,12 @@ Axiom semax_ext:
 
 End CLIGHT_SEPARATION_LOGIC.
 
-Lemma prop_derives {A}{ND: NatDed A}: 
- forall (P Q: Prop), (P -> Q) -> prop P |-- prop Q.
-Proof.
-intros; apply prop_left; intro; apply prop_right; auto.
-Qed.
-
-Lemma seplog_prop_ext {A}{ND: NatDed A}: forall P Q, (P <-> Q) -> (@eq A) (prop P) (prop Q).
-Proof.
-  intros.
-  apply pred_ext; apply prop_derives; tauto.
-Qed.
-
 Require Import Coq.Classes.Morphisms.
 
 Instance prop_Proper:
   Proper (iff ==> (@eq mpred)) (prop).
 Proof.
   intros ? ? ?.
-  apply seplog_prop_ext.
+  apply ND_prop_ext.
   auto.
 Defined.

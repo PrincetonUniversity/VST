@@ -1,3 +1,5 @@
+Require Import msl.log_normalize.
+Require Import msl.alg_seplog.
 Require Export veric.base.
 Require Import msl.rmaps.
 Require Import msl.rmaps_lemmas.
@@ -30,12 +32,6 @@ Lemma address_mapsto_exists:
       exists w, address_mapsto ch (decode_val ch (encode_val ch v)) rsh (pshare_sh sh) loc w 
                     /\ core w = core w0.
 Proof.  exact address_mapsto_exists. Qed.
-
-Lemma address_mapsto_VALspec_range: 
-  forall (ch : memory_chunk) (v : val) rsh (sh : Share.t) (l : address),
-       address_mapsto ch v rsh sh l
-       |-- VALspec_range (size_chunk ch) rsh sh l.
-Proof.  exact address_mapsto_VALspec_range. Qed.
 
 Open Local Scope pred.
 
@@ -514,11 +510,77 @@ intros w [v2' [l [[? [? ?]] ?]]].
  f_equal. f_equal. rewrite Zminus_diag. reflexivity.
 Qed.
 
-Definition memory_block (sh: share) (n: int) (v: val) : mpred :=
+Definition memory_block (sh: share) (n: Z) (v: val) : mpred :=
  match v with 
- | Vptr b ofs => (!!(Int.unsigned ofs + Int.unsigned n <= Int.modulus)) && memory_block' sh (nat_of_Z (Int.unsigned n)) b (Int.unsigned ofs)
+ | Vptr b ofs => (!!(Int.unsigned ofs + n <= Int.modulus)) && memory_block' sh (nat_of_Z n) b (Int.unsigned ofs)
  | _ => FF
  end.
+
+Lemma mapsto__exp_address_mapsto: forall sh t b i_ofs ch,
+  access_mode t = By_value ch ->
+  type_is_volatile t = false ->
+  mapsto_ sh t (Vptr b i_ofs) = EX  v2' : val,
+            address_mapsto ch v2' (Share.unrel Share.Lsh sh)
+              (Share.unrel Share.Rsh sh) (b, (Int.unsigned i_ofs)).
+Proof.
+  pose proof (@FF_orp (pred rmap) (algNatDed _)) as HH0.
+  change seplog.orp with orp in HH0.
+  change seplog.FF with FF in HH0.
+  pose proof (@ND_prop_ext (pred rmap) (algNatDed _)) as HH1.
+  change seplog.prop with prop in HH1.
+
+  intros.
+  unfold mapsto_, mapsto.
+  rewrite H.
+  assert (!!(tc_val t Vundef) = FF)
+    by (destruct t as [ | | | [ | ] |  | | | | ]; reflexivity).
+  rewrite H1.
+  
+  rewrite FF_and, HH0.
+  assert (!!(Vundef = Vundef) = TT) by (apply HH1; tauto).
+  rewrite H2.
+  rewrite TT_and.
+  rewrite H0.
+  reflexivity.
+Qed.
+
+Lemma VALspec_range_exp_address_mapsto_eq:
+  forall ch rsh sh l,
+    (align_chunk ch | snd l) ->
+    VALspec_range (size_chunk ch) rsh sh l = EX v: val, address_mapsto ch v rsh sh l.
+Proof.
+  intros.
+  apply pred_ext.
+  + apply VALspec_range_exp_address_mapsto; auto.
+  + apply exp_left; intro; apply address_mapsto_VALspec_range.
+Qed.
+
+Lemma mapsto__memory_block: forall sh b ofs t ch, 
+  access_mode t = By_value ch ->
+  type_is_volatile t = false ->
+  (align_chunk ch | Int.unsigned ofs) ->
+  Int.unsigned ofs + size_chunk ch <= Int.modulus ->
+  mapsto_ sh t (Vptr b ofs) = memory_block sh (size_chunk ch) (Vptr b ofs).
+Proof.
+  intros.
+  unfold memory_block.
+  rewrite memory_block'_eq.
+  2: pose proof Int.unsigned_range ofs; omega.
+  2: rewrite Coqlib.nat_of_Z_eq by (pose proof size_chunk_pos ch; omega); omega.
+  rewrite mapsto__exp_address_mapsto with (ch := ch); auto.
+  unfold memory_block'_alt.
+  rewrite Coqlib.nat_of_Z_eq by (pose proof size_chunk_pos ch; omega).
+  rewrite VALspec_range_exp_address_mapsto_eq by (exact H1).
+  rewrite <- (TT_and (EX  v2' : val,
+   address_mapsto ch v2' (Share.unrel Share.Lsh sh)
+     (Share.unrel Share.Rsh sh) (b, Int.unsigned ofs))) at 1.
+  f_equal.
+  pose proof (@ND_prop_ext (pred rmap) _).
+  simpl in H3.
+  change TT with (!! True).
+  apply H3.
+  tauto.
+Qed.
 
 Definition eval_lvar (id: ident) (ty: type) (rho: environ) :=
  match Map.get (ve_of rho) id with
@@ -528,7 +590,7 @@ end.
 
 Definition var_block (sh: Share.t) {cs: compspecs} (idt: ident * type) (rho: environ): mpred :=
   !! (sizeof cenv_cs (snd idt) <= Int.max_unsigned) &&
-  (memory_block sh (Int.repr (sizeof cenv_cs (snd idt)))) (eval_lvar (fst idt) (snd idt) rho).
+  (memory_block sh (sizeof cenv_cs (snd idt))) (eval_lvar (fst idt) (snd idt) rho).
 
 Fixpoint sepcon_list {A}{JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{AG: ageable A} {AgeA: Age_alg A}
    (p: list (pred A)) : pred A :=

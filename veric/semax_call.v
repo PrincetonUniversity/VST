@@ -1068,21 +1068,15 @@ Proof.
  2: rewrite Int.unsigned_zero; omega.
  Focus 2.
  rewrite Int.unsigned_zero. rewrite Zplus_0_r.
- rewrite Int.unsigned_repr.
  rewrite Coqlib.nat_of_Z_eq; auto.
- unfold Int.max_unsigned in H5; omega.
  pose proof (sizeof_pos (composite_types Delta) ty); omega.
- pose proof (sizeof_pos (composite_types Delta) ty); omega.
- rewrite Int.unsigned_zero.
  replace (sizeof ge ty - 0) with (sizeof ge ty) by omega.
- rewrite Int.unsigned_repr;  auto.
  unfold memory_block'_alt.
  rewrite Share.contains_Rsh_e by apply top_correct'.
  rewrite Share.contains_Lsh_e by apply top_correct'.
  rewrite Coqlib.nat_of_Z_eq.
  + erewrite sizeof_guard_genv; eauto.
  + pose proof (sizeof_pos (composite_types Delta) ty); omega.
- + split; auto.  pose proof (sizeof_pos (composite_types Delta) ty); omega.
 }
  eapply derives_trans; [ | apply IHl]; clear IHl.
  clear - H3.
@@ -1274,13 +1268,11 @@ Proof.
   rewrite eqb_type_refl in H3.
   (*destruct (type_is_volatile t) eqn:?; try (simpl in H3; tauto).*)
   simpl in H3; destruct H3 as [H99 H3].
-  rewrite Int.unsigned_repr in H3 by omega.
   change nat_of_Z with Z.to_nat in H3.
   rewrite memory_block'_eq in H3; 
   try rewrite Int.unsigned_zero; try omega.
   Focus 2. {
    rewrite Z.add_0_r; rewrite Z2Nat.id by omega; auto.
-   unfold Int.max_unsigned in H5; omega.
   } Unfocus.
   unfold memory_block'_alt in H3.
   rewrite Int.unsigned_zero in H3.
@@ -2096,8 +2088,8 @@ Lemma juicy_mem_alloc_block:
  forall jm n jm2 b F,
    juicy_mem_alloc jm 0 n = (jm2, b) ->
    app_pred F (m_phi jm)  ->
-   0 <= n <= Int.max_unsigned ->
-   app_pred (F * memory_block Share.top (Int.repr n) (Vptr b Int.zero)) (m_phi jm2).
+   0 <= n <= Int.modulus ->
+   app_pred (F * memory_block Share.top n (Vptr b Int.zero)) (m_phi jm2).
 Proof.
 intros. rename H1 into Hn.
 inv H.
@@ -2146,14 +2138,11 @@ assert (phi4 = phi2). {
  apply core_identity in H2. auto.
 }
 subst phi4.
-assert (Int.max_unsigned + 1 = Int.modulus) by reflexivity.
 exists (m_phi jm), phi3; split3; auto.
 split.
 do 3 red.
 rewrite Int.unsigned_zero.
-rewrite Int.unsigned_repr by auto.  simpl.
 omega.
-rewrite Int.unsigned_repr by auto.
 rewrite Int.unsigned_zero.
 rewrite memory_block'_eq; try omega.
 2: rewrite Coqlib.nat_of_Z_eq; omega.
@@ -2236,6 +2225,7 @@ assert (0 <= sizeof ge ty <= Int.max_unsigned) by (pose proof (sizeof_pos ge ty)
 forget (sizeof ge ty) as n.
 clear - H2 H1 H4.
 eapply juicy_mem_alloc_block; eauto.
+unfold Int.max_unsigned in H4; omega.
 Qed.
 
 Lemma semax_call_aux:

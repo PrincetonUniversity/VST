@@ -509,10 +509,9 @@ Lemma memory_block_array_pred: forall {A d} {ZL: Zlist A d} sh t lo hi v b ofs,
   0 <= lo <= hi ->
   sizeof cenv_cs t * (hi - lo) < Int.modulus ->
   array_pred lo hi
-    (fun i _ p => memory_block sh (Int.repr (sizeof cenv_cs t))
-                   (offset_val (Int.repr (sizeof cenv_cs t * i)) p)) v
+    (fun i _ p => memory_block sh (sizeof cenv_cs t) (offset_val (Int.repr (sizeof cenv_cs t * i)) p)) v
     (Vptr b (Int.repr ofs)) =
-  memory_block sh (Int.repr (sizeof cenv_cs t * (hi - lo))) (Vptr b (Int.repr (ofs + sizeof cenv_cs t * lo))).
+  memory_block sh (sizeof cenv_cs t * (hi - lo)) (Vptr b (Int.repr (ofs + sizeof cenv_cs t * lo))).
 Proof.
   intros.
   unfold array_pred.
@@ -529,7 +528,6 @@ Proof.
     replace (ofs + sizeof cenv_cs t * Z.succ lo) with (ofs + sizeof cenv_cs t * lo + sizeof cenv_cs t) by omega.
     rewrite <- memory_block_split by (auto; omega).
     f_equal.
-    f_equal.
     omega.
 Qed.
 
@@ -538,10 +536,9 @@ Lemma memory_block_array_pred': forall {A d} {ZL: Zlist A d} sh t z b ofs,
   sizeof cenv_cs t * Z.max 0 z < Int.modulus ->
   array_pred 0 z
      (fun i _ p =>
-      memory_block sh (Int.repr (sizeof cenv_cs t))
-        (offset_val (Int.repr (sizeof cenv_cs t * i)) p)) (zl_default _ _)
+      memory_block sh (sizeof cenv_cs t) (offset_val (Int.repr (sizeof cenv_cs t * i)) p)) (zl_default _ _)
      (Vptr b (Int.repr ofs))  =
-  memory_block sh (Int.repr (sizeof cenv_cs t * Z.max 0 z)) (Vptr b (Int.repr ofs)).
+  memory_block sh (sizeof cenv_cs t * Z.max 0 z) (Vptr b (Int.repr ofs)).
 Proof.
   intros.
   destruct (zlt z 0).
@@ -574,9 +571,9 @@ Lemma memory_block_struct_pred: forall sh m sz {A} (v: compact_prod (map A m)) b
   0 <= ofs /\ ofs + sz <= Int.modulus ->
   struct_pred m
    (fun it _ p =>
-     (memory_block sh (Int.repr (field_offset_next cenv_cs (fst it) m sz - field_offset2 cenv_cs (fst it) m)))
+     (memory_block sh (field_offset_next cenv_cs (fst it) m sz - field_offset2 cenv_cs (fst it) m))
      (offset_val (Int.repr (field_offset2 cenv_cs (fst it) m)) p)) v (Vptr b (Int.repr ofs)) =
-  memory_block sh (Int.repr sz) (Vptr b (Int.repr ofs)).
+  memory_block sh sz (Vptr b (Int.repr ofs)).
 Proof.
   unfold field_offset2, field_offset, field_offset_next.
   intros sh m sz A v b ofs NIL_CASE NO_REPLI; intros.
@@ -613,7 +610,7 @@ Proof.
           align z (alignof cenv_cs t0))) by omega.
       rewrite <- memory_block_split by
         (simpl in H; revert H; pose_align_le; pose_sizeof_pos; intros; omega).
-      f_equal; f_equal; omega.
+      f_equal; omega.
     - rewrite members_no_replicate_ind in NO_REPLI; destruct NO_REPLI as [NOT_IN NO_REPLI].
       auto.
     - intros. instantiate (1 := (snd v)).
@@ -627,8 +624,8 @@ Qed.
 
 Lemma memory_block_union_pred: forall sh m sz {A} (v: compact_sum (map A m)) b ofs,
   (m = nil -> sz = 0) ->
-  union_pred m (fun it _ => memory_block sh (Int.repr sz)) v (Vptr b (Int.repr ofs)) =
-  memory_block sh (Int.repr sz) (Vptr b (Int.repr ofs)).
+  union_pred m (fun it _ => memory_block sh sz) v (Vptr b (Int.repr ofs)) =
+  memory_block sh sz (Vptr b (Int.repr ofs)).
 Proof.
   intros sh m sz A v b ofs NIL_CASE; intros.
   destruct m as [| (i0, t0) m].
@@ -974,10 +971,10 @@ Definition memory_block_array_pred:
   sizeof cenv_cs t * Z.max 0 z < Int.modulus ->
   array_pred 0 z
      (fun i _ p =>
-      memory_block sh (Int.repr (sizeof cenv_cs t))
+      memory_block sh (sizeof cenv_cs t)
         (offset_val (Int.repr (sizeof cenv_cs t * i)) p)) (zl_default _ _)
      (Vptr b (Int.repr ofs))  =
-  memory_block sh (Int.repr (sizeof cenv_cs t * Z.max 0 z)) (Vptr b (Int.repr ofs))
+  memory_block sh (sizeof cenv_cs t * Z.max 0 z) (Vptr b (Int.repr ofs))
 := @memory_block_array_pred'.
 
 Definition memory_block_struct_pred:
@@ -988,16 +985,16 @@ Definition memory_block_struct_pred:
   0 <= ofs /\ ofs + sz <= Int.modulus ->
   struct_pred m
    (fun it _ p =>
-     (memory_block sh (Int.repr (field_offset_next cenv_cs (fst it) m sz - field_offset cenv_cs (fst it) m)))
+     (memory_block sh (field_offset_next cenv_cs (fst it) m sz - field_offset cenv_cs (fst it) m))
      (offset_val (Int.repr (field_offset cenv_cs (fst it) m)) p)) v (Vptr b (Int.repr ofs)) =
-  memory_block sh (Int.repr sz) (Vptr b (Int.repr ofs))
+  memory_block sh sz (Vptr b (Int.repr ofs))
 := @memory_block_struct_pred.
 
 Definition memory_block_union_pred:
   forall sh m sz {A} (v: compact_sum (map A m)) b ofs,
   (m = nil -> sz = 0) ->
-  union_pred m (fun it _ => memory_block sh (Int.repr sz)) v (Vptr b (Int.repr ofs)) =
-  memory_block sh (Int.repr sz) (Vptr b (Int.repr ofs))
+  union_pred m (fun it _ => memory_block sh sz) v (Vptr b (Int.repr ofs)) =
+  memory_block sh sz (Vptr b (Int.repr ofs))
 := @memory_block_union_pred.
 
 Definition emp_array_pred: forall {A d} `{Zlist A d} lo hi v p,

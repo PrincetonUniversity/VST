@@ -258,11 +258,11 @@ Proof.
   unfold array_at.
   destruct (field_compatible0_dec t (ArraySubsc lo :: gfs) p);
     [| replace (!! field_compatible0 t (ArraySubsc lo :: gfs) p: mpred) with FF
-         by (apply seplog_prop_ext; tauto);
+         by (apply ND_prop_ext; tauto);
        normalize].
   destruct (field_compatible0_dec t (ArraySubsc hi :: gfs) p);
     [| replace (!! field_compatible0 t (ArraySubsc hi :: gfs) p: mpred) with FF
-         by (apply seplog_prop_ext; tauto);
+         by (apply ND_prop_ext; tauto);
        normalize].
   apply andp_derives; auto.
   apply array_pred_ext_derives.
@@ -271,7 +271,7 @@ Proof.
   unfold field_at.
   replace (!! field_compatible t (ArraySubsc i :: gfs) p: mpred) with TT.
   Focus 2. {
-    apply seplog_prop_ext.
+    apply ND_prop_ext.
     rewrite field_compatible_cons.
     rewrite field_compatible0_cons in f, f0.
     destruct (nested_field_type2 t gfs); try tauto.
@@ -337,7 +337,7 @@ Proof.
   unfold legal_field0.
   rewrite at_offset_array_pred.
   f_equal.
-  + assert (0 <= 0 <= n /\ 0 <= n <= n) by omega; normalize; apply seplog_prop_ext; tauto.
+  + assert (0 <= 0 <= n /\ 0 <= n <= n) by omega; normalize; apply ND_prop_ext; tauto.
   + apply array_pred_ext.
     intros.
     rewrite at_offset_eq.
@@ -439,7 +439,7 @@ Proof.
   destruct_ptr p.
   destruct (field_compatible_dec t nil (Vptr b (Int.repr ofs))); [|
     replace (!!field_compatible t nil (Vptr b (Int.repr ofs)): mpred) with FF
-      by (apply seplog_prop_ext; tauto);
+      by (apply ND_prop_ext; tauto);
     normalize].
   f_equal.
   rewrite at_offset_eq3.
@@ -472,22 +472,22 @@ Proof.
   destruct (legal_nested_field_dec t (StructField i :: gfs)).
   Focus 2. {
     replace (!!field_compatible t (StructField i :: gfs) (Vptr b (Int.repr ofs)) : mpred) with (FF: mpred)
-      by (apply seplog_prop_ext; unfold field_compatible; tauto; apply seplog_prop_ext; tauto).
+      by (apply ND_prop_ext; unfold field_compatible; tauto; apply ND_prop_ext; tauto).
     simpl in n.
     rewrite H in n.
     simpl in n.
     replace (!!field_compatible t gfs (Vptr b (Int.repr ofs)) : mpred) with (FF: mpred)
-      by (apply seplog_prop_ext; unfold field_compatible; tauto; apply seplog_prop_ext; tauto).
+      by (apply ND_prop_ext; unfold field_compatible; tauto; apply ND_prop_ext; tauto).
     normalize.
   } Unfocus.
   rewrite nested_field_offset2_ind with (gfs0 := StructField i :: gfs) by auto.
   unfold gfield_offset; rewrite H.
   f_equal; [| f_equal].
-  + apply seplog_prop_ext.
+  + apply ND_prop_ext.
     rewrite field_compatible_cons, H.
     tauto.
   + rewrite sizeof_Tstruct.
-    f_equal; [| f_equal]; f_equal; omega.
+    f_equal; [| f_equal; f_equal]; omega.
   + rewrite Z.add_assoc.
     erewrite data_at'_type_changable; [reflexivity | |].
     - simpl.
@@ -558,22 +558,22 @@ Proof.
   destruct (legal_nested_field_dec t (UnionField i :: gfs)).
   Focus 2. {
     replace (!!field_compatible t (UnionField i :: gfs) (Vptr b (Int.repr ofs)) : mpred) with (FF: mpred)
-      by (apply seplog_prop_ext; unfold field_compatible; tauto).
+      by (apply ND_prop_ext; unfold field_compatible; tauto).
     simpl in n.
     rewrite H in n.
     simpl in n.
     replace (!!field_compatible t gfs (Vptr b (Int.repr ofs)) : mpred) with (FF: mpred)
-      by (apply seplog_prop_ext; unfold field_compatible; tauto).
+      by (apply ND_prop_ext; unfold field_compatible; tauto).
     normalize.
   } Unfocus.
   rewrite nested_field_offset2_ind with (gfs0 := UnionField i :: gfs) by auto.
   unfold gfield_offset; rewrite H.
   f_equal; [| f_equal].
-  + apply seplog_prop_ext.
+  + apply ND_prop_ext.
     rewrite field_compatible_cons, H.
     tauto.
   + rewrite sizeof_Tunion.
-    f_equal; [| f_equal]; f_equal; omega.
+    f_equal; [| f_equal; f_equal]; omega.
   + rewrite Z.add_0_r.
     erewrite data_at'_type_changable; [reflexivity | |].
     - simpl.
@@ -608,7 +608,7 @@ Proof.
   rewrite array_pred_len_1.
   rewrite !at_offset_eq.
   f_equal.
-  + rewrite (seplog_prop_ext _ _ (field_compatible_field_compatible0' t i gfs p)).
+  + rewrite (ND_prop_ext _ _ (field_compatible_field_compatible0' t i gfs p)).
     normalize.
   + erewrite data_at'_type_changable; [reflexivity | | auto].
     - rewrite !nested_field_type2_ind with (gfs0 := _ :: gfs).
@@ -629,7 +629,7 @@ Proof.
   rewrite split_array_pred with (mid0 := mid) by auto.
   normalize.
   f_equal.
-  apply seplog_prop_ext.
+  apply ND_prop_ext.
   assert (0 <= lo -> 0 <= mid) by omega.
   assert (hi <= z -> mid <= z) by omega.
   tauto.
@@ -722,12 +722,12 @@ Proof.
     solve_mod_modulus;
     intros.
     f_equal. (* It magically solved the potential second subgoal *)
-    apply seplog_prop_ext.
+    apply ND_prop_ext.
     tauto.
   + replace (!!field_compatible (nested_field_type2 t gfs) nil Vundef: mpred) with FF
-      by (apply seplog_prop_ext; unfold field_compatible; simpl isptr; tauto).
+      by (apply ND_prop_ext; unfold field_compatible; simpl isptr; tauto).
     replace (!!field_compatible t gfs p : mpred) with FF
-      by (apply seplog_prop_ext; tauto).
+      by (apply ND_prop_ext; tauto).
     normalize.
 Qed.
 
@@ -776,11 +776,11 @@ Proof.
   rewrite at_offset_array_pred.
   destruct (field_compatible0_dec t (ArraySubsc lo :: gfs) p); [|
     replace (!! field_compatible0 t (ArraySubsc lo :: gfs) p: mpred) with FF
-      by (apply seplog_prop_ext; tauto);
+      by (apply ND_prop_ext; tauto);
     normalize].
   destruct (field_compatible0_dec t (ArraySubsc hi :: gfs) p); [|
     replace (!! field_compatible0 t (ArraySubsc hi :: gfs) p: mpred) with FF
-      by (apply seplog_prop_ext; tauto);
+      by (apply ND_prop_ext; tauto);
     normalize].
   pose proof field_compatible0_nested_field_array t gfs lo hi p f f0.
   normalize.
@@ -825,9 +825,9 @@ Proof.
   destruct (field_compatible0_dec t (ArraySubsc lo :: gfs) p).
   + unfold array_at; normalize.
     f_equal.
-    apply seplog_prop_ext; tauto.
+    apply ND_prop_ext; tauto.
   + replace (!! field_compatible0 t (ArraySubsc lo :: gfs) p: mpred) with FF
-      by (apply seplog_prop_ext; tauto).
+      by (apply ND_prop_ext; tauto).
     rewrite data_at_isptr with (p := Vundef).
     change (!!isptr Vundef: mpred) with FF.
     normalize.
@@ -870,7 +870,7 @@ Qed.
 
 Lemma field_at__memory_block: forall sh t gfs p, 
   field_at_ sh t gfs p =
-  memory_block sh (Int.repr (sizeof cenv_cs (nested_field_type2 t gfs))) (field_address t gfs p).
+  memory_block sh (sizeof cenv_cs (nested_field_type2 t gfs)) (field_address t gfs p).
 Proof.
   intros.
   unfold field_address.
@@ -901,7 +901,7 @@ Proof.
       normalize.
   + unfold field_at_, field_at.
     rewrite memory_block_isptr.
-    replace (!!field_compatible t gfs p : mpred) with FF by (apply seplog_prop_ext; tauto).
+    replace (!!field_compatible t gfs p : mpred) with FF by (apply ND_prop_ext; tauto).
     replace (!!isptr Vundef : mpred) with FF by reflexivity.
     normalize.
 Qed.
@@ -915,7 +915,7 @@ Qed.
 
 Lemma data_at__memory_block: forall sh t p,
   data_at_ sh t p =
-  (!! field_compatible t nil p) && memory_block sh (Int.repr (sizeof cenv_cs t)) p.
+  (!! field_compatible t nil p) && memory_block sh (sizeof cenv_cs t) p.
 Proof.
   intros.
   unfold data_at_, data_at.
@@ -925,14 +925,14 @@ Proof.
   + normalize.
   + unfold field_at_, field_at.
     rewrite memory_block_isptr.
-    replace (!!field_compatible t nil p : mpred) with FF by (apply seplog_prop_ext; tauto).
+    replace (!!field_compatible t nil p : mpred) with FF by (apply ND_prop_ext; tauto).
     replace (!!isptr Vundef : mpred) with FF by reflexivity.
     normalize.
 Qed.
 
 Lemma memory_block_data_at_: forall sh t p,
   field_compatible t nil p ->
-  memory_block sh (Int.repr (sizeof cenv_cs t)) p = data_at_ sh t p.
+  memory_block sh (sizeof cenv_cs t) p = data_at_ sh t p.
 Proof.
   intros.
   rewrite data_at__memory_block.
@@ -942,7 +942,7 @@ Qed.
 Lemma data_at__memory_block_cancel:
    forall sh t p, 
        sizeof cenv_cs t < Int.modulus ->
-       data_at_ sh t p |-- memory_block sh (Int.repr (sizeof cenv_cs t)) p.
+       data_at_ sh t p |-- memory_block sh (sizeof cenv_cs t) p.
 Proof.
   intros.
   rewrite data_at__memory_block.
@@ -953,7 +953,7 @@ Lemma data_at_memory_block:
   forall sh t v p, 
      field_compatible t nil p ->
      sizeof cenv_cs t < Int.modulus ->
-     data_at sh t v p |-- memory_block sh (Int.repr (sizeof cenv_cs t)) p.
+     data_at sh t v p |-- memory_block sh (sizeof cenv_cs t) p.
 Proof.
   intros.
   subst.
@@ -1004,7 +1004,7 @@ Proof.
   + unfold field_at.
     replace (!! field_compatible t (ArraySubsc i :: gfs) p : mpred) with FF; [normalize |].
     pose proof field_compatible_field_compatible0 t (ArraySubsc i :: gfs) p.
-    apply seplog_prop_ext; tauto.
+    apply ND_prop_ext; tauto.
 Qed.
 
 (************************************************
@@ -1272,7 +1272,7 @@ Qed.
 
 Lemma memory_block_conflict: forall sh n m p,
   0 < n <= Int.max_unsigned -> 0 < m <= Int.max_unsigned ->
-  memory_block sh (Int.repr n) p * memory_block sh (Int.repr m) p |-- FF.
+  memory_block sh n p * memory_block sh m p |-- FF.
 Proof.
   intros.
   destruct H, H0.
@@ -1284,18 +1284,19 @@ Opaque memory_block.
   rewrite Int.unsigned_repr in Hn; [| split; omega].
   rewrite <- (nat_of_Z_eq n) in H; [|omega].
   rewrite <- Hn in H.
-  destruct n'; simpl in H; [omega|].
+  destruct n'; [simpl in H; omega | rewrite Nat2Z.inj_succ in H].
 
   remember (nat_of_Z (Int.unsigned (Int.repr m))) as m' eqn:Hm.
   rewrite Int.unsigned_repr in Hm; [| split; omega].
   rewrite <- (nat_of_Z_eq m) in H0; [|omega].
   rewrite <- Hm in H0.
-  destruct m'; simpl in H0; [omega|].
+  destruct m'; [simpl in H0; omega | rewrite Nat2Z.inj_succ in H0].
   simpl.
   unfold mapsto_.
   apply derives_trans with (mapsto sh (Tint I8 Unsigned noattr) (Vptr b (Int.repr (Int.unsigned i)))
      Vundef * mapsto sh (Tint I8 Unsigned noattr) (Vptr b (Int.repr (Int.unsigned i)))
       Vundef * TT).
+  rewrite <- Hn, <- Hm; simpl.
   cancel.
   apply derives_trans with (FF * TT).
   apply sepcon_derives; [|cancel].
@@ -1415,7 +1416,7 @@ Proof.
   destruct (eval_lvar id t rho); simpl in *; normalize.
   subst.
   f_equal.
-  apply seplog_prop_ext.
+  apply ND_prop_ext.
   unfold field_compatible.
   unfold isptr, legal_nested_field, size_compatible, align_compatible.
   change (Int.unsigned Int.zero) with 0.

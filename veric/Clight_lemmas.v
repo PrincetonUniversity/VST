@@ -354,3 +354,7 @@ Proof.
     inversion H2; simpl; unfold align_attr;
     destruct (attr_alignas a); try inversion H0; reflexivity.
 Qed.
+
+Lemma block_eq_dec: forall b1 b2: block, {b1 = b2} + {b1 <> b2}.
+Proof. exact (Coqlib.peq). Qed.
+

@@ -61,7 +61,6 @@ Proof. unfold mapsto_; intros.
   normalize.
 Qed.
 
-
 Lemma mapsto_local_facts:
   forall sh t v1 v2,  mapsto sh t v1 v2 |-- !! (isptr v1).
   (* could make this slightly stronger by adding the fact
@@ -121,11 +120,9 @@ Lemmas about memory_block
 
 ******************************************)
 
-Lemma memory_block_zero_Vptr: forall sh b z, memory_block sh (Int.repr 0) (Vptr b z) = emp.
+Lemma memory_block_zero_Vptr: forall sh b z, memory_block sh 0 (Vptr b z) = emp.
 Proof.
   intros. unfold memory_block.
-  change (Int.repr 0) with Int.zero.
-  rewrite Int.unsigned_zero.
   change (nat_of_Z 0) with (0%nat).
   unfold memory_block'.
   pose proof Int.unsigned_range z.
@@ -158,7 +155,7 @@ Proof.
   apply memory_block_local_facts.
 Qed.
 
-Lemma memory_block_zero: forall sh p, memory_block sh (Int.repr 0) p = !! isptr p && emp.
+Lemma memory_block_zero: forall sh p, memory_block sh 0 p = !! isptr p && emp.
 Proof.
   intros.
   rewrite memory_block_isptr.
@@ -169,15 +166,6 @@ Proof.
   repeat rewrite FF_andp;
   auto.
 Qed.
-
-(******************************************
-
-To prove memory_block_mapsto_
-
-******************************************)
-
-(*** This part are totally written on a lower leverl. So, It might be better to 
-move to somewhere else ***)
 
 Lemma access_mode_by_value: forall t, type_is_by_value t = true -> exists ch, access_mode t = By_value ch.
 Proof.
@@ -196,275 +184,6 @@ Proof.
   intros.
   apply Int.eqm_repr_eq.
   apply Int.eqm_refl.
-Qed.
-
-Lemma FF_orp: forall {A: Type} `{NatDed A} (P: A), FF || P = P.
-Proof.
-  intros.
-  apply pred_ext.
-  + apply orp_left.
-    apply FF_left.
-    apply derives_refl.
-  + apply orp_right2.
-    apply derives_refl.
-Qed.
-
-Lemma mapsto__exp_address_mapsto:
-  forall sh t b i_ofs ch,
-   access_mode t = By_value ch ->
-   type_is_volatile t = false ->
-   mapsto_ sh t (Vptr b i_ofs) = EX  v2' : val,
-             address_mapsto ch v2' (Share.unrel Share.Lsh sh)
-               (Share.unrel Share.Rsh sh) (b, (Int.unsigned i_ofs)).
-Proof.
-  intros.
-  unfold mapsto_, mapsto.
-  rewrite H.
-  assert (!!(tc_val t Vundef) = @FF mpred Nveric)
-    by (destruct t as [ | | | [ | ] |  | | | | ]; reflexivity).
-  rewrite H1.
-  rewrite FF_andp, FF_orp.
-  assert (!!(Vundef = Vundef) = @TT mpred Nveric) by (apply pred_ext; normalize).
-  rewrite H2.
-  rewrite TT_andp.
-  rewrite H0.
-  reflexivity.
-Qed.
-
-Fixpoint list_address_mapsto ch vs rsh sh b ofs :=
-  match vs with
-  | nil => emp
-  | v :: vs' => address_mapsto ch v rsh sh (b, Int.unsigned (Int.repr ofs)) * list_address_mapsto ch vs' rsh sh b (ofs + 1)
-  end.
-
-Lemma memory_block'_list_address_mapsto: forall sh n b ofs, memory_block' sh n b ofs = EX vs: list val, (!! (length vs = n)) && list_address_mapsto Mint8unsigned vs (Share.unrel Share.Lsh sh) (Share.unrel Share.Rsh sh) b ofs.
-Proof.
-  intros.
-  apply pred_ext; revert ofs; induction n; intros.
-  + apply (exp_right nil).
-    simpl.
-    normalize.
-  + simpl.
-    erewrite mapsto__exp_address_mapsto; [|reflexivity|simpl; reflexivity].
-    eapply derives_trans; [apply sepcon_derives; [apply derives_refl| exact (IHn (ofs + 1))]|].
-    normalize.
-    apply (exp_right (x :: v2')).
-    simpl.
-    normalize.
-  + normalize. 
-    destruct vs; simpl; [normalize | inversion H].
-  + normalize.
-    destruct vs; simpl; inversion H.
-    erewrite mapsto__exp_address_mapsto; [|reflexivity|simpl; reflexivity].
-    apply sepcon_derives. 
-    - apply (exp_right v).
-      normalize.
-    - rewrite H1. eapply derives_trans; [| exact (IHn (ofs + 1))].
-      apply (exp_right vs).
-      normalize.
-Qed.
-
-(*
-(* not used here, but could be moved elsewhere *)
-
-Lemma allp_forall: forall A P Q (x:A), (forall x:A, (P x = Q)) -> (allp P = Q).
-Proof.
-  intros.
-  apply pred_ext.
-  + apply (allp_left _ x).
-    rewrite H.
-    apply derives_refl.
-  + apply allp_right.
-    intros.
-    rewrite H.
-    apply derives_refl.
-Qed.
-
-Lemma allp_andp: forall P Q, allp (P && Q) = allp P && allp Q.
-Proof.
-  intros.
-  apply pred_ext.
-  + apply andp_right; apply allp_derives; intros;
-    simpl; [apply andp_left1|apply andp_left2]; apply derives_refl.
-  + apply allp_right; intros.
-    simpl; apply andp_right; [apply andp_left1|apply andp_left2];
-    apply (allp_left _ v); apply derives_refl.
-Qed.
-*)
-Lemma address_mapsto_VALspec_range'_aux: forall n l P, n >= 0 -> (forall l0, adr_range l n l0 -> exists v, P l0 v) -> (exists vs, length vs = nat_of_Z n /\ (forall l0, adr_range l n l0 -> P l0 (nth (nat_of_Z (snd l0 - snd l)) vs Memdata.Undef))).
-Proof.
-  intros.
-  remember (nat_of_Z n) as m.
-  assert (Z_of_nat m = n) by (subst m; apply (nat_of_Z_eq _ H)); clear Heqm; subst n.
-  clear H.
-  revert l H0; induction m; intros.
-  + exists nil; split; [reflexivity |intros].
-    unfold adr_range in H; destruct l, l0. destruct H as [? [? ?]]; subst. 
-    change (Z.of_nat 0) with 0 in H2. omega.
-  + assert (forall l0 : address, adr_range (fst l, snd l + 1) (Z.of_nat m) l0 ->
-      exists v : Memdata.memval, P l0 v).
-      intros.
-      assert (adr_range l (Z.of_nat (S m)) l0).
-        unfold adr_range in *.
-        destruct l, l0.
-        simpl in H.
-        destruct H as [? [? ?]].
-        subst; split; [reflexivity| split]. omega.
-        rewrite Nat2Z.inj_succ; rewrite <- Z.add_1_l. omega.
-      exact (H0 l0 H1).
-    destruct (IHm (fst l, snd l + 1) H) as [v_tl ?].
-    destruct H1.
-    destruct (H0 l) as [v_hd ?].
-      unfold adr_range; destruct l.
-      split; [reflexivity|split; [|rewrite Nat2Z.inj_succ; rewrite <- Z.add_1_l]; omega].
-    exists (v_hd :: v_tl).
-    split; [simpl; rewrite H1; reflexivity|].
-    intros.
-    destruct (adr_range_dec l 1 l0).
-    - unfold adr_range in a; destruct l0, l; destruct a as [? [? ?]].
-      assert (z = z0) by omega; subst.
-      rewrite <- Zminus_diag_reverse.
-      simpl. exact H3.
-    - unfold adr_range in *; destruct l, l0; simpl.
-      destruct H4 as [? [? ?]].
-      destruct (zlt z0 (z + 1)); [pose proof n (conj H4 (conj H5 l)); inversion H7|clear n].
-      rewrite Nat2Z.inj_succ in H6; rewrite <- Z.add_1_l in H6.
-      assert (fst (b, z) = b0 /\
-        snd (b, z) + 1 <= z0 < z + 1 + Z.of_nat m).
-        split; [exact H4| split;[simpl|]; omega].
-      simpl in *.
-      pose proof H2 (b0, z0) H7.
-      simpl in H8.
-      replace (nat_of_Z (z0 - z)) with (S (nat_of_Z (z0 - (z + 1)))); [exact H8|].
-      replace (z0 - z) with ((z0 - (z + 1)) + 1) by omega.
-      rewrite nat_of_Z_plus; [|omega|omega].
-      change (nat_of_Z 1) with 1%nat.
-      omega.
-Qed.
-
-Lemma address_mapsto_VALspec_range':
-  forall (ch : memory_chunk) (rsh sh : Share.t)
-    (l : compcert_rmaps.RML.R.AV.address),
-    (Memdata.align_chunk ch | snd l) ->
-    exp (fun v => res_predicates.address_mapsto ch v rsh sh l) = 
-    (res_predicates.VALspec_range (Memdata.size_chunk ch) rsh sh l).
-Proof.
-  intros.
-  apply pred_ext.
-  + normalize.
-    apply res_predicates.address_mapsto_VALspec_range.
-  + unfold res_predicates.VALspec_range.
-    change derives with (@predicates_hered.derives compcert_rmaps.RML.R.rmap compcert_rmaps.R.ag_rmap).
-    change (@predicates_hered.pred compcert_rmaps.RML.R.rmap compcert_rmaps.R.ag_rmap) with mpred.
-    change (@exp mpred Nveric) with (@predicates_hered.exp compcert_rmaps.RML.R.rmap compcert_rmaps.R.ag_rmap).
-    unfold predicates_hered.derives, predicates_hered.allp, res_predicates.jam.
-    simpl in *.
-    intros.
-    assert (forall b : address, adr_range l (Memdata.size_chunk ch) b -> exists b0,
-      exists (p : sepalg.nonunit sh), @eq compcert_rmaps.RML.R.resource
-                  (compcert_rmaps.RML.R.resource_at a b)
-                  (compcert_rmaps.RML.R.YES rsh
-                     (@psepalg.mk_lifted Share.t Share.Join_ba sh p)
-                     (compcert_rmaps.VAL b0)
-                     (compcert_rmaps.RML.R.SomeP
-                        (@cons Type sepalg_generators.Void (@nil Type))
-                        (@base.compose (prod sepalg_generators.Void unit)
-                           (@predicates_hered.pred compcert_rmaps.RML.R.rmap
-                              compcert_rmaps.RML.R.ag_rmap)
-                           (@predicates_hered.pred compcert_rmaps.RML.R.rmap
-                              compcert_rmaps.RML.R.ag_rmap)
-                           (compcert_rmaps.RML.R.approx
-                              (@ageable.level compcert_rmaps.RML.R.rmap
-                                 compcert_rmaps.R.ag_rmap a))
-                           (fun _ : prod sepalg_generators.Void unit =>
-                            @predicates_hered.FF compcert_rmaps.RML.R.rmap
-                              compcert_rmaps.RML.R.ag_rmap))))).
-      intros.
-      pose proof H0 b.
-      destruct (adr_range_dec l (Memdata.size_chunk ch) b); [exact H2|congruence].
-    apply address_mapsto_VALspec_range'_aux in H1.
-    destruct H1 as [vs [? ?]].
-    exists (Memdata.decode_val ch vs).
-    exists vs.
-    repeat split.
-    - unfold Memdata.size_chunk_nat.
-      exact H1.
-    - exact H.
-    - intros.
-      pose proof H0 b; clear H0.
-      destruct (adr_range_dec l (Memdata.size_chunk ch) b);
-      [apply H2; exact a0 | exact H3].
-    - pose proof size_chunk_pos ch. omega.
-Qed.
-
-Lemma allp_jam_range_basic: forall b ofs P,
-  allp (res_predicates.jam (adr_range_dec (b, ofs) 0) P res_predicates.noat) = emp.
-Proof.
-  intros.
-  assert ((res_predicates.jam (adr_range_dec (b, ofs) 0) P res_predicates.noat) =
-    res_predicates.noat).
-    extensionality.  
-    apply res_predicates.jam_false.
-    unfold not.
-    unfold adr_range; intros.
-    destruct x.
-    destruct H.
-    omega.
-  rewrite H.
-  change emp with predicates_sl.emp.
-  change allp with (@predicates_hered.allp compcert_rmaps.RML.R.rmap compcert_rmaps.R.ag_rmap address).
-  apply res_predicates.allp_noat_emp.
-Qed.
-
-Lemma address_mapsto_list_address_mapsto_Mint8unsigned:
-  forall ch rsh sh b ofs, (Memdata.align_chunk ch | ofs) -> 
-  (Memdata.size_chunk ch + ofs <= Int.modulus) ->
-  ofs >= 0 ->
-  EX v:val, address_mapsto ch v rsh sh (b, ofs) = 
-  EX vs:list val, !! (length vs = Memdata.size_chunk_nat ch) && list_address_mapsto Mint8unsigned vs rsh sh b ofs.
-Proof.
-  intros. rename H0 into H99. rename H1 into H98.
-  rewrite address_mapsto_VALspec_range'; [|simpl; exact H].
-  rewrite Memdata.size_chunk_conv in *.
-  clear H.
-  forget (Memdata.size_chunk_nat ch) as n.
-  revert ofs H99 H98; induction n; intros.
-  + intros.
-    change (Z.of_nat 0) with 0.
-    rewrite res_predicates.VALspec_range_0.
-    apply pred_ext.
-    - apply (exp_right nil).
-      normalize.
-    - normalize.
-      destruct vs; inversion H.
-      simpl.
-      apply derives_refl.
-  + erewrite res_predicates.VALspec_range_split2; [|
-      rewrite Nat2Z.inj_succ; rewrite <- Z.add_1_l; reflexivity |
-      omega |
-      apply seplog.Z_of_nat_ge_O].
-    change 1 with (Memdata.size_chunk Mint8unsigned) at 1.
-    rewrite <- address_mapsto_VALspec_range' at 1; [|simpl; apply Z.divide_1_l].
-    rewrite Nat2Z.inj_succ in H99; rewrite <- Z.add_1_l in H99.
-    rewrite IHn; [| omega|omega].
-    change predicates_sl.sepcon with sepcon.
-    assert (Int.Z_mod_modulus ofs = ofs).
-      rewrite Int.Z_mod_modulus_eq.
-      rewrite Zmod_small; [reflexivity|split; try omega].
-    apply pred_ext.
-    - normalize.
-      apply (exp_right (x :: v)).
-      normalize.
-      simpl.
-      unfold Int.unsigned; simpl; rewrite H; apply derives_refl.
-    - normalize.
-      destruct vs; inversion H0.
-      apply (exp_right vs).
-      normalize.
-      apply (exp_right v).
-      simpl.
-      normalize.
-      unfold Int.unsigned; simpl; rewrite H; apply derives_refl.
 Qed.
 
 Lemma mapsto_by_value: forall sh t p v, mapsto sh t p v = !! (type_is_by_value t = true) && mapsto sh t p v.
@@ -486,42 +205,6 @@ Section COMPSPECS.
 
 Context {cs: compspecs}.
 Context {csl: compspecs_legal cs}.
-
-(*
-Lemma align_chunk_alignof: forall t ch, access_mode t = By_value ch -> legal_alignas_type t = true -> alignof cenv_cs t = Memdata.align_chunk ch.
-Proof.
-Transparent alignof.
-  intros.
-  destruct t; inversion H.
-  - unfold legal_alignas_type in H0.
-    simpl in H0.
-    destruct i, s; inversion H2; simpl; rewrite nested_pred_ind in H0; simpl in H0; unfold align_attr;
-    destruct (attr_alignas a); try inversion H0; reflexivity.
-  - unfold legal_alignas_type in H0.
-    simpl in H0.
-    destruct s; inversion H2; simpl; rewrite nested_pred_ind in H0; simpl in H0; unfold align_attr;
-    destruct (attr_alignas a); try inversion H0; admit. (* Tlong uncompatible problem *)
-  - unfold legal_alignas_type in H0.
-    simpl in H0.
-    destruct f; inversion H2; simpl; rewrite nested_pred_ind in H0; simpl in H0; unfold align_attr;
-    destruct (attr_alignas a); try inversion H0; reflexivity.
-  - unfold legal_alignas_type in H0.
-    simpl in H0.
-    inversion H2; simpl; rewrite nested_pred_ind in H0; simpl in H0; unfold align_attr;
-    destruct (attr_alignas a); try inversion H0; reflexivity.
-Opaque alignof.
-Qed.
-
-Lemma size_chunk_sizeof: forall t ch, access_mode t = By_value ch -> sizeof cenv_cs t = Memdata.size_chunk ch.
-Proof.
-  intros.
-  destruct t; inversion H.
-  - destruct i, s; inversion H1; reflexivity.
-  - destruct s; inversion H1; reflexivity.
-  - destruct f; inversion H1; reflexivity.
-  - inversion H1; reflexivity.
-Qed.
-*)
 
 Lemma legal_alignas_by_value: forall t,
   legal_alignas_type t = true ->
@@ -545,43 +228,14 @@ Proof.
   destruct (attr_alignas a); congruence.
 Qed.
 
-Lemma memory_block_mapsto__aux:
-  forall n sh t b i_ofs,
-   type_is_by_value t = true ->
-   type_is_volatile t = false ->
-   legal_alignas_type t = true ->
-   (alignof cenv_cs t | Int.unsigned i_ofs) ->
-   Int.unsigned n = sizeof cenv_cs t ->
-   sizeof cenv_cs t + Int.unsigned i_ofs <= Int.modulus ->
-   memory_block sh n (Vptr b i_ofs) = mapsto_ sh t (Vptr b i_ofs).
-Proof.
-  intros.
-  unfold memory_block.
-  rewrite memory_block'_list_address_mapsto.
-  destruct (access_mode_by_value t H) as [ch ?].
-  erewrite mapsto__exp_address_mapsto; [|exact H5|exact H0].
-  rewrite address_mapsto_list_address_mapsto_Mint8unsigned; 
-    [| erewrite align_chunk_alignof in H2; [exact H2| exact H5| apply legal_alignas_by_value; auto] 
-     | erewrite <- size_chunk_sizeof; [exact H4|exact H5]
-     | destruct (Int.unsigned_range i_ofs); omega
-    ].
-  unfold Memdata.size_chunk_nat.
-  erewrite size_chunk_sizeof in H3; [| exact H5].
-  rewrite H3.
-  assert (Int.unsigned i_ofs + Memdata.size_chunk ch <= Int.modulus) by 
-    (erewrite <- size_chunk_sizeof with (env := cenv_cs); [|exact H5]; omega).
-  apply pred_ext; normalize; apply (exp_right vs); normalize.
-Qed.
-
 Lemma memory_block_mapsto_:
-  forall n sh t p, 
+  forall sh t p, 
    type_is_by_value t = true ->
    type_is_volatile t = false ->
    legal_alignas_type t = true ->
-   Int.unsigned n = sizeof cenv_cs t ->
    size_compatible t p ->
    align_compatible t p ->
-   memory_block sh n p = mapsto_ sh t p.
+   memory_block sh (sizeof cenv_cs t) p = mapsto_ sh t p.
 Proof.
   intros.
   destruct p.
@@ -590,25 +244,23 @@ Proof.
   + unfold mapsto_, mapsto; destruct (access_mode t), (type_is_volatile t); reflexivity.
   + unfold mapsto_, mapsto; destruct (access_mode t), (type_is_volatile t); reflexivity.
   + unfold mapsto_, mapsto; destruct (access_mode t), (type_is_volatile t); reflexivity.
-  + apply memory_block_mapsto__aux; try assumption.
-    simpl in H3.
-    omega.
+  + simpl in H2, H3.
+    destruct (access_mode_by_value _ H) as [ch ?].
+    eapply legal_alignas_access_by_value in H1; [| eauto].
+    erewrite size_chunk_sizeof in H2 |- * by eauto.
+    erewrite align_chunk_alignof in H3 by eauto.
+    rewrite seplog.mapsto__memory_block with (ch := ch); auto.
 Qed.
 
 Lemma memory_block_size_compatible:
   forall sh t p,
   sizeof cenv_cs t < Int.modulus ->
-  memory_block sh (Int.repr (sizeof cenv_cs t)) p = 
-  !! (size_compatible t p) && memory_block sh (Int.repr (sizeof cenv_cs t)) p.
+  memory_block sh (sizeof cenv_cs t) p = 
+  !! (size_compatible t p) && memory_block sh (sizeof cenv_cs t) p.
 Proof.
   intros.
   unfold memory_block, size_compatible.
-  replace (Int.unsigned (Int.repr (sizeof cenv_cs t))) with (sizeof cenv_cs t).
   apply pred_ext; destruct p; normalize.
-  pose proof sizeof_pos cenv_cs t. 
-  rewrite Int.unsigned_repr; [reflexivity|].
-  unfold Int.max_unsigned.
-  omega.
 Qed.
 
 Lemma mapsto_align_compatible:
@@ -706,6 +358,7 @@ Qed.
 Global Opaque memory_block.
 
 End COMPSPECS.
+
 (******************************************
 
 Other lemmas
@@ -1088,7 +741,7 @@ Definition spacer (sh: share) (be: Z) (ed: Z) : val -> mpred :=
   if Z.eq_dec (ed - be) 0
   then fun _ => emp
   else
-    at_offset (memory_block sh (Int.repr (ed - be))) be.
+    at_offset (memory_block sh (ed - be)) be.
 (* Arguments spacer sh be ed / _ . *)
 
 Definition withspacer sh (be: Z) (ed: Z) P (p: val): mpred :=
@@ -1164,7 +817,7 @@ Transparent memory_block.
 
 Lemma spacer_memory_block:
   forall sh be ed v, isptr v -> 
- spacer sh be ed v = memory_block sh (Int.repr (ed - be)) (offset_val (Int.repr be) v).
+ spacer sh be ed v = memory_block sh (ed - be) (offset_val (Int.repr be) v).
 Proof.
   intros.
   destruct v; inv H.
@@ -1179,30 +832,5 @@ Hint Rewrite at_offset_eq3 : at_offset_db.
 Hint Rewrite withspacer_spacer : at_offset_db.
 Hint Rewrite spacer_memory_block using (simpl; auto): at_offset_db.
 
-(*
-Lemma withspacer_memory_block: forall sh be ed p,
-  0 <= be <= ed ->
-  ed < Int.modulus ->
-  offset_in_range ed p ->
-  withspacer sh be ed (memory_block sh (Int.repr be)) p = memory_block sh (Int.repr ed) p.
-Proof.
-  intros.
-  rewrite withspacer_spacer; unfold spacer; simpl.
-  if_tac.
-  + assert (ed = be) by omega; subst.
-    apply emp_sepcon.
-  + rewrite at_offset_eq.
-    destruct p; try solve [(simpl; apply FF_sepcon)].
-    unfold offset_val, Int.add.
-    pattern i at 2 3;  (* do it this way for compatibility with Coq 8.4pl3 *)
-    replace i with (Int.repr (Int.unsigned i)) by apply Int.repr_unsigned.
-    rewrite !Int.unsigned_repr by (unfold Int.max_unsigned; omega).
-    simpl in H1.
-    rewrite sepcon_comm.
-    pose proof Int.unsigned_range i.
-    rewrite <- memory_block_split by omega.
-    f_equal; f_equal; omega.
-Qed.
-*)
 Opaque memory_block.
 
