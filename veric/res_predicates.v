@@ -1803,30 +1803,38 @@ Proof.
   apply sepcon_derives; auto.
 Qed.
 
+Lemma VALspec_range_overlap: forall rsh sh p1 p2 n1 n2,
+  adr_range p1 n1 p2 ->
+  n2 > 0 ->
+  VALspec_range n1 rsh sh p1 * VALspec_range n2 rsh sh p2 |-- FF.
+Proof.
+  intros.
+  intros w [w1 [w2 [? [? ?]]]].
+  spec H2 p2.
+  spec H3 p2.
+  rewrite jam_true in H2 by auto.
+  rewrite jam_true in H3 by (destruct p2; simpl; split; auto; omega).
+  destruct H2; destruct H3. hnf in H2,H3.
+  apply (resource_at_join _ _ _ p2) in H1.
+  destruct H2, H3.
+  rewrite H2, H3 in H1.
+  clear - x1 H1; simpl in H1.
+  inv H1.
+  do 3 red in H0. simpl in H0.
+  generalize (join_self H0); intro.
+  rewrite <- H in H0.
+  apply x2 in H0. contradiction.
+Qed.
+
 Lemma address_mapsto_overlap:
   forall rsh sh ch1 v1 ch2 v2 a1 a2,
      adr_range a1 (size_chunk ch1) a2 ->
      address_mapsto ch1 v1 rsh sh a1 * address_mapsto ch2 v2 rsh sh a2 |-- FF.
 Proof.
-intros.
-intros w [w1 [w2 [? [? ?]]]].
-hnf in H1, H2.
-destruct H1 as [bl [_ ?]].
-destruct H2 as [bl' [_ ?]].
-spec H1 a2.
-spec H2 a2.
-rewrite jam_true in H1.
-rewrite jam_true in H2.
-destruct H1; destruct H2. hnf in H1,H2.
-apply (resource_at_join _ _ _ a2) in H0.
-rewrite H1 in H0; rewrite H2 in H0.
-clear - H0; simpl in H0.
-inv H0.
-do 3 red in H1. simpl in H1.
-generalize (join_self H1); intro.
-rewrite <- H in H1.
-apply x in H1. contradiction.
-generalize (size_chunk_pos ch2); intro;
-destruct a2; split; auto; omega.
-auto.
+  intros.
+  eapply derives_trans; [eapply sepcon_derives | apply VALspec_range_overlap].
+  + apply address_mapsto_VALspec_range.
+  + apply address_mapsto_VALspec_range.
+  + auto.
+  + apply size_chunk_pos.
 Qed.
