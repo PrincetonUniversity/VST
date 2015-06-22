@@ -1843,10 +1843,6 @@ Qed.
 
 Definition MS (_:corestate)(c: corestate) (C: CC_core): Prop := match_states c C.
 
-Check cl_core_sem.
-Print genv.
-Print cl_core_sem.
-
 Definition coresem_extract_cenv {M} {core} (CS: CoreSemantics genv core M)
                          (cenv: composite_env) :
             CoreSemantics (Genv.t fundef type) core M :=

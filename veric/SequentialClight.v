@@ -27,8 +27,6 @@ Definition dryspec : ext_spec unit :=
      (*ext_spec_exit*)
      (fun rv m z => False).
 
-Print dry_safeN.
-
  Lemma whole_program_sequential_safety:
    forall prog V G m,
      @semax_prog NullExtension.Espec prog V G ->

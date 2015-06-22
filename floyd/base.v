@@ -10,12 +10,6 @@ Require Import veric.NullExtension.
 
 Local Open Scope logic.
 
-Lemma prop_and {A} {NA: NatDed A}: 
-    forall P Q: Prop, prop (P /\ Q) = (prop P && prop Q).
-Proof. intros. apply pred_ext. apply prop_left. intros [? ?]; normalize.
-   normalize.
-Qed.
-
 Hint Rewrite <- prop_and : gather_prop.
 
 Lemma gather_prop_left {A}{NA: NatDed A}:

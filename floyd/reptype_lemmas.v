@@ -430,6 +430,22 @@ Proof.
     apply union_default_filter_is_default_filter.
 Qed.
 
+Inductive pointer_val : Type :=
+  | ValidPointer: block -> int -> pointer_val
+  | NullPointer.
+
+Lemma PV_eq_dec: forall x y: pointer_val, {x = y} + {x <> y}.
+Proof.
+  intros; destruct x, y; [| right | right | left]; try congruence.
+  destruct (block_eq_dec b b0), (Int.eq_dec i i0); [left | right | right | right]; congruence.
+Qed.
+
+Definition pointer_val_val (pv: pointer_val): val :=
+  match pv with
+  | ValidPointer b i => Vptr b i
+  | NullPointer => Vint Int.zero
+  end.
+
 Definition reptype': type -> Type :=
   func_type (fun _ => Type)
   (fun t =>
@@ -438,6 +454,7 @@ Definition reptype': type -> Type :=
           | Tint _ _ _ => int
           | Tlong _ _ => Int64.int
           | Tfloat _ _ => float
+          | Tpointer _ _ => pointer_val
           | _ => val
           end
      else unit)
@@ -452,7 +469,7 @@ Notation REPTYPE' t :=
   | Tint _ _ a => int
   | Tlong _ a => Int64.int
   | Tfloat _ a => float
-  | Tpointer _ a => val
+  | Tpointer _ a => pointer_val
   | Tarray t0 _ _ => list (reptype' t0)
   | Tstruct id _ => compact_prod (map (fun it => reptype' (field_type (fst it) (co_members (get_co id)))) (co_members (get_co id)))
   | Tunion id _ => compact_sum (map (fun it => reptype' (field_type (fst it) (co_members (get_co id)))) (co_members (get_co id)))
@@ -523,7 +540,7 @@ Definition repinj_bv (t: type): reptype' t -> reptype t :=
    | Tint _ _ a => Vint
    | Tlong _ a => Vlong
    | Tfloat _ a => Vfloat
-   | Tpointer _ a => id
+   | Tpointer _ a => pointer_val_val
    | Tarray t0 n a => fun _ => nil
    | Tstruct id a => fun _ => struct_default_val _
    | Tunion id a => fun _ => union_default_val _
@@ -551,7 +568,7 @@ Lemma repinj_ind: forall t v,
    | Tint _ _ a => Vint
    | Tlong _ a => Vlong
    | Tfloat _ a => Vfloat
-   | Tpointer _ a => id
+   | Tpointer _ a => pointer_val_val
    | Tarray t0 _ _ => map (repinj t0)
    | Tstruct id a => compact_prod_map _ (ListTypeGen (fun it => reptype' (field_type (fst it) (co_members (get_co id))) -> reptype (field_type (fst it) (co_members (get_co id)))) (fun it => repinj (field_type (fst it) (co_members (get_co id)))) (co_members (get_co id)))
    | Tunion id a => compact_sum_map _ (ListTypeGen (fun it => reptype' (field_type (fst it) (co_members (get_co id))) -> reptype (field_type (fst it) (co_members (get_co id)))) (fun it => repinj (field_type (fst it) (co_members (get_co id)))) (co_members (get_co id)))

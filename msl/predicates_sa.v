@@ -814,3 +814,22 @@ apply join_unit1_e in H1; auto.
 subst; auto.
 Qed.
 
+Lemma ewand_conflict {T}{JT: Join T}{PT: Perm_alg T}{ST: Sep_alg T}:
+       forall P Q R, sepcon P Q |-- FF -> andp P (ewand Q R) |-- FF.
+Proof.
+ intros. intros w [? [w1 [w2 [? [? ?]]]]].
+ specialize (H w2). apply H. exists w; exists w1; repeat split; auto.
+Qed.
+
+Lemma ewand_TT_sepcon {T}{JT: Join T}{PT: Perm_alg T}{ST: Sep_alg T}:
+      forall P Q R,
+(P * Q && ewand R (!!True))%pred |-- (P && ewand R (!!True) * (Q && ewand R (!!True)))%pred.
+Proof.
+intros.
+intros w [[w1 [w2 [? [? ?]]]] [w3 [w4 [? [? ?]]]]].
+exists w1; exists w2; repeat split; auto.
+destruct (join_assoc (join_comm H) (join_comm H2)) as [f [? ?]].
+exists w3; exists f; repeat split; auto.
+destruct (join_assoc H (join_comm H2)) as [g [? ?]].
+exists w3; exists g; repeat split; auto.
+Qed.

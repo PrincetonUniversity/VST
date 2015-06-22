@@ -1,5 +1,4 @@
 Require Import msl.msl_standard.
-Require Import msl.corable.
 
 Local Open Scope pred.
 

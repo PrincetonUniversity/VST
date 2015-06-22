@@ -326,3 +326,19 @@ inv H0.
 rewrite <- In_rev in H; contradiction.
 auto.
 Qed.
+
+Lemma block_eq_dec: forall b1 b2: block, {b1 = b2} + {b1 <> b2}.
+Proof. exact (Coqlib.peq). Qed.
+
+Lemma Nat2Z_add_le: forall n i, Int.unsigned i + n <= Int.modulus ->
+  Z.of_nat (nat_of_Z n) + Int.unsigned i <= Int.modulus.
+Proof.
+  intros.
+  destruct (zle 0 n).
+  + rewrite Coqlib.nat_of_Z_eq by omega. omega.
+  + rewrite nat_of_Z_neg by omega.
+    pose proof Int.unsigned_range i.
+    simpl.
+    omega.
+Qed.
+

@@ -749,8 +749,8 @@ Proof.
   intros.
   destruct t as [| | | | | | | id ? | id ?], gf; try solve [simpl; apply Z.divide_1_l].
   + simpl.
-    rewrite legal_alignas_type_Tarray by auto.
-    apply Z.divide_refl.
+    apply legal_alignas_type_spec in H.
+    exact H.
   + eapply Z.divide_trans; [| apply legal_alignas_type_Tstruct; auto].
     simpl.
     destruct_in_members i (co_members (get_co id)).
@@ -773,7 +773,6 @@ Proof.
   intros.
   destruct t as [| | | | | | | id ? | id ?]; try solve [inversion H0].
   simpl.
-  rewrite !legal_alignas_type_Tarray by auto.
   apply Z.divide_refl.
 Qed.
 
@@ -811,12 +810,14 @@ Lemma gfield_offset_type_divide: forall gf t, legal_alignas_type t = true ->
   (alignof cenv_cs (gfield_type t gf) | gfield_offset t gf).
 Proof.
   intros.
+  pose proof H.
   destruct t as [| | | | | | | id ? | id ?], gf; try solve [simpl; apply Z.divide_0_r];
   unfold legal_alignas_type in H;
   rewrite nested_pred_ind in H;
   rewrite andb_true_iff in H;
   destruct H.
   + simpl.
+    erewrite legal_alignas_type_Tarray by eauto.
     apply Z.divide_mul_l.
     apply legal_alignas_sizeof_alignof_compat; auto.
   + simpl.
