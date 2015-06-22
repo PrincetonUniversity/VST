@@ -155,17 +155,22 @@ Defined.
 *)
 (******* Samples : legal_alignas_type *************)
 
+
+(*
+
+Currently, users can still write this kind of code in Compcert or GCC. As it
+will cause unexpected behaviors, such type definitions should be avoided.
+
+typedef int more_aligned_int __attribute ((aligned (8)));
+typedef more_aligned_int more_aligned_int_array[5];
+
+*)
+
 Definition local_legal_alignas_type (t: type): bool :=
+  Z.leb (plain_alignof cenv_cs t) (alignof cenv_cs t) &&
   match t with
-  | Tvoid
-  | Tfunction _ _ _ => true
-  | Tint _ _ a
-  | Tlong _ a
-  | Tfloat _ a
-  | Tpointer _ a 
-  | Tarray _ _ a
-  | Tstruct _ a
-  | Tunion _ a => match attr_alignas a with | Some _ => false | None => true end
+  | Tarray t' _ a => match attr_alignas (attr_of_type t') with None => true | _ => false end
+  | _ => true
   end.
 
 Definition legal_alignas_type := nested_pred local_legal_alignas_type.
@@ -185,14 +190,28 @@ Proof.
   omega.
 Qed.
 
-Lemma local_legal_alignas_type_Tarray: forall t z a,
-  local_legal_alignas_type (Tarray t z a) = true ->
-  alignof cenv_cs (Tarray t z a) = alignof cenv_cs t.
+Lemma local_legal_alignas_type_spec: forall t,
+  local_legal_alignas_type t = true ->
+  (plain_alignof cenv_cs t | alignof cenv_cs t).
 Proof.
   intros.
-  simpl in H |- *.
+  apply andb_true_iff in H.
+  destruct H as [? _].
+  apply Zle_is_le_bool in H.
+  apply power_nat_divide'; [apply alignof_two_p | apply plain_alignof_two_p | omega].
+Qed.
+  
+Lemma local_legal_alignas_type_Tarray: forall t z a,
+  local_legal_alignas_type (Tarray t z a) = true ->
+  alignof cenv_cs t = plain_alignof cenv_cs t.
+Proof.
+  intros.
+  unfold local_legal_alignas_type in H.
+  apply andb_true_iff in H.
+  destruct H as [_ ?].
+  rewrite plain_alignof_spec.
   unfold align_attr.
-  destruct (attr_alignas a); [inversion H |].
+  destruct (attr_alignas (attr_of_type t)); [inversion H |].
   auto.
 Qed.
 
@@ -201,11 +220,9 @@ Lemma local_legal_alignas_type_Tstruct: forall id a,
   (alignof_composite cenv_cs (co_members (get_co id)) | alignof cenv_cs (Tstruct id a)).
 Proof.
   intros.
-  unfold local_legal_alignas_type in H.
-  unfold alignof, align_attr.
-  simpl attr_of_type.
-  destruct (attr_alignas a); [inversion H |].
-  unfold get_co; destruct (cenv_cs ! id) as [co |] eqn:CO; [| exists 1; auto].
+  eapply Z.divide_trans; [| apply local_legal_alignas_type_spec; auto].
+  unfold plain_alignof, get_co.
+  destruct (cenv_cs ! id) as [co |] eqn:CO; [| exists 1; auto].
   apply power_nat_divide';
   try apply alignof_composite_two_p;
   try apply co_alignof_two_p.
@@ -217,25 +234,33 @@ Lemma local_legal_alignas_type_Tunion: forall id a,
   (alignof_composite cenv_cs (co_members (get_co id)) | alignof cenv_cs (Tunion id a)).
 Proof.
   intros.
-  unfold local_legal_alignas_type in H.
-  unfold alignof, align_attr.
-  simpl attr_of_type.
-  destruct (attr_alignas a); [inversion H |].
-  unfold get_co; destruct (cenv_cs ! id) as [co |] eqn:CO; [| exists 1; auto].
+  eapply Z.divide_trans; [| apply local_legal_alignas_type_spec; auto].
+  unfold plain_alignof, get_co.
+  destruct (cenv_cs ! id) as [co |] eqn:CO; [| exists 1; auto].
   apply power_nat_divide';
   try apply alignof_composite_two_p;
   try apply co_alignof_two_p.
   exact (cenv_legal_alignas id co CO).
 Qed.
 
-Lemma legal_alignas_type_Tarray: forall t z a,
-  legal_alignas_type (Tarray t z a) = true ->
-  alignof cenv_cs (Tarray t z a) = alignof cenv_cs t.
+Lemma legal_alignas_type_spec: forall t,
+  legal_alignas_type t = true ->
+  (plain_alignof cenv_cs t | alignof cenv_cs t).
 Proof.
   intros.
   unfold legal_alignas_type in H.
   apply nested_pred_atom_pred in H.
-  apply local_legal_alignas_type_Tarray.
+  apply local_legal_alignas_type_spec; auto.
+Qed.
+
+Lemma legal_alignas_type_Tarray: forall t z a,
+  legal_alignas_type (Tarray t z a) = true ->
+  alignof cenv_cs t = plain_alignof cenv_cs t.
+Proof.
+  intros.
+  unfold legal_alignas_type in H.
+  apply nested_pred_atom_pred in H.
+  eapply local_legal_alignas_type_Tarray.
   exact H.
 Qed.
 
@@ -260,31 +285,43 @@ Proof.
 Qed.
 
 Lemma legal_alignas_sizeof_alignof_compat: forall t,
-  legal_alignas_type t = true -> (alignof cenv_cs t | sizeof cenv_cs t).
+  legal_alignas_type t = true -> (plain_alignof cenv_cs t | sizeof cenv_cs t).
 Proof.
   intros.
   revert H.
   type_induction t; intros;
-  pose proof @nested_pred_atom_pred local_legal_alignas_type _ H as H0;
-  simpl in H, H0 |- *; unfold align_attr in *;
-  try (destruct (attr_alignas a); inversion H0).
+  pose proof @nested_pred_atom_pred local_legal_alignas_type _ H as H0.
   - apply Z.divide_refl.
   - destruct i; apply Z.divide_refl.
   - unfold Z.divide. exists 2. reflexivity.
   - destruct f. apply Z.divide_refl.
     unfold Z.divide. exists 2. reflexivity.
   - apply Z.divide_refl.
-  - apply (nested_pred_Tarray local_legal_alignas_type) in H.
+  - simpl.
+    erewrite legal_alignas_type_Tarray by eauto.
+    apply (nested_pred_Tarray local_legal_alignas_type) in H.
     apply IH in H.
     apply Z.divide_mul_l.
     exact H.
   - apply Z.divide_refl.
-  - destruct (cenv_cs ! id) as [co |] eqn:CO.
+  - unfold plain_alignof.
+    simpl.
+    destruct (cenv_cs ! id) as [co |] eqn:CO.
     * apply co_sizeof_alignof.
     * exists 0; auto.
-  - destruct (cenv_cs ! id) as [co |] eqn:CO.
+  - unfold plain_alignof.
+    simpl.
+    destruct (cenv_cs ! id) as [co |] eqn:CO.
     * apply co_sizeof_alignof.
     * exists 0; auto.
+Qed.
+
+Lemma alignof_divide_alignof_Tarray: forall t z a,
+  legal_alignas_type (Tarray t z a) = true ->
+  (alignof cenv_cs t | alignof cenv_cs (Tarray t z a)).
+Proof.
+  intros.
+  apply legal_alignas_type_spec; auto.
 Qed.
 
 Global Opaque alignof.

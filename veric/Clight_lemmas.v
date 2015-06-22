@@ -327,34 +327,6 @@ rewrite <- In_rev in H; contradiction.
 auto.
 Qed.
 
-Lemma size_chunk_sizeof: forall env t ch, access_mode t = By_value ch -> sizeof env t = Memdata.size_chunk ch.
-Proof.
-  intros.
-  destruct t; inversion H.
-  - destruct i, s; inversion H1; reflexivity.
-  - destruct s; inversion H1; reflexivity.
-  - destruct f; inversion H1; reflexivity.
-  - inversion H1; reflexivity.
-Qed.
-
-Lemma align_chunk_alignof: forall env t ch, access_mode t = By_value ch -> attr_alignas (attr_of_type t) = None -> alignof env t = Memdata.align_chunk ch.
-Proof.
-  intros.
-  destruct t; inversion H.
-  - simpl in H0.
-    destruct i, s; inversion H2; simpl; unfold align_attr;
-    destruct (attr_alignas a); try inversion H0; reflexivity.
-  - simpl in H0.
-    destruct s; inversion H2; simpl; unfold align_attr;
-    destruct (attr_alignas a); try inversion H0; admit. (* Tlong uncompatible problem *)
-  - simpl in H0.
-    destruct f; inversion H2; simpl; unfold align_attr;
-    destruct (attr_alignas a); try inversion H0; reflexivity.
-  - simpl in H0.
-    inversion H2; simpl; unfold align_attr;
-    destruct (attr_alignas a); try inversion H0; reflexivity.
-Qed.
-
 Lemma block_eq_dec: forall b1 b2: block, {b1 = b2} + {b1 <> b2}.
 Proof. exact (Coqlib.peq). Qed.
 

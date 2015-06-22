@@ -206,28 +206,6 @@ Section COMPSPECS.
 Context {cs: compspecs}.
 Context {csl: compspecs_legal cs}.
 
-Lemma legal_alignas_by_value: forall t,
-  legal_alignas_type t = true ->
-  type_is_by_value t = true ->
-  attr_alignas (attr_of_type t) = None.
-Proof.
-  intros.
-  destruct t; try inversion H0;
-  unfold legal_alignas_type in H; rewrite nested_pred_ind in H; simpl in *;
-  destruct (attr_alignas a); congruence.
-Qed.
-
-Lemma legal_alignas_access_by_value: forall t m,
-  legal_alignas_type t = true ->
-  access_mode t = By_value m ->
-  attr_alignas (attr_of_type t) = None.
-Proof.
-  intros.
-  destruct t; try inversion H0;
-  unfold legal_alignas_type in H; rewrite nested_pred_ind in H; simpl in *;
-  destruct (attr_alignas a); congruence.
-Qed.
-
 Lemma memory_block_mapsto_:
   forall sh t p, 
    type_is_by_value t = true ->
@@ -246,9 +224,10 @@ Proof.
   + unfold mapsto_, mapsto; destruct (access_mode t), (type_is_volatile t); reflexivity.
   + simpl in H2, H3.
     destruct (access_mode_by_value _ H) as [ch ?].
-    eapply legal_alignas_access_by_value in H1; [| eauto].
+    apply legal_alignas_type_spec in H1.
     erewrite size_chunk_sizeof in H2 |- * by eauto.
-    erewrite align_chunk_alignof in H3 by eauto.
+    pose proof Z.divide_trans _ _ _ H1 H3.
+    erewrite align_chunk_alignof in H5 by eauto.
     rewrite seplog.mapsto__memory_block with (ch := ch); auto.
 Qed.
 
@@ -263,6 +242,7 @@ Proof.
   apply pred_ext; destruct p; normalize.
 Qed.
 
+(*
 Lemma mapsto_align_compatible:
   forall sh t p v, legal_alignas_type t = true ->
   mapsto sh t p v = !!( align_compatible t p) && mapsto sh t p v.
@@ -354,7 +334,7 @@ Proof.
     rewrite Zmult_succ_l_reverse.
     apply Z.mul_le_mono_pos_r; omega.
 Qed.
-
+*)
 Global Opaque memory_block.
 
 End COMPSPECS.

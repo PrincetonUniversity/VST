@@ -941,7 +941,6 @@ Qed.
 
 Lemma data_at__memory_block_cancel:
    forall sh t p, 
-       sizeof cenv_cs t < Int.modulus ->
        data_at_ sh t p |-- memory_block sh (sizeof cenv_cs t) p.
 Proof.
   intros.
@@ -951,12 +950,9 @@ Qed.
 
 Lemma data_at_memory_block:
   forall sh t v p, 
-     field_compatible t nil p ->
-     sizeof cenv_cs t < Int.modulus ->
      data_at sh t v p |-- memory_block sh (sizeof cenv_cs t) p.
 Proof.
   intros.
-  subst.
   eapply derives_trans; [apply data_at_data_at_; reflexivity |].
   rewrite data_at__memory_block.
   apply andp_left2.
@@ -1460,8 +1456,7 @@ Hint Extern 1 (data_at _ _ _ _ |-- data_at_ _ _ _) =>
     (apply data_at_data_at_) : cancel.
 
 Hint Extern 1 (data_at _ _ _ _ |-- memory_block _ _ _) =>
-    (simple apply data_at__memory_block_cancel; [| simpl; repable_signed])
-    : cancel.
+    (simple apply data_at__memory_block_cancel) : cancel.
 
 Hint Extern 2 (array_at _ _ _ _ _ _ _ |-- array_at_ _ _ _ _ _ _) =>
   (apply array_at_array_at_) : cancel.

@@ -232,7 +232,7 @@ Proof.
     apply Z.divide_add_r; auto.
     rewrite Z.mul_comm.
     apply Z.divide_mul_r; auto.
-    apply legal_alignas_sizeof_alignof_compat; auto.
+    apply legal_alignas_sizeof_alignof_compat; auto. (* legal_alignas_sizeof_alignof_compat's specificaltion is modified. *)
   - rewrite H10.
     apply Z.divide_0_r.
 +

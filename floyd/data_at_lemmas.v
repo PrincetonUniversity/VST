@@ -376,8 +376,8 @@ Ltac AUTO_IND :=
   | H: (alignof cenv_cs (Tarray ?t ?z ?a) | ?ofs)
     |- (alignof cenv_cs ?t | ?ofs + _) =>
     apply Z.divide_add_r;
-    [ rewrite <- legal_alignas_type_Tarray with (a0 := a) (z0 := z) by auto; auto
-    | apply Z.divide_mul_l;
+    [ eapply Z.divide_trans; [eapply alignof_divide_alignof_Tarray |]; eauto
+    | apply Z.divide_mul_l; erewrite legal_alignas_type_Tarray by eauto;
       apply legal_alignas_sizeof_alignof_compat; AUTO_IND]
   | H: legal_alignas_type (Tstruct ?id ?a) = true |-
     legal_alignas_type (field_type ?i (co_members (get_co ?id))) = true =>
@@ -413,6 +413,8 @@ Ltac AUTO_IND :=
     eapply Z.divide_trans; [apply legal_alignas_type_Tunion; eauto | auto]
   end.
 
+Unset Ltac Debug.
+
 Lemma memory_block_data_at'_default_val: forall sh t b ofs
   (LEGAL_ALIGNAS: legal_alignas_type t = true)
   (LEGAL_COSU: legal_cosu_type t = true)
@@ -443,7 +445,7 @@ Proof.
       simpl sizeof in H, H0;
       rewrite Z.max_r in H, H0 by omega.
       apply IH; try AUTO_IND;
-      pose_size_mult cenv_cs t (0 :: i :: i + 1 :: z :: nil); omega.
+      pose_size_mult cenv_cs t (0 :: i :: i + 1 :: z :: nil); try omega.
     } Unfocus.
     apply memory_block_array_pred; [simpl in H; auto | auto].
   + rewrite default_val_ind.

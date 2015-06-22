@@ -769,7 +769,9 @@ Proof.
     right; split; auto. rewrite <- H1; auto.
    } Unfocus.
   eapply derives_trans;[ apply andp_derives; [ apply andp_derives; [ eapply unpack_globvar_star; try eassumption; try reflexivity | apply derives_refl]  | apply derives_refl] |].
-  split; rewrite H1. cbv; destruct n; reflexivity. split; cbv; destruct n, sz, sign; reflexivity.
+  split; rewrite H1. 
+destruct sz; reflexivity.
+ split; cbv; destruct n, sz, sign; reflexivity.
   rewrite H1. (* rewrite H3.*)  rewrite H5.
 (* change (Share.splice extern_retainer (readonly2share false)) with Ews. *)
   normalize. apply exp_right with s.
