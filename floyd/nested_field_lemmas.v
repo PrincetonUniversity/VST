@@ -68,6 +68,33 @@ Fixpoint nested_field_rec (t: type) (gfs: list gfield) : option (prod Z type) :=
       match t', hd with
       | Tarray t'' n _, ArraySubsc i => Some(pos + sizeof cenv_cs t'' * i, t'')
       | Tstruct id _, StructField i =>
+        let m := co_members (get_co id) in
+        if compute_in_members i m then
+          Some (pos + field_offset cenv_cs i m, field_type i m)
+        else
+          None
+      | Tunion id _, UnionField i =>
+        let m := co_members (get_co id) in
+        if compute_in_members i m then
+          Some (pos, field_type i m)
+        else
+          None
+      | _, _ => None
+      end
+    | None => None
+    end
+  end%Z.
+
+(*
+Fixpoint nested_field_rec (t: type) (gfs: list gfield) : option (prod Z type) :=
+  match gfs with
+  | nil => Some (0, t)
+  | hd :: tl =>
+    match nested_field_rec t tl with
+    | Some (pos, t') => 
+      match t', hd with
+      | Tarray t'' n _, ArraySubsc i => Some(pos + sizeof cenv_cs t'' * i, t'')
+      | Tstruct id _, StructField i =>
         if compute_in_members i (co_members (get_co id)) then
           Some (pos + field_offset cenv_cs i (co_members (get_co id)), field_type i (co_members (get_co id)))
         else
@@ -82,6 +109,7 @@ Fixpoint nested_field_rec (t: type) (gfs: list gfield) : option (prod Z type) :=
     | None => None
     end
   end.
+*)
 
 Definition nested_field_offset2 (t: type) (gfs: list gfield) : Z :=
   match nested_field_rec t gfs with
