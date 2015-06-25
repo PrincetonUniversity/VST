@@ -5,7 +5,7 @@ Require Import msl.rmaps_lemmas.
 Require Import veric.compcert_rmaps.
 Require Import veric.Clight_lemmas.
 Require Import veric.tycontext.
-Require Import veric.expr.
+Require Import veric.expr2.
 
 Lemma eqb_type_eq: forall t1 t2, eqb_type t1 t2 = proj_sumbool (type_eq t1 t2).
 Proof.
@@ -187,9 +187,9 @@ intros [ge ve te]  [A B C D E] [A1 B1 C1 D1 E1] [A2 B2 C2 D2 E2]
 Qed.
 
 Lemma typecheck_val_ptr_lemma:
-   forall rho Delta id t a,
+   forall rho m Delta id t a,
    typecheck_environ Delta rho ->
-   denote_tc_assert Delta (typecheck_expr Delta (Etempvar id (Tpointer t a))) rho ->
+   denote_tc_assert Delta (typecheck_expr Delta (Etempvar id (Tpointer t a))) rho m ->
    (*(temp_types Delta) ! id =  Some (Tpointer t a, init) ->*) (*modified for init changes*)
    strict_bool_val (eval_id id rho) (Tpointer t a) = Some true ->
    typecheck_val (eval_id id rho) (Tpointer t a) = true.

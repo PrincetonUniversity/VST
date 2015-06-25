@@ -14,7 +14,7 @@ Require Import sepcomp.extspec.
 Require Import sepcomp.step_lemmas.
 Require Import veric.juicy_extspec.
 Require Import veric.tycontext.
-Require Import veric.expr.
+Require Import veric.expr2.
 Require Import veric.expr_lemmas.
 Require Import veric.semax.
 Require Import veric.semax_lemmas.
@@ -175,16 +175,16 @@ apply extend_sepcon_andp in H4; auto.
 destruct H4 as [TC2 H4].
 pose proof TC2 as TC2'.
 apply (tc_expr_sub _ _ TS) in TC2'; [| auto].
-hnf in TC2'.
+(*hnf in TC2'.*)
 destruct H4 as [w1 [w2 [? [? ?]]]].
 specialize (H0 w0 H3).
 specialize (H1 w0 H3).
 unfold expr_true, expr_false, Cnot in *.
 intros ora jm Hge Hphi.
-generalize (eval_expr_relate _ _ _ _ _ b (m_dry jm) HGG Hge (guard_environ_e1 _ _ _ TC)); intro.
+generalize (eval_expr_relate _ _ _ _ _ (m_phi jm) b (m_dry jm) HGG Hge (guard_environ_e1 _ _ _ TC)); intro.
 assert (exists b': bool, strict_bool_val (eval_expr Delta' b rho) (typeof b) = Some b').
 clear - TS TC H TC2 TC2'.
-assert (TCS := typecheck_expr_sound _ _ _ (guard_environ_e1 _ _ _ TC) TC2').
+assert (TCS := typecheck_expr_sound _ _ w0 _ (guard_environ_e1 _ _ _ TC) TC2').
 rewrite tc_val_eq in TCS.
 remember (eval_expr Delta' b rho). destruct v;
 simpl; destruct (typeof b); intuition; simpl in *; try rewrite TCS; eauto.
@@ -229,7 +229,7 @@ erewrite <- eval_expr_sub in H9 by eauto.
 rewrite andp_comm; rewrite prop_true_andp.
 do 2 econstructor; split3; eauto.
 clear - H TC TC2 TC2' H9.
-assert (TCS := typecheck_expr_sound _ _ _ (guard_environ_e1 _ _ _ TC) TC2').
+assert (TCS := typecheck_expr_sound _ _ (m_phi jm) _ (guard_environ_e1 _ _ _ TC) TC2').
 simpl. super_unfold_lift. unfold typed_true. 
 intuition; simpl in *;
 unfold sem_notbool; destruct i0; destruct s; auto; simpl;

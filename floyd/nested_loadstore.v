@@ -2042,9 +2042,9 @@ Lemma semax_nested_efield_field_load_37':
       legal_nested_efield t_root e1 gfs tts lr = true ->
       repinject _ (proj_reptype (nested_field_type2 t_root gfs0) gfs1 v') = v ->
       PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |--
-        local (tc_LR Delta e1 lr) &&
+         (tc_LR Delta e1 lr) &&
         local `(tc_val (typeof (nested_efield e1 efs tts)) v) &&
-        local (tc_efield Delta efs) &&
+         (tc_efield Delta efs) &&
         efield_denote Delta efs gfs &&
         (`(field_at sh t_root gfs0 v') (eval_LR Delta e1 lr) * TT) ->
       legal_nested_field t_root gfs ->
@@ -2124,9 +2124,9 @@ Lemma semax_nested_efield_field_cast_load_37':
       legal_nested_efield t_root e1 gfs tts lr = true ->
       repinject _ (proj_reptype (nested_field_type2 t_root gfs0) gfs1 v') = v ->
       PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |-- 
-        local (tc_LR Delta e1 lr) &&
+         (tc_LR Delta e1 lr) &&
         local (`(tc_val t (eval_cast (typeof (nested_efield e1 efs tts)) t v))) &&
-        local (tc_efield Delta efs) &&
+         (tc_efield Delta efs) &&
         efield_denote Delta efs gfs &&
         (`(field_at sh t_root gfs0 v') (eval_LR Delta e1 lr) * TT) ->
       legal_nested_field t_root gfs ->
@@ -2208,10 +2208,10 @@ Lemma semax_nested_efield_field_store_nth:
         `(field_at sh t_root gfs0) v (eval_LR Delta e1 lr) ->
       writable_share sh ->
       PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |--
-        local (tc_LR Delta e1 lr) && 
-        local (tc_efield Delta efs) &&
+         (tc_LR Delta e1 lr) && 
+         (tc_efield Delta efs) &&
         efield_denote Delta efs gfs &&
-        local (tc_expr Delta (Ecast e2 t)) ->
+         (tc_expr Delta (Ecast e2 t)) ->
       legal_nested_field t_root gfs ->
       semax Delta (|>PROPx P (LOCALx Q (SEPx R))) 
         (Sassign (nested_efield e1 efs tts) e2)

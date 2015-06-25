@@ -5,7 +5,7 @@ Require Import veric.compcert_rmaps.
 Require Import veric.slice.
 Require Import veric.Clight_lemmas.
 Require Import veric.tycontext.
-Require Import veric.expr.
+Require Import veric.expr2.
 
 Import RML. Import R. 
 Open Local Scope pred.

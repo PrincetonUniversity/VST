@@ -5,8 +5,9 @@ Require Import msl.rmaps_lemmas.
 Require Import veric.compcert_rmaps.
 Require Import veric.Clight_lemmas.
 Require Import veric.tycontext.
-Require Import veric.expr.
+Require Import veric.expr2.
 Require Export veric.environ_lemmas. 
+Require Import veric.binop_lemmas2.
 Require Import veric.binop_lemmas.
 Require Import veric.expr_lemmas2.
 Import Cop.
@@ -137,14 +138,14 @@ intros.
 Qed.
 
 Lemma typecheck_cast_sound: 
- forall Delta rho e t,
+ forall Delta rho m e t,
  typecheck_environ Delta rho ->
-(denote_tc_assert Delta (typecheck_expr Delta e) rho ->
+(denote_tc_assert Delta (typecheck_expr Delta e) rho m ->
  typecheck_val (eval_expr Delta e rho) (typeof e) = true) /\
 (forall pt : type,
- denote_tc_assert Delta (typecheck_lvalue Delta e) rho ->
+ denote_tc_assert Delta (typecheck_lvalue Delta e) rho m ->
  is_pointer_type pt = true -> typecheck_val (eval_lvalue Delta e rho) pt = true) ->
-denote_tc_assert Delta (typecheck_expr Delta (Ecast e t)) rho ->
+denote_tc_assert Delta (typecheck_expr Delta (Ecast e t)) rho m ->
 typecheck_val (eval_expr Delta (Ecast e t) rho) (typeof (Ecast e t)) = true.
 Proof.
 intros until t; intros H IHe H0.
@@ -165,7 +166,11 @@ destruct (classify_cast (typeof e) t)
     simpl in H3; try discriminate H3; try contradiction;
   simpl in H2; unfold_lift in H2; simpl in H2;
   try (rewrite denote_tc_assert_andp in H2;
-        destruct H2 as [H2a H2b]; hnf in H2a,H2b);
+        destruct H2 as [H2a H2b];
+       unfold denote_tc_assert in H2a,H2b;
+      unfold_lift in H2a; unfold_lift in H2b;
+       simpl in H2a,H2b
+    );
   destruct (eval_expr Delta e rho); simpl in H1; try discriminate H1;
   try contradiction H2;
   try reflexivity; try assumption;
@@ -175,15 +180,28 @@ destruct (classify_cast (typeof e) t)
   try solve [destruct (Int.eq i Int.zero); reflexivity];
   try (rewrite andb_true_iff in H1; destruct H1 as [H1 H1']);
   try rewrite Z.leb_le in H1; 
-  try rewrite Z.leb_le in H1'; 
-  try (match type of H2a with match ?A with Some _ => _ | None => _ end =>
-       destruct A eqn:H7; try contradiction;
+  try rewrite Z.leb_le in H1';
+  try (
+   simpl in H2a,H2b;
+    match type of H2a with app_pred match ?A with Some _ => _ | None => _ end _ =>
+       destruct A eqn:H7; [ | contradiction];
+      do 3 red in H2a,H2b;
        apply is_true_e in H2a; apply is_true_e in H2b;
        rewrite Z.leb_le in H2a; rewrite Z.geb_le in H2b
     end);
+    try apply andb_zleb; try rewrite Z.leb_le;
+   try match goal with
+     | |- appcontext [Int.sign_ext ?n ?x] =>
+      apply (sign_ext_range' n x); compute; split; congruence
+     | |- appcontext [Int.zero_ext ?n ?x] =>
+      apply (zero_ext_range' n x); compute; try split; congruence
+   end;
   try (first [ erewrite float_to_int_ok | erewrite float_to_intu_ok
           | erewrite single_to_int_ok | erewrite single_to_intu_ok];
           [ | eassumption | split; assumption]);
+ try match goal with |- Int.eq (if ?A then _ else _) _ || _ = _ =>
+      destruct A; try reflexivity
+  end;
   try (
     simpl;
     try reflexivity;
@@ -194,7 +212,7 @@ destruct (classify_cast (typeof e) t)
      | |- appcontext [Int.zero_ext ?n ?x] =>
       apply (zero_ext_range' n x); compute; try split; congruence
    end);
-  match goal with |- Int.eq (if ?A then _ else _) _ || _ = _ =>
+ try match goal with |- Int.eq (if ?A then _ else _) _ || _ = _ =>
       destruct A; try reflexivity
   end.
 Qed.

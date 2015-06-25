@@ -5,7 +5,7 @@ Require Import msl.rmaps_lemmas.
 Require Import veric.compcert_rmaps.
 Require Import veric.Clight_lemmas.
 Require Import veric.tycontext.
-Require Import veric.expr.
+Require Import veric.expr2.
 Require Export veric.environ_lemmas. 
 
 Import Cop.
@@ -14,11 +14,11 @@ Import Cop2.
 Opaque tc_andp. (* This is needed otherwise certain Qeds take
     forever in Coq 8.3.  *)
 
-Lemma eval_lvalue_ptr : forall rho e (Delta: tycontext) te ve ge,
+Lemma eval_lvalue_ptr : forall rho m e (Delta: tycontext) te ve ge,
 mkEnviron ge ve te = rho -> 
 typecheck_var_environ ve (var_types Delta) -> 
 typecheck_glob_environ ge (glob_types Delta) ->
-denote_tc_assert Delta (typecheck_lvalue Delta e) rho ->
+denote_tc_assert Delta (typecheck_lvalue Delta e) rho m ->
 eval_lvalue Delta e rho = Vundef \/ exists base, exists ofs, eval_lvalue Delta e rho  = Vptr base ofs.
 Proof. 
 intros.
@@ -82,8 +82,8 @@ unfold denote_tc_initialized in *.
 
 
 Lemma typecheck_lvalue_Evar:
-  forall i t pt Delta rho, typecheck_environ Delta rho ->
-           denote_tc_assert Delta (typecheck_lvalue Delta (Evar i t)) rho ->
+  forall i t pt Delta rho m, typecheck_environ Delta rho ->
+           denote_tc_assert Delta (typecheck_lvalue Delta (Evar i t)) rho m ->
            is_pointer_type pt = true ->    
            typecheck_val (eval_lvalue Delta (Evar i t) rho) pt = true.
 Proof.
@@ -124,15 +124,15 @@ inv H0.
 Qed.
 
 Lemma typecheck_expr_sound_Efield:
-  forall Delta rho e i t
+  forall Delta rho e i t m
   (H: typecheck_environ Delta rho)
-  (IHe: (denote_tc_assert Delta (typecheck_expr Delta e) rho ->
+  (IHe: (denote_tc_assert Delta (typecheck_expr Delta e) rho m ->
           typecheck_val (eval_expr Delta e rho) (typeof e) = true) /\
           (forall pt : type,
-          denote_tc_assert Delta (typecheck_lvalue Delta e) rho ->
+          denote_tc_assert Delta (typecheck_lvalue Delta e) rho m ->
           is_pointer_type pt = true -> 
           typecheck_val (eval_lvalue Delta e rho) pt = true))
-  (H0: denote_tc_assert Delta (typecheck_expr Delta (Efield e i t)) rho),
+  (H0: denote_tc_assert Delta (typecheck_expr Delta (Efield e i t)) rho m),
   typecheck_val (eval_expr Delta (Efield e i t) rho) (typeof (Efield e i t)) = true.
 Proof.
 intros.
@@ -147,7 +147,7 @@ simpl in H0.
 super_unfold_lift. destruct H0.
 unfold typecheck_environ in H. 
 destruct H as [_ [Hve [Hge _]]]. 
-assert (PTR := eval_lvalue_ptr _ e Delta te ve ge (eq_refl _) Hve Hge H0).
+assert (PTR := eval_lvalue_ptr _ _ e Delta te ve ge (eq_refl _) Hve Hge H0).
 specialize (H2 t H0).
 spec H2. clear - MODE; destruct t; try destruct i; try destruct s; try destruct f; inv MODE; simpl; auto.
 destruct PTR.
@@ -160,14 +160,14 @@ destruct (field_offset (composite_types Delta) i (co_members co)); intuition.
 Qed.
 
 Lemma typecheck_lvalue_sound_Efield:
- forall Delta rho e i t pt
+ forall Delta rho m e i t pt
  (H: typecheck_environ Delta rho)
- (IHe: (denote_tc_assert Delta (typecheck_expr Delta e) rho ->
+ (IHe: (denote_tc_assert Delta (typecheck_expr Delta e) rho m ->
           typecheck_val (eval_expr Delta e rho) (typeof e) = true) /\
-        (forall pt0 : type, denote_tc_assert Delta (typecheck_lvalue Delta e) rho ->
+        (forall pt0 : type, denote_tc_assert Delta (typecheck_lvalue Delta e) rho m ->
            is_pointer_type pt0 = true -> 
          typecheck_val (eval_lvalue Delta e rho) pt0 = true))
-  (H0: denote_tc_assert Delta (typecheck_lvalue Delta (Efield e i t)) rho)
+  (H0: denote_tc_assert Delta (typecheck_lvalue Delta (Efield e i t)) rho m)
   (H1: is_pointer_type pt = true),
   typecheck_val (eval_lvalue Delta (Efield e i t) rho) pt = true.
 Proof.
@@ -179,7 +179,7 @@ super_unfold_lift.
 specialize  (H3 pt). intuition.
 destruct rho.
 unfold typecheck_environ in *. intuition.
-assert (PTR := eval_lvalue_ptr _ e _ te _ _ (eq_refl _) H H6).
+assert (PTR := eval_lvalue_ptr _ m e _ te _ _ (eq_refl _) H H6).
 simpl in *.
 remember (eval_lvalue Delta e (mkEnviron ge ve te)). unfold isptr in *.
 destruct v; intuition; try congruence;
@@ -190,9 +190,9 @@ destruct (field_offset (composite_types Delta) i (co_members co)); intuition.
 Qed.
 
 Lemma typecheck_expr_sound_Evar:
-  forall Delta rho i t,
+  forall Delta rho m i t,
   typecheck_environ Delta rho ->
-  denote_tc_assert Delta (typecheck_expr Delta (Evar i t)) rho ->
+  denote_tc_assert Delta (typecheck_expr Delta (Evar i t)) rho m ->
   typecheck_val (eval_expr Delta (Evar i t) rho) (typeof (Evar i t)) = true.
 Proof.
 intros.
@@ -258,16 +258,16 @@ match op with
 end.
 
 Lemma typecheck_unop_sound:
- forall Delta rho u e t
+ forall Delta rho m u e t
  (H: typecheck_environ Delta rho)
 (* (Ht: t =unOp_result_type u (typeof e)) *)
- (IHe: (denote_tc_assert Delta (typecheck_expr Delta e) rho ->
+ (IHe: (denote_tc_assert Delta (typecheck_expr Delta e) rho m ->
           typecheck_val (eval_expr Delta e rho) (typeof e) = true) /\
           (forall pt : type,
-           denote_tc_assert Delta (typecheck_lvalue Delta e) rho ->
+           denote_tc_assert Delta (typecheck_lvalue Delta e) rho m ->
            is_pointer_type pt = true -> 
            typecheck_val (eval_lvalue Delta e rho) pt = true))
-  (H0: denote_tc_assert Delta (typecheck_expr Delta (Eunop u e t)) rho),
+  (H0: denote_tc_assert Delta (typecheck_expr Delta (Eunop u e t)) rho m),
   typecheck_val (eval_expr Delta (Eunop u e t) rho) t = true.
 Proof.
 intros.
@@ -340,9 +340,9 @@ intros. destruct t1; destruct t2;
 Qed.
 
 Lemma typecheck_temp_sound:
-  forall Delta rho i t,
+  forall Delta rho m i t,
   typecheck_environ Delta rho ->
-  denote_tc_assert Delta (typecheck_expr Delta (Etempvar i t)) rho ->
+  denote_tc_assert Delta (typecheck_expr Delta (Etempvar i t)) rho m ->
   typecheck_val (eval_expr Delta (Etempvar i t) rho) (typeof (Etempvar i t)) = true.
 Proof.
 intros.
@@ -377,14 +377,14 @@ simpl in H0. rewrite H in H0. inv H0.
 Qed.
 
 Lemma typecheck_deref_sound:
-  forall Delta rho e t pt,
+  forall Delta rho m e t pt,
    typecheck_environ Delta rho ->
-   (denote_tc_assert Delta (typecheck_expr Delta e) rho ->
+   (denote_tc_assert Delta (typecheck_expr Delta e) rho m ->
     typecheck_val (eval_expr Delta e rho) (typeof e) = true) /\
     (forall pt0 : type,
-     denote_tc_assert Delta (typecheck_lvalue Delta e) rho ->
+     denote_tc_assert Delta (typecheck_lvalue Delta e) rho m ->
      is_pointer_type pt0 = true -> typecheck_val (eval_lvalue Delta e rho) pt0 = true) ->
-     denote_tc_assert Delta (typecheck_lvalue Delta (Ederef e t)) rho ->
+     denote_tc_assert Delta (typecheck_lvalue Delta (Ederef e t)) rho m ->
     is_pointer_type pt = true ->
     typecheck_val (eval_lvalue Delta (Ederef e t) rho) pt = true.
 Proof.

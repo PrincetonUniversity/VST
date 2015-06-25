@@ -7,7 +7,7 @@ Require Import veric.juicy_mem veric.juicy_mem_lemmas veric.juicy_mem_ops.
 Require Import sepcomp.extspec.
 Require Import veric.juicy_extspec.
 Require Import veric.tycontext. 
-Require Import veric.expr. 
+Require Import veric.expr2. 
 Require Import veric.semax.
 Require Import veric.semax_call.
 

@@ -1,6 +1,18 @@
 Require Import floyd.base.
 Local Open Scope logic.
 
+Lemma neutral_isCastResultType:
+  forall Delta P t t' v rho,
+   is_neutral_cast t' t = true ->
+   P |-- denote_tc_assert Delta (isCastResultType Delta t' t v) rho.
+Proof.
+intros.
+  unfold isCastResultType;
+  destruct t'  as [ | [ | | | ] [ | ] | | [ | ] | | | | |], t  as [ | [ | | | ] [ | ] | | [ | ] | | | | |];
+     inv H; simpl; try apply @TT_right;
+    simpl; if_tac; apply @TT_right.
+Qed.
+
 Lemma exp_uncurry:
   forall {T} {ND: NatDed T} A B F, (@exp T ND A (fun a => @exp T ND B (fun b => F a b)))
    = @exp T ND (A*B) (fun ab => F (fst ab) (snd ab)).
@@ -972,7 +984,7 @@ Proof.
   destruct x; destruct y; try tauto.
   destruct H as [_ ?].
   unfold Int.cmpu in H.
-  exact (binop_lemmas.int_eq_true _ _ (eq_sym H)).
+  exact (binop_lemmas2.int_eq_true _ _ (eq_sym H)).
 Qed.
 
 Lemma ptr_eq_sym: forall x y, ptr_eq x y -> ptr_eq y x.

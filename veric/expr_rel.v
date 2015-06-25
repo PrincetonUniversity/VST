@@ -7,7 +7,7 @@ Require Import veric.Clight_lemmas.
 Require Export veric.lift.
 Require Export veric.Cop2.
 Require Import veric.tycontext.
-Require Import veric.expr.
+Require Import veric.expr2.
 Require Import veric.res_predicates.
 Require Import veric.seplog.
 

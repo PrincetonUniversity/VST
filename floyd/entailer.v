@@ -219,6 +219,27 @@ Proof. intros.
  apply prop_derives; auto.
 Qed.
 
+Arguments denote_tc_isptr v / .
+Arguments denote_tc_iszero !v .
+Arguments denote_tc_nonzero !v .
+Arguments denote_tc_igt i !v .
+Arguments denote_tc_Zge z !v .
+Arguments denote_tc_Zle z !v .
+Arguments denote_tc_samebase !v1 !v2 .
+Arguments denote_tc_nodivover !v1 !v2 .
+Arguments denote_tc_initialized id ty rho / .
+
+Ltac simpl_denote_tc :=
+ simpl denote_tc_isptr;
+ simpl denote_tc_iszero;
+ simpl denote_tc_nonzero;
+ simpl denote_tc_igt;
+ simpl denote_tc_Zge;
+ simpl denote_tc_Zle;
+ simpl denote_tc_samebase;
+ simpl denote_tc_nodivover;
+ simpl denote_tc_initialized.
+
 Ltac ent_iter :=
     repeat (((repeat simple apply go_lower_lem1'; simple apply go_lower_lem1)
                 || simple apply derives_extract_prop 
@@ -232,8 +253,29 @@ Ltac ent_iter :=
    saturate_local;
 (* subst_any; *)
    simpl_compare;
+   simpl_denote_tc;
    subst_any;
    try autorewrite with entailer_rewrite in *.
+
+Lemma and_False: forall x, (x /\ False) = False.
+Proof.
+intros; apply prop_ext; intuition.
+Qed.
+
+Lemma and_True: forall x, (x /\ True) = x.
+Proof.
+intros; apply prop_ext; intuition.
+Qed.
+
+Lemma True_and: forall x, (True /\ x) = x.
+Proof.
+intros; apply prop_ext; intuition.
+Qed.
+
+Lemma False_and: forall x, (False /\ x) = False.
+Proof.
+intros; apply prop_ext; intuition.
+Qed.
 
 Ltac prune_conjuncts :=
  repeat rewrite and_assoc';

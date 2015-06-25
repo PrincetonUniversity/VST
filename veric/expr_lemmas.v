@@ -5,16 +5,17 @@ Require Import msl.rmaps_lemmas.
 Require Import veric.compcert_rmaps.
 Require Import veric.Clight_lemmas.
 Require Import veric.tycontext.
-Require Import veric.expr.
+Require Import veric.expr2.
 Require Export veric.environ_lemmas. 
+Require Import veric.binop_lemmas2. 
 Require Import veric.binop_lemmas. 
 Require Import veric.expr_lemmas2.
 Require Export veric.expr_lemmas3.
 Import Cop.
 Import Cop2.
 
-Lemma denote_tc_assert_tc_bool: forall Delta b rho err,
-  denote_tc_assert Delta (tc_bool b err) rho -> b = true.
+Lemma denote_tc_assert_tc_bool: forall Delta b rho m err,
+  denote_tc_assert Delta (tc_bool b err) rho m -> b = true.
 Proof.
   intros.
   destruct b; auto.
@@ -23,12 +24,12 @@ Qed.
 (** Main soundness result for the typechecker **)
 
 Lemma typecheck_both_sound: 
-  forall Delta rho e , 
+  forall Delta rho m e , 
              typecheck_environ Delta rho ->
-             (denote_tc_assert Delta (typecheck_expr Delta e) rho ->
+             (denote_tc_assert Delta (typecheck_expr Delta e) rho m ->
              typecheck_val (eval_expr Delta e rho) (typeof e) = true) /\
              (forall pt, 
-             denote_tc_assert Delta (typecheck_lvalue Delta e) rho ->
+             denote_tc_assert Delta (typecheck_lvalue Delta e) rho m ->
              is_pointer_type pt = true -> 
              typecheck_val (eval_lvalue Delta e rho) pt=true).
 Proof.
@@ -98,7 +99,7 @@ clear H4. clear H2. clear H.
 simpl in H0.
 repeat rewrite denote_tc_assert_andp in H0.
 destruct H0 as [[H0 E1] E2].
-apply (typecheck_binop_sound b Delta rho e1 e2 t H0 (H3 E2) (H1 E1)).
+apply (typecheck_binop_sound b Delta rho m e1 e2 t H0 (H3 E2) (H1 E1)).
 
 * (* cast *)
 eapply typecheck_cast_sound; eauto.
@@ -127,22 +128,22 @@ subst.
 reflexivity.
 Qed.
 
-Lemma typecheck_expr_sound : forall Delta rho e,
+Lemma typecheck_expr_sound : forall Delta rho m e,
  typecheck_environ Delta rho -> 
-              denote_tc_assert Delta (typecheck_expr Delta e) rho ->
+              denote_tc_assert Delta (typecheck_expr Delta e) rho m ->
               tc_val (typeof e) (eval_expr Delta e rho).
 Proof. intros. 
 rewrite tc_val_eq.
-assert (TC := typecheck_both_sound Delta rho e). intuition. Qed.
+assert (TC := typecheck_both_sound Delta rho m e). intuition. Qed.
 
 
-Lemma typecheck_lvalue_sound : forall Delta rho e,
+Lemma typecheck_lvalue_sound : forall Delta rho m e,
   typecheck_environ Delta rho ->
-  denote_tc_assert Delta (typecheck_lvalue Delta e) rho ->
+  denote_tc_assert Delta (typecheck_lvalue Delta e) rho m ->
   is_pointer_or_null (eval_lvalue Delta e rho).
 Proof.
 intros.
- edestruct (typecheck_both_sound _ _ e H).
+ edestruct (typecheck_both_sound _ _ m e H).
 specialize (H2 (Tpointer Tvoid noattr) H0 (eq_refl _)).
 assert (tc_val (Tpointer Tvoid noattr) (eval_lvalue Delta e rho) = 
       (typecheck_val (eval_lvalue Delta e rho) (Tpointer Tvoid noattr) = true)).
@@ -179,8 +180,8 @@ repeat match goal with
  auto.
 Qed.
 
-Lemma tc_binaryop_relate : forall Delta b e1 e2 m1 t rho,
-denote_tc_assert Delta (isBinOpResultType Delta b e1 e2 t) rho ->
+Lemma tc_binaryop_relate : forall Delta b e1 e2 m1 t rho m ,
+denote_tc_assert Delta (isBinOpResultType Delta b e1 e2 t) rho m ->
 Cop.sem_binary_operation (composite_types Delta) b (eval_expr Delta e1 rho) (typeof e1) (eval_expr Delta e2 rho)
   (typeof e2) (m1) =
 sem_binary_operation' Delta b (typeof e1) (typeof e2) true2 (eval_expr Delta e1 rho) (eval_expr Delta e2 rho).
@@ -211,42 +212,42 @@ repeat match goal with
 * destruct (classify_shift (typeof e1)(typeof e2)); try reflexivity; apply bin_arith_relate.
 * destruct (classify_shift (typeof e1)(typeof e2)); try reflexivity; apply bin_arith_relate.
 * unfold isBinOpResultType in H; destruct (classify_cmp (typeof e1) (typeof e2));
-     try destruct i; try destruct s; auto; try contradiction; simpl in H;
-     try rewrite denote_tc_assert_andp in *; super_unfold_lift;
-     ((intuition; unfold denote_tc_iszero in *)).
-      rewrite denote_tc_assert_orp in H0; repeat rewrite denote_tc_assert_iszero in H0;
-      destruct H0.
+     try destruct i; try destruct s; auto; try contradiction;
+     simpl in H;
+     try (rewrite denote_tc_assert_andp in *; super_unfold_lift).
+     try (
+      destruct H;
+      rewrite denote_tc_assert_orp in H; repeat rewrite denote_tc_assert_iszero in H;
+      destruct H);
       destruct (eval_expr Delta e1 rho); try contradiction; auto.
       destruct (eval_expr Delta e2 rho); try contradiction; auto.
       apply bin_arith_relate.
 * unfold isBinOpResultType in H; destruct (classify_cmp (typeof e1) (typeof e2));
-     try destruct i; try destruct s; auto; try contradiction; simpl in H;
+     try destruct i; try destruct s; auto; try contradiction; 
+     simpl in H;
      try rewrite denote_tc_assert_andp in *; super_unfold_lift;
-     ((intuition; unfold denote_tc_iszero in *)).
-      rewrite denote_tc_assert_orp in H0; repeat rewrite denote_tc_assert_iszero in H0;
-      destruct H0.
+     try destruct H;
+     rewrite ?denote_tc_assert_orp,
+     ?denote_tc_assert_iszero in *.
       destruct (eval_expr Delta e1 rho); try contradiction; auto.
       destruct (eval_expr Delta e2 rho); try contradiction; auto.
+      destruct H; contradiction.
       apply bin_arith_relate.
 * unfold isBinOpResultType in H; destruct (classify_cmp (typeof e1) (typeof e2));
      try destruct i; try destruct s; auto; try contradiction; simpl in H;
-     try rewrite denote_tc_assert_andp in *; super_unfold_lift;
-     ((intuition; unfold denote_tc_iszero in *)).
+     try rewrite denote_tc_assert_andp in *; super_unfold_lift.
       apply bin_arith_relate.
 * unfold isBinOpResultType in H; destruct (classify_cmp (typeof e1) (typeof e2));
      try destruct i; try destruct s; auto; try contradiction; simpl in H;
-     try rewrite denote_tc_assert_andp in *; super_unfold_lift;
-     ((intuition; unfold denote_tc_iszero in *)).
+     try rewrite denote_tc_assert_andp in *; super_unfold_lift.
       apply bin_arith_relate.
 * unfold isBinOpResultType in H; destruct (classify_cmp (typeof e1) (typeof e2));
      try destruct i; try destruct s; auto; try contradiction; simpl in H;
-     try rewrite denote_tc_assert_andp in *; super_unfold_lift;
-     ((intuition; unfold denote_tc_iszero in *)).
+     try rewrite denote_tc_assert_andp in *; super_unfold_lift.
       apply bin_arith_relate.
 * unfold isBinOpResultType in H; destruct (classify_cmp (typeof e1) (typeof e2));
      try destruct i; try destruct s; auto; try contradiction; simpl in H;
-     try rewrite denote_tc_assert_andp in *; super_unfold_lift;
-     ((intuition; unfold denote_tc_iszero in *)).
+     try rewrite denote_tc_assert_andp in *; super_unfold_lift.
       apply bin_arith_relate.
 Qed.
 
@@ -259,11 +260,11 @@ intros. destruct ov; destruct t; eauto; simpl in *; congruence.
 Qed. 
 
 Lemma typecheck_binop_sound2:
- forall (Delta : tycontext) (rho : environ) (b : binary_operation)
+ forall (Delta : tycontext) (rho : environ) m (b : binary_operation)
      (e1 e2 : expr) (t : type),
-   denote_tc_assert Delta (typecheck_expr Delta e2) rho ->
-   denote_tc_assert Delta (isBinOpResultType Delta b e1 e2 t) rho ->
-   denote_tc_assert Delta (typecheck_expr Delta e1) rho ->
+   denote_tc_assert Delta (typecheck_expr Delta e2) rho m ->
+   denote_tc_assert Delta (isBinOpResultType Delta b e1 e2 t) rho m ->
+   denote_tc_assert Delta (typecheck_expr Delta e1) rho m ->
    typecheck_val (eval_expr Delta e2 rho) (typeof e2) = true ->
    typecheck_val (eval_expr Delta e1 rho) (typeof e1) = true ->
    typecheck_val
@@ -277,13 +278,13 @@ Qed.
 
 Lemma eval_binop_relate_fail :
 forall (Delta : tycontext) (rho : environ) (b : binary_operation)
-  (e1 e2 : expr) (t : type) (m : mem),
+  (e1 e2 : expr) (t : type) phi (m : mem),
 typecheck_environ  Delta rho ->
 forall (ge : genv) te ve,
 rho = construct_rho (filter_genv ge) ve te ->
-denote_tc_assert Delta (typecheck_expr Delta e2) rho ->
-denote_tc_assert Delta (isBinOpResultType Delta b e1 e2 t) rho ->
-denote_tc_assert Delta (typecheck_expr Delta e1) rho ->
+denote_tc_assert Delta (typecheck_expr Delta e2) rho phi ->
+denote_tc_assert Delta (isBinOpResultType Delta b e1 e2 t) rho phi ->
+denote_tc_assert Delta (typecheck_expr Delta e1) rho phi ->
 None =
 sem_binary_operation' Delta b  (typeof e1) (typeof e2) true2 (eval_expr Delta e1 rho) (eval_expr Delta e2 rho) ->
 Clight.eval_expr ge ve te m e2 (eval_expr Delta e2 rho) ->
@@ -291,8 +292,8 @@ Clight.eval_expr ge ve te m e1 (eval_expr Delta e1 rho) ->
 Clight.eval_expr ge ve te m (Ebinop b e1 e2 t) Vundef.
 Proof.
 intros.
-assert (TC1 := typecheck_expr_sound _ _ _ H H1).
-assert (TC2 := typecheck_expr_sound _ _ _ H H3).
+assert (TC1 := typecheck_expr_sound _ _ _ _ H H1).
+assert (TC2 := typecheck_expr_sound _ _ _ _ H H3).
 rewrite tc_val_eq in *.
 copy H2.
 rewrite den_isBinOpR in H7; simpl in H7.
@@ -307,13 +308,13 @@ Opaque tc_andp.
 (** Equivalence of CompCert eval_expr and our function eval_expr on programs that typecheck **)
 
 Lemma ptr_compare_no_binop_tc : 
-forall Delta e1 e2 b1 i1 b2 i2 rho b t,
+forall Delta e1 e2 b1 i1 b2 i2 rho phi b t,
 typecheck_val (eval_expr Delta e1 rho) (typeof e1) = true ->
 typecheck_val (eval_expr Delta e2 rho) (typeof e2) = true ->
 Vptr b1 i1 = eval_expr Delta e1 rho ->
 Vptr b2 i2 = eval_expr Delta e2 rho ->
 true = is_comparison b ->
-~denote_tc_assert Delta (isBinOpResultType Delta b e1 e2 t) rho.
+~denote_tc_assert Delta (isBinOpResultType Delta b e1 e2 t) rho phi.
 Proof.
 intros.
 unfold not. intro.
@@ -334,8 +335,8 @@ destruct (classify_cast t1 t2);
 destruct v; destruct t1; destruct t2; auto.
 Qed.
 
-Lemma isBinOpResultType_binop_stable: forall Delta b e1 e2 t rho,
-  denote_tc_assert Delta (isBinOpResultType Delta b e1 e2 t) rho ->
+Lemma isBinOpResultType_binop_stable: forall Delta b e1 e2 t rho phi,
+  denote_tc_assert Delta (isBinOpResultType Delta b e1 e2 t) rho phi ->
   binop_stable (composite_types Delta) b e1 e2 = true.
 Proof.
   intros.
@@ -355,14 +356,14 @@ Proof.
 Qed.
 
 Lemma eval_both_relate:
-  forall Delta ge te ve rho e m,
+  forall Delta ge te ve rho e phi m,
            guard_genv Delta ge ->
            rho = construct_rho (filter_genv ge) ve te ->
            typecheck_environ Delta rho ->
-           (denote_tc_assert Delta (typecheck_expr Delta e) rho ->
+           (denote_tc_assert Delta (typecheck_expr Delta e) rho phi ->
              Clight.eval_expr ge ve te m e  (eval_expr Delta e rho))
            /\
-           (denote_tc_assert Delta (typecheck_lvalue Delta e) rho ->
+           (denote_tc_assert Delta (typecheck_lvalue Delta e) rho phi ->
              exists b, exists ofs, 
               Clight.eval_lvalue ge ve te m e b ofs /\
               eval_lvalue Delta e rho = Vptr b ofs).
@@ -376,7 +377,7 @@ try solve[intuition; constructor; auto | subst; inv H1]; intuition.
 
 assert (TC_Sound:= typecheck_expr_sound).
 rewrite tc_val_eq in TC_Sound.
-specialize (TC_Sound Delta rho (Evar i t) H0 H1).
+specialize (TC_Sound Delta rho phi (Evar i t) H0 H1).
 simpl in TC_Sound|-*.
 super_unfold_lift.
 unfold deref_noload in TC_Sound|-*.
@@ -445,7 +446,7 @@ apply Clight.eval_Evar_global; auto.
 
 * (*temp*)  
 assert (TC:= typecheck_expr_sound).
-specialize (TC Delta rho (Etempvar i t)). simpl in *. 
+specialize (TC Delta rho phi (Etempvar i t)). simpl in *. 
 intuition.  
 constructor. unfold eval_id in *. remember (Map.get (te_of rho)  i);
 destruct o;  auto. destruct rho; inv H; unfold make_tenv in *.
@@ -454,7 +455,7 @@ simpl in *. destruct t as [ | [ | | | ] [ | ] | [ | ] | [ | ] | | | | | ]; contr
 
 * (*deref*)
 assert (TC:= typecheck_expr_sound).
-specialize (TC Delta rho (Ederef e t)). simpl in *. 
+specialize (TC Delta rho phi (Ederef e t)). simpl in *. 
 intuition.  
 destruct (access_mode t) eqn:?H; try inversion H1.
 rewrite !denote_tc_assert_andp in H1.
@@ -476,7 +477,7 @@ eapply eval_Elvalue.
   constructor; auto.
 
 * (*deref*)
-assert (TC:= typecheck_lvalue_sound _ _ _ H0 H1).
+assert (TC:= typecheck_lvalue_sound _ _ _ _ H0 H1).
 specialize (IHe ge). intuition. simpl in H1.
 repeat( rewrite tc_andp_sound in *; simpl in *; super_unfold_lift).
 intuition. simpl. super_unfold_lift; unfold_tc_denote.
@@ -490,7 +491,7 @@ auto.
 simpl in H1. 
 repeat( rewrite tc_andp_sound in *; simpl in *; super_unfold_lift).
 super_unfold_lift.
-assert (ISPTR := eval_lvalue_ptr rho e Delta (te_of rho) (ve_of rho) (ge_of rho)).
+assert (ISPTR := eval_lvalue_ptr rho phi e Delta (te_of rho) (ve_of rho) (ge_of rho)).
 specialize (IHe ge).
 assert (mkEnviron (ge_of rho) (ve_of rho) (te_of rho) = rho). destruct rho; auto.
 destruct rho. unfold typecheck_environ in *. intuition. 
@@ -524,14 +525,8 @@ remember (sem_binary_operation' Delta b (typeof e1) (typeof e2) true2 (eval_expr
     eapply IHe2. assumption. apply H. apply H3.
     rewrite <- Cop_sem_binary_operation_guard_genv with (Delta := Delta);
       [| auto | eapply isBinOpResultType_binop_stable; eauto].
-    remember (eval_expr Delta e1 rho); remember (eval_expr Delta e2 rho);
-    destruct v0; destruct v1; simpl;
-    rewrite Heqv0 at 1; rewrite Heqv1;
-    rewrite Heqv0 in Heqo at 1;
-    rewrite Heqv1 in Heqo;
-    (*rewrite HH in *;*)
-    try rewrite Heqo;
-    try apply tc_binaryop_relate with (t:=t); auto.
+   rewrite Heqo. clear Heqo.
+    apply tc_binaryop_relate with (t:=t)(m:=phi); auto.
   + specialize (IHe1 ge). specialize (IHe2 ge). intuition.
          clear H7 H8. 
     remember (eval_expr Delta e1 rho). remember (eval_expr Delta e2 rho).
@@ -543,7 +538,7 @@ remember (sem_binary_operation' Delta b (typeof e1) (typeof e2) true2 (eval_expr
 
 
 * (*Cast*) {
-assert (TC := typecheck_expr_sound _ _ _ H0 H1).
+assert (TC := typecheck_expr_sound _ _ _ _ H0 H1).
 rewrite tc_val_eq in TC.
 simpl in *; 
 repeat( rewrite tc_andp_sound in *; simpl in *; super_unfold_lift).
@@ -556,7 +551,8 @@ destruct (Cop.sem_cast (eval_expr Delta e rho) (typeof e) t). auto.
 inv TC. } 
 
 * (*Field*)
-specialize (IHe ge HGG H). assert (TC := typecheck_expr_sound _ _ _ H0 H1). 
+specialize (IHe ge HGG H).
+ assert (TC := typecheck_expr_sound _ _ _ _ H0 H1). 
 simpl in H1. remember (access_mode t). destruct m0; try solve [inv H1]. 
   repeat rewrite tc_andp_sound in *. 
 simpl in H1. 
@@ -591,7 +587,7 @@ destruct ((composite_types Delta) ! i0) as [co |] eqn:Hco; try solve [inv H2].
   rewrite H5, Hco. simpl. apply Clight.deref_loc_reference; auto.
 
 *
- assert (TC:= typecheck_lvalue_sound _ _ _ H0 H1).
+ assert (TC:= typecheck_lvalue_sound _ _ _ _ H0 H1).
 specialize (IHe ge). intuition. simpl in H1. 
 simpl in *.
 repeat( rewrite tc_andp_sound in *; simpl in *; super_unfold_lift).
@@ -648,11 +644,11 @@ constructor.
 Qed.
 
 Lemma eval_expr_relate:
-  forall Delta ge te ve rho e m,
+  forall Delta ge te ve rho phi e m,
            guard_genv Delta ge ->
            rho = construct_rho (filter_genv ge) ve te ->
            typecheck_environ Delta rho ->
-           (denote_tc_assert Delta (typecheck_expr Delta e) rho ->
+           (denote_tc_assert Delta (typecheck_expr Delta e) rho phi ->
              Clight.eval_expr ge ve te m e  (eval_expr Delta e rho)).
 Proof.
 intros.
@@ -660,15 +656,17 @@ edestruct eval_both_relate; eauto.
 Qed.
 
 Lemma eval_lvalue_relate:
-  forall Delta ge te ve rho e m,
+  forall Delta ge te ve rho phi e m,
            guard_genv Delta ge ->
            rho = construct_rho (filter_genv ge) ve te->
            typecheck_environ Delta rho ->
-           (denote_tc_assert Delta (typecheck_lvalue Delta e) rho ->
+           (denote_tc_assert Delta (typecheck_lvalue Delta e) rho phi ->
              exists b, exists ofs, 
               Clight.eval_lvalue ge ve te m e b ofs /\
               eval_lvalue Delta e rho = Vptr b ofs).
-apply eval_both_relate.
+Proof.
+intros.
+edestruct eval_both_relate; eauto.
 Qed.
 
 (*
@@ -837,11 +835,11 @@ destruct t1 as [ | [ | | | ] | [ | ] | [ | ] | | | | | ];
   destruct t2 as [ | [  | | | ] | [ | ] | [ | ] | | | | | ]; destruct e; simpl; auto.   
 Qed.
 
-Lemma cast_exists : forall Delta e2 t rho 
+Lemma cast_exists : forall Delta e2 t rho phi
 (TC: typecheck_environ Delta rho), 
-denote_tc_assert Delta (typecheck_expr Delta e2) rho ->
+denote_tc_assert Delta (typecheck_expr Delta e2) rho phi ->
 denote_tc_assert Delta (isCastResultType Delta (typeof e2) t e2)
-  rho ->
+  rho phi ->
 sem_cast (typeof e2) t (eval_expr Delta e2 rho)  =
 Some (force_val (sem_cast (typeof e2) t (eval_expr Delta e2 rho))).
 Proof.
@@ -860,7 +858,7 @@ unfold isCastResultType in *;
 simpl in *;
 rewrite denote_tc_assert_andp in H0; simpl in H0;
  unfold_lift in H0; rewrite <- Heqv in H0; simpl in H0;
-match type of H0 with (match ?ZZ with Some _ => _ | None => _ end /\ _) =>
+match type of H0 with (app_pred match ?ZZ with Some _ => _ | None => _ end _ /\ _) =>
     destruct ZZ eqn:H5
  end;
  destruct H0; try contradiction;
@@ -1056,21 +1054,22 @@ destruct v; destruct from as [ | [ | | | ] [ | ] | [ | ] | [ | ] | | | | | ];
  destruct to as [ | [ | | | ] [ | ] | [ | ] | [ | ] | | | | | ]; simpl in *; try congruence; auto.
 Qed. 
 
-Lemma tc_exprlist_length : forall Delta tl el rho, 
-denote_tc_assert Delta (typecheck_exprlist Delta tl el) rho ->
+Lemma tc_exprlist_length : forall Delta tl el rho phi, 
+denote_tc_assert Delta (typecheck_exprlist Delta tl el) rho phi ->
 length tl = length el. 
 Proof. 
 intros. generalize dependent el. induction tl; intros. simpl in *. destruct el. inv H. auto. 
 inv H. simpl in H. destruct el; try solve [inv H]. simpl in *.
 repeat( rewrite tc_andp_sound in *; simpl in *; super_unfold_lift).
 super_unfold_lift.
-intuition.
+f_equal; apply IHtl.
+destruct H; auto.
 Qed.
 
-Lemma neutral_cast_typecheck_val : forall e t rho Delta,
+Lemma neutral_cast_typecheck_val : forall e t rho phi Delta,
 true = is_neutral_cast (implicit_deref (typeof e)) t ->
-denote_tc_assert Delta (isCastResultType Delta (implicit_deref (typeof e)) t  e) rho ->
-denote_tc_assert Delta (typecheck_expr Delta e) rho ->
+denote_tc_assert Delta (isCastResultType Delta (implicit_deref (typeof e)) t  e) rho phi ->
+denote_tc_assert Delta (typecheck_expr Delta e) rho phi ->
 typecheck_environ Delta rho ->
 typecheck_val (eval_expr Delta e rho) t = true. 
 Proof.
@@ -1130,29 +1129,32 @@ destruct ((temp_types Delta') ! id) as [[? ?]|]; try contradiction.
 Qed.
 
 Lemma typecheck_val_sem_cast: 
-  forall t2 e2 rho Delta,
+  forall t2 e2 rho phi Delta,
       typecheck_environ Delta rho ->
-      denote_tc_assert Delta (typecheck_expr Delta e2) rho ->
-      denote_tc_assert Delta (isCastResultType Delta (typeof e2) t2  e2) rho ->
+      denote_tc_assert Delta (typecheck_expr Delta e2) rho phi ->
+      denote_tc_assert Delta (isCastResultType Delta (typeof e2) t2  e2) rho phi ->
       typecheck_val (force_val (sem_cast (typeof e2) t2 (eval_expr Delta e2 rho))) t2 = true.
-Proof. intros ? ? ? ? H2 H5 H6.
-assert (H7 := cast_exists _ _ _ _ H2 H5 H6).
-assert (H8 := typecheck_expr_sound _ _ _ H2 H5).
+Proof. intros ? ? ? ? ? H2 H5 H6.
+assert (H7 := cast_exists _ _ _ _ phi H2 H5 H6).
+assert (H8 := typecheck_expr_sound _ _ _ _ H2 H5).
 rewrite tc_val_eq in H8.
 clear - H7 H6 H8.
 revert H7; case_eq (sem_cast (typeof e2) t2 (eval_expr Delta e2 rho) ); intros; inv H7.
 simpl.
 rewrite isCastR in H6.
 case_eq (eval_expr Delta e2 rho); intros; rename H0 into H99;
- destruct t2 as [ | [ | | | ] [ | ] | [ | ] | [ | ] | | | | | ]; inv H8; inv H; simpl; auto;
+ destruct t2 as [ | [ | | | ] [ | ] | [ | ] | [ | ] | | | | | ]; 
+  inv H8; inv H; simpl; auto;
 hnf in H6; try contradiction; rewrite H99 in *;
 destruct (typeof e2) as [ | [ | | | ] [ | ] | [ | ] | [ | ] | | | | | ]; 
 inv H2; inv H1; auto;
 simpl in H6;
 try (unfold sem_cast in H0;
       simpl in*; inv H0; simpl; auto);
- try (super_unfold_lift; unfold denote_tc_iszero in H6; rewrite H99 in H6;
-       try contradiction H6; apply is_true_e in H6; auto);
+super_unfold_lift;
+try (rewrite H99 in H6; simpl in H6; try contradiction H6;
+      apply is_true_e in H6);
+auto;
  try match type of H1 with 
    match ?ZZ with Some _ => _ | None => _ end = _ => 
   destruct ZZ eqn:H5; inv H1; simpl; auto

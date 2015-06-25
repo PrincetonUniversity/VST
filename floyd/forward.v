@@ -130,161 +130,6 @@ hnf in qu;
 first [apply is_and in qu |
 simpl PTree.get at 2 in qu].
 
-(* BEGIN HORRIBLE1.
-  The following lemma is needed because CompCert clightgen
- produces the following AST for function call:
-  (Ssequence (Scall (Some id') ... ) (Sset id (Etempvar id' _)))
-instead of the more natural
-   (Scall id ...)
-Our general tactics are powerful enough to reason about the sequence,
-one statement at a time, but it is not nice to burden the user with knowing
-about id'.  So we handle it all in one gulp.
- 
-The lemma goes here, because it imports from both forward_lemmas and call_lemmas.
-
- See also BEGIN HORRIBLE1 , later in this file
-*)
-
-Lemma semax_call_id1_x:
- forall Espec Delta P Q R ret ret' id retty retty' bl argsig A x Pre Post
-   (GLBL: (var_types Delta) ! id = None),
-   (glob_specs Delta) ! id = Some (mk_funspec (argsig,retty') A Pre Post) ->
-   (glob_types Delta) ! id = Some (type_of_funspec (mk_funspec (argsig,retty') A Pre Post)) ->
-   match retty' with Tvoid => False | Tarray _ _ _ => False | _ => True end ->
-  forall
-   (CLOSQ: Forall (closed_wrt_vars (eq ret')) Q)
-   (CLOSR: Forall (closed_wrt_vars (eq ret')) R),
-   (temp_types Delta) ! ret' = Some (retty', false) ->
-   is_neutral_cast retty' retty = true ->
-   match (temp_types Delta) ! ret with Some (t,_) => eqb_type t retty | None => false end = true ->
-  @semax Espec Delta (PROPx P (LOCALx (tc_exprlist Delta (argtypes argsig) bl :: Q) 
-                                     (SEPx (`(Pre x) (make_args' (argsig,retty') (eval_exprlist Delta (argtypes argsig) bl)) :: R))))
-    (Ssequence (Scall (Some ret')
-             (Evar id (Tfunction (type_of_params argsig) retty' cc_default))
-             bl)
-      (Sset ret (Etempvar ret' retty')))
-    (normal_ret_assert 
-       (EX old:val, 
-          PROPx P (LOCALx (map (subst ret (`old)) Q) 
-             (SEPx (`(Post x) (get_result1 ret) :: map (subst ret (`old)) R))))).
-Proof.
- intros until 1. intro Hspecs.
- pose (H1:=True); pose (H2:=True).
- intros ? ? ?. pose proof I. intros.  clear H3. (* rename H3 into NONVOL. *)
- eapply semax_seq';
- [assert (H0':    match retty' with Tvoid => False | _ => True end)
-  by (clear - H0; destruct retty'; try contradiction; auto);
-   apply (semax_call_id1' _ _ P Q R _ _ _ bl _ _ x _ _ GLBL Hspecs H H0'); auto
- | ].
-simpl. rewrite H4; auto.
-match goal with |- semax ?D (PROPx ?P ?QR) ?c ?Post =>
-   assert ( (fold_right and True P) -> semax D (PROPx nil QR) c Post)
- end.
-Focus 2. {
- clear - H3.
- unfold PROPx. 
- unfold PROPx at 1 in H3.
- normalize in H3.
- apply semax_extract_prop. apply H3.
-} Unfocus.
- intro.
- apply semax_post_flipped
- with (normal_ret_assert (EX  x0 : val,
-PROP  ()
-(LOCALx
-   (tc_environ
-      (initialized ret
-         (update_tycon Delta
-            (Scall (Some ret') (Evar id (Tfunction (type_of_params argsig) retty' cc_default)) bl)))
-    :: `eq (eval_id ret)
-         (subst ret (`x0) (eval_expr Delta (Etempvar ret' retty')))
-       :: map (subst ret (`x0)) Q)
-   (SEPx
-      (map (subst ret (`x0)) (`(Post x) (get_result1 ret') :: R)))))).
-  make_sequential;
-          eapply semax_post_flipped;
-          [ apply forward_setx; 
-            try solve [intro rho; rewrite andp_unfold; apply andp_right; apply prop_right;
-                            repeat split ]
-           | intros ?ek ?vl; apply after_set_special1 ].
- apply andp_right.
- intro rho; unfold tc_expr; simpl.
- replace ( (temp_types (initialized ret' Delta)) ! ret' ) 
-     with (Some (retty', true))
-   by (unfold initialized;  simpl; rewrite H4;
-        unfold temp_types; simpl; rewrite PTree.gss; auto).
- simpl @snd; simpl @fst; cbv iota zeta beta.
- unfold local; apply prop_right.
- simpl.
- clear - H5.
-  destruct retty as [ | [ | | | ] [ | ] | | [ | ] |  | | | | ], retty' as [ |  [ | | | ] [ | ] | | [ | ] |  | | | | ];
-     simpl; try inv H5; try apply I.
- intro rho; apply prop_right; unfold tc_temp_id; simpl.
- unfold typecheck_temp_id.
- destruct (eq_dec ret' ret).
- subst ret'.
- unfold temp_types. unfold initialized; simpl.
- rewrite H4. simpl. rewrite PTree.gss.
-  replace (implicit_deref retty') with retty' by (clear - H0; destruct retty'; try contradiction; reflexivity).
- rewrite H4 in H6. apply eqb_type_true in H6. subst retty'.
- rewrite H5.
- simpl.
- apply neutral_isCastResultType; auto.
- replace (implicit_deref retty') with retty' by (clear - H0; destruct retty'; try contradiction; reflexivity).
- destruct ((temp_types Delta) ! ret) eqn:?; try discriminate.
- destruct p. apply eqb_type_true in H6.
- subst t.
- unfold temp_types, initialized.  rewrite H4. simpl. rewrite PTree.gso by auto.
- rewrite Heqo.
- rewrite denote_tc_assert_andp; split.
- rewrite H5; reflexivity.
- apply neutral_isCastResultType; auto.
- apply derives_refl.
- intros.
- apply andp_left2. apply normal_ret_assert_derives'.
- apply exp_derives; intro old.
- apply andp_derives.
- apply prop_right; auto.
- go_lowerx.
- apply sepcon_derives; auto.
- rewrite subst_lift1'.
- replace (subst ret (fun _ => old) (get_result1 ret') rho)
-   with (get_result1 ret rho); auto.
- destruct (eq_dec ret ret').
- subst.
- unfold get_result1.
- unfold subst. f_equal.
- autorewrite with subst in H8.
- normalize in H8. rewrite H8.
- f_equal. unfold eval_id.  simpl. rewrite Map.gss. reflexivity.
- clear - H6 H8 H7.
- unfold tc_environ in H7.
- unfold env_set. destruct rho; simpl in *; f_equal.
- unfold eval_id in H8; simpl in H8. 
- unfold subst in H8.
- simpl in *. rewrite Map.gss in H8. simpl in H8.
- unfold lift in H8. 
- unfold Map.set. extensionality i. 
- destruct (ident_eq i ret'); auto.  subst i.
- unfold typecheck_environ in H7.
- destruct H7 as [? [_  [_ _]]].
- simpl te_of in H.
- hnf in H.
- specialize (H ret').
- revert H6; case_eq ((temp_types Delta)!ret'); intros; try discriminate.
- destruct p.
- unfold temp_types, initialized in H; simpl in H.
- rewrite H0 in H. unfold temp_types in *. simpl in H. rewrite PTree.gss in H.
- simpl in H. rewrite PTree.gss in H.
- specialize (H true t (eq_refl _)). 
- destruct H as [v [? ?]]. unfold Map.get in H,H8; rewrite H in *.
- f_equal. destruct H1. inv H1.  destruct v; inv H8; inv H1; auto.
-  rewrite closed_wrt_subst; auto with closed.
- unfold get_result1.
- f_equal. f_equal.
- rewrite H8.
-  rewrite closed_wrt_subst; auto with closed.
-Qed.
 
 Lemma local_True_right:
  forall (P: environ -> mpred),
@@ -807,61 +652,6 @@ Proof.
 intros.
  rewrite <- seq_assoc. auto.
 Qed.
-
-Lemma semax_call_id1_x_alt:
- forall Espec Delta P Q R ret ret' id (paramty: typelist) (retty retty': type) (bl: list expr)
-                  (argsig: list (ident * type)) A (Pre Post: A -> environ -> mpred)
-             (witness: A) (Frame: list (LiftEnviron mpred))
-   (GLBL: (var_types Delta) ! id = None),
-   (glob_specs Delta) ! id = Some (mk_funspec (argsig,retty') A Pre Post) ->
-   (glob_types Delta) ! id = Some (type_of_funspec (mk_funspec (argsig,retty') A Pre Post)) ->
-   typeof_temp Delta ret = Some retty -> 
-   match retty with Tvoid => False | Tarray _ _ _ => False | _ => True end ->
-   paramty = type_of_params argsig ->
-   (temp_types Delta) ! ret' = Some (retty', false) ->
-   is_neutral_cast retty' retty = true ->
-   forall (CLOSQ: Forall (closed_wrt_vars (eq ret')) Q),
-   PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |--
-    PROP () LOCAL (tc_exprlist Delta (argtypes argsig) bl) 
-                (SEPx (`(Pre witness)  (make_args' (argsig, retty)
-                               (eval_exprlist Delta (argtypes argsig) bl)) :: Frame)) ->
-  forall
-   (CLOSR: Forall (closed_wrt_vars (eq ret')) Frame),
-   @semax Espec Delta (PROPx P (LOCALx Q (SEPx R)))
-    (Ssequence (Scall (Some ret')
-             (Evar id (Tfunction paramty retty' cc_default))
-             bl)
-      (Sset ret (Etempvar ret' retty')))
-    (normal_ret_assert 
-       (EX old:val, 
-          PROPx P (LOCALx (map (subst ret (`old)) Q) 
-             (SEPx (`(Post witness) (get_result1 ret) :: map (subst ret (`old)) Frame))))).
-Proof.
- intros until 1. intro Hspec. intros ? ? ? ?.
- pose proof I. intros.
-subst paramty.
-eapply semax_pre; [ | apply semax_call_id1_x with retty; try eassumption].
-rewrite <- (insert_local (tc_exprlist Delta (argtypes argsig) bl)).
-apply andp_right.
-eapply derives_trans; [apply H6 |].
-apply andp_left2; apply andp_left1.
-go_lowerx. intros [? _]; apply prop_right; auto.
-apply andp_right.
-apply andp_left1; auto.
-apply andp_right.
-rewrite <- insert_local.
-apply andp_left2.
-apply andp_left2.
- apply andp_left1. auto.
-eapply derives_trans; [ apply H6 |].
-apply andp_left2; apply andp_left2; auto.
-clear - H5; destruct retty,retty'; inv H5; simpl; auto.
-clear - H0. unfold typeof_temp in H0.
-destruct((temp_types Delta) ! ret); inv H0.
-destruct p; inv H1. apply eqb_type_refl.
-Qed.
-
-(* END HORRIBLE1 *)
 
 Ltac do_compute_lvalue Delta P Q R e v H :=
   let rho := fresh "rho" in
@@ -1663,79 +1453,6 @@ Ltac normalize_make_args :=
   [norm_rewrite; unfold R'; reflexivity
   | unfold R'; clear R'].
 
-Ltac forward_call W := 
-  check_Delta;
- let witness := fresh "witness" in
- pose (witness := W);   (* faster this way, for some reason *)
-match goal with
-| |- semax _ _ (Ssequence (Ssequence (Scall (Some ?i') _ _) 
-                                          (Sset ?i (Etempvar ?i' _))) _) _ =>
-   let Frame := fresh "Frame" in evar (Frame: list (environ->mpred));
-   eapply semax_seq';
-    [eapply (semax_call_id1_x_alt _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ witness Frame);
-      [reflexivity | reflexivity | reflexivity | reflexivity | apply I | reflexivity | reflexivity 
-      | (*reflexivity |*) reflexivity | auto 50 with closed | | unfold Frame; clear Frame ]
-    | simpl update_tycon; abbreviate_semax; apply extract_exists_pre; 
-      intro_old_var' i; autorewrite with subst; unfold Frame; clear Frame;
-     say_after_call ]
-| |- semax _ _ (Ssequence (Scall (Some ?i') _ _) 
-                                          (Sset ?i (Etempvar ?i' _))) _ =>
-   normalize_postcondition;
-   let Frame := fresh "Frame" in evar (Frame: list (environ->mpred));
-   eapply semax_post_flipped3;
-    [eapply (semax_call_id1_x_alt _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ witness Frame);
-      [reflexivity | reflexivity | reflexivity | reflexivity | apply I | reflexivity | reflexivity 
-      | (*reflexivity |*) reflexivity | auto 50 with closed | | unfold Frame; clear Frame ]
-    | simpl update_tycon; abbreviate_semax; apply extract_exists_pre; 
-      intro_old_var' i; autorewrite with subst; unfold Frame; clear Frame;
-     say_after_call ]
-| |- semax _ _ (Ssequence (Ssequence _ _) _) _ => 
-     apply -> seq_assoc; abbreviate_semax; forward_call witness
-| |- semax _ _ (Ssequence (Scall None _ _) _) _ =>
-  let Frame := fresh "Frame" in evar (Frame: list (environ->mpred));
-  eapply semax_seq';
-  [eapply (semax_call_id0_alt _ _ _ _ _ _ _ _ _ _ _ witness Frame);
-         [reflexivity | reflexivity | reflexivity | reflexivity | normalize_make_args ]
-  | cbv beta iota; try simple apply elim_useless_retval;
-    simpl update_tycon; abbreviate_semax; unfold Frame; clear Frame;
-    say_after_call ]
-| |- semax _ _ (Scall None _ _) _ =>
-   normalize_postcondition;
-  let Frame := fresh "Frame" in evar (Frame: list (environ->mpred));
-   eapply semax_post_flipped3;
-  [eapply (semax_call_id0_alt _ _ _ _ _ _ _ _ _ _ _ witness Frame);
-         [reflexivity | reflexivity | reflexivity | reflexivity | normalize_make_args ]
-  | cbv beta iota; try simple apply elim_useless_retval;
-    try rewrite exp_andp2;
-    try rewrite insert_local; unfold Frame; clear Frame;
-    say_after_call ]
-| |- semax _ _ (Ssequence (Scall (Some ?i) _ _) _) _ =>
-   let Frame := fresh "Frame" in evar (Frame: list (environ->mpred));
-   eapply semax_seq';
-    [eapply (semax_call_id1_alt _ _ _ _ _ _ _ _ _ _ _ _ _ _ witness Frame);
-            [reflexivity | reflexivity | reflexivity | apply I 
-            | simpl; first [apply I | reflexivity]
-            |reflexivity | normalize_make_args ]
-    | simpl update_tycon; abbreviate_semax; apply extract_exists_pre; 
-      intro_old_var' i; autorewrite with subst; unfold Frame; clear Frame;
-     say_after_call ]
-| |- semax _ _ (Scall (Some ?i) _ _) _ =>
-   normalize_postcondition;
-   let Frame := fresh "Frame" in evar (Frame: list (environ->mpred));
-   eapply semax_post_flipped3;
-    [eapply (semax_call_id1_alt _ _ _ _ _ _ _ _ _ _ _ _ _ _ witness Frame);
-            [reflexivity | reflexivity | reflexivity | apply I 
-            | simpl; first [apply I | reflexivity]
-            | reflexivity | normalize_make_args ]
-    | try rewrite exp_andp2;
-               try (apply exp_left; intro_old_var' i);
-               try rewrite insert_local;
-               autorewrite with subst; unfold Frame; clear Frame;
-               say_after_call ]
- | |- _ => forward_call_complain W
-end; 
- unfold witness; try clear witness; simpl argtypes.
-
 Ltac check_sequential s :=
  match s with
  | Sskip => idtac
@@ -2184,7 +1901,7 @@ Ltac really_simplify_one_thing :=
     | _ =>
           rewrite eq_rect_r_eq
     | _ =>
-          rewrite eq_rect_eq
+          rewrite <- eq_rect_eq
     | compact_prod_upd _ _ _ _ _ =>
        unfold compact_prod_upd at 1;
          cbv delta [list_rect]
@@ -2245,14 +1962,21 @@ Ltac really_simplify_one_thing :=
          cbv beta iota zeta delta [
                proj_reptype proj_gfield_reptype
          ] in z; subst z
-     | context [@proj_struct _ _ _ _ _] => 
-         cbv delta [
+     | context [@proj_struct _ _ _ _ _] =>
+         cbv beta iota delta [
              proj_struct proj_compact_prod list_rect
-         ]
+          ]; 
+         repeat match goal with 
+                 | |- context [member_dec ?A ?B] =>
+                 really_simplify (member_dec A B);
+                cbv beta iota zeta
+         end
      | context [@aggregate_type.proj_struct _ _ _ _ _] => 
          cbv delta [
              aggregate_type.proj_struct proj_compact_prod list_rect
          ]
+     | context [unfold_reptype _] =>
+        unfold unfold_reptype at 1; rewrite <- eq_rect_eq
     end
     | A := _ |- _ => subst A 
   end; 
@@ -2707,6 +2431,7 @@ end.
 
 (* END new semax_load and semax_store tactics *************************)
 
+(*
 Ltac semax_logic_and_or :=
 first [ eapply semax_logical_or_PQR | eapply semax_logical_and_PQR];
 [ auto 50 with closed
@@ -2715,6 +2440,7 @@ first [ eapply semax_logical_or_PQR | eapply semax_logical_and_PQR];
 | auto 50 with closed
 | auto | auto | reflexivity
 | try solve [intro rho; simpl; repeat apply andp_right; apply prop_right; auto] | ].
+*)
 
 Ltac forward0 :=  (* USE FOR DEBUGGING *)
   match goal with 
@@ -2745,8 +2471,8 @@ Ltac forward_return :=
       entailer_for_return).
 
 Ltac forward_ifthenelse :=
-           semax_logic_and_or 
-           ||  fail 2 "Use this tactic:  forward_if POST, where POST is the post condition".
+           (*semax_logic_and_or 
+           ||*)  fail 2 "Use this tactic:  forward_if POST, where POST is the post condition".
 
 Ltac forward_while_complain :=
            fail 2 "Use this tactic:  forward_while INV POST,
@@ -2766,7 +2492,7 @@ Our general tactics are powerful enough to reason about the sequence,
 one statement at a time, but it is not nice to burden the user with knowing
 about id'.  So we handle it all in one gulp.
  See also BEGIN HORRIBLE1 in forward_lemmas.v
-*)
+
 Ltac forward_compound_call :=
   complain_open_sep_terms; [auto |
   ensure_open_normal_ret_assert;
@@ -2793,7 +2519,7 @@ Ltac forward_compound_call :=
                ;
   unfold fsig, A, Pre, Post in *; clear fsig A Pre Post
 end ].
-
+*)
 
 Ltac forward_skip := apply semax_skip.
 
@@ -2868,8 +2594,9 @@ Ltac forward1 s :=  (* Note: this should match only those commands that
   | Sifthenelse ?e _ _ => no_loads_expr e false false; forward_ifthenelse
   | Swhile _ _ => forward_while_complain
   | Sloop (Ssequence (Sifthenelse _ Sskip Sbreak) _) _ => forward_for_complain
-  | Ssequence (Scall (Some ?id') (Evar _ _) ?el) (Sset _ (Etempvar ?id' _)) => 
+(*  | Ssequence (Scall (Some ?id') (Evar _ _) ?el) (Sset _ (Etempvar ?id' _)) => 
           no_loads_exprlist el false; forward_compound_call
+*)
   | Scall _ (Evar _ _) _ =>  advise_forward_call
   | Sskip => forward_skip
   end.

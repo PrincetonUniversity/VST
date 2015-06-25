@@ -63,11 +63,11 @@ Fixpoint efield_denote (Delta: tycontext) (efs: list efield) (gfs: list gfield) 
   | _, _ => FF
   end.
 
-Fixpoint tc_efield (Delta: tycontext) (efs: list efield) rho : Prop :=
+Fixpoint tc_efield (Delta: tycontext) (efs: list efield) rho : mpred :=
   match efs with
-  | nil => True
+  | nil => TT
   | eArraySubsc ei :: efs' => 
-    tc_expr Delta ei rho /\ tc_efield Delta efs' rho
+    tc_expr Delta ei rho && tc_efield Delta efs' rho
   | eStructField i :: efs' =>
     tc_efield Delta efs' rho
   | eUnionField i :: efs' =>
@@ -190,7 +190,7 @@ Qed.
 
 Lemma typeof_nested_efield: forall Delta t_root e efs gfs tts lr,
   legal_nested_efield t_root e gfs tts lr = true ->
-  local (tc_efield Delta efs) && efield_denote Delta efs gfs |--
+  (tc_efield Delta efs) && efield_denote Delta efs gfs |--
     !! (nested_field_type2 t_root gfs = typeof (nested_efield e efs tts)).
 Proof.
 Admitted.
@@ -234,40 +234,25 @@ Qed.
 
 Lemma By_reference_eval_expr: forall Delta e rho,
   access_mode (typeof (e)) = By_reference ->
-  tc_lvalue Delta e rho ->
-  eval_expr Delta e rho = eval_lvalue Delta e rho.
+  typecheck_environ Delta rho ->
+  tc_lvalue Delta e rho |-- 
+  !! (eval_expr Delta e rho = eval_lvalue Delta e rho).
 Proof.
   intros.
-  unfold tc_lvalue in H0.
-  destruct e; simpl in H0; try inversion H0.
-  + simpl in H.
-    simpl.
-    unfold deref_noload.
-    rewrite H.
-    reflexivity.
-  + simpl in H.
-    simpl.
-    unfold deref_noload.
-    rewrite H.
-    reflexivity.
-  + simpl in H.
-    simpl.
-    unfold deref_noload.
-    rewrite H.
-    reflexivity.
+  eapply derives_trans. apply typecheck_lvalue_sound; auto.
+  normalize.
+  destruct e; try contradiction; simpl in *; unfold deref_noload; rewrite H;
+     try reflexivity.
 Qed.
 
 Lemma By_reference_tc_expr: forall Delta e rho,
   access_mode (typeof (e)) = By_reference ->
-  tc_lvalue Delta e rho ->
-  tc_expr Delta e rho.
+  typecheck_environ Delta rho ->
+  tc_lvalue Delta e rho |--  tc_expr Delta e rho.
 Proof.
   intros.
   unfold tc_lvalue, tc_expr.
-  destruct e; simpl in H |- *; intros; normalize.
-  + rewrite H. exact H0.
-  + rewrite H. exact H0.
-  + rewrite H. exact H0.
+  destruct e; simpl in *; try apply @FF_left; rewrite H; auto.
 Qed.
 
 (*
@@ -411,10 +396,10 @@ Definition tc_LR Delta e lr :=
 
 Lemma eval_lvalue_nested_efield_aux: forall Delta t_root e efs gfs tts lr,
   legal_nested_efield t_root e gfs tts lr = true ->
-  local (`isptr (eval_LR Delta e lr)) && local (tc_LR Delta e lr) &&
-    local (tc_efield Delta efs) && efield_denote Delta efs gfs |--
+  local (`isptr (eval_LR Delta e lr)) &&  (tc_LR Delta e lr) &&
+     (tc_efield Delta efs) && efield_denote Delta efs gfs |--
   local (`isptr (eval_lvalue Delta (nested_efield e efs tts))) &&
-    local (tc_lvalue Delta (nested_efield e efs tts)) &&
+     (tc_lvalue Delta (nested_efield e efs tts)) &&
     local (`eq (eval_lvalue Delta (nested_efield e efs tts))
       (`(field_address t_root gfs) (eval_LR Delta e lr))).
 Proof.
@@ -545,8 +530,8 @@ Qed.
 
 Lemma eval_lvalue_nested_efield: forall Delta t_root e efs gfs tts lr,
   legal_nested_efield t_root e gfs tts lr = true ->
-  local (`isptr (eval_LR Delta e lr)) && local (tc_LR Delta e lr) &&
-  local (tc_efield Delta efs) && efield_denote Delta efs gfs |-- local (`eq (eval_lvalue Delta (nested_efield e efs tts))
+  local (`isptr (eval_LR Delta e lr)) &&  (tc_LR Delta e lr) &&
+   (tc_efield Delta efs) && efield_denote Delta efs gfs |-- local (`eq (eval_lvalue Delta (nested_efield e efs tts))
       (`(field_address t_root gfs) (eval_LR Delta e lr))).
 Proof.
   intros.
@@ -556,10 +541,10 @@ Qed.
 
 Lemma tc_lvalue_nested_efield: forall Delta t_root e efs gfs tts lr,
   legal_nested_efield t_root e gfs tts lr = true ->
-  local (`isptr (eval_LR Delta e lr)) && local (tc_LR Delta e lr) &&
-  local (tc_efield Delta efs) && efield_denote Delta efs gfs |--
+  local (`isptr (eval_LR Delta e lr)) &&  (tc_LR Delta e lr) &&
+   (tc_efield Delta efs) && efield_denote Delta efs gfs |--
     local (`isptr (eval_lvalue Delta (nested_efield e efs tts))) &&
-    local (tc_lvalue Delta (nested_efield e efs tts)).
+     (tc_lvalue Delta (nested_efield e efs tts)).
 Proof.
   intros.
   eapply derives_trans; [eapply eval_lvalue_nested_efield_aux; eauto |].

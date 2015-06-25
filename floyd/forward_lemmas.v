@@ -35,7 +35,7 @@ Qed.
 Lemma semax_ifthenelse_PQR : 
    forall Espec Delta P Q R (b: expr) c d Post,
       bool_type (typeof b) = true ->
-     PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |-- local (tc_expr Delta b) ->
+     PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |--  (tc_expr Delta b) ->
      @semax Espec Delta (PROPx P (LOCALx (`(typed_true (typeof b)) (eval_expr Delta b) :: Q) (SEPx R)))
                         c Post -> 
      @semax Espec Delta (PROPx P (LOCALx (`(typed_false (typeof b)) (eval_expr Delta b) :: Q) (SEPx R)))
@@ -108,7 +108,7 @@ Lemma semax_ifthenelse_PQR' :
    forall Espec (v: val) Delta P Q R (b: expr) c d Post,
       bool_type (typeof b) = true ->
      PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |-- 
-        local (tc_expr Delta b)  ->
+         (tc_expr Delta b)  ->
      PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |-- 
         local (`(eq v) (eval_expr Delta b)) ->
      @semax Espec Delta (PROPx (typed_true (typeof b) v :: P) (LOCALx Q (SEPx R)))
@@ -219,7 +219,7 @@ Qed.
 Lemma semax_while : 
  forall Espec Delta Q test body R,
      bool_type (typeof test) = true ->
-     (local (tc_environ Delta) && Q |-- local (tc_expr Delta test)) ->
+     (local (tc_environ Delta) && Q |--  (tc_expr Delta test)) ->
      (local (tc_environ Delta) && local (lift1 (typed_false (typeof test)) (eval_expr Delta test)) && Q |-- R EK_normal None) ->
      @semax Espec Delta (local (`(typed_true (typeof test)) (eval_expr Delta test)) && Q)  body (loop1_ret_assert Q R) ->
      @semax Espec Delta Q (Swhile test body) R.
@@ -234,7 +234,7 @@ Focus 2.
 (* End Focus 2*)
 apply semax_seq with 
  (local (`(typed_true (typeof test)) (eval_expr Delta test)) && Q).
-apply semax_pre_simple with (local (tc_expr Delta test) && Q).
+apply semax_pre_simple with ( (tc_expr Delta test) && Q).
 apply andp_right. apply TC.
 apply andp_left2.
 intro; auto.
@@ -257,7 +257,7 @@ Qed.
 Lemma semax_while'_new : 
  forall Espec (v: val) Delta P Q R test body Post,
      bool_type (typeof test) = true ->
-     PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |-- local (tc_expr Delta test) ->
+     PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |--  (tc_expr Delta test) ->
      PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |-- local (`(eq v) (eval_expr Delta test)) ->
      PROPx (typed_false (typeof test) v :: P) (LOCALx (tc_environ Delta :: Q) (SEPx R)) |-- Post EK_normal None ->
      @semax Espec Delta (PROPx (typed_true (typeof test) v :: P) (LOCALx Q (SEPx R)))  body (loop1_ret_assert (PROPx P (LOCALx Q (SEPx R))) Post) ->
@@ -307,7 +307,7 @@ Qed.
 Lemma semax_while'_new1 : 
  forall Espec {A} (v: A -> val) Delta P Q R test body Post,
      bool_type (typeof test) = true ->
-     (forall a, PROPx (P a) (LOCALx (tc_environ Delta :: Q a) (SEPx (R a))) |-- local (tc_expr Delta test)) ->
+     (forall a, PROPx (P a) (LOCALx (tc_environ Delta :: Q a) (SEPx (R a))) |-- (tc_expr Delta test)) ->
      (forall a, PROPx (P a) (LOCALx (tc_environ Delta :: Q a) (SEPx (R a))) |-- local (`(eq (v a)) (eval_expr Delta test))) ->
      (forall a, PROPx (typed_false (typeof test) (v a) :: (P a)) (LOCALx (tc_environ Delta :: (Q a)) (SEPx (R a))) 
                        |-- Post EK_normal None) ->
@@ -362,7 +362,7 @@ Qed.
 Lemma semax_while' : 
  forall Espec Delta P Q R test body Post,
      bool_type (typeof test) = true ->
-     PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |-- local (tc_expr Delta test) ->
+     PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |--  (tc_expr Delta test) ->
      PROPx P (LOCALx (tc_environ Delta :: `(typed_false (typeof test)) (eval_expr Delta test) :: Q) (SEPx R)) |-- Post EK_normal None ->
      @semax Espec Delta (PROPx P (LOCALx (`(typed_true (typeof test)) (eval_expr Delta test) :: Q) (SEPx R)))  body (loop1_ret_assert (PROPx P (LOCALx Q (SEPx R))) Post) ->
      @semax Espec Delta (PROPx P (LOCALx Q (SEPx R))) (Swhile test body) Post.
@@ -381,7 +381,7 @@ Qed.
 Lemma semax_for : 
  forall Espec Delta Q test body incr PreIncr Post,
      bool_type (typeof test) = true ->
-     local (tc_environ Delta) && Q |-- local (tc_expr Delta test) ->
+     local (tc_environ Delta) && Q |-- (tc_expr Delta test) ->
      local (tc_environ Delta) 
       && local (`(typed_false (typeof test)) (eval_expr Delta test)) 
       && Q |-- Post EK_normal None ->
@@ -395,7 +395,7 @@ Proof.
 intros.
 apply semax_loop with PreIncr.
 eapply semax_seq.
-apply semax_pre_simple with  (local (tc_expr Delta test) && Q).
+apply semax_pre_simple with  ( (tc_expr Delta test) && Q).
 apply andp_right; auto.
 apply andp_left2; auto.
 apply semax_ifthenelse; auto.
@@ -433,7 +433,7 @@ Qed.
 Lemma semax_for' : 
  forall Espec Delta P Q R test body incr PreIncr Post,
      bool_type (typeof test) = true ->
-     PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |-- local (tc_expr Delta test) ->
+     PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |-- (tc_expr Delta test) ->
      PROPx P (LOCALx (tc_environ Delta :: `(typed_false (typeof test)) (eval_expr Delta test) :: Q) (SEPx R)) |-- Post EK_normal None ->
      @semax Espec Delta (PROPx P (LOCALx (`(typed_true (typeof test)) (eval_expr Delta test) :: Q) (SEPx R)))
              body (loop1_ret_assert PreIncr Post) ->
@@ -454,8 +454,8 @@ Lemma forward_setx_closed_now':
   Forall (closed_wrt_vars (eq id)) Q ->
   Forall (closed_wrt_vars (eq id)) R ->
   closed_wrt_vars (eq id) (eval_expr Delta e) ->
-  PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |-- local (tc_expr Delta e)  ->
-  PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R))  |-- local (tc_temp_id id (typeof e) Delta e) ->
+  PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |-- (tc_expr Delta e)  ->
+  PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R))  |-- (tc_temp_id id (typeof e) Delta e) ->
   @semax Espec Delta (PROPx P (LOCALx Q (SEPx R))) (Sset id e) 
         (normal_ret_assert (PROPx P (LOCALx (`eq (eval_id id) (eval_expr Delta e)::Q) (SEPx R)))).
 Proof.
@@ -480,8 +480,8 @@ Lemma forward_setx_closed_now:
   Forall (closed_wrt_vars (eq id)) Q ->
   Forall (closed_wrt_vars (eq id)) R ->
   closed_wrt_vars (eq id) (eval_expr Delta e) ->
-  PROPx nil (LOCALx (tc_environ Delta :: Q) (SEPx R)) |-- local (tc_expr Delta e)  ->
-  PROPx nil (LOCALx (tc_environ Delta :: Q) (SEPx R))  |-- local (tc_temp_id id (typeof e) Delta e) ->
+  PROPx nil (LOCALx (tc_environ Delta :: Q) (SEPx R)) |-- (tc_expr Delta e)  ->
+  PROPx nil (LOCALx (tc_environ Delta :: Q) (SEPx R))  |-- (tc_temp_id id (typeof e) Delta e) ->
   normal_ret_assert (PROPx nil (LOCALx (`eq (eval_id id) (eval_expr Delta e)::Q) (SEPx R))) |-- PQR ->
   @semax Espec Delta (PROPx nil (LOCALx Q (SEPx R))) (Sset id e) PQR.
 Proof.
@@ -498,10 +498,10 @@ forall Espec Delta P Q R id e1 e2 cmp ty sh1 sh2 PQR
 Forall (closed_wrt_vars (eq id)) Q ->
 Forall (closed_wrt_vars (eq id)) R ->
 closed_wrt_vars (eq id) (eval_expr Delta ((Ebinop cmp e1 e2 ty))) ->
-( PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |-- local (tc_expr Delta (Ebinop cmp e1 e2 ty))  /\
-  PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R))  |-- local (tc_temp_id id (ty) Delta (Ebinop cmp e1 e2 ty)))
+( PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |-- (tc_expr Delta (Ebinop cmp e1 e2 ty))  /\
+  PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R))  |-- (tc_temp_id id (ty) Delta (Ebinop cmp e1 e2 ty)))
 \/
-PROPx P (LOCALx ((tc_environ Delta)::Q) (SEPx R)) |-- (local (tc_expr Delta e1) && local (tc_expr Delta e2) &&
+PROPx P (LOCALx ((tc_environ Delta)::Q) (SEPx R)) |-- ((tc_expr Delta e1) && (tc_expr Delta e2) &&
       local (`(blocks_match cmp) (eval_expr Delta e1) (eval_expr Delta e2)) &&
       (`(mapsto_ sh1 (typeof e1)) (eval_expr Delta e1) * TT) &&
       (`(mapsto_ sh2 (typeof e2)) (eval_expr Delta e2) * TT)) ->
@@ -538,8 +538,8 @@ Lemma forward_setx_closed_now_seq:
   Forall (closed_wrt_vars (eq id)) Q ->
   Forall (closed_wrt_vars (eq id)) R ->
   closed_wrt_vars (eq id) (eval_expr Delta e) ->
-  PROPx nil (LOCALx (tc_environ Delta :: Q) (SEPx R)) |-- local (tc_expr Delta e)  ->
-  PROPx nil (LOCALx (tc_environ Delta :: Q) (SEPx R))  |-- local (tc_temp_id id (typeof e) Delta e) ->
+  PROPx nil (LOCALx (tc_environ Delta :: Q) (SEPx R)) |-- (tc_expr Delta e)  ->
+  PROPx nil (LOCALx (tc_environ Delta :: Q) (SEPx R))  |-- (tc_temp_id id (typeof e) Delta e) ->
   semax (update_tycon Delta (Sset id e))
            (PROPx nil (LOCALx (`eq (eval_id id) (eval_expr Delta e)::Q) (SEPx R))) c PQR ->
   @semax Espec Delta (PROPx nil (LOCALx Q (SEPx R))) (Ssequence (Sset id e) c) PQR.
@@ -586,7 +586,7 @@ Qed.
 
 Lemma forward_setx':
   forall Espec Delta P id e,
-  (P |-- local (tc_expr Delta e) && local (tc_temp_id id (typeof e) Delta e) ) ->
+  (P |-- (tc_expr Delta e) && (tc_temp_id id (typeof e) Delta e) ) ->
   @semax Espec Delta
              P
              (Sset id e)
@@ -604,7 +604,7 @@ Qed.
 
 Lemma forward_setx:
   forall Espec Delta P Q R id e,
-  (PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |-- local (tc_expr Delta e) && local (tc_temp_id id (typeof e) Delta e) ) ->
+  (PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |-- (tc_expr Delta e) && (tc_temp_id id (typeof e) Delta e) ) ->
   @semax Espec Delta
              (PROPx P (LOCALx Q (SEPx R)))
              (Sset id e)
@@ -621,7 +621,7 @@ eapply semax_pre_post;
    [ | | apply (semax_set_forward Delta (PROPx P (LOCALx (tc_environ Delta :: Q)  (SEPx R))) id e); auto].
 +  eapply derives_trans ; [ | apply now_later].
   rewrite andp_assoc.  repeat rewrite insert_local.
- rewrite <- (andp_dup (PROPx _ (LOCALx (_ :: Q) _))).
+ rewrite <- (andp_dup (PROPx _ (LOCALx (_ :: Q) _))) at 1.
  eapply derives_trans; [apply andp_derives  | ].
  apply H. apply derives_refl.
   rewrite andp_assoc.  repeat rewrite insert_local.
@@ -643,7 +643,7 @@ Qed.
 
 Lemma forward_setx_weak:
   forall Espec Delta P Q R id e,
-  (PROPx P (LOCALx Q (SEPx R)) |-- local (tc_expr Delta e) && local (tc_temp_id id (typeof e) Delta e) ) ->
+  (PROPx P (LOCALx Q (SEPx R)) |-- (tc_expr Delta e) && (tc_temp_id id (typeof e) Delta e) ) ->
   @semax Espec Delta
              (PROPx P (LOCALx Q (SEPx R)))
              (Sset id e)
@@ -666,7 +666,7 @@ Qed.
 
 Lemma forward_ptr_compare'': 
 forall Espec Delta P id e1 e2 sh1 sh2 cmp ty, 
-P |-- (local (tc_expr Delta e1) && local (tc_expr Delta e2) &&
+P |-- ((tc_expr Delta e1) && (tc_expr Delta e2) &&
       local (`(blocks_match cmp) (eval_expr Delta e1) (eval_expr Delta e2)) &&
       (`(mapsto_ sh1 (typeof e1)) (eval_expr Delta e1) * TT) &&
       (`(mapsto_ sh2 (typeof e2)) (eval_expr Delta e2) * TT)) ->
@@ -696,12 +696,12 @@ forall (Delta: tycontext) P Q R id cmp e1 e2 ty sh1 sh2 PQR,
     is_comparison cmp = true  ->
     typecheck_tid_ptr_compare Delta id = true ->
     (PROPx P (LOCALx Q (SEPx R)) |-- 
-           local (tc_expr Delta (Ebinop cmp e1 e2 ty)) && 
-           local (tc_temp_id id ty Delta 
+           (tc_expr Delta (Ebinop cmp e1 e2 ty)) && 
+           (tc_temp_id id ty Delta 
                              (Ebinop cmp e1 e2 ty))) \/
     PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R))
-         |-- local (tc_expr Delta e1) &&
-             local (tc_expr Delta e2)  && 
+         |-- (tc_expr Delta e1) &&
+             (tc_expr Delta e2)  && 
           local (`(SeparationLogic.blocks_match cmp) (eval_expr Delta e1) (eval_expr Delta e2)) &&
           (`(mapsto_ sh1 (typeof e1)) (eval_expr Delta e1 ) * TT) && 
           (`(mapsto_ sh2 (typeof e2)) (eval_expr Delta e2 ) * TT) ->
@@ -739,7 +739,7 @@ Qed.
 
 Lemma forward_ptr_compare:
 forall Espec Delta P Q R id e1 e2 sh1 sh2 cmp ty, 
-PROPx P (LOCALx Q (SEPx R)) |-- (local (tc_expr Delta e1) && local (tc_expr Delta e2) &&
+PROPx P (LOCALx Q (SEPx R)) |-- ((tc_expr Delta e1) && (tc_expr Delta e2) &&
       local (`(blocks_match cmp) (eval_expr Delta e1) (eval_expr Delta e2)) &&
       (`(mapsto_ sh1 (typeof e1)) (eval_expr Delta e1) * TT) &&
       (`(mapsto_ sh2 (typeof e2)) (eval_expr Delta e2) * TT)) ->
@@ -835,6 +835,7 @@ Qed.
 
 Transparent tc_andp.  (* ? should leave it opaque, maybe? *)
 
+(*
 Lemma semax_logical_or:
  forall Espec Delta P Q R tid e1 e2 b
    (CLOSQ : Forall (closed_wrt_vars (eq tid)) Q)
@@ -1066,3 +1067,4 @@ normalize. simpl.
  apply orp_left;
 normalize. normalize.
 Qed.
+*)

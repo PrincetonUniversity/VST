@@ -172,11 +172,6 @@ reflexivity.
 (* Prove postcondition of loop body implies loop invariant *)
 
 forward. (* x = a[i] *)
-entailer!.
-unfold unfold_reptype;simpl.
-autorewrite with zl_nth_db.
-apply I.
-
 forward s_old. (* s += x; *)
 
 forward i_old. (* i++; *)

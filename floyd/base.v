@@ -189,3 +189,35 @@ Definition member_dec: forall (it0 it1: ident * type), {it0 = it1} + {it0 <> it1
   destruct (ident_eq i i0), (type_eq t t0); [left | right | right | right]; congruence.
 Defined.
 
+Lemma denote_tc_assert_andp:
+  forall (Delta : tycontext) (a b : tc_assert) (rho : environ),
+  denote_tc_assert Delta (tc_andp a b) rho =
+  andp (denote_tc_assert Delta a rho)
+    (denote_tc_assert Delta b rho).
+Proof.
+intros.
+apply expr2.denote_tc_assert_andp.
+Qed.
+
+Lemma denote_tc_assert_orp:
+  forall (Delta : tycontext) (a b : tc_assert) (rho : environ),
+  denote_tc_assert Delta (tc_orp a b) rho =
+  orp (denote_tc_assert Delta a rho)
+    (denote_tc_assert Delta b rho).
+Proof.
+intros.
+apply binop_lemmas2.denote_tc_assert_orp.
+Qed.
+
+Lemma denote_tc_assert_bool:
+  forall Delta b c rho, denote_tc_assert Delta (tc_bool b c) rho =
+               prop (b=true).
+Proof.
+intros.
+unfold tc_bool.
+destruct b.
+apply pred_ext; normalize.
+apply pred_ext.  apply @FF_left.
+normalize. inv H.
+Qed.
+

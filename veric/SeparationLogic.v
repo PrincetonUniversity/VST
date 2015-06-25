@@ -61,6 +61,119 @@ Local Open Scope logic.
 Bind Scope pred with mpred.
 Local Open Scope pred.
 
+(* BEGIN from expr2.v *)
+
+Transparent mpred Nveric Sveric Cveric Iveric Rveric Sveric SIveric CSLveric CIveric SRveric.
+Definition denote_tc_iszero v : mpred :=
+         match v with
+         | Vint i => prop (is_true (Int.eq i Int.zero)) 
+         | Vlong i => prop (is_true (Int.eq (Int.repr (Int64.unsigned i)) Int.zero))
+         | _ => FF
+         end.
+
+Definition denote_tc_nonzero v : mpred := 
+         match v with 
+         | Vint i => if negb (Int.eq i Int.zero) then TT else FF
+         | _ => FF end.
+
+Definition denote_tc_igt i v : mpred :=
+     match v with
+     | Vint i1 => prop (is_true (Int.ltu i1 i))
+     | _ => FF
+     end.
+
+Definition Zoffloat (f:float): option Z := (**r conversion to Z *)
+  match f with
+    | Fappli_IEEE.B754_finite s m (Zpos e) _ => 
+       Some (Fcore_Zaux.cond_Zopp s (Zpos m) * Zpower_pos 2 e)%Z
+    | Fappli_IEEE.B754_finite s m 0 _ => Some (Fcore_Zaux.cond_Zopp s (Zpos m))
+    | Fappli_IEEE.B754_finite s m (Zneg e) _ => Some (Fcore_Zaux.cond_Zopp s (Zpos m / Zpower_pos 2 e))
+    | Fappli_IEEE.B754_zero _ => Some 0
+    | _ => None
+  end.  (* copied from CompCert 2.3, because it's missing in CompCert 2.4 *)
+
+Definition Zofsingle (f: float32): option Z := (**r conversion to Z *)
+  match f with
+    | Fappli_IEEE.B754_finite s m (Zpos e) _ => 
+       Some (Fcore_Zaux.cond_Zopp s (Zpos m) * Zpower_pos 2 e)%Z
+    | Fappli_IEEE.B754_finite s m 0 _ => Some (Fcore_Zaux.cond_Zopp s (Zpos m))
+    | Fappli_IEEE.B754_finite s m (Zneg e) _ => Some (Fcore_Zaux.cond_Zopp s (Zpos m / Zpower_pos 2 e))
+    | Fappli_IEEE.B754_zero _ => Some 0
+    | _ => None
+  end.  (* copied from CompCert 2.3, because it's missing in CompCert 2.4 *)
+
+
+Definition denote_tc_Zge z v : mpred := 
+          match v with
+                     | Vfloat f => match Zoffloat f with
+                                    | Some n => prop (is_true (Zge_bool z n))
+                                    | None => FF
+                                   end
+                     | Vsingle f => match Zofsingle f with
+                                    | Some n => prop (is_true (Zge_bool z n))
+                                    | None => FF
+                                   end
+                     | _ => FF
+                  end.
+
+Definition denote_tc_Zle z v : mpred := 
+          match v with
+                     | Vfloat f => match Zoffloat f with
+                                    | Some n => prop (is_true (Zle_bool z n))
+                                    | None => FF
+                                   end
+                     | Vsingle f => match Zofsingle f with
+                                    | Some n => prop (is_true (Zle_bool z n))
+                                    | None => FF
+                                   end
+                     | _ => FF 
+                  end.
+
+Definition denote_tc_samebase v1 v2 : mpred :=
+                         match v1, v2 with
+                           | Vptr b1 _, Vptr b2 _ => prop (is_true (peq b1 b2))
+                           | _, _ => FF
+                         end.
+
+(** Case for division of int min by -1, which would cause overflow **)
+Definition denote_tc_nodivover v1 v2 : mpred :=
+match v1, v2 with
+          | Vint n1, Vint n2 => prop (is_true (negb 
+                                   (Int.eq n1 (Int.repr Int.min_signed) 
+                                    && Int.eq n2 Int.mone)))
+          | _ , _ => FF
+        end.
+
+Definition denote_tc_initialized id ty rho : mpred := 
+    prop (exists v, Map.get (te_of rho) id = Some v
+               /\ is_true (typecheck_val v ty)).
+
+Definition denote_tc_isptr v : mpred :=
+  prop (isptr v).
+
+Fixpoint denote_tc_assert (Delta: tycontext) (a: tc_assert) : environ -> mpred :=
+  match a with
+  | tc_FF _ => FF
+  | tc_noproof => FF
+  | tc_TT => TT
+  | tc_andp' b c => `andp (denote_tc_assert Delta b) (denote_tc_assert Delta c)
+  | tc_orp' b c => `orp (denote_tc_assert Delta b) (denote_tc_assert Delta c)
+  | tc_nonzero' e => `denote_tc_nonzero (eval_expr Delta e)
+  | tc_isptr e => `denote_tc_isptr (eval_expr Delta e)
+  | tc_ilt' e i => `(denote_tc_igt i) (eval_expr Delta e)
+  | tc_Zle e z => `(denote_tc_Zge z) (eval_expr Delta e)
+  | tc_Zge e z => `(denote_tc_Zle z) (eval_expr Delta e)
+  | tc_samebase e1 e2 => `denote_tc_samebase (eval_expr Delta e1) (eval_expr Delta e2)
+  | tc_nodivover' v1 v2 => `denote_tc_nodivover (eval_expr Delta v1) (eval_expr Delta v2)
+  | tc_initialized id ty => denote_tc_initialized id ty
+  | tc_iszero' e => `denote_tc_iszero (eval_expr Delta e)
+ end.
+
+Opaque mpred Nveric Sveric Cveric Iveric Rveric Sveric SIveric CSLveric CIveric SRveric.
+
+(* END from expr2.v *)
+
+
 Definition closed_wrt_vars {B} (S: ident -> Prop) (F: environ -> B) : Prop := 
   forall rho te',  
      (forall i, S i \/ Map.get (te_of rho) i = Map.get te' i) ->
@@ -452,7 +565,7 @@ Definition tc_environ (Delta: tycontext) : environ -> Prop :=
    fun rho => typecheck_environ Delta rho.
 
 Definition tc_temp_id  (id: ident)  (ty: type) (Delta: tycontext) 
-                       (e:expr): environ -> Prop := 
+                       (e:expr): environ -> mpred := 
       denote_tc_assert Delta (typecheck_temp_id id ty Delta e).
 
 Definition typeof_temp (Delta: tycontext) (id: ident) : option type :=
@@ -461,17 +574,17 @@ Definition typeof_temp (Delta: tycontext) (id: ident) : option type :=
  | None => None
  end.
 
-Definition tc_expr (Delta: tycontext) (e: expr) : environ -> Prop := 
+Definition tc_expr (Delta: tycontext) (e: expr) : environ -> mpred := 
     denote_tc_assert Delta (typecheck_expr Delta e).
 
-Definition tc_exprlist (Delta: tycontext) (t: list type) (e: list expr)  : environ -> Prop := 
+Definition tc_exprlist (Delta: tycontext) (t: list type) (e: list expr)  : environ -> mpred := 
       denote_tc_assert Delta (typecheck_exprlist Delta t e).
 
-Definition tc_lvalue (Delta: tycontext) (e: expr) : environ -> Prop := 
+Definition tc_lvalue (Delta: tycontext) (e: expr) : environ -> mpred := 
      denote_tc_assert Delta (typecheck_lvalue Delta e).
 
-Definition tc_expropt Delta (e: option expr) (t: type) : environ -> Prop :=
-   match e with None => `(t=Tvoid)
+Definition tc_expropt Delta (e: option expr) (t: type) : environ -> mpred :=
+   match e with None => `!!(t=Tvoid)
                      | Some e' => tc_expr Delta (Ecast e' t)
    end.
 
@@ -618,10 +731,33 @@ Definition add_funspecs (Espec : OracleKind) (fs : funspecs) : OracleKind :=
 Definition funsig2signature (s : funsig) : signature :=
   mksignature (map typ_of_type (map snd (fst s))) (Some (typ_of_type (snd s))) cc_default.
 
-(* BEGIN rel_expr stuff *)
-
 Transparent mpred Nveric Sveric Cveric Iveric Rveric Sveric SIveric SRveric.
 
+(* Misc lemmas *)
+Lemma typecheck_lvalue_sound:
+  forall Delta rho e, 
+    typecheck_environ Delta rho ->
+    tc_lvalue Delta e rho |-- !! is_pointer_or_null (eval_lvalue Delta e rho).
+Proof.
+intros.
+intros ? ?.
+eapply expr_lemmas.typecheck_lvalue_sound; eauto.
+Qed.
+
+Lemma typecheck_expr_sound:
+  forall Delta rho e, 
+    typecheck_environ Delta rho ->
+    tc_expr Delta e rho |-- !! tc_val (typeof e) (eval_expr Delta e rho).
+Proof.
+intros.
+intros ? ?.
+simpl.
+eapply expr_lemmas.typecheck_expr_sound; eauto.
+Qed.
+
+(* End misc lemmas *)
+
+(* BEGIN rel_expr stuff *)
 Lemma rel_expr_const_int: forall Delta i ty P rho, 
               P |-- rel_expr Delta (Econst_int i ty) (Vint i) rho.
 Proof. intros. intros ? ?; constructor. Qed.
@@ -846,7 +982,7 @@ Axiom semax_ifthenelse :
       bool_type (typeof b) = true ->
      @semax Espec Delta (P && local (`(typed_true (typeof b)) (eval_expr Delta b))) c R -> 
      @semax Espec Delta (P && local (`(typed_false (typeof b)) (eval_expr Delta b))) d R -> 
-     @semax Espec Delta (local (tc_expr Delta b) && P) (Sifthenelse b c d) R.
+     @semax Espec Delta (tc_expr Delta b && P) (Sifthenelse b c d) R.
 
 Axiom semax_seq:
   forall {Espec: OracleKind},
@@ -899,7 +1035,7 @@ Axiom semax_call :
            (retsig = Tvoid -> ret = None) ->
           tc_fn_return Delta ret retsig ->
   @semax Espec Delta
-          (local (tc_expr Delta a) && local (tc_exprlist Delta (snd (split argsig)) bl)  && 
+          ((tc_expr Delta a) && (tc_exprlist Delta (snd (split argsig)) bl)  && 
          (`(func_ptr (mk_funspec  (argsig,retsig) A P Q)) (eval_expr Delta a) &&   
           (F * `(P x) (make_args' (argsig,retsig) (eval_exprlist Delta (snd (split argsig)) bl)))))
          (Scall ret a bl)
@@ -910,7 +1046,7 @@ Axiom  semax_return :
   forall {Espec: OracleKind},
    forall Delta (R: ret_assert) ret ,
       @semax Espec Delta  
-                (local (tc_expropt Delta ret (ret_type Delta)) &&
+                ( (tc_expropt Delta ret (ret_type Delta)) &&
                 `(R EK_return : option val -> environ -> mpred) (cast_expropt Delta ret (ret_type Delta)) (@id environ))
                 (Sreturn ret)
                 R.
@@ -931,8 +1067,8 @@ Axiom semax_set :
   forall {Espec: OracleKind},
 forall (Delta: tycontext) (P: environ->mpred) id e,
     @semax Espec Delta 
-        (|> (local (tc_expr Delta e) && 
-            local (tc_temp_id id (typeof e) Delta e) &&
+        (|> ( (tc_expr Delta e) && 
+             (tc_temp_id id (typeof e) Delta e) &&
              subst id (eval_expr Delta e) P))
           (Sset id e) (normal_ret_assert P).
 
@@ -940,8 +1076,8 @@ Axiom semax_set_forward :
   forall {Espec: OracleKind}, 
 forall (Delta: tycontext) (P: environ->mpred) id e,
     @semax Espec Delta 
-        (|> (local (tc_expr Delta e) && 
-            local (tc_temp_id id (typeof e) Delta e) && 
+        (|> ( (tc_expr Delta e) && 
+             (tc_temp_id id (typeof e) Delta e) && 
           P))
           (Sset id e) 
         (normal_ret_assert 
@@ -954,8 +1090,8 @@ forall (Delta: tycontext) P id cmp e1 e2 ty sh1 sh2,
    is_comparison cmp = true  ->
    typecheck_tid_ptr_compare Delta id = true ->
    @semax Espec Delta 
-        ( |> (local (tc_expr Delta e1) &&
-             local (tc_expr Delta e2)  && 
+        ( |> ( (tc_expr Delta e1) &&
+              (tc_expr Delta e2)  && 
            
           local (`(blocks_match cmp) (eval_expr Delta e1) (eval_expr Delta e2)) &&
           (`(mapsto_ sh1 (typeof e1)) (eval_expr Delta e1) * TT) && 
@@ -975,7 +1111,7 @@ forall (Delta: tycontext) sh id P e1 t2 (v2: environ -> val),
     is_neutral_cast (typeof e1) t2 = true ->
       local (tc_environ Delta) && P |-- `(mapsto sh (typeof e1)) (eval_lvalue Delta e1) v2 * TT ->
     @semax Espec Delta 
-       (|> (local (tc_lvalue Delta e1) && 
+       (|> ( (tc_lvalue Delta e1) && 
        local (`(tc_val (typeof e1)) v2) &&
           P))
        (Sset id e1)
@@ -988,7 +1124,7 @@ forall (Delta: tycontext) sh id P e1 t1 (v2: environ -> val),
     typeof_temp Delta id = Some t1 ->
       local (tc_environ Delta) && P |-- `(mapsto sh (typeof e1)) (eval_lvalue Delta e1) v2 * TT ->
     @semax Espec Delta 
-       (|> (local (tc_lvalue Delta e1) && 
+       (|> ( (tc_lvalue Delta e1) && 
        local (`(tc_val t1) (`(eval_cast (typeof e1) t1) v2)) &&
           P))
        (Sset id (Ecast e1 t1))
@@ -1000,7 +1136,7 @@ Axiom semax_store:
  forall Delta e1 e2 sh P,
    writable_share sh ->
    @semax Espec Delta 
-          (|> (local (tc_lvalue Delta e1) && local (tc_expr Delta (Ecast e2 (typeof e1)))  && 
+          (|> ( (tc_lvalue Delta e1) &&  (tc_expr Delta (Ecast e2 (typeof e1)))  && 
              (`(mapsto_ sh (typeof e1)) (eval_lvalue Delta e1) * P)))
           (Sassign e1 e2) 
           (normal_ret_assert 

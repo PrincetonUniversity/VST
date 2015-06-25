@@ -24,7 +24,7 @@ forall {Espec: OracleKind} n Delta P Q R e1 e2 Rn sh t1,
     `(mapsto_ sh t1) (eval_lvalue Delta e1) ->
   writable_share sh ->
   PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |-- 
-    local (tc_lvalue Delta e1) && local (tc_expr Delta (Ecast e2 t1)) ->
+     (tc_lvalue Delta e1) &&  (tc_expr Delta (Ecast e2 t1)) ->
   semax Delta 
       (|> PROPx P (LOCALx Q (SEPx R)))
       (Sassign e1 e2) 
@@ -65,7 +65,7 @@ forall (Delta: tycontext) sh id P Q R e1 t2 (v2: val),
     typeof_temp Delta id = Some t2 ->
     is_neutral_cast (typeof e1) t2 = true ->
       PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |-- 
-         local (tc_lvalue Delta e1) &&
+          (tc_lvalue Delta e1) &&
          local (`(tc_val (typeof e1) v2)) &&
          (`(mapsto sh (typeof e1)) (eval_lvalue Delta e1) `v2 * TT) ->
     @semax Espec Delta (|> PROPx P (LOCALx Q (SEPx R)))
@@ -86,10 +86,12 @@ Proof.
     clear H.
     go_lowerx.
     autorewrite with gather_prop.
-    apply derives_extract_prop; intros [? ?].
+    apply derives_extract_prop; intro.
     apply andp_right.
     apply prop_right; repeat split; try eassumption.
-    instantiate (1:= `v2). apply H5.
+    instantiate (1:= `v2). assumption.
+    apply andp_right.
+    apply andp_left2. apply andp_left1; auto.
     apply andp_left1; auto.
   + rewrite eq_sym_post_LOCAL'.
     intros. apply andp_left2; auto.
@@ -110,7 +112,7 @@ Lemma semax_cast_load_37' :
 forall (Delta: tycontext) sh id P Q R e1 t1 (v2: val),
     typeof_temp Delta id = Some t1 ->
       PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |-- 
-         local (tc_lvalue Delta e1) &&
+          (tc_lvalue Delta e1) &&
          local (`(tc_val t1 (eval_cast (typeof e1) t1 v2))) &&
          (`(mapsto sh (typeof e1)) (eval_lvalue Delta e1) `v2 * TT) ->
     @semax Espec Delta (|> PROPx P (LOCALx Q (SEPx R)))
@@ -131,9 +133,11 @@ Proof.
     clear H1.
     go_lowerx.
     autorewrite with gather_prop.
-    apply derives_extract_prop; intros [? ?].
+    apply derives_extract_prop; intro.
     apply andp_right.
     apply prop_right; repeat split; eassumption.
+    apply andp_right.
+    apply andp_left2. apply andp_left1; auto.
     apply andp_left1; auto.
   * rewrite eq_sym_post_LOCAL'.
     intros. apply andp_left2; auto.

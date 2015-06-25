@@ -180,11 +180,11 @@ intros.
 Qed.
 
 Lemma tc_expr_init:
-  forall i Delta rho e, tc_expr Delta e rho ->
-                 tc_expr (initialized i Delta) e rho
+  forall i Delta rho e, 
+    tc_expr Delta e rho |-- tc_expr (initialized i Delta) e rho
 with tc_lvalue_init:
-  forall i Delta rho e, tc_lvalue Delta e rho ->
-                 tc_lvalue (initialized i Delta) e rho.
+  forall i Delta rho e, 
+    tc_lvalue Delta e rho |-- tc_lvalue (initialized i Delta) e rho.
 Proof.
   clear tc_expr_init; induction e; intros; auto;
   unfold tc_expr in *; simpl in *;
@@ -198,52 +198,54 @@ Proof.
     destruct ((glob_types Delta) ! i0); auto.
     destruct (eqb_type t t0); auto.
   + (* destruct (negb (type_is_volatile t)); auto.*)
-    destruct ( (temp_types Delta) ! i0) eqn:?; [ | contradiction].
+    destruct ( (temp_types Delta) ! i0) eqn:?; [ | apply @FF_left].
     destruct p.  
     destruct (eq_dec i i0). subst. 
     - apply temp_types_init_same in Heqo. rewrite Heqo.
-       simpl in H|-*. destruct (is_neutral_cast t0 t || same_base_type t0 t)%bool; auto.
-      destruct b; auto. apply I.
+       simpl. destruct (is_neutral_cast t0 t || same_base_type t0 t)%bool; auto.
+      destruct b; auto. apply @TT_right.
     - rewrite <- initialized_ne by auto.  rewrite Heqo.
-       simpl in H|-*. destruct (is_neutral_cast t0 t || same_base_type t0 t)%bool; auto.
+       simpl. destruct (is_neutral_cast t0 t || same_base_type t0 t)%bool; auto.
       destruct b; auto.
-  + destruct (access_mode t) eqn:?H; try inversion H.
-    rewrite !denote_tc_assert_andp in H|-*.
-    destruct H as [[? ?] ?]; repeat split; auto.
-    destruct (is_pointer_type (typeof e)); simpl; auto.
-    simpl in H2|-*. rewrite eval_expr_initialized; auto.
-  + rewrite denote_tc_assert_andp in H|-*.
-    destruct H; split; auto. apply tc_lvalue_init; auto.
-     destruct (is_pointer_type t); simpl in H0|-*; auto.
-  + rewrite denote_tc_assert_andp in H|-*.
-    destruct H; split; auto.
-     destruct (isUnOpResultType u e t); simpl in H|-*; auto.
-  + repeat rewrite denote_tc_assert_andp in H|-*.
-    destruct H as [[? ?] ?]. split; auto. split; auto.
-    clear - H.
-     unfold isBinOpResultType in *.
+  + destruct (access_mode t) eqn:?H; try inversion H;
+      try apply @FF_left.
+    rewrite !denote_tc_assert_andp, !denote_tc_assert_bool.
+    repeat apply @andp_derives; auto.
+    simpl. unfold_lift. rewrite eval_expr_initialized; auto.
+  + rewrite !denote_tc_assert_andp, !denote_tc_assert_bool.
+    repeat apply @andp_derives; auto.
+     apply tc_lvalue_init; auto.
+  + rewrite !denote_tc_assert_andp, !denote_tc_assert_bool.
+    repeat apply @andp_derives; auto.
+  + rewrite !denote_tc_assert_andp.
+    repeat apply @andp_derives; auto.
+     unfold isBinOpResultType.
     rewrite !set_temp_ct.
     destruct b; auto;
-     try match goal with
-          |  |- appcontext [classify_binarith] =>
+ try match goal with
+     |  |- appcontext [classify_binarith] =>
                  destruct (classify_binarith (typeof e1) (typeof e2))
                 as [ [|] | [|] | | | ];
-       rewrite ?denote_tc_assert_andp in *; intuition;
-       simpl in *;
-      rewrite ?eval_expr_initialized, ?denote_tc_assert_initialized_tc_bool,
+       rewrite ?denote_tc_assert_andp in *;
+      rewrite ?eval_expr_initialized, 
+             ?denote_tc_assert_initialized_tc_bool,
              ?denote_tc_assert_initialized_tc_nodivover,
-             ?denote_tc_assert_initialized_tc_iszero; 
-      auto
-        | |- appcontext [classify_cmp] =>
-                destruct (classify_cmp (typeof e1) (typeof e2));
-                rewrite ?denote_tc_assert_andp in *; intuition;
-                simpl in *;
-                rewrite ?eval_expr_initialized, ?denote_tc_assert_initialized_tc_bool,
-                ?denote_tc_assert_initialized_tc_nodivover,
-                ?denote_tc_assert_initialized_tc_nonzero; 
-             auto
-       end;
-      try solve [rewrite denote_tc_assert_initialized_tc_nonzero; auto].
+             ?denote_tc_assert_initialized_tc_iszero,
+             ?denote_tc_assert_initialized_tc_nonzero;
+      apply derives_refl
+    |  |- appcontext [classify_cmp] =>
+                 destruct (classify_cmp (typeof e1) (typeof e2));
+          unfold check_pp_int, check_pl_long;
+       rewrite ?denote_tc_assert_andp, ?denote_tc_assert_orp;
+      rewrite ?eval_expr_initialized, 
+             ?denote_tc_assert_initialized_tc_bool,
+             ?denote_tc_assert_initialized_tc_nodivover,
+             ?denote_tc_assert_initialized_tc_iszero,
+             ?denote_tc_assert_initialized_tc_nonzero;
+      apply derives_refl
+ end.
+(*    try solve [rewrite denote_tc_assert_initialized_tc_nonzero; auto].
+*)
     - destruct (classify_add (typeof e1) (typeof e2));
        rewrite ?denote_tc_assert_andp in *; intuition;
        simpl in *;
@@ -285,48 +287,20 @@ Proof.
              ?denote_tc_assert_initialized_tc_nonzero; 
       auto;
       rewrite denote_tc_assert_initialized_tc_ilt; auto.
-   -
-    rewrite denote_tc_assert_andp in *.
-    rewrite binop_lemmas.denote_tc_assert_orp in *.
-    rewrite  ?denote_tc_assert_initialized_tc_iszero in *.
-    rewrite  ?denote_tc_assert_initialized_tc_bool in *.
-   auto.
-   -
-    rewrite denote_tc_assert_andp in *.
-    rewrite  ?denote_tc_assert_initialized_tc_iszero in *.
-    rewrite  ?denote_tc_assert_initialized_tc_bool in *.
-    auto.
-   - rewrite denote_tc_assert_andp in *.
-    rewrite  ?denote_tc_assert_initialized_tc_iszero in *.
-    rewrite  ?denote_tc_assert_initialized_tc_bool in *.
-    auto.
-   - rewrite denote_tc_assert_andp in *.
-    rewrite binop_lemmas.denote_tc_assert_orp in *.
-    rewrite  ?denote_tc_assert_initialized_tc_iszero in *.
-    rewrite  ?denote_tc_assert_initialized_tc_bool in *.
-    auto.
-  - rewrite denote_tc_assert_andp in *.
-    rewrite  ?denote_tc_assert_initialized_tc_iszero in *.
-    rewrite  ?denote_tc_assert_initialized_tc_bool in *.
-    auto.
-  -rewrite denote_tc_assert_andp in *.
-    rewrite  ?denote_tc_assert_initialized_tc_iszero in *.
-    rewrite  ?denote_tc_assert_initialized_tc_bool in *.
-    auto.
-  + rewrite denote_tc_assert_andp in H|-*.
-    destruct H; split; auto.
-    clear - H0. unfold isCastResultType in *.
+  + rewrite !denote_tc_assert_andp.
+    apply andp_derives; auto.
+    clear. unfold isCastResultType.
     destruct (classify_cast (typeof e) t);
     repeat if_tac;
    rewrite  ?denote_tc_assert_initialized_tc_iszero; auto;
    try solve [destruct t; try destruct f;  
                    rewrite  ?denote_tc_assert_initialized_tc_bool;
                    auto];
-    rewrite denote_tc_assert_andp in *;
-    simpl in *; rewrite eval_expr_initialized; auto.
+    rewrite !denote_tc_assert_andp;
+    simpl; rewrite eval_expr_initialized; auto.
   + destruct (access_mode t); auto.
-    repeat rewrite denote_tc_assert_andp in H|-*.
-    destruct H. split; auto.
+    rewrite !denote_tc_assert_andp.
+    apply andp_derives; auto.
     apply tc_lvalue_init; auto.
     rewrite ?set_temp_ct.
     destruct (typeof e); auto.
@@ -334,29 +308,29 @@ Proof.
     destruct (field_offset (composite_types Delta) i0 (co_members c)); auto.
     destruct ((composite_types Delta) ! i1); auto.
   +
-     repeat rewrite denote_tc_assert_andp in *.
+     rewrite !denote_tc_assert_andp.
      rewrite ?denote_tc_assert_initialized_tc_bool, ?set_temp_ct;
                    auto.
   +
-     repeat rewrite denote_tc_assert_andp in *.
+     rewrite !denote_tc_assert_andp.
      rewrite ?denote_tc_assert_initialized_tc_bool, ?set_temp_ct;
                    auto.
   + clear tc_lvalue_init.
-    unfold tc_lvalue; induction e; simpl; auto; intro.
-    unfold get_var_type in *.
-    rewrite set_temp_ve.
-    destruct ((var_types Delta) ! i0); auto.
-    rewrite ?denote_tc_assert_initialized_tc_bool; auto.
+    unfold tc_lvalue; induction e; simpl; auto.
+    unfold get_var_type.
+    rewrite !set_temp_ve.
+    destruct ((var_types Delta) ! i0); 
+      rewrite ?denote_tc_assert_bool; auto.
     rewrite set_temp_ge.
-    destruct ((glob_types Delta) ! i0); auto.
-    rewrite ?denote_tc_assert_initialized_tc_bool; auto.
-    repeat rewrite denote_tc_assert_andp in H|-*.
-    rewrite ?denote_tc_assert_initialized_tc_bool.
-    decompose [and] H; clear H; repeat split; auto.
+    destruct ((glob_types Delta) ! i0); 
+      rewrite ?denote_tc_assert_bool; auto.
+     rewrite !denote_tc_assert_andp.
+      rewrite ?denote_tc_assert_bool; auto.
+    repeat apply andp_derives; auto.
     apply tc_expr_init; auto.
-    clear - H1. simpl in *. rewrite eval_expr_initialized; auto.
-    repeat rewrite denote_tc_assert_andp in H|-*.
-    decompose [and] H; clear H; repeat split; auto.
+     simpl. rewrite eval_expr_initialized; auto.
+     rewrite !denote_tc_assert_andp.
+    repeat apply andp_derives; auto.
     destruct (typeof e); rewrite ?set_temp_ct; auto.
     destruct ((composite_types Delta) ! i1); auto.
     destruct (field_offset (composite_types Delta) i0 (co_members c)); auto.

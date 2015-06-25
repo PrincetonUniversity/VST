@@ -201,6 +201,7 @@ Proof.
       exists 2; reflexivity.
   forward. (* Q->head = NULL; *)
   (* goal_4 *)
+(* Runs out of memory on next line *)
   forward. (* Q->tail = NULL; *)
   forward. (* return Q; *)
   (* goal_5 *)
@@ -381,8 +382,9 @@ forward_call' (*  freeN(p, sizeof( *p)); *)
  rewrite data_at__memory_block by reflexivity. entailer.
 }
 unfold map.
-forward. (* return i+j; *)
-Qed.
+forward; (* return i+j; *)
+fail. Admitted.  (* This hack because otherwise we run out of memory *)
+(*Qed.*)
 
 Existing Instance NullExtension.Espec.
 

@@ -57,8 +57,8 @@ Lemma typed_true_binop_int:
    binary_operation_to_comparison op = Some op' ->
    typeof e1 = tint ->
    typeof e2 = tint ->
-   (PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R))) |-- local (tc_expr Delta e1) ->
-   (PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R))) |-- local (tc_expr Delta e2) ->
+   (PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R))) |--  tc_expr Delta e1 ->
+   (PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R))) |-- tc_expr Delta e2 ->
   @semax Espec Delta (PROPx P (LOCALx 
       (`op' (`force_signed_int (eval_expr Delta e1)) (`force_signed_int (eval_expr Delta e2))
           :: Q) (SEPx R))) c Post ->
@@ -70,7 +70,7 @@ Proof.
 intros.
 eapply semax_pre; [clear H4 | apply H4].
 eapply derives_trans with
- (local (tc_expr Delta e1) && (local (tc_expr Delta e2)
+ (tc_expr Delta e1 && (tc_expr Delta e2
    && PROPx P (LOCALx (tc_environ Delta :: `(typed_true (typeof (Ebinop op e1 e2 tint)))(eval_expr Delta (Ebinop op e1 e2 tint)) :: Q) (SEPx R)))).
 rewrite <- andp_assoc.
 apply andp_right; auto.
@@ -82,8 +82,15 @@ apply andp_left2.
 rewrite insert_local.
 apply andp_right; auto.
 clear H2 H3.
-do 2 rewrite insert_local.
-unfold PROPx, LOCALx; intro rho; simpl; apply andp_derives; auto.
+(*do 2 rewrite insert_local.*)
+unfold PROPx, LOCALx; intro rho; simpl.
+normalize.
+rewrite <- andp_assoc.
+apply andp_derives; auto.
+eapply derives_trans.
+apply andp_derives; apply typecheck_expr_sound; auto.
+normalize. split; auto.
+(*
 apply andp_derives; auto.
 unfold local, lift1.
 apply prop_derives.
@@ -95,26 +102,28 @@ unfold tc_expr in H2,H3.
 apply expr_lemmas.typecheck_expr_sound in H2; auto.
 apply expr_lemmas.typecheck_expr_sound in H3; auto.
 rewrite H0 in *; rewrite H1 in *.
-clear H0 H1 H4.
-destruct (eval_expr Delta e1 rho); inv H2.
-destruct (eval_expr Delta e2 rho); inv H3.
+*)
+rewrite H1,H0 in *.
+clear H5 H2 H0 H1.
+destruct (eval_expr Delta e1 rho); inv H6.
+destruct (eval_expr Delta e2 rho); inv H7.
 unfold force_signed_int, force_int.
-unfold typed_true, eval_binop in H5.
-destruct op; inv H; simpl in H5.
-pose proof (Int.eq_spec i i0); destruct (Int.eq i i0); inv H5; auto.
-pose proof (Int.eq_spec i i0); destruct (Int.eq i i0); inv H5; auto.
+unfold typed_true, eval_binop in H4.
+destruct op; inv H; simpl in H4.
+pose proof (Int.eq_spec i i0); destruct (Int.eq i i0); inv H4; auto.
+pose proof (Int.eq_spec i i0); destruct (Int.eq i i0); inv H4; auto.
 intro; apply H.
 rewrite <- (Int.repr_signed i).
 rewrite <- (Int.repr_signed i0).
 f_equal; auto.
-unfold Int.lt in H5.
-destruct (zlt (Int.signed i) (Int.signed i0)); inv H5; auto.
-unfold Int.lt in H5.
-destruct (zlt (Int.signed i0) (Int.signed i)); inv H5; omega.
-unfold Int.lt in H5.
-destruct (zlt (Int.signed i0) (Int.signed i)); inv H5; omega.
-unfold Int.lt in H5.
-destruct (zlt (Int.signed i) (Int.signed i0)); inv H5; omega.
+unfold Int.lt in H4.
+destruct (zlt (Int.signed i) (Int.signed i0)); inv H4; auto.
+unfold Int.lt in H4.
+destruct (zlt (Int.signed i0) (Int.signed i)); inv H4; omega.
+unfold Int.lt in H4.
+destruct (zlt (Int.signed i0) (Int.signed i)); inv H4; omega.
+unfold Int.lt in H4.
+destruct (zlt (Int.signed i) (Int.signed i0)); inv H4; omega.
 Qed.
 
 Definition  binary_operation_to_opp_comparison (op: binary_operation) :=
@@ -133,8 +142,8 @@ Lemma typed_false_binop_int:
    binary_operation_to_opp_comparison op = Some op' ->
    typeof e1 = tint ->
    typeof e2 = tint ->
-   (PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R))) |-- local (tc_expr Delta e1) ->
-   (PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R))) |-- local (tc_expr Delta e2) ->
+   (PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R))) |-- (tc_expr Delta e1) ->
+   (PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R))) |-- (tc_expr Delta e2) ->
   @semax Espec Delta (PROPx P (LOCALx 
       (`op' (`force_signed_int (eval_expr Delta e1)) (`force_signed_int (eval_expr Delta e2))
           :: Q) (SEPx R))) c Post ->
@@ -146,8 +155,10 @@ Proof.
 intros.
 eapply semax_pre; [clear H4 | apply H4].
 eapply derives_trans with
- (local (tc_expr Delta e1) && (local (tc_expr Delta e2)
-   && PROPx P (LOCALx (tc_environ Delta :: `(typed_false (typeof (Ebinop op e1 e2 tint)))(eval_expr Delta (Ebinop op e1 e2 tint)) :: Q) (SEPx R)))).
+ ( local (tc_environ Delta) && ((tc_expr Delta e1) && ( (tc_expr Delta e2)
+   && PROPx P (LOCALx (tc_environ Delta :: `(typed_false (typeof (Ebinop op e1 e2 tint)))(eval_expr Delta (Ebinop op e1 e2 tint)) :: Q) (SEPx R))))).
+apply andp_right.
+rewrite <- insert_local. apply andp_left1; auto.
 rewrite <- andp_assoc.
 apply andp_right; auto.
 do 2 rewrite <- insert_local.
@@ -158,18 +169,17 @@ apply andp_left2.
 rewrite insert_local.
 apply andp_right; auto.
 clear H2 H3.
-do 2 rewrite insert_local.
-unfold PROPx, LOCALx; intro rho; simpl; apply andp_derives; auto.
-apply andp_derives; auto.
-unfold local, lift1.
-apply prop_derives.
-unfold_lift.
-intros [? [? [? [? ?]]]].
+unfold PROPx, LOCALx; intro rho; simpl.
+unfold local,lift1 at 1.
+apply derives_extract_prop; intro TCE.
+eapply derives_trans.
+apply andp_derives; [ apply typecheck_expr_sound; auto | ].
+apply andp_derives; [ apply typecheck_expr_sound; auto | ].
+apply derives_refl.
+normalize.
+apply andp_right; auto. apply prop_right.
 split; auto.
-clear H6.
-unfold tc_expr in H2,H3.
-apply expr_lemmas.typecheck_expr_sound in H2; auto.
-apply expr_lemmas.typecheck_expr_sound in H3; auto.
+clear H6 TCE.
 rewrite H0 in *; rewrite H1 in *.
 clear H0 H1 H4.
 destruct (eval_expr Delta e1 rho); inv H2.

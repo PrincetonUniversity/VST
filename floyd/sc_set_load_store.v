@@ -111,7 +111,7 @@ Lemma semax_SC_set:
       is_neutral_cast (implicit_deref (typeof e2)) t = true ->
       PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |-- local (`(eq v) (eval_expr Delta e2)) ->
       PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |--
-        local (tc_expr Delta e2) ->
+         (tc_expr Delta e2) ->
       semax Delta (|>PROPx P (LOCALx Q (SEPx R)))
         (Sset id e2)
           (normal_ret_assert
@@ -122,7 +122,7 @@ Lemma semax_SC_set:
 Proof.
   intros.
   assert (PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |--
-    local (tc_expr Delta e2) && local (tc_temp_id id (typeof e2) Delta e2)).
+     (tc_expr Delta e2) &&  (tc_temp_id id (typeof e2) Delta e2)).
   {
     apply andp_right.
     + eapply derives_trans; [exact H2 | apply derives_refl].
@@ -134,7 +134,6 @@ Proof.
       rewrite H0.
       simpl denote_tc_assert; simpl; intros.
       unfold local, lift1.
-      apply prop_right.
       apply neutral_isCastResultType, H0.
   }
   eapply semax_pre_simple.
@@ -178,9 +177,9 @@ Lemma semax_SC_field_load:
         `(field_at sh t_root gfs0 v' p) ->
       repinject _ (proj_reptype (nested_field_type2 t_root gfs0) gfs1 v') = v ->
       PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |--
-        local (tc_LR Delta e1 lr) &&
+         (tc_LR Delta e1 lr) &&
         local `(tc_val (typeof (nested_efield e1 efs tts)) v) &&
-        local (tc_efield Delta efs) ->
+         (tc_efield Delta efs) ->
       PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |--
         (!! legal_nested_field t_root gfs) ->
       semax Delta (|>PROPx P (LOCALx Q (SEPx R))) 
@@ -219,9 +218,9 @@ Lemma semax_SC_field_cast_load:
         `(field_at sh t_root gfs0 v' p) ->
       repinject _ (proj_reptype (nested_field_type2 t_root gfs0) gfs1 v') = v ->
       PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |-- 
-        local (tc_LR Delta e1 lr) &&
+         (tc_LR Delta e1 lr) &&
         local (`(tc_val t (eval_cast (typeof (nested_efield e1 efs tts)) t v))) &&
-        local (tc_efield Delta efs) ->
+         (tc_efield Delta efs) ->
       PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |--
         (!! legal_nested_field t_root gfs) ->
       semax Delta (|> PROPx P (LOCALx Q (SEPx R)))
@@ -261,9 +260,9 @@ Lemma semax_SC_field_store:
       writable_share sh ->
       data_equal (upd_reptype (nested_field_type2 t_root gfs0) gfs1 v (valinject _ v0)) v_new ->
       PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |--
-        local (tc_LR Delta e1 lr) && 
-        local (tc_expr Delta (Ecast e2 t)) &&
-        local (tc_efield Delta efs) ->
+         (tc_LR Delta e1 lr) && 
+         (tc_expr Delta (Ecast e2 t)) &&
+         (tc_efield Delta efs) ->
       PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |--
         (!! legal_nested_field t_root gfs) ->
       semax Delta (|>PROPx P (LOCALx Q (SEPx R))) 
@@ -313,7 +312,7 @@ Proof.
     - eapply derives_trans; [| exact H6].
       entailer!.
     - rewrite andp_assoc.
-      rewrite (andp_comm (local (tc_efield _ _))).
+      rewrite (andp_comm ( (tc_efield _ _))).
       rewrite <- andp_assoc.
       eapply derives_trans; [| exact H9].
       entailer!.
@@ -334,7 +333,7 @@ Lemma semax_PTree_set:
       is_neutral_cast (implicit_deref (typeof e2)) t = true ->
       msubst_eval_expr Delta T1 T2 e2 = Some v ->
       (local (tc_environ Delta)) && (assertD P (localD T1 T2) R) |--
-        local (tc_expr Delta e2) ->
+         (tc_expr Delta e2) ->
       semax Delta (|> (assertD P (localD T1 T2) R))
         (Sset id e2)
           (normal_ret_assert
@@ -371,9 +370,9 @@ Lemma semax_PTree_load:
         `(field_at sh t_root gfs0 v' p) ->
       repinject _ (proj_reptype (nested_field_type2 t_root gfs0) gfs1 v') = v ->
       (local (tc_environ Delta)) && (assertD P (localD T1 T2) R) |--
-        local (tc_LR Delta e1 lr) &&
+         (tc_LR Delta e1 lr) &&
         local `(tc_val (typeof (nested_efield e1 efs tts)) v) &&
-        local (tc_efield Delta efs) ->
+         (tc_efield Delta efs) ->
       (local (tc_environ Delta)) && (assertD P (localD T1 T2) R) |--
         (!! legal_nested_field t_root gfs) ->
       semax Delta (|>assertD P (localD T1 T2) R) 
@@ -418,9 +417,9 @@ Lemma semax_PTree_cast_load:
         `(field_at sh t_root gfs0 v' p) ->
       repinject _ (proj_reptype (nested_field_type2 t_root gfs0) gfs1 v') = v ->
       (local (tc_environ Delta)) && (assertD P (localD T1 T2) R) |--
-        local (tc_LR Delta e1 lr) &&
+         (tc_LR Delta e1 lr) &&
         local (`(tc_val t (eval_cast (typeof (nested_efield e1 efs tts)) t v))) &&
-        local (tc_efield Delta efs) ->
+         (tc_efield Delta efs) ->
       (local (tc_environ Delta)) && (assertD P (localD T1 T2) R) |--
         (!! legal_nested_field t_root gfs) ->
       semax Delta (|>assertD P (localD T1 T2) R) 
@@ -467,9 +466,9 @@ Lemma semax_PTree_store:
       writable_share sh ->
       data_equal (upd_reptype (nested_field_type2 t_root gfs0) gfs1 v (valinject _ v0)) v_new ->
       (local (tc_environ Delta)) && (assertD P (localD T1 T2) R) |--
-        local (tc_LR Delta e1 lr) && 
-        local (tc_expr Delta (Ecast e2 t)) &&
-        local (tc_efield Delta efs) ->
+         (tc_LR Delta e1 lr) && 
+         (tc_expr Delta (Ecast e2 t)) &&
+         (tc_efield Delta efs) ->
       (local (tc_environ Delta)) && (assertD P (localD T1 T2) R) |--
         (!! legal_nested_field t_root gfs) ->
       semax Delta (|>assertD P (localD T1 T2) R) 

@@ -761,24 +761,26 @@ subst.
 hnf in H1. destruct v; inv H1; reflexivity.
 Qed.
 
+
 Lemma force_eval_var_int_ptr :
 forall Delta rho i t,
 tc_environ Delta rho ->
-tc_lvalue Delta (Evar i t) rho -> 
-          force_val
+tc_lvalue Delta (Evar i t) rho |-- 
+        !! (force_val
             match eval_var i t rho with
             | Vint _ => Some (eval_var i t rho)
             | Vptr _ _ => Some (eval_var i t rho)
             | _ => None
-            end = eval_var i t rho.
+            end = eval_var i t rho).
 Proof.
 intros.
- pose proof (expr_lemmas.typecheck_lvalue_sound _ _ _ H H0).
- simpl in H1.
- destruct (eval_var i t rho); inv H1; simpl; auto.
+eapply derives_trans.
+apply typecheck_lvalue_sound; auto.
+simpl; normalize.
+ destruct (eval_var i t rho); inv H0; simpl; auto.
 Qed.
 
-
+(*  TC_LVALUE_EVAR
 Lemma force_eval_var_int_ptr':
  forall i t rho,
   (exists Delta,
@@ -799,6 +801,8 @@ Hint Rewrite force_eval_var_int_ptr' using
    match goal with Delta := _ : tycontext |- _ => 
        exists Delta; split; hnf; solve [auto]
    end : norm.     
+*)
+
 
 Lemma is_pointer_or_null_force_int_ptr:
    forall v, is_pointer_or_null v -> (force_val
@@ -887,6 +891,7 @@ Qed.
 
 Hint Rewrite isptr_match : norm.
 
+(*  TC_LVALUE_EVAR
 Lemma eval_cast_neutral_var:
  forall Delta rho, 
   tc_environ Delta rho -> 
@@ -915,6 +920,7 @@ Hint Rewrite eval_cast_neutral_var' using
    match goal with Delta := _ : tycontext |- _ => 
        exists Delta; split; hnf; solve [auto]
    end : norm.
+*)
 
 Lemma eval_cast_neutral_tc_val:
    forall v, (exists t, tc_val t v /\ is_pointer_type t = true) -> 
@@ -948,8 +954,12 @@ Hint Rewrite eval_cast_neutral_isptr using assumption : norm.
 Ltac eval_cast_simpl :=
     try (try unfold eval_cast; simpl Cop.classify_cast; cbv iota);
      try match goal with H: tc_environ ?Delta ?rho |- _ =>
-       repeat first [rewrite (eval_cast_neutral_var Delta rho H) by reflexivity
-               | rewrite eval_cast_neutral_isptr by auto
+       repeat first [
+  (*  TC_LVALUE_EVAR
+     rewrite (eval_cast_neutral_var Delta rho H) by reflexivity
+               | 
+    *)
+   rewrite eval_cast_neutral_isptr by auto
                | rewrite (sem_cast_id Delta rho H); [ | reflexivity | reflexivity ]
                | erewrite sem_cast_pointer2; [ | | | eassumption ]; [ | reflexivity | reflexivity ]
                ]

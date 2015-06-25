@@ -10,7 +10,7 @@ Require Import veric.seplog.
 Require Import veric.assert_lemmas.
 Require Import veric.Clight_new.
 Require Import veric.tycontext.
-Require Import veric.expr.
+Require Import veric.expr2.
 Require Import veric.expr_lemmas.
 Require Import veric.Clight_lemmas.
 Require Import veric.initial_world.

@@ -4,7 +4,7 @@ Require Import msl.rmaps_lemmas.
 Require Import veric.compcert_rmaps.
 Require Import veric.res_predicates.
 Require Import veric.tycontext.
-Require Import veric.expr.
+Require Import veric.expr2.
 
 Definition GHOSTspec (A: Type) (x: A) : spec :=
   fun rsh sh loc =>

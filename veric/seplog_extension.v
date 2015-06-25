@@ -3,7 +3,7 @@ Require Import sepcomp.extspec.
 Require Import sepcomp.extension.
 Require Import sepcomp.sim.
 Require Import sepcomp.step_lemmas.
-Require Import veric.base veric.expr.
+Require Import veric.base veric.expr2.
 Require Import veric.juicy_extspec veric.compcert_rmaps
                veric.semax veric.SeparationLogic veric.SeparationLogicSoundness.
 Import juicy_mem.

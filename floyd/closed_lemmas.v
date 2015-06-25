@@ -1185,7 +1185,7 @@ Lemma closed_wrt_tc_orp:
 Proof.
  intros.
  hnf; intros.
- repeat rewrite binop_lemmas.denote_tc_assert_orp.
+ repeat rewrite denote_tc_assert_orp.
  f_equal; auto.
 Qed.
 
@@ -1219,7 +1219,7 @@ Proof.
  intros.
  hnf; intros.
  specialize (H _ _ H0).
- repeat rewrite binop_lemmas.denote_tc_assert_iszero.
+ repeat rewrite binop_lemmas2.denote_tc_assert_iszero.
  rewrite <- H; auto.
 Qed.
 Hint Resolve closed_wrt_tc_iszero : closed.
@@ -1232,7 +1232,7 @@ Proof.
  intros.
  hnf; intros.
  specialize (H _ _ H0).
- repeat rewrite binop_lemmas.denote_tc_assert_nonzero.
+ repeat rewrite binop_lemmas2.denote_tc_assert_nonzero.
  rewrite <- H; auto.
 Qed.
 Hint Resolve closed_wrt_tc_nonzero : closed.
@@ -1263,7 +1263,7 @@ Lemma closed_wrt_tc_ilt:
     closed_wrt_vars S (denote_tc_assert Delta (tc_ilt Delta e n)).
 Proof.
  intros; hnf; intros.
- repeat rewrite binop_lemmas.denote_tc_assert_ilt'.
+ repeat rewrite binop_lemmas2.denote_tc_assert_ilt'.
  simpl. unfold_lift. f_equal. auto.
 Qed.
 Hint Resolve closed_wrt_tc_ilt : closed.
@@ -1306,7 +1306,7 @@ Lemma closed_wrt_tc_nodivover :
  closed_wrt_vars S (denote_tc_assert Delta (tc_nodivover Delta e1 e2)).
 Proof.
  intros;  hnf; intros.
- repeat rewrite binop_lemmas.denote_tc_assert_nodivover.
+ repeat rewrite binop_lemmas2.denote_tc_assert_nodivover.
  rewrite <- H0; auto. rewrite <- H; auto.
 Qed.
 Hint Resolve closed_wrt_tc_nodivover : closed.
@@ -1350,6 +1350,7 @@ try solve [destruct t  as [ | [ | | | ] [ | ] | | [ | ] | | | | | ]; simpl; auto
   destruct (eqb_ident j i); inv H.
   destruct H0. apply H1 in H; inv H.
   unfold denote_tc_initialized;  simpl.
+  f_equal.
   apply exists_ext; intro v.
   f_equal. rewrite H; auto.
 + destruct (access_mode t) eqn:?H; simpl; auto with closed.

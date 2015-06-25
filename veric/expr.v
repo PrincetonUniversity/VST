@@ -119,6 +119,10 @@ with eqb_typelist (a b: typelist)  {struct a}: bool :=
   | _ , _ => false
   end.
 
+Scheme eqb_type_sch := Induction for type Sort Prop
+  with eqb_typelist_sch := Induction for  typelist Sort Prop.
+
+
 Lemma eqb_intsize_spec: forall i j, eqb_intsize i j = true <-> i=j.
 Proof. destruct i,j; simpl; split; intro; congruence. Qed.
 Lemma eqb_floatsize_spec: forall i j, eqb_floatsize i j = true <-> i=j.
@@ -135,10 +139,6 @@ Proof.
  intros. unfold eqb_ident. 
  apply Pos.eqb_eq.
 Qed.
-
-
-Scheme eqb_type_sch := Induction for type Sort Prop
-  with eqb_typelist_sch := Induction for  typelist Sort Prop.
 
 Lemma eqb_type_spec: forall a b, eqb_type a b = true <-> a=b.
 Proof.
@@ -360,7 +360,6 @@ match ty with
 | Tfloat F64 _ => true
 | _ => false
 end.
-
 
 Definition is_single_type ty := 
 match ty with
@@ -694,113 +693,6 @@ Definition is_neutral_cast t1 t2 :=
  | _, _ => false
  end.
 
-Lemma two_p_neg:
- forall n, n<0 -> two_p n = 0.
-Proof.
-destruct n; intros; simpl; auto; try omega.
-pose proof (Zgt_pos_0 p); omega.
-Qed.
-
-Lemma sign_ext_inrange:
-  forall n i, - two_p (n-1) <= Int.signed i <= two_p (n-1) - 1 ->
-       Int.sign_ext n i = i.
-Proof.
-intros.
-destruct (zlt n Int.zwordsize);
-  [ | apply Int.sign_ext_above; auto].
-destruct (zlt n 0).
-assert (n-1 < 0) by omega.
-repeat rewrite two_p_neg in H by omega.
-omega.
-destruct (zeq n 0).
-subst n. simpl in H.
-assert (Int.signed i = 0) by omega.
-clear - H0.
-rewrite <- (Int.repr_signed i).
-rewrite H0. reflexivity.
-assert (0 < n < Int.zwordsize) by omega.
-clear - H H0.
-Admitted.  (* tedious... *)
-
-Lemma zero_ext_inrange:
-  forall n i, Int.unsigned i <= two_p n - 1 ->
-       Int.zero_ext n i = i.
-Proof.
-intros.
-destruct (zlt n Int.zwordsize);
-  [ | apply Int.zero_ext_above; auto].
-destruct (zlt n 0).
-assert (n-1 < 0) by omega.
-repeat rewrite two_p_neg in H by omega.
-pose proof (Int.unsigned_range i).
-omega.
-destruct (zeq n 0).
-subst n. simpl in H.
-assert (Int.unsigned i = 0) by (pose proof (Int.unsigned_range i); omega).
-clear - H0.
-rewrite <- (Int.repr_unsigned i).
-rewrite H0. reflexivity.
-assert (0 < n < Int.zwordsize) by omega.
-clear - H H0.
-Admitted.  (* tedious... *)
-
-Lemma neutral_cast_lemma: forall t1 t2 v,
-  is_neutral_cast t1 t2 = true -> 
-  tc_val t1 v -> eval_cast t1 t2 v = v.
-Proof.
-intros.
-assert (- two_p (16-1) < Byte.min_signed) by (compute; congruence).
-assert (two_p (16-1) > Byte.max_signed) by (compute; congruence).
-assert (two_p 16 > Byte.max_unsigned) by (compute; congruence).
-assert (- two_p (8-1) = Byte.min_signed) by reflexivity.
-assert (two_p (8-1) - 1 = Byte.max_signed) by reflexivity.
-assert (two_p 8 - 1 = Byte.max_unsigned) by reflexivity.
- destruct t1 as [ | [ | | | ] [ | ] | | [ | ] | | | | | ],
- t2 as [ | [ | | | ] [ | ] | | [ | ] | | | | | ];
- inversion H; clear H; try reflexivity;
- destruct v; unfold tc_val, is_int in H0; try contradiction;
- simpl; f_equal;
- try (first [apply sign_ext_inrange| apply zero_ext_inrange];
-       try omega;
-    match type of H0 with _ \/ _ =>
-       destruct H0; subst i; simpl;
-       try  rewrite Int.signed_zero;
-       try  rewrite Int.unsigned_zero;
-       try change (Int.signed Int.one) with 1;
-       try change (Int.unsigned Int.one) with 1;
-       clear; compute; split; congruence
-    end);
- try (destruct H0; subst i; try rewrite Int.eq_true; auto).
-Qed.
-
-Lemma neutral_cast_subsumption: forall t1 t2 v,
-  is_neutral_cast t1 t2 = true -> 
-  tc_val t1 v -> tc_val t2 v.
-Proof.
-intros.
-assert (- two_p (16-1) < Byte.min_signed) by (compute; congruence).
-assert (two_p (16-1) > Byte.max_signed) by (compute; congruence).
-assert (two_p 16 > Byte.max_unsigned) by (compute; congruence).
-assert (- two_p (8-1) = Byte.min_signed) by reflexivity.
-assert (two_p (8-1) - 1 = Byte.max_signed) by reflexivity.
-assert (two_p 8 - 1 = Byte.max_unsigned) by reflexivity.
-destruct t1 as [ | [ | | | ] [ | ] | | [ | ] | | | | | ],
- t2   as [ | [ | | | ] [ | ] | | [ | ] | | | | | ]; inv H;
- destruct v; try solve [contradiction H0]; try apply I;
- unfold tc_val, is_int in *;
-  auto;
- try omega;
- try
-    match type of H0 with _ \/ _ =>
-       destruct H0; subst i; simpl;
-       try  rewrite Int.signed_zero;
-       try  rewrite Int.unsigned_zero;
-       try change (Int.signed Int.one) with 1;
-       try change (Int.unsigned Int.one) with 1;
-       clear; compute; try split; congruence
-    end.
-Qed.
-
 Definition get_var_type (Delta : tycontext) id : option type :=
 match (var_types Delta) ! id with
 | Some ty => Some ty
@@ -1051,149 +943,6 @@ typecheck_var_environ  (ve_of rho) (var_types Delta) /\
 typecheck_glob_environ (ge_of rho) (glob_types Delta) /\
 same_env rho Delta.
 
-(** Denotation functions for each of the assertions that can be produced by the typechecker **)
-
-Definition denote_tc_iszero v :=
-         match v with
-         | Vint i => is_true (Int.eq i Int.zero) 
-         | Vlong i => is_true (Int.eq (Int.repr (Int64.unsigned i)) Int.zero)
-         | _ => False 
-         end.
-
-Definition denote_tc_nonzero v := 
-         match v with Vint i => if negb (Int.eq i Int.zero) then True else False
-                                               | _ => False end.
-
-Definition denote_tc_igt i v :=
-     match v with
-     | Vint i1 => is_true (Int.ltu i1 i)
-     | _ => False
-     end.
-
-Definition Zoffloat (f:float): option Z := (**r conversion to Z *)
-  match f with
-    | Fappli_IEEE.B754_finite s m (Zpos e) _ => 
-       Some (Fcore_Zaux.cond_Zopp s (Zpos m) * Zpower_pos 2 e)
-    | Fappli_IEEE.B754_finite s m 0 _ => Some (Fcore_Zaux.cond_Zopp s (Zpos m))
-    | Fappli_IEEE.B754_finite s m (Zneg e) _ => Some (Fcore_Zaux.cond_Zopp s (Zpos m / Zpower_pos 2 e))
-    | Fappli_IEEE.B754_zero _ => Some 0
-    | _ => None
-  end.  (* copied from CompCert 2.3, because it's missing in CompCert 2.4 *)
-
-Definition Zofsingle (f: float32): option Z := (**r conversion to Z *)
-  match f with
-    | Fappli_IEEE.B754_finite s m (Zpos e) _ => 
-       Some (Fcore_Zaux.cond_Zopp s (Zpos m) * Zpower_pos 2 e)
-    | Fappli_IEEE.B754_finite s m 0 _ => Some (Fcore_Zaux.cond_Zopp s (Zpos m))
-    | Fappli_IEEE.B754_finite s m (Zneg e) _ => Some (Fcore_Zaux.cond_Zopp s (Zpos m / Zpower_pos 2 e))
-    | Fappli_IEEE.B754_zero _ => Some 0
-    | _ => None
-  end.  (* copied from CompCert 2.3, because it's missing in CompCert 2.4 *)
-
-
-Definition denote_tc_Zge z v := 
-          match v with
-                     | Vfloat f => match Zoffloat f with
-                                    | Some n => is_true (Zge_bool z n)
-                                    | None => False
-                                   end
-                     | Vsingle f => match Zofsingle f with
-                                    | Some n => is_true (Zge_bool z n)
-                                    | None => False
-                                   end
-                     | _ => False 
-                  end.
-
-Definition denote_tc_Zle z v := 
-          match v with
-                     | Vfloat f => match Zoffloat f with
-                                    | Some n => is_true (Zle_bool z n)
-                                    | None => False
-                                   end
-                     | Vsingle f => match Zofsingle f with
-                                    | Some n => is_true (Zle_bool z n)
-                                    | None => False
-                                   end
-                     | _ => False 
-                  end.
-
-Definition denote_tc_samebase v1 v2 :=
-                         match v1, v2 with
-                           | Vptr b1 _, Vptr b2 _ => is_true (peq b1 b2)
-                           | _, _ => False 
-                         end.
-
-(** Case for division of int min by -1, which would cause overflow **)
-Definition denote_tc_nodivover v1 v2 :=
-match v1, v2 with
-                           | Vint n1, Vint n2 => is_true (negb 
-                                   (Int.eq n1 (Int.repr Int.min_signed) 
-                                    && Int.eq n2 Int.mone))
-                           | _ , _ => False
-                          end.
-
-Definition denote_tc_initialized id ty rho := exists v, Map.get (te_of rho) id = Some v
-                                            /\ is_true (typecheck_val v ty).
-
-Fixpoint denote_tc_assert (Delta: tycontext) (a: tc_assert) : environ -> Prop :=
-  match a with
-  | tc_FF _ => `False
-  | tc_noproof => `False
-  | tc_TT => `True
-  | tc_andp' b c => `and (denote_tc_assert Delta b) (denote_tc_assert Delta c)
-  | tc_orp' b c => `or (denote_tc_assert Delta b) (denote_tc_assert Delta c)
-  | tc_nonzero' e => `denote_tc_nonzero (eval_expr Delta e)
-  | tc_isptr e => `isptr (eval_expr Delta e)
-  | tc_ilt' e i => `(denote_tc_igt i) (eval_expr Delta e)
-  | tc_Zle e z => `(denote_tc_Zge z) (eval_expr Delta e)
-  | tc_Zge e z => `(denote_tc_Zle z) (eval_expr Delta e)
-  | tc_samebase e1 e2 => `denote_tc_samebase (eval_expr Delta e1) (eval_expr Delta e2)
-  | tc_nodivover' v1 v2 => `denote_tc_nodivover (eval_expr Delta v1) (eval_expr Delta v2)
-  | tc_initialized id ty => denote_tc_initialized id ty
-  | tc_iszero' e => `denote_tc_iszero (eval_expr Delta e)
- end.
-
-Lemma and_False: forall x, (x /\ False) = False.
-Proof.
-intros; apply prop_ext; intuition.
-Qed.
-
-Lemma and_True: forall x, (x /\ True) = x.
-Proof.
-intros; apply prop_ext; intuition.
-Qed.
-
-Lemma True_and: forall x, (True /\ x) = x.
-Proof.
-intros; apply prop_ext; intuition.
-Qed.
-
-Lemma False_and: forall x, (False /\ x) = False.
-Proof.
-intros; apply prop_ext; intuition.
-Qed.
-
-
-Lemma tc_andp_sound : forall Delta a1 a2 rho, denote_tc_assert Delta (tc_andp a1 a2) rho <->  denote_tc_assert Delta (tc_andp' a1 a2) rho. 
-Proof.
-intros.
- unfold tc_andp.
- destruct a1; simpl; unfold_lift;
- repeat first [rewrite False_and | rewrite True_and | rewrite and_False | rewrite and_True];
-  try apply iff_refl;
-  destruct a2; simpl in *; unfold_lift;
- repeat first [rewrite False_and | rewrite True_and | rewrite and_False | rewrite and_True];
-  try apply iff_refl.
-Qed. 
-
-Lemma denote_tc_assert_andp: 
-  forall Delta a b rho, denote_tc_assert Delta (tc_andp a b) rho =
-             (denote_tc_assert Delta a rho /\ denote_tc_assert Delta b rho).
-Proof.
- intros. apply prop_ext. rewrite tc_andp_sound.
- simpl; apply iff_refl.
-Qed.
-
 (** Type-checking of function parameters **)
 
 Fixpoint match_fsig_aux (bl: list expr) (tl: list (ident*type)) : bool :=
@@ -1245,7 +994,6 @@ Definition lvalue_closed_wrt_vars (S: ident -> Prop) (e: expr) : Prop :=
 Definition env_set (rho: environ) (x: ident) (v: val) : environ :=
   mkEnviron (ge_of rho) (ve_of rho) (Map.set x v (te_of rho)).
 
-
 Lemma eval_id_same: forall rho id v, eval_id id (env_set rho id v) = v.
 Proof. unfold eval_id; intros; simpl. unfold force_val. rewrite Map.gss. auto.
 Qed.
@@ -1257,7 +1005,6 @@ Proof.
  unfold eval_id, force_val; intros. simpl. rewrite Map.gso; auto.
 Qed.
 Hint Rewrite eval_id_other using solve [clear; intro Hx; inversion Hx] : normalize.
-
 
 Definition typecheck_store e1 := 
 (is_int_type (typeof e1) = true -> typeof e1 = Tint I32 Signed noattr) /\
@@ -1312,200 +1059,53 @@ Lemma tc_val_eq':
   forall t v, (typecheck_val v t = true) =  tc_val t v.
 Proof. intros. rewrite tc_val_eq. auto. Qed.
 
-Lemma neutral_isCastResultType:
-  forall Delta t t' v rho,
-   is_neutral_cast t' t = true ->
-   denote_tc_assert Delta (isCastResultType Delta t' t v) rho.
+Lemma two_p_neg:
+ forall n, n<0 -> two_p n = 0.
+Proof.
+destruct n; intros; simpl; auto; try omega.
+pose proof (Zgt_pos_0 p); omega.
+Qed.
+
+Lemma sign_ext_inrange:
+  forall n i, - two_p (n-1) <= Int.signed i <= two_p (n-1) - 1 ->
+       Int.sign_ext n i = i.
 Proof.
 intros.
-  unfold isCastResultType;
-  destruct t'  as [ | [ | | | ] [ | ] | | [ | ] | | | | |], t  as [ | [ | | | ] [ | ] | | [ | ] | | | | |];
-     inv H; try apply I;
-    simpl; if_tac; apply I.
-Qed.
+destruct (zlt n Int.zwordsize);
+  [ | apply Int.sign_ext_above; auto].
+destruct (zlt n 0).
+assert (n-1 < 0) by omega.
+repeat rewrite two_p_neg in H by omega.
+omega.
+destruct (zeq n 0).
+subst n. simpl in H.
+assert (Int.signed i = 0) by omega.
+clear - H0.
+rewrite <- (Int.repr_signed i).
+rewrite H0. reflexivity.
+assert (0 < n < Int.zwordsize) by omega.
+clear - H H0.
+Admitted.  (* tedious... *)
 
-(*A boolean denote_tc_assert *)
+Lemma zero_ext_inrange:
+  forall n i, Int.unsigned i <= two_p n - 1 ->
+       Int.zero_ext n i = i.
+Proof.
+intros.
+destruct (zlt n Int.zwordsize);
+  [ | apply Int.zero_ext_above; auto].
+destruct (zlt n 0).
+assert (n-1 < 0) by omega.
+repeat rewrite two_p_neg in H by omega.
+pose proof (Int.unsigned_range i).
+omega.
+destruct (zeq n 0).
+subst n. simpl in H.
+assert (Int.unsigned i = 0) by (pose proof (Int.unsigned_range i); omega).
+clear - H0.
+rewrite <- (Int.repr_unsigned i).
+rewrite H0. reflexivity.
+assert (0 < n < Int.zwordsize) by omega.
+clear - H H0.
+Admitted.  (* tedious... *)
 
-Definition denote_tc_iszero_b v :=
-         match v with Vint i => (Int.eq i Int.zero) 
-                            | Vlong i =>  (Int.eq (Int.repr (Int64.unsigned i)) Int.zero)
-                            | _ => false 
-         end.
-
-Definition denote_tc_nonzero_b v := 
-         match v with Vint i => if negb (Int.eq i Int.zero) then true else false
-                                               | _ => false end.
-
-Definition denote_tc_igt_b i v :=
-     match v with | Vint i1 => (Int.ltu i1 i)
-                     | _ => false
-                  end.
-
-Definition denote_tc_Zge_b z v := 
-          match v with
-                     | Vfloat f => match Zoffloat f with
-                                    | Some n => (Zge_bool z n)
-                                    | None => false
-                                   end
-                     | Vsingle f => match Zofsingle f with
-                                    | Some n => (Zge_bool z n)
-                                    | None => false
-                                   end
-                     | _ => false 
-                  end.
-
-Definition denote_tc_Zle_b z v := 
-          match v with
-                     | Vfloat f => match Zoffloat f with
-                                    | Some n => (Zle_bool z n)
-                                    | None => false
-                                   end
-                     | Vsingle f => match Zofsingle f with
-                                    | Some n => (Zle_bool z n)
-                                    | None => false
-                                   end
-                     | _ => false 
-                  end.
-
-Definition denote_tc_samebase_b v1 v2 :=
-                         match v1, v2 with
-                           | Vptr b1 _, Vptr b2 _ => (peq b1 b2)
-                           | _, _ => false 
-                         end.
-
-(** Case for division of int min by -1, which would cause overflow **)
-Definition denote_tc_nodivover_b v1 v2 :=
-match v1, v2 with
-                           | Vint n1, Vint n2 => (negb 
-                                   (Int.eq n1 (Int.repr Int.min_signed) 
-                                    && Int.eq n2 Int.mone))
-                           | _ , _ => false
-                          end.
-
-Definition denote_tc_initialized_b id ty rho := 
-match Map.get (te_of rho) id with 
-| Some v => typecheck_val v ty
-| None => false
-end.
-
-Definition isptr_b v := 
-   match v with | Vptr _ _ => true | _ => false end.
-
-Fixpoint denote_tc_assert_b (Delta: tycontext) (a: tc_assert) : environ -> bool :=
-  match a with
-  | tc_FF _ => `false
-  | tc_noproof => `false
-  | tc_TT => `true
-  | tc_andp' b c => `andb (denote_tc_assert_b Delta b) (denote_tc_assert_b Delta c)
-  | tc_orp' b c => `orb (denote_tc_assert_b Delta b) (denote_tc_assert_b Delta c)
-  | tc_nonzero' e => `denote_tc_nonzero_b (eval_expr Delta e)
-  | tc_isptr e => `isptr_b (eval_expr Delta e)
-  | tc_ilt' e i => `(denote_tc_igt_b i) (eval_expr Delta e)
-  | tc_Zle e z => `(denote_tc_Zge_b z) (eval_expr Delta e)
-  | tc_Zge e z => `(denote_tc_Zle_b z) (eval_expr Delta e)
-  | tc_samebase e1 e2 => `denote_tc_samebase_b (eval_expr Delta e1) (eval_expr Delta e2)
-  | tc_nodivover' v1 v2 => `denote_tc_nodivover_b (eval_expr Delta v1) (eval_expr Delta v2)
-  | tc_initialized id ty => denote_tc_initialized_b id ty
-  | tc_iszero' e => `denote_tc_iszero_b (eval_expr Delta e)
- end.
-
-Lemma false_true : False <-> false=true.
-intuition.
-Qed.
-
-Lemma true_false : False <-> true=false.
-intuition.
-Qed.
-
-Lemma true_true : True <-> true = true.
-intuition.
-Qed.
-
-Lemma false_false : True <-> false = false.
-intuition.
-Qed.
-
-Hint Rewrite <- false_true : bool.
-Hint Rewrite <- true_false : bool.
-Hint Rewrite <- false_false : bool.
-Hint Rewrite <- true_true : bool.
-Hint Rewrite andb_true_iff : bool.
-Hint Rewrite orb_true_iff : bool.
-Hint Rewrite andb_false_iff : bool.
-Hint Rewrite orb_false_iff : bool.
-Hint Rewrite andb_false_r : bool.
-Hint Rewrite andb_true_r : bool.
-Hint Rewrite orb_false_r : bool.
-Hint Rewrite orb_true_r : bool.
-
-Ltac bool_r:=
-try unfold is_true; autorewrite with bool; try symmetry; autorewrite with bool; auto.
-
-Ltac bool_n H := 
-try unfold is_true in H; autorewrite with bool in H; try symmetry in H; autorewrite with bool in H; auto.
-
-Ltac bool_s :=
-try unfold is_true in *; autorewrite with bool in *; try symmetry in *; autorewrite with bool in *; auto.
-
-
-Tactic Notation "bool_r" "in" ident(H) :=
-bool_n H.
-
-Tactic Notation "bool_r" "in" "*" :=
-bool_s.
-
-Definition denote_te_assert_b_eq : forall Delta a rho, 
-denote_tc_assert Delta a rho <-> is_true (denote_tc_assert_b Delta a rho).
-Proof. intros. split; intros.
-induction a; simpl in *; super_unfold_lift; bool_r in *; intuition;
-simpl in *;
-try destruct (eval_expr Delta e); simpl in *;
-try match goal with 
-| [ H : if ?e then True else False |- _ ] => destruct e; simpl; inv H
-| [ H : match ?e with | _ => _  end |- _ ] => destruct e; simpl in *; inv H
-end; auto; try congruence;
-unfold denote_tc_initialized, denote_tc_initialized_b in *.
-destruct (denote_tc_assert_b Delta a1 rho); try contradiction; apply I.
-destruct (denote_tc_assert_b Delta a1 rho); try contradiction; apply I.
-destruct (Zoffloat f); try contradiction.
-destruct (z >=? z0); try contradiction; auto.
-destruct (Zofsingle f); try contradiction.
-destruct (z >=? z0); try contradiction; auto.
-destruct (Zoffloat f); try contradiction.
-destruct (z <=? z0); try contradiction; auto.
-destruct (Zofsingle f); try contradiction.
-destruct (z <=? z0); try contradiction; auto.
-destruct (eval_expr Delta e0 rho); try contradiction.
-destruct (peq b b0); try contradiction; auto.
-destruct (eval_expr Delta e0 rho); try contradiction.
-destruct (negb (Int.eq i (Int.repr Int.min_signed) && Int.eq i0 Int.mone)); try contradiction; auto.
-destruct H. destruct H; rewrite H. auto.
-
-induction a; simpl in *; super_unfold_lift; bool_r in *; intuition; try congruence;
-simpl in *;
-try destruct (eval_expr Delta e); simpl in *; try congruence;
-try match goal with 
-| [ H : (if ?e then true else false) = true |- _ ] => destruct e; simpl; inv H
-| [ H : (match ?e with | _ => _ end) = true |- _ ] => destruct e; simpl in *; inv H
-end; auto; try congruence.
-unfold denote_tc_initialized, denote_tc_initialized_b in *.
-destruct (denote_tc_assert_b Delta a1 rho); try contradiction; auto.
-destruct (denote_tc_assert_b Delta a1 rho); try contradiction; auto.
-destruct (denote_tc_assert_b Delta a1 rho); try contradiction; auto.
-destruct (negb (Int.eq i Int.zero)); try contradiction; auto.
-destruct (Zoffloat f); try contradiction.
-destruct (z >=? z0); try contradiction; auto.
-destruct (Zofsingle f); try contradiction.
-destruct (z >=? z0); try contradiction; auto.
-destruct (Zoffloat f); try contradiction.
-destruct (z <=? z0); try contradiction; auto.
-destruct (Zofsingle f); try contradiction.
-destruct (z <=? z0); try contradiction; auto.
-destruct (eval_expr Delta e0 rho); try contradiction.
-destruct (peq b b0); try contradiction; auto.
-destruct (eval_expr Delta e0 rho); try contradiction.
-destruct (negb (Int.eq i (Int.repr Int.min_signed) && Int.eq i0 Int.mone)); try contradiction; auto.
-unfold denote_tc_initialized_b in H.
-destruct (Map.get (te_of rho) e) eqn:?; try contradiction.
-exists v; split; auto.
-Qed.

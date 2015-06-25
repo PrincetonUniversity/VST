@@ -14,7 +14,7 @@ Require Import sepcomp.extspec.
 Require Import sepcomp.step_lemmas.
 Require Import veric.juicy_extspec.
 Require Import veric.tycontext.
-Require Import veric.expr.
+Require Import veric.expr2.
 Require Import veric.expr_lemmas.
 Require Import veric.semax.
 Require Import veric.semax_lemmas.
@@ -251,12 +251,12 @@ Qed.
 Lemma pointer_cmp_no_mem_bool_type : 
    forall (Delta : tycontext) cmp (e1 e2 : expr) sh1 sh2 x1 x b1 o1 b2 o2 i3 s3,
    is_comparison cmp = true->
-   forall (rho : environ),
+   forall (rho : environ) phi,
    eval_expr Delta e1 rho = Vptr b1 o1 ->
    eval_expr Delta e2 rho = Vptr b2 o2 ->
    blocks_match cmp (eval_expr Delta e1 rho) (eval_expr Delta e2 rho) ->
-   denote_tc_assert Delta (typecheck_expr Delta e1) rho ->
-   denote_tc_assert Delta (typecheck_expr Delta e2) rho ->
+   denote_tc_assert Delta (typecheck_expr Delta e1) rho phi ->
+   denote_tc_assert Delta (typecheck_expr Delta e2) rho phi ->
    (mapsto_ sh1 (typeof e1)
       (eval_expr Delta e1 rho)) x ->
    (mapsto_ sh2 (typeof e2)
@@ -448,12 +448,12 @@ Proof.
       destruct (mapsto_is_pointer _ _ _ _ MT2) as [? [? ?]]. 
       rewrite H6. rewrite H7. unfold eval_binop. 
       rewrite <- H6. rewrite <- H7. clear H6 H7.
-      rewrite <- !eval_expr_sub with (Delta := Delta) (Delta' := Delta') by eauto.
+      rewrite <- !eval_expr_sub with (Delta := Delta) (Delta' := Delta')(phi:=m_phi jm') by eauto.
       erewrite cmp_sem_binary_operation'_sub with (Delta' := Delta') by eauto.
       erewrite <- cmp_Cop_sem_binary_operation_guard_genv by eauto.
-      rewrite !eval_expr_sub with (Delta := Delta) (Delta' := Delta') by eauto.
+      rewrite !eval_expr_sub with (Delta := Delta) (Delta' := Delta') (phi:=m_phi jm') by eauto.
       apply (pointer_cmp_eval Delta' cmp e1 e2 sh1 sh2); auto;
-      rewrite <- !eval_expr_sub with (Delta := Delta) (Delta' := Delta') by eauto;
+      rewrite <- !eval_expr_sub with (Delta := Delta) (Delta' := Delta')(phi:=m_phi jm')  by eauto;
       eauto; simpl; eauto.
     - split.
       2: eapply pred_hereditary; try apply H1; destruct (age1_juicy_mem_unpack _ _ H); auto.
@@ -573,13 +573,14 @@ Proof.
       unfold construct_rho in *; auto.
     } Unfocus.
     intros. simpl in *. unfold typecheck_temp_id in *.
+    unfold tc_temp_id in TC2'. simpl in TC2'. unfold typecheck_temp_id in TC2'.
     rewrite H in TC2'.
     destruct t as [t b]; simpl in *.
     rewrite tc_andp_sound in *; simpl in *. 
     super_unfold_lift. destruct TC2'.
     unfold tc_bool in *. remember (is_neutral_cast (implicit_deref (typeof e)) t).
     destruct b0; inv H0.
-    apply neutral_cast_typecheck_val with (Delta := Delta'); auto. 
+    apply neutral_cast_typecheck_val with (Delta := Delta')(phi:=m_phi jm'); auto. 
     unfold guard_environ in *. destruct TC'; auto.
   + destruct H0.
     split; auto.
@@ -589,7 +590,7 @@ Proof.
       + destruct (age1_juicy_mem_unpack _ _ H).
         rewrite <- H3.
         econstructor; eauto.
-        apply eval_expr_relate; auto.
+        apply eval_expr_relate with (phi := m_phi jm'); auto.
       + apply age1_resource_decay; auto.
       + apply age_level; auto.
     } Unfocus.
@@ -632,6 +633,8 @@ Proof.
         destruct TC' as [TC' _].    
         destruct TC' as [TC' _]. unfold typecheck_temp_environ in *.
         simpl in TC2'. unfold typecheck_temp_id in *. remember ((temp_types Delta') ! id).
+        unfold tc_temp_id,typecheck_temp_id in TC2'. simpl in TC2'. 
+        rewrite <- Heqo in TC2'.
         destruct o; [ | inv TC2']. symmetry in Heqo. destruct p.
         specialize (TC' _ _ _ Heqo). destruct TC'. destruct H4. 
         simpl in H4. 
@@ -713,7 +716,7 @@ split3; auto.
   assert (is_neutral_cast (implicit_deref (typeof e)) t = true).
     destruct (typeof e), t; inversion H98; reflexivity.
   erewrite eval_expr_sub by eauto.
-  apply neutral_cast_typecheck_val with (Delta := Delta'); auto. 
+  apply neutral_cast_typecheck_val with (Delta := Delta')(phi:=m_phi jm'); auto. 
   apply neutral_isCastResultType; auto.
   unfold guard_environ in *. destruct TC'; auto. 
 +
@@ -724,7 +727,7 @@ split3; auto.
   destruct (age1_juicy_mem_unpack _ _ H).
   rewrite <- H3.
   econstructor; eauto.
-  eapply eval_expr_relate; auto.
+  eapply eval_expr_relate; try apply TC3; auto.
   apply age1_resource_decay; auto.
   apply age_level; auto.
 
@@ -835,10 +838,11 @@ split3; auto.
   simpl in *. 
   super_unfold_lift. inversion H97.
   subst.
+  unfold tc_expr in TC3, TC3'; simpl in TC3, TC3'.
   rewrite denote_tc_assert_andp in TC3. destruct TC3.
   erewrite eval_expr_sub by eauto.
   rewrite denote_tc_assert_andp in TC3'. destruct TC3'.
-  apply typecheck_val_sem_cast with (Delta := Delta'); auto. 
+  apply typecheck_val_sem_cast with (Delta := Delta')(phi:=m_phi jm'); auto. 
   eapply guard_environ_e1; eauto.
 +
   destruct H0.
@@ -849,7 +853,7 @@ split3; auto.
   rewrite <- H3.
   econstructor; eauto.
   change ((`(force_val1 (sem_cast (typeof e) t)) (eval_expr Delta e) rho)) with (eval_expr Delta (Ecast e t) rho).
-  eapply eval_expr_relate; auto.
+  eapply eval_expr_relate; eauto.
   apply age1_resource_decay; auto.
   apply age_level; auto.
 
@@ -948,7 +952,7 @@ unfold construct_rho in *.
 simpl in *. rewrite Hge. simpl. rewrite <- Hge.
 rewrite <- map_ptree_rel.  
 apply guard_environ_put_te'; try rewrite <- Hge; auto. 
-intros. simpl in *. unfold typecheck_temp_id in *.
+intros. simpl in *. unfold tc_temp_id, typecheck_temp_id in *.
 rewrite H in TC2.
 destruct t as [t b]; simpl in *.
 rewrite tc_andp_sound in *; simpl in *. 
@@ -957,7 +961,7 @@ unfold tc_bool in *. remember (is_neutral_cast (implicit_deref (typeof e)) t).
 destruct b0; inv H0. 
 destruct TC'.
 erewrite eval_expr_sub by eauto.
-apply neutral_cast_typecheck_val with (Delta := Delta'); auto. 
+apply neutral_cast_typecheck_val with (Delta := Delta')(phi:=m_phi jm'); auto. 
 destruct H0.
 split; auto.
 simpl.
@@ -1096,7 +1100,7 @@ intro; eapply derives_trans; [ | apply H99]; apply andp_derives; auto.
 intros ? ?; do 3 red.
 eapply typecheck_environ_sub; eauto.
 clear H99.
-destruct (eval_lvalue_relate _ _ _ _ _ e1 (m_dry jm) HGG' Hge (guard_environ_e1 _ _ _ TC')) as [b [ofs [? ?]]]; auto.
+destruct (eval_lvalue_relate _ _ _ _ _ (m_phi jm1) e1 (m_dry jm) HGG' Hge (guard_environ_e1 _ _ _ TC')) as [b [ofs [? ?]]]; auto.
 exists jm1.
 exists (PTree.set id (v2 rho) te).
 econstructor; split; [reflexivity | ].
@@ -1235,7 +1239,7 @@ intro; eapply derives_trans; [ | apply H99]; apply andp_derives; auto.
 intros ? ?; do 3 red.
 eapply typecheck_environ_sub; eauto.
 clear H99.
-destruct (eval_lvalue_relate _ _ _ _ _ e1 (m_dry jm) HGG' Hge (guard_environ_e1 _ _ _ TC')) as [b [ofs [? ?]]]; auto.
+destruct (eval_lvalue_relate _ _ _ _ _ (m_phi jm1) e1 (m_dry jm) HGG' Hge (guard_environ_e1 _ _ _ TC')) as [b [ofs [? ?]]]; auto.
 exists jm1.
 exists (PTree.set id (eval_cast (typeof e1) t1 (v2 rho)) (te)).
 econstructor.
@@ -1455,10 +1459,10 @@ end.
 
 
 Lemma load_cast : 
- forall Delta (e1 : expr) (e2 : expr) (ch : memory_chunk) rho,
+ forall Delta (e1 : expr) (e2 : expr) (ch : memory_chunk) rho phi,
    tc_val (typeof e2) (eval_expr Delta e2 rho) ->
    denote_tc_assert Delta (isCastResultType Delta (typeof e2) (typeof e1) e2)
-     rho ->
+     rho phi ->
    access_mode (typeof e1) = By_value ch ->
    Val.load_result ch
      (force_val (Cop.sem_cast (eval_expr Delta e2 rho) (typeof e2) (typeof e1))) =
@@ -1521,11 +1525,9 @@ pose proof TC1 as TC1'.
 pose proof TC2 as TC2'.
 apply (tc_lvalue_sub _ _ TS) in TC1'; [| auto].
 apply (tc_expr_sub _ _ TS) in TC2'; [| auto].
-simpl in TC2.
-rewrite tc_andp_sound in *; simpl in TC2; super_unfold_lift.
+unfold tc_expr in TC2, TC2'; simpl in TC2, TC2'.
+rewrite tc_andp_sound in *; simpl in TC2,TC2'; super_unfold_lift.
 destruct TC2 as [TC2 TC3].
-simpl in TC2'.
-rewrite tc_andp_sound in *; simpl in TC2'; super_unfold_lift. 
 destruct TC2' as [TC2' TC3'].
 apply later_sepcon2 in H0.
 specialize (H0 _ (age_laterR (age_jm_phi Hage))).
@@ -1534,7 +1536,7 @@ destruct H0 as [?w [?w [? [? [?w [?w [H3 [H4 H5]]]]]]]].
 unfold mapsto in H4.
 revert H4; case_eq (access_mode (typeof e1)); intros; try contradiction.
 rename H2 into Hmode. rename m into ch.
-destruct (eval_lvalue_relate _ _ _ _ _ e1 (m_dry jm) HGG' Hge (guard_environ_e1 _ _ _ TC4)) as [b0 [i [He1 He1']]]; auto.
+destruct (eval_lvalue_relate _ _ _ _ _ (m_phi jm1) e1 (m_dry jm) HGG' Hge (guard_environ_e1 _ _ _ TC4)) as [b0 [i [He1 He1']]]; auto.
 erewrite <- eval_lvalue_sub in He1' by eauto.
 rewrite He1' in *.
 destruct (join_assoc H3 (join_comm H0)) as [?w [H6 H7]].
@@ -1565,7 +1567,7 @@ destruct TC4 as [TC4 _].
 simpl in TC2'. apply typecheck_expr_sound in TC2'; auto.
 remember (eval_expr Delta e2 rho).
 dec_enc. rewrite DE. clear DE. subst. 
-apply load_cast; auto.
+eapply load_cast; eauto.
 erewrite eval_expr_sub by eauto.
 eauto.
 
@@ -1577,7 +1579,7 @@ rewrite level_store_juicy_mem. apply age_level; auto.
 split; auto.
 split.
 split3; auto.
-generalize (eval_expr_relate _ _ _ _ _ e2 (m_dry jm) HGG' Hge (guard_environ_e1 _ _ _ TC4)); intro.
+generalize (eval_expr_relate _ _ _ _ _ (m_phi jm1) e2 (m_dry jm) HGG' Hge (guard_environ_e1 _ _ _ TC4)); intro.
 econstructor; try eassumption. 
 unfold tc_lvalue in TC1. simpl in TC1. 
 auto.
