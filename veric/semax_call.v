@@ -358,14 +358,14 @@ Qed.
 Lemma eval_exprlist_relate :
   forall (Delta : tycontext) (fsig : funsig) 
      (bl : list expr) (psi : genv) (vx : env) (tx : temp_env) 
-     (rho : environ) phi m,
-   denote_tc_assert Delta (typecheck_exprlist Delta (snd (split (fst fsig))) bl) rho phi ->
+     (rho : environ) m,
+   denote_tc_assert Delta (typecheck_exprlist Delta (snd (split (fst fsig))) bl) rho (m_phi m) ->
    typecheck_environ Delta rho ->
    guard_genv Delta psi ->
    rho = construct_rho (filter_genv psi) vx tx ->
    forall f : function,
    fsig = fn_funsig f ->
-   Clight.eval_exprlist psi vx tx m bl
+   Clight.eval_exprlist psi vx tx (m_dry m) bl
      (type_of_params (fn_params f))
      (eval_exprlist Delta (snd (split (fst fsig))) bl rho). 
 Proof.
@@ -1519,7 +1519,7 @@ intros.
 destruct TC3 as [TC3 TC3'].
 rewrite <- snd_split in TC2.
 assert (H21 := eval_exprlist_relate Delta (params,retty) bl psi vx tx _ 
-      (m_phi jm) (m_dry jm) TC2 TC3 HGG H0
+      jm TC2 TC3 HGG H0
       (mkfunction retty cc_default params nil nil Sskip)
       (eq_refl _)). simpl in H21.
 rewrite snd_split in TC2.
@@ -2903,20 +2903,26 @@ reflexivity.
 simpl; intros ? ?. unfold cl_after_external. destruct ret0; auto.
 reflexivity.
 intros.
-destruct H8 as [w1 [w2 [_ [_ ?]]]].
+specialize (H2 H11). subst a'0.
+destruct H8 as [w1 [w2 [H8' [_ ?]]]].
+assert (H8'': extendM w2 (m_phi jm)) by (eexists; eauto). clear H8'.
 remember (construct_rho (filter_genv psi) vx tx) as rho.
 assert (H7': typecheck_environ Delta rho).
 destruct H7; eapply typecheck_environ_sub; eauto.
 destruct H7 as [H7 _].
 specialize (H0 rho w2 (conj H7' H8)).
 destruct H0 as [[[[TCa TCbl] TCa'] TCbl'] [? ?]].
+apply (boxy_e _ _ (extend_tc_expr _ _ _) _ _ H8'') in TCa.
+apply (boxy_e _ _ (extend_tc_exprlist _ _ _ _) _ _ H8'') in TCbl.
+apply (boxy_e _ _ (extend_tc_expr _ _ _) _ _ H8'') in TCa'.
+apply (boxy_e _ _ (extend_tc_exprlist _ _ _ _) _ _ H8'') in TCbl'.
 assert (forall vf, Clight.eval_expr psi vx tx (m_dry jm) a vf
                -> Clight.eval_expr psi vx tx (m_dry jm) a' vf). {
-clear - TCa TCa' H7 H7' H0 Heqrho HGG TS. forget (m_dry jm) as m.
+clear - TCa TCa' H7 H7' H0 Heqrho HGG TS.
 intros.
-rewrite eval_expr_sub with (Delta := Delta) (Delta' := Delta')(phi := w2) in H0 by auto.
+rewrite eval_expr_sub with (Delta := Delta) (Delta' := Delta')(phi := (m_phi jm)) in H0 by auto.
 eapply tc_expr_sub in TCa; [| eauto | eauto].
-pose proof (eval_expr_relate _ _ _ _ _ _ _ m HGG Heqrho H7 TCa).
+pose proof (eval_expr_relate _ _ _ _ _ _ jm HGG Heqrho H7 TCa).
 pose proof (eval_expr_fun H H1). subst vf.
 rewrite H0.
 eapply eval_expr_relate; eauto.
@@ -2925,23 +2931,24 @@ eapply guard_genv_sub; eauto.
 assert (forall tyargs vargs, 
              Clight.eval_exprlist psi vx tx (m_dry jm) bl tyargs vargs ->
              Clight.eval_exprlist psi vx tx (m_dry jm) bl' tyargs vargs). {
-clear - TS IF_ONLY TCbl TCbl' Hbl H7 H7' H13 Heqrho HGG. forget (m_dry jm) as m.
+clear - TS IF_ONLY TCbl TCbl' Hbl H7 H7' H13 Heqrho HGG. 
 revert bl bl' Hbl TCbl TCbl' H13; induction tl; destruct bl, bl'; simpl; intros; auto;
  try (clear IF_ONLY; contradiction).
-unfold_lift in H13; simpl in H13.
+(*unfold_lift in H13; simpl in H13.
 inversion H13; clear H13.
+*)
  unfold tc_exprlist in TCbl,TCbl'. simpl in TCbl, TCbl'.
 repeat rewrite denote_tc_assert_andp in TCbl, TCbl'.
 destruct TCbl as [[TCe ?] ?].
 destruct TCbl' as [[TCe0 ?] ?].
-inversion H; clear H. subst a0 bl0 tyargs vargs.
-inversion Hbl; clear Hbl. rewrite <- H6 in *.
-eapply (tc_expr_sub _ _ TS e rho H7' w2) in TCe.
-pose proof (eval_expr_relate _ _ _ _ _ _ _ m HGG Heqrho H7 TCe).
-pose proof (eval_expr_fun H H9).
+inversion H; clear H. subst bl0 tyargs vargs.
+inversion Hbl; clear Hbl. rewrite <- H5 in *.
+eapply (tc_expr_sub _ _ TS e rho H7' (m_phi jm)) in TCe.
+pose proof (eval_expr_relate _ _ _ _ _ _ _ HGG Heqrho H7 TCe).
+pose proof (eval_expr_fun H H6).
 repeat rewrite <- cop2_sem_cast in *.
 unfold force_val in H1.
-rewrite H11 in *. 
+rewrite H10 in *. 
 contradiction IF_ONLY.  (* this needs plenty of work. *)
 }
 destruct H12; split; auto.
@@ -3080,7 +3087,7 @@ Proof.
         split.
         {
           erewrite eval_expr_sub; eauto.
-          apply eval_expr_relate with (Delta := Delta')(phi := m_phi jm); auto.
+          apply eval_expr_relate with (Delta := Delta')(m:= jm); auto.
         }
         {
           simpl in H6; rewrite (call_cont_current_function H7) in H6.
@@ -3114,7 +3121,7 @@ Proof.
         pose proof tc_expr_sub _ _ TS _ _ H3 (m_phi jm) TCe as TCe'.
         split.
         {
-          apply eval_expr_relate with (Delta := Delta)(phi := m_phi jm); auto.
+          apply eval_expr_relate with (Delta := Delta); auto.
           eapply guard_genv_sub; eauto.
         }
         {

@@ -1375,6 +1375,24 @@ try solve [destruct t  as [ | [ | | | ] [ | ] | | [ | ] | | | | | ]; simpl; auto
  destruct (classify_sub (typeof e1) (typeof e2)); auto 50 with closed.
  destruct (classify_shift (typeof e1) (typeof e2)); auto 50 with closed.
  destruct (classify_shift (typeof e1) (typeof e2)); auto 50 with closed.
+ destruct (typeof e1) as   [ | [ | | | ] [ | ] | | [ | ] | | | | | ];
+ destruct (typeof e2) as   [ | [ | | | ] [ | ] | | [ | ] | | | | | ];
+ simpl; repeat  apply closed_wrt_tc_andp; auto with closed;
+ hnf; intros ? ? H8;
+ rewrite binop_lemmas2.denote_tc_assert_comparable';
+  simpl; unfold_lift;
+  rewrite <- (H _ _ H8);
+  rewrite <- (H0 _ _ H8);
+  auto.
+ destruct (typeof e1) as   [ | [ | | | ] [ | ] | | [ | ] | | | | | ];
+ destruct (typeof e2) as   [ | [ | | | ] [ | ] | | [ | ] | | | | | ];
+ simpl; repeat  apply closed_wrt_tc_andp; auto with closed;
+ hnf; intros ? ? H8;
+ rewrite binop_lemmas2.denote_tc_assert_comparable';
+  simpl; unfold_lift;
+  rewrite <- (H _ _ H8);
+  rewrite <- (H0 _ _ H8);
+  auto.
 +
  apply closed_wrt_tc_andp; auto with closed.
  specialize (IHe H).

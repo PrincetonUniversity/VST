@@ -181,7 +181,7 @@ specialize (H0 w0 H3).
 specialize (H1 w0 H3).
 unfold expr_true, expr_false, Cnot in *.
 intros ora jm Hge Hphi.
-generalize (eval_expr_relate _ _ _ _ _ (m_phi jm) b (m_dry jm) HGG Hge (guard_environ_e1 _ _ _ TC)); intro.
+generalize (eval_expr_relate _ _ _ _ _ b jm HGG Hge (guard_environ_e1 _ _ _ TC)); intro.
 assert (exists b': bool, strict_bool_val (eval_expr Delta' b rho) (typeof b) = Some b').
 clear - TS TC H TC2 TC2'.
 assert (TCS := typecheck_expr_sound _ _ w0 _ (guard_environ_e1 _ _ _ TC) TC2').

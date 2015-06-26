@@ -143,7 +143,7 @@ PROGS_FILES= \
   list_dt.v verif_reverse.v verif_queue.v verif_sumarray.v verif_message.v \
   insertionsort.v reverse.v queue.v sumarray.v message.v string.v\
   revarray.v verif_revarray.v insertionsort.v verif_insertion_sort.v \
-  verif_float.v verif_dotprod.v \
+  verif_float.v verif_dotprod.v verif_ptr_compare.v \
   verif_nest3.v verif_nest2.v \
   logical_compare.v verif_logical_compare.v field_loadstore.v  verif_field_loadstore.v \
   even.v verif_even.v odd.v verif_odd.v
@@ -200,7 +200,7 @@ HMACEQUIV_FILES= \
   HMAC_spec_abstract.v HMAC_equivalence.v HMAC256_equivalence.v \
   HMAC_isPRF.v HMAC256_isPRF.v
 
-C_FILES = reverse.c queue.c sumarray.c message.c insertionsort.c float.c nest3.c nest2.c nest3.c dotprod.c string.c field_loadstore.c
+C_FILES = reverse.c queue.c sumarray.c message.c insertionsort.c float.c nest3.c nest2.c nest3.c dotprod.c string.c field_loadstore.c ptr_compare.c
 
 FILES = \
  $(MSL_FILES:%=msl/%) \
@@ -292,6 +292,8 @@ progs/logical_compare.v: progs/logical_compare.c
 progs/nest2.v: progs/nest2.c
 	$(CLIGHTGEN) ${CGFLAGS} $<
 progs/nest3.v: progs/nest3.c
+	$(CLIGHTGEN) ${CGFLAGS} $<
+progs/ptr_compare.v: progs/ptr_compare.c
 	$(CLIGHTGEN) ${CGFLAGS} $<
 progs/dotprod.v: progs/dotprod.c
 	$(CLIGHTGEN) ${CGFLAGS} $<

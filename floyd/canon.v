@@ -1168,8 +1168,8 @@ apply semax_extract_prop.
 auto.
 Qed.
 
-Lemma assert_PROP':
- forall P Pre (Post: environ -> mpred),
+Lemma assert_PROP' {A}{NA: NatDed A}:
+ forall P Pre (Post: A),
    Pre |-- !! P ->
    (P -> Pre |-- Post) ->
    Pre |-- Post.

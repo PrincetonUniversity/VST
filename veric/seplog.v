@@ -1026,6 +1026,54 @@ simpl. unfold_lift.
 destruct (eval_expr Delta e rho); try apply extend_prop.
 Qed.
 
+Lemma extend_valid_pointer':
+  forall a b, boxy extendM (valid_pointer' a b).
+Proof.
+intros.
+apply boxy_i; intros.
+apply extendM_refl.
+unfold valid_pointer' in *.
+simpl in *.
+destruct a; simpl in *; auto.
+forget (b0, Int.unsigned i + b) as p.
+destruct (w @ p) eqn:?H; try contradiction.
+destruct k; try contradiction.
+destruct H as [w2 ?].
+apply (resource_at_join _ _ _ p) in H.
+rewrite H1 in H.
+inv H; auto.
+Qed.
+
+Lemma extend_tc_comparable:
+  forall Delta e1 e2 rho,
+ boxy extendM (denote_tc_assert Delta (tc_comparable Delta e1 e2) rho).
+Proof.
+intros.
+rewrite denote_tc_assert_comparable'.
+apply boxy_i; intros.
+apply extendM_refl.
+simpl in *.
+super_unfold_lift.
+unfold denote_tc_comparable in *.
+destruct (eval_expr Delta e1 rho); auto;
+destruct (eval_expr Delta e2 rho); auto.
+destruct H0; split; auto.
+apply (boxy_e _ _ (extend_valid_pointer' _ _) _ w' H H1).
+destruct H0; split; auto.
+apply (boxy_e _ _ (extend_valid_pointer' _ _) _ w' H H1).
+unfold comparable_ptrs in *.
+if_tac.
+destruct H0; split.
+destruct H0 as [?|?]; [left|right];
+apply (boxy_e _ _ (extend_valid_pointer' _ _) _ w' H H0).
+destruct H1 as [?|?]; [left|right];
+apply (boxy_e _ _ (extend_valid_pointer' _ _) _ w' H H1).
+destruct H0.
+split.
+apply (boxy_e _ _ (extend_valid_pointer' _ _) _ w' H H0).
+apply (boxy_e _ _ (extend_valid_pointer' _ _) _ w' H H1).
+Qed.
+
 Lemma extend_tc_expr: forall Delta e rho, boxy extendM (tc_expr Delta e rho)
  with extend_tc_lvalue: forall Delta e rho, boxy extendM (tc_lvalue Delta e rho).
 Proof.
@@ -1057,6 +1105,7 @@ unfold tc_expr.
  try simple apply extend_tc_samebase;
  try simple apply extend_tc_ilt;
  try simple apply extend_isCastResultType;
+ try simple apply extend_tc_comparable;
  auto;
  try apply extend_tc_lvalue.
 *
@@ -1085,6 +1134,7 @@ unfold tc_expr.
  try simple apply extend_tc_samebase;
  try simple apply extend_tc_ilt;
  try simple apply extend_isCastResultType;
+ try simple apply extend_tc_comparable;
  auto;
  try apply extend_tc_lvalue.
  apply extend_tc_expr.

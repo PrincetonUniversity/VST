@@ -179,6 +179,21 @@ intros.
      rewrite ?eval_expr_initialized; auto.
 Qed.
 
+Lemma denote_tc_assert_initialized_tc_comparable:
+  forall i Delta e1 e2, 
+    denote_tc_assert (initialized i Delta) (tc_comparable (initialized i Delta) e1 e2)
+      = denote_tc_assert Delta (tc_comparable Delta e1 e2).
+Proof.
+intros.
+     unfold tc_comparable in *; simpl in *.
+     rewrite ?eval_expr_initialized; auto.
+     destruct (eval_expr Delta e1 any_environ); simpl in *;     
+     rewrite ?eval_expr_initialized; auto.
+     destruct (eval_expr Delta e2 any_environ); simpl in *;     
+     rewrite ?eval_expr_initialized; auto.
+Qed.
+
+
 Lemma tc_expr_init:
   forall i Delta rho e, 
     tc_expr Delta e rho |-- tc_expr (initialized i Delta) e rho
@@ -235,11 +250,12 @@ Proof.
       apply derives_refl
     |  |- appcontext [classify_cmp] =>
                  destruct (classify_cmp (typeof e1) (typeof e2));
-          unfold check_pp_int, check_pl_long;
+          unfold check_pp_int;
        rewrite ?denote_tc_assert_andp, ?denote_tc_assert_orp;
       rewrite ?eval_expr_initialized, 
              ?denote_tc_assert_initialized_tc_bool,
              ?denote_tc_assert_initialized_tc_nodivover,
+             ?denote_tc_assert_initialized_tc_comparable,
              ?denote_tc_assert_initialized_tc_iszero,
              ?denote_tc_assert_initialized_tc_nonzero;
       apply derives_refl

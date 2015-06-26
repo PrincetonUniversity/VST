@@ -427,6 +427,7 @@ Inductive tc_assert :=
 | tc_nonzero': expr -> tc_assert
 | tc_iszero': expr -> tc_assert
 | tc_isptr: expr -> tc_assert
+| tc_comparable': expr -> expr -> tc_assert
 | tc_ilt': expr -> int -> tc_assert
 | tc_Zle: expr -> Z -> tc_assert
 | tc_Zge: expr -> Z -> tc_assert
@@ -446,6 +447,12 @@ Definition tc_nonzero (Delta: tycontext) (e: expr) : tc_assert :=
    | Vint i => if negb (Int.eq i Int.zero) then tc_TT else tc_nonzero' e
    | _ => tc_nonzero' e
    end.
+
+Definition tc_comparable (Delta: tycontext) (e1 e2: expr) : tc_assert :=
+ match eval_expr Delta e1 any_environ, eval_expr Delta e2 any_environ with
+ | Vint _, Vint _ => tc_TT
+ | _, _ => tc_comparable' e1 e2
+ end.
 
 Definition tc_nodivover (Delta: tycontext) (e1 e2: expr) : tc_assert :=
  match eval_expr Delta e1 any_environ, eval_expr Delta e2 any_environ with
@@ -484,18 +491,20 @@ if b then tc_TT else tc_FF e.
 Definition check_pp_int (Delta: tycontext) e1 e2 op t e :=
 match op with 
 | Cop.Oeq | Cop.One => tc_andp 
-                         (tc_orp (tc_iszero Delta e1) (tc_iszero Delta e2))
+                         (tc_comparable Delta e1 e2)
                          (tc_bool (is_int_type t) (op_result_type e))
 | _ => tc_noproof
 end.
 
+(*
 Definition check_pl_long (Delta: tycontext) e2 op t e :=
 match op with 
 | Cop.Oeq | Cop.One => tc_andp 
-                         (tc_iszero Delta e2)
+                         (tc_comparable Delta e2)
                          (tc_bool (is_int_type t) (op_result_type e))
 | _ => tc_noproof
 end.
+*)
 
 Definition binarithType t1 t2 ty deferr reterr : tc_assert :=
  match Cop.classify_binarith t1 t2 with
@@ -600,8 +609,8 @@ match op with
                                           && is_int_type ty)
                                              deferr
 		    | Cop.cmp_case_pp => check_pp_int Delta a1 a2 op ty e
-                    | Cop.cmp_case_pl => check_pl_long Delta a2 op ty e
-                    | Cop.cmp_case_lp => check_pl_long Delta a1 op ty e
+                    | Cop.cmp_case_pl => check_pp_int Delta (Ecast a1 (Tint I32 Unsigned noattr)) a2 op ty e
+                    | Cop.cmp_case_lp => check_pp_int Delta (Ecast a2 (Tint I32 Unsigned noattr)) a1 op ty e
                    end
   end.
 
@@ -1109,3 +1118,27 @@ assert (0 < n < Int.zwordsize) by omega.
 clear - H H0.
 Admitted.  (* tedious... *)
 
+Program Definition valid_pointer' (p: val) (d: Z) : mpred := 
+ match p with
+ | Vptr b ofs =>
+  fun m =>
+    match m @ (b, Int.unsigned ofs + d) with
+    | YES _ _ (VAL _) pp => pp=NoneP
+    | _ => False
+    end
+ | _ => FF
+ end.
+Next Obligation.
+hnf; simpl; intros.
+destruct (a@(b,Int.unsigned ofs + d)) eqn:?; try destruct k; try contradiction.
+subst.
+apply (age1_YES a a' _ t _ (VAL m) H) in Heqr.
+rewrite Heqr.
+reflexivity.
+Qed.
+
+Definition valid_pointer (p: val) : mpred :=
+ (valid_pointer' p 0).
+
+Definition weak_valid_pointer (p: val) : mpred :=
+ orp (valid_pointer' p 0) (valid_pointer' p (-1)).

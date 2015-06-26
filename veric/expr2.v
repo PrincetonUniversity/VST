@@ -133,11 +133,14 @@ Definition denote_tc_Zle z v : mpred :=
                      | _ => FF 
                   end.
 
+Definition sameblock v1 v2 : bool :=
+         match v1, v2 with
+          | Vptr b1 _, Vptr b2 _ => peq b1 b2
+          | _, _ => false
+         end.
+
 Definition denote_tc_samebase v1 v2 : mpred :=
-                         match v1, v2 with
-                           | Vptr b1 _, Vptr b2 _ => prop (is_true (peq b1 b2))
-                           | _, _ => FF
-                         end.
+       prop (is_true (sameblock v1 v2)).
 
 (** Case for division of int min by -1, which would cause overflow **)
 Definition denote_tc_nodivover v1 v2 : mpred :=
@@ -155,6 +158,52 @@ Definition denote_tc_initialized id ty rho : mpred :=
 Definition denote_tc_isptr v : mpred :=
   prop (isptr v).
 
+(*
+
+Definition cmpu_bool (c: comparison) (v1 v2: val): option bool :=
+  match v1, v2 with
+  | Vint n1, Vint n2 =>
+      Some (Int.cmpu c n1 n2)
+  | Vint n1, Vptr b2 ofs2 =>
+      if Int.eq n1 Int.zero && weak_valid_ptr b2 (Int.unsigned ofs2)
+      then cmp_different_blocks c
+      else None
+  | Vptr b1 ofs1, Vptr b2 ofs2 =>
+      if eq_block b1 b2 then
+        if weak_valid_ptr b1 (Int.unsigned ofs1)
+           && weak_valid_ptr b2 (Int.unsigned ofs2)
+        then Some (Int.cmpu c ofs1 ofs2)
+        else None
+      else
+        if valid_ptr b1 (Int.unsigned ofs1)
+           && valid_ptr b2 (Int.unsigned ofs2)
+        then cmp_different_blocks c
+        else None
+  | Vptr b1 ofs1, Vint n2 =>
+      if Int.eq n2 Int.zero && weak_valid_ptr b1 (Int.unsigned ofs1)
+      then cmp_different_blocks c
+      else None
+  | _, _ => None
+  end.
+*)
+
+Definition comparable_ptrs v1 v2 : mpred :=
+  if sameblock v1 v2
+  then (andp (weak_valid_pointer v1) (weak_valid_pointer v2))
+  else (andp (valid_pointer v1) (valid_pointer v2)).
+
+Definition denote_tc_comparable v1 v2 : mpred :=
+ match v1, v2 with
+ | Vint _, Vint _ => TT
+ | Vint i, Vptr _ _ =>
+      andp (prop (i = Int.zero)) (valid_pointer v2)
+ | Vptr _ _, Vint i => 
+      andp (prop (i = Int.zero)) (valid_pointer v1)
+ | Vptr _ _, Vptr _ _ => 
+      comparable_ptrs v1 v2
+ | _, _ => FF
+ end.
+
 Fixpoint denote_tc_assert (Delta: tycontext) (a: tc_assert) : environ -> mpred :=
   match a with
   | tc_FF _ => `FF
@@ -164,6 +213,7 @@ Fixpoint denote_tc_assert (Delta: tycontext) (a: tc_assert) : environ -> mpred :
   | tc_orp' b c => `orp (denote_tc_assert Delta b) (denote_tc_assert Delta c)
   | tc_nonzero' e => `denote_tc_nonzero (eval_expr Delta e)
   | tc_isptr e => `denote_tc_isptr (eval_expr Delta e)
+  | tc_comparable' e1 e2 => `denote_tc_comparable (eval_expr Delta e1) (eval_expr Delta e2)
   | tc_ilt' e i => `(denote_tc_igt i) (eval_expr Delta e)
   | tc_Zle e z => `(denote_tc_Zge z) (eval_expr Delta e)
   | tc_Zge e z => `(denote_tc_Zle z) (eval_expr Delta e)

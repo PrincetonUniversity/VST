@@ -180,8 +180,16 @@ entailer.
 destruct (isnil contents).
 * entailer!.
 * normalize.
- destruct prefix; entailer;
- fail. Admitted.  (* This hack because otherwise we run out of memory *)
+  apply exp_right with prefix.
+  assert_PROP (isptr h).
+  destruct prefix; entailer.
+  entailer!.
+  apply andp_right; auto.
+  unfold denote_tc_comparable.
+  destruct h; try contradiction.
+  normalize.
+  admit;  (* definitely provable *)
+  fail. Admitted.  (* This hack because otherwise we run out of memory *)
    (* Each individual body_fifo_xxx can fit in memory, but not all of them. *)
 (*Qed.*)
 

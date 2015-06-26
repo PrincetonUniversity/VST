@@ -183,7 +183,7 @@ Qed.
 Definition check_pp_int' e1 e2 op t e :=
 match op with 
 | Cop.Oeq | Cop.One => tc_andp'
-                         (tc_orp' (tc_iszero' e1) (tc_iszero' e2))
+                         (tc_comparable' e1 e2)
                          (tc_bool (is_int_type t) (op_result_type e))
 | _ => tc_noproof
 end.
@@ -377,10 +377,36 @@ Lemma denote_tc_assert_orp':
                         denote_tc_assert Delta (tc_orp' a b).
 Proof. intros. extensionality rho. apply denote_tc_assert_orp. Qed.
 
+Lemma denote_tc_assert_comparable':
+  forall Delta a b, 
+    denote_tc_assert Delta (tc_comparable Delta a b) =
+    denote_tc_assert Delta (tc_comparable' a b).
+Proof.
+intros; extensionality rho.
+unfold tc_comparable.
+simpl; unfold_lift;  unfold denote_tc_comparable.
+destruct (eval_expr Delta a rho) eqn:Ha;
+destruct (eval_expr Delta a any_environ) eqn:Ha';
+simpl; unfold_lift;  unfold denote_tc_comparable;
+rewrite ?Ha, ?Ha'; simpl; auto;
+try solve [
+   rewrite (eval_expr_any Delta rho a _ Ha') in Ha by congruence;
+   inv Ha].
+destruct (eval_expr Delta b rho) eqn:Hb;
+destruct (eval_expr Delta b any_environ) eqn:Hb';
+simpl; unfold_lift;  unfold denote_tc_comparable;
+rewrite ?Ha, ?Ha', ?Hb, ?Hb'; simpl; auto;
+try solve [
+   rewrite (eval_expr_any Delta rho b _ Hb') in Hb by congruence;
+   inv Hb].
+Qed.
+
 Hint Rewrite denote_tc_assert_andp' denote_tc_assert_andp''
     denote_tc_assert_orp' denote_tc_assert_orp''
     denote_tc_assert_iszero' denote_tc_assert_nonzero'
-    denote_tc_assert_nodivover' denote_tc_assert_ilt': dtca.
+    denote_tc_assert_nodivover' denote_tc_assert_ilt'
+    denote_tc_assert_comparable'
+     : dtca.
 
 Ltac dtca := autorewrite with dtca; auto.
 
@@ -562,8 +588,10 @@ match op with
                                           && is_int_type ty)
                                              deferr
 		    | Cop.cmp_case_pp => check_pp_int' a1 a2 op ty e
-                    | Cop.cmp_case_pl => check_pl_long' a2 op ty e
-                    | Cop.cmp_case_lp => check_pl_long' a1 op ty e
+                    | Cop.cmp_case_pl => check_pp_int' (Ecast a1 (Tint I32 Unsigned noattr)) a2 op ty e
+(*check_pl_long' a2 op ty e*)
+                    | Cop.cmp_case_lp => check_pp_int' (Ecast a2 (Tint I32 Unsigned noattr)) a1 op ty e
+(*check_pl_long' a1 op ty e*)
                    end
   end.
 Proof.
@@ -571,17 +599,17 @@ Proof.
  rewrite <- classify_add_eq. rewrite <- classify_sub_eq.
  rewrite <- classify_shift_eq. rewrite <- classify_cmp_eq.
  unfold isBinOpResultType, classify_add, classify_sub, classify_binarith, classify_shift, 
-  classify_cmp, check_pp_int, check_pp_int', check_pl_long, check_pl_long', typeconv,
+  classify_cmp, check_pp_int, check_pp_int', 
+  (*check_pl_long, check_pl_long', *)
+  typeconv,
   remove_attributes, change_attributes;
   destruct op; dtca;
  extensionality rho;
- destruct (typeof a1), (typeof a2); dtca;
- try (destruct i; dtca); 
- try (destruct s; dtca);
- try (destruct i0; dtca);
- try (destruct s0; dtca);
- try (destruct f; dtca);
- try (destruct f0; dtca).
+ destruct (typeof a1) as [ | [ | | | ] [ | ] ? | [ | ] ? | [ | ] ? | | | | | ]; dtca;
+ destruct (typeof a2) as [ | [ | | | ] [ | ] ? | [ | ] ? | [ | ] ? | | | | | ]; dtca.
+
+
+
 Qed.
 
 Lemma denote_tc_assert'_andp'_e:

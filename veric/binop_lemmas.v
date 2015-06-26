@@ -188,6 +188,62 @@ destruct (eq_block b b0); [ destruct (Int.eq i i0) |];
  destruct ii,ss; simpl; try reflexivity.
 Qed.
 
+Lemma sem_cmp_pp_ppx:
+  forall b i i0 ii ss aa,
+  i = Int.zero ->
+ typecheck_val
+  match sem_cmp_pp Ceq true2 (Vint i)  (Vptr b i0)  with
+  | Some v' => v'
+  | None => Vundef
+  end (Tint ii ss aa) = true.
+Proof.
+intros; unfold sem_cmp_pp; simpl. 
+subst i. rewrite Int.eq_true.
+ destruct ii,ss; simpl; reflexivity.
+Qed.
+
+Lemma sem_cmp_pp_ppx':
+  forall b i i0 ii ss aa,
+  i = Int.zero ->
+ typecheck_val
+  match sem_cmp_pp Cne true2 (Vint i)  (Vptr b i0)  with
+  | Some v' => v'
+  | None => Vundef
+  end (Tint ii ss aa) = true.
+Proof.
+intros; unfold sem_cmp_pp; simpl. 
+subst i. rewrite Int.eq_true.
+ destruct ii,ss; simpl; reflexivity.
+Qed.
+
+Lemma sem_cmp_pp_ppy:
+  forall b i i0 ii ss aa,
+  i = Int.zero ->
+ typecheck_val
+  match sem_cmp_pp Ceq true2 (Vptr b i0)  (Vint i)  with
+  | Some v' => v'
+  | None => Vundef
+  end (Tint ii ss aa) = true.
+Proof.
+intros; unfold sem_cmp_pp; simpl. 
+subst i. rewrite Int.eq_true.
+ destruct ii,ss; simpl; reflexivity.
+Qed.
+
+Lemma sem_cmp_pp_ppy':
+  forall b i i0 ii ss aa,
+  i = Int.zero ->
+ typecheck_val
+  match sem_cmp_pp Cne true2  (Vptr b i0) (Vint i)  with
+  | Some v' => v'
+  | None => Vundef
+  end (Tint ii ss aa) = true.
+Proof.
+intros; unfold sem_cmp_pp; simpl. 
+subst i. rewrite Int.eq_true.
+ destruct ii,ss; simpl; reflexivity.
+Qed.
+
 Lemma typecheck_binop_sound:
 forall op (Delta : tycontext) (rho : environ) m (e1 e2 : expr) (t : type)
    (IBR: denote_tc_assert Delta (isBinOpResultType Delta op e1 e2 t) rho m)
@@ -200,11 +256,12 @@ Proof.
 intros; destruct op;
 rewrite den_isBinOpR in IBR; simpl in IBR;
 try abstract (
- destruct (typeof e1) as [ | [ | | | ] [ | ] ? | [ | ] ? | [ | ] ? | | | | | ];
+ destruct (typeof e1) as [ | [ | | | ] [ | ] ? | [ | ] ? | [ | ] ? | | | | | ] eqn:TE1;
  try contradiction IBR;
- destruct (typeof e2) as [ | [ | | | ] [ | ] ? | [ | ] ? | [ | ] ? | | | | | ];
+ destruct (typeof e2) as [ | [ | | | ] [ | ] ? | [ | ] ? | [ | ] ? | | | | | ] eqn:TE2;
  simpl in IBR; try contradiction IBR;
  unfold binarithType in IBR; simpl in IBR|-*;
+ rewrite ?TE1, ?TE2 in IBR; simpl in IBR; clear TE1 TE2;
  match type of IBR with context [@liftx] => unfold_lift in IBR | _ => idtac end;
  try apply tc_bool_e in IBR; 
      destruct (eval_expr Delta e1 rho); try discriminate TV1;
@@ -232,6 +289,10 @@ try abstract (
     try erewrite denote_tc_iszero_long_e by eassumption;
     try simple apply sem_cmp_pp_pp;
     try simple apply sem_cmp_pp_pp';
+    try (simple apply sem_cmp_pp_ppx; assumption);
+    try (simple apply sem_cmp_pp_ppx'; assumption);
+    try (simple apply sem_cmp_pp_ppy; assumption);
+    try (simple apply sem_cmp_pp_ppy'; assumption);
     reflexivity
  ).
 Qed.

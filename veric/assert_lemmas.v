@@ -415,6 +415,7 @@ Proof.
   repeat rewrite binop_lemmas2.denote_tc_assert_orp in H;
   repeat rewrite binop_lemmas2.denote_tc_assert_orp;
   try rewrite binop_lemmas2.denote_tc_assert_nonzero' in H |- *;
+  try rewrite binop_lemmas2.denote_tc_assert_comparable' in H |- *;
   try rewrite binop_lemmas2.denote_tc_assert_nodivover' in H |- *;
   repeat rewrite binop_lemmas2.denote_tc_assert_ilt' in H |- *;
   repeat rewrite binop_lemmas2.denote_tc_assert_iszero' in H |- *;

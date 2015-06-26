@@ -102,13 +102,10 @@ Qed.
 Definition force_valid_pointers m v1 v2 := 
 match v1, v2 with 
 | Vptr b1 ofs1, Vptr b2 ofs2 =>  
-    (valid_pointer m b1 (Int.unsigned ofs1) && 
-    valid_pointer m b2 (Int.unsigned ofs2))%bool
+    (Mem.valid_pointer m b1 (Int.unsigned ofs1) && 
+    Mem.valid_pointer m b2 (Int.unsigned ofs2))%bool
 | _, _ => false
 end. 
-
-
- 
 
 Definition blocks_match op v1 v2 :=
 match op with Cop.Olt | Cop.Ogt | Cop.Ole | Cop.Oge =>
@@ -128,7 +125,7 @@ Qed.
  
 Lemma mapsto_valid_pointer : forall b o sh t jm,
 (mapsto_ sh (t) (Vptr b o) * TT)%pred (m_phi jm) ->
-valid_pointer (m_dry jm) b (Int.unsigned o) = true. 
+Mem.valid_pointer (m_dry jm) b (Int.unsigned o) = true. 
 intros.
 
 destruct H. destruct H. destruct H. destruct H0.
@@ -438,8 +435,8 @@ Proof.
       destruct TC'; simpl in H4, TC3, TC1.
       rewrite <- Hge in *.
       eapply Clight.eval_Ebinop.
-      1: eapply eval_expr_relate; eauto.
-      1: eapply eval_expr_relate; eauto.
+      rewrite H3; eapply eval_expr_relate; eauto.
+      rewrite H3; eapply eval_expr_relate; eauto.
       rewrite H3. 
       super_unfold_lift.
       destruct MT1 as [? [? [J1 [MT1 _]]]]. 
@@ -590,7 +587,7 @@ Proof.
       + destruct (age1_juicy_mem_unpack _ _ H).
         rewrite <- H3.
         econstructor; eauto.
-        apply eval_expr_relate with (phi := m_phi jm'); auto.
+        rewrite H3; apply eval_expr_relate with (m := jm'); auto.
       + apply age1_resource_decay; auto.
       + apply age_level; auto.
     } Unfocus.
@@ -727,7 +724,7 @@ split3; auto.
   destruct (age1_juicy_mem_unpack _ _ H).
   rewrite <- H3.
   econstructor; eauto.
-  eapply eval_expr_relate; try apply TC3; auto.
+  rewrite H3; eapply eval_expr_relate; try apply TC3; auto.
   apply age1_resource_decay; auto.
   apply age_level; auto.
 
@@ -853,7 +850,7 @@ split3; auto.
   rewrite <- H3.
   econstructor; eauto.
   change ((`(force_val1 (sem_cast (typeof e) t)) (eval_expr Delta e) rho)) with (eval_expr Delta (Ecast e t) rho).
-  eapply eval_expr_relate; eauto.
+  rewrite H3; eapply eval_expr_relate; eauto.
   apply age1_resource_decay; auto.
   apply age_level; auto.
 
@@ -969,7 +966,7 @@ split3; auto.
 destruct (age1_juicy_mem_unpack _ _ H).
 rewrite <- H3.
 econstructor; eauto. rewrite Hge in *. 
-eapply eval_expr_relate; auto.
+rewrite H3; eapply eval_expr_relate; auto.
 destruct TC'; eauto. auto. 
 apply age1_resource_decay; auto.
 apply age_level; auto.
@@ -1100,7 +1097,8 @@ intro; eapply derives_trans; [ | apply H99]; apply andp_derives; auto.
 intros ? ?; do 3 red.
 eapply typecheck_environ_sub; eauto.
 clear H99.
-destruct (eval_lvalue_relate _ _ _ _ _ (m_phi jm1) e1 (m_dry jm) HGG' Hge (guard_environ_e1 _ _ _ TC')) as [b [ofs [? ?]]]; auto.
+destruct (eval_lvalue_relate _ _ _ _ _ e1 jm1 HGG' Hge (guard_environ_e1 _ _ _ TC')) as [b [ofs [? ?]]]; auto.
+rewrite <- (age_jm_dry H) in H1.
 exists jm1.
 exists (PTree.set id (v2 rho) te).
 econstructor; split; [reflexivity | ].
@@ -1239,7 +1237,8 @@ intro; eapply derives_trans; [ | apply H99]; apply andp_derives; auto.
 intros ? ?; do 3 red.
 eapply typecheck_environ_sub; eauto.
 clear H99.
-destruct (eval_lvalue_relate _ _ _ _ _ (m_phi jm1) e1 (m_dry jm) HGG' Hge (guard_environ_e1 _ _ _ TC')) as [b [ofs [? ?]]]; auto.
+destruct (eval_lvalue_relate _ _ _ _ _ e1 jm1 HGG' Hge (guard_environ_e1 _ _ _ TC')) as [b [ofs [? ?]]]; auto.
+rewrite <- (age_jm_dry H) in H1.
 exists jm1.
 exists (PTree.set id (eval_cast (typeof e1) t1 (v2 rho)) (te)).
 econstructor.
@@ -1536,7 +1535,8 @@ destruct H0 as [?w [?w [? [? [?w [?w [H3 [H4 H5]]]]]]]].
 unfold mapsto in H4.
 revert H4; case_eq (access_mode (typeof e1)); intros; try contradiction.
 rename H2 into Hmode. rename m into ch.
-destruct (eval_lvalue_relate _ _ _ _ _ (m_phi jm1) e1 (m_dry jm) HGG' Hge (guard_environ_e1 _ _ _ TC4)) as [b0 [i [He1 He1']]]; auto.
+destruct (eval_lvalue_relate _ _ _ _ _ e1 jm1 HGG' Hge (guard_environ_e1 _ _ _ TC4)) as [b0 [i [He1 He1']]]; auto.
+(*rewrite <- (age_jm_dry H) in He1'.*)
 erewrite <- eval_lvalue_sub in He1' by eauto.
 rewrite He1' in *.
 destruct (join_assoc H3 (join_comm H0)) as [?w [H6 H7]].
@@ -1579,7 +1579,9 @@ rewrite level_store_juicy_mem. apply age_level; auto.
 split; auto.
 split.
 split3; auto.
-generalize (eval_expr_relate _ _ _ _ _ (m_phi jm1) e2 (m_dry jm) HGG' Hge (guard_environ_e1 _ _ _ TC4)); intro.
+generalize (eval_expr_relate _ _ _ _ _ e2 jm1 HGG' Hge (guard_environ_e1 _ _ _ TC4)); intro.
+spec H2; [ assumption | ].
+rewrite <- (age_jm_dry Hage) in H2, He1.
 econstructor; try eassumption. 
 unfold tc_lvalue in TC1. simpl in TC1. 
 auto.
