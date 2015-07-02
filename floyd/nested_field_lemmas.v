@@ -379,24 +379,6 @@ Ltac solve_legal_nested_field :=
 Global Opaque legal_nested_field.
 *)
 
-Lemma sumbool_dec_iff: forall A B, {A} + {~A} -> (A <-> B) -> {B} + {~B}.
-Proof.
-  intros.
-  destruct H.
-  + left. tauto.
-  + right. tauto.
-Qed.
-
-Lemma sumbool_dec_and: forall A B, {A} + {~A} -> {B} + {~B} -> {A /\ B} + {~(A /\ B)}.
-Proof.
-  intros.
-  destruct H, H0.
-  + left; tauto.
-  + right; tauto.
-  + right; tauto.
-  + right; tauto.
-Qed.
-
 Definition legal_nested_field_dec: forall t gfs,
   {legal_nested_field t gfs} + {~ legal_nested_field t gfs}.
 Proof.
