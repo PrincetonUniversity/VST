@@ -911,8 +911,6 @@ filter (fun iv : positive * A => (id <? fst iv)%positive)
    admit.
  +
     admit.
-  SearchAbout PTree.elements.
-  SearchAbout PTree.remove.
  destruct (Pos.ltb_spec id j).
  clear H0.
  
@@ -954,17 +952,13 @@ hnf in H.
 
 destruct H0. subst.
 simpl.
-SearchAbout (Pos.ltb).
 rewrite if_false.
 
-SearchAbout (list _).
 
 intros.
-SearchAbout PTree.elements.
 unfold PTree.elements.
 unfold PTree.t in *.
 forget (@nil (positive * A)) as rest.
-SearchAbout PTree.elements.
 *)
 
 

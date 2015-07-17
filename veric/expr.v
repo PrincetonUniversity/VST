@@ -1140,7 +1140,6 @@ rewrite (necR_NO a a') in Heqr.
 rewrite Heqr; auto.
 constructor; auto.
 subst.
-SearchAbout necR YES.
 apply (necR_YES a a') in Heqr; [ | constructor; auto].
 rewrite Heqr.
 auto.
