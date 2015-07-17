@@ -256,28 +256,30 @@ Proof.
 intros; destruct op;
 rewrite den_isBinOpR in IBR; simpl in IBR;
 try abstract (
+ unfold binarithType in IBR; 
  destruct (typeof e1) as [ | [ | | | ] [ | ] ? | [ | ] ? | [ | ] ? | | | | | ] eqn:TE1;
  try contradiction IBR;
  destruct (typeof e2) as [ | [ | | | ] [ | ] ? | [ | ] ? | [ | ] ? | | | | | ] eqn:TE2;
  simpl in IBR; try contradiction IBR;
- unfold binarithType in IBR; simpl in IBR|-*;
  rewrite ?TE1, ?TE2 in IBR; simpl in IBR; clear TE1 TE2;
  match type of IBR with context [@liftx] => unfold_lift in IBR | _ => idtac end;
- try apply tc_bool_e in IBR; 
-     destruct (eval_expr Delta e1 rho); try discriminate TV1;
-    destruct (eval_expr Delta e2 rho); try discriminate TV2;
-    destruct t as [ | [ | | | ] [ | ] ? | [ | ] ? | [ | ] ? | | | | | ]; 
-    try contradiction IBR; try reflexivity;
-    unfold Cop2.sem_div, Cop2.sem_mod, 
-    Cop2.sem_binarith, Cop2.sem_cast, Cop2.sem_shift,
-    force_val, sem_shift_ii, both_int, both_long, both_float; simpl; 
-    repeat (let H := fresh in revert IBR; intros [IBR H]; 
-                try apply tc_bool_e in IBR;
-                try (apply denote_tc_nonzero_e in IBR;
+ try simple apply tc_bool_e in IBR;
+ destruct (eval_expr Delta e1 rho); try discriminate TV1;
+ destruct (eval_expr Delta e2 rho); try discriminate TV2;
+ destruct t as [ | [ | | | ] [ | ] ? | [ | ] ? | [ | ] ? | | | | | ]; 
+ try contradiction IBR; try discriminate IBR; 
+ simpl; unfold Cop2.sem_div, Cop2.sem_mod, 
+ Cop2.sem_binarith, Cop2.sem_cast, Cop2.sem_shift,
+ force_val, sem_shift_ii, both_int, both_long, both_float; simpl; 
+ repeat (let H := fresh in revert IBR; intros [IBR H]; 
+                try contradiction IBR;
+                try contradiction H;
+                try (simple apply tc_bool_e in IBR; try discriminate IBR);
+                try (simple apply denote_tc_nonzero_e in IBR;
                       try rewrite IBR);
-                try (apply denote_tc_nodivover_e in H; rewrite H);
-                try apply tc_bool_e in H);
-    try contradiction; try discriminate;
+                try (simple apply denote_tc_nodivover_e in H; try rewrite H);
+                try (simple apply tc_bool_e in H; try discriminate H));
+    try reflexivity;
     try erewrite denote_tc_igt_e by eassumption;
     try rewrite Int64_eq_repr_signed32_nonzero by assumption;
     try rewrite Int64_eq_repr_unsigned32_nonzero by assumption;
@@ -294,5 +296,5 @@ try abstract (
     try (simple apply sem_cmp_pp_ppy; assumption);
     try (simple apply sem_cmp_pp_ppy'; assumption);
     reflexivity
- ).
+).
 Qed.

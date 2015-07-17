@@ -7,6 +7,7 @@ Require Import veric.res_predicates.
 Require Import veric.tycontext.
 Require Import veric.expr2.
 Require Import veric.expr_lemmas.
+Require Import veric.extend_tc.
 Require Import veric.seplog.
 Require Import veric.Clight_lemmas.
 Require Import msl.normalize.

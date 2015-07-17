@@ -505,6 +505,7 @@ apply  identity_unit_equiv.
 auto.
 Qed.
 
+Require Import veric.extend_tc.
 Require Import veric.seplog.
 
 Lemma superprecise_mapsto:

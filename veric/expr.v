@@ -1120,21 +1120,42 @@ Admitted.  (* tedious... *)
 
 Program Definition valid_pointer' (p: val) (d: Z) : mpred := 
  match p with
+ | Vint i => prop (i = Int.zero)
  | Vptr b ofs =>
   fun m =>
     match m @ (b, Int.unsigned ofs + d) with
-    | YES _ _ (VAL _) pp => pp=NoneP
+    | YES _ _ _ pp => True
+    | NO sh => nonidentity sh
     | _ => False
     end
  | _ => FF
  end.
 Next Obligation.
+split; intros; congruence.
+Qed.
+Next Obligation.
 hnf; simpl; intros.
-destruct (a@(b,Int.unsigned ofs + d)) eqn:?; try destruct k; try contradiction.
+destruct (a@(b,Int.unsigned ofs + d)) eqn:?; try contradiction.
+rewrite (necR_NO a a') in Heqr.
+rewrite Heqr; auto.
+constructor; auto.
 subst.
-apply (age1_YES a a' _ t _ (VAL m) H) in Heqr.
+SearchAbout necR YES.
+apply (necR_YES a a') in Heqr; [ | constructor; auto].
 rewrite Heqr.
-reflexivity.
+auto.
+Qed.
+Next Obligation.
+split; intros; congruence.
+Qed.
+Next Obligation.
+split; intros; congruence.
+Qed.
+Next Obligation.
+split; intros; congruence.
+Qed.
+Next Obligation.
+split; intros; congruence.
 Qed.
 
 Definition valid_pointer (p: val) : mpred :=

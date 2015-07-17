@@ -175,6 +175,7 @@ Lemma semax_SC_field_load:
         efield_denote Delta efs gfs ->
       PROPx P (LOCALx (tc_environ Delta :: Q) (SEP (Rn))) |--
         `(field_at sh t_root gfs0 v' p) ->
+      readable_share sh ->
       repinject _ (proj_reptype (nested_field_type2 t_root gfs0) gfs1 v') = v ->
       PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |--
          (tc_LR Delta e1 lr) &&
@@ -191,13 +192,12 @@ Lemma semax_SC_field_load:
                   (SEPx (map (subst id `old) R))))).
 Proof.
   intros.
-  eapply semax_extract_later_prop'; [exact H9 | clear H9; intro H9].
+  eapply semax_extract_later_prop'; [exact H10 | clear H10; intro H10].
   eapply semax_nested_efield_field_load_37' with (gfs4 := gfs); eauto.
-  apply andp_right; [apply andp_right; [exact H8 | exact H5] |].
+  apply andp_right; [apply andp_right; [exact H9 | exact H5] |].
   rewrite (add_andp _ _ H4).
   eapply derives_trans; [apply andp_derives; [| apply derives_refl] |].
   eapply nth_error_SEP_sepcon_TT; eauto.
-  instantiate (1 := sh).
   entailer!.
 Qed.
 
@@ -216,6 +216,7 @@ Lemma semax_SC_field_cast_load:
         efield_denote Delta efs gfs ->
       PROPx P (LOCALx (tc_environ Delta :: Q) (SEP (Rn))) |--
         `(field_at sh t_root gfs0 v' p) ->
+      readable_share sh ->
       repinject _ (proj_reptype (nested_field_type2 t_root gfs0) gfs1 v') = v ->
       PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |-- 
          (tc_LR Delta e1 lr) &&
@@ -232,9 +233,9 @@ Lemma semax_SC_field_cast_load:
                   (SEPx (map (subst id (`old)) R))))).
 Proof.
   intros.
-  eapply semax_extract_later_prop'; [exact H9 | clear H9; intro H9].
+  eapply semax_extract_later_prop'; [exact H10 | clear H10; intro H10].
   eapply semax_nested_efield_field_cast_load_37' with (gfs4 := gfs); eauto.
-  apply andp_right; [apply andp_right; [exact H8 | exact H5] |].
+  apply andp_right; [apply andp_right; [exact H9 | exact H5] |].
   rewrite (add_andp _ _ H4).
   eapply derives_trans; [apply andp_derives; [| apply derives_refl] |].
   eapply nth_error_SEP_sepcon_TT; eauto.
@@ -368,6 +369,7 @@ Lemma semax_PTree_load:
       msubst_efield_denote Delta T1 T2 efs = Some gfs ->
       (local (tc_environ Delta)) && (assertD P (localD T1 T2) (Rn :: nil)) |--
         `(field_at sh t_root gfs0 v' p) ->
+      readable_share sh ->
       repinject _ (proj_reptype (nested_field_type2 t_root gfs0) gfs1 v') = v ->
       (local (tc_environ Delta)) && (assertD P (localD T1 T2) R) |--
          (tc_LR Delta e1 lr) &&
@@ -382,7 +384,7 @@ Lemma semax_PTree_load:
 Proof.
   intros.
   unfold assertD, localD in *.
-  rewrite insert_local in H6, H8, H9.
+  rewrite insert_local in H6, H9, H10.
   eapply semax_post'.
   Focus 2. {
     eapply semax_SC_field_load with (n0 := n); eauto.
@@ -415,6 +417,7 @@ Lemma semax_PTree_cast_load:
       msubst_efield_denote Delta T1 T2 efs = Some gfs ->
       (local (tc_environ Delta)) && (assertD P (localD T1 T2) (Rn :: nil)) |--
         `(field_at sh t_root gfs0 v' p) ->
+      readable_share sh ->
       repinject _ (proj_reptype (nested_field_type2 t_root gfs0) gfs1 v') = v ->
       (local (tc_environ Delta)) && (assertD P (localD T1 T2) R) |--
          (tc_LR Delta e1 lr) &&
@@ -429,7 +432,7 @@ Lemma semax_PTree_cast_load:
 Proof.
   intros.
   unfold assertD, localD in *.
-  rewrite insert_local in H6, H8, H9.
+  rewrite insert_local in H6, H9, H10.
   eapply semax_post'.
   Focus 2. {
     eapply semax_SC_field_cast_load with (n0 := n); eauto.

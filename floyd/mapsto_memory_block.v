@@ -44,13 +44,40 @@ Lemmas about mapsto and mapsto_.
 
 ******************************************)
 
+Lemma address_mapsto_readable:
+  forall m v rsh sh a, address_mapsto m v rsh sh a |-- 
+           !! readable_share (Share.splice rsh sh).
+Admitted.
+
+Lemma mapsto_readable:
+  forall sh t v v', mapsto sh t v v' = !! readable_share sh && mapsto sh t v v'.
+Proof.
+intros.
+apply pred_ext; normalize.
+apply andp_right; auto.
+unfold mapsto.
+  destruct (access_mode t); try apply FF_left.
+  destruct (type_is_volatile t); try apply FF_left.
+  destruct v; try apply FF_left.
+replace (readable_share sh) with (readable_share (Share.splice (Share.unrel Share.Lsh sh) (Share.unrel Share.Rsh sh))).
+apply orp_left.
+normalize.
+apply address_mapsto_readable.
+normalize.
+apply address_mapsto_readable.
+unfold Share.splice.
+f_equal.
+admit. (* share hacking *)
+Qed.
+
 Lemma mapsto_mapsto_: forall sh t v v', mapsto sh t v v' |-- mapsto_ sh t v.
 Proof. unfold mapsto_; intros.
   normalize.
+   rewrite mapsto_readable at 1. normalize. rewrite if_true by auto.
   unfold mapsto.
   destruct (access_mode t); auto.
   destruct (type_is_volatile t); try apply FF_left.
-  destruct v; auto.
+  destruct v; try apply FF_left.
   apply orp_left.
   apply orp_right2.
   apply andp_left2.
@@ -62,23 +89,36 @@ Proof. unfold mapsto_; intros.
 Qed.
 
 Lemma mapsto_local_facts:
-  forall sh t v1 v2,  mapsto sh t v1 v2 |-- !! (isptr v1).
+  forall sh t v1 v2,  mapsto sh t v1 v2 |-- !! (readable_share sh /\ isptr v1).
   (* could make this slightly stronger by adding the fact
      (tc_val t v2 \/ v2=Vundef)  *)
 Proof.
-intros; unfold mapsto.
+intros.
+rewrite mapsto_readable. normalize.
+ unfold mapsto.
 destruct (access_mode t); try apply FF_left.
 destruct (type_is_volatile t); try apply FF_left.
 destruct v1; try apply FF_left.
 apply prop_right; split; auto; apply I.
 Qed.
 
+Lemma permission_block_local_facts:
+ forall sh v t, permission_block sh v t |--  !!(sepalg.nonidentity sh /\ isptr v).
+Admitted.
+
 Lemma mapsto__local_facts:
-  forall sh t v1, mapsto_ sh t v1 |-- !! (isptr v1).
+  forall sh t v1, mapsto_ sh t v1 |-- !! (sepalg.nonidentity sh /\ isptr v1).
 Proof.
-intros; apply mapsto_local_facts.
+intros.
+unfold mapsto_.
+if_tac.
+eapply derives_trans.
+apply mapsto_local_facts.
+normalize. split; auto.
+admit. (* share hacking *)
+apply permission_block_local_facts.
 Qed.
-Hint Resolve mapsto_local_facts mapsto__local_facts : saturate_local.
+Hint Resolve permission_block_local_facts mapsto_local_facts mapsto__local_facts : saturate_local.
 
 Lemma mapsto_offset_zero:
   forall sh t v1 v2, mapsto sh t v1 v2 = mapsto sh t (offset_val Int.zero v1) v2.
@@ -88,15 +128,38 @@ Proof.
   rewrite <- local_facts_offset_zero.
   reflexivity.
   intros.
-  apply mapsto_local_facts.  
+  eapply derives_trans; [  apply mapsto_local_facts | ].
+  normalize.   
 Qed.
+
+Lemma permission_block_offset_zero:
+  forall sh v t, permission_block sh v t = permission_block sh (offset_val Int.zero v) t.
+Proof.
+intros.
+unfold offset_val.
+apply pred_ext.
+assert_PROP (isptr v);
+ [eapply derives_trans; [apply permission_block_local_facts | normalize] | ].
+destruct v; try contradiction.
+rewrite Int.add_zero.
+auto.
+assert_PROP (isptr v);
+ [eapply derives_trans; [apply permission_block_local_facts | normalize] | ].
+destruct v; try contradiction; auto.
+destruct v; try contradiction.
+rewrite Int.add_zero.
+auto.
+Qed.
+
 
 Lemma mapsto__offset_zero:
   forall sh t v1, mapsto_ sh t v1 = mapsto_ sh t (offset_val Int.zero v1).
 Proof.
   unfold mapsto_.
   intros.
+  if_tac.
   apply mapsto_offset_zero.
+  apply permission_block_offset_zero.
 Qed.
 
 Lemma mapsto_isptr: forall sh t v1 v2, mapsto sh t v1 v2 = !! (isptr v1) && mapsto sh t v1 v2.
@@ -105,13 +168,14 @@ Proof.
   change (mapsto sh t v1 v2) with ((fun v1 => mapsto sh t v1 v2) v1).
   rewrite <- local_facts_isptr.
   reflexivity.
-  apply mapsto_local_facts.
+  eapply derives_trans; [apply mapsto_local_facts | normalize].
 Qed.
 
 Lemma mapsto__isptr: forall sh t v1, mapsto_ sh t v1 = !! (isptr v1) && mapsto_ sh t v1.
 Proof.
   intros.
-  unfold mapsto_. apply mapsto_isptr.
+  apply pred_ext; normalize. apply andp_right; auto.
+  eapply derives_trans; [apply mapsto__local_facts | normalize].
 Qed.
 
 (******************************************
@@ -216,19 +280,16 @@ Lemma memory_block_mapsto_:
    memory_block sh (sizeof cenv_cs t) p = mapsto_ sh t p.
 Proof.
   intros.
-  destruct p.
-  + unfold mapsto_, mapsto; destruct (access_mode t), (type_is_volatile t); reflexivity.
-  + unfold mapsto_, mapsto; destruct (access_mode t), (type_is_volatile t); reflexivity.
-  + unfold mapsto_, mapsto; destruct (access_mode t), (type_is_volatile t); reflexivity.
-  + unfold mapsto_, mapsto; destruct (access_mode t), (type_is_volatile t); reflexivity.
-  + unfold mapsto_, mapsto; destruct (access_mode t), (type_is_volatile t); reflexivity.
-  + simpl in H2, H3.
+  assert (isptr p \/ ~isptr p) by (destruct p; simpl; auto).
+  destruct H4. destruct p; try contradiction.
+    simpl in H2, H3.
     destruct (access_mode_by_value _ H) as [ch ?].
     apply legal_alignas_type_spec in H1.
     erewrite size_chunk_sizeof in H2 |- * by eauto.
     pose proof Z.divide_trans _ _ _ H1 H3.
-    erewrite align_chunk_alignof in H5 by eauto.
+    erewrite align_chunk_alignof in H6 by eauto.
     rewrite seplog.mapsto__memory_block with (ch := ch); auto.
+  apply pred_ext; saturate_local; try contradiction.
 Qed.
 
 Lemma memory_block_size_compatible:

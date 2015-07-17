@@ -2048,6 +2048,7 @@ Lemma semax_nested_efield_field_load_37':
         efield_denote Delta efs gfs &&
         (`(field_at sh t_root gfs0 v') (eval_LR Delta e1 lr) * TT) ->
       legal_nested_field t_root gfs ->
+      readable_share sh ->
       semax Delta (|>PROPx P (LOCALx Q (SEPx R))) 
         (Sset id (nested_efield e1 efs tts))
           (normal_ret_assert
@@ -2130,6 +2131,7 @@ Lemma semax_nested_efield_field_cast_load_37':
         efield_denote Delta efs gfs &&
         (`(field_at sh t_root gfs0 v') (eval_LR Delta e1 lr) * TT) ->
       legal_nested_field t_root gfs ->
+      readable_share sh ->
       semax Delta (|> PROPx P (LOCALx Q (SEPx R)))
         (Sset id (Ecast (nested_efield e1 efs tts) t))
           (normal_ret_assert

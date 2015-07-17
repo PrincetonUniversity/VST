@@ -1,5 +1,5 @@
 Require Import floyd.proofauto.
-Require Import progs.list_dt.
+Require Import progs.list_dt. Import Links.
 Require Import progs.queue.
 
 Instance CompSpecs : compspecs := compspecs_program prog.
@@ -43,6 +43,179 @@ clear - H3 H.
 eapply Zdivides_trans; eauto.
 Qed.
 
+Definition Qsh : share := fst (Share.split Share.Lsh).
+Definition Qsh' := Share.lub (snd (Share.split Share.Lsh)) Share.Rsh.
+
+Lemma sub_glb_bot:
+  forall r a c : share,
+   sepalg.join_sub a c ->
+   Share.glb r c = Share.bot ->
+   Share.glb r a = Share.bot.
+Proof.
+intros.
+apply leq_join_sub in H.
+apply Share.ord_spec1 in H.
+rewrite H. rewrite <- Share.glb_assoc.
+rewrite (Share.glb_commute r).
+rewrite Share.glb_assoc. rewrite H0.
+apply Share.glb_bot.
+Qed.
+
+Lemma glb_split: forall sh,
+ Share.glb (fst (Share.split sh)) (snd (Share.split sh)) = Share.bot.
+Proof.
+Admitted.  (* share hacking *)
+
+Lemma Qsh_not_readable: ~ readable_share Qsh.
+Proof.
+unfold Qsh, readable_share; intro.
+apply H; clear H.
+apply sub_glb_bot with Share.Lsh.
+exists (snd (Share.split Share.Lsh)).
+apply split_join.
+destruct (Share.split Share.Lsh); reflexivity.
+unfold Share.Rsh, Share.Lsh.
+rewrite Share.glb_commute.
+apply glb_split.
+Qed.
+
+Hint Resolve Qsh_not_readable. 
+
+Lemma Qsh_nonempty: Qsh <> Share.bot.
+Proof.
+unfold Qsh; intro.
+destruct (Share.split Share.Lsh) eqn:?H.
+simpl in H.
+apply Share.split_nontrivial in H0; auto.
+unfold Share.Lsh in H0; clear - H0.
+destruct (Share.split Share.top) eqn:?H.
+simpl in H0.
+apply Share.split_nontrivial in H; auto.
+apply Share.nontrivial in H.
+auto.
+Qed.
+
+Hint Resolve Qsh_nonempty : valid_pointer.
+
+Lemma Qsh_Qsh': sepalg.join Qsh Qsh' Tsh.
+Proof.
+unfold Qsh, Qsh', Share.Lsh, Share.Rsh.
+destruct (Share.split Share.top) as [a c] eqn:?H.
+simpl.
+destruct (Share.split a) as [x y] eqn:?H.
+simpl.
+pose proof (Share.split_disjoint x y a H0).
+pose proof (Share.split_disjoint _ _ _ H).
+split.
+rewrite Share.distrib1.
+rewrite H1.
+rewrite Share.lub_commute, Share.lub_bot.
+replace x with (Share.glb x a).
+rewrite Share.glb_assoc. rewrite H2.
+apply Share.glb_bot.
+clear - H0.
+apply split_join in H0. destruct H0.
+subst a.
+apply Share.glb_absorb.
+rewrite <- Share.lub_assoc.
+apply split_join in H0. destruct H0.
+rewrite H3.
+apply split_join in H. destruct H.
+apply H4.
+Qed.
+
+Lemma readable_share_Qsh': readable_share Qsh'.
+Proof.
+unfold readable_share, Qsh'.
+Admitted.  (* share hacking *)
+
+Lemma field_at_list_cell_weak:
+  forall sh i j p, 
+   readable_share sh ->
+  field_at sh list_struct [StructField _a] i p *
+  field_at sh list_struct [StructField _b] j p *
+  field_at_ sh list_struct [StructField _next] p
+  = list_cell QS sh (i,j) p *
+  field_at_ sh list_struct [StructField _next] p.
+Proof.
+intros.
+unfold list_cell, maybe_data_at.
+rewrite !if_true by auto.
+unfold list_data.
+unfold fold_reptype; simpl; rewrite !eq_rect_r_eq.
+unfold default_val; simpl.
+unfold field_at_.
+apply pred_ext.
+*
+apply sepcon_derives; auto.
+apply -> wand_sepcon_adjoint.
+unfold data_at.
+unfold_field_at 4%nat.
+cancel.
+*
+change (default_val (nested_field_type2 list_struct [StructField _next]))
+  with Vundef.
+unfold data_at.
+unfold_field_at 2%nat.
+rewrite <- !sepcon_assoc.
+forget (field_at sh list_struct [StructField _a] i p *
+field_at sh list_struct [StructField _b] j p) as J.
+forget (field_at sh list_struct [StructField _next] Vundef p) as B.
+rewrite sepcon_comm.
+apply modus_ponens_wand.
+Qed.
+
+Lemma field_at__share_join{cs: compspecs}{csl: compspecs_legal cs}:
+  forall sh1 sh2 sh t gfs p,
+    sepalg.join sh1 sh2 sh ->
+   field_at_ sh1 t gfs p * field_at_ sh2 t gfs p = field_at_ sh t gfs p.
+Proof.
+intros.
+unfold field_at_.
+apply field_at_share_join.
+auto.
+Qed.
+
+Lemma make_unmake:
+ forall a b p,
+ field_at Tsh list_struct [] (Vint a, (Vint b, Vundef)) p =
+ field_at Qsh' list_struct [StructField _a] (Vint a) p *
+ field_at Qsh' list_struct [StructField _b] (Vint b) p *
+ list_cell QS Qsh (Vundef, Vundef) p *
+ field_at_ Tsh list_struct [StructField _next] p.
+Proof.
+intros.
+unfold_field_at 1%nat.
+rewrite <- !sepcon_assoc.
+match goal with |- ?A = _ => set (J := A) end.
+unfold field_at_.
+change (default_val (nested_field_type2 list_struct [StructField _next])) with Vundef.
+rewrite <- (field_at_share_join _ _ _ list_struct [StructField _next] Vundef p Qsh_Qsh').
+rewrite <- !sepcon_assoc.
+change list_struct with list_struct.
+pull_left (field_at Qsh' list_struct [StructField _next] Vundef p).
+pull_left (field_at Qsh' list_struct [StructField _b] (Vint b) p).
+pull_left (field_at Qsh' list_struct [StructField _a] (Vint a) p).
+rewrite field_at_list_cell_weak  by apply readable_share_Qsh'.
+change (field_at Qsh list_struct [StructField _next] Vundef p)
+  with (field_at_ Qsh list_struct [StructField _next] p).
+pull_left (list_cell QS Qsh (Vundef, Vundef) p).
+rewrite join_cell_link with (psh:=Tsh) by (auto; try apply Qsh_Qsh'; apply readable_share_Qsh').
+subst J.
+unfold field_at at 3.
+change (field_at Tsh list_struct [StructField _next] Vundef p)
+  with (field_at_ Tsh list_struct [StructField _next] p).
+rewrite field_at_list_cell_weak by auto.
+rewrite sepcon_assoc.
+f_equal.
+unfold field_at_.
+change (default_val (nested_field_type2 list_struct [StructField _next])) with Vundef.
+rewrite sepcon_comm.
+change list_struct with list_struct.
+symmetry.
+apply (field_at_share_join _ _ _ list_struct [StructField _next] Vundef p Qsh_Qsh').
+Qed.
+
 Definition mallocN_spec :=
  DECLARE _mallocN
   WITH n: Z
@@ -77,12 +250,14 @@ Definition elemrep (rep: elemtype QS) (p: val) : mpred :=
 Definition fifo (contents: list val) (p: val) : mpred:=
   EX ht: (val*val), let (hd,tl) := ht in
       !! is_pointer_or_null hd && !! is_pointer_or_null tl &&
-      field_at Tsh t_struct_fifo nil (hd, tl) p *
+      data_at Tsh t_struct_fifo (hd, tl) p *
       if isnil contents
       then (!!(hd=nullval) && emp)
       else (EX prefix: list val, 
               !!(contents = prefix++tl::nil)
-            &&  (links QS Tsh prefix hd tl * field_at Tsh t_struct_elem [StructField _next] nullval tl)).
+            &&  (lseg QS Qsh Tsh prefix hd tl
+                   * list_cell QS Qsh (Vundef,Vundef) tl
+                   * field_at Tsh t_struct_elem [StructField _next] nullval tl)).
 
 Definition fifo_new_spec :=
  DECLARE _fifo_new
@@ -97,7 +272,9 @@ Definition fifo_put_spec :=
   WITH q: val, contents: list val, p: val
   PRE  [ _Q OF (tptr t_struct_fifo) , _p OF (tptr t_struct_elem) ]
           PROP () LOCAL (temp _Q q; temp _p p) 
-          SEP (`(fifo contents q); `(field_at_ Tsh t_struct_elem [StructField _next] p))
+          SEP (`(fifo contents q);
+                 `(list_cell QS Qsh (Vundef, Vundef) p);
+                 `(field_at_ Tsh t_struct_elem [StructField _next] p))
   POST [ tvoid ]
           PROP() LOCAL() SEP (`(fifo (contents++(p :: nil)) q)).
 
@@ -120,7 +297,10 @@ Definition fifo_get_spec :=
        PROP ()
        LOCAL(temp ret_temp p) 
        SEP (`(fifo contents q);
+              `(list_cell QS Qsh (Vundef, Vundef) p);
               `(field_at_ Tsh t_struct_elem [StructField _next] p)).
+
+Eval compute in (nested_field_type2 list_struct [StructField _next]).
 
 Definition make_elem_spec :=
  DECLARE _make_elem
@@ -128,8 +308,13 @@ Definition make_elem_spec :=
   PRE  [ _a OF tint, _b OF tint ] 
         PROP() LOCAL(temp _a (Vint a); temp _b (Vint b)) SEP()
   POST [ (tptr t_struct_elem) ]
-      EX v:val, PROP() LOCAL (temp ret_temp v) 
-       SEP (`(elemrep (Vint a, Vint b) v)).
+      @exp (environ->mpred) _ _ (fun p:val =>  (* EX notation doesn't work for some reason *)
+       PROP() 
+       LOCAL (temp ret_temp p) 
+       SEP (`(field_at Qsh' list_struct [StructField _a] (Vint a) p);
+              `(field_at Qsh' list_struct [StructField _b] (Vint b) p);
+              `(list_cell QS Qsh (Vundef, Vundef) p);
+              `(field_at_ Tsh t_struct_elem [StructField _next] p))).              
 
 Definition main_spec := 
  DECLARE _main
@@ -172,27 +357,22 @@ forward_intro [hd tl].
 normalize.
 forward. (* h = Q->head; *)
 forward. (* return (h == NULL); *)
-
 unfold fifo.
 entailer.
 apply exp_right with (h,tl).
 entailer.
 destruct (isnil contents).
 * entailer!.
-* normalize.
+* normalize.  
   apply exp_right with prefix.
   assert_PROP (isptr h).
-  destruct prefix; entailer.
-  entailer!.
-  apply andp_right; auto.
-  unfold denote_tc_comparable.
-  destruct h; try contradiction.
-  normalize.
-  admit;  (* definitely provable *)
-  fail. Admitted.  (* This hack because otherwise we run out of memory *)
+    destruct prefix; entailer.
+    rewrite lseg_cons_eq by auto. 
+    entailer.
+  entailer;
+ fail. Admitted.  (* This hack because otherwise we run out of memory *)
    (* Each individual body_fifo_xxx can fit in memory, but not all of them. *)
 (*Qed.*)
-
 
 Lemma body_fifo_new: semax_body Vprog Gprog f_fifo_new fifo_new_spec.
 Proof.
@@ -209,7 +389,6 @@ Proof.
       exists 2; reflexivity.
   forward. (* Q->head = NULL; *)
   (* goal_4 *)
-(* Runs out of memory on next line *)
   forward. (* Q->tail = NULL; *)
   forward. (* return Q; *)
   (* goal_5 *)
@@ -220,6 +399,11 @@ Proof.
   entailer!;
   fail. Admitted.  (* This hack because otherwise we run out of memory *)
 (*Qed.*)
+
+Lemma readable_nonidentity_share:
+  forall sh, readable_share sh -> sepalg.nonidentity sh.
+Admitted. (* share hacking *)
+Hint Resolve readable_nonidentity_share.
 
 Lemma body_fifo_put: semax_body Vprog Gprog f_fifo_put fifo_put_spec.
 Proof.
@@ -236,6 +420,7 @@ forward. (* p->next = NULL; *)
 forward. (*   h = Q->head; *)
 forward_if 
   (PROP() LOCAL () SEP (`(fifo (contents ++ p :: nil) q))).
+* if_tac; entailer.  (* typechecking clause *)
 * (* then clause *)
   subst.
   (* goal 9 *)
@@ -248,14 +433,15 @@ forward_if
       simpl. rewrite if_false by congruence.
       normalize.
       apply exp_right with nil.
-      rewrite links_nil_eq.
+      rewrite lseg_nil_eq by auto.
       entailer!.
    + normalize.
       destruct prefix; normalize;
-      entailer!;
-      match goal with H: field_compatible _ _ nullval |- _ =>
-        contradiction (field_compatible_isptr _ _ _ H)
-       end.
+      entailer!.
+      contradiction (field_compatible_isptr _ _ _ H5).
+      rewrite lseg_cons_eq by auto.
+      entailer.
+      contradiction (field_compatible_isptr _ _ _ H9).      
 * (* else clause *)
   forward. (*  t = Q->tail; *)
   destruct (isnil contents).
@@ -278,7 +464,10 @@ forward_if
      end.
      (* prevent it from canceling! *)
      cancel. subst A.
-     eapply derives_trans; [ | apply links_cons_right ].
+     Locate lseg_cons_right.
+     eapply derives_trans; [ |
+       apply (lseg_cons_right_neq _ _ _ _ _ (Vundef,Vundef));
+        auto ].
      cancel.
 * (* after the if *)
      forward; (* return ; *)
@@ -298,7 +487,7 @@ forward_intro prefix. normalize.
 forward. (*   p = Q->head; *)
 destruct prefix; inversion H1; clear H1.
 + subst_any.
-   rewrite links_nil_eq.
+   rewrite lseg_nil_eq by auto.
    normalize.
    apply ptr_eq_e in H1. subst_any.
    forward. (*  n=h->next; *)
@@ -309,13 +498,13 @@ destruct prefix; inversion H1; clear H1.
    unfold fifo. apply exp_right with (nullval, h).
    rewrite if_true by congruence.
    entailer!.
-+ rewrite links_cons_eq.
++ rewrite lseg_cons_eq by auto.
     forward_intro x. normalize.
     simpl valinject. (* can we make this automatic? *)
     subst_any.
     forward. (*  n=h->next; *)
     forward. (* Q->head=n; *)
-    replace_SEP 2%Z (`(data_at Tsh t_struct_fifo (x, tl) q)); [ entailer! | ]. (* can we do this automatically? *)
+    replace_SEP 3%Z (`(data_at Tsh t_struct_fifo (x, tl) q)); [ entailer! | ]. (* can we do this automatically? *)
     forward. (* return p; *)
     entailer.
     unfold fifo. normalize. apply exp_right with (n, tl).
@@ -340,17 +529,17 @@ forward_call' (*  p = mallocN(sizeof ( *p));  *)
 2:  eapply malloc_compatible_field_compatible; try eassumption; 
       auto with typeclass_instances;
       exists 2; reflexivity.
-unfold data_at_, field_at_.
-unfold default_val; simpl.
 forward.  (*  p->a=a; *)
-forward.  (*  p->b=b; *)
+forward.  (*  p->b=b; *) (* 21 secs *)
 forward.  (* return p; *)
 apply exp_right with p.
-unfold elemrep.
-unfold_field_at 1%nat.
-entailer!; 
+entailer.
+rewrite make_unmake.
+solve [auto];
 fail. Admitted.  (* This hack because otherwise we run out of memory *)
 (*Qed.*)
+ 
+Hint Resolve readable_share_Qsh'.
 
 Lemma body_main:  semax_body Vprog Gprog f_main main_spec.
 Proof.
@@ -364,29 +553,31 @@ forward_call' (* Q = fifo_new(); *)  tt q.
 
 forward_call'  (*  p = make_elem(1,10); *)
      (Int.repr 1, Int.repr 10) p'.
-unfold elemrep; normalize.
-
 forward_call' (* fifo_put(Q,p);*) 
     ((q, @nil val),p').
+
 forward_call'  (*  p = make_elem(2,20); *)
      (Int.repr 2, Int.repr 20) p2.
  forward_call'  (* fifo_put(Q,p); *)
     ((q,(p':: nil)),p2).
- unfold elemrep; entailer; cancel.
-simpl.
 forward_call'  (*   p' = fifo_get(Q); p = p'; *)
     ((q,(p2 :: nil)),p') vret.
+subst vret.
 forward. (*   i = p->a;  *)
 forward. (*   j = p->b; *)
 
 forward_call' (*  freeN(p, sizeof( *p)); *)
    (p', sizeof cenv_cs t_struct_elem).
-{apply derives_trans with
+{
+ apply derives_trans with
+  (fifo [p2] q * 
+   data_at Tsh t_struct_elem (Vint (Int.repr 1), (Vint (Int.repr 10), Vundef)) p' *
+   field_at Qsh' list_struct [StructField _a] (Vint (Int.repr 2)) p2 *
+   field_at Qsh' list_struct [StructField _b] (Vint (Int.repr 20)) p2).
+ unfold data_at; rewrite make_unmake; cancel.
+ apply derives_trans with
    (data_at_ Tsh t_struct_elem p' * fold_right sepcon emp Frame).
- unfold data_at_, field_at_.
- unfold default_val; simpl.
- unfold_field_at 6%nat.
- cancel. (* should solve the problem *) 
+ cancel.
  rewrite data_at__memory_block by reflexivity. entailer.
 }
 unfold map.

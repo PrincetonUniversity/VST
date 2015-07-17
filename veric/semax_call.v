@@ -7,6 +7,7 @@ Import Mem.
 Require Import msl.msl_standard.
 Require Import veric.juicy_mem veric.juicy_mem_lemmas veric.juicy_mem_ops.
 Require Import veric.res_predicates.
+Require Import veric.extend_tc.
 Require Import veric.seplog.
 Require Import veric.assert_lemmas.
 Require Import veric.Clight_new.
@@ -998,6 +999,10 @@ Proof.
     auto.
 Qed.
 
+Lemma readable_share_top:
+  readable_share Share.top.
+Admitted. (* share hacking *)
+
 Lemma stackframe_of_freeable_blocks:
   forall Delta f rho ge ve,
       guard_genv Delta ge ->
@@ -1074,6 +1079,7 @@ Proof.
  unfold memory_block'_alt.
  rewrite Share.contains_Rsh_e by apply top_correct'.
  rewrite Share.contains_Lsh_e by apply top_correct'.
+ rewrite if_true by apply readable_share_top.
  rewrite Coqlib.nat_of_Z_eq.
  + erewrite sizeof_guard_genv; eauto.
  + pose proof (sizeof_pos (composite_types Delta) ty); omega.
@@ -1279,6 +1285,7 @@ Proof.
   rewrite Share.contains_Lsh_e in H3 by apply top_correct'.
   rewrite Share.contains_Rsh_e in H3 by apply top_correct'.
   rewrite Z2Nat.id in H3 by omega.
+  rewrite if_true in H3 by apply readable_share_top.
   assert (join_sub phi1 (m_phi jm)) as H7
    by ( apply join_sub_trans with phi; auto; eexists; eauto).
   destruct (VALspec_range_free _ _ _ _ H3 H7)
@@ -2147,6 +2154,8 @@ omega.
 rewrite Int.unsigned_zero.
 rewrite memory_block'_eq; try omega.
 2: rewrite Coqlib.nat_of_Z_eq; omega.
+unfold memory_block'_alt.
+rewrite if_true by apply readable_share_top.
 hnf.
 intro loc. hnf.
 rewrite Coqlib.nat_of_Z_eq by omega.

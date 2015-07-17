@@ -240,6 +240,127 @@ Ltac simpl_denote_tc :=
  simpl denote_tc_nodivover;
  simpl denote_tc_initialized.
 
+Lemma valid_pointer_weak:
+ forall a, valid_pointer a |-- weak_valid_pointer a.
+Proof.
+intros.
+unfold valid_pointer, weak_valid_pointer.
+change predicates_hered.orp with orp. (* delete me *)
+apply orp_right1.
+auto.
+Qed.
+
+Lemma denote_tc_comparable_split:
+  forall P x y,
+    P |-- valid_pointer x ->
+    P |-- valid_pointer y ->
+    P |-- denote_tc_comparable x y.
+Proof.
+ intros.
+ eapply derives_trans with (valid_pointer x && valid_pointer y).
+ apply andp_right; auto.
+ clear H H0.
+ destruct x; try (apply andp_left1; apply @FF_left); try apply @TT_right;
+ destruct y; try (apply andp_left2; apply @FF_left); try apply @TT_right.
+ simpl valid_pointer at 1.
+ change predicates_hered.prop with prop. (* delete me *)
+ unfold denote_tc_comparable. auto.
+ simpl valid_pointer at 2.
+ change predicates_hered.prop with prop. (* delete me *)
+ unfold denote_tc_comparable. normalize.
+ unfold denote_tc_comparable.
+ unfold comparable_ptrs.
+ if_tac; auto.
+ apply andp_derives; apply valid_pointer_weak.
+Qed.
+
+Lemma valid_pointer_null:
+  forall P, P |-- valid_pointer nullval.
+Proof.
+  intros. simpl valid_pointer.
+ change predicates_hered.prop with prop. (* delete me *)
+ normalize.
+Qed.
+
+
+Lemma extend_valid_pointer:
+  forall p Q, valid_pointer p * Q |-- valid_pointer p.
+Proof.
+intros.
+ unfold valid_pointer.
+ pose proof (extend_tc.extend_valid_pointer' p 0).
+ pose proof (predicates_hered.boxy_e _ _ H).
+
+Admitted.
+
+ Lemma sepcon_valid_pointer1:
+     forall (P Q: mpred) p,
+        P |-- valid_pointer p ->
+        P * Q |-- valid_pointer p.
+Proof.
+intros.
+ eapply derives_trans; [apply sepcon_derives; [eassumption | apply TT_right] |].
+ clear H.
+ apply extend_valid_pointer.
+Qed.
+
+ Lemma sepcon_valid_pointer2:
+     forall (P Q: mpred) p,
+        P |-- valid_pointer p ->
+        Q * P |-- valid_pointer p.
+Proof.
+ intros. rewrite sepcon_comm; apply sepcon_valid_pointer1.
+ auto.
+Qed.
+
+ Lemma andp_valid_pointer1:
+     forall (P Q: mpred) p,
+        P |-- valid_pointer p ->
+        P && Q |-- valid_pointer p.
+Proof.
+intros.
+ apply andp_left1; auto.
+Qed.
+
+ Lemma andp_valid_pointer2:
+     forall (P Q: mpred) p,
+        P |-- valid_pointer p ->
+        Q && P |-- valid_pointer p.
+Proof.
+intros.
+ apply andp_left2; auto.
+Qed.
+
+Lemma valid_pointer_zero:
+  forall P, P |-- valid_pointer (Vint (Int.repr 0)).
+Proof.
+ intros.
+ apply valid_pointer_null.
+Qed.
+
+Hint Resolve sepcon_valid_pointer1 sepcon_valid_pointer2 : valid_pointer.
+Hint Resolve andp_valid_pointer1 andp_valid_pointer2 : valid_pointer.
+Hint Resolve valid_pointer_null : valid_pointer.
+Hint Resolve valid_pointer_zero : valid_pointer.
+
+Ltac solve_valid_pointer := 
+match goal with
+| |- _ |-- denote_tc_comparable _ _ && _ =>
+           apply andp_right; 
+               [apply denote_tc_comparable_split; 
+                solve [auto 50 with valid_pointer] | ]
+| |- _ |-- valid_pointer _ && _ => 
+           apply andp_right; [ solve [auto 50 with valid_pointer] | ]
+| |- _ |-- weak_valid_pointer _ && _ => 
+           apply andp_right; [ solve [auto 50 with valid_pointer] | ]
+| |- _ |-- denote_tc_comparable _ _ =>
+              auto 50 with valid_pointer
+| |- _ |-- valid_pointer _ =>
+              auto 50 with valid_pointer
+| |- _ |-- weak_valid_pointer _ =>
+              auto 50 with valid_pointer
+end.
+
 Ltac ent_iter :=
     repeat (((repeat simple apply go_lower_lem1'; simple apply go_lower_lem1)
                 || simple apply derives_extract_prop 
@@ -292,6 +413,7 @@ Ltac entailer' :=
  try simple apply prop_and_same_derives;
  prune_conjuncts;
  try rewrite (prop_true_andp True) by apply I;
+ try solve_valid_pointer;
  auto.
 
 Ltac entailer :=

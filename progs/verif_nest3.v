@@ -41,11 +41,11 @@ Definition Gprog : funspecs :=
 
 Lemma body_get:  semax_body Vprog Gprog f_get get_spec.
 Proof.
-start_function.
+Time start_function. (* 52 sec *)
  unfold_repinj.
  simpl in v.
-Time forward.  (* 39.77 sec *)
-Time forward.
+Time forward.  (* 26.8 sec *)
+Time forward. (* 15 sec. *)
  unfold_repinj t_struct_c.
  cancel.
 Qed.  (* 84 sec *)
@@ -55,8 +55,10 @@ Proof.
  start_function.
  unfold_repinj.
  simpl in v.
- unfold data_at. unfold_field_at 1%nat.
+ unfold data_at.
+ unfold_field_at 1%nat.
  normalize. (* this line shouldn't be necessary, should be taken care of by unfold_field_at *)
+
 Time forward. (* 18.88 sec *)
 Time forward. (* 13 sec *)
 Time unfold_repinj. (* 20.4 sec *)

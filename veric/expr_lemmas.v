@@ -197,18 +197,47 @@ Proof.
 intros.
 simpl in H.
 destruct (m_phi m @ (b, Int.unsigned ofs + d)) eqn:?H; try contradiction.
-destruct k; try contradiction.
-subst.
+*
 pose proof (juicy_mem_access m (b, Int.unsigned ofs + d)).
-rewrite H0 in H.
-unfold access_at in H.
-unfold perm_of_res in H.
-simpl in H. clear H0.
-destruct (perm_of_sh_pshare t p).
-rewrite H0 in H; clear H0.
+rewrite H0 in H1.
+unfold access_at in H1.
+unfold perm_of_res in H1.
+simpl in H1. clear H0.
+rewrite if_false in H1.
 unfold Mem.valid_pointer.
 unfold Mem.perm_dec.
 eapply perm_order'_dec_fiddle; eauto.
+intro; subst t. unfold nonidentity in H. contradiction H.
+apply bot_identity.
+*
+subst.
+pose proof (juicy_mem_access m (b, Int.unsigned ofs + d)).
+rewrite H0 in H1.
+unfold access_at in H1.
+unfold perm_of_res in H1.
+simpl in H1. clear H0 H.
+destruct k.
++
+destruct (perm_of_sh_pshare t p).
+rewrite H in H1; clear H.
+unfold Mem.valid_pointer.
+unfold Mem.perm_dec.
+eapply perm_order'_dec_fiddle; eauto.
++
+unfold Mem.valid_pointer, Mem.perm_dec.
+eapply perm_order'_dec_fiddle.
+rewrite H1.
+reflexivity.
++
+unfold Mem.valid_pointer, Mem.perm_dec.
+eapply perm_order'_dec_fiddle.
+rewrite H1.
+reflexivity.
++
+unfold Mem.valid_pointer, Mem.perm_dec.
+eapply perm_order'_dec_fiddle.
+rewrite H1.
+reflexivity.
 Qed.
 
 Lemma weak_valid_pointer_dry:

@@ -159,7 +159,8 @@ Lemma stronger_default_val: forall t v, v >>> default_val t.
 Proof.
   intros.
   intros sh p.
-  apply data_at_data_at_.
+  unfold data_at.
+  apply field_at_field_at_.
 Qed.
 
 Lemma stronger_proj_reptype: forall t v1 v2,

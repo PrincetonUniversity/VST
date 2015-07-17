@@ -82,6 +82,15 @@ apply Share.contains_Rsh_e. apply top_correct'.
 Qed.
 Hint Resolve writable_share_top.
 
+Lemma writable_readable_share:
+ forall sh, writable_share sh -> readable_share sh.
+Proof.
+unfold writable_share, readable_share.
+intros.
+intro.
+Admitted. (* share hacking *)
+Hint Resolve writable_readable_share.
+
 Lemma subst_derives:
   forall id e P Q, P |-- Q -> subst id e P |-- subst id e Q.
 Proof.

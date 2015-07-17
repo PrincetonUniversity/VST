@@ -495,6 +495,8 @@ Qed.
 Lemma forward_ptr_compare_closed_now :
 forall Espec Delta P Q R id e1 e2 cmp ty sh1 sh2 PQR
 (TID : typecheck_tid_ptr_compare Delta id = true), 
+ sepalg.nonidentity sh1 ->
+ sepalg.nonidentity sh2 ->
 Forall (closed_wrt_vars (eq id)) Q ->
 Forall (closed_wrt_vars (eq id)) R ->
 closed_wrt_vars (eq id) (eval_expr Delta ((Ebinop cmp e1 e2 ty))) ->
@@ -514,7 +516,7 @@ is_comparison cmp = true ->
   (PROPx P (LOCALx Q (SEPx R))) (Sset id (Ebinop cmp e1 e2 ty)) PQR
   .
 Proof. 
-intros.
+intros until 1. intros N1 N2. intros.
 intuition.
 eapply semax_post; [ | apply forward_setx_closed_now'; auto with closed].
 intros.  intro rho. normalize. apply H3.
@@ -666,6 +668,8 @@ Qed.
 
 Lemma forward_ptr_compare'': 
 forall Espec Delta P id e1 e2 sh1 sh2 cmp ty, 
+  sepalg.nonidentity sh1 ->
+  sepalg.nonidentity sh2 ->
 P |-- ((tc_expr Delta e1) && (tc_expr Delta e2) &&
       local (`(blocks_match cmp) (eval_expr Delta e1) (eval_expr Delta e2)) &&
       (`(mapsto_ sh1 (typeof e1)) (eval_expr Delta e1) * TT) &&
@@ -693,6 +697,8 @@ Qed.
 Lemma forward_ptr_compare' : 
 forall {Espec: OracleKind},
 forall (Delta: tycontext) P Q R id cmp e1 e2 ty sh1 sh2 PQR,
+  sepalg.nonidentity sh1 ->
+  sepalg.nonidentity sh2 ->
     is_comparison cmp = true  ->
     typecheck_tid_ptr_compare Delta id = true ->
     (PROPx P (LOCALx Q (SEPx R)) |-- 
@@ -717,7 +723,7 @@ forall (Delta: tycontext) P Q R id cmp e1 e2 ty sh1 sh2 PQR,
           (Sset id (Ebinop cmp e1 e2 ty)) PQR
         .
 Proof.
-intros.
+intros until 0. intros N1 N2. intros.
 intuition.
 eapply semax_post.
 intros ek vl rho. simpl. apply andp_left2.
@@ -726,19 +732,20 @@ apply forward_setx_weak; auto.
 
 eapply semax_post. intros ek vl rho.
 simpl. apply andp_left2. apply H2.
-eapply semax_pre_post; [ | | apply (semax_ptr_compare Delta (PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R))) _ _ _ _ _ sh1 sh2)].
+eapply semax_pre_post; [ | | apply (semax_ptr_compare Delta (PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R))) _ _ _ _ _ sh1 sh2); auto].
 eapply derives_trans; [ | apply now_later].
 rewrite insert_local; apply andp_right; auto.
 intros ek vl. unfold normal_ret_assert.
 repeat rewrite exp_andp2. apply exp_derives; intro x.
 autorewrite with subst.
 go_lowerx. repeat apply andp_right; try apply prop_right; auto.
-auto. auto. 
 Qed.
 
 
 Lemma forward_ptr_compare:
 forall Espec Delta P Q R id e1 e2 sh1 sh2 cmp ty, 
+  sepalg.nonidentity sh1 ->
+  sepalg.nonidentity sh2 ->
 PROPx P (LOCALx Q (SEPx R)) |-- ((tc_expr Delta e1) && (tc_expr Delta e2) &&
       local (`(blocks_match cmp) (eval_expr Delta e1) (eval_expr Delta e2)) &&
       (`(mapsto_ sh1 (typeof e1)) (eval_expr Delta e1) * TT) &&

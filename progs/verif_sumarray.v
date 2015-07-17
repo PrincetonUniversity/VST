@@ -19,7 +19,7 @@ Definition sumarray_spec :=
  DECLARE _sumarray
   WITH a0: val, sh : share, contents : list int, size: Z
   PRE [ _a OF (tptr tint), _n OF tint ]
-          PROP  (0 <= size <= Int.max_signed;
+          PROP  (readable_share sh; 0 <= size <= Int.max_signed;
                  Zlength contents = size)
           LOCAL (temp _a a0; temp _n (Vint (Int.repr size)))
           SEP   (`(data_at sh (tarray tint size) (zl_constr tint 0 size (map Vint contents)) a0))
@@ -172,6 +172,10 @@ reflexivity.
 (* Prove postcondition of loop body implies loop invariant *)
 
 forward. (* x = a[i] *)
+entailer!.
+  (* there should be an easier way than this: *)
+    rewrite zl_constr_correct by omega. 
+   rewrite Znth_map with (d':=Int.zero) by omega. apply I.
 forward s_old. (* s += x; *)
 
 forward i_old. (* i++; *)
@@ -227,7 +231,8 @@ start_function.
 forward_intro four. normalize.
 forward_call' (*  r = sumarray(four,4); *)
   (four,Ews,four_contents,4) vret.
- split3. computable. 
+ split3; auto.
+ computable. 
  forward. (* return s; *)
 Qed.
 

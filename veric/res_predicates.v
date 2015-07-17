@@ -1838,3 +1838,26 @@ Proof.
   + auto.
   + apply size_chunk_pos.
 Qed.
+
+Definition resource_share (r: resource) : option share :=
+ match r with
+ | YES rsh sh _ _ => Some (Share.splice rsh (pshare_sh sh))
+ | NO sh => Some (Share.unrel Share.Lsh sh)
+ | PURE _ _ => None
+ end.
+
+Program Definition permission_bytes (sh: share) (a: address) (n: Z) : mpred :=
+  fun m => forall i, if adr_range_dec a n i then resource_share (m @ i) = Some sh else identity (m @ i).
+Next Obligation.
+intros.
+hnf; simpl; intros.
+specialize (H0 i).
+if_tac.
+destruct (a0 @ i) eqn:?H.
+rewrite (necR_NO a0 a' i t) in H2 by (constructor; auto).
+rewrite H2; assumption.
+eapply necR_YES in H2; [ | constructor; eassumption].
+rewrite H2; assumption.
+inv H0.
+rewrite <- age1_resource_at_identity; eassumption.
+Qed.

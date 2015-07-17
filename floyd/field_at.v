@@ -24,11 +24,12 @@ Context {cs: compspecs}.
 Context {csl: compspecs_legal cs}.
 
 Definition field_at (sh: Share.t) (t: type) (gfs: list gfield) (v: reptype (nested_field_type2 t gfs)) (p: val): mpred :=
-  (!! field_compatible t gfs p) && at_offset (data_at' sh (nested_field_type2 t gfs) v) (nested_field_offset2 t gfs) p.
+ !! (field_compatible t gfs p) && at_offset (data_at' sh (nested_field_type2 t gfs) v) (nested_field_offset2 t gfs) p.
 Arguments field_at sh t gfs v p : simpl never.
 
-Definition field_at_ (sh: Share.t) (t: type) (gfs: list gfield) : val -> mpred :=
-  field_at sh t gfs (default_val (nested_field_type2 t gfs)).
+Definition field_at_ (sh: Share.t) (t: type) (gfs: list gfield) (p: val): mpred :=
+  field_at sh t gfs (default_val (nested_field_type2 t gfs)) p.
+
 Arguments field_at_ sh t gfs p : simpl never.
 
 Definition data_at (sh: Share.t) (t: type) (v: reptype t) := field_at sh t nil v.
@@ -101,8 +102,8 @@ Definition array_at (sh: Share.t) (t: type) (gfs: list gfield) (lo hi: Z)
     (fun i v => at_offset (data_at' sh (nested_field_type2 t (ArraySubsc 0 :: gfs)) v)
        (nested_field_offset2 t (ArraySubsc i :: gfs))) v p.
 
-Definition array_at_ (sh: Share.t) (t: type) (gfs: list gfield) (lo hi: Z) :=
-  array_at sh t gfs lo hi (zl_default _ _).  
+Definition array_at_ (sh: Share.t) (t: type) (gfs: list gfield) (lo hi: Z) : val -> mpred :=
+ array_at sh t gfs lo hi (zl_default _ _).
 
 (************************************************
 
@@ -110,9 +111,9 @@ field_compatible, local_facts, isptr and offset_zero properties
 
 ************************************************)
 
-Lemma field_at_compatible:
+Lemma field_at_local_facts:
   forall sh t path v c,
-     field_at sh t path v c |-- !! field_compatible t path c.
+     field_at sh t path v c |-- !! (field_compatible t path c).
 Proof.
   intros.
   unfold field_at.
@@ -126,47 +127,51 @@ Lemma field_at_compatible':
 Proof.
 intros.
 apply pred_ext.
-apply andp_right.
-apply field_at_compatible.
-auto.
+apply andp_right; auto.
+eapply derives_trans; [apply field_at_local_facts | normalize].
 normalize.
 Qed.
 
-Lemma field_at__compatible: forall sh t gfs p,
+Lemma field_at__local_facts: forall sh t gfs p,
   field_at_ sh t gfs p |-- !! field_compatible t gfs p.
 Proof.
   intros.
-  unfold field_at_.
-  apply field_at_compatible.
+  unfold field_at_, field_at.
+ normalize.
 Qed.
 
-Lemma data_at_compatible: forall sh t v p, data_at sh t v p |-- !! field_compatible t nil p.
-Proof. intros. apply field_at_compatible. Qed.
+Lemma data_at_local_facts: 
+   forall sh t v p, data_at sh t v p |-- !! (field_compatible t nil p).
+Proof. intros. apply field_at_local_facts. Qed.
 
-Lemma data_at__compatible: forall sh t p, data_at_ sh t p |-- !! field_compatible t nil p.
+Lemma data_at__local_facts: forall sh t p, data_at_ sh t p |-- !! field_compatible t nil p.
 Proof. intros.
- unfold data_at_. apply data_at_compatible.
+  apply field_at__local_facts.
 Qed.
 
-Lemma array_at_compatible: forall sh t gfs lo hi i v p,
+Lemma array_at_local_facts: forall sh t gfs lo hi i v p,
   lo <= i <= hi ->
-  array_at sh t gfs lo hi v p |-- !! field_compatible0 t (ArraySubsc i :: gfs) p.
+  array_at sh t gfs lo hi v p |-- !! (field_compatible0 t (ArraySubsc i :: gfs) p).
 Proof.
   intros.
   unfold array_at.
-  apply andp_left1.
+  apply andp_left1; auto.
   rewrite !field_compatible0_cons.
   destruct (nested_field_type2 t gfs); try normalize.
-  assert (0 <= i <= z) by omega.
-  tauto.
+  split3; auto; omega.
 Qed.
 
-Lemma array_at__compatible: forall sh t gfs lo hi i p,
+Lemma array_at__local_facts: forall sh t gfs lo hi i p,
   lo <= i <= hi ->
   array_at_ sh t gfs lo hi p |-- !! field_compatible0 t (ArraySubsc i :: gfs) p.
 Proof.
   intros.
-  apply array_at_compatible; auto.
+  unfold array_at_.
+  apply andp_left1.
+  rewrite !field_compatible0_cons.
+  destruct (nested_field_type2 t gfs); try normalize.
+  destruct H1.
+  split3; auto; omega.
 Qed.
 
 (* called field_compatible0_array originally *)
@@ -176,23 +181,15 @@ Lemma array_at_compatible':
   array_at sh t gfs lo hi v p = !! field_compatible0 t (ArraySubsc i :: gfs) p && array_at sh t gfs lo hi v p.
 Proof.
   intros.
-  rewrite (add_andp _ _ (array_at_compatible sh t gfs lo hi i v p H)) at 1.
-  normalize.
-Qed.
-
-Lemma field_at_local_facts: forall sh t gfs v p,
-  field_at sh t gfs v p |-- !! isptr p.
-Proof.
-  intros.
-  unfold field_at.
-  apply andp_left1.
-  apply prop_derives.
-  apply field_compatible_isptr.
+  rewrite (add_andp _ _ (array_at_local_facts sh t gfs lo hi i v p H)).
+  normalize. f_equal.
+  f_equal.
+  apply prop_ext. intuition.
 Qed.
 
 Lemma field_at_isptr: forall sh t gfs v p,
   field_at sh t gfs v p = (!! isptr p) && field_at sh t gfs v p.
-Proof. intros. apply local_facts_isptr. apply field_at_local_facts. Qed.
+Proof. intros. apply local_facts_isptr. eapply derives_trans; [ apply field_at_local_facts | normalize]. Qed.
 
 Lemma field_at_offset_zero: forall sh t gfs v p,
   field_at sh t gfs v p = field_at sh t gfs v (offset_val Int.zero p).
@@ -200,44 +197,40 @@ Proof. intros. apply local_facts_offset_zero.
  intros. rewrite field_at_isptr; normalize.
 Qed.
 
-Lemma field_at__local_facts: forall sh t gfs p,
-  field_at_ sh t gfs p |-- !! isptr p.
-Proof. intros. unfold field_at_. apply field_at_local_facts. Qed.
-
 Lemma field_at__isptr: forall sh t gfs p,
   field_at_ sh t gfs p = (!! isptr p) && field_at_ sh t gfs p.
 Proof. intros.
- unfold field_at_. apply field_at_isptr.
+ intros. apply local_facts_isptr.
+ eapply derives_trans; [ apply field_at__local_facts | normalize].
 Qed.
 
 Lemma field_at__offset_zero: forall sh t gfs p,
   field_at_ sh t gfs p = field_at_ sh t gfs (offset_val Int.zero p).
-Proof. intros.
- unfold field_at_.
- apply field_at_offset_zero.
+Proof. intros. apply local_facts_offset_zero.
+ intros. rewrite field_at__isptr; normalize.
 Qed.
 
-Lemma data_at_local_facts: forall sh t v p, data_at sh t v p |-- !!(isptr p).
-Proof. intros. unfold data_at. apply field_at_local_facts. Qed.
-(*Hint Resolve data_at_local_facts : saturate_local.*)
-
 Lemma data_at_isptr: forall sh t v p, data_at sh t v p = !!(isptr p) && data_at sh t v p.
-Proof. intros. apply local_facts_isptr. apply data_at_local_facts. Qed.
+Proof. intros. apply local_facts_isptr.
+ eapply derives_trans.
+ apply data_at_local_facts.
+ normalize.
+Qed.
 
 Lemma data_at_offset_zero: forall sh t v p, data_at sh t v p = data_at sh t v (offset_val Int.zero p).
 Proof. intros. rewrite <- local_facts_offset_zero. reflexivity.
     intros; rewrite data_at_isptr; normalize.  
 Qed.
 
-Lemma data_at__local_facts: forall sh t p, data_at_ sh t p |-- !!(isptr p).
-Proof. intros. unfold data_at_. apply data_at_local_facts. Qed.
-(*Hint Resolve data_at__local_facts : saturate_local.*)
-
 Lemma data_at__isptr: forall sh t p, data_at_ sh t p = !!(isptr p) && data_at_ sh t p.
-Proof. intros. unfold data_at_. apply data_at_isptr. Qed.
+Proof. intros.  apply local_facts_isptr.
+ eapply derives_trans.
+ apply data_at__local_facts.
+ normalize.
+Qed.
 
 Lemma data_at__offset_zero: forall sh t p, data_at_ sh t p = data_at_ sh t (offset_val Int.zero p).
-Proof. intros. unfold data_at_. apply data_at_offset_zero. Qed.
+Proof. intros. apply field_at__offset_zero. Qed.
 
 (************************************************
 
@@ -255,25 +248,21 @@ Lemma array_at_ext_derives: forall sh t gfs lo hi v0 v1 p,
   array_at sh t gfs lo hi v0 p |-- array_at sh t gfs lo hi v1 p.
 Proof.
   intros.
-  unfold array_at.
-  destruct (field_compatible0_dec t (ArraySubsc lo :: gfs) p);
-    [| replace (!! field_compatible0 t (ArraySubsc lo :: gfs) p: mpred) with FF
-         by (apply ND_prop_ext; tauto);
-       normalize].
-  destruct (field_compatible0_dec t (ArraySubsc hi :: gfs) p);
-    [| replace (!! field_compatible0 t (ArraySubsc hi :: gfs) p: mpred) with FF
-         by (apply ND_prop_ext; tauto);
-       normalize].
-  apply andp_derives; auto.
+  unfold array_at, field_at.
+  rewrite !andp_assoc.
+  apply derives_extract_prop; intro G2.
+  apply andp_right; [apply prop_right; auto | ].
+  apply derives_extract_prop; intro G3.
+  apply andp_right; [apply prop_right; auto | ].
   apply array_pred_ext_derives.
   intros.
   generalize (H i).
-  unfold field_at.
-  replace (!! field_compatible t (ArraySubsc i :: gfs) p: mpred) with TT.
+  unfold  field_at.
+  replace (!! (field_compatible t (ArraySubsc i :: gfs) p): mpred) with TT.
   Focus 2. {
     apply ND_prop_ext.
     rewrite field_compatible_cons.
-    rewrite field_compatible0_cons in f, f0.
+    rewrite field_compatible0_cons in G2, G3.
     destruct (nested_field_type2 t gfs); try tauto.
     assert (0 <= i < z) by omega.
     tauto.
@@ -282,7 +271,7 @@ Proof.
   intros.
   clear - H0 H1.
   specialize (H1 (zl_nth i v0) (zl_nth i v1) H0 JMeq_refl JMeq_refl).
-  normalize in H1.
+  normalize in H1.  
 Qed.
 
 Lemma array_at_ext: forall sh t gfs lo hi v0 v1 p,
@@ -373,6 +362,14 @@ Ltac solve_ptr_derives :=
   repeat rewrite isptr_offset_val;
   apply derives_refl.
 
+Lemma field_at_isptr':
+  forall sh t path v c, field_at sh t path v c |-- !! isptr c.
+Proof.
+intros.
+eapply derives_trans; [apply field_at_local_facts | ].
+apply prop_derives; intros [? _]; auto.
+Qed.  
+
 Ltac solve_nptr p A :=
   let H := fresh "H" in
   match A with
@@ -393,6 +390,7 @@ with solve_ptr p A :=
   match A with
   | (_ * _) % logic => apply (proj2 (not_ptr_FF A p)); solve_nptr p A
   | (_ && _) % logic => apply (proj2 (not_ptr_FF A p)); solve_nptr p A
+  | (!! _ /\ _)%logic => destruct A as [_ A]; solve_ptr p A
   | (!! field_compatible _ _ ?q) => apply (derives_trans _ _ _ (prop_derives _ _ (field_compatible_isptr _ _ _))); solve_ptr_derives
   | (!! field_compatible0 _ _ ?q) => apply (derives_trans _ _ _ (prop_derives _ _ (field_compatible0_isptr _ _ _))); solve_ptr_derives
   | (memory_block _ _ ?q) => apply (derives_trans _ _ _ (memory_block_local_facts _ _ _)); solve_ptr_derives
@@ -401,7 +399,7 @@ with solve_ptr p A :=
   | (at_offset ?P _ ?q) => apply (derives_trans _ (!! isptr q));
                            [apply at_offset_preserve_local_facts; intro p0; solve_ptr p0 (P p0) |
                             solve_ptr_derives]
-  | (field_at _ _ _ _ p) => apply field_at_local_facts
+  | (field_at _ _ _ _ p) => apply field_at_isptr'
   end.
 
 Ltac destruct_ptr p :=
@@ -432,7 +430,7 @@ destruct_ptr p.
 *)
 
 Lemma data_at_data_at': forall sh t v p,
-  data_at sh t v p = !! field_compatible t nil p && data_at' sh t v p.
+  data_at sh t v p = !! (field_compatible t nil p) && data_at' sh t v p.
 Proof.
   intros.
   unfold data_at, field_at.
@@ -454,7 +452,7 @@ Lemma field_at_Tstruct: forall sh t gfs id a v1 v2 p,
   field_at sh t gfs v1 p = nested_sfieldlist_at sh t gfs (co_members (get_co id)) v2 p.
 Proof.
   intros.
-  unfold field_at, nested_sfieldlist_at.
+  unfold nested_sfieldlist_at, field_at. 
   revert v1 H0; rewrite H; intros.
   rewrite data_at'_ind.
   rewrite at_offset_struct_pred.
@@ -463,20 +461,27 @@ Proof.
   apply struct_pred_ext; [apply get_co_members_no_replicate |].
   
   intros.
-  destruct_ptr p.
-  unfold field_at, fst, snd.
+  assert (~ isptr p \/ isptr p).
+    clear; destruct p; simpl; intuition.
+  destruct H2.
+  apply pred_ext; normalize. destruct H3. contradiction.
+  rewrite withspacer_spacer. unfold field_at;  normalize.
+  destruct H3. contradiction.
+  destruct p; try contradiction. clear H2.
+  unfold  field_at, fst, snd.
+  unfold at_offset.
   autorewrite with at_offset_db.
   unfold offset_val.
   solve_mod_modulus.
   normalize.
   destruct (legal_nested_field_dec t (StructField i :: gfs)).
   Focus 2. {
-    replace (!!field_compatible t (StructField i :: gfs) (Vptr b (Int.repr ofs)) : mpred) with (FF: mpred)
+    replace (!!field_compatible t (StructField i :: gfs) (Vptr b i0) : mpred) with (FF: mpred)
       by (apply ND_prop_ext; unfold field_compatible; tauto; apply ND_prop_ext; tauto).
     simpl in n.
     rewrite H in n.
     simpl in n.
-    replace (!!field_compatible t gfs (Vptr b (Int.repr ofs)) : mpred) with (FF: mpred)
+    replace (!!field_compatible t gfs (Vptr b i0) : mpred) with (FF: mpred)
       by (apply ND_prop_ext; unfold field_compatible; tauto; apply ND_prop_ext; tauto).
     normalize.
   } Unfocus.
@@ -511,7 +516,7 @@ Lemma field_at_Tunion: forall sh t gfs id a v1 v2 p,
   field_at sh t gfs v1 p = nested_ufieldlist_at sh t gfs (co_members (get_co id)) v2 p.
 Proof.
   intros.
-  unfold field_at, nested_ufieldlist_at.
+  unfold nested_ufieldlist_at, field_at.
   revert v1 H0; rewrite H; intros.
   rewrite data_at'_ind.
   rewrite at_offset_union_pred.
@@ -543,26 +548,35 @@ Proof.
     + eapply JMeq_trans; [apply (unfold_reptype_JMeq _ v1) | auto].
   } Unfocus.
   intros.
-  destruct_ptr p.
+
+  unfold at_offset.
+  unfold field_at, fst, snd.
+  rewrite !withspacer_spacer.
+  assert (~ isptr p \/ isptr p).
+    clear; destruct p; simpl; intuition.
+  destruct H5.
+  apply pred_ext; normalize. destruct H6. contradiction.
+  saturate_local. destruct H6; contradiction.
+  destruct p; try contradiction. clear H5.
+  autorewrite with at_offset_db.
+  unfold at_offset.
   assert (in_members i (co_members (get_co id))).
   Focus 1. {
     change i with (fst (i, field_type i (co_members (get_co id)))).
     apply in_map with (f := fst).
     eapply compact_sum_inj_in; eauto.
   } Unfocus.
-  unfold field_at, fst, snd.
-  autorewrite with at_offset_db.
   unfold offset_val.
   solve_mod_modulus.
   normalize.
   destruct (legal_nested_field_dec t (UnionField i :: gfs)).
   Focus 2. {
-    replace (!!field_compatible t (UnionField i :: gfs) (Vptr b (Int.repr ofs)) : mpred) with (FF: mpred)
+    replace (!!field_compatible t (UnionField i :: gfs) (Vptr b i0) : mpred) with (FF: mpred)
       by (apply ND_prop_ext; unfold field_compatible; tauto).
     simpl in n.
     rewrite H in n.
     simpl in n.
-    replace (!!field_compatible t gfs (Vptr b (Int.repr ofs)) : mpred) with (FF: mpred)
+    replace (!!field_compatible t gfs (Vptr b i0) : mpred) with (FF: mpred)
       by (apply ND_prop_ext; unfold field_compatible; tauto).
     normalize.
   } Unfocus.
@@ -582,7 +596,7 @@ Proof.
       auto.
     - unfold proj_union.
       apply (proj_compact_sum_JMeq _ (i, field_type i (co_members (get_co id))) (co_members (get_co id)) _ _ d0 d1 (unfold_reptype v1) v2); auto.
-      * intros (i0, t0) ?.
+      * intros (i1, t0) ?.
         rewrite nested_field_type2_ind, H.
         simpl.
         auto.
@@ -590,13 +604,11 @@ Proof.
 Qed.
 
 Lemma array_at_len_0: forall sh t gfs i v p,
-  array_at sh t gfs i i v p = !! field_compatible0 t (ArraySubsc i :: gfs) p && emp.
+  array_at sh t gfs i i v p = !! (field_compatible0 t (ArraySubsc i :: gfs) p) && emp.
 Proof.
   intros.
-  unfold array_at.
-  rewrite array_pred_len_0 by omega.
-  f_equal.
-  apply andp_dup.
+  unfold array_at. rewrite andp_dup.
+  rewrite array_pred_len_0 by omega. auto.
 Qed.
 
 Lemma array_at_len_1: forall sh t gfs i v v0 p,
@@ -704,7 +716,7 @@ Reroot lemmas
 
 ************************************************)
 
-Lemma field_at_data_at: forall sh t gfs v p,
+Lemma field_at_data_at: forall sh t gfs v (p: val),
   field_at sh t gfs v p =
   data_at sh (nested_field_type2 t gfs) v (field_address t gfs p).
 Proof.
@@ -732,12 +744,11 @@ Proof.
 Qed.
 
 Lemma field_at__data_at_: forall sh t gfs p,
-  field_at_ sh t gfs p = 
+  field_at_ sh t gfs p =
   data_at_ sh (nested_field_type2 t gfs) (field_address t gfs p).
 Proof.
   intros.
-  unfold field_at_, data_at_.
-  apply field_at_data_at.
+  unfold data_at_, field_at_. apply field_at_data_at.
 Qed.
 
 Lemma lifted_field_at_data_at: forall sh t gfs v p,
@@ -820,16 +831,18 @@ Lemma array_at_data_at_with_tl: forall sh t gfs lo mid hi v v' p,
 Proof.
   intros.
   rewrite (array_at_data_at sh t gfs lo mid).
-  rewrite at_offset_eq.
+  unfold data_at, array_at.
+  rewrite at_offset_eq. normalize.
   unfold field_address0.
   destruct (field_compatible0_dec t (ArraySubsc lo :: gfs) p).
-  + unfold array_at; normalize.
+  + normalize.
     f_equal.
     apply ND_prop_ext; tauto.
-  + replace (!! field_compatible0 t (ArraySubsc lo :: gfs) p: mpred) with FF
+  + rewrite prop_and. rewrite prop_and.
+      replace (!! field_compatible0 t (ArraySubsc lo :: gfs) p: mpred) with FF
       by (apply ND_prop_ext; tauto).
-    rewrite data_at_isptr with (p := Vundef).
-    change (!!isptr Vundef: mpred) with FF.
+    rewrite field_at_isptr with (p := Vundef).
+    change (!!isptr Vundef: mpred) with FF.    
     normalize.
 Qed.
 
@@ -859,7 +872,7 @@ Proof.
       spec H1; [tauto |].
       rewrite (Z.mod_small ofs) in * by omega.
       rewrite (Z.mod_small (ofs + nested_field_offset2 t gfs) Int.modulus) in H by omega.
-      apply data_at'_data_at'_; try tauto; omega.
+      apply data_at'_data_at'_; try tauto. omega.
     - assert (sizeof cenv_cs (nested_field_type2 t gfs) = 0)
         by (pose proof sizeof_pos cenv_cs (nested_field_type2 t gfs); omega).
       rewrite !empty_data_at' by tauto.
@@ -872,7 +885,7 @@ Lemma field_at__memory_block: forall sh t gfs p,
   field_at_ sh t gfs p =
   memory_block sh (sizeof cenv_cs (nested_field_type2 t gfs)) (field_address t gfs p).
 Proof.
-  intros.
+  intros. 
   unfold field_address.
   destruct (field_compatible_dec t gfs p).
   + unfold field_at_, field_at.
@@ -954,7 +967,7 @@ Lemma data_at_memory_block:
 Proof.
   intros.
   eapply derives_trans; [apply data_at_data_at_; reflexivity |].
-  rewrite data_at__memory_block.
+  rewrite data_at__memory_block by auto.
   apply andp_left2.
   auto.
 Qed.
@@ -990,13 +1003,14 @@ Lemma array_at_array_at_: forall sh t gfs lo hi v p,
   array_at sh t gfs lo hi v p |-- array_at_ sh t gfs lo hi p.
 Proof.
   intros.
+  unfold array_at_, array_at.
   apply array_at_ext_derives.
   intros.
   destruct (field_compatible0_dec t (ArraySubsc i :: gfs) p).
   + rewrite zl_default_correct in H1 by auto.
     revert u1 H1; erewrite <- nested_field_type2_ArraySubsc with (i0 := i); intros.
     rewrite H1.
-    apply field_at_field_at_.
+   apply field_at_field_at_; auto.
   + unfold field_at.
     replace (!! field_compatible t (ArraySubsc i :: gfs) p : mpred) with FF; [normalize |].
     pose proof field_compatible_field_compatible0 t (ArraySubsc i :: gfs) p.
@@ -1259,18 +1273,20 @@ rewrite distrib_orp_sepcon.
 apply orp_left; normalize;
 try (rewrite sepcon_comm; rewrite distrib_orp_sepcon; apply orp_left; normalize;
       apply res_predicates.address_mapsto_overlap; split; auto; omega).
-(*
-rewrite sepcon_comm; rewrite distrib_orp_sepcon; apply orp_left; normalize; intros;
-apply address_mapsto_overlap; split; auto; omega.
-*)
-(* originally, this proof is neccesary. but it is not now. I don't know why.  - Qinxiang *)
 Qed.
 
+Lemma permission_bytes_conflict:
+  forall sh a n, sepalg.nonidentity sh -> 0 < n ->
+res_predicates.permission_bytes sh a n *
+res_predicates.permission_bytes sh a n |-- FF.
+Admitted. (* should be straightforward *)
+  
 Lemma memory_block_conflict: forall sh n m p,
+  sepalg.nonidentity sh ->
   0 < n <= Int.max_unsigned -> 0 < m <= Int.max_unsigned ->
   memory_block sh n p * memory_block sh m p |-- FF.
 Proof.
-  intros.
+  intros until p. intro N. intros.
   destruct H, H0.
 Transparent memory_block.
   unfold memory_block.
@@ -1287,58 +1303,73 @@ Opaque memory_block.
   rewrite <- (nat_of_Z_eq m) in H0; [|omega].
   rewrite <- Hm in H0.
   destruct m'; [simpl in H0; omega | rewrite Nat2Z.inj_succ in H0].
-  simpl.
-  unfold mapsto_.
+  rewrite <- Hn, <- Hm; simpl.
+  unfold mapsto_. 
+  if_tac.
   apply derives_trans with (mapsto sh (Tint I8 Unsigned noattr) (Vptr b (Int.repr (Int.unsigned i)))
      Vundef * mapsto sh (Tint I8 Unsigned noattr) (Vptr b (Int.repr (Int.unsigned i)))
       Vundef * TT).
-  rewrite <- Hn, <- Hm; simpl.
   cancel.
   apply derives_trans with (FF * TT).
   apply sepcon_derives; [|cancel].
   apply mapsto_conflict.
   normalize.
+  unfold permission_block.
+  simpl.
+  forget (b, Int.unsigned (Int.repr (Int.unsigned i))) as a.
+  apply derives_trans with 
+  ((res_predicates.permission_bytes sh a 1 * res_predicates.permission_bytes sh a 1) * TT).
+  cancel.
+  apply derives_trans with (FF * TT); [ | normalize].
+  apply sepcon_derives; [| auto].
+  clear - N.
+  apply permission_bytes_conflict; auto.
+  omega.
 Qed.
 
-Lemma data_at_conflict: forall sh t v v' p,
-  field_compatible t nil p ->
-  0 < sizeof cenv_cs t < Int.modulus ->
-  data_at sh t v p * data_at sh t v' p |-- FF.
+Lemma readable_nonidentity: forall sh, readable_share sh -> sepalg.nonidentity sh.
 Proof.
-  intros.
-  eapply derives_trans.
-  + apply sepcon_derives.
-    apply data_at_data_at_; assumption.
-    apply data_at_data_at_; assumption.
-  + rewrite data_at__memory_block by auto.
-    normalize.
-    apply memory_block_conflict; (unfold Int.max_unsigned; omega).
-Qed.
+Admitted. (* share hacking *)
 
 Lemma field_at_conflict: forall sh t fld p v v',
+  sepalg.nonidentity sh ->
   0 < sizeof cenv_cs (nested_field_type2 t fld) < Int.modulus ->
   legal_alignas_type t = true ->
   field_at sh t fld v p * field_at sh t fld v' p|-- FF.
 Proof.
   intros.
   eapply derives_trans.
-  + apply sepcon_derives.
-    apply field_at_field_at_; assumption.
-    apply field_at_field_at_; assumption.
-  + rewrite field_at__memory_block by auto.
+  + apply sepcon_derives. 
+    apply field_at_field_at_; try assumption; auto. 
+    apply field_at_field_at_; try assumption; auto. 
+  +
+    fold (field_at_ sh t fld p).
+    rewrite field_at__memory_block by auto.
     normalize.
-    apply memory_block_conflict; (unfold Int.max_unsigned; omega).
+    apply memory_block_conflict; try  (unfold Int.max_unsigned; omega).
+    auto.
+Qed.
+
+Lemma data_at_conflict: forall sh t v v' p,
+  sepalg.nonidentity sh ->
+  field_compatible t nil p ->
+  0 < sizeof cenv_cs t < Int.modulus ->
+  data_at sh t v p * data_at sh t v' p |-- FF.
+Proof.
+  intros. unfold data_at. apply field_at_conflict; auto.
+  destruct H0 as [? [? ?]]; auto. 
 Qed.
 
 Lemma field_at__conflict:
   forall sh t fld p,
+  sepalg.nonidentity sh ->
   0 < sizeof cenv_cs (nested_field_type2 t fld) < Int.modulus ->
   legal_alignas_type t = true ->
         field_at_ sh t fld p
         * field_at_ sh t fld p |-- FF.
 Proof.
 intros.
-apply field_at_conflict; assumption.
+apply field_at_conflict; auto.
 Qed.
 
 Lemma field_compatible_offset_isptr:
@@ -1397,6 +1428,7 @@ Lemma var_block_data_at_:
   legal_cosu_type t = true ->
   complete_type cenv_cs t = true ->
   Z.ltb (sizeof cenv_cs t) Int.modulus = true ->
+  readable_share sh ->
   var_block sh (id, t) = `(data_at_ sh t) (eval_lvar id t).
 Proof.
   intros; extensionality rho.
@@ -1404,7 +1436,7 @@ Proof.
   unfold_lift.
   simpl.
   apply Zlt_is_lt_bool in H2.
-  rewrite data_at__memory_block by auto.
+  rewrite data_at__memory_block; try auto.
   rewrite memory_block_isptr.
   unfold local, lift1; unfold_lift.
   unfold align_compatible.
@@ -1425,10 +1457,10 @@ Qed.
 
 End CENV.
 
-Hint Resolve field_at_compatible : saturate_local.
-Hint Resolve field_at__compatible : saturate_local.
-Hint Resolve data_at_compatible : saturate_local.
-Hint Resolve data_at__compatible : saturate_local.
+Hint Resolve field_at_local_facts : saturate_local.
+Hint Resolve field_at__local_facts : saturate_local.
+Hint Resolve data_at_local_facts : saturate_local.
+Hint Resolve data_at__local_facts : saturate_local.
 Hint Rewrite <- @field_at_offset_zero: norm.
 Hint Rewrite <- @field_at__offset_zero: norm.
 Hint Rewrite <- @field_at_offset_zero: cancel.
@@ -1503,3 +1535,42 @@ Ltac unfold_field_at N :=
    subst FLD;
    change field_at_hide with @field_at in *
  end.
+
+Lemma data_at_valid_ptr  {cs: compspecs}{csl: compspecs_legal cs}:
+  forall sh t v p,
+     sizeof cenv_cs t > 0 ->
+     data_at sh t v p |-- valid_pointer p.
+Proof.
+intros.
+Admitted. (* surely true *)
+
+Lemma field_at_valid_ptr {cs: compspecs}{csl: compspecs_legal cs}:
+  forall sh t path v p, 
+     sizeof cenv_cs (nested_field_type2 t path) > 0 ->
+     field_at sh t path v p |-- valid_pointer (field_address t path p).
+Proof.
+intros.
+rewrite field_at_data_at.
+apply data_at_valid_ptr.
+auto.
+Qed.
+
+Lemma field_at_valid_ptr0 {cs: compspecs}{csl: compspecs_legal cs}:
+  forall sh t path v p, 
+     sizeof cenv_cs (nested_field_type2 t path) > 0 ->
+     nested_field_offset2 t path = 0 ->
+     field_at sh t path v p |-- valid_pointer p.
+Proof.
+intros.
+assert_PROP (field_compatible t path p).
+unfold field_at.
+normalize.
+pattern p at 2; replace p with (field_address t path p).
+rewrite field_at_data_at.
+apply data_at_valid_ptr; auto.
+unfold field_address. rewrite if_true by auto.
+rewrite H0.
+normalize.
+Qed.
+
+Hint Resolve data_at_valid_ptr field_at_valid_ptr field_at_valid_ptr0 : valid_pointer.

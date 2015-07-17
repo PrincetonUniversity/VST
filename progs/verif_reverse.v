@@ -15,7 +15,7 @@ Require Import floyd.proofauto.
  ** as the theory uses Coq's dependent types to handle user-defined
  ** record fields.
  **)
-Require Import progs.list_dt.
+Require Import progs.list_dt. Import LsegSpecial.
 
 (** Import the [reverse.v] file, which is produced by CompCert's clightgen
  ** from reverse.c 
@@ -51,7 +51,7 @@ Definition sumlist_spec :=
  DECLARE _sumlist
   WITH sh : share, contents : list int, p: val
   PRE [ _p OF (tptr (t_struct_list))] 
-     PROP() LOCAL (temp _p p)
+     PROP(readable_share sh) LOCAL (temp _p p)
      SEP (`(lseg LS sh (map Vint contents) p nullval))
   POST [ tint ]  
      PROP() LOCAL(temp ret_temp (Vint (sum_int contents))) SEP(`TT).
@@ -96,12 +96,13 @@ Definition Gprog : funspecs :=
 
 (** Two little equations about the list_cell predicate *)
 Lemma list_cell_eq: forall sh i,
+   readable_share sh ->
    list_cell LS sh (Vint i) = field_at sh t_struct_list [StructField _head] (Vint i).
 Proof.
   intros.
   unfold list_cell; extensionality p; simpl.
-  unfold list_data.
-  unfold eq_rect_r; rewrite <- !eq_rect_eq.
+  unfold maybe_data_at, list_data.
+  rewrite if_true by auto. rewrite <- !eq_rect_eq.
   match goal with
   | |- appcontext [@fold_reptype _ _ ?t ?v] =>
          pose proof fold_reptype_JMeq t v as HH;
@@ -111,7 +112,19 @@ Proof.
   end.
   unfold add_link_back, list_rect, default_val; simpl.
   unfold eq_rect_r; rewrite <- !eq_rect_eq.
-  admit.
+  unfold data_at, field_at_.
+  really_simplify (default_val (nested_field_type2 list_struct [StructField _tail])).
+  change  (@list_struct CompSpecs CS_legal _list _tail LS)  with t_struct_list.
+  apply pred_ext.
+*
+  unfold_field_at 2%nat.
+  forget (field_at sh t_struct_list [StructField _tail] Vundef p) as B.
+  forget (field_at sh t_struct_list [StructField _head] (Vint i) p) as A.
+  admit.  (* for Qinxiang *)
+*
+  unfold_field_at 3%nat.
+  apply wand_sepcon_adjoint.
+  auto.
 Qed.
 
 (** Here's a loop invariant for use in the body_sumlist proof *)
@@ -165,7 +178,7 @@ entailer!.
 rewrite HH; clear HH.
 *)
 destruct cts; inv H.
-rewrite list_cell_eq.
+rewrite list_cell_eq by auto.
 forward.  (* h = t->head; *)
 forward t_old.  (*  t = t->tail; *)
 subst t_old.
@@ -403,8 +416,6 @@ Lemma body_main:  semax_body Vprog Gprog f_main main_spec.
 Proof.
 name r _r.
 name s _s.
-Admitted. (* Time out *)
-(*
 start_function.
 forward_intro x'; forward_intro x''.  (* shouldn't be necessary - fix Ltac simpl_main_pre' *)
 normalize.
@@ -419,7 +430,7 @@ forward_call'  (* s = sumlist(r); *)
    (Ews, Int.repr 3 :: Int.repr 2 :: Int.repr 1 :: nil, r') s'.
 forward.  (* return s; *)
 Qed.
-*)
+
 Existing Instance NullExtension.Espec.
 
 Lemma all_funcs_correct:

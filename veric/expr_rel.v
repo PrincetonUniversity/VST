@@ -9,6 +9,7 @@ Require Export veric.Cop2.
 Require Import veric.tycontext.
 Require Import veric.expr2.
 Require Import veric.res_predicates.
+Require Import veric.extend_tc.
 Require Import veric.seplog.
 
 Inductive rel_expr' (Delta: tycontext) (rho: environ) (phi: rmap): expr -> val -> Prop :=

@@ -74,12 +74,17 @@ Section WITH_SHARE.
 
 Variable sh: share.
 
+Definition mapsto' sh t p v := 
+if readable_share_dec sh
+ then mapsto sh t p v
+ else permission_block sh p t.
+
 Definition data_at': forall t, reptype t -> val -> mpred :=
   func_type (fun t => reptype t -> val -> mpred)
     (fun t v p =>
        if type_is_volatile t
        then memory_block sh (sizeof cenv_cs t) p
-       else mapsto sh t p (repinject t v))
+       else mapsto' sh t p (repinject t v))
     (fun t n a P v => array_pred 0 n (fun i v => at_offset (P v) (sizeof cenv_cs t * i)) (unfold_reptype v))
     (fun id a P v => struct_data_at'_aux sh (co_members (get_co id)) (co_members (get_co id)) (co_sizeof (get_co id)) P (unfold_reptype v))
     (fun id a P v => union_data_at'_aux sh (co_members (get_co id)) (co_members (get_co id)) (co_sizeof (get_co id)) P (unfold_reptype v)).
@@ -95,7 +100,7 @@ Lemma data_at'_ind: forall t v,
   | Tpointer _ _ => fun v p => 
                       if type_is_volatile t
                       then memory_block sh (sizeof cenv_cs t) p
-                      else mapsto sh t p v
+                      else mapsto' sh t p v
   | Tarray t0 n a => array_pred 0 n (fun i v => at_offset (data_at' t0 v) (sizeof cenv_cs t0 * i))
   | Tstruct id a => struct_pred (co_members (get_co id))
                       (fun it v => withspacer sh
@@ -112,7 +117,9 @@ Proof.
   intros.
   unfold data_at' at 1.
   rewrite func_type_ind.
+  unfold mapsto'.
   destruct t; auto;
+  try solve [destruct (readable_share_dec sh); reflexivity];
   try solve [
   match goal with
   | |- appcontext [repinject ?tt] => 
@@ -170,7 +177,7 @@ Qed.
 Lemma by_value_data_at': forall sh t v p,
   type_is_by_value t = true ->
   type_is_volatile t = false ->
-  data_at' sh t v p = mapsto sh t p (repinject t v).
+  data_at' sh t v p = mapsto' sh t p (repinject t v).
 Proof.
   intros.
   rewrite data_at'_ind; destruct t; try solve [inversion H]; rewrite H0;
@@ -196,7 +203,8 @@ Proof.
   end;
   symmetry;
   cbv [repinject default_val reptype_gen func_type func_type_rec rank_type type_is_by_value];
-  apply memory_block_mapsto_; auto.
+  rewrite memory_block_mapsto_ by auto; unfold mapsto_; 
+    try rewrite if_true by auto; auto.
 Qed.
 
 Lemma by_value_data_at'_default_val2: forall sh t b ofs,
@@ -552,6 +560,41 @@ Qed.
 
 *)
 
+(*
+Lemma data_at'_readable:
+  forall sh t v p, data_at' sh t v p |-- !! readable_share sh.
+Proof.
+intros sh t.
+type_induction t; intros;
+rewrite data_at'_ind; try apply FF_left.
+if_tac.
++ simpl. destruct i; simpl.
+SearchAbout memory_block.
+rewrite memory_block_eq.
+saturate_local.
+simpl.
+*)
+
+Lemma mapsto_mapsto_': 
+  forall sh t v v', mapsto' sh t v v' |-- mapsto' sh t v Vundef.
+Proof. intros.
+  normalize.
+  unfold mapsto', mapsto.
+  if_tac; auto.
+  destruct (access_mode t); auto.
+  destruct (type_is_volatile t); try apply FF_left.
+  destruct v; try apply FF_left.
+  apply orp_left.
+  apply orp_right2.
+  apply andp_left2.
+  apply andp_right. apply prop_right; auto.
+  apply exp_right with v'; auto.
+  normalize.
+  apply orp_right2. apply exp_right with v2'.
+  normalize.
+Qed.
+
+
 Lemma data_at'_data_at'_ : forall sh t v b ofs
   (LEGAL_ALIGNAS: legal_alignas_type t = true)
   (LEGAL_COSU: legal_cosu_type t = true)
@@ -564,8 +607,8 @@ Proof.
   intros sh t.
   type_induction t; intros;
   try solve [inversion COMPLETE];
-  try solve [rewrite !data_at'_ind;
-             if_tac; [auto | rewrite default_val_ind, unfold_fold_reptype; apply mapsto_mapsto_]].
+  try solve [rewrite !data_at'_ind; try (if_tac; auto);
+  try solve [rewrite default_val_ind, unfold_fold_reptype; apply mapsto_mapsto_']].
   + rewrite !data_at'_ind.
     apply array_pred_ext_derives.
     intros.
@@ -621,7 +664,7 @@ Proof.
         rewrite memory_block_split by (pose_field; omega).
         apply sepcon_derives; [| rewrite spacer_memory_block by (simpl; auto);
                                  unfold offset_val; solve_mod_modulus; auto ].
-        rewrite <- memory_block_data_at'_default_val by (try AUTO_IND; try (pose_field; omega)).
+        rewrite <- memory_block_data_at'_default_val; auto; try AUTO_IND; try (pose_field; omega).
         rewrite Forall_forall in IH.
         specialize (IH (i, (field_type i (co_members (get_co id))))).
         spec IH; [apply in_members_field_type; auto |].

@@ -63,6 +63,7 @@ apply semax_pre with
 unfold data_at. unfold_field_at 1%nat.
 entailer!.
 unfold field_at, data_at', at_offset. simpl.
+unfold mapsto'; rewrite !if_true by auto.
 repeat rewrite prop_true_andp by
   (split3; [ | | split3; [ | | split3; [ | | split]]]; auto; try reflexivity; try apply I;
   try (eapply gvar_size_compatible; eauto; simpl; computable);

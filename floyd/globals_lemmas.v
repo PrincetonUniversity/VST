@@ -48,12 +48,13 @@ Qed.
 Lemma mapsto_zeros_memory_block: forall sh n b ofs,
   0 <= n < Int.modulus ->
   Int.unsigned ofs+n <= Int.modulus ->
+  readable_share sh ->
   mapsto_zeros n sh (Vptr b ofs) |--
   memory_block sh n (Vptr b ofs).
 Proof.
   unfold mapsto_zeros.
   intros.
-  rename H0 into H'.
+  rename H0 into H'. rename H1 into RS.
 Transparent memory_block.
   unfold memory_block.
 Opaque memory_block.
@@ -81,7 +82,7 @@ Opaque memory_block.
     - destruct H1.
       rewrite inj_S in H2. unfold Z.succ in H2.
       apply sepcon_derives; auto.
-      * unfold mapsto_, mapsto.
+      * unfold mapsto_, mapsto. rewrite if_true by auto.
         apply orp_right2.
         rewrite prop_true_andp by auto.
         apply exp_right with (Vint Int.zero).
@@ -241,11 +242,12 @@ Lemma init_data2pred_rejigger {cs: compspecs}  {csl: compspecs_legal cs}:
   tc_environ Delta rho ->
   v = Vptr b (Int.repr 0) ->
   (alignof cenv_cs t | Int.unsigned (Int.repr ofs)) ->
+  readable_share sh ->
    init_data2pred idata sh (offset_val (Int.repr ofs) v) rho 
     |-- init_data2pred' Delta idata sh t (offset_val (Int.repr ofs) v) rho.
 Proof.
 intros until v.
-intros H1 HH H1' H6' H6 H7 H8 H1''.
+intros H1 HH H1' H6' H6 H7 H8 H1'' RS.
  unfold init_data2pred', init_data2pred.
  rename H8 into H8'.
  assert (H8: offset_val (Int.repr ofs) v = Vptr b (Int.repr ofs)).
@@ -299,6 +301,10 @@ intros H1 HH H1' H6' H6 H7 H8 H1''.
   rewrite H0. rewrite H15. auto.
 Qed.
 
+Lemma readable_extern_retainer: forall sh,
+  readable_share (Share.splice extern_retainer sh).
+Admitted. (* share hacking *)
+
 Lemma unpack_globvar  {cs: compspecs}  {csl: compspecs_legal cs}:
   forall Delta i t gv idata, 
    (var_types Delta) ! i = None ->
@@ -344,6 +350,7 @@ rewrite H10.
    - omega.
    - omega.
    - apply Z.divide_0_r.
+   - apply readable_extern_retainer.
  + 
  unfold init_data2pred'.
  destruct idata; unfold_lift;
@@ -423,6 +430,7 @@ apply sepcon_derives.
  split3; auto. omega.
   admit. 
  pose proof (init_data_list_size_pos idata); omega.
+  apply readable_extern_retainer.
 * specialize (IHidata (ofs + init_data_size a)).
 rewrite offset_offset_val.
 rewrite add_repr.
@@ -455,7 +463,9 @@ intros until 1. intros ? Hno; intros.
 normalize.
 eapply derives_trans; [eapply tc_globalvar_sound; eassumption | ].
 simpl.
-rewrite data_at__memory_block by (try tauto; unfold Int.max_unsigned in H5; omega).
+rewrite data_at__memory_block; try tauto; 
+  try (unfold Int.max_unsigned in H5; omega);
+  try apply readable_extern_retainer.
 destruct (tc_eval_gvar_zero _ _ _ _ H6 H H0) as [b ?].
 rewrite H8 in H7 |- *.
 unfold mapsto_zeros. rewrite sepcon_emp.
@@ -475,6 +485,7 @@ apply andp_right.
   pose (sizeof_pos cenv_cs t).
   - unfold Int.max_unsigned in H5. omega.
   - unfold Int.max_unsigned in H5. omega.
+  - apply readable_extern_retainer.
 Qed.
 
 Definition inttype2init_data (sz: intsize) : (int -> init_data) :=

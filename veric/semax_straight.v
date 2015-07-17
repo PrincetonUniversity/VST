@@ -7,6 +7,7 @@ Import Mem.
 Require Import msl.msl_standard.
 Require Import veric.juicy_mem veric.juicy_mem_lemmas veric.juicy_mem_ops.
 Require Import veric.res_predicates.
+Require Import veric.extend_tc.
 Require Import veric.seplog.
 Require Import veric.assert_lemmas.
 Require Import veric.Clight_new.
@@ -124,12 +125,16 @@ apply sepcon_derives; auto. rewrite later_sepcon; auto.
 Qed.
  
 Lemma mapsto_valid_pointer : forall b o sh t jm,
+ nonidentity sh ->
 (mapsto_ sh (t) (Vptr b o) * TT)%pred (m_phi jm) ->
 Mem.valid_pointer (m_dry jm) b (Int.unsigned o) = true. 
-intros.
+intros. rename H into N.
 
-destruct H. destruct H. destruct H. destruct H0.
-unfold mapsto_,mapsto in H0.  unfold mapsto in *. 
+destruct H0. destruct H. destruct H. destruct H0.
+unfold mapsto_,mapsto in H0.  unfold mapsto in *.
+if_tac in H0.
+* (* readable_share sh *)
+rename H2 into RS.
 destruct (access_mode t); try solve [ inv H0].
 destruct (type_is_volatile t) eqn:VOL; try contradiction.
 assert (exists v,  address_mapsto m v (Share.unrel Share.Lsh sh)
@@ -163,6 +168,27 @@ unfold nonunit in x5.
 destruct (x5 sh). auto. 
 destruct H4.  repeat split. omega. 
 destruct m; simpl; omega.
+* (* ~ readable_share sh *)
+destruct (access_mode t) eqn:?; try contradiction.
+specialize (H0 (b, Int.unsigned o)).
+rewrite if_true in H0
+ by (split; auto; pose proof (size_chunk_pos m); omega).
+clear H1.
+pose proof (resource_at_join _ _ _ (b, Int.unsigned o) H).
+unfold resource_share in H0.
+rewrite <- (Z.add_0_r (Int.unsigned o)).
+apply (valid_pointer_dry b o 0 jm).
+hnf.
+rewrite Z.add_0_r.
+destruct  (x @ (b, Int.unsigned o)); inv H0; inv H1; simpl; auto.
+intro.
+apply split_identity in RJ; auto.
+apply N.
+apply identity_share_bot in RJ. subst t0.
+replace (Share.unrel Share.Lsh Share.bot) with Share.bot.
+apply bot_identity.
+symmetry.
+admit.  (* share hacking *)
 Qed. 
 
 Lemma mapsto_is_pointer : forall sh t m v,
@@ -170,12 +196,15 @@ mapsto_ sh t v m ->
 exists b, exists o, v = Vptr b o. 
 Proof.
 intros. unfold mapsto_, mapsto in H.
+if_tac in H; try contradiction.
 destruct (access_mode t); try contradiction.
 destruct (type_is_volatile t); try contradiction.
 destruct v; try contradiction.
 destruct H as [? | [? [v ?]]]; eauto.
+destruct (access_mode t); try contradiction.
+destruct v; try contradiction.
+eauto.
 Qed. 
-
 
 Lemma pointer_cmp_eval : 
    forall (Delta : tycontext) (cmp : Cop.binary_operation) (e1 e2 : expr) sh1 sh2,
@@ -185,6 +214,8 @@ Lemma pointer_cmp_eval :
    (tc_expr Delta e2 rho) (m_phi jm) ->
    blocks_match cmp (eval_expr Delta e1 rho) (eval_expr Delta e2 rho) ->
    typecheck_environ Delta rho ->
+   nonidentity sh1 ->
+   nonidentity sh2 ->
    (mapsto_ sh1 (typeof e1) (eval_expr Delta e1 rho) * TT)%pred (m_phi jm) ->
    (mapsto_ sh2 (typeof e2) (eval_expr Delta e2 rho) * TT)%pred (m_phi jm) ->
    Cop.sem_binary_operation (composite_types Delta) cmp (eval_expr Delta e1 rho) 
@@ -194,7 +225,7 @@ Lemma pointer_cmp_eval :
         (sem_binary_operation' Delta cmp (typeof e1) (typeof e2) true2 
            (eval_expr Delta e1 rho) (eval_expr Delta e2 rho))). 
 Proof.
-intros until rho. intros ? ? BM.  intros.
+intros until rho. intros ? ? BM ? N1 N2.  intros.
 unfold Cop.sem_binary_operation, sem_cmp.  
 simpl in H0, H1. apply typecheck_expr_sound in H0; auto. 
 apply typecheck_expr_sound in H1; auto.
@@ -210,29 +241,29 @@ destruct (mapsto_is_pointer _ _ _ _ MT2) as [? [? ?]].
 unfold blocks_match in *. 
 simpl in BM. 
 
-rewrite H3 in *. rewrite H4 in *. 
-
-destruct (typeof e1); 
-try solve [simpl in *; congruence];
-
-destruct (typeof e2); 
-try solve [simpl in *; congruence];
-
-
-try solve[
-  destruct MT1; inv H5 
-| destruct MT2; inv H5
-]. 
-
-apply mapsto_valid_pointer in MT_1. 
-apply mapsto_valid_pointer in MT_2.
- 
-
-unfold sem_binary_operation', sem_cmp. 
-
-destruct cmp; inv H; try rewrite H3 in *; 
-try rewrite H4 in *; subst;
+rewrite H3 in *. rewrite H4 in *.
+apply mapsto_valid_pointer in MT_1; auto. 
+apply mapsto_valid_pointer in MT_2; auto.
+forget (typeof e1) as t1.
+forget (typeof e2) as t2.
+clear e1 e2 H3 H4.
+unfold Cop.sem_cmp, Cop.sem_binarith; simpl.
+rewrite MT_1, MT_2.
+simpl.
+clear MT_1 MT_2.
+unfold mapsto_ in MT1, MT2.
+unfold mapsto in MT1,MT2.
+destruct (access_mode t1) eqn:?A1; 
+ try solve [if_tac in MT1; contradiction].
+destruct (access_mode t2) eqn:?A2; 
+ try solve [if_tac in MT2; contradiction].
+clear MT1 MT2.
+destruct t1; try solve [simpl in *; congruence].
+destruct t2; try solve [simpl in *; congruence].
+simpl.
+destruct cmp; inv H; subst; simpl;
 unfold Cop.sem_cmp, sem_cmp_pp; simpl; try rewrite MT_1; try rewrite MT_2; simpl;
+try rewrite if_true by auto;
 try solve[if_tac; subst; eauto]; try repeat rewrite peq_true; eauto.
 Qed.
 
@@ -265,15 +296,24 @@ Lemma pointer_cmp_no_mem_bool_type :
            (eval_expr Delta e1 rho)
            (eval_expr Delta e2 rho))).
 Proof.
-intros. 
+intros.
 apply typecheck_both_sound in H4; auto. 
 apply typecheck_both_sound in H3; auto.
 rewrite tc_val_eq' in *.
 rewrite H0 in *. 
 rewrite H1 in *. 
 unfold sem_binary_operation'.
-destruct (typeof e1) as [ | | | [ | ] | | | | | ]; try solve[simpl in *; try contradiction; try congruence]; 
-destruct (typeof e2) as [ | | | [ | ] | | | | | ]; try solve[simpl in *; try contradiction; try congruence].
+forget (typeof e1) as t1.
+forget (typeof e2) as t2.
+clear e1 e2 H0 H1.
+unfold mapsto_ in *.
+unfold mapsto in *.
+destruct (access_mode t1) eqn:?A1; 
+ try solve [if_tac in H5; contradiction].
+destruct (access_mode t2) eqn:?A2; 
+ try solve [if_tac in H6; contradiction].
+destruct t1 as [ | | | [ | ] | | | | | ]; try solve[simpl in *; try contradiction; try congruence]; 
+destruct t2 as [ | | | [ | ] | | | | | ]; try solve[simpl in *; try contradiction; try congruence].
 unfold sem_cmp. unfold sem_cmp_pp.
 destruct cmp; inv H;
 unfold sem_cmp; simpl;
@@ -335,6 +375,7 @@ Qed.
 
 Lemma semax_ptr_compare : 
 forall (Delta: tycontext) (P: assert) id cmp e1 e2 ty sh1 sh2,
+    nonidentity sh1 -> nonidentity sh2 ->
     is_comparison cmp = true  ->
     (typecheck_tid_ptr_compare Delta id = true) ->
     semax Espec Delta 
@@ -352,7 +393,7 @@ forall (Delta: tycontext) (P: assert) id cmp e1 e2 ty sh1 sh2,
                      (eval_expr Delta (Ebinop cmp e1 e2 ty)) rho) &&
                             subst id old P rho))).
 Proof. 
-  intros until sh2.
+  intros until sh2. intros N1 N2.
   replace (fun rho : environ =>
      |> (tc_expr Delta e1 rho && tc_expr Delta e2 rho  && 
              !!blocks_match cmp (eval_expr Delta e1 rho) (eval_expr Delta e2 rho) &&
@@ -450,8 +491,9 @@ Proof.
       erewrite <- cmp_Cop_sem_binary_operation_guard_genv by eauto.
       rewrite !eval_expr_sub with (Delta := Delta) (Delta' := Delta') (phi:=m_phi jm') by eauto.
       apply (pointer_cmp_eval Delta' cmp e1 e2 sh1 sh2); auto;
-      rewrite <- !eval_expr_sub with (Delta := Delta) (Delta' := Delta')(phi:=m_phi jm')  by eauto;
-      eauto; simpl; eauto.
+      try (rewrite <- !eval_expr_sub with (Delta := Delta) (Delta' := Delta')(phi:=m_phi jm')  by eauto;
+            eauto; simpl; eauto).
+      
     - split.
       2: eapply pred_hereditary; try apply H1; destruct (age1_juicy_mem_unpack _ _ H); auto.
       assert (app_pred (|>  (F rho * P rho)) (m_phi jm)).
@@ -1489,6 +1531,16 @@ try rewrite Int.zero_ext_idem; auto; simpl; try omega;
 try solve [if_tac; auto].
 Qed. 
 
+Lemma writable_readable:
+ forall sh, writable_share sh -> readable_share sh.
+Proof.
+unfold writable_share, readable_share.
+intros.
+intro.
+Admitted. (* share hacking *)
+
+Hint Resolve writable_readable.
+
 Lemma semax_store:
  forall Delta e1 e2 sh P, 
    writable_share sh ->
@@ -1507,7 +1559,9 @@ apply semax_pre with
       |> tc_lvalue Delta e1 rho && |> tc_expr Delta (Ecast e2 (typeof e1)) rho &&
       |> (mapsto sh (typeof e1) (eval_lvalue Delta e1 rho) v3 * P rho)).
 intro. apply andp_left2. 
-unfold mapsto_. apply exp_right with Vundef.
+unfold mapsto_.
+rewrite if_true by auto.
+apply exp_right with Vundef.
 repeat rewrite later_andp; auto.
 apply extract_exists_pre; intro v3.
 apply semax_straight_simple; auto.

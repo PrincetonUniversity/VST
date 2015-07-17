@@ -200,10 +200,9 @@ name hi' _hi.
 name s _s.
 name t _t.
 
-rename H2 into POP.
 assert_PROP (isptr a0). entailer!.
 
-rename H2 into TCa0.
+rename H1 into TCa0.
 
 forward.  (* lo = 0; *)
 forward _. (* hi = n; *)
@@ -233,7 +232,7 @@ forward. (* t = a[lo]; *)
   unfold flip_between.
   unfold unfold_reptype; simpl.
   autorewrite with zl_nth_db.
-  apply POP; omega.
+  apply H6; omega.
 }
 unfold unfold_reptype; simpl.
 change  {| attr_volatile := false; attr_alignas := @None N |} with noattr.
@@ -251,7 +250,7 @@ forward.  (* s = a[hi-1]; *)
   unfold flip_between.
   unfold unfold_reptype; simpl.
   autorewrite with zl_nth_db.
-  apply POP; omega.
+  apply H6; omega.
 }
 unfold unfold_reptype; simpl.
 match goal with |- context [temp _s ?A] =>
@@ -274,7 +273,7 @@ forward hi'0. (* hi--; *)
     apply data_equal_zl_equiv.
   rewrite !sem_cast_neutral_int
   by (exists I32, Signed; unfold flip_between; simpl;
-       autorewrite with zl_nth_db; apply POP; omega).
+       autorewrite with zl_nth_db; apply H6; omega).
   simpl force_val.
   rewrite !(unfold_reptype_JMeq (tarray tint size)).
   apply flip_fact_3; omega.

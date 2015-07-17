@@ -1533,8 +1533,9 @@ tac_if (ptr_compare e) ltac:forward_ptr_cmp ltac:forward_setx.
 (* BEGIN new semax_load and semax_store tactics *************************)
 
 Ltac solve_legal_nested_field_in_entailment :=
-  match goal with
-  | |- _ |-- !! legal_nested_field ?t_root (?gfs1 ++ ?gfs0) =>
+   match goal with
+   | |- _ |-- !! ?A => try solve [apply prop_right; clear; compute; intuition congruence]
+   | |- _ |-- !! legal_nested_field ?t_root (?gfs1 ++ ?gfs0) =>
     unfold t_root, gfs0, gfs1
   end;
   apply compute_legal_nested_field_spec;
@@ -1894,14 +1895,29 @@ Proof.
 intros; subst; auto.
 Qed.
 
+Ltac candidate A :=
+ match A with context [_ _] => idtac end.
+
 Ltac really_simplify_one_thing :=
-   match goal with |- ?GG = _ => match GG with
+   match goal with
+   | |- @eq ?T _ _ => 
+    candidate T; progress (really_simplify T)
+   | A := @pair ?T _  _ _ |- _ => 
+    candidate T; revert A; progress (really_simplify T); intro A
+   | A := @pair _ ?T _ _ |- _ => 
+    candidate T; revert A; progress (really_simplify T); intro A
+   | A := _ : ?T |- _ => 
+    candidate T; revert A; progress (really_simplify T); intro A
+   | |- context [@pair ?T _ _ _] =>
+     candidate T; progress (really_simplify T)
+   | |- context [@pair _ ?T _ _] =>
+   candidate T; progress (really_simplify T)
+   | |- @eq _ ?GG _ => 
+   match GG with
     | (_,_) =>
               eapply pair_congr
-    | _ =>
-          rewrite eq_rect_r_eq
-    | _ =>
-          rewrite <- eq_rect_eq
+    | _ => rewrite eq_rect_r_eq
+    | _ => rewrite <- eq_rect_eq
     | compact_prod_upd _ _ _ _ _ =>
        unfold compact_prod_upd at 1;
          cbv delta [list_rect]
@@ -1978,7 +1994,7 @@ Ltac really_simplify_one_thing :=
      | context [unfold_reptype _] =>
         unfold unfold_reptype at 1; rewrite <- eq_rect_eq
     end
-    | A := _ |- _ => subst A 
+    | A := ?AA |- _ => first [is_evar AA; fail 1 | subst A]
   end; 
     cbv beta iota zeta.
 
@@ -2015,8 +2031,10 @@ Ltac really_simplify_some_things :=
 Ltac solve_load_rule_evaluation := (* faster version *)
   clear;
   repeat match goal with
+  | A : _ |- _ => clear A 
   | A := _ |- _ => clear A 
   | A := _ : list gfield |- _ => subst A
+  | A := _ : type |- _ => subst A
   end;
   really_simplify_some_things;
   cbv beta iota delta [proj_gfield_reptype]; 
@@ -2033,6 +2051,7 @@ Ltac solve_store_rule_evaluation :=
   | A : _ |- _ => clear A 
   | A := _ |- _ => clear A 
   | A := _ : list gfield |- _ => subst A
+  | A := _ : type |- _ => subst A
   end;
   apply data_equal_congr;
   match goal with |- context [valinject ?t ?v] =>
@@ -2129,6 +2148,7 @@ Ltac new_load_tac :=   (* matches:  semax _ _ (Sset _ (Efield _ _ _)) _  *)
     eapply (semax_SC_field_cast_load Delta sh n) with (lr0 := lr) (t_root0 := t_root) (gfs2 := gfs0) (gfs3 := gfs1);
     [reflexivity | reflexivity | reflexivity
     | reflexivity | exact Heq | exact HLE | exact H_Denote | exact H
+    | auto (* readable share *)
     | solve_load_rule_evaluation
     | unfold tc_efield; try solve [entailer!]; try (clear Heq HLE H_Denote H H_LEGAL;
       subst e1 gfs0 gfs1 efs tts t_root v sh lr n; simpl app; simpl typeof)
@@ -2194,6 +2214,7 @@ Ltac new_load_tac :=   (* matches:  semax _ _ (Sset _ (Efield _ _ _)) _  *)
     eapply (semax_SC_field_load Delta sh n) with (lr0 := lr) (t_root0 := t_root) (gfs2 := gfs0) (gfs3 := gfs1);
     [reflexivity | reflexivity | reflexivity
     | reflexivity | exact Heq | exact HLE | exact H_Denote | exact H
+    | auto (* readable share *)
     | solve_load_rule_evaluation
     | unfold tc_efield; try solve [entailer!]; try (clear Heq HLE H_Denote H H_LEGAL;
       subst e1 gfs0 gfs1 efs tts t_root v sh lr n; simpl app; simpl typeof)
@@ -2370,34 +2391,6 @@ match goal with
     | (PROPx _ (LOCALx _ (SEPx (?R0 :: nil))) 
            |-- _) => assert (nth_error R n = Some R0) as Heq by reflexivity
     end;
-(*
-    match type of H with
-    | (PROPx _ (LOCALx _ (SEPx (?R0 :: nil))) |-- _) =>
-      match R0 with
-      | appcontext [field_at] =>
-        eapply (semax_SC_field_store Delta sh n) 
-          with (lr0 := lr) (t_root0 := t_root) (gfs2 := gfs0) (gfs3 := gfs1);
-        [reflexivity | reflexivity | reflexivity
-        | reflexivity | exact Heq | exact HLE
-        | exact HRE | exact H_Denote | exact H | auto |
-        | solve_store_rule_evaluation
-        | unfold tc_efield; try solve[entailer!]; try (clear Heq HLE HRE H_Denote H H_LEGAL;
-          subst e1 gfs0 gfs1 efs tts t_root sh v0 lr n; simpl app; simpl typeof)
-        | solve_legal_nested_field_in_entailment; try clear Heq HLE HRE H_Denote H H_LEGAL;
-          subst e1 gfs0 gfs1 efs tts t_root sh v0 lr n ]
-      | appcontext [field_at_] =>
-        eapply (semax_SC_field_store Delta sh n)
-          with (lr0 := lr) (t_root0 := t_root) (gfs2 := gfs0) (gfs3 := gfs1);
-        [reflexivity | reflexivity | reflexivity
-        | reflexivity | exact Heq | exact HLE
-        | exact HRE | exact H_Denote | exact H | auto 
-        | solve_store_rule_evaluation
-        | unfold tc_efield; try solve[entailer!]; try (clear Heq HLE HRE H_Denote H H_LEGAL;
-          subst e1 gfs0 gfs1 efs tts t_root sh v0 lr n; simpl app; simpl typeof)
-        | solve_legal_nested_field_in_entailment; try clear Heq HLE HRE H_Denote H H_LEGAL;
-          subst e1 gfs0 gfs1 efs tts t_root sh v0 lr n ]
-      | _ =>
-*)
           eapply (semax_SC_field_store Delta sh n)
             with (lr0 := lr) (t_root0 := t_root) (gfs2 := gfs0) (gfs3 := gfs1);
             [reflexivity | reflexivity | reflexivity
@@ -2408,9 +2401,6 @@ match goal with
               subst e1 gfs0 gfs1 efs tts t_root sh v0 lr n; simpl app; simpl typeof)
             | solve_legal_nested_field_in_entailment; try clear Heq HLE HRE H_Denote H H_LEGAL;
            subst e1 gfs0 gfs1 efs tts t_root sh v0 lr n ]
-(*      end
-    end
-*)
 
   | |- @semax ?Espec ?Delta (|> PROPx ?P (LOCALx ?Q (SEPx ?R))) 
                      (Sassign ?e ?e2) _ =>
@@ -2863,7 +2853,16 @@ Ltac start_function' :=
   | |- @semax _ _ (PROPx _ _) _ _ => idtac 
   | _ => canonicalize_pre 
  end;
- repeat (apply semax_extract_PROP; intro);
+ repeat (apply semax_extract_PROP; 
+              match goal with
+              | |- _ ?sh -> _ =>
+                 match type of sh with
+                 | share => intros ?SH 
+                 | Share.t => intros ?SH 
+                 | _ => intro
+                 end
+               | |- _ => intro
+               end);
  first [ eapply eliminate_extra_return'; [ reflexivity | reflexivity | ]
         | eapply eliminate_extra_return; [ reflexivity | reflexivity | ]
         | idtac];

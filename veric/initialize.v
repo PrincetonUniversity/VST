@@ -6,6 +6,7 @@ Import Mem.
 Require Import msl.msl_standard.
 Require Import veric.juicy_mem veric.juicy_mem_lemmas veric.juicy_mem_ops.
 Require Import veric.res_predicates.
+Require Import veric.extend_tc.
 Require Import veric.seplog.
 Require Import veric.assert_lemmas.
 Require Import veric.Clight_new.

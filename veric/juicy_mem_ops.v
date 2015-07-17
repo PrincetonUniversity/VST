@@ -176,10 +176,9 @@ simpl. auto.
 destruct loc as [b' z].
 destruct (eq_dec b b').
 subst b'.
-pose proof (juicy_mem_alloc_cohere jm (b,z)).
-rewrite H1.
+rewrite (juicy_mem_alloc_cohere jm (b,z)).
 simpl in *.
-unfold perm_of_res. simpl. rewrite perm_of_empty.
+rewrite if_true by auto.
 unfold access_at.
 inv H. simpl.
 rewrite PMap.gss.

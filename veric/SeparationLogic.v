@@ -261,7 +261,30 @@ Definition mapsto (sh: Share.t) (t: type) (v1 v2 : val): mpred :=
   | _ => FF
   end. 
 
-Definition mapsto_ sh t v1 := mapsto sh t v1 Vundef.
+Definition readable_share (sh: share) :=
+   Share.glb Share.Rsh sh <> Share.bot.
+
+Lemma readable_share_dec:
+  forall sh, {readable_share sh}+{~ readable_share sh}.
+exact seplog.readable_share_dec.
+Defined.
+
+Definition permission_block (sh: share)  (v: val) (t: type) : mpred :=
+    match access_mode t with
+         | By_value ch => 
+            match v with 
+            | Vptr b ofs => 
+                 res_predicates.permission_bytes sh (b, Int.unsigned ofs)
+                       (Memdata.size_chunk ch)
+            | _ => FF
+            end
+         | _ => FF
+         end.
+
+Definition mapsto_ sh t v1 := 
+  if readable_share_dec sh
+  then mapsto sh t v1 Vundef
+  else permission_block sh v1 t.
 
 Definition Tsh : share := Share.top.
 
@@ -388,9 +411,11 @@ rewrite seplog.memory_block'_eq; try rewrite nat_of_Z_eq; try omega.
 rewrite seplog.memory_block'_eq; try rewrite nat_of_Z_eq; try omega.
 unfold seplog.memory_block'_alt.
 repeat (rewrite nat_of_Z_eq; try omega).
+if_tac.
 etransitivity ; [ | eapply res_predicates.VALspec_range_split2].
 reflexivity.
 omega. omega. omega.
+admit.  (* straightforward; see similar admit in memory_block'_eq lemma, seplog.v *)
 Qed.
 
 Lemma memory_block_split:
@@ -1111,6 +1136,7 @@ forall (Delta: tycontext) (P: environ->mpred) id e,
 Axiom semax_ptr_compare : 
 forall {Espec: OracleKind},
 forall (Delta: tycontext) P id cmp e1 e2 ty sh1 sh2,
+    sepalg.nonidentity sh1 -> sepalg.nonidentity sh2 ->
    is_comparison cmp = true  ->
    typecheck_tid_ptr_compare Delta id = true ->
    @semax Espec Delta 
