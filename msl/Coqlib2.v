@@ -1,4 +1,4 @@
-Require Import Coqlib.
+Require Import compcert.lib.Coqlib.
 Require Import msl.base.
 Require Export msl.Extensionality.
 
@@ -174,5 +174,33 @@ destruct (H1 _ H2).
 destruct n; try contradiction.
 exists n; repeat split; auto; try omega.
 auto.
+Qed.
+
+Lemma sumbool_dec_iff: forall A B, {A} + {~A} -> (A <-> B) -> {B} + {~B}.
+Proof.
+  intros.
+  destruct H.
+  + left. tauto.
+  + right. tauto.
+Qed.
+
+Lemma sumbool_dec_and: forall A B, {A} + {~A} -> {B} + {~B} -> {A /\ B} + {~(A /\ B)}.
+Proof.
+  intros.
+  destruct H, H0.
+  + left; tauto.
+  + right; tauto.
+  + right; tauto.
+  + right; tauto.
+Qed.
+
+Lemma sumbool_dec_or: forall A B, {A} + {~A} -> {B} + {~B} -> {A \/ B} + {~(A \/ B)}.
+Proof.
+  intros.
+  destruct H, H0.
+  + left. tauto.
+  + left. tauto.
+  + left. tauto.
+  + right; tauto.
 Qed.
 
