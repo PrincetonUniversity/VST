@@ -62,9 +62,32 @@ Local Open Scope logic.
 Bind Scope pred with mpred.
 Local Open Scope pred.
 
-(* BEGIN from expr2.v *)
-
 Transparent mpred Nveric Sveric Cveric Iveric Rveric Sveric SIveric CSLveric CIveric SRveric.
+
+Lemma address_mapsto_readable:
+  forall m v rsh sh a, address_mapsto m v rsh sh a |-- 
+           !! readable_share (Share.splice rsh sh).
+Proof.
+intros.
+unfold address_mapsto, res_predicates.address_mapsto.
+unfold derives.
+simpl.
+intros ? ?.
+destruct H as [bl [[? [? ?]] ?]]. do 3 red.
+specialize (H2 a). hnf in H2.
+rewrite if_true in H2.
+destruct H2 as [p ?].
+clear - p.
+apply right_nonempty_readable.
+intros ?.
+apply identity_share_bot in H. subst.
+apply (p Share.bot).
+split. apply Share.glb_bot. apply Share.lub_bot.
+destruct a; split; auto.
+clear; pose proof (size_chunk_pos m); omega.
+Qed.
+
+(* BEGIN from expr2.v *)
 Definition denote_tc_iszero v : mpred :=
          match v with
          | Vint i => prop (is_true (Int.eq i Int.zero)) 

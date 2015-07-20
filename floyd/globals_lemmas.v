@@ -320,6 +320,12 @@ Proof.
 intros.
 go_lowerx.
 eapply derives_trans; [eapply tc_globalvar_sound'; try eassumption | ].
+assert (RS: forall sh', readable_share (Share.splice sh' (readonly2share (gvar_readonly gv)))).
+intros.
+apply right_nonempty_readable.
+unfold readonly2share.
+if_tac; auto.
+apply Lsh_nonidentity.
 forget (readonly2share (gvar_readonly gv)) as sh.
 normalize. apply exp_right with x. normalize.
 unfold init_data_list2pred.
@@ -346,7 +352,6 @@ rewrite H10.
    - omega.
    - omega.
    - apply Z.divide_0_r.
-   - apply readable_extern_retainer.
  + 
  unfold init_data2pred'.
  destruct idata; unfold_lift;
@@ -400,6 +405,13 @@ go_lowerx.
 eapply derives_trans; [eapply tc_globalvar_sound'; eassumption | ].
 normalize.
 apply exp_right with x.  normalize.
+assert (RS: forall sh', readable_share (Share.splice sh' (readonly2share (gvar_readonly gv)))).
+ {intros. 
+  apply right_nonempty_readable.
+  unfold readonly2share.
+  if_tac; auto.
+  apply Lsh_nonidentity.
+}
 forget (readonly2share (gvar_readonly gv)) as sh.
 (*rename H8 into H20. *)
 (* destruct (tc_eval_gvar_zero _ _ _ _ H7 H H0) as [b ?]. *)
@@ -426,7 +438,6 @@ apply sepcon_derives.
  split3; auto. omega.
   admit. 
  pose proof (init_data_list_size_pos idata); omega.
-  apply readable_extern_retainer.
 * specialize (IHidata (ofs + init_data_size a)).
 rewrite offset_offset_val.
 rewrite add_repr.
@@ -460,8 +471,7 @@ normalize.
 eapply derives_trans; [eapply tc_globalvar_sound; eassumption | ].
 simpl.
 rewrite data_at__memory_block; try tauto; 
-  try (unfold Int.max_unsigned in H5; omega);
-  try apply readable_extern_retainer.
+  try (unfold Int.max_unsigned in H5; omega).
 destruct (tc_eval_gvar_zero _ _ _ _ H6 H H0) as [b ?].
 rewrite H8 in H7 |- *.
 unfold mapsto_zeros. rewrite sepcon_emp.
@@ -481,7 +491,10 @@ apply andp_right.
   pose (sizeof_pos cenv_cs t).
   - unfold Int.max_unsigned in H5. omega.
   - unfold Int.max_unsigned in H5. omega.
-  - apply readable_extern_retainer.
+  - apply right_nonempty_readable.
+     unfold readonly2share.
+     if_tac; auto.
+     apply Lsh_nonidentity.
 Qed.
 
 Definition inttype2init_data (sz: intsize) : (int -> init_data) :=

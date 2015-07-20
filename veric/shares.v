@@ -84,9 +84,6 @@ Qed.
 
 Definition read_sh: pshare := fst (split_pshare pfullshare).
 
-(* ersh - "extern variable retainer share" is exactly half of a retainer share,
-     preventing this thread from freeing the extern, but assuring that nobody else
-     does so either. *)
 Definition extern_retainer : share := Share.Lsh.
 
 Lemma extern_retainer_neq_bot:
@@ -133,10 +130,6 @@ Admitted. (* share hacking *)
 
 Hint Resolve readable_nonidentity.
 
-Lemma readable_extern_retainer: forall sh,
-  readable_share (Share.splice extern_retainer sh).
-Admitted. (* share hacking *)
-
 Lemma misc_share_lemma1:
   forall sh, 
   Share.lub (Share.rel Share.Lsh (Share.unrel Share.Lsh sh))
@@ -164,4 +157,28 @@ Lemma glb_split: forall sh,
 Proof.
 Admitted.  (* share hacking *)
 
+Lemma right_nonempty_readable:
+  forall rsh sh, sepalg.nonidentity sh -> 
+     readable_share (Share.splice rsh sh).
+Proof.
+intros.
+unfold readable_share, Share.splice.
+rewrite Share.distrib1.
+rewrite <- (Share.rel_top1 Share.Rsh) at 2.
+rewrite <- Share.rel_preserves_glb.
+rewrite (Share.glb_commute Share.top).
+rewrite Share.glb_top.
+red in H. red. red. contradict H.
+Admitted.
+
+Lemma Lsh_nonidentity:   sepalg.nonidentity Share.Lsh.
+   (* copy me to veric/shares.v *)
+Proof.
+unfold Share.Lsh.
+destruct (Share.split Share.top) eqn:?. simpl; intro.
+apply identity_share_bot in H. subst.
+pose proof (Share.split_nontrivial _ _ _ Heqp).
+spec H;[auto | ].
+apply Share.nontrivial in H. auto.
+Qed.
 

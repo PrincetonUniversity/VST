@@ -155,7 +155,6 @@ rewrite Fcore_Raux.Rlt_bool_false by apply RIneq.Rle_refl.
 replace (Fcore_Raux.Zfloor 0) with 0.
 rewrite H0,H1. reflexivity.
 unfold Fcore_Raux.Zfloor.
-SearchAbout (Rdefinitions.up).
 replace (Rdefinitions.up 0) with 1; [reflexivity |].
 apply R_Ifp.tech_up; simpl.
 apply RIneq.Rlt_0_1.

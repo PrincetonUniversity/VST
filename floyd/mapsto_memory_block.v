@@ -44,11 +44,6 @@ Lemmas about mapsto and mapsto_.
 
 ******************************************)
 
-Lemma address_mapsto_readable:
-  forall m v rsh sh a, address_mapsto m v rsh sh a |-- 
-           !! readable_share (Share.splice rsh sh).
-Admitted.
-
 Lemma mapsto_readable:
   forall sh t v v', mapsto sh t v v' = !! readable_share sh && mapsto sh t v v'.
 Proof.
