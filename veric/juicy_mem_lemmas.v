@@ -6,6 +6,7 @@ Import Mem.
 Require Import msl.msl_standard.
 Require Import veric.juicy_mem.
 Require Import veric.res_predicates.
+Require Import veric.shares.
 
 Definition juicy_mem_core (j: juicy_mem) : rmap := core (m_phi j).
 

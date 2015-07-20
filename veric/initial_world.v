@@ -121,7 +121,6 @@ Lemma split_top_neq: fst (Share.split Share.top) <> Share.top.
 Proof.
 case_eq (Share.split Share.top); intros; simpl.
 eapply nonemp_split_neq1; eauto.
-apply top_share_nonidentity.
 Qed.
 
 Lemma dec_pure: forall r, {exists k, exists pp, r = PURE k pp}+{core r = NO Share.bot}.

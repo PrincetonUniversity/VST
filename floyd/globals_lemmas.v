@@ -301,10 +301,6 @@ intros H1 HH H1' H6' H6 H7 H8 H1'' RS.
   rewrite H0. rewrite H15. auto.
 Qed.
 
-Lemma readable_extern_retainer: forall sh,
-  readable_share (Share.splice extern_retainer sh).
-Admitted. (* share hacking *)
-
 Lemma unpack_globvar  {cs: compspecs}  {csl: compspecs_legal cs}:
   forall Delta i t gv idata, 
    (var_types Delta) ! i = None ->
@@ -901,9 +897,6 @@ Lemma start_main_pre:
   forall p u Q, main_pre p u * Q = PROP() LOCAL() (SEP (main_pre p u;Q)).
 Proof. intros. unfold_for_go_lower. simpl. extensionality rho; normalize.
 Qed.
-
-Definition Ers (* Extern read share *) := 
-    Share.splice extern_retainer Share.Lsh.
 
 Definition is_Tint sz t :=
   match t with 

@@ -1075,6 +1075,88 @@ destruct n; intros; simpl; auto; try omega.
 pose proof (Zgt_pos_0 p); omega.
 Qed.
 
+Lemma testbit_signed_neg:
+ forall i j n,
+   - two_p n <= Int.signed i < 0 ->
+    0 <= n <= j ->
+    j < Int.zwordsize ->
+   Int.testbit i j = true.
+Proof.
+intros. rename H1 into Wj.
+pose proof (Int.unsigned_range i).
+unfold Int.signed in H.
+if_tac in H. omega.
+unfold Int.testbit.
+forget (Int.unsigned i) as i'; clear i; rename i' into i.
+rewrite <- (Z2Nat.id j) in * by omega.
+unfold Int.half_modulus in *.
+unfold Int.modulus in *.
+unfold Int.zwordsize in Wj.
+forget Int.wordsize as W.
+assert (Z.to_nat j < W)%nat by (apply Nat2Z.inj_lt; auto).
+clear Wj.
+assert (W = Z.to_nat j + 1 + (W-Z.to_nat j-1))%nat by omega.
+forget (W - Z.to_nat j - 1)%nat as K.
+subst W.
+clear H3.
+rewrite <- (Z2Nat.id n) in * by omega.
+rewrite <- two_power_nat_two_p in H.
+assert (Z.to_nat n <= Z.to_nat j)%nat.
+apply Nat2Z.inj_le; omega. clear H0.
+forget (Z.to_nat n) as n'; clear n; rename n' into n.
+forget (Z.to_nat j) as j'; clear j; rename j' into j.
+destruct H as [H _].
+revert n i H3 H2 H  H1; induction j; intros.
+*
+simpl (Z.of_nat) in *.
+assert (n=0)%nat by omega. subst n.
+simpl plus in *. clear H3.
+change (- two_power_nat 0) with (-1) in H.
+assert (i = (two_power_nat (S K) - 1)) by omega. subst i.
+rewrite two_power_nat_S.
+clear.
+forget (two_power_nat K) as A.
+replace A with ((A-1)+1) by omega.
+rewrite Z.mul_add_distr_l.
+replace (2 * (A - 1) + 2 * 1 - 1) with (2 * (A - 1) + 1) by omega.
+apply Z.testbit_odd_0.
+*
+destruct n.
+change (- two_power_nat 0)%Z with (-1) in H.
+assert (i = two_power_nat (S j + 1 + K) - 1) by omega.
+clear H H1 H2.
+subst i.
+replace (two_power_nat (S j + 1 + K) - 1) with (Z.ones (Z.of_nat (S j + 1 + K))).
+apply Z.ones_spec_low. split; [omega | ].
+apply Nat2Z.inj_lt. omega.
+rewrite Z.ones_equiv.
+rewrite two_power_nat_equiv.
+omega.
+rewrite inj_S.
+rewrite Int.Ztestbit_succ by omega.
+apply (IHj n); clear IHj.
++
+omega.
++
+rewrite Zdiv2_div.
+apply Z_div_ge; try omega.
+replace (S j + 1 + K)%nat with (S (j + 1 + K))%nat in H2 by omega.
+rewrite two_power_nat_S in H2.
+rewrite Z.mul_comm in H2.
+rewrite Z_div_mult_full in H2 by omega. auto.
++
+rewrite two_power_nat_S in H.
+replace (S j + 1 + K)%nat with (S (j + 1 + K))%nat in H by omega.
+rewrite two_power_nat_S in H.
+rewrite (Zdiv2_odd_eqn i) in H.
+destruct (Z.odd i) eqn:?H; omega.
++
+replace (S j + 1 + K)%nat with (S (j + 1 + K))%nat in H1 by omega.
+rewrite two_power_nat_S in H1.
+rewrite (Zdiv2_odd_eqn i) in H1.
+destruct (Z.odd i) eqn:?H; omega.
+Qed.
+
 Lemma sign_ext_inrange:
   forall n i, - two_p (n-1) <= Int.signed i <= two_p (n-1) - 1 ->
        Int.sign_ext n i = i.
@@ -1094,7 +1176,38 @@ rewrite <- (Int.repr_signed i).
 rewrite H0. reflexivity.
 assert (0 < n < Int.zwordsize) by omega.
 clear - H H0.
-Admitted.  (* tedious... *)
+
+apply Int.same_bits_eq; intros j ?.
+destruct H0.
+rewrite (Int.bits_sign_ext n i j H1 H0).
+if_tac; auto.
+destruct H1.
+destruct (zlt (Int.signed i) 0).
+* (* negative *)
+assert (- two_p (n - 1) <= Int.signed i  < 0) by omega.
+clear H.
+rewrite (testbit_signed_neg i (n-1) (n-1)); auto; try omega.
+rewrite (testbit_signed_neg i j (n-1)); auto; omega.
+* (* nonnegative *)
+rewrite Int.signed_eq_unsigned in H by (apply Int.signed_positive; auto).
+unfold Int.testbit in *.
+transitivity false.
+apply (Int.Ztestbit_above (Z.to_nat (n-1))).
+rewrite two_power_nat_two_p.
+rewrite Z2Nat.id by omega.
+pose proof (Int.unsigned_range i).
+omega.
+rewrite Z2Nat.id by omega.
+omega.
+symmetry.
+apply (Int.Ztestbit_above (Z.to_nat (n-1))).
+rewrite two_power_nat_two_p.
+rewrite Z2Nat.id by omega.
+pose proof (Int.unsigned_range i).
+omega.
+rewrite Z2Nat.id by omega.
+omega.
+Qed.
 
 Lemma zero_ext_inrange:
   forall n i, Int.unsigned i <= two_p n - 1 ->
@@ -1116,7 +1229,17 @@ rewrite <- (Int.repr_unsigned i).
 rewrite H0. reflexivity.
 assert (0 < n < Int.zwordsize) by omega.
 clear - H H0.
-Admitted.  (* tedious... *)
+apply Int.same_bits_eq; intros j ?.
+rewrite (Int.bits_zero_ext n i j) by omega.
+if_tac; auto.
+symmetry.
+unfold Int.testbit.
+apply (Int.Ztestbit_above (Z.to_nat n));
+ [ | rewrite Z2Nat.id by omega; omega].
+rewrite two_power_nat_two_p.
+rewrite Z2Nat.id by omega.
+pose proof (Int.unsigned_range i); omega.
+Qed.
 
 Program Definition valid_pointer' (p: val) (d: Z) : mpred := 
  match p with

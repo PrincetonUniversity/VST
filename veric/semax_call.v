@@ -993,9 +993,6 @@ Proof.
     auto.
 Qed.
 
-Lemma readable_share_top:
-  readable_share Share.top.
-Admitted. (* share hacking *)
 
 Lemma stackframe_of_freeable_blocks:
   forall Delta f rho ge ve,

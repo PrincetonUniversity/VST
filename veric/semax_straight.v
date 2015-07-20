@@ -188,7 +188,7 @@ apply identity_share_bot in RJ. subst t0.
 replace (Share.unrel Share.Lsh Share.bot) with Share.bot.
 apply bot_identity.
 symmetry.
-admit.  (* share hacking *)
+apply unrel_bot.
 Qed. 
 
 Lemma mapsto_is_pointer : forall sh t m v,
@@ -1531,15 +1531,6 @@ try rewrite Int.zero_ext_idem; auto; simpl; try omega;
 try solve [if_tac; auto].
 Qed. 
 
-Lemma writable_readable:
- forall sh, writable_share sh -> readable_share sh.
-Proof.
-unfold writable_share, readable_share.
-intros.
-intro.
-Admitted. (* share hacking *)
-
-Hint Resolve writable_readable.
 
 Lemma semax_store:
  forall Delta e1 e2 sh P, 

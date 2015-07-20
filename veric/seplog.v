@@ -9,22 +9,11 @@ Require Import veric.res_predicates.
 Require Import veric.tycontext.
 Require Import veric.expr2.
 Require Import veric.binop_lemmas2.
+Require Export veric.shares.
 
 Definition assert := environ -> mpred.  (* Unfortunately
    can't export this abbreviation through SeparationLogic.v because
   it confuses the Lift system *)
-
-Definition writable_share (sh: share) := Share.unrel Share.Rsh sh = Share.top.
-
-Lemma writable_share_dec: forall sh, {writable_share sh} + {~ writable_share sh}.
-Proof.
-  intros.
-  unfold writable_share.
-  apply Share.EqDec_share.
-Qed.
-
-Lemma writable_share_right: forall sh, writable_share sh -> Share.unrel Share.Rsh sh = Share.top.
-Proof. (* apply Share.contains_Rsh_e.*) auto. Qed.
 
 Lemma address_mapsto_exists:
   forall ch v rsh (sh: pshare) loc w0
@@ -149,17 +138,6 @@ destruct sz, sgn, v; (try rewrite FF_and; auto);
  destruct H6; subst; 
   try rewrite Int.unsigned_zero; try rewrite Int.unsigned_one; omega.
 Qed.
-
-Definition readable_share (sh: share) :=
-   Share.glb Share.Rsh sh <> Share.bot.
-
-Lemma readable_share_dec:
-  forall sh, {readable_share sh}+{~ readable_share sh}.
-Proof.
-intros.
-unfold readable_share.
-destruct (eq_dec (Share.glb Share.Rsh sh) Share.bot); [right|left]; intuition.
-Defined.
 
 Definition mapsto_ sh t v1 := 
   if readable_share_dec sh

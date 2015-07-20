@@ -67,7 +67,7 @@ normalize.
 apply address_mapsto_readable.
 unfold Share.splice.
 f_equal.
-admit. (* share hacking *)
+apply misc_share_lemma1.
 Qed.
 
 Lemma mapsto_mapsto_: forall sh t v v', mapsto sh t v v' |-- mapsto_ sh t v.
@@ -114,8 +114,7 @@ unfold mapsto_.
 if_tac.
 eapply derives_trans.
 apply mapsto_local_facts.
-normalize. split; auto.
-admit. (* share hacking *)
+normalize.
 apply permission_block_local_facts.
 Qed.
 Hint Resolve permission_block_local_facts mapsto_local_facts mapsto__local_facts : saturate_local.

@@ -7,6 +7,7 @@ Require Import msl.msl_standard.
 Import cjoins.
 Require Import veric.juicy_mem.
 Require Import veric.juicy_mem_lemmas.
+Require Import veric.shares.
 
 Module Type JUICY_MEM_OPS.
 Parameter juicy_mem_store

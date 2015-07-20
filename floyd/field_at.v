@@ -1327,10 +1327,6 @@ Opaque memory_block.
   omega.
 Qed.
 
-Lemma readable_nonidentity: forall sh, readable_share sh -> sepalg.nonidentity sh.
-Proof.
-Admitted. (* share hacking *)
-
 Lemma field_at_conflict: forall sh t fld p v v',
   sepalg.nonidentity sh ->
   0 < sizeof cenv_cs (nested_field_type2 t fld) < Int.modulus ->

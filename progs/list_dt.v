@@ -1231,15 +1231,18 @@ Lemma join_cell_link (ls: listspec list_structid list_link):
  rewrite if_true.
 Focus 2. {
   clear - H H1;
-        unfold readable_share in *;
-        contradict H1.
+        unfold readable_share in *.
+  unfold nonempty_share, sepalg.nonidentity in *.
+  contradict H1.
   assert (Share.Ord bsh psh) 
     by (apply leq_join_sub; eexists; eauto).
   apply Share.ord_spec1 in H0. rewrite H0.
   rewrite <- Share.glb_assoc.
   rewrite (Share.glb_commute Share.Rsh).
-  rewrite Share.glb_assoc. rewrite H1.
-  apply Share.glb_bot.
+  rewrite Share.glb_assoc.
+  apply identity_share_bot in  H1. rewrite H1.
+  rewrite Share.glb_bot.
+  apply bot_identity.
 } Unfocus.
  apply pred_ext.
 *

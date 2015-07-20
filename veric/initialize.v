@@ -349,6 +349,73 @@ Proof.
   inv Heqm1.
 Qed.
 
+Lemma read_as_zero_lem1:
+ forall m b z len,
+  (forall i, z <= i < z+len ->
+     load Mint8unsigned m b i = Some (Vint Int.zero)) ->
+  Genv.read_as_zero m b z len.
+Proof.
+intros; hnf; intros.
+transitivity
+  (Some (decode_val chunk (list_repeat (size_chunk_nat chunk) (Byte Byte.zero)))).
+2: destruct chunk; reflexivity.
+apply loadbytes_load; auto.
+clear H2.
+rewrite size_chunk_conv in *.
+(* pose proof (loadbytes_load Mint8unsigned m b). *)
+forget (size_chunk_nat chunk) as n.
+assert (forall i, p <= i < p + (Z.of_nat n) ->
+                     loadbytes m b i 1 = Some (Byte Byte.zero::nil)).
+intros.
+specialize (H i).
+spec H; [ omega |].
+apply load_loadbytes in H.
+destruct H as [j [? ?]].
+destruct j; inv H3;
+ try solve [apply loadbytes_length in H;inv H].
+destruct j; inv H5;
+ try solve [apply loadbytes_length in H;inv H].
+destruct m0; try solve [inv H4].
+rewrite (decode_byte_val i0) in H4.
+simpl in H.
+rewrite H. repeat f_equal.
+clear - H4.
+rewrite zero_ext_inrange in H4.
+assert (Int.unsigned Int.zero = Int.unsigned (Int.repr (Byte.unsigned i0))) by congruence.
+rewrite Int.unsigned_zero in H.
+rewrite Int.unsigned_repr in H.
+assert (Byte.repr 0 = Byte.repr (Byte.unsigned i0)) by congruence.
+rewrite Byte.repr_unsigned in H0.
+rewrite <- H0. reflexivity.
+clear.
+pose proof (Byte.unsigned_range i0).
+destruct H;
+ split; auto.
+apply Z.le_trans with Byte.modulus.
+omega.
+compute; congruence.
+rewrite Int.unsigned_repr.
+pose proof (Byte.unsigned_range i0).
+change (two_p 8) with Byte.modulus; omega.
+pose proof (Byte.unsigned_range i0).
+assert (Byte.modulus < Int.max_unsigned) by (compute; congruence).
+omega.
+clear - H2.
+revert p H2; induction n; intros.
+simpl.
+apply loadbytes_empty. omega.
+rewrite inj_S. unfold Z.succ.
+rewrite Z.add_comm.
+change (list_repeat (S n) (Byte Byte.zero)) with
+ (list_repeat 1 (Byte Byte.zero) ++ list_repeat n (Byte Byte.zero)).
+apply loadbytes_concat.
+apply H2. rewrite inj_S; omega.
+apply IHn.
+intros.
+apply H2.  rewrite inj_S; omega.
+omega. omega.
+Qed.
+
 Lemma load_store_init_data_lem1:
   forall {ge m1 b D m2 m3},
    store_zeros m1 b 0 (Genv.init_data_list_size D) = Some m2 ->
@@ -372,7 +439,8 @@ Proof.
   invSome.
   spec H2. {
     clear - H1.
-    admit. (* need a proof about read_as_zero *)
+    apply read_as_zero_lem1; intros; apply H1.
+    omega.
   }
   destruct a; simpl in H2|-*; try solve [destruct H2; auto]; intros.
   rewrite (Genv.store_init_data_list_outside ge dl _ H4) by (right; simpl; omega).
@@ -411,7 +479,8 @@ Proof.
   simpl app in H2.
   spec H2. {
      clear - H1.
-     admit.  (* read_as_zero, seems fine. *)
+     apply read_as_zero_lem1; intros.
+     apply H1. simpl; auto.
   }
   clear - H2.
   forget (dl'++a::dl) as D.

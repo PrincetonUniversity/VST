@@ -17,6 +17,7 @@ Require Export veric.tycontext.
 Require Export veric.expr.
 Require Export veric.expr_rel.
 Require Export veric.Clight_lemmas.
+Require Export veric.shares.
 Require veric.seplog.
 Require veric.assert_lemmas. 
 Require Import msl.Coqlib2.
@@ -261,14 +262,6 @@ Definition mapsto (sh: Share.t) (t: type) (v1 v2 : val): mpred :=
   | _ => FF
   end. 
 
-Definition readable_share (sh: share) :=
-   Share.glb Share.Rsh sh <> Share.bot.
-
-Lemma readable_share_dec:
-  forall sh, {readable_share sh}+{~ readable_share sh}.
-exact seplog.readable_share_dec.
-Defined.
-
 Definition permission_block (sh: share)  (v: val) (t: type) : mpred :=
     match access_mode t with
          | By_value ch => 
@@ -285,10 +278,6 @@ Definition mapsto_ sh t v1 :=
   if readable_share_dec sh
   then mapsto sh t v1 Vundef
   else permission_block sh v1 t.
-
-Definition Tsh : share := Share.top.
-
-Definition writable_share: share -> Prop := fun sh => Share.unrel Share.Rsh sh = Tsh.
 
 Fixpoint address_mapsto_zeros (sh: share) (n: nat) (adr: address) : mpred :=
  match n with

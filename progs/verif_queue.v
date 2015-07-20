@@ -46,30 +46,25 @@ Qed.
 Definition Qsh : share := fst (Share.split Share.Lsh).
 Definition Qsh' := Share.lub (snd (Share.split Share.Lsh)) Share.Rsh.
 
-Lemma sub_glb_bot:
-  forall r a c : share,
-   sepalg.join_sub a c ->
-   Share.glb r c = Share.bot ->
-   Share.glb r a = Share.bot.
+Lemma readable_share_Qsh': readable_share Qsh'.
 Proof.
-intros.
-apply leq_join_sub in H.
-apply Share.ord_spec1 in H.
-rewrite H. rewrite <- Share.glb_assoc.
-rewrite (Share.glb_commute r).
-rewrite Share.glb_assoc. rewrite H0.
-apply Share.glb_bot.
-Qed.
-
-Lemma glb_split: forall sh,
- Share.glb (fst (Share.split sh)) (snd (Share.split sh)) = Share.bot.
-Proof.
-Admitted.  (* share hacking *)
+unfold readable_share, Qsh'.
+rewrite Share.distrib1.
+rewrite Share.glb_idem.
+rewrite Share.lub_commute.
+rewrite Share.lub_absorb.
+apply readable_nonidentity.
+apply writable_readable.
+apply Share.contains_Rsh_e.
+apply sepalg.join_sub_refl.
+Qed.  (* share hacking *)
 
 Lemma Qsh_not_readable: ~ readable_share Qsh.
 Proof.
 unfold Qsh, readable_share; intro.
+unfold nonempty_share in H.
 apply H; clear H.
+assert (Share.glb Share.Rsh (fst (Share.split Share.Lsh)) = Share.bot).
 apply sub_glb_bot with Share.Lsh.
 exists (snd (Share.split Share.Lsh)).
 apply split_join.
@@ -77,6 +72,8 @@ destruct (Share.split Share.Lsh); reflexivity.
 unfold Share.Rsh, Share.Lsh.
 rewrite Share.glb_commute.
 apply glb_split.
+rewrite H.
+apply bot_identity.
 Qed.
 
 Hint Resolve Qsh_not_readable. 
@@ -124,10 +121,6 @@ apply split_join in H. destruct H.
 apply H4.
 Qed.
 
-Lemma readable_share_Qsh': readable_share Qsh'.
-Proof.
-unfold readable_share, Qsh'.
-Admitted.  (* share hacking *)
 
 Lemma field_at_list_cell_weak:
   forall sh i j p, 
@@ -402,7 +395,7 @@ Proof.
 
 Lemma readable_nonidentity_share:
   forall sh, readable_share sh -> sepalg.nonidentity sh.
-Admitted. (* share hacking *)
+Admitted. (* share hackSing *)
 Hint Resolve readable_nonidentity_share.
 
 Lemma body_fifo_put: semax_body Vprog Gprog f_fifo_put fifo_put_spec.
@@ -464,7 +457,6 @@ forward_if
      end.
      (* prevent it from canceling! *)
      cancel. subst A.
-     Locate lseg_cons_right.
      eapply derives_trans; [ |
        apply (lseg_cons_right_neq _ _ _ _ _ (Vundef,Vundef));
         auto ].

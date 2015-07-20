@@ -2,6 +2,7 @@ Require Import veric.base.
 Require Import veric.rmaps.
 Require Import veric.rmaps_lemmas.
 Require Import veric.compcert_rmaps.
+Require Import veric.shares.
 Import Mem.
 Require Import msl.msl_standard.
 Import cjoins.
@@ -510,13 +511,6 @@ Variables (m: mem) (phi: rmap).
 Lemma phi_valid: valid (resource_at phi).
 Proof. unfold valid; apply rmap_valid. Qed.
 
-Definition read_sh: pshare := fst (split_pshare pfullshare).
-
-(* ersh - "extern variable retainer share" is exactly half of a retainer share,
-     preventing this thread from freeing the extern, but assuring that nobody else
-     does so either. *)
-Definition extern_retainer : share := Share.Lsh.
-
 Definition inflate_initial_mem' (w: rmap) (loc: address) :=
    match access_at m loc with
            | Some Freeable => YES Share.top pfullshare (VAL (contents_at m loc)) NoneP
@@ -768,12 +762,6 @@ unfold perm_of_sh in H.
 repeat if_tac in H; solve [inversion H | auto].
 Qed.
 
-Lemma top_pfullshare: forall psh, pshare_sh psh = Share.top -> psh = pfullshare.
-Proof.
-intros psh H.
-apply lifted_eq; auto.
-Qed.
-
 Lemma nextblock_access_empty: forall m b ofs, (b >= nextblock m)%positive
   -> access_at m (b, ofs) = None.
 Proof.
@@ -830,36 +818,6 @@ Proof.
 intros. unfold perm_of_sh. rewrite if_false. rewrite if_true by auto.
 rewrite if_true by auto. auto.
 intro; contradiction Share.nontrivial; auto.
-Qed.
-
-
-Lemma fst_split_fullshare_not_bot: fst (Share.split fullshare) <> Share.bot.
-Proof.
-intro.
-case_eq (Share.split fullshare); intros.
-rewrite H0 in H. simpl in H. subst.
-apply Share.split_nontrivial in H0; auto.
-apply Share.nontrivial in H0. contradiction.
-Qed.
-
-Lemma fst_split_fullshare_not_top: fst (Share.split fullshare) <> Share.top.
-Proof.
-case_eq (Share.split fullshare); intros.
-simpl; intro. subst.
-apply nonemp_split_neq1 in H.
-apply H; auto.
-apply top_share_nonidentity.
-Qed.
-
-
-Lemma extern_retainer_neq_bot:
-  extern_retainer <> Share.bot.
-apply fst_split_fullshare_not_bot.
-Qed.
-
-Lemma extern_retainer_neq_top:
-  extern_retainer <> Share.top.
-apply fst_split_fullshare_not_top.
 Qed.
 
 Definition initial_mem (m: mem) lev (IOK: initial_rmap_ok m lev) : juicy_mem.

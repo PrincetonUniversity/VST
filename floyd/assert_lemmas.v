@@ -76,21 +76,6 @@ Hint Rewrite Z.mul_1_l Z.mul_1_r Z.add_0_l Z.add_0_r : norm.
 
 Definition nullval : val := Vint Int.zero.
 
-Lemma writable_share_top: writable_share Tsh.
-Proof.
-apply Share.contains_Rsh_e. apply top_correct'.
-Qed.
-Hint Resolve writable_share_top.
-
-Lemma writable_readable_share:
- forall sh, writable_share sh -> readable_share sh.
-Proof.
-unfold writable_share, readable_share.
-intros.
-intro.
-Admitted. (* share hacking *)
-Hint Resolve writable_readable_share.
-
 Lemma subst_derives:
   forall id e P Q, P |-- Q -> subst id e P |-- subst id e Q.
 Proof.
@@ -579,8 +564,6 @@ Lemma eval_expropt_None: forall Delta, eval_expropt Delta None = `None.
 Proof. reflexivity. Qed.
 Hint Rewrite eval_expropt_Some eval_expropt_None : eval.
 
-Definition Ews (* extern_write_share *) := Share.splice extern_retainer Tsh.
-
 Lemma globvar_eval_var:
   forall Delta rho id t,
       tc_environ Delta rho ->
@@ -609,14 +592,6 @@ Proof. intros. unfold globvars2pred.
    induction vl; simpl; auto. normalize; f_equal; auto.
 Qed.
 Hint Rewrite globvars2pred_unfold : norm.
-
-Lemma writable_Ews: writable_share Ews.
-Proof.
-hnf; intros.
-unfold Ews,  extern_retainer.
-apply Share.unrel_splice_R.
-Qed.
-Hint Resolve writable_Ews.
 
 Lemma offset_offset_val:
   forall v i j, offset_val j (offset_val i v) = offset_val (Int.add i j) v.
