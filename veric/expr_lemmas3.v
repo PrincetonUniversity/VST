@@ -75,33 +75,307 @@ Proof. intros; extensionality rho.
  if_tac; auto. apply denote_tc_assert_iszero.
 Qed.
 
+Lemma Z2R_pow_0_lt:
+  forall e, 
+  0 <= e ->
+  Rdefinitions.Rlt 0 (Fcore_Raux.Z2R (2 ^ e)).
+Proof.
+intros.
+rewrite <- (Z2Nat.id e) by auto.
+clear.
+induction (Z.to_nat e).
+simpl.
+apply RIneq.Rlt_0_1.
+rewrite inj_S.
+rewrite Z.pow_succ_r by omega.
+rewrite Fcore_Raux.Z2R_mult.
+apply RIneq.Rmult_lt_0_compat; auto.
+simpl.
+clear.
+apply DiscrR.Rlt_R0_R2.
+Qed.
+
+Definition general_offloat (prec emax : Z)
+    (f:  Fappli_IEEE.binary_float prec emax) : option Z :=
+  match f with
+  | Fappli_IEEE.B754_zero _ => Some 0
+  | Fappli_IEEE.B754_infinity _ => None
+  | Fappli_IEEE.B754_nan _ _ => None
+  | Fappli_IEEE.B754_finite s m 0 _ => Some (Fcore_Zaux.cond_Zopp s (Z.pos m))
+  | Fappli_IEEE.B754_finite s m (Z.pos e) _ =>
+      Some (Fcore_Zaux.cond_Zopp s (Z.pos m) * Z.pow_pos 2 e)
+  | Fappli_IEEE.B754_finite s m (Z.neg e) _ =>
+      Some (Fcore_Zaux.cond_Zopp s (Z.pos m / Z.pow_pos 2 e))
+  end.
+
+Definition general_float_to_int (prec emax : Z) (lo hi: Z) (f: Fappli_IEEE.binary_float prec emax) : option int :=
+ option_map Int.repr
+   (Fappli_IEEE_extra.ZofB_range prec emax f lo hi).
+
+Goal Zoffloat = general_offloat 53 1024.
+reflexivity.
+Qed.
+
+Goal Zofsingle = general_offloat 24 128.
+reflexivity.
+Qed.
+
+Goal Float.to_int = general_float_to_int 53 1024 Int.min_signed Int.max_signed.
+reflexivity.
+Qed.
+
+Goal Float.to_intu = general_float_to_int 53 1024 0 Int.max_unsigned.
+reflexivity.
+Qed.
+
+Goal Float32.to_int = general_float_to_int 24 128 Int.min_signed Int.max_signed.
+reflexivity.
+Qed.
+
+Goal Float32.to_intu = general_float_to_int 24 128 0 Int.max_unsigned.
+reflexivity.
+Qed.
+
+Lemma general_float_to_int_ok:
+  forall prec emax lo hi f z, 
+    general_offloat prec emax f = Some z ->
+    lo <= z <= hi ->
+    general_float_to_int prec emax lo hi f = Some (Int.repr z).
+Proof.
+intros.
+unfold general_offloat in H.
+unfold general_float_to_int.
+destruct H0 as [H0 H1].
+apply Z.leb_le in H0; apply Z.leb_le in H1.
+destruct f; inv H.
+{ (* zero case *)
+rewrite Fappli_IEEE_extra.ZofB_range_correct. simpl.
+unfold Fcore_Raux.Ztrunc.
+rewrite Fcore_Raux.Rlt_bool_false by apply RIneq.Rle_refl.
+replace (Fcore_Raux.Zfloor 0) with 0.
+rewrite H0,H1. reflexivity.
+unfold Fcore_Raux.Zfloor.
+SearchAbout (Rdefinitions.up).
+replace (Rdefinitions.up 0) with 1; [reflexivity |].
+apply R_Ifp.tech_up; simpl.
+apply RIneq.Rlt_0_1.
+rewrite Raxioms.Rplus_comm.
+rewrite RIneq.Rplus_0_r. apply RIneq.Rle_refl.
+}
+(* nonzero case *)
+destruct (zle 0 e).
+* (* 0 <= e *)
+assert (z = Fcore_Zaux.cond_Zopp b (Z.pos m) * Z.pow 2 e). {
+  destruct e; inv H3.
+  rewrite Z.pow_0_r. rewrite Z.mul_1_r. auto.
+  rewrite Zpower_pos_nat. rewrite Zpower_nat_Z.
+  rewrite positive_nat_Z; auto.
+  pose proof (Pos2Z.neg_is_neg p); omega.
+}
+clear H3. subst z.
+rewrite Fappli_IEEE_extra.ZofB_range_correct.
+replace 
+   (Fcore_Raux.Ztrunc
+      (Fappli_IEEE.B2R prec emax (Fappli_IEEE.B754_finite prec emax b m e e0)))
+  with (Fcore_Zaux.cond_Zopp b (Z.pos m) * 2^e).
+rewrite H0,H1; clear H0 H1.
+rewrite (Fappli_IEEE_extra.is_finite_strict_finite prec emax).
+reflexivity.
+reflexivity.
+unfold Fcore_Zaux.cond_Zopp.
+unfold Fcore_Raux.Ztrunc.
+destruct b; [rewrite Fcore_Raux.Rlt_bool_true | rewrite Fcore_Raux.Rlt_bool_false].
++
+unfold Fappli_IEEE.B2R.
+unfold Fcore_Zaux.cond_Zopp.
+unfold Fcore_Raux.Zceil.
+unfold Fcore_Raux.Zfloor.
+symmetry; apply Fcore_Raux.Zceil_imp; split.
+eapply RIneq.Rlt_le_trans.
+apply Fcore_Raux.Z2R_lt.
+instantiate (1 := - Z.pos m * 2 ^ e). omega.
+unfold Fcore_defs.F2R.
+rewrite Fcore_Raux.Z2R_mult.
+match goal with |- _ ?A ?B => replace B with A; [apply RIneq.Rle_refl | ] end.
+f_equal.
+simpl.
+rewrite <- Fcore_Raux.Z2R_Zpower by auto.
+reflexivity.
+match goal with |- _ ?A ?B => replace B with A; [apply RIneq.Rle_refl | ] end.
+unfold Fcore_defs.F2R. 
+rewrite Fcore_Raux.Z2R_mult.
+simpl.
+rewrite <- Fcore_Raux.Z2R_Zpower by auto.
+simpl.
+auto.
++
+simpl. unfold Fcore_defs.F2R.
+simpl.
+rewrite RIneq.Ropp_mult_distr_l_reverse.
+apply RIneq.Ropp_lt_gt_0_contravar.
+unfold Rdefinitions.Rgt.
+apply RIneq.Rmult_lt_0_compat.
+clear.
+rewrite Fcore_Raux.P2R_INR.
+apply RIneq.lt_0_INR.
+apply Pos2Nat.is_pos.
+simpl.
+rewrite <- Fcore_Raux.Z2R_Zpower by auto.
+simpl.
+apply Z2R_pow_0_lt; auto.
++
+unfold Fappli_IEEE.B2R.
+unfold Fcore_Zaux.cond_Zopp.
+symmetry; apply Fcore_Raux.Zfloor_imp; split.
+match goal with |- _ ?A ?B => replace B with A; [apply RIneq.Rle_refl | ] end.
+unfold Fcore_defs.F2R. 
+rewrite Fcore_Raux.Z2R_mult.
+simpl.
+rewrite <- Fcore_Raux.Z2R_Zpower by auto.
+simpl.
+auto.
+unfold Fcore_defs.F2R.
+simpl Rdefinitions.Rmult.
+eapply RIneq.Rle_lt_trans.
+instantiate (1:= (Fcore_Raux.Z2R (Z.pos m * 2 ^ e ))).
+rewrite Fcore_Raux.Z2R_mult.
+rewrite !Fcore_Raux.P2R_INR.
+rewrite <- Fcore_Raux.Z2R_Zpower by auto.
+simpl.
+match goal with |- _ ?A ?B => replace B with A; [apply RIneq.Rle_refl | ] end.
+f_equal.
+symmetry; apply Fcore_Raux.P2R_INR.
+rewrite Fcore_Raux.Z2R_plus.
+rewrite Raxioms.Rplus_comm.
+rewrite <- RIneq.Rplus_0_r at 1.
+rewrite Raxioms.Rplus_comm at 1.
+apply RIneq.Rplus_lt_le_compat.
+apply RIneq.Rlt_0_1.
+apply RIneq.Req_le. auto.
++
+unfold Fappli_IEEE.B2R.
+unfold Fcore_Zaux.cond_Zopp.
+unfold Fcore_defs.F2R.
+simpl.
+apply RIneq.Rmult_le_pos.
+rewrite Fcore_Raux.P2R_INR.
+apply RIneq.pos_INR.
+rewrite <- Fcore_Raux.Z2R_Zpower by auto.
+simpl.
+apply RIneq.Rlt_le.
+apply Z2R_pow_0_lt; auto.
+* (* e < 0 *)
+assert (HH: (Fcore_Raux.Z2R (2 ^ (- e))) <> Rdefinitions.R0). {
+(*apply RIneq.Rinv_neq_0_compat. *)
+assert (Rdefinitions.R0 <> Fcore_Raux.Z2R (2 ^ (- e))); auto.
+apply RIneq.Rlt_not_eq.
+apply (Z2R_pow_0_lt (-e)).
+omega.
+}
+assert (z = Fcore_Zaux.cond_Zopp b (Z.pos m / Z.pow 2 (- e))). {
+  destruct e; inv H3.
+  omega. pose proof (Zgt_pos_0 p); omega. clear g.
+  rewrite Zpower_pos_nat. rewrite Zpower_nat_Z.
+  rewrite positive_nat_Z; auto.
+}
+clear H3. subst z.
+rewrite Fappli_IEEE_extra.ZofB_range_correct.
+replace 
+   (Fcore_Raux.Ztrunc
+      (Fappli_IEEE.B2R prec emax (Fappli_IEEE.B754_finite prec emax b m e e0)))
+  with (Fcore_Zaux.cond_Zopp b (Z.pos m / 2^(-e))).
+rewrite H0,H1; clear H0 H1.
+rewrite (Fappli_IEEE_extra.is_finite_strict_finite prec emax).
+reflexivity.
+reflexivity.
+unfold Fcore_Zaux.cond_Zopp.
+unfold Fcore_Raux.Ztrunc.
+destruct b; [rewrite Fcore_Raux.Rlt_bool_true | rewrite Fcore_Raux.Rlt_bool_false].
++
+clear - g.
+unfold Fappli_IEEE.B2R.
+unfold Fcore_Zaux.cond_Zopp.
+unfold Fcore_Raux.Zceil.
+f_equal.
+unfold Fcore_defs.F2R.
+simpl.
+rewrite RIneq.Ropp_mult_distr_l_reverse.
+rewrite RIneq.Ropp_involutive.
+rewrite <- Fcore_Raux.Zfloor_div by (apply Z.pow_nonzero; omega).
+rewrite <- (Z.opp_involutive e) at 2.
+rewrite (Fcore_Raux.bpow_opp _ (-e)).
+symmetry.
+rewrite <- Fcore_Raux.Z2R_Zpower by omega.
+simpl.
+unfold Rdefinitions.Rdiv.
+auto.
++
+simpl.
+apply Fcore_float_prop.F2R_lt_0_compat.
+simpl.  pose proof (Pos2Z.neg_is_neg m); omega.
++
+simpl.
+unfold Fcore_defs.F2R.
+simpl.
+rewrite <- (Z.opp_involutive e) at 2.
+rewrite (Fcore_Raux.bpow_opp _ (-e)).
+rewrite <- Fcore_Raux.Z2R_Zpower by omega.
+simpl.
+rewrite <- Fcore_Raux.Zfloor_div by (apply Z.pow_nonzero; omega).
+reflexivity.
++
+simpl.
+unfold Fcore_defs.F2R.
+simpl.
+rewrite <- (Z.opp_involutive e).
+rewrite (Fcore_Raux.bpow_opp _ (-e)).
+rewrite <- Fcore_Raux.Z2R_Zpower by omega.
+simpl.
+apply RIneq.Rmult_le_pos.
+rewrite Fcore_Raux.P2R_INR.
+apply RIneq.pos_INR.
+apply RIneq.Rlt_le.
+apply RIneq.Rinv_0_lt_compat.
+apply Z2R_pow_0_lt; omega.
+Qed.
+
+
 Lemma float_to_int_ok:
   forall f z, 
     Zoffloat f = Some z ->
     Int.min_signed <= z <= Int.max_signed ->
     Float.to_int f = Some (Int.repr z).
-Admitted.
+Proof.
+apply general_float_to_int_ok.
+Qed.
 
 Lemma float_to_intu_ok:
   forall f z, 
     Zoffloat f = Some z ->
     0 <= z <= Int.max_unsigned ->
     Float.to_intu f = Some (Int.repr z).
-Admitted.
+Proof.
+apply general_float_to_int_ok.
+Qed.
 
 Lemma single_to_int_ok:
   forall f z, 
     Zofsingle f = Some z ->
     Int.min_signed <= z <= Int.max_signed ->
     Float32.to_int f = Some (Int.repr z).
-Admitted.
+Proof.
+apply general_float_to_int_ok.
+Qed.
 
 Lemma single_to_intu_ok:
   forall f z, 
     Zofsingle f = Some z ->
     0 <= z <= Int.max_unsigned ->
     Float32.to_intu f = Some (Int.repr z).
-Admitted.
+Proof.
+apply general_float_to_int_ok.
+Qed.
+
 (* not necessary if rewrite denote_tc_assert_andp *)
 (*
 Lemma denote_tc_assert_andp_e:

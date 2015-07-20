@@ -809,173 +809,6 @@ Proof.
  rewrite IHrho1. simpl. rewrite IHrho2; auto.
 Qed.
 
-(*
-Lemma elements_increasing:
-  forall {A} (m: PTree.t A) n1 n2 i1 i2 v1 v2,
-   (n1 < n2)%nat ->
-   nth_error (PTree.elements m) n1 = Some (i1,v1) ->
-   nth_error (PTree.elements m) n2 = Some (i2,v2) ->
-   (i1 < i2)%positive.
-Proof.
-Admitted.
-
-Lemma elements_remove:
-  forall {A} (id: positive) (v: A) (rho: PTree.t A),
-       PTree.get id rho = Some v ->
-       exists l1, exists l2, PTree.elements rho = l1 ++ (id,v) :: l2 /\ 
-                             PTree.elements (PTree.remove id rho) = l1++l2.
-Proof.
-intros.
-exists (filter (fun iv => Pos.ltb (fst iv) id) (PTree.elements rho)).
-exists (filter (fun iv => Pos.ltb id (fst iv)) (PTree.elements rho)).
-split.
-*
-pose proof (PTree.elements_correct _ _ H).
-pose proof (elements_increasing rho).
-forget (PTree.elements rho) as al.
-clear - H0 H1.
-induction al as [ | [j w]]; simpl.
-inv H0.
-simpl.
-destruct H0.
-+
- inv H. clear IHal.
- destruct (Pos.ltb_spec id id).
- xomega.
- clear H.
- assert (forall n i v, nth_error al n = Some (i,v) -> (id < i)%positive). {
-  intros.
-  apply (H1 O (S n) id i v v0).
-  omega. reflexivity. simpl. auto.
- }
-replace (filter (fun iv : positive * A => (fst iv <? id)%positive) al)
-  with (@nil (ident * A)).
- -
-  simpl.
-  f_equal.
-  clear - H.
-  induction al as [ | [? ?]]; simpl; auto.
-  destruct (Pos.ltb_spec id p).
-  f_equal; auto.
-  apply IHal.
-  intros; auto. apply (H (S n) i v); auto.
-  assert (id < p)%positive; [ | xomega].
-  apply (H O p a); auto.
- -
-  clear - H.
-  induction al as [ | [j w]]; simpl; auto.
-  destruct (Pos.ltb_spec j id).
-  assert (id < j)%positive;  [ | xomega].
-  apply (H O j w); auto.
-  apply IHal; auto.
-  intros.
-  apply (H (S n) i v); auto.
-+
- assert (j < id)%positive.
-Lemma In_nth_error:
-  forall {A} (v: A) al, In v al -> exists n, nth_error al n = Some v.
-Proof.
- induction al; intros. inv H.
- destruct H. subst. exists O; auto.
- destruct IHal as [n ?]; auto.
- exists (S n); auto.
-Qed.
- destruct (In_nth_error _ _ H) as [k ?].
- apply (H1 O (S k) j id w v); auto. omega.
- destruct (Pos.ltb_spec j id); try xomega.
- destruct (Pos.ltb_spec id j); try xomega.
- simpl. f_equal.
- apply IHal; auto.
- intros.
- apply (H1 (S n1) (S n2) i1 i2 v1 v2); auto.
- omega.
-*
- transitivity (filter (fun iv : positive * A => (fst iv <? id)%positive)
-  (PTree.elements (PTree.remove id rho)) ++
-filter (fun iv : positive * A => (id <? fst iv)%positive)
-  (PTree.elements (PTree.remove id rho))); [ | f_equal ].
- + 
-   admit.
- +
-  remember (PTree.elements rho) as al.
-  remember (PTree.elements (PTree.remove id rho)) as bl.
-  revert Heqbl al Heqal; induction bl as [ | [j w]]; intros.
-  admit.  (* OK *)
-  simpl.
-  destruct (Pos.ltb_spec j id).
-  destruct al as [ | [k u]].
-  elimtype False; clear - Heqal H; admit.
-  simpl.
-   revert (PTree.elements rho); 
-   
-   admit.
- +
-    admit.
- destruct (Pos.ltb_spec id j).
- clear H0.
- 
-
- replace (filter (fun iv : positive * A => (fst iv <? id)%positive) al) with (@nil (ident*A)).
- simpl.
-
- auto.
-; [ xomega | ].
-
-
-
-simpl.
-f_equal.
-assert
-
-
- eapply H; eauto.
-
-rewrite if_true.
-hnf.
-simpl in H1.
-specialize
-specialize (H1 O).
-simpl in H1.
-
-transitivity (
-destruct (Pos.ltb_spe
-
-f_equal.
-simpl.
-inv H.
-
-Print BoolSpec.
-inv H.
-
-
-hnf in H.
-
-destruct H0. subst.
-simpl.
-rewrite if_false.
-
-
-intros.
-unfold PTree.elements.
-unfold PTree.t in *.
-forget (@nil (positive * A)) as rest.
-*)
-
-
-Lemma elements_remove:
-  forall {A} (id: positive) (v: A) (rho: PTree.t A),
-       PTree.get id rho = Some v ->
-       exists l1, exists l2, PTree.elements rho = l1 ++ (id,v) :: l2 /\ 
-                             PTree.elements (PTree.remove id rho) = l1++l2.
-Proof.
-Admitted.  (* This was proved up to revision 6972 for CompCert 2.3,
-  but changes in CompCert 2.4 lib/Maps.v broke the proof.
-  Xavier said he'll prove it for us (e-mail of 22 September 2014) ... *)
-
-(* The following lemma is proved. And at the same time,
-I am wondering whether elements_remove is necessary to be that strong.
- -- Qinxiang *)
-
 Lemma PTree_elements_remove: forall {A} (T: PTree.tree A) i e,
   In e (PTree.elements (PTree.remove i T)) ->
   In e (PTree.elements T) /\ fst e <> i.
@@ -992,7 +825,6 @@ Proof.
     apply PTree.elements_correct.
     auto.
 Qed.
-
 
 Lemma stackframe_of_freeable_blocks:
   forall Delta f rho ge ve,
@@ -1040,7 +872,7 @@ Proof.
   specialize (H1 id ty).
   rewrite PTree.gss in H1. destruct H1 as [b ?]; auto. exists b; apply H.
  destruct H as [b H].
- destruct (elements_remove id (b,ty) ve H) as [l1 [l2 [? ?]]].
+ destruct (@PTree.elements_remove _ id (b,ty) ve H) as [l1 [l2 [? ?]]].
  rewrite H0.
  rewrite map_app. simpl map.
  apply derives_trans with (freeable_blocks ((b,0,sizeof ge ty) ::  (map (block_of_binding ge) (l1 ++ l2)))).
