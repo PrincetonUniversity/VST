@@ -6,6 +6,7 @@ Require Import veric.slice.
 Require Import veric.Clight_lemmas.
 Require Import veric.tycontext.
 Require Import veric.expr2.
+Require Import veric.shares.
 
 Import RML. Import R. 
 Open Local Scope pred.
@@ -1842,7 +1843,7 @@ Qed.
 Definition resource_share (r: resource) : option share :=
  match r with
  | YES rsh sh _ _ => Some (Share.splice rsh (pshare_sh sh))
- | NO sh => Some (Share.unrel Share.Lsh sh)
+ | NO sh => Some (Share.rel Share.Lsh sh)
  | PURE _ _ => None
  end.
 
@@ -1861,3 +1862,256 @@ rewrite H2; assumption.
 inv H0.
 rewrite <- age1_resource_at_identity; eassumption.
 Qed.
+
+Definition reset_share (sh: share) (r: resource) : resource.
+ destruct (dec_share_identity (Share.unrel Share.Rsh sh)).
+ apply 
+ match r with
+  | NO rsh => NO (Share.glb rsh (Share.unrel Share.Lsh sh))
+  | YES rsh psh k preds => NO (Share.unrel Share.Lsh sh)
+  | PURE k preds => PURE k preds
+ end.
+ apply nonidentity_nonunit in n.
+ apply 
+ match r with
+  | NO rsh => NO (Share.glb rsh (Share.unrel Share.Lsh sh))
+  | YES rsh psh k preds => YES (Share.unrel Share.Lsh sh) (mk_pshare _ n) k preds
+  | PURE k preds => PURE k preds
+ end.
+Defined.
+
+Lemma make_reset_share_valid (sh1: share) w (sh: share) a n
+     (H: join_sub sh1 sh)
+     (H0: (permission_bytes sh a n) w):
+AV.valid (res_option oo (fun i : AV.address => reset_share sh1 (w @ i))).
+Proof.
+   unfold res_option, compose, reset_share; hnf; intros; simpl.
+   destruct (dec_share_identity (Share.unrel Share.Rsh sh1)).
+   destruct (w @ (b,ofs)) eqn:?; auto.
+   destruct (w @ (b,ofs)) eqn:?; auto.
+   destruct k; auto.
+   pose proof (rmap_valid w b ofs).
+   unfold res_option, compose in H1. rewrite Heqr in H1.
+   intros i H2; specialize (H1 i H2). destruct (w @ (b,ofs+i)); inv H1. auto.
+   pose proof (rmap_valid w b ofs).
+   unfold res_option, compose in H1. rewrite Heqr in H1.
+   destruct H1 as [n1 [? ?]]; exists n1; split; auto.
+   destruct (w @ (b,ofs-z)); inv H2. auto.
+Qed.
+
+Lemma make_reset_share_fmap (sh1: share) w sh a n
+     (H: join_sub sh1 sh)
+    (H0: (permission_bytes sh a n) w):
+     resource_fmap (approx (level w)) oo (fun i => reset_share sh1 (w @ i)) =
+     (fun i => reset_share sh1 (w @ i)).
+Proof.
+   pose proof I.
+   extensionality loc; unfold compose.
+   pose proof (resource_at_approx w loc).
+   unfold reset_share.
+   destruct (dec_share_identity (Share.unrel Share.Rsh sh1)).
+   destruct (w @ loc); try reflexivity; auto.
+   destruct (w @ loc); try reflexivity; auto.
+   simpl in H2. apply YES_inj in H2. simpl. f_equal. congruence.
+Qed.
+
+Lemma make_reset_share_permission  (sh1: share) w sh a n
+     (H: join_sub sh1 sh)
+    (H0: (permission_bytes sh a n) w)
+     phi
+    (H3: resource_at phi = fun i => reset_share sh1 (w @ i)):
+  (permission_bytes sh1 a n) phi.
+Proof.
+   pose proof I. pose proof I.   
+   intro i. rewrite H3.
+   clear H2 H3 phi H1. specialize (H0 i).
+   unfold reset_share.
+   unfold resource_share in *.
+   if_tac; destruct (dec_share_identity (Share.unrel Share.Rsh sh1)).
+   destruct (w @ i); inv H0; f_equal.
+   rewrite Share.rel_preserves_glb.
+   rewrite share_rel_unrel.
+   destruct H. destruct H. rewrite <- H0.
+   rewrite Share.glb_commute. rewrite Share.distrib1.
+   rewrite H. rewrite Share.glb_idem. apply Share.lub_bot.
+   eapply join_sub_trans.  apply H. apply rel_leq.
+   apply share_rel_unrel.
+   clear - i0.
+  apply share_sub_Lsh; auto.
+   destruct (w @ i); inv H0; f_equal.
+   rewrite Share.rel_preserves_glb.
+   rewrite share_rel_unrel.
+   destruct H. destruct H. rewrite <- H0.
+   rewrite Share.glb_commute. rewrite Share.distrib1.
+   rewrite H. rewrite Share.glb_idem. apply Share.lub_bot.
+   eapply join_sub_trans.  apply H. apply rel_leq.
+   simpl.
+   apply splice_unrel_unrel.
+   apply identity_NO in H0. destruct H0 as [H0 | [? [? H0]]]; rewrite H0.
+   rewrite Share.glb_commute, Share.glb_bot. apply NO_identity.
+   apply PURE_identity.
+   apply identity_NO in H0. destruct H0 as [H0 | [? [? H0]]]; rewrite H0.
+   rewrite Share.glb_commute, Share.glb_bot. apply NO_identity.
+   apply PURE_identity.
+Qed.
+
+Definition make_reset_share (sh1: share) w (sh: share) a n
+     (H: join_sub sh1 sh)
+     (H0: (permission_bytes sh a n) w):
+     {w2 | level w2 = level w /\ 
+              (permission_bytes sh1 a n) w2 /\
+              forall i, w2 @ i = reset_share sh1 (w @ i) }.
+   assert (AV.valid (res_option oo (fun i => reset_share sh1 (w @ i)))).
+  eapply make_reset_share_valid; eauto.
+   destruct (make_rmap _ H1 (level w)) as [phi ?].
+   eapply make_reset_share_fmap; eauto.
+   exists phi.
+   destruct a0; split3; auto.
+   eapply make_reset_share_permission; eauto.
+    intro. rewrite H3. auto.
+Defined.
+
+Lemma permission_bytes_share_join:
+ forall sh1 sh2 sh a n,
+   sepalg.join sh1 sh2 sh ->
+  permission_bytes sh1 a n *
+  permission_bytes sh2 a n =
+  permission_bytes sh a n.
+Proof.
+intros.
+apply pred_ext; intros w ?.
+*
+destruct H0 as [b [c [? [? ?]]]].
+unfold permission_bytes in *.
+intro i; specialize (H1 i); specialize (H2 i).
+unfold resource_share in *.
+apply (resource_at_join  _ _ _ i) in H0.
+forget (b @ i) as x; forget (c @ i) as y; forget (w @ i) as z.
+clear - H H1 H2 H0.
+hnf in H0.
+if_tac; inv H0;
+  try apply f_equal_Some;
+  try (injection H1; clear H1; intro H1);
+  try (injection H2; clear H2; intro H2);
+  try discriminate;
+  subst;
+ rewrite <- ?splice_bot2 in *.
++ apply (@join_splice _ _ _ Share.bot Share.bot Share.bot) in RJ;
+         [ | apply join_bot].
+   eapply join_eq; eauto.
++
+   assert (join (pshare_sh sh0) Share.bot (pshare_sh sh0))
+     by (apply join_unit2; auto).
+   pose proof (join_splice RJ H0).
+    eapply join_eq; eauto.
++
+   assert (join Share.bot (pshare_sh sh0) (pshare_sh sh0))
+     by (apply join_unit1; auto).
+   pose proof (join_splice RJ H0).
+    eapply join_eq; eauto.
++
+   pose proof (join_splice RJ H4).
+    eapply join_eq; eauto.
++
+   apply identity_NO in H2; destruct H2 as [H2 | [? [? H2]]]; inv H2.
+   apply identity_NO in H1; destruct H1 as [H1 | [? [? H1]]]; inv H1.
+   apply bot_identity in RJ; rewrite <- RJ.
+   apply NO_identity.
++ 
+   apply identity_NO in H1; destruct H1 as [H1 | [? [? H1]]]; inv H1.
++
+   apply identity_NO in H2; destruct H2 as [H2 | [? [? H2]]]; inv H2.
++
+   apply identity_NO in H2; destruct H2 as [H2 | [? [? H2]]]; inv H2.
++
+   apply PURE_identity.
+*
+   assert (join_sub sh1 sh) by (eexists; eauto).
+   assert (join_sub sh2 sh) by (eexists; eauto).
+   destruct (make_reset_share _ _ _ _ _ H1 H0) as [w1 [? [? S1]]].
+   destruct (make_reset_share _ _ _ _ _ H2 H0) as [w2 [? [? S2]]].
+   exists w1, w2. split3; auto.
+   apply resource_at_join2; try congruence.
+   intro i.
+   specialize (H4 i). specialize (H6 i). specialize (H0 i).
+   specialize (S1 i); specialize (S2 i).
+   unfold reset_share in *.
+   if_tac in H6.
++
+   unfold resource_share in *.
+   clear - H0 H4 H6 H S1 S2.
+   destruct (w1 @ i), (w2 @ i), (w @ i); inv H0; inv H4; inv H6; try constructor.
+   apply rel_join2 in H. destruct H as [z [? ?]].
+   apply Share.rel_inj_l in H. subst; auto.
+   apply fst_split_fullshare_not_bot. 
+   intro. apply identity_share_bot in H0.
+   apply fst_split_fullshare_not_bot in H0. auto.
+   elimtype False.
+   apply join_rel_rel_strange in H; auto.
+   apply join_rel_rel_strange2 in H; contradiction.
+  hnf.  
+   rewrite <- splice_bot2 in H.
+   apply join_splice2 in H. destruct H.
+   apply bot_identity in H0.
+   destruct p,p1; simpl in *. subst x0.
+   rewrite (proof_irr n0 n).
+   simpl in S1, S2.
+   destruct (dec_share_identity (Share.unrel Share.Rsh (Share.splice t0 x))).
+   inv S2.  apply YES_inj in S2. 
+   injection S2; intros. subst p2 k0.
+   constructor; auto.
+   if_tac in S1; inv S1.
+   destruct ( dec_share_identity
+         (Share.unrel Share.Rsh (Share.splice t (pshare_sh p)))); try inv S1.
+   apply YES_inj in S1; injection S1; clear S1; intros. subst k0 p2.
+   rewrite <- splice_bot2 in H.
+   apply join_splice2 in H. destruct H.
+   apply join_comm in H0. apply bot_identity in H0.
+   destruct p,p1; simpl in H0.  subst x0.  rewrite (proof_irr n0 n1). 
+   constructor. auto.
+   if_tac in S2; inv S2.
+   destruct (dec_share_identity
+         (Share.unrel Share.Rsh (Share.splice t0 (pshare_sh p1)))); try inv S2.
+   destruct (dec_share_identity
+         (Share.unrel Share.Rsh (Share.splice t (pshare_sh p)))); try inv S1.
+   apply YES_inj in S1; injection S1; clear S1; intros.
+   apply YES_inj in S2; injection S2; clear S2; intros.
+   subst k1 k0 p4 p2.
+   clear H7 H3.
+   apply join_splice2 in H. destruct H.
+   constructor; auto.
++
+   destruct (w @ i).
+   destruct (dec_share_identity (Share.unrel Share.Rsh sh1));
+   rewrite S1 in *;   apply identity_NO in H4; (destruct H4 as [H4 | [? [? H4]]]; [rewrite H4 in *| inv H4]).
+   destruct (dec_share_identity (Share.unrel Share.Rsh sh2));
+   rewrite S2 in *;   apply identity_NO in H6; (destruct H6 as [H6 | [? [? H6]]]; [rewrite H6 in *| inv H6]).
+   apply identity_NO in H0; (destruct H0 as [H0 | [? [? H0]]]; [rewrite H0 in *| inv H0]).
+   constructor. apply join_bot.
+   apply identity_NO in H0; (destruct H0 as [H0 | [? [? H0]]]; [rewrite H0 in *| inv H0]).
+   constructor. apply join_bot.
+   destruct (dec_share_identity (Share.unrel Share.Rsh sh2));
+   rewrite S2 in *;   apply identity_NO in H6; (destruct H6 as [H6 | [? [? H6]]]; [rewrite H6 in *| inv H6]).
+   apply identity_NO in H0; (destruct H0 as [H0 | [? [? H0]]]; [rewrite H0 in *| inv H0]).
+   constructor. apply join_bot.
+   apply identity_NO in H0; (destruct H0 as [H0 | [? [? H0]]]; [rewrite H0 in *| inv H0]).
+   constructor. apply join_bot.   apply identity_NO in H0; (destruct H0 as [H0 | [? [? H0]]]; [rewrite H0 in *| inv H0]).
+   inv H0.
+   rewrite S1,S2. clear; if_tac; if_tac; constructor.
+Qed.
+
+Lemma address_mapsto_share_join:
+ forall (rsh1 rsh2 rsh sh1 sh2 sh : share) ch v a,
+   sepalg.join rsh1 rsh2 rsh ->
+   sepalg.join sh1 sh2 sh ->
+   address_mapsto ch v rsh1 sh1 a * address_mapsto ch v rsh2 sh2 a 
+    = address_mapsto ch v rsh sh a.
+Proof.
+intros.
+Admitted. 
+
+Lemma address_mapsto_value_cohere:
+  forall ch v1 v2 rsh1 sh1 rsh2 sh2 a,
+ address_mapsto ch v1 rsh1 sh1 a * address_mapsto ch v2 rsh2 sh2 a |-- !! (v1=v2).
+Proof.
+Admitted. 

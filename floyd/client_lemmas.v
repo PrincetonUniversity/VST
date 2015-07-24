@@ -1805,3 +1805,54 @@ Proof.
 intros. apply pred_ext. apply orp_left; normalize. apply orp_right2; auto.
 Qed.
 
+Lemma tc_val_Vundef:
+  forall t, ~tc_val t Vundef.
+Proof.
+intros.
+intro. hnf in H.
+destruct t; try contradiction.
+destruct f; try contradiction.
+Qed.
+
+Lemma wand_join {A}{NA: NatDed A}{SA: SepLog A}:
+  forall x1 x2 y1 y2: A,
+    (x1 -* y1) * (x2 -* y2) |-- ((x1 * x2) -* (y1 * y2)).
+Proof.
+intros.
+rewrite <- wand_sepcon_adjoint.
+rewrite sepcon_assoc.
+rewrite <- (sepcon_assoc _ x1).
+rewrite <- (sepcon_comm x1).
+rewrite (sepcon_assoc x1).
+rewrite <- (sepcon_assoc _ x1).
+rewrite <- (sepcon_comm x1).
+rewrite <- (sepcon_comm x2).
+apply sepcon_derives.
+apply modus_ponens_wand.
+apply modus_ponens_wand.
+Qed.
+
+Lemma wand_sepcon:
+ forall {A} {NA: NatDed A}{SA: SepLog A} P Q,
+   (P -* Q * P) * P = Q * P.
+Proof.
+intros. 
+apply pred_ext.
+*
+rewrite sepcon_comm. 
+apply modus_ponens_wand.
+*
+apply sepcon_derives; auto.
+apply -> wand_sepcon_adjoint; auto.
+Qed.
+
+Lemma wand_sepcon':
+ forall {A} {NA: NatDed A}{SA: SepLog A} P Q,
+   P * (P -* Q * P) = P * Q.
+Proof.
+intros. rewrite (sepcon_comm P Q).
+rewrite sepcon_comm; apply wand_sepcon.
+Qed.
+
+
+Hint Rewrite wand_sepcon wand_sepcon' : norm.

@@ -172,7 +172,6 @@ red in H. red. red. contradict H.
 Admitted.
 
 Lemma Lsh_nonidentity:   sepalg.nonidentity Share.Lsh.
-   (* copy me to veric/shares.v *)
 Proof.
 unfold Share.Lsh.
 destruct (Share.split Share.top) eqn:?. simpl; intro.
@@ -182,3 +181,121 @@ spec H;[auto | ].
 apply Share.nontrivial in H. auto.
 Qed.
 
+Lemma sub_unrel_bot:
+  forall r a c : share,
+    sepalg.join_sub a c ->
+    Share.unrel r c = Share.bot ->
+    Share.unrel r a = Share.bot.
+Admitted.
+
+Lemma share_unrel_lub:
+  forall a b r : Share.t,
+  Share.glb a b = Share.bot ->
+  Share.glb (Share.unrel r a) (Share.unrel r b) = Share.bot ->
+  Share.unrel r (Share.lub a b) = Share.lub (Share.unrel r a) (Share.unrel r b).
+Admitted. (* share hacking *)
+
+Lemma share_splice_lub: 
+forall (a b : Share.t) (sh : share),
+Share.glb a b = Share.bot ->
+Share.glb (Share.splice a sh) (Share.unrel Share.Lsh b) = Share.bot ->
+Share.splice (Share.lub a b) sh =
+Share.lub (Share.splice a sh) (Share.unrel Share.Lsh b).
+Admitted. (* share hacking *)
+
+Lemma share_splice_lub': 
+forall (a b : Share.t) (sh : share),
+Share.glb a b = Share.bot ->
+Share.glb (Share.unrel Share.Lsh a) (Share.splice b sh) = Share.bot ->
+Share.splice (Share.lub a b) sh =
+Share.lub (Share.unrel Share.Lsh a) (Share.splice b sh).
+Admitted. (* share hacking *)
+
+Lemma join_splice:
+  forall a1 a2 a3 b1 b2 b3,
+ sepalg.join a1 a2 a3 ->
+ sepalg.join b1 b2 b3 ->
+ sepalg.join (Share.splice a1 b1)  (Share.splice a2 b2)  (Share.splice a3 b3).
+Admitted. (* share hacking *)
+
+Lemma join_unrel:
+  forall sh a b c,
+  sepalg.join a b c ->
+  sepalg.join (Share.unrel sh a)  (Share.unrel sh b)  (Share.unrel sh c).
+Admitted. (* share hacking *) 
+
+Lemma splice_bot2:
+ forall sh, Share.splice sh Share.bot = Share.rel Share.Lsh sh.
+Proof.
+intros.
+unfold Share.splice.
+rewrite Share.rel_bot1.
+rewrite Share.lub_bot.
+auto.
+Qed.
+
+Lemma share_rel_unrel:
+  forall r sh, 
+    join_sub sh r ->
+    Share.rel r (Share.unrel r sh) = sh.
+Admitted.
+
+Lemma share_sub_Lsh:
+ forall sh, identity (Share.unrel Share.Rsh sh) -> join_sub sh Share.Lsh.
+Admitted. (* share hacking *)
+
+Lemma splice_unrel_unrel:
+  forall sh,
+   Share.splice (Share.unrel Share.Lsh sh) (Share.unrel Share.Rsh sh) = sh.
+Admitted.  (* share hacking *)
+
+Lemma join_rel_rel_strange:
+    forall t1 t2 t3 (p: pshare),
+      join (Share.rel Share.Lsh t1) (Share.rel Share.Lsh t2) (Share.splice t3 (pshare_sh p)) ->
+      False.
+  Admitted. (* share hacking *)
+
+Lemma join_rel_rel_strange2:
+    forall sh1 t2  t3 (p: pshare),
+      join sh1 (Share.splice t2 (pshare_sh p)) (Share.rel Share.Lsh t3) ->
+      False.
+  Admitted. (* share hacking *)
+
+Lemma join_splice2:
+  forall a1 a2 a3 b1 b2 b3 : Share.t,
+  join (Share.splice a1 b1) (Share.splice a2 b2) (Share.splice a3 b3) ->
+  join a1 a2 a3 /\ join b1 b2 b3.
+Admitted. (* share hacking *)
+
+Lemma join_sub_readable:
+  forall sh sh', sepalg.join_sub sh sh' -> readable_share sh -> readable_share sh'.
+Proof.
+unfold readable_share; 
+intros.
+hnf in H0|-*.
+contradict H0.
+apply identity_share_bot in H0.
+eapply sub_glb_bot in H0; eauto.
+rewrite H0.
+apply bot_identity.
+Qed.
+
+Lemma join_unreadable_shares:
+ forall sh1 sh2 sh,
+  sepalg.join sh1 sh2 sh ->
+  ~ readable_share sh1 ->
+  ~ readable_share sh2 ->
+ ~ readable_share sh.
+Proof.
+unfold readable_share; intros.
+unfold nonempty_share in *.
+unfold sepalg.nonidentity in *.
+contradict H0. contradict H1. contradict H0.
+destruct H.
+subst sh.
+apply identity_share_bot in H1.
+apply identity_share_bot in H0.
+rewrite Share.distrib1, H0,H1.
+rewrite Share.lub_bot.
+apply bot_identity.
+Qed.

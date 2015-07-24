@@ -473,6 +473,161 @@ Proof.
     - apply sepcon_derives; apply andp_left2; apply derives_refl.
 Qed.
 
+Lemma memory_block_permission_block:
+  forall {cs: compspecs}{csl: compspecs_legal cs} sh  t ch b ofs, 
+   access_mode t = By_value ch ->
+   Int.unsigned ofs + sizeof cenv_cs t <= Int.modulus ->
+  ~ readable_share sh ->
+  memory_block sh (sizeof cenv_cs t) (Vptr b ofs) = 
+  permission_block sh (Vptr b ofs) t.
+Proof.
+intros.
+unfold permission_block; simpl.
+rewrite prop_true_andp by auto. 
+rewrite H.
+assert (Hz: 0 <= Int.unsigned ofs) by apply Int.unsigned_range.
+rewrite (size_chunk_sizeof _ _ _ H) in H0|-*.
+assert (Hsz := size_chunk_pos ch).
+rewrite seplog.memory_block'_eq; auto.
+2: rewrite Z2Nat.id by omega; omega.
+unfold seplog.memory_block'_alt.
+rewrite if_false by auto.
+rewrite Z2Nat.id by omega. auto.
+Qed.
+
+Lemma address_mapsto_share_join:
+ forall (rsh1 rsh2 rsh sh1 sh2 sh : share) ch v a,
+   sepalg.join rsh1 rsh2 rsh ->
+   sepalg.join sh1 sh2 sh ->
+   address_mapsto ch v rsh1 sh1 a * address_mapsto ch v rsh2 sh2 a 
+    = address_mapsto ch v rsh sh a.
+Proof.
+apply res_predicates.address_mapsto_share_join.
+Qed.
+
+Lemma mapsto_share_join:
+ forall sh1 sh2 sh t p v,
+   sepalg.join sh1 sh2 sh ->
+   mapsto sh1 t p v * mapsto sh2 t p v = mapsto sh t p v.
+Proof.
+intros.
+unfold mapsto.
+destruct (access_mode t) eqn:?; try solve [normalize].
+destruct (type_is_volatile t) eqn:?; try solve [normalize].
+destruct p; normalize.
+apply pred_ext.
+*
+rewrite distrib_orp_sepcon.
+apply orp_left; [apply orp_right1 | apply orp_right2]; normalize.
+rewrite sepcon_comm; rewrite distrib_orp_sepcon.
+apply orp_left.
+rewrite sepcon_comm.
+rewrite address_mapsto_share_join
+  with (rsh := Share.unrel Share.Lsh sh) (sh := Share.unrel Share.Rsh sh);
+ auto.
+apply join_unrel; auto.
+apply join_unrel; auto.
+normalize.
+destruct t; try destruct f; simpl in H0; try contradiction H0.
+rewrite sepcon_comm; rewrite distrib_orp_sepcon.
+apply orp_left.
+normalize.
+destruct t; try destruct f; simpl in H0; try contradiction H0.
+rewrite exp_sepcon1.
+apply exp_left. intro y.
+apply exp_right with x. normalize.
+match goal with |- ?A |-- _ => rewrite <- (andp_dup A) end.
+eapply derives_trans; [apply andp_derives; [apply res_predicates.address_mapsto_value_cohere | apply derives_refl] | ].
+change predicates_hered.prop with prop.
+normalize.
+rewrite address_mapsto_share_join
+  with (rsh := Share.unrel Share.Lsh sh) (sh := Share.unrel Share.Rsh sh);
+ auto.
+apply join_unrel; auto.
+apply join_unrel; auto.
+*
+rewrite !distrib_orp_sepcon.
+rewrite sepcon_comm; rewrite !distrib_orp_sepcon.
+rewrite sepcon_comm.
+apply orp_left; [apply orp_right1 | apply orp_right2]; normalize.
+apply orp_right1.
+rewrite address_mapsto_share_join
+  with (rsh := Share.unrel Share.Lsh sh) (sh := Share.unrel Share.Rsh sh);
+ auto;
+ apply join_unrel; auto.
+apply exp_right with x.
+normalize.
+rewrite sepcon_comm; rewrite !distrib_orp_sepcon.
+rewrite sepcon_comm.
+apply orp_right2. normalize.
+apply exp_right with x.
+normalize.
+rewrite address_mapsto_share_join
+  with (rsh := Share.unrel Share.Lsh sh) (sh := Share.unrel Share.Rsh sh);
+ auto;
+ apply join_unrel; auto.
+Qed.
+
+Lemma permission_bytes_address_mapsto_join:
+ forall (sh1 sh2 sh : share) ch v a,
+   sepalg.join sh1 sh2 sh ->
+   res_predicates.permission_bytes sh1 a (Memdata.size_chunk ch)
+     * address_mapsto ch v (Share.unrel Share.Lsh sh2) (Share.unrel Share.Rsh sh2) a 
+    = address_mapsto ch v (Share.unrel Share.Lsh sh) (Share.unrel Share.Rsh sh) a.
+Proof.
+intros.
+Admitted. (* put in veric/SeparationLogic *)
+
+Lemma permission_block_mapsto_join:
+ forall sh1 sh2 sh p t v,
+   sepalg.join sh1 sh2 sh ->
+    permission_block sh1 p t * mapsto sh2 t p v = mapsto sh t p v.
+Proof.
+unfold mapsto, permission_block; intros.
+destruct (access_mode t); normalize.
+destruct (type_is_volatile t); normalize.
+destruct p; normalize.
+rewrite sepcon_comm. rewrite !distrib_orp_sepcon.
+rewrite sepcon_comm.
+normalize.
+apply pred_ext.
+apply orp_left; [ apply orp_right1 | apply orp_right2].
+normalize.
+rewrite permission_bytes_address_mapsto_join with (sh:=sh);
+ auto.
+apply exp_left; intro x. apply exp_right with x.
+normalize.
+rewrite sepcon_comm.
+rewrite permission_bytes_address_mapsto_join with (sh:=sh);
+ auto.
+apply orp_left; [ apply orp_right1 | apply orp_right2].
+rewrite permission_bytes_address_mapsto_join with (sh:=sh);
+ auto.
+apply exp_left; intro x. apply exp_right with x.
+normalize.
+rewrite sepcon_comm.
+rewrite permission_bytes_address_mapsto_join with (sh:=sh);
+ auto.
+Qed.
+
+Lemma permission_block_share_join:
+ forall sh1 sh2 sh p t,
+   sepalg.join sh1 sh2 sh ->
+    permission_block sh1 p t * permission_block sh2 p t  = permission_block sh p t.
+Proof.
+unfold permission_block; intros.
+destruct (access_mode t); normalize.
+destruct p; normalize.
+apply res_predicates.permission_bytes_share_join; auto.
+Qed.
+
+Lemma memory_block_share_join:
+  forall sh1 sh2 sh n p,
+   sepalg.join sh1 sh2 sh ->
+   memory_block sh1 n p * memory_block sh2 n p = memory_block sh n p.
+Proof.
+Admitted. 
+
 Definition align_compatible {C: compspecs} t p :=
   match p with
   | Vptr b i_ofs => (alignof cenv_cs t | Int.unsigned i_ofs)

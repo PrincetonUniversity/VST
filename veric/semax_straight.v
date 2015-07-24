@@ -185,10 +185,8 @@ intro.
 apply split_identity in RJ; auto.
 apply N.
 apply identity_share_bot in RJ. subst t0.
-replace (Share.unrel Share.Lsh Share.bot) with Share.bot.
+rewrite Share.rel_bot1.
 apply bot_identity.
-symmetry.
-apply unrel_bot.
 Qed. 
 
 Lemma mapsto_is_pointer : forall sh t m v,

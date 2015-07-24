@@ -21,51 +21,6 @@ Require Import floyd.nested_loadstore.
 Require Import floyd.entailer.
 (*  End TEMPORARILY *)
 
-Lemma field_at_ptr_neq{cs: compspecs} {csl: compspecs_legal cs}:
-   forall sh t fld p1 p2 v1 v2,
-  sepalg.nonidentity sh ->
- 0 < sizeof cenv_cs (nested_field_type2 t (fld :: nil)) < Int.modulus ->
- legal_alignas_type t = true ->
-   field_at sh t (fld::nil) v1 p1 *
-   field_at sh t (fld::nil) v2 p2
-   |--
-   !! (~ ptr_eq p1 p2).
-Proof.
-   intros.
-   apply not_prop_right; intros.
-   apply ptr_eq_e in H2; rewrite -> H2.
-   apply field_at_conflict; try assumption.
-Qed.
-
-Lemma field_at_ptr_neq_andp_emp{cs: compspecs} {csl: compspecs_legal cs}: 
-    forall sh t fld p1 p2 v1 v2,
-  sepalg.nonidentity sh ->
- 0 < sizeof cenv_cs (nested_field_type2 t (fld :: nil)) < Int.modulus ->
- legal_alignas_type t = true ->
-   field_at sh t (fld::nil) v1 p1 *
-   field_at sh t (fld::nil) v2 p2
-   |--
-   field_at sh t (fld::nil) v1 p1 *
-   field_at sh t (fld::nil) v2 p2 *
-   (!! (~ ptr_eq p1 p2) && emp).
-Proof.
-   intros.
-   normalize.
-   apply andp_right.
-   apply field_at_ptr_neq; assumption.
-   cancel.
-Qed.
-
-Lemma field_at_ptr_neq_null{cs: compspecs} {csl: compspecs_legal cs}:
-   forall sh t fld v p,  
-   field_at sh t fld v p |-- !! (~ ptr_eq p nullval).
-Proof.
-   intros.
-   rewrite -> field_at_isptr.
-   entailer!.
-   destruct p; unfold nullval; simpl in *; tauto.
-Qed.
-
 Lemma ptr_eq_refl: forall x, isptr x -> ptr_eq x x.
 Proof.
 destruct x; simpl; intros; try contradiction.
@@ -1159,47 +1114,6 @@ Hint Rewrite @lseg_eq using reflexivity: norm.
 Hint Resolve lseg_local_facts : saturate_local.
 
 End LsegSpecial.
-
-Lemma nonreadable_readable_memory_block_data_at_join
-    {cs: compspecs}{csl: compspecs_legal cs}:
-  forall ash bsh psh t v p,
-    sepalg.join ash bsh psh ->
-    ~ readable_share ash ->   
-   memory_block ash (sizeof cenv_cs t) p * data_at bsh t v p = data_at psh t v p.
-Proof.
-intros.
-Admitted.  (* for Qinxiang *)
-
-Lemma field_at_share_join{cs: compspecs}{csl: compspecs_legal cs}:
-  forall sh1 sh2 sh t gfs v p,
-    sepalg.join sh1 sh2 sh ->
-   field_at sh1 t gfs v p * field_at sh2 t gfs v p = field_at sh t gfs v p.
-Admitted.  (* for Qinxiang *)
-
-Lemma wand_join {A}{NA: NatDed A}{SA: SepLog A}:
-  forall x1 x2 y1 y2: A,
-    (x1 -* y1) * (x2 -* y2) |-- ((x1 * x2) -* (y1 * y2)).
-Proof.
-intros.
-rewrite <- wand_sepcon_adjoint.
-rewrite sepcon_assoc.
-rewrite <- (sepcon_assoc _ x1).
-rewrite <- (sepcon_comm x1).
-rewrite (sepcon_assoc x1).
-rewrite <- (sepcon_assoc _ x1).
-rewrite <- (sepcon_comm x1).
-rewrite <- (sepcon_comm x2).
-apply sepcon_derives.
-apply modus_ponens_wand.
-apply modus_ponens_wand.
-Qed.
-
-Lemma sub_unrel_bot:
-  forall r a c : share,
-    sepalg.join_sub a c ->
-    Share.unrel r c = Share.bot ->
-    Share.unrel r a = Share.bot.
-Admitted.
 
 Module Links.
 

@@ -121,6 +121,19 @@ apply split_join in H. destruct H.
 apply H4.
 Qed.
 
+Lemma wand_sepcon:  (* delete me; aready in client_lemmas *)
+ forall {A} {NA: NatDed A}{SA: SepLog A} P Q,
+   (P -* Q * P) * P = Q * P.
+Proof.
+intros. 
+apply pred_ext.
+*
+rewrite sepcon_comm. 
+apply modus_ponens_wand.
+*
+apply sepcon_derives; auto.
+apply -> wand_sepcon_adjoint; auto.
+Qed.
 
 Lemma field_at_list_cell_weak:
   forall sh i j p, 
@@ -138,35 +151,15 @@ unfold list_data.
 unfold fold_reptype; simpl; rewrite !eq_rect_r_eq.
 unfold default_val; simpl.
 unfold field_at_.
-apply pred_ext.
-*
-apply sepcon_derives; auto.
-apply -> wand_sepcon_adjoint.
-unfold data_at.
-unfold_field_at 4%nat.
-cancel.
-*
 change (default_val (nested_field_type2 list_struct [StructField _next]))
   with Vundef.
 unfold data_at.
-unfold_field_at 2%nat.
+unfold_field_at 5%nat.
 rewrite <- !sepcon_assoc.
 forget (field_at sh list_struct [StructField _a] i p *
 field_at sh list_struct [StructField _b] j p) as J.
 forget (field_at sh list_struct [StructField _next] Vundef p) as B.
-rewrite sepcon_comm.
-apply modus_ponens_wand.
-Qed.
-
-Lemma field_at__share_join{cs: compspecs}{csl: compspecs_legal cs}:
-  forall sh1 sh2 sh t gfs p,
-    sepalg.join sh1 sh2 sh ->
-   field_at_ sh1 t gfs p * field_at_ sh2 t gfs p = field_at_ sh t gfs p.
-Proof.
-intros.
-unfold field_at_.
-apply field_at_share_join.
-auto.
+rewrite wand_sepcon. auto.
 Qed.
 
 Lemma make_unmake:
@@ -185,7 +178,7 @@ unfold field_at_.
 change (default_val (nested_field_type2 list_struct [StructField _next])) with Vundef.
 rewrite <- (field_at_share_join _ _ _ list_struct [StructField _next] Vundef p Qsh_Qsh').
 rewrite <- !sepcon_assoc.
-change list_struct with list_struct.
+(*change list_struct with list_struct.*)
 pull_left (field_at Qsh' list_struct [StructField _next] Vundef p).
 pull_left (field_at Qsh' list_struct [StructField _b] (Vint b) p).
 pull_left (field_at Qsh' list_struct [StructField _a] (Vint a) p).

@@ -1570,3 +1570,436 @@ normalize.
 Qed.
 
 Hint Resolve data_at_valid_ptr field_at_valid_ptr field_at_valid_ptr0 : valid_pointer.
+
+Lemma field_at_ptr_neq{cs: compspecs} {csl: compspecs_legal cs}:
+   forall sh t fld p1 p2 v1 v2,
+  sepalg.nonidentity sh ->
+ 0 < sizeof cenv_cs (nested_field_type2 t (fld :: nil)) < Int.modulus ->
+ legal_alignas_type t = true ->
+   field_at sh t (fld::nil) v1 p1 *
+   field_at sh t (fld::nil) v2 p2
+   |--
+   !! (~ ptr_eq p1 p2).
+Proof.
+   intros.
+   apply not_prop_right; intros.
+   apply ptr_eq_e in H2; rewrite -> H2.
+   apply field_at_conflict; try assumption.
+Qed.
+
+Lemma field_at_ptr_neq_andp_emp{cs: compspecs} {csl: compspecs_legal cs}: 
+    forall sh t fld p1 p2 v1 v2,
+  sepalg.nonidentity sh ->
+ 0 < sizeof cenv_cs (nested_field_type2 t (fld :: nil)) < Int.modulus ->
+ legal_alignas_type t = true ->
+   field_at sh t (fld::nil) v1 p1 *
+   field_at sh t (fld::nil) v2 p2
+   |--
+   field_at sh t (fld::nil) v1 p1 *
+   field_at sh t (fld::nil) v2 p2 *
+   (!! (~ ptr_eq p1 p2) && emp).
+Proof.
+   intros.
+   normalize.
+   apply andp_right.
+   apply field_at_ptr_neq; assumption.
+   cancel.
+Qed.
+
+Lemma field_at_ptr_neq_null{cs: compspecs} {csl: compspecs_legal cs}:
+   forall sh t fld v p,  
+   field_at sh t fld v p |-- !! (~ ptr_eq p nullval).
+Proof.
+   intros.
+   rewrite -> field_at_isptr.
+  normalize. apply prop_right.
+   destruct p; unfold nullval; simpl in *; tauto.
+Qed.
+
+Lemma mapsto'_share_join:
+ forall sh1 sh2 sh t p v,
+   sepalg.join sh1 sh2 sh ->
+   mapsto' sh1 t p v * mapsto' sh2 t p v = mapsto' sh t p v.
+Proof.
+intros.
+unfold mapsto'.
+if_tac.
+if_tac.
+rewrite if_true
+  by  ( eapply join_sub_readable; eauto; eexists; eauto).
+apply mapsto_share_join; auto.
+rewrite if_true
+  by ( eapply join_sub_readable; eauto; eexists; eauto).
+rewrite sepcon_comm.
+apply sepalg.join_comm in H.
+apply permission_block_mapsto_join; auto.
+if_tac.
+rewrite if_true
+  by  ( eapply join_sub_readable; eauto; eexists; eauto).
+apply permission_block_mapsto_join; auto.
+rewrite if_false.
+apply permission_block_share_join; auto.
+eapply join_unreadable_shares; eauto.
+Qed.
+
+Lemma spacer_share_join:
+  forall sh1 sh2 sh J K q,
+   sepalg.join sh1 sh2 sh ->
+   spacer sh1 J K q * spacer sh2 J K q = spacer sh J K q.
+Proof.
+ intros.
+ unfold spacer.
+  if_tac. normalize.
+ unfold at_offset.
+  apply memory_block_share_join; auto.
+Qed.
+ 
+Lemma struct_pred_cons2:
+  forall it it' m (A: ident*type -> Type)
+   (P: forall it, A it -> val -> mpred) 
+   (v: compact_prod (map A (it::it'::m)))
+   (p: val),
+ struct_pred (it :: it' :: m) P v p =
+    P _ (fst v) p * struct_pred (it'::m) P (snd v) p.
+Proof.
+intros.
+destruct v. destruct it, it'. reflexivity.
+Qed.
+
+Lemma data_at'_void:
+  forall {cs} {csl: compspecs_legal cs}
+      sh t v q, t = Tvoid -> data_at' sh t v q = FF.
+Proof.
+ intros; subst. unfold data_at'; simpl. unfold mapsto'.
+  if_tac; reflexivity.
+Qed.
+
+Lemma snd_reptype_structlist_aux  {cs: compspecs}{csl: compspecs_legal cs}:
+  forall (p: ident * type) (m: list (ident * type)),
+   members_no_replicate (p :: m) = true ->
+  map (fun it : ident * type => reptype (field_type (fst it) (p :: m))) m =
+  map (fun it : ident * type => reptype (field_type (fst it) m)) m.
+  (* not useful? *)
+Proof.
+intros.
+change (p::m) with ((p::nil) ++ m) in *.
+forget (p::nil) as q.
+clear p.
+revert q H; induction m; intros.
+reflexivity.
+simpl; f_equal.
++
+clear - H.
+induction q. reflexivity.
+simpl in H.
+destruct a0.
+rewrite fieldlist.members_no_replicate_ind in H.
+destruct H.
+rewrite <- IHq; auto.
+unfold field_type. unfold fieldlist.field_type2. simpl.
+rewrite if_false; auto.
+clear - H.
+contradict H. subst.
+induction q. left; auto.
+right. auto.
++
+generalize (IHm (q++ a::nil)).
+rewrite app_ass; simpl; intro.
+rewrite H0.
+symmetry; apply (IHm (a::nil)).
+simpl.
+clear - H.
+induction q. auto. apply IHq.
+rewrite fieldlist.members_no_replicate_ind in H.
+destruct a0, H; auto.
+auto.
+Qed.
+
+Definition snd_reptype_structlist  {cs: compspecs}{csl: compspecs_legal cs}
+         (p q: ident*type) (m: list (ident*type))
+         (H: members_no_replicate (p::q::m) = true) 
+         (v: reptype_structlist (p::q::m)) : reptype_structlist (q::m).
+  (* not useful? *)
+destruct v.
+unfold reptype_structlist.
+cut (map
+         (fun it : ident * type =>
+          reptype (field_type (fst it) (p :: q :: m))) (q :: m) =
+   map (fun it : ident * type => reptype (field_type (fst it) (q :: m)))
+     (q :: m)).
+intro.
+forget (map
+       (fun it : ident * type => reptype (field_type (fst it) (p :: q :: m)))
+       (q :: m)) as T.
+subst T. apply c.
+apply snd_reptype_structlist_aux; auto.
+Defined.
+
+Lemma snd_reptype_structlist_eq  {cs: compspecs}{csl: compspecs_legal cs}:
+  forall p q m H v,
+      @JMeq _ (snd_reptype_structlist p q m H v) _ (snd v).
+  (* not useful? *)
+intros.
+Admitted. (* for Qinxiang? *)
+
+Lemma field_at_share_join_aux {cs: compspecs}{csl: compspecs_legal cs}:
+  forall sh1 sh2 sh m,
+   members_no_replicate m = true ->
+   sepalg.join sh1 sh2 sh ->
+  (Forall  (fun it : ident * type =>
+        forall (v : reptype (field_type (fst it) m))
+          (q : val),
+        data_at' sh1 (field_type (fst it) m) v q *
+        data_at' sh2 (field_type (fst it) m) v q =
+        data_at' sh (field_type (fst it) m) v q)
+       m) ->
+  forall (sz: Z) (v: reptype_structlist m) (q: val),
+struct_pred m
+  (fun (it : ident * type)
+     (v0 : reptype (field_type (fst it) m)) =>
+   withspacer sh1
+     (field_offset cenv_cs (fst it) m +
+      sizeof cenv_cs (field_type (fst it) m))
+     (field_offset_next cenv_cs (fst it) m
+        sz)
+     (at_offset
+        (data_at' sh1 (field_type (fst it) m) v0)
+        (field_offset cenv_cs (fst it) m))) v q *
+struct_pred m
+  (fun (it : ident * type)
+     (v0 : reptype (field_type (fst it) m)) =>
+   withspacer sh2
+     (field_offset cenv_cs (fst it) m +
+      sizeof cenv_cs (field_type (fst it) m))
+     (field_offset_next cenv_cs (fst it) m
+        sz)
+     (at_offset
+        (data_at' sh2 (field_type (fst it) m) v0)
+        (field_offset cenv_cs (fst it) m))) v q =
+struct_pred m
+  (fun (it : ident * type)
+     (v0 : reptype (field_type (fst it) m)) =>
+   withspacer sh
+     (field_offset cenv_cs (fst it) m +
+      sizeof cenv_cs (field_type (fst it) m))
+     (field_offset_next cenv_cs (fst it) m
+        sz)
+     (at_offset
+        (data_at' sh (field_type (fst it) m) v0)
+        (field_offset cenv_cs (fst it) m))) v q.
+Proof.
+intros until m; intros HM H H0 sz.
+induction m; intros.
+* (* nil case *) 
+  simpl. normalize.
+* (*cons case *)
+  destruct a as [i t].
+  destruct m.
+ + unfold struct_pred. simpl.
+    rewrite !withspacer_spacer.
+    rewrite <- !sepcon_assoc.
+    forget (field_offset cenv_cs i ((i, t) :: nil) +
+    sizeof cenv_cs (field_type i ((i, t) :: nil))) as J.
+    forget (field_offset_next cenv_cs i ((i, t) :: nil) sz) as K.
+    pull_left (spacer sh2 J K q);
+    pull_left (spacer sh1 J K q).
+    rewrite sepcon_assoc.
+    f_equal.
+    apply spacer_share_join; auto.
+    unfold at_offset.
+    inv H0.
+    apply H3.
+ +
+    pose (Q sh mems := 
+ (fun (it : ident * type)
+     (v0 : reptype (field_type (fst it) mems)) =>
+   withspacer sh
+     (field_offset cenv_cs (fst it) mems +
+      sizeof cenv_cs (field_type (fst it) mems))
+     (field_offset_next cenv_cs (fst it) mems sz)
+     (at_offset (data_at' sh (field_type (fst it) mems) v0)
+        (field_offset cenv_cs (fst it) mems)))).
+   fold (Q sh1 ((i, t) :: p :: m)).
+   fold (Q sh2 ((i, t) :: p :: m)).
+   fold (Q sh ((i, t) :: p :: m)).
+   fold (Q sh1 (p::m)) in IHm.
+   fold (Q sh2 (p::m)) in IHm.
+   fold (Q sh (p::m)) in IHm.
+   generalize HM; intro HM'.
+    assert (Hv' := snd_reptype_structlist_eq (i,t) p m HM' v).
+    rewrite fieldlist.members_no_replicate_ind in HM.
+    destruct HM as [HM1 HM].
+    rewrite !struct_pred_cons2.
+    unfold Q at 1 3 5. rewrite !withspacer_spacer.
+    rewrite <- !sepcon_assoc.
+    forget (field_offset cenv_cs (fst (i, t)) ((i, t) :: p :: m) +
+   sizeof cenv_cs (field_type (fst (i, t)) ((i, t) :: p :: m))) as J.
+    forget(field_offset_next cenv_cs (fst (i, t)) ((i, t) :: p :: m) sz) as K.
+    pull_left (spacer sh2 J K q);
+    pull_left (spacer sh1 J K q).
+    do 3 rewrite sepcon_assoc; rewrite (sepcon_assoc (spacer sh J K q)).
+    f_equal.
+    apply spacer_share_join; auto.
+    unfold at_offset.
+    specialize (IHm HM).
+    inv H0. simpl in H3.
+  forget (offset_val
+     (Int.repr (field_offset cenv_cs (fst (i, t)) ((i, t) :: p :: m))) q) as q'.
+  simpl @fst.
+  repeat rewrite <- sepcon_assoc.
+  match goal with |- ?A * ?B * ?C * ?D = _ => pull_left C end.
+  rewrite sepcon_assoc.
+  f_equal.
+  rewrite sepcon_comm.
+  apply H3.
+   clear H3.
+   spec IHm.
+   clear - H4 HM1.
+   eapply Forall_impl; try apply H4; clear H4; intros.
+   destruct (ident_eq (fst a) i).
+    subst i.
+   pose proof (fieldlist.not_in_members_field_type2 _ _ HM1).
+   repeat rewrite data_at'_void by auto. normalize.
+   simpl in H.
+   assert (field_type (fst a) (p::m) = field_type (fst a) ((i,t)::p::m) ). {
+     unfold field_type. unfold fieldlist.field_type2.
+     simpl. rewrite if_false by auto. auto.
+   }
+   forget (field_type (fst a) (p :: m)) as T.
+   forget (field_type (fst a) ((i, t) :: p :: m)) as U. subst U.
+   auto.
+   clear H4.
+   specialize (IHm (snd_reptype_structlist (i, t) p m HM' v) q).
+   cut (forall sh, struct_pred (p::m) (Q sh ((i,t)::p::m)) (snd v) q =
+                         struct_pred (p::m) (Q sh (p::m)) (snd_reptype_structlist (i, t) p m HM' v) q).
+   intro. 
+   rewrite !H0. auto.
+   clear - Hv'. subst Q. intros.
+   admit. (* for Qinxiang? *)
+Qed.
+
+Lemma field_at_share_join{cs: compspecs}{csl: compspecs_legal cs}:
+  forall sh1 sh2 sh t gfs v p,
+    sepalg.join sh1 sh2 sh ->
+   field_at sh1 t gfs v p * field_at sh2 t gfs v p = field_at sh t gfs v p.
+Proof.
+intros.
+unfold field_at.
+normalize.
+f_equal.
+f_equal.
+apply prop_ext; clear; intuition.
+unfold at_offset.
+forget (offset_val (Int.repr (nested_field_offset2 t gfs)) p) as q.
+forget (nested_field_type2 t gfs) as t'.
+clear - H. rename t' into t.
+revert v q; pattern t;  type_induction.type_induction t; intros;
+rewrite !data_at'_ind;
+ try solve [if_tac;
+     [ apply memory_block_share_join; auto
+     | apply mapsto'_share_join; auto]];
+  try solve [normalize].
+* (* Tarray *)
+  destruct (zlt z 0). rewrite !array_pred_len_0 by omega. normalize.
+  rewrite <- (Z2Nat.id z) by omega.
+  remember (Z.to_nat z) as n.
+  revert z g Heqn v; induction n; intros.
+  change (Z.of_nat 0) with 0.
+  rewrite !array_pred_len_0 by omega. normalize.
+  rewrite inj_S.
+  rewrite !(split_array_pred 0 (Z.of_nat n) (Z.succ (Z.of_nat n))) by omega.
+  rewrite !array_pred_len_1.
+  repeat rewrite <- sepcon_assoc.
+  match goal with |- ?A * ?B * ?C * ?D = _ => pull_left C end.
+  rewrite sepcon_assoc.
+  f_equal. 
+  rewrite sepcon_comm.
+  specialize (IHn (z-1)).
+  spec IHn.  rewrite <- (Z2Nat.id z); omega.
+  spec IHn. clear - Heqn.
+  rewrite <- (Nat2Z.id n) in Heqn.
+  rewrite <- Z2Nat.inj_succ in Heqn by omega.
+  rewrite Z2Nat.inj_sub by omega. rewrite <- Heqn; clear Heqn.
+  unfold Z.succ. rewrite Z2Nat.inj_add by omega.
+  rewrite Nat2Z.id. omega.
+  apply (IHn v).
+  clear IHn.
+  unfold at_offset.
+  apply IH.
+* (* Tstruct *)
+  clear - H IH.
+ apply field_at_share_join_aux; auto.
+ apply (get_co_members_no_replicate id).
+* (* Tunion *)
+  admit. (* similar to the Tstruct case? *)
+Qed.
+
+
+Lemma field_at__share_join{cs: compspecs}{csl: compspecs_legal cs}:
+  forall sh1 sh2 sh t gfs p,
+    sepalg.join sh1 sh2 sh ->
+   field_at_ sh1 t gfs p * field_at_ sh2 t gfs p = field_at_ sh t gfs p.
+Proof.
+intros.
+unfold field_at_.
+apply field_at_share_join.
+auto.
+Qed.
+
+Lemma nonreadable_memory_block_data_at:
+  forall  {cs: compspecs}{csl: compspecs_legal cs} 
+      sh t v p, 
+  ~ readable_share sh ->
+   field_compatible t nil p ->
+   memory_block sh (sizeof cenv_cs t) p = data_at sh t v p.
+Proof.
+intros.
+unfold data_at, field_at.
+rewrite prop_true_andp by auto.
+change (nested_field_offset2 t nil) with 0.
+unfold at_offset.
+normalize.
+hnf in H0.
+destruct H0 as [Hp [_ [_ [? [Hsz [Hsc _]]]]]].
+revert H0 Hsz v p Hsc Hp; pattern t; type_induction.type_induction t; intros; inv H0;
+ rewrite  data_at'_ind; auto;
+ try match goal with |- context [nested_field_type2 ?t nil] => change (nested_field_type2 t nil) with t; cbv beta iota end;
+ try (if_tac; [solve [auto] | unfold mapsto'; rewrite if_false by auto]).
+* destruct p; try contradiction; destruct i,s; eapply memory_block_permission_block; auto;  reflexivity.
+* destruct p; try contradiction; destruct s;  eapply memory_block_permission_block; auto;  reflexivity.
+* destruct p; try contradiction; destruct f; eapply memory_block_permission_block; auto;  reflexivity.
+* destruct p; try contradiction; eapply memory_block_permission_block; auto;  reflexivity.
+* (* Tarray *)
+  admit.  (* Qinxiang *)
+* (* Tstruct *)
+  admit.  (* Qinxiang *)
+* (* Tunion *)
+  admit.  (* Qinxiang *)
+Qed.
+
+Lemma field_at_nonreadable:
+  forall  {cs: compspecs}{csl: compspecs_legal cs}  sh t gfs v v' p,
+   ~ readable_share sh ->
+   field_at sh t gfs v p = field_at sh t gfs v' p.
+Proof.
+intros.
+rewrite !field_at_data_at.
+destruct (field_compatible_dec (nested_field_type2 t gfs) nil (field_address t gfs p)).
+rewrite <- !nonreadable_memory_block_data_at; auto.
+apply pred_ext; saturate_local; contradiction.
+Qed.
+
+Lemma nonreadable_readable_memory_block_data_at_join
+    {cs: compspecs}{csl: compspecs_legal cs}:
+  forall ash bsh psh t v p,
+    sepalg.join ash bsh psh ->
+    ~ readable_share ash ->   
+   memory_block ash (sizeof cenv_cs t) p * data_at bsh t v p = data_at psh t v p.
+Proof.
+intros.
+destruct (field_compatible_dec t nil p).
+rewrite nonreadable_memory_block_data_at with (v0:=v); auto.
+unfold data_at.
+apply field_at_share_join; auto.
+apply pred_ext; saturate_local; contradiction.
+Qed.
