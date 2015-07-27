@@ -43,6 +43,26 @@ intros. rewrite andp_comm. rewrite allp_andp1; auto.
 f_equal. extensionality x. rewrite andp_comm; auto.
 Qed.
 
+Lemma nonreadable_data_at_eq {cs: compspecs} {csl: compspecs_legal cs}: 
+   (* move to floyd *)
+  forall sh t v v' p, ~readable_share sh ->
+     data_at sh t v p = data_at sh t v' p.
+Proof.
+intros.
+apply pred_ext; saturate_local;
+ rewrite <- !(nonreadable_memory_block_data_at); auto.
+Qed.
+
+Lemma nonreadable_field_at_eq {cs: compspecs} {csl: compspecs_legal cs}:
+    (* move to floyd *)
+  forall sh t gfs v v', ~readable_share sh ->
+     field_at sh t gfs v = field_at sh t gfs v'.
+Proof.
+intros; extensionality p.
+rewrite !field_at_data_at.
+apply nonreadable_data_at_eq; auto.
+Qed.
+
 Local Open Scope logic.
 
 Class listspec {cs: compspecs} {csl: compspecs_legal cs} (list_structid: ident) (list_link: ident) :=
@@ -103,14 +123,26 @@ Definition list_data {ls: listspec list_structid list_link} (v: elemtype ls): re
   rewrite list_members_eq in r.
   exact (@fold_reptype _ _ (Tstruct _ _) r).
 Defined.
-
+ 
+(*
 Definition maybe_data_at (ls: listspec list_structid list_link) (sh: share) (v: elemtype ls) (p: val) : mpred :=
   if readable_share_dec sh
   then data_at sh list_struct (list_data v) p
   else memory_block sh (sizeof cenv_cs list_struct) p.
+*)
 
 Definition list_cell (ls: listspec list_structid list_link) sh v p :=
-  (field_at_ sh list_struct (StructField list_link :: nil) p) -* (maybe_data_at ls sh v p).
+  (field_at_ sh list_struct (StructField list_link :: nil) p) -* (data_at sh list_struct (list_data v) p).
+(*
+Lemma list_cell_eq': forall sh i p v,
+   list_cell LS sh v p 
+   * field_at_ sh list_struct [StructField list_link] p = 
+   
+   field_at sh t_struct_list [StructField _head] (Vint i) p 
+   * field_at_ sh list_struct [StructField list_link] p.
+Proof.
+*)
+
 End LIST1.
 
 Module LsegGeneral.
@@ -1139,34 +1171,17 @@ Lemma join_cell_link (ls: listspec list_structid list_link):
  Proof.
  intros.
  unfold list_cell.
- unfold maybe_data_at.
- rewrite if_false by auto.
- rewrite if_true by auto.
- rewrite if_true.
-Focus 2. {
-  clear - H H1;
-        unfold readable_share in *.
-  unfold nonempty_share, sepalg.nonidentity in *.
-  contradict H1.
-  assert (Share.Ord bsh psh) 
-    by (apply leq_join_sub; eexists; eauto).
-  apply Share.ord_spec1 in H0. rewrite H0.
-  rewrite <- Share.glb_assoc.
-  rewrite (Share.glb_commute Share.Rsh).
-  rewrite Share.glb_assoc.
-  apply identity_share_bot in  H1. rewrite H1.
-  rewrite Share.glb_bot.
-  apply bot_identity.
-} Unfocus.
  apply pred_ext.
+ rewrite (nonreadable_data_at_eq ash list_struct (list_data v') (list_data v)) by auto.
 *
  eapply derives_trans.
  apply wand_join.
  apply wand_derives; auto.
  unfold field_at_.
- rewrite (field_at_share_join ash bsh psh); try auto.
- erewrite nonreadable_readable_memory_block_data_at_join; eauto.
-*  admit.  (* for Qinxiang *)
+ rewrite (field_at_share_join ash bsh psh); auto.
+ unfold data_at.
+ rewrite (field_at_share_join ash bsh psh); auto.
+*  admit. 
 Qed.
 
 Lemma lseg_unfold (ls: listspec list_structid list_link): forall dsh psh contents v1 v2,
@@ -1271,10 +1286,7 @@ repeat (apply sepcon_derives; auto).
 clear - NR.
 unfold list_cell.
 apply wand_derives; auto.
-unfold maybe_data_at.
-rewrite if_false by auto.
-rewrite if_false by auto.
-auto.
+apply derives_refl'; apply nonreadable_data_at_eq; auto.
 Qed.
 
 Lemma lseg_unroll_nonempty1 (ls: listspec list_structid list_link):
@@ -1473,18 +1485,9 @@ Qed.
 
 Lemma lseg_nil_eq (ls: listspec list_structid list_link): 
     forall dsh psh p q,
-    ~ (readable_share dsh) ->
    lseg ls dsh psh nil p q = !! (ptr_eq p q) && emp.
 Proof. intros.
- rewrite lseg_unroll by auto.
- apply pred_ext.
- apply orp_left.
- rewrite andp_assoc.
- apply andp_derives; auto.
-rewrite prop_true_andp by auto. auto.
- unfold lseg_cons. normalize. inv H1.
- apply orp_right1.  rewrite andp_assoc.
- rewrite (prop_true_andp (_ = _)) by auto. auto.
+ reflexivity.
 Qed.
 
 Lemma lseg_cons_eq (ls: listspec list_structid list_link):
@@ -1509,10 +1512,11 @@ Proof.
  symmetry in H1; inv H1.
  apply exp_right with y. normalize.
  repeat (apply sepcon_derives; auto).
- unfold list_cell, maybe_data_at;
-  rewrite !if_false by auto; auto.
- normalize. simpl in *.
+ unfold list_cell.
+ apply wand_derives; auto.
+ apply derives_refl'; apply nonreadable_data_at_eq; auto.
  apply orp_right2.
+ normalize.
  unfold lseg_cons.
  rewrite prop_true_andp by auto.
  apply exp_right with (vund ls). apply exp_right with r.  apply exp_right with y.
@@ -1559,8 +1563,8 @@ apply list_struct_alignas_legal.
 rewrite prop_true_andp by auto.
 rewrite prop_true_andp by (apply ptr_eq_refl; auto).
 normalize.
- unfold list_cell, maybe_data_at;
-  rewrite !if_false by auto; auto.
+ unfold list_cell.
+ rewrite (nonreadable_data_at_eq dsh list_struct (list_data h) (list_data (vund ls))); auto.
 *
 unfold lseg; simpl.
 normalize.
@@ -1612,8 +1616,8 @@ destruct H. contradiction H.
 rewrite prop_true_andp by reflexivity.
 rewrite prop_true_andp by (split; reflexivity).
 normalize.
- unfold list_cell, maybe_data_at;
-  rewrite !if_false by auto; auto.
+ unfold list_cell.
+ rewrite (nonreadable_data_at_eq dsh list_struct (list_data (vund ls)) (list_data h)); auto.
 *
 normalize.
 apply exp_right with x0.
@@ -1686,8 +1690,8 @@ Proof.
  normalize.
  f_equal. extensionality y.
  f_equal. f_equal. f_equal. f_equal.
- unfold list_cell, maybe_data_at;
-  rewrite !if_false by auto; auto.
+ unfold list_cell.
+ rewrite (nonreadable_data_at_eq dsh list_struct (list_data (vund ls)) (list_data h)); auto.
 Qed.
 
 Lemma list_append: forall {dsh psh: share} 
@@ -1725,31 +1729,55 @@ Proof.
 Qed.
 
 Lemma list_cell_valid_pointer:
+  forall (LS: listspec list_structid list_link) (dsh psh: Share.t) v p,
+   sepalg.join_sub dsh psh ->
+   list_cell LS dsh v p * field_at_ psh list_struct (StructField list_link::nil) p * TT 
+  |-- valid_pointer p.
+Admitted. (* probably  true *) 
+
+Lemma list_cell_valid_pointerx:
   forall (ls : listspec list_structid list_link)  sh v p, 
    sh <> Share.bot ->
    list_cell ls sh v p |-- valid_pointer p.
 Proof.
  intros.
-Admitted. (* for Qinxiang *)
+ unfold list_cell.
+Abort.  (* probably not true; would be true with a direct (non-magic-wand)
+      definition of list_cell *) 
 
 Lemma lseg_valid_pointer:
   forall (ls : listspec list_structid list_link) dsh psh contents p q R,
    dsh <> Share.bot ->
+   sepalg.join_sub dsh psh ->
     R |-- valid_pointer q ->
     R * lseg ls dsh psh contents p q |-- valid_pointer p.
 Proof.
 intros.
-unfold lseg.
-destruct contents; simpl; intros.
-normalize.
+destruct contents.
+rewrite lseg_nil_eq. normalize.
+unfold lseg; simpl.
 normalize.
 apply sepcon_valid_pointer2.
 apply sepcon_valid_pointer1.
+destruct H0 as [bsh ?].
+rewrite <- (field_at_share_join dsh bsh psh) by auto.
+rewrite <- sepcon_assoc.
 apply sepcon_valid_pointer1.
-apply list_cell_valid_pointer; auto.
+unfold list_cell.
+eapply derives_trans; [apply sepcon_derives; [apply derives_refl | apply field_at_field_at_] | ].
+rewrite sepcon_comm.
+eapply derives_trans; [apply modus_ponens_wand | ].
+apply data_at_valid_ptr.
+ pose proof (list_link_size_in_range ls).
+ admit.  (* should be trivial *)
 Qed.
 
 End LIST2.
+
+Lemma join_sub_Tsh:
+  forall sh, sepalg.join_sub sh Tsh.
+Admitted. (* easy *)
+Hint Resolve join_sub_Tsh: valid_pointer.
 
 Hint Rewrite @lseg_nil_eq : norm.
 
@@ -1757,8 +1785,6 @@ Hint Rewrite @lseg_eq using reflexivity: norm.
 
 Hint Resolve lseg_local_facts : saturate_local.
 
-
-Hint Resolve list_cell_valid_pointer : valid_pointer.
 Hint Resolve denote_tc_comparable_split : valid_pointer.
 
 Ltac resolve_lseg_valid_pointer :=
@@ -1772,7 +1798,23 @@ match goal with
    end
  end.
 
-Hint Extern 10 (_ |-- valid_pointer _) => resolve_lseg_valid_pointer.
+Hint Extern 10 (_ |-- valid_pointer _) =>
+       resolve_lseg_valid_pointer : valid_pointer.
+
+Ltac resolve_list_cell_valid_pointer :=
+ match goal with |- ?A |-- valid_pointer ?p =>
+  match A with context [@list_cell ?cs ?csl ?sid ?lid ?LS ?dsh ?v p] =>
+   match A with context [field_at ?psh ?t (StructField lid::nil) ?v' p] =>
+    apply derives_trans with
+      (@list_cell cs csl sid lid LS dsh v p * 
+      field_at_ psh t (StructField lid::nil) p * TT);
+      [cancel | apply list_cell_valid_pointer; auto with valid_pointer]
+   end
+  end
+ end.
+
+Hint Extern 10 (_ |-- valid_pointer _) => 
+   resolve_list_cell_valid_pointer : valid_pointer.
 
 End Links.
 

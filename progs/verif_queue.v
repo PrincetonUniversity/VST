@@ -121,20 +121,6 @@ apply split_join in H. destruct H.
 apply H4.
 Qed.
 
-Lemma wand_sepcon:  (* delete me; aready in client_lemmas *)
- forall {A} {NA: NatDed A}{SA: SepLog A} P Q,
-   (P -* Q * P) * P = Q * P.
-Proof.
-intros. 
-apply pred_ext.
-*
-rewrite sepcon_comm. 
-apply modus_ponens_wand.
-*
-apply sepcon_derives; auto.
-apply -> wand_sepcon_adjoint; auto.
-Qed.
-
 Lemma field_at_list_cell_weak:
   forall sh i j p, 
    readable_share sh ->
@@ -145,9 +131,8 @@ Lemma field_at_list_cell_weak:
   field_at_ sh list_struct [StructField _next] p.
 Proof.
 intros.
-unfold list_cell, maybe_data_at.
-rewrite !if_true by auto.
-unfold list_data.
+unfold list_cell, list_data.
+rewrite <- !eq_rect_eq.
 unfold fold_reptype; simpl; rewrite !eq_rect_r_eq.
 unfold default_val; simpl.
 unfold field_at_.
@@ -156,10 +141,7 @@ change (default_val (nested_field_type2 list_struct [StructField _next]))
 unfold data_at.
 unfold_field_at 5%nat.
 rewrite <- !sepcon_assoc.
-forget (field_at sh list_struct [StructField _a] i p *
-field_at sh list_struct [StructField _b] j p) as J.
-forget (field_at sh list_struct [StructField _next] Vundef p) as B.
-rewrite wand_sepcon. auto.
+symmetry; apply wand_sepcon.
 Qed.
 
 Lemma make_unmake:

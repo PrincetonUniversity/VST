@@ -95,36 +95,47 @@ Definition Gprog : funspecs :=
     sumlist_spec :: reverse_spec :: main_spec::nil.
 
 (** Two little equations about the list_cell predicate *)
-Lemma list_cell_eq: forall sh i,
-   readable_share sh ->
-   list_cell LS sh (Vint i) = field_at sh t_struct_list [StructField _head] (Vint i).
+Lemma list_cell_eq': forall sh i p ,
+   list_cell LS sh (Vint i) p * field_at_ sh list_struct [StructField _tail] p = 
+   field_at sh t_struct_list [StructField _head] (Vint i) p * field_at_ sh list_struct [StructField _tail] p.
 Proof.
   intros.
-  unfold list_cell; extensionality p; simpl.
-  unfold maybe_data_at, list_data.
-  rewrite if_true by auto. rewrite <- !eq_rect_eq.
-  match goal with
-  | |- appcontext [@fold_reptype _ _ ?t ?v] =>
-         pose proof fold_reptype_JMeq t v as HH;
-         apply JMeq_eq in HH;
-         rewrite HH;
-         clear HH
-  end.
-  unfold add_link_back, list_rect, default_val; simpl.
-  unfold eq_rect_r; rewrite <- !eq_rect_eq.
-  unfold data_at, field_at_.
-  really_simplify (default_val (nested_field_type2 list_struct [StructField _tail])).
-  change  (@list_struct CompSpecs CS_legal _list _tail LS)  with t_struct_list.
+  unfold list_cell, list_data.
+  rewrite <- !eq_rect_eq.
+  unfold fold_reptype; simpl; rewrite !eq_rect_r_eq.
+  unfold default_val; simpl.
+  unfold data_at. unfold_field_at 1%nat.
+  apply wand_sepcon.
+Qed.
+
+Lemma field_at_resolve1:
+  forall A B sh t gfs v p,
+   (A * field_at_ sh t gfs p) && (B * field_at sh t gfs v p) |--
+   (A && B) * field_at sh t gfs v p.
+Admitted.  (* true and provable, but not trivial *)
+
+Lemma list_cell_eq'': forall sh i p q ,
+   list_cell LS sh (Vint i) p * field_at sh list_struct [StructField _tail] q p = 
+   field_at sh t_struct_list [StructField _head] (Vint i) p * field_at sh list_struct [StructField _tail] q p.
+Proof.
+  intros.
   apply pred_ext.
-*
-  unfold_field_at 2%nat.
-  forget (field_at sh t_struct_list [StructField _tail] Vundef p) as B.
-  forget (field_at sh t_struct_list [StructField _head] (Vint i) p) as A.
-  admit.  (* for Qinxiang *)
-*
-  unfold_field_at 3%nat.
-  apply wand_sepcon_adjoint.
-  auto.
+  rewrite <- (andp_dup (field_at sh list_struct [StructField _tail] q p)) at 1.
+  eapply derives_trans; [apply distrib_sepcon_andp | ].
+  eapply derives_trans; [apply andp_derives; [ | apply derives_refl ] |].
+  apply sepcon_derives; [apply derives_refl | ].
+  apply field_at_field_at_.
+  rewrite list_cell_eq'.
+  eapply derives_trans; [apply field_at_resolve1 | ].
+  apply sepcon_derives; auto. apply andp_left1; auto.
+  rewrite <- (andp_dup (field_at sh list_struct [StructField _tail] q p)) at 1.
+  eapply derives_trans; [apply distrib_sepcon_andp | ].
+  eapply derives_trans; [apply andp_derives; [ | apply derives_refl ] |].
+  apply sepcon_derives; [apply derives_refl | ].
+  apply field_at_field_at_.
+  rewrite <- list_cell_eq'.
+  eapply derives_trans; [apply field_at_resolve1 | ].
+  apply sepcon_derives; auto. apply andp_left1; auto.
 Qed.
 
 (** Here's a loop invariant for use in the body_sumlist proof *)
@@ -174,11 +185,15 @@ normalize.
 simpl in HRE.
 focus_SEP 1; apply semax_lseg_nonnull; [ | intros h' r y ? ?].
 entailer!.
-(*pose proof (JMeq_eq (valinject_JMeq (nested_field_type2 (Tstruct _list noattr) [StructField _tail]) y eq_refl)) as HH.
-rewrite HH; clear HH.
-*)
 destruct cts; inv H.
-rewrite list_cell_eq by auto.
+gather_SEP 0 1.
+pose (list_cell_eq' sh i t0).
+match goal with |- context [SEPx (?A::_)] =>
+   replace A with (`(field_at sh t_struct_list [StructField _head] (Vint i) t0 *
+                              field_at sh list_struct [StructField _tail] y t0))
+ by (extensionality rho; unfold_lift; simpl; symmetry; apply list_cell_eq'')
+end.
+normalize.
 forward.  (* h = t->head; *)
 forward t_old.  (*  t = t->tail; *)
 subst t_old.
@@ -354,14 +369,29 @@ Lemma setup_globals:
 Proof.
   intros.
   entailer.
+ rewrite !sepcon_assoc.
   apply gvar_offset in H. destruct H as [b ?]. subst x. simpl.
   repeat rewrite Int.add_zero_l.
-  repeat rewrite sepcon_assoc.
   apply @lseg_unroll_nonempty1 with (Vptr b (Int.repr 8));
    [intro Hx; inv Hx | apply I | simpl ].
-  rewrite list_cell_eq; repeat rewrite field_at_data_at;
-     unfold field_address; 
-     repeat (rewrite if_true; [ | repeat split; try computable]).
+  rewrite <- (sepcon_assoc (list_cell LS _ _ _)).
+  rewrite list_cell_eq''.
+  repeat rewrite field_at_data_at. unfold data_at, field_at.
+  unfold field_address.
+  repeat ((rewrite if_true || rewrite prop_true_andp);
+    [ | repeat split; 
+         try solve [red; normalize; compute; congruence];
+         try solve [exists 0; rewrite Z.mul_0_l; reflexivity];
+         try solve [exists 1; reflexivity];
+         try solve [left; reflexivity];
+         try solve [right; left; reflexivity]
+    ]).
+ simpl.
+ unfold data_at', at_offset; simpl.
+ unfold mapsto'; rewrite !if_true by auto.
+ rewrite sepcon_assoc.
+ apply sepcon_derives; [ apply derives_refl | ].  
+ apply sepcon_derives; [ apply derives_refl | ].
 Admitted.
 (*
   simpl_data_at; repeat rewrite   Int.add_zero_l.
