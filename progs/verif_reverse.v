@@ -100,21 +100,38 @@ Lemma list_cell_eq': forall sh i p ,
    field_at sh t_struct_list [StructField _head] (Vint i) p * field_at_ sh list_struct [StructField _tail] p.
 Proof.
   intros.
-  unfold list_cell, list_data.
-  rewrite <- !eq_rect_eq.
-  unfold fold_reptype; simpl; rewrite !eq_rect_r_eq.
-  unfold default_val; simpl.
-  unfold data_at. unfold_field_at 1%nat.
-  apply wand_sepcon.
+  rewrite list_cell_link_join_nospacer by reflexivity.
+  unfold data_at. unfold list_data, add_link_back, fold_reptype.
+  simpl; really_simplify_some_things.
+  unfold_field_at 1%nat. reflexivity.
 Qed.
+
+Lemma memory_block_resolve:
+  forall A B C D sh n p,
+   sepalg.nonidentity sh ->
+   (A * (C && memory_block sh n p)) && (B * (D && memory_block sh n p)) |--
+   (A && B) * (C && D && memory_block sh n p).
+Admitted.  (* should work since memory_block is a precise predicate *)
 
 Lemma field_at_resolve1:
   forall A B sh t gfs v p,
+   sepalg.nonidentity sh ->
    (A * field_at_ sh t gfs p) && (B * field_at sh t gfs v p) |--
    (A && B) * field_at sh t gfs v p.
-Admitted.  (* true and provable, but not trivial *)
+Proof.
+intros.
+apply derives_trans with
+ ((A * (TT && field_at_ sh t gfs p)) && (B * (field_at sh t gfs v p && field_at_ sh t gfs p))).
+apply andp_right. rewrite TT_andp.
+  apply andp_left1. auto.
+  apply andp_left2. apply sepcon_derives; auto. apply andp_right; cancel.
+  rewrite field_at__memory_block. 
+  eapply derives_trans; [apply memory_block_resolve; auto | ].
+  rewrite TT_andp. apply sepcon_derives; auto. apply andp_left1; auto.
+Qed.  
 
 Lemma list_cell_eq'': forall sh i p q ,
+   sepalg.nonidentity sh ->
    list_cell LS sh (Vint i) p * field_at sh list_struct [StructField _tail] q p = 
    field_at sh t_struct_list [StructField _head] (Vint i) p * field_at sh list_struct [StructField _tail] q p.
 Proof.
@@ -126,7 +143,7 @@ Proof.
   apply sepcon_derives; [apply derives_refl | ].
   apply field_at_field_at_.
   rewrite list_cell_eq'.
-  eapply derives_trans; [apply field_at_resolve1 | ].
+  eapply derives_trans; [apply field_at_resolve1; auto | ].
   apply sepcon_derives; auto. apply andp_left1; auto.
   rewrite <- (andp_dup (field_at sh list_struct [StructField _tail] q p)) at 1.
   eapply derives_trans; [apply distrib_sepcon_andp | ].
@@ -134,7 +151,7 @@ Proof.
   apply sepcon_derives; [apply derives_refl | ].
   apply field_at_field_at_.
   rewrite <- list_cell_eq'.
-  eapply derives_trans; [apply field_at_resolve1 | ].
+  eapply derives_trans; [apply field_at_resolve1; auto | ].
   apply sepcon_derives; auto. apply andp_left1; auto.
 Qed.
 
@@ -187,11 +204,10 @@ focus_SEP 1; apply semax_lseg_nonnull; [ | intros h' r y ? ?].
 entailer!.
 destruct cts; inv H.
 gather_SEP 0 1.
-pose (list_cell_eq' sh i t0).
 match goal with |- context [SEPx (?A::_)] =>
    replace A with (`(field_at sh t_struct_list [StructField _head] (Vint i) t0 *
                               field_at sh list_struct [StructField _tail] y t0))
- by (extensionality rho; unfold_lift; simpl; symmetry; apply list_cell_eq'')
+ by (extensionality rho; unfold_lift; simpl; symmetry; apply list_cell_eq''; auto)
 end.
 normalize.
 forward.  (* h = t->head; *)
@@ -258,7 +274,6 @@ forward v_old.  (* v = t; *)
 subst w_old v_old.
 (* at end of loop body, re-establish invariant *)
 apply exp_right with (h::cts1,r,v,y).
-simpl @fst; simpl @snd.
 entailer!.
  * rewrite app_ass. auto.
  * rewrite (lseg_unroll _ sh (h::cts1)).

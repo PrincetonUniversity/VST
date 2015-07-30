@@ -1878,22 +1878,14 @@ induction m; intros.
    admit. (* for Qinxiang? *)
 Qed.
 
-Lemma field_at_share_join{cs: compspecs}{csl: compspecs_legal cs}:
-  forall sh1 sh2 sh t gfs v p,
+
+Lemma data_at'_share_join {cs: compspecs}{csl: compspecs_legal cs}:
+  forall sh1 sh2 sh t v p,
     sepalg.join sh1 sh2 sh ->
-   field_at sh1 t gfs v p * field_at sh2 t gfs v p = field_at sh t gfs v p.
+   data_at' sh1 t v p * data_at' sh2 t v p = data_at' sh t v p.
 Proof.
-intros.
-unfold field_at.
-normalize.
-f_equal.
-f_equal.
-apply prop_ext; clear; intuition.
-unfold at_offset.
-forget (offset_val (Int.repr (nested_field_offset2 t gfs)) p) as q.
-forget (nested_field_type2 t gfs) as t'.
-clear - H. rename t' into t.
-revert v q; pattern t;  type_induction.type_induction t; intros;
+intros; rename p into q; 
+ revert v q; pattern t;  type_induction.type_induction t; intros;
 rewrite !data_at'_ind;
  try solve [if_tac;
      [ apply memory_block_share_join; auto
@@ -1934,6 +1926,20 @@ rewrite !data_at'_ind;
   admit. (* similar to the Tstruct case? *)
 Qed.
 
+Lemma field_at_share_join{cs: compspecs}{csl: compspecs_legal cs}:
+  forall sh1 sh2 sh t gfs v p,
+    sepalg.join sh1 sh2 sh ->
+   field_at sh1 t gfs v p * field_at sh2 t gfs v p = field_at sh t gfs v p.
+Proof.
+intros.
+unfold field_at.
+normalize.
+f_equal.
+f_equal.
+apply prop_ext; clear; intuition.
+unfold at_offset.
+apply data_at'_share_join; auto.
+Qed.
 
 Lemma field_at__share_join{cs: compspecs}{csl: compspecs_legal cs}:
   forall sh1 sh2 sh t gfs p,
@@ -1946,19 +1952,13 @@ apply field_at_share_join.
 auto.
 Qed.
 
-Lemma nonreadable_memory_block_data_at:
-  forall  {cs: compspecs}{csl: compspecs_legal cs} 
-      sh t v p, 
-  ~ readable_share sh ->
-   field_compatible t nil p ->
-   memory_block sh (sizeof cenv_cs t) p = data_at sh t v p.
-Proof.
+Lemma nonreadable_memory_block_data_at':
+   forall {cs: compspecs}{csl: compspecs_legal cs} sh t v p,
+   ~ readable_share sh ->
+    field_compatible t nil p ->
+    memory_block sh (sizeof cenv_cs t) p = data_at' sh t v p.
+ Proof.
 intros.
-unfold data_at, field_at.
-rewrite prop_true_andp by auto.
-change (nested_field_offset2 t nil) with 0.
-unfold at_offset.
-normalize.
 hnf in H0.
 destruct H0 as [Hp [_ [_ [? [Hsz [Hsc _]]]]]].
 revert H0 Hsz v p Hsc Hp; pattern t; type_induction.type_induction t; intros; inv H0;
@@ -1975,6 +1975,22 @@ revert H0 Hsz v p Hsc Hp; pattern t; type_induction.type_induction t; intros; in
   admit.  (* Qinxiang *)
 * (* Tunion *)
   admit.  (* Qinxiang *)
+Qed.
+
+Lemma nonreadable_memory_block_data_at:
+  forall  {cs: compspecs}{csl: compspecs_legal cs} 
+      sh t v p, 
+  ~ readable_share sh ->
+   field_compatible t nil p ->
+   memory_block sh (sizeof cenv_cs t) p = data_at sh t v p.
+Proof.
+intros.
+unfold data_at, field_at.
+rewrite prop_true_andp by auto.
+change (nested_field_offset2 t nil) with 0.
+unfold at_offset.
+normalize.
+apply nonreadable_memory_block_data_at'; auto.
 Qed.
 
 Lemma field_at_nonreadable:
@@ -2002,4 +2018,33 @@ rewrite nonreadable_memory_block_data_at with (v0:=v); auto.
 unfold data_at.
 apply field_at_share_join; auto.
 apply pred_ext; saturate_local; contradiction.
+Qed.
+
+
+Lemma nonreadable_data_at'_eq {cs: compspecs} {csl: compspecs_legal cs}: 
+  forall sh t v v' p,
+    ~readable_share sh ->
+    field_compatible t nil p ->
+     data_at' sh t v p = data_at' sh t v' p.
+Proof.
+intros.
+ rewrite <- !(nonreadable_memory_block_data_at'); auto.
+Qed.
+
+Lemma nonreadable_data_at_eq {cs: compspecs} {csl: compspecs_legal cs}: 
+  forall sh t v v' p, ~readable_share sh ->
+     data_at sh t v p = data_at sh t v' p.
+Proof.
+intros.
+apply pred_ext; saturate_local;
+ rewrite <- !(nonreadable_memory_block_data_at); auto.
+Qed.
+
+Lemma nonreadable_field_at_eq {cs: compspecs} {csl: compspecs_legal cs}:
+  forall sh t gfs v v', ~readable_share sh ->
+     field_at sh t gfs v = field_at sh t gfs v'.
+Proof.
+intros; extensionality p.
+rewrite !field_at_data_at.
+apply nonreadable_data_at_eq; auto.
 Qed.

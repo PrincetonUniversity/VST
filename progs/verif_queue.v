@@ -131,6 +131,18 @@ Lemma field_at_list_cell_weak:
   field_at_ sh list_struct [StructField _next] p.
 Proof.
 intros.
+(* new version of proof, for constructive definition of list_cell *)
+f_equal.
+unfold field_at, list_cell; simpl.
+normalize.
+f_equal.
+f_equal; apply prop_ext; split.
+intros [? ?].
+rewrite field_compatible_cons in H1; destruct H1; auto.
+intro; split; rewrite field_compatible_cons; split; auto.
+left; reflexivity.
+right; left; reflexivity.
+(* old version of proof, for wand-based spec of list_cell 
 unfold list_cell, list_data.
 rewrite <- !eq_rect_eq.
 unfold fold_reptype; simpl; rewrite !eq_rect_r_eq.
@@ -142,6 +154,7 @@ unfold data_at.
 unfold_field_at 5%nat.
 rewrite <- !sepcon_assoc.
 symmetry; apply wand_sepcon.
+*)
 Qed.
 
 Lemma make_unmake:

@@ -43,26 +43,6 @@ intros. rewrite andp_comm. rewrite allp_andp1; auto.
 f_equal. extensionality x. rewrite andp_comm; auto.
 Qed.
 
-Lemma nonreadable_data_at_eq {cs: compspecs} {csl: compspecs_legal cs}: 
-   (* move to floyd *)
-  forall sh t v v' p, ~readable_share sh ->
-     data_at sh t v p = data_at sh t v' p.
-Proof.
-intros.
-apply pred_ext; saturate_local;
- rewrite <- !(nonreadable_memory_block_data_at); auto.
-Qed.
-
-Lemma nonreadable_field_at_eq {cs: compspecs} {csl: compspecs_legal cs}:
-    (* move to floyd *)
-  forall sh t gfs v v', ~readable_share sh ->
-     field_at sh t gfs v = field_at sh t gfs v'.
-Proof.
-intros; extensionality p.
-rewrite !field_at_data_at.
-apply nonreadable_data_at_eq; auto.
-Qed.
-
 Local Open Scope logic.
 
 Class listspec {cs: compspecs} {csl: compspecs_legal cs} (list_structid: ident) (list_link: ident) :=
@@ -82,9 +62,9 @@ Context  {list_structid: ident} {list_link: ident}.
 Fixpoint all_but_link (f: members) : members :=
  match f with
  | nil => nil
- | cons (i, t) f' => if ident_eq i list_link
+ | cons it f' => if ident_eq (fst it) list_link
                                then f' 
-                               else cons (i, t) (all_but_link f')
+                               else cons it (all_but_link f')
  end.
 
 Lemma list_link_size_in_range (ls: listspec list_structid list_link):  
@@ -98,7 +78,139 @@ Qed.
 Definition elemtype (ls: listspec list_structid list_link) :=
   compact_prod
   (map (fun it => reptype (field_type (fst it) list_fields)) (all_but_link list_fields)).
- 
+
+Definition field_type'  (F: members) (it: ident * type) :=
+   reptype (field_type (fst it) F). 
+
+Definition add_link_back' {F f: members}
+  (v: compact_prod (map (field_type' F) (all_but_link f))) :
+  compact_prod (map (field_type' F) f).
+  induction f as [| it0 f].
+  + exact tt.
+  +  destruct f as [| it1 f0].
+    - exact (default_val _).
+    - change (all_but_link (it0 :: it1 :: f0))
+       with (if ident_eq (fst it0) list_link
+                               then it1::f0
+                               else cons it0 (all_but_link (it1::f0)))
+       in v.
+       change (reptype (field_type (fst it0) F) * compact_prod (map (field_type' F) (it1::f0)))%type.
+       destruct (ident_eq (fst it0) list_link).
+       exact (default_val _, v).
+       destruct (all_but_link (it1 :: f0)) eqn:?.
+       simpl in Heqm. 
+       destruct (ident_eq (fst it1) list_link); [ | discriminate Heqm].
+        subst f0.
+        exact (v, default_val _).
+        exact (fst v, IHf (snd v)).
+Defined.
+
+Definition add_link_back 
+ (F f : members)
+  (v : compact_prod
+         (map (fun it : ident * type => reptype (field_type (fst it) F))
+            (all_but_link f)))
+  : compact_prod (map (fun it => reptype (field_type (fst it) F)) f)
+  :=
+list_rect
+  (fun f0 : list (ident * type) =>
+   compact_prod (map (field_type' F) (all_but_link f0)) ->
+   compact_prod (map (field_type' F) f0))
+  (fun _ : compact_prod (map (field_type' F) (all_but_link nil)) => tt)
+  (fun (it0 : ident * type) (f0 : list (ident * type))
+     (IHf : compact_prod (map (field_type' F) (all_but_link f0)) ->
+            compact_prod (map (field_type' F) f0))
+     (v0 : compact_prod (map (field_type' F) (all_but_link (it0 :: f0)))) =>
+   match
+     f0 as l
+     return
+       (compact_prod (map (field_type' F) (all_but_link (it0 :: l))) ->
+        (compact_prod (map (field_type' F) (all_but_link l)) ->
+         compact_prod (map (field_type' F) l)) ->
+        compact_prod (map (field_type' F) (it0 :: l)))
+   with
+   | nil =>
+       fun
+         (_ : compact_prod (map (field_type' F) (all_but_link (it0 :: nil))))
+         (_ : compact_prod (map (field_type' F) (all_but_link nil)) ->
+              compact_prod (map (field_type' F) nil)) =>
+       default_val (field_type (fst it0) F)
+   | it1 :: f1 =>
+       fun
+         (v1 : compact_prod
+                 (map (field_type' F) (all_but_link (it0 :: it1 :: f1))))
+         (IHf0 : compact_prod
+                   (map (field_type' F) (all_but_link (it1 :: f1))) ->
+                 compact_prod (map (field_type' F) (it1 :: f1))) =>
+       (if ident_eq (fst it0) list_link as s0
+         return
+           (compact_prod
+              (map (field_type' F)
+                 (if s0 then it1 :: f1 else it0 :: all_but_link (it1 :: f1))) ->
+            reptype (field_type (fst it0) F) *
+            compact_prod (map (field_type' F) (it1 :: f1)))
+        then
+         fun v2 : compact_prod (map (field_type' F) (it1 :: f1)) =>
+         (default_val (field_type (fst it0) F), v2)
+        else
+         fun
+           v2 : compact_prod
+                  (map (field_type' F) (it0 :: all_but_link (it1 :: f1))) =>
+         match
+           all_but_link (it1 :: f1) as l
+           return
+             (all_but_link (it1 :: f1) = l ->
+              compact_prod (map (field_type' F) (it0 :: l)) ->
+              (compact_prod (map (field_type' F) l) ->
+               compact_prod (map (field_type' F) (it1 :: f1))) ->
+              reptype (field_type (fst it0) F) *
+              compact_prod (map (field_type' F) (it1 :: f1)))
+         with
+         | nil =>
+             fun (Heqm0 : all_but_link (it1 :: f1) = nil)
+               (v3 : compact_prod (map (field_type' F) (it0 :: nil)))
+               (IHf1 : compact_prod (map (field_type' F) nil) ->
+                       compact_prod (map (field_type' F) (it1 :: f1))) =>
+             let s0 := ident_eq (fst it1) list_link in
+             (if s0
+               return
+                 ((if s0 then f1 else it1 :: all_but_link f1) = nil ->
+                  reptype (field_type (fst it0) F) *
+                  compact_prod (map (field_type' F) (it1 :: f1)))
+              then
+               fun Heqm1 : f1 = nil =>
+               eq_rect_r
+                 (fun f2 : members =>
+                  (compact_prod (map (field_type' F) nil) ->
+                   compact_prod (map (field_type' F) (it1 :: f2))) ->
+                  reptype (field_type (fst it0) F) *
+                  compact_prod (map (field_type' F) (it1 :: f2)))
+                 (fun
+                    _ : compact_prod (map (field_type' F) nil) ->
+                        compact_prod (map (field_type' F) (it1 :: nil)) =>
+                  (v3, default_val (field_type (fst it1) F)))
+                 Heqm1 IHf1
+              else
+               fun Heqm1 : it1 :: all_but_link f1 = nil =>
+                 False_rect
+                   (reptype (field_type (fst it0) F) *
+                    compact_prod (map (field_type' F) (it1 :: f1)))
+                 (eq_rect (it1 :: all_but_link f1)
+                    (fun e : members =>
+                     match e with
+                     | nil => False
+                     | _ :: _ => True
+                     end) I nil Heqm1)) Heqm0
+         | p :: m0 =>
+             fun (_ : all_but_link (it1 :: f1) = p :: m0)
+               (v3 : compact_prod (map (field_type' F) (it0 :: p :: m0)))
+               (IHf1 : compact_prod (map (field_type' F) (p :: m0)) ->
+                       compact_prod (map (field_type' F) (it1 :: f1))) =>
+             (fst v3, IHf1 (snd v3))
+         end eq_refl v2 IHf0) v1
+   end v0 IHf) f v.
+
+(*
 Definition add_link_back {ls: listspec list_structid list_link} {f F: members}
   (v: compact_prod (map (fun it => reptype (field_type (fst it) F)) (all_but_link f))) :
   compact_prod (map (fun it => reptype (field_type (fst it) F)) f).
@@ -116,32 +228,259 @@ Definition add_link_back {ls: listspec list_structid list_link} {f F: members}
         exact (v, default_val _).
       * exact (fst v, IHf (snd v)).
 Defined.
+*)
 
 Definition list_data {ls: listspec list_structid list_link} (v: elemtype ls): reptype list_struct.
   unfold list_struct.
-  pose (add_link_back v: reptype_structlist _).
+  pose (add_link_back _ _ v: reptype_structlist _).
   rewrite list_members_eq in r.
   exact (@fold_reptype _ _ (Tstruct _ _) r).
-Defined.
- 
-(*
-Definition maybe_data_at (ls: listspec list_structid list_link) (sh: share) (v: elemtype ls) (p: val) : mpred :=
-  if readable_share_dec sh
-  then data_at sh list_struct (list_data v) p
-  else memory_block sh (sizeof cenv_cs list_struct) p.
-*)
+Defined. 
 
-Definition list_cell (ls: listspec list_structid list_link) sh v p :=
+Definition list_cell' (ls: listspec list_structid list_link) sh v p :=
   (field_at_ sh list_struct (StructField list_link :: nil) p) -* (data_at sh list_struct (list_data v) p).
-(*
-Lemma list_cell_eq': forall sh i p v,
+
+Definition list_cell (ls: listspec list_structid list_link) (sh: Share.t)
+   (v: elemtype ls) (p: val) : mpred :=
+   !! field_compatible list_struct nil p &&
+   struct_pred (all_but_link list_fields)
+              (fun it v => withspacer sh
+                (field_offset cenv_cs (fst it) list_fields + sizeof cenv_cs (field_type (fst it) list_fields))
+                (field_offset_next cenv_cs (fst it) list_fields (co_sizeof (get_co list_structid)))
+                (at_offset (data_at' sh (field_type (fst it) list_fields) v) (field_offset cenv_cs (fst it) list_fields)))
+     v p.
+
+Lemma struct_pred_type_changable:
+  forall m m' A F v v' p p',
+  m=m' ->
+  JMeq v v' ->
+  offset_val Int.zero p = offset_val Int.zero p' ->
+  @struct_pred m A F v p = @struct_pred m' A F v' p'.
+Admitted.
+
+Lemma list_cell_link_join:
+  forall (LS: listspec list_structid list_link) sh v p,
    list_cell LS sh v p 
-   * field_at_ sh list_struct [StructField list_link] p = 
-   
-   field_at sh t_struct_list [StructField _head] (Vint i) p 
-   * field_at_ sh list_struct [StructField list_link] p.
+   * spacer sh  (field_offset cenv_cs list_link list_fields +
+                        sizeof cenv_cs (field_type list_link list_fields))
+                        (field_offset_next cenv_cs list_link list_fields
+                        (co_sizeof (get_co list_structid)))
+           (offset_val (Int.repr 0) p) 
+   * field_at_ sh list_struct (StructField list_link :: nil) p 
+     = data_at sh list_struct (list_data v) p.
 Proof.
-*)
+unfold list_cell, data_at_, data_at, field_at_, field_at; intros.
+destruct (field_compatible_dec list_struct nil p);
+  [ | solve [apply pred_ext; normalize]].
+rewrite !(prop_true_andp _ _ f).
+rewrite prop_true_andp by admit.
+change  (nested_field_type2 list_struct nil) with list_struct.
+rewrite (data_at'_ind sh list_struct 
+          (@fold_reptype cs csl (Tstruct list_structid noattr)
+            (@eq_rect members
+               (@list_fields cs csl list_structid list_link LS)
+               (fun m : members => @reptype_structlist cs m)
+               (@add_link_back 
+                  (@list_fields cs csl list_structid list_link LS)
+                  (@list_fields cs csl list_structid list_link LS) v)
+               (co_members (@get_co cs list_structid))
+               (@list_members_eq cs csl list_structid list_link LS)))).
+simpl.
+forget (co_sizeof (get_co list_structid)) as sz.
+assert (FT: field_type list_link list_fields = tptr list_struct).
+  admit.
+pose (P m := fun (it : ident * type) (v0 : reptype (field_type (fst it) m)) =>
+   withspacer sh
+     (field_offset cenv_cs (fst it) m +
+      sizeof cenv_cs (field_type (fst it) m))
+     (field_offset_next cenv_cs (fst it) m sz)
+     (at_offset (data_at' sh (field_type (fst it) m) v0)
+        (field_offset cenv_cs (fst it) m))).
+fold (P list_fields).
+fold (P (co_members (get_co list_structid))).
+transitivity
+  (at_offset
+  (struct_pred (co_members (get_co list_structid))
+     (P (co_members (get_co list_structid)))
+     (
+           (eq_rect list_fields (fun m : members => reptype_structlist m)
+              (add_link_back _ _ v) (co_members (get_co list_structid))
+              list_members_eq))) (nested_field_offset2 list_struct nil) p);
+ [ | f_equal; f_equal; rewrite unfold_fold_reptype; reflexivity ].
+unfold at_offset.
+rewrite (data_at'_type_changable sh 
+                      (nested_field_type2 list_struct (StructField list_link :: nil))
+                      (tptr list_struct)
+                      (default_val _) Vundef
+                      list_link_type)
+  by (rewrite by_value_default_val; try reflexivity;
+       rewrite list_link_type; reflexivity).
+set (ofs := Int.repr (nested_field_offset2 list_struct (StructField list_link :: nil))).
+assert (Hofs: ofs = Int.repr (field_offset cenv_cs list_link list_fields)). {
+  unfold ofs.
+  clear.
+  f_equal.
+  unfold list_struct.
+  pose proof list_link_type.
+  unfold nested_field_offset2.
+  simpl. rewrite list_members_eq.
+  unfold list_struct, nested_field_type2 in H; simpl in H.
+  destruct (compute_in_members list_link (co_members (get_co list_structid))); inv H.
+  reflexivity.
+  }
+revert v; unfold elemtype.
+fold (field_type' list_fields).
+pose (m := list_fields).
+pose (m' := co_members (get_co list_structid)).
+set (H := list_members_eq).
+clearbody H.
+revert H.
+change (forall (H: m=m')
+  (v : compact_prod (map (field_type' list_fields) (all_but_link m))),
+struct_pred (all_but_link m) (P list_fields) v p  *
+spacer sh
+  (field_offset cenv_cs list_link list_fields +
+   sizeof cenv_cs (field_type list_link list_fields))
+  (field_offset_next cenv_cs list_link list_fields sz)
+  (offset_val (Int.repr 0) p)*
+data_at' sh (tptr list_struct) Vundef
+  (offset_val ofs p) =
+struct_pred m'
+  (P m')
+  (eq_rect m reptype_structlist
+     (add_link_back list_fields m v) m' H)
+  (offset_val (Int.repr 0) p)).
+assert  (MNR := get_co_members_no_replicate list_structid).
+fold m' in MNR.
+revert MNR.
+clearbody m'.
+intros.
+subst m'.
+rewrite <- eq_rect_eq.
+assert (In list_link (map fst m)). {
+ unfold m.
+ rewrite list_members_eq.
+ pose proof list_link_type.
+ unfold nested_field_type2 in H.
+ unfold list_struct in H. unfold nested_field_rec in H.
+ destruct (compute_in_members list_link (co_members (get_co list_structid)))
+    eqn:?; inv H.
+ apply compute_in_members_true_iff; auto.
+}
+change (struct_pred (all_but_link m) (P list_fields) v p  *
+spacer sh
+  (field_offset cenv_cs list_link list_fields +
+   sizeof cenv_cs (field_type list_link list_fields))
+  (field_offset_next cenv_cs list_link list_fields sz)
+  (offset_val (Int.repr 0) p)*
+data_at' sh (tptr list_struct) Vundef (offset_val ofs p) =
+struct_pred m (P list_fields)
+  (add_link_back list_fields m v)
+  (offset_val (Int.repr 0) p)).
+revert MNR H v; clearbody m.
+induction m; intros; [inv H | ].
+destruct H.
+* (* list_link is the first field *)
+destruct a. simpl in H. subst i.
+destruct m.
+simpl.
+assert ((if ident_eq list_link list_link then nil else (list_link, t) :: nil) = nil)
+  by (rewrite if_true; auto).
+simpl in v.
+assert (exists v' : compact_prod (map (field_type' list_fields) nil), JMeq v' v).  {
+  revert H v.
+  clear.
+  pose (j := if ident_eq list_link list_link
+             then @nil (ident * type) else (list_link, t) :: @nil (ident * type)).
+  change (j = nil ->
+   forall
+     v : compact_prod (map (field_type' list_fields) j),
+    exists v' : compact_prod (map (field_type' list_fields) nil), JMeq v' v).
+  clearbody j.
+  intros; subst. exists v; reflexivity.
+}
+destruct H0 as [v' ?].
+replace (struct_pred
+  (if ident_eq list_link list_link then nil else (list_link, t) :: nil)
+  (P list_fields) v p) with 
+  (struct_pred nil (P list_fields) v' p).
+Focus 2.
+if_tac; [ | congruence]. reflexivity.
+simpl. rewrite emp_sepcon.
+clear v' H0 H v IHm.
+unfold P.
+rewrite withspacer_spacer.
+unfold at_offset. simpl @fst.
+f_equal.
+rewrite offset_offset_val, Int.add_zero_l.
+rewrite Hofs.
+apply equal_f.
+apply data_at'_type_changable; auto.
+rewrite FT. reflexivity.
+assert (all_but_link ((list_link,t)::p0::m) = p0::m).
+simpl. rewrite if_true by auto; reflexivity.
+assert (all_but_link (p0::m) = p0::m). {
+   clear - MNR H.
+   admit. (* easy enough *)
+}
+rewrite struct_pred_cons2.
+unfold P at 2.
+rewrite withspacer_spacer.
+rewrite Hofs. unfold at_offset.
+rewrite offset_offset_val, Int.add_zero_l.
+change (fst (list_link, t)) with list_link.
+pull_right (spacer sh
+  (field_offset cenv_cs list_link list_fields +
+   sizeof cenv_cs (field_type list_link list_fields))
+  (field_offset_next cenv_cs list_link list_fields sz)
+  (offset_val (Int.repr 0) p)).
+f_equal.
+rewrite sepcon_comm.
+f_equal.
+apply equal_f.
+apply data_at'_type_changable; auto.
+apply JMeq_trans with (B:= reptype (field_type list_link list_fields)) (y:= default_val (field_type list_link list_fields)).
+rewrite FT. reflexivity.
+match goal with |- JMeq ?A ?B => replace A with B end.
+apply JMeq_refl.
+clear.
+revert v.
+unfold all_but_link.
+unfold add_link_back.
+unfold list_rect at 1.
+simpl @fst.
+destruct (ident_eq list_link list_link); [ | elimtype False; congruence]; intro.
+simpl. reflexivity.
+ apply struct_pred_type_changable; auto.
+ clear.
+ revert v.
+ simpl.
+ destruct (ident_eq list_link list_link); [ | elimtype False; congruence]; intro.
+ simpl. reflexivity.
+  rewrite offset_offset_val; reflexivity.
+* (* list link is not the first field *)
+destruct m; [inv H | ].
+ rewrite struct_pred_cons2.
+ assert (all_but_link (a :: p0 :: m) = a :: all_but_link (p0::m)). {
+  clear - MNR H.
+  admit. (* easy *)
+}
+Admitted.  (* this proof is most of the way there. *)
+
+Lemma list_cell_link_join_nospacer:
+  forall (LS: listspec list_structid list_link) sh v p,
+   field_offset cenv_cs list_link list_fields +
+                        sizeof cenv_cs (field_type list_link list_fields) =
+   field_offset_next cenv_cs list_link list_fields
+                        (co_sizeof (get_co list_structid)) ->
+   list_cell LS sh v p * field_at_ sh list_struct (StructField list_link :: nil) p 
+     = data_at sh list_struct (list_data v) p.
+Proof.
+intros.
+rewrite <- list_cell_link_join.
+unfold spacer. rewrite if_true. rewrite sepcon_emp. auto.
+omega.
+Qed.
 
 End LIST1.
 
@@ -599,11 +938,9 @@ clear IHl.
 cancel.
 Qed.
 
-(*
-Lemma lseg_unroll_right (ls: listspec list_structid list_link): forall sh l x z , 
-    lseg ls sh l x z = (!! (ptr_eq x z) && !! (l=nil) && emp) || lseg_cons_right ls sh l x z.
+Lemma lseg_unroll_right (ls: listspec list_structid list_link): forall sh sh' l x z , 
+    lseg ls sh sh' l x z = (!! (ptr_eq x z) && !! (l=nil) && emp) || lseg_cons_right ls sh sh' l x z.
 Abort.  (* not likely true *)
-*)
 
 Lemma lseg_local_facts: 
   forall ls dsh psh contents p q, 
@@ -1081,11 +1418,9 @@ eapply derives_trans; [ | apply LsegGeneral.lseg_cons_right_null].
 cancel.
 Qed.
 
-(*
 Lemma lseg_unroll_right (ls: listspec list_structid list_link): forall sh l x z , 
     lseg ls sh l x z = (!! (ptr_eq x z) && !! (l=nil) && emp) || lseg_cons_right ls sh l x z.
 Abort.  (* not likely true *)
-*)
 
 Lemma lseg_local_facts: 
   forall ls sh contents p q, 
@@ -1162,6 +1497,84 @@ Definition lseg (ls: listspec list_structid list_link) (dsh psh: share)
             (contents: list val) (x z: val) : mpred :=
   LsegGeneral.lseg ls dsh psh (map (fun v => (v, vund ls)) contents) x z.
 
+Lemma nonreadable_list_cell_eq:
+  forall (ls: listspec list_structid list_link) sh v v' p,
+    ~ readable_share sh ->
+   list_cell ls sh v p = list_cell ls sh v' p.
+Proof.
+unfold list_cell; intros.
+ destruct (field_compatible_dec list_struct nil p);
+    [ | solve [ apply pred_ext; normalize ]].
+ f_equal.
+ revert v v'; unfold elemtype.
+ induction (all_but_link list_fields); intros.
+ reflexivity.
+ destruct a as [i t].
+ assert (field_compatible (field_type i list_fields) nil
+  (offset_val (Int.repr (field_offset cenv_cs i list_fields)) p))
+    by  admit.  (* need to adjust the induction hypothesis to prove this *)
+ destruct m as [ | [i' t']].
+ +
+ clear IHm; simpl. rewrite !withspacer_spacer.
+ f_equal. 
+ unfold at_offset.
+ apply nonreadable_data_at'_eq; auto.
+ +
+ rewrite !struct_pred_cons2. 
+ rewrite !withspacer_spacer.
+ f_equal. f_equal.
+ unfold at_offset.
+ apply nonreadable_data_at'_eq; auto.
+ apply IHm.
+Qed.
+
+Lemma cell_share_join:
+  forall (ls: listspec list_structid list_link) ash bsh psh p v, 
+   sepalg.join ash bsh psh ->
+   list_cell ls ash v p * list_cell ls bsh v p = list_cell ls psh v p.
+Proof.
+ intros. 
+ unfold list_cell.
+ destruct (field_compatible_dec list_struct nil p);
+    [ | solve [ apply pred_ext; normalize ]].
+ rewrite !prop_true_andp by auto.
+ revert v; unfold elemtype.
+ induction (all_but_link list_fields); intros.
+ simpl. rewrite emp_sepcon; auto.
+ destruct a as [i t].
+ assert (field_compatible (field_type i list_fields) nil
+  (offset_val (Int.repr (field_offset cenv_cs i list_fields)) p))
+    by  admit.  (* need to adjust the induction hypothesis to prove this *)
+ destruct m as [ | [i' t']].
+ +
+ clear IHm; simpl. rewrite !withspacer_spacer.
+ rewrite <- sepcon_assoc.
+ match goal with |- ?A * ?B * ?C * ?D = _ =>
+    pull_left C; pull_left A
+ end.
+ rewrite sepcon_assoc. f_equal.
+ unfold spacer. if_tac. rewrite emp_sepcon; auto.
+ unfold at_offset.
+ apply memory_block_share_join; auto.
+ unfold at_offset.
+ apply data_at'_share_join; auto.
+ +
+ rewrite !struct_pred_cons2. 
+ rewrite !withspacer_spacer.
+ match goal with |- (?A * ?B * ?C) * (?A' * ?B' * ?C') = _ =>
+   transitivity ((A * A') * (B * B') * (C * C'))
+ end.
+ rewrite <- ! sepcon_assoc.
+ repeat match goal with |- _ * ?A = _ => pull_right A; f_equal end.
+ f_equal. f_equal.
+ unfold spacer. if_tac. apply sepcon_emp.
+ unfold at_offset.
+ apply memory_block_share_join; auto.
+ unfold at_offset.
+ apply data_at'_share_join; auto.
+ apply IHm.
+Qed.
+
 Lemma join_cell_link (ls: listspec list_structid list_link):
   forall v' ash bsh psh p v, 
    sepalg.join ash bsh psh ->
@@ -1170,18 +1583,8 @@ Lemma join_cell_link (ls: listspec list_structid list_link):
    list_cell ls ash v' p * list_cell ls bsh v p = list_cell ls psh v p.
  Proof.
  intros.
- unfold list_cell.
- apply pred_ext.
- rewrite (nonreadable_data_at_eq ash list_struct (list_data v') (list_data v)) by auto.
-*
- eapply derives_trans.
- apply wand_join.
- apply wand_derives; auto.
- unfold field_at_.
- rewrite (field_at_share_join ash bsh psh); auto.
- unfold data_at.
- rewrite (field_at_share_join ash bsh psh); auto.
-*  admit. 
+ rewrite (nonreadable_list_cell_eq _ _ v' v _ H0).
+ apply cell_share_join; auto.
 Qed.
 
 Lemma lseg_unfold (ls: listspec list_structid list_link): forall dsh psh contents v1 v2,
@@ -1284,9 +1687,7 @@ apply exp_right with y.
 normalize.
 repeat (apply sepcon_derives; auto).
 clear - NR.
-unfold list_cell.
-apply wand_derives; auto.
-apply derives_refl'; apply nonreadable_data_at_eq; auto.
+apply derives_refl'; apply nonreadable_list_cell_eq; auto.
 Qed.
 
 Lemma lseg_unroll_nonempty1 (ls: listspec list_structid list_link):
@@ -1512,9 +1913,7 @@ Proof.
  symmetry in H1; inv H1.
  apply exp_right with y. normalize.
  repeat (apply sepcon_derives; auto).
- unfold list_cell.
- apply wand_derives; auto.
- apply derives_refl'; apply nonreadable_data_at_eq; auto.
+ apply derives_refl'; apply nonreadable_list_cell_eq; auto.
  apply orp_right2.
  normalize.
  unfold lseg_cons.
@@ -1563,8 +1962,8 @@ apply list_struct_alignas_legal.
 rewrite prop_true_andp by auto.
 rewrite prop_true_andp by (apply ptr_eq_refl; auto).
 normalize.
- unfold list_cell.
- rewrite (nonreadable_data_at_eq dsh list_struct (list_data h) (list_data (vund ls))); auto.
+ apply derives_refl';  f_equal. f_equal.
+ apply (nonreadable_list_cell_eq); auto.
 *
 unfold lseg; simpl.
 normalize.
@@ -1616,8 +2015,8 @@ destruct H. contradiction H.
 rewrite prop_true_andp by reflexivity.
 rewrite prop_true_andp by (split; reflexivity).
 normalize.
- unfold list_cell.
- rewrite (nonreadable_data_at_eq dsh list_struct (list_data (vund ls)) (list_data h)); auto.
+apply derives_refl'; f_equal.
+apply nonreadable_list_cell_eq; auto.
 *
 normalize.
 apply exp_right with x0.
@@ -1636,11 +2035,9 @@ clear IHl.
 cancel.
 Qed.
 
-(*
-Lemma lseg_unroll_right (ls: listspec list_structid list_link): forall sh l x z , 
-    lseg ls sh l x z = (!! (ptr_eq x z) && !! (l=nil) && emp) || lseg_cons_right ls sh l x z.
+Lemma lseg_unroll_right (ls: listspec list_structid list_link): forall sh sh' l x z , 
+    lseg ls sh sh' l x z = (!! (ptr_eq x z) && !! (l=nil) && emp) || lseg_cons_right ls sh sh' l x z.
 Abort.  (* not likely true *)
-*)
 
 Lemma lseg_local_facts: 
   forall ls dsh psh contents p q, 
@@ -1690,8 +2087,7 @@ Proof.
  normalize.
  f_equal. extensionality y.
  f_equal. f_equal. f_equal. f_equal.
- unfold list_cell.
- rewrite (nonreadable_data_at_eq dsh list_struct (list_data (vund ls)) (list_data h)); auto.
+ apply nonreadable_list_cell_eq; auto.
 Qed.
 
 Lemma list_append: forall {dsh psh: share} 
@@ -1728,12 +2124,41 @@ Proof.
   cancel.
 Qed.
 
+Lemma sizeof_list_struct_pos (LS: listspec list_structid list_link) :
+   sizeof cenv_cs list_struct > 0.
+Admitted.
+
+Lemma valid_pointer_offset_val_zero:
+  forall p, valid_pointer (offset_val (Int.repr 0) p) = valid_pointer p.
+Proof.
+Admitted.
+
+
 Lemma list_cell_valid_pointer:
   forall (LS: listspec list_structid list_link) (dsh psh: Share.t) v p,
    sepalg.join_sub dsh psh ->
-   list_cell LS dsh v p * field_at_ psh list_struct (StructField list_link::nil) p * TT 
+   field_offset cenv_cs list_link list_fields + sizeof cenv_cs (field_type list_link list_fields)
+   = field_offset_next cenv_cs list_link list_fields  (co_sizeof (get_co list_structid)) ->
+   list_cell LS dsh v p * field_at_ psh list_struct (StructField list_link::nil) p 
   |-- valid_pointer p.
-Admitted. (* probably  true *) 
+Proof.
+  intros.
+ destruct H as [bsh ?].
+ rewrite <- (field_at__share_join _ _ _ _ _ _ H).
+ rewrite <- sepcon_assoc.
+ rewrite list_cell_link_join_nospacer; auto.
+ apply sepcon_valid_pointer1.
+ unfold data_at_, field_at_, data_at.
+ eapply derives_trans; [ apply field_at_valid_ptr | ].
+ change (nested_field_type2 list_struct nil) with list_struct.
+ apply sizeof_list_struct_pos.
+ unfold field_address.
+ if_tac; auto.
+ change (Int.repr (nested_field_offset2 list_struct nil)) with Int.zero.
+  rewrite valid_pointer_offset_val_zero; auto.
+ simpl.
+ change predicates_hered.FF with FF. apply FF_left.
+Qed.
 
 Lemma list_cell_valid_pointerx:
   forall (ls : listspec list_structid list_link)  sh v p, 
@@ -1749,6 +2174,8 @@ Lemma lseg_valid_pointer:
   forall (ls : listspec list_structid list_link) dsh psh contents p q R,
    dsh <> Share.bot ->
    sepalg.join_sub dsh psh ->
+   field_offset cenv_cs list_link list_fields + sizeof cenv_cs (field_type list_link list_fields)
+   = field_offset_next cenv_cs list_link list_fields  (co_sizeof (get_co list_structid)) ->
     R |-- valid_pointer q ->
     R * lseg ls dsh psh contents p q |-- valid_pointer p.
 Proof.
@@ -1759,17 +2186,10 @@ unfold lseg; simpl.
 normalize.
 apply sepcon_valid_pointer2.
 apply sepcon_valid_pointer1.
-destruct H0 as [bsh ?].
-rewrite <- (field_at_share_join dsh bsh psh) by auto.
-rewrite <- sepcon_assoc.
-apply sepcon_valid_pointer1.
-unfold list_cell.
-eapply derives_trans; [apply sepcon_derives; [apply derives_refl | apply field_at_field_at_] | ].
-rewrite sepcon_comm.
-eapply derives_trans; [apply modus_ponens_wand | ].
-apply data_at_valid_ptr.
- pose proof (list_link_size_in_range ls).
- admit.  (* should be trivial *)
+eapply derives_trans with
+  (list_cell ls dsh (vund  ls) p * field_at_ psh list_struct (StructField list_link :: nil) p).
+cancel.
+apply list_cell_valid_pointer; auto.
 Qed.
 
 End LIST2.
@@ -1793,7 +2213,7 @@ match goal with
    match Q with context [lseg ?A ?B ?C ?D p ?q] =>
    repeat rewrite <- sepcon_assoc;
    pull_right (lseg A B C D p q);
-   apply lseg_valid_pointer; 
+   apply lseg_valid_pointer; [ | | reflexivity | ]; 
    auto 50 with valid_pointer
    end
  end.
@@ -1808,7 +2228,9 @@ Ltac resolve_list_cell_valid_pointer :=
     apply derives_trans with
       (@list_cell cs csl sid lid LS dsh v p * 
       field_at_ psh t (StructField lid::nil) p * TT);
-      [cancel | apply list_cell_valid_pointer; auto with valid_pointer]
+      [cancel 
+      | apply sepcon_valid_pointer1; 
+        apply list_cell_valid_pointer; [ | reflexivity]; auto with valid_pointer]
    end
   end
  end.
