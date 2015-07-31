@@ -254,9 +254,20 @@ Lemma struct_pred_type_changable:
   forall m m' A F v v' p p',
   m=m' ->
   JMeq v v' ->
-  offset_val Int.zero p = offset_val Int.zero p' ->
+  (forall it v, F it v p = F it v p') ->
   @struct_pred m A F v p = @struct_pred m' A F v' p'.
-Admitted.
+Proof.
+intros.
+subst m'. apply JMeq_eq in H0. subst v'.
+induction m. reflexivity.
+destruct m.
+destruct a; simpl.
+apply H1.
+rewrite !struct_pred_cons2.
+f_equal.
+auto.
+apply IHm.
+Qed.
 
 Lemma list_cell_link_join:
   forall (LS: listspec list_structid list_link) sh v p,
@@ -379,8 +390,14 @@ struct_pred m (P list_fields)
   (offset_val (Int.repr 0) p)).
 revert MNR H v; clearbody m.
 induction m; intros; [inv H | ].
-destruct H.
+ simpl in H.
+ assert (H': In list_link (map fst m) -> fst a <> list_link).
+  clear - MNR. unfold members_no_replicate in MNR. 
+    intros; simpl in *.  destruct (id_in_list (fst a) (map fst m)) eqn:?. inv MNR.
+    apply id_in_list_false in Heqb. intro. congruence.
+ destruct H.
 * (* list_link is the first field *)
+clear H'.
 destruct a. simpl in H. subst i.
 destruct m.
 simpl.
@@ -457,15 +474,175 @@ simpl. reflexivity.
  simpl.
  destruct (ident_eq list_link list_link); [ | elimtype False; congruence]; intro.
  simpl. reflexivity.
-  rewrite offset_offset_val; reflexivity.
+ intros; unfold P; destruct it as [i t'].
+ rewrite !withspacer_spacer. f_equal.
+ rewrite spacer_offset_zero; auto.
+ unfold at_offset. rewrite offset_offset_val. f_equal. f_equal.
+  rewrite Int.add_zero_l; auto.
 * (* list link is not the first field *)
+ specialize (H' H).
 destruct m; [inv H | ].
  rewrite struct_pred_cons2.
  assert (all_but_link (a :: p0 :: m) = a :: all_but_link (p0::m)). {
-  clear - MNR H.
-  admit. (* easy *)
+  clear - MNR H. forget (p0::m) as m'. clear p0 m.
+  induction m'. inv H.
+  unfold all_but_link; fold all_but_link.
+  unfold members_no_replicate in *.
+  rewrite map_cons in MNR.
+  unfold compute_list_norepet in MNR.
+  fold compute_list_norepet in MNR.
+  destruct (id_in_list (fst a) (map fst (a0 :: m'))) eqn:?; [discriminate | ].
+  simpl in Heqb. rewrite orb_false_iff in Heqb. destruct Heqb.
+  apply Pos.eqb_neq in H0.
+  apply id_in_list_false in H1.
+  simpl in H. destruct H.
+  rewrite H in *. rewrite if_false by auto. auto.
+  rewrite if_false by congruence. auto.
 }
-Admitted.  (* this proof is most of the way there. *)
+ unfold members_no_replicate in *.
+ simpl in MNR.
+ destruct ((fst a =? fst p0)%positive || id_in_list (fst a) (map fst m))%bool eqn:?; try discriminate.
+ rewrite orb_false_iff in Heqb. destruct Heqb.
+  apply Pos.eqb_neq in H1.
+  apply id_in_list_false in H2.
+  specialize (IHm MNR H).  
+ destruct p0 as [i t].
+(* simpl in v'. *)
+  simpl in H1. clear MNR H.
+ destruct (ident_eq i list_link).
+ + subst i.
+  assert (exists v' : compact_prod (map (field_type' list_fields) (a :: m)),
+                JMeq v v'). {
+   revert v; clear - H0.
+   replace (all_but_link ((list_link, t) :: m)) with m in H0
+     by (simpl; rewrite if_true by auto; auto).
+   rewrite H0. eexists; eauto.
+ }
+ destruct H as [v' H3].
+ simpl in v'.
+ destruct m.
+ -
+  simpl in v'.
+  assert (exists v'': compact_prod
+                  (map (field_type' list_fields)
+                     (all_but_link ((list_link, t) :: nil))), JMeq v'' tt). {
+  clear. simpl. rewrite if_true by auto. exists tt; reflexivity.
+ }
+ destruct H as [v'' H4].
+ specialize (IHm v'').
+ replace (struct_pred (all_but_link ((list_link, t) :: nil)) (P list_fields) v'' p) with 
+    (struct_pred nil (P list_fields) tt p) in IHm
+  by (apply struct_pred_type_changable; auto; simpl; rewrite if_true; auto).
+  change (struct_pred nil (P list_fields) tt p) with emp in IHm.
+  rewrite emp_sepcon in IHm. 
+  rewrite sepcon_assoc. rewrite IHm; clear IHm.
+  f_equal.
+  assert (exists v4: compact_prod 
+                  (map (field_type' list_fields) (a::nil)), JMeq v4 v). {
+  clear - H1. revert v. simpl. rewrite if_false by auto. rewrite if_true by auto.
+  eexists; eauto.
+ }
+ destruct H as [v4 H5].
+  transitivity (struct_pred (a :: nil) (P list_fields) v4 (offset_val (Int.repr 0) p)).
+ apply struct_pred_type_changable; auto.
+ simpl. rewrite if_false by auto; rewrite if_true by auto. auto.
+ admit. (* see proof above *)
+ destruct a as [i' t'].
+ unfold struct_pred at 1.
+  unfold list_rect.
+  f_equal.
+  clear - H1 H5. simpl in H1.
+  admit.  (* tedious *)
+  apply struct_pred_type_changable; auto.
+  clear - H1 H4 H3.
+  simpl in v'.
+  admit.  (* tedious *)
+  -
+  simpl map at 1 in v'. cbv beta iota in v'.
+  destruct v' as [va vr].
+  assert (exists vr' : compact_prod
+              (map (field_type' list_fields)
+                 (all_but_link ((list_link, t) :: p0 :: m))),
+                JMeq vr vr'). {
+  clear - H1; simpl in H1.
+  simpl. rewrite if_true by auto. exists vr; eauto.
+  } destruct H as [vr' H4].
+   specialize (IHm vr').
+  replace (struct_pred (all_but_link (a :: (list_link, t) :: p0 :: m)) (P list_fields) v p)
+       with (P list_fields a
+                (fst (add_link_back list_fields (a :: (list_link, t) :: p0 :: m) v))
+                 (offset_val (Int.repr 0) p) *
+                struct_pred (all_but_link ((list_link, t) :: p0 :: m)) (P list_fields) vr' p).
+  rewrite !sepcon_assoc. f_equal.
+  rewrite <- sepcon_assoc.
+  rewrite IHm.
+  apply struct_pred_type_changable; auto.
+  clear - H3 H4 H1.
+  admit.  (* tedious *)
+  clear - H3 H4 H1 H0.
+  transitivity (P list_fields a va p * 
+                    struct_pred (all_but_link ((list_link, t) :: p0 :: m)) (P list_fields) vr' p).
+  f_equal.
+  unfold P; rewrite !withspacer_spacer; f_equal. rewrite <- spacer_offset_zero. auto.
+  unfold at_offset. rewrite offset_offset_val. rewrite Int.add_zero_l.
+  f_equal. 
+  admit.  (* tedious *)
+  assert (exists v6: compact_prod (map (field_type' list_fields) (a :: p0 :: m)),
+                JMeq v v6). {
+    clear - H1 H0.
+    simpl all_but_link at 2 in H0. rewrite if_true in H0 by auto.
+ revert v; rewrite H0. intros. exists v; auto.
+ } destruct H as [v6 H].
+  transitivity (struct_pred (a :: p0 :: m) (P list_fields) v6 p).
+  rewrite struct_pred_cons2. f_equal.
+  unfold P; rewrite !withspacer_spacer; f_equal.
+  unfold at_offset. 
+  f_equal. rewrite H in H3. clear - H3. apply JMeq_eq in H3. subst; reflexivity.
+  apply struct_pred_type_changable; auto.
+  simpl. rewrite if_true by auto. auto.
+  rewrite H in H3. 
+  clear - H3 H4.
+  eapply JMeq_trans. apply JMeq_sym. apply H4.
+  destruct v6.
+  clear - H3. simpl.
+  apply JMeq_eq in H3. inv H3; auto.
+  apply struct_pred_type_changable; auto.
+  simpl. rewrite if_false by auto. rewrite if_true by auto. auto.
+ +
+   assert (all_but_link ((i,t)::m) = (i,t)::all_but_link m).
+   simpl. rewrite if_false by auto; auto.
+   assert (exists v' : 
+      (field_type' list_fields a * compact_prod (map (field_type' list_fields) (all_but_link ((i, t) :: m)))), JMeq v v'). {
+     clear - H H0 v. revert v; rewrite H0. rewrite H.
+   simpl. intros. exists v; reflexivity.
+ } destruct H3 as [v' Hv'].
+  destruct v' as [v1 vr].
+  specialize (IHm vr).
+  replace (struct_pred (all_but_link (a :: (i, t) :: m)) (P list_fields) v p)
+     with (P list_fields a (fst (add_link_back list_fields (a :: (i, t) :: m) v))
+                   (offset_val (Int.repr 0) p) *
+              struct_pred (all_but_link ((i, t) :: m)) (P list_fields) vr p).
+  rewrite !sepcon_assoc. f_equal.
+  rewrite <- sepcon_assoc.
+  rewrite IHm. clear IHm. 
+  apply struct_pred_type_changable; auto.
+  admit.  (* tedious *)
+  assert (exists v'': compact_prod
+      (field_type' list_fields a :: field_type' list_fields (i,t) :: map (field_type' list_fields) (all_but_link m)), 
+    JMeq v v''). {
+    clear - H H0. revert v; rewrite H0. rewrite H. intros; exists v. reflexivity.
+  } destruct H3 as [v'' Hv''].    
+  transitivity (struct_pred (a :: (i,t) :: all_but_link m) (P list_fields) v'' p).
+  rewrite struct_pred_cons2.
+  f_equal.
+  admit.  (* tedious *)
+  apply struct_pred_type_changable; auto.
+  clear - Hv' Hv''. rewrite Hv'' in Hv'. simpl in v''. destruct v''.
+  clear - Hv'.
+  admit.  (* tedious *)
+  apply struct_pred_type_changable; auto.
+  rewrite H0. rewrite H. auto.
+Qed.
 
 Lemma list_cell_link_join_nospacer:
   forall (LS: listspec list_structid list_link) sh v p,
