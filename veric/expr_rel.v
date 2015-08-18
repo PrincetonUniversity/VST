@@ -29,7 +29,7 @@ Inductive rel_expr' (Delta: tycontext) (rho: environ) (phi: rmap): expr -> val -
                  rel_expr' Delta rho phi (Eaddrof a ty) v
  | rel_expr'_unop: forall a v1 v ty op,
                  rel_expr' Delta rho phi a v1 ->
-                 Cop.sem_unary_operation op v1 (typeof a) = Some v ->
+                 (forall m, Cop.sem_unary_operation op v1 (typeof a) m = Some v) ->
                  rel_expr' Delta rho phi (Eunop op a ty) v
  | rel_expr'_binop: forall a1 a2 v1 v2 v ty op,
                  rel_expr' Delta rho phi a1 v1 ->
@@ -304,7 +304,7 @@ apply (rel_expr'_sch Delta rho phi
    try match goal with H : _ |- _ => inv H; auto; try congruence end;
    try match goal with H: rel_lvalue' _ _ _ _ _ |- _ => solve [inv H] end.
 * (* Eunop *)
-   specialize (H1 _ H0 H9). congruence.
+   specialize (H1 _ H0 H9). specialize (H10 Mem.empty). congruence.
 * (* Ebinnop *)
    specialize (H1 _ H0 H12). specialize (H3 _ H2 H14).
    specialize (H5 Mem.empty). specialize (H16 Mem.empty).

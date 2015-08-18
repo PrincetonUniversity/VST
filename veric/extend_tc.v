@@ -277,6 +277,7 @@ unfold tc_expr.
   destruct t as [ | [ | | | ] [ | ] ? | [ | ] ? | [ | ] ? | | | | | ];
   simpl;
  unfold isBinOpResultType, binarithType;
+ try (destruct u; simpl);
  repeat apply extend_tc_andp;
  repeat match goal with
  | |- boxy _ (denote_tc_assert Delta match ?A with  _ => _ end _) => destruct A 

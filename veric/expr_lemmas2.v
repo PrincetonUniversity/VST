@@ -257,6 +257,24 @@ match op with
   | Cop.Oabsfloat => t
 end.
 
+
+Lemma tc_bool_e: forall Delta b a rho m, (* copied from binop_lemmas.v *)
+  app_pred (denote_tc_assert Delta (tc_bool b a) rho) m ->
+  b = true.
+Proof.
+intros.
+destruct b; simpl in H; auto.
+Qed.
+
+Lemma typecheck_val_of_bool_int_type:
+ forall b t, is_int_type t = true ->
+  typecheck_val (Val.of_bool b) t = true.
+Proof.
+ intros.
+ destruct t as [ | [ | | | ] [ | ] | | [ | ] | | | | | ];
+ try inv H; destruct b; reflexivity.
+Qed.
+
 Lemma typecheck_unop_sound:
  forall Delta rho m u e t
  (H: typecheck_environ Delta rho)
@@ -276,57 +294,51 @@ destruct IHe as [? _].
 specialize (H2 H1).
 simpl eval_expr.
 unfold_lift.
-(*subst t. *)
 clear - H2 H0.
-destruct (isUnOpResultType u e t) eqn:H1; inv H0.
-unfold isUnOpResultType in H1.
-simpl.
-forget (eval_expr Delta e rho) as v.
-assert (TV: forall b i s a, typecheck_val (Val.of_bool b) (Tint i s a) = true)
+(*assert (TV: forall b i s a, typecheck_val (Val.of_bool b) (Tint i s a) = true)
   by (destruct b, i, s; reflexivity).
-(*unfold isUnOpResultType in H. *)
-unfold eval_unop, sem_unary_operation, force_val1.
-(*unfold classify_bool in H.*)
-destruct u; (*try solve [inv H];*) simpl.
-* (* notbool case *)
-(*assert (is_int_type t = true) 
-  by (destruct (typeof e); try destruct i,s; try destruct f; inv H; auto).
-destruct t;  inv H0.
 *)
-unfold sem_notbool.
-destruct (typeof e) as [ | [ | | | ] [ | ] | | [ | ] | | | | | ], v; 
-  inversion H1; inv H2;
- try reflexivity; try (simpl; rewrite H0; auto);
- simpl force_val;
- try match goal with |- typecheck_val (Val.of_bool ?A) _ = _ =>
-    destruct A; auto
- end;
- destruct t as  [ | [ | | | ] [ | ] | | [ | ] | | | | | ]; inv H1;
-    try reflexivity.
+unfold eval_unop, sem_unary_operation, force_val1.
+destruct u; simpl in *.
+* (* notbool case *) 
+unfold sem_notbool in *.
+destruct (typeof e) as [ | [ | | | ] [ | ] | | [ | ] | | | | | ];
+ simpl in *; try contradiction;
+ simpl; try solve [inv H2];
+ try (rewrite denote_tc_assert_andp in H0; destruct H0 as [H0 H0']);
+ try contradiction H0;
+ apply tc_bool_e in H0;
+ destruct (eval_expr Delta e rho) eqn:?; try solve [inv H2];
+ try solve [apply typecheck_val_of_bool_int_type; auto];
+ unfold sem_notbool_p; simpl force_val; try reflexivity;
+ destruct t as [ | [ | | | ] [ | ] | | [ | ] | | | | | ]; inv H0;
+  try reflexivity.
 * (* notint case *)
 unfold sem_notint.
-destruct (typeof e) as [ | [ | | | ] [ | ] | | [ | ] | | | | | ], v;
-   inversion H1; inversion H2; auto;
-  simpl force_val;
- destruct t  as [ | [ | | | ] [ | ] | | [ | ] | | | | | ]; 
-     inv H1; auto.
+destruct (typeof e) as [ | [ | | | ] [ | ] | | [ | ] | | | | | ];
+  try contradiction;
+  apply tc_bool_e in H0;
+   destruct (eval_expr Delta e rho);
+   inversion H2; simpl; auto;
+ destruct t  as [ | [ | | | ] [ | ] | | [ | ] | | | | | ];
+     inv H0; auto.
 * (* neg case *)
 unfold sem_neg; simpl.
-destruct (typeof e) as [ | [ | | | ] [ | ] | | [ | ] | | | | | ], v;
-   inversion H1; inversion H2; auto;
-  simpl force_val;
- destruct t  as [ | [ | | | ] [ | ] | | [ | ] | | | | | ]; 
-     inv H1; auto.
+destruct (typeof e) as [ | [ | | | ] [ | ] | | [ | ] | | | | | ];
+ try contradiction;
+  apply tc_bool_e in H0;
+   destruct (eval_expr Delta e rho);
+   inversion H2; simpl; auto;
+ destruct t  as [ | [ | | | ] [ | ] | | [ | ] | | | | | ];
+     inv H0; auto.
 * (* absfloat case *)
 unfold sem_absfloat.
-destruct (classify_neg (typeof e)) eqn:H3; try discriminate;
-destruct t  as [ | | | [ | ] | | | | | ];  inv H1.
-destruct (typeof e)  as [ | [ | | | ] [ | ] | | [ | ] | | | | | ]; inv H3;
- simpl;
-destruct v; inv H2; simpl; auto.
-destruct (typeof e); try destruct f; try destruct i; try destruct s; inv H3; destruct v; inv H2; try reflexivity.
-destruct (typeof e); try destruct f; try destruct i; try destruct s; inv H3; destruct v; inv H2; try reflexivity.
-destruct (typeof e); try destruct f; try destruct i; try destruct s0; inv H3; destruct v; inv H2; try reflexivity.
+ destruct (typeof e)as [ | [ | | | ] [ | ] | | [ | ] | | | | | ]; 
+   try contradiction; simpl;
+   apply tc_bool_e in H0; 
+   destruct t  as [ | | | [ | ] | | | | | ];  
+   inv H0;
+  destruct (eval_expr Delta e rho); inv H2; simpl; auto.
 Qed.
 
 Lemma same_base_tc_val : forall v t1 t2,

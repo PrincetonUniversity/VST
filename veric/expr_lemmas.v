@@ -264,9 +264,21 @@ Lemma comparable_relate:
 Proof.
 intros.
 unfold denote_tc_comparable in H.
-      destruct v1; try contradiction; auto.
-      destruct v2; try contradiction; auto.
- simpl.
+ destruct v1; try contradiction; auto;
+ destruct v2; try contradiction; auto.
+*
+ unfold sem_cmp_pp; simpl.
+ destruct H.
+ hnf in H. subst i; rewrite Int.eq_true. simpl.
+ apply valid_pointer_dry in H0.
+ rewrite Z.add_0_r in H0. rewrite H0. simpl. auto.
+*
+ unfold sem_cmp_pp; simpl.
+ destruct H.
+ hnf in H. subst i0; rewrite Int.eq_true. simpl.
+ apply valid_pointer_dry in H0.
+ rewrite Z.add_0_r in H0. rewrite H0. simpl. auto.
+*
  unfold sem_cmp_pp; simpl.
  unfold comparable_ptrs in *.
  unfold sameblock in H.
@@ -310,16 +322,36 @@ repeat match goal with
   apply bin_arith_relate.
 * destruct (classify_shift (typeof e1)(typeof e2)); try reflexivity; apply bin_arith_relate.
 * destruct (classify_shift (typeof e1)(typeof e2)); try reflexivity; apply bin_arith_relate.
-* unfold isBinOpResultType in H; destruct (classify_cmp (typeof e1) (typeof e2));
+* unfold isBinOpResultType in H;
+    destruct (classify_cmp (typeof e1) (typeof e2));
      try destruct i; try destruct s; auto; try contradiction;
      simpl in H;
      try (rewrite denote_tc_assert_andp in *; super_unfold_lift);
      try apply bin_arith_relate.
+  +
      destruct H.
      rewrite denote_tc_assert_comparable' in H.
      clear t H0.
      simpl in H. unfold_lift in H.
       apply comparable_relate; auto.
+  +
+     simpl in H;
+     try (rewrite denote_tc_assert_andp in *; super_unfold_lift).
+     destruct H as [H _].
+     rewrite denote_tc_assert_comparable' in H.
+     simpl in H. unfold_lift in H.     
+     destruct (eval_expr Delta e1 rho), (eval_expr Delta e2 rho);
+   destruct (typeof e1)  as [ | [ | | | ] [ | ] | [ | ] | [ | ] | | | | | ];
+    simpl in H;       try contradiction; try reflexivity.
+  +
+     simpl in H;
+     try (rewrite denote_tc_assert_andp in *; super_unfold_lift).
+     destruct H as [H _].
+     rewrite denote_tc_assert_comparable' in H.
+     simpl in H. unfold_lift in H.     
+     destruct (eval_expr Delta e1 rho), (eval_expr Delta e2 rho);
+   destruct (typeof e2)  as [ | [ | | | ] [ | ] | [ | ] | [ | ] | | | | | ];
+    simpl in H;       try contradiction; try reflexivity.
 * unfold isBinOpResultType in H; destruct (classify_cmp (typeof e1) (typeof e2));
      try destruct i; try destruct s; auto; try contradiction; 
      simpl in H;
@@ -328,10 +360,29 @@ repeat match goal with
      rewrite ?denote_tc_assert_orp,
      ?denote_tc_assert_iszero in *;
       try apply bin_arith_relate.
+   +
      rewrite denote_tc_assert_comparable' in H.
      clear t H0.
      simpl in H. unfold_lift in H.    
       apply comparable_relate; auto.
+   +
+     simpl in H;
+     try (rewrite denote_tc_assert_andp in *; super_unfold_lift).
+     clear H0.
+     rewrite denote_tc_assert_comparable' in H.
+     simpl in H. unfold_lift in H.     
+     destruct (eval_expr Delta e1 rho), (eval_expr Delta e2 rho);
+   destruct (typeof e1)  as [ | [ | | | ] [ | ] | [ | ] | [ | ] | | | | | ];
+    simpl in H;       try contradiction; try reflexivity.
+  +
+     simpl in H;
+     try (rewrite denote_tc_assert_andp in *; super_unfold_lift).
+     clear H0.
+     rewrite denote_tc_assert_comparable' in H.
+     simpl in H. unfold_lift in H.     
+     destruct (eval_expr Delta e1 rho), (eval_expr Delta e2 rho);
+   destruct (typeof e2)  as [ | [ | | | ] [ | ] | [ | ] | [ | ] | | | | | ];
+    simpl in H;       try contradiction; try reflexivity.   
 * unfold isBinOpResultType in H; destruct (classify_cmp (typeof e1) (typeof e2));
      try destruct i; try destruct s; auto; try contradiction; simpl in H;
      try rewrite denote_tc_assert_andp in *; super_unfold_lift.
@@ -406,7 +457,9 @@ Qed.
 Opaque tc_andp.
 (** Equivalence of CompCert eval_expr and our function eval_expr on programs that typecheck **)
 
-Lemma cop2_sem_cast : forall t1 t2 v, Cop.sem_cast v t1 t2 = sem_cast t1 t2 v.
+Lemma cop2_sem_cast : 
+    forall t1 t2 v, 
+   Cop.sem_cast v t1 t2 = sem_cast t1 t2 v.
 intros. unfold Cop.sem_cast, sem_cast.
 destruct (classify_cast t1 t2);
 destruct v; destruct t1; destruct t2; auto.
@@ -430,6 +483,19 @@ Proof.
     try destruct H as [[_ ?] _];
     try solve [eapply denote_tc_assert_tc_bool; eauto].
     auto.
+Qed.
+
+Lemma comparable1:
+  forall b i m,
+  (denote_tc_comparable (Vptr b i) (Vint Int.zero)) (m_phi m) ->
+  Mem.weak_valid_pointer (m_dry m) b (Int.unsigned i) = true.
+Proof.
+intros.
+destruct H.
+apply valid_pointer_dry in H0.
+rewrite Z.add_0_r in H0.
+unfold Mem.weak_valid_pointer;
+rewrite orb_true_iff; left; auto.
 Qed.
 
 Lemma eval_both_relate:
@@ -589,9 +655,17 @@ apply typecheck_expr_sound in H3; auto.
 destruct u; auto;
   simpl in H2;
   destruct (typeof e) as [ | [ | | | ] [ | ] | [ | ] | [ | ] | | | | | ]; simpl;
-  hnf in H3; try contradiction; destruct (eval_expr Delta e rho); try contradiction;
-  try reflexivity.
-
+  hnf in H3; try contradiction; 
+  try (simpl in H2; rewrite denote_tc_assert_andp in H2; destruct H2 as [H2 H7]);
+  destruct (eval_expr Delta e rho) eqn:?; 
+  try contradiction; try reflexivity;
+ unfold Cop.sem_notbool; simpl;
+ unfold tc_comparable in H7; simpl in H7;
+ destruct (eval_expr Delta e any_environ) eqn:?; 
+ simpl in H7; unfold_lift in H7;
+  try solve [apply (eval_expr_any _ rho) in Heqv0; congruence];
+  rewrite Heqv in H7;
+  try (rewrite comparable1; auto).
 * (*binop*)
 simpl in *. 
 repeat( rewrite tc_andp_sound in *; simpl in *; super_unfold_lift).

@@ -43,6 +43,11 @@ intros. rewrite andp_comm. rewrite allp_andp1; auto.
 f_equal. extensionality x. rewrite andp_comm; auto.
 Qed.
 
+Lemma valid_pointer_offset_val_zero:
+  forall p, valid_pointer (offset_val (Int.repr 0) p) = valid_pointer p.
+Proof.
+Admitted.
+
 Local Open Scope logic.
 
 Class listspec {cs: compspecs} {csl: compspecs_legal cs} (list_structid: ident) (list_link: ident) :=
@@ -1201,6 +1206,10 @@ Proof.
   cancel.
 Qed.
 
+Lemma sizeof_list_struct_pos (LS: listspec list_structid list_link) :
+   sizeof cenv_cs list_struct > 0.
+Admitted.
+
 End LIST2.
 
 Hint Rewrite @lseg_nil_eq : norm.
@@ -1651,11 +1660,70 @@ Proof.
  rewrite prop_true_andp; auto.
  rewrite map_app; reflexivity.
 Qed.
+
+Lemma list_cell_valid_pointer:
+  forall (LS: listspec list_structid list_link) (sh: Share.t) v p,
+   field_offset cenv_cs list_link list_fields + sizeof cenv_cs (field_type list_link list_fields)
+   = field_offset_next cenv_cs list_link list_fields  (co_sizeof (get_co list_structid)) ->
+   list_cell LS sh v p * field_at_ sh list_struct (StructField list_link::nil) p 
+  |-- valid_pointer p.
+Proof.
+  intros.
+ rewrite list_cell_link_join_nospacer; auto.
+ unfold data_at_, field_at_, data_at.
+ eapply derives_trans; [ apply field_at_valid_ptr | ].
+ change (nested_field_type2 list_struct nil) with list_struct.
+ apply LsegGeneral.sizeof_list_struct_pos.
+ unfold field_address.
+ if_tac; auto.
+ change (Int.repr (nested_field_offset2 list_struct nil)) with Int.zero.
+  rewrite valid_pointer_offset_val_zero; auto.
+ simpl.
+ change predicates_hered.FF with FF. apply FF_left.
+Qed.
+
+Lemma lseg_valid_pointer:
+  forall (ls : listspec list_structid list_link) sh contents p q R,
+   field_offset cenv_cs list_link list_fields + sizeof cenv_cs (field_type list_link list_fields)
+   = field_offset_next cenv_cs list_link list_fields  (co_sizeof (get_co list_structid)) ->
+    R |-- valid_pointer q ->
+    R * lseg ls sh contents p q |-- valid_pointer p.
+Proof.
+intros.
+destruct contents.
+rewrite lseg_nil_eq. normalize.
+unfold lseg; simpl.
+normalize.
+destruct al; inv H1.
+rewrite LsegGeneral.lseg_cons_eq.
+normalize.
+destruct p0 as [p z]; simpl in *.
+apply sepcon_valid_pointer2.
+apply sepcon_valid_pointer1.
+eapply derives_trans; [ | eapply list_cell_valid_pointer; auto].
+apply sepcon_derives ; [ apply derives_refl | ].
+cancel.
+Qed.
+
 End LIST.
 
 Hint Rewrite @lseg_nil_eq : norm.
 Hint Rewrite @lseg_eq using reflexivity: norm.
 Hint Resolve lseg_local_facts : saturate_local.
+
+Ltac resolve_lseg_valid_pointer :=
+match goal with 
+ | |- ?Q |-- valid_pointer ?p =>
+   match Q with context [lseg ?A ?B ?C p ?q] =>
+   repeat rewrite <- sepcon_assoc;
+   pull_right (lseg A B C p q);
+   apply lseg_valid_pointer; [ reflexivity | ]; 
+   auto 50 with valid_pointer
+   end
+ end.
+
+Hint Extern 10 (_ |-- valid_pointer _) => 
+   resolve_lseg_valid_pointer : valid_pointer.
 
 End LsegSpecial.
 
@@ -2301,14 +2369,6 @@ Proof.
   cancel.
 Qed.
 
-Lemma sizeof_list_struct_pos (LS: listspec list_structid list_link) :
-   sizeof cenv_cs list_struct > 0.
-Admitted.
-
-Lemma valid_pointer_offset_val_zero:
-  forall p, valid_pointer (offset_val (Int.repr 0) p) = valid_pointer p.
-Proof.
-Admitted.
 
 
 Lemma list_cell_valid_pointer:
@@ -2328,7 +2388,7 @@ Proof.
  unfold data_at_, field_at_, data_at.
  eapply derives_trans; [ apply field_at_valid_ptr | ].
  change (nested_field_type2 list_struct nil) with list_struct.
- apply sizeof_list_struct_pos.
+ apply LsegGeneral.sizeof_list_struct_pos.
  unfold field_address.
  if_tac; auto.
  change (Int.repr (nested_field_offset2 list_struct nil)) with Int.zero.

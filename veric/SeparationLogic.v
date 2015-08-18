@@ -188,7 +188,7 @@ Definition comparable_ptrs v1 v2 : mpred :=
 
 Definition denote_tc_comparable v1 v2 : mpred :=
  match v1, v2 with
- | Vint _, Vint _ => TT
+ | Vint i, Vint j => andp (prop (i = Int.zero)) (prop (j = Int.zero))
  | Vint i, Vptr _ _ =>
       andp (prop (i = Int.zero)) (valid_pointer v2)
  | Vptr _ _, Vint i => 
@@ -1002,7 +1002,7 @@ Proof. intros. intros ? ?. constructor; auto. apply H; auto. Qed.
 
 Lemma rel_expr_unop: forall Delta P a1 v1 v ty op rho,
                  P |-- rel_expr Delta a1 v1 rho ->
-                 Cop.sem_unary_operation op v1 (typeof a1) = Some v ->
+                 (forall m, Cop.sem_unary_operation op v1 (typeof a1) m = Some v) ->
                  P |-- rel_expr Delta (Eunop op a1 ty) v rho.
 Proof.
 intros. intros ? ?. econstructor; eauto. apply H; auto. Qed.
@@ -1198,7 +1198,7 @@ Axiom semax_ifthenelse :
       bool_type (typeof b) = true ->
      @semax Espec Delta (P && local (`(typed_true (typeof b)) (eval_expr Delta b))) c R -> 
      @semax Espec Delta (P && local (`(typed_false (typeof b)) (eval_expr Delta b))) d R -> 
-     @semax Espec Delta (tc_expr Delta b && P) (Sifthenelse b c d) R.
+     @semax Espec Delta (tc_expr Delta (Eunop Cop.Onotbool b (Tint I32 Signed noattr)) && P) (Sifthenelse b c d) R.
 
 Axiom semax_seq:
   forall {Espec: OracleKind},

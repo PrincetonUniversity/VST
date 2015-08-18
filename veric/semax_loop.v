@@ -91,7 +91,7 @@ Lemma semax_ifthenelse :
      semax Espec Delta (fun rho => P rho && !! expr_true Delta b rho) c R -> 
      semax Espec Delta (fun rho => P rho && !! expr_false Delta b rho) d R -> 
      semax Espec Delta 
-              (fun rho => tc_expr Delta b rho && P rho)
+              (fun rho => tc_expr Delta (Eunop Cop.Onotbool b (Tint I32 Signed noattr)) rho && P rho)
               (Sifthenelse b c d) R.
 Proof.
 intros.
@@ -183,14 +183,23 @@ specialize (H1 w0 H3).
 unfold expr_true, expr_false, Cnot in *.
 intros ora jm Hge Hphi.
 generalize (eval_expr_relate _ _ _ _ _ b jm HGG Hge (guard_environ_e1 _ _ _ TC)); intro.
-assert (exists b': bool, strict_bool_val (eval_expr Delta' b rho) (typeof b) = Some b').
-clear - TS TC H TC2 TC2'.
-assert (TCS := typecheck_expr_sound _ _ w0 _ (guard_environ_e1 _ _ _ TC) TC2').
-rewrite tc_val_eq in TCS.
-remember (eval_expr Delta' b rho). destruct v;
-simpl; destruct (typeof b); intuition; simpl in *; try rewrite TCS; eauto.
-destruct f0; inv TCS; eauto.
-destruct f0; inv TCS; eauto.
+assert (TCS := typecheck_expr_sound _ _ w0 _ (guard_environ_e1 _ _ _ TC) TC2'). {
+ unfold tc_expr in TC2'.
+ simpl in TC2'.
+ rewrite denote_tc_assert_andp in TC2'.
+ destruct TC2' as [TC2' TC2'a].
+assert (exists b': bool, Cop.bool_val (eval_expr Delta' b rho) (typeof b) (m_dry jm) = Some b'). {
+clear - TS TC H TC2 TC2' TC2'a TCS Hphi.
+ rewrite tc_val_eq in TCS.
+ simpl in TCS. unfold_lift in TCS.
+ unfold Cop.bool_val;
+ destruct (eval_expr Delta' b rho) eqn:H15;
+ simpl; destruct (typeof b) as [ | [| | | ] [| ]| | [ | ] |  | | | | ];
+    intuition; simpl in *; try rewrite TCS; eauto;
+ rewrite binop_lemmas2.denote_tc_assert_comparable' in  TC2';
+ simpl in TC2'; unfold_lift in TC2'; rewrite H15 in TC2';
+ subst; rewrite comparable1; eauto.
+} clear TCS.
 (* typechecking proof *)
 destruct H9 as [b' ?].
 apply wlog_safeN_gt0; intro.
@@ -204,9 +213,8 @@ apply (@safe_step'_back2  _ _ _ _ _ _ _ _ psi ora _ jm
         (State vx tx (Kseq (if b' then c else d) :: k)) jm' _).
 split3.
 rewrite <- (age_jm_dry H10); econstructor; eauto.
-apply strict_bool_val_sub; auto.
-apply age1_resource_decay; auto.
-apply age_level; auto.
+apply age1_resource_decay; auto. 
+apply age_level; auto. 
 change (level (m_phi jm)) with (level jm).
 replace (level jm - 1)%nat with (level jm' ) by (apply age_level in H10; omega).
 eapply @age_safe; try apply H10.
@@ -218,23 +226,49 @@ split; auto.
 split; auto.
 rewrite andp_comm.
 unfold lift1.
-erewrite <- eval_expr_sub in H9 by eauto.
-rewrite prop_true_andp by eauto.
+unfold tc_expr in TC2.
+ simpl in TC2.
+ rewrite denote_tc_assert_andp in TC2.
+ destruct TC2 as [TC2 TC2a].
+erewrite <- eval_expr_sub in H9; eauto.
+rewrite prop_true_andp.
 do 2 econstructor; split3; eauto.
+clear - H9 TC2.
+unfold typed_true, strict_bool_val.
+destruct (eval_expr Delta b rho) eqn:H16, 
+ (typeof b) as [ | [| | | ] [| ]| | [ | ] |  | | | | ];
+ simpl in *; inv H9; auto;
+ rewrite binop_lemmas2.denote_tc_assert_comparable' in  TC2;
+ simpl in TC2; unfold_lift in TC2;
+ unfold denote_tc_comparable in TC2;
+ rewrite H16 in TC2; destruct TC2 as [TC2 _]; simpl in TC2;
+ subst; rewrite Int.eq_true; reflexivity.
 eapply H1; auto.
 split; auto.
 split; auto.
 split; auto.
 unfold lift1.
-erewrite <- eval_expr_sub in H9 by eauto.
 rewrite andp_comm; rewrite prop_true_andp.
 do 2 econstructor; split3; eauto.
-clear - H TC TC2 TC2' H9.
-assert (TCS := typecheck_expr_sound _ _ (m_phi jm) _ (guard_environ_e1 _ _ _ TC) TC2').
-simpl. super_unfold_lift. unfold typed_true. 
-intuition; simpl in *;
-unfold sem_notbool; destruct i0; destruct s; auto; simpl;
-inv H9; rewrite negb_false_iff in H1; rewrite H1; auto.
+unfold tc_expr in TC2.
+ simpl in TC2.
+ rewrite denote_tc_assert_andp in TC2.
+ destruct TC2 as [TC2 TC2a].
+erewrite <- eval_expr_sub in H9; eauto.
+clear - H9 TC2.
+unfold typed_false, strict_bool_val.
+destruct (eval_expr Delta b rho) eqn:H16, 
+ (typeof b) as [ | [| | | ] [| ]| | [ | ] |  | | | | ];
+ simpl in *; inv H9; auto;
+ try (rewrite negb_false_iff in H0; rewrite H0); auto.
+ rewrite binop_lemmas2.denote_tc_assert_comparable' in  TC2;
+ simpl in TC2; unfold_lift in TC2;
+ unfold denote_tc_comparable in TC2;
+ rewrite H16 in TC2; destruct TC2 as [TC2 _]; simpl in TC2.
+ unfold Cop.bool_val in H0; simpl in H0; if_tac in H0; inv H0.
+ unfold Cop.bool_val in H0; simpl in H0; if_tac in H0; inv H0.
+ unfold Cop.bool_val in H0; simpl in H0; if_tac in H0; inv H0.
+}
 Qed.
 (*
 Lemma seq_assoc1:  

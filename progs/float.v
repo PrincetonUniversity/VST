@@ -2,59 +2,60 @@ Require Import Clightdefs.
 
 Local Open Scope Z_scope.
 
-Definition ___builtin_ctz : ident := 40%positive.
-Definition ___i64_umod : ident := 32%positive.
+Definition ___builtin_clz : ident := 40%positive.
+Definition ___i64_smod : ident := 32%positive.
 Definition ___builtin_va_start : ident := 16%positive.
-Definition ___builtin_bswap16 : ident := 38%positive.
-Definition ___builtin_fnmadd : ident := 46%positive.
-Definition _main : ident := 54%positive.
-Definition ___i64_dtou : ident := 24%positive.
+Definition ___builtin_bswap32 : ident := 38%positive.
+Definition ___builtin_fmsub : ident := 46%positive.
+Definition _y2 : ident := 54%positive.
+Definition ___i64_dtos : ident := 24%positive.
 Definition ___compcert_va_float64 : ident := 22%positive.
 Definition ___builtin_va_arg : ident := 17%positive.
 Definition _y : ident := 8%positive.
 Definition ___builtin_subl : ident := 5%positive.
-Definition _s : ident := 50%positive.
-Definition ___builtin_fmin : ident := 43%positive.
+Definition ___builtin_read32_reversed : ident := 50%positive.
+Definition ___builtin_fmax : ident := 43%positive.
 Definition ___builtin_memcpy_aligned : ident := 12%positive.
-Definition _y2 : ident := 53%positive.
-Definition ___builtin_fnmsub : ident := 47%positive.
+Definition _x1 : ident := 53%positive.
+Definition ___builtin_fnmadd : ident := 47%positive.
 Definition _foo : ident := 10%positive.
-Definition ___builtin_fmadd : ident := 44%positive.
+Definition ___builtin_fmin : ident := 44%positive.
 Definition ___builtin_negl : ident := 3%positive.
 Definition ___builtin_write32_reversed : ident := 2%positive.
 Definition ___builtin_write16_reversed : ident := 1%positive.
-Definition ___builtin_bswap : ident := 36%positive.
-Definition ___i64_smod : ident := 31%positive.
+Definition ___i64_sar : ident := 36%positive.
+Definition ___i64_udiv : ident := 31%positive.
 Definition ___builtin_annot_intval : ident := 14%positive.
 Definition ___builtin_mull : ident := 6%positive.
-Definition ___i64_utod : ident := 26%positive.
+Definition ___i64_stod : ident := 26%positive.
 Definition ___builtin_va_end : ident := 19%positive.
-Definition ___builtin_clz : ident := 39%positive.
+Definition ___builtin_bswap16 : ident := 39%positive.
 Definition ___builtin_fabs : ident := 11%positive.
-Definition ___builtin_read32_reversed : ident := 49%positive.
-Definition ___builtin_bswap32 : ident := 37%positive.
+Definition ___builtin_read16_reversed : ident := 49%positive.
+Definition ___builtin_bswap : ident := 37%positive.
 Definition ___builtin_addl : ident := 4%positive.
-Definition ___i64_utof : ident := 28%positive.
+Definition ___i64_stof : ident := 28%positive.
 Definition _x : ident := 7%positive.
-Definition ___builtin_fmax : ident := 42%positive.
+Definition ___builtin_fsqrt : ident := 42%positive.
 Definition ___compcert_va_int64 : ident := 21%positive.
 Definition ___builtin_va_copy : ident := 18%positive.
 Definition _z : ident := 9%positive.
-Definition _x1 : ident := 52%positive.
-Definition ___builtin_fmsub : ident := 45%positive.
-Definition ___builtin_fsqrt : ident := 41%positive.
+Definition _y1 : ident := 52%positive.
+Definition ___builtin_fmadd : ident := 45%positive.
+Definition ___builtin_ctz : ident := 41%positive.
 Definition ___builtin_annot : ident := 13%positive.
-Definition ___i64_stof : ident := 27%positive.
-Definition ___i64_shl : ident := 33%positive.
-Definition ___i64_stod : ident := 25%positive.
+Definition ___i64_utod : ident := 27%positive.
+Definition ___i64_umod : ident := 33%positive.
+Definition ___i64_dtou : ident := 25%positive.
 Definition ___builtin_membar : ident := 15%positive.
-Definition ___i64_shr : ident := 34%positive.
-Definition ___i64_sdiv : ident := 29%positive.
-Definition ___i64_sar : ident := 35%positive.
-Definition ___i64_udiv : ident := 30%positive.
-Definition ___i64_dtos : ident := 23%positive.
-Definition _y1 : ident := 51%positive.
-Definition ___builtin_read16_reversed : ident := 48%positive.
+Definition ___i64_shl : ident := 34%positive.
+Definition ___i64_utof : ident := 29%positive.
+Definition _main : ident := 55%positive.
+Definition ___i64_shr : ident := 35%positive.
+Definition ___i64_sdiv : ident := 30%positive.
+Definition ___compcert_va_composite : ident := 23%positive.
+Definition _s : ident := 51%positive.
+Definition ___builtin_fnmsub : ident := 48%positive.
 Definition ___compcert_va_int32 : ident := 20%positive.
 
 Definition v_s := {|
@@ -108,9 +109,9 @@ prog_defs :=
  (___builtin_annot,
    Gfun(External (EF_builtin ___builtin_annot
                    (mksignature (AST.Tint :: nil) None
-                     {|cc_vararg:=true; cc_structret:=false|}))
+                     {|cc_vararg:=true; cc_unproto:=false; cc_structret:=false|}))
      (Tcons (tptr tschar) Tnil) tvoid
-     {|cc_vararg:=true; cc_structret:=false|})) ::
+     {|cc_vararg:=true; cc_unproto:=false; cc_structret:=false|})) ::
  (___builtin_annot_intval,
    Gfun(External (EF_builtin ___builtin_annot_intval
                    (mksignature (AST.Tint :: AST.Tint :: nil) (Some AST.Tint)
@@ -151,6 +152,11 @@ prog_defs :=
                    (mksignature (AST.Tint :: nil) (Some AST.Tfloat)
                      cc_default)) (Tcons (tptr tvoid) Tnil) tdouble
      cc_default)) ::
+ (___compcert_va_composite,
+   Gfun(External (EF_external ___compcert_va_composite
+                   (mksignature (AST.Tint :: AST.Tint :: nil) (Some AST.Tint)
+                     cc_default)) (Tcons (tptr tvoid) (Tcons tuint Tnil))
+     (tptr tvoid) cc_default)) ::
  (___i64_dtos,
    Gfun(External (EF_external ___i64_dtos
                    (mksignature (AST.Tfloat :: nil) (Some AST.Tlong)
@@ -300,11 +306,11 @@ prog_public :=
  ___builtin_bswap16 :: ___builtin_bswap32 :: ___builtin_bswap ::
  ___i64_sar :: ___i64_shr :: ___i64_shl :: ___i64_umod :: ___i64_smod ::
  ___i64_udiv :: ___i64_sdiv :: ___i64_utof :: ___i64_stof :: ___i64_utod ::
- ___i64_stod :: ___i64_dtou :: ___i64_dtos :: ___compcert_va_float64 ::
- ___compcert_va_int64 :: ___compcert_va_int32 :: ___builtin_va_end ::
- ___builtin_va_copy :: ___builtin_va_arg :: ___builtin_va_start ::
- ___builtin_membar :: ___builtin_annot_intval :: ___builtin_annot ::
- ___builtin_memcpy_aligned :: ___builtin_fabs :: nil);
+ ___i64_stod :: ___i64_dtou :: ___i64_dtos :: ___compcert_va_composite ::
+ ___compcert_va_float64 :: ___compcert_va_int64 :: ___compcert_va_int32 ::
+ ___builtin_va_end :: ___builtin_va_copy :: ___builtin_va_arg ::
+ ___builtin_va_start :: ___builtin_membar :: ___builtin_annot_intval ::
+ ___builtin_annot :: ___builtin_memcpy_aligned :: ___builtin_fabs :: nil);
 prog_main := _main;
 prog_types := composites;
 prog_comp_env := make_composite_env composites;

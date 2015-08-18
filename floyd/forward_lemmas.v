@@ -35,7 +35,7 @@ Qed.
 Lemma semax_ifthenelse_PQR : 
    forall Espec Delta P Q R (b: expr) c d Post,
       bool_type (typeof b) = true ->
-     PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |--  (tc_expr Delta b) ->
+     PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |--  (tc_expr Delta (Eunop Cop.Onotbool b tint)) ->
      @semax Espec Delta (PROPx P (LOCALx (`(typed_true (typeof b)) (eval_expr Delta b) :: Q) (SEPx R)))
                         c Post -> 
      @semax Espec Delta (PROPx P (LOCALx (`(typed_false (typeof b)) (eval_expr Delta b) :: Q) (SEPx R)))
@@ -108,7 +108,7 @@ Lemma semax_ifthenelse_PQR' :
    forall Espec (v: val) Delta P Q R (b: expr) c d Post,
       bool_type (typeof b) = true ->
      PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |-- 
-         (tc_expr Delta b)  ->
+         (tc_expr Delta (Eunop Cop.Onotbool b tint))  ->
      PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |-- 
         local (`(eq v) (eval_expr Delta b)) ->
      @semax Espec Delta (PROPx (typed_true (typeof b) v :: P) (LOCALx Q (SEPx R)))
@@ -190,6 +190,7 @@ Proof. intros.
 eapply semax_pre. apply H0. auto.
 Qed.
 
+(*
 Lemma bool_cast : forall Delta e rho,
    tc_val (typeof e) (eval_expr Delta e rho) ->
   force_val (Cop2.sem_cast tbool tint (force_val (Cop2.sem_cast (typeof e) tbool (eval_expr Delta e rho)))) =
@@ -213,13 +214,14 @@ destruct v.
     if_tac; auto.
 *destruct (typeof e) as [ | | | [ | ] |  | | | | ]; inv H; simpl;
     if_tac; auto.
-*destruct (typeof e) as [ | | | [ | ] |  | | | | ]; inv H; auto.
+*destruct (typeof e) as [ | | | [ | ] |  | | | | ]; inv H; simpl; auto.
 Qed.
+*)
 
 Lemma semax_while : 
  forall Espec Delta Q test body R,
      bool_type (typeof test) = true ->
-     (local (tc_environ Delta) && Q |--  (tc_expr Delta test)) ->
+     (local (tc_environ Delta) && Q |--  (tc_expr Delta (Eunop Cop.Onotbool test tint))) ->
      (local (tc_environ Delta) && local (lift1 (typed_false (typeof test)) (eval_expr Delta test)) && Q |-- R EK_normal None) ->
      @semax Espec Delta (local (`(typed_true (typeof test)) (eval_expr Delta test)) && Q)  body (loop1_ret_assert Q R) ->
      @semax Espec Delta Q (Swhile test body) R.
@@ -234,7 +236,7 @@ Focus 2.
 (* End Focus 2*)
 apply semax_seq with 
  (local (`(typed_true (typeof test)) (eval_expr Delta test)) && Q).
-apply semax_pre_simple with ( (tc_expr Delta test) && Q).
+apply semax_pre_simple with ( (tc_expr Delta (Eunop Cop.Onotbool test tint)) && Q).
 apply andp_right. apply TC.
 apply andp_left2.
 intro; auto.
@@ -257,7 +259,7 @@ Qed.
 Lemma semax_while'_new : 
  forall Espec (v: val) Delta P Q R test body Post,
      bool_type (typeof test) = true ->
-     PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |--  (tc_expr Delta test) ->
+     PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |--  (tc_expr Delta (Eunop Cop.Onotbool test tint)) ->
      PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |-- local (`(eq v) (eval_expr Delta test)) ->
      PROPx (typed_false (typeof test) v :: P) (LOCALx (tc_environ Delta :: Q) (SEPx R)) |-- Post EK_normal None ->
      @semax Espec Delta (PROPx (typed_true (typeof test) v :: P) (LOCALx Q (SEPx R)))  body (loop1_ret_assert (PROPx P (LOCALx Q (SEPx R))) Post) ->
@@ -307,7 +309,7 @@ Qed.
 Lemma semax_while'_new1 : 
  forall Espec {A} (v: A -> val) Delta P Q R test body Post,
      bool_type (typeof test) = true ->
-     (forall a, PROPx (P a) (LOCALx (tc_environ Delta :: Q a) (SEPx (R a))) |-- (tc_expr Delta test)) ->
+     (forall a, PROPx (P a) (LOCALx (tc_environ Delta :: Q a) (SEPx (R a))) |-- (tc_expr Delta (Eunop Cop.Onotbool test tint))) ->
      (forall a, PROPx (P a) (LOCALx (tc_environ Delta :: Q a) (SEPx (R a))) |-- local (`(eq (v a)) (eval_expr Delta test))) ->
      (forall a, PROPx (typed_false (typeof test) (v a) :: (P a)) (LOCALx (tc_environ Delta :: (Q a)) (SEPx (R a))) 
                        |-- Post EK_normal None) ->
@@ -362,7 +364,7 @@ Qed.
 Lemma semax_while' : 
  forall Espec Delta P Q R test body Post,
      bool_type (typeof test) = true ->
-     PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |--  (tc_expr Delta test) ->
+     PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |--  (tc_expr Delta (Eunop Cop.Onotbool test tint)) ->
      PROPx P (LOCALx (tc_environ Delta :: `(typed_false (typeof test)) (eval_expr Delta test) :: Q) (SEPx R)) |-- Post EK_normal None ->
      @semax Espec Delta (PROPx P (LOCALx (`(typed_true (typeof test)) (eval_expr Delta test) :: Q) (SEPx R)))  body (loop1_ret_assert (PROPx P (LOCALx Q (SEPx R))) Post) ->
      @semax Espec Delta (PROPx P (LOCALx Q (SEPx R))) (Swhile test body) Post.
@@ -381,7 +383,7 @@ Qed.
 Lemma semax_for : 
  forall Espec Delta Q test body incr PreIncr Post,
      bool_type (typeof test) = true ->
-     local (tc_environ Delta) && Q |-- (tc_expr Delta test) ->
+     local (tc_environ Delta) && Q |-- (tc_expr Delta (Eunop Cop.Onotbool test tint)) ->
      local (tc_environ Delta) 
       && local (`(typed_false (typeof test)) (eval_expr Delta test)) 
       && Q |-- Post EK_normal None ->
@@ -395,7 +397,7 @@ Proof.
 intros.
 apply semax_loop with PreIncr.
 eapply semax_seq.
-apply semax_pre_simple with  ( (tc_expr Delta test) && Q).
+apply semax_pre_simple with  ( (tc_expr Delta (Eunop Cop.Onotbool test tint)) && Q).
 apply andp_right; auto.
 apply andp_left2; auto.
 apply semax_ifthenelse; auto.
@@ -433,7 +435,7 @@ Qed.
 Lemma semax_for' : 
  forall Espec Delta P Q R test body incr PreIncr Post,
      bool_type (typeof test) = true ->
-     PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |-- (tc_expr Delta test) ->
+     PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |-- (tc_expr Delta (Eunop Cop.Onotbool test tint)) ->
      PROPx P (LOCALx (tc_environ Delta :: `(typed_false (typeof test)) (eval_expr Delta test) :: Q) (SEPx R)) |-- Post EK_normal None ->
      @semax Espec Delta (PROPx P (LOCALx (`(typed_true (typeof test)) (eval_expr Delta test) :: Q) (SEPx R)))
              body (loop1_ret_assert PreIncr Post) ->

@@ -885,6 +885,7 @@ unfold exit_tycon; simpl. destruct ek; auto.
 rewrite glob_specs_update_tycon. auto.
 Qed.
 
+(*
 Lemma strict_bool_val_sub : forall v t b, 
  strict_bool_val v t = Some b ->
   Cop.bool_val v t = Some b.
@@ -898,7 +899,7 @@ Proof.
   destruct f0; inv  H; auto.
   destruct f0; inv  H; auto.
 Qed.
-
+*)
 
 
 

@@ -425,7 +425,7 @@ Hint Rewrite @subst_lift4 (*@subst_lift4'*) @subst_lift4C : subst.
 
 
 Lemma bool_val_int_eq_e: 
-  forall i j, Cop.bool_val (Val.of_bool (Int.eq i j)) type_bool = Some true -> i=j.
+  forall i j m, Cop.bool_val (Val.of_bool (Int.eq i j)) type_bool m = Some true -> i=j.
 Proof.
  intros.
  revert H; case_eq (Val.of_bool (Int.eq i j)); simpl; intros; inv H0.
@@ -435,16 +435,19 @@ Proof.
 Qed.
 
 Lemma bool_val_notbool_ptr:
-    forall v t,
+    forall v t m,
    match t with Tpointer _ _ => True | _ => False end ->
-   (Cop.bool_val (force_val (Cop.sem_notbool v t)) type_bool = Some true) = (v = nullval).
+   (Cop.bool_val (force_val (Cop.sem_notbool v t m)) type_bool m = Some true) = (v = nullval).
 Proof.
  intros.
  destruct t; try contradiction. clear H.
  apply prop_ext; split; intros.
  destruct v; simpl in H; try discriminate.
  apply bool_val_int_eq_e in H. subst; auto.
- subst. simpl. auto.
+ unfold Cop.sem_notbool, Cop.bool_val in H; simpl in H.
+ destruct (Memory.Mem.weak_valid_pointer m b (Int.unsigned i)) eqn:?;
+  simpl in H; inv H.
+ subst. simpl. unfold Cop.bool_val; simpl. reflexivity.
 Qed.
 
 Definition retval : environ -> val := eval_id ret_temp.

@@ -396,9 +396,26 @@ destruct (eval_expr Delta b rho) eqn:Hb;
 destruct (eval_expr Delta b any_environ) eqn:Hb';
 simpl; unfold_lift;  unfold denote_tc_comparable;
 rewrite ?Ha, ?Ha', ?Hb, ?Hb'; simpl; auto;
-try solve [
-   rewrite (eval_expr_any Delta rho b _ Hb') in Hb by congruence;
-   inv Hb].
+rewrite (eval_expr_any Delta rho b _ Hb') in Hb by congruence;   inv Hb.
+rewrite (eval_expr_any Delta rho a _ Ha') in Ha by congruence; inv Ha.
+destruct (Int.eq_dec i Int.zero).
+subst. rewrite Int.eq_true.
+destruct (Int.eq_dec i1 Int.zero).
+subst. rewrite Int.eq_true.
+simpl. 
+rewrite !prop_true_andp by auto.
+super_unfold_lift.
+unfold TT. f_equal. apply prop_ext; intuition.
+rewrite Int.eq_false by auto. simpl.
+simpl; unfold_lift;  unfold denote_tc_comparable.
+rewrite (eval_expr_any Delta rho a _ Ha')  by congruence.
+rewrite (eval_expr_any Delta rho _ _ Hb')  by congruence.
+auto.
+rewrite Int.eq_false by auto. simpl.
+simpl; unfold_lift;  unfold denote_tc_comparable.
+rewrite (eval_expr_any Delta rho a _ Ha')  by congruence.
+rewrite (eval_expr_any Delta rho _ _ Hb')  by congruence.
+auto.
 Qed.
 
 Hint Rewrite denote_tc_assert_andp' denote_tc_assert_andp''

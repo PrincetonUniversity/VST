@@ -344,12 +344,14 @@ apply exp_right with (h,tl).
 entailer.
 destruct (isnil contents).
 * entailer!.
+  apply andp_right; auto with valid_pointer.
 * normalize.  
   apply exp_right with prefix.
   assert_PROP (isptr h).
     destruct prefix; entailer.
     rewrite lseg_cons_eq by auto. 
     entailer.
+ destruct h; try contradiction.
   entailer;
  fail. Admitted.  (* This hack because otherwise we run out of memory *)
    (* Each individual body_fifo_xxx can fit in memory, but not all of them. *)

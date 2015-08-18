@@ -1360,6 +1360,18 @@ try solve [destruct t  as [ | [ | | | ] [ | ] | | [ | ] | | | | | ]; simpl; auto
 +
  apply closed_wrt_tc_andp; auto with closed.
  apply closed_wrt_tc_lvalue; auto.
++
+ specialize (IHe H).
+ apply closed_eval_expr_e with (Delta := Delta) in H.
+ repeat apply closed_wrt_tc_andp; auto with closed.
+ unfold isUnOpResultType.
+ destruct u;
+ destruct (typeof e) as   [ | [ | | | ] [ | ] | | [ | ] | | | | | ];
+   simpl; repeat apply closed_wrt_tc_andp; auto 50 with closed;
+  rewrite binop_lemmas2.denote_tc_assert_comparable';
+  simpl; unfold_lift;
+  hnf; intros ? ? H8; simpl;
+  rewrite <- (H _ _ H8); auto.  
 + 
   rewrite andb_true_iff in H. destruct H. 
  specialize (IHe1 H). specialize (IHe2 H0).

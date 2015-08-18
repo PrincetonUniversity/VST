@@ -94,7 +94,8 @@ Definition eqb_signedness (a b : signedness) :=
 
 Definition eqb_calling_convention (a b: calling_convention) :=
  andb (eqb (cc_vararg a) (cc_vararg b)) 
-     (eqb (cc_structret a) (cc_structret b)) .
+     (andb  (eqb (cc_unproto a) (cc_unproto b))
+      (eqb (cc_structret a) (cc_structret b))).
 
 Fixpoint eqb_type (a b: type) {struct a} : bool :=
  match a, b with
@@ -155,20 +156,17 @@ apply (eqb_type_sch
    try rewrite eqb_ident_spec in *; 
    try rewrite <- Zeq_is_eq_bool in *;
    repeat match goal with H: _ /\ _ |- _  => destruct H end;
-   repeat split; subst; f_equal; try  congruence.
-   apply H; auto.
-   inv H0; apply H; auto.
-   apply H; auto.
-   inv H0; apply H; auto.
-   apply H; auto. apply H0; auto.
-   clear - H2; destruct c as [[|] [|]]; destruct c0 as [[|] [|]]; inv H2; auto.
-   inv H1; apply H; auto.
-   inv H1; apply H0; auto.
-   inv H1; destruct c0 as [[|] [|]]; reflexivity.
-   apply H; auto.
-   apply H0; auto.
-   inv H1; apply H; auto.
-   inv H1; apply H0; auto.
+   repeat split; subst; f_equal; try  congruence;
+    try solve [apply H; auto];
+    try solve [inv H0; apply H; auto].
+*  apply H0; auto.
+*  clear - H2; destruct c as [[|] [|] [|]]; destruct c0 as [[|] [|] [|]]; inv H2; auto.
+*  inv H1; apply H; auto.
+*  inv H1; apply H0; auto.
+*   inv H1; destruct c0 as [[|] [|] [|]]; reflexivity.
+*  apply H0; auto.
+*   inv H1; apply H; auto.
+*   inv H1; apply H0; auto.
 Qed.
 
 Lemma eqb_type_true: forall a b, eqb_type a b = true -> a=b.
@@ -375,32 +373,6 @@ match ty with
 | _ => false
 end.
 
-Definition isUnOpResultType op a ty := 
-match op with 
-  | Cop.Onotbool => match Cop.classify_bool (typeof a) with
-                        | Cop.bool_default => false
-                        | _ => is_int_type ty 
-                        end
-  | Cop.Onotint => match Cop.classify_notint (typeof a) with
-                        | Cop.notint_default => false
-                        | Cop.notint_case_i _ => is_int32_type ty
-                        | Cop.notint_case_l _ => is_long_type ty 
-                        end
-  | Cop.Oneg => match Cop.classify_neg (typeof a) with
-                    | Cop.neg_case_i sg => is_int32_type ty
-                    | Cop.neg_case_f => is_float_type ty
-                    | Cop.neg_case_s => is_single_type ty
-                    | _ => false
-                    end
-  | Cop.Oabsfloat =>match Cop.classify_neg (typeof a) with
-                    | Cop.neg_case_i sg => is_float_type ty
-                    | Cop.neg_case_l _ => is_float_type ty
-                    | Cop.neg_case_f => is_float_type ty
-                    | Cop.neg_case_s => is_float_type ty
-                    | _ => false
-                    end
-end.
-
 Inductive tc_error :=
 | op_result_type : expr -> tc_error
 | arg_type : expr -> tc_error
@@ -450,7 +422,8 @@ Definition tc_nonzero (Delta: tycontext) (e: expr) : tc_assert :=
 
 Definition tc_comparable (Delta: tycontext) (e1 e2: expr) : tc_assert :=
  match eval_expr Delta e1 any_environ, eval_expr Delta e2 any_environ with
- | Vint _, Vint _ => tc_TT
+ | Vint i, Vint j => if andb (Int.eq i Int.zero) (Int.eq j Int.zero) 
+                             then tc_TT else tc_comparable' e1 e2
  | _, _ => tc_comparable' e1 e2
  end.
 
@@ -523,6 +496,35 @@ Definition tc_ilt (Delta: tycontext) (e: expr) (j: int) :=
     | Vint i => if Int.ltu i j then tc_TT else tc_ilt' e j
     | _ => tc_ilt' e j
     end.
+
+Definition isUnOpResultType  (Delta: tycontext) op a ty : tc_assert := 
+match op with 
+  | Cop.Onotbool => match Cop.classify_bool (typeof a) with
+                        | Cop.bool_default => tc_FF (op_result_type a)
+                        | Cop.bool_case_p => 
+                           tc_andp (tc_bool (is_int_type ty) (op_result_type a))
+                                         (tc_comparable Delta a (Econst_int Int.zero (Tint I32 Signed noattr)))
+                        | _ => tc_bool (is_int_type ty) (op_result_type a)
+                        end
+  | Cop.Onotint => match Cop.classify_notint (typeof a) with
+                        | Cop.notint_default => tc_FF (op_result_type a)
+                        | Cop.notint_case_i _ => tc_bool (is_int32_type ty) (op_result_type a)
+                        | Cop.notint_case_l _ => tc_bool (is_long_type ty) (op_result_type a)
+                        end
+  | Cop.Oneg => match Cop.classify_neg (typeof a) with
+                    | Cop.neg_case_i sg => tc_bool (is_int32_type ty) (op_result_type a)
+                    | Cop.neg_case_f => tc_bool (is_float_type ty) (op_result_type a)
+                    | Cop.neg_case_s => tc_bool (is_single_type ty) (op_result_type a)
+                    | _ => tc_FF (op_result_type a)
+                    end
+  | Cop.Oabsfloat =>match Cop.classify_neg (typeof a) with
+                    | Cop.neg_case_i sg => tc_bool (is_float_type ty) (op_result_type a)
+                    | Cop.neg_case_l _ => tc_bool (is_float_type ty) (op_result_type a)
+                    | Cop.neg_case_f => tc_bool (is_float_type ty) (op_result_type a)
+                    | Cop.neg_case_s => tc_bool (is_float_type ty) (op_result_type a)
+                    | _ => tc_FF (op_result_type a)
+                    end
+end.
 
 Definition isBinOpResultType (Delta: tycontext) op a1 a2 ty : tc_assert :=
 let e := (Ebinop op a1 a2 ty) in
@@ -630,7 +632,8 @@ match Cop.classify_cast tfrom tto with
 | Cop.cast_case_void => tc_noproof
 | Cop.cast_case_f2bool => tc_bool (is_float_type tfrom) (invalid_cast_result tfrom tto)
 | Cop.cast_case_s2bool => tc_bool (is_single_type tfrom) (invalid_cast_result tfrom tto)
-| Cop.cast_case_p2bool => tc_bool (orb (is_int_type tfrom) (is_pointer_type tfrom)) (invalid_cast_result tfrom tto)
+| Cop.cast_case_p2bool => tc_bool (is_int_type tfrom) (invalid_cast_result tfrom tto)
+      (* before CompCert 2.5: tc_bool (orb (is_int_type tfrom) (is_pointer_type tfrom)) (invalid_cast_result tfrom tto) *)
 | Cop.cast_case_l2bool => tc_bool (is_long_type tfrom) (invalid_cast_result tfrom tto)
 | _ => match tto with 
       | Tint _ _ _  => tc_bool (is_int_type tfrom) (invalid_cast_result tto tto) 
@@ -737,7 +740,7 @@ match e with
                        end
  | Eaddrof a ty => tc_andp (typecheck_lvalue Delta a) (tc_bool (is_pointer_type ty)
                                                       (op_result_type e))
- | Eunop op a ty => tc_andp (tc_bool (isUnOpResultType op a ty) (op_result_type e)) (tcr a)
+ | Eunop op a ty => tc_andp (isUnOpResultType Delta op a ty) (tcr a)
  | Ebinop op a1 a2 ty => tc_andp (tc_andp (isBinOpResultType Delta op a1 a2 ty)  (tcr a1)) (tcr a2)
  | Ecast a ty => tc_andp (tcr a) (isCastResultType Delta (typeof a) ty a)
  | Evar id ty => match access_mode ty with

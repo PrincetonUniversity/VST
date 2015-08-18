@@ -186,7 +186,7 @@ le' ->
 
   | step_ifthenelse:  forall ve te k m a s1 s2 v1 b,
       Clight.eval_expr ge ve te m a v1 ->
-      Cop.bool_val v1 (typeof a) = Some b ->
+      Cop.bool_val v1 (typeof a) m = Some b ->
       cl_step ge (State ve te (Kseq (Sifthenelse a s1 s2) :: k)) m (State ve te  (Kseq (if b then s1 else s2) :: k)) m
 
   | step_for: forall ve te k m s1 s2,

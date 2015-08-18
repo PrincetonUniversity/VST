@@ -389,6 +389,54 @@ intros.
 subst. apply I.
 Qed.
 
+
+Lemma isUnOpResultType_sub: forall b e t rho phi
+  (eqe: eval_expr Delta e rho = eval_expr Delta' e rho),
+  denote_tc_assert Delta (isUnOpResultType Delta b e t) rho phi ->
+  denote_tc_assert Delta' (isUnOpResultType Delta' b e t) rho phi.
+Proof.
+  intros.
+  destruct b;
+  unfold isUnOpResultType in H |- *;
+  repeat
+  match goal with
+  | |- appcontext [match ?CLASSIFY (typeof e)  with _ => _ end] =>
+         destruct (CLASSIFY (typeof e) )
+  end;
+  try
+  match goal with
+  | |- appcontext [match ?s with | Signed => _ | Unsigned => _ end] =>
+         destruct s
+  end;
+  try unfold check_pp_int in H |- *;
+  try unfold check_pl_long in H |- *;
+  repeat rewrite denote_tc_assert_andp in H;
+  repeat rewrite denote_tc_assert_andp;
+  repeat rewrite binop_lemmas2.denote_tc_assert_orp in H;
+  repeat rewrite binop_lemmas2.denote_tc_assert_orp;
+  try rewrite binop_lemmas2.denote_tc_assert_nonzero' in H |- *;
+  try rewrite binop_lemmas2.denote_tc_assert_comparable' in H |- *;
+  try rewrite binop_lemmas2.denote_tc_assert_nodivover' in H |- *;
+  repeat rewrite binop_lemmas2.denote_tc_assert_ilt' in H |- *;
+  repeat rewrite binop_lemmas2.denote_tc_assert_iszero' in H |- *;
+  simpl in H |- *;
+  unfold_lift in H;
+  unfold_lift;
+  try rewrite <- eqe1; try rewrite <- eqe2;
+  repeat split; try tauto;
+  repeat destruct H;
+  try simple apply denote_tc_assert_tc_bool in H;
+  try simple apply denote_tc_assert_tc_bool in H0;
+  try simple apply denote_tc_assert_tc_bool in H1;
+  try simple apply denote_tc_assert_tc_bool in H2;
+  try simple apply denote_tc_assert_tc_bool in H3;
+  try  apply denote_tc_assert_tc_bool_i;
+  auto;
+  try (apply (complete_type_sub _ _ extends); assumption).
+  rewrite <- eqe. auto.
+Qed.
+
+
 Lemma isBinOpResultType_sub: forall b e1 e2 t rho phi
   (eqe1: eval_expr Delta e1 rho = eval_expr Delta' e1 rho)
   (eqe2: eval_expr Delta e2 rho = eval_expr Delta' e2 rho),
@@ -681,7 +729,8 @@ Proof.
   + destruct IHe. apply (H3 w); auto.
   + unfold tc_bool in *; if_tac; tauto.
 * repeat rewrite denote_tc_assert_andp; intros [? ?]; repeat split.
-  + unfold tc_bool in *; if_tac; tauto.
+  + eapply isUnOpResultType_sub; eauto.
+      apply eval_expr_sub with (phi:=w); auto.
   + destruct IHe. apply (H2 w); auto.
 * repeat rewrite denote_tc_assert_andp; intros [[? ?] ?]; repeat split.
   + eapply isBinOpResultType_sub; eauto;

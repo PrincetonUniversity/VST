@@ -269,6 +269,8 @@ Proof.
  change predicates_hered.prop with prop. (* delete me *)
  unfold denote_tc_comparable. normalize.
  unfold denote_tc_comparable.
+ rewrite andp_comm. apply andp_derives; auto.
+ unfold denote_tc_comparable. 
  unfold comparable_ptrs.
  if_tac; auto.
  apply andp_derives; apply valid_pointer_weak.
@@ -679,11 +681,13 @@ apply prop_ext; intuition.
 Qed.
 Hint Rewrite offset_val_sizeof_hack3 : norm.
 
+(*
 Lemma cmpu_bool_ptr1: 
   forall validptr c p, isptr p -> 
-     Val.cmpu_bool validptr c p (Vint Int.zero) = Val.cmp_different_blocks c.
+     Val.cmpu_bool validptr c p (Vint Int.zero) 
+      = Val.cmp_different_blocks c.
 Proof.
-intros. destruct p; try contradiction. reflexivity.
+intros.  destruct p; try contradiction.  reflexivity.
 Qed.
 
 Lemma cmpu_bool_ptr2: 
@@ -714,6 +718,7 @@ normalize.
 Qed.
 
 Hint Rewrite sem_cmp_pp_ptr1 sem_cmp_pp_ptr2 using solve [auto] : norm.
+*)
 
 Ltac make_Vptr c :=
   let H := fresh in assert (isptr c) by auto;

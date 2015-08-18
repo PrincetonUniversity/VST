@@ -2,65 +2,66 @@ Require Import Clightdefs.
 
 Local Open Scope Z_scope.
 
-Definition ___builtin_fsqrt : ident := 40%positive.
-Definition ___i64_shl : ident := 32%positive.
+Definition ___builtin_ctz : ident := 40%positive.
+Definition ___i64_umod : ident := 32%positive.
 Definition ___builtin_va_arg : ident := 16%positive.
-Definition ___builtin_clz : ident := 38%positive.
-Definition ___builtin_fnmsub : ident := 46%positive.
-Definition _guard : ident := 54%positive.
-Definition ___i64_stod : ident := 24%positive.
-Definition ___i64_dtos : ident := 22%positive.
+Definition ___builtin_bswap16 : ident := 38%positive.
+Definition ___builtin_fnmadd : ident := 46%positive.
+Definition _sortedvalue : ident := 54%positive.
+Definition ___i64_dtou : ident := 24%positive.
+Definition ___compcert_va_composite : ident := 22%positive.
 Definition ___builtin_va_copy : ident := 17%positive.
 Definition _list : ident := 8%positive.
 Definition ___builtin_subl : ident := 5%positive.
-Definition _sorted : ident := 50%positive.
-Definition ___builtin_fmadd : ident := 43%positive.
+Definition _insert_node : ident := 50%positive.
+Definition ___builtin_fmin : ident := 43%positive.
 Definition ___builtin_annot : ident := 12%positive.
-Definition _sortedvalue : ident := 53%positive.
-Definition ___builtin_read16_reversed : ident := 47%positive.
+Definition _previous : ident := 53%positive.
+Definition ___builtin_fnmsub : ident := 47%positive.
 Definition ___builtin_fabs : ident := 10%positive.
-Definition _p : ident := 57%positive.
-Definition ___builtin_fmsub : ident := 44%positive.
+Definition _insert : ident := 57%positive.
+Definition ___builtin_fmadd : ident := 44%positive.
 Definition ___builtin_negl : ident := 3%positive.
 Definition ___builtin_write32_reversed : ident := 2%positive.
 Definition ___builtin_write16_reversed : ident := 1%positive.
-Definition ___builtin_bswap32 : ident := 36%positive.
-Definition ___i64_umod : ident := 31%positive.
+Definition ___builtin_bswap : ident := 36%positive.
+Definition ___i64_smod : ident := 31%positive.
 Definition ___builtin_membar : ident := 14%positive.
 Definition ___builtin_mull : ident := 6%positive.
-Definition ___i64_stof : ident := 26%positive.
+Definition ___i64_utod : ident := 26%positive.
 Definition ___compcert_va_int32 : ident := 19%positive.
-Definition ___builtin_ctz : ident := 39%positive.
+Definition ___builtin_clz : ident := 39%positive.
+Definition _main : ident := 61%positive.
 Definition ___builtin_memcpy_aligned : ident := 11%positive.
-Definition _insert_node : ident := 49%positive.
-Definition _insertionsort : ident := 59%positive.
-Definition ___builtin_bswap16 : ident := 37%positive.
+Definition ___builtin_read32_reversed : ident := 49%positive.
+Definition _next : ident := 59%positive.
+Definition ___builtin_bswap32 : ident := 37%positive.
 Definition ___builtin_addl : ident := 4%positive.
-Definition _next : ident := 58%positive.
-Definition ___i64_sdiv : ident := 28%positive.
+Definition _p : ident := 58%positive.
+Definition ___i64_utof : ident := 28%positive.
 Definition _head : ident := 7%positive.
-Definition ___builtin_fmin : ident := 42%positive.
+Definition ___builtin_fmax : ident := 42%positive.
 Definition ___compcert_va_float64 : ident := 21%positive.
 Definition ___builtin_va_end : ident := 18%positive.
 Definition _tail : ident := 9%positive.
-Definition _previous : ident := 52%positive.
-Definition ___builtin_fnmadd : ident := 45%positive.
-Definition ___builtin_fmax : ident := 41%positive.
+Definition _index : ident := 52%positive.
+Definition ___builtin_fmsub : ident := 45%positive.
+Definition ___builtin_fsqrt : ident := 41%positive.
 Definition ___builtin_annot_intval : ident := 13%positive.
-Definition ___i64_utof : ident := 27%positive.
-Definition ___i64_shr : ident := 33%positive.
-Definition _insert : ident := 56%positive.
-Definition ___i64_utod : ident := 25%positive.
+Definition ___i64_stof : ident := 27%positive.
+Definition ___i64_shl : ident := 33%positive.
+Definition _insert_value : ident := 56%positive.
+Definition ___i64_stod : ident := 25%positive.
 Definition ___builtin_va_start : ident := 15%positive.
-Definition _main : ident := 60%positive.
-Definition ___i64_sar : ident := 34%positive.
-Definition ___i64_udiv : ident := 29%positive.
-Definition _insert_value : ident := 55%positive.
-Definition ___builtin_bswap : ident := 35%positive.
-Definition ___i64_smod : ident := 30%positive.
-Definition ___i64_dtou : ident := 23%positive.
-Definition _index : ident := 51%positive.
-Definition ___builtin_read32_reversed : ident := 48%positive.
+Definition _insertionsort : ident := 60%positive.
+Definition ___i64_shr : ident := 34%positive.
+Definition ___i64_sdiv : ident := 29%positive.
+Definition _guard : ident := 55%positive.
+Definition ___i64_sar : ident := 35%positive.
+Definition ___i64_udiv : ident := 30%positive.
+Definition ___i64_dtos : ident := 23%positive.
+Definition _sorted : ident := 51%positive.
+Definition ___builtin_read16_reversed : ident := 48%positive.
 Definition ___compcert_va_int64 : ident := 20%positive.
 
 Definition f_insert := {|
@@ -72,8 +73,8 @@ Definition f_insert := {|
   fn_temps := ((_index, (tptr (Tstruct _list noattr))) ::
                (_previous, (tptr (Tstruct _list noattr))) ::
                (_sortedvalue, tint) :: (_guard, tint) ::
-               (_insert_value, tint) :: (62%positive, tint) ::
-               (61%positive, tint) :: nil);
+               (_insert_value, tint) :: (63%positive, tint) ::
+               (62%positive, tint) :: nil);
   fn_body :=
 (Ssequence
   (Sset _previous (Ecast (Econst_int (Int.repr 0) tint) (tptr tvoid)))
@@ -94,12 +95,12 @@ Definition f_insert := {|
         (Ssequence
           (Ssequence
             (Sifthenelse (Etempvar _index (tptr (Tstruct _list noattr)))
-              (Sset 61%positive
+              (Sset 62%positive
                 (Ecast
                   (Ebinop Ogt (Etempvar _insert_value tint)
                     (Etempvar _sortedvalue tint) tint) tbool))
-              (Sset 61%positive (Econst_int (Int.repr 0) tint)))
-            (Sset _guard (Etempvar 61%positive tint)))
+              (Sset 62%positive (Econst_int (Int.repr 0) tint)))
+            (Sset _guard (Etempvar 62%positive tint)))
           (Ssequence
             (Swhile
               (Etempvar _guard tint)
@@ -122,12 +123,12 @@ Definition f_insert := {|
                       Sskip)
                     (Ssequence
                       (Sifthenelse (Etempvar _index (tptr (Tstruct _list noattr)))
-                        (Sset 62%positive
+                        (Sset 63%positive
                           (Ecast
                             (Ebinop Ogt (Etempvar _insert_value tint)
                               (Etempvar _sortedvalue tint) tint) tbool))
-                        (Sset 62%positive (Econst_int (Int.repr 0) tint)))
-                      (Sset _guard (Etempvar 62%positive tint)))))))
+                        (Sset 63%positive (Econst_int (Int.repr 0) tint)))
+                      (Sset _guard (Etempvar 63%positive tint)))))))
             (Ssequence
               (Sassign
                 (Efield
@@ -159,7 +160,7 @@ Definition f_insertionsort := {|
   fn_temps := ((_index, (tptr (Tstruct _list noattr))) ::
                (_sorted, (tptr (Tstruct _list noattr))) ::
                (_next, (tptr (Tstruct _list noattr))) ::
-               (63%positive, (tptr (Tstruct _list noattr))) :: nil);
+               (64%positive, (tptr (Tstruct _list noattr))) :: nil);
   fn_body :=
 (Ssequence
   (Sset _sorted (Ecast (Econst_int (Int.repr 0) tint) (tptr tvoid)))
@@ -182,7 +183,7 @@ Definition f_insertionsort := {|
               (Ecast (Econst_int (Int.repr 0) tint) (tptr tvoid)))
             (Ssequence
               (Ssequence
-                (Scall (Some 63%positive)
+                (Scall (Some 64%positive)
                   (Evar _insert (Tfunction
                                   (Tcons (tptr (Tstruct _list noattr))
                                     (Tcons (tptr (Tstruct _list noattr))
@@ -191,7 +192,7 @@ Definition f_insertionsort := {|
                   ((Etempvar _index (tptr (Tstruct _list noattr))) ::
                    (Etempvar _sorted (tptr (Tstruct _list noattr))) :: nil))
                 (Sset _sorted
-                  (Etempvar 63%positive (tptr (Tstruct _list noattr)))))
+                  (Etempvar 64%positive (tptr (Tstruct _list noattr)))))
               (Sset _index (Etempvar _next (tptr (Tstruct _list noattr))))))))
       (Sreturn (Some (Etempvar _sorted (tptr (Tstruct _list noattr))))))))
 |}.
@@ -228,9 +229,9 @@ prog_defs :=
  (___builtin_annot,
    Gfun(External (EF_builtin ___builtin_annot
                    (mksignature (AST.Tint :: nil) None
-                     {|cc_vararg:=true; cc_structret:=false|}))
+                     {|cc_vararg:=true; cc_unproto:=false; cc_structret:=false|}))
      (Tcons (tptr tschar) Tnil) tvoid
-     {|cc_vararg:=true; cc_structret:=false|})) ::
+     {|cc_vararg:=true; cc_unproto:=false; cc_structret:=false|})) ::
  (___builtin_annot_intval,
    Gfun(External (EF_builtin ___builtin_annot_intval
                    (mksignature (AST.Tint :: AST.Tint :: nil) (Some AST.Tint)
@@ -271,6 +272,11 @@ prog_defs :=
                    (mksignature (AST.Tint :: nil) (Some AST.Tfloat)
                      cc_default)) (Tcons (tptr tvoid) Tnil) tdouble
      cc_default)) ::
+ (___compcert_va_composite,
+   Gfun(External (EF_external ___compcert_va_composite
+                   (mksignature (AST.Tint :: AST.Tint :: nil) (Some AST.Tint)
+                     cc_default)) (Tcons (tptr tvoid) (Tcons tuint Tnil))
+     (tptr tvoid) cc_default)) ::
  (___i64_dtos,
    Gfun(External (EF_external ___i64_dtos
                    (mksignature (AST.Tfloat :: nil) (Some AST.Tlong)
@@ -421,11 +427,11 @@ prog_public :=
  ___builtin_bswap16 :: ___builtin_bswap32 :: ___builtin_bswap ::
  ___i64_sar :: ___i64_shr :: ___i64_shl :: ___i64_umod :: ___i64_smod ::
  ___i64_udiv :: ___i64_sdiv :: ___i64_utof :: ___i64_stof :: ___i64_utod ::
- ___i64_stod :: ___i64_dtou :: ___i64_dtos :: ___compcert_va_float64 ::
- ___compcert_va_int64 :: ___compcert_va_int32 :: ___builtin_va_end ::
- ___builtin_va_copy :: ___builtin_va_arg :: ___builtin_va_start ::
- ___builtin_membar :: ___builtin_annot_intval :: ___builtin_annot ::
- ___builtin_memcpy_aligned :: ___builtin_fabs :: nil);
+ ___i64_stod :: ___i64_dtou :: ___i64_dtos :: ___compcert_va_composite ::
+ ___compcert_va_float64 :: ___compcert_va_int64 :: ___compcert_va_int32 ::
+ ___builtin_va_end :: ___builtin_va_copy :: ___builtin_va_arg ::
+ ___builtin_va_start :: ___builtin_membar :: ___builtin_annot_intval ::
+ ___builtin_annot :: ___builtin_memcpy_aligned :: ___builtin_fabs :: nil);
 prog_main := _main;
 prog_types := composites;
 prog_comp_env := make_composite_env composites;

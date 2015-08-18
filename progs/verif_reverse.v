@@ -186,19 +186,20 @@ forward.  (* t = p; *)
 forward_while (sumlist_Inv sh contents)
     (PROP() LOCAL (temp _s (Vint (sum_int contents))) SEP (TT))
     [cts t0].
-(* Prove that current precondition implies loop invariant *)
+* (* Prove that current precondition implies loop invariant *)
 apply exp_right with contents.
 apply exp_right with p.
 entailer!.
-(* Prove that loop invariant implies typechecking condition *)
+* (* Prove that loop invariant implies typechecking condition *)
 entailer!.
-(* Prove that invariant && not loop-cond implies postcondition *)
+auto with valid_pointer.
+* (* Prove that invariant && not loop-cond implies postcondition *)
 subst.
 rewrite lseg_eq by (simpl; auto).
 entailer!.
 destruct cts; [| inversion H].
 normalize.
-(* Prove that loop body preserves invariant *)
+* (* Prove that loop body preserves invariant *)
 simpl in HRE.
 focus_SEP 1; apply semax_lseg_nonnull; [ | intros h' r y ? ?].
 entailer!.
@@ -215,12 +216,11 @@ forward t_old.  (*  t = t->tail; *)
 subst t_old.
 forward s_old.  (* s = s + h; *)
 subst s_old.
-(* Prove postcondition of loop body implies loop invariant *)
 apply exp_right with (cts,y).
 entailer!.
    rewrite Int.sub_add_r, Int.add_assoc, (Int.add_commut (Int.neg h)),
              Int.add_neg_zero, Int.add_zero; auto.
-(* After the loop *)
+* (* After the loop *)
 forward.  (* return s; *)
 Qed.
 
@@ -246,22 +246,23 @@ forward.  (* w = NULL; *)
 forward.  (* v = p; *)
 forward_while (reverse_Inv sh contents) (reverse_Post sh contents)
       [[[cts1 cts2] w] v].
-(* precondition implies loop invariant *)
+* (* precondition implies loop invariant *)
 apply exp_right with nil.
 apply exp_right with contents.
 apply exp_right with (Vint (Int.repr 0)).
 apply exp_right with p.
 rewrite lseg_eq by (simpl; auto).
 entailer!.
-(* loop invariant implies typechecking of loop condition *)
+* (* loop invariant implies typechecking of loop condition *)
 entailer!.
-(* loop invariant (and not loop condition) implies loop postcondition *)
+auto with valid_pointer.
+* (* loop invariant (and not loop condition) implies loop postcondition *)
 apply exp_right with w.
 subst.
 rewrite lseg_eq by (simpl; auto).
 entailer!.
 rewrite <- app_nil_end, rev_involutive. auto.
-(* loop body preserves invariant *)
+* (* loop body preserves invariant *)
 focus_SEP 1; apply semax_lseg_nonnull;
         [entailer | intros h r y ? ?; simpl valinject].
 subst cts2.
@@ -275,8 +276,8 @@ subst w_old v_old.
 (* at end of loop body, re-establish invariant *)
 apply exp_right with (h::cts1,r,v,y).
 entailer!.
- * rewrite app_ass. auto.
- * rewrite (lseg_unroll _ sh (h::cts1)).
+ - rewrite app_ass. auto.
+ - rewrite (lseg_unroll _ sh (h::cts1)).
    apply orp_right2.
    unfold lseg_cons.
    apply andp_right.

@@ -58,11 +58,25 @@ unfold Sfor.
 eapply semax_seq'; [ eassumption | ].
 simpl.
 clear Pre H.
+assert (H0': forall i : Z,
+     PROPx ((Int.min_signed <= i <= Int.max_signed) :: P i)
+       (LOCALx
+          (tc_environ (update_tycon Delta init)
+           :: temp _i (Vint (Int.repr i)) :: Q i) (SEPx (R i)))
+     |-- tc_expr (update_tycon Delta init)
+           ((Eunop Cop.Onotbool (Ebinop Olt (Etempvar _i tint) hi tint) tint))). {
+ intros; eapply derives_trans; [apply H0 | ].
+ clear.
+ intro rho; unfold tc_expr; simpl;
+ rewrite ?denote_tc_assert_andp;
+ repeat apply andp_derives; auto.
+}
+clear H0. rename H0' into H0.
 apply (@semax_loop Espec _ _
             (EX i:Z, PROPx ((Int.min_signed <= i+1 <= Int.max_signed) :: P (i+1)) 
                 (LOCALx (temp _i (Vint (Int.repr i))  :: Q (i+1))
                 (SEPx (R (i+1))))));
- [apply semax_pre_simple with ( (tc_expr (update_tycon Delta init) (Ebinop Olt (Etempvar _i tint) hi tint))
+ [apply semax_pre_simple with ( (tc_expr (update_tycon Delta init) (Eunop Cop.Onotbool (Ebinop Olt (Etempvar _i tint) hi tint) tint))
                                       && 
                           (EX i:Z, PROPx ((Int.min_signed <= i <= Int.max_signed) :: P i)  (LOCALx (temp _i (Vint (Int.repr i))  :: Q i) (SEPx (R i)))))
  | ].
@@ -229,11 +243,25 @@ unfold Sfor.
 eapply semax_seq'; [ eassumption | ].
 simpl.
 clear Pre H.
+assert (H0': forall i : Z,
+     PROPx ((0 <= i <= Int.max_unsigned) :: P i)
+       (LOCALx
+          (tc_environ (update_tycon Delta init)
+           :: temp _i (Vint (Int.repr i)) :: Q i) (SEPx (R i)))
+     |-- tc_expr (update_tycon Delta init)
+           ((Eunop Cop.Onotbool (Ebinop Olt (Etempvar _i tuint) hi (Tint I32 s3 noattr)) tint))). {
+ intros; eapply derives_trans; [apply H0 | ].
+ clear.
+ intro rho; unfold tc_expr; simpl;
+ rewrite ?denote_tc_assert_andp;
+ repeat apply andp_derives; auto.
+}
+clear H0. rename H0' into H0.
 apply (@semax_loop Espec _ _
             (EX i:Z, PROPx ((0 <= i+1 <= Int.max_unsigned) :: P (i+1)) 
                 (LOCALx (temp _i (Vint (Int.repr i))  :: Q (i+1))
                 (SEPx (R (i+1))))));
- [apply semax_pre_simple with ( (tc_expr (update_tycon Delta init) (Ebinop Olt (Etempvar _i tuint) hi (Tint I32 s3 noattr)))
+ [apply semax_pre_simple with ( (tc_expr (update_tycon Delta init) (Eunop Cop.Onotbool (Ebinop Olt (Etempvar _i tuint) hi (Tint I32 s3 noattr)) tint))
                                       && 
                           (EX i:Z, PROPx ((0 <= i <= Int.max_unsigned) :: P i)  (LOCALx (temp _i (Vint (Int.repr i))  :: Q i) (SEPx (R i)))))
  | ].

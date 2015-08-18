@@ -191,6 +191,9 @@ intros.
      rewrite ?eval_expr_initialized; auto.
      destruct (eval_expr Delta e2 any_environ); simpl in *;     
      rewrite ?eval_expr_initialized; auto.
+    if_tac; auto.
+  simpl. unfold_lift. extensionality rho.
+  rewrite !eval_expr_initialized; auto.
 Qed.
 
 
@@ -230,8 +233,15 @@ Proof.
   + rewrite !denote_tc_assert_andp, !denote_tc_assert_bool.
     repeat apply @andp_derives; auto.
      apply tc_lvalue_init; auto.
-  + rewrite !denote_tc_assert_andp, !denote_tc_assert_bool.
+  + rewrite !denote_tc_assert_andp.
     repeat apply @andp_derives; auto.
+    unfold isUnOpResultType.
+    destruct u; simpl; auto;
+      destruct (typeof e) as [ | [ | | | ] [|] | [ | ] | [ | ] | | | | | ]; simpl;
+       rewrite ?denote_tc_assert_andp in *;
+      repeat apply andp_derives; auto;
+       rewrite ?denote_tc_assert_initialized_tc_bool,
+            ?denote_tc_assert_initialized_tc_comparable; auto.
   + rewrite !denote_tc_assert_andp.
     repeat apply @andp_derives; auto.
      unfold isBinOpResultType.

@@ -313,7 +313,7 @@ Section Sim_INJ_SIMU_DIAGRAMS.
        forall vals1 c1 m1 j vals2 m2,
           initial_core Sem1 ge1 v1 vals1 = Some c1 ->
           Mem.inject j m1 m2 -> 
-          Forall2 (val_inject j) vals1 vals2 ->
+          Forall2 (Val.inject j) vals1 vals2 ->
           meminj_preserves_globals ge1 j ->
           exists c2, 
             initial_core Sem2 ge2 v2 vals2 = Some c2 /\
@@ -322,7 +322,7 @@ Section Sim_INJ_SIMU_DIAGRAMS.
   Hypothesis inj_halted:forall cd j c1 m1 c2 m2 v1,
       match_states cd j c1 m1 c2 m2 ->
       halted Sem1 c1 = Some v1 ->
-      exists v2, val_inject j v1 v2 /\ 
+      exists v2, Val.inject j v1 v2 /\ 
         halted Sem2 c2 = Some v2 /\
         Mem.inject j m1 m2.
 
@@ -331,7 +331,7 @@ Section Sim_INJ_SIMU_DIAGRAMS.
         d = st1 /\ match_states d j st1 m1 st2 m2 ->
         at_external Sem1 st1 = Some (e,sig,vals1) ->
         ( Mem.inject j m1 m2 /\
-          exists vals2, Forall2 (val_inject j) vals1 vals2 /\
+          exists vals2, Forall2 (Val.inject j) vals1 vals2 /\
           at_external Sem2 st2 = Some (e,sig,vals2)).
 
   Hypothesis inj_after_external:
@@ -342,7 +342,7 @@ Section Sim_INJ_SIMU_DIAGRAMS.
         inject_incr j j' ->
         inject_separated j j' m1 m2 ->
         Mem.inject j' m1' m2' ->
-        val_inject j' ret1 ret2 ->
+        Val.inject j' ret1 ret2 ->
 
          mem_forward m1 m1'  -> 
          Mem.unchanged_on (loc_unmapped j) m1 m1' ->

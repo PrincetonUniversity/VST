@@ -85,7 +85,7 @@ Definition sem_cast_f2bool (v : val) : option val :=
 Definition sem_cast_p2bool (v : val) : option val :=
  match v with
       | Vint i => Some (Vint (Cop.cast_int_int IBool Signed i))
-      | Vptr _ _ => Some (Vint Int.one)
+      | Vptr _ _ => None (* before CompCert 2.5: Some (Vint Int.one) *)
       | _ => None
       end.
 
