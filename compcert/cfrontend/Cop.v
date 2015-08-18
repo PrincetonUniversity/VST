@@ -273,7 +273,6 @@ Definition sem_cast (v: val) (t1 t2: type) : option val :=
   | cast_case_p2bool =>
       match v with
       | Vint i => Some (Vint (cast_int_int IBool Signed i))
-      | Vptr _ _ => Some (Vint Int.one)
       | _ => None
       end
   | cast_case_l2l =>
@@ -371,7 +370,7 @@ Definition classify_bool (ty: type) : classify_bool_cases :=
   considered as true.  The integer zero (which also represents
   the null pointer) and the float 0.0 are false. *)
 
-Definition bool_val (v: val) (t: type) : option bool :=
+Definition bool_val (v: val) (t: type) (m: mem) : option bool :=
   match classify_bool t with
   | bool_case_i =>
       match v with
@@ -391,7 +390,7 @@ Definition bool_val (v: val) (t: type) : option bool :=
   | bool_case_p =>
       match v with
       | Vint n => Some (negb (Int.eq n Int.zero))
-      | Vptr b ofs => Some true
+      | Vptr b ofs => if Mem.weak_valid_pointer m b (Int.unsigned ofs) then Some true else None
       | _ => None
       end
   | bool_case_l =>
@@ -406,7 +405,7 @@ Definition bool_val (v: val) (t: type) : option bool :=
 
 (** *** Boolean negation *)
 
-Definition sem_notbool (v: val) (ty: type) : option val :=
+Definition sem_notbool (v: val) (ty: type) (m: mem): option val :=
   match classify_bool ty with
   | bool_case_i =>
       match v with
@@ -426,7 +425,7 @@ Definition sem_notbool (v: val) (ty: type) : option val :=
   | bool_case_p =>
       match v with
       | Vint n => Some (Val.of_bool (Int.eq n Int.zero))
-      | Vptr _ _ => Some Vfalse
+      | Vptr b ofs => if Mem.weak_valid_pointer m b (Int.unsigned ofs) then Some Vfalse else None
       | _ => None
       end
   | bool_case_l =>
@@ -973,9 +972,9 @@ Definition sem_switch_arg (v: val) (ty: type): option Z :=
 (** * Combined semantics of unary and binary operators *)
 
 Definition sem_unary_operation
-            (op: unary_operation) (v: val) (ty: type): option val :=
+            (op: unary_operation) (v: val) (ty: type) (m: mem): option val :=
   match op with
-  | Onotbool => sem_notbool v ty
+  | Onotbool => sem_notbool v ty m
   | Onotint => sem_notint v ty
   | Oneg => sem_neg v ty
   | Oabsfloat => sem_absfloat v ty
@@ -1055,13 +1054,13 @@ Hypothesis valid_different_pointers_inj:
   b1' <> b2' \/
   Int.unsigned (Int.add ofs1 (Int.repr delta1)) <> Int.unsigned (Int.add ofs2 (Int.repr delta2)).
 
-Remark val_inject_vtrue: forall f, val_inject f Vtrue Vtrue.
+Remark val_inject_vtrue: forall f, Val.inject f Vtrue Vtrue.
 Proof. unfold Vtrue; auto. Qed.
 
-Remark val_inject_vfalse: forall f, val_inject f Vfalse Vfalse.
+Remark val_inject_vfalse: forall f, Val.inject f Vfalse Vfalse.
 Proof. unfold Vfalse; auto. Qed.
 
-Remark val_inject_of_bool: forall f b, val_inject f (Val.of_bool b) (Val.of_bool b).
+Remark val_inject_of_bool: forall f b, Val.inject f (Val.of_bool b) (Val.of_bool b).
 Proof. intros. unfold Val.of_bool. destruct b; [apply val_inject_vtrue|apply val_inject_vfalse]. 
 Qed.
 
@@ -1076,8 +1075,8 @@ Ltac TrivialInject :=
 Lemma sem_cast_inject:
   forall v1 ty1 ty v tv1,
   sem_cast v1 ty1 ty = Some v ->
-  val_inject f v1 tv1 ->
-  exists tv, sem_cast tv1 ty1 ty = Some tv /\ val_inject f v tv.
+  Val.inject f v1 tv1 ->
+  exists tv, sem_cast tv1 ty1 ty = Some tv /\ Val.inject f v tv.
 Proof.
   unfold sem_cast; intros; destruct (classify_cast ty1 ty);
   inv H0; inv H; TrivialInject.
@@ -1091,15 +1090,17 @@ Proof.
 - econstructor; eauto.
 Qed.
 
-Lemma sem_unary_operation_inject:
+Lemma sem_unary_operation_inj:
   forall op v1 ty v tv1,
-  sem_unary_operation op v1 ty = Some v ->
-  val_inject f v1 tv1 ->
-  exists tv, sem_unary_operation op tv1 ty = Some tv /\ val_inject f v tv.
+  sem_unary_operation op v1 ty m = Some v ->
+  Val.inject f v1 tv1 ->
+  exists tv, sem_unary_operation op tv1 ty m' = Some tv /\ Val.inject f v tv.
 Proof.
   unfold sem_unary_operation; intros. destruct op.
   (* notbool *)
   unfold sem_notbool in *; destruct (classify_bool ty); inv H0; inv H; TrivialInject.
+  destruct (Mem.weak_valid_pointer m b1 (Int.unsigned ofs1)) eqn:VP; inv H2.
+  erewrite weak_valid_pointer_inj by eauto. TrivialInject.  
   (* notint *)
   unfold sem_notint in *; destruct (classify_notint ty); inv H0; inv H; TrivialInject.
   (* neg *)
@@ -1117,15 +1118,15 @@ Definition optval_self_injects (ov: option val) : Prop :=
 Remark sem_binarith_inject:
   forall sem_int sem_long sem_float sem_single v1 t1 v2 t2 v v1' v2',
   sem_binarith sem_int sem_long sem_float sem_single v1 t1 v2 t2 = Some v ->
-  val_inject f v1 v1' -> val_inject f v2 v2' ->
+  Val.inject f v1 v1' -> Val.inject f v2 v2' ->
   (forall sg n1 n2, optval_self_injects (sem_int sg n1 n2)) ->
   (forall sg n1 n2, optval_self_injects (sem_long sg n1 n2)) ->
   (forall n1 n2, optval_self_injects (sem_float n1 n2)) ->
   (forall n1 n2, optval_self_injects (sem_single n1 n2)) ->
-  exists v', sem_binarith sem_int sem_long sem_float sem_single v1' t1 v2' t2 = Some v' /\ val_inject f v v'.
+  exists v', sem_binarith sem_int sem_long sem_float sem_single v1' t1 v2' t2 = Some v' /\ Val.inject f v v'.
 Proof.
   intros. 
-  assert (SELF: forall ov v, ov = Some v -> optval_self_injects ov -> val_inject f v v).
+  assert (SELF: forall ov v, ov = Some v -> optval_self_injects ov -> Val.inject f v v).
   {
     intros. subst ov; simpl in H7. destruct v0; contradiction || constructor.
   }
@@ -1143,8 +1144,8 @@ Qed.
 Remark sem_shift_inject:
   forall sem_int sem_long v1 t1 v2 t2 v v1' v2',
   sem_shift sem_int sem_long v1 t1 v2 t2 = Some v ->
-  val_inject f v1 v1' -> val_inject f v2 v2' ->
-  exists v', sem_shift sem_int sem_long v1' t1 v2' t2 = Some v' /\ val_inject f v v'.
+  Val.inject f v1 v1' -> Val.inject f v2 v2' ->
+  exists v', sem_shift sem_int sem_long v1' t1 v2' t2 = Some v' /\ Val.inject f v v'.
 Proof.
   intros. exists v.
   unfold sem_shift in *; destruct (classify_shift t1 t2); inv H0; inv H1; try discriminate.
@@ -1157,9 +1158,9 @@ Qed.
 Remark sem_cmp_inj:
   forall cmp v1 tv1 ty1 v2 tv2 ty2 v,
   sem_cmp cmp v1 ty1 v2 ty2 m = Some v ->
-  val_inject f v1 tv1 ->
-  val_inject f v2 tv2 ->
-  exists tv, sem_cmp cmp tv1 ty1 tv2 ty2 m' = Some tv /\ val_inject f v tv.
+  Val.inject f v1 tv1 ->
+  Val.inject f v2 tv2 ->
+  exists tv, sem_cmp cmp tv1 ty1 tv2 ty2 m' = Some tv /\ Val.inject f v tv.
 Proof.
   intros.
   unfold sem_cmp in *; destruct (classify_cmp ty1 ty2).
@@ -1167,21 +1168,21 @@ Proof.
   destruct (Val.cmpu_bool (Mem.valid_pointer m) cmp v1 v2) as [b|] eqn:E; simpl in H; inv H.
   replace (Val.cmpu_bool (Mem.valid_pointer m') cmp tv1 tv2) with (Some b).
   simpl. TrivialInject. 
-  symmetry. eapply val_cmpu_bool_inject; eauto. 
+  symmetry. eapply Val.cmpu_bool_inject; eauto. 
 - (* pointer - long *)
   destruct v2; try discriminate. inv H1. 
   set (v2 := Vint (Int.repr (Int64.unsigned i))) in *.
   destruct (Val.cmpu_bool (Mem.valid_pointer m) cmp v1 v2) as [b|] eqn:E; simpl in H; inv H.
   replace (Val.cmpu_bool (Mem.valid_pointer m') cmp tv1 v2) with (Some b).
   simpl. TrivialInject. 
-  symmetry. eapply val_cmpu_bool_inject with (v2 := v2); eauto. constructor. 
+  symmetry. eapply Val.cmpu_bool_inject with (v2 := v2); eauto. constructor. 
 - (* long - pointer *)
   destruct v1; try discriminate. inv H0. 
   set (v1 := Vint (Int.repr (Int64.unsigned i))) in *.
   destruct (Val.cmpu_bool (Mem.valid_pointer m) cmp v1 v2) as [b|] eqn:E; simpl in H; inv H.
   replace (Val.cmpu_bool (Mem.valid_pointer m') cmp v1 tv2) with (Some b).
   simpl. TrivialInject. 
-  symmetry. eapply val_cmpu_bool_inject with (v1 := v1); eauto. constructor. 
+  symmetry. eapply Val.cmpu_bool_inject with (v1 := v1); eauto. constructor. 
 - (* numerical - numerical *)
   assert (SELF: forall b, optval_self_injects (Some (Val.of_bool b))).
   {
@@ -1193,8 +1194,8 @@ Qed.
 Lemma sem_binary_operation_inj:
   forall cenv op v1 ty1 v2 ty2 v tv1 tv2,
   sem_binary_operation cenv op v1 ty1 v2 ty2 m = Some v ->
-  val_inject f v1 tv1 -> val_inject f v2 tv2 ->
-  exists tv, sem_binary_operation cenv op tv1 ty1 tv2 ty2 m' = Some tv /\ val_inject f v tv.
+  Val.inject f v1 tv1 -> Val.inject f v2 tv2 ->
+  exists tv, sem_binary_operation cenv op tv1 ty1 tv2 ty2 m' = Some tv /\ Val.inject f v tv.
 Proof.
   unfold sem_binary_operation; intros; destruct op.
 - (* add *)
@@ -1265,30 +1266,54 @@ Proof.
 - eapply sem_cmp_inj; eauto.
 Qed.
 
-Lemma bool_val_inject:
+Lemma bool_val_inj:
   forall v ty b tv,
-  bool_val v ty = Some b ->
-  val_inject f v tv ->
-  bool_val tv ty = Some b.
+  bool_val v ty m = Some b ->
+  Val.inject f v tv ->
+  bool_val tv ty m' = Some b.
 Proof.
   unfold bool_val; intros. 
-  destruct (classify_bool ty); inv H0; congruence.
+  destruct (classify_bool ty); inv H0; try congruence.
+  destruct (Mem.weak_valid_pointer m b1 (Int.unsigned ofs1)) eqn:VP; inv H.
+  erewrite weak_valid_pointer_inj by eauto. auto.
 Qed.
 
 End GENERIC_INJECTION.
 
+Lemma sem_unary_operation_inject:
+  forall f m m' op v1 ty1 v tv1,
+  sem_unary_operation op v1 ty1 m = Some v ->
+  Val.inject f v1 tv1 ->
+  Mem.inject f m m' ->
+  exists tv, sem_unary_operation op tv1 ty1 m' = Some tv /\ Val.inject f v tv.
+Proof.
+  intros. eapply sem_unary_operation_inj; eauto. 
+  intros; eapply Mem.weak_valid_pointer_inject_val; eauto.
+Qed.
+
 Lemma sem_binary_operation_inject:
   forall f m m' cenv op v1 ty1 v2 ty2 v tv1 tv2,
   sem_binary_operation cenv op v1 ty1 v2 ty2 m = Some v ->
-  val_inject f v1 tv1 -> val_inject f v2 tv2 ->
+  Val.inject f v1 tv1 -> Val.inject f v2 tv2 ->
   Mem.inject f m m' ->
-  exists tv, sem_binary_operation cenv op tv1 ty1 tv2 ty2 m' = Some tv /\ val_inject f v tv.
+  exists tv, sem_binary_operation cenv op tv1 ty1 tv2 ty2 m' = Some tv /\ Val.inject f v tv.
 Proof.
   intros. eapply sem_binary_operation_inj; eauto. 
   intros; eapply Mem.valid_pointer_inject_val; eauto.
   intros; eapply Mem.weak_valid_pointer_inject_val; eauto.
   intros; eapply Mem.weak_valid_pointer_inject_no_overflow; eauto.
   intros; eapply Mem.different_pointers_inject; eauto.
+Qed.
+
+Lemma bool_val_inject:
+  forall f m m' v ty b tv,
+  bool_val v ty m = Some b ->
+  Val.inject f v tv ->
+  Mem.inject f m m' ->
+  bool_val tv ty m' = Some b.
+Proof.
+  intros. eapply bool_val_inj; eauto.
+  intros; eapply Mem.weak_valid_pointer_inject_val; eauto.
 Qed.
 
 (** * Some properties of operator semantics *)
@@ -1301,9 +1326,12 @@ Qed.
 (** Relation between Boolean value and casting to [_Bool] type. *)
 
 Lemma cast_bool_bool_val:
-  forall v t,
-  sem_cast v t (Tint IBool Signed noattr) =
-  match bool_val v t with None => None | Some b => Some(Val.of_bool b) end.
+  forall v t m,
+  match sem_cast v t (Tint IBool Signed noattr), bool_val v t m with
+  | Some v', Some b => v' = Val.of_bool b
+  | Some v', None => False
+  | None, _ => True
+  end.
 Proof.
   intros.
   assert (A: classify_bool t =
@@ -1337,12 +1365,13 @@ Qed.
 (** Relation between Boolean value and Boolean negation. *)
 
 Lemma notbool_bool_val:
-  forall v t,
-  sem_notbool v t =
-  match bool_val v t with None => None | Some b => Some(Val.of_bool (negb b)) end.
+  forall v t m,
+  sem_notbool v t m =
+  match bool_val v t m with None => None | Some b => Some(Val.of_bool (negb b)) end.
 Proof.
   intros. unfold sem_notbool, bool_val. 
-  destruct (classify_bool t); auto; destruct v; auto; rewrite negb_involutive; auto.
+  destruct (classify_bool t); auto; destruct v; auto; rewrite ? negb_involutive; auto.
+  destruct (Mem.weak_valid_pointer m b (Int.unsigned i)); auto. 
 Qed.
 
 (** Relation with the arithmetic conversions of ISO C99, section 6.3.1 *)

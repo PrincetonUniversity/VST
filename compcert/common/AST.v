@@ -100,12 +100,13 @@ These signatures are used in particular to determine appropriate
 calling conventions for the function. *)
 
 Record calling_convention : Type := mkcallconv {
-  cc_vararg: bool;
-  cc_structret: bool
+  cc_vararg: bool;                      (**r variable-arity function *)
+  cc_unproto: bool;                     (**r old-style unprototyped function *)
+  cc_structret: bool                    (**r function returning a struct  *)
 }.
 
 Definition cc_default :=
-  {| cc_vararg := false; cc_structret := false |}.
+  {| cc_vararg := false; cc_unproto := false; cc_structret := false |}.
 
 Record signature : Type := mksignature {
   sig_args: list typ;
@@ -576,7 +577,7 @@ Inductive external_function : Type :=
          Produces no observable event. *)
   | EF_memcpy (sz: Z) (al: Z)
      (** Block copy, of [sz] bytes, between addresses that are [al]-aligned. *)
-  | EF_annot (text: ident) (targs: list annot_arg)
+  | EF_annot (text: ident) (targs: list typ)
      (** A programmer-supplied annotation.  Takes zero, one or several arguments,
          produces an event carrying the text and the values of these arguments,
          and returns no value. *)
@@ -584,26 +585,14 @@ Inductive external_function : Type :=
      (** Another form of annotation that takes one argument, produces
          an event carrying the text and the value of this argument,
          and returns the value of the argument. *)
-  | EF_inline_asm (text: ident)
+  | EF_inline_asm (text: ident) (sg: signature) (clobbers: list String.string).
      (** Inline [asm] statements.  Semantically, treated like an
          annotation with no parameters ([EF_annot text nil]).  To be
          used with caution, as it can invalidate the semantic
          preservation theorem.  Generated only if [-finline-asm] is
          given. *)
 
-with annot_arg : Type :=
-  | AA_arg (ty: typ)
-  | AA_int (n: int)
-  | AA_float (n: float).
-
 (** The type signature of an external function. *)
-
-Fixpoint annot_args_typ (targs: list annot_arg) : list typ :=
-  match targs with
-  | nil => nil
-  | AA_arg ty :: targs' => ty :: annot_args_typ targs'
-  | _ :: targs' => annot_args_typ targs'
-  end.
 
 Definition ef_sig (ef: external_function): signature :=
   match ef with
@@ -616,9 +605,9 @@ Definition ef_sig (ef: external_function): signature :=
   | EF_malloc => mksignature (Tint :: nil) (Some Tint) cc_default
   | EF_free => mksignature (Tint :: nil) None cc_default
   | EF_memcpy sz al => mksignature (Tint :: Tint :: nil) None cc_default
-  | EF_annot text targs => mksignature (annot_args_typ targs) None cc_default
+  | EF_annot text targs => mksignature targs None cc_default
   | EF_annot_val text targ => mksignature (targ :: nil) (Some targ) cc_default
-  | EF_inline_asm text => mksignature nil None cc_default
+  | EF_inline_asm text sg clob => sg
   end.
 
 (** Whether an external function should be inlined by the compiler. *)
@@ -636,7 +625,7 @@ Definition ef_inline (ef: external_function) : bool :=
   | EF_memcpy sz al => true
   | EF_annot text targs => true
   | EF_annot_val text targ => true
-  | EF_inline_asm text => true
+  | EF_inline_asm text sg clob => true
   end.
 
 (** Whether an external function must reload its arguments. *)
@@ -653,7 +642,8 @@ Definition external_function_eq: forall (ef1 ef2: external_function), {ef1=ef2} 
 Proof.
   generalize ident_eq signature_eq chunk_eq typ_eq zeq Int.eq_dec; intros.
   decide equality.
-  apply list_eq_dec. decide equality. apply Float.eq_dec. 
+  apply list_eq_dec. auto.
+  apply list_eq_dec. apply String.string_dec. 
 Defined.
 Global Opaque external_function_eq.
 
@@ -699,3 +689,56 @@ Definition transf_partial_fundef (fd: fundef A): res (fundef B) :=
   end.
 
 End TRANSF_PARTIAL_FUNDEF.
+
+(** * Arguments to annotations *)
+
+Set Contextual Implicit. 
+
+Inductive annot_arg (A: Type) : Type :=
+  | AA_base (x: A)
+  | AA_int (n: int)
+  | AA_long (n: int64)
+  | AA_float (f: float)
+  | AA_single (f: float32)
+  | AA_loadstack (chunk: memory_chunk) (ofs: int)
+  | AA_addrstack (ofs: int)
+  | AA_loadglobal (chunk: memory_chunk) (id: ident) (ofs: int)
+  | AA_addrglobal (id: ident) (ofs: int)
+  | AA_longofwords (hi lo: annot_arg A).
+
+Fixpoint globals_of_annot_arg (A: Type) (a: annot_arg A) : list ident :=
+  match a with
+  | AA_loadglobal chunk id ofs => id :: nil
+  | AA_addrglobal id ofs => id :: nil
+  | AA_longofwords hi lo => globals_of_annot_arg hi ++ globals_of_annot_arg lo
+  | _ => nil
+  end.
+
+Definition globals_of_annot_args (A: Type) (al: list (annot_arg A)) : list ident :=
+  List.fold_right (fun a l => globals_of_annot_arg a ++ l) nil al.
+
+Fixpoint params_of_annot_arg (A: Type) (a: annot_arg A) : list A :=
+  match a with
+  | AA_base x => x :: nil
+  | AA_longofwords hi lo => params_of_annot_arg hi ++ params_of_annot_arg lo
+  | _ => nil
+  end.
+
+Definition params_of_annot_args (A: Type) (al: list (annot_arg A)) : list A :=
+  List.fold_right (fun a l => params_of_annot_arg a ++ l) nil al.
+
+Fixpoint map_annot_arg (A B: Type) (f: A -> B) (a: annot_arg A) : annot_arg B :=
+  match a with
+  | AA_base x => AA_base (f x)
+  | AA_int n => AA_int n
+  | AA_long n => AA_long n
+  | AA_float n => AA_float n
+  | AA_single n => AA_single n
+  | AA_loadstack chunk ofs => AA_loadstack chunk ofs
+  | AA_addrstack ofs => AA_addrstack ofs
+  | AA_loadglobal chunk id ofs => AA_loadglobal chunk id ofs
+  | AA_addrglobal id ofs => AA_addrglobal id ofs
+  | AA_longofwords hi lo => 
+      AA_longofwords (map_annot_arg f hi) (map_annot_arg f lo)
+  end.
+

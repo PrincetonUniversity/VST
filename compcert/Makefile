@@ -15,7 +15,7 @@
 
 include Makefile.config
 
-DIRS=lib common $(ARCH) backend cfrontend driver \
+DIRS=lib common $(ARCH) backend cfrontend driver debug\
   flocq/Core flocq/Prop flocq/Calc flocq/Appli exportclight \
   cparser cparser/validator
 
@@ -182,7 +182,7 @@ latexdoc:
 	cd doc; $(COQDOC) --latex -o doc/doc.tex -g $(FILES)
 
 %.vo: %.v
-	@rm -f doc/glob/$(*F).glob
+	@rm -f doc/$(*F).glob
 	@echo "COQC $*.v"
 	@$(COQC) -dump-glob doc/$(*F).glob $*.v
 
@@ -202,7 +202,11 @@ compcert.ini: Makefile.config VERSION
          echo "abi=$(ABI)"; \
          echo "system=$(SYSTEM)"; \
          echo "has_runtime_lib=$(HAS_RUNTIME_LIB)"; \
+         echo "has_standard_headers=$(HAS_STANDARD_HEADERS)"; \
          echo "asm_supports_cfi=$(ASM_SUPPORTS_CFI)"; \
+         echo "advanced_debug=$(ADVANCED_DEBUG)"; \
+         echo "struct_passing_style=$(STRUCT_PASSING)"; \
+         echo "struct_return_style=$(STRUCT_RETURN)"; \
          version=`cat VERSION`; \
          echo version=$$version) \
         > compcert.ini
@@ -217,15 +221,13 @@ depend: $(FILES) exportclight/Clightdefs.v
 
 install:
 	install -d $(BINDIR)
-	install ./ccomp $(BINDIR)
+	install -m 0755 ./ccomp $(BINDIR)
 	install -d $(SHAREDIR)
-	install ./compcert.ini $(SHAREDIR)
+	install -m 0644 ./compcert.ini $(SHAREDIR)
 ifeq ($(CCHECKLINK),true)
-	install ./cchecklink $(BINDIR)
+	install -m 0755 ./cchecklink $(BINDIR)
 endif
-ifeq ($(HAS_RUNTIME_LIB),true)
 	$(MAKE) -C runtime install
-endif
 
 clean:
 	rm -f $(patsubst %, %/*.vo, $(DIRS))
