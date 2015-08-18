@@ -12,6 +12,11 @@ METHOD A [recommended] with external CompCert build;
      make;  make clightgen
  [recommended: make sure the executable compcert/clightgen
   is on your searchpath.]
+1a. FOR COMPCERT 2.5 ONLY:
+  The file exportclight/ExportClight.ml distributed in CompCert 2.5
+  does not build.  Copy VST/compcert/exportclight/ExportClight.ml
+  into CompCert/exportclight before building clightgen.
+  [This should be fixed in CompCert 2.5.1 and later.]
 2. In the vst directory, create a file CONFIGURE containing exactly the text:
     COMPCERT=../compcert
 3. In the vst directory,  

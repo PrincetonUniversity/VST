@@ -16,3 +16,9 @@ To create (or to update when there's a new version of compcert),
 To build, use ./make, which is just a shell script for
    "make -f Makefile.clight"
 
+NOTE FOR COMPCERT 2.5 RELEASE:
+The file exportclight/ExportClight.ml distributed in CompCert 2.5
+does not build.  If you install your own CompCert 2.5:
+before building clightgen, copy ./exportclight/ExportClight.ml
+from this VST release into CompCert/exportclight.
+[This should be fixed in CompCert 2.5.1 and later.]
