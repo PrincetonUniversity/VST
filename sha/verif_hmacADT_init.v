@@ -828,4 +828,3 @@ apply semax_extensionality_Delta with (Delta). apply expr_lemmas.tycontext_sub_r
     entailer.
   }
 } 
-Qed.

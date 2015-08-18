@@ -197,4 +197,3 @@ rewrite (memory_block_data_at_ Tsh (tarray tuchar (sizeof t_struct_hmac_ctx_st))
   trivial.
   destruct c; trivial. unfold align_compatible. simpl. apply Z.divide_1_l. 
   simpl. rewrite <- initialize.max_unsigned_modulus, int_max_unsigned_eq. omega.
-Qed.

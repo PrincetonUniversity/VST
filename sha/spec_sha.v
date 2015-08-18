@@ -3,6 +3,9 @@ Import ListNotations.
 Require Import sha.sha.
 Require Import general_lemmas.
 Require Import sha.SHA256.
+Instance CompSpecs : compspecs := compspecs_program prog.
+Instance CS_legal : compspecs_legal CompSpecs.
+Proof. prove_CS_legal. Qed.
 Local Open Scope logic.
 
 Definition s256state := (list val * (val * (val * (list val * val))))%type.
@@ -49,6 +52,8 @@ Definition sha_finish (a: s256abs) : list Z :=
 
 Definition cVint (f: Z -> int) (i: Z) := Vint (f i).
 
+Definition t_struct_SHA256state_st := Tstruct _SHA256state_st noattr.
+
 Definition sha256state_ (a: s256abs) (c: val) : mpred :=
    EX r:s256state, 
     !!  s256_relate a r  &&  data_at Tsh t_struct_SHA256state_st r c.
@@ -79,7 +84,7 @@ Definition __builtin_write32_reversed_spec :=
                Zlength contents >= 4)
         LOCAL (temp _ptr p;
                temp _x (Vint(big_endian_integer contents)))
-        SEP   (`(memory_block sh (Int.repr 4) p))
+        SEP   (`(memory_block sh 4 p))
   POST [ tvoid ] 
      PROP() LOCAL() 
      SEP(`(data_at sh (tarray tuchar 4) (map Vint contents)  p)).
@@ -88,10 +93,10 @@ Definition memcpy_spec :=
   DECLARE _memcpy
    WITH sh : share*share, p: val, q: val, n: Z, contents: list int 
    PRE [ 1%positive OF tptr tvoid, 2%positive OF tptr tvoid, 3%positive OF tuint ]
-       PROP (writable_share (snd sh); 0 <= n <= Int.max_unsigned)
+       PROP (readable_share (fst sh); writable_share (snd sh); 0 <= n <= Int.max_unsigned)
        LOCAL (temp 1%positive p; temp 2%positive q; temp 3%positive (Vint (Int.repr n)))
        SEP (`(data_at (fst sh) (tarray tuchar n) (map Vint contents) q);
-              `(memory_block (snd sh) (Int.repr n) p))
+              `(memory_block (snd sh) n p))
     POST [ tptr tvoid ]
        PROP() LOCAL(temp ret_temp p)
        SEP(`(data_at (fst sh) (tarray tuchar n) (map Vint contents) q);
@@ -104,7 +109,7 @@ Definition memset_spec :=
        PROP (writable_share sh; 0 <= n <= Int.max_unsigned)
        LOCAL (temp 1%positive p; temp 2%positive (Vint c);
                    temp 3%positive (Vint (Int.repr n)))
-       SEP (`(memory_block sh (Int.repr n) p))
+       SEP (`(memory_block sh n p))
     POST [ tptr tvoid ]
        PROP() LOCAL(temp ret_temp p)
        SEP(`(data_at sh (tarray tuchar n) (list_repeat (Z.to_nat n) (Vint c)) p)).
@@ -164,7 +169,7 @@ Definition SHA256_Update_spec :=
   DECLARE _SHA256_Update
    WITH a: s256abs, data: list Z, c : val, d: val, sh: share, len : Z, kv : val
    PRE [ _c OF tptr t_struct_SHA256state_st, _data_ OF tptr tvoid, _len OF tuint ]
-         PROP (len <= Zlength data; 0 <= len <= Int.max_unsigned;
+         PROP (readable_share sh; len <= Zlength data; 0 <= len <= Int.max_unsigned;
                    (s256a_len a + len * 8 < two_p 64)%Z)
          LOCAL (temp _c c; temp _data_ d; temp _len (Vint (Int.repr len));
                      gvar _K256 kv)
@@ -186,7 +191,7 @@ Definition SHA256_Final_spec :=
                       gvar _K256 kv)
          SEP(`(K_vector kv);
                `(sha256state_ a c);
-               `(memory_block shmd (Int.repr 32) md))
+               `(memory_block shmd 32 md))
   POST [ tvoid ] 
          PROP () LOCAL ()
          SEP(`(K_vector kv);
@@ -197,12 +202,12 @@ Definition SHA256_spec :=
   DECLARE _SHA256
    WITH d: val, len: Z, dsh: share, msh: share, data: list Z, md: val, kv : val
    PRE [ _d OF tptr tuchar, _n OF tuint, _md OF tptr tuchar ]
-         PROP (writable_share msh; Zlength data * 8 < two_p 64; Zlength data <= Int.max_unsigned) 
+         PROP (readable_share dsh; writable_share msh; Zlength data * 8 < two_p 64; Zlength data <= Int.max_unsigned) 
          LOCAL (temp _d d; temp _n (Vint (Int.repr (Zlength data)));
                      temp _md md;
                       gvar _K256 kv)
          SEP(`(K_vector kv);
-               `(data_block dsh data d); `(memory_block msh (Int.repr 32) md))
+               `(data_block dsh data d); `(memory_block msh 32 md))
   POST [ tvoid ] 
          PROP () LOCAL ()
          SEP(`(K_vector kv);

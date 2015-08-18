@@ -756,4 +756,3 @@ forward_if PostResetBranch.
     apply (exp_right v). apply (exp_right x).
     entailer.
    } 
-Qed.

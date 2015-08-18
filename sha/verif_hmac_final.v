@@ -194,4 +194,3 @@ unfold field_address. rewrite <- Heqs.
 destruct (field_compatible_dec t_struct_hmac_ctx_st [StructField _o_ctx]
             (Vptr b0 i)); try contradiction.
 unfold nested_field_offset2; simpl. rewrite Int.add_zero. entailer.
-Qed.

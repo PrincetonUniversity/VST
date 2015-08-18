@@ -1682,6 +1682,7 @@ split.
 specialize (H3 id fs (m_phi jm')). 
 specialize (H3 Hnec); spec H3; auto.
 destruct H3 as [b [? ?]].
+destruct H2 as [H2 H2'].
 specialize (H2 (b,0)).
 unfold func_at in H7. destruct fs; simpl in *.
 rewrite H7 in H2.

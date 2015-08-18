@@ -22,7 +22,7 @@ COMPCERT=compcert
 
 CC_TARGET=compcert/cfrontend/Clight.vo
 CC_DIRS= lib common cfrontend exportclight
-DIRS= msl sepcomp veric floyd progs sha linking fcf hmacfcf
+DIRS= msl sepcomp veric floyd progs sha linking fcf hmacfcf 
 INCLUDE= $(foreach a,$(DIRS),$(if $(wildcard $(a)), -I $(a) -as $(a))) -R $(COMPCERT) -as compcert 
 #Replace the INCLUDE above with the following in order to build the linking target:
 #INCLUDE= $(foreach a,$(DIRS),$(if $(wildcard $(a)), -I $(a) -as $(a))) -R $(COMPCERT) -as compcert -I $(SSREFLECT)/src -R $(SSREFLECT)/theories -as Ssreflect \
@@ -87,7 +87,7 @@ SEPCOMP_FILES= \
   forward_simulations_lemmas.v \
   safety_preservation.v \
   StructuredInjections.v \
-  effect_semantics.v effect_simulations.v \
+  effect_semantics.v effect_simulations.v effect_simulations_lemmas.v \
   rg_lemmas.v \
   effect_properties.v \
   arguments.v closed_safety.v compcert.v \
@@ -114,7 +114,10 @@ LINKING_FILES= \
   linking_spec.v \
   erase_juice.v \
   safety.v \
-  semax_linking.v
+  semax_linking.v \
+  cast.v \
+  tuple.v \
+  finfun.v
 
 VERIC_FILES= \
   base.v shares.v rmaps.v rmaps_lemmas.v compcert_rmaps.v Cop2.v\
@@ -171,8 +174,8 @@ HMAC_FILES= \
   spec_hmacADT.v verif_hmacADT_cleanup.v \
   verif_hmacADT_init_part1.v \
   verif_hmacADT_update.v verif_hmacADT_final.v verif_hmacADT_simple.v \
-  verif_hmacADT_double.v 
-#  verif_hmacADT_init.v 
+  verif_hmacADT_double.v  verif_hmacADT_init_part1_5.v \
+  verif_hmacADT_init_part1.v  verif_hmacADT_init_part2.v verif_hmacADT_init.v 
 #  HMAC_lemmas.v HMAC_refined_fp.v hmac_sha256.v HMAC_definitions.v \
 #  HMAC_part2GT.v HMAC_part2LE.v \
 #  HMAC_LoopBodyGT.v HMAC_LoopBodyLE.v \

@@ -260,4 +260,3 @@ destruct (field_compatible_dec t_struct_hmac_ctx_st [StructField _o_ctx]
 unfold nested_field_offset2; simpl. rewrite Int.add_zero. entailer.
 
 red.  destruct b; trivial. simpl. apply Z.divide_1_l.
-Qed.

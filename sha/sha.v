@@ -2,91 +2,96 @@ Require Import Clightdefs.
 
 Local Open Scope Z_scope.
 
-Definition _SHA256_addlength : ident := 65%positive.
-Definition _struct_SHA256state_st : ident := 40%positive.
-Definition ___compcert_va_int32 : ident := 16%positive.
-Definition _Nl : ident := 38%positive.
-Definition _c : ident := 46%positive.
-Definition _fragment : ident := 69%positive.
-Definition _len : ident := 62%positive.
-Definition _T2 : ident := 54%positive.
-Definition ___builtin_clz : ident := 22%positive.
-Definition ___builtin_va_start : ident := 12%positive.
-Definition _cNl : ident := 63%positive.
-Definition ___builtin_annot_intval : ident := 10%positive.
-Definition _a : ident := 44%positive.
+Definition _md : ident := 85%positive.
+Definition _s0 : ident := 65%positive.
+Definition ___builtin_bswap32 : ident := 40%positive.
+Definition ___builtin_annot_intval : ident := 16%positive.
+Definition ___i64_sar : ident := 38%positive.
+Definition ___builtin_fmin : ident := 46%positive.
+Definition _t : ident := 69%positive.
+Definition _e : ident := 62%positive.
+Definition _memset : ident := 54%positive.
+Definition ___compcert_va_int32 : ident := 22%positive.
+Definition _SHA256state_st : ident := 12%positive.
+Definition _f : ident := 63%positive.
+Definition _data : ident := 10%positive.
+Definition ___builtin_fsqrt : ident := 44%positive.
 Definition ___builtin_negl : ident := 3%positive.
 Definition ___builtin_write32_reversed : ident := 2%positive.
 Definition ___builtin_write16_reversed : ident := 1%positive.
-Definition ___builtin_read16_reversed : ident := 31%positive.
-Definition _ll : ident := 72%positive.
-Definition _f : ident := 49%positive.
-Definition _data_ : ident := 66%positive.
-Definition _i : ident := 59%positive.
+Definition ___i64_utof : ident := 31%positive.
+Definition _SHA256_Final : ident := 88%positive.
+Definition _SHA256_addlength : ident := 79%positive.
+Definition _Ki : ident := 72%positive.
+Definition ___builtin_fnmadd : ident := 49%positive.
+Definition _s1 : ident := 66%positive.
+Definition _b : ident := 59%positive.
 Definition ___builtin_addl : ident := 4%positive.
-Definition _n : ident := 68%positive.
-Definition _Ki : ident := 58%positive.
-Definition ___builtin_fmsub : ident := 28%positive.
-Definition ___builtin_fabs : ident := 7%positive.
-Definition ___builtin_bswap16 : ident := 21%positive.
-Definition ___compcert_va_float64 : ident := 18%positive.
-Definition _b : ident := 45%positive.
-Definition ___builtin_va_arg : ident := 13%positive.
-Definition ___builtin_fmadd : ident := 27%positive.
-Definition _memcpy : ident := 33%positive.
-Definition _X : ident := 56%positive.
-Definition ___builtin_fmax : ident := 25%positive.
-Definition ___builtin_va_end : ident := 15%positive.
-Definition _sha256_block_data_order : ident := 60%positive.
-Definition ___builtin_bswap32 : ident := 20%positive.
-Definition ___builtin_read32_reversed : ident := 32%positive.
-Definition _SHA256_Update : ident := 70%positive.
-Definition ___builtin_fsqrt : ident := 24%positive.
-Definition _p : ident := 67%positive.
-Definition ___compcert_va_int64 : ident := 17%positive.
-Definition ___builtin_memcpy_aligned : ident := 8%positive.
+Definition _cNh : ident := 78%positive.
+Definition _T2 : ident := 68%positive.
+Definition _a : ident := 58%positive.
+Definition ___i64_stod : ident := 28%positive.
+Definition _h : ident := 7%positive.
+Definition ___builtin_va_end : ident := 21%positive.
+Definition ___builtin_va_start : ident := 18%positive.
+Definition _SHA256 : ident := 89%positive.
+Definition ___builtin_fmax : ident := 45%positive.
+Definition _data_ : ident := 80%positive.
+Definition ___builtin_fabs : ident := 13%positive.
+Definition ___i64_dtou : ident := 27%positive.
+Definition _SHA256_Update : ident := 84%positive.
+Definition _n : ident := 82%positive.
+Definition ___i64_udiv : ident := 33%positive.
+Definition _ctx : ident := 56%positive.
+Definition ___compcert_va_composite : ident := 25%positive.
+Definition ___builtin_annot : ident := 15%positive.
+Definition _c : ident := 60%positive.
+Definition ___builtin_va_copy : ident := 20%positive.
+Definition ___i64_sdiv : ident := 32%positive.
+Definition _X : ident := 70%positive.
+Definition ___compcert_va_float64 : ident := 24%positive.
+Definition _T1 : ident := 67%positive.
+Definition ___builtin_membar : ident := 17%positive.
+Definition _Nl : ident := 8%positive.
 Definition ___builtin_subl : ident := 5%positive.
-Definition _xn : ident := 73%positive.
-Definition _g : ident := 50%positive.
-Definition _in : ident := 43%positive.
-Definition _SHA256_Final : ident := 74%positive.
-Definition _T1 : ident := 53%positive.
-Definition _d : ident := 47%positive.
-Definition _l : ident := 57%positive.
-Definition _data : ident := 36%positive.
-Definition ___builtin_va_copy : ident := 14%positive.
+Definition _i : ident := 73%positive.
+Definition ___builtin_fnmsub : ident := 50%positive.
+Definition ___builtin_ctz : ident := 43%positive.
+Definition _sha256_block_data_order : ident := 74%positive.
+Definition _memcpy : ident := 53%positive.
+Definition ___builtin_fmadd : ident := 47%positive.
+Definition _in : ident := 57%positive.
+Definition ___i64_shl : ident := 36%positive.
+Definition ___builtin_memcpy_aligned : ident := 14%positive.
 Definition ___builtin_mull : ident := 6%positive.
-Definition ___builtin_fmin : ident := 26%positive.
-Definition ___builtin_bswap : ident := 19%positive.
-Definition _h : ident := 39%positive.
-Definition _SHA256_Init : ident := 61%positive.
-Definition ___builtin_membar : ident := 11%positive.
-Definition _Nh : ident := 37%positive.
-Definition _main : ident := 76%positive.
-Definition _ctx : ident := 42%positive.
-Definition ___builtin_annot : ident := 9%positive.
-Definition _cNh : ident := 64%positive.
-Definition _s1 : ident := 52%positive.
-Definition _K256 : ident := 41%positive.
-Definition _md : ident := 71%positive.
-Definition _SHA256 : ident := 75%positive.
-Definition _memset : ident := 34%positive.
-Definition ___builtin_fnmadd : ident := 29%positive.
-Definition _t : ident := 55%positive.
-Definition _num : ident := 35%positive.
-Definition ___builtin_fnmsub : ident := 30%positive.
-Definition ___builtin_ctz : ident := 23%positive.
-Definition _s0 : ident := 51%positive.
-Definition _e : ident := 48%positive.
-Definition _l' : ident := 77%positive.
-
-Definition t_struct_SHA256state_st :=
-   (Tstruct _struct_SHA256state_st
-     (Fcons _h (tarray tuint 8)
-       (Fcons _Nl tuint
-         (Fcons _Nh tuint
-           (Fcons _data (tarray tuchar 64) (Fcons _num tuint Fnil)))))
-     noattr).
+Definition ___i64_dtos : ident := 26%positive.
+Definition ___builtin_va_arg : ident := 19%positive.
+Definition ___builtin_bswap : ident := 39%positive.
+Definition _main : ident := 90%positive.
+Definition _fragment : ident := 83%positive.
+Definition _d : ident := 61%positive.
+Definition _num : ident := 11%positive.
+Definition ___i64_shr : ident := 37%positive.
+Definition _p : ident := 81%positive.
+Definition _len : ident := 76%positive.
+Definition _ll : ident := 86%positive.
+Definition ___builtin_clz : ident := 42%positive.
+Definition _Nh : ident := 9%positive.
+Definition _g : ident := 64%positive.
+Definition ___builtin_read32_reversed : ident := 52%positive.
+Definition ___builtin_bswap16 : ident := 41%positive.
+Definition _xn : ident := 87%positive.
+Definition _cNl : ident := 77%positive.
+Definition _l : ident := 71%positive.
+Definition _SHA256_Init : ident := 75%positive.
+Definition ___i64_smod : ident := 34%positive.
+Definition ___i64_utod : ident := 29%positive.
+Definition _K256 : ident := 55%positive.
+Definition ___i64_umod : ident := 35%positive.
+Definition ___i64_stof : ident := 30%positive.
+Definition ___compcert_va_int64 : ident := 23%positive.
+Definition ___builtin_read16_reversed : ident := 51%positive.
+Definition ___builtin_fmsub : ident := 48%positive.
 
 Definition v_K256 := {|
   gvar_info := (tarray tuint 64);
@@ -161,14 +166,18 @@ Definition v_K256 := {|
 Definition f_sha256_block_data_order := {|
   fn_return := tvoid;
   fn_callconv := cc_default;
-  fn_params := ((_ctx, (tptr t_struct_SHA256state_st)) ::
+  fn_params := ((_ctx, (tptr (Tstruct _SHA256state_st noattr))) ::
                 (_in, (tptr tvoid)) :: nil);
   fn_vars := ((_X, (tarray tuint 16)) :: nil);
   fn_temps := ((_a, tuint) :: (_b, tuint) :: (_c, tuint) :: (_d, tuint) ::
                (_e, tuint) :: (_f, tuint) :: (_g, tuint) :: (_h, tuint) ::
                (_s0, tuint) :: (_s1, tuint) :: (_T1, tuint) ::
                (_T2, tuint) :: (_t, tuint) :: (_l, tuint) :: (_Ki, tuint) ::
-               (_i, tint) :: (_data, (tptr tuchar)) :: (_l', tuint) :: nil);
+               (_i, tint) :: (_data, (tptr tuchar)) ::
+               (94%positive, (tptr tuchar)) ::
+               (93%positive, (tptr tuchar)) ::
+               (92%positive, (tptr tuchar)) ::
+               (91%positive, (tptr tuchar)) :: nil);
   fn_body :=
 (Ssequence
   (Sset _data (Etempvar _in (tptr tvoid)))
@@ -177,67 +186,74 @@ Definition f_sha256_block_data_order := {|
       (Ederef
         (Ebinop Oadd
           (Efield
-            (Ederef (Etempvar _ctx (tptr t_struct_SHA256state_st))
-              t_struct_SHA256state_st) _h (tarray tuint 8))
+            (Ederef (Etempvar _ctx (tptr (Tstruct _SHA256state_st noattr)))
+              (Tstruct _SHA256state_st noattr)) _h (tarray tuint 8))
           (Econst_int (Int.repr 0) tint) (tptr tuint)) tuint))
     (Ssequence
       (Sset _b
         (Ederef
           (Ebinop Oadd
             (Efield
-              (Ederef (Etempvar _ctx (tptr t_struct_SHA256state_st))
-                t_struct_SHA256state_st) _h (tarray tuint 8))
+              (Ederef (Etempvar _ctx (tptr (Tstruct _SHA256state_st noattr)))
+                (Tstruct _SHA256state_st noattr)) _h (tarray tuint 8))
             (Econst_int (Int.repr 1) tint) (tptr tuint)) tuint))
       (Ssequence
         (Sset _c
           (Ederef
             (Ebinop Oadd
               (Efield
-                (Ederef (Etempvar _ctx (tptr t_struct_SHA256state_st))
-                  t_struct_SHA256state_st) _h (tarray tuint 8))
+                (Ederef
+                  (Etempvar _ctx (tptr (Tstruct _SHA256state_st noattr)))
+                  (Tstruct _SHA256state_st noattr)) _h (tarray tuint 8))
               (Econst_int (Int.repr 2) tint) (tptr tuint)) tuint))
         (Ssequence
           (Sset _d
             (Ederef
               (Ebinop Oadd
                 (Efield
-                  (Ederef (Etempvar _ctx (tptr t_struct_SHA256state_st))
-                    t_struct_SHA256state_st) _h (tarray tuint 8))
+                  (Ederef
+                    (Etempvar _ctx (tptr (Tstruct _SHA256state_st noattr)))
+                    (Tstruct _SHA256state_st noattr)) _h (tarray tuint 8))
                 (Econst_int (Int.repr 3) tint) (tptr tuint)) tuint))
           (Ssequence
             (Sset _e
               (Ederef
                 (Ebinop Oadd
                   (Efield
-                    (Ederef (Etempvar _ctx (tptr t_struct_SHA256state_st))
-                      t_struct_SHA256state_st) _h (tarray tuint 8))
+                    (Ederef
+                      (Etempvar _ctx (tptr (Tstruct _SHA256state_st noattr)))
+                      (Tstruct _SHA256state_st noattr)) _h (tarray tuint 8))
                   (Econst_int (Int.repr 4) tint) (tptr tuint)) tuint))
             (Ssequence
               (Sset _f
                 (Ederef
                   (Ebinop Oadd
                     (Efield
-                      (Ederef (Etempvar _ctx (tptr t_struct_SHA256state_st))
-                        t_struct_SHA256state_st) _h (tarray tuint 8))
-                    (Econst_int (Int.repr 5) tint) (tptr tuint)) tuint))
+                      (Ederef
+                        (Etempvar _ctx (tptr (Tstruct _SHA256state_st noattr)))
+                        (Tstruct _SHA256state_st noattr)) _h
+                      (tarray tuint 8)) (Econst_int (Int.repr 5) tint)
+                    (tptr tuint)) tuint))
               (Ssequence
                 (Sset _g
                   (Ederef
                     (Ebinop Oadd
                       (Efield
                         (Ederef
-                          (Etempvar _ctx (tptr t_struct_SHA256state_st))
-                          t_struct_SHA256state_st) _h (tarray tuint 8))
-                      (Econst_int (Int.repr 6) tint) (tptr tuint)) tuint))
+                          (Etempvar _ctx (tptr (Tstruct _SHA256state_st noattr)))
+                          (Tstruct _SHA256state_st noattr)) _h
+                        (tarray tuint 8)) (Econst_int (Int.repr 6) tint)
+                      (tptr tuint)) tuint))
                 (Ssequence
                   (Sset _h
                     (Ederef
                       (Ebinop Oadd
                         (Efield
                           (Ederef
-                            (Etempvar _ctx (tptr t_struct_SHA256state_st))
-                            t_struct_SHA256state_st) _h (tarray tuint 8))
-                        (Econst_int (Int.repr 7) tint) (tptr tuint)) tuint))
+                            (Etempvar _ctx (tptr (Tstruct _SHA256state_st noattr)))
+                            (Tstruct _SHA256state_st noattr)) _h
+                          (tarray tuint 8)) (Econst_int (Int.repr 7) tint)
+                        (tptr tuint)) tuint))
                   (Ssequence
                     (Ssequence
                       (Sset _i (Econst_int (Int.repr 0) tint))
@@ -251,20 +267,75 @@ Definition f_sha256_block_data_order := {|
                           (Ssequence
                             (Ssequence
                               (Ssequence
-                                (Scall (Some _l')
-                                  (Evar ___builtin_read32_reversed (Tfunction
-                                                                    (Tcons
-                                                                    (tptr tuint)
-                                                                    Tnil)
-                                                                    tuint
-                                                                    cc_default))
-                                  ((Ecast (Etempvar _data (tptr tuchar))
-                                     (tptr tuint)) :: nil))
-                                (Sset _l (Ecast (Etempvar _l' tuint) tuint)))
-                              (Sset _data
-                                (Ebinop Oadd (Etempvar _data (tptr tuchar))
-                                  (Econst_int (Int.repr 4) tint)
-                                  (tptr tuchar))))
+                                (Ssequence
+                                  (Ssequence
+                                    (Ssequence
+                                      (Ssequence
+                                        (Ssequence
+                                          (Ssequence
+                                            (Ssequence
+                                              (Ssequence
+                                                (Ssequence
+                                                  (Sset 91%positive
+                                                    (Etempvar _data (tptr tuchar)))
+                                                  (Sset _data
+                                                    (Ebinop Oadd
+                                                      (Etempvar 91%positive (tptr tuchar))
+                                                      (Econst_int (Int.repr 1) tint)
+                                                      (tptr tuchar))))
+                                                (Sset _l
+                                                  (Ebinop Oshl
+                                                    (Ecast
+                                                      (Ederef
+                                                        (Etempvar 91%positive (tptr tuchar))
+                                                        tuchar) tuint)
+                                                    (Econst_int (Int.repr 24) tint)
+                                                    tuint)))
+                                              (Sset 92%positive
+                                                (Etempvar _data (tptr tuchar))))
+                                            (Sset _data
+                                              (Ebinop Oadd
+                                                (Etempvar 92%positive (tptr tuchar))
+                                                (Econst_int (Int.repr 1) tint)
+                                                (tptr tuchar))))
+                                          (Sset _l
+                                            (Ebinop Oor (Etempvar _l tuint)
+                                              (Ebinop Oshl
+                                                (Ecast
+                                                  (Ederef
+                                                    (Etempvar 92%positive (tptr tuchar))
+                                                    tuchar) tuint)
+                                                (Econst_int (Int.repr 16) tint)
+                                                tuint) tuint)))
+                                        (Sset 93%positive
+                                          (Etempvar _data (tptr tuchar))))
+                                      (Sset _data
+                                        (Ebinop Oadd
+                                          (Etempvar 93%positive (tptr tuchar))
+                                          (Econst_int (Int.repr 1) tint)
+                                          (tptr tuchar))))
+                                    (Sset _l
+                                      (Ebinop Oor (Etempvar _l tuint)
+                                        (Ebinop Oshl
+                                          (Ecast
+                                            (Ederef
+                                              (Etempvar 93%positive (tptr tuchar))
+                                              tuchar) tuint)
+                                          (Econst_int (Int.repr 8) tint)
+                                          tuint) tuint)))
+                                  (Sset 94%positive
+                                    (Etempvar _data (tptr tuchar))))
+                                (Sset _data
+                                  (Ebinop Oadd
+                                    (Etempvar 94%positive (tptr tuchar))
+                                    (Econst_int (Int.repr 1) tint)
+                                    (tptr tuchar))))
+                              (Sset _l
+                                (Ebinop Oor (Etempvar _l tuint)
+                                  (Ecast
+                                    (Ederef
+                                      (Etempvar 94%positive (tptr tuchar))
+                                      tuchar) tuint) tuint)))
                             (Ssequence
                               (Sassign
                                 (Ederef
@@ -727,8 +798,8 @@ Definition f_sha256_block_data_order := {|
                             (Ebinop Oadd
                               (Efield
                                 (Ederef
-                                  (Etempvar _ctx (tptr t_struct_SHA256state_st))
-                                  t_struct_SHA256state_st) _h
+                                  (Etempvar _ctx (tptr (Tstruct _SHA256state_st noattr)))
+                                  (Tstruct _SHA256state_st noattr)) _h
                                 (tarray tuint 8))
                               (Econst_int (Int.repr 0) tint) (tptr tuint))
                             tuint))
@@ -738,8 +809,8 @@ Definition f_sha256_block_data_order := {|
                               (Ebinop Oadd
                                 (Efield
                                   (Ederef
-                                    (Etempvar _ctx (tptr t_struct_SHA256state_st))
-                                    t_struct_SHA256state_st) _h
+                                    (Etempvar _ctx (tptr (Tstruct _SHA256state_st noattr)))
+                                    (Tstruct _SHA256state_st noattr)) _h
                                   (tarray tuint 8))
                                 (Econst_int (Int.repr 0) tint) (tptr tuint))
                               tuint)
@@ -751,8 +822,8 @@ Definition f_sha256_block_data_order := {|
                                 (Ebinop Oadd
                                   (Efield
                                     (Ederef
-                                      (Etempvar _ctx (tptr t_struct_SHA256state_st))
-                                      t_struct_SHA256state_st) _h
+                                      (Etempvar _ctx (tptr (Tstruct _SHA256state_st noattr)))
+                                      (Tstruct _SHA256state_st noattr)) _h
                                     (tarray tuint 8))
                                   (Econst_int (Int.repr 1) tint)
                                   (tptr tuint)) tuint))
@@ -762,8 +833,8 @@ Definition f_sha256_block_data_order := {|
                                   (Ebinop Oadd
                                     (Efield
                                       (Ederef
-                                        (Etempvar _ctx (tptr t_struct_SHA256state_st))
-                                        t_struct_SHA256state_st) _h
+                                        (Etempvar _ctx (tptr (Tstruct _SHA256state_st noattr)))
+                                        (Tstruct _SHA256state_st noattr)) _h
                                       (tarray tuint 8))
                                     (Econst_int (Int.repr 1) tint)
                                     (tptr tuint)) tuint)
@@ -775,9 +846,9 @@ Definition f_sha256_block_data_order := {|
                                     (Ebinop Oadd
                                       (Efield
                                         (Ederef
-                                          (Etempvar _ctx (tptr t_struct_SHA256state_st))
-                                          t_struct_SHA256state_st) _h
-                                        (tarray tuint 8))
+                                          (Etempvar _ctx (tptr (Tstruct _SHA256state_st noattr)))
+                                          (Tstruct _SHA256state_st noattr))
+                                        _h (tarray tuint 8))
                                       (Econst_int (Int.repr 2) tint)
                                       (tptr tuint)) tuint))
                                 (Ssequence
@@ -786,9 +857,9 @@ Definition f_sha256_block_data_order := {|
                                       (Ebinop Oadd
                                         (Efield
                                           (Ederef
-                                            (Etempvar _ctx (tptr t_struct_SHA256state_st))
-                                            t_struct_SHA256state_st) _h
-                                          (tarray tuint 8))
+                                            (Etempvar _ctx (tptr (Tstruct _SHA256state_st noattr)))
+                                            (Tstruct _SHA256state_st noattr))
+                                          _h (tarray tuint 8))
                                         (Econst_int (Int.repr 2) tint)
                                         (tptr tuint)) tuint)
                                     (Ebinop Oadd (Etempvar _t tuint)
@@ -799,9 +870,9 @@ Definition f_sha256_block_data_order := {|
                                         (Ebinop Oadd
                                           (Efield
                                             (Ederef
-                                              (Etempvar _ctx (tptr t_struct_SHA256state_st))
-                                              t_struct_SHA256state_st) _h
-                                            (tarray tuint 8))
+                                              (Etempvar _ctx (tptr (Tstruct _SHA256state_st noattr)))
+                                              (Tstruct _SHA256state_st noattr))
+                                            _h (tarray tuint 8))
                                           (Econst_int (Int.repr 3) tint)
                                           (tptr tuint)) tuint))
                                     (Ssequence
@@ -810,9 +881,9 @@ Definition f_sha256_block_data_order := {|
                                           (Ebinop Oadd
                                             (Efield
                                               (Ederef
-                                                (Etempvar _ctx (tptr t_struct_SHA256state_st))
-                                                t_struct_SHA256state_st) _h
-                                              (tarray tuint 8))
+                                                (Etempvar _ctx (tptr (Tstruct _SHA256state_st noattr)))
+                                                (Tstruct _SHA256state_st noattr))
+                                              _h (tarray tuint 8))
                                             (Econst_int (Int.repr 3) tint)
                                             (tptr tuint)) tuint)
                                         (Ebinop Oadd (Etempvar _t tuint)
@@ -823,9 +894,9 @@ Definition f_sha256_block_data_order := {|
                                             (Ebinop Oadd
                                               (Efield
                                                 (Ederef
-                                                  (Etempvar _ctx (tptr t_struct_SHA256state_st))
-                                                  t_struct_SHA256state_st) _h
-                                                (tarray tuint 8))
+                                                  (Etempvar _ctx (tptr (Tstruct _SHA256state_st noattr)))
+                                                  (Tstruct _SHA256state_st noattr))
+                                                _h (tarray tuint 8))
                                               (Econst_int (Int.repr 4) tint)
                                               (tptr tuint)) tuint))
                                         (Ssequence
@@ -834,8 +905,8 @@ Definition f_sha256_block_data_order := {|
                                               (Ebinop Oadd
                                                 (Efield
                                                   (Ederef
-                                                    (Etempvar _ctx (tptr t_struct_SHA256state_st))
-                                                    t_struct_SHA256state_st)
+                                                    (Etempvar _ctx (tptr (Tstruct _SHA256state_st noattr)))
+                                                    (Tstruct _SHA256state_st noattr))
                                                   _h (tarray tuint 8))
                                                 (Econst_int (Int.repr 4) tint)
                                                 (tptr tuint)) tuint)
@@ -847,8 +918,8 @@ Definition f_sha256_block_data_order := {|
                                                 (Ebinop Oadd
                                                   (Efield
                                                     (Ederef
-                                                      (Etempvar _ctx (tptr t_struct_SHA256state_st))
-                                                      t_struct_SHA256state_st)
+                                                      (Etempvar _ctx (tptr (Tstruct _SHA256state_st noattr)))
+                                                      (Tstruct _SHA256state_st noattr))
                                                     _h (tarray tuint 8))
                                                   (Econst_int (Int.repr 5) tint)
                                                   (tptr tuint)) tuint))
@@ -858,8 +929,8 @@ Definition f_sha256_block_data_order := {|
                                                   (Ebinop Oadd
                                                     (Efield
                                                       (Ederef
-                                                        (Etempvar _ctx (tptr t_struct_SHA256state_st))
-                                                        t_struct_SHA256state_st)
+                                                        (Etempvar _ctx (tptr (Tstruct _SHA256state_st noattr)))
+                                                        (Tstruct _SHA256state_st noattr))
                                                       _h (tarray tuint 8))
                                                     (Econst_int (Int.repr 5) tint)
                                                     (tptr tuint)) tuint)
@@ -872,8 +943,8 @@ Definition f_sha256_block_data_order := {|
                                                     (Ebinop Oadd
                                                       (Efield
                                                         (Ederef
-                                                          (Etempvar _ctx (tptr t_struct_SHA256state_st))
-                                                          t_struct_SHA256state_st)
+                                                          (Etempvar _ctx (tptr (Tstruct _SHA256state_st noattr)))
+                                                          (Tstruct _SHA256state_st noattr))
                                                         _h (tarray tuint 8))
                                                       (Econst_int (Int.repr 6) tint)
                                                       (tptr tuint)) tuint))
@@ -883,8 +954,8 @@ Definition f_sha256_block_data_order := {|
                                                       (Ebinop Oadd
                                                         (Efield
                                                           (Ederef
-                                                            (Etempvar _ctx (tptr t_struct_SHA256state_st))
-                                                            t_struct_SHA256state_st)
+                                                            (Etempvar _ctx (tptr (Tstruct _SHA256state_st noattr)))
+                                                            (Tstruct _SHA256state_st noattr))
                                                           _h
                                                           (tarray tuint 8))
                                                         (Econst_int (Int.repr 6) tint)
@@ -899,8 +970,8 @@ Definition f_sha256_block_data_order := {|
                                                         (Ebinop Oadd
                                                           (Efield
                                                             (Ederef
-                                                              (Etempvar _ctx (tptr t_struct_SHA256state_st))
-                                                              t_struct_SHA256state_st)
+                                                              (Etempvar _ctx (tptr (Tstruct _SHA256state_st noattr)))
+                                                              (Tstruct _SHA256state_st noattr))
                                                             _h
                                                             (tarray tuint 8))
                                                           (Econst_int (Int.repr 7) tint)
@@ -912,8 +983,8 @@ Definition f_sha256_block_data_order := {|
                                                           (Ebinop Oadd
                                                             (Efield
                                                               (Ederef
-                                                                (Etempvar _ctx (tptr t_struct_SHA256state_st))
-                                                                t_struct_SHA256state_st)
+                                                                (Etempvar _ctx (tptr (Tstruct _SHA256state_st noattr)))
+                                                                (Tstruct _SHA256state_st noattr))
                                                               _h
                                                               (tarray tuint 8))
                                                             (Econst_int (Int.repr 7) tint)
@@ -929,7 +1000,7 @@ Definition f_sha256_block_data_order := {|
 Definition f_SHA256_Init := {|
   fn_return := tvoid;
   fn_callconv := cc_default;
-  fn_params := ((_c, (tptr t_struct_SHA256state_st)) :: nil);
+  fn_params := ((_c, (tptr (Tstruct _SHA256state_st noattr))) :: nil);
   fn_vars := nil;
   fn_temps := nil;
   fn_body :=
@@ -938,8 +1009,8 @@ Definition f_SHA256_Init := {|
     (Ederef
       (Ebinop Oadd
         (Efield
-          (Ederef (Etempvar _c (tptr t_struct_SHA256state_st))
-            t_struct_SHA256state_st) _h (tarray tuint 8))
+          (Ederef (Etempvar _c (tptr (Tstruct _SHA256state_st noattr)))
+            (Tstruct _SHA256state_st noattr)) _h (tarray tuint 8))
         (Econst_int (Int.repr 0) tint) (tptr tuint)) tuint)
     (Econst_int (Int.repr 1779033703) tuint))
   (Ssequence
@@ -947,8 +1018,8 @@ Definition f_SHA256_Init := {|
       (Ederef
         (Ebinop Oadd
           (Efield
-            (Ederef (Etempvar _c (tptr t_struct_SHA256state_st))
-              t_struct_SHA256state_st) _h (tarray tuint 8))
+            (Ederef (Etempvar _c (tptr (Tstruct _SHA256state_st noattr)))
+              (Tstruct _SHA256state_st noattr)) _h (tarray tuint 8))
           (Econst_int (Int.repr 1) tint) (tptr tuint)) tuint)
       (Econst_int (Int.repr (-1150833019)) tuint))
     (Ssequence
@@ -956,8 +1027,8 @@ Definition f_SHA256_Init := {|
         (Ederef
           (Ebinop Oadd
             (Efield
-              (Ederef (Etempvar _c (tptr t_struct_SHA256state_st))
-                t_struct_SHA256state_st) _h (tarray tuint 8))
+              (Ederef (Etempvar _c (tptr (Tstruct _SHA256state_st noattr)))
+                (Tstruct _SHA256state_st noattr)) _h (tarray tuint 8))
             (Econst_int (Int.repr 2) tint) (tptr tuint)) tuint)
         (Econst_int (Int.repr 1013904242) tuint))
       (Ssequence
@@ -965,8 +1036,8 @@ Definition f_SHA256_Init := {|
           (Ederef
             (Ebinop Oadd
               (Efield
-                (Ederef (Etempvar _c (tptr t_struct_SHA256state_st))
-                  t_struct_SHA256state_st) _h (tarray tuint 8))
+                (Ederef (Etempvar _c (tptr (Tstruct _SHA256state_st noattr)))
+                  (Tstruct _SHA256state_st noattr)) _h (tarray tuint 8))
               (Econst_int (Int.repr 3) tint) (tptr tuint)) tuint)
           (Econst_int (Int.repr (-1521486534)) tuint))
         (Ssequence
@@ -974,8 +1045,9 @@ Definition f_SHA256_Init := {|
             (Ederef
               (Ebinop Oadd
                 (Efield
-                  (Ederef (Etempvar _c (tptr t_struct_SHA256state_st))
-                    t_struct_SHA256state_st) _h (tarray tuint 8))
+                  (Ederef
+                    (Etempvar _c (tptr (Tstruct _SHA256state_st noattr)))
+                    (Tstruct _SHA256state_st noattr)) _h (tarray tuint 8))
                 (Econst_int (Int.repr 4) tint) (tptr tuint)) tuint)
             (Econst_int (Int.repr 1359893119) tuint))
           (Ssequence
@@ -983,8 +1055,9 @@ Definition f_SHA256_Init := {|
               (Ederef
                 (Ebinop Oadd
                   (Efield
-                    (Ederef (Etempvar _c (tptr t_struct_SHA256state_st))
-                      t_struct_SHA256state_st) _h (tarray tuint 8))
+                    (Ederef
+                      (Etempvar _c (tptr (Tstruct _SHA256state_st noattr)))
+                      (Tstruct _SHA256state_st noattr)) _h (tarray tuint 8))
                   (Econst_int (Int.repr 5) tint) (tptr tuint)) tuint)
               (Econst_int (Int.repr (-1694144372)) tuint))
             (Ssequence
@@ -992,55 +1065,63 @@ Definition f_SHA256_Init := {|
                 (Ederef
                   (Ebinop Oadd
                     (Efield
-                      (Ederef (Etempvar _c (tptr t_struct_SHA256state_st))
-                        t_struct_SHA256state_st) _h (tarray tuint 8))
-                    (Econst_int (Int.repr 6) tint) (tptr tuint)) tuint)
+                      (Ederef
+                        (Etempvar _c (tptr (Tstruct _SHA256state_st noattr)))
+                        (Tstruct _SHA256state_st noattr)) _h
+                      (tarray tuint 8)) (Econst_int (Int.repr 6) tint)
+                    (tptr tuint)) tuint)
                 (Econst_int (Int.repr 528734635) tuint))
               (Ssequence
                 (Sassign
                   (Ederef
                     (Ebinop Oadd
                       (Efield
-                        (Ederef (Etempvar _c (tptr t_struct_SHA256state_st))
-                          t_struct_SHA256state_st) _h (tarray tuint 8))
-                      (Econst_int (Int.repr 7) tint) (tptr tuint)) tuint)
+                        (Ederef
+                          (Etempvar _c (tptr (Tstruct _SHA256state_st noattr)))
+                          (Tstruct _SHA256state_st noattr)) _h
+                        (tarray tuint 8)) (Econst_int (Int.repr 7) tint)
+                      (tptr tuint)) tuint)
                   (Econst_int (Int.repr 1541459225) tuint))
                 (Ssequence
                   (Sassign
                     (Efield
-                      (Ederef (Etempvar _c (tptr t_struct_SHA256state_st))
-                        t_struct_SHA256state_st) _Nl tuint)
+                      (Ederef
+                        (Etempvar _c (tptr (Tstruct _SHA256state_st noattr)))
+                        (Tstruct _SHA256state_st noattr)) _Nl tuint)
                     (Econst_int (Int.repr 0) tint))
                   (Ssequence
                     (Sassign
                       (Efield
-                        (Ederef (Etempvar _c (tptr t_struct_SHA256state_st))
-                          t_struct_SHA256state_st) _Nh tuint)
+                        (Ederef
+                          (Etempvar _c (tptr (Tstruct _SHA256state_st noattr)))
+                          (Tstruct _SHA256state_st noattr)) _Nh tuint)
                       (Econst_int (Int.repr 0) tint))
                     (Sassign
                       (Efield
-                        (Ederef (Etempvar _c (tptr t_struct_SHA256state_st))
-                          t_struct_SHA256state_st) _num tuint)
+                        (Ederef
+                          (Etempvar _c (tptr (Tstruct _SHA256state_st noattr)))
+                          (Tstruct _SHA256state_st noattr)) _num tuint)
                       (Econst_int (Int.repr 0) tint))))))))))))
 |}.
 
 Definition f_SHA256_addlength := {|
   fn_return := tvoid;
   fn_callconv := cc_default;
-  fn_params := ((_c, (tptr t_struct_SHA256state_st)) :: (_len, tuint) :: nil);
+  fn_params := ((_c, (tptr (Tstruct _SHA256state_st noattr))) ::
+                (_len, tuint) :: nil);
   fn_vars := nil;
   fn_temps := ((_l, tuint) :: (_cNl, tuint) :: (_cNh, tuint) :: nil);
   fn_body :=
 (Ssequence
   (Sset _cNl
     (Efield
-      (Ederef (Etempvar _c (tptr t_struct_SHA256state_st))
-        t_struct_SHA256state_st) _Nl tuint))
+      (Ederef (Etempvar _c (tptr (Tstruct _SHA256state_st noattr)))
+        (Tstruct _SHA256state_st noattr)) _Nl tuint))
   (Ssequence
     (Sset _cNh
       (Efield
-        (Ederef (Etempvar _c (tptr t_struct_SHA256state_st))
-          t_struct_SHA256state_st) _Nh tuint))
+        (Ederef (Etempvar _c (tptr (Tstruct _SHA256state_st noattr)))
+          (Tstruct _SHA256state_st noattr)) _Nh tuint))
     (Ssequence
       (Sset _l
         (Ebinop Oand
@@ -1063,18 +1144,20 @@ Definition f_SHA256_addlength := {|
           (Ssequence
             (Sassign
               (Efield
-                (Ederef (Etempvar _c (tptr t_struct_SHA256state_st))
-                  t_struct_SHA256state_st) _Nl tuint) (Etempvar _l tuint))
+                (Ederef (Etempvar _c (tptr (Tstruct _SHA256state_st noattr)))
+                  (Tstruct _SHA256state_st noattr)) _Nl tuint)
+              (Etempvar _l tuint))
             (Sassign
               (Efield
-                (Ederef (Etempvar _c (tptr t_struct_SHA256state_st))
-                  t_struct_SHA256state_st) _Nh tuint) (Etempvar _cNh tuint))))))))
+                (Ederef (Etempvar _c (tptr (Tstruct _SHA256state_st noattr)))
+                  (Tstruct _SHA256state_st noattr)) _Nh tuint)
+              (Etempvar _cNh tuint))))))))
 |}.
 
 Definition f_SHA256_Update := {|
   fn_return := tvoid;
   fn_callconv := cc_default;
-  fn_params := ((_c, (tptr t_struct_SHA256state_st)) ::
+  fn_params := ((_c, (tptr (Tstruct _SHA256state_st noattr))) ::
                 (_data_, (tptr tvoid)) :: (_len, tuint) :: nil);
   fn_vars := nil;
   fn_temps := ((_data, (tptr tuchar)) :: (_p, (tptr tuchar)) ::
@@ -1085,20 +1168,21 @@ Definition f_SHA256_Update := {|
   (Ssequence
     (Scall None
       (Evar _SHA256_addlength (Tfunction
-                                (Tcons (tptr t_struct_SHA256state_st)
+                                (Tcons
+                                  (tptr (Tstruct _SHA256state_st noattr))
                                   (Tcons tuint Tnil)) tvoid cc_default))
-      ((Etempvar _c (tptr t_struct_SHA256state_st)) ::
+      ((Etempvar _c (tptr (Tstruct _SHA256state_st noattr))) ::
        (Etempvar _len tuint) :: nil))
     (Ssequence
       (Sset _n
         (Efield
-          (Ederef (Etempvar _c (tptr t_struct_SHA256state_st))
-            t_struct_SHA256state_st) _num tuint))
+          (Ederef (Etempvar _c (tptr (Tstruct _SHA256state_st noattr)))
+            (Tstruct _SHA256state_st noattr)) _num tuint))
       (Ssequence
         (Sset _p
           (Efield
-            (Ederef (Etempvar _c (tptr t_struct_SHA256state_st))
-              t_struct_SHA256state_st) _data (tarray tuchar 64)))
+            (Ederef (Etempvar _c (tptr (Tstruct _SHA256state_st noattr)))
+              (Tstruct _SHA256state_st noattr)) _data (tarray tuchar 64)))
         (Ssequence
           (Sifthenelse (Ebinop One (Etempvar _n tuint)
                          (Econst_int (Int.repr 0) tint) tint)
@@ -1124,11 +1208,11 @@ Definition f_SHA256_Update := {|
                     (Scall None
                       (Evar _sha256_block_data_order (Tfunction
                                                        (Tcons
-                                                         (tptr t_struct_SHA256state_st)
+                                                         (tptr (Tstruct _SHA256state_st noattr))
                                                          (Tcons (tptr tvoid)
                                                            Tnil)) tvoid
                                                        cc_default))
-                      ((Etempvar _c (tptr t_struct_SHA256state_st)) ::
+                      ((Etempvar _c (tptr (Tstruct _SHA256state_st noattr))) ::
                        (Etempvar _p (tptr tuchar)) :: nil))
                     (Ssequence
                       (Sset _data
@@ -1160,8 +1244,9 @@ Definition f_SHA256_Update := {|
                   (Ssequence
                     (Sassign
                       (Efield
-                        (Ederef (Etempvar _c (tptr t_struct_SHA256state_st))
-                          t_struct_SHA256state_st) _num tuint)
+                        (Ederef
+                          (Etempvar _c (tptr (Tstruct _SHA256state_st noattr)))
+                          (Tstruct _SHA256state_st noattr)) _num tuint)
                       (Ebinop Oadd (Etempvar _n tuint)
                         (Ecast (Etempvar _len tuint) tuint) tuint))
                     (Sreturn None)))))
@@ -1175,11 +1260,11 @@ Definition f_SHA256_Update := {|
                 (Scall None
                   (Evar _sha256_block_data_order (Tfunction
                                                    (Tcons
-                                                     (tptr t_struct_SHA256state_st)
+                                                     (tptr (Tstruct _SHA256state_st noattr))
                                                      (Tcons (tptr tvoid)
                                                        Tnil)) tvoid
                                                    cc_default))
-                  ((Etempvar _c (tptr t_struct_SHA256state_st)) ::
+                  ((Etempvar _c (tptr (Tstruct _SHA256state_st noattr))) ::
                    (Etempvar _data (tptr tuchar)) :: nil))
                 (Ssequence
                   (Sset _data
@@ -1193,8 +1278,9 @@ Definition f_SHA256_Update := {|
             (Ssequence
               (Sassign
                 (Efield
-                  (Ederef (Etempvar _c (tptr t_struct_SHA256state_st))
-                    t_struct_SHA256state_st) _num tuint)
+                  (Ederef
+                    (Etempvar _c (tptr (Tstruct _SHA256state_st noattr)))
+                    (Tstruct _SHA256state_st noattr)) _num tuint)
                 (Etempvar _len tuint))
               (Ssequence
                 (Sifthenelse (Ebinop One (Etempvar _len tuint)
@@ -1215,21 +1301,33 @@ Definition f_SHA256_Final := {|
   fn_return := tvoid;
   fn_callconv := cc_default;
   fn_params := ((_md, (tptr tuchar)) ::
-                (_c, (tptr t_struct_SHA256state_st)) :: nil);
+                (_c, (tptr (Tstruct _SHA256state_st noattr))) :: nil);
   fn_vars := nil;
   fn_temps := ((_p, (tptr tuchar)) :: (_n, tuint) :: (_cNl, tuint) ::
-               (_cNh, tuint) :: (_ll, tuint) :: (_xn, tuint) :: nil);
+               (_cNh, tuint) :: (_ll, tuint) :: (_xn, tuint) ::
+               (106%positive, (tptr tuchar)) ::
+               (105%positive, (tptr tuchar)) ::
+               (104%positive, (tptr tuchar)) ::
+               (103%positive, (tptr tuchar)) ::
+               (102%positive, (tptr tuchar)) ::
+               (101%positive, (tptr tuchar)) ::
+               (100%positive, (tptr tuchar)) ::
+               (99%positive, (tptr tuchar)) ::
+               (98%positive, (tptr tuchar)) ::
+               (97%positive, (tptr tuchar)) ::
+               (96%positive, (tptr tuchar)) ::
+               (95%positive, (tptr tuchar)) :: nil);
   fn_body :=
 (Ssequence
   (Sset _p
     (Efield
-      (Ederef (Etempvar _c (tptr t_struct_SHA256state_st))
-        t_struct_SHA256state_st) _data (tarray tuchar 64)))
+      (Ederef (Etempvar _c (tptr (Tstruct _SHA256state_st noattr)))
+        (Tstruct _SHA256state_st noattr)) _data (tarray tuchar 64)))
   (Ssequence
     (Sset _n
       (Efield
-        (Ederef (Etempvar _c (tptr t_struct_SHA256state_st))
-          t_struct_SHA256state_st) _num tuint))
+        (Ederef (Etempvar _c (tptr (Tstruct _SHA256state_st noattr)))
+          (Tstruct _SHA256state_st noattr)) _num tuint))
     (Ssequence
       (Sassign
         (Ederef
@@ -1262,11 +1360,11 @@ Definition f_SHA256_Final := {|
                 (Scall None
                   (Evar _sha256_block_data_order (Tfunction
                                                    (Tcons
-                                                     (tptr t_struct_SHA256state_st)
+                                                     (tptr (Tstruct _SHA256state_st noattr))
                                                      (Tcons (tptr tvoid)
                                                        Tnil)) tvoid
                                                    cc_default))
-                  ((Etempvar _c (tptr t_struct_SHA256state_st)) ::
+                  ((Etempvar _c (tptr (Tstruct _SHA256state_st noattr))) ::
                    (Etempvar _p (tptr tuchar)) :: nil))))
             Sskip)
           (Ssequence
@@ -1293,41 +1391,163 @@ Definition f_SHA256_Final := {|
               (Ssequence
                 (Sset _cNh
                   (Efield
-                    (Ederef (Etempvar _c (tptr t_struct_SHA256state_st))
-                      t_struct_SHA256state_st) _Nh tuint))
+                    (Ederef
+                      (Etempvar _c (tptr (Tstruct _SHA256state_st noattr)))
+                      (Tstruct _SHA256state_st noattr)) _Nh tuint))
                 (Ssequence
                   (Ssequence
-                    (Scall None
-                      (Evar ___builtin_write32_reversed (Tfunction
-                                                          (Tcons (tptr tuint)
-                                                            (Tcons tuint
-                                                              Tnil)) tvoid
-                                                          cc_default))
-                      ((Ecast (Etempvar _p (tptr tuchar)) (tptr tuint)) ::
-                       (Etempvar _cNh tuint) :: nil))
-                    (Sset _p
-                      (Ebinop Oadd (Etempvar _p (tptr tuchar))
-                        (Econst_int (Int.repr 4) tint) (tptr tuchar))))
+                    (Ssequence
+                      (Ssequence
+                        (Ssequence
+                          (Ssequence
+                            (Ssequence
+                              (Ssequence
+                                (Ssequence
+                                  (Ssequence
+                                    (Ssequence
+                                      (Ssequence
+                                        (Sset 95%positive
+                                          (Etempvar _p (tptr tuchar)))
+                                        (Sset _p
+                                          (Ebinop Oadd
+                                            (Etempvar 95%positive (tptr tuchar))
+                                            (Econst_int (Int.repr 1) tint)
+                                            (tptr tuchar))))
+                                      (Sassign
+                                        (Ederef
+                                          (Etempvar 95%positive (tptr tuchar))
+                                          tuchar)
+                                        (Ecast
+                                          (Ebinop Oand
+                                            (Ebinop Oshr
+                                              (Etempvar _cNh tuint)
+                                              (Econst_int (Int.repr 24) tint)
+                                              tuint)
+                                            (Econst_int (Int.repr 255) tint)
+                                            tuint) tuchar)))
+                                    (Sset 96%positive
+                                      (Etempvar _p (tptr tuchar))))
+                                  (Sset _p
+                                    (Ebinop Oadd
+                                      (Etempvar 96%positive (tptr tuchar))
+                                      (Econst_int (Int.repr 1) tint)
+                                      (tptr tuchar))))
+                                (Sassign
+                                  (Ederef
+                                    (Etempvar 96%positive (tptr tuchar))
+                                    tuchar)
+                                  (Ecast
+                                    (Ebinop Oand
+                                      (Ebinop Oshr (Etempvar _cNh tuint)
+                                        (Econst_int (Int.repr 16) tint)
+                                        tuint)
+                                      (Econst_int (Int.repr 255) tint) tuint)
+                                    tuchar)))
+                              (Sset 97%positive (Etempvar _p (tptr tuchar))))
+                            (Sset _p
+                              (Ebinop Oadd
+                                (Etempvar 97%positive (tptr tuchar))
+                                (Econst_int (Int.repr 1) tint) (tptr tuchar))))
+                          (Sassign
+                            (Ederef (Etempvar 97%positive (tptr tuchar))
+                              tuchar)
+                            (Ecast
+                              (Ebinop Oand
+                                (Ebinop Oshr (Etempvar _cNh tuint)
+                                  (Econst_int (Int.repr 8) tint) tuint)
+                                (Econst_int (Int.repr 255) tint) tuint)
+                              tuchar)))
+                        (Sset 98%positive (Etempvar _p (tptr tuchar))))
+                      (Sset _p
+                        (Ebinop Oadd (Etempvar 98%positive (tptr tuchar))
+                          (Econst_int (Int.repr 1) tint) (tptr tuchar))))
+                    (Sassign
+                      (Ederef (Etempvar 98%positive (tptr tuchar)) tuchar)
+                      (Ecast
+                        (Ebinop Oand (Etempvar _cNh tuint)
+                          (Econst_int (Int.repr 255) tint) tuint) tuchar)))
                   (Ssequence
                     (Sset _cNl
                       (Efield
-                        (Ederef (Etempvar _c (tptr t_struct_SHA256state_st))
-                          t_struct_SHA256state_st) _Nl tuint))
+                        (Ederef
+                          (Etempvar _c (tptr (Tstruct _SHA256state_st noattr)))
+                          (Tstruct _SHA256state_st noattr)) _Nl tuint))
                     (Ssequence
                       (Ssequence
-                        (Scall None
-                          (Evar ___builtin_write32_reversed (Tfunction
-                                                              (Tcons
-                                                                (tptr tuint)
-                                                                (Tcons tuint
-                                                                  Tnil))
-                                                              tvoid
-                                                              cc_default))
-                          ((Ecast (Etempvar _p (tptr tuchar)) (tptr tuint)) ::
-                           (Etempvar _cNl tuint) :: nil))
-                        (Sset _p
-                          (Ebinop Oadd (Etempvar _p (tptr tuchar))
-                            (Econst_int (Int.repr 4) tint) (tptr tuchar))))
+                        (Ssequence
+                          (Ssequence
+                            (Ssequence
+                              (Ssequence
+                                (Ssequence
+                                  (Ssequence
+                                    (Ssequence
+                                      (Ssequence
+                                        (Ssequence
+                                          (Ssequence
+                                            (Sset 99%positive
+                                              (Etempvar _p (tptr tuchar)))
+                                            (Sset _p
+                                              (Ebinop Oadd
+                                                (Etempvar 99%positive (tptr tuchar))
+                                                (Econst_int (Int.repr 1) tint)
+                                                (tptr tuchar))))
+                                          (Sassign
+                                            (Ederef
+                                              (Etempvar 99%positive (tptr tuchar))
+                                              tuchar)
+                                            (Ecast
+                                              (Ebinop Oand
+                                                (Ebinop Oshr
+                                                  (Etempvar _cNl tuint)
+                                                  (Econst_int (Int.repr 24) tint)
+                                                  tuint)
+                                                (Econst_int (Int.repr 255) tint)
+                                                tuint) tuchar)))
+                                        (Sset 100%positive
+                                          (Etempvar _p (tptr tuchar))))
+                                      (Sset _p
+                                        (Ebinop Oadd
+                                          (Etempvar 100%positive (tptr tuchar))
+                                          (Econst_int (Int.repr 1) tint)
+                                          (tptr tuchar))))
+                                    (Sassign
+                                      (Ederef
+                                        (Etempvar 100%positive (tptr tuchar))
+                                        tuchar)
+                                      (Ecast
+                                        (Ebinop Oand
+                                          (Ebinop Oshr (Etempvar _cNl tuint)
+                                            (Econst_int (Int.repr 16) tint)
+                                            tuint)
+                                          (Econst_int (Int.repr 255) tint)
+                                          tuint) tuchar)))
+                                  (Sset 101%positive
+                                    (Etempvar _p (tptr tuchar))))
+                                (Sset _p
+                                  (Ebinop Oadd
+                                    (Etempvar 101%positive (tptr tuchar))
+                                    (Econst_int (Int.repr 1) tint)
+                                    (tptr tuchar))))
+                              (Sassign
+                                (Ederef (Etempvar 101%positive (tptr tuchar))
+                                  tuchar)
+                                (Ecast
+                                  (Ebinop Oand
+                                    (Ebinop Oshr (Etempvar _cNl tuint)
+                                      (Econst_int (Int.repr 8) tint) tuint)
+                                    (Econst_int (Int.repr 255) tint) tuint)
+                                  tuchar)))
+                            (Sset 102%positive (Etempvar _p (tptr tuchar))))
+                          (Sset _p
+                            (Ebinop Oadd
+                              (Etempvar 102%positive (tptr tuchar))
+                              (Econst_int (Int.repr 1) tint) (tptr tuchar))))
+                        (Sassign
+                          (Ederef (Etempvar 102%positive (tptr tuchar))
+                            tuchar)
+                          (Ecast
+                            (Ebinop Oand (Etempvar _cNl tuint)
+                              (Econst_int (Int.repr 255) tint) tuint) tuchar)))
                       (Ssequence
                         (Sset _p
                           (Ebinop Osub (Etempvar _p (tptr tuchar))
@@ -1338,20 +1558,20 @@ Definition f_SHA256_Final := {|
                           (Scall None
                             (Evar _sha256_block_data_order (Tfunction
                                                              (Tcons
-                                                               (tptr t_struct_SHA256state_st)
+                                                               (tptr (Tstruct _SHA256state_st noattr))
                                                                (Tcons
                                                                  (tptr tvoid)
                                                                  Tnil)) tvoid
                                                              cc_default))
-                            ((Etempvar _c (tptr t_struct_SHA256state_st)) ::
+                            ((Etempvar _c (tptr (Tstruct _SHA256state_st noattr))) ::
                              (Etempvar _p (tptr tuchar)) :: nil))
                           (Ssequence
                             (Sassign
                               (Efield
                                 (Ederef
-                                  (Etempvar _c (tptr t_struct_SHA256state_st))
-                                  t_struct_SHA256state_st) _num tuint)
-                              (Econst_int (Int.repr 0) tint))
+                                  (Etempvar _c (tptr (Tstruct _SHA256state_st noattr)))
+                                  (Tstruct _SHA256state_st noattr)) _num
+                                tuint) (Econst_int (Int.repr 0) tint))
                             (Ssequence
                               (Scall None
                                 (Evar _memset (Tfunction
@@ -1383,27 +1603,96 @@ Definition f_SHA256_Final := {|
                                             (Ebinop Oadd
                                               (Efield
                                                 (Ederef
-                                                  (Etempvar _c (tptr t_struct_SHA256state_st))
-                                                  t_struct_SHA256state_st) _h
-                                                (tarray tuint 8))
+                                                  (Etempvar _c (tptr (Tstruct _SHA256state_st noattr)))
+                                                  (Tstruct _SHA256state_st noattr))
+                                                _h (tarray tuint 8))
                                               (Etempvar _xn tuint)
                                               (tptr tuint)) tuint))
                                         (Ssequence
-                                          (Scall None
-                                            (Evar ___builtin_write32_reversed 
-                                            (Tfunction
-                                              (Tcons (tptr tuint)
-                                                (Tcons tuint Tnil)) tvoid
-                                              cc_default))
-                                            ((Ecast
-                                               (Etempvar _md (tptr tuchar))
-                                               (tptr tuint)) ::
-                                             (Etempvar _ll tuint) :: nil))
-                                          (Sset _md
-                                            (Ebinop Oadd
-                                              (Etempvar _md (tptr tuchar))
-                                              (Econst_int (Int.repr 4) tint)
-                                              (tptr tuchar))))))
+                                          (Ssequence
+                                            (Ssequence
+                                              (Ssequence
+                                                (Ssequence
+                                                  (Ssequence
+                                                    (Ssequence
+                                                      (Ssequence
+                                                        (Ssequence
+                                                          (Ssequence
+                                                            (Ssequence
+                                                              (Sset 103%positive
+                                                                (Etempvar _md (tptr tuchar)))
+                                                              (Sset _md
+                                                                (Ebinop Oadd
+                                                                  (Etempvar 103%positive (tptr tuchar))
+                                                                  (Econst_int (Int.repr 1) tint)
+                                                                  (tptr tuchar))))
+                                                            (Sassign
+                                                              (Ederef
+                                                                (Etempvar 103%positive (tptr tuchar))
+                                                                tuchar)
+                                                              (Ecast
+                                                                (Ebinop Oand
+                                                                  (Ebinop Oshr
+                                                                    (Etempvar _ll tuint)
+                                                                    (Econst_int (Int.repr 24) tint)
+                                                                    tuint)
+                                                                  (Econst_int (Int.repr 255) tint)
+                                                                  tuint)
+                                                                tuchar)))
+                                                          (Sset 104%positive
+                                                            (Etempvar _md (tptr tuchar))))
+                                                        (Sset _md
+                                                          (Ebinop Oadd
+                                                            (Etempvar 104%positive (tptr tuchar))
+                                                            (Econst_int (Int.repr 1) tint)
+                                                            (tptr tuchar))))
+                                                      (Sassign
+                                                        (Ederef
+                                                          (Etempvar 104%positive (tptr tuchar))
+                                                          tuchar)
+                                                        (Ecast
+                                                          (Ebinop Oand
+                                                            (Ebinop Oshr
+                                                              (Etempvar _ll tuint)
+                                                              (Econst_int (Int.repr 16) tint)
+                                                              tuint)
+                                                            (Econst_int (Int.repr 255) tint)
+                                                            tuint) tuchar)))
+                                                    (Sset 105%positive
+                                                      (Etempvar _md (tptr tuchar))))
+                                                  (Sset _md
+                                                    (Ebinop Oadd
+                                                      (Etempvar 105%positive (tptr tuchar))
+                                                      (Econst_int (Int.repr 1) tint)
+                                                      (tptr tuchar))))
+                                                (Sassign
+                                                  (Ederef
+                                                    (Etempvar 105%positive (tptr tuchar))
+                                                    tuchar)
+                                                  (Ecast
+                                                    (Ebinop Oand
+                                                      (Ebinop Oshr
+                                                        (Etempvar _ll tuint)
+                                                        (Econst_int (Int.repr 8) tint)
+                                                        tuint)
+                                                      (Econst_int (Int.repr 255) tint)
+                                                      tuint) tuchar)))
+                                              (Sset 106%positive
+                                                (Etempvar _md (tptr tuchar))))
+                                            (Sset _md
+                                              (Ebinop Oadd
+                                                (Etempvar 106%positive (tptr tuchar))
+                                                (Econst_int (Int.repr 1) tint)
+                                                (tptr tuchar))))
+                                          (Sassign
+                                            (Ederef
+                                              (Etempvar 106%positive (tptr tuchar))
+                                              tuchar)
+                                            (Ecast
+                                              (Ebinop Oand
+                                                (Etempvar _ll tuint)
+                                                (Econst_int (Int.repr 255) tint)
+                                                tuint) tuchar)))))
                                     (Sset _xn
                                       (Ebinop Oadd (Etempvar _xn tuint)
                                         (Econst_int (Int.repr 1) tint) tuint))))
@@ -1415,33 +1704,40 @@ Definition f_SHA256 := {|
   fn_callconv := cc_default;
   fn_params := ((_d, (tptr tuchar)) :: (_n, tuint) :: (_md, (tptr tuchar)) ::
                 nil);
-  fn_vars := ((_c, t_struct_SHA256state_st) :: nil);
+  fn_vars := ((_c, (Tstruct _SHA256state_st noattr)) :: nil);
   fn_temps := nil;
   fn_body :=
 (Ssequence
   (Scall None
-    (Evar _SHA256_Init (Tfunction (Tcons (tptr t_struct_SHA256state_st) Tnil)
+    (Evar _SHA256_Init (Tfunction
+                         (Tcons (tptr (Tstruct _SHA256state_st noattr)) Tnil)
                          tvoid cc_default))
-    ((Eaddrof (Evar _c t_struct_SHA256state_st)
-       (tptr t_struct_SHA256state_st)) :: nil))
+    ((Eaddrof (Evar _c (Tstruct _SHA256state_st noattr))
+       (tptr (Tstruct _SHA256state_st noattr))) :: nil))
   (Ssequence
     (Scall None
       (Evar _SHA256_Update (Tfunction
-                             (Tcons (tptr t_struct_SHA256state_st)
+                             (Tcons (tptr (Tstruct _SHA256state_st noattr))
                                (Tcons (tptr tvoid) (Tcons tuint Tnil))) tvoid
                              cc_default))
-      ((Eaddrof (Evar _c t_struct_SHA256state_st)
-         (tptr t_struct_SHA256state_st)) :: (Etempvar _d (tptr tuchar)) ::
-       (Etempvar _n tuint) :: nil))
+      ((Eaddrof (Evar _c (Tstruct _SHA256state_st noattr))
+         (tptr (Tstruct _SHA256state_st noattr))) ::
+       (Etempvar _d (tptr tuchar)) :: (Etempvar _n tuint) :: nil))
     (Scall None
       (Evar _SHA256_Final (Tfunction
                             (Tcons (tptr tuchar)
-                              (Tcons (tptr t_struct_SHA256state_st) Tnil))
-                            tvoid cc_default))
+                              (Tcons (tptr (Tstruct _SHA256state_st noattr))
+                                Tnil)) tvoid cc_default))
       ((Etempvar _md (tptr tuchar)) ::
-       (Eaddrof (Evar _c t_struct_SHA256state_st)
-         (tptr t_struct_SHA256state_st)) :: nil))))
+       (Eaddrof (Evar _c (Tstruct _SHA256state_st noattr))
+         (tptr (Tstruct _SHA256state_st noattr))) :: nil))))
 |}.
+
+Definition composites : list composite_definition :=
+(Composite _SHA256state_st Struct
+   ((_h, (tarray tuint 8)) :: (_Nl, tuint) :: (_Nh, tuint) ::
+    (_data, (tarray tuchar 64)) :: (_num, tuint) :: nil)
+   noattr :: nil).
 
 Definition prog : Clight.program := {|
 prog_defs :=
@@ -1460,9 +1756,9 @@ prog_defs :=
  (___builtin_annot,
    Gfun(External (EF_builtin ___builtin_annot
                    (mksignature (AST.Tint :: nil) None
-                     {|cc_vararg:=true; cc_structret:=false|}))
+                     {|cc_vararg:=true; cc_unproto:=false; cc_structret:=false|}))
      (Tcons (tptr tschar) Tnil) tvoid
-     {|cc_vararg:=true; cc_structret:=false|})) ::
+     {|cc_vararg:=true; cc_unproto:=false; cc_structret:=false|})) ::
  (___builtin_annot_intval,
    Gfun(External (EF_builtin ___builtin_annot_intval
                    (mksignature (AST.Tint :: AST.Tint :: nil) (Some AST.Tint)
@@ -1503,6 +1799,70 @@ prog_defs :=
                    (mksignature (AST.Tint :: nil) (Some AST.Tfloat)
                      cc_default)) (Tcons (tptr tvoid) Tnil) tdouble
      cc_default)) ::
+ (___compcert_va_composite,
+   Gfun(External (EF_external ___compcert_va_composite
+                   (mksignature (AST.Tint :: AST.Tint :: nil) (Some AST.Tint)
+                     cc_default)) (Tcons (tptr tvoid) (Tcons tuint Tnil))
+     (tptr tvoid) cc_default)) ::
+ (___i64_dtos,
+   Gfun(External (EF_external ___i64_dtos
+                   (mksignature (AST.Tfloat :: nil) (Some AST.Tlong)
+                     cc_default)) (Tcons tdouble Tnil) tlong cc_default)) ::
+ (___i64_dtou,
+   Gfun(External (EF_external ___i64_dtou
+                   (mksignature (AST.Tfloat :: nil) (Some AST.Tlong)
+                     cc_default)) (Tcons tdouble Tnil) tulong cc_default)) ::
+ (___i64_stod,
+   Gfun(External (EF_external ___i64_stod
+                   (mksignature (AST.Tlong :: nil) (Some AST.Tfloat)
+                     cc_default)) (Tcons tlong Tnil) tdouble cc_default)) ::
+ (___i64_utod,
+   Gfun(External (EF_external ___i64_utod
+                   (mksignature (AST.Tlong :: nil) (Some AST.Tfloat)
+                     cc_default)) (Tcons tulong Tnil) tdouble cc_default)) ::
+ (___i64_stof,
+   Gfun(External (EF_external ___i64_stof
+                   (mksignature (AST.Tlong :: nil) (Some AST.Tsingle)
+                     cc_default)) (Tcons tlong Tnil) tfloat cc_default)) ::
+ (___i64_utof,
+   Gfun(External (EF_external ___i64_utof
+                   (mksignature (AST.Tlong :: nil) (Some AST.Tsingle)
+                     cc_default)) (Tcons tulong Tnil) tfloat cc_default)) ::
+ (___i64_sdiv,
+   Gfun(External (EF_external ___i64_sdiv
+                   (mksignature (AST.Tlong :: AST.Tlong :: nil)
+                     (Some AST.Tlong) cc_default))
+     (Tcons tlong (Tcons tlong Tnil)) tlong cc_default)) ::
+ (___i64_udiv,
+   Gfun(External (EF_external ___i64_udiv
+                   (mksignature (AST.Tlong :: AST.Tlong :: nil)
+                     (Some AST.Tlong) cc_default))
+     (Tcons tulong (Tcons tulong Tnil)) tulong cc_default)) ::
+ (___i64_smod,
+   Gfun(External (EF_external ___i64_smod
+                   (mksignature (AST.Tlong :: AST.Tlong :: nil)
+                     (Some AST.Tlong) cc_default))
+     (Tcons tlong (Tcons tlong Tnil)) tlong cc_default)) ::
+ (___i64_umod,
+   Gfun(External (EF_external ___i64_umod
+                   (mksignature (AST.Tlong :: AST.Tlong :: nil)
+                     (Some AST.Tlong) cc_default))
+     (Tcons tulong (Tcons tulong Tnil)) tulong cc_default)) ::
+ (___i64_shl,
+   Gfun(External (EF_external ___i64_shl
+                   (mksignature (AST.Tlong :: AST.Tint :: nil)
+                     (Some AST.Tlong) cc_default))
+     (Tcons tlong (Tcons tint Tnil)) tlong cc_default)) ::
+ (___i64_shr,
+   Gfun(External (EF_external ___i64_shr
+                   (mksignature (AST.Tlong :: AST.Tint :: nil)
+                     (Some AST.Tlong) cc_default))
+     (Tcons tulong (Tcons tint Tnil)) tulong cc_default)) ::
+ (___i64_sar,
+   Gfun(External (EF_external ___i64_sar
+                   (mksignature (AST.Tlong :: AST.Tint :: nil)
+                     (Some AST.Tlong) cc_default))
+     (Tcons tlong (Tcons tint Tnil)) tlong cc_default)) ::
  (___builtin_bswap,
    Gfun(External (EF_builtin ___builtin_bswap
                    (mksignature (AST.Tint :: nil) (Some AST.Tint) cc_default))
@@ -1569,15 +1929,15 @@ prog_defs :=
    Gfun(External (EF_builtin ___builtin_read16_reversed
                    (mksignature (AST.Tint :: nil) (Some AST.Tint) cc_default))
      (Tcons (tptr tushort) Tnil) tushort cc_default)) ::
+ (___builtin_read32_reversed,
+   Gfun(External (EF_builtin ___builtin_read32_reversed
+                   (mksignature (AST.Tint :: nil) (Some AST.Tint) cc_default))
+     (Tcons (tptr tuint) Tnil) tuint cc_default)) ::
  (___builtin_write16_reversed,
    Gfun(External (EF_builtin ___builtin_write16_reversed
                    (mksignature (AST.Tint :: AST.Tint :: nil) None
                      cc_default)) (Tcons (tptr tushort) (Tcons tushort Tnil))
      tvoid cc_default)) ::
- (___builtin_read32_reversed,
-   Gfun(External (EF_builtin ___builtin_read32_reversed
-                   (mksignature (AST.Tint :: nil) (Some AST.Tint) cc_default))
-     (Tcons (tptr tuint) Tnil) tuint cc_default)) ::
  (___builtin_write32_reversed,
    Gfun(External (EF_builtin ___builtin_write32_reversed
                    (mksignature (AST.Tint :: AST.Tint :: nil) None
@@ -1601,6 +1961,25 @@ prog_defs :=
  (_SHA256_Update, Gfun(Internal f_SHA256_Update)) ::
  (_SHA256_Final, Gfun(Internal f_SHA256_Final)) ::
  (_SHA256, Gfun(Internal f_SHA256)) :: nil);
-prog_main := _main
+prog_public :=
+(_SHA256 :: _SHA256_Final :: _SHA256_Update :: _SHA256_addlength ::
+ _SHA256_Init :: _sha256_block_data_order :: _memset :: _memcpy ::
+ ___builtin_write32_reversed :: ___builtin_write16_reversed ::
+ ___builtin_read32_reversed :: ___builtin_read16_reversed ::
+ ___builtin_fnmsub :: ___builtin_fnmadd :: ___builtin_fmsub ::
+ ___builtin_fmadd :: ___builtin_fmin :: ___builtin_fmax ::
+ ___builtin_fsqrt :: ___builtin_ctz :: ___builtin_clz ::
+ ___builtin_bswap16 :: ___builtin_bswap32 :: ___builtin_bswap ::
+ ___i64_sar :: ___i64_shr :: ___i64_shl :: ___i64_umod :: ___i64_smod ::
+ ___i64_udiv :: ___i64_sdiv :: ___i64_utof :: ___i64_stof :: ___i64_utod ::
+ ___i64_stod :: ___i64_dtou :: ___i64_dtos :: ___compcert_va_composite ::
+ ___compcert_va_float64 :: ___compcert_va_int64 :: ___compcert_va_int32 ::
+ ___builtin_va_end :: ___builtin_va_copy :: ___builtin_va_arg ::
+ ___builtin_va_start :: ___builtin_membar :: ___builtin_annot_intval ::
+ ___builtin_annot :: ___builtin_memcpy_aligned :: ___builtin_fabs :: nil);
+prog_main := _main;
+prog_types := composites;
+prog_comp_env := make_composite_env composites;
+prog_comp_env_eq := refl_equal _
 |}.
 

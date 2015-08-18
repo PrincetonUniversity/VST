@@ -85,12 +85,12 @@ Lemma semax_linking_preserves_safety :
       initial_core (LinkerSem.coresem juicy_mem_ageable N sems plt) ge
                    (Vptr main_b Int.zero) args = Some l /\
       safeN (LinkerSem.coresem juicy_mem_ageable N sems plt)
-            (upd_exit (ef:=main_ef main_id) (@OK_spec spec) x (Genv.genv_symb ge))
-            ge (ageable.level m) z l m.
+            (minus_defs (upd_exit (ef:=main_ef main_id) (@OK_spec spec) x (Genv.genv_symb ge)) plt)
+            ge (@ageable.level _ juicy_mem_ageable m) z l m.
 Proof.
 move=> N plt modules ora ge main_id V G H H0 H1 H2 Hsemax. 
 move=> x z m idx b args Hx Hy Hz Ha Hb.
-apply: linker_preserves_safety=> //.
+apply: linker_preserves_safety=> //; eauto.
 { move=> fid idx0 Hplt; case: (H1 fid idx0 Hplt)=> bf0 []Hfind []f_body Hbody.
   by exists bf0. }
 move=> ef fid idx0 bf args0 z0 m0 Hq Hr Hs x0 Ht.

@@ -331,4 +331,3 @@ eapply semax_seq. instantiate (1:=PostResetBranch).
     unfold nested_field_offset2; simpl. rewrite Int.add_zero. cancel.
   }
 } 
-Qed.

@@ -65,4 +65,3 @@ destruct ST as [ST1 [ST2 ST3]]. simpl in *. cancel.
 rewrite field_at_data_at. 
     unfold nested_field_type2, field_address; simpl.
     rewrite <- Heqs. entailer. 
-Qed.

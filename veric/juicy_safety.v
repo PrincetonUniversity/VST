@@ -20,6 +20,14 @@ Definition pures_sub (jm jm' : juicy_mem) :=
     | _ => True
   end.
 
+Definition pures_eq (jm jm' : juicy_mem) :=
+  pures_sub jm jm' /\ 
+  (forall adr, 
+   match resource_at (m_phi jm') adr with
+    | PURE k pp' => exists pp, resource_at (m_phi jm) adr = PURE k pp
+    | _ => True
+  end).
+
 Section juicy_safety.
   Context {G C Z:Type}.
   Context (genv_symb: G -> PTree.t block).
@@ -28,6 +36,7 @@ Section juicy_safety.
   Definition Hrel n' m m' :=
     n' = level m' /\
     (level m' < level m)%nat /\ 
-    pures_sub m m'.
+    pures_eq m m'.
   Definition safeN := @safeN_ G C juicy_mem Z genv_symb Hrel Hcore Hspec.
 End juicy_safety.
+

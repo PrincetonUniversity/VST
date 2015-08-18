@@ -12,20 +12,8 @@ Global Opaque K256.
 
 Transparent peq.
 
-Definition field_offset' (i: ident) (t: type) : Z :=
-match t with
-| Tstruct _ f _ => 
-    match field_offset i f with Errors.OK n => n | _ => -1 end
-| _ => -1
-end.
-
-Definition data_offset : Z.  (* offset, in bytes, of _data field in struct SHA256_state *)
-pose (n := field_offset' _data t_struct_SHA256state_st); subst; compute in n.
-match goal with n := ?N |- _ => apply N end.
-Defined.
-
-(* Definition data_offset := 40%Z. (* offset  of _data field in the struct *) *)
-(*Global Opaque data_offset. *)
+Definition data_offset : Z :=  (* offset, in bytes, of _data field in struct SHA256_state *)
+  nested_field_offset2 t_struct_SHA256state_st [StructField _data].
 
 Lemma elim_globals_only'':
   forall i t rho,  
@@ -142,12 +130,12 @@ eapply semax_seq'; [apply H | ].
 eapply semax_extensionality_Delta; try apply H0.
 clear.
 revert Delta; induction cs; simpl; intros.
-apply expr_lemmas.tycontext_sub_refl.
-eapply semax_lemmas.tycontext_sub_trans; [apply IHcs | ].
+apply tycontext_sub_refl.
+eapply tycontext_sub_trans; [apply IHcs | ].
 clear.
 revert Delta; induction (rev cs); simpl; intros.
-apply expr_lemmas.tycontext_sub_refl.
-apply expr_lemmas.update_tycon_sub.
+apply tycontext_sub_refl.
+apply update_tycon_sub.
 apply IHl.
 Qed.
 
@@ -175,8 +163,8 @@ Proof.
 intros.
 apply pred_ext; intros.
 apply andp_right; auto.
-unfold array_at. simpl.
-normalize.
+unfold array_at.
+normalize. destruct H; apply prop_right; auto.
 normalize.
 Qed.
 

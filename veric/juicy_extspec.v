@@ -192,8 +192,25 @@ unfold rmap in *.
  apply (necR_NO _ _ l Share.bot H4). auto.
 Qed.
 
+Lemma necR_PURE' phi0 phi k p adr : 
+  necR phi0 phi -> 
+  phi @ adr = PURE k p ->
+  (*a stronger theorem is possible -- this one doesn't relate p, pp*)
+  exists pp, phi0 @ adr = PURE k pp.
+Proof. 
+  intros Hnec H.
+  case_eq (phi0 @ adr). 
+  { intros. apply necR_NO with (l:=adr)(rsh:=t) in Hnec. 
+    rewrite Hnec in H0. rewrite H0 in H. congruence. }
+  { intros. eapply necR_YES in Hnec; eauto. rewrite Hnec in H. congruence. }
+  { generalize (necR_level _ _ Hnec); intros Hlev.
+    intros. eapply necR_PURE in Hnec; eauto. 
+    rewrite Hnec in H. inversion H. subst. eexists. eauto. }
+Qed.
+
 Lemma age_safe {G C}
-  (csem: CoreSemantics G C mem) {Z} (genv_symb: G -> PTree.t block) (Hspec : juicy_ext_spec Z):
+  (csem: CoreSemantics G C mem) {Z}
+      (genv_symb: G -> PTree.t block) (Hspec : juicy_ext_spec Z):
   forall jm jm0, age jm0 jm -> 
   forall ge ora c, 
    safeN genv_symb (juicy_core_sem csem) Hspec ge (level jm0) ora c jm0 ->
@@ -243,6 +260,9 @@ Proof.
       rewrite H2; omega. }
     destruct H0 as (?&?&?). split3; auto. 
     do 2 rewrite <-level_juice_level_phi in H6. omega.
+    split.
+    {
+    destruct H8 as [H8 _].
     unfold pures_sub in H8. intros adr. specialize (H8 adr).
     assert (Hage: age (m_phi jm0) (m_phi jm)).
     { apply age_jm_phi; auto. }
@@ -256,6 +276,16 @@ Proof.
     do 2 rewrite <-level_juice_level_phi.
     rewrite <-compose_assoc, H9; auto.
     rewrite <-resource_at_approx, Hphi; auto.
+    }
+    { 
+    intros adr. case_eq (m_phi m' @ adr); auto. intros k p Hm'.
+    destruct H8 as [_ H8].
+    spec H8 adr. rewrite Hm' in H8. destruct H8 as [pp H8]. 
+    apply age_jm_phi in H2.
+    assert (Hnec: necR (m_phi jm0) (m_phi jm)).
+    { apply rt_step; auto. }
+    eapply necR_PURE' in Hnec; eauto.
+    }
     exists c'; split; auto.
   + unfold j_halted in *.
     eapply safeN_halted; eauto.

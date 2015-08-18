@@ -1,0 +1,88 @@
+#!/bin/bash
+
+# This script deletes, from each directory in Makefile/DIRS, all files
+# that don't appear in the VST Makefile.
+# 
+# Before actually deleting the files, the script uses a git branch to
+# mark the current git commit as a file archive.
+#
+# It also prompts the user before each 'git rm' command.
+# 
+# ****** IMPORTANT ******* 
+# Make sure you don't have uncommitted/unstashed changes in your
+# working directory when you run this script. Otherwise, the script
+# will fail.
+#
+# ****** WARNING ****** 
+# This script has been tested only on a unix-style machine. It will
+# probably fail in Cygwin.
+
+DIRS=`grep -e "^DIRS" Makefile | awk '{first = $1; $1 = ""; print $0; }'`
+
+inMakefile() {
+  echo `grep -c -e "$1" Makefile`
+}
+
+deleteUnused() {
+  for d in $DIRS; do
+    read -p "***** delete unused files from '$d' (y/n)?" yn;
+    case $yn in
+        [Yy]* ) 
+	    for f in $d/*.v; do
+		file=${f##*/} #strip directory from filepath
+		if [[ "$(inMakefile $file)" == "0" ]]; then
+		    read -p "delete file '$file' (y/n)?" yn
+		    case $yn in
+			[Yy]* ) 
+			    git rm $f;
+			    echo "*** deleted file $file";;
+			[Nn]* ) 
+			    echo -n "";;
+		    esac
+		else 
+		    echo -n "";
+		fi
+	    done;;
+        [Nn]* ) echo -n "";;
+        * ) echo "please answer 'y' or 'n'.";;
+    esac
+  done
+}
+
+DATE=`date --iso-8601`
+UNIQUE=`date +%s | sha256sum | base64 | head -c 8`
+branchName="file-archive-$DATE-$UNIQUE"
+
+makeFileArchiveBranch() {
+  echo "creating branch $branchName"
+  `git checkout -b "$branchName"`
+}
+
+commitDeletedFilesToArchiveBranch() {
+  git status  
+  read -p "proceed with commit (y/n)?" yn;
+  case $yn in
+      [Yy]* ) (eval "git commit -m "\"Archived delete $branchName\""");;
+      [Nn]* ) echo -n "";;
+      * ) echo "please answer 'y' or 'n'.";;
+  esac
+}
+
+commitDeletedFilesToMaster() {
+  git log --stat -1
+  read -p "merge above commit into master (y/n)?" yn;
+  case $yn in
+      [Yy]* ) git checkout master; eval "git merge "\"$branchName\""";;
+      [Nn]* ) echo -n "";;
+      * ) echo "please answer 'y' or 'n'.";;
+  esac
+}
+
+makeFileArchiveBranch
+deleteUnused
+commitDeletedFilesToArchiveBranch
+commitDeletedFilesToMaster
+
+echo "IMPORTANT: rememember to push your changes to the server:"
+echo "> git push origin $branchName"
+echo "> git push origin master"

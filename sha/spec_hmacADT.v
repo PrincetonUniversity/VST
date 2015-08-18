@@ -476,4 +476,3 @@ Definition HmacFunSpecs : funspecs :=
 Definition emptySha:s256state := (nil, (Vundef, (Vundef, (nil, Vundef)))).
  
 Definition keyedHMS: hmacstate :=
-  (emptySha, (emptySha, emptySha)).
