@@ -60,21 +60,29 @@ apply semax_pre with
    (`(data_at Ews t_struct_foo (Vint (Int.repr 5), 
           (Vsingle (Float32.of_bits (Int.repr 1079655793)),
            Vfloat (Float.of_bits (Int64.repr 0)))) s))). {
-unfold data_at. unfold_field_at 1%nat.
+unfold data_at.
+ unfold_field_at 1%nat.
 entailer!.
+rewrite proj_sumbool_is_true by auto;
+rewrite value_fits_ind; split3; 
+ erewrite unfold_reptype_elim by reflexivity;
+ simpl; hnf; simpl; auto.
 unfold field_at, data_at', at_offset. simpl.
 unfold mapsto'; rewrite !if_true by auto.
+rewrite proj_sumbool_is_true by auto.
 repeat rewrite prop_true_andp by
-  (split3; [ | | split3; [ | | split3; [ | | split]]]; auto; try reflexivity; try apply I;
-  try (eapply gvar_size_compatible; eauto; simpl; computable);
-  try (eapply gvar_align_compatible; eauto);
-  try solve [compute; auto]).
+ (split; [(split3; [ | | split3; [ | | split3; [ | | split]]]; auto; try reflexivity; try apply I;
+   try (eapply gvar_size_compatible; eauto; simpl; computable);
+   try (eapply gvar_align_compatible; eauto);
+   solve [compute; auto])
+  | intro; apply I
+  ]).
 fold tint; fold tfloat; fold tdouble.
-cancel.
-change (field_offset (make_composite_env composites) _x
-               [(_x, tint); (_y, tfloat); (_z, tdouble)])
-    with 0.
+repeat match goal with |- context [field_offset ?A ?B ?C] =>
+  set (aa :=field_offset A B C); compute in aa; subst aa
+end.
 normalize.
+cancel.
 }
 forward.
 forward.

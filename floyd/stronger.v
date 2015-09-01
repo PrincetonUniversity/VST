@@ -5,11 +5,13 @@ Require Import floyd.nested_field_lemmas.
 Require Import floyd.mapsto_memory_block.
 Require Import floyd.reptype_lemmas.
 Require Import floyd.proj_reptype_lemmas.
+Require Import floyd.data_at_lemmas.
 Require Import floyd.field_at.
 Require Import floyd.entailer.
 Require Import floyd.closed_lemmas.
 Require Import Coq.Classes.RelationClasses.
 Require Import Coq.Classes.Morphisms.
+Require Import floyd.sublist.
 
 Local Open Scope logic.
 
@@ -124,7 +126,8 @@ Proof.
 Qed.
 
 Lemma stronger_array_ext: forall t0 n a (v0 v1: reptype (Tarray t0 n a)),
-  (forall i, 0 <= i < n -> zl_nth i (unfold_reptype v0) >>> zl_nth i (unfold_reptype v1)) ->
+ Zlength (unfold_reptype v0) = Zlength (unfold_reptype v1) ->
+  (forall i, 0 <= i < n -> Znth i (unfold_reptype v0) (default_val _) >>> Znth i (unfold_reptype v1) (default_val _)) ->
   v0 >>> v1.
 Proof.
   intros.
@@ -132,6 +135,9 @@ Proof.
   destruct (zlt n 0).
   {
     rewrite !data_at_data_at'.
+    apply andp_derives. apply prop_derives; intros [? ?].
+    split; auto.
+    admit.
     rewrite !data_at_lemmas.data_at'_ind.
     rewrite !aggregate_pred.aggregate_pred.array_pred_len_0 by omega.
     auto.
@@ -147,12 +153,11 @@ Proof.
     instantiate (1 := unfold_reptype v1).
     symmetry. apply (unfold_reptype_JMeq (Tarray t0 n a)).
   } Unfocus.
-  apply array_at_ext_derives.
+  apply array_at_ext_derives; auto.
   intros.
-  specialize (H i H0).
+  specialize (H0 i H1).
   apply field_at_stronger.
-  rewrite H1, H2.
-  auto.
+  rewrite H2, H3. rewrite Z.sub_0_r; auto.
 Qed.
 
 Lemma stronger_default_val: forall t v, v >>> default_val t.
@@ -239,21 +244,28 @@ Proof.
 Defined.
 
 Lemma data_equal_array_ext: forall t0 n a (v0 v1: reptype (Tarray t0 n a)),
-  (forall i, 0 <= i < n -> zl_nth i (unfold_reptype v0) === zl_nth i (unfold_reptype v1)) ->
+ Zlength (unfold_reptype v0) = Zlength (unfold_reptype v1) ->
+  (forall i, 0 <= i < n -> 
+     Znth i (unfold_reptype v0) (default_val _) === Znth i (unfold_reptype v1) (default_val _)) ->
   v0 === v1.
 Proof.
   intros.
   apply data_equal_stronger; split; apply stronger_array_ext; auto.
   + intros.
-    specialize (H i H0).
-    destruct (data_equal_stronger (zl_nth i (unfold_reptype v0)) (zl_nth i (unfold_reptype v1))) as [? _].
+    specialize (H0 i H1).
+    destruct (data_equal_stronger 
+                      (Znth i (unfold_reptype v0) (default_val _))
+                      (Znth i (unfold_reptype v1) (default_val _))) as [? _].
     tauto.
   + intros.
-    specialize (H i H0).
-    destruct (data_equal_stronger (zl_nth i (unfold_reptype v0)) (zl_nth i (unfold_reptype v1))) as [? _].
+    specialize (H0 i H1).
+    destruct (data_equal_stronger 
+                      (Znth i (unfold_reptype v0) (default_val _))
+                      (Znth i (unfold_reptype v1) (default_val _))) as [? _].
     tauto.
 Qed.
 
+(*
 Lemma data_equal_zl_equiv: forall t n a (v v': reptype (Tarray t n a)),
   zl_equiv (unfold_reptype v) (unfold_reptype v') ->
   @data_equal (Tarray t n a) v v'.
@@ -277,20 +289,15 @@ Proof.
 Qed.
 
 Instance Proper_fold_reptype_array: forall t n a,
-  Proper ((@zl_equiv (reptype t) (default_val _) (list_zlist _ _) 0 n) ==> (@data_equal (Tarray t n a))) (@fold_reptype _ _ (Tarray t n a)).
+  Proper ((@zl_equiv (reptype t) (default_val _) (list_zlist _ _) 0 n) 
+               ==> (@data_equal (Tarray t n a))) (@fold_reptype _ _ (Tarray t n a)).
 Proof.
   intros.
   intro; intros.
   apply data_equal_zl_equiv'.
   auto.
 Defined.
-
-(* maybe not usefull any more *)
-Lemma nth_list_repeat: forall A i n (x :A),
-    nth i (list_repeat n x) x = x.
-Proof.
- induction i; destruct n; simpl; auto.
-Qed.
+*)
 
 Lemma data_equal_proj_reptype: forall t v1 v2,
   (v1 === v2) <->
@@ -334,5 +341,5 @@ Module DataCmpNotations.
 End DataCmpNotations.
 
 Global Existing Instance Equiv_data_equal.
-Global Existing Instance Proper_fold_reptype_array.
+(*Global Existing Instance Proper_fold_reptype_array.*)
 Global Existing Instance Proper_field_at.

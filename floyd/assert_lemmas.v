@@ -1,6 +1,15 @@
 Require Import floyd.base.
 Local Open Scope logic.
 
+Lemma proj_sumbool_is_false:
+  forall (P: Prop) (a: {P}+{~P}), ~P -> proj_sumbool a = false.
+Proof.
+intros. destruct a; auto; contradiction.
+Qed.
+
+Hint Rewrite proj_sumbool_is_true using assumption : norm.
+Hint Rewrite proj_sumbool_is_false using assumption : norm.
+
 Lemma neutral_isCastResultType:
   forall Delta P t t' v rho,
    is_neutral_cast t' t = true ->

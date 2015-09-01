@@ -1112,6 +1112,20 @@ destruct H0; auto.
 destruct H0. apply (IHn Q); auto.
 Qed.
 
+Lemma in_nth_error: forall {A} (x: A) xs, In x xs -> exists n, nth_error xs n = Some x.
+Proof.
+  intros.
+  induction xs.
+  + inversion H.
+  + destruct H.
+    - subst; exists 0%nat.
+      reflexivity.
+    - destruct (IHxs H) as [?n ?H].
+      exists (S n).
+      simpl.
+      tauto.
+Qed.
+
 Lemma in_local: forall Q0 P Q R, In Q0 Q -> PROPx P (LOCALx Q (SEPx R)) |-- local Q0.
 Proof.
   intros.

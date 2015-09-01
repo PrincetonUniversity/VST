@@ -1971,8 +1971,9 @@ Ltac really_simplify_one_thing :=
         unfold singleton_subs; simpl rgfs_dec;
         unfold eq_rec_r, eq_rec;
         rewrite <- ?eq_rect_eq, ?eq_rect_r_eq
-    | appcontext [@zl_nth] =>
+(*    | appcontext [@zl_nth] =>
               progress (autorewrite with zl_nth_db)
+*)
      | context [@proj_reptype ?a ?b ?c ?d ?e] =>
          let z := fresh "z" in set (z := @proj_reptype a b c d e);
          cbv beta iota zeta delta [
@@ -2946,3 +2947,18 @@ Proof. intros. omega. Qed.
 
 Ltac prove_CS_legal :=
   apply prove_CS_legal; repeat constructor; try apply Zge_refl.
+
+Ltac simplify_value_fits H :=
+  rewrite ?proj_sumbool_is_true in H by auto;
+  rewrite ?proj_sumbool_is_false in H by auto;
+try match type of H with 
+ | value_fits ?sh ?t ?v  =>
+    let t' := fresh "t" in set (t':=t) in H; hnf in t'; subst t';
+    rewrite value_fits_ind in H;
+    match type of H with _ v => fail 1 | _ => idtac end;
+    match type of H with 
+    | context [@unfold_reptype ?cs ?csl ?t v] =>
+      change (@unfold_reptype cs csl t v) with v in H
+    end;
+    rewrite ?Z.max_r in H by (try computable; omega)
+end.

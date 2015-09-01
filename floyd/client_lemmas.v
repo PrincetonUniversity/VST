@@ -1686,7 +1686,9 @@ simple eapply saturate_aux21;
    auto with nocore saturate_local;
     simple apply prop_True_right
  | cbv beta; reflexivity
- | simple apply derives_extract_prop; intro_if_new
+ | simple apply derives_extract_prop;
+   let H := fresh in intro H; autorewrite with norm in H; revert H; 
+   intro_if_new
  ].
 
 (*********************************************************)

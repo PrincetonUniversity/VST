@@ -3,12 +3,12 @@ Require Import floyd.assert_lemmas.
 Require Import floyd.client_lemmas.
 Require Import floyd.type_induction.
 Require Import floyd.fieldlist.
-Require Import floyd.zlist.
 Require Import floyd.compact_prod_sum.
 Require Import floyd.aggregate_type.
 Require Import floyd.mapsto_memory_block.
 Require Import floyd.nested_pred_lemmas.
 Require Import floyd.jmeq_lemmas.
+Require Import floyd.sublist.
 
 Open Scope Z.
 Open Scope logic.
@@ -62,7 +62,7 @@ Fixpoint fold_range' {A: Type} (f: Z -> A -> A) (zero: A) (lo: Z) (n: nat) : A :
  end.
 
 Definition fold_range {A: Type} (f: Z -> A -> A) (zero: A) (lo hi: Z) : A :=
-  fold_range' f zero lo (nat_of_Z (hi-lo)).
+  fold_range' f zero lo (Z.to_nat (hi-lo)).
 
 Lemma rangespec_shift_derives: forall lo lo' len P P' p p',
   (forall i i', lo <= i < lo + Z_of_nat len -> i - lo = i' - lo' -> P i p |-- P' i' p') -> 
@@ -139,8 +139,8 @@ Definition of aggregate predicates.
 
 ******************************************)
 
-Definition array_pred {A: Type} `{Zlist A} (lo hi: Z) (P: Z -> A -> val -> mpred) (v: zlist A lo hi): val -> mpred :=
-  rangespec lo (nat_of_Z (hi-lo)) (fun i => P i (zl_nth i v)).
+Definition array_pred {A: Type} (default: A) (lo hi: Z) (P: Z -> A -> val -> mpred) (v: list A) (p: val) : mpred :=
+  rangespec lo (Z.to_nat (hi-lo)) (fun i => P i (Znth (i-lo) v default)) p.
 
 Definition struct_pred (m: members) {A: ident * type -> Type} (P: forall it, A it -> val -> mpred) (v: compact_prod (map A m)) (p: val): mpred.
 Proof.
@@ -172,103 +172,145 @@ Properties
 
 ******************************************)
 
-Lemma array_pred_len_0: forall {A d} `{Zlist A d} lo hi P v p,
+Lemma array_pred_len_0: forall {A} (d: A) lo hi P v p,
   hi <= lo ->
-  array_pred lo hi P v p = emp.
+  array_pred d lo hi P v p = emp.
 Proof.
   intros.
   unfold array_pred.
-  replace (nat_of_Z (hi - lo)) with 0%nat by (symmetry; apply nat_of_Z_neg; omega).
-  simpl.
-  auto.
+  replace (Z.to_nat (hi - lo)) with 0%nat by (symmetry; apply nat_of_Z_neg; omega).
+  reflexivity.
 Qed.
 
-Lemma array_pred_len_1: forall {A d} `{Zlist A d} i P v p,
-  array_pred i (i + 1) P v p = P i (zl_nth i v) p.
+Lemma array_pred_len_1: forall {A} (d:A) i P v p,
+  array_pred d i (i + 1) P v p = P i (nth 0 v d) p.
 Proof.
   intros.
   unfold array_pred.
   replace (i + 1 - i) with 1 by omega.
-  simpl.
-  normalize.
+  simpl. rewrite sepcon_emp.
+  unfold Znth. rewrite Z.sub_diag. rewrite if_false by omega. change (Z.to_nat 0) with 0%nat. auto.
+Qed. 
+
+Lemma andp_prop_ext:
+ forall {A}{NA: NatDed A} (P P': Prop) (Q Q': A),
+  (P<->P') ->
+  (P -> (Q=Q')) ->
+  !! P && Q = !! P' && Q'.
+Proof.
+intros.
+apply pred_ext; intros; apply derives_extract_prop; intro;
+(apply andp_right; [apply prop_right; intuition | ]);
+rewrite H0; auto; intuition.
 Qed.
 
-Lemma split_array_pred: forall {A d} `{Zlist A d} lo mid hi P v p,
-  lo <= mid <= hi ->
-  array_pred lo hi P v p =
-  array_pred lo mid P (zl_sublist lo mid v) p *
-  array_pred mid hi P (zl_sublist mid hi v) p.
-Admitted.
 
-Lemma array_pred_shift: forall {A d} {ZL: Zlist A d} `{@Zlist_Correct A d ZL} lo hi lo' hi' mv P' P v p,
+Lemma split_array_pred: forall {A}  (d: A) lo mid hi P v p,
+  lo <= mid <= hi ->
+  array_pred d lo hi P v p =
+  array_pred d lo mid P (firstn (Z.to_nat (mid-lo)) v) p *
+  array_pred d mid hi P (skipn (Z.to_nat (mid-lo)) v) p.
+Proof.
+intros.
+unfold array_pred.
+remember (Z.to_nat (mid-lo)) as n.
+replace (Z.to_nat (hi-lo)) with (n + Z.to_nat (hi-mid))%nat in *
+  by (subst n; rewrite <- Z2Nat.inj_add by omega; f_equal; omega).
+assert (lo = mid - Z.of_nat n).
+  rewrite Heqn. rewrite Z2Nat.id by omega. omega.
+subst lo.
+clear Heqn.
+revert v  H; induction n; intros.
+change (Z.of_nat 0) with 0 in *. 
+simpl rangespec at 2. rewrite emp_sepcon.
+rewrite Z.sub_0_r; reflexivity.
+simpl plus.
+unfold rangespec; fold rangespec.
+repeat match goal with |- context [(?A * ?B) p] => change ((A*B)p) with (A p * B p) end.
+rewrite !sepcon_assoc.
+f_equal.
+f_equal.
+unfold Znth; rewrite !if_false by omega.
+rewrite nth_firstn; auto.
+clear - H.
+apply Nat2Z.inj_lt.
+rewrite Z2Nat.id by omega.
+rewrite inj_S at 1. omega.
+specialize (IHn (skipn 1 v)).
+etransitivity; [ | etransitivity; [apply IHn | ]].
+rewrite inj_S.
+replace (Z.succ (mid - Z.succ (Z.of_nat n))) with (mid - Z.of_nat n) by omega.
+apply rangespec_ext; intros.
+f_equal.
+rewrite Znth_succ; try omega.
+f_equal.  omega.
+omega. 
+f_equal.
+rewrite inj_S.
+replace (Z.succ (mid - Z.succ (Z.of_nat n))) with (mid - Z.of_nat n)  by omega.
+apply rangespec_ext; intros.
+f_equal.
+symmetry.
+rewrite Znth_succ; try omega.
+f_equal.
+omega.
+clear.
+destruct n,v; simpl; reflexivity.
+rewrite skipn_skipn.
+reflexivity.
+Qed.
+
+Lemma array_pred_shift: forall {A} (d: A) (lo hi lo' hi' mv : Z) P' P v p,
   lo - lo' = mv ->
   hi - hi' = mv ->
-  (forall i i', lo <= i < hi -> i - i' = mv -> P' i' (zl_nth i v) p = P i (zl_nth i v) p) -> 
-  array_pred lo' hi' P' (zl_shift lo' hi' v) p = array_pred lo hi P v p.
+ (forall i i', lo <= i < hi -> i - i' = mv -> P' i' (Znth (i-lo) v d) p = P i (Znth (i-lo) v d) p) -> 
+  array_pred d lo' hi' P' v p = array_pred d lo hi P v p.
 Proof.
   intros.
   unfold array_pred.
   replace (hi' - lo') with (hi - lo) by omega.
-  apply pred_ext; apply rangespec_shift_derives.
-  + intros i' i ? ?.
-    destruct (zle lo hi); [| rewrite Z2Nat_neg in H3 by omega; simpl in H3; omega].
-    rewrite Z2Nat.id in H3 by omega.
-    rewrite zl_shift_correct with (mv0 := mv) by omega.
-    replace (i' + mv) with i by omega.
-    rewrite H2 by omega; auto.
-  + intros i i' ? ?.
-    destruct (zle lo hi); [| rewrite Z2Nat_neg in H3 by omega; simpl in H3; omega].
-    rewrite Z2Nat.id in H3 by omega.
-    rewrite zl_shift_correct with (mv0 := mv) by omega.
-    replace (i' + mv) with i by omega.
-    rewrite H2 by omega; auto.
+  destruct (zlt hi lo). rewrite Z2Nat_neg by omega. reflexivity. 
+  apply pred_ext; apply rangespec_shift_derives; intros.
+  rewrite H3; rewrite Z2Nat.id in H2 by omega.
+  rewrite H1; auto; omega.
+  rewrite <- H3; rewrite Z2Nat.id in H2 by omega.
+  rewrite H1; auto; omega.
 Qed.
 
-Lemma array_pred_ext_derives: forall {A d} `{Zlist A d} lo hi P0 P1 v0 v1 p,
-  (forall i, lo <= i < hi -> P0 i (zl_nth i v0) p |-- P1 i (zl_nth i v1) p) -> 
-  array_pred lo hi P0 v0 p |-- array_pred lo hi P1 v1 p.
+Lemma array_pred_ext_derives: forall {A} (d: A) lo hi P0 P1 v0 v1 p,
+  (forall i, lo <= i < hi -> 
+    P0 i (Znth (i-lo) v0 d) p |-- P1 i (Znth (i-lo) v1 d) p) -> 
+  array_pred d lo hi P0 v0 p |-- array_pred d lo hi P1 v1 p.
 Proof.
   intros.
   unfold array_pred.
+  normalize.
   apply rangespec_ext_derives.
   intros.
-  destruct (zlt lo hi).
-  + apply H0.
-    rewrite nat_of_Z_max in H1.
-    rewrite Z.max_l in H1 by omega.
-    omega.
-  + rewrite nat_of_Z_max in H1.
-    rewrite Z.max_r in H1 by omega.
-    omega.
+  destruct (zlt hi lo). rewrite Z2Nat_neg  in H0 by omega.
+  change (Z.of_nat 0) with 0 in H0. omega.
+  rewrite Z2Nat.id in H0 by omega.
+  apply H. omega.
 Qed.
 
-Lemma array_pred_ext: forall {A d} `{Zlist A d} lo hi P0 P1 v0 v1 p,
-  (forall i, lo <= i < hi -> P0 i (zl_nth i v0) p = P1 i (zl_nth i v1) p) -> 
-  array_pred lo hi P0 v0 p = array_pred lo hi P1 v1 p.
+Lemma array_pred_ext: forall {A} (d:A) lo hi P0 P1 v0 v1 p,
+  (forall i, lo <= i < hi -> 
+    P0 i (Znth (i-lo) v0 d) p = P1 i (Znth (i-lo) v1 d) p) -> 
+  array_pred d lo hi P0 v0 p = array_pred d lo hi P1 v1 p.
 Proof.
-  intros; apply pred_ext; apply array_pred_ext_derives;
-  intros; rewrite H0; auto.
+  intros; apply pred_ext; apply array_pred_ext_derives; intros; auto;
+  rewrite H; auto.
 Qed.
 
-Lemma array_pred_zl_equiv: forall {A d} `{Zlist A d} lo hi P v0 v1 p,
-  zl_equiv v0 v1 ->
-  array_pred lo hi P v0 p = array_pred lo hi P v1 p.
-Proof.
-  intros; apply array_pred_ext.
-  intros; specialize (H0 i H1).
-  rewrite H0.
-  auto.
-Qed.
-
-Lemma at_offset_array_pred: forall {A d} `{Zlist A d} lo hi P v ofs p,
-  at_offset (array_pred lo hi P v) ofs p = array_pred lo hi (fun i v => at_offset (P i v) ofs) v p.
+Lemma at_offset_array_pred: forall  {A} (d:A) lo hi P v ofs p,
+  at_offset (array_pred d lo hi P v) ofs p = array_pred d lo hi (fun i v => at_offset (P i v) ofs) v p.
 Proof.
   intros.
   rewrite at_offset_eq.
   unfold array_pred.
   apply rangespec_shift.
   intros.
-  assert (i = i') by omega; subst i'; clear H1.
+  assert (i = i') by omega; subst i'; clear H0.
   rewrite at_offset_eq.
   auto.
 Qed.
@@ -504,18 +546,20 @@ Section MEMORY_BLOCK_AGGREGATE.
 
 Context {cs: compspecs}.
 
-Lemma memory_block_array_pred: forall {A d} {ZL: Zlist A d} sh t lo hi v b ofs,
+Lemma memory_block_array_pred: forall  {A} (d:A) sh t lo hi v b ofs,
   0 <= ofs + sizeof cenv_cs t * lo /\ ofs + sizeof cenv_cs t * hi <= Int.modulus ->
   0 <= lo <= hi ->
   sizeof cenv_cs t * (hi - lo) < Int.modulus ->
-  array_pred lo hi
+  array_pred d lo hi
     (fun i _ p => memory_block sh (sizeof cenv_cs t) (offset_val (Int.repr (sizeof cenv_cs t * i)) p)) v
     (Vptr b (Int.repr ofs)) =
-  memory_block sh (sizeof cenv_cs t * (hi - lo)) (Vptr b (Int.repr (ofs + sizeof cenv_cs t * lo))).
+   memory_block sh (sizeof cenv_cs t * (hi - lo)) (Vptr b (Int.repr (ofs + sizeof cenv_cs t * lo))).
 Proof.
   intros.
   unfold array_pred.
-  remember (nat_of_Z (hi - lo)) as n eqn:HH; revert lo HH H H0 H1 v; induction n; intros.
+  f_equal.
+  remember (Z.to_nat (hi - lo)) as n eqn:HH.
+  revert lo HH H H0 H1 v; induction n; intros.
   + simpl.
     pose proof arith_aux00 _ _ (proj2 H0) HH.
     rewrite H2, Z.mul_0_r, memory_block_zero_Vptr.
@@ -524,44 +568,29 @@ Proof.
     pose proof arith_aux01 _ _ _ HH.
     solve_mod_modulus.
     pose_size_mult cenv_cs t (0 :: hi - Z.succ lo :: hi - lo :: nil).
-    rewrite IHn; [| apply arith_aux02; auto | omega | omega | omega | exact (zl_default _ _)].
+    rewrite IHn; [| apply arith_aux02; auto | omega | omega | omega | exact v].
     replace (ofs + sizeof cenv_cs t * Z.succ lo) with (ofs + sizeof cenv_cs t * lo + sizeof cenv_cs t) by omega.
     rewrite <- memory_block_split by (auto; omega).
     f_equal.
     omega.
 Qed.
 
-Lemma memory_block_array_pred': forall {A d} {ZL: Zlist A d} sh t z b ofs,
-  0 <= ofs /\ ofs + sizeof cenv_cs t * Z.max 0 z <= Int.modulus ->
-  sizeof cenv_cs t * Z.max 0 z < Int.modulus ->
-  array_pred 0 z
+Lemma memory_block_array_pred': forall {A} (d:A)  sh t z b ofs,
+  0 <= z ->
+  0 <= ofs /\ ofs + sizeof cenv_cs t * z <= Int.modulus ->
+  sizeof cenv_cs t * z < Int.modulus ->
+  array_pred d 0 z
      (fun i _ p =>
-      memory_block sh (sizeof cenv_cs t) (offset_val (Int.repr (sizeof cenv_cs t * i)) p)) (zl_default _ _)
+      memory_block sh (sizeof cenv_cs t) (offset_val (Int.repr (sizeof cenv_cs t * i)) p))
+             (list_repeat (Z.to_nat z) d)
      (Vptr b (Int.repr ofs))  =
-  memory_block sh (sizeof cenv_cs t * Z.max 0 z) (Vptr b (Int.repr ofs)).
+  memory_block sh (sizeof cenv_cs t * z) (Vptr b (Int.repr ofs)).
 Proof.
   intros.
-  destruct (zlt z 0).
-  + unfold array_pred.
-    simpl.
-    rewrite Z2Nat_neg by omega.
-    rewrite Z.max_l by omega.
-    rewrite Z.mul_0_r.
-    rewrite memory_block_zero.
-    simpl; normalize.
-  + rewrite memory_block_array_pred.
-    - rewrite Z.mul_0_r, Z.sub_0_r, Z.add_0_r.
-      f_equal; f_equal.
-      simpl.
-      f_equal.
-      rewrite Z.max_r by omega; auto.
-    - rewrite Z.mul_0_r, Z.add_0_r.
-      simpl in H.
-      rewrite Z.max_r in H by omega; auto.
-    - omega.
-    - rewrite Z.sub_0_r.
-      simpl in H0.
-      rewrite Z.max_r in H0 by omega; auto.
+  rewrite memory_block_array_pred.
+  f_equal. f_equal. omega. f_equal. f_equal. rewrite Z.mul_0_r. omega.
+  rewrite Z.mul_0_r. split; omega. omega.
+  rewrite Z.sub_0_r. auto.
 Qed.
 
 Lemma memory_block_struct_pred: forall sh m sz {A} (v: compact_prod (map A m)) b ofs,
@@ -644,17 +673,14 @@ Section EMPTY_AGGREGATE.
 
 Context {cs: compspecs}.
 
-Lemma emp_array_pred: forall {A d} `{Zlist A d} lo hi v p,
-  array_pred lo hi (fun _ _ _ => emp) v p = emp.
+Lemma emp_array_pred: forall {A} (d:A) lo hi v p,
+  array_pred d lo hi (fun _ _ _ => emp) v p =  emp.
 Proof.
   intros.
   unfold array_pred.
-  forget (nat_of_Z (hi - lo)) as n.
-  revert lo v; induction n; intros.
-  + simpl; auto.
-  + simpl.
-    rewrite (IHn _ (zl_default _ _)).
-    apply sepcon_emp.
+  forget (Z.to_nat (hi-lo)) as n.
+  revert lo; induction n; simpl; intros. auto.
+  rewrite emp_sepcon; auto.
 Qed.
 
 Lemma emp_struct_pred: forall m {A} (v: compact_prod (map A m)) p,
@@ -694,7 +720,8 @@ Open Scope Z.
 Open Scope logic.
 Export floyd.aggregate_type.aggregate_type.
 
-Definition array_pred: forall {A: Type} `{Zlist A} (lo hi: Z) (P: Z -> A -> val -> mpred) (v: zlist A lo hi), val -> mpred := @array_pred.
+Definition array_pred: forall {A: Type} (d:A) (lo hi: Z) (P: Z -> A -> val -> mpred) (v: list A),
+    val -> mpred := @array_pred.
 
 Definition struct_pred (m: members) {A: ident * type -> Type} (P: forall it, A it -> val -> mpred) (v: compact_prod (map A m)) (p: val): mpred.
 Proof.
@@ -718,48 +745,45 @@ Proof.
     - exact (IHm i0 t0 v).
 Defined.
 
-Definition array_pred_len_0: forall {A d} `{Zlist A d} lo hi P v p,
+Definition array_pred_len_0: forall {A} (d:A) lo hi P v p,
   hi <= lo ->
-  array_pred lo hi P v p = emp
+  array_pred d lo hi P v p = emp
 := @array_pred_len_0.
 
-Definition array_pred_len_1: forall {A d} `{Zlist A d} i P v p,
-  array_pred i (i + 1) P v p = P i (zl_nth i v) p
+Definition array_pred_len_1: forall {A} (d:A) i P v p,
+  array_pred d i (i + 1) P v p =  P i (nth 0 v d) p
 := @array_pred_len_1.
 
-Definition split_array_pred: forall {A d} `{Zlist A d} lo mid hi P v p,
+Definition split_array_pred: forall  {A} (d:A) lo mid hi P v p,
   lo <= mid <= hi ->
-  array_pred lo hi P v p =
-  array_pred lo mid P (zl_sublist lo mid v) p *
-  array_pred mid hi P (zl_sublist mid hi v) p
+  array_pred d lo hi P v p =
+  array_pred d lo mid P (firstn (Z.to_nat (mid - lo)) v) p *
+  array_pred d mid hi P (skipn (Z.to_nat (mid - lo)) v) p
 := @split_array_pred.
 
-Definition array_pred_shift: forall {A d} {ZL: Zlist A d} `{@Zlist_Correct A d ZL} lo hi lo' hi' mv P' P v p,
+Definition array_pred_shift: forall {A} (d:A) lo hi lo' hi' mv P' P v p,
   lo - lo' = mv ->
   hi - hi' = mv ->
-  (forall i i', lo <= i < hi -> i - i' = mv -> P' i' (zl_nth i v) p = P i (zl_nth i v) p) -> 
-  array_pred lo' hi' P' (zl_shift lo' hi' v) p = array_pred lo hi P v p
+  (forall i i', lo <= i < hi -> i - i' = mv -> P' i' (Znth (i - lo) v d) p = P i (Znth (i - lo) v d) p) -> 
+  array_pred d lo' hi' P' v p = array_pred d lo hi P v p
 := @array_pred_shift.
 
 Definition array_pred_ext_derives:
-  forall {A d} `{Zlist A d} lo hi P0 P1 v0 v1 p,
-  (forall i, lo <= i < hi -> P0 i (zl_nth i v0) p |-- P1 i (zl_nth i v1) p) -> 
-  array_pred lo hi P0 v0 p |-- array_pred lo hi P1 v1 p
+  forall {A} (d:A) lo hi P0 P1 v0 v1 p,
+  (forall i, lo <= i < hi -> 
+      P0 i (Znth (i-lo) v0 d) p |-- P1 i (Znth (i-lo) v1 d) p) -> 
+  array_pred d lo hi P0 v0 p |-- array_pred d lo hi P1 v1 p
 := @array_pred_ext_derives.
 
 Definition array_pred_ext:
-  forall {A d} `{Zlist A d} lo hi P0 P1 v0 v1 p,
-  (forall i, lo <= i < hi -> P0 i (zl_nth i v0) p = P1 i (zl_nth i v1) p) -> 
-  array_pred lo hi P0 v0 p = array_pred lo hi P1 v1 p
+  forall {A} (d:A) lo hi P0 P1 v0 v1 p,
+  (forall i, lo <= i < hi -> 
+     P0 i (Znth (i - lo) v0 d) p = P1 i (Znth (i - lo) v1 d) p) -> 
+  array_pred d lo hi P0 v0 p = array_pred d lo hi P1 v1 p
 := @array_pred_ext.
 
-Definition array_pred_zl_equiv: forall {A d} `{Zlist A d} lo hi P v0 v1 p,
-  zl_equiv v0 v1 ->
-  array_pred lo hi P v0 p = array_pred lo hi P v1 p
-:= @array_pred_zl_equiv.
-
-Definition at_offset_array_pred: forall {A d} `{Zlist A d} lo hi P v ofs p,
-  at_offset (array_pred lo hi P v) ofs p = array_pred lo hi (fun i v => at_offset (P i v) ofs) v p
+Definition at_offset_array_pred: forall {A} (d:A) lo hi P v ofs p,
+  at_offset (array_pred d lo hi P v) ofs p = array_pred d lo hi (fun i v => at_offset (P i v) ofs) v p
 := @at_offset_array_pred.
 
 Definition struct_pred_ext_derives:
@@ -966,15 +990,16 @@ Definition union_data_at'_aux_spec: forall {cs: compspecs} sh m m0 sz v P,
 := @union_data_at'_aux_spec.
 
 Definition memory_block_array_pred:
-  forall {cs: compspecs} {A d} `{Zlist A d} sh t z b ofs,
-  0 <= ofs /\ ofs + sizeof cenv_cs t * Z.max 0 z <= Int.modulus ->
-  sizeof cenv_cs t * Z.max 0 z < Int.modulus ->
-  array_pred 0 z
+  forall {cs: compspecs} (A : Type) (d : A) sh t z b ofs,
+  0 <= z ->
+  0 <= ofs /\ ofs + sizeof cenv_cs t * z <= Int.modulus ->
+  sizeof cenv_cs t * z < Int.modulus ->
+  array_pred d 0 z
      (fun i _ p =>
       memory_block sh (sizeof cenv_cs t)
-        (offset_val (Int.repr (sizeof cenv_cs t * i)) p)) (zl_default _ _)
+        (offset_val (Int.repr (sizeof cenv_cs t * i)) p)) (list_repeat (Z.to_nat z) d)
      (Vptr b (Int.repr ofs))  =
-  memory_block sh (sizeof cenv_cs t * Z.max 0 z) (Vptr b (Int.repr ofs))
+  memory_block sh (sizeof cenv_cs t * z) (Vptr b (Int.repr ofs))
 := @memory_block_array_pred'.
 
 Definition memory_block_struct_pred:
@@ -997,8 +1022,8 @@ Definition memory_block_union_pred:
   memory_block sh sz (Vptr b (Int.repr ofs))
 := @memory_block_union_pred.
 
-Definition emp_array_pred: forall {A d} `{Zlist A d} lo hi v p,
-  array_pred lo hi (fun _ _ _ => emp) v p = emp
+Definition emp_array_pred: forall {A} (d:A) lo hi v p,
+  array_pred d lo hi (fun _ _ _ => emp) v p = emp
 := @emp_array_pred.
 
 Definition emp_struct_pred: forall m {A} (v: compact_prod (map A m)) p,

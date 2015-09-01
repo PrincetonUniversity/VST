@@ -66,14 +66,14 @@ name p' _p.
 name q' _q.
 forward.
 apply field_compatible_isptr in H; destruct p'; try contradiction.
-apply field_compatible_isptr in H0; destruct q'; try contradiction.
+apply field_compatible_isptr in H1; destruct q'; try contradiction.
 entailer!.
 unfold sem_cmp_pp; simpl.
 if_tac; try reflexivity.
 destruct (Int.eq i i0); reflexivity.
 unfold sem_cmp_pp.
 if_tac; simpl.
-inv H3. rewrite if_true by auto.
+inv H4. rewrite if_true by auto.
 rewrite Int.eq_true. reflexivity.
 if_tac. rewrite Int.eq_false by congruence.
 reflexivity.

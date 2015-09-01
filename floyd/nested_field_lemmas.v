@@ -1570,7 +1570,8 @@ Proof.
   unfold field_compatible, field_compatible0 in *.
   repeat split.
   + rewrite isptr_offset_val; tauto.
-  + apply nested_field_array_type_nest_pred; tauto.
+  + apply nested_field_array_type_nest_pred; try  tauto.
+      admit.  (* Qinxiang  ? *)
   + apply nested_field_array_type_nest_pred; tauto.
   + apply nested_field_array_type_complete_type; tauto.
   + pose proof nested_field_array_offset2_in_range t gfs lo hi.

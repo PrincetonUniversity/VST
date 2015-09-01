@@ -13,19 +13,16 @@ Instance CompSpecs : compspecs := compspecs_program prog.
 Instance CS_legal : compspecs_legal CompSpecs.
 Proof. prove_CS_legal. Qed.
 
-Global Opaque list_zlist zlist.
-
 Definition sumarray_spec :=
  DECLARE _sumarray
   WITH a0: val, sh : share, contents : list int, size: Z
   PRE [ _a OF (tptr tint), _n OF tint ]
-          PROP  (readable_share sh; 0 <= size <= Int.max_signed;
-                 Zlength contents = size)
+          PROP  (readable_share sh; 0 <= size <= Int.max_signed)
           LOCAL (temp _a a0; temp _n (Vint (Int.repr size)))
-          SEP   (`(data_at sh (tarray tint size) (zl_constr tint 0 size (map Vint contents)) a0))
+          SEP   (`(data_at sh (tarray tint size) (map Vint contents) a0))
   POST [ tint ]
         PROP () LOCAL(temp ret_temp  (Vint (sum_int contents)))
-           SEP (`(data_at sh (tarray tint size) (zl_constr tint 0 size (map Vint contents)) a0)).
+           SEP (`(data_at sh (tarray tint size) (map Vint contents) a0)).
 
 Definition main_spec :=
  DECLARE _main
@@ -45,7 +42,7 @@ Definition sumarray_Inv a0 sh contents size :=
           temp _i (Vint (Int.repr i));
           temp _n (Vint (Int.repr size));
           temp _s (Vint (sum_int (firstn (Z.to_nat i) contents))))
-   SEP   (`(data_at sh (tarray tint size) (zl_constr tint 0 size (map Vint contents)) a0)).
+   SEP   (`(data_at sh (tarray tint size) (map Vint contents) a0)).
 
 (*
 Lemma fold_range_split:
@@ -157,7 +154,7 @@ forward_while (sumarray_Inv a0 sh contents size)
     (PROP  () 
      LOCAL (temp _a a0;
             temp _s (Vint (sum_int contents)))
-     SEP   (`(data_at sh (tarray tint size) (zl_constr tint 0 size (map Vint contents)) a0)))
+     SEP   (`(data_at sh (tarray tint size) (map Vint contents) a0)))
      a1.
 (* Prove that current precondition implies loop invariant *)
 apply exp_right with 0.
@@ -166,27 +163,22 @@ entailer!.
 entailer!.
 (* Prove that invariant && not loop-cond implies postcondition *)
 entailer!.
-assert (a1 = Zlength contents) by omega; subst.
-rewrite Zlength_correct, Nat2Z.id, firstn_exact_length.
+rewrite Zlength_map in *.
+assert (a1 = Zlength contents) by omega; subst a1.
+rewrite Zlength_correct, Nat2Z.id,firstn_exact_length.
 reflexivity.
 (* Prove postcondition of loop body implies loop invariant *)
-
 forward. (* x = a[i] *)
 entailer!.
   (* there should be an easier way than this: *)
-    rewrite zl_constr_correct by omega. 
-   rewrite Znth_map with (d':=Int.zero) by omega. apply I.
+   rewrite Znth_map with (d':=Int.zero). apply I.
+  rewrite Zlength_map in *; omega.
 forward s_old. (* s += x; *)
-
 forward i_old. (* i++; *)
   apply exp_right with (Zsucc a1).
   entailer!.
-  unfold unfold_reptype in H4; simpl in H4.
-  autorewrite with zl_nth_db in H4. simpl in H4. inv H4.
-  apply add_one_more_to_sum; try omega.
-  rewrite Znth_map with (d' := Int.zero) by omega.
-  auto.
-
+  rewrite H4 in H3; inv H3.
+  apply add_one_more_to_sum; try omega; auto.
 (* After the loop *)
 forward.  (* return s; *)
 Qed.
@@ -231,8 +223,7 @@ start_function.
 forward_intro four. normalize.
 forward_call' (*  r = sumarray(four,4); *)
   (four,Ews,four_contents,4) vret.
- split3; auto.
- computable. 
+ split; auto. computable. 
  forward. (* return s; *)
 Qed.
 

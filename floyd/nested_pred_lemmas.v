@@ -169,7 +169,10 @@ typedef more_aligned_int more_aligned_int_array[5];
 Definition local_legal_alignas_type (t: type): bool :=
   Z.leb (plain_alignof cenv_cs t) (alignof cenv_cs t) &&
   match t with
-  | Tarray t' _ a => match attr_alignas (attr_of_type t') with None => true | _ => false end
+  | Tarray t' n a => match attr_alignas (attr_of_type t') with 
+                              | None => Z.leb 0 n
+                              | _ => false 
+                              end
   | _ => true
   end.
 

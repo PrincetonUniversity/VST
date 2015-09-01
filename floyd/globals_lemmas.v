@@ -778,9 +778,7 @@ Proof.
   match goal with |- ?A |-- _ =>
     erewrite (add_andp A (local (tc_environ Delta)))
   end.
-  Focus 2. {
-    apply andp_left1; cancel.
-  } Unfocus.
+  2: solve [apply andp_left1; cancel].
   match goal with |- ?A |-- _ =>
     erewrite (add_andp A (local (`isptr (eval_var i (tarray (Tint sz sign noattr) n)))))
   end.
@@ -789,8 +787,15 @@ Proof.
     right; split; auto. rewrite <- H1; auto.
    } Unfocus.
   eapply derives_trans;[ apply andp_derives; [ apply andp_derives; [ eapply unpack_globvar_star; try eassumption; try reflexivity | apply derives_refl]  | apply derives_refl] |].
-  split; rewrite H1. 
-destruct sz; reflexivity.
+  split; rewrite H1.
+  assert (((0 <=? n) && true)%bool = true).
+  rewrite Zle_imp_le_bool; [reflexivity | ]; rewrite Zlength_correct in H4; omega.
+unfold nested_pred_lemmas.legal_alignas_type.
+rewrite nested_pred_lemmas.nested_pred_ind. simpl.
+rewrite nested_pred_lemmas.nested_pred_ind.
+unfold nested_pred_lemmas.local_legal_alignas_type.
+simpl.  destruct sz; auto.
+split. destruct sz; reflexivity.
  split; cbv; destruct n, sz, sign; reflexivity.
   rewrite H1. (* rewrite H3.*)  rewrite H5.
 (* change (Share.splice extern_retainer (readonly2share false)) with Ews. *)

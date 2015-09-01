@@ -3,7 +3,6 @@ Require Import floyd.assert_lemmas.
 Require Import floyd.client_lemmas.
 Require Import floyd.type_induction.
 Require Import floyd.fieldlist.
-Require Export floyd.zlist.
 Require Export floyd.compact_prod_sum.
 
 Definition proj_struct (i : ident) (m : members) {A: ident * type -> Type} (v: compact_prod (map A m)) (d: A (i, field_type2 i m)): A (i, field_type2 i m) :=

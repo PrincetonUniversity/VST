@@ -1,6 +1,7 @@
 Require Import floyd.base.
 Require Import floyd.assert_lemmas.
 Require Import floyd.client_lemmas.
+Require Import floyd.reptype_lemmas.
 Local Open Scope logic.
 
 (* move these lemma elsewhere *)
@@ -374,6 +375,7 @@ Ltac ent_iter :=
                 || simple apply derives_extract_prop');
                 fancy_intro);
    saturate_local;
+   repeat erewrite unfold_reptype_elim in * by reflexivity;
 (* subst_any; *)
    simpl_compare;
    simpl_denote_tc;
@@ -723,3 +725,9 @@ Hint Rewrite sem_cmp_pp_ptr1 sem_cmp_pp_ptr2 using solve [auto] : norm.
 Ltac make_Vptr c :=
   let H := fresh in assert (isptr c) by auto;
   destruct c; try (contradiction H); clear H.
+
+Lemma Zmax0r: forall n, 0 <= n -> Z.max 0 n = n.
+Proof.
+intros. apply Z.max_r; auto.
+Qed.
+Hint Rewrite Zmax0r using (try computable; omega) : norm.

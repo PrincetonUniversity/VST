@@ -64,7 +64,13 @@ Time forward. (* 13 sec *)
 Time unfold_repinj. (* 20.4 sec *)
  unfold data_at.
 Time unfold_field_at 3%nat. (* 0.86 sec *)
+rewrite prop_true_andp.
 Time cancel. (* 1.875 sec *)
+simplify_value_fits H3.
+simplify_value_fits H5.
+rewrite proj_sumbool_is_true by auto.
+rewrite value_fits_ind; split; unfold list_rect;
+ erewrite unfold_reptype_elim by reflexivity; assumption.
 Qed. (* 77 sec *)
 
 Lemma body_set:  semax_body Vprog Gprog f_set set_spec.

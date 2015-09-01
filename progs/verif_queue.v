@@ -137,10 +137,16 @@ unfold field_at, list_cell; simpl.
 normalize.
 f_equal.
 f_equal; apply prop_ext; split.
-intros [? ?].
-rewrite field_compatible_cons in H1; destruct H1; auto.
-intro; split; rewrite field_compatible_cons; split; auto.
+intros [? [? [? ?]]].
+rewrite field_compatible_cons in H2; destruct H2; auto.
+split; auto.
+split3; rewrite value_fits_ind; simpl; hnf; auto.
+intro H8; contradiction H8; reflexivity.
+intros [? [? [? ?]]].
+intuition.
+rewrite field_compatible_cons; split; auto.
 left; reflexivity.
+rewrite field_compatible_cons; split; auto.
 right; left; reflexivity.
 (* old version of proof, for wand-based spec of list_cell 
 unfold list_cell, list_data.
@@ -157,6 +163,20 @@ symmetry; apply wand_sepcon.
 *)
 Qed.
 
+Ltac simplify_value_fits' :=
+  rewrite ?proj_sumbool_is_true by auto;
+   rewrite ?proj_sumbool_is_false by auto;
+   try
+    match goal with
+    |- context [value_fits ?sh ?t ?v] =>
+        let t' := fresh "t" in
+        set (t' := t); hnf in t'; subst t'; rewrite (value_fits_ind sh _ v);
+        match goal with
+         |- context [unfold_reptype v] =>
+             change (unfold_reptype v) with v
+         end; rewrite ?Z.max_r by (try computable; omega)
+    end.
+
 Lemma make_unmake:
  forall a b p,
  field_at Tsh list_struct [] (Vint a, (Vint b, Vundef)) p =
@@ -168,6 +188,14 @@ Proof.
 intros.
 unfold_field_at 1%nat.
 rewrite <- !sepcon_assoc.
+rewrite prop_true_andp.
+Focus 2. {
+simplify_value_fits'.
+rewrite value_fits_ind; split3; erewrite unfold_reptype_elim by auto; simpl.
+repeat intro; apply I.
+repeat intro; apply I.
+repeat intro. contradiction H; reflexivity.
+} Unfocus.
 match goal with |- ?A = _ => set (J := A) end.
 unfold field_at_.
 change (default_val (nested_field_type2 list_struct [StructField _next])) with Vundef.
@@ -323,7 +351,8 @@ Qed.
 Lemma fifo_isptr: forall al q, fifo al q |-- !! isptr q.
 Proof.
 intros.
- unfold fifo. if_tac; entailer; destruct ht; entailer!.
+ unfold fifo.
+ if_tac; entailer; destruct ht; entailer!.
 Qed.
 
 Hint Resolve fifo_isptr : saturate_local.
@@ -421,10 +450,10 @@ forward_if
    + normalize.
       destruct prefix; normalize;
       entailer!.
-      contradiction (field_compatible_isptr _ _ _ H5).
+      contradiction (field_compatible_isptr _ _ _ H7).
       rewrite lseg_cons_eq by auto.
       entailer.
-      contradiction (field_compatible_isptr _ _ _ H9).      
+      contradiction (field_compatible_isptr _ _ _ H11).      
 * (* else clause *)
   forward. (*  t = Q->tail; *)
   destruct (isnil contents).

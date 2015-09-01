@@ -7,6 +7,7 @@ Require floyd.aggregate_type. Import floyd.aggregate_type.aggregate_type.
 Require Import floyd.reptype_lemmas.
 Require Import floyd.proj_reptype_lemmas.
 Require Import Coq.Classes.RelationClasses.
+Require Import floyd.sublist.
 
 Section MULTI_HOLES.
 
@@ -158,6 +159,15 @@ Definition reinitiate_compact_sum {A} {F: A -> Type} {l: list A} (v: compact_sum
    (fun a0 => proj_compact_sum a0 l v (init a0) H)
   l.
 
+Fixpoint map_Znth' {A:Type}  (F: Z -> A -> A) (i: Z) (al: list A) : list A :=
+ match al with
+ | nil => nil
+ | a::al' => F i a :: map_Znth' F (Z.succ i) al'
+ end.
+
+Definition map_Znth {A: Type} F (al: list A) := map_Znth' F 0 al.
+
+
 Definition replace_reptype: forall (t: type) (h: holes) (subs: holes_subs t) (v: reptype t), reptype t :=
   func_type (fun t => holes -> holes_subs t -> reptype t -> reptype t)
     (fun t h subs v =>
@@ -170,10 +180,15 @@ Definition replace_reptype: forall (t: type) (h: holes) (subs: holes_subs t) (v:
        | FullUpdate => subs nil
        | SemiUpdate subl =>
          @fold_reptype _ _ (Tarray t n a) 
-           (zl_gen 0 n
+          (map_Znth
+                (fun i => F (subl (ArraySubsc i))
+                         (fun gfs => subs (ArraySubsc i :: gfs)))
+                (unfold_reptype v))
+          (* (zl_gen 0 n
              (fun i => F (subl (ArraySubsc i))
                          (fun gfs => subs (ArraySubsc i :: gfs))
                          (zl_nth i (unfold_reptype v))))
+*) 
        | StableOrInvalid => v
        end)
     (fun id a F h subs v =>
@@ -219,10 +234,14 @@ Lemma replace_reptype_ind: forall t h,
        | FullUpdate => subs nil
        | SemiUpdate subl =>
          @fold_reptype _ _ (Tarray t0 n a) 
-           (zl_gen 0 n
+           (map_Znth (fun i => replace_reptype t0 (subl (ArraySubsc i))
+                         (fun gfs => subs (ArraySubsc i :: gfs)))
+                (unfold_reptype v))
+(*           (zl_gen 0 n
              (fun i => replace_reptype t0 (subl (ArraySubsc i))
                          (fun gfs => subs (ArraySubsc i :: gfs))
                          (zl_nth i (unfold_reptype v))))
+*)
        | StableOrInvalid => v
        end
   | Tstruct id a =>
@@ -450,7 +469,8 @@ Definition upd_gfield_reptype t gf (v: reptype t) (v0: reptype (gfield_type t gf
   (match t, gf return (REPTYPE t -> reptype (gfield_type t gf) -> REPTYPE t)
   with
   | Tarray t0 n a, ArraySubsc i =>
-      fun v v0 => zl_concat (zl_concat (zl_sublist 0 i v) (zl_singleton i v0)) (zl_sublist (i + 1) n v)
+      fun v v0 => firstn (Z.to_nat i) v ++ (v0 :: skipn (Z.to_nat (i+1)) v)
+(*zl_concat (zl_concat (zl_sublist 0 i v) (zl_singleton i v0)) (zl_sublist (i + 1) n v) *)
   | Tstruct id _, StructField i =>
       fun v v0 => compact_prod_upd _ v (i, field_type i (co_members (get_co id))) v0 member_dec
   | Tunion id _, UnionField i =>
@@ -519,7 +539,7 @@ Qed.
 
 End zlist_hint_db.
 
-Hint Rewrite @zl_constr_correct using solve [omega] : zl_nth_db.
+(*Hint Rewrite @zl_constr_correct using solve [omega] : zl_nth_db.
 Hint Rewrite zlist_hint_db.Znth_sub_0_r : zl_nth_db.
 Hint Rewrite zlist_hint_db.Znth_map_Vint using solve [omega] : zl_nth_db.
 Hint Rewrite (fun A d => @zl_sublist_correct A d _ (list_zlist_correct _ _)) using solve [omega] : zl_nth_db.
@@ -534,7 +554,7 @@ Hint Rewrite (fun A d => @zl_sub_self A d _ (list_zlist_correct _ _)) using solv
 Hint Rewrite (fun A d => @zl_sub_empty A d _ (list_zlist_correct _ _)) using solve [omega] : zl_sub_db.
 Hint Rewrite (fun A d => @zl_concat_empty_l A d _ (list_zlist_correct _ _)) using solve [omega] : zl_sub_db.
 Hint Rewrite (fun A d => @zl_concat_empty_r A d _ (list_zlist_correct _ _)) using solve [omega] : zl_sub_db.
-
+*)
 Section POSE_TAC.
 
 Context {cs: compspecs}.
@@ -619,9 +639,10 @@ Ltac pose_proj_reptype_1 CS CSL t gf v H :=
     cbv_proj_struct H_eq;
     subst v_res;
     subst V
-  | _ = zl_nth ?i ?l =>
+(*  | _ = zl_nth ?i ?l =>
     subst V;
     autorewrite with zl_nth_db in H
+*)
   | _ =>
     subst V
   end
@@ -767,9 +788,9 @@ pose_proj_reptype cs csl t2
 eauto.
 Time Qed. (* Cut down from 10 seconds to 4 seconds, magically. *)
 
-Goal forall n l, 0 < n -> proj_reptype (tarray tint n) (ArraySubsc 0 :: nil) (zl_constr tint 0 n l) = Znth 0 l Vundef.
+Goal forall n l, 0 < n -> proj_reptype (tarray tint n) (ArraySubsc 0 :: nil) l = Znth 0 l Vundef.
 intros.
-pose_proj_reptype cs csl (tarray tint n) (ArraySubsc 0 :: nil) (zl_constr tint 0 n l) HH.
+pose_proj_reptype cs csl (tarray tint n) (ArraySubsc 0 :: nil) l HH.
 exact HH.
 Qed.
 
@@ -783,10 +804,12 @@ rewrite upd_reptype_ind.
 exact H1.
 Qed.
 
-Goal forall n l, 0 < n -> data_equal (upd_reptype (tarray tint n) (ArraySubsc 0 :: nil) (zl_constr tint 0 n l) Vundef) (zl_concat (zl_singleton 0 Vundef) (zl_sublist 1 n (zl_constr tint 0 n l))).
+Goal forall n l, 0 < n -> data_equal
+    (upd_reptype (tarray tint n) (ArraySubsc 0 :: nil) l Vundef) 
+    (Vundef :: skipn (Z.to_nat 1) l).
 intros.
-pose_proj_reptype cs csl (tarray tint n) (ArraySubsc 0 :: nil) (zl_constr tint 0 n l) HH.
-pose_upd_reptype cs csl (tarray tint n) (ArraySubsc 0 :: nil) (zl_constr tint 0 n l) Vundef HHH.
+pose_proj_reptype cs csl (tarray tint n) (ArraySubsc 0 :: nil) l HH.
+pose_upd_reptype cs csl (tarray tint n) (ArraySubsc 0 :: nil) l Vundef HHH.
 rewrite upd_reptype_ind.
 exact HHH.
 Qed.

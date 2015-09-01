@@ -1,10 +1,10 @@
 Require Import floyd.base.
 Require Import floyd.client_lemmas.
 Require Import floyd.type_induction.
-Require Export floyd.zlist.
 Require Export floyd.compact_prod_sum.
 Require floyd.fieldlist.
 Import floyd.fieldlist.fieldlist.
+Require Import floyd.sublist.
 
 Definition 
 map_map: forall {A B C : Type} (f : A -> B) (g : B -> C) (l : list A),
@@ -143,6 +143,7 @@ Section CENV.
 Context {cs: compspecs}.
 Context {csl: compspecs_legal cs}.
 
+
 Definition reptype_gen: type -> (sigT (fun x => x)) :=
   func_type (fun _ => (sigT (fun x => x)))
   (fun t =>
@@ -150,8 +151,7 @@ Definition reptype_gen: type -> (sigT (fun x => x)) :=
      then existT (fun x => x) val Vundef
      else existT (fun x => x) unit tt)
   (fun t n a TV => match TV with existT T V =>
-                     existT (fun x => x)
-                      (@zlist T V (list_zlist T V) 0 n) (zl_default 0 n)
+                     existT (fun x => x) (list T) (list_repeat (Z.to_nat n) V)
                    end)
   (fun id a TVs => existT (fun x => x) (compact_prod_sigT_type (decay TVs)) (compact_prod_sigT_value (decay TVs)))
   (fun id a TVs => existT (fun x => x) (compact_sum_sigT_type (decay TVs)) (compact_sum_sigT_value (decay TVs))).
@@ -165,7 +165,8 @@ Definition default_val t: reptype t :=
 Lemma reptype_gen_ind: forall t,
   reptype_gen t =
   match t with
-  | Tarray t0 _ _ => match reptype_gen t0 with existT T V => existT (fun x => x) (list T) nil end
+  | Tarray t0 n _ => match reptype_gen t0 
+                                 with existT T V => existT (fun x => x) (list T) (list_repeat (Z.to_nat n) V) end
   | Tstruct id _ => existT (fun x => x)
                      (compact_prod_sigT_type (map reptype_gen (map (fun it => field_type (fst it) (co_members (get_co id))) (co_members (get_co id)))))
                      (compact_prod_sigT_value (map reptype_gen (map (fun it => field_type (fst it) (co_members (get_co id))) (co_members (get_co id)))))
@@ -180,7 +181,7 @@ Proof.
   intros.
   unfold reptype_gen at 1.
   rewrite func_type_ind.
-  destruct t; auto.
+  destruct t; auto.   
   + rewrite decay_spec.
     rewrite map_map.
     reflexivity.
@@ -189,7 +190,7 @@ Proof.
     reflexivity.
 Defined.
 
-Definition reptype_array (t: type) (lo hi: Z) := @zlist (reptype t) (default_val t) (list_zlist (reptype t) (default_val t)) lo hi.
+Definition reptype_array (t: type) (lo hi: Z) := list (reptype t).
 Definition reptype_structlist (m: members) := compact_prod (map (fun it => reptype (field_type (fst it) m)) m).
 Definition reptype_unionlist (m: members) := compact_sum (map (fun it => reptype (field_type (fst it) m)) m).
 
@@ -391,7 +392,7 @@ Lemma default_val_ind: forall t,
   | Tlong _ _
   | Tfloat _ _
   | Tpointer _ _ => Vundef
-  | Tarray t0 n _ => zl_default 0 n
+  | Tarray t0 n _ => list_repeat (Z.to_nat n) (default_val t0)
   | Tstruct id _ => struct_default_val (co_members (get_co id))
   | Tunion id _ => union_default_val (co_members (get_co id))
   end.
@@ -653,17 +654,6 @@ Proof.
 destruct t; reflexivity.
 Qed.
 
-Definition zl_constr t lo hi l := @zl_constr' (reptype t) (default_val t) (list_zlist (reptype t) (default_val t)) lo hi l.
-
-Lemma zl_constr_correct: forall t lo hi i l,
-  lo <= i < hi -> zl_nth i (zl_constr t lo hi l) = Znth (i - lo) l (default_val _).
-Proof.
-  intros.
-  unfold zl_constr.
-  pose (list_zlist_correct (reptype t) (default_val t)).
-  apply zl_constr'_correct; auto.
-Qed.
-
 End CENV.
 
 Arguments reptype' {cs} t / .
@@ -715,11 +705,6 @@ Tactic Notation "unfold_repinj" constr(T) constr(V) :=
    pattern (repinj T V);
   unfold_repinj' T.
 
-Module ZLIST_NOTATION.
-
-Notation "l 'AS' t [( lo , hi )]" := (@zl_constr' (reptype t) (default_val t) (list_zlist (reptype t) (default_val t)) lo hi l) (at level 80, no associativity).
-
-End ZLIST_NOTATION.
 
 Fixpoint force_lengthn {A} n (xs: list A) (default: A) :=
   match n, xs with
@@ -953,3 +938,16 @@ Qed.
 
 
 (* Hint Rewrite skipn_0 using computable : norm. *)
+
+Lemma unfold_reptype_elim:
+  forall cs csl t v v',
+    JMeq v v' ->
+   @unfold_reptype cs csl t v = v'.
+Proof.
+intros.
+unfold unfold_reptype.
+match type of v' with ?t => set (t' := t) in * end.
+pose proof (eq_rect_JMeq _ (reptype t) t' (fun x : Type => x) v (reptype_ind t)).
+apply JMeq_eq.
+apply JMeq_trans with (reptype t) v; auto.
+Qed.
