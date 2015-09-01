@@ -204,14 +204,20 @@ apply pred_ext; intros; apply derives_extract_prop; intro;
 rewrite H0; auto; intuition.
 Qed.
 
-
 Lemma split_array_pred: forall {A}  (d: A) lo mid hi P v p,
   lo <= mid <= hi ->
+  Zlength v = (hi-lo) ->
   array_pred d lo hi P v p =
-  array_pred d lo mid P (firstn (Z.to_nat (mid-lo)) v) p *
-  array_pred d mid hi P (skipn (Z.to_nat (mid-lo)) v) p.
+  array_pred d lo mid P (sublist 0 (mid-lo) v) p *
+  array_pred d mid hi P (sublist (mid-lo) (hi-lo) v) p. 
 Proof.
 intros.
+unfold sublist.
+simpl skipn. rewrite Z.sub_0_r.
+replace (hi-lo-(mid-lo)) with (hi-mid) by omega.
+rewrite (Zfirstn_exact_length (hi-mid))
+ by (rewrite Zlength_skipn, (Z.max_r 0 (mid-lo)), Z.max_r  by omega; omega).
+clear H0.
 unfold array_pred.
 remember (Z.to_nat (mid-lo)) as n.
 replace (Z.to_nat (hi-lo)) with (n + Z.to_nat (hi-mid))%nat in *
@@ -756,9 +762,10 @@ Definition array_pred_len_1: forall {A} (d:A) i P v p,
 
 Definition split_array_pred: forall  {A} (d:A) lo mid hi P v p,
   lo <= mid <= hi ->
+  Zlength v = (hi-lo) ->
   array_pred d lo hi P v p =
-  array_pred d lo mid P (firstn (Z.to_nat (mid - lo)) v) p *
-  array_pred d mid hi P (skipn (Z.to_nat (mid - lo)) v) p
+  array_pred d lo mid P (sublist 0 (mid-lo) v) p *
+  array_pred d mid hi P (sublist (mid-lo) (hi-lo) v) p
 := @split_array_pred.
 
 Definition array_pred_shift: forall {A} (d:A) lo hi lo' hi' mv P' P v p,

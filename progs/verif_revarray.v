@@ -31,9 +31,9 @@ Definition Gprog : funspecs :=
     reverse_spec :: main_spec::nil.
 
 Definition flip_between {A} lo hi (contents: list A) :=
-  firstn (Z.to_nat lo) (rev contents) 
-  ++ firstn (Z.to_nat (hi-lo)) (skipn (Z.to_nat lo) contents)
-  ++ skipn (Z.to_nat hi) (rev contents).
+  sublist 0 lo (rev contents)
+  ++ sublist lo hi contents
+  ++ sublist hi (Zlength contents) (rev contents).
 
 Definition reverse_Inv a0 sh contents size := 
  EX j:Z,
@@ -46,15 +46,12 @@ Lemma flip_fact_0: forall A size (contents: list A),
   contents = flip_between 0 (size - 0) contents.
 Proof.
   intros.
-  assert (length contents = Z.to_nat size).
-    apply Nat2Z.inj. rewrite <- Zlength_correct, Z2Nat.id; auto.
-    subst; rewrite Zlength_correct; omega.
   unfold flip_between.
-  rewrite !Z.sub_0_r. change (Z.to_nat 0) with O; simpl. rewrite <- H0.
-  rewrite skipn_short.
-  rewrite <- app_nil_end.
-  rewrite firstn_exact_length. auto.
-  rewrite rev_length. omega.
+  replace (size-0) with (Zlength contents) by omega.
+  rewrite !sublist_nil.
+  simpl. rewrite <- app_nil_end.
+  rewrite sublist_same by auto.
+  auto.
 Qed.
 
 Lemma flip_fact_1: forall A size (contents: list A) j,
@@ -64,33 +61,19 @@ Lemma flip_fact_1: forall A size (contents: list A) j,
   flip_between j (size - j) contents = rev contents.
 Proof.
   intros.
-  assert (length contents = Z.to_nat size).
-    apply Nat2Z.inj. rewrite <- Zlength_correct, Z2Nat.id; auto.
-    subst; rewrite Zlength_correct; omega.
   unfold flip_between.
   symmetry.
-  rewrite <- (firstn_skipn (Z.to_nat j)) at 1.
-  f_equal.
-  replace (Z.to_nat (size-j)) with (Z.to_nat j + Z.to_nat (size-j-j))%nat
-    by (rewrite <- Z2Nat.inj_add by omega; f_equal; omega).
-  rewrite <- skipn_skipn.
-  rewrite <- (firstn_skipn (Z.to_nat (size-j-j)) (skipn (Z.to_nat j) (rev contents))) at 1.
-  f_equal.
-  rewrite firstn_skipn_rev.
-Focus 2.
-rewrite H2.
-apply Nat2Z.inj_le.
-rewrite Nat2Z.inj_add by omega.
-rewrite !Z2Nat.id by omega.
-omega.
+  replace (sublist j (size-j) contents) with
+    (sublist j (size-j) (rev contents)).
+  rewrite !sublist_rejoin by (rewrite ?Zlength_rev; omega).
+  rewrite sublist_same by (rewrite ?Zlength_rev; omega).
+  auto.
+  rewrite sublist_rev by omega.
   rewrite len_le_1_rev.
-  f_equal. f_equal. f_equal.
-  rewrite <- Z2Nat.inj_add by omega. rewrite H2.
-  rewrite <- Z2Nat.inj_sub by omega. f_equal; omega.
-  rewrite firstn_length, min_l. 
-  change 1%nat with (Z.to_nat 1). apply Z2Nat.inj_le; omega.
-  rewrite skipn_length.  rewrite H2.
-  rewrite <- Z2Nat.inj_sub by omega. apply Z2Nat.inj_le; omega.
+  f_equal. f_equal. omega. omega.
+  apply Nat2Z.inj_le. change (Z.of_nat 1) with 1.
+  rewrite <- Zlength_correct.
+  rewrite Zlength_sublist; omega.
 Qed.
 
 Lemma Zlength_flip_between:
@@ -100,189 +83,75 @@ Lemma Zlength_flip_between:
 Proof.
 intros.
 unfold flip_between.
-rewrite !Zlength_app, !Zlength_firstn, !Zlength_skipn, !Zlength_rev.
-forget (Zlength al) as n.
-rewrite (Z.max_comm 0 i).
-rewrite (Z.max_l i 0) by omega.
-rewrite (Z.max_comm 0 j).
-rewrite (Z.max_l j 0) by omega.
-rewrite (Z.max_comm 0 (j-i)).
-rewrite (Z.max_l (j-i) 0) by omega.
-rewrite (Z.max_comm 0 (n-i)).
-rewrite (Z.max_l (n-i) 0) by omega.
-rewrite Z.max_r by omega.
-rewrite (Z.min_l i n) by omega.
-rewrite Z.min_l by omega.
+rewrite !Zlength_app, !Zlength_sublist by  (rewrite ?Zlength_rev; omega).
 omega.
 Qed.
 
+
+Ltac list_simpl :=
+try omega;
+repeat 
+  (first [ rewrite Zlength_sublist
+       | rewrite Zlength_flip_between
+       | rewrite Zlength_rev
+       | rewrite Zlength_app
+       | rewrite Z.min_l by omega
+       | rewrite Z.min_r by omega
+       | rewrite Z.max_l by omega
+       | rewrite Z.max_r by omega
+       | rewrite sublist_nil
+       | rewrite <- app_nil_end
+       | rewrite app_nil_l
+       | rewrite Z.add_0_r
+       | rewrite Z.sub_0_r 
+       | rewrite Z.add_0_l
+       | rewrite Z.sub_diag
+       | rewrite Z.sub_add];
+    try omega).
+
+
 Lemma flip_fact_3:
- forall A (al: list A) (d: A) j size,
+ forall A (al: list A) j size,
   size = Zlength al ->
   0 <= j < size - j - 1 ->
-firstn (Z.to_nat j)
-  (firstn (Z.to_nat (size - j - 1)) (flip_between j (size - j) al) ++
-   firstn (Z.to_nat 1) (skipn (Z.to_nat j) (flip_between j (size - j) al)) ++
-   skipn (Z.to_nat (size - j - 1 + 1)) (flip_between j (size - j) al)) ++
-firstn (Z.to_nat 1)
-  (skipn (Z.to_nat (size - j - 1)) al) ++
-skipn (Z.to_nat (j + 1))
-  (firstn (Z.to_nat (size - j - 1)) (flip_between j (size - j) al) ++
-   firstn (Z.to_nat 1) (skipn (Z.to_nat j) (flip_between j (size - j) al)) ++
-   skipn (Z.to_nat (size - j - 1 + 1)) (flip_between j (size - j) al)) =
+sublist 0 j
+  (sublist 0 (size - j - 1) (flip_between j (size - j) al) ++
+   sublist j (j + 1) (flip_between j (size - j) al) ++
+   sublist (size - j - 1 + 1) (Zlength al) (flip_between j (size - j) al)) ++
+sublist (size - j - 1) (size - j - 1 + 1) al ++
+sublist (j + 1)
+  (size - j - 1 - 0 + (j + 1 - j + (Zlength al - (size - j - 1 + 1))))
+  (sublist 0 (size - j - 1) (flip_between j (size - j) al) ++
+   sublist j (j + 1) (flip_between j (size - j) al) ++
+   sublist (size - j - 1 + 1) (Zlength al) (flip_between j (size - j) al)) =
 flip_between (Z.succ j) (size - Z.succ j) al.
 Proof.
 intros.
-assert (Zlength (rev al) = size) by (rewrite Zlength_rev; omega).
+rewrite <- H.
+list_simpl.
+replace (size - j - 1 + (j + 1 - j + (size - (size - j ))))
+  with size by omega.
+unfold Z.succ.
 unfold flip_between.
-rewrite Zfirstn_app1.
-Focus 2. {
-rewrite Zlength_firstn, Z.max_r by omega.
-rewrite !Zlength_app.
-rewrite Zlength_firstn, Z.max_r by omega.
-rewrite Zlength_firstn, Z.max_r by omega.
-rewrite !Zlength_skipn.
-rewrite (Z.max_r 0 j) by omega.
-rewrite (Z.max_r 0 (size-j)) by omega.
-rewrite Z.max_r by omega.
-rewrite Z.max_r by omega.
-rewrite (Z.min_l j) by omega.
-rewrite (Z.min_l (size-j-j)) by omega.
-rewrite Z.min_l by omega.
-omega.
-} Unfocus.
-rewrite Zfirstn_app2
- by (rewrite Zlength_firstn, Z.max_r by omega;
-      rewrite Z.min_l by omega; omega).
-rewrite Zfirstn_app1
- by (rewrite Zlength_firstn, Z.max_r by omega;
-      rewrite Z.min_l by omega; omega).
-rewrite Zfirstn_firstn by omega.
-rewrite Zskipn_app1.
-Focus 2. {
-rewrite Zlength_firstn, Z.max_r by omega.
-rewrite Zlength_rev. 
-rewrite !Zlength_app.
-rewrite Zlength_firstn, Z.max_r by omega.
-rewrite Z.min_l by omega.
-rewrite Zlength_firstn.
-rewrite (Z.min_l j (Zlength al)) by omega.
-rewrite Z.max_r by omega.
-rewrite Zlength_app.
-rewrite Zlength_firstn, Z.max_r by omega.
-rewrite Zlength_skipn.
-rewrite (Z.max_r 0 j)  by omega.
-rewrite (Z.max_r 0 ) by omega.
-rewrite (Z.min_l  (size-j-j)) by omega.
-rewrite Zlength_skipn.
-rewrite (Z.max_r 0 (size-j)) by omega.
-rewrite Z.max_r by omega.
-rewrite Z.min_l by omega.
-omega.
-} Unfocus.
-rewrite Zskipn_app2
- by (rewrite Zlength_firstn, Z.max_r by omega;
-       rewrite Z.min_l by omega; omega).
-rewrite Zlength_firstn, Z.max_r by omega.
-rewrite Z.min_l by omega.
-rewrite Zfirstn_app1.
-Focus 2. {
-rewrite Zlength_firstn, Z.max_r by omega.
-rewrite Zlength_skipn, (Z.max_r 0 j) by omega.
-rewrite Z.max_r by omega.
-rewrite Z.min_l by omega. omega.
-} Unfocus.
-rewrite Zfirstn_firstn by omega.
-rewrite Zskipn_app2
- by (rewrite Zlength_firstn, Z.max_r by omega;
-       rewrite Z.min_l by omega; omega).
-rewrite Zskipn_app1.
-Focus 2. {
-rewrite Zlength_firstn, Z.max_r by omega.
-rewrite Z.min_l by omega.
-rewrite Zlength_firstn, Z.max_r by omega.
-rewrite Zlength_skipn, (Z.max_r 0 j) by omega.
-rewrite Z.max_r by omega.
-rewrite Z.min_l by omega. omega.
-} Unfocus.
-rewrite Zfirstn_app1.
-Focus 2. {
-rewrite !Zlength_skipn, !Zlength_firstn.
-rewrite (Z.max_r 0 j) by omega.
-rewrite (Z.min_l j) by omega.
-rewrite Zlength_skipn.
-rewrite (Z.max_r 0 j) by omega.
-rewrite (Z.max_r 0 (Zlength al - j)) by omega.
-rewrite (Z.max_l 0 (j-j)) by omega.
-rewrite (Z.max_r 0 (size-j-j)) by omega.
-rewrite Z.min_l by omega.
-rewrite Z.max_r by omega.
-omega.
-} Unfocus.
-rewrite Zskipn_app2.
-Focus 2. {
-rewrite Zlength_firstn, Z.max_r by omega.
-rewrite (Z.min_l j) by omega.
-omega.
-} Unfocus.
-rewrite Zskipn_app2.
-Focus 2. {
-rewrite Zlength_firstn, Z.max_r by omega.
-rewrite (Z.min_l j) by omega.
-rewrite Zlength_firstn, Z.max_r by omega.
-rewrite Zlength_skipn, (Z.max_r 0 j) by omega.
-rewrite Z.max_r by omega.
-rewrite Z.min_l by omega.
-omega.
-} Unfocus.
-rewrite Zlength_firstn, Z.max_r by omega.
-rewrite Zlength_firstn, Z.max_r by omega.
-rewrite Zlength_skipn, (Z.max_r 0 j) by omega.
-rewrite Z.max_r by omega.
-rewrite Z.min_l by omega.
-rewrite Z.min_l by omega.
-rewrite Zskipn_skipn by omega.
-rewrite !Zskipn_firstn by omega.
-rewrite !Z.sub_diag.
-rewrite Z.sub_0_r.
-rewrite !Zskipn_skipn by omega.
-rewrite Zfirstn_firstn by omega.
-rewrite <- app_ass.
-f_equal.
-rewrite <- (firstn_skipn (Z.to_nat j) (rev al)) at 2.
-rewrite Zfirstn_app2
-  by (rewrite Zlength_firstn, Z.max_r by omega;
-        rewrite Z.min_l by omega; omega).
-rewrite Zlength_firstn, Z.max_r by omega;
-rewrite Z.min_l by omega.
-replace (Z.succ j - j) with 1 by omega.
-f_equal.
-rewrite app_nil_end.
-rewrite app_nil_end at 1.
-rewrite <- Znth_cons with (d0:=d) by omega.
-rewrite <- Znth_cons with (d0:=d) by omega.
-f_equal.
-rewrite Znth_rev by omega.
-f_equal. omega.
-replace (size - j - 1 - j - (j + 1 - j))
-  with (size- Z.succ j- Z.succ j) by omega.
-replace (j+(j+1-j)) with (j+1) by omega.
-f_equal.
-rewrite Z.add_0_r.
-rewrite <- (firstn_skipn (Z.to_nat 1) (skipn (Z.to_nat (size- Z.succ j)) (rev al))).
-rewrite Zskipn_skipn by omega.
-f_equal.
-rewrite app_nil_end.
-rewrite app_nil_end at 1.
-rewrite <- Znth_cons with (d0:=d) by omega.
-rewrite <- Znth_cons with (d0:=d) by omega.
-f_equal.
-rewrite Znth_rev by omega.
-f_equal.
-omega.
+rewrite <- H.
+repeat (rewrite sublist_app, ?sublist_sublist; list_simpl).
+replace (size - (size - j - 1) - (j + 1 - j) + (size - j) - j - (size - j - j) +
+   (size - j))
+ with size by omega.
+replace (size-(j+1)) with (size-j-1) by omega.
+rewrite (sublist_split 0 j (j+1)); list_simpl.
+rewrite <- app_assoc.
 f_equal.
 f_equal.
-omega.
+rewrite sublist_rev; list_simpl.
+rewrite Zlen_le_1_rev; list_simpl.
+f_equal; omega.
+f_equal.
+rewrite (sublist_split (size-j-1) (size-j) size); list_simpl.
+f_equal.
+rewrite sublist_rev; list_simpl.
+rewrite Zlen_le_1_rev; list_simpl.
+f_equal; list_simpl.
 Qed.
 
 Lemma flip_between_map:
@@ -293,7 +162,7 @@ Proof.
 intros.
 unfold flip_between.
 rewrite !map_app.
-rewrite !map_firstn, !map_skipn, !map_rev.
+rewrite !map_sublist, !map_rev, Zlength_map.
 auto.
 Qed.
 
@@ -308,20 +177,11 @@ Proof.
 intros.
 unfold flip_between.
 rewrite app_Znth2
- by (rewrite Zlength_firstn, Z.max_r by omega;
-      rewrite Zlength_rev, Z.min_l by omega; omega).
-rewrite Zlength_firstn, Z.max_r by omega;
-rewrite Zlength_rev, Z.min_l by omega.
-rewrite app_Znth1.
-Focus 2. {
-rewrite Zlength_firstn, Z.max_r by omega;
-rewrite Zlength_skipn by omega.
-rewrite (Z.max_r 0 j) by omega.
-rewrite Z.max_r by omega.
-rewrite Z.min_l by omega.
-omega. } Unfocus.
-rewrite Znth_firstn by omega.
-rewrite Znth_skipn by omega.
+ by (rewrite Zlength_sublist; rewrite ?Zlength_rev; omega).
+rewrite Zlength_sublist; rewrite ?Zlength_rev; try omega.
+rewrite app_Znth1
+ by (rewrite Zlength_sublist; rewrite ?Zlength_rev; omega).
+rewrite Znth_sublist by omega.
 f_equal; omega.
 Qed.
 
@@ -387,6 +247,37 @@ forward. (*  a[hi-1] = t; *)
 forward. (* a[lo] = s; *)
 forward lo'0. (* lo++; *)
 forward hi'0. (* hi--; *)
+
+Lemma skipn2sublist:
+ forall {A} n (al: list A),
+ 0 <= n <= Zlength al ->
+ skipn (Z.to_nat n) al = sublist n (Zlength al) al.
+Proof.
+intros.
+unfold sublist.
+symmetry.
+etransitivity; [ | apply (firstn_exact_length (skipn (Z.to_nat n) al))].
+f_equal.
+apply Nat2Z.inj.
+rewrite  <- Zlength_correct.
+rewrite Zlength_skipn.
+rewrite (Z.max_r 0 n) by omega.
+rewrite Z.max_r by omega.
+rewrite Z2Nat.id by omega.
+auto.
+Qed.
+
+Lemma firstn2sublist:
+ forall {A} n (al: list A),
+ 0 <= n <= Zlength al ->
+ firstn (Z.to_nat n) al = sublist 0 n al.
+Proof.
+intros.
+unfold sublist.
+f_equal.
+f_equal.
+omega.
+Qed.
 (* Prove postcondition of loop body implies loop invariant *)
 {
   apply exp_right with (Zsucc j).
@@ -398,9 +289,11 @@ forward hi'0. (* hi--; *)
  remember (Zlength (map Vint contents)) as size.
  forget (map Vint contents) as al.
  repeat match goal with |- context [reptype ?t] => change (reptype t) with val end.
- rewrite !Znth_cons by (repeat rewrite Zlength_flip_between; try omega).
+ rewrite !Znth_cons_sublist by (repeat rewrite Zlength_flip_between; try omega).
+ rewrite ?Zlength_app, ?Zlength_firstn, ?Z.max_r by omega.
+ rewrite ?Zlength_flip_between by omega.
+ rewrite ?Zlength_sublist by (rewrite ?Zlength_flip_between ; omega).
  apply flip_fact_3; auto.
- apply Vundef.
 }
 forward. (* return; *)
 Qed.

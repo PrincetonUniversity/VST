@@ -469,7 +469,8 @@ Definition upd_gfield_reptype t gf (v: reptype t) (v0: reptype (gfield_type t gf
   (match t, gf return (REPTYPE t -> reptype (gfield_type t gf) -> REPTYPE t)
   with
   | Tarray t0 n a, ArraySubsc i =>
-      fun v v0 => firstn (Z.to_nat i) v ++ (v0 :: skipn (Z.to_nat (i+1)) v)
+      fun v v0 => 
+       sublist 0 i v ++ v0 :: sublist (i+1) (Zlength v) v
 (*zl_concat (zl_concat (zl_sublist 0 i v) (zl_singleton i v0)) (zl_sublist (i + 1) n v) *)
   | Tstruct id _, StructField i =>
       fun v v0 => compact_prod_upd _ v (i, field_type i (co_members (get_co id))) v0 member_dec
@@ -806,7 +807,7 @@ Qed.
 
 Goal forall n l, 0 < n -> data_equal
     (upd_reptype (tarray tint n) (ArraySubsc 0 :: nil) l Vundef) 
-    (Vundef :: skipn (Z.to_nat 1) l).
+    (Vundef :: sublist 1 (Zlength l) l).
 intros.
 pose_proj_reptype cs csl (tarray tint n) (ArraySubsc 0 :: nil) l HH.
 pose_upd_reptype cs csl (tarray tint n) (ArraySubsc 0 :: nil) l Vundef HHH.

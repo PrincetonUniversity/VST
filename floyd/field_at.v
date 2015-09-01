@@ -935,8 +935,8 @@ Qed.
 Lemma split2_array_at: forall sh t gfs lo mid hi v p,
   lo <= mid <= hi ->
   array_at sh t gfs lo hi v p =
-  array_at sh t gfs lo mid (firstn (Z.to_nat (mid-lo)) v) p * 
-  array_at sh t gfs mid hi (skipn (Z.to_nat (mid-lo))  v) p.
+  array_at sh t gfs lo mid (sublist 0 (mid-lo) v) p * 
+  array_at sh t gfs mid hi (sublist (mid-lo) (Zlength v) v) p.
 Proof.
   intros.
   unfold array_at.
@@ -950,11 +950,12 @@ Proof.
  2: normalize; f_equal; apply ND_prop_ext; tauto.
   normalize.
   apply aggregate_pred.andp_prop_ext.
+*
   split. intros [? [? [? ?]]].
   split3; auto.
-  rewrite Z.max_r in H0|-* by omega. 
-  rewrite Zlength_correct in H0|-*. rewrite firstn_length. rewrite min_l.
-  apply Z2Nat.id; omega. apply Nat2Z.inj_le. rewrite H0. rewrite Z2Nat.id by omega. omega.
+  rewrite Z.max_r in H0|-* by omega.
+  rewrite Zlength_sublist by omega. omega.
+  unfold sublist. simpl skipn. rewrite Z.sub_0_r.
   clear - H1.
   revert v H1; induction (Z.to_nat (mid-lo)); intros. constructor.
   destruct v; inv H1; simpl; constructor; auto.
@@ -965,10 +966,12 @@ Proof.
   rewrite !field_compatible0_cons with (gfs0 := gfs), Heqt0.
   split; split; auto; omega.
   split.
-  rewrite Zlength_correct in H0|-*. rewrite skipn_length.
-  rewrite Z.max_r in H0|-* by omega.
-  rewrite (Nat2Z.inj_sub (length v)). rewrite Z2Nat.id by omega. omega.
-  apply Nat2Z.inj_le. rewrite Z2Nat.id by omega. omega.
+  rewrite Z.max_r in * by omega.
+  rewrite Zlength_sublist; try omega.
+  rewrite Z.max_r in * by omega.
+  unfold sublist.
+ rewrite Zfirstn_exact_length 
+    by (rewrite Zlength_skipn, (Z.max_r 0 (mid-lo)), Z.max_r by omega; omega).
   clear - H1.
   revert v H1; induction (Z.to_nat (mid-lo)); intros. simpl; auto.
   destruct v. constructor. simpl. apply IHn. inv H1; auto.
@@ -977,39 +980,57 @@ Proof.
   destruct (nested_field_type2 t gfs) eqn:?; try contradiction.
   destruct H2, H3.
   rewrite !field_compatible0_cons with (gfs0 := gfs), Heqt0. split; auto. omega.
+  rewrite Z.max_r by omega.
   intros [? [? [[? ?] [[? ?] [? ?]]]]].
-  rewrite Zlength_correct, firstn_length in H0.
-  rewrite Min.min_comm in H0.
-  pose proof (Min.min_spec  (length v) (Z.to_nat (mid - lo))).
-  destruct H8 as [[? ?] | [? ?]]. rewrite Z.max_r in H0|-* by omega.
-  rewrite H9 in H0. rewrite <- H0 in H8. rewrite Nat2Z.id in H8. omega.
-  clear H0 H9.
-  rewrite Zlength_correct, skipn_length in H4.
-  rewrite Nat2Z.inj_sub in H4 by auto.
-  rewrite Z2Nat.id in H4 by omega. 
-  rewrite Z.max_r in H4|-* by omega.
-  split3. rewrite Zlength_correct. omega.
+  rewrite Z.max_r  in * by omega.
+  assert (Zlength v = hi-lo). {
+  clear - H4 H H0.
+  unfold sublist in H0, H4.
+  rewrite Zlength_firstn in H0,H4.
+  simpl skipn in *.
+  rewrite Z.max_r in H0 by omega.
+  destruct (zlt (Zlength v) (mid-lo)).
+  rewrite Z.min_r in H0 by omega. omega.
+  clear H0. rewrite Z.max_r in H4 by omega.
+  rewrite Zlength_skipn in H4. 
+  rewrite (Z.max_r 0 (mid-lo)) in H4 by omega.
+  rewrite (Z.max_r) in H4 by omega.
+  rewrite Z.min_r in H4 by omega. omega.
+}
+ split; auto.
+  clear H0 H4.  
+  split3.
+  unfold sublist in H1,H5. simpl skipn in H1.
+  rewrite Z.sub_0_r in *.
+  rewrite Zfirstn_exact_length in H5
+    by (rewrite Zlength_skipn, (Z.max_r 0 (mid-lo)), Z.max_r by omega; omega).
+  replace (hi-lo) with (Z.of_nat (Z.to_nat (mid-lo)+ Z.to_nat(hi-mid))) in H8
+   by (rewrite <- Z2Nat.inj_add, Z2Nat.id by omega; omega).
+  rewrite Zlength_correct in *. apply Nat2Z.inj in H8.
   clear - H8 H5 H1.
   revert v H8 H1 H5; induction (Z.to_nat (mid-lo)); intros. 
   simpl in H5; auto.
   destruct v; simpl in *.
   constructor.
   inv H1.
-  constructor; auto. apply IHn; auto. omega.
-  split; auto.
+  constructor; auto.
+  auto. auto.
+*
   intros [? [? [? ?]]].
+  rewrite Z.max_r in H0 by omega.
   rewrite split_array_pred with (mid0 := mid) by auto.
-  normalize.
+  rewrite H0; auto.
 Qed.
 
 Lemma split3seg_array_at: forall sh t gfs lo ml mr hi v p,
   lo <= ml ->
   ml <= mr ->
   mr <= hi ->
+  Zlength v = hi-lo ->
   array_at sh t gfs lo hi v p =
-    array_at sh t gfs lo ml (firstn (Z.to_nat (ml-lo)) v) p*
-    array_at sh t gfs ml mr (firstn (Z.to_nat (mr-ml)) (skipn (Z.to_nat (ml-lo)) v)) p*
-    array_at sh t gfs mr hi (skipn (Z.to_nat (mr-lo)) v) p.
+    array_at sh t gfs lo ml (sublist 0 (ml-lo) v) p*
+    array_at sh t gfs ml mr (sublist (ml-lo) (mr-lo) v) p *
+    array_at sh t gfs mr hi (sublist (mr-lo) (hi-lo) v) p.
 Proof.
   intros.
   rewrite split2_array_at with (lo := lo) (mid := ml) (hi := hi) by omega.
@@ -1017,8 +1038,9 @@ Proof.
   rewrite sepcon_assoc.
   f_equal.
   f_equal.
-  rewrite skipn_skipn. f_equal. f_equal. rewrite <- Z2Nat.inj_add by omega.
-  f_equal. omega.
+  rewrite sublist_sublist; try omega. f_equal.  f_equal; omega.
+  rewrite Zlength_sublist by omega.
+  rewrite sublist_sublist; try omega. f_equal.  f_equal; omega.
 Qed.
 
 
@@ -1027,16 +1049,17 @@ Lemma split3_array_at: forall sh t gfs lo mid hi v v0 p,
   Zlength v = hi-lo ->
   JMeq v0 (Znth (mid-lo) v (default_val _)) ->
   array_at sh t gfs lo hi v p =
-    array_at sh t gfs lo mid (firstn (Z.to_nat (mid-lo)) v) p *
+    array_at sh t gfs lo mid (sublist 0 (mid-lo) v) p *
     field_at sh t (ArraySubsc mid :: gfs) v0 p *
-    array_at sh t gfs (mid + 1) hi (skipn (Z.to_nat (mid+1-lo)) v) p.
+    array_at sh t gfs (mid + 1) hi (sublist (mid+1-lo) (hi-lo) v) p.
 Proof.
   intros.
   rename H0 into e; rename H1 into H0.
   rewrite split3seg_array_at with (ml := mid) (mr := mid + 1) by omega.
   f_equal.
   f_equal.
-  replace (mid+1-mid) with 1 by omega. change (Z.to_nat 1) with 1%nat.
+  unfold sublist. replace (mid + 1 - lo - (mid - lo)) with 1 by omega.
+  change (Z.to_nat 1) with 1%nat.
   rewrite array_at_len_1 with (v0:=v0).
   rewrite prop_true_andp; auto.
   replace (firstn 1 (skipn (Z.to_nat (mid - lo)) v)) 
@@ -2345,42 +2368,44 @@ rewrite !data_at'_ind;
   try solve [normalize].
 * (* Tarray *)
   destruct (zlt z 0). rewrite !array_pred_len_0 by omega. normalize.
-(*
-  assert (exists v' : list (reptype t0), JMeq v v').
-  revert v. rewrite reptype_ind. intros; exists v. apply eq_JMeq. auto.
-  destruct H0 as [v' Hv'].
-Check array_pred_ext.
-rewrite array_pred_ext with (v0:=v) (v1=
-  replace  (@unfold_reptype cs csl (Tarray t0 z a) v)
-  with  (@unfold_reptype cs csl (Tarray t0 1 a) v).
-unfold array_pred, aggregate_pred.array_pred.
-*)
   forget (unfold_reptype v) as vl.  simpl in vl. clear v. unfold reptype_array in vl.
   rewrite <- (Z2Nat.id z) by omega.
-  remember (Z.to_nat z) as n.
-  revert z g Heqn vl ; induction n; intros.
-  change (Z.of_nat 0) with 0.
-  rewrite !array_pred_len_0 by omega. normalize.
-  rewrite inj_S.
-  rewrite !(split_array_pred _ 0 (Z.of_nat n) (Z.succ (Z.of_nat n))) by omega.
-  rewrite !array_pred_len_1.
+  remember (Z.to_nat z) as n. clear z Heqn g.
+  unfold array_pred, aggregate_pred.array_pred.
+  rewrite !Z.sub_0_r.
+replace (fun i : Z =>
+   at_offset (data_at' sh1 t0 (Znth (i - 0) vl (default_val t0)))
+     (sizeof cenv_cs t0 * i))
+ with (fun i : Z =>
+   at_offset (data_at' sh1 t0 (Znth i vl (default_val t0)))
+     (sizeof cenv_cs t0 * i))
+  by (extensionality i; rewrite Z.sub_0_r; auto).
+replace (fun i : Z =>
+   at_offset (data_at' sh2 t0 (Znth (i - 0) vl (default_val t0)))
+     (sizeof cenv_cs t0 * i))
+ with (fun i : Z =>
+   at_offset (data_at' sh2 t0 (Znth i vl (default_val t0)))
+     (sizeof cenv_cs t0 * i))
+  by (extensionality i; rewrite Z.sub_0_r; auto).
+replace (fun i : Z =>
+   at_offset (data_at' sh t0 (Znth (i - 0) vl (default_val t0)))
+     (sizeof cenv_cs t0 * i))
+ with (fun i : Z =>
+   at_offset (data_at' sh t0 (Znth i vl (default_val t0)))
+     (sizeof cenv_cs t0 * i))
+  by (extensionality i; rewrite Z.sub_0_r; auto).
+  forget 0 as lo.
+  revert lo vl ; induction n; intros.
+  simpl. apply sepcon_emp.
+  rewrite Nat2Z.id. simpl.
   repeat rewrite <- sepcon_assoc.
   match goal with |- ?A * ?B * ?C * ?D = _ => pull_left C end.
   rewrite sepcon_assoc.
   f_equal. 
-  rewrite sepcon_comm.
-  specialize (IHn (z-1)).
-  spec IHn.  rewrite <- (Z2Nat.id z); omega.
-  spec IHn. clear - Heqn.
-  rewrite <- (Nat2Z.id n) in Heqn.
-  rewrite <- Z2Nat.inj_succ in Heqn by omega.
-  rewrite Z2Nat.inj_sub by omega. rewrite <- Heqn; clear Heqn.
-  unfold Z.succ. rewrite Z2Nat.inj_add by omega.
-  rewrite Nat2Z.id. omega.
-  rewrite Z.sub_0_r.
-  apply IHn.
-  unfold at_offset.
-  apply IH.
+  rewrite sepcon_comm. unfold at_offset. apply IH.
+  specialize (IHn (Z.succ lo)).
+  rewrite Nat2Z.id in IHn.
+  apply IHn. 
 * (* Tstruct *)
   clear - H IH.
  apply field_at_share_join_aux; auto.
