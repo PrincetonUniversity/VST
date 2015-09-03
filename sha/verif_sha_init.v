@@ -6,13 +6,34 @@ Require Import sha.spec_sha.
 Local Open Scope nat.
 Local Open Scope logic.
 
+Arguments upd_reptype_array t0 i v v0 / .  (* move this to floyd? *)
+
 Lemma body_SHA256_Init: semax_body Vprog Gtot f_SHA256_Init SHA256_Init_spec.
 Proof.
 start_function.
 name c_ _c.
 unfold data_at_.
+(*
+forward.
+forward.
+forward.
+forward.
+forward.
+forward.
+forward.
+forward.
+forward.
+forward.
+forward.
+forward.
+forward.
+forward.
+forward.
+forward.
+forward.
+forward.
+*)
 repeat forward.
-Arguments upd_reptype_array t0 i v v0 / .  (* move this to floyd? *)
 simpl.
 unfold sha256state_.
 apply exp_right with (map Vint init_registers, 

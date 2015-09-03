@@ -5,6 +5,7 @@ Require Import sha.spec_sha.
 Require Import sha.sha_lemmas.
 Require Import JMeq.
 Require Import sha.call_memcpy.
+
 Local Open Scope nat.
 Local Open Scope logic.
 
@@ -88,8 +89,24 @@ Definition inv_at_inner_if sh hashed len c d dd data kv :=
    `(K_vector kv);
    `(data_block sh data d)))).
 
-Definition sha_update_inv sh hashed len c d (dd: list Z) (data: list Z) kv (done: bool) :=
-   (EX blocks:list int,
+(* This hack88 definition is necessary because
+    of a bug in Coq 8.4pl6 (and 8.4p.3):
+   unfolding it into sha_update_inv causes
+  sha_update_inv to fail to typecheck.
+*)
+
+Definition  S_struct (hashed: list int) (len:Z) (dd: list Z) (num: val) :=
+    data_at Tsh t_struct_SHA256state_st
+                 (map Vint (hash_blocks init_registers hashed),
+                  (Vint (lo_part len),
+                   (Vint (hi_part len),
+                    (map Vint (map Int.repr dd),
+                     num)))).
+
+Definition sha_update_inv sh hashed len c d (dd: list Z) (data: list Z) kv (done: bool)
+    : environ -> mpred :=
+   (*EX blocks:list int,*)  (* this line doesn't work; bug in Coq 8.4pl3 thru 8.4pl6?  *)
+   @exp (environ->mpred) _ _  (fun blocks:list int => 
    PROP  ((len >= Zlength blocks*4 - Zlength dd)%Z;
               (LBLOCKz | Zlength blocks);
               intlist_to_Zlist blocks = dd ++ firstn (length blocks * 4 - length dd) data;
@@ -100,12 +117,12 @@ Definition sha_update_inv sh hashed len c d (dd: list Z) (data: list Z) kv (done
                 temp _len (Vint (Int.repr (len- (Zlength blocks*4 - Zlength dd))));
                 gvar  _K256 kv)
    SEP  (`(K_vector kv);
-           `(data_at Tsh t_struct_SHA256state_st
-                 (map Vint (hash_blocks init_registers (hashed++blocks)),
+           `(@data_at CompSpecs CS_legal Tsh t_struct_SHA256state_st
+                 ((map Vint (hash_blocks init_registers (hashed++blocks)),
                   (Vint (lo_part (bitlength hashed dd + len*8)),
                    (Vint (hi_part (bitlength hashed dd + len*8)),
-                    (nil, Vundef))))
-                c);
+                    (nil, Vundef)))) : reptype t_struct_SHA256state_st)
+               c);
    `(data_block sh data d))).
 
 Definition Delta_update_inner_if : tycontext.
@@ -133,18 +150,37 @@ apply data_at_type_changable; auto.
 rewrite H0; reflexivity.
 Qed.
 
+Lemma Znth_list_repeat_inrange:
+  forall {A} i n (a d: A),
+   (0 <= i < n)%Z ->
+   Znth i (list_repeat (Z.to_nat n) a) d = a.
+Proof.
+intros.
+unfold Znth; rewrite if_false by omega.
+assert (Z.to_nat i < Z.to_nat n)
+  by (apply Z2Nat.inj_lt; omega).
+forget (Z.to_nat n) as k.
+revert k H0; induction (Z.to_nat i); destruct k; simpl; intros.
+omega. auto. omega. apply IHn0; omega.
+Qed.
+
 Lemma field_at_cancel_undef_example:
-  forall  d c, 
+  forall  (d': list val) d c, 
+  Zlength d' = 64%Z ->
+  JMeq d' d ->
   field_at Tsh t_struct_SHA256state_st [StructField _data] d c |--
-  field_at Tsh t_struct_SHA256state_st [StructField _data] (list_repeat 64 Vundef) c.
+  field_at Tsh t_struct_SHA256state_st [StructField _data] (list_repeat (Z.to_nat 64) Vundef) c.
 Proof.
   intros.
   apply field_at_stronger.
   apply stronger_array_ext.
+  change (list val) in d. apply JMeq_eq in H0. subst.
+  erewrite !unfold_reptype_elim by reflexivity.
+  rewrite Zlength_list_repeat, Z.max_r by omega.
+  auto.
   intros.
-  unfold Znth.
-  if_tac; [omega |].
-  rewrite nth_list_repeat.
+  erewrite !unfold_reptype_elim by reflexivity.
+ rewrite Znth_list_repeat_inrange by omega.
   intros sh p.
   apply data_at_data_at_.
 Qed.
@@ -157,6 +193,7 @@ Lemma update_inner_if_then_proof:
    (H3' : Forall isbyteZ dd)
    (H4 : (LBLOCKz | Zlength hashed))
    (Hlen : (len <= Int.max_unsigned)%Z)
+   (Hsh: readable_share sh)
    (c' : name _c) (data_ : name _data) (len' : name _len) 
    (data' : name _data) (p : name _p) (n : name _n)
    (fragment_ : name _fragment),
@@ -189,24 +226,24 @@ Proof.
  intros.
  abbreviate_semax.
   unfold update_inner_if_then.
-match goal with |- semax ?D (PROP() (LOCALx ?Q (SEPx _))) _ _ =>
+match goal with |- semax _ (PROP() (LOCALx ?Q (SEPx _))) _ _ =>
  apply semax_seq'
  with (PROP() (LOCALx Q 
         (SEP (`(data_at Tsh t_struct_SHA256state_st 
-                 (map Vint (hash_blocks init_registers hashed),
+                ( (map Vint (hash_blocks init_registers hashed),
                   (Vint (lo_part (bitlength hashed dd + len*8)),
                    (Vint (hi_part (bitlength hashed dd + len*8)),
                     (map Vint (map Int.repr dd) ++
-                      firstn (Z.to_nat k) (map Vint (map Int.repr data)),
+                      sublist 0 k (map Vint (map Int.repr data)),
                      Vint (Int.repr (Zlength dd))))))
+                   : @reptype CompSpecs t_struct_SHA256state_st)
                c);
       `(K_vector kv);
       `(data_at sh (tarray tuchar (Zlength data)) (map Vint (map Int.repr data)) d)))))
-end;
- [ eapply semax_post_flipped' | ].
+end.
+eapply semax_post_flipped'.
 *
   assert_PROP (field_address (tarray tuchar (Zlength data)) [ArraySubsc 0] d = d). {
-    rewrite (data_at_field_at sh  (tarray tuchar (Zlength data))).
     entailer!.
     unfold field_address; rewrite if_true; normalize.
     eapply field_compatible_cons_Tarray; try reflexivity; auto; omega.
@@ -219,13 +256,20 @@ end;
    (*len*) k
         Frame);
   try reflexivity; auto; try omega.
-  apply Zlength_nonneg. repeat rewrite Zlength_map. unfold k in *; omega.
-  unfold k; omega.
-  rewrite Zlength_map. omega.
-  unfold_data_at 1%nat.
+  apply Zlength_nonneg. 
+  subst k; omega.
+  unfold data_at. unfold_field_at 1%nat.
   entailer!.
   unfold field_address0, field_address.
   rewrite !if_true; auto.
+  rewrite nested_field_offset2_ind at 1.
+Focus 2.
+repeat match goal with H : value_fits _ _ _ |- _ => clear  H end.
+clear Frame Delta DBYTES POSTCONDITION H5.
+clear H18 H16 H14 H13 H11. clear H7.
+hnf.
+Focus 2.
+reflexivity.
   erewrite nested_field_offset2_Tarray by reflexivity.
   normalize.
   eapply field_compatible0_cons_Tarray; [reflexivity | auto | Omega1 ].

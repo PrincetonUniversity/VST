@@ -177,7 +177,7 @@ Definition SHA256_Update_spec :=
                `(sha256state_ a c); `(data_block sh data d))
   POST [ tvoid ] 
          EX a':_, 
-          PROP (update_abs (firstn (Z.to_nat len) data) a a')
+          PROP (update_abs (sublist 0 len data) a a')
           LOCAL ()
           SEP(`(K_vector kv);
                 `(sha256state_ a' c); `(data_block sh data d)).

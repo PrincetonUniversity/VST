@@ -6,6 +6,9 @@ Instance CompSpecs : compspecs := compspecs_program prog.
 Instance CS_legal : compspecs_legal CompSpecs.
 Proof. prove_CS_legal. Qed.
 
+Definition t_struct_elem := Tstruct _elem noattr.
+Definition t_struct_fifo := Tstruct _fifo noattr.
+
 Local Open Scope logic.
 
 Instance QS: listspec _elem _next. 
@@ -179,11 +182,11 @@ Ltac simplify_value_fits' :=
 
 Lemma make_unmake:
  forall a b p,
- field_at Tsh list_struct [] (Vint a, (Vint b, Vundef)) p =
- field_at Qsh' list_struct [StructField _a] (Vint a) p *
- field_at Qsh' list_struct [StructField _b] (Vint b) p *
+ field_at Tsh t_struct_elem [] (Vint a, (Vint b, Vundef)) p =
+ field_at Qsh' t_struct_elem [StructField _a] (Vint a) p *
+ field_at Qsh' t_struct_elem [StructField _b] (Vint b) p *
  list_cell QS Qsh (Vundef, Vundef) p *
- field_at_ Tsh list_struct [StructField _next] p.
+ field_at_ Tsh t_struct_elem [StructField _next] p.
 Proof.
 intros.
 unfold_field_at 1%nat.
@@ -198,31 +201,36 @@ repeat intro. contradiction H; reflexivity.
 } Unfocus.
 match goal with |- ?A = _ => set (J := A) end.
 unfold field_at_.
-change (default_val (nested_field_type2 list_struct [StructField _next])) with Vundef.
-rewrite <- (field_at_share_join _ _ _ list_struct [StructField _next] Vundef p Qsh_Qsh').
+(*BUG in Coq 8.4pl6:  if you uncomment the "change" line just below,
+  then the "rewrite" fails.  This is
+ probably related to the ordering of type-checking and type-class
+ resolution; if the "rewrite" is filled in with all implicit
+  type-class arguments, then it succeeds.
+change (default_val (nested_field_type2 t_struct_elem [StructField _next])) with Vundef. *)
+rewrite <- (field_at_share_join _ _ _ _ _ _ _ Qsh_Qsh').
+change (default_val (nested_field_type2 t_struct_elem [StructField _next])) with Vundef.
 rewrite <- !sepcon_assoc.
-(*change list_struct with list_struct.*)
-pull_left (field_at Qsh' list_struct [StructField _next] Vundef p).
-pull_left (field_at Qsh' list_struct [StructField _b] (Vint b) p).
-pull_left (field_at Qsh' list_struct [StructField _a] (Vint a) p).
+pull_left (field_at Qsh' t_struct_elem [StructField _next] Vundef p).
+pull_left (field_at Qsh' t_struct_elem [StructField _b] (Vint b) p).
+pull_left (field_at Qsh' t_struct_elem [StructField _a] (Vint a) p).
 rewrite field_at_list_cell_weak  by apply readable_share_Qsh'.
-change (field_at Qsh list_struct [StructField _next] Vundef p)
-  with (field_at_ Qsh list_struct [StructField _next] p).
+match goal with |- _ = _ * _ * _ * ?A => change A
+  with (field_at_ Qsh t_struct_elem [StructField _next] p)
+end.
 pull_left (list_cell QS Qsh (Vundef, Vundef) p).
 rewrite join_cell_link with (psh:=Tsh) by (auto; try apply Qsh_Qsh'; apply readable_share_Qsh').
 subst J.
-unfold field_at at 3.
-change (field_at Tsh list_struct [StructField _next] Vundef p)
-  with (field_at_ Tsh list_struct [StructField _next] p).
+match goal with |- _ * _ * ?A = _ => change A
+  with (field_at_ Tsh t_struct_elem [StructField _next] p)
+end.
 rewrite field_at_list_cell_weak by auto.
 rewrite sepcon_assoc.
 f_equal.
 unfold field_at_.
-change (default_val (nested_field_type2 list_struct [StructField _next])) with Vundef.
+change (default_val (nested_field_type2 t_struct_elem [StructField _next])) with Vundef.
 rewrite sepcon_comm.
-change list_struct with list_struct.
 symmetry.
-apply (field_at_share_join _ _ _ list_struct [StructField _next] Vundef p Qsh_Qsh').
+apply (field_at_share_join _ _ _ t_struct_elem [StructField _next] Vundef p Qsh_Qsh').
 Qed.
 
 Definition mallocN_spec :=
@@ -248,8 +256,6 @@ Definition freeN_spec :=
   POST [ tvoid ]  
     PROP () LOCAL () SEP ().
 
-Definition t_struct_elem := Tstruct _elem noattr.
-Definition t_struct_fifo := Tstruct _fifo noattr.
 
 Definition elemrep (rep: elemtype QS) (p: val) : mpred :=
   field_at Tsh t_struct_elem [StructField _a] (fst rep) p * 
@@ -580,6 +586,7 @@ forward. (*   j = p->b; *)
 forward_call' (*  freeN(p, sizeof( *p)); *)
    (p', sizeof cenv_cs t_struct_elem).
 {
+
  apply derives_trans with
   (fifo [p2] q * 
    data_at Tsh t_struct_elem (Vint (Int.repr 1), (Vint (Int.repr 10), Vundef)) p' *
