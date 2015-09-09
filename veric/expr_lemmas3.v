@@ -8,7 +8,7 @@ Require Import veric.tycontext.
 Require Import veric.expr2.
 Require Export veric.environ_lemmas. 
 Require Import veric.binop_lemmas2.
-Require Import veric.binop_lemmas.
+(*Require Import veric.binop_lemmas.*)
 Require Import veric.expr_lemmas2.
 Import Cop.
 Import Cop2.
@@ -42,9 +42,9 @@ Transparent Float32.to_int.
 Transparent Float32.to_intu.
 
 
-Lemma isCastR: forall Delta tfrom tto a, 
-  denote_tc_assert Delta (isCastResultType Delta tfrom tto a) =
- denote_tc_assert Delta
+Lemma isCastR: forall {CS: compspecs} tfrom tto a, 
+  denote_tc_assert (isCastResultType tfrom tto a) =
+ denote_tc_assert 
 match Cop.classify_cast tfrom tto with
 | Cop.cast_case_default => tc_FF  (invalid_cast tfrom tto)
 | Cop.cast_case_f2i _ Signed => tc_andp (tc_Zge a Int.min_signed ) (tc_Zle a Int.max_signed) 
@@ -411,15 +411,15 @@ intros.
 Qed.
 
 Lemma typecheck_cast_sound: 
- forall Delta rho m e t,
+ forall {CS: compspecs} Delta rho m e t,
  typecheck_environ Delta rho ->
-(denote_tc_assert Delta (typecheck_expr Delta e) rho m ->
- typecheck_val (eval_expr Delta e rho) (typeof e) = true) /\
+(denote_tc_assert (typecheck_expr Delta e) rho m ->
+ typecheck_val (eval_expr e rho) (typeof e) = true) /\
 (forall pt : type,
- denote_tc_assert Delta (typecheck_lvalue Delta e) rho m ->
- is_pointer_type pt = true -> typecheck_val (eval_lvalue Delta e rho) pt = true) ->
-denote_tc_assert Delta (typecheck_expr Delta (Ecast e t)) rho m ->
-typecheck_val (eval_expr Delta (Ecast e t) rho) (typeof (Ecast e t)) = true.
+ denote_tc_assert (typecheck_lvalue Delta e) rho m ->
+ is_pointer_type pt = true -> typecheck_val (eval_lvalue e rho) pt = true) ->
+denote_tc_assert (typecheck_expr Delta (Ecast e t)) rho m ->
+typecheck_val (eval_expr (Ecast e t) rho) (typeof (Ecast e t)) = true.
 Proof.
 intros until t; intros H IHe H0.
 simpl in *. unfold_lift.
@@ -444,7 +444,7 @@ destruct (classify_cast (typeof e) t)
       unfold_lift in H2a; unfold_lift in H2b;
        simpl in H2a,H2b
     );
-  destruct (eval_expr Delta e rho); simpl in H1; try discriminate H1;
+  destruct (eval_expr e rho); simpl in H1; try discriminate H1;
   try contradiction H2;
   try reflexivity; try assumption;
   try (apply (is_true_e _ H2));

@@ -21,9 +21,8 @@ Require Import progs.list_dt. Import LsegSpecial.
  ** from reverse.c 
  **)
 Require Import progs.reverse.
-Instance CompSpecs : compspecs := compspecs_program prog.
-Instance CS_legal : compspecs_legal CompSpecs.
-Proof. prove_CS_legal. Qed.
+Instance CompSpecs : compspecs.
+Proof. make_compspecs prog. Defined.  
 
 Local Open Scope logic.
 (** Open the notation scope containing  !! * && operators of separation logic *)

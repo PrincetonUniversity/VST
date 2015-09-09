@@ -18,7 +18,6 @@ Local Open Scope logic.
 Section STRONGER.
 
 Context {cs: compspecs}.
-Context {csl: compspecs_legal cs}.
 
 Definition stronger {t: type} (v v': reptype t) : Prop :=
   forall sh, data_at sh t v |-- data_at sh t v'.

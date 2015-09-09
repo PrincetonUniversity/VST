@@ -67,13 +67,13 @@ Lemma guard_environ_e1:
      typecheck_environ Delta rho.
 Proof. intros. destruct H; auto. Qed.
 
-Definition guard  (Espec : OracleKind)
+Definition guard  {CS: compspecs} (Espec : OracleKind)
     (gx: genv) (Delta: tycontext) (P : assert)  (ctl: cont) : pred nat :=
      ALL tx : Clight.temp_env, ALL vx : env,
           let rho := construct_rho (filter_genv gx) vx tx in 
           !! guard_environ Delta (current_function ctl) rho
                   && P rho && funassert Delta rho
-                  && (!! (guard_genv Delta gx))
+                (*  && (!! (genv_cenv gx = cenv_cs)) *)
              >=> assert_safe Espec gx vx tx ctl rho.
 
 Definition zap_fn_return (f: function) : function :=
@@ -98,13 +98,14 @@ match vl, id with
 | _,_ => tx
 end.
 
-Definition rguard  (Espec : OracleKind)
+Definition rguard {CS: compspecs} (Espec : OracleKind)
     (gx: genv) (Delta: exitkind -> tycontext)  (R : ret_assert) (ctl: cont) : pred nat :=
      ALL ek: exitkind, ALL vl: option val, ALL tx: Clight.temp_env, ALL vx : env,
            let rho := construct_rho (filter_genv gx) vx tx in 
            !! guard_environ (Delta ek) (current_function ctl) rho && 
-         R ek vl rho && funassert (Delta ek) rho && (!! (guard_genv (Delta ek) gx)) >=> 
-               assert_safe Espec gx vx tx (exit_cont ek vl ctl) rho.
+         R ek vl rho && funassert (Delta ek) rho 
+           (* && (!! (genv_cenv gx = cenv_cs)) *)
+          >=> assert_safe Espec gx vx tx (exit_cont ek vl ctl) rho.
 
 Record semaxArg :Type := SemaxArg {
  sa_Delta: tycontext;
@@ -185,25 +186,32 @@ Definition believe_external (Hspec: OracleKind) (gx: genv) (v: val) (fsig: funsi
 
 Definition fn_funsig (f: function) : funsig := (fn_params f, fn_return f).
 
-Definition var_sizes_ok {C: compspecs} (vars: list (ident*type)) := 
-   Forall (fun var : ident * type => sizeof cenv_cs (snd var) <= Int.max_unsigned)%Z vars.
+Definition var_sizes_ok (cenv: composite_env) (vars: list (ident*type)) := 
+   Forall (fun var : ident * type => sizeof cenv (snd var) <= Int.max_unsigned)%Z vars.
 
-Definition cs_tycon Delta := mkcompspecs (composite_types Delta) (composite_types_consistent Delta).
+Definition var_block' (sh: Share.t) (cenv: composite_env) (idt: ident * type) (rho: environ): mpred :=
+  !! (sizeof cenv (snd idt) <= Int.max_unsigned)%Z &&
+  (memory_block sh (sizeof cenv (snd idt))) (eval_lvar (fst idt) (snd idt) rho).
+
+Definition stackframe_of' (cenv: composite_env) (f: Clight.function) : assert :=
+  fold_right (fun P Q rho => P rho * Q rho) (fun rho => emp)
+     (map (fun idt => var_block' Share.top cenv idt) (Clight.fn_vars f)).
+
 
 Definition believe_internal_ 
   (semax:semaxArg -> pred nat)
   (gx: genv) (Delta: tycontext) v (fsig: funsig) A (P Q: A -> assert) : pred nat :=
   (EX b: block, EX f: function,  
    prop (v = Vptr b Int.zero /\ Genv.find_funct_ptr gx b = Some (Internal f)
-                 /\ Forall (fun it => complete_type (composite_types Delta) (snd it) = true) (fn_vars f)
+                 /\ Forall (fun it => complete_type (genv_cenv gx) (snd it) = true) (fn_vars f)
                  /\ list_norepet (map (@fst _ _) f.(fn_params) ++ map (@fst _ _) f.(fn_temps))
-                 /\ list_norepet (map (@fst _ _) f.(fn_vars)) /\ @var_sizes_ok (cs_tycon Delta) (f.(fn_vars))
+                 /\ list_norepet (map (@fst _ _) f.(fn_vars)) /\ var_sizes_ok (genv_cenv gx) (f.(fn_vars))
                  /\ fsig = fn_funsig f /\ f.(fn_callconv) = cc_default)
   && ALL x : A, |> semax (SemaxArg  (func_tycontext' f Delta)
-                                (fun rho => (bind_args f.(fn_params) f.(fn_vars) (P x) rho * @stackframe_of (cs_tycon Delta) f rho)
+                                (fun rho => (bind_args f.(fn_params) f.(fn_vars) (P x) rho * stackframe_of' (genv_cenv gx) f rho)
                                              && funassert (func_tycontext' f Delta) rho)
                               (Ssequence f.(fn_body) (Sreturn None))
-           (frame_ret_assert (function_body_ret_assert (fn_return f) (Q x)) (@stackframe_of (cs_tycon Delta) f)))).
+           (frame_ret_assert (function_body_ret_assert (fn_return f) (Q x)) (stackframe_of' (genv_cenv gx) f)))).
 
 Definition empty_environ (ge: genv) := mkEnviron (filter_genv ge) (Map.empty _) (Map.empty _).
 
@@ -219,11 +227,11 @@ Definition believepred (Espec: OracleKind) (semax: semaxArg -> pred nat)
       (believe_external Espec gx v fsig A P Q
         || believe_internal_ semax gx Delta v fsig A P Q).
 
-Definition semax_  (Espec: OracleKind)
+Definition semax_  {CS: compspecs}  (Espec: OracleKind)
        (semax: semaxArg -> pred nat) (a: semaxArg) : pred nat :=
  match a with SemaxArg Delta P c R =>
   ALL gx: genv, ALL Delta': tycontext,
-       !! tycontext_sub Delta Delta' -->
+       !! (tycontext_sub Delta Delta' /\ genv_cenv gx = cenv_cs)-->
       (believepred Espec semax Delta' gx Delta') --> 
      ALL k: cont, ALL F: assert, 
        (!! (closed_wrt_modvars c F) && 
@@ -231,24 +239,24 @@ Definition semax_  (Espec: OracleKind)
         guard Espec gx Delta' (fun rho => F rho * P rho) (Kseq c :: k)
   end.
 
-Definition semax'  (Espec: OracleKind) Delta P c R : pred nat := 
+Definition semax'  {CS: compspecs} (Espec: OracleKind) Delta P c R : pred nat := 
      HORec (semax_  Espec) (SemaxArg Delta P c R).
 
-Definition believe_internal (Espec:  OracleKind)
+Definition believe_internal {CS: compspecs} (Espec:  OracleKind)
   (gx: genv) (Delta: tycontext) v (fsig: funsig) A (P Q: A -> assert) : pred nat :=
   (EX b: block, EX f: function,  
    prop (v = Vptr b Int.zero /\ Genv.find_funct_ptr gx b = Some (Internal f)
-                 /\ Forall (fun it => complete_type (composite_types Delta) (snd it) = true) (fn_vars f)
+                 /\ Forall (fun it => complete_type (genv_cenv gx) (snd it) = true) (fn_vars f)
                  /\ list_norepet (map (@fst _ _) f.(fn_params) ++ map (@fst _ _) f.(fn_temps))
-                 /\ list_norepet (map (@fst _ _) f.(fn_vars)) /\ @var_sizes_ok (cs_tycon Delta) (f.(fn_vars))
+                 /\ list_norepet (map (@fst _ _) f.(fn_vars)) /\ var_sizes_ok (genv_cenv gx) (f.(fn_vars))
                  /\ fsig = fn_funsig f /\ f.(fn_callconv) = cc_default)
   && ALL x : A, |> semax' Espec (func_tycontext' f Delta)
-                                (fun rho => (bind_args f.(fn_params) f.(fn_vars) (P x) rho * @stackframe_of (cs_tycon Delta) f rho)
+                                (fun rho => (bind_args f.(fn_params) f.(fn_vars) (P x) rho * stackframe_of' (genv_cenv gx)  f rho)
                                              && funassert (func_tycontext' f Delta) rho)
                                (Ssequence f.(fn_body) (Sreturn None))  
-           (frame_ret_assert (function_body_ret_assert (fn_return f) (Q x)) (@stackframe_of (cs_tycon Delta) f))).
+           (frame_ret_assert (function_body_ret_assert (fn_return f) (Q x)) (stackframe_of' (genv_cenv gx) f))).
 
-Definition believe (Espec:OracleKind)
+Definition believe {CS: compspecs} (Espec:OracleKind)
               (Delta: tycontext) (gx: genv) (Delta': tycontext): pred nat :=
   ALL v:val, ALL fsig: funsig,
          ALL A: Type, ALL P: A -> assert, ALL Q: A -> assert,
@@ -256,16 +264,16 @@ Definition believe (Espec:OracleKind)
       (believe_external Espec gx v fsig A P Q
         || believe_internal Espec gx Delta v fsig A P Q).
 
-Lemma semax_fold_unfold : forall (Espec : OracleKind),
+Lemma semax_fold_unfold : forall {CS: compspecs} (Espec : OracleKind),
   semax' Espec = fun Delta P c R =>
   ALL gx: genv, ALL Delta': tycontext,
-       !! tycontext_sub Delta Delta' -->
+       !! (tycontext_sub Delta Delta' /\ genv_cenv gx = cenv_cs) -->
        believe Espec Delta' gx Delta' --> 
      ALL k: cont, ALL F: assert, 
         (!! (closed_wrt_modvars c F) && rguard Espec gx (exit_tycon c Delta') (frame_ret_assert R F) k) -->
         guard Espec gx Delta' (fun rho => F rho * P rho) (Kseq c :: k).
 Proof.
-intros ?.
+intros ? ?.
 extensionality G P. extensionality c R.
 unfold semax'.
 pattern (HORec (semax_ Espec)) at 1; rewrite HORec_fold_unfold.
@@ -292,5 +300,5 @@ Qed.
 
 Opaque semax'.
 
-Definition semax (Espec: OracleKind) (Delta: tycontext) P c Q :=
+Definition semax {CS: compspecs} (Espec: OracleKind) (Delta: tycontext) P c Q :=
   forall n, semax' Espec Delta P c Q n.

@@ -97,7 +97,6 @@ Defined.
 
 Section COMPOSITE_ENV.
 Context {cs: compspecs}.
-Context {csl: compspecs_legal cs}.
 
 Lemma type_ind: forall P,
   (forall t,
@@ -148,7 +147,7 @@ Proof.
     simpl in H1; rewrite H1.
     apply rank_type_members with (ce := cenv_cs) in H0.
     rewrite <- co_consistent_rank in H0; [omega |].
-    exact (cenv_consistent_cs i co CO).
+    exact (cenv_consistent i co CO).
   + (* Tunion level positive *)
     simpl in RANK.
     pose proof get_co_members_no_replicate i.
@@ -162,7 +161,7 @@ Proof.
     simpl in H1; rewrite H1.
     apply rank_type_members with (ce := cenv_cs) in H0.
     rewrite <- co_consistent_rank in H0; [omega |].
-    exact (cenv_consistent_cs i co CO).
+    exact (cenv_consistent i co CO).
 Defined.
 
 Ltac type_induction t :=
@@ -309,7 +308,7 @@ Proof.
       unfold get_co; rewrite CO.
       intros [i t] Hin.
       rewrite Forall_forall in IH.
-      pose proof cenv_consistent_cs id co CO.
+      pose proof cenv_consistent id co CO.
       apply func_type_rec_rank_irrelevent.
       * pose proof get_co_members_no_replicate id.
         unfold get_co in H0; rewrite CO in H0.
@@ -330,7 +329,7 @@ Proof.
       apply ListTypeGen_preserve.
       unfold get_co; rewrite CO.
       intros [i t] Hin.
-      pose proof cenv_consistent_cs id co CO.
+      pose proof cenv_consistent id co CO.
       apply func_type_rec_rank_irrelevent.
       * pose proof get_co_members_no_replicate id.
         unfold get_co in H0; rewrite CO in H0.

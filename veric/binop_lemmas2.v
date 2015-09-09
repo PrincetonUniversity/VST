@@ -10,18 +10,18 @@ Require Import veric.Cop2.
 Import Cop.
  
 Lemma eval_expr_any:
-  forall Delta rho e v,
-    eval_expr Delta e any_environ = v ->
+  forall {CS: compspecs} rho e v,
+    eval_expr e any_environ = v ->
     v <> Vundef ->
-    eval_expr Delta e rho = v
+    eval_expr e rho = v
 with eval_lvalue_any:
-  forall Delta rho e v,
-    eval_lvalue Delta e any_environ = v ->
+  forall {CS: compspecs} rho e v,
+    eval_lvalue e any_environ = v ->
     v <> Vundef ->
-    eval_lvalue Delta e rho = v.   
+    eval_lvalue e rho = v.   
 Proof.
 { clear eval_expr_any.
- intro.
+ intros  ? ?.
  induction e; simpl; intros; subst; unfold_lift; try reflexivity;
  unfold_lift in H0;
  cbv delta [eval_unop eval_binop force_val2 force_val1 deref_noload always 
@@ -34,14 +34,14 @@ Proof.
  | |- match access_mode ?t with
                               | _ => _ end _ = _ => 
    destruct (access_mode t); simpl in *
- | |- context [match eval_expr Delta ?e any_environ with _ => _ end] =>
-          destruct (eval_expr Delta e any_environ) eqn:?; try congruence;
+ | |- context [match eval_expr ?e any_environ with _ => _ end] =>
+          destruct (eval_expr e any_environ) eqn:?; try congruence;
           rewrite (IHe _ (eq_refl _)); auto
  | _ => try congruence
  end.
 *  
  apply eval_lvalue_any; auto.
-* destruct (eval_expr Delta e any_environ) eqn:?; simpl in *;
+* destruct (eval_expr e any_environ) eqn:?; simpl in *;
   [elimtype False; apply H0; clear;
    try destruct u;
    destruct (typeof e) as [ | [ | | | ] [ | ] | [ | ] | [ | ] | | | | | ];
@@ -49,42 +49,42 @@ Proof.
   | rewrite (IHe _ (eq_refl _)) by congruence; auto ..
   ].
 *
-  destruct (eval_expr Delta e1 any_environ) eqn:?; simpl in *;
+  destruct (eval_expr e1 any_environ) eqn:?; simpl in *;
   [ elimtype False; apply H0; clear 
   | rewrite (IHe1 _ (eq_refl _)) by congruence; auto .. ].
  +destruct b;
    destruct (typeof e1) as [ | [ | | | ] [ | ] | [ | ] | [ | ] | | | | | ];
    destruct (typeof e2) as [ | [ | | | ] [ | ] | [ | ] | [ | ] | | | | | ];
-   try reflexivity; destruct (eval_expr Delta e2 any_environ); reflexivity.
- +destruct (eval_expr Delta e2 any_environ) eqn:?; simpl in *;
+   try reflexivity; destruct (eval_expr e2 any_environ); reflexivity.
+ +destruct (eval_expr e2 any_environ) eqn:?; simpl in *;
   [ elimtype False; apply H0; clear 
   | rewrite (IHe2 _ (eq_refl _)) by congruence; auto .. ].
    destruct b;
    destruct (typeof e1) as [ | [ | | | ] [ | ] | [ | ] | [ | ] | | | | | ];
    destruct (typeof e2) as [ | [ | | | ] [ | ] | [ | ] | [ | ] | | | | | ];
    reflexivity.
- +destruct (eval_expr Delta e2 any_environ) eqn:?; simpl in *;
+ +destruct (eval_expr e2 any_environ) eqn:?; simpl in *;
   [ elimtype False; apply H0; clear 
   | rewrite (IHe2 _ (eq_refl _)) by congruence; auto .. ].
    destruct b;
    destruct (typeof e1) as [ | [ | | | ] [ | ] | [ | ] | [ | ] | | | | | ];
    destruct (typeof e2) as [ | [ | | | ] [ | ] | [ | ] | [ | ] | | | | | ];
    reflexivity.
-+destruct (eval_expr Delta e2 any_environ) eqn:?; simpl in *;
++destruct (eval_expr e2 any_environ) eqn:?; simpl in *;
   [ elimtype False; apply H0; clear 
   | rewrite (IHe2 _ (eq_refl _)) by congruence; auto .. ].
    destruct b;
    destruct (typeof e1) as [ | [ | | | ] [ | ] | [ | ] | [ | ] | | | | | ];
    destruct (typeof e2) as [ | [ | | | ] [ | ] | [ | ] | [ | ] | | | | | ];
    reflexivity.
- +destruct (eval_expr Delta e2 any_environ) eqn:?; simpl in *;
+ +destruct (eval_expr e2 any_environ) eqn:?; simpl in *;
   [ elimtype False; apply H0; clear 
   | rewrite (IHe2 _ (eq_refl _)) by congruence; auto .. ].
    destruct b;
    destruct (typeof e1) as [ | [ | | | ] [ | ] | [ | ] | [ | ] | | | | | ];
    destruct (typeof e2) as [ | [ | | | ] [ | ] | [ | ] | [ | ] | | | | | ];
    reflexivity.
- +destruct (eval_expr Delta e2 any_environ) eqn:?; simpl in *;
+ +destruct (eval_expr e2 any_environ) eqn:?; simpl in *;
   [ elimtype False; apply H0; clear 
   | rewrite (IHe2 _ (eq_refl _)) by congruence; auto .. ].
    destruct b;
@@ -94,20 +94,20 @@ Proof.
 * 
    destruct t as [ | [ | | | ] [ | ] | [ | ] | [ | ] | | | | | ];
    destruct (typeof e) as [ | [ | | | ] [ | ] | [ | ] | [ | ] | | | | | ];
-  (destruct (eval_expr Delta e any_environ) eqn:?; simpl in *;
+  (destruct (eval_expr e any_environ) eqn:?; simpl in *;
   [elimtype False; apply H0; clear
   | try rewrite (IHe _ (eq_refl _)) by congruence; 
      auto .. ]); auto.
 * destruct (typeof e) as [ | [ | | | ] [ | ] | [ | ] | [ | ] | | | | | ];
    simpl in *; unfold always; auto.
-   destruct ((composite_types Delta) ! i0) as [co |]; auto.
-   destruct (field_offset (composite_types Delta) i (co_members co)); auto.
+   destruct (cenv_cs ! i0) as [co |]; auto.
+   destruct (field_offset cenv_cs i (co_members co)); auto.
    f_equal.
    apply eval_lvalue_any; auto.
    intro. rewrite H in H0. apply H0; reflexivity.
    unfold force_ptr in *.
-   destruct (eval_lvalue Delta e any_environ) eqn:?; simpl in *;
-   destruct ((composite_types Delta) ! i0);
+   destruct (eval_lvalue e any_environ) eqn:?; simpl in *;
+   destruct (cenv_cs ! i0);
    try congruence.
    rewrite (eval_lvalue_any _ _ _ _ Heqv); auto.
 }
@@ -118,33 +118,33 @@ Proof.
 *
  unfold eval_var in *;  simpl in *; congruence.
 *
- destruct (eval_expr Delta e any_environ) eqn:?; simpl in *;
+ destruct (eval_expr e any_environ) eqn:?; simpl in *;
   try congruence.
  rewrite (eval_expr_any _ _ _ _ Heqv); auto.
   * destruct (typeof e) as [ | [ | | | ] [ | ] | [ | ] | [ | ] | | | | | ];
     simpl in *; unfold always; auto.
-    destruct ((composite_types Delta) ! i0) as [co |]; auto.
-    destruct (field_offset (composite_types Delta) i (co_members co)); auto.
+    destruct (cenv_cs ! i0) as [co |]; auto.
+    destruct (field_offset cenv_cs i (co_members co)); auto.
     f_equal.
     apply IHe; auto.
     intro. rewrite H in H0. apply H0; reflexivity.
     unfold force_ptr in *.
-    destruct (eval_lvalue Delta e any_environ) eqn:?; simpl in *;
-    destruct ((composite_types Delta) ! i0);
+    destruct (eval_lvalue e any_environ) eqn:?; simpl in *;
+    destruct (cenv_cs ! i0);
     try congruence.
     rewrite (IHe _ (eq_refl _)); auto.
 }
 Qed.
 
 Lemma denote_tc_assert_ilt':
-  forall Delta e j, denote_tc_assert Delta (tc_ilt Delta e j) = denote_tc_assert Delta (tc_ilt' e j).
+  forall {CS: compspecs} e j, denote_tc_assert (tc_ilt e j) = denote_tc_assert (tc_ilt' e j).
 Proof.
   intros.
 extensionality rho.
  unfold tc_ilt; simpl.
  unfold_lift.
- destruct (eval_expr Delta e any_environ) eqn:?; simpl; auto.
- apply (eval_expr_any _ rho) in Heqv; try congruence.
+ destruct (eval_expr e any_environ) eqn:?; simpl; auto.
+ apply (eval_expr_any rho) in Heqv; try congruence.
  rewrite Heqv; simpl.
  destruct (Int.ltu i j) eqn:?; simpl;
  unfold_lift; simpl.
@@ -160,17 +160,17 @@ Proof.
 destruct v; simpl; congruence.
 Qed.
 
-Definition denote_tc_assert' (Delta: tycontext) (a: tc_assert) (rho: environ) : mpred.
-pose (P := denote_tc_assert Delta a rho).
+Definition denote_tc_assert' {CS: compspecs} (a: tc_assert) (rho: environ) : mpred.
+pose (P := denote_tc_assert a rho).
 unfold denote_tc_assert in P.
 super_unfold_lift.
 destruct a; apply P.
 Defined.
 
-Lemma denote_tc_assert'_eq:
+Lemma denote_tc_assert'_eq{CS: compspecs}:
   denote_tc_assert' = denote_tc_assert.
 Proof.
-extensionality Delta a rho.
+extensionality a rho.
 destruct a; reflexivity.
 Qed.
 
@@ -224,9 +224,9 @@ intros; apply prop_ext; intuition.
 Qed.
 
 
-Lemma tc_orp_sound : forall Delta a1 a2 rho m, 
-    denote_tc_assert Delta (tc_orp a1 a2) rho m <->  
-    denote_tc_assert Delta (tc_orp' a1 a2) rho m. 
+Lemma tc_orp_sound : forall {CS: compspecs} a1 a2 rho m, 
+    denote_tc_assert (tc_orp a1 a2) rho m <->  
+    denote_tc_assert (tc_orp' a1 a2) rho m. 
 Proof.
 intros.
  unfold tc_orp.
@@ -238,9 +238,9 @@ intros.
   try apply iff_refl.
 Qed. 
 
-Lemma denote_tc_assert_orp: forall Delta x y rho, 
-  denote_tc_assert Delta (tc_orp x y) rho = 
-   orp (denote_tc_assert Delta x rho) (denote_tc_assert Delta y rho).
+Lemma denote_tc_assert_orp: forall {CS: compspecs} x y rho, 
+  denote_tc_assert (tc_orp x y) rho = 
+   orp (denote_tc_assert x rho) (denote_tc_assert y rho).
 Proof.
  intros.
  apply pred_ext; intro m; rewrite tc_orp_sound; intro; assumption.
@@ -252,23 +252,23 @@ Lemma is_true_false: is_true false = False.
 Proof. apply prop_ext; intuition. Qed.
 
 
-Lemma denote_tc_assert_iszero: forall Delta e rho,
-  denote_tc_assert Delta (tc_iszero Delta e) rho = 
-  match (eval_expr Delta e rho) with 
+Lemma denote_tc_assert_iszero: forall {CS: compspecs} e rho,
+  denote_tc_assert (tc_iszero e) rho = 
+  match (eval_expr e rho) with 
   | Vint i => prop (is_true (Int.eq i Int.zero))
   | Vlong i => prop (is_true (Int.eq (Int.repr (Int64.unsigned i)) Int.zero))
    | _ => FF end.
 Proof.
  intros.
  unfold tc_iszero.
- destruct (eval_expr Delta e any_environ) eqn:?; simpl; auto;
- rewrite (eval_expr_any Delta rho e _ Heqv) by congruence.
+ destruct (eval_expr e any_environ) eqn:?; simpl; auto;
+ rewrite (eval_expr_any rho e _ Heqv) by congruence.
  destruct (Int.eq i Int.zero); reflexivity.
  destruct (Int.eq (Int.repr (Int64.unsigned i)) Int.zero); reflexivity.
 Qed. 
 
-Lemma denote_tc_assert_iszero': forall Delta e,
-  denote_tc_assert Delta (tc_iszero Delta e) = denote_tc_assert Delta (tc_iszero' e).
+Lemma denote_tc_assert_iszero': forall {CS: compspecs} e,
+  denote_tc_assert (tc_iszero e) = denote_tc_assert (tc_iszero' e).
 Proof.
 intros.
 extensionality rho.
@@ -276,46 +276,46 @@ rewrite denote_tc_assert_iszero.
 reflexivity.
 Qed.
 
-Lemma denote_tc_assert_nonzero: forall Delta e rho,
-  denote_tc_assert Delta (tc_nonzero Delta e) rho = 
-  match (eval_expr Delta e rho) with 
+Lemma denote_tc_assert_nonzero: forall {CS: compspecs} e rho,
+  denote_tc_assert (tc_nonzero e) rho = 
+  match (eval_expr e rho) with 
   | Vint i => prop (is_true (negb (Int.eq i Int.zero)))
    | _ => FF end.
 Proof.
  intros.
  unfold tc_nonzero.
- destruct (eval_expr Delta e any_environ) eqn:?; simpl; auto;
- try rewrite (eval_expr_any Delta rho e _ Heqv) by congruence;
+ destruct (eval_expr e any_environ) eqn:?; simpl; auto;
+ try rewrite (eval_expr_any rho e _ Heqv) by congruence;
  unfold_lift.
- destruct (eval_expr Delta e rho); try reflexivity.
+ destruct (eval_expr e rho); try reflexivity.
  simpl.
  destruct (Int.eq i Int.zero); reflexivity.
  destruct (Int.eq i Int.zero) eqn:?; simpl; try reflexivity.
- unfold_lift; simpl; rewrite (eval_expr_any Delta rho e _ Heqv) by congruence.
+ unfold_lift; simpl; rewrite (eval_expr_any rho e _ Heqv) by congruence.
  simpl. rewrite Heqb; reflexivity.
- unfold_lift; simpl; rewrite (eval_expr_any Delta rho e _ Heqv) by congruence;
+ unfold_lift; simpl; rewrite (eval_expr_any rho e _ Heqv) by congruence;
   reflexivity.
- unfold_lift; simpl; rewrite (eval_expr_any Delta rho e _ Heqv) by congruence;
+ unfold_lift; simpl; rewrite (eval_expr_any rho e _ Heqv) by congruence;
   reflexivity.
- unfold_lift; simpl; rewrite (eval_expr_any Delta rho e _ Heqv) by congruence;
+ unfold_lift; simpl; rewrite (eval_expr_any rho e _ Heqv) by congruence;
   reflexivity.
- unfold_lift; simpl; rewrite (eval_expr_any Delta rho e _ Heqv) by congruence;
+ unfold_lift; simpl; rewrite (eval_expr_any rho e _ Heqv) by congruence;
   reflexivity.
 Qed.
 
-Lemma denote_tc_assert_nonzero': forall Delta e,
-  denote_tc_assert Delta (tc_nonzero Delta e) = denote_tc_assert Delta (tc_nonzero' e).
+Lemma denote_tc_assert_nonzero': forall {CS: compspecs} e,
+  denote_tc_assert (tc_nonzero e) = denote_tc_assert (tc_nonzero' e).
 Proof.
 intros.
 extensionality rho.
 rewrite denote_tc_assert_nonzero.
-simpl.  unfold_lift. destruct (eval_expr Delta e rho); simpl; auto.
+simpl.  unfold_lift. destruct (eval_expr e rho); simpl; auto.
 destruct (Int.eq i Int.zero); reflexivity.
 Qed.
 
-Lemma denote_tc_assert_nodivover: forall Delta e1 e2 rho,
-  denote_tc_assert Delta (tc_nodivover Delta e1 e2) rho = 
-         match eval_expr Delta e1 rho, eval_expr Delta e2 rho with
+Lemma denote_tc_assert_nodivover: forall {CS: compspecs} e1 e2 rho,
+  denote_tc_assert (tc_nodivover e1 e2) rho = 
+         match eval_expr e1 rho, eval_expr e2 rho with
                            | Vint n1, Vint n2 => prop (is_true (negb 
                                    (Int.eq n1 (Int.repr Int.min_signed) 
                                     && Int.eq n2 Int.mone)))
@@ -324,21 +324,21 @@ Lemma denote_tc_assert_nodivover: forall Delta e1 e2 rho,
 Proof.
  intros.
  unfold tc_nodivover.
- destruct (eval_expr Delta e1 any_environ) eqn:?;
- destruct (eval_expr Delta e2 any_environ) eqn:?;
+ destruct (eval_expr e1 any_environ) eqn:?;
+ destruct (eval_expr e2 any_environ) eqn:?;
  simpl; auto.
- rewrite (eval_expr_any Delta rho e1 _ Heqv) by congruence.
- rewrite (eval_expr_any Delta rho e2 _ Heqv0) by congruence.
+ rewrite (eval_expr_any rho e1 _ Heqv) by congruence.
+ rewrite (eval_expr_any rho e2 _ Heqv0) by congruence.
  destruct (negb (Int.eq i (Int.repr Int.min_signed) && Int.eq i0 Int.mone)) eqn:?.
  simpl; try   reflexivity.
  simpl.  unfold_lift.
- rewrite (eval_expr_any Delta rho e1 _ Heqv) by congruence;
- rewrite (eval_expr_any Delta rho e2 _ Heqv0) by congruence.
+ rewrite (eval_expr_any rho e1 _ Heqv) by congruence;
+ rewrite (eval_expr_any rho e2 _ Heqv0) by congruence.
  simpl. rewrite Heqb. reflexivity.
 Qed.
 
-Lemma denote_tc_assert_nodivover': forall Delta e1 e2,
-  denote_tc_assert Delta (tc_nodivover Delta e1 e2) = denote_tc_assert Delta (tc_nodivover' e1 e2).
+Lemma denote_tc_assert_nodivover': forall {CS: compspecs} e1 e2,
+  denote_tc_assert (tc_nodivover e1 e2) = denote_tc_assert (tc_nodivover' e1 e2).
 Proof.
 intros.
 extensionality rho.
@@ -346,58 +346,48 @@ rewrite denote_tc_assert_nodivover; reflexivity.
 Qed.
 
 Lemma denote_tc_assert_andp'': 
-  forall Delta a b rho, denote_tc_assert Delta (tc_andp' a b) rho =
-            andp (denote_tc_assert Delta a rho) (denote_tc_assert Delta b rho).
+  forall {CS: compspecs} a b rho, denote_tc_assert (tc_andp' a b) rho =
+            andp (denote_tc_assert a rho) (denote_tc_assert b rho).
 Proof.
  intros. reflexivity. Qed.
 
 Lemma denote_tc_assert_orp'': 
-  forall Delta a b rho, denote_tc_assert Delta (tc_orp' a b) rho =
-             orp (denote_tc_assert Delta a rho) (denote_tc_assert Delta b rho).
+  forall {CS: compspecs} a b rho, denote_tc_assert (tc_orp' a b) rho =
+             orp (denote_tc_assert a rho) (denote_tc_assert b rho).
 Proof.
  intros. reflexivity. Qed.
 
-(*
-Lemma denote_tc_assert_andp: 
-  forall Delta a b rho, denote_tc_assert Delta (tc_andp a b) rho =
-             andp (denote_tc_assert Delta a rho) (denote_tc_assert Delta b rho).
-Proof.
- intros. apply prop_ext. rewrite tc_andp_sound.
- simpl; apply iff_refl.
-Qed.
-*)
-
 Lemma denote_tc_assert_andp': 
-  forall Delta a b, denote_tc_assert Delta (tc_andp a b) =
-                        denote_tc_assert Delta (tc_andp' a b).
+  forall {CS: compspecs} a b, denote_tc_assert (tc_andp a b) =
+                        denote_tc_assert (tc_andp' a b).
 Proof. intros. extensionality rho. apply denote_tc_assert_andp. Qed.
 
 Lemma denote_tc_assert_orp': 
-  forall Delta a b, denote_tc_assert Delta (tc_orp a b) =
-                        denote_tc_assert Delta (tc_orp' a b).
+  forall {CS: compspecs} a b, denote_tc_assert (tc_orp a b) =
+                        denote_tc_assert (tc_orp' a b).
 Proof. intros. extensionality rho. apply denote_tc_assert_orp. Qed.
 
 Lemma denote_tc_assert_comparable':
-  forall Delta a b, 
-    denote_tc_assert Delta (tc_comparable Delta a b) =
-    denote_tc_assert Delta (tc_comparable' a b).
+  forall {CS: compspecs} a b, 
+    denote_tc_assert (tc_comparable a b) =
+    denote_tc_assert (tc_comparable' a b).
 Proof.
 intros; extensionality rho.
 unfold tc_comparable.
 simpl; unfold_lift;  unfold denote_tc_comparable.
-destruct (eval_expr Delta a rho) eqn:Ha;
-destruct (eval_expr Delta a any_environ) eqn:Ha';
+destruct (eval_expr a rho) eqn:Ha;
+destruct (eval_expr a any_environ) eqn:Ha';
 simpl; unfold_lift;  unfold denote_tc_comparable;
 rewrite ?Ha, ?Ha'; simpl; auto;
 try solve [
-   rewrite (eval_expr_any Delta rho a _ Ha') in Ha by congruence;
+   rewrite (eval_expr_any rho a _ Ha') in Ha by congruence;
    inv Ha].
-destruct (eval_expr Delta b rho) eqn:Hb;
-destruct (eval_expr Delta b any_environ) eqn:Hb';
+destruct (eval_expr b rho) eqn:Hb;
+destruct (eval_expr b any_environ) eqn:Hb';
 simpl; unfold_lift;  unfold denote_tc_comparable;
 rewrite ?Ha, ?Ha', ?Hb, ?Hb'; simpl; auto;
-rewrite (eval_expr_any Delta rho b _ Hb') in Hb by congruence;   inv Hb.
-rewrite (eval_expr_any Delta rho a _ Ha') in Ha by congruence; inv Ha.
+rewrite (eval_expr_any rho b _ Hb') in Hb by congruence;   inv Hb.
+rewrite (eval_expr_any rho a _ Ha') in Ha by congruence; inv Ha.
 destruct (Int.eq_dec i Int.zero).
 subst. rewrite Int.eq_true.
 destruct (Int.eq_dec i1 Int.zero).
@@ -408,21 +398,21 @@ super_unfold_lift.
 unfold TT. f_equal. apply prop_ext; intuition.
 rewrite Int.eq_false by auto. simpl.
 simpl; unfold_lift;  unfold denote_tc_comparable.
-rewrite (eval_expr_any Delta rho a _ Ha')  by congruence.
-rewrite (eval_expr_any Delta rho _ _ Hb')  by congruence.
+rewrite (eval_expr_any rho a _ Ha')  by congruence.
+rewrite (eval_expr_any rho _ _ Hb')  by congruence.
 auto.
 rewrite Int.eq_false by auto. simpl.
 simpl; unfold_lift;  unfold denote_tc_comparable.
-rewrite (eval_expr_any Delta rho a _ Ha')  by congruence.
-rewrite (eval_expr_any Delta rho _ _ Hb')  by congruence.
+rewrite (eval_expr_any rho a _ Ha')  by congruence.
+rewrite (eval_expr_any rho _ _ Hb')  by congruence.
 auto.
 Qed.
 
-Hint Rewrite denote_tc_assert_andp' denote_tc_assert_andp''
-    denote_tc_assert_orp' denote_tc_assert_orp''
-    denote_tc_assert_iszero' denote_tc_assert_nonzero'
-    denote_tc_assert_nodivover' denote_tc_assert_ilt'
-    denote_tc_assert_comparable'
+Hint Rewrite @denote_tc_assert_andp' @denote_tc_assert_andp''
+    @denote_tc_assert_orp' @denote_tc_assert_orp''
+    @denote_tc_assert_iszero' @denote_tc_assert_nonzero'
+    @denote_tc_assert_nodivover' @denote_tc_assert_ilt'
+    @denote_tc_assert_comparable'
      : dtca.
 
 Ltac dtca := autorewrite with dtca; auto.
@@ -520,43 +510,43 @@ try destruct i,s; auto;
 try destruct i0,s0; auto.
 Qed.
 
-Lemma den_isBinOpR: forall Delta op a1 a2 ty,
-  denote_tc_assert Delta (isBinOpResultType Delta op a1 a2 ty) = 
+Lemma den_isBinOpR: forall {CS: compspecs} op a1 a2 ty,
+  denote_tc_assert (isBinOpResultType op a1 a2 ty) = 
 let e := (Ebinop op a1 a2 ty) in
 let reterr := op_result_type e in
 let deferr := arg_type e in 
-denote_tc_assert Delta 
+denote_tc_assert 
 match op with
   | Cop.Oadd => match classify_add' (typeof a1) (typeof a2) with 
                     | Cop.add_case_pi t => tc_andp' (tc_andp' (tc_isptr a1)
-                                           (tc_bool (complete_type (composite_types Delta) t) reterr))
+                                           (tc_bool (complete_type cenv_cs t) reterr))
                                             (tc_bool (is_pointer_type ty) reterr)
                     | Cop.add_case_ip t => tc_andp' (tc_andp' (tc_isptr a2)
-                                           (tc_bool (complete_type (composite_types Delta) t) reterr))
+                                           (tc_bool (complete_type cenv_cs t) reterr))
                                             (tc_bool (is_pointer_type ty) reterr)
                     | Cop.add_case_pl t => tc_andp' (tc_andp' (tc_isptr a1)
-                                           (tc_bool (complete_type (composite_types Delta) t) reterr))
+                                           (tc_bool (complete_type cenv_cs t) reterr))
                                             (tc_bool (is_pointer_type ty) reterr)
                     | Cop.add_case_lp t => tc_andp' (tc_andp' (tc_isptr a2)
-                                           (tc_bool (complete_type (composite_types Delta) t) reterr))
+                                           (tc_bool (complete_type cenv_cs t) reterr))
                                             (tc_bool (is_pointer_type ty) reterr)
                     | Cop.add_default => binarithType (typeof a1) (typeof a2) ty deferr reterr
             end
   | Cop.Osub => match classify_sub' (typeof a1) (typeof a2) with 
                     | Cop.sub_case_pi t => tc_andp' (tc_andp' (tc_isptr a1)
-                                           (tc_bool (complete_type (composite_types Delta) t) reterr))
+                                           (tc_bool (complete_type cenv_cs t) reterr))
                                             (tc_bool (is_pointer_type ty) reterr)
                     | Cop.sub_case_pl t => tc_andp' (tc_andp' (tc_isptr a1)
-                                           (tc_bool (complete_type (composite_types Delta) t) reterr))
+                                           (tc_bool (complete_type cenv_cs t) reterr))
                                             (tc_bool (is_pointer_type ty) reterr)
                     | Cop.sub_case_pp t =>  (*tc_isptr may be redundant here*)
                              tc_andp' (tc_andp' (tc_andp' (tc_andp' (tc_andp' (tc_andp' (tc_samebase a1 a2)
                              (tc_isptr a1))
                               (tc_isptr a2))
                                (tc_bool (is_int32_type ty) reterr))
-			        (tc_bool (negb (Int.eq (Int.repr (sizeof (composite_types Delta) t)) Int.zero)) 
+			        (tc_bool (negb (Int.eq (Int.repr (sizeof cenv_cs t)) Int.zero)) 
                                       (pp_compare_size_0 t)))
-                                 (tc_bool (complete_type (composite_types Delta) t) reterr))
+                                 (tc_bool (complete_type cenv_cs t) reterr))
                                   (tc_bool (is_pointer_type ty) reterr)
                     | Cop.sub_default => binarithType (typeof a1) (typeof a2) ty deferr reterr
             end 
@@ -630,8 +620,8 @@ Proof.
 Qed.
 
 Lemma denote_tc_assert'_andp'_e:
- forall Delta a b rho m, denote_tc_assert' Delta (tc_andp' a b) rho m ->
-    denote_tc_assert' Delta a rho m /\ denote_tc_assert' Delta b rho m.
+ forall {CS: compspecs} a b rho m, denote_tc_assert' (tc_andp' a b) rho m ->
+    denote_tc_assert' a rho m /\ denote_tc_assert' b rho m.
 Proof. intros.
  rewrite denote_tc_assert'_eq in *. apply H.
 Qed.

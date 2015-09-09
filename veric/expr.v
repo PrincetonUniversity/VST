@@ -227,9 +227,9 @@ end.
 
 Definition true2 (b : block) (i : Z) := true.
 
-Definition eval_binop cenv (op: Cop.binary_operation) (t1 t2 : type) :=
-       force_val2 (Cop2.sem_binary_operation' cenv op t1 t2 true2).
-Arguments eval_binop cenv op t1 t2 / v1 v2.
+Definition eval_binop {CS:compspecs} (op: Cop.binary_operation) (t1 t2 : type) :=
+       force_val2 (Cop2.sem_binary_operation'  op t1 t2 true2).
+Arguments eval_binop CS op t1 t2 / v1 v2.
 
 Definition eval_cast (t1 t2 : type) :=
   force_val1 (sem_cast t1 t2).
@@ -246,19 +246,19 @@ Definition offset_val (ofs: int) (v: val) : val :=
   | _ => Vundef
  end.
 
-Definition eval_field (Delta: tycontext) (ty: type) (fld: ident) : val -> val :=
+Definition eval_field {CS: compspecs} (ty: type) (fld: ident) : val -> val :=
           match ty with
              | Tstruct id att =>
-                 match (composite_types Delta) ! id with
+                 match cenv_cs ! id with
                  | Some co =>
-                         match field_offset (composite_types Delta) fld (co_members co) with 
+                         match field_offset cenv_cs fld (co_members co) with 
                          | Errors.OK delta => offset_val (Int.repr delta)
                          | _ => always Vundef
                          end
                  | _ => always Vundef
                  end
              | Tunion id att =>
-                 match (composite_types Delta) ! id with
+                 match cenv_cs ! id with
                  | Some co => force_ptr
                  | _ => always Vundef
                  end
@@ -283,42 +283,42 @@ Definition deref_noload (ty: type) : val -> val :=
  | _ => always Vundef
  end.
 
-Fixpoint eval_expr (Delta: tycontext) (e: expr) : environ -> val :=
+Fixpoint eval_expr {CS: compspecs} (e: expr) : environ -> val :=
  match e with
  | Econst_int i ty => `(Vint i)
  | Econst_long i ty => `(Vlong i)
  | Econst_float f ty => `(Vfloat f)
  | Econst_single f ty => `(Vsingle f)
  | Etempvar id ty => eval_id id 
- | Eaddrof a ty => eval_lvalue Delta a 
- | Eunop op a ty =>  `(eval_unop op (typeof a)) (eval_expr Delta a) 
+ | Eaddrof a ty => eval_lvalue a 
+ | Eunop op a ty =>  `(eval_unop op (typeof a)) (eval_expr a) 
  | Ebinop op a1 a2 ty =>  
-                  `(eval_binop Delta op (typeof a1) (typeof a2)) (eval_expr Delta a1) (eval_expr Delta a2)
- | Ecast a ty => `(eval_cast (typeof a) ty) (eval_expr Delta a)
+                  `(eval_binop op (typeof a1) (typeof a2)) (eval_expr a1) (eval_expr a2)
+ | Ecast a ty => `(eval_cast (typeof a) ty) (eval_expr a)
  | Evar id ty => `(deref_noload ty) (eval_var id ty)
- | Ederef a ty => `(deref_noload ty) (`force_ptr (eval_expr Delta a))
- | Efield a i ty => `(deref_noload ty) (`(eval_field Delta (typeof a) i) (eval_lvalue Delta a))
- | Esizeof t ty => `(Vint (Int.repr (sizeof (composite_types Delta) t)))
- | Ealignof t ty => `(Vint (Int.repr (alignof (composite_types Delta) t)))
+ | Ederef a ty => `(deref_noload ty) (`force_ptr (eval_expr a))
+ | Efield a i ty => `(deref_noload ty) (`(eval_field (typeof a) i) (eval_lvalue a))
+ | Esizeof t ty => `(Vint (Int.repr (sizeof cenv_cs t)))
+ | Ealignof t ty => `(Vint (Int.repr (alignof cenv_cs t)))
  end
 
- with eval_lvalue (Delta: tycontext) (e: expr) : environ -> val := 
+ with eval_lvalue {CS: compspecs} (e: expr) : environ -> val := 
  match e with 
  | Evar id ty => eval_var id ty
- | Ederef a ty => `force_ptr (eval_expr Delta a)
- | Efield a i ty => `(eval_field Delta (typeof a) i) (eval_lvalue Delta a)
+ | Ederef a ty => `force_ptr (eval_expr a)
+ | Efield a i ty => `(eval_field (typeof a) i) (eval_lvalue a)
  | _  => `Vundef
  end.
 
-Fixpoint eval_exprlist (Delta: tycontext) (et: list type) (el:list expr) : environ -> list val :=
+Fixpoint eval_exprlist {CS: compspecs} (et: list type) (el:list expr) : environ -> list val :=
  match et, el with
  | t::et', e::el' =>
-    `(@cons val) (`force_val (`(sem_cast (typeof e) t) (eval_expr Delta e))) (eval_exprlist Delta et' el')
+    `(@cons val) (`force_val (`(sem_cast (typeof e) t) (eval_expr e))) (eval_exprlist et' el')
  | _, _ => `nil
  end.
 
-Definition eval_expropt (Delta: tycontext) (e: option expr) : environ -> option val :=
- match e with Some e' => `(@Some val) (eval_expr Delta e')  | None => `None end.
+Definition eval_expropt {CS: compspecs} (e: option expr) : environ -> option val :=
+ match e with Some e' => `(@Some val) (eval_expr e')  | None => `None end.
 
 (** Beginning of typechecking **)
 
@@ -407,28 +407,28 @@ Inductive tc_assert :=
 | tc_nodivover': expr -> expr -> tc_assert
 | tc_initialized: PTree.elt -> type -> tc_assert.
 
-Definition tc_iszero (Delta: tycontext) (e: expr) : tc_assert :=
-  match eval_expr Delta e any_environ with
+Definition tc_iszero {CS: compspecs} (e: expr) : tc_assert :=
+  match eval_expr e any_environ with
   | Vint i => if Int.eq i Int.zero then tc_TT else tc_FF (pp_compare_size_0 Tvoid)
   | Vlong i => if Int.eq (Int.repr (Int64.unsigned i)) Int.zero then tc_TT else tc_FF (pp_compare_size_0 Tvoid)
   | _ => tc_iszero' e
   end.
 
-Definition tc_nonzero (Delta: tycontext) (e: expr) : tc_assert :=
-  match eval_expr Delta e any_environ with
+Definition tc_nonzero {CS: compspecs} (e: expr) : tc_assert :=
+  match eval_expr e any_environ with
    | Vint i => if negb (Int.eq i Int.zero) then tc_TT else tc_nonzero' e
    | _ => tc_nonzero' e
    end.
 
-Definition tc_comparable (Delta: tycontext) (e1 e2: expr) : tc_assert :=
- match eval_expr Delta e1 any_environ, eval_expr Delta e2 any_environ with
+Definition tc_comparable {CS: compspecs} (e1 e2: expr) : tc_assert :=
+ match eval_expr e1 any_environ, eval_expr e2 any_environ with
  | Vint i, Vint j => if andb (Int.eq i Int.zero) (Int.eq j Int.zero) 
                              then tc_TT else tc_comparable' e1 e2
  | _, _ => tc_comparable' e1 e2
  end.
 
-Definition tc_nodivover (Delta: tycontext) (e1 e2: expr) : tc_assert :=
- match eval_expr Delta e1 any_environ, eval_expr Delta e2 any_environ with
+Definition tc_nodivover {CS: compspecs} (e1 e2: expr) : tc_assert :=
+ match eval_expr e1 any_environ, eval_expr e2 any_environ with
                            | Vint n1, Vint n2 => if (negb 
                                    (Int.eq n1 (Int.repr Int.min_signed) 
                                     && Int.eq n2 Int.mone))
@@ -461,10 +461,10 @@ end.
 Definition tc_bool (b : bool) (e: tc_error) :=
 if b then tc_TT else tc_FF e.
 
-Definition check_pp_int (Delta: tycontext) e1 e2 op t e :=
+Definition check_pp_int {CS: compspecs} e1 e2 op t e :=
 match op with 
 | Cop.Oeq | Cop.One => tc_andp 
-                         (tc_comparable Delta e1 e2)
+                         (tc_comparable e1 e2)
                          (tc_bool (is_int_type t) (op_result_type e))
 | _ => tc_noproof
 end.
@@ -491,19 +491,19 @@ Definition binarithType t1 t2 ty deferr reterr : tc_assert :=
 Definition is_numeric_type t :=
 match t with Tint _ _ _ | Tlong _ _ | Tfloat _ _ => true | _ => false end.
 
-Definition tc_ilt (Delta: tycontext) (e: expr) (j: int) :=
-    match eval_expr Delta e any_environ with
+Definition tc_ilt {CS: compspecs} (e: expr) (j: int) :=
+    match eval_expr e any_environ with
     | Vint i => if Int.ltu i j then tc_TT else tc_ilt' e j
     | _ => tc_ilt' e j
     end.
 
-Definition isUnOpResultType  (Delta: tycontext) op a ty : tc_assert := 
+Definition isUnOpResultType {CS: compspecs} op a ty : tc_assert := 
 match op with 
   | Cop.Onotbool => match Cop.classify_bool (typeof a) with
                         | Cop.bool_default => tc_FF (op_result_type a)
                         | Cop.bool_case_p => 
                            tc_andp (tc_bool (is_int_type ty) (op_result_type a))
-                                         (tc_comparable Delta a (Econst_int Int.zero (Tint I32 Signed noattr)))
+                                         (tc_comparable a (Econst_int Int.zero (Tint I32 Signed noattr)))
                         | _ => tc_bool (is_int_type ty) (op_result_type a)
                         end
   | Cop.Onotint => match Cop.classify_notint (typeof a) with
@@ -526,73 +526,73 @@ match op with
                     end
 end.
 
-Definition isBinOpResultType (Delta: tycontext) op a1 a2 ty : tc_assert :=
+Definition isBinOpResultType {CS: compspecs} op a1 a2 ty : tc_assert :=
 let e := (Ebinop op a1 a2 ty) in
 let reterr := op_result_type e in
 let deferr := arg_type e in 
 match op with
   | Cop.Oadd => match Cop.classify_add (typeof a1) (typeof a2) with 
                     | Cop.add_case_pi t => tc_andp (tc_andp (tc_isptr a1)
-                                           (tc_bool (complete_type (composite_types Delta) t) reterr))
+                                           (tc_bool (complete_type cenv_cs t) reterr))
                                             (tc_bool (is_pointer_type ty) reterr)
                     | Cop.add_case_ip t => tc_andp (tc_andp (tc_isptr a2)
-                                           (tc_bool (complete_type (composite_types Delta) t) reterr))
+                                           (tc_bool (complete_type cenv_cs t) reterr))
                                             (tc_bool (is_pointer_type ty) reterr)
                     | Cop.add_case_pl t => tc_andp (tc_andp (tc_isptr a1)
-                                           (tc_bool (complete_type (composite_types Delta) t) reterr))
+                                           (tc_bool (complete_type cenv_cs t) reterr))
                                             (tc_bool (is_pointer_type ty) reterr)
                     | Cop.add_case_lp t => tc_andp (tc_andp (tc_isptr a2)
-                                           (tc_bool (complete_type (composite_types Delta) t) reterr))
+                                           (tc_bool (complete_type cenv_cs t) reterr))
                                             (tc_bool (is_pointer_type ty) reterr)
                     | Cop.add_default => binarithType (typeof a1) (typeof a2) ty deferr reterr
             end
   | Cop.Osub => match Cop.classify_sub (typeof a1) (typeof a2) with 
                     | Cop.sub_case_pi t => tc_andp (tc_andp (tc_isptr a1)
-                                           (tc_bool (complete_type (composite_types Delta) t) reterr))
+                                           (tc_bool (complete_type cenv_cs t) reterr))
                                             (tc_bool (is_pointer_type ty) reterr)
                     | Cop.sub_case_pl t => tc_andp (tc_andp (tc_isptr a1)
-                                           (tc_bool (complete_type (composite_types Delta) t) reterr))
+                                           (tc_bool (complete_type cenv_cs t) reterr))
                                             (tc_bool (is_pointer_type ty) reterr)
                     | Cop.sub_case_pp t =>  (*tc_isptr may be redundant here*)
                              tc_andp (tc_andp (tc_andp (tc_andp (tc_andp (tc_andp (tc_samebase a1 a2)
                              (tc_isptr a1))
                               (tc_isptr a2))
                                (tc_bool (is_int32_type ty) reterr))
-			        (tc_bool (negb (Int.eq (Int.repr (sizeof (composite_types Delta) t)) Int.zero)) 
+			        (tc_bool (negb (Int.eq (Int.repr (sizeof cenv_cs t)) Int.zero)) 
                                       (pp_compare_size_0 t)))
-                                 (tc_bool (complete_type (composite_types Delta) t) reterr))
+                                 (tc_bool (complete_type cenv_cs t) reterr))
                                   (tc_bool (is_pointer_type ty) reterr)
                     | Cop.sub_default => binarithType (typeof a1) (typeof a2) ty deferr reterr
             end 
   | Cop.Omul => binarithType (typeof a1) (typeof a2) ty deferr reterr
   | Cop.Omod => match Cop.classify_binarith (typeof a1) (typeof a2) with
                     | Cop.bin_case_i Unsigned => 
-                           tc_andp (tc_nonzero Delta a2) 
+                           tc_andp (tc_nonzero a2) 
                            (tc_bool (is_int32_type ty) reterr)
                     | Cop.bin_case_l Unsigned => 
-                           tc_andp (tc_nonzero Delta a2) 
+                           tc_andp (tc_nonzero a2) 
                            (tc_bool (is_long_type ty) reterr)
-                    | Cop.bin_case_i Signed => tc_andp (tc_andp (tc_nonzero Delta a2) 
-                                                      (tc_nodivover Delta a1 a2))
+                    | Cop.bin_case_i Signed => tc_andp (tc_andp (tc_nonzero a2) 
+                                                      (tc_nodivover a1 a2))
                                                      (tc_bool (is_int32_type ty) reterr)
-                    | Cop.bin_case_l Signed => tc_andp (tc_andp (tc_nonzero Delta a2) 
-                                                      (tc_nodivover Delta a1 a2))
+                    | Cop.bin_case_l Signed => tc_andp (tc_andp (tc_nonzero a2) 
+                                                      (tc_nodivover a1 a2))
                                                      (tc_bool (is_long_type ty) reterr)
                     | _ => tc_FF deferr
             end
   | Cop.Odiv => match Cop.classify_binarith (typeof a1) (typeof a2) with
-                    | Cop.bin_case_i Unsigned => tc_andp (tc_nonzero Delta a2) (tc_bool (is_int32_type ty) reterr)
-                    | Cop.bin_case_l Unsigned => tc_andp (tc_nonzero Delta a2) (tc_bool (is_long_type ty) reterr)
-                    | Cop.bin_case_i Signed => tc_andp (tc_andp (tc_nonzero Delta a2) (tc_nodivover Delta a1 a2)) 
+                    | Cop.bin_case_i Unsigned => tc_andp (tc_nonzero a2) (tc_bool (is_int32_type ty) reterr)
+                    | Cop.bin_case_l Unsigned => tc_andp (tc_nonzero a2) (tc_bool (is_long_type ty) reterr)
+                    | Cop.bin_case_i Signed => tc_andp (tc_andp (tc_nonzero a2) (tc_nodivover a1 a2)) 
                                                         (tc_bool (is_int32_type ty) reterr)
-                    | Cop.bin_case_l Signed => tc_andp (tc_andp (tc_nonzero Delta a2) (tc_nodivover Delta a1 a2)) 
+                    | Cop.bin_case_l Signed => tc_andp (tc_andp (tc_nonzero a2) (tc_nodivover a1 a2)) 
                                                         (tc_bool (is_long_type ty) reterr)
                     | Cop.bin_case_f  =>  tc_bool (is_float_type ty) reterr 
                     | Cop.bin_case_s  =>  tc_bool (is_single_type ty) reterr 
                     | Cop.bin_default => tc_FF deferr
             end
   | Cop.Oshl | Cop.Oshr => match Cop.classify_shift (typeof a1) (typeof a2) with
-                    | Cop.shift_case_ii _ =>  tc_andp (tc_ilt Delta a2 Int.iwordsize) (tc_bool (is_int32_type ty) 
+                    | Cop.shift_case_ii _ =>  tc_andp (tc_ilt a2 Int.iwordsize) (tc_bool (is_int32_type ty) 
                                                                                          reterr)
                     (* NEED TO HANDLE OTHER SHIFT CASES *)
                     | _ => tc_FF deferr
@@ -610,13 +610,13 @@ match op with
                                          && is_numeric_type (typeof a2)
                                           && is_int_type ty)
                                              deferr
-		    | Cop.cmp_case_pp => check_pp_int Delta a1 a2 op ty e
-                    | Cop.cmp_case_pl => check_pp_int Delta (Ecast a1 (Tint I32 Unsigned noattr)) a2 op ty e
-                    | Cop.cmp_case_lp => check_pp_int Delta (Ecast a2 (Tint I32 Unsigned noattr)) a1 op ty e
+		    | Cop.cmp_case_pp => check_pp_int a1 a2 op ty e
+                    | Cop.cmp_case_pl => check_pp_int (Ecast a1 (Tint I32 Unsigned noattr)) a2 op ty e
+                    | Cop.cmp_case_lp => check_pp_int (Ecast a2 (Tint I32 Unsigned noattr)) a1 op ty e
                    end
   end.
 
-Definition isCastResultType (Delta: tycontext) tfrom tto a : tc_assert :=
+Definition isCastResultType {CS: compspecs} tfrom tto a : tc_assert :=
   (* missing casts from f2s and s2f *)
 match Cop.classify_cast tfrom tto with
 | Cop.cast_case_default => tc_FF (invalid_cast tfrom tto)
@@ -627,7 +627,7 @@ match Cop.classify_cast tfrom tto with
 | Cop.cast_case_i2l _ => tc_bool (is_int_type tfrom) (invalid_cast_result tfrom tto)
 | Cop.cast_case_neutral  => if eqb_type tfrom tto then tc_TT else 
                             (if orb  (andb (is_pointer_type tto) (is_pointer_type tfrom)) (andb (is_int_type tto) (is_int_type tfrom)) then tc_TT
-                                else tc_iszero Delta a)
+                                else tc_iszero a)
 | Cop.cast_case_l2l => tc_bool (is_long_type tfrom && is_long_type tto) (invalid_cast_result tto tto)
 | Cop.cast_case_void => tc_noproof
 | Cop.cast_case_f2bool => tc_bool (is_float_type tfrom) (invalid_cast_result tfrom tto)
@@ -725,7 +725,7 @@ end.
 (** Main typechecking function, with work will typecheck both pure
 and non-pure expressions, for now mostly just works with pure expressions **)
 
-Fixpoint typecheck_expr (Delta : tycontext) (e: expr) : tc_assert :=
+Fixpoint typecheck_expr {CS: compspecs}(Delta : tycontext) (e: expr) : tc_assert :=
 let tcr := typecheck_expr Delta in
 match e with
  | Econst_int _ (Tint I32 _ _) => tc_TT 
@@ -740,9 +740,9 @@ match e with
                        end
  | Eaddrof a ty => tc_andp (typecheck_lvalue Delta a) (tc_bool (is_pointer_type ty)
                                                       (op_result_type e))
- | Eunop op a ty => tc_andp (isUnOpResultType Delta op a ty) (tcr a)
- | Ebinop op a1 a2 ty => tc_andp (tc_andp (isBinOpResultType Delta op a1 a2 ty)  (tcr a1)) (tcr a2)
- | Ecast a ty => tc_andp (tcr a) (isCastResultType Delta (typeof a) ty a)
+ | Eunop op a ty => tc_andp (isUnOpResultType op a ty) (tcr a)
+ | Ebinop op a1 a2 ty => tc_andp (tc_andp (isBinOpResultType op a1 a2 ty)  (tcr a1)) (tcr a2)
+ | Ecast a ty => tc_andp (tcr a) (isCastResultType (typeof a) ty a)
  | Evar id ty => match access_mode ty with
                          | By_reference => 
                             match get_var_type Delta id with 
@@ -756,16 +756,16 @@ match e with
                          | By_reference => 
                             tc_andp (typecheck_lvalue Delta a) (match typeof a with
                             | Tstruct id att =>
-                               match (composite_types Delta) ! id with
+                               match cenv_cs ! id with
                                | Some co =>
-                                  match field_offset (composite_types Delta) i (co_members co) with 
+                                  match field_offset cenv_cs i (co_members co) with 
                                   | Errors.OK delta => tc_TT
                                   | _ => tc_FF (invalid_struct_field i id)
                                   end
                                | _ => tc_FF (invalid_composite_name id)
                                end
                             | Tunion id att =>
-                               match (composite_types Delta) ! id with
+                               match cenv_cs ! id with
                                | Some co => tc_TT
                                | _ => tc_FF (invalid_composite_name id)
                                end
@@ -781,14 +781,14 @@ match e with
                        (tc_isptr a)
                   | _ => tc_FF (deref_byvalue ty)
                   end
- | Esizeof ty t => tc_andp (tc_bool (complete_type (composite_types Delta) ty) (invalid_expression e))
+ | Esizeof ty t => tc_andp (tc_bool (complete_type cenv_cs ty) (invalid_expression e))
                      (tc_bool (eqb_type t (Tint I32 Unsigned noattr)) (invalid_expression e))
- | Ealignof ty t => tc_andp (tc_bool (complete_type (composite_types Delta) ty) (invalid_expression e))
+ | Ealignof ty t => tc_andp (tc_bool (complete_type cenv_cs ty) (invalid_expression e))
                      (tc_bool (eqb_type t (Tint I32 Unsigned noattr)) (invalid_expression e))
  | _ => tc_FF (invalid_expression e)
 end
 
-with typecheck_lvalue (Delta: tycontext) (e: expr) : tc_assert :=
+with typecheck_lvalue {CS: compspecs}(Delta: tycontext) (e: expr) : tc_assert :=
 match e with
  | Evar id ty => match get_var_type Delta id with 
                   | Some ty' => tc_bool (eqb_type ty ty') 
@@ -804,16 +804,16 @@ match e with
                          (typecheck_lvalue Delta a) 
                          (match typeof a with
                             | Tstruct id att =>
-                              match (composite_types Delta) ! id with
+                              match cenv_cs ! id with
                               | Some co =>
-                                   match field_offset (composite_types Delta) i (co_members co) with 
+                                   match field_offset cenv_cs i (co_members co) with 
                                      | Errors.OK delta => tc_TT
                                      | _ => tc_FF (invalid_struct_field i id)
                                    end
                               | _ => tc_FF (invalid_composite_name id)
                               end
                             | Tunion id att =>
-                              match (composite_types Delta) ! id with
+                              match cenv_cs ! id with
                               | Some co => tc_TT
                               | _ => tc_FF (invalid_composite_name id)
                               end
@@ -828,11 +828,11 @@ Definition implicit_deref (t: type) : type :=
   | _ => t
   end.
 
-Definition typecheck_temp_id id ty Delta a : tc_assert :=
+Definition typecheck_temp_id {CS: compspecs}id ty Delta a : tc_assert :=
   match (temp_types Delta)!id with
   | Some (t,_) => 
       tc_andp (tc_bool (is_neutral_cast (implicit_deref ty) t) (invalid_cast ty t)) 
-                  (isCastResultType Delta (implicit_deref ty) t a)
+                  (isCastResultType (implicit_deref ty) t a)
   | None => tc_FF (var_not_in_tycontext Delta id)
  end.
 
@@ -852,14 +852,14 @@ end.
 
 (* A more standard typechecker, should approximate the c typechecker,
 might need to add a tc_noproof for nested loads*)
-Definition typecheck_b Delta e :=  tc_might_be_true (typecheck_expr Delta e).
+Definition typecheck_b {CS: compspecs}Delta e :=  tc_might_be_true (typecheck_expr Delta e).
 
 (*Definition of the original *pure* typechecker where true means the expression
 will always evaluate, may not be useful since tc_denote will just compute to true
 on these assertions*)
-Definition typecheck_pure_b Delta e := tc_always_true (typecheck_expr Delta e).
+Definition typecheck_pure_b {CS: compspecs}Delta e := tc_always_true (typecheck_expr Delta e).
 
-Fixpoint typecheck_exprlist (Delta : tycontext) (tl : list type) (el : list expr) : tc_assert :=
+Fixpoint typecheck_exprlist {CS: compspecs}(Delta : tycontext) (tl : list type) (el : list expr) : tc_assert :=
 match tl,el with
 | t::tl', e:: el' => tc_andp (typecheck_expr Delta (Ecast e t)) 
                       (typecheck_exprlist Delta tl' el')
@@ -993,15 +993,15 @@ Proof.
  destruct (snd fsig); destruct ret; intuition congruence.
 Qed.
 
-Definition expr_closed_wrt_vars (S: ident -> Prop) (e: expr) : Prop := 
-  forall Delta rho te',  
+Definition expr_closed_wrt_vars {CS: compspecs}(S: ident -> Prop) (e: expr) : Prop := 
+  forall rho te',  
      (forall i, S i \/ Map.get (te_of rho) i = Map.get te' i) ->
-     eval_expr Delta e rho = eval_expr Delta e (mkEnviron (ge_of rho) (ve_of rho) te').
+     eval_expr e rho = eval_expr e (mkEnviron (ge_of rho) (ve_of rho) te').
 
-Definition lvalue_closed_wrt_vars (S: ident -> Prop) (e: expr) : Prop := 
-  forall Delta rho te',  
+Definition lvalue_closed_wrt_vars {CS: compspecs}(S: ident -> Prop) (e: expr) : Prop := 
+  forall rho te',  
      (forall i, S i \/ Map.get (te_of rho) i = Map.get te' i) ->
-     eval_lvalue Delta e rho = eval_lvalue Delta e (mkEnviron (ge_of rho) (ve_of rho) te').
+     eval_lvalue e rho = eval_lvalue e (mkEnviron (ge_of rho) (ve_of rho) te').
 
 Definition env_set (rho: environ) (x: ident) (v: val) : environ :=
   mkEnviron (ge_of rho) (ve_of rho) (Map.set x v (te_of rho)).

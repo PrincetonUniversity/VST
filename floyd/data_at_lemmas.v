@@ -42,7 +42,6 @@ fields of structs or unions.
 Section CENV.
 
 Context {cs: compspecs}.
-Context {csl: compspecs_legal cs}.
 
 (*
 Lemma proj_struct_default: forall i m d,

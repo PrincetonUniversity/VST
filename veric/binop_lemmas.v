@@ -10,18 +10,6 @@ Require Import veric.Cop2.
 Require Import veric.binop_lemmas2.
 Import Cop.
  
-Lemma is_true_e: forall b, is_true b -> b=true.
-Proof. intros. destruct b; try contradiction; auto.
-Qed.
-
-Lemma tc_bool_e: forall Delta b a rho m,
-  app_pred (denote_tc_assert Delta (tc_bool b a) rho) m ->
-  b = true.
-Proof.
-intros.
-destruct b; simpl in H; auto.
-Qed.
-
 Lemma denote_tc_nonzero_e:
  forall i m, app_pred (denote_tc_nonzero (Vint i)) m -> Int.eq i Int.zero = false.
 Proof.
@@ -245,13 +233,13 @@ subst i. rewrite Int.eq_true.
 Qed.
 
 Lemma typecheck_binop_sound:
-forall op (Delta : tycontext) (rho : environ) m (e1 e2 : expr) (t : type)
-   (IBR: denote_tc_assert Delta (isBinOpResultType Delta op e1 e2 t) rho m)
-   (TV2: typecheck_val (eval_expr Delta e2 rho) (typeof e2) = true)
-   (TV1: typecheck_val (eval_expr Delta e1 rho) (typeof e1) = true),
+forall op {CS: compspecs} (Delta : tycontext) (rho : environ) m (e1 e2 : expr) (t : type)
+   (IBR: denote_tc_assert (isBinOpResultType op e1 e2 t) rho m)
+   (TV2: typecheck_val (eval_expr e2 rho) (typeof e2) = true)
+   (TV1: typecheck_val (eval_expr e1 rho) (typeof e1) = true),
    typecheck_val
-     (eval_binop Delta op (typeof e1) (typeof e2) (eval_expr Delta e1 rho)
-        (eval_expr Delta e2 rho)) t = true.
+     (eval_binop op (typeof e1) (typeof e2) (eval_expr e1 rho)
+        (eval_expr e2 rho)) t = true.
 Proof.
 intros; destruct op;
 rewrite den_isBinOpR in IBR; simpl in IBR;
@@ -264,8 +252,8 @@ try abstract (
  rewrite ?TE1, ?TE2 in IBR; simpl in IBR; clear TE1 TE2;
  match type of IBR with context [@liftx] => unfold_lift in IBR | _ => idtac end;
  try simple apply tc_bool_e in IBR;
- destruct (eval_expr Delta e1 rho); try discriminate TV1;
- destruct (eval_expr Delta e2 rho); try discriminate TV2;
+ destruct (eval_expr e1 rho); try discriminate TV1;
+ destruct (eval_expr e2 rho); try discriminate TV2;
  destruct t as [ | [ | | | ] [ | ] ? | [ | ] ? | [ | ] ? | | | | | ]; 
  try contradiction IBR; try discriminate IBR; 
  simpl; unfold Cop2.sem_div, Cop2.sem_mod, 

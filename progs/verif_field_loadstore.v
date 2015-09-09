@@ -1,9 +1,8 @@
 Require Import floyd.proofauto.
 Require Import progs.field_loadstore.
 
-Instance CompSpecs : compspecs := compspecs_program prog.
-Instance CS_legal : compspecs_legal CompSpecs.
-Proof. prove_CS_legal. Qed.
+Instance CompSpecs : compspecs.
+Proof. make_compspecs prog. Defined.  
 
 Local Open Scope logic.
 

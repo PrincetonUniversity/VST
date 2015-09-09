@@ -2,9 +2,8 @@ Require Import floyd.proofauto.
 Require Import progs.list_dt. Import Links.
 Require Import progs.queue.
 
-Instance CompSpecs : compspecs := compspecs_program prog.
-Instance CS_legal : compspecs_legal CompSpecs.
-Proof. prove_CS_legal. Qed.
+Instance CompSpecs : compspecs.
+Proof. make_compspecs prog. Defined.  
 
 Definition t_struct_elem := Tstruct _elem noattr.
 Definition t_struct_fifo := Tstruct _fifo noattr.
@@ -27,7 +26,7 @@ Definition malloc_compatible (n: Z) (p: val) : Prop :=
   end.
 
 Lemma malloc_compatible_field_compatible:
-  forall (cs: compspecs) (csl: compspecs_legal cs) t p n,
+  forall (cs: compspecs) t p n,
      sizeof cenv_cs t = n ->
      legal_alignas_type t = true ->
      legal_cosu_type t = true ->
@@ -586,12 +585,12 @@ forward. (*   j = p->b; *)
 forward_call' (*  freeN(p, sizeof( *p)); *)
    (p', sizeof cenv_cs t_struct_elem).
 {
-
- apply derives_trans with
-  (fifo [p2] q * 
+pose (work_around_coq_bug := fifo [p2] q * 
    data_at Tsh t_struct_elem (Vint (Int.repr 1), (Vint (Int.repr 10), Vundef)) p' *
    field_at Qsh' list_struct [StructField _a] (Vint (Int.repr 2)) p2 *
    field_at Qsh' list_struct [StructField _b] (Vint (Int.repr 20)) p2).
+
+ apply derives_trans with work_around_coq_bug; subst work_around_coq_bug.
  unfold data_at; rewrite make_unmake; cancel.
  apply derives_trans with
    (data_at_ Tsh t_struct_elem p' * fold_right sepcon emp Frame).

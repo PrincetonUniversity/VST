@@ -110,14 +110,14 @@ Proof.
   rewrite H; reflexivity.
 Qed.
 
-Lemma semax_equiv_spec: forall c1 c2,
+Lemma semax_equiv_spec{CS: compspecs}: forall c1 c2,
   semax_equiv c1 c2 ->
   (forall P Q Delta, semax Espec Delta P c1 Q -> semax Espec Delta P c2 Q).
 Proof.
   rewrite semax_unfold.
   unfold semax_equiv.
   intros ? ? [JS_EQUIV [M_EQUIV U_EQUIV]] P Q Delta Hc1; intros.
-  specialize (Hc1 psi Delta' w TS Prog_OK k F).
+  specialize (Hc1 psi Delta' w TS HGG Prog_OK k F).
 
   apply modifiedvars_closed_wrt_modvars_equiv in M_EQUIV.
   specialize (M_EQUIV F).
@@ -407,7 +407,7 @@ Proof.
   apply unfold_Ssequence_unfold_Sseq_rel.
 Qed.
 
-Lemma semax_unfold_Ssequence: forall c1 c2,
+Lemma semax_unfold_Ssequence {CS: compspecs}: forall c1 c2,
   unfold_Ssequence c1 = unfold_Ssequence c2 ->
   (forall P Q Delta, semax Espec Delta P c1 Q -> semax Espec Delta P c2 Q).
 Proof.

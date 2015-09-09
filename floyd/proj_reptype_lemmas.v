@@ -10,7 +10,6 @@ Require Import floyd.sublist.
 Section PROJ_REPTYPE.
 
 Context {cs: compspecs}.
-Context {csl: compspecs_legal cs}.
 
 Definition proj_gfield_reptype (t: type) (gf: gfield) (v: reptype t): reptype (gfield_type t gf) :=
   match t, gf return (REPTYPE t -> reptype (gfield_type t gf))

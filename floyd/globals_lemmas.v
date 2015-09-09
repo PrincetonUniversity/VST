@@ -161,7 +161,7 @@ Definition eval_sgvar (id: ident) (ty: type) (rho: environ) :=
 | None => Vundef
 end.
 
-Definition init_data2pred' {cs: compspecs} {csl: compspecs_legal cs}
+Definition init_data2pred' {cs: compspecs}
      (Delta: tycontext)  (d: init_data)  (sh: share) (ty: type) (v: val) : environ -> mpred :=
  match d with
   | Init_int8 i => `(mapsto sh tuchar v (Vint (Int.zero_ext 8 i)))
@@ -196,7 +196,7 @@ Proof.
   omega.
 Qed.
 
-Lemma unpack_globvar_aux1 {cs: compspecs} {csl: compspecs_legal cs}:
+Lemma unpack_globvar_aux1 {cs: compspecs}:
   forall sh t b v i_ofs, 
   Int.unsigned i_ofs + sizeof cenv_cs (Tpointer t noattr) <= Int.max_unsigned ->
                mapsto sh (Tpointer t noattr) (Vptr b i_ofs) v
@@ -214,7 +214,7 @@ Proof.
 intros. reflexivity.
 Qed.
 
-Lemma init_data_size_space {cs: compspecs}  {csl: compspecs_legal cs}:
+Lemma init_data_size_space {cs: compspecs}:
  forall t, init_data_size (Init_space (sizeof cenv_cs t)) = sizeof cenv_cs t.
 Proof. intros.
  pose proof (sizeof_pos cenv_cs t).
@@ -230,7 +230,7 @@ extensionality v1 v2.
 simpl. auto.
 Qed.
 
-Lemma init_data2pred_rejigger {cs: compspecs}  {csl: compspecs_legal cs}:
+Lemma init_data2pred_rejigger {cs: compspecs}:
   forall (Delta : tycontext) (t : type) (idata : init_data) (rho : environ)
      (sh : Share.t) (b : block) ofs v,
   field_compatible t nil (Vptr b (Int.repr ofs)) ->
@@ -301,7 +301,7 @@ intros H1 HH H1' H6' H6 H7 H8 H1'' RS.
   rewrite H0. rewrite H15. auto.
 Qed.
 
-Lemma unpack_globvar  {cs: compspecs}  {csl: compspecs_legal cs}:
+Lemma unpack_globvar  {cs: compspecs}:
   forall Delta i t gv idata, 
    (var_types Delta) ! i = None ->
    (glob_types Delta) ! i = Some t ->
@@ -359,7 +359,7 @@ rewrite H10.
  try apply derives_refl.
 Qed.
 
-Fixpoint id2pred_star   {cs: compspecs}  {csl: compspecs_legal cs}
+Fixpoint id2pred_star   {cs: compspecs}
    (Delta: tycontext) (sh: share) (t: type) (v: val) (ofs: Z) (dl: list init_data) : environ->mpred :=
  match dl with
  | d::dl' => init_data2pred' Delta d sh t (offset_val (Int.repr ofs) v)
@@ -367,7 +367,7 @@ Fixpoint id2pred_star   {cs: compspecs}  {csl: compspecs_legal cs}
  | nil => emp
  end.
 
-Arguments id2pred_star cs csl Delta sh t v ofs dl rho  / .
+Arguments id2pred_star cs Delta sh t v ofs dl rho  / .
 
 Lemma init_data_size_pos : forall a, init_data_size a >= 0.
 Proof. 
@@ -383,7 +383,7 @@ Proof.
  pose proof (init_data_size_pos a); omega.
 Qed.
 
-Lemma unpack_globvar_star  {cs: compspecs}  {csl: compspecs_legal cs}:
+Lemma unpack_globvar_star  {cs: compspecs}:
   forall Delta i gv, 
    (var_types Delta) ! i = None ->
    (glob_types Delta) ! i = Some (gvar_info gv) ->
@@ -450,7 +450,7 @@ pose proof (init_data_size_pos a).
  admit. (* alignment issue *)
 Qed.
 
-Lemma tc_globalvar_sound_space {cs: compspecs}  {csl: compspecs_legal cs}:
+Lemma tc_globalvar_sound_space {cs: compspecs} :
   forall Delta i t gv rho, 
    (var_types Delta) ! i = None ->
    (glob_types Delta) ! i = Some t ->
@@ -624,7 +624,7 @@ Proof.
  f_equal; auto.
 Qed.
 
-Lemma id2pred_star_ZnthV_Tint  {cs: compspecs}  {csl: compspecs_legal cs}:
+Lemma id2pred_star_ZnthV_Tint  {cs: compspecs} :
  forall Delta sh n (v: val) (data: list int) sz sign mdata
   (NBS: notboolsize sz),
   n = Zlength mdata -> 
@@ -736,7 +736,7 @@ apply sepcon_derives; auto.
 Qed.
 *)
 
-Lemma id2pred_star_ZnthV_tint  {cs: compspecs}  {csl: compspecs_legal cs}:
+Lemma id2pred_star_ZnthV_tint  {cs: compspecs}:
  forall Delta sh n (v: val) (data: list int) mdata,
   n = Zlength mdata ->
   mdata = map Init_int32 data ->
@@ -756,7 +756,7 @@ destruct (ge_of rho i); try contradiction.
 subst; apply I.
 Qed.
 
-Lemma unpack_globvar_array  {cs: compspecs}  {csl: compspecs_legal cs}:
+Lemma unpack_globvar_array  {cs: compspecs}:
   forall t sz sign (data: list int)  n Delta i gv,
    (var_types Delta) ! i = None ->
    (glob_types Delta) ! i = Some (gvar_info gv) ->
@@ -855,10 +855,10 @@ Definition expand_globvars (Delta: tycontext)  (R R': list (environ -> mpred)) :
   SEPx R rho |-- SEPx R' rho.
 
 Lemma do_expand_globvars:
- forall R' Espec Delta P Q R c Post,
+ forall R' Espec {cs: compspecs} Delta P Q R c Post,
  expand_globvars Delta R R' ->
- @semax Espec Delta (PROPx P (LOCALx Q (SEPx R'))) c Post ->
- @semax Espec Delta (PROPx P (LOCALx Q (SEPx R))) c Post.
+ @semax cs Espec Delta (PROPx P (LOCALx Q (SEPx R'))) c Post ->
+ @semax cs Espec Delta (PROPx P (LOCALx Q (SEPx R))) c Post.
 Proof.
 intros.
 eapply semax_pre; [ | apply H0].

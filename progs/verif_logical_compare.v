@@ -1,8 +1,7 @@
 Require Import floyd.proofauto.
 Require Import progs.logical_compare.
-Instance CompSpecs : compspecs := compspecs_program prog.
-Instance CS_legal : compspecs_legal CompSpecs.
-Proof. prove_CS_legal. Qed.
+Instance CompSpecs : compspecs.
+Proof. make_compspecs prog. Defined.  
 
 Local Open Scope logic.
 
@@ -70,14 +69,14 @@ match s with
 end.
 
 Lemma semax_shortcut_logical:
-  forall Espec Delta P Q R tid s v Qtemp Qvar el,
+  forall Espec {cs: compspecs} Delta P Q R tid s v Qtemp Qvar el,
    quick_shortcut_logical s = Some tid ->
    typeof_temp Delta tid = Some tint ->
    local2ptree Q Qtemp Qvar nil nil ->
    Qtemp ! tid = None ->
-   shortcut_logical (msubst_eval_expr Delta Qtemp Qvar) tid s = Some (v, el) ->
+   shortcut_logical (msubst_eval_expr Qtemp Qvar) tid s = Some (v, el) ->
    PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |-- fold_right (fun e q => tc_expr Delta e && q) TT el ->
-   @semax Espec Delta (PROPx P (LOCALx Q (SEPx R)))
+   @semax cs Espec Delta (PROPx P (LOCALx Q (SEPx R)))
           s (normal_ret_assert (PROPx P (LOCALx (temp tid (Vint v) :: Q) (SEPx R)))).
 Admitted.
 

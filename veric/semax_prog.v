@@ -72,6 +72,7 @@ Definition semax_func
          (V: varspecs) (G: funspecs) {C: compspecs} (fdecs: list (ident * fundef)) (G1: funspecs) : Prop :=
    match_fdecs fdecs G1 /\
   forall ge, prog_contains ge fdecs -> 
+          genv_cenv ge = cenv_cs ->
           forall n, believe Espec (nofunc_tycontext V G) ge (nofunc_tycontext V G1) n.
 
 Definition main_pre (prog: program) : unit -> assert :=
@@ -82,11 +83,12 @@ Definition Tint32s := Tint I32 Signed noattr.
 Definition main_post (prog: program) : unit -> assert := 
   (fun tt _ => TT).
 
-Definition semax_prog 
+Definition semax_prog {C: compspecs}
      (prog: program)  (V: varspecs) (G: funspecs) : Prop :=
   compute_list_norepet (prog_defs_names prog) = true  /\
-  all_initializers_aligned prog /\ 
-  @semax_func V G (compspecs_program prog) (prog_funct prog) G /\
+  all_initializers_aligned prog /\
+  cenv_cs = prog_comp_env prog /\
+  @semax_func V G C (prog_funct prog) G /\
    match_globvars (prog_vars prog) V = true /\
     In (prog.(prog_main), mk_funspec (nil,Tvoid) unit (main_pre prog ) (main_post prog)) G.
 
@@ -96,7 +98,7 @@ Lemma semax_func_nil:
 Proof.
 intros; split; auto.
 constructor.
-intros.
+intros. rename H0 into HGG.
 intros b fsig ty P Q w ? ?.
 hnf in H1.
 destruct H1 as [b' [? ?]].
@@ -205,7 +207,7 @@ Lemma semax_func_cons_aux:
    claims  psi (nofunc_tycontext V ((id, mk_funspec fsig1 A1 P1 Q1) :: G')) (Vptr b Int.zero) fsig2 A2 P2 Q2 ->
     fsig1=fsig2 /\ A1=A2 /\ JMeq P1 P2 /\ JMeq Q1 Q2.
 Proof.
-intros until 1; intros Hin Hmf; intros.
+intros until fs. intros H Hin Hmf; intros.
 destruct H0 as [id' [? ?]].
 simpl in H0.
 destruct (eq_dec id id').
@@ -242,9 +244,9 @@ Lemma semax_func_cons:
         (semax_body_params_ok f)) = true ->
       Forall
          (fun it : ident * type =>
-          complete_type (composite_types (nofunc_tycontext V G)) (snd it) =
+          complete_type cenv_cs (snd it) =
           true) (fn_vars f) ->
-       var_sizes_ok (f.(fn_vars)) ->
+       var_sizes_ok cenv_cs (f.(fn_vars)) ->
        f.(fn_callconv) = cc_default ->
        precondition_closed f P ->
       semax_body V G f (id, mk_funspec (fn_funsig f) A P Q) ->
@@ -262,14 +264,14 @@ split.
 simpl. constructor 2; auto.
 simpl.
 unfold type_of_function. f_equal. auto.
-intros ge H0 n.
+intros ge H0 HGG n.
 assert (prog_contains ge fs).
 unfold prog_contains in *.
 intros.
 apply H0.
 simpl.
 auto.
-spec Hf ge H1.
+spec Hf ge H1 HGG.
 clear H1.
 hnf in Hf|-*.
 intros v fsig A' P' Q'.
@@ -283,7 +285,7 @@ rewrite <- Genv.find_funct_find_funct_ptr in H2.
 apply negb_true_iff in Hni.
 apply id_in_list_false in Hni.
 destruct (eq_dec  (Vptr b Int.zero) v) as [?H|?H].
-(* Vptr b Int.zero = v *)
+* (* Vptr b Int.zero = v *)
 subst v.
 right.
 exists b; exists f.
@@ -295,7 +297,11 @@ apply compute_list_norepet_e in H'.
 split3; auto.
 rewrite Genv.find_funct_find_funct_ptr in H2; auto.
 split; auto.
+rewrite HGG; auto.
 split; auto.
+split; auto.
+split.
+rewrite HGG; auto.
 split; auto.
 destruct H1 as [id' [? [b' [? ?]]]].
 symmetry in H5; inv H5.
@@ -319,6 +325,7 @@ rename H3 into H4.
 pose proof I.
 specialize (H4 n).
 apply now_later.
+rewrite HGG.
 clear - Hpclos H4.
 rewrite semax_fold_unfold in H4|-*.
 revert n H4.
@@ -335,9 +342,6 @@ eapply allp_derives; intro vx.
 eapply subp_derives; auto.
 apply andp_derives; auto.
 apply andp_derives; auto.
-apply andp_right.
-apply andp_left1; auto.
-apply derives_extract_prop; intros [? _].
 apply sepcon_derives; auto.
 apply andp_left1; auto.
 apply sepcon_derives; auto.
@@ -345,7 +349,7 @@ unfold bind_args.
 apply andp_left2; auto.
 destruct (Hpclos x).
 apply close_precondition_e; auto.
-(***   Vptr b Int.zero <> v'  ********)
+* (***   Vptr b Int.zero <> v'  ********)
 apply (Hf n v fsig A' P' Q'); auto.
 destruct H1 as [id' [? ?]].
 simpl in H1.
@@ -406,14 +410,14 @@ revert ids Hlen; induction argsig; simpl; intros; auto.
 destruct ids; auto.
 destruct ids; auto. inv Hlen. simpl. f_equal; auto.
 auto.
-intros ge; intros.
+intros ge ? HGG; intros.
 assert (prog_contains ge fs).
 unfold prog_contains in *.
 intros.
 apply H0.
 simpl.
 auto.
-specialize (Hf ge H1).
+specialize (Hf ge H1 HGG).
 clear H1.
 unfold believe.
 intros v' fsig' A' P' Q'.
@@ -701,7 +705,7 @@ if_tac.
 Qed.
 
 Definition Delta1 V G {C: compspecs}: tycontext := 
-  make_tycontext ((1%positive,(Tfunction Tnil Tvoid cc_default))::nil) nil nil Tvoid V G cenv_cs cenv_consistent_cs.
+  make_tycontext ((1%positive,(Tfunction Tnil Tvoid cc_default))::nil) nil nil Tvoid V G.
 
 Lemma match_globvars_in':
   forall i t vl vs,
@@ -971,17 +975,9 @@ simpl.
 left. unfold make_venv. unfold empty_env. apply PTree.gempty.
 Qed.
 
-Lemma guard_genv_Delta1_globalenv: forall V G prog,
-  guard_genv (@Delta1 V G (compspecs_program prog)) (globalenv prog).
-Proof.
-  intros.
-  unfold guard_genv, Delta1, compspecs_program, globalenv; simpl.
-  intros; apply sub_option_refl.
-Qed.
-
-Lemma semax_prog_rule :
+Lemma semax_prog_rule {CS: compspecs} :
   forall z V G prog m,
-     @semax_prog prog V G ->
+     @semax_prog CS prog V G ->
      Genv.init_mem prog = Some m ->
      exists b, exists q, 
        Genv.find_symbol (globalenv prog) (prog_main prog) = Some b /\
@@ -993,13 +989,12 @@ Lemma semax_prog_rule :
 Proof.
  intros until m.
  pose proof I; intros.
- destruct H0 as [? [AL [[? ?] [GV ?]]]].
+ destruct H0 as [? [AL [HGG [[? ?] [GV ?]]]]].
  assert (exists f, In (prog_main prog, f) (prog_funct prog) ).
- clear - H4 H2.
  forget (prog_main prog) as id.
  apply in_map_fst in H4.
  pose proof (match_fdecs_in _ _ _ H4 H2).
- apply in_map_iff in H. destruct H as [[? ?] [? ?]]; subst.
+ apply in_map_iff in H5. destruct H5 as [[? ?] [? ?]]; subst.
  eauto.
  destruct H5 as [f ?].
  apply compute_list_norepet_e in H0.
@@ -1041,12 +1036,12 @@ extensionality rho'.
 unfold main_post.
 normalize. rewrite TT_sepcon_TT.
 apply pred_ext. apply exp_right with Vundef; auto. auto.
-apply guard_genv_Delta1_globalenv.
 rewrite (corable_funassert _ _).
 simpl m_phi.
 rewrite core_inflate_initial_mem; auto.
 do 3 (pose proof I).
-replace (funassert (Delta1 V G)) with (funassert (@nofunc_tycontext V G (compspecs_program prog))).
+replace (funassert (Delta1 V G)) with
+     (funassert (@nofunc_tycontext V G)).
 unfold rho; apply funassert_initial_core; auto.
 apply same_glob_funassert.
 reflexivity.
@@ -1059,9 +1054,9 @@ apply derives_subp.
 normalize.
 simpl.
 intros ? ? ? ? _ ?.
-destruct H9 as [[? [? ?]] ?].
-hnf in H11, H12. subst ek vl.
-destruct H9.
+destruct H8 as [[? [? ?]] ?].
+hnf in H10, H11. subst ek vl.
+destruct H8.
 subst a.
 change Clight_new.true_expr with true_expr.
 change (level (m_phi jm)) with (level jm).

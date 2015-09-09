@@ -29,7 +29,6 @@ Qed.
 
 Section NESTED_PRED.
 Context {cs: compspecs}.
-Context {csl: compspecs_legal cs}.
 
 Definition nested_pred (atom_pred: type -> bool): type -> bool :=
   func_type

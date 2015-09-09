@@ -112,7 +112,7 @@ Proof.
   + apply in_members_field_type2 in H.
     eapply complete_member; eauto.
     apply co_consistent_complete.
-    exact (cenv_consistent_cs id co CO).
+    exact (cenv_consistent id co CO).
   + inversion H.
 Qed.
 

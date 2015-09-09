@@ -50,7 +50,7 @@ Admitted.
 
 Local Open Scope logic.
 
-Class listspec {cs: compspecs} {csl: compspecs_legal cs} (list_structid: ident) (list_link: ident) :=
+Class listspec {cs: compspecs} (list_structid: ident) (list_link: ident) :=
   mk_listspec {  
    list_fields: members;
    list_struct := Tstruct list_structid noattr;
@@ -61,7 +61,6 @@ Class listspec {cs: compspecs} {csl: compspecs_legal cs} (list_structid: ident) 
 
 Section LIST1.
 Context {cs: compspecs}.
-Context {csl: compspecs_legal cs}.
 Context  {list_structid: ident} {list_link: ident}.
 
 Fixpoint all_but_link (f: members) : members :=
@@ -239,7 +238,7 @@ Definition list_data {ls: listspec list_structid list_link} (v: elemtype ls): re
   unfold list_struct.
   pose (add_link_back _ _ v: reptype_structlist _).
   rewrite list_members_eq in r.
-  exact (@fold_reptype _ _ (Tstruct _ _) r).
+  exact (@fold_reptype _ (Tstruct _ _) r).
 Defined. 
 
 Definition list_cell' (ls: listspec list_structid list_link) sh v p :=
@@ -306,15 +305,15 @@ intro HV.
 clear HV.
 change  (nested_field_type2 list_struct nil) with list_struct.
 rewrite (data_at'_ind sh list_struct 
-          (@fold_reptype cs csl (Tstruct list_structid noattr)
+          (@fold_reptype cs (Tstruct list_structid noattr)
             (@eq_rect members
-               (@list_fields cs csl list_structid list_link LS)
+               (@list_fields cs list_structid list_link LS)
                (fun m : members => @reptype_structlist cs m)
                (@add_link_back 
-                  (@list_fields cs csl list_structid list_link LS)
-                  (@list_fields cs csl list_structid list_link LS) v)
+                  (@list_fields cs list_structid list_link LS)
+                  (@list_fields cs list_structid list_link LS) v)
                (co_members (@get_co cs list_structid))
-               (@list_members_eq cs csl list_structid list_link LS)))).
+               (@list_members_eq cs list_structid list_link LS)))).
 simpl.
 forget (co_sizeof (get_co list_structid)) as sz.
 assert (FT: field_type list_link list_fields = tptr list_struct).
@@ -681,7 +680,6 @@ Module LsegGeneral.
 
 Section LIST2.
 Context {cs: compspecs}.
-Context {csl: compspecs_legal cs}.
 Context  {list_structid: ident} {list_link: ident}.
 
 Fixpoint lseg (ls: listspec list_structid list_link) (dsh psh: share) 
@@ -1227,14 +1225,13 @@ Hint Rewrite @lseg_nil_eq : norm.
 
 Hint Rewrite @lseg_eq using reflexivity: norm.
 
-Hint Resolve lseg_local_facts : saturate_local.
+Hint Resolve @lseg_local_facts : saturate_local.
 End LsegGeneral.
 
 Module LsegSpecial.
 
 Section LIST.
 Context {cs: compspecs}.
-Context {csl: compspecs_legal cs}.
 Context  {list_structid: ident} {list_link: ident}.
 
 Definition lseg (ls: listspec list_structid list_link) (sh: share)
@@ -1720,7 +1717,7 @@ End LIST.
 
 Hint Rewrite @lseg_nil_eq : norm.
 Hint Rewrite @lseg_eq using reflexivity: norm.
-Hint Resolve lseg_local_facts : saturate_local.
+Hint Resolve @lseg_local_facts : saturate_local.
 
 Ltac resolve_lseg_valid_pointer :=
 match goal with 
@@ -1742,7 +1739,6 @@ Module Links.
 
 Section LIST2.
 Context {cs: compspecs}.
-Context {csl: compspecs_legal cs}.
 Context  {list_structid: ident} {list_link: ident}.
 
 Definition vund  (ls: listspec list_structid list_link) : elemtype ls :=
@@ -2460,7 +2456,7 @@ Hint Rewrite @lseg_nil_eq : norm.
 
 Hint Rewrite @lseg_eq using reflexivity: norm.
 
-Hint Resolve lseg_local_facts : saturate_local.
+Hint Resolve @lseg_local_facts : saturate_local.
 
 Hint Resolve denote_tc_comparable_split : valid_pointer.
 
@@ -2480,10 +2476,10 @@ Hint Extern 10 (_ |-- valid_pointer _) =>
 
 Ltac resolve_list_cell_valid_pointer :=
  match goal with |- ?A |-- valid_pointer ?p =>
-  match A with context [@list_cell ?cs ?csl ?sid ?lid ?LS ?dsh ?v p] =>
+  match A with context [@list_cell ?cs ?sid ?lid ?LS ?dsh ?v p] =>
    match A with context [field_at ?psh ?t (StructField lid::nil) ?v' p] =>
     apply derives_trans with
-      (@list_cell cs csl sid lid LS dsh v p * 
+      (@list_cell cs sid lid LS dsh v p * 
       field_at_ psh t (StructField lid::nil) p * TT);
       [cancel 
       | apply sepcon_valid_pointer1; 

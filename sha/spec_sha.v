@@ -3,10 +3,9 @@ Import ListNotations.
 Require Import sha.sha.
 Require Import general_lemmas.
 Require Import sha.SHA256.
-Instance CompSpecs : compspecs := compspecs_program prog.
-Instance CS_legal : compspecs_legal CompSpecs.
-Proof. prove_CS_legal. Qed.
-Local Open Scope logic.
+Instance CompSpecs : compspecs.
+Proof. make_compspecs prog. Defined.  
+Open Scope logic.
 
 Definition s256state := (list val * (val * (val * (list val * val))))%type.
 Definition s256_h (s: s256state) := fst s.

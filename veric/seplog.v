@@ -70,9 +70,9 @@ Definition typed_true (t: type) (v: val)  : Prop := strict_bool_val v t
 Definition typed_false (t: type)(v: val) : Prop := strict_bool_val v t =
 Some false.
 
-Definition expr_true Delta e := lift1 (typed_true (typeof e)) (eval_expr Delta e).
+Definition expr_true {CS: compspecs} e := lift1 (typed_true (typeof e)) (eval_expr e).
 
-Definition expr_false Delta e := lift1 (typed_false (typeof e)) (eval_expr Delta e).
+Definition expr_false {CS: compspecs} e := lift1 (typed_false (typeof e)) (eval_expr e).
 
 Definition subst {A} (x: ident) (v: val) (P: environ -> A) : environ -> A :=
    fun s => P (env_set s x v).

@@ -12,77 +12,77 @@ Require Import veric.res_predicates.
 Require Import veric.extend_tc.
 Require Import veric.seplog.
 
-Inductive rel_expr' (Delta: tycontext) (rho: environ) (phi: rmap): expr -> val -> Prop :=
+Inductive rel_expr' {CS: compspecs} (rho: environ) (phi: rmap): expr -> val -> Prop :=
  | rel_expr'_const_int: forall i ty, 
-                 rel_expr' Delta rho phi (Econst_int i ty) (Vint i)
+                 rel_expr' rho phi (Econst_int i ty) (Vint i)
  | rel_expr'_const_float: forall f ty, 
-                 rel_expr' Delta rho phi (Econst_float f ty) (Vfloat f)
+                 rel_expr' rho phi (Econst_float f ty) (Vfloat f)
  | rel_expr'_const_single: forall f ty, 
-                 rel_expr' Delta rho phi (Econst_single f ty) (Vsingle f)
+                 rel_expr' rho phi (Econst_single f ty) (Vsingle f)
  | rel_expr'_const_long: forall i ty, 
-                 rel_expr' Delta rho phi (Econst_long i ty) (Vlong i)
+                 rel_expr' rho phi (Econst_long i ty) (Vlong i)
  | rel_expr'_tempvar: forall id ty v,
                  Map.get (te_of rho) id = Some v ->
-                 rel_expr' Delta rho phi (Etempvar id ty) v
+                 rel_expr' rho phi (Etempvar id ty) v
  | rel_expr'_addrof: forall a ty v,
-                 rel_lvalue' Delta rho phi a v ->
-                 rel_expr' Delta rho phi (Eaddrof a ty) v
+                 rel_lvalue' rho phi a v ->
+                 rel_expr' rho phi (Eaddrof a ty) v
  | rel_expr'_unop: forall a v1 v ty op,
-                 rel_expr' Delta rho phi a v1 ->
+                 rel_expr' rho phi a v1 ->
                  (forall m, Cop.sem_unary_operation op v1 (typeof a) m = Some v) ->
-                 rel_expr' Delta rho phi (Eunop op a ty) v
+                 rel_expr' rho phi (Eunop op a ty) v
  | rel_expr'_binop: forall a1 a2 v1 v2 v ty op,
-                 rel_expr' Delta rho phi a1 v1 ->
-                 rel_expr' Delta rho phi a2 v2 ->
-                 binop_stable (composite_types Delta) op a1 a2 = true ->
-                 (forall m, Cop.sem_binary_operation (composite_types Delta) op v1 (typeof a1) v2 (typeof a2) m = Some v) ->
-                 rel_expr' Delta rho phi (Ebinop op a1 a2 ty) v
+                 rel_expr' rho phi a1 v1 ->
+                 rel_expr' rho phi a2 v2 ->
+                 binop_stable cenv_cs op a1 a2 = true ->
+                 (forall m, Cop.sem_binary_operation cenv_cs op v1 (typeof a1) v2 (typeof a2) m = Some v) ->
+                 rel_expr' rho phi (Ebinop op a1 a2 ty) v
  | rel_expr'_cast: forall a v1 v ty,
-                 rel_expr' Delta rho phi a v1 ->
+                 rel_expr' rho phi a v1 ->
                  Cop.sem_cast v1 (typeof a) ty = Some v ->
-                 rel_expr' Delta rho phi (Ecast a ty) v
+                 rel_expr' rho phi (Ecast a ty) v
  | rel_expr'_sizeof: forall t ty,
-                 complete_type (composite_types Delta) t = true ->
-                 rel_expr' Delta rho phi (Esizeof t ty) (Vint (Int.repr (sizeof (composite_types Delta) t)))
+                 complete_type cenv_cs t = true ->
+                 rel_expr' rho phi (Esizeof t ty) (Vint (Int.repr (sizeof cenv_cs t)))
  | rel_expr'_alignof: forall t ty,
-                 complete_type (composite_types Delta) t = true ->
-                 rel_expr' Delta rho phi (Ealignof t ty) (Vint (Int.repr (alignof (composite_types Delta) t)))
+                 complete_type cenv_cs t = true ->
+                 rel_expr' rho phi (Ealignof t ty) (Vint (Int.repr (alignof cenv_cs t)))
  | rel_expr'_lvalue_By_value: forall a ch sh v1 v2,
                  access_mode (typeof a) = By_value ch ->
-                 rel_lvalue' Delta rho phi a v1 ->
+                 rel_lvalue' rho phi a v1 ->
                  app_pred (mapsto sh (typeof a) v1 v2 * TT ) phi ->
                  v2 <> Vundef ->
-                 rel_expr' Delta rho phi a v2
+                 rel_expr' rho phi a v2
  | rel_expr'_lvalue_By_reference: forall a v1,
                  access_mode (typeof a) = By_reference ->
-                 rel_lvalue' Delta rho phi a v1 ->
-                 rel_expr' Delta rho phi a v1
-with rel_lvalue' (Delta: tycontext) (rho: environ) (phi: rmap): expr -> val -> Prop :=
+                 rel_lvalue' rho phi a v1 ->
+                 rel_expr' rho phi a v1
+with rel_lvalue' {CS: compspecs} (rho: environ) (phi: rmap): expr -> val -> Prop :=
  | rel_expr'_local: forall id ty b,
                  Map.get (ve_of rho) id = Some (b,ty) ->
-                 rel_lvalue' Delta rho phi (Evar id ty) (Vptr  b Int.zero)
+                 rel_lvalue' rho phi (Evar id ty) (Vptr  b Int.zero)
  | rel_expr'_global: forall id ty b,
                  Map.get (ve_of rho) id = None ->
                  Map.get (ge_of rho) id = Some b ->
-                 rel_lvalue' Delta rho phi (Evar id ty) (Vptr b Int.zero)
+                 rel_lvalue' rho phi (Evar id ty) (Vptr b Int.zero)
  | rel_lvalue'_deref: forall a b z ty,
-                 rel_expr' Delta rho phi a (Vptr b z) ->
-                 rel_lvalue' Delta rho phi (Ederef a ty) (Vptr b z)
+                 rel_expr' rho phi a (Vptr b z) ->
+                 rel_lvalue' rho phi (Ederef a ty) (Vptr b z)
  | rel_lvalue'_field_struct: forall i ty a b z id co att delta,
-                 rel_expr' Delta rho phi a (Vptr b z) ->
+                 rel_expr' rho phi a (Vptr b z) ->
                  typeof a = Tstruct id att ->
-                 (composite_types Delta) ! id = Some co ->
-                 field_offset (composite_types Delta) i (co_members co) = Errors.OK delta ->
-                 rel_lvalue' Delta rho phi (Efield a i ty) (Vptr b (Int.add z (Int.repr delta))).
+                 cenv_cs ! id = Some co ->
+                 field_offset cenv_cs i (co_members co) = Errors.OK delta ->
+                 rel_lvalue' rho phi (Efield a i ty) (Vptr b (Int.add z (Int.repr delta))).
 
 Scheme rel_expr'_sch := Minimality for rel_expr' Sort Prop
   with rel_lvalue'_sch := Minimality for  rel_lvalue' Sort Prop.
 
-Lemma rel_expr'_hered: forall Delta e v rho, hereditary age (fun phi => rel_expr' Delta rho phi e v).
+Lemma rel_expr'_hered: forall {CS }e v rho, hereditary age (fun phi => @rel_expr' CS rho phi e v).
 Proof.
 intros.
 intro; intros.
-apply (rel_expr'_sch Delta rho a (rel_expr' Delta rho a') (rel_lvalue' Delta rho a'));
+apply (rel_expr'_sch _ rho a (rel_expr' rho a') (rel_lvalue' rho a'));
   intros;
   try solve [econstructor; eauto].
   eapply rel_expr'_lvalue_By_value; eauto.
@@ -92,7 +92,7 @@ apply (rel_expr'_sch Delta rho a (rel_expr' Delta rho a') (rel_lvalue' Delta rho
   auto.
 Qed.
 
-Lemma rel_lvalue'_hered: forall Delta e v rho, hereditary age (fun phi => rel_lvalue' Delta rho phi e v).
+Lemma rel_lvalue'_hered: forall {CS} e v rho, hereditary age (fun phi => @rel_lvalue' CS rho phi e v).
 Proof.
 intros.
 intro; intros.
@@ -104,31 +104,31 @@ apply rel_expr'_hered with a; auto.
 apply rel_expr'_hered with a; auto.
 Qed.
 
-Program Definition rel_expr (Delta: tycontext) (e: expr) (v: val) (rho: environ) : pred rmap :=
-    fun phi => rel_expr' Delta rho phi e v.
+Program Definition rel_expr {CS: compspecs} (e: expr) (v: val) (rho: environ) : pred rmap :=
+    fun phi => rel_expr' rho phi e v.
 Next Obligation. intros. apply rel_expr'_hered. Defined.
 
-Program Definition rel_lvalue (Delta: tycontext) (e: expr) (v: val) (rho: environ) : pred rmap :=
-    fun phi => rel_lvalue' Delta rho phi e v.
+Program Definition rel_lvalue {CS: compspecs}  (e: expr) (v: val) (rho: environ) : pred rmap :=
+    fun phi => rel_lvalue' rho phi e v.
 Next Obligation. intros. apply rel_lvalue'_hered. Defined.
 
 Require Import veric.juicy_mem veric.juicy_mem_lemmas veric.juicy_mem_ops.
 Require Import veric.expr_lemmas.
 
-Definition rel_lvalue'_expr'_sch Delta rho phi P P0 :=
+Definition rel_lvalue'_expr'_sch CS rho phi P P0 :=
   fun H1 H2 H3 H4 H5 H6 H7 H8 H9 H10 H11 H12 H13 H14 H15 H16 H17 =>
-  conj (rel_expr'_sch Delta rho phi P P0 H1 H2 H3 H4 H5 H6 H7 H8 H9 H10 H11 H12 H13 H14 H15 H16 H17)
-       (rel_lvalue'_sch Delta rho phi P P0 H1 H2 H3 H4 H5 H6 H7 H8 H9 H10 H11 H12 H13 H14 H15 H16 H17).
+  conj (rel_expr'_sch CS rho phi P P0 H1 H2 H3 H4 H5 H6 H7 H8 H9 H10 H11 H12 H13 H14 H15 H16 H17)
+       (rel_lvalue'_sch CS rho phi P P0 H1 H2 H3 H4 H5 H6 H7 H8 H9 H10 H11 H12 H13 H14 H15 H16 H17).
 
 Lemma rel_lvalue_expr_relate:
-  forall Delta ge te ve rho jm,
-    guard_genv Delta ge ->
+  forall {CS: compspecs} ge te ve rho jm,
+    genv_cenv ge = cenv_cs ->
     rho = construct_rho (filter_genv ge) ve te ->
     (forall e v,
-           rel_expr Delta e v rho (m_phi jm) ->
+           rel_expr e v rho (m_phi jm) ->
            Clight.eval_expr ge ve te (m_dry jm) e v) /\
     (forall e v,
-           rel_lvalue Delta e v rho (m_phi jm) ->
+           rel_lvalue e v rho (m_phi jm) ->
            match v with
            | Vptr b z => Clight.eval_lvalue ge ve te (m_dry jm) e b z
            | _ => False
@@ -137,7 +137,7 @@ Proof.
 intros.
 unfold rel_expr, rel_lvalue.
 simpl.
-apply (rel_lvalue'_expr'_sch Delta rho (m_phi jm)
+apply (rel_lvalue'_expr'_sch _ rho (m_phi jm)
      (Clight.eval_expr ge ve te (m_dry jm))
      (fun e v =>
       match v with
@@ -148,13 +148,11 @@ apply (rel_lvalue'_expr'_sch Delta rho (m_phi jm)
    destruct v; try contradiction. constructor; auto.
 * (* Ebinop *)
   econstructor; eauto.
-  erewrite <- Cop_sem_binary_operation_guard_genv; eauto.
+  rewrite H. auto.
 * (* Esizeof *)
-  erewrite sizeof_guard_genv by eauto.
-  constructor.
+  rewrite <- H. constructor.
 * (* Ealignof *)
-  erewrite alignof_guard_genv by eauto.
-  constructor.
+  rewrite <- H. constructor.
 * (* lvalue *)
   destruct v1; try contradiction.
   eapply Clight.eval_Elvalue; eauto.
@@ -191,32 +189,30 @@ apply (rel_lvalue'_expr'_sch Delta rho (m_phi jm)
   destruct (Genv.find_symbol ge id) eqn:?; try discriminate.
   destruct (type_of_global ge b) eqn:?; inv H2;  apply Clight.eval_Evar_global; auto.
 * (* Efield *)
-  econstructor; eauto.
-  + eapply guard_genv_spec; eauto.
-  + eapply field_offset_guard_genv; eauto.
+  econstructor; eauto. rewrite H; eauto. rewrite H; eauto.
 Qed.
 
 Lemma rel_expr_relate:
-  forall Delta ge te ve rho e jm v,
-           guard_genv Delta ge ->
+  forall {CS: compspecs} ge te ve rho e jm v,
+           genv_cenv ge = cenv_cs ->
            rho = construct_rho (filter_genv ge) ve te ->
-           rel_expr Delta e v rho (m_phi jm) ->
+           rel_expr e v rho (m_phi jm) ->
            Clight.eval_expr ge ve te (m_dry jm) e v.
 Proof.
   intros.
-  apply (proj1 (rel_lvalue_expr_relate Delta ge te ve rho jm H H0)).
+  apply (proj1 (rel_lvalue_expr_relate ge te ve rho jm H H0)).
   auto.
 Qed.
 
 Lemma rel_lvalue_relate:
-  forall Delta ge te ve rho e jm b z,
-           guard_genv Delta ge ->
+  forall {CS: compspecs}  ge te ve rho e jm b z,
+           genv_cenv ge = cenv_cs ->
            rho = construct_rho (filter_genv ge) ve te ->
-           rel_lvalue Delta e (Vptr b z) rho (m_phi jm) ->
+           rel_lvalue e (Vptr b z) rho (m_phi jm) ->
            Clight.eval_lvalue ge ve te (m_dry jm) e b z.
 Proof.
   intros.
-  apply ((proj2 (rel_lvalue_expr_relate Delta ge te ve rho jm H H0)) e (Vptr b z)).
+  apply ((proj2 (rel_lvalue_expr_relate ge te ve rho jm H H0)) e (Vptr b z)).
   auto.
 Qed.
 
@@ -294,15 +290,15 @@ destruct t as [ | [ | | | ] [ | ] ? | [ | ] ? | [ | ] ? | | | | | ];
 Qed.
 
 Lemma rel_expr'_fun:
- forall Delta rho phi e v v', rel_expr' Delta rho phi e v -> rel_expr' Delta rho phi e v' -> v=v'.
+ forall {CS: compspecs} rho phi e v v', rel_expr' rho phi e v -> rel_expr' rho phi e v' -> v=v'.
 Proof.
 intros until 1.
-apply (rel_expr'_sch Delta rho phi
-      (fun e v => forall v', rel_expr' Delta rho phi e v -> rel_expr' Delta rho phi e v' -> v=v')
-      (fun e v => forall v', rel_lvalue' Delta rho phi e v -> rel_lvalue' Delta rho phi e v' -> v=v'));
+apply (rel_expr'_sch _ rho phi
+      (fun e v => forall v', rel_expr' rho phi e v -> rel_expr' rho phi e v' -> v=v')
+      (fun e v => forall v', rel_lvalue' rho phi e v -> rel_lvalue' rho phi e v' -> v=v'));
    auto; intros;
    try match goal with H : _ |- _ => inv H; auto; try congruence end;
-   try match goal with H: rel_lvalue' _ _ _ _ _ |- _ => solve [inv H] end.
+   try match goal with H: rel_lvalue' _ _ _ _ |- _ => solve [inv H] end.
 * (* Eunop *)
    specialize (H1 _ H0 H9). specialize (H10 Mem.empty). congruence.
 * (* Ebinnop *)
@@ -333,13 +329,13 @@ apply (rel_expr'_sch Delta rho phi
 Qed.
 
 Lemma rel_expr_extend:
-  forall Delta e v rho, boxy extendM (rel_expr Delta e v rho).
+  forall {CS: compspecs} e v rho, boxy extendM (rel_expr e v rho).
 Proof.
 intros. apply boxy_i; intros; auto.
 hnf in H0|-*.
-apply (rel_expr'_sch Delta rho w
-      (fun e v => rel_expr' Delta rho w e v -> rel_expr' Delta rho w' e v)
-      (fun e v => rel_lvalue' Delta rho w e v -> rel_lvalue' Delta rho w' e v)); auto; intros;
+apply (rel_expr'_sch _ rho w
+      (fun e v => rel_expr' rho w e v -> rel_expr' rho w' e v)
+      (fun e v => rel_lvalue' rho w e v -> rel_lvalue' rho w' e v)); auto; intros;
  try solve [match goal with H : _ |- _ => inv H; econstructor; eauto end].
 *
 eapply rel_expr'_lvalue_By_value; eauto.
@@ -354,7 +350,7 @@ eapply rel_expr'_lvalue_By_reference; eauto.
 econstructor 2; eauto.
 *
 inv H6.
-pose proof (rel_expr'_fun _ _ _ _ _ _ H1 H12). inv H6.
+pose proof (rel_expr'_fun _ _ _ _ _ H1 H12). inv H6.
 rewrite H3 in H13. symmetry in H13; inv H13.
 rewrite H4 in H14. symmetry in H14; inv H14.
 rewrite H5 in H15; symmetry in H15; inv H15.
@@ -362,69 +358,17 @@ econstructor; eauto.
 Qed.
 
 Lemma rel_lvalue_extend:
-  forall Delta e v rho, boxy extendM (rel_lvalue Delta e v rho).
+  forall {CS: compspecs} e v rho, boxy extendM (rel_lvalue e v rho).
 Proof.
 intros. apply boxy_i; intros; auto.
 hnf in H0|-*.
 inv H0; try solve [econstructor; eauto].
 econstructor 2; eauto.
 econstructor; eauto.
-pose proof (rel_expr_extend Delta a (Vptr b z) rho).
+pose proof (rel_expr_extend a (Vptr b z) rho).
 apply (boxy_e _ _ H0 _ _ H); auto.
 econstructor; eauto.
-apply (boxy_e _ _ (rel_expr_extend Delta a (Vptr b z) rho) _ _ H); auto.
+apply (boxy_e _ _ (rel_expr_extend a (Vptr b z) rho) _ _ H); auto.
 Qed.
 
-Section TYCON_SUB.
-Variables Delta Delta': tycontext.
-Hypothesis extends: tycontext_sub Delta Delta'.
-
-Lemma rel_lvalue_expr_sub:
-  forall rho phi,
-  (forall e v, rel_expr' Delta rho phi e v -> rel_expr' Delta' rho phi e v) /\  
-  (forall e v, rel_lvalue' Delta rho phi e v -> rel_lvalue' Delta' rho phi e v).
-Proof.
-  intros.
-  apply (rel_lvalue'_expr'_sch Delta rho phi
-     (rel_expr' Delta' rho phi)
-     (rel_lvalue' Delta' rho phi));
-  intros; try solve [econstructor; eauto].
-  + (* Ebinop *)
-    econstructor; eauto.
-    - eapply binop_stable_sub; eauto.
-    - intro m; specialize (H4 m).
-      erewrite <- Cop_sem_binary_operation_sub; eauto.
-  + (* Esizeof *)
-    erewrite sizeof_sub by eauto.
-    econstructor; eauto.
-    eapply complete_type_sub; eauto.
-  + (* Ealignof *)
-    erewrite alignof_sub by eauto.
-    econstructor; eauto.
-    eapply complete_type_sub; eauto.
-  + (* lvalue By_reference *)
-    apply rel_expr'_lvalue_By_reference; auto.
-  + (* global *)
-    apply rel_expr'_global; auto.
-  + (* Struct Field *)
-    eapply rel_lvalue'_field_struct; eauto.
-    - eapply composite_types_get_sub; eauto.
-    - eapply field_offset_sub; eauto.
-Qed.
-
-Lemma rel_lvalue_sub: forall rho e v, rel_lvalue Delta e v rho |-- rel_lvalue Delta' e v rho.
-Proof.
-  intros.
-  intro w.
-  eapply (proj2 (rel_lvalue_expr_sub rho w) e v).
-Qed.
-
-Lemma rel_expr_sub: forall rho e v, rel_expr Delta e v rho |-- rel_expr Delta' e v rho.
-Proof.
-  intros.
-  intro w.
-  eapply (proj1 (rel_lvalue_expr_sub rho w) e v).
-Qed.
-
-End TYCON_SUB.
 

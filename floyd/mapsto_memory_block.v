@@ -262,7 +262,6 @@ Lemmas of size_compatible and align_compatible
 Section COMPSPECS.
 
 Context {cs: compspecs}.
-Context {csl: compspecs_legal cs}.
 
 Lemma memory_block_mapsto_:
   forall sh t p, 

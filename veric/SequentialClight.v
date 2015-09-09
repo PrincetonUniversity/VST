@@ -28,8 +28,8 @@ Definition dryspec : ext_spec unit :=
      (fun rv m z => False).
 
  Lemma whole_program_sequential_safety:
-   forall prog V G m,
-     @semax_prog NullExtension.Espec prog V G ->
+   forall {CS: compspecs} prog V G m,
+     @semax_prog NullExtension.Espec CS prog V G ->
      Genv.init_mem prog = Some m ->
      exists b, exists q,
        Genv.find_symbol (Genv.globalenv prog) (prog_main prog) = Some b /\
@@ -40,7 +40,7 @@ Definition dryspec : ext_spec unit :=
         @dry_safeN _ _ _ _ (@Genv.genv_symb _ _) (coresem_extract_cenv cl_core_sem (prog_comp_env prog)) dryspec (Build_genv (Genv.globalenv prog) (prog_comp_env prog)) n tt q m.
 Proof.
  intros.
- destruct (@semax_prog_rule NullExtension.Espec tt _ _ _ _ H H0) as [b [q [? [? ?]]]].
+ destruct (@semax_prog_rule NullExtension.Espec CS tt _ _ _ _ H H0) as [b [q [? [? ?]]]].
  exists b, q.
  split3; auto.
  intro n.
@@ -67,13 +67,13 @@ Definition fun_id (ef: external_function) : option ident :=
   match ef with EF_external id sig => Some id | _ => None end.
 
 Axiom module_sequential_safety : (*TODO*)
-   forall (prog: program) (V: varspecs) (G: funspecs) ora m f f_id f_b f_body args,
+   forall {CS: compspecs} (prog: program) (V: varspecs) (G: funspecs) ora m f f_id f_b f_body args,
      let ge := Genv.globalenv prog in
      let spec := add_funspecs NullExtension.Espec G in
      let tys := sig_args (ef_sig f) in
      let rty := sig_res (ef_sig f) in
      let sem := juicy_core_sem cl_core_sem in
-     @semax_prog spec prog V G ->
+     @semax_prog spec CS prog V G ->
      fun_id f = Some f_id ->
      Genv.find_symbol ge f_id = Some f_b -> 
      Genv.find_funct  ge (Vptr f_b Int.zero) = Some f_body -> 

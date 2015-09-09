@@ -38,9 +38,9 @@ Declare Module CSL: CLIGHT_SEPARATION_LOGIC.
 Import CSL.
 
 Axiom semax_prog_rule :
-  forall {Espec: OracleKind},
+  forall {Espec: OracleKind}{CS: compspecs},
   forall z V G prog m,
-     @semax_prog Espec prog V G ->
+     @semax_prog Espec CS prog V G ->
      Genv.init_mem prog = Some m ->
      exists b, exists q, 
        Genv.find_symbol (globalenv prog) (prog_main prog) = Some b /\

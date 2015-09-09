@@ -96,7 +96,6 @@ Qed.
 Section GET_CO.
 
 Context {cs: compspecs}.
-Context {csl: compspecs_legal cs}.
 
 Open Scope Z.
 
@@ -128,7 +127,7 @@ Proof.
   intros.
   unfold get_co.
   destruct (cenv_cs ! id) as [co |] eqn:CO.
-  + exact (cenv_consistent_cs id co CO).
+  + exact (cenv_consistent id co CO).
   + apply co_default_consistent.
 Defined.
 
@@ -138,14 +137,14 @@ Proof.
   unfold get_co.
   intros.
   destruct (cenv_cs ! id) as [co |] eqn:?H; [destruct (co_su co) eqn:?H |].
-  + pose proof co_consistent_sizeof cenv_cs co (cenv_consistent_cs id co H0).
+  + pose proof co_consistent_sizeof cenv_cs co (cenv_consistent id co H0).
     unfold sizeof_composite in H2.
     rewrite H1 in H2; clear H1.
     rewrite H in H2; clear H.
     simpl in H2.
     rewrite align_0 in H2 by apply co_alignof_pos.
     auto.
-  + pose proof co_consistent_sizeof cenv_cs co (cenv_consistent_cs id co H0).
+  + pose proof co_consistent_sizeof cenv_cs co (cenv_consistent id co H0).
     unfold sizeof_composite in H2.
     rewrite H1 in H2; clear H1.
     rewrite H in H2; clear H.
@@ -190,27 +189,27 @@ Definition member_dec: forall (it0 it1: ident * type), {it0 = it1} + {it0 <> it1
 Defined.
 
 Lemma denote_tc_assert_andp:
-  forall (Delta : tycontext) (a b : tc_assert) (rho : environ),
-  denote_tc_assert Delta (tc_andp a b) rho =
-  andp (denote_tc_assert Delta a rho)
-    (denote_tc_assert Delta b rho).
+  forall {CS: compspecs} (a b : tc_assert) (rho : environ),
+  denote_tc_assert (tc_andp a b) rho =
+  andp (denote_tc_assert a rho)
+    (denote_tc_assert b rho).
 Proof.
 intros.
 apply expr2.denote_tc_assert_andp.
 Qed.
 
 Lemma denote_tc_assert_orp:
-  forall (Delta : tycontext) (a b : tc_assert) (rho : environ),
-  denote_tc_assert Delta (tc_orp a b) rho =
-  orp (denote_tc_assert Delta a rho)
-    (denote_tc_assert Delta b rho).
+  forall {CS: compspecs} (a b : tc_assert) (rho : environ),
+  denote_tc_assert (tc_orp a b) rho =
+  orp (denote_tc_assert a rho)
+    (denote_tc_assert b rho).
 Proof.
 intros.
 apply binop_lemmas2.denote_tc_assert_orp.
 Qed.
 
 Lemma denote_tc_assert_bool:
-  forall Delta b c rho, denote_tc_assert Delta (tc_bool b c) rho =
+  forall {CS: compspecs} b c rho, denote_tc_assert (tc_bool b c) rho =
                prop (b=true).
 Proof.
 intros.

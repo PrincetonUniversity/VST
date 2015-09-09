@@ -11,9 +11,9 @@ Hint Rewrite proj_sumbool_is_true using assumption : norm.
 Hint Rewrite proj_sumbool_is_false using assumption : norm.
 
 Lemma neutral_isCastResultType:
-  forall Delta P t t' v rho,
+  forall {cs: compspecs}  P t t' v rho,
    is_neutral_cast t' t = true ->
-   P |-- denote_tc_assert Delta (isCastResultType Delta t' t v) rho.
+   P |-- denote_tc_assert (isCastResultType t' t v) rho.
 Proof.
 intros.
   unfold isCastResultType;
@@ -40,11 +40,11 @@ Proof. intros. destruct p; try contradiction; apply I. Qed.
 Hint Resolve isptr_offset_val': norm.
 
 Lemma sem_add_pi_ptr:
-   forall Delta t p i, 
+   forall {cs: compspecs}  t p i, 
     isptr p ->
-    sem_add_pi Delta t p (Vint i) = Some (offset_val (Int.mul (Int.repr (sizeof (composite_types Delta) t)) i) p).
+    sem_add_pi t p (Vint i) = Some (offset_val (Int.mul (Int.repr (sizeof cenv_cs t)) i) p).
 Proof. intros. destruct p; try contradiction. reflexivity. Qed.
-Hint Rewrite sem_add_pi_ptr using (solve [auto with norm]) : norm.
+Hint Rewrite @sem_add_pi_ptr using (solve [auto with norm]) : norm.
 
 Lemma sem_cast_i2i_correct_range: forall sz s v,
   is_int sz s v -> sem_cast_i2i sz s v = Some v.
@@ -202,27 +202,27 @@ Qed.
 Hint Rewrite overridePost_normal' : ret_assert.
 
 Lemma eval_expr_Etempvar: 
-  forall Delta i t, eval_expr Delta (Etempvar i t) = eval_id i.
+  forall {cs: compspecs}  i t, eval_expr (Etempvar i t) = eval_id i.
 Proof. reflexivity.
 Qed.
-Hint Rewrite eval_expr_Etempvar : eval.
+Hint Rewrite @eval_expr_Etempvar : eval.
 
-Lemma eval_expr_binop: forall Delta op a1 a2 t, eval_expr Delta (Ebinop op a1 a2 t) = 
-          `(eval_binop Delta op (typeof a1) (typeof a2)) (eval_expr Delta a1) (eval_expr Delta a2).
+Lemma eval_expr_binop: forall {cs: compspecs}  op a1 a2 t, eval_expr (Ebinop op a1 a2 t) = 
+          `(eval_binop op (typeof a1) (typeof a2)) (eval_expr a1) (eval_expr a2).
 Proof. reflexivity. Qed.
-Hint Rewrite eval_expr_binop : eval.
+Hint Rewrite @eval_expr_binop : eval.
 
-Lemma eval_expr_unop: forall Delta op a1 t, eval_expr Delta (Eunop op a1 t) = 
-          lift1 (eval_unop op (typeof a1)) (eval_expr Delta a1).
+Lemma eval_expr_unop: forall {cs: compspecs} op a1 t, eval_expr (Eunop op a1 t) = 
+          lift1 (eval_unop op (typeof a1)) (eval_expr a1).
 Proof. reflexivity. Qed.
-Hint Rewrite eval_expr_unop : eval.
+Hint Rewrite @eval_expr_unop : eval.
 
 Hint Resolve  eval_expr_Etempvar.
 
-Lemma eval_expr_Etempvar' : forall Delta i t, eval_id i = eval_expr Delta (Etempvar i t).
+Lemma eval_expr_Etempvar' : forall {cs: compspecs}  i t, eval_id i = eval_expr (Etempvar i t).
 Proof. intros. symmetry; auto.
 Qed.
-Hint Resolve  eval_expr_Etempvar'.
+Hint Resolve  @eval_expr_Etempvar'.
 
 Hint Rewrite Int.add_zero  Int.add_zero_l Int.sub_zero_l : norm.
 
@@ -321,9 +321,9 @@ Qed.
 Hint Rewrite @subst_TT @subst_FF: subst.
 Hint Rewrite (@subst_TT mpred Nveric) (@subst_FF mpred Nveric): subst.
 
-Lemma eval_expr_Econst_int: forall Delta i t, eval_expr Delta (Econst_int i t) = `(Vint i).
+Lemma eval_expr_Econst_int: forall {cs: compspecs}  i t, eval_expr (Econst_int i t) = `(Vint i).
 Proof. reflexivity. Qed.
-Hint Rewrite eval_expr_Econst_int : eval.
+Hint Rewrite @eval_expr_Econst_int : eval.
 
 Lemma subst_eval_var:
   forall id v id' t, subst id v (eval_var id' t) = eval_var id' t.
@@ -339,9 +339,9 @@ Proof. reflexivity. Qed.
 Hint Rewrite subst_local : subst.
 
 Lemma eval_lvalue_Ederef:
-  forall Delta e t, eval_lvalue Delta (Ederef e t) = `force_ptr (eval_expr Delta e).
+  forall {cs: compspecs}  e t, eval_lvalue (Ederef e t) = `force_ptr (eval_expr e).
 Proof. reflexivity. Qed.
-Hint Rewrite eval_lvalue_Ederef : eval.
+Hint Rewrite @eval_lvalue_Ederef : eval.
 
 Lemma local_lift0_True:     local (`True) = TT.
 Proof. reflexivity. Qed.
@@ -455,9 +455,9 @@ Proof. reflexivity. Qed.
 Hint Rewrite eval_make_args' : norm.
 
 Lemma eval_make_args_same:
- forall Delta i t fsig t0 tl (e: expr) el,
- `(eval_id i) (make_args' ((i,t)::fsig, t0) (eval_exprlist Delta (t::tl) (e::el))) = 
-   `force_val (`(sem_cast (typeof e) t) (eval_expr Delta e)).
+ forall {cs: compspecs}  i t fsig t0 tl (e: expr) el,
+ `(eval_id i) (make_args' ((i,t)::fsig, t0) (eval_exprlist (t::tl) (e::el))) = 
+   `force_val (`(sem_cast (typeof e) t) (eval_expr e)).
 Proof.
 intros.
 extensionality rho.
@@ -473,10 +473,10 @@ reflexivity.
 Qed.
 
 Lemma eval_make_args_other:
- forall Delta i j fsig t0 t t' tl (e: expr) el,
+ forall {cs: compspecs}  i j fsig t0 t t' tl (e: expr) el,
    i<>j ->
-  `(eval_id i) (make_args' ((j,t)::fsig, t0) (eval_exprlist Delta (t'::tl) (e::el))) =
-   `(eval_id i) (make_args' (fsig, t0) (eval_exprlist Delta tl el)).
+  `(eval_id i) (make_args' ((j,t)::fsig, t0) (eval_exprlist (t'::tl) (e::el))) =
+   `(eval_id i) (make_args' (fsig, t0) (eval_exprlist tl el)).
 Proof.
 intros. extensionality rho.
 unfold make_args'.
@@ -487,8 +487,8 @@ simpl.
 rewrite Map.gso; auto.
 Qed.
 
-Hint Rewrite eval_make_args_same : norm.
-Hint Rewrite eval_make_args_other using (solve [clear; intro Hx; inversion Hx]) : norm.
+Hint Rewrite @eval_make_args_same : norm.
+Hint Rewrite @eval_make_args_other using (solve [clear; intro Hx; inversion Hx]) : norm.
 
 Infix "oo" := Basics.compose (at level 54, right associativity).
 Arguments Basics.compose {A B C} g f x / .
@@ -500,10 +500,10 @@ Proof. reflexivity. Qed.
 Hint Rewrite compose_backtick : norm.
 
 Lemma compose_eval_make_args_same:
-  forall Delta (Q: val -> Prop) i t fsig t0 tl e el,
+  forall {cs: compspecs}  (Q: val -> Prop) i t fsig t0 tl e el,
   @liftx (Tarrow environ (LiftEnviron Prop))
-      (Q oo (eval_id i)) (make_args' ((i,t)::fsig,t0) (eval_exprlist Delta (t::tl) (e::el))) =
-  `Q (`force_val (`(sem_cast (typeof e) t) (eval_expr Delta e))).
+      (Q oo (eval_id i)) (make_args' ((i,t)::fsig,t0) (eval_exprlist (t::tl) (e::el))) =
+  `Q (`force_val (`(sem_cast (typeof e) t) (eval_expr e))).
 Proof. 
   intros.
   rewrite <- compose_backtick.
@@ -511,19 +511,19 @@ Proof.
 Qed.
 
 Lemma compose_eval_make_args_other:
-  forall Delta Q i j fsig t0 t t' tl (e: expr) el,
+  forall {cs: compspecs}  Q i j fsig t0 t t' tl (e: expr) el,
    i<>j ->
     @liftx (Tarrow environ (LiftEnviron Prop))
-     (Q oo (eval_id i)) (make_args' ((j,t)::fsig, t0) (eval_exprlist Delta (t'::tl) (e::el))) =
-     `Q (`(eval_id i) (make_args' (fsig, t0) (eval_exprlist Delta tl el))).
+     (Q oo (eval_id i)) (make_args' ((j,t)::fsig, t0) (eval_exprlist (t'::tl) (e::el))) =
+     `Q (`(eval_id i) (make_args' (fsig, t0) (eval_exprlist tl el))).
 Proof.
   intros.
   rewrite <- compose_backtick.
   f_equal. apply eval_make_args_other; auto.
 Qed.
 
-Hint Rewrite compose_eval_make_args_same : norm.
-Hint Rewrite compose_eval_make_args_other using (solve [clear; intro Hx; inversion Hx]) : norm.
+Hint Rewrite @compose_eval_make_args_same : norm.
+Hint Rewrite @compose_eval_make_args_other using (solve [clear; intro Hx; inversion Hx]) : norm.
 
 Lemma substopt_unfold {A}: forall id v, @substopt A (Some id) v = @subst A id v.
 Proof. reflexivity. Qed.
@@ -567,12 +567,12 @@ Lemma elim_globals_only':
 Proof. reflexivity. Qed.
 Hint Rewrite elim_globals_only' : norm.
 
-Lemma eval_expropt_Some: forall Delta e, eval_expropt Delta (Some e) = `Some (eval_expr Delta e).
+Lemma eval_expropt_Some: forall {cs: compspecs}  e, eval_expropt (Some e) = `Some (eval_expr e).
 Proof. reflexivity. Qed.
-Lemma eval_expropt_None: forall Delta, eval_expropt Delta None = `None.
+Lemma eval_expropt_None: forall  {cs: compspecs} , eval_expropt None = `None.
 Proof. reflexivity. Qed.
-Hint Rewrite eval_expropt_Some eval_expropt_None : eval.
-
+Hint Rewrite @eval_expropt_Some @eval_expropt_None : eval.
+ 
 Lemma globvar_eval_var:
   forall Delta rho id t,
       tc_environ Delta rho ->
@@ -1054,17 +1054,17 @@ Proof.
  left; split; omega. 
 Defined.
 
-Definition add_ptr_int' Delta (ty: type) (v: val) (i: Z) : val :=
-  if repable_signed_dec (sizeof (composite_types Delta) ty * i)
+Definition add_ptr_int'  {cs: compspecs}  (ty: type) (v: val) (i: Z) : val :=
+  if repable_signed_dec (sizeof cenv_cs ty * i)
    then match v with
       | Vptr b ofs => 
-           Vptr b (Int.add ofs (Int.repr (sizeof (composite_types Delta) ty * i)))
+           Vptr b (Int.add ofs (Int.repr (sizeof cenv_cs ty * i)))
       | _ => Vundef
       end
   else Vundef.
 
-Definition add_ptr_int Delta (ty: type) (v: val) (i: Z) : val :=
-           eval_binop Delta Oadd (tptr ty) tint v (Vint (Int.repr i)).
+Definition add_ptr_int  {cs: compspecs}  (ty: type) (v: val) (i: Z) : val :=
+           eval_binop Oadd (tptr ty) tint v (Vint (Int.repr i)).
 
 Lemma repable_signed_mult2:
   forall i j, i<>0 -> (j <= Int.max_signed \/ i <> -1) ->
@@ -1121,9 +1121,9 @@ intros.
 Qed.
 
 Lemma add_ptr_int_eq:
-  forall Delta ty v i, 
-       repable_signed (sizeof (composite_types Delta) ty * i) ->
-       add_ptr_int' Delta ty v i = add_ptr_int Delta ty v i.
+  forall  {cs: compspecs}  ty v i, 
+       repable_signed (sizeof cenv_cs ty * i) ->
+       add_ptr_int' ty v i = add_ptr_int ty v i.
 Proof.
  intros.
  unfold add_ptr_int, add_ptr_int'.
@@ -1133,10 +1133,10 @@ Proof.
 Qed.
 
 Lemma add_ptr_int_offset:
-  forall Delta t v n, 
-  repable_signed (sizeof (composite_types Delta) t) ->
+  forall  {cs: compspecs}  t v n, 
+  repable_signed (sizeof cenv_cs t) ->
   repable_signed n ->
-  add_ptr_int Delta t v n = offset_val (Int.repr (sizeof (composite_types Delta) t * n)) v.
+  add_ptr_int t v n = offset_val (Int.repr (sizeof cenv_cs t * n)) v.
 Proof.
  unfold add_ptr_int; intros.
  unfold eval_binop, force_val2; destruct v; simpl; auto.
@@ -1147,9 +1147,9 @@ Proof.
 Qed.
 
 Lemma add_ptr_int'_offset:
-  forall Delta t v n, 
-  repable_signed (sizeof (composite_types Delta) t * n) ->
-  add_ptr_int' Delta t v n = offset_val (Int.repr (sizeof (composite_types Delta) t * n)) v.
+  forall  {cs: compspecs}  t v n, 
+  repable_signed (sizeof cenv_cs t * n) ->
+  add_ptr_int' t v n = offset_val (Int.repr (sizeof cenv_cs t * n)) v.
 Proof.
  intros.
  unfold add_ptr_int'. 

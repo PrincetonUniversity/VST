@@ -94,14 +94,14 @@ Fixpoint initialized_list ids D :=
  | i::il => initialized_list il (initialized i D)
  end.
 
-Lemma initialized_list1:  forall i il a1 a2 a3 a4 a5 a6 a7 d',
+Lemma initialized_list1:  forall i il a1 a2 a3 a4 a5 d',
     initialized_list il 
       match a1 ! i with
        | Some (ty, _) =>
-          mk_tycontext (PTree.set i (ty, true) a1) a2 a3 a4 a5 a6 a7
-       | None => mk_tycontext a1 a2 a3 a4 a5 a6 a7
+          mk_tycontext (PTree.set i (ty, true) a1) a2 a3 a4 a5
+       | None => mk_tycontext a1 a2 a3 a4 a5
        end = d' ->
-    initialized_list (i::il) (mk_tycontext a1 a2 a3 a4 a5 a6 a7) = d'.
+    initialized_list (i::il) (mk_tycontext a1 a2 a3 a4 a5) = d'.
 Proof. intros; subst; reflexivity.
 Qed.
 

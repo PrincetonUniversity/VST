@@ -1,8 +1,8 @@
 Require Import floyd.proofauto.
 Require Import progs.float.
-Instance CompSpecs : compspecs := compspecs_program prog.
-Instance CS_legal : compspecs_legal CompSpecs.
-Proof. prove_CS_legal. Qed.
+
+Instance CompSpecs : compspecs.
+Proof. make_compspecs prog. Defined.  
 
 Local Open Scope logic.
 
@@ -53,13 +53,15 @@ name y1 _y1.
 name y2 _y2.
 name s _s.
 start_function.
-apply semax_pre with
- (PROP  ()
-   LOCAL  (gvar _s s)
-   SEP 
-   (`(data_at Ews t_struct_foo (Vint (Int.repr 5), 
+pose (f :=  PROP () LOCAL (gvar _s s) 
+  SEP (`(data_at Ews t_struct_foo (Vint (Int.repr 5), 
           (Vsingle (Float32.of_bits (Int.repr 1079655793)),
-           Vfloat (Float.of_bits (Int64.repr 0)))) s))). {
+           Vfloat (Float.of_bits (Int64.repr 0)))) s))).
+apply semax_pre with f; subst f. (* factored out "f" to work around a bug
+   in Coq 8.4pl6 (and earlier versions back at least to 8.4pl3). 
+  To exhibit the bug, put the r.h.s. of the "pose" as in place of f
+  in the "apply...with".  *)
+ {
 unfold data_at.
  unfold_field_at 1%nat.
 entailer!.

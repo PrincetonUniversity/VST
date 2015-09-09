@@ -22,8 +22,7 @@ Max length ids field_at load store:
 
 Section LOADSTORE_FIELD_AT.
 
-Context {cs: compspecs}
-      {csl: compspecs_legal cs}.
+Context {cs: compspecs}.
 
 Lemma semax_max_path_field_load_37':
   forall {Espec: OracleKind},
@@ -38,8 +37,8 @@ Lemma semax_max_path_field_load_37':
          (tc_LR Delta e1 lr) &&
         local `(tc_val (typeof (nested_efield e1 efs tts)) v) &&
          (tc_efield Delta efs) &&
-        efield_denote Delta efs gfs &&
-        (`(field_at sh t_root gfs v') (eval_LR Delta e1 lr) * TT) ->
+        efield_denote efs gfs &&
+        (`(field_at sh t_root gfs v') (eval_LR e1 lr) * TT) ->
       semax Delta (|>PROPx P (LOCALx Q (SEPx R))) 
         (Sset id (nested_efield e1 efs tts))
           (normal_ret_assert
@@ -85,8 +84,8 @@ Lemma semax_max_path_field_cast_load_37':
          (tc_LR Delta e1 lr) &&
         local (`(tc_val t (eval_cast (typeof (nested_efield e1 efs tts)) t v))) &&
          (tc_efield Delta efs) &&
-        efield_denote Delta efs gfs &&
-        (`(field_at sh t_root gfs v') (eval_LR Delta e1 lr) * TT) ->
+        efield_denote efs gfs &&
+        (`(field_at sh t_root gfs v') (eval_LR e1 lr) * TT) ->
       semax Delta (|> PROPx P (LOCALx Q (SEPx R)))
         (Sset id (Ecast (nested_efield e1 efs tts) t))
           (normal_ret_assert
@@ -144,12 +143,12 @@ Lemma semax_max_path_field_store_nth:
       legal_nested_efield t_root e1 gfs tts lr = true ->
       nth_error R n = Some Rn ->
       PROPx P (LOCALx (tc_environ Delta :: Q) (SEP (Rn))) |--
-        `(field_at_ sh t_root gfs) (eval_LR Delta e1 lr) ->
+        `(field_at_ sh t_root gfs) (eval_LR e1 lr) ->
       writable_share sh ->
       PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |--
          (tc_LR Delta e1 lr) && 
          (tc_efield Delta efs) &&
-        efield_denote Delta efs gfs &&
+        efield_denote efs gfs &&
                  (tc_expr Delta (Ecast e2 t)) ->
       semax Delta (|>PROPx P (LOCALx Q (SEPx R))) 
         (Sassign (nested_efield e1 efs tts) e2)
@@ -159,8 +158,8 @@ Lemma semax_max_path_field_store_nth:
                 (SEPx
                   (replace_nth n R
                     (`(field_at sh t_root gfs)
-                      (`(valinject (nested_field_type2 t_root gfs)) (eval_expr Delta (Ecast e2 t))) 
-                        (eval_LR Delta e1 lr)
+                      (`(valinject (nested_field_type2 t_root gfs)) (eval_expr (Ecast e2 t))) 
+                        (eval_LR e1 lr)
                           )))))).
 Proof.
   intros.

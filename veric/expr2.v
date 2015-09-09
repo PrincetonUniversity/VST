@@ -204,23 +204,23 @@ Definition denote_tc_comparable v1 v2 : mpred :=
  | _, _ => FF
  end.
 
-Fixpoint denote_tc_assert (Delta: tycontext) (a: tc_assert) : environ -> mpred :=
+Fixpoint denote_tc_assert {CS: compspecs}(a: tc_assert) : environ -> mpred :=
   match a with
   | tc_FF _ => `FF
   | tc_noproof => `FF
   | tc_TT => `TT
-  | tc_andp' b c => `andp (denote_tc_assert Delta b) (denote_tc_assert Delta c)
-  | tc_orp' b c => `orp (denote_tc_assert Delta b) (denote_tc_assert Delta c)
-  | tc_nonzero' e => `denote_tc_nonzero (eval_expr Delta e)
-  | tc_isptr e => `denote_tc_isptr (eval_expr Delta e)
-  | tc_comparable' e1 e2 => `denote_tc_comparable (eval_expr Delta e1) (eval_expr Delta e2)
-  | tc_ilt' e i => `(denote_tc_igt i) (eval_expr Delta e)
-  | tc_Zle e z => `(denote_tc_Zge z) (eval_expr Delta e)
-  | tc_Zge e z => `(denote_tc_Zle z) (eval_expr Delta e)
-  | tc_samebase e1 e2 => `denote_tc_samebase (eval_expr Delta e1) (eval_expr Delta e2)
-  | tc_nodivover' v1 v2 => `denote_tc_nodivover (eval_expr Delta v1) (eval_expr Delta v2)
+  | tc_andp' b c => `andp (denote_tc_assert b) (denote_tc_assert c)
+  | tc_orp' b c => `orp (denote_tc_assert b) (denote_tc_assert c)
+  | tc_nonzero' e => `denote_tc_nonzero (eval_expr e)
+  | tc_isptr e => `denote_tc_isptr (eval_expr e)
+  | tc_comparable' e1 e2 => `denote_tc_comparable (eval_expr e1) (eval_expr e2)
+  | tc_ilt' e i => `(denote_tc_igt i) (eval_expr e)
+  | tc_Zle e z => `(denote_tc_Zge z) (eval_expr e)
+  | tc_Zge e z => `(denote_tc_Zle z) (eval_expr e)
+  | tc_samebase e1 e2 => `denote_tc_samebase (eval_expr e1) (eval_expr e2)
+  | tc_nodivover' v1 v2 => `denote_tc_nodivover (eval_expr v1) (eval_expr v2)
   | tc_initialized id ty => denote_tc_initialized id ty
-  | tc_iszero' e => `denote_tc_iszero (eval_expr Delta e)
+  | tc_iszero' e => `denote_tc_iszero (eval_expr e)
  end.
 
 Lemma and_False: forall x, (x /\ False) = False.
@@ -244,9 +244,9 @@ intros; apply prop_ext; intuition.
 Qed.
 
 
-Lemma tc_andp_sound : forall Delta a1 a2 rho m, 
-    denote_tc_assert Delta (tc_andp a1 a2) rho m <->  
-    denote_tc_assert Delta (tc_andp' a1 a2) rho m. 
+Lemma tc_andp_sound : forall {CS: compspecs} a1 a2 rho m, 
+    denote_tc_assert  (tc_andp a1 a2) rho m <->  
+    denote_tc_assert  (tc_andp' a1 a2) rho m. 
 Proof.
 intros.
  unfold tc_andp.
@@ -259,8 +259,8 @@ intros.
 Qed. 
 
 Lemma denote_tc_assert_andp: 
-  forall Delta a b rho, denote_tc_assert Delta (tc_andp a b) rho =
-             andp (denote_tc_assert Delta a rho) (denote_tc_assert Delta b rho).
+  forall {CS: compspecs} a b rho, denote_tc_assert (tc_andp a b) rho =
+             andp (denote_tc_assert a rho) (denote_tc_assert b rho).
 Proof.
  intros.
  apply pred_ext.
@@ -269,13 +269,25 @@ Proof.
 Qed.
 
 Lemma neutral_isCastResultType:
-  forall Delta t t' v rho,
+  forall {CS: compspecs} t t' v rho,
    is_neutral_cast t' t = true ->
-   forall m, denote_tc_assert Delta (isCastResultType Delta t' t v) rho m.
+   forall m, denote_tc_assert (isCastResultType t' t v) rho m.
 Proof.
 intros.
   unfold isCastResultType;
   destruct t'  as [ | [ | | | ] [ | ] | | [ | ] | | | | |], t  as [ | [ | | | ] [ | ] | | [ | ] | | | | |];
      inv H; try apply I;
     simpl; if_tac; apply I.
+Qed.
+
+Lemma is_true_e: forall b, is_true b -> b=true.
+Proof. intros. destruct b; try contradiction; auto.
+Qed.
+
+Lemma tc_bool_e: forall {CS: compspecs} b a rho m,
+  app_pred (denote_tc_assert (tc_bool b a) rho) m ->
+  b = true.
+Proof.
+intros.
+destruct b; simpl in H; auto.
 Qed.

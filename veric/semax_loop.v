@@ -85,11 +85,11 @@ apply tycontext_evolve_refl.
 apply tycontext_evolve_join; auto.
 Qed.
 
-Lemma semax_ifthenelse : 
+Lemma semax_ifthenelse {CS: compspecs}: 
    forall Delta P (b: expr) c d R,
       bool_type (typeof b) = true ->
-     semax Espec Delta (fun rho => P rho && !! expr_true Delta b rho) c R -> 
-     semax Espec Delta (fun rho => P rho && !! expr_false Delta b rho) d R -> 
+     semax Espec Delta (fun rho => P rho && !! expr_true b rho) c R -> 
+     semax Espec Delta (fun rho => P rho && !! expr_false b rho) d R -> 
      semax Espec Delta 
               (fun rho => tc_expr Delta (Eunop Cop.Onotbool b (Tint I32 Signed noattr)) rho && P rho)
               (Sifthenelse b c d) R.
@@ -97,8 +97,8 @@ Proof.
 intros.
 rewrite semax_unfold in H0, H1 |- *.
 intros.
-specialize (H0 psi _ _ TS Prog_OK k F).
-specialize (H1 psi _ _ TS Prog_OK k F).
+specialize (H0 psi _ _ TS HGG Prog_OK k F).
+specialize (H1 psi _ _ TS HGG Prog_OK k F).
 spec H0. intros i te' ?.  apply H2; simpl; auto. intros i0; destruct (H4 i0); intuition.
 left; clear - H5.
 unfold modifiedvars. simpl.
@@ -115,13 +115,13 @@ intros ek vl tx vx; specialize (H3 ek vl tx vx).
 cbv beta in H3.
 eapply subp_trans'; [ | apply H3].
 apply derives_subp; apply andp_derives; auto.
-Focus 2. {
+(*Focus 2. {
   unfold exit_tycon; destruct ek; auto; simpl.
   intro; simpl.
   rewrite join_tycon_guard_genv.
   auto.
 } Unfocus.
-apply andp_derives; auto.
+*)
 apply andp_derives; auto.
 unfold exit_tycon; simpl. destruct ek; simpl; auto.
 intros ? [? ?]; split; auto.
@@ -137,6 +137,7 @@ clear - H3.
 intros ek vl tx vx; specialize (H3 ek vl tx vx).
 eapply subp_trans'; [ | apply H3].
 apply derives_subp; apply andp_derives; auto.
+(*
 Focus 2. {
   unfold exit_tycon; destruct ek; auto; simpl.
   intro; simpl.
@@ -144,7 +145,7 @@ Focus 2. {
   rewrite !update_tycon_guard_genv.
   auto.
 } Unfocus.
-apply andp_derives; auto.
+*)
 apply andp_derives; auto.
 unfold exit_tycon; simpl. destruct ek; simpl; auto. 
 intros ? [? ?]; split; auto.
@@ -166,7 +167,7 @@ intros ? ?. clear w H0.
 revert a'.
 apply fash_derives.
 intros w [? ?].
-intros ?w ? [[[?TC  ?] ?] HGG].
+intros ?w ? [[?TC  ?] ?].
 assert (typecheck_environ Delta rho) as TC_ENV.
 Focus 1. {
   destruct TC as [TC _].
@@ -175,7 +176,7 @@ Focus 1. {
 apply extend_sepcon_andp in H4; auto.
 destruct H4 as [TC2 H4].
 pose proof TC2 as TC2'.
-apply (tc_expr_sub _ _ TS) in TC2'; [| auto].
+apply (tc_expr_sub _ _ _ TS) in TC2'; [| auto].
 (*hnf in TC2'.*)
 destruct H4 as [w1 [w2 [? [? ?]]]].
 specialize (H0 w0 H3).
@@ -188,12 +189,12 @@ assert (TCS := typecheck_expr_sound _ _ w0 _ (guard_environ_e1 _ _ _ TC) TC2'). 
  simpl in TC2'.
  rewrite denote_tc_assert_andp in TC2'.
  destruct TC2' as [TC2' TC2'a].
-assert (exists b': bool, Cop.bool_val (eval_expr Delta' b rho) (typeof b) (m_dry jm) = Some b'). {
+assert (exists b': bool, Cop.bool_val (eval_expr b rho) (typeof b) (m_dry jm) = Some b'). {
 clear - TS TC H TC2 TC2' TC2'a TCS Hphi.
  rewrite tc_val_eq in TCS.
  simpl in TCS. unfold_lift in TCS.
  unfold Cop.bool_val;
- destruct (eval_expr Delta' b rho) eqn:H15;
+ destruct (eval_expr b rho) eqn:H15;
  simpl; destruct (typeof b) as [ | [| | | ] [| ]| | [ | ] |  | | | | ];
     intuition; simpl in *; try rewrite TCS; eauto;
  rewrite binop_lemmas2.denote_tc_assert_comparable' in  TC2';
@@ -223,19 +224,17 @@ destruct b'.
 eapply H0; auto.
 split; auto.
 split; auto.
-split; auto.
 rewrite andp_comm.
 unfold lift1.
 unfold tc_expr in TC2.
  simpl in TC2.
  rewrite denote_tc_assert_andp in TC2.
  destruct TC2 as [TC2 TC2a].
-erewrite <- eval_expr_sub in H9; eauto.
 rewrite prop_true_andp.
 do 2 econstructor; split3; eauto.
 clear - H9 TC2.
 unfold typed_true, strict_bool_val.
-destruct (eval_expr Delta b rho) eqn:H16, 
+destruct (eval_expr b rho) eqn:H16, 
  (typeof b) as [ | [| | | ] [| ]| | [ | ] |  | | | | ];
  simpl in *; inv H9; auto;
  rewrite binop_lemmas2.denote_tc_assert_comparable' in  TC2;
@@ -246,7 +245,6 @@ destruct (eval_expr Delta b rho) eqn:H16,
 eapply H1; auto.
 split; auto.
 split; auto.
-split; auto.
 unfold lift1.
 rewrite andp_comm; rewrite prop_true_andp.
 do 2 econstructor; split3; eauto.
@@ -254,10 +252,9 @@ unfold tc_expr in TC2.
  simpl in TC2.
  rewrite denote_tc_assert_andp in TC2.
  destruct TC2 as [TC2 TC2a].
-erewrite <- eval_expr_sub in H9; eauto.
 clear - H9 TC2.
 unfold typed_false, strict_bool_val.
-destruct (eval_expr Delta b rho) eqn:H16, 
+destruct (eval_expr b rho) eqn:H16, 
  (typeof b) as [ | [| | | ] [| ]| | [ | ] |  | | | | ];
  simpl in *; inv H9; auto;
  try (rewrite negb_false_iff in H0; rewrite H0); auto.
@@ -373,7 +370,7 @@ destruct H as [H1' [H1a H1b]]; split3; auto.
 inv H1. inv H; auto. constructor. auto.
 Qed. 
 *)
-Lemma seq_assoc:
+Lemma seq_assoc {CS: compspecs}:
   forall Delta P s1 s2 s3 R,
   semax Espec Delta P (Ssequence s1 (Ssequence s2 s3)) R <->
   semax Espec Delta P (Ssequence (Ssequence s1 s2) s3) R.
@@ -385,19 +382,7 @@ simpl;
 rewrite app_assoc; auto.
 Qed.
 
-Lemma stackframe_of_update_tycon: forall Delta c f,
-  @stackframe_of (cs_tycon (update_tycon Delta c)) f = @stackframe_of (cs_tycon Delta) f.
-Proof.
-  intros.
-  unfold stackframe_of.
-  unfold var_block.
-  simpl eval_lvalue.
-  unfold cenv_cs, cs_tycon; simpl.
-  rewrite composite_types_update_tycon by auto.
-  auto.
-Qed.
-
-Lemma semax_seq:
+Lemma semax_seq {CS: compspecs}:
   forall Delta (R: ret_assert) P Q h t,
   semax Espec Delta P h (overridePost Q R) ->
   semax Espec (update_tycon Delta h) Q t R ->
@@ -406,10 +391,11 @@ Proof.
 intros.
 rewrite semax_unfold in H,H0|-*.
 intros.
-specialize (H psi _ w TS Prog_OK).
+specialize (H psi _ w TS HGG Prog_OK).
 specialize (H0 psi (update_tycon Delta' h) w).
 spec H0. apply update_tycon_sub; auto.
-spec H0.
+spec H0; auto.
+spec H0. {
 clear - Prog_OK.
 unfold believe in *.
 unfold believe_internal in *.
@@ -421,45 +407,38 @@ rewrite glob_specs_update_tycon in H0. auto.
 destruct Prog_OK; [ left; auto | right].
 destruct H1 as [b [f ?]]; exists b,f.
 destruct H1; split; auto.
-+ clear - H1.
-  unfold var_sizes_ok in *.
-  unfold cs_tycon, cenv_cs in *.
-  hnf in H1 |- *.
-  rewrite composite_types_update_tycon; auto.
-+
 intro x; specialize (H2 x).
 rewrite func_tycontext'_update_tycon.
-rewrite stackframe_of_update_tycon.
 exact H2.
-+
+}
 assert ((guard Espec psi Delta' (fun rho : environ => F rho * P rho)%pred
 (Kseq h :: Kseq t :: k)) w).
-Focus 2.
+Focus 2. {
 eapply guard_safe_adj; try apply H3; try reflexivity;
 intros until n; apply convergent_controls_safe; simpl; auto;
 intros; destruct q'.
 destruct H4 as [? [? ?]]; split3; auto. constructor; auto.
 destruct H4 as [? [? ?]]; split3; auto. constructor; auto.
-(* End Focus 2 *)
+} Unfocus.
 eapply H; eauto.
 repeat intro; apply H1.
 clear - H3. intro i; destruct (H3 i); [left | right]; auto.
 unfold modifiedvars in H|-*. simpl. apply modifiedvars'_union.
 left; auto.
-clear - H0 H1 H2.
+clear - HGG H0 H1 H2.
 intros ek vl.
 intros tx vx.
 unfold overridePost, frame_ret_assert.
 if_tac.
+*
 subst.
 unfold exit_cont.
 unfold guard in H0.
 remember (construct_rho (filter_genv psi) vx tx) as rho.
 assert (app_pred
 (!!guard_environ (update_tycon Delta' h) (current_function k) rho &&
-(F rho * (Q rho)) && funassert Delta' rho &&
-!!guard_genv (update_tycon Delta' h) psi >=>
-assert_safe Espec psi vx tx (Kseq t :: k) rho) w).
+(F rho * (Q rho)) && funassert Delta' rho >=>
+assert_safe Espec psi vx tx (Kseq t :: k) rho) w). {
 subst.
 specialize (H0 k F).
 spec H0.
@@ -473,12 +452,6 @@ clear - H2.
 intros ek vl te ve; specialize (H2 ek vl te ve).
 eapply subp_trans'; [ | apply H2].
 apply derives_subp. apply andp_derives; auto.
-Focus 2. {
-  rewrite !exit_tycon_guard_genv.
-  rewrite update_tycon_guard_genv.
-  auto.
-} Unfocus.
-apply andp_derives; auto.
 apply andp_derives; auto.
 simpl.
 intros ? [? ?]; hnf in H,H0|-*; split; auto.
@@ -492,24 +465,27 @@ rewrite funassert_update_tycon; auto.
 specialize (H0 tx vx). cbv beta in H0.
 rewrite funassert_update_tycon in H0.
 apply H0.
+}
 eapply subp_trans'; [ | apply H].
-apply derives_subp. apply andp_derives; auto. apply andp_derives; auto. apply andp_derives; auto.
+apply derives_subp. apply andp_derives; auto.
+ apply andp_derives; auto.
 rewrite sepcon_comm;
 apply sepcon_derives; auto.
 apply andp_left2; auto.
 rewrite funassert_exit_tycon. auto.
+*
 replace (exit_cont ek vl (Kseq t :: k)) with (exit_cont ek vl k)
 by (destruct ek; simpl; congruence).
 unfold rguard in H2.
 specialize (H2 ek vl tx vx).
-replace (exit_tycon h Delta' ek) with Delta'.
+replace (exit_tycon h Delta' ek) with Delta'
+ by (destruct ek; try congruence; auto).
+replace (exit_tycon (Ssequence h t) Delta' ek) with Delta'
+  in H2 
+ by (destruct ek; try congruence; auto).
 eapply subp_trans'; [ | apply H2].
 apply derives_subp.
 apply andp_derives; auto.
-replace (exit_tycon (Ssequence h t) Delta' ek) with Delta'; auto.
-destruct ek; try congruence; auto.
-destruct ek; try congruence; auto.
-destruct ek; try congruence; auto.
 Qed.
 
 Lemma control_as_safe_refl psi n k : control_as_safe Espec psi n k k.
@@ -520,7 +496,7 @@ simpl in *. congruence.
 simpl in H1. unfold cl_halted in H1. congruence.
 Qed.
 
-Lemma semax_seq_skip:
+Lemma semax_seq_skip {CS: compspecs}:
   forall Delta P s Q,
   semax Espec Delta P s Q <-> semax Espec Delta P (Ssequence s Sskip) Q.
 Proof.
@@ -528,7 +504,7 @@ split; intro.
 *
 rewrite semax_unfold in H|-*.
 intros.
-specialize (H psi _ _ TS Prog_OK (Kseq Sskip :: k) F H0). clear TS Prog_OK H0.
+specialize (H psi _ _ TS HGG Prog_OK (Kseq Sskip :: k) F H0). clear TS Prog_OK H0.
 +
 spec H; [clear - H1 | ].
 revert w H1; apply rguard_adj; [reflexivity | ].
@@ -548,7 +524,7 @@ destruct H0 as [? [? ?]]; split3; auto. constructor; auto.
 *
 rewrite semax_unfold in H|-*.
 intros.
-specialize (H psi _ _ TS Prog_OK k F H0 H1). clear TS Prog_OK H0 H1.
+specialize (H psi _ _ TS HGG Prog_OK k F H0 H1). clear TS Prog_OK H0 H1.
 eapply guard_safe_adj; try apply H; try reflexivity. clear H.
 intros.
 destruct n; simpl in *. constructor.
@@ -573,13 +549,13 @@ solve[inv H1; auto]. }
 econstructor; eauto.
 Qed. 
 
-Lemma semax_skip_seq:
+Lemma semax_skip_seq {CS: compspecs}:
   forall Delta P s Q,
     semax Espec Delta P s Q <-> semax Espec Delta P (Ssequence Sskip s) Q.
 Proof.
 intros.
 split; intro H; rewrite semax_unfold in H|-*; intros;
- specialize (H psi _ _ TS Prog_OK k F H0);
+ specialize (H psi _ _ TS HGG Prog_OK k F H0);
  clear TS Prog_OK H0.
 *
 spec H. clear H.
@@ -607,7 +583,7 @@ revert w H; apply guard_safe_adj; [reflexivity | ].
   inv H. inv H10; auto.
 Qed.
 
-Lemma semax_loop : 
+Lemma semax_loop {CS: compspecs}: 
 forall Delta Q Q' incr body R,
      semax Espec Delta Q body (loop1_ret_assert Q' R) ->
      semax Espec Delta Q' incr (loop2_ret_assert Q R) ->
@@ -615,7 +591,7 @@ forall Delta Q Q' incr body R,
 Proof.
   intros ? ? ? ? ?  POST H H0.
   rewrite semax_unfold.
-  intros until 3.
+  intros until 4.
   rename H1 into H2.
   assert (CLO_body: closed_wrt_modvars body F).
   Focus 1. {
@@ -688,7 +664,7 @@ Proof.
   clear y H5 H4. rename H11 into H5. pose (H4:=True).
   generalize H; rewrite semax_unfold; intros H'.
   change ((believe Espec Delta' psi Delta') (level jm')) in Prog_OK2.
-  specialize (H' psi Delta' (level jm') (tycontext_sub_refl _) Prog_OK2 (Kseq Scontinue :: Kloop1 body incr :: k) F CLO_body).
+  specialize (H' psi Delta' (level jm') (tycontext_sub_refl _) HGG Prog_OK2 (Kseq Scontinue :: Kloop1 body incr :: k) F CLO_body).
   spec H'.
   Focus 2. {
     apply (H' tx vx _ (le_refl _) (m_phi jm') (necR_refl _)); try solve[subst; auto].
@@ -702,7 +678,7 @@ Proof.
   destruct ek.
   + simpl exit_cont.
     rewrite semax_unfold in H0.
-    specialize (H0 psi _ (level jm') (tycontext_sub_refl _)  Prog_OK2 (Kloop2 body incr :: k) F CLO_incr).
+    specialize (H0 psi _ (level jm') (tycontext_sub_refl _)  HGG Prog_OK2 (Kloop2 body incr :: k) F CLO_incr).
     spec H0.
     Focus 1. {
       intros ek2 vl2 tx2 vx2; unfold loop2_ret_assert.
@@ -713,7 +689,6 @@ Proof.
           intros q' m' [? [? ?]]; split3; auto. inv H13; econstructor; eauto.
         - eapply subp_trans'; [ |  eapply (H1 _ LT Prog_OK2 H3' tx2 vx2)].
           apply derives_subp.
-          apply andp_derives; auto; [| rewrite update_tycon_guard_genv; auto].
           rewrite funassert_update_tycon.
           apply andp_derives; auto.
           apply andp_derives; auto.
@@ -739,7 +714,6 @@ Proof.
     intros q' m' [? [? ?]]; split3; auto. constructor. simpl. auto.
     eapply subp_trans'; [ | apply H0].
     apply derives_subp.
-    apply andp_derives; [| rewrite exit_tycon_guard_genv; auto].
     unfold frame_ret_assert.
     rewrite funassert_exit_tycon.
     apply andp_derives; auto.
@@ -765,7 +739,7 @@ Proof.
     unfold loop1_ret_assert, frame_ret_assert.
     rewrite semax_unfold in H0.
     intros tx2 vx2.
-    eapply subp_trans'; [ | apply (H0 _ _ _ (tycontext_sub_refl _) Prog_OK2 (Kloop2 body incr :: k) F CLO_incr)].
+    eapply subp_trans'; [ | apply (H0 _ _ _ (tycontext_sub_refl _) HGG Prog_OK2 (Kloop2 body incr :: k) F CLO_incr)].
     Focus 1. {
       apply derives_subp.
       apply andp_derives; auto.
@@ -782,7 +756,6 @@ Proof.
       intros q' m' [? [? ?]]; split3; auto. inv H12; econstructor; eauto.
     - eapply subp_trans'; [ | eapply H1; eauto].
       apply derives_subp.
-      apply andp_derives; [| rewrite exit_tycon_guard_genv; auto].
       rewrite funassert_exit_tycon; 
       apply andp_derives; auto.
       apply andp_derives; auto.
@@ -816,7 +789,7 @@ Proof.
     auto.
 Qed.
    
-Lemma semax_break:
+Lemma semax_break {CS: compspecs}:
    forall Delta Q,        semax Espec Delta (Q EK_break None) Sbreak Q.
 Proof.
   intros.
@@ -846,7 +819,7 @@ Proof.
   econstructor; eauto.
 Qed.
 
-Lemma semax_continue:
+Lemma semax_continue {CS: compspecs}:
    forall Delta Q,        semax Espec Delta (Q EK_continue None) Scontinue Q.
 Proof.
  intros.

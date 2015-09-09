@@ -18,16 +18,16 @@ Require Import floyd.local2ptree.
 
 Local Open Scope logic.
 
-Definition msubst_eval_LR Delta T1 T2 e (lr: LLRR) :=
+Definition msubst_eval_LR {cs: compspecs} T1 T2 e (lr: LLRR) :=
   match lr with
-  | LLLL => msubst_eval_lvalue Delta T1 T2 e
-  | RRRR => msubst_eval_expr Delta T1 T2 e
+  | LLLL => msubst_eval_lvalue T1 T2 e
+  | RRRR => msubst_eval_expr T1 T2 e
   end.
 
-Lemma msubst_eval_LR_eq: forall Delta P T1 T2 Q R e v lr,
-  msubst_eval_LR Delta T1 T2 e lr = Some v ->
+Lemma msubst_eval_LR_eq: forall {cs: compspecs} P T1 T2 Q R e v lr,
+  msubst_eval_LR T1 T2 e lr = Some v ->
   PROPx P (LOCALx (LocalD T1 T2 Q) (SEPx R)) |--
-    local (`(eq v) (eval_LR Delta e lr)).
+    local (`(eq v) (eval_LR e lr)).
 Proof.
   intros.
   destruct lr.
@@ -35,24 +35,24 @@ Proof.
   + apply msubst_eval_expr_eq; auto.
 Qed.
 
-Fixpoint msubst_efield_denote Delta T1 T2 (efs: list efield) : option (list gfield) :=
+Fixpoint msubst_efield_denote {cs: compspecs} T1 T2 (efs: list efield) : option (list gfield) :=
   match efs with
   | nil => Some nil
   | eArraySubsc ei :: efs' =>
-    match typeof ei, msubst_eval_expr Delta T1 T2 ei with
+    match typeof ei, msubst_eval_expr T1 T2 ei with
     | Tint _ _ _, Some (Vint i) =>
-      option_map (cons (ArraySubsc (Int.unsigned i))) (msubst_efield_denote Delta T1 T2 efs')
+      option_map (cons (ArraySubsc (Int.unsigned i))) (msubst_efield_denote T1 T2 efs')
     | _, _ => None
     end
   | eStructField i :: efs' =>
-    option_map (cons (StructField i)) (msubst_efield_denote Delta T1 T2 efs')
+    option_map (cons (StructField i)) (msubst_efield_denote T1 T2 efs')
   | eUnionField i :: efs' =>
-    option_map (cons (UnionField i)) (msubst_efield_denote Delta T1 T2 efs')
+    option_map (cons (UnionField i)) (msubst_efield_denote T1 T2 efs')
   end.
 
-Lemma msubst_efield_denote_equiv: forall Delta P T1 T2 R efs gfs,
-  msubst_efield_denote Delta T1 T2 efs = Some gfs ->
-  (local (tc_environ Delta)) && assertD P (localD T1 T2) R |-- efield_denote Delta efs gfs.
+Lemma msubst_efield_denote_equiv: forall {cs: compspecs} P T1 T2 R efs gfs,
+  msubst_efield_denote T1 T2 efs = Some gfs ->
+  assertD P (localD T1 T2) R |-- efield_denote efs gfs.
 Proof.
   intros.
   revert gfs H; induction efs; intros.
@@ -65,33 +65,31 @@ Opaque andp.
     simpl in H;
     simpl efield_denote.
 Transparent andp.
-    - destruct (typeof i); try solve [inversion H].
-      destruct (msubst_eval_expr Delta T1 T2 i) eqn:?H; [| inversion H].
+    - destruct (typeof i) eqn:?; try solve [inversion H].
+      destruct (msubst_eval_expr T1 T2 i) eqn:?H; [| inversion H].
       destruct v; try solve [inversion H].
-      apply msubst_eval_expr_eq with (P := P) (Q := nil) (R := map liftx R) in H0.
-      destruct (msubst_efield_denote Delta T1 T2 efs) eqn:?H; [| inversion H].
+      apply msubst_eval_expr_eq with (P0 := P) (Q := nil) (R0 := map liftx R) in H0.
+      destruct (msubst_efield_denote T1 T2 efs) eqn:?H; [| inversion H].
       inversion H.
       rewrite (add_andp _ _ (IHefs l eq_refl)).
       unfold assertD, localD.
       rewrite (add_andp _ _ H0).
       apply andp_derives; [| auto].
-      apply andp_left2.
-      apply andp_left2.
+      rewrite Heqt.
       rewrite Int.repr_unsigned.
-      repeat apply andp_right; auto.
-      simpl; intros; normalize.
-    - destruct (msubst_efield_denote Delta T1 T2 efs) eqn:?H; [| inversion H].
+      apply andp_left2.
+      apply andp_right; auto. apply prop_right; auto.
+    - destruct (msubst_efield_denote T1 T2 efs) eqn:?H; [| inversion H].
       inversion H. 
       rewrite (add_andp _ _ (IHefs l eq_refl)).
       apply andp_derives; [| auto].
       simpl; intros; normalize.
-    - destruct (msubst_efield_denote Delta T1 T2 efs) eqn:?H; [| inversion H].
+    - destruct (msubst_efield_denote T1 T2 efs) eqn:?H; [| inversion H].
       inversion H. 
       rewrite (add_andp _ _ (IHefs l eq_refl)).
       apply andp_derives; [| auto].
       simpl; intros; normalize.
 Qed.
-
 
 (************************************************
 
@@ -102,14 +100,13 @@ The set, load, cast-load and store rules used before Dec 3. 2014
 Section SEMAX_SC.
 
 Context {cs: compspecs}.
-Context {csl: compspecs_legal cs}.
 
 Lemma semax_SC_set:
   forall {Espec: OracleKind},
     forall Delta id P Q R (e2: expr) t v,
       typeof_temp Delta id = Some t ->
       is_neutral_cast (implicit_deref (typeof e2)) t = true ->
-      PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |-- local (`(eq v) (eval_expr Delta e2)) ->
+      PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |-- local (`(eq v) (eval_expr e2)) ->
       PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |--
          (tc_expr Delta e2) ->
       semax Delta (|>PROPx P (LOCALx Q (SEPx R)))
@@ -170,9 +167,9 @@ Lemma semax_SC_field_load:
       gfs = gfs1 ++ gfs0 ->
       legal_nested_efield t_root e1 gfs tts lr = true ->
       nth_error R n = Some Rn ->
-      PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |-- local (`(eq p) (eval_LR Delta e1 lr)) ->
+      PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |-- local (`(eq p) (eval_LR e1 lr)) ->
       PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |--
-        efield_denote Delta efs gfs ->
+        efield_denote efs gfs ->
       PROPx P (LOCALx (tc_environ Delta :: Q) (SEP (Rn))) |--
         `(field_at sh t_root gfs0 v' p) ->
       readable_share sh ->
@@ -211,9 +208,9 @@ Lemma semax_SC_field_cast_load:
       gfs = gfs1 ++ gfs0 ->
       legal_nested_efield t_root e1 gfs tts lr = true ->
       nth_error R n = Some Rn ->
-      PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |-- local (`(eq p) (eval_LR Delta e1 lr)) ->
+      PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |-- local (`(eq p) (eval_LR e1 lr)) ->
       PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |--
-        efield_denote Delta efs gfs ->
+        efield_denote efs gfs ->
       PROPx P (LOCALx (tc_environ Delta :: Q) (SEP (Rn))) |--
         `(field_at sh t_root gfs0 v' p) ->
       readable_share sh ->
@@ -252,10 +249,10 @@ Lemma semax_SC_field_store:
       gfs = gfs1 ++ gfs0 ->
       legal_nested_efield t_root e1 gfs tts lr = true ->
       nth_error R n = Some Rn ->
-      PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |-- local (`(eq p) (eval_LR Delta e1 lr)) ->
-      PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |-- local (`(eq v0) (eval_expr Delta (Ecast e2 t))) ->
+      PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |-- local (`(eq p) (eval_LR e1 lr)) ->
+      PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |-- local (`(eq v0) (eval_expr (Ecast e2 t))) ->
       PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |--
-        efield_denote Delta efs gfs ->
+        efield_denote efs gfs ->
       PROPx P (LOCALx (tc_environ Delta :: Q) (SEP (Rn))) |--
         `(field_at sh t_root gfs0 v p) ->
       writable_share sh ->
@@ -307,7 +304,7 @@ Proof.
     rewrite <- !andp_assoc.
     eapply derives_trans; [apply andp_derives; [apply derives_refl | exact H7] |].
     entailer!.
-  + rewrite (andp_comm _ (efield_denote Delta efs gfs)).
+  + rewrite (andp_comm _ (efield_denote efs gfs)).
     rewrite andp_assoc.
     apply andp_right.
     - eapply derives_trans; [| exact H6].
@@ -332,7 +329,7 @@ Lemma semax_PTree_set:
     forall Delta id P T1 T2 R (e2: Clight.expr) t v,
       typeof_temp Delta id = Some t ->
       is_neutral_cast (implicit_deref (typeof e2)) t = true ->
-      msubst_eval_expr Delta T1 T2 e2 = Some v ->
+      msubst_eval_expr T1 T2 e2 = Some v ->
       (local (tc_environ Delta)) && (assertD P (localD T1 T2) R) |--
          (tc_expr Delta e2) ->
       semax Delta (|> (assertD P (localD T1 T2) R))
@@ -365,8 +362,8 @@ Lemma semax_PTree_load:
       gfs = gfs1 ++ gfs0 ->
       legal_nested_efield t_root e1 gfs tts lr = true ->
       nth_error R n = Some Rn ->
-      msubst_eval_LR Delta T1 T2 e1 lr = Some p ->
-      msubst_efield_denote Delta T1 T2 efs = Some gfs ->
+      msubst_eval_LR T1 T2 e1 lr = Some p ->
+      msubst_efield_denote T1 T2 efs = Some gfs ->
       (local (tc_environ Delta)) && (assertD P (localD T1 T2) (Rn :: nil)) |--
         `(field_at sh t_root gfs0 v' p) ->
       readable_share sh ->
@@ -397,6 +394,7 @@ Proof.
       - apply msubst_eval_lvalue_eq, H4.
       - apply msubst_eval_expr_eq, H4.
     + rewrite <- insert_local.
+      apply andp_left2.
       apply msubst_efield_denote_equiv, H5.
   } Unfocus.
   normalize.
@@ -413,8 +411,8 @@ Lemma semax_PTree_cast_load:
       gfs = gfs1 ++ gfs0 ->
       legal_nested_efield t_root e1 gfs tts lr = true ->
       nth_error R n = Some Rn ->
-      msubst_eval_LR Delta T1 T2 e1 lr = Some p ->
-      msubst_efield_denote Delta T1 T2 efs = Some gfs ->
+      msubst_eval_LR T1 T2 e1 lr = Some p ->
+      msubst_efield_denote T1 T2 efs = Some gfs ->
       (local (tc_environ Delta)) && (assertD P (localD T1 T2) (Rn :: nil)) |--
         `(field_at sh t_root gfs0 v' p) ->
       readable_share sh ->
@@ -444,7 +442,7 @@ Proof.
       unfold msubst_eval_LR in H4.
       - apply msubst_eval_lvalue_eq, H4.
       - apply msubst_eval_expr_eq, H4.
-    + rewrite <- insert_local.
+    + rewrite <- insert_local. apply andp_left2.
       apply msubst_efield_denote_equiv, H5.
   } Unfocus.
   normalize.
@@ -461,9 +459,9 @@ Lemma semax_PTree_store:
       gfs = gfs1 ++ gfs0 ->
       legal_nested_efield t_root e1 gfs tts lr = true ->
       nth_error R n = Some Rn ->
-      msubst_eval_LR Delta T1 T2 e1 lr = Some p ->
-      msubst_eval_expr Delta T1 T2 (Ecast e2 t) = Some v0 ->
-      msubst_efield_denote Delta T1 T2 efs = Some gfs ->
+      msubst_eval_LR T1 T2 e1 lr = Some p ->
+      msubst_eval_expr T1 T2 (Ecast e2 t) = Some v0 ->
+      msubst_efield_denote T1 T2 efs = Some gfs ->
       (local (tc_environ Delta)) && (assertD P (localD T1 T2) (Rn :: nil))  |--
         `(field_at sh t_root gfs0 v p) ->
       writable_share sh ->
@@ -498,7 +496,7 @@ Proof.
     + rewrite <- insert_local.
       apply andp_left2.
       apply msubst_eval_expr_eq, H5.
-    + rewrite <- insert_local.
+    + rewrite <- insert_local. apply andp_left2.
       apply msubst_efield_denote_equiv, H6.
   } Unfocus.
   rewrite map_replace_nth.

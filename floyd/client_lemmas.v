@@ -766,7 +766,7 @@ Qed.
 
 
 Lemma force_eval_var_int_ptr :
-forall Delta rho i t,
+forall  {cs: compspecs}  Delta rho i t,
 tc_environ Delta rho ->
 tc_lvalue Delta (Evar i t) rho |-- 
         !! (force_val
@@ -1423,9 +1423,9 @@ Ltac hoist_later_left :=
          [ solve [ auto 50 with derives ] | ]
   end. 
 
-Lemma semax_later_trivial: forall Espec Delta P c Q,
-  @semax Espec Delta (|> P) c Q ->
-  @semax Espec Delta P c Q.
+Lemma semax_later_trivial: forall Espec  {cs: compspecs} Delta P c Q,
+  @semax cs Espec Delta (|> P) c Q ->
+  @semax cs Espec Delta P c Q.
 Proof.
  intros until Q.
  apply semax_pre0.
@@ -1463,11 +1463,11 @@ Hint Rewrite prop_and1 using solve [auto 3 with typeclass_instances] : norm.
 
 
 Lemma subst_make_args':
-  forall Delta id v (P: environ->mpred) fsig tl el,
+  forall  {cs: compspecs}  id v (P: environ->mpred) fsig tl el,
   length tl = length el ->
   length (fst fsig) = length el ->
-  subst id v (`P (make_args' fsig (eval_exprlist Delta tl el))) = 
-           (`P (make_args' fsig (subst id v (eval_exprlist Delta tl el)))).
+  subst id v (`P (make_args' fsig (eval_exprlist tl el))) = 
+           (`P (make_args' fsig (subst id v (eval_exprlist tl el)))).
 Proof.
 intros. unfold_lift. extensionality rho; unfold subst.
 f_equal. unfold make_args'.
@@ -1476,7 +1476,7 @@ reflexivity.
 specialize (IHl _ _ H2 H1).
 unfold_lift; rewrite IHl. auto.
 Qed.
-Hint Rewrite subst_make_args' using (solve[reflexivity]) : subst.
+Hint Rewrite @subst_make_args' using (solve[reflexivity]) : subst.
 
 Lemma subst_andp {A}{NA: NatDed A}:
   forall id v (P Q: environ-> A), subst id v (P && Q) = subst id v P && subst id v Q.
@@ -1558,7 +1558,7 @@ Fixpoint iota_formals (i: ident) (tl: typelist) :=
 
 Ltac make_sequential :=
   match goal with
-  | |- @semax _ _ _ _ (normal_ret_assert _) => idtac
+  | |- @semax _ _ _ _ _ (normal_ret_assert _) => idtac
   | |- _ => apply sequential
   end.
 

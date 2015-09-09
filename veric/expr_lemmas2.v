@@ -14,12 +14,12 @@ Import Cop2.
 Opaque tc_andp. (* This is needed otherwise certain Qeds take
     forever in Coq 8.3.  *)
 
-Lemma eval_lvalue_ptr : forall rho m e (Delta: tycontext) te ve ge,
+Lemma eval_lvalue_ptr : forall {CS: compspecs} rho m e (Delta: tycontext) te ve ge,
 mkEnviron ge ve te = rho -> 
 typecheck_var_environ ve (var_types Delta) -> 
 typecheck_glob_environ ge (glob_types Delta) ->
-denote_tc_assert Delta (typecheck_lvalue Delta e) rho m ->
-eval_lvalue Delta e rho = Vundef \/ exists base, exists ofs, eval_lvalue Delta e rho  = Vptr base ofs.
+denote_tc_assert (typecheck_lvalue Delta e) rho m ->
+eval_lvalue e rho = Vundef \/ exists base, exists ofs, eval_lvalue e rho  = Vptr base ofs.
 Proof. 
 intros.
 induction e; eauto.
@@ -36,24 +36,21 @@ destruct o; try rewrite eqb_type_eq; simpl; eauto.
 (*destruct p; try rewrite eqb_type_eq; simpl; eauto.*)
 (*if_tac; eauto. *)
 simpl. super_unfold_lift.
-destruct (eval_expr Delta e rho); simpl; eauto.
+destruct (eval_expr e rho); simpl; eauto.
 *
-
 simpl in *. super_unfold_lift.
-rewrite tc_andp_sound in *. simpl in *. 
-super_unfold_lift.
-simpl in *. super_unfold_lift.
-destruct H2. 
+rewrite denote_tc_assert_andp in H2.
+destruct H2.
 spec IHe; auto. destruct IHe. 
 unfold eval_field.
-destruct (eval_lvalue Delta e rho); eauto;
+destruct (eval_lvalue e rho); eauto;
 destruct (typeof e); try congruence; auto.
-destruct ((composite_types Delta) ! i0) as [co |]; auto.
-destruct (field_offset (composite_types Delta) i (co_members co)); eauto.
+destruct (cenv_cs ! i0) as [co |]; auto.
+destruct (field_offset cenv_cs i (co_members co)); eauto.
 unfold eval_field.
-destruct (eval_lvalue Delta e rho); eauto;
+destruct (eval_lvalue e rho); eauto;
 destruct (typeof e); try congruence; auto;
-destruct ((composite_types Delta) ! i0) as [co |]; auto;
+destruct (cenv_cs ! i0) as [co |]; auto;
 try destruct (field_offset (composite_types Delta) i (co_members co)); eauto.
 
 destruct H4 as [? [? H4]]; inv H4.
@@ -62,11 +59,11 @@ rewrite H6.
 
 unfold eval_field.
 destruct (typeof e); try inv H3.
-destruct ((composite_types Delta) ! i0) as [co |]; try inv H3.
-destruct (field_offset (composite_types Delta) i (co_members co)); try inv H3.
+destruct (cenv_cs ! i0) as [co |]; try inv H3.
+destruct (field_offset cenv_cs i (co_members co)); try inv H3.
 simpl; eauto.
 
-destruct ((composite_types Delta) ! i0) as [co |]; try inv H3.
+destruct (cenv_cs ! i0) as [co |]; try inv H3.
 simpl; eauto.
 Qed. 
  
@@ -82,10 +79,10 @@ unfold denote_tc_initialized in *.
 
 
 Lemma typecheck_lvalue_Evar:
-  forall i t pt Delta rho m, typecheck_environ Delta rho ->
-           denote_tc_assert Delta (typecheck_lvalue Delta (Evar i t)) rho m ->
+  forall {CS: compspecs} i t pt Delta rho m, typecheck_environ Delta rho ->
+           denote_tc_assert (typecheck_lvalue Delta (Evar i t)) rho m ->
            is_pointer_type pt = true ->    
-           typecheck_val (eval_lvalue Delta (Evar i t) rho) pt = true.
+           typecheck_val (eval_lvalue (Evar i t) rho) pt = true.
 Proof.
 intros.
 simpl in *. unfold eval_var.
@@ -124,16 +121,16 @@ inv H0.
 Qed.
 
 Lemma typecheck_expr_sound_Efield:
-  forall Delta rho e i t m
+  forall {CS: compspecs} Delta rho e i t m
   (H: typecheck_environ Delta rho)
-  (IHe: (denote_tc_assert Delta (typecheck_expr Delta e) rho m ->
-          typecheck_val (eval_expr Delta e rho) (typeof e) = true) /\
+  (IHe: (denote_tc_assert (typecheck_expr Delta e) rho m ->
+          typecheck_val (eval_expr e rho) (typeof e) = true) /\
           (forall pt : type,
-          denote_tc_assert Delta (typecheck_lvalue Delta e) rho m ->
+          denote_tc_assert (typecheck_lvalue Delta e) rho m ->
           is_pointer_type pt = true -> 
-          typecheck_val (eval_lvalue Delta e rho) pt = true))
-  (H0: denote_tc_assert Delta (typecheck_expr Delta (Efield e i t)) rho m),
-  typecheck_val (eval_expr Delta (Efield e i t) rho) (typeof (Efield e i t)) = true.
+          typecheck_val (eval_lvalue e rho) pt = true))
+  (H0: denote_tc_assert (typecheck_expr Delta (Efield e i t)) rho m),
+  typecheck_val (eval_expr (Efield e i t) rho) (typeof (Efield e i t)) = true.
 Proof.
 intros.
 simpl in *. super_unfold_lift.
@@ -142,9 +139,7 @@ assert (MODE: access_mode t = By_reference) by (destruct (access_mode t); auto; 
 rewrite MODE in *.
 destruct IHe.
 destruct rho.
-repeat( rewrite tc_andp_sound in *; simpl in *; super_unfold_lift). 
-simpl in H0.
-super_unfold_lift. destruct H0.
+rewrite denote_tc_assert_andp in H0. destruct H0.
 unfold typecheck_environ in H. 
 destruct H as [_ [Hve [Hge _]]]. 
 assert (PTR := eval_lvalue_ptr _ _ e Delta te ve ge (eq_refl _) Hve Hge H0).
@@ -155,45 +150,45 @@ elimtype False; clear - H H2. rewrite H in H2; inv H2.
 destruct H as [b [ofs ?]]. 
 rewrite H in *.
 destruct (typeof e); intuition;
-destruct ((composite_types Delta) ! i0) as [co |]; intuition.
-destruct (field_offset (composite_types Delta) i (co_members co)); intuition.
+destruct (cenv_cs ! i0) as [co |]; intuition.
+destruct (field_offset cenv_cs i (co_members co)); intuition.
 Qed.
 
 Lemma typecheck_lvalue_sound_Efield:
- forall Delta rho m e i t pt
+ forall {CS: compspecs} Delta rho m e i t pt
  (H: typecheck_environ Delta rho)
- (IHe: (denote_tc_assert Delta (typecheck_expr Delta e) rho m ->
-          typecheck_val (eval_expr Delta e rho) (typeof e) = true) /\
-        (forall pt0 : type, denote_tc_assert Delta (typecheck_lvalue Delta e) rho m ->
+ (IHe: (denote_tc_assert (typecheck_expr Delta e) rho m ->
+          typecheck_val (eval_expr e rho) (typeof e) = true) /\
+        (forall pt0 : type, denote_tc_assert (typecheck_lvalue Delta e) rho m ->
            is_pointer_type pt0 = true -> 
-         typecheck_val (eval_lvalue Delta e rho) pt0 = true))
-  (H0: denote_tc_assert Delta (typecheck_lvalue Delta (Efield e i t)) rho m)
+         typecheck_val (eval_lvalue e rho) pt0 = true))
+  (H0: denote_tc_assert (typecheck_lvalue Delta (Efield e i t)) rho m)
   (H1: is_pointer_type pt = true),
-  typecheck_val (eval_lvalue Delta (Efield e i t) rho) pt = true.
+  typecheck_val (eval_lvalue (Efield e i t) rho) pt = true.
 Proof.
 intros.
 simpl in *.
-repeat( rewrite tc_andp_sound in *; simpl in *; super_unfold_lift).
+rewrite denote_tc_assert_andp in H0. destruct H0.
 super_unfold_lift.
  unfold eval_field,offset_val in *; intuition. 
-specialize  (H3 pt). intuition.
+specialize  (H4 pt).
 destruct rho.
 unfold typecheck_environ in *. intuition.
 assert (PTR := eval_lvalue_ptr _ m e _ te _ _ (eq_refl _) H H6).
 simpl in *.
-remember (eval_lvalue Delta e (mkEnviron ge ve te)). unfold isptr in *.
+remember (eval_lvalue e (mkEnviron ge ve te)). unfold isptr in *.
 destruct v; intuition; try congruence;
 try solve [destruct H9 as [? [? ?]]; congruence].
 destruct (typeof e); intuition;
-destruct ((composite_types Delta) ! i1) as [co |]; intuition.
-destruct (field_offset (composite_types Delta) i (co_members co)); intuition.
+destruct (cenv_cs ! i1) as [co |]; intuition.
+destruct (field_offset cenv_cs i (co_members co)); intuition.
 Qed.
 
 Lemma typecheck_expr_sound_Evar:
-  forall Delta rho m i t,
+  forall {CS: compspecs} Delta rho m i t,
   typecheck_environ Delta rho ->
-  denote_tc_assert Delta (typecheck_expr Delta (Evar i t)) rho m ->
-  typecheck_val (eval_expr Delta (Evar i t) rho) (typeof (Evar i t)) = true.
+  denote_tc_assert (typecheck_expr Delta (Evar i t)) rho m ->
+  typecheck_val (eval_expr (Evar i t) rho) (typeof (Evar i t)) = true.
 Proof.
 intros.
 assert (MODE: access_mode t = By_reference)
@@ -258,8 +253,8 @@ match op with
 end.
 
 
-Lemma tc_bool_e: forall Delta b a rho m, (* copied from binop_lemmas.v *)
-  app_pred (denote_tc_assert Delta (tc_bool b a) rho) m ->
+Lemma tc_bool_e: forall {CS: compspecs} b a rho m, (* copied from binop_lemmas.v *)
+  app_pred (denote_tc_assert (tc_bool b a) rho) m ->
   b = true.
 Proof.
 intros.
@@ -276,17 +271,17 @@ Proof.
 Qed.
 
 Lemma typecheck_unop_sound:
- forall Delta rho m u e t
+ forall {CS: compspecs} Delta rho m u e t
  (H: typecheck_environ Delta rho)
 (* (Ht: t =unOp_result_type u (typeof e)) *)
- (IHe: (denote_tc_assert Delta (typecheck_expr Delta e) rho m ->
-          typecheck_val (eval_expr Delta e rho) (typeof e) = true) /\
+ (IHe: (denote_tc_assert (typecheck_expr Delta e) rho m ->
+          typecheck_val (eval_expr e rho) (typeof e) = true) /\
           (forall pt : type,
-           denote_tc_assert Delta (typecheck_lvalue Delta e) rho m ->
+           denote_tc_assert (typecheck_lvalue Delta e) rho m ->
            is_pointer_type pt = true -> 
-           typecheck_val (eval_lvalue Delta e rho) pt = true))
-  (H0: denote_tc_assert Delta (typecheck_expr Delta (Eunop u e t)) rho m),
-  typecheck_val (eval_expr Delta (Eunop u e t) rho) t = true.
+           typecheck_val (eval_lvalue e rho) pt = true))
+  (H0: denote_tc_assert (typecheck_expr Delta (Eunop u e t)) rho m),
+  typecheck_val (eval_expr (Eunop u e t) rho) t = true.
 Proof.
 intros.
 simpl in H0. rewrite denote_tc_assert_andp in H0. destruct H0.
@@ -302,43 +297,44 @@ unfold eval_unop, sem_unary_operation, force_val1.
 destruct u; simpl in *.
 * (* notbool case *) 
 unfold sem_notbool in *.
+super_unfold_lift; unfold eval_unop; simpl; unfold sem_notbool; simpl.
 destruct (typeof e) as [ | [ | | | ] [ | ] | | [ | ] | | | | | ];
  simpl in *; try contradiction;
- simpl; try solve [inv H2];
+ simpl;
  try (rewrite denote_tc_assert_andp in H0; destruct H0 as [H0 H0']);
  try contradiction H0;
  apply tc_bool_e in H0;
- destruct (eval_expr Delta e rho) eqn:?; try solve [inv H2];
+ destruct (eval_expr e rho) eqn:?; try solve [inv H2];
  try solve [apply typecheck_val_of_bool_int_type; auto];
  unfold sem_notbool_p; simpl force_val; try reflexivity;
  destruct t as [ | [ | | | ] [ | ] | | [ | ] | | | | | ]; inv H0;
   try reflexivity.
 * (* notint case *)
-unfold sem_notint.
+super_unfold_lift; unfold eval_unop; simpl; unfold sem_notint; simpl.
 destruct (typeof e) as [ | [ | | | ] [ | ] | | [ | ] | | | | | ];
   try contradiction;
   apply tc_bool_e in H0;
-   destruct (eval_expr Delta e rho);
+   destruct (eval_expr e rho);
    inversion H2; simpl; auto;
  destruct t  as [ | [ | | | ] [ | ] | | [ | ] | | | | | ];
      inv H0; auto.
 * (* neg case *)
-unfold sem_neg; simpl.
+super_unfold_lift; unfold eval_unop; simpl; unfold sem_neg; simpl.
 destruct (typeof e) as [ | [ | | | ] [ | ] | | [ | ] | | | | | ];
  try contradiction;
   apply tc_bool_e in H0;
-   destruct (eval_expr Delta e rho);
+   destruct (eval_expr e rho);
    inversion H2; simpl; auto;
  destruct t  as [ | [ | | | ] [ | ] | | [ | ] | | | | | ];
      inv H0; auto.
 * (* absfloat case *)
-unfold sem_absfloat.
+super_unfold_lift; unfold eval_unop; simpl; unfold sem_absfloat; simpl.
  destruct (typeof e)as [ | [ | | | ] [ | ] | | [ | ] | | | | | ]; 
    try contradiction; simpl;
    apply tc_bool_e in H0; 
    destruct t  as [ | | | [ | ] | | | | | ];  
    inv H0;
-  destruct (eval_expr Delta e rho); inv H2; simpl; auto.
+  destruct (eval_expr e rho); inv H2; simpl; auto.
 Qed.
 
 Lemma same_base_tc_val : forall v t1 t2,
@@ -352,10 +348,10 @@ intros. destruct t1; destruct t2;
 Qed.
 
 Lemma typecheck_temp_sound:
-  forall Delta rho m i t,
+  forall {CS: compspecs} Delta rho m i t,
   typecheck_environ Delta rho ->
-  denote_tc_assert Delta (typecheck_expr Delta (Etempvar i t)) rho m ->
-  typecheck_val (eval_expr Delta (Etempvar i t) rho) (typeof (Etempvar i t)) = true.
+  denote_tc_assert (typecheck_expr Delta (Etempvar i t)) rho m ->
+  typecheck_val (eval_expr (Etempvar i t) rho) (typeof (Etempvar i t)) = true.
 Proof.
 intros.
 simpl in *. destruct rho. 
@@ -389,16 +385,16 @@ simpl in H0. rewrite H in H0. inv H0.
 Qed.
 
 Lemma typecheck_deref_sound:
-  forall Delta rho m e t pt,
+  forall {CS: compspecs} Delta rho m e t pt,
    typecheck_environ Delta rho ->
-   (denote_tc_assert Delta (typecheck_expr Delta e) rho m ->
-    typecheck_val (eval_expr Delta e rho) (typeof e) = true) /\
+   (denote_tc_assert (typecheck_expr Delta e) rho m ->
+    typecheck_val (eval_expr e rho) (typeof e) = true) /\
     (forall pt0 : type,
-     denote_tc_assert Delta (typecheck_lvalue Delta e) rho m ->
-     is_pointer_type pt0 = true -> typecheck_val (eval_lvalue Delta e rho) pt0 = true) ->
-     denote_tc_assert Delta (typecheck_lvalue Delta (Ederef e t)) rho m ->
+     denote_tc_assert (typecheck_lvalue Delta e) rho m ->
+     is_pointer_type pt0 = true -> typecheck_val (eval_lvalue e rho) pt0 = true) ->
+     denote_tc_assert (typecheck_lvalue Delta (Ederef e t)) rho m ->
     is_pointer_type pt = true ->
-    typecheck_val (eval_lvalue Delta (Ederef e t) rho) pt = true.
+    typecheck_val (eval_lvalue (Ederef e t) rho) pt = true.
 Proof.
 intros until pt. intros H IHe H0 H1.
 simpl. unfold lift.
@@ -411,7 +407,7 @@ revert H2; case_eq (is_pointer_type (typeof e)); intros; hnf in H2; try contradi
 clear H H5 H4.
 hnf in H3. unfold_lift in H3; hnf in H3.
 unfold_lift.
-destruct (eval_expr Delta e rho); try contradiction.
+destruct (eval_expr e rho); try contradiction.
 destruct pt; inv H1; reflexivity.
 Qed.
 

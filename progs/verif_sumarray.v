@@ -1,6 +1,7 @@
 Require Import floyd.proofauto.
 Require Import progs.sumarray.
-Require Import Coq.Logic.JMeq.
+Instance CompSpecs : compspecs.
+Proof. make_compspecs prog. Defined.
 
 Local Open Scope logic.
 
@@ -8,10 +9,7 @@ Definition force_option {A} (x:A) (i: option A) :=
   match i with Some y => y | None => x end.
 
 Definition sum_int := fold_right Int.add Int.zero.
-
-Instance CompSpecs : compspecs := compspecs_program prog.
-Instance CS_legal : compspecs_legal CompSpecs.
-Proof. prove_CS_legal. Qed.
+  
 
 Definition sumarray_spec :=
  DECLARE _sumarray

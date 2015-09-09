@@ -145,9 +145,9 @@ Fixpoint rsequence (cs: list statement) s :=
  end.
 
 Lemma sequence_rsequence:
- forall Espec Delta P cs s0 s R, 
-    @semax Espec Delta P (Ssequence s0 (sequence cs s)) R  <->
-  @semax Espec Delta P (Ssequence (rsequence (rev cs) s0) s) R.
+ forall Espec CS Delta P cs s0 s R, 
+    @semax CS Espec Delta P (Ssequence s0 (sequence cs s)) R  <->
+  @semax CS Espec Delta P (Ssequence (rsequence (rev cs) s0) s) R.
 Proof.
 intros.
 revert Delta P R s0 s; induction cs; intros.
@@ -162,12 +162,12 @@ rewrite IHl. auto.
 Qed.
 
 Lemma seq_assocN:  
-  forall {Espec: OracleKind},
+  forall {Espec: OracleKind} CS, 
    forall Q Delta P cs s R,
-        @semax Espec Delta P (sequence cs Sskip) (normal_ret_assert Q) ->
-         @semax Espec 
+        @semax CS Espec Delta P (sequence cs Sskip) (normal_ret_assert Q) ->
+         @semax CS Espec 
        (update_tycon Delta (sequence cs Sskip)) Q s R ->
-        @semax Espec Delta P (sequence cs s) R.
+        @semax CS Espec Delta P (sequence cs s) R.
 Proof.
 intros.
 rewrite semax_skip_seq.
@@ -206,7 +206,7 @@ Hint Resolve datablock_local_facts : saturate_local.
 
 Require Import JMeq.
 
-Lemma reptype_tarray {cs: compspecs}{csl: compspecs_legal cs}:
+Lemma reptype_tarray {cs: compspecs}:
    forall t len, reptype (tarray t len) = list (reptype t).
 Proof.
 intros.

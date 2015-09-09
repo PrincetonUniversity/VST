@@ -1076,55 +1076,55 @@ Definition eval_vardesc (ty: type) (vd: option vardesc) : option val :=
                     | None => None
                     end.
 
-Fixpoint msubst_eval_expr (Delta: tycontext) (T1: PTree.t val) (T2: PTree.t vardesc) (e: Clight.expr) : option val :=
+Fixpoint msubst_eval_expr {cs: compspecs} (T1: PTree.t val) (T2: PTree.t vardesc) (e: Clight.expr) : option val :=
   match e with
   | Econst_int i ty => Some (Vint i)
   | Econst_long i ty => Some (Vlong i)
   | Econst_float f ty => Some (Vfloat f)
   | Econst_single f ty => Some (Vsingle f)
   | Etempvar id ty => PTree.get id T1
-  | Eaddrof a ty => msubst_eval_lvalue Delta T1 T2 a 
+  | Eaddrof a ty => msubst_eval_lvalue T1 T2 a 
   | Eunop op a ty => option_map (eval_unop op (typeof a))
-                                        (msubst_eval_expr Delta T1 T2 a) 
+                                        (msubst_eval_expr T1 T2 a) 
   | Ebinop op a1 a2 ty =>
-      match (msubst_eval_expr Delta T1 T2 a1), (msubst_eval_expr Delta T1 T2 a2) with
-      | Some v1, Some v2 => Some (eval_binop Delta op (typeof a1) (typeof a2) v1 v2) 
+      match (msubst_eval_expr T1 T2 a1), (msubst_eval_expr T1 T2 a2) with
+      | Some v1, Some v2 => Some (eval_binop op (typeof a1) (typeof a2) v1 v2) 
       | _, _ => None
       end
-  | Ecast a ty => option_map (eval_cast (typeof a) ty) (msubst_eval_expr Delta T1 T2 a)
+  | Ecast a ty => option_map (eval_cast (typeof a) ty) (msubst_eval_expr T1 T2 a)
   | Evar id ty => option_map (deref_noload ty) (eval_vardesc ty (PTree.get id T2))
 
   | Ederef a ty => option_map (deref_noload ty)
-                              (option_map force_ptr (msubst_eval_expr Delta T1 T2 a))
+                              (option_map force_ptr (msubst_eval_expr T1 T2 a))
   | Efield a i ty => option_map (deref_noload ty) 
-                                (option_map (eval_field Delta (typeof a) i)
-                                    (msubst_eval_lvalue Delta T1 T2 a))
-  | Esizeof t _ => Some (Vint (Int.repr (sizeof (composite_types Delta) t)))
-  | Ealignof t _ => Some (Vint (Int.repr (alignof (composite_types Delta) t)))
+                                (option_map (eval_field (typeof a) i)
+                                    (msubst_eval_lvalue T1 T2 a))
+  | Esizeof t _ => Some (Vint (Int.repr (sizeof cenv_cs t)))
+  | Ealignof t _ => Some (Vint (Int.repr (alignof cenv_cs t)))
   end
-  with msubst_eval_lvalue (Delta: tycontext) (T1: PTree.t val) (T2: PTree.t vardesc) (e: Clight.expr) : option val := 
+  with msubst_eval_lvalue {cs: compspecs} (T1: PTree.t val) (T2: PTree.t vardesc) (e: Clight.expr) : option val := 
   match e with 
   | Evar id ty => eval_vardesc ty (PTree.get id T2)
-  | Ederef a ty => option_map force_ptr (msubst_eval_expr Delta T1 T2 a)
-  | Efield a i ty => option_map (eval_field Delta (typeof a) i)
-                              (msubst_eval_lvalue Delta T1 T2 a)
+  | Ederef a ty => option_map force_ptr (msubst_eval_expr T1 T2 a)
+  | Efield a i ty => option_map (eval_field (typeof a) i)
+                              (msubst_eval_lvalue T1 T2 a)
   | _  => Some Vundef
   end.
 
 Lemma msubst_eval_expr_eq_aux:
-  forall Delta (T1: PTree.t val) (T2: PTree.t vardesc) e rho v,
+  forall {cs: compspecs} (T1: PTree.t val) (T2: PTree.t vardesc) e rho v,
     (forall i v, T1 ! i = Some v -> eval_id i rho = v) ->
     (forall i t v,
      eval_vardesc t T2 ! i = Some v -> eval_var i t rho = v) ->
-    msubst_eval_expr Delta T1 T2 e = Some v ->
-    eval_expr Delta e rho = v
+    msubst_eval_expr T1 T2 e = Some v ->
+    eval_expr e rho = v
 with msubst_eval_lvalue_eq_aux: 
-  forall Delta (T1: PTree.t val) (T2: PTree.t vardesc) e rho v,
+  forall {cs: compspecs} (T1: PTree.t val) (T2: PTree.t vardesc) e rho v,
     (forall i v, T1 ! i = Some v -> eval_id i rho = v) ->
     (forall i t v,
      eval_vardesc t T2 ! i = Some v -> eval_var i t rho = v) ->
-    msubst_eval_lvalue Delta T1 T2 e = Some v ->
-    eval_lvalue Delta e rho = v.
+    msubst_eval_lvalue T1 T2 e = Some v ->
+    eval_lvalue e rho = v.
 Proof.
   + clear msubst_eval_expr_eq_aux.
     induction e; intros; simpl in H1 |- *; try solve [inversion H1; auto].
@@ -1134,42 +1134,42 @@ Proof.
       destruct (eval_vardesc t T2 ! i) eqn:?; inv H1.
       rewrite (H0 v0); reflexivity.
     - unfold_lift; simpl.
-      destruct (msubst_eval_expr Delta T1 T2 e) eqn:?; [| inversion H1].
+      destruct (msubst_eval_expr T1 T2 e) eqn:?; [| inversion H1].
       inversion H1.
       rewrite IHe with (v := v0) by auto.
       reflexivity.
     - erewrite msubst_eval_lvalue_eq_aux; eauto.
     - unfold_lift; simpl.
-      destruct (msubst_eval_expr Delta T1 T2 e) eqn:?; [| inversion H1].
+      destruct (msubst_eval_expr T1 T2 e) eqn:?; [| inversion H1].
       inversion H1.
       rewrite IHe with (v := v0) by auto.
       reflexivity.
     - unfold_lift; simpl.
-      destruct (msubst_eval_expr Delta T1 T2 e1) eqn:?; [| inversion H1].
-      destruct (msubst_eval_expr Delta T1 T2 e2) eqn:?; [| inversion H1].
+      destruct (msubst_eval_expr T1 T2 e1) eqn:?; [| inversion H1].
+      destruct (msubst_eval_expr T1 T2 e2) eqn:?; [| inversion H1].
       inversion H1.
       rewrite IHe1 with (v := v0) by auto.
       rewrite IHe2 with (v := v1) by auto.
       reflexivity.
     - unfold_lift; simpl.
-      destruct (msubst_eval_expr Delta T1 T2 e) eqn:?; [| inversion H1].
+      destruct (msubst_eval_expr T1 T2 e) eqn:?; [| inversion H1].
       inversion H1.
       rewrite IHe with (v := v0) by auto.
       reflexivity.
     - unfold_lift; simpl.
-      destruct (msubst_eval_lvalue Delta T1 T2 e) eqn:?; [| inversion H1].
+      destruct (msubst_eval_lvalue T1 T2 e) eqn:?; [| inversion H1].
       inversion H1.
       erewrite msubst_eval_lvalue_eq_aux by eauto.
       reflexivity.
   + clear msubst_eval_lvalue_eq_aux.
     induction e; intros; simpl in H1 |- *; try solve [inversion H1; auto].
     - unfold_lift; simpl.
-      destruct (msubst_eval_expr Delta T1 T2 e) eqn:?; [| inversion H1].
+      destruct (msubst_eval_expr T1 T2 e) eqn:?; [| inversion H1].
       inversion H1.
       erewrite msubst_eval_expr_eq_aux by eauto;
       reflexivity.
     - unfold_lift; simpl.
-      destruct (msubst_eval_lvalue Delta T1 T2 e) eqn:?; [| inversion H1].
+      destruct (msubst_eval_lvalue T1 T2 e) eqn:?; [| inversion H1].
       inversion H1.
       rewrite IHe with (v := v0) by auto.
       reflexivity.
@@ -1235,10 +1235,10 @@ Proof.
      - inv H0.
 Qed.
 
-Lemma msubst_eval_expr_eq: forall Delta P T1 T2 Q R e v,
-  msubst_eval_expr Delta T1 T2 e = Some v ->
+Lemma msubst_eval_expr_eq: forall {cs: compspecs} P T1 T2 Q R e v,
+  msubst_eval_expr T1 T2 e = Some v ->
   PROPx P (LOCALx (LocalD T1 T2 Q) (SEPx R)) |--
-    local (`(eq v) (eval_expr Delta e)).
+    local (`(eq v) (eval_expr e)).
 Proof.
   intros.
   apply andp_left2.
@@ -1250,10 +1250,10 @@ Proof.
   apply eq_sym, msubst_eval_expr_eq_aux with (T1 := T1) (T2 := T2); auto.
 Qed.
 
-Lemma msubst_eval_lvalue_eq: forall P Delta T1 T2 Q R e v,
-  msubst_eval_lvalue Delta T1 T2 e = Some v ->
+Lemma msubst_eval_lvalue_eq: forall P {cs: compspecs} T1 T2 Q R e v,
+  msubst_eval_lvalue T1 T2 e = Some v ->
   PROPx P (LOCALx (LocalD T1 T2 Q) (SEPx R)) |--
-    local (`(eq v) (eval_lvalue Delta e)).
+    local (`(eq v) (eval_lvalue e)).
 Proof.
   intros.
   apply andp_left2.
@@ -1285,12 +1285,12 @@ Fixpoint force_list {A} (al: list (option A)) : option (list A) :=
  end.
 
 Lemma msubst_eval_exprlist_eq:
-  forall P Delta T1 T2 Q R tys el vl,
+  forall P {cs: compspecs} T1 T2 Q R tys el vl,
   force_list
-           (map (msubst_eval_expr Delta T1 T2)
+           (map (msubst_eval_expr T1 T2)
               (explicit_cast_exprlist tys el)) = Some vl ->
  PROPx P (LOCALx (LocalD T1 T2 Q) (SEPx R)) |-- 
-   local (`(eq vl) (eval_exprlist Delta tys el)).
+   local (`(eq vl) (eval_exprlist tys el)).
 Proof.
 intros.
 revert tys vl H; induction el; destruct tys, vl; intros; 
@@ -1298,23 +1298,23 @@ revert tys vl H; induction el; destruct tys, vl; intros;
   try solve [go_lowerx;  apply prop_right; reflexivity].
  simpl map in H.
  unfold force_list in H; fold (@force_list val) in H.
- destruct (msubst_eval_expr Delta T1 T2 a) eqn:?.
+ destruct (msubst_eval_expr T1 T2 a) eqn:?.
  simpl in H.
  destruct (force_list
-        (map (msubst_eval_expr Delta T1 T2) (explicit_cast_exprlist tys el))); inv H.
+        (map (msubst_eval_expr T1 T2) (explicit_cast_exprlist tys el))); inv H.
  simpl in H. inv H.
  simpl in H.
  destruct (option_map (force_val1 (sem_cast (typeof a) t))
-        (msubst_eval_expr Delta T1 T2 a)) eqn:?; inv H.
+        (msubst_eval_expr T1 T2 a)) eqn:?; inv H.
   destruct ( force_list
-         (map (msubst_eval_expr Delta T1 T2) (explicit_cast_exprlist tys el))) eqn:?; inv H1.
+         (map (msubst_eval_expr T1 T2) (explicit_cast_exprlist tys el))) eqn:?; inv H1.
   specialize (IHel _ _ Heqo0).
   simpl eval_exprlist.
-  destruct (msubst_eval_expr Delta T1 T2 a) eqn:?; inv Heqo.
-  apply msubst_eval_expr_eq with (P:=P)(Q:=Q)(R:=R) in Heqo1.
-  apply derives_trans with (local (`(eq v0) (eval_expr Delta a)) && local (`(eq vl) (eval_exprlist Delta tys el))).
+  destruct (msubst_eval_expr T1 T2 a) eqn:?; inv Heqo.
+  apply msubst_eval_expr_eq with (P0:=P)(Q0:=Q)(R0:=R) in Heqo1.
+  apply derives_trans with (local (`(eq v0) (eval_expr a)) && local (`(eq vl) (eval_exprlist tys el))).
   apply andp_right; auto.
-  go_lowerx. intros. apply prop_right.
+  go_lowerx. unfold_lift. intros. apply prop_right.
   rewrite <- H. rewrite <- H0.
  auto.
 Qed. 

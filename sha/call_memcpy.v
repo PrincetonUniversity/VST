@@ -209,7 +209,7 @@ Local Arguments nested_field_type2 cs t gfs : simpl never.
 *)
 
 Lemma call_memcpy_tuchar:
-  forall (shp : share) (tp: type) (pathp: list gfield) (lop: Z) (vp': list val) (p: val)
+  forall {cs: compspecs} (shp : share) (tp: type) (pathp: list gfield) (lop: Z) (vp': list val) (p: val)
            (shq: share) (tq: type) (pathq: list gfield) (loq: Z) (contents: list int) (q: val)
            (len : Z)
            (R': list (environ -> mpred))
@@ -237,13 +237,13 @@ Lemma call_memcpy_tuchar:
      PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |--
          tc_exprlist Delta [tptr tvoid; tptr tvoid; tuint] [e_p; e_q; e_n]  &&         
          PROP () (LOCALx
-                (`(eq (field_address0 tp (ArraySubsc lop :: pathp) p)) (eval_expr Delta e_p) ::
-                 `(eq (field_address0 tq (ArraySubsc loq :: pathq) q)) (eval_expr Delta e_q) ::
-                 `(eq (Vint (Int.repr len))) (eval_expr Delta e_n) ::
+                (`(eq (field_address0 tp (ArraySubsc lop :: pathp) p)) (eval_expr e_p) ::
+                 `(eq (field_address0 tq (ArraySubsc loq :: pathq) q)) (eval_expr e_q) ::
+                 `(eq (Vint (Int.repr len))) (eval_expr e_n) ::
                  Q)
          (SEPx (`(field_at shp tp pathp vp p) :: 
                    `(field_at shq tq pathq vq q) :: R'))) ->
-   @semax Espec Delta 
+   @semax cs Espec Delta 
     (PROPx P (LOCALx Q (SEPx R)))
     (Scall None
              (Evar _memcpy 

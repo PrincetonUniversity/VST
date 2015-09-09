@@ -11,14 +11,14 @@ Require Import veric.binop_lemmas2.
 
 Open Local Scope pred.
 
-Definition tc_expr (Delta: tycontext) (e: expr) : environ -> mpred:= 
-  fun rho => denote_tc_assert Delta (typecheck_expr Delta e) rho.
+Definition tc_expr {CS: compspecs}  (Delta: tycontext) (e: expr) : environ -> mpred:= 
+  fun rho => denote_tc_assert (typecheck_expr Delta e) rho.
 
-Definition tc_exprlist (Delta: tycontext) (t : list type) (e: list expr) : environ -> mpred := 
-      fun rho => denote_tc_assert Delta (typecheck_exprlist Delta t e) rho.
+Definition tc_exprlist {CS: compspecs} (Delta: tycontext) (t : list type) (e: list expr) : environ -> mpred := 
+      fun rho => denote_tc_assert (typecheck_exprlist Delta t e) rho.
 
-Definition tc_lvalue (Delta: tycontext) (e: expr) : environ -> mpred := 
-     fun rho => denote_tc_assert Delta (typecheck_lvalue Delta e) rho.
+Definition tc_lvalue {CS: compspecs} (Delta: tycontext) (e: expr) : environ -> mpred := 
+     fun rho => denote_tc_assert (typecheck_lvalue Delta e) rho.
 
 Definition allowedValCast v tfrom tto :=
 match Cop.classify_cast tfrom tto with 
@@ -38,9 +38,9 @@ match Cop.classify_cast tfrom tto with
 | _  => false
 end. 
 
-Definition tc_temp_id (id : positive) (ty : type) 
+Definition tc_temp_id {CS: compspecs} (id : positive) (ty : type) 
   (Delta : tycontext) (e : expr) : environ -> mpred  :=
-     fun rho => denote_tc_assert Delta (typecheck_temp_id id ty Delta e) rho.  
+     fun rho => denote_tc_assert (typecheck_temp_id id ty Delta e) rho.  
 
 Definition tc_temp_id_load id tfrom Delta v : environ -> mpred  :=
 fun rho => !! (exists tto, exists x, (temp_types Delta) ! id = Some (tto, x) 
@@ -62,10 +62,10 @@ intros. unfold tc_temp_id_load. auto.
 Qed. 
 
 Lemma extend_tc_andp:
- forall Delta A B rho, 
-   boxy extendM (denote_tc_assert Delta A rho) ->
-   boxy extendM (denote_tc_assert Delta B rho) ->
-   boxy extendM (denote_tc_assert Delta (tc_andp A B) rho).
+ forall {CS: compspecs} A B rho, 
+   boxy extendM (denote_tc_assert A rho) ->
+   boxy extendM (denote_tc_assert B rho) ->
+   boxy extendM (denote_tc_assert (tc_andp A B) rho).
 Proof.
 intros.
 rewrite denote_tc_assert_andp.
@@ -74,16 +74,16 @@ apply extendM_refl.
 Qed.
 
 Lemma extend_tc_bool:
- forall Delta A B rho,
-   boxy extendM (denote_tc_assert Delta (tc_bool A B) rho).
+ forall {CS: compspecs} A B rho,
+   boxy extendM (denote_tc_assert (tc_bool A B) rho).
 Proof.
 intros.
 destruct A; simpl; apply  extend_prop.
 Qed.
 
 Lemma extend_tc_Zge:
- forall Delta v i rho,
-   boxy extendM (denote_tc_assert Delta (tc_Zge v i) rho).
+ forall {CS: compspecs} v i rho,
+   boxy extendM (denote_tc_assert (tc_Zge v i) rho).
 Proof.
 intros.
 induction v; simpl; unfold_lift; simpl; 
@@ -94,8 +94,8 @@ Qed.
 
 
 Lemma extend_tc_Zle:
- forall Delta v i rho,
-   boxy extendM (denote_tc_assert Delta (tc_Zle v i) rho).
+ forall {CS: compspecs} v i rho,
+   boxy extendM (denote_tc_assert (tc_Zle v i) rho).
 Proof.
 intros.
 induction v; simpl; unfold_lift; simpl; 
@@ -105,18 +105,17 @@ try apply extend_prop.
 Qed.
 
 Lemma extend_tc_iszero:
- forall Delta v rho,
-   boxy extendM (denote_tc_assert Delta (tc_iszero  Delta v) rho).
+ forall {CS: compspecs} v rho,
+   boxy extendM (denote_tc_assert (tc_iszero v) rho).
 Proof.
 intros.
 rewrite denote_tc_assert_iszero.
-destruct (eval_expr Delta v rho); apply extend_prop.
+destruct (eval_expr v rho); apply extend_prop.
 Qed.
 
 Lemma extend_isCastResultType:
- forall Delta t t' v rho,
-   boxy extendM (denote_tc_assert Delta 
-   (isCastResultType Delta t t' v) rho).
+ forall {CS: compspecs} t t' v rho,
+   boxy extendM (denote_tc_assert (isCastResultType t t' v) rho).
 Proof.
 intros.
  unfold isCastResultType;
@@ -125,8 +124,8 @@ intros.
  try match goal with |- context [eqb_type _ _] => destruct (eqb_type t t') end;
  repeat match goal with
  | |- boxy _ (match ?A with  _ => _ end) => destruct A 
- | |- boxy _ (denote_tc_assert Delta (if ?A then _ else _) rho) => destruct A
- | |- boxy _ (denote_tc_assert Delta (match t' with _ => _ end) rho) => 
+ | |- boxy _ (denote_tc_assert (if ?A then _ else _) rho) => destruct A
+ | |- boxy _ (denote_tc_assert (match t' with _ => _ end) rho) => 
         destruct t' as [ | [ | | | ] [ | ] ? | [ | ] ? | [ | ] ? | | | | | ]
  end;
  repeat apply extend_tc_andp;
@@ -137,7 +136,7 @@ intros.
  try simple apply extend_tc_iszero.
 Qed.
 
-Lemma extend_tc_temp_id: forall id ty Delta e rho, boxy extendM (tc_temp_id id ty Delta e rho). 
+Lemma extend_tc_temp_id: forall {CS: compspecs} id ty Delta e rho, boxy extendM (tc_temp_id id ty Delta e rho). 
 Proof. 
 intros. unfold tc_temp_id. unfold typecheck_temp_id.
 destruct ((temp_types Delta) ! id) as [[? ?] | ];
@@ -148,34 +147,34 @@ destruct ((temp_types Delta) ! id) as [[? ?] | ];
 Qed.
 
 Lemma extend_tc_samebase:
-  forall Delta e1 e2 rho,
-boxy extendM (denote_tc_assert Delta (tc_samebase e1 e2) rho).
+  forall {CS: compspecs} e1 e2 rho,
+boxy extendM (denote_tc_assert (tc_samebase e1 e2) rho).
 Proof.
 intros.
 unfold denote_tc_assert; simpl.
 unfold_lift.
-destruct (eval_expr Delta e1 rho), (eval_expr Delta e2 rho); 
+destruct (eval_expr e1 rho), (eval_expr e2 rho); 
   apply extend_prop.
 Qed.
 
 Lemma extend_tc_nonzero:
- forall Delta v rho,
-   boxy extendM (denote_tc_assert Delta (tc_nonzero  Delta v) rho).
+ forall {CS: compspecs} v rho,
+   boxy extendM (denote_tc_assert (tc_nonzero v) rho).
 Proof.
 intros.
 rewrite denote_tc_assert_nonzero.
-destruct (eval_expr Delta v rho); apply extend_prop.
+destruct (eval_expr v rho); apply extend_prop.
 Qed.
 
 
 Lemma extend_tc_nodivover:
- forall Delta e1 e2 rho,
-   boxy extendM (denote_tc_assert Delta (tc_nodivover Delta e1 e2) rho).
+ forall {CS: compspecs} e1 e2 rho,
+   boxy extendM (denote_tc_assert (tc_nodivover e1 e2) rho).
 Proof.
 intros.
 rewrite denote_tc_assert_nodivover.
-destruct (eval_expr Delta e1 rho); try apply extend_prop.
-destruct (eval_expr Delta e2 rho); try apply extend_prop.
+destruct (eval_expr e1 rho); try apply extend_prop.
+destruct (eval_expr e2 rho); try apply extend_prop.
 Qed.
 
 Lemma boxy_orp {A} `{H : ageable A}: 
@@ -191,10 +190,10 @@ eapply boxy_e; eauto.
 Qed.
 
 Lemma extend_tc_orp:
- forall Delta A B rho, 
-   boxy extendM (denote_tc_assert Delta A rho) ->
-   boxy extendM (denote_tc_assert Delta B rho) ->
-   boxy extendM (denote_tc_assert Delta (tc_orp A B) rho).
+ forall {CS: compspecs} A B rho, 
+   boxy extendM (denote_tc_assert A rho) ->
+   boxy extendM (denote_tc_assert B rho) ->
+   boxy extendM (denote_tc_assert (tc_orp A B) rho).
 Proof.
 intros.
 rewrite denote_tc_assert_orp.
@@ -204,13 +203,13 @@ Qed.
 
 
 Lemma extend_tc_ilt:
- forall Delta e i rho,
-   boxy extendM (denote_tc_assert Delta (tc_ilt Delta e i) rho).
+ forall {CS: compspecs} e i rho,
+   boxy extendM (denote_tc_assert (tc_ilt e i) rho).
 Proof.
 intros.
 rewrite denote_tc_assert_ilt'.
 simpl. unfold_lift.
-destruct (eval_expr Delta e rho); try apply extend_prop.
+destruct (eval_expr e rho); try apply extend_prop.
 Qed.
 
 Lemma extend_valid_pointer':
@@ -237,8 +236,8 @@ inv H; auto.
 Qed.
 
 Lemma extend_tc_comparable:
-  forall Delta e1 e2 rho,
- boxy extendM (denote_tc_assert Delta (tc_comparable Delta e1 e2) rho).
+  forall {CS: compspecs} e1 e2 rho,
+ boxy extendM (denote_tc_assert (tc_comparable e1 e2) rho).
 Proof.
 intros.
 rewrite denote_tc_assert_comparable'.
@@ -247,8 +246,8 @@ apply extendM_refl.
 simpl in *.
 super_unfold_lift.
 unfold denote_tc_comparable in *.
-destruct (eval_expr Delta e1 rho); auto;
-destruct (eval_expr Delta e2 rho); auto.
+destruct (eval_expr e1 rho); auto;
+destruct (eval_expr e2 rho); auto.
 destruct H0; split; auto.
 apply (boxy_e _ _ (extend_valid_pointer' _ _) _ w' H H1).
 destruct H0; split; auto.
@@ -266,8 +265,8 @@ apply (boxy_e _ _ (extend_valid_pointer' _ _) _ w' H H0).
 apply (boxy_e _ _ (extend_valid_pointer' _ _) _ w' H H1).
 Qed.
 
-Lemma extend_tc_expr: forall Delta e rho, boxy extendM (tc_expr Delta e rho)
- with extend_tc_lvalue: forall Delta e rho, boxy extendM (tc_lvalue Delta e rho).
+Lemma extend_tc_expr: forall {CS: compspecs} Delta e rho, boxy extendM (tc_expr Delta e rho)
+ with extend_tc_lvalue: forall {CS: compspecs} Delta e rho, boxy extendM (tc_lvalue Delta e rho).
 Proof.
 *
  clear extend_tc_expr.
@@ -280,8 +279,8 @@ unfold tc_expr.
  try (destruct u; simpl);
  repeat apply extend_tc_andp;
  repeat match goal with
- | |- boxy _ (denote_tc_assert Delta match ?A with  _ => _ end _) => destruct A 
- | |- boxy _ (denote_tc_assert Delta (if ?A then _ else _) rho) => destruct A
+ | |- boxy _ (denote_tc_assert match ?A with  _ => _ end _) => destruct A 
+ | |- boxy _ (denote_tc_assert (if ?A then _ else _) rho) => destruct A
  | |- context [typeof ?e] => 
       destruct (typeof e) as [ | [ | | | ] [ | ] ? | [ | ] ? | [ | ] ? | | | | | ]; 
       try apply extend_prop
@@ -309,8 +308,8 @@ unfold tc_expr.
  try apply extend_prop;
  repeat apply extend_tc_andp;
  repeat match goal with
- | |- boxy _ (denote_tc_assert Delta match ?A with  _ => _ end _) => destruct A 
- | |- boxy _ (denote_tc_assert Delta (if ?A then _ else _) rho) => destruct A
+ | |- boxy _ (denote_tc_assert match ?A with  _ => _ end _) => destruct A 
+ | |- boxy _ (denote_tc_assert (if ?A then _ else _) rho) => destruct A
  | |- context [typeof ?e] => 
       destruct (typeof e) as [ | [ | | | ] [ | ] ? | [ | ] ? | [ | ] ? | | | | | ]; 
       try apply extend_prop
@@ -333,7 +332,7 @@ unfold tc_expr.
  apply extend_tc_expr.
 Qed.
 
-Lemma extend_tc_exprlist: forall Delta t e rho, boxy extendM (tc_exprlist Delta t e rho).
+Lemma extend_tc_exprlist: forall {CS: compspecs} Delta t e rho, boxy extendM (tc_exprlist Delta t e rho).
 Proof.
  intros. unfold tc_exprlist.
   revert e; induction t; destruct e; intros; simpl; auto;

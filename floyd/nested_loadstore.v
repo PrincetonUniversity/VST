@@ -593,7 +593,6 @@ Defined.
 Section DATA_AT_WITH_HOLES.
 
 Context {cs: compspecs}.
-Context {csl: compspecs_legal cs}.
 
 Definition data_at'_with_holes (sh: Share.t) t h (v: reptype_with_holes t h) (p: val) : mpred.
   admit.
@@ -1857,7 +1856,7 @@ Proof.
     auto.
 Qed.
 
-Lemma corable_efield_denote: forall Delta efs gfs rho, corable (efield_denote Delta efs gfs rho).
+Lemma corable_efield_denote: forall efs gfs rho, corable (efield_denote efs gfs rho).
 Proof.
   intros.
   revert gfs; induction efs; destruct gfs; simpl; intros.
@@ -2045,8 +2044,8 @@ Lemma semax_nested_efield_field_load_37':
          (tc_LR Delta e1 lr) &&
         local `(tc_val (typeof (nested_efield e1 efs tts)) v) &&
          (tc_efield Delta efs) &&
-        efield_denote Delta efs gfs &&
-        (`(field_at sh t_root gfs0 v') (eval_LR Delta e1 lr) * TT) ->
+        efield_denote efs gfs &&
+        (`(field_at sh t_root gfs0 v') (eval_LR e1 lr) * TT) ->
       legal_nested_field t_root gfs ->
       readable_share sh ->
       semax Delta (|>PROPx P (LOCALx Q (SEPx R))) 
@@ -2128,8 +2127,8 @@ Lemma semax_nested_efield_field_cast_load_37':
          (tc_LR Delta e1 lr) &&
         local (`(tc_val t (eval_cast (typeof (nested_efield e1 efs tts)) t v))) &&
          (tc_efield Delta efs) &&
-        efield_denote Delta efs gfs &&
-        (`(field_at sh t_root gfs0 v') (eval_LR Delta e1 lr) * TT) ->
+        efield_denote efs gfs &&
+        (`(field_at sh t_root gfs0 v') (eval_LR e1 lr) * TT) ->
       legal_nested_field t_root gfs ->
       readable_share sh ->
       semax Delta (|> PROPx P (LOCALx Q (SEPx R)))
@@ -2207,12 +2206,12 @@ Lemma semax_nested_efield_field_store_nth:
       legal_nested_efield t_root e1 gfs tts lr = true ->
       nth_error R n = Some Rn ->
       PROPx P (LOCALx (tc_environ Delta :: Q) (SEP (Rn))) |--
-        `(field_at sh t_root gfs0) v (eval_LR Delta e1 lr) ->
+        `(field_at sh t_root gfs0) v (eval_LR e1 lr) ->
       writable_share sh ->
       PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |--
          (tc_LR Delta e1 lr) && 
          (tc_efield Delta efs) &&
-        efield_denote Delta efs gfs &&
+        efield_denote efs gfs &&
          (tc_expr Delta (Ecast e2 t)) ->
       legal_nested_field t_root gfs ->
       semax Delta (|>PROPx P (LOCALx Q (SEPx R))) 
@@ -2224,8 +2223,8 @@ Lemma semax_nested_efield_field_store_nth:
                   (replace_nth n R
                     (`(field_at sh t_root gfs0)
                       (`(upd_reptype (nested_field_type2 t_root gfs0) gfs1) v
-                        (`(valinject (nested_field_type2 (nested_field_type2 t_root gfs0) gfs1)) (eval_expr Delta (Ecast e2 t))))
-                          (eval_LR Delta e1 lr)
+                        (`(valinject (nested_field_type2 (nested_field_type2 t_root gfs0) gfs1)) (eval_expr (Ecast e2 t))))
+                          (eval_LR e1 lr)
                             )))))).
 Admitted.
 (*

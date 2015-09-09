@@ -141,8 +141,6 @@ Qed.
 Section CENV.
 
 Context {cs: compspecs}.
-Context {csl: compspecs_legal cs}.
-
 
 Definition reptype_gen: type -> (sigT (fun x => x)) :=
   func_type (fun _ => (sigT (fun x => x)))
@@ -940,9 +938,9 @@ Qed.
 (* Hint Rewrite skipn_0 using computable : norm. *)
 
 Lemma unfold_reptype_elim:
-  forall cs csl t v v',
+  forall cs t v v',
     JMeq v v' ->
-   @unfold_reptype cs csl t v = v'.
+   @unfold_reptype cs t v = v'.
 Proof.
 intros.
 unfold unfold_reptype.

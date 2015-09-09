@@ -17,8 +17,8 @@ Proof.
 Qed.
 
 Lemma typed_true_nullptr':
-  forall Delta t t' v,
-    typed_true tint (eval_binop Delta Oeq (tptr t) (tptr t') v nullval) -> v=nullval.
+  forall  {cs: compspecs}  t t' v,
+    typed_true tint (eval_binop Oeq (tptr t) (tptr t') v nullval) -> v=nullval.
 Proof.
  intros. unfold eval_binop, typed_true in H.
  destruct v; inv H; auto.
@@ -28,8 +28,8 @@ Proof.
 Qed.
 
 Lemma typed_true_Oeq_nullval:
- forall Delta v t t',
-   local (`(typed_true tint) (`(eval_binop Delta Oeq (tptr t) (tptr t')) v `nullval)) |--
+ forall  {cs: compspecs}  v t t',
+   local (`(typed_true tint) (`(eval_binop Oeq (tptr t) (tptr t')) v `nullval)) |--
    local (`(eq nullval) v).
 Proof.
 intros.
@@ -53,25 +53,25 @@ Definition  binary_operation_to_comparison (op: binary_operation) :=
  end.
 
 Lemma typed_true_binop_int:
-  forall op op' e1 e2 Espec Delta P Q R c Post,
+  forall op op' e1 e2 Espec  {cs: compspecs} Delta P Q R c Post,
    binary_operation_to_comparison op = Some op' ->
    typeof e1 = tint ->
    typeof e2 = tint ->
    (PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R))) |--  tc_expr Delta e1 ->
    (PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R))) |-- tc_expr Delta e2 ->
-  @semax Espec Delta (PROPx P (LOCALx 
-      (`op' (`force_signed_int (eval_expr Delta e1)) (`force_signed_int (eval_expr Delta e2))
+  @semax cs Espec Delta (PROPx P (LOCALx 
+      (`op' (`force_signed_int (eval_expr e1)) (`force_signed_int (eval_expr e2))
           :: Q) (SEPx R))) c Post ->
-  @semax Espec Delta (PROPx P (LOCALx 
+  @semax cs Espec Delta (PROPx P (LOCALx 
       (`(typed_true
           (typeof (Ebinop op e1 e2 tint)))
-          (eval_expr Delta (Ebinop op e1 e2 tint)) :: Q) (SEPx R))) c Post.
+          (eval_expr (Ebinop op e1 e2 tint)) :: Q) (SEPx R))) c Post.
 Proof.
 intros.
 eapply semax_pre; [clear H4 | apply H4].
 eapply derives_trans with
  (tc_expr Delta e1 && (tc_expr Delta e2
-   && PROPx P (LOCALx (tc_environ Delta :: `(typed_true (typeof (Ebinop op e1 e2 tint)))(eval_expr Delta (Ebinop op e1 e2 tint)) :: Q) (SEPx R)))).
+   && PROPx P (LOCALx (tc_environ Delta :: `(typed_true (typeof (Ebinop op e1 e2 tint)))(eval_expr (Ebinop op e1 e2 tint)) :: Q) (SEPx R)))).
 rewrite <- andp_assoc.
 apply andp_right; auto.
 do 2 rewrite <- insert_local.
@@ -105,8 +105,8 @@ rewrite H0 in *; rewrite H1 in *.
 *)
 rewrite H1,H0 in *.
 clear H5 H2 H0 H1.
-destruct (eval_expr Delta e1 rho); inv H6.
-destruct (eval_expr Delta e2 rho); inv H7.
+destruct (eval_expr e1 rho); inv H6.
+destruct (eval_expr e2 rho); inv H7.
 unfold force_signed_int, force_int.
 unfold typed_true, eval_binop in H4.
 destruct op; inv H; simpl in H4.
@@ -138,25 +138,25 @@ Definition  binary_operation_to_opp_comparison (op: binary_operation) :=
  end.
 
 Lemma typed_false_binop_int:
-  forall op op' e1 e2 Espec Delta P Q R c Post,
+  forall op op' e1 e2 Espec  {cs: compspecs} Delta P Q R c Post,
    binary_operation_to_opp_comparison op = Some op' ->
    typeof e1 = tint ->
    typeof e2 = tint ->
    (PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R))) |-- (tc_expr Delta e1) ->
    (PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R))) |-- (tc_expr Delta e2) ->
-  @semax Espec Delta (PROPx P (LOCALx 
-      (`op' (`force_signed_int (eval_expr Delta e1)) (`force_signed_int (eval_expr Delta e2))
+  @semax cs Espec Delta (PROPx P (LOCALx 
+      (`op' (`force_signed_int (eval_expr e1)) (`force_signed_int (eval_expr e2))
           :: Q) (SEPx R))) c Post ->
-  @semax Espec Delta (PROPx P (LOCALx 
+  @semax cs Espec Delta (PROPx P (LOCALx 
       (`(typed_false
           (typeof (Ebinop op e1 e2 tint)))
-          (eval_expr Delta (Ebinop op e1 e2 tint)) :: Q) (SEPx R))) c Post.
+          (eval_expr (Ebinop op e1 e2 tint)) :: Q) (SEPx R))) c Post.
 Proof.
 intros.
 eapply semax_pre; [clear H4 | apply H4].
 eapply derives_trans with
  ( local (tc_environ Delta) && ((tc_expr Delta e1) && ( (tc_expr Delta e2)
-   && PROPx P (LOCALx (tc_environ Delta :: `(typed_false (typeof (Ebinop op e1 e2 tint)))(eval_expr Delta (Ebinop op e1 e2 tint)) :: Q) (SEPx R))))).
+   && PROPx P (LOCALx (tc_environ Delta :: `(typed_false (typeof (Ebinop op e1 e2 tint)))(eval_expr (Ebinop op e1 e2 tint)) :: Q) (SEPx R))))).
 apply andp_right.
 rewrite <- insert_local. apply andp_left1; auto.
 rewrite <- andp_assoc.
@@ -182,8 +182,8 @@ split; auto.
 clear H6 TCE.
 rewrite H0 in *; rewrite H1 in *.
 clear H0 H1 H4.
-destruct (eval_expr Delta e1 rho); inv H2.
-destruct (eval_expr Delta e2 rho); inv H3.
+destruct (eval_expr e1 rho); inv H2.
+destruct (eval_expr e2 rho); inv H3.
 unfold force_signed_int, force_int.
 unfold typed_true, eval_binop in H5.
 destruct op; inv H; simpl in H5.
@@ -204,8 +204,8 @@ destruct (zlt (Int.signed i) (Int.signed i0)); inv H5; omega.
 Qed.
 
 Lemma typed_false_One_nullval:
- forall Delta v t t',
-   local (`(typed_false tint) (`(eval_binop Delta One (tptr t) (tptr t')) v `nullval)) |--
+ forall  {cs: compspecs}  v t t',
+   local (`(typed_false tint) (`(eval_binop One (tptr t) (tptr t')) v `nullval)) |--
     local (`(eq nullval) v).
 Proof.
 intros. 
@@ -218,8 +218,8 @@ intros.
 Qed. 
 
 Lemma typed_true_One_nullval:
- forall Delta v t t',
-   local (`(typed_true tint) (`(eval_binop Delta One (tptr t) (tptr t')) v `nullval)) |--
+ forall  {cs: compspecs}  v t t',
+   local (`(typed_true tint) (`(eval_binop One (tptr t) (tptr t')) v `nullval)) |--
    local (`(ptr_neq nullval) v).
 Proof.
 intros.
@@ -233,8 +233,8 @@ Qed.
 
 
 Lemma typed_false_Oeq_nullval:
- forall Delta v t t',
-   local (`(typed_false tint) (`(eval_binop Delta Oeq (tptr t) (tptr t')) v `nullval)) |--
+ forall  {cs: compspecs} v t t',
+   local (`(typed_false tint) (`(eval_binop Oeq (tptr t) (tptr t')) v `nullval)) |--
    local (`(ptr_neq nullval) v).
 Proof.
 intros. subst.
@@ -263,10 +263,10 @@ Proof.
 Qed.
 
 Lemma local_entail_at_semax_0:
-  forall Espec Delta P Q1 Q1' Q R c Post,
+  forall Espec {cs: compspecs}Delta P Q1 Q1' Q R c Post,
    local Q1 |-- local Q1' ->
-   @semax Espec Delta (PROPx P (LOCALx (Q1'::Q) (SEPx R))) c Post  ->
-   @semax Espec Delta (PROPx P (LOCALx (Q1::Q) (SEPx R))) c Post.
+   @semax cs Espec Delta (PROPx P (LOCALx (Q1'::Q) (SEPx R))) c Post  ->
+   @semax cs Espec Delta (PROPx P (LOCALx (Q1::Q) (SEPx R))) c Post.
 Proof.
 intros.
 eapply semax_pre0.

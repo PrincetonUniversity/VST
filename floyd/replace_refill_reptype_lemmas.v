@@ -12,7 +12,6 @@ Require Import floyd.sublist.
 Section MULTI_HOLES.
 
 Context {cs: compspecs}.
-Context {csl: compspecs_legal cs}.
 
 Inductive holes : Type :=
   | FullUpdate
@@ -179,7 +178,7 @@ Definition replace_reptype: forall (t: type) (h: holes) (subs: holes_subs t) (v:
        match h with
        | FullUpdate => subs nil
        | SemiUpdate subl =>
-         @fold_reptype _ _ (Tarray t n a) 
+         @fold_reptype _ (Tarray t n a) 
           (map_Znth
                 (fun i => F (subl (ArraySubsc i))
                          (fun gfs => subs (ArraySubsc i :: gfs)))
@@ -195,7 +194,7 @@ Definition replace_reptype: forall (t: type) (h: holes) (subs: holes_subs t) (v:
        match h with
        | FullUpdate => subs nil
        | SemiUpdate subl =>
-         @fold_reptype _ _ (Tstruct id a)
+         @fold_reptype _ (Tstruct id a)
            (compact_prod_map _
              (ListType_map
                (ListType_map F
@@ -209,7 +208,7 @@ Definition replace_reptype: forall (t: type) (h: holes) (subs: holes_subs t) (v:
        match h with
        | FullUpdate => subs nil
        | SemiUpdate subl =>
-         @fold_reptype _ _ (Tunion id a)
+         @fold_reptype _ (Tunion id a)
            (compact_sum_map _
              (ListType_map
                (ListType_map F
@@ -233,7 +232,7 @@ Lemma replace_reptype_ind: forall t h,
        match h with
        | FullUpdate => subs nil
        | SemiUpdate subl =>
-         @fold_reptype _ _ (Tarray t0 n a) 
+         @fold_reptype _ (Tarray t0 n a) 
            (map_Znth (fun i => replace_reptype t0 (subl (ArraySubsc i))
                          (fun gfs => subs (ArraySubsc i :: gfs)))
                 (unfold_reptype v))
@@ -249,7 +248,7 @@ Lemma replace_reptype_ind: forall t h,
        match h with
        | FullUpdate => subs nil
        | SemiUpdate subl =>
-         @fold_reptype _ _ (Tstruct id a)
+         @fold_reptype _ (Tstruct id a)
            (compact_prod_map _
              (ListTypeGen
                (fun it => reptype (field_type (fst it) (co_members (get_co id))) ->
@@ -267,7 +266,7 @@ Lemma replace_reptype_ind: forall t h,
        match h with
        | FullUpdate => subs nil
        | SemiUpdate subl =>
-         @fold_reptype _ _ (Tunion id a)
+         @fold_reptype _ (Tunion id a)
            (compact_sum_map _
              (ListTypeGen
                (fun it => reptype (field_type (fst it) (co_members (get_co id))) ->
@@ -399,7 +398,6 @@ End MULTI_HOLES.
 Section SINGLE_HOLE.
 
 Context {cs: compspecs}.
-Context {csl: compspecs_legal cs}.
 
 Lemma gfield_dec: forall (gf0 gf1: gfield), {gf0 = gf1} + {gf0 <> gf1}.
 Proof.
@@ -559,7 +557,6 @@ Hint Rewrite (fun A d => @zl_concat_empty_r A d _ (list_zlist_correct _ _)) usin
 Section POSE_TAC.
 
 Context {cs: compspecs}.
-Context {csl: compspecs_legal cs}.
 
 Definition eq_pose {A} x y := @eq A x y.
 
@@ -615,8 +612,8 @@ Ltac cbv_proj_struct H :=
     tuint tbool tlong tulong tfloat tdouble tptr tarray noattr
     ] in H; simpl in H.
 
-Ltac pose_proj_reptype_1 CS CSL t gf v H :=
-  assert (@proj_gfield_reptype CS CSL t gf v = @proj_gfield_reptype CS CSL t gf v) as H by reflexivity;
+Ltac pose_proj_reptype_1 CS t gf v H :=
+  assert (@proj_gfield_reptype CS t gf v = @proj_gfield_reptype CS t gf v) as H by reflexivity;
   let H0 := fresh "H" in
   let H1 := fresh "H" in
   let V := fresh "v" in
@@ -625,7 +622,7 @@ Ltac pose_proj_reptype_1 CS CSL t gf v H :=
   match type of V with
   | ?t_temp => change t_temp with (@reptype CS t) in V
   end;
-  change (@proj_gfield_reptype CS CSL t gf V) with (@proj_gfield_reptype CS CSL t' gf V) in H;
+  change (@proj_gfield_reptype CS t gf V) with (@proj_gfield_reptype CS t' gf V) in H;
   unfold proj_gfield_reptype in H at 2;
   pose proof unfold_reptype_JMeq t' V as H1;
   apply JMeq_eq in H1;
@@ -649,26 +646,26 @@ Ltac pose_proj_reptype_1 CS CSL t gf v H :=
   end
 .
 
-Ltac pose_proj_reptype CS CSL t gfs v H :=
+Ltac pose_proj_reptype CS t gfs v H :=
   match gfs with
   | nil =>
-      assert (eq_pose (@proj_reptype CS CSL t gfs v) v) as H by reflexivity
+      assert (eq_pose (@proj_reptype CS t gfs v) v) as H by reflexivity
   | ?gf :: ?gfs0 =>
      pose proof I as H;   (* *0* SEE LINE *1* *)
      let H0 := fresh "H" in
-     pose_proj_reptype CS CSL t gfs0 v H0;
+     pose_proj_reptype CS t gfs0 v H0;
      match type of H0 with
      | eq_pose (proj_reptype t gfs0 v) ?v0 =>
          let H1 := fresh "H" in
          match gfs0 with
-         | nil => pose_proj_reptype_1 CS CSL t gf v0 H1
-         | _ => pose_proj_reptype_1 CS CSL (nested_field_type2 t gfs0) gf v0 H1
+         | nil => pose_proj_reptype_1 CS t gf v0 H1
+         | _ => pose_proj_reptype_1 CS (nested_field_type2 t gfs0) gf v0 H1
          end;
          clear H;         (* *1* SEE LINE *0* *)
          match gfs0 with
-         | nil => assert (eq_pose (@proj_reptype CS CSL t gfs v) (@proj_gfield_reptype CS CSL t gf v0)) as H
-         | _ => assert (eq_pose (@proj_reptype CS CSL t gfs v)
-                   (@proj_gfield_reptype CS CSL (nested_field_type2 t gfs0) gf v0)) as H
+         | nil => assert (eq_pose (@proj_reptype CS t gfs v) (@proj_gfield_reptype CS t gf v0)) as H
+         | _ => assert (eq_pose (@proj_reptype CS t gfs v)
+                   (@proj_gfield_reptype CS (nested_field_type2 t gfs0) gf v0)) as H
          end;
          [unfold eq_pose in *; rewrite <- H0; unfold proj_reptype, eq_rect_r; apply eq_sym, eq_rect_eq |];
          rewrite H1 in H;
@@ -676,9 +673,9 @@ Ltac pose_proj_reptype CS CSL t gfs v H :=
      end
   end.
 
-Ltac pose_upd_reptype_1 CS CSL t gf v v0 H :=
+Ltac pose_upd_reptype_1 CS t gf v v0 H :=
   let t' := eval compute in t in
-  assert (data_equal (@upd_gfield_reptype CS CSL t gf v v0) (@upd_gfield_reptype CS CSL t' gf v v0)) as H
+  assert (data_equal (@upd_gfield_reptype CS t gf v v0) (@upd_gfield_reptype CS t' gf v v0)) as H
     by reflexivity;
   unfold upd_gfield_reptype at 2 in H;
   let H0 := fresh "H" in
@@ -698,28 +695,28 @@ Ltac pose_upd_reptype_1 CS CSL t gf v v0 H :=
     clear H0
   end.
 
-Ltac pose_upd_reptype CS CSL t gfs v v0 H :=
+Ltac pose_upd_reptype CS t gfs v v0 H :=
   match gfs with
   | nil => 
-      assert (data_equal (@upd_reptype_rec CS CSL t gfs v v0) v0) as H by reflexivity
+      assert (data_equal (@upd_reptype_rec CS t gfs v v0) v0) as H by reflexivity
   | ?gf :: ?gfs0 =>
       pose proof I as H;   (* *2* SEE LINE *3* *)
       match goal with
       | HH : eq_pose (proj_reptype t gfs0 v) ?v1 |- _ =>
           let H_upd1 := fresh "H_upd1" in
-          pose_upd_reptype_1 CS CSL (nested_field_type2 t gfs0) gf v1 v0 H_upd1;
+          pose_upd_reptype_1 CS (nested_field_type2 t gfs0) gf v1 v0 H_upd1;
           match type of H_upd1 with
           | data_equal _ ?v1' =>
                   let H0 := fresh "H" in
-                  pose_upd_reptype CS CSL t gfs0 v v1' H0;
+                  pose_upd_reptype CS t gfs0 v v1' H0;
                   match type of H0 with
                   | data_equal _ ?v_res =>
                       clear H;         (* *3* SEE LINE *2* *)
-                      assert (H: data_equal (@upd_reptype_rec CS CSL t gfs v v0) v_res);
+                      assert (H: data_equal (@upd_reptype_rec CS t gfs v v0) v_res);
                           [| clear H_upd1 H0]
                   end;
-                 [change (@upd_reptype_rec CS CSL t gfs v v0) with
-                   (@upd_reptype_rec CS CSL t gfs0 v (upd_gfield_reptype _ gf (proj_reptype t gfs0 v) v0));
+                 [change (@upd_reptype_rec CS t gfs v v0) with
+                   (@upd_reptype_rec CS t gfs0 v (upd_gfield_reptype _ gf (proj_reptype t gfs0 v) v0));
                   unfold eq_pose in HH; rewrite HH;
                   eapply Equivalence.equiv_transitive;
                   [apply upd_reptype_rec_data_equal; exact H_upd1 | exact H0]
@@ -728,7 +725,7 @@ Ltac pose_upd_reptype CS CSL t gfs v v0 H :=
       end
   end.
 
-Section Test.
+Module Test.
 
 Definition _f1 := 1%positive.
 Definition _f2 := 2%positive.
@@ -743,12 +740,9 @@ Definition cenv := match build_composite_env (cd1 :: cd2 :: nil) with Errors.OK 
 
 Instance cs: compspecs.
   apply (mkcompspecs cenv).
++
   apply build_composite_env_consistent with (defs := cd1 :: cd2 :: nil).
   reflexivity.
-Defined.
-
-Instance csl: compspecs_legal cs.
-  split.
   + intros ? ? ?.
     apply PTree.elements_correct in H.
     revert H.
@@ -784,14 +778,14 @@ Qed.
 
 Goal proj_reptype t2 (StructField _f2 :: StructField _f3 :: nil) v2 = Vint Int.one.
 unfold v2.
-pose_proj_reptype cs csl t2
+pose_proj_reptype cs t2
   (StructField _f2 :: StructField _f3 :: nil) ((Vint Int.zero, Vint Int.one, (Vint Int.zero, Vint Int.one, Vundef)): reptype (Tstruct 102%positive noattr)) HH.
 eauto.
 Time Qed. (* Cut down from 10 seconds to 4 seconds, magically. *)
 
 Goal forall n l, 0 < n -> proj_reptype (tarray tint n) (ArraySubsc 0 :: nil) l = Znth 0 l Vundef.
 intros.
-pose_proj_reptype cs csl (tarray tint n) (ArraySubsc 0 :: nil) l HH.
+pose_proj_reptype cs (tarray tint n) (ArraySubsc 0 :: nil) l HH.
 exact HH.
 Qed.
 
@@ -799,8 +793,8 @@ Goal data_equal (upd_reptype t2 (StructField 3%positive :: nil) v2 (Vint Int.one
 ((Vint Int.one, Vint Int.one), ((Vint Int.zero, Vint Int.one), Vundef)).
 set (v0 := (Vint Int.one, Vint Int.one)).
 change (val * val)%type with (reptype (Tstruct 101%positive noattr)) in v0.
-pose_proj_reptype cs csl (Tstruct 102%positive noattr) (StructField 3%positive :: nil) v2 H.
-pose_upd_reptype cs csl (Tstruct 102%positive noattr) (StructField 3%positive :: nil) v2 v0 H1.
+pose_proj_reptype cs (Tstruct 102%positive noattr) (StructField 3%positive :: nil) v2 H.
+pose_upd_reptype cs (Tstruct 102%positive noattr) (StructField 3%positive :: nil) v2 v0 H1.
 rewrite upd_reptype_ind.
 exact H1.
 Qed.
@@ -809,8 +803,8 @@ Goal forall n l, 0 < n -> data_equal
     (upd_reptype (tarray tint n) (ArraySubsc 0 :: nil) l Vundef) 
     (Vundef :: sublist 1 (Zlength l) l).
 intros.
-pose_proj_reptype cs csl (tarray tint n) (ArraySubsc 0 :: nil) l HH.
-pose_upd_reptype cs csl (tarray tint n) (ArraySubsc 0 :: nil) l Vundef HHH.
+pose_proj_reptype cs (tarray tint n) (ArraySubsc 0 :: nil) l HH.
+pose_upd_reptype cs (tarray tint n) (ArraySubsc 0 :: nil) l Vundef HHH.
 rewrite upd_reptype_ind.
 exact HHH.
 Qed.

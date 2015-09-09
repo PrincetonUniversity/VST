@@ -10,7 +10,6 @@ Open Scope Z.
 Section COMPOSITE_ENV.
 
 Context {cs: compspecs}.
-Context {csl: compspecs_legal cs}.
 
 (************************************************
 

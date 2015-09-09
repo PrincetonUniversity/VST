@@ -210,11 +210,6 @@ Definition varspecs : Type := list (ident * type).
 
 Definition funspecs := list (ident * funspec).
 
-Class compspecs := mkcompspecs {
-  cenv_cs: composite_env;
-  cenv_consistent_cs: composite_env_consistent cenv_cs
-}.
-
 Definition in_members i (m: members): Prop :=
   In i (map fst m).
 
@@ -340,16 +335,21 @@ Definition composite_env_legal_fieldlist env :=
   forall (id : positive) (co : composite),
     env ! id = Some co -> composite_legal_fieldlist co.
 
-Class compspecs_legal (C: compspecs) := mkCompspecsLegal {
+
+Class compspecs := mkcompspecs {
+  cenv_cs: composite_env;
+  cenv_consistent: composite_env_consistent cenv_cs;
   cenv_legal_alignas: composite_env_legal_alignas cenv_cs;
   cenv_legal_fieldlist: composite_env_legal_fieldlist cenv_cs
 }.
 
+(*
 Definition compspecs_program (p: program): compspecs.
   apply (mkcompspecs (prog_comp_env p)).
   eapply build_composite_env_consistent.
   apply (prog_comp_env_eq p).
 Defined.
+*)
 
 Definition type_of_funspec (fs: funspec) : type :=  
   match fs with mk_funspec fsig _ _ _ => Tfunction (type_of_params (fst fsig)) (snd fsig) cc_default end.
@@ -360,35 +360,30 @@ Inductive tycontext : Type :=
                         (tyc_vars: PTree.t type)
                         (tyc_ret: type)
                         (tyc_globty: PTree.t type)
-                        (tyc_globsp: PTree.t funspec)
-                        (cenv: composite_env)
-                        (cenv_consistent: composite_env_consistent cenv),
+                        (tyc_globsp: PTree.t funspec),
                              tycontext.
 
-Definition empty_tycontext cenv cc : tycontext :=
-  mk_tycontext (PTree.empty _) (PTree.empty _) Tvoid  (PTree.empty _)  (PTree.empty _) cenv cc.
+
+Definition empty_tycontext : tycontext :=
+  mk_tycontext (PTree.empty _) (PTree.empty _) Tvoid 
+         (PTree.empty _)  (PTree.empty _).
 
 Definition temp_types (Delta: tycontext): PTree.t (type*bool) := 
-  match Delta with mk_tycontext a _ _ _ _ _ _=> a end.
+  match Delta with mk_tycontext a _ _ _ _ => a end.
 Definition var_types (Delta: tycontext) : PTree.t type := 
-  match Delta with mk_tycontext _ a _ _ _ _ _ => a end.
+  match Delta with mk_tycontext _ a _ _ _ => a end.
 Definition ret_type (Delta: tycontext) : type := 
-  match Delta with mk_tycontext _ _ a _ _ _ _ => a end.
+  match Delta with mk_tycontext _ _ a _ _ => a end.
 Definition glob_types (Delta: tycontext) : PTree.t type := 
-  match Delta with mk_tycontext _ _ _ a _ _ _ => a end.
+  match Delta with mk_tycontext _ _ _ a _ => a end.
 Definition glob_specs (Delta: tycontext) : PTree.t funspec := 
-  match Delta with mk_tycontext _ _ _ _ a _ _ => a end.
-Definition composite_types (Delta: tycontext) : composite_env := 
-  match Delta with mk_tycontext _ _ _ _ _ a _ => a end.
-Definition composite_types_consistent (Delta: tycontext) : composite_env_consistent (composite_types Delta) := 
-  match Delta with mk_tycontext _ _ _ _ _ _ a => a end.
+  match Delta with mk_tycontext _ _ _ _ a => a end.
 
 (** Functions that modify type environments **)
 Definition initialized id (Delta: tycontext) : tycontext :=
 match (temp_types Delta) ! id with
 | Some (ty, _) => mk_tycontext (PTree.set id (ty,true) (temp_types Delta))
                        (var_types Delta) (ret_type Delta) (glob_types Delta) (glob_specs Delta)
-                       (composite_types Delta) (composite_types_consistent Delta)
 | None => Delta (*Shouldn't happen *)
 end.
 
@@ -403,9 +398,9 @@ Definition join_te te1 te2 : PTree.t (type * bool):=
 PTree.fold (join_te' te2) te1 (PTree.empty (type * bool)).
 
 Definition join_tycon (tycon1: tycontext) (tycon2 : tycontext) : tycontext :=
-match tycon1 with  mk_tycontext te1 ve1 r vl1 g1 cenv cc  =>
-match tycon2 with  mk_tycontext te2 _ _ _ _ _ _ =>
-  mk_tycontext (join_te te1 te2) ve1 r vl1 g1 cenv cc
+match tycon1 with  mk_tycontext te1 ve1 r vl1 g1  =>
+match tycon2 with  mk_tycontext te2 _ _ _ _ =>
+  mk_tycontext (join_te te1 te2) ve1 r vl1 g1
 end end.              
 
 (** Strictly for updating the type context... no typechecking here **)
@@ -455,13 +450,13 @@ Definition make_tycontext_s (G: funspecs) :=
 
 Definition make_tycontext (params: list (ident*type)) (temps: list (ident*type)) (vars: list (ident*type))
                        (return_ty: type)
-                       (V: varspecs) (G: funspecs) cenv cc :  tycontext :=
+                       (V: varspecs) (G: funspecs) :  tycontext :=
  mk_tycontext 
    (make_tycontext_t params temps)
    (make_tycontext_v vars)
    return_ty
    (make_tycontext_g V G)
-   (make_tycontext_s G) cenv cc.
+   (make_tycontext_s G).
 
 Definition func_tycontext' (func: function) (Delta: tycontext) : tycontext :=
  mk_tycontext
@@ -469,15 +464,13 @@ Definition func_tycontext' (func: function) (Delta: tycontext) : tycontext :=
    (make_tycontext_v (fn_vars func))
    (fn_return func)
    (glob_types Delta)
-   (glob_specs Delta)
-   (composite_types Delta)
-   (composite_types_consistent Delta).
+   (glob_specs Delta).
 
-Definition func_tycontext (func: function) (V: varspecs) (G: funspecs) {C: compspecs} : tycontext :=
-  make_tycontext (func.(fn_params)) (func.(fn_temps)) (func.(fn_vars)) (func.(fn_return)) V G cenv_cs cenv_consistent_cs.
+Definition func_tycontext (func: function) (V: varspecs) (G: funspecs): tycontext :=
+  make_tycontext (func.(fn_params)) (func.(fn_temps)) (func.(fn_vars)) (func.(fn_return)) V G.
 
-Definition nofunc_tycontext (V: varspecs) (G: funspecs) {C: compspecs} : tycontext :=
-   make_tycontext nil nil nil Tvoid V G cenv_cs cenv_consistent_cs.
+Definition nofunc_tycontext (V: varspecs) (G: funspecs) : tycontext :=
+   make_tycontext nil nil nil Tvoid V G.
 
 Definition exit_tycon (c: statement) (Delta: tycontext) (ek: exitkind) : tycontext :=
   match ek with 
@@ -572,14 +565,6 @@ Proof.
 intros. destruct d1. destruct d2.  simpl. auto.
 Qed. 
  
-Lemma composite_types_update_dist :
-forall d1 d2, 
-(composite_types (join_tycon (d1) (d2))) =
-(composite_types (d1)).
-Proof.
-intros. destruct d1. destruct d2.  simpl. auto.
-Qed.
-
 Lemma func_tycontext'_update_dist :
 forall f d1 d2, 
 (func_tycontext' f (join_tycon (d1) (d2))) =
@@ -663,30 +648,6 @@ intros. simpl.
 destruct l. simpl. auto. 
 simpl in *. rewrite glob_specs_update_dist. 
 auto. 
-Qed.
-
-Lemma composite_types_update_tycon:
-  forall c Delta, composite_types (update_tycon Delta c) = composite_types Delta
- with
-composite_types_join_labeled : forall Delta e l,
-composite_types (update_tycon Delta (Sswitch e l)) = composite_types Delta. 
-Proof.
-+ clear composite_types_update_tycon.
-  assert (forall i Delta, composite_types (initialized i Delta) = composite_types Delta).
-  intros; unfold initialized.
-  destruct ((temp_types Delta)!i); try destruct p; reflexivity.  
-  induction c; intros; try apply H; try reflexivity. 
-  simpl. destruct o. apply H. auto. 
-  simpl. 
-  rewrite IHc2. 
-  auto. 
-  simpl.  rewrite composite_types_update_dist. auto. 
-  auto.
-+ clear composite_types_join_labeled.
-  intros. simpl. 
-  destruct l. simpl. auto. 
-  simpl in *. rewrite composite_types_update_dist. 
-  auto. 
 Qed.
 
 Lemma ret_type_join_tycon:
@@ -810,13 +771,6 @@ Lemma set_temp_ret : forall Delta i,
 ret_type (initialized i Delta) = ret_type (Delta).
 intros. 
 destruct Delta. unfold var_types. unfold initialized.
-simpl. unfold temp_types. simpl. destruct (tyc_temps ! i); auto. destruct p; auto.
-Qed.
-
-Lemma set_temp_ct : forall Delta i,
-composite_types (initialized i Delta) = composite_types (Delta).
-intros. 
-destruct Delta. unfold composite_types. unfold initialized.
 simpl. unfold temp_types. simpl. destruct (tyc_temps ! i); auto. destruct p; auto.
 Qed.
 
@@ -1060,16 +1014,14 @@ Definition tycontext_sub (Delta Delta' : tycontext) : Prop :=
  /\ (forall id, (var_types Delta) ! id = (var_types Delta') ! id)
  /\ ret_type Delta = ret_type Delta'
  /\ (forall id, sub_option ((glob_types Delta) ! id) ((glob_types Delta') ! id))
- /\ (forall id, sub_option ((glob_specs Delta) ! id) ((glob_specs Delta') ! id))
- /\ (forall id, sub_option ((composite_types Delta) ! id) ((composite_types Delta') ! id)).               
+ /\ (forall id, sub_option ((glob_specs Delta) ! id) ((glob_specs Delta') ! id)).               
 
 Definition tycontext_eqv (Delta Delta' : tycontext) : Prop :=
  (forall id, (temp_types Delta) ! id = (temp_types Delta') ! id)
  /\ (forall id, (var_types Delta) ! id = (var_types Delta') ! id)
  /\ ret_type Delta = ret_type Delta'
  /\ (forall id, (glob_types Delta) ! id = (glob_types Delta') ! id)
- /\ (forall id, (glob_specs Delta) ! id = (glob_specs Delta') ! id)
- /\ (forall id, (composite_types Delta) ! id = (composite_types Delta') ! id).
+ /\ (forall id, (glob_specs Delta) ! id = (glob_specs Delta') ! id).
                 
 Lemma join_tycon_same: forall Delta, tycontext_eqv (join_tycon Delta Delta) Delta.
 Proof.
@@ -1119,7 +1071,7 @@ Lemma tycontext_eqv_spec: forall Delta Delta',
 Proof.
   intros.
   unfold tycontext_sub, tycontext_eqv.
-  split; [intros [? [? [? [? [? ?]]]]] | intros [[? [? [? [? [? ?]]]]] [? [? [? [? [? ?]]]]]]];
+  split; [intros [? [? [? [? ?]]]] | intros [[? [? [? [? ?]]]] [? [? [? [? ?]]]]]];
   repeat split; intros;
   try assumption;
   try (symmetry; assumption);
@@ -1143,11 +1095,11 @@ Proof.
     inversion H.
     destruct b0; split; simpl; auto.
     exact I.
-  + clear - H H5.
+  + clear - H H4.
     specialize (H id).
-    specialize (H5 id).
+    specialize (H4 id).
     destruct ((temp_types Delta) ! id) as [[? ?] |], ((temp_types Delta') ! id) as [[? ?] |];
-    inversion H; inversion H5.
+    inversion H; inversion H4.
     - clear H2; subst.
       destruct b, b0; try inversion H1; try inversion H3; reflexivity.
     - reflexivity.
@@ -1163,7 +1115,6 @@ Proof.
     destruct (T ! id) as [[? ?]|]; split; auto; destruct b; auto.
   + apply sub_option_refl.
   + apply sub_option_refl.
-  + apply sub_option_refl.
 Qed.
 
 Lemma tycontext_sub_trans:
@@ -1171,7 +1122,7 @@ Lemma tycontext_sub_trans:
   tycontext_sub Delta1 Delta2 -> tycontext_sub Delta2 Delta3 ->
   tycontext_sub Delta1 Delta3.
 Proof.
-  intros ? ? ? [G1 [G2 [G3 [G4 [G5 G6]]]]] [H1 [H2 [H3 [H4 [H5 H6]]]]].
+  intros ? ? ? [G1 [G2 [G3 [G4 G5]]]] [H1 [H2 [H3 [H4 H5]]]].
   repeat split.
   * intros. specialize (G1 id); specialize (H1 id).
     destruct ((temp_types Delta1) ! id); auto.
@@ -1180,10 +1131,9 @@ Proof.
     destruct ((temp_types Delta3) ! id); try contradiction. 
     destruct p. destruct G1, H1; split; subst; auto.
     destruct (negb  b); inv H0; simpl; auto.
-    destruct b0; inv H; simpl in H5. auto.
+    destruct b0; inv H; simpl in H4. auto.
   * intros. specialize (G2 id); specialize (H2 id); congruence.
   * congruence.
-  * intros. eapply sub_option_trans; eauto.
   * intros. eapply sub_option_trans; eauto.
   * intros. eapply sub_option_trans; eauto.
 Qed.
@@ -1358,164 +1308,17 @@ Qed.
 
 End STABILITY.
 
-Definition guard_genv Delta ge :=
-  forall id, sub_option ((composite_types Delta) ! id) ((genv_cenv ge) ! id).
-
-Section GGENV.
-
-Variable Delta: tycontext.
-Variable ge: genv.
-Hypothesis gg: guard_genv Delta ge.
-
-Lemma guard_genv_spec: forall id co, (composite_types Delta) ! id = Some co -> (genv_cenv ge) ! id = Some co.
-Proof.
-  intros.
-  specialize (gg id).
-  destruct ((composite_types Delta) ! id), ((genv_cenv ge) ! id);
-  try inversion gg; try inversion H.
-  reflexivity.
-Qed.
-
-Lemma sizeof_guard_genv: forall t, complete_type (composite_types Delta) t = true ->
-  sizeof (composite_types Delta) t = sizeof ge t.
-Proof.
-  intros.
-  symmetry.
-  apply sizeof_stable; [| auto].
-  apply guard_genv_spec.
-Qed.
-
-Lemma alignof_guard_genv: forall t, complete_type (composite_types Delta) t = true ->
-  alignof (composite_types Delta) t = alignof ge t.
-Proof.
-  intros.
-  symmetry.
-  apply alignof_stable; [| auto].
-  apply guard_genv_spec.
-Qed.
-
-Lemma complete_type_guard_genv: forall t,
-  complete_type (composite_types Delta) t = true ->
-  complete_type ge t = true.
-Proof.
-  apply complete_type_stable.
-  apply guard_genv_spec.
-Qed.
-
-Lemma field_offset_guard_genv: forall i id co ofs,
-  (composite_types Delta) ! i = Some co ->
-  field_offset (composite_types Delta) id (co_members co) = Errors.OK ofs ->
-  field_offset ge id (co_members co) = Errors.OK ofs.
-Proof.
-  intros.
-  apply field_offset_stable with (i := i) (env := composite_types Delta); auto.
-  + apply guard_genv_spec.
-  + apply composite_types_consistent.
-Qed.
-
-Lemma Cop_sem_binary_operation_guard_genv:
-  forall b v1 e1 v2 e2 m,
-  binop_stable (composite_types Delta) b e1 e2 = true ->
-  Cop.sem_binary_operation (composite_types Delta) b v1 (typeof e1) v2 (typeof e2) m =
-    Cop.sem_binary_operation ge b v1 (typeof e1) v2 (typeof e2) m.
-Proof.
-  intros.
-  apply Cop_sem_binary_operation_stable; auto.
-  apply guard_genv_spec.
-Qed.
-
-End GGENV.
 
 Section TYCON_SUB.
 Variables Delta Delta': tycontext.
 Hypothesis extends: tycontext_sub Delta Delta'.
-
-Lemma composite_types_get_sub: forall i co,
-  (composite_types Delta) ! i = Some co ->
-  (composite_types Delta') ! i = Some co.
-Proof.
-  destruct extends as [_ [_ [_ [_ [_ ?]]]]].
-  apply sub_option_spec.
-  auto.
-Qed.
-
-Lemma complete_type_sub: forall t,
-  complete_type (composite_types Delta) t = true ->
-  complete_type (composite_types Delta') t = true.
-Proof.
-  apply complete_type_stable.
-  apply composite_types_get_sub.
-Qed.
-
-Lemma sizeof_sub: forall t,
-  complete_type (composite_types Delta) t = true ->
-  sizeof (composite_types Delta) t = sizeof (composite_types Delta') t.
-Proof.
-  intros.
-  symmetry.
-  apply sizeof_stable; auto.
-  apply composite_types_get_sub.
-Qed.
-
-Lemma alignof_sub: forall t,
-  complete_type (composite_types Delta) t = true ->
-  alignof (composite_types Delta) t = alignof (composite_types Delta') t.
-Proof.
-  intros.
-  symmetry.
-  apply alignof_stable; auto.
-  apply composite_types_get_sub.
-Qed.
-
-Lemma field_offset_sub: forall i id co ofs,
-  (composite_types Delta) ! i = Some co ->
-  field_offset (composite_types Delta) id (co_members co) = Errors.OK ofs ->
-  field_offset (composite_types Delta') id (co_members co) = Errors.OK ofs.
-Proof.
-  intros.
-  apply field_offset_stable with (i := i) (env := composite_types Delta); auto.
-  + apply composite_types_get_sub.
-  + apply composite_types_consistent.
-Qed.
-
-Lemma binop_stable_sub: forall b e1 e2,
-  binop_stable (composite_types Delta) b e1 e2 = true ->
-  binop_stable (composite_types Delta') b e1 e2 = true.
-Proof.
-  intros.
-  eapply binop_stable_stable.
-  apply composite_types_get_sub.
-  auto.
-Qed.
-
-Lemma Cop_sem_binary_operation_sub:
-  forall b v1 e1 v2 e2 m,
-  binop_stable (composite_types Delta) b e1 e2 = true ->
-  Cop.sem_binary_operation (composite_types Delta) b v1 (typeof e1) v2 (typeof e2) m =
-  Cop.sem_binary_operation (composite_types Delta') b v1 (typeof e1) v2 (typeof e2) m.
-Proof.
-  intros.
-  apply Cop_sem_binary_operation_stable.
-  + apply composite_types_get_sub.
-  + auto.
-Qed.
-
-Lemma guard_genv_sub: forall ge,
-  guard_genv Delta' ge -> guard_genv Delta ge.
-Proof.
-  destruct extends as [_ [_ [_ [_ [_ ?]]]]].
-  unfold guard_genv.
-  intros.
-  specialize (H id).
-  eapply sub_option_trans; eauto.
-Qed.  
 
 Lemma initialized_sub: forall i,
   tycontext_sub (initialized i Delta) (initialized i Delta').
 Proof.
 intros.
 unfold tycontext_sub in *. 
-destruct extends as [? [? [? [? [? ?]]]]].
+destruct extends as [? [? [? [? ?]]]].
 repeat split; intros.
  + specialize (H id); clear - H.
         destruct (eq_dec  i id).
@@ -1534,7 +1337,6 @@ repeat split; intros.
  + repeat rewrite set_temp_ret; auto. 
  + repeat rewrite set_temp_ge; auto.
  + repeat rewrite set_temp_gs; auto.
- + repeat rewrite set_temp_ct; auto.
 Qed.
 
 Lemma func_tycontext'_sub: forall f,
@@ -1543,13 +1345,12 @@ Proof.
   intros.
   unfold func_tycontext'.
   unfold tycontext_sub in *.
-  destruct extends as [? [? [? [? [? ?]]]]].
+  destruct extends as [? [? [? [? ?]]]].
   repeat split; simpl.
   + intros.
     destruct ((make_tycontext_t (fn_params f) (fn_temps f)) ! id) as [[? ?] |].
     - destruct b; split; reflexivity.
     - exact I.
-  + auto.
   + auto.
   + auto.
 Qed.
@@ -1679,7 +1480,7 @@ Lemma tycontext_eqv_symm:
   forall Delta Delta', tycontext_eqv Delta Delta' ->  tycontext_eqv Delta' Delta.
 Proof.
 intros.
-destruct H as [? [? [? [? [? ?]]]]]; repeat split; auto.
+destruct H as [? [? [? [? ?]]]]; repeat split; auto.
 Qed.
 
 Lemma tycontext_eqv_sub:
@@ -1687,47 +1488,12 @@ Lemma tycontext_eqv_sub:
          tycontext_sub Delta Delta'.
 Proof.
 intros.
-destruct H as [? [? [? [? [? ?]]]]].
+destruct H as [? [? [? [? ?]]]].
 repeat split; intros; auto.
 rewrite H; auto.
 destruct ((temp_types Delta') ! id); auto.
 destruct p. split; auto. destruct b; reflexivity.
 rewrite H2. destruct ((glob_types Delta') ! id); simpl; auto.
 rewrite H3. destruct ((glob_specs Delta') ! id); simpl; auto.
-rewrite H4. destruct ((composite_types Delta') ! id); simpl; auto.
-Qed.
-
-Lemma guard_genv_initialized: forall i Delta ge,
-  guard_genv Delta ge -> guard_genv (initialized i Delta) ge.
-Proof.
-  intros.
-  unfold initialized, guard_genv in *.
-  destruct ((temp_types Delta) ! i) as [[? ?]|]; simpl; auto.
-Qed.
-
-Lemma join_tycon_guard_genv: forall Delta Delta' ge,
-  guard_genv (join_tycon Delta Delta') ge = guard_genv Delta ge.
-Proof.
-  intros.
-  unfold guard_genv, join_tycon in *.
-  destruct Delta, Delta'.
-  auto.
-Qed.
-
-Lemma update_tycon_guard_genv: forall c Delta ge,
-  guard_genv (update_tycon Delta c) ge = guard_genv Delta ge.
-Proof.
-  intros.
-  unfold guard_genv in *.
-  rewrite composite_types_update_tycon.
-  auto.
-Qed.
-
-Lemma exit_tycon_guard_genv: forall c ek Delta ge,
-  guard_genv (exit_tycon c Delta ek) ge = guard_genv Delta ge.
-Proof.
-  intros.
-  destruct ek; simpl; auto.
-  apply update_tycon_guard_genv.
 Qed.
 
