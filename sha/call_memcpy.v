@@ -456,7 +456,7 @@ repeat apply sepcon_derives.
 Qed.
 
 Lemma call_memset_tuchar:
-  forall (shp : share) (tp: type) (pathp: list gfield) (lop: Z) (vp': list val) (p: val)
+  forall {cs: compspecs} (shp : share) (tp: type) (pathp: list gfield) (lop: Z) (vp': list val) (p: val)
            (c: int) (len : Z)
            (R': list (environ -> mpred))
            (np : Z)
@@ -481,12 +481,12 @@ Lemma call_memset_tuchar:
    (H5: PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |-- 
          tc_exprlist Delta [tptr tvoid; tint; tuint] [e_p; e_c; e_n] &&                 
          PROP () (LOCALx
-                (`(eq (field_address0 tp (ArraySubsc lop :: pathp) p)) (eval_expr Delta e_p) ::
-                 `(eq (Vint c)) (eval_expr Delta e_c) ::
-                 `(eq (Vint (Int.repr len))) (eval_expr Delta e_n) ::
+                (`(eq (field_address0 tp (ArraySubsc lop :: pathp) p)) (eval_expr e_p) ::
+                 `(eq (Vint c)) (eval_expr e_c) ::
+                 `(eq (Vint (Int.repr len))) (eval_expr e_n) ::
                  Q)
          (SEPx (`(field_at shp tp pathp vp p) :: R')))),
-   @semax Espec Delta 
+   @semax cs Espec Delta 
     (PROPx P (LOCALx Q (SEPx R)))
     (Scall None
              (Evar _memset 
