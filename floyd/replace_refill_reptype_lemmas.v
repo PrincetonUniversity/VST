@@ -47,11 +47,79 @@ Proof.
     auto.
 Defined.
 
+Lemma rev_append_involutive:
+  forall {A} (al bl cl: list A),
+  rev_append (rev_append al bl) cl =
+   rev_append bl (al++cl).
+Proof.
+induction al; intros; simpl; auto.
+rewrite IHal. simpl; auto.
+Defined.
+
+
+Definition app_assoc: forall {A : Type} (l m n : list A), l ++ m ++ n = (l ++ m) ++ n :=
+fun (A : Type) (l m n : list A) =>
+list_ind (fun l0 : list A => l0 ++ m ++ n = (l0 ++ m) ++ n)
+  ((fun H : n = n =>
+    (fun H0 : m = m =>
+     (fun H1 : A = A =>
+      (fun (_ : A = A) (_ : m = m) (_ : n = n) => eq_refl) H1) eq_refl H0)
+      eq_refl H) eq_refl)
+  (fun (a : A) (l0 : list A) (IHl : l0 ++ m ++ n = (l0 ++ m) ++ n) =>
+   (fun H : l0 ++ m ++ n = (l0 ++ m) ++ n =>
+    (fun H0 : a = a =>
+     (fun H1 : A = A =>
+      (fun (_ : A = A) (_ : a = a) (H4 : l0 ++ m ++ n = (l0 ++ m) ++ n) =>
+       eq_trans
+         (f_equal (fun f : list A -> list A => f (l0 ++ m ++ n)) eq_refl)
+         (f_equal (cons a) H4)) H1) eq_refl H0) eq_refl H) IHl) l.
+
+Definition rev_append_rev: forall {A : Type} (l l' : list A), rev_append l l' = rev l ++ l' :=
+fun (A : Type) (l : list A) =>
+list_ind
+  (fun l0 : list A => forall l' : list A, rev_append l0 l' = rev l0 ++ l')
+  (fun l' : list A => eq_refl)
+  (fun (a : A) (l0 : list A)
+     (IHl : forall l' : list A, rev_append l0 l' = rev l0 ++ l')
+     (l' : list A) =>
+   eq_ind (rev l0 ++ (a :: nil) ++ l')
+     (fun l1 : list A => rev_append l0 (a :: l') = l1)
+     ((fun H : rev_append l0 (a :: l') = rev l0 ++ a :: l' => H)
+        (IHl (a :: l'))) ((rev l0 ++ a :: nil) ++ l')
+     (app_assoc (rev l0) (a :: nil) l')) l.
+
+Definition app_nil_r:  forall {A : Type} (l : list A), l ++ nil = l :=
+fun (A : Type) (l : list A) =>
+list_ind (fun l0 : list A => l0 ++ nil = l0)
+  ((fun H : A = A => (fun _ : A = A => eq_refl) H) eq_refl)
+  (fun (a : A) (l0 : list A) (IHl : l0 ++ nil = l0) =>
+   (fun H : l0 ++ nil = l0 =>
+    (fun H0 : a = a =>
+     (fun H1 : A = A =>
+      (fun (_ : A = A) (_ : a = a) (H4 : l0 ++ nil = l0) =>
+       eq_trans (f_equal (fun f : list A -> list A => f (l0 ++ nil)) eq_refl)
+         (f_equal (cons a) H4)) H1) eq_refl H0) eq_refl H) IHl) l.     
+
+
+Definition rev_alt: forall {A : Type} (l : list A), rev l = rev_append l nil :=
+ fun {A} (l : list A) =>
+eq_ind_r (fun l0 : list A => rev l = l0)
+  (eq_ind_r (fun l0 : list A => rev l = l0) eq_refl (app_nil_r (rev l)))
+  (rev_append_rev l nil).
+
 Lemma nested_field_type3_rev_spec: forall t gfs, nested_field_type3 t (rev gfs) = nested_field_type2 t gfs.
 Proof.
   intros.
-  rewrite <- (rev_involutive gfs) at 2.
+  etransitivity.
   apply nested_field_type3_spec.
+  f_equal.
+(* not using rev_involutive here because it is opaque!
+   and because it is quadratic! *)
+ rewrite rev_alt.
+ rewrite rev_alt.
+ etransitivity.
+ apply rev_append_involutive.
+ simpl. apply app_nil_r.
 Defined.
 
 Definition gfield_holes (h: holes) (gf: gfield): holes :=
@@ -166,63 +234,112 @@ Fixpoint map_Znth' {A:Type}  (F: Z -> A -> A) (i: Z) (al: list A) : list A :=
 
 Definition map_Znth {A: Type} F (al: list A) := map_Znth' F 0 al.
 
+Definition replace_reptype_array (t : type) (n : Z) (a : attr)
+  (F : holes ->
+       holes_subs t ->
+       reptype t -> reptype t) (h : holes)
+  (subs : holes_subs (Tarray t n a))
+  (v1 : reptype (Tarray t n a)) :=
+match h with
+| FullUpdate => subs nil
+| SemiUpdate subl =>
+    @fold_reptype cs (Tarray t n a)
+      (map_Znth
+         (fun i : Z =>
+          F (subl (ArraySubsc i))
+            (fun gfs : list gfield => subs (ArraySubsc i :: gfs)))
+         (unfold_reptype v1))
+| Stable => v1
+| Invalid => v1
+end.
+
+Definition replace_reptype_struct (id : positive) (a : attr)
+     (F : type_induction.FT_aux
+            (fun t : type => holes -> holes_subs t -> reptype t -> reptype t) id) 
+     (h : holes)
+     (subs : holes_subs (Tstruct id a))
+     (v1 : reptype (Tstruct id a)) :=
+   match h with
+   | FullUpdate => subs nil
+   | SemiUpdate subl =>
+       @fold_reptype cs (Tstruct id a)
+         (@compact_prod_map (ident * type)
+            (fun it : ident * type =>
+             reptype (field_type (fst it) (co_members (get_co id))))
+            (fun it : ident * type =>
+             reptype
+               (field_type (fst it)
+                  (co_members (get_co id))))
+            (co_members (get_co id))
+            (ListType_map
+               (ListType_map F
+                  (type_induction.ListTypeGen
+                     (fun _ : ident * type => holes)
+                     (fun it : ident * type =>subl (StructField (fst it)))
+                     (co_members (get_co id))))
+               (type_induction.ListTypeGen
+                  (fun it : ident * type =>
+                   holes_subs (field_type (fst it) (co_members (get_co id))))
+                  (fun (it : ident * type) (gfs : list gfield) =>
+                   subs (StructField (fst it) :: gfs))
+                  (co_members (get_co id))))
+            (@unfold_reptype cs (Tstruct id a) v1))
+   | Stable => v1
+   | Invalid => v1
+   end.
+
+
+Definition replace_reptype_union (id : positive) (a : attr)
+     (F : type_induction.FT_aux
+            (fun t : type => holes -> holes_subs t -> reptype t -> reptype t) id) 
+     (h : holes)
+     (subs : holes_subs (Tunion id a))
+     (v1 : reptype (Tunion id a)) :=
+   match h with
+   | FullUpdate => subs nil
+   | SemiUpdate subl =>
+       @fold_reptype cs (Tunion id a)
+         (@compact_sum_map (ident * type)
+            (fun it : ident * type =>
+             reptype (field_type (fst it) (co_members (get_co id))))
+            (fun it : ident * type =>
+             reptype (field_type (fst it) (co_members (get_co id))))
+            (co_members (get_co id))
+            (ListType_map 
+               (ListType_map F
+                  (type_induction.ListTypeGen
+                     (fun _ : ident * type => holes)
+                     (fun it : ident * type =>
+                      subl (UnionField (fst it)))
+                     (co_members (get_co id))))
+               (type_induction.ListTypeGen
+                  (fun it : ident * type =>
+                   holes_subs (field_type (fst it) (co_members (get_co id))))
+                  (fun (it : ident * type) (gfs : list gfield) =>
+                   subs (UnionField (fst it) :: gfs))
+                  (co_members (get_co id))))
+            (reinitiate_compact_sum 
+               (unfold_reptype v1)
+               (get_union_member subl (co_members (get_co id)))
+               (fun a0 : ident * type =>
+                default_val
+                  (field_type (fst a0) (co_members (get_co id)))) member_dec))
+   | Stable => v1
+   | Invalid => v1
+   end.
+
+Definition replace_reptype_base (t : type) (h : holes) (subs : holes_subs t) (v : reptype t) :=
+    match h with
+       | FullUpdate => subs nil
+       | _ => v
+       end.
 
 Definition replace_reptype: forall (t: type) (h: holes) (subs: holes_subs t) (v: reptype t), reptype t :=
   func_type (fun t => holes -> holes_subs t -> reptype t -> reptype t)
-    (fun t h subs v =>
-       match h with
-       | FullUpdate => subs nil
-       | _ => v
-       end)
-    (fun t n a F h subs v =>
-       match h with
-       | FullUpdate => subs nil
-       | SemiUpdate subl =>
-         @fold_reptype _ (Tarray t n a) 
-          (map_Znth
-                (fun i => F (subl (ArraySubsc i))
-                         (fun gfs => subs (ArraySubsc i :: gfs)))
-                (unfold_reptype v))
-          (* (zl_gen 0 n
-             (fun i => F (subl (ArraySubsc i))
-                         (fun gfs => subs (ArraySubsc i :: gfs))
-                         (zl_nth i (unfold_reptype v))))
-*) 
-       | StableOrInvalid => v
-       end)
-    (fun id a F h subs v =>
-       match h with
-       | FullUpdate => subs nil
-       | SemiUpdate subl =>
-         @fold_reptype _ (Tstruct id a)
-           (compact_prod_map _
-             (ListType_map
-               (ListType_map F
-                 (ListTypeGen (fun _ => holes) (fun it => subl (StructField (fst it))) _))
-               (ListTypeGen (fun it => holes_subs (field_type (fst it) (co_members (get_co id))))
-                            (fun it gfs => subs (StructField (fst it) :: gfs)) _))
-             (unfold_reptype v))
-       | StableOrInvalid => v
-       end)
-    (fun id a F h subs v =>
-       match h with
-       | FullUpdate => subs nil
-       | SemiUpdate subl =>
-         @fold_reptype _ (Tunion id a)
-           (compact_sum_map _
-             (ListType_map
-               (ListType_map F
-                 (ListTypeGen (fun _ => holes) (fun it => subl (UnionField (fst it))) _))
-               (ListTypeGen (fun it => holes_subs (field_type (fst it) (co_members (get_co id))))
-                            (fun it gfs => subs (UnionField (fst it) :: gfs)) _))
-             (reinitiate_compact_sum
-               (unfold_reptype v)
-               (get_union_member subl (co_members (get_co id)))
-               (fun _ => default_val _)
-               member_dec
-               ))
-       | StableOrInvalid => v
-       end).
+    replace_reptype_base
+    replace_reptype_array
+    replace_reptype_struct
+    replace_reptype_union.
 
 Lemma replace_reptype_ind: forall t h,
   replace_reptype t h =
@@ -236,11 +353,6 @@ Lemma replace_reptype_ind: forall t h,
            (map_Znth (fun i => replace_reptype t0 (subl (ArraySubsc i))
                          (fun gfs => subs (ArraySubsc i :: gfs)))
                 (unfold_reptype v))
-(*           (zl_gen 0 n
-             (fun i => replace_reptype t0 (subl (ArraySubsc i))
-                         (fun gfs => subs (ArraySubsc i :: gfs))
-                         (zl_nth i (unfold_reptype v))))
-*)
        | StableOrInvalid => v
        end
   | Tstruct id a =>
@@ -296,11 +408,14 @@ Proof.
   rewrite func_type_ind.
   destruct t; try auto.
   + (* Tstruct case *)
+    unfold replace_reptype_struct, FTI_aux.
     destruct h; try auto.
     extensionality subs v.
     rewrite !ListType_map_ListTypeGen.
     reflexivity.
-  + destruct h; try auto.
+  + 
+    unfold replace_reptype_union, FTI_aux.
+     destruct h; try auto.
     extensionality subs v.
     rewrite !ListType_map_ListTypeGen.
     reflexivity.
@@ -462,13 +577,14 @@ Definition refill_reptype_1 t gfs (v: reptype_with_holes t (singleton_hole gfs))
 Definition upd_reptype t gfs (v: reptype t) (v0: reptype (nested_field_type2 t gfs)) :=
   replace_reptype t (singleton_hole gfs) (singleton_subs t gfs v0) v.
 
+Definition upd_Znth_in_list {A} (i: Z) (al: list A) (x: A): list A :=
+   sublist 0 i al ++ x :: sublist (i+1) (Zlength al) al.
+
 Definition upd_gfield_reptype t gf (v: reptype t) (v0: reptype (gfield_type t gf)) : reptype t :=
   fold_reptype 
   (match t, gf return (REPTYPE t -> reptype (gfield_type t gf) -> REPTYPE t)
   with
-  | Tarray t0 n a, ArraySubsc i =>
-      fun v v0 => 
-       sublist 0 i v ++ v0 :: sublist (i+1) (Zlength v) v
+  | Tarray t0 n a, ArraySubsc i => upd_Znth_in_list i
 (*zl_concat (zl_concat (zl_sublist 0 i v) (zl_singleton i v0)) (zl_sublist (i + 1) n v) *)
   | Tstruct id _, StructField i =>
       fun v v0 => compact_prod_upd _ v (i, field_type i (co_members (get_co id))) v0 member_dec
@@ -725,7 +841,9 @@ Ltac pose_upd_reptype CS t gfs v v0 H :=
       end
   end.
 
-Module Test.
+Module Type TestType.
+End TestType.
+Module Test : TestType.
 
 Definition _f1 := 1%positive.
 Definition _f2 := 2%positive.

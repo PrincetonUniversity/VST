@@ -180,10 +180,10 @@ Proof.
   unfold reptype_gen at 1.
   rewrite func_type_ind.
   destruct t; auto.   
-  + rewrite decay_spec.
+  +  unfold FTI_aux; rewrite decay_spec.
     rewrite map_map.
     reflexivity.
-  + rewrite decay_spec.
+  + unfold FTI_aux; rewrite decay_spec.
     rewrite map_map.
     reflexivity.
 Defined.
@@ -482,10 +482,10 @@ Proof.
   rewrite func_type_ind with (t0 := t) (A := (fun _ => Type)) at 1 by auto.
   destruct t; auto.
   + f_equal.
-    rewrite decay_spec.
+    unfold FTI_aux; rewrite decay_spec.
     reflexivity.
   + f_equal.
-    rewrite decay_spec.
+    unfold FTI_aux; rewrite decay_spec.
     reflexivity.
 Qed.
 

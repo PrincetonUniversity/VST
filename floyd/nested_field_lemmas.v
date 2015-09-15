@@ -1390,7 +1390,7 @@ Proof.
     rewrite nested_field_type2_ind with (t := t) (gfs := a :: gfs1 ++ gfs0).
     rewrite IHgfs1.
     reflexivity.
-Qed.
+Defined.
 
 Lemma legal_nested_field_app': forall t gfs0 gfs1,
   legal_nested_field t (gfs1 ++ gfs0) -> legal_nested_field (nested_field_type2 t gfs0) gfs1.

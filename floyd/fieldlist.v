@@ -290,6 +290,38 @@ Proof.
       try tauto.
 Qed.
 
+Lemma Pos_eqb_eq: forall p q: positive, iff (eq (Pos.eqb p q) true) (eq p q).
+Proof.
+intros.
+split.
+revert q; induction p; destruct q; simpl; intros; auto; try discriminate.
+apply f_equal. apply IHp; auto.
+apply f_equal. apply IHp; auto.
+intros; subst.
+induction q; simpl; auto.
+Defined.
+
+
+(* copied from veric/Clight_lemmas.v; but here Defined instead of Qed  *)
+Lemma id_in_list_true: forall i ids, id_in_list i ids = true -> In i ids.
+Proof.
+ induction ids; simpl; intros. inv H.
+ destruct (i =? a)%positive eqn:?.
+ apply Pos_eqb_eq in Heqb. left; auto.
+ auto.
+Defined.
+
+
+Lemma id_in_list_false: forall i ids, id_in_list i ids = false -> ~In i ids.
+Proof.
+ intros.
+ intro. induction ids. inv H0.
+ simpl in *. destruct H0. subst i.
+ assert (a =? a = true)%positive.
+ apply Pos_eqb_eq. auto. rewrite H0 in H. simpl in H. inv H.
+ destruct (i =? a)%positive. simpl in H. inv H.   auto.
+Defined.
+
 Lemma members_no_replicate_ind: forall m,
   (members_no_replicate m = true) <->
   match m with
@@ -303,10 +335,11 @@ Proof.
   + assert (true = true) by auto; tauto.
   + destruct (id_in_list i (map fst m)) eqn:HH.
     - apply id_in_list_true in HH.
-      assert (~ false = true) by congruence; tauto.
+       split; intros. inv H. destruct H. elimtype False; apply H.
+      apply HH. 
     - apply id_in_list_false in HH.
-      tauto.
-Defined.
+      split; intros. split; auto. destruct H; auto. 
+Defined. 
 
 Lemma map_members_ext: forall A (f f':ident * type -> A) (m: members),
   members_no_replicate m = true ->
@@ -337,9 +370,10 @@ Lemma in_members_tail_no_replicate: forall i i0 t0 m,
   i <> i0.
 Proof.
   intros.
-  rewrite members_no_replicate_ind in H.
+ destruct (members_no_replicate_ind ((i0,t0)::m)) as [? _].
+ apply H1 in H. clear H1.
   intro.
-  subst; tauto.
+  subst. destruct H. auto.
 Defined.
 
 Lemma neq_field_offset_rec_cons: forall env i i0 t0 m z,
@@ -421,6 +455,22 @@ Proof.
       omega.
 Qed.
 
+Definition in_map: forall {A B : Type} (f : A -> B) (l : list A) (x : A),
+       In x l -> In (f x) (map f l) := 
+fun (A B : Type) (f : A -> B) (l : list A) =>
+list_ind (fun l0 : list A => forall x : A, In x l0 -> In (f x) (map f l0))
+  (fun (x : A) (H : In x nil) => H)
+  (fun (a : A) (l0 : list A)
+     (IHl : forall x : A, In x l0 -> In (f x) (map f l0)) (x : A)
+     (H : In x (a :: l0)) =>
+   or_ind
+     (fun H0 : a = x =>
+      or_introl (eq_ind_r (fun a0 : A => f a0 = f x) eq_refl H0))
+     (fun H0 : In x l0 =>
+      or_intror
+        ((fun H1 : In x l0 -> In (f x) (map f l0) =>
+          (fun H2 : In (f x) (map f l0) => H2) (H1 H0)) (IHl x))) H) l.
+
 Lemma In_field_type2: forall it m,
   members_no_replicate m = true ->
   In it m ->
@@ -432,17 +482,17 @@ Proof.
   + inversion H0.
   + destruct a, it.
     simpl.
-    if_tac.
+    destruct (ident_eq i0 i).
     - destruct H0; [inversion H0; auto |].
       apply in_map with (f := fst) in H0.
       simpl in H0.
       pose proof in_members_tail_no_replicate _ _ _ _ H H0.
-      congruence.
+      subst i0. contradiction H1; auto.
     - apply IHm.
-      * rewrite members_no_replicate_ind in H.
-        tauto.
+       destruct (members_no_replicate_ind ((i,t)::m)) as [? _].
+       destruct (H1 H); auto.
       * inversion H0; [| auto].
-        inversion H2; congruence.
+        inversion H1. subst i0 t0.  contradiction n; auto.
 Defined.
 
 End COMPOSITE_ENV.

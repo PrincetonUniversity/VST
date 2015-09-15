@@ -184,6 +184,37 @@ rewrite Znth_sublist by omega.
 f_equal; omega.
 Qed.
 
+Lemma skipn2sublist:
+ forall {A} n (al: list A),
+ 0 <= n <= Zlength al ->
+ skipn (Z.to_nat n) al = sublist n (Zlength al) al.
+Proof.
+intros.
+unfold sublist.
+symmetry.
+etransitivity; [ | apply (firstn_exact_length (skipn (Z.to_nat n) al))].
+f_equal.
+apply Nat2Z.inj.
+rewrite  <- Zlength_correct.
+rewrite Zlength_skipn.
+rewrite (Z.max_r 0 n) by omega.
+rewrite Z.max_r by omega.
+rewrite Z2Nat.id by omega.
+auto.
+Qed.
+
+Lemma firstn2sublist:
+ forall {A} n (al: list A),
+ 0 <= n <= Zlength al ->
+ firstn (Z.to_nat n) al = sublist 0 n al.
+Proof.
+intros.
+unfold sublist.
+f_equal.
+f_equal.
+omega.
+Qed.
+
 Lemma body_reverse: semax_body Vprog Gprog f_reverse reverse_spec.
 Proof.
 start_function.
@@ -247,36 +278,6 @@ forward. (* a[lo] = s; *)
 forward lo'0. (* lo++; *)
 forward hi'0. (* hi--; *)
 
-Lemma skipn2sublist:
- forall {A} n (al: list A),
- 0 <= n <= Zlength al ->
- skipn (Z.to_nat n) al = sublist n (Zlength al) al.
-Proof.
-intros.
-unfold sublist.
-symmetry.
-etransitivity; [ | apply (firstn_exact_length (skipn (Z.to_nat n) al))].
-f_equal.
-apply Nat2Z.inj.
-rewrite  <- Zlength_correct.
-rewrite Zlength_skipn.
-rewrite (Z.max_r 0 n) by omega.
-rewrite Z.max_r by omega.
-rewrite Z2Nat.id by omega.
-auto.
-Qed.
-
-Lemma firstn2sublist:
- forall {A} n (al: list A),
- 0 <= n <= Zlength al ->
- firstn (Z.to_nat n) al = sublist 0 n al.
-Proof.
-intros.
-unfold sublist.
-f_equal.
-f_equal.
-omega.
-Qed.
 (* Prove postcondition of loop body implies loop invariant *)
 {
   apply exp_right with (Zsucc j).
@@ -288,6 +289,7 @@ Qed.
  remember (Zlength (map Vint contents)) as size.
  forget (map Vint contents) as al.
  repeat match goal with |- context [reptype ?t] => change (reptype t) with val end.
+ unfold upd_Znth_in_list.
  rewrite !Znth_cons_sublist by (repeat rewrite Zlength_flip_between; try omega).
  rewrite ?Zlength_app, ?Zlength_firstn, ?Z.max_r by omega.
  rewrite ?Zlength_flip_between by omega.
@@ -299,6 +301,7 @@ Qed.
 
 Definition four_contents := [Int.repr 1; Int.repr 2; Int.repr 3; Int.repr 4].
 
+(*
 Lemma forall_Forall: forall A (P: A -> Prop) xs d,
   (forall x, In x xs -> P x) ->
   forall i, 0 <= i < Zlength xs -> P (Znth i xs d).
@@ -328,6 +331,7 @@ Proof.
       apply H.
       tauto.
 Qed.
+*)
 
 Lemma body_main:  semax_body Vprog Gprog f_main main_spec.
 Proof.

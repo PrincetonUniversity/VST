@@ -2025,7 +2025,29 @@ Ltac really_simplify_one_thing :=
 Ltac really_simplify_some_things := 
    repeat really_simplify_one_thing.
 
-Ltac solve_load_rule_evaluation := (* faster version *)
+Ltac remember_indexes gfs :=
+ match gfs with
+ | ArraySubsc ?i :: ?g' => remember i; remember_indexes g'
+ | _ :: ?g' => remember_indexes g'
+ | nil => idtac
+ end.
+
+Ltac solve_load_rule_evaluation := (* fastest version *)
+ clear;
+ repeat match goal with
+  | A : _ |- _ => clear A 
+  | A := _ |- _ => clear A 
+  end;
+  match goal with A := ?gfs : list gfield |- repinject _ (proj_reptype _ _ ?v) = _ =>
+   remember_indexes gfs;
+   let h0 := fresh "h0" in
+   set (h0:=v);
+   lazy beta zeta iota delta - [h0 sublist.Znth];
+   subst h0;
+   subst; apply eq_refl
+  end.
+
+Ltac solve_load_rule_evaluation' := (* old faster version *)
   clear;
   repeat match goal with
   | A : _ |- _ => clear A 
@@ -2042,7 +2064,40 @@ Ltac solve_load_rule_evaluation := (* faster version *)
   really_simplify_some_things;
   simpl; apply eq_refl.
 
+Ltac simple_value v :=
+ match v with
+ | Vundef => idtac
+ | Vint _ => idtac
+ | Vlong _ => idtac
+ | Vfloat _ => idtac
+ | Vsingle _ => idtac
+ | Vptr _ _ => idtac
+ | list_repeat (Z.to_nat _) ?v' => simple_value v'
+ end.
+
+Lemma cons_congr: forall {A} (a a': A) bl bl',
+  a=a' -> bl=bl' -> a::bl = a'::bl'.
+Proof.
+intros; f_equal; auto.
+Qed.
+
 Ltac solve_store_rule_evaluation :=
+  repeat match goal with
+  | A : _ |- _ => clear A 
+  | A := _ |- _ => clear A 
+  end;
+  apply data_equal_congr;
+  match goal with A := ?gfs : list gfield |- upd_reptype _ _ ?v0 (valinject _ ?v1) = _ =>
+   remember_indexes gfs;
+   let h0 := fresh "h0" in let h1 := fresh "h1" in
+   set (h0:=v0); set (h1:=v1);
+   rewrite upd_reptype_ind;
+   lazy beta zeta iota delta - [h0 h1 upd_Znth_in_list];
+   subst h0 h1;
+   subst; apply eq_refl
+  end.
+
+Ltac solve_store_rule_evaluation'' :=
   clear;
   repeat match goal with
   | A : _ |- _ => clear A 
@@ -2966,8 +3021,15 @@ Defined.
 Lemma Zge_refl: forall (n: Z), n >= n.
 Proof. intros. omega. Qed.
 
-Ltac make_compspecs p :=
-  apply (mk_prog_compspecs p); repeat constructor; try apply Zge_refl.
+Ltac make_compspecs prog :=
+assert (H : Forall
+       (fun x : ident * composite =>
+        composite_legal_alignas (prog_comp_env prog) (snd x) /\
+        composite_legal_fieldlist (snd x))
+       (PTree.elements (prog_comp_env prog)))
+  by (repeat constructor; try apply Zge_refl);
+let a := eval vm_compute in (mk_prog_compspecs prog H)
+ in exact a.
 
 Ltac simplify_value_fits H :=
   rewrite ?proj_sumbool_is_true in H by auto;

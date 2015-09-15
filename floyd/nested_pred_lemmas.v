@@ -55,11 +55,11 @@ Proof.
   unfold nested_pred.
   rewrite func_type_ind with (t0 := t) (A := (fun _ => bool)) at 1 by auto.
   destruct t; auto.
-  + f_equal.
+  + f_equal. unfold FTI_aux.
     rewrite decay_spec.
     rewrite fold_right_map.
     reflexivity.
-  + f_equal.
+  + f_equal. unfold FTI_aux.
     rewrite decay_spec.
     rewrite fold_right_map.
     reflexivity.

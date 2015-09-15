@@ -723,4 +723,5 @@ forward_if.
     unfold hmacstate_PreInitNull, hmac_relate_PreInitNull; simpl.
     apply (exp_right r). apply (exp_right v).
     entailer. apply prop_right. exists ii; eauto.  
-   } 
+   }
+Qed.

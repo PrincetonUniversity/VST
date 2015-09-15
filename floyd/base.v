@@ -101,7 +101,7 @@ Open Scope Z.
 
 Definition co_default (s: struct_or_union): composite.
   apply (Build_composite s nil noattr 0 1 0).
-  + omega.
+  + intro. inv H.
   + exists 0%nat; auto.
   + exists 0; auto.
 Defined.
