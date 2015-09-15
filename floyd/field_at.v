@@ -1328,6 +1328,14 @@ Proof.
     normalize.
 Qed.
 
+Lemma field_at_field_at_default : forall sh t gfs v v' p,
+  v' = default_val (nested_field_type2 t gfs) ->
+  field_at sh t gfs v p |-- field_at sh t gfs v' p.
+Proof.
+  intros; subst.
+  apply field_at_field_at_.
+Qed.
+
 Lemma field_at__memory_block: forall sh t gfs p, 
   field_at_ sh t gfs p =
   memory_block sh (sizeof cenv_cs (nested_field_type2 t gfs)) (field_address t gfs p).
@@ -1372,6 +1380,14 @@ Lemma data_at_data_at_ : forall sh t v p,
 Proof.
   intros.
   apply field_at_field_at_.
+Qed.
+
+Lemma data_at_data_at_default : forall sh t v v' p,
+  v' = default_val (nested_field_type2 t nil) ->
+  data_at sh t v p |-- data_at sh t v' p.
+Proof.
+  intros; subst.
+  apply data_at_data_at_.
 Qed.
 
 Lemma data_at__memory_block: forall sh t p,
@@ -1956,11 +1972,17 @@ Hint Extern 2 (field_at ?sh ?t ?gfs ?v _ |-- field_at_ _ _ _ _) =>
    (change (field_at sh t gfs v) with (field_at_ sh t gfs);
     apply derives_refl) : cancel.
 
+Hint Extern 2 (field_at _ _ _ _ _ |-- field_at _ _ _ _ _) =>
+  (apply field_at_field_at_default; reflexivity) : cancel.
+
 Hint Extern 1 (data_at _ _ _ _ |-- data_at_ _ _ _) =>
     (apply data_at_data_at_) : cancel.
 
 Hint Extern 1 (data_at _ _ _ _ |-- memory_block _ _ _) =>
     (simple apply data_at__memory_block_cancel) : cancel.
+
+Hint Extern 2 (data_at _ _ _ _ |-- data_at _ _ _ _) =>
+  (apply data_at_data_at_default; reflexivity) : cancel.
 
 Hint Extern 2 (array_at _ _ _ _ _ _ _ |-- array_at_ _ _ _ _ _ _) =>
   (apply array_at_array_at_) : cancel.
