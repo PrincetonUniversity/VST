@@ -80,7 +80,7 @@ Ltac simplify_Delta_from A :=
 
 Ltac simplify_Delta_at A :=
  match A with
- | mk_tycontext _ _ _ _ _ _ _ => idtac
+ | mk_tycontext _ _ _ _ _ => idtac
  | _ => let d := fresh "d" in let H := fresh in 
        remember A as d eqn:H;
        simplify_Delta_core H;
@@ -167,7 +167,7 @@ Ltac abbreviate_semax :=
 
 Ltac check_Delta :=
 match goal with 
- | Delta := @abbreviate tycontext (mk_tycontext _ _ _ _ _ _ _) |- _ =>
+ | Delta := @abbreviate tycontext (mk_tycontext _ _ _ _ _) |- _ =>
     match goal with 
     | |- _ => clear Delta; check_Delta
     | |- semax Delta _ _ _ => idtac 
