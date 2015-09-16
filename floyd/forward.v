@@ -39,7 +39,7 @@ Hint Rewrite tc_option_val'_eq : norm.
 Lemma emp_make_ext_rval:
   forall ge v, @emp (environ->mpred) _ _ (make_ext_rval ge v) = emp.
 Proof. reflexivity. Qed.
-Hint Rewrite emp_make_ext_rval : norm.
+Hint Rewrite emp_make_ext_rval : norm2.
 
 Ltac semax_func_cons_ext_tc :=
   repeat match goal with
@@ -209,7 +209,7 @@ erewrite lvar_eval_var; eauto.
 eapply lvar_isptr; eauto.
 Qed.
 
-Hint Extern 1 (isptr (eval_var _ _ _)) => (eapply lvar_isptr_eval_var; eassumption).
+Hint Extern 1 (isptr (eval_var _ _ _)) => (eapply lvar_isptr_eval_var; eassumption) : norm2.
 
 Ltac fixup_local_var  :=  (* this tactic is needed only until start_function
                                            handles lvars in a better way *)
@@ -1178,6 +1178,10 @@ Ltac normalize :=
     floyd.client_lemmas.normalize
   end.
 
+Ltac renormalize := 
+  progress (autorewrite with subst norm1 norm2); normalize;
+ repeat (progress (autorewrite with subst norm1 norm2); normalize).
+
 Tactic Notation "forward_intro" simple_intropattern(v) :=
  match goal with |- _ -> _ => idtac | |- _ => normalize end;
  first [apply extract_exists_pre | apply exp_left | idtac];
@@ -1346,7 +1350,8 @@ Lemma semax_post3:
 Proof.
  intros. eapply semax_post; [ | apply H0].
  intros. unfold local,lift1, normal_ret_assert.
- intro rho; normalize. eapply derives_trans; [ | apply H].
+ intro rho; normalize. renormalize.
+ eapply derives_trans; [ | apply H].
  simpl; apply andp_right; auto. apply prop_right; auto.
 Qed.
 
@@ -1442,7 +1447,7 @@ Lemma subst_make_args1:
   forall i e j v,
     subst i e (make_args (j::nil) (v::nil)) = make_args (j::nil) (v::nil).
 Proof. reflexivity. Qed.
-Hint Rewrite subst_make_args1 : norm.
+Hint Rewrite subst_make_args1 : norm2.
 Hint Rewrite subst_make_args1 : subst.
 
 Ltac normalize_make_args :=
@@ -1845,7 +1850,7 @@ Lemma sem_add_ptr_int:
 Proof.
 intros. destruct v; inv H; reflexivity.
 Qed.
-Hint Rewrite @sem_add_ptr_int using assumption : norm.
+Hint Rewrite @sem_add_ptr_int using assumption : norm1.
 
 Arguments field_type id fld / .
 Arguments fieldlist.field_type2 i m / .
@@ -2316,7 +2321,7 @@ Proof. intros. reflexivity. Qed.
 
 Opaque numbd.
 
-Hint Rewrite numbd_rewrite1 : norm.
+Hint Rewrite numbd_rewrite1 : norm2.
 Hint Resolve numbd_derives : cancel.
 
 Lemma numbd_lift0:

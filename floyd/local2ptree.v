@@ -648,7 +648,7 @@ Lemma LOCALx_shuffle: forall P Q Q' R,
   PROPx P (LOCALx Q (SEPx R)) |-- PROPx P (LOCALx Q' (SEPx R)).
 Proof.
   intros.
-  induction Q'; [simpl; intro; normalize |].
+  induction Q'; [simpl; intro; normalize; autorewrite with norm1 norm2; normalize |].
   pose proof (H a (or_introl _ eq_refl)).
   rewrite <- insert_local.
   apply andp_right.
@@ -886,6 +886,8 @@ Proof.
     - extensionality rho.
       unfold temp.
       apply pred_ext; normalize.
+      autorewrite with subst norm1 norm2; normalize.
+      autorewrite with subst norm1 norm2; normalize.     
     - apply LocalD_sound_temp. auto.
   + rewrite <- insert_local.
     rewrite IHlocal2ptree; clear IHlocal2ptree.
@@ -1246,6 +1248,7 @@ Proof.
   simpl; intro rho.
   simpl in H.
   normalize; intros.
+      autorewrite with subst norm1 norm2; normalize.
   destruct (msubst_eval_eq_aux _ _ _ _ H0).
   apply eq_sym, msubst_eval_expr_eq_aux with (T1 := T1) (T2 := T2); auto.
 Qed.
@@ -1261,6 +1264,7 @@ Proof.
   simpl; intro rho.
   simpl in H.
   normalize; intros.
+      autorewrite with subst norm1 norm2; normalize.
   destruct (msubst_eval_eq_aux _ _ _ _ H0).
   apply eq_sym, msubst_eval_lvalue_eq_aux with (T1 := T1) (T2 := T2); auto.
 Qed.

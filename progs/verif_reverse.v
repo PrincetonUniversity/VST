@@ -215,7 +215,7 @@ match goal with |- context [SEPx (?A::_)] =>
                               field_at sh list_struct [StructField _tail] y t0))
  by (extensionality rho; unfold_lift; simpl; symmetry; apply list_cell_eq''; auto)
 end.
-normalize.
+normalize. renormalize.
 forward.  (* h = t->head; *)
 forward t_old.  (*  t = t->tail; *)
 subst t_old.

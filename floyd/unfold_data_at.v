@@ -33,7 +33,7 @@ Lemma distribute_envtrans:
    (@liftx (Tarrow A (LiftEnviron mpred)) P J 
     * @liftx (Tarrow A (LiftEnviron mpred)) Q J ).
 Proof. reflexivity. Qed.
-Hint Rewrite distribute_envtrans: norm.
+Hint Rewrite distribute_envtrans: norm2.
 
 Lemma distribute_envtrans0:
   forall (P Q: mpred),
@@ -42,7 +42,7 @@ Lemma distribute_envtrans0:
    @liftx (LiftEnviron mpred) P *
    @liftx (LiftEnviron mpred) Q.
 Proof. intros. reflexivity. Qed.
-Hint Rewrite distribute_envtrans0: norm.
+Hint Rewrite distribute_envtrans0: norm2.
 
 Lemma distribute_lifted_sepcon:
  forall A F G v,

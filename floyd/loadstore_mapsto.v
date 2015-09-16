@@ -47,6 +47,7 @@ Proof.
     rewrite (replace_nth_nth_error R _ _ H0) at 1.
     eapply derives_trans; [apply replace_nth_SEP', H1|].
     simpl; intros; normalize.
+    autorewrite with norm1 norm2; normalize.
   + intros.
     apply andp_left2.
     apply normal_ret_assert_derives'.

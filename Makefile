@@ -145,13 +145,14 @@ FLOYD_FILES= \
    for_lemmas.v semax_tactics.v expr_lemmas.v real_forward.v diagnosis.v
 
 PROGS_FILES= \
-  list_dt.v verif_reverse.v verif_queue.v verif_sumarray.v verif_message.v \
+  list_dt.v verif_reverse.v verif_queue.v verif_sumarray.v \
   insertionsort.v reverse.v queue.v sumarray.v message.v string.v\
-  revarray.v verif_revarray.v insertionsort.v verif_insertion_sort.v \
-  verif_float.v verif_dotprod.v verif_ptr_compare.v \
+  revarray.v verif_revarray.v insertionsort.v \
+  verif_float.v verif_ptr_compare.v \
   verif_nest3.v verif_nest2.v \
   logical_compare.v verif_logical_compare.v field_loadstore.v  verif_field_loadstore.v \
   even.v verif_even.v odd.v verif_odd.v
+# verif_message.v verif_dotprod.v verif_insertion_sort.v 
 
 SHA_FILES= \
   general_lemmas.v SHA256.v common_lemmas.v pure_lemmas.v sha_lemmas.v functional_prog.v \

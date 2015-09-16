@@ -135,15 +135,24 @@ Proof.
 intros.
 (* new version of proof, for constructive definition of list_cell *)
 f_equal.
-unfold field_at, list_cell; simpl.
-normalize.
+unfold field_at, list_cell.
+autorewrite with gather_prop.
 f_equal.
-f_equal; apply prop_ext; split.
+f_equal.
+rewrite <- eq_rect_eq.
+rewrite !proj_sumbool_is_true by auto.
+unfold struct_Prop.
+simpl list_fields.
+unfold list_rect; simpl.
+repeat match goal with |- context [field_type ?i ?m] =>
+  set (t := field_type i m); compute in t; subst t
+end.
+apply prop_ext; split.
 intros [? [? [? ?]]].
 rewrite field_compatible_cons in H2; destruct H2; auto.
 split; auto.
-split3; rewrite value_fits_ind; simpl; hnf; auto.
-intro H8; contradiction H8; reflexivity.
+split3; auto.
+compute; auto.
 intros [? [? [? ?]]].
 intuition.
 rewrite field_compatible_cons; split; auto.
@@ -368,8 +377,9 @@ start_function.
 name Q _Q.
 name h _h.
 unfold fifo.
+renormalize.
 forward_intro [hd tl].
-normalize.
+normalize. renormalize. destruct H.
 forward. (* h = Q->head; *)
 forward. (* return (h == NULL); *)
 unfold fifo.
@@ -409,7 +419,7 @@ Proof.
   forward. (* Q->tail = NULL; *)
   forward. (* return Q; *)
   (* goal_5 *)
-  apply exp_right with Q; normalize.
+  apply exp_right with Q; normalize. renormalize.
   unfold fifo.
   apply exp_right with (nullval,nullval).
   rewrite if_true by auto.
@@ -429,11 +439,12 @@ name Q _Q.
 name p' _p.
 name h _h.
 name t _t.
-unfold fifo at 1.
-forward_intro [hd tl]. normalize.
+unfold fifo at 1. renormalize.
+forward_intro [hd tl]. normalize. renormalize.
 (* goal_7 *)
 
 forward. (* p->next = NULL; *)
+renormalize. destruct H.
 forward. (*   h = Q->head; *)
 forward_if 
   (PROP() LOCAL () SEP (`(fifo (contents ++ p :: nil) q))).

@@ -18,9 +18,7 @@ Proof.
 unfold do_canon, PROPx, LOCALx, SEPx; intros.
 extensionality rho.
 simpl.
-normalize. repeat rewrite prop_and.
-rewrite andp_assoc.
-f_equal.
+normalize. autorewrite with norm1 norm2; normalize.
 Qed.
 
 Definition nonlocal (Q: environ->mpred) := True.
@@ -46,7 +44,7 @@ rewrite sepcon_assoc.
 f_equal.
 rewrite sepcon_andp_prop.
 f_equal.
-normalize.
+normalize. autorewrite with norm1 norm2; normalize.
 Qed.
 
 Lemma canon3b: forall R1 B P Q R,
@@ -70,7 +68,7 @@ Proof.
 unfold do_canon, PROPx, LOCALx, SEPx; intros.
 extensionality rho.
 simpl.
-normalize.
+normalize. autorewrite with norm1 norm2; normalize.
 Qed.
  
 Lemma canon8: forall R1 R2 R3 PQR,
@@ -160,7 +158,7 @@ Proof.
 unfold do_canon, PROPx, LOCALx, SEPx; intros.
 extensionality rho.
 simpl.
-normalize.
+normalize. autorewrite with norm1 norm2; normalize.
 Qed.
 
 Ltac canonicalize_pre :=
@@ -178,7 +176,7 @@ Lemma exp_do_canon:
    forall T (P: T -> environ->mpred) (Q: environ->mpred), do_canon (exp P) Q = EX x:_, do_canon (P x) Q.
 Proof. apply exp_sepcon1. Qed.
 Hint Rewrite exp_do_canon: canon.
-Hint Rewrite exp_do_canon: norm.
+Hint Rewrite exp_do_canon: norm2.
 
 Lemma canon9: forall Q1 P Q R,
        local Q1 && (PROPx P (LOCALx Q R)) = 
@@ -187,8 +185,7 @@ Proof.
 intros; unfold PROPx, LOCALx; simpl.
 extensionality rho.
 normalize.
-apply pred_ext; normalize;
-repeat (rewrite prop_true_andp; auto).
+apply pred_ext; normalize; autorewrite with norm1 norm2; normalize.
 Qed.
 Hint Rewrite canon9: canon.
 

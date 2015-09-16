@@ -48,17 +48,20 @@ Proof.
  rewrite argtypes_eq.
 eapply semax_pre_post ; [ | | 
    apply (semax_call Delta A Pre Post x (PROPx P (LOCALx Q (SEPx R))) ret argsig retsig a bl H); auto].
- Focus 3.
+ Focus 3. {
  clear - H0.
  destruct retsig; destruct ret; simpl in *; try contradiction; 
    intros; congruence.
+ } Unfocus.
 clear Hret.
-unfold_lift; unfold local, lift1. intro rho; simpl. normalize.
+unfold_lift; unfold local, lift1. unfold func_ptr'. intro rho; simpl.
+   normalize;
+   progress (autorewrite with subst norm1 norm2; normalize).
 apply andp_derives; auto.
-unfold func_ptr'.
-repeat rewrite corable_andp_sepcon1 by apply corable_func_ptr.
+rewrite !sepcon_assoc.
+rewrite !corable_andp_sepcon1 by apply corable_func_ptr.
 rewrite sepcon_comm. rewrite emp_sepcon.
-repeat rewrite corable_andp_sepcon1 by apply corable_func_ptr.
+rewrite !corable_andp_sepcon1 by apply corable_func_ptr.
 apply derives_refl.
 intros.
 autorewrite with ret_assert.
@@ -67,12 +70,14 @@ normalize.
 apply exp_right with old; destruct ret; normalize.
 autorewrite with subst.
 intro rho; normalize.
+autorewrite with norm1 norm2; normalize.
 rewrite sepcon_comm; auto.
 intro rho; normalize.
 rewrite sepcon_comm; auto.
 unfold substopt.
 repeat rewrite list_map_identity.
 normalize.
+autorewrite with norm1 norm2; normalize.
 Qed.
 
 Lemma semax_call1: forall Espec {cs: compspecs} Delta A (Pre Post: A -> environ->mpred) (x: A) id argsig retsig a bl P Q R,
@@ -121,10 +126,12 @@ eapply semax_pre_post ; [ | |
  Focus 3.
  split; intros; congruence.
  intro rho; normalize.
+ autorewrite with norm1 norm2; normalize.
 unfold func_ptr'.
-repeat rewrite corable_andp_sepcon1 by apply corable_func_ptr.
+rewrite !sepcon_assoc.
+rewrite !corable_andp_sepcon1 by apply corable_func_ptr.
 rewrite emp_sepcon, sepcon_comm. 
-repeat rewrite corable_andp_sepcon1 by apply corable_func_ptr.
+rewrite !corable_andp_sepcon1 by apply corable_func_ptr.
 apply derives_refl.
 intros.
 apply andp_left2.
@@ -481,6 +488,7 @@ Proof.
  extensionality rho.
  unfold PROPx, LOCALx, SEPx.
  normalize.
+ autorewrite with norm1 norm2; normalize.
 Qed.
 
 Lemma fold_right_and_LocalD_i:
@@ -804,6 +812,7 @@ eapply semax_pre_post;
  apply prop_right; auto.
  repeat rewrite denote_tc_assert_andp. apply andp_left2.
  eapply derives_trans; [ apply IHl | ]. normalize.
+ progress (autorewrite with norm1 norm2); normalize.
 apply derives_extract_PROP; intro LEN.
  clear - PTREE LEN PTREE' MSUBST CHECKVAR FRAME PPRE CHECKTEMP.
  normalize.
@@ -831,6 +840,7 @@ replace (@map (environ -> mpred) (LiftEnviron mpred)
 2: do 2 apply andp_left2;  unfold SEPx;
   rewrite fold_right_sepcon_app;
   intro rho;  normalize; 
+ progress (autorewrite with norm1 norm2); normalize;
   repeat rewrite fold_right_sepcon_liftx; auto.
  clear FRAME Frame Rpre'.
  rewrite fold_right_and_app_lifted, local_lift2_and.
@@ -888,6 +898,7 @@ apply andp_left2. apply andp_left1.
  rewrite fold_right_and_app_low. split; auto.
  apply exp_left; intro vret. apply exp_right with vret.
  normalize.
+ progress (autorewrite with norm1 norm2); normalize.
  rewrite <- app_nil_end.
  specialize (EXTRACT'' vret).
  apply extract_trivial_liftx_e in EXTRACT''. rewrite EXTRACT''.
@@ -1281,6 +1292,7 @@ eapply semax_pre_post;
 apply derives_extract_PROP; intro LEN.
  clear - PTREE LEN PTREE' MSUBST CHECKVAR FRAME PPRE CHECKTEMP.
  normalize.
+ progress (autorewrite with norm1 norm2); normalize.
 replace (@map (environ -> mpred) (LiftEnviron mpred)
                (fun r : environ -> mpred =>
                 `r
@@ -1305,6 +1317,7 @@ replace (@map (environ -> mpred) (LiftEnviron mpred)
 2: do 2 apply andp_left2;  unfold SEPx;
   rewrite fold_right_sepcon_app;
   intro rho;  normalize; 
+ progress (autorewrite with norm1 norm2); normalize;
   repeat rewrite fold_right_sepcon_liftx; auto.
  clear FRAME Frame Rpre'.
  rewrite fold_right_and_app_lifted, local_lift2_and.
@@ -1449,6 +1462,7 @@ eapply semax_pre_post;
 apply derives_extract_PROP; intro LEN.
  clear - PTREE LEN PTREE' MSUBST CHECKVAR FRAME PPRE CHECKTEMP.
  normalize.
+ progress (autorewrite with norm1 norm2); normalize.
 replace (@map (environ -> mpred) (LiftEnviron mpred)
                (fun r : environ -> mpred =>
                 `r
@@ -1473,6 +1487,7 @@ replace (@map (environ -> mpred) (LiftEnviron mpred)
 2: do 2 apply andp_left2;  unfold SEPx;
   rewrite fold_right_sepcon_app;
   intro rho;  normalize; 
+ progress (autorewrite with norm1 norm2); normalize;
   repeat rewrite fold_right_sepcon_liftx; auto.
  clear FRAME Frame Rpre'.
  rewrite fold_right_and_app_lifted, local_lift2_and.

@@ -80,8 +80,9 @@ Proof.
 unfold Gprog, prog, prog_funct.
 simpl.
 semax_func_skipn.
-semax_func_cons_ext.
-  apply temp_make_ext_rval_e in H; try congruence.
+semax_func_cons_ext. renormalize.
+ apply (temp_make_ext_rval_e gx (Vint (if Z.odd z then Int.one else Int.zero)) ret) in H;
+  try congruence.
   subst; simpl; entailer.
 semax_func_cons body_even.
 semax_func_cons body_main.

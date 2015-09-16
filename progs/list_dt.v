@@ -949,6 +949,7 @@ apply exp_right with h.
 apply exp_right with r.
 apply exp_right with y.
 normalize.
+  autorewrite with subst norm1 norm2; normalize.
 apply extract_exists_pre; intro h.
 apply extract_exists_pre; intro r.
 apply extract_exists_pre; intro y.
@@ -1017,12 +1018,14 @@ Proof.
  normalize.
  symmetry in H0; inv H0.
  apply exp_right with y. normalize.
+  autorewrite with subst norm1 norm2; normalize.
  normalize. destruct h as [p h]. simpl in *.
  apply orp_right2.
  unfold lseg_cons.
  rewrite prop_true_andp by auto.
  apply exp_right with h. apply exp_right with r.  apply exp_right with y.
  normalize.
+  autorewrite with subst norm1 norm2; normalize.
 Qed.
 
 Definition lseg_cons_right (ls: listspec list_structid list_link) 
@@ -1046,6 +1049,7 @@ normalize.
 revert x; induction l; simpl; intros.
 *
 normalize.
+  autorewrite with subst norm1 norm2; normalize.
 apply exp_right with z.
 apply andp_right.
 apply not_prop_right; intro.
@@ -1066,6 +1070,7 @@ destruct a as [v el].
 normalize.
 apply exp_right with x0.
 normalize.
+  autorewrite with subst norm1 norm2; normalize.
 specialize (IHl x0).
 apply andp_right.
 rewrite prop_and.
@@ -1101,6 +1106,7 @@ intros.
 revert x; induction l; simpl; intros.
 *
 normalize.
+  autorewrite with subst norm1 norm2; normalize.
 apply exp_right with nullval.
 apply andp_right.
 apply not_prop_right; intro.
@@ -1115,6 +1121,7 @@ destruct a as [v el].
 normalize.
 apply exp_right with x0.
 normalize.
+  autorewrite with subst norm1 norm2; normalize.
 specialize (IHl x0).
 apply andp_right.
 rewrite prop_and.
@@ -1158,6 +1165,7 @@ destruct p0.
 normalize.
 rewrite field_at_isptr.
 normalize.
+  autorewrite with subst norm1 norm2; normalize.
 apply prop_right.
 split. intro; subst q.
 contradiction H. normalize.
@@ -1194,6 +1202,7 @@ Proof.
   *
   destruct a  as [v a].
   normalize.
+  autorewrite with subst norm1 norm2; normalize.
   apply exp_right with y.
   apply andp_right.
   apply not_prop_right; intro. apply ptr_eq_e in H2; subst hd.
@@ -1277,6 +1286,7 @@ Proof.
  apply exp_right with ((v1,a)::al); normalize.
  simpl.
  normalize. apply exp_right with tail. normalize.
+  autorewrite with subst norm1 norm2; normalize.
 Qed.
 
 Lemma lseg_eq (ls: listspec list_structid list_link):
@@ -1333,6 +1343,7 @@ rewrite andp_assoc; repeat (apply derives_extract_prop; intro).
 subst.
 apply exp_right with nil.
 simpl. normalize.
+  autorewrite with subst norm1 norm2; normalize.
 apply derives_extract_prop; intro.
 apply exp_left; intro h.
 apply exp_left; intro r.
@@ -1346,6 +1357,7 @@ simpl.
 normalize.
 apply exp_right with y.
 normalize.
+  autorewrite with subst norm1 norm2; normalize.
 Qed.
 
 Lemma lseg_unroll_nonempty1 (ls: listspec list_structid list_link):
@@ -1499,6 +1511,7 @@ apply exp_right with h.
 apply exp_right with r.
 apply exp_right with y.
 normalize.
+  autorewrite with subst norm1 norm2; normalize.
 apply extract_exists_pre; intro h.
 apply extract_exists_pre; intro r.
 apply extract_exists_pre; intro y.
@@ -1572,6 +1585,7 @@ Proof.
  apply andp_derives; auto.
  apply exp_right with h. apply exp_right with r.  apply exp_derives; intro y.
  normalize.
+  autorewrite with subst norm1 norm2; normalize.
 Qed.
 
 Definition lseg_cons_right (ls: listspec list_structid list_link) 
@@ -1919,6 +1933,7 @@ apply exp_right with (vund ls).
 apply exp_right with l.
 apply exp_right with tail.
 normalize.
+  autorewrite with subst norm1 norm2; normalize.
 apply orp_left.
 rewrite andp_assoc;
 do 2 (apply derives_extract_prop; intro).
@@ -2110,6 +2125,7 @@ apply exp_right with h.
 apply exp_right with r.
 apply exp_right with y.
 normalize.
+  autorewrite with subst norm1 norm2; normalize.
 apply extract_exists_pre; intro h.
 apply extract_exists_pre; intro r.
 apply extract_exists_pre; intro y.
@@ -2173,6 +2189,7 @@ Proof.
  normalize.
  symmetry in H1; inv H1.
  apply exp_right with y. normalize.
+  autorewrite with subst norm1 norm2; normalize.
  repeat (apply sepcon_derives; auto).
  apply derives_refl'; apply nonreadable_list_cell_eq; auto.
  apply orp_right2.
@@ -2181,6 +2198,7 @@ Proof.
  rewrite prop_true_andp by auto.
  apply exp_right with (vund ls). apply exp_right with r.  apply exp_right with y.
  normalize.
+  autorewrite with subst norm1 norm2; normalize.
 Qed.
 
 Definition lseg_cons_right (ls: listspec list_structid list_link) 
@@ -2208,6 +2226,7 @@ revert x; induction l; simpl; intros.
 unfold lseg.
 simpl.
 normalize.
+  autorewrite with subst norm1 norm2; normalize.
 apply exp_right with z.
 apply andp_right.
 apply not_prop_right; intro.
@@ -2230,6 +2249,7 @@ unfold lseg; simpl.
 normalize.
 apply exp_right with x0.
 normalize.
+  autorewrite with subst norm1 norm2; normalize.
 specialize (IHl x0).
 apply andp_right.
 rewrite prop_and.
@@ -2267,6 +2287,7 @@ unfold lseg.
 revert x; induction l; simpl; intros.
 *
 normalize.
+  autorewrite with subst norm1 norm2; normalize.
 apply exp_right with nullval.
 apply andp_right.
 apply not_prop_right; intro.
@@ -2282,6 +2303,7 @@ apply nonreadable_list_cell_eq; auto.
 normalize.
 apply exp_right with x0.
 normalize.
+  autorewrite with subst norm1 norm2; normalize.
 specialize (IHl x0).
 apply andp_right.
 rewrite prop_and.
@@ -2324,6 +2346,7 @@ split; auto; split; auto.
 normalize.
 rewrite field_at_isptr.
 normalize.
+  autorewrite with subst norm1 norm2; normalize.
 apply prop_right.
 split. intro; subst q.
 contradiction H. normalize.
@@ -2346,6 +2369,7 @@ Proof.
   rewrite -> lseg_cons_eq by auto.
   unfold lseg_cell.
  normalize.
+  autorewrite with subst norm1 norm2; normalize.
  f_equal. extensionality y.
  f_equal. f_equal. f_equal. f_equal.
  apply nonreadable_list_cell_eq; auto.
@@ -2364,6 +2388,7 @@ Proof.
   normalize.
   *
   normalize.
+  autorewrite with subst norm1 norm2; normalize.
   apply exp_right with y.
   apply andp_right.
   apply not_prop_right; intro. apply ptr_eq_e in H2; subst hd.

@@ -458,7 +458,8 @@ Ltac entailer_for_return :=
  normalize;
  repeat erewrite elim_globals_only by (split3; [eassumption | reflexivity.. ]);
  prune_conjuncts;
- try rewrite (prop_true_andp True) by apply I.
+ try rewrite (prop_true_andp True) by apply I;
+ try solve [cancel].
 
 Ltac entbang := 
  match goal with
