@@ -36,6 +36,14 @@ match data with ((Nonce, C), K) =>
   end end end
 end.
 
+Lemma prepare_data_length x: length (prepare_data x) = 16%nat.
+Proof. destruct x as [[s0 s1] [s2 s3]]. simpl.
+  destruct s0 as [[[? ?] ?] ?].
+  destruct s1 as [[[? ?] ?] ?].
+  destruct s2 as [[[? ?] ?] ?].
+  destruct s3 as [[[? ?] ?] ?]. reflexivity.
+Qed.
+
 Fixpoint sumlist xs ys :=
   match xs, ys with
     nil, nil => Some nil
@@ -100,6 +108,14 @@ Proof. intros. unfold Znth.
 Qed.
 
 Definition Snuffle20 x := bind (Snuffle 20 x) (fun y => sumlist y x).
+
+Lemma Snuffle20_length s l: Snuffle20 s = Some l -> length s = 16%nat -> length l = 16%nat.
+Proof. unfold Snuffle20, bind; intros. remember (Snuffle 20 s).
+  destruct o; simpl. 
+    symmetry in Heqo. symmetry in H; rewrite sumlist_symm in H.
+      rewrite (sumlist_length _ _ _ H).
+      apply (Snuffle_length _ _ _ Heqo H0). inv H.
+Qed.
 
 Definition fcore_result h data l :=
   match Snuffle20 (prepare_data data) 
@@ -186,7 +202,7 @@ Definition L32_spec :=
 
 Definition crypto_core_salsa20_spec :=
   DECLARE _crypto_core_salsa20_tweet
-   WITH c : val, k:val, h:Z,
+   WITH c : val, k:val, 
         nonce:val, out:val, OUT: list val,
         data : SixteenByte * SixteenByte * (SixteenByte * SixteenByte)
    PRE [ _out OF tptr tuchar,
@@ -207,7 +223,7 @@ Definition crypto_core_salsa20_spec :=
             
 Definition crypto_core_hsalsa20_spec :=
   DECLARE _crypto_core_hsalsa20_tweet
-   WITH c : val, k:val, h:Z,
+   WITH c : val, k:val, 
         nonce:val, out:val, OUT: list val,
         data : SixteenByte * SixteenByte * (SixteenByte * SixteenByte)
    PRE [ _out OF tptr tuchar,
@@ -235,6 +251,6 @@ Definition crypto_core_hsalsa20_spec :=
 (*Could stengthen postcondition to include the guarantee that second half of OUT 
   is not modified, by replacing firstn 32 l = ... by l = ... ++ Skipn32 OUT*)
 
-Definition SalsaVarSpecs : varspecs := nil.
+Definition SalsaVarSpecs : varspecs := (_sigma, tarray tuchar 16)::nil.
 Definition SalsaFunSpecs : funspecs := 
   core_spec :: ld32_spec :: L32_spec::st32_spec::crypto_core_salsa20_spec::crypto_core_hsalsa20_spec::nil.

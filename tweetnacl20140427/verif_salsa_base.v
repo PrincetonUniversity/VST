@@ -244,3 +244,52 @@ Qed.
     Proof. destruct s as [[[q0 q1] q2] q3]. simpl.
       repeat rewrite app_length. repeat rewrite QuadWordRepI_length. reflexivity.
     Qed.
+
+Lemma QuadByte2ValList_ints q: exists ints, length ints = 4%nat /\
+      QuadByte2ValList q = map Vint ints.
+Proof. destruct q as [[[b0 b1] b2] b3]. unfold QuadByte2ValList; simpl.
+  exists [Int.repr (Byte.unsigned b0); Int.repr (Byte.unsigned b1);
+          Int.repr (Byte.unsigned b2); Int.repr (Byte.unsigned b3)].
+  split; trivial.
+Qed. 
+
+Lemma SixteenByte2ValList_ints N: exists ints, length ints = 16%nat /\
+      SixteenByte2ValList N = map Vint ints.
+Proof. destruct N as [[[q0 q1] q2] q3]. unfold SixteenByte2ValList.
+  destruct (QuadByte2ValList_ints q0) as [ints0 [L0 Q0]]; rewrite Q0.
+  destruct (QuadByte2ValList_ints q1) as [ints1 [L1 Q1]]; rewrite Q1.
+  destruct (QuadByte2ValList_ints q2) as [ints2 [L2 Q2]]; rewrite Q2.
+  destruct (QuadByte2ValList_ints q3) as [ints3 [L3 Q3]]; rewrite Q3.
+  exists (ints0 ++ ints1 ++ ints2 ++ ints3).
+  repeat rewrite map_app. repeat rewrite app_length. rewrite L0, L1, L2, L3.
+  split; trivial.
+Qed.
+
+Lemma QuadByte2ValList_bytes q: exists bytes, length bytes = 4%nat /\
+      QuadByte2ValList q = map Vint (map Int.repr (map Byte.unsigned bytes)).
+Proof. destruct q as [[[b0 b1] b2] b3]. unfold QuadByte2ValList; simpl.
+  exists [b0;b1;b2;b3]. split; trivial.
+Qed. 
+
+Lemma SixteenByte2ValList_bytes N: exists bytes, length bytes = 16%nat /\
+      SixteenByte2ValList N =  map Vint (map Int.repr (map Byte.unsigned bytes)).
+Proof. destruct N as [[[q0 q1] q2] q3]. unfold SixteenByte2ValList.
+  destruct (QuadByte2ValList_bytes q0) as [bytes0 [L0 Q0]]; rewrite Q0.
+  destruct (QuadByte2ValList_bytes q1) as [bytes1 [L1 Q1]]; rewrite Q1.
+  destruct (QuadByte2ValList_bytes q2) as [bytes2 [L2 Q2]]; rewrite Q2.
+  destruct (QuadByte2ValList_bytes q3) as [bytes3 [L3 Q3]]; rewrite Q3.
+  exists (bytes0 ++ bytes1 ++ bytes2 ++ bytes3).
+  repeat rewrite map_app. repeat rewrite app_length. rewrite L0, L1, L2, L3.
+  split; trivial.
+Qed.
+
+Lemma QuadChunks2ValList_bytes: forall l, 
+        exists bytes, length bytes = (4*length l)%nat /\
+        QuadChunks2ValList l = map Vint (map Int.repr (map Byte.unsigned bytes)).
+  Proof. unfold QuadChunks2ValList.
+    induction l; simpl; intros. exists nil; split; trivial. 
+    destruct IHl as [? [X1 X2]]; rewrite X2; clear X2.
+    destruct (QuadByte2ValList_bytes a) as [? [Y1 Y2]]; rewrite Y2; clear Y2.
+    repeat rewrite <- map_app. exists (x0 ++ x); split; trivial.
+    rewrite app_length, X1, Y1. omega.
+  Qed.
