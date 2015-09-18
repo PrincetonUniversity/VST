@@ -27,6 +27,8 @@ Require Import floyd.for_lemmas.
 Require Import floyd.diagnosis.
 Import Cop.
 
+Hint Rewrite <- @prop_and using solve [auto with typeclass_instances]: norm1.
+
 Local Open Scope logic.
 
 Definition tc_option_val' (t: type) : option val -> Prop :=
@@ -2037,6 +2039,22 @@ Ltac remember_indexes gfs :=
  | nil => idtac
  end.
 
+Lemma quick_derives_right:
+  forall P Q : environ -> mpred,
+   TT |-- Q -> P |-- Q.
+Proof.
+intros. eapply derives_trans; try eassumption; auto.
+Qed.
+
+Ltac quick_typecheck3 := 
+ clear; 
+ repeat match goal with
+ | H := _ |- _ => clear H 
+ | H : _ |- _ => clear H 
+ end;
+ apply quick_derives_right; clear; go_lower;
+ clear; repeat apply andp_right; auto; fail.
+
 Ltac solve_load_rule_evaluation := (* fastest version *)
  clear;
  repeat match goal with
@@ -2207,7 +2225,8 @@ Ltac new_load_tac :=   (* matches:  semax _ _ (Sset _ (Efield _ _ _)) _  *)
     | reflexivity | exact Heq | exact HLE | exact H_Denote | exact H
     | auto (* readable share *)
     | solve_load_rule_evaluation
-    | unfold tc_efield; try solve [entailer!]; try (clear Heq HLE H_Denote H H_LEGAL;
+    | try quick_typecheck3; 
+      unfold tc_efield; try solve [entailer!]; try (clear Heq HLE H_Denote H H_LEGAL;
       subst e1 gfs0 gfs1 efs tts t_root v sh lr n; simpl app; simpl typeof)
     | solve_legal_nested_field_in_entailment;
          try clear Heq HLE H_Denote H H_LEGAL;
@@ -2273,7 +2292,8 @@ Ltac new_load_tac :=   (* matches:  semax _ _ (Sset _ (Efield _ _ _)) _  *)
     | reflexivity | exact Heq | exact HLE | exact H_Denote | exact H
     | auto (* readable share *)
     | solve_load_rule_evaluation
-    | unfold tc_efield; try solve [entailer!]; try (clear Heq HLE H_Denote H H_LEGAL;
+    | try quick_typecheck3; 
+      unfold tc_efield; try solve [entailer!]; try (clear Heq HLE H_Denote H H_LEGAL;
       subst e1 gfs0 gfs1 efs tts t_root v sh lr n; simpl app; simpl typeof)
     | solve_legal_nested_field_in_entailment; try clear Heq HLE H_Denote H H_LEGAL;
       subst e1 gfs0 gfs1 efs tts t_root v sh lr n]
@@ -2467,7 +2487,8 @@ match goal with
             | reflexivity | exact Heq | exact HLE 
             | exact HRE | exact H_Denote | exact H | solve [auto]
             | solve_store_rule_evaluation
-            | unfold tc_efield; try solve[entailer!]; try (clear Heq HLE HRE H_Denote H H_LEGAL;
+            | try quick_typecheck3; 
+              unfold tc_efield; try solve[entailer!]; try (clear Heq HLE HRE H_Denote H H_LEGAL;
               subst e1 gfs0 gfs1 efs tts t_root sh v0 lr n; simpl app; simpl typeof)
             | solve_legal_nested_field_in_entailment; try clear Heq HLE HRE H_Denote H H_LEGAL;
            subst e1 gfs0 gfs1 efs tts t_root sh v0 lr n]
@@ -2748,7 +2769,7 @@ Ltac fwd_result :=
      repeat extract_prop_from_LOCAL;
      revert v
    | (* try simpl_fold_reptype;*)
-     apply revert_unit
+     simple apply revert_unit
    ];
    repeat simpl_proj_reptype.
 
@@ -2819,17 +2840,23 @@ Proof. intros.
 Qed.
 
 Ltac unfold_Delta := 
-repeat
-match goal with Delta := func_tycontext ?f ?V ?G |- _ =>
-  first [unfold f in Delta | unfold V in Delta | unfold G in Delta ]
-end;
- match goal with Delta := func_tycontext ?f ?V ?G |- _ =>
-     change (func_tycontext f V G) with (@abbreviate _ (func_tycontext f V G)) in Delta;
-      unfold func_tycontext, make_tycontext,
-     make_tycontext_t, make_tycontext_v, make_tycontext_g,
-      fn_temps,fn_params, fn_vars, fn_return in Delta;
-     simpl in Delta
- end.
+  repeat match goal with Delta := func_tycontext ?f ?V ?G |- _ =>
+     first [unfold f in Delta | unfold V in Delta | unfold G in Delta ]
+  end;
+ match goal with
+   | Delta:=func_tycontext ?f ?V ?G:_
+     |- _ =>
+         change (func_tycontext f V G)
+          with (@abbreviate _ (func_tycontext f V G)) in Delta;
+          unfold func_tycontext, make_tycontext, make_tycontext_t,
+           make_tycontext_v, make_tycontext_g, fn_temps, fn_params, fn_vars,
+           fn_return in Delta;
+           let s := fresh in set (s := make_tycontext_s G) in Delta;
+           simpl in Delta;
+           hnf in s;
+           let s' := fresh  "Delta_specs" in pose (s' := @abbreviate _ s); 
+           change s with s' in Delta; subst s       
+   end.
 
 Fixpoint quickflow (c: statement) (ok: exitkind->bool) : bool :=
  match c with

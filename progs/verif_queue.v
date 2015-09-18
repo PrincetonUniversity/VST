@@ -466,16 +466,16 @@ forward_if
    + normalize.
       destruct prefix; normalize;
       entailer!.
-      contradiction (field_compatible_isptr _ _ _ H7).
+      contradiction (field_compatible_isptr _ _ _ H6).
       rewrite lseg_cons_eq by auto.
       entailer.
-      contradiction (field_compatible_isptr _ _ _ H11).      
+      contradiction (field_compatible_isptr _ _ _ H10).      
 * (* else clause *)
   forward. (*  t = Q->tail; *)
   destruct (isnil contents).
   + abstract (apply semax_pre with FF; 
          [entailer | apply semax_ff]).
-  + normalize. intro prefix. normalize.
+  + normalize. renormalize. intro prefix. normalize. renormalize.
      forward. (*  t->next=p; *)
   (* goal 12 *)
      forward. (* Q->tail=p; *)
@@ -507,37 +507,39 @@ start_function.
 name Q _Q.
 name h _h.
 name n _n.
-unfold fifo at 1.
+unfold fifo at 1. renormalize.
 forward_intro [hd tl].
 rewrite if_false by congruence.
+renormalize.
 forward_intro prefix. normalize.
-forward. (*   p = Q->head; *)
-destruct prefix; inversion H1; clear H1.
+ renormalize. destruct H.
+forward.  (*   p = Q->head; *)
+destruct prefix; inversion H0; clear H0.
 + subst_any.
    rewrite lseg_nil_eq by auto.
-   normalize.
-   apply ptr_eq_e in H1. subst_any.
+   normalize. renormalize.
+   apply ptr_eq_e in H0. subst_any.
    forward. (*  n=h->next; *)
    forward. (* Q->head=n; *)
-   replace_SEP 0%Z (`(data_at Tsh t_struct_fifo (nullval,p) q)); [ entailer! | ]. (* can we do this automatically? *)
    forward. (* return p; *)
    entailer!.
    unfold fifo. apply exp_right with (nullval, h).
    rewrite if_true by congruence.
    entailer!.
-+ rewrite lseg_cons_eq by auto.
-    forward_intro x. normalize.
-    simpl valinject. (* can we make this automatic? *)
++ rewrite lseg_cons_eq by auto. renormalize.
+    forward_intro x. normalize. destruct H0. renormalize.
+    simpl @valinject. (* can we make this automatic? *)
     subst_any.
     forward. (*  n=h->next; *)
     forward. (* Q->head=n; *)
-    replace_SEP 3%Z (`(data_at Tsh t_struct_fifo (x, tl) q)); [ entailer! | ]. (* can we do this automatically? *)
+(*    replace_SEP 3%Z (`(data_at Tsh t_struct_fifo (x, tl) q)); [ entailer! | ]. (* can we do this automatically? *)
+*)
     forward. (* return p; *)
     entailer.
     unfold fifo. normalize. apply exp_right with (n, tl).
     rewrite if_false by (destruct prefix; simpl; congruence).
     normalize. apply exp_right with prefix.
-    entailer!; 
+    entailer!;
    fail. Admitted.  (* This hack because otherwise we run out of memory *)
 (* Qed.*)
 
@@ -654,7 +656,9 @@ Proof.
 unfold Gprog, prog, prog_funct; simpl.
 semax_func_skipn.
 semax_func_cons body_mallocN.
- apply ret_temp_make_ext_rval in H0; subst; entailer.
+ renormalize. entailer!.
+ rewrite (ret_temp_make_ext_rval gx ret _ (eq_refl _)) in Px0.
+ auto.
 semax_func_cons body_freeN.
   admit.  (* yuck *)
 semax_func_cons body_fifo_new.
