@@ -161,12 +161,27 @@ unfold strict_bool_val, Val.of_bool; simpl.
 destruct x; simpl;  intuition congruence.
 Qed.
 
+Lemma Vint_inj: forall x y, Vint x = Vint y -> x=y.
+Proof. congruence. Qed.
+
+Ltac intro_redundant_prop :=
+  (* do it in this complicated way because the proof will come out smaller *)
+match goal with |- ?P -> _ =>
+  ((assert P by immediate; fail 1) || fail 1) || intros _
+end.
+
 Ltac fancy_intro :=
+ match goal with
+ | |- ?P -> _ => match type of P with Prop => idtac end
+ | |- ~ _ => idtac
+ end;
  let H := fresh in
  intro H; 
  try simple apply ptr_eq_e in H;
+ try simple apply Vint_inj in H;
  match type of H with
- | ?P => clear H; assert (H:P) by auto; clear H
+ | ?P => clear H; (((assert (H:P) by immediate; fail 1) || fail 1) || idtac)
+                (* do it in this complicated way because the proof will come out smaller *)
  | ?x = ?y => first [subst x | subst y 
                              | is_var x; rewrite H 
                              | is_var y; rewrite <- H
@@ -181,6 +196,11 @@ Ltac fancy_intro :=
  | var _ _ _ _ => hnf in H
  | _ => try solve [discriminate H]
  end.
+
+Ltac fancy_intros :=
+ repeat first [simple apply and_ind
+        | fancy_intro 
+        ].
 
 Ltac normalize1 := 
          match goal with      
@@ -229,6 +249,7 @@ Ltac normalize1 :=
                                             by (unfold y; reflexivity); unfold y in *; clear y) ||
                             (rewrite (prop_true_andp' (x=y))
                                             by (unfold x; reflexivity); unfold x in *; clear x)
+(*
               | |- _ = ?x -> _ => intro; subst x
               | |- ?x = _ -> _ => intro; subst x
               | |- ptr_eq ?x ?y -> _ => fancy_intro; first [subst x | subst y | idtac]
@@ -240,17 +261,22 @@ Ltac normalize1 :=
                                                        ((assert (H:ZZ) by auto; clear H; intros _) || intro H)))
                                                | _ => intros _
                                               end
+*)
+              |  |- ?ZZ -> ?YY => match type of ZZ with 
+                                               | Prop => fancy_intros || fail 1
+                                               | _ => intros _
+                                              end
+              | |- ~ _ => fancy_intro
               | |- _ => progress (norm_rewrite); auto with typeclass_instances
               | |- forall _, _ => let x := fresh "x" in (intro x; repeat normalize1; try generalize dependent x)
               end.
-
 
 Ltac normalize := 
    autorewrite with gather_prop;
    repeat (((repeat simple apply go_lower_lem1'; simple apply go_lower_lem1)
               || simple apply derives_extract_prop
               || simple apply derives_extract_prop');
-              fancy_intro);
+              fancy_intros);
    repeat normalize1; try contradiction.
 
 (****** END experimental normalize ******************)
@@ -705,8 +731,6 @@ Ltac findvars :=
     clear H
  end.
 
-Lemma Vint_inj: forall x y, Vint x = Vint y -> x=y.
-Proof. congruence. Qed.
 Lemma sem_cast_id:
   forall Delta rho,
       tc_environ Delta rho ->
@@ -1001,7 +1025,7 @@ Ltac go_lower :=
 
 Hint Rewrite eval_id_same : go_lower.
 Hint Rewrite eval_id_other using solve [clear; intro Hx; inversion Hx] : go_lower.
-Hint Rewrite Vint_inj' : go_lower.
+(*Hint Rewrite Vint_inj' : go_lower.*)
 
 Lemma raise_sepcon:
  forall A B : environ -> mpred , 
@@ -1044,7 +1068,8 @@ Lemma lift0C_exp {A}{NA: NatDed A}:
 Proof.
 intros. unfold_lift. simpl. extensionality rho. f_equal; extensionality x; auto.
 Qed.
-Hint Rewrite @lift0_exp @lift0C_exp : norm2.
+Hint Rewrite @lift0_exp : norm2.
+Hint Rewrite @lift0C_exp : norm2.
 
 Lemma lift0_andp {A}{NA: NatDed A}:
  forall P Q, 
@@ -1095,11 +1120,11 @@ Lemma lift0C_later {A}{NA: NatDed A}{IA: Indir A}:
    `(@later A NA IA P) = @later (environ->A) _ _ (`P).
 Proof. intros. reflexivity. Qed.
 
-Hint Rewrite (@lift0C_sepcon mpred _ _) : norm2.
-Hint Rewrite (@lift0C_andp mpred _) : norm2.
-Hint Rewrite (@lift0C_exp mpred _) : norm2.
-Hint Rewrite (@lift0C_later mpred _ _) : norm2.
-Hint Rewrite (@lift0C_prop mpred _) : norm2.
+Hint Rewrite (@lift0C_sepcon mpred _ _) : norm.
+Hint Rewrite (@lift0C_andp mpred _) : norm.
+Hint Rewrite (@lift0C_exp mpred _) : norm.
+Hint Rewrite (@lift0C_later mpred _ _) : norm.
+Hint Rewrite (@lift0C_prop mpred _) : norm.
 
 Hint Rewrite
     @lift1_lift1_retval

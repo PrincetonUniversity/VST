@@ -215,7 +215,7 @@ match goal with |- context [SEPx (?A::_)] =>
                               field_at sh list_struct [StructField _tail] y t0))
  by (extensionality rho; unfold_lift; simpl; symmetry; apply list_cell_eq''; auto)
 end.
-normalize. renormalize.
+normalize.
 forward.  (* h = t->head; *)
 forward t_old.  (*  t = t->tail; *)
 subst t_old.
@@ -475,9 +475,9 @@ assert_PROP (x'=x); [entailer!; eapply gvar_uniq; eauto | drop_LOCAL 0%nat; subs
 eapply semax_pre; [
   eapply derives_trans; [ | apply (setup_globals x) ] | ].
  entailer!.
-forward_call' (*  r = reverse(three); *)
+forward_call (*  r = reverse(three); *)
   (Ews, map Vint [Int.repr 1; Int.repr 2; Int.repr 3], x) r'.
-forward_call'  (* s = sumlist(r); *)
+forward_call  (* s = sumlist(r); *)
    (Ews, Int.repr 3 :: Int.repr 2 :: Int.repr 1 :: nil, r') s'.
 forward.  (* return s; *)
 Qed.

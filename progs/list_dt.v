@@ -979,8 +979,7 @@ Proof.
 intros.
 assert_PROP (~ ptr_eq v nullval).
 eapply derives_trans; [apply H |].
-normalize.
-clear - H1; destruct v; try contradiction; intro H; inv H.
+normalize. inv H1.
 apply semax_lseg_neq; auto.
 Qed.
 
@@ -1076,7 +1075,7 @@ apply andp_right.
 rewrite prop_and.
 apply andp_right; [ | apply prop_right; auto].
 apply not_prop_right; intro.
-apply ptr_eq_e in H1. subst x.
+apply ptr_eq_e in H0. subst x.
 pull_right (field_at psh list_struct (StructField list_link :: nil)
   (valinject (nested_field_type2 list_struct (StructField list_link :: nil))
      x0) z).
@@ -1127,9 +1126,9 @@ apply andp_right.
 rewrite prop_and.
 apply andp_right; [ | apply prop_right; auto].
 apply not_prop_right; intro.
-apply ptr_eq_e in H1. subst x.
+apply ptr_eq_e in H0. subst x.
 entailer.
-destruct H3; contradiction H3.
+destruct H2; contradiction H2.
 eapply derives_trans.
 2: apply sepcon_derives; [ | eassumption]; apply derives_refl.
 clear IHl.
@@ -1169,7 +1168,7 @@ normalize.
 apply prop_right.
 split. intro; subst q.
 contradiction H. normalize.
-intros. inv H1.
+intros. discriminate.
 Qed.
 
 Definition lseg_cell  (ls: listspec list_structid list_link)
@@ -1205,7 +1204,7 @@ Proof.
   autorewrite with subst norm1 norm2; normalize.
   apply exp_right with y.
   apply andp_right.
-  apply not_prop_right; intro. apply ptr_eq_e in H2; subst hd.
+  apply not_prop_right; intro. apply ptr_eq_e in H1; subst hd.
   clear IHct1.
   unfold lseg_cell in H.
   specialize (H a y).
@@ -1542,7 +1541,7 @@ intros.
 assert_PROP (~ ptr_eq v nullval).
 eapply derives_trans; [apply H |].
 normalize.
-clear - H1; destruct v; try contradiction; intro H; inv H.
+inv H1.
 apply semax_lseg_neq; auto.
 Qed.
 
@@ -1641,7 +1640,7 @@ normalize.
 eapply derives_trans; [apply LsegGeneral.lseg_local_facts |].
 normalize.
 split; auto.
-rewrite H0.
+rewrite H.
 clear.
 destruct al; simpl; intuition; try congruence.
 Qed.
@@ -2156,8 +2155,7 @@ Proof.
 intros.
 assert_PROP (~ ptr_eq v nullval).
 eapply derives_trans; [eapply H0 |].
-normalize.
-clear - H2; destruct v; try contradiction; intro H0; inv H0.
+normalize. inv H2.
 apply semax_lseg_neq; auto.
 Qed.
 
@@ -2255,7 +2253,7 @@ apply andp_right.
 rewrite prop_and.
 apply andp_right; [ | apply prop_right; auto].
 apply not_prop_right; intro.
-apply ptr_eq_e in H1. subst x.
+apply ptr_eq_e in H0. subst x.
 pull_right (field_at psh list_struct (StructField list_link :: nil)
   (valinject (nested_field_type2 list_struct (StructField list_link :: nil))
      x0) z).
@@ -2309,9 +2307,9 @@ apply andp_right.
 rewrite prop_and.
 apply andp_right; [ | apply prop_right; auto].
 apply not_prop_right; intro.
-apply ptr_eq_e in H1. subst x.
+apply ptr_eq_e in H0. subst x.
 entailer.
-destruct H3; contradiction H3.
+destruct H2; contradiction H2.
 eapply derives_trans.
 2: apply sepcon_derives; [ | eassumption]; apply derives_refl.
 clear IHl.
@@ -2350,7 +2348,7 @@ normalize.
 apply prop_right.
 split. intro; subst q.
 contradiction H. normalize.
-intros. inv H1.
+intros. discriminate.
 Qed.
 
 Definition lseg_cell  (ls: listspec list_structid list_link)
@@ -2388,10 +2386,10 @@ Proof.
   normalize.
   *
   normalize.
-  autorewrite with subst norm1 norm2; normalize.
+  progress (autorewrite with subst norm1 norm2); normalize.
   apply exp_right with y.
   apply andp_right.
-  apply not_prop_right; intro. apply ptr_eq_e in H2; subst hd.
+  apply not_prop_right; intro. apply ptr_eq_e in H1; subst hd.
   clear IHct1.
   specialize (H y).
   unfold lseg_cell in H.

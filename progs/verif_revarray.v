@@ -238,7 +238,7 @@ forward_while (reverse_Inv a0 sh (map Vint contents) size)
 (* Prove that current precondition implies loop invariant *)
 apply exp_right with 0.
 entailer!; try omega.
-f_equal; omega.
+f_equal; f_equal; omega.
 apply derives_refl'.
 f_equal.
 apply flip_fact_0; auto.
@@ -281,7 +281,7 @@ forward hi'0. (* hi--; *)
 (* Prove postcondition of loop body implies loop invariant *)
 {
   apply exp_right with (Zsucc j).
- entailer. rewrite prop_true_andp by (f_equal; omega).
+ entailer. rewrite prop_true_andp by (f_equal; f_equal; omega).
  apply derives_refl'. clear H7 H6.
  rewrite H5,H4; simpl. rewrite <- H5, <- H4. clear H5 H4 TC.
  unfold data_at.    f_equal.
@@ -338,10 +338,10 @@ Proof.
 start_function.
 normalize; intro a; normalize.
 
-forward_call'  (*  revarray(four,4); *)
+forward_call  (*  revarray(four,4); *)
   (a, Ews, four_contents, 4).
    repeat split; try computable; auto.
-forward_call'  (*  revarray(four,4); *)
+forward_call  (*  revarray(four,4); *)
     (a,Ews, rev four_contents,4).
    split. computable. auto.
 rewrite rev_involutive.

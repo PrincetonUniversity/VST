@@ -68,7 +68,6 @@ Proof.
  unfold data_at.
  unfold_field_at 1%nat.
  normalize. (* this line shouldn't be necessary, should be taken care of by unfold_field_at *)
- renormalize.
 Time forward. (* 18.88 sec -> 14.36 sec *)
 (*
 Time forward. (* 13 sec -> 98 sec *)

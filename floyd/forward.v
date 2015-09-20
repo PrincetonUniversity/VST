@@ -281,7 +281,7 @@ Lemma prop_Forall_cons':
   P |-- !! P1 && !! Forall F (a::b).
 Proof.
 intros. eapply derives_trans; [apply H |].
-normalize. destruct H0; normalize.
+normalize.
 Qed.
 
 Lemma prop_Forall_nil:
@@ -609,11 +609,11 @@ Tactic Notation "forward_call'" constr(witness) :=
    ].
 *)
 
-Definition In_the_previous_forward_call'__use_intropatterns_to_intro_values_of_these_types := Stuck.
+Definition In_the_previous_forward_call__use_intropatterns_to_intro_values_of_these_types := Stuck.
 
 Ltac complain_intros :=
  first [let x := fresh "x" in intro x; complain_intros; revert x
-         | stuckwith In_the_previous_forward_call'__use_intropatterns_to_intro_values_of_these_types
+         | stuckwith In_the_previous_forward_call__use_intropatterns_to_intro_values_of_these_types
          ].
 
 Tactic Notation "uniform_intros" simple_intropattern_list(v) :=
@@ -622,7 +622,7 @@ Tactic Notation "uniform_intros" simple_intropattern_list(v) :=
    by (intros v; apply I);
   fail 1) || intros v) || idtac).
 
-Tactic Notation "forward_call'" constr(witness) simple_intropattern_list(v) :=
+Tactic Notation "forward_call" constr(witness) simple_intropattern_list(v) :=
     check_canonical_call;
     check_Delta;
     fwd_call' witness;
@@ -1171,8 +1171,8 @@ Ltac normalize :=
   floyd.client_lemmas.normalize;
   repeat 
   (first [ simpl_tc_expr
-         | simple apply semax_extract_PROP_True; [solve [auto] | ]
-         | simple apply semax_extract_PROP; intro
+(*         | simple apply semax_extract_PROP_True; [solve [auto] | ]*)
+         | simple apply semax_extract_PROP; fancy_intros
          | extract_prop_from_LOCAL
          | move_from_SEP
          ]; cbv beta; msl.log_normalize.normalize)
@@ -2164,7 +2164,7 @@ Ltac solve_store_rule_evaluation' :=
          exact Hupd
   end.
 
-Ltac new_load_tac :=   (* matches:  semax _ _ (Sset _ (Efield _ _ _)) _  *)
+Ltac load_tac :=   (* matches:  semax _ _ (Sset _ (Efield _ _ _)) _  *)
  ensure_normal_ret_assert;
  hoist_later_in_pre;
  match goal with   
@@ -2297,7 +2297,12 @@ Ltac new_load_tac :=   (* matches:  semax _ _ (Sset _ (Efield _ _ _)) _  *)
       subst e1 gfs0 gfs1 efs tts t_root v sh lr n; simpl app; simpl typeof)
     | solve_legal_nested_field_in_entailment; try clear Heq HLE H_Denote H H_LEGAL;
       subst e1 gfs0 gfs1 efs tts t_root v sh lr n]
+end.
 
+Ltac old_load_tac :=   (* matches:  semax _ _ (Sset _ (Efield _ _ _)) _  *)
+ ensure_normal_ret_assert;
+ hoist_later_in_pre;
+ match goal with   
  | |- _ => eapply semax_cast_load_37';
    [reflexivity 
    |entailer;
@@ -2420,7 +2425,7 @@ match goal with |- context [@proj_reptype ?cs ?t ?gfs ?v] =>
   subst d
 end.
 
-Ltac new_store_tac := 
+Ltac store_tac := 
 ensure_open_normal_ret_assert;
 hoist_later_in_pre;
 match goal with
@@ -2492,7 +2497,12 @@ match goal with
               subst e1 gfs0 gfs1 efs tts t_root sh v0 lr n; simpl app; simpl typeof)
             | solve_legal_nested_field_in_entailment; try clear Heq HLE HRE H_Denote H H_LEGAL;
            subst e1 gfs0 gfs1 efs tts t_root sh v0 lr n]
+end.
 
+Ltac old_store_tac := 
+ensure_open_normal_ret_assert;
+hoist_later_in_pre;
+match goal with
   | |- @semax ?cs ?Espec ?Delta (|> PROPx ?P (LOCALx ?Q (SEPx ?R))) 
                      (Sassign ?e ?e2) _ =>
 
@@ -2648,29 +2658,29 @@ try eapply semax_seq';
 Ltac forward1 s :=  (* Note: this should match only those commands that
                                      can take a normal_ret_assert *)
   lazymatch s with 
-  | Sassign _ _ => new_store_tac
+  | Sassign _ _ => store_tac
   | Sset _ (Efield ?e _ ?t)  => 
       no_loads_expr e true false;
       first [unify true (match t with Tarray _ _ _ => true | _ => false end);
                forward_setx
-              |new_load_tac]
+              |load_tac]
   | Sset _ (Ecast (Efield ?e _ ?t) _) => 
       no_loads_expr e true false;
       first [unify true (match t with Tarray _ _ _ => true | _ => false end);
                forward_setx
-              |new_load_tac]
+              |load_tac]
   | Sset _ (Ederef ?e _) => 
-         no_loads_expr e true false; new_load_tac
+         no_loads_expr e true false; load_tac
   | Sset _ (Ecast (Ederef ?e _) ?t) => 
          no_loads_expr e true false; 
       first [unify true (match t with Tarray _ _ _ => true | _ => false end);
                forward_setx
-              |new_load_tac]
+              |load_tac]
   | Sset _ (Evar _ ?t)  => 
       first [unify true (match t with Tarray _ _ _ => true | _ => false end);
                forward_setx
-              |new_load_tac]
-  | Sset _ (Ecast (Evar _ _) _) => new_load_tac
+              |load_tac]
+  | Sset _ (Ecast (Evar _ _) _) => load_tac
   | Sset _ ?e => no_loads_expr e false false; (bool_compute e; forward_ptr_cmp) || forward_setx
   | Sifthenelse ?e _ _ => no_loads_expr e false false; forward_ifthenelse
   | Swhile _ _ => forward_while_complain

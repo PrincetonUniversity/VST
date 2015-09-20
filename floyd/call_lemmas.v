@@ -1565,9 +1565,6 @@ apply exp_left; intro.
 unfold PROPx.
 simpl fold_right.
 normalize.
-destruct H. subst x.
-apply andp_right; auto.
-apply prop_right; auto.
 Qed.
 
 Lemma no_post_exists0:

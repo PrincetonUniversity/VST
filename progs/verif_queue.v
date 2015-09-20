@@ -377,9 +377,9 @@ start_function.
 name Q _Q.
 name h _h.
 unfold fifo.
-renormalize.
+normalize.
 forward_intro [hd tl].
-normalize. renormalize. destruct H.
+normalize.
 forward. (* h = Q->head; *)
 forward. (* return (h == NULL); *)
 unfold fifo.
@@ -407,7 +407,7 @@ Proof.
   name Q _Q.
   name Q' 68%positive.
  
-  forward_call' (* Q = mallocN(sizeof ( *Q)); *)
+  forward_call (* Q = mallocN(sizeof ( *Q)); *)
      8 q.
     computable.
   rewrite memory_block_fifo.
@@ -440,11 +440,11 @@ name p' _p.
 name h _h.
 name t _t.
 unfold fifo at 1. renormalize.
-forward_intro [hd tl]. normalize. renormalize.
+forward_intro [hd tl]. normalize.
 (* goal_7 *)
 
 forward. (* p->next = NULL; *)
-renormalize. destruct H.
+renormalize.
 forward. (*   h = Q->head; *)
 forward_if 
   (PROP() LOCAL () SEP (`(fifo (contents ++ p :: nil) q))).
@@ -466,16 +466,16 @@ forward_if
    + normalize.
       destruct prefix; normalize;
       entailer!.
-      contradiction (field_compatible_isptr _ _ _ H6).
+      contradiction (field_compatible_isptr _ _ _ H4).
       rewrite lseg_cons_eq by auto.
       entailer.
-      contradiction (field_compatible_isptr _ _ _ H10).      
+      contradiction (field_compatible_isptr _ _ _ H7).      
 * (* else clause *)
   forward. (*  t = Q->tail; *)
   destruct (isnil contents).
   + abstract (apply semax_pre with FF; 
          [entailer | apply semax_ff]).
-  + normalize. renormalize. intro prefix. normalize. renormalize.
+  + normalize. intro prefix. normalize.
      forward. (*  t->next=p; *)
   (* goal 12 *)
      forward. (* Q->tail=p; *)
@@ -512,13 +512,12 @@ forward_intro [hd tl].
 rewrite if_false by congruence.
 renormalize.
 forward_intro prefix. normalize.
- renormalize. destruct H.
 forward.  (*   p = Q->head; *)
-destruct prefix; inversion H0; clear H0.
+destruct prefix; inversion H; clear H.
 + subst_any.
    rewrite lseg_nil_eq by auto.
-   normalize. renormalize.
-   apply ptr_eq_e in H0. subst_any.
+   normalize.
+   subst_any.
    forward. (*  n=h->next; *)
    forward. (* Q->head=n; *)
    forward. (* return p; *)
@@ -550,7 +549,7 @@ name a _a.
 name b _b.
 name p _p.
 name p' 69%positive.
-forward_call' (*  p = mallocN(sizeof ( *p));  *) 
+forward_call (*  p = mallocN(sizeof ( *p));  *) 
   12 p0.
  computable.
   change 12 with (sizeof cenv_cs t_struct_elem).
@@ -578,24 +577,24 @@ name j _j.
 name Q _Q.
 name p _p.
 
-forward_call' (* Q = fifo_new(); *)  tt q.
+forward_call (* Q = fifo_new(); *)  tt q.
 
-forward_call'  (*  p = make_elem(1,10); *)
+forward_call  (*  p = make_elem(1,10); *)
      (Int.repr 1, Int.repr 10) p'.
-forward_call' (* fifo_put(Q,p);*) 
+forward_call (* fifo_put(Q,p);*) 
     ((q, @nil val),p').
 
-forward_call'  (*  p = make_elem(2,20); *)
+forward_call  (*  p = make_elem(2,20); *)
      (Int.repr 2, Int.repr 20) p2.
- forward_call'  (* fifo_put(Q,p); *)
+ forward_call  (* fifo_put(Q,p); *)
     ((q,(p':: nil)),p2).
-forward_call'  (*   p' = fifo_get(Q); p = p'; *)
+forward_call  (*   p' = fifo_get(Q); p = p'; *)
     ((q,(p2 :: nil)),p') vret.
 subst vret.
 forward. (*   i = p->a;  *)
 forward. (*   j = p->b; *)
 
-forward_call' (*  freeN(p, sizeof( *p)); *)
+forward_call (*  freeN(p, sizeof( *p)); *)
    (p', sizeof cenv_cs t_struct_elem).
 {
 pose (work_around_coq_bug := fifo [p2] q * 
