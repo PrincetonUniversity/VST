@@ -65,7 +65,6 @@ apply semax_pre with f; subst f. (* factored out "f" to work around a bug
 unfold data_at.
  unfold_field_at 1%nat.
 entailer!.
-rewrite proj_sumbool_is_true by auto;
 rewrite value_fits_ind; split3; 
  erewrite unfold_reptype_elim by reflexivity;
  simpl; hnf; simpl; auto.

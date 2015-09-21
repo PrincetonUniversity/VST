@@ -84,61 +84,58 @@ end.
 
 Ltac no_evars P := (has_evar P; fail 1) || idtac.
 
-Inductive computable: forall {A}(x: A), Prop :=
-| computable_O: computable O
-| computable_S: forall x, computable x -> computable (S x)
-| computable_Zlt: forall x y, computable x -> computable y -> computable (Z.lt x y)
-| computable_Zle: forall x y, computable x -> computable y -> computable (Z.le x y)
-| computable_Zgt: forall x y, computable x -> computable y -> computable (Z.gt x y)
-| computable_Zge: forall x y, computable x -> computable y -> computable (Z.ge x y)
-| computable_eq: forall  A (x y: A), computable x -> computable y -> computable (eq x y)
-| computable_ne: forall  A (x y: A), computable x -> computable y -> computable (x <> y)
-| computable_Zpos: forall x, computable x -> computable (Zpos x)
-| computable_Zneg: forall x, computable x -> computable (Zneg x)
-| computable_Z0: computable Z0
-| computable_xI: forall x, computable x -> computable (xI x)
-| computable_xO: forall x, computable x -> computable (xO x)
-| computable_xH: computable xH
-| computable_Zadd: forall x y, computable x -> computable y -> computable (Z.add x y)
-| computable_Zsub: forall x y, computable x -> computable y -> computable (Z.sub x y)
-| computable_Zmul: forall x y, computable x -> computable y -> computable (Z.mul x y)
-| computable_Zdiv: forall x y, computable x -> computable y -> computable (Z.div x y)
-| computable_Zmod: forall x y, computable x -> computable y -> computable (Zmod x y)
-| computable_Zmax: forall x y, computable x -> computable y -> computable (Z.max x y)
-| computable_Zopp: forall x, computable x -> computable (Z.opp x)
-| computable_Inteq: forall x y, computable x -> computable y -> computable (Int.eq x y)
-| computable_Intlt: forall x y, computable x -> computable y -> computable (Int.lt x y)
-| computable_Intltu: forall x y, computable x -> computable y -> computable (Int.ltu x y)
-| computable_Intadd: forall x y, computable x -> computable y -> computable (Int.add x y)
-| computable_Intsub: forall x y, computable x -> computable y -> computable (Int.sub x y)
-| computable_Intmul: forall x y, computable x -> computable y -> computable (Int.mul x y)
-| computable_Intneg: forall x, computable x  -> computable (Int.neg x)
-| computable_Ceq: computable Ceq
-| computable_Cne: computable Cne
-| computable_Clt: computable Clt
-| computable_Cle: computable Cle
-| computable_Cgt: computable Cgt
-| computable_Cge: computable Cge
-| computable_Intcmp: forall op x y, 
-  computable op -> computable x -> computable y -> computable (Int.cmp op x y)
-| computable_Intcmpu: forall op x y, 
-  computable op -> computable x -> computable y -> computable (Int.cmpu op x y)
-| computable_Intrepr: forall x, computable x -> computable (Int.repr x)
-| computable_Intsigned: forall x, computable x -> computable (Int.signed x)
-| computable_Intunsigned: forall x, computable x -> computable (Int.unsigned x)
-| computable_two_power_nat: forall x, computable x -> computable (two_power_nat x)
-| computable_max_unsigned: computable (Int.max_unsigned)
-| computable_align: forall x y, computable x -> computable y -> computable (align x y)
-| computable_and: forall x y, computable x -> computable y -> computable (x /\ y)
-| computable_zwordsize: computable Int.zwordsize.
 
-Hint Constructors computable : computable. 
-Hint Extern 1 (computable ?A) => (unfold A) : computable.
+Ltac putable x :=
+ match x with 
+ | O => idtac
+ | S ?x => putable x
+ | Z.lt ?x ?y => putable x; putable y
+ | Z.le ?x ?y => putable x; putable y
+ | Z.gt ?x ?y => putable x; putable y
+ | eq?x ?y => putable x; putable y
+ | ?x <> ?y => putable x; putable y
+ | Zpos ?x => putable x
+ | Zneg ?x => putable x
+ | Z0 => idtac
+ | xH => idtac
+ | xI ?x => putable x
+ | xO ?x => putable x
+ | Z.add ?x ?y => putable x; putable y
+ | Z.sub ?x ?y => putable x; putable y
+ | Z.mul ?x ?y => putable x; putable y
+ | Z.div ?x ?y => putable x; putable y
+ | Zmod ?x ?y => putable x; putable y
+ | Z.max ?x ?y => putable x; putable y
+ | Z.opp ?x => putable x
+ | Int.eq ?x ?y => putable x; putable y
+ | Int.lt ?x ?y => putable x; putable y
+ | Int.ltu ?x ?y => putable x; putable y
+ | Int.add ?x ?y => putable x; putable y
+ | Int.sub ?x ?y => putable x; putable y
+ | Int.mul ?x ?y => putable x; putable y
+ | Int.neg ?x => putable x
+ | Ceq => idtac
+ | Cne => idtac
+ | Clt => idtac
+ | Cle => idtac
+ | Cgt => idtac
+ | Cge => idtac
+ | Int.cmp ?op ?x ?y => putable op; putable x; putable y
+ | Int.cmpu ?op ?x ?y => putable op; putable x; putable y
+ | Int.repr ?x => putable x
+ | Int.signed ?x => putable x
+ | Int.unsigned ?x => putable x
+ | two_power_nat ?x => putable x
+ | Int.max_unsigned => idtac
+ | Int.max_signed => idtac
+ | Int.modulus => idtac
+ | ?x /\ ?y => putable x; putable y
+ | Int.zwordsize => idtac
+end.
 
 Ltac computable := match goal with |- ?x =>
  no_evars x;
- let H := fresh in assert (H: computable x) by auto 80 with computable; 
- clear H;
+ putable x;
  compute; clear; repeat split; auto; congruence
 end.
 
@@ -181,7 +178,11 @@ Lemma try_conjuncts_start: forall A B: Prop,
 Ltac try_conjuncts_solver :=
     match goal with H:_ |- ?A => 
          no_evars A;
-         first [apply I | computable | omega | clear H; auto; fail 2 ]
+         first [clear H; try immediate; solve [auto] 
+                | apply I 
+                | computable 
+                | omega 
+                ]
     end.
 
 Ltac try_conjuncts :=
@@ -418,7 +419,9 @@ Ltac entailer' :=
  prune_conjuncts;
  try rewrite (prop_true_andp True) by apply I;
  try solve_valid_pointer;
- auto.
+ try first [apply derives_refl
+              | simple apply FF_left 
+              | simple apply TT_right].
 
 Ltac entailer :=
  match goal with
