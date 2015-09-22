@@ -36,7 +36,7 @@ Definition t_struct_b := Tstruct _b noattr.
 
 Definition sub_spec (sub_id: ident) :=
  DECLARE sub_id
-  WITH v :reptype t_struct_b , p: val
+  WITH v : val * list (val*val) , p: val
   PRE  [] 
         PROP  (is_int I8 Signed (snd (nth 1%nat (snd v) (Vundef, Vundef))))
         LOCAL (gvar _p p)

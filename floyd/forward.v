@@ -2230,7 +2230,10 @@ Ltac load_tac :=   (* matches:  semax _ _ (Sset _ (Efield _ _ _)) _  *)
     | reflexivity | exact Heq | exact HLE | exact H_Denote | exact H
     | auto (* readable share *)
     | solve_load_rule_evaluation
-    | try quick_typecheck3; 
+    | clear Heq HLE H_Denote H;
+      subst e1 gfs0 gfs1 efs tts t_root v sh lr n;
+      repeat match goal with H := _ |- _ => clear H end;
+      try quick_typecheck3; 
       unfold tc_efield; try solve [entailer!]; try (clear Heq HLE H_Denote H (*H_LEGAL*);
       subst e1 gfs0 gfs1 efs tts t_root v sh lr n; simpl app; simpl typeof)
     | solve_legal_nested_field_in_entailment;
@@ -2297,7 +2300,10 @@ Ltac load_tac :=   (* matches:  semax _ _ (Sset _ (Efield _ _ _)) _  *)
     | reflexivity | exact Heq | exact HLE | exact H_Denote | exact H
     | auto (* readable share *)
     | solve_load_rule_evaluation
-    | try quick_typecheck3; 
+    | clear Heq HLE H_Denote H;
+      subst e1 gfs0 gfs1 efs tts t_root v sh lr n;
+      repeat match goal with H := _ |- _ => clear H end;
+      try quick_typecheck3; 
       unfold tc_efield; try solve [entailer!]; try (clear Heq HLE H_Denote H (*H_LEGAL*);
       subst e1 gfs0 gfs1 efs tts t_root v sh lr n; simpl app; simpl typeof)
     | solve_legal_nested_field_in_entailment; try clear Heq HLE H_Denote H (*H_LEGAL*);
