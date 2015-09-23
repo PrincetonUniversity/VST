@@ -1512,10 +1512,16 @@ first [eapply forward_ptr_compare_closed_now;
           | reflexivity ]
        | eapply forward_ptr_compare'; try reflexivity; auto].
 
+Ltac pre_entailer :=
+  try match goal with
+  | H := @abbreviate statement _ |- _ => clear H
+  end;
+  try match goal with
+  | H := @abbreviate ret_assert _ |- _ => clear H
+  end.
+
 Ltac forward_setx :=
-first [ (*forward_setx_wow
-       |*) 
-         ensure_normal_ret_assert;
+first [ ensure_normal_ret_assert;
          hoist_later_in_pre;
          match goal with
          | |- semax ?Delta (|> (PROPx ?P (LOCALx ?Q (SEPx ?R)))) (Sset _ ?e) _ =>
@@ -1524,14 +1530,15 @@ first [ (*forward_setx_wow
                 do_compute_expr Delta P Q R e v HRE;
                 eapply semax_SC_set;
                   [reflexivity | reflexivity | exact HRE 
-                  | try solve [entailer!]; try (clear HRE; subst v) ]
+                  | pre_entailer; clear HRE; subst v; try solve [entailer!] ]
          end
-       | apply forward_setx_closed_now;
+(*       | apply forward_setx_closed_now;
             [solve [auto 50 with closed] | solve [auto 50 with closed] | solve [auto 50 with closed]
             | try apply local_True_right
             | try apply local_True_right
             |  ]
         | apply forward_setx; quick_typecheck
+*)
         ].
 
 Ltac forward_setx_with_pcmp e :=
@@ -2007,33 +2014,6 @@ Ltac really_simplify_one_thing :=
   end; 
     cbv beta iota zeta.
 
-(*
-Ltac really_simplify_one_thing :=
-   match goal with 
-    | |- eq_rect_r _ _ _ =>
-          rewrite eq_rect_r_eq
-    | |- context [nested_field_type2 ?A ?B] =>
-         really_simplify (nested_field_type2 A B)
-    | |- context [co_members ?A] =>
-       really_simplify (co_members A)
-    | |- context [member_dec ?A ?B] =>
-       really_simplify (member_dec A B)
-    | |- context [default_val ?A] =>
-       really_simplify (default_val A)
-    | |- _ =>
-          rewrite eq_rect_r_eq
-    | |- context [unfold_reptype _] =>
-          unfold unfold_reptype at 1; rewrite <- eq_rect_eq
-    | |- context [fst (?A, ?B)] =>
-              change (fst (A, B)) with A
-    | |- context [snd (?A, ?B)] =>
-              change (snd (A, B)) with B
-    | |- appcontext [@zl_nth] =>
-              progress (autorewrite with zl_nth_db)
-  end; 
-    cbv beta iota zeta.
-*)
-
 Ltac really_simplify_some_things := 
    repeat really_simplify_one_thing.
 
@@ -2201,8 +2181,7 @@ Ltac load_tac :=   (* matches:  semax _ _ (Sset _ (Efield _ _ _)) _  *)
     let v := fresh "v" in evar (v: reptype (nested_field_type2 t_root gfs0));
     let n := fresh "n" in
     let H := fresh "H" in
-(*    let H_LEGAL := fresh "H" in*)
-    sc_new_instantiate P Q R R Delta e1 gfs tts lr p sh t_root gfs0 v n (0%nat) H (*H_LEGAL*);
+    sc_new_instantiate P Q R R Delta e1 gfs tts lr p sh t_root gfs0 v n (0%nat) H;
     
     let gfs1 := fresh "gfs" in
     let len := fresh "len" in
@@ -2237,7 +2216,7 @@ Ltac load_tac :=   (* matches:  semax _ _ (Sset _ (Efield _ _ _)) _  *)
       unfold tc_efield; try solve [entailer!]; try (clear Heq HLE H_Denote H (*H_LEGAL*);
       subst e1 gfs0 gfs1 efs tts t_root v sh lr n; simpl app; simpl typeof)
     | solve_legal_nested_field_in_entailment;
-         try clear Heq HLE H_Denote H (*H_LEGAL*);
+         try clear Heq HLE H_Denote H;
          subst e1 gfs0 gfs1 efs tts t_root v sh lr n
     ]
 
@@ -2269,8 +2248,7 @@ Ltac load_tac :=   (* matches:  semax _ _ (Sset _ (Efield _ _ _)) _  *)
     let v := fresh "v" in evar (v: reptype (nested_field_type2 t_root gfs0));
     let n := fresh "n" in
     let H := fresh "H" in
-(*    let H_LEGAL := fresh "H" in *)
-    sc_new_instantiate P Q R R Delta e1 gfs tts lr p sh t_root gfs0 v n (0%nat) H (*H_LEGAL*);
+    sc_new_instantiate P Q R R Delta e1 gfs tts lr p sh t_root gfs0 v n (0%nat) H;
     
     let gfs1 := fresh "gfs" in
     let len := fresh "len" in
@@ -2472,8 +2450,7 @@ match goal with
     let v := fresh "v" in evar (v: reptype (nested_field_type2 t_root gfs0));
     let n := fresh "n" in
     let H := fresh "H" in
-(*    let H_LEGAL := fresh "H" in*)
-    sc_new_instantiate P Q R R Delta e1 gfs tts lr p sh t_root gfs0 v n (0%nat) H (*H_LEGAL*);
+    sc_new_instantiate P Q R R Delta e1 gfs tts lr p sh t_root gfs0 v n (0%nat) H;
 
     try (unify v (default_val (nested_field_type2 t_root gfs0));
           lazy beta iota zeta delta - [list_repeat Z.to_nat] in v);
@@ -2506,11 +2483,16 @@ match goal with
             | reflexivity | exact Heq | exact HLE 
             | exact HRE | exact H_Denote | exact H | solve [auto]
             | solve_store_rule_evaluation
-            | try quick_typecheck3; 
-              unfold tc_efield; try solve[entailer!]; try (clear Heq HLE HRE H_Denote H (*H_LEGAL*);
-              subst e1 gfs0 gfs1 efs tts t_root sh v0 lr n; simpl app; simpl typeof)
-            | solve_legal_nested_field_in_entailment; try clear Heq HLE HRE H_Denote H (*H_LEGAL*);
-           subst e1 gfs0 gfs1 efs tts t_root sh v0 lr n]
+            | subst e1 gfs0 gfs1 efs tts t_root sh v0 lr n;
+              pre_entailer;
+              try quick_typecheck3; 
+              clear Heq HLE HRE H_Denote H;
+              unfold tc_efield; try solve[entailer!]; 
+              simpl app; simpl typeof
+            | subst e1 gfs0 gfs1 efs tts t_root sh v0 lr n;
+              clear Heq HLE HRE H_Denote H;
+              solve_legal_nested_field_in_entailment
+           ]
 end.
 
 Ltac old_store_tac := 

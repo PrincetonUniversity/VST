@@ -1230,12 +1230,6 @@ Notation "'WITH'  x1 : t1 , x2 : t2 , x3 : t3 , x4 : t4 'PRE'  [ ] P 'POST' [ tz
            (fun x => match x with (x1,x2,x3,x4) => Q%logic end))
             (at level 200, x1 at level 0, x2 at level 0, x3 at level 0, x4 at level 0, P at level 100, Q at level 100).
 
-Notation "'WITH'  x1 : t1 , x2 : t2 , x3 : t3 , x4 : t4 'PRE'  [ u , .. , v ] P 'POST' [ tz ] Q" :=
-     (mk_funspec ((cons u%formals .. (cons v%formals nil) ..), tz) (t1*t2*t3*t4)
-           (fun x => match x with (x1,x2,x3,x4) => P%logic end)
-           (fun x => match x with (x1,x2,x3,x4) => Q%logic end))
-            (at level 200, x1 at level 0, x2 at level 0, x3 at level 0, x4 at level 0, P at level 100, Q at level 100).
-
 Notation "'WITH'  x1 : t1 , x2 : t2 , x3 : t3 , x4 : t4 , x5 : t5 'PRE'  [ ] P 'POST' [ tz ] Q" :=
      (mk_funspec (nil, tz) (t1*t2*t3*t4*t5)
            (fun x => match x with (x1,x2,x3,x4,x5) => P%logic end)

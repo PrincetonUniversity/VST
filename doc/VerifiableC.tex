@@ -78,7 +78,7 @@ Cambridge University Press, 2014.
 \newthought{To install the VST Separation Logic for C light:}
 \begin{enumerate}\setlength\itemsep{0pt}
 \item  Get VST from \textsf{vst.cs.princeton.edu/download},
-or get the bleeding-edge version from Github,\newline
+or get the bleeding-edge version from 
 \textsf{https://github.com/PrincetonUniversity/VST}.
 \item Examine \lstinline{vst/compcert/VERSION} to determine which
 version of CompCert to download.
@@ -113,7 +113,7 @@ with their verifications.  The workflow is:
 \item Run \lstinline{clightgen $F$.c} to translate it into a Coq
 file $F$.v.
 \item Write a verification of $F$.v in a file such as
-\lstinline{verif_$F$.v}.  That latter file will import
+\lstinline{verif_$F$.v}.  That latter file must import
 both $F$.v and the VST \emph{Floyd}\footnote{Named after Robert W. Floyd (1936--2001), a pioneer in program verification.} program verification system,
 \lstinline{floyd.proofauto}.
 \end{itemize}
@@ -371,7 +371,7 @@ must include at least a read share, thus this give permission to load
 memory at address $v$ to get a value $w$ of type $t$.
 
 To make sure $\pi$ has enough permission to write (i.e., 
-$\mathsf{Rsh} \sqsubset \pi$, we can say \lstinline{writable_share $\pi$ : Prop}.
+$\mathsf{Rsh} \subset \pi$, we can say \lstinline{writable_share $\pi$ : Prop}.
 
 Memory obtained from \lstinline{malloc} comes with the top share
 \lstinline{Tsh}.  Writable extern global variables
@@ -2098,7 +2098,7 @@ Then these assertions are all equivalent:
 mapsto $\pi$ tint p h * 
     mapsto $\pi$ (tptr t_struct_list) (offset_val p (Vint (Int.repr 4))) t
 
-field_at $\pi$ t_struct_list [head] h p * field_at $\pi$ t_struct_list [_tail] t p
+field_at $\pi$ t_struct_list [_head] h p * field_at $\pi$ t_struct_list [_tail] t p
 
 data_at $\pi$ t_struct_list (h,t) p
 
