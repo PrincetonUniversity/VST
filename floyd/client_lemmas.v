@@ -198,9 +198,14 @@ Ltac fancy_intro :=
  end.
 
 Ltac fancy_intros :=
- repeat first [simple apply and_ind
-        | fancy_intro 
-        ].
+ repeat match goal with
+  | |- (_ <= _ < _) -> _ => fancy_intro
+  | |- (_ < _ <= _) -> _ => fancy_intro
+  | |- (_ <= _ <= _) -> _ => fancy_intro
+  | |- (_ < _ < _) -> _ => fancy_intro
+  | |- (_ /\ _) -> _ => simple apply and_ind
+  | |- _ -> _ => fancy_intro
+  end.
 
 Ltac normalize1 := 
          match goal with      

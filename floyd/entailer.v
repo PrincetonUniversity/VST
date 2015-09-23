@@ -366,13 +366,11 @@ match goal with
 end.
 
 Ltac ent_iter :=
-    repeat (((*(repeat simple apply go_lower_lem1'; simple apply go_lower_lem1)
-                ||*) simple apply derives_extract_prop 
+    repeat (( simple apply derives_extract_prop 
                 || simple apply derives_extract_prop');
                 fancy_intros);
     autorewrite with gather_prop;
-    repeat (((*(repeat simple apply go_lower_lem1'; simple apply go_lower_lem1)
-                ||*) simple apply derives_extract_prop 
+    repeat (( simple apply derives_extract_prop 
                 || simple apply derives_extract_prop');
                 fancy_intros);
    saturate_local;

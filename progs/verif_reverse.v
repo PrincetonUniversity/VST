@@ -216,9 +216,7 @@ end.
 normalize.
 forward.  (* h = t->head; *)
 forward t_old.  (*  t = t->tail; *)
-subst t_old.
-forward s_old.  (* s = s + h; *)
-subst s_old.
+forward.  (* s = s + h; *)
 apply exp_right with (cts,y).
 entailer!.
 f_equal.
@@ -274,9 +272,8 @@ forward. (* t = v->tail; *)
 forward. (* v->tail = w; *)
 replace_SEP 1 (`(field_at sh t_struct_list (DOT _tail) w v)).
 entailer.
-forward w_old.  (*  w = v; *)
-forward v_old.  (* v = t; *)
-subst w_old v_old.
+forward.  (*  w = v; *)
+forward.  (* v = t; *)
 (* at end of loop body, re-establish invariant *)
 apply exp_right with (h::cts1,r,v,y).
 entailer!.

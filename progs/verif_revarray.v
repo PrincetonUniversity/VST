@@ -226,7 +226,7 @@ name s _s.
 name t _t.
 
 forward.  (* lo = 0; *)
-forward _. (* hi = n; *)
+forward. (* hi = n; *)
 
 assert_PROP (Zlength (map Vint contents) = size).
  entailer.
@@ -275,15 +275,15 @@ forward.  (* s = a[hi-1]; *)
 rewrite <- flip_fact_2 by (rewrite ?Zlength_flip_between; omega).
 forward. (*  a[hi-1] = t; *)
 forward. (* a[lo] = s; *)
-forward lo'0. (* lo++; *)
-forward hi'0. (* hi--; *)
+forward. (* lo++; *)
+forward. (* hi--; *)
 
 (* Prove postcondition of loop body implies loop invariant *)
 {
   apply exp_right with (Zsucc j).
  entailer. rewrite prop_true_andp by (f_equal; f_equal; omega).
- apply derives_refl'. clear H7 H6.
- rewrite H5,H4; simpl. rewrite <- H5, <- H4. clear H5 H4 TC.
+ apply derives_refl'. clear H5 H4.
+ rewrite H3,H2; simpl. rewrite <- H3, <- H2. clear H2 H3 TC.
  unfold data_at.    f_equal.
  clear - H0 H HRE H1.
  remember (Zlength (map Vint contents)) as size.

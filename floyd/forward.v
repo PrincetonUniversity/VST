@@ -1520,7 +1520,7 @@ Ltac pre_entailer :=
   | H := @abbreviate ret_assert _ |- _ => clear H
   end.
 
-Ltac forward_setx :=
+Ltac old_forward_setx :=
 first [ ensure_normal_ret_assert;
          hoist_later_in_pre;
          match goal with
@@ -1540,6 +1540,134 @@ first [ ensure_normal_ret_assert;
         | apply forward_setx; quick_typecheck
 *)
         ].
+
+
+Inductive isolate_temp_binding (id: ident): list (environ->Prop) -> option val -> list (environ -> Prop) -> list Prop -> Prop :=
+| ITB_same: 
+    forall Q v v' Q' P,
+     isolate_temp_binding id Q v' Q' P ->
+     isolate_temp_binding id (temp id v::Q) (Some v) Q' 
+        match v' with Some v1 => (v=v1) :: P | None => P end
+| ITB_other:
+    forall Q v j v' Q' P,
+     Pos.eqb id j = false ->
+     isolate_temp_binding id Q v Q' P ->
+     isolate_temp_binding id (temp j v'::Q) v (temp j v' :: Q') P
+| ITB_nil:
+     isolate_temp_binding id nil None nil nil
+| ITB_lvar:
+    forall  Q v j v' t Q' P,
+     isolate_temp_binding id Q v Q' P ->
+     isolate_temp_binding id (lvar j v' t::Q) v (lvar j v' t:: Q') P
+| ITB_gvar:
+    forall  Q v j v' Q' P,
+     isolate_temp_binding id Q v Q' P ->
+     isolate_temp_binding id (gvar j v'::Q) v (gvar j v' :: Q') P
+| ITB_sgvar:
+    forall  Q v j v' Q' P,
+     isolate_temp_binding id Q v Q' P ->
+     isolate_temp_binding id (sgvar j v'::Q) v (sgvar j v' :: Q') P.
+
+Inductive trivially_lifted:  (environ->mpred) -> Prop :=
+  TL_ok: forall (R1: mpred), trivially_lifted (`R1).
+
+
+Lemma isolate_temp_binding_e:
+  forall id Q old (old': val) Q' P' (rho: environ),
+ isolate_temp_binding id Q old Q' P' ->
+ fold_right `and `True (map (subst id `old') Q) rho ->
+ fold_right and True P' /\ fold_right `and `True Q' rho
+ /\ match old with Some w => w=old' | None => True end.
+(* Forall (closed_wrt_vars (eq id)) Q' .*)
+Proof.
+intros.
+induction H; try rename IHisolate_temp_binding into IH.
+*
+destruct H0.
+specialize (IH H1); destruct IH as [? [? ?]].
+hnf in H0; simpl in H0; unfold eval_id in H0; simpl in H0.
+rewrite Map.gss in H0. unfold_lift in H0; simpl in H0.
+subst old'.
+split; auto.
+destruct v'; [ split | ]; auto.
+*
+destruct H0.
+specialize (IH H2); destruct IH as [? [? ?]].
+split3; auto.
+split; auto.
+apply -> Pos.eqb_neq in H.
+hnf in H0. unfold eval_id in H0. simpl in H0.
+rewrite Map.gso in H0 by auto. 
+hnf. unfold eval_id. rewrite <- H0. auto.
+*
+split3; auto.
+*
+destruct H0.
+destruct IH as [? [? ?]]; auto. split3; auto.
+split; auto.
+*
+destruct H0.
+destruct IH as [? [? ?]]; auto. split3; auto.
+split; auto.
+*
+destruct H0.
+destruct IH as [? [? ?]]; auto. split3; auto.
+split; auto.
+Qed.
+
+Lemma semax_SC_set1:
+  forall {cs: compspecs} {Espec: OracleKind},
+    forall Delta id P Q R (e2: expr) t old v P' P'' Q',
+      typeof_temp Delta id = Some t ->
+      is_neutral_cast (implicit_deref (typeof e2)) t = true ->
+      isolate_temp_binding id Q old Q' P' ->
+      P'' = P' ++ P ->
+      Forall trivially_lifted R ->
+      PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |-- local (`(eq v) (eval_expr e2)) ->
+      PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |-- (tc_expr Delta e2) ->
+      semax Delta (|>PROPx P (LOCALx Q (SEPx R)))
+        (Sset id e2)
+        (normal_ret_assert
+            (PROPx P'' (LOCALx (temp id v :: Q') (SEPx R)))).
+Proof.
+intros.
+eapply semax_post'; [ | eapply semax_SC_set; try eassumption].
+apply exp_left; intro old'.
+subst P''.
+clear - H1 H3.
+go_lowerx.
+change (fold_right `and `True (map (subst id `old') Q) rho) in H2.
+change (fold_right sepcon emp (map (subst id `old') R) rho |--
+   !! fold_right and True (P'++P) &&
+   (!! (temp id v rho /\ fold_right `and `True Q' rho) &&
+      fold_right sepcon emp R rho)).
+normalize.
+apply andp_right;
+ [ |clear - H3; induction H3; auto; inversion H; apply sepcon_derives; simpl; auto].
+apply prop_right.
+clear - H1 H H0 H2.
+destruct (isolate_temp_binding_e _ _ _ _ _ _ _ H1 H2) as [? [? ?]].
+rewrite fold_right_and_app_low.
+repeat split; auto.
+Qed.
+
+Ltac forward_setx :=
+  ensure_normal_ret_assert;
+    hoist_later_in_pre;
+ match goal with
+ | |- semax ?Delta (|> (PROPx ?P (LOCALx ?Q (SEPx ?R)))) (Sset _ ?e) _ =>
+     let v := fresh "v" in evar (v : val);
+     let HRE := fresh "H" in
+     do_compute_expr Delta P Q R e v HRE;
+     eapply semax_SC_set1;
+      [reflexivity | reflexivity 
+      | solve [repeat econstructor]
+      | unfold app at 1; reflexivity
+      | solve [repeat econstructor]
+      | exact HRE
+      | pre_entailer; clear HRE; subst v; try solve [entailer!]
+      ]
+ end.
 
 Ltac forward_setx_with_pcmp e :=
 tac_if (ptr_compare e) ltac:forward_ptr_cmp ltac:forward_setx.

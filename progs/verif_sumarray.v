@@ -117,10 +117,10 @@ entailer!.
   (* there should be an easier way than this: *)
    rewrite Znth_map with (d':=Int.zero). apply I.
   rewrite Zlength_map in *; omega.
-forward s_old. (* s += x; *)
-forward i_old. (* i++; *)
+forward. (* s += x; *)
+forward. (* i++; *)
   apply exp_right with (Zsucc a1).
- entailer!. rewrite H4 in H3; inv H3.
+ entailer!. rewrite H2 in H1; inv H1.
  f_equal; apply add_one_more_to_sum; try omega; auto.
 (* After the loop *)
 forward.  (* return s; *)
