@@ -240,34 +240,22 @@ Ltac normalize1 :=
                    | context [sepcon _ (exp (fun y => _))] => 
                                let BB := fresh "BB" in set (BB:=B); norm_rewrite; unfold BB; clear BB;
                                 apply imp_extract_exp_left; intro y
+                   | _ => simple apply TT_prop_right
+                   | _ => simple apply TT_right
+                   | _ => apply derives_refl
                    end
-              | |- TT |-- !! _ => apply TT_prop_right
-              | |- _ |-- TT => apply TT_right
-              | |- _ => solve [auto with typeclass_instances]
+              | |- _ => solve [auto]
               | |- _ |-- !! (?x = ?y) && _ => 
                             (rewrite (prop_true_andp' (x=y))
                                             by (unfold y; reflexivity); unfold y in *; clear y) ||
                             (rewrite (prop_true_andp' (x=y))
                                             by (unfold x; reflexivity); unfold x in *; clear x)
-(*
-              | |- _ = ?x -> _ => intro; subst x
-              | |- ?x = _ -> _ => intro; subst x
-              | |- ptr_eq ?x ?y -> _ => fancy_intro; first [subst x | subst y | idtac]
-              |  |- ?ZZ -> ?YY => match type of ZZ with 
-                                               | Prop => 
-                                                 let Z1 := fresh "YY" in set (Z1:=YY); norm_rewrite; unfold Z1; clear Z1;
-                                                   (simple apply and_rect ||    
-                                                    (let H := fresh in
-                                                       ((assert (H:ZZ) by auto; clear H; intros _) || intro H)))
-                                               | _ => intros _
-                                              end
-*)
               |  |- ?ZZ -> ?YY => match type of ZZ with 
                                                | Prop => fancy_intros || fail 1
                                                | _ => intros _
                                               end
               | |- ~ _ => fancy_intro
-              | |- _ => progress (norm_rewrite); auto with typeclass_instances
+              | |- _ => progress (norm_rewrite) (*; auto with typeclass_instances *)
               | |- forall _, _ => let x := fresh "x" in (intro x; repeat normalize1; try generalize dependent x)
               end.
 
@@ -1242,12 +1230,6 @@ Notation "'WITH'  x1 : t1 , x2 : t2 , x3 : t3 , x4 : t4 'PRE'  [ ] P 'POST' [ tz
            (fun x => match x with (x1,x2,x3,x4) => Q%logic end))
             (at level 200, x1 at level 0, x2 at level 0, x3 at level 0, x4 at level 0, P at level 100, Q at level 100).
 
-Notation "'WITH'  x1 : t1 , x2 : t2 , x3 : t3 , x4 : t4 'PRE'  [ u , .. , v ] P 'POST' [ tz ] Q" :=
-     (mk_funspec ((cons u%formals .. (cons v%formals nil) ..), tz) (t1*t2*t3*t4)
-           (fun x => match x with (x1,x2,x3,x4) => P%logic end)
-           (fun x => match x with (x1,x2,x3,x4) => Q%logic end))
-            (at level 200, x1 at level 0, x2 at level 0, x3 at level 0, x4 at level 0, P at level 100, Q at level 100).
-
 Notation "'WITH'  x1 : t1 , x2 : t2 , x3 : t3 , x4 : t4 , x5 : t5 'PRE'  [ ] P 'POST' [ tz ] Q" :=
      (mk_funspec (nil, tz) (t1*t2*t3*t4*t5)
            (fun x => match x with (x1,x2,x3,x4,x5) => P%logic end)
@@ -1675,7 +1657,7 @@ rewrite sepcon_prop_prop.
 auto.
 Qed.
 
-Lemma saturate_aux21:
+Lemma saturate_aux21:  (* obsolete? *)
   forall (P Q: mpred) S (S': Prop), 
    P |-- S -> 
    S = !!S' ->
@@ -1685,6 +1667,17 @@ intros. subst.
 eapply derives_trans; [ | eassumption].
 apply andp_right; auto.
 Qed.
+
+Lemma saturate_aux21x:
+  forall (P Q S: mpred), 
+   P |-- S -> 
+   S && P |-- Q -> P |-- Q.
+Proof.
+intros. subst.
+eapply derives_trans; [ | eassumption].
+apply andp_right; auto.
+Qed.
+
 
 Lemma prop_True_right {A}{NA: NatDed A}: forall P:A, P |-- !! True.
 Proof. intros; apply prop_right; auto.
@@ -1703,16 +1696,18 @@ end || auto with nocore saturate_local)
  || simple apply prop_True_right.
 
 Ltac saturate_local := 
-simple eapply saturate_aux21;
+simple eapply saturate_aux21x;
  [repeat simple apply saturate_aux20;
    (* use already_saturated if want to be fancy,
-         otherwise the next two lines *)
-   auto with nocore saturate_local;
+         otherwise the next lines *)
+    auto with nocore saturate_local;
     simple apply prop_True_right
- | cbv beta; reflexivity
+(* | cbv beta; reflexivity    this line only for use with saturate_aux21 *)
  | simple apply derives_extract_prop;
-   let H := fresh in intro H; autorewrite with norm in H; revert H; 
-   intro_if_new
+   match goal with |- _ -> ?A => 
+       let P := fresh "P" in set (P := A); autorewrite with norm; 
+              rewrite -> ?and_assoc; fancy_intros;  subst P
+      end
  ].
 
 (*********************************************************)

@@ -7,9 +7,6 @@ Require Import floyd.type_induction.
 Require Import floyd.nested_pred_lemmas.
 Open Scope Z.
 
-Section COMPOSITE_ENV.
-
-Context {cs: compspecs}.
 
 (************************************************
 
@@ -25,6 +22,15 @@ Inductive gfield : Type :=
   | StructField : forall i: ident, gfield
   | UnionField : forall i: ident, gfield.
 
+Delimit Scope gfield_scope with gfield.
+Bind Scope gfield_scope with list gfield.
+Notation "x 'DOT' y " := (@cons gfield (StructField y) x%gfield) (at level 40, left associativity): gfield_scope.
+Notation "x 'UDOT' y " := (@cons gfield (UnionField y) x%gfield) (at level 40, left associativity): gfield_scope.
+Notation "x 'SUB' y " := (@cons gfield (ArraySubsc y) x%gfield) (at level 40, left associativity): gfield_scope.
+Notation "'DOT' y " := (@cons gfield (StructField y) nil) (at level 40): gfield_scope.
+Notation "'UDOT' y " := (@cons gfield (UnionField y) nil) (at level 40): gfield_scope.
+Notation "'SUB' y " := (@cons gfield (ArraySubsc y) nil) (at level 40): gfield_scope.
+
 (*
 Notation "Y @s X" := (cons (StructField X) Y) (at level 70).
 Notation "Y @u X" := (cons (UnionField X) Y) (at level 70).
@@ -36,6 +42,9 @@ Notation "@@u X" := (cons (UnionField X) nil) (at level 60).
 Notation "[( X )]" := (cons (ArraySubsc X) nil) (at level 60).
 *)
 
+Section COMPOSITE_ENV.
+
+Context {cs: compspecs}.
 Definition gfield_type t gf :=
   match t, gf with
   | Tarray t0 _ _, ArraySubsc _ => t0

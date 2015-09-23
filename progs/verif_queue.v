@@ -525,8 +525,8 @@ destruct prefix; inversion H; clear H.
    unfold fifo. apply exp_right with (nullval, h).
    rewrite if_true by congruence.
    entailer!.
-+ rewrite lseg_cons_eq by auto. renormalize.
-    forward_intro x. normalize. destruct H0. renormalize.
++ rewrite lseg_cons_eq by auto.
+    forward_intro x. normalize.
     simpl @valinject. (* can we make this automatic? *)
     subst_any.
     forward. (*  n=h->next; *)
@@ -557,16 +557,21 @@ forward_call (*  p = mallocN(sizeof ( *p));  *)
 2:  eapply malloc_compatible_field_compatible; try eassumption; 
       auto with typeclass_instances;
       exists 2; reflexivity.
-forward.  (*  p->a=a; *)
-forward.  (*  p->b=b; *) (* 21 secs *)
-forward.  (* return p; *)
+Time forward.  (*  p->a=a; *)  (* 11.6 sec -> 10.78 sec -> 7.8 sec -> 6.36*)
+(* UGLY:  there's an (offset_val Int.zero p0) where a p0 would
+  suffice.  One could rewrite <- field_at_offset_zero;
+  but this would slow down the next forward by a factor of 2.
+  The better fix would be to adjust the semax_SC_field_store
+  theorem, and the store_tac, to get rid of (offset zero).   *)
+Time forward.  (*  p->b=b; *) (* 21 secs -> 56 sec -> 6.82 sec -> 4.84 *)
+Time forward. (* return p; *)  (* 4.73 sec -> 5.0 *)
 apply exp_right with p.
-entailer.
+Time entailer.  (* 7.2 sec -> 5.6 *)
 rewrite make_unmake.
 solve [auto];
 fail. Admitted.  (* This hack because otherwise we run out of memory *)
 (*Qed.*)
- 
+
 Hint Resolve readable_share_Qsh'.
 
 Lemma body_main:  semax_body Vprog Gprog f_main main_spec.
@@ -591,7 +596,7 @@ forward_call  (*  p = make_elem(2,20); *)
 forward_call  (*   p' = fifo_get(Q); p = p'; *)
     ((q,(p2 :: nil)),p') vret.
 subst vret.
-forward. (*   i = p->a;  *)
+Time forward. (*   i = p->a;  *) (* 28.8 sec -> 15.2 sec *)
 forward. (*   j = p->b; *)
 
 forward_call (*  freeN(p, sizeof( *p)); *)
@@ -601,7 +606,6 @@ pose (work_around_coq_bug := fifo [p2] q *
    data_at Tsh t_struct_elem (Vint (Int.repr 1), (Vint (Int.repr 10), Vundef)) p' *
    field_at Qsh' list_struct [StructField _a] (Vint (Int.repr 2)) p2 *
    field_at Qsh' list_struct [StructField _b] (Vint (Int.repr 20)) p2).
-
  apply derives_trans with work_around_coq_bug; subst work_around_coq_bug.
  unfold data_at; rewrite make_unmake; cancel.
  apply derives_trans with
