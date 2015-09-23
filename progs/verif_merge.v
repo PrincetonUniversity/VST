@@ -426,7 +426,7 @@ forward_if (merge_invariant tempvar sh a b ret_)
 end.
 
 (* First branch of the if: [a_ <> nullval] *)
-forward. now entailer.
+forward.
 assert_PROP (is_pointer_or_null b_); [ now entailer | ].
 destruct b_; inversion H0; simpl force_val.
   (* b_ is null *)
@@ -742,7 +742,7 @@ Intros a b merged a_ b_ c_ begin.
 match goal with [|-context[Sset ?tempvar _] ] =>
 forward_if (merge_invariant tempvar sh init_a init_b ret_)
 end.
-forward. now entailer.
+forward.
 
 (* First branch of the if: [a_ <> nullval] *)
 assert_PROP (is_pointer_or_null b_); [ now entailer | ].
@@ -926,7 +926,7 @@ Intros a b merged a_ b_ c_ begin.
 match goal with [|-context[Sset ?tempvar _] ] =>
 forward_if (merge_invariant tempvar sh init_a init_b ret_)
 end.
-forward. now entailer.
+forward.
 
 (* First branch of the if: [a_ <> nullval] *)
 assert_PROP (is_pointer_or_null b_); [ now entailer | ].
@@ -1153,4 +1153,3 @@ change (butlast merged ++ ([last merged] ++ merge a b) = merged ++ merge a b).
 rewrite <-app_ass.
 now rewrite <-snoc; auto.
 Qed.
-
