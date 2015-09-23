@@ -151,7 +151,8 @@ PROGS_FILES= \
   verif_float.v verif_ptr_compare.v \
   verif_nest3.v verif_nest2.v \
   logical_compare.v verif_logical_compare.v field_loadstore.v  verif_field_loadstore.v \
-  even.v verif_even.v odd.v verif_odd.v
+  even.v verif_even.v odd.v verif_odd.v \
+  merge.v verif_merge.v
 # verif_message.v verif_dotprod.v verif_insertion_sort.v 
 
 SHA_FILES= \
@@ -206,7 +207,7 @@ HMACEQUIV_FILES= \
   HMAC_spec_abstract.v HMAC_equivalence.v HMAC256_equivalence.v \
   HMAC_isPRF.v HMAC256_isPRF.v
 
-C_FILES = reverse.c queue.c sumarray.c message.c insertionsort.c float.c nest3.c nest2.c nest3.c dotprod.c string.c field_loadstore.c ptr_compare.c
+C_FILES = reverse.c queue.c sumarray.c message.c insertionsort.c float.c nest3.c nest2.c nest3.c dotprod.c string.c field_loadstore.c ptr_compare.c merge.c
 
 FILES = \
  $(MSL_FILES:%=msl/%) \
@@ -264,7 +265,8 @@ CGFLAGS =  -DCOMPCERT
 
 CVFILES = progs/revarray.v progs/reverse.v progs/queue.v progs/sumarray.v \
          progs/message.v progs/insertionsort.v progs/float.v progs/logical_compare.v \
-         progs/nest2.v progs/nest3.v progs/dotprod.v progs/string.v progs/even.v progs/odd.v
+         progs/nest2.v progs/nest3.v progs/dotprod.v progs/string.v progs/even.v progs/odd.v \
+         progs/merge.v
 
 cvfiles: $(CVFILES)
 
@@ -310,6 +312,8 @@ progs/even.v: progs/even.c
 progs/odd.v: progs/odd.c
 	$(CLIGHTGEN) ${CGFLAGS} $<
 progs/field_loadstore.v: progs/field_loadstore.c
+	$(CLIGHTGEN) ${CGFLAGS} $<
+progs/merge.v: progs/merge.c
 	$(CLIGHTGEN) ${CGFLAGS} $<
 endif
 
