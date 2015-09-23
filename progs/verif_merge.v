@@ -848,8 +848,7 @@ rewrite fold_data_at.
 rewrite <-field_at_data_at.
 
 (* COMMAND : [x = &(b->tail)] *)
-forward VAR.
-subst VAR.
+forward.
 
 (* COMMAND : [b = b -> tail] *)
 forward VAR.
