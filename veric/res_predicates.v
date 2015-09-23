@@ -252,6 +252,52 @@ Program Definition noat (l: AV.address) : pred rmap :=
 Definition ct_count (k: kind) : Z := 
   match k with LK n => n-1 | _ =>  0 end.
 
+Definition resource_share (r: resource) : option share :=
+ match r with
+ | YES rsh sh (VAL _) _ => Some (Share.splice rsh (pshare_sh sh))
+ | YES rsh sh (FUN _) _ => Some (Share.splice rsh (pshare_sh sh))
+ | YES rsh sh (LK _) _ => None
+ | YES rsh sh (CT _) _ => None
+ | NO sh => Some (Share.rel Share.Lsh sh)
+ | PURE _ _ => None
+ end.
+
+Lemma age1_resource_share: forall phi phi' l,
+  age1 phi = Some phi' -> (resource_share (phi @ l) = resource_share (phi' @ l)).
+Proof.
+intros.
+  destruct (phi @ l) as [rsh | rsh sh k P |] eqn:?H.
+  + pose proof (age1_NO phi phi' l rsh H).
+    rewrite H1 in H0.
+    rewrite H0.
+    reflexivity.
+  + pose proof (age1_YES' phi phi' l rsh sh k H).
+    destruct H1 as [? _].
+    spec H1; [eauto |].
+    destruct H1 as [P' ?].
+    rewrite H1.
+    reflexivity.
+  + pose proof (age1_PURE phi phi' l k H).
+    destruct H1 as [? _].
+    spec H1; [eauto |].
+    destruct H1 as [P' ?].
+    rewrite H1.
+    reflexivity.
+Qed.
+
+Program Definition shareat (l: AV.address) (sh: share): pred rmap :=
+  fun m => resource_share (m @ l) = Some sh.
+ Next Obligation.
+    intros; intro; intros.
+    unfold resource_share in *.
+    destruct (a @ l) eqn:?H.
+    + rewrite (necR_NO a a' l t) in H1 by (constructor; auto).
+      rewrite H1; assumption.
+    + eapply necR_YES in H1; [ | constructor; eassumption].
+      rewrite H1; assumption.
+    + inv H0.
+ Qed.
+
 Program Definition jam {A} {JA: Join A}{PA: Perm_alg A}{agA: ageable A}{AgeA: Age_alg A} {B: Type} {S': B -> Prop} (S: forall l, {S' l}+{~ S' l}) (P Q: B -> pred A) : B -> pred A :=
   fun (l: B) m => if S l then P l m else Q l m.
  Next Obligation.
@@ -318,6 +364,115 @@ simpl; rewrite if_false; auto.
 Qed.
 Implicit Arguments jam_vacuous.
 
+Lemma make_sub_rmap: forall w (P: address -> Prop) (P_DEC: forall l, {P l} + {~ P l}),
+  (forall l sh k, P l -> res_option (w @ l) = Some (sh, k) -> isVAL k \/ isFUN k) ->
+  {w' | level w' = level w /\ compcert_rmaps.R.resource_at w' =
+       (fun l => if P_DEC l then w @ l else core (w @ l))}.
+Proof.
+  intros.
+  apply remake_rmap.
+  + apply VAL_or_FUN_valid.
+    intros.
+    unfold compose in H0.
+    specialize (H l sh k).
+    if_tac in H0.
+    - auto. 
+    - destruct (w @ l); rewrite ?core_NO, ?core_YES, ?core_PURE in H0; inv H0.
+  + intros.
+    if_tac; [left; eauto |].
+    destruct (w @ l) eqn:?H; rewrite ?core_NO, ?core_YES, ?core_PURE; simpl; auto.
+    left.
+    exists w; split; auto.
+Qed.
+
+Definition resource_stable (p: address -> pred rmap) :=
+  forall l w w', w @ l = w' @ l -> level w = level w' -> (p l) w = (p l) w'.
+
+Lemma allp_jam_split2: forall (P Q R: address -> Prop) (p q r: address -> pred rmap)
+  (P_DEC: forall l, {P l} + {~ P l})
+  (Q_DEC: forall l, {Q l} + {~ Q l})
+  (R_DEC: forall l, {R l} + {~ R l}),
+  resource_stable p ->
+  resource_stable q ->
+  resource_stable r ->
+  (forall l, P l <-> Q l \/ R l) ->
+  (forall l, Q l -> R l -> False) ->
+  (forall l, Q l -> p l = q l) ->
+  (forall l, R l -> p l = r l) ->
+  (forall l m sh k, P l -> (p l) m -> res_option (m @ l) = Some (sh, k) -> isVAL k \/ isFUN k) ->
+  allp (jam P_DEC p noat) = allp (jam Q_DEC q noat) * allp (jam R_DEC r noat).
+Proof.
+  intros until R_DEC.
+  intros ST_P ST_Q ST_R.
+  intros.
+  apply pred_ext; intros w; simpl; intros.
+  + destruct (make_sub_rmap w Q Q_DEC) as [w1 [? ?]].
+    Focus 1. {
+      intros. eapply H3; [| | eauto].
+      + firstorder.
+      + specialize (H4 l); if_tac in H4; [auto | firstorder].
+    } Unfocus.
+    destruct (make_sub_rmap w R R_DEC) as [w2 [? ?]].
+    Focus 1. {
+      intros. eapply H3; [| | eauto].
+      + firstorder.
+      + specialize (H4 l); if_tac in H4; [auto | firstorder].
+    } Unfocus.
+    exists w1, w2.
+    split3; auto.
+    - apply resource_at_join2; try congruence.
+      intro l.
+      rewrite H6, H8.
+      pose proof core_unit (w @ l).
+      destruct (Q_DEC l), (R_DEC l).
+      * firstorder.
+      * apply join_comm; auto.
+      * auto.
+      * specialize (H4 l).
+        rewrite if_false in H4 by firstorder.
+        apply identity_unit_equiv in H4.
+        pose proof unit_core H4.
+        rewrite <- H10; auto.
+    - intros l.
+      specialize (H4 l).
+      if_tac.
+      * rewrite <- H1 by auto.
+        rewrite if_true in H4 by firstorder.
+        erewrite <- ST_P; [eauto | | auto].
+        rewrite H6, if_true by auto; auto.
+      * rewrite H6, if_false by auto.
+        apply core_identity.
+    - intros l.
+      specialize (H4 l).
+      if_tac.
+      * rewrite <- H2 by auto.
+        rewrite if_true in H4 by firstorder.
+        erewrite <- ST_P; [eauto | | auto].
+        rewrite H8, if_true by auto; auto.
+      * rewrite H8, if_false by auto.
+        apply core_identity.
+  + destruct H4 as [y [z [? [? ?]]]].
+    specialize (H5 b); specialize (H6 b).
+    if_tac.
+    - if_tac in H5; if_tac in H6.
+      * firstorder.
+      * rewrite H1 by auto.
+        erewrite ST_Q; [eauto | | apply join_level in H4; symmetry; tauto].
+        apply resource_at_join with (loc := b) in H4.
+        apply join_comm, H6 in H4.
+        auto.
+      * rewrite H2 by auto; auto.
+        erewrite ST_R; [eauto | | apply join_level in H4; symmetry; tauto].
+        apply resource_at_join with (loc := b) in H4.
+        apply H5 in H4.
+        auto.
+      * firstorder.
+    - rewrite if_false in H5 by firstorder.
+      rewrite if_false in H6 by firstorder.
+      apply resource_at_join with (loc := b) in H4.
+      apply H5 in H4; rewrite <- H4; auto.
+Qed. 
+
 Lemma yesat_join_diff:
   forall pp pp' k k' rsh rsh' sh sh' l w, k <> k' -> 
                   yesat pp k rsh sh l w -> yesat pp' k' rsh' sh' l w -> False.
@@ -357,7 +512,6 @@ eapply join_eq; eauto.
  inv H4.
 inv H1.
 Qed.
-
 
 Lemma nonunit_join: forall A {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{CA: Canc_alg A} (x y z: A), 
   nonunit x -> join x y z -> nonunit z.
@@ -584,6 +738,9 @@ Definition VALspec_range (n: Z) : spec :=
                                                 yesat NoneP (VAL v) rsh sh l')
                                   noat).
 
+Definition permission_bytes (sh: share) (a: address) (n: Z) : pred rmap :=
+  allp (jam (adr_range_dec a n) (fun i => shareat i sh) noat).
+
 Definition nthbyte (n: Z) (l: list memval) : memval :=
      nth (nat_of_Z n) l Undef.
 
@@ -635,7 +792,6 @@ inv H.
 rewrite IHi in H. omega.
 rewrite IHi. omega.
 Qed.
-
 
 Lemma address_mapsto_fun:
   forall ch rsh sh rsh' sh' l v v',
@@ -1649,141 +1805,78 @@ Lemma VALspec_range_0: forall rsh sh loc, VALspec_range 0 rsh sh loc = emp.
 Qed.
 Hint Resolve VALspec_range_0: normalize.
 
+Lemma permission_bytes_0: forall sh a, permission_bytes sh a 0 = emp.
+Proof.
+  intros.
+  apply pred_ext.
+  + intros ? ?. simpl in H.
+    do 3 red.
+    apply all_resource_at_identity.
+    intro l. specialize (H l).
+    rewrite if_false in H; auto.
+    destruct a, l; intros [? ?]; simpl in *; omega.
+  + intros ? ?. intro b. rewrite jam_false.
+    do 3 red. apply resource_at_identity; auto.
+    destruct a, b; intros [? ?]; simpl in *; omega.
+Qed.
+
 Lemma VALspec_range_split2:
   forall (n m r: Z) (rsh sh: Share.t) (b: block) (ofs: Z),
     r = n + m -> n >= 0 -> m >= 0 ->
     VALspec_range r rsh sh (b, ofs) = 
     VALspec_range n rsh sh (b, ofs) * VALspec_range m rsh sh (b, ofs + n).
 Proof.
- intros.
- assert (r=0 \/ r>0) by omega.
- destruct H2.
- subst.
- rewrite H2.
-  assert (n=0) by omega.
-    assert (m=0) by omega.
- subst.
-  repeat rewrite VALspec_range_0. rewrite emp_sepcon. auto.
- unfold VALspec_range.
- apply pred_ext.
- intros w ?.
- assert (AV.valid (res_option oo 
-               (fun l => if adr_range_dec (b,ofs) n l then w @ l else core (w @ l)))).
- intros b' z'; specialize (H3 (b',z')). 
- unfold compose.
- if_tac.
- rewrite jam_true in H3.
-destruct H3 as [v ?].
- destruct H3. hnf in H3. rewrite H3. simpl. auto.
- destruct H4; split; auto; omega.
- destruct (w @ (b',z')). rewrite core_NO; simpl; auto. rewrite core_YES; simpl; auto.
- rewrite core_PURE; simpl; auto.
- destruct (remake_rmap _ H4 (level w)) as [w1 [? ?]].
- intro.
- specialize (H3 l). do 3 red in H3.
- if_tac. rewrite if_true in H3.
- destruct H3 as [v [p ?]]. rewrite H3. right; hnf; auto.
- apply preds_fmap_NoneP.
- destruct l; destruct H5; split; auto. omega.
- if_tac in H3.
- destruct H3 as [v [p ?]]. rewrite H3. right; hnf; auto.
- rewrite core_YES; auto.
- left; exists w; split; auto.
- symmetry; apply unit_core.
- apply identity_unit_equiv; try apply H3.
- clear H4.
- assert (AV.valid (res_option oo 
-          (fun l => if adr_range_dec (b,ofs+n) m l then w @ l else  core (w @ l)))).
- intros b' z'; specialize (H3 (b',z')). 
- unfold compose.
- if_tac.
- rewrite jam_true in H3.
-destruct H3 as [v [p ?]]. hnf in H3. rewrite H3. simpl. auto.
- destruct H4; split; auto; omega.
- destruct (w @ (b',z')). rewrite core_NO; simpl; auto. rewrite core_YES; simpl; auto.
- rewrite core_PURE; simpl; auto.
- destruct (remake_rmap _ H4 (level w)) as [w2 [? ?]].
- intros [b' z']; specialize (H3 (b',z')).
- hnf in H3.
- if_tac. rewrite if_true in H3.
- destruct H3 as [v [p ?]]. rewrite H3; right; hnf.
- apply preds_fmap_NoneP.
- destruct H7; split; auto; omega.
- if_tac in H3.
- destruct H3 as [v [p ?]]. rewrite H3; right; hnf.
- rewrite core_YES; auto.
- left; exists w; split; auto. 
- symmetry; apply unit_core; apply identity_unit_equiv;  apply H3.
- clear H4.
+  intros.
+  assert (resource_stable (fun l' : address => EX  v : memval, yesat NoneP (VAL v) rsh sh l')).
+  Focus 1. {
+    hnf; intros.
+    unfold yesat; simpl.
+    rewrite H2, H3. auto.
+  } Unfocus.
+  apply allp_jam_split2; auto.
+  + intros [? ?].
+    unfold adr_range.
+    assert (ofs <= z < ofs + r <-> ofs <= z < ofs + n \/ ofs + n <= z < ofs + n + m) by omega.
+    tauto.
+  + intros [? ?].
+    unfold adr_range in *.
+    omega.
+  + intros.
+    simpl in H4.
+    destruct (m0 @ l); try solve [inversion H5; simpl; auto].
+    destruct H4 as [? [? ?]].
+    inversion H4; subst.
+    inversion H5; subst.
+    auto.
+Qed.
 
- exists w1; exists w2; split3; auto.
- apply resource_at_join2; auto.
- intro loc; rewrite H6; rewrite H8.
- specialize (H3 loc). 
- if_tac. rewrite if_false. rewrite jam_true in H3. destruct H3 as [v [p ?]].
- rewrite H3. rewrite core_YES; constructor. apply join_unit2; auto.
- destruct loc; destruct H4; split; auto; omega.
- destruct loc; intros [? ?]. subst b0. destruct H4. omega.
- if_tac.
- rewrite jam_true in H3. destruct H3 as [v [p ?]].
- rewrite H3. rewrite core_YES; constructor. apply join_unit1; auto.
- destruct loc; destruct H9; split; auto. subst.
- omega.
- rewrite jam_false in H3.
- do 3 red in H3.
- apply identity_unit_equiv in H3.
- apply unit_core in H3.
- rewrite <- H3 at 2. apply core_unit.
- destruct loc; intros [? ?].
- subst b0. 
- destruct (zlt z (ofs+n)).
- apply H4; split; auto; omega.
- apply H9; split; auto; omega.
- intro loc; specialize (H3 loc); hnf in H3|-*; if_tac.
- rewrite if_true in H3. destruct H3 as [v [p ?]]; exists v,p.
- hnf in H3|-*; rewrite H6; rewrite if_true; auto.
- rewrite H5; auto. 
-destruct loc; destruct H4; split; auto; omega.
- do 3 red; rewrite H6; rewrite if_false. apply core_identity.
- auto.
- intro loc; specialize (H3 loc); hnf in H3|-*; if_tac.
- rewrite if_true in H3. destruct H3 as [v [p ?]]; exists v,p.
- hnf in H3|-*; rewrite H8; rewrite if_true; auto.
- rewrite H7; auto. 
-destruct loc; destruct H4; split; auto; omega.
- do 3 red; rewrite H8; rewrite if_false. apply core_identity.
- auto.
- (* backward direction *)
- intros w ?.
- destruct H3 as [w1 [w2 [? [? ?]]]].
- intros [b' z']; specialize (H4 (b',z')); specialize (H5 (b',z')).
- destruct (join_level _ _ _ H3).
- apply (resource_at_join _ _ _ (b',z')) in H3.
- hnf in H4,H5|-*.
- if_tac.
- if_tac in H4.
- destruct H4 as [v [p ?]].
- rewrite if_false in H5.
- do 3 red in H5. apply join_comm in H3; apply H5 in H3. exists v,p.
- hnf in H4|-*.
- change R.rmap with rmap; change R.ag_rmap with ag_rmap; 
-rewrite <- H6; rewrite <- H3; auto.
- intros [? ?]; destruct H9; subst. omega.
- rewrite if_true in H5.
- destruct H5 as [v [p ?]]; exists v,p.
- do 3 red in H4;  hnf in H5|-*.
- apply H4 in H3. 
- change R.rmap with rmap; change R.ag_rmap with ag_rmap; 
-rewrite <- H7; rewrite <- H3; auto.
- destruct H8; split; auto.
- destruct (zlt z' (ofs+n)).
- contradiction H9; split; auto; omega.
- omega.
- rewrite if_false in H4. rewrite if_false in H5.
- do 3 red in H4,H5|-*.
- apply H4 in H3. rewrite <- H3; auto.
- contradict H8. destruct H8; split; auto; omega.
- contradict H8. destruct H8; split; auto; omega.
+Lemma permission_bytes_split2:
+  forall (n m r: Z) (sh: Share.t) (b: block) (ofs: Z),
+    r = n + m -> n >= 0 -> m >= 0 ->
+    permission_bytes sh (b, ofs) r = 
+    permission_bytes sh (b, ofs) n *
+    permission_bytes sh (b, ofs + n) m.
+Proof.
+  intros.
+  assert (resource_stable (fun i : address => shareat i sh)).
+  Focus 1. {
+   hnf; intros.
+   simpl.
+   rewrite H2; auto.
+  } Unfocus.
+  apply allp_jam_split2; auto.
+  + intros [? ?].
+    unfold adr_range.
+    assert (ofs <= z < ofs + r <-> ofs <= z < ofs + n \/ ofs + n <= z < ofs + n + m) by omega.
+    tauto.
+  + intros [? ?].
+    unfold adr_range in *.
+    omega.
+  + intros.
+    simpl in H4.
+    destruct (m0 @ l); try solve [inversion H5; simpl; auto].
+    inversion H5; subst.
+    destruct k; try solve [inversion H4]; simpl; auto.
 Qed.
 
 Lemma VALspec_range_VALspec:
@@ -1838,29 +1931,6 @@ Proof.
   + apply address_mapsto_VALspec_range.
   + auto.
   + apply size_chunk_pos.
-Qed.
-
-Definition resource_share (r: resource) : option share :=
- match r with
- | YES rsh sh _ _ => Some (Share.splice rsh (pshare_sh sh))
- | NO sh => Some (Share.rel Share.Lsh sh)
- | PURE _ _ => None
- end.
-
-Program Definition permission_bytes (sh: share) (a: address) (n: Z) : mpred :=
-  fun m => forall i, if adr_range_dec a n i then resource_share (m @ i) = Some sh else identity (m @ i).
-Next Obligation.
-intros.
-hnf; simpl; intros.
-specialize (H0 i).
-if_tac.
-destruct (a0 @ i) eqn:?H.
-rewrite (necR_NO a0 a' i t) in H2 by (constructor; auto).
-rewrite H2; assumption.
-eapply necR_YES in H2; [ | constructor; eassumption].
-rewrite H2; assumption.
-inv H0.
-rewrite <- age1_resource_at_identity; eassumption.
 Qed.
 
 Definition reset_share (sh: share) (r: resource) : resource.
@@ -1923,8 +1993,8 @@ Lemma make_reset_share_permission  (sh1: share) w sh a n
   (permission_bytes sh1 a n) phi.
 Proof.
    pose proof I. pose proof I.   
-   intro i. rewrite H3.
-   clear H2 H3 phi H1. specialize (H0 i).
+   intro i. unfold jam, shareat. simpl. rewrite H3.
+   clear H2 H3 phi H1. specialize (H0 i); unfold jam, shareat in H0; simpl in H0.
    unfold reset_share.
    unfold resource_share in *.
    if_tac; destruct (dec_share_identity (Share.unrel Share.Rsh sh1)).
@@ -1946,7 +2016,7 @@ Proof.
    rewrite H. rewrite Share.glb_idem. apply Share.lub_bot.
    eapply join_sub_trans.  apply H. apply rel_leq.
    simpl.
-   apply splice_unrel_unrel.
+   destruct k; try congruence; f_equal; apply splice_unrel_unrel.
    apply identity_NO in H0. destruct H0 as [H0 | [? [? H0]]]; rewrite H0.
    rewrite Share.glb_commute, Share.glb_bot. apply NO_identity.
    apply PURE_identity.
@@ -1982,7 +2052,7 @@ intros.
 apply pred_ext; intros w ?.
 *
 destruct H0 as [b [c [? [? ?]]]].
-unfold permission_bytes in *.
+unfold permission_bytes, jam, shareat in *; simpl in H1, H2 |- *.
 intro i; specialize (H1 i); specialize (H2 i).
 unfold resource_share in *.
 apply (resource_at_join  _ _ _ i) in H0.
@@ -2003,14 +2073,17 @@ if_tac; inv H0;
    assert (join (pshare_sh sh0) Share.bot (pshare_sh sh0))
      by (apply join_unit2; auto).
    pose proof (join_splice RJ H0).
+   destruct k; try congruence; inversion H1; subst; f_equal;
     eapply join_eq; eauto.
 +
    assert (join Share.bot (pshare_sh sh0) (pshare_sh sh0))
      by (apply join_unit1; auto).
    pose proof (join_splice RJ H0).
+   destruct k; try congruence; inversion H2; subst; f_equal;
     eapply join_eq; eauto.
 +
    pose proof (join_splice RJ H4).
+   destruct k; try congruence; inversion H1; inversion H2; subst; f_equal;
     eapply join_eq; eauto.
 +
    apply identity_NO in H2; destruct H2 as [H2 | [? [? H2]]]; inv H2.
@@ -2033,6 +2106,7 @@ if_tac; inv H0;
    exists w1, w2. split3; auto.
    apply resource_at_join2; try congruence.
    intro i.
+   unfold permission_bytes, jam, shareat in H0, H4, H6; simpl in H0, H4, H6.
    specialize (H4 i). specialize (H6 i). specialize (H0 i).
    specialize (S1 i); specialize (S2 i).
    unfold reset_share in *.
@@ -2040,46 +2114,67 @@ if_tac; inv H0;
 +
    unfold resource_share in *.
    clear - H0 H4 H6 H S1 S2.
+   assert (match w @ i with
+           | NO sh0 => Some (Share.rel Share.Lsh sh0)
+           | YES rsh sh0 _ _ => Some (Share.splice rsh (pshare_sh sh0))
+           | PURE _ _ => None
+           end = Some sh)
+   by (destruct (w @ i) as [| ? ? [| | |] ? |]; try congruence; auto).
+   clear H0; rename H1 into H0.
+   assert (match w2 @ i with
+           | NO sh0 => Some (Share.rel Share.Lsh sh0)
+           | YES rsh sh0 _ _ => Some (Share.splice rsh (pshare_sh sh0))
+           | PURE _ _ => None
+           end = Some sh2)
+   by (destruct (w2 @ i) as [| ? ? [| | |] ? |]; try congruence; auto).
+   clear H6; rename H1 into H6.
+   assert (match w1 @ i with
+           | NO sh0 => Some (Share.rel Share.Lsh sh0)
+           | YES rsh sh0 _ _ => Some (Share.splice rsh (pshare_sh sh0))
+           | PURE _ _ => None
+           end = Some sh1)
+   by (destruct (w1 @ i) as [| ? ? [| | |] ? |]; try congruence; auto).
+   clear H4; rename H1 into H4.
    destruct (w1 @ i), (w2 @ i), (w @ i); inv H0; inv H4; inv H6; try constructor.
-   apply rel_join2 in H. destruct H as [z [? ?]].
-   apply Share.rel_inj_l in H. subst; auto.
-   apply fst_split_fullshare_not_bot. 
-   intro. apply identity_share_bot in H0.
-   apply fst_split_fullshare_not_bot in H0. auto.
-   elimtype False.
-   apply join_rel_rel_strange in H; auto.
-   apply join_rel_rel_strange2 in H; contradiction.
-  hnf.  
-   rewrite <- splice_bot2 in H.
-   apply join_splice2 in H. destruct H.
-   apply bot_identity in H0.
-   destruct p,p1; simpl in *. subst x0.
-   rewrite (proof_irr n0 n).
-   simpl in S1, S2.
-   destruct (dec_share_identity (Share.unrel Share.Rsh (Share.splice t0 x))).
-   inv S2.  apply YES_inj in S2. 
-   injection S2; intros. subst p2 k0.
-   constructor; auto.
-   if_tac in S1; inv S1.
-   destruct ( dec_share_identity
-         (Share.unrel Share.Rsh (Share.splice t (pshare_sh p)))); try inv S1.
-   apply YES_inj in S1; injection S1; clear S1; intros. subst k0 p2.
-   rewrite <- splice_bot2 in H.
-   apply join_splice2 in H. destruct H.
-   apply join_comm in H0. apply bot_identity in H0.
-   destruct p,p1; simpl in H0.  subst x0.  rewrite (proof_irr n0 n1). 
-   constructor. auto.
-   if_tac in S2; inv S2.
-   destruct (dec_share_identity
-         (Share.unrel Share.Rsh (Share.splice t0 (pshare_sh p1)))); try inv S2.
-   destruct (dec_share_identity
-         (Share.unrel Share.Rsh (Share.splice t (pshare_sh p)))); try inv S1.
-   apply YES_inj in S1; injection S1; clear S1; intros.
-   apply YES_inj in S2; injection S2; clear S2; intros.
-   subst k1 k0 p4 p2.
-   clear H7 H3.
-   apply join_splice2 in H. destruct H.
-   constructor; auto.
+   - apply rel_join2 in H. destruct H as [z [? ?]].
+     apply Share.rel_inj_l in H. subst; auto.
+     apply fst_split_fullshare_not_bot. 
+     intro. apply identity_share_bot in H0.
+     apply fst_split_fullshare_not_bot in H0. auto.
+   - elimtype False.
+     apply join_rel_rel_strange in H; auto.
+   - apply join_rel_rel_strange2 in H; contradiction.
+   - hnf.  
+     rewrite <- splice_bot2 in H.
+     apply join_splice2 in H. destruct H.
+     apply bot_identity in H0.
+     destruct p,p1; simpl in *. subst x0.
+     rewrite (proof_irr n0 n).
+     simpl in S1, S2.
+     destruct (dec_share_identity (Share.unrel Share.Rsh (Share.splice t0 x))).
+     inv S2.  apply YES_inj in S2. 
+     injection S2; intros. subst p2 k0.
+     constructor; auto.
+   - if_tac in S1; inv S1.
+   - destruct ( dec_share_identity
+           (Share.unrel Share.Rsh (Share.splice t (pshare_sh p)))); try inv S1.
+     apply YES_inj in S1; injection S1; clear S1; intros. subst k0 p2.
+     rewrite <- splice_bot2 in H.
+     apply join_splice2 in H. destruct H.
+     apply join_comm in H0. apply bot_identity in H0.
+     destruct p,p1; simpl in H0.  subst x0.  rewrite (proof_irr n0 n1). 
+     constructor. auto.
+   - if_tac in S2; inv S2.
+   - destruct (dec_share_identity
+           (Share.unrel Share.Rsh (Share.splice t0 (pshare_sh p1)))); try inv S2.
+     destruct (dec_share_identity
+           (Share.unrel Share.Rsh (Share.splice t (pshare_sh p)))); try inv S1.
+     apply YES_inj in S1; injection S1; clear S1; intros.
+     apply YES_inj in S2; injection S2; clear S2; intros.
+     subst k1 k0 p4 p2.
+     clear H7 H3.
+     apply join_splice2 in H. destruct H.
+     constructor; auto.
 +
    destruct (w @ i).
    destruct (dec_share_identity (Share.unrel Share.Rsh sh1));

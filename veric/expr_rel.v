@@ -52,6 +52,7 @@ Inductive rel_expr' {CS: compspecs} (rho: environ) (phi: rmap): expr -> val -> P
                  rel_lvalue' rho phi a v1 ->
                  app_pred (mapsto sh (typeof a) v1 v2 * TT ) phi ->
                  v2 <> Vundef ->
+                 readable_share sh ->
                  rel_expr' rho phi a v2
  | rel_expr'_lvalue_By_reference: forall a v1,
                  access_mode (typeof a) = By_reference ->
@@ -162,23 +163,25 @@ apply (rel_lvalue'_expr'_sch _ rho (m_phi jm)
   destruct (type_is_volatile (typeof a)) eqn:?; try contradiction.
   eapply deref_loc_value; try eassumption.
   unfold Mem.loadv.
+  rewrite if_true in H4 by auto; clear H6.
   destruct H4 as [[_ ?] | [? _]]; [ | contradiction].
   apply core_load_load'.
   destruct H4 as [bl ?]; exists bl.
   destruct H4 as [H3' ?]; split; auto.
   clear H3'. 
   intro b'; specialize (H4 b'). hnf in H4|-*.
-  if_tac; auto. destruct H4 as [p ?].
-  hnf in H4. rewrite preds_fmap_NoneP in H4.
-  apply (resource_at_join _ _ _ b') in H0.  
-  rewrite H4 in H0; clear H4.
-  inv H0.
-  symmetry in H12.
-  exists rsh3, (Share.unrel Share.Rsh sh), p; assumption.
-  symmetry in H12.
-  simpl.
-  destruct sh3 as [sh3 p3].  exists rsh3, sh3, p3; auto.
- apply I.
+  if_tac; auto.
+  + destruct H4 as [p ?].
+    hnf in H4. rewrite preds_fmap_NoneP in H4.
+    apply (resource_at_join _ _ _ b') in H0.  
+    rewrite H4 in H0; clear H4.
+    inv H0.
+    - symmetry in H12.
+      exists rsh3, (Share.unrel Share.Rsh sh), p; assumption.
+    - symmetry in H12.
+      simpl.
+      destruct sh3 as [sh3 p3].  exists rsh3, sh3, p3; auto.
+  + apply I.
 * (* lvalue By_reference *)
    destruct v1; try contradiction.
   eapply Clight.eval_Elvalue; eauto.
@@ -307,22 +310,22 @@ apply (rel_expr'_sch _ rho phi
    congruence.
 * (* Ecast *)
    specialize (H1 _ H0 H7). congruence.
-*
-   inversion2 H0 H7.
-   specialize (H2 _ H1 H8).
-   subst v0.   clear H1 H8.
+*  inversion2 H0 H8.
+   specialize (H2 _ H1 H9).
+   subst v0.   clear H1 H9.
    generalize H3; intros [wx [wy [_ [? _]]]].
    unfold mapsto in *.
    destruct (access_mode (typeof a)); try contradiction.
    destruct (type_is_volatile (typeof a)); try contradiction.
    destruct v1; try contradiction.
+   rewrite if_true in H1, H3, H10 by auto.
    destruct H1 as [[? ?]|[? ?]]; [ |  hnf in H1; contradiction].
    clear H2.
-   rewrite distrib_orp_sepcon in H3,H9.
-   destruct H3 as [H3|[? [? [? [[Hx _] _]]]]]; [ | hnf in Hx; contradiction].
-   destruct H9 as [H9|[? [? [? [[Hx _] _]]]]]; [ | hnf in Hx; contradiction].
-   autorewrite with normalize in H3,H9; auto with typeclass_instances.
-   destruct H9 .
+   rewrite distrib_orp_sepcon in H3, H10.
+   destruct H3 as [H3 |[? [? [? [[Hx _] _]]]]]; [ | hnf in Hx; contradiction].
+   destruct H10 as [H10 |[? [? [? [[Hx _] _]]]]]; [ | hnf in Hx; contradiction].
+   autorewrite with normalize in H3, H10; auto with typeclass_instances.
+   destruct H10.
    eapply res_predicates.address_mapsto_fun; split; eauto.
 *
    specialize (H1 _ H0 H10). congruence.
@@ -339,7 +342,6 @@ apply (rel_expr'_sch _ rho w
  try solve [match goal with H : _ |- _ => inv H; econstructor; eauto end].
 *
 eapply rel_expr'_lvalue_By_value; eauto.
-instantiate (1:=sh).
 destruct H as [w1 ?].
 destruct H4 as [w3 [w4 [? [? _]]]].
 destruct (join_assoc H4 H) as [w6 [? ?]].
