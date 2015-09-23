@@ -385,15 +385,14 @@ simpl_stackframe_of.
 unfold var_block.
 fixup_local_var.
 intro ret_.
-simpl.
 normalize.
+simpl.
 
 (* replacing the memory_block with a data_at .. Vundef *)
-forward OLDX.
+forward.
 replace_SEP 0 (`(data_at Tsh tlist Vundef ret_)).
 assert_PROP (isptr ret_).
   entailer.
-  admit.
 assert_PROP (size_compatible tlist ret_); [admit|].
 (* [now rewrite (memory_block_size_compatible _ tlist);[entailer|reflexivity]|]. *)
 
@@ -403,7 +402,6 @@ rewrite (memory_block_mapsto_ _ tlist); auto.
 rewrite <-mapsto_data_at; auto. 2:tauto.
 unfold mapsto_.
 (* now *) if_tac; [entailer | auto with *].
-admit.
 
 rewrite <-seq_assoc
 (* remove the nested [Ssequence] introduced as the same time as the if *).
@@ -428,7 +426,7 @@ end.
 (* First branch of the if: [a_ <> nullval] *)
 forward.
 assert_PROP (is_pointer_or_null b_); [ now entailer | ].
-destruct b_; inversion H0; simpl force_val.
+destruct b_; inversion H1; simpl force_val.
   (* b_ is null *)
   Exists Int.zero a b (@nil int) a_ nullval ret_ ret_.
   entailer.
@@ -604,9 +602,7 @@ replace_SEP 6 (`(data_at Tsh tlist Vundef a_ x_)); [ now entailer | ].
 
 (* COMMAND : [x = &(a->tail)] *)
 
-forward VAR.
-subst VAR.
-
+forward.
 
 (* COMMAND : [a = a -> tail] *)
 
@@ -661,8 +657,7 @@ rewrite fold_data_at.
 rewrite <-field_at_data_at.
 
 (* COMMAND : [x = &(a->tail)] *)
-forward VAR.
-subst VAR.
+forward.
 
 (* COMMAND : [a = a -> tail] *)
 forward VAR.
@@ -798,9 +793,7 @@ replace_SEP 6 (`(data_at Tsh tlist Vundef a_ x_)); [ now entailer | ].
 
 (* COMMAND : [x = &(b->tail)] *)
 
-forward VAR.
-subst VAR.
-
+forward.
 
 (* COMMAND : [b = b -> tail] *)
 
