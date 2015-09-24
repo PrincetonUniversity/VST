@@ -167,8 +167,6 @@ destruct m; simpl; omega.
 * (* ~ readable_share sh *)
 destruct (access_mode t) eqn:?; try contradiction.
 if_tac in H0; [inversion H0 |].
-unfold permission_block in H0.
-rewrite Heqm in H0.
 specialize (H0 (b, Int.unsigned o)).
 simpl in H0.
 rewrite if_true in H0

@@ -2205,6 +2205,15 @@ Proof.
 intros.
 Admitted. 
 
+Lemma permission_bytes_address_mapsto_join:
+ forall (sh1 sh2 sh : share) ch v a,
+   sepalg.join sh1 sh2 sh ->
+   permission_bytes sh1 a (Memdata.size_chunk ch)
+     * address_mapsto ch v (Share.unrel Share.Lsh sh2) (Share.unrel Share.Rsh sh2) a 
+    = address_mapsto ch v (Share.unrel Share.Lsh sh) (Share.unrel Share.Rsh sh) a.
+Proof.
+Admitted.
+
 Lemma address_mapsto_value_cohere:
   forall ch v1 v2 rsh1 sh1 rsh2 sh2 a,
  address_mapsto ch v1 rsh1 sh1 a * address_mapsto ch v2 rsh2 sh2 a |-- !! (v1=v2).

@@ -1505,9 +1505,7 @@ Proof.
      apply (age1_YES w r); auto.
      unfold noat in *; simpl in *.
     apply <- (age1_resource_at_identity _ _ loc' H1); auto.
-  + unfold permission_block in *.
-    rewrite Hmode in *.
-    intro loc'; specialize (H0 loc').
+  + intro loc'; specialize (H0 loc').
     hnf in *.
     if_tac.
     - unfold shareat in *; simpl in *.

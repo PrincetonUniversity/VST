@@ -276,8 +276,14 @@ Definition mapsto (sh: Share.t) (t: type) (v1 v2 : val): mpred :=
    | false =>
     match v1 with
      | Vptr b ofs => 
-          (!!tc_val t v2 && address_mapsto ch v2 (Share.unrel Share.Lsh sh) (Share.unrel Share.Rsh sh) (b, Int.unsigned ofs))
-        || !! (v2 = Vundef) && EX v2':val, address_mapsto ch v2' (Share.unrel Share.Lsh sh) (Share.unrel Share.Rsh sh) (b, Int.unsigned ofs)
+       if readable_share_dec sh
+       then (!!tc_val t v2 &&
+             address_mapsto ch v2
+              (Share.unrel Share.Lsh sh) (Share.unrel Share.Rsh sh) (b, Int.unsigned ofs)) ||
+            (!! (v2 = Vundef) &&
+             EX v2':val, address_mapsto ch v2'
+              (Share.unrel Share.Lsh sh) (Share.unrel Share.Rsh sh) (b, Int.unsigned ofs))
+       else res_predicates.permission_bytes sh (b, Int.unsigned ofs) (Memdata.size_chunk ch)
      | _ => FF
     end
     | _ => FF
@@ -285,22 +291,7 @@ Definition mapsto (sh: Share.t) (t: type) (v1 v2 : val): mpred :=
   | _ => FF
   end. 
 
-Definition permission_block (sh: share)  (v: val) (t: type) : mpred :=
-    match access_mode t with
-         | By_value ch => 
-            match v with 
-            | Vptr b ofs => 
-                 res_predicates.permission_bytes sh (b, Int.unsigned ofs)
-                       (Memdata.size_chunk ch)
-            | _ => FF
-            end
-         | _ => FF
-         end.
-
-Definition mapsto_ sh t v1 := 
-  if readable_share_dec sh
-  then mapsto sh t v1 Vundef
-  else permission_block sh v1 t.
+Definition mapsto_ sh t v1 := mapsto sh t v1 Vundef.
 
 Fixpoint address_mapsto_zeros (sh: share) (n: nat) (adr: address) : mpred :=
  match n with
@@ -473,152 +464,13 @@ Proof.
     - apply sepcon_derives; apply andp_left2; apply derives_refl.
 Qed.
 
-Lemma memory_block_permission_block:
-  forall {cs: compspecs} sh  t ch b ofs, 
-   access_mode t = By_value ch ->
-   Int.unsigned ofs + sizeof cenv_cs t <= Int.modulus ->
-  ~ readable_share sh ->
-  memory_block sh (sizeof cenv_cs t) (Vptr b ofs) = 
-  permission_block sh (Vptr b ofs) t.
-Proof.
-intros.
-unfold permission_block; simpl.
-rewrite prop_true_andp by auto. 
-rewrite H.
-assert (Hz: 0 <= Int.unsigned ofs) by apply Int.unsigned_range.
-rewrite (size_chunk_sizeof _ _ _ H) in H0|-*.
-assert (Hsz := size_chunk_pos ch).
-rewrite seplog.memory_block'_eq; auto.
-2: rewrite Z2Nat.id by omega; omega.
-unfold seplog.memory_block'_alt.
-rewrite if_false by auto.
-rewrite Z2Nat.id by omega. auto.
-Qed.
-
-Lemma address_mapsto_share_join:
- forall (rsh1 rsh2 rsh sh1 sh2 sh : share) ch v a,
-   sepalg.join rsh1 rsh2 rsh ->
-   sepalg.join sh1 sh2 sh ->
-   address_mapsto ch v rsh1 sh1 a * address_mapsto ch v rsh2 sh2 a 
-    = address_mapsto ch v rsh sh a.
-Proof.
-apply res_predicates.address_mapsto_share_join.
-Qed.
-
 Lemma mapsto_share_join:
  forall sh1 sh2 sh t p v,
    sepalg.join sh1 sh2 sh ->
    mapsto sh1 t p v * mapsto sh2 t p v = mapsto sh t p v.
 Proof.
 intros.
-unfold mapsto.
-destruct (access_mode t) eqn:?; try solve [normalize].
-destruct (type_is_volatile t) eqn:?; try solve [normalize].
-destruct p; normalize.
-apply pred_ext.
-*
-rewrite distrib_orp_sepcon.
-apply orp_left; [apply orp_right1 | apply orp_right2]; normalize.
-rewrite sepcon_comm; rewrite distrib_orp_sepcon.
-apply orp_left.
-rewrite sepcon_comm.
-rewrite address_mapsto_share_join
-  with (rsh := Share.unrel Share.Lsh sh) (sh := Share.unrel Share.Rsh sh);
- auto.
-apply join_unrel; auto.
-apply join_unrel; auto.
-normalize.
-destruct t; try destruct f; simpl in H0; try contradiction H0.
-rewrite sepcon_comm; rewrite distrib_orp_sepcon.
-apply orp_left.
-normalize.
-destruct t; try destruct f; simpl in H0; try contradiction H0.
-rewrite exp_sepcon1.
-apply exp_left. intro y.
-apply exp_right with x. normalize.
-match goal with |- ?A |-- _ => rewrite <- (andp_dup A) end.
-eapply derives_trans; [apply andp_derives; [apply res_predicates.address_mapsto_value_cohere | apply derives_refl] | ].
-change predicates_hered.prop with prop.
-normalize.
-rewrite address_mapsto_share_join
-  with (rsh := Share.unrel Share.Lsh sh) (sh := Share.unrel Share.Rsh sh);
- auto.
-apply join_unrel; auto.
-apply join_unrel; auto.
-*
-rewrite !distrib_orp_sepcon.
-rewrite sepcon_comm; rewrite !distrib_orp_sepcon.
-rewrite sepcon_comm.
-apply orp_left; [apply orp_right1 | apply orp_right2]; normalize.
-apply orp_right1.
-rewrite address_mapsto_share_join
-  with (rsh := Share.unrel Share.Lsh sh) (sh := Share.unrel Share.Rsh sh);
- auto;
- apply join_unrel; auto.
-apply exp_right with x.
-normalize.
-rewrite sepcon_comm; rewrite !distrib_orp_sepcon.
-rewrite sepcon_comm.
-apply orp_right2. normalize.
-apply exp_right with x.
-normalize.
-rewrite address_mapsto_share_join
-  with (rsh := Share.unrel Share.Lsh sh) (sh := Share.unrel Share.Rsh sh);
- auto;
- apply join_unrel; auto.
-Qed.
-
-Lemma permission_bytes_address_mapsto_join:
- forall (sh1 sh2 sh : share) ch v a,
-   sepalg.join sh1 sh2 sh ->
-   res_predicates.permission_bytes sh1 a (Memdata.size_chunk ch)
-     * address_mapsto ch v (Share.unrel Share.Lsh sh2) (Share.unrel Share.Rsh sh2) a 
-    = address_mapsto ch v (Share.unrel Share.Lsh sh) (Share.unrel Share.Rsh sh) a.
-Proof.
-intros.
-Admitted.
-
-Lemma permission_block_mapsto_join:
- forall sh1 sh2 sh p t v,
-   sepalg.join sh1 sh2 sh ->
-    permission_block sh1 p t * mapsto sh2 t p v = mapsto sh t p v.
-Proof.
-unfold mapsto, permission_block; intros.
-destruct (access_mode t); normalize.
-destruct (type_is_volatile t); normalize.
-destruct p; normalize.
-rewrite sepcon_comm. rewrite !distrib_orp_sepcon.
-rewrite sepcon_comm.
-normalize.
-apply pred_ext.
-apply orp_left; [ apply orp_right1 | apply orp_right2].
-normalize.
-rewrite permission_bytes_address_mapsto_join with (sh:=sh);
- auto.
-apply exp_left; intro x. apply exp_right with x.
-normalize.
-rewrite sepcon_comm.
-rewrite permission_bytes_address_mapsto_join with (sh:=sh);
- auto.
-apply orp_left; [ apply orp_right1 | apply orp_right2].
-rewrite permission_bytes_address_mapsto_join with (sh:=sh);
- auto.
-apply exp_left; intro x. apply exp_right with x.
-normalize.
-rewrite sepcon_comm.
-rewrite permission_bytes_address_mapsto_join with (sh:=sh);
- auto.
-Qed.
-
-Lemma permission_block_share_join:
- forall sh1 sh2 sh p t,
-   sepalg.join sh1 sh2 sh ->
-    permission_block sh1 p t * permission_block sh2 p t  = permission_block sh p t.
-Proof.
-unfold permission_block; intros.
-destruct (access_mode t); normalize.
-destruct p; normalize.
-apply res_predicates.permission_bytes_share_join; auto.
+apply seplog.mapsto_share_join; auto.
 Qed.
 
 Lemma memory_block_share_join:
@@ -888,7 +740,9 @@ Definition int_range (sz: intsize) (sgn: signedness) (i: int) :=
 end.
 
 Lemma mapsto_value_range:
- forall sh v sz sgn i, mapsto sh (Tint sz sgn noattr) v (Vint i) =
+ forall sh v sz sgn i, 
+   readable_share sh ->
+   mapsto sh (Tint sz sgn noattr) v (Vint i) =
     !! int_range sz sgn i && mapsto sh (Tint sz sgn noattr) v (Vint i).
 Proof. exact seplog.mapsto_value_range. Qed.
 
@@ -1028,9 +882,14 @@ Lemma rel_expr_lvalue_By_value: forall {CS: compspecs} ch a sh v1 v2 P rho,
            P |-- rel_lvalue a v1 rho ->
            P |-- mapsto sh (typeof a) v1 v2 * TT  ->
            v2 <> Vundef ->
+           readable_share sh ->
            P |-- rel_expr a v2 rho.
 Proof.
-intros. intros ? ?. econstructor; eauto. apply H0; auto. apply H1; auto. Qed.
+intros. intros ? ?.
+econstructor; eauto.
++ apply H0; auto.
++ apply H1; auto.
+Qed.
 
 Lemma rel_expr_lvalue_By_reference: forall {CS: compspecs} a v1 P rho,
            access_mode (typeof a) = By_reference ->
@@ -1327,7 +1186,8 @@ Axiom semax_load :
 forall (Delta: tycontext) sh id P e1 t2 (v2: environ -> val),
     typeof_temp Delta id = Some t2 ->
     is_neutral_cast (typeof e1) t2 = true ->
-      local (tc_environ Delta) && P |-- `(mapsto sh (typeof e1)) (eval_lvalue e1) v2 * TT ->
+    readable_share sh ->
+    local (tc_environ Delta) && P |-- `(mapsto sh (typeof e1)) (eval_lvalue e1) v2 * TT ->
     @semax CS Espec Delta 
        (|> ( (tc_lvalue Delta e1) && 
        local (`(tc_val (typeof e1)) v2) &&
@@ -1340,7 +1200,8 @@ Axiom semax_cast_load :
   forall {Espec: OracleKind}{CS: compspecs},
 forall (Delta: tycontext) sh id P e1 t1 (v2: environ -> val),
     typeof_temp Delta id = Some t1 ->
-      local (tc_environ Delta) && P |-- `(mapsto sh (typeof e1)) (eval_lvalue e1) v2 * TT ->
+    readable_share sh ->
+    local (tc_environ Delta) && P |-- `(mapsto sh (typeof e1)) (eval_lvalue e1) v2 * TT ->
     @semax CS Espec Delta 
        (|> ( (tc_lvalue Delta e1) && 
        local (`(tc_val t1) (`(eval_cast (typeof e1) t1) v2)) &&

@@ -488,6 +488,13 @@ Hint Rewrite @sepcon_emp @emp_sepcon @TT_andp @andp_TT
          @sepcon_andp_prop @sepcon_andp_prop'
         : norm.
 
+Lemma exp_congr:
+ forall A NA T X Y, 
+    (forall v, X v = Y v) -> @exp A NA T X = @exp A NA T Y.
+Proof.
+intros. f_equal. extensionality v; auto.
+Qed.
+
 Lemma forall_pred_ext  {A}  {NA: NatDed A}: forall B (P Q: B -> A), 
  (ALL x : B, (P x <--> Q x)) |-- (ALL x : B, P x) <--> (ALL x: B, Q x) .
 Proof.
@@ -816,6 +823,34 @@ Ltac normalize1_in Hx :=
 Ltac normalize := repeat (auto with norm; normalize1).
 
 Tactic Notation "normalize" "in" hyp(H) := repeat (normalize1_in H).
+
+Lemma guarded_sepcon_orp_distr {A}{ND: NatDed A}{SL: SepLog A}: forall (P1 P2: Prop) p1 p2 q1 q2,
+  (P1 -> P2 -> False) ->
+  (!! P1 && p1 || !! P2 && p2) * (!! P1 && q1 || !! P2 && q2) = !! P1 && (p1 * q1) || !! P2 && (p2 * q2).
+Proof.
+  intros.
+  rewrite distrib_orp_sepcon.
+  rewrite (sepcon_comm (!! P1 && p1)).
+  rewrite (sepcon_comm (!! P2 && p2)).
+  rewrite !distrib_orp_sepcon.
+  apply pred_ext.
+  + repeat apply orp_left; normalize.
+    - apply orp_right1.
+      rewrite sepcon_comm; auto.
+    - tauto.
+    - tauto.
+    - apply orp_right2.
+      rewrite sepcon_comm; auto.
+  + apply orp_left.
+    - apply orp_right1.
+      apply orp_right1.
+      normalize.
+      rewrite sepcon_comm; auto.
+    - apply orp_right2.
+      apply orp_right2.
+      normalize.
+      rewrite sepcon_comm; auto.
+Qed.
 
 Definition mark {A: Type} (i: nat) (j: A) := j.
 

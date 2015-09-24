@@ -103,7 +103,7 @@ Definition mapsto (sh: Share.t) (t: type) (v1 v2 : val): mpred :=
             (!! (v2 = Vundef) &&
              EX v2':val, address_mapsto ch v2'
               (Share.unrel Share.Lsh sh) (Share.unrel Share.Rsh sh) (b, Int.unsigned ofs))
-       else permission_block sh v1 t
+       else permission_bytes sh (b, Int.unsigned ofs) (size_chunk ch)
      | _ => FF
     end
     | _ => FF
@@ -480,7 +480,7 @@ Proof.
     symmetry.
     rewrite (VALspec_range_split2 1 (Z_of_nat n)) by (try rewrite inj_S; omega).
     rewrite VALspec1.
-    unfold mapsto_, mapsto, permission_block.
+    unfold mapsto_, mapsto.
     simpl access_mode. cbv beta iota.
     change (type_is_volatile (Tint I8 Unsigned noattr)) with false. cbv beta iota.
     destruct (readable_share_dec sh).
@@ -571,6 +571,22 @@ Proof.
   reflexivity.
 Qed.
 
+Lemma exp_address_mapsto_VALspec_range_eq:
+  forall ch rsh sh l,
+    EX v: val, address_mapsto ch v rsh sh l = !! (align_chunk ch | snd l) && VALspec_range (size_chunk ch) rsh sh l.
+Proof.
+  intros.
+  apply pred_ext.
+  + apply exp_left; intro.
+    apply andp_right; [| apply address_mapsto_VALspec_range].
+    unfold address_mapsto.
+    apply exp_left; intro.
+    apply andp_left1.
+    apply (@prop_derives (pred rmap) (algNatDed _)); tauto.
+  + apply prop_andp_left; intro.
+    apply VALspec_range_exp_address_mapsto; auto.
+Qed.
+
 Lemma VALspec_range_exp_address_mapsto_eq:
   forall ch rsh sh l,
     (align_chunk ch | snd l) ->
@@ -609,12 +625,71 @@ Proof.
   change TT with (!! True).
   apply H3.
   tauto.
- * unfold mapsto_, mapsto, memory_block'_alt, permission_block.
+ * unfold mapsto_, mapsto, memory_block'_alt.
    rewrite prop_true_andp by auto.
    rewrite H, H0.
   rewrite !if_false by auto.
    rewrite Z2Nat.id by (pose proof (size_chunk_pos ch); omega).
    auto.
+Qed.
+
+Lemma tc_val_Vundef:
+  forall t, ~tc_val t Vundef.
+Proof.
+intros.
+intro. hnf in H.
+destruct t; try contradiction.
+destruct f; try contradiction.
+Qed.
+
+Lemma mapsto_share_join:
+ forall sh1 sh2 sh t p v,
+   join sh1 sh2 sh ->
+   mapsto sh1 t p v * mapsto sh2 t p v = mapsto sh t p v.
+Proof.
+  intros.
+  unfold mapsto.
+  destruct (access_mode t) eqn:?; try solve [rewrite FF_sepcon; auto].
+  destruct (type_is_volatile t) eqn:?; try solve [rewrite FF_sepcon; auto].
+  destruct p; try solve [rewrite FF_sepcon; auto].
+  destruct (readable_share_dec sh1), (readable_share_dec sh2).
+  + rewrite if_true by (eapply join_sub_readable; [unfold join_sub; eauto | auto]).
+    pose proof (@guarded_sepcon_orp_distr (pred rmap) (algNatDed _) (algSepLog _)).
+    simpl in H0; rewrite H0 by (intros; subst; pose proof tc_val_Vundef t; tauto); clear H0.
+    f_equal; f_equal.
+    - apply address_mapsto_share_join.
+      1: apply join_unrel; auto.
+      1: apply join_unrel; auto.
+    - rewrite exp_sepcon1.
+      pose proof (@exp_congr (pred rmap) (algNatDed _) val); simpl in H0; apply H0; clear H0; intro.
+      rewrite exp_sepcon2.
+      transitivity
+       (address_mapsto m v0 (Share.unrel Share.Lsh sh1) (Share.unrel Share.Rsh sh1) (b, Int.unsigned i) *
+        address_mapsto m v0 (Share.unrel Share.Lsh sh2) (Share.unrel Share.Rsh sh2) (b, Int.unsigned i)).
+      * apply pred_ext; [| apply (exp_right v0); auto].
+        apply exp_left; intro.
+        pose proof (fun rsh1 sh0 rsh2 sh3 a => (@add_andp (pred rmap) (algNatDed _) _ _ (address_mapsto_value_cohere m v0 x rsh1 sh0 rsh2 sh3 a))).
+        simpl in H0; rewrite H0; clear H0.
+        apply normalize.derives_extract_prop'; intro; subst; auto.
+      * apply address_mapsto_share_join.
+        1: apply join_unrel; auto.
+        1: apply join_unrel; auto.
+  + rewrite if_true by (eapply join_sub_readable; [unfold join_sub; eauto | auto]).
+    rewrite distrib_orp_sepcon.
+    f_equal; rewrite sepcon_comm, sepcon_andp_prop; f_equal.
+    - apply permission_bytes_address_mapsto_join; auto.
+    - rewrite exp_sepcon2.
+      pose proof (@exp_congr (pred rmap) (algNatDed _) val); simpl in H0; apply H0; clear H0; intro.
+      apply permission_bytes_address_mapsto_join; auto.
+  + rewrite if_true by (eapply join_sub_readable; [unfold join_sub; eexists; apply join_comm in H; eauto | auto]).
+    rewrite sepcon_comm, distrib_orp_sepcon.
+    f_equal; rewrite sepcon_comm, sepcon_andp_prop; f_equal.
+    - apply permission_bytes_address_mapsto_join; auto.
+    - rewrite exp_sepcon2.
+      pose proof (@exp_congr (pred rmap) (algNatDed _) val); simpl in H0; apply H0; clear H0; intro.
+      apply permission_bytes_address_mapsto_join; auto.
+  + rewrite if_false by (eapply join_unreadable_shares; eauto).
+    apply permission_bytes_share_join; auto.
 Qed.
 
 Definition eval_lvar (id: ident) (ty: type) (rho: environ) :=
