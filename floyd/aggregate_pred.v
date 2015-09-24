@@ -429,13 +429,56 @@ Proof.
 Qed.
 
 Lemma compact_sum_inj_eq_spec: forall {A} a0 a1 (l: list A) F0 F1 (v0: compact_sum (map F0 (a0 :: a1 :: l))) (v1: compact_sum (map F1 (a0 :: a1 :: l))) H,
-  (forall a, compact_sum_inj v0 a H <-> compact_sum_inj v1 a H) <->
+  ~ In a0 (a1 :: l) ->
+ ((forall a, compact_sum_inj v0 a H <-> compact_sum_inj v1 a H) <->
   match v0, v1 with
   | inl _, inl _ => True
   | inr v0, inr v1 => forall a, compact_sum_inj (v0: compact_sum (map F0 (a1 :: l))) a H <-> compact_sum_inj (v1: compact_sum (map F1 (a1 :: l))) a H
   | _, _ => False
-  end.
-Admitted.
+  end).
+Proof.
+  intros.
+  rename H0 into H_not_in.
+  destruct v0, v1.
+  + simpl.
+    firstorder.
+  + assert (~ (forall a : A,
+      iff
+        (@compact_sum_inj A F0 (@cons A a0 (@cons A a1 l))
+           (@inl (F0 a0) (compact_sum (@map A Type F0 (@cons A a1 l))) f) a H)
+        (@compact_sum_inj A F1 (@cons A a0 (@cons A a1 l))
+           (@inr (F1 a0) (compact_sum (@map A Type F1 (@cons A a1 l))) c) a H))); [| tauto].
+    intro.
+    specialize (H0 a0).
+    simpl in H0.
+    destruct (H a0 a0); [| congruence].
+    tauto.
+  + assert (~ (forall a : A,
+      iff
+        (@compact_sum_inj A F0 (@cons A a0 (@cons A a1 l))
+           (@inr (F0 a0) (compact_sum (@map A Type F0 (@cons A a1 l))) c) a H)
+        (@compact_sum_inj A F1 (@cons A a0 (@cons A a1 l))
+           (@inl (F1 a0) (compact_sum (@map A Type F1 (@cons A a1 l))) f) a H))); [| tauto].
+    intro.
+    specialize (H0 a0).
+    simpl in H0.
+    destruct (H a0 a0); [| congruence].
+    tauto.
+  + split; intros HH a; specialize (HH a).
+    - pose proof compact_sum_inj_in c a H.
+      pose proof compact_sum_inj_in c0 a H.
+Opaque In.
+      simpl in HH, H0, H1 |- *.
+Transparent In.
+      destruct (H a a0).
+      * subst.
+        tauto.
+      * tauto.
+    - simpl in HH |- *.
+      destruct (H a a0).
+      * tauto.
+      * tauto.
+Qed.
 
 Lemma union_pred_ext_derives: forall m {A0 A1} (P0: forall it, A0 it -> val -> mpred) (P1: forall it, A1 it -> val -> mpred) v0 v1 p,
   members_no_replicate m = true ->
@@ -459,6 +502,13 @@ Proof.
     simpl.
     exact H1.
   + rewrite compact_sum_inj_eq_spec in H0.
+    Focus 2. {
+      clear - H.
+      pose proof in_members_tail_no_replicate i0 _ _ _ H.
+      intro HH; apply in_map with (f := fst) in HH.
+      apply H0 in HH.
+      tauto.
+    } Unfocus.
     destruct v0 as [v0 | v0], v1 as [v1 | v1]; try solve [inversion H0].
     - specialize (H1 i0).
       simpl in H1.

@@ -64,6 +64,7 @@ Lemma semax_load_37' :
 forall (Delta: tycontext) sh id P Q R e1 t2 (v2: val),
     typeof_temp Delta id = Some t2 ->
     is_neutral_cast (typeof e1) t2 = true ->
+    readable_share sh ->
       PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |-- 
           (tc_lvalue Delta e1) &&
          local (`(tc_val (typeof e1) v2)) &&
@@ -76,6 +77,7 @@ forall (Delta: tycontext) sh id P Q R e1 t2 (v2: val),
      (SEPx (map (subst id (`old)) R))))).
 Proof.
   intros.
+  rename H1 into H_READABLE; rename H2 into H1.
   eapply semax_pre_post; [ | | apply semax_load with sh t2; auto].
   + instantiate (1:= PROPx P (LOCALx Q (SEPx R))).
     apply later_left2.
@@ -111,6 +113,7 @@ Lemma semax_cast_load_37' :
   forall {Espec: OracleKind}{cs: compspecs} ,
 forall (Delta: tycontext) sh id P Q R e1 t1 (v2: val),
     typeof_temp Delta id = Some t1 ->
+    readable_share sh ->
       PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |-- 
           (tc_lvalue Delta e1) &&
          local (`(tc_val t1 (eval_cast (typeof e1) t1 v2))) &&
@@ -122,7 +125,7 @@ forall (Delta: tycontext) sh id P Q R e1 t1 (v2: val),
    (LOCALx (`(eq (eval_cast (typeof e1) t1 v2)) (eval_id id) :: map (subst id (`old)) Q)
      (SEPx (map (subst id (`old)) R))))).
 Proof.
-  intros. rename H0 into H1; pose proof I.
+  intros. rename H0 into H_READABLE; pose proof I.
   eapply semax_pre_post; [ | | apply semax_cast_load with (sh0:=sh)(v3:= `v2); auto].
   * instantiate (1:= PROPx P (LOCALx Q (SEPx R))).
     apply later_left2.
