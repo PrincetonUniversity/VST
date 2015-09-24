@@ -326,19 +326,31 @@ Qed.
 (* TODO-LTAC - is this a missing lemma of the theory of [list_cell]?*)
 Lemma list_cell_field_at sh (v : val) p :
   list_cell LS sh v p = field_at sh list_struct [StructField _head] v p.
-Admitted.
-(* (* the compute induces an 'out of memory' *)
 Proof.
-  unfold list_cell, withspacer, field_at; simpl.
-  apply pred_ext; entailer; apply prop_right;
-  unfold field_compatible, legal_nested_field, legal_field in *; simpl.
-  intuition.
-  repeat constructor.
-  intuition.
-  simpl.
-  compute; if_tac; tauto.
+  unfold list_cell, field_at.
+  apply pred_ext; apply andp_right; unfold field_compatible; normalize; apply prop_right; intuition.
+  
+  (* to make the proof easier to debug and more robust to changes in definition
+     (and avoiding crashing the process with 'out of memory')
+     I encapsulate "compute"s in "match goal"s *)
+  
+  now match goal with [ |- Z.lt _ _ ] => reflexivity end.
+  
+  now match goal with [ |- legal_nested_field _ _ ] => compute; auto end.
+  
+  match goal with [ H: struct_Prop _ _ _ |- _ ] => compute in H end.
+  match goal with [ |- value_fits _ _ _ ] => compute end.
+  if_tac; tauto.
+  
+  now match goal with [ |- Z.lt _ _ ] => reflexivity end.
+  
+  now match goal with [ |- legal_nested_field _ _ ] => compute; auto end.
+  
+  match goal with [ |- struct_Prop _ _ _ ] => compute end.
+  match goal with [ H : value_fits _ _ _ |- _ ] => compute in H end.
+  if_tac; tauto.
 Qed.
-*)
+
 Lemma entail_rewrite A B : A |-- B -> A = A && B.
 Proof.
   intros I.
@@ -393,8 +405,9 @@ forward.
 replace_SEP 0 (`(data_at Tsh tlist Vundef ret_)).
 assert_PROP (isptr ret_).
   entailer.
-assert_PROP (size_compatible tlist ret_); [admit|].
-(* [now rewrite (memory_block_size_compatible _ tlist);[entailer|reflexivity]|]. *)
+
+assert_PROP (size_compatible tlist ret_);
+ [now rewrite (memory_block_size_compatible _ tlist);[entailer|reflexivity]|].
 
 apply lvar_align_compatible_param with _ret tlist ret_; [ entailer | intros H2 ].
 rewrite (memory_block_mapsto_ _ tlist); auto.
