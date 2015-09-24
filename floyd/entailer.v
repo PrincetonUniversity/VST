@@ -366,22 +366,20 @@ match goal with
 end.
 
 Ltac ent_iter :=
-    repeat (((repeat simple apply go_lower_lem1'; simple apply go_lower_lem1)
-                || simple apply derives_extract_prop 
+    repeat (( simple apply derives_extract_prop 
                 || simple apply derives_extract_prop');
-                fancy_intro);
+                fancy_intros);
     autorewrite with gather_prop;
-    repeat (((repeat simple apply go_lower_lem1'; simple apply go_lower_lem1)
-                || simple apply derives_extract_prop 
+    repeat (( simple apply derives_extract_prop 
                 || simple apply derives_extract_prop');
-                fancy_intro);
+                fancy_intros);
    saturate_local;
    repeat erewrite unfold_reptype_elim in * by reflexivity;
-(* subst_any; *)
    simpl_compare;
    simpl_denote_tc;
    subst_any;
-   try autorewrite with entailer_rewrite in *.
+   try autorewrite with entailer_rewrite in *;
+   try solve_valid_pointer.
 
 Lemma and_False: forall x, (x /\ False) = False.
 Proof.

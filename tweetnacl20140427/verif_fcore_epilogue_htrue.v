@@ -304,14 +304,14 @@ Tactic Notation "forwardOLD" simple_intropattern(v1) :=
   abbreviate_semax;
   try fwd_skip]. 
   
-  forwardOLD v.
-      assert (C16:= SixteenByte2ValList_Zlength C).
-      remember (SplitSelect16Q C i) as FB; destruct FB as (Front, BACK).
-      specialize (Select_SplitSelect16Q C i _ _ HeqFB); intros SSS.
 
 -------------------------------------------------------------------------
 
 TODO: port the rest of the file
+  forward v.
+      assert (C16:= SixteenByte2ValList_Zlength C).
+      remember (SplitSelect16Q C i) as FB; destruct FB as (Front, BACK).
+      specialize (Select_SplitSelect16Q C i _ _ HeqFB); intros SSS.
   
     erewrite Select_Unselect_Tarray_at; try reflexivity; try assumption.
       2: rewrite SSS; reflexivity.
