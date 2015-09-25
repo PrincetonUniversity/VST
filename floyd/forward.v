@@ -2973,7 +2973,7 @@ Proof. intros.
    auto.
 Qed.
 
-Ltac unfold_Delta := 
+Ltac unfold_Delta :=  (* obsolete? replaced by simplify_func_tycontext *)
   repeat match goal with Delta := func_tycontext ?f ?V ?G |- _ =>
      first [unfold f in Delta | unfold V in Delta | unfold G in Delta ]
   end;
@@ -3063,9 +3063,7 @@ Ltac start_function' :=
  repeat match goal with |- @semax _ _ _ (match ?p with (a,b) => _ end * _) _ _ =>
              destruct p as [a b]
            end;
- match goal with |- @semax _ _ (func_tycontext ?F ?V ?G) _ _ _ => 
-   set (Delta := func_tycontext F V G); unfold_Delta
- end;
+ simplify_func_tycontext;
  repeat match goal with 
  | |- context [Sloop (Ssequence (Sifthenelse ?e Sskip Sbreak) ?s) Sskip] =>
        fold (Swhile e s)
