@@ -221,7 +221,7 @@ FILES = \
  $(HMAC_FILES:%=sha/%) \
  $(FCF_FILES:%=fcf/%) \
  $(HMACFCF_FILES:%=hmacfcf/%) \
- $(HMACEQUIV_FILES:%=sha/%)) \
+ $(HMACEQUIV_FILES:%=sha/%) \
  $(TWEETNACL_FILES:%=tweetnacl20140427/%)
 
 %_stripped.v: %.v
