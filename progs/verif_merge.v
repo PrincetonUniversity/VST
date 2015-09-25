@@ -326,9 +326,6 @@ Qed.
 (* TODO-LTAC - is this a missing lemma of the theory of [list_cell]?*)
 Lemma list_cell_field_at sh (v : val) p :
   list_cell LS sh v p = field_at sh list_struct [StructField _head] v p.
-(*Admitted.
-(* (* the compute induces an 'out of memory' *)
-*) *)
 Proof.
   unfold list_cell, withspacer, field_at; simpl.
   f_equal. f_equal. f_equal.
@@ -428,7 +425,6 @@ assert_PROP (field_compatible (tptr (Tstruct _list noattr)) [] ret_). {
   assert_PROP (size_compatible tlist ret_); [admit|].
     entailer!. repeat split; auto.
 }
-
 rewrite memory_block_data_at_ by auto.
 change (tptr (Tstruct _list noattr)) with tlist in *.
 
