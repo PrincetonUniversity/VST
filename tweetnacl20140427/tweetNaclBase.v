@@ -3,63 +3,10 @@ Require Import floyd.proofauto.
 Local Open Scope logic.
 Require Import List. Import ListNotations.
 Require Import general_lemmas.
-(*
+
 Require Import split_array_lemmas.
-Require Import fragments.*)
+(*Require Import fragments.*)
 Require Import ZArith. 
-
-Lemma sublist_nil': forall (A : Type) (lo lo': Z) (al : list A), lo=lo' -> sublist lo lo' al = [].
-Proof. intros. subst. apply sublist_nil. Qed.
-
-Lemma sublist_skip {A} (l:list A) i : 0<=i ->  sublist i (Zlength l) l = skipn (Z.to_nat i) l.
-Proof. unfold sublist; intros. apply firstn_same. rewrite skipn_length.
-  rewrite Z2Nat.inj_sub, Zlength_correct, Nat2Z.id. omega. trivial.
-Qed.
-
-Lemma sublist_firstn {A} (l:list A) i: sublist 0 i l = firstn (Z.to_nat i) l.
-Proof. unfold sublist; intros. rewrite Zminus_0_r, skipn_0. trivial. Qed.
-
-Lemma sublist_app1 {A} i (al bl:list A): 0<= i <= Zlength al ->
-  sublist 0 i (al ++ bl) = sublist 0 i al.
-Proof. 
-  unfold sublist; intros. repeat rewrite Zminus_0_r; repeat rewrite skipn_0.
-  apply firstn_app1. rewrite Zlength_correct in H.
-  eapply Nat2Z.inj_le. rewrite Z2Nat.id; omega.
-Qed.
-
-Lemma sublist_app2 {A} i j (al bl:list A): 0<=Zlength al <= i->
-  sublist i j (al ++ bl) = sublist (i-Zlength al) (j-Zlength al) bl.
-Proof. 
-  unfold sublist; intros. 
-  rewrite skipn_app2.
-  repeat rewrite Z2Nat.inj_sub. repeat rewrite ZtoNat_Zlength.
-  remember ((Z.to_nat i - length al)%nat) as k.
-  rewrite <- NPeano.Nat.sub_add_distr.
-  assert (K: (length al + k = Z.to_nat i)%nat).
-    subst k. rewrite <- le_plus_minus. trivial.
-    apply Nat2Z.inj_le. rewrite Z2Nat.id. rewrite Zlength_correct in H; apply H. omega.
-  rewrite K. trivial.
-  omega. omega. omega. omega. 
-  apply Nat2Z.inj_le. rewrite Z2Nat.id. rewrite Zlength_correct in H; apply H. omega.
-Qed.
-  
-Lemma sublist_sublist {A} i j k m (l:list A): 0<=m -> 0<=k <=i -> i <= j-m -> 
-  sublist k i (sublist m j l) = sublist (m+k) (i+m) l.
-Proof. 
- unfold sublist; intros.
-  rewrite skipn_firstn.
-  rewrite firstn_firstn, skipn_skipn, <- Z2Nat.inj_add, (Z.add_comm _ m), Zminus_plus_simpl_l; trivial.
-  omega. 
-  rewrite <- Z2Nat.inj_sub; trivial. apply Z2Nat.inj_le; try omega. omega.
-Qed.
-
-Lemma sublist_sublist0 {A} i j k (l:list A): 0<=k -> k<=i<=j ->
-  sublist k i (sublist 0 j l) = sublist k i l.
-Proof. intros. rewrite sublist_sublist, Zplus_0_r; trivial; omega. Qed. 
-
-Lemma sublist_sublist00 {A} i j (l:list A): 0<=i<=j ->
-  sublist 0 i (sublist 0 j l) = sublist 0 i l.
-Proof. intros. apply sublist_sublist0; omega. Qed.
 
 Lemma isptrD v: isptr v -> exists b ofs, v = Vptr b ofs.
 Proof. intros. destruct v; try contradiction. exists b, i; trivial. Qed.

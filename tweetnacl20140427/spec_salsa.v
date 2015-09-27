@@ -157,7 +157,7 @@ Definition core_spec :=
          _k OF tptr tuchar,
          _c OF tptr tuchar,
          _h OF tint ]
-      PROP (length OUT = 64%nat)
+      PROP ((*length OUT = 64%nat*))
       LOCAL (temp _in nonce; temp _out out; 
              temp _c c; temp _k k; temp _h (Vint (Int.repr h)))
       SEP ( `(CoreInSEP data (nonce, c, k)); 
@@ -182,7 +182,7 @@ Definition st32_spec :=
    PRE [ _x OF tptr tuchar, _u OF tuint ]
       PROP ()
       LOCAL (temp _x x; temp _u (Vint u))
-      SEP (`(EX l:_, !!(length l = 4%nat) && data_at Tsh (Tarray tuchar 4 noattr) l x))
+      SEP (`(EX l:_, !!(Zlength l = 4) && data_at Tsh (Tarray tuchar 4 noattr) l x))
   POST [ tvoid ] 
      PROP ()
      LOCAL ()
@@ -209,7 +209,7 @@ Definition crypto_core_salsa20_spec :=
          _in OF tptr tuchar,
          _k OF tptr tuchar,
          _c OF tptr tuchar ]
-      PROP (length OUT = 64%nat)
+      PROP ((*length OUT = 64%nat*))
       LOCAL (temp _in nonce; temp _out out; 
              temp _c c; temp _k k)
       SEP ( `(CoreInSEP data (nonce, c, k)); 
@@ -230,7 +230,7 @@ Definition crypto_core_hsalsa20_spec :=
          _in OF tptr tuchar,
          _k OF tptr tuchar,
          _c OF tptr tuchar ]
-      PROP (length OUT = 64%nat)
+      PROP ((*length OUT = 64%nat*))
       LOCAL (temp _in nonce; temp _out out; 
              temp _c c; temp _k k)
       SEP ( `(CoreInSEP data (nonce, c, k)); 

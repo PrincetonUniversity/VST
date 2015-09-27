@@ -2,9 +2,9 @@ Require Import floyd.proofauto.
 Local Open Scope logic.
 Require Import List. Import ListNotations.
 Require Import general_lemmas.
-(*
+
 Require Import split_array_lemmas.
-Require Import fragments.*)
+(*Require Import fragments.*)
 Require Import ZArith. 
 Require Import tweetNaclBase.
 Require Import Salsa20.
@@ -68,7 +68,8 @@ forward q.
 forward p.
 forward. 
   entailer.
-  apply prop_right. unfold Znth in H3. simpl in H3. inv H3. clear - BND RNG0 RNG1 RNG2 RNG3.   
+  apply prop_right. clear H2 H3. 
+  unfold Znth in H1. simpl in H1. inv H1. clear - BND RNG0 RNG1 RNG2 RNG3.   
   rewrite shift_two_8, shift_two_8_2, shift_two_8_3.
   assert (WS: Int.zwordsize = 32). reflexivity.
   assert (TP: two_p 8 = Byte.max_unsigned + 1). reflexivity.
@@ -99,11 +100,23 @@ remember (littleendian_invert u) as U. destruct U as [[[u0 u1] u2] u3].
                 x)))).
 { entailer. rewrite sublist_same; trivial. }
 { rename H into I. normalize. (* intros LST. normalize.*)
+
+  (*need to drop "4=4" again*)
+  apply semax_pre with (P' := 
+  (PROP  ()
+   LOCAL  (temp _i (Vint (Int.repr i));
+   temp _x x; temp _u (Vint (iterShr8 u (Z.to_nat i))))
+   SEP 
+   (`(data_at Tsh (Tarray tuchar 4 noattr)
+        (sublist 0 i
+           [Vint (Int.repr (Byte.unsigned u0));
+           Vint (Int.repr (Byte.unsigned u1));
+           Vint (Int.repr (Byte.unsigned u2));
+           Vint (Int.repr (Byte.unsigned u3))] ++ sublist i (Zlength l) l) x)))). entailer.
   assert_PROP (field_compatible (Tarray tuchar 4 noattr) [] x /\ isptr x). solve [entailer].
   destruct H as [FC ptrX].
-  forward. forward v. subst v.
+  forward. forward v. clear v.
   entailer. unfold upd_Znth_in_list. rewrite Zlength_app; repeat rewrite Zlength_sublist; try omega.
-    2: rewrite Zlength_correct, Hl; simpl; omega.
     2: rewrite Zlength_correct; simpl; omega.
   clear H TC.
   rewrite sublist_app1.
@@ -112,18 +125,20 @@ remember (littleendian_invert u) as U. destruct U as [[[u0 u1] u2] u3].
   rewrite sublist_app2. Focus 2. rewrite Zlength_sublist; simpl; try omega. rewrite Zlength_correct; simpl; omega.
   rewrite Zlength_sublist; simpl. 2: omega. Focus 2. rewrite Zlength_correct; simpl; omega.
   rewrite Zminus_0_r, Zminus_plus.
-  rewrite sublist_sublist; try omega. Focus 2. rewrite Zlength_correct, Hl. assert (R:Z.of_nat 4 = 4) by reflexivity. rewrite R; omega.
+  rewrite sublist_sublist; try omega. 
   rewrite <- Z.sub_sub_distr, Zminus_diag, Zminus_0_r, Zplus_0_r.
   rewrite sublist_skip. 2: omega. repeat rewrite sublist_firstn.
   apply andp_right. 
     apply prop_right. rewrite Z.add_comm, Z2Nat.inj_add; try omega. trivial.
   rewrite field_at_data_at. simpl. unfold field_address. simpl.
-  if_tac. 2: contradiction. rewrite isptr_offset_val_zero; trivial. clear H.
+  if_tac. 2: solve [contradiction].
+  rewrite isptr_offset_val_zero; trivial. clear H.
+  rewrite hmac_pure_lemmas.Zlength_length in Hl. 2: omega. 
   destruct l; simpl in Hl. omega.
         destruct l; simpl in Hl. omega.
         destruct l; simpl in Hl. omega.
         destruct l; simpl in Hl. omega.
-        destruct l; simpl in Hl. 2: omega. clear Hl.
+        destruct l; simpl in Hl. 2: solve [omega]. clear Hl.
   apply data_at_ext.
 (*        unfold upd_reptype_array.*)
         assert (ZW: Int.zwordsize = 32) by reflexivity.
@@ -189,8 +204,8 @@ remember (littleendian_invert u) as U. destruct U as [[[u0 u1] u2] u3].
               rewrite zlt_true. repeat rewrite <- Z.add_assoc. reflexivity. omega. omega. omega. omega. omega.
           rewrite Int.bits_above. trivial. omega. }
         omega. }
-  rewrite Zlength_correct, Hl.
-  forward.
+  rewrite (*Zlength_correct,*) Hl.
+  forward. 
 Qed.
 
 (*
