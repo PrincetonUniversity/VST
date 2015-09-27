@@ -7,25 +7,46 @@
 
 ## Using VST on cs.princeton.edu machines
 
-With a CS account at princeton, [you can ssh to the following machines](https://csguide.cs.princeton.edu/remote/ssh):
+With a CS account at princeton, [you can ssh to the following machines](https://csguide.cs.princeton.edu/remote/ssh) with the `-X` option to enable X11 forwarding to be able to open windows:
 
-    ssh -X username@penguins.cs.princeton.edu
     ssh -X username@cycles.cs.princeton.edu
 
-There is a copy of VST in /n/fs/sml/sharedvst that is ready to use.
-To begin using it, copy it to your home directory (approx. 300 MB):
+You'll need to run Proof General instead of CoqIDE, because there's currently no CoqIDE installed on the cycles.cs machines.
 
-    rsync -a /n/fs/sml/sharedvst/VST/ ~/myVST
+You should add this to your .bash_profile (or profile for whatever shell you use):
 
-This command should update your local directory if you have an old version.
+    export PATH=/n/fs/sml/sharedvst/bin:$PATH
 
-Then you can run ProofGeneral inside your copy:
+and this to your .emacs
 
-    cd ~/myVST
-    ./pg
+    (load "/n/fs/sml/sharedvst/proofgeneral/generic/proof-site.el")
+
+Then you'll get two commands: 
+
+* "clightgen"  (for translating .c files into .v files) and
+* "pg" for proofgeneral (which loads Compcert (as "compcert") and VST (as an empty dirpath)).
+
+Next step is use this as a starting Makefile:
+
+    FLAGS=-I /n/fs/sml/sharedvst/VST -R /n/fs/sml/sharedvst/CompCert-2.5 -as compcert
+    
+    all:myprogram.vo
+    
+    %.vo:%.v Makefile
+    	coqc $(FLAGS) $<
+
+and then the usual routine is to convert your .c file into a .v file, compile it with coq through make, and run proofgeneral on it:
+
+    clightgen myprogram.c
+    make myprogram.vo
+    pg verif_myprogram.v
+
+You can use the following files to get started
+[Makefile](https://madiot.fr/vst/Makefile),
+[myprogram.c](https://madiot.fr/vst/myprogram.c) and
+[verif_myprogram.v](https://madiot.fr/vst/verif_myprogram.v) (this example is the list reversal program and its proof, taken from [here](https://raw.githubusercontent.com/PrincetonUniversity/VST/new_compcert/progs/verif_reverse.v)).
 
 Signal problems to Jean-Marie Madiot (jmadiot at cs dot princeton ...).
-
 
 ## Instructions for Linux
 
