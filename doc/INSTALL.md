@@ -41,6 +41,11 @@ and then the usual routine is to convert your .c file into a .v file, compile it
     make myprogram.vo
     pg verif_myprogram.v
 
+You can use the following files to get started
+[Makefile](https://madiot.fr/vst/Makefile),
+[myprogram.c](https://madiot.fr/vst/myprogram.c) and
+[verif_myprogram.v](https://madiot.fr/vst/verif_myprogram.v) (this example is the list reversal program and its proof, taken from [here](https://raw.githubusercontent.com/PrincetonUniversity/VST/new_compcert/progs/verif_reverse.v)).
+
 Signal problems to Jean-Marie Madiot (jmadiot at cs dot princeton ...).
 
 ## Instructions for Linux
