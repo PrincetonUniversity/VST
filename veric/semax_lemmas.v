@@ -1509,8 +1509,10 @@ Proof.
     hnf in *.
     if_tac.
     - unfold shareat in *; simpl in *.
+      pose proof H1.
       apply age1_resource_share with (l := loc') in H1.
-      rewrite H1; auto.
+      apply age1_nonlock with (l := loc') in H2.
+      rewrite H1; tauto.
     - unfold noat in *; simpl in *.
       apply <- (age1_resource_at_identity _ _ loc' H1); auto.
 Qed.
@@ -1591,5 +1593,3 @@ destruct ((temp_types Delta) ! id) as [[? ?]|]; try discriminate.
 destruct ((temp_types Delta') ! id) as [[? ?]|]; try contradiction.
 destruct H; subst; auto.
 Qed.
-
-

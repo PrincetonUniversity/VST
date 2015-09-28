@@ -44,23 +44,6 @@ Lemmas about mapsto and mapsto_.
 
 ******************************************)
 
-Lemma mapsto_mapsto_: forall sh t v v', mapsto sh t v v' |-- mapsto_ sh t v.
-Proof. unfold mapsto_; intros.
-  unfold mapsto.
-  destruct (access_mode t); auto.
-  destruct (type_is_volatile t); try apply FF_left.
-  destruct v; try apply FF_left.
-  if_tac; [| auto].
-  apply orp_left.
-  apply orp_right2.
-  apply andp_left2.
-  apply andp_right. apply prop_right; auto.
-  apply exp_right with v'; auto.
-  normalize.
-  apply orp_right2. apply exp_right with v2'.
-  normalize.
-Qed.
-
 Lemma mapsto_local_facts:
   forall sh t v1 v2,  mapsto sh t v1 v2 |-- !! isptr v1.
   (* could make this slightly stronger by adding the fact

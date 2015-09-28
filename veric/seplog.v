@@ -82,7 +82,7 @@ Definition permission_block (sh: Share.t)  (v: val) (t: type) : mpred :=
          | By_value ch => 
             match v with 
             | Vptr b ofs => 
-                 permission_bytes sh (b, Int.unsigned ofs)
+                 nonlock_permission_bytes sh (b, Int.unsigned ofs)
                        (size_chunk ch)
             | _ => FF
             end
@@ -103,7 +103,7 @@ Definition mapsto (sh: Share.t) (t: type) (v1 v2 : val): mpred :=
             (!! (v2 = Vundef) &&
              EX v2':val, address_mapsto ch v2'
               (Share.unrel Share.Lsh sh) (Share.unrel Share.Rsh sh) (b, Int.unsigned ofs))
-       else permission_bytes sh (b, Int.unsigned ofs) (size_chunk ch)
+       else nonlock_permission_bytes sh (b, Int.unsigned ofs) (size_chunk ch)
      | _ => FF
     end
     | _ => FF
@@ -460,7 +460,7 @@ Definition memory_block'_alt (sh: share) (n: nat) (b: block) (ofs: Z) : mpred :=
  if readable_share_dec sh 
  then VALspec_range (Z_of_nat n)
                (Share.unrel Share.Lsh sh) (Share.unrel Share.Rsh sh) (b, ofs)
- else permission_bytes sh (b,ofs) (Z.of_nat n).
+ else nonlock_permission_bytes sh (b,ofs) (Z.of_nat n).
 
 Lemma memory_block'_eq: 
  forall sh n b i,
@@ -473,7 +473,7 @@ Proof.
   revert i H H0; induction n; intros.
   + unfold memory_block'.
     simpl.
-    rewrite VALspec_range_0, permission_bytes_0.
+    rewrite VALspec_range_0, nonlock_permission_bytes_0.
     if_tac; auto.
   + unfold memory_block'; fold memory_block'.
     rewrite (IHn (i+1)) by (rewrite inj_S in H0; omega).
@@ -530,7 +530,7 @@ Proof.
         } Unfocus.
     - rewrite Int.unsigned_repr by (rewrite Nat2Z.inj_succ in H0; unfold Int.max_unsigned; omega).
       change (size_chunk Mint8unsigned) with 1.
-      apply permission_bytes_split2.
+      apply nonlock_permission_bytes_split2.
       * rewrite Nat2Z.inj_succ; omega.
       * omega.
       * omega.
@@ -677,19 +677,89 @@ Proof.
   + rewrite if_true by (eapply join_sub_readable; [unfold join_sub; eauto | auto]).
     rewrite distrib_orp_sepcon.
     f_equal; rewrite sepcon_comm, sepcon_andp_prop; f_equal.
-    - apply permission_bytes_address_mapsto_join; auto.
+    - apply nonlock_permission_bytes_address_mapsto_join; auto.
     - rewrite exp_sepcon2.
       pose proof (@exp_congr (pred rmap) (algNatDed _) val); simpl in H0; apply H0; clear H0; intro.
-      apply permission_bytes_address_mapsto_join; auto.
+      apply nonlock_permission_bytes_address_mapsto_join; auto.
   + rewrite if_true by (eapply join_sub_readable; [unfold join_sub; eexists; apply join_comm in H; eauto | auto]).
     rewrite sepcon_comm, distrib_orp_sepcon.
     f_equal; rewrite sepcon_comm, sepcon_andp_prop; f_equal.
-    - apply permission_bytes_address_mapsto_join; auto.
+    - apply nonlock_permission_bytes_address_mapsto_join; auto.
     - rewrite exp_sepcon2.
       pose proof (@exp_congr (pred rmap) (algNatDed _) val); simpl in H0; apply H0; clear H0; intro.
-      apply permission_bytes_address_mapsto_join; auto.
+      apply nonlock_permission_bytes_address_mapsto_join; auto.
   + rewrite if_false by (eapply join_unreadable_shares; eauto).
-    apply permission_bytes_share_join; auto.
+    apply nonlock_permission_bytes_share_join; auto.
+Qed.
+
+Lemma mapsto_mapsto_: forall sh t v v', mapsto sh t v v' |-- mapsto_ sh t v.
+Proof. unfold mapsto_; intros.
+  unfold mapsto.
+  destruct (access_mode t); auto.
+  destruct (type_is_volatile t); auto.
+  destruct v; auto.
+  if_tac; [| auto].
+  apply orp_left.
+  apply orp_right2.
+  apply andp_left2.
+  apply andp_right.
+  + intros ? _; simpl; auto.
+  + apply exp_right with v'; auto.
+  + apply andp_left2. apply exp_left; intro v2'.
+  apply orp_right2. apply andp_right; [intros ? _; simpl; auto |]. apply exp_right with v2'.
+  auto.
+Qed.
+
+Lemma mapsto_conflict:
+  forall sh t v v2 v3,
+  nonunit sh ->
+  mapsto sh t v v2 * mapsto sh t v v3 |-- FF.
+Proof.
+  intros.
+  unfold mapsto.
+  destruct (access_mode t); try solve [rewrite FF_sepcon; auto].
+  destruct (type_is_volatile t); try solve [rewrite FF_sepcon; auto].
+  destruct v; try solve [rewrite FF_sepcon; auto].
+  if_tac.
+  + pose proof size_chunk_pos m.
+    rewrite distrib_orp_sepcon;
+    apply orp_left; rewrite sepcon_andp_prop1; apply andp_left2;
+    rewrite sepcon_comm;
+    rewrite distrib_orp_sepcon;
+    apply orp_left; rewrite sepcon_andp_prop1; apply andp_left2;
+    try (rewrite exp_sepcon1; apply exp_left; intro);
+    try (rewrite exp_sepcon2; apply exp_left; intro);
+    apply address_mapsto_overlap; split; auto; omega.
+  + apply nonlock_permission_bytes_overlap; auto.
+    exists (b, Int.unsigned i).
+    pose proof size_chunk_pos m.
+    repeat split; auto; omega.
+Qed.
+
+Lemma memory_block_conflict: forall sh n m p,
+  nonunit sh ->
+  0 < n <= Int.max_unsigned -> 0 < m <= Int.max_unsigned ->
+  memory_block sh n p * memory_block sh m p |-- FF.
+Proof.
+  intros.
+  unfold memory_block.
+  destruct p; try solve [rewrite FF_sepcon; auto].
+  rewrite sepcon_andp_prop1.
+  apply prop_andp_left; intro.
+  rewrite sepcon_comm.
+  rewrite sepcon_andp_prop1.
+  apply prop_andp_left; intro.
+  rewrite memory_block'_eq; [| pose proof Int.unsigned_range i; omega | rewrite Z2Nat.id; omega].
+  rewrite memory_block'_eq; [| pose proof Int.unsigned_range i; omega | rewrite Z2Nat.id; omega].
+  unfold memory_block'_alt.
+  if_tac.
+  + apply VALspec_range_overlap.
+    - simpl; split; auto.
+      rewrite Z2Nat.id; omega.
+    - rewrite Z2Nat.id; omega.
+  + apply nonlock_permission_bytes_overlap; auto.
+    exists (b, Int.unsigned i).
+    repeat split; auto; try rewrite Z2Nat.id; omega.
 Qed.
 
 Definition eval_lvar (id: ident) (ty: type) (rho: environ) :=

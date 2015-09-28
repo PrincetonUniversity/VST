@@ -178,6 +178,7 @@ rewrite <- (Z.add_0_r (Int.unsigned o)).
 apply (valid_pointer_dry b o 0 jm).
 hnf.
 rewrite Z.add_0_r.
+destruct H0.
 destruct  (x @ (b, Int.unsigned o)); inv H0; inv H1; simpl; auto.
 intro.
 apply split_identity in RJ; auto.

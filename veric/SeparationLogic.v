@@ -283,7 +283,7 @@ Definition mapsto (sh: Share.t) (t: type) (v1 v2 : val): mpred :=
             (!! (v2 = Vundef) &&
              EX v2':val, address_mapsto ch v2'
               (Share.unrel Share.Lsh sh) (Share.unrel Share.Rsh sh) (b, Int.unsigned ofs))
-       else res_predicates.permission_bytes sh (b, Int.unsigned ofs) (Memdata.size_chunk ch)
+       else res_predicates.nonlock_permission_bytes sh (b, Int.unsigned ofs) (Memdata.size_chunk ch)
      | _ => FF
     end
     | _ => FF
@@ -401,6 +401,9 @@ Definition memory_block (sh: share) (n: Z) (v: val) : mpred :=
  | _ => FF
  end.
 
+Lemma mapsto_mapsto_: forall sh t v v', mapsto sh t v v' |-- mapsto_ sh t v.
+Proof. exact seplog.mapsto_mapsto_. Qed.
+
 Lemma memory_block'_split:
   forall sh b ofs i j,
    0 <= i <= j ->
@@ -478,7 +481,25 @@ Lemma memory_block_share_join:
    sepalg.join sh1 sh2 sh ->
    memory_block sh1 n p * memory_block sh2 n p = memory_block sh n p.
 Proof.
-Admitted. 
+Admitted.
+
+Lemma mapsto_conflict:
+  forall sh t v v2 v3,
+  sepalg.nonunit sh ->
+  mapsto sh t v v2 * mapsto sh t v v3 |-- FF.
+Proof.
+intros.
+apply seplog.mapsto_conflict; auto.
+Qed.
+
+Lemma memory_block_conflict: forall sh n m p,
+  sepalg.nonunit sh ->
+  0 < n <= Int.max_unsigned -> 0 < m <= Int.max_unsigned ->
+  memory_block sh n p * memory_block sh m p |-- FF.
+Proof.
+intros.
+apply seplog.memory_block_conflict; auto.
+Qed.
 
 Definition align_compatible {C: compspecs} t p :=
   match p with
