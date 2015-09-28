@@ -314,8 +314,7 @@ Proof.
   destruct p; try inversion P.
   unfold tlist, t_struct_list, tptr in *; simpl in *.
   rewrite int_add_repr_0_r.
-  unfold data_at', mapsto', offset_val; simpl.
-  if_tac; [ | exfalso; tauto ].
+  unfold data_at', offset_val; simpl.
   apply pred_ext; entailer.
   unfold field_compatible; simpl.
   unfold legal_alignas_type, nested_pred, local_legal_alignas_type, legal_cosu_type; simpl.

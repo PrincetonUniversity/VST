@@ -1604,12 +1604,11 @@ Proof.
   + apply sepcon_derives. 
     apply field_at_field_at_; try assumption; auto. 
     apply field_at_field_at_; try assumption; auto. 
-  +
-    fold (field_at_ sh t fld p).
+  + fold (field_at_ sh t fld p).
     rewrite field_at__memory_block by auto.
     normalize.
     apply memory_block_conflict; try  (unfold Int.max_unsigned; omega).
-    auto.
+    apply sepalg.nonidentity_nonunit; auto.
 Qed.
 
 Lemma data_at_conflict: forall sh t v v' p,
@@ -1906,32 +1905,6 @@ Proof.
    destruct p; unfold nullval; simpl in *; tauto.
 Qed.
 
-Lemma mapsto'_share_join:
- forall sh1 sh2 sh t p v,
-   sepalg.join sh1 sh2 sh ->
-   mapsto' sh1 t p v * mapsto' sh2 t p v = mapsto' sh t p v.
-Proof.
-intros.
-unfold mapsto'.
-if_tac.
-if_tac.
-rewrite if_true
-  by  ( eapply join_sub_readable; eauto; eexists; eauto).
-apply mapsto_share_join; auto.
-rewrite if_true
-  by ( eapply join_sub_readable; eauto; eexists; eauto).
-rewrite sepcon_comm.
-apply sepalg.join_comm in H.
-apply permission_block_mapsto_join; auto.
-if_tac.
-rewrite if_true
-  by  ( eapply join_sub_readable; eauto; eexists; eauto).
-apply permission_block_mapsto_join; auto.
-rewrite if_false.
-apply permission_block_share_join; auto.
-eapply join_unreadable_shares; eauto.
-Qed.
-
 Lemma spacer_share_join:
   forall sh1 sh2 sh J K q,
    sepalg.join sh1 sh2 sh ->
@@ -1960,7 +1933,7 @@ Lemma data_at'_void:
   forall {cs: compspecs} 
       sh t v q, t = Tvoid -> data_at' sh t v q = FF.
 Proof.
- intros; subst. unfold data_at'; simpl. unfold mapsto'.
+ intros; subst. unfold data_at'; simpl. unfold mapsto.
   if_tac; reflexivity.
 Qed.
 
@@ -2179,7 +2152,7 @@ intros; rename p into q;
 rewrite !data_at'_ind;
  try solve [if_tac;
      [ apply memory_block_share_join; auto
-     | apply mapsto'_share_join; auto]];
+     | apply mapsto_share_join; auto]];
   try solve [normalize].
 * (* Tarray *)
   destruct (zlt z 0). rewrite !array_pred_len_0 by omega. normalize.
@@ -2310,20 +2283,26 @@ Lemma nonreadable_memory_block_data_at':
    ~ readable_share sh ->
     field_compatible t nil p ->
     memory_block sh (sizeof cenv_cs t) p = data_at' sh t v p.
- Proof.
+Proof.
 intros.
 hnf in H0.
-destruct H0 as [Hp [_ [_ [? [Hsz [Hsc _]]]]]].
-revert H0 Hsz v p Hsc Hp; pattern t; type_induction.type_induction t; intros; inv H0;
+destruct H0 as [Hp [? [_ [Hcom [Hsz [Hsc [Hal Hlnf]]]]]]].
+revert H0 Hsz v p Hcom Hsc Hp Hal Hlnf; pattern t; type_induction.type_induction t; intros; inv H0;
  rewrite  data_at'_ind; auto;
- try match goal with |- context [nested_field_type2 ?t nil] => change (nested_field_type2 t nil) with t; cbv beta iota end;
- try (if_tac; [solve [auto] | unfold mapsto'; rewrite if_false by auto]).
-* destruct p; try contradiction; destruct i,s; eapply memory_block_permission_block; auto;  reflexivity.
-* destruct p; try contradiction; destruct s;  eapply memory_block_permission_block; auto;  reflexivity.
-* destruct p; try contradiction; destruct f; eapply memory_block_permission_block; auto;  reflexivity.
-* destruct p; try contradiction; eapply memory_block_permission_block; auto;  reflexivity.
+match goal with
+| |- appcontext [type_is_volatile ?t] =>
+       destruct (type_is_volatile t) eqn:HH; [auto | rewrite memory_block_mapsto_ by auto];
+       unfold mapsto_, mapsto; destruct (access_mode t); auto;
+       rewrite HH; simpl;
+       destruct p; auto;
+       rewrite !if_false by auto; auto
+| _ => idtac
+end.
+
+* inversion Hcom.
 * (* Tarray *)
   admit.  (* Qinxiang *)
+* inversion Hcom.
 * (* Tstruct *)
   admit.  (* Qinxiang *)
 * (* Tunion *)
