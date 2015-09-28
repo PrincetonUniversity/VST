@@ -3,7 +3,7 @@
 1. [Instructions for CS machines](#using-vst-on-csprincetonedu-machines)
 2. [Instructions for Linux](#instructions-for-linux)
 3. [Instructions for OS X](#instructions-for-os-x)
-
+4. [Instructions for Windows / Cygwin](#instructions-for-windows)
 
 ## Using VST on cs.princeton.edu machines
 
@@ -52,7 +52,7 @@ Signal problems to Jean-Marie Madiot (jmadiot at cs dot princeton ...).
 
 Branch [new_compcert](https://github.com/PrincetonUniversity/VST/tree/new_compcert) with CompCert 2.5.
 
-If you have already Coq 8.4pl5 or menhir >= 20140422, skip the corresponding sections.
+If you have already Coq 8.4pl6 (or 8.4pl5) or menhir >= 20140422, skip the corresponding sections.
 
 Building times correspond to some 2015 laptop with 8 threads and 16 of RAM, which was still slower than the "cycles" machines at the Princeton CS department.  Building was roughly 3 times slower with a 2008 laptop with 2 threads and 4 G of RAM.
 
@@ -79,7 +79,8 @@ Alternatively, run:
 
 each time you want to use opam-installed packages.
 
-### Get Coq 8.4pl5 (~5 minutes)
+### Get Coq 8.4pl6 (~5 minutes)
+[Coq 8.4pl5 will suffice, if you already have that]
 
 You'll need camlp5.  If you don't have it, you can use opam:
 
@@ -88,8 +89,8 @@ You'll need camlp5.  If you don't have it, you can use opam:
 Then standard installation process:
 
     wget https://coq.inria.fr/distrib/8.4pl5/files/coq-8.4pl5.tar.gz
-    tar xf coq-8.4pl5.tar.gz
-    cd coq-8.4pl5/
+    tar xf coq-8.4pl6.tar.gz
+    cd coq-8.4pl6/
     ./configure
     make -j
     sudo make install
@@ -130,9 +131,9 @@ Go to your main VST directory where there is already CompCert.  This will create
     git checkout new_compcert
     make -j -k
 
-If the Makefile rejects your version of Coq because it's too recent, you can try for example if you have 8.4pl6:
+If the Makefile rejects your version of Coq because it's too recent, you can try for example if you have 8.4pl7:
 
-    sed -i 's/or-else 8.4pl5/or-else 8.4pl5 or-else 8.4pl6/' Makefile
+    sed -i 's/or-else 8.4pl6/or-else 8.4pl6 or-else 8.4pl7/' Makefile
 
 Build time is 120 minutes, 50 minutes with many cores.
 
@@ -155,7 +156,8 @@ For coqide, try using the _CoqProject file.  If it does not work, try using some
 
 Branch [new_compcert](https://github.com/PrincetonUniversity/VST/tree/new_compcert) with CompCert 2.5.
 
-If you have already Coq 8.4pl5 or menhir >= 20140422, skip the corresponding sections.
+If you have already Coq 8.4pl6 or menhir >= 20140422, skip the corresponding sections.
+[Coq 8.4pl5 will suffice, if you already have that]
 
 ## Get [Homebrew](http://http://brew.sh/) (~5 minutes)
 
@@ -171,7 +173,8 @@ I use wget to download the packages that are not in Homebrew. If you don't have 
 
     brew install wget
 
-### Get Coq 8.4pl5 (~5 minutes)
+### Get Coq 8.4pl6 (~5 minutes)
+[Coq 8.4pl5 will suffice, if you already have that]
 
 You'll need camlp5.  If you don't have it, you can use hombrew:
 
@@ -241,3 +244,54 @@ Add the following lines to your .emacs file:
 ### Open a file
 
 Open your files from inside emacs.  Start with 'progs/verif_reverse.v' for an introduction. Another good example is 'progs/verif_nest2.v'.
+
+## Instructions for Windows
+
+Branch [new_compcert](https://github.com/PrincetonUniversity/VST/tree/new_compcert) with CompCert 2.5.
+
+If you have already Coq 8.4pl6 (or 8.4pl5) or menhir >= 20140422, skip the corresponding sections.
+
+## Install cygwin
+
+In some directory (name immaterial, for example, "root"),
+download CompCert as one subdirectory (compcert-2.5)
+and VST as another subdirectory (VST).
+
+## Download CompCert 2.5 from compcert.inria.fr
+
+Don't build it yet!  It will need a patch, see below.
+
+## Download the Verified Software Toolchain, new_compcert branch
+
+    git clone https://github.com/PrincetonUniversity/VST.git
+    cd VST
+    git checkout new_compcert
+
+(To download, it's probably best to use git to clone the repository)
+
+https://github.com/PrincetonUniversity/VST/tree/new_compcert
+
+## Patch CompCert
+
+cd root
+cp VST/compcert/exportclight/ExportClight.ml compcert-2.5/exportclight/ExportClight.ml
+
+## Build CompCert
+cd root/compcert-2.5
+./configure ia32-cygwin
+make -j clightgen
+
+## Build VST
+cd root/vst/compcert
+./make -j
+cd root/vst
+make depend
+make -j
+
+## Run VST
+
+To run a file inside Coqide, for example VST/progs/verif_reverse.v,
+do this:
+
+cd VST
+coqide `cat .loadpath` verif_reverse.v &
