@@ -17,7 +17,8 @@
  * and that you start coqide/PG from the same directory.
  *)
 Add LoadPath "../../msl" as msl.
-Add LoadPath "../../compcert" as compcert.
+Add LoadPath "../../compcert" as compcert. 
+Add LoadPath "../../../compcert" as compcert.
 Add LoadPath "../../sepcomp" as sepcomp.
 Add LoadPath "../../veric" as veric.
 Add LoadPath "../../floyd" as floyd.
@@ -116,6 +117,7 @@ Print val.
   | Vlong : int64 -> val
   | Vfloat : float -> val
   | Vptr : block -> int -> val
+  | maybe others such as Vsingle . . .
 *)
 
 
@@ -133,7 +135,6 @@ Goal forall v, tc_val (tptr tint) v ->
                      | _ => False 
    end.
 Proof. intros. destruct v; inversion H; auto.
-  apply binop_lemmas.int_eq_true; auto.
 Qed.
 
 (* C-LIGHT EXPRESSIONS *)
@@ -151,53 +152,13 @@ Print expr.
   | Ebinop : binary_operation -> expr -> expr -> type -> expr
   | Ecast : expr -> type -> expr
   | Efield : expr -> ident -> type -> expr
+  | maybe others . . .
 *)
 
-(* LIFTED FUNCTIONS: see Chapter 21 (Lifted Separation Logics)
- *  of Program Logics for Certified Compilers.
- * The backtick `a is just notation for (liftx a),
- * which in turn has an implicit argument so it is really
- *    (@liftx _ a).
- * Assume T is some type NOT of the form (val -> _).
- * If x is a constant of type T, then `x is a constant
- * function of type (environ->T), equal to
- *  (fun rho : environ => x).
+(* LIFTED FUNCTIONS:  DEPRECATED!
+   Version 1.6 of VST does not use much use lifted functions,
+   so you can mostly ignore Chapter 21 of the PLCC book.
  *)
-Check `nullval : environ -> val.
-(* What's really going on here is complicated, but
- * there's an implicit coercion "lifted".  Turn on
- * "Display coercions" to see it:
- *)
-Check `nullval : LiftEnviron val.
-Check `nullval : lifted (LiftEnviron val).
-Goal  lifted (LiftEnviron val) = (environ -> val).
-Proof. reflexivity. Qed.
-Goal `nullval = @liftx (LiftEnviron val) nullval.
-Proof. reflexivity. Qed.
-
-(* You can use the backtick without following all the
- * details of how LiftEnviron works.  Now,
- * if f is a function of type (val -> T), then `x is
- * a lifted function of type (environ->val)->(environ->T),
- * equal to (fun v1 rho => f (v1 rho)).
- *)
-Check (eq nullval) : val -> Prop.
-Check (`(eq nullval)): (environ -> val) -> (environ -> Prop).
-Parameter f: environ -> val.
-Goal forall rho,  eq nullval (f rho) = (nullval = f rho).
-Proof. reflexivity. Qed.  (* a=b is just Notation for eq a b *)
-
-(* If f is a function of type (val -> val -> T), then `x is
- * a lifted function of type (environ->val) ->(environ->val) -> (environ->T).
- *)
-Check `(eq: val -> val -> Prop).
-Check `(eq: val -> val -> Prop) : (environ->val) ->(environ->val) -> (environ->Prop).
-Check `eq `nullval f : environ -> Prop.
-Check `(eq nullval) f : environ -> Prop.
-Goal `(eq nullval) f = `eq `nullval f.
-Proof. reflexivity. Qed. 
-Goal `(eq nullval) f = fun rho => nullval = f rho.
-Proof. reflexivity. Qed.
 
 (* The type [mpred] is for spatial predicates, i.e. predicates
  * that describe heaplets and that are subject to the separation
@@ -215,6 +176,15 @@ Check prop : Prop -> mpred.
  * at address p, with contents q.  Our mapsto predicate:
  *)
 Check mapsto : share -> type -> val -> val -> mpred.
+
+(* However, your proofs about C programs should
+ not use the low-level "mapsto"; instead, use the typed
+ version of mapsto, called data_at:
+*)
+
+Require Import floyd.proofauto.
+
+Check data_at: Share.t -> forall t : type, reptype t -> val -> mpred.
 
 
 (* Assertions such as preconditions in Hoare triples have the

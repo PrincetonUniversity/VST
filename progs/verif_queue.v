@@ -135,15 +135,24 @@ Proof.
 intros.
 (* new version of proof, for constructive definition of list_cell *)
 f_equal.
-unfold field_at, list_cell; simpl.
-normalize.
+unfold field_at, list_cell.
+autorewrite with gather_prop.
 f_equal.
-f_equal; apply prop_ext; split.
+f_equal.
+rewrite <- eq_rect_eq.
+rewrite !proj_sumbool_is_true by auto.
+unfold struct_Prop.
+simpl list_fields.
+unfold list_rect; simpl.
+repeat match goal with |- context [field_type ?i ?m] =>
+  set (t := field_type i m); compute in t; subst t
+end.
+apply prop_ext; split.
 intros [? [? [? ?]]].
 rewrite field_compatible_cons in H2; destruct H2; auto.
 split; auto.
-split3; rewrite value_fits_ind; simpl; hnf; auto.
-intro H8; contradiction H8; reflexivity.
+split3; auto.
+compute; auto.
 intros [? [? [? ?]]].
 intuition.
 rewrite field_compatible_cons; split; auto.
@@ -368,6 +377,7 @@ start_function.
 name Q _Q.
 name h _h.
 unfold fifo.
+normalize.
 forward_intro [hd tl].
 normalize.
 forward. (* h = Q->head; *)
@@ -397,7 +407,7 @@ Proof.
   name Q _Q.
   name Q' 68%positive.
  
-  forward_call' (* Q = mallocN(sizeof ( *Q)); *)
+  forward_call (* Q = mallocN(sizeof ( *Q)); *)
      8 q.
     computable.
   rewrite memory_block_fifo.
@@ -409,7 +419,7 @@ Proof.
   forward. (* Q->tail = NULL; *)
   forward. (* return Q; *)
   (* goal_5 *)
-  apply exp_right with Q; normalize.
+  apply exp_right with Q; normalize. renormalize.
   unfold fifo.
   apply exp_right with (nullval,nullval).
   rewrite if_true by auto.
@@ -429,11 +439,12 @@ name Q _Q.
 name p' _p.
 name h _h.
 name t _t.
-unfold fifo at 1.
+unfold fifo at 1. renormalize.
 forward_intro [hd tl]. normalize.
 (* goal_7 *)
 
 forward. (* p->next = NULL; *)
+renormalize.
 forward. (*   h = Q->head; *)
 forward_if 
   (PROP() LOCAL () SEP (`(fifo (contents ++ p :: nil) q))).
@@ -455,10 +466,10 @@ forward_if
    + normalize.
       destruct prefix; normalize;
       entailer!.
-      contradiction (field_compatible_isptr _ _ _ H7).
+      contradiction (field_compatible_isptr _ _ _ H4).
       rewrite lseg_cons_eq by auto.
       entailer.
-      contradiction (field_compatible_isptr _ _ _ H11).      
+      contradiction (field_compatible_isptr _ _ _ H7).      
 * (* else clause *)
   forward. (*  t = Q->tail; *)
   destruct (isnil contents).
@@ -496,19 +507,19 @@ start_function.
 name Q _Q.
 name h _h.
 name n _n.
-unfold fifo at 1.
+unfold fifo at 1. renormalize.
 forward_intro [hd tl].
 rewrite if_false by congruence.
+renormalize.
 forward_intro prefix. normalize.
-forward. (*   p = Q->head; *)
-destruct prefix; inversion H1; clear H1.
+forward.  (*   p = Q->head; *)
+destruct prefix; inversion H; clear H.
 + subst_any.
    rewrite lseg_nil_eq by auto.
    normalize.
-   apply ptr_eq_e in H1. subst_any.
+   subst_any.
    forward. (*  n=h->next; *)
    forward. (* Q->head=n; *)
-   replace_SEP 0%Z (`(data_at Tsh t_struct_fifo (nullval,p) q)); [ entailer! | ]. (* can we do this automatically? *)
    forward. (* return p; *)
    entailer!.
    unfold fifo. apply exp_right with (nullval, h).
@@ -516,17 +527,18 @@ destruct prefix; inversion H1; clear H1.
    entailer!.
 + rewrite lseg_cons_eq by auto.
     forward_intro x. normalize.
-    simpl valinject. (* can we make this automatic? *)
+    simpl @valinject. (* can we make this automatic? *)
     subst_any.
     forward. (*  n=h->next; *)
     forward. (* Q->head=n; *)
-    replace_SEP 3%Z (`(data_at Tsh t_struct_fifo (x, tl) q)); [ entailer! | ]. (* can we do this automatically? *)
+(*    replace_SEP 3%Z (`(data_at Tsh t_struct_fifo (x, tl) q)); [ entailer! | ]. (* can we do this automatically? *)
+*)
     forward. (* return p; *)
     entailer.
     unfold fifo. normalize. apply exp_right with (n, tl).
     rewrite if_false by (destruct prefix; simpl; congruence).
     normalize. apply exp_right with prefix.
-    entailer!; 
+    entailer!;
    fail. Admitted.  (* This hack because otherwise we run out of memory *)
 (* Qed.*)
 
@@ -537,7 +549,7 @@ name a _a.
 name b _b.
 name p _p.
 name p' 69%positive.
-forward_call' (*  p = mallocN(sizeof ( *p));  *) 
+forward_call (*  p = mallocN(sizeof ( *p));  *) 
   12 p0.
  computable.
   change 12 with (sizeof cenv_cs t_struct_elem).
@@ -545,16 +557,21 @@ forward_call' (*  p = mallocN(sizeof ( *p));  *)
 2:  eapply malloc_compatible_field_compatible; try eassumption; 
       auto with typeclass_instances;
       exists 2; reflexivity.
-forward.  (*  p->a=a; *)
-forward.  (*  p->b=b; *) (* 21 secs *)
-forward.  (* return p; *)
+Time forward.  (*  p->a=a; *)  (* 11.6 sec -> 10.78 sec -> 7.8 sec -> 6.36*)
+(* UGLY:  there's an (offset_val Int.zero p0) where a p0 would
+  suffice.  One could rewrite <- field_at_offset_zero;
+  but this would slow down the next forward by a factor of 2.
+  The better fix would be to adjust the semax_SC_field_store
+  theorem, and the store_tac, to get rid of (offset zero).   *)
+Time forward.  (*  p->b=b; *) (* 21 secs -> 56 sec -> 6.82 sec -> 4.84 *)
+Time forward. (* return p; *)  (* 4.73 sec -> 5.0 *)
 apply exp_right with p.
-entailer.
+Time entailer.  (* 7.2 sec -> 5.6 *)
 rewrite make_unmake.
 solve [auto];
 fail. Admitted.  (* This hack because otherwise we run out of memory *)
 (*Qed.*)
- 
+
 Hint Resolve readable_share_Qsh'.
 
 Lemma body_main:  semax_body Vprog Gprog f_main main_spec.
@@ -565,31 +582,30 @@ name j _j.
 name Q _Q.
 name p _p.
 
-forward_call' (* Q = fifo_new(); *)  tt q.
+forward_call (* Q = fifo_new(); *)  tt q.
 
-forward_call'  (*  p = make_elem(1,10); *)
+forward_call  (*  p = make_elem(1,10); *)
      (Int.repr 1, Int.repr 10) p'.
-forward_call' (* fifo_put(Q,p);*) 
+forward_call (* fifo_put(Q,p);*) 
     ((q, @nil val),p').
 
-forward_call'  (*  p = make_elem(2,20); *)
+forward_call  (*  p = make_elem(2,20); *)
      (Int.repr 2, Int.repr 20) p2.
- forward_call'  (* fifo_put(Q,p); *)
+ forward_call  (* fifo_put(Q,p); *)
     ((q,(p':: nil)),p2).
-forward_call'  (*   p' = fifo_get(Q); p = p'; *)
+forward_call  (*   p' = fifo_get(Q); p = p'; *)
     ((q,(p2 :: nil)),p') vret.
 subst vret.
-forward. (*   i = p->a;  *)
+Time forward. (*   i = p->a;  *) (* 28.8 sec -> 15.2 sec *)
 forward. (*   j = p->b; *)
 
-forward_call' (*  freeN(p, sizeof( *p)); *)
+forward_call (*  freeN(p, sizeof( *p)); *)
    (p', sizeof cenv_cs t_struct_elem).
 {
 pose (work_around_coq_bug := fifo [p2] q * 
    data_at Tsh t_struct_elem (Vint (Int.repr 1), (Vint (Int.repr 10), Vundef)) p' *
    field_at Qsh' list_struct [StructField _a] (Vint (Int.repr 2)) p2 *
    field_at Qsh' list_struct [StructField _b] (Vint (Int.repr 20)) p2).
-
  apply derives_trans with work_around_coq_bug; subst work_around_coq_bug.
  unfold data_at; rewrite make_unmake; cancel.
  apply derives_trans with
@@ -643,7 +659,9 @@ Proof.
 unfold Gprog, prog, prog_funct; simpl.
 semax_func_skipn.
 semax_func_cons body_mallocN.
- apply ret_temp_make_ext_rval in H0; subst; entailer.
+ renormalize. entailer!.
+ rewrite (ret_temp_make_ext_rval gx ret _ (eq_refl _)) in Px0.
+ auto.
 semax_func_cons body_freeN.
   admit.  (* yuck *)
 semax_func_cons body_fifo_new.

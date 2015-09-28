@@ -31,7 +31,7 @@ Proof.
  intros; simpl; destruct (ident_eq i i0). left; auto.
  right; rewrite Map.gso; auto.
 Qed.
-Hint Rewrite @closed_env_set using safe_auto_with_closed : norm.
+Hint Rewrite @closed_env_set using safe_auto_with_closed : norm2.
 
 Lemma subst_eval_id_eq:
  forall id v, subst id v (eval_id id) = v.
@@ -179,7 +179,7 @@ Proof.
 apply @closed_wrt_map_subst.
 Qed.
 
-Hint Rewrite @closed_wrt_map_subst' using safe_auto_with_closed : norm.
+(*Hint Rewrite @closed_wrt_map_subst' using safe_auto_with_closed : norm.*)
 Hint Rewrite @closed_wrt_map_subst' using safe_auto_with_closed : subst.
 Lemma closed_wrt_subst_eval_expr:
   forall {cs: compspecs} j v e, 
@@ -1495,7 +1495,7 @@ apply closed_wrt_andp; auto.
 clear - H.
 induction Q; simpl; intros.
 auto with closed.
-normalize.
+normalize. autorewrite with norm1 norm2; normalize.
 inv H.
 apply closed_wrt_andp; auto with closed.
 Qed.
@@ -1511,7 +1511,7 @@ apply closed_wrtl_andp; auto.
 clear - H.
 induction Q; simpl; intros.
 auto with closed.
-normalize.
+normalize. autorewrite with norm1 norm2; normalize.
 inv H.
 apply closed_wrtl_andp; auto with closed.
 Qed.

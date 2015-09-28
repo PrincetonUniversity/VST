@@ -439,10 +439,15 @@ Proof.
   destruct (block_eq_dec b b0), (Int.eq_dec i i0); [left | right | right | right]; congruence.
 Qed.
 
+Lemma zero_in_range : (-1 < 0 < Int.modulus)%Z.
+compute; split; auto.
+Defined.
+Definition Int_zero := Int.mkint 0 zero_in_range.
+
 Definition pointer_val_val (pv: pointer_val): val :=
   match pv with
   | ValidPointer b i => Vptr b i
-  | NullPointer => Vint Int.zero
+  | NullPointer => Vint Int_zero
   end.
 
 Definition reptype': type -> Type :=
@@ -478,8 +483,9 @@ Lemma reptype'_ind: forall t,
   reptype' t = REPTYPE' t.
 Proof.
   intros.
-  unfold reptype'.
-  rewrite func_type_ind with (t0 := t) (A := (fun _ => Type)) at 1 by auto.
+ unfold reptype'.
+ etransitivity.
+ apply (func_type_ind (fun _ => Type) _ _ _ _ t) .
   destruct t; auto.
   + f_equal.
     unfold FTI_aux; rewrite decay_spec.
@@ -487,7 +493,7 @@ Proof.
   + f_equal.
     unfold FTI_aux; rewrite decay_spec.
     reflexivity.
-Qed.
+Defined.
 
 Definition unfold_reptype' {t} (v: reptype' t): REPTYPE' t :=
   @eq_rect Type (reptype' t) (fun x: Type => x) v (REPTYPE' t) (reptype'_ind t).
@@ -577,7 +583,7 @@ Proof.
   unfold repinj.
   rewrite func_type_ind.
   destruct t; auto.
-Qed.
+Defined.
 
 Lemma int_add_repr_0_l: forall i, Int.add (Int.repr 0) i = i.
 Proof. intros. apply Int.add_zero_l. Qed.
@@ -669,40 +675,24 @@ Global Notation REPTYPE t :=
   | Tunion id _ => reptype_unionlist (co_members (get_co id))
   end.
 
-Ltac unfold_repinj' T := 
-  let G := fresh "G" in
-  match goal with |- ?A _ => set (G := A) end;
-  try unfold T;
-  repeat (
-    rewrite repinj_ind;
-    cbv beta iota zeta delta
-      [co_members
-       fold_reptype unfold_reptype' eq_rect_r
-       compact_prod_map compact_prod
-       list_rect
-    ];
-    rewrite <- ?eq_rect_eq;
-    cbv beta iota zeta delta
-     [ field_type fieldlist.field_type2 Ctypes.field_type];
-     simpl);
-  unfold G; clear G; cbv beta.
-
 Tactic Notation "unfold_repinj" := 
-match goal with |- context [repinj ?T ?V] =>
-  pattern (repinj T V);
-  unfold_repinj' T
+repeat match goal with |- appcontext [repinj ?T] =>
+ let x := fresh "x" in set (x := repinj T);
+    lazy beta iota zeta delta in x; subst x; lazy beta
 end.
 
 Tactic Notation "unfold_repinj" constr(T) :=
- match goal with |- context [repinj T ?V] =>
-   pattern (repinj T V);
-  unfold_repinj' T
+match goal with |- appcontext [repinj T] =>
+ let x := fresh "x" in set (x := repinj T);
+    lazy beta iota zeta delta in x; subst x; lazy beta
 end.
-  
+
+(* Too expensive to do "pattern (repinj T V)", this 
+  can blow up.
 Tactic Notation "unfold_repinj" constr(T) constr(V) :=
    pattern (repinj T V);
   unfold_repinj' T.
-
+*)
 
 Fixpoint force_lengthn {A} n (xs: list A) (default: A) :=
   match n, xs with

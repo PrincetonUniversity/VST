@@ -117,12 +117,11 @@ entailer!.
   (* there should be an easier way than this: *)
    rewrite Znth_map with (d':=Int.zero). apply I.
   rewrite Zlength_map in *; omega.
-forward s_old. (* s += x; *)
-forward i_old. (* i++; *)
+forward. (* s += x; *)
+forward. (* i++; *)
   apply exp_right with (Zsucc a1).
-  entailer!.
-  rewrite H4 in H3; inv H3.
-  apply add_one_more_to_sum; try omega; auto.
+ entailer!. rewrite H2 in H1; inv H1.
+ f_equal; apply add_one_more_to_sum; try omega; auto.
 (* After the loop *)
 forward.  (* return s; *)
 Qed.
@@ -165,7 +164,7 @@ Proof.
 name s _s.
 start_function.
 forward_intro four. normalize.
-forward_call' (*  r = sumarray(four,4); *)
+forward_call (*  r = sumarray(four,4); *)
   (four,Ews,four_contents,4) vret.
  split; auto. computable. 
  forward. (* return s; *)

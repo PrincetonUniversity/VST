@@ -95,8 +95,8 @@ Definition Gprog : funspecs :=
 
 (** Two little equations about the list_cell predicate *)
 Lemma list_cell_eq': forall sh i p ,
-   list_cell LS sh (Vint i) p * field_at_ sh list_struct [StructField _tail] p = 
-   field_at sh t_struct_list [StructField _head] (Vint i) p * field_at_ sh list_struct [StructField _tail] p.
+   list_cell LS sh (Vint i) p * field_at_ sh list_struct (DOT _tail) p = 
+   field_at sh t_struct_list (DOT _head) (Vint i) p * field_at_ sh list_struct (DOT _tail) p.
 Proof.
   intros.
   rewrite list_cell_link_join_nospacer by reflexivity.
@@ -137,12 +137,12 @@ Qed.
 
 Lemma list_cell_eq'': forall sh i p q ,
    sepalg.nonidentity sh ->
-   list_cell LS sh (Vint i) p * field_at sh list_struct [StructField _tail] q p = 
-   field_at sh t_struct_list [StructField _head] (Vint i) p * field_at sh list_struct [StructField _tail] q p.
+   list_cell LS sh (Vint i) p * field_at sh list_struct (DOT _tail) q p = 
+   field_at sh t_struct_list (DOT _head) (Vint i) p * field_at sh list_struct (DOT _tail) q p.
 Proof.
   intros.
   apply pred_ext.
-  rewrite <- (andp_dup (field_at sh list_struct [StructField _tail] q p)) at 1.
+  rewrite <- (andp_dup (field_at sh list_struct (DOT _tail) q p)) at 1.
   eapply derives_trans; [apply distrib_sepcon_andp | ].
   eapply derives_trans; [apply andp_derives; [ | apply derives_refl ] |].
   apply sepcon_derives; [apply derives_refl | ].
@@ -150,7 +150,7 @@ Proof.
   rewrite list_cell_eq'.
   eapply derives_trans; [apply field_at_resolve1; auto | ].
   apply sepcon_derives; auto. apply andp_left1; auto.
-  rewrite <- (andp_dup (field_at sh list_struct [StructField _tail] q p)) at 1.
+  rewrite <- (andp_dup (field_at sh list_struct (DOT _tail) q p)) at 1.
   eapply derives_trans; [apply distrib_sepcon_andp | ].
   eapply derives_trans; [apply andp_derives; [ | apply derives_refl ] |].
   apply sepcon_derives; [apply derives_refl | ].
@@ -197,7 +197,6 @@ apply exp_right with p.
 entailer!.
 * (* Prove that loop invariant implies typechecking condition *)
 entailer!.
-auto with valid_pointer.
 * (* Prove that invariant && not loop-cond implies postcondition *)
 subst.
 rewrite lseg_eq by (simpl; auto).
@@ -205,24 +204,22 @@ entailer!.
 destruct cts; [| inversion H].
 normalize.
 * (* Prove that loop body preserves invariant *)
-simpl in HRE.
 focus_SEP 1; apply semax_lseg_nonnull; [ | intros h' r y ? ?].
 entailer!.
 destruct cts; inv H.
 gather_SEP 0 1.
 match goal with |- context [SEPx (?A::_)] =>
-   replace A with (`(field_at sh t_struct_list [StructField _head] (Vint i) t0 *
-                              field_at sh list_struct [StructField _tail] y t0))
+   replace A with (`(field_at sh t_struct_list (DOT _head) (Vint i) t0 *
+                              field_at sh list_struct (DOT _tail) y t0))
  by (extensionality rho; unfold_lift; simpl; symmetry; apply list_cell_eq''; auto)
 end.
 normalize.
 forward.  (* h = t->head; *)
 forward t_old.  (*  t = t->tail; *)
-subst t_old.
-forward s_old.  (* s = s + h; *)
-subst s_old.
+forward.  (* s = s + h; *)
 apply exp_right with (cts,y).
 entailer!.
+f_equal.
    rewrite Int.sub_add_r, Int.add_assoc, (Int.add_commut (Int.neg h)),
              Int.add_neg_zero, Int.add_zero; auto.
 * (* After the loop *)
@@ -260,24 +257,23 @@ rewrite lseg_eq by (simpl; auto).
 entailer!.
 * (* loop invariant implies typechecking of loop condition *)
 entailer!.
-auto with valid_pointer.
 * (* loop invariant (and not loop condition) implies loop postcondition *)
 apply exp_right with w.
 subst.
 rewrite lseg_eq by (simpl; auto).
 entailer!.
-rewrite <- app_nil_end, rev_involutive. auto.
+rewrite <- app_nil_end, rev_involutive.
+auto.
 * (* loop body preserves invariant *)
 focus_SEP 1; apply semax_lseg_nonnull;
         [entailer | intros h r y ? ?; simpl valinject].
 subst cts2.
 forward. (* t = v->tail; *)
 forward. (* v->tail = w; *)
-replace_SEP 1 (`(field_at sh t_struct_list [StructField _tail] w v)).
+replace_SEP 1 (`(field_at sh t_struct_list (DOT _tail) w v)).
 entailer.
-forward w_old.  (*  w = v; *)
-forward v_old.  (* v = t; *)
-subst w_old v_old.
+forward.  (*  w = v; *)
+forward.  (* v = t; *)
 (* at end of loop body, re-establish invariant *)
 apply exp_right with (h::cts1,r,v,y).
 entailer!.
@@ -475,9 +471,9 @@ assert_PROP (x'=x); [entailer!; eapply gvar_uniq; eauto | drop_LOCAL 0%nat; subs
 eapply semax_pre; [
   eapply derives_trans; [ | apply (setup_globals x) ] | ].
  entailer!.
-forward_call' (*  r = reverse(three); *)
+forward_call (*  r = reverse(three); *)
   (Ews, map Vint [Int.repr 1; Int.repr 2; Int.repr 3], x) r'.
-forward_call'  (* s = sumlist(r); *)
+forward_call  (* s = sumlist(r); *)
    (Ews, Int.repr 3 :: Int.repr 2 :: Int.repr 1 :: nil, r') s'.
 forward.  (* return s; *)
 Qed.

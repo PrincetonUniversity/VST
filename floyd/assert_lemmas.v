@@ -231,7 +231,7 @@ Lemma liftx_id:
 Proof.
  intros. extensionality rho; simpl; auto.
 Qed.
-Hint Rewrite @liftx_id : norm.
+Hint Rewrite @liftx_id : norm2.
 
 Lemma liftx3_liftx2:
  forall {A1 A2 A3 B} f (x: A1),
@@ -251,24 +251,24 @@ Lemma liftx1_liftx0:
   @liftx (LiftEnviron B) (f x).
 Proof. reflexivity. Qed.
 
-Hint Rewrite @liftx3_liftx2 @liftx2_liftx1 @liftx1_liftx0 : norm.
+Hint Rewrite @liftx3_liftx2 @liftx2_liftx1 @liftx1_liftx0 : norm2.
 
 Lemma lift1_lift0:
  forall {A1 B} (f: A1 -> B) (x: A1), lift1 f (lift0 x) = lift0 (f x).
 Proof.
 intros. extensionality rho; reflexivity.
 Qed.
-Hint Rewrite @lift1_lift0 : norm.
+Hint Rewrite @lift1_lift0 : norm2.
 
 Lemma const_liftx0:
   forall B (P: B), (fun _ : environ => P) = `P.
 Proof. reflexivity. Qed.
-Hint Rewrite const_liftx0 : norm.
+Hint Rewrite const_liftx0 : norm2.
 
 Lemma lift_identity:
   forall A f, `(fun v: A => v) f = f.
 Proof. intros. reflexivity. Qed.
-Hint Rewrite lift_identity : norm.
+Hint Rewrite lift_identity : norm2.
 
 Lemma tc_eval_gvar_zero:
   forall Delta t i rho, tc_environ Delta rho ->
@@ -307,7 +307,7 @@ Proof. intros; extensionality rho. unfold local; super_unfold_lift.
 simpl.
  apply pred_ext; normalize. destruct H; normalize.
 Qed.
-Hint Rewrite local_lift2_and : norm.
+Hint Rewrite local_lift2_and : norm2.
 
 Lemma subst_TT {A}{NA: NatDed A}: forall i v, subst i v TT = TT.
 Proof.
@@ -345,7 +345,7 @@ Hint Rewrite @eval_lvalue_Ederef : eval.
 
 Lemma local_lift0_True:     local (`True) = TT.
 Proof. reflexivity. Qed.
-Hint Rewrite local_lift0_True : norm.
+Hint Rewrite local_lift0_True : norm2.
 
 Lemma overridePost_EK_return: 
   forall Q P, overridePost Q P EK_return = P EK_return.
@@ -377,7 +377,7 @@ Hint Rewrite function_body_ret_assert_EK_return : ret_assert.
 Lemma bind_ret1_unfold:
   forall v t Q, bind_ret (Some v) t Q = !!tc_val t v && `Q (make_args (ret_temp :: nil)(v::nil)).
 Proof. reflexivity. Qed.
-Hint Rewrite bind_ret1_unfold : norm.
+Hint Rewrite bind_ret1_unfold : norm2.
 
 Lemma bind_ret1_unfold':
   forall v t Q rho, 
@@ -385,7 +385,7 @@ Lemma bind_ret1_unfold':
 Proof.
  intros. reflexivity.
 Qed.
-Hint Rewrite bind_ret1_unfold' : norm.  (* put this in AFTER the unprimed version, for higher priority *)
+Hint Rewrite bind_ret1_unfold' : norm2.  (* put this in AFTER the unprimed version, for higher priority *)
 
 Lemma normal_ret_assert_derives': 
   forall P Q, P |-- Q -> normal_ret_assert P |-- normal_ret_assert Q.
@@ -429,13 +429,13 @@ Hint Rewrite loop1_ret_assert_normal: ret_assert.
 Lemma unfold_make_args': forall fsig args rho,
     make_args' fsig args rho = make_args (map (@fst _ _) (fst fsig)) (args rho) rho.
 Proof. reflexivity. Qed.
-Hint Rewrite unfold_make_args' : norm.
+Hint Rewrite unfold_make_args' : norm2.
 Lemma unfold_make_args_cons: forall i il v vl rho,
    make_args (i::il) (v::vl) rho = env_set (make_args il vl rho) i v.
 Proof. reflexivity. Qed.
 Lemma unfold_make_args_nil: make_args nil nil = globals_only.
 Proof. reflexivity. Qed.
-Hint Rewrite unfold_make_args_cons unfold_make_args_nil : norm.
+Hint Rewrite unfold_make_args_cons unfold_make_args_nil : norm2.
 
 Lemma clear_rhox:  (* replaces clear_make_args' *)
  forall (P: mpred) (f: environ -> environ),
@@ -443,7 +443,7 @@ Lemma clear_rhox:  (* replaces clear_make_args' *)
                     (@liftx (LiftEnviron mpred) P) f
        = `P.
 Proof. intros. reflexivity. Qed.
-Hint Rewrite clear_rhox: norm.
+Hint Rewrite clear_rhox: norm2.
 
 Lemma eval_make_args':
   forall (Q: val -> Prop) i fsig args,
@@ -452,7 +452,7 @@ Lemma eval_make_args':
    (make_args' fsig args) =
   `Q (`(eval_id i) (make_args' fsig args)).
 Proof. reflexivity. Qed.
-Hint Rewrite eval_make_args' : norm.
+Hint Rewrite eval_make_args' : norm2.
 
 Lemma eval_make_args_same:
  forall {cs: compspecs}  i t fsig t0 tl (e: expr) el,
@@ -487,7 +487,7 @@ simpl.
 rewrite Map.gso; auto.
 Qed.
 
-Hint Rewrite @eval_make_args_same : norm.
+Hint Rewrite @eval_make_args_same : norm2.
 Hint Rewrite @eval_make_args_other using (solve [clear; intro Hx; inversion Hx]) : norm.
 
 Infix "oo" := Basics.compose (at level 54, right associativity).

@@ -268,7 +268,8 @@ Proof.
 intros.
 apply semax_while; auto.
 eapply derives_trans; [ | apply H0].
-normalize.
+normalize. 
+normalize; autorewrite with norm1 norm2; normalize.
 eapply derives_trans; [ | apply H2].
  apply derives_trans with (local (`(eq v) (eval_expr test)) &&
      PROPx P
@@ -321,7 +322,8 @@ intros.
 apply semax_while; auto.
 rewrite exp_andp2. apply exp_left; intro a.
 eapply derives_trans; [ | apply H0].
-normalize.
+normalize. 
+normalize; autorewrite with norm1 norm2; normalize.
 repeat rewrite exp_andp2. apply exp_left; intro a.
 eapply derives_trans; [ | apply (H2 a)].
  apply derives_trans with (local (`(eq (v a)) (eval_expr test)) &&
@@ -372,7 +374,7 @@ Proof.
 intros.
 apply semax_while; auto.
 eapply derives_trans; [ | apply H0].
-normalize.
+normalize; autorewrite with norm1 norm2; normalize.
 eapply derives_trans; [ | apply H1].
  go_lowerx.
  apply andp_right; auto. apply prop_right; auto.
@@ -521,7 +523,9 @@ Proof.
 intros until 1. intros N1 N2. intros.
 intuition.
 eapply semax_post; [ | apply forward_setx_closed_now'; auto with closed].
-intros.  intro rho. normalize. apply H3.
+intros.  intro rho. normalize.
+autorewrite with subst norm1 norm2; normalize.
+ apply H3.
 
 eapply semax_post. intros ek vl rho. 
 simpl. apply andp_left2. apply H3.

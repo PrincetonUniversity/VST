@@ -327,7 +327,10 @@ unfold readonly2share.
 if_tac; auto.
 apply Lsh_nonidentity.
 forget (readonly2share (gvar_readonly gv)) as sh.
-normalize. apply exp_right with x. normalize.
+normalize. 
+  autorewrite with subst norm1 norm2; normalize.
+apply exp_right with x. normalize.
+  autorewrite with subst norm1 norm2; normalize.
 unfold init_data_list2pred.
 simpl.
 rewrite sepcon_emp.
@@ -404,7 +407,9 @@ intros.
 go_lowerx.
 eapply derives_trans; [eapply tc_globalvar_sound'; eassumption | ].
 normalize.
+  autorewrite with subst norm1 norm2; normalize.
 apply exp_right with x.  normalize.
+  autorewrite with subst norm1 norm2; normalize.
 assert (RS: forall sh', readable_share (Share.splice sh' (readonly2share (gvar_readonly gv)))).
  {intros. 
   apply right_nonempty_readable.
@@ -914,6 +919,7 @@ first [
 Lemma start_main_pre:
   forall p u Q, main_pre p u * Q = PROP() LOCAL() (SEP (main_pre p u;Q)).
 Proof. intros. unfold_for_go_lower. simpl. extensionality rho; normalize.
+  autorewrite with subst norm1 norm2; normalize.
 Qed.
 
 Definition is_Tint sz t :=

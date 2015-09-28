@@ -486,6 +486,7 @@ Hint Rewrite @sepcon_emp @emp_sepcon @TT_andp @andp_TT
              @exp_sepcon1 @exp_sepcon2
                @exp_andp1 @exp_andp2
          @sepcon_andp_prop @sepcon_andp_prop'
+     using (solve [auto with typeclass_instances])
         : norm.
 
 Lemma exp_congr:

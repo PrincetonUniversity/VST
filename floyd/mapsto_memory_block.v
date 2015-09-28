@@ -502,6 +502,7 @@ Proof.
   intros.
   specialize (H x).
   normalize.
+      autorewrite with subst norm1 norm2; normalize.
   revert R.
   induction n.
   + destruct R.
@@ -517,8 +518,9 @@ Proof.
   simpl.
   intros.
   specialize (H x).
-  normalize.
-  normalize in H.
+  normalize. 
+      autorewrite with subst norm1 norm2; normalize.
+    autorewrite with subst norm1 norm2 in H; normalize in H.
   revert R.
   induction n.
   + destruct R.
@@ -536,6 +538,7 @@ Lemma replace_nth_SEP_andp_local': forall P Q R n Rn (Rn': environ -> mpred) Rn'
 Proof.
   intros.
   normalize.
+      autorewrite with subst norm1 norm2; normalize.
   assert ((@fold_right (environ -> mpred) (environ -> mpred)
               (@sepcon (environ -> mpred) (@LiftNatDed' mpred Nveric)
                  (@LiftSepLog' mpred Nveric Sveric))
@@ -563,6 +566,7 @@ Proof.
   + destruct R; inversion H.
     subst l.
     simpl. normalize.
+      autorewrite with subst norm1 norm2; normalize.
   + destruct R; inversion H.
     pose proof IHn R H1.
     unfold replace_nth in *.
@@ -589,7 +593,8 @@ Lemma LOCAL_2_hd: forall P Q R Q1 Q2,
 Proof.
   intros.
   extensionality.
-  apply pred_ext; normalize.
+  apply pred_ext; normalize;
+      autorewrite with subst norm1 norm2; normalize.
 Qed.
 
 Lemma eq_sym_LOCAL: forall P Q R id v, 
@@ -597,7 +602,11 @@ Lemma eq_sym_LOCAL: forall P Q R id v,
   PROPx P (LOCALx (`eq (eval_id id) v:: Q) (SEPx R)).
 Proof.
   intros.
-  extensionality; apply pred_ext; normalize.
+  extensionality; apply pred_ext; normalize;
+      autorewrite with subst norm1 norm2; 
+      normalize;
+      autorewrite with subst norm1 norm2; 
+      normalize.
 Qed.
 
 Lemma eq_sym_LOCAL': forall P Q R id v, 

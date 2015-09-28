@@ -85,6 +85,7 @@ clear H2 H3.
 (*do 2 rewrite insert_local.*)
 unfold PROPx, LOCALx; intro rho; simpl.
 normalize.
+autorewrite with norm1 norm2; normalize.
 rewrite <- andp_assoc.
 apply andp_derives; auto.
 eapply derives_trans.
@@ -176,7 +177,7 @@ eapply derives_trans.
 apply andp_derives; [ apply typecheck_expr_sound; auto | ].
 apply andp_derives; [ apply typecheck_expr_sound; auto | ].
 apply derives_refl.
-normalize.
+normalize. autorewrite with norm1 norm2; normalize.
 apply andp_right; auto. apply prop_right.
 split; auto.
 clear H6 TCE.

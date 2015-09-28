@@ -7,13 +7,13 @@ Require Import floyd.client_lemmas.
   we only want just one. *)
 Tactic Notation "abbreviate" constr(y) "as"  ident(x)  :=
    (first [ is_var y 
-           |  let x' := fresh x in pose (x':= @abbreviate _ y); 
-              replace y with x' by reflexivity]).
+           |  let x' := fresh x in pose (x':= @abbreviate _ y);
+               change y with x']).
 
 Tactic Notation "abbreviate" constr(y) ":" constr(t) "as"  ident(x)  :=
    (first [ is_var y 
-           |  let x' := fresh x in pose (x':= @abbreviate t y); 
-               replace y with x' by reflexivity]).
+           |  let x' := fresh x in pose (x':= @abbreviate t y);
+               change y with x']).
 
 Ltac unfold_abbrev :=
   repeat match goal with H := @abbreviate _ _ |- _ => 
@@ -24,8 +24,9 @@ Ltac unfold_abbrev' :=
   repeat match goal with
              | H := @abbreviate ret_assert _ |- _ => 
                         unfold H, abbreviate; clear H 
-             | H := @abbreviate tycontext _ |- _ => 
+(*             | H := @abbreviate tycontext _ |- _ => 
                         unfold H, abbreviate; clear H 
+*)
              | H := @abbreviate statement _ |- _ => 
                         unfold H, abbreviate; clear H 
             end.
@@ -105,7 +106,7 @@ Lemma initialized_list1:  forall i il a1 a2 a3 a4 a5 d',
 Proof. intros; subst; reflexivity.
 Qed.
 
-Ltac simplify_Delta := 
+Ltac simplify_Delta_OLD := 
  match goal with 
 | |- semax ?D _ _ _ =>
             simplify_Delta_at D
@@ -125,6 +126,35 @@ Ltac simplify_Delta :=
 | |- ?A = ?B =>
      simplify_Delta_at A; simplify_Delta_at B; reflexivity
 end.
+
+Ltac simplify_func_tycontext := 
+  match goal with |- context [func_tycontext ?f ?V ?G] =>
+    let D1 := fresh "D1" in let Delta := fresh "Delta" in 
+    set (Delta := func_tycontext f V G);
+    set (D1 := func_tycontext f V G) in Delta;
+    change D1 with (@abbreviate tycontext D1) in Delta;
+    unfold func_tycontext, make_tycontext in D1;
+    let S1 := fresh "S1" in let DS := fresh "Delta_specs" in
+    set (DS := make_tycontext_s G) in D1;
+    set (S1 := make_tycontext_s G) in DS;
+    change S1 with (@abbreviate (PTree.tree funspec) S1) in DS;
+    lazy beta iota zeta delta - [DS] in D1; subst D1;
+    unfold make_tycontext_s in S1; simpl in S1; subst S1
+ end.
+
+Ltac simplify_Delta :=
+match goal with 
+ | D1 := _ : tycontext |- semax ?D _ _ _ =>
+    constr_eq D1 D
+ | DS := _ : PTree.t funspec, D1 := _ : tycontext |- semax ?D _ _ _ => 
+    let DT := fresh "DT" in set (DT := D); subst D1;
+     lazy beta iota zeta delta - [DS] in DT;
+    pose (D1 := @abbreviate _ DT);
+    change DT with D1; subst DT
+ | |- semax (func_tycontext _ _ _) _ _ _ => simplify_func_tycontext
+ | |- _ => simplify_func_tycontext; simplify_Delta
+ end.
+
 (*
 Ltac build_Struct_env :=
  match goal with
@@ -141,7 +171,7 @@ Ltac abbreviate_semax :=
         simplify_Delta;
         unfold_abbrev';
         match goal with |- semax ?D _ ?C ?P => 
-            abbreviate D : tycontext as Delta;
+(*            abbreviate D : tycontext as Delta;*)
             abbreviate P : ret_assert as POSTCONDITION;
             match C with
             | Ssequence ?C1 ?C2 =>

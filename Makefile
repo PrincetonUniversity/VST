@@ -22,7 +22,7 @@ COMPCERT=compcert
 
 CC_TARGET=compcert/cfrontend/Clight.vo
 CC_DIRS= lib common cfrontend exportclight
-DIRS= msl sepcomp veric floyd progs sha linking fcf hmacfcf 
+DIRS= msl sepcomp veric floyd progs sha linking fcf hmacfcf tweetnacl20140427
 INCLUDE= $(foreach a,$(DIRS),$(if $(wildcard $(a)), -I $(a) -as $(a))) -R $(COMPCERT) -as compcert 
 #Replace the INCLUDE above with the following in order to build the linking target:
 #INCLUDE= $(foreach a,$(DIRS),$(if $(wildcard $(a)), -I $(a) -as $(a))) -R $(COMPCERT) -as compcert -I $(SSREFLECT)/src -R $(SSREFLECT)/theories -as Ssreflect \
@@ -131,7 +131,7 @@ VERIC_FILES= \
   NullExtension.v SequentialClight.v superprecise.v jstep.v address_conflict.v
 
 FLOYD_FILES= \
-   coqlib3.v base.v proofauto.v \
+   coqlib3.v base.v proofauto.v computable_theorems.v \
    type_induction.v reptype_lemmas.v aggregate_type.v aggregate_pred.v \
    nested_pred_lemmas.v compact_prod_sum.v zlist.v \
    sublist.v smt_test.v \
@@ -145,13 +145,15 @@ FLOYD_FILES= \
    for_lemmas.v semax_tactics.v expr_lemmas.v real_forward.v diagnosis.v
 
 PROGS_FILES= \
-  list_dt.v verif_reverse.v verif_queue.v verif_sumarray.v verif_message.v \
+  list_dt.v verif_reverse.v verif_queue.v verif_sumarray.v \
   insertionsort.v reverse.v queue.v sumarray.v message.v string.v\
-  revarray.v verif_revarray.v insertionsort.v verif_insertion_sort.v \
-  verif_float.v verif_dotprod.v verif_ptr_compare.v \
+  revarray.v verif_revarray.v insertionsort.v \
+  verif_float.v verif_ptr_compare.v \
   verif_nest3.v verif_nest2.v \
   logical_compare.v verif_logical_compare.v field_loadstore.v  verif_field_loadstore.v \
-  even.v verif_even.v odd.v verif_odd.v
+  even.v verif_even.v odd.v verif_odd.v \
+  merge.v verif_merge.v
+# verif_message.v verif_dotprod.v verif_insertion_sort.v 
 
 SHA_FILES= \
   general_lemmas.v SHA256.v common_lemmas.v pure_lemmas.v sha_lemmas.v functional_prog.v \
@@ -205,7 +207,17 @@ HMACEQUIV_FILES= \
   HMAC_spec_abstract.v HMAC_equivalence.v HMAC256_equivalence.v \
   HMAC_isPRF.v HMAC256_isPRF.v
 
-C_FILES = reverse.c queue.c sumarray.c message.c insertionsort.c float.c nest3.c nest2.c nest3.c dotprod.c string.c field_loadstore.c ptr_compare.c
+TWEETNACL_FILES = \
+  Salsa20.v Snuffle.v \
+  tweetNaclBase.v  verif_salsa_base.v tweetnaclVerifiableC.v spec_salsa.v \
+  verif_ld_st.v  verif_fcore_epilogue_htrue.v
+  #split_array_lemmas.v fragments.v
+  #verif_fcore_loop1.v verif_fcore_loop2.v \
+  #verif_fcore_jbody.v verif_fcore_loop3.v \
+  #verif_fcore_epilogue_hfalse.v verif_fcore.v \
+  #verif_crypto_core.v
+
+C_FILES = reverse.c queue.c sumarray.c message.c insertionsort.c float.c nest3.c nest2.c nest3.c dotprod.c string.c field_loadstore.c ptr_compare.c merge.c
 
 FILES = \
  $(MSL_FILES:%=msl/%) \
@@ -217,7 +229,8 @@ FILES = \
  $(HMAC_FILES:%=sha/%) \
  $(FCF_FILES:%=fcf/%) \
  $(HMACFCF_FILES:%=hmacfcf/%) \
- $(HMACEQUIV_FILES:%=sha/%)
+ $(HMACEQUIV_FILES:%=sha/%) \
+ $(TWEETNACL_FILES:%=tweetnacl20140427/%)
 
 %_stripped.v: %.v
 # e.g., 'make progs/verif_reverse_stripped.v will remove the tutorial comments
@@ -233,7 +246,7 @@ else
 	@$(COQC) $(COQFLAGS) $*.v
 endif
 
-COQVERSION=8.4pl3 or-else 8.4pl4 or-else 8.4pl5 or-else 8.4pl6
+COQVERSION=8.4pl5 or-else 8.4pl6
 COQV=$(shell $(COQC) -v)
 ifeq ("$(filter $(COQVERSION),$(COQV))","")
 $(error FAILURE: You need Coq $(COQVERSION) but you have this version: $(COQV))
@@ -257,13 +270,15 @@ hmac:    .loadpath $(HMAC_FILES:%.v=sha/%.vo)
 hmacequiv:    .loadpath $(HMAC_FILES:%.v=sha/%.vo)
 fcf:     .loadpath $(FCF_FILES:%.v=fcf/%.vo)
 hmacfcf: .loadpath $(HMACFCF_FILES:%.v=hmacfcf/%.vo)
+tweetnacl: .loadpath $(TWEETNACL_FILES:%.v=tweetnacl20140427/%.vo)
 hmac0: .loadpath sha/verif_hmac_init.vo sha/verif_hmac_cleanup.vo sha/verif_hmac_final.vo sha/verif_hmac_simple.vo  sha/verif_hmac_double.vo sha/verif_hmac_update.vo sha/verif_hmac_crypto.vo
 
 CGFLAGS =  -DCOMPCERT
 
 CVFILES = progs/revarray.v progs/reverse.v progs/queue.v progs/sumarray.v \
          progs/message.v progs/insertionsort.v progs/float.v progs/logical_compare.v \
-         progs/nest2.v progs/nest3.v progs/dotprod.v progs/string.v progs/even.v progs/odd.v
+         progs/nest2.v progs/nest3.v progs/dotprod.v progs/string.v progs/even.v progs/odd.v \
+         progs/merge.v
 
 cvfiles: $(CVFILES)
 
@@ -309,6 +324,8 @@ progs/even.v: progs/even.c
 progs/odd.v: progs/odd.c
 	$(CLIGHTGEN) ${CGFLAGS} $<
 progs/field_loadstore.v: progs/field_loadstore.c
+	$(CLIGHTGEN) ${CGFLAGS} $<
+progs/merge.v: progs/merge.c
 	$(CLIGHTGEN) ${CGFLAGS} $<
 endif
 

@@ -106,6 +106,7 @@ eapply semax_post; [ | apply semax_skip].
 intros.
 apply andp_left2.
 unfold normal_ret_assert; normalize.
+ autorewrite with norm1 norm2; normalize.
 unfold overridePost. rewrite if_true by auto. normalize.
 rewrite andp_comm.
 rewrite insert_local.
@@ -193,7 +194,9 @@ repeat rewrite <- insert_local.
 simpl.
 apply andp_right.
 apply andp_left2. apply andp_left1.
-normalize. rewrite <- H. simpl. rewrite add_repr; auto.
+normalize. 
+ autorewrite with norm1 norm2; normalize.
+rewrite <- H. simpl. rewrite add_repr; auto.
 hnf; normalize.
 apply andp_left2. apply andp_left2.
 specialize (CLOQ (i+1)). specialize (CLOR (i+1)).
@@ -291,7 +294,7 @@ intros.
 apply andp_left2.
 unfold normal_ret_assert; normalize.
 unfold overridePost. rewrite if_true by auto.
-normalize.
+normalize. autorewrite with norm1 norm2; normalize.
 rewrite andp_comm.
 rewrite insert_local.
 eapply semax_pre; [ | apply semax_break].
@@ -378,7 +381,8 @@ repeat rewrite <- insert_local.
 simpl.
 apply andp_right.
 apply andp_left2. apply andp_left1.
-normalize. rewrite <- H. simpl. rewrite add_repr; auto.
+normalize.  autorewrite with norm1 norm2; normalize.
+rewrite <- H. simpl. rewrite add_repr; auto.
 hnf; normalize.
 apply andp_left2. apply andp_left2.
 specialize (CLOQ (i+1)). specialize (CLOR (i+1)).
@@ -637,6 +641,7 @@ eapply semax_pre_simple
              (SEPx (R lo))))).
 eapply derives_trans; [apply H | ].
 go_lowerx; normalize. 
+progress (autorewrite with norm1 norm2); normalize.
 apply semax_extract_prop; intro.
 eapply semax_post_flipped'.
 eapply forward_setx.
@@ -663,6 +668,7 @@ intro.
 eapply derives_trans; [ | solve [eauto]].
 instantiate (1:=i).
 go_lowerx; normalize.
+ progress (autorewrite with norm1 norm2); normalize.
 apply andp_right; auto.
 apply prop_right. split; [omega | ].
 split; auto.
@@ -674,7 +680,9 @@ intro.
 simpl.
 eapply semax_pre_post; [ | | apply H2].
 instantiate (1:=i).
-go_lowerx; normalize; apply andp_right; [apply prop_right | auto].
+go_lowerx; normalize; 
+ progress (autorewrite with norm1 norm2); normalize;
+apply andp_right; [apply prop_right | auto].
 split; auto. omega.
 intros.
 apply andp_left2.
@@ -746,7 +754,8 @@ eapply semax_pre_simple
              (`(eq (Vint (Int.repr n))) (eval_expr hi) :: Q lo)
              (SEPx (R lo))))).
 eapply derives_trans; [apply H | ].
-go_lowerx; normalize. 
+go_lowerx; normalize.
+ progress (autorewrite with norm1 norm2); normalize.
 apply semax_extract_prop; intro.
 eapply semax_post_flipped'.
 eapply forward_setx.
@@ -773,6 +782,7 @@ intro.
 eapply derives_trans; [ | solve [eauto]].
 instantiate (1:=i).
 go_lowerx; normalize.
+ progress (autorewrite with norm1 norm2); normalize.
 apply andp_right; auto.
 apply prop_right. split; [omega | ].
 split; auto.
@@ -784,7 +794,9 @@ intro.
 simpl.
 eapply semax_pre_post; [ | | apply H2].
 instantiate (1:=i).
-go_lowerx; normalize; apply andp_right; [apply prop_right | auto].
+go_lowerx; normalize; 
+ progress (autorewrite with norm1 norm2); normalize;
+apply andp_right; [apply prop_right | auto].
 split; auto. omega.
 intros.
 apply andp_left2.

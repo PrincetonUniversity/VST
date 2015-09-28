@@ -49,7 +49,7 @@ apply prop_right; repeat split; auto.
 apply andp_right; auto.
 apply prop_right; repeat split; auto.
 Qed.
-Hint Rewrite insert_local:  norm.
+Hint Rewrite insert_local:  norm2.
 
 Lemma go_lower_lem20:
   forall QR QR',
@@ -206,13 +206,13 @@ Eval compute in grab_indexes (1::6::4::nil) (a::b::c::d::e::f::g::h::i::j::nil).
 Lemma fold_right_nil: forall {A B} (f: A -> B -> B) (z: B),
    fold_right f z nil = z.
 Proof. reflexivity. Qed.
-Hint Rewrite @fold_right_nil : norm.
+Hint Rewrite @fold_right_nil : norm1.
 Hint Rewrite @fold_right_nil : subst.
 
 Lemma fold_right_cons: forall {A B} (f: A -> B -> B) (z: B) x y,
    fold_right f z (x::y) = f x (fold_right f z y).
 Proof. reflexivity. Qed.
-Hint Rewrite @fold_right_cons : norm.
+Hint Rewrite @fold_right_cons : norm1.
 Hint Rewrite @fold_right_cons : subst.
 
 Lemma fold_right_and_app:
@@ -341,7 +341,7 @@ Qed.
 
 Lemma local_unfold: forall P rho, local P rho = !! (P rho).
 Proof. reflexivity. Qed.
-Hint Rewrite local_unfold : norm.
+Hint Rewrite local_unfold : norm2.
 
 Lemma lower_sepcon:
   forall P Q rho, @sepcon (environ->mpred) _ _ P Q rho = sepcon (P rho) (Q rho).
@@ -349,30 +349,30 @@ Proof. reflexivity. Qed.
 Lemma lower_andp:
   forall P Q rho, @andp (environ->mpred) _ P Q rho = andp (P rho) (Q rho).
 Proof. reflexivity. Qed.
-Hint Rewrite lower_sepcon lower_andp : norm.
+Hint Rewrite lower_sepcon lower_andp : norm2.
 
 Lemma lift_prop_unfold: 
    forall P z,  @prop (environ->mpred) _ P z = @prop mpred Nveric P.
 Proof.  reflexivity. Qed.
-Hint Rewrite lift_prop_unfold: norm.
+Hint Rewrite lift_prop_unfold: norm2.
 
 Lemma andp_unfold: forall (P Q: environ->mpred) rho,
   @andp (environ->mpred) _ P Q rho = @andp mpred Nveric (P rho) (Q rho).
 Proof. reflexivity. Qed.
-Hint Rewrite andp_unfold: norm.
+Hint Rewrite andp_unfold: norm2.
 
 Lemma refold_andp:
   forall (P Q: environ -> mpred),
      (fun rho: environ => P rho && Q rho) = (P && Q).
 Proof. reflexivity. Qed.
-Hint Rewrite refold_andp : norm.
+Hint Rewrite refold_andp : norm2.
 
 Lemma exp_unfold : forall A P rho,
  @exp (environ->mpred) _ A P rho = @exp mpred Nveric A (fun x => P x rho).
 Proof.
 intros. reflexivity. 
 Qed.
-Hint Rewrite exp_unfold: norm.
+Hint Rewrite exp_unfold: norm2.
 
 Lemma semax_pre_simple:
  forall P' Espec {cs: compspecs} Delta P c R,
@@ -423,7 +423,7 @@ normalize.
  unfold PROPx, SEPx, LOCALx, local, lift1.
 normalize.
 rewrite fold_right_sepcon_app.
-normalize.
+normalize; autorewrite with norm1 norm2; normalize.
 rewrite prop_true_andp; auto.
 rewrite fold_right_and_app; split; auto.
 clear.
@@ -482,6 +482,7 @@ Lemma semax_post': forall R' Espec {cs: compspecs} Delta R P c,
       @semax cs Espec Delta P c (normal_ret_assert R).
 Proof. intros. eapply semax_post; eauto. intros. apply andp_left2.
   intro rho; unfold normal_ret_assert; normalize.
+ autorewrite with norm1 norm2; normalize.
 Qed.
 
 Lemma sequential:
@@ -771,6 +772,7 @@ apply semax_pre_simple with (PROPx P QR); auto.
 clear.
 intro rho; unfold PROPx in *; simpl. normalize.
 destruct H; normalize.
+ autorewrite with norm1 norm2; normalize.
 Qed.
 
 Lemma semax_extract_PROP:
@@ -782,6 +784,7 @@ intros.
 apply semax_pre_simple with (!!PP && PROPx P QR).
 intro rho; unfold PROPx in *; simpl; normalize.
 destruct H0; normalize.
+autorewrite with norm1 norm2; normalize.
 apply semax_extract_prop.
 auto.
 Qed.
@@ -826,7 +829,7 @@ Lemma local_lift0: forall P, local (lift0 P) = prop P.
 Proof.
 intros. extensionality rho. reflexivity.
 Qed.
-Hint Rewrite @local_lift0: norm.
+Hint Rewrite @local_lift0: norm2.
 
 Lemma move_prop_from_LOCAL:
   forall P1 P Q R, PROPx P (LOCALx (lift0 P1::Q) R) = PROPx (P1::P) (LOCALx Q R).
@@ -888,7 +891,7 @@ unfold local, lift1, existential_ret_assert.
 simpl.
 apply andp_left2.
 unfold normal_ret_assert.
-normalize.
+normalize. autorewrite with norm1 norm2; normalize.
 apply exp_right with x; normalize.
 Qed.
 
@@ -1094,8 +1097,9 @@ Proof.
  extensionality rho.
  unfold PROPx, LOCALx, SEPx, local, lift1; unfold_lift.
  normalize.
- apply pred_ext; normalize.
+ apply pred_ext; normalize. autorewrite with norm1 norm2; normalize.
  rewrite prop_true_andp by auto. auto.
+ autorewrite with norm1 norm2; normalize.
  destruct H0; normalize.
 Qed.
 
@@ -1140,15 +1144,15 @@ Lemma lower_PROP_LOCAL_SEP:
   forall P Q R rho, PROPx P (LOCALx Q (SEPx R)) rho = 
      (!!fold_right and True P && (local (fold_right (`and) (`True) Q) && (fold_right sepcon emp R))) rho.
 Proof. reflexivity. Qed.
-Hint Rewrite lower_PROP_LOCAL_SEP : norm.
+Hint Rewrite lower_PROP_LOCAL_SEP : norm2.
 
 Lemma lower_TT: forall rho, @TT (environ->mpred) _ rho = @TT mpred Nveric.
 Proof. reflexivity. Qed.
-Hint Rewrite lower_TT : norm.
+Hint Rewrite lower_TT : norm2.
 
 Lemma lower_FF: forall rho, @FF (environ->mpred) _ rho = @FF mpred Nveric.
 Proof. reflexivity. Qed.
-Hint Rewrite lower_FF : norm.
+Hint Rewrite lower_FF : norm2.
 
 Lemma remember_value:
   forall e Espec {cs: compspecs} Delta P Q R c Post,
@@ -1290,7 +1294,7 @@ f_equal.
 induction Q; simpl; auto. f_equal; auto.
 induction R; simpl; auto. f_equal; auto.
 Qed.
-Hint Rewrite PROP_LOCAL_SEP_f: norm.
+Hint Rewrite PROP_LOCAL_SEP_f: norm2.
 
 Lemma SEP_PROP:
  forall P Q R P' Q' R', 
@@ -1320,7 +1324,7 @@ induction Q; simpl; auto.
 destruct H0; split; auto.
 induction P; simpl; auto. destruct H; split; auto.
 Qed.
-Hint Rewrite SEP_PROP: norm.
+Hint Rewrite SEP_PROP: norm1.
 
 Ltac clean_up_app_carefully := (* useful after rewriting by SEP_PROP *)
  repeat
@@ -1371,7 +1375,7 @@ extensionality rho.
 apply pred_ext; apply andp_derives; auto;
   apply prop_derives; intuition.
 Qed.
-Hint Rewrite split_first_PROP using not_conj_notation : norm.
+Hint Rewrite split_first_PROP using not_conj_notation : norm1.
 
 
 

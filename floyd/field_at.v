@@ -277,7 +277,7 @@ Lemma field_at_local_facts:
 Proof.
   intros.
   unfold field_at.
-  normalize.
+  normalize. autorewrite with subst norm1 norm2; normalize.
 Qed.
 
 Lemma field_at_compatible':
@@ -1740,12 +1740,12 @@ Hint Extern 0 (data_at _ (Tarray _ _ _) _ _ |-- _) =>
   (apply data_array_at_local_facts) : saturate_local.
 Hint Extern 0 (data_at _ (tarray _ _) _ _ |-- _) => 
   (apply data_array_at_local_facts) : saturate_local.
-Hint Rewrite <- @field_at_offset_zero: norm.
-Hint Rewrite <- @field_at__offset_zero: norm.
+Hint Rewrite <- @field_at_offset_zero: norm1.
+Hint Rewrite <- @field_at__offset_zero: norm1.
 Hint Rewrite <- @field_at_offset_zero: cancel.
 Hint Rewrite <- @field_at__offset_zero: cancel.
-Hint Rewrite <- @data_at__offset_zero: norm.
-Hint Rewrite <- @data_at_offset_zero: norm.
+Hint Rewrite <- @data_at__offset_zero: norm1.
+Hint Rewrite <- @data_at_offset_zero: norm1.
 Hint Rewrite <- @data_at__offset_zero: cancel.
 Hint Rewrite <- @data_at_offset_zero: cancel.
 

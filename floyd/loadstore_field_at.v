@@ -131,7 +131,9 @@ Proof.
   intro rho; specialize (H rho).
   unfold PROPx, LOCALx, SEPx in *.
   normalize.
+  autorewrite with subst norm1 norm2; normalize.
   normalize in H.
+  autorewrite with subst norm1 norm2 in H; normalize in H; normalize.  
 Qed.
 
 Lemma semax_max_path_field_store_nth:

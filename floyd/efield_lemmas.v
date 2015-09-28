@@ -560,7 +560,7 @@ Lemma eval_lvalue_nested_efield: forall Delta t_root e efs gfs tts lr,
 Proof.
   intros.
   eapply derives_trans; [eapply eval_lvalue_nested_efield_aux; eauto |].
-  simpl; intros; normalize.
+  simpl; intros; normalize. autorewrite with norm1 norm2; normalize.
 Qed.
 
 Lemma tc_lvalue_nested_efield: forall Delta t_root e efs gfs tts lr,
@@ -572,7 +572,7 @@ Lemma tc_lvalue_nested_efield: forall Delta t_root e efs gfs tts lr,
 Proof.
   intros.
   eapply derives_trans; [eapply eval_lvalue_nested_efield_aux; eauto |].
-  simpl; intros; normalize.
+  simpl; intros; normalize. autorewrite with norm1 norm2; normalize.
 Qed.
 
 End CENV.
