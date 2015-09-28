@@ -207,7 +207,7 @@ Qed.
 Lemma upd_Znth_in_list_char {A} n l1 (v:A) l2 w: Zlength l1=n -> 0<=n -> 
       upd_Znth_in_list n (l1 ++ v :: l2) w = l1 ++ w :: l2.
 Proof. intros. unfold upd_Znth_in_list. 
-   f_equal. rewrite sublist_app1. apply sublist_same; omega. omega.
+   f_equal. rewrite sublist0_app1. apply sublist_same; omega. omega.
    f_equal. rewrite sublist_app2, <- H, Zlength_app, Zlength_cons. do 2 rewrite Zminus_plus.
                 rewrite sublist_1_cons. apply sublist_same; omega. omega. 
 Qed.

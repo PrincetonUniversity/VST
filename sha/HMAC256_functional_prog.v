@@ -4,8 +4,8 @@ Require Import Coq.Strings.String.
 Require Import Coq.Strings.Ascii.
 Require Import List. Import ListNotations.
 Require Import general_lemmas.
-Require Import sha.SHA256.
-Require Import sha.functional_prog.
+Require Import SHA256.
+Require Import functional_prog.
 Require Import HMAC_functional_prog.
 
 Module SHA256 <: HP.HASH_FUNCTION.

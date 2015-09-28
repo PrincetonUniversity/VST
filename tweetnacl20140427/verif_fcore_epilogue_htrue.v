@@ -247,7 +247,7 @@ Proof. intros. abbreviate_semax. unfold CoreInSEP. normalize.
       unfold SByte at 2. rewrite data_at_isptr with (p:=c). normalize.
       apply isptrD in Pc. destruct Pc as [cb [coff HC]]. rewrite HC in *.
       Opaque Zmult. Opaque Z.add. 
-(*Andrew: we now need the following semax_pre (dropping the eq "4 = 4" in LOCAL)
+(*Issue: we now need the following semax_pre (dropping the eq "4 = 4" in LOCAL)
     to get the ensuing "foward" to succeed. The "4=4" seems to be a new residue of the
    forward_for_simple_bound*)
   apply semax_pre with (P':=
@@ -293,7 +293,7 @@ Proof. intros. abbreviate_semax. unfold CoreInSEP. normalize.
       
 Transparent core_spec. Transparent ld32_spec. Transparent L32_spec. Transparent st32_spec.
 Transparent crypto_core_salsa20_spec. Transparent crypto_core_hsalsa20_spec.
-      (*Andrew: Like the old forward_call', the new forward_call here leaves delete-temp_from_locals_side 
+      (*Issue: Like the old forward_call', the new forward_call here leaves delete-temp_from_locals_side 
         conditions. The old forward_call succeeded, and the Frame I used is indeed the one the 
         new forward_call rule also identifies).*)
       forward_call ((Vptr cb (Int.add coff (Int.repr (4 * i)))),
@@ -398,7 +398,7 @@ Opaque crypto_core_salsa20_spec. Opaque crypto_core_hsalsa20_spec.
        2: rewrite Zlength_map, PL2Zlength; simpl; omega. 
        2: omega.
      forward.
-(*Andrew: substitution in entailer is a bit too eager here. Without the following assert (FLN: ...) ... destruct FLN,
+(*Issue: substitution in entailer is a bit too eager here. Without the following assert (FLN: ...) ... destruct FLN,
   the two hypotheses are simply combined to Zlength Front = Zlength FrontN by entailer (and again by the inv H0) *)
      assert (FLN: Zlength Front = i /\ Zlength FrontN = i). split; assumption. clear FL FN.
      entailer. 

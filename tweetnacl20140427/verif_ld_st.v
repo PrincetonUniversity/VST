@@ -119,7 +119,7 @@ remember (littleendian_invert u) as U. destruct U as [[[u0 u1] u2] u3].
   entailer. unfold upd_Znth_in_list. rewrite Zlength_app; repeat rewrite Zlength_sublist; try omega.
     2: rewrite Zlength_correct; simpl; omega.
   clear H TC.
-  rewrite sublist_app1.
+  rewrite sublist0_app1.
    2: rewrite Zlength_sublist; try rewrite Zlength_correct; simpl; omega.
   rewrite sublist_sublist; try omega. rewrite Zminus_0_r, Zplus_minus.
   rewrite sublist_app2. Focus 2. rewrite Zlength_sublist; simpl; try omega. rewrite Zlength_correct; simpl; omega.
