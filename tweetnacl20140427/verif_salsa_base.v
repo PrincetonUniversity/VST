@@ -3,9 +3,9 @@ Require Import floyd.proofauto.
 Local Open Scope logic.
 Require Import List. Import ListNotations.
 Require Import general_lemmas.
-(*
+
 Require Import split_array_lemmas.
-Require Import fragments.*)
+(*Require Import fragments.*)
 Require Import ZArith. 
 Require Import Salsa20.
 
@@ -67,22 +67,15 @@ Lemma SixteenByte2ValList_Zlength C: 16 = Zlength (SixteenByte2ValList C).
 
 Definition SByte (q:SixteenByte) (v:val) : mpred :=
   @data_at CompSpecs Tsh (Tarray tuchar 16 noattr) (SixteenByte2ValList q) v.
-(*
+
 Lemma ThirtyTwoByte_split16 q v:
+  field_compatible (Tarray tuchar 32 noattr) [] v ->
   ThirtyTwoByte q v = 
-  (!!(offset_in_range 32 v) && 
-   (SByte (fst q) v * SByte (snd q) (offset_val (Int.repr 16) v)))%logic.
-Proof. destruct q as [s1 s2]. simpl.
-  unfold SByte.
-  assert (32 = Zlength (SixteenByte2ValList s1 ++ SixteenByte2ValList s2)).
-    rewrite Zlength_app. repeat rewrite <- SixteenByte2ValList_Zlength. reflexivity.
-  rewrite H.
-  erewrite append_split_Tarray_at; try reflexivity.
-  repeat rewrite <- SixteenByte2ValList_Zlength.
-  assert(sizeof tuchar =1) by reflexivity. rewrite H0. repeat rewrite Z.mul_1_l.
-  rewrite andp_assoc. rewrite andp_comm. rewrite <- add_andp. trivial.
-  apply prop_right. apply offset_in_range_0.
-Qed.*)
+  (SByte (fst q) v * SByte (snd q) (offset_val (Int.repr 16) v))%logic.
+Proof. destruct q as [s1 s2]. simpl; intros.
+  erewrite append_split2_data_at_Tarray_at_tuchar; try reflexivity;
+  try rewrite Zlength_app; repeat rewrite <- SixteenByte2ValList_Zlength; trivial.
+Qed.
 
 Lemma QuadByte2ValList_firstn4 q l: 
          firstn 4 (QuadByte2ValList q ++ l) = QuadByte2ValList q.
