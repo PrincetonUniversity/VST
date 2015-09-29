@@ -206,6 +206,11 @@ Definition mpred := pred rmap.
 Inductive funspec :=
    mk_funspec: funsig -> forall A: Type, (A -> environ->mpred) -> (A -> environ->mpred) -> funspec.
 
+(* Causes a universe inconsistency in seplog.v! 
+Definition example_f_spec :=
+  (mk_funspec (nil,Tvoid) mpred (fun (x: mpred) rho => emp) (fun x rho => emp)).
+*)
+
 Definition varspecs : Type := list (ident * type).
 
 Definition funspecs := list (ident * funspec).

@@ -432,21 +432,75 @@ Ltac entailer :=
  end;
  entailer'.
 
-Ltac prop_solve := 
-  match goal with |- ?A => (has_evar A; repeat simple apply conj) || (repeat split) end;
-  (computable || auto). 
- 
+
+Ltac splittable := 
+ match goal with 
+ | |- _ <= _ < _ => fail 1
+ | |- _ < _ <= _ => fail 1
+ | |- _ <= _ <= _ => fail 1
+ | |- _ < _ < _ => fail 1
+ | |- _ <-> _ => fail 1
+ | |- _ /\ _ => idtac
+ end.
+
+Ltac prove_it_now :=
+ first [ splittable; fail 1
+        | computable 
+        | apply I 
+        | reflexivity 
+        | omega 
+        | solve [normalize; auto ] 
+        ].
+
+Ltac try_prove_it_now :=
+ first [match goal with H := _ |- _ => instantiate (1:=True) in H; prove_it_now end
+       | eassumption].
+
+Lemma my_auto_lem:
+ forall (P Q: Prop), (P -> Q) -> (P -> Q).
+Proof. auto. Qed.
+
+Ltac my_auto_iter H :=
+ first [instantiate (1:=True) in H;  prove_it_now
+       | splittable; 
+         eapply try_conjuncts_lem;
+            [let H1 := fresh in intro H1; my_auto_iter H1
+            |let H1 := fresh in intro H1; my_auto_iter H1
+            | apply H ]
+       | apply H
+       ].
+
+Ltac all_True :=  solve [repeat simple apply conj; simple apply I].
+
+Ltac my_auto_reiter :=
+ first [simple apply conj; [all_True | ]; my_auto_reiter
+        |simple apply conj; [ | all_True]; my_auto_reiter 
+        |splittable; eapply try_conjuncts_lem;
+                [intro; my_auto_reiter
+                |intro; my_auto_reiter
+                |eassumption]
+        |eassumption].
+
+Ltac my_auto := 
+ let H := fresh in eapply my_auto_lem; [intro H; my_auto_iter H | ];
+ try all_True;
+ (eapply my_auto_lem; [intro; my_auto_reiter | ]);
+ normalize.
+
+(*
 Ltac mysplit := 
  match goal with 
  | |- _ <= _ < _ => idtac
  | |- _ < _ <= _ => idtac
  | |- _ <= _ <= _ => idtac
  | |- _ < _ < _ => idtac
+ | |- _ <-> _ => idtac
  | |- _ => try simple apply conj
  end.
 
 Ltac my_auto :=
  repeat mysplit; try computable; normalize; auto; try apply I; try reflexivity; try omega.
+*)
 
 Lemma prop_and_same_derives' {A}{NA: NatDed A}:
   forall (P: Prop) Q,   P   ->   Q |-- !!P && Q.

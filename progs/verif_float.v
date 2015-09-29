@@ -68,6 +68,7 @@ entailer!.
 rewrite value_fits_ind; split3; 
  erewrite unfold_reptype_elim by reflexivity;
  simpl; hnf; simpl; auto.
+simpl.
 unfold field_at, data_at', at_offset. simpl.
 unfold mapsto'; rewrite !if_true by auto.
 rewrite proj_sumbool_is_true by auto.

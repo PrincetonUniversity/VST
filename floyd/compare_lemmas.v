@@ -111,20 +111,22 @@ destruct (eval_expr e2 rho); inv H7.
 unfold force_signed_int, force_int.
 unfold typed_true, eval_binop in H4.
 destruct op; inv H; simpl in H4.
-pose proof (Int.eq_spec i i0); destruct (Int.eq i i0); inv H4; auto.
-pose proof (Int.eq_spec i i0); destruct (Int.eq i i0); inv H4; auto.
-intro; apply H.
+pose proof (Int.eq_spec i i0); destruct (Int.eq i i0); subst; auto.
+ contradiction H4; auto.
+unfold Zne.
+pose proof (Int.eq_spec i i0); destruct (Int.eq i i0); subst; auto.
+contradict H.
 rewrite <- (Int.repr_signed i).
 rewrite <- (Int.repr_signed i0).
 f_equal; auto.
 unfold Int.lt in H4.
-destruct (zlt (Int.signed i) (Int.signed i0)); inv H4; auto.
+destruct (zlt (Int.signed i) (Int.signed i0)); auto; contradict H4; auto.
 unfold Int.lt in H4.
-destruct (zlt (Int.signed i0) (Int.signed i)); inv H4; omega.
+destruct (zlt (Int.signed i0) (Int.signed i)); auto; try omega; contradict H4; auto.
 unfold Int.lt in H4.
-destruct (zlt (Int.signed i0) (Int.signed i)); inv H4; omega.
+destruct (zlt (Int.signed i0) (Int.signed i)); auto; try omega; contradict H4; auto.
 unfold Int.lt in H4.
-destruct (zlt (Int.signed i) (Int.signed i0)); inv H4; omega.
+destruct (zlt (Int.signed i) (Int.signed i0)); auto; try omega; contradict H4; auto.
 Qed.
 
 Definition  binary_operation_to_opp_comparison (op: binary_operation) :=

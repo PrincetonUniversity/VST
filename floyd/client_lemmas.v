@@ -164,6 +164,38 @@ Qed.
 Lemma Vint_inj: forall x y, Vint x = Vint y -> x=y.
 Proof. congruence. Qed.
 
+Lemma typed_false_tint:
+ forall v, typed_false tint v -> v=nullval.
+Proof.
+intros.
+ hnf in H. destruct v; inv H. 
+ destruct (Int.eq i Int.zero) eqn:?; inv H1. 
+ apply int_eq_e in Heqb. subst; reflexivity.
+Qed.
+
+Lemma typed_true_tint:
+ forall v, typed_true tint v -> v<>nullval.
+Proof.
+intros.
+ hnf in H. destruct v; inv H. 
+ destruct (Int.eq i Int.zero) eqn:?; inv H1.
+ unfold nullval; intro. inv H.
+ rewrite Int.eq_true in Heqb. inv Heqb. 
+Qed.
+
+Lemma typed_false_tint_Vint:
+  forall v, typed_false tint (Vint v) -> v = Int.zero.
+Proof.
+intros. apply typed_false_tint in H. apply Vint_inj in H; auto.
+Qed.
+
+Lemma typed_true_tint_Vint:
+  forall v, typed_true tint (Vint v) -> v <> Int.zero.
+Proof.
+intros. apply typed_true_tint in H.
+contradict H. subst; reflexivity.
+Qed.
+
 Ltac intro_redundant_prop :=
   (* do it in this complicated way because the proof will come out smaller *)
 match goal with |- ?P -> _ =>
@@ -188,10 +220,16 @@ Ltac fancy_intro :=
                              | idtac]
  | isptr ?x => let Hx := fresh "P" x in rename H into Hx
  | is_pointer_or_null ?x => let Hx := fresh "PN" x in rename H into Hx
- | typed_false _ (Val.of_bool _) =>  
-                    simple apply typed_false_of_bool in H
- | typed_true _ (Val.of_bool _) =>  
-                    simple apply typed_true_of_bool in H
+ | typed_false _ _ =>  
+        first [simple apply typed_false_of_bool in H
+               | apply typed_false_tint_Vint in H
+               | apply typed_false_tint in H
+               | idtac ]
+ | typed_true _ _ =>  
+        first [simple apply typed_true_of_bool in H
+               | apply typed_true_tint_Vint in H
+               | apply typed_true_tint in H
+               | idtac ]
  | temp _ _ _ => hnf in H
  | var _ _ _ _ => hnf in H
  | _ => try solve [discriminate H]

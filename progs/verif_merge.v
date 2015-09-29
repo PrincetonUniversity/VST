@@ -1,8 +1,10 @@
 Require Import floyd.proofauto.
-Require Import progs.list_dt. Import LsegSpecial.
 Require Import progs.merge.
+Require Import progs.list_dt. Import LsegSpecial.
+
 Instance CompSpecs : compspecs.
 Proof. make_compspecs prog. Defined.  
+
 Local Open Scope logic.
 
 Instance LS: listspec _list _tail.
@@ -301,6 +303,11 @@ Proof.
   tauto.
 Qed.
 
+Lemma lvar_size_compatible:
+  forall id t v rho,
+  lvar id t v rho -> size_compatible t v.
+Admitted.  (* need to adjust definition of lvar to prove this! *)
+
 Lemma mapsto_data_at sh v p : 
   readable_share sh ->
   isptr p ->
@@ -375,29 +382,6 @@ intros.
  apply int_eq_e in Heqb. subst; reflexivity.
 Qed.
 
-Lemma typed_true_tint:
- forall v, typed_true tint v -> v<>nullval.
-Proof.
-intros.
- hnf in H. destruct v; inv H. 
- destruct (Int.eq i Int.zero) eqn:?; inv H1.
- unfold nullval; intro. inv H.
- rewrite Int.eq_true in Heqb. inv Heqb. 
-Qed.
-
-Lemma typed_false_tint_Vint:
-  forall v, typed_false tint (Vint v) -> v = Int.zero.
-Proof.
-intros. apply typed_false_tint in H. apply Vint_inj in H; auto.
-Qed.
-
-Lemma typed_true_tint_Vint:
-  forall v, typed_true tint (Vint v) -> v <> Int.zero.
-Proof.
-intros. apply typed_true_tint in H.
-contradict H. subst; reflexivity.
-Qed.
-
 Lemma body_merge: semax_body Vprog Gprog f_merge merge_spec.
 Proof.
 start_function.
@@ -422,8 +406,8 @@ normalize. clear H.
 
 assert_PROP (field_compatible (tptr (Tstruct _list noattr)) [] ret_). {
   apply lvar_align_compatible_param with _ret tlist ret_; [ entailer | intros H2 ].
-  assert_PROP (size_compatible tlist ret_); [admit|].
     entailer!. repeat split; auto.
+ eapply lvar_size_compatible; eauto.
 }
 rewrite memory_block_data_at_ by auto.
 change (tptr (Tstruct _list noattr)) with tlist in *.
@@ -444,18 +428,16 @@ forward.
    postcondition ourselves *)
 
 match goal with [|-context[Sset ?tempvar _] ] =>
-forward_if (merge_invariant tempvar sh a b ret_)
+   forward_if (merge_invariant tempvar sh a b ret_)
 end.
 * (* First branch of the if: [a_ <> nullval] *)
 forward.
-assert_PROP (is_pointer_or_null b_); [ now entailer | ].
-destruct b_; inversion H1; simpl force_val.
- +  (* b_ is null *)
-  Exists Int.zero a b (@nil int) a_ nullval ret_ ret_.
-  entailer!. intuition.  
-  + (* b_ <> null *)
-  Exists Int.one a b (@nil int) a_ (Vptr b0 i) ret_ ret_.
-  entailer!. intuition discriminate. 
+Exists (if Val.eq b_ nullval then Int.zero else Int.one)
+ a b (@nil int) a_ b_ ret_ ret_.
+ entailer!.
+ destruct b__; inv TC; simpl.
+  rewrite if_true by auto; intuition discriminate.
+  rewrite if_false by (intro Hx; inv Hx); intuition discriminate.
 * (* a_ = null *)
 forward.
 Exists Int.zero a b (@nil int) a_ b_ ret_ ret_.
