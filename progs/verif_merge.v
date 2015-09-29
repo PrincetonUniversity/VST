@@ -321,7 +321,8 @@ Proof.
   destruct p; try inversion P.
   unfold tlist, t_struct_list, tptr in *; simpl in *.
   rewrite int_add_repr_0_r.
-  unfold data_at', offset_val; simpl.
+  unfold data_at', offset_val, mapsto; simpl.
+  if_tac; [ | exfalso; tauto ].
   apply pred_ext; entailer.
   unfold field_compatible; simpl.
   unfold legal_alignas_type, nested_pred, local_legal_alignas_type, legal_cosu_type; simpl.
@@ -557,7 +558,7 @@ name vb__ _vb.
 name x__ _x.
 name ret__ _ret.
 name cond__ _cond.
-Time entailer.  (* 85 sec *)
+Time entailer. (* 89 sec *)
 apply andp_right.
   apply prop_right.
     split.
