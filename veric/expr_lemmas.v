@@ -243,7 +243,7 @@ Qed.
 Lemma weak_valid_pointer_dry:
   forall b ofs m, app_pred (weak_valid_pointer (Vptr b ofs)) (m_phi m) ->
            (Mem.valid_pointer (m_dry m) b (Int.unsigned ofs) 
-           || Mem.valid_pointer (m_dry m) b (Int.unsigned ofs - 1)) = true.
+           || Mem.valid_pointer (m_dry m) b (Int.unsigned ofs - 1))%bool = true.
 Proof.
 intros.
 rewrite orb_true_iff.
@@ -881,7 +881,7 @@ split; auto. destruct H4; auto. left. destruct b; simpl; auto.
 *
 destruct (update_tycon_te_same c1 _ _ _ _ H0).
 destruct (update_tycon_te_same c2 _ _ _ _ H0).
-specialize (H id ((b || x) && (b || x0)) ty ).  
+specialize (H id ((b || x) && (b || x0))%bool ty ).  
 spec H.  
  unfold join_tycon. remember (update_tycon Delta c1).
 destruct t. remember (update_tycon Delta c2).

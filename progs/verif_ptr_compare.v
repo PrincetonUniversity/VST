@@ -67,6 +67,7 @@ forward.
 apply field_compatible_isptr in H; destruct p'; try contradiction.
 apply field_compatible_isptr in H1; destruct q'; try contradiction.
 entailer!.
+split.
 unfold sem_cmp_pp; simpl.
 if_tac; try reflexivity.
 destruct (Int.eq i i0); reflexivity.

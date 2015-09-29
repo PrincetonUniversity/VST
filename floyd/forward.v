@@ -225,7 +225,9 @@ Ltac fixup_local_var  :=  (* this tactic is needed only until start_function
     match goal with |- semax _ ?Pre _ _ =>
     match Pre with context C [@liftx (Tarrow val (LiftEnviron mpred)) F (eval_lvar i t) ] =>
      let D := context C[ (@liftx (LiftEnviron mpred) (F v))  ]   in
-        apply semax_pre with D; [ entailer!; rewrite (lvar_eval_lvar i t v) by auto; auto | ] 
+        apply semax_pre with D; 
+           [ entailer!; cbv beta; rewrite (lvar_eval_lvar i t v) by auto; auto 
+           | ] 
     end end;
     revert v
  end end.

@@ -8,20 +8,16 @@ Inductive kind : Type := VAL : memval -> kind
                                    | CT: Z -> kind 
                                    | FUN: funsig -> kind.
 
-Definition isVAL (k: kind) := exists v, k = VAL v.
+Definition isVAL (k: kind) := match k with | VAL _ => True | _ => False end.
+Definition isFUN (k: kind) := match k with | FUN _ => True | _ => False end.
 
 Lemma isVAL_i: forall v, isVAL (VAL v).
-Proof.
-intro v.
-unfold isVAL.
-exists v; auto.
-Qed.
+Proof. intros; simpl; auto. Qed.
 Hint Resolve isVAL_i.
 
 Lemma isVAL_dec: forall k, {isVAL k}+{~isVAL k}.
 Proof.
-intros; destruct k; auto; 
-  right; intro contra; inversion contra as [v H]; inversion H.
+intros; destruct k; auto.
 Qed.
 
 Module CompCert_AV <: ADR_VAL.
@@ -109,8 +105,8 @@ End CompCert_AV.
 Lemma getVAL: forall k, {v : memval & k = VAL v}  + {~isVAL k}.
 Proof.
 intros.
-destruct k; 
-  try solve [right; unfold isVAL; intros [? Hx]; inv Hx].
+destruct k;
+  try solve [simpl; right; tauto].
 left.
 eauto.
 Qed.
@@ -131,8 +127,20 @@ intros b ofs.
 case_eq (f (b,ofs)); intros; auto.
 destruct p.
 specialize (H _ _ _ H0).
-destruct H.
-subst; simpl; auto.
+destruct k; try solve [auto | inversion H].
+Qed.
+
+Lemma VAL_or_FUN_valid:
+ forall (f: address -> option (pshare*kind)),
+   (forall l sh k, f l = Some (sh,k) -> isVAL k \/ isFUN k) ->
+   CompCert_AV.valid f.
+Proof.
+intros.
+intros b ofs.
+case_eq (f (b,ofs)); intros; auto.
+destruct p.
+specialize (H _ _ _ H0).
+destruct k; try solve [auto | simpl in H; tauto].
 Qed.
 
 Lemma blockwise_valid:
@@ -188,8 +196,8 @@ destruct H0; inv H0.
 destruct (f(b,ofs)).
 destruct p0.
 destruct H3.
-destruct H5 as [? H5]; inv H5.
-destruct H3 as [? H5]; inv H5.
+inv H5.
+inv H3.
 destruct H3.
 rewrite H3 in H2.
 destruct H2 as [n [? ?]]; exists n; split; auto.
@@ -204,8 +212,8 @@ destruct H0; inv H0.
 destruct (f(b,ofs)).
 destruct p0.
 destruct H3.
-destruct H4 as [? H5]; inv H5.
-destruct H3 as [? H5]; inv H5.
+inv H4.
+inv H3.
 Qed.
 
 Instance EqDec_kind: EqDec kind.
@@ -814,9 +822,9 @@ Lemma writable_e: forall loc m,
 Proof.
 unfold writable; simpl; intros; destruct (m@loc); try contradiction.
 destruct H; subst.
-destruct H0 as [v ?].
+destruct k; try solve [inversion H0].
 subst.
-exists t, v, p0; auto.
+exists t, m0, p0; auto.
 Qed.
 Implicit Arguments writable_e.
 
@@ -825,7 +833,7 @@ Lemma readable_e: forall loc m,
   exists rsh, exists sh, exists v, exists p, m @ loc = YES rsh sh (VAL v) p.
 Proof.
 unfold readable; simpl; intros; destruct (m@loc); try contradiction.
-destruct H as [v ?].
+destruct k; try solve [inversion H].
 subst.
 econstructor; eauto.
 Qed.

@@ -31,6 +31,7 @@ Lemma semax_max_path_field_load_37':
       (v : val) (v' : reptype (nested_field_type2 t_root gfs)) lr,
       typeof_temp Delta id = Some t ->
       is_neutral_cast (typeof (nested_efield e1 efs tts)) t = true ->
+      readable_share sh ->
       legal_nested_efield t_root e1 gfs tts lr = true ->
       repinject _ v' = v ->
       PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |--
@@ -49,7 +50,7 @@ Lemma semax_max_path_field_load_37':
 Proof.
   intros.
   eapply semax_load_37' with (sh0 := sh); try eassumption.
-  eapply derives_trans; [exact H3|].
+  eapply derives_trans; [exact H4|].
 Admitted.
 (*
     rewrite (andp_comm _ (_ * _)).
@@ -78,6 +79,7 @@ Lemma semax_max_path_field_cast_load_37':
       (v : val) (v' : reptype (nested_field_type2 t_root gfs)) lr,
       typeof_temp Delta id = Some t ->
       type_is_by_value (typeof (nested_efield e1 efs tts)) = true ->
+      readable_share sh ->
       legal_nested_efield t_root e1 gfs tts lr = true ->
       repinject _ v' = v ->
       PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |-- 
@@ -96,7 +98,7 @@ Lemma semax_max_path_field_cast_load_37':
 Proof.
   intros.
   eapply semax_cast_load_37'; try eassumption.
-  eapply derives_trans; [exact H3|].
+  eapply derives_trans; [exact H4 |].
 Admitted.
 (*
     rewrite (andp_comm _ (_ * _)).

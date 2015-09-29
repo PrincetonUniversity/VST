@@ -1582,63 +1582,6 @@ Proof.
 Qed.
 *)
 
-(*
-Lemma mapsto_field_at:
-  forall p p'  v' sh t structid fld fields (v: reptype
-    (nested_field_lemmas.nested_field_type2 (Tstruct structid fields noattr)
-       fld)),
-  type_is_by_value t ->
-  t = (nested_field_type2 (Tstruct structid fields noattr) fld) ->
-  p' = (field_address (Tstruct structid fields noattr) fld p) ->
-  type_is_volatile t = false -> 
-  JMeq v' v ->
-  legal_alignas_type (Tstruct structid fields noattr) = true ->
-  (!! (size_compatible (Tstruct structid fields noattr) p)) && (!! (align_compatible (Tstruct structid fields noattr) p)) && (!! (legal_nested_field (Tstruct structid fields noattr) fld))
-  && mapsto sh t p' v' = field_at sh (Tstruct structid fields noattr) fld v p.
-Proof.
-  intros.
-  rewrite field_at_data_at.
-  remember v as v''; assert (JMeq v'' v) by (subst v; reflexivity); clear Heqv''.
-  revert v H5; 
-  pattern (nested_field_type2 (Tstruct structid fields noattr) fld) at 1 3.
-  rewrite <- H0; intros.
-  rewrite <- H1.
-  subst t; erewrite by_value_data_at; [|exact H| rewrite H3, H5; reflexivity].
-  rewrite H1.
-  apply pred_ext; normalize; repeat apply andp_right.
-  + apply prop_right; split; [| split].
-    - unfold field_address.
-      if_tac; [| simpl; auto].
-      apply size_compatible_nested_field; tauto.
-    - unfold field_address.
-      if_tac; [| simpl; auto].
-      apply align_compatible_nested_field; tauto.
-    - apply (nested_field_type2_nest_pred); eauto.
-  + rewrite <- H1. apply derives_refl.
-  + unfold field_address.
-    if_tac; [| rewrite mapsto_isptr; simpl; normalize].
-    unfold field_compatible in H8; destruct H8 as [? [? [? [? ?]]]].
-    normalize.
-  + rewrite <- H1. apply derives_refl.
-Qed.
-
-Lemma mapsto__field_at_:
-  forall p p' sh t structid fld fields,
-  type_is_by_value t ->
-  t = (nested_field_type2 (Tstruct structid fields noattr) fld) ->
-  p' = (field_address (Tstruct structid fields noattr) fld p) ->
-  type_is_volatile t = false -> 
-  legal_alignas_type (Tstruct structid fields noattr) = true ->
-  (!! (size_compatible (Tstruct structid fields noattr) p)) && (!! (align_compatible (Tstruct structid fields noattr) p)) && (!! legal_nested_field (Tstruct structid fields noattr) fld)
-  && mapsto_ sh t p'  = field_at_ sh (Tstruct structid fields noattr) fld p.
-Proof.
-  intros.
-  eapply mapsto_field_at; eauto.
-  rewrite <- H0; simpl.
-  apply JMeq_sym, by_value_default_val, H.
-Qed.
-
-(*
 Lemma splice_top_top: Share.splice Tsh Tsh = Tsh.
 Proof.
 unfold Share.splice.
@@ -1648,157 +1591,6 @@ case_eq (Share.split Tsh); intros L R ?.
 simpl.
 do 2 rewrite Share.rel_top1.
 erewrite Share.split_together; eauto.
-Qed.
-*)
-
-(*
-Lemma by_value_access_mode_eq_type_eq: forall t t',
-  type_is_by_value t ->
-  access_mode t = access_mode t' ->
-  t = t'.
-Proof.
-  intros.
-  destruct t; [| destruct i, s, a| destruct s,a |destruct f | | | | | |];
-  (destruct t'; [| destruct i, s, a| destruct s,a |destruct f | | | | | |]);
-  simpl in *; inversion H0; try tauto.
-*)
-
-Lemma mapsto_field_at'':
-  forall p p' v' sh ofs t structid fld fields (v: reptype (nested_field_type2 (Tstruct structid fields noattr) fld)),
-  access_mode t = access_mode (nested_field_type2 (Tstruct structid fields noattr) fld) ->
-  nested_field_offset2 (Tstruct structid fields noattr) fld = ofs ->
-  offset_val Int.zero p' = offset_val (Int.repr ofs) p ->
-  tc_val (nested_field_type2 (Tstruct structid fields noattr) fld) v' ->
-  type_is_volatile (nested_field_type2 (Tstruct structid fields noattr) fld) = false ->
-  JMeq v' v ->
-  legal_alignas_type (Tstruct structid fields noattr) = true ->
-  (!! (size_compatible (Tstruct structid fields noattr) p /\  align_compatible (Tstruct structid fields noattr) p /\ legal_nested_field (Tstruct structid fields noattr) fld)) 
-  && mapsto sh t p' v' |-- field_at sh (Tstruct structid fields noattr) fld v p.
-Proof.
-  intros.
-  rewrite field_at_data_at.
-  destruct (access_mode t) eqn:HH;
-    try (unfold mapsto; rewrite HH; normalize; reflexivity).
-  remember v' as v''; assert (JMeq v' v'') by (subst v'; reflexivity); clear Heqv''.
-  assert (type_is_by_value t) by (destruct t; inversion HH; simpl; tauto).
-
-  revert v' H6.
-  pattern val at 1 2.
-  erewrite <- by_value_reptype; [intros|exact H7].
-  subst ofs.
-(* rewrite <- H1; clear H1. *)
-(*  erewrite by_value_data_at; [| exact H7|exact H6]. *)
-  admit.
-Qed.
-
-Lemma mapsto_field_at':
-  forall p p' v' sh ofs t structid fld fields (v: reptype (nested_field_type2 (Tstruct structid fields noattr) fld)),
-  access_mode t = access_mode (nested_field_type2 (Tstruct structid fields noattr) fld) ->
-  nested_field_offset2 (Tstruct structid fields noattr) fld = ofs ->
-  offset_val Int.zero p' = offset_val (Int.repr ofs) p ->
-  tc_val (nested_field_type2 (Tstruct structid fields noattr) fld) v' ->
-  type_is_volatile (nested_field_type2 (Tstruct structid fields noattr) fld) = false ->
-  JMeq v' v ->
-  legal_alignas_type (Tstruct structid fields noattr) = true ->
-  size_compatible (Tstruct structid fields noattr) p ->
-  align_compatible (Tstruct structid fields noattr) p ->
-  legal_nested_field (Tstruct structid fields noattr) fld -> 
-  mapsto sh t p' v' |-- field_at sh (Tstruct structid fields noattr) fld v p.
-Proof.
-  intros.
-  eapply derives_trans; [ | eapply mapsto_field_at''; eassumption].
-  normalize.
-Qed.
-*)
-(*
-Lemma field_at_nonvolatile:
-  forall sh t fld v v', field_at sh t fld v' v = !!(type_is_volatile t = false) && field_at sh t fld v' v.
-Proof.
-intros.
-apply pred_ext; normalize.
-apply andp_right; auto.
-unfold field_at.
-destruct t; try apply FF_left.
-destruct (field_offset fld (unroll_composite_fields i (Tstruct i f a) f)); try apply FF_left.
-apply andp_left1.
-apply prop_derives.
-induction fld; simpl; auto.
-Qed.
-
-Lemma field_at__nonvolatile:
-  forall sh t fld v, field_at_ sh t fld v = !!(type_is_volatile t = false) && field_at_ sh t fld v.
-Proof.
- intros.
-apply field_at_nonvolatile.
-Qed.
-*)
-
-Lemma mapsto_conflict:
- forall sh t v v2 v3,
- mapsto sh t v v2 * mapsto sh t v v3 |-- FF.
-Proof.
-intros.
-unfold mapsto.
-destruct (access_mode t); normalize.
-destruct (type_is_volatile t); normalize.
-pose proof (size_chunk_pos m).
-destruct v; normalize.
-rewrite distrib_orp_sepcon.
-apply orp_left; normalize;
-try (rewrite sepcon_comm; rewrite distrib_orp_sepcon; apply orp_left; normalize;
-      apply res_predicates.address_mapsto_overlap; split; auto; omega).
-Qed.
-
-Lemma permission_bytes_conflict:
-  forall sh a n, sepalg.nonidentity sh -> 0 < n ->
-res_predicates.permission_bytes sh a n *
-res_predicates.permission_bytes sh a n |-- FF.
-Admitted. (* should be straightforward *)
-  
-Lemma memory_block_conflict: forall sh n m p,
-  sepalg.nonidentity sh ->
-  0 < n <= Int.max_unsigned -> 0 < m <= Int.max_unsigned ->
-  memory_block sh n p * memory_block sh m p |-- FF.
-Proof.
-  intros until p. intro N. intros.
-  destruct H, H0.
-Transparent memory_block.
-  unfold memory_block.
-Opaque memory_block.
-  destruct p; normalize.
-  remember (nat_of_Z (Int.unsigned (Int.repr n))) as n' eqn:Hn.
-  rewrite Int.unsigned_repr in Hn; [| split; omega].
-  rewrite <- (nat_of_Z_eq n) in H; [|omega].
-  rewrite <- Hn in H.
-  destruct n'; [simpl in H; omega | rewrite Nat2Z.inj_succ in H].
-
-  remember (nat_of_Z (Int.unsigned (Int.repr m))) as m' eqn:Hm.
-  rewrite Int.unsigned_repr in Hm; [| split; omega].
-  rewrite <- (nat_of_Z_eq m) in H0; [|omega].
-  rewrite <- Hm in H0.
-  destruct m'; [simpl in H0; omega | rewrite Nat2Z.inj_succ in H0].
-  rewrite <- Hn, <- Hm; simpl.
-  unfold mapsto_. 
-  if_tac.
-  apply derives_trans with (mapsto sh (Tint I8 Unsigned noattr) (Vptr b (Int.repr (Int.unsigned i)))
-     Vundef * mapsto sh (Tint I8 Unsigned noattr) (Vptr b (Int.repr (Int.unsigned i)))
-      Vundef * TT).
-  cancel.
-  apply derives_trans with (FF * TT).
-  apply sepcon_derives; [|cancel].
-  apply mapsto_conflict.
-  normalize.
-  unfold permission_block.
-  simpl.
-  forget (b, Int.unsigned (Int.repr (Int.unsigned i))) as a.
-  apply derives_trans with 
-  ((res_predicates.permission_bytes sh a 1 * res_predicates.permission_bytes sh a 1) * TT).
-  cancel.
-  apply derives_trans with (FF * TT); [ | normalize].
-  apply sepcon_derives; [| auto].
-  clear - N.
-  apply permission_bytes_conflict; auto.
-  omega.
 Qed.
 
 Lemma field_at_conflict: forall sh t fld p v v',
@@ -1812,12 +1604,11 @@ Proof.
   + apply sepcon_derives. 
     apply field_at_field_at_; try assumption; auto. 
     apply field_at_field_at_; try assumption; auto. 
-  +
-    fold (field_at_ sh t fld p).
+  + fold (field_at_ sh t fld p).
     rewrite field_at__memory_block by auto.
     normalize.
     apply memory_block_conflict; try  (unfold Int.max_unsigned; omega).
-    auto.
+    apply sepalg.nonidentity_nonunit; auto.
 Qed.
 
 Lemma data_at_conflict: forall sh t v v' p,
@@ -2114,32 +1905,6 @@ Proof.
    destruct p; unfold nullval; simpl in *; tauto.
 Qed.
 
-Lemma mapsto'_share_join:
- forall sh1 sh2 sh t p v,
-   sepalg.join sh1 sh2 sh ->
-   mapsto' sh1 t p v * mapsto' sh2 t p v = mapsto' sh t p v.
-Proof.
-intros.
-unfold mapsto'.
-if_tac.
-if_tac.
-rewrite if_true
-  by  ( eapply join_sub_readable; eauto; eexists; eauto).
-apply mapsto_share_join; auto.
-rewrite if_true
-  by ( eapply join_sub_readable; eauto; eexists; eauto).
-rewrite sepcon_comm.
-apply sepalg.join_comm in H.
-apply permission_block_mapsto_join; auto.
-if_tac.
-rewrite if_true
-  by  ( eapply join_sub_readable; eauto; eexists; eauto).
-apply permission_block_mapsto_join; auto.
-rewrite if_false.
-apply permission_block_share_join; auto.
-eapply join_unreadable_shares; eauto.
-Qed.
-
 Lemma spacer_share_join:
   forall sh1 sh2 sh J K q,
    sepalg.join sh1 sh2 sh ->
@@ -2168,7 +1933,7 @@ Lemma data_at'_void:
   forall {cs: compspecs} 
       sh t v q, t = Tvoid -> data_at' sh t v q = FF.
 Proof.
- intros; subst. unfold data_at'; simpl. unfold mapsto'.
+ intros; subst. unfold data_at'; simpl. unfold mapsto.
   if_tac; reflexivity.
 Qed.
 
@@ -2387,7 +2152,7 @@ intros; rename p into q;
 rewrite !data_at'_ind;
  try solve [if_tac;
      [ apply memory_block_share_join; auto
-     | apply mapsto'_share_join; auto]];
+     | apply mapsto_share_join; auto]];
   try solve [normalize].
 * (* Tarray *)
   destruct (zlt z 0). rewrite !array_pred_len_0 by omega. normalize.
@@ -2518,20 +2283,26 @@ Lemma nonreadable_memory_block_data_at':
    ~ readable_share sh ->
     field_compatible t nil p ->
     memory_block sh (sizeof cenv_cs t) p = data_at' sh t v p.
- Proof.
+Proof.
 intros.
 hnf in H0.
-destruct H0 as [Hp [_ [_ [? [Hsz [Hsc _]]]]]].
-revert H0 Hsz v p Hsc Hp; pattern t; type_induction.type_induction t; intros; inv H0;
+destruct H0 as [Hp [? [_ [Hcom [Hsz [Hsc [Hal Hlnf]]]]]]].
+revert H0 Hsz v p Hcom Hsc Hp Hal Hlnf; pattern t; type_induction.type_induction t; intros; inv H0;
  rewrite  data_at'_ind; auto;
- try match goal with |- context [nested_field_type2 ?t nil] => change (nested_field_type2 t nil) with t; cbv beta iota end;
- try (if_tac; [solve [auto] | unfold mapsto'; rewrite if_false by auto]).
-* destruct p; try contradiction; destruct i,s; eapply memory_block_permission_block; auto;  reflexivity.
-* destruct p; try contradiction; destruct s;  eapply memory_block_permission_block; auto;  reflexivity.
-* destruct p; try contradiction; destruct f; eapply memory_block_permission_block; auto;  reflexivity.
-* destruct p; try contradiction; eapply memory_block_permission_block; auto;  reflexivity.
+match goal with
+| |- appcontext [type_is_volatile ?t] =>
+       destruct (type_is_volatile t) eqn:HH; [auto | rewrite memory_block_mapsto_ by auto];
+       unfold mapsto_, mapsto; destruct (access_mode t); auto;
+       rewrite HH; simpl;
+       destruct p; auto;
+       rewrite !if_false by auto; auto
+| _ => idtac
+end.
+
+* inversion Hcom.
 * (* Tarray *)
   admit.  (* Qinxiang *)
+* inversion Hcom.
 * (* Tstruct *)
   admit.  (* Qinxiang *)
 * (* Tunion *)

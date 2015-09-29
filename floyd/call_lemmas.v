@@ -436,13 +436,6 @@ Definition check_one_var_spec (Q: PTree.t vardesc) (idv: ident * vardesc) : Prop
    end.
 *)
 
-Lemma exp_congr:
- forall A NA T X Y, 
-    (forall v, X v = Y v) -> @exp A NA T X = @exp A NA T Y.
-Proof.
-intros. f_equal. extensionality v; auto.
-Qed.
-
 Inductive delete_temp_from_locals (id: ident) : list (environ -> Prop) -> list (environ -> Prop) -> Prop :=
 | dtfl_nil: delete_temp_from_locals id nil nil
 | dtfl_here: forall v Q Q',

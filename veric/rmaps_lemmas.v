@@ -687,21 +687,52 @@ revert H; unfold age; case_eq (age1 phi); intros; try discriminate.
 inv H0.
 simpl in *.
 split; intros [pp ?].
-econstructor;
-apply (necR_YES phi phi' loc rsh sh k pp).
-constructor 1; auto. auto.
-rename phi' into r.
-rewrite rmap_age1_eq in *.
-unfold resource_at in *.
-revert H; case_eq (unsquash phi); simpl; intros.
-destruct n; inv H1.
-rewrite unsquash_squash in H0. simpl in H0. destruct r0; simpl in *.
-unfold compose in H0. 
-revert H0; destruct (x loc); simpl; intros; auto.
++ econstructor;
+  apply (necR_YES phi phi' loc rsh sh k pp).
+  constructor 1; auto. auto.
++ rename phi' into r.
+  rewrite rmap_age1_eq in *.
+  unfold resource_at in *.
+  revert H; case_eq (unsquash phi); simpl; intros.
+  destruct n; inv H1.
+  rewrite unsquash_squash in H0. simpl in H0. destruct r0; simpl in *.
+  unfold compose in H0. 
+  revert H0; destruct (x loc); simpl; intros; auto.
+  inv H0.
+  inv H0.
+  econstructor; eauto.
+  inv H0.
+Qed.
+
+Lemma necR_PURE': 
+   forall phi phi' loc k,
+         necR phi phi' -> 
+    ((exists pp, phi@loc = PURE k pp) <-> 
+    (exists pp, phi'@loc = PURE k pp)).
+Proof.
+intros.
+induction H; try solve [intuition].
+rename x into phi; rename y into phi'.
+revert H; unfold age; case_eq (age1 phi); intros; try discriminate.
 inv H0.
-inv H0.
-econstructor; eauto.
-inv H0.
+simpl in *.
+split; intros [pp ?].
++ econstructor;
+  apply (necR_PURE phi phi' loc k pp).
+  constructor 1; auto. auto.
++ rename phi' into r.
+  rewrite rmap_age1_eq in *.
+  unfold resource_at in *.
+  revert H; case_eq (unsquash phi); simpl; intros.
+  destruct n; inv H1.
+  rewrite unsquash_squash in H0. simpl in H0. destruct r0; simpl in *.
+  unfold compose in H0. 
+  revert H0; destruct (x loc); simpl; intros; auto.
+  inv H0.
+  inv H0.
+  econstructor; eauto.
+  inv H0.
+  eauto.
 Qed.
 
 Lemma resource_at_join_sub:
@@ -766,6 +797,30 @@ apply necR_YES'.
 constructor 1; auto.
 Qed.
 
+Lemma age1_YES': forall phi phi' l rsh sh k ,
+  age1 phi = Some phi' -> ((exists P, phi @ l = YES rsh sh k P) <-> exists P, phi' @ l = YES rsh sh k P).
+Proof.
+intros.
+apply necR_YES''.
+constructor 1; auto.
+Qed.
+
+Lemma age1_NO: forall phi phi' l rsh,
+  age1 phi = Some phi' -> (phi @ l = NO rsh <-> phi' @ l = NO rsh).
+Proof.
+intros.
+apply necR_NO.
+constructor 1; auto.
+Qed.
+
+Lemma age1_PURE: forall phi phi' l k ,
+  age1 phi = Some phi' -> ((exists P, phi @ l = PURE k P) <-> exists P, phi' @ l = PURE k P).
+Proof.
+  intros.
+  apply necR_PURE'.
+  constructor 1; auto.
+Qed.
+  
 Lemma empty_NO: forall r, identity r -> r = NO Share.bot \/ exists k, exists pds, r = PURE k pds.
 Proof.
 intros.

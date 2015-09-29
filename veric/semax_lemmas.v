@@ -1470,40 +1470,51 @@ Qed.
 Lemma unage_mapsto:
   forall sh t v1 v2 w, age1 w <> None -> (|> mapsto sh t v1 v2) w -> mapsto sh t v1 v2 w.
 Proof.
- intros.
- case_eq (age1 w); intros; try contradiction.
- clear H.
- specialize (H0 _ (age_laterR H1)).
- unfold mapsto in *.
- revert H0; case_eq (access_mode t); intros; auto.
- destruct (type_is_volatile t); try contradiction.
- destruct v1; try contradiction.
- rename H into Hmode.
-destruct H0 as [H0|H0]; [left | right].
- destruct H0 as [H0' H0]; split; auto.
- destruct H0 as [bl [? ?]]; exists bl; split; auto.
- clear - H0 H1.
-  intro loc'; specialize (H0 loc').
-  hnf in *.
-  if_tac.
-  destruct H0 as [p ?]; exists p.
-  hnf in *.
-  rewrite preds_fmap_NoneP in *.
-  apply (age1_YES w r); auto.
-  unfold noat in *; simpl in *.
- apply <- (age1_resource_at_identity _ _ loc' H1); auto.
- destruct H0 as [? [v2' [bl [? ?]]]].
- hnf in H. subst v2. split; hnf; auto. exists v2', bl; split; auto. 
- clear - H2 H1; rename H2 into H0.
-  intro loc'; specialize (H0 loc').
-  hnf in *.
-  if_tac.
-  destruct H0 as [p ?]; exists p.
-  hnf in *.
-  rewrite preds_fmap_NoneP in *.
-  apply (age1_YES w r); auto.
-  unfold noat in *; simpl in *.
- apply <- (age1_resource_at_identity _ _ loc' H1); auto.
+  intros.
+  case_eq (age1 w); intros; try contradiction.
+  clear H.
+  specialize (H0 _ (age_laterR H1)).
+  unfold mapsto in *.
+  revert H0; case_eq (access_mode t); intros; auto.
+  destruct (type_is_volatile t); try contradiction.
+  destruct v1; try contradiction.
+  rename H into Hmode.
+  if_tac; rename H into H_READ.
+  + destruct H0 as [H0|H0]; [left | right].
+    destruct H0 as [H0' H0]; split; auto.
+    destruct H0 as [bl [? ?]]; exists bl; split; auto.
+    clear - H0 H1.
+     intro loc'; specialize (H0 loc').
+     hnf in *.
+     if_tac.
+     destruct H0 as [p ?]; exists p.
+     hnf in *.
+     rewrite preds_fmap_NoneP in *.
+     apply (age1_YES w r); auto.
+     unfold noat in *; simpl in *.
+    apply <- (age1_resource_at_identity _ _ loc' H1); auto.
+    destruct H0 as [? [v2' [bl [? ?]]]].
+    hnf in H. subst v2. split; hnf; auto. exists v2', bl; split; auto. 
+    clear - H2 H1; rename H2 into H0.
+     intro loc'; specialize (H0 loc').
+     hnf in *.
+     if_tac.
+     destruct H0 as [p ?]; exists p.
+     hnf in *.
+     rewrite preds_fmap_NoneP in *.
+     apply (age1_YES w r); auto.
+     unfold noat in *; simpl in *.
+    apply <- (age1_resource_at_identity _ _ loc' H1); auto.
+  + intro loc'; specialize (H0 loc').
+    hnf in *.
+    if_tac.
+    - unfold shareat in *; simpl in *.
+      pose proof H1.
+      apply age1_resource_share with (l := loc') in H1.
+      apply age1_nonlock with (l := loc') in H2.
+      rewrite H1; tauto.
+    - unfold noat in *; simpl in *.
+      apply <- (age1_resource_at_identity _ _ loc' H1); auto.
 Qed.
 
 Lemma semax_extensionality_Delta {CS: compspecs}:
@@ -1582,5 +1593,3 @@ destruct ((temp_types Delta) ! id) as [[? ?]|]; try discriminate.
 destruct ((temp_types Delta') ! id) as [[? ?]|]; try contradiction.
 destruct H; subst; auto.
 Qed.
-
-

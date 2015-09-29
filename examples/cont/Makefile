@@ -2,7 +2,7 @@
 # this file works even if coqdep cannot be run.  Do "make depend"
 # to rebuild the .depend file.
 
-COQFLAGS= -I . -I ../../msl -as msl
+COQFLAGS= -I . -I ../../msl -as msl -R ../../compcert -as compcert
 COQC=coqc 
 COQDEP=coqdep
 COQDOC=coqdoc
