@@ -1872,15 +1872,6 @@ Proof.
 intros. apply pred_ext. apply orp_left; normalize. apply orp_right2; auto.
 Qed.
 
-Lemma tc_val_Vundef:
-  forall t, ~tc_val t Vundef.
-Proof.
-intros.
-intro. hnf in H.
-destruct t; try contradiction.
-destruct f; try contradiction.
-Qed.
-
 Lemma wand_join {A}{NA: NatDed A}{SA: SepLog A}:
   forall x1 x2 y1 y2: A,
     (x1 -* y1) * (x2 -* y2) |-- ((x1 * x2) -* (y1 * y2)).

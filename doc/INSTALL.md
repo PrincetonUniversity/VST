@@ -1,52 +1,8 @@
 # Installing [VST](https://github.com/PrincetonUniversity/VST/) 
 
-1. [Instructions for CS machines](#using-vst-on-csprincetonedu-machines)
-2. [Instructions for Linux](#instructions-for-linux)
-3. [Instructions for OS X](#instructions-for-os-x)
-4. [Instructions for Windows / Cygwin](#instructions-for-windows)
-
-## Using VST on cs.princeton.edu machines
-
-With a CS account at princeton, [you can ssh to the following machines](https://csguide.cs.princeton.edu/remote/ssh) with the `-X` option to enable X11 forwarding to be able to open windows:
-
-    ssh -X username@cycles.cs.princeton.edu
-
-You'll need to run Proof General instead of CoqIDE, because there's currently no CoqIDE installed on the cycles.cs machines.
-
-You should add this to your .bash_profile (or profile for whatever shell you use):
-
-    export PATH=/n/fs/sml/sharedvst/bin:$PATH
-
-and this to your .emacs
-
-    (load "/n/fs/sml/sharedvst/proofgeneral/generic/proof-site.el")
-
-Then you'll get two commands: 
-
-* "clightgen"  (for translating .c files into .v files) and
-* "pg" for proofgeneral (which loads Compcert (as "compcert") and VST (as an empty dirpath)).
-
-Next step is use this as a starting Makefile:
-
-    FLAGS=-I /n/fs/sml/sharedvst/VST -R /n/fs/sml/sharedvst/CompCert-2.5 -as compcert
-    
-    all:myprogram.vo
-    
-    %.vo:%.v Makefile
-    	coqc $(FLAGS) $<
-
-and then the usual routine is to convert your .c file into a .v file, compile it with coq through make, and run proofgeneral on it:
-
-    clightgen myprogram.c
-    make myprogram.vo
-    pg verif_myprogram.v
-
-You can use the following files to get started
-[Makefile](https://madiot.fr/vst/Makefile),
-[myprogram.c](https://madiot.fr/vst/myprogram.c) and
-[verif_myprogram.v](https://madiot.fr/vst/verif_myprogram.v) (this example is the list reversal program and its proof, taken from [here](https://raw.githubusercontent.com/PrincetonUniversity/VST/new_compcert/progs/verif_reverse.v)).
-
-Signal problems to Jean-Marie Madiot (jmadiot at cs dot princeton ...).
+1. [Instructions for Linux](#instructions-for-linux)
+2. [Instructions for OS X](#instructions-for-os-x)
+3. [Instructions for Windows / Cygwin](#instructions-for-windows)
 
 ## Instructions for Linux
 
@@ -115,7 +71,15 @@ Go to some directory that will be your main VST directory
 Now, we need clightgen, and for it we need a patch:
 
     mv exportclight/ExportClight.ml{,_bak}
-    wget madiot.fr/ExportClight.ml -O exportclight/ExportClight.ml
+    wget https://raw.githubusercontent.com/PrincetonUniversity/VST/new_compcert/compcert/exportclight/ExportClight.ml -O exportclight/ExportClight.ml
+
+and another patch for Ctypes.v:
+
+    mv cfrontend/Ctypes.v{,_bak}
+    wget https://raw.githubusercontent.com/AbsInt/CompCert/db0a62a01bbf90617701b68917319767159bf039/cfrontend/Ctypes.v -O cfrontend/Ctypes.v
+
+We can finally build CompCert:
+
     make -j
     make -j clightgen
 
@@ -148,8 +112,6 @@ Then open your files from inside emacs.  Start with 'progs/verif_reverse.v' for 
 For coqide, try using the _CoqProject file.  If it does not work, try using something of the form and give feedback:
 
     coqide -I msl -as msl -I sepcomp -as sepcomp -I veric -as veric -I floyd -as floyd -I progs -as progs -I sha -as sha -R compcert -as compcert YOURFILE.v
-
-
 
 
 ## Instructions for OS X
@@ -203,7 +165,15 @@ Go to some directory that will be your main VST directory
 Now, we need clightgen, and for it we need a patch:
 
     mv exportclight/ExportClight.ml{,_bak}
-    wget madiot.fr/ExportClight.ml -O exportclight/ExportClight.ml
+    wget https://raw.githubusercontent.com/PrincetonUniversity/VST/new_compcert/compcert/exportclight/ExportClight.ml -O exportclight/ExportClight.ml
+
+And another patch for Ctypes.v:
+
+    mv cfrontend/Ctypes.v{,_bak}
+    wget https://raw.githubusercontent.com/AbsInt/CompCert/db0a62a01bbf90617701b68917319767159bf039/cfrontend/Ctypes.v -O cfrontend/Ctypes.v
+
+We can finally build CompCert:
+
     make -j
     make -j clightgen
 

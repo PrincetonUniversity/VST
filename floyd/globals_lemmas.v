@@ -82,7 +82,8 @@ Opaque memory_block.
     - destruct H1.
       rewrite inj_S in H2. unfold Z.succ in H2.
       apply sepcon_derives; auto.
-      * unfold mapsto_, mapsto. rewrite if_true by auto.
+      * unfold mapsto_, mapsto. simpl.
+        rewrite if_true by auto.
         apply orp_right2.
         rewrite prop_true_andp by auto.
         apply exp_right with (Vint Int.zero).
@@ -539,7 +540,8 @@ Proof.
  cbv beta;
  repeat first [rewrite @FF_orp | rewrite @orp_FF].
 *
- f_equal. f_equal; extensionality bl.
+ f_equal. if_tac; [| auto]; clear H.
+ f_equal; extensionality bl.
  f_equal. f_equal.
  simpl;  apply prop_ext; intuition.
  destruct bl; inv H0. destruct bl; inv H.
@@ -562,7 +564,9 @@ Proof.
  rewrite <- (Int.sign_ext_zero_ext _ i) by omega.
  f_equal; auto.
 *
- f_equal. f_equal; extensionality bl.
+ f_equal.
+  if_tac; [| auto]; clear H.
+ f_equal; extensionality bl.
  f_equal. f_equal.
  simpl;  apply prop_ext; intuition.
  destruct bl; inv H0. destruct bl; inv H3.
@@ -584,7 +588,9 @@ Proof.
   rewrite <- (Int.zero_ext_sign_ext _ i) by omega.
  f_equal; auto.
 *
- f_equal. f_equal; extensionality bl.
+ f_equal.
+  if_tac; [| auto]; clear H.
+  f_equal; extensionality bl.
  f_equal. f_equal.
  simpl;  apply prop_ext; intuition.
  destruct bl; inv H0. destruct bl; inv H3. destruct bl; inv H1.
@@ -606,7 +612,9 @@ Proof.
  rewrite <- (Int.sign_ext_zero_ext _ i) by omega.
  f_equal; auto.
 *
- f_equal. f_equal; extensionality bl.
+ f_equal.
+  if_tac; [| auto]; clear H.
+ f_equal; extensionality bl.
  f_equal. f_equal.
  simpl;  apply prop_ext; intuition.
  destruct bl; inv H0. destruct bl; inv H3. destruct bl; inv H1.

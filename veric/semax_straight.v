@@ -128,7 +128,7 @@ intros. rename H into N.
 
 destruct H0. destruct H. destruct H. destruct H0.
 unfold mapsto_,mapsto in H0.  unfold mapsto in *.
-if_tac in H0.
+destruct (readable_share_dec sh) as [H2 | H2].
 * (* readable_share sh *)
 rename H2 into RS.
 destruct (access_mode t); try solve [ inv H0].
@@ -166,7 +166,9 @@ destruct H4.  repeat split. omega.
 destruct m; simpl; omega.
 * (* ~ readable_share sh *)
 destruct (access_mode t) eqn:?; try contradiction.
+if_tac in H0; [inversion H0 |].
 specialize (H0 (b, Int.unsigned o)).
+simpl in H0.
 rewrite if_true in H0
  by (split; auto; pose proof (size_chunk_pos m); omega).
 clear H1.
@@ -176,6 +178,7 @@ rewrite <- (Z.add_0_r (Int.unsigned o)).
 apply (valid_pointer_dry b o 0 jm).
 hnf.
 rewrite Z.add_0_r.
+destruct H0.
 destruct  (x @ (b, Int.unsigned o)); inv H0; inv H1; simpl; auto.
 intro.
 apply split_identity in RJ; auto.
@@ -183,7 +186,7 @@ apply N.
 apply identity_share_bot in RJ. subst t0.
 rewrite Share.rel_bot1.
 apply bot_identity.
-Qed. 
+Qed.
 
 Lemma mapsto_is_pointer : forall sh t m v,
 mapsto_ sh t v m ->
@@ -192,9 +195,6 @@ Proof.
 intros. unfold mapsto_, mapsto in H.
 if_tac in H; try contradiction.
 destruct (access_mode t); try contradiction.
-destruct (type_is_volatile t); try contradiction.
-destruct v; try contradiction.
-destruct H as [? | [? [v ?]]]; eauto.
 destruct (access_mode t); try contradiction.
 destruct v; try contradiction.
 eauto.
@@ -248,9 +248,9 @@ clear MT_1 MT_2.
 unfold mapsto_ in MT1, MT2.
 unfold mapsto in MT1,MT2.
 destruct (access_mode t1) eqn:?A1; 
- try solve [if_tac in MT1; contradiction].
+ try solve [simpl in MT1; contradiction].
 destruct (access_mode t2) eqn:?A2; 
- try solve [if_tac in MT2; contradiction].
+ try solve [simpl in MT2; contradiction].
 clear MT1 MT2.
 destruct t1; try solve [simpl in *; congruence].
 destruct t2; try solve [simpl in *; congruence].
@@ -303,9 +303,9 @@ clear e1 e2 H0 H1.
 unfold mapsto_ in *.
 unfold mapsto in *.
 destruct (access_mode t1) eqn:?A1; 
- try solve [if_tac in H5; contradiction].
+ try solve [simpl in H5; contradiction].
 destruct (access_mode t2) eqn:?A2; 
- try solve [if_tac in H6; contradiction].
+ try solve [simpl in H6; contradiction].
 destruct t1 as [ | | | [ | ] | | | | | ]; try solve[simpl in *; try contradiction; try congruence]; 
 destruct t2 as [ | | | [ | ] | | | | | ]; try solve[simpl in *; try contradiction; try congruence].
 unfold sem_cmp. unfold sem_cmp_pp.
@@ -1043,6 +1043,7 @@ Lemma semax_load {CS: compspecs}:
 forall (Delta: tycontext) sh id P e1 t2 v2,
     typeof_temp Delta id = Some t2 ->
     is_neutral_cast (typeof e1) t2 = true ->
+    readable_share sh ->
    (forall rho, !! typecheck_environ Delta rho && P rho |-- mapsto sh (typeof e1) (eval_lvalue e1 rho) (v2 rho) * TT) ->
     semax Espec Delta 
        (fun rho => |>
@@ -1054,7 +1055,7 @@ forall (Delta: tycontext) sh id P e1 t2 v2,
                          (subst id old P rho)))).
 Proof.
 intros until v2.
-intros Hid TC1 H99.
+intros Hid TC1 H_READABLE H99.
 replace (fun rho : environ => |> ((tc_lvalue Delta e1 rho && 
   !! tc_val (typeof e1) (v2 rho) && P rho)))
  with (fun rho : environ => 
@@ -1100,7 +1101,7 @@ rewrite <- map_ptree_rel.
 apply guard_environ_put_te'. 
 unfold typecheck_temp_id in *. 
 unfold construct_rho in *. destruct rho; inv Hge; auto.
-clear - Hid TC1 TC2 TC3 TC' H2 Hge H0 H99'.
+clear - H_READABLE Hid TC1 TC2 TC3 TC' H2 Hge H0 H99'.
 intros. simpl in TC1.
 destruct t as [t x].
 unfold typeof_temp in Hid. rewrite H in Hid.
@@ -1131,6 +1132,7 @@ split; [split3 | ].
    rename m into ch.
    rewrite H2 in H5.
    destruct (type_is_volatile (typeof e1)); try contradiction.
+   rewrite if_true in H5 by auto.
    destruct H5 as [[H5' H5] | [H5 _]]; [ | rewrite H5 in TC3; inv TC3].
    assert (core_load ch  (b, Int.unsigned ofs) (v2 rho) (m_phi jm1)).
    apply mapsto_core_load with (Share.unrel Share.Lsh sh) (Share.unrel Share.Rsh sh).
@@ -1178,6 +1180,7 @@ Qed.
 Lemma semax_cast_load {CS: compspecs}: 
 forall (Delta: tycontext) sh id P e1 t1 v2,
     typeof_temp Delta id = Some t1 ->
+    readable_share sh ->
    (forall rho, !! typecheck_environ Delta rho && P rho |-- mapsto sh (typeof e1) (eval_lvalue e1 rho) (v2 rho) * TT) ->
     semax Espec Delta 
        (fun rho => |>
@@ -1190,7 +1193,7 @@ forall (Delta: tycontext) sh id P e1 t1 v2,
                          (subst id old P rho)))).
 Proof.
 intros until v2.  
-intros Hid H99.
+intros Hid H_READABLE H99.
 replace (fun rho : environ => |> ((tc_lvalue Delta e1 rho && 
        (!! tc_val t1  (`(eval_cast (typeof e1) t1) v2 rho)) &&
        P rho)))
@@ -1240,7 +1243,7 @@ rewrite <- map_ptree_rel.
 apply guard_environ_put_te'.
 unfold typecheck_temp_id in *. 
 unfold construct_rho in *. destruct rho; inv Hge; auto.
-clear - Hid TC2 TC3 TC' H2 Hge H0 H99'.
+clear - H_READABLE Hid TC2 TC3 TC' H2 Hge H0 H99'.
 intros.
 destruct t as [t x].
 unfold typeof_temp in Hid. rewrite H in Hid.
@@ -1274,6 +1277,7 @@ split; [split3 | ].
    rename m into ch.
    destruct (type_is_volatile (typeof e1)) eqn:NONVOL; try contradiction.
    rewrite H2 in H5.
+   rewrite if_true in H5 by auto.
    destruct H5 as [[H5' H5] | [H5 _]];
     [ | hnf in TC3; rewrite H5, eval_cast_Vundef in TC3; inv TC3 ].
    assert (core_load ch  (b, Int.unsigned ofs) (v2 rho) (m_phi jm1)).
@@ -1498,7 +1502,6 @@ apply semax_pre with
       |> (mapsto sh (typeof e1) (eval_lvalue e1 rho) v3 * P rho)).
 intro. apply andp_left2. 
 unfold mapsto_.
-rewrite if_true by auto.
 apply exp_right with Vundef.
 repeat rewrite later_andp; auto.
 apply extract_exists_pre; intro v3.
@@ -1533,6 +1536,7 @@ rewrite He1' in *.
 destruct (join_assoc H3 (join_comm H0)) as [?w [H6 H7]].
 rewrite writable_share_right in H4 by auto.
 destruct (type_is_volatile (typeof e1)) eqn:NONVOL; try contradiction.
+rewrite if_true in H4 by auto.
 assert (exists v, address_mapsto ch v (Share.unrel Share.Lsh sh) Share.top
         (b0, Int.unsigned i) w1) by (destruct H4 as [[H4' H4] |[? [? ?]]]; eauto).
 clear v3 H4; destruct H2 as [v3 H4].
@@ -1619,6 +1623,7 @@ rewrite Hmode.
 rewrite He1'. 
 rewrite writable_share_right; try rewrite cop2_sem_cast; auto.
 rewrite NONVOL.
+rewrite if_true by auto.
 apply orp_right1.
 apply andp_right.
 intros ? ?. rewrite tc_val_eq. eapply typecheck_val_sem_cast; eauto.
@@ -1764,6 +1769,7 @@ destruct (type_is_volatile (typeof e1)) eqn:NONVOL; try contradiction.
 destruct v1; try contradiction.
 rename i into z. rename b into b0.
 rewrite writable_share_right in H4 by auto.
+rewrite if_true in H4 by auto.
 assert (exists v, address_mapsto ch v (Share.unrel Share.Lsh sh) Share.top
         (b0, Int.unsigned z) w1)
   by (destruct H4 as [[? H4] | [_ [? ?]]]; eauto).
@@ -1847,6 +1853,7 @@ unfold mapsto.
 
 rewrite Hmode.
 rewrite NONVOL.
+rewrite if_true by auto.
 apply orp_right1.
 apply andp_right.
 intros ? _; do 3 red. auto.

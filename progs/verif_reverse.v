@@ -392,7 +392,7 @@ Proof.
   apply @lseg_unroll_nonempty1 with (Vptr b (Int.repr 8));
    [intro Hx; inv Hx | apply I | simpl ].
   rewrite <- (sepcon_assoc (list_cell LS _ _ _)).
-  rewrite list_cell_eq''.
+  rewrite list_cell_eq'' by auto.
   repeat rewrite field_at_data_at. unfold data_at, field_at.
   unfold field_address.
   repeat ((rewrite if_true || rewrite prop_true_andp);
@@ -405,7 +405,7 @@ Proof.
     ]).
  simpl.
  unfold data_at', at_offset; simpl.
- unfold mapsto'; rewrite !if_true by auto.
+ unfold mapsto. simpl. rewrite !if_true by auto.
  rewrite sepcon_assoc.
  apply sepcon_derives; [ apply derives_refl | ].  
  apply sepcon_derives; [ apply derives_refl | ].

@@ -23,11 +23,11 @@ case_eq (phi @ (b,ofs)); intros; simpl; auto.
 generalize (rmap_valid phi b ofs); unfold compose; intro.
 rewrite H in H0. simpl in H0.
 destruct k; simpl; auto.
-intros; specialize (H0 _ H1).
-destruct (phi @ (b,ofs+i)); inv H0; auto.
-destruct H0 as [n [? ?]].
-exists n; split; auto.
-destruct (phi @ (b,ofs-z)); inv H1; auto.
++ intros; specialize (H0 _ H1).
+  destruct (phi @ (b,ofs+i)); inv H0; auto.
++ destruct H0 as [n [? ?]].
+  exists n; split; auto.
+  destruct (phi @ (b,ofs-z)); inv H1; auto.
 Qed.
 
 Lemma slice_rmap_valid:

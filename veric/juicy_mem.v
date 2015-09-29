@@ -148,7 +148,7 @@ destruct p.
 specialize (H _ _ _ H0).
 destruct k; solve [
     auto
-  | inversion H as [? H']; inversion H' ].
+  | inversion H ].
 Qed.
 
 Lemma age1_joinx {A}  {JA: Join A}{PA: Perm_alg A}{agA: ageable A}{AgeA: Age_alg A} : forall phi1 phi2 phi3 phi1' phi2' phi3',
@@ -455,11 +455,10 @@ intros.
 simpl in *.
 apply age1_resource_at with (loc := loc) (r := phi @ loc) in H.
  2: symmetry; apply resource_at_approx.
-destruct (phi' @ loc); inv H0.
-destruct (phi @ loc); inv H.
+destruct (phi' @ loc); try inv H0.
+destruct (phi @ loc); try inv H.
 auto.
 Qed.
-
 
 Lemma readable_inv: forall phi loc, readable loc phi ->
   exists rsh, exists sh, exists v, exists pp, phi @ loc = YES rsh sh (VAL v) pp.
@@ -467,7 +466,7 @@ Proof.
 simpl.
 intros phi loc H.
 destruct (phi @ loc); try solve [inversion H].
-destruct H. subst.
+destruct k; try inv H.
 eauto.
 Qed.
 
@@ -1454,7 +1453,7 @@ destruct loc as (b,ofs).
 intro Contra.
 hnf in Contra.
 destruct (m_phi m @ (b,ofs)); simpl in *; auto.
-destruct Contra as [x ?]. subst k.
+destruct k as [x | | |]; try inv Contra.
 unfold perm_of_res in H1. simpl in H1.
 rewrite H in H1.
 unfold perm_of_sh in H1.

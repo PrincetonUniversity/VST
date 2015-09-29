@@ -74,17 +74,12 @@ Section WITH_SHARE.
 
 Variable sh: share.
 
-Definition mapsto' sh t p v := 
-if readable_share_dec sh
- then mapsto sh t p v
- else permission_block sh p t.
-
 Definition data_at': forall t, reptype t -> val -> mpred :=
   func_type (fun t => reptype t -> val -> mpred)
     (fun t v p =>
        if type_is_volatile t
        then memory_block sh (sizeof cenv_cs t) p
-       else mapsto' sh t p (repinject t v))
+       else mapsto sh t p (repinject t v))
     (fun t n a P v => array_pred (default_val t) 0 n (fun i v => at_offset (P v) (sizeof cenv_cs t * i)) (unfold_reptype v))
     (fun id a P v => struct_data_at'_aux sh (co_members (get_co id)) (co_members (get_co id)) (co_sizeof (get_co id)) P (unfold_reptype v))
     (fun id a P v => union_data_at'_aux sh (co_members (get_co id)) (co_members (get_co id)) (co_sizeof (get_co id)) P (unfold_reptype v)).
@@ -100,7 +95,7 @@ Lemma data_at'_ind: forall t v,
   | Tpointer _ _ => fun v p => 
                       if type_is_volatile t
                       then memory_block sh (sizeof cenv_cs t) p
-                      else mapsto' sh t p v
+                      else mapsto sh t p v
   | Tarray t0 n a => array_pred (default_val t0) 0 n (fun i v => at_offset (data_at' t0 v) (sizeof cenv_cs t0 * i))
   | Tstruct id a => struct_pred (co_members (get_co id))
                       (fun it v => withspacer sh
@@ -117,7 +112,6 @@ Proof.
   intros.
   unfold data_at' at 1.
   rewrite func_type_ind.
-  unfold mapsto'.
   destruct t; auto;
   try solve [destruct (readable_share_dec sh); reflexivity];
   try solve [
@@ -177,7 +171,7 @@ Qed.
 Lemma by_value_data_at': forall sh t v p,
   type_is_by_value t = true ->
   type_is_volatile t = false ->
-  data_at' sh t v p = mapsto' sh t p (repinject t v).
+  data_at' sh t v p = mapsto sh t p (repinject t v).
 Proof.
   intros.
   rewrite data_at'_ind; destruct t; try solve [inversion H]; rewrite H0;
@@ -602,26 +596,6 @@ saturate_local.
 simpl.
 *)
 
-Lemma mapsto_mapsto_': 
-  forall sh t v v', mapsto' sh t v v' |-- mapsto' sh t v Vundef.
-Proof. intros.
-  normalize.
-  unfold mapsto', mapsto.
-  if_tac; auto.
-  destruct (access_mode t); auto.
-  destruct (type_is_volatile t); try apply FF_left.
-  destruct v; try apply FF_left.
-  apply orp_left.
-  apply orp_right2.
-  apply andp_left2.
-  apply andp_right. apply prop_right; auto.
-  apply exp_right with v'; auto.
-  normalize.
-  apply orp_right2. apply exp_right with v2'.
-  normalize.
-Qed.
-
-
 Lemma data_at'_data_at'_ : forall sh t v b ofs
   (LEGAL_ALIGNAS: legal_alignas_type t = true)
   (LEGAL_COSU: legal_cosu_type t = true)
@@ -635,7 +609,7 @@ Proof.
   type_induction t; intros;
   try solve [inversion COMPLETE];
   try solve [rewrite !data_at'_ind; try (if_tac; auto);
-  try solve [rewrite default_val_ind, unfold_fold_reptype; apply mapsto_mapsto_']].
+  try solve [rewrite default_val_ind, unfold_fold_reptype; apply mapsto_mapsto_]].
   + rewrite !data_at'_ind.
     apply array_pred_ext_derives. rewrite default_val_ind.
     intros.

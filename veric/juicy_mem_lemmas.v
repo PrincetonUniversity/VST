@@ -212,7 +212,7 @@ spec Hacc (b, i).
 simpl in H.
 destruct (m_phi jm @ (b, i)).
 contradiction.
-destruct H as [H1 [? H2]]. subst k p.
+destruct H as [H1 H2]. destruct k; inv H2.
 unfold access_at in Hacc.
 simpl in Hacc.
 rewrite Hacc.
@@ -1012,7 +1012,7 @@ assert (~adr_range (b,lo) (hi-lo) loc).
  assert (Ha := juicy_mem_access (initial_mem m1 lev IOK1) loc).
   destruct loc. simpl in *.
   rewrite H1 in Ha.
-  destruct H0 as [_ H0]. destruct H0. rewrite H0 in Ha. 
+  destruct H0 as [_ H0]. destruct k; inv H0.
   intro Contra.
   destruct Contra.
   subst.
@@ -1031,7 +1031,7 @@ rewrite resource_at_make_rmap.
 destruct loc as (b',ofs').
 assert (Ha := juicy_mem_access (initial_mem m1 lev IOK1) (b',ofs')).
   rewrite H1 in Ha.
-  destruct H0 as [Hfree H0]. destruct H0. rewrite H0 in Ha. 
+  destruct H0 as [Hfree H0]. destruct k; try solve [inversion H0].
   unfold perm_of_res in Ha. simpl in Ha.
   destruct (perm_of_sh_pshare t pfullshare).
   subst.
@@ -1058,7 +1058,7 @@ assert (~adr_range (b,lo) (hi-lo) loc).
  assert (Ha := juicy_mem_access (initial_mem m1 lev IOK1) loc).
   destruct loc. simpl in *.
   rewrite H1 in Ha.
-  destruct H0. rewrite H0 in Ha. 
+  destruct k; try solve [inv H0].
   intro Contra.
   destruct Contra.
   subst.
@@ -1079,7 +1079,7 @@ destruct loc as (b',ofs').
 assert (exists p, access_at m1 (b', ofs') = Some p).
  assert (Ha := juicy_mem_access (initial_mem m1 lev IOK1) (b',ofs')).
   rewrite H1 in Ha.
-  destruct H0. rewrite H0 in Ha.   unfold perm_of_res in Ha; simpl in Ha.
+  destruct k; try solve [inv H0].   unfold perm_of_res in Ha; simpl in Ha.
   destruct (perm_of_sh_pshare t p).
   rewrite H4 in Ha. simpl in *.
   eexists; eauto.

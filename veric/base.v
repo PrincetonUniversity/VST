@@ -15,6 +15,7 @@ Require Export Clight.
 Require Export EqNat.
 Require Export msl.Coqlib2.
 Require Export sepcomp.Address.
+Require Export veric.address_conflict.
 Require Export Relations.
 
 Set Implicit Arguments.
