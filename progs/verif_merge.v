@@ -2,8 +2,10 @@ Require Import floyd.proofauto.
 Require Import progs.merge.
 Require Import progs.list_dt. Import LsegSpecial.
 
+Definition CompSpecs' : compspecs.
+Proof. make_compspecs1 prog. Defined.
 Instance CompSpecs : compspecs.
-Proof. make_compspecs prog. Defined.  
+Proof. make_compspecs2 CompSpecs'. Defined.
 
 Local Open Scope logic.
 
@@ -589,7 +591,7 @@ Time entailer!.  (* 12.6 sec *)
 unfold data_at.
 unfold_field_at 3%nat.
 Time entailer!. (* 3.9 sec *) 
-now compute; if_tac; auto.  (* should do better than this *)
+now compute; auto.
 }
 
 (* we have now finished the case merged=nil, proceeding to the other case *)
@@ -644,13 +646,7 @@ normalize.
 apply exp_right with b_'.
 rewrite list_cell_field_at.
 entailer!.
-
-unfold t_struct_list.
-rewrite value_fits_ind.
-unfold field_type; simpl.
-split; simpl; auto.
-rewrite proj_sumbool_is_true by auto.
-hnf; simpl. intuition congruence.
+repeat simplify_value_fits; auto.
 
 (* other branch of the if: contradiction *)
 rewrite H1 in HeqB.
@@ -727,13 +723,7 @@ rewrite list_cell_field_at.
 unfold data_at.
 unfold_field_at 5%nat.
 entailer!.
-
-unfold t_struct_list.
-rewrite value_fits_ind.
-split; simpl; auto.
-unfold field_type; simpl.
-rewrite proj_sumbool_is_true by auto.
-hnf; simpl. intuition congruence.
+repeat simplify_value_fits; auto.
 
 (* we have now finished the case merged=nil, proceeding to the other case *)
 remember (hmerge :: tmerge) as merged.
@@ -760,15 +750,21 @@ forward.
 forward VAR. subst VAR.
 Exists (va::a') b' (merged ++ [vb]) a_ b_' b_ begin.
 destruct (merged ++ [vb]) eqn:?. destruct merged; inv Heql.
-forget (i::l) as merged''; clear i l.
-Time entailer. (* 159 sec *)
+forget (i::l) as merged''; clear i l; subst merged''.
+rewrite app_ass.
+Time entailer!. (* 22 sec *)
+
+
+(*
+Time entailer. (* 57 sec *)
 
 apply andp_right.  apply prop_right; rewrite H2; simpl; intuition.  rewrite app_ass; auto.
+*)
 rewrite butlast_snoc. rewrite last_snoc.
 rewrite @lseg_cons_eq.
-entailer!.
+Time entailer!.  (* 17 sec *)
 Exists a_'.
-entailer!.
+Time entailer!. (* 13 sec *)
 pattern merged at 3; rewrite snoc by auto.
 rewrite map_app. simpl map.
 assert (LCR := lseg_cons_right_neq LS sh (map Vint (butlast merged)) begin (Vint (last merged)) c_ _id b_).
@@ -786,13 +782,7 @@ eapply derives_trans; [apply sepcon_derives; [ | apply derives_refl] | ].
 apply LCR; auto.
 rewrite list_cell_field_at.
 cancel.
-
-unfold t_struct_list.
-rewrite value_fits_ind.
-split; simpl; auto.
-unfold field_type; simpl.
-rewrite proj_sumbool_is_true by auto.
-hnf; simpl. intuition congruence.
+normalize. repeat simplify_value_fits; auto.
 
 (* After the if, putting boolean value into "cond" *)
 clear -SH.

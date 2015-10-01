@@ -3222,6 +3222,39 @@ Defined.
 Lemma Zge_refl: forall (n: Z), n >= n.
 Proof. intros. omega. Qed.
 
+Lemma EqLtFalse: Eq = Lt -> False.
+Proof. intro. discriminate. Qed.
+
+Ltac make_compspecs1 prog :=
+let p := eval lazy beta zeta iota delta [
+   prog_comp_env 
+   PTree.elements PTree.xelements prog
+   make_composite_env build_composite_env
+  add_composite_definitions composite_of_def
+  Errors.bind PTree.get PTree.empty
+  ] in (prog_comp_env prog)
+in let p := eval simpl in p
+in 
+assert (H : Forall
+       (fun x : ident * composite =>
+        composite_legal_alignas p (snd x) /\
+        composite_legal_fieldlist (snd x))
+        (PTree.elements p)) 
+  by (repeat constructor; compute; apply EqLtFalse);
+let b :=eval lazy beta zeta iota delta [
+   H mk_prog_compspecs prog_comp_env 
+   PTree.elements PTree.xelements prog
+   make_composite_env build_composite_env
+  add_composite_definitions composite_of_def
+  Errors.bind PTree.get PTree.empty
+  ] in (mk_prog_compspecs prog H)
+in let b := eval simpl in b
+in exact b.
+
+Ltac make_compspecs2 CS :=
+ let a := eval lazy beta delta [CS] in CS
+ in exact a.
+
 Ltac make_compspecs prog :=
 assert (H : Forall
        (fun x : ident * composite =>
@@ -3232,17 +3265,137 @@ assert (H : Forall
 let a := eval vm_compute in (mk_prog_compspecs prog H)
  in exact a.
 
-Ltac simplify_value_fits H :=
-  rewrite ?proj_sumbool_is_true in H by auto;
-  rewrite ?proj_sumbool_is_false in H by auto;
-try match type of H with 
- | value_fits ?sh ?t ?v  =>
-    let t' := fresh "t" in set (t':=t) in H; hnf in t'; subst t';
-    rewrite value_fits_ind in H;
-    match type of H with _ v => fail 1 | _ => idtac end;
-    match type of H with 
-    | context [@unfold_reptype ?cs ?t v] =>
-      change (@unfold_reptype cs t v) with v in H
-    end;
-    rewrite ?Z.max_r in H by (try computable; omega)
-end.
+(**** tactics for value_fits  ****)
+
+Lemma value_fits_Tstruct:
+  forall {cs: compspecs} sh t (v: reptype t) i a m v2 r,
+  t = Tstruct i a ->
+  m = co_members (get_co i)  ->
+  JMeq (@unfold_reptype cs t v) v2 ->
+  r =struct_Prop m 
+          (fun it => value_fits sh (fieldlist.field_type2 (fst it) m))  v2 ->
+  value_fits sh t v = r.
+Proof.
+intros.
+subst.
+rewrite value_fits_ind; simpl.
+f_equal.
+apply JMeq_eq in H1. auto.
+Qed.
+
+Lemma value_fits_by_value_defined:
+  forall {cs: compspecs} (sh: bool) t t' v r,
+   type_is_by_value t = true ->  
+   repinject t v <> Vundef  ->
+   t = t' ->
+   (r = if type_is_volatile t' then True
+       else if sh then tc_val t' (repinject t v) else True) ->
+   value_fits sh t v = r. 
+Proof.
+intros. subst t' r.
+rewrite value_fits_ind.
+unfold tc_val'.
+destruct t; inv H;
+ (if_tac; auto; if_tac; auto; apply prop_ext; intuition).
+Qed.
+
+Lemma value_fits_by_value_Vundef:
+  forall {cs: compspecs} (sh: bool) t v,
+   type_is_by_value t = true ->  
+   repinject t v = Vundef  ->
+   value_fits sh t v = True. 
+Proof.
+intros.
+rewrite value_fits_ind.
+unfold tc_val'.
+destruct t; inv H;
+ (if_tac; auto; if_tac; auto; apply prop_ext; intuition).
+Qed.
+
+Lemma value_fits_by_value:
+  forall {cs: compspecs} (sh: bool) t t' v r,
+   type_is_by_value t = true ->
+   t = t' ->  
+   (r = if type_is_volatile t then True
+       else if sh then tc_val' t' (repinject t v) else True) ->
+   value_fits sh t v = r. 
+Proof.
+intros. subst r t'.
+rewrite value_fits_ind.
+unfold tc_val'.
+destruct t; inv H;
+ (if_tac; auto; if_tac; auto; apply prop_ext; intuition).
+Qed.
+
+Lemma value_fits_Tarray:
+  forall {cs: compspecs} (sh: bool) t (v: reptype t) t' n a 
+    (v' : list (reptype t')) r,
+  t = (Tarray t' n a) ->
+  JMeq (unfold_reptype v) v' ->
+  n >= 0 ->
+  r = (Zlength v' = n /\ Forall (value_fits sh t') v') ->
+  value_fits sh t v =r.
+Proof.
+intros.
+subst. rewrite value_fits_ind.
+apply JMeq_eq in H0. rewrite H0.
+rewrite Z.max_r by omega. auto.
+Qed.
+
+Ltac cleanup_unfold_reptype :=
+    match goal with |- JMeq (unfold_reptype ?A) _ =>
+                 instantiate (1:=A); reflexivity
+    end.
+
+Ltac simplify_value_fits' :=
+first
+ [erewrite value_fits_Tstruct;
+    [ | reflexivity 
+    | simpl; reflexivity
+    | cleanup_unfold_reptype
+    | simpl; reflexivity]
+ |erewrite value_fits_Tarray;
+    [ | reflexivity
+    | cleanup_unfold_reptype
+    | subst; try computable; omega
+    | simpl; reflexivity
+    ]
+ | erewrite value_fits_by_value_defined;
+   [ | reflexivity
+   | subst; clear; simpl; intro; discriminate
+   | simpl; lazy beta iota zeta delta [field_type]; simpl; reflexivity
+   | simpl; reflexivity
+   ]
+ | rewrite value_fits_by_value_Vundef;
+   [ | reflexivity | reflexivity 
+   ]
+ | erewrite value_fits_by_value;
+   [ | reflexivity
+   | simpl; lazy beta iota zeta delta [field_type]; simpl; reflexivity
+   | simpl; reflexivity
+   ]
+ ];
+ cbv beta.
+
+Tactic Notation "simplify_value_fits" :=
+  simplify_value_fits'.
+
+Tactic Notation "simplify_value_fits" "in" hyp(H) :=
+  match type of H with ?A => 
+  let a := fresh "a" in set (a:=A) in H;
+   let H1 := fresh in assert (H1: a = A) by (apply eq_refl);
+   clearbody a;
+   match goal with |- ?B => 
+    let BB := fresh "BB" in set (BB:=B);
+   revert H1; simplify_value_fits'; intro H1; subst a; subst BB
+  end
+ end.
+
+Tactic Notation "simplify_value_fits" "in" "*" :=
+repeat match goal with
+ | H: context [value_fits _ _ _] |- _ => 
+  simplify_value_fits in H
+end;
+ repeat simplify_value_fits'.
+
+(*** end tactics for value_fits ***)

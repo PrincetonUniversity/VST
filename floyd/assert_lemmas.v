@@ -7,8 +7,8 @@ Proof.
 intros. destruct a; auto; contradiction.
 Qed.
 
-Hint Rewrite proj_sumbool_is_true using assumption : norm.
-Hint Rewrite proj_sumbool_is_false using assumption : norm.
+Hint Rewrite proj_sumbool_is_true using (solve [auto 3]) : norm.
+Hint Rewrite proj_sumbool_is_false using (solve [auto 3]) : norm.
 
 Lemma neutral_isCastResultType:
   forall {cs: compspecs}  P t t' v rho,
