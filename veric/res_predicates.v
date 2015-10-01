@@ -7,6 +7,7 @@ Require Import veric.Clight_lemmas.
 Require Import veric.tycontext.
 Require Import veric.expr2.
 Require Import veric.shares.
+Require Import veric.address_conflict.
 
 Import RML. Import R. 
 Open Local Scope pred.
@@ -589,24 +590,6 @@ Proof.
       apply H5 in H4; rewrite <- H4; auto.
 Qed.
 
-(* We should decide, whether we should finally use reset share or general splice resource as a definition. *)
-Definition reset_share (sh: share) (r: resource) : resource.
- destruct (dec_share_identity (Share.unrel Share.Rsh sh)).
- apply 
- match r with
-  | NO rsh => NO (Share.glb rsh (Share.unrel Share.Lsh sh))
-  | YES rsh psh k preds => NO (Share.unrel Share.Lsh sh)
-  | PURE k preds => PURE k preds
- end.
- apply nonidentity_nonunit in n.
- apply 
- match r with
-  | NO rsh => NO (Share.glb rsh (Share.unrel Share.Lsh sh))
-  | YES rsh psh k preds => YES (Share.unrel Share.Lsh sh) (mk_pshare _ n) k preds
-  | PURE k preds => PURE k preds
- end.
-Defined.
-
 Definition general_slice_resource (sh: share) (r: resource) : resource.
   refine (match r with
           | NO _ => NO (Share.unrel Share.Lsh sh)
@@ -647,6 +630,34 @@ Proof.
   intros.
   destruct r; inv H; unfold general_slice_resource; simpl; auto.
   destruct (dec_share_identity (Share.unrel Share.Rsh sh')); simpl; auto.
+Qed.
+
+Lemma join_sub_is_general_slice_resource: forall r r' sh',
+  join_sub r' r ->
+  resource_share r' = Some sh' ->
+  r' = general_slice_resource sh' r.
+Proof.
+  intros.
+  destruct H as [r'' ?].
+  destruct r, r'; inv H; inv H0; simpl.
+  + f_equal.
+    rewrite <- splice_bot2.
+    symmetry; apply Share.unrel_splice_L.
+  + rewrite <- splice_bot2.
+    rewrite Share.unrel_splice_R.
+    destruct (dec_share_identity Share.bot); [| pose proof bot_identity; exfalso; tauto].
+    f_equal.
+    symmetry; apply Share.unrel_splice_L.
+  + rewrite Share.unrel_splice_R.
+    destruct (dec_share_identity (pshare_sh p)); [exfalso; eapply pshare_not_identity; eauto |].
+    rewrite mk_share_pshare_sh.
+    f_equal.
+    symmetry; apply Share.unrel_splice_L.
+  + rewrite Share.unrel_splice_R.
+    destruct (dec_share_identity (pshare_sh p1)); [exfalso; eapply pshare_not_identity; eauto |].
+    rewrite mk_share_pshare_sh.
+    f_equal.
+    symmetry; apply Share.unrel_splice_L.
 Qed.
 
 Definition resource_share_split (p q r: address -> pred rmap): Prop :=
@@ -1345,11 +1356,6 @@ Lemma jam_con: forall A (S: A -> Prop) P Q,
      allp (jam S P Q) |-- allp (jam S P (fun _ => emp)) * (allp (jam S (fun _ => emp) Q)).
 *)
 
-Lemma range_dec: forall a b c: Z, {a <= b < c}+{~(a <= b < c)}.
-Proof. intros. destruct (zle a b). destruct (zlt b c). left; split; auto.
-  right;  omega. right; omega.
-Qed.
-
 Lemma address_mapsto_VALspec:
   forall ch v rsh sh l i, 0 <= i < size_chunk ch ->
         address_mapsto ch v rsh sh l |-- VALspec rsh sh (adr_add l i) * TT.
@@ -1944,34 +1950,63 @@ Proof.
 intros.
 intro; intros.
 apply rmap_ext; auto.
-destruct H1,H2; apply join_level in H1; apply join_level in H2; intuition.
+1: destruct H1,H2; apply join_level in H1; apply join_level in H2; intuition.
 intro.
 specialize (H l0); specialize (H0 l0).
 unfold jam in *.
 hnf in H, H0. if_tac in H.
-destruct H as [v [p ?]].
-destruct H0 as [v' [p' ?]].
-unfold yesat_raw in *.
-(*destruct H1; destruct H2. *)
-generalize (resource_at_join_sub _ _ l0 H1); rewrite H; clear H1; intro.
-generalize (resource_at_join_sub _ _ l0 H2); rewrite H0; clear H2; intro.
-f_equal. auto.
-clear - H1 H2.
-destruct H1; destruct H2.
-simpl in *.
-f_equal.
-inv H0; inv H; congruence.
-repeat rewrite preds_fmap_NoneP; auto.
-do 3 red in H,H0.
-destruct H1.
-destruct H2.
-apply (resource_at_join _ _ _ l0) in H1.
-apply (resource_at_join _ _ _ l0) in H2.
-assert (x0 @ l0 = x @ l0).
-apply H in H1.
-apply H0 in H2.
-congruence.
-rewrite H4 in *. eapply join_canc; eauto.
++ destruct H as [v [p ?]].
+  destruct H0 as [v' [p' ?]].
+  unfold yesat_raw in *.
+  generalize (resource_at_join_sub _ _ l0 H1); rewrite H; clear H1; intro.
+  generalize (resource_at_join_sub _ _ l0 H2); rewrite H0; clear H2; intro.
+  f_equal. auto.
+  clear - H1 H2.
+  destruct H1; destruct H2.
+  simpl in *.
+  f_equal.
+  inv H0; inv H; congruence.
+  repeat rewrite preds_fmap_NoneP; auto.
++ do 3 red in H,H0.
+  destruct H1.
+  destruct H2.
+  apply (resource_at_join _ _ _ l0) in H1.
+  apply (resource_at_join _ _ _ l0) in H2.
+  assert (x0 @ l0 = x @ l0).
+  apply H in H1.
+  apply H0 in H2.
+  congruence.
+  rewrite H4 in *. eapply join_canc; eauto.
+Qed.
+
+Lemma nonlock_permission_bytes_precise: forall sh p n,
+  precise (nonlock_permission_bytes sh p n).
+Proof.
+  intros.
+  intro; intros.
+  apply rmap_ext; auto.
+  1: destruct H1,H2; apply join_level in H1; apply join_level in H2; intuition.
+  intro.
+  specialize (H l); specialize (H0 l).
+  unfold jam in *.
+  hnf in H, H0. if_tac in H.
+  + unfold shareat, nonlockat in H, H0; simpl in H, H0.
+    apply (resource_at_join_sub _ _ l) in H1.
+    apply (resource_at_join_sub _ _ l) in H2.
+    destruct H as [? _], H0 as [? _].
+    apply (join_sub_is_general_slice_resource _ _ _ H1) in H.
+    apply (join_sub_is_general_slice_resource _ _ _ H2) in H0.
+    congruence.
+  + do 3 red in H,H0.
+    destruct H1.
+    destruct H2.
+    apply (resource_at_join _ _ _ l) in H1.
+    apply (resource_at_join _ _ _ l) in H2.
+    assert (x0 @ l = x @ l).
+    apply H in H1.
+    apply H0 in H2.
+    congruence.
+    rewrite H4 in *. eapply join_canc; eauto.
 Qed.
 
 Lemma address_mapsto_precise: forall ch v rsh sh l, precise (address_mapsto ch v rsh sh l).
@@ -2040,6 +2075,36 @@ Proof.
   + intros ? ?. intro b. rewrite jam_false.
     do 3 red. apply resource_at_identity; auto.
     destruct a, b; intros [? ?]; simpl in *; omega.
+Qed.
+
+Lemma nonlock_permission_bytes_not_nonunit: forall sh p n,
+  ~ nonunit sh ->
+  nonlock_permission_bytes sh p n |-- emp.
+Proof.
+  intros.
+  assert (sh = Share.bot).
+  Focus 1. {
+    destruct (dec_share_identity sh).
+    + apply identity_share_bot; auto.
+    + apply nonidentity_nonunit in n0; tauto.
+  } Unfocus.
+  subst.
+  intros ? ?. simpl in H.
+  do 3 red.
+  apply all_resource_at_identity.
+  intro l.
+  specialize (H0 l); simpl in H0.
+  if_tac in H0; [| auto].
+  destruct H0.
+  destruct (a @ l); inv H0.
+  + rewrite <- splice_bot2 in H4.
+    rewrite <- (Share.unrel_splice_L t Share.bot), H4, unrel_bot.
+    apply NO_identity.
+  + assert (pshare_sh p0 = Share.bot) by
+      (rewrite <- (Share.unrel_splice_R t (pshare_sh p0)), H4, unrel_bot; auto).
+    pose proof pshare_not_identity p0.
+    pose proof bot_identity.
+    rewrite H0 in H3; tauto.
 Qed.
 
 Lemma is_resource_pred_YES_VAL rsh sh:
@@ -2122,7 +2187,7 @@ Proof.
   apply sepcon_derives; auto.
 Qed.
 
-Lemma VALspec_range_overlap: forall rsh sh p1 p2 n1 n2,
+Lemma VALspec_range_overlap': forall rsh sh p1 p2 n1 n2,
   adr_range p1 n1 p2 ->
   n2 > 0 ->
   VALspec_range n1 rsh sh p1 * VALspec_range n2 rsh sh p2 |-- FF.
@@ -2145,17 +2210,42 @@ Proof.
   apply x2 in H0. contradiction.
 Qed.
 
-Lemma address_mapsto_overlap:
+Lemma address_mapsto_overlap':
   forall rsh sh ch1 v1 ch2 v2 a1 a2,
      adr_range a1 (size_chunk ch1) a2 ->
      address_mapsto ch1 v1 rsh sh a1 * address_mapsto ch2 v2 rsh sh a2 |-- FF.
 Proof.
   intros.
-  eapply derives_trans; [eapply sepcon_derives | apply VALspec_range_overlap].
+  eapply derives_trans; [eapply sepcon_derives | apply VALspec_range_overlap'].
   + apply address_mapsto_VALspec_range.
   + apply address_mapsto_VALspec_range.
   + auto.
   + apply size_chunk_pos.
+Qed.
+
+Lemma VALspec_range_overlap: forall rsh sh l1 n1 l2 n2,
+  range_overlap l1 n1 l2 n2 ->
+  VALspec_range n1 rsh sh l1 * VALspec_range n2 rsh sh l2 |-- FF.
+Proof.
+  intros.
+  pose proof range_overlap_non_zero _ _ _ _ H.
+  apply range_overlap_spec in H; try tauto.
+  destruct H.
+  + apply VALspec_range_overlap'; tauto.
+  + rewrite sepcon_comm.
+    apply VALspec_range_overlap'; tauto.
+Qed.
+
+Lemma address_mapsto_overlap: forall rsh sh l1 ch1 v1 l2 ch2 v2,
+  range_overlap l1 (size_chunk ch1) l2 (size_chunk ch2) ->
+  address_mapsto ch1 v1 rsh sh l1 * address_mapsto ch2 v2 rsh sh l2 |-- FF.
+Proof.
+  intros.
+  apply range_overlap_spec in H; try apply size_chunk_pos.
+  destruct H.
+  + apply address_mapsto_overlap'; auto.
+  + rewrite sepcon_comm.
+    apply address_mapsto_overlap'; auto.
 Qed.
 
 Lemma share_joins_self: forall sh: share, joins sh sh -> nonunit sh -> False.
@@ -2194,98 +2284,6 @@ Lemma VALspec_range_nonlock_permission_bytes_overlap: forall rsh sh sh' p1 p2 n1
   VALspec_range n1 rsh sh p1 * nonlock_permission_bytes sh' p2 n2 |-- FF.
 Abort.
 
-(*
-Lemma make_reset_share_valid (sh1: share) w (sh: share) a n
-     (H: join_sub sh1 sh)
-     (H0: (nonlock_permission_bytes sh a n) w):
-AV.valid (res_option oo (fun i : AV.address => reset_share sh1 (w @ i))).
-Proof.
-   unfold res_option, compose, reset_share; hnf; intros; simpl.
-   destruct (dec_share_identity (Share.unrel Share.Rsh sh1)).
-   destruct (w @ (b,ofs)) eqn:?; auto.
-   destruct (w @ (b,ofs)) eqn:?; auto.
-   destruct k; auto.
-   pose proof (rmap_valid w b ofs).
-   unfold res_option, compose in H1. rewrite Heqr in H1.
-   intros i H2; specialize (H1 i H2). destruct (w @ (b,ofs+i)); inv H1. auto.
-   pose proof (rmap_valid w b ofs).
-   unfold res_option, compose in H1. rewrite Heqr in H1.
-   destruct H1 as [n1 [? ?]]; exists n1; split; auto.
-   destruct (w @ (b,ofs-z)); inv H2. auto.
-Qed.
-
-Lemma make_reset_share_fmap (sh1: share) w sh a n
-     (H: join_sub sh1 sh)
-    (H0: (nonlock_permission_bytes sh a n) w):
-     resource_fmap (approx (level w)) oo (fun i => reset_share sh1 (w @ i)) =
-     (fun i => reset_share sh1 (w @ i)).
-Proof.
-   pose proof I.
-   extensionality loc; unfold compose.
-   pose proof (resource_at_approx w loc).
-   unfold reset_share.
-   destruct (dec_share_identity (Share.unrel Share.Rsh sh1)).
-   destruct (w @ loc); try reflexivity; auto.
-   destruct (w @ loc); try reflexivity; auto.
-   simpl in H2. apply YES_inj in H2. simpl. f_equal. congruence.
-Qed.
-
-Lemma make_reset_share_permission  (sh1: share) w sh a n
-     (H: join_sub sh1 sh)
-    (H0: (nonlock_permission_bytes sh a n) w)
-     phi
-    (H3: resource_at phi = fun i => reset_share sh1 (w @ i)):
-  (nonlock_permission_bytes sh1 a n) phi.
-Proof.
-   pose proof I. pose proof I.   
-   intro i. unfold jam, shareat. simpl. rewrite H3.
-   clear H2 H3 phi H1. specialize (H0 i); unfold jam, shareat in H0; simpl in H0.
-   unfold reset_share.
-   unfold resource_share in *.
-   if_tac; destruct (dec_share_identity (Share.unrel Share.Rsh sh1)).
-   destruct (w @ i); inv H0; f_equal.
-   rewrite Share.rel_preserves_glb.
-   rewrite share_rel_unrel.
-   destruct H. destruct H. rewrite <- H0.
-   rewrite Share.glb_commute. rewrite Share.distrib1.
-   rewrite H. rewrite Share.glb_idem. apply Share.lub_bot.
-   eapply join_sub_trans.  apply H. apply rel_leq.
-   apply share_rel_unrel.
-   clear - i0.
-  apply share_sub_Lsh; auto.
-   destruct (w @ i); inv H0; f_equal.
-   rewrite Share.rel_preserves_glb.
-   rewrite share_rel_unrel.
-   destruct H. destruct H. rewrite <- H0.
-   rewrite Share.glb_commute. rewrite Share.distrib1.
-   rewrite H. rewrite Share.glb_idem. apply Share.lub_bot.
-   eapply join_sub_trans.  apply H. apply rel_leq.
-   simpl.
-   destruct k; try congruence; f_equal; apply splice_unrel_unrel.
-   apply identity_NO in H0. destruct H0 as [H0 | [? [? H0]]]; rewrite H0.
-   rewrite Share.glb_commute, Share.glb_bot. apply NO_identity.
-   apply PURE_identity.
-   apply identity_NO in H0. destruct H0 as [H0 | [? [? H0]]]; rewrite H0.
-   rewrite Share.glb_commute, Share.glb_bot. apply NO_identity.
-   apply PURE_identity.
-Qed.
-
-Definition make_reset_share (sh1: share) w (sh: share) a n
-     (H: join_sub sh1 sh)
-     (H0: (nonlock_permission_bytes sh a n) w):
-     {w2 | level w2 = level w /\ 
-              (nonlock_permission_bytes sh1 a n) w2 /\
-              forall i, w2 @ i = reset_share sh1 (w @ i) }.
-   assert (AV.valid (res_option oo (fun i => reset_share sh1 (w @ i)))).
-  eapply make_reset_share_valid; eauto.
-   destruct (make_rmap _ H1 (level w)) as [phi ?].
-   eapply make_reset_share_fmap; eauto.
-   exists phi.
-   destruct a0; split3; auto.
-   eapply make_reset_share_permission; eauto.
-    intro. rewrite H3. auto.
-Defined.
-*)
 Lemma nonlock_permission_bytes_share_join:
  forall sh1 sh2 sh a n,
   join sh1 sh2 sh ->
