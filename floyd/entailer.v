@@ -365,6 +365,9 @@ match goal with
               auto 50 with valid_pointer
 end.
 
+Hint Rewrite (@TT_andp mpred _) : gather_prop.
+Hint Rewrite (@andp_TT mpred _) : gather_prop.
+
 Ltac ent_iter :=
     repeat (( simple apply derives_extract_prop 
                 || simple apply derives_extract_prop');
@@ -443,14 +446,24 @@ Ltac splittable :=
  | |- _ /\ _ => idtac
  end.
 
+Lemma ptr_eq_refl: forall x, isptr x -> ptr_eq x x.
+Proof.
+destruct x; simpl; intros; try contradiction.
+split; auto. apply Int.eq_true.
+Qed.
+Hint Resolve ptr_eq_refl : prove_it_now.
+
 Ltac prove_it_now :=
  first [ splittable; fail 1
         | computable 
         | apply I 
         | reflexivity 
-        | omega 
-        | solve [normalize; auto ] 
-        ].
+        | omega
+        | repeat match goal with H: ?A |- _ => has_evar A; clear H end;
+          auto with prove_it_now;
+          normalize;
+          fail
+         ].
 
 Ltac try_prove_it_now :=
  first [match goal with H := _ |- _ => instantiate (1:=True) in H; prove_it_now end
@@ -529,9 +542,8 @@ Ltac entbang :=
  first [ simple apply prop_right; my_auto
         | simple apply prop_and_same_derives'; my_auto
         | simple apply andp_right;
-            [apply prop_right; my_auto | normalize; cancel ]; my_auto
+            [apply prop_right; my_auto | cancel; autorewrite with norm ]
         | normalize; cancel
-        | my_auto
         ].
 
 Tactic Notation "entailer" "!" := entbang.

@@ -21,12 +21,6 @@ Require Import floyd.nested_loadstore.
 Require Import floyd.entailer.
 (*  End TEMPORARILY *)
 
-Lemma ptr_eq_refl: forall x, isptr x -> ptr_eq x x.
-Proof.
-destruct x; simpl; intros; try contradiction.
-split; auto. apply Int.eq_true.
-Qed.
-
 Lemma allp_andp1  {A}{ND: NatDed A}:  forall B (any: B) (p: B -> A) q, andp (allp p) q = (allp (fun x => andp (p x) q)).
 Proof.
  intros. apply pred_ext.

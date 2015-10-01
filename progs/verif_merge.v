@@ -304,9 +304,30 @@ Proof.
 Qed.
 
 Lemma lvar_size_compatible:
-  forall id t v rho,
+  forall  {cs: compspecs} id t v rho,
   lvar id t v rho -> size_compatible t v.
 Admitted.  (* need to adjust definition of lvar to prove this! *)
+
+Lemma lvar_field_compatible:
+   forall {cs: compspecs} id t v rho,
+    lvar id t v rho ->
+    legal_alignas_type t = true ->
+    legal_cosu_type t = true ->
+    complete_type cenv_cs t = true ->
+    sizeof cenv_cs t < Int.modulus ->
+ field_compatible t nil v.
+Proof.
+intros.
+pose proof (lvar_size_compatible _ _ _ _ H).
+hnf in H.
+destruct (Map.get (ve_of rho) id); try contradiction.
+destruct p.
+if_tac in H; try contradiction.
+repeat split; auto.
+subst; apply I.
+subst; hnf. exists 0. rewrite Z.mul_0_l.
+reflexivity.
+Qed.
 
 Lemma mapsto_data_at sh v p : 
   readable_share sh ->
@@ -405,9 +426,8 @@ simpl @fst. simpl @snd.
 normalize. clear H.
 
 assert_PROP (field_compatible (tptr (Tstruct _list noattr)) [] ret_). {
-  apply lvar_align_compatible_param with _ret tlist ret_; [ entailer | intros H2 ].
-    entailer!. repeat split; auto.
- eapply lvar_size_compatible; eauto.
+  entailer!.
+  eapply lvar_field_compatible; eauto; reflexivity.
 }
 rewrite memory_block_data_at_ by auto.
 change (tptr (Tstruct _list noattr)) with tlist in *.
@@ -434,13 +454,15 @@ end.
 forward.
 Exists (if Val.eq b_ nullval then Int.zero else Int.one)
  a b (@nil int) a_ b_ ret_ ret_.
- entailer!.
+ simpl map. rewrite @lseg_nil_eq.
+Time entailer!.  (* 1.893 sec *)
  destruct b__; inv TC; simpl.
   rewrite if_true by auto; intuition discriminate.
   rewrite if_false by (intro Hx; inv Hx); intuition discriminate.
 * (* a_ = null *)
 forward.
 Exists Int.zero a b (@nil int) a_ b_ ret_ ret_.
+ simpl map. rewrite @lseg_nil_eq.
 entailer!. intuition.
 * (* finally the [condition] is given the value of the temporary variable 67. *)
 (* TODO-LTAC here [normalize] should probably do [apply
@@ -449,7 +471,7 @@ rename a into init_a.
 rename b into init_b.
 clear a_ b_.
 Intros cond a b merged a_ b_ c_ begin.
-forward.
+ forward.
 
 (* The loop *)
 forward_while (merge_invariant _cond sh init_a init_b ret_)
@@ -457,24 +479,21 @@ forward_while (merge_invariant _cond sh init_a init_b ret_)
   local (temp _cond (Vint Int.zero)))
   [[[[[[[cond0 a0] b0] merged0] a_0] b_0] c_0] begin0].
 + (* Loop: precondition => invariant *)
- Exists cond a b merged a_ b_ c_ begin; entailer.
+ Exists cond a b merged a_ b_ c_ begin; entailer!.
 + (* Loop: condition has nice format *)
 now entailer!.
 + (* Loop: invariant + neg condition => post condition *)
- entailer.
- apply typed_false_tint_Vint in HRE.  (* this should be done automatically by fancy_intro *)
- apply exp_right with (cond__, a0, b0, merged0, a__, b__, c_0, begin0).
+ entailer!.
+ apply exp_right with (Int.zero, a0, b0, merged0, a__, b__, c_0, begin0).
  simpl.
  entailer!.
 +
- apply typed_true_tint_Vint in HRE.
 clear - SH HRE H2 H3.
 rename cond0 into cond, a0 into a, b0 into b, merged0 into merged,
  a_0 into a_, b_0 into b_, c_0 into c_, begin0 into begin.
 assert (a_ <> nullval) by intuition.
 assert (b_ <> nullval) by intuition.
 clear H3.
-
 rewrite lseg_unfold.
 destruct a as [|va a']; simpl.
   (* [a] cannot be empty *)
@@ -558,22 +577,20 @@ name vb__ _vb.
 name x__ _x.
 name ret__ _ret.
 name cond__ _cond.
-Time entailer. (* 89 sec *)
-apply andp_right.
-  apply prop_right.
-    split.
-      unfold field_address; simpl.
-      if_tac; tauto.
-      apply ptr_eq_refl; auto.
+{
 
-rewrite (lseg_unfold LS _ _ b__).
-Time entailer. (* 16.3 sec *)
+rewrite !@lseg_nil_eq.
+rewrite (lseg_unfold LS _ _ b_).
+Time entailer!. (* 24.7 sec *)
+(*Time normalize. (* 5.6 sec *)*)
 Exists b_'.
 rewrite list_cell_field_at.
-Time entailer!.  (* 17.7 sec *)
+Time entailer!.  (* 12.6 sec *)
 unfold data_at.
 unfold_field_at 3%nat.
-entailer!. now compute; if_tac; auto.
+Time entailer!. (* 3.9 sec *) 
+now compute; if_tac; auto.  (* should do better than this *)
+}
 
 (* we have now finished the case merged=nil, proceeding to the other case *)
 remember (hmerge :: tmerge) as merged.
@@ -605,8 +622,7 @@ rewrite <- H2. clear H2.
 destruct (merged ++ [va]) eqn:?.
 destruct merged; inv Heql.
 forget (i::l) as merged''; clear i l.
-Time entailer!.  (* 56 sec *)
-unfold field_address; simpl; if_tac; [ reflexivity | tauto ].
+Time entailer!.  (* 42.3 sec *)
 rewrite butlast_snoc. rewrite last_snoc.
 rewrite (snoc merged) at 3 by auto.
 rewrite map_app. simpl map.
@@ -631,8 +647,8 @@ entailer!.
 
 unfold t_struct_list.
 rewrite value_fits_ind.
-split; simpl; auto.
 unfold field_type; simpl.
+split; simpl; auto.
 rewrite proj_sumbool_is_true by auto.
 hnf; simpl. intuition congruence.
 
@@ -704,11 +720,9 @@ name ret__ _ret.
 name cond__ _cond.
 simpl map. rewrite @lseg_cons_eq.
 entailer!.
-
-  now unfold field_address; simpl; if_tac; tauto.
+progress normalize.
 Exists a_'.
 entailer!.
-apply ptr_eq_refl; auto.
 rewrite list_cell_field_at.
 unfold data_at.
 unfold_field_at 5%nat.
@@ -750,7 +764,6 @@ forget (i::l) as merged''; clear i l.
 Time entailer. (* 159 sec *)
 
 apply andp_right.  apply prop_right; rewrite H2; simpl; intuition.  rewrite app_ass; auto.
-unfold field_address. rewrite if_true by auto. reflexivity.
 rewrite butlast_snoc. rewrite last_snoc.
 rewrite @lseg_cons_eq.
 entailer!.

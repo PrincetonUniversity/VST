@@ -27,6 +27,25 @@ Require Import floyd.for_lemmas.
 Require Import floyd.diagnosis.
 Import Cop.
 
+Lemma field_address_eq_offset:
+ forall {cs: compspecs} t path v,
+  field_compatible t path v ->
+  field_address t path v = offset_val (Int.repr (nested_field_offset2 t path)) v.
+Proof.
+intros. unfold field_address; rewrite if_true by auto; reflexivity.
+Qed.
+
+Lemma field_address_eq_offset':
+ forall {cs: compspecs} t path v ofs,
+    field_compatible t path v ->
+    ofs = Int.repr (nested_field_offset2 t path) ->
+    field_address t path v = offset_val ofs v.
+Proof.
+intros. subst. apply field_address_eq_offset; auto.
+Qed.
+
+Hint Resolve field_address_eq_offset' : prove_it_now.
+
 Hint Rewrite <- @prop_and using solve [auto with typeclass_instances]: norm1.
 
 Local Open Scope logic.
@@ -1023,9 +1042,17 @@ Tactic Notation "forward_while" constr(Inv) constr (Postcond) :=
        | do_compute_expr1 Delta Pre e; eassumption
        | no_intros || (autorewrite with ret_assert;
          let HRE := fresh "HRE" in apply derives_extract_PROP; intro HRE;
+         first [simple apply typed_false_of_bool in HRE
+               | apply typed_false_tint_Vint in HRE
+               | apply typed_false_tint in HRE
+               | idtac ];
          repeat (apply derives_extract_PROP; intro); 
          do_repr_inj HRE; normalize in HRE)
        | no_intros || (let HRE := fresh "HRE" in apply semax_extract_PROP; intro HRE;
+         first [simple apply typed_true_of_bool in HRE
+                | apply typed_true_tint_Vint in HRE
+                | apply typed_true_tint in HRE
+                | idtac ];
           repeat (apply semax_extract_PROP; intro); 
           do_repr_inj HRE; normalize in HRE)
         ]
@@ -1064,10 +1091,18 @@ Tactic Notation "forward_while" constr(Inv) constr (Postcond)
        | intros pat; simpl_fst_snd; 
          autorewrite with ret_assert;
          let HRE := fresh "HRE" in apply derives_extract_PROP; intro HRE;
+         first [simple apply typed_false_of_bool in HRE
+               | apply typed_false_tint_Vint in HRE
+               | apply typed_false_tint in HRE
+               | idtac ];
          repeat (apply derives_extract_PROP; intro); 
          do_repr_inj HRE; normalize in HRE
        | intros pat; simpl_fst_snd;
           let HRE := fresh "HRE" in apply semax_extract_PROP; intro HRE;
+         first [simple apply typed_true_of_bool in HRE
+                | apply typed_true_tint_Vint in HRE
+                | apply typed_true_tint in HRE
+                | idtac ];
           repeat (apply semax_extract_PROP; intro); 
           do_repr_inj HRE; normalize in HRE
         ]

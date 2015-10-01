@@ -641,7 +641,6 @@ eapply semax_pre_simple
              (SEPx (R lo))))).
 eapply derives_trans; [apply H | ].
 go_lowerx; normalize. 
-progress (autorewrite with norm1 norm2); normalize.
 apply semax_extract_prop; intro.
 eapply semax_post_flipped'.
 eapply forward_setx.
@@ -755,7 +754,6 @@ eapply semax_pre_simple
              (SEPx (R lo))))).
 eapply derives_trans; [apply H | ].
 go_lowerx; normalize.
- progress (autorewrite with norm1 norm2); normalize.
 apply semax_extract_prop; intro.
 eapply semax_post_flipped'.
 eapply forward_setx.

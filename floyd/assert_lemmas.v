@@ -960,7 +960,7 @@ Proof. intros.
  apply prop_ext; intuition. destruct p; inv H; simpl; auto.
  rewrite Int.eq_true. auto.
 Qed.
-Hint Rewrite ptr_eq_True' using assumption : norm.
+(* Hint Rewrite ptr_eq_True' using solve[auto] : norm. *)
 
 Lemma ptr_eq_True:
    forall p, is_pointer_or_null p -> ptr_eq p p = True.
@@ -968,7 +968,7 @@ Proof. intros.
  apply prop_ext; intuition. destruct p; inv H; simpl; auto.
  rewrite Int.eq_true. auto.
 Qed.
-Hint Rewrite ptr_eq_True using assumption : norm.
+Hint Rewrite ptr_eq_True using solve[auto] : norm.
 
 Lemma ptr_eq_is_pointer_or_null: forall x y, ptr_eq x y -> is_pointer_or_null x.
 Proof.
