@@ -309,7 +309,7 @@ progs/dotprod.v: progs/dotprod.c
 endif
 
 version.v:  $(MSL_FILES:%=msl/%) $(SEPCOMP_FILES:%=sepcomp/%) $(VERIC_FILES:%=veric/%) $(FLOYD_FILES:%=floyd/%)
-	sh util/make_version
+	python util/make_version.py
 
 .loadpath: Makefile
 	echo $(INCLUDE) >.loadpath
