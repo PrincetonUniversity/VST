@@ -21,7 +21,6 @@ Opaque Zplus. Opaque Z.mul. Opaque mult. Opaque plus. Opaque skipn. Opaque Z.sub
 Opaque core_spec. Opaque ld32_spec. Opaque L32_spec. Opaque st32_spec.
 Opaque crypto_core_salsa20_spec. Opaque crypto_core_hsalsa20_spec.
 
-
 Lemma array_copy1I Espec:
 forall i wlist data OUT j t y x w nonce out c k h ys xs
        (J:0<=j<4) (XL: Zlength xs = 16),
@@ -83,17 +82,15 @@ forall i wlist data OUT j t y x w nonce out c k h ys xs
    `(data_at Tsh (tarray tuint 16) (map Vint xs) x);
    `(data_at Tsh (tarray tuint 16) ys y);
    `(EX  l : list val,
-     !!(Zlength l = 4 /\
-        (forall mm : Z,
+     !!(forall mm : Z,
          0 <= mm < 4 ->
          Znth mm l Vundef =
-         Znth ((5 * j + 4 * mm) mod 16) (map Vint xs) Vundef))
+         Znth ((5 * j + 4 * mm) mod 16) (map Vint xs) Vundef)
         && data_at Tsh (tarray tuint 4) l t);
    `(CoreInSEP data (nonce, c, k)); 
    `(data_at Tsh (tarray tuchar 64) OUT out)))).
 Proof. intros. abbreviate_semax.
-(*eapply (semax_for_simple_bound_const_init 4 *)
-forward_for_simple_bound 4
+LENBforward_for_simple_bound 4
  (EX m:Z, 
   (PROP  ()
    LOCAL  (temp _i (Vint (Int.repr i)); temp _j (Vint (Int.repr j)); lvar _t (tarray tuint 4) t;
@@ -112,7 +109,6 @@ forward_for_simple_bound 4
     apply andp_right. apply prop_right. intros; omega. cancel. }
   { rename i0 into m. rename H into M. normalize. intros T. normalize.
     rename H into HT.
-    drop_LOCAL 1%nat.
     assert_PROP (Zlength T = 4). entailer. rename H into TL.
     destruct (Z_mod_lt (5 * j + 4 * m) 16) as [M1 M2]. omega.
     destruct (Znth_mapVint xs ((5 * j + 4 * m) mod 16) Vundef) as [v NV].
@@ -202,7 +198,7 @@ forall (Espec : OracleKind) c k h nonce out OUT
    `(CoreInSEP data (nonce, c, k));
    `(data_at Tsh (tarray tuchar 64) OUT out)))).
 Proof. intros. abbreviate_semax.
-forward_for_simple_bound 16 (EX m:Z, 
+LENBforward_for_simple_bound 16 (EX m:Z, 
   (PROP  ()
    LOCAL  (temp _j (Vint (Int.repr 4)); temp _i (Vint (Int.repr i)); lvar _t (tarray tuint 4) t;
    lvar _y (tarray tuint 16) y; lvar _x (tarray tuint 16) x;
@@ -218,7 +214,6 @@ forward_for_simple_bound 16 (EX m:Z,
 { normalize. intros mlist. normalize. rename H into M. rename i0 into m.
        rename H0 into HM.
        destruct (WZ _ M) as [mval MVAL].
-       drop_LOCAL 1%nat.
        assert_PROP (Zlength mlist = 16). entailer. rename H into ML.
        forward. 
        { entailer. rewrite MVAL. apply prop_right. simpl; trivial. }
@@ -800,7 +795,7 @@ forall i wlist data OUT j t y x w nonce out c k h ys (t0 t1 t2 t3:int) xs
    `(data_at Tsh (tarray tuchar 64) OUT out)))).
 Proof. intros. abbreviate_semax.
 (*first, delete old m*) drop_LOCAL 1%nat.
-forward_for_simple_bound 4 (EX m:Z, 
+LENBforward_for_simple_bound 4 (EX m:Z, 
   (PROP  ()
    LOCAL  (temp _i (Vint (Int.repr i)); 
    temp _j (Vint (Int.repr j)); lvar _t (tarray tuint 4) t;
@@ -814,7 +809,7 @@ forward_for_simple_bound 4 (EX m:Z,
    `(CoreInSEP data (nonce, c, k));
    `(data_at Tsh (tarray tuchar 64) OUT out)))).
 { entailer. apply (exp_right wlist). entailer. }
-{ rename H into M; rename i0 into m. drop_LOCAL 1%nat.
+{ rename H into M; rename i0 into m. 
   normalize. intros wlist1. normalize. rename H into WLIST1.
   assert (TM: exists tm, Znth m [Vint t0; Vint t1; Vint t2; Vint t3] Vundef = Vint tm).
     destruct (zeq m 0); subst; simpl. eexists; reflexivity. 
@@ -1698,7 +1693,8 @@ t0 t1 t2 t3
 Proof. intros. abbreviate_semax.
   forward_seq. apply array_copy1I; trivial.
 
-  normalize. intros tlist. normalize. rename H into TL. rename H0 into HT.
+  normalize. intros tlist. normalize. rename H into HT.
+  assert_PROP (Zlength tlist = 4). entailer. rename H into TL.
 
   rewrite <- HT in T0; try omega.
   rewrite <- HT in T1; try omega.
@@ -1724,11 +1720,11 @@ Proof. intros. abbreviate_semax.
   (*VST Issue: mkConciseDelta SalsaVarSpecs SalsaFunSpecs f_core Delta. doesn't wotk any longer*)
   forward_seq. 
 
-    (*VST Issue we'd maybe klike to use a variant of pattern2_noStmt that doesn't mention the
-      dead variables aux, aux1, 181%positive in Delta, uding subcontext:
+    (*VST Issue we'd maybe like to use a variant of pattern2_noStmt that doesn't mention the
+      dead variables aux, aux1, 181%positive in Delta, using subcontext:
     eapply semax_extensionality_Delta.
     2: eapply (pattern2_noStmt _ 1 0 2 9); try omega; try eassumption.
-     but where are the tactic to discharge this subcontext-side-condition?*)
+     but where are the tactics to discharge this subcontext-side-condition?*)
 
     eapply (pattern2_noStmt _ 1 0 2 9); try omega; try eassumption.
           rewrite Int.unsigned_repr. omega. rewrite int_max_unsigned_eq; omega.

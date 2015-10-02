@@ -76,7 +76,7 @@ w x y t
    `(CoreInSEP data (nonce, c, k));
    `(data_at Tsh (tarray tuchar 64) OUT out)))).
 Proof. intros. abbreviate_semax.
-  forward_for_simple_bound 16 (EX i:Z, 
+  LENBforward_for_simple_bound 16 (EX i:Z, 
     PROP  ()
     LOCAL  ( 
       lvar _t (tarray tuint 4) t; lvar _y (tarray tuint 16) y;
@@ -94,17 +94,6 @@ Proof. intros. abbreviate_semax.
       exists xInit, nil; simpl. repeat split; auto.
     cancel. }
   { rename H into I. normalize. intros Y. normalize. rename H into YCONT.
-    apply semax_pre with (P':=
-     (PROP  ()
-      LOCAL  (temp _i (Vint (Int.repr i));
-       lvar _t (tarray tuint 4) t; lvar _y (tarray tuint 16) y;
-       lvar _x (tarray tuint 16) x; lvar _w (tarray tuint 16) w; temp _in nonce;
-       temp _out out; temp _c c; temp _k k; temp _h (Vint (Int.repr h)))
-      SEP  (`(data_at Tsh (tarray tuint 16) Y y);
-       `(data_at Tsh (tarray tuint 16) xInit x);
-       `(data_at_ Tsh (tarray tuint 4) t); `(data_at_ Tsh (tarray tuint 16) w);
-       `(CoreInSEP data (nonce, c, k));
-       `(data_at Tsh (tarray tuchar 64) OUT out)))). entailer.
     destruct (upd_upto_Vint data i I Vundef) as [vi Vi]. 
     
       destruct YCONT as [l1 [l2 [yy [xx [APP1 [APP2 [APP3 [L1 L2]]]]]]]].
@@ -138,5 +127,5 @@ Proof. intros. abbreviate_semax.
           rewrite upd_Znth_in_list_char; trivial. omega.
           rewrite Zlength_cons', Zlength_nil, Zplus_0_r. solve [auto]. }
   }
-  entailer. apply (exp_right l). entailer. (*Issue: once the 16=16 clause after the forward_for is eliminate, this line can again be simplified to derives_refl, I think*)
+  normalize.
 Qed. 

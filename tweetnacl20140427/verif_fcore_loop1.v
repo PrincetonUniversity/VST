@@ -18,11 +18,6 @@ Require Import spec_salsa. Opaque Snuffle.Snuffle. Opaque fcore_result.
 Opaque core_spec. Opaque ld32_spec. Opaque L32_spec. Opaque st32_spec.
 Opaque crypto_core_salsa20_spec. Opaque crypto_core_hsalsa20_spec.
 
-(*
-Definition X_content (x: SixteenByte * SixteenByte * (SixteenByte * SixteenByte))
-                     (i:Z) (l:list val) : Prop :=
-    exists n, i = Z.of_nat n /\ l = upd_upto x n (list_repeat 16 Vundef).
-*)
 Definition X_content (x: SixteenByte * SixteenByte * (SixteenByte * SixteenByte))
                      (i:Z) (l:list val) : Prop :=
     l = upd_upto x (Z.to_nat i) (list_repeat 16 Vundef).
@@ -43,24 +38,7 @@ Proof. unfold X_content in *. Opaque Z.add. Opaque Z.mul. simpl.
   rewrite (Z.add_comm _ 1), Z2Nat.inj_add; try omega. simpl.
   rewrite Z2Nat.id; try omega. subst l; reflexivity.
 Qed.
-(*Lemma XcontUpdate Nonce C Key1 Key2 i l
-      (I: 0 <= i < 4)
-      (L: X_content (Nonce, C, (Key1, Key2)) i l):
-X_content (Nonce, C, (Key1, Key2)) (i + 1)
-  (upd_Znth_in_list (11 + i)
-     (upd_Znth_in_list (6 + i)
-        (upd_Znth_in_list (1 + i)
-           (upd_Znth_in_list (5 * i) l
-              (Vint (littleendian (Select16Q C i))))
-           (Vint (littleendian (Select16Q Key1 i))))
-        (Vint (littleendian (Select16Q Nonce i))))
-     (Vint (littleendian (Select16Q Key2 i)))).
-Proof. unfold X_content in *. destruct L as [n [? ?]].
-  exists (S n); subst.
-  split. rewrite Nat2Z.inj_succ; omega.
-  reflexivity.
-Qed.
-*)
+
 (*Issue : writing the lemma using the Delta := func_typcontext ...
   @semax CompSepcs Espec Delta ...
   leads to failure - but only 40 lines down, in the call to forward_call,
@@ -83,7 +61,6 @@ Qed.
 Lemma f_core_loop1: forall (Espec : OracleKind)
 c k h nonce out OUT 
 (data : SixteenByte * SixteenByte * (SixteenByte * SixteenByte))
-(*(OUTlen : length OUT = 64%nat)*)
 (*(Delta := func_tycontext f_core SalsaVarSpecs SalsaFunSpecs) *)
 (out' : name _out)
 (in' : name _in)
@@ -190,7 +167,7 @@ PROP  ()
    `(data_at_ Tsh (tarray tuint 16) w); `(CoreInSEP data (nonce, c, k));
    `(data_at Tsh (tarray tuchar 64) OUT out)))).
 Proof. intros. abbreviate_semax.
-forward_for_simple_bound 4 (EX i:Z, 
+LENBforward_for_simple_bound 4 (EX i:Z, 
    PROP  ()
    LOCAL  ( 
    lvar _t (tarray tuint 4) t; lvar _y (tarray tuint 16) y;
@@ -200,39 +177,13 @@ forward_for_simple_bound 4 (EX i:Z,
    `(data_at_ Tsh (tarray tuint 4) t);
    `(EX l:_, !!(X_content data i l) && data_at Tsh (tarray tuint 16) l x);
    `(data_at_ Tsh (tarray tuint 16) w); `(CoreInSEP data (nonce, c, k));
-   `(data_at Tsh (tarray tuchar 64) OUT out) (*data_block Tsh OUT out)*))).
-{ entailer. apply (exp_right (list_repeat 16 Vundef)). entailer.
-  (*apply prop_right. unfold X_content. exists O. split; trivial.*) }
+   `(data_at Tsh (tarray tuchar 64) OUT out))).
+{ entailer. apply (exp_right (list_repeat 16 Vundef)). entailer. }
 { rename H into I.
  
   destruct data as ((Nonce, C), Key). unfold CoreInSEP.
-(*Opaque Zplus. Opaque Z.mul. Opaque mult. Opaque plus.
-   Opaque firstn. Opaque skipn. Opaque Z.sub. simpl.*)
   unfold SByte at 2. normalize. intros X0; normalize. rename H into X0cont.
 
-(*Issue: need to delete "4=4" to make subsequent forward_call apply*)
-  apply semax_pre with (P':= (PROP  ()
-   LOCAL  (temp _i (Vint (Int.repr i));
-   lvar _t (tarray tuint 4) t; lvar _y (tarray tuint 16) y;
-   lvar _x (tarray tuint 16) x; lvar _w (tarray tuint 16) w; temp _in nonce;
-   temp _out out; temp _c c; temp _k k; temp _h (Vint (Int.repr h)))
-   SEP  (`(SByte Nonce nonce);
-   `(data_at Tsh (Tarray tuchar 16 noattr) (SixteenByte2ValList C) c);
-   `(ThirtyTwoByte Key k); `(data_at Tsh (tarray tuint 16) X0 x);
-   `(data_at_ Tsh (tarray tuint 16) y); `(data_at_ Tsh (tarray tuint 4) t);
-   `(data_at_ Tsh (tarray tuint 16) w);
-   `(data_at Tsh (tarray tuchar 64) OUT out)))). entailer.  
-
-  (*assert_PROP (offset_in_range (sizeof tuchar * 0) c /\
-               offset_in_range (sizeof tuchar * 16) c).
-  { unfold data_at at 1. simpl. intros rho. normalize.
-    apply prop_right.
-    unfold size_compatible in H11. unfold offset_in_range.
-    destruct c; simpl; split; trivial.
-    rewrite Zplus_0_r. specialize (Int.unsigned_range i0); intros; omega.
-    simpl in H11. rewrite Zmult_1_l in H11. split; trivial.
-    specialize (Int.unsigned_range i0); intros; omega. }
-  rename H0 into OffsetC.*)
   assert (C16:= SixteenByte2ValList_Zlength C).
   remember (SplitSelect16Q C i) as FB; destruct FB as (Front, Back).
   (*rewrite (Select_SplitSelect16Q C i _ _ HeqFB) in *.*)
@@ -321,8 +272,7 @@ instantiate (1:= [lvar _t (tarray tuint 4) t;
 normalize. subst pat.
   apply semax_pre with (P':=
   (PROP  ()
-   LOCAL  ((*temp _aux v; *)
-   temp _aux (Vint (littleendian (Select16Q C i)));
+   LOCAL  ( temp _aux (Vint (littleendian (Select16Q C i)));
    temp _i (Vint (Int.repr i));
    lvar _t (tarray tuint 4) t; lvar _y (tarray tuint 16) y;
    lvar _x (tarray tuint 16) x; lvar _w (tarray tuint 16) w; temp _in nonce;
@@ -423,16 +373,6 @@ Opaque crypto_core_salsa20_spec. Opaque crypto_core_hsalsa20_spec.
 
   (*Load nonce*)
   unfold SByte at 1.
-(*  assert_PROP (offset_in_range (sizeof tuchar * 0) nonce /\
-               offset_in_range (sizeof tuchar * 16) nonce).
-  { unfold data_at at 3. simpl. intros rho. normalize.
-    apply prop_right.
-    unfold size_compatible in H12. unfold offset_in_range.
-    destruct nonce; simpl; split; trivial.
-    rewrite Zplus_0_r. specialize (Int.unsigned_range i0); intros; omega.
-    simpl in H12. rewrite Zmult_1_l in H12. split; trivial.
-    specialize (Int.unsigned_range i0); intros; omega. }
-  rename H0 into OffsetNonce.*)
   assert (N16:= SixteenByte2ValList_Zlength Nonce).
   remember (SplitSelect16Q Nonce i) as FB_N; destruct FB_N as (Front_N, BACK_N).
     rewrite (Select_SplitSelect16Q _ i _ _ HeqFB_N) in *. 

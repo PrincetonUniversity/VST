@@ -422,7 +422,7 @@ Proof. intros. abbreviate_semax.
 Opaque Zplus. Opaque Z.mul. Opaque mult. Opaque plus.
  (*  Opaque firstn. Opaque skipn.*) Opaque Z.sub. Opaque Snuffle.
 drop_LOCAL 0%nat. 
-forward_for_simple_bound 20 (EX i:Z, 
+LENBforward_for_simple_bound 20 (EX i:Z, 
   (PROP  ()
    LOCAL  (lvar _t (tarray tuint 4) t;
    lvar _y (tarray tuint 16) y; lvar _x (tarray tuint 16) x;
@@ -433,15 +433,18 @@ forward_for_simple_bound 20 (EX i:Z,
    `(data_at_ Tsh (tarray tuint 4) t); `(data_at_ Tsh (tarray tuint 16) w);
    `(CoreInSEP data (nonce, c, k)); `(data_at Tsh (tarray tuchar 64) OUT out)))).
 { entailer. apply (exp_right xI). entailer. }
+
+(*Issue: why doesn't this work if we move it to the end of the proof of this lemma, 
+  after the other subgoal has been proven?*)
 Focus 2. entailer. apply (exp_right r). entailer. cancel. 
+
 { rename H into I.
-  drop_LOCAL 1%nat.
   normalize. intros r; normalize. rename H into R. 
   assert (XI: length xI = 16%nat). eapply (Zlength_length _ _ 16). omega. trivial.
   assert (RL:= Snuffle_length _ _ _ R XI).
   assert (RZL: Zlength r = 16). rewrite Zlength_correct, RL; reflexivity.
             
-  forward_for_simple_bound 4 (EX j:Z,
+  LENBforward_for_simple_bound 4 (EX j:Z,
   (PROP  ()
    LOCAL  (temp _i (Vint (Int.repr i)); lvar _t (tarray tuint 4) t;
    lvar _y (tarray tuint 16) y; lvar _x (tarray tuint 16) x;
@@ -455,7 +458,6 @@ Focus 2. entailer. apply (exp_right r). entailer. cancel.
    `(data_at Tsh (tarray tuchar 64) OUT out)))).
   { entailer. apply (exp_right r). entailer. cancel. admit. (* TODO: WAS data_at_ length: should be ok once we have data_at_ tarray enforcing correct length*) }
   { rename H into J. rename i0 into j.
-    drop_LOCAL 1%nat.
     normalize. intros wlist. normalize. rename H into WCONT.
     destruct (WcontI_length _ _ _ WCONT) as [_ WL].
     destruct (Znth_mapVint r ((5 * j + 4 * 0) mod 16) Vundef) as [t0 T0].
@@ -479,7 +481,6 @@ Focus 2. entailer. apply (exp_right r). entailer. cancel.
 
   normalize. intros wlist. normalize. rename H into WLIST.
   assert (WL: Zlength wlist = 16) by apply WLIST.
-  drop_LOCAL 1%nat.
   eapply semax_post'.
   Focus 2. apply array_copy3; trivial. (*TODO: change definition of array3 so that at least the first side conditions is about Zlength*)
             rewrite map_length. apply Zlength_length in WL. apply WL. omega. 

@@ -142,7 +142,7 @@ Focus 2.
     Opaque littleendian.
     Opaque littleendian_invert. Opaque Snuffle20. Opaque prepare_data. 
     Opaque QuadByte2ValList.
-  forward_for_simple_bound 16 (EX i:Z, 
+LENBforward_for_simple_bound 16 (EX i:Z, 
   (PROP  ()
    LOCAL  (lvar _t (tarray tuint 4) t;
    lvar _y (tarray tuint 16) y; lvar _x (tarray tuint 16) x;
@@ -165,71 +165,6 @@ Focus 2.
     { entailer. apply prop_right. rewrite Xi. simpl; trivial. }
     forward.
     { entailer. apply prop_right. rewrite Yi. simpl; trivial. } 
- 
-(*Issue: neeed to remove "16=16" to make subsequent forward apply. Interestingly, the two forwards
-  we just performed worked fine...*)
-
-    apply semax_pre with (P':=
-  (PROP  ()
-   LOCAL  (temp _aux1 (Znth i (map Vint ys) Vundef);
-   temp _aux (Znth i (map Vint xs) Vundef); temp _i (Vint (Int.repr i));
-   lvar _t (tarray tuint 4) t; lvar _y (tarray tuint 16) y;
-   lvar _x (tarray tuint 16) x; lvar _w (tarray tuint 16) w; temp _in nonce;
-   temp _out out; temp _c c; temp _k k; temp _h (Vint (Int.repr h)))
-   SEP  (`(data_at Tsh (tarray tuchar 64) l out);
-   `(data_at Tsh (tarray tuint 16) (map Vint xs) x);
-   `(data_at Tsh (tarray tuint 16) (map Vint ys) y);
-   `(data_at_ Tsh (tarray tuint 4) t); `(data_at_ Tsh (tarray tuint 16) w);
-   `(CoreInSEP data (nonce, c, k))))). entailer.
-(*Ltac check_DeltaOLD :=
-match goal with 
- | Delta := @abbreviate tycontext (mk_tycontext _ _ _ _ _) |- _ =>
-    match goal with 
-    | |- _ => clear Delta; check_DeltaOLD
-    | |- semax Delta _ _ _ => idtac 
-    end
- | _ => first [simplify_Delta_OLD | fail 4 "Error in check_Delta (match-case 2): simplify_Delta fails. (Definition is in semax_tactic.v)"];
-     match goal with |- semax ?D _ _ _ => 
-            abbreviate D : tycontext as Delta
-     end
-end.
-Ltac forward_for_simple_boundOLD n Pre :=
- first [check_DeltaOLD | fail 4 "Error in forward_for_simple_bound: check_Delta fails. (Definition is in semax_tactic.v)"];
- (* check_Delta;*)
- repeat match goal with |-
-      semax _ _ (Ssequence (Ssequence (Ssequence _ _) _) _) _ =>
-      apply -> seq_assoc; abbreviate_semax
- end;
- first [ 
-     simple eapply semax_seq'; 
-    [forward_for_simple_bound' n Pre 
-    | cbv beta; simpl update_tycon; abbreviate_semax  ]
-  | eapply semax_post_flipped'; 
-     [forward_for_simple_bound' n Pre 
-     | ]
-  ].
-Tactic Notation "forwardOLD" :=
-  check_DeltaOLD;
- repeat simple apply seq_assoc2;
- first
- [ fwd_last
- | fwd_skip
- | fwd';
-  [ .. |
-  first [intros _ | no_intros ];
-   repeat (apply semax_extract_PROP; intro);
-   abbreviate_semax;
-   try fwd_skip]
- ].
-Tactic Notation "forwardOLD" simple_intropattern(v1) :=
-  check_DeltaOLD;
-  fwd';
-  [ .. 
-  | intros v1;
-  repeat (apply semax_extract_PROP; intro);
-  abbreviate_semax;
-  try fwd_skip].
-*)
     rewrite Xi, Yi.
     forward.
     Opaque Z.mul. Opaque Z.add. Opaque Z.sub.
