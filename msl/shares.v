@@ -328,6 +328,14 @@ Proof.
   apply identity_share_bot; auto.
 Qed.
 
+Lemma dec_share_nonunit : forall x:t, { nonunit x } + { ~ nonunit x }.
+Proof.
+  intro x.
+  destruct (dec_share_identity x) as [H | H]; [right | left].
+  + intro; revert H. apply nonunit_nonidentity; auto.
+  + apply nonidentity_nonunit; auto.
+Qed.
+
 Lemma fullshare_full : full fullshare.
 Proof.
   unfold full.

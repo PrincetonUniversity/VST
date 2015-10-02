@@ -9,6 +9,7 @@ Require Import veric.res_predicates.
 Require Import veric.tycontext.
 Require Import veric.expr2.
 Require Import veric.binop_lemmas2.
+Require Import veric.address_conflict.
 Require Export veric.shares.
 
 Definition assert := environ -> mpred.  (* Unfortunately
@@ -710,30 +711,130 @@ Proof. unfold mapsto_; intros.
   auto.
 Qed.
 
+Lemma mapsto_not_nonunit: forall sh t p v, ~ nonunit sh -> mapsto sh t p v |-- emp.
+Proof.
+  intros.
+  unfold mapsto.
+  destruct (access_mode t); try solve [apply FF_derives].
+  destruct (type_is_volatile t); try solve [apply FF_derives].
+  destruct p; try solve [apply FF_derives].
+  if_tac.
+  + apply readable_nonidentity in H0.
+    apply nonidentity_nonunit in H0; tauto.
+  + apply nonlock_permission_bytes_not_nonunit; auto.
+Qed.
+
+Lemma mapsto_pure_facts: forall sh t p v,
+  mapsto sh t p v |-- !! ((exists ch, access_mode t = By_value ch) /\ isptr p).
+Proof.
+  intros.
+  unfold mapsto.
+  destruct (access_mode t); try solve [apply FF_derives].
+  destruct (type_is_volatile t); try solve [apply FF_derives].
+  destruct p; try solve [apply FF_derives].
+
+  pose proof (@seplog.prop_right (pred rmap) (algNatDed _)).
+  simpl in H; apply H; clear H.
+  split.
+  + eauto.
+  + simpl; auto.
+Qed.
+
+Lemma mapsto_overlap: forall sh env t1 t2 p1 p2 v1 v2,
+  nonunit sh ->
+  pointer_range_overlap p1 (sizeof env t1) p2 (sizeof env t2) ->
+  mapsto sh t1 p1 v1 * mapsto sh t2 p2 v2 |-- FF.
+Proof.
+  intros.
+  unfold mapsto.
+  destruct (access_mode t1) eqn:AM1; try (rewrite FF_sepcon; auto).
+  destruct (access_mode t2) eqn:AM2; try (rewrite normalize.sepcon_FF; auto).
+  destruct (type_is_volatile t1); try (rewrite FF_sepcon; auto).
+  destruct (type_is_volatile t2); try (rewrite normalize.sepcon_FF; auto).
+  destruct p1; try (rewrite FF_sepcon; auto).
+  destruct p2; try (rewrite normalize.sepcon_FF; auto).
+  if_tac.
+  + apply derives_trans with ((EX  v : val,
+          address_mapsto m v (Share.unrel Share.Lsh sh)
+            (Share.unrel Share.Rsh sh) (b, Int.unsigned i)) *
+      (EX  v : val,
+          address_mapsto m0 v (Share.unrel Share.Lsh sh)
+            (Share.unrel Share.Rsh sh) (b0, Int.unsigned i0))).
+    - apply sepcon_derives; apply orp_left.
+      * apply andp_left2, (exp_right v1).
+        auto.
+      * apply andp_left2; auto.
+      * apply andp_left2, (exp_right v2).
+        auto.
+      * apply andp_left2; auto.
+    - clear v1 v2.
+      rewrite exp_sepcon1.
+      apply exp_left; intro v1.
+      rewrite exp_sepcon2.
+      apply exp_left; intro v2.
+      clear H H1; rename H0 into H.
+      destruct H as [? [? [? [? ?]]]].
+      inversion H; subst.
+      inversion H0; subst.
+      erewrite !size_chunk_sizeof in H1 by eauto.
+      apply address_mapsto_overlap; auto.
+  + apply nonlock_permission_bytes_overlap; auto.
+    clear H H1; rename H0 into H.
+    erewrite !size_chunk_sizeof in H by eauto.
+    destruct H as [? [? [? [? ?]]]].
+    inversion H; subst.
+    inversion H0; subst.
+    auto.
+Qed.
+
+Lemma memory_block_overlap: forall sh p1 n1 p2 n2, nonunit sh -> pointer_range_overlap p1 n1 p2 n2 -> memory_block sh n1 p1 * memory_block sh n2 p2 |-- FF.
+Proof.
+  intros.
+  unfold memory_block.
+  destruct p1; try solve [rewrite FF_sepcon; auto].
+  destruct p2; try solve [rewrite normalize.sepcon_FF; auto].
+  rewrite sepcon_andp_prop1.
+  rewrite sepcon_andp_prop2.
+  apply normalize.derives_extract_prop; intros.
+  apply normalize.derives_extract_prop; intros.
+  rewrite memory_block'_eq; [| pose proof Int.unsigned_range i; omega | apply Clight_lemmas.Nat2Z_add_le; auto].
+  rewrite memory_block'_eq; [| pose proof Int.unsigned_range i0; omega | apply Clight_lemmas.Nat2Z_add_le; auto].
+  unfold memory_block'_alt.
+  if_tac.
+  + clear H2.
+    apply VALspec_range_overlap.
+    pose proof pointer_range_overlap_non_zero _ _ _ _ H0.
+    rewrite !Coqlib.nat_of_Z_eq by omega.
+    destruct H0 as [[? ?] [[? ?] [? [? ?]]]].
+    inversion H0; inversion H4.
+    subst.
+    auto.
+  + apply nonlock_permission_bytes_overlap; auto.
+    pose proof pointer_range_overlap_non_zero _ _ _ _ H0.
+    rewrite !Coqlib.nat_of_Z_eq by omega.
+    destruct H0 as [[? ?] [[? ?] [? [? ?]]]].
+    inversion H0; inversion H5.
+    subst.
+    auto.
+Qed.
+
 Lemma mapsto_conflict:
   forall sh t v v2 v3,
   nonunit sh ->
   mapsto sh t v v2 * mapsto sh t v v3 |-- FF.
 Proof.
   intros.
-  unfold mapsto.
-  destruct (access_mode t); try solve [rewrite FF_sepcon; auto].
-  destruct (type_is_volatile t); try solve [rewrite FF_sepcon; auto].
-  destruct v; try solve [rewrite FF_sepcon; auto].
-  if_tac.
-  + pose proof size_chunk_pos m.
-    rewrite distrib_orp_sepcon;
-    apply orp_left; rewrite sepcon_andp_prop1; apply andp_left2;
-    rewrite sepcon_comm;
-    rewrite distrib_orp_sepcon;
-    apply orp_left; rewrite sepcon_andp_prop1; apply andp_left2;
-    try (rewrite exp_sepcon1; apply exp_left; intro);
-    try (rewrite exp_sepcon2; apply exp_left; intro);
-    apply address_mapsto_overlap; split; auto; omega.
-  + apply nonlock_permission_bytes_overlap; auto.
-    exists (b, Int.unsigned i).
-    pose proof size_chunk_pos m.
-    repeat split; auto; omega.
+  rewrite (@add_andp (pred rmap) (algNatDed _) _ _ (mapsto_pure_facts sh t v v3)).
+  simpl.
+  rewrite andp_comm.
+  rewrite sepcon_andp_prop.
+  apply prop_andp_left; intros [[? ?] ?].
+  apply mapsto_overlap with (env := PTree.empty _); auto.
+  apply pointer_range_overlap_refl; auto.
+  + erewrite size_chunk_sizeof by eauto.
+    apply size_chunk_pos.
+  + erewrite size_chunk_sizeof by eauto.
+    apply size_chunk_pos.
 Qed.
 
 Lemma memory_block_conflict: forall sh n m p,
@@ -754,9 +855,9 @@ Proof.
   unfold memory_block'_alt.
   if_tac.
   + apply VALspec_range_overlap.
-    - simpl; split; auto.
-      rewrite Z2Nat.id; omega.
-    - rewrite Z2Nat.id; omega.
+    exists (b, Int.unsigned i).
+    simpl; repeat split; auto; try omega;
+    rewrite Z2Nat.id; omega.
   + apply nonlock_permission_bytes_overlap; auto.
     exists (b, Int.unsigned i).
     repeat split; auto; try rewrite Z2Nat.id; omega.

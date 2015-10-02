@@ -252,6 +252,15 @@ Qed.
 
 Definition mk_pshare : forall p: Share.t, nonunit p -> pshare := exist nonunit.
 
+Lemma mk_share_pshare_sh: forall p (H: nonunit (pshare_sh p)),
+  mk_pshare (pshare_sh p) H = p.
+Proof.
+  intros.
+  unfold mk_pshare.
+  destruct p; simpl.
+  auto.
+Qed.
+
 Definition fixup_splitting
   (a:address -> Share.t) (z: address -> option (pshare * kind)) :=
   fun l => 

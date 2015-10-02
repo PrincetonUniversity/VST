@@ -193,3 +193,7 @@ Qed.
 Lemma pshare_nonunit: forall sh: pshare, nonunit (pshare_sh sh).
 Proof. repeat intro. destruct sh; simpl in *. apply n in H. auto.
 Qed.
+
+Lemma pshare_not_identity: forall sh: pshare, ~ identity (pshare_sh sh).
+Proof. intros. apply nonunit_nonidentity. apply pshare_nonunit.
+Qed.

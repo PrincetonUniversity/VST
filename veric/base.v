@@ -15,7 +15,6 @@ Require Export Clight.
 Require Export EqNat.
 Require Export msl.Coqlib2.
 Require Export sepcomp.Address.
-Require Export veric.address_conflict.
 Require Export Relations.
 
 Set Implicit Arguments.
@@ -46,3 +45,9 @@ hnf. decide equality.
 Defined.
 
 Definition funsig := (list (ident*type) * type)%type. (* argument and result signature *)
+
+Lemma range_dec: forall a b c: Z, {a <= b < c}+{~(a <= b < c)}.
+Proof. intros. destruct (zle a b). destruct (zlt b c). left; split; auto.
+  right;  omega. right; omega.
+Qed.
+
