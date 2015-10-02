@@ -88,8 +88,7 @@ PROP  ()
  `(EX  l : list val,
    !!HFalse_inv l 16 xs ys && data_at Tsh (tarray tuchar 64) l out)).
 
-Lemma verif_fcore_epilogue_hfalse Espec: forall t y x w nonce out c k h data OUT
-  xs ys (ZL_X: Zlength xs = 16) (ZL_Y: Zlength ys = 16) (L_OUT: length OUT = 64%nat),
+Lemma verif_fcore_epilogue_hfalse Espec t y x w nonce out c k h data OUT xs ys:
 @semax CompSpecs Espec
   (initialized_list [_i] (func_tycontext f_core SalsaVarSpecs SalsaFunSpecs))
   (PROP  ()
@@ -158,11 +157,12 @@ Focus 2.
   { entailer. apply (exp_right OUT). entailer.
     apply prop_right. unfold HFalse_inv. split; trivial; intros. omega. } 
   { rename H into I;  normalize. intros l; normalize. rename H into INV_l.
-
+    assert_PROP (Zlength (map Vint xs) = 16). entailer. rename H into XL; rewrite Zlength_map in XL.
     destruct (Znth_mapVint (xs:list int) i Vundef) as [xi Xi]; try omega.
+    assert_PROP (Zlength (map Vint ys) = 16). entailer. rename H into YL; rewrite Zlength_map in YL.
     destruct (Znth_mapVint ys i Vundef) as [yi Yi]; try omega.
     forward. 
-    { entailer. apply prop_right. simpl. rewrite Xi. simpl; trivial. }
+    { entailer. apply prop_right. rewrite Xi. simpl; trivial. }
     forward.
     { entailer. apply prop_right. rewrite Yi. simpl; trivial. } 
  
@@ -239,10 +239,7 @@ Tactic Notation "forwardOLD" simple_intropattern(v1) :=
     assert_PROP(field_compatible (Tarray tuchar 64 noattr) [] out). entailer.
     rename H into FCO.
     rewrite <- ZL, (split3_data_at_Tarray_at_tuchar Tsh (Zlength l) (4 *i) 4); try rewrite ZL; try omega; trivial.
-    normalize. (* rename H into OIR_out0. rename H0 into OUR_out64.
-    rewrite Nat2Z.inj_mul. rewrite Z2Nat.id. 2: apply I.
-    assert (Z.of_nat 4 = 4). reflexivity. rewrite H; clear H.
-    Opaque firstn. Opaque skipn. Opaque mult.*)
+    normalize. 
 Transparent core_spec. Transparent ld32_spec. Transparent L32_spec. Transparent st32_spec.
 Transparent crypto_core_salsa20_spec. Transparent crypto_core_hsalsa20_spec.
     forward_call (offset_val (Int.repr (4 * i)) out, Int.add xi yi).

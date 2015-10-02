@@ -8,6 +8,12 @@ Require Import split_array_lemmas.
 (*Require Import fragments.*)
 Require Import ZArith. 
 
+Lemma Zlength_list_repeat {A} n (v:A): Zlength (list_repeat n v) = Z.of_nat n.
+Proof. rewrite Zlength_correct, length_list_repeat; trivial. Qed.
+
+Lemma Zlength_cons' {A} (a:A) l: Zlength (a::l) = 1 + Zlength l.
+  do 2 rewrite Zlength_correct. simpl. rewrite Zpos_P_of_succ_nat,<- Z.add_1_l; trivial. Qed.
+
 Lemma isptrD v: isptr v -> exists b ofs, v = Vptr b ofs.
 Proof. intros. destruct v; try contradiction. exists b, i; trivial. Qed.
 
@@ -110,6 +116,23 @@ induction l1; intros.
     intros. apply (N (S i)). simpl; omega.
 Qed. 
 
+Lemma Znth_extensional {A} (l1 l2 : list A):
+       Zlength l1 = Zlength l2 -> forall d,
+       (forall i,
+        (0 <= i < Zlength l1) -> Znth i l1 d = Znth i l2 d) -> l1 = l2.
+Proof. intros.
+  assert (HH: Z.to_nat (Zlength l1) = Z.to_nat (Zlength l2)).
+    rewrite H; trivial.
+  do 2 rewrite Zlength_correct, Nat2Z.id in HH.
+  eapply nth_extensional with (d0:=d). trivial.
+  intros. 
+  assert (I: 0 <= (Z.of_nat i) < Zlength l1).
+    split. apply (Nat2Z.inj_le 0). apply H1. rewrite Zlength_correct. apply Nat2Z.inj_lt. apply H1.
+  specialize (H0 _ I). unfold Znth in H0.
+  destruct (zlt (Z.of_nat i) 0). omega.
+  rewrite Nat2Z.id in H0. trivial.
+Qed.
+
 Lemma force_lengthn_app1 {A}: forall n l1 l2 (d:A), length l1 =n -> force_lengthn n (l1 ++ l2) d = l1.
 Proof.
   induction n; simpl; intros. destruct l1; simpl in *; trivial. omega.
@@ -162,6 +185,13 @@ Lemma upd_Znth_in_list_Zlength {A} i (l:list A) v: 0<=i < Zlength l ->
 Proof. intros.
    unfold upd_Znth_in_list. rewrite Zlength_app, Zlength_cons; simpl.
   repeat rewrite Zlength_sublist; simpl; omega.
+Qed.
+
+Lemma upd_Znth_in_list_map {A B} (f:A -> B) i l v: 
+      upd_Znth_in_list i (map f l) (f v) =
+      map f (upd_Znth_in_list i l v).
+Proof. unfold upd_Znth_in_list; intros. rewrite map_app, Zlength_map.
+  do 2 rewrite sublist_map; trivial.
 Qed.
 
 Lemma Znth_0_cons {A} l (v:A) d: Znth 0 (v::l) d = v.
