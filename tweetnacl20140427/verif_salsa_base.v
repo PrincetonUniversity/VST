@@ -9,7 +9,60 @@ Require Import split_array_lemmas.
 Require Import ZArith. 
 Require Import Salsa20.
 
+Ltac LENBforward_for_simple_bound' n Pre :=
+ first 
+ [ first [eapply (semax_for_const_bound_const_init n Pre)
+         | eapply (semax_for_const_bound_const_init_u n Pre)];
+  [reflexivity | try repable_signed | try repable_signed | reflexivity | try reflexivity; omega
+(*  | auto 50 with closed*)
+  | intro; cbv beta; simpl; auto 50 with closed
+  | intro; cbv beta; simpl; auto 50 with closed
+  | cbv beta; simpl update_tycon; rewrite insert_local
+  | intro; cbv beta; simpl update_tycon; try solve [entailer!]
+  | try apply semax_for_resolve_postcondition
+  | intro; cbv beta; simpl update_tycon; abbreviate_semax;
+   try (apply semax_extract_PROP; intro) ]
+ | first [eapply (semax_for_simple_bound_const_init n Pre)
+         | eapply (semax_for_simple_bound_const_init_u n Pre)];
+  [reflexivity | try repable_signed | try repable_signed | reflexivity | reflexivity
+  | auto 50 with closed
+  | intro; cbv beta; simpl; auto 50 with closed
+  | intro; cbv beta; simpl; auto 50 with closed
+  | cbv beta; simpl update_tycon; rewrite insert_local
+  | intro; cbv beta; simpl update_tycon; try solve [entailer!]
+  | try apply semax_for_resolve_postcondition
+  | intro; cbv beta; simpl update_tycon; abbreviate_semax;
+   try (apply semax_extract_PROP; intro) ]
+ |first [eapply (semax_for_simple_bound n Pre)
+         |eapply (semax_for_simple_bound_u n Pre)];
+  [reflexivity | try repable_signed | reflexivity | reflexivity
+  | auto 50 with closed
+  | intro; cbv beta; simpl; auto 50 with closed
+  | intro; cbv beta; simpl; auto 50 with closed
+  | cbv beta; simpl update_tycon
+  | intro; cbv beta; simpl update_tycon; try solve [entailer!]
+  | try apply semax_for_resolve_postcondition
+  | intro; cbv beta; simpl update_tycon; abbreviate_semax;
+     try (apply semax_extract_PROP; intro) ]
+  ].
+
+Ltac LENBforward_for_simple_bound n Pre :=
+  check_Delta;
+ repeat match goal with |-
+      semax _ _ (Ssequence (Ssequence (Ssequence _ _) _) _) _ =>
+      apply -> seq_assoc; abbreviate_semax
+ end;
+ first [ 
+     simple eapply semax_seq'; 
+    [LENBforward_for_simple_bound' n Pre 
+    | cbv beta; simpl update_tycon; abbreviate_semax  ]
+  | eapply semax_post_flipped'; 
+     [LENBforward_for_simple_bound' n Pre 
+     | ]
+  ].
+
 Require Import tweetnaclVerifiableC.
+Require Import tweetNaclBase.
 Instance CompSpecs : compspecs.
 Proof. make_compspecs prog. Defined.  
 
@@ -293,3 +346,129 @@ Lemma QuadChunks2ValList_bytes: forall l,
     repeat rewrite <- map_app. exists (x0 ++ x); split; trivial.
     rewrite app_length, X1, Y1. omega.
   Qed.
+
+Fixpoint upd_upto (x: SixteenByte * SixteenByte * (SixteenByte * SixteenByte)) i (l:list val):list val :=
+  match i with
+    O => l
+  | S n => 
+     match x with (Nonce, C, (Key1, Key2)) =>
+     ((upd_Znth_in_list (11 + (Z.of_nat n))
+     (upd_Znth_in_list(6 + (Z.of_nat n))
+        (upd_Znth_in_list (1 + (Z.of_nat n))
+           (upd_Znth_in_list (5 * (Z.of_nat n)) (upd_upto x n l)
+              (Vint (littleendian (Select16Q C (Z.of_nat n)))))
+           (Vint (littleendian (Select16Q Key1 (Z.of_nat n)))))
+        (Vint (littleendian (Select16Q Nonce (Z.of_nat n)))))
+     (Vint (littleendian (Select16Q Key2 (Z.of_nat n))))))
+     end
+  end.
+(*
+Fixpoint upd_upto (x: SixteenByte * SixteenByte * (SixteenByte * SixteenByte)) i (l:list val):list val :=
+  match i with
+    O => l
+  | S n => 
+     match x with (Nonce, C, (Key1, Key2)) =>
+     ((upd_reptype_array tuint (11 + (Z.of_nat n))
+     (upd_reptype_array tuint (6 + (Z.of_nat n))
+        (upd_reptype_array tuint (1 + (Z.of_nat n))
+           (upd_reptype_array tuint (5 * (Z.of_nat n)) (upd_upto x n l)
+              (Vint (littleendian (Select16Q C (Z.of_nat n)))))
+           (Vint (littleendian (Select16Q Key1 (Z.of_nat n)))))
+        (Vint (littleendian (Select16Q Nonce (Z.of_nat n)))))
+     (Vint (littleendian (Select16Q Key2 (Z.of_nat n))))))
+     end
+  end.*)
+
+Lemma upd_upto_Sn Nonce C Key1 Key2 n l: upd_upto (Nonce, C, (Key1, Key2)) (S n) l =
+     ((upd_Znth_in_list (11 + (Z.of_nat n))
+     (upd_Znth_in_list (6 + (Z.of_nat n))
+        (upd_Znth_in_list (1 + (Z.of_nat n))
+           (upd_Znth_in_list (5 * (Z.of_nat n)) (upd_upto (Nonce, C, (Key1, Key2))  n l)
+              (Vint (littleendian (Select16Q C (Z.of_nat n)))))
+           (Vint (littleendian (Select16Q Key1 (Z.of_nat n)))))
+        (Vint (littleendian (Select16Q Nonce (Z.of_nat n)))))
+     (Vint (littleendian (Select16Q Key2 (Z.of_nat n)))))).
+ reflexivity. Qed.
+
+Lemma upd_upto_Zlength data l (H: Zlength l = 16): forall i (I:(0<=i<=4)%nat), 
+      Zlength (upd_upto data i l) = 16.
+  Proof. apply Zlength_length in H. 2: omega. simpl in H.
+    destruct l; simpl in H. exfalso; omega.
+    destruct l; simpl in H. intros; omega. destruct l; simpl in H. intros; omega. 
+    destruct l; simpl in H. intros; omega. destruct l; simpl in H. intros; omega. 
+    destruct l; simpl in H. intros; omega. destruct l; simpl in H. intros; omega. 
+    destruct l; simpl in H. intros; omega. destruct l; simpl in H. intros; omega. 
+    destruct l; simpl in H. intros; omega. destruct l; simpl in H. intros; omega. 
+    destruct l; simpl in H. intros; omega. destruct l; simpl in H. intros; omega. 
+    destruct l; simpl in H. intros; omega. destruct l; simpl in H. intros; omega. 
+    destruct l; simpl in H. intros; omega. destruct l; simpl in H. 2: intros; omega. clear H. 
+    intros.
+    induction i; destruct data as [[N C] [K1 K2]]. reflexivity.
+    rewrite upd_upto_Sn. remember (11 + Z.of_nat i) as z1. remember (6 + Z.of_nat i) as z2.
+    remember (1 + Z.of_nat i) as z3. remember (5 * Z.of_nat i)%Z as z4.
+    remember (Vint (littleendian (Select16Q C (Z.of_nat i)))) as u4.
+    remember (Vint (littleendian (Select16Q K1 (Z.of_nat i)))) as u3.
+    remember (Vint (littleendian (Select16Q N (Z.of_nat i)))) as u2.
+    remember (Vint (littleendian (Select16Q K2 (Z.of_nat i)))) as u1.
+    assert ((0 <= i <= 4)%nat).
+      split. omega. omega. (*rewrite Nat2Z.inj_succ in I. omega.*)
+    repeat rewrite upd_Znth_in_list_Zlength; rewrite (IHi H); intros; try omega.
+Qed.
+
+Lemma upd_upto_Vint data: forall n, 0<=n<16 -> 
+      forall d, exists i, Znth n (upd_upto data 4 (list_repeat 16 Vundef)) d = Vint i.
+  Proof. unfold upd_upto; intros. destruct data as [[N C] [K1 K2]].
+   repeat rewrite (upd_Znth_in_list_lookup' 16); trivial; simpl; try omega.
+   if_tac. eexists; reflexivity.
+   if_tac. eexists; reflexivity.
+   if_tac. eexists; reflexivity.
+   if_tac. eexists; reflexivity.
+   if_tac. eexists; reflexivity.
+   if_tac. eexists; reflexivity.
+   if_tac. eexists; reflexivity.
+   if_tac. eexists; reflexivity.
+   if_tac. eexists; reflexivity.
+   if_tac. eexists; reflexivity.
+   if_tac. eexists; reflexivity.
+   if_tac. eexists; reflexivity.
+   if_tac. eexists; reflexivity.
+   if_tac. eexists; reflexivity.
+   if_tac. eexists; reflexivity.
+   if_tac. eexists; reflexivity. omega. 
+Qed.
+
+(*cf xsalsa-paper, beginning of Section 2*)
+Lemma upd_upto_char data l: Zlength l = 16 ->
+      upd_upto data 4 l = match data with ((Nonce, C), (Key1, Key2)) =>
+          match Nonce with (N1, N2, N3, N4) =>
+          match C with (C1, C2, C3, C4) =>
+          match Key1 with (K1, K2, K3, K4) =>
+          match Key2 with (L1, L2, L3, L4) =>
+      map Vint (map littleendian [C1; K1; K2; K3; 
+                                  K4; C2; N1; N2;
+                                  N3; N4; C3; L1;
+                                  L2; L3; L4; C4]) end end end end end. 
+Proof. intros. apply Zlength_length in H. 2: omega.
+   destruct data as [[Nonce C] [Key1 Key2]].
+   destruct Nonce as [[[N1 N2] N3] N4].
+   destruct C as [[[C1 C2] C3] C4].
+   destruct Key1 as [[[K1 K2] K3] K4].
+   destruct Key2 as [[[L1 L2] L3] L4]. 
+   destruct l; simpl in H. omega.
+   destruct l; simpl in H. omega.
+   destruct l; simpl in H. omega.
+   destruct l; simpl in H. omega.
+   destruct l; simpl in H. omega.
+   destruct l; simpl in H. omega.
+   destruct l; simpl in H. omega.
+   destruct l; simpl in H. omega.
+   destruct l; simpl in H. omega.
+   destruct l; simpl in H. omega.
+   destruct l; simpl in H. omega.
+   destruct l; simpl in H. omega.
+   destruct l; simpl in H. omega.
+   destruct l; simpl in H. omega.
+   destruct l; simpl in H. omega.
+   destruct l; simpl in H. omega.
+   destruct l; simpl in H. 2: omega. clear H. reflexivity.
+Qed.

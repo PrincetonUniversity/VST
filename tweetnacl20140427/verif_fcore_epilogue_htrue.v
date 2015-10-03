@@ -24,8 +24,7 @@ Definition HTrue_inv1 l i ys xs : Prop :=
                                       Znth j l Vundef = Vint (Int.add yj xj)) 
                 /\ (i<=j ->  Znth j l Vundef = Vint xj).
 
-Lemma HTrue_loop1 Espec: forall t y x w nonce out c k h data OUT
-  xs ys (ZL_X: Zlength xs = 16) (ZL_Y: Zlength ys = 16),
+Lemma HTrue_loop1 Espec: forall t y x w nonce out c k h data OUT xs ys,
 @semax CompSpecs Espec
   (initialized_list [_i] (func_tycontext f_core SalsaVarSpecs SalsaFunSpecs))
   (PROP  ()
@@ -68,7 +67,9 @@ Lemma HTrue_loop1 Espec: forall t y x w nonce out c k h data OUT
           `(data_at_ Tsh (tarray tuint 4) t); `(data_at_ Tsh (tarray tuint 16) w);
           `(CoreInSEP data (nonce, c, k)); `(data_at Tsh (tarray tuchar 64) OUT out)))).
 Proof. intros. abbreviate_semax.
-  forward_for_simple_bound 16 (EX i:Z, 
+  assert_PROP (Zlength (map Vint xs) = 16). entailer. rename H into XL.
+  assert_PROP (Zlength (map Vint ys) = 16). entailer. rename H into YL.
+  LENBforward_for_simple_bound 16 (EX i:Z, 
   (PROP  ()
    LOCAL  (lvar _t (tarray tuint 4) t;
    lvar _y (tarray tuint 16) y; lvar _x (tarray tuint 16) x;
@@ -81,17 +82,17 @@ Proof. intros. abbreviate_semax.
    `(CoreInSEP data (nonce, c, k));
    `(data_at Tsh (tarray tuchar 64) OUT out)))).
   { entailer. apply (exp_right (map Vint xs)).
-    entailer. apply prop_right. split. rewrite Zlength_map; assumption.
+    entailer. apply prop_right. split. assumption.
     exists xs; split; trivial.
     intros. 
-    destruct (Znth_mapVint xs j Vundef) as [xj Xj]. omega.
+    destruct (Znth_mapVint xs j Vundef) as [xj Xj]. rewrite Zlength_map in XL; omega.
     exists xj; split; trivial.
     split; intros. omega. trivial. }
   { rename H into I. normalize. intros xlist; normalize. 
-    destruct H as [XL XLIST].
+    destruct H as [XLL XLIST].
     destruct XLIST as [xints [INTS J]]. subst xlist.
     destruct (J _ I) as [xi [Xi [_ HXi]]].
-    destruct (Znth_mapVint ys i Vundef) as [yi Yi]. omega.
+    destruct (Znth_mapVint ys i Vundef) as [yi Yi]. rewrite Zlength_map in YL; omega.
     forward. 
     { entailer. rewrite Yi. entailer. }
     forward.
@@ -101,7 +102,7 @@ Proof. intros. abbreviate_semax.
     apply (exp_right (upd_Znth_in_list i (map Vint xints) (Vint (Int.add yi xi)))); entailer.
     apply prop_right.
     split.
-      rewrite upd_Znth_in_list_Zlength. assumption. simpl; rewrite XL. omega.
+      rewrite upd_Znth_in_list_Zlength. assumption. simpl; rewrite XLL. omega.
     eexists; split. apply upd_Znth_in_list_ints. 
     intros k K. destruct (J _ K) as [xj [Xj [IJ1 IJ2]]].
       exists xj. split. assumption.
@@ -138,8 +139,7 @@ Fixpoint hPosLoop2 (n:nat) (sumlist: list int) (C Nonce: SixteenByte): list int 
                 upd_Znth_in_list (6+j) (upd_Znth_in_list (5*j) s five) six
        end.
 
-Lemma HTrue_loop2 Espec: forall t y x w nonce out c k h OUT
-  ys intsums Nonce C K (ZL_Y: Zlength ys = 16) (SL : Zlength intsums = 16),
+Lemma HTrue_loop2 Espec: forall t y x w nonce out c k h OUT ys intsums Nonce C K,
 @semax CompSpecs Espec 
   (initialized_list [_i] (func_tycontext f_core SalsaVarSpecs SalsaFunSpecs))
   (PROP  ()
@@ -230,7 +230,9 @@ Lemma HTrue_loop2 Espec: forall t y x w nonce out c k h OUT
  `(data_at_ Tsh (tarray tuint 4) t); `(data_at_ Tsh (tarray tuint 16) w);
  `(data_at Tsh (tarray tuchar 64) OUT out)))).
 Proof. intros. abbreviate_semax. unfold CoreInSEP. normalize.
-  forward_for_simple_bound 4 (EX i:Z, 
+  assert_PROP (Zlength (map Vint ys) = 16). entailer. rename H into ZL_Y; rewrite Zlength_map in ZL_Y.
+  assert_PROP (Zlength (map Vint intsums) = 16). entailer. rename H into SL; rewrite Zlength_map in SL.
+  LENBforward_for_simple_bound 4 (EX i:Z, 
   (PROP  ()
    LOCAL  ((*NOTE: we have to remove the old i here to get things to work: temp _i (Vint (Int.repr 16)); *)
            lvar _t (tarray tuint 4) t;
@@ -247,32 +249,14 @@ Proof. intros. abbreviate_semax. unfold CoreInSEP. normalize.
       unfold SByte at 2. rewrite data_at_isptr with (p:=c). normalize.
       apply isptrD in Pc. destruct Pc as [cb [coff HC]]. rewrite HC in *.
       Opaque Zmult. Opaque Z.add. 
-(*Issue: we now need the following semax_pre (dropping the eq "4 = 4" in LOCAL)
-    to get the ensuing "foward" to succeed. The "4=4" seems to be a new residue of the
-   forward_for_simple_bound*)
-  apply semax_pre with (P':=
-  (PROP  ()
-   LOCAL  (temp _i (Vint (Int.repr i));
-   lvar _t (tarray tuint 4) t; lvar _y (tarray tuint 16) y;
-   lvar _x (tarray tuint 16) x; lvar _w (tarray tuint 16) w; temp _in nonce;
-   temp _out out; temp _c (Vptr cb coff); temp _k k;
-   temp _h (Vint (Int.repr h)))
-   SEP  (`(SByte Nonce nonce);
-   `(data_at Tsh (Tarray tuchar 16 noattr) (SixteenByte2ValList C)
-       (Vptr cb coff)); `(ThirtyTwoByte K k);
-   `(data_at Tsh (tarray tuint 16)
-       (map Vint (hPosLoop2 (Z.to_nat i) intsums C Nonce)) x);
-   `(data_at Tsh (tarray tuint 16) (map Vint ys) y);
-   `(data_at_ Tsh (tarray tuint 4) t); `(data_at_ Tsh (tarray tuint 16) w);
-   `(data_at Tsh (tarray tuchar 64) OUT out)))). entailer.
 
-  forward v.
+      forward v.
       assert (C16:= SixteenByte2ValList_Zlength C).
       remember (SplitSelect16Q C i) as FB; destruct FB as (Front, BACK).
       specialize (Select_SplitSelect16Q C i _ _ HeqFB); intros SSS.
-  assert_PROP (field_compatible (Tarray tuchar 16 noattr) [] (Vptr cb coff)). entailer.
-  rename H into FC.
-  destruct (Select_SplitSelect16Q_Zlength _ _ _ _ HeqFB I) as[FL BL].
+      assert_PROP (field_compatible (Tarray tuchar 16 noattr) [] (Vptr cb coff)). entailer.
+      rename H into FC.
+      destruct (Select_SplitSelect16Q_Zlength _ _ _ _ HeqFB I) as[FL BL].
 
  (* An alternative to Select_Unselect_Tarray_at is to use
     (split3_data_at_Tarray_at_tuchar Tsh 16 (Zlength (QuadChunks2ValList Front)) 
@@ -510,8 +494,7 @@ Lemma hposLoop3_length xlist old: forall n, (16+4*Z.of_nat n<Zlength old) ->
     simpl. rewrite IHn. omega. omega. 
   Qed.
 
-Lemma HTrue_loop3 Espec: forall t y x w nonce out c k h OUT
-  xs ys Nonce C K (ZL_X: Zlength xs = 16) (OL: Zlength OUT = 64),
+Lemma HTrue_loop3 Espec t y x w nonce out c k h OUT xs ys Nonce C K:
 @semax CompSpecs Espec 
   (initialized_list [_i] (func_tycontext f_core SalsaVarSpecs SalsaFunSpecs))
   (PROP  ()
@@ -576,7 +559,9 @@ Lemma HTrue_loop3 Espec: forall t y x w nonce out c k h OUT
        `(data_at_ Tsh (tarray tuint 4) t); `(data_at_ Tsh (tarray tuint 16) w);
        `(data_at Tsh (tarray tuchar 64) (hPosLoop3 4 xs OUT) out)))).
 Proof. intros. abbreviate_semax.
- forward_for_simple_bound 4 (EX i:Z, 
+ assert_PROP (Zlength (map Vint xs) = 16). entailer. rename H into ZL_X; rewrite Zlength_map in ZL_X.
+ assert_PROP (Zlength OUT = 64). entailer. rename H into OL.
+ LENBforward_for_simple_bound 4 (EX i:Z, 
   (PROP  ()
    LOCAL  (lvar _t (tarray tuint 4) t; lvar _y (tarray tuint 16) y;
    lvar _x (tarray tuint 16) x; lvar _w (tarray tuint 16) w; temp _in nonce;
@@ -588,19 +573,6 @@ Proof. intros. abbreviate_semax.
    `(data_at Tsh (tarray tuchar 64) (hPosLoop3 (Z.to_nat i) xs OUT) out)))).
     { entailer. }
   { rename H into I. 
-
-  (*again, need to remove the "4=4"*)
-    apply semax_pre with (P':=
-  (PROP  ()
-   LOCAL  (temp _i (Vint (Int.repr i));
-   lvar _t (tarray tuint 4) t; lvar _y (tarray tuint 16) y;
-   lvar _x (tarray tuint 16) x; lvar _w (tarray tuint 16) w; temp _in nonce;
-   temp _out out; temp _c c; temp _k k; temp _h (Vint (Int.repr h)))
-   SEP  (`(SByte Nonce nonce); `(SByte C c); `(ThirtyTwoByte K k);
-   `(data_at Tsh (tarray tuint 16) (map Vint xs) x);
-   `(data_at Tsh (tarray tuint 16) (map Vint ys) y);
-   `(data_at_ Tsh (tarray tuint 4) t); `(data_at_ Tsh (tarray tuint 16) w);
-   `(data_at Tsh (tarray tuchar 64) (hPosLoop3 (Z.to_nat i) xs OUT) out)))). entailer.
 
     assert (P3_Zlength: Zlength (hPosLoop3 (Z.to_nat i) xs OUT) = 64).
       rewrite hposLoop3_length. assumption. rewrite OL, Z2Nat.id; omega.
@@ -728,8 +700,7 @@ Definition HTruePostCond t y x w nonce out c k h (xs:list int) ys Nonce C K OUT 
        `(data_at Tsh (tarray tuchar 64)
           (hPosLoop3 4 (hPosLoop2 4 intsums C Nonce) OUT) out))).
 
-Lemma verif_fcore_epilogue_htrue Espec: forall t y x w nonce out c k h OUT
-  xs ys Nonce C K (ZL_X: Zlength xs = 16) (ZL_Y: Zlength ys = 16) (L_OUT: Zlength OUT = 64),
+Lemma verif_fcore_epilogue_htrue Espec t y x w nonce out c k h OUT xs ys Nonce C K:
 @semax CompSpecs Espec
   (initialized_list [_i] (func_tycontext f_core SalsaVarSpecs SalsaFunSpecs))
   (PROP  ()
@@ -902,7 +873,6 @@ forward_seq.
 eapply semax_pre_post.
   Focus 3. apply (HTrue_loop3 Espec t y x w nonce out c k h OUT 
             (hPosLoop2 4 intsums C Nonce) ys Nonce C K); try assumption.
-           rewrite hposLoop2_Zlength16; trivial.
   entailer. 
 unfold POSTCONDITION, abbreviate, HTruePostCond. Opaque ThirtyTwoByte. Opaque hPosLoop2. Opaque hPosLoop3.
 intros. entailer. simpl. apply normal_ret_assert_derives.
