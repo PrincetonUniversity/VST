@@ -1014,16 +1014,14 @@ repeat match goal with
 | |- context [snd (?a,?b) ] => change (snd (a,b)) with b 
 end.
 
-Tactic Notation "forward_while" constr(Inv) constr (Postcond) :=
+Tactic Notation "forward_while" constr(Inv) :=
   check_Delta;
   repeat (apply -> seq_assoc; abbreviate_semax);
-  first [ignore (Inv: environ->mpred) 
-         | fail 1 "Invariant (first argument to forward_while) must have type (environ->mpred)"];
-  first [ignore (Postcond: environ->mpred)
-         | fail 1 "Postcondition (second argument to forward_while) must have type (environ->mpred)"];
+  first [ignore (Inv: bool -> environ->mpred) 
+         | fail 1 "Invariant (first argument to forward_while) must have type (bool -> environ->mpred)"];
   apply semax_pre with Inv;
     [  unfold_function_derives_right 
-    | apply semax_seq with Postcond;
+    | eapply semax_seq;
       [repeat match goal with
        | |- semax _ (exp _) _ _ => fail 1
        | |- semax _ (PROPx _ _) _ _ => fail 1
@@ -1035,43 +1033,40 @@ Tactic Notation "forward_while" constr(Inv) constr (Postcond) :=
           repeat rewrite exp_uncurry in Hp; subst p
        end;
        match goal with |- semax ?Delta ?Pre (Swhile ?e _) _ =>
-        first [eapply semax_while'_new | eapply semax_while'_new1]; 
+        eapply semax_while_3g; 
         simpl typeof;
        [ reflexivity 
        | no_intros || idtac
        | do_compute_expr1 Delta Pre e; eassumption
-       | no_intros || (autorewrite with ret_assert;
-         let HRE := fresh "HRE" in apply derives_extract_PROP; intro HRE;
+       | no_intros; simpl_fst_snd; 
+         let HRE := fresh "HRE" in apply semax_extract_PROP; intro HRE;
+         first [simple apply typed_true_of_bool in HRE
+               | apply typed_true_tint_Vint in HRE
+               | apply typed_true_tint in HRE
+               | idtac ];
+         repeat (apply semax_extract_PROP; intro); 
+         do_repr_inj HRE; normalize in HRE
+        ]
+       end
+       | simpl update_tycon; 
+         apply extract_exists_pre; no_intros; simpl_fst_snd;
+         let HRE := fresh "HRE" in apply semax_extract_PROP; intro HRE;
          first [simple apply typed_false_of_bool in HRE
                | apply typed_false_tint_Vint in HRE
                | apply typed_false_tint in HRE
                | idtac ];
-         repeat (apply derives_extract_PROP; intro); 
-         do_repr_inj HRE; normalize in HRE)
-       | no_intros || (let HRE := fresh "HRE" in apply semax_extract_PROP; intro HRE;
-         first [simple apply typed_true_of_bool in HRE
-                | apply typed_true_tint_Vint in HRE
-                | apply typed_true_tint in HRE
-                | idtac ];
-          repeat (apply semax_extract_PROP; intro); 
-          do_repr_inj HRE; normalize in HRE)
-        ]
-       end
-       | simpl update_tycon 
+         repeat (apply semax_extract_PROP; intro)
        ]
      ]; abbreviate_semax; autorewrite with ret_assert.
 
-
-Tactic Notation "forward_while" constr(Inv) constr (Postcond) 
+Tactic Notation "forward_while" constr(Inv)
      simple_intropattern(pat) :=
   repeat (apply -> seq_assoc; abbreviate_semax);
   first [ignore (Inv: environ->mpred) 
          | fail 1 "Invariant (first argument to forward_while) must have type (environ->mpred)"];
-  first [ignore (Postcond: environ->mpred)
-         | fail 1 "Postcondition (second argument to forward_while) must have type (environ->mpred)"];
   apply semax_pre with Inv;
     [  unfold_function_derives_right 
-    | apply semax_seq with Postcond;
+    | eapply semax_seq;
       [repeat match goal with
        | |- semax _ (exp _) _ _ => fail 1
        | |- semax _ (PROPx _ _) _ _ => fail 1
@@ -1082,32 +1077,30 @@ Tactic Notation "forward_while" constr(Inv) constr (Postcond)
           remember Pre as p eqn:Hp;
           repeat rewrite exp_uncurry in Hp; subst p
        end;
-       match goal with |- semax ?Delta ?Pre (Swhile ?e _) _ =>
-        first [eapply semax_while'_new | eapply semax_while'_new1]; 
+      match goal with |- semax ?Delta ?Pre (Swhile ?e _) _ =>
+        eapply semax_while_3g1; 
         simpl typeof;
        [ reflexivity 
        | intros pat; simpl_fst_snd
        | do_compute_expr1 Delta Pre e; eassumption
        | intros pat; simpl_fst_snd; 
-         autorewrite with ret_assert;
-         let HRE := fresh "HRE" in apply derives_extract_PROP; intro HRE;
+         let HRE := fresh "HRE" in apply semax_extract_PROP; intro HRE;
+         first [simple apply typed_true_of_bool in HRE
+               | apply typed_true_tint_Vint in HRE
+               | apply typed_true_tint in HRE
+               | idtac ];
+         repeat (apply semax_extract_PROP; intro); 
+         do_repr_inj HRE; normalize in HRE
+        ]
+       end
+       | simpl update_tycon; 
+         apply extract_exists_pre; intros pat; simpl_fst_snd;
+         let HRE := fresh "HRE" in apply semax_extract_PROP; intro HRE;
          first [simple apply typed_false_of_bool in HRE
                | apply typed_false_tint_Vint in HRE
                | apply typed_false_tint in HRE
                | idtac ];
-         repeat (apply derives_extract_PROP; intro); 
-         do_repr_inj HRE; normalize in HRE
-       | intros pat; simpl_fst_snd;
-          let HRE := fresh "HRE" in apply semax_extract_PROP; intro HRE;
-         first [simple apply typed_true_of_bool in HRE
-                | apply typed_true_tint_Vint in HRE
-                | apply typed_true_tint in HRE
-                | idtac ];
-          repeat (apply semax_extract_PROP; intro); 
-          do_repr_inj HRE; normalize in HRE
-        ]
-       end
-       | simpl update_tycon 
+         repeat (apply semax_extract_PROP; intro)
        ]
      ]; abbreviate_semax; autorewrite with ret_assert.
 
@@ -3264,138 +3257,3 @@ assert (H : Forall
   by (repeat constructor; try apply Zge_refl);
 let a := eval vm_compute in (mk_prog_compspecs prog H)
  in exact a.
-
-(**** tactics for value_fits  ****)
-
-Lemma value_fits_Tstruct:
-  forall {cs: compspecs} sh t (v: reptype t) i a m v2 r,
-  t = Tstruct i a ->
-  m = co_members (get_co i)  ->
-  JMeq (@unfold_reptype cs t v) v2 ->
-  r =struct_Prop m 
-          (fun it => value_fits sh (fieldlist.field_type2 (fst it) m))  v2 ->
-  value_fits sh t v = r.
-Proof.
-intros.
-subst.
-rewrite value_fits_ind; simpl.
-f_equal.
-apply JMeq_eq in H1. auto.
-Qed.
-
-Lemma value_fits_by_value_defined:
-  forall {cs: compspecs} (sh: bool) t t' v r,
-   type_is_by_value t = true ->  
-   repinject t v <> Vundef  ->
-   t = t' ->
-   (r = if type_is_volatile t' then True
-       else if sh then tc_val t' (repinject t v) else True) ->
-   value_fits sh t v = r. 
-Proof.
-intros. subst t' r.
-rewrite value_fits_ind.
-unfold tc_val'.
-destruct t; inv H;
- (if_tac; auto; if_tac; auto; apply prop_ext; intuition).
-Qed.
-
-Lemma value_fits_by_value_Vundef:
-  forall {cs: compspecs} (sh: bool) t v,
-   type_is_by_value t = true ->  
-   repinject t v = Vundef  ->
-   value_fits sh t v = True. 
-Proof.
-intros.
-rewrite value_fits_ind.
-unfold tc_val'.
-destruct t; inv H;
- (if_tac; auto; if_tac; auto; apply prop_ext; intuition).
-Qed.
-
-Lemma value_fits_by_value:
-  forall {cs: compspecs} (sh: bool) t t' v r,
-   type_is_by_value t = true ->
-   t = t' ->  
-   (r = if type_is_volatile t then True
-       else if sh then tc_val' t' (repinject t v) else True) ->
-   value_fits sh t v = r. 
-Proof.
-intros. subst r t'.
-rewrite value_fits_ind.
-unfold tc_val'.
-destruct t; inv H;
- (if_tac; auto; if_tac; auto; apply prop_ext; intuition).
-Qed.
-
-Lemma value_fits_Tarray:
-  forall {cs: compspecs} (sh: bool) t (v: reptype t) t' n a 
-    (v' : list (reptype t')) r,
-  t = (Tarray t' n a) ->
-  JMeq (unfold_reptype v) v' ->
-  n >= 0 ->
-  r = (Zlength v' = n /\ Forall (value_fits sh t') v') ->
-  value_fits sh t v =r.
-Proof.
-intros.
-subst. rewrite value_fits_ind.
-apply JMeq_eq in H0. rewrite H0.
-rewrite Z.max_r by omega. auto.
-Qed.
-
-Ltac cleanup_unfold_reptype :=
-    match goal with |- JMeq (unfold_reptype ?A) _ =>
-                 instantiate (1:=A); reflexivity
-    end.
-
-Ltac simplify_value_fits' :=
-first
- [erewrite value_fits_Tstruct;
-    [ | reflexivity 
-    | simpl; reflexivity
-    | cleanup_unfold_reptype
-    | simpl; reflexivity]
- |erewrite value_fits_Tarray;
-    [ | reflexivity
-    | cleanup_unfold_reptype
-    | subst; try computable; omega
-    | simpl; reflexivity
-    ]
- | erewrite value_fits_by_value_defined;
-   [ | reflexivity
-   | subst; clear; simpl; intro; discriminate
-   | simpl; lazy beta iota zeta delta [field_type]; simpl; reflexivity
-   | simpl; reflexivity
-   ]
- | rewrite value_fits_by_value_Vundef;
-   [ | reflexivity | reflexivity 
-   ]
- | erewrite value_fits_by_value;
-   [ | reflexivity
-   | simpl; lazy beta iota zeta delta [field_type]; simpl; reflexivity
-   | simpl; reflexivity
-   ]
- ];
- cbv beta.
-
-Tactic Notation "simplify_value_fits" :=
-  simplify_value_fits'.
-
-Tactic Notation "simplify_value_fits" "in" hyp(H) :=
-  match type of H with ?A => 
-  let a := fresh "a" in set (a:=A) in H;
-   let H1 := fresh in assert (H1: a = A) by (apply eq_refl);
-   clearbody a;
-   match goal with |- ?B => 
-    let BB := fresh "BB" in set (BB:=B);
-   revert H1; simplify_value_fits'; intro H1; subst a; subst BB
-  end
- end.
-
-Tactic Notation "simplify_value_fits" "in" "*" :=
-repeat match goal with
- | H: context [value_fits _ _ _] |- _ => 
-  simplify_value_fits in H
-end;
- repeat simplify_value_fits'.
-
-(*** end tactics for value_fits ***)

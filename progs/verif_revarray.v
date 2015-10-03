@@ -232,8 +232,6 @@ assert_PROP (Zlength (map Vint contents) = size).
  entailer.
 rename H0 into ZL.
 forward_while (reverse_Inv a0 sh (map Vint contents) size)
-    (PROP  () LOCAL  (temp _a a0)
-   SEP (`(data_at sh (tarray tint size) (map Vint (rev contents)) a0)))
    j.
 (* Prove that current precondition implies loop invariant *)
 apply exp_right with 0.
@@ -244,11 +242,6 @@ f_equal.
 apply flip_fact_0; auto.
 (* Prove that loop invariant implies typechecking condition *)
 entailer!.
-(* Prove that invariant && not loop-cond implies postcondition *)
-entailer!.
-apply derives_refl'.
-f_equal.
-rewrite map_rev. apply flip_fact_1; try omega. auto.
 (* Prove that loop body preserves invariant *)
 forward. (* t = a[lo]; *)
 {
@@ -296,7 +289,10 @@ forward. (* hi--; *)
  rewrite ?Zlength_sublist by (rewrite ?Zlength_flip_between ; omega).
  apply flip_fact_3; auto.
 }
+(* after the loop *)
 forward. (* return; *)
+rewrite map_rev. rewrite flip_fact_1 by omega.
+auto.
 Qed.
 
 Definition four_contents := [Int.repr 1; Int.repr 2; Int.repr 3; Int.repr 4].

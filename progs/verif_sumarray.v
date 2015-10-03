@@ -96,21 +96,12 @@ name x _x.
 forward.  (* i = 0; *) 
 forward.  (* s = 0; *)
 forward_while (sumarray_Inv a0 sh contents size)
-    (PROP  () 
-     LOCAL (temp _a a0;
-            temp _s (Vint (sum_int contents)))
-     SEP   (`(data_at sh (tarray tint size) (map Vint contents) a0)))
      a1.
 (* Prove that current precondition implies loop invariant *)
 apply exp_right with 0.
 entailer!.
 (* Prove that loop invariant implies typechecking condition *)
 entailer!.
-(* Prove that invariant && not loop-cond implies postcondition *)
-entailer!.
-rewrite Zlength_map in *.
-rewrite sublist_same by omega.
-reflexivity.
 (* Prove postcondition of loop body implies loop invariant *)
 forward. (* x = a[i] *)
 entailer!.
@@ -124,6 +115,10 @@ forward. (* i++; *)
  f_equal; apply add_one_more_to_sum; try omega; auto.
 (* After the loop *)
 forward.  (* return s; *)
+entailer!.
+rewrite Zlength_map in *.
+rewrite sublist_same by omega.
+reflexivity.
 Qed.
 
 

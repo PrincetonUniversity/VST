@@ -189,7 +189,6 @@ name h _h.
 forward.  (* s = 0; *) 
 forward.  (* t = p; *)
 forward_while (sumlist_Inv sh contents)
-    (PROP() LOCAL (temp _s (Vint (sum_int contents))) SEP (TT))
     [cts t0].
 * (* Prove that current precondition implies loop invariant *)
 apply exp_right with contents.
@@ -197,12 +196,6 @@ apply exp_right with p.
 entailer!.
 * (* Prove that loop invariant implies typechecking condition *)
 entailer!.
-* (* Prove that invariant && not loop-cond implies postcondition *)
-subst.
-rewrite lseg_eq by (simpl; auto).
-entailer!.
-destruct cts; [| inversion H].
-normalize.
 * (* Prove that loop body preserves invariant *)
 focus_SEP 1; apply semax_lseg_nonnull; [ | intros h' r y ? ?].
 entailer!.
@@ -224,6 +217,8 @@ f_equal.
              Int.add_neg_zero, Int.add_zero; auto.
 * (* After the loop *)
 forward.  (* return s; *)
+destruct cts; [| inversion H0].
+normalize.
 Qed.
 
 Definition reverse_Inv (sh: share) (contents: list val) : environ->mpred :=
@@ -232,10 +227,6 @@ Definition reverse_Inv (sh: share) (contents: list val) : environ->mpred :=
             LOCAL (temp _w w; temp _v v)
             SEP (`(lseg LS sh cts1 w nullval);
                    `(lseg LS sh cts2 v nullval))).
-
-Definition reverse_Post sh contents := (EX w: val, 
-      PROP() LOCAL (temp _w w)
-      SEP( `(lseg LS sh (rev contents) w nullval))).
 
 Lemma body_reverse: semax_body Vprog Gprog f_reverse reverse_spec.
 Proof.
@@ -246,7 +237,7 @@ name w_ _w.
 name t_ _t.
 forward.  (* w = NULL; *)
 forward.  (* v = p; *)
-forward_while (reverse_Inv sh contents) (reverse_Post sh contents)
+forward_while (reverse_Inv sh contents)
       [[[cts1 cts2] w] v].
 * (* precondition implies loop invariant *)
 apply exp_right with nil.
@@ -257,13 +248,6 @@ rewrite lseg_eq by (simpl; auto).
 entailer!.
 * (* loop invariant implies typechecking of loop condition *)
 entailer!.
-* (* loop invariant (and not loop condition) implies loop postcondition *)
-apply exp_right with w.
-subst.
-rewrite lseg_eq by (simpl; auto).
-entailer!.
-rewrite <- app_nil_end, rev_involutive.
-auto.
 * (* loop body preserves invariant *)
 focus_SEP 1; apply semax_lseg_nonnull;
         [entailer | intros h r y ? ?; simpl valinject].
@@ -289,9 +273,10 @@ entailer!.
       apply exp_right with w.
       entailer!.
 * (* after the loop *)
-forward_intro w.
 forward.  (* return w; *)
 apply exp_right with w_; entailer!.
+rewrite <- app_nil_end, rev_involutive.
+auto.
 Qed.
 
 (** The next two lemmas concern the extern global initializer, 
