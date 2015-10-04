@@ -508,7 +508,7 @@ Qed.
 Hint Resolve closed_wrtl_var : closed.
 
 Lemma closed_wrt_lvar:
-  forall S id t v, closed_wrt_vars S (lvar id t v).
+  forall {cs: compspecs} S id t v, closed_wrt_vars S (lvar id t v).
 Proof.
 unfold lvar; intros.
 hnf; intros; simpl.
@@ -534,7 +534,7 @@ Hint Resolve closed_wrt_sgvar : closed.
 
 
 Lemma closed_wrtl_lvar:
- forall S id t v, ~ S id -> closed_wrt_lvars S (lvar id t v).
+ forall  {cs: compspecs} S id t v, ~ S id -> closed_wrt_lvars S (lvar id t v).
 Proof.
 unfold lvar; intros.
 hnf; intros; simpl.

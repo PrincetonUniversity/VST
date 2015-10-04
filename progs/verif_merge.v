@@ -282,55 +282,6 @@ Proof.
   induction a; simpl; auto.
 Qed.
 
-Lemma lvar_align_compatible _a t p :
-  local (lvar _a t p) = local (lvar _a t p) && !!align_compatible t p.
-Proof.
-  apply pred_ext; entailer; intuition.
-  unfold lvar in *.
-  remember (Map.get (ve_of rho) _a) as X.
-  destruct X as [[p1 t1]|]; simpl in *; try tauto.
-  if_tac in H; try tauto; subst.
-  exists 0; auto.
-Qed.
-
-Lemma lvar_align_compatible_param P Q _a t p :
-  P |-- local (lvar _a t p) ->
-  (align_compatible t p -> P |-- Q) ->
-  (P |-- Q).
-Proof.
-  intros.
-  assert_PROP (align_compatible t p).
-  eapply derives_trans; eauto.
-  rewrite lvar_align_compatible; entailer.
-  tauto.
-Qed.
-
-Lemma lvar_size_compatible:
-  forall  {cs: compspecs} id t v rho,
-  lvar id t v rho -> size_compatible t v.
-Admitted.  (* need to adjust definition of lvar to prove this! *)
-
-Lemma lvar_field_compatible:
-   forall {cs: compspecs} id t v rho,
-    lvar id t v rho ->
-    legal_alignas_type t = true ->
-    legal_cosu_type t = true ->
-    complete_type cenv_cs t = true ->
-    sizeof cenv_cs t < Int.modulus ->
- field_compatible t nil v.
-Proof.
-intros.
-pose proof (lvar_size_compatible _ _ _ _ H).
-hnf in H.
-destruct (Map.get (ve_of rho) id); try contradiction.
-destruct p.
-if_tac in H; try contradiction.
-repeat split; auto.
-subst; apply I.
-subst; hnf. exists 0. rewrite Z.mul_0_l.
-reflexivity.
-Qed.
-
 Lemma mapsto_data_at sh v p : 
   readable_share sh ->
   isptr p ->
@@ -413,23 +364,7 @@ name vb__ _vb.
 name x__ _x.
 name ret__ _ret.
 name cond__ _cond.
-
-(* TODO-LTAC
-  - [fixup_local_var] should recognize [var_block] instead of requiring it
-    unfolded.
-  - [simpl_stackframe_of] should in fact do this work as well *)
-simpl_stackframe_of.
-unfold var_block.
-fixup_local_var.
-intro ret_.
-simpl @fst. simpl @snd.
-normalize. clear H.
-
-assert_PROP (field_compatible (tptr (Tstruct _list noattr)) [] ret_). {
-  entailer!.
-  eapply lvar_field_compatible; eauto; reflexivity.
-}
-rewrite memory_block_data_at_ by auto.
+simpl_stackframe_of. rename lvar0 into ret_.
 change (tptr (Tstruct _list noattr)) with tlist in *.
 
 forward.
@@ -488,12 +423,14 @@ now entailer!.
  entailer!.
 *)
 + (* Loop body preserves invariant *)
-clear - SH HRE H2 H3.
+clear - SH HRE H1 H2.
 rename cond0 into cond, a0 into a, b0 into b, merged0 into merged,
  a_0 into a_, b_0 into b_, c_0 into c_, begin0 into begin.
 assert (a_ <> nullval) by intuition.
 assert (b_ <> nullval) by intuition.
-clear H3.
+clear H2.
+drop_LOCAL 4%nat. (* cond *)
+clear cond HRE.
 rewrite lseg_unfold.
 destruct a as [|va a']; simpl.
   (* [a] cannot be empty *)
@@ -501,8 +438,6 @@ destruct a as [|va a']; simpl.
 normalize.
 intros a_'.
 normalize.
-clear H1. (* redundant with H *)
-
 (* Now the command [va = a->head] can proceed *)
 rewrite list_cell_field_at.
 forward.
@@ -514,19 +449,16 @@ destruct b as [|vb b']; simpl.
 normalize.
 intros b_'.
 normalize.
-clear H1.  (* redundant with H0 *)
+clear H2 H3.  (* redundant *)
 
 (* [vb = b->head] *)
 rewrite list_cell_field_at.
 forward.
 
-(* removing cond *)
-drop_LOCAL 6%nat.
-clear cond HRE.
 
 (* The main if : we split at the same time the Coq expression B and
 the actual if. *)
-simpl in H2.
+simpl in H1.
 remember (negb (Int.lt vb va)) as B; destruct B ;
 forward_if (
   @exp (environ -> mpred) _ _ (fun a : list int =>
@@ -616,7 +548,7 @@ forward VAR.
 subst VAR.
 Exists a' (vb::b') (merged ++ [va]) a_' b_ a_ begin.
 rewrite <- app_assoc. simpl app.
-rewrite <- H2. clear H2.
+rewrite <- H1. clear H1.
 destruct (merged ++ [va]) eqn:?.
 destruct merged; inv Heql.
 forget (i::l) as merged''; clear i l.
@@ -644,8 +576,7 @@ rewrite list_cell_field_at.
 entailer!.
 
 (* other branch of the if: contradiction *)
-rewrite H1 in HeqB.
-inversion HeqB.
+rewrite H2 in HeqB; inversion HeqB.
 
 (* After the if, putting boolean value into "cond" *)
 clear -SH.
@@ -681,8 +612,7 @@ now entailer.
 (* * Other case: vb < va || Warning, below is mostly copy-pasted from above*)
 
 (* first branch of the if: contradiction *)
-rewrite H1 in HeqB.
-inversion HeqB.
+rewrite H2 in HeqB; inversion HeqB.
 
 (* COMMAND : [*x = b] *)
 (* forward fails so we transform the SEP condition to get something accepted by [forward] *)
@@ -804,12 +734,12 @@ now entailer.
 
 (* After the while *)
 +
-clear a b merged a_ b_ c_ cond H0 H1 begin.
+clear a b merged a_ b_ c_ cond H H0 begin.
 rename cond0 into cond, a0 into a, b0 into b, merged0 into merged,
  a_0 into a_, b_0 into b_, c_0 into c_, begin0 into begin.
 subst cond.
-assert (a_ = nullval \/ b_ = nullval) by (clear - H3; intuition).
-clear H3.
+assert (a_ = nullval \/ b_ = nullval) by (clear - H2; intuition).
+clear H2.
 
 forward_if (
   @exp (environ -> mpred) _ _ (fun a : list int =>
@@ -832,8 +762,8 @@ forward_if (
 
 (* when a <> [] *)
 assert_PROP (b_ = nullval /\ b = []).
-  entailer!; intuition. destruct b; inv H0;  auto.
-destruct H3; subst b_ b.
+  entailer!; intuition. destruct b; inv H;  auto.
+destruct H2; subst b_ b.
 
 destruct merged as [|hmerge tmerge].
 
@@ -878,7 +808,7 @@ assert_PROP (a = []).
   destruct a; [ apply prop_right; reflexivity | ].
   simpl map; rewrite lseg_unfold.
   subst a_; entailer.
-  elim H4; clear; intuition.
+  elim H3; clear; intuition.
 subst a.
 
 destruct merged as [|hmerge tmerge].

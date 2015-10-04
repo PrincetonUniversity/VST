@@ -1028,7 +1028,8 @@ Proof.
   destruct H as [_ [? [? ?]]].
   hnf in H,H1.
   destruct H0.
-  specialize (H _ _ H0). destruct H; rewrite H.
+  specialize (H i t). destruct H as [H _]. specialize (H H0).
+  destruct H; rewrite H.
   rewrite eqb_type_refl.
   simpl. auto.
   destruct H0. 

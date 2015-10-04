@@ -25,6 +25,7 @@ Require Import floyd.globals_lemmas.
 Require Import floyd.semax_tactics.
 Require Import floyd.for_lemmas.
 Require Import floyd.diagnosis.
+Require Import floyd.nested_pred_lemmas.
 Import Cop.
 
 Lemma field_address_eq_offset:
@@ -49,6 +50,56 @@ Hint Resolve field_address_eq_offset' : prove_it_now.
 Hint Rewrite <- @prop_and using solve [auto with typeclass_instances]: norm1.
 
 Local Open Scope logic.
+
+Lemma var_block_lvar1:
+ forall {cs: compspecs} id t Delta P Q R,
+   (var_types Delta) ! id = Some t ->
+   legal_alignas_type t = true ->
+   legal_cosu_type t = true ->
+   complete_type cenv_cs t = true ->
+   sizeof cenv_cs t < Int.modulus ->
+  PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx (var_block Tsh (id,t) :: R))) |--
+  EX v:val, PROPx P (LOCALx (lvar id t v :: Q) (SEPx (`(data_at_ Tsh t v) :: R))).
+Proof.
+intros.
+assert (Int.unsigned Int.zero + sizeof cenv_cs t <= Int.modulus)
+ by (rewrite Int.unsigned_zero; omega).
+unfold var_block, lvar, eval_lvar.
+go_lowerx.
+normalize.
+unfold Map.get.
+destruct (ve_of rho id) as [[? ?] | ] eqn:?.
+destruct (eqb_type t t0) eqn:?.
+apply eqb_type_true in Heqb0.
+subst t0.
+apply exp_right with (Vptr b Int.zero).
+unfold size_compatible.
+rewrite prop_true_andp. rewrite TT_andp.
+apply sepcon_derives; auto.
+rewrite memory_block_data_at_.
+auto.
+split3; auto. apply I.
+split3; auto.
+split3; auto.
+split; auto.
+red. exists 0. rewrite Z.mul_0_l. apply Int.unsigned_zero.
+apply I.
+split; auto.
+rewrite memory_block_isptr; normalize.
+rewrite memory_block_isptr; normalize.
+Qed.
+
+Ltac fixup_local_var :=
+match goal with |- semax _ (PROPx _ (LOCALx _ (SEPx ?R))) _ _ =>
+ match R with
+ | context [var_block ?i ?t :: ?L] => 
+   let n := eval compute in (length R - (S (length L)))%nat
+    in rewrite (SEP_nth_isolate n R (var_block i t)) by reflexivity;
+        unfold replace_nth;
+        eapply semax_pre; [apply var_block_lvar1; now reflexivity 
+                 | apply extract_exists_pre; intros ?lvar0 ]
+ end
+end.
 
 Definition tc_option_val' (t: type) : option val -> Prop :=
  match t with Tvoid => fun v => match v with None => True | _ => False end | _ => fun v => tc_val t (force_val v) end.
@@ -109,7 +160,7 @@ Ltac forward_seq :=
 
 Ltac simpl_stackframe_of := 
   unfold stackframe_of, fn_vars; simpl map; unfold fold_right; rewrite sepcon_emp;
-  repeat rewrite var_block_data_at_ by reflexivity;
+  repeat fixup_local_var;
   repeat rewrite prop_true_andp by (simpl sizeof; computable).
 
 (* end of "stuff to move elsewhere" *)
@@ -158,7 +209,8 @@ Lemma local_True_right:
 Proof. intros. intro rho; apply TT_right.
 Qed.
 
-Lemma normalize_lvar:
+(*
+Lemma normalize_lvar {cs: compspecs}:
   forall v i t rho,  isptr (eval_lvar i t rho) ->
         v  = (eval_lvar i t rho) -> lvar i t v rho.
 Proof.
@@ -169,13 +221,15 @@ destruct (Map.get (ve_of rho) i) as [[? ?] | ].
 destruct (eqb_type t t0); inv H; auto.
 inv H.
 Qed.
+*)
 
-Lemma lvar_isptr:
+Lemma lvar_isptr {cs: compspecs}:
   forall i t v rho, lvar i t v rho -> isptr v.
 Proof.
 unfold lvar; intros.
 destruct (Map.get (ve_of rho) i) as [[? ?]|]; try contradiction.
-destruct (eqb_type t t0); try contradiction; subst; apply I.
+destruct (eqb_type t t0); try contradiction.
+destruct H; subst; apply I.
 Qed.
 
 Lemma gvar_isptr:
@@ -195,14 +249,16 @@ destruct (ge_of rho i); try contradiction.
 subst; apply I.
 Qed.
 
-Lemma lvar_eval_lvar:
+Lemma lvar_eval_lvar {cs: compspecs}:
   forall i t v rho, lvar i t v rho -> eval_lvar i t rho = v.
 Proof.
 unfold lvar, eval_lvar; intros.
 destruct (Map.get (ve_of rho) i) as [[? ?]|]; try contradiction.
-destruct (eqb_type t t0); try contradiction; subst; auto.
+destruct (eqb_type t t0); try contradiction.
+destruct H; subst; auto.
 Qed.
 
+(*
 Lemma lvar_eval_lvar':
   forall i t rho, 
    isptr (eval_lvar i t rho) ->
@@ -213,16 +269,18 @@ Proof.
   destruct (Map.get (ve_of rho) i) as [[? ?]|]; try contradiction; auto.
   destruct (eqb_type t t0); try contradiction; auto.
 Qed.
+*)
 
-Lemma lvar_eval_var:
+Lemma lvar_eval_var {cs: compspecs}:
  forall i t v rho, lvar i t v rho -> eval_var i t rho = v.
 Proof.
 intros.
 unfold eval_var. hnf in H. destruct (Map.get (ve_of rho) i) as [[? ?]|]; try inv H.
-destruct (eqb_type t t0); try inv H. auto.
+destruct (eqb_type t t0); try contradiction.
+destruct H; auto.
 Qed.
 
-Lemma lvar_isptr_eval_var:
+Lemma lvar_isptr_eval_var {cs: compspecs}:
  forall i t v rho, lvar i t v rho -> isptr (eval_var i t rho).
 Proof.
 intros.
@@ -232,24 +290,6 @@ Qed.
 
 Hint Extern 1 (isptr (eval_var _ _ _)) => (eapply lvar_isptr_eval_var; eassumption) : norm2.
 
-Ltac fixup_local_var  :=  (* this tactic is needed only until start_function
-                                           handles lvars in a better way *)
- match goal with |- semax _ ?Pre0 _ _ => match Pre0 with 
-    context [@liftx (Tarrow val (LiftEnviron mpred)) ?F (eval_lvar ?i ?t) ] =>
-     let v := fresh "v" in 
-    apply (remember_value (eval_lvar i t)); intro v;
-    assert_LOCAL (lvar i t v);
-      [entailer!; apply lvar_eval_lvar'; auto | ];
-    drop_LOCAL 1%nat;
-    match goal with |- semax _ ?Pre _ _ =>
-    match Pre with context C [@liftx (Tarrow val (LiftEnviron mpred)) F (eval_lvar i t) ] =>
-     let D := context C[ (@liftx (LiftEnviron mpred) (F v))  ]   in
-        apply semax_pre with D; 
-           [ entailer!; cbv beta; rewrite (lvar_eval_lvar i t v) by auto; auto 
-           | ] 
-    end end;
-    revert v
- end end.
 
 Lemma force_val_sem_cast_neutral_isptr:
   forall v,
@@ -260,7 +300,7 @@ intros.
  destruct v; try contradiction; reflexivity.
 Qed.
 
-Lemma force_val_sem_cast_neutral_lvar:
+Lemma force_val_sem_cast_neutral_lvar {cs: compspecs}:
   forall i t v rho,
   lvar i t v rho ->
   Some (force_val (sem_cast_neutral v)) = Some v.
@@ -1572,7 +1612,7 @@ first [ ensure_normal_ret_assert;
         ].
 
 
-Inductive isolate_temp_binding (id: ident): list (environ->Prop) -> option val -> list (environ -> Prop) -> list Prop -> Prop :=
+Inductive isolate_temp_binding {cs: compspecs} (id: ident): list (environ->Prop) -> option val -> list (environ -> Prop) -> list Prop -> Prop :=
 | ITB_same: 
     forall Q v v' Q' P,
      isolate_temp_binding id Q v' Q' P ->
@@ -1602,7 +1642,7 @@ Inductive trivially_lifted:  (environ->mpred) -> Prop :=
   TL_ok: forall (R1: mpred), trivially_lifted (`R1).
 
 
-Lemma isolate_temp_binding_e:
+Lemma isolate_temp_binding_e {cs: compspecs}:
   forall id Q old (old': val) Q' P' (rho: environ),
  isolate_temp_binding id Q old Q' P' ->
  fold_right `and `True (map (subst id `old') Q) rho ->

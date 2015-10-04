@@ -99,7 +99,9 @@ remember (type_eq t t0). destruct s; intuition.
 subst.
 simpl in *. super_unfold_lift.
 symmetry in Heqo.
-specialize (H i t0 Heqo).
+specialize (H i t0).
+destruct H as [H _].
+specialize (H Heqo).
 
 {destruct H. 
 rewrite H in *. rewrite eqb_type_refl in *. destruct pt; auto.
@@ -208,7 +210,8 @@ remember (type_eq t t0). destruct s; intuition.
 subst. simpl in H0. 
 clear H0. 
 symmetry in Heqo. 
-specialize (H i t0 Heqo).
+specialize (H i t0).
+destruct H as [H _]; specialize (H Heqo).
 destruct H. unfold eval_var. simpl. 
 rewrite H in *. rewrite eqb_type_refl in *.
 simpl. destruct t0; try destruct i0; try destruct s; try destruct f; inv MODE; auto.

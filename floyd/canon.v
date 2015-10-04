@@ -1258,10 +1258,13 @@ Definition temp (i: ident) (v: val) : environ -> Prop :=
 Definition var (i: ident) (t: type) (v: val) : environ -> Prop :=
    `(eq v) (eval_var i t).
 
-Definition lvar (i: ident) (t: type) (v: val) (rho: environ) : Prop :=
+Definition lvar {cs: compspecs} (i: ident) (t: type) (v: val) (rho: environ) : Prop :=
      (* local variable *)
    match Map.get (ve_of rho) i with
-   | Some (b, ty') => if eqb_type t ty' then v = Vptr b Int.zero else False
+   | Some (b, ty') => 
+       if eqb_type t ty' 
+       then v = Vptr b Int.zero /\ size_compatible t v
+       else False
    | None => False
    end.
 
