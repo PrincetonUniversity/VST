@@ -2,36 +2,9 @@ Require Import floyd.base.
 Require Import floyd.assert_lemmas.
 Require Import floyd.client_lemmas.
 Require Import floyd.reptype_lemmas.
+Require Import floyd.data_at_lemmas.
+
 Local Open Scope logic.
-
-(* move these lemma elsewhere *)
-Lemma force_signed_int_e:
-  forall i, force_signed_int (Vint i) = Int.signed i.
-Proof. reflexivity. Qed.
-Hint Rewrite force_signed_int_e : norm.
-
-Lemma sign_ext_range2:
-   forall lo n i hi,
-      0 < n < Int.zwordsize ->
-      lo = - two_p (n-1) ->
-      hi = two_p (n-1) - 1 ->
-      lo <= Int.signed (Int.sign_ext n i) <= hi.
-Proof.
-intros.
-subst. apply expr_lemmas3.sign_ext_range'; auto.
-Qed.
-
-Lemma zero_ext_range2:
-  forall n i lo hi,
-      0 <= n < Int.zwordsize ->
-      lo = 0 ->
-      hi = two_p n - 1 ->
-      lo <= Int.unsigned (Int.zero_ext n i) <= hi.
-Proof.
-intros; subst; apply expr_lemmas3.zero_ext_range'; auto.
-Qed.
-
-(* END of move these lemmas elsewhere *)
 
 Ltac simpl_compare :=
  match goal with
@@ -81,74 +54,6 @@ Ltac simpl_compare :=
                     [ | repable_signed ..]; simpl in H)
  | |- _ => idtac
 end.
-
-Ltac no_evars P := (has_evar P; fail 1) || idtac.
-
-
-Ltac putable x :=
- match x with 
- | O => idtac
- | S ?x => putable x
- | Z.lt ?x ?y => putable x; putable y
- | Z.le ?x ?y => putable x; putable y
- | Z.gt ?x ?y => putable x; putable y
- | eq?x ?y => putable x; putable y
- | ?x <> ?y => putable x; putable y
- | Zpos ?x => putable x
- | Zneg ?x => putable x
- | Z0 => idtac
- | xH => idtac
- | xI ?x => putable x
- | xO ?x => putable x
- | Z.add ?x ?y => putable x; putable y
- | Z.sub ?x ?y => putable x; putable y
- | Z.mul ?x ?y => putable x; putable y
- | Z.div ?x ?y => putable x; putable y
- | Zmod ?x ?y => putable x; putable y
- | Z.max ?x ?y => putable x; putable y
- | Z.opp ?x => putable x
- | Int.eq ?x ?y => putable x; putable y
- | Int.lt ?x ?y => putable x; putable y
- | Int.ltu ?x ?y => putable x; putable y
- | Int.add ?x ?y => putable x; putable y
- | Int.sub ?x ?y => putable x; putable y
- | Int.mul ?x ?y => putable x; putable y
- | Int.neg ?x => putable x
- | Ceq => idtac
- | Cne => idtac
- | Clt => idtac
- | Cle => idtac
- | Cgt => idtac
- | Cge => idtac
- | Int.cmp ?op ?x ?y => putable op; putable x; putable y
- | Int.cmpu ?op ?x ?y => putable op; putable x; putable y
- | Int.repr ?x => putable x
- | Int.signed ?x => putable x
- | Int.unsigned ?x => putable x
- | two_power_nat ?x => putable x
- | Int.max_unsigned => idtac
- | Int.max_signed => idtac
- | Int.modulus => idtac
- | ?x /\ ?y => putable x; putable y
- | Int.zwordsize => idtac
-end.
-
-Ltac computable := match goal with |- ?x =>
- no_evars x;
- putable x;
- compute; clear; repeat split; auto; congruence
-end.
-
-(* move these elsewhere? *)
-Hint Extern 3 (_ <= Int.signed (Int.sign_ext _ _) <= _) =>
-    (apply sign_ext_range2; [computable | reflexivity | reflexivity]).
-
-Hint Extern 3 (_ <= Int.unsigned (Int.zero_ext _ _) <= _) =>
-    (apply zero_ext_range2; [computable | reflexivity | reflexivity]).
-
-Hint Rewrite sign_ext_inrange using assumption : norm.
-Hint Rewrite zero_ext_inrange using assumption : norm.
-(* END move these elsewhere? *)
 
 Lemma prop_and_same_derives {A}{NA: NatDed A}:
   forall P Q, Q |-- !! P   ->   Q |-- !!P && Q.
@@ -365,6 +270,9 @@ match goal with
               auto 50 with valid_pointer
 end.
 
+Hint Rewrite (@TT_andp mpred _) : gather_prop.
+Hint Rewrite (@andp_TT mpred _) : gather_prop.
+
 Ltac ent_iter :=
     repeat (( simple apply derives_extract_prop 
                 || simple apply derives_extract_prop');
@@ -443,14 +351,29 @@ Ltac splittable :=
  | |- _ /\ _ => idtac
  end.
 
+Lemma ptr_eq_refl: forall x, isptr x -> ptr_eq x x.
+Proof.
+destruct x; simpl; intros; try contradiction.
+split; auto. apply Int.eq_true.
+Qed.
+Hint Resolve ptr_eq_refl : prove_it_now.
+
+Hint Extern 4 (value_fits _ _ _) =>
+   (rewrite ?proj_sumbool_is_true by auto;
+    rewrite ?proj_sumbool_is_false by auto;
+    repeat simplify_value_fits; auto) : prove_it_now.
+
 Ltac prove_it_now :=
  first [ splittable; fail 1
         | computable 
         | apply I 
         | reflexivity 
-        | omega 
-        | solve [normalize; auto ] 
-        ].
+        | omega
+        | repeat match goal with H: ?A |- _ => has_evar A; clear H end;
+          auto with prove_it_now;
+          normalize;
+          fail
+         ].
 
 Ltac try_prove_it_now :=
  first [match goal with H := _ |- _ => instantiate (1:=True) in H; prove_it_now end
@@ -529,9 +452,8 @@ Ltac entbang :=
  first [ simple apply prop_right; my_auto
         | simple apply prop_and_same_derives'; my_auto
         | simple apply andp_right;
-            [apply prop_right; my_auto | normalize; cancel ]; my_auto
+            [apply prop_right; my_auto | cancel; autorewrite with norm ]
         | normalize; cancel
-        | my_auto
         ].
 
 Tactic Notation "entailer" "!" := entbang.

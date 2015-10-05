@@ -7,8 +7,8 @@ Proof.
 intros. destruct a; auto; contradiction.
 Qed.
 
-Hint Rewrite proj_sumbool_is_true using assumption : norm.
-Hint Rewrite proj_sumbool_is_false using assumption : norm.
+Hint Rewrite proj_sumbool_is_true using (solve [auto 3]) : norm.
+Hint Rewrite proj_sumbool_is_false using (solve [auto 3]) : norm.
 
 Lemma neutral_isCastResultType:
   forall {cs: compspecs}  P t t' v rho,
@@ -960,7 +960,7 @@ Proof. intros.
  apply prop_ext; intuition. destruct p; inv H; simpl; auto.
  rewrite Int.eq_true. auto.
 Qed.
-Hint Rewrite ptr_eq_True' using assumption : norm.
+(* Hint Rewrite ptr_eq_True' using solve[auto] : norm. *)
 
 Lemma ptr_eq_True:
    forall p, is_pointer_or_null p -> ptr_eq p p = True.
@@ -968,7 +968,7 @@ Proof. intros.
  apply prop_ext; intuition. destruct p; inv H; simpl; auto.
  rewrite Int.eq_true. auto.
 Qed.
-Hint Rewrite ptr_eq_True using assumption : norm.
+Hint Rewrite ptr_eq_True using solve[auto] : norm.
 
 Lemma ptr_eq_is_pointer_or_null: forall x y, ptr_eq x y -> is_pointer_or_null x.
 Proof.
@@ -1028,7 +1028,8 @@ Proof.
   destruct H as [_ [? [? ?]]].
   hnf in H,H1.
   destruct H0.
-  specialize (H _ _ H0). destruct H; rewrite H.
+  specialize (H i t). destruct H as [H _]. specialize (H H0).
+  destruct H; rewrite H.
   rewrite eqb_type_refl.
   simpl. auto.
   destruct H0. 
@@ -1293,4 +1294,96 @@ Proof.
 intros. destruct p; reflexivity.
 Qed.
 Hint Rewrite isptr_force_ptr' : norm.
+
+Ltac no_evars P := (has_evar P; fail 1) || idtac.
+
+
+Ltac putable x :=
+ match x with 
+ | O => idtac
+ | S ?x => putable x
+ | Z.lt ?x ?y => putable x; putable y
+ | Z.le ?x ?y => putable x; putable y
+ | Z.gt ?x ?y => putable x; putable y
+ | eq?x ?y => putable x; putable y
+ | ?x <> ?y => putable x; putable y
+ | Zpos ?x => putable x
+ | Zneg ?x => putable x
+ | Z0 => idtac
+ | xH => idtac
+ | xI ?x => putable x
+ | xO ?x => putable x
+ | Z.add ?x ?y => putable x; putable y
+ | Z.sub ?x ?y => putable x; putable y
+ | Z.mul ?x ?y => putable x; putable y
+ | Z.div ?x ?y => putable x; putable y
+ | Zmod ?x ?y => putable x; putable y
+ | Z.max ?x ?y => putable x; putable y
+ | Z.opp ?x => putable x
+ | Int.eq ?x ?y => putable x; putable y
+ | Int.lt ?x ?y => putable x; putable y
+ | Int.ltu ?x ?y => putable x; putable y
+ | Int.add ?x ?y => putable x; putable y
+ | Int.sub ?x ?y => putable x; putable y
+ | Int.mul ?x ?y => putable x; putable y
+ | Int.neg ?x => putable x
+ | Ceq => idtac
+ | Cne => idtac
+ | Clt => idtac
+ | Cle => idtac
+ | Cgt => idtac
+ | Cge => idtac
+ | Int.cmp ?op ?x ?y => putable op; putable x; putable y
+ | Int.cmpu ?op ?x ?y => putable op; putable x; putable y
+ | Int.repr ?x => putable x
+ | Int.signed ?x => putable x
+ | Int.unsigned ?x => putable x
+ | two_power_nat ?x => putable x
+ | Int.max_unsigned => idtac
+ | Int.max_signed => idtac
+ | Int.modulus => idtac
+ | ?x /\ ?y => putable x; putable y
+ | Int.zwordsize => idtac
+end.
+
+Ltac computable := match goal with |- ?x =>
+ no_evars x;
+ putable x;
+ compute; clear; repeat split; auto; congruence
+end.
+
+Lemma sign_ext_range2:
+   forall lo n i hi,
+      0 < n < Int.zwordsize ->
+      lo = - two_p (n-1) ->
+      hi = two_p (n-1) - 1 ->
+      lo <= Int.signed (Int.sign_ext n i) <= hi.
+Proof.
+intros.
+subst. apply expr_lemmas3.sign_ext_range'; auto.
+Qed.
+
+Lemma zero_ext_range2:
+  forall n i lo hi,
+      0 <= n < Int.zwordsize ->
+      lo = 0 ->
+      hi = two_p n - 1 ->
+      lo <= Int.unsigned (Int.zero_ext n i) <= hi.
+Proof.
+intros; subst; apply expr_lemmas3.zero_ext_range'; auto.
+Qed.
+
+Hint Extern 3 (_ <= Int.signed (Int.sign_ext _ _) <= _) =>
+    (apply sign_ext_range2; [computable | reflexivity | reflexivity]).
+
+Hint Extern 3 (_ <= Int.unsigned (Int.zero_ext _ _) <= _) =>
+    (apply zero_ext_range2; [computable | reflexivity | reflexivity]).
+
+Hint Rewrite sign_ext_inrange using assumption : norm.
+Hint Rewrite zero_ext_inrange using assumption : norm.
+
+Lemma force_signed_int_e:
+  forall i, force_signed_int (Vint i) = Int.signed i.
+Proof. reflexivity. Qed.
+Hint Rewrite force_signed_int_e : norm.
 

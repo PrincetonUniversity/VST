@@ -156,9 +156,9 @@ split; [ | split; [ | split]].
  destruct b0; try contradiction.
  destruct (negb b); inv H2. apply I.
 * clear - H0 H4.
- intros id ty ?. specialize (H4 id ty).
- specialize (H0 id); rewrite H in H0.
- apply H4; auto.
+  red in H4|-*.
+ intros id ty. specialize (H4 id ty). rewrite <- H4.
+ rewrite H0. clear; intuition.
 * clear - H2 H5.
  hnf; intros. apply H5.
  specialize (H2 id). hnf in H2. rewrite H in H2. auto.

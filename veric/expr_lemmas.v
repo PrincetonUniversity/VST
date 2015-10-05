@@ -538,7 +538,8 @@ unfold typecheck_environ in *.
 destruct H0 as [? [Hve [Hge _]]].
 hnf in Hve,Hge.
 revert H1; case_eq ((var_types Delta) ! i); intros; try contradiction.
-destruct (Hve _ _ H0). simpl in *; congruence.
+specialize (Hve i t0). destruct Hve as [Hve _].
+destruct (Hve H0). simpl in *; congruence.
 revert H1; case_eq ((glob_types Delta) ! i); intros; try contradiction.
 destruct (Hge _ _ H1) as [b [? ?]].
 simpl. simpl in H3. 
@@ -906,13 +907,13 @@ typecheck_var_environ (ve_of rho) (var_types (update_tycon Delta c)) ->
 typecheck_var_environ (ve_of rho) (var_types Delta).
 Proof.
 intros. 
-
+intros id t; specialize (H id t).
 destruct c; simpl in *; try apply H;
-try destruct o; try rewrite set_temp_ve in *; try apply H;
-unfold typecheck_var_environ in *; intros; apply H; try rewrite var_types_update_dist; 
-try apply join_ve_eqv;
-repeat rewrite update_tycon_same_ve in *; try rewrite update_le_same_ve;
-auto.
+try destruct o; try rewrite set_temp_ve in *;
+ try apply H.
+repeat rewrite update_tycon_same_ve in *; auto.
+rewrite var_types_update_dist, update_tycon_same_ve in H; auto.
+rewrite update_le_same_ve in H; auto.
 Qed. 
 
 
