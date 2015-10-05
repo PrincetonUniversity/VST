@@ -80,7 +80,6 @@ repeat match goal with |- context [field_offset ?A ?B ?C] =>
   set (aa :=field_offset A B C); compute in aa; subst aa
 end.
 normalize.
-cancel.
 }
 forward.
 forward.

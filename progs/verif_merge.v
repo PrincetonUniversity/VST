@@ -345,28 +345,16 @@ Proof.
   entailer.
 Qed.
 
-Lemma typed_false_tint:
- forall v, typed_false tint v -> v=nullval.
-Proof.
-intros.
- hnf in H. destruct v; inv H. 
- destruct (Int.eq i Int.zero) eqn:?; inv H1. 
- apply int_eq_e in Heqb. subst; reflexivity.
-Qed.
-
 Lemma body_merge: semax_body Vprog Gprog f_merge merge_spec.
 Proof.
-start_function.
 name a__ _a.
 name b__ _b.
 name va__ _va.
 name vb__ _vb.
 name x__ _x.
-name ret__ _ret.
+name ret_ _ret.
 name cond__ _cond.
-simpl_stackframe_of. rename lvar0 into ret_.
-change (tptr (Tstruct _list noattr)) with tlist in *.
-
+start_function.
 forward.
 
 (* TODO-LTAC (vague) the first assignment [condition = ..] is
@@ -557,7 +545,7 @@ rewrite butlast_snoc. rewrite last_snoc.
 rewrite (snoc merged) at 3 by auto.
 rewrite map_app. simpl map.
 match goal with |- ?A |-- _ => set (PQR := A);
-  unfold_field_at 1%nat;
+  unfold data_at; unfold_field_at 1%nat;
   subst PQR
 end.
 normalize.
@@ -686,7 +674,7 @@ rewrite map_app. simpl map.
 assert (LCR := lseg_cons_right_neq LS sh (map Vint (butlast merged)) begin (Vint (last merged)) c_ _id b_).
 simpl in LCR. rewrite list_cell_field_at in LCR.
 match goal with |- ?A |-- _ => set (PQR := A);
-  unfold_field_at 1%nat;
+  unfold data_at; unfold_field_at 1%nat;
   subst PQR
 end.
 rewrite prop_true_andp.
@@ -763,7 +751,7 @@ forward_if (
 (* when a <> [] *)
 assert_PROP (b_ = nullval /\ b = []).
   entailer!; intuition. destruct b; inv H;  auto.
-destruct H2; subst b_ b.
+revert POSTCONDITION; destruct H2; subst b_ b; intro.
 
 destruct merged as [|hmerge tmerge].
 
@@ -794,7 +782,7 @@ clear Heqmerged' merged.
 rewrite merge_nil_r in *.
 entailer!.
 unfold field_type; simpl.
-unfold_field_at 3%nat. 
+unfold data_at; unfold_field_at 3%nat. 
 (* @Andrew: same bug here, rewrite does not work directly but it does after
 a pose *)
 pose proof (field_at_data_at sh t_struct_list [StructField _tail] a__ c_) as R.
@@ -836,12 +824,12 @@ end.
 clear Heqmerged' merged.
 entailer!.
 unfold field_type; simpl.
-unfold_field_at 3%nat.
+unfold data_at; unfold_field_at 3%nat.
 pose proof (field_at_data_at sh t_struct_list [StructField _tail] b__ c_) as R.
 fold _tail.
 rewrite R.
 entailer!.
-repeat simplify_value_fits; auto.  (* why didn't entailer! do this? *)
+repeat simplify_value_fits; auto.
 
 (* temp = ret *)
 clear -SH.
@@ -855,15 +843,9 @@ destruct merged as [|hmerge tmerge].
 (* when merged = [] *)
 name a__ _a; name b__ _b; name va__ _va; name vb__ _vb; name x__ _x; name ret__ _ret; name cond__ _cond; name temp_ _temp.
 forward.
-Exists temp_; entailer.
-apply sepcon_derives.
-rewrite H; cancel.
-
-simpl_stackframe_of.
-rewrite var_block_data_at_; try auto with *.
-change (data_at Tsh tlist temp_ x__ |-- data_at_ Tsh tlist (eval_lvar _ret tlist rho)).
-rewrite (lvar_eval_lvar _ _ _ _ H1).
-now apply field_at_field_at_.
+Exists x__; entailer!.
+Exists temp_; entailer!.
+rewrite H; auto.
 
 (* when merged <> [] *)
 remember (hmerge :: tmerge) as merged.
@@ -871,6 +853,7 @@ assert (Hm: merged <> []) by congruence.
 clear hmerge tmerge Heqmerged.
 name a__ _a; name b__ _b; name va__ _va; name vb__ _vb; name x__ _x; name ret__ _ret; name cond__ _cond; name temp_ _temp.
 forward.
+Exists ret_; entailer.
 Exists temp_; entailer.
 
 (* to match the specification from the invariant, we split it into three parts: *)
@@ -881,14 +864,7 @@ assert (AP : forall M1 R1 M2 M3 M13 M R, R1 |-- R -> M1 * M3 |-- M13
   apply derives_trans with (M * R1); cancel; auto.
   now apply derives_trans with (M2 * M13); cancel; auto.
 apply AP with (lseg LS sh (Vint (last merged) :: map Vint (merge a b)) c_ nullval); clear AP.
-
-
-(* part 1: we deal with the stackframe *)
-simpl_stackframe_of.
-rewrite var_block_data_at_; try auto with *.
-change (data_at Tsh tlist temp_ ret_ |-- data_at_ Tsh tlist (eval_lvar _ret tlist rho)).
-rewrite (lvar_eval_lvar _ _ _ _ H1).
-apply field_at_field_at_.
+cancel.
 
 (* part 2 : we join the middle element and the right part of the list *)
 idtac.

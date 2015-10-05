@@ -331,14 +331,14 @@ Qed.
 
 Lemma body_main:  semax_body Vprog Gprog f_main main_spec.
 Proof.
+name four _four.
 start_function.
-normalize; intro a; normalize.
 
 forward_call  (*  revarray(four,4); *)
-  (a, Ews, four_contents, 4).
+  (four, Ews, four_contents, 4).
    repeat split; try computable; auto.
 forward_call  (*  revarray(four,4); *)
-    (a,Ews, rev four_contents,4).
+    (four,Ews, rev four_contents,4).
    split. computable. auto.
 rewrite rev_involutive.
 forward. (* return s; *)

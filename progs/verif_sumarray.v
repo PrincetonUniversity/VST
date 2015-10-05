@@ -157,8 +157,8 @@ Qed.
 Lemma body_main:  semax_body Vprog Gprog f_main main_spec.
 Proof.
 name s _s.
+name four _four.
 start_function.
-forward_intro four. normalize.
 forward_call (*  r = sumarray(four,4); *)
   (four,Ews,four_contents,4) vret.
  split; auto. computable. 

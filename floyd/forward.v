@@ -51,7 +51,7 @@ Hint Rewrite <- @prop_and using solve [auto with typeclass_instances]: norm1.
 
 Local Open Scope logic.
 
-Lemma var_block_lvar1:
+Lemma var_block_lvar1:  (* obsolete *)
  forall {cs: compspecs} id t Delta P Q R,
    (var_types Delta) ! id = Some t ->
    legal_alignas_type t = true ->
@@ -89,7 +89,7 @@ rewrite memory_block_isptr; normalize.
 rewrite memory_block_isptr; normalize.
 Qed.
 
-Ltac fixup_local_var :=
+Ltac fixup_local_var := (* obsolete *)
 match goal with |- semax _ (PROPx _ (LOCALx _ (SEPx ?R))) _ _ =>
  match R with
  | context [var_block ?i ?t :: ?L] => 
@@ -100,6 +100,145 @@ match goal with |- semax _ (PROPx _ (LOCALx _ (SEPx ?R))) _ _ =>
                  | apply extract_exists_pre; intros ?lvar0 ]
  end
 end.
+
+Lemma var_block_lvar2:
+ forall {cs: compspecs} {Espec: OracleKind} id t Delta P Q R Vs c Post,
+   (var_types Delta) ! id = Some t ->
+   legal_alignas_type t = true ->
+   legal_cosu_type t = true ->
+   complete_type cenv_cs t = true ->
+   sizeof cenv_cs t < Int.modulus ->
+  (forall v,
+   semax Delta ((PROPx P (LOCALx (lvar id t v :: Q) (SEPx (`(data_at_ Tsh t v) :: R)))) 
+                      * fold_right sepcon emp Vs)
+               c Post) ->
+ semax Delta ((PROPx P (LOCALx Q (SEPx R))) 
+                      * fold_right sepcon emp (var_block Tsh (id,t) :: Vs))
+               c Post.
+Proof.
+intros.
+assert (Int.unsigned Int.zero + sizeof cenv_cs t <= Int.modulus)
+ by (rewrite Int.unsigned_zero; omega).
+eapply semax_pre_post; [ | intros; apply andp_left2; apply derives_refl | ].
+instantiate (1 := EX v:val, (PROPx P (LOCALx (lvar id t v :: Q) (SEPx (`(data_at_ Tsh t v) :: R)))) 
+                      * fold_right sepcon emp Vs).
+unfold var_block, lvar, eval_lvar.
+go_lowerx.
+normalize.
+unfold Map.get.
+destruct (ve_of rho id) as [[? ?] | ] eqn:?.
+destruct (eqb_type t t0) eqn:?.
+apply eqb_type_true in Heqb0.
+subst t0.
+apply exp_right with (Vptr b Int.zero).
+unfold size_compatible.
+rewrite prop_true_andp. rewrite TT_andp.
+rewrite memory_block_data_at_.
+cancel.
+split3; auto. apply I.
+split3; auto.
+split3; auto.
+split; auto.
+red. exists 0. rewrite Z.mul_0_l. apply Int.unsigned_zero.
+apply I.
+split; auto.
+rewrite memory_block_isptr; normalize.
+rewrite memory_block_isptr; normalize.
+apply extract_exists_pre.  apply H4.
+Qed.
+
+Lemma lvar_eval_lvar {cs: compspecs}:
+  forall i t v rho, lvar i t v rho -> eval_lvar i t rho = v.
+Proof.
+unfold lvar, eval_lvar; intros.
+destruct (Map.get (ve_of rho) i) as [[? ?]|]; try contradiction.
+destruct (eqb_type t t0); try contradiction.
+destruct H; subst; auto.
+Qed.
+
+Lemma var_block_lvar0
+     : forall {cs: compspecs} (id : positive) (t : type) (Delta : tycontext)  v rho,
+       (var_types Delta) ! id = Some t ->
+       legal_alignas_type t = true ->
+       legal_cosu_type t = true ->
+       complete_type cenv_cs t = true ->
+       sizeof cenv_cs t < Int.modulus ->
+       tc_environ Delta rho ->
+       lvar id t v rho ->
+       data_at_ Tsh t v |-- var_block Tsh (id, t) rho.
+Proof.
+intros.
+assert (Int.unsigned Int.zero + sizeof cenv_cs t <= Int.modulus)
+ by (rewrite Int.unsigned_zero; omega).
+unfold var_block.
+simpl @fst; simpl @snd.
+rewrite prop_true_andp 
+  by (change (Int.max_unsigned) with (Int.modulus-1); omega).
+unfold_lift.
+rewrite (lvar_eval_lvar _ _ _ _ H5).
+rewrite memory_block_data_at_; auto.
+hnf in H5.
+destruct ( Map.get (ve_of rho) id); try contradiction.
+destruct p. destruct (eqb_type t t0); try contradiction.
+destruct H5; subst.
+repeat split; auto.
+exists 0. rewrite Z.mul_0_l. reflexivity. 
+Qed.
+
+Lemma postcondition_var_block:
+  forall {cs: compspecs} {Espec: OracleKind} Delta Pre c S1 S2 i t vbs,
+       (var_types  Delta) ! i = Some t ->
+       legal_alignas_type t = true ->
+       legal_cosu_type t = true ->
+       complete_type cenv_cs t = true ->
+       sizeof cenv_cs t < Int.modulus ->
+   semax Delta Pre c (frame_ret_assert S1 
+     (S2 *  (EX  v : val, local (lvar i t v) && `(data_at_ Tsh t v))
+      * fold_right sepcon emp vbs)) ->  
+  semax Delta Pre c (frame_ret_assert S1 
+     (S2 * fold_right sepcon emp (var_block Tsh (i,t) :: vbs))).
+Proof.
+intros.
+eapply semax_post; [ | eassumption].
+intros.
+unfold frame_ret_assert.
+go_lowerx.
+apply sepcon_derives; auto.
+rewrite <- !sepcon_assoc.
+apply sepcon_derives; auto.
+apply sepcon_derives; auto.
+apply exp_left; intro v.
+normalize.
+eapply var_block_lvar0; try apply H; try eassumption.
+clear - H5.
+destruct ek; simpl in *; auto.
+unfold tc_environ in *.
+apply expr_lemmas.typecheck_environ_update in H5; auto.
+Qed.
+
+Ltac process_stackframe_of :=
+ match goal with |- semax _ (_ * stackframe_of ?F) _ _ =>
+   let sf := fresh "sf" in set (sf:= stackframe_of F);
+     unfold stackframe_of in sf; simpl map in sf; subst sf
+  end;
+ repeat 
+   match goal with |- semax _ (_ * fold_right sepcon emp (var_block _ (?i,_) :: _)) _ _ =>
+     match goal with
+     | n: name i |- _ => simple apply var_block_lvar2; 
+       [ reflexivity | reflexivity | reflexivity | reflexivity | reflexivity | clear n; intro n ]
+     | |- _ =>    simple apply var_block_lvar2; 
+       [ reflexivity | reflexivity | reflexivity | reflexivity | reflexivity | intros ?lvar0 ]
+     end
+    end;
+  match goal with |- semax _ ?Pre _ _ =>
+     let p := fresh "p" in set (p := Pre);
+     rewrite <- (emp_sepcon (fold_right _ _ _)); subst p
+  end;
+  repeat (simple apply postcondition_var_block;
+   [reflexivity | reflexivity | reflexivity | reflexivity | reflexivity |  ]);
+ change (fold_right sepcon emp (@nil (environ->mpred))) with 
+   (@emp (environ->mpred) _ _);
+ rewrite ?sepcon_emp, ?emp_sepcon.
 
 Definition tc_option_val' (t: type) : option val -> Prop :=
  match t with Tvoid => fun v => match v with None => True | _ => False end | _ => fun v => tc_val t (force_val v) end.
@@ -247,15 +386,6 @@ Proof.
 unfold sgvar; intros.
 destruct (ge_of rho i); try contradiction.
 subst; apply I.
-Qed.
-
-Lemma lvar_eval_lvar {cs: compspecs}:
-  forall i t v rho, lvar i t v rho -> eval_lvar i t rho = v.
-Proof.
-unfold lvar, eval_lvar; intros.
-destruct (Map.get (ve_of rho) i) as [[? ?]|]; try contradiction.
-destruct (eqb_type t t0); try contradiction.
-destruct H; subst; auto.
 Qed.
 
 (*
@@ -1203,9 +1333,9 @@ match goal with |- semax ?Delta (PROPx ?P (LOCALx ?Q (SEPx ?R))) (Sifthenelse ?e
     apply semax_ifthenelse_PQR' with (v:=v);
      [ reflexivity | entailer | assumption 
      | clear HRE; subst v; apply semax_extract_PROP; intro HRE; 
-       do_repr_inj HRE
+       do_repr_inj HRE; abbreviate_semax
      | clear HRE; subst v; apply semax_extract_PROP; intro HRE; 
-       do_repr_inj HRE
+       do_repr_inj HRE; abbreviate_semax
      ]
 end.
 
@@ -3144,17 +3274,8 @@ Ltac start_function' :=
       fold (Sfor s1 e s2 s3)
  end;
  try expand_main_pre;
- try match goal with |- context [stackframe_of ?F] => 
-            change (stackframe_of F) with (@emp (environ->mpred) _ _);
-            rewrite frame_ret_assert_emp;
-            try rewrite sepcon_emp;  delete_emp_in_SEP
-          end;
+ process_stackframe_of;
  try apply start_function_aux1;
-(* match goal with
-  | |- @semax _ _ _ (PROPx _ _) _ _ => idtac 
-  | _ => canonicalize_pre 
- end;
-*)
  repeat (apply semax_extract_PROP; 
               match goal with
               | |- _ ?sh -> _ =>
