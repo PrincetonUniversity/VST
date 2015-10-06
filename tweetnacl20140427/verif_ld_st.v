@@ -37,7 +37,7 @@ Focus 2. apply ltu_false_inv in Heqz. rewrite U in *.
          rewrite (Int.unsigned_repr 32) in Heqz. 
            rewrite Int.unsigned_repr in Heqz. omega. rewrite int_max_unsigned_eq; omega.
            rewrite int_max_unsigned_eq; omega.
-simpl; split; trivial. split; trivial. split; trivial.
+simpl; split; trivial. split. 2: split; trivial.
 apply ltu_inv in Heqz. unfold Int.sub in *.
   rewrite (Int.unsigned_repr 32) in *; try (rewrite int_max_unsigned_eq; omega).
   rewrite Int.unsigned_repr in Heqz. 2: rewrite int_max_unsigned_eq; omega.
@@ -60,12 +60,12 @@ assert (RNG3:= Byte.unsigned_range_2 b3).
 assert (RNG2:= Byte.unsigned_range_2 b2).
 assert (RNG1:= Byte.unsigned_range_2 b1).
 assert (RNG0:= Byte.unsigned_range_2 b0).
-forward.
-forward v.
+forward. entailer. (*NEW*)
+forward v. entailer. (*NEW*)
 forward u.
-forward z.
+forward z. entailer. (*NEW*)
 forward q.
-forward p.
+forward p. entailer. (*NEW*)
 forward. 
   entailer.
   apply prop_right. clear H2 H3. 
