@@ -29,43 +29,6 @@ Opaque littleendian_invert. Opaque Snuffle.Snuffle.
 Opaque core_spec. Opaque ld32_spec. Opaque L32_spec. Opaque st32_spec.
 Opaque crypto_core_salsa20_spec. Opaque crypto_core_hsalsa20_spec.
 
-Lemma listD16 {A} (l:list A): Zlength l = 16 -> 
-  exists v0 v1 v2 v3 v4 v5 v6 v7 v8 v9 v10 v11 v12 v13 v14 v15,
-  l = [v0; v1; v2; v3; v4; v5; v6; v7; v8; v9; v10; v11; v12; v13; v14; v15].
-Proof. intros.
-destruct l. rewrite Zlength_nil in H; omega. exists a. rewrite Zlength_cons' in H.
-destruct l. rewrite Zlength_nil in H; omega. exists a0. rewrite Zlength_cons' in H.
-destruct l. rewrite Zlength_nil in H; omega. exists a1. rewrite Zlength_cons' in H.
-destruct l. rewrite Zlength_nil in H; omega. exists a2. rewrite Zlength_cons' in H.
-destruct l. rewrite Zlength_nil in H; omega. exists a3. rewrite Zlength_cons' in H.
-destruct l. rewrite Zlength_nil in H; omega. exists a4. rewrite Zlength_cons' in H.
-destruct l. rewrite Zlength_nil in H; omega. exists a5. rewrite Zlength_cons' in H.
-destruct l. rewrite Zlength_nil in H; omega. exists a6. rewrite Zlength_cons' in H.
-destruct l. rewrite Zlength_nil in H; omega. exists a7. rewrite Zlength_cons' in H.
-destruct l. rewrite Zlength_nil in H; omega. exists a8. rewrite Zlength_cons' in H.
-destruct l. rewrite Zlength_nil in H; omega. exists a9. rewrite Zlength_cons' in H.
-destruct l. rewrite Zlength_nil in H; omega. exists a10. rewrite Zlength_cons' in H.
-destruct l. rewrite Zlength_nil in H; omega. exists a11. rewrite Zlength_cons' in H.
-destruct l. rewrite Zlength_nil in H; omega. exists a12. rewrite Zlength_cons' in H.
-destruct l. rewrite Zlength_nil in H; omega. exists a13. rewrite Zlength_cons' in H.
-destruct l. rewrite Zlength_nil in H; omega. exists a14. rewrite Zlength_cons' in H.
-destruct l; trivial.
-rewrite Zlength_cons' in H. specialize (Zlength_nonneg l); intros. omega.
-Qed.
-
-Lemma listGE16 {A} (l:list A): 16 <= Zlength l ->
-  exists v0 v1 v2 v3 v4 v5 v6 v7 v8 v9 v10 v11 v12 v13 v14 v15 t,
-  l = [v0; v1; v2; v3; v4; v5; v6; v7; v8; v9; v10; v11; v12; v13; v14; v15] ++ t
-  /\ Zlength t = Zlength l - 16.
-Proof. intros.
-destruct (listD16 (firstn 16 l)) as 
-  [v0 [v1 [v2 [v3 [v4 [v5 [v6 [v7 [v8 [v9 [v10 [v11 [v12 [v13 [v14 [v15 V]]]]]]]]]]]]]]]].
-  rewrite (Zlength_firstn 16), Z.max_r, Z.min_l; omega.
-  exists v0, v1, v2, v3, v4, v5, v6, v7, v8, v9, v10, v11, v12, v13, v14, v15, (skipn 16 l).
-  rewrite <- V, firstn_skipn, (Zlength_skipn 16), (Z.max_r 0 16), Z.max_r; try omega.
-  split; trivial.
-Qed.
-
 Lemma HFalse_inv16_char: forall l xs ys,
   HFalse_inv l 16 xs ys ->
   Zlength xs = 16 -> Zlength ys=16 ->

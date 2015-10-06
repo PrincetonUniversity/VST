@@ -32,28 +32,15 @@ Fixpoint WcontI (xs: list int) (j:nat) (l:list val):Prop :=
                 end
   end.
 
-Lemma WcontI_length xs j l: WcontI xs j l -> Zlength l=16.
+Lemma WcontI_Zlength xs j l: WcontI xs j l -> Zlength l=16.
 Proof. intros. destruct j; eapply H. Qed. 
 
-Lemma WWI r w (W: WcontI r 4 w) (R:Zlength r = 16): exists wi, w=map Vint wi /\ snuffleRound r = Some wi.
+Lemma WWI r w (W: WcontI r 4 w) (R:Zlength r = 16): 
+      exists wi, w=map Vint wi /\ snuffleRound r = Some wi.
 Proof.
-destruct r. rewrite Zlength_nil in R; omega. rename i into x0. rewrite Zlength_cons' in R.
-destruct r. rewrite Zlength_nil in R; omega. rename i into x1. rewrite Zlength_cons' in R.
-destruct r. rewrite Zlength_nil in R; omega. rename i into x2. rewrite Zlength_cons' in R.
-destruct r. rewrite Zlength_nil in R; omega. rename i into x3. rewrite Zlength_cons' in R.
-destruct r. rewrite Zlength_nil in R; omega. rename i into x4. rewrite Zlength_cons' in R.
-destruct r. rewrite Zlength_nil in R; omega. rename i into x5. rewrite Zlength_cons' in R.
-destruct r. rewrite Zlength_nil in R; omega. rename i into x6. rewrite Zlength_cons' in R.
-destruct r. rewrite Zlength_nil in R; omega. rename i into x7. rewrite Zlength_cons' in R.
-destruct r. rewrite Zlength_nil in R; omega. rename i into x8. rewrite Zlength_cons' in R.
-destruct r. rewrite Zlength_nil in R; omega. rename i into x9. rewrite Zlength_cons' in R.
-destruct r. rewrite Zlength_nil in R; omega. rename i into x10. rewrite Zlength_cons' in R.
-destruct r. rewrite Zlength_nil in R; omega. rename i into x11. rewrite Zlength_cons' in R.
-destruct r. rewrite Zlength_nil in R; omega. rename i into x12. rewrite Zlength_cons' in R.
-destruct r. rewrite Zlength_nil in R; omega. rename i into x13. rewrite Zlength_cons' in R.
-destruct r. rewrite Zlength_nil in R; omega. rename i into x14. rewrite Zlength_cons' in R.
-destruct r. rewrite Zlength_nil in R; omega. rename i into x15. rewrite Zlength_cons' in R.
-destruct r. Focus 2. rewrite Zlength_cons' in R. specialize (Zlength_nonneg r); intros. omega. clear R.
+apply listD16 in R. 
+destruct R as [x0 [x1 [x2 [x3 [x4 [x5 [x6 [x7 
+              [x8 [x9 [x10 [x11 [x12 [x13 [x14 [x15 XX]]]]]]]]]]]]]]]]. subst r. 
 destruct W as [HW H1]. 
 destruct H1 as [t0 [t1 [t2 [t3 [T0 [T1 [T2 [T3 [w1 [[_ H1] W1]]]]]]]]]]. simpl in T0, T1, T2, T3.
 rewrite Z.mod_small in T0. 2: omega.
@@ -86,23 +73,9 @@ remember (Int.xor x4 (Int.rol (Int.add x0 x12) (Int.repr 7))) as z1.
 remember (Int.xor x8 (Int.rol (Int.add z1 x0) (Int.repr 9))) as z2.
 remember (Int.xor x12 (Int.rol (Int.add z2 z1) (Int.repr 13))) as z3.
 remember (Int.xor x0 (Int.rol (Int.add z3 z2) (Int.repr 18))) as z0.
-destruct w4. rewrite Zlength_nil in L4; omega. rename v into y0. rewrite Zlength_cons' in L4.
-destruct w4. rewrite Zlength_nil in L4; omega. rename v into y1. rewrite Zlength_cons' in L4.
-destruct w4. rewrite Zlength_nil in L4; omega. rename v into y2. rewrite Zlength_cons' in L4.
-destruct w4. rewrite Zlength_nil in L4; omega. rename v into y3. rewrite Zlength_cons' in L4.
-destruct w4. rewrite Zlength_nil in L4; omega. rename v into y4. rewrite Zlength_cons' in L4.
-destruct w4. rewrite Zlength_nil in L4; omega. rename v into y5. rewrite Zlength_cons' in L4.
-destruct w4. rewrite Zlength_nil in L4; omega. rename v into y6. rewrite Zlength_cons' in L4.
-destruct w4. rewrite Zlength_nil in L4; omega. rename v into y7. rewrite Zlength_cons' in L4.
-destruct w4. rewrite Zlength_nil in L4; omega. rename v into y8. rewrite Zlength_cons' in L4.
-destruct w4. rewrite Zlength_nil in L4; omega. rename v into y9. rewrite Zlength_cons' in L4.
-destruct w4. rewrite Zlength_nil in L4; omega. rename v into y10. rewrite Zlength_cons' in L4.
-destruct w4. rewrite Zlength_nil in L4; omega. rename v into y11. rewrite Zlength_cons' in L4.
-destruct w4. rewrite Zlength_nil in L4; omega. rename v into y12. rewrite Zlength_cons' in L4.
-destruct w4. rewrite Zlength_nil in L4; omega. rename v into y13. rewrite Zlength_cons' in L4.
-destruct w4. rewrite Zlength_nil in L4; omega. rename v into y14. rewrite Zlength_cons' in L4.
-destruct w4. rewrite Zlength_nil in L4; omega. rename v into y15. rewrite Zlength_cons' in L4.
-destruct w4. Focus 2. rewrite Zlength_cons' in L4. specialize (Zlength_nonneg w4); intros. omega. clear L4.
+apply listD16 in L4. 
+destruct L4 as [y0 [y1 [y2 [y3 [y4 [y5 [y6 [y7 
+               [y8 [y9 [y10 [y11 [y12 [y13 [y14 [y15 XX]]]]]]]]]]]]]]]]. subst w4.
 destruct W4 as [_ W4]; simpl in W4. 
 rewrite Z.mod_small in W4. 2: omega. 
 rewrite Z.mod_small in W4. 2: omega. 
@@ -479,7 +452,6 @@ Focus 2. entailer. apply (exp_right r). entailer. cancel.
   { entailer. apply (exp_right (list_repeat 16 Vundef)). entailer. }
   { rename H into J. rename i0 into j.
     normalize. intros wlist. normalize. rename H into WCONT.
-    assert (WL:= WcontI_length _ _ _ WCONT).
     destruct (Znth_mapVint r ((5 * j + 4 * 0) mod 16) Vundef) as [t0 T0].
       rewrite RZL; apply Z_mod_lt; omega.
     destruct (Znth_mapVint r ((5 * j + 4 * 1) mod 16) Vundef) as [t1 T1].

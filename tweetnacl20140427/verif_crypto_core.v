@@ -49,7 +49,7 @@ Transparent Snuffle20. unfold Snuffle20 in H. Opaque Snuffle20.
 remember (Snuffle 20 (prepare_data data)) as sn.
 destruct sn; simpl in H. 2: inv H. clear Heqsn.
 exists l; split; trivial.
-intros. rewrite (sumlist_char _ _ _ H).
+intros. rewrite (sumlist_char_Znth _ _ _ H).
   rewrite Int.add_commut, Int.sub_add_l, H0, Int.sub_idem, Int.add_zero_l. trivial.
 symmetry in H; apply sumlist_length in H.
 rewrite Zlength_correct, H, prepare_data_length; trivial.

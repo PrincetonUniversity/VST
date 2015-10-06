@@ -149,6 +149,127 @@ Proof. unfold Znth; intros. destruct (zlt i 0); simpl. omega. apply nth_map'.
    rewrite Nat2Z.id in H0. assumption. assumption. omega.
 Qed.
 
+Lemma listD16 {A} (l:list A): Zlength l = 16 -> 
+  exists v0 v1 v2 v3 v4 v5 v6 v7 v8 v9 v10 v11 v12 v13 v14 v15,
+  l = [v0; v1; v2; v3; v4; v5; v6; v7; v8; v9; v10; v11; v12; v13; v14; v15].
+Proof. intros.
+destruct l. rewrite Zlength_nil in H; omega. exists a. rewrite Zlength_cons' in H.
+destruct l. rewrite Zlength_nil in H; omega. exists a0. rewrite Zlength_cons' in H.
+destruct l. rewrite Zlength_nil in H; omega. exists a1. rewrite Zlength_cons' in H.
+destruct l. rewrite Zlength_nil in H; omega. exists a2. rewrite Zlength_cons' in H.
+destruct l. rewrite Zlength_nil in H; omega. exists a3. rewrite Zlength_cons' in H.
+destruct l. rewrite Zlength_nil in H; omega. exists a4. rewrite Zlength_cons' in H.
+destruct l. rewrite Zlength_nil in H; omega. exists a5. rewrite Zlength_cons' in H.
+destruct l. rewrite Zlength_nil in H; omega. exists a6. rewrite Zlength_cons' in H.
+destruct l. rewrite Zlength_nil in H; omega. exists a7. rewrite Zlength_cons' in H.
+destruct l. rewrite Zlength_nil in H; omega. exists a8. rewrite Zlength_cons' in H.
+destruct l. rewrite Zlength_nil in H; omega. exists a9. rewrite Zlength_cons' in H.
+destruct l. rewrite Zlength_nil in H; omega. exists a10. rewrite Zlength_cons' in H.
+destruct l. rewrite Zlength_nil in H; omega. exists a11. rewrite Zlength_cons' in H.
+destruct l. rewrite Zlength_nil in H; omega. exists a12. rewrite Zlength_cons' in H.
+destruct l. rewrite Zlength_nil in H; omega. exists a13. rewrite Zlength_cons' in H.
+destruct l. rewrite Zlength_nil in H; omega. exists a14. rewrite Zlength_cons' in H.
+destruct l; trivial.
+rewrite Zlength_cons' in H. specialize (Zlength_nonneg l); intros. omega.
+Qed.
+
+Lemma listGE16 {A} (l:list A): 16 <= Zlength l ->
+  exists v0 v1 v2 v3 v4 v5 v6 v7 v8 v9 v10 v11 v12 v13 v14 v15 t,
+  l = [v0; v1; v2; v3; v4; v5; v6; v7; v8; v9; v10; v11; v12; v13; v14; v15] ++ t
+  /\ Zlength t = Zlength l - 16.
+Proof. intros.
+destruct (listD16 (firstn 16 l)) as 
+  [v0 [v1 [v2 [v3 [v4 [v5 [v6 [v7 [v8 [v9 [v10 [v11 [v12 [v13 [v14 [v15 V]]]]]]]]]]]]]]]].
+  rewrite (Zlength_firstn 16), Z.max_r, Z.min_l; omega.
+  exists v0, v1, v2, v3, v4, v5, v6, v7, v8, v9, v10, v11, v12, v13, v14, v15, (skipn 16 l).
+  rewrite <- V, firstn_skipn, (Zlength_skipn 16), (Z.max_r 0 16), Z.max_r; try omega.
+  split; trivial.
+Qed.
+
+Definition bind {A B} (aopt: option A) (f: A -> option B): option B :=
+  match aopt with None => None | Some a => f a end.
+
+Section CombineList.
+Variable A: Type.
+Variable f: A -> A -> A.
+
+Fixpoint combinelist xs ys :=
+  match xs, ys with
+    nil, nil => Some nil
+  | (u::us),(v::vs) => bind (combinelist us vs) (fun l => Some (f u v :: l))
+  | _, _ => None
+  end.
+
+Lemma combinelist_Zlength: forall xs ys zs,
+  combinelist xs ys = Some zs -> Zlength zs = Zlength xs /\ Zlength ys = Zlength xs.
+Proof.
+  induction xs; intros; destruct ys; simpl in H; inv H.
+  split; trivial.
+  unfold bind in *.
+  remember (combinelist xs ys). symmetry in Heqo.
+  destruct o; inv H1. destruct (IHxs _ _ Heqo). repeat rewrite Zlength_cons'. 
+  rewrite H, H0. split; trivial.
+Qed.
+
+Lemma combinelist_Some: forall xs ys, length xs = length ys ->
+      exists l, combinelist xs ys = Some l.
+Proof.
+  induction xs; simpl; intros.
+    destruct ys; simpl in *. exists nil; trivial. omega.
+  destruct ys; simpl in *. omega.
+   inversion H; clear H.
+   destruct (IHxs _ H1). rewrite H. simpl. eexists; reflexivity.
+Qed.
+
+Lemma combinelist_SomeInv: forall xs ys l, combinelist xs ys = Some l -> 
+      Zlength xs = Zlength ys.
+Proof.
+  induction xs; simpl; intros.
+    destruct ys; simpl in *. trivial. inversion H.
+    destruct ys; simpl in *. inversion H.
+    remember (combinelist xs ys). destruct o; symmetry in Heqo; simpl in H.
+      inversion H; clear H. apply IHxs in Heqo. do 2 rewrite Zlength_cons'; rewrite Heqo. trivial.
+    inversion H.  
+Qed.
+
+Lemma combinelist_length:
+  forall xs ys l, Some l = combinelist xs ys -> length l = length ys.
+Proof. induction xs; intros; destruct ys; simpl in *.
+  inv H; trivial. inv H. inv H.
+  remember (combinelist xs ys) as q. destruct q; simpl in *. inv H. simpl. rewrite (IHxs _ _ Heqq). trivial.
+  inv H.
+Qed.
+
+Lemma combinelist_symm (C: forall a b, f a b = f b a): 
+      forall xs ys, combinelist xs ys = combinelist ys xs.
+Proof. induction xs; intros.
+  destruct ys; simpl; trivial.
+  destruct ys; simpl; trivial. rewrite C, IHxs. trivial.
+Qed.
+
+Lemma combinelist_char_nth: forall xs ys l, combinelist xs ys = Some l ->
+  forall i d, (0 <= i < length l)%nat -> nth i l d = f (nth i xs d) (nth i ys d).
+Proof. 
+  induction xs; simpl; intros.
+  destruct ys; inv H; simpl in *. omega.
+  destruct ys; inv H; simpl in *.
+  remember (combinelist xs ys) as s. symmetry in Heqs.
+  destruct s; inv H2. specialize (IHxs _ _ Heqs). simpl in *.
+  destruct i; trivial.
+  apply IHxs. omega.
+Qed.
+
+Lemma combinelist_char_Znth xs ys l (C: combinelist xs ys = Some l)
+      i d (L:0 <= i < Zlength l): Znth i l d = f (Znth i xs d) (Znth i ys d).
+Proof.
+  unfold Znth. 
+  destruct (zlt i 0). omega.
+  rewrite (combinelist_char_nth _ _ _ C); trivial. 
+  split. omega. destruct (Z2Nat.inj_lt i (Zlength l)). omega. omega. 
+  rewrite ZtoNat_Zlength in H; apply H. omega.
+Qed.
+End CombineList.
+
 Lemma shift_two_8 z:
  match z with
  | 0 => 0
@@ -179,6 +300,7 @@ Lemma shift_two_8_3 z:
   rewrite shift_pos_equiv. simpl; xomega. 
   rewrite shift_pos_equiv. simpl; xomega.
 Qed.
+
 
 Lemma upd_Znth_in_list_Zlength {A} i (l:list A) v: 0<=i < Zlength l -> 
       Zlength (upd_Znth_in_list i l v) = Zlength l.
