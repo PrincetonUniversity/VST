@@ -44,68 +44,19 @@ Proof. destruct x as [[s0 s1] [s2 s3]]. simpl.
   destruct s3 as [[[? ?] ?] ?]. reflexivity.
 Qed.
 
-Fixpoint sumlist xs ys :=
-  match xs, ys with
-    nil, nil => Some nil
-  | (u::us),(v::vs) => bind (sumlist us vs) (fun l => Some (Int.add u v :: l))
-  | _, _ => None
-  end.
+Definition sumlist := combinelist _ Int.add.
 
-Lemma sumlist_Some: forall xs ys, length xs = length ys ->
-      exists l, sumlist xs ys = Some l.
-Proof.
-  induction xs; simpl; intros.
-    destruct ys; simpl in *. exists nil; trivial. omega.
-  destruct ys; simpl in *. omega.
-   inversion H; clear H.
-   destruct (IHxs _ H1). rewrite H. simpl. eexists; reflexivity.
-Qed.
+Definition sumlist_Some:= combinelist _ Int.add.
 
-Lemma sumlist_SomeInv: forall xs ys l, sumlist xs ys = Some l -> length xs = length ys.
-Proof.
-  induction xs; simpl; intros.
-    destruct ys; simpl in *. trivial. inversion H.
-    destruct ys; simpl in *. inversion H.
-    remember (sumlist xs ys). destruct o; symmetry in Heqo; simpl in H.
-      inversion H; clear H. apply IHxs in Heqo. rewrite Heqo. trivial.
-    inversion H.  
-Qed.
+Definition sumlist_SomeInv:= combinelist_SomeInv _ Int.add.
 
-Lemma sumlist_length:
-  forall xs ys l, Some l = sumlist xs ys -> length l = length ys.
-Proof. induction xs; intros; destruct ys; simpl in *.
-  inv H; trivial. inv H. inv H.
-  remember (sumlist xs ys) as q. destruct q; simpl in *. inv H. simpl. rewrite (IHxs _ _ Heqq). trivial.
-  inv H.
-Qed.
+Definition sumlist_length:= combinelist_length _ Int.add.
 
-Lemma sumlist_symm: forall xs ys, sumlist xs ys = sumlist ys xs.
-Proof. induction xs; intros.
-  destruct ys; simpl; trivial.
-  destruct ys; simpl; trivial.
-  rewrite Int.add_commut. rewrite IHxs. reflexivity.
-Qed.
+Definition sumlist_symm:= combinelist_symm _ Int.add Int.add_commut. 
 
-Lemma sumlist_char_nth: forall xs ys l, sumlist xs ys = Some l ->
-  forall i d, (i<length l)%nat -> nth i l d = Int.add (nth i xs d) (nth i ys d).
-Proof. 
-  induction xs; simpl; intros.
-  destruct ys; inv H; simpl in *. omega.
-  destruct ys; inv H; simpl in *.
-  remember (sumlist xs ys) as s. symmetry in Heqs.
-  destruct s; inv H2. specialize (IHxs _ _ Heqs). simpl in *.
-  destruct i; simpl. trivial.
-  apply lt_S_n in H0.
-  apply IHxs. trivial.
-Qed.
+Definition sumlist_char_nth:= combinelist_char_nth _ Int.add.
 
-Lemma sumlist_char: forall xs ys l, sumlist xs ys = Some l ->
-  forall i d, 0<=i<Zlength l -> Znth i l d = Int.add (Znth i xs d) (Znth i ys d).
-Proof. intros. unfold Znth.
-  destruct (zlt i 0). omega.
-  apply sumlist_char_nth. trivial. rewrite <- ZtoNat_Zlength.
-  apply Z2Nat.inj_lt; omega.
-Qed.
+Definition sumlist_char_Znth:= combinelist_char_Znth _ Int.add.
 
 Definition Snuffle20 x := bind (Snuffle 20 x) (fun y => sumlist y x).
 

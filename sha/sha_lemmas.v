@@ -25,7 +25,7 @@ unfold mapsto; simpl.
 destruct (access_mode t); try apply FF_left.
 destruct (type_is_volatile t); try apply FF_left.
 destruct p; try apply FF_left.
-apply orp_left.
+if_tac; try contradiction. apply orp_left.
 normalize.
 normalize.
 congruence.
@@ -453,10 +453,10 @@ Local Open Scope Z.
 Local Open Scope logic.
 
 Lemma mapsto_tuchar_isbyteZ:
-  forall sh v i, mapsto sh tuchar v (Vint i) =
+  forall sh v i, readable_share sh-> mapsto sh tuchar v (Vint i) =
     !! (0 <= Int.unsigned i < 256)%Z && mapsto sh tuchar v (Vint i).
 Proof.
-intros. apply mapsto_value_range.
+intros. apply mapsto_value_range. trivial.
 Qed.
 
 Lemma data_block_isbyteZ:

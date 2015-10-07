@@ -280,7 +280,7 @@ Transparent crypto_core_salsa20_spec. Transparent crypto_core_hsalsa20_spec.
       (*Issue: Like the old forward_call', the new forward_call here leaves delete-temp_from_locals_side 
         conditions. The old forward_call succeeded, and the Frame I used is indeed the one the 
         new forward_call rule also identifies).*)
-
+(*
 Inductive delete_temp_from_locals (id: ident) : list (environ -> Prop) -> list (environ -> Prop) -> Prop :=
 | dtfl_nil: delete_temp_from_locals id nil nil
 | dtfl_here: forall v Q Q',
@@ -675,9 +675,9 @@ Tactic Notation "LENBforward_call" constr(witness) simple_intropattern_list(v) :
     LENBforward_call ((Vptr cb (Int.add coff (Int.repr (4 * i)))),
                       Select16Q C i) pat. 
 Opaque core_spec. Opaque ld32_spec. Opaque L32_spec. Opaque st32_spec.
-Opaque crypto_core_salsa20_spec. Opaque crypto_core_hsalsa20_spec.
+Opaque crypto_core_salsa20_spec. Opaque crypto_core_hsalsa20_spec.*)
 
-(***********If we use the original forward_call, the following works
+(***********If we use the original forward_call, the following works*)
       forward_call ((Vptr cb (Int.add coff (Int.repr (4 * i)))),
                       Select16Q C i) pat.
 Opaque core_spec. Opaque ld32_spec. Opaque L32_spec. Opaque st32_spec.
@@ -700,7 +700,7 @@ Opaque crypto_core_salsa20_spec. Opaque crypto_core_hsalsa20_spec.
       { repeat econstructor. }
       after_call.*)
       simpl. 
-**************************************************) 
+(***************************************************) 
       subst pat.
       assert (PL2length: forall n, (0<=n<4)%nat -> Zlength (hPosLoop2 n intsums C Nonce) = 16).
         clear - SL.
@@ -714,14 +714,14 @@ Opaque crypto_core_salsa20_spec. Opaque crypto_core_hsalsa20_spec.
       destruct (Znth_mapVint (hPosLoop2 (Z.to_nat i) intsums C Nonce) (5*i) Vundef) as [vj Vj].
       rewrite PL2Zlength; omega. 
       forward v1.
-(*before change to LENB forward_call above, we needed this here:
-          { entailer. rewrite ZtoNat_Zlength in Vj; rewrite Vj. apply prop_right; trivial. }
-      rewrite Vj.*)
+(*before change to LENB forward_call above, we needed this here:*)
+          { rewrite Vj. entailer. }
+      rewrite Vj.
 
-(*Now, we need to remove Zlength Front = i here :*) clear FL.
+(*Now, we need to remove Zlength Front = i here : clear FL.*)
       forward.
-(*And, we need similar 2 lines as above, but one instruction later:*)
-         { entailer. simpl in *. rewrite Vj. apply prop_right; trivial. }
+(*And, we need similar 2 lines as above, but one instruction later:
+         { entailer. simpl in *. rewrite Vj. apply prop_right; trivial. }*)
 
       unfold SByte. rewrite data_at_isptr with (p:=nonce). normalize.
       apply isptrD in Pnonce. destruct Pnonce as [nb [noff NC]]. rewrite NC in *.
@@ -740,14 +740,14 @@ Opaque crypto_core_salsa20_spec. Opaque crypto_core_hsalsa20_spec.
       2: rewrite <- NNN, <- N16; cbv; trivial.
       unfold Select_at. repeat rewrite QuadChunk2ValList_ZLength. rewrite Zmult_1_r, FN.
       simpl. rewrite app_nil_r. simpl. 
-      normalize. rewrite Vj.
+      normalize. (*rewrite Vj.*)
 Transparent core_spec. Transparent ld32_spec. Transparent L32_spec. Transparent st32_spec.
 Transparent crypto_core_salsa20_spec. Transparent crypto_core_hsalsa20_spec.
       (*TODO: same issue with delete_temps here. But calling LENBforward_call results in Coq 
        crash that's not about memory exhaustion, but: 
       "Unable to communicate with coqtop, restarting coqtop.
        Error was: Invalid argument"*)
-          
+       
       forward_call (Vptr nb (Int.add noff (Int.repr (4 * i))),
                      Select16Q Nonce i) pat.
 Opaque core_spec. Opaque ld32_spec. Opaque L32_spec. Opaque st32_spec.

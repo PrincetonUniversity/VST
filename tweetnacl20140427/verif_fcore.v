@@ -29,43 +29,6 @@ Opaque littleendian_invert. Opaque Snuffle.Snuffle.
 Opaque core_spec. Opaque ld32_spec. Opaque L32_spec. Opaque st32_spec.
 Opaque crypto_core_salsa20_spec. Opaque crypto_core_hsalsa20_spec.
 
-Lemma listD16 {A} (l:list A): Zlength l = 16 -> 
-  exists v0 v1 v2 v3 v4 v5 v6 v7 v8 v9 v10 v11 v12 v13 v14 v15,
-  l = [v0; v1; v2; v3; v4; v5; v6; v7; v8; v9; v10; v11; v12; v13; v14; v15].
-Proof. intros.
-destruct l. rewrite Zlength_nil in H; omega. exists a. rewrite Zlength_cons' in H.
-destruct l. rewrite Zlength_nil in H; omega. exists a0. rewrite Zlength_cons' in H.
-destruct l. rewrite Zlength_nil in H; omega. exists a1. rewrite Zlength_cons' in H.
-destruct l. rewrite Zlength_nil in H; omega. exists a2. rewrite Zlength_cons' in H.
-destruct l. rewrite Zlength_nil in H; omega. exists a3. rewrite Zlength_cons' in H.
-destruct l. rewrite Zlength_nil in H; omega. exists a4. rewrite Zlength_cons' in H.
-destruct l. rewrite Zlength_nil in H; omega. exists a5. rewrite Zlength_cons' in H.
-destruct l. rewrite Zlength_nil in H; omega. exists a6. rewrite Zlength_cons' in H.
-destruct l. rewrite Zlength_nil in H; omega. exists a7. rewrite Zlength_cons' in H.
-destruct l. rewrite Zlength_nil in H; omega. exists a8. rewrite Zlength_cons' in H.
-destruct l. rewrite Zlength_nil in H; omega. exists a9. rewrite Zlength_cons' in H.
-destruct l. rewrite Zlength_nil in H; omega. exists a10. rewrite Zlength_cons' in H.
-destruct l. rewrite Zlength_nil in H; omega. exists a11. rewrite Zlength_cons' in H.
-destruct l. rewrite Zlength_nil in H; omega. exists a12. rewrite Zlength_cons' in H.
-destruct l. rewrite Zlength_nil in H; omega. exists a13. rewrite Zlength_cons' in H.
-destruct l. rewrite Zlength_nil in H; omega. exists a14. rewrite Zlength_cons' in H.
-destruct l; trivial.
-rewrite Zlength_cons' in H. specialize (Zlength_nonneg l); intros. omega.
-Qed.
-
-Lemma listGE16 {A} (l:list A): 16 <= Zlength l ->
-  exists v0 v1 v2 v3 v4 v5 v6 v7 v8 v9 v10 v11 v12 v13 v14 v15 t,
-  l = [v0; v1; v2; v3; v4; v5; v6; v7; v8; v9; v10; v11; v12; v13; v14; v15] ++ t
-  /\ Zlength t = Zlength l - 16.
-Proof. intros.
-destruct (listD16 (firstn 16 l)) as 
-  [v0 [v1 [v2 [v3 [v4 [v5 [v6 [v7 [v8 [v9 [v10 [v11 [v12 [v13 [v14 [v15 V]]]]]]]]]]]]]]]].
-  rewrite (Zlength_firstn 16), Z.max_r, Z.min_l; omega.
-  exists v0, v1, v2, v3, v4, v5, v6, v7, v8, v9, v10, v11, v12, v13, v14, v15, (skipn 16 l).
-  rewrite <- V, firstn_skipn, (Zlength_skipn 16), (Z.max_r 0 16), Z.max_r; try omega.
-  split; trivial.
-Qed.
-
 Lemma HFalse_inv16_char: forall l xs ys,
   HFalse_inv l 16 xs ys ->
   Zlength xs = 16 -> Zlength ys=16 ->
@@ -345,7 +308,7 @@ name k' _k.
 name c' _c.
 name h' _h.
 name aux' _aux.
-simpl_stackframe_of.
+(*simpl_stackframe_of.
 (*VST Issue: simpl_stackframe_of fails to unfold the var_blocks.
   I think the corresponding line in forward.v should be sth like the following:*)
 repeat rewrite var_block_data_at_; try reflexivity; try solve [auto].
@@ -355,10 +318,16 @@ fixup_local_var. intro x.
 fixup_local_var. intro y.
 fixup_local_var. intro t.
 
-normalize.
+normalize.*)
+rename lvar3 into t.
+rename lvar2 into y.
+rename lvar1 into x.
+rename lvar0 into w.
 assert_PROP (Zlength OUT = 64). entailer. rename H into ZL_OUT.
 apply semax_seq with (Q:=fcore_EpiloguePOST t y x w nonce out c k h OUT data).
-  { forward_seq. apply f_core_loop1; trivial.
+  { forward_seq.
+    eapply semax_pre. Focus 2. apply (f_core_loop1 Espec c k h nonce out OUT data out' in' k' c' h' aux' w x y t); trivial. entailer. cancel.
+    (*NEW: the following used to work insetad of the semax_pre: apply f_core_loop1; trivial.*)
  
   (* continuation after first loop*)
   (*/FOR(i,16) y[i] = x[i]*)
@@ -402,15 +371,19 @@ apply semax_seq with (Q:=fcore_EpiloguePOST t y x w nonce out c k h OUT data).
     entailer. 
     simpl. intros.
     renormalize. clear H0. (*alternative: andp_left2.*) 
-    unfold typed_true in H. simpl in H. inv H. apply negb_true_iff in H1. rewrite H1.
+    unfold typed_true in H. simpl in H. inv H. apply negb_true_iff in H1. (*NEW: delete this here: rewrite H1.*)
     unfold overridePost, POSTCONDITION, abbreviate, normal_ret_assert.
     normalize. renormalize. simpl.
-    Transparent HTruePostCond. unfold HTruePostCond. Opaque HTruePostCond. 
+    Transparent HTruePostCond. unfold HTruePostCond. Opaque HTruePostCond.
+    (*NEW:*) rewrite H1. entailer. renormalize.
     apply (exp_right snuffleRes).
+    (*NEW:*) entailer.
     apply (exp_right (map littleendian [C1; K1; K2; K3; K4; C2; N1; N2;
          N3; N4; C3; L1; L2; L3; L4; C4])).
     (*unfold HTrue_inv.*) entailer. renormalize. (*Issue: takes pretty long, and leaves do_canon-term in RHS*)
-    apply (exp_right x1). (*entailer.*) cancel. renormalize. (*Issue: the canon-term is indeed resolved during this renormalization*)
+    apply (exp_right x1). 
+    (*NEW:*) entailer.
+    cancel. renormalize. (*Issue: the canon-term is indeed resolved during this renormalization*)
     apply andp_right. apply prop_right. split; assumption.
     cancel. } 
 
@@ -421,15 +394,20 @@ apply semax_seq with (Q:=fcore_EpiloguePOST t y x w nonce out c k h OUT data).
     entailer.
     simpl. intros. 
     renormalize. clear H0. (*alternative: andp_left2.*) 
-    unfold typed_false in H. simpl in H. inv H. apply negb_false_iff in H1. rewrite H1.
+    unfold typed_false in H. simpl in H. inv H. apply negb_false_iff in H1. 
+    (*New: delete this here:rewrite H1.*)
     unfold overridePost, POSTCONDITION, abbreviate, normal_ret_assert.
     normalize. renormalize. simpl.
     Transparent HFalsePostCond. unfold HFalsePostCond. Opaque HTruePostCond. 
+    (*NEW: this line is new*) rewrite H1. entailer. renormalize.
     apply (exp_right snuffleRes).
+    (*NEW:*) entailer.
     apply (exp_right (map littleendian [C1; K1; K2; K3; K4; C2; N1; N2;
          N3; N4; C3; L1; L2; L3; L4; C4])).
     entailer. renormalize. (*Issue: takes pretty long, and leaves do_canon-term in RHS*)
-    apply (exp_right x1). cancel. renormalize. (*Issue: interesting: if we do a entailer prior to the the cancel in this line, the canon-term is indeed resolved during the renormalization but we need to do another cancel afterwards to resolve the goal*) }
+    apply (exp_right x1).
+    (*NEW:*) entailer.
+    cancel. renormalize. cancel. (*Issue: the canon-term is indeed resolved during this renormalization*) }
 
   { simpl; intros. entailer. renormalize. clear H.
     unfold POSTCONDITION, abbreviate, fcore_EpiloguePOST, overridePost.
@@ -450,7 +428,9 @@ destruct H0 as [YS SNUFF]. rewrite Zlength_map in H6. apply hmac_pure_lemmas.Zle
 specialize (Snuffle_length _ _ _ SNUFF H6); intros L.
 unfold fcore_result. 
 destruct (Int.eq (Int.repr h) Int.zero).
-{ normalize. apply (exp_right l).
+{ normalize. 
+  (*NEW*) entailer. (*NEW Issue: RHS fails to simplify even with renormalize, but I also can't instantiate the EX. Look, there's a star, and the lvar's are inconventiently nested*)
+  apply (exp_right l).
   destruct (HFalse_inv16_char _ _ _ H0) as [sums [SUMS1 SUMS2]].
     rewrite Zlength_correct, L; reflexivity. rewrite Zlength_correct, H6; reflexivity.
   (* entailer. Issue: entailer doesn't terminate here in > 5 mins. I think it's the same issue as near the beginning of this Lemma:*) 
