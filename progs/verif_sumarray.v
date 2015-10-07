@@ -99,12 +99,12 @@ forward_while (sumarray_Inv a0 sh contents size)
      a1.
 (* Prove that current precondition implies loop invariant *)
 apply exp_right with 0.
-entailer!.
+entailer!.  (* smt_test verif_sumarray_example1 *)
 (* Prove that loop invariant implies typechecking condition *)
 entailer!.
 (* Prove postcondition of loop body implies loop invariant *)
 forward. (* x = a[i] *)
-entailer!.
+entailer!. (* smt_test verif_sumarray_example2 *)
   (* there should be an easier way than this: *)
    rewrite Znth_map with (d':=Int.zero). apply I.
   rewrite Zlength_map in *; omega.

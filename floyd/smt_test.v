@@ -283,3 +283,38 @@ rewrite Znth_firstn by omega.
 rewrite Znth_skipn by omega.
 f_equal; omega.
 Qed.
+
+Require Import msl.shares.
+Require Import veric.shares.
+Require Import Integers.
+Require Import compcert.common.Values.
+Require Import veric.expr.
+Require Import compcert.cfrontend.Ctypes.
+
+Lemma verif_sumarray_example1:
+forall (sh : share) (contents : list int) (size : Z) (a : val),
+readable_share sh ->
+0 <= size <= Int.max_signed ->
+is_pointer_or_null a ->
+@Zlength val (@map int val Vint contents) = size ->
+0 <= 0 /\
+(0 <= size /\ True) /\
+a = a /\
+Vint (Int.repr 0) = Vint (Int.repr 0) /\
+Vint (Int.repr size) = Vint (Int.repr size) /\
+Vint Int.zero = Vint (Int.repr 0) /\ True.
+Abort.
+
+Lemma verif_sumarray_example2:
+forall (sh : share) (contents : list int) (size : Z) (a : val),
+forall (sh : share) (contents : list int) (size a1 : Z) (a : val),
+readable_share sh ->
+0 <= size <= Int.max_signed ->
+a1 < size ->
+0 <= a1 <= size ->
+is_pointer_or_null a ->
+Zlength (map Vint contents) = size ->
+is_int I32 Signed (Znth a1 (map Vint contents) Vundef).
+Abort.
+
+
