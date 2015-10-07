@@ -453,11 +453,6 @@ start_function.
 eapply semax_pre; [
   eapply derives_trans; [ | apply (setup_globals three) ] | ].
  entailer!.
-apply exp_left; intro x'.   (* shouldn't be necessary  *)
-normalize.
-assert (x'=three); [eapply gvar_uniq; eauto | subst x'].
-assert (x=three); [eapply gvar_uniq; eauto | subst x].
-entailer!.
 forward_call (*  r = reverse(three); *)
   (Ews, map Vint [Int.repr 1; Int.repr 2; Int.repr 3], three) r'.
 forward_call  (* s = sumlist(r); *)

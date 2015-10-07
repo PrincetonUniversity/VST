@@ -75,11 +75,11 @@ repeat rewrite prop_true_andp by
    solve [compute; auto])
   | intro; apply I
   ]).
-fold tint; fold tfloat; fold tdouble.
+fold noattr; fold tint; fold tfloat; fold tdouble.
 repeat match goal with |- context [field_offset ?A ?B ?C] =>
   set (aa :=field_offset A B C); compute in aa; subst aa
 end.
-normalize.
+normalize. cancel.
 }
 forward.
 forward.
