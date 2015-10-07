@@ -211,7 +211,7 @@ forward.  (* h = t->head; *)
 forward t_old.  (*  t = t->tail; *)
 forward.  (* s = s + h; *)
 apply exp_right with (cts,y).
-entailer!.
+entailer!. (* smt_test verif_reverse_example1 *)
 f_equal.
    rewrite Int.sub_add_r, Int.add_assoc, (Int.add_commut (Int.neg h)),
              Int.add_neg_zero, Int.add_zero; auto.
@@ -260,7 +260,7 @@ forward.  (*  w = v; *)
 forward.  (* v = t; *)
 (* at end of loop body, re-establish invariant *)
 apply exp_right with (h::cts1,r,v,y).
-entailer!.
+entailer!.  (* smt_test verif_reverse_example2 *)
  - rewrite app_ass. auto.
  - rewrite (lseg_unroll _ sh (h::cts1)).
    apply orp_right2.
