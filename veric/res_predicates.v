@@ -512,8 +512,7 @@ Lemma allp_jam_split2: forall (P Q R: address -> Prop) (p q r: address -> pred r
   (exists resp, is_resource_pred p resp) ->
   (exists resp, is_resource_pred q resp) ->
   (exists resp, is_resource_pred r resp) ->
-  (forall l, P l <-> Q l \/ R l) ->
-  (forall l, Q l -> R l -> False) ->
+  Ensemble_join Q R P ->
   (forall l, Q l -> p l = q l) ->
   (forall l, R l -> p l = r l) ->
   (forall l m sh k, P l -> (p l) m -> res_option (m @ l) = Some (sh, k) -> isVAL k \/ isFUN k) ->
@@ -521,7 +520,7 @@ Lemma allp_jam_split2: forall (P Q R: address -> Prop) (p q r: address -> pred r
 Proof.
   intros until R_DEC.
   intros ST_P ST_Q ST_R.
-  intros.
+  intros [? ?] ? ? ?.
   apply pred_ext; intros w; simpl; intros.
   + destruct (make_sub_rmap w Q Q_DEC) as [w1 [? ?]].
     Focus 1. {
@@ -1007,23 +1006,6 @@ Proof.
 intros until phi; intro H.
 unfold address_mapsto' in H; unfold address_mapsto.
 exists bl; auto.
-Qed.
-
-Lemma nat_of_Z_eq: forall i, nat_of_Z (Z_of_nat i) = i.
-Proof.
-intros.
-apply inj_eq_rev.
-rewrite nat_of_Z_eq; auto.
-omega.
-Qed.
-
-Lemma nth_error_length:
-  forall {A} i (l: list A), nth_error l i = None <-> (i >= length l)%nat.
-Proof.
-induction i; destruct l; simpl; intuition.
-inv H.
-rewrite IHi in H. omega.
-rewrite IHi. omega.
 Qed.
 
 Lemma address_mapsto_fun:
@@ -2129,13 +2111,10 @@ Proof.
   intros.
   assert (exists resp, is_resource_pred (fun l' => EX  v: memval, yesat NoneP (VAL v) rsh sh l') resp) by (eexists; apply is_resource_pred_YES_VAL).
   apply allp_jam_split2; auto.
-  + intros [? ?].
-    unfold adr_range.
-    assert (ofs <= z < ofs + r <-> ofs <= z < ofs + n \/ ofs + n <= z < ofs + n + m) by omega.
-    tauto.
-  + intros [? ?].
-    unfold adr_range in *.
-    omega.
+  + split; intros [? ?]; unfold adr_range.
+    - assert (ofs <= z < ofs + r <-> ofs <= z < ofs + n \/ ofs + n <= z < ofs + n + m) by omega.
+      tauto.
+    - omega.
   + intros.
     simpl in H4.
     destruct (m0 @ l); try solve [inversion H5; simpl; auto].
@@ -2155,13 +2134,10 @@ Proof.
   intros.
   assert (exists resp, is_resource_pred (fun i : address => shareat i sh && nonlockat i) resp) by (eexists; apply is_resource_pred_nonlock_shareat).
   apply allp_jam_split2; auto.
-  + intros [? ?].
-    unfold adr_range.
-    assert (ofs <= z < ofs + r <-> ofs <= z < ofs + n \/ ofs + n <= z < ofs + n + m) by omega.
-    tauto.
-  + intros [? ?].
-    unfold adr_range in *.
-    omega.
+  + split; intros [? ?]; unfold adr_range.
+    - assert (ofs <= z < ofs + r <-> ofs <= z < ofs + n \/ ofs + n <= z < ofs + n + m) by omega.
+      tauto.
+    - omega.
   + intros.
     destruct H4 as [_ ?].
     simpl in H4.   

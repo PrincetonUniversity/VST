@@ -14,6 +14,7 @@ Require Export Clight.
 
 Require Export EqNat.
 Require Export msl.Coqlib2.
+Require Export veric.coqlib4.
 Require Export sepcomp.Address.
 Require Export Relations.
 
