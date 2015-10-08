@@ -128,7 +128,7 @@ VERIC_FILES= \
   juicy_mem.v juicy_mem_lemmas.v local.v juicy_mem_ops.v juicy_safety.v juicy_extspec.v \
   semax.v semax_lemmas.v semax_call.v semax_straight.v semax_loop.v semax_congruence.v \
   initial_world.v initialize.v semax_prog.v semax_ext.v SeparationLogic.v SeparationLogicSoundness.v  \
-  NullExtension.v SequentialClight.v superprecise.v jstep.v address_conflict.v
+  NullExtension.v SequentialClight.v superprecise.v jstep.v address_conflict.v coqlib4.v
 
 FLOYD_FILES= \
    coqlib3.v base.v proofauto.v computable_theorems.v \
