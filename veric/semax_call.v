@@ -575,7 +575,9 @@ Proof.
  pose (rho3 := mkEnviron (filter_genv psi) (make_venv ve') (make_tenv te')).
   
 unfold typecheck_environ. repeat rewrite andb_true_iff. 
-repeat split. clear H H1 H15.  
+split; [ | split3].
+*
+clear H H1 H15.  
 unfold typecheck_temp_environ in *. intros. simpl. 
 unfold temp_types in *. simpl in *.
 apply func_tycontext_t_sound in H; auto.
@@ -648,45 +650,69 @@ destruct H3. destruct H3.
 exists x0. split. unfold Map.get in *. 
 unfold make_tenv in *. rewrite <- H4. auto. auto.
 inv H1; auto. unfold list_disjoint in *. intros.
-apply H2. auto. right. auto. apply Heqp. auto. 
+apply H2. auto. right. auto. apply Heqp. auto.
+* 
 
-unfold typecheck_var_environ in *. intros. 
-
-
-
+simpl in *.
+unfold typecheck_var_environ in *. intros.
 clear TC3 TC5. 
 simpl in *. unfold typecheck_var_environ in *.
 unfold func_tycontext' in *. unfold var_types in *. 
-simpl in *. apply func_tycontext_v_sound in H0; auto.  
+simpl in *. 
+rewrite (func_tycontext_v_sound (fn_vars f) id ty); auto.
+transitivity ((exists b, empty_env ! id = Some (b,ty) )\/ In (id,ty) (fn_vars f)).
+clear; intuition. destruct H0. unfold empty_env in H.
+rewrite PTree.gempty in H; inv H.
 generalize dependent (m_dry jm).
-assert (forall id, In id (map fst (fn_vars f)) -> empty_env ! id = None). 
-intros. rewrite PTree.gempty; auto. 
-generalize dependent empty_env. 
-induction (fn_vars f); intros. inversion H15. subst.   
-inv H0. 
-
-simpl in H0. 
-destruct H0. destruct a. inv H0. 
-inv H15.  apply alloc_vars_lookup with (id := id) in H10. 
-unfold Map.get. unfold make_venv. rewrite H10. 
-rewrite PTree.gss. eauto. inv H17'; auto. 
-intros. inv H17'. rewrite PTree.gsspec. if_tac.
-subst. intuition.  
-apply H2. simpl in *. auto. 
-rewrite PTree.gss; eauto. 
-
-inv H17'; inv H15. 
-apply IHl1 in H12. destruct H12. 
-exists x. auto. auto. auto. intros. 
-simpl in *. rewrite PTree.gso. apply H2; auto. 
-intro. subst. intuition. 
-
+clear - H17'.
+assert (forall id, empty_env ! id <> None -> ~ In id (map fst (fn_vars f))).
+intros. unfold empty_env in H. rewrite PTree.gempty in H. contradiction H; auto.
+generalize dependent empty_env.
+unfold Map.get, make_venv. 
+induction (fn_vars f); intros.
+inv H15.
+destruct (ve' ! id); intuition.
+inv H15.
+inv H17'.
+specialize (IHl H3); clear H3.
+specialize (IHl (PTree.set id0 (b1,ty0) e)).
+spec IHl.
+intros id' H8; specialize (H id').
+destruct (ident_eq id0 id'). subst. auto.
+rewrite PTree.gso  in H8 by auto.
+specialize (H H8). contradict H.
+right; auto.
+specialize (IHl _ H7).
+clear - H H2 IHl.
+destruct (ident_eq id0 id). subst id0.
+rewrite PTree.gss in IHl.
+split; intro.
+destruct H0.
+destruct H0. specialize (H id).
+destruct (e!id); try discriminate.
+inv H0.
+spec H; [congruence | ].
+contradiction H. left; auto.
+destruct H0. inv H0.
+apply IHl. left; eauto.
+contradiction H2. apply in_map with (f:=fst) in H0. apply H0.
+rewrite <- IHl in H0.
+destruct H0.
+destruct H0. inv H0. right; left; auto.
+contradiction H2.
+apply in_map with (f:=fst) in H0. auto.
+rewrite PTree.gso in IHl by auto.
+rewrite <- IHl.
+intuition. inv H5. inv H0. intuition.
+apply H4 in H0. apply H1; auto.
+*
 unfold ge_of in *. simpl in *. auto. 
-
+*
 simpl in *. 
 unfold typecheck_environ in *.  
 destruct TE as [_ [_ [_ TE]]]. 
 unfold same_env in *. intros. simpl in *. 
+
 specialize (TE id t H0). 
 unfold make_venv.
 unfold func_tycontext'. unfold var_types. simpl in *.
@@ -867,10 +893,10 @@ end.
  simpl in COMPLETE. inversion COMPLETE; subst.
  clear COMPLETE; rename H5 into COMPLETE; rename H2 into COMPLETE_HD.
  specialize (IHl COMPLETE H4 (PTree.remove id ve)).
- assert (exists b, ve ! id = Some (b,ty)).
- unfold typecheck_var_environ in *. 
+ assert (exists b, ve ! id = Some (b,ty)). {
   specialize (H1 id ty).
-  rewrite PTree.gss in H1. destruct H1 as [b ?]; auto. exists b; apply H.
+  rewrite PTree.gss in H1. destruct H1 as [[b ?] _]; auto. exists b; apply H.
+ }
  destruct H as [b H].
  destruct (@PTree.elements_remove _ id (b,ty) ve H) as [l1 [l2 [? ?]]].
  rewrite H0.
@@ -916,17 +942,23 @@ end.
    with (Map.get (fun id0 : positive => ve ! id0) id'); auto.
  unfold Map.get.
  rewrite PTree.gro; auto.
- unfold typecheck_var_environ in *. 
- intros id' ty' ?.
- specialize (H1 id' ty').
- assert (id<>id').
- intro; subst id'.
- clear - H3 H5; induction l; simpl in *. rewrite PTree.gempty in H5; inv H5.
- destruct a; simpl in *.
- rewrite PTree.gso in H5. auto. auto.
- destruct H1 as [v ?].
- rewrite PTree.gso; auto.
- exists v. unfold Map.get. rewrite PTree.gro; auto.
+ intros id' ty'; specialize (H1 id' ty').
+ {split; intro.
+ - destruct H1 as [H1 _].
+   assert (id<>id').
+   intro; subst id'.
+   clear - H3 H5; induction l; simpl in *. rewrite PTree.gempty in H5; inv H5.
+   destruct a; simpl in *.
+   rewrite PTree.gso in H5. auto. auto.
+   destruct H1 as [v ?].
+   rewrite PTree.gso; auto.
+   exists v. unfold Map.get. rewrite PTree.gro; auto.
+ - unfold Map.get in H1,H5.
+   assert (id<>id').
+     clear - H5; destruct H5. intro; subst. rewrite PTree.grs in H. inv H.
+   rewrite PTree.gro in H5 by auto.
+   rewrite <- H1 in H5. rewrite PTree.gso in H5 by auto. auto.
+ }
  hnf; intros.
  destruct (make_venv (PTree.remove id ve) id0) eqn:H5; auto.
  destruct p.

@@ -1,8 +1,10 @@
 Require Import floyd.proofauto.
 Require Import progs.float.
 
+Definition CompSpecs' : compspecs.
+Proof. make_compspecs1 prog. Defined.
 Instance CompSpecs : compspecs.
-Proof. make_compspecs prog. Defined.  
+Proof. make_compspecs2 CompSpecs'. Defined.
 
 Local Open Scope logic.
 
@@ -65,10 +67,6 @@ apply semax_pre with f; subst f. (* factored out "f" to work around a bug
 unfold data_at.
  unfold_field_at 1%nat.
 entailer!.
-rewrite value_fits_ind; split3; 
- erewrite unfold_reptype_elim by reflexivity;
-rewrite proj_sumbool_is_true by auto;
- simpl; hnf; simpl; auto.
 simpl.
 unfold field_at, data_at', at_offset. simpl.
 rewrite proj_sumbool_is_true by auto.
@@ -79,16 +77,15 @@ repeat rewrite prop_true_andp by
    solve [compute; auto])
   | intro; apply I
   ]).
-fold tint; fold tfloat; fold tdouble.
+fold noattr; fold tint; fold tfloat; fold tdouble.
 repeat match goal with |- context [field_offset ?A ?B ?C] =>
   set (aa :=field_offset A B C); compute in aa; subst aa
 end.
-normalize.
-cancel.
+normalize. cancel.
 }
 forward.
 forward.
 forward.
-forward y1_old.
+forward.
 forward.
 Qed.

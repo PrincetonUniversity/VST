@@ -1,7 +1,9 @@
 Require Import floyd.proofauto.
 Require Import progs.sumarray.
+Definition CompSpecs' : compspecs.
+Proof. make_compspecs1 prog. Defined.
 Instance CompSpecs : compspecs.
-Proof. make_compspecs prog. Defined.
+Proof. make_compspecs2 CompSpecs'. Defined.
 
 Local Open Scope logic.
 
@@ -96,34 +98,30 @@ name x _x.
 forward.  (* i = 0; *) 
 forward.  (* s = 0; *)
 forward_while (sumarray_Inv a0 sh contents size)
-    (PROP  () 
-     LOCAL (temp _a a0;
-            temp _s (Vint (sum_int contents)))
-     SEP   (`(data_at sh (tarray tint size) (map Vint contents) a0)))
      a1.
 (* Prove that current precondition implies loop invariant *)
 apply exp_right with 0.
-entailer!.
+entailer!.  (* smt_test verif_sumarray_example1 *)
 (* Prove that loop invariant implies typechecking condition *)
 entailer!.
-(* Prove that invariant && not loop-cond implies postcondition *)
-entailer!.
-rewrite Zlength_map in *.
-rewrite sublist_same by omega.
-reflexivity.
 (* Prove postcondition of loop body implies loop invariant *)
 forward. (* x = a[i] *)
-entailer!.
+entailer!. (* smt_test verif_sumarray_example2 *)
   (* there should be an easier way than this: *)
    rewrite Znth_map with (d':=Int.zero). apply I.
   rewrite Zlength_map in *; omega.
 forward. (* s += x; *)
 forward. (* i++; *)
-  apply exp_right with (Zsucc a1).
- entailer!. rewrite H2 in H1; inv H1.
+ apply exp_right with (Zsucc a1).
+ entailer!.  (* smt_test: verif_sumarray_example3 *)
+ rewrite H2 in H1; inv H1.
  f_equal; apply add_one_more_to_sum; try omega; auto.
 (* After the loop *)
 forward.  (* return s; *)
+entailer!.
+rewrite Zlength_map in *.
+rewrite sublist_same by omega.
+reflexivity.
 Qed.
 
 
@@ -162,8 +160,8 @@ Qed.
 Lemma body_main:  semax_body Vprog Gprog f_main main_spec.
 Proof.
 name s _s.
+name four _four.
 start_function.
-forward_intro four. normalize.
 forward_call (*  r = sumarray(four,4); *)
   (four,Ews,four_contents,4) vret.
  split; auto. computable. 

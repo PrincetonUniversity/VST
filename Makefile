@@ -134,7 +134,7 @@ FLOYD_FILES= \
    coqlib3.v base.v proofauto.v computable_theorems.v \
    type_induction.v reptype_lemmas.v aggregate_type.v aggregate_pred.v \
    nested_pred_lemmas.v compact_prod_sum.v zlist.v \
-   sublist.v smt_test.v \
+   sublist.v smt_test.v extract_smt.v \
    client_lemmas.v canon.v canonicalize.v assert_lemmas.v closed_lemmas.v jmeq_lemmas.v \
    compare_lemmas.v sc_set_load_store.v \
    loadstore_mapsto.v loadstore_field_at.v nested_loadstore.v \
@@ -210,12 +210,10 @@ HMACEQUIV_FILES= \
 TWEETNACL_FILES = \
   Salsa20.v Snuffle.v \
   tweetNaclBase.v  verif_salsa_base.v tweetnaclVerifiableC.v spec_salsa.v \
-  verif_ld_st.v  verif_fcore_epilogue_htrue.v
-  #split_array_lemmas.v fragments.v
-  #verif_fcore_loop1.v verif_fcore_loop2.v \
-  #verif_fcore_jbody.v verif_fcore_loop3.v \
-  #verif_fcore_epilogue_hfalse.v verif_fcore.v \
-  #verif_crypto_core.v
+  verif_ld_st.v  verif_fcore_epilogue_htrue.v verif_fcore_epilogue_hfalse.v \
+  split_array_lemmas.v verif_fcore_loop1.v verif_fcore_loop2.v \
+  verif_fcore_jbody.v verif_fcore_loop3.v verif_fcore.v \
+  verif_crypto_core.v
 
 C_FILES = reverse.c queue.c sumarray.c message.c insertionsort.c float.c nest3.c nest2.c nest3.c dotprod.c string.c field_loadstore.c ptr_compare.c merge.c
 
@@ -246,7 +244,7 @@ else
 	@$(COQC) $(COQFLAGS) $*.v
 endif
 
-COQVERSION=8.4pl5 or-else 8.4pl6
+COQVERSION=8.4pl5 or-else 8.4pl6 or-else 8.4pl4
 COQV=$(shell $(COQC) -v)
 ifeq ("$(filter $(COQVERSION),$(COQV))","")
 $(error FAILURE: You need Coq $(COQVERSION) but you have this version: $(COQV))

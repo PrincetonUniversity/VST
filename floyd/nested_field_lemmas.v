@@ -1614,3 +1614,38 @@ Hint Resolve is_pointer_or_null_field_compatible.
 Hint Extern 1 (isptr _) => (eapply field_compatible_isptr; eassumption).
 Hint Extern 1 (isptr _) => (eapply field_compatible0_isptr; eassumption).
 
+Lemma lvar_size_compatible:
+  forall  {cs: compspecs} id t v rho,
+  lvar id t v rho -> size_compatible t v.
+Proof.
+intros. hnf in H. 
+destruct (Map.get (ve_of rho) id); try contradiction.
+destruct p.
+if_tac in H; try contradiction.
+destruct H; auto.
+Qed.
+
+Lemma lvar_field_compatible:
+   forall {cs: compspecs} id t v rho,
+    lvar id t v rho ->
+    legal_alignas_type t = true ->
+    legal_cosu_type t = true ->
+    complete_type cenv_cs t = true ->
+    sizeof cenv_cs t < Int.modulus ->
+ field_compatible t nil v.
+Proof.
+intros.
+pose proof (lvar_size_compatible _ _ _ _ H).
+hnf in H.
+destruct (Map.get (ve_of rho) id); try contradiction.
+destruct p.
+if_tac in H; try contradiction.
+destruct H.
+repeat split; auto.
+subst; apply I.
+subst; hnf. exists 0. rewrite Z.mul_0_l.
+reflexivity.
+Qed.
+
+
+

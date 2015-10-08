@@ -88,8 +88,7 @@ PROP  ()
  `(EX  l : list val,
    !!HFalse_inv l 16 xs ys && data_at Tsh (tarray tuchar 64) l out)).
 
-Lemma verif_fcore_epilogue_hfalse Espec: forall t y x w nonce out c k h data OUT
-  xs ys (ZL_X: Zlength xs = 16) (ZL_Y: Zlength ys = 16) (L_OUT: length OUT = 64%nat),
+Lemma verif_fcore_epilogue_hfalse Espec t y x w nonce out c k h data OUT xs ys:
 @semax CompSpecs Espec
   (initialized_list [_i] (func_tycontext f_core SalsaVarSpecs SalsaFunSpecs))
   (PROP  ()
@@ -143,7 +142,7 @@ Focus 2.
     Opaque littleendian.
     Opaque littleendian_invert. Opaque Snuffle20. Opaque prepare_data. 
     Opaque QuadByte2ValList.
-  forward_for_simple_bound 16 (EX i:Z, 
+LENBforward_for_simple_bound 16 (EX i:Z, 
   (PROP  ()
    LOCAL  (lvar _t (tarray tuint 4) t;
    lvar _y (tarray tuint 16) y; lvar _x (tarray tuint 16) x;
@@ -158,78 +157,14 @@ Focus 2.
   { entailer. apply (exp_right OUT). entailer.
     apply prop_right. unfold HFalse_inv. split; trivial; intros. omega. } 
   { rename H into I;  normalize. intros l; normalize. rename H into INV_l.
-
+    assert_PROP (Zlength (map Vint xs) = 16). entailer. rename H into XL; rewrite Zlength_map in XL.
     destruct (Znth_mapVint (xs:list int) i Vundef) as [xi Xi]; try omega.
+    assert_PROP (Zlength (map Vint ys) = 16). entailer. rename H into YL; rewrite Zlength_map in YL.
     destruct (Znth_mapVint ys i Vundef) as [yi Yi]; try omega.
     forward. 
-    { entailer. apply prop_right. simpl. rewrite Xi. simpl; trivial. }
+    { entailer. apply prop_right. rewrite Xi. simpl; trivial. }
     forward.
     { entailer. apply prop_right. rewrite Yi. simpl; trivial. } 
- 
-(*Issue: neeed to remove "16=16" to make subsequent forward apply. Interestingly, the two forwards
-  we just performed worked fine...*)
-
-    apply semax_pre with (P':=
-  (PROP  ()
-   LOCAL  (temp _aux1 (Znth i (map Vint ys) Vundef);
-   temp _aux (Znth i (map Vint xs) Vundef); temp _i (Vint (Int.repr i));
-   lvar _t (tarray tuint 4) t; lvar _y (tarray tuint 16) y;
-   lvar _x (tarray tuint 16) x; lvar _w (tarray tuint 16) w; temp _in nonce;
-   temp _out out; temp _c c; temp _k k; temp _h (Vint (Int.repr h)))
-   SEP  (`(data_at Tsh (tarray tuchar 64) l out);
-   `(data_at Tsh (tarray tuint 16) (map Vint xs) x);
-   `(data_at Tsh (tarray tuint 16) (map Vint ys) y);
-   `(data_at_ Tsh (tarray tuint 4) t); `(data_at_ Tsh (tarray tuint 16) w);
-   `(CoreInSEP data (nonce, c, k))))). entailer.
-(*Ltac check_DeltaOLD :=
-match goal with 
- | Delta := @abbreviate tycontext (mk_tycontext _ _ _ _ _) |- _ =>
-    match goal with 
-    | |- _ => clear Delta; check_DeltaOLD
-    | |- semax Delta _ _ _ => idtac 
-    end
- | _ => first [simplify_Delta_OLD | fail 4 "Error in check_Delta (match-case 2): simplify_Delta fails. (Definition is in semax_tactic.v)"];
-     match goal with |- semax ?D _ _ _ => 
-            abbreviate D : tycontext as Delta
-     end
-end.
-Ltac forward_for_simple_boundOLD n Pre :=
- first [check_DeltaOLD | fail 4 "Error in forward_for_simple_bound: check_Delta fails. (Definition is in semax_tactic.v)"];
- (* check_Delta;*)
- repeat match goal with |-
-      semax _ _ (Ssequence (Ssequence (Ssequence _ _) _) _) _ =>
-      apply -> seq_assoc; abbreviate_semax
- end;
- first [ 
-     simple eapply semax_seq'; 
-    [forward_for_simple_bound' n Pre 
-    | cbv beta; simpl update_tycon; abbreviate_semax  ]
-  | eapply semax_post_flipped'; 
-     [forward_for_simple_bound' n Pre 
-     | ]
-  ].
-Tactic Notation "forwardOLD" :=
-  check_DeltaOLD;
- repeat simple apply seq_assoc2;
- first
- [ fwd_last
- | fwd_skip
- | fwd';
-  [ .. |
-  first [intros _ | no_intros ];
-   repeat (apply semax_extract_PROP; intro);
-   abbreviate_semax;
-   try fwd_skip]
- ].
-Tactic Notation "forwardOLD" simple_intropattern(v1) :=
-  check_DeltaOLD;
-  fwd';
-  [ .. 
-  | intros v1;
-  repeat (apply semax_extract_PROP; intro);
-  abbreviate_semax;
-  try fwd_skip].
-*)
     rewrite Xi, Yi.
     forward.
     Opaque Z.mul. Opaque Z.add. Opaque Z.sub.
@@ -239,10 +174,7 @@ Tactic Notation "forwardOLD" simple_intropattern(v1) :=
     assert_PROP(field_compatible (Tarray tuchar 64 noattr) [] out). entailer.
     rename H into FCO.
     rewrite <- ZL, (split3_data_at_Tarray_at_tuchar Tsh (Zlength l) (4 *i) 4); try rewrite ZL; try omega; trivial.
-    normalize. (* rename H into OIR_out0. rename H0 into OUR_out64.
-    rewrite Nat2Z.inj_mul. rewrite Z2Nat.id. 2: apply I.
-    assert (Z.of_nat 4 = 4). reflexivity. rewrite H; clear H.
-    Opaque firstn. Opaque skipn. Opaque mult.*)
+    normalize. 
 Transparent core_spec. Transparent ld32_spec. Transparent L32_spec. Transparent st32_spec.
 Transparent crypto_core_salsa20_spec. Transparent crypto_core_hsalsa20_spec.
     forward_call (offset_val (Int.repr (4 * i)) out, Int.add xi yi).

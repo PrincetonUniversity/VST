@@ -283,3 +283,99 @@ rewrite Znth_firstn by omega.
 rewrite Znth_skipn by omega.
 f_equal; omega.
 Qed.
+
+Require Import msl.shares.
+Require Import veric.shares.
+Require Import Integers.
+Require Import compcert.common.Values.
+Require Import veric.expr.
+Require Import compcert.cfrontend.Ctypes.
+
+Lemma verif_sumarray_example1:
+forall (sh : share) (contents : list int) (size : Z) (a : val),
+readable_share sh ->
+0 <= size <= Int.max_signed ->
+is_pointer_or_null a ->
+@Zlength val (@map int val Vint contents) = size ->
+0 <= 0 /\
+(0 <= size /\ True) /\
+a = a /\
+Vint (Int.repr 0) = Vint (Int.repr 0) /\
+Vint (Int.repr size) = Vint (Int.repr size) /\
+Vint Int.zero = Vint (Int.repr 0) /\ True.
+Abort.
+
+Lemma verif_sumarray_example2:
+forall (sh : share) (contents : list int) (size : Z) (a : val),
+forall (sh : share) (contents : list int) (size a1 : Z) (a : val),
+readable_share sh ->
+0 <= size <= Int.max_signed ->
+a1 < size ->
+0 <= a1 <= size ->
+is_pointer_or_null a ->
+Zlength (map Vint contents) = size ->
+is_int I32 Signed (Znth a1 (map Vint contents) Vundef).
+Abort.
+
+Require Import compcert.exportclight.Clightdefs.
+
+Lemma verif_sumarray_example3:
+forall (sum_int: list int -> int) (sh : share) (contents : list int) (size a1 : Z) (a : val) (x s : int),
+(forall (contents0 : list int) (i : Z) (x0 : int),
+ Znth i (map Vint contents0) Vundef = Vint x0 ->
+ 0 <= i ->
+ sum_int (sublist 0 (Z.succ i) contents0) =
+ Int.add (sum_int (sublist 0 i contents0)) x0) ->
+readable_share sh ->
+0 <= size <= Int.max_signed ->
+a1 < size ->
+0 <= a1 <= size ->
+is_pointer_or_null a ->
+force_val
+  (sem_add_default tint tint (Vint (sum_int (sublist 0 a1 contents)))
+     (Znth a1 (map Vint contents) Vundef)) = Vint s ->
+Znth a1 (map Vint contents) Vundef = Vint x ->
+Zlength (map Vint contents) = size ->
+0 <= Z.succ a1 /\
+(Z.succ a1 <= size /\ True) /\
+a = a /\
+Vint (Int.repr (Z.succ a1)) = Vint (Int.repr (a1 + 1)) /\
+Vint (Int.repr size) = Vint (Int.repr size) /\
+Vint (sum_int (sublist 0 (Z.succ a1) contents)) = Vint s /\ True.
+Abort.
+
+
+Require Import floyd.assert_lemmas.  (* just for nullval? *)
+
+Lemma verif_reverse_example1:
+forall (sum_int: list int -> int) (sh : share) (contents cts : list int) (t0 t_old t : val) (h : int),
+readable_share sh ->
+isptr t0 ->
+t0 = t_old ->
+is_pointer_or_null t ->
+is_pointer_or_null t ->
+(t = nullval <-> map Vint cts = []) ->
+t = t /\
+Vint (Int.sub (sum_int contents) (sum_int cts)) =
+Vint (Int.add (Int.sub (sum_int contents) (Int.add h (sum_int cts))) h) /\
+True.
+Abort.
+
+Lemma verif_reverse_example2:
+forall (sh : share) (contents cts1 : list val) (w h : val) (r : list val)
+  (w_ t_ : val),
+writable_share sh ->
+contents = rev cts1 ++ h :: r ->
+is_pointer_or_null t_ ->
+is_pointer_or_null w_ ->
+isptr w_ ->
+is_pointer_or_null t_ ->
+is_pointer_or_null t_ ->
+(t_ = nullval <-> r = []) ->
+is_pointer_or_null w ->
+(w = nullval <-> cts1 = []) ->
+contents = (rev cts1 ++ [h]) ++ r /\ True /\ w_ = w_ /\ t_ = t_ /\ True.
+Abort.
+
+
+

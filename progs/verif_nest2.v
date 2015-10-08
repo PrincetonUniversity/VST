@@ -1,8 +1,10 @@
 Require Import floyd.proofauto.
 Require Import progs.nest2.
 
+Definition CompSpecs' : compspecs.
+Proof. make_compspecs1 prog. Defined.
 Instance CompSpecs : compspecs.
-Proof. make_compspecs prog. Defined.  
+Proof. make_compspecs2 CompSpecs'. Defined.
 
 Local Open Scope logic.
 
@@ -58,9 +60,9 @@ start_function.
 name i _i.
 simpl in v.
 unfold_repinj.
-Time forward. (* 5.989 sec  -> 2.6*)
+Time forward. (* 5.989 sec  -> 2.6 -> 1.5 *)
 Time forward. (* 11.1118 sec -> 7.5 *)
-Qed.
+Time Qed.
 
 Lemma body_get':  semax_body Vprog Gprog f_get get_spec'.
 Proof.

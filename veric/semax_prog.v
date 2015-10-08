@@ -950,26 +950,29 @@ unfold construct_rho.
 unfold make_tycontext.
 unfold  typecheck_environ.
 unfold ve_of, ge_of, te_of.
-intuition. 
+split; [ | split3].
+* 
 unfold temp_types. unfold fst.
 unfold make_tycontext_t.
 unfold fold_right. unfold snd, fst.
 unfold typecheck_temp_environ.
 unfold make_tenv.
 unfold Map.get.
-intros. 
-
+intros.
 rewrite PTree.gsspec in *. if_tac. inv H2. eauto. 
-rewrite PTree.gempty in H2. congruence. 
-
+rewrite PTree.gempty in H2. congruence.
+* 
 unfold var_types.
-unfold fst,snd.
-unfold typecheck_var_environ. intros. unfold make_tycontext_v in *. 
-simpl in H2. rewrite PTree.gempty in H2. congruence. 
-
+unfold typecheck_var_environ. intros.
+unfold make_tycontext_v. simpl.
+rewrite PTree.gempty.
+unfold Map.get, make_venv, empty_env.
+rewrite PTree.gempty.
+intuition. inv H2. destruct H2; inv H2.
+*
 unfold glob_types. unfold make_tycontext_t, snd.
 eapply tc_ge_denote_initial; eauto.
-
+*
 hnf; intros.
 simpl.
 left. unfold make_venv. unfold empty_env. apply PTree.gempty.

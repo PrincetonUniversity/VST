@@ -912,8 +912,7 @@ forall id b ty , tc ! id = Some (ty,b) -> exists v, (Map.get te id = Some v /\ (
 
 Definition typecheck_var_environ
 (ve: venviron) (tc: PTree.t type) :=
-forall id ty, tc ! id = Some (ty) ->
-exists v, Map.get ve id = Some(v,ty).
+forall id ty, tc ! id = Some (ty) <-> exists v, Map.get ve id = Some(v,ty).
 
 Definition typecheck_glob_environ 
 (ge: genviron) (tc: PTree.t type) :=

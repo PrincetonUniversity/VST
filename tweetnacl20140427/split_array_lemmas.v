@@ -4,9 +4,6 @@ Require Import List. Import ListNotations.
 
 Require Import general_lemmas.
 
-(*Require Import spec_sha.*)
-Require Import sha_lemmas.  (*For Lemma split_offset_array_at -should be put in floyd! *)
-
 Require Import hmac_pure_lemmas. (*For Lemma max_unsigned_modulus*)
 Require Import ZArith. 
 
@@ -199,11 +196,11 @@ Proof.
   apply split2_data_at_Tarray_at_tuchar_unfold; trivial.
 Qed.
 
-Lemma array_at_data_at1: forall sh t gfs lo hi v p,
+Lemma array_at_data_at1 {cs} : forall sh t gfs lo hi v p,
    field_compatible0 t (gfs SUB lo) p ->
    field_compatible0 t (gfs SUB hi) p ->
-  array_at sh t gfs lo hi v p =
-  at_offset (data_at sh (nested_field_array_type t gfs lo hi) 
+  @array_at cs sh t gfs lo hi v p =
+  at_offset (@data_at cs sh (nested_field_array_type t gfs lo hi) 
                 (@fold_reptype _ (nested_field_array_type t gfs lo hi)  v))
                (nested_field_offset2 t (ArraySubsc lo :: gfs)) p.
 Proof.
@@ -626,10 +623,10 @@ Definition Unselect_at {cs} sh data1 data2 data3 d :=
 Lemma Select_Unselect_Tarray_at {cs} l d sh data1 data2 data3 data
   (DATA: (data1 ++ data2 ++ data3) = data)
   (L: l = Zlength data)
-  (F:field_compatible (Tarray tuchar (Zlength (data1 ++ data2 ++ data3)) noattr) [] d)
+  (F: @field_compatible cs (Tarray tuchar (Zlength (data1 ++ data2 ++ data3)) noattr) [] d)
   (ZL: Zlength (data1 ++ data2 ++ data3) < Int.modulus):
   @data_at cs sh (Tarray tuchar l noattr) data d = 
-  @Select_at cs sh (Zlength data1) data2 d * Unselect_at sh data1 data2 data3 d.
+  @Select_at cs sh (Zlength data1) data2 d * @Unselect_at cs sh data1 data2 data3 d.
 Proof.
   (*fold reptype in *. *) subst l. subst data.
   erewrite append_split3_data_at_Tarray_at_tuchar; trivial.

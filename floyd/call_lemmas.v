@@ -484,7 +484,7 @@ Proof.
  autorewrite with norm1 norm2; normalize.
 Qed.
 
-Lemma fold_right_and_LocalD_i:
+Lemma fold_right_and_LocalD_i {cs: compspecs}:
   forall T1 T2 Q rho,
   (forall i v, T1 ! i = Some v -> temp i v rho) ->
   (forall i vd, T2 ! i = Some vd -> fold_right `and `True (denote_vardesc nil i vd) rho) ->
@@ -529,7 +529,7 @@ Proof.
  auto.
 Qed.
 
-Lemma fold_right_and_LocalD_e:
+Lemma fold_right_and_LocalD_e {cs: compspecs}:
   forall T1 T2 Q rho,
   fold_right `and `True (LocalD T1 T2 Q) rho ->
   (forall i v, T1 ! i = Some v -> temp i v rho) /\
@@ -638,7 +638,7 @@ Proof.
  induction fl; destruct vl; simpl; auto.
 Qed.
 
-Lemma check_specs_lemma:
+Lemma check_specs_lemma {cs: compspecs}:
   forall Qtemp Qpre_temp Qvar Qpre_var rho fl vl
     (LEN: length fl = length vl),
     Forall (check_one_var_spec Qvar) (PTree.elements Qpre_var) ->

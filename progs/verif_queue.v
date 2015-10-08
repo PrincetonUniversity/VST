@@ -2,8 +2,10 @@ Require Import floyd.proofauto.
 Require Import progs.list_dt. Import Links.
 Require Import progs.queue.
 
+Definition CompSpecs' : compspecs.
+Proof. make_compspecs1 prog. Defined.
 Instance CompSpecs : compspecs.
-Proof. make_compspecs prog. Defined.  
+Proof. make_compspecs2 CompSpecs'. Defined.
 
 Definition t_struct_elem := Tstruct _elem noattr.
 Definition t_struct_fifo := Tstruct _fifo noattr.

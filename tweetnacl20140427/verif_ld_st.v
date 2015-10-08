@@ -37,7 +37,7 @@ Focus 2. apply ltu_false_inv in Heqz. rewrite U in *.
          rewrite (Int.unsigned_repr 32) in Heqz. 
            rewrite Int.unsigned_repr in Heqz. omega. rewrite int_max_unsigned_eq; omega.
            rewrite int_max_unsigned_eq; omega.
-simpl; split; trivial. split; trivial. split; trivial.
+simpl; split; trivial. split. 2: split; trivial.
 apply ltu_inv in Heqz. unfold Int.sub in *.
   rewrite (Int.unsigned_repr 32) in *; try (rewrite int_max_unsigned_eq; omega).
   rewrite Int.unsigned_repr in Heqz. 2: rewrite int_max_unsigned_eq; omega.
@@ -60,12 +60,12 @@ assert (RNG3:= Byte.unsigned_range_2 b3).
 assert (RNG2:= Byte.unsigned_range_2 b2).
 assert (RNG1:= Byte.unsigned_range_2 b1).
 assert (RNG0:= Byte.unsigned_range_2 b0).
-forward.
-forward v.
+forward. entailer. (*NEW*)
+forward v. entailer. (*NEW*)
 forward u.
-forward z.
+forward z. entailer. (*NEW*)
 forward q.
-forward p.
+forward p. entailer. (*NEW*)
 forward. 
   entailer.
   apply prop_right. clear H2 H3. 
@@ -91,7 +91,7 @@ name u' _u.
 normalize. intros l. normalize. rename H into Hl.
 remember (littleendian_invert u) as U. destruct U as [[[u0 u1] u2] u3].
 
-  forward_for_simple_bound 4 (EX i:Z, 
+  LENBforward_for_simple_bound 4 (EX i:Z, 
   (PROP  ()
    LOCAL (temp _x x; temp _u (Vint (iterShr8 u (Z.to_nat i))))
    SEP (`(data_at Tsh (Tarray tuchar 4 noattr) 
@@ -101,18 +101,6 @@ remember (littleendian_invert u) as U. destruct U as [[[u0 u1] u2] u3].
 { entailer. rewrite sublist_same; trivial. }
 { rename H into I. normalize. (* intros LST. normalize.*)
 
-  (*need to drop "4=4" again*)
-  apply semax_pre with (P' := 
-  (PROP  ()
-   LOCAL  (temp _i (Vint (Int.repr i));
-   temp _x x; temp _u (Vint (iterShr8 u (Z.to_nat i))))
-   SEP 
-   (`(data_at Tsh (Tarray tuchar 4 noattr)
-        (sublist 0 i
-           [Vint (Int.repr (Byte.unsigned u0));
-           Vint (Int.repr (Byte.unsigned u1));
-           Vint (Int.repr (Byte.unsigned u2));
-           Vint (Int.repr (Byte.unsigned u3))] ++ sublist i (Zlength l) l) x)))). entailer.
   assert_PROP (field_compatible (Tarray tuchar 4 noattr) [] x /\ isptr x). solve [entailer].
   destruct H as [FC ptrX].
   forward. forward v. clear v.
@@ -140,7 +128,6 @@ remember (littleendian_invert u) as U. destruct U as [[[u0 u1] u2] u3].
         destruct l; simpl in Hl. omega.
         destruct l; simpl in Hl. 2: solve [omega]. clear Hl.
   apply data_at_ext.
-(*        unfold upd_reptype_array.*)
         assert (ZW: Int.zwordsize = 32) by reflexivity.
         assert (EIGHT: Int.unsigned (Int.repr 8) = 8). apply Int.unsigned_repr. rewrite int_max_unsigned_eq; omega.
         inv HeqU. clear - ZW EIGHT I.
@@ -204,7 +191,7 @@ remember (littleendian_invert u) as U. destruct U as [[[u0 u1] u2] u3].
               rewrite zlt_true. repeat rewrite <- Z.add_assoc. reflexivity. omega. omega. omega. omega. omega.
           rewrite Int.bits_above. trivial. omega. }
         omega. }
-  rewrite (*Zlength_correct,*) Hl.
+  rewrite Hl.
   forward. 
 Qed.
 
