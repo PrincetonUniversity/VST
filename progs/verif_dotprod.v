@@ -1,6 +1,11 @@
 Require Import floyd.proofauto.
 Require Import progs.dotprod.
 
+Definition CompSpecs' : compspecs.
+Proof. make_compspecs1 prog. Defined.
+Instance CompSpecs : compspecs.
+Proof. make_compspecs2 CompSpecs'. Defined.
+
 Local Open Scope logic.
 
 Fixpoint map2 {A B C: Type} (f: A -> B -> C) (al: list A) (bl: list B) : list C :=
@@ -13,7 +18,7 @@ Definition add_spec :=
  DECLARE _add
   WITH x: val, y : val, z: val, fy : list float, fz: list float
   PRE  [_x OF tptr tdouble, _y OF tptr tdouble, _z OF tptr tdouble] 
-      PROP (length fy = 3%nat; length fz = 3%nat)
+      PROP ()
       LOCAL (temp _x x; temp _y y; temp _z z)
       SEP (`(data_at_ Tsh (tarray tdouble 3)  x) ;
              `(data_at Tsh (tarray tdouble 3) (map Vfloat fy) y);
@@ -32,13 +37,13 @@ Definition dotprod_spec :=
  DECLARE _dotprod
   WITH n: Z, x: val, y : val, fx : list float, fy: list float, sh: share
   PRE  [_n OF tint, _x OF tptr tdouble, _y OF tptr tdouble] 
-      PROP (n <= Int.max_signed; Zlength fx = n; Zlength fy = n)
+      PROP (0 <= n < Int.max_signed)
       LOCAL (temp _n (Vint (Int.repr n)); temp _x x; temp _y y)
       SEP (`(data_at Tsh (tarray tdouble n) (map Vfloat fx) x);
              `(data_at Tsh (tarray tdouble n) (map Vfloat fy) y))
   POST [ tdouble ] 
       PROP ()
-      LOCAL (`(eq (Vfloat (dotprod fx fy))) retval)
+      LOCAL (temp ret_temp (Vfloat (dotprod fx fy)))
       SEP (`(data_at Tsh (tarray tdouble n) (map Vfloat fx) x);
              `(data_at Tsh (tarray tdouble n) (map Vfloat fy) y)).
 
@@ -62,15 +67,15 @@ name x_ _x.
 name y_ _y.
 
 forward. (* sum = 0.0; *)
-
 forward_for_simple_bound n
    (EX i:Z,
       PROP ()
-      LOCAL (temp _sum (Vfloat (dotprod (firstn (Z.to_nat i) fx) (firstn (Z.to_nat i) fy))); temp _x x; temp _y y)
+      LOCAL (temp _sum (Vfloat (dotprod (sublist 0 i fx) (sublist 0 i fy))); temp _x x; temp _y y)
       SEP (`(data_at Tsh (tarray tdouble n) (map Vfloat fx) x);
              `(data_at Tsh (tarray tdouble n) (map Vfloat fy) y))).
-* (* bound range *)
- rewrite Zlength_correct in H0. subst n. repable_signed.
+*
+auto 50 with closed. (* doesn't work;  why? *)
+simple apply closed_eval_expr_e; reflexivity.
 * (* initializer *)
 entailer!.
 * (* body *)
