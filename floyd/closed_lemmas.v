@@ -693,6 +693,28 @@ Lemma closed_wrtl_emp {A} {ND: NatDed A} {SL: SepLog A}:
 Proof. repeat intro. reflexivity. Qed.
 Hint Resolve (@closed_wrt_emp mpred Nveric Sveric) (@closed_wrtl_emp mpred Nveric Sveric) : closed.
 
+Lemma closed_wrt_allp: forall A S P,
+  (forall x: A, closed_wrt_vars S (P x)) ->
+  closed_wrt_vars S (allp P).
+Proof.
+intros; hnf in *; intros.
+simpl.
+apply pred_ext; apply allp_right; intro x; apply (allp_left _ x);
+specialize (H x rho te' H0);
+apply derives_refl'; congruence.
+Qed.
+Lemma closed_wrtl_allp: forall A S P,
+  (forall x: A, closed_wrt_lvars S (P x)) ->
+  closed_wrt_lvars S (allp P).
+Proof.
+intros; hnf in *; intros.
+simpl.
+apply pred_ext; apply allp_right; intro x; apply (allp_left _ x);
+specialize (H x rho ve' H0);
+apply derives_refl'; congruence.
+Qed.
+Hint Resolve closed_wrt_allp closed_wrtl_allp : closed.
+
 Lemma closed_wrt_globvars:
   forall S v, closed_wrt_vars S (globvars2pred v).
 Proof.
