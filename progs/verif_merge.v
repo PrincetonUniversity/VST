@@ -487,7 +487,7 @@ forward.
 
 (* COMMAND : [a = a -> tail] *)
 
-forward VAR. subst VAR.
+forward.
 Exists a' (vb::b') [va] a_' b_ a_ a_.
 name a__ _a.
 name b__ _b.
@@ -532,8 +532,7 @@ rewrite <-field_at_data_at.
 forward.
 
 (* COMMAND : [a = a -> tail] *)
-forward VAR.
-subst VAR.
+forward.
 Exists a' (vb::b') (merged ++ [va]) a_' b_ a_ begin.
 rewrite <- app_assoc. simpl app.
 rewrite <- H1. clear H1.
@@ -618,7 +617,7 @@ forward.
 
 (* COMMAND : [b = b -> tail] *)
 
-forward VAR. subst VAR.
+forward.
 Exists (va::a') b' [vb] a_ b_' b_ b_.
 name a__ _a.
 name b__ _b.
@@ -658,7 +657,7 @@ rewrite <-field_at_data_at.
 forward.
 
 (* COMMAND : [b = b -> tail] *)
-forward VAR. subst VAR.
+forward.
 Exists (va::a') b' (merged ++ [vb]) a_ b_' b_ begin.
 destruct (merged ++ [vb]) eqn:?. destruct merged; inv Heql.
 forget (i::l) as merged''; clear i l; subst merged''.

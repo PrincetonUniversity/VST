@@ -1,7 +1,9 @@
 Require Import floyd.proofauto.
 Require Import progs.even.
+Definition CompSpecs' : compspecs.
+Proof. make_compspecs1 prog. Defined.
 Instance CompSpecs : compspecs.
-Proof. make_compspecs prog. Defined.  
+Proof. make_compspecs2 CompSpecs'. Defined.
 Local Open Scope logic.
 
 Definition odd_spec :=

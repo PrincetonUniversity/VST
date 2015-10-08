@@ -21,8 +21,10 @@ Require Import progs.list_dt. Import LsegSpecial.
  ** from reverse.c 
  **)
 Require Import progs.reverse.
+Definition CompSpecs' : compspecs.
+Proof. make_compspecs1 prog. Defined.
 Instance CompSpecs : compspecs.
-Proof. make_compspecs prog. Defined.  
+Proof. make_compspecs2 CompSpecs'. Defined.
 
 Local Open Scope logic.
 (** Open the notation scope containing  !! * && operators of separation logic *)
@@ -208,7 +210,7 @@ match goal with |- context [SEPx (?A::_)] =>
 end.
 normalize.
 forward.  (* h = t->head; *)
-forward t_old.  (*  t = t->tail; *)
+forward.  (*  t = t->tail; *)
 forward.  (* s = s + h; *)
 apply exp_right with (cts,y).
 entailer!. (* smt_test verif_reverse_example1 *)
