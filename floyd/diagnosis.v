@@ -148,6 +148,14 @@ Ltac check_canonical_funspec fs :=
     try (test_stuck; elimtype False);
     first [ccf1 fs; [test_stuck | ] | idtac].
 
+(* Change goal to [message arg], without failing *)
+Tactic Notation "errormsg" simple_intropattern(message) constr(arg) :=
+  let x := fresh in pose proof arg as x; revert x;
+  match goal with |- ?type -> _ =>
+    intros _; pose (message := fun _ : type => False);
+    exfalso; change (message arg); clearbody message
+  end.
+
 Ltac check_canonical_call' Delta c :=
 match c with
 | Scall _ (Evar ?id _) _ =>
@@ -155,7 +163,8 @@ match c with
     let y := (eval simpl in x) in
     match y with
     | Some ?fs => check_canonical_funspec fs
-    end 
+    | None => errormsg No_function_specificiation_corresponds_to_id id
+    end
 | Ssequence ?c1 _ => check_canonical_call' Delta c1
 | _ => let d := eval hnf in c in check_canonical_call' Delta d
 end.
