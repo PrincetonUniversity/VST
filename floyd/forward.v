@@ -814,7 +814,7 @@ Tactic Notation "uniform_intros" simple_intropattern_list(v) :=
   fail 1) || intros v) || idtac).
 
 Tactic Notation "forward_call" constr(witness) simple_intropattern_list(v) :=
-    check_canonical_call;
+    check_canonical_call; try match goal with |- semax _ _ _ _ =>
     check_Delta;
     fwd_call' witness;
   [ .. 
@@ -835,7 +835,7 @@ Tactic Notation "forward_call" constr(witness) simple_intropattern_list(v) :=
        try fwd_skip
      | complain_intros
      ]  
-  ].
+  ] end.
 
 Lemma seq_assoc2:
   forall (Espec: OracleKind) {cs: compspecs}  Delta P c1 c2 c3 c4 Q,
