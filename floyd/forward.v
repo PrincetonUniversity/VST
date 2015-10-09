@@ -78,12 +78,12 @@ rewrite prop_true_andp. rewrite TT_andp.
 apply sepcon_derives; auto.
 rewrite memory_block_data_at_.
 auto.
-split3; auto. apply I.
+split3; auto. apply Coq.Init.Logic.I.
 split3; auto.
 split3; auto.
 split; auto.
 red. exists 0. rewrite Z.mul_0_l. apply Int.unsigned_zero.
-apply I.
+apply Coq.Init.Logic.I.
 split; auto.
 rewrite memory_block_isptr; normalize.
 rewrite memory_block_isptr; normalize.
@@ -135,12 +135,12 @@ unfold size_compatible.
 rewrite prop_true_andp. rewrite TT_andp.
 rewrite memory_block_data_at_.
 cancel.
-split3; auto. apply I.
+split3; auto. apply Coq.Init.Logic.I.
 split3; auto.
 split3; auto.
 split; auto.
 red. exists 0. rewrite Z.mul_0_l. apply Int.unsigned_zero.
-apply I.
+apply Coq.Init.Logic.I.
 split; auto.
 rewrite memory_block_isptr; normalize.
 rewrite memory_block_isptr; normalize.
@@ -368,7 +368,7 @@ Proof.
 unfold lvar; intros.
 destruct (Map.get (ve_of rho) i) as [[? ?]|]; try contradiction.
 destruct (eqb_type t t0); try contradiction.
-destruct H; subst; apply I.
+destruct H; subst; apply Coq.Init.Logic.I.
 Qed.
 
 Lemma gvar_isptr:
@@ -377,7 +377,7 @@ Proof.
 unfold gvar; intros.
 destruct (Map.get (ve_of rho) i) as [[? ?]|]; try contradiction.
 destruct (ge_of rho i); try contradiction.
-subst; apply I.
+subst; apply Coq.Init.Logic.I.
 Qed.
 
 Lemma sgvar_isptr:
@@ -385,7 +385,7 @@ Lemma sgvar_isptr:
 Proof.
 unfold sgvar; intros.
 destruct (ge_of rho i); try contradiction.
-subst; apply I.
+subst; apply Coq.Init.Logic.I.
 Qed.
 
 (*
@@ -578,7 +578,7 @@ let Frame := fresh "Frame" in
  evar (Frame: list (mpred));
  eapply (semax_call_id1_x_wow witness Frame);
  [ reflexivity | reflexivity | reflexivity | reflexivity | reflexivity
- | apply I | apply I | reflexivity 
+ | apply Coq.Init.Logic.I | apply Coq.Init.Logic.I | reflexivity 
  | (clear; let H := fresh in intro H; inversion H)
  | reflexivity
  | prove_local2ptree | repeat constructor 
@@ -607,7 +607,7 @@ let Frame := fresh "Frame" in
  evar (Frame: list (mpred));
  eapply (semax_call_id1_y_wow witness Frame);
  [ reflexivity | reflexivity | reflexivity | reflexivity | reflexivity
- | apply I | apply I | reflexivity 
+ | apply Coq.Init.Logic.I | apply Coq.Init.Logic.I | reflexivity 
  | (clear; let H := fresh in intro H; inversion H)
  | reflexivity
  | prove_local2ptree | repeat constructor 
@@ -636,7 +636,7 @@ let Frame := fresh "Frame" in
  evar (Frame: list (mpred));
  eapply (semax_call_id1_wow witness Frame);
  [ reflexivity | reflexivity | reflexivity | reflexivity
- | apply I | reflexivity
+ | apply Coq.Init.Logic.I | reflexivity
  | prove_local2ptree
  | repeat constructor 
  | try apply local_True_right; entailer!
@@ -662,7 +662,7 @@ Ltac forward_call_id01_wow witness :=
 let Frame := fresh "Frame" in
  evar (Frame: list (mpred));
  eapply (semax_call_id01_wow witness Frame);
- [ reflexivity | reflexivity | reflexivity | apply I | reflexivity
+ [ reflexivity | reflexivity | reflexivity | apply Coq.Init.Logic.I | reflexivity
  | prove_local2ptree | repeat constructor 
  | try apply local_True_right; entailer!
  | reflexivity
@@ -808,9 +808,9 @@ Ltac complain_intros :=
          ].
 
 Tactic Notation "uniform_intros" simple_intropattern_list(v) :=
- (((assert True by (intros v; apply I);
+ (((assert True by (intros v; apply Coq.Init.Logic.I);
   assert (forall a: unit, True)
-   by (intros v; apply I);
+   by (intros v; apply Coq.Init.Logic.I);
   fail 1) || intros v) || idtac).
 
 Tactic Notation "forward_call" constr(witness) simple_intropattern_list(v) :=
@@ -820,8 +820,8 @@ Tactic Notation "forward_call" constr(witness) simple_intropattern_list(v) :=
   [ .. 
   | first 
       [ (* body of uniform_intros tactic *)
-         (((assert True by (intros v; apply I);
-            assert (forall a: unit, True) by (intros v; apply I);
+         (((assert True by (intros v; apply Coq.Init.Logic.I);
+            assert (forall a: unit, True) by (intros v; apply Coq.Init.Logic.I);
             fail 1)
           || intros v) 
         || idtac);
@@ -1126,14 +1126,14 @@ end.
 Lemma typed_true_ptr_e:
  forall t v, typed_true (tptr t) v -> isptr v.
 Proof.
- intros. destruct v; inv H; try apply I.
+ intros. destruct v; inv H; try apply Coq.Init.Logic.I.
  destruct (Int.eq i Int.zero); inv H1.
 Qed.
 
 Lemma typed_false_ptr_e:
  forall t v, typed_false (tptr t) v -> v=nullval.
 Proof.
- intros. destruct v; inv H; try apply I.
+ intros. destruct v; inv H; try apply Coq.Init.Logic.I.
  destruct (Int.eq i Int.zero) eqn:?; inv H1.
 apply int_eq_e in Heqb. subst; reflexivity.
 Qed.
@@ -1439,7 +1439,7 @@ Ltac forward_setx_wow :=
  eapply forward_setx_wow;
  [ solve [auto 50 with closed]
  | solve [repeat constructor; auto with closed]
- | simpl; first [apply I | reflexivity]
+ | simpl; first [apply Coq.Init.Logic.I | reflexivity]
  | simpl; simpl_lift; reflexivity
  | quick_typecheck
  ].
@@ -1448,7 +1448,7 @@ Ltac forward_setx_wow_seq :=
 eapply forward_setx_wow_seq;
  [ solve [auto 50 with closed]
  | solve [repeat constructor; auto with closed]
- | simpl; first [apply I | reflexivity]
+ | simpl; first [apply Coq.Init.Logic.I | reflexivity]
  | simpl; simpl_lift; reflexivity
  | unfold initialized; simpl; reflexivity
  | quick_typecheck
