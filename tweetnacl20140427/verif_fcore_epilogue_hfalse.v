@@ -149,7 +149,7 @@ Opaque crypto_core_salsa20_spec. Opaque crypto_core_hsalsa20_spec.
           rewrite Z_ii, Y_iiA. exists x_ii; split. trivial. 
           exists y_ii; split. trivial. rewrite <- Y_iiB. clear Y_iiB. clear INV_l.
           rewrite sublist_app1.
-          - rewrite sublist_sublist, Zplus_0_r. reflexivity. omega. omega. rewrite Zminus_0_r; omega.
+          - rewrite sublist_sublist. do 2 rewrite Zplus_0_r. reflexivity. omega. omega. rewrite Zminus_0_r; omega.
           - omega.
           - rewrite Zlength_sublist, Zminus_0_r; omega.
         + assert (IX: ii = i) by omega. subst ii. clear g INV_l.
@@ -171,7 +171,7 @@ Opaque crypto_core_salsa20_spec. Opaque crypto_core_hsalsa20_spec.
           assert (A:(4 * i + (4 + (64 - (4 + 4 * i))) - (4 + 4 * i) = 64 - (4 + 4 * i))%Z). unfold Z.sub; omega.
           rewrite A; clear A.
           repeat rewrite Z.add_simpl_r. rewrite Zminus_diag.
-          rewrite sublist_sublist, Zplus_0_r.
+          rewrite sublist_sublist.
           assert (A: (4 * i + (4 + (64 - (4 + 4 * i))) - 4 * i - 4 + (4 + 4 * i) = 64)%Z). unfold Z.sub; omega.
           rewrite A; clear A. trivial.
           omega. unfold Z.sub; omega. unfold Z.sub; omega. unfold Z.sub; omega. omega. omega. omega. omega. omega.

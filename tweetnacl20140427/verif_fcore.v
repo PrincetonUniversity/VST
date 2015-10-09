@@ -9,7 +9,6 @@ Require Import List. Import ListNotations.
 Require Import general_lemmas.
 
 Require Import split_array_lemmas.
-(*Require Import fragments.*)
 Require Import ZArith. 
 Require Import tweetNaclBase.
 Require Import Salsa20.
@@ -412,7 +411,7 @@ apply semax_seq with (Q:=fcore_EpiloguePOST t y x w nonce out c k h OUT data).
     apply (exp_right x). apply andp_right. trivial. entailer.
     apply (exp_right w). apply andp_right. trivial. entailer.
     unfold fcorePOST_SEP. 
-    destruct H0 as [YS SNUFF]. rewrite Zlength_map in H6. apply hmac_pure_lemmas.Zlength_length in H6; try omega; simpl in H6.
+    destruct H0 as [YS SNUFF]. rewrite Zlength_map in H6. apply Zlength_length in H6; try omega; simpl in H6.
     specialize (Snuffle_length _ _ _ SNUFF H6); intros L.
     unfold fcore_result. 
     destruct (Int.eq (Int.repr h) Int.zero).

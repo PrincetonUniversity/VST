@@ -4,7 +4,6 @@ Require Import List. Import ListNotations.
 Require Import general_lemmas.
 
 Require Import split_array_lemmas.
-(*Require Import fragments.*)
 Require Import ZArith. 
 Require Import tweetNaclBase.
 Require Import Salsa20.
@@ -121,7 +120,7 @@ remember (littleendian_invert u) as U. destruct U as [[[u0 u1] u2] u3].
   rewrite field_at_data_at. simpl. unfold field_address. simpl.
   if_tac. 2: solve [contradiction].
   rewrite isptr_offset_val_zero; trivial. clear H.
-  rewrite hmac_pure_lemmas.Zlength_length in Hl. 2: omega. 
+  rewrite Zlength_length in Hl. 2: omega. 
   destruct l; simpl in Hl. omega.
         destruct l; simpl in Hl. omega.
         destruct l; simpl in Hl. omega.
