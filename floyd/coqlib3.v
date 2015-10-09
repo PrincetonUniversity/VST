@@ -1,5 +1,5 @@
 Require Recdef.
-Require Import Coqlib.
+Require Import compcert.lib.Coqlib.
 Require Import Integers.
 Require Import Coq.Strings.String.
 Require Import Coq.Strings.Ascii.

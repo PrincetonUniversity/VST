@@ -1,4 +1,4 @@
-Require Import Coqlib.
+Require Import compcert.lib.Coqlib.
 Require Import AST.
 Require Import Maps.
 Require Import Integers.

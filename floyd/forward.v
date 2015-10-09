@@ -25,6 +25,7 @@ Require Import floyd.globals_lemmas.
 Require Import floyd.semax_tactics.
 Require Import floyd.for_lemmas.
 Require Import floyd.diagnosis.
+Require Import floyd.simpl_reptype.
 Require Import floyd.nested_pred_lemmas.
 Import Cop.
 
@@ -2235,13 +2236,6 @@ Ltac really_simplify_one_thing :=
 Ltac really_simplify_some_things := 
    repeat really_simplify_one_thing.
 
-Ltac remember_indexes gfs :=
- match gfs with
- | ArraySubsc ?i :: ?g' => remember i; remember_indexes g'
- | _ :: ?g' => remember_indexes g'
- | nil => idtac
- end.
-
 Lemma quick_derives_right:
   forall P Q : environ -> mpred,
    TT |-- Q -> P |-- Q.
@@ -2258,6 +2252,7 @@ Ltac quick_typecheck3 :=
  apply quick_derives_right; clear; go_lower;
  clear; repeat apply andp_right; auto; fail.
 
+(*
 Ltac solve_load_rule_evaluation := (* fastest version *)
  clear;
  repeat match goal with
@@ -2272,6 +2267,7 @@ Ltac solve_load_rule_evaluation := (* fastest version *)
    subst h0;
    subst; apply eq_refl
   end.
+*)
 
 Ltac solve_load_rule_evaluation' := (* old faster version *)
   clear;

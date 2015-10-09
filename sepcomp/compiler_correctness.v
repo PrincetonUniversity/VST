@@ -1,6 +1,6 @@
 Require Import Events.
 Require Import Memory.
-Require Import Coqlib.
+Require Import compcert.lib.Coqlib.
 Require Import compcert.common.Values.
 Require Import Maps.
 Require Import Integers.

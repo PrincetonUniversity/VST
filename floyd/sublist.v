@@ -1,4 +1,4 @@
-Require Import Coqlib.
+Require Import compcert.lib.Coqlib.
 Require Import msl.Coqlib2.
 Require Import List.
 Import ListNotations.
