@@ -1,5 +1,5 @@
 Require Import AST.
-Require Import Coqlib.
+Require Import compcert.lib.Coqlib.
 Require Import Values.
 Require Import compcert.lib.Maps.
 

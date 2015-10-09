@@ -1,4 +1,4 @@
-Require Import Coqlib.
+Require Import compcert.lib.Coqlib.
 Require Import Integers.
 Require Import EqNat.
 Require Import msl.Coqlib2.

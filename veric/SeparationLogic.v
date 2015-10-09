@@ -1,5 +1,5 @@
 Require Export compcert.lib.Axioms.
-Require Import Coqlib.
+Require Import compcert.lib.Coqlib.
 Require Export AST.
 Require Export Integers.
 Require Export Floats.

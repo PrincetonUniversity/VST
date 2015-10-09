@@ -2,7 +2,7 @@
 Require Import AST.
 Require Import Events.
 Require Import Memory.
-Require Import Coqlib.
+Require Import compcert.lib.Coqlib.
 Require Import Values.
 Require Import Maps.
 Require Import Integers.

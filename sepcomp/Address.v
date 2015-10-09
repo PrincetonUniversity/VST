@@ -1,4 +1,4 @@
-Require Import Coqlib.
+Require Import compcert.lib.Coqlib.
 Require Import Values.
 Require Import Integers.
 Require Import Floats.

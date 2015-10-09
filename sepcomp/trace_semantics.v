@@ -1,7 +1,6 @@
 Require Import compcert.lib.Axioms.
-Require Import Coqlib.
 Require Import Integers.
-Require Import Coqlib.
+Require Import compcert.lib.Coqlib.
 Require Import AST.
 Require Import Values.
 Require Import Memory.
