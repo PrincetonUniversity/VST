@@ -8,7 +8,7 @@ Require Import split_array_lemmas.
 (*Require Import fragments.*)
 Require Import ZArith. 
 Require Import Salsa20.
-
+(*
 Ltac LENBforward_for_simple_bound' n Pre :=
  first 
  [ first [eapply (semax_for_const_bound_const_init n Pre)
@@ -60,7 +60,7 @@ Ltac LENBforward_for_simple_bound n Pre :=
      [LENBforward_for_simple_bound' n Pre 
      | ]
   ].
-
+*)
 Require Import tweetnaclVerifiableC.
 Require Import tweetNaclBase.
 Instance CompSpecs : compspecs.

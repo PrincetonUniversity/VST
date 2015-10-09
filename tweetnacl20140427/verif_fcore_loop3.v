@@ -415,7 +415,7 @@ assert_PROP (Zlength (map Vint xI) = 16). entailer. rename H into XIZ. rewrite Z
 Opaque Zplus. Opaque Z.mul. Opaque mult. Opaque plus.
 Opaque Z.sub. Opaque Snuffle.
 drop_LOCAL 0%nat. 
-LENBforward_for_simple_bound 20 (EX i:Z, 
+forward_for_simple_bound 20 (EX i:Z, 
   (PROP  ()
    LOCAL  (lvar _t (tarray tuint 4) t;
    lvar _y (tarray tuint 16) y; lvar _x (tarray tuint 16) x;
@@ -437,7 +437,7 @@ Focus 2. entailer. apply (exp_right r). entailer. cancel.
   assert (RL:= Snuffle_length _ _ _ R XI).
   assert (RZL: Zlength r = 16). rewrite Zlength_correct, RL; reflexivity.
             
-  LENBforward_for_simple_bound 4 (EX j:Z,
+  forward_for_simple_bound 4 (EX j:Z,
   (PROP  ()
    LOCAL  (temp _i (Vint (Int.repr i)); lvar _t (tarray tuint 4) t;
    lvar _y (tarray tuint 16) y; lvar _x (tarray tuint 16) x;

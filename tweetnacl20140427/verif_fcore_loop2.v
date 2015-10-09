@@ -12,9 +12,7 @@ Require Import Salsa20.
 Require Import verif_salsa_base.
 Require Import tweetnaclVerifiableC.
 Require Import spec_salsa.
-(*
-Require Import verif_fcore_loop1.
-*)
+
 Opaque Snuffle.Snuffle. Opaque core_spec. Opaque fcore_result.
 Opaque crypto_core_salsa20_spec. Opaque crypto_core_hsalsa20_spec.
 
@@ -76,7 +74,7 @@ w x y t
    `(CoreInSEP data (nonce, c, k));
    `(data_at Tsh (tarray tuchar 64) OUT out)))).
 Proof. intros. abbreviate_semax.
-  LENBforward_for_simple_bound 16 (EX i:Z, 
+  forward_for_simple_bound 16 (EX i:Z, 
     PROP  ()
     LOCAL  ( 
       lvar _t (tarray tuint 4) t; lvar _y (tarray tuint 16) y;
