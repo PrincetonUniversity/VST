@@ -96,15 +96,16 @@ Qed.
 Lemma semax_ramification_PQ: forall A Delta G L s PureLocal PureFrame L' G',
   closed_wrt_modvars s (local PureFrame) ->
   (forall x, closed_wrt_modvars s (L' x -* G' x)) ->
-  G |-- local PureFrame && (L * (ALL x: A, L' x -* G' x)) ->
+  G |-- local PureFrame && (L * (ALL x: A, local (PureLocal x) --> (L' x -* G' x))) ->
   semax Delta L s (normal_ret_assert (EX x :A, local (PureLocal x) && L' x)) ->
   semax Delta G s (normal_ret_assert (local PureFrame && (EX x: A, local (PureLocal x) && G' x))).
 Proof.
   intros.
   apply semax_pre_post with
-    (P' := L * (local PureFrame && ALL x: A, (L' x -* G' x)))
-    (R' := normal_ret_assert ((EX x: A, local (PureLocal x) && (L' x)) *
-                              (local PureFrame && (ALL x: A, (L' x -* G' x))))). 
+    (P' := L * (local PureFrame && ALL x: A, local (PureLocal x) --> (L' x -* G' x)))
+    (R' := normal_ret_assert
+             ((EX x: A, local (PureLocal x) && (L' x)) *
+              (local PureFrame && (ALL x: A, local (PureLocal x) --> (L' x -* G' x))))). 
   + intros.
     apply andp_left2.
     rewrite corable_sepcon_andp1 by (apply corable_local).
@@ -116,14 +117,20 @@ Proof.
     apply andp_derives; [auto |].
     rewrite exp_sepcon1, exp_andp2.
     apply exp_left; intro x; apply (exp_right x).
-    rewrite corable_sepcon_andp1, corable_andp_sepcon1 by (apply corable_local).
+    rewrite corable_sepcon_andp1 by (apply corable_local).
     apply andp_derives; [auto |].
-    apply andp_derives; [auto |].
+    rewrite corable_andp_sepcon1 by (apply corable_local).
+    go_lower.
+    normalize.
     rewrite sepcon_comm, wand_sepcon_adjoint; auto.
     apply (allp_left _ x); auto.
-  + apply semax_frame with (F := local PureFrame && (ALL x: A, L' x -* G' x)) in H2; [| auto with closed].
-    rewrite frame_normal in H2.
-    auto.
+    eapply derives_trans; [| apply modus_ponens].
+    apply andp_right; [| apply derives_refl].
+    apply prop_right; auto.
+  + apply semax_frame with (F := local PureFrame && (ALL x: A, local (PureLocal x) --> (L' x -* G' x))) in H2.
+    - rewrite frame_normal in H2.
+      auto.
+    - auto with closed.
 Qed.
 
 End RAMIFICATION.
