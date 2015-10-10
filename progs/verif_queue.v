@@ -325,8 +325,6 @@ Definition fifo_get_spec :=
               `(list_cell QS Qsh (Vundef, Vundef) p);
               `(field_at_ Tsh t_struct_elem [StructField _next] p)).
 
-Eval compute in (nested_field_type2 list_struct [StructField _next]).
-
 Definition make_elem_spec :=
  DECLARE _make_elem
   WITH a: int, b: int
@@ -431,7 +429,7 @@ Proof.
 
 Lemma readable_nonidentity_share:
   forall sh, readable_share sh -> sepalg.nonidentity sh.
-Admitted. (* share hackSing *)
+Admitted. (* share hacking *)
 Hint Resolve readable_nonidentity_share.
 
 Lemma body_fifo_put: semax_body Vprog Gprog f_fifo_put fifo_put_spec.
