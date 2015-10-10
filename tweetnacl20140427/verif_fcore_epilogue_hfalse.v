@@ -17,56 +17,6 @@ Opaque Snuffle.Snuffle. Opaque prepare_data.
 Opaque core_spec. Opaque ld32_spec. Opaque L32_spec. Opaque st32_spec.
 Opaque crypto_core_salsa20_spec. Opaque crypto_core_hsalsa20_spec.
 
-(*
-Ltac check_DeltaOLD :=
-match goal with 
- | Delta := @abbreviate tycontext (mk_tycontext _ _ _ _ _) |- _ =>
-    match goal with 
-    | |- _ => clear Delta; check_DeltaOLD
-    | |- semax Delta _ _ _ => idtac 
-    end
- | _ => first [simplify_Delta_OLD | fail 4 "Error in check_Delta (match-case 2): simplify_Delta fails. (Definition is in semax_tactic.v)"];
-     match goal with |- semax ?D _ _ _ => 
-            abbreviate D : tycontext as Delta
-     end
-end.
-Ltac forward_for_simple_boundOLD n Pre :=
- first [check_DeltaOLD | fail 4 "Error in forward_for_simple_bound: check_Delta fails. (Definition is in semax_tactic.v)"];
- (* check_Delta;*)
- repeat match goal with |-
-      semax _ _ (Ssequence (Ssequence (Ssequence _ _) _) _) _ =>
-      apply -> seq_assoc; abbreviate_semax
- end;
- first [ 
-     simple eapply semax_seq'; 
-    [forward_for_simple_bound' n Pre 
-    | cbv beta; simpl update_tycon; abbreviate_semax  ]
-  | eapply semax_post_flipped'; 
-     [forward_for_simple_bound' n Pre 
-     | ]
-  ].
-Tactic Notation "forwardOLD" :=
-  check_DeltaOLD;
- repeat simple apply seq_assoc2;
- first
- [ fwd_last
- | fwd_skip
- | fwd';
-  [ .. |
-  first [intros _ | no_intros ];
-   repeat (apply semax_extract_PROP; intro);
-   abbreviate_semax;
-   try fwd_skip]
- ].*)
-(*
-Definition HFalse_inv l i xs ys :=
-        length l = 64%nat /\
-                forall ii, 0<=ii<i -> 
-                  exists x_i, Znth ii (map Vint xs) Vundef = Vint x_i /\
-                  exists y_i, Znth ii (map Vint ys) Vundef = Vint y_i /\
-                  firstn 4 (skipn ((4*Z.to_nat ii)%nat) l) =
-                  QuadByte2ValList (littleendian_invert (Int.add x_i y_i)).
-*)
 Definition HFalse_inv l i xs ys :=
         Zlength l = 64 /\
                 forall ii, 0<=ii<i -> 
@@ -142,7 +92,7 @@ Focus 2.
     Opaque littleendian.
     Opaque littleendian_invert. Opaque Snuffle20. Opaque prepare_data. 
     Opaque QuadByte2ValList.
-LENBforward_for_simple_bound 16 (EX i:Z, 
+forward_for_simple_bound 16 (EX i:Z, 
   (PROP  ()
    LOCAL  (lvar _t (tarray tuint 4) t;
    lvar _y (tarray tuint 16) y; lvar _x (tarray tuint 16) x;
@@ -199,7 +149,7 @@ Opaque crypto_core_salsa20_spec. Opaque crypto_core_hsalsa20_spec.
           rewrite Z_ii, Y_iiA. exists x_ii; split. trivial. 
           exists y_ii; split. trivial. rewrite <- Y_iiB. clear Y_iiB. clear INV_l.
           rewrite sublist_app1.
-          - rewrite sublist_sublist, Zplus_0_r. reflexivity. omega. omega. rewrite Zminus_0_r; omega.
+          - rewrite sublist_sublist. do 2 rewrite Zplus_0_r. reflexivity. omega. omega. rewrite Zminus_0_r; omega.
           - omega.
           - rewrite Zlength_sublist, Zminus_0_r; omega.
         + assert (IX: ii = i) by omega. subst ii. clear g INV_l.
@@ -221,7 +171,7 @@ Opaque crypto_core_salsa20_spec. Opaque crypto_core_hsalsa20_spec.
           assert (A:(4 * i + (4 + (64 - (4 + 4 * i))) - (4 + 4 * i) = 64 - (4 + 4 * i))%Z). unfold Z.sub; omega.
           rewrite A; clear A.
           repeat rewrite Z.add_simpl_r. rewrite Zminus_diag.
-          rewrite sublist_sublist, Zplus_0_r.
+          rewrite sublist_sublist.
           assert (A: (4 * i + (4 + (64 - (4 + 4 * i))) - 4 * i - 4 + (4 + 4 * i) = 64)%Z). unfold Z.sub; omega.
           rewrite A; clear A. trivial.
           omega. unfold Z.sub; omega. unfold Z.sub; omega. unfold Z.sub; omega. omega. omega. omega. omega. omega.

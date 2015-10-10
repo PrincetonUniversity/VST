@@ -146,7 +146,7 @@ assert (NR:= get_co_members_no_replicate id).
 apply compute_list_norepet_e in NR.
 move IH after NR.
 induction (co_members (get_co id)).
-apply I.
+apply Coq.Init.Logic.I.
 destruct a0 as [i t].
 destruct m.
 simpl.
@@ -2393,5 +2393,5 @@ intros.
 rewrite value_fits_ind; simpl.
 if_tac; auto.
 if_tac; auto.
-hnf. intro. apply I.
+hnf. intro. apply Coq.Init.Logic.I.
 Qed.

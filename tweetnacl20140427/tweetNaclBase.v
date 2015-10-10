@@ -350,12 +350,6 @@ Proof. intros.
   destruct (upd_Znth_in_list_lookup K l L i j d v I J) as [[X Y] | [X Y]]; if_tac; try omega; trivial.
 Qed.
 
-Lemma sublist_1_cons {A} l (v:A) n: sublist 1 n (v::l) = sublist 0 (n-1) l.
-Proof.
-  unfold sublist. rewrite Z2Nat.inj_sub, skipn_0, Zminus_0_r. simpl. rewrite Z2Nat.inj_sub. trivial. 
-  omega. omega.
-Qed.
-
 Lemma upd_Znth_in_list_char {A} n l1 (v:A) l2 w: Zlength l1=n -> 0<=n -> 
       upd_Znth_in_list n (l1 ++ v :: l2) w = l1 ++ w :: l2.
 Proof. intros. unfold upd_Znth_in_list. 

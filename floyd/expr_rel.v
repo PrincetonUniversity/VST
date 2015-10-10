@@ -109,7 +109,7 @@ Proof. auto. Qed.
 
 Ltac rel_expr :=
 first [
-   simple eapply rel_expr_array_load; [reflexivity | reflexivity | apply I 
+   simple eapply rel_expr_array_load; [reflexivity | reflexivity | apply Coq.Init.Logic.I 
    | repeat apply andp_right; [rel_expr | rel_expr | rewrite_eval_id; cancel | entailer.. ]]
  | simple apply rel_expr_tempvar;  apply eval_id_get; [solve [eauto] | congruence ]
  | simple eapply rel_expr_cast; [rel_expr | try (simpl; rewrite_eval_id; reflexivity) ]
@@ -138,27 +138,27 @@ Ltac forward_nl :=
  first
  [ simple eapply semax_seq';
    [simple eapply semax_loadstore_array;
-       [ reflexivity | apply I | reflexivity | reflexivity| reflexivity 
+       [ reflexivity | apply Coq.Init.Logic.I | reflexivity | reflexivity| reflexivity 
        | entailer; repeat instantiate_Vptr; repeat apply andp_right;
                rel_expr
        | try solve_nth_error | auto | auto | hnf; try omega ]
     | unfold replace_nth; simpl valinject; abbreviate_semax ]
  | eapply semax_post_flipped';
    [simple eapply semax_loadstore_array;
-       [ reflexivity | apply I | reflexivity | reflexivity| reflexivity 
+       [ reflexivity | apply Coq.Init.Logic.I | reflexivity | reflexivity| reflexivity 
        | entailer; repeat instantiate_Vptr; repeat apply andp_right;
                rel_expr
        | try solve_nth_error | auto | auto | hnf; try omega ]
     |  ]
  | simple eapply semax_seq';
     [eapply semax_set_forward_nl;  
-      [reflexivity | entailer; repeat instantiate_Vptr; rel_expr | try apply I ]
+      [reflexivity | entailer; repeat instantiate_Vptr; rel_expr | try apply Coq.Init.Logic.I ]
       | let old := fresh "old" in apply exp_left; intro old;
         autorewrite with subst; try rewrite insert_local; abbreviate_semax
      ]
  | eapply semax_post_flipped';
     [eapply semax_set_forward_nl;  
-      [reflexivity | entailer; repeat instantiate_Vptr; rel_expr | try apply I ]
+      [reflexivity | entailer; repeat instantiate_Vptr; rel_expr | try apply Coq.Init.Logic.I ]
       | let old := fresh "old" in apply exp_left; intro old;
         autorewrite with subst; try rewrite insert_local
      ]

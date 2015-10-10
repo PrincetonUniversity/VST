@@ -957,7 +957,7 @@ Ltac forward_for_simple_bound' n Pre :=
  [ first [eapply (semax_for_const_bound_const_init n Pre)
          | eapply (semax_for_const_bound_const_init_u n Pre)];
   [reflexivity | try repable_signed | try repable_signed | reflexivity | try reflexivity; omega
-  | auto 50 with closed
+(*  | auto 50 with closed*)
   | intro; cbv beta; simpl; auto 50 with closed
   | intro; cbv beta; simpl; auto 50 with closed
   | cbv beta; simpl update_tycon; rewrite insert_local

@@ -1642,7 +1642,7 @@ destruct p.
 if_tac in H; try contradiction.
 destruct H.
 repeat split; auto.
-subst; apply I.
+subst; apply Coq.Init.Logic.I.
 subst; hnf. exists 0. rewrite Z.mul_0_l.
 reflexivity.
 Qed.

@@ -6,7 +6,6 @@ Require Import general_lemmas.
 Require Import sublist.
 
 Require Import split_array_lemmas.
-(*Require Import fragments.*)
 Require Import ZArith. 
 Require Import tweetNaclBase.
 Require Import Salsa20.
@@ -42,11 +41,7 @@ Qed.
 (*Issue : writing the lemma using the Delta := func_typcontext ...
   @semax CompSepcs Espec Delta ...
   leads to failure - but only 40 lines down, in the call to forward_call,
-  where check_Delta (and also check_DeltaOLD will now fail with
-  the temporary "Error in check_Delta (match-case 3)" message,
-  or (if the error message is replaced by the original
-   abbreviate D : tycontext as Delta) the fwd_call'/forward_call/forward_callOLD
-  will completely fail since it introduces a Delta0.
+  where check_Delta now fails since it introduces a Delta0.
   I think we need to complement the line (
     Delta := @abbreviate tycontext (mk_tycontext _ _ _ _ _) |- _ => ...
   in checkDelta (checkDeltaOLD) with a second option,
@@ -55,8 +50,7 @@ Qed.
   1. rerunning abbreviate_semax at that place (before calling forward_call)
      does not resolve the situation
   2. In the master-branch, we actually could write the lemma using Delta :=,
-     so this is really an isstue ith the new_compcert branch*)
-
+     so this is really an issue ith the new_compcert branch*)
 
 Lemma f_core_loop1: forall (Espec : OracleKind)
 c k h nonce out OUT 
@@ -69,7 +63,7 @@ c k h nonce out OUT
 (h' : name _h)
 (aux' : name _aux)
 w x y t,
-@semax CompSpecs Espec (func_tycontext f_core SalsaVarSpecs SalsaFunSpecs)
+@semax CompSpecs Espec (func_tycontext f_core SalsaVarSpecs SalsaFunSpecs) (* Delta*)
   (PROP  ()
    LOCAL  (lvar _t (tarray tuint 4) t; lvar _y (tarray tuint 16) y;
    lvar _x (tarray tuint 16) x; lvar _w (tarray tuint 16) w; temp _in nonce;
@@ -167,7 +161,7 @@ PROP  ()
    `(data_at_ Tsh (tarray tuint 16) w); `(CoreInSEP data (nonce, c, k));
    `(data_at Tsh (tarray tuchar 64) OUT out)))).
 Proof. intros. abbreviate_semax.
-LENBforward_for_simple_bound 4 (EX i:Z, 
+forward_for_simple_bound 4 (EX i:Z, 
    PROP  ()
    LOCAL  ( 
    lvar _t (tarray tuint 4) t; lvar _y (tarray tuint 16) y;
@@ -191,83 +185,31 @@ LENBforward_for_simple_bound 4 (EX i:Z,
   assert_PROP (field_compatible (Tarray tuchar 16 noattr) [] c). entailer.
   rename H into FC.
   assert_PROP(isptr c). entailer. apply isptrD in H; destruct H as [cb [coff CP]]. rewrite CP in *.
+  destruct (Select_SplitSelect16Q_Zlength _ _ _ _ HeqFB I) as [FL _].
   rewrite (split3_data_at_Tarray_at_tuchar Tsh 16 (Zlength (QuadChunks2ValList Front)) 
         (Zlength (QuadChunks2ValList [Select16Q C i]))); trivial; 
     repeat rewrite Zlength_app;
     repeat rewrite QuadChunk2ValList_ZLength;
 (*    repeat rewrite FL; try rewrite BL; *)
     try rewrite <- QuadByteValList_ZLength; try rewrite Z.mul_1_r; try omega.
-    2: destruct (Select_SplitSelect16Q_Zlength _ _ _ _ HeqFB I) as [FL _]; rewrite FL; omega.
-    2: destruct (Select_SplitSelect16Q_Zlength _ _ _ _ HeqFB I) as [FL _]; rewrite FL; omega.
+(*    2: destruct (Select_SplitSelect16Q_Zlength _ _ _ _ HeqFB I) as [FL _]; rewrite FL; omega.
+    2: destruct (Select_SplitSelect16Q_Zlength _ _ _ _ HeqFB I) as [FL _]; rewrite FL; omega.*)
   normalize. 
   rewrite (Select_SplitSelect16Q C i _ _ HeqFB) at 2.
   rewrite (sublist_app2 (4 * Zlength Front) (4 + 4 * Zlength Front)); 
     repeat rewrite QuadChunk2ValList_ZLength. 
-    2: destruct (Select_SplitSelect16Q_Zlength _ _ _ _ HeqFB I) as [FL _]; rewrite FL; omega.
+    2: (*destruct (Select_SplitSelect16Q_Zlength _ _ _ _ HeqFB I) as [FL _];*) rewrite FL; omega.
   rewrite Zminus_diag, Z.add_simpl_r.
   unfold at_offset at 1.
   rewrite (sublist0_app1 4), (sublist_same 0 4); try rewrite QuadChunk2ValList_ZLength;
      try rewrite Z.mul_1_r; trivial; try omega.
 Transparent core_spec. Transparent ld32_spec. Transparent L32_spec. Transparent st32_spec.
 Transparent crypto_core_salsa20_spec. Transparent crypto_core_hsalsa20_spec. 
+  (*Issue this is where the call fails if we use abbreviation Detla := ... in the statemtn of the lemma*)
   forward_call (offset_val (Int.repr (4 * i)) (Vptr cb coff), Select16Q C i) pat.
-(*Ltac check_DeltaOLD :=
-match goal with 
- | Delta := @abbreviate tycontext (mk_tycontext _ _ _ _ _) |- _ =>
-    match goal with 
-    | |- _ => clear Delta; check_DeltaOLD
-    | |- semax Delta _ _ _ => idtac 
-    end
- | _ => first [simplify_Delta_OLD | fail 4 "Error in check_Delta (match-case 2): simplify_Delta fails. (Definition is in semax_tactic.v)"];
-     match goal with |- semax ?D _ _ _ => 
-            fail 4 "Error in check_Delta (match-case 3)"
-            (*abbreviate D : tycontext as Delta*)
-     end
-end. (* abbreviate_semax. unfold Delta. unfold func_tycontext. simpl.*)
-  (*check_DeltaOLD. succeeds, while check_Delta. fails*)
-Tactic Notation "forward_callOLD" constr(witness) simple_intropattern_list(v) :=
-    check_canonical_call;
-    check_DeltaOLD;
-    fwd_call' witness;
-  [ .. 
-  | first 
-      [ (* body of uniform_intros tactic *)
-         (((assert True by (intros v; apply I);
-            assert (forall a: unit, True) by (intros v; apply I);
-            fail 1)
-          || intros v) 
-        || idtac);
-        (* end body of uniform_intros tactic *)
-        match goal with
-        | |- semax _ _ _ _ => idtac 
-        | |- unit -> semax _ _ _ _ => intros _ 
-        end;
-        repeat (apply semax_extract_PROP; intro);
-       abbreviate_semax;
-       try fwd_skip
-     | complain_intros
-     ]  
-  ].
-(*Issue: without clearing BL, or unfolding Z.sub in *, even forward_callOLD fails*)
-clear BL. Opaque Z.sub. Opaque Z.mul. Opaque Z.add. simpl. rewrite app_nil_r.
-abbreviate_semax.
-    check_canonical_call;
-    check_DeltaOLD.
-    fwd_call' (offset_val (Int.repr (4 * i)) (Vptr cb coff), Select16Q C i).
-Focus 3.
-  forward_callOLD (offset_val (Int.repr (4 * i)) (Vptr cb coff), Select16Q C i) pat.*)
-
-assert (Q: QuadChunks2ValList [Select16Q C i] = QuadByte2ValList (Select16Q C i)) by apply app_nil_r.
- destruct (Select_SplitSelect16Q_Zlength _ _ _ _ HeqFB I) as [FL _]; rewrite FL.
-rewrite Q; cancel.
-(*Alternative:  to use of Q here:
-clear BL. Opaque Z.sub. Opaque Z.mul. Opaque Z.add. simpl. rewrite app_nil_r. cancel.*)
-
-(*Issue: again we need to instantiate parts of LOCAL explicitly, in the "spurious" delete_temps*)
-instantiate (1:= [lvar _t (tarray tuint 4) t;
-   lvar _y (tarray tuint 16) y; lvar _x (tarray tuint 16) x;
-   lvar _w (tarray tuint 16) w; temp _in nonce; temp _out out;
-   temp _c (Vptr cb coff); temp _k k; temp _h (Vint (Int.repr h))]). admit. admit.
+Opaque core_spec. Opaque ld32_spec. Opaque L32_spec. Opaque st32_spec.
+Opaque crypto_core_salsa20_spec. Opaque crypto_core_hsalsa20_spec.
+  { simpl. rewrite app_nil_r, FL. cancel. }
 
 normalize. subst pat.
   apply semax_pre with (P':=
@@ -291,12 +233,12 @@ normalize. subst pat.
     repeat rewrite QuadChunk2ValList_ZLength;
 (*    repeat rewrite FL; try rewrite BL; *)
     try rewrite <- QuadByteValList_ZLength; try rewrite Z.mul_1_r; try omega.
-     2: destruct (Select_SplitSelect16Q_Zlength _ _ _ _ HeqFB I) as [FL _]; rewrite FL; omega.
-     2: destruct (Select_SplitSelect16Q_Zlength _ _ _ _ HeqFB I) as [FL _]; rewrite FL; omega.
-     2: destruct (Select_SplitSelect16Q_Zlength _ _ _ _ HeqFB I) as [FL BL]; rewrite FL, BL; omega.
+     (*2: destruct (Select_SplitSelect16Q_Zlength _ _ _ _ HeqFB I) as [FL _]; rewrite FL; omega.
+     2: destruct (Select_SplitSelect16Q_Zlength _ _ _ _ HeqFB I) as [FL _]; rewrite FL; omega.*)
+     2: destruct (Select_SplitSelect16Q_Zlength _ _ _ _ HeqFB I) as [_ BL]; rewrite FL, BL; omega.
      2: rewrite CP; trivial.
     Opaque Z.sub. Opaque Z.mul. Opaque Z.add. entailer. 
-    destruct (Select_SplitSelect16Q_Zlength _ _ _ _ HeqFB I) as [FL BL]; rewrite FL, BL. 
+(*    destruct (Select_SplitSelect16Q_Zlength _ _ _ _ HeqFB I) as [FL BL]; rewrite FL, BL. *)
     cancel. 
     rewrite sublist_app2; repeat rewrite QuadChunk2ValList_ZLength; repeat rewrite FL; try omega.
     rewrite Zminus_diag, Z.add_simpl_r.
@@ -333,11 +275,6 @@ Transparent crypto_core_salsa20_spec. Transparent crypto_core_hsalsa20_spec.
                  Select16Q Key1 i) v. 
   { destruct (Select_SplitSelect16Q_Zlength _ _ _ _ HeqFB_K1 I) as [FLK _]; rewrite FLK.
     cancel. }
-  { instantiate (1:= [lvar _t (tarray tuint 4) t; lvar _y (tarray tuint 16) y;
-      lvar _x (tarray tuint 16) x; lvar _w (tarray tuint 16) w; temp _in nonce;
-      temp _out out; temp _c c; temp _k k; temp _h (Vint (Int.repr h))]).
-      admit. }
-  { admit. }
 Opaque core_spec. Opaque ld32_spec. Opaque L32_spec. Opaque st32_spec.
 Opaque crypto_core_salsa20_spec. Opaque crypto_core_hsalsa20_spec.
   normalize. subst v.
@@ -390,11 +327,6 @@ Transparent crypto_core_salsa20_spec. Transparent crypto_core_hsalsa20_spec.
     rewrite  QuadChunk2ValList_ZLength.
     destruct (Select_SplitSelect16Q_Zlength _ _ _ _ HeqFB_N I) as [FrontN _]; rewrite FrontN.
     cancel. }
-  { instantiate (1:= [lvar _t (tarray tuint 4) t; lvar _y (tarray tuint 16) y;
-      lvar _x (tarray tuint 16) x; lvar _w (tarray tuint 16) w; temp _in nonce;
-      temp _out out; temp _c c; temp _k k; temp _h (Vint (Int.repr h))]).
-      admit. }
-  { admit. }
 Opaque core_spec. Opaque ld32_spec. Opaque L32_spec. Opaque st32_spec.
 Opaque crypto_core_salsa20_spec. Opaque crypto_core_hsalsa20_spec.
   
@@ -458,11 +390,6 @@ repeat rewrite <- QuadByteValList_ZLength. simpl.
 Opaque core_spec. Opaque ld32_spec. Opaque L32_spec. Opaque st32_spec.
 Opaque crypto_core_salsa20_spec. Opaque crypto_core_hsalsa20_spec.
   { destruct (Select_SplitSelect16Q_Zlength _ _ _ _ HeqFB_K2 I) as [FK2 _]; rewrite FK2. apply prop_right; trivial. }
-  { instantiate (1:= [lvar _t (tarray tuint 4) t;
-     lvar _y (tarray tuint 16) y; lvar _x (tarray tuint 16) x;
-     lvar _w (tarray tuint 16) w; temp _in nonce; temp _out out; temp _c c;
-     temp _k (Vptr kb koff); temp _h (Vint (Int.repr h))]). admit. }
-  { admit. }
 
   normalize. subst v.
   apply semax_pre with (P':=
@@ -500,7 +427,7 @@ Opaque crypto_core_salsa20_spec. Opaque crypto_core_hsalsa20_spec.
     rewrite <- K2_16. cbv; trivial. }
 
   (*Store into x[...]*)
-  forward.
+  forward. clear FL.
 
   entailer. 
   apply (exp_right (upd_Znth_in_list (11 + i)

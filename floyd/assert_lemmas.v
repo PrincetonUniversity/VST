@@ -36,7 +36,7 @@ Qed.
 
 Lemma isptr_offset_val':
  forall i p, isptr p -> isptr (offset_val i p).
-Proof. intros. destruct p; try contradiction; apply I. Qed.
+Proof. intros. destruct p; try contradiction; apply Coq.Init.Logic.I. Qed.
 Hint Resolve isptr_offset_val': norm.
 
 Lemma sem_add_pi_ptr:
@@ -95,7 +95,7 @@ Qed.
 Global Transparent Int.repr.
 
 Lemma liftTrue: forall rho, `True rho.
-Proof. intro. unfold_lift; apply I. Qed.
+Proof. intro. unfold_lift; apply Coq.Init.Logic.I. Qed.
 Hint Resolve liftTrue.
 
 Lemma overridePost_normal:
@@ -298,7 +298,7 @@ Lemma tc_eval_gvar_i:
 Proof.
  intros.
  destruct (tc_eval_gvar_zero _ _ _ _ H H0 H1) as [b ?].
- rewrite H2; apply I.
+ rewrite H2; apply Coq.Init.Logic.I.
 Qed.
 
 Lemma local_lift2_and: forall P Q, local (`and P Q) = 

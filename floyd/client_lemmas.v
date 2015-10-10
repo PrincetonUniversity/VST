@@ -583,7 +583,7 @@ destruct ((temp_types Delta) ! i); try destruct p; reflexivity.
 Qed.
 Hint Rewrite ret_type_initialized : norm.
 
-Hint Rewrite bool_val_notbool_ptr using apply I : norm.
+Hint Rewrite bool_val_notbool_ptr using apply Coq.Init.Logic.I : norm.
 
 Lemma Vint_inj': forall i j,  (Vint i = Vint j) =  (i=j).
 Proof. intros; apply prop_ext; split; intro; congruence. Qed.
@@ -649,7 +649,7 @@ destruct x; intuition; try congruence;
 destruct (Int.eq i Int.zero); inv H0.
 Qed.
 
-Hint Rewrite typed_true_isptr using apply I : norm.
+Hint Rewrite typed_true_isptr using apply Coq.Init.Logic.I : norm.
 
 Ltac super_unfold_lift_in H :=
    cbv delta [liftx LiftEnviron Tarrow Tend lift_S lift_T
@@ -687,7 +687,7 @@ Qed.
 Definition name (id: ident) := True.
 
 Tactic Notation "name" ident(s) constr(id) := 
-    assert (s: name id) by apply I.
+    assert (s: name id) by apply Coq.Init.Logic.I.
 
 Definition reflect_temps_f (rho: environ) (b: Prop) (i: ident) (t: type*bool) : Prop :=
     match t with
@@ -799,7 +799,7 @@ destruct t2; try contradiction; try destruct i; try contradiction; simpl; auto;
 destruct v; inv H1; simpl; auto.
 Qed.
 
-Hint Rewrite sem_cast_pointer2' using (try apply I; try assumption; reflexivity) : norm.
+Hint Rewrite sem_cast_pointer2' using (try apply Coq.Init.Logic.I; try assumption; reflexivity) : norm.
 
 Lemma typecheck_val_eq:
   forall v t, (typecheck_val v t = true) = tc_val t v.
@@ -1617,7 +1617,7 @@ Lemma isptr_force_ptr'' : forall p Q,
 Proof.
 intros.
 apply X.
-destruct p; inv H; apply I.
+destruct p; inv H; apply Coq.Init.Logic.I.
 Qed.
 
 Lemma isptr_offset_val'': forall i p Q,
@@ -1626,7 +1626,7 @@ Lemma isptr_offset_val'': forall i p Q,
 Proof.
 intros.
 apply X.
-destruct p; inv H; apply I.
+destruct p; inv H; apply Coq.Init.Logic.I.
 Qed.
 
 Lemma ptr_eq_e': forall v1 v2 B,

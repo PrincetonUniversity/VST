@@ -84,7 +84,7 @@ Ltac try_conjuncts_solver :=
     match goal with H:_ |- ?A => 
          no_evars A;
          first [clear H; try immediate; solve [auto] 
-                | apply I 
+                | apply Coq.Init.Logic.I 
                 | computable 
                 | omega 
                 ]
@@ -323,7 +323,7 @@ Ltac entailer' :=
  repeat (progress (ent_iter; normalize));
  try simple apply prop_and_same_derives;
  prune_conjuncts;
- try rewrite (prop_true_andp True) by apply I;
+ try rewrite (prop_true_andp True) by apply Coq.Init.Logic.I;
  try solve_valid_pointer;
  try first [apply derives_refl
               | simple apply FF_left 
@@ -366,7 +366,7 @@ Hint Extern 4 (value_fits _ _ _) =>
 Ltac prove_it_now :=
  first [ splittable; fail 1
         | computable 
-        | apply I 
+        | apply Coq.Init.Logic.I 
         | reflexivity 
         | omega
         | repeat match goal with H: ?A |- _ => has_evar A; clear H end;
@@ -393,7 +393,7 @@ Ltac my_auto_iter H :=
        | apply H
        ].
 
-Ltac all_True :=  solve [repeat simple apply conj; simple apply I].
+Ltac all_True :=  solve [repeat simple apply conj; simple apply Coq.Init.Logic.I].
 
 Ltac my_auto_reiter :=
  first [simple apply conj; [all_True | ]; my_auto_reiter
@@ -422,7 +422,7 @@ Ltac mysplit :=
  end.
 
 Ltac my_auto :=
- repeat mysplit; try computable; normalize; auto; try apply I; try reflexivity; try omega.
+ repeat mysplit; try computable; normalize; auto; try apply Coq.Init.Logic.I; try reflexivity; try omega.
 *)
 
 Lemma prop_and_same_derives' {A}{NA: NatDed A}:
@@ -436,7 +436,7 @@ Ltac entailer_for_return :=
  normalize;
  repeat erewrite elim_globals_only by (split3; [eassumption | reflexivity.. ]);
  prune_conjuncts;
- try rewrite (prop_true_andp True) by apply I;
+ try rewrite (prop_true_andp True) by apply Coq.Init.Logic.I;
  try solve [cancel].
 
 Ltac entbang := 

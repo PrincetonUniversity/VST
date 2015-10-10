@@ -782,7 +782,7 @@ Lemma id2pred_star_ZnthV_tint  {cs: compspecs}:
   !! offset_in_range (sizeof cenv_cs tint * n) v &&
   id2pred_star Delta sh (tarray tint n) v 0 mdata |--
   `(data_at sh (tarray tint n) (map Vint data) v).
-Proof. intros; apply id2pred_star_ZnthV_Tint; auto; apply I.
+Proof. intros; apply id2pred_star_ZnthV_Tint; auto; apply Coq.Init.Logic.I.
 Qed.
 
 Lemma gvar_isptr:
@@ -791,7 +791,7 @@ Proof.
 intros.
 hnf in H. destruct (Map.get (ve_of rho) i) as [[? ?]|]; try contradiction.
 destruct (ge_of rho i); try contradiction.
-subst; apply I.
+subst; apply Coq.Init.Logic.I.
 Qed.
 
 Lemma unpack_globvar_array  {cs: compspecs}:
@@ -1180,7 +1180,7 @@ first [
       [reflexivity | reflexivity | split; [| split]; reflexivity | reflexivity | reflexivity | reflexivity
       | reflexivity | compute; congruence ]
  | eapply unpack_globvar_array;
-      [reflexivity | reflexivity | reflexivity | reflexivity | reflexivity | apply I 
+      [reflexivity | reflexivity | reflexivity | reflexivity | reflexivity | apply Coq.Init.Logic.I 
       | compute; clear; congruence 
       | repeat eapply map_instantiate; symmetry; apply map_nil
       | compute; split; clear; congruence ]
@@ -1266,7 +1266,7 @@ Ltac process_one_globvar :=
       [reflexivity | reflexivity | split; [| split]; reflexivity | reflexivity | reflexivity | reflexivity
       | reflexivity | compute; congruence | ]
   | simple eapply process_globvar_array;
-      [reflexivity | reflexivity | reflexivity | reflexivity | reflexivity | apply I 
+      [reflexivity | reflexivity | reflexivity | reflexivity | reflexivity | apply Coq.Init.Logic.I 
       | compute; clear; congruence 
       | repeat eapply map_instantiate; symmetry; apply map_nil
       | compute; split; clear; congruence |  ]
