@@ -973,8 +973,8 @@ apply semax_ifthenelse_PQR.
      eapply semax_post_flipped.
      apply forward_setx. 
      go_lowerx. apply andp_right; apply prop_right.
-    apply I.   unfold tc_temp_id, typecheck_temp_id. rewrite H1.
-     simpl. apply I.
+    apply Coq.Init.Logic.I.   unfold tc_temp_id, typecheck_temp_id. rewrite H1.
+     simpl. apply Coq.Init.Logic.I.
      intros ek vl.
     unfold normal_ret_assert. repeat rewrite exp_andp2.
      apply exp_left;  intro.
@@ -994,7 +994,7 @@ apply semax_ifthenelse_PQR.
         unfold tc_expr. simpl. rewrite tc_andp_sound.
         simpl. super_unfold_lift. split. auto. 
          destruct (typeof e2) as [ | | | [ | ] |  | | | | ] eqn:?;
-                                        inv H0; try  apply I.
+                                        inv H0; try  apply Coq.Init.Logic.I.
       + simpl update_tycon. apply extract_exists_pre. intro oldval.
           rewrite (@closed_wrt_subst _ tid _ (eval_expr Delta (Ecast e2 tbool)))
     by (simpl; auto with closed).
@@ -1012,8 +1012,8 @@ apply semax_ifthenelse_PQR.
         go_lowerx. apply andp_right; apply prop_right; auto.
         unfold tc_expr. simpl. rewrite tc_andp_sound. 
         super_unfold_lift. split. 
-        erewrite temp_types_init_same by eauto. simpl. apply I.
-         apply I.
+        erewrite temp_types_init_same by eauto. simpl. apply Coq.Init.Logic.I.
+         apply Coq.Init.Logic.I.
         simpl. unfold tc_temp_id. unfold typecheck_temp_id.
         erewrite temp_types_init_same by eauto. rewrite tc_andp_sound.
         simpl. super_unfold_lift; auto.
@@ -1066,7 +1066,7 @@ apply semax_ifthenelse_PQR.
         simpl. super_unfold_lift. split.
         destruct H5; auto; congruence.         
         unfold isCastResultType. destruct (typeof e2) as [ | | | [ | ] |  | | | | ]; 
-                                        inv H0; simpl; apply I.
+                                        inv H0; simpl; apply Coq.Init.Logic.I.
       + simpl update_tycon. apply extract_exists_pre. intro oldval.
           rewrite (@closed_wrt_subst _ tid _ (eval_expr Delta (Ecast e2 tbool)))
     by (simpl; auto with closed).
@@ -1079,8 +1079,8 @@ apply semax_ifthenelse_PQR.
         go_lowerx. apply andp_right; apply prop_right; auto.
         unfold tc_expr. simpl. rewrite tc_andp_sound. 
         super_unfold_lift. split. 
-        erewrite temp_types_init_same by eauto. simpl. apply I.
-         apply I.
+        erewrite temp_types_init_same by eauto. simpl. apply Coq.Init.Logic.I.
+         apply Coq.Init.Logic.I.
         simpl. unfold tc_temp_id. unfold typecheck_temp_id.
         erewrite temp_types_init_same by eauto. rewrite tc_andp_sound.
         simpl. super_unfold_lift; auto.
@@ -1102,9 +1102,9 @@ apply semax_ifthenelse_PQR.
      eapply semax_post_flipped.
      apply forward_setx. 
      go_lowerx. apply andp_right; try apply prop_right; auto.
-     apply I.
+     apply Coq.Init.Logic.I.
      unfold tc_temp_id. unfold typecheck_temp_id. rewrite H1.
-     simpl. apply I.
+     simpl. apply Coq.Init.Logic.I.
      intros ek vl. unfold normal_ret_assert.
    repeat rewrite exp_andp2. apply exp_left; intro x.
    autorewrite with subst.  

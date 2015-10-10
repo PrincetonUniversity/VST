@@ -3,6 +3,51 @@ Require Import msl.Coqlib2.
 Require Import List.
 Import ListNotations.
 
+Lemma Zlength_length:
+  forall A (al: list A) (n: Z),
+    0 <= n ->
+    (Zlength al = n <-> length al = Z.to_nat n).
+Proof.
+intros. rewrite Zlength_correct.
+split; intro.
+rewrite <- (Z2Nat.id n) in H0 by omega.
+apply Nat2Z.inj in H0; auto.
+rewrite H0.
+apply Z2Nat.inj; try omega.
+rewrite Nat2Z.id; auto.
+Qed.
+
+Lemma firstn_app1: forall {A} n (p l: list A),
+  (n <= Datatypes.length p)%nat ->
+   firstn n (p ++ l) = firstn n p.
+Proof. intros A n.
+induction n; simpl; intros. trivial.
+  destruct p; simpl in H. omega.
+  apply le_S_n in H. simpl. f_equal. auto. 
+Qed.  
+
+Lemma firstn_app2: forall {A} (n: nat) (al bl: list A),
+ (n >= length al)%nat -> 
+ firstn n (al++bl) = al ++ firstn (n - length al) bl.
+Proof.
+intros. revert al H.
+induction n; destruct al; intros.
+reflexivity.
+inv H.
+simpl.
+destruct bl; auto.
+simpl.
+f_equal. apply IHn.
+simpl in H; omega.
+Qed.
+
+Lemma firstn_list_repeat {A} (v:A): forall i k, (i<=k)%nat ->
+      firstn i (list_repeat k v) = list_repeat i v.
+Proof.
+  induction i; simpl; trivial; intros.
+  destruct k. omega. simpl. rewrite IHi; trivial. omega.
+Qed.
+
 Lemma firstn_app:
  forall {A} n m (al: list A), firstn n al ++ firstn m (skipn n al) =
   firstn (n+m) al.
@@ -199,17 +244,6 @@ intros; induction a; simpl; f_equal.
 auto.
 Qed.
 
-Lemma firstn_app1:
- forall A n (al bl: list A), 
-  (n <= length al -> firstn n (al++bl) = firstn n al)%nat.
-Proof.
-intros. revert n al H; induction n; destruct al; simpl; intros; auto.
-inv H.
-f_equal; auto.
-apply IHn.
-omega.
-Qed.
-
 Lemma firstn_same:
   forall A n (b: list A), (n >= length b)%nat -> firstn n b = b.
 Proof.
@@ -335,22 +369,6 @@ Lemma map_skipn:
   map F (skipn n al) = skipn n (map F al).
 Proof.
 induction n; destruct al; simpl; intros; auto.
-Qed.
-
-(* Beginning of Z-list stuff *)
-
-Lemma Zlength_length:
-  forall A (al: list A) (n: Z),
-    0 <= n ->
-    (Zlength al = n <-> length al = Z.to_nat n).
-Proof.
-intros. rewrite Zlength_correct.
-split; intro.
-rewrite <- (Z2Nat.id n) in H0 by omega.
-apply Nat2Z.inj in H0; auto.
-rewrite H0.
-apply Z2Nat.inj; try omega.
-rewrite Nat2Z.id; auto.
 Qed.
 
 Lemma Zlength_app: forall T (al bl: list T),
@@ -614,21 +632,6 @@ rewrite Z2Nat.id by omega.
 auto.
 Qed.
 
-Lemma firstn_app2: forall {A} (n: nat) (al bl: list A),
- (n >= length al)%nat -> 
- firstn n (al++bl) = al ++ firstn (n - length al) bl.
-Proof.
-intros. revert al H.
-induction n; destruct al; intros.
-reflexivity.
-inv H.
-simpl.
-destruct bl; auto.
-simpl.
-f_equal. apply IHn.
-simpl in H; omega.
-Qed.
-
 Lemma Zfirstn_app2: forall {A} n (al bl: list A),
  n >= Zlength al -> 
  firstn (Z.to_nat n) (al++bl) = al ++ firstn (Z.to_nat (n - Zlength al)) bl.
@@ -761,6 +764,16 @@ Qed.
 Definition sublist {A} (lo hi: Z) (al: list A) : list A :=
   firstn (Z.to_nat (hi-lo)) (skipn (Z.to_nat lo) al).
 
+Lemma sublist_sublist {A} i j k m (l:list A): 0<=m -> 0<=k <=i -> i <= j-m -> 
+  sublist k i (sublist m j l) = sublist (k+m) (i+m) l.
+Proof.
+ unfold sublist; intros.
+  rewrite skipn_firstn.
+  rewrite firstn_firstn, skipn_skipn, <- Z2Nat.inj_add,(Z.add_comm _ k), Zminus_plus_simpl_r; trivial.
+  omega. 
+  rewrite <- Z2Nat.inj_sub; trivial. apply Z2Nat.inj_le; try omega. omega.
+Qed.
+(*
 Lemma sublist_sublist:
   forall {A} lo hi lo' hi' (al: list A),
  0 <= lo <= hi ->
@@ -777,7 +790,7 @@ rewrite Zskipn_skipn by omega.
 f_equal. f_equal. omega.
 f_equal. f_equal. omega.
 Qed.
-
+*)
 Lemma sublist_rejoin:
   forall {A} lo mid hi (al: list A),
   0 <= lo <= mid ->
@@ -979,4 +992,84 @@ intros.
 symmetry.
 apply len_le_1_rev.
 apply Nat2Z.inj_le. rewrite <- Zlength_correct; apply H.
+Qed.
+
+Lemma skipn_0:
+  forall A (l: list A), skipn 0 l = l.
+Proof.
+reflexivity.
+Qed.
+
+Lemma sublist_1_cons {A} l (v:A) n: sublist 1 n (v::l) = sublist 0 (n-1) l.
+Proof.
+  unfold sublist. rewrite Z2Nat.inj_sub, skipn_0, Zminus_0_r. simpl. rewrite Z2Nat.inj_sub. trivial. 
+  omega. omega.
+Qed.
+
+Lemma sublist_nil': forall (A : Type) (lo lo': Z) (al : list A), lo=lo' -> sublist lo lo' al = [].
+Proof. intros. subst. apply sublist_nil. Qed.
+
+Lemma sublist_skip {A} (l:list A) i : 0<=i ->  sublist i (Zlength l) l = skipn (Z.to_nat i) l.
+Proof. unfold sublist; intros. apply firstn_same. rewrite skipn_length.
+  rewrite Z2Nat.inj_sub, Zlength_correct, Nat2Z.id. omega. trivial.
+Qed.
+
+Lemma sublist_firstn {A} (l:list A) i: sublist 0 i l = firstn (Z.to_nat i) l.
+Proof. unfold sublist; intros. rewrite Zminus_0_r, skipn_0. trivial. Qed.
+
+Lemma sublist_app1:
+  forall (A : Type) (k i : Z) (al bl : list A),
+  0 <= k <= i -> i <= Zlength al -> sublist k i (al ++ bl) = sublist k i al.
+Proof. intros.
+  unfold sublist. rewrite skipn_app1. rewrite firstn_app1. trivial.
+  rewrite skipn_length, Z2Nat.inj_sub. apply Nat2Z.inj_le.
+  repeat rewrite Nat2Z.inj_sub. rewrite Z2Nat.id, <- Zlength_correct. omega. omega.
+  rewrite <- ZtoNat_Zlength. apply Z2Nat.inj_le; omega.
+  apply Z2Nat.inj_le; omega. omega. rewrite <- ZtoNat_Zlength. apply Z2Nat.inj_le; omega.
+Qed.  
+
+Lemma sublist0_app1 {A} i (al bl:list A): 0<= i <= Zlength al ->
+  sublist 0 i (al ++ bl) = sublist 0 i al.
+Proof. intros. apply sublist_app1; omega. Qed.
+
+Lemma sublist_app2 {A} i j (al bl:list A): 0<=Zlength al <= i->
+  sublist i j (al ++ bl) = sublist (i-Zlength al) (j-Zlength al) bl.
+Proof. 
+  unfold sublist; intros. 
+  rewrite skipn_app2.
+  repeat rewrite Z2Nat.inj_sub. repeat rewrite ZtoNat_Zlength.
+  remember ((Z.to_nat i - length al)%nat) as k.
+  rewrite <- NPeano.Nat.sub_add_distr.
+  assert (K: (length al + k = Z.to_nat i)%nat).
+    subst k. rewrite <- le_plus_minus. trivial.
+    apply Nat2Z.inj_le. rewrite Z2Nat.id. rewrite Zlength_correct in H; apply H. omega.
+  rewrite K. trivial.
+  omega. omega. omega. omega. 
+  apply Nat2Z.inj_le. rewrite Z2Nat.id. rewrite Zlength_correct in H; apply H. omega.
+Qed.
+
+Lemma sublist_sublist0 {A} i j k (l:list A): 0<=k -> k<=i<=j ->
+  sublist k i (sublist 0 j l) = sublist k i l.
+Proof. intros. rewrite sublist_sublist; repeat rewrite Zplus_0_r; trivial; omega. Qed. 
+
+Lemma sublist_sublist00 {A} i j (l:list A): 0<=i<=j ->
+  sublist 0 i (sublist 0 j l) = sublist 0 i l.
+Proof. intros. apply sublist_sublist0; omega. Qed.
+
+Lemma skipn_list_repeat:
+   forall A k n (a: A),
+     (k <= n)%nat -> skipn k (list_repeat n a) = list_repeat (n-k) a.
+Proof.
+ induction k; destruct n; simpl; intros; auto.
+ apply IHk; auto. omega.
+Qed.
+
+Lemma sublist_list_repeat {A} i j k (v:A) (I: 0<=i)
+          (IJK: (Z.to_nat i <= Z.to_nat j <= k)%nat):
+      sublist i j (list_repeat k v) = list_repeat (Z.to_nat (j-i)) v.
+Proof.
+  unfold sublist.
+  rewrite skipn_list_repeat; try omega.
+  rewrite Z2Nat.inj_sub; try omega.
+  rewrite firstn_list_repeat; trivial; omega.
 Qed.

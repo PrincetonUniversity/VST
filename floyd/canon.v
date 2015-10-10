@@ -224,7 +224,7 @@ intros.
 induction Q1; simpl; auto.
 apply prop_ext; intuition.
 normalize. 
-apply I.
+apply Coq.Init.Logic.I.
 unfold_lift in IHQ1. unfold_lift.
 rewrite IHQ1.
 clear; apply prop_ext; intuition.
@@ -1365,7 +1365,7 @@ Ltac not_conj_notation :=
  | |- not_conj_notation (_ <= _ <= _)%nat => fail 1
  | |- not_conj_notation (_ <= _ < _)%nat => fail 1
  | |- not_conj_notation (_ < _ <= _)%nat => fail 1
- | |- _ => apply I
+ | |- _ => apply Coq.Init.Logic.I
  end.
 
 Lemma split_first_PROP:

@@ -140,7 +140,7 @@ normalize.
 unfold SeparationLogic.maybe_retval.
 autorewrite with subst norm ret_assert.
 destruct retty; auto; rewrite sepcon_comm; rewrite insert_SEP; apply derives_refl.
-apply I.
+apply Coq.Init.Logic.I.
 Qed.
 
 Lemma semax_fun_id':
@@ -436,7 +436,7 @@ Definition check_one_var_spec (Q: PTree.t vardesc) (idv: ident * vardesc) : Prop
    end.
 *)
 
-Inductive delete_temp_from_locals (id: ident) : list (environ -> Prop) -> list (environ -> Prop) -> Prop :=
+Inductive delete_temp_from_locals {cs} (id: ident) : list (environ -> Prop) -> list (environ -> Prop) -> Prop :=
 | dtfl_nil: delete_temp_from_locals id nil nil
 | dtfl_here: forall v Q Q',
                 delete_temp_from_locals id Q Q' ->
@@ -445,12 +445,15 @@ Inductive delete_temp_from_locals (id: ident) : list (environ -> Prop) -> list (
                 j<>id ->
                 delete_temp_from_locals id Q Q' ->
                 delete_temp_from_locals id (temp j v :: Q) (temp j v :: Q')
+| dtfl_lvar: forall j t v Q Q',
+                delete_temp_from_locals id Q Q' ->
+                delete_temp_from_locals id (lvar j t v :: Q) (@lvar cs j t v :: Q')
 | dtfl_gvar: forall j v Q Q',
                 delete_temp_from_locals id Q Q' ->
                 delete_temp_from_locals id (gvar j v :: Q) (gvar j v :: Q')
 | dtfl_sgvar: forall j v Q Q',
                 delete_temp_from_locals id Q Q' ->
-                delete_temp_from_locals id (sgvar j v :: Q) (sgvar j v :: Q').              
+                delete_temp_from_locals id (sgvar j v :: Q) (sgvar j v :: Q').      
 
 Definition strong_cast (t1 t2: type) (v: val) : val :=
 (* if is_neutral_cast t1 t2 then v else*) 
@@ -564,10 +567,10 @@ unfold LocalD; intros.
  revert H H0; induction L2; intros. inv H0.
  destruct H0. subst a.
  destruct vd; simpl in H.
- destruct H as [? [? ?]]. split3; auto. apply I.
- destruct H; split; auto; apply I.
- destruct H; split; auto; apply I.
- destruct H; split; auto; apply I.
+ destruct H as [? [? ?]]. split3; auto. apply Coq.Init.Logic.I.
+ destruct H; split; auto; apply Coq.Init.Logic.I.
+ destruct H; split; auto; apply Coq.Init.Logic.I.
+ destruct H; split; auto; apply Coq.Init.Logic.I.
  apply IHL2; auto.
  clear - H.
  destruct a as [i vd]; destruct vd; destruct H; auto. destruct H0; auto.
@@ -925,11 +928,12 @@ change  (@map mpred (environ -> mpred))
  rewrite H0; hnf; reflexivity.
  clear - DELETE H.
  induction DELETE.
- + apply I.
+ + apply Coq.Init.Logic.I.
  + destruct H. auto.
  + destruct H; split; auto.
      clear - H H0.
      autorewrite with subst in H. auto.
+ + destruct H; split; auto.
  + destruct H; split; auto.
  + destruct H; split; auto.
 Qed.
@@ -1043,7 +1047,7 @@ eapply semax_call_id1_wow; try eassumption; auto;
  go_lowerx. normalize. apply andp_right; auto. apply prop_right.
  clear - H4 DELETE. rename H4 into H3.
    induction DELETE. constructor. destruct H3. auto. destruct H3; constructor; auto.
-       destruct H3; constructor; auto.  destruct H3; constructor; auto. 
+       destruct H3; constructor; auto.  destruct H3; constructor; auto. destruct H3; constructor; auto. 
 +
  intros. subst Post2.
  unfold normal_ret_assert.
@@ -1073,6 +1077,7 @@ eapply semax_call_id1_wow; try eassumption; auto;
  induction DELETE; auto.
  destruct H4; constructor; auto.
  autorewrite with subst in H0. auto.
+ destruct H4; constructor; auto.
  destruct H4; constructor; auto.
  destruct H4; constructor; auto.
 Qed.
@@ -1179,7 +1184,7 @@ end.
  go_lowerx. normalize. apply andp_right; auto. apply prop_right.
  clear - H4 DELETE. rename H4 into H3.
    induction DELETE. constructor. destruct H3. auto. destruct H3; constructor; auto.
-       destruct H3; constructor; auto.  destruct H3; constructor; auto. 
+       destruct H3; constructor; auto.  destruct H3; constructor; auto.  destruct H3; constructor; auto. 
 +
  intros. subst Post2.
  unfold normal_ret_assert.
@@ -1201,6 +1206,7 @@ end.
  induction DELETE; auto.
  destruct H4; constructor; auto.
  autorewrite with subst in H0. auto.
+ destruct H4; constructor; auto.
  destruct H4; constructor; auto.
  destruct H4; constructor; auto.
 Qed.

@@ -4,7 +4,6 @@ Require Import List. Import ListNotations.
 Require Import general_lemmas.
 
 Require Import split_array_lemmas.
-(*Require Import fragments.*)
 Require Import ZArith. 
 Require Import tweetNaclBase.
 Require Import Salsa20.
@@ -61,15 +60,15 @@ assert (RNG2:= Byte.unsigned_range_2 b2).
 assert (RNG1:= Byte.unsigned_range_2 b1).
 assert (RNG0:= Byte.unsigned_range_2 b0).
 forward. entailer. (*NEW*)
-forward v. entailer. (*NEW*)
-forward u.
-forward z. entailer. (*NEW*)
-forward q.
-forward p. entailer. (*NEW*)
+forward. entailer. (*NEW*)
+forward.
+forward. entailer. (*NEW*)
+forward.
+forward. entailer. (*NEW*) 
 forward. 
   entailer.
-  apply prop_right. clear H2 H3. 
-  unfold Znth in H1. simpl in H1. inv H1. clear - BND RNG0 RNG1 RNG2 RNG3.   
+  apply prop_right. 
+  unfold Znth in H. simpl in H. inv H. clear - BND RNG0 RNG1 RNG2 RNG3.   
   rewrite shift_two_8, shift_two_8_2, shift_two_8_3.
   assert (WS: Int.zwordsize = 32). reflexivity.
   assert (TP: two_p 8 = Byte.max_unsigned + 1). reflexivity.
@@ -91,7 +90,7 @@ name u' _u.
 normalize. intros l. normalize. rename H into Hl.
 remember (littleendian_invert u) as U. destruct U as [[[u0 u1] u2] u3].
 
-  LENBforward_for_simple_bound 4 (EX i:Z, 
+  forward_for_simple_bound 4 (EX i:Z, 
   (PROP  ()
    LOCAL (temp _x x; temp _u (Vint (iterShr8 u (Z.to_nat i))))
    SEP (`(data_at Tsh (Tarray tuchar 4 noattr) 
@@ -103,7 +102,7 @@ remember (littleendian_invert u) as U. destruct U as [[[u0 u1] u2] u3].
 
   assert_PROP (field_compatible (Tarray tuchar 4 noattr) [] x /\ isptr x). solve [entailer].
   destruct H as [FC ptrX].
-  forward. forward v. clear v.
+  forward. forward. 
   entailer. unfold upd_Znth_in_list. rewrite Zlength_app; repeat rewrite Zlength_sublist; try omega.
     2: rewrite Zlength_correct; simpl; omega.
   clear H TC.
@@ -121,7 +120,7 @@ remember (littleendian_invert u) as U. destruct U as [[[u0 u1] u2] u3].
   rewrite field_at_data_at. simpl. unfold field_address. simpl.
   if_tac. 2: solve [contradiction].
   rewrite isptr_offset_val_zero; trivial. clear H.
-  rewrite hmac_pure_lemmas.Zlength_length in Hl. 2: omega. 
+  rewrite Zlength_length in Hl. 2: omega. 
   destruct l; simpl in Hl. omega.
         destruct l; simpl in Hl. omega.
         destruct l; simpl in Hl. omega.

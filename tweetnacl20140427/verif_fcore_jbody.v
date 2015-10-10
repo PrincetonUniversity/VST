@@ -91,7 +91,7 @@ forall i wlist data OUT j t y x w nonce out c k h ys xs
    `(data_at Tsh (tarray tuchar 64) OUT out)))).
 Proof. intros. abbreviate_semax.
 assert_PROP (Zlength (map Vint xs) = 16). entailer. rename H into XL.
-LENBforward_for_simple_bound 4
+forward_for_simple_bound 4
  (EX m:Z, 
   (PROP  ()
    LOCAL  (temp _i (Vint (Int.repr i)); temp _j (Vint (Int.repr j)); lvar _t (tarray tuint 4) t;
@@ -200,7 +200,7 @@ forall (Espec : OracleKind) c k h nonce out OUT
 Proof. intros. abbreviate_semax.
 assert_PROP (Zlength wlist = 16). entailer. rename H into WL.
 assert_PROP (Zlength xlist = 16). entailer. rename H into XL.
-LENBforward_for_simple_bound 16 (EX m:Z, 
+forward_for_simple_bound 16 (EX m:Z, 
   (PROP  ()
    LOCAL  (temp _j (Vint (Int.repr 4)); temp _i (Vint (Int.repr i)); lvar _t (tarray tuint 4) t;
    lvar _y (tarray tuint 16) y; lvar _x (tarray tuint 16) x;
@@ -317,37 +317,23 @@ Lemma pattern1_noStmt Espec Source1 Source2 Target Offset: forall
    `(CoreInSEP data (nonce, c, k));
    `(data_at Tsh (tarray tuchar 64) OUT out)))).
 Proof. intros. abbreviate_semax.
-  forward v1.  
+  forward.  
   { entailer. rewrite HS1. apply prop_right; simpl; trivial. }
   rewrite HS1. 
-  forward v2. 
+  forward. 
   { entailer. rewrite HS2. apply prop_right; simpl; trivial. } 
   rewrite HS2.
-  forward sum.
+  forward.
 Transparent core_spec. Transparent ld32_spec. Transparent L32_spec. Transparent st32_spec.
 Transparent crypto_core_salsa20_spec. Transparent crypto_core_hsalsa20_spec.
   forward_call (Int.add ValS1 ValS2, Int.repr Offset) v.
 Opaque core_spec. Opaque ld32_spec. Opaque L32_spec. Opaque st32_spec.
 Opaque crypto_core_salsa20_spec. Opaque crypto_core_hsalsa20_spec.
-  { instantiate (1:= [lvar _t (tarray tuint 4) t;
-       lvar _y (tarray tuint 16) y; lvar _x (tarray tuint 16) x;
-       lvar _w (tarray tuint 16) w; temp _in nonce; temp _out out; temp _c c;
-       temp _k k; temp _h (Vint (Int.repr h))]). admit. } admit. (*VST Issue: the usual delete_temps / LOCALS issue*)
-(*  { entailer.
-    assert (FR: Frame = [`(data_at Tsh (tarray tuint 4) tlist t * data_at Tsh (tarray tuint 16) wlist w *
-           data_at Tsh (tarray tuint 16) xs x *
-           data_at Tsh (tarray tuint 16) ys y * CoreInSEP data (nonce, c, k) *
-           data_at Tsh (tarray tuchar 64) OUT out)]). 
-       subst Frame. reflexivity.
-    subst Frame; clear FR. simpl. entailer. } 
-  { constructor; constructor. (* TODO - is the existence of this subgoal linked to the failure of forward_call'??*) }
-  after_call.  
-  simpl; normalize. subst x0.  *) subst v.
-  forward u.
+  subst v.
+  forward.
   { entailer. rewrite HTgt. apply prop_right; simpl; trivial. }  
-  subst u.
   rewrite HTgt. 
-  forward u.
+  forward.
   forward. entailer.
 Qed.
 
@@ -426,37 +412,23 @@ Lemma pattern2_noStmt Espec Source1 Source2 Target Offset: forall
    `(CoreInSEP data (nonce, c, k));
    `(data_at Tsh (tarray tuchar 64) OUT out)))).
 Proof. intros. abbreviate_semax.
-  forward v1.  
+  forward.  
   { entailer. rewrite HS1. apply prop_right; simpl; trivial. }
   rewrite HS1. 
-  forward v2. 
+  forward. 
   { entailer. rewrite HS2. apply prop_right; simpl; trivial. } 
   rewrite HS2.
-  forward sum.
+  forward.
 Transparent core_spec. Transparent ld32_spec. Transparent L32_spec. Transparent st32_spec.
 Transparent crypto_core_salsa20_spec. Transparent crypto_core_hsalsa20_spec.
   forward_call (Int.add ValS1 ValS2, Int.repr Offset) v.
 Opaque core_spec. Opaque ld32_spec. Opaque L32_spec. Opaque st32_spec.
 Opaque crypto_core_salsa20_spec. Opaque crypto_core_hsalsa20_spec.
-  { instantiate (1:= [lvar _t (tarray tuint 4) t;
-       lvar _y (tarray tuint 16) y; lvar _x (tarray tuint 16) x;
-       lvar _w (tarray tuint 16) w; temp _in nonce; temp _out out; temp _c c;
-       temp _k k; temp _h (Vint (Int.repr h))]). admit. } admit. (*VST Issue: the usual delete_temps / LOCALS issue*)
-(*  { entailer.
-    assert (FR: Frame = [`(data_at Tsh (tarray tuint 4) tlist t * data_at Tsh (tarray tuint 16) wlist w *
-           data_at Tsh (tarray tuint 16) xs x *
-           data_at Tsh (tarray tuint 16) ys y * CoreInSEP data (nonce, c, k) *
-           data_at Tsh (tarray tuchar 64) OUT out)]). 
-       subst Frame. reflexivity.
-    subst Frame; clear FR. simpl. entailer. } 
-  { constructor; constructor. (* TODO - is the existence of this subgoal linked to the failure of forward_call'??*) }
-  after_call.  
-  simpl; normalize. subst x0.  *) subst v.
-  forward u.
+  subst v.
+  forward.
   { entailer. rewrite HTgt. apply prop_right; simpl; trivial. }  
-  subst u.
   rewrite HTgt. 
-  forward u.
+  forward.
   forward. entailer.
 Qed.
 
@@ -535,37 +507,23 @@ Lemma pattern3_noStmt Espec Source1 Source2 Target Offset: forall
    `(CoreInSEP data (nonce, c, k));
    `(data_at Tsh (tarray tuchar 64) OUT out)))).
 Proof. intros. abbreviate_semax.
-  forward v1.  
+  forward.  
   { entailer. rewrite HS1. apply prop_right; simpl; trivial. }
   rewrite HS1. 
-  forward v2. 
+  forward. 
   { entailer. rewrite HS2. apply prop_right; simpl; trivial. } 
   rewrite HS2.
-  forward sum.
+  forward.
 Transparent core_spec. Transparent ld32_spec. Transparent L32_spec. Transparent st32_spec.
 Transparent crypto_core_salsa20_spec. Transparent crypto_core_hsalsa20_spec.
   forward_call (Int.add ValS1 ValS2, Int.repr Offset) v.
 Opaque core_spec. Opaque ld32_spec. Opaque L32_spec. Opaque st32_spec.
 Opaque crypto_core_salsa20_spec. Opaque crypto_core_hsalsa20_spec.
-  { instantiate (1:= [lvar _t (tarray tuint 4) t;
-       lvar _y (tarray tuint 16) y; lvar _x (tarray tuint 16) x;
-       lvar _w (tarray tuint 16) w; temp _in nonce; temp _out out; temp _c c;
-       temp _k k; temp _h (Vint (Int.repr h))]). admit. } admit. (*VST Issue: the usual delete_temps / LOCALS issue*)
-(*  { entailer.
-    assert (FR: Frame = [`(data_at Tsh (tarray tuint 4) tlist t * data_at Tsh (tarray tuint 16) wlist w *
-           data_at Tsh (tarray tuint 16) xs x *
-           data_at Tsh (tarray tuint 16) ys y * CoreInSEP data (nonce, c, k) *
-           data_at Tsh (tarray tuchar 64) OUT out)]). 
-       subst Frame. reflexivity.
-    subst Frame; clear FR. simpl. entailer. } 
-  { constructor; constructor. (* TODO - is the existence of this subgoal linked to the failure of forward_call'??*) }
-  after_call.  
-  simpl; normalize. subst x0.  *) subst v.
-  forward u.
-  { entailer. rewrite HTgt. apply prop_right; simpl; trivial. }  
-  subst u.
+  subst v.
+  forward.
+  { entailer. rewrite HTgt. apply prop_right; simpl; trivial. } 
   rewrite HTgt. 
-  forward u.
+  forward.
   forward. entailer.
 Qed.
 
@@ -644,37 +602,23 @@ Lemma pattern4_noStmt Espec Source1 Source2 Target Offset: forall
    `(CoreInSEP data (nonce, c, k));
    `(data_at Tsh (tarray tuchar 64) OUT out)))).
 Proof. intros. abbreviate_semax.
-  forward v1.  
+  forward.  
   { entailer. rewrite HS1. apply prop_right; simpl; trivial. }
   rewrite HS1. 
-  forward v2. 
+  forward. 
   { entailer. rewrite HS2. apply prop_right; simpl; trivial. } 
   rewrite HS2.
-  forward sum.
+  forward.
 Transparent core_spec. Transparent ld32_spec. Transparent L32_spec. Transparent st32_spec.
 Transparent crypto_core_salsa20_spec. Transparent crypto_core_hsalsa20_spec.
   forward_call (Int.add ValS1 ValS2, Int.repr Offset) v.
 Opaque core_spec. Opaque ld32_spec. Opaque L32_spec. Opaque st32_spec.
 Opaque crypto_core_salsa20_spec. Opaque crypto_core_hsalsa20_spec.
-  { instantiate (1:= [lvar _t (tarray tuint 4) t;
-       lvar _y (tarray tuint 16) y; lvar _x (tarray tuint 16) x;
-       lvar _w (tarray tuint 16) w; temp _in nonce; temp _out out; temp _c c;
-       temp _k k; temp _h (Vint (Int.repr h))]). admit. } admit. (*VST Issue: the usual delete_temps / LOCALS issue*)
-(*  { entailer.
-    assert (FR: Frame = [`(data_at Tsh (tarray tuint 4) tlist t * data_at Tsh (tarray tuint 16) wlist w *
-           data_at Tsh (tarray tuint 16) xs x *
-           data_at Tsh (tarray tuint 16) ys y * CoreInSEP data (nonce, c, k) *
-           data_at Tsh (tarray tuchar 64) OUT out)]). 
-       subst Frame. reflexivity.
-    subst Frame; clear FR. simpl. entailer. } 
-  { constructor; constructor. (* TODO - is the existence of this subgoal linked to the failure of forward_call'??*) }
-  after_call.  
-  simpl; normalize. subst x0.  *) subst v.
-  forward u.
+  subst v.
+  forward.
   { entailer. rewrite HTgt. apply prop_right; simpl; trivial. }  
-  subst u.
   rewrite HTgt. 
-  forward u.
+  forward.
   forward. entailer.
 Qed.
 
@@ -756,7 +700,7 @@ Lemma array_copy2 Espec i wlist data OUT j t y x w nonce out c k h
 Proof. intros. abbreviate_semax.
 assert_PROP (Zlength wlist=16). entailer. rename H into WL.
 (*first, delete old m*) drop_LOCAL 1%nat.
-LENBforward_for_simple_bound 4 (EX m:Z, 
+forward_for_simple_bound 4 (EX m:Z, 
   (PROP  ()
    LOCAL  (temp _i (Vint (Int.repr i)); 
    temp _j (Vint (Int.repr j)); lvar _t (tarray tuint 4) t;
@@ -1226,15 +1170,8 @@ wlist (WL: Zlength wlist = 16)*)
   assert (LT1: Zlength tlist1 = 4).
     subst tlist1. rewrite upd_Znth_in_list_Zlength. apply TL. omega.
  
-  (*VST Issue: mkConciseDelta SalsaVarSpecs SalsaFunSpecs f_core Delta. doesn't wotk any longer*)
+  (*VST Issue: mkConciseDelta SalsaVarSpecs SalsaFunSpecs f_core Delta. doesn't work any longer*)
   forward_seq. 
-
-    (*VST Issue we'd maybe like to use a variant of pattern2_noStmt that doesn't mention the
-      dead variables aux, aux1, 181%positive in Delta, using subcontext:
-    eapply semax_extensionality_Delta.
-    2: eapply (pattern2_noStmt _ 1 0 2 9); try omega; try eassumption.
-     but where are the tactics to discharge this subcontext-side-condition?*)
-
     eapply (pattern2_noStmt _ 1 0 2 9); try omega; try eassumption.
           rewrite Int.unsigned_repr. omega. rewrite int_max_unsigned_eq; omega.
     remember (Int.xor t2 (Int.rol (Int.add tt0 t0) (Int.repr 9))) as tt1.
@@ -1307,11 +1244,9 @@ wlist (WL: Zlength wlist = 16)*)
    `(data_at Tsh (tarray tuchar 64) OUT out)))). entailer.
    eapply semax_post. 2: eapply array_copy2; trivial; try eassumption.
    intros ek vl.
-   apply andp_left2. 
+   apply andp_left2. (*Issue: andp_left2 was not needed here in master - renormalize doesn't deal with it*)
    unfold POSTCONDITION, abbreviate.
-   (*Issue: in master branch, normal_ret_assert_derives worked fine here. 
-    Now even doing expliti intros rho, the normal_ret_assert_derives and then
-    normalize and/or entailer don't break down the PROP LCOAL SEP structire and don't manage
-    to pull out the EX W fron the precondition*)
+ 
+   (*Issue: in master branch, normal_ret_assert_derives worked fine here.*)
    apply assert_lemmas.normal_ret_assert_derives'. entailer. apply (exp_right W). entailer. cancel.
 Qed.

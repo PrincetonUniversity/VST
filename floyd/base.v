@@ -27,7 +27,7 @@ Definition not_a_prop {A} (P: A) := True.
 
 Ltac not_a_prop := match goal with
   | |- not_a_prop  (prop _) => fail 1 
-  | |- _ => apply I 
+  | |- _ => apply Coq.Init.Logic.I 
 end.
 
 Lemma flip_prop {A}{NA: NatDed A}: forall P Q, 

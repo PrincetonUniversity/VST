@@ -5,62 +5,8 @@ Require Import List. Import ListNotations.
 Require Import general_lemmas.
 
 Require Import split_array_lemmas.
-(*Require Import fragments.*)
 Require Import ZArith. 
 Require Import Salsa20.
-
-Ltac LENBforward_for_simple_bound' n Pre :=
- first 
- [ first [eapply (semax_for_const_bound_const_init n Pre)
-         | eapply (semax_for_const_bound_const_init_u n Pre)];
-  [reflexivity | try repable_signed | try repable_signed | reflexivity | try reflexivity; omega
-(*  | auto 50 with closed*)
-  | intro; cbv beta; simpl; auto 50 with closed
-  | intro; cbv beta; simpl; auto 50 with closed
-  | cbv beta; simpl update_tycon; rewrite insert_local
-  | intro; cbv beta; simpl update_tycon; try solve [entailer!]
-  | try apply semax_for_resolve_postcondition
-  | intro; cbv beta; simpl update_tycon; abbreviate_semax;
-   try (apply semax_extract_PROP; intro) ]
- | first [eapply (semax_for_simple_bound_const_init n Pre)
-         | eapply (semax_for_simple_bound_const_init_u n Pre)];
-  [reflexivity | try repable_signed | try repable_signed | reflexivity | reflexivity
-  | auto 50 with closed
-  | intro; cbv beta; simpl; auto 50 with closed
-  | intro; cbv beta; simpl; auto 50 with closed
-  | cbv beta; simpl update_tycon; rewrite insert_local
-  | intro; cbv beta; simpl update_tycon; try solve [entailer!]
-  | try apply semax_for_resolve_postcondition
-  | intro; cbv beta; simpl update_tycon; abbreviate_semax;
-   try (apply semax_extract_PROP; intro) ]
- |first [eapply (semax_for_simple_bound n Pre)
-         |eapply (semax_for_simple_bound_u n Pre)];
-  [reflexivity | try repable_signed | reflexivity | reflexivity
-  | auto 50 with closed
-  | intro; cbv beta; simpl; auto 50 with closed
-  | intro; cbv beta; simpl; auto 50 with closed
-  | cbv beta; simpl update_tycon
-  | intro; cbv beta; simpl update_tycon; try solve [entailer!]
-  | try apply semax_for_resolve_postcondition
-  | intro; cbv beta; simpl update_tycon; abbreviate_semax;
-     try (apply semax_extract_PROP; intro) ]
-  ].
-
-Ltac LENBforward_for_simple_bound n Pre :=
-  check_Delta;
- repeat match goal with |-
-      semax _ _ (Ssequence (Ssequence (Ssequence _ _) _) _) _ =>
-      apply -> seq_assoc; abbreviate_semax
- end;
- first [ 
-     simple eapply semax_seq'; 
-    [LENBforward_for_simple_bound' n Pre 
-    | cbv beta; simpl update_tycon; abbreviate_semax  ]
-  | eapply semax_post_flipped'; 
-     [LENBforward_for_simple_bound' n Pre 
-     | ]
-  ].
-
 Require Import tweetnaclVerifiableC.
 Require Import tweetNaclBase.
 Instance CompSpecs : compspecs.
