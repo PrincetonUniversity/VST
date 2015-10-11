@@ -11,36 +11,18 @@ Proof.
 start_function.
 name c_ _c.
 unfold data_at_.
-forward.
-forward.
-forward.
-forward.
-forward.
-forward.
-forward.
-forward.
-forward.
-forward.
-forward.
-forward.
-forward.
-forward.
-forward.
-forward.
-forward.
-forward.
-*)
+do 8 (forward; unfold upd_Znth_in_list, sublist; simpl app).
 repeat forward.
-simpl.
-unfold sha256state_.
-apply exp_right with (map Vint init_registers, 
-      (Vint Int.zero, (Vint Int.zero, (nil, Vint Int.zero)))).
-entailer!.
+Exists (map Vint init_registers, 
+      (Vint Int.zero, (Vint Int.zero, (list_repeat (Z.to_nat 64) Vundef, Vint Int.zero)))).
+(* BUG: entailer! is far too slow here,
+ becuase [simple apply prop_and_same_derives'] takes forever. *)
+simple apply andp_right; [apply prop_right | ].
 repeat split; auto.
 rewrite hash_blocks_equation. reflexivity.
 apply Z.divide_0_r.
-apply derives_refl'; f_equal.
+unfold data_at. apply derives_refl'; f_equal.
 f_equal.
 simpl.
 repeat (apply f_equal2; [f_equal; apply int_eq_e; compute; reflexivity | ]); auto.
-Qed.
+Time Qed. (* 27 sec *)
