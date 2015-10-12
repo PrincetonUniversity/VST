@@ -1731,9 +1731,55 @@ apply prop_derives.
 intros [? ?]; split; auto.
 Qed.
 
-Hint Resolve field_at_local_facts : saturate_local.
+
+Lemma value_fits_false_by_value {cs: compspecs}:
+  forall t v, 
+   type_is_by_value t = true ->
+   value_fits false t v = True.
+Proof.
+intros.
+rewrite value_fits_ind; destruct t; inv H; 
+simpl; if_tac; auto.
+Qed.
+
+Lemma value_fits_true_by_value {cs: compspecs}:
+  forall t v, 
+   type_is_volatile t = false ->
+   type_is_by_value t = true ->
+   value_fits true t v = tc_val' t (repinject t v).
+Proof.
+intros.
+rewrite value_fits_ind; destruct t; inv H; inv H0;
+simpl; rewrite H2; auto.
+Qed.
+
+Ltac field_at_saturate_local :=
+unfold data_at;
+match goal with |- field_at ?sh ?t ?path ?v ?c |-- _ =>
+eapply derives_trans; [apply field_at_local_facts |];
+  cbv beta;
+  try rewrite proj_sumbool_is_true by auto;
+  try rewrite proj_sumbool_is_false by auto;
+  let p := fresh "p" in set (p := nested_field_type2 t path);
+  simpl in p; unfold field_type in p; simpl in p; subst p;
+  try rewrite value_fits_false_by_value by reflexivity;
+  try rewrite value_fits_true_by_value by reflexivity;
+  try match goal with |- context [repinject ?t ?v] =>
+    change (repinject t v) with v
+  end;
+  apply derives_refl
+end.
+
+
+(*Hint Resolve field_at_local_facts : saturate_local.*)
+Hint Extern 1 (field_at _ _ _ _ _ |-- _) =>
+ (field_at_saturate_local) : saturate_local.
+
+(* Hint Resolve data_at_local_facts : saturate_local.*)
+Hint Extern 1 (data_at _ _ _ _ |-- _) =>
+ (field_at_saturate_local) : saturate_local.
+
 Hint Resolve field_at__local_facts : saturate_local.
-Hint Resolve data_at_local_facts : saturate_local.
 Hint Resolve data_at__local_facts : saturate_local.
 Hint Extern 0 (data_at _ (Tarray _ _ _) _ _ |-- _) => 
   (apply data_array_at_local_facts) : saturate_local.
@@ -2336,7 +2382,6 @@ Proof.
 intros.
 rewrite !field_at_data_at.
 apply pred_ext; saturate_local.
-destruct (readable_share_dec sh); try contradiction.
 rewrite <- !nonreadable_memory_block_data_at; auto.
 apply H0; auto.
 destruct (readable_share_dec sh); try contradiction.
@@ -2394,4 +2439,37 @@ rewrite value_fits_ind; simpl.
 if_tac; auto.
 if_tac; auto.
 hnf. intro. apply Coq.Init.Logic.I.
+Qed.
+
+Lemma mapsto_data_at {cs: compspecs} sh t v v' p :  (* not needed here *)
+  type_is_by_value t = true ->
+  type_is_volatile t = false ->
+  readable_share sh ->
+  isptr p ->
+  size_compatible t p ->
+  align_compatible t p ->
+  legal_alignas_type t = true ->
+  legal_cosu_type t = true ->
+  complete_type cenv_cs t = true ->
+  sizeof cenv_cs t < Int.modulus ->
+  (v <> Vundef -> tc_val t v) ->
+  JMeq v v' ->
+  mapsto sh t p v = data_at sh t v' p.
+Proof.
+  intros.
+  unfold data_at, field_at, at_offset, offset_val.
+  simpl.
+  destruct p; inv H2.
+  rewrite int_add_repr_0_r.
+  rewrite by_value_data_at' by auto.
+  rewrite <- (repinject_JMeq _ v' H) in H10.
+  apply JMeq_eq in H10.
+  rewrite prop_true_andp; auto.
+  f_equal. auto.
+  split.
+  repeat split; auto.
+  erewrite value_fits_by_value; auto.
+  unfold nested_field_type2; simpl.
+  rewrite H0. if_tac; auto.
+  unfold tc_val'. rewrite <- H10. auto.
 Qed.

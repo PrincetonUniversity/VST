@@ -1914,3 +1914,178 @@ Qed.
 
 
 Hint Rewrite wand_sepcon wand_sepcon' : norm.
+
+
+Ltac Intro'' a :=
+  first [apply extract_exists_pre; intro a
+         | apply exp_left; intro a
+         | rewrite exp_andp1; Intro'' a
+         | rewrite exp_andp2; Intro'' a
+         | rewrite exp_sepcon1; Intro'' a
+         | rewrite exp_sepcon2; Intro'' a
+         ].
+
+Ltac Intro a :=
+  match goal with
+  | |- ?A |-- ?B => 
+     let z := fresh "z" in pose (z:=B); change (A|--z); Intro'' a; subst z
+  | |- semax _ _ _ _ => 
+     Intro'' a
+  end. 
+
+(* Tactic Notation "Intros" := repeat (let x := fresh "x" in Intro x). *)
+Tactic Notation "Intros" simple_intropattern(x0) :=
+ Intro x0.
+
+Tactic Notation "Intros" simple_intropattern(x0)
+ simple_intropattern(x1) :=
+ Intro x0; Intro x1.
+
+Tactic Notation "Intros" simple_intropattern(x0)
+ simple_intropattern(x1) simple_intropattern(x2) :=
+ Intro x0; Intro x1; Intro x2.
+
+Tactic Notation "Intros" simple_intropattern(x0)
+ simple_intropattern(x1) simple_intropattern(x2)
+ simple_intropattern(x3) :=
+ Intro x0; Intro x1; Intro x2; Intro x3.
+
+Tactic Notation "Intros" simple_intropattern(x0)
+ simple_intropattern(x1) simple_intropattern(x2)
+ simple_intropattern(x3) simple_intropattern(x4) :=
+ Intro x0; Intro x1; Intro x2; Intro x3; Intro x4.
+
+Tactic Notation "Intros" simple_intropattern(x0)
+ simple_intropattern(x1) simple_intropattern(x2)
+ simple_intropattern(x3) simple_intropattern(x4)
+ simple_intropattern(x5) :=
+ Intro x0; Intro x1; Intro x2; Intro x3; Intro x4;
+ Intro x5.
+
+Tactic Notation "Intros" simple_intropattern(x0)
+ simple_intropattern(x1) simple_intropattern(x2)
+ simple_intropattern(x3) simple_intropattern(x4)
+ simple_intropattern(x5) simple_intropattern(x6) :=
+ Intro x0; Intro x1; Intro x2; Intro x3; Intro x4;
+ Intro x5; Intro x6.
+
+Tactic Notation "Intros" simple_intropattern(x0)
+ simple_intropattern(x1) simple_intropattern(x2)
+ simple_intropattern(x3) simple_intropattern(x4)
+ simple_intropattern(x5) simple_intropattern(x6)
+ simple_intropattern(x7) :=
+ Intro x0; Intro x1; Intro x2; Intro x3; Intro x4;
+ Intro x5; Intro x6; Intro x7.
+
+Tactic Notation "Intros" simple_intropattern(x0)
+ simple_intropattern(x1) simple_intropattern(x2)
+ simple_intropattern(x3) simple_intropattern(x4)
+ simple_intropattern(x5) simple_intropattern(x6)
+ simple_intropattern(x7) simple_intropattern(x8) :=
+ Intro x0; Intro x1; Intro x2; Intro x3; Intro x4;
+ Intro x5; Intro x6; Intro x7; Intro x8.
+
+Tactic Notation "Intros" simple_intropattern(x0)
+ simple_intropattern(x1) simple_intropattern(x2)
+ simple_intropattern(x3) simple_intropattern(x4)
+ simple_intropattern(x5) simple_intropattern(x6)
+ simple_intropattern(x7) simple_intropattern(x8)
+ simple_intropattern(x9) :=
+ Intro x0; Intro x1; Intro x2; Intro x3; Intro x4;
+ Intro x5; Intro x6; Intro x7; Intro x8; Intro x9.
+
+Tactic Notation "Intros" simple_intropattern(x0)
+ simple_intropattern(x1) simple_intropattern(x2)
+ simple_intropattern(x3) simple_intropattern(x4)
+ simple_intropattern(x5) simple_intropattern(x6)
+ simple_intropattern(x7) simple_intropattern(x8)
+ simple_intropattern(x9) simple_intropattern(x10) :=
+ Intro x0; Intro x1; Intro x2; Intro x3; Intro x4;
+ Intro x5; Intro x6; Intro x7; Intro x8; Intro x9;
+ Intro x10.
+
+Tactic Notation "Intros" simple_intropattern(x0)
+ simple_intropattern(x1) simple_intropattern(x2)
+ simple_intropattern(x3) simple_intropattern(x4)
+ simple_intropattern(x5) simple_intropattern(x6)
+ simple_intropattern(x7) simple_intropattern(x8)
+ simple_intropattern(x9) simple_intropattern(x10)
+ simple_intropattern(x11) :=
+ Intro x0; Intro x1; Intro x2; Intro x3; Intro x4;
+ Intro x5; Intro x6; Intro x7; Intro x8; Intro x9;
+ Intro x10; Intro x11.
+
+Ltac Exists'' a :=
+  first [apply exp_right with a
+         | rewrite exp_andp1; Exists'' a
+         | rewrite exp_andp2; Exists'' a
+         | rewrite exp_sepcon1; Exists'' a
+         | rewrite exp_sepcon2; Exists'' a
+         ].
+
+Ltac Exists' a :=
+  match goal with |- ?A |-- ?B => 
+     let z := fresh "z" in pose (z:=A); change (z|--B); Exists'' a; subst z
+  end. 
+
+Tactic Notation "Exists" constr(x0) :=
+ Exists' x0.
+
+Tactic Notation "Exists" constr(x0) constr(x1) :=
+ Exists' x0; Exists x1.
+
+Tactic Notation "Exists" constr(x0) constr(x1) constr(x2) :=
+ Exists' x0; Exists' x1; Exists' x2.
+
+Tactic Notation "Exists" constr(x0) constr(x1) constr(x2) constr(x3) :=
+ Exists' x0; Exists' x1; Exists' x2; Exists' x3.
+
+Tactic Notation "Exists" constr(x0) constr(x1) constr(x2) constr(x3)
+ constr(x4) :=
+ Exists' x0; Exists' x1; Exists' x2; Exists' x3; Exists' x4.
+
+Tactic Notation "Exists" constr(x0) constr(x1) constr(x2) constr(x3)
+ constr(x4) constr(x5) :=
+ Exists' x0; Exists' x1; Exists' x2; Exists' x3; Exists' x4;
+ Exists' x5.
+
+Tactic Notation "Exists" constr(x0) constr(x1) constr(x2) constr(x3)
+ constr(x4) constr(x5) constr(x6) :=
+ Exists' x0; Exists' x1; Exists' x2; Exists' x3; Exists' x4;
+ Exists' x5; Exists' x6.
+
+Tactic Notation "Exists" constr(x0) constr(x1) constr(x2) constr(x3)
+ constr(x4) constr(x5) constr(x6) constr(x7) :=
+ Exists' x0; Exists' x1; Exists' x2; Exists' x3; Exists' x4;
+ Exists' x5; Exists' x6; Exists' x7.
+
+Tactic Notation "Exists" constr(x0) constr(x1) constr(x2) constr(x3)
+ constr(x4) constr(x5) constr(x6) constr(x7) constr(x8) :=
+ Exists' x0; Exists' x1; Exists' x2; Exists' x3; Exists' x4;
+ Exists' x5; Exists' x6; Exists' x7; Exists' x8.
+
+Tactic Notation "Exists" constr(x0) constr(x1) constr(x2) constr(x3)
+ constr(x4) constr(x5) constr(x6) constr(x7) constr(x8) constr(x9) :=
+ Exists' x0; Exists' x1; Exists' x2; Exists' x3; Exists' x4;
+ Exists' x5; Exists' x6; Exists' x7; Exists' x8; Exists' x9.
+
+Tactic Notation "Exists" constr(x0) constr(x1) constr(x2) constr(x3)
+ constr(x4) constr(x5) constr(x6) constr(x7) constr(x8) constr(x9)
+ constr(x10) :=
+ Exists' x0; Exists' x1; Exists' x2; Exists' x3; Exists' x4;
+ Exists' x5; Exists' x6; Exists' x7; Exists' x8; Exists' x9;
+ Exists' x10.
+
+Tactic Notation "Exists" constr(x0) constr(x1) constr(x2) constr(x3)
+ constr(x4) constr(x5) constr(x6) constr(x7) constr(x8) constr(x9)
+ constr(x10) constr(x11) :=
+ Exists' x0; Exists' x1; Exists' x2; Exists' x3; Exists' x4;
+ Exists' x5; Exists' x6; Exists' x7; Exists' x8; Exists' x9;
+ Exists' x10; Exists' x11.
+
+Tactic Notation "Exists" constr(x0) constr(x1) constr(x2) constr(x3)
+ constr(x4) constr(x5) constr(x6) constr(x7) constr(x8) constr(x9)
+ constr(x10) constr(x11) constr(x12) :=
+ Exists' x0; Exists' x1; Exists x2; Exists' x3; Exists' x4;
+ Exists' x5; Exists' x6; Exists' x7; Exists' x8; Exists' x9;
+ Exists' x10; Exists' x11; Exists' x12.

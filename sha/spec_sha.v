@@ -3,8 +3,10 @@ Import ListNotations.
 Require Import sha.sha.
 Require Import general_lemmas.
 Require Import sha.SHA256.
+Definition CompSpecs' : compspecs.
+Proof. make_compspecs1 prog. Defined.
 Instance CompSpecs : compspecs.
-Proof. make_compspecs prog. Defined.  
+Proof. make_compspecs2 CompSpecs'. Defined. 
 Open Scope logic.
 
 Definition s256state := (list val * (val * (val * (list val * val))))%type.
@@ -35,7 +37,7 @@ Definition s256_relate (a: s256abs) (r: s256state) : Prop :=
          s256_h r = map Vint (hash_blocks init_registers hashed) 
        /\ (s256_Nh r = Vint (hi_part (bitlength hashed data)) /\
             s256_Nl r = Vint (lo_part (bitlength hashed data)))
-       /\ s256_data r = map Vint (map Int.repr data)
+       /\ sublist 0 (Zlength data) (s256_data r) = map Vint (map Int.repr data)
        /\ (Zlength data < CBLOCKz /\ Forall isbyteZ data)
        /\ (LBLOCKz | Zlength hashed)
        /\ s256_num r = Vint (Int.repr (Zlength data))

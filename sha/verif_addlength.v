@@ -135,9 +135,6 @@ replace (Int.and
  by (unfold lo_part;
     rewrite Int.and_mone, Int.shl_mul_two_p, mul_repr, <- add_repr,
     Int.repr_unsigned; reflexivity).
-fold (temp _l (Vint (Int.repr (Int.unsigned (lo_part n) + len * 8)))).
-fold (temp _cNh (Vint (hi_part n))).
-fold (temp _cNl (Vint (lo_part n))).
 pose (carry := ((Int.unsigned (lo_part n) + (len * 8) mod Int.modulus)
                         -  (Int.unsigned (lo_part n) + len * 8) mod Int.modulus)/Int.modulus).
 forward_if (
@@ -151,7 +148,7 @@ forward_if (
 * (* then-clause *)
  rewrite <- add_repr in H1.
  rewrite Int.repr_unsigned in H1.
- forward cNh_old.
+ forward.
  entailer!.
  rewrite <- (Int.repr_unsigned (hi_part n)) at 2.
  rewrite add_repr.
@@ -176,7 +173,7 @@ forward_if (
  replace ((Int.unsigned (lo_part n) + (len * 8) mod Int.modulus) mod Int.modulus + Int.modulus -
  (Int.unsigned (lo_part n) + (len * 8) mod Int.modulus) mod Int.modulus)
    with Int.modulus by omega.
- apply Z.div_same; assumption.
+ reflexivity.
 * (* else clause *)
  rewrite <- add_repr in H1.
  rewrite Int.repr_unsigned in H1.
@@ -196,13 +193,13 @@ forward_if (
  rewrite Z.sub_diag.
  rewrite Z.div_0_l by auto.
  rewrite Z.add_0_r.
- apply Int.repr_unsigned.
+ f_equal. apply Int.repr_unsigned.
 * (* after the if *)
- forward cNh_old. (* cNh += (len>>29); *)
+ forward. (* cNh += (len>>29); *)
  forward. (* c->Nl=l; *)
  forward. (* c->Nh=cNh; *)
  forward. (* return; *)
- unfold carry; clear carry.
+ unfold carry; clear carry H4.
  clear - MN BOUND H Hn.
  apply derives_refl'; f_equal.
  + f_equal. f_equal.

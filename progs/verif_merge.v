@@ -92,8 +92,6 @@ Proof.
   f_equal; apply IHl.
 Qed.
 
-Definition telem := Tint I32 Signed noattr.
-
 Definition merge_invariant _cond sh init_a init_b ret_ :=
   @exp (environ -> mpred) _ _ (fun cond : int =>
   @exp (environ -> mpred) _ _ (fun a : list int =>
@@ -119,159 +117,6 @@ Definition merge_invariant _cond sh init_a init_b ret_ :=
        `(if merged then emp else data_at sh t_struct_list (Vint (last merged), Vundef) c_)
 ))))))))).
 
-Ltac Intro x :=
-  try rewrite exp_andp1;
-  try rewrite exp_andp2;
-  apply extract_exists_pre; intro x.
-
-Tactic Notation "Intros" := repeat (let x := fresh "x" in Intro x).
-Tactic Notation "Intros" simple_intropattern(x0) :=
- Intro x0.
-
-Tactic Notation "Intros" simple_intropattern(x0)
- simple_intropattern(x1) :=
- Intro x0; Intro x1.
-
-Tactic Notation "Intros" simple_intropattern(x0)
- simple_intropattern(x1) simple_intropattern(x2) :=
- Intro x0; Intro x1; Intro x2.
-
-Tactic Notation "Intros" simple_intropattern(x0)
- simple_intropattern(x1) simple_intropattern(x2)
- simple_intropattern(x3) :=
- Intro x0; Intro x1; Intro x2; Intro x3.
-
-Tactic Notation "Intros" simple_intropattern(x0)
- simple_intropattern(x1) simple_intropattern(x2)
- simple_intropattern(x3) simple_intropattern(x4) :=
- Intro x0; Intro x1; Intro x2; Intro x3; Intro x4.
-
-Tactic Notation "Intros" simple_intropattern(x0)
- simple_intropattern(x1) simple_intropattern(x2)
- simple_intropattern(x3) simple_intropattern(x4)
- simple_intropattern(x5) :=
- Intro x0; Intro x1; Intro x2; Intro x3; Intro x4;
- Intro x5.
-
-Tactic Notation "Intros" simple_intropattern(x0)
- simple_intropattern(x1) simple_intropattern(x2)
- simple_intropattern(x3) simple_intropattern(x4)
- simple_intropattern(x5) simple_intropattern(x6) :=
- Intro x0; Intro x1; Intro x2; Intro x3; Intro x4;
- Intro x5; Intro x6.
-
-Tactic Notation "Intros" simple_intropattern(x0)
- simple_intropattern(x1) simple_intropattern(x2)
- simple_intropattern(x3) simple_intropattern(x4)
- simple_intropattern(x5) simple_intropattern(x6)
- simple_intropattern(x7) :=
- Intro x0; Intro x1; Intro x2; Intro x3; Intro x4;
- Intro x5; Intro x6; Intro x7.
-
-Tactic Notation "Intros" simple_intropattern(x0)
- simple_intropattern(x1) simple_intropattern(x2)
- simple_intropattern(x3) simple_intropattern(x4)
- simple_intropattern(x5) simple_intropattern(x6)
- simple_intropattern(x7) simple_intropattern(x8) :=
- Intro x0; Intro x1; Intro x2; Intro x3; Intro x4;
- Intro x5; Intro x6; Intro x7; Intro x8.
-
-Tactic Notation "Intros" simple_intropattern(x0)
- simple_intropattern(x1) simple_intropattern(x2)
- simple_intropattern(x3) simple_intropattern(x4)
- simple_intropattern(x5) simple_intropattern(x6)
- simple_intropattern(x7) simple_intropattern(x8)
- simple_intropattern(x9) :=
- Intro x0; Intro x1; Intro x2; Intro x3; Intro x4;
- Intro x5; Intro x6; Intro x7; Intro x8; Intro x9.
-
-Tactic Notation "Intros" simple_intropattern(x0)
- simple_intropattern(x1) simple_intropattern(x2)
- simple_intropattern(x3) simple_intropattern(x4)
- simple_intropattern(x5) simple_intropattern(x6)
- simple_intropattern(x7) simple_intropattern(x8)
- simple_intropattern(x9) simple_intropattern(x10) :=
- Intro x0; Intro x1; Intro x2; Intro x3; Intro x4;
- Intro x5; Intro x6; Intro x7; Intro x8; Intro x9;
- Intro x10.
-
-Tactic Notation "Intros" simple_intropattern(x0)
- simple_intropattern(x1) simple_intropattern(x2)
- simple_intropattern(x3) simple_intropattern(x4)
- simple_intropattern(x5) simple_intropattern(x6)
- simple_intropattern(x7) simple_intropattern(x8)
- simple_intropattern(x9) simple_intropattern(x10)
- simple_intropattern(x11) :=
- Intro x0; Intro x1; Intro x2; Intro x3; Intro x4;
- Intro x5; Intro x6; Intro x7; Intro x8; Intro x9;
- Intro x10; Intro x11.
-
-Ltac Exists' a :=
-  try rewrite exp_andp1;
-  try rewrite exp_andp2;
-  apply exp_right with a.
-
-Tactic Notation "Exists" constr(x0) := Exists' x0.
-
-Tactic Notation "Exists" constr(x0) constr(x1) :=
- Exists' x0; Exists x1.
-
-Tactic Notation "Exists" constr(x0) constr(x1) constr(x2) :=
- Exists x0; Exists' x1; Exists' x2.
-
-Tactic Notation "Exists" constr(x0) constr(x1) constr(x2) constr(x3) :=
- Exists' x0; Exists' x1; Exists' x2; Exists' x3.
-
-Tactic Notation "Exists" constr(x0) constr(x1) constr(x2) constr(x3)
- constr(x4) :=
- Exists' x0; Exists' x1; Exists' x2; Exists' x3; Exists' x4.
-
-Tactic Notation "Exists" constr(x0) constr(x1) constr(x2) constr(x3)
- constr(x4) constr(x5) :=
- Exists' x0; Exists' x1; Exists' x2; Exists' x3; Exists' x4;
- Exists' x5.
-
-Tactic Notation "Exists" constr(x0) constr(x1) constr(x2) constr(x3)
- constr(x4) constr(x5) constr(x6) :=
- Exists' x0; Exists' x1; Exists' x2; Exists' x3; Exists' x4;
- Exists' x5; Exists' x6.
-
-Tactic Notation "Exists" constr(x0) constr(x1) constr(x2) constr(x3)
- constr(x4) constr(x5) constr(x6) constr(x7) :=
- Exists' x0; Exists' x1; Exists' x2; Exists' x3; Exists' x4;
- Exists' x5; Exists' x6; Exists' x7.
-
-Tactic Notation "Exists" constr(x0) constr(x1) constr(x2) constr(x3)
- constr(x4) constr(x5) constr(x6) constr(x7) constr(x8) :=
- Exists' x0; Exists' x1; Exists' x2; Exists' x3; Exists' x4;
- Exists' x5; Exists' x6; Exists' x7; Exists' x8.
-
-Tactic Notation "Exists" constr(x0) constr(x1) constr(x2) constr(x3)
- constr(x4) constr(x5) constr(x6) constr(x7) constr(x8) constr(x9) :=
- Exists' x0; Exists' x1; Exists' x2; Exists' x3; Exists' x4;
- Exists' x5; Exists' x6; Exists' x7; Exists' x8; Exists' x9.
-
-Tactic Notation "Exists" constr(x0) constr(x1) constr(x2) constr(x3)
- constr(x4) constr(x5) constr(x6) constr(x7) constr(x8) constr(x9)
- constr(x10) :=
- Exists' x0; Exists' x1; Exists' x2; Exists' x3; Exists' x4;
- Exists' x5; Exists' x6; Exists' x7; Exists' x8; Exists' x9;
- Exists' x10.
-
-Tactic Notation "Exists" constr(x0) constr(x1) constr(x2) constr(x3)
- constr(x4) constr(x5) constr(x6) constr(x7) constr(x8) constr(x9)
- constr(x10) constr(x11) :=
- Exists' x0; Exists' x1; Exists' x2; Exists' x3; Exists' x4;
- Exists' x5; Exists' x6; Exists' x7; Exists' x8; Exists' x9;
- Exists' x10; Exists' x11.
-
-Tactic Notation "Exists" constr(x0) constr(x1) constr(x2) constr(x3)
- constr(x4) constr(x5) constr(x6) constr(x7) constr(x8) constr(x9)
- constr(x10) constr(x11) constr(x12) :=
- Exists' x0; Exists' x1; Exists x2; Exists' x3; Exists' x4;
- Exists' x5; Exists' x6; Exists' x7; Exists' x8; Exists' x9;
- Exists' x10; Exists' x11; Exists' x12.
-
 Lemma merge_nil_r a : merge a nil = a.
 Proof.
   induction a; simpl; auto.
@@ -280,28 +125,6 @@ Qed.
 Lemma merge_nil_l a : merge nil a = a.
 Proof.
   induction a; simpl; auto.
-Qed.
-
-Lemma mapsto_data_at sh v p : 
-  readable_share sh ->
-  isptr p ->
-  size_compatible tlist p ->
-  align_compatible tlist p ->
-  (v <> Vundef -> is_pointer_or_null v) ->
-  mapsto sh tlist p v = data_at sh tlist v p.
-Proof.
-  intros SH P S A Iv.
-  unfold data_at, field_at, at_offset, offset_val.
-  destruct p; try inversion P.
-  unfold tlist, t_struct_list, tptr in *; simpl in *.
-  rewrite int_add_repr_0_r.
-  unfold data_at', offset_val, mapsto; simpl.
-  if_tac; [ | exfalso; tauto ].
-  apply pred_ext; entailer.
-  unfold field_compatible; simpl.
-  unfold legal_alignas_type, nested_pred, local_legal_alignas_type, legal_cosu_type; simpl.
-  unfold nested_pred, local_legal_alignas_type, legal_cosu_type; simpl.
-  entailer.
 Qed.
 
 (* TODO-LTAC - is this a missing lemma of the theory of [list_cell]?*)
@@ -403,13 +226,6 @@ forward_while (merge_invariant _cond sh init_a init_b ret_)
  Exists cond a b merged a_ b_ c_ begin; entailer!.
 + (* Loop: condition has nice format *)
 now entailer!.
-(*+ (* Loop: invariant + neg condition => post condition *)
- entailer!.
- Exists Int.zero a0 b0 merged0 a__ b__ c_0 begin0.
-(* apply exp_right with (Int.zero, a0, b0, merged0, a__, b__, c_0, begin0).*)
- simpl.
- entailer!.
-*)
 + (* Loop body preserves invariant *)
 clear - SH HRE H1 H2.
 rename cond0 into cond, a0 into a, b0 into b, merged0 into merged,
@@ -417,8 +233,7 @@ rename cond0 into cond, a0 into a, b0 into b, merged0 into merged,
 assert (a_ <> nullval) by intuition.
 assert (b_ <> nullval) by intuition.
 clear H2.
-drop_LOCAL 4%nat. (* cond *)
-clear cond HRE.
+drop_LOCAL 4%nat; clear cond HRE.
 rewrite lseg_unfold.
 destruct a as [|va a']; simpl.
   (* [a] cannot be empty *)
@@ -442,7 +257,6 @@ clear H2 H3.  (* redundant *)
 (* [vb = b->head] *)
 rewrite list_cell_field_at.
 forward.
-
 
 (* The main if : we split at the same time the Coq expression B and
 the actual if. *)
@@ -468,26 +282,13 @@ forward_if (
        `(lseg LS sh (map Vint (butlast merged)) begin c_);
        `(if merged then emp else data_at sh t_struct_list (Vint (last merged), Vundef) c_)
 ))))))))).
-
 (* after the [forward_if], 3 new goals *)
-
-(* COMMAND : [*x = a] *)
-(* forward fails so we transform the SEP condition to get something accepted by [forward] *)
-
-(* the effect of [*x=a] on the invariant depends on whether
-merged is nil or not *)
+(* the effect of [*x=a] on the invariant depends on whether merged is nil or not *)
 destruct merged as [|hmerge tmerge].
-
 (* first iteration of the loop: [merged=nil] *)
-forward.
-
-(* COMMAND : [x = &(a->tail)] *)
-
-forward.
-
-(* COMMAND : [a = a -> tail] *)
-
-forward.
+forward. (* COMMAND : [*x = a] *)
+forward. (* COMMAND : [x = &(a->tail)] *)
+forward. (* COMMAND : [a = a -> tail] *)
 Exists a' (vb::b') [va] a_' b_ a_ a_.
 name a__ _a.
 name b__ _b.
@@ -500,14 +301,13 @@ name cond__ _cond.
 
 rewrite !@lseg_nil_eq.
 rewrite (lseg_unfold LS _ _ b_).
-Time entailer!. (* 24.7 sec *)
-(*Time normalize. (* 5.6 sec *)*)
+Time entailer!. (* 24.7 sec -> 12.6 sec*)
 Exists b_'.
 rewrite list_cell_field_at.
-Time entailer!.  (* 12.6 sec *)
+Time entailer!.  (* 12.6 -> 5.2 sec sec *)
 unfold data_at.
 unfold_field_at 3%nat.
-Time entailer!. (* 3.9 sec *) 
+Time entailer!. (* 3.9 sec -> 1.46 sec *) 
 }
 
 (* we have now finished the case merged=nil, proceeding to the other case *)
@@ -528,18 +328,15 @@ rewrite <-field_at_offset_zero.
 rewrite fold_data_at.
 rewrite <-field_at_data_at.
 
-(* COMMAND : [x = &(a->tail)] *)
-forward.
-
-(* COMMAND : [a = a -> tail] *)
-forward.
+forward. (* COMMAND : [x = &(a->tail)] *)
+forward. (* COMMAND : [a = a -> tail] *)
 Exists a' (vb::b') (merged ++ [va]) a_' b_ a_ begin.
 rewrite <- app_assoc. simpl app.
 rewrite <- H1. clear H1.
 destruct (merged ++ [va]) eqn:?.
 destruct merged; inv Heql.
 forget (i::l) as merged''; clear i l.
-Time entailer!.  (* 42.3 sec *)
+Time entailer!.  (* 42.3 sec -> 21.3 sec  *)
 rewrite butlast_snoc. rewrite last_snoc.
 rewrite (snoc merged) at 3 by auto.
 rewrite map_app. simpl map.
@@ -547,8 +344,8 @@ match goal with |- ?A |-- _ => set (PQR := A);
   unfold data_at; unfold_field_at 1%nat;
   subst PQR
 end.
-normalize.
-rewrite prop_true_andp by (repeat simplify_value_fits; auto).
+rewrite prop_true_andp
+ by (rewrite proj_sumbool_is_true by auto; repeat simplify_value_fits; auto).
 match goal with |- ?A * ?B * ?C * ?D * ?E * ?F * ?G * ?H |-- _ =>
  apply derives_trans with ((B * A * H * G) * (C * D * E * F));
   [cancel | ]
@@ -594,7 +391,7 @@ clear -SH.
 Intros cond a b merged a_ b_ c_ begin.
 forward.
 Exists (cond, a, b, merged, a_, b_, c_, begin).
-now entailer.
+now entailer!.
 
 (* * Other case: vb < va || Warning, below is mostly copy-pasted from above*)
 
@@ -610,14 +407,8 @@ destruct merged as [|hmerge tmerge].
 
 (* first iteration of the loop: [merged=nil] *)
 forward.
-
-(* COMMAND : [x = &(b->tail)] *)
-
-forward.
-
-(* COMMAND : [b = b -> tail] *)
-
-forward.
+forward. (* COMMAND : [x = &(b->tail)] *)
+forward. (* COMMAND : [b = b -> tail] *)
 Exists (va::a') b' [vb] a_ b_' b_ b_.
 name a__ _a.
 name b__ _b.
@@ -665,9 +456,8 @@ rewrite app_ass.
 Time entailer!. (* 22 sec *)
 rewrite butlast_snoc. rewrite last_snoc.
 rewrite @lseg_cons_eq.
-Time entailer!.  (* 17 sec *)
 Exists a_'.
-Time entailer!. (* 13 sec *)
+Time entailer!. (* 14.3 sec *)
 pattern merged at 3; rewrite snoc by auto.
 rewrite map_app. simpl map.
 assert (LCR := lseg_cons_right_neq LS sh (map Vint (butlast merged)) begin (Vint (last merged)) c_ _id b_).
@@ -696,7 +486,7 @@ end.
 forward.
 
 (* First branch of the if: [a_ <> nullval] *)
-assert_PROP (is_pointer_or_null b_); [ now entailer | ].
+assert_PROP (is_pointer_or_null b_); [ now entailer! | ].
 destruct b_; inversion H1; simpl force_val.
   (* b_ is null *)
   Exists Int.zero a b merged a_ nullval c_ begin.
@@ -716,8 +506,7 @@ clear -SH.
 Intros cond a b merged a_ b_ c_ begin.
 forward.
 Exists (cond, a, b, merged, a_, b_, c_, begin).
-simpl @fst; simpl @snd.
-now entailer.
+now entailer!.
 
 (* After the while *)
 +
@@ -788,13 +577,12 @@ pose proof (field_at_data_at sh t_struct_list [StructField _tail] a__ c_) as R.
 fold _tail.
 rewrite R.
 entailer!.
-repeat simplify_value_fits; auto.  (* why didn't entailer! do this? *)
 
 (* when a = [] *)
 assert_PROP (a = []).
   destruct a; [ apply prop_right; reflexivity | ].
   simpl map; rewrite lseg_unfold.
-  subst a_; entailer.
+  subst a_; entailer!.
   elim H3; clear; intuition.
 subst a.
 
@@ -828,13 +616,12 @@ pose proof (field_at_data_at sh t_struct_list [StructField _tail] b__ c_) as R.
 fold _tail.
 rewrite R.
 entailer!.
-repeat simplify_value_fits; auto.
 
 (* temp = ret *)
 clear -SH.
 Intros a b merged ab_ c_ begin.
 forward.
-now destruct merged; entailer.
+now destruct merged; entailer!.
 
 (* return statement *)
 destruct merged as [|hmerge tmerge].
@@ -842,8 +629,7 @@ destruct merged as [|hmerge tmerge].
 (* when merged = [] *)
 name a__ _a; name b__ _b; name va__ _va; name vb__ _vb; name x__ _x; name ret__ _ret; name cond__ _cond; name temp_ _temp.
 forward.
-Exists x__; entailer!.
-Exists temp_; entailer!.
+Exists x__ temp_; entailer!.
 rewrite H; auto.
 
 (* when merged <> [] *)
@@ -852,8 +638,7 @@ assert (Hm: merged <> []) by congruence.
 clear hmerge tmerge Heqmerged.
 name a__ _a; name b__ _b; name va__ _va; name vb__ _vb; name x__ _x; name ret__ _ret; name cond__ _cond; name temp_ _temp.
 forward.
-Exists ret_; entailer.
-Exists temp_; entailer.
+Exists ret_ temp_; entailer.
 
 (* to match the specification from the invariant, we split it into three parts: *)
 
@@ -870,16 +655,11 @@ idtac.
 rewrite (lseg_unfold LS _ _ c_).
 Exists ab_; entailer.
 apply andp_right.
-unfold data_at.
-(* TODO-LTAC entailer should see that data_at ... _c implies that _c is not null*)
-rewrite (entail_rewrite _ _ (@field_at_ptr_neq_null CompSpecs sh t_struct_list [] _ _)).
-now entailer.
-
+entailer!. apply H6. (* TODO-LTAC entailer should see that data_at ... _c implies that _c is not null*)
 rewrite list_cell_field_at.
 unfold data_at.
 unfold_field_at 1%nat.
-entailer.
-now cancel.
+entailer!.
 
 (* part 3 : left part of the list *)
 rewrite H.
@@ -891,4 +671,4 @@ clear -Hm.
 change (butlast merged ++ ([last merged] ++ merge a b) = merged ++ merge a b).
 rewrite <-app_ass.
 now rewrite <-snoc; auto.
-Qed.
+Time Qed. (* 199 sec *)
