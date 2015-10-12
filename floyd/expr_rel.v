@@ -12,6 +12,8 @@ Require Import floyd.reptype_lemmas.
 Require Import floyd.semax_tactics.
 Require Import floyd.efield_lemmas.
 Require Import floyd.proj_reptype_lemmas.
+Require Import floyd.field_at.
+Require Import floyd.replace_refill_reptype_lemmas.
 Local Open Scope logic.
 
 Definition rel_LR {cs: compspecs} e lr :=
@@ -97,12 +99,18 @@ Lemma rel_expr_nested_load {cs: compspecs}:
   P |-- rel_expr (nested_efield e efs tts) (repinject _ (proj_reptype t_root gfs v)) rho.
 Admitted.
 
-Print eval_expr.
-Print deref_noload.
-Locate eval_expr.
-Import compcert.cfrontend.Clight.
-Print deref_loc.
-Print eval_expr.
+Lemma sc_semax_load_store:  forall {Espec: OracleKind} {CS: compspecs},
+ forall p (Delta: tycontext) t_root e lr efs tts gfs e2 sh v0 v2 P P', 
+  writable_share sh ->
+  legal_nested_efield t_root e gfs tts lr = true ->
+  type_is_by_value (nested_field_type2 t_root gfs) = true ->
+  P |-- !! (tc_val (nested_field_type2 t_root gfs) (repinject _ v2))
+           && rel_lvalue e p 
+           && rel_expr (Ecast e2 (typeof (nested_efield e efs tts))) (repinject _ v2)
+           && (`(data_at sh t_root v0 p) * P') ->
+  semax Delta (|> P) (Sassign (nested_efield e efs tts) e2) 
+          (normal_ret_assert (`(data_at sh t_root (upd_reptype t_root gfs v0 v2) p) * P')).
+Abort.
 
 Lemma rel_expr_array_load: True.
 Proof. auto. Qed.
