@@ -10,7 +10,17 @@ Require Import floyd.entailer.
 Require Import floyd.globals_lemmas.
 Require Import floyd.reptype_lemmas.
 Require Import floyd.semax_tactics.
+Require Import floyd.efield_lemmas.
+Require Import floyd.proj_reptype_lemmas.
+Require Import floyd.field_at.
+Require Import floyd.replace_refill_reptype_lemmas.
 Local Open Scope logic.
+
+Definition rel_LR {cs: compspecs} e lr :=
+  match lr with
+  | LLLL => rel_lvalue e
+  | RRRR => rel_expr e
+  end.
 
 Lemma rel_lvalue_var {cs: compspecs}:
  forall (P: mpred) i t v rho,
@@ -81,20 +91,26 @@ Ltac rewrite_eval_id :=
     rewrite <- H
  end.
 
-(*
-Lemma rel_expr_array_load:
-  forall ty sh n (contents: reptype (tarray ty n)) v1(i: Z) e1 e2 P  rho,
-  typeof e1 = tptr ty ->
-  typeof e2 = tint ->
-  type_is_by_value ty = true ->
-  P |--  rel_expr e1 v1 rho
-        && rel_expr e2 (Vint (Int.repr i)) rho
-         && (data_at sh (tarray ty n) contents v1 * TT)
-         &&  !! (0 <= i < n) ->
-  P |--  rel_expr
-      (Ederef
-         (Ebinop Oadd e1 e2 (tptr ty)) ty) (repinject _ (contents i)) rho.
-*)
+Lemma rel_expr_nested_load {cs: compspecs}:
+  forall sh p t_root v e lr efs tts gfs P rho,
+  legal_nested_efield t_root e gfs tts lr = true ->
+  type_is_by_value (nested_field_type2 t_root gfs) = true ->
+  P |-- rel_LR e lr p rho && efield_denote efs gfs rho && (data_at sh t_root v p * TT) ->
+  P |-- rel_expr (nested_efield e efs tts) (repinject _ (proj_reptype t_root gfs v)) rho.
+Admitted.
+
+Lemma sc_semax_load_store:  forall {Espec: OracleKind} {CS: compspecs},
+ forall p (Delta: tycontext) t_root e lr efs tts gfs e2 sh v0 v2 P P', 
+  writable_share sh ->
+  legal_nested_efield t_root e gfs tts lr = true ->
+  type_is_by_value (nested_field_type2 t_root gfs) = true ->
+  P |-- !! (tc_val (nested_field_type2 t_root gfs) (repinject _ v2))
+           && rel_lvalue e p 
+           && rel_expr (Ecast e2 (typeof (nested_efield e efs tts))) (repinject _ v2)
+           && (`(data_at sh t_root v0 p) * P') ->
+  semax Delta (|> P) (Sassign (nested_efield e efs tts) e2) 
+          (normal_ret_assert (`(data_at sh t_root (upd_reptype t_root gfs v0 v2) p) * P')).
+Abort.
 
 Lemma rel_expr_array_load: True.
 Proof. auto. Qed.

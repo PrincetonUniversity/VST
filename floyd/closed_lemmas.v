@@ -669,6 +669,22 @@ simpl. f_equal; eauto.
 Qed.
 Hint Resolve closed_wrt_andp closed_wrtl_andp : closed.
 
+Lemma closed_wrt_imp: forall S (P Q: environ->mpred),
+  closed_wrt_vars S P -> closed_wrt_vars S Q ->
+  closed_wrt_vars S (P --> Q).
+Proof.
+intros; hnf in *; intros.
+simpl. f_equal; eauto.
+Qed.
+Lemma closed_wrtl_imp: forall S (P Q: environ->mpred),
+  closed_wrt_lvars S P -> closed_wrt_lvars S Q ->
+  closed_wrt_lvars S (P --> Q).
+Proof.
+intros; hnf in *; intros.
+simpl. f_equal; eauto.
+Qed.
+Hint Resolve closed_wrt_imp closed_wrtl_imp : closed.
+
 Lemma closed_wrt_sepcon: forall S (P Q: environ->mpred),
   closed_wrt_vars S P -> closed_wrt_vars S Q ->
   closed_wrt_vars S (P * Q).

@@ -618,6 +618,18 @@ Proof.
 intros. rewrite andp_comm. apply derives_extract_prop; auto.
 Qed.
 
+Lemma prop_imp {A} {ND: NatDed A}: forall (P: Prop) (Q: A), P -> !! P --> Q = Q.
+Proof.
+  intros.
+  apply pred_ext.
+  + eapply derives_trans; [| apply modus_ponens].
+    apply andp_right; [| apply derives_refl].
+    apply prop_right; auto.
+  + apply imp_andp_adjoint.
+    apply derives_extract_prop'.
+    intros; auto.
+Qed.
+
 Lemma andp_assoc' {A}{NA: NatDed A}:
   forall P Q R : A, Q && (P && R) = P && (Q && R).
 Proof. intros. rewrite andp_comm. rewrite andp_assoc. f_equal. apply andp_comm. 
