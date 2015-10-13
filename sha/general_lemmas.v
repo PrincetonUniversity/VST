@@ -242,11 +242,6 @@ Qed.
 
 Local Open Scope nat.
 
-Lemma skipn_0:
-  forall A (l: list A), skipn 0 l = l.
-Proof.
-reflexivity.
-Qed.
 
 Lemma Forall_app :
 forall {A} P (l1 l2 :list A),
