@@ -582,7 +582,7 @@ Proof.
     rewrite <- at_offset_eq2.
     rewrite !at_offset_eq.
     rewrite (nested_field_offset2_ind t (ArraySubsc i :: gfs))
-      by (simpl; unfold legal_field; rewrite H0; auto).
+      by (apply legal_nested_field0_field; simpl; unfold legal_field; rewrite H0; auto).
    rewrite H0. reflexivity.
 Qed.
 

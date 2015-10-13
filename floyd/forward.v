@@ -29,6 +29,8 @@ Require Import floyd.simpl_reptype.
 Require Import floyd.nested_pred_lemmas.
 Import Cop.
 
+Hint Resolve field_address_isptr : norm.
+
 Lemma field_address_eq_offset:
  forall {cs: compspecs} t path v,
   field_compatible t path v ->

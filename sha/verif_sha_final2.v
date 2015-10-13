@@ -37,7 +37,9 @@ Definition Body_final_if1 :=
                    (Etempvar _p (tptr tuchar)) :: nil)))).
 
 Definition invariant_after_if1 hashed (dd: list Z) c md shmd kv:= 
-   (EX hashed':list int, EX dd': list Z, EX pad:Z,
+   @exp (environ -> mpred) _ _ (fun hashed': list int =>
+   @exp (environ -> mpred) _ _ (fun dd': list Z =>
+   @exp (environ -> mpred) _ _ (fun pad: Z =>
    PROP  (Forall isbyteZ dd';
               pad=0%Z \/ dd'=nil;
               (length dd' + 8 <= CBLOCK)%nat;
@@ -59,7 +61,78 @@ Definition invariant_after_if1 hashed (dd: list Z) c md shmd kv:=
                Vundef))))
            c);
          `(K_vector kv);
-         `(memory_block shmd (Int.repr 32) md))).
+         `(memory_block shmd 32 md))))).
+
+Lemma compute_legal_nested_field_spec':
+  forall t gfs,
+  Forall Datatypes.id (compute_legal_nested_field t gfs) ->
+  legal_nested_field t gfs.
+Proof.
+  intros.
+  induction gfs as [| gf gfs].
+  + simpl; auto.
+  +  simpl in H|-*.
+    unfold legal_field. unfold nested_field_type2.
+    destruct (nested_field_rec t gfs) as [[? ?] | ].
+    destruct t0; try now inv H; contradiction.
+    destruct gf; try now inv H; contradiction.
+    inv H. split; auto.
+    destruct gf; try now inv H; contradiction.
+   destruct (compute_in_members i0 (co_members (get_co i))) eqn:?; 
+     try now inv H; contradiction.
+   split; auto.
+   rewrite <- compute_in_members_true_iff; auto.
+    destruct gf; try now inv H; contradiction.
+   destruct (compute_in_members i0 (co_members (get_co i))) eqn:?; 
+     try now inv H; contradiction.
+   split; auto.
+   rewrite <- compute_in_members_true_iff; auto.
+   inv H. contradiction.
+Qed.
+
+Definition compute_legal_nested_field0 (t: type) (gfs: list gfield) : list Prop :=
+  match gfs with
+  | nil => nil
+  | gf :: gfs0 =>
+    match (nested_field_type2 t gfs0), gf with
+    | Tarray _ n _, ArraySubsc i =>
+       (0 <= i <= n) :: compute_legal_nested_field t gfs0
+    | Tstruct id _, StructField i =>
+       if compute_in_members i (co_members (get_co id)) then compute_legal_nested_field t gfs else False :: nil
+    | Tunion id _, UnionField i =>
+       if compute_in_members i (co_members (get_co id)) then compute_legal_nested_field t gfs else False :: nil
+    | _, _ => False :: nil
+    end
+  end.
+
+Lemma compute_legal_nested_field0_spec':
+  forall t gfs,
+  Forall Datatypes.id (compute_legal_nested_field0 t gfs) ->
+  legal_nested_field0 t gfs.
+Proof.
+intros.
+destruct gfs; simpl in *.
+auto.
+    destruct (nested_field_rec t gfs) as [[? ?] | ].
+    destruct t0; try now inv H; contradiction.
+    destruct g; try now inv H; contradiction.
+    inv H. split.
+    apply compute_legal_nested_field_spec'; auto. 
+    apply H2.
+    destruct g; try now inv H; contradiction.
+   destruct (compute_in_members i0 (co_members (get_co i))) eqn:?; 
+     try now inv H; contradiction.
+   split. 
+    apply compute_legal_nested_field_spec'; auto. 
+   hnf.   rewrite compute_in_members_true_iff in Heqb. apply Heqb.
+    destruct g; try now inv H; contradiction.
+   destruct (compute_in_members i0 (co_members (get_co i))) eqn:?; 
+     try now inv H; contradiction.
+   split. 
+    apply compute_legal_nested_field_spec'; auto. 
+   hnf.   rewrite compute_in_members_true_iff in Heqb. apply Heqb.
+  inv H. contradiction.
+Qed.
 
 Lemma ifbody_final_if1:
   forall (Espec : OracleKind) (hashed : list int) (md c : val) (shmd : share)
@@ -80,11 +153,12 @@ Lemma ifbody_final_if1:
        (map Vint (hash_blocks init_registers hashed),
         (Vint (lo_part (bitlength hashed dd)), 
          (Vint (hi_part (bitlength hashed dd)),
-          (map Vint (map Int.repr dd) ++ [Vint (Int.repr 128)],
+          (map Vint (map Int.repr dd) ++ [Vint (Int.repr 128)] ++
+            list_repeat (Z.to_nat (64 - (Zlength dd + 1))) Vundef,
            Vint (Int.repr (Zlength dd))))))
       c);
     `(K_vector kv);
-    `(memory_block shmd (Int.repr 32) md)))
+    `(memory_block shmd 32 md)))
   Body_final_if1
   (normal_ret_assert (invariant_after_if1 hashed dd c md shmd kv)).
 Proof.
@@ -98,42 +172,45 @@ name cNh _cNh.
 intros.
 assert (Hddlen: (0 <= Zlength dd < CBLOCKz)%Z) by Omega1.
 set (ddlen := Zlength dd) in *.
+set (fill_len := Z.to_nat (64 - (ddlen + 1))).
  unfold Delta_final_if1; simplify_Delta; unfold Body_final_if1; abbreviate_semax.
 change CBLOCKz with 64 in Hddlen.
-unfold_data_at 1%nat.
-replace (field_at Tsh t_struct_SHA256state_st [StructField _data]
-           (map Vint (map Int.repr dd) ++ [Vint (Int.repr 128)]) c) with
-  (field_at Tsh t_struct_SHA256state_st [StructField _data]
-          ((map Vint (map Int.repr dd) ++ [Vint (Int.repr 128)]) ++
-            list_repeat (Z.to_nat (64 - (ddlen + 1))) Vundef ++ []) c).
-Focus 2. {
-  rewrite app_nil_r.
-  erewrite field_at_data_equal; [reflexivity |].
-  apply data_equal_sym, data_equal_list_repeat_default.
-} Unfocus.
-erewrite array_seg_reroot_lemma with (gfs := [StructField _data]) (lo := ddlen + 1) (hi := 64);
-  [| omega | omega | reflexivity | omega | reflexivity | reflexivity 
-   | rewrite Zlength_app, !Zlength_map; reflexivity
-   | rewrite Zlength_correct, length_list_repeat; rewrite Z2Nat.id by omega; reflexivity ].
+unfold data_at. unfold_field_at 1%nat.
 normalize.
-change (64-(ddlen+1)) with (CBLOCKz-(ddlen+1)).
-
-
+erewrite (field_at_Tarray _ _ [StructField _data]); 
+ try reflexivity; try computable; [ | split; auto; do 3 right; left; reflexivity].
+rewrite (split2_array_at _ _ _ _ (ddlen+1)) by omega.
+normalize. rewrite Z.sub_0_r. change 64 with CBLOCKz.
  assert (CBEQ := CBLOCKz_eq).
 
-forward_call' (* memset (p+n,0,SHA_CBLOCK-n); *)
+forward_call (* memset (p+n,0,SHA_CBLOCK-n); *)
    ((Tsh,
      (field_address0 t_struct_SHA256state_st
        [ArraySubsc (ddlen + 1); StructField _data] c),
      (CBLOCKz - (ddlen + 1)))%Z,
      Int.zero) vret.
-
+{
   apply prop_right.
-  unfold field_address, field_address0; rewrite !if_true; auto.
-  erewrite nested_field_offset2_Tarray by reflexivity.
-  normalize.
-  eapply field_compatible0_cons_Tarray; [reflexivity | auto | Omega1].
-  split; auto. repable_signed.
+  rewrite field_address_clarify
+    by (now apply isptr_is_pointer_or_null; apply field_address_isptr; auto with norm).
+  rewrite field_address0_clarify
+    by (apply isptr_is_pointer_or_null;
+   apply field_address0_isptr; auto with norm;
+   eapply field_compatible0_cons_Tarray; try reflexivity; auto; omega).
+ normalize. symmetry. 
+  rewrite nested_field_offset2_ind.  
+  f_equal. f_equal. f_equal. f_equal.
+  match goal with |- gfield_offset ?T _ = _ => set (t := T); compute in t; subst t end.
+  unfold gfield_offset. simpl sizeof. omega.
+  apply compute_legal_nested_field0_spec'.
+  repeat constructor; omega.
+}
+rewrite (sepcon_comm (array_at _ _ _ _ _ _ _)).
+repeat rewrite sepcon_assoc.
+apply sepcon_derives; [ | cancel].
+admit.  (* easy enough... *)
+split; auto. MyOmega.
+simpl map. (* SHOULD NOT BE NEEDED *)
 
 gather_SEP 1%Z 0%Z 2%Z.
 pose (ddz := ((map Int.repr dd ++ [Int.repr 128]) ++ list_repeat (Z.to_nat (CBLOCKz-(ddlen+1))) Int.zero)).
@@ -338,7 +415,7 @@ semax
    LOCAL  (temp _md md; temp _c c)
    SEP 
    (`(data_at Tsh t_struct_SHA256state_st
-       (map Vint hashedmsg,  (Vundef, (Vundef, (list_repeat 64%nat (Vint Int.zero), Vint Int.zero))))
+       (map Vint hashedmsg,  (Vundef, (Vundef, (list_repeat CBLOCK (Vint Int.zero), Vint Int.zero))))
       c);
     `(K_vector kv);
     `(memory_block shmd (Int.repr 32) md)))
@@ -365,7 +442,7 @@ forward_for_simple_bound 8
        (map Vint hashedmsg, (Vundef, (Vundef, (list_repeat 64%nat (Vint Int.zero), Vint Int.zero))))
       c);
     `(K_vector kv);
-    `(data_at shmd (tarray tuchar 32) (map Vint (map Int.repr (intlist_to_Zlist (firstn (Z.to_nat i) hashedmsg)))) md)
+    `(data_at shmd (tarray tuchar 32) (map Vint (map Int.repr (intlist_to_Zlist (sublist 0 i hashedmsg)))) md)
      )).
 *
  entailer!.
@@ -389,9 +466,9 @@ forward_for_simple_bound 8
           (map Vint (map Int.repr (intlist_to_Zlist (firstn i hashedmsg)))) md)
      into 3 segment *)
       replace (data_at shmd (tarray tuchar 32)
-        (map Vint (map Int.repr (intlist_to_Zlist (firstn (Z.to_nat i) hashedmsg)))) md) with
+        (map Vint (map Int.repr (intlist_to_Zlist (sublist 0 i hashedmsg)))) md) with
         (data_at shmd (tarray tuchar 32)
-          (map Vint (map Int.repr (intlist_to_Zlist (firstn (Z.to_nat i) hashedmsg))) ++
+          (map Vint (map Int.repr (intlist_to_Zlist (sublist 0 i hashedmsg))) ++
              list_repeat 4 Vundef ++ []) md).
       Focus 2. {
         rewrite app_nil_r.
@@ -443,12 +520,12 @@ forward_for_simple_bound 8
     replace (data_at shmd (tarray tuchar 32)
         (map Vint (map Int.repr (intlist_to_Zlist (firstn (Z.to_nat (i+1)) hashedmsg)))) md) with
         (data_at shmd (tarray tuchar 32)
-        (map Vint (map Int.repr (intlist_to_Zlist (firstn (Z.to_nat i) hashedmsg) ++ intlist_to_Zlist [w] ++ []))) md).
+        (map Vint (map Int.repr (intlist_to_Zlist (sublist 0 i hashedmsg) ++ intlist_to_Zlist [w] ++ []))) md).
       Focus 2. {
         assert (forall i0 : Z, 0 <= i0 < 32 ->
           Znth i0 (map Vint (map Int.repr
-           (intlist_to_Zlist (firstn (Z.to_nat i) hashedmsg) ++ intlist_to_Zlist [w]))) (default_val tuchar) =
-          Znth i0 (map Vint (map Int.repr (intlist_to_Zlist (firstn (Z.to_nat (i+1)) hashedmsg))))
+           (intlist_to_Zlist (sublist 0 i hashedmsg) ++ intlist_to_Zlist [w]))) (default_val tuchar) =
+          Znth i0 (map Vint (map Int.repr (intlist_to_Zlist (sublist 0 (i+1) hashedmsg))))
            (default_val tuchar)).
         Focus 1. {
           intros.
