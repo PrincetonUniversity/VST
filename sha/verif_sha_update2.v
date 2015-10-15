@@ -109,7 +109,7 @@ Definition sha_update_inv sh hashed len c d (dd: list Z) (data: list Z) kv (done
    @exp (environ->mpred) _ _  (fun blocks:list int => 
    PROP  ((len >= Zlength blocks*4 - Zlength dd)%Z;
               (LBLOCKz | Zlength blocks);
-              intlist_to_Zlist blocks = dd ++ firstn (length blocks * 4 - length dd) data;
+              intlist_to_Zlist blocks = dd ++ sublist 0  (Zlength blocks * 4 - Zlength dd) data;
              if done then (len-(Zlength blocks*4 - Zlength dd) < CBLOCKz)%Z else True)
    LOCAL  (temp _p (field_address t_struct_SHA256state_st [StructField _data]  c);
                 temp _data (offset_val (Int.repr (Z.of_nat (length blocks*4-length dd))) d);
@@ -117,11 +117,11 @@ Definition sha_update_inv sh hashed len c d (dd: list Z) (data: list Z) kv (done
                 temp _len (Vint (Int.repr (len- (Zlength blocks*4 - Zlength dd))));
                 gvar  _K256 kv)
    SEP  (`(K_vector kv);
-           `(@data_at CompSpecs CS_legal Tsh t_struct_SHA256state_st
+           `(@data_at CompSpecs Tsh t_struct_SHA256state_st
                  ((map Vint (hash_blocks init_registers (hashed++blocks)),
                   (Vint (lo_part (bitlength hashed dd + len*8)),
                    (Vint (hi_part (bitlength hashed dd + len*8)),
-                    (nil, Vundef)))) : reptype t_struct_SHA256state_st)
+                    (list_repeat CBLOCK Vundef, Vundef)))) : reptype t_struct_SHA256state_st)
                c);
    `(data_block sh data d))).
 
@@ -185,6 +185,44 @@ Proof.
   apply data_at_data_at_.
 Qed.
 
+Lemma Forall_map:
+  forall {A B} (f: B -> Prop) (g: A -> B) al,
+   Forall f (map g al) <-> Forall (f oo g) al.
+Proof.
+intros.
+induction al; simpl; intuition; inv H1; constructor; intuition.
+Qed.
+
+Lemma isbyte_value_fits_tuchar:
+  forall x, isbyteZ x -> value_fits true tuchar (Vint (Int.repr x)).
+Proof.
+intros. hnf in H|-*; intros.
+simpl. rewrite Int.unsigned_repr by repable_signed. 
+  change Byte.max_unsigned with 255%Z. omega.
+Qed.
+
+Lemma Forall_sublist:
+  forall {A} (f: A -> Prop) lo hi al,
+   Forall f al -> Forall f (sublist lo hi al).
+Proof.
+intros. unfold sublist.
+apply Forall_firstn. apply Forall_skipn. auto.
+Qed.
+
+Lemma Zlength_Zlist_to_intlist: 
+  forall (n:Z) (l: list Z),
+   (Zlength l = WORD*n)%Z -> Zlength (Zlist_to_intlist l) = n.
+Proof.
+intros.
+rewrite Zlength_correct in *.
+assert (0 <= n)%Z by ( change WORD with 4%Z in H; omega).
+rewrite (length_Zlist_to_intlist (Z.to_nat n)).
+apply Z2Nat.id; auto.
+apply Nat2Z.inj. rewrite H.
+rewrite Nat2Z.inj_mul.
+f_equal. rewrite Z2Nat.id; omega.
+Qed.
+
 Lemma update_inner_if_then_proof:
  forall (Espec : OracleKind) (hashed : list int)
           (dd data : list Z) (c d: val) (sh: share) (len: Z) kv
@@ -224,8 +262,8 @@ semax Delta_update_inner_if
   (normal_ret_assert (sha_update_inv sh hashed len c d dd data kv false)).
 Proof.
  intros.
- abbreviate_semax.
   unfold update_inner_if_then.
+  abbreviate_semax.
 match goal with |- semax _ (PROP() (LOCALx ?Q (SEPx _))) _ _ =>
  apply semax_seq'
  with (PROP() (LOCALx Q 
@@ -263,113 +301,137 @@ eapply semax_post_flipped'.
   unfold field_address0, field_address.
   rewrite !if_true; auto.
   rewrite nested_field_offset2_ind at 1.
-Focus 2.
-repeat match goal with H : value_fits _ _ _ |- _ => clear  H end.
-clear Frame Delta DBYTES POSTCONDITION H5.
-clear H18 H16 H14 H13 H11. clear H7.
-hnf.
-Focus 2.
-reflexivity.
-  erewrite nested_field_offset2_Tarray by reflexivity.
-  normalize.
-  eapply field_compatible0_cons_Tarray; [reflexivity | auto | Omega1 ].
-  unfold field_address0.
-  rewrite if_true. normalize.
-  eapply field_compatible0_cons_Tarray; [reflexivity | auto | Omega1 ].
++
+  destruct c; try (destruct H14 as [H14 _]; contradiction H14).
+  destruct d; try (destruct H18 as [H18 _]; contradiction H18).
+  unfold offset_val.
+  set (t := nested_field_type2 t_struct_SHA256state_st [StructField _data]).
+  compute in t. subst t.
+  set (a := nested_field_offset2 t_struct_SHA256state_st [StructField _data]).
+  unfold gfield_offset.
+   unfold sem_add_pi. unfold force_val.
+  split; f_equal.
+  rewrite Int.add_assoc. f_equal. rewrite add_repr.
+  f_equal. simpl sizeof. omega.
+ simpl. apply Int.add_zero.
++
+ split3; auto.
+ clear; compute; intuition.
+ apply Zlength_nonneg.
++
+ eapply field_compatible0_cons_Tarray.
+ reflexivity. auto. omega.
++
+ eapply field_compatible0_cons_Tarray.
+ reflexivity. auto. subst k; omega.
 *
-  rewrite skipn_0.
-  rewrite (data_at_field_at sh).
-  replace (Zlength dd + k - Zlength dd)%Z with k by (clear; omega).
-  unfold_data_at 1%nat.
+  unfold data_at.   unfold_field_at 7%nat.
   entailer!.
+  repeat simplify_value_fits. split3; auto. split3; auto.
+  split. rewrite Zlength_app.
+  subst k.
+  rewrite !sublist_map, !Zlength_map, !Zlength_sublist; try omega.
+  rewrite Forall_app.
+  split. 
+  clear - H3'.
+ rewrite map_map, Forall_map.
+ induction H3'; constructor; auto. unfold Basics.compose.
+  apply isbyte_value_fits_tuchar; auto.
+  clear - DBYTES.
+ apply Forall_sublist.
+ rewrite  map_map, Forall_map.
+ induction DBYTES; constructor; auto. unfold Basics.compose.
+  apply isbyte_value_fits_tuchar; auto.
   replace (Zlength dd + k)%Z with 64%Z by Omega1.
   rewrite splice_into_list_simplify2; try Omega1.
-  apply derives_refl.
-   MyOmega. MyOmega.
+  apply derives_refl'. f_equal. f_equal.
+  rewrite sublist_sublist; try MyOmega. f_equal. MyOmega.
+   MyOmega. rewrite Zlength_sublist; MyOmega.
 *
+change (PTree.tree funspec)  with (PTree.t funspec) in Delta_specs.
+simplify_Delta.
   abbreviate_semax.
-  repeat rewrite firstn_map. repeat rewrite <- map_app.
-  unfold_data_at 1%nat.
-  rewrite <- (data_block_data_field _ (dd ++ firstn (Z.to_nat k) data));
+  repeat rewrite sublist_map. repeat rewrite <- map_app.
+  unfold data_at.   unfold_field_at 1%nat.
+  rewrite <- (data_block_data_field _ (dd ++ sublist 0 k data));
  [
- | rewrite Forall_app; split; auto; apply Forall_firstn; auto
- | rewrite Zlength_app, (Zlength_correct (firstn _ _)),
-   firstn_length, min_l; MyOmega
+ | rewrite Forall_app; split; auto; apply Forall_sublist; auto
+ | rewrite Zlength_app; rewrite Zlength_sublist; MyOmega
  | reflexivity
  ].
- assert (length (dd ++ firstn (Z.to_nat k) data) = 64)
-   by (rewrite app_length, firstn_length, min_l; Omega1).
- assert (length (Zlist_to_intlist (dd ++ firstn (Z.to_nat k) data)) = LBLOCK)
-   by (apply length_Zlist_to_intlist; assumption).
- forward_call' (* sha256_block_data_order (c,p); *)
-   (hashed, Zlist_to_intlist (dd++(firstn (Z.to_nat k) data)), c,
+ assert (Zlength (dd ++ sublist 0 k data) = 64%Z)
+  by (rewrite Zlength_app, Zlength_sublist; MyOmega).
+ assert (Zlength (Zlist_to_intlist (dd ++ sublist 0 k data)) = LBLOCKz)
+   by (apply Zlength_Zlist_to_intlist; assumption).
+ forward_call (* sha256_block_data_order (c,p); *)
+   (hashed, Zlist_to_intlist (dd++(sublist 0 k data)), c,
      (field_address t_struct_SHA256state_st [StructField _data] c),
       Tsh, kv). {
- rewrite Zlist_to_intlist_to_Zlist.
- entailer!.
- rewrite H5;  exists LBLOCK; reflexivity.
- rewrite Forall_app; split; auto; apply Forall_firstn; auto.
-}
- split; auto.
- Omega1.
- simpl map.
  rewrite Zlist_to_intlist_to_Zlist;
- [
- | rewrite app_length, firstn_length, min_l;
-   [exists LBLOCK; change (LBLOCK*Z.to_nat WORD)%nat with 64%nat; Omega1
-   | Omega1]
- |  rewrite Forall_app; split; auto; apply Forall_firstn; auto
-].
- erewrite data_block_data_field;
-   auto; 
- [
- | rewrite Forall_app; split; auto; apply Forall_firstn; auto
- | rewrite Zlength_app, (Zlength_correct (firstn _ _)),
-   firstn_length, min_l; Omega1
+ [ | exists LBLOCK; apply Nat2Z.inj; rewrite <- Zlength_correct, H5; reflexivity
+   | rewrite Forall_app; split; auto; apply Forall_firstn; auto
  ].
-forward data_old. (* data  += fragment; *)
-forward len_old. (* len -= fragment; *)
+ entailer!.
+}
+simpl map. (* SHOULD NOT BE NECESSARY *)
+forward. (* data  += fragment; *)
+forward. (* len -= fragment; *)
   normalize_postcondition.
 eapply semax_post_flipped3.
 evar (Frame: list (LiftEnviron mpred)).
   eapply(call_memset_tuchar
    (*dst*) Tsh t_struct_SHA256state_st [StructField _data] 0 
-                (map Vint (map Int.repr (dd ++ firstn (Z.to_nat k) data))) c
+                (map Vint (map Int.repr (dd ++ sublist 0 k data))) c
    (*src*) Int.zero
    (*len*) 64
         Frame); try reflexivity; auto.
- rewrite !Zlength_map. rewrite Zlength_correct, H5. compute; split; congruence.
+  rewrite <- (data_block_data_field _ (dd ++ sublist 0 k data));
+ [
+ | rewrite Forall_app; split; auto; apply Forall_sublist; auto
+ | rewrite Zlength_app; rewrite Zlength_sublist; MyOmega
+ | reflexivity
+ ].
+ rewrite Zlist_to_intlist_to_Zlist;
+ [ | exists LBLOCK; apply Nat2Z.inj; rewrite <- Zlength_correct, H5; reflexivity
+   | rewrite Forall_app; split; auto; apply Forall_firstn; auto
+ ].
  entailer!.
- clear Frame Delta H9.
  unfold field_address, field_address0; rewrite !if_true; auto.
  eapply field_compatible0_cons_Tarray; [reflexivity | auto | Omega1 ].
- apply exp_right with (Zlist_to_intlist (dd ++ firstn (Z.to_nat k) data)).
+ Exists (Zlist_to_intlist (dd ++ sublist 0 k data)).
  assert (KK: k = Z.of_nat (LBLOCK * 4 - length dd)). {
  subst k.
  rewrite Nat2Z.inj_sub by Omega1.
  change (Z.of_nat (LBLOCK*4)) with 64%Z.
  Omega1.
 }
-
  rewrite (Zlength_correct (Zlist_to_intlist _)).
- rewrite H6.
- rewrite Zlist_to_intlist_to_Zlist;
- [
- | rewrite app_length, firstn_length, min_l;
-   [exists LBLOCK; change (LBLOCK*Z.to_nat WORD)%nat with 64%nat; Omega1
-   | Omega1]
- |  rewrite Forall_app; split; auto; apply Forall_firstn; auto
-].
-
  simpl update_tycon; rewrite insert_local.
  rewrite splice_into_list_simplify0;
  [ 
  | rewrite Zlength_correct, length_list_repeat; reflexivity
- | rewrite Zlength_correct, map_length, map_length, H5; reflexivity].
-unfold_data_at 2%nat.
+ | rewrite !Zlength_map; auto
+].
+unfold data_at. unfold_field_at 7%nat.
 change (Z.to_nat 64) with CBLOCK.
+ rewrite Zlist_to_intlist_to_Zlist;
+ [ | exists LBLOCK; apply Nat2Z.inj; rewrite <- Zlength_correct, H5; reflexivity
+   | rewrite Forall_app; split; auto; apply Forall_firstn; auto
+ ].
 entailer!.
- +  f_equal. f_equal. Omega1. 
- + rewrite <- KK. auto.
- + unfold data_block; normalize.
+rewrite <- Zlength_correct,  (Zlength_Zlist_to_intlist LBLOCKz); auto.
+split3; auto.
+split3; auto.
+split; auto. apply Z.divide_refl.
+f_equal.
+rewrite Nat2Z.inj_sub by Omega1.
+rewrite Nat2Z.inj_mul.
+rewrite <- Zlength_correct,  (Zlength_Zlist_to_intlist LBLOCKz); auto.
+rewrite <-Zlength_correct; reflexivity.
+set (j := (64-Zlength dd)%Z).
+repeat simplify_value_fits.
+split3; auto. split3; auto.
+split; auto.
+apply Forall_list_repeat. simplify_value_fits; auto.
+unfold data_block. normalize.
 Qed.

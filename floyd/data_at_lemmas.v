@@ -1092,12 +1092,12 @@ first
  |erewrite value_fits_Tarray;
     [ | reflexivity
     | cleanup_unfold_reptype
-    | subst; try computable; omega
+    | repeat subst_any; try computable; omega
     | simpl; reflexivity
     ]
  | erewrite value_fits_by_value_defined;
    [ | reflexivity
-   | subst; clear; simpl; intro; discriminate
+   | repeat subst_any; clear; simpl; intro; discriminate
    | simpl; lazy beta iota zeta delta [field_type]; simpl; reflexivity
    | simpl; reflexivity
    ]

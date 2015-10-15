@@ -273,8 +273,8 @@ clear - H10 H12 H0 H1 H2 H3 H Hlop Hloq Hnp Hnq Hlen.
 forget (nested_field_type2 tp pathp) as t0.
 forget (nested_field_type2 tq pathq) as t1.
 subst t0 t1.
-simplify_value_fits H10. destruct H10 as [H10 _].
-simplify_value_fits H12. destruct H12 as [H12 _].
+simplify_value_fits in H10. destruct H10 as [H10 _].
+simplify_value_fits in H12. destruct H12 as [H12 _].
 apply JMeq_eq in H3. subst vp; auto.
 apply JMeq_eq in H2. subst vq; auto.
 rewrite Zlength_map in H12.
@@ -390,13 +390,16 @@ eapply semax_post_flipped'.
  admit.
  admit.
 *
- go_lowerx.
+ go_lowerx. unfold_lift.
+ simpl.
+ Intros x.
  normalize.
  rewrite map_sublist.
  cancel.
  clear witness Frame.
  hnf in H9. normalize in H9.
  subst x.
+ simpl.
  clear Hpre H7 H8 P Q rho .
 assert (exists (vpy : list (reptype (nested_field_type2 tp (ArraySubsc 0 :: pathp)))),
                   JMeq vp'' vpy)
@@ -511,7 +514,7 @@ entailer. apply prop_right.
 clear - H8 H4 H3 Hnp H0 Hlen Hlop.
 forget (nested_field_type2 tp pathp) as t0.
 subst t0.
-simplify_value_fits H8. destruct H8 as [H8 _].
+simplify_value_fits in H8. destruct H8 as [H8 _].
 apply JMeq_eq in H3. subst vp; auto.
 } rename H1 into Hvp'.
 assert (H5: reptype (tarray tuchar np) = list val) by reflexivity.
@@ -589,7 +592,8 @@ eapply semax_post_flipped'.
  cancel.
  admit.  (* array_at -> memory_block *)
 *
- go_lowerx.
+ go_lowerx. unfold_lift; simpl. 
+ Intros x.
  normalize.
  cancel.
  clear witness Frame.

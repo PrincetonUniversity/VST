@@ -11,16 +11,19 @@ Proof. induction n; simpl; intros. trivial.
   rewrite IHn; trivial. omega.
 Qed.
 
-Lemma data_at_triv sh t v v': v=v' -> data_at sh t v |-- data_at sh t v'.
+Lemma data_at_triv {cs} sh t v v': v=v' -> @data_at cs sh t v |-- @data_at cs sh t v'.
 Proof. intros; subst. cancel. Qed.
 
-Lemma sizeof_Tarray k: Z.max 0 k = k -> sizeof (Tarray tuchar k noattr) = k.
+Lemma sizeof_Tarray {cs} k: Z.max 0 k = k -> sizeof cs (Tarray tuchar k noattr) = k.
 Proof. intros K; simpl; rewrite K. destruct k; trivial. Qed.
 
-Lemma data_at_Tarray_split3a: forall sh t n a i v,
+Require Import replace_refill_reptype_lemmas.
+(*
+Lemma data_at_Tarray_split3a {cs}: forall sh t n a i v,
   0 <= i <= n ->
-  data_at sh (Tarray t n a) v = 
-    data_at sh (Tarray t n a) (force_lengthn (nat_of_Z i) v (default_val _) ++
+  @data_at cs sh (Tarray t n a) v = 
+  @data_at cs sh (Tarray t n a) (upd_Znth_in_list i v (Znth i v (default_val _))) v.
+    @data_at cs sh (Tarray t n a) (force_lengthn (nat_of_Z i) v (default_val _) ++
       (Znth i v (default_val _)) :: skipn (nat_of_Z (i + 1)) v).
 Proof.
   intros.
@@ -53,7 +56,7 @@ Proof.
     simpl.
     reflexivity.
 Qed.
-
+*)
 Lemma skipn_force_lengthn_app {A} n (l m:list A) a:
         skipn n (force_lengthn n l a ++ m) = m.
   intros. rewrite skipn_app1.

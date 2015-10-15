@@ -137,7 +137,7 @@ Ltac simplify_func_tycontext :=
     let S1 := fresh "S1" in let DS := fresh "Delta_specs" in
     set (DS := make_tycontext_s G) in D1;
     set (S1 := make_tycontext_s G) in DS;
-    change S1 with (@abbreviate (PTree.tree funspec) S1) in DS;
+    change S1 with (@abbreviate (PTree.t funspec) S1) in DS;
     lazy beta iota zeta delta - [DS] in D1; subst D1;
     unfold make_tycontext_s in S1; simpl in S1; subst S1
  end.
@@ -152,6 +152,12 @@ match goal with
     pose (D1 := @abbreviate _ DT);
     change DT with D1; subst DT
  | |- semax (func_tycontext _ _ _) _ _ _ => simplify_func_tycontext
+ | |- semax ?D _ _ _ => unfold D; simplify_Delta
+ | |- semax (mk_tycontext ?a ?b ?c ?d ?e) _ _ _ =>
+     let DS := fresh "Delta_specs" in set (DS := e : PTree.t funspec);
+     change e with (@abbreviate (PTree.t funspec) e) in DS;
+     let D := fresh "Delta" in set (D := mk_tycontext a b c d DS);
+     change (mk_tycontext a b c d DS) with (@abbreviate _ (mk_tycontext a b c d DS)) in D
  | |- _ => simplify_func_tycontext; simplify_Delta
  end.
 

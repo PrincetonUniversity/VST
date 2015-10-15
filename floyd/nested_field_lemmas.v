@@ -201,6 +201,27 @@ Proof.
 Defined.
 
 Lemma nested_field_offset2_ind: forall t gfs,
+  legal_nested_field0 t gfs ->
+  nested_field_offset2 t gfs =
+  match gfs with
+  | nil => 0
+  | gf :: gfs0 => nested_field_offset2 t gfs0 + gfield_offset (nested_field_type2 t gfs0) gf 
+  end.
+Proof.
+  intros.
+  destruct gfs as [| gf gfs]; [reflexivity |].
+  destruct H.
+  unfold nested_field_type2, nested_field_offset2 in *.
+  simpl.
+  destruct (nested_field_rec t gfs) as [[ofs0 t0] |] eqn:NFR; [| reflexivity].
+  destruct t0 as [| | | | | | | id ? | id ?]; destruct gf; try inversion H0; auto.
+  + destruct_in_members i (co_members (get_co id)); [| tauto].
+    reflexivity.
+  + destruct_in_members i (co_members (get_co id)); [| tauto].
+    simpl. omega.
+Qed.
+
+Lemma nested_field_offset2_ind': forall t gfs,
   legal_nested_field t gfs ->
   nested_field_offset2 t gfs =
   match gfs with
@@ -813,6 +834,21 @@ Proof.
   + simpl.
     apply field_offset_aligned.
 Qed.
+
+Lemma legal_nested_field0_field:
+  forall t gfs, legal_nested_field t gfs -> legal_nested_field0 t gfs.
+Proof.
+intros.
+revert t H; induction gfs; intros.
+apply I.
+destruct H; split; auto.
+clear - H0.
+destruct (nested_field_type2 t gfs); simpl in *; auto.
+destruct a; auto.
+omega.
+Qed.
+
+Hint Resolve legal_nested_field0_field.
 
 Lemma nested_field_offset2_type2_divide: forall gfs t,
   legal_alignas_type t = true ->
@@ -1427,7 +1463,7 @@ Proof.
   + simpl app in *.
     specialize (IHgfs1 (proj1 H)).
     rewrite nested_field_offset2_ind with (gfs := a :: gfs1 ++ gfs0) by auto.
-    rewrite nested_field_offset2_ind with (gfs := a :: gfs1) by (apply legal_nested_field_app'; auto).
+    rewrite nested_field_offset2_ind with (gfs := a :: gfs1) by (apply legal_nested_field0_field; apply legal_nested_field_app'; auto).
     rewrite nested_field_type2_nested_field_type2.
     omega.
 Qed.

@@ -15,6 +15,7 @@ Require Import hmac_common_lemmas.
 
 Require Import pure_lemmas.
 Require Import sha_padding_lemmas.
+Require Import sublist. (*for Forall_list_repeat*)
 
 Definition c := (32 * 8)%nat.
 Definition p := (32 * 8)%nat.
