@@ -16,12 +16,6 @@ Require Import floyd.field_at.
 Require Import floyd.replace_refill_reptype_lemmas.
 Local Open Scope logic.
 
-Definition rel_LR {cs: compspecs} e lr :=
-  match lr with
-  | LLLL => rel_lvalue e
-  | RRRR => rel_expr e
-  end.
-
 Lemma rel_lvalue_var {cs: compspecs}:
  forall (P: mpred) i t v rho,
  v = eval_var i t rho ->

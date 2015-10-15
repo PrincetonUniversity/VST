@@ -945,7 +945,7 @@ Lemma rel_lvalue_field_struct: forall {CS: compspecs}  i ty a b z id att delta c
                typeof a = Tstruct id att ->
                cenv_cs ! id = Some co ->
                field_offset cenv_cs i (co_members co) = Errors.OK delta ->
-               P |-- rel_expr a (Vptr b z) rho ->
+               P |-- rel_lvalue a (Vptr b z) rho ->
                P |-- rel_lvalue (Efield a i ty) (Vptr b (Int.add z (Int.repr delta))) rho.
 Proof.
 intros. intros ? ?. econstructor; eauto. apply H2; auto. Qed.

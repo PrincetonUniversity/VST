@@ -70,7 +70,7 @@ with rel_lvalue' {CS: compspecs} (rho: environ) (phi: rmap): expr -> val -> Prop
                  rel_expr' rho phi a (Vptr b z) ->
                  rel_lvalue' rho phi (Ederef a ty) (Vptr b z)
  | rel_lvalue'_field_struct: forall i ty a b z id co att delta,
-                 rel_expr' rho phi a (Vptr b z) ->
+                 rel_lvalue' rho phi a (Vptr b z) ->
                  typeof a = Tstruct id att ->
                  cenv_cs ! id = Some co ->
                  field_offset cenv_cs i (co_members co) = Errors.OK delta ->
@@ -78,6 +78,8 @@ with rel_lvalue' {CS: compspecs} (rho: environ) (phi: rmap): expr -> val -> Prop
 
 Scheme rel_expr'_sch := Minimality for rel_expr' Sort Prop
   with rel_lvalue'_sch := Minimality for  rel_lvalue' Sort Prop.
+
+Definition rel_LR'_sch := fun CS rho phi P P0 H H0 H1 H2 H3 H4 H5 H6 H7 H8 H9 H10 H11 H12 H13 H14 H15 e v => conj (rel_expr'_sch CS rho phi P P0 H H0 H1 H2 H3 H4 H5 H6 H7 H8 H9 H10 H11 H12 H13 H14 H15 e v) (rel_lvalue'_sch CS rho phi P P0 H H0 H1 H2 H3 H4 H5 H6 H7 H8 H9 H10 H11 H12 H13 H14 H15 e v).
 
 Lemma rel_expr'_hered: forall {CS }e v rho, hereditary age (fun phi => @rel_expr' CS rho phi e v).
 Proof.
@@ -100,8 +102,6 @@ intro; intros.
 induction H0; try solve [ econstructor; eauto].
  constructor 2; auto.
  constructor 3; auto.
-apply rel_expr'_hered with a; auto.
-  econstructor 4; eauto.
 apply rel_expr'_hered with a; auto.
 Qed.
 
@@ -192,7 +192,12 @@ apply (rel_lvalue'_expr'_sch _ rho (m_phi jm)
   destruct (Genv.find_symbol ge id) eqn:?; try discriminate.
   destruct (type_of_global ge b) eqn:?; inv H2;  apply Clight.eval_Evar_global; auto.
 * (* Efield *)
-  econstructor; eauto. rewrite H; eauto. rewrite H; eauto.
+  econstructor; eauto. 
+  + eapply Clight.eval_Elvalue; eauto.
+    apply deref_loc_copy.
+    rewrite H3; auto.
+  + rewrite H; eauto.
+  + rewrite H; eauto.
 Qed.
 
 Lemma rel_expr_relate:
@@ -292,43 +297,83 @@ destruct t as [ | [ | | | ] [ | ] ? | [ | ] ? | [ | ] ? | | | | | ];
  try solve [destruct v; inv H1; auto].
 Qed.
 
-Lemma rel_expr'_fun:
- forall {CS: compspecs} rho phi e v v', rel_expr' rho phi e v -> rel_expr' rho phi e v' -> v=v'.
-Proof.
-intros until 1.
-apply (rel_expr'_sch _ rho phi
-      (fun e v => forall v', rel_expr' rho phi e v -> rel_expr' rho phi e v' -> v=v')
-      (fun e v => forall v', rel_lvalue' rho phi e v -> rel_lvalue' rho phi e v' -> v=v'));
+Lemma rel_LR'_fun:
+ forall {CS: compspecs} rho phi e v, (rel_expr' rho phi e v -> forall v', rel_expr' rho phi e v' -> v=v') /\ (rel_lvalue' rho phi e v -> forall v', rel_lvalue' rho phi e v' -> v=v').
+
+intros.
+apply (rel_LR'_sch _ rho phi
+      (fun e v => forall v', rel_expr' rho phi e v' -> v=v')
+      (fun e v => forall v', rel_lvalue' rho phi e v' -> v=v'));
    auto; intros;
    try match goal with H : _ |- _ => inv H; auto; try congruence end;
    try match goal with H: rel_lvalue' _ _ _ _ |- _ => solve [inv H] end.
 * (* Eunop *)
-   specialize (H1 _ H0 H9). specialize (H10 Mem.empty). congruence.
+   specialize (H0 _ H7). specialize (H8 Mem.empty). congruence.
 * (* Ebinnop *)
-   specialize (H1 _ H0 H12). specialize (H3 _ H2 H14).
-   specialize (H5 Mem.empty). specialize (H16 Mem.empty).
+   specialize (H0 _ H10). specialize (H2 _ H12).
+   specialize (H4 Mem.empty). specialize (H14 Mem.empty).
    congruence.
 * (* Ecast *)
-   specialize (H1 _ H0 H7). congruence.
-*  inversion2 H0 H8.
-   specialize (H2 _ H1 H9).
-   subst v0.   clear H1 H9.
-   generalize H3; intros [wx [wy [_ [? _]]]].
+   specialize (H0 _ H5). congruence.
+*  inversion2 H H6.
+   specialize (H1 _ H7).
+   subst v0.   clear H0 H7.
+   generalize H2; intros [wx [wy [_ [? _]]]].
    unfold mapsto in *.
    destruct (access_mode (typeof a)); try contradiction.
    destruct (type_is_volatile (typeof a)); try contradiction.
    destruct v1; try contradiction.
-   rewrite if_true in H1, H3, H10 by auto.
-   destruct H1 as [[? ?]|[? ?]]; [ |  hnf in H1; contradiction].
-   clear H2.
-   rewrite distrib_orp_sepcon in H3, H10.
-   destruct H3 as [H3 |[? [? [? [[Hx _] _]]]]]; [ | hnf in Hx; contradiction].
-   destruct H10 as [H10 |[? [? [? [[Hx _] _]]]]]; [ | hnf in Hx; contradiction].
-   autorewrite with normalize in H3, H10; auto with typeclass_instances.
-   destruct H10.
+   rewrite if_true in H0, H2, H8 by auto.
+   destruct H0 as [[? ?]|[? ?]]; [ |  hnf in H0; contradiction].
+   clear H1.
+   rewrite distrib_orp_sepcon in H2, H8.
+   destruct H2 as [H2 |[? [? [? [[Hx _] _]]]]]; [ | hnf in Hx; contradiction].
+   destruct H8 as [H8 |[? [? [? [[Hx _] _]]]]]; [ | hnf in Hx; contradiction].
+   autorewrite with normalize in H2, H8; auto with typeclass_instances.
+   destruct H8.
    eapply res_predicates.address_mapsto_fun; split; eauto.
 *
-   specialize (H1 _ H0 H10). congruence.
+   specialize (H0 _ H8). congruence.
+Qed.
+
+Lemma rel_expr'_fun:
+ forall {CS: compspecs} rho phi e v v', rel_expr' rho phi e v -> rel_expr' rho phi e v' -> v=v'.
+Proof.
+intros.
+pose proof rel_LR'_fun rho phi e v.
+firstorder.
+Qed.
+
+Lemma rel_lvalue'_fun:
+ forall {CS: compspecs} rho phi e v v', rel_lvalue' rho phi e v -> rel_lvalue' rho phi e v' -> v=v'.
+Proof.
+intros.
+pose proof rel_LR'_fun rho phi e v.
+firstorder.
+Qed.
+
+Lemma rel_LR_extend:
+  forall {CS: compspecs} e v rho w,
+    (rel_expr' rho w e v -> forall w', extendM w w' -> rel_expr' rho w' e v) /\
+    (rel_lvalue' rho w e v -> forall w', extendM w w' -> rel_lvalue' rho w' e v).
+Proof.
+intros.
+apply (rel_LR'_sch _ rho w
+      (fun e v => forall w', extendM w w' -> rel_expr' rho w' e v)
+      (fun e v => forall w', extendM w w' -> rel_lvalue' rho w' e v)); auto; intros;
+  try solve [match goal with H : _ |- _ => inv H; econstructor; eauto end];
+  try solve [match goal with H: forall w': compcert_rmaps.R.rmap, _ |- _ => specialize (H w'); spec H; [auto | econstructor; eauto]
+end].
+*
+eapply rel_expr'_lvalue_By_value; eauto.
+destruct H5 as [w1 ?].
+destruct H2 as [w3 [w4 [? [? _]]]].
+destruct (join_assoc H2 H5) as [w6 [? ?]].
+exists w3, w6; split3; auto.
+*
+eapply rel_expr'_lvalue_By_reference; eauto.
+*
+econstructor 2; eauto.
 Qed.
 
 Lemma rel_expr_extend:
@@ -336,27 +381,8 @@ Lemma rel_expr_extend:
 Proof.
 intros. apply boxy_i; intros; auto.
 hnf in H0|-*.
-apply (rel_expr'_sch _ rho w
-      (fun e v => rel_expr' rho w e v -> rel_expr' rho w' e v)
-      (fun e v => rel_lvalue' rho w e v -> rel_lvalue' rho w' e v)); auto; intros;
- try solve [match goal with H : _ |- _ => inv H; econstructor; eauto end].
-*
-eapply rel_expr'_lvalue_By_value; eauto.
-destruct H as [w1 ?].
-destruct H4 as [w3 [w4 [? [? _]]]].
-destruct (join_assoc H4 H) as [w6 [? ?]].
-exists w3, w6; split3; auto.
-*
-eapply rel_expr'_lvalue_By_reference; eauto.
-*
-econstructor 2; eauto.
-*
-inv H6.
-pose proof (rel_expr'_fun _ _ _ _ _ H1 H12). inv H6.
-rewrite H3 in H13. symmetry in H13; inv H13.
-rewrite H4 in H14. symmetry in H14; inv H14.
-rewrite H5 in H15; symmetry in H15; inv H15.
-econstructor; eauto.
+pose proof rel_LR_extend e v rho w.
+firstorder.
 Qed.
 
 Lemma rel_lvalue_extend:
@@ -364,13 +390,7 @@ Lemma rel_lvalue_extend:
 Proof.
 intros. apply boxy_i; intros; auto.
 hnf in H0|-*.
-inv H0; try solve [econstructor; eauto].
-econstructor 2; eauto.
-econstructor; eauto.
-pose proof (rel_expr_extend a (Vptr b z) rho).
-apply (boxy_e _ _ H0 _ _ H); auto.
-econstructor; eauto.
-apply (boxy_e _ _ (rel_expr_extend a (Vptr b z) rho) _ _ H); auto.
+pose proof rel_LR_extend e v rho w.
+firstorder.
 Qed.
-
 
