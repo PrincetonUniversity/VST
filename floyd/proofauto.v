@@ -33,5 +33,7 @@ Export ListNotations.
 
 Arguments nested_field_type2 {cs} t gfs / .
 Arguments nested_field_offset2 {cs} t gfs / .
-
+Arguments Z.mul !x !y.
+Arguments Z.sub !m !n.
+Arguments Z.add !x !y.
 Global Transparent peq.

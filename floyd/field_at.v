@@ -348,8 +348,6 @@ Proof.
   apply prop_derives; intuition.
 Qed.
 
-Hint Resolve array_at_local_facts array_at__local_facts : saturate_local.
-
 Lemma field_at_isptr: forall sh t gfs v p,
   field_at sh t gfs v p = (!! isptr p) && field_at sh t gfs v p.
 Proof. intros. apply local_facts_isptr. eapply derives_trans; [ apply field_at_local_facts | normalize]. Qed.
@@ -1474,7 +1472,9 @@ Qed.
 Lemma array_at_array_at_: forall sh t gfs lo hi v p, 
   array_at sh t gfs lo hi v p |-- array_at_ sh t gfs lo hi p.
 Proof.
-  intros. saturate_local.
+  intros. 
+  eapply derives_trans; [apply andp_right; [apply array_at_local_facts | apply derives_refl] | ].
+ normalize.
   unfold array_at_.
   apply array_at_ext_derives.
   rewrite H1. rewrite Zlength_correct, length_list_repeat.
@@ -1851,6 +1851,8 @@ Hint Extern 1 (field_at _ _ _ _ _ |-- _) =>
 (* Hint Resolve data_at_local_facts : saturate_local.*)
 Hint Extern 1 (data_at _ _ _ _ |-- _) =>
  (field_at_saturate_local) : saturate_local.
+
+Hint Resolve @array_at_local_facts @array_at__local_facts : saturate_local.
 
 Hint Resolve field_at__local_facts : saturate_local.
 Hint Resolve data_at__local_facts : saturate_local.

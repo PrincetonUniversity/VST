@@ -101,7 +101,7 @@ rewrite <- (IHn al) by omega.
 reflexivity.
 Qed.
 
-Lemma Zlist_to_intlist_to_Zlist:
+Lemma Zlist_to_intlist_to_Zlist':
   forall nl: list Z, 
   NPeano.divide (Z.to_nat WORD) (length nl) ->
   Forall isbyteZ nl ->
@@ -116,6 +116,41 @@ inv H0. inv H4. inv H5. inv H6.
 unfold Zlist_to_intlist; fold Zlist_to_intlist.
 rewrite intlist_to_Zlist_Z_to_int_cons by auto.
 repeat f_equal; auto.
+Qed.
+
+Lemma Ndivide_Zdivide_length:
+  forall {A} n (al: list A),
+   0 <= n ->
+   (NPeano.divide (Z.to_nat n) (length al) <->
+    (n | Zlength al)).
+Proof.
+intros; split; intros [i ?].
+exists (Z.of_nat i). rewrite Zlength_correct, H0.
+rewrite Nat2Z.inj_mul.
+rewrite Z2Nat.id; auto.
+exists (Z.to_nat i).
+rewrite Zlength_correct in H0.
+destruct (zeq n 0). subst.
+simpl. rewrite Z.mul_0_r in H0. destruct al; inv H0.
+rewrite mult_0_r. reflexivity.
+assert (0 <= i).
+assert (0 <= i * n) by omega.
+apply Z.mul_nonneg_cancel_r in H1; auto; omega.
+rewrite <- (Z2Nat.id (i*n)%Z) in H0 by omega.
+apply Nat2Z.inj in H0. rewrite H0.
+rewrite Z2Nat.inj_mul; auto.
+Qed.
+
+Lemma Zlist_to_intlist_to_Zlist:
+  forall nl: list Z, 
+  Z.divide WORD (Zlength nl) ->
+  Forall isbyteZ nl ->
+  intlist_to_Zlist (Zlist_to_intlist nl) = nl.
+Proof.
+intros.
+apply Zlist_to_intlist_to_Zlist'; auto.
+apply Ndivide_Zdivide_length; auto.
+compute; congruence.
 Qed.
 
 Lemma length_Zlist_to_intlist: forall n l, 
@@ -209,18 +244,10 @@ Lemma divide_hashed:
     NPeano.divide LBLOCK (length bb) <->
     (LBLOCKz | Zlength bb).
 Proof.
-intros; split; intros [n ?].
-exists (Z.of_nat n). rewrite Zlength_correct, H.
-rewrite Nat2Z.inj_mul; auto.
-exists (Z.to_nat n).
-rewrite Zlength_correct in H.
-assert (0 <= n).
-assert (0 <= n * LBLOCKz) by omega.
-apply Z.mul_nonneg_cancel_r in H0; auto.
-rewrite <- (Z2Nat.id (n*LBLOCKz)%Z) in H by omega.
-apply Nat2Z.inj in H. rewrite H.
+intros.
 change LBLOCK with (Z.to_nat LBLOCKz).
-rewrite Z2Nat.inj_mul; auto.
+apply Ndivide_Zdivide_length.
+auto.
 Qed.
 
 Lemma hash_blocks_equation' : forall (r : registers) (msg : list int),

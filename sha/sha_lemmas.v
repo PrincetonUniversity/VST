@@ -524,4 +524,4 @@ Proof.
  apply IHn; omega.
 Qed.
 
-
+Global Opaque WORD.

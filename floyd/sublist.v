@@ -1100,7 +1100,15 @@ rewrite length_list_repeat.
 apply Z2Nat.id; auto.
 Qed.
 
+Lemma list_repeat_0:
+  forall {A} (x:A), list_repeat (Z.to_nat 0) x = nil.
+Proof.
+simpl. auto.
+Qed.
 
+Hint Rewrite @Zlength_cons @Zlength_nil: sublist.
+Hint Rewrite @list_repeat_0: sublist.
+Hint Rewrite <- @app_nil_end : sublist.
 Hint Rewrite @Zlength_app: sublist.
 Hint Rewrite @Zlength_map: sublist.
 Hint Rewrite @Zlength_list_repeat using (autorewrite with sublist; omega): sublist.
@@ -1113,4 +1121,7 @@ Hint Rewrite @sublist_app1 using (autorewrite with sublist; omega) : sublist.
 Hint Rewrite @sublist_app2 using (autorewrite with sublist; omega) : sublist.
 Hint Rewrite @sublist_list_repeat  using (autorewrite with sublist; omega) : sublist.
 Hint Rewrite @sublist_same using (autorewrite with sublist; omega) : sublist.
+Hint Rewrite Z.add_simpl_l : sublist.
+Hint Rewrite Z.add_add_simpl_l_l Z.add_add_simpl_l_r
+     Z.add_add_simpl_r_l Z.add_add_simpl_r_r : sublist.
 
