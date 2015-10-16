@@ -416,7 +416,9 @@ Definition HmacFunSpecs : funspecs :=
   HMAC_Final_spec:: HMAC_spec ::nil.
 
 (**Finally, some auxiliary lemmas and constructions that are shared beween several downstream files ******)
-Definition emptySha:s256state := (nil, (Vundef, (Vundef, (nil, Vundef)))).
+(*Definition emptySha:s256state := (nil, (Vundef, (Vundef, (nil, Vundef)))).
  
 Definition keyedHMS: hmacstate :=
-  (emptySha, (emptySha, emptySha)).
+  (emptySha, (emptySha, emptySha)).*)
+
+Definition HMS : hmacstate := default_val t_struct_hmac_ctx_st.
