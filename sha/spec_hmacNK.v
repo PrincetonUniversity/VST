@@ -348,8 +348,9 @@ Definition HMAC_Cleanup_spec :=
          LOCAL (temp _ctx c)
          SEP(`(hmacstate_PostFinal h c))
   POST [ tvoid ]  
-          PROP (size_compatible t_struct_hmac_ctx_st c /\
-                align_compatible t_struct_hmac_ctx_st c) 
+          PROP ((*not needed any longer in new_compcert??
+                size_compatible t_struct_hmac_ctx_st c /\
+                align_compatible t_struct_hmac_ctx_st c*)) 
           LOCAL ()
           SEP(`(data_block Tsh (list_repeat (Z.to_nat(sizeof (@cenv_cs CompSpecs) t_struct_hmac_ctx_st)) 0) c)).
 

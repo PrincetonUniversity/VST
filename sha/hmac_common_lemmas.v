@@ -8,6 +8,7 @@ Require Import hmac_pure_lemmas.
 Require Import SHA256.
 Require Import pure_lemmas.     (* sha *)
 Require Import sha.spec_sha.
+Require Import sublist.
 
 Require Import HMAC_functional_prog.
 Require Import HMAC256_functional_prog.

@@ -3,6 +3,7 @@
    plus proof of coorrectness wrt Salsa20.v
 
    Lennart Beringer, June 2015*)
+(*Processing time for this file: approx 13mins*)
 Require Import floyd.proofauto.
 Local Open Scope logic.
 Require Import List. Import ListNotations.
