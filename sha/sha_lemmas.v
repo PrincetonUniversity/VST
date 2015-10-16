@@ -477,3 +477,51 @@ Proof. intros.
   rewrite Z.mul_1_l. auto.
 Qed.
 
+Lemma isbyte_value_fits_tuchar:
+  forall x, isbyteZ x -> value_fits true tuchar (Vint (Int.repr x)).
+Proof.
+intros. hnf in H|-*; intros.
+simpl. rewrite Int.unsigned_repr by repable_signed. 
+  change Byte.max_unsigned with 255%Z. omega.
+Qed.
+
+Lemma Forall_map:
+  forall {A B} (f: B -> Prop) (g: A -> B) al,
+   Forall f (map g al) <-> Forall (f oo g) al.
+Proof.
+intros.
+induction al; simpl; intuition; inv H1; constructor; intuition.
+Qed.
+
+Lemma Forall_sublist:
+  forall {A} (f: A -> Prop) lo hi al,
+   Forall f al -> Forall f (sublist lo hi al).
+Proof.
+intros. unfold sublist.
+apply Forall_firstn. apply Forall_skipn. auto.
+Qed.
+
+Lemma Zlength_Zlist_to_intlist: 
+  forall (n:Z) (l: list Z),
+   (Zlength l = WORD*n)%Z -> Zlength (Zlist_to_intlist l) = n.
+Proof.
+intros.
+rewrite Zlength_correct in *.
+assert (0 <= n)%Z by ( change WORD with 4%Z in H; omega).
+rewrite (length_Zlist_to_intlist (Z.to_nat n)).
+apply Z2Nat.id; auto.
+apply Nat2Z.inj. rewrite H.
+rewrite Nat2Z.inj_mul.
+f_equal. rewrite Z2Nat.id; omega.
+Qed.
+
+Lemma nth_intlist_to_Zlist_eq:
+ forall d (n i j k: nat) al, (i < n)%nat -> (i < j*4)%nat -> (i < k*4)%nat -> 
+    nth i (intlist_to_Zlist (firstn j al)) d = nth i (intlist_to_Zlist (firstn k al)) d.
+Proof.
+ induction n; destruct i,al,j,k; simpl; intros; auto; try omega.
+ destruct i; auto. destruct i; auto. destruct i; auto.
+ apply IHn; omega.
+Qed.
+
+
