@@ -1064,6 +1064,7 @@ Proof.
  apply IHk; auto. omega.
 Qed.
 
+(* not this version!
 Lemma sublist_list_repeat {A} i j k (v:A) (I: 0<=i)
           (IJK: (Z.to_nat i <= Z.to_nat j <= k)%nat):
       sublist i j (list_repeat k v) = list_repeat (Z.to_nat (j-i)) v.
@@ -1073,3 +1074,43 @@ Proof.
   rewrite Z2Nat.inj_sub; try omega.
   rewrite firstn_list_repeat; trivial; omega.
 Qed.
+*)
+
+Lemma sublist_list_repeat {A} i j k (v:A) (I: 0<=i)
+          (IJK: i <= j <= k):
+      sublist i j (list_repeat (Z.to_nat k) v) = list_repeat (Z.to_nat (j-i)) v.
+Proof.
+  unfold sublist.
+  rewrite skipn_list_repeat.
+  rewrite firstn_list_repeat.
+  trivial.
+  rewrite <- Z2Nat.inj_sub by omega.
+  apply Z2Nat.inj_le; omega.
+  apply Z2Nat.inj_le; omega.
+Qed.
+
+Lemma Zlength_list_repeat:
+  forall {A} n (x: A), 
+  0 <= n -> 
+  Zlength (list_repeat (Z.to_nat n) x) = n.
+Proof.
+intros. 
+rewrite Zlength_correct.
+rewrite length_list_repeat.
+apply Z2Nat.id; auto.
+Qed.
+
+
+Hint Rewrite @Zlength_app: sublist.
+Hint Rewrite @Zlength_map: sublist.
+Hint Rewrite @Zlength_list_repeat using (autorewrite with sublist; omega): sublist.
+Hint Rewrite Z.sub_0_r Z.add_0_l Z.add_0_r : sublist.
+Hint Rewrite @Zlength_sublist using (autorewrite with sublist; omega) : sublist.
+Hint Rewrite Z.max_r using omega : sublist.
+Hint Rewrite Z.add_simpl_r Z.sub_add Z.sub_diag : sublist.
+Hint Rewrite @sublist_sublist using (autorewrite with sublist; omega) : sublist.
+Hint Rewrite @sublist_app1 using (autorewrite with sublist; omega) : sublist.
+Hint Rewrite @sublist_app2 using (autorewrite with sublist; omega) : sublist.
+Hint Rewrite @sublist_list_repeat  using (autorewrite with sublist; omega) : sublist.
+Hint Rewrite @sublist_same using (autorewrite with sublist; omega) : sublist.
+

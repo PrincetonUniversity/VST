@@ -1543,6 +1543,79 @@ Proof.
         apply (derives_trans _ _ _ H6), prop_derives; tauto.
 Qed.
 
+
+Lemma compute_legal_nested_field_spec':
+  forall t gfs,
+  Forall Datatypes.id (compute_legal_nested_field t gfs) ->
+  legal_nested_field t gfs.
+Proof.
+  intros.
+  induction gfs as [| gf gfs].
+  + simpl; auto.
+  +  simpl in H|-*.
+    unfold legal_field. unfold nested_field_type2 in *.
+    destruct (nested_field_rec t gfs) as [[? ?] | ].
+    destruct t0; try now inv H; contradiction.
+    destruct gf; try now inv H; contradiction.
+    inv H. split; auto.
+    destruct gf; try now inv H; contradiction.
+   destruct (compute_in_members i0 (co_members (get_co i))) eqn:?; 
+     try now inv H; contradiction.
+   split; auto.
+   rewrite <- compute_in_members_true_iff; auto.
+    destruct gf; try now inv H; contradiction.
+   destruct (compute_in_members i0 (co_members (get_co i))) eqn:?; 
+     try now inv H; contradiction.
+   split; auto.
+   rewrite <- compute_in_members_true_iff; auto.
+   inv H. contradiction.
+Qed.
+
+Definition compute_legal_nested_field0 (t: type) (gfs: list gfield) : list Prop :=
+  match gfs with
+  | nil => nil
+  | gf :: gfs0 =>
+    match (nested_field_type2 t gfs0), gf with
+    | Tarray _ n _, ArraySubsc i =>
+       (0 <= i <= n) :: compute_legal_nested_field t gfs0
+    | Tstruct id _, StructField i =>
+       if compute_in_members i (co_members (get_co id)) then compute_legal_nested_field t gfs else False :: nil
+    | Tunion id _, UnionField i =>
+       if compute_in_members i (co_members (get_co id)) then compute_legal_nested_field t gfs else False :: nil
+    | _, _ => False :: nil
+    end
+  end.
+
+Lemma compute_legal_nested_field0_spec':
+  forall t gfs,
+  Forall Datatypes.id (compute_legal_nested_field0 t gfs) ->
+  legal_nested_field0 t gfs.
+Proof.
+intros.
+destruct gfs; simpl in *.
+auto.
+     unfold nested_field_type2 in *.
+    destruct (nested_field_rec t gfs) as [[? ?] | ].
+    destruct t0; try now inv H; contradiction.
+    destruct g; try now inv H; contradiction.
+    inv H. split.
+    apply compute_legal_nested_field_spec'; auto. 
+    apply H2.
+    destruct g; try now inv H; contradiction.
+   destruct (compute_in_members i0 (co_members (get_co i))) eqn:?; 
+     try now inv H; contradiction.
+   split. 
+    apply compute_legal_nested_field_spec'; auto. 
+   hnf.   rewrite compute_in_members_true_iff in Heqb. apply Heqb.
+    destruct g; try now inv H; contradiction.
+   destruct (compute_in_members i0 (co_members (get_co i))) eqn:?; 
+     try now inv H; contradiction.
+   split. 
+    apply compute_legal_nested_field_spec'; auto. 
+   hnf.   rewrite compute_in_members_true_iff in Heqb. apply Heqb.
+  inv H. contradiction.
+Qed.
+
 (*
 Lemma field_at_field_at: forall sh t gfs0 gfs1 v v' p,
   legal_alignas_type t = true ->

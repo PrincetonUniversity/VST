@@ -17,11 +17,88 @@ Require Psatz.
 
 Global Opaque CBLOCKz LBLOCKz.
 
-Lemma Zlength_intlist_to_Zlist: forall l,
-  Zlength (intlist_to_Zlist l) = WORD*Zlength l.
+Lemma Zlength_intlist_to_Zlist:
+  forall l : list int,
+       Zlength (intlist_to_Zlist l) = (Zlength l * 4)%Z.
 Proof.
-intros. repeat rewrite Zlength_correct. rewrite length_intlist_to_Zlist.
-rewrite Nat2Z.inj_mul. reflexivity.
+intros.
+repeat rewrite Zlength_correct. rewrite length_intlist_to_Zlist.
+rewrite Nat2Z.inj_mul. rewrite Z.mul_comm. reflexivity.
+Qed.
+
+Hint Rewrite Zlength_intlist_to_Zlist : sublist.
+
+Lemma skipn_intlist_to_Zlist:
+  forall i m, skipn (4*i) (intlist_to_Zlist m) = intlist_to_Zlist (skipn i m).
+Proof.
+induction i; intros.
+reflexivity.
+replace (4 * S i)%nat with (4 + 4 * i)%nat by omega.
+destruct m; try reflexivity.
+apply IHi.
+Qed.
+
+Lemma firstn_intlist_to_Zlist:
+  forall i m, firstn (4*i) (intlist_to_Zlist m) = intlist_to_Zlist (firstn i m).
+Proof.
+induction i; intros.
+reflexivity.
+replace (4 * S i)%nat with (4 + 4 * i)%nat by omega.
+destruct m; try reflexivity.
+simpl. f_equal. f_equal. f_equal. f_equal. 
+apply IHi.
+Qed.
+
+Lemma sublist_intlist_to_Zlist:
+ forall i j m,
+  sublist (i * WORD) (j * WORD) (intlist_to_Zlist m) =
+  intlist_to_Zlist (sublist i j m).
+Proof.
+intros.
+unfold sublist.
+change WORD with 4.
+rewrite <- Z.mul_sub_distr_r.
+destruct (zlt (j-i) 0).
+rewrite (Z2Nat_neg _ l).
+rewrite (Z2Nat_neg ((j-i)*4)) by omega.
+reflexivity.
+rewrite ?(Z.mul_comm _ 4).
+rewrite ?Z2Nat.inj_mul by omega.
+change (Z.to_nat 4) with 4%nat.
+rewrite <- firstn_intlist_to_Zlist.
+f_equal.
+destruct (zlt i 0).
+rewrite (Z2Nat_neg _ l).
+rewrite (Z2Nat_neg (4*i)) by omega.
+reflexivity.
+rewrite ?Z2Nat.inj_mul by omega.
+change (Z.to_nat 4) with 4%nat.
+apply skipn_intlist_to_Zlist.
+Qed.
+
+Lemma sublist_singleton:
+  forall {A} i (al: list A) d,
+    0 <= i < Zlength al ->
+    sublist i (i+1) al = [Znth i al d].
+Proof.
+intros.
+unfold sublist.
+replace (i+1-i) with 1 by omega.
+change (Z.to_nat 1) with 1%nat.
+unfold Znth.
+rewrite if_false by omega.
+assert (Z.to_nat i < length al)%nat.
+destruct H.
+rewrite Zlength_correct in H0.
+apply Nat2Z.inj_lt.
+rewrite Z2Nat.id by omega. auto.
+clear H.
+revert al H0; induction (Z.to_nat i); destruct al; intros;
+  try (simpl in *; omega);  try reflexivity.
+simpl in H0.
+simpl nth.
+rewrite <- (IHn al) by omega.
+reflexivity.
 Qed.
 
 Lemma Zlist_to_intlist_to_Zlist:

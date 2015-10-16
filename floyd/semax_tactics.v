@@ -159,6 +159,16 @@ match goal with
      let D := fresh "Delta" in set (D := mk_tycontext a b c d DS);
      change (mk_tycontext a b c d DS) with (@abbreviate _ (mk_tycontext a b c d DS)) in D
  | |- _ => simplify_func_tycontext; simplify_Delta
+ | |- semax ?D _ _ _ =>
+     match D with
+     | context [initialized ?i (mk_tycontext ?a ?b ?c ?d ?e)] =>
+        let z := fresh "z" in set (z := initialized i (mk_tycontext a b c d e));
+          unfold initialized in z; simpl in z; subst z;
+          simplify_Delta
+     | context [initialized ?i ?B] => 
+        match B with appcontext [initialized] => fail 1 | _ => idtac end;
+        unfold B; simplify_Delta
+     end
  end.
 
 (*

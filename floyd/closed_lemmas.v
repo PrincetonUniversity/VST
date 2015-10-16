@@ -1158,8 +1158,8 @@ auto with closed.
 intros Delta j e; clear closed_eval_lvalue_e; induction e; intros; simpl; auto with closed.
 Qed.
 
-Hint Extern 2 (closed_wrt_vars (eq _) (eval_expr _ _)) => (apply closed_eval_expr_e; reflexivity) : closed.
-Hint Extern 2 (closed_wrt_vars (eq _) (eval_lvalue _ _)) => (apply closed_eval_lvalue_e; reflexivity) : closed.
+Hint Extern 2 (closed_wrt_vars (eq _) (@eval_expr _ _)) => (apply closed_eval_expr_e; reflexivity) : closed.
+Hint Extern 2 (closed_wrt_vars (eq _) (@eval_lvalue _ _)) => (apply closed_eval_lvalue_e; reflexivity) : closed.
 
 Lemma closed_wrt_eval_expr: forall {cs: compspecs} S e,
   expr_closed_wrt_vars S e -> 

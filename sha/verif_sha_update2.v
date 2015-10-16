@@ -162,7 +162,7 @@ assert (Z.to_nat i < Z.to_nat n)
 forget (Z.to_nat n) as k.
 revert k H0; induction (Z.to_nat i); destruct k; simpl; intros.
 omega. auto. omega. apply IHn0; omega.
-Qed.
+Qed.  (* move to floyd/sublist.v *)
 
 Lemma field_at_cancel_undef_example:
   forall  (d': list val) d c, 
@@ -183,44 +183,6 @@ Proof.
  rewrite Znth_list_repeat_inrange by omega.
   intros sh p.
   apply data_at_data_at_.
-Qed.
-
-Lemma Forall_map:
-  forall {A B} (f: B -> Prop) (g: A -> B) al,
-   Forall f (map g al) <-> Forall (f oo g) al.
-Proof.
-intros.
-induction al; simpl; intuition; inv H1; constructor; intuition.
-Qed.
-
-Lemma isbyte_value_fits_tuchar:
-  forall x, isbyteZ x -> value_fits true tuchar (Vint (Int.repr x)).
-Proof.
-intros. hnf in H|-*; intros.
-simpl. rewrite Int.unsigned_repr by repable_signed. 
-  change Byte.max_unsigned with 255%Z. omega.
-Qed.
-
-Lemma Forall_sublist:
-  forall {A} (f: A -> Prop) lo hi al,
-   Forall f al -> Forall f (sublist lo hi al).
-Proof.
-intros. unfold sublist.
-apply Forall_firstn. apply Forall_skipn. auto.
-Qed.
-
-Lemma Zlength_Zlist_to_intlist: 
-  forall (n:Z) (l: list Z),
-   (Zlength l = WORD*n)%Z -> Zlength (Zlist_to_intlist l) = n.
-Proof.
-intros.
-rewrite Zlength_correct in *.
-assert (0 <= n)%Z by ( change WORD with 4%Z in H; omega).
-rewrite (length_Zlist_to_intlist (Z.to_nat n)).
-apply Z2Nat.id; auto.
-apply Nat2Z.inj. rewrite H.
-rewrite Nat2Z.inj_mul.
-f_equal. rewrite Z2Nat.id; omega.
 Qed.
 
 Lemma update_inner_if_then_proof:
@@ -318,6 +280,7 @@ eapply semax_post_flipped'.
  split3; auto.
  clear; compute; intuition.
  apply Zlength_nonneg.
+ MyOmega.
 +
  eapply field_compatible0_cons_Tarray.
  reflexivity. auto. omega.
@@ -328,9 +291,9 @@ eapply semax_post_flipped'.
   unfold data_at.   unfold_field_at 7%nat.
   entailer!.
   repeat simplify_value_fits. split3; auto. split3; auto.
-  split. rewrite Zlength_app.
+  split.
   subst k.
-  rewrite !sublist_map, !Zlength_map, !Zlength_sublist; try omega.
+  autorewrite with sublist. omega.
   rewrite Forall_app.
   split. 
   clear - H3'.
@@ -345,8 +308,9 @@ eapply semax_post_flipped'.
   replace (Zlength dd + k)%Z with 64%Z by Omega1.
   rewrite splice_into_list_simplify2; try Omega1.
   apply derives_refl'. f_equal. f_equal.
-  rewrite sublist_sublist; try MyOmega. f_equal. MyOmega.
-   MyOmega. rewrite Zlength_sublist; MyOmega.
+  subst k; autorewrite with sublist; auto.
+  autorewrite with sublist; auto.
+  autorewrite with sublist; auto. MyOmega.
 *
 change (PTree.tree funspec)  with (PTree.t funspec) in Delta_specs.
 simplify_Delta.
