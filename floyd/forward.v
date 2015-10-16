@@ -1251,7 +1251,29 @@ Tactic Notation "forward_while" constr(Inv)
           repeat rewrite exp_uncurry in Hp; subst p
        end;
       match goal with |- semax ?Delta ?Pre (Swhile ?e _) _ =>
-        eapply semax_while_3g1; 
+        (* the following line was before: eapply semax_while_3g1; *)
+        match goal with [ |- semax _ (@exp _ _ ?A _) _ _ ] => eapply (@semax_while_3g1 _ _ A) end;
+        (* check if we can revert back to the old one with coq 8.5. 
+           The bug happens when we destruct the existential variable of the loop invariant:
+           
+             (* .c program: *)
+             int main(){int i=0; while(i);}
+             
+             (* .v file *)
+             Require Import floyd.proofauto.
+             Require Import c.
+             Instance CompSpecs : compspecs. Proof. make_compspecs prog. Defined.
+             Local Open Scope logic.
+             
+             Lemma body_main : semax_body [] [] f_main 
+               (DECLARE _main WITH u : unit
+                PRE  [] main_pre prog u
+                POST [ tint ] main_post prog u).
+             start_function.
+             forward.
+             pose (Inv := (EX b : bool, PROP () LOCAL (temp _i (Vint (Int.repr (if b then 1 else 0)))) SEP ())).
+             forward_while Inv VAR. (** FAILS WITH THE FORMER VERSION OF forward_while **)
+         *)
         simpl typeof;
        [ reflexivity 
        | intros pat; simpl_fst_snd

@@ -1198,9 +1198,18 @@ apply andp_right; auto.
 apply derives_extract_prop. auto.
 Qed.
 
-Ltac assert_PROP A :=
- first [apply (assert_PROP A); [ | intro]
-         | apply (assert_PROP' A); [ | intro]].
+
+Tactic Notation "assert_PROP" constr(A) :=
+  first [apply (assert_PROP A) | apply (assert_PROP' A)]; [ | intro ].
+
+Tactic Notation "assert_PROP" constr(A) "by" tactic(t) :=
+  first [apply (assert_PROP A) | apply (assert_PROP' A)]; [ now t | intro ].
+
+Tactic Notation "assert_PROP" constr(A) "as" simple_intropattern(H)  :=
+  first [apply (assert_PROP A) | apply (assert_PROP' A)]; [ | intro H ].
+
+Tactic Notation "assert_PROP" constr(A) "as" simple_intropattern(H) "by" tactic(t) :=
+  first [apply (assert_PROP A) | apply (assert_PROP' A)]; [ now t | intro H ].
 
 Lemma assert_LOCAL:
  forall Q1 Espec {cs: compspecs} Delta P Q R c Post,
@@ -1214,8 +1223,11 @@ rewrite <- (insert_local Q1); apply andp_right; auto.
 rewrite <- insert_local; apply andp_left2; auto.
 Qed.
 
-Ltac assert_LOCAL A :=
- apply (assert_LOCAL A).
+Tactic Notation "assert_LOCAL" constr(A) :=
+  apply (assert_LOCAL A).
+
+Tactic Notation "assert_LOCAL" constr(A) "by" tactic(t) :=
+  apply (assert_LOCAL A); [ now t | ].
 
 Lemma drop_LOCAL':
   forall (n: nat)  P Q R Post,
