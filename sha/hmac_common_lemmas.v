@@ -150,7 +150,7 @@ Proof. intros. inversion H; clear H.
     clear H4. rewrite Zlength_app in H.
               rewrite <- (Z.mul_add_distr_r (Zlength oldfrag)), H. clear H.
               rewrite Zlength_app, Zlength_intlist_to_Zlist.
-              rewrite (Z.mul_comm WORD). rewrite Z.mul_add_distr_r. trivial. 
+(*              rewrite (Z.mul_comm WORD). *) rewrite Z.mul_add_distr_r. trivial. 
   rewrite H; trivial.
 Qed.
 
