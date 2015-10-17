@@ -122,7 +122,7 @@ evar (V: list val).
  change CBLOCKz with 64; omega.
  subst V.
  entailer!. {
- clear - Hddlen H12.
+ clear - Hddlen H11.
  unfold field_address, field_address0. 
  rewrite ?if_true; auto.
  normalize. f_equal. f_equal.
@@ -221,7 +221,6 @@ split.
  unfold data_at. unfold_field_at 5%nat.
  unfold data_block.
  normalize.
- rewrite prop_true_andp.
  cancel.
  rewrite field_at_data_at by reflexivity.
  normalize.
@@ -232,17 +231,6 @@ split.
  change (nested_field_type2 t_struct_SHA256state_st [StructField _data])
     with (tarray tuchar 64).
  apply derives_refl.
- repeat simplify_value_fits.
- autorewrite with sublist.
- repeat split; auto.
- rewrite Zlength_correct, length_hash_blocks; auto.
- rewrite Zlength_app.
- apply Z.divide_add_r; auto.
- rewrite H1'.
- apply Z.divide_refl.
- apply Forall_map.
- apply Forall_forall; intros; hnf; simpl; auto.
- apply Forall_list_repeat. intro Hx; contradiction Hx; auto.
 Qed.
 
 Definition final_loop :=

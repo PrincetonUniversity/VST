@@ -9,7 +9,7 @@ Local Open Scope logic.
 Lemma body_SHA256: semax_body Vprog Gtot f_SHA256 SHA256_spec.
 Proof.
 start_function.
-unfold POSTCONDITION, abbreviate; simpl_stackframe_of;
+
 abbreviate_semax.
 name d_ _d.
 name n_ _n.
