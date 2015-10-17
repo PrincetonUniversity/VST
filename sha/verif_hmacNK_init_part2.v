@@ -13,6 +13,8 @@ Require Import vst_lemmas.
 Require Import hmac_pure_lemmas.
 Require Import hmac_common_lemmas.
 
+Require Import split_array_lemmas.
+
 Require Import sha.hmac_NK.
 Require Import sha.verif_hmacNK_init_part1. (*part1 now takes 1h to compile*)
 
@@ -69,7 +71,6 @@ Proof. intros. apply Znth_map_Vint_is_int_I8.
   rewrite Zlength_map; trivial.
 Qed.
 
-(*
 Lemma UPD_IPAD: forall
   (key : list Z)
   (ZLI : Zlength
@@ -80,50 +81,51 @@ Lemma UPD_IPAD: forall
   (isbyteZQb : isbyteZ (nth (Z.to_nat i) (HMAC_SHA256.mkKey key) 0))
   (X : Znth i (map Vint (map Int.repr (HMAC_SHA256.mkKey key))) Vundef =
       Vint (Int.repr (nth (Z.to_nat i) (HMAC_SHA256.mkKey key) 0))),
-upd_reptype_array tuchar i
-  (FIRSTN i
+upd_Znth_in_list i
+  (sublist 0 i
      (map Vint
         (map Int.repr
            (map Byte.unsigned
-              (HMAC_SHA256.mkArg (map Byte.repr (HMAC_SHA256.mkKey key)) Ipad)))))
-  (force_val
-     (sem_cast_i2i I8 Unsigned
-        (Vint
-           (Int.repr (Z.lxor (nth (Z.to_nat i) (HMAC_SHA256.mkKey key) 0) 54))))) =
-FIRSTN (i + 1)
+              (HMAC_SHA256.mkArg (map Byte.repr (HMAC_SHA256.mkKey key)) Ipad)))) ++
+   sublist i 64 (default_val (Tarray tuchar 64 noattr)))
+  (Vint
+     (Int.zero_ext 8
+        (Int.repr (Z.lxor (nth (Z.to_nat i) (HMAC_SHA256.mkKey key) 0) 54)))) =
+sublist 0 (i + 1)
   (map Vint
      (map Int.repr
         (map Byte.unsigned
-           (HMAC_SHA256.mkArg (map Byte.repr (HMAC_SHA256.mkKey key)) Ipad)))).
-Proof. intros.
-           assert (ZLI': length (HMAC_SHA256.mkArgZ (map Byte.repr (HMAC_SHA256.mkKey key)) Ipad) = Z.to_nat 64).
-              rewrite Zlength_correct in ZLI. rewrite <- ZLI. rewrite Nat2Z.id; trivial.
-           unfold FIRSTN. unfold upd_reptype_array.
-           rewrite skipn_short. Focus 2. rewrite firstn_length. unfold  HMAC_SHA256.mkArgZ in ZLI'.
-                                         do 2 rewrite map_length. rewrite ZLI'.
-                                         rewrite Min.min_l. unfold nat_of_Z. rewrite Z2Nat.inj_add. simpl. omega. apply I. omega.
-                                apply Z2Nat.inj_le; omega.
-           rewrite force_lengthn_id. Focus 2. rewrite firstn_length. unfold  HMAC_SHA256.mkArgZ in ZLI'.
-                                         do 2 rewrite map_length. rewrite ZLI'.
-                                         rewrite Min.min_l. reflexivity.
-                                apply Z2Nat.inj_le; omega.
-           rewrite Z2Nat.inj_add; try omega. rewrite <- firstn_app. f_equal.
-          rewrite <- firstn_1_skipn with (d:=Vint (Int.repr (Byte.unsigned ((fun p : byte * byte => Byte.xor (fst p) (snd p)) (Byte.zero,Byte.zero))))).
-          Focus 2. do 2 rewrite map_length. unfold  HMAC_SHA256.mkArgZ in ZLI'. rewrite ZLI'. apply Z2Nat.inj_lt; omega.
-          f_equal. rewrite map_nth. rewrite map_nth. rewrite map_nth. unfold Znth in X. unfold HMAC_SHA256.mkArg.
-                   rewrite (map_nth (fun p : byte * byte => Byte.xor (fst p) (snd p))
+           (HMAC_SHA256.mkArg (map Byte.repr (HMAC_SHA256.mkKey key)) Ipad)))) ++
+sublist (i + 1) 64 (default_val (Tarray tuchar 64 noattr)).
+Proof. intros. unfold HMAC_SHA256.mkArgZ in *.
+  rewrite upd_Znth_in_list_app2, Zlength_sublist, Zminus_0_r, Zminus_diag,
+     upd_Znth_in_list0; repeat rewrite Zlength_sublist; try omega.
+  2: rewrite Zlength_default_val_Tarray_tuchar; omega. 
+  2: do 2 rewrite Zlength_map; rewrite ZLI; omega.
+  2: rewrite Zlength_default_val_Tarray_tuchar; omega. 
+  2: do 2 rewrite Zlength_map; rewrite ZLI; omega.
+  rewrite <- (sublist_rejoin 0 i (i+1)); try omega.
+  2: do 2 rewrite Zlength_map; rewrite ZLI; omega.
+  rewrite <- app_assoc. f_equal.
+  rewrite (sublist_singleton i) with (d:=Vint (Int.zero)); simpl app.
+  2: do 2 rewrite Zlength_map; rewrite ZLI; omega.
+  f_equal. rewrite Znth_map with (d':=Int.zero). f_equal.
+           rewrite Znth_map with (d':=Z0). 
+           rewrite Znth_map with (d':=Byte.zero). unfold HMAC_SHA256.mkArg.
+           unfold Znth. unfold Znth in X. destruct (zlt i 0). discriminate.
+           specialize (map_nth (fun p : byte * byte => Byte.xor (fst p) (snd p))
                                        (combine (map Byte.repr (HMAC_SHA256.mkKey key)) (HMAC_SHA256.sixtyfour Ipad)) 
                                        (Byte.zero, Byte.zero)
-                                       (Z.to_nat i)).
+                                       (Z.to_nat i)). simpl. 
+           rewrite Byte.xor_zero; intros MN; rewrite MN; clear MN.
                    rewrite combine_nth. 
                    Focus 2. rewrite map_length, length_SF, mkKey_length. reflexivity.
                    assert (BMU: Byte.max_unsigned = 255). reflexivity.
                    assert (isByte54: 0 <= 54 <= Byte.max_unsigned).
                       rewrite BMU; omega. 
                    destruct (isbyteZ_xor (nth (Z.to_nat i) (HMAC_SHA256.mkKey key) 0) 54 isbyteZQb) as [AA BB].
-                     split; rewrite BMU in *; omega.                      
-                   unfold force_val. rewrite sem_cast_i2i_correct_range.
-                   destruct (zlt i 0); try omega. remember (HMAC_SHA256.sixtyfour Ipad).  simpl.
+                     split; rewrite BMU in *; omega.
+                   remember (HMAC_SHA256.sixtyfour Ipad).  simpl.
                    rewrite (map_nth Byte.repr (HMAC_SHA256.mkKey key) Z0).
                    unfold Byte.xor.
                    assert (NTH: nth (Z.to_nat i) l Byte.zero = Byte.repr 54).
@@ -131,10 +133,18 @@ Proof. intros.
                    rewrite NTH, (Byte.unsigned_repr 54); trivial.
                    rewrite (Byte.unsigned_repr (nth (Z.to_nat i) (HMAC_SHA256.mkKey key) 0)).
                      Focus 2. destruct isbyteZQb. omega.
-                   rewrite Byte.unsigned_repr. trivial.
-                   rewrite BMU in *; split; omega. 
-             simpl. rewrite Int.unsigned_repr. rewrite BMU in *; omega. 
-               rewrite int_max_unsigned_eq. rewrite BMU in *; omega.
+                   rewrite Byte.unsigned_repr.
+                   apply zero_ext_inrange.
+                   rewrite Int.unsigned_repr.
+                   assert (Z.lxor (nth (Z.to_nat i) (HMAC_SHA256.mkKey key) 0) 54 < two_p 8 ). apply BB. omega.
+                   rewrite int_max_unsigned_eq.
+                   intuition.
+                   omega.
+                   rewrite Zlength_map in ZLI; rewrite ZLI; assumption.
+                   rewrite ZLI; assumption.
+                   rewrite Zlength_map, ZLI; assumption.
+  rewrite sublist_sublist; try omega.
+  assert (64 - i + i = 64) by omega. rewrite Zplus_comm, H; trivial.
 Qed.
 
 Lemma UPD_OPAD: forall
@@ -145,14 +155,13 @@ Lemma UPD_OPAD: forall
   (I : 0 <= i < 64)
   (isbyteZQb : isbyteZ (nth (Z.to_nat i) (HMAC_SHA256.mkKey key) 0))
   (X : Znth i (map Vint (map Int.repr (HMAC_SHA256.mkKey key))) Vundef =
-       Vint (Int.repr (nth (Z.to_nat i) (HMAC_SHA256.mkKey key) 0))),
-upd_reptype_array tuchar i
-  (FIRSTN i
+       Vint (Int.repr (nth (Z.to_nat i) (HMAC_SHA256.mkKey key) 0))),upd_Znth_in_list i
+  (sublist 0 i
      (map Vint
         (map Int.repr
            (map Byte.unsigned
               (HMAC_SHA256.mkArg (map Byte.repr (HMAC_SHA256.mkKey key)) Opad)))) ++
-   SKIPN i
+   sublist i 64
      (map Vint
         (map Int.repr
            (map Byte.unsigned
@@ -160,56 +169,48 @@ upd_reptype_array tuchar i
   (Vint
      (Int.zero_ext 8
         (Int.xor (Int.repr 92)
-           (Int.repr (nth (Z.to_nat i) (HMAC_SHA256.mkKey key) 0))))) =
-FIRSTN (i + 1)
+           (Int.zero_ext 8
+              (Int.repr (nth (Z.to_nat i) (HMAC_SHA256.mkKey key) 0)))))) =
+sublist 0 (i + 1)
   (map Vint
      (map Int.repr
         (map Byte.unsigned
            (HMAC_SHA256.mkArg (map Byte.repr (HMAC_SHA256.mkKey key)) Opad)))) ++
-SKIPN (i + 1)
+sublist (i + 1) 64
   (map Vint
      (map Int.repr
         (map Byte.unsigned
            (HMAC_SHA256.mkArg (map Byte.repr (HMAC_SHA256.mkKey key)) Ipad)))).
-Proof. intros.
-           assert (ZLI': length (HMAC_SHA256.mkArgZ (map Byte.repr (HMAC_SHA256.mkKey key)) Ipad) = Z.to_nat 64).
-                 rewrite Zlength_correct in ZLI. rewrite <- ZLI. rewrite Nat2Z.id; trivial. 
-           assert (ZLO': length (HMAC_SHA256.mkArgZ (map Byte.repr (HMAC_SHA256.mkKey key)) Opad) = Z.to_nat 64).
-              rewrite Zlength_correct in ZLO. rewrite <- ZLO. rewrite Nat2Z.id; trivial.
-           unfold FIRSTN. unfold upd_reptype_array, nat_of_Z.
-           rewrite force_lengthn_long.
-           Focus 2. unfold SKIPN; rewrite app_length, firstn_length, skipn_length.
-           unfold HMAC_SHA256.mkArgZ in ZLI', ZLO'. 
-           do 2 rewrite map_length. rewrite ZLO'. 
-           do 2 rewrite map_length. rewrite ZLI', Min.min_l. 2: apply Z2Nat.inj_le; omega.
-              rewrite le_plus_minus_r; apply Z2Nat.inj_le; omega. 
-           do 2 rewrite map_length. unfold HMAC_SHA256.mkArgZ in ZLI'; rewrite ZLI'. apply Z2Nat.inj_le; omega.
-           rewrite firstn_app1.
-           Focus 2. rewrite firstn_length, Min.min_l. omega.   
-              do 2 rewrite map_length. unfold HMAC_SHA256.mkArgZ in ZLO'; rewrite ZLO'. apply Z2Nat.inj_le; omega.
-           rewrite firstn_precise. 
-           Focus 2. rewrite firstn_length, Min.min_l. omega.   
-              do 2 rewrite map_length. unfold HMAC_SHA256.mkArgZ in ZLO'; rewrite ZLO'. apply Z2Nat.inj_le; omega.
-           rewrite Z2Nat.inj_add; try omega. rewrite <- firstn_app. rewrite <- app_assoc.
-           f_equal.
-          rewrite <- firstn_1_skipn with (d:=Vint (Int.repr (Byte.unsigned ((fun p : byte * byte => Byte.xor (fst p) (snd p)) (Byte.zero,Byte.zero))))).
-          Focus 2. do 2 rewrite map_length. unfold  HMAC_SHA256.mkArgZ in ZLO'. rewrite ZLO'. apply Z2Nat.inj_lt; omega.
-          simpl. f_equal. rewrite map_nth. rewrite map_nth. rewrite map_nth. unfold Znth in X. unfold HMAC_SHA256.mkArg.
-                   specialize (map_nth (fun p : byte * byte => Byte.xor (fst p) (snd p))
+Proof. intros. unfold HMAC_SHA256.mkArgZ in *.
+  rewrite upd_Znth_in_list_app2, Zlength_sublist, Zminus_0_r, Zminus_diag,
+     upd_Znth_in_list0; repeat rewrite Zlength_sublist; try omega.
+  2: do 2 rewrite Zlength_map; rewrite ZLI; omega.
+  2: do 2 rewrite Zlength_map; rewrite ZLO; omega.
+  2: do 2 rewrite Zlength_map; rewrite ZLI; omega.
+  2: do 2 rewrite Zlength_map; rewrite ZLO; omega.
+  rewrite <- (sublist_rejoin 0 i (i+1)); try omega.
+  2: do 2 rewrite Zlength_map; rewrite ZLO; omega.
+  rewrite <- app_assoc. f_equal.
+  rewrite (sublist_singleton i) with (d:=Vint (Int.zero)); simpl app.
+  2: do 2 rewrite Zlength_map; rewrite ZLO; omega.
+  f_equal. rewrite Znth_map with (d':=Int.zero). f_equal.
+           rewrite Znth_map with (d':=Z0). 
+           rewrite Znth_map with (d':=Byte.zero). unfold HMAC_SHA256.mkArg.
+           unfold Znth. unfold Znth in X. destruct (zlt i 0). discriminate.
+           specialize (map_nth (fun p : byte * byte => Byte.xor (fst p) (snd p))
                                        (combine (map Byte.repr (HMAC_SHA256.mkKey key)) (HMAC_SHA256.sixtyfour Opad)) 
                                        (Byte.zero, Byte.zero)
-                                       (Z.to_nat i)). simpl; intros. rewrite H; clear H.
+                                       (Z.to_nat i)). simpl. 
+           rewrite Byte.xor_zero; intros MN; rewrite MN; clear MN.
                    rewrite combine_nth. 
                    Focus 2. rewrite map_length, length_SF, mkKey_length. reflexivity.
                    assert (BMU: Byte.max_unsigned = 255). reflexivity.
-                   assert (isByte54: 0 <= 54 <= Byte.max_unsigned).
+                   rewrite Int.xor_commut.
+                   assert (isByte92: 0 <= 92 <= Byte.max_unsigned).
                       rewrite BMU; omega. 
                    destruct (isbyteZ_xor (nth (Z.to_nat i) (HMAC_SHA256.mkKey key) 0) 92 isbyteZQb) as [AA BB].
                      split; rewrite BMU in *; omega.
-                   rewrite fst_unfold, snd_unfold, Int.xor_commut.
-(*                   unfold force_val. rewrite sem_cast_i2i_correct_range.
-                   destruct (zlt i 0); try omega.*) 
-                   remember (HMAC_SHA256.sixtyfour Opad). 
+                   remember (HMAC_SHA256.sixtyfour Opad).  simpl.
                    rewrite (map_nth Byte.repr (HMAC_SHA256.mkKey key) Z0).
                    unfold Byte.xor.
                    assert (NTH: nth (Z.to_nat i) l Byte.zero = Byte.repr 92).
@@ -219,22 +220,28 @@ Proof. intros.
                      Focus 2. destruct isbyteZQb. omega.
                    rewrite Byte.unsigned_repr. unfold Int.xor.
                    rewrite Int.unsigned_repr.  
-                   rewrite Int.unsigned_repr. 2: rewrite int_max_unsigned_eq; omega.
                    rewrite <- isbyte_zeroExt8; trivial.
-                   rewrite BMU in *; split; omega.
+                   rewrite zero_ext_inrange.
+                   rewrite Int.unsigned_repr; trivial.
                    destruct isbyteZQb. rewrite int_max_unsigned_eq; split; omega.
-                   rewrite BMU in *; split; omega.
-              rewrite <- skipn_skipn. 
-              rewrite skipn_app2; rewrite firstn_length, Min.min_l.
-              Focus 2. do 2 rewrite map_length. unfold HMAC_SHA256.mkArgZ in ZLO'; rewrite ZLO'.
-                       apply Z2Nat.inj_le; omega.
-              rewrite minus_diag. simpl. unfold SKIPN. rewrite Z2Nat.inj_add, <- skipn_skipn. reflexivity.
-              omega. omega. omega.
-              do 2 rewrite map_length. unfold HMAC_SHA256.mkArgZ in ZLO'; rewrite ZLO'.
-                       apply Z2Nat.inj_le; omega.
+                   rewrite Int.unsigned_repr.
+                   destruct isbyteZQb. simpl. omega.
+                   destruct isbyteZQb. rewrite int_max_unsigned_eq; split; omega.
+                   rewrite zero_ext_inrange.
+                   rewrite Int.unsigned_repr.
+                   split; assumption. 
+                   destruct isbyteZQb. rewrite int_max_unsigned_eq; split; omega.
+                   rewrite Int.unsigned_repr. simpl. destruct isbyteZQb. omega.
+                   destruct isbyteZQb. rewrite int_max_unsigned_eq; split; omega.
+                   rewrite int_max_unsigned_eq; omega.
+                   omega.
+                   rewrite Zlength_map in ZLO; rewrite ZLO; assumption.
+                   rewrite ZLO; assumption.
+                   rewrite Zlength_map, ZLO; assumption.
+  rewrite sublist_sublist; try omega.
+  assert (64 - i + i = 64) by omega. rewrite Zplus_comm, H; trivial.
 Qed.
-*)
-Check t_struct_SHA256state_st. 
+
 (*Definition postResetHMS (iS oS: s256state): hmacstate :=
   (emptySha, (iS, oS)).*)
 Definition postResetHMS (iS oS: s256state): hmacstate :=
@@ -319,7 +326,6 @@ Lemma ipad_loop Espec pb pofs cb cofs ckb ckoff kb kofs l key kv
           (map Vint (map Int.repr (HMAC_SHA256.mkKey key))) (Vptr ckb ckoff)) (*;
       `(data_at Tsh (tarray tuchar (Zlength key))
           (map Vint (map Int.repr key)) (Vptr kb kofs))*)))).
-Admitted. (*proof ok
 Proof. intros. abbreviate_semax.   
 eapply semax_post'.
 Focus 2.   
@@ -372,19 +378,16 @@ Focus 2.
         rewrite <- (isbyte_zeroExt8 qb); trivial.
         rewrite Int.unsigned_repr. 2: destruct isbyteZQb; rewrite int_max_unsigned_eq; omega.
         rewrite Z.lxor_comm. remember (Vint (Int.repr (Z.lxor qb 54))) as xorval.
-        forward. entailer. cancel.
+        forward. entailer!.
         rewrite field_at_data_at. 
-        apply derives_refl'. f_equal.
-          admit. (*rewrite Z.lxor_comm in isbyteXOR.
-             rewrite UPD_IPAD; try assumption. cancel.*)
-          unfold field_address; simpl. rewrite if_true, Int.add_zero; trivial.
+        apply derives_refl'. f_equal. apply UPD_IPAD; assumption. 
+        unfold field_address; simpl. rewrite if_true, Int.add_zero; trivial. (*Issue: we're (forced to?) unfolding field_address too often*)
       }
 Unfocus.
 cbv beta. rewrite sublist_same, sublist_nil, app_nil_r; trivial. entailer.
 subst IPADcont; do 2 rewrite Zlength_map. 
 unfold HMAC_SHA256.mkArgZ in ZLI; rewrite ZLI; trivial.
 Qed. 
-*)
 
 Definition FRAME1 cb cofs ckb ckoff kb kofs key (HMS': reptype t_struct_hmac_ctx_st) := 
     (field_at Tsh t_struct_hmac_ctx_st [StructField 13%positive] (fst HMS')
@@ -536,14 +539,14 @@ Focus 2.
         }
         rewrite X.
         forward.
-        entailer. rewrite field_at_data_at. 
+        entailer!. rewrite field_at_data_at. 
         Transparent FRAME1. Transparent FRAME2. Transparent default_val.
             unfold FRAME1, FRAME2, HMS, default_val. simpl. cancel.
-        apply derives_refl'. f_equal. admit. (*OPAD*)
+        apply derives_refl'. f_equal. apply UPD_OPAD; eassumption.
         unfold field_address; simpl. rewrite if_true, Int.add_zero; trivial.
       }
 Unfocus.
-cbv beta. rewrite sublist_same, sublist_nil, app_nil_r; trivial. admit. 
+cbv beta. rewrite sublist_same, sublist_nil, app_nil_r; trivial. entailer!.
 subst OPADcont; do 2 rewrite Zlength_map. 
 unfold HMAC_SHA256.mkArgZ in ZLO; rewrite ZLO; trivial.
 Qed. 
@@ -700,12 +703,18 @@ Lemma init_part2: forall
                        Econst_int (Int.repr 64) tint])))))) Sskip)
     (overridePost PostResetBranch
      (frame_ret_assert
-        (function_body_ret_assert tvoid
-           (EX  h : hmacabs,
-            PROP  (hmacInit key h)
-            LOCAL ()
-            SEP  (`(hmacstate_ h c); `(initPostKey k key); `(K_vector kv))))
-        (stackframe_of f_HMAC_Init))).
+         (function_body_ret_assert tvoid
+            (EX  h : hmacabs,
+             PROP  (hmacInit key h)
+             LOCAL ()
+             SEP  (`(hmacstate_ h (Vptr cb cofs)); `(initPostKey k key);
+             `(K_vector kv))))
+         ((EX  v : val,
+           local (lvar _pad (tarray tuchar 64) v) &&
+           `(data_at_ Tsh (tarray tuchar 64) v)) *
+          (EX  v : val,
+           local (lvar _ctx_key (tarray tuchar 64) v) &&
+           `(data_at_ Tsh (tarray tuchar 64) v))))).
 Proof. intros. abbreviate_semax.
     (* Issue: Potential Coq (8.4?) bug about type equalities*)
     assert (HH: exists HMS': reptype t_struct_hmac_ctx_st, HMS'=HMS). exists HMS; reflexivity.
@@ -908,7 +917,7 @@ Definition FRAME3 (kb cb ckb: block) kofs cofs ckoff key ipadSHAabs (HMS' : rept
     unfold field_address. rewrite if_true; trivial. rewrite if_true; trivial.
        unfold nested_field_type2, nested_field_offset2; simpl.
        unfold field_type, field_offset, fieldlist.field_offset2; simpl.
-     apply andp_right. apply prop_right. unfold postResetHMS. admit. (*TODO: VlaueFits*)
+     apply andp_right. apply prop_right. unfold postResetHMS. admit. (*TODO: ValueFits*)
      cancel.
   }
   { (*ELSE*) 

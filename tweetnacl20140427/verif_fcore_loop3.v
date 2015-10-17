@@ -77,10 +77,10 @@ apply listD16 in L4.
 destruct L4 as [y0 [y1 [y2 [y3 [y4 [y5 [y6 [y7 
                [y8 [y9 [y10 [y11 [y12 [y13 [y14 [y15 XX]]]]]]]]]]]]]]]]. subst w4.
 destruct W4 as [_ W4]; simpl in W4. 
+(*rewrite Z.mod_small in W4. 2: omega. 
 rewrite Z.mod_small in W4. 2: omega. 
 rewrite Z.mod_small in W4. 2: omega. 
-rewrite Z.mod_small in W4. 2: omega. 
-rewrite Z.mod_small in W4. 2: omega.
+rewrite Z.mod_small in W4. 2: omega.*)
 unfold upd_Znth_in_list, sublist in W4; simpl in W4. subst w3. 
 simpl in W3.
 remember (Int.xor x9 (Int.rol (Int.add x5 x1) (Int.repr 7))) as z6.

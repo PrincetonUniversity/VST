@@ -329,9 +329,6 @@ Lemma Init_part1_keynull Espec (kb ckb cb: block) (kofs ckoff cofs:int) l key kv
 (KL1 : l = Zlength key)
 (KL2 : 0 <= l <= Int.max_signed)
 (KL3 : l * 8 < two_p 64)
-(*(ctx' : name _ctx)
-(key' : name _key)
-(len' : name _len)*)
 (PostKeyNull : environ -> mpred)
 (*Delta_specs := abbreviate : PTree.t funspec*)
 (HeqPostKeyNull : PostKeyNull =
@@ -383,7 +380,7 @@ Lemma Init_part1_keynull Espec (kb ckb cb: block) (kofs ckoff cofs:int) l key kv
    `(data_at Tsh (tarray tuchar (Zlength key)) (map Vint (map Int.repr key))
        (Vptr kb kofs)); `(data_at_ Tsh (tarray tuchar 64) pad);
    `(data_at_ Tsh (tarray tuchar 64) (Vptr ckb ckoff)); `(K_vector kv)))
-  (Ssequence
+(Ssequence
      (Scall None
         (Evar _memcpy
            (Tfunction
@@ -400,7 +397,7 @@ Lemma Init_part1_keynull Espec (kb ckb cb: block) (kofs ckoff cofs:int) l key kv
               (Ebinop Oadd (Evar _ctx_key (tarray tuchar 64))
                  (Etempvar _len tint) (tptr tuchar)) tuchar) (tptr tuchar);
         Econst_int (Int.repr 0) tint;
-        Ebinop Osub (Econst_int (Int.repr 64) tuint) (Etempvar _len tint)
+        Ebinop Osub (Esizeof (tarray tuchar 64) tuint) (Etempvar _len tint)
           tuint]))
   (overridePost PostIf_j_Len
      (overridePost PostKeyNull (normal_ret_assert PostKeyNull))).
@@ -466,7 +463,7 @@ Proof. intros.
      cancel.
      do 2 rewrite Zlength_list_repeat. trivial.
 Qed.  
-  
+
 Lemma hmac_init_part1: forall
 (Espec : OracleKind)
 (c : val)
@@ -520,44 +517,50 @@ Lemma hmac_init_part1: forall
               (Ssequence
                  (Scall None
                     (Evar _SHA256_Init
-                       (Tfunction (Tcons (tptr t_struct_SHA256state_st) Tnil)
+                       (Tfunction
+                          (Tcons (tptr (Tstruct _SHA256state_st noattr)) Tnil)
                           tvoid cc_default))
                     [Eaddrof
                        (Efield
-                          (Ederef (Etempvar _ctx (tptr t_struct_hmac_ctx_st))
-                             t_struct_hmac_ctx_st) _md_ctx
-                          t_struct_SHA256state_st)
-                       (tptr t_struct_SHA256state_st)])
+                          (Ederef
+                             (Etempvar _ctx
+                                (tptr (Tstruct _hmac_ctx_st noattr)))
+                             (Tstruct _hmac_ctx_st noattr)) _md_ctx
+                          (Tstruct _SHA256state_st noattr))
+                       (tptr (Tstruct _SHA256state_st noattr))])
                  (Ssequence
                     (Scall None
                        (Evar _SHA256_Update
                           (Tfunction
-                             (Tcons (tptr t_struct_SHA256state_st)
+                             (Tcons (tptr (Tstruct _SHA256state_st noattr))
                                 (Tcons (tptr tvoid) (Tcons tuint Tnil)))
                              tvoid cc_default))
                        [Eaddrof
                           (Efield
                              (Ederef
-                                (Etempvar _ctx (tptr t_struct_hmac_ctx_st))
-                                t_struct_hmac_ctx_st) _md_ctx
-                             t_struct_SHA256state_st)
-                          (tptr t_struct_SHA256state_st);
+                                (Etempvar _ctx
+                                   (tptr (Tstruct _hmac_ctx_st noattr)))
+                                (Tstruct _hmac_ctx_st noattr)) _md_ctx
+                             (Tstruct _SHA256state_st noattr))
+                          (tptr (Tstruct _SHA256state_st noattr));
                        Etempvar _key (tptr tuchar); Etempvar _len tint])
                     (Ssequence
                        (Scall None
                           (Evar _SHA256_Final
                              (Tfunction
                                 (Tcons (tptr tuchar)
-                                   (Tcons (tptr t_struct_SHA256state_st) Tnil))
-                                tvoid cc_default))
+                                   (Tcons
+                                      (tptr (Tstruct _SHA256state_st noattr))
+                                      Tnil)) tvoid cc_default))
                           [Evar _ctx_key (tarray tuchar 64);
                           Eaddrof
                             (Efield
                                (Ederef
-                                  (Etempvar _ctx (tptr t_struct_hmac_ctx_st))
-                                  t_struct_hmac_ctx_st) _md_ctx
-                               t_struct_SHA256state_st)
-                            (tptr t_struct_SHA256state_st)])
+                                  (Etempvar _ctx
+                                     (tptr (Tstruct _hmac_ctx_st noattr)))
+                                  (Tstruct _hmac_ctx_st noattr)) _md_ctx
+                               (Tstruct _SHA256state_st noattr))
+                            (tptr (Tstruct _SHA256state_st noattr))])
                        (Scall None
                           (Evar _memset
                              (Tfunction
@@ -591,7 +594,7 @@ Lemma hmac_init_part1: forall
                           (Ebinop Oadd (Evar _ctx_key (tarray tuchar 64))
                              (Etempvar _len tint) (tptr tuchar)) tuchar)
                        (tptr tuchar); Econst_int (Int.repr 0) tint;
-                    Ebinop Osub (Econst_int (Int.repr 64) tuint)
+                    Ebinop Osub (Esizeof (tarray tuchar 64) tuint)
                       (Etempvar _len tint) tuint]))))) Sskip)
   (normal_ret_assert PostKeyNull).
 Proof. intros. subst Delta. abbreviate_semax.
@@ -658,7 +661,7 @@ forward_if PostKeyNull.
       eapply (Init_part1_keynonnull Espec kb ckb cb kofs ckoff cofs l key kv pad h1); try eassumption.
     }
     { (* j >= len*)
-      rename H into ge_64_l.
+      rename H into ge_64_l. unfold MORE_COMMANDS, abbreviate.
       eapply (Init_part1_keynull Espec kb ckb cb kofs ckoff cofs l key kv pad h1); try eassumption.
     }
   intros ek vl. apply andp_left2.
@@ -684,7 +687,3 @@ forward_if PostKeyNull.
     if_tac. unfold normal_ret_assert. entailer.
     apply derives_refl. }
 Qed.
-
-
-
-

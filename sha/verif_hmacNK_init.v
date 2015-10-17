@@ -18,24 +18,6 @@ Require Import sha.hmac_NK.
 Require Import sha.verif_hmacNK_init_part1. 
 Require Import sha.verif_hmacNK_init_part2.
 
-(*
-Lemma Tarray_emp_field_compatible b ofs: field_compatible (Tarray tuchar 0 noattr) [] (Vptr b ofs).
-        Proof. split; simpl. trivial. split. reflexivity. split. reflexivity.
-          split. apply (size_0_compatible (Tarray tuchar 0 noattr) (eq_refl _) (Vptr b ofs)).
-          split. apply Z.divide_1_l.
-          constructor; simpl; trivial.
-        Qed. 
-        
-Lemma data_Tarray_array_at_emp C b ofs: data_at Tsh (Tarray tuchar 0 noattr) C (Vptr b ofs)
-                  = !!field_compatible (Tarray tuchar 0 noattr) [] (Vptr b ofs) && emp.
-        Proof.
-          rewrite data_at_field_at.
-          erewrite field_at_Tarray. 2: reflexivity. 2: apply JMeq.JMeq_refl.
-          rewrite array_at_emp; trivial. omega.
-        Qed.
-*)
-
-
 Lemma body_hmac_init: semax_body HmacVarSpecs HmacFunSpecs 
        f_HMAC_Init HMAC_Init_spec.
 Proof.
@@ -43,7 +25,7 @@ start_function.
 name ctx' _ctx.
 name key' _key.
 name len' _len.
-simpl_stackframe_of. fixup_local_var; intro pad. fixup_local_var; intro ctxkey. 
+rename lvar0 into pad. rename lvar1 into ctxkey.
 
 destruct H as [KL1 [KL2 KL3]]. 
 forward.
@@ -87,7 +69,7 @@ forward_seq. instantiate (1:= PostKeyNull).
    rewrite DD.  
    eapply semax_pre_simple.
    2: eapply hmac_init_part1; eassumption.
-   entailer.
+   entailer. cancel.
 }
 subst PostKeyNull. normalize.
 apply extract_exists_pre; intros cb. 
@@ -132,12 +114,16 @@ remember (EX shaStates:_ ,
   as PostResetBranch.
 (*forward_seq. instantiate (1:= PostResetBranch).*)
 eapply semax_seq. instantiate (1:=PostResetBranch).
-{  apply init_part2; assumption. }
+{ eapply semax_pre_post.
+  Focus 3 . apply init_part2; eassumption.
+  entailer.
+  intros ? ?. apply andp_left2. entailer. }
 
 { (*Continuation after if (reset*)
   subst PostResetBranch.
   simpl update_tycon.
-  apply semax_extensionality_Delta with (Delta). apply expr_lemmas.tycontext_sub_refl.
+  apply semax_extensionality_Delta with (Delta). 
+  apply tycontext_sub_refl.
   apply extract_exists_pre; intros [iSA [iS [oSA oS]]]. 
 (*  apply extract_exists_pre; intros iSA. 
   apply extract_exists_pre; intros iS. 
@@ -161,174 +147,109 @@ eapply semax_seq. instantiate (1:=PostResetBranch).
      destruct h1.
      destruct Hs as [IREL [OREL [ILEN [OLEN [ISHA OSHA]]]]].
      destruct s as [mdS [iS oS]]. simpl in *.
-     unfold_data_at 1%nat.
 
-     rewrite (field_at_data_at Tsh t_struct_hmac_ctx_st [StructField _md_ctx]).
-     simpl.       
-     rewrite (data_at_isptr Tsh
-       (nested_field_type2 t_struct_hmac_ctx_st [StructField _md_ctx])).
-     normalize. 
-     apply isptrD in H. destruct H as [cbmd [cmdoff CMDOff]]. rewrite CMDOff in *.
-     unfold field_address in CMDOff.
-     remember (field_compatible_dec t_struct_hmac_ctx_st [StructField _md_ctx]
-               (Vptr cb cofs)) as s.
-     destruct s; simpl in *; inversion CMDOff. simpl in *. subst cbmd. rewrite CMDOff. clear H1.
-     rewrite (field_at_data_at Tsh t_struct_hmac_ctx_st [StructField _i_ctx]).
-     simpl.       
-     assert_PROP (isptr
-          (field_address t_struct_hmac_ctx_st [StructField _i_ctx]
-             (Vptr cb cofs))).
-     { entailer. } 
-     apply isptrD in H. destruct H as [cbI [cIoff CIOff]]. rewrite CIOff in *.
-     unfold field_address in CIOff.
-     remember (field_compatible_dec t_struct_hmac_ctx_st [StructField _i_ctx]
-               (Vptr cb cofs)) as s.
-     destruct s; simpl in *; inversion CIOff. simpl in *. subst cbI. rewrite CIOff. clear H1.
+     assert_PROP (field_compatible t_struct_hmac_ctx_st [] (Vptr cb cofs)) as FC_cb by entailer.
+     assert (FC_cb_ictx: field_compatible t_struct_hmac_ctx_st [StructField 14%positive] (Vptr cb cofs)).
+       red; red in FC_cb. intuition. split; trivial. right; left. reflexivity.
+     assert (FC_cb_md: field_compatible t_struct_hmac_ctx_st [StructField 13%positive] (Vptr cb cofs)).
+       red; red in FC_cb. intuition. split; trivial. left. reflexivity.
 
-     simpl.
-     forward_call' ((Tsh, Tsh),
+     unfold data_at at 1.
+     unfold_field_at 1%nat. (*Issue: Why is this so slow here (2mins)*)
+     normalize. rename H into VF_v.
+     (*rewrite field_at_data_at at 2. *)
+     (*VST Issue: why does rewrite field_at_data_at at 2 FAIL, but focus_SEP 1. rewrite field_at_data_at at 1. SUCCEED???*)
+     focus_SEP 1. rewrite field_at_data_at at 1. 
+     unfold field_address. rewrite if_true; trivial.
+
+     forward_call ((Tsh, Tsh),
              Vptr cb cofs,
-             offset_val
+            offset_val
+           (Int.repr
+              (nested_field_offset2 t_struct_hmac_ctx_st
+                 [StructField _i_ctx])) (Vptr cb cofs),
+(*             offset_val
               (Int.repr (nested_field_offset2 t_struct_hmac_ctx_st [StructField _i_ctx]))
-              (Vptr cb cofs),
-             mkTrep t_struct_SHA256state_st iS) rv.
-     { assert (FR: Frame = [
-          (field_at Tsh t_struct_hmac_ctx_st [StructField _o_ctx] oS (Vptr cb cofs));
-          (data_at_ Tsh (tarray tuchar 64) (Vptr ckb ckoff));
-          (data_at_ Tsh (tarray tuchar 64) pad); (K_vector kv)]).
-          subst Frame; reflexivity.
-       rewrite FR; clear FR Frame. 
-       entailer. cancel. simpl.
-       apply sepcon_derives. simpl. rewrite CIOff. cancel.
-       unfold field_compatible in f.
-       inversion CMDOff. subst cmdoff; simpl. clear CMDOff. (* unfold nested_field_offset2; simpl. rewrite Int.add_zero.*)
-        eapply derives_trans. 
-         apply data_at_data_at_. 
-         rewrite <- memory_block_data_at_; try reflexivity.
-         unfold nested_field_offset2; simpl. rewrite Int.add_zero. trivial.
-
-         exploit (align_compatible_nested_field t_struct_hmac_ctx_st [StructField _md_ctx]); try apply f.
-         simpl. trivial.
+              (Vptr cb cofs),*)
+             mkTrep t_struct_SHA256state_st iS, 
+             @sizeof (@cenv_cs CompSpecs) t_struct_SHA256state_st) rv.
+     { rewrite field_at_data_at at 1. 
+       unfold field_address; simpl. rewrite if_true, Int.add_zero; trivial.
+       repeat rewrite sepcon_assoc.
+       apply sepcon_derives.
+          eapply derives_trans. apply data_at_memory_block. apply derives_refl.
+          cancel.
      }
      subst rv. simpl.
 
      forward. (*return*)
+     Exists (Vptr ckb ckoff). normalize.
+     Exists pad. normalize.
      unfold hmacInit. 
      remember (Int.unsigned (Int.repr (if zlt 64 (Zlength key) then 32 else Zlength key)))as KL.
-     apply exp_right with (x:=HMACabs iSha iSha oSha).   
-     entailer.
-     apply andp_right. 
-       apply prop_right. exists iSha, oSha. auto. 
-     simpl_stackframe_of. unfold tarray.
-     cancel.
+     Exists (HMACabs iSha iSha oSha).   
+     entailer!. exists iSha, oSha. auto.
      unfold hmacstate_, hmac_relate.
-      normalize.
-      apply exp_right with (x:=(iS, (iS, oS))).
-      simpl. entailer. cancel.
+      Exists (iS, (iS, oS)).
+      simpl. entailer!.
 
-      unfold_data_at 3%nat. cancel.
-      rewrite (field_at_data_at Tsh t_struct_hmac_ctx_st [StructField _i_ctx]).
-      rewrite (field_at_data_at Tsh t_struct_hmac_ctx_st [StructField _md_ctx]).
-      unfold field_address. rewrite <- Heqs, <- Heqs0; simpl.
-        unfold nested_field_offset2, nested_field_type2; simpl. rewrite Int.add_zero. 
-      unfold tarray in *. rewrite (lvar_eval_lvar _ _ _ _ H0). 
-      rewrite (lvar_eval_lvar _ _ _ _ H1). cancel.
+      unfold data_at at 3. unfold_field_at 2%nat. entailer!.
+      do 2 rewrite field_at_data_at.
+      unfold field_address; simpl. rewrite if_true; trivial. rewrite if_true; trivial.
+      rewrite Int.add_zero. cancel.
   }
 
   { (*k is Vptr, key!=NULL*)
     destruct R; subst r; simpl. 
     apply semax_pre with (P':=FF); try entailer; try apply semax_ff.
     normalize. rename H into isbyteKey. 
-    unfold postResetHMS. simpl. unfold_data_at 1%nat.
+    unfold postResetHMS. simpl.
+     assert_PROP (field_compatible t_struct_hmac_ctx_st [] (Vptr cb cofs)) as FC_cb by entailer.
+     assert (FC_cb_ictx: field_compatible t_struct_hmac_ctx_st [StructField 14%positive] (Vptr cb cofs)).
+       red; red in FC_cb. intuition. split; trivial. right; left. reflexivity.
+     assert (FC_cb_md: field_compatible t_struct_hmac_ctx_st [StructField 13%positive] (Vptr cb cofs)).
+       red; red in FC_cb. intuition. split; trivial. left. reflexivity.
+
+    unfold data_at at 1. unfold_field_at 1%nat. normalize.
     rewrite (field_at_data_at Tsh t_struct_hmac_ctx_st [StructField _md_ctx]).
-    simpl.
-    assert_PROP (isptr (field_address t_struct_hmac_ctx_st [StructField _md_ctx]
-            (Vptr cb cofs))).
-    { entailer. }
-    apply isptrD in H; destruct H as [? [? PT]]. 
-    rewrite PT; unfold field_address in PT.
-    remember (field_compatible_dec t_struct_hmac_ctx_st [StructField _md_ctx]
-                  (Vptr cb cofs)) as s.
-    destruct s; inversion PT; clear PT. subst x x0.
 
-    rename b into kb; rename i into kofs.
-    eapply semax_pre with (P':=PROP  ()
-      LOCAL  (lvar _pad (tarray tuchar 64) pad;
-        lvar _ctx_key (tarray tuchar 64) (Vptr ckb ckoff); temp _ctx (Vptr cb cofs);
-        temp _key (Vptr kb kofs); temp _len (Vint (Int.repr l));
-        gvar sha._K256 kv)
-      SEP  (
-          `(field_at Tsh t_struct_hmac_ctx_st [StructField _o_ctx] oS (Vptr cb cofs));
-          `(field_at Tsh t_struct_hmac_ctx_st [StructField _i_ctx] iS (Vptr cb cofs));
-          `(data_at_ Tsh (tarray tuchar 64) pad);
-          `(data_at Tsh (tarray tuchar (Zlength key)) (map Vint (map Int.repr key)) (Vptr kb kofs));
-          `(data_at_ Tsh (tarray tuchar 64) (Vptr ckb ckoff)); `(K_vector kv);
-          `(memory_block Tsh (Int.repr (sizeof (nested_field_type2 t_struct_hmac_ctx_st [StructField _md_ctx])))
-             (offset_val
-                (Int.repr (nested_field_offset2 t_struct_hmac_ctx_st [StructField _md_ctx]))
-             (Vptr cb cofs))))).
-    { entailer. cancel.
-      unfold field_compatible in f.
-        eapply derives_trans. 
-         apply data_at_data_at_. 
-         rewrite <- memory_block_data_at_; try reflexivity.
-         unfold nested_field_offset2; simpl. trivial.
-
-         exploit (align_compatible_nested_field t_struct_hmac_ctx_st [StructField _md_ctx]); try apply f.
-         unfold nested_field_offset2; simpl. rewrite Int.add_zero. trivial.
-    }
-    rewrite (field_at_data_at Tsh t_struct_hmac_ctx_st [StructField _i_ctx]).
-    assert_PROP (isptr (field_address t_struct_hmac_ctx_st [StructField _i_ctx] (Vptr cb cofs))).
-      entailer!.
-    apply isptrD in H; destruct H as [cbI [cIoff CIOff]]. rewrite CIOff in *.
-    unfold field_address in CIOff.
-    remember (field_compatible_dec t_struct_hmac_ctx_st [StructField _i_ctx]
-               (Vptr cb cofs)) as s.
-    destruct s; simpl in *; inversion CIOff. simpl in *. subst cbI. rewrite CIOff. clear H1.
-
-    forward_call' ((Tsh, Tsh),
+    forward_call ((Tsh, Tsh),
              Vptr cb cofs,
              offset_val
               (Int.repr (nested_field_offset2 t_struct_hmac_ctx_st [StructField _i_ctx]))
               (Vptr cb cofs),
-             mkTrep t_struct_SHA256state_st iS) rv.
-    { assert (FR: Frame = [
-         (field_at Tsh t_struct_hmac_ctx_st [StructField _o_ctx] oS (Vptr cb cofs));
-         (data_at_ Tsh (tarray tuchar 64) (Vptr ckb ckoff));
-         (data_at_ Tsh (tarray tuchar 64) pad);
-         (data_at Tsh (tarray tuchar (Zlength key)) (map Vint (map Int.repr key)) (Vptr kb kofs));
-         (K_vector kv)]).
-        subst Frame; reflexivity.
-      rewrite FR; clear FR Frame. 
-      entailer. simpl. rewrite CIOff. unfold  nested_field_type2; simpl. cancel.
+             mkTrep t_struct_SHA256state_st iS,
+             @sizeof (@cenv_cs CompSpecs) t_struct_SHA256state_st) rv.
+    { simpl. rewrite field_at_data_at at 1. 
+       unfold field_address; simpl. rewrite if_true; trivial. rewrite if_true; trivial. rewrite Int.add_zero.
+       repeat rewrite sepcon_assoc. rewrite sepcon_comm. repeat rewrite sepcon_assoc. 
+       apply sepcon_derives.
+          eapply derives_refl.
+       repeat rewrite <- sepcon_assoc. rewrite sepcon_comm. 
+       apply sepcon_derives.
+          eapply derives_trans. apply data_at_memory_block. apply derives_refl.
+          cancel.
     }
-    subst rv; simpl. 
-
+    simpl.
     forward. (*return*)
-    apply exp_right with (x:=HMACabs iSA iSA oSA). 
-    entailer.
-    apply andp_right. 
-      apply prop_right. unfold hmacInit. exists iSA, oSA. auto.
-    unfold data_block. simpl_stackframe_of. entailer. cancel.
-    unfold hmacstate_, hmac_relate.
+     Exists (Vptr ckb ckoff). normalize.
+     Exists pad. normalize.
+    Exists (HMACabs iSA iSA oSA). 
+    entailer!.
+      exists iSA, oSA. auto.
+    unfold data_block, hmacstate_, hmac_relate.
     normalize.
-    apply exp_right with (x:=(iS, (iS, oS))).
-    simpl. entailer.
-    apply andp_right. apply prop_right.
+    Exists (iS, (iS, oS)).
+    entailer!.
       split. rewrite (updAbs_len _ _ _ INNER), Zlength_mkArgZ,
            map_length, mkKey_length; reflexivity.
       rewrite (updAbs_len _ _ _ OUTER), Zlength_mkArgZ,
            map_length, mkKey_length; reflexivity.
 
-    unfold_data_at 3%nat. cancel.
-    rewrite (field_at_data_at Tsh t_struct_hmac_ctx_st [StructField _i_ctx]).
-    rewrite (field_at_data_at Tsh t_struct_hmac_ctx_st [StructField _md_ctx]).
-    unfold field_address. rewrite <- Heqs, <- Heqs0. unfold nested_field_type2; simpl.
-    inversion CIOff. rewrite H4. unfold nested_field_offset2 in H4; simpl in H4.
-      unfold tarray in *. rewrite (lvar_eval_lvar _ _ _ _ H0). 
-      rewrite (lvar_eval_lvar _ _ _ _ H1). cancel.
-    
-    unfold nested_field_offset2; simpl. rewrite Int.add_zero. cancel.
+      unfold data_at at 3. unfold_field_at 2%nat. entailer!.
+      do 2 rewrite field_at_data_at.
+      unfold field_address; simpl. rewrite if_true; trivial. rewrite if_true; trivial.
+      rewrite Int.add_zero. cancel.
   }
 } 
 Qed.
