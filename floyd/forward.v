@@ -1355,7 +1355,7 @@ match goal with |- semax ?Delta (PROPx ?P (LOCALx ?Q (SEPx ?R))) (Sifthenelse ?e
     evar (v: val);
     do_compute_expr Delta P Q R e v HRE;
     simpl in v;
-    apply semax_ifthenelse_PQR' with (v:=v);
+    apply (semax_ifthenelse_PQR' _ v);
      [ reflexivity | entailer | assumption 
      | clear HRE; subst v; apply semax_extract_PROP; intro HRE; 
        do_repr_inj HRE; abbreviate_semax
