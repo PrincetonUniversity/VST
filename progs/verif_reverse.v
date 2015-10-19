@@ -104,13 +104,7 @@ Proof.
   rewrite list_cell_link_join_nospacer by reflexivity.
   unfold data_at. unfold list_data, add_link_back, fold_reptype.
   simpl; really_simplify_some_things.
-  unfold_field_at 1%nat.
-  rewrite prop_true_andp; auto.
-  unfold list_struct.
-  rewrite value_fits_ind.
-  simpl co_members.
-  unfold unfold_reptype. rewrite <- eq_rect_eq.
-  simpl. unfold value_fits; simpl; unfold tc_val'; if_tac; split; simpl; auto.
+  unfold_field_at 1%nat. auto.
 Qed.
 
 Lemma memory_block_resolve:

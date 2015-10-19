@@ -8,7 +8,7 @@ Require Import split_array_lemmas.
 (*Require Import fragments.*)
 Require Import ZArith. 
 
-Lemma Zlength_list_repeat {A} n (v:A): Zlength (list_repeat n v) = Z.of_nat n.
+Lemma Zlength_list_repeat' {A} n (v:A): Zlength (list_repeat n v) = Z.of_nat n.
 Proof. rewrite Zlength_correct, length_list_repeat; trivial. Qed.
 
 Lemma Zlength_cons' {A} (a:A) l: Zlength (a::l) = 1 + Zlength l.
@@ -299,84 +299,6 @@ Lemma shift_two_8_3 z:
  destruct z; simpl; trivial. f_equal.
   rewrite shift_pos_equiv. simpl; xomega. 
   rewrite shift_pos_equiv. simpl; xomega.
-Qed.
-
-
-Lemma upd_Znth_in_list_Zlength {A} i (l:list A) v: 0<=i < Zlength l -> 
-      Zlength (upd_Znth_in_list i l v) = Zlength l.
-Proof. intros.
-   unfold upd_Znth_in_list. rewrite Zlength_app, Zlength_cons; simpl.
-  repeat rewrite Zlength_sublist; simpl; omega.
-Qed.
-
-Lemma upd_Znth_in_list_map {A B} (f:A -> B) i l v: 
-      upd_Znth_in_list i (map f l) (f v) =
-      map f (upd_Znth_in_list i l v).
-Proof. unfold upd_Znth_in_list; intros. rewrite map_app, Zlength_map.
-  do 2 rewrite sublist_map; trivial.
-Qed.
-
-Lemma Znth_0_cons {A} l (v:A) d: Znth 0 (v::l) d = v.
-Proof. reflexivity. Qed.
-
-Lemma Znth_cons {A} i l (v:A) d: 0<i -> Znth i (v::l) d = Znth (i-1) l d.
-Proof. intros. unfold Znth. if_tac. omega. if_tac. omega.
-  assert (Z.to_nat i = S (Z.to_nat (i-1))).
-    rewrite <- Z2Nat.inj_succ. assert (i = Z.succ (i - 1)). omega. rewrite <- H2. trivial. omega.
-  rewrite H2; reflexivity.
-Qed.
-
-Lemma upd_Znth_in_list_lookup K {A}: forall l (L:Zlength l = K) i j d (v:A) (I: 0<=i<K) (J: 0<=j<K),
-   (i=j /\ Znth i (upd_Znth_in_list j l v) d = v) \/
-   (i<>j /\ Znth i (upd_Znth_in_list j l v) d = Znth i l d).
-Proof.
-  intros. unfold upd_Znth_in_list. 
-  destruct (zeq i j); subst.  
-  + left; split; trivial.
-    rewrite app_Znth2; rewrite Zlength_sublist; try rewrite Zminus_0_r; try rewrite Zminus_diag; try omega.
-    rewrite Znth_0_cons. trivial. 
-  + right; split; trivial.
-    destruct (zlt i j).
-    - rewrite app_Znth1; try rewrite Zlength_sublist; try omega.
-      rewrite Znth_sublist; try omega. rewrite Zplus_0_r; trivial.
-    - rewrite app_Znth2; rewrite Zlength_sublist; try omega.
-      rewrite Zminus_0_r, Znth_cons, Znth_sublist; try omega.
-      assert (H: i - j - 1 + (j + 1) = i) by omega. rewrite H; trivial.
-Qed. 
-
-Lemma upd_Znth_in_list_lookup' K {A}: forall l (L:Zlength l = K) i (I: 0<=i<K) j (J: 0<=j<K) d (v:A),
-    Znth i (upd_Znth_in_list j l v) d = if zeq i j then v else Znth i l d.
-Proof. intros.
-  destruct (upd_Znth_in_list_lookup K l L i j d v I J) as [[X Y] | [X Y]]; if_tac; try omega; trivial.
-Qed.
-
-Lemma upd_Znth_in_list_char {A} n l1 (v:A) l2 w: Zlength l1=n -> 0<=n -> 
-      upd_Znth_in_list n (l1 ++ v :: l2) w = l1 ++ w :: l2.
-Proof. intros. unfold upd_Znth_in_list. 
-   f_equal. rewrite sublist0_app1. apply sublist_same; omega. omega.
-   f_equal. rewrite sublist_app2, <- H, Zlength_app, Zlength_cons. do 2 rewrite Zminus_plus.
-                rewrite sublist_1_cons. apply sublist_same; omega. omega. 
-Qed.
-
-Lemma upd_Znth_same {A}: forall i l u (d:A), 0<= i< Zlength l -> Znth i (upd_Znth_in_list i l u) d = u.
-Proof.
-  intros. rewrite (upd_Znth_in_list_lookup' _ _ (eq_refl _)); trivial.
-  rewrite zeq_true; trivial.
-Qed.
-
-Lemma upd_Znth_diff {A}: forall i j l u (d:A), 0<= i< Zlength l -> 0<= j< Zlength l -> i<>j -> 
-      Znth i (upd_Znth_in_list j l u) d = Znth i l d.
-Proof.
-  intros. rewrite (upd_Znth_in_list_lookup' _ _ (eq_refl _)); trivial.
-  rewrite zeq_false; trivial.
-Qed.
-
-Lemma upd_Znth_in_list_ints i xints v: 
-      upd_Znth_in_list i (map Vint xints) (Vint v) =
-      map Vint ((sublist 0 i xints) ++
-                v :: (sublist (i + 1) (Zlength (map Vint xints)) xints)).
-Proof. unfold upd_Znth_in_list; intros. rewrite map_app. simpl.
-  do 2 rewrite sublist_map; trivial.
 Qed.
 
 Fixpoint iterShr8 u n :=

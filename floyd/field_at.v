@@ -348,8 +348,6 @@ Proof.
   apply prop_derives; intuition.
 Qed.
 
-Hint Resolve array_at_local_facts array_at__local_facts : saturate_local.
-
 Lemma field_at_isptr: forall sh t gfs v p,
   field_at sh t gfs v p = (!! isptr p) && field_at sh t gfs v p.
 Proof. intros. apply local_facts_isptr. eapply derives_trans; [ apply field_at_local_facts | normalize]. Qed.
@@ -688,7 +686,7 @@ Proof.
   auto.
 Qed.
 
-Lemma field_at_Tstruct: forall sh t gfs id a v1 v2 p,
+Lemma field_at_Tstruct': forall sh t gfs id a v1 v2 p,
   nested_field_type2 t gfs = Tstruct id a ->
   JMeq v1 v2 ->
   field_at sh t gfs v1 p = !! value_fits (readable_share_dec sh) (nested_field_type2 t gfs) v1
@@ -770,7 +768,44 @@ Proof.
         eapply JMeq_trans; [apply (unfold_reptype_JMeq _ v1) | auto].
 Qed.
 
-Lemma field_at_Tunion: forall sh t gfs id a v1 v2 p,
+Lemma field_at_Tstruct: forall sh t gfs id a v1 v2 p,
+  nested_field_type2 t gfs = Tstruct id a ->
+  JMeq v1 v2 ->
+  field_at sh t gfs v1 p = nested_sfieldlist_at sh t gfs (co_members (get_co id)) v2 p.
+Proof.
+intros.
+erewrite field_at_Tstruct'; eauto.
+apply pred_ext; normalize.
+apply andp_right; auto.
+assert (exists v3: reptype (Tstruct id a), JMeq v1 v3).
+clear - H v1.
+revert H. set (t' := Tstruct id a). clearbody t'.
+intros. subst. exists v1. reflexivity.
+destruct H1 as [v3 ?].
+apply derives_trans with (!! (value_fits (readable_share_dec sh) (Tstruct id a) v3)).
+Focus 2. {
+apply prop_derives.
+revert v3 H1 H. 
+set (t' := Tstruct id a). clearbody t'.
+intros.  subst. apply JMeq_eq in H1. subst; auto.
+} Unfocus.
+rewrite value_fits_ind.
+pose proof (nested_reptype_structlist_lemma t gfs id a H).
+revert v1 H0 H1 H2.
+set (t' := reptype (nested_field_type2 t gfs)).
+clearbody t'.
+intros; subst t'.
+apply JMeq_eq in H0. subst v2.
+rewrite <- (unfold_reptype_JMeq _ v3) in H1.
+revert H1.
+set (v4 := unfold_reptype v3).
+clearbody v4.
+intros.
+simpl in v4.
+clear v3.
+Admitted.  (* for Qinxiang *)
+
+Lemma field_at_Tunion': forall sh t gfs id a v1 v2 p,
   nested_field_type2 t gfs = Tunion id a ->
   JMeq v1 v2 ->
   field_at sh t gfs v1 p = !! value_fits (readable_share_dec sh) (nested_field_type2 t gfs) v1
@@ -880,6 +915,12 @@ Proof.
         auto.
       * eapply JMeq_trans; [apply (unfold_reptype_JMeq _ v1) | auto].
 Qed.
+
+Lemma field_at_Tunion: forall sh t gfs id a v1 v2 p,
+  nested_field_type2 t gfs = Tunion id a ->
+  JMeq v1 v2 ->
+  field_at sh t gfs v1 p = nested_ufieldlist_at sh t gfs (co_members (get_co id)) v2 p.
+Admitted.  (* for Qinxiang *)
 
 Lemma array_at_len_0: forall sh t gfs i v p,
   array_at sh t gfs i i v p = !! (field_compatible0 t (ArraySubsc i :: gfs) p /\ v=nil) && emp.
@@ -1474,7 +1515,9 @@ Qed.
 Lemma array_at_array_at_: forall sh t gfs lo hi v p, 
   array_at sh t gfs lo hi v p |-- array_at_ sh t gfs lo hi p.
 Proof.
-  intros. saturate_local.
+  intros. 
+  eapply derives_trans; [apply andp_right; [apply array_at_local_facts | apply derives_refl] | ].
+ normalize.
   unfold array_at_.
   apply array_at_ext_derives.
   rewrite H1. rewrite Zlength_correct, length_list_repeat.
@@ -1541,6 +1584,79 @@ Proof.
         apply (derives_trans _ _ _ H), prop_derives; tauto.
       * inversion H.
         apply (derives_trans _ _ _ H6), prop_derives; tauto.
+Qed.
+
+
+Lemma compute_legal_nested_field_spec':
+  forall t gfs,
+  Forall Datatypes.id (compute_legal_nested_field t gfs) ->
+  legal_nested_field t gfs.
+Proof.
+  intros.
+  induction gfs as [| gf gfs].
+  + simpl; auto.
+  +  simpl in H|-*.
+    unfold legal_field. unfold nested_field_type2 in *.
+    destruct (nested_field_rec t gfs) as [[? ?] | ].
+    destruct t0; try now inv H; contradiction.
+    destruct gf; try now inv H; contradiction.
+    inv H. split; auto.
+    destruct gf; try now inv H; contradiction.
+   destruct (compute_in_members i0 (co_members (get_co i))) eqn:?; 
+     try now inv H; contradiction.
+   split; auto.
+   rewrite <- compute_in_members_true_iff; auto.
+    destruct gf; try now inv H; contradiction.
+   destruct (compute_in_members i0 (co_members (get_co i))) eqn:?; 
+     try now inv H; contradiction.
+   split; auto.
+   rewrite <- compute_in_members_true_iff; auto.
+   inv H. contradiction.
+Qed.
+
+Definition compute_legal_nested_field0 (t: type) (gfs: list gfield) : list Prop :=
+  match gfs with
+  | nil => nil
+  | gf :: gfs0 =>
+    match (nested_field_type2 t gfs0), gf with
+    | Tarray _ n _, ArraySubsc i =>
+       (0 <= i <= n) :: compute_legal_nested_field t gfs0
+    | Tstruct id _, StructField i =>
+       if compute_in_members i (co_members (get_co id)) then compute_legal_nested_field t gfs else False :: nil
+    | Tunion id _, UnionField i =>
+       if compute_in_members i (co_members (get_co id)) then compute_legal_nested_field t gfs else False :: nil
+    | _, _ => False :: nil
+    end
+  end.
+
+Lemma compute_legal_nested_field0_spec':
+  forall t gfs,
+  Forall Datatypes.id (compute_legal_nested_field0 t gfs) ->
+  legal_nested_field0 t gfs.
+Proof.
+intros.
+destruct gfs; simpl in *.
+auto.
+     unfold nested_field_type2 in *.
+    destruct (nested_field_rec t gfs) as [[? ?] | ].
+    destruct t0; try now inv H; contradiction.
+    destruct g; try now inv H; contradiction.
+    inv H. split.
+    apply compute_legal_nested_field_spec'; auto. 
+    apply H2.
+    destruct g; try now inv H; contradiction.
+   destruct (compute_in_members i0 (co_members (get_co i))) eqn:?; 
+     try now inv H; contradiction.
+   split. 
+    apply compute_legal_nested_field_spec'; auto. 
+   hnf.   rewrite compute_in_members_true_iff in Heqb. apply Heqb.
+    destruct g; try now inv H; contradiction.
+   destruct (compute_in_members i0 (co_members (get_co i))) eqn:?; 
+     try now inv H; contradiction.
+   split. 
+    apply compute_legal_nested_field_spec'; auto. 
+   hnf.   rewrite compute_in_members_true_iff in Heqb. apply Heqb.
+  inv H. contradiction.
 Qed.
 
 (*
@@ -1778,6 +1894,8 @@ Hint Extern 1 (field_at _ _ _ _ _ |-- _) =>
 (* Hint Resolve data_at_local_facts : saturate_local.*)
 Hint Extern 1 (data_at _ _ _ _ |-- _) =>
  (field_at_saturate_local) : saturate_local.
+
+Hint Resolve @array_at_local_facts @array_at__local_facts : saturate_local.
 
 Hint Resolve field_at__local_facts : saturate_local.
 Hint Resolve data_at__local_facts : saturate_local.

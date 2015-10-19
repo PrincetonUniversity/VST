@@ -52,7 +52,7 @@ assert_PROP (field_compatible t_struct_hmac_ctx_st [StructField 13%positive] (Vp
     constructor. reflexivity.
 rename H into FC_c13.
 
-unfold data_at. unfold_field_at 1%nat. normalize. (*Issue Takes 2 mins*) rename H into VF_ST.
+unfold data_at. unfold_field_at 1%nat. normalize. (*Issue Takes 1 min*) 
 rewrite field_at_data_at at 1. unfold field_address; normalize.
 rewrite if_true by auto.
 destruct ST as [MD [iCTX oCTX]]. simpl in *.
@@ -62,7 +62,7 @@ forward_call (ctx, buf, Vptr b i, Tsh, kv).
   }
 normalize. 
 
-(*VST Issue: calls forward-call with type-incorrect WITH-list instantiations simply succeed immediately, 
+(*VST Issue: calls to forward-call with type-incorrect WITH-list instantiations simply succeed immediately, 
   without doing anything. Instead, they should fail with a meaningful error message.*)
 
 (*Coq (8.4?) Issue: type equality between
@@ -93,10 +93,6 @@ apply semax_pre with (P':=
       rewrite field_at_data_at at 1. unfold field_address.
       rewrite if_true; trivial.
       rewrite if_true; trivial.
-      apply andp_right. apply prop_right. unfold t_struct_hmac_ctx_st; simpl. 
-        unfold  _hmac_ctx_st; simpl.
-        destruct (readable_share_dec Tsh). Focus 2. elim n. apply readable_share_top.
-        simpl. admit. (*TODO: value_fits*)
       cancel. 
 }
 subst l'.
@@ -108,7 +104,6 @@ assert (field_compatible t_struct_hmac_ctx_st [StructField _o_ctx] (Vptr b i)).
 rename H into FCO.
 
 unfold data_at at 1. unfold_field_at 1%nat. normalize.
-rename H into VF_ST1.
 rewrite (field_at_data_at _ _ [StructField _o_ctx]); try reflexivity.
 unfold field_address. rewrite if_true; trivial.
 
@@ -162,7 +157,6 @@ cancel.
 unfold hmacstate_PostFinal, hmac_relate_PostFinal. normalize.
 Exists (updShaST, (iCTX, oCTX)). normalize.
 unfold data_at at 2. unfold_field_at 2%nat. (* VST Issue: unfold_field_at here takes ages*)
-apply andp_right. entailer.
 cancel.
 rewrite (field_at_data_at _ _ [StructField _o_ctx]). 
 rewrite (field_at_data_at _ _ [StructField _md_ctx]).

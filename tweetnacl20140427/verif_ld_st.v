@@ -68,14 +68,20 @@ forward. entailer. (*NEW*)
 forward. 
   entailer.
   apply prop_right. 
-  unfold Znth in H. simpl in H. inv H. clear - BND RNG0 RNG1 RNG2 RNG3.   
-  rewrite shift_two_8, shift_two_8_2, shift_two_8_3.
+  unfold Znth in H. simpl in H. inv H. clear - BND RNG0 RNG1 RNG2 RNG3.
   assert (WS: Int.zwordsize = 32). reflexivity.
   assert (TP: two_p 8 = Byte.max_unsigned + 1). reflexivity.
   assert (BMU: Byte.max_unsigned = 255). reflexivity.
   repeat rewrite Int.shifted_or_is_add; try repeat rewrite Int.unsigned_repr; try omega.
- 
-  f_equal. f_equal. repeat rewrite Z.mul_add_distr_r. omega.
+  f_equal. f_equal. repeat rewrite Z.mul_add_distr_r.
+    rewrite (Zmult_comm (Z.pow_pos 2 8)).
+    rewrite (Zmult_comm (Z.pow_pos 2 16)).
+    rewrite (Zmult_comm (Z.pow_pos 2 24)). 
+    simpl. repeat rewrite <- two_power_pos_correct.
+    rewrite <- Z.add_assoc. rewrite <- Z.add_assoc. rewrite Z.add_comm. f_equal.
+    rewrite Z.add_comm. f_equal. rewrite Z.add_comm. f_equal.
+    repeat rewrite <- Z.mul_assoc. f_equal.
+    repeat rewrite <- Z.mul_assoc. f_equal. 
   rewrite TP, BMU, Z.mul_add_distr_l, int_max_unsigned_eq. omega.
   rewrite TP, BMU, Z.mul_add_distr_l, int_max_unsigned_eq. omega.
   rewrite TP, BMU, Z.mul_add_distr_l, int_max_unsigned_eq. omega.

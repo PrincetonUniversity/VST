@@ -308,12 +308,26 @@ Ltac grab_indexes_SEP ns :=
    repeat simpl_nat_of_P; cbv beta iota;
    unfold app_alt; fold @app_alt.
 
-Tactic Notation "focus_SEP" constr(a) := grab_indexes_SEP (a::nil).
-Tactic Notation "focus_SEP" constr(a) constr(b) := grab_indexes_SEP (a::b::nil).
-Tactic Notation "focus_SEP" constr(a) constr(b) constr(c) := 
-   grab_indexes_SEP (a::b::c::nil).
-Tactic Notation "focus_SEP" constr(a) constr(b) constr(c) constr(d) := 
-   grab_indexes_SEP (a::b::c::d::nil).
+Tactic Notation "focus_SEP" constr(a) :=
+  grab_indexes_SEP (a::nil).
+Tactic Notation "focus_SEP" constr(a) constr(b) :=
+  grab_indexes_SEP (a::b::nil).
+Tactic Notation "focus_SEP" constr(a) constr(b) constr(c) :=
+  grab_indexes_SEP (a::b::c::nil).
+Tactic Notation "focus_SEP" constr(a) constr(b) constr(c) constr(d) :=
+  grab_indexes_SEP (a::b::c::d::nil).
+Tactic Notation "focus_SEP" constr(a) constr(b) constr(c) constr(d) constr(e) :=
+  grab_indexes_SEP (a::b::c::d::e::nil).
+Tactic Notation "focus_SEP" constr(a) constr(b) constr(c) constr(d) constr(e) constr(f) :=
+  grab_indexes_SEP (a::b::c::d::e::f::nil).
+Tactic Notation "focus_SEP" constr(a) constr(b) constr(c) constr(d) constr(e) constr(f) constr(g) :=
+  grab_indexes_SEP (a::b::c::d::e::f::g::nil).
+Tactic Notation "focus_SEP" constr(a) constr(b) constr(c) constr(d) constr(e) constr(f) constr(g) constr(h) :=
+  grab_indexes_SEP (a::b::c::d::e::f::g::h::nil).
+Tactic Notation "focus_SEP" constr(a) constr(b) constr(c) constr(d) constr(e) constr(f) constr(g) constr(h) constr(i) :=
+  grab_indexes_SEP (a::b::c::d::e::f::g::h::i::nil).
+Tactic Notation "focus_SEP" constr(a) constr(b) constr(c) constr(d) constr(e) constr(f) constr(g) constr(h) constr(i) constr(j) :=
+  grab_indexes_SEP (a::b::c::d::e::f::g::h::i::j::nil).
 
 (* TESTING 
 Variables (a b c d e f g h i j : assert).
@@ -572,12 +586,26 @@ Ltac frame_SEP' L :=  (* this should be generalized to permit framing on LOCAL p
     apply derives_frame_PQR
 end.
 
-Tactic Notation "frame_SEP" constr(a) := frame_SEP' (a::nil).
-Tactic Notation "frame_SEP" constr(a) constr(b) := frame_SEP' (a::b::nil).
-Tactic Notation "frame_SEP" constr(a) constr(b) constr(c) := 
-   frame_SEP' (a::b::c::nil).
-Tactic Notation "frame_SEP" constr(a) constr(b) constr(c) constr(d) := 
-   frame_SEP' (a::b::c::d::nil).
+Tactic Notation "frame_SEP" constr(a) :=
+  frame_SEP' (a::nil).
+Tactic Notation "frame_SEP" constr(a) constr(b) :=
+  frame_SEP' (a::b::nil).
+Tactic Notation "frame_SEP" constr(a) constr(b) constr(c) :=
+  frame_SEP' (a::b::c::nil).
+Tactic Notation "frame_SEP" constr(a) constr(b) constr(c) constr(d) :=
+  frame_SEP' (a::b::c::d::nil).
+Tactic Notation "frame_SEP" constr(a) constr(b) constr(c) constr(d) constr(e) :=
+  frame_SEP' (a::b::c::d::e::nil).
+Tactic Notation "frame_SEP" constr(a) constr(b) constr(c) constr(d) constr(e) constr(f) :=
+  frame_SEP' (a::b::c::d::e::f::nil).
+Tactic Notation "frame_SEP" constr(a) constr(b) constr(c) constr(d) constr(e) constr(f) constr(g) :=
+  frame_SEP' (a::b::c::d::e::f::g::nil).
+Tactic Notation "frame_SEP" constr(a) constr(b) constr(c) constr(d) constr(e) constr(f) constr(g) constr(h) :=
+  frame_SEP' (a::b::c::d::e::f::g::h::nil).
+Tactic Notation "frame_SEP" constr(a) constr(b) constr(c) constr(d) constr(e) constr(f) constr(g) constr(h) constr(i) :=
+  frame_SEP' (a::b::c::d::e::f::g::h::i::nil).
+Tactic Notation "frame_SEP" constr(a) constr(b) constr(c) constr(d) constr(e) constr(f) constr(g) constr(h) constr(i) constr(j) :=
+  frame_SEP' (a::b::c::d::e::f::g::h::i::j::nil).
 
 Lemma gather_SEP:
   forall R1 R2, 
@@ -604,13 +632,26 @@ Ltac gather_SEP' L :=
    intro r; unfold r; clear r
  end.
 
-Tactic Notation "gather_SEP" constr(a) := gather_SEP' (a::nil).
-Tactic Notation "gather_SEP" constr(a) constr(b) := gather_SEP' (a::b::nil).
-Tactic Notation "gather_SEP" constr(a) constr(b) constr(c) := 
-   gather_SEP' (a::b::c::nil).
-Tactic Notation "gather_SEP" constr(a) constr(b) constr(c) constr(d) := 
-   gather_SEP' (a::b::c::d::nil).
-
+Tactic Notation "gather_SEP" constr(a) :=
+  gather_SEP' (a::nil).
+Tactic Notation "gather_SEP" constr(a) constr(b) :=
+  gather_SEP' (a::b::nil).
+Tactic Notation "gather_SEP" constr(a) constr(b) constr(c) :=
+  gather_SEP' (a::b::c::nil).
+Tactic Notation "gather_SEP" constr(a) constr(b) constr(c) constr(d) :=
+  gather_SEP' (a::b::c::d::nil).
+Tactic Notation "gather_SEP" constr(a) constr(b) constr(c) constr(d) constr(e) :=
+  gather_SEP' (a::b::c::d::e::nil).
+Tactic Notation "gather_SEP" constr(a) constr(b) constr(c) constr(d) constr(e) constr(f) :=
+  gather_SEP' (a::b::c::d::e::f::nil).
+Tactic Notation "gather_SEP" constr(a) constr(b) constr(c) constr(d) constr(e) constr(f) constr(g) :=
+  gather_SEP' (a::b::c::d::e::f::g::nil).
+Tactic Notation "gather_SEP" constr(a) constr(b) constr(c) constr(d) constr(e) constr(f) constr(g) constr(h) :=
+  gather_SEP' (a::b::c::d::e::f::g::h::nil).
+Tactic Notation "gather_SEP" constr(a) constr(b) constr(c) constr(d) constr(e) constr(f) constr(g) constr(h) constr(i) :=
+  gather_SEP' (a::b::c::d::e::f::g::h::i::nil).
+Tactic Notation "gather_SEP" constr(a) constr(b) constr(c) constr(d) constr(e) constr(f) constr(g) constr(h) constr(i) constr(j) :=
+  gather_SEP' (a::b::c::d::e::f::g::h::i::j::nil).
 
 Fixpoint replace_nth {A} (n: nat) (al: list A) (x: A) {struct n}: list A :=
  match n, al with
@@ -748,10 +789,15 @@ revert Rs H; induction n; destruct Rs; simpl ; intros; auto;
 apply sepcon_derives; auto.
 Qed.
 
-Ltac replace_SEP n R :=
+Tactic Notation "replace_SEP" constr(n) constr(R) :=
   first [apply (replace_SEP' (nat_of_Z n) R) | apply (replace_SEP'' (nat_of_Z n) R)];
   unfold my_nth,replace_nth; simpl nat_of_Z;
    repeat simpl_nat_of_P; cbv beta iota; cbv beta iota.
+
+Tactic Notation "replace_SEP" constr(n) constr(R) "by" tactic(t):=
+  first [apply (replace_SEP' (nat_of_Z n) R) | apply (replace_SEP'' (nat_of_Z n) R)];
+  unfold my_nth,replace_nth; simpl nat_of_Z;
+   repeat simpl_nat_of_P; cbv beta iota; cbv beta iota; [ now t | ].
 
 Ltac replace_in_pre S S' :=
  match goal with |- @semax _ _ _ ?P _ _ =>
@@ -1198,9 +1244,18 @@ apply andp_right; auto.
 apply derives_extract_prop. auto.
 Qed.
 
-Ltac assert_PROP A :=
- first [apply (assert_PROP A); [ | intro]
-         | apply (assert_PROP' A); [ | intro]].
+
+Tactic Notation "assert_PROP" constr(A) :=
+  first [apply (assert_PROP A) | apply (assert_PROP' A)]; [ | intro ].
+
+Tactic Notation "assert_PROP" constr(A) "by" tactic(t) :=
+  first [apply (assert_PROP A) | apply (assert_PROP' A)]; [ now t | intro ].
+
+Tactic Notation "assert_PROP" constr(A) "as" simple_intropattern(H)  :=
+  first [apply (assert_PROP A) | apply (assert_PROP' A)]; [ | intro H ].
+
+Tactic Notation "assert_PROP" constr(A) "as" simple_intropattern(H) "by" tactic(t) :=
+  first [apply (assert_PROP A) | apply (assert_PROP' A)]; [ now t | intro H ].
 
 Lemma assert_LOCAL:
  forall Q1 Espec {cs: compspecs} Delta P Q R c Post,
@@ -1214,8 +1269,11 @@ rewrite <- (insert_local Q1); apply andp_right; auto.
 rewrite <- insert_local; apply andp_left2; auto.
 Qed.
 
-Ltac assert_LOCAL A :=
- apply (assert_LOCAL A).
+Tactic Notation "assert_LOCAL" constr(A) :=
+  apply (assert_LOCAL A).
+
+Tactic Notation "assert_LOCAL" constr(A) "by" tactic(t) :=
+  apply (assert_LOCAL A); [ now t | ].
 
 Lemma drop_LOCAL':
   forall (n: nat)  P Q R Post,

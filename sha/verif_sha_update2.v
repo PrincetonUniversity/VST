@@ -89,12 +89,6 @@ Definition inv_at_inner_if sh hashed len c d dd data kv :=
    `(K_vector kv);
    `(data_block sh data d)))).
 
-(* This hack88 definition is necessary because
-    of a bug in Coq 8.4pl6 (and 8.4p.3):
-   unfolding it into sha_update_inv causes
-  sha_update_inv to fail to typecheck.
-*)
-
 Definition  S_struct (hashed: list int) (len:Z) (dd: list Z) (num: val) :=
     data_at Tsh t_struct_SHA256state_st
                  (map Vint (hash_blocks init_registers hashed),
@@ -112,7 +106,7 @@ Definition sha_update_inv sh hashed len c d (dd: list Z) (data: list Z) kv (done
               intlist_to_Zlist blocks = dd ++ sublist 0  (Zlength blocks * 4 - Zlength dd) data;
              if done then (len-(Zlength blocks*4 - Zlength dd) < CBLOCKz)%Z else True)
    LOCAL  (temp _p (field_address t_struct_SHA256state_st [StructField _data]  c);
-                temp _data (offset_val (Int.repr (Z.of_nat (length blocks*4-length dd))) d);
+                temp _data (offset_val (Int.repr (Zlength blocks*4-Zlength dd)) d);
                 temp _c c; 
                 temp _len (Vint (Int.repr (len- (Zlength blocks*4 - Zlength dd))));
                 gvar  _K256 kv)
@@ -121,7 +115,7 @@ Definition sha_update_inv sh hashed len c d (dd: list Z) (data: list Z) kv (done
                  ((map Vint (hash_blocks init_registers (hashed++blocks)),
                   (Vint (lo_part (bitlength hashed dd + len*8)),
                    (Vint (hi_part (bitlength hashed dd + len*8)),
-                    (list_repeat CBLOCK Vundef, Vundef)))) : reptype t_struct_SHA256state_st)
+                    (list_repeat (Z.to_nat CBLOCKz) Vundef, Vundef)))) : reptype t_struct_SHA256state_st)
                c);
    `(data_block sh data d))).
 
@@ -162,7 +156,7 @@ assert (Z.to_nat i < Z.to_nat n)
 forget (Z.to_nat n) as k.
 revert k H0; induction (Z.to_nat i); destruct k; simpl; intros.
 omega. auto. omega. apply IHn0; omega.
-Qed.
+Qed.  (* move to floyd/sublist.v *)
 
 Lemma field_at_cancel_undef_example:
   forall  (d': list val) d c, 
@@ -183,44 +177,6 @@ Proof.
  rewrite Znth_list_repeat_inrange by omega.
   intros sh p.
   apply data_at_data_at_.
-Qed.
-
-Lemma Forall_map:
-  forall {A B} (f: B -> Prop) (g: A -> B) al,
-   Forall f (map g al) <-> Forall (f oo g) al.
-Proof.
-intros.
-induction al; simpl; intuition; inv H1; constructor; intuition.
-Qed.
-
-Lemma isbyte_value_fits_tuchar:
-  forall x, isbyteZ x -> value_fits true tuchar (Vint (Int.repr x)).
-Proof.
-intros. hnf in H|-*; intros.
-simpl. rewrite Int.unsigned_repr by repable_signed. 
-  change Byte.max_unsigned with 255%Z. omega.
-Qed.
-
-Lemma Forall_sublist:
-  forall {A} (f: A -> Prop) lo hi al,
-   Forall f al -> Forall f (sublist lo hi al).
-Proof.
-intros. unfold sublist.
-apply Forall_firstn. apply Forall_skipn. auto.
-Qed.
-
-Lemma Zlength_Zlist_to_intlist: 
-  forall (n:Z) (l: list Z),
-   (Zlength l = WORD*n)%Z -> Zlength (Zlist_to_intlist l) = n.
-Proof.
-intros.
-rewrite Zlength_correct in *.
-assert (0 <= n)%Z by ( change WORD with 4%Z in H; omega).
-rewrite (length_Zlist_to_intlist (Z.to_nat n)).
-apply Z2Nat.id; auto.
-apply Nat2Z.inj. rewrite H.
-rewrite Nat2Z.inj_mul.
-f_equal. rewrite Z2Nat.id; omega.
 Qed.
 
 Lemma update_inner_if_then_proof:
@@ -318,6 +274,7 @@ eapply semax_post_flipped'.
  split3; auto.
  clear; compute; intuition.
  apply Zlength_nonneg.
+ MyOmega.
 +
  eapply field_compatible0_cons_Tarray.
  reflexivity. auto. omega.
@@ -328,9 +285,9 @@ eapply semax_post_flipped'.
   unfold data_at.   unfold_field_at 7%nat.
   entailer!.
   repeat simplify_value_fits. split3; auto. split3; auto.
-  split. rewrite Zlength_app.
+  split.
   subst k.
-  rewrite !sublist_map, !Zlength_map, !Zlength_sublist; try omega.
+  autorewrite with sublist. omega.
   rewrite Forall_app.
   split. 
   clear - H3'.
@@ -345,8 +302,9 @@ eapply semax_post_flipped'.
   replace (Zlength dd + k)%Z with 64%Z by Omega1.
   rewrite splice_into_list_simplify2; try Omega1.
   apply derives_refl'. f_equal. f_equal.
-  rewrite sublist_sublist; try MyOmega. f_equal. MyOmega.
-   MyOmega. rewrite Zlength_sublist; MyOmega.
+  subst k; autorewrite with sublist; auto.
+  autorewrite with sublist; auto.
+  autorewrite with sublist; auto. MyOmega.
 *
 change (PTree.tree funspec)  with (PTree.t funspec) in Delta_specs.
 simplify_Delta.
@@ -368,7 +326,7 @@ simplify_Delta.
      (field_address t_struct_SHA256state_st [StructField _data] c),
       Tsh, kv). {
  rewrite Zlist_to_intlist_to_Zlist;
- [ | exists LBLOCK; apply Nat2Z.inj; rewrite <- Zlength_correct, H5; reflexivity
+ [ | rewrite H5; exists LBLOCKz; reflexivity
    | rewrite Forall_app; split; auto; apply Forall_firstn; auto
  ].
  entailer!.
@@ -392,20 +350,16 @@ evar (Frame: list (LiftEnviron mpred)).
  | reflexivity
  ].
  rewrite Zlist_to_intlist_to_Zlist;
- [ | exists LBLOCK; apply Nat2Z.inj; rewrite <- Zlength_correct, H5; reflexivity
+ [ | exists LBLOCKz; rewrite H5; reflexivity
    | rewrite Forall_app; split; auto; apply Forall_firstn; auto
  ].
  entailer!.
  unfold field_address, field_address0; rewrite !if_true; auto.
  eapply field_compatible0_cons_Tarray; [reflexivity | auto | Omega1 ].
  Exists (Zlist_to_intlist (dd ++ sublist 0 k data)).
- assert (KK: k = Z.of_nat (LBLOCK * 4 - length dd)). {
- subst k.
- rewrite Nat2Z.inj_sub by Omega1.
- change (Z.of_nat (LBLOCK*4)) with 64%Z.
- Omega1.
-}
- rewrite (Zlength_correct (Zlist_to_intlist _)).
+
+ erewrite Zlength_Zlist_to_intlist
+  by (instantiate (1:=LBLOCKz); assumption).
  simpl update_tycon; rewrite insert_local.
  rewrite splice_into_list_simplify0;
  [ 
@@ -413,22 +367,12 @@ evar (Frame: list (LiftEnviron mpred)).
  | rewrite !Zlength_map; auto
 ].
 unfold data_at. unfold_field_at 7%nat.
-change (Z.to_nat 64) with CBLOCK.
  rewrite Zlist_to_intlist_to_Zlist;
- [ | exists LBLOCK; apply Nat2Z.inj; rewrite <- Zlength_correct, H5; reflexivity
+ [ | exists LBLOCKz; rewrite H5; reflexivity
    | rewrite Forall_app; split; auto; apply Forall_firstn; auto
  ].
+change 64%Z with CBLOCKz.
 entailer!.
-rewrite <- Zlength_correct,  (Zlength_Zlist_to_intlist LBLOCKz); auto.
-split3; auto.
-split3; auto.
-split; auto. apply Z.divide_refl.
-f_equal.
-rewrite Nat2Z.inj_sub by Omega1.
-rewrite Nat2Z.inj_mul.
-rewrite <- Zlength_correct,  (Zlength_Zlist_to_intlist LBLOCKz); auto.
-rewrite <-Zlength_correct; reflexivity.
-set (j := (64-Zlength dd)%Z).
 repeat simplify_value_fits.
 split3; auto. split3; auto.
 split; auto.
