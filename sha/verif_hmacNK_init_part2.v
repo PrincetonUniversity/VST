@@ -16,7 +16,7 @@ Require Import hmac_common_lemmas.
 Require Import split_array_lemmas.
 
 Require Import sha.hmac_NK.
-Require Import sha.verif_hmacNK_init_part1. (*part1 now takes 1h to compile*)
+Require Import sha.verif_hmacNK_init_part1.
 
 Lemma isbyte_zeroExt8: forall x, isbyteZ x -> Int.repr x = (Int.zero_ext 8 (Int.repr x)).
 Proof. intros. rewrite zero_ext_inrange. trivial.
@@ -436,15 +436,8 @@ Lemma opadloop Espec pb pofs cb cofs ckb ckoff kb kofs l key kv
 (ZLO : Zlength
         (HMAC_SHA256.mkArgZ (map Byte.repr (HMAC_SHA256.mkKey key)) Opad) = 64)
 (isbyte_key : Forall isbyteZ key)
-(FC_C : field_compatible t_struct_hmac_ctx_st [] (Vptr cb cofs))
-(VF_HMS' : value_fits true t_struct_hmac_ctx_st HMS')
-(FC_ICTX : field_compatible t_struct_hmac_ctx_st [StructField 14%positive]
-            (Vptr cb cofs))
 (*Delta := abbreviate : tycontext*)
-(ipadSHAabs : s256abs)
-(ipadAbs_def : update_abs
-                (HMAC_SHA256.mkArgZ (map Byte.repr (HMAC_SHA256.mkKey key))
-                   Ipad) init_s256abs ipadSHAabs),
+(ipadSHAabs : s256abs),
 @semax CompSpecs Espec
   (initialized_list [_reset; _i] (func_tycontext f_HMAC_Init HmacVarSpecs HmacFunSpecs))
   (PROP  ()
@@ -531,7 +524,7 @@ Focus 2.
         } Opaque FRAME1. Opaque FRAME2. 
         normalize.
         forward. Opaque default_val. (*Issue : forward succeeds in 3secs, but if 
-              we put the Opaque declaration before the forword (next to Opaqye FRAME2, as one would expect),
+              we put the Opaque declaration before the forward (next to Opaque FRAME2, as one would expect),
               the forward leads to memory exhaustion. *)
         { entailer.
           apply prop_right. rewrite X. simpl. rewrite <- isbyte_zeroExt8'; trivial.
@@ -793,7 +786,6 @@ forward_if PostResetBranch.
     (*continuation after ipad-loop*) 
     assert_PROP (field_compatible t_struct_hmac_ctx_st [] (Vptr cb cofs)) as FC_C by entailer.
     unfold data_at at 2. unfold_field_at 1%nat. normalize.
-    rename H into VF_HMS'.
 
     gather_SEP 0 2 5 6.
     replace_SEP 0 (`(FRAME1 cb cofs ckb ckoff kb kofs key HMS')).
@@ -915,10 +907,6 @@ Definition FRAME3 (kb cb ckb: block) kofs cofs ckoff key ipadSHAabs (HMS' : rept
     rewrite (field_at_data_at Tsh t_struct_hmac_ctx_st [StructField _i_ctx]).
     rewrite (field_at_data_at Tsh t_struct_hmac_ctx_st [StructField _o_ctx]).
     unfold field_address. rewrite if_true; trivial. rewrite if_true; trivial.
-       unfold nested_field_type2, nested_field_offset2; simpl.
-       unfold field_type, field_offset, fieldlist.field_offset2; simpl.
-     apply andp_right. apply prop_right. unfold postResetHMS. admit. (*TODO: ValueFits*)
-     cancel.
   }
   { (*ELSE*) 
     forward. subst. unfold initPostKeyNullConditional. entailer. 

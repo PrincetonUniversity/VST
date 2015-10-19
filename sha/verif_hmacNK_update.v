@@ -32,7 +32,7 @@ assert_PROP (field_compatible t_struct_hmac_ctx_st [StructField _md_ctx] c).
   { apply prop_right. red in FC_c. red. intuition.
     constructor. trivial. constructor. reflexivity. }
 rename H into FC_mdCtx.
-unfold data_at. unfold_field_at 1%nat. normalize. rename H into VF_ST.
+unfold data_at. unfold_field_at 1%nat. normalize. 
 apply isptrD in isptr_c. destruct isptr_c as [b [i Cptr]]. rewrite Cptr in *.
 rewrite field_at_data_at at 1. unfold field_address; normalize.
 rewrite if_true by eauto.
@@ -55,10 +55,8 @@ unfold hmacstate_, sha256state_, hmac_relate. normalize.
 Exists (r, (iCtx ST, oCtx ST)). 
 simpl. entailer. 
 unfold data_at at 2. unfold_field_at 3%nat. 
-destruct ST as [ST1 [ST2 ST3]]. simpl in *. normalize.
-apply andp_right. admit. (*TODO: Issue: how to establish value_fits for structs her ? entailer/normalize don't terminmate, andp_right; constructor, don't seem to wotrk either*)
-repeat rewrite sepcon_assoc.
-apply sepcon_derives. 2: cancel.
+destruct ST as [ST1 [ST2 ST3]]. simpl in *. 
+rewrite sepcon_assoc. apply sepcon_derives. 2: cancel.
 rewrite field_at_data_at.
 unfold field_address. rewrite if_true by eauto. rewrite offset_val_zero_Vptr.
 apply derives_refl.

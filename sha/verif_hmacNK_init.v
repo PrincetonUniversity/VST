@@ -156,7 +156,7 @@ eapply semax_seq. instantiate (1:=PostResetBranch).
 
      unfold data_at at 1.
      unfold_field_at 1%nat. (*Issue: Why is this so slow here (2mins)*)
-     normalize. rename H into VF_v.
+     normalize. 
      (*rewrite field_at_data_at at 2. *)
      (*VST Issue: why does rewrite field_at_data_at at 2 FAIL, but focus_SEP 1. rewrite field_at_data_at at 1. SUCCEED???*)
      focus_SEP 1. rewrite field_at_data_at at 1. 
@@ -164,13 +164,9 @@ eapply semax_seq. instantiate (1:=PostResetBranch).
 
      forward_call ((Tsh, Tsh),
              Vptr cb cofs,
-            offset_val
-           (Int.repr
-              (nested_field_offset2 t_struct_hmac_ctx_st
-                 [StructField _i_ctx])) (Vptr cb cofs),
-(*             offset_val
+             offset_val
               (Int.repr (nested_field_offset2 t_struct_hmac_ctx_st [StructField _i_ctx]))
-              (Vptr cb cofs),*)
+              (Vptr cb cofs),
              mkTrep t_struct_SHA256state_st iS, 
              @sizeof (@cenv_cs CompSpecs) t_struct_SHA256state_st) rv.
      { rewrite field_at_data_at at 1. 
