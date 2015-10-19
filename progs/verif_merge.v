@@ -344,8 +344,6 @@ match goal with |- ?A |-- _ => set (PQR := A);
   unfold data_at; unfold_field_at 1%nat;
   subst PQR
 end.
-rewrite prop_true_andp
- by (rewrite proj_sumbool_is_true by auto; repeat simplify_value_fits; auto).
 match goal with |- ?A * ?B * ?C * ?D * ?E * ?F * ?G * ?H |-- _ =>
  apply derives_trans with ((B * A * H * G) * (C * D * E * F));
   [cancel | ]
@@ -466,7 +464,6 @@ match goal with |- ?A |-- _ => set (PQR := A);
   unfold data_at; unfold_field_at 1%nat;
   subst PQR
 end.
-rewrite prop_true_andp.
 normalize.
 match goal with |- ?A * ?B * ?C * ?D * ?E * ?F |-- _ =>
  apply derives_trans with ((B * A * F * D) * (C * E)); [cancel | ]
@@ -475,7 +472,6 @@ eapply derives_trans; [apply sepcon_derives; [ | apply derives_refl] | ].
 apply LCR; auto.
 rewrite list_cell_field_at.
 cancel.
-normalize. repeat simplify_value_fits; auto.
 
 (* After the if, putting boolean value into "cond" *)
 clear -SH.

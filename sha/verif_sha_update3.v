@@ -105,7 +105,7 @@ Proof.
  repeat constructor; auto; try Omega1.
  apply field_compatible0_cons; simpl. split; auto; Omega1.
  unfold data_at.
- unfold_field_at 1%nat. normalize. cancel.
+ unfold_field_at 1%nat. cancel.
  abbreviate_semax.
  autorewrite with sublist.
  unfold splice_into_list. 

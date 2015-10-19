@@ -201,14 +201,6 @@ Proof.
 intros.
 unfold_field_at 1%nat.
 rewrite <- !sepcon_assoc.
-rewrite prop_true_andp.
-Focus 2. {
-simplify_value_fits'.
-rewrite value_fits_ind; split3; erewrite unfold_reptype_elim by auto; simpl.
-repeat intro; apply I.
-repeat intro; apply I.
-repeat intro. contradiction H; reflexivity.
-} Unfocus.
 match goal with |- ?A = _ => set (J := A) end.
 unfold field_at_.
 (*BUG in Coq 8.4pl6:  if you uncomment the "change" line just below,

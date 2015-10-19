@@ -686,7 +686,7 @@ Proof.
   auto.
 Qed.
 
-Lemma field_at_Tstruct: forall sh t gfs id a v1 v2 p,
+Lemma field_at_Tstruct': forall sh t gfs id a v1 v2 p,
   nested_field_type2 t gfs = Tstruct id a ->
   JMeq v1 v2 ->
   field_at sh t gfs v1 p = !! value_fits (readable_share_dec sh) (nested_field_type2 t gfs) v1
@@ -768,7 +768,44 @@ Proof.
         eapply JMeq_trans; [apply (unfold_reptype_JMeq _ v1) | auto].
 Qed.
 
-Lemma field_at_Tunion: forall sh t gfs id a v1 v2 p,
+Lemma field_at_Tstruct: forall sh t gfs id a v1 v2 p,
+  nested_field_type2 t gfs = Tstruct id a ->
+  JMeq v1 v2 ->
+  field_at sh t gfs v1 p = nested_sfieldlist_at sh t gfs (co_members (get_co id)) v2 p.
+Proof.
+intros.
+erewrite field_at_Tstruct'; eauto.
+apply pred_ext; normalize.
+apply andp_right; auto.
+assert (exists v3: reptype (Tstruct id a), JMeq v1 v3).
+clear - H v1.
+revert H. set (t' := Tstruct id a). clearbody t'.
+intros. subst. exists v1. reflexivity.
+destruct H1 as [v3 ?].
+apply derives_trans with (!! (value_fits (readable_share_dec sh) (Tstruct id a) v3)).
+Focus 2. {
+apply prop_derives.
+revert v3 H1 H. 
+set (t' := Tstruct id a). clearbody t'.
+intros.  subst. apply JMeq_eq in H1. subst; auto.
+} Unfocus.
+rewrite value_fits_ind.
+pose proof (nested_reptype_structlist_lemma t gfs id a H).
+revert v1 H0 H1 H2.
+set (t' := reptype (nested_field_type2 t gfs)).
+clearbody t'.
+intros; subst t'.
+apply JMeq_eq in H0. subst v2.
+rewrite <- (unfold_reptype_JMeq _ v3) in H1.
+revert H1.
+set (v4 := unfold_reptype v3).
+clearbody v4.
+intros.
+simpl in v4.
+clear v3.
+Admitted.  (* for Qinxiang *)
+
+Lemma field_at_Tunion': forall sh t gfs id a v1 v2 p,
   nested_field_type2 t gfs = Tunion id a ->
   JMeq v1 v2 ->
   field_at sh t gfs v1 p = !! value_fits (readable_share_dec sh) (nested_field_type2 t gfs) v1
@@ -878,6 +915,12 @@ Proof.
         auto.
       * eapply JMeq_trans; [apply (unfold_reptype_JMeq _ v1) | auto].
 Qed.
+
+Lemma field_at_Tunion: forall sh t gfs id a v1 v2 p,
+  nested_field_type2 t gfs = Tunion id a ->
+  JMeq v1 v2 ->
+  field_at sh t gfs v1 p = nested_ufieldlist_at sh t gfs (co_members (get_co id)) v2 p.
+Admitted.  (* for Qinxiang *)
 
 Lemma array_at_len_0: forall sh t gfs i v p,
   array_at sh t gfs i i v p = !! (field_compatible0 t (ArraySubsc i :: gfs) p /\ v=nil) && emp.
