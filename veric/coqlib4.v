@@ -28,3 +28,6 @@ rewrite IHi in H. omega.
 rewrite IHi. omega.
 Qed.
 
+Lemma prop_unext: forall P Q: Prop, P=Q -> (P<->Q).
+Proof. intros. subst; split; auto. Qed.
+

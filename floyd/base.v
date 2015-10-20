@@ -1,7 +1,7 @@
 Require Export Clightdefs.
 Require Export veric.SeparationLogic.
 Require Export msl.Extensionality.
-Require Export Coqlib msl.Coqlib2 floyd.coqlib3.
+Require Export Coqlib msl.Coqlib2 veric.coqlib4 floyd.coqlib3.
 Require Export floyd.jmeq_lemmas.
 Require Export veric.juicy_extspec.
 Require veric.SeparationLogicSoundness.

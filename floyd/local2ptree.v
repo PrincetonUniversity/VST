@@ -1396,3 +1396,16 @@ with fill_l_cont (e: l_cont) (v: val): l_value :=
   | LC_field a ta i => L_field (fill_l_cont a v) ta i
   end.
 
+(*
+Check rel_r_value.
+Lemma compute_LR_cont_sound: forall (cs: compspecs) (T1: PTree.t val) (T2: PTree.t vardesc) P Q R,
+  (forall e v,
+    compute_r_cont T1 T2 e = Some (inl v) ->
+    PROPx P (LOCALx (LocalD T1 T2 Q) (SEPx R)) |-- rel_r_value e v) /\
+  (forall e v c e0 sh t p v0,
+    compute_r_cont T1 T2 e = Some (inr (c, (e0, t))) ->
+    PROPx P (LOCALx (LocalD T1 T2 Q) (SEPx R)) |-- rel_l_value e0 p ->
+    PROPx P (LOCALx (LocalD T1 T2 Q) (SEPx R)) |-- `(mapsto sh t p v0) ->
+    PROPx P (LOCALx (LocalD T1 T2 Q) (SEPx R)) |-- rel_r_value (fill_r_cont c v0) v ->
+    PROPx P (LOCALx (LocalD T1 T2 Q) (SEPx R)) |-- rel_r_value e v). /\
+*)

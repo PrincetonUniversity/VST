@@ -123,11 +123,11 @@ Qed.
 Lemma default_value_fits:
   forall sh t, value_fits sh t (default_val t).
 Proof.
-intros.
-type_induction t; try destruct f; rewrite value_fits_ind; 
-  unfold tc_val'; simpl;
- try solve [if_tac; auto; if_tac; auto].
-*
+  intros.
+  type_induction t; try destruct f; rewrite value_fits_ind; 
+    unfold tc_val'; simpl;
+   try solve [if_tac; auto; if_tac; auto].
+  +
 simpl.
 cbv iota.
 rewrite default_val_ind.
@@ -139,7 +139,7 @@ rewrite Z2Nat_neg, Z.max_l by omega. reflexivity.
 rewrite Z2Nat.id, Z.max_r by omega; reflexivity.
 apply Forall_list_repeat.
 auto.
-*
++
 rewrite default_val_ind.
 rewrite unfold_fold_reptype.
 assert (NR:= get_co_members_no_replicate id).
@@ -176,7 +176,7 @@ unfold struct_default_val.
 unfold proj_struct.
 admit.
 admit.
-*
++
 admit.
 Qed.
 
@@ -673,62 +673,48 @@ Lemma data_at_data_at': forall sh t v p,
 Proof.
   intros.
   unfold data_at, field_at.
-  rewrite <- !gather_prop_left.
-  destruct_ptr p.
-  destruct (field_compatible_dec t nil (Vptr b (Int.repr ofs))); [|
-    replace (!!field_compatible t nil (Vptr b (Int.repr ofs)): mpred) with FF
-      by (apply ND_prop_ext; tauto);
-    normalize].
-  f_equal. f_equal.
+  apply andp_prop_ext; [reflexivity |].
+  intros [? _].
+  destruct p; try solve [destruct H; simpl in *; tauto].
+  inv_int i.
   rewrite at_offset_eq3.
-  rewrite nested_field_offset2_ind, Z.add_0_r by (unfold field_compatible in f; tauto).
+  rewrite nested_field_offset2_ind, Z.add_0_r by (unfold field_compatible in H; tauto).
   change (nested_field_type2 t nil) with t.
   auto.
 Qed.
 
-Lemma field_at_Tstruct': forall sh t gfs id a v1 v2 p,
+Lemma field_at_Tstruct: forall sh t gfs id a v1 v2 p,
   nested_field_type2 t gfs = Tstruct id a ->
   JMeq v1 v2 ->
-  field_at sh t gfs v1 p = !! value_fits (readable_share_dec sh) (nested_field_type2 t gfs) v1
-                                        && nested_sfieldlist_at sh t gfs (co_members (get_co id)) v2 p.
+  field_at sh t gfs v1 p = nested_sfieldlist_at sh t gfs (co_members (get_co id)) v2 p.
 Proof.
   intros.
-  unfold nested_sfieldlist_at, field_at.
-  rewrite <- gather_prop_left. rewrite <- andp_assoc.
-  rewrite (andp_comm (!! _) (!! _)). rewrite andp_assoc. 
-  apply aggregate_pred.andp_prop_ext. split; auto.
-  intro VF.
-  revert v1 VF H0; rewrite H; intros.
+  unfold field_at, nested_sfieldlist_at.
+  revert v1 H0; rewrite H; intros.
   rewrite data_at'_ind.
+  rewrite value_fits_ind.
   rewrite at_offset_struct_pred.
   rewrite andp_struct_pred by apply corable_prop.
-  generalize (co_members (get_co id)) at 1 10; intro m; destruct m; [auto |].
+  generalize (co_members (get_co id)) at 1 11; intro m; destruct m; [auto |].
   apply struct_pred_ext; [apply get_co_members_no_replicate |].
-  simpl @fst.
-
+  
   intros.
-  assert (~ isptr p \/ isptr p).
-    clear; destruct p; simpl; intuition.
-  destruct H2.
-  apply pred_ext; normalize. destruct H3. contradiction.
-  rewrite withspacer_spacer. unfold field_at;  normalize.
-  destruct H3. contradiction.
-  destruct p; try contradiction. clear H2.
-  unfold  field_at, fst, snd.
-  unfold at_offset.
+  rewrite prop_and.
+  destruct_ptr p.
+  unfold field_at, fst, snd.
   autorewrite with at_offset_db.
   unfold offset_val.
   solve_mod_modulus.
   normalize.
   destruct (legal_nested_field_dec t (StructField i :: gfs)).
   Focus 2. {
-    rewrite <- gather_prop_left.
-    replace (!!field_compatible t (StructField i :: gfs) (Vptr b i0) : mpred) with (FF: mpred)
+    rewrite !prop_and.
+    replace (!!field_compatible t (StructField i :: gfs) (Vptr b (Int.repr ofs)) : mpred) with (FF: mpred)
       by (apply ND_prop_ext; unfold field_compatible; tauto; apply ND_prop_ext; tauto).
     simpl in n.
     rewrite H in n.
     simpl in n.
-    replace (!!field_compatible t gfs (Vptr b i0) : mpred) with (FF: mpred)
+    replace (!!field_compatible t gfs (Vptr b (Int.repr ofs)) : mpred) with (FF: mpred)
       by (apply ND_prop_ext; unfold field_compatible; tauto; apply ND_prop_ext; tauto).
     normalize.
   } Unfocus.
@@ -736,19 +722,22 @@ Proof.
   unfold gfield_offset; rewrite H.
   f_equal; [| f_equal].
   + apply ND_prop_ext.
-    rewrite field_compatible_cons, H.
-    intuition.
-    simpl in d1.
-    forget (@proj_sumbool (readable_share sh) (readable_share sh -> False)
-          (readable_share_dec sh)) as sh'.
-    clear - H VF H1 H2.
-    pose proof (nested_reptype_structlist_lemma t gfs _ _ H).
-    rewrite H in H0.
-   unfold proj_struct.
-    assert (nested_field_type2 t (StructField i :: gfs) = field_type i (co_members (get_co id))).
-     rewrite nested_field_type2_ind; simpl. rewrite H. reflexivity.
-    rewrite value_fits_ind in VF.
-   admit.
+    assert (value_fits (readable_share_dec sh) (field_type i (co_members (get_co id)))
+     (proj_struct i (co_members (get_co id)) (unfold_reptype v1) d0) <-> value_fits (readable_share_dec sh) (nested_field_type2 t (gfs DOT i))
+     (proj_struct i (co_members (get_co id)) v2 d1));
+     [| rewrite field_compatible_cons, H; tauto].
+    apply prop_unext, value_fits_type_changable.
+    - rewrite nested_field_type2_ind.
+      rewrite H.
+      reflexivity.
+    - apply (proj_compact_prod_JMeq _ _ (co_members (get_co id)) _ _
+        d0 d1 (unfold_reptype v1) v2 member_dec).
+      * intros.
+        rewrite nested_field_type2_ind, H.
+        auto.
+      * apply in_members_field_type; auto.
+      * rewrite (unfold_reptype_JMeq (Tstruct id a)).
+        auto.
   + rewrite sizeof_Tstruct.
     f_equal; [| f_equal; f_equal]; omega.
   + rewrite Z.add_assoc.
@@ -768,61 +757,20 @@ Proof.
         eapply JMeq_trans; [apply (unfold_reptype_JMeq _ v1) | auto].
 Qed.
 
-Lemma field_at_Tstruct: forall sh t gfs id a v1 v2 p,
-  nested_field_type2 t gfs = Tstruct id a ->
-  JMeq v1 v2 ->
-  field_at sh t gfs v1 p = nested_sfieldlist_at sh t gfs (co_members (get_co id)) v2 p.
-Proof.
-intros.
-erewrite field_at_Tstruct'; eauto.
-apply pred_ext; normalize.
-apply andp_right; auto.
-assert (exists v3: reptype (Tstruct id a), JMeq v1 v3).
-clear - H v1.
-revert H. set (t' := Tstruct id a). clearbody t'.
-intros. subst. exists v1. reflexivity.
-destruct H1 as [v3 ?].
-apply derives_trans with (!! (value_fits (readable_share_dec sh) (Tstruct id a) v3)).
-Focus 2. {
-apply prop_derives.
-revert v3 H1 H. 
-set (t' := Tstruct id a). clearbody t'.
-intros.  subst. apply JMeq_eq in H1. subst; auto.
-} Unfocus.
-rewrite value_fits_ind.
-pose proof (nested_reptype_structlist_lemma t gfs id a H).
-revert v1 H0 H1 H2.
-set (t' := reptype (nested_field_type2 t gfs)).
-clearbody t'.
-intros; subst t'.
-apply JMeq_eq in H0. subst v2.
-rewrite <- (unfold_reptype_JMeq _ v3) in H1.
-revert H1.
-set (v4 := unfold_reptype v3).
-clearbody v4.
-intros.
-simpl in v4.
-clear v3.
-Admitted.  (* for Qinxiang *)
-
-Lemma field_at_Tunion': forall sh t gfs id a v1 v2 p,
+Lemma field_at_Tunion: forall sh t gfs id a v1 v2 p,
   nested_field_type2 t gfs = Tunion id a ->
   JMeq v1 v2 ->
-  field_at sh t gfs v1 p = !! value_fits (readable_share_dec sh) (nested_field_type2 t gfs) v1
-                                       && nested_ufieldlist_at sh t gfs (co_members (get_co id)) v2 p.
+  field_at sh t gfs v1 p = nested_ufieldlist_at sh t gfs (co_members (get_co id)) v2 p.
 Proof.
   intros.
-  unfold nested_ufieldlist_at, field_at.
-  rewrite <- gather_prop_left. rewrite <- andp_assoc.
-  rewrite (andp_comm (!! _) (!! _)). rewrite andp_assoc. 
-  apply aggregate_pred.andp_prop_ext. split; auto.
-  intro VF.
-  revert v1 VF H0; rewrite H; intros.
+  unfold field_at, nested_ufieldlist_at.
+  revert v1 H0; rewrite H; intros.
   rewrite data_at'_ind.
+  rewrite value_fits_ind.
   rewrite at_offset_union_pred.
   rewrite andp_union_pred by apply corable_prop.
   generalize (eq_refl (co_members (get_co id))).
-  generalize (co_members (get_co id)) at 2 3 9; intro m; destruct m; [auto |].
+  generalize (co_members (get_co id)) at 2 3 10; intro m; destruct m; [auto |].
   intro HH; assert (co_members (get_co id) <> nil) by congruence; clear HH.
 
   assert (
@@ -848,57 +796,52 @@ Proof.
     + eapply JMeq_trans; [apply (unfold_reptype_JMeq _ v1) | auto].
   } Unfocus.
   intros.
-
-  unfold at_offset.
-  unfold field_at, fst, snd.
-  rewrite !withspacer_spacer.
-  assert (~ isptr p \/ isptr p).
-    clear; destruct p; simpl; intuition.
-  destruct H5.
-  apply pred_ext; normalize. destruct H6. contradiction.
-  saturate_local. destruct H6; contradiction.
-  destruct p; try contradiction. clear H5.
-  autorewrite with at_offset_db.
-  unfold at_offset.
+  rewrite prop_and.
+  destruct_ptr p.
   assert (in_members i (co_members (get_co id))).
   Focus 1. {
     change i with (fst (i, field_type i (co_members (get_co id)))).
     apply in_map with (f := fst).
     eapply compact_sum_inj_in; eauto.
   } Unfocus.
+  unfold field_at, fst, snd.
+  autorewrite with at_offset_db.
   unfold offset_val.
   solve_mod_modulus.
   normalize.
   destruct (legal_nested_field_dec t (UnionField i :: gfs)).
   Focus 2. {
-    rewrite <- gather_prop_left.
-    replace (!!field_compatible t (UnionField i :: gfs) (Vptr b i0) : mpred) with (FF: mpred)
+    rewrite !prop_and.
+    replace (!!field_compatible t (UnionField i :: gfs) (Vptr b (Int.repr ofs)) : mpred) with (FF: mpred)
       by (apply ND_prop_ext; unfold field_compatible; tauto).
     simpl in n.
     rewrite H in n.
     simpl in n.
-    replace (!!field_compatible t gfs (Vptr b i0) : mpred) with (FF: mpred)
+    replace (!!field_compatible t gfs (Vptr b (Int.repr ofs)) : mpred) with (FF: mpred)
       by (apply ND_prop_ext; unfold field_compatible; tauto).
     normalize.
   } Unfocus.
   rewrite nested_field_offset2_ind with (gfs0 := UnionField i :: gfs) by auto.
   unfold gfield_offset; rewrite H.
   f_equal; [| f_equal].
-  +
-    apply ND_prop_ext.
-    rewrite field_compatible_cons, H.
-    intuition.
-    simpl in d1.
-    forget (@proj_sumbool (readable_share sh) (readable_share sh -> False)
-          (readable_share_dec sh)) as sh'.
-    clear - H VF H1 H2.
-    pose proof (nested_reptype_unionlist_lemma t gfs _ _ H).
-    rewrite H in H0.
-   unfold proj_struct.
-    assert (nested_field_type2 t (UnionField i :: gfs) = field_type i (co_members (get_co id))).
-     rewrite nested_field_type2_ind; simpl. rewrite H. reflexivity.
-    rewrite value_fits_ind in VF.
-   admit.
+  + apply ND_prop_ext.
+    assert (value_fits (readable_share_dec sh) (field_type i (co_members (get_co id)))
+     (proj_union i (co_members (get_co id)) (unfold_reptype v1) d0) <->
+       value_fits (readable_share_dec sh) (nested_field_type2 t (gfs UDOT i))
+     (proj_union i (co_members (get_co id)) v2 d1));
+    [| rewrite field_compatible_cons, H; tauto].
+    apply prop_unext, value_fits_type_changable.
+    - rewrite nested_field_type2_ind.
+      rewrite H.
+      reflexivity.
+    - apply (proj_compact_sum_JMeq _ _ (co_members (get_co id)) _ _
+        d0 d1 (unfold_reptype v1) v2 member_dec).
+      * intros.
+        rewrite nested_field_type2_ind, H.
+        auto.
+      * auto.
+      * rewrite (unfold_reptype_JMeq (Tunion id a)).
+        auto.
   + rewrite sizeof_Tunion.
     f_equal; [| f_equal; f_equal]; omega.
   + rewrite Z.add_0_r.
@@ -909,18 +852,12 @@ Proof.
       auto.
     - unfold proj_union.
       apply (proj_compact_sum_JMeq _ (i, field_type i (co_members (get_co id))) (co_members (get_co id)) _ _ d0 d1 (unfold_reptype v1) v2); auto.
-      * intros (i1, t0) ?.
+      * intros (i0, t0) ?.
         rewrite nested_field_type2_ind, H.
         simpl.
         auto.
       * eapply JMeq_trans; [apply (unfold_reptype_JMeq _ v1) | auto].
 Qed.
-
-Lemma field_at_Tunion: forall sh t gfs id a v1 v2 p,
-  nested_field_type2 t gfs = Tunion id a ->
-  JMeq v1 v2 ->
-  field_at sh t gfs v1 p = nested_ufieldlist_at sh t gfs (co_members (get_co id)) v2 p.
-Admitted.  (* for Qinxiang *)
 
 Lemma array_at_len_0: forall sh t gfs i v p,
   array_at sh t gfs i i v p = !! (field_compatible0 t (ArraySubsc i :: gfs) p /\ v=nil) && emp.
@@ -989,7 +926,7 @@ Proof.
   normalize. f_equal.   apply ND_prop_ext; tauto.
  2: normalize; f_equal; apply ND_prop_ext; tauto.
   normalize.
-  apply aggregate_pred.andp_prop_ext.
+  apply andp_prop_ext.
 *
   split. intros [? [? [? ?]]].
   split3; auto.

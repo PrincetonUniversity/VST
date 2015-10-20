@@ -465,18 +465,20 @@ Proof.
      (P1 := fun i _ p => memory_block sh (sizeof cenv_cs t)
                           (offset_val (Int.repr (sizeof cenv_cs t * i)) p))
      (v1 := list_repeat (Z.to_nat z) (default_val t)); auto.
-   pose proof (legal_alignas_array_size _ _ _ LEGAL_ALIGNAS).
+    pose proof (legal_alignas_array_size _ _ _ LEGAL_ALIGNAS).
     rewrite memory_block_array_pred; auto.
-    simpl sizeof; rewrite Z.max_r by omega; auto.
-    simpl in H; rewrite Z.max_r in H by omega; auto.
-    simpl in H0; rewrite Z.max_r in H0 by omega; auto.
-    intros. unfold at_offset.
-    unfold Znth. rewrite if_false by omega.
-     rewrite nth_list_repeat. apply IH; auto.
-     admit. (* looks fine *)
-     admit. (* looks fine *)
-     admit. (* looks fine *)
-     admit. (* looks fine *)
+    - simpl sizeof; rewrite Z.max_r by omega; auto.
+    - simpl in H; rewrite Z.max_r in H by omega; auto.
+    - simpl in H0; rewrite Z.max_r in H0 by omega; auto.
+    - intros.
+      rewrite at_offset_eq3.
+      unfold offset_val; solve_mod_modulus.
+      unfold Znth. rewrite if_false by omega.
+      rewrite nth_list_repeat.
+      simpl sizeof in H, H0;
+      rewrite Z.max_r in H, H0 by omega.
+      apply IH; try AUTO_IND;
+      pose_size_mult cenv_cs t (0 :: i :: i + 1 :: z :: nil); omega.
   + rewrite default_val_ind.
     rewrite unfold_fold_reptype.
     rewrite struct_pred_ext with
@@ -679,115 +681,6 @@ Proof.
         auto.
 Qed.
 
-Inductive Foralli {A} (P: nat -> A->Prop) : nat -> list A -> Prop :=
- | Foralli_nil : forall i, Foralli P i nil
- | Foralli_cons : forall i x l, P i x -> Foralli P (S i) l -> Foralli P i (x::l).
-
-Inductive Forallz {A} (P: Z -> A->Prop) : Z -> list A -> Prop :=
- | Forallz_nil : forall i, Forallz P i nil
- | Forallz_cons : forall i x l, P i x -> Forallz P (Z.succ i) l -> Forallz P i (x::l).
-
-Import fieldlist.
-
-Definition array_Prop {A: Type} (d:A) (lo hi: Z) (P: Z -> A -> Prop) (v: list A) : Prop :=
-   Zlength v = hi-lo /\ Forallz P 0 v.
-
-Definition struct_Prop (m: members) {A: ident * type -> Type} 
-                             (P: forall it, A it -> Prop) (v: compact_prod (map A m)) : Prop.
-Proof.
-  destruct m as [| (i0, t0) m]; [exact True |].
-  revert i0 t0 v; induction m as [| (i0, t0) m]; intros ? ? v.
-  + simpl in v.
-    exact (P _ v).
-  + simpl in v.
-    exact ((P _ (fst v)) /\ IHm i0 t0 (snd v)).
-Defined.
-
-Definition union_Prop (m: members) {A: ident * type -> Type} 
-               (P: forall it, A it -> Prop) (v: compact_sum (map A m)): Prop.
-Proof.
-  destruct m as [| (i0, t0) m]; [exact True |].
-  revert i0 t0 v; induction m as [| (i0, t0) m]; intros ? ? v.
-  + simpl in v.
-    exact (P _ v).
-  + simpl in v.
-    destruct v as [v | v].
-    - exact (P _ v).
-    - exact (IHm i0 t0 v).
-Defined.
-
-Definition struct_value_fits_aux (m m0: members)
-      (P: ListType (map (fun it => reptype (field_type2 (fst it) m0) -> Prop) m))
-      (v: compact_prod (map (fun it => reptype (field_type2 (fst it) m0)) m)) : Prop.
-Proof.
-  destruct m as [| (i0, t0) m]; [exact True |].
-  revert i0 t0 v P; induction m as [| (i0, t0) m]; intros ? ? v P.
-  + simpl in v, P.
-    inversion P; subst.
-    apply (a v).
-  + simpl in v, P.
-    destruct (ident_eq i1 i1); [| congruence].
-    inversion P; subst.
-    apply (a (fst v) /\ IHm i0 t0 (snd v) b).
-Defined.
-
-Definition union_value_fits_aux (m m0: members)
-      (P: ListType (map (fun it => reptype (field_type2 (fst it) m0) -> Prop) m)) 
-      (v: compact_sum (map (fun it => reptype (field_type2 (fst it) m0)) m)) : Prop.
-Proof.
-  destruct m as [| (i0, t0) m]; [exact True |].
-  revert i0 t0 v P; induction m as [| (i0, t0) m]; intros ? ? v P.
-  + simpl in v, P.
-    inversion P; subst.
-    exact (a v).
-  + simpl in v, P.
-    inversion P; subst.
-    destruct v as [v | v].
-    - exact (a v).
-    - exact (IHm i0 t0 v b).
-Defined.
-
-Lemma struct_value_fits_aux_spec: forall m m0 v P,
-  struct_value_fits_aux m m0
-   (ListTypeGen
-     (fun it => reptype (field_type2 (fst it) m0) -> Prop)
-     P m) v =
-  struct_Prop m P v.
-Proof.
-  intros.
-  destruct m as [| (i0, t0) m]; [reflexivity |].
-  revert i0 t0 v; induction m as [| (i0, t0) m]; intros.
-  + simpl; reflexivity.
-  + replace
-     (struct_value_fits_aux ((i1, t1) :: (i0, t0) :: m) m0
-     (ListTypeGen (fun it : ident * type => reptype (field_type2 (fst it) m0) -> Prop)
-        P ((i1, t1) :: (i0, t0) :: m)) v) with
-     (P (i1, t1) (fst v) /\  struct_value_fits_aux ((i0, t0) :: m) m0 
-     (ListTypeGen (fun it : ident * type => reptype (field_type2 (fst it) m0) -> Prop)
-        P ((i0, t0) :: m)) (snd v)).
-    - rewrite IHm.
-      reflexivity.
-    - simpl.
-      destruct (ident_eq i1 i1); [| congruence].
-      reflexivity.
-Qed.
-
-Lemma union_value_fits_aux_spec: forall m m0 v P,
-  union_value_fits_aux m m0
-   (ListTypeGen
-     (fun it => reptype (field_type2 (fst it) m0) -> Prop)
-     P m) v =
-  union_Prop m P v.
-Proof.
-  intros.
-  destruct m as [| (i0, t0) m]; [reflexivity |].
-  revert i0 t0 v; induction m as [| (i0, t0) m]; intros.
-  + simpl. unfold union_Prop. simpl. reflexivity.
-  + destruct v as [v | v].
-    - reflexivity.
-    - apply IHm.
-Qed.
-
 Definition tc_val' t v := v<>Vundef -> tc_val t v.
 
 Definition value_fits (sh: bool): forall t, reptype t -> Prop :=
@@ -828,6 +721,17 @@ rewrite func_type_ind.
 destruct t; auto.
 apply struct_value_fits_aux_spec.
 apply union_value_fits_aux_spec.
+Qed.
+
+Lemma value_fits_type_changable: forall sh (t1 t2: type) v1 v2,
+  t1 = t2 ->
+  JMeq v1 v2 ->
+  value_fits sh t1 v1 = value_fits sh t2 v2.
+Proof.
+  intros.
+  subst t2.
+  rewrite H0.
+  reflexivity.
 Qed.
 
 Lemma empty_data_at': forall sh t v b ofs,

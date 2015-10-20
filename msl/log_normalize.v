@@ -232,6 +232,14 @@ Proof.
 Qed.
 Hint Rewrite @FF_andp @andp_FF : norm.
 
+Lemma orp_comm: forall {A: Type} `{NatDed A} (P Q: A), P || Q = Q || P.
+Proof.
+  intros.
+  apply pred_ext.
+  + apply orp_left; [apply orp_right2 | apply orp_right1]; auto.
+  + apply orp_left; [apply orp_right2 | apply orp_right1]; auto.
+Qed.
+
 Lemma FF_orp: forall {A: Type} `{NatDed A} (P: A), FF || P = P.
 Proof.
   intros.
@@ -241,6 +249,14 @@ Proof.
     apply derives_refl.
   + apply orp_right2.
     apply derives_refl.
+Qed.
+
+Lemma orp_FF {A}{NA: NatDed A}:
+  forall Q, Q || FF = Q.
+Proof.
+  intros.
+  rewrite orp_comm.
+  apply FF_orp.
 Qed.
 
 Lemma allp_forall: forall {A B: Type} `{NatDed A} P Q (x:B), (forall x:B, (P x = Q)) -> (allp P = Q).
@@ -754,6 +770,42 @@ Proof.
   + rewrite andp_left_corable by auto.
     apply sepcon_derives; auto.
     apply andp_left1; auto.
+Qed.
+
+Lemma prop_false_andp {A}{NA :NatDed A}:
+ forall P Q, ~P -> !! P && Q = FF.
+Proof.
+intros.
+apply pred_ext.
++ apply derives_extract_prop; tauto.
++ apply FF_left.
+Qed.
+
+Lemma andp_prop_derives: forall {A} {NA: NatDed A} (P P': Prop) (Q Q': A),
+  (P <-> P') ->
+  (P -> Q |-- Q') ->
+  !! P && Q |-- !! P' && Q'.
+Proof.
+  intros.
+  apply derives_extract_prop.
+  intros.
+  apply andp_right; [apply prop_right; tauto | auto].
+Qed.
+
+Lemma andp_prop_ext:
+ forall {A}{NA: NatDed A} (P P': Prop) (Q Q': A),
+  (P<->P') ->
+  (P -> (Q=Q')) ->
+  !! P && Q = !! P' && Q'.
+Proof.
+  intros.
+  apply pred_ext; apply andp_prop_derives.
+  + auto.
+  + intros.
+    rewrite H0 by auto; auto.
+  + tauto.
+  + intros.
+    rewrite H0 by tauto; auto.
 Qed.
 
 Ltac normalize1 := 

@@ -13,36 +13,6 @@ Require Import floyd.sublist.
 Open Scope Z.
 Open Scope logic.
 
-Lemma prop_false_andp {A}{NA :NatDed A}:
- forall P Q, ~P -> !! P && Q = FF.
-Proof.
-intros.
-apply pred_ext; normalize.
-Qed.
-
-Lemma orp_FF {A}{NA: NatDed A}:
- forall Q, Q || FF = Q.
-Proof.
-intros. apply pred_ext. apply orp_left; normalize. apply orp_right1; auto.
-Qed.
-
-Lemma FF_orp {A}{NA: NatDed A}:
- forall Q, FF || Q = Q.
-Proof.
-intros. apply pred_ext. apply orp_left; normalize. apply orp_right2; auto.
-Qed.
-
-Lemma Z2Nat_inj_0: forall z, z >= 0 -> Z.to_nat z = 0%nat -> z = 0.
-Proof.
-  intros.
-  destruct (zlt 0 z).
-  + replace z with (1 + (z - 1)) in H0 by omega.
-    rewrite Z2Nat.inj_add in H0 by omega.
-    change (Z.to_nat 1) with (1%nat) in H0.
-    inversion H0.
-  + omega.
-Qed.
-
 (******************************************
 
 Definition and lemmas about rangespec
@@ -133,6 +103,10 @@ Proof.
       omega.
 Qed.
 
+Inductive Forallz {A} (P: Z -> A->Prop) : Z -> list A -> Prop :=
+ | Forallz_nil : forall i, Forallz P i nil
+ | Forallz_cons : forall i x l, P i x -> Forallz P (Z.succ i) l -> Forallz P i (x::l).
+
 (******************************************
 
 Definition of aggregate predicates.
@@ -166,6 +140,33 @@ Proof.
     - exact (IHm i0 t0 v).
 Defined.
 
+Definition array_Prop {A: Type} (d:A) (lo hi: Z) (P: Z -> A -> Prop) (v: list A) : Prop :=
+   Zlength v = hi-lo /\ Forallz P 0 v.
+
+Definition struct_Prop (m: members) {A: ident * type -> Type} 
+                             (P: forall it, A it -> Prop) (v: compact_prod (map A m)) : Prop.
+Proof.
+  destruct m as [| (i0, t0) m]; [exact True |].
+  revert i0 t0 v; induction m as [| (i0, t0) m]; intros ? ? v.
+  + simpl in v.
+    exact (P _ v).
+  + simpl in v.
+    exact ((P _ (fst v)) /\ IHm i0 t0 (snd v)).
+Defined.
+
+Definition union_Prop (m: members) {A: ident * type -> Type} 
+               (P: forall it, A it -> Prop) (v: compact_sum (map A m)): Prop.
+Proof.
+  destruct m as [| (i0, t0) m]; [exact True |].
+  revert i0 t0 v; induction m as [| (i0, t0) m]; intros ? ? v.
+  + simpl in v.
+    exact (P _ v).
+  + simpl in v.
+    destruct v as [v | v].
+    - exact (P _ v).
+    - exact (IHm i0 t0 v).
+Defined.
+
 (******************************************
 
 Properties
@@ -191,18 +192,6 @@ Proof.
   simpl. rewrite sepcon_emp.
   unfold Znth. rewrite Z.sub_diag. rewrite if_false by omega. change (Z.to_nat 0) with 0%nat. auto.
 Qed. 
-
-Lemma andp_prop_ext:
- forall {A}{NA: NatDed A} (P P': Prop) (Q Q': A),
-  (P<->P') ->
-  (P -> (Q=Q')) ->
-  !! P && Q = !! P' && Q'.
-Proof.
-intros.
-apply pred_ext; intros; apply derives_extract_prop; intro;
-(apply andp_right; [apply prop_right; intuition | ]);
-rewrite H0; auto; intuition.
-Qed.
 
 Lemma split_array_pred: forall {A}  (d: A) lo mid hi P v p,
   lo <= mid <= hi ->
@@ -395,7 +384,7 @@ Lemma at_offset_struct_pred: forall m {A} (P: forall it, A it -> val -> mpred) v
 Proof.
   intros.
   rewrite at_offset_eq.
-  destruct m as [| (i0, t0) m]; [simpl; auto |].
+  destruct m as [| (i0, t0) m]; [auto |].
   revert i0 t0 v; induction m as [| (i1, t1) m]; intros.
   + simpl.
     rewrite at_offset_eq.
@@ -405,26 +394,32 @@ Proof.
     f_equal.
 Qed.
 
-Lemma coreable_andp_struct_pred: forall m {A} (P: forall it, A it -> val -> mpred) v p Q,
-  corable Q ->
-  Q && struct_pred m P v p =
+Lemma andp_struct_pred: forall m {A} (P: forall it, A it -> val -> mpred) v p Q R,
+  !! (Q /\ struct_Prop m R v) && struct_pred m P v p =
   match m with
-  | nil => Q && emp
-  | _ => struct_pred m (fun it v p => Q && P it v p) v p
+  | nil => !! Q && emp
+  | _ => struct_pred m (fun it v p => !! (Q /\ R it v) && P it v p) v p
   end.
 Proof.
   intros.
-  destruct m as [| (i0, t0) m]; [auto |].
+  destruct m as [| (i0, t0) m]; [simpl; f_equal; apply ND_prop_ext; tauto |].
   revert i0 t0 v; induction m as [| (i1, t1) m]; intros.
   + simpl.
     auto.
   + change (struct_pred ((i0, t0) :: (i1, t1) :: m) P v p)
       with (P (i0, t0) (fst v) p * struct_pred ((i1, t1) :: m) P (snd v) p).
-    pattern Q at 1; rewrite <- (andp_dup Q).
-    rewrite andp_assoc.
+    change (struct_Prop ((i0, t0) :: (i1, t1) :: m) R v)
+      with (R (i0, t0) (fst v) /\ struct_Prop ((i1, t1) :: m) R (snd v)).
+    rewrite !prop_and.
+    pattern (!! Q) at 1; rewrite <- (andp_dup (!! Q)).
+    rewrite !andp_assoc.
     rewrite <- corable_sepcon_andp1 by auto.
-    rewrite IHm.
     rewrite <- corable_andp_sepcon1 by auto.
+    rewrite <- corable_sepcon_andp1 by auto.
+    rewrite <- corable_andp_sepcon1 by auto.
+    rewrite <- !andp_assoc.
+    rewrite <- !prop_and.
+    rewrite IHm.
     reflexivity.
 Qed.
 
@@ -579,15 +574,15 @@ Proof.
     - apply IHm.
 Qed.
 
-Lemma andp_union_pred: forall m {A} (P: forall it, A it -> val -> mpred) v p Q,
-  Q && union_pred m P v p =
+Lemma andp_union_pred: forall m {A} (P: forall it, A it -> val -> mpred) v p Q R,
+  !! (Q /\ union_Prop m R v) && union_pred m P v p =
   match m with
-  | nil => Q && emp
-  | _ => union_pred m (fun it v p => Q && P it v p) v p
+  | nil => !! Q && emp
+  | _ => union_pred m (fun it v p => !! (Q /\ R it v) && P it v p) v p
   end.
 Proof.
   intros.
-  destruct m as [| (i0, t0) m]; [auto |].
+  destruct m as [| (i0, t0) m]; [simpl; f_equal; apply ND_prop_ext; tauto |].
   revert i0 t0 v; induction m as [| (i1, t1) m]; intros.
   + simpl.
     auto.
@@ -779,27 +774,15 @@ Export floyd.aggregate_type.aggregate_type.
 Definition array_pred: forall {A: Type} (d:A) (lo hi: Z) (P: Z -> A -> val -> mpred) (v: list A),
     val -> mpred := @array_pred.
 
-Definition struct_pred (m: members) {A: ident * type -> Type} (P: forall it, A it -> val -> mpred) (v: compact_prod (map A m)) (p: val): mpred.
-Proof.
-  destruct m as [| (i0, t0) m]; [exact emp |].
-  revert i0 t0 v; induction m as [| (i0, t0) m]; intros ? ? v.
-  + simpl in v.
-    exact (P _ v p).
-  + simpl in v.
-    exact ((P _ (fst v) p) * IHm i0 t0 (snd v)).
-Defined.
+Definition struct_pred: forall (m: members) {A: ident * type -> Type} (P: forall it, A it -> val -> mpred) (v: compact_prod (map A m)) (p: val), mpred := @struct_pred.
 
-Definition union_pred (m: members) {A: ident * type -> Type} (P: forall it, A it -> val -> mpred) (v: compact_sum (map A m)) (p: val): mpred.
-Proof.
-  destruct m as [| (i0, t0) m]; [exact emp |].
-  revert i0 t0 v; induction m as [| (i0, t0) m]; intros ? ? v.
-  + simpl in v.
-    exact (P _ v p).
-  + simpl in v.
-    destruct v as [v | v].
-    - exact (P _ v p).
-    - exact (IHm i0 t0 v).
-Defined.
+Definition union_pred: forall (m: members) {A: ident * type -> Type} (P: forall it, A it -> val -> mpred) (v: compact_sum (map A m)) (p: val), mpred := @union_pred.
+
+Definition array_Prop: forall {A: Type} (d:A) (lo hi: Z) (P: Z -> A -> Prop) (v: list A), Prop := @array_Prop.
+
+Definition struct_Prop: forall (m: members) {A: ident * type -> Type} (P: forall it, A it -> Prop) (v: compact_prod (map A m)), Prop := @struct_Prop.
+
+Definition union_Prop: forall (m: members) {A: ident * type -> Type} (P: forall it, A it -> Prop) (v: compact_sum (map A m)), Prop := union_Prop.
 
 Definition array_pred_len_0: forall {A} (d:A) lo hi P v p,
   hi <= lo ->
@@ -863,14 +846,13 @@ Definition at_offset_struct_pred: forall m {A} (P: forall it, A it -> val -> mpr
   at_offset (struct_pred m P v) ofs p = struct_pred m (fun it v => at_offset (P it v) ofs) v p
 := @at_offset_struct_pred.
 
-Definition andp_struct_pred: forall m {A} (P: forall it, A it -> val -> mpred) v p Q,
-  corable Q ->
-  Q && struct_pred m P v p =
+Definition andp_struct_pred: forall m {A} (P: forall it, A it -> val -> mpred) v p Q R,
+  !! (Q /\ struct_Prop m R v) && struct_pred m P v p =
   match m with
-  | nil => Q && emp
-  | _ => struct_pred m (fun it v p => Q && P it v p) v p
+  | nil => !! Q && emp
+  | _ => struct_pred m (fun it v p => !! (Q /\ R it v) && P it v p) v p
   end
-:= @coreable_andp_struct_pred.
+:= @andp_struct_pred.
 
 Definition union_pred_ext_derives:
   forall m {A0 A1} (P0: forall it, A0 it -> val -> mpred) (P1: forall it, A1 it -> val -> mpred) v0 v1 p,
@@ -894,11 +876,11 @@ Definition at_offset_union_pred: forall m {A} (P: forall it, A it -> val -> mpre
   at_offset (union_pred m P v) ofs p = union_pred m (fun it v => at_offset (P it v) ofs) v p
 := at_offset_union_pred.
 
-Definition andp_union_pred: forall m {A} (P: forall it, A it -> val -> mpred) v p Q,
-  Q && union_pred m P v p =
+Definition andp_union_pred: forall m {A} (P: forall it, A it -> val -> mpred) v p Q R,
+  !! (Q /\ union_Prop m R v) && union_pred m P v p =
   match m with
-  | nil => Q && emp
-  | _ => union_pred m (fun it v p => Q && P it v p) v p
+  | nil => !! Q && emp
+  | _ => union_pred m (fun it v p => !! (Q /\ R it v) && P it v p) v p
   end
 := @andp_union_pred.
 
@@ -1006,6 +988,78 @@ Proof.
     - apply IHm.
 Qed.
 
+Definition struct_value_fits_aux (m m0: members)
+      (P: ListType (map (fun it => reptype (field_type2 (fst it) m0) -> Prop) m))
+      (v: compact_prod (map (fun it => reptype (field_type2 (fst it) m0)) m)) : Prop.
+Proof.
+  destruct m as [| (i0, t0) m]; [exact True |].
+  revert i0 t0 v P; induction m as [| (i0, t0) m]; intros ? ? v P.
+  + simpl in v, P.
+    inversion P; subst.
+    apply (a v).
+  + simpl in v, P.
+    destruct (ident_eq i1 i1); [| congruence].
+    inversion P; subst.
+    apply (a (fst v) /\ IHm i0 t0 (snd v) b).
+Defined.
+
+Definition union_value_fits_aux (m m0: members)
+      (P: ListType (map (fun it => reptype (field_type2 (fst it) m0) -> Prop) m)) 
+      (v: compact_sum (map (fun it => reptype (field_type2 (fst it) m0)) m)) : Prop.
+Proof.
+  destruct m as [| (i0, t0) m]; [exact True |].
+  revert i0 t0 v P; induction m as [| (i0, t0) m]; intros ? ? v P.
+  + simpl in v, P.
+    inversion P; subst.
+    exact (a v).
+  + simpl in v, P.
+    inversion P; subst.
+    destruct v as [v | v].
+    - exact (a v).
+    - exact (IHm i0 t0 v b).
+Defined.
+
+Lemma struct_value_fits_aux_spec: forall m m0 v P,
+  struct_value_fits_aux m m0
+   (ListTypeGen
+     (fun it => reptype (field_type2 (fst it) m0) -> Prop)
+     P m) v =
+  struct_Prop m P v.
+Proof.
+  intros.
+  destruct m as [| (i0, t0) m]; [reflexivity |].
+  revert i0 t0 v; induction m as [| (i0, t0) m]; intros.
+  + simpl; reflexivity.
+  + replace
+     (struct_value_fits_aux ((i1, t1) :: (i0, t0) :: m) m0
+     (ListTypeGen (fun it : ident * type => reptype (field_type2 (fst it) m0) -> Prop)
+        P ((i1, t1) :: (i0, t0) :: m)) v) with
+     (P (i1, t1) (fst v) /\  struct_value_fits_aux ((i0, t0) :: m) m0 
+     (ListTypeGen (fun it : ident * type => reptype (field_type2 (fst it) m0) -> Prop)
+        P ((i0, t0) :: m)) (snd v)).
+    - rewrite IHm.
+      reflexivity.
+    - simpl.
+      destruct (ident_eq i1 i1); [| congruence].
+      reflexivity.
+Qed.
+
+Lemma union_value_fits_aux_spec: forall m m0 v P,
+  union_value_fits_aux m m0
+   (ListTypeGen
+     (fun it => reptype (field_type2 (fst it) m0) -> Prop)
+     P m) v =
+  union_Prop m P v.
+Proof.
+  intros.
+  destruct m as [| (i0, t0) m]; [reflexivity |].
+  revert i0 t0 v; induction m as [| (i0, t0) m]; intros.
+  + simpl. unfold union_Prop. simpl. reflexivity.
+  + destruct v as [v | v].
+    - reflexivity.
+    - apply IHm.
+Qed.
+
 End AUXILIARY_PRED.
 
 Module auxiliary_pred.
@@ -1045,6 +1099,34 @@ Definition union_data_at'_aux_spec: forall {cs: compspecs} sh m m0 sz v P,
        sz
        (P it v)) v
 := @union_data_at'_aux_spec.
+
+Definition struct_value_fits_aux:
+  forall {cs: compspecs} (m m0: members)
+      (P: ListType (map (fun it => reptype (field_type2 (fst it) m0) -> Prop) m))
+      (v: compact_prod (map (fun it => reptype (field_type2 (fst it) m0)) m)), Prop
+:= @struct_value_fits_aux.
+
+Definition union_value_fits_aux:
+  forall {cs: compspecs} (m m0: members)
+      (P: ListType (map (fun it => reptype (field_type2 (fst it) m0) -> Prop) m)) 
+      (v: compact_sum (map (fun it => reptype (field_type2 (fst it) m0)) m)), Prop
+:= @union_value_fits_aux.
+
+Definition struct_value_fits_aux_spec: forall {cs: compspecs} m m0 v P,
+  struct_value_fits_aux m m0
+   (ListTypeGen
+     (fun it => reptype (field_type2 (fst it) m0) -> Prop)
+     P m) v =
+  struct_Prop m P v
+:= @struct_value_fits_aux_spec.
+
+Definition union_value_fits_aux_spec: forall {cs: compspecs} m m0 v P,
+  union_value_fits_aux m m0
+   (ListTypeGen
+     (fun it => reptype (field_type2 (fst it) m0) -> Prop)
+     P m) v =
+  union_Prop m P v
+:= @union_value_fits_aux_spec.
 
 Definition memory_block_array_pred:
   forall {cs: compspecs} (A : Type) (d : A) sh t z b ofs,
