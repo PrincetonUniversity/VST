@@ -98,7 +98,7 @@ Proof. intros. abbreviate_semax.
       assert (V: exists v yT, yy = (Vint v)::yT).
         destruct yy. rewrite app_nil_r in APP2. subst l1 xInit. 
          rewrite upd_upto_Zlength in L1. omega. 
-         rewrite Zlength_list_repeat. trivial. simpl; omega. subst xInit. 
+         rewrite Zlength_list_repeat'. trivial. simpl; omega. subst xInit. 
         rewrite <- APP2, app_Znth2, L1, Zminus_diag, Znth_0_cons in Vi. rewrite Vi.
         eexists; eexists; reflexivity. omega.
       destruct V as [v [yT ?]]. subst yy; simpl.
@@ -114,7 +114,7 @@ Proof. intros. abbreviate_semax.
         apply prop_right. clear - APP2 APP3 I L2. 
         assert (TT: exists lT, l2 = Vundef::lT).
         { destruct l2.
-            rewrite app_nil_r in *. subst xx; rewrite <- L2, Zlength_list_repeat in I. simpl in I; omega. 
+            rewrite app_nil_r in *. subst xx; rewrite <- L2, Zlength_list_repeat' in I. simpl in I; omega. 
             rewrite (in_list_repeat 16 Vundef v). eexists; reflexivity.
               rewrite <- APP3. apply in_app. right; left; trivial. }
         destruct TT as [lT LT2]; subst l2.

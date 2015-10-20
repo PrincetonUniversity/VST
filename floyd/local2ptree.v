@@ -1324,3 +1324,88 @@ revert tys vl H; induction el; destruct tys, vl; intros;
  auto.
 Qed. 
 
+(**********************************************************)
+(* Continuation *)
+
+Require Import veric.xexpr_rel.
+
+Inductive l_cont : Type :=
+  | LC_deref : r_cont -> l_cont
+  | LC_field : l_cont -> type -> ident -> l_cont
+with r_cont : Type :=
+  | RC_addrof : l_cont -> r_cont
+  | RC_unop : unary_operation -> r_cont -> type -> r_cont
+  | RC_binop_l : binary_operation -> r_cont -> type -> r_value -> type -> r_cont
+  | RC_binop_r : binary_operation -> val -> type -> r_cont -> type -> r_cont
+  | RC_cast : r_cont -> type -> type -> r_cont
+  | RC_byref: l_cont -> r_cont
+  | RC_load: r_cont.
+
+
+Definition sum_map {A B C D : Type} (f : A -> B) (g: C -> D) (x : A + C) :=
+match x with
+| inl y => inl (f y)
+| inr z => inr (g z)
+end.
+
+Definition prod_left_map {A B C} (f: A -> B) (x: A * C) : B * C :=
+  match x with
+  | (x1, x2) => (f x1, x2)
+  end.
+
+Definition compute_cont_map {A B} (f: val -> val) (g: A -> B) : option (val + (A * (l_value * type))) -> option (val + (B * (l_value * type))) := option_map (sum_map f (prod_left_map g)).
+
+Fixpoint compute_r_cont {cs: compspecs} (T1: PTree.t val) (T2: PTree.t vardesc) (e: r_value) : option (val + (r_cont * (l_value * type))) :=
+  match e with
+  | R_const v => Some (inl v)
+  | R_tempvar id => option_map inl (PTree.get id T1)
+  | R_addrof a => compute_cont_map id RC_addrof (compute_l_cont T1 T2 a)
+  | R_unop op a ta => compute_cont_map (eval_unop op ta) (fun c => RC_unop op c ta) (compute_r_cont T1 T2 a)
+  | R_binop op a1 ta1 a2 ta2 =>
+      match compute_r_cont T1 T2 a1 with
+      | Some (inl v1) => compute_cont_map (eval_binop op ta1 ta2 v1) (fun c => RC_binop_r op v1 ta1 c ta2) (compute_r_cont T1 T2 a2)
+      | Some (inr (c, e_cont)) => Some (inr (RC_binop_l op c ta1 a2 ta2, e_cont))
+      | None => None
+      end
+  | R_cast a ta ty => compute_cont_map (eval_cast ta ty) (fun c => RC_cast c ta ty) (compute_r_cont T1 T2 a)
+  | R_byref a => compute_cont_map id RC_byref (compute_l_cont T1 T2 a)
+  | R_load a ty => Some (inr (RC_load, (a, ty)))
+  | R_ilegal _ => None
+  end
+with compute_l_cont {cs: compspecs} (T1: PTree.t val) (T2: PTree.t vardesc) (e: l_value) : option (val + (l_cont * (l_value * type))) :=
+  match e with
+  | L_var id ty => option_map inl (eval_vardesc ty (PTree.get id T2))
+  | L_deref a => compute_cont_map force_ptr LC_deref (compute_r_cont T1 T2 a)
+  | L_field a ta i => compute_cont_map (eval_field ta i) (fun c => LC_field c ta i) (compute_l_cont T1 T2 a)
+  | L_ilegal _ => None
+  end.
+
+Fixpoint fill_r_cont (e: r_cont) (v: val): r_value :=
+  match e with
+  | RC_addrof a => R_addrof (fill_l_cont a v)
+  | RC_unop op a ta => R_unop op (fill_r_cont a v) ta
+  | RC_binop_l op a1 ta1 a2 ta2 => R_binop op (fill_r_cont a1 v) ta1 a2 ta2
+  | RC_binop_r op v1 ta1 a2 ta2 => R_binop op (R_const v1) ta1 (fill_r_cont a2 v) ta2
+  | RC_cast a ta ty => R_cast (fill_r_cont a v) ta ty
+  | RC_byref a => R_byref (fill_l_cont a v)
+  | RC_load => R_const v
+  end
+with fill_l_cont (e: l_cont) (v: val): l_value :=
+  match e with
+  | LC_deref a => L_deref (fill_r_cont a v)
+  | LC_field a ta i => L_field (fill_l_cont a v) ta i
+  end.
+
+(*
+Check rel_r_value.
+Lemma compute_LR_cont_sound: forall (cs: compspecs) (T1: PTree.t val) (T2: PTree.t vardesc) P Q R,
+  (forall e v,
+    compute_r_cont T1 T2 e = Some (inl v) ->
+    PROPx P (LOCALx (LocalD T1 T2 Q) (SEPx R)) |-- rel_r_value e v) /\
+  (forall e v c e0 sh t p v0,
+    compute_r_cont T1 T2 e = Some (inr (c, (e0, t))) ->
+    PROPx P (LOCALx (LocalD T1 T2 Q) (SEPx R)) |-- rel_l_value e0 p ->
+    PROPx P (LOCALx (LocalD T1 T2 Q) (SEPx R)) |-- `(mapsto sh t p v0) ->
+    PROPx P (LOCALx (LocalD T1 T2 Q) (SEPx R)) |-- rel_r_value (fill_r_cont c v0) v ->
+    PROPx P (LOCALx (LocalD T1 T2 Q) (SEPx R)) |-- rel_r_value e v). /\
+*)

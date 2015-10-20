@@ -293,7 +293,7 @@ rewrite !(prop_true_andp _ _ f).
 rewrite (prop_true_andp (field_compatible list_struct (StructField list_link :: nil) p))
    by admit.
 normalize.
-apply aggregate_pred.andp_prop_ext.
+apply andp_prop_ext.
 admit.
 intro HV.
 clear HV.

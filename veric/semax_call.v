@@ -98,9 +98,6 @@ Qed.
 Lemma someP_inj:  forall A P Q, SomeP A P = SomeP A Q -> P=Q.
 Proof. intros. injection H; intro. apply inj_pair2 in H0. auto. Qed.
 
-Lemma prop_unext: forall P Q: Prop, P=Q -> (P<->Q).
-Proof. intros. subst; split; auto. Qed.
-
 Lemma function_pointer_aux:
   forall A P P' Q Q' (w: rmap), 
    SomeP (A::boolT::environ::nil) (approx (level w) oo packPQ P Q) =

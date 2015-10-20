@@ -1834,6 +1834,13 @@ Definition type_is_by_value t : bool :=
   | _ => false
   end.
 
+Definition type_is_by_reference t : bool :=
+  match t with
+  | Tarray _ _ _
+  | Tfunction _ _ _ => true
+  | _ => false
+  end.
+
 Lemma unsigned_eq_eq: forall i j, Int.unsigned i = Int.unsigned j -> i = j.
 Proof.
   intros.

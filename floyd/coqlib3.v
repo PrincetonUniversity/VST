@@ -345,3 +345,15 @@ Proof.
       rewrite andb_true_iff in H.
       tauto.
 Qed.
+
+Lemma Z2Nat_inj_0: forall z, z >= 0 -> Z.to_nat z = 0%nat -> z = 0.
+Proof.
+  intros.
+  destruct (zlt 0 z).
+  + replace z with (1 + (z - 1)) in H0 by omega.
+    rewrite Z2Nat.inj_add in H0 by omega.
+    change (Z.to_nat 1) with (1%nat) in H0.
+    inversion H0.
+  + omega.
+Qed.
+
