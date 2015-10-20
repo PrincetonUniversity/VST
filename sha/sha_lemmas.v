@@ -194,15 +194,17 @@ Fixpoint sequenceN (n: nat) (s: statement) : list statement :=
  | _, _ => nil
  end.
 
-Lemma datablock_local_facts:
+Lemma data_block_local_facts:
  forall sh f data,
-  data_block sh f data |-- prop (isptr data /\ Forall isbyteZ f).
+  data_block sh f data |-- 
+   prop (field_compatible (tarray tuchar (Zlength f)) [] data
+           /\ Forall isbyteZ f).
 Proof.
 intros. unfold data_block, array_at.
 simpl.
 entailer.
 Qed.
-Hint Resolve datablock_local_facts : saturate_local.
+Hint Resolve data_block_local_facts : saturate_local.
 
 Require Import JMeq.
 
