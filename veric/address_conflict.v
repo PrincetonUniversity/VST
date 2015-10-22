@@ -1,14 +1,8 @@
 (* This file is developed by Qinxiang Cao, Aquinas Hobor and Shengyi Wang in 2015. *)
 
 Require Export veric.base.
-Require Import msl.rmaps.
-Require Import msl.rmaps_lemmas.
-Require Import veric.compcert_rmaps.
-Require Import veric.slice.
-Require Import veric.Clight_lemmas.
 Require Import veric.tycontext.
 Require Import veric.expr2.
-Require Import veric.shares.
 
 Lemma range_overlap_spec: forall l1 n1 l2 n2,
   n1 > 0 ->

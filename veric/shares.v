@@ -158,7 +158,7 @@ Proof.
 Admitted.  (* share hacking *)
 
 Lemma right_nonempty_readable:
-  forall rsh sh, sepalg.nonidentity sh -> 
+  forall rsh sh, sepalg.nonidentity sh <-> 
      readable_share (Share.splice rsh sh).
 Proof.
 intros.
@@ -168,7 +168,7 @@ rewrite <- (Share.rel_top1 Share.Rsh) at 2.
 rewrite <- Share.rel_preserves_glb.
 rewrite (Share.glb_commute Share.top).
 rewrite Share.glb_top.
-red in H. red. red. contradict H.
+(* red in H. red. red. contradict H. *)
 Admitted.
 
 Lemma Lsh_nonidentity:   sepalg.nonidentity Share.Lsh.

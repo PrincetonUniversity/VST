@@ -661,6 +661,10 @@ Proof.
     - apply address_mapsto_share_join.
       1: apply join_unrel; auto.
       1: apply join_unrel; auto.
+      1: rewrite <- splice_unrel_unrel in r.
+         apply right_nonempty_readable in r; apply nonidentity_nonunit in r; auto.
+      1: rewrite <- splice_unrel_unrel in r0.
+         apply right_nonempty_readable in r0; apply nonidentity_nonunit in r0; auto.
     - rewrite exp_sepcon1.
       pose proof (@exp_congr (pred rmap) (algNatDed _) val); simpl in H0; apply H0; clear H0; intro.
       rewrite exp_sepcon2.
@@ -675,6 +679,10 @@ Proof.
       * apply address_mapsto_share_join.
         1: apply join_unrel; auto.
         1: apply join_unrel; auto.
+        1: rewrite <- splice_unrel_unrel in r.
+           apply right_nonempty_readable in r; apply nonidentity_nonunit in r; auto.
+        1: rewrite <- splice_unrel_unrel in r0.
+           apply right_nonempty_readable in r0; apply nonidentity_nonunit in r0; auto.
   + rewrite if_true by (eapply join_sub_readable; [unfold join_sub; eauto | auto]).
     rewrite distrib_orp_sepcon.
     f_equal; rewrite sepcon_comm, sepcon_andp_prop; f_equal.
