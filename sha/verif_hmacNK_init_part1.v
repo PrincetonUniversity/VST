@@ -200,7 +200,9 @@ Proof. intros. abbreviate_semax.
                rewrite memory_block_zero_Vptr. entailer. 
       }
       forward_call (init_s256abs, key, Vptr cb cofs, Vptr kb kofs, Tsh, l, kv) ctxSha.
-      { unfold data_block. 
+      { (*Issue: this side condition is NEW*)
+        apply prop_right. simpl. rewrite Int.add_zero, <- KL1. split; trivial. }
+      { unfold data_block.
         (*Issue: calling entailer or normalize here yields 
              "Anomaly: undefined_evars_of_term: evar not found. Please report."*)
         assert (FR: Frame = [
@@ -211,8 +213,8 @@ Proof. intros. abbreviate_semax.
          data_at_ Tsh (Tarray tuchar 64 noattr) pad;
          data_at_ Tsh (Tarray tuchar 64 noattr) (Vptr ckb ckoff)]).
           subst Frame; reflexivity.
-        rewrite FR; clear FR Frame.
-        simpl. normalize.
+         rewrite FR; clear FR Frame. 
+         simpl. (*Issue: Yes, simpl is crucial here*) normalize.
       }
       { clear Frame HeqPostIf_j_Len HeqPostKeyNull.
         specialize Int.max_signed_unsigned.
@@ -424,6 +426,9 @@ Proof. intros.
      forward_call (Tsh, Vptr ckb (Int.add ckoff (Int.repr (Zlength key))), l64, Int.zero)
        vret.
      { rewrite (lvar_eval_var _ _ _ _ H0). split; trivial. }
+     { (*Issue: this side condition is NEW*) 
+       apply prop_right. simpl. rewrite Int.mul_commut, Int.mul_one.
+       rewrite sub_repr, <- KL1, Heql64. split; trivial. }
      { rewrite <- KL1.
        match goal with |- _ * _ * ?A * _ * _ * _ |-- _ => 
                   pull_left A end.

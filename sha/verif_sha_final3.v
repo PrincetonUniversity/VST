@@ -506,10 +506,7 @@ Proof.
         reflexivity.
       } Unfocus.
       rewrite map_id.
-     rewrite prop_true_andp.
       cancel.
-      simplify_value_fits.
-      normalize.
   * unfold lastblock'.
      erewrite Zlength_Zlist_to_intlist. reflexivity.
      rewrite Zlength_map; assumption.

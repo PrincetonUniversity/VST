@@ -376,10 +376,10 @@ apply align_compatible_tarray_tuchar.
   split.
   rewrite Znth_map with (d':=Int.zero) by omega.
   rewrite Znth_big_endian_integer by omega.
-  f_equal. simpl force_val. f_equal. f_equal.
-  rewrite BYTES. f_equal. change WORD with 4; clear; omega.
-
-  f_equal.
+  f_equal. simpl. f_equal. f_equal.
+  rewrite BYTES. f_equal.
+  change WORD with 4; clear; omega.
+  simpl; f_equal.
   destruct md; try contradiction; simpl.
   unfold field_address0. rewrite if_true by auto.
   unfold offset_val. f_equal. f_equal. f_equal.

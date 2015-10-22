@@ -47,7 +47,7 @@ forward_if  (
   { (* Branch2 *) forward. entailer. } 
 normalize.
 remember (HMACabs init_s256abs init_s256abs init_s256abs) as dummyHMA.
-assert_PROP (isptr k). entailer. 
+assert_PROP (isptr k). { unfold data_block. normalize. rewrite data_at_isptr with (p:=k). entailer!. (*Issue: need to do unfold data_block. normalize. rewrite data_at_isptr with (p:=k). here is NEW*) }
 rename H into isPtrK. 
 forward_call (c, k, kl, key, kv, dummyHMA) h0. 
  { apply isptrD in isPtrK. destruct isPtrK as [kb [kofs HK]]. rewrite HK.
@@ -56,10 +56,10 @@ forward_call (c, k, kl, key, kv, dummyHMA) h0.
 normalize. rename H into HmacInit. 
 assert_PROP (s256a_len (absCtxt h0) = 512).
   { unfold hmacstate_. entailer. apply prop_right. 
-    destruct h0; simpl in *.  
-    destruct H3 as [reprMD [reprI [reprO [iShaLen oShaLen]]]].
+    destruct h0; simpl in *.
+    destruct H4 as [reprMD [reprI [reprO [iShaLen oShaLen]]]].
     inversion HmacInit; clear HmacInit.
-    destruct H3 as [oS [InnSHA [OntSHA XX]]]. inversion XX; clear XX.
+    destruct H4 as [oS [InnSHA [OntSHA XX]]]. inversion XX; clear XX.
     subst. assumption.
   }
 rename H into H0_len512.

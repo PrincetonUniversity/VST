@@ -389,7 +389,9 @@ repeat rewrite <- QuadByteValList_ZLength. simpl.
                  Select16Q Key2 i) v. 
 Opaque core_spec. Opaque ld32_spec. Opaque L32_spec. Opaque st32_spec.
 Opaque crypto_core_salsa20_spec. Opaque crypto_core_hsalsa20_spec.
-  { destruct (Select_SplitSelect16Q_Zlength _ _ _ _ HeqFB_K2 I) as [FK2 _]; rewrite FK2. apply prop_right; trivial. }
+  { destruct (Select_SplitSelect16Q_Zlength _ _ _ _ HeqFB_K2 I) as [FK2 _]; rewrite FK2.
+     apply prop_right; simpl. do 2 rewrite Int.mul_commut, Int.mul_one. rewrite mul_repr. 
+     trivial. }
 
   normalize. subst v.
   apply semax_pre with (P':=

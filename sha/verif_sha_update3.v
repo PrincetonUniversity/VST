@@ -60,7 +60,7 @@ Lemma update_inner_if_else_proof:
                  (map Vint (hash_blocks init_registers hashed),
                   (Vint (lo_part (bitlength hashed dd + (len)*8)),
                    (Vint (hi_part (bitlength hashed dd + (len)*8)),
-                    (map Vint (map Int.repr dd),
+                    (map Vint (map Int.repr dd) ++ list_repeat (Z.to_nat (CBLOCKz-Zlength dd)) Vundef,
                      Vint (Int.repr (Zlength dd))))))
                c);
          `(K_vector kv);
@@ -88,7 +88,9 @@ Proof.
  eapply semax_seq'.
  evar (Frame: list (LiftEnviron mpred)).
   eapply(call_memcpy_tuchar
-   (*dst*) Tsh t_struct_SHA256state_st [StructField _data] (Zlength dd) (map Vint (map Int.repr dd)) c
+   (*dst*) Tsh t_struct_SHA256state_st [StructField _data] (Zlength dd)
+                     (map Vint (map Int.repr dd) ++
+         list_repeat (Z.to_nat (CBLOCKz - Zlength dd)) Vundef) c
    (*src*) sh (tarray tuchar (Zlength data)) [ ] 0 (map Int.repr data)  d
    (*len*) (len)
         Frame);
@@ -112,6 +114,13 @@ Proof.
  assert (H5: (0 <= Zlength dd < 64)%Z) by (Omega1).
  assert (H6: (k = 64 - Zlength dd)%Z) by (unfold k; auto).
  autorewrite with sublist.
+ change 64%Z with CBLOCKz.
+ replace (CBLOCKz - (Zlength dd + (CBLOCKz - Zlength dd)))%Z
+   with 0%Z by (clear; omega).
+  change (list_repeat (Z.to_nat 0) Vundef) with (@nil val).
+  rewrite <- app_nil_end.
+  autorewrite with sublist.
+  rewrite sublist_list_repeat by Omega1.
  clear H5 H6.
   forward. (* c->num = n+(unsigned int)len; *)
   forward. (* return; *)
@@ -143,13 +152,7 @@ Proof.
  rewrite !Z.mul_add_distr_r, !Z.add_assoc.
  repeat split; auto; try Omega1.
  rewrite Forall_app; split; auto; apply Forall_firstn; auto.
- rewrite prop_true_andp.
- rewrite !map_app, <- !sublist_map, app_assoc.
  cancel.
-*
- simplify_value_fits. normalize.
- repeat simple apply conj; auto.
- clear - H8.
  repeat rewrite map_app. repeat rewrite <- sublist_map.
  rewrite <- app_assoc. auto.
 Qed.
