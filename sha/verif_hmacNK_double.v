@@ -22,20 +22,7 @@ Require Import hmac_pure_lemmas.
 Require Import hmac_common_lemmas.
 Require Import sha.spec_hmacNK.
 
-Lemma split2_data_at_Tarray_at_tuchar_fold {cs} sh n n1 v p: 0 <= n1 <= n -> n = Zlength v -> n < Int.modulus ->
-   field_compatible (Tarray tuchar n noattr) [] p ->
-  (@data_at cs sh (Tarray tuchar n1 noattr) (sublist 0 n1 v) p *
-   at_offset (@data_at cs sh (Tarray tuchar (n - n1) noattr) (sublist n1 (Zlength v) v)) n1 p)%logic
-|-- 
-  @data_at cs sh (Tarray tuchar n noattr) v p.
-Admitted. (* proof is in tweetnacl/split_array.v*)
-
-Lemma memory_block_valid_ptr:
-  forall sh n p, n > 0 ->
-     memory_block sh n p |-- valid_pointer p.
-Proof.
-intros.
-Admitted. (* In analogy to floyd/field_at.data_at: surely true ;-)*)
+Require Import split_array_lemmas. 
 
 Definition HMAC_Double_spec :=
   DECLARE _HMAC
@@ -93,7 +80,7 @@ forward_if  (
    `(data_block Tsh data d); `(K_vector kv);
    `(memory_block shmd 64 md))).
   { apply denote_tc_comparable_split. 
-       apply sepcon_valid_pointer2. apply memory_block_valid_ptr. omega.
+       apply sepcon_valid_pointer2. apply memory_block_valid_ptr. auto. omega.
        apply valid_pointer_zero. }
   { (* Branch1 *) exfalso. subst md. contradiction.  }
   { (* Branch2 *) forward. entailer. } 
