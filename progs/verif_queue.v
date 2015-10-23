@@ -98,6 +98,16 @@ Qed.
 
 Hint Resolve Qsh_nonempty : valid_pointer.
 
+Lemma Qsh_nonidentity: sepalg.nonidentity Qsh.
+Proof.
+  intro.
+  apply identity_share_bot in H.
+  apply Qsh_nonempty in H.
+  auto.
+Qed.
+
+Hint Resolve Qsh_nonidentity : valid_pointer.
+
 Lemma Qsh_Qsh': sepalg.join Qsh Qsh' Tsh.
 Proof.
 unfold Qsh, Qsh', Share.Lsh, Share.Rsh.
@@ -388,7 +398,8 @@ destruct (isnil contents).
     rewrite lseg_cons_eq by auto. 
     entailer.
  destruct h; try contradiction.
-  entailer;
+  entailer!.
+apply andp_right; entailer!;
  fail. Admitted.  (* This hack because otherwise we run out of memory *)
    (* Each individual body_fifo_xxx can fit in memory, but not all of them. *)
 (*Qed.*)

@@ -22,6 +22,7 @@ Require veric.seplog.
 Require veric.assert_lemmas. 
 Require Import msl.Coqlib2.
 Require Import veric.juicy_extspec.
+Require Import veric.valid_pointer.
 
 Instance Nveric: NatDed mpred := algNatDed compcert_rmaps.RML.R.rmap.
 Instance Sveric: SepLog mpred := algSepLog compcert_rmaps.RML.R.rmap.
@@ -177,9 +178,6 @@ Definition denote_tc_initialized id ty rho : mpred :=
 
 Definition denote_tc_isptr v : mpred :=
   prop (isptr v).
-
-Definition weak_valid_pointer (p: val) : mpred :=
- orp (valid_pointer' p 0) (valid_pointer' p (-1)).
 
 Definition comparable_ptrs v1 v2 : mpred :=
   if sameblock v1 v2
@@ -512,6 +510,19 @@ Definition size_compatible {C: compspecs} t p :=
   | Vptr b i_ofs => Int.unsigned i_ofs + sizeof cenv_cs t <= Int.modulus
   | _ => True
   end.
+
+Lemma mapsto_valid_pointer: forall {cs: compspecs} sh t p v i,
+  size_compatible t p ->
+  0 <= i < sizeof cenv_cs t ->
+  sepalg.nonidentity sh ->
+  mapsto sh t p v |-- valid_pointer (offset_val (Int.repr i) p).
+Proof. exact @mapsto_valid_pointer. Qed.
+
+Lemma memory_block_valid_pointer: forall {cs: compspecs} sh n p i,
+  0 <= i < n ->
+  sepalg.nonidentity sh ->
+  memory_block sh n p |-- valid_pointer (offset_val (Int.repr i) p).
+Proof. exact @memory_block_valid_pointer. Qed.
 
 Definition eval_lvar (id: ident) (ty: type) (rho: environ) :=
  match Map.get (ve_of rho) id with

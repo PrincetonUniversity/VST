@@ -280,6 +280,14 @@ intros.
 apply allp_right; intro x; apply allp_left with x; auto.
 Qed.
 
+Lemma allp_congr: 
+       forall {A: Type}  {NA: NatDed A} (B: Type) (P Q: B -> A), 
+               (forall x:B, P x = Q x) -> (allp P = allp Q).
+Proof.
+intros.
+apply pred_ext; apply allp_derives; intros; rewrite H; auto.
+Qed.
+
 Lemma allp_andp: forall {A B: Type} `{NatDed A} (P Q: B -> A), allp (P && Q) = allp P && allp Q.
 Proof.
   intros.
@@ -364,6 +372,14 @@ Proof.
   intros.
   eapply CCC_expo_derives; auto.
   apply andp_imp_CCC.
+Qed.
+
+Lemma imp_right2: forall {A} {NA: NatDed A} (P Q : A), P |-- Q --> P.
+Proof.
+  intros.
+  apply imp_andp_adjoint.
+  apply andp_left1.
+  auto.
 Qed.
 
 Lemma  distrib_sepcon_andp {A}{ND: NatDed A}{SL: SepLog A}: 

@@ -357,3 +357,11 @@ Proof.
   + omega.
 Qed.
 
+Lemma Z2Nat_id': forall n, Z.of_nat (Z.to_nat n) = Z.max 0 n.
+Proof.
+intros.
+ destruct (zlt n 0).
+ rewrite Z2Nat_neg by auto. rewrite Z.max_l by omega; reflexivity.
+ rewrite Z2Nat.id, Z.max_r by omega; omega.
+Qed.
+

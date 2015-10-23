@@ -299,3 +299,23 @@ rewrite Share.distrib1, H0,H1.
 rewrite Share.lub_bot.
 apply bot_identity.
 Qed.
+
+Lemma nonidentity_rel_Lsh: forall t, nonidentity (Share.rel Share.Lsh t) -> nonidentity t.
+Proof.
+  intros.
+  rewrite <- splice_bot2 in H.
+  intro.
+  apply H; clear H.
+  intros ? ? ?.
+  rewrite <- (splice_unrel_unrel a), <- (splice_unrel_unrel b) in H |- *.
+  forget (Share.unrel Share.Lsh a) as sh0.
+  forget (Share.unrel Share.Rsh a) as sh1.
+  forget (Share.unrel Share.Lsh b) as sh2.
+  forget (Share.unrel Share.Rsh b) as sh3.
+  apply join_splice2 in H.
+  destruct H.
+  apply H0 in H.
+  apply bot_identity in H1.
+  subst.
+  auto.
+Qed.
