@@ -22,7 +22,7 @@ Proof.
   repeat rewrite -> bytesToBits_app.
   repeat rewrite -> bits_bytes_bits_id.
   rewrite <- app_assoc.
-  rewrite -> Zlength_app.
+  rewrite -> sublist.Zlength_app.
   repeat f_equal.
 
   * apply bitsToBytes_len. apply len.

@@ -148,7 +148,7 @@ Proof. unfold splitAndPad_v, sha_splitandpad_blocks.
     simpl in H; clear Heqm. omega.
   rewrite leb_correct_conv in Heql.
     2: rewrite Heqm; simpl; omega.
-  rewrite firstn_same in Heql.
+  rewrite sublist.firstn_same in Heql.
     2: rewrite Heqm; simpl; omega.
   rewrite skipn_short in Heql.
     2: rewrite Heqm; simpl; omega.
@@ -238,7 +238,7 @@ Module EQ256 <: EQUIV_Inst SHA256.
   Proof. apply extensionality. intros l. unfold splitAndPad, sha_splitandpad.
     f_equal. rewrite <- pad_compose_equal. unfold generate_and_pad'.
     rewrite pure_lemmas.Zlist_to_intlist_to_Zlist. trivial.
-    destruct (pad_len_64_nat (bitsToBytes l)). rewrite H. exists ((x*16)%nat); simpl. omega.
+    destruct (pad_len_64_nat (bitsToBytes l)). rewrite Zlength_correct, H. exists (Z.of_nat(x*16)). do 2 rewrite Nat2Z.inj_mul. rewrite Z.mul_comm, <- Z.mul_assoc. reflexivity.
     apply pad_isbyteZ. eapply bitsToBytes_isbyteZ. reflexivity.
   Qed.
 

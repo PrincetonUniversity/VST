@@ -240,7 +240,7 @@ Proof. intros.
     rewrite toBlocks_equation.
     destruct l1. simpl in H; omega. 
     rewrite leb_correct_conv. 2: rewrite H; omega.
-    rewrite firstn_same. 2: rewrite H; omega. 
+    rewrite sublist.firstn_same. 2: rewrite H; omega. 
     rewrite skipn_short. 2: rewrite H; omega. 
     rewrite toBlocks_equation. trivial. }
 Qed. 
