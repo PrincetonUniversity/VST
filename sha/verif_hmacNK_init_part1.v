@@ -21,6 +21,13 @@ Lemma Zlength_list_repeat {A} n (v:A): Zlength (list_repeat n v) = Z.of_nat n.
 Proof. rewrite Zlength_correct, length_list_repeat; trivial. Qed. 
 (*from tweetnaclbase*)
 
+Lemma data_block_valid_pointer sh l p: sepalg.nonidentity sh -> Zlength l > 0 ->
+      data_block sh l p |-- valid_pointer p.
+Proof. unfold data_block. simpl; intros.
+  apply andp_valid_pointer2. apply data_at_valid_ptr; auto; simpl.
+  rewrite Z.max_r, Z.mul_1_l; omega.
+Qed.
+
 Definition initPostKeyNullConditional r (c:val) (k: val) h key ctxkey: mpred:=
   match k with
     Vint z => if Int.eq z Int.zero
@@ -56,7 +63,7 @@ Opaque hmac_init_part1_FRAME2.
 
 Lemma Init_part1_keynonnull Espec (kb ckb cb: block) (kofs ckoff cofs:int) l key kv pad: forall h1
 (KL1 : l = Zlength key)
-(KL2 : 0 <= l <= Int.max_signed)
+(KL2 : 0 < l <= Int.max_signed)
 (KL3 : l * 8 < two_p 64)
 PostKeyNull
 (HeqPostKeyNull : PostKeyNull =
@@ -328,7 +335,7 @@ Qed.
 
 Lemma Init_part1_keynull Espec (kb ckb cb: block) (kofs ckoff cofs:int) l key kv pad: forall h1
 (KL1 : l = Zlength key)
-(KL2 : 0 <= l <= Int.max_signed)
+(KL2 : 0 < l <= Int.max_signed)
 (KL3 : l * 8 < two_p 64)
 (PostKeyNull : environ -> mpred)
 (*Delta_specs := abbreviate : PTree.t funspec*)
@@ -443,11 +450,7 @@ Proof. intros.
 
    normalize. entailer!. 
    rewrite sepcon_comm.
-(*   apply sepcon_derives. 
-   + unfold field_at_. rewrite field_at_data_at.
-     unfold field_address. rewrite if_true; trivial. simpl. rewrite Int.add_zero.
-     apply derives_refl'. f_equal. admit.OP--is in comment
-   +*) rewrite (split2_data_at_Tarray_at_tuchar Tsh 64 (Zlength key)); 
+   rewrite (split2_data_at_Tarray_at_tuchar Tsh 64 (Zlength key)); 
      try repeat rewrite Zlength_map; try rewrite Zlength_correct, mkKey_length; 
      trivial. 2: omega. 
      unfold at_offset. rewrite sepcon_comm.
@@ -466,7 +469,7 @@ Proof. intros.
      rewrite sublist_same; trivial. 
      cancel.
      do 2 rewrite Zlength_list_repeat. trivial.
-Qed.  
+Qed.
 
 Lemma hmac_init_part1: forall
 (Espec : OracleKind)
@@ -477,7 +480,7 @@ Lemma hmac_init_part1: forall
 (kv : val)
 (h1:hmacabs)
 (KL1 : l = Zlength key)
-(KL2 : 0 <= l <= Int.max_signed)
+(KL2 : 0 < l <= Int.max_signed)
 (KL3 : l * 8 < two_p 64)
 (ctx' : name _ctx)
 (key' : name _key)
@@ -603,7 +606,11 @@ Lemma hmac_init_part1: forall
   (normal_ret_assert PostKeyNull).
 Proof. intros. subst Delta. abbreviate_semax.
 forward_if PostKeyNull.
-  { admit. (*denote_tc_comparable k (Vint (Int.repr 0))*) }
+  { apply denote_tc_comparable_split. unfold initPre; normalize. destruct k; try contradiction.
+    remember (Int.eq i Int.zero). destruct b. 
+     apply binop_lemmas2.int_eq_true in Heqb. rewrite Heqb; apply valid_pointer_zero. entailer. 
+     apply sepcon_valid_pointer2. apply sepcon_valid_pointer2.
+      apply data_block_valid_pointer. auto. omega. apply valid_pointer_null. }
   { (* THEN*)
     simpl.  
     unfold force_val2, force_val1 in H; simpl in H. 

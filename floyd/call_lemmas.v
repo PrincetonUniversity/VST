@@ -412,6 +412,8 @@ Definition check_one_var_spec (Q: PTree.t vardesc) (idv: ident * vardesc) : Prop
    | _, _ => False
    end.
 
+Definition check_one_var_spec' (Q: PTree.t vardesc) (idv: ident * vardesc) : Prop :=
+   (Q ! (fst idv)) = Some (snd idv).
 
 (*
 Definition check_one_var_spec (Q: PTree.t vardesc) (idv: ident * vardesc) : Prop :=
@@ -698,6 +700,55 @@ Proof.
   destruct Heqo.
   unfold sgvar, gvar in *.
   rewrite ge_of_make_args. auto.
+Qed.
+
+Lemma check_specs_lemma' {cs: compspecs}:
+  forall Ptemp Pvar Qtemp Qvar rho,
+    Forall (check_one_var_spec' Pvar) (PTree.elements Qvar) ->
+    Forall (check_one_temp_spec Ptemp) (PTree.elements Qtemp) ->
+    fold_right `and `True (LocalD Ptemp Pvar nil) rho ->
+    fold_right `and `True (LocalD Qtemp Qvar nil) rho.
+Proof.
+  intros.
+  apply local_ext_rev.
+  intros.
+  apply local_ext with ((LocalD Ptemp Pvar nil)); auto.
+  apply LocalD_complete in H2.
+  apply LocalD_sound.
+  rewrite Forall_forall in H.
+  rewrite Forall_forall in H0.
+  destruct H2; [left | right; destruct H2; [left | right; destruct H2; [left | right; destruct H2; [left | right; destruct H2; [left | right; destruct H2; [left | right]]]]]].
+  + destruct H2 as [i [v [? ?]]].
+    exists i, v; split; auto.
+    specialize (H0 (i, v)).
+    apply H0.
+    apply PTree.elements_correct; auto.
+  + destruct H2 as [i [t [v [v' [? ?]]]]].
+    exists i, t, v, v'; split; auto.
+    specialize (H (i, vardesc_local_global t v v')).
+    apply H.
+    apply PTree.elements_correct; auto.
+  + destruct H2 as [i [t [v [v' [? ?]]]]].
+    exists i, t, v, v'; split; auto.
+    specialize (H (i, vardesc_local_global t v v')).
+    apply H.
+    apply PTree.elements_correct; auto.
+  + destruct H2 as [i [t [v [? ?]]]].
+    exists i, t, v; split; auto.
+    specialize (H (i, vardesc_local t v)).
+    apply H.
+    apply PTree.elements_correct; auto.
+  + destruct H2 as [i [v [? ?]]].
+    exists i, v; split; auto.
+    specialize (H (i, vardesc_visible_global v)).
+    apply H.
+    apply PTree.elements_correct; auto.
+  + destruct H2 as [i [v [? ?]]].
+    exists i, v; split; auto.
+    specialize (H (i, vardesc_shadowed_global v)).
+    apply H.
+    apply PTree.elements_correct; auto.
+  + auto.
 Qed.
 
 (*

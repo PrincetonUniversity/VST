@@ -112,7 +112,7 @@ assert (sha_splitandpad =
   apply extensionality. intros l. unfold sha_splitandpad.
   f_equal. rewrite <- pad_compose_equal. unfold generate_and_pad'.
   rewrite pure_lemmas.Zlist_to_intlist_to_Zlist. trivial.
-  destruct (pad_len_64_nat (bitsToBytes l)). rewrite H. exists ((x*16)%nat); simpl. omega.
+  destruct (pad_len_64_nat (bitsToBytes l)). rewrite Zlength_correct, H. exists (Z.of_nat (x*16)). do 2 rewrite Nat2Z.inj_mul. rewrite Z.mul_comm, <- Z.mul_assoc.  reflexivity.
   apply pad_isbyteZ. eapply bitsToBytes_isbyteZ. reflexivity.
 rewrite H7 in H5; clear H7.
 eapply PAD.HMAC_pad_concrete with (c:=c)(p:=p)(IP:=IP)(OP:=OP)(B:=B)(ip:=ip)(op:=op)(m:=m)(K:=K)

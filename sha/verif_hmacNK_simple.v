@@ -42,7 +42,9 @@ forward_if  (
    SEP  (`(data_at_ Tsh t_struct_hmac_ctx_st c); `(data_block Tsh key k);
    `(data_block Tsh data d); `(K_vector kv);
    `(memory_block shmd 32 md))).
-  { apply denote_tc_comparable_split. 2: apply valid_pointer_zero. admit. (*TODO: is new side condition: valid_pointer/denote_tc_comparable, for memory_block*) }
+  { apply denote_tc_comparable_split. 
+    apply sepcon_valid_pointer2. apply memory_block_valid_ptr. auto. omega.
+    apply valid_pointer_zero. }
   { (*Branch1*) exfalso. subst md. contradiction.  }
   { (* Branch2 *) forward. entailer. } 
 normalize.

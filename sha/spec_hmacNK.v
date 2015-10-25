@@ -227,7 +227,7 @@ Definition hmacstate_ (h: hmacabs) (c: val) : mpred :=
 (************************ Specification of HMAC_init ********************************************)
 
 Definition has_lengthK (l:Z) (key:list Z) :=
-  l = Zlength key /\ 0 <= l <= Int.max_signed /\
+  l = Zlength key /\ 0 < l <= Int.max_signed /\ (*requirement 0<l new in new_compcert - previouslu, it was 0<=l*)
   l * 8 < two_p 64.
 
 Definition hmac_relate_PreInitNull (key:list Z) (h:hmacabs ) (r: hmacstate) : Prop :=

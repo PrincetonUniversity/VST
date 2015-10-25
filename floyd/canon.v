@@ -37,11 +37,11 @@ Notation " 'SEP' ( x ; .. ; y )" := (SEPx (cons x%logic .. (cons y%logic nil) ..
 Notation " 'SEP' ( ) " := (SEPx nil) (at level 8) : logic.
 Notation " 'SEP' () " := (SEPx nil) (at level 8) : logic.
 
-Lemma insert_local: forall Q1 P Q R,
-  local Q1 && (PROPx P (LOCALx Q (SEPx R))) = (PROPx P (LOCALx (Q1 :: Q) (SEPx R))).
+Lemma insert_local': forall Q1 P Q R,
+  local Q1 && (PROPx P (LOCALx Q R)) = (PROPx P (LOCALx (Q1 :: Q) R)).
 Proof.
 intros. extensionality rho.
-unfold PROPx, LOCALx, SEPx, local; super_unfold_lift. simpl.
+unfold PROPx, LOCALx, local; super_unfold_lift. simpl.
 apply pred_ext; autorewrite with gather_prop; normalize;
 decompose [and] H; clear H.
 repeat apply andp_right; auto.
@@ -49,6 +49,10 @@ apply prop_right; repeat split; auto.
 apply andp_right; auto.
 apply prop_right; repeat split; auto.
 Qed.
+
+Lemma insert_local: forall Q1 P Q R,
+  local Q1 && (PROPx P (LOCALx Q (SEPx R))) = (PROPx P (LOCALx (Q1 :: Q) (SEPx R))).
+Proof. intros. apply insert_local'. Qed.
 Hint Rewrite insert_local:  norm2.
 
 Lemma go_lower_lem20:
@@ -1152,7 +1156,7 @@ Qed.
 Lemma nth_error_local:
   forall n P Q R (Qn: environ -> Prop),
     nth_error Q n = Some Qn ->
-    PROPx P (LOCALx Q (SEPx R)) |-- local Qn.
+    PROPx P (LOCALx Q R) |-- local Qn.
 Proof.
 intros.
 apply andp_left2. apply andp_left1.
@@ -1176,7 +1180,7 @@ Proof.
       tauto.
 Qed.
 
-Lemma in_local: forall Q0 P Q R, In Q0 Q -> PROPx P (LOCALx Q (SEPx R)) |-- local Q0.
+Lemma in_local: forall Q0 P Q R, In Q0 Q -> PROPx P (LOCALx Q R) |-- local Q0.
 Proof.
   intros.
   destruct (in_nth_error _ _ H) as [?n ?H].

@@ -133,7 +133,7 @@ Proof. unfold pad_inc.
      rewrite e in HK.
      assert ((zz+-1) mod 64 = 63). clear - e.  apply Zmod_divides in e. 2:omega. 
         destruct e. subst. rewrite Zplus_mod. rewrite Z.mul_comm. rewrite Z_mod_mult. simpl.
-        rewrite Zmod_mod. apply Zmod_unique with (a:=(-1)). omega. omega.
+        reflexivity. (* rewrite Zmod_mod. apply Zmod_unique with (a:=(-1)). omega. omega.*)
      rewrite H. clear H e. simpl in *. exists (S k). omega.
    assert ((zz + -1) mod 64 = (zz mod 64) - 1 /\ 0 <= (zz mod 64) - 1). 
      clear -n. rewrite Zplus_mod. assert (0 <= zz mod 64 < 64). apply Z.mod_pos_bound. omega.
@@ -229,6 +229,7 @@ Proof. repeat rewrite <- Z.add_assoc. unfold BlockSize.
          assert (- (64) mod 64 = 0). reflexivity. rewrite H.
          rewrite (Zplus_mod (-(64))). rewrite H. simpl.
          repeat rewrite Zmod_mod.
+         f_equal. f_equal.
          rewrite Zplus_mod. rewrite (Zplus_mod (- Zlength l1)). 
          assert (Z12: - Zlength l2 mod 64 = - Zlength l1 mod 64).
          { clear H. repeat rewrite Z.mul_add_distr_r in K.

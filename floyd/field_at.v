@@ -1459,14 +1459,6 @@ Hint Extern 1 (data_at _ _ _ _ |-- memory_block _ _ _) =>
     : cancel.
 *)
 
-Lemma Z2Nat_id': forall n, Z.of_nat (Z.to_nat n) = Z.max 0 n.
-Proof.
-intros.
- destruct (zlt n 0).
- rewrite Z2Nat_neg by auto. rewrite Z.max_l by omega; reflexivity.
- rewrite Z2Nat.id, Z.max_r by omega; omega.
-Qed.
-
 Lemma array_at_array_at_: forall sh t gfs lo hi v p, 
   array_at sh t gfs lo hi v p |-- array_at_ sh t gfs lo hi p.
 Proof.
@@ -1488,6 +1480,69 @@ Proof.
      normalize. 
     contradiction (field_compatible_field_compatible0 t (ArraySubsc i :: gfs) p H6).
 Qed.
+
+Lemma memory_block_valid_ptr:
+  forall sh n p,
+     sepalg.nonidentity sh ->
+     n > 0 ->
+     memory_block sh n p |-- valid_pointer p.
+Proof.
+  intros.
+  rewrite memory_block_isptr.
+  normalize.
+  destruct p; try tauto.
+  inv_int i.
+  replace (Vptr b (Int.repr ofs)) with (offset_val (Int.repr 0) (Vptr b (Int.repr ofs))) at 2.
+  + apply memory_block_valid_pointer with (i := 0); auto; omega.
+  + simpl.
+    rewrite add_repr, Z.add_0_r.
+    auto.
+Qed.
+
+Lemma data_at_valid_ptr:
+  forall sh t v p,
+     sepalg.nonidentity sh ->
+     sizeof cenv_cs t > 0 ->
+     data_at sh t v p |-- valid_pointer p.
+Proof.
+  intros.
+  eapply derives_trans; [apply data_at_data_at_ |].
+  rewrite data_at__memory_block.
+  normalize.
+  apply memory_block_valid_ptr; auto.
+Qed.
+
+Lemma field_at_valid_ptr:
+  forall sh t path v p, 
+     sepalg.nonidentity sh ->
+     sizeof cenv_cs (nested_field_type2 t path) > 0 ->
+     field_at sh t path v p |-- valid_pointer (field_address t path p).
+Proof.
+intros.
+rewrite field_at_data_at.
+apply data_at_valid_ptr; auto.
+Qed.
+
+Lemma field_at_valid_ptr0:
+  forall sh t path v p, 
+     sepalg.nonidentity sh ->
+     sizeof cenv_cs (nested_field_type2 t path) > 0 ->
+     nested_field_offset2 t path = 0 ->
+     field_at sh t path v p |-- valid_pointer p.
+Proof.
+intros.
+assert_PROP (field_compatible t path p).
+unfold field_at.
+normalize.
+pattern p at 2; replace p with (field_address t path p).
+rewrite field_at_data_at.
+apply data_at_valid_ptr; auto.
+unfold field_address. rewrite if_true by auto.
+rewrite H1.
+normalize.
+Qed.
+
+Hint Resolve data_at_valid_ptr field_at_valid_ptr field_at_valid_ptr0 : valid_pointer.
 
 (************************************************
 
@@ -1939,45 +1994,6 @@ Ltac unfold_field_at N :=
    subst FLD;
    change field_at_hide with @field_at in *
  end.
-
-Lemma data_at_valid_ptr  {cs: compspecs}:
-  forall sh t v p,
-     sizeof cenv_cs t > 0 ->
-     data_at sh t v p |-- valid_pointer p.
-Proof.
-intros.
-Admitted. (* surely true *)
-
-Lemma field_at_valid_ptr {cs: compspecs}:
-  forall sh t path v p, 
-     sizeof cenv_cs (nested_field_type2 t path) > 0 ->
-     field_at sh t path v p |-- valid_pointer (field_address t path p).
-Proof.
-intros.
-rewrite field_at_data_at.
-apply data_at_valid_ptr.
-auto.
-Qed.
-
-Lemma field_at_valid_ptr0 {cs: compspecs}:
-  forall sh t path v p, 
-     sizeof cenv_cs (nested_field_type2 t path) > 0 ->
-     nested_field_offset2 t path = 0 ->
-     field_at sh t path v p |-- valid_pointer p.
-Proof.
-intros.
-assert_PROP (field_compatible t path p).
-unfold field_at.
-normalize.
-pattern p at 2; replace p with (field_address t path p).
-rewrite field_at_data_at.
-apply data_at_valid_ptr; auto.
-unfold field_address. rewrite if_true by auto.
-rewrite H0.
-normalize.
-Qed.
-
-Hint Resolve data_at_valid_ptr field_at_valid_ptr field_at_valid_ptr0 : valid_pointer.
 
 Lemma field_at_ptr_neq{cs: compspecs} :
    forall sh t fld p1 p2 v1 v2,

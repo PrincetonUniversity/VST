@@ -262,7 +262,7 @@ Definition initPostResetConditional r (c:val) (k: val) h key iS oS: mpred:=
 Lemma ipad_loop Espec pb pofs cb cofs ckb ckoff kb kofs l key kv
 (HMS' : reptype t_struct_hmac_ctx_st) (FR:mpred): forall
 (KL1 : l = Zlength key)
-(KL2 : 0 <= l <= Int.max_signed)
+(KL2 : 0 < l <= Int.max_signed)
 (KL3 : l * 8 < two_p 64)
 (KHMS : HMS' = HMS)
 (IPADcont : list val)
@@ -413,7 +413,7 @@ Opaque FRAME1. Opaque FRAME2.
 Lemma opadloop Espec pb pofs cb cofs ckb ckoff kb kofs l key kv 
 (HMS' : reptype t_struct_hmac_ctx_st): forall
 (KL1 : l = Zlength key)
-(KL2 : 0 <= l <= Int.max_signed)
+(KL2 : 0 < l <= Int.max_signed)
 (KL3 : l * 8 < two_p 64)
 (KHMS : HMS' = HMS)
 (h1 : hmacabs)
@@ -544,7 +544,7 @@ subst OPADcont; do 2 rewrite Zlength_map.
 unfold HMAC_SHA256.mkArgZ in ZLO; rewrite ZLO; trivial.
 Qed. 
 
-Opaque FRAME1. Opaque FRAME2. 
+Opaque FRAME1. Opaque FRAME2.
 
 Lemma init_part2: forall
 (Espec : OracleKind)
@@ -555,7 +555,7 @@ Lemma init_part2: forall
 (kv : val)
 (h1 : hmacabs)
 (KL1 : l = Zlength key)
-(KL2 : 0 <= l <= Int.max_signed)
+(KL2 : 0 < l <= Int.max_signed)
 (KL3 : l * 8 < two_p 64)
 (ctx' : name _ctx)
 (key' : name _key)
@@ -777,7 +777,7 @@ forward_if PostResetBranch.
       Focus 3. eapply (ipad_loop Espec pb pofs cb cofs ckb ckoff kb kofs l key kv HMS' 
                          (K_vector kv * data_at Tsh t_struct_hmac_ctx_st HMS' (Vptr cb cofs)
                           * data_at Tsh (tarray tuchar (Zlength key)) (map Vint (map Int.repr key))
-                         (Vptr kb kofs))); eassumption.
+                         (Vptr kb kofs))); try eassumption.
       apply andp_left2. entailer. cancel.
       intros ? ?. apply andp_left2. apply assert_lemmas.normal_ret_assert_derives'.
                   entailer. cancel.

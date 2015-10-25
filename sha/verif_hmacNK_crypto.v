@@ -72,7 +72,7 @@ Definition HMAC_crypto :=
          SEP(`(data_block Tsh (CONT KEY) keyVal);
              `(data_block Tsh (CONT MSG) msgVal);
              `(K_vector kv);
-             `(memory_block shmd (Int.repr 32) md))
+             `(memory_block shmd 32 md))
   POST [ tvoid ] 
          EX digest:_,
           PROP (bytesToBits digest = bitspec KEY MSG /\ 
@@ -91,19 +91,16 @@ name key' _key.
 name keylen' _key_len.
 name d' _d.
 name n' _n.
-name md' _md.
-simpl_stackframe_of. fixup_local_var; intro c.
-
+name md' _md. rename lvar0 into c.
 rename keyVal into k. rename msgVal into d.
+rename H into KL. rename H0 into DL.
 destruct KEY as [kl key].
 destruct MSG as [dl data]. simpl in *.
-rename H into WrshMD. 
 rewrite memory_block_isptr. normalize.
 (*NEW: crypto proof requires that we first extract isbyteZ key*)
 assert_PROP (Forall isbyteZ key).
   entailer.
-rename H2 into isbyteZ_Key.
-rename H into isPtrMD. rename H0 into KL. rename H1 into DL.
+rename H into isbyteZ_Key.
 
 forward_if  (
   PROP  (isptr c)
@@ -112,64 +109,55 @@ forward_if  (
    temp _n (Vint (Int.repr dl)); gvar sha._K256 kv)
    SEP  (`(data_at_ Tsh t_struct_hmac_ctx_st c); `(data_block Tsh key k);
    `(data_block Tsh data d); `(K_vector kv);
-   `(memory_block shmd (Int.repr 32) md))).
+   `(memory_block shmd 32 md))).
+  { apply denote_tc_comparable_split. 
+    apply sepcon_valid_pointer2. apply memory_block_valid_ptr. auto. omega.
+    apply valid_pointer_zero. }
   { (* Branch1 *) exfalso. subst md. contradiction.  }
   { (* Branch2 *) forward. entailer. } 
-normalize. rename H into isptrC.
-
+normalize.
 remember (HMACabs init_s256abs init_s256abs init_s256abs) as dummyHMA.
-forward_call' (c, k, kl, key, kv, dummyHMA) h.
-  { unfold initPre. entailer.
-    apply isptrD in Pk. destruct Pk as [kb [kofs HK]]. rewrite HK.
-    cancel.
+assert_PROP (isptr k). { unfold data_block. normalize. rewrite data_at_isptr with (p:=k). entailer!. (*Issue: need to do unfold data_block. normalize. rewrite data_at_isptr with (p:=k). here is NEW*) }
+rename H into isPtrK. 
+forward_call (c, k, kl, key, kv, dummyHMA) h.
+  { apply isptrD in isPtrK. destruct isPtrK as [kb [kofs HK]]. rewrite HK.
+    unfold initPre. cancel.
   }
 normalize. rename H into HmacInit.
-
-forward_call' (h, c, d, dl, data, kv) h1. 
-  { assert (HH: s256a_len (absCtxt h) = 512).
-    Focus 2. destruct DL as [DL1 [DL2 DL3]]. split; trivial. split; trivial.
-             rewrite HH; assumption. 
+assert_PROP (s256a_len (absCtxt h) = 512).
+  { unfold hmacstate_. entailer.
     destruct h; simpl in *. 
-    inversion HmacInit; clear HmacInit.
-    destruct H as [oS [InnSHA [OntSHA XX]]]. inversion XX; clear XX.
-    subst.
-      unfold innerShaInit in InnSHA. inversion InnSHA; clear InnSHA.
-      simpl in *. subst. unfold HMAC_SHA256.mkArgZ, HMAC_SHA256.mkArg in H7.
-      assert (Zlength (map Byte.unsigned
-        (map (fun p : byte * byte => Byte.xor (fst p) (snd p))
-           (combine (map Byte.repr (HMAC_SHA256.mkKey key)) (HMAC_SHA256.sixtyfour Ipad))))
-        = Zlength (intlist_to_Zlist blocks ++ newfrag)).
-        rewrite H7; reflexivity.
-     clear H7.
-     rewrite Zlength_correct in *. rewrite map_length in H. 
-     rewrite Zlength_correct in *. rewrite map_length, combine_length in H.
-     rewrite app_length in H.
-     rewrite map_length, mkKey_length in H.
-     unfold SHA256.BlockSize, HMAC_SHA256.sixtyfour in H.
-     rewrite length_list_repeat, length_intlist_to_Zlist in H. unfold WORD.
-     rewrite Nat2Z.inj_add, Nat2Z.inj_mul, Z.mul_comm in H. simpl in H.
-     unfold bitlength. repeat rewrite Zlength_correct. unfold WORD. rewrite <- H. simpl. trivial.
+    destruct HmacInit as [iS [oS [IS [OS XX]]]]. inv XX.
+    apply prop_right. intuition.
   }
+rename H into absH_len512.
+
+forward_call (h, c, d, dl, data, kv) h1. 
+  { rewrite absH_len512. assumption. } 
 rename H into HmacUpdate. 
 
 (* Call to HMAC_Final*)
-forward_call' (h1, c, md, shmd, kv) [dig h2].
+assert_PROP (@field_compatible CompSpecs (Tstruct _hmac_ctx_st noattr) nil c).
+{ unfold hmacstate_; entailer. }
+rename H into FC_c.
+
+forward_call (h1, c, md, shmd, kv) [dig h2].
 simpl in H; rename H into HmacFinalSimple.
 
-forward_call' (h2,c).
-destruct H as [SCc ACc].
-
+forward_call (h2,c).
 forward.
-apply (exp_right dig).
-simpl_stackframe_of. normalize. clear H2. 
+assert_PROP (field_compatible (tarray tuchar (sizeof cenv_cs t_struct_hmac_ctx_st)) nil c).
+{ unfold data_block at 1. unfold Zlength. simpl. rewrite data_at_data_at'. normalize. }
+rename H8 into FC.
+Exists c. entailer.
+Exists dig. entailer. clear H3.
 assert (HS: hmacSimple key data dig).
     exists h, h1. 
     split. destruct KL as [KL1 [KLb KLc]].
            assumption.
     split; try assumption.
     rewrite hmacFinal_hmacFinalSimple. exists h2; trivial.
-assert (Size: sizeof t_struct_hmac_ctx_st <= Int.max_unsigned).
-  rewrite int_max_unsigned_eq; simpl. omega.
+clear H2.
 apply andp_right. apply prop_right.
   rewrite hmac_hmacSimple in HS. destruct HS as [hh HH]. 
   specialize (hmac_sound _ _ _ _ HH). intros D; subst dig.
@@ -180,20 +168,15 @@ apply andp_right. apply prop_right.
          rewrite HMAC_equivalence.of_length_proof_irrel.
          rewrite ByteBitRelations.bytes_bits_bytes_id. reflexivity.
            apply isbyteZ_mkKey. assumption.   
-           apply H4. 
+           apply H7. 
            intros ? X; eapply X. 
-  split; trivial.
   unfold CRYPTO; intros. apply HMAC256_isPRF; assumption.
-apply andp_right. apply prop_right. trivial. cancel.
+cancel.
 unfold data_block.
   rewrite Zlength_correct; simpl.
-rewrite <- memory_block_data_at_; try reflexivity. 
-  2: rewrite lvar_eval_lvar with (v:=c); trivial. 
-normalize. rewrite lvar_eval_lvar with (v:=c); trivial. 
-rewrite (memory_block_data_at_ Tsh (tarray tuchar (sizeof t_struct_hmac_ctx_st))).
-  apply data_at_data_at_.
-  trivial.
-  trivial.
-  trivial.
-  destruct c; trivial. unfold align_compatible. simpl. apply Z.divide_1_l. 
-  simpl. rewrite <- initialize.max_unsigned_modulus, int_max_unsigned_eq. omega.
+apply andp_left2.
+rewrite <- memory_block_data_at_; trivial.
+  rewrite (memory_block_data_at_ Tsh (tarray tuchar (sizeof (@cenv_cs CompSpecs) t_struct_hmac_ctx_st))).
+  2: trivial.
+  eapply derives_trans. apply data_at_data_at_. apply derives_refl.
+Qed.

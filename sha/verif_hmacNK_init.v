@@ -82,8 +82,7 @@ normalize. unfold POSTCONDITION, abbreviate. subst c.
 apply seq_assoc.
 (*from init_part2:
 Definition postResetHMS (iS oS: s256state): hmacstate :=
-  (emptySha, (iS, oS)).
-
+  (default_val t_struct_SHA256state_st, (iS, oS)).
 Definition initPostResetConditional r (c:val) (k: val) h key iS oS: mpred:=
   match k with
     Vint z => if Int.eq z Int.zero
@@ -125,10 +124,7 @@ eapply semax_seq. instantiate (1:=PostResetBranch).
   apply semax_extensionality_Delta with (Delta). 
   apply tycontext_sub_refl.
   apply extract_exists_pre; intros [iSA [iS [oSA oS]]]. 
-(*  apply extract_exists_pre; intros iSA. 
-  apply extract_exists_pre; intros iS. 
-  apply extract_exists_pre; intros oSA. 
-  apply extract_exists_pre; intros oS.*) unfold initPostResetConditional.
+  unfold initPostResetConditional.
   normalize. 
   rename H into INNER. rename H0 into InnerRelate.
   rename H1 into OUTER. rename H2 into OuterRelate.

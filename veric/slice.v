@@ -245,3 +245,55 @@ Qed.
 
 Definition split_shareval (shv: Share.t * val) : ((Share.t * val) * (Share.t * val)) :=
   ((fst (Share.split (fst shv)), snd shv), (snd (Share.split (fst shv)), snd shv)).
+
+Definition general_slice_resource (sh: share) (r: resource) : resource.
+  refine (match r with
+          | NO _ => NO (Share.unrel Share.Lsh sh)
+          | YES _ _ k pp => _
+          | PURE k pp => PURE k pp
+          end).
+  destruct (dec_share_identity (Share.unrel Share.Rsh sh)).
+  + exact (NO (Share.unrel Share.Lsh sh)).
+  + apply nonidentity_nonunit in n.
+    refine (YES (Share.unrel Share.Lsh sh) (mk_pshare _ n) k pp).
+Defined.
+
+Lemma general_slice_resource_valid:
+  forall sh phi P (P_DEC: forall l, {P l} + {~ P l}),
+  (forall l, ~ P l -> identity (phi @ l)) ->
+  AV.valid (fun l => res_option (if P_DEC l then general_slice_resource sh (phi @ l) else phi @ l)).
+Proof.
+intros ? ? ? ? H_id.
+unfold general_slice_resource.
+pose proof rmap_valid phi as H_valid.
+unfold compose in H_valid.
+change compcert_rmaps.R.res_option with res_option in H_valid.
+intro; intros.
+destruct (P_DEC (b, ofs)).
++ specialize (H_valid b ofs); cbv beta in H_valid.
+  destruct (phi @ (b, ofs)) eqn:?H; intros; simpl in H_valid |- *; auto.
+  destruct (dec_share_identity (Share.unrel Share.Rsh sh)) as [HH | HH];
+    try solve [simpl; auto].
+  simpl.
+  destruct k; simpl; auto.
+  - intros. specialize (H_valid _ H0).
+    destruct (P_DEC (b, ofs + i)) as [HHp | HHp].
+    * destruct (phi @ (b, ofs + i)); inv H_valid; auto.
+    * specialize (H_id _ HHp).
+      destruct (phi @ (b, ofs + i)); inv H_valid.
+      apply YES_not_identity in H_id; tauto.
+  - destruct H_valid as [n [? ?]].
+    exists n; split; auto.
+    destruct (P_DEC (b, ofs - z)) as [HHm | HHm].
+    * destruct (phi @ (b, ofs - z)); inv H1; auto.
+    * specialize (H_id _ HHm).
+      destruct (phi @ (b, ofs - z)); inv H1.
+      apply YES_not_identity in H_id; tauto.
++ specialize (H_valid b ofs); cbv beta in H_valid.
+  destruct (phi @ (b, ofs)) eqn:?H; intros; simpl in H_valid |- *; auto.
+  simpl.
+  specialize (H_id _ n).
+  rewrite H in H_id.
+  apply YES_not_identity in H_id; tauto.
+Qed.
+

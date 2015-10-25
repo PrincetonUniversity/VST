@@ -1678,15 +1678,16 @@ Qed.
 
 Lemma list_cell_valid_pointer:
   forall (LS: listspec list_structid list_link) (sh: Share.t) v p,
+   sepalg.nonidentity sh ->
    field_offset cenv_cs list_link list_fields + sizeof cenv_cs (field_type list_link list_fields)
    = field_offset_next cenv_cs list_link list_fields  (co_sizeof (get_co list_structid)) ->
    list_cell LS sh v p * field_at_ sh list_struct (StructField list_link::nil) p 
   |-- valid_pointer p.
 Proof.
-  intros.
+  intros ? ? ? ? NON_ID ?.
  rewrite list_cell_link_join_nospacer; auto.
  unfold data_at_, field_at_, data_at.
- eapply derives_trans; [ apply field_at_valid_ptr | ].
+ eapply derives_trans; [ apply field_at_valid_ptr; auto | ].
  change (nested_field_type2 list_struct nil) with list_struct.
  apply LsegGeneral.sizeof_list_struct_pos.
  unfold field_address.
@@ -1699,12 +1700,13 @@ Qed.
 
 Lemma lseg_valid_pointer:
   forall (ls : listspec list_structid list_link) sh contents p q R,
+   sepalg.nonidentity sh ->
    field_offset cenv_cs list_link list_fields + sizeof cenv_cs (field_type list_link list_fields)
    = field_offset_next cenv_cs list_link list_fields  (co_sizeof (get_co list_structid)) ->
     R |-- valid_pointer q ->
     R * lseg ls sh contents p q |-- valid_pointer p.
 Proof.
-intros.
+intros ? ? ? ? ? ? NON_ID ? ?.
 destruct contents.
 rewrite lseg_nil_eq. normalize.
 unfold lseg; simpl.
@@ -1715,7 +1717,7 @@ normalize.
 destruct p0 as [p z]; simpl in *.
 apply sepcon_valid_pointer2.
 apply sepcon_valid_pointer1.
-eapply derives_trans; [ | eapply list_cell_valid_pointer; auto].
+eapply derives_trans; [ | eapply list_cell_valid_pointer; eauto].
 apply sepcon_derives ; [ apply derives_refl | ].
 cancel.
 Qed.
@@ -1732,7 +1734,7 @@ match goal with
    match Q with context [lseg ?A ?B ?C p ?q] =>
    repeat rewrite <- sepcon_assoc;
    pull_right (lseg A B C p q);
-   apply lseg_valid_pointer; [ reflexivity | ]; 
+   apply lseg_valid_pointer; [auto | reflexivity | ]; 
    auto 50 with valid_pointer
    end
  end.
@@ -2406,20 +2408,21 @@ Qed.
 
 Lemma list_cell_valid_pointer:
   forall (LS: listspec list_structid list_link) (dsh psh: Share.t) v p,
+   sepalg.nonidentity dsh ->
    sepalg.join_sub dsh psh ->
    field_offset cenv_cs list_link list_fields + sizeof cenv_cs (field_type list_link list_fields)
    = field_offset_next cenv_cs list_link list_fields  (co_sizeof (get_co list_structid)) ->
    list_cell LS dsh v p * field_at_ psh list_struct (StructField list_link::nil) p 
   |-- valid_pointer p.
 Proof.
-  intros.
+  intros ? ? ? ? ? NON_ID ? ?.
  destruct H as [bsh ?].
  rewrite <- (field_at__share_join _ _ _ _ _ _ H).
  rewrite <- sepcon_assoc.
  rewrite list_cell_link_join_nospacer; auto.
  apply sepcon_valid_pointer1.
  unfold data_at_, field_at_, data_at.
- eapply derives_trans; [ apply field_at_valid_ptr | ].
+ eapply derives_trans; [ apply field_at_valid_ptr; auto | ].
  change (nested_field_type2 list_struct nil) with list_struct.
  apply LsegGeneral.sizeof_list_struct_pos.
  unfold field_address.
@@ -2442,6 +2445,7 @@ Abort.  (* probably not true; would be true with a direct (non-magic-wand)
 
 Lemma lseg_valid_pointer:
   forall (ls : listspec list_structid list_link) dsh psh contents p q R,
+   sepalg.nonidentity dsh ->
    dsh <> Share.bot ->
    sepalg.join_sub dsh psh ->
    field_offset cenv_cs list_link list_fields + sizeof cenv_cs (field_type list_link list_fields)
@@ -2483,7 +2487,7 @@ match goal with
    match Q with context [lseg ?A ?B ?C ?D p ?q] =>
    repeat rewrite <- sepcon_assoc;
    pull_right (lseg A B C D p q);
-   apply lseg_valid_pointer; [ | | reflexivity | ]; 
+   apply lseg_valid_pointer; [auto | | | reflexivity | ]; 
    auto 50 with valid_pointer
    end
  end.
@@ -2500,7 +2504,7 @@ Ltac resolve_list_cell_valid_pointer :=
       field_at_ psh t (StructField lid::nil) p * TT);
       [cancel 
       | apply sepcon_valid_pointer1; 
-        apply list_cell_valid_pointer; [ | reflexivity]; auto with valid_pointer]
+        apply list_cell_valid_pointer; [auto | | reflexivity]; auto with valid_pointer]
    end
   end
  end.

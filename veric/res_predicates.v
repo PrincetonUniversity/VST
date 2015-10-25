@@ -1,3 +1,4 @@
+Require Import msl.log_normalize.
 Require Export veric.base.
 Require Import msl.rmaps.
 Require Import msl.rmaps_lemmas.
@@ -263,7 +264,8 @@ Definition resource_share (r: resource) : option share :=
 Definition nonlock (r: resource) : Prop :=
  match r with
  | YES _ _ k _ => isVAL k \/ isFUN k
- | _ => True
+ | NO _ => True
+ | PURE _ _ => False
  end.
 
 Lemma age1_nonlock: forall phi phi' l,
@@ -489,8 +491,28 @@ Proof.
     exists w; split; auto.
 Qed.
 
-Definition is_resource_pred (p: address -> pred rmap) (q: resource -> nat -> Prop) :=
-  forall l w, (p l) w = q (w @ l) (level w).
+Lemma make_slice_rmap: forall w (P: address -> Prop) (P_DEC: forall l, {P l} + {~ P l}) sh,
+  (forall l : AV.address, ~ P l -> identity (w @ l)) ->
+  {w' | level w' = level w /\ compcert_rmaps.R.resource_at w' =
+       (fun l => if P_DEC l then general_slice_resource sh (w @ l) else w @ l)}.
+Proof.
+  intros.
+  pose (f l := if P_DEC l then general_slice_resource sh (w @ l) else w @ l).
+  assert (Vf: AV.valid (res_option oo f)) by (apply general_slice_resource_valid; auto).
+  apply (make_rmap _ Vf (level w)).
+  extensionality loc; unfold compose, f.
+  destruct (P_DEC loc).
+  + pose proof resource_at_approx w loc.
+    destruct (w @ loc); auto.
+    simpl.
+    destruct (dec_share_identity (Share.unrel Share.Rsh sh)); auto.
+    inversion H0.
+    simpl; f_equal; f_equal; auto.
+  + apply resource_at_approx.
+Qed.
+
+Definition is_resource_pred (p: address -> pred rmap) (q: resource -> address -> nat -> Prop) :=
+  forall l w, (p l) w = q (w @ l) l (level w).
 
 Definition resource_stable (p: address -> pred rmap) :=
   forall l w w', w @ l = w' @ l -> level w = level w' -> (p l) w = (p l) w'.
@@ -589,18 +611,6 @@ Proof.
       apply H5 in H4; rewrite <- H4; auto.
 Qed.
 
-Definition general_slice_resource (sh: share) (r: resource) : resource.
-  refine (match r with
-          | NO _ => NO (Share.unrel Share.Lsh sh)
-          | YES _ _ k pp => _
-          | PURE k pp => PURE k pp
-          end).
-  destruct (dec_share_identity (Share.unrel Share.Rsh sh)).
-  + exact (NO (Share.unrel Share.Lsh sh)).
-  + apply nonidentity_nonunit in n.
-    refine (YES (Share.unrel Share.Lsh sh) (mk_pshare _ n) k pp).
-Defined.
-
 Lemma general_slice_resource_resource_share: forall r sh sh',
   resource_share r = Some sh ->
   join_sub sh' sh ->
@@ -659,28 +669,118 @@ Proof.
     symmetry; apply Share.unrel_splice_L.
 Qed.
 
+Lemma general_slice_resource_share_join: forall sh1 sh2 sh r,
+  join sh1 sh2 sh ->
+  resource_share r = Some sh ->
+  join (general_slice_resource sh1 r) (general_slice_resource sh2 r) r.
+Proof.
+  intros.
+  rewrite <- (splice_unrel_unrel sh1), <- (splice_unrel_unrel sh2) in H.
+  destruct r.
+  + simpl.
+    constructor.
+    inv H0.
+    rewrite <- splice_bot2 in H.
+    apply join_splice2 in H.
+    tauto.
+  + simpl.
+    destruct (dec_share_identity (Share.unrel Share.Rsh sh1)) as [HH1 | HH1],
+             (dec_share_identity (Share.unrel Share.Rsh sh2)) as [HH2 | HH2];
+    inv H0;
+    apply join_splice2 in H;
+    destruct H.
+    - apply join_unit1_e in H0; auto.
+      rewrite H0 in HH2.
+      apply pshare_not_identity in HH2; tauto.
+    - apply join_unit1_e in H0; auto.
+      revert HH2; rewrite H0; intros.
+      replace (mk_pshare (pshare_sh p) (nonidentity_nonunit HH2)) with p by (symmetry; apply mk_share_pshare_sh).
+      apply res_join_NO3; auto.
+    - apply join_unit2_e in H0; auto.
+      revert HH1; rewrite H0; intros.
+      replace (mk_pshare (pshare_sh p) (nonidentity_nonunit HH1)) with p by (symmetry; apply mk_share_pshare_sh).
+      apply res_join_NO2; auto.
+    - apply res_join_YES; auto.
+  + simpl.
+    constructor.
+Qed.
+
 Definition resource_share_split (p q r: address -> pred rmap): Prop :=
   exists p' q' r' p_sh q_sh r_sh,
     is_resource_pred p p' /\
     is_resource_pred q q' /\
     is_resource_pred r r' /\
     join q_sh r_sh p_sh /\
-    (forall res n, p' res n ->
+    (forall res l n, p' res l n ->
       resource_share res = Some p_sh /\
-      q' (general_slice_resource q_sh res) n /\
-      r' (general_slice_resource r_sh res) n) /\
-    (forall p_res q_res r_res n,
+      q' (general_slice_resource q_sh res) l n /\
+      r' (general_slice_resource r_sh res) l n) /\
+    (forall p_res q_res r_res l n,
       join q_res r_res p_res ->
-      q' q_res n ->
-      r' r_res n ->
-      p' p_res n).
+      q' q_res l n ->
+      r' r_res l n ->
+      p' p_res l n).
 
+(* We should use this lemma to prove all share_join lemmas, also all splittable lemmas. *)
 Lemma allp_jam_share_split: forall (P: address -> Prop) (p q r: address -> pred rmap)
   (P_DEC: forall l, {P l} + {~ P l}),
   resource_share_split p q r ->
   allp (jam P_DEC p noat) = allp (jam P_DEC q noat) * allp (jam P_DEC r noat).
-Admitted.
-(* We should use this lemma to prove all share_join lemmas, also all splittable lemmas. *)
+Proof.
+  intros.
+  destruct H as [p' [q' [r' [p_sh [q_sh [r_sh [? [? [? [? [? ?]]]]]]]]]]].
+  apply pred_ext; intros w; simpl; intros.
+  + destruct (make_slice_rmap w P P_DEC q_sh) as [w1 [? ?]].
+    Focus 1. {
+      intros; specialize (H5 l).
+      rewrite if_false in H5 by auto.
+      auto.
+    } Unfocus.
+    destruct (make_slice_rmap w P P_DEC r_sh) as [w2 [? ?]].
+    Focus 1. {
+      intros; specialize (H5 l).
+      rewrite if_false in H5 by auto.
+      auto.
+    } Unfocus.
+    exists w1, w2.
+    split3.
+    - apply resource_at_join2; try congruence.
+      intro l.
+      rewrite H7, H9; clear H7 H9.
+      specialize (H5 l); destruct (P_DEC l).
+      * eapply general_slice_resource_share_join; eauto.
+        rewrite H in H5.
+        apply H3 in H5.
+        tauto.
+      * apply identity_unit_equiv in H5.
+        exact H5.
+    - intros l.
+      rewrite H0, H7, H6.
+      specialize (H5 l).
+      rewrite H in H5.
+      if_tac.
+      * apply H3 in H5.
+        tauto.
+      * auto.
+    - intros l.
+      rewrite H1, H9, H8.
+      specialize (H5 l).
+      rewrite H in H5.
+      if_tac.
+      * apply H3 in H5.
+        tauto.
+      * auto.
+  + destruct H5 as [y [z [? [? ?]]]].
+    specialize (H6 b); specialize (H7 b).
+    if_tac.
+    - rewrite H; rewrite H0 in H6; rewrite H1 in H7.
+      destruct (join_level _ _ _ H5).
+      rewrite H9 in H6; rewrite H10 in H7.
+      eapply H4; eauto.
+      apply resource_at_join; auto.
+    - apply resource_at_join with (loc := b) in H5.
+      apply H6 in H5; rewrite <- H5; auto.
+Qed.
 
 Lemma allp_jam_overlap: forall (P Q: address -> Prop) (p q: address -> pred rmap)
   (P_DEC: forall l, {P l} + {~ P l})
@@ -2092,14 +2192,21 @@ Qed.
 Lemma is_resource_pred_YES_VAL rsh sh:
   is_resource_pred
     (fun l' => EX  v: memval, yesat NoneP (VAL v) rsh sh l')
-    (fun r n => (exists b0 p, r = YES rsh (mk_lifted sh p) (VAL b0)
+    (fun r _ n => (exists b0 p, r = YES rsh (mk_lifted sh p) (VAL b0)
+        (SomeP ((Void:Type) :: nil) (approx n oo (fun _ : Void * unit => FF))))).
+Proof. hnf; intros. reflexivity. Qed.
+
+Lemma is_resource_pred_YES_VAL' rsh sh v:
+  is_resource_pred
+    (fun l' => yesat NoneP (VAL (v l')) rsh sh l')
+    (fun r l n => (exists p, r = YES rsh (mk_lifted sh p) (VAL (v l))
         (SomeP ((Void:Type) :: nil) (approx n oo (fun _ : Void * unit => FF))))).
 Proof. hnf; intros. reflexivity. Qed.
 
 Lemma is_resource_pred_nonlock_shareat sh:
   is_resource_pred
     (fun i : address => shareat i sh && nonlockat i)
-    (fun r _ => resource_share r = Some sh /\ nonlock r).
+    (fun r _ _ => resource_share r = Some sh /\ nonlock r).
 Proof. hnf; intros. reflexivity. Qed.
 
 Lemma VALspec_range_split2:
@@ -2294,17 +2401,110 @@ Qed.
 
 Lemma address_mapsto_share_join:
  forall (rsh1 rsh2 rsh sh1 sh2 sh : share) ch v a,
-   sepalg.join rsh1 rsh2 rsh ->
-   sepalg.join sh1 sh2 sh ->
+   join rsh1 rsh2 rsh ->
+   join sh1 sh2 sh ->
+   nonunit sh1 ->
+   nonunit sh2 ->
    address_mapsto ch v rsh1 sh1 a * address_mapsto ch v rsh2 sh2 a 
     = address_mapsto ch v rsh sh a.
 Proof.
-intros.
-Admitted. 
+  intros.
+  rename H1 into NON_UNIT1, H2 into NON_UNIT2.
+  assert (NON_UNIT: nonunit sh) by (eapply nonunit_join; eauto; auto with typeclass_instances).
+  symmetry.
+  unfold address_mapsto.
+  transitivity
+   (EX  bl : list memval,
+    !!(length bl = size_chunk_nat ch /\
+       decode_val ch bl = v /\ (align_chunk ch | snd a)) &&
+   (allp
+      (jam (adr_range_dec a (size_chunk ch))
+         (fun loc : address =>
+          yesat NoneP (VAL (nth (nat_of_Z (snd loc - snd a)) bl Undef)) rsh1
+            sh1 loc) noat) *
+    allp
+      (jam (adr_range_dec a (size_chunk ch))
+         (fun loc : address =>
+          yesat NoneP (VAL (nth (nat_of_Z (snd loc - snd a)) bl Undef)) rsh2
+            sh2 loc) noat))).
+  + pose proof exp_congr (pred rmap) _ (list memval).
+    simpl in H1.
+    apply H1; clear H1.
+    intros b.
+    f_equal.
+    apply allp_jam_share_split.
+    do 3 eexists.
+    exists (Share.splice rsh sh), (Share.splice rsh1 sh1), (Share.splice rsh2 sh2).
+    split; [| split; [| split; [| split; [| split]]]].
+    - apply is_resource_pred_YES_VAL'.
+    - apply is_resource_pred_YES_VAL'.
+    - apply is_resource_pred_YES_VAL'.
+    - apply join_splice; auto.
+    - simpl; intros.
+      destruct H1.
+      split; [subst; auto |].
+      split.
+      * exists NON_UNIT1.
+        subst; simpl.
+        rewrite Share.unrel_splice_R, Share.unrel_splice_L.
+        destruct (dec_share_identity sh1); [pose proof nonunit_nonidentity NON_UNIT1; tauto |].
+        f_equal.
+        auto.
+      * exists NON_UNIT2.
+        subst; simpl.
+        rewrite Share.unrel_splice_R, Share.unrel_splice_L.
+        destruct (dec_share_identity sh2); [pose proof nonunit_nonidentity NON_UNIT2; tauto |].
+        f_equal.
+        auto.
+    - simpl; intros.
+      destruct H2, H3.
+      exists NON_UNIT.
+      subst.
+      inv H1.
+      f_equal.
+      * eapply join_eq; eauto.
+      * assert (join (mk_lifted sh1 x) (mk_lifted sh2 x0) (mk_lifted sh NON_UNIT)) by auto.
+        eapply join_eq; eauto.
+  + apply pred_ext.
+    - apply exp_left; intro bl.
+      apply prop_andp_left; intro.
+      rewrite exp_sepcon1.
+      apply (exp_right bl).
+      rewrite exp_sepcon2.
+      apply (exp_right bl).
+      rewrite sepcon_andp_prop1.
+      apply andp_right; [intros w _; simpl; auto |].
+      rewrite sepcon_andp_prop.
+      apply andp_right; [intros w _; simpl; auto |].
+      auto.
+    - rewrite exp_sepcon1.
+      apply exp_left; intro bl1.
+      rewrite exp_sepcon2.
+      apply exp_left; intro bl2.
+      rewrite sepcon_andp_prop1.
+      apply prop_andp_left; intro.
+      rewrite sepcon_andp_prop.
+      apply prop_andp_left; intro.
+      apply (exp_right bl1).
+      apply andp_right; [intros w _; simpl; auto |].
+      intros w ?.
+      destruct H3 as [w1 [w2 [? [? ?]]]].
+      exists w1, w2.
+      split; [| split]; auto.
+      intro l; specialize (H4 l); specialize (H5 l).
+      simpl in H4, H5 |- *.
+      if_tac; auto.
+      destruct H4 as [NON_UNIT1' ?].
+      destruct H5 as [NON_UNIT2' ?].
+      exists NON_UNIT2'.
+      apply resource_at_join with (loc := l) in H3.
+      rewrite H4, H5 in H3; inv H3.
+      rewrite H14; auto.
+Qed.
 
 Lemma nonlock_permission_bytes_address_mapsto_join:
  forall (sh1 sh2 sh : share) ch v a,
-   sepalg.join sh1 sh2 sh ->
+   join sh1 sh2 sh ->
    nonlock_permission_bytes sh1 a (Memdata.size_chunk ch)
      * address_mapsto ch v (Share.unrel Share.Lsh sh2) (Share.unrel Share.Rsh sh2) a 
     = address_mapsto ch v (Share.unrel Share.Lsh sh) (Share.unrel Share.Rsh sh) a.
