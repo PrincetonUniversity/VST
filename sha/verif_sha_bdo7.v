@@ -5,7 +5,6 @@ Require Import sha.spec_sha.
 Require Import sha.sha_lemmas.
 Require Import sha.bdo_lemmas.
 Local Open Scope logic.
-Local Open Scope nat.
 
 Definition rearrange_regs2c := 
      Ssequence (Sset _h (Etempvar _g tuint))
@@ -255,7 +254,7 @@ assert (H1: firstn 1 (skipn (16 - S n) b) =
  simpl length in H1.
  omega.
  f_equal.
- pose proof (nth_skipn _ 0 (16 - S n) b Int.zero).
+ pose proof (nth_skipn 0 (16 - S n)%nat b Int.zero).
  rewrite Heql in H1.
  unfold nth at 1 in H1.
  subst.
@@ -277,7 +276,7 @@ assert (H1: firstn 1 (skipn (16 - S n) b) =
  omega.
 }
 assert (H2 := skipn_skipn 1 (16 - S n) b).
-replace (16 - S n + 1) with (16 - n) in H2 by omega.
+replace (16 - S n + 1)%nat with (16 - n)%nat in H2 by omega.
 rewrite <- H2.
 rewrite <- (firstn_skipn 1 (skipn (16 - S n) b)) at 2.
 rewrite H1.
@@ -312,8 +311,8 @@ Qed.
 Lemma extract_from_b:
   forall b i n,
     length b = 16%nat ->
-    (16 <= i < 64)%Z ->
-    (0 <= n < 16)%Z ->
+    (16 <= i < 64) ->
+    (0 <= n < 16) ->
     nthi (Xarray b (Z.to_nat i)) ((i + n) mod 16) = W (nthi b) (i - 16 + n).
 Proof.
 intros.
@@ -327,7 +326,7 @@ rewrite Zmod_mod.
 rewrite Zplus_mod.
 rewrite <- Zminus_mod.
 rewrite (Zmod_small n) by omega.
-replace (i mod 16 + n - i)%Z with (i mod 16 - i + n)%Z by omega.
+replace (i mod 16 + n - i) with (i mod 16 - i + n) by omega.
 rewrite Zplus_mod.
 rewrite Zminus_mod.
 rewrite Zmod_mod.
@@ -342,29 +341,17 @@ Global Opaque Xarray.
 
 Lemma Xarray_update:
  forall i b,
-  length b = LBLOCK ->
-  (16 <= i < 64)%Z ->
- upd_reptype_array tuint (i mod 16)
-          (map Vint (Xarray b (Z.to_nat i)))
+  Zlength b = LBLOCKz ->
+  16 <= i < 64 ->
+   upd_Znth_in_list (i mod 16) (map Vint (Xarray b (Z.to_nat i)))
           (Vint (W (nthi b) i))
   = map Vint (Xarray b (Z.to_nat i+1)).
 Proof.
 intros.
-unfold upd_reptype_array.
-assert (0 <= i mod 16 < 16)%Z
-         by (apply Z_mod_lt; compute; congruence).
-rewrite force_lengthn_firstn
-  by (change (length (map Vint (Xarray b (Z.to_nat i)))) with 
-        (nat_of_Z 16);
-        apply Z2Nat.inj_le; omega).
-rewrite firstn_map. 
-rewrite skipn_map.
-rewrite <- map_cons.
-rewrite <- map_app.
+unfold upd_Znth_in_list.
+rewrite !sublist_map.
+rewrite <- !map_cons, <- !map_app.
 f_equal.
-change nat_of_Z with Z.to_nat.
-rewrite Z2Nat.inj_add by omega.
-change (Z.to_nat 1) with 1%nat.
 repeat match type of H0 with
 | (64 <= _ < _)%Z => elimtype False; omega
 | (?A <= _ < _)%Z =>
@@ -377,7 +364,7 @@ Qed.
 
 Lemma W_unfold: 
   forall i b, 
-  (16 <= i < 64)%Z ->
+  16 <= i < 64 ->
    W (nthi b) (i) = 
     Int.add (W (nthi b) (i - 16 + 0))
              (Int.add
@@ -401,7 +388,7 @@ Lemma bdo_loop2_body_proof:
    (b : list int) (ctx : val) ( regs : list int) (i : Z) kv Xv
    (Hregs: length regs = 8%nat)
    (H : Zlength b = LBLOCKz)
-   (H0 : (LBLOCKz <= i < 64)%Z),
+   (H0 : LBLOCKz <= i < 64),
 semax (initialized _i Delta_loop1)
   (PROP  ()
    LOCAL  ( temp _i (Vint (Int.repr i)); temp _ctx ctx;
@@ -419,7 +406,7 @@ semax (initialized _i Delta_loop1)
    `(data_at Tsh (tarray tuint LBLOCKz) (map Vint (Xarray b (Z.to_nat i))) Xv)))
   bdo_loop2_body
   (normal_ret_assert
-      (PROP  ((Int.min_signed <= i + 1 <= 64)%Z; (16 <= i + 1)%Z)
+      (PROP  (Int.min_signed <= i + 1 <= 64; 16 <= i + 1)
        LOCAL  (temp _i (Vint (Int.repr i));
        `(eq (Vint (Int.repr 64))) (eval_expr (Econst_int (Int.repr 64) tint));
        temp _ctx ctx;
@@ -450,29 +437,24 @@ name t_ _t.
 name Ki _Ki.
 name ctx_ _ctx.
 name i_ _i.
-assert (H': length b = 16) by (apply Zlength_length in H; auto).
+assert (H': length b = 16%nat) by (apply Zlength_length in H; auto).
 assert (LBE := LBLOCK_zeq).
 change LBLOCKz with 16%Z in H0.
 change (tarray tuint LBLOCKz) with (tarray tuint 16).
 change LBLOCKz with 16%Z in H.
 forward.	(*s0 = X[(i+1)&0x0f]; *)
-  entailer!.
 rewrite Znth_nthi' by reflexivity.
 
-forward s0'. (* s0 = sigma0(s0); *)
+forward. (* s0 = sigma0(s0); *)
 rewrite extract_from_b by auto; rewrite Int.and_mone; rewrite <- sigma_0_eq.
-clear H1 s0'.
 
 forward. (* s1 = X[(i+14)&0x0f]; *)
- entailer!.
 rewrite Znth_nthi' by reflexivity.
 
-forward s1'. (* s1 = sigma1(s1); *)
+forward. (* s1 = sigma1(s1); *)
 rewrite extract_from_b by auto; rewrite Int.and_mone; rewrite <- sigma_1_eq.
-clear H1 s1'.
 
 forward. (* T1 = X[i&0xf]; *)
- entailer!.
 rewrite Znth_nthi' by reflexivity.
 replace (nthi (Xarray b (Z.to_nat i)) (i mod 16))
   with (W (nthi b) (i - 16 + 0))
@@ -481,14 +463,12 @@ replace (nthi (Xarray b (Z.to_nat i)) (i mod 16))
       rewrite extract_from_b; try omega; auto).
 
 forward. (* t = X[(i+9)&0xf]; *)
-  entailer!.
 rewrite Znth_nthi' by reflexivity.
 rewrite extract_from_b by (try assumption; try omega).
 
-forward T1_old.  (* T1 += s0 + s1 + t; *)
+forward.  (* T1 += s0 + s1 + t; *)
 rewrite <- (Z.add_0_r (i - 16)) at 1.
 rewrite <- (W_unfold i b) by auto.
-clear T1_old H1.
 
 forward. (* X[i&0xf] = T1; *)
 rewrite Zland_15.
@@ -515,19 +495,15 @@ rewrite Heqregs' in *. clear Heqregs'.
 rewrite H1.
 unfold nthi at 4 5 6 7 8 9 10 11; simpl.
 unfold rearrange_regs2b.
-forward T1_old. (* T1 += h + Sigma1(e) + Ch(e,f,g) + Ki; *)
+forward. (* T1 += h + Sigma1(e) + Ch(e,f,g) + Ki; *)
 rewrite <- Sigma_1_eq, <- Ch_eq.
-clear T1_old H2.
 forward. 	(* T2 = Sigma0(a) + Maj(a,b,c); *)
 rewrite <- Sigma_0_eq, <- Maj_eq.
 unfold rearrange_regs2c.
-repeat forward ?x.
+repeat forward.
 rewrite Z.add_simpl_r.
 rewrite Z2Nat.inj_add by omega.
-change (Z.to_nat 1) with 1.
-entailer.
-apply prop_right.
-clear Delta H10.
+entailer!.
 clear - H H0 H1.
 rewrite Round_equation.
 rewrite if_false by omega.
@@ -536,8 +512,11 @@ unfold rnd_function.
 repeat split; try reflexivity.
 repable_signed.
 unfold nthi at 1; simpl.
-f_equal. rewrite Int.add_commut.
-f_equal. f_equal. unfold nthi.
+f_equal.
+rewrite <- Int.add_assoc; symmetry; rewrite <- Int.add_assoc.
+f_equal. f_equal.
+ rewrite Int.add_commut. reflexivity. 
+f_equal. unfold nthi.
 simpl.
 f_equal. rewrite Int.add_commut. f_equal.
 Qed.
@@ -627,7 +606,7 @@ apply Zlength_length in H; auto.
 *
 unfold POSTCONDITION, abbreviate; clear POSTCONDITION.
 drop_LOCAL 1%nat.
-replace Delta with (initialized _i Delta_loop1) by (simplify_Delta; reflexivity).
+change Delta with (initialized _i Delta_loop1).
 apply semax_extract_PROP; intro.
 simple apply bdo_loop2_body_proof; auto.
  change LBLOCKz with 16%Z; omega.

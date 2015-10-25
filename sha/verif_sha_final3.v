@@ -319,20 +319,11 @@ Proof.
 
   unfold field_address, field_address0; rewrite !if_true by auto.
   destruct c_; try contradiction; simpl; auto.
-
-  split; auto. compute; congruence.
-
-  replace_SEP 0 (`(array_at Tsh t_struct_SHA256state_st [StructField _data] 56 60
-                           (map Vint hibytes) c)). {
-  clearbody hibytes.
-  rewrite array_at_data_at.
-  entailer!.
-  split;   eapply field_compatible0_cons_Tarray; try reflexivity; auto.
-  unfold at_offset; simpl.
-  unfold field_address0 in H9|-*.
-  if_tac in H9; [ | destruct H9; contradiction].
-  normalize.
-}
+  if_tac; reflexivity.
+  rewrite if_true; [ reflexivity |].
+  eapply field_compatible0_cons_Tarray; try reflexivity; auto; omega.
+  split; auto.
+  subst hibytes; clear; compute; congruence.
 (*
   gather_SEP 0 1 2.
   replace_SEP 0 (`(field_at Tsh t_struct_SHA256state_st [StructField _data]
@@ -375,9 +366,10 @@ Proof.
   rewrite (nth_big_endian_integer 0 [lo_part bitlen] (lo_part bitlen)) at 1 by reflexivity.
   reflexivity.
 
+  make_Vptr c_. 
   unfold field_address, field_address0; rewrite !if_true; auto.
-  destruct c_; try contradiction; simpl; auto.
-  normalize.
+  simpl. f_equal. f_equal. clear; normalize. 
+  eapply field_compatible0_cons_Tarray; try reflexivity; auto.
   eapply field_compatible_cons_Tarray; try reflexivity; auto.
 
   split; auto.   compute; congruence.
@@ -415,6 +407,7 @@ Proof.
              list_repeat (Z.to_nat (CBLOCKz - 8 - Zlength dd'))
                (Vint Int.zero) ++ ((map Vint hibytes) ++ (map Vint lobytes))) c)).
   {
+    assert (LENhi: Zlength hibytes = 4) by reflexivity.
     clearbody hibytes. clearbody lobytes.
     entailer!.
   erewrite field_at_Tarray; try reflexivity;
@@ -424,14 +417,16 @@ Proof.
    rewrite (split2_array_at _ _ _ 0 56 64) by omega.
    rewrite (split2_array_at _ _ _ 56 60 64) by omega.
    assert (CBZ: CBLOCKz = 64) by reflexivity.
-   clear - CBZ H13 H11 H1 H0 H3. rewrite CBZ in *.   
+   clear - CBZ H13 H11 H1 H0 H3 H9 LENhi. rewrite CBZ in *.   
    pose proof (Zlength_nonneg dd').
-   autorewrite with sublist in * |- .
+   autorewrite with sublist in * |- * .
+   replace (Zlength dd' + (64 - 8 - Zlength dd')) with 56 by (clear; omega).
    autorewrite with sublist.
    cancel.
+   rewrite array_at_data_at'; auto.
  }
   forward. (* p += 4; *)
-    entailer!.
+    entailer!. 
     unfold field_address in *. if_tac; try contradiction.
      normalize.
   forward. (* p -= SHA_CBLOCK; *)

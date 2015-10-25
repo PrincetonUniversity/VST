@@ -146,20 +146,6 @@ apply data_at_type_changable; auto.
 rewrite H0; reflexivity.
 Qed.
 
-Lemma Znth_list_repeat_inrange:
-  forall {A} i n (a d: A),
-   (0 <= i < n)%Z ->
-   Znth i (list_repeat (Z.to_nat n) a) d = a.
-Proof.
-intros.
-unfold Znth; rewrite if_false by omega.
-assert (Z.to_nat i < Z.to_nat n)
-  by (apply Z2Nat.inj_lt; omega).
-forget (Z.to_nat n) as k.
-revert k H0; induction (Z.to_nat i); destruct k; simpl; intros.
-omega. auto. omega. apply IHn0; omega.
-Qed.  (* move to floyd/sublist.v *)
-
 Lemma field_at_cancel_undef_example:
   forall  (d': list val) d c, 
   Zlength d' = 64%Z ->

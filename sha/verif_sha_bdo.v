@@ -27,14 +27,13 @@ name ctx_ _ctx.
 name i_ _i.
 name data_ _data.
 subst POSTCONDITION; unfold abbreviate.
-simpl_stackframe_of.
-fixup_local_var; intro Xv.
+rename lvar0 into Xv.
 remember (hash_blocks init_registers hashed) as regs eqn:Hregs.
 assert (Lregs: length regs = 8%nat) 
   by (subst regs; apply length_hash_blocks; auto).
 assert (Zregs: Zlength regs = 8%Z)
  by (rewrite Zlength_correct; rewrite Lregs; reflexivity).
-forward data_old. (* data = in; *)
+forward. (* data = in; *)
  match goal with |- semax _ _ ?c _ =>
   eapply seq_assocN with (cs := sequenceN 8 c)
  end.
@@ -51,18 +50,18 @@ eapply semax_seq'.
 semax_frame 
       [  ]
       [`(field_at Tsh t_struct_SHA256state_st [StructField _h] (map Vint regs) ctx)].
-replace Delta with Delta_loop1 by simplify_Delta.
+change Delta with Delta_loop1.
 
     fold block_data_order_loop1.
     simple apply (sha256_block_data_order_loop1_proof _ sh b ctx data regs kv Xv); auto.
-    apply Zlength_length in H; auto.
 simpl; abbreviate_semax.
 eapply semax_seq'.
 semax_frame  [ ]
         [`(field_at Tsh t_struct_SHA256state_st [StructField _h] (map Vint regs) ctx);
          `(data_block sh (intlist_to_Zlist b) data)].
  match goal with |- semax _ _ ?c _ => change c with block_data_order_loop2 end.
- simple eapply sha256_block_data_order_loop2_proof; eassumption.
+ simple eapply sha256_block_data_order_loop2_proof;
+   try  eassumption.
 abbreviate_semax.
 subst MORE_COMMANDS; unfold abbreviate.
 eapply seq_assocN with (cs := add_them_back).
@@ -70,15 +69,15 @@ semax_frame  [  lvar _X (tarray tuint 16) Xv ]
              [`(K_vector kv);
              `(data_at_ Tsh (tarray tuint LBLOCKz) Xv);
              `(data_block sh (intlist_to_Zlist b) data)].
-  replace Delta with (initialized _i Delta_loop1) by simplify_Delta.
+  change Delta with (initialized _i Delta_loop1).
   simple apply (add_them_back_proof _ regs (Round regs (nthi b) 63) ctx); try assumption.
   apply length_Round; auto.
 simpl; abbreviate_semax.
 forward. (* return; *)
+Exists Xv.
 fold (hash_block  (hash_blocks init_registers hashed) b).
 rewrite hash_blocks_last by auto.
-rewrite (lvar_eval_lvar _ _ _ _ H3).
-cancel.
+entailer!.
 Qed.
 
 

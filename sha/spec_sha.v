@@ -122,7 +122,7 @@ Definition sha256_block_data_order_spec :=
   DECLARE _sha256_block_data_order
     WITH hashed: list int, b: list int, ctx : val, data: val, sh: share, kv : val
    PRE [ _ctx OF tptr t_struct_SHA256state_st, _in OF tptr tvoid ]
-         PROP(Zlength b = LBLOCKz; (LBLOCKz | Zlength hashed)) 
+         PROP(Zlength b = LBLOCKz; (LBLOCKz | Zlength hashed); readable_share sh) 
          LOCAL (temp _ctx ctx; temp _in data; gvar _K256 kv)
          SEP (`(field_at Tsh t_struct_SHA256state_st [StructField _h] (map Vint (hash_blocks init_registers hashed)) ctx);
                 `(data_block sh (intlist_to_Zlist b) data);

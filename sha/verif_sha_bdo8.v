@@ -88,16 +88,12 @@ abbreviate_semax.
 assert (H5': Zlength r_h = 8%Z).
 rewrite Zlength_correct; rewrite H5; reflexivity.
 do 8 (forward; [ entailer!; apply Znth_is_int; omega | ]).
-entailer. apply prop_right.
-revert H0 H1 H2 H3 H4 H6 H7 H8.
-clear - H5.
+entailer!.
+rewrite <- H0,  <-H1; clear H0 H1.
+repeat (rewrite Znth_map with (d':=Int.zero); [ | omega]).
 unfold Znth.
 repeat rewrite if_false by (apply Zle_not_lt; computable).
-simpl.
-repeat (rewrite nth_map' with (d':=Int.zero); [ | omega]).
-intros.
- inv H0; inv H1; inv H2; inv H3; inv H4; inv H6; inv H7; inv H8.
-repeat split; auto.
+repeat split; reflexivity.
 Qed.
 
 Definition get_h (n: Z) :=
@@ -165,7 +161,7 @@ Lemma add_upto_S:
   length regs = 8%nat ->
    (i < 8)%nat ->
   map Vint (add_upto (S i) regs atoh) =
-  upd_reptype_array tuint (Z.of_nat i) (map Vint (add_upto i regs atoh))
+  upd_Znth_in_list (Z.of_nat i) (map Vint (add_upto i regs atoh))
    (Vint
      (Int.add (nthi (add_upto i regs atoh) (Z.of_nat i))
         (nthi atoh (Z.of_nat i)))).
@@ -173,78 +169,79 @@ Proof.
 intros. rename H1 into H4.
  assert ( i < length (add_upto i regs atoh))%nat
     by (rewrite length_add_upto; omega).
- unfold upd_reptype_array.
- rewrite Nat2Z.id.
-
-rewrite force_lengthn_short by (rewrite map_length; omega).
-rewrite Z2Nat.inj_add by omega.
- rewrite Nat2Z.id.
- change (Z.to_nat 1) with 1%nat.
-
-assert (length regs = length atoh) by congruence.
-assert (i < length regs)%nat by omega.
-rename H2 into H18; rename H3 into H19.
+ unfold upd_Znth_in_list.
+ rewrite !sublist_map, <- map_cons, <- map_app.
+ f_equal.
+ 
+assert (H18: length regs = length atoh) by congruence.
+assert (H19: (i < length regs)%nat) by omega.
 clear - H18 H19.
 revert regs atoh H18 H19; induction i; destruct regs,atoh; intros;
 try solve [inv H19]; inv H18.
 simpl.
-reflexivity.
-change (map Vint (add_upto (S (S i)) (i0 :: regs) (i1 :: atoh)))
-  with (Vint (Int.add i0 i1) :: map Vint (add_upto (S i) regs atoh)).
-change (firstn (S i) (map Vint (add_upto (S i) (i0 :: regs) (i1 :: atoh))))
- with (Vint (Int.add i0 i1) :: firstn i (map Vint (add_upto i regs atoh))).
-rewrite <- app_comm_cons.
 f_equal.
+change (i::regs) with ([i]++regs).
+autorewrite with sublist. auto.
+simpl in H19.
+change (add_upto (S (S i)) (i0 :: regs) (i1 :: atoh))
+  with (Int.add i0 i1 :: add_upto (S i) regs atoh).
 simpl in H19.
 rewrite (IHi regs atoh); auto; [ | omega].
 clear IHi.
-f_equal.
-f_equal.
-f_equal.
 simpl add_upto.
+rewrite (sublist_split 0 1 (Z.of_nat (S i))); try omega.
+change (@sublist int 0 1) with (@sublist int 0 (0+1)).
+rewrite sublist_singleton with (d:=Int.zero); try omega.
+rewrite inj_S.
+simpl.
+autorewrite with sublist.
+f_equal.
+f_equal.
+change (cons (Int.add i0 i1)) with (app [Int.add i0 i1]).
+rewrite sublist_app2 by (autorewrite with sublist; omega).
+f_equal.
+autorewrite with sublist; omega.
+f_equal.
+f_equal.
 unfold nthi.
-repeat rewrite Nat2Z.id.
-simpl nth.
-auto.
+rewrite Z2Nat.inj_succ by omega.
+reflexivity.
+unfold nthi.
+rewrite Z2Nat.inj_succ by omega.
+reflexivity.
+change (cons (Int.add i0 i1)) with (app [Int.add i0 i1]).
+rewrite sublist_app2 by (autorewrite with sublist; omega).
+f_equal.
+autorewrite with sublist; omega.
+autorewrite with sublist; omega.
+autorewrite with sublist. Omega1.
+rewrite inj_S.
+split; try omega.
+rewrite Zlength_cons.
+unfold Z.succ.
+apply Zplus_le_compat_r.
+rewrite Zlength_correct.
+rewrite length_add_upto; auto.
+apply Nat2Z.inj_le; auto.
+omega.
 Qed.
 
-Lemma upd_reptype_array_gso:
+Lemma upd_reptype_array_gso: (* perhaps move to floyd? *)
  forall t a v i j,
     0 <= j <= Zlength a ->
     0 <= i < Zlength a ->
     i<>j ->
-    Znth i (upd_reptype_array t j a v) (default_val t) = Znth i a (default_val t).
+    Znth i (upd_Znth_in_list j a v) (default_val t) = Znth i a (default_val t).
 Proof.
 intros.
-unfold upd_reptype_array.
-unfold Znth.
-rewrite if_false by omega.
-rewrite if_false by omega.
+unfold upd_Znth_in_list.
 assert (i<j \/ i>j) by omega.
 clear H1; destruct H2.
-rewrite app_nth1.
-rewrite nth_force_lengthn.
-auto.
-split; try omega.
-apply Z2Nat.inj_lt; omega.
-rewrite force_lengthn_length_n.
-apply Z2Nat.inj_lt; omega.
-rewrite app_nth2.
-rewrite force_lengthn_length_n.
-replace (Z.to_nat i - nat_of_Z j)%nat with (S (Z.to_nat (i-(j+1)))).
-simpl.
-rewrite nth_skipn.
-change nat_of_Z with Z.to_nat.
-rewrite <- Z2Nat.inj_add by omega.
-replace (i - (j + 1) + (j + 1)) with i by omega.
-auto.
-rewrite <- Z2Nat.inj_sub by omega.
-rewrite <- Z2Nat.inj_succ by omega.
-f_equal. omega.
-rewrite force_lengthn_length_n.
-apply Nat2Z.inj_ge.
-repeat rewrite Z2Nat.id by omega.
-omega.
+autorewrite with sublist; auto.
+autorewrite with sublist; auto.
+change (cons v) with (app [v]).
+autorewrite with sublist; auto.
+f_equal; omega.
 Qed.
 
 Lemma add_them_back_proof:
@@ -310,7 +307,7 @@ assert (ADD_S:
  forall i i',
     (i < 8)%nat ->
     i' = Z.of_nat i ->
-   upd_reptype_array tuint i' (map Vint (add_upto i regs atoh))
+   upd_Znth_in_list i' (map Vint (add_upto i regs atoh))
        (force_val
               (sem_cast_neutral
                  (force_val
@@ -343,34 +340,27 @@ Opaque add_upto.
 forward.
 entailer!. apply INT_ADD_UPTO; auto; computable.
 forward.
-simpl upd_reptype; rewrite ADD_S by (try reflexivity; clear; try omega).
-forward t; [entailer! | clear t H1].
-forward.
-simpl upd_reptype; rewrite ADD_S by (try reflexivity; clear; try omega).
-forward t; [entailer! | clear t H1].
-forward.
-simpl upd_reptype; rewrite ADD_S by (try reflexivity; clear; try omega).
-forward t; [entailer! | clear t H1].
-forward.
-simpl upd_reptype; rewrite ADD_S by (try reflexivity; clear; try omega).
-forward t; [entailer! | clear t H1].
-forward.
-simpl upd_reptype; rewrite ADD_S by (try reflexivity; clear; try omega).
-forward t; [entailer! | clear t H1].
-forward.
-simpl upd_reptype; rewrite ADD_S by (try reflexivity; clear; try omega).
-forward t; [entailer! | clear t H1].
-forward.
-simpl upd_reptype; rewrite ADD_S by (try reflexivity; clear; try omega).
-forward t; [entailer! | clear t H1].
-forward.
-simpl upd_reptype; rewrite ADD_S by (try reflexivity; clear; try omega).
+simpl upd_Znth_in_list; rewrite ADD_S by (try reflexivity; clear; try omega).
+forward; forward.
+simpl upd_Znth_in_list; rewrite ADD_S by (try reflexivity; clear; try omega).
+forward; forward.
+simpl upd_Znth_in_list; rewrite ADD_S by (try reflexivity; clear; try omega).
+forward; forward.
+simpl upd_Znth_in_list; rewrite ADD_S by (try reflexivity; clear; try omega).
+forward; forward.
+simpl upd_Znth_in_list; rewrite ADD_S by (try reflexivity; clear; try omega).
+forward; forward.
+simpl upd_Znth_in_list; rewrite ADD_S by (try reflexivity; clear; try omega).
+forward; forward.
+simpl upd_Znth_in_list; rewrite ADD_S by (try reflexivity; clear; try omega).
+forward; forward.
+simpl upd_Znth_in_list; rewrite ADD_S by (try reflexivity; clear; try omega).
 replace (add_upto 8 regs atoh) with  (map2 Int.add regs atoh).
-entailer!.
+entailer!. auto.
 clear - H H0.
 destruct atoh as [ | a [ | b [ | c [ | d [ | e [ | f [ | g [ | h [ | ]]]]]]]]]; inv H0.
 destruct regs as [ | a' [ | b' [ | c' [ | d' [ | e' [ | f' [ | g' [ | h' [ | ]]]]]]]]]; inv H.
-reflexivity.
+simpl; auto.
 Qed.
 
 

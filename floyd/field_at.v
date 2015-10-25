@@ -1244,6 +1244,24 @@ Proof.
   omega.
 Qed.
 
+Lemma array_at_data_at':   
+forall sh t gfs lo hi v p,
+  field_compatible0 t (ArraySubsc lo :: gfs) p ->
+  field_compatible0 t (ArraySubsc hi :: gfs) p ->
+  array_at sh t gfs lo hi v p =
+  data_at sh (nested_field_array_type t gfs lo hi) 
+                (@fold_reptype _ (nested_field_array_type t gfs lo hi)  v)
+               (field_address0 t (ArraySubsc lo::gfs) p).
+Proof.
+  intros.
+  rewrite array_at_data_at.
+  rewrite !prop_true_andp by auto.
+  unfold at_offset.
+  f_equal.
+  unfold field_address0.
+  rewrite if_true; auto.
+Qed.
+
 Lemma array_at_data_at_with_tl: forall sh t gfs lo mid hi v v' p,
   array_at sh t gfs lo mid v p * array_at sh t gfs mid hi v' p =
   data_at sh (nested_field_array_type t gfs lo mid) (@fold_reptype _ (nested_field_array_type t gfs lo mid)  v) (field_address0 t (ArraySubsc lo :: gfs) p) *

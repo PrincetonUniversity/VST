@@ -1106,6 +1106,21 @@ Proof.
 simpl. auto.
 Qed.
 
+Lemma Znth_list_repeat_inrange:
+  forall {A} i n (a d: A),
+   (0 <= i < n)%Z ->
+   Znth i (list_repeat (Z.to_nat n) a) d = a.
+Proof.
+intros.
+unfold Znth; rewrite if_false by omega.
+assert (Z.to_nat i < Z.to_nat n)%nat
+  by (apply Z2Nat.inj_lt; omega).
+forget (Z.to_nat n) as k.
+revert k H0; induction (Z.to_nat i); destruct k; simpl; intros.
+omega. auto. omega. apply IHn0; omega.
+Qed.
+
+Hint Rewrite @Znth_list_repeat_inrange : sublist.
 Hint Rewrite @Zlength_cons @Zlength_nil: sublist.
 Hint Rewrite @list_repeat_0: sublist.
 Hint Rewrite <- @app_nil_end : sublist.
@@ -1124,4 +1139,8 @@ Hint Rewrite @sublist_same using (autorewrite with sublist; omega) : sublist.
 Hint Rewrite Z.add_simpl_l : sublist.
 Hint Rewrite Z.add_add_simpl_l_l Z.add_add_simpl_l_r
      Z.add_add_simpl_r_l Z.add_add_simpl_r_r : sublist.
+Hint Rewrite Z.add_0_r : sublist.
+Hint Rewrite @app_Znth1 using (autorewrite with sublist; omega) : sublist.
+Hint Rewrite @app_Znth2 using (autorewrite with sublist; omega) : sublist.
+Hint Rewrite @Znth_sublist using (autorewrite with sublist; omega) : sublist.
 

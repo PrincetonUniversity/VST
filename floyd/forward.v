@@ -838,7 +838,13 @@ Tactic Notation "uniform_intros" simple_intropattern_list(v) :=
   fail 1) || intros v) || idtac).
 
 Tactic Notation "forward_call" constr(witness) simple_intropattern_list(v) :=
-    check_canonical_call; try match goal with |- semax _ _ _ _ =>
+    check_canonical_call; 
+    try  (* BUG IN THIS LINE!  If check_canonical_call succeeds, but the
+          rest of the tactic fails, then the whole tactic should fail,
+         but the "try" makes it fail.  Can't simply delete the try, 
+         in case check_canonical_call returns a diagnostic message.
+         Need to handle the diagnostic the proper way *)
+      match goal with |- semax _ _ _ _ =>
     check_Delta;
     fwd_call' witness;
   [ .. 

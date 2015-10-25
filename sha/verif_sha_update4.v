@@ -178,6 +178,7 @@ Lemma update_loop_body_proof:
    (Delta : tycontext) (blocks bl : list int)
  (HDelta: Delta = initialized_list [_p; _n; _data]
                      (func_tycontext f_SHA256_Update Vprog Gtot))
+ (Hsh: readable_share sh)
  (H: 0 <= len <= Zlength data)
  (Hdiv: (LBLOCKz | Zlength blocks))
  (H0: r_h = hash_blocks init_registers hashed)
@@ -262,7 +263,7 @@ forward_call (* sha256_block_data_order (c,data); *)
  unfold data_at.
  unfold_field_at 1%nat.
  entailer!.
- split; auto. apply divide_length_app; auto.
+ split3; auto. apply divide_length_app; auto.
  simpl map. (* should not need this *)
  forward. (* data += SHA_CBLOCK; *)
  forward. (* len  -= SHA_CBLOCK; *)
@@ -319,7 +320,7 @@ Lemma update_outer_if_proof:
    (H4 : (LBLOCKz | Zlength hashed))
    (Hlen : len <= Int.max_unsigned),
 semax
-  (initialized_list [_p; _n; _data]
+  (initialized_list [_data; _p; _n]
      (func_tycontext f_SHA256_Update Vprog Gtot))
   (PROP  ()
    LOCAL 
