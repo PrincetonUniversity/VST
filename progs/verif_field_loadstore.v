@@ -1,9 +1,12 @@
 Require Import floyd.proofauto.
 Require Import progs.field_loadstore.
 
-Local Open Scope logic.
+Definition CompSpecs' : compspecs.
+Proof. make_compspecs1 prog. Defined.
+Instance CompSpecs : compspecs.
+Proof. make_compspecs2 CompSpecs'. Defined.
 
-Require Import floyd.rangespec_lemmas.
+Local Open Scope logic.
 
 Lemma Znth_map: forall {A B} n xs d (f: A -> B),
   Znth n (map f xs) (f d) = f (Znth n xs d).
@@ -31,9 +34,11 @@ Proof.
     exact H1. 
 Qed.
 
+Definition t_struct_b := Tstruct _b noattr.
+
 Definition sub_spec (sub_id: ident) :=
  DECLARE sub_id
-  WITH v : reptype t_struct_b, p: val
+  WITH v : val * list (val*val) , p: val
   PRE  [] 
         PROP  (is_int I8 Signed (snd (nth 1%nat (snd v) (Vundef, Vundef))))
         LOCAL (gvar _p p)
@@ -46,18 +51,20 @@ Definition sub_spec' (sub_id: ident) :=
  DECLARE sub_id
   WITH v : reptype t_struct_b, p: val
   PRE  [] 
-        PROP  (is_int I8 Signed (proj_reptype _ (StructField _x2 :: ArraySubsc 1 :: StructField _y2 :: nil) v))
+        PROP  (is_int I8 Signed (proj_reptype _ (DOT _y2 SUB 1 DOT _x2) v))
         LOCAL (gvar _p p)
         SEP   (`(data_at Ews t_struct_b v p))
   POST [ tint ]
         PROP() LOCAL()
         SEP(`(data_at Ews t_struct_b 
-           (upd_reptype t_struct_b (StructField _y1 :: nil) v 
+           (upd_reptype t_struct_b (DOT _y1) v 
              (proj_reptype t_struct_b (StructField _x2 :: ArraySubsc 1 :: StructField _y2 :: nil) v))
            p)).
 
 Lemma spec_coincide: sub_spec' = sub_spec.
-Proof. reflexivity. Qed.
+Proof.
+(*reflexivity.*)
+Abort.
 
 Definition Vprog : varspecs := (_p, t_struct_b)::nil.
 

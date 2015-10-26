@@ -298,6 +298,7 @@ Proof. intros.
    normalize. subst v.
 
    forward. (*ctx->key_length=32*)
+
    apply exp_right with cb; apply exp_right with cofs; apply exp_right with 1.
    unfold initPostKeyNullConditional.
    rewrite if_false by omega.
@@ -384,13 +385,7 @@ simpl offset_val; normalize.
      focus_SEP 0 2.
      unfold data_at_. 
      unfold_data_at 1%nat.
-     rewrite (field_at_data_at Tsh t_struct_hmac_ctx_st [StructField _key]); try reflexivity. 
-(*     assert_PROP (field_compatible t_struct_hmac_ctx_st [StructField _key] c).
-         entailer!.
-     rename H into FCKey.
-     make_Vptr c. rename b into cb; rename i into cofs.*)
-(*     focus_SEP 1 5.*)
- 
+     rewrite (field_at_data_at Tsh t_struct_hmac_ctx_st [StructField _key]); try reflexivity.
      simpl. 
      unfold tarray.
      remember (`(data_at Tsh (Tarray tuchar 64 noattr) [] pad)) as ZZ.
@@ -401,6 +396,7 @@ simpl offset_val; normalize.
                        rewrite Nat2Z.inj_add. repeat rewrite nat_of_Z_eq; omega.
      2:rewrite Z2Nat.id; omega.
      subst ZZ.
+
      normalize.
      rename H into OIR0_328. rename H0 into OIR64_328.
 
@@ -411,60 +407,59 @@ simpl offset_val; normalize.
      assert (X: (Z.to_nat l - nat_of_Z l = 0)%nat).
                    unfold nat_of_Z.  omega. 
      rewrite X, skipn_0, Z2Nat.id; clear X. 2: omega.
-     assert (NL: nat_of_Z l = length key).
-     { subst l; unfold nat_of_Z. rewrite Zlength_correct, Nat2Z.id. trivial. }
-     rewrite NL.   
 
      remember (64 - l) as l64.
-     assert  (HH: match Z.max 0 (Zlength key) with
+   assert  (match Z.max 0 (Zlength key) with
                | 0 => 0
                | Z.pos y' => Z.pos y'
                | Z.neg y' => Z.neg y'
                end = Zlength key).
          rewrite Z.max_r by omega. destruct (Zlength key); auto; omega.
-     rewrite KL1 in *.
+    
      (*Call to memcpy*)
      forward_call' ((Tsh, Tsh), (field_address t_struct_hmac_ctx_st [StructField _key] c), 
              Vptr kb kofs, mkTrep (Tarray tuchar (Zlength key) noattr) 
                      (map Vint (map Int.repr key))) v.
-     { rewrite HH. entailer!.
-       unfold field_address; rewrite if_true by auto; reflexivity. }
-     { simpl; split; auto. rewrite HH. repable_signed. }
-     subst v; normalize. simpl. clear HH.
+    rewrite H. entailer!.
+         unfold field_address; rewrite if_true by auto; reflexivity.
+    simpl. rewrite H.
+    rewrite KL1.
+    cancel.
+    simpl; split; auto. rewrite H. repable_signed.
+     subst v; normalize. simpl.
 
-     assert (l64 <= Int.max_unsigned) by MyOmega. 
-
-     (*call memset*)
-     remember (map Vint (map Int.repr key)) as CONT. 
-     forward_call' (Tsh, offset_val (Int.repr (Zlength key)) (field_address t_struct_hmac_ctx_st [StructField _key] c), l64, Int.zero) v.
-     { entailer!. unfold field_address; rewrite if_true by auto. 
-       f_equal. rewrite Zplus_comm. unfold nested_field_offset2. simpl.
-       rewrite offset_offset_val. rewrite add_repr. rewrite Zplus_comm. reflexivity. 
-       (*f_equal. rewrite add_repr. reflexivity.*) }
-     { replace (Int.repr l64) with (Int.repr (sizeof (tarray tuchar l64)))
-          by (rewrite sizeof_tarray_tuchar; auto; omega).
-       assert (match Z.max 0 l64 with
+    assert (l64 <= Int.max_unsigned) by MyOmega. 
+   (*call memset*)
+   remember (map Vint (map Int.repr key)) as CONT. 
+   forward_call' (Tsh, offset_val (Int.repr (Zlength key)) (field_address t_struct_hmac_ctx_st [StructField _key] c), l64, Int.zero) v.
+   { entailer!. unfold field_address; rewrite if_true by auto. 
+    f_equal. simpl. rewrite offset_offset_val.
+    f_equal. rewrite add_repr. reflexivity.
+   }
+   replace (Int.repr l64) with (Int.repr (sizeof (tarray tuchar l64)))
+      by (rewrite sizeof_tarray_tuchar; auto; omega).
+  assert (match Z.max 0 l64 with
               | 0 => 0
               | Z.pos y' => Z.pos y'
               | Z.neg y' => Z.neg y'
               end = l64).
              rewrite Z.max_r by omega. destruct l64; reflexivity.
-       cancel. }
-     { simpl; split; auto. omega. }
-     simpl map.
-     clear H.
-     forward. (*ctx->key_length=len*)
-     assert_PROP (isptr c); [entailer! |].
-     make_Vptr c. rename b into cb; rename i into cofs; clear H.
-     apply exp_right with cb; apply exp_right with cofs; apply exp_right with 1.
-     unfold initPostKeyNullConditional. rewrite zeq_false by omega.
-     entailer. cancel.
-     unfold_data_at 3%nat. rewrite if_false by omega.
-     cancel.
-     (*clear H0 TC0 h1.*)
-     rewrite (field_at_data_at Tsh t_struct_hmac_ctx_st [StructField _key]); try reflexivity.
-     remember (64 - Zlength key) as ZK64. 
-     simpl.
+   cancel.
+  split; auto. omega.
+  simpl map.
+   clear H.
+   forward. (*ctx->key_length=len*)
+   assert_PROP (isptr c); [entailer! |].
+   make_Vptr c. rename b into cb; rename i into cofs; clear H.
+   apply exp_right with cb; apply exp_right with cofs; apply exp_right with 1.
+   unfold initPostKeyNullConditional. rewrite zeq_false by omega.
+   entailer. cancel.
+   unfold_data_at 3%nat. rewrite if_false by omega.
+   cancel.
+   clear H0 TC0 h1.
+   rewrite (field_at_data_at Tsh t_struct_hmac_ctx_st [StructField _key]); try reflexivity.
+   remember (64 - Zlength key) as ZK64. 
+   simpl.
      unfold tarray.
      rewrite (data_at_Tarray_split3a Tsh tuchar 64 noattr (Zlength key)) by omega.
      simpl. unfold nat_of_Z. rewrite Zlength_correct, Nat2Z.id.
@@ -492,13 +487,13 @@ simpl offset_val; normalize.
            assert (Zlength key <= 64) by omega.  apply Z2Nat.inj_le in H10. simpl in H10.
            rewrite Zlength_correct, Nat2Z.id in H10. omega.
            omega. omega.
-       rewrite nth_map' with (d':=Int.zero) by (rewrite map_length; trivial).
          rewrite nth_map' with (d':=Int.zero) by (rewrite map_length; trivial).
-           rewrite nth_map' with (d':=Z0) by trivial.
-           rewrite nth_map' with (d':=Z0) by trivial.
-           f_equal. f_equal.          
-           eapply mkKey_left'; auto; try omega. rewrite Zlength_correct. trivial.
-     }
+         rewrite nth_map' with (d':=Int.zero) by (rewrite map_length; trivial).
+         rewrite nth_map' with (d':=Z0) by trivial.
+         rewrite nth_map' with (d':=Z0) by trivial.
+         f_equal. f_equal.     
+         eapply mkKey_left'; auto; try omega. rewrite Zlength_correct; trivial.
+      }
       { rewrite skipn_force_lengthn_app.
         rewrite  Zlength_correct.
         apply data_at_Tarray_ext_derives. intros i I.
@@ -531,20 +526,20 @@ simpl offset_val; normalize.
          rewrite map_length. rewrite mkKey_length. unfold SHA256.BlockSize. apply (Z2Nat.inj_lt _ 64). omega. omega. omega. 
       }
   }
-}
-{ (*key == NULL*)
-   revert POSTCONDITION; subst k; intro.
-   forward.
+ }
+  { (*key == NULL*)
+     revert POSTCONDITION; subst k; intro.
+     forward.
 
-   unfold initPre, initPostKeyNullConditional. simpl SEPx.
-   unfold hmacstate_PreInitNull.
+     unfold initPre, initPostKeyNullConditional. simpl SEPx.
+     unfold hmacstate_PreInitNull.
 
-   assert_PROP (isptr c). entailer.
-   make_Vptr c. rename b into cb; rename i into cofs; clear H.
-   apply (exp_right cb). apply (exp_right cofs). apply (exp_right 0).
-   rewrite if_true by auto.
-   entailer.
-   apply (exp_right r). cancel. apply (exp_right v). entailer!. 
+  assert_PROP (isptr c). entailer.
+  make_Vptr c. rename b into cb; rename i into cofs; clear H.
+  apply (exp_right cb). apply (exp_right cofs). apply (exp_right 0).
+  rewrite if_true by auto.
+  entailer.
+  apply (exp_right r). cancel. apply (exp_right v). entailer. 
   }
 Qed.
 

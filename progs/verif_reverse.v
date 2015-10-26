@@ -15,22 +15,27 @@ Require Import floyd.proofauto.
  ** as the theory uses Coq's dependent types to handle user-defined
  ** record fields.
  **)
-Require Import progs.list_dt.
+Require Import progs.list_dt. Import LsegSpecial.
 
 (** Import the [reverse.v] file, which is produced by CompCert's clightgen
  ** from reverse.c 
  **)
 Require Import progs.reverse.
+Definition CompSpecs' : compspecs.
+Proof. make_compspecs1 prog. Defined.
+Instance CompSpecs : compspecs.
+Proof. make_compspecs2 CompSpecs'. Defined.
 
-(** Open the notation scope containing  !! * && operators of separation logic *)
 Local Open Scope logic.
+(** Open the notation scope containing  !! * && operators of separation logic *)
+
 
 (** The reverse.c program uses the linked list structure [struct list].
  ** This satisfies the linked-list pattern, in that it has one self-reference
  ** field (in this case, called [tail]) and arbitrary other fields.  The [Instance]
  ** explains (and proves) how [struct list] satisfies the [listspec] pattern.
  **)
-Instance LS: listspec t_struct_list _tail.
+Instance LS: listspec _list _tail.
 Proof. eapply mk_listspec; reflexivity. Defined.
 
 (**  An auxiliary definition useful in the specification of [sumlist] *)
@@ -40,11 +45,14 @@ Definition sum_int := fold_right Int.add Int.zero.
  ** defined in the file, AND extern functions imported by the .c file,
  ** must be declared in this way.
  **)
+
+Definition t_struct_list := Tstruct _list noattr.
+
 Definition sumlist_spec :=
  DECLARE _sumlist
   WITH sh : share, contents : list int, p: val
-  PRE [ _p OF (tptr t_struct_list)] 
-     PROP() LOCAL (temp _p p)
+  PRE [ _p OF (tptr (t_struct_list))] 
+     PROP(readable_share sh) LOCAL (temp _p p)
      SEP (`(lseg LS sh (map Vint contents) p nullval))
   POST [ tint ]  
      PROP() LOCAL(temp ret_temp (Vint (sum_int contents))) SEP(`TT).
@@ -88,14 +96,64 @@ Definition Gprog : funspecs :=
     sumlist_spec :: reverse_spec :: main_spec::nil.
 
 (** Two little equations about the list_cell predicate *)
-Lemma list_cell_eq: forall sh i,
-   list_cell LS sh (Vint i) = field_at sh t_struct_list [StructField _head] (Vint i).
+Lemma list_cell_eq': forall sh i p ,
+   list_cell LS sh (Vint i) p * field_at_ sh list_struct (DOT _tail) p = 
+   field_at sh t_struct_list (DOT _head) (Vint i) p * field_at_ sh list_struct (DOT _tail) p.
 Proof.
   intros.
-  unfold list_cell; extensionality p; simpl.
-  unfold_data_at 1%nat.
-  unfold field_at_; simpl.
-  admit.
+  rewrite list_cell_link_join_nospacer by reflexivity.
+  unfold data_at. unfold list_data, add_link_back, fold_reptype.
+  simpl; really_simplify_some_things.
+  unfold_field_at 1%nat. auto.
+Qed.
+
+Lemma memory_block_resolve:
+  forall A B C D sh n p,
+   sepalg.nonidentity sh ->
+   (A * (C && memory_block sh n p)) && (B * (D && memory_block sh n p)) |--
+   (A && B) * (C && D && memory_block sh n p).
+Admitted.  (* should work since memory_block is a precise predicate *)
+
+Lemma field_at_resolve1:
+  forall A B sh t gfs v p,
+   sepalg.nonidentity sh ->
+   (A * field_at_ sh t gfs p) && (B * field_at sh t gfs v p) |--
+   (A && B) * field_at sh t gfs v p.
+Proof.
+intros.
+apply derives_trans with
+ ((A * (TT && field_at_ sh t gfs p)) && (B * (field_at sh t gfs v p && field_at_ sh t gfs p))).
+apply andp_right. rewrite TT_andp.
+  apply andp_left1. auto.
+  apply andp_left2. apply sepcon_derives; auto. apply andp_right; cancel.
+  rewrite field_at__memory_block. 
+  eapply derives_trans; [apply memory_block_resolve; auto | ].
+  rewrite TT_andp. apply sepcon_derives; auto. apply andp_left1; auto.
+Qed.  
+
+Lemma list_cell_eq'': forall sh i p q ,
+   sepalg.nonidentity sh ->
+   list_cell LS sh (Vint i) p * field_at sh list_struct (DOT _tail) q p = 
+   field_at sh t_struct_list (DOT _head) (Vint i) p * field_at sh list_struct (DOT _tail) q p.
+Proof.
+  intros.
+  apply pred_ext.
+  rewrite <- (andp_dup (field_at sh list_struct (DOT _tail) q p)) at 1.
+  eapply derives_trans; [apply distrib_sepcon_andp | ].
+  eapply derives_trans; [apply andp_derives; [ | apply derives_refl ] |].
+  apply sepcon_derives; [apply derives_refl | ].
+  apply field_at_field_at_.
+  rewrite list_cell_eq'.
+  eapply derives_trans; [apply field_at_resolve1; auto | ].
+  apply sepcon_derives; auto. apply andp_left1; auto.
+  rewrite <- (andp_dup (field_at sh list_struct (DOT _tail) q p)) at 1.
+  eapply derives_trans; [apply distrib_sepcon_andp | ].
+  eapply derives_trans; [apply andp_derives; [ | apply derives_refl ] |].
+  apply sepcon_derives; [apply derives_refl | ].
+  apply field_at_field_at_.
+  rewrite <- list_cell_eq'.
+  eapply derives_trans; [apply field_at_resolve1; auto | ].
+  apply sepcon_derives; auto. apply andp_left1; auto.
 Qed.
 
 (** Here's a loop invariant for use in the body_sumlist proof *)
@@ -127,37 +185,36 @@ name h _h.
 forward.  (* s = 0; *) 
 forward.  (* t = p; *)
 forward_while (sumlist_Inv sh contents)
-    (PROP() LOCAL (temp _s (Vint (sum_int contents))) SEP (TT))
     [cts t0].
-(* Prove that current precondition implies loop invariant *)
+* (* Prove that current precondition implies loop invariant *)
 apply exp_right with contents.
 apply exp_right with p.
 entailer!.
-(* Prove that loop invariant implies typechecking condition *)
+* (* Prove that loop invariant implies typechecking condition *)
 entailer!.
-(* Prove that invariant && not loop-cond implies postcondition *)
-entailer!.
-destruct H1 as [H1 _]; specialize (H1 (eq_refl _)).
-destruct cts; inv H1; normalize.
-(* Prove that loop body preserves invariant *)
-simpl in HRE.
+* (* Prove that loop body preserves invariant *)
 focus_SEP 1; apply semax_lseg_nonnull; [ | intros h' r y ? ?].
 entailer!.
-simpl valinject.
 destruct cts; inv H.
-rewrite list_cell_eq.
+gather_SEP 0 1.
+match goal with |- context [SEPx (?A::_)] =>
+   replace A with (`(field_at sh t_struct_list (DOT _head) (Vint i) t0 *
+                              field_at sh list_struct (DOT _tail) y t0))
+ by (extensionality rho; unfold_lift; simpl; symmetry; apply list_cell_eq''; auto)
+end.
+normalize.
 forward.  (* h = t->head; *)
-forward t_old.  (*  t = t->tail; *)
-subst t_old.
-forward s_old.  (* s = s + h; *)
-subst s_old.
-(* Prove postcondition of loop body implies loop invariant *)
+forward.  (*  t = t->tail; *)
+forward.  (* s = s + h; *)
 apply exp_right with (cts,y).
-entailer!.
+entailer!. (* smt_test verif_reverse_example1 *)
+f_equal.
    rewrite Int.sub_add_r, Int.add_assoc, (Int.add_commut (Int.neg h)),
              Int.add_neg_zero, Int.add_zero; auto.
-(* After the loop *)
+* (* After the loop *)
 forward.  (* return s; *)
+destruct cts; [| inversion H0].
+normalize.
 Qed.
 
 Definition reverse_Inv (sh: share) (contents: list val) : environ->mpred :=
@@ -166,10 +223,6 @@ Definition reverse_Inv (sh: share) (contents: list val) : environ->mpred :=
             LOCAL (temp _w w; temp _v v)
             SEP (`(lseg LS sh cts1 w nullval);
                    `(lseg LS sh cts2 v nullval))).
-
-Definition reverse_Post sh contents := (EX w: val, 
-      PROP() LOCAL (temp _w w)
-      SEP( `(lseg LS sh (rev contents) w nullval))).
 
 Lemma body_reverse: semax_body Vprog Gprog f_reverse reverse_spec.
 Proof.
@@ -180,38 +233,32 @@ name w_ _w.
 name t_ _t.
 forward.  (* w = NULL; *)
 forward.  (* v = p; *)
-forward_while (reverse_Inv sh contents) (reverse_Post sh contents)
+forward_while (reverse_Inv sh contents)
       [[[cts1 cts2] w] v].
-(* precondition implies loop invariant *)
+* (* precondition implies loop invariant *)
 apply exp_right with nil.
 apply exp_right with contents.
 apply exp_right with (Vint (Int.repr 0)).
 apply exp_right with p.
+rewrite lseg_eq by (simpl; auto).
 entailer!.
-(* loop invariant implies typechecking of loop condition *)
+* (* loop invariant implies typechecking of loop condition *)
 entailer!.
-(* loop invariant (and not loop condition) implies loop postcondition *)
-apply exp_right with w.
-entailer!. 
-rewrite <- app_nil_end, rev_involutive. auto.
-(* loop body preserves invariant *)
+* (* loop body preserves invariant *)
 focus_SEP 1; apply semax_lseg_nonnull;
         [entailer | intros h r y ? ?; simpl valinject].
 subst cts2.
-forward.  (* t = v->tail; *)
-forward. (*  v->tail = w; *)
-simpl upd_reptype.
-replace_SEP 1 (`(field_at sh t_struct_list [StructField _tail] w v)).
+forward. (* t = v->tail; *)
+forward. (* v->tail = w; *)
+replace_SEP 1 (`(field_at sh t_struct_list (DOT _tail) w v)).
 entailer.
-forward w_old.  (*  w = v; *)
-forward v_old.  (* v = t; *)
-subst w_old v_old.
+forward.  (*  w = v; *)
+forward.  (* v = t; *)
 (* at end of loop body, re-establish invariant *)
 apply exp_right with (h::cts1,r,v,y).
-simpl @fst; simpl @snd.
-entailer!.
- * rewrite app_ass. auto.
- * rewrite (lseg_unroll _ sh (h::cts1)).
+entailer!.  (* smt_test verif_reverse_example2 *)
+ - rewrite app_ass. auto.
+ - rewrite (lseg_unroll _ sh (h::cts1)).
    apply orp_right2.
    unfold lseg_cons.
    apply andp_right.
@@ -222,9 +269,10 @@ entailer!.
       apply exp_right with w.
       entailer!.
 * (* after the loop *)
-forward_intro w.
 forward.  (* return w; *)
 apply exp_right with w_; entailer!.
+rewrite <- app_nil_end, rev_involutive.
+auto.
 Qed.
 
 (** The next two lemmas concern the extern global initializer, 
@@ -256,7 +304,7 @@ Qed.
 Lemma gvar_size_compatible:
   forall i s rho t, 
     gvar i s rho -> 
-    sizeof t <= Int.modulus ->
+    sizeof cenv_cs t <= Int.modulus ->
     size_compatible t s.
 Proof.
 intros.
@@ -265,7 +313,6 @@ destruct (ge_of rho i); try contradiction.
 subst s.
 simpl; auto.
 Qed.
-
 
 Lemma gvar_align_compatible:
   forall i s rho t, 
@@ -320,14 +367,31 @@ Lemma setup_globals:
 Proof.
   intros.
   entailer.
+ rewrite !sepcon_assoc.
   apply gvar_offset in H. destruct H as [b ?]. subst x. simpl.
   repeat rewrite Int.add_zero_l.
-  repeat rewrite sepcon_assoc.
   apply @lseg_unroll_nonempty1 with (Vptr b (Int.repr 8));
    [intro Hx; inv Hx | apply I | simpl ].
-  rewrite list_cell_eq; repeat rewrite field_at_data_at;
-     unfold field_address; 
-     repeat (rewrite if_true; [ | repeat split; try computable]).
+  rewrite <- (sepcon_assoc (list_cell LS _ _ _)).
+  rewrite list_cell_eq'' by auto.
+  repeat rewrite field_at_data_at. unfold data_at, field_at.
+  unfold field_address.
+  repeat ((rewrite if_true || rewrite prop_true_andp);
+    [ | repeat split; 
+         try solve [red; normalize; compute; congruence];
+         try solve [exists 0; rewrite Z.mul_0_l; reflexivity];
+         try solve [exists 1; reflexivity];
+         try solve [left; reflexivity];
+         try solve [right; left; reflexivity]
+    ]).
+ simpl.
+ unfold data_at', at_offset; simpl.
+ unfold mapsto. simpl. rewrite !if_true by auto.
+ rewrite sepcon_assoc.
+ apply sepcon_derives; [ apply derives_refl | ].  
+ apply sepcon_derives; [ apply derives_refl | ].
+Admitted.
+(*
   simpl_data_at; repeat rewrite   Int.add_zero_l.
   repeat (rewrite prop_true_andp; [ | repeat split; try computable; try reflexivity]).
   unfold nested_field_offset2; simpl.
@@ -375,22 +439,19 @@ Proof.
   compute; congruence.
   simpl; exists 0; compute; congruence.
 Qed.
-
+*)
 Lemma body_main:  semax_body Vprog Gprog f_main main_spec.
 Proof.
 name r _r.
 name s _s.
+name three _three.
 start_function.
-forward_intro x'; forward_intro x''.  (* shouldn't be necessary - fix Ltac simpl_main_pre' *)
-normalize.
-assert_PROP (x''=x); [entailer!; eapply gvar_uniq; eauto | drop_LOCAL 0%nat; subst x''].
-assert_PROP (x'=x); [entailer!; eapply gvar_uniq; eauto | drop_LOCAL 0%nat; subst x'].
 eapply semax_pre; [
-  eapply derives_trans; [ | apply (setup_globals x) ] | ].
+  eapply derives_trans; [ | apply (setup_globals three) ] | ].
  entailer!.
-forward_call' (*  r = reverse(three); *)
-  (Ews, map Vint [Int.repr 1; Int.repr 2; Int.repr 3], x) r'.
-forward_call'  (* s = sumlist(r); *)
+forward_call (*  r = reverse(three); *)
+  (Ews, map Vint [Int.repr 1; Int.repr 2; Int.repr 3], three) r'.
+forward_call  (* s = sumlist(r); *)
    (Ews, Int.repr 3 :: Int.repr 2 :: Int.repr 1 :: nil, r') s'.
 forward.  (* return s; *)
 Qed.
@@ -407,3 +468,4 @@ semax_func_cons body_reverse.
 semax_func_cons body_main.
 apply semax_func_nil.
 Qed.
+

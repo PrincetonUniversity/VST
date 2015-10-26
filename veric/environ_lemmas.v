@@ -4,8 +4,8 @@ Require Import msl.rmaps.
 Require Import msl.rmaps_lemmas.
 Require Import veric.compcert_rmaps.
 Require Import veric.Clight_lemmas.
-Require Import veric.expr.
-
+Require Import veric.tycontext.
+Require Import veric.expr2.
 
 Lemma eqb_type_eq: forall t1 t2, eqb_type t1 t2 = proj_sumbool (type_eq t1 t2).
 Proof.
@@ -67,7 +67,9 @@ Lemma typecheck_environ_join1:
         typecheck_environ (join_tycon Delta1 Delta2) rho.
 Proof. intros.
  unfold typecheck_environ in *. 
-destruct H1 as [? [? [? ? ]]]. repeat split. clear H2 H3 H4.  
+destruct H1 as [? [? [? ? ]]]. split; [ | split3].
+*
+clear H2 H3 H4.  
 destruct rho. simpl in *. 
 unfold typecheck_temp_environ in *. intros. unfold temp_types in *.
 destruct Delta2 as [temps2 vars2 ret2 globty2 globsp2];
@@ -75,17 +77,18 @@ destruct Delta1 as [temps1 vars1 ret1 globty1 globsp1]; simpl in *.
 apply join_te_denote in H2.
 destruct H2. destruct H2.
 edestruct H1. eauto. destruct H4. destruct H5. 
-destruct b; intuition. simpl in *. eauto. eauto. 
+destruct b; intuition. simpl in *. eauto. eauto.
+* 
 unfold join_tycon.
 destruct Delta2 as [temps2 vars2 ret2 globty2 globsp2];
 destruct Delta1 as [temps1 vars1 ret1 globty1 globsp1]; simpl in *.
-unfold join_te. unfold var_types in *.  simpl in *. subst. auto. 
-
+subst. auto.
+*
 unfold join_tycon.
 destruct Delta2 as [temps2 vars2 ret2 globty2 globsp2];
 destruct Delta1 as [temps1 vars1 ret1 globty1 globsp1]; simpl in *.
 unfold glob_types in *; simpl in *; subst; auto. 
-
+*
 unfold join_tycon.
 destruct Delta2 as [temps2 vars2 ret2 globty2 globsp2];
 destruct Delta1 as [temps1 vars1 ret1 globty1 globsp1]; simpl in *.
@@ -175,7 +178,7 @@ intros [ge ve te]  [A B C D E] [A1 B1 C1 D1 E1] [A2 B2 C2 D2 E2]
  unfold is_true.
  destruct b; auto. destruct b2; inv H0. contradiction. apply I.
 * unfold typecheck_var_environ in *; intros.
-  rewrite <- S2 in H. rewrite T2 in H. apply U2 in H. auto.
+  rewrite <- S2. rewrite T2. rewrite U2. clear; intuition.
 * unfold typecheck_glob_environ in *; intros.
   rewrite <- S4 in H. rewrite T4 in H. apply U3 in H. auto.
 * unfold same_env in *; intros.
@@ -186,10 +189,10 @@ intros [ge ve te]  [A B C D E] [A1 B1 C1 D1 E1] [A2 B2 C2 D2 E2]
  unfold var_types in *; simpl in *; auto. congruence.
 Qed.
 
-Lemma typecheck_val_ptr_lemma:
-   forall rho Delta id t a,
+Lemma typecheck_val_ptr_lemma {CS: compspecs} :
+   forall rho m Delta id t a,
    typecheck_environ Delta rho ->
-   denote_tc_assert (typecheck_expr Delta (Etempvar id (Tpointer t a))) rho ->
+   denote_tc_assert (typecheck_expr Delta (Etempvar id (Tpointer t a))) rho m ->
    (*(temp_types Delta) ! id =  Some (Tpointer t a, init) ->*) (*modified for init changes*)
    strict_bool_val (eval_id id rho) (Tpointer t a) = Some true ->
    typecheck_val (eval_id id rho) (Tpointer t a) = true.
@@ -197,8 +200,7 @@ Proof.
 intros. unfold strict_bool_val in *. unfold typecheck_val.
 destruct (eval_id id rho); try congruence.
 destruct (Int.eq i Int.zero); try congruence.
-Qed. 
-
+Qed.
 
 Lemma typecheck_environ_put_te : forall ge te ve Delta id v ,
 typecheck_environ  Delta (mkEnviron ge ve te) ->

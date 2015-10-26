@@ -1,4 +1,10 @@
-Require Import msl.msl_standard.
+Require Import msl.base.
+Require Import msl.ageable.
+Require Import msl.sepalg.
+Require Import msl.sepalg_generators.
+Require Import msl.age_sepalg.
+Require Import msl.predicates_hered.
+Require Import msl.predicates_sl.
 
 Local Open Scope pred.
 
@@ -158,6 +164,7 @@ apply join_core in H1.
 rewrite H in H0|-*. rewrite H1; auto.
 Qed.
 
+(* The following 3 lemmas should not be necessary *)
 Lemma corable_andp_sepcon2{A} {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{agA: ageable A}{AgeA: Age_alg A}:
    forall P Q R, corable P ->  (Q && P) * R = P && (Q * R).
 Proof.
@@ -179,4 +186,3 @@ Qed.
 (* This hint doesn't work well, hence the extra clauses in normalize1 and normalize1_in *)
 Hint Rewrite @corable_andp_sepcon1 @corable_andp_sepcon2
                     @corable_sepcon_andp1 @corable_sepcon_andp2 using solve [auto with normalize typeclass_instances].
-

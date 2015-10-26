@@ -5,9 +5,15 @@ Require Import List. Import ListNotations.
 Require Import general_lemmas.
 
 Require Import split_array_lemmas.
-Require Import fragments.
 Require Import ZArith. 
 Require Import Salsa20.
+Require Import tweetnaclVerifiableC.
+Require Import tweetNaclBase.
+Instance CompSpecs : compspecs.
+Proof. make_compspecs prog. Defined.  
+
+Lemma data_at_ext sh t v v' p: v=v' -> data_at sh t v p |-- data_at sh t v' p.
+Proof. intros; subst. trivial. Qed.
 
 (*
 Definition EightWord (q:QuadWord * QuadWord) (v:val) : mpred :=
@@ -34,7 +40,7 @@ Definition SixteenByte2ValList (B:SixteenByte) : list val :=
 
 Definition ThirtyTwoByte (q:SixteenByte * SixteenByte) (v:val) : mpred :=
   match q with (q1, q2) =>
-    data_at Tsh (Tarray tuchar 32 noattr) ((SixteenByte2ValList q1) ++ (SixteenByte2ValList q2)) v
+    @data_at CompSpecs Tsh (Tarray tuchar 32 noattr) ((SixteenByte2ValList q1) ++ (SixteenByte2ValList q2)) v
   end.
 
 Definition QByte (q:QuadByte) (v:val) : mpred :=
@@ -59,22 +65,15 @@ Lemma SixteenByte2ValList_Zlength C: 16 = Zlength (SixteenByte2ValList C).
   reflexivity. Qed.
 
 Definition SByte (q:SixteenByte) (v:val) : mpred :=
-  data_at Tsh (Tarray tuchar 16 noattr) (SixteenByte2ValList q) v.
+  @data_at CompSpecs Tsh (Tarray tuchar 16 noattr) (SixteenByte2ValList q) v.
 
 Lemma ThirtyTwoByte_split16 q v:
+  field_compatible (Tarray tuchar 32 noattr) [] v ->
   ThirtyTwoByte q v = 
-  (!!(offset_in_range 32 v) && 
-   (SByte (fst q) v * SByte (snd q) (offset_val (Int.repr 16) v)))%logic.
-Proof. destruct q as [s1 s2]. simpl.
-  unfold SByte.
-  assert (32 = Zlength (SixteenByte2ValList s1 ++ SixteenByte2ValList s2)).
-    rewrite Zlength_app. repeat rewrite <- SixteenByte2ValList_Zlength. reflexivity.
-  rewrite H.
-  erewrite append_split_Tarray_at; try reflexivity.
-  repeat rewrite <- SixteenByte2ValList_Zlength.
-  assert(sizeof tuchar =1) by reflexivity. rewrite H0. repeat rewrite Z.mul_1_l.
-  rewrite andp_assoc. rewrite andp_comm. rewrite <- add_andp. trivial.
-  apply prop_right. apply offset_in_range_0.
+  (SByte (fst q) v * SByte (snd q) (offset_val (Int.repr 16) v))%logic.
+Proof. destruct q as [s1 s2]. simpl; intros.
+  erewrite append_split2_data_at_Tarray_at_tuchar; try reflexivity;
+  try rewrite Zlength_app; repeat rewrite <- SixteenByte2ValList_Zlength; trivial.
 Qed.
 
 Lemma QuadByte2ValList_firstn4 q l: 
@@ -127,14 +126,14 @@ Qed.
 
 Lemma Select_SplitSelect16Q_Zlength Q i front back:
     (front, back) = SplitSelect16Q Q i -> 0<= i < 4 ->
-    Zlength front = i.
+    Zlength front = i /\ Zlength back = 3-i.
 Proof.
   unfold SplitSelect16Q; intros.
   destruct Q as (((q0, q1), q2), q3).
-  destruct (zeq i 0). inv H. reflexivity.
-  destruct (zeq i 1). inv H. reflexivity.
-  destruct (zeq i 2). inv H. reflexivity. 
-  destruct (zeq i 3). inv H. reflexivity. omega.
+  destruct (zeq i 0). inv H. split; reflexivity.
+  destruct (zeq i 1). inv H. split; reflexivity.
+  destruct (zeq i 2). inv H. split; reflexivity. 
+  destruct (zeq i 3). inv H. split; reflexivity. omega.
 Qed.
 
 Definition QBytes (l:list QuadByte) (v:val) : mpred :=
@@ -293,3 +292,113 @@ Lemma QuadChunks2ValList_bytes: forall l,
     repeat rewrite <- map_app. exists (x0 ++ x); split; trivial.
     rewrite app_length, X1, Y1. omega.
   Qed.
+
+Fixpoint upd_upto (x: SixteenByte * SixteenByte * (SixteenByte * SixteenByte)) i (l:list val):list val :=
+  match i with
+    O => l
+  | S n => 
+     match x with (Nonce, C, (Key1, Key2)) =>
+     ((upd_Znth_in_list (11 + (Z.of_nat n))
+     (upd_Znth_in_list(6 + (Z.of_nat n))
+        (upd_Znth_in_list (1 + (Z.of_nat n))
+           (upd_Znth_in_list (5 * (Z.of_nat n)) (upd_upto x n l)
+              (Vint (littleendian (Select16Q C (Z.of_nat n)))))
+           (Vint (littleendian (Select16Q Key1 (Z.of_nat n)))))
+        (Vint (littleendian (Select16Q Nonce (Z.of_nat n)))))
+     (Vint (littleendian (Select16Q Key2 (Z.of_nat n))))))
+     end
+  end.
+
+Lemma upd_upto_Sn Nonce C Key1 Key2 n l: upd_upto (Nonce, C, (Key1, Key2)) (S n) l =
+     ((upd_Znth_in_list (11 + (Z.of_nat n))
+     (upd_Znth_in_list (6 + (Z.of_nat n))
+        (upd_Znth_in_list (1 + (Z.of_nat n))
+           (upd_Znth_in_list (5 * (Z.of_nat n)) (upd_upto (Nonce, C, (Key1, Key2))  n l)
+              (Vint (littleendian (Select16Q C (Z.of_nat n)))))
+           (Vint (littleendian (Select16Q Key1 (Z.of_nat n)))))
+        (Vint (littleendian (Select16Q Nonce (Z.of_nat n)))))
+     (Vint (littleendian (Select16Q Key2 (Z.of_nat n)))))).
+ reflexivity. Qed.
+
+Lemma upd_upto_Zlength data l (H: Zlength l = 16): forall i (I:(0<=i<=4)%nat), 
+      Zlength (upd_upto data i l) = 16.
+  Proof. apply Zlength_length in H. 2: omega. simpl in H.
+    destruct l; simpl in H. exfalso; omega.
+    destruct l; simpl in H. intros; omega. destruct l; simpl in H. intros; omega. 
+    destruct l; simpl in H. intros; omega. destruct l; simpl in H. intros; omega. 
+    destruct l; simpl in H. intros; omega. destruct l; simpl in H. intros; omega. 
+    destruct l; simpl in H. intros; omega. destruct l; simpl in H. intros; omega. 
+    destruct l; simpl in H. intros; omega. destruct l; simpl in H. intros; omega. 
+    destruct l; simpl in H. intros; omega. destruct l; simpl in H. intros; omega. 
+    destruct l; simpl in H. intros; omega. destruct l; simpl in H. intros; omega. 
+    destruct l; simpl in H. intros; omega. destruct l; simpl in H. 2: intros; omega. clear H. 
+    intros.
+    induction i; destruct data as [[N C] [K1 K2]]. reflexivity.
+    rewrite upd_upto_Sn. remember (11 + Z.of_nat i) as z1. remember (6 + Z.of_nat i) as z2.
+    remember (1 + Z.of_nat i) as z3. remember (5 * Z.of_nat i)%Z as z4.
+    remember (Vint (littleendian (Select16Q C (Z.of_nat i)))) as u4.
+    remember (Vint (littleendian (Select16Q K1 (Z.of_nat i)))) as u3.
+    remember (Vint (littleendian (Select16Q N (Z.of_nat i)))) as u2.
+    remember (Vint (littleendian (Select16Q K2 (Z.of_nat i)))) as u1.
+    assert ((0 <= i <= 4)%nat).
+      split. omega. omega. (*rewrite Nat2Z.inj_succ in I. omega.*)
+    repeat rewrite upd_Znth_in_list_Zlength; rewrite (IHi H); intros; try omega.
+Qed.
+
+Lemma upd_upto_Vint data: forall n, 0<=n<16 -> 
+      forall d, exists i, Znth n (upd_upto data 4 (list_repeat 16 Vundef)) d = Vint i.
+  Proof. unfold upd_upto; intros. destruct data as [[N C] [K1 K2]].
+   repeat rewrite (upd_Znth_in_list_lookup' 16); trivial; simpl; try omega.
+   if_tac. eexists; reflexivity.
+   if_tac. eexists; reflexivity.
+   if_tac. eexists; reflexivity.
+   if_tac. eexists; reflexivity.
+   if_tac. eexists; reflexivity.
+   if_tac. eexists; reflexivity.
+   if_tac. eexists; reflexivity.
+   if_tac. eexists; reflexivity.
+   if_tac. eexists; reflexivity.
+   if_tac. eexists; reflexivity.
+   if_tac. eexists; reflexivity.
+   if_tac. eexists; reflexivity.
+   if_tac. eexists; reflexivity.
+   if_tac. eexists; reflexivity.
+   if_tac. eexists; reflexivity.
+   if_tac. eexists; reflexivity. omega. 
+Qed.
+
+(*cf xsalsa-paper, beginning of Section 2*)
+Lemma upd_upto_char data l: Zlength l = 16 ->
+      upd_upto data 4 l = match data with ((Nonce, C), (Key1, Key2)) =>
+          match Nonce with (N1, N2, N3, N4) =>
+          match C with (C1, C2, C3, C4) =>
+          match Key1 with (K1, K2, K3, K4) =>
+          match Key2 with (L1, L2, L3, L4) =>
+      map Vint (map littleendian [C1; K1; K2; K3; 
+                                  K4; C2; N1; N2;
+                                  N3; N4; C3; L1;
+                                  L2; L3; L4; C4]) end end end end end. 
+Proof. intros. apply Zlength_length in H. 2: omega.
+   destruct data as [[Nonce C] [Key1 Key2]].
+   destruct Nonce as [[[N1 N2] N3] N4].
+   destruct C as [[[C1 C2] C3] C4].
+   destruct Key1 as [[[K1 K2] K3] K4].
+   destruct Key2 as [[[L1 L2] L3] L4]. 
+   destruct l; simpl in H. omega.
+   destruct l; simpl in H. omega.
+   destruct l; simpl in H. omega.
+   destruct l; simpl in H. omega.
+   destruct l; simpl in H. omega.
+   destruct l; simpl in H. omega.
+   destruct l; simpl in H. omega.
+   destruct l; simpl in H. omega.
+   destruct l; simpl in H. omega.
+   destruct l; simpl in H. omega.
+   destruct l; simpl in H. omega.
+   destruct l; simpl in H. omega.
+   destruct l; simpl in H. omega.
+   destruct l; simpl in H. omega.
+   destruct l; simpl in H. omega.
+   destruct l; simpl in H. omega.
+   destruct l; simpl in H. 2: omega. clear H. reflexivity.
+Qed.

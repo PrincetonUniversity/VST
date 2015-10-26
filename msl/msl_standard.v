@@ -13,6 +13,7 @@ Require Export msl.knot_sa_trivial.
 Require Export msl.knot_shims.
 Require Export msl.predicates_hered.
 Require Export msl.predicates_sl.
+Require Export msl.corable.
 Require Export msl.subtypes.
 Require Export msl.subtypes_sl.
 Require Export msl.predicates_rec.

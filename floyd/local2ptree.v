@@ -3,9 +3,6 @@ Require Import floyd.client_lemmas.
 Require Import floyd.assert_lemmas.
 Require Import floyd.closed_lemmas.
 Require Import floyd.canonicalize.
-Require Import floyd.type_id_env.
-Require Import floyd.nested_field_lemmas.
-Require Import floyd.efield_lemmas.
 
 Local Open Scope logic.
 
@@ -15,7 +12,7 @@ Inductive vardesc : Type :=
 | vardesc_visible_global: val -> vardesc
 | vardesc_shadowed_global: val -> vardesc.
 
-Definition denote_vardesc (Q: list (environ -> Prop)) (i: ident) (vd: vardesc) : list (environ -> Prop) :=
+Definition denote_vardesc {cs: compspecs} (Q: list (environ -> Prop)) (i: ident) (vd: vardesc) : list (environ -> Prop) :=
   match vd with
   |  vardesc_local_global t v v' =>  lvar i t v :: sgvar i v' :: Q
   |  vardesc_local t v => lvar i t v :: Q
@@ -26,7 +23,7 @@ Definition denote_vardesc (Q: list (environ -> Prop)) (i: ident) (vd: vardesc) :
 Definition pTree_from_elements {A} (el: list (positive * A)) : PTree.t A :=
  fold_right (fun ia t => PTree.set (fst ia) (snd ia) t) (PTree.empty _) el.
 
-Inductive local2ptree:
+Inductive local2ptree {cs: compspecs}:
   list (environ -> Prop) -> PTree.t val -> PTree.t vardesc
     -> list Prop -> list (environ -> Prop) -> Prop :=
   | local2ptree_nil:
@@ -92,14 +89,13 @@ Ltac construct_local2ptree Q H :=
   assert (local2ptree Q T1 T2 P' Q') as H; subst T1 T2 P' Q';
    [ prove_local2ptree | ].
 
-Module TEST.
-Goal False.
+Goal forall {cs: compspecs}, False.
+ intros.
   construct_local2ptree (temp 1%positive Vundef :: lvar 1%positive tint (Vint (Int.repr 1)) :: 
    (`(eq 1 3)) :: nil) H.
 Abort.
-End TEST.
 
-Definition LocalD (T1: PTree.t val) (T2: PTree.t vardesc) (Q: list (environ -> Prop)) :=
+Definition LocalD {cs: compspecs} (T1: PTree.t val) (T2: PTree.t vardesc) (Q: list (environ -> Prop)) :=
   PTree.fold (fun Q i v => temp i v :: Q) T1
   (PTree.fold denote_vardesc T2 Q).
 
@@ -122,7 +118,7 @@ Proof.
     auto.
 Qed.
 
-Lemma LocalD_sound_temp: 
+Lemma LocalD_sound_temp {cs: compspecs} : 
   forall i v T1 T2 Q,
   PTree.get i T1 = Some v -> In (temp i v) (LocalD T1 T2 Q).
 Proof.
@@ -137,7 +133,7 @@ Proof.
  right. apply IHL. auto.
 Qed.
 
-Lemma LocalD_sound_local_global: 
+Lemma LocalD_sound_local_global {cs: compspecs} : 
   forall i t v v' T1 T2 Q,
   PTree.get i T2 = Some (vardesc_local_global t v v') ->
    In (lvar i t v) (LocalD T1 T2 Q) /\ In (sgvar i v') (LocalD T1 T2 Q).
@@ -161,7 +157,7 @@ Proof.
  destruct a as [ia vda]; destruct vda; simpl in *; auto.
 Qed.
 
-Lemma LocalD_sound_local: 
+Lemma LocalD_sound_local {cs: compspecs} : 
   forall i t v T1 T2 Q,
   PTree.get i T2 = Some (vardesc_local t v) ->
    In (lvar i t v) (LocalD T1 T2 Q).
@@ -181,7 +177,7 @@ Proof.
  destruct a as [ia vda]; destruct vda; simpl in *; auto.
 Qed.
 
-Lemma LocalD_sound_visible_global: 
+Lemma LocalD_sound_visible_global {cs: compspecs} : 
   forall i v T1 T2 Q,
   PTree.get i T2 = Some (vardesc_visible_global v) ->
    In (gvar i v) (LocalD T1 T2 Q).
@@ -201,7 +197,7 @@ Proof.
  destruct a as [ia vda]; destruct vda; simpl in *; auto.
 Qed.
 
-Lemma LocalD_sound_shadowed_global: 
+Lemma LocalD_sound_shadowed_global{cs: compspecs} : 
   forall i v T1 T2 Q,
   PTree.get i T2 = Some (vardesc_shadowed_global v) ->
    In (sgvar i v) (LocalD T1 T2 Q).
@@ -221,7 +217,7 @@ Proof.
  destruct a as [ia vda]; destruct vda; simpl in *; auto.
 Qed.
 
-Lemma LocalD_sound_other: 
+Lemma LocalD_sound_other {cs: compspecs} : 
   forall q T1 T2 Q,
   In q Q ->
    In q (LocalD T1 T2 Q).
@@ -238,7 +234,7 @@ Proof.
 Qed.
 
 
-Lemma LocalD_sound: forall q T1 T2 Q,
+Lemma LocalD_sound {cs: compspecs} : forall q T1 T2 Q,
   (exists i v, PTree.get i T1 = Some v /\ q = temp i v) \/
   (exists i t v v', PTree.get i T2 = Some (vardesc_local_global t v v') 
            /\ q = lvar i t v) \/
@@ -260,15 +256,15 @@ repeat match type of H with
              | _ /\ _ => destruct H
              end; subst.
 apply LocalD_sound_temp; auto.
-apply LocalD_sound_local_global  with (T1:=T1) (T2:=T2)(Q:=Q) in H; intuition.
-apply LocalD_sound_local_global  with (T1:=T1) (T2:=T2)(Q:=Q) in H; intuition.
-apply LocalD_sound_local  with (T1:=T1) (T2:=T2)(Q:=Q) in H; intuition.
-apply LocalD_sound_visible_global  with (T1:=T1) (T2:=T2)(Q:=Q) in H; intuition.
-apply LocalD_sound_shadowed_global  with (T1:=T1) (T2:=T2)(Q:=Q) in H; intuition.
-apply LocalD_sound_other  with (T1:=T1) (T2:=T2)(Q:=Q) in H; intuition.
+apply (@LocalD_sound_local_global cs)  with (T1:=T1) (T2:=T2)(Q:=Q) in H; intuition.
+apply (@LocalD_sound_local_global cs) with (T1:=T1) (T2:=T2)(Q:=Q) in H; intuition.
+apply (@LocalD_sound_local cs) with (T1:=T1) (T2:=T2)(Q:=Q) in H; intuition.
+apply (@LocalD_sound_visible_global cs) with (T1:=T1) (T2:=T2)(Q:=Q) in H; intuition.
+apply (@LocalD_sound_shadowed_global cs)  with (T1:=T1) (T2:=T2)(Q:=Q) in H; intuition.
+apply (@LocalD_sound_other cs) with (T1:=T1) (T2:=T2)(Q:=Q) in H; intuition.
 Qed.
 
-Lemma LocalD_complete: forall q T1 T2 Q,
+Lemma LocalD_complete {cs: compspecs} : forall q T1 T2 Q,
   In q (LocalD T1 T2 Q) ->
   (exists i v, PTree.get i T1 = Some v /\ q = temp i v) \/
   (exists i t v v', PTree.get i T2 = Some (vardesc_local_global t v v') 
@@ -347,7 +343,7 @@ Proof.
   right; auto.
 Qed.
 
-Lemma LOCALx_expand_temp_var: forall i v T1 T2 Q Q0,
+Lemma LOCALx_expand_temp_var {cs: compspecs} : forall i v T1 T2 Q Q0,
   In Q0 (LocalD (PTree.set i v T1) T2 Q) <-> 
   In Q0 (temp i v :: LocalD (PTree.remove i T1) T2 Q).
 Proof.
@@ -443,7 +439,7 @@ Proof.
  right; auto.
 Qed.
 
-Lemma denote_vardesc_prefix:
+Lemma denote_vardesc_prefix {cs: compspecs} :
   forall Q i vd, exists L, denote_vardesc Q i vd = L ++ Q.
 Proof.
  intros; destruct vd; simpl.
@@ -454,7 +450,7 @@ Proof.
 Qed.
 
 
-Lemma In_LocalD_remove_set:
+Lemma In_LocalD_remove_set {cs: compspecs} :
    forall q T1 i vd T2 Q,
       In q (LocalD T1 (PTree.remove i T2) Q) ->
       In q (LocalD T1 (PTree.set i vd T2) Q).
@@ -493,7 +489,7 @@ Proof.
  repeat right. auto.
 Qed.
 
-Lemma LOCALx_expand_vardesc: forall i vd T1 T2 Q Q0,
+Lemma LOCALx_expand_vardesc {cs: compspecs} : forall i vd T1 T2 Q Q0,
   In Q0 (LocalD T1 (PTree.set i vd T2) Q) <-> 
   In Q0 (denote_vardesc (LocalD T1 (PTree.remove i T2) Q) i vd).
 Proof.
@@ -591,7 +587,7 @@ Proof.
       apply In_LocalD_remove_set; auto.
 Qed.
 
-Lemma LOCALx_expand_res: forall Q1 T1 T2 Q Q0,
+Lemma LOCALx_expand_res {cs: compspecs} : forall Q1 T1 T2 Q Q0,
   In Q0 (LocalD T1 T2 (Q1 ::Q)) <-> 
   In Q0 (Q1 ::LocalD T1 T2 Q).
 Proof.
@@ -646,18 +642,23 @@ Proof.
     * do 6 right. right; auto.
 Qed.
 
-Lemma LOCALx_shuffle: forall P Q Q' R,
+Lemma LOCALx_shuffle_derives': forall P Q Q' R,
   (forall Q0, In Q0 Q' -> In Q0 Q) ->
-  PROPx P (LOCALx Q (SEPx R)) |-- PROPx P (LOCALx Q' (SEPx R)).
+  PROPx P (LOCALx Q R) |-- PROPx P (LOCALx Q' R).
 Proof.
   intros.
-  induction Q'; [simpl; intro; normalize |].
+  induction Q'.
+  Focus 1. {
+    unfold PROPx, LOCALx.
+    normalize.
+    apply andp_left2; auto.
+  } Unfocus.
   pose proof (H a (or_introl _ eq_refl)).
-  rewrite <- insert_local.
+  rewrite <- insert_local'.
   apply andp_right.
   + clear -H0.
     induction Q; [inversion H0 |].
-    rewrite <- insert_local.
+    rewrite <- insert_local'.
     simpl in H0; inversion H0.
     - subst.
       apply andp_left1.
@@ -672,15 +673,28 @@ Proof.
     apply H1.
 Qed.
 
+Lemma LOCALx_shuffle_derives: forall P Q Q' R,
+  (forall Q0, In Q0 Q' -> In Q0 Q) ->
+  PROPx P (LOCALx Q (SEPx R)) |-- PROPx P (LOCALx Q' (SEPx R)).
+Proof. intros. apply LOCALx_shuffle_derives'. auto. Qed.
+  
 Lemma LOCALx_shuffle': forall P Q Q' R,
+  (forall Q0, In Q0 Q' <-> In Q0 Q) ->
+  PROPx P (LOCALx Q R) = PROPx P (LOCALx Q' R).
+Proof.
+  intros.
+  apply pred_ext; apply LOCALx_shuffle_derives'; intros; apply H; auto.
+Qed.
+
+Lemma LOCALx_shuffle: forall P Q Q' R,
   (forall Q0, In Q0 Q' <-> In Q0 Q) ->
   PROPx P (LOCALx Q (SEPx R)) = PROPx P (LOCALx Q' (SEPx R)).
 Proof.
   intros.
-  apply pred_ext; apply LOCALx_shuffle; intros; apply H; auto.
+  apply pred_ext; apply LOCALx_shuffle_derives; intros; apply H; auto.
 Qed.
 
-Lemma LocalD_remove_empty_from_PTree1: forall i T1 T2 Q Q0,
+Lemma LocalD_remove_empty_from_PTree1 {cs: compspecs} : forall i T1 T2 Q Q0,
   T1 ! i = None ->
   (In Q0 (LocalD (PTree.remove i T1) T2 Q) <-> In Q0 (LocalD T1 T2 Q)).
 Proof.
@@ -711,7 +725,7 @@ Proof.
    - do 6 right. auto.
 Qed.
 
-Lemma LocalD_remove_empty_from_PTree2: forall i T1 T2 Q Q0,
+Lemma LocalD_remove_empty_from_PTree2{cs: compspecs} : forall i T1 T2 Q Q0,
   T2 ! i = None ->
   (In Q0 (LocalD T1 (PTree.remove i T2) Q) <-> In Q0 (LocalD T1 T2 Q)).
 Proof.
@@ -739,7 +753,7 @@ Proof.
   - do 5 right; left; repeat eexists; rewrite PTree.gro by auto; eauto.
 Qed.
 
-Lemma subst_lvar: forall i v j t v2,
+Lemma subst_lvar {cs: compspecs} : forall i v j t v2,
    subst i v (lvar j t v2) = lvar j t v2.
 Proof.
  intros; unfold subst, lvar.
@@ -760,9 +774,9 @@ Proof.
  extensionality rho. simpl. auto.
 Qed.
 
-Hint Rewrite subst_lvar subst_gvar subst_sgvar : subst.
+Hint Rewrite @subst_lvar subst_gvar subst_sgvar : subst.
 
-Lemma LocalD_subst: forall id v Q0 T1 T2 Q,
+Lemma LocalD_subst {cs: compspecs} : forall id v Q0 T1 T2 Q,
   In Q0 (LocalD (PTree.remove id T1) T2 (map (subst id v) Q)) ->
   In Q0 (map (subst id v) (LocalD T1 T2 Q)). 
 Proof.
@@ -796,7 +810,7 @@ Proof.
     apply LocalD_sound_other; auto.
 Qed.
 
-Lemma SC_remove_subst: forall P T1 T2 R id v old,
+Lemma SC_remove_subst {cs: compspecs} : forall P T1 T2 R id v old,
    PROPx P
      (LOCALx (temp id v :: map (subst id `old) (LocalD T1 T2 nil))
         (SEPx (map (subst id `old) (map liftx R))))
@@ -811,7 +825,7 @@ Proof.
     rewrite map_map.
     f_equal.
   } Unfocus.
-  apply LOCALx_shuffle; intros.
+  apply LOCALx_shuffle_derives; intros.
   apply LOCALx_expand_temp_var in H.
   destruct H; [left; auto | right].
   apply LocalD_subst, H.
@@ -820,7 +834,7 @@ Qed.
 Lemma local2ptree_sound_aux: forall P Q R Q0 Q1 Q2,
   Q1 && local Q0 = Q2 && local Q0 ->
   In Q0 Q ->
-  Q1 && PROPx P (LOCALx Q (SEPx R)) = Q2 && PROPx P (LOCALx Q (SEPx R)).
+  Q1 && PROPx P (LOCALx Q R) = Q2 && PROPx P (LOCALx Q R).
 Proof.
   intros.
   pose proof in_local _ P _ R H0.
@@ -831,16 +845,16 @@ Proof.
   exact H.
 Qed.
 
-Lemma LOCALx_expand_vardesc': forall P R i vd T1 T2 Q,
-  PROPx P (LOCALx (LocalD T1 (PTree.set i vd T2) Q) (SEPx R)) =
-  PROPx P (LOCALx (denote_vardesc (LocalD T1 (PTree.remove i T2) Q) i vd) (SEPx R)).
+Lemma LOCALx_expand_vardesc' {cs: compspecs} : forall P R i vd T1 T2 Q,
+  PROPx P (LOCALx (LocalD T1 (PTree.set i vd T2) Q) R) =
+  PROPx P (LOCALx (denote_vardesc (LocalD T1 (PTree.remove i T2) Q) i vd) R).
 Proof.
  intros.
  apply LOCALx_shuffle'; intro.
  symmetry; apply LOCALx_expand_vardesc.
 Qed.
 
-Lemma local_equal_lemma:
+Lemma local_equal_lemma {cs: compspecs} :
  forall i t v t' v',
   local (lvar i t v) && local (lvar i t' v') =
   !!(v' = v) && !!(t'=t) && local (lvar i t' v').
@@ -859,11 +873,13 @@ subst.
 repeat split; auto.
 hnf. rewrite H8. rewrite eqb_type_refl. auto.
 destruct H0; subst; auto.
+intuition.
+destruct H0; subst; auto.
 Qed.
 
-Lemma local2ptree_soundness: forall P Q R T1 T2 P' Q',
+Lemma local2ptree_soundness' {cs: compspecs} : forall P Q R T1 T2 P' Q',
   local2ptree Q T1 T2 P' Q' ->
-  PROPx P (LOCALx Q (SEPx R)) = PROPx (P' ++ P) (LOCALx (LocalD T1 T2 Q') (SEPx R)).
+  PROPx P (LOCALx Q R) = PROPx (P' ++ P) (LOCALx (LocalD T1 T2 Q') R).
 Proof.
   intros.
   induction H.
@@ -871,9 +887,9 @@ Proof.
     rewrite !PTree.fold_spec.
     simpl.
     reflexivity.
-  + rewrite <- insert_local.
+  + rewrite <- insert_local'.
     rewrite IHlocal2ptree.
-    rewrite insert_local.
+    rewrite insert_local'.
     destruct (T1 ! i) eqn:H8; inv H0.
     Focus 2. {
     apply LOCALx_shuffle'; intros.
@@ -883,39 +899,41 @@ Proof.
     tauto. } Unfocus.
     simpl app.
     rewrite <- move_prop_from_LOCAL.
-    rewrite <- !insert_local.
+    rewrite <- !insert_local'.
 (*    rewrite IHlocal2ptree. *)
     apply local2ptree_sound_aux with (Q0 := temp i v0).
     - extensionality rho.
       unfold temp.
       apply pred_ext; normalize.
+      autorewrite with subst norm1 norm2; normalize.
+      autorewrite with subst norm1 norm2; normalize.     
     - apply LocalD_sound_temp. auto.
-  + rewrite <- insert_local.
+  + rewrite <- insert_local'.
     rewrite IHlocal2ptree; clear IHlocal2ptree.
-    rewrite insert_local.
+    rewrite insert_local'.
     destruct (T2 ! i) as [ vd |  ] eqn:H9;
     try assert (H8 := LOCALx_expand_vardesc i vd T1 T2 Q'); 
     try destruct vd; inv H0.
     -
      rewrite <- (PTree.gsident _ _ H9) by auto.
-     rewrite <- insert_local.
+     rewrite <- insert_local'.
      rewrite !LOCALx_expand_vardesc'.
-     simpl app. simpl denote_vardesc.
-     rewrite  <- !canon17, <- !insert_local, <- !andp_assoc.
+     simpl app. unfold denote_vardesc.
+     rewrite  <- !canon17, <- !insert_local', <- !andp_assoc.
      rewrite local_equal_lemma; auto.
    -
      rewrite <- (PTree.gsident _ _ H9) by auto.
-     rewrite <- insert_local.
+     rewrite <- insert_local'.
      rewrite !LOCALx_expand_vardesc'.
-     simpl app. simpl denote_vardesc.
-     rewrite  <- !canon17, <- !insert_local, <- !andp_assoc.
+     simpl app. unfold denote_vardesc.
+     rewrite  <- !canon17, <- !insert_local', <- !andp_assoc.
      rewrite local_equal_lemma; auto.
   -
      rewrite <- (PTree.gsident _ _ H9) by auto.
-     rewrite <- !insert_local.
+     rewrite <- !insert_local'.
      rewrite !LOCALx_expand_vardesc'.
-     simpl app. simpl denote_vardesc.
-     rewrite  <- !canon17, <- !insert_local, <- !andp_assoc.
+     simpl app. unfold denote_vardesc.
+     rewrite  <- !canon17, <- !insert_local', <- !andp_assoc.
      f_equal.
      extensionality rho; unfold local, lift1, lvar, gvar; simpl;
      normalize.
@@ -923,21 +941,21 @@ Proof.
      destruct (Map.get (ve_of rho) i) as [[? ?]|]; intuition.
   - 
      rewrite <- (PTree.gsident _ _ H9) at 1 by auto.
-     rewrite <- !insert_local.
+     rewrite <- !insert_local'.
      rewrite !LOCALx_expand_vardesc'.
-     simpl app. simpl denote_vardesc.
-     rewrite  <- !insert_local, <- !andp_assoc. auto.
+     simpl app. unfold denote_vardesc.
+     rewrite  <- !insert_local', <- !andp_assoc. auto.
   - 
-     rewrite <- !insert_local.
+     rewrite <- !insert_local'.
      rewrite !LOCALx_expand_vardesc'.
-     simpl denote_vardesc.
-     rewrite <- !insert_local.
+     unfold denote_vardesc.
+     rewrite <- !insert_local'.
      rewrite LOCALx_shuffle'
        with (Q:= LocalD T1 (PTree.remove i T2) Q')
               (Q':= LocalD T1 T2 Q'); auto.
     intro; symmetry; apply (LocalD_remove_empty_from_PTree2); auto.
  +
-    rewrite <- insert_local.
+    rewrite <- insert_local'.
     rewrite IHlocal2ptree; clear IHlocal2ptree.
     destruct (T2 ! i) as [ vd |  ] eqn:H9;
     try assert (H8 := LOCALx_expand_vardesc i vd T1 T2 Q'); 
@@ -945,8 +963,8 @@ Proof.
     -
      rewrite <- (PTree.gsident _ _ H9) by auto.
      rewrite !LOCALx_expand_vardesc'.
-     simpl app. simpl denote_vardesc.
-     rewrite  <- !canon17, <- !insert_local, <- !andp_assoc.
+     simpl app. unfold denote_vardesc.
+     rewrite  <- !canon17, <- !insert_local', <- !andp_assoc.
      f_equal.
      extensionality rho; unfold local, lift1, lvar, gvar; simpl;
      normalize.
@@ -955,8 +973,8 @@ Proof.
    -
      rewrite <- (PTree.gsident _ _ H9) by auto.
      rewrite !LOCALx_expand_vardesc'.
-     simpl app. simpl denote_vardesc.
-     rewrite  <- !canon17, <- !insert_local, <- !andp_assoc.
+     simpl app. unfold denote_vardesc.
+     rewrite  <- !canon17, <- !insert_local', <- !andp_assoc.
      f_equal.
      extensionality rho; unfold local, lift1, lvar, gvar; simpl;
      normalize.
@@ -965,8 +983,8 @@ Proof.
   -
      rewrite <- (PTree.gsident _ _ H9) by auto.
      rewrite !LOCALx_expand_vardesc'.
-     simpl app. simpl denote_vardesc.
-     rewrite  <- !canon17, <- !insert_local, <- !andp_assoc.
+     simpl app. unfold denote_vardesc.
+     rewrite  <- !canon17, <- !insert_local', <- !andp_assoc.
      f_equal.
      extensionality rho; unfold local, lift1, lvar, gvar; simpl;
      normalize.
@@ -978,8 +996,8 @@ Proof.
   - 
      rewrite <- (PTree.gsident _ _ H9) at 1 by auto.
      rewrite !LOCALx_expand_vardesc'.
-     simpl app. simpl denote_vardesc.
-     rewrite  <- !canon17,  <- !insert_local, <- !andp_assoc.
+     simpl app. unfold denote_vardesc.
+     rewrite  <- !canon17,  <- !insert_local', <- !andp_assoc.
      f_equal.
      extensionality rho; unfold local, lift1, lvar, gvar, sgvar; simpl;
      normalize.
@@ -990,14 +1008,14 @@ Proof.
      subst; auto.
   - 
      rewrite !LOCALx_expand_vardesc'.
-     simpl denote_vardesc.
-     rewrite <- !insert_local.
+     unfold denote_vardesc.
+     rewrite <- !insert_local'.
      rewrite LOCALx_shuffle'
        with (Q:= LocalD T1 (PTree.remove i T2) Q')
               (Q':= LocalD T1 T2 Q'); auto.
     intro; symmetry; apply (LocalD_remove_empty_from_PTree2); auto.
  +
-    rewrite <- insert_local.
+    rewrite <- insert_local'.
     rewrite IHlocal2ptree; clear IHlocal2ptree.
     destruct (T2 ! i) as [ vd |  ] eqn:H9;
     try assert (H8 := LOCALx_expand_vardesc i vd T1 T2 Q'); 
@@ -1005,8 +1023,8 @@ Proof.
     -
      rewrite <- (PTree.gsident _ _ H9) by auto.
      rewrite !LOCALx_expand_vardesc'.
-     simpl app. simpl denote_vardesc.
-     rewrite  <- !canon17, <- !insert_local, <- !andp_assoc.
+     simpl app. unfold denote_vardesc.
+     rewrite  <- !canon17, <- !insert_local', <- !andp_assoc.
      f_equal.
      extensionality rho; unfold local, lift1, lvar, gvar, sgvar; simpl;
      normalize.
@@ -1018,15 +1036,15 @@ Proof.
    -
      rewrite <- (PTree.gsident _ _ H9) at 1 by auto.
      rewrite !LOCALx_expand_vardesc'.
-     simpl app. simpl denote_vardesc.
-     rewrite  <- ?canon17, <- !insert_local, <- !andp_assoc.
+     simpl app. unfold denote_vardesc.
+     rewrite  <- ?canon17, <- !insert_local', <- !andp_assoc.
      f_equal.
      apply andp_comm.
   -
      rewrite <- (PTree.gsident _ _ H9) by auto.
      rewrite !LOCALx_expand_vardesc'.
-     simpl app. simpl denote_vardesc.
-     rewrite  <- !canon17, <- !insert_local, <- !andp_assoc.
+     simpl app. unfold denote_vardesc.
+     rewrite  <- !canon17, <- !insert_local', <- !andp_assoc.
      f_equal.
      extensionality rho; unfold local, lift1, lvar, gvar, sgvar; simpl;
      normalize.
@@ -1038,8 +1056,8 @@ Proof.
   - 
      rewrite <- (PTree.gsident _ _ H9) by auto.
      rewrite !LOCALx_expand_vardesc'.
-     simpl app. simpl denote_vardesc.
-     rewrite  <- !canon17,  <- !insert_local, <- !andp_assoc.
+     simpl app. unfold denote_vardesc.
+     rewrite  <- !canon17,  <- !insert_local', <- !andp_assoc.
      f_equal.
      extensionality rho; unfold local, lift1, lvar, gvar, sgvar; simpl;
      normalize.
@@ -1048,18 +1066,37 @@ Proof.
      destruct (ge_of rho i); intuition. subst; auto.
   - 
      rewrite !LOCALx_expand_vardesc'.
-     simpl denote_vardesc.
-     rewrite <- !insert_local.
+     unfold denote_vardesc.
+     rewrite <- !insert_local'.
      rewrite LOCALx_shuffle'
        with (Q:= LocalD T1 (PTree.remove i T2) Q')
               (Q':= LocalD T1 T2 Q'); auto.
     intro; symmetry; apply (LocalD_remove_empty_from_PTree2); auto.
  +
-    rewrite <- !insert_local.
+    rewrite <- !insert_local'.
     rewrite IHlocal2ptree; clear IHlocal2ptree.
-    rewrite insert_local.
+    rewrite insert_local'.
     apply LOCALx_shuffle'; intros.
     apply LOCALx_expand_res.
+Qed.
+
+Lemma local2ptree_soundness {cs: compspecs} : forall P Q R T1 T2 P' Q',
+  local2ptree Q T1 T2 P' Q' ->
+  PROPx P (LOCALx Q (SEPx R)) = PROPx (P' ++ P) (LOCALx (LocalD T1 T2 Q') (SEPx R)).
+Proof. intros. apply local2ptree_soundness'. auto. Qed.
+
+Lemma local2ptree_soundness'' {cs: compspecs} : forall Q T1 T2,
+  local2ptree Q T1 T2 nil nil ->
+  LOCALx Q TT = LOCALx (LocalD T1 T2 nil) TT.
+Proof.
+  intros.
+  pose proof local2ptree_soundness' nil Q TT T1 T2 nil nil H.
+  simpl app in H0.
+  unfold PROPx in H0.
+  simpl fold_right in H0.
+  change (!! True) with (TT: environ -> mpred) in H0.
+  rewrite !TT_andp in H0.
+  auto.
 Qed.
 
 Definition eval_vardesc (ty: type) (vd: option vardesc) : option val :=
@@ -1079,7 +1116,7 @@ Definition eval_vardesc (ty: type) (vd: option vardesc) : option val :=
                     | None => None
                     end.
 
-Fixpoint msubst_eval_expr (T1: PTree.t val) (T2: PTree.t vardesc) (e: Clight.expr) : option val :=
+Fixpoint msubst_eval_expr {cs: compspecs} (T1: PTree.t val) (T2: PTree.t vardesc) (e: Clight.expr) : option val :=
   match e with
   | Econst_int i ty => Some (Vint i)
   | Econst_long i ty => Some (Vlong i)
@@ -1087,7 +1124,8 @@ Fixpoint msubst_eval_expr (T1: PTree.t val) (T2: PTree.t vardesc) (e: Clight.exp
   | Econst_single f ty => Some (Vsingle f)
   | Etempvar id ty => PTree.get id T1
   | Eaddrof a ty => msubst_eval_lvalue T1 T2 a 
-  | Eunop op a ty => option_map (eval_unop op (typeof a)) (msubst_eval_expr T1 T2 a) 
+  | Eunop op a ty => option_map (eval_unop op (typeof a))
+                                        (msubst_eval_expr T1 T2 a) 
   | Ebinop op a1 a2 ty =>
       match (msubst_eval_expr T1 T2 a1), (msubst_eval_expr T1 T2 a2) with
       | Some v1, Some v2 => Some (eval_binop op (typeof a1) (typeof a2) v1 v2) 
@@ -1096,26 +1134,32 @@ Fixpoint msubst_eval_expr (T1: PTree.t val) (T2: PTree.t vardesc) (e: Clight.exp
   | Ecast a ty => option_map (eval_cast (typeof a) ty) (msubst_eval_expr T1 T2 a)
   | Evar id ty => option_map (deref_noload ty) (eval_vardesc ty (PTree.get id T2))
 
-  | Ederef a ty => option_map (deref_noload ty) (option_map force_ptr (msubst_eval_expr T1 T2 a))
-  | Efield a i ty => option_map (deref_noload ty) (option_map (eval_field (typeof a) i) (msubst_eval_lvalue T1 T2 a))
+  | Ederef a ty => option_map (deref_noload ty)
+                              (option_map force_ptr (msubst_eval_expr T1 T2 a))
+  | Efield a i ty => option_map (deref_noload ty) 
+                                (option_map (eval_field (typeof a) i)
+                                    (msubst_eval_lvalue T1 T2 a))
+  | Esizeof t _ => Some (Vint (Int.repr (sizeof cenv_cs t)))
+  | Ealignof t _ => Some (Vint (Int.repr (alignof cenv_cs t)))
   end
-  with msubst_eval_lvalue (T1: PTree.t val) (T2: PTree.t vardesc) (e: Clight.expr) : option val := 
+  with msubst_eval_lvalue {cs: compspecs} (T1: PTree.t val) (T2: PTree.t vardesc) (e: Clight.expr) : option val := 
   match e with 
   | Evar id ty => eval_vardesc ty (PTree.get id T2)
   | Ederef a ty => option_map force_ptr (msubst_eval_expr T1 T2 a)
-  | Efield a i ty => option_map (eval_field (typeof a) i) (msubst_eval_lvalue T1 T2 a)
+  | Efield a i ty => option_map (eval_field (typeof a) i)
+                              (msubst_eval_lvalue T1 T2 a)
   | _  => Some Vundef
   end.
 
 Lemma msubst_eval_expr_eq_aux:
-  forall (T1: PTree.t val) (T2: PTree.t vardesc) e rho v,
+  forall {cs: compspecs} (T1: PTree.t val) (T2: PTree.t vardesc) e rho v,
     (forall i v, T1 ! i = Some v -> eval_id i rho = v) ->
     (forall i t v,
      eval_vardesc t T2 ! i = Some v -> eval_var i t rho = v) ->
     msubst_eval_expr T1 T2 e = Some v ->
     eval_expr e rho = v
 with msubst_eval_lvalue_eq_aux: 
-  forall (T1: PTree.t val) (T2: PTree.t vardesc) e rho v,
+  forall {cs: compspecs} (T1: PTree.t val) (T2: PTree.t vardesc) e rho v,
     (forall i v, T1 ! i = Some v -> eval_id i rho = v) ->
     (forall i t v,
      eval_vardesc t T2 ! i = Some v -> eval_var i t rho = v) ->
@@ -1186,7 +1230,19 @@ Proof.
       tauto.
 Qed.
 
-Lemma msubst_eval_eq_aux: forall T1 T2 Q rho,
+Lemma local_ext_rev: forall (Q: list (environ -> Prop)) rho, (forall Q0, In Q0 Q -> Q0 rho) -> fold_right `and `True Q rho.
+Proof.
+  intros.
+  induction Q.
+  + simpl; auto.
+  + simpl.
+    split.
+    - apply H; simpl; auto.
+    - apply IHQ; intros.
+      apply H; simpl; auto.
+Qed.
+
+Lemma msubst_eval_eq_aux {cs: compspecs}: forall T1 T2 Q rho,
   fold_right `and `True (LocalD T1 T2 Q) rho ->
   (forall i v, T1 ! i = Some v -> eval_id i rho = v) /\
   (forall i t v, eval_vardesc t (T2 ! i) = Some v ->
@@ -1211,7 +1267,7 @@ Proof.
       assert (H3 := local_ext _ _ _ H0 H). clear - H3.
       unfold lvar, eval_var in *.
       destruct (Map.get (ve_of rho) i) as [[? ?] | ]; try contradiction.
-      destruct (eqb_type t t0); try contradiction. auto.
+      destruct (eqb_type t t0); try contradiction. destruct H3; auto.
      -destruct (eqb_type t t0) eqn:?; inv H0.
       apply eqb_type_true in Heqb. subst t0.
       assert (In (lvar i t v) (LocalD T1 T2 Q))
@@ -1219,7 +1275,7 @@ Proof.
       assert (H3 := local_ext _ _ _ H0 H). clear - H3.
       unfold lvar, eval_var in *.
       destruct (Map.get (ve_of rho) i) as [[? ?] | ]; try contradiction.
-      destruct (eqb_type t t0); try contradiction. auto.
+      destruct (eqb_type t t0); try contradiction. destruct H3; auto.
      - inv H0.
       assert (In (gvar i v) (LocalD T1 T2 Q))
         by (apply LocalD_sound; eauto 50).
@@ -1231,7 +1287,7 @@ Proof.
      - inv H0.
 Qed.
 
-Lemma msubst_eval_expr_eq: forall P T1 T2 Q R e v,
+Lemma msubst_eval_expr_eq: forall {cs: compspecs} P T1 T2 Q R e v,
   msubst_eval_expr T1 T2 e = Some v ->
   PROPx P (LOCALx (LocalD T1 T2 Q) (SEPx R)) |--
     local (`(eq v) (eval_expr e)).
@@ -1242,11 +1298,12 @@ Proof.
   simpl; intro rho.
   simpl in H.
   normalize; intros.
+      autorewrite with subst norm1 norm2; normalize.
   destruct (msubst_eval_eq_aux _ _ _ _ H0).
   apply eq_sym, msubst_eval_expr_eq_aux with (T1 := T1) (T2 := T2); auto.
 Qed.
 
-Lemma msubst_eval_lvalue_eq: forall P T1 T2 Q R e v,
+Lemma msubst_eval_lvalue_eq: forall P {cs: compspecs} T1 T2 Q R e v,
   msubst_eval_lvalue T1 T2 e = Some v ->
   PROPx P (LOCALx (LocalD T1 T2 Q) (SEPx R)) |--
     local (`(eq v) (eval_lvalue e)).
@@ -1257,89 +1314,16 @@ Proof.
   simpl; intro rho.
   simpl in H.
   normalize; intros.
+      autorewrite with subst norm1 norm2; normalize.
   destruct (msubst_eval_eq_aux _ _ _ _ H0).
   apply eq_sym, msubst_eval_lvalue_eq_aux with (T1 := T1) (T2 := T2); auto.
 Qed.
 
-Definition msubst_eval_LR T1 T2 e lr :=
-  match lr with
-  | LLLL => msubst_eval_lvalue T1 T2 e
-  | RRRR => msubst_eval_expr T1 T2 e
-  end.
-
-Lemma msubst_eval_LR_eq: forall P T1 T2 Q R e v lr,
-  msubst_eval_LR T1 T2 e lr = Some v ->
-  PROPx P (LOCALx (LocalD T1 T2 Q) (SEPx R)) |--
-    local (`(eq v) (eval_LR e lr)).
-Proof.
-  intros.
-  destruct lr.
-  + apply msubst_eval_lvalue_eq; auto.
-  + apply msubst_eval_expr_eq; auto.
-Qed.
-
-Fixpoint msubst_efield_denote T1 T2 (efs: list efield) : option (list gfield) :=
-  match efs with
-  | nil => Some nil
-  | eArraySubsc ei :: efs' =>
-    match typeof ei, msubst_eval_expr T1 T2 ei with
-    | Tint _ _ _, Some (Vint i) =>
-      option_map (cons (ArraySubsc (Int.unsigned i))) (msubst_efield_denote T1 T2 efs')
-    | _, _ => None
-    end
-  | eStructField i :: efs' =>
-    option_map (cons (StructField i)) (msubst_efield_denote T1 T2 efs')
-  | eUnionField i :: efs' =>
-    option_map (cons (UnionField i)) (msubst_efield_denote T1 T2 efs')
-  end.
-
-Definition localD (temps : PTree.t val) (locals : PTree.t vardesc) :=
+Definition localD {cs: compspecs} (temps : PTree.t val) (locals : PTree.t vardesc) :=
 LocalD temps locals nil.
 
 Definition assertD (P : list Prop) (Q : list (environ -> Prop)) (sep : list mpred) := 
 PROPx P (LOCALx Q (SEPx (map (liftx) sep))).
-
-Lemma msubst_efield_denote_equiv: forall Delta P T1 T2 R efs gfs,
-  msubst_efield_denote T1 T2 efs = Some gfs ->
-  (local (tc_environ Delta)) && assertD P (localD T1 T2) R |-- efield_denote efs gfs.
-Proof.
-  intros.
-  revert gfs H; induction efs; intros.
-  + simpl in H.
-    inversion H.
-    apply prop_right.
-    auto.
-Opaque andp.
-  + destruct a;
-    simpl in H;
-    simpl efield_denote.
-Transparent andp.
-    - destruct (typeof i); try solve [inversion H].
-      destruct (msubst_eval_expr T1 T2 i) eqn:?H; [| inversion H].
-      destruct v; try solve [inversion H].
-      apply msubst_eval_expr_eq with (P := P) (Q := nil) (R := map liftx R) in H0.
-      destruct (msubst_efield_denote T1 T2 efs) eqn:?H; [| inversion H].
-      inversion H.
-      rewrite (add_andp _ _ (IHefs l eq_refl)).
-      unfold assertD, localD.
-      rewrite (add_andp _ _ H0).
-      apply andp_derives; [| auto].
-      apply andp_left2.
-      apply andp_left2.
-      rewrite Int.repr_unsigned.
-      repeat apply andp_right; auto.
-      simpl; intros; normalize.
-    - destruct (msubst_efield_denote T1 T2 efs) eqn:?H; [| inversion H].
-      inversion H. 
-      rewrite (add_andp _ _ (IHefs l eq_refl)).
-      apply andp_derives; [| auto].
-      simpl; intros; normalize.
-    - destruct (msubst_efield_denote T1 T2 efs) eqn:?H; [| inversion H].
-      inversion H. 
-      rewrite (add_andp _ _ (IHefs l eq_refl)).
-      apply andp_derives; [| auto].
-      simpl; intros; normalize.
-Qed.
 
 Fixpoint explicit_cast_exprlist (et: list type) (el: list expr) {struct et} : list expr :=
  match et, el with
@@ -1355,7 +1339,7 @@ Fixpoint force_list {A} (al: list (option A)) : option (list A) :=
  end.
 
 Lemma msubst_eval_exprlist_eq:
-  forall P T1 T2 Q R tys el vl,
+  forall P {cs: compspecs} T1 T2 Q R tys el vl,
   force_list
            (map (msubst_eval_expr T1 T2)
               (explicit_cast_exprlist tys el)) = Some vl ->
@@ -1381,12 +1365,96 @@ revert tys vl H; induction el; destruct tys, vl; intros;
   specialize (IHel _ _ Heqo0).
   simpl eval_exprlist.
   destruct (msubst_eval_expr T1 T2 a) eqn:?; inv Heqo.
-  apply msubst_eval_expr_eq with (P:=P)(Q:=Q)(R:=R) in Heqo1.
+  apply msubst_eval_expr_eq with (P0:=P)(Q0:=Q)(R0:=R) in Heqo1.
   apply derives_trans with (local (`(eq v0) (eval_expr a)) && local (`(eq vl) (eval_exprlist tys el))).
   apply andp_right; auto.
-  go_lowerx. intros. apply prop_right.
+  go_lowerx. unfold_lift. intros. apply prop_right.
   rewrite <- H. rewrite <- H0.
  auto.
 Qed. 
 
+(**********************************************************)
+(* Continuation *)
 
+Require Import veric.xexpr_rel.
+
+Inductive l_cont : Type :=
+  | LC_deref : r_cont -> l_cont
+  | LC_field : l_cont -> type -> ident -> l_cont
+with r_cont : Type :=
+  | RC_addrof : l_cont -> r_cont
+  | RC_unop : unary_operation -> r_cont -> type -> r_cont
+  | RC_binop_l : binary_operation -> r_cont -> type -> r_value -> type -> r_cont
+  | RC_binop_r : binary_operation -> val -> type -> r_cont -> type -> r_cont
+  | RC_cast : r_cont -> type -> type -> r_cont
+  | RC_byref: l_cont -> r_cont
+  | RC_load: r_cont.
+
+
+Definition sum_map {A B C D : Type} (f : A -> B) (g: C -> D) (x : A + C) :=
+match x with
+| inl y => inl (f y)
+| inr z => inr (g z)
+end.
+
+Definition prod_left_map {A B C} (f: A -> B) (x: A * C) : B * C :=
+  match x with
+  | (x1, x2) => (f x1, x2)
+  end.
+
+Definition compute_cont_map {A B} (f: val -> val) (g: A -> B) : option (val + (A * (l_value * type))) -> option (val + (B * (l_value * type))) := option_map (sum_map f (prod_left_map g)).
+
+Fixpoint compute_r_cont {cs: compspecs} (T1: PTree.t val) (T2: PTree.t vardesc) (e: r_value) : option (val + (r_cont * (l_value * type))) :=
+  match e with
+  | R_const v => Some (inl v)
+  | R_tempvar id => option_map inl (PTree.get id T1)
+  | R_addrof a => compute_cont_map id RC_addrof (compute_l_cont T1 T2 a)
+  | R_unop op a ta => compute_cont_map (eval_unop op ta) (fun c => RC_unop op c ta) (compute_r_cont T1 T2 a)
+  | R_binop op a1 ta1 a2 ta2 =>
+      match compute_r_cont T1 T2 a1 with
+      | Some (inl v1) => compute_cont_map (eval_binop op ta1 ta2 v1) (fun c => RC_binop_r op v1 ta1 c ta2) (compute_r_cont T1 T2 a2)
+      | Some (inr (c, e_cont)) => Some (inr (RC_binop_l op c ta1 a2 ta2, e_cont))
+      | None => None
+      end
+  | R_cast a ta ty => compute_cont_map (eval_cast ta ty) (fun c => RC_cast c ta ty) (compute_r_cont T1 T2 a)
+  | R_byref a => compute_cont_map id RC_byref (compute_l_cont T1 T2 a)
+  | R_load a ty => Some (inr (RC_load, (a, ty)))
+  | R_ilegal _ => None
+  end
+with compute_l_cont {cs: compspecs} (T1: PTree.t val) (T2: PTree.t vardesc) (e: l_value) : option (val + (l_cont * (l_value * type))) :=
+  match e with
+  | L_var id ty => option_map inl (eval_vardesc ty (PTree.get id T2))
+  | L_deref a => compute_cont_map force_ptr LC_deref (compute_r_cont T1 T2 a)
+  | L_field a ta i => compute_cont_map (eval_field ta i) (fun c => LC_field c ta i) (compute_l_cont T1 T2 a)
+  | L_ilegal _ => None
+  end.
+
+Fixpoint fill_r_cont (e: r_cont) (v: val): r_value :=
+  match e with
+  | RC_addrof a => R_addrof (fill_l_cont a v)
+  | RC_unop op a ta => R_unop op (fill_r_cont a v) ta
+  | RC_binop_l op a1 ta1 a2 ta2 => R_binop op (fill_r_cont a1 v) ta1 a2 ta2
+  | RC_binop_r op v1 ta1 a2 ta2 => R_binop op (R_const v1) ta1 (fill_r_cont a2 v) ta2
+  | RC_cast a ta ty => R_cast (fill_r_cont a v) ta ty
+  | RC_byref a => R_byref (fill_l_cont a v)
+  | RC_load => R_const v
+  end
+with fill_l_cont (e: l_cont) (v: val): l_value :=
+  match e with
+  | LC_deref a => L_deref (fill_r_cont a v)
+  | LC_field a ta i => L_field (fill_l_cont a v) ta i
+  end.
+
+(*
+Check rel_r_value.
+Lemma compute_LR_cont_sound: forall (cs: compspecs) (T1: PTree.t val) (T2: PTree.t vardesc) P Q R,
+  (forall e v,
+    compute_r_cont T1 T2 e = Some (inl v) ->
+    PROPx P (LOCALx (LocalD T1 T2 Q) (SEPx R)) |-- rel_r_value e v) /\
+  (forall e v c e0 sh t p v0,
+    compute_r_cont T1 T2 e = Some (inr (c, (e0, t))) ->
+    PROPx P (LOCALx (LocalD T1 T2 Q) (SEPx R)) |-- rel_l_value e0 p ->
+    PROPx P (LOCALx (LocalD T1 T2 Q) (SEPx R)) |-- `(mapsto sh t p v0) ->
+    PROPx P (LOCALx (LocalD T1 T2 Q) (SEPx R)) |-- rel_r_value (fill_r_cont c v0) v ->
+    PROPx P (LOCALx (LocalD T1 T2 Q) (SEPx R)) |-- rel_r_value e v). /\
+*)

@@ -1,4 +1,4 @@
-Require Import Coqlib.
+Require Import compcert.lib.Coqlib.
 Require Import Values.
 Require Import Integers.
 Require Import Floats.
@@ -86,4 +86,35 @@ Definition range_overlap (base1: address) (sz1: Z) (base2: address) (sz2: Z) : P
 Definition adr_add (loc: address) (ofs: Z) : address := (fst loc, snd loc + ofs).
 
 Definition val2adr (v: val) (l: address) : Prop := 
-     match v with Vptr b ofs => l = (b, Int.signed ofs) | _ => False end.
+     match v with Vptr b ofs => l = (b, Int.unsigned ofs) | _ => False end.
+
+Lemma adr_range_non_zero: forall l1 n l2, adr_range l1 n l2 -> n > 0.
+Proof.
+  intros.
+  unfold adr_range in H.
+  destruct l1, l2.
+  destruct (zlt 0 n); omega.
+Qed.
+
+Lemma adr_range_shift_1: forall bl ofs n l, adr_range (bl, ofs + 1) (Z.of_nat n) l -> adr_range (bl, ofs) (Z.of_nat (S n)) l.
+Proof.
+  intros.
+  destruct l.
+  unfold adr_range in *.
+  rewrite Nat2Z.inj_succ.
+  destruct H.
+  repeat split; auto; omega.
+Qed.
+
+Lemma adr_range_S_split: forall bl ofs n l, adr_range (bl, ofs) (Z.of_nat (S n)) l -> adr_range (bl, ofs + 1) (Z.of_nat n) l \/ l = (bl, ofs).
+Proof.
+  intros.
+  destruct l.
+  unfold adr_range in *.
+  rewrite Nat2Z.inj_succ in H.
+  destruct H.
+  subst bl.
+  destruct (zlt ofs z); [left | right].
+  + split; auto; omega.
+  + f_equal; omega.
+Qed.

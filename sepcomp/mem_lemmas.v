@@ -2,7 +2,7 @@
 Require Import AST.
 Require Import Events.
 Require Import Memory.
-Require Import Coqlib.
+Require Import compcert.lib.Coqlib.
 Require Import Values.
 Require Import Maps.
 Require Import Integers.
@@ -321,13 +321,13 @@ Proof.
   inv HTs. constructor. eapply  lessdef_hastype; eassumption. apply (IHV _ H4).
 Qed.
 
-Lemma valinject_hastype:  forall j v v' 
-       (V: (val_inject j) v v') T, 
+Lemma valinject_hastype:  forall j (v v' : val)
+       (V: (Val.inject j) v v') T, 
        Val.has_type v' T -> Val.has_type v T.
 Proof. intros. inv V; simpl; trivial. Qed.
 
 Lemma forall_valinject_hastype:  forall j vals vals'
-            (V:  Forall2 (val_inject j) vals vals') 
+            (V:  Forall2 (Val.inject j) vals vals') 
             Ts (HTs: Forall2 Val.has_type vals' Ts), 
             Forall2 Val.has_type vals Ts.
 Proof.
@@ -338,14 +338,14 @@ Proof.
 Qed.
 
 Definition val_inject_opt (j: meminj) (v1 v2: option val) :=
-  match v1, v2 with Some v1', Some v2' => val_inject j v1' v2'
+  match v1, v2 with Some v1', Some v2' => Val.inject j v1' v2'
   | None, None => True
   | _, _ => False
   end.
 
 Lemma val_inject_split: 
-  forall v1 v3 j12 j23 (V: val_inject (compose_meminj j12 j23) v1 v3),
-    exists v2, val_inject j12 v1 v2 /\ val_inject j23 v2 v3. 
+  forall v1 v3 j12 j23 (V: Val.inject (compose_meminj j12 j23) v1 v3),
+    exists v2, Val.inject j12 v1 v2 /\ Val.inject j23 v2 v3. 
 Proof. intros. 
    inv V. 
      exists (Vint i). split; constructor.
@@ -393,8 +393,8 @@ Proof.
 Qed.
 
 Lemma valinject_lessdef: 
-  forall v1 v2 v3 j (V12:val_inject j v1 v2) (V23 : Val.lessdef v2 v3),
-    val_inject j v1 v3.
+  forall v1 v2 v3 j (V12:Val.inject j v1 v2) (V23 : Val.lessdef v2 v3),
+    Val.inject j v1 v3.
 Proof. 
   intros. 
   inv V12; inv V23; try constructor.
@@ -402,8 +402,8 @@ Proof.
 Qed.
 
 Lemma forall_valinject_lessdef: 
-  forall vals1 vals2 j (VInj12 : Forall2 (val_inject j) vals1 vals2) vals3 
-    (LD23 : Forall2 Val.lessdef vals2 vals3), Forall2 (val_inject j) vals1 vals3.
+  forall vals1 vals2 j (VInj12 : Forall2 (Val.inject j) vals1 vals2) vals3 
+    (LD23 : Forall2 Val.lessdef vals2 vals3), Forall2 (Val.inject j) vals1 vals3.
 Proof. intros vals1 vals2 j VInj12.
    induction VInj12; intros; inv LD23. constructor.
      econstructor. eapply valinject_lessdef; eassumption.
@@ -412,7 +412,7 @@ Qed.
 
 Lemma val_lessdef_inject_compose: 
   forall v1 v2 (LD12 : Val.lessdef v1 v2) j v3
-    (InjV23 : val_inject j v2 v3), val_inject j v1 v3.
+    (InjV23 : Val.inject j v2 v3), Val.inject j v1 v3.
 Proof. intros. 
   apply val_inject_id in LD12.
   apply (val_inject_compose _ _ _ _ _ LD12) in InjV23.
@@ -421,7 +421,7 @@ Qed.
 
 Lemma forall_val_lessdef_inject_compose: 
   forall v1 v2 (LD12 : Forall2 Val.lessdef v1 v2) j v3
-    (InjV23 : Forall2 (val_inject j) v2 v3), Forall2 (val_inject j) v1 v3.
+    (InjV23 : Forall2 (Val.inject j) v2 v3), Forall2 (Val.inject j) v1 v3.
 Proof. intros v1 v2 H.
   induction H; intros; inv InjV23; econstructor.
        eapply val_lessdef_inject_compose; eassumption.
@@ -429,9 +429,9 @@ Proof. intros v1 v2 H.
 Qed. 
 
 Lemma forall_val_inject_compose: 
-  forall vals1 vals2 j1 (ValsInj12 : Forall2 (val_inject j1) vals1 vals2)
-     vals3 j2 (ValsInj23 : Forall2 (val_inject j2) vals2 vals3),
-     Forall2 (val_inject (compose_meminj j1 j2)) vals1 vals3.
+  forall vals1 vals2 j1 (ValsInj12 : Forall2 (Val.inject j1) vals1 vals2)
+     vals3 j2 (ValsInj23 : Forall2 (Val.inject j2) vals2 vals3),
+     Forall2 (Val.inject (compose_meminj j1 j2)) vals1 vals3.
 Proof.
   intros vals1 vals2 j1 ValsInj12.
   induction ValsInj12; intros; inv ValsInj23; econstructor.
@@ -440,11 +440,11 @@ Proof.
 Qed.
 
 Lemma val_inject_flat: 
-  forall m1 m2 j (Inj: Mem.inject j m1 m2) v1 v2 (V: val_inject j v1 v2),
-    val_inject  (Mem.flat_inj (Mem.nextblock m1)) v1 v1.
+  forall m1 m2 j (Inj: Mem.inject j m1 m2) v1 v2 (V: Val.inject j v1 v2),
+    Val.inject  (Mem.flat_inj (Mem.nextblock m1)) v1 v1.
 Proof. intros.
   inv V; try constructor.
-    apply val_inject_ptr with (delta:=0).
+    apply Val.inject_ptr with (delta:=0).
             unfold Mem.flat_inj. inv Inj.
             destruct (plt b1 (Mem.nextblock m1)).
                trivial.
@@ -454,8 +454,8 @@ Proof. intros.
 Qed.
 
 Lemma forall_val_inject_flat: forall m1 m2 j (Inj: Mem.inject j m1 m2) vals1 vals2
-                (V: Forall2 (val_inject j) vals1 vals2),
-                Forall2 (val_inject  (Mem.flat_inj (Mem.nextblock m1))) vals1 vals1.
+                (V: Forall2 (Val.inject j) vals1 vals2),
+                Forall2 (Val.inject  (Mem.flat_inj (Mem.nextblock m1))) vals1 vals1.
 Proof. intros.
   induction V; intros; try econstructor.
        eapply val_inject_flat; eassumption.
@@ -743,16 +743,16 @@ apply H22; auto.
 Qed.
 
 Lemma forall_inject_val_list_inject: 
-  forall j args args' (H:Forall2 (val_inject j) args args' ), 
-    val_list_inject j args args'.
+  forall j args args' (H:Forall2 (Val.inject j) args args' ), 
+    Val.inject_list j args args'.
 Proof.
 intros j args.
 induction args; intros;  inv H; constructor; eauto.
 Qed. 
 
 Lemma val_list_inject_forall_inject: 
-  forall j args args' (H:val_list_inject j args args'), 
-    Forall2 (val_inject j) args args' .
+  forall j args args' (H:Val.inject_list j args args'), 
+    Forall2 (Val.inject j) args args' .
 Proof.
 intros j args.
 induction args; intros;  inv H; constructor; eauto.

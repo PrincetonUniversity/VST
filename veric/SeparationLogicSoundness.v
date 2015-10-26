@@ -8,13 +8,15 @@ Import Mem.
 Require Import msl.msl_standard.
 Require Import veric.juicy_mem veric.juicy_mem_lemmas veric.juicy_mem_ops.
 Require Import veric.res_predicates.
+Require Import veric.extend_tc.
 Require Import veric.seplog.
 Require Import veric.assert_lemmas.
 Require Import veric.Clight_new.
 Require Import sepcomp.extspec.
 Require Import sepcomp.step_lemmas.
 Require Import veric.juicy_extspec.
-Require Import veric.expr.
+Require Import veric.tycontext.
+Require Import veric.expr2.
 Require Import veric.semax.
 Require Import veric.semax_lemmas.
 Require Import veric.semax_congruence.
@@ -36,17 +38,17 @@ Declare Module CSL: CLIGHT_SEPARATION_LOGIC.
 Import CSL.
 
 Axiom semax_prog_rule :
-  forall {Espec: OracleKind},
+  forall {Espec: OracleKind}{CS: compspecs},
   forall z V G prog m,
-     @semax_prog Espec prog V G ->
+     @semax_prog Espec CS prog V G ->
      Genv.init_mem prog = Some m ->
      exists b, exists q, 
-       Genv.find_symbol (Genv.globalenv prog) (prog_main prog) = Some b /\
+       Genv.find_symbol (globalenv prog) (prog_main prog) = Some b /\
        core_semantics.initial_core (juicy_core_sem cl_core_sem)
-                    (Genv.globalenv prog) (Vptr b Int.zero) nil = Some q /\
+                    (globalenv prog) (Vptr b Int.zero) nil = Some q /\
        forall n, exists jm, 
        m_dry jm = m /\ level jm = n /\ 
-       jsafeN (@OK_spec Espec) (Genv.globalenv prog) n z q jm.
+       jsafeN (@OK_spec Espec) (globalenv prog) n z q jm.
 
 End SEPARATION_LOGIC_SOUNDNESS.
 

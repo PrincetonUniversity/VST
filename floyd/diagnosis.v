@@ -1,6 +1,7 @@
 Require Import floyd.base.
 Require Import floyd.assert_lemmas.
 Require Import floyd.client_lemmas.
+Require Import floyd.reptype_lemmas.
 
 Local Open Scope logic.
 
@@ -33,6 +34,7 @@ Definition because_of_SEP (R: environ->mpred) := tt.
 Definition because_temp_out_of_scope (i: ident) := tt.
 Definition because_Precondition_not_canonical (R: environ->mpred) := tt.
 Definition because_Postcondition_not_canonical (R: environ->mpred) := tt.
+Definition WITH_clause_should_avoid_using_reptype_otherwise_Coq_is_way_too_slow := tt.
 
 Ltac ccf_PROP id0 P := idtac.
 
@@ -119,11 +121,18 @@ Ltac ccf2 id0 argsig retsig A Pre Post :=
    elimtype False;
    apply F]]].
 
+Ltac check_WITH_reptype id A :=
+   match A with context [reptype _] =>
+       stuckwith (Error__Funspec id WITH_clause_should_avoid_using_reptype_otherwise_Coq_is_way_too_slow tt)
+  end.
+
 Ltac ccf1 fs :=
   match fs with
   | (?id, mk_funspec (?argsig,?retsig) ?A ?Pre ?Post ) =>
     first [ cut False; 
-               [ ccf2 id argsig retsig A Pre Post
+               [  try check_WITH_reptype id A;
+                 first [test_stuck 
+                 | ccf2 id argsig retsig A Pre Post]
                | idtac
                ]
             | stuckwith (Error__Funspec id not_in_canonical_form
@@ -139,6 +148,14 @@ Ltac check_canonical_funspec fs :=
     try (test_stuck; elimtype False);
     first [ccf1 fs; [test_stuck | ] | idtac].
 
+(* Change goal to [message arg], without failing *)
+Tactic Notation "errormsg" simple_intropattern(message) constr(arg) :=
+  let x := fresh in pose proof arg as x; revert x;
+  match goal with |- ?type -> _ =>
+    intros _; pose (message := fun _ : type => False);
+    exfalso; change (message arg); clearbody message
+  end.
+
 Ltac check_canonical_call' Delta c :=
 match c with
 | Scall _ (Evar ?id _) _ =>
@@ -146,7 +163,8 @@ match c with
     let y := (eval simpl in x) in
     match y with
     | Some ?fs => check_canonical_funspec fs
-    end 
+    | None => errormsg No_function_specificiation_corresponds_to_id id
+    end
 | Ssequence ?c1 _ => check_canonical_call' Delta c1
 | _ => let d := eval hnf in c in check_canonical_call' Delta d
 end.

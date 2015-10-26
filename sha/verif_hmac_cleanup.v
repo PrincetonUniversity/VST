@@ -25,7 +25,7 @@ destruct H0 as [SC AC].
 
 forward_call' (Tsh, c, sizeof t_struct_hmac_ctx_st, Int.zero) rv.
 forward.
-unfold data_block. rewrite Zlength_correct; simpl. entailer!. 
-apply (Forall_list_repeat _ _ (Z.to_nat (sizeof t_struct_hmac_ctx_st))).
-red; omega.
-Qed.
+unfold data_block. rewrite Zlength_correct; simpl. entailer. 
+apply prop_right.
+assert (isByte0:  isbyteZ 0). unfold isbyteZ; omega.
+apply (Forall_list_repeat _ _ (Z.to_nat (sizeof t_struct_hmac_ctx_st)) _ isByte0). 

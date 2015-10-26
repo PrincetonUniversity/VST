@@ -20,21 +20,26 @@ type section_name =
   | Section_text
   | Section_data of bool          (* true = init data, false = uninit data *)
   | Section_small_data of bool
-  | Section_const
-  | Section_small_const
+  | Section_const of bool
+  | Section_small_const of bool
   | Section_string
   | Section_literal
   | Section_jumptable
   | Section_user of string * bool (*writable*) * bool (*executable*)
 
+type access_mode =
+  | Access_default
+  | Access_near
+  | Access_far
+
 val initialize: unit -> unit
 
 val define_section:
   string -> ?iname:string -> ?uname:string
-         -> ?writable:bool -> ?executable:bool -> ?near:bool -> unit -> unit
+         -> ?writable:bool -> ?executable:bool -> ?access:access_mode -> unit -> unit
 val use_section_for: AST.ident -> string -> bool
 
 val for_variable: Env.t -> AST.ident -> C.typ -> bool ->
-                                          section_name * bool
+                                          section_name * access_mode
 val for_function: Env.t -> AST.ident -> C.typ -> section_name list
 val for_stringlit: unit -> section_name

@@ -412,7 +412,7 @@ go_lowerx. entailer.
 repeat rewrite sepcon_assoc.
 eapply derives_trans. apply sepcon_derives.
 apply andp_left1. apply func_ptr_isptr.
-apply prop_True_right.
+apply TT_right.
 rewrite sepcon_prop_prop. apply prop_derives; intuition.
 normalize.
 apply semax_pre with

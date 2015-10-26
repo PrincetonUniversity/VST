@@ -1,15 +1,26 @@
 Require Import floyd.proofauto.
 Local Open Scope logic.
 Require Import List. Import ListNotations.
+Require Import ZArith. 
 
-Require Import general_lemmas.
-
-(*Require Import spec_sha.*)
-Require Import sha_lemmas.  (*For Lemma split_offset_array_at -should be put in floyd! *)
-
-Require Import hmac_pure_lemmas. (*For Lemma max_unsigned_modulus*)
+Lemma max_unsigned_modulus: Int.max_unsigned + 1 = Int.modulus.
+Proof. reflexivity. Qed.
 
 (*generalizes Lemma data_at_lemmas.memory_block_data_at__aux1*)
+Lemma unsigned_add: forall i pos, 0 <= pos -> Int.unsigned (Int.add i (Int.repr pos)) = (Int.unsigned i + pos) mod Int.modulus.
+Proof.
+  intros.
+  unfold Int.add.
+  pose proof Int.modulus_pos.
+  pose proof Int.unsigned_range i.
+  pose proof Int.unsigned_range (Int.repr pos).
+  rewrite !Int.unsigned_repr_eq in *.
+  rewrite Z.add_mod by omega.
+  rewrite Z.mod_mod by omega.
+  rewrite <- Z.add_mod by omega.
+  reflexivity.
+Qed.
+
 Lemma Arith_aux1: forall i pos z,
   0 <= pos /\ pos + z <= Int.modulus - Int.unsigned i ->
   Int.unsigned (Int.add i (Int.repr pos)) + z <= Int.modulus.
@@ -60,22 +71,360 @@ Proof.
   apply Arith_aux1. omega.
 Qed.
 
-Lemma sizeof_Zlength_nonneg {A} t (d:list A): 0 <= sizeof t * Zlength d.
-  specialize (Zlength_nonneg d). specialize (sizeof_pos t); intros.
+Lemma sizeof_Zlength_nonneg {A ge} t (d:list A): 0 <= sizeof ge t * Zlength d.
+  specialize (Zlength_nonneg d). specialize (sizeof_pos ge t); intros.
   apply Z.mul_nonneg_nonneg; omega.
 Qed.
 
-Lemma split_offset_Tarray_at:
-  forall n sh t len (contents: list (reptype t)) v,
+Lemma data_at_ext {cs} sh t v v' p: v=v' -> @data_at cs sh t v p |-- @data_at cs sh t v' p.
+Proof. intros; subst. trivial. Qed.
+
+Lemma data_at_ext_derives {cs} sh t v v' p q: v=v' -> p=q -> @data_at cs sh t v p |-- @data_at cs sh t v' q.
+Proof. intros; subst. trivial. Qed.
+
+Lemma data_at_ext_eq {cs} sh t v v' p q: v=v' -> p=q -> @data_at cs sh t v p = @data_at cs sh t v' q.
+Proof. intros; subst. trivial. Qed.
+
+(*From sha_lemmas, but repeated here to avoid specialization to sha.CompSpecs*)
+Lemma data_at_type_changable {cs}: forall (sh: Share.t) (t1 t2: type) v1 v2,
+  t1 = t2 ->
+  JMeq v1 v2 ->
+  @data_at cs sh t1 v1 = data_at sh t2 v2.
+Proof.
+  intros.
+  subst. apply JMeq_eq in H0. subst v2. reflexivity.
+Qed.
+
+Lemma split2_data_at_Tarray_at_tuchar_unfold {cs} sh n n1 v p: 0 <= n1 <= n ->
+  @data_at cs sh (Tarray tuchar n noattr) v p |--
+  (@data_at cs sh (Tarray tuchar n1 noattr) (sublist 0 n1 v) p *
+   at_offset (@data_at cs sh (Tarray tuchar (n - n1) noattr) (sublist n1 (Zlength v) v)) n1 p)%logic.
+Proof.
+  rewrite data_at_isptr at 1. 
+  unfold data_at at 1. intros; simpl; normalize.
+  erewrite (field_at_Tarray sh  (Tarray tuchar n noattr) _ tuchar); try reflexivity; trivial. 2: omega.
+  rewrite (split2_array_at sh (Tarray tuchar n noattr) nil 0 n1); trivial.
+  do 2 rewrite array_at_data_at. entailer. 
+  do 3 rewrite at_offset_eq. rewrite Zminus_0_r.
+  erewrite (data_at_type_changable sh 
+            (nested_field_array_type (Tarray tuchar n noattr) [] 0 n1)
+            (Tarray tuchar n1 noattr) _ (sublist 0 n1 v)). 
+  2: unfold nested_field_array_type; simpl; rewrite Zminus_0_r; trivial.
+  2: apply JMeq_refl.
+  erewrite (data_at_type_changable sh 
+            (nested_field_array_type (Tarray tuchar n noattr) [] n1 n)
+            (Tarray tuchar (n - n1) noattr) _  (sublist n1 (Zlength v) v)).
+  2: unfold nested_field_array_type; simpl; trivial.
+  2: apply JMeq_refl.
+  simpl. 
+  rewrite isptr_offset_val_zero, Zplus_0_l, Zmult_1_l; trivial.
+Qed.  
+Lemma split2_data_at_Tarray_at_tuchar_unfold_with_fc {cs} sh n n1 v p: 0 <= n1 <= n ->
+  @data_at cs sh (Tarray tuchar n noattr) v p |--
+  !!(field_compatible (Tarray tuchar n noattr) [] p) &&
+  (@data_at cs sh (Tarray tuchar n1 noattr) (sublist 0 n1 v) p *
+   at_offset (@data_at cs sh (Tarray tuchar (n - n1) noattr) (sublist n1 (Zlength v) v)) n1 p)%logic.
+Proof.
+  intros. apply andp_right. entailer.
+  apply split2_data_at_Tarray_at_tuchar_unfold; trivial.
+Qed.
+
+Lemma array_at_data_at1 {cs} : forall sh t gfs lo hi v p,
+   field_compatible0 t (gfs SUB lo) p ->
+   field_compatible0 t (gfs SUB hi) p ->
+  @array_at cs sh t gfs lo hi v p =
+  at_offset (@data_at cs sh (nested_field_array_type t gfs lo hi) 
+                (@fold_reptype _ (nested_field_array_type t gfs lo hi)  v))
+               (nested_field_offset2 t (ArraySubsc lo :: gfs)) p.
+Proof.
+  intros. rewrite array_at_data_at. unfold at_offset. apply pred_ext; entailer.
+Qed.
+
+Lemma split2_data_at_Tarray_at_tuchar_fold {cs} sh n n1 v p: 0 <= n1 <= n -> n = Zlength v -> n < Int.modulus ->
+   field_compatible (Tarray tuchar n noattr) [] p ->
+  (@data_at cs sh (Tarray tuchar n1 noattr) (sublist 0 n1 v) p *
+   at_offset (@data_at cs sh (Tarray tuchar (n - n1) noattr) (sublist n1 (Zlength v) v)) n1 p)%logic
+|-- 
+  @data_at cs sh (Tarray tuchar n noattr) v p.
+Proof. intros.
+  rewrite data_at_isptr at 1. unfold at_offset. intros; normalize.
+  rewrite (data_at_isptr sh (Tarray tuchar (n - n1) noattr) (sublist n1 (Zlength v) v) (offset_val (Int.repr n1) p)).
+  unfold data_at at 3. normalize.
+  erewrite (field_at_Tarray sh  (Tarray tuchar n noattr) _ tuchar); try reflexivity; trivial. 2: omega.
+  rewrite (split2_array_at sh (Tarray tuchar n noattr) nil 0 n1); trivial.
+  do 2 rewrite array_at_data_at. entailer. unfold at_offset. simpl.
+  rewrite Zplus_0_l, Zmult_1_l.
+(*  assert_PROP (field_compatible (Tarray tuchar (Zlength v) noattr) [] p).
+    clear H5 H8 H7 H11 H0 H10. apply prop_right. unfold field_compatible in *. intuition.
+    unfold legal_alignas_type, nested_pred, local_legal_alignas_type in *; simpl in *.
+      rewrite Zle_imp_le_bool; trivial. omega. 
+    unfold sizeof; simpl. rewrite Z.max_r. 2: omega.
+    assert (N: match Zlength v with | 0 => 0 | Z.pos y' => Z.pos y' | Z.neg y' => Z.neg y' end = Zlength v). destruct (Zlength v); trivial.
+    rewrite N. omega.
+    unfold size_compatible. destruct p; try contradiction; simpl. rewrite Z.max_r. 2: omega.
+    assert (N: match Zlength v with | 0 => 0 | Z.pos y' => Z.pos y' | Z.neg y' => Z.neg y' end = Zlength v). destruct (Zlength v); trivial.
+    rewrite N. omega.
+    assert (N: match n with | 0 => 0 | Z.pos y' => Z.pos y' | Z.neg y' => Z.neg y' end = n). destruct n; trivial.
+    rewrite N. simpl in *. omega. reflexivity. Zleb_true. reflexivity.*)
+  apply andp_right. apply prop_right.
+    split. eapply field_compatible0_cons_Tarray. reflexivity. trivial. omega.
+    split. eapply field_compatible0_cons_Tarray. reflexivity. trivial. omega.
+    split. eapply field_compatible0_cons_Tarray. reflexivity. trivial. omega.
+    eapply field_compatible0_cons_Tarray. reflexivity. trivial. omega.
+  rewrite Zminus_0_r.
+  erewrite (data_at_type_changable sh 
+            (nested_field_array_type (Tarray tuchar (Zlength v) noattr) [] 0 n1)
+            (Tarray tuchar n1 noattr) _ (sublist 0 n1 v)). 
+  2: unfold nested_field_array_type; simpl; rewrite Zminus_0_r; trivial.
+  2: apply JMeq_refl.
+  erewrite <- (data_at_type_changable sh 
+            (nested_field_array_type (Tarray tuchar (Zlength v) noattr) [] n1 (Zlength v))
+            (Tarray tuchar (Zlength v - n1) noattr) _  (sublist n1 (Zlength v) v)).
+  2: unfold nested_field_array_type; simpl; trivial.
+  2: apply JMeq_refl.
+  rewrite isptr_offset_val_zero; trivial.
+Qed.
+
+Lemma split2_data_at_Tarray_at_tuchar {cs} sh n n1 v p: 0 <= n1 <= n -> n = Zlength v -> n < Int.modulus ->
+   field_compatible (Tarray tuchar n noattr) [] p ->
+@data_at cs sh (Tarray tuchar n noattr) v p
+= (@data_at cs sh (Tarray tuchar n1 noattr) (sublist 0 n1 v) p *
+   at_offset (@data_at cs sh (Tarray tuchar (n - n1) noattr) (sublist n1 (Zlength v) v)) n1 p)%logic.
+Proof. intros. apply pred_ext.
+  apply (split2_data_at_Tarray_at_tuchar_unfold sh n n1); trivial.
+  apply (split2_data_at_Tarray_at_tuchar_fold sh n n1); trivial.
+Qed.
+
+Lemma append_split2_data_at_Tarray_at_tuchar {cs} sh n data1 data2 p: Zlength (data1++data2) < Int.modulus ->
+   n = Zlength (data1++data2) ->
+   field_compatible (Tarray tuchar n noattr) [] p ->
+@data_at cs sh (Tarray tuchar n noattr) (data1++data2) p
+= (@data_at cs sh (Tarray tuchar (Zlength data1) noattr) data1 p *
+   at_offset (@data_at cs sh (Tarray tuchar (Zlength data2) noattr) data2) (Zlength data1) p)%logic.
+Proof. intros. subst n. 
+  specialize (Zlength_nonneg data1).  specialize (Zlength_nonneg data2). intros.
+  erewrite (split2_data_at_Tarray_at_tuchar sh _ (Zlength data1)); rewrite Zlength_app in *; try omega; trivial.
+  rewrite (sublist0_app1 (Zlength data1)); try omega.
+  rewrite sublist_same; trivial.
+  rewrite sublist_app2; try omega.
+  rewrite Zminus_diag, Z.add_simpl_l.
+  rewrite sublist_same; trivial.
+Qed.
+
+(*
+Lemma split_offset_Tarray_at cs:
+  forall n sh t len (contents: reptype (Tarray t len noattr)) v,
   legal_alignas_type t = true ->
   (Z.of_nat n <= Zlength contents)%Z ->
   (Z.of_nat n <= len)%Z ->
-  data_at sh (Tarray t len noattr) contents v =
+  @data_at cs sh (Tarray t len noattr) contents v =
   (!! (offset_in_range (sizeof t * 0) v) &&
    !! (offset_in_range (sizeof t * len) v) && 
   (data_at sh (Tarray t (Z.of_nat n) noattr) (firstn n contents) v * 
     data_at sh (Tarray t (len- Z.of_nat n) noattr) (skipn n contents) (offset_val (Int.repr (sizeof t * Z.of_nat n)) v)))%logic.
 Proof. apply split_offset_array_at. Qed.
+*)
+(*
+split3seg_array_at:
+  forall (cs : compspecs) (sh : Share.t) (t : type) (gfs : list gfield)
+    (lo ml mr hi : Z) (v : list (reptype (nested_field_type2 t (gfs SUB 0))))
+    (p : val),
+  lo <= ml ->
+  ml <= mr ->
+  mr <= hi ->
+  Zlength v = hi - lo ->
+  array_at sh t gfs lo hi v p =
+  array_at sh t gfs lo ml (sublist 0 (ml - lo) v) p *
+  array_at sh t gfs ml mr (sublist (ml - lo) (mr - lo) v) p *
+  array_at sh t gfs mr hi (sublist (mr - lo) (hi - lo) v) p
+split3_array_at:
+  forall (cs : compspecs) (sh : Share.t) (t : type) (gfs : list gfield)
+    (lo mid hi : Z) (v : list (reptype (nested_field_type2 t (gfs SUB 0))))
+    (v0 : reptype (nested_field_type2 t (gfs SUB mid))) (p : val),
+  lo <= mid < hi ->
+  Zlength v = hi - lo ->
+  JMeq v0
+    (Znth (mid - lo) v (default_val (nested_field_type2 t (gfs SUB 0)))) ->
+  array_at sh t gfs lo hi v p =
+  array_at sh t gfs lo mid (sublist 0 (mid - lo) v) p *
+  field_at sh t (gfs SUB mid) v0 p *
+  array_at sh t gfs (mid + 1) hi (sublist (mid + 1 - lo) (hi - lo) v) p*)
+
+Lemma split3_data_at_Tarray_at_tuchar_unfold {cs} sh n lo hi v p: 
+  0 <= lo <= hi -> hi <= n <= Zlength v ->
+  @data_at cs sh (Tarray tuchar n noattr) v p |--
+  (@data_at cs sh (Tarray tuchar lo noattr) (sublist 0 lo v) p *
+   at_offset (@data_at cs sh (Tarray tuchar (hi - lo) noattr) (sublist lo hi v)) lo p *
+   at_offset (@data_at cs sh (Tarray tuchar (n - hi) noattr) (sublist hi (Zlength v) v)) hi p)%logic.
+Proof. intros.
+  eapply derives_trans.
+  apply (split2_data_at_Tarray_at_tuchar_unfold sh n hi); try omega.
+  cancel.
+  eapply derives_trans.
+  apply (split2_data_at_Tarray_at_tuchar_unfold sh hi lo); trivial.
+  rewrite sublist_sublist; repeat rewrite Zplus_0_r; try omega. cancel.
+  rewrite Zlength_sublist; try omega. rewrite sublist_sublist; try rewrite Zminus_0_r; try omega.
+    repeat rewrite Zplus_0_r. cancel.
+Qed.
+Lemma split3_data_at_Tarray_at_tuchar_unfold' {cs} sh n n1 n2 v p: 
+  n2 + n1 <= n <= Zlength v-> 0<= n1 -> 0<= n2 ->
+  @data_at cs sh (Tarray tuchar n noattr) v p |--
+  (@data_at cs sh (Tarray tuchar n1 noattr) (sublist 0 n1 v) p *
+   at_offset (@data_at cs sh (Tarray tuchar n2 noattr) (sublist n1 (n2 + n1) v)) n1 p *
+   at_offset (@data_at cs sh (Tarray tuchar (Zlength v - (n2 + n1)) noattr) (sublist (n2 + n1) (Zlength v) v)) (n2 + n1)  p)%logic.
+Proof. intros.
+  assert_PROP (Zlength v = Z.max 0 n). entailer. rewrite Z.max_r in H2. 2: omega.
+  eapply derives_trans.
+  apply (split3_data_at_Tarray_at_tuchar_unfold sh n n1 (n2+n1)); try omega. subst n.
+  repeat rewrite sepcon_assoc; rewrite <- Z.add_sub_assoc, Zminus_diag, Zplus_0_r. cancel.
+Qed.
+ 
+Lemma split3_data_at_Tarray_at_tuchar_fold {cs} sh n lo hi v p: 
+  0 <= lo <= hi -> hi <= n -> n = Zlength v -> n < Int.modulus ->
+  field_compatible (Tarray tuchar n noattr) [] p ->
+(@data_at cs sh (Tarray tuchar lo noattr) (sublist 0 lo v) p *
+   at_offset (@data_at cs sh (Tarray tuchar (hi - lo) noattr) (sublist lo hi v)) lo p *
+   at_offset (@data_at cs sh (Tarray tuchar (n - hi) noattr) (sublist hi (Zlength v) v)) hi p)%logic
+|--
+  @data_at cs sh (Tarray tuchar n noattr) v p.
+Proof. intros. subst n.
+  assert_PROP (isptr p). entailer. rename H1 into Pp.
+  eapply derives_trans. Focus 2.
+  apply (split2_data_at_Tarray_at_tuchar_fold sh (Zlength v) lo); trivial. omega.
+  cancel.
+  unfold at_offset at 3.
+  eapply derives_trans.
+  2: apply (split2_data_at_Tarray_at_tuchar_fold sh (Zlength v - lo) (hi - lo)).
+  repeat rewrite sublist_sublist; try rewrite Zlength_sublist; try omega.
+  repeat rewrite Z.sub_simpl_r, Zplus_0_r.
+  unfold at_offset. cancel. 
+  rewrite offset_offset_val, add_repr. 
+  assert (N: Zlength v - lo - (hi - lo) = Zlength v - hi) by omega. rewrite N; clear N.
+  assert (N: lo + (hi - lo) = hi) by omega. rewrite N; clear N.
+  assert (N: Zlength v - lo + lo = Zlength v) by omega.  rewrite N; clear N. 
+  assert (N: hi - lo + lo = hi) by omega.  rewrite N; clear N. cancel. 
+  omega. rewrite Zlength_sublist; try omega. omega. unfold offset_val. 
+  destruct p; try contradiction.
+  red. simpl. red in H3. simpl in *; intuition.
+  unfold legal_alignas_type, nested_pred, local_legal_alignas_type in *. simpl in *.
+  rewrite Zle_imp_le_bool. trivial. omega.
+  rewrite Zmult_1_l, Z.max_r; omega. 
+  rewrite Zmult_1_l, Z.max_r in *; try omega. 
+  destruct (Int.unsigned_add_either i (Int.repr lo)) as [X | X]; rewrite X, (Int.unsigned_repr lo); clear X; try omega.
+  rewrite <- max_unsigned_modulus in *; omega.
+  rewrite <- max_unsigned_modulus in *; omega.
+Qed.
+Lemma split3_data_at_Tarray_at_tuchar_fold' {cs} sh n n1 n2 v p: 
+  n2 + n1 <= n -> 0<= n1 -> 0<= n2 ->
+  n=Zlength v -> n < Int.modulus ->
+  field_compatible (Tarray tuchar n noattr) [] p ->
+(@data_at cs sh (Tarray tuchar n1 noattr) (sublist 0 n1 v) p *
+   at_offset (@data_at cs sh (Tarray tuchar n2 noattr) (sublist n1 (n2 + n1) v)) n1 p *
+   at_offset (@data_at cs sh (Tarray tuchar (Zlength v - (n2 + n1)) noattr) (sublist (n2+n1) (Zlength v) v)) (n2+n1) p)%logic
+|--
+  @data_at cs sh (Tarray tuchar n noattr) v p.
+Proof. intros.
+  eapply derives_trans.
+  2: apply (split3_data_at_Tarray_at_tuchar_fold sh n n1 (n2+n1)); trivial; try omega.
+  assert (N: n2 + n1 - n1 = n2) by omega. rewrite N; clear N. subst n. cancel.
+Qed.
+
+Lemma split3_data_at_Tarray_at_tuchar {cs} sh n n1 n2 v p: 
+  n2 + n1 <= n -> 0<= n1 -> 0<= n2 ->
+  n=Zlength v -> n < Int.modulus ->
+  field_compatible (Tarray tuchar n noattr) [] p ->
+@data_at cs sh (Tarray tuchar n noattr) v p = 
+(@data_at cs sh (Tarray tuchar n1 noattr) (sublist 0 n1 v) p *
+   at_offset (@data_at cs sh (Tarray tuchar n2 noattr) (sublist n1 (n2 + n1) v)) n1 p *
+   at_offset (@data_at cs sh (Tarray tuchar (Zlength v - (n2 + n1)) noattr) (sublist (n2+n1) (Zlength v) v)) (n2+n1) p)%logic.
+Proof. intros. apply pred_ext.
+  apply (split3_data_at_Tarray_at_tuchar_unfold' sh n n1 n2); trivial. subst n; trivial. clear - H. omega.
+  apply (split3_data_at_Tarray_at_tuchar_fold' sh n n1 n2); trivial.
+Qed.
+
+Lemma append_split3_data_at_Tarray_at_tuchar {cs} sh n data1 data2 data3 p:
+   n = Zlength (data1++data2++data3) -> 
+   n < Int.modulus ->
+   field_compatible (Tarray tuchar n noattr) [] p ->
+@data_at cs sh (Tarray tuchar n noattr) (data1++data2++data3) p
+= (@data_at cs sh (Tarray tuchar (Zlength data1) noattr) data1 p *
+   at_offset (@data_at cs sh (Tarray tuchar (Zlength data2) noattr) data2) (Zlength data1) p *
+   at_offset (@data_at cs sh (Tarray tuchar (Zlength data3) noattr) data3) (Zlength data2 + Zlength data1) p)%logic.
+Proof. intros.
+  specialize (Zlength_nonneg data1). specialize (Zlength_nonneg data2). specialize (Zlength_nonneg data3). intros.
+  rewrite (split3_data_at_Tarray_at_tuchar sh n (Zlength data1) (Zlength data2)); try omega; trivial.
+  rewrite (sublist0_app1 (Zlength data1)); try omega. rewrite sublist_same; trivial.
+  rewrite sublist_app2; try omega. rewrite Zminus_diag. rewrite Z.add_simpl_r.
+  rewrite (sublist0_app1 (Zlength data2)); try omega. rewrite sublist_same; trivial.
+  repeat rewrite Zlength_app; try omega.
+  assert (N1: Zlength data1 + (Zlength data2 + Zlength data3) -
+            (Zlength data2 + Zlength data1) =  Zlength data3). omega.
+  rewrite N1.
+  rewrite sublist_app2; try omega. 
+  rewrite sublist_app2; try omega. 
+  assert (N2: Zlength data2 + Zlength data1 - Zlength data1 - Zlength data2 = 0). omega. 
+  rewrite N2.
+  assert (N3: Zlength data1 + (Zlength data2 + Zlength data3) - Zlength data1 -
+         Zlength data2 = Zlength data3). omega.
+  rewrite N3. rewrite sublist_same; trivial.
+  do 2 rewrite Zlength_app in H. omega.
+Qed.
+
+Lemma append_split3_data_at_Tarray_at_tuchar' {cs} sh data data1 data2 data3 p:
+   data = data1++data2++data3 ->
+   Zlength data < Int.modulus ->
+   field_compatible (Tarray tuchar (Zlength data) noattr) [] p ->
+@data_at cs sh (Tarray tuchar (Zlength data) noattr) data p
+= (@data_at cs sh (Tarray tuchar (Zlength data1) noattr) data1 p *
+   at_offset (@data_at cs sh (Tarray tuchar (Zlength data2) noattr) data2) (Zlength data1) p *
+   at_offset (@data_at cs sh (Tarray tuchar (Zlength data3) noattr) data3) (Zlength data2 + Zlength data1) p)%logic.
+Proof. intros. subst.
+  apply append_split3_data_at_Tarray_at_tuchar; trivial.
+Qed.
+
+(*
+Lemma split3_data_at_Tarray_at_tuchar:    
+      lo n sh data d
+      (N: (lo+n <= length data)%nat):
+  data_at sh (Tarray tuchar n noattr) data d = (*
+  (!! offset_in_range 0 d &&
+   !! offset_in_range (sizeof t * Zlength data) d &&*)
+  (data_at sh (tarray t (Z.of_nat lo)) (firstn lo data) d *
+  data_at sh (tarray t (Z.of_nat n)) (firstn n (skipn lo data)) (offset_val (Int.repr (sizeof t * Z.of_nat lo)) d) *
+  data_at sh (tarray t (Zlength data - Z.of_nat (lo+n)))
+             (skipn (lo+n) data)  (offset_val (Int.repr (sizeof t * Z.of_nat (lo+n))) d)))%logic.
+Proof.
+  fold reptype in *.
+  assert (Arith1: Zlength (firstn (lo + n) data) = Z.of_nat (lo + n)).
+           repeat rewrite Zlength_correct. rewrite firstn_length, min_l; trivial.
+  rewrite split_offset_array_at with (n := (lo + n)%nat); trivial. (* by omega.*)
+  rewrite split_offset_array_at with (n := lo) (contents := firstn (lo + n) data); trivial.
+    (* by
+    (rewrite firstn_length; rewrite Min.min_l by omega; omega).*)
+  assert (!!offset_in_range (sizeof t * Zlength data) d |-- 
+    !! offset_in_range (sizeof t * Zlength (firstn (lo + n) data)) d)%logic.
+    remember (sizeof t) as ST; normalize; subst ST.
+    apply offset_in_range_mid with (lo := 0%Z) (hi := Zlength data); try assumption.
+    rewrite !Zlength_correct.
+    rewrite firstn_length; rewrite Min.min_l by omega. split; try omega.
+    apply inj_le, N.
+    rewrite Zmult_0_r.
+    unfold offset_in_range; destruct d; auto.
+    pose proof Int.unsigned_range i; omega.
+  rewrite (add_andp _ _ H) at 2. repeat rewrite Zmult_0_r.
+  normalize. 
+  f_equal. f_equal. rewrite Arith1. apply prop_ext; intuition.
+  f_equal.
+  f_equal.
+  rewrite firstn_firstn. trivial.
+  rewrite skipn_firstn. trivial. 
+  rewrite Nat2Z.inj_add, Zminus_plus; trivial.
+
+  rewrite Arith1. apply inj_le. omega.
+  apply inj_le. omega.
+  rewrite Zlength_correct. apply inj_le; trivial.
+  rewrite Zlength_correct. apply inj_le; trivial. 
+Qed.
 
 Lemma split3_offset_array_at
       t (A: legal_alignas_type t = true)
@@ -133,7 +482,7 @@ Lemma split3_offset_Tarray_at
   data_at sh (Tarray t (Zlength data - Z.of_nat (lo+n)) noattr)
              (skipn (lo+n) data)  (offset_val (Int.repr (sizeof t * Z.of_nat (lo+n))) d)))%logic.
 Proof. apply split3_offset_array_at; trivial. Qed.
-
+*)(*
 Lemma append_split_Tarray_at:
   forall d t (data1 data2 data :list (reptype t)) sh,
   legal_alignas_type t = true ->
@@ -182,29 +531,32 @@ Proof.
       (Z.of_nat (length data1) + Z.of_nat (length data2)) = Z.of_nat (length data3)). omega.
   rewrite Arith; clear Arith; trivial.
 Qed. 
+*)
 
-Definition Select_at t sh n data2 d :=
-   data_at sh (Tarray t (Zlength data2) noattr) data2 
-             (offset_val (Int.repr (sizeof t * n)) d).
-Definition Unselect_at t sh (data1 data2 data3:list (reptype t)) d :=
-   !! offset_in_range 0 d &&
-   !! offset_in_range (sizeof t * (Zlength (data1 ++ data2 ++ data3))) d &&
-  (data_at sh (Tarray t (Zlength data1) noattr) data1 d *
-   data_at sh (Tarray t (Zlength data3) noattr) data3
-             (offset_val (Int.repr (sizeof t * (Zlength data1 + Zlength data2))) d)).
+Definition Select_at {cs} sh n data2 d :=
+   @data_at cs sh (Tarray tuchar (Zlength data2) noattr) data2 
+             (offset_val (Int.repr n) d).
+Definition Unselect_at {cs} sh data1 data2 data3 d :=
+   !! (Zlength (data1 ++ data2 ++ data3) < Int.modulus) &&
+   !! (field_compatible (Tarray tuchar (Zlength (data1 ++ data2 ++ data3)) noattr) [] d) &&
+  (@data_at cs sh (Tarray tuchar (Zlength data1) noattr) data1 d *
+   @data_at cs sh (Tarray tuchar (Zlength data3) noattr) data3
+             (offset_val (Int.repr (Zlength data2 + Zlength data1)) d)).
 
-Lemma Select_Unselect_Tarray_at t (A: legal_alignas_type t = true) sh data1 data2 data3 data d
+Lemma Select_Unselect_Tarray_at {cs} l d sh data1 data2 data3 data
   (DATA: (data1 ++ data2 ++ data3) = data)
-  l (L: l = Zlength data):
-  data_at sh (Tarray t l noattr) data d = 
-  Select_at t sh (Zlength data1) data2 d * Unselect_at t sh data1 data2 data3 d.
+  (L: l = Zlength data)
+  (F: @field_compatible cs (Tarray tuchar (Zlength (data1 ++ data2 ++ data3)) noattr) [] d)
+  (ZL: Zlength (data1 ++ data2 ++ data3) < Int.modulus):
+  @data_at cs sh (Tarray tuchar l noattr) data d = 
+  @Select_at cs sh (Zlength data1) data2 d * @Unselect_at cs sh data1 data2 data3 d.
 Proof.
-  fold reptype in *. subst l.
-  erewrite append_split3_Tarray_at; try eassumption.
+  (*fold reptype in *. *) subst l. subst data.
+  erewrite append_split3_data_at_Tarray_at_tuchar; trivial.
   unfold Select_at, Unselect_at. subst; normalize.
-  f_equal; f_equal. rewrite sepcon_comm. f_equal.
-Qed. 
-
+  unfold at_offset. apply pred_ext; cancel.
+Qed.
+(*
 Lemma Select_Unselect_tarray_at t (A: legal_alignas_type t = true) sh data1 data2 data3 data d
   (DATA: (data1 ++ data2 ++ data3) = data):
   data_at sh (tarray t (Zlength data)) data d = 
@@ -225,3 +577,107 @@ Lemma Select_Unselect_tuchararray_at':
   Select_at tuchar sh (Zlength data1) data2 d *
   Unselect_at tuchar sh data1 data2 data3 d.
    Proof. intros. subst. apply Select_Unselect_tuchararray_at. trivial. Qed.
+*)
+
+Lemma Znth_0_cons {A} l (v:A) d: Znth 0 (v::l) d = v.
+Proof. reflexivity. Qed.
+
+Lemma Znth_cons {A} i l (v:A) d: 0<i -> Znth i (v::l) d = Znth (i-1) l d.
+Proof. intros. unfold Znth. if_tac. omega. if_tac. omega.
+  assert (Z.to_nat i = S (Z.to_nat (i-1))).
+    rewrite <- Z2Nat.inj_succ. assert (i = Z.succ (i - 1)). omega. rewrite <- H2. trivial. omega.
+  rewrite H2; reflexivity.
+Qed.
+
+Lemma upd_Znth_in_list_Zlength {A} i (l:list A) v: 0<=i < Zlength l -> 
+      Zlength (upd_Znth_in_list i l v) = Zlength l.
+Proof. intros.
+   unfold upd_Znth_in_list. rewrite Zlength_app, Zlength_cons; simpl.
+  repeat rewrite Zlength_sublist; simpl; omega.
+Qed.
+
+Lemma upd_Znth_in_list_map {A B} (f:A -> B) i l v: 
+      upd_Znth_in_list i (map f l) (f v) =
+      map f (upd_Znth_in_list i l v).
+Proof. unfold upd_Znth_in_list; intros. rewrite map_app, Zlength_map.
+  do 2 rewrite sublist_map; trivial.
+Qed.
+
+Lemma upd_Znth_in_list_lookup K {A}: forall l (L:Zlength l = K) i j d (v:A) (I: 0<=i<K) (J: 0<=j<K),
+   (i=j /\ Znth i (upd_Znth_in_list j l v) d = v) \/
+   (i<>j /\ Znth i (upd_Znth_in_list j l v) d = Znth i l d).
+Proof.
+  intros. unfold upd_Znth_in_list. 
+  destruct (zeq i j); subst.  
+  + left; split; trivial.
+    rewrite app_Znth2; rewrite Zlength_sublist; try rewrite Zminus_0_r; try rewrite Zminus_diag; try omega.
+    rewrite Znth_0_cons. trivial. 
+  + right; split; trivial.
+    destruct (zlt i j).
+    - rewrite app_Znth1; try rewrite Zlength_sublist; try omega.
+      rewrite Znth_sublist; try omega. rewrite Zplus_0_r; trivial.
+    - rewrite app_Znth2; rewrite Zlength_sublist; try omega.
+      rewrite Zminus_0_r, Znth_cons, Znth_sublist; try omega.
+      assert (H: i - j - 1 + (j + 1) = i) by omega. rewrite H; trivial.
+Qed. 
+
+Lemma upd_Znth_in_list_lookup' K {A}: forall l (L:Zlength l = K) i (I: 0<=i<K) j (J: 0<=j<K) d (v:A),
+    Znth i (upd_Znth_in_list j l v) d = if zeq i j then v else Znth i l d.
+Proof. intros.
+  destruct (upd_Znth_in_list_lookup K l L i j d v I J) as [[X Y] | [X Y]]; if_tac; try omega; trivial.
+Qed.
+
+Lemma upd_Znth_in_list_char {A} n l1 (v:A) l2 w: Zlength l1=n -> 0<=n -> 
+      upd_Znth_in_list n (l1 ++ v :: l2) w = l1 ++ w :: l2.
+Proof. intros. unfold upd_Znth_in_list. 
+   f_equal. rewrite sublist0_app1. apply sublist_same; omega. omega.
+   f_equal. rewrite sublist_app2, <- H, Zlength_app, Zlength_cons. do 2 rewrite Zminus_plus.
+                rewrite sublist_1_cons. apply sublist_same; omega. omega. 
+Qed.
+
+Lemma upd_Znth_same {A}: forall i l u (d:A), 0<= i< Zlength l -> Znth i (upd_Znth_in_list i l u) d = u.
+Proof.
+  intros. rewrite (upd_Znth_in_list_lookup' _ _ (eq_refl _)); trivial.
+  rewrite zeq_true; trivial.
+Qed.
+
+Lemma upd_Znth_diff {A}: forall i j l u (d:A), 0<= i< Zlength l -> 0<= j< Zlength l -> i<>j -> 
+      Znth i (upd_Znth_in_list j l u) d = Znth i l d.
+Proof.
+  intros. rewrite (upd_Znth_in_list_lookup' _ _ (eq_refl _)); trivial.
+  rewrite zeq_false; trivial.
+Qed.
+
+Lemma upd_Znth_in_list_ints i xints v: 
+      upd_Znth_in_list i (map Vint xints) (Vint v) =
+      map Vint ((sublist 0 i xints) ++
+                v :: (sublist (i + 1) (Zlength (map Vint xints)) xints)).
+Proof. unfold upd_Znth_in_list; intros. rewrite map_app. simpl.
+  do 2 rewrite sublist_map; trivial.
+Qed.
+
+Lemma sublist0_app2 {A : Type} i (al bl : list A):
+  Zlength al <= i <= Zlength al + Zlength bl ->
+  sublist 0 i (al ++ bl) = al ++ sublist 0 (i - Zlength al) bl.
+Proof. specialize (Zlength_nonneg al); specialize (Zlength_nonneg bl); intros. 
+rewrite <- (sublist_rejoin 0 (Zlength al) i); try rewrite Zlength_app; try omega. 
+rewrite sublist0_app1, sublist_same; try omega.
+ rewrite sublist_app2, Zminus_diag; trivial. omega.
+Qed.
+
+Lemma upd_Znth_in_list_app2 {A} (l1 l2:list A) i v:
+  Zlength l1 <= i <= Zlength l1 + Zlength l2 ->
+  upd_Znth_in_list i (l1 ++ l2) v = l1 ++ upd_Znth_in_list (i-Zlength l1) l2 v.
+Proof. unfold upd_Znth_in_list. intros.
+  rewrite sublist0_app2; trivial. rewrite <- app_assoc. f_equal. f_equal. f_equal. 
+  rewrite sublist_app2, Zlength_app, Zminus_plus. 
+  assert (i + 1 - Zlength l1 = i - Zlength l1 + 1) by omega. rewrite H0; trivial.
+  specialize (Zlength_nonneg l1); omega.
+Qed.
+
+Lemma upd_Znth_in_list0 {A} (l:list A) v: 
+upd_Znth_in_list 0 l v = v :: sublist 1 (Zlength l) l.
+Proof. unfold upd_Znth_in_list. rewrite sublist_nil. reflexivity. Qed.
+
+Lemma Zlength_default_val_Tarray_tuchar {cs} n a (N:0<=n): Zlength (@default_val cs (Tarray tuchar n a)) = n.
+Proof. unfold default_val; simpl. rewrite Zlength_list_repeat; trivial. Qed.

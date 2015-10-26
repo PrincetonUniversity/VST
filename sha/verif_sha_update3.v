@@ -33,6 +33,7 @@ Lemma update_inner_if_else_proof:
           (dd data : list Z) (c d: val) (sh: share) (len: Z) kv
           Post
    (H : (0 <= len <= Zlength data)%Z)
+   (Hsh: readable_share sh)
    (LEN64: (bitlength hashed dd  + len * 8 < two_p 64)%Z)
    (H3 : (Zlength dd < CBLOCKz)%Z)
    (H3' : Forall isbyteZ dd)
@@ -59,7 +60,7 @@ Lemma update_inner_if_else_proof:
                  (map Vint (hash_blocks init_registers hashed),
                   (Vint (lo_part (bitlength hashed dd + (len)*8)),
                    (Vint (hi_part (bitlength hashed dd + (len)*8)),
-                    (map Vint (map Int.repr dd),
+                    (map Vint (map Int.repr dd) ++ list_repeat (Z.to_nat (CBLOCKz-Zlength dd)) Vundef,
                      Vint (Int.repr (Zlength dd))))))
                c);
          `(K_vector kv);
@@ -68,7 +69,7 @@ Lemma update_inner_if_else_proof:
   (overridePost Post
      (function_body_ret_assert tvoid
         (EX  a' : s256abs,
-         PROP  (update_abs (firstn (Z.to_nat len) data) (S256abs hashed dd) a')
+         PROP  (update_abs (sublist 0 len data) (S256abs hashed dd) a')
          LOCAL ()
          SEP  (`(K_vector kv);
                  `(sha256state_ a' c); `(data_block sh data d))))).
@@ -78,98 +79,52 @@ Proof.
   simplify_Delta; abbreviate_semax.
 
  assert_PROP (field_address0 (tarray tuchar (Zlength data)) [ArraySubsc 0] d = d). {
-  entailer.
-  match goal with |- (?A*?B)*_ |-- _ => forget (A*B) as AB end.
-  rewrite (data_at_field_at sh  (tarray tuchar (Zlength data))).
-  erewrite field_at_Tarray; try reflexivity.
-  erewrite (field_compatible0_array 0); try omega.
- 2: apply Z.le_refl.
- 2: reflexivity.
-normalize.
-unfold field_address0.
-rewrite if_true by auto.
-apply prop_right. simpl. normalize.
+  entailer!.
+  unfold field_address0. rewrite if_true. 
+  normalize. eapply field_compatible0_cons_Tarray; try reflexivity; auto.
+  Omega1.
 }
  rename H5 into Hd.
  eapply semax_seq'.
  evar (Frame: list (LiftEnviron mpred)).
   eapply(call_memcpy_tuchar
-   (*dst*) Tsh t_struct_SHA256state_st [StructField _data] (Zlength dd) (map Vint (map Int.repr dd)) c
+   (*dst*) Tsh t_struct_SHA256state_st [StructField _data] (Zlength dd)
+                     (map Vint (map Int.repr dd) ++
+         list_repeat (Z.to_nat (CBLOCKz - Zlength dd)) Vundef) c
    (*src*) sh (tarray tuchar (Zlength data)) [ ] 0 (map Int.repr data)  d
    (*len*) (len)
         Frame);
    try reflexivity; auto; try omega.
   apply Zlength_nonneg.
   repeat rewrite Zlength_map; unfold k in *; omega.
-  clear - H0 H2; unfold k in *; omega.
-  rewrite Zlength_map; clear - H H0 H2; unfold k in *; omega.
- rewrite (data_at_field_at sh).
- unfold_data_at 1%nat.
  entailer!.
  unfold field_address, field_address0.
- rewrite !if_true.
- erewrite nested_field_offset2_Tarray; try reflexivity.
- normalize.
- auto.
- clear - H7 H0; subst k.
- eapply field_compatible0_cons_Tarray; [reflexivity | auto | omega].
-
-rewrite (field_at_data_equal Tsh t_struct_SHA256state_st [StructField _data] 
-                 _ (map Vint (map Int.repr dd)++ firstn (Z.to_nat len) (map Vint (map Int.repr data)))).
-Focus 2. {
- assert (Z.to_nat (Zlength dd) = length (map Vint (map Int.repr dd)))
-   by MyOmega.
- unfold splice_into_list.
- rewrite firstn_app1 by omega.
- rewrite firstn_same by omega.
- replace (Zlength dd + len - Zlength dd)%Z with (len) by omega.
- rewrite !Zlength_map.
- simpl skipn at 1.
- rewrite firstn_app1 by MyOmega.
- rewrite <- skipn_firstn.
- replace (Z.to_nat (Zlength dd + len) +
-         Z.to_nat (64 - (Zlength dd + len)))
-   with 64 by Omega1.
-  rewrite firstn_app2 by MyOmega.
-  rewrite (firstn_same _ (64 - _)%nat)
-    by (rewrite length_list_repeat, !map_length, Zlength_correct, Z2Nat.inj_sub; Omega1).
-  rewrite skipn_app2 by MyOmega.
-  rewrite !map_length.
-  replace (Z.to_nat (Zlength dd + len) - length dd) 
-    with (Z.to_nat len) by Omega1.
- rewrite skipn_list_repeat by Omega1.
- rewrite <- app_ass.
- apply data_equal_sym.
- apply data_equal_list_repeat_default.
-} Unfocus.
-
-apply semax_pre with
-  (PROP  ()
-   LOCAL  (temp _fragment (Vint (Int.repr k));
-   temp _p (field_address t_struct_SHA256state_st [StructField _data] c);
-   temp _n (Vint (Int.repr (Zlength dd))); temp _c c; temp _data d;
-   temp _len (Vint (Int.repr (len)));
-   gvar _K256 kv)
-   SEP 
-   (`(data_at Tsh t_struct_SHA256state_st
-         (map Vint (hash_blocks init_registers hashed),
-                  (Vint (lo_part (bitlength hashed dd + len*8)),
-                   (Vint (hi_part (bitlength hashed dd + len*8)),
-                    (map Vint (map Int.repr (dd ++ firstn (Z.to_nat len) data)),
-                     Vint (Int.repr (Zlength dd))))))
-               c);
-   `(field_at sh (tarray tuchar (Zlength data)) []
-       (map Vint (map Int.repr data)) d);
-     `(K_vector kv))). {
-  unfold_data_at 1%nat.
-  entailer!.
-  repeat rewrite firstn_map. repeat rewrite <- map_app.
- apply derives_refl.
-}
-  abbreviate_semax.
+ rewrite !if_true; auto.
+ erewrite nested_field_offset2_ind.
+ normalize. f_equal. f_equal. f_equal. unfold gfield_offset; simpl. 
+ clear; omega.
+ apply compute_legal_nested_field0_spec'.
+ repeat constructor; auto; try Omega1.
+ apply field_compatible0_cons; simpl. split; auto; Omega1.
+ unfold data_at.
+ unfold_field_at 1%nat. cancel.
+ abbreviate_semax.
+ autorewrite with sublist.
+ unfold splice_into_list. 
+ assert (H5: (0 <= Zlength dd < 64)%Z) by (Omega1).
+ assert (H6: (k = 64 - Zlength dd)%Z) by (unfold k; auto).
+ autorewrite with sublist.
+ change 64%Z with CBLOCKz.
+ replace (CBLOCKz - (Zlength dd + (CBLOCKz - Zlength dd)))%Z
+   with 0%Z by (clear; omega).
+  change (list_repeat (Z.to_nat 0) Vundef) with (@nil val).
+  rewrite <- app_nil_end.
+  autorewrite with sublist.
+  rewrite sublist_list_repeat by Omega1.
+ clear H5 H6.
   forward. (* c->num = n+(unsigned int)len; *)
   forward. (* return; *)
-  apply exp_right with (S256abs hashed (dd ++ firstn (Z.to_nat len) data)).
+  Exists (S256abs hashed (dd ++ sublist 0 len data)).
   repeat rewrite TT_andp.
   unfold data_block.
   rewrite (prop_true_andp (Forall _ data)) by auto.
@@ -178,29 +133,35 @@ apply semax_pre with
   Focus 2. {
     split; auto.
     rewrite (app_nil_end hashed) at 2.
-    apply (Update_abs _ hashed nil dd (dd++firstn (Z.to_nat len) data)); auto.
-  rewrite Zlength_app, (Zlength_correct (firstn _ _)),
-           firstn_length, min_l; Omega1.
-   apply Z.divide_0_r.
+    apply (Update_abs _ hashed nil dd (dd++sublist 0 len data)); auto.
+    autorewrite with sublist; Omega1.
+    apply Z.divide_0_r.
   } Unfocus.
   unfold sha256state_.
   cancel.
- eapply exp_right; apply andp_right; [ | apply derives_refl].
- apply prop_right.
- simpl. unfold s256_Nh, s256_Nl, bitlength. simpl.
- rewrite <- Z.mul_add_distr_r, Zlength_app, Z.add_assoc,
-     (Zlength_correct (firstn _ _)), firstn_length, min_l,
-     Z2Nat.id; try omega.
+  Exists (map Vint (hash_blocks init_registers hashed),
+                  (Vint (lo_part (bitlength hashed dd + len*8)),
+                   (Vint (hi_part (bitlength hashed dd + len*8)),
+                    (map Vint (map Int.repr (dd ++ sublist 0 len data))
+                       ++list_repeat (Z.to_nat (64 - Zlength dd - len)) Vundef,
+                     Vint (Int.repr (Zlength dd + len)))))).
+ unfold data_at. unfold_field_at 6%nat.
+ apply andp_right; [apply prop_right | ].
+ simpl; unfold s256_Nh, s256_Nl, s256_data, s256_num, bitlength; simpl.
+ autorewrite with sublist.
+ rewrite !Z.mul_add_distr_r, !Z.add_assoc.
  repeat split; auto; try Omega1.
-*  rewrite Forall_app; split; auto.
-    apply Forall_firstn; auto.
-* Omega1. 
+ rewrite Forall_app; split; auto; apply Forall_firstn; auto.
+ cancel.
+ repeat rewrite map_app. repeat rewrite <- sublist_map.
+ rewrite <- app_assoc. auto.
 Qed.
 
 Lemma update_inner_if_proof:
  forall (Espec: OracleKind) (hashed: list int) (dd data: list Z)
             (c d: val) (sh: share) (len: Z) kv
  (H: (0 <= len <= Zlength data)%Z)
+ (Hsh: readable_share sh)
  (LEN64: (bitlength hashed dd  + len * 8 < two_p 64)%Z)
  (H3 : (Zlength dd < CBLOCKz)%Z)
  (H3' : Forall isbyteZ dd)
@@ -212,7 +173,7 @@ semax Delta_update_inner_if
   (overridePost (sha_update_inv sh hashed len c d dd data kv false)
      (function_body_ret_assert tvoid
         (EX  a' : s256abs,
-         PROP  (update_abs (firstn (Z.to_nat len) data) (S256abs hashed dd) a')
+         PROP  (update_abs (sublist 0 len data) (S256abs hashed dd) a')
          LOCAL ()
          SEP  (`(K_vector kv);
                  `(sha256state_ a' c); `(data_block sh data d))))).

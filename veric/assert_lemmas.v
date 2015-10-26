@@ -4,11 +4,13 @@ Require Import msl.rmaps_lemmas.
 Require Import veric.compcert_rmaps.
 Require Import veric.slice.
 Require Import veric.res_predicates.
-Require Import veric.expr veric.expr_lemmas.
+Require Import veric.tycontext.
+Require Import veric.expr2.
+Require Import veric.expr_lemmas.
+Require Import veric.extend_tc.
 Require Import veric.seplog.
 Require Import veric.Clight_lemmas.
 Require Import msl.normalize.
-Require Import msl.corable.
 
 Local Open Scope pred.
 
@@ -150,7 +152,7 @@ exists sh3; exists p3; auto.
 Qed.
 
 
-Definition Dbool (e: Clight.expr) : assert := 
+Definition Dbool {CS: compspecs} (Delta: tycontext) (e: Clight.expr) : assert := 
   fun rho =>  EX b: bool, !! (bool_of_valf (eval_expr e rho) = Some b).
 
 Lemma assert_truth:  forall {A} `{ageable A} (P:  Prop), P -> forall (Q: pred A), Q |-- (!! P) && Q.
@@ -262,21 +264,19 @@ Lemma corable_funassert:
 Proof.
  intros.
  unfold funassert, func_at.
- apply corable_andp.
- apply corable_allp; intro.
- apply corable_allp; intro.
- apply corable_imp; auto.
- apply corable_exp; intro.
- apply corable_andp; auto.
- destruct b0.
- apply corable_pureat.
- apply corable_allp; intro.
- apply corable_allp; intro.
- apply corable_imp; auto.
- destruct b0.
- simpl.
- apply corable_exp; intro.
- apply corable_pureat.
+ repeat
+ first [
+   apply corable_andp|
+   apply corable_exp; intro|
+   apply corable_allp; intro|
+   apply corable_prop|
+   apply corable_imp].
+ + destruct b0.
+   apply corable_pureat.
+ + destruct b0.
+   simpl.
+   apply corable_exp; intro.
+   apply corable_pureat.
 Qed.
 
 Hint Resolve corable_funassert.
@@ -316,18 +316,48 @@ Proof.
 intros. intros w ?; apply H0; auto.
 Qed.
 
-Lemma tc_expr_lvalue_sub:
-  forall Delta Delta', 
-    tycontext_sub Delta Delta' ->
-  forall rho e, (tc_expr Delta e rho |-- tc_expr Delta' e rho /\
-                      tc_lvalue Delta e rho |-- tc_lvalue Delta' e rho).
+Section STABILITY.
+Variable CS: compspecs.
+Variables Delta Delta': tycontext.
+Hypothesis extends: tycontext_sub Delta Delta'.
+
+Lemma denote_tc_assert_tc_bool_sub: forall b b' err rho phi,
+  (b = true -> b' = true) ->
+  denote_tc_assert (tc_bool b err) rho phi -> 
+  denote_tc_assert (tc_bool b' err) rho phi.
 Proof.
-induction e; unfold tc_expr, tc_lvalue; split; intro w; unfold prop;
- simpl; auto.
+  intros.
+  destruct b.
+  + specialize (H eq_refl); subst.
+    simpl; exact I.
+  + inversion H0.
+Qed.
+
+Lemma denote_tc_assert_tc_bool_i:
+  forall b c rho phi,
+   b = true ->
+  app_pred (denote_tc_assert (tc_bool b c) rho) phi.
+Proof.
+intros.
+subst. apply I.
+Qed.
+
+
+Lemma tc_expr_lvalue_sub: forall rho,
+  typecheck_environ Delta rho ->
+  forall e,
+    tc_expr Delta e rho |-- tc_expr Delta' e rho /\
+    tc_lvalue Delta e rho |-- tc_lvalue Delta' e rho.
+Proof.
+  rename extends into H.
+  intros rho HHH.
+  induction e; unfold tc_expr, tc_lvalue; split; intro w; unfold prop;
+  simpl; auto;
+  try solve [destruct t as [  | [| | |] |  | [|] | | | | |]; auto].
 * destruct (access_mode t) eqn:?; auto.
   destruct (get_var_type Delta i) eqn:?; [ | contradiction].
   destruct H as [_ [? [_ [? _]]]].
-  assert (H8: get_var_type Delta' i = Some t0); [ | rewrite H8; auto].
+  assert (H8: get_var_type Delta' i = Some t0); [ | rewrite H8; unfold tc_bool; if_tac; auto].
   unfold get_var_type in *. rewrite <- H.
   destruct ((var_types Delta)!i); auto.
   destruct ((glob_types Delta) ! i) eqn:?; inv Heqo.
@@ -335,83 +365,96 @@ induction e; unfold tc_expr, tc_lvalue; split; intro w; unfold prop;
   auto.
 * destruct (get_var_type Delta i) eqn:?; [ | contradiction].
   destruct H as [_ [? [_ [? _]]]].
-  assert (H8: get_var_type Delta' i = Some t0); [ | rewrite H8; auto].
+  assert (H8: get_var_type Delta' i = Some t0); [ | rewrite H8; unfold tc_bool; if_tac; auto].
   unfold get_var_type in *. rewrite <- H.
   destruct ((var_types Delta)!i); auto.
   destruct ((glob_types Delta) ! i) eqn:?; inv Heqo.
   specialize (H0 i). hnf in H0. rewrite Heqo0 in H0. rewrite H0.
   auto.
-*
-  destruct ((temp_types Delta)!i) as [[? ?]|] eqn:H1; [ | contradiction].
+* destruct ((temp_types Delta)!i) as [[? ?]|] eqn:H1; [ | contradiction].
   destruct H as [H _]. specialize (H i); hnf in H. rewrite H1 in H.
   destruct ((temp_types Delta')!i) as [[? ?]|] eqn:H2; [ | contradiction].
   simpl @fst; simpl @snd. destruct H; subst t1; auto.
-  destruct b; simpl in H0; subst; auto.
+  destruct b; simpl in H0; subst; try solve [if_tac; auto].
   if_tac; intros; try contradiction.
-  destruct b0; auto. apply I.
+  destruct b0; auto. exact I.
 * destruct (access_mode t) eqn:?H; intro HH; try inversion HH.
   rewrite !denote_tc_assert_andp in HH |- *.
-  repeat split; try tauto.
+  destruct HH as [[? ?] ?].
   destruct IHe as [? _].
-  unfold tc_expr in H1.
-  apply (H1 w).
-  simpl.
-  tauto.
+  repeat split.
+  + unfold tc_expr in H1.
+    apply (H4 w).
+    simpl.
+    tauto.
+  + unfold tc_bool in H2 |- *; if_tac; tauto.
+  + pose proof (H4 w H1).
+    simpl in H3 |- *.
+    unfold_lift in H3; unfold_lift.
+    exact H3.
 * destruct IHe.
   repeat rewrite denote_tc_assert_andp.
-  intros [[? ?] ?]; repeat split; auto.
-  unfold tc_expr in H0.
-  apply (H0 w); unfold prop; auto.
-*   repeat rewrite denote_tc_assert_andp; intros [? ?]; split; auto.
- destruct IHe. apply (H3 w); auto.
-* repeat rewrite denote_tc_assert_andp; intros [? ?]; split; auto.
- destruct IHe. apply (H2 w); auto.
-* repeat rewrite denote_tc_assert_andp; intros [[? ?] ?]; repeat split; auto.
- destruct IHe1 as [H8 _]; apply (H8 w); auto.
- destruct IHe2 as [H8 _]; apply (H8 w); auto.
-* repeat rewrite denote_tc_assert_andp; intros [? ?]; split; auto.
-   destruct IHe as [H8 _]; apply (H8 w); auto.
-* destruct (access_mode t) eqn:?; auto.
- repeat rewrite denote_tc_assert_andp; intros [? ?]; repeat split; auto.
- destruct IHe. apply (H3 w); auto.
+  intros [[? ?] ?].
+  repeat split.
+  + unfold tc_expr in H0.
+    apply (H0 w); unfold prop; auto.
+  + unfold tc_bool in *; if_tac; tauto.
+  + pose proof (H0 w H2).
+    simpl in H4 |- *.
+    unfold_lift in H4; unfold_lift.
+    exact H4.
+* repeat rewrite denote_tc_assert_andp; intros [? ?]; repeat split.
+  + destruct IHe. apply (H3 w); auto.
+  + unfold tc_bool in *; if_tac; tauto.
 * repeat rewrite denote_tc_assert_andp; intros [? ?]; repeat split; auto.
- destruct IHe as [_ H8]; apply (H8 w); auto.
-Qed.
+  destruct IHe. apply (H2 w); auto.
+* repeat rewrite denote_tc_assert_andp; intros [[? ?] ?]; repeat split; auto.
+  + destruct IHe1 as [H8 _]; apply (H8 w); auto.
+  + destruct IHe2 as [H8 _]; apply (H8 w); auto.
+* repeat rewrite denote_tc_assert_andp; intros [? ?]; repeat split; auto.
+  + destruct IHe as [H8 _]; apply (H8 w); auto.
+* destruct (access_mode t) eqn:?; try solve [intro HH; inv HH].
+  repeat rewrite denote_tc_assert_andp. intros [? ?]; repeat split; auto.
+  + destruct IHe. apply (H3 w); auto.
+* repeat rewrite denote_tc_assert_andp; intros [? ?]; repeat split; auto.
+  + destruct IHe as [_ H8]; apply (H8 w); auto.
+Qed.    
 
 Lemma tc_expr_sub:
-   forall Delta Delta',
-    tycontext_sub Delta Delta' ->
-    forall e rho, tc_expr Delta e rho |-- tc_expr Delta' e rho.
+    forall e rho, typecheck_environ Delta rho -> tc_expr Delta e rho |-- tc_expr Delta' e rho.
 Proof. intros. apply tc_expr_lvalue_sub; auto. Qed.
 
 Lemma tc_lvalue_sub:
-   forall Delta Delta',
-    tycontext_sub Delta Delta' ->
-    forall e rho, tc_lvalue Delta e rho |-- tc_lvalue Delta' e rho.
+    forall e rho, typecheck_environ Delta rho -> tc_lvalue Delta e rho |-- tc_lvalue Delta' e rho.
 Proof. intros. apply tc_expr_lvalue_sub; auto. Qed.
 
 Lemma tc_temp_id_sub:
-   forall Delta Delta',
-    tycontext_sub Delta Delta' ->
-    forall id t e rho, 
+    forall id t e rho,
    tc_temp_id id t Delta e rho |-- tc_temp_id id t Delta' e rho.
 Proof.
+rename extends into H.
 unfold tc_temp_id; intros.
 unfold typecheck_temp_id.
 intros w ?.  hnf in H0|-*.
 destruct H as [? _]. specialize (H id).
 destruct ((temp_types Delta)! id) as [[? ?]|]; try contradiction.
 destruct ((temp_types Delta')! id) as [[? ?]|]; try contradiction.
-destruct H; subst; auto.
+destruct H; subst.
+rewrite !denote_tc_assert_andp in H0 |- *.
+split.
++ eapply denote_tc_assert_tc_bool_sub; [| exact (proj1 H0)].
+  exact (fun x => x).
++ destruct H0 as [? _].
+  apply denote_tc_assert_tc_bool in H.
+  eapply neutral_isCastResultType.
+  exact H.
 Qed.
-
   
 Lemma tc_temp_id_load_sub:
-   forall Delta Delta',
-    tycontext_sub Delta Delta' ->
-    forall id t v rho, 
+   forall id t v rho, 
    tc_temp_id_load id t Delta v rho |--    tc_temp_id_load id t Delta' v rho.  
 Proof.
+rename extends into H.
 unfold tc_temp_id_load; simpl; intros.
 intros w [tto [x [? ?]]]; exists tto.
 destruct H as [H _].
@@ -423,19 +466,17 @@ exists b; auto.
 Qed.
 
 Lemma tc_exprlist_sub:
-   forall Delta Delta',
-    tycontext_sub Delta Delta' ->
-    forall e t rho, tc_exprlist Delta e t rho |-- tc_exprlist Delta' e t rho.
+  forall e t rho, typecheck_environ Delta rho -> tc_exprlist Delta e t rho |-- tc_exprlist Delta' e t rho.
 Proof.
-intros.
-revert t; induction e; destruct t;  simpl; auto.
-specialize (IHe t).
-unfold tc_exprlist.
-intro w; unfold prop.
-simpl.
-repeat rewrite denote_tc_assert_andp.
-intros [[? ?] ?]; repeat split; auto.
-apply (tc_expr_sub _ _ H e0 rho w); auto.
-apply (IHe w); auto.
+  intros.
+  revert t; induction e; destruct t;  simpl; auto.
+  specialize (IHe t).
+  unfold tc_exprlist.
+  intro w; unfold prop.
+  simpl.
+  repeat rewrite denote_tc_assert_andp.
+  intros [[? ?] ?]; repeat split; auto.
+  + apply (tc_expr_sub _ _ H w H0); auto.
 Qed.
 
+End STABILITY.

@@ -111,15 +111,13 @@ Proof.
   simpl in *. InvBooleans. destruct H0. split; auto. eapply has_subtype; eauto.
 Qed.
 
-(** Truth values.  Pointers and non-zero integers are treated as [True].
+(** Truth values.  Non-zero integers are treated as [True].
   The integer 0 (also used to represent the null pointer) is [False].
-  [Vundef] and floats are neither true nor false. *)
+  Other values are neither true nor false. *)
 
 Inductive bool_of_val: val -> bool -> Prop :=
   | bool_of_val_int:
-      forall n, bool_of_val (Vint n) (negb (Int.eq n Int.zero))
-  | bool_of_val_ptr:
-      forall b ofs, bool_of_val (Vptr b ofs) true.
+      forall n, bool_of_val (Vint n) (negb (Int.eq n Int.zero)).
 
 (** Arithmetic operations *)
 
@@ -695,7 +693,9 @@ Definition cmpu_bool (c: comparison) (v1 v2: val): option bool :=
   | Vint n1, Vint n2 =>
       Some (Int.cmpu c n1 n2)
   | Vint n1, Vptr b2 ofs2 =>
-      if Int.eq n1 Int.zero then cmp_different_blocks c else None
+      if Int.eq n1 Int.zero && weak_valid_ptr b2 (Int.unsigned ofs2)
+      then cmp_different_blocks c
+      else None
   | Vptr b1 ofs1, Vptr b2 ofs2 =>
       if eq_block b1 b2 then
         if weak_valid_ptr b1 (Int.unsigned ofs1)
@@ -708,7 +708,9 @@ Definition cmpu_bool (c: comparison) (v1 v2: val): option bool :=
         then cmp_different_blocks c
         else None
   | Vptr b1 ofs1, Vint n2 =>
-      if Int.eq n2 Int.zero then cmp_different_blocks c else None
+      if Int.eq n2 Int.zero && weak_valid_ptr b1 (Int.unsigned ofs1)
+      then cmp_different_blocks c
+      else None
   | _, _ => None
   end.
 
@@ -1175,8 +1177,8 @@ Proof.
   destruct c; auto. 
   destruct x; destruct y; simpl; auto.
   rewrite Int.negate_cmpu. auto.
-  destruct (Int.eq i Int.zero); auto. 
-  destruct (Int.eq i0 Int.zero); auto.
+  destruct (Int.eq i Int.zero && (valid_ptr b (Int.unsigned i0) || valid_ptr b (Int.unsigned i0 - 1))); auto. 
+  destruct (Int.eq i0 Int.zero && (valid_ptr b (Int.unsigned i) || valid_ptr b (Int.unsigned i - 1))); auto.
   destruct (eq_block b b0).
   destruct ((valid_ptr b (Int.unsigned i) || valid_ptr b (Int.unsigned i - 1)) &&
             (valid_ptr b0 (Int.unsigned i0) || valid_ptr b0 (Int.unsigned i0 - 1))).
@@ -1222,8 +1224,8 @@ Proof.
     destruct c; auto.
   destruct x; destruct y; simpl; auto.
   rewrite Int.swap_cmpu. auto.
-  case (Int.eq i Int.zero); auto.
-  case (Int.eq i0 Int.zero); auto.
+  destruct (Int.eq i Int.zero && (valid_ptr b (Int.unsigned i0) || valid_ptr b (Int.unsigned i0 - 1))); auto.
+  destruct (Int.eq i0 Int.zero && (valid_ptr b (Int.unsigned i) || valid_ptr b (Int.unsigned i - 1))); auto.
   destruct (eq_block b b0); subst.
   rewrite dec_eq_true.
   destruct (valid_ptr b0 (Int.unsigned i) || valid_ptr b0 (Int.unsigned i - 1));
@@ -1381,6 +1383,12 @@ Proof.
   left; congruence. tauto. tauto.
 Qed.
 
+Lemma lessdef_list_trans:
+  forall vl1 vl2, lessdef_list vl1 vl2 -> forall vl3, lessdef_list vl2 vl3 -> lessdef_list vl1 vl3.
+Proof.
+  induction 1; intros vl3 LD; inv LD; constructor; eauto using lessdef_trans.
+Qed.
+
 (** Compatibility of operations with the [lessdef] relation. *)
 
 Lemma load_result_lessdef:
@@ -1423,19 +1431,23 @@ Lemma cmpu_bool_lessdef:
   cmpu_bool valid_ptr' c v1' v2' = Some b.
 Proof.
   intros. 
+  assert (A: forall b ofs, valid_ptr b ofs || valid_ptr b (ofs - 1) = true ->
+                           valid_ptr' b ofs || valid_ptr' b (ofs - 1) = true).
+  { intros until ofs. rewrite ! orb_true_iff. intuition. }
   destruct v1; simpl in H2; try discriminate;
   destruct v2; simpl in H2; try discriminate;
   inv H0; inv H1; simpl; auto.
+  destruct (Int.eq i Int.zero && (valid_ptr b0 (Int.unsigned i0) || valid_ptr b0 (Int.unsigned i0 - 1))) eqn:E; try discriminate.
+  InvBooleans. rewrite H0, A by auto. auto. 
+  destruct (Int.eq i0 Int.zero && (valid_ptr b0 (Int.unsigned i) || valid_ptr b0 (Int.unsigned i - 1))) eqn:E; try discriminate.
+  InvBooleans. rewrite H0, A by auto. auto. 
   destruct (eq_block b0 b1).
-  assert (forall b ofs, valid_ptr b ofs || valid_ptr b (ofs - 1) = true ->
-                        valid_ptr' b ofs || valid_ptr' b (ofs - 1) = true).
-    intros until ofs. rewrite ! orb_true_iff. intuition. 
   destruct (valid_ptr b0 (Int.unsigned i) || valid_ptr b0 (Int.unsigned i - 1)) eqn:?; try discriminate.
   destruct (valid_ptr b1 (Int.unsigned i0) || valid_ptr b1 (Int.unsigned i0 - 1)) eqn:?; try discriminate.
-  erewrite !H0 by eauto. auto.
+  erewrite ! A by eauto. auto.
   destruct (valid_ptr b0 (Int.unsigned i)) eqn:?; try discriminate.
   destruct (valid_ptr b1 (Int.unsigned i0)) eqn:?; try discriminate.
-  erewrite !H by eauto. auto.
+  erewrite ! H by eauto. auto.
 Qed.
 
 Lemma of_optbool_lessdef:
@@ -1465,8 +1477,6 @@ Proof.
   intros. inv H; auto. 
 Qed.
 
-End Val.
-
 (** * Values and memory injections *)
 
 (** A memory injection [f] is a function from addresses to either [None]
@@ -1484,62 +1494,62 @@ Definition meminj : Type := block -> option (block * Z).
   as prescribed by the memory injection.  Moreover, [Vundef] values
   inject into any other value. *)
 
-Inductive val_inject (mi: meminj): val -> val -> Prop :=
-  | val_inject_int:
-      forall i, val_inject mi (Vint i) (Vint i)
-  | val_inject_long:
-      forall i, val_inject mi (Vlong i) (Vlong i)
-  | val_inject_float:
-      forall f, val_inject mi (Vfloat f) (Vfloat f)
-  | val_inject_single:
-      forall f, val_inject mi (Vsingle f) (Vsingle f)
-  | val_inject_ptr:
+Inductive inject (mi: meminj): val -> val -> Prop :=
+  | inject_int:
+      forall i, inject mi (Vint i) (Vint i)
+  | inject_long:
+      forall i, inject mi (Vlong i) (Vlong i)
+  | inject_float:
+      forall f, inject mi (Vfloat f) (Vfloat f)
+  | inject_single:
+      forall f, inject mi (Vsingle f) (Vsingle f)
+  | inject_ptr:
       forall b1 ofs1 b2 ofs2 delta,
       mi b1 = Some (b2, delta) ->
       ofs2 = Int.add ofs1 (Int.repr delta) ->
-      val_inject mi (Vptr b1 ofs1) (Vptr b2 ofs2)
+      inject mi (Vptr b1 ofs1) (Vptr b2 ofs2)
   | val_inject_undef: forall v,
-      val_inject mi Vundef v.
+      inject mi Vundef v.
 
-Hint Constructors val_inject.
+Hint Constructors inject.
 
-Inductive val_list_inject (mi: meminj): list val -> list val-> Prop:= 
-  | val_nil_inject :
-      val_list_inject mi nil nil
-  | val_cons_inject : forall v v' vl vl' , 
-      val_inject mi v v' -> val_list_inject mi vl vl'->
-      val_list_inject mi (v :: vl) (v' :: vl').  
+Inductive inject_list (mi: meminj): list val -> list val-> Prop:= 
+  | inject_list_nil :
+      inject_list mi nil nil
+  | inject_list_cons : forall v v' vl vl' , 
+      inject mi v v' -> inject_list mi vl vl'->
+      inject_list mi (v :: vl) (v' :: vl').  
 
-Hint Resolve val_nil_inject val_cons_inject.
+Hint Resolve inject_list_nil inject_list_cons.
 
 Section VAL_INJ_OPS.
 
 Variable f: meminj.
 
-Lemma val_load_result_inject:
+Lemma load_result_inject:
   forall chunk v1 v2,
-  val_inject f v1 v2 ->
-  val_inject f (Val.load_result chunk v1) (Val.load_result chunk v2).
+  inject f v1 v2 ->
+  inject f (Val.load_result chunk v1) (Val.load_result chunk v2).
 Proof.
   intros. inv H; destruct chunk; simpl; econstructor; eauto.
 Qed.
 
-Remark val_add_inject:
+Remark add_inject:
   forall v1 v1' v2 v2',
-  val_inject f v1 v1' ->
-  val_inject f v2 v2' ->
-  val_inject f (Val.add v1 v2) (Val.add v1' v2').
+  inject f v1 v1' ->
+  inject f v2 v2' ->
+  inject f (Val.add v1 v2) (Val.add v1' v2').
 Proof.
   intros. inv H; inv H0; simpl; econstructor; eauto.
   repeat rewrite Int.add_assoc. decEq. apply Int.add_commut.
   repeat rewrite Int.add_assoc. decEq. apply Int.add_commut.
 Qed.
 
-Remark val_sub_inject:
+Remark sub_inject:
   forall v1 v1' v2 v2',
-  val_inject f v1 v1' ->
-  val_inject f v2 v2' ->
-  val_inject f (Val.sub v1 v2) (Val.sub v1' v2').
+  inject f v1 v1' ->
+  inject f v2 v2' ->
+  inject f (Val.sub v1 v2) (Val.sub v1' v2').
 Proof.
   intros. inv H; inv H0; simpl; auto.
   econstructor; eauto. rewrite Int.sub_add_l. auto.
@@ -1547,10 +1557,10 @@ Proof.
   rewrite Int.sub_shifted. auto.
 Qed.
 
-Lemma val_cmp_bool_inject:
+Lemma cmp_bool_inject:
   forall c v1 v2 v1' v2' b,
-  val_inject f v1 v1' ->
-  val_inject f v2 v2' ->
+  inject f v1 v1' ->
+  inject f v2 v2' ->
   Val.cmp_bool c v1 v2 = Some b ->
   Val.cmp_bool c v1' v2' = Some b.
 Proof.
@@ -1590,16 +1600,26 @@ Hypothesis valid_different_ptrs_inj:
   b1' <> b2' \/
   Int.unsigned (Int.add ofs1 (Int.repr delta1)) <> Int.unsigned (Int.add ofs2 (Int.repr delta2)).
 
-Lemma val_cmpu_bool_inject:
+Lemma cmpu_bool_inject:
   forall c v1 v2 v1' v2' b,
-  val_inject f v1 v1' ->
-  val_inject f v2 v2' ->
+  inject f v1 v1' ->
+  inject f v2 v2' ->
   Val.cmpu_bool valid_ptr1 c v1 v2 = Some b ->
   Val.cmpu_bool valid_ptr2 c v1' v2' = Some b.
 Proof.
   Local Opaque Int.add.
   intros. inv H; simpl in H1; try discriminate; inv H0; simpl in H1; try discriminate; simpl; auto.
-  fold (weak_valid_ptr1 b1 (Int.unsigned ofs1)) in H1.
+- fold (weak_valid_ptr1 b1 (Int.unsigned ofs1)) in H1.
+  fold (weak_valid_ptr2 b2 (Int.unsigned (Int.add ofs1 (Int.repr delta)))).
+  destruct (Int.eq i Int.zero); auto.
+  destruct (weak_valid_ptr1 b1 (Int.unsigned ofs1)) eqn:E; try discriminate.
+  erewrite weak_valid_ptr_inj by eauto. auto. 
+- fold (weak_valid_ptr1 b1 (Int.unsigned ofs1)) in H1.
+  fold (weak_valid_ptr2 b2 (Int.unsigned (Int.add ofs1 (Int.repr delta)))).
+  destruct (Int.eq i Int.zero); auto.
+  destruct (weak_valid_ptr1 b1 (Int.unsigned ofs1)) eqn:E; try discriminate.
+  erewrite weak_valid_ptr_inj by eauto. auto. 
+- fold (weak_valid_ptr1 b1 (Int.unsigned ofs1)) in H1.
   fold (weak_valid_ptr1 b0 (Int.unsigned ofs0)) in H1.
   fold (weak_valid_ptr2 b2 (Int.unsigned (Int.add ofs1 (Int.repr delta)))).
   fold (weak_valid_ptr2 b3 (Int.unsigned (Int.add ofs0 (Int.repr delta0)))). 
@@ -1622,26 +1642,30 @@ Proof.
   now erewrite !valid_ptr_inj by eauto.
 Qed.
 
-Lemma val_longofwords_inject:
+Lemma longofwords_inject:
   forall v1 v2 v1' v2',
-  val_inject f v1 v1' -> val_inject f v2 v2' -> val_inject f (Val.longofwords v1 v2) (Val.longofwords v1' v2').
+  inject f v1 v1' -> inject f v2 v2' -> inject f (Val.longofwords v1 v2) (Val.longofwords v1' v2').
 Proof.
   intros. unfold Val.longofwords. inv H; auto. inv H0; auto.
 Qed.
 
-Lemma val_loword_inject:
-  forall v v', val_inject f v v' -> val_inject f (Val.loword v) (Val.loword v').
+Lemma loword_inject:
+  forall v v', inject f v v' -> inject f (Val.loword v) (Val.loword v').
 Proof.
   intros. unfold Val.loword; inv H; auto. 
 Qed.
 
-Lemma val_hiword_inject:
-  forall v v', val_inject f v v' -> val_inject f (Val.hiword v) (Val.hiword v').
+Lemma hiword_inject:
+  forall v v', inject f v v' -> inject f (Val.hiword v) (Val.hiword v').
 Proof.
   intros. unfold Val.hiword; inv H; auto. 
 Qed.
 
 End VAL_INJ_OPS.
+
+End Val.
+
+Notation meminj := Val.meminj.
 
 (** Monotone evolution of a memory injection. *)
 
@@ -1662,33 +1686,33 @@ Qed.
 Lemma val_inject_incr:
   forall f1 f2 v v',
   inject_incr f1 f2 ->
-  val_inject f1 v v' ->
-  val_inject f2 v v'.
+  Val.inject f1 v v' ->
+  Val.inject f2 v v'.
 Proof.
   intros. inv H0; eauto.
 Qed.
 
-Lemma val_list_inject_incr:
+Lemma val_inject_list_incr:
   forall f1 f2 vl vl' ,
-  inject_incr f1 f2 -> val_list_inject f1 vl vl' ->
-  val_list_inject f2 vl vl'.
+  inject_incr f1 f2 -> Val.inject_list f1 vl vl' ->
+  Val.inject_list f2 vl vl'.
 Proof.
   induction vl; intros; inv H0. auto.
   constructor. eapply val_inject_incr; eauto. auto.
 Qed.
 
-Hint Resolve inject_incr_refl val_inject_incr val_list_inject_incr.
+Hint Resolve inject_incr_refl val_inject_incr val_inject_list_incr.
 
 Lemma val_inject_lessdef:
-  forall v1 v2, Val.lessdef v1 v2 <-> val_inject (fun b => Some(b, 0)) v1 v2.
+  forall v1 v2, Val.lessdef v1 v2 <-> Val.inject (fun b => Some(b, 0)) v1 v2.
 Proof.
   intros; split; intros.
   inv H; auto. destruct v2; econstructor; eauto. rewrite Int.add_zero; auto. 
   inv H; auto. inv H0. rewrite Int.add_zero; auto.
 Qed.
 
-Lemma val_list_inject_lessdef:
-  forall vl1 vl2, Val.lessdef_list vl1 vl2 <-> val_list_inject (fun b => Some(b, 0)) vl1 vl2.
+Lemma val_inject_list_lessdef:
+  forall vl1 vl2, Val.lessdef_list vl1 vl2 <-> Val.inject_list (fun b => Some(b, 0)) vl1 vl2.
 Proof.
   intros; split.
   induction 1; constructor; auto. apply val_inject_lessdef; auto.
@@ -1701,7 +1725,7 @@ Definition inject_id : meminj := fun b => Some(b, 0).
 
 Lemma val_inject_id:
   forall v1 v2,
-  val_inject inject_id v1 v2 <-> Val.lessdef v1 v2.
+  Val.inject inject_id v1 v2 <-> Val.lessdef v1 v2.
 Proof.
   intros; split; intros.
   inv H; auto. 
@@ -1725,8 +1749,8 @@ Definition compose_meminj (f f': meminj) : meminj :=
 
 Lemma val_inject_compose:
   forall f f' v1 v2 v3,
-  val_inject f v1 v2 -> val_inject f' v2 v3 ->
-  val_inject (compose_meminj f f') v1 v3.
+  Val.inject f v1 v2 -> Val.inject f' v2 v3 ->
+  Val.inject (compose_meminj f f') v1 v3.
 Proof.
   intros. inv H; auto; inv H0; auto. econstructor.
   unfold compose_meminj; rewrite H1; rewrite H3; eauto. 

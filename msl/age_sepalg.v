@@ -383,15 +383,6 @@ Qed.
   apply join_level in H. intuition.
  Qed.
 
-
-Lemma join_core2 {A}{J: Join A}{PA: Perm_alg A}{SA: Sep_alg A}:
-  forall a b c, join a b c -> core a = core b. 
-Proof.
-intros. generalize H; intro.
-apply join_comm in H.
-apply join_core in H0; apply join_core in H. congruence.
-Qed.
-
 Lemma age_core_eq {A}{JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{agA: ageable A}{AgeA: Age_alg A}:
   forall x y x' y', age x x' -> age y y' -> core x = core y -> core x' = core y'.
 Proof.

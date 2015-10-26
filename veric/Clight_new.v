@@ -3,7 +3,6 @@ Require Import sepcomp.forward_simulations.
 Require Import veric.base.
 Require Import veric.Clight_lemmas.
 
-
 Inductive cont': Type :=
   | Kseq: statement -> cont'       (**r [Kseq s2 k] = after [s1] in [s1;s2] *)
   | Kloop1: statement -> statement -> cont'       
@@ -133,7 +132,6 @@ with find_label_ls (lbl: label) (sl: labeled_statements) (k: cont)
 
 
 (** Transition relation *)
-Locate select_switch.
 
 Inductive cl_step (ge: Clight.genv): forall (q: corestate) (m: mem) (q': corestate) (m': mem), Prop :=
 
@@ -142,7 +140,7 @@ Inductive cl_step (ge: Clight.genv): forall (q: corestate) (m: mem) (q': coresta
       Clight.eval_lvalue ge ve te m a1 loc ofs ->
       Clight.eval_expr ge ve te m a2 v2 ->
       Cop.sem_cast v2 (typeof a2) (typeof a1) = Some v ->
-      Clight.assign_loc (typeof a1) m loc ofs v m' ->
+      Clight.assign_loc ge (typeof a1) m loc ofs v m' ->
       cl_step ge (State ve te (Kseq (Sassign a1 a2):: k)) m (State ve te k) m'
 
   | step_set:   forall ve te k m id a v,
@@ -157,7 +155,7 @@ Inductive cl_step (ge: Clight.genv): forall (q: corestate) (m: mem) (q': coresta
       type_of_function f = Tfunction tyargs tyres cc_default ->
       list_norepet (var_names f.(fn_params) ++ var_names f.(fn_temps)) ->
       forall (NRV: list_norepet (var_names f.(fn_vars))),
-      Clight.alloc_variables empty_env m (f.(fn_vars)) ve' m1 ->
+      Clight.alloc_variables ge empty_env m (f.(fn_vars)) ve' m1 ->
       bind_parameter_temps f.(fn_params) vargs (create_undef_temps f.(fn_temps)) = Some 
 le' ->
       cl_step ge (State ve te (Kseq (Scall optid a al) :: k)) m
@@ -188,7 +186,7 @@ le' ->
 
   | step_ifthenelse:  forall ve te k m a s1 s2 v1 b,
       Clight.eval_expr ge ve te m a v1 ->
-      Cop.bool_val v1 (typeof a) = Some b ->
+      Cop.bool_val v1 (typeof a) m = Some b ->
       cl_step ge (State ve te (Kseq (Sifthenelse a s1 s2) :: k)) m (State ve te  (Kseq (if b then s1 else s2) :: k)) m
 
   | step_for: forall ve te k m s1 s2,
@@ -201,7 +199,7 @@ le' ->
 
   | step_return: forall f ve te optexp optid k m v' m' ve' te' te'' k',
       call_cont k = Kcall optid f ve' te' :: k' ->
-      Mem.free_list m (Clight.blocks_of_env ve) = Some m' ->
+      Mem.free_list m (Clight.blocks_of_env ge ve) = Some m' ->
       match optexp with None => v' = Vundef
                                   | Some a => exists v, Clight.eval_expr ge ve te m a v /\ Cop.sem_cast v (typeof a) f.(fn_return) = Some v' 
                             end ->
@@ -283,7 +281,7 @@ destruct lid; try congruence; inv H; auto.
 Qed.
 
 Program Definition cl_core_sem : 
-  CoreSemantics (Genv.t fundef type) corestate mem :=
+  CoreSemantics genv corestate mem :=
   @Build_CoreSemantics _ _ _ 
     (*deprecated cl_init_mem*)
     cl_initial_core
@@ -302,8 +300,8 @@ Proof.
 intros.
 rename H0 into STEP;
 revert q2 m2 STEP; induction H; intros; inv STEP; simpl; auto; repeat fun_tac; auto.
-f_equal; eapply assign_loc_fun; eauto.
-inversion2 H H13. repeat fun_tac; auto.
+inversion2 H H13.
+ repeat fun_tac; auto.
 destruct optexp. destruct H1 as [v [? ?]]. destruct H12 as [v2 [? ?]].
 repeat fun_tac.
 inversion2 H H7.

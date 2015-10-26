@@ -25,76 +25,200 @@ name keylen' _key_len.
 name d' _d.
 name n' _n.
 name md' _md.
-simpl_stackframe_of. fixup_local_var; intro c.
-
+simpl_stackframe_of.
 rename keyVal into k. rename msgVal into d.
 destruct KEY as [kl key].
 destruct MSG as [dl data]. simpl in *.
 rename H into WrshMD. 
 rewrite memory_block_isptr. normalize.
 rename H into isPtrMD. rename H0 into KL. rename H1 into DL. 
-(*destruct KL as [KL1 [KL2 KL3]].*)
-forward_if
- ( PROP  (isptr c)
-   LOCAL  (lvar _c t_struct_hmac_ctx_st c; temp _md md; temp _key k;
-      temp _key_len (Vint (Int.repr kl)); temp _d d;
-      temp _n (Vint (Int.repr dl)); gvar sha._K256 kv)
-   SEP (`(data_at_ Tsh t_struct_hmac_ctx_st c);
-     `(data_block Tsh key k); `(data_block Tsh data d); `(K_vector kv);
-     `(memory_block shmd (Int.repr 32) md))).
-  { (*Branch1*) inv H. }
-  { (* Branch2 *) forward. entailer!. } 
-normalize. rename H into isptrC.
+remember (
+EX c:_,
+PROP  (isptr c)
+   LOCAL  (`(eq md) (eval_id _md); `(eq k) (eval_id _key);
+   `(eq (Vint (Int.repr kl))) (eval_id _key_len); `(eq d) (eval_id _d);
+   `(eq (Vint (Int.repr dl))) (eval_id _n);
+   `(eq c) (eval_var _c t_struct_hmac_ctx_st);
+   `(eq KV) (eval_var sha._K256 (tarray tuint 64)))
+   SEP 
+   (`(data_at_ Tsh t_struct_hmac_ctx_st c);
+   `(data_block Tsh key k); `(data_block Tsh data d); `(K_vector KV);
+   `(memory_block shmd (Int.repr 32) md))) as POSTCOND.
+forward_if POSTCOND.
+  normalize. forward.
+  simpl; intros rho. entailer.
+    apply isptrD in isPtrMD. destruct isPtrMD as [b [i HH]]; rewrite HH in *.
+    simpl in *. inversion H0.
+  simpl in *. apply isptrD in isPtrMD. destruct isPtrMD as [b [i HH]]; subst. 
+   intros rho. 
+   entailer.
+   
+  forward. subst POSTCOND. simpl. intros rho. entailer.
+   rewrite data_at__isptr. normalize.
+   apply exp_right with (x:=eval_var _c t_struct_hmac_ctx_st rho).
+   entailer.
+
+subst POSTCOND.
+apply extract_exists_pre. intros c. normalize. rename H into isPtrC.
+(*eapply semax_seq'. 
+frame_SEP 0 1 3.*)
 remember (HMACabs init_s256abs init_s256abs init_s256abs) as initHMA.
-assert_PROP (isptr k). entailer!. 
-rename H into isPtrK. 
-forward_call' (c, k, Vint (Int.repr kl), key, kv, initHMA) h0.
- { apply isptrD in isPtrK. destruct isPtrK as [kb [kofs HK]]. rewrite HK.
-   unfold initPre. entailer!. 
-   apply (exp_right kl). entailer!.
-   unfold data_at_. 
-   apply (exp_right (default_val t_struct_hmac_ctx_st)); entailer!. 
- }
-normalize. rename H into HmacInit. 
-assert_PROP (s256a_len (absCtxt h0) = 512).
-  { unfold hmacstate_. entailer. apply prop_right. 
-    destruct h0; simpl in *.  
-    destruct H3 as [reprMD [reprI [reprO [iShaLen oShaLen]]]].
+remember (c, k, Vint (Int.repr kl), key, KV, initHMA) as WITNESS.
+forward_call WITNESS.
+  assert (FR: Frame =[`(data_block Tsh data d);
+                      `(memory_block shmd (Int.repr 32) md)]).
+       subst Frame. reflexivity.
+     rewrite FR. clear FR Frame. 
+  subst WITNESS. entailer. cancel. unfold initPre. 
+   apply isptrD in Pkey'. destruct Pkey' as [kb [kofs HK]]. subst key'.
+   apply exp_right with (x:=kl). unfold data_at_. 
+   apply (exp_right (default_val t_struct_hmac_ctx_st)); entailer. 
+after_call.
+subst WITNESS. normalize. simpl. 
+apply semax_pre with (P':=EX  x : hmacabs, 
+  (PROP  (hmacInit key x)
+   LOCAL  (`(eq md) (eval_id _md); `(eq k) (eval_id _key);
+   `(eq (Vint (Int.repr kl))) (eval_id _key_len); `(eq d) (eval_id _d);
+   `(eq (Vint (Int.repr dl))) (eval_id _n);
+   `(eq c) (eval_var _c t_struct_hmac_ctx_st);
+   `(eq KV) (eval_var sha._K256 (tarray tuint 64)))
+   SEP 
+   (`(hmacstate_ x c); `(initPostKey k key); `(K_vector KV);
+    `(data_block Tsh data d); `(memory_block shmd (Int.repr 32) md)))).
+   entailer. apply (exp_right x). entailer.
+apply extract_exists_pre. intros h0. normalize. simpl. rename H into HmacInit.
+
+eapply semax_seq'. 
+myframe_SEP'' [0; 2; 3].
+remember (h0, c, d, dl, data, KV) as WITNESS.
+(*Remark on confusing error messages: if the spec of HMAC_update includes _len OF tuint
+  instead of _len OF tint, the following forward_call fails, complaining that
+  WITNESS is not of type hmacabs * val * val * Z * list Z * val. But it is, 
+  and the error message is wrong.*)
+forward_call WITNESS.
+  assert (FR: Frame =nil).
+       subst Frame. reflexivity.
+     rewrite FR. clear FR Frame. 
+  subst WITNESS. entailer.
+  apply andp_right. 2: cancel.
+    unfold hmacstate_. normalize. apply prop_right. 
+    assert (HH: s256a_len (absCtxt h0) = 512).
+    Focus 2. destruct DL as [DL1 [DL2 DL3]]. split; trivial. split; trivial.
+             rewrite HH; assumption. 
+    destruct h0; simpl in *. 
+    destruct H1 as [reprMD [reprI [reprO [iShaLen oShaLen]]]].
     inversion HmacInit; clear HmacInit.
-    destruct H3 as [oS [InnSHA [OntSHA XX]]]. inversion XX; clear XX.
-    subst. assumption.
-  }
-rename H into H0_len512.
-forward_call' (h0, c, d, dl, data, kv) h1.
-  { rewrite H0_len512. assumption. } 
-rename H into HmacUpdate.
+    destruct H1 as [oS [InnSHA [OntSHA XX]]]. inversion XX; clear XX.
+    subst.
+      unfold innerShaInit in InnSHA. inversion InnSHA; clear InnSHA.
+      simpl in *. subst. unfold HMAC_SHA256.mkArgZ, HMAC_SHA256.mkArg in H9.
+      assert (Zlength (map Byte.unsigned
+        (map (fun p : byte * byte => Byte.xor (fst p) (snd p))
+           (combine (map Byte.repr (HMAC_SHA256.mkKey key)) (HMAC_SHA256.sixtyfour Ipad))))
+        = Zlength (intlist_to_Zlist blocks ++ newfrag)).
+        rewrite H9; reflexivity.
+     clear H9.
+     rewrite Zlength_correct in *. rewrite map_length in H1. 
+     rewrite Zlength_correct in *. rewrite map_length, combine_length in H1.
+     rewrite app_length in H1.
+     rewrite map_length, mkKey_length in H1.
+     unfold SHA256.BlockSize, HMAC_SHA256.sixtyfour in H1.
+     rewrite length_list_repeat, length_intlist_to_Zlist in H1. unfold WORD.
+     rewrite Nat2Z.inj_add, Nat2Z.inj_mul, Z.mul_comm in H1. simpl in H1.
+     unfold bitlength. repeat rewrite Zlength_correct. unfold WORD. rewrite <- H1. simpl. trivial.
+after_call.
+subst WITNESS. normalize. simpl.
+(*rewrite firstn_same.
+Focus 2. destruct DL as [DL1 [DL2 DL3]]; subst. 
+         rewrite Zlength_correct, Nat2Z.id. omega.*)
 
-forward_call' (h1, c, md, shmd, kv) [dig h2].
-simpl in H; rename H into HmacFinalSimple. 
+(**** It's not quite clear to me why we need to use semax_pre here - 
+  ie why normalize can't figure this out (at least partially).
+  It seems exp doesn't distribute over liftx, but it should *)
+eapply semax_pre with (P':=EX  x : hmacabs, 
+   PROP  (hmacUpdate data h0 x)
+   LOCAL  (tc_environ Delta; `(eq md) (eval_id _md);
+   `(eq k) (eval_id _key); `(eq (Vint (Int.repr kl))) (eval_id _key_len);
+   `(eq d) (eval_id _d); `(eq (Vint (Int.repr dl))) (eval_id _n);
+   `(eq c) (eval_var _c t_struct_hmac_ctx_st);
+   `(eq KV) (eval_var sha._K256 (tarray tuint 64)))
+   SEP (`(K_vector KV); `(hmacstate_ x c); `(data_block Tsh data d);
+        `(initPostKey k key); `(memory_block shmd (Int.repr 32) md))).
+  entailer. apply (exp_right x). entailer.
+apply extract_exists_pre. intros h1. normalize. rename H into HmacUpdate.
 
-forward_call' (h2,c,kv). destruct H as [SCc ACc].
+eapply semax_seq'. 
+myframe_SEP'' [0; 1; 4].
+forward_call (h1, c, md, shmd, KV).
+  assert (FR: Frame =nil).
+       subst Frame. reflexivity.
+     rewrite FR. clear FR Frame. 
+  entailer. cancel. 
+after_call.
+simpl. 
+
+(**** Again, distribute EX over lift*)
+eapply semax_pre with (P':=
+      EX  x : list Z, EX  x0 : hmacabs,
+  (PROP  (hmacFinal h1 x x0)
+   LOCAL  (tc_environ Delta; 
+   `(eq md) (eval_id _md); `(eq k) (eval_id _key);
+   `(eq (Vint (Int.repr kl))) (eval_id _key_len); `(eq d) (eval_id _d);
+   `(eq (Vint (Int.repr dl))) (eval_id _n);
+   `(eq c) (eval_var _c t_struct_hmac_ctx_st);
+   `(eq KV) (eval_var sha._K256 (tarray tuint 64)))
+   SEP (`(K_vector KV); `(hmacstate_PostFinal x0 c);
+        `(data_block shmd x md); `(data_block Tsh data d);
+        `(initPostKey k key)))).
+   entailer.
+   apply (exp_right x). 
+   apply (exp_right x0). entailer. 
+apply extract_exists_pre. intros dig.
+apply extract_exists_pre. intros h2. normalize. rename H into HmacFinalSimple.
+
+eapply semax_seq'. 
+myframe_SEP'' [1]. 
+forward_call (h2,c,KV).
+  assert (FR: Frame =nil).
+       subst Frame. reflexivity.
+     rewrite FR. clear FR Frame. 
+  entailer.
+after_call.
+simpl. normalize. simpl. normalize.
+rename H into SCc. rename H0 into ACc.
+
 forward.
-simpl_stackframe_of. normalize. clear H2. cancel. 
+apply (exp_right dig).
+simpl_stackframe_of. normalize. clear H0. 
 assert (HS: hmacSimple key data dig).
     exists h0, h1. 
-    split. assumption.
+    split. destruct KL as [KL1 [KLb KLc]].
+           (*rewrite KL1.*) assumption.
     split; try assumption.
     rewrite hmacFinal_hmacFinalSimple. exists h2; trivial.
 assert (Size: sizeof t_struct_hmac_ctx_st <= Int.max_unsigned).
   rewrite int_max_unsigned_eq; simpl. omega.
-  rewrite hmac_hmacSimple in HS. destruct HS. 
-eapply hmac_sound in H2. subst dig.
-cancel.
+apply andp_right. apply prop_right. split; trivial.
+  rewrite hmac_hmacSimple in HS. destruct HS. eapply hmac_sound; eassumption.
+apply andp_right. apply prop_right. trivial. cancel.
 unfold data_block.
-  rewrite Zlength_correct; simpl. 
-rewrite <- memory_block_data_at_; try reflexivity.
-2: rewrite lvar_eval_lvar with (v:=c); trivial. 
-normalize. rewrite lvar_eval_lvar with (v:=c); trivial. 
-  rewrite (memory_block_data_at_ Tsh (tarray tuchar (sizeof t_struct_hmac_ctx_st))).
+  rewrite Zlength_correct; simpl.
+rewrite <- memory_block_data_at_; try reflexivity. 
+(*XXX: WAS: rewrite memory_block_array_tuchar. 
+  normalize. clear H1. 
+  apply andp_right.
+    apply prop_right. trivial. cancel.
+  simpl; omega.
+Now need this:*)
+normalize.
+rewrite (memory_block_data_at_ Tsh (tarray tuchar (sizeof t_struct_hmac_ctx_st))).
   apply data_at_data_at_.
   trivial.
   trivial.
-  trivial. 
-  destruct c; trivial. unfold align_compatible. simpl. apply Z.divide_1_l. 
+  trivial.
+  unfold align_compatible. destruct (eval_var _c t_struct_hmac_ctx_st rho); trivial.
+   simpl. apply Z.divide_1_l.
   simpl. rewrite <- initialize.max_unsigned_modulus, int_max_unsigned_eq. omega.
+ 
+unfold align_compatible. destruct (eval_var _c t_struct_hmac_ctx_st rho); trivial.
 Qed.

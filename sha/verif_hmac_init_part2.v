@@ -471,10 +471,10 @@ forward_if.
       destruct key'; try contradiction.
       (*integer, ie key==NULL*)
           simpl in TC0. subst i. simpl. if_tac. subst r. inversion r_true. 
-          apply andp_right. entailer. entailer!.
+          apply andp_right. entailer. entailer.
       (*key == Vptr*)
        if_tac. subst r. inversion r_true.
-          entailer!.
+          entailer. cancel.
     } 
     normalize. revert POSTCONDITION; destruct R; subst r; intro. omega. clear H. rename H0 into isbyte_key.
     assert_PROP (isptr k). entailer. apply isptrD in H; destruct H as [kb [kofs HK]]. 
@@ -524,8 +524,8 @@ forward_if.
               Focus 2. repeat rewrite map_length. rewrite mkKey_length. unfold SHA256.BlockSize; simpl. apply (Z2Nat.inj_lt _ 64); omega. 
             repeat rewrite map_nth. rewrite Qb. trivial. 
           }
-        forward. entailer!. 
-        (*apply prop_right.*) rewrite X. simpl. rewrite <- isbyte_zeroExt8'; trivial.
+        forward. entailer. 
+        apply prop_right. rewrite X. simpl. rewrite <- isbyte_zeroExt8'; trivial.
                apply (isbyteZ_range _ isbyteZQb). 
         unfold force_val. rewrite sem_cast_i2i_correct_range.
             Focus 2. apply Znth_map_Vint_is_int_I8.
@@ -544,15 +544,14 @@ forward_if.
         entailer. 
         rewrite Z.lxor_comm in isbyteXOR.
         rewrite UPD_IPAD; try assumption. cancel. 
-      * simpl LOCALx. cbv beta.
-        entailer!. rewrite FIRSTN_precise. cancel.
-        do 2 rewrite Zlength_map. apply ZLI.
-    } 
-    (*continuation after ipad-loop*)   
+   * simpl LOCALx. cbv beta.
+      entailer!. rewrite FIRSTN_precise. cancel.
+         do 2 rewrite Zlength_map. apply ZLI.
+  } 
+   (*continuation after ipad-loop*)   
     unfold_data_at 2%nat. normalize.
     rewrite (field_at_data_at Tsh t_struct_hmac_ctx_st [StructField _i_ctx]); try reflexivity. normalize.
     abbreviate_semax.
-
     (*Call to _SHA256_Init*)
     forward_call' (field_address t_struct_hmac_ctx_st [StructField _i_ctx] (Vptr cb cofs)).
       entailer!. unfold field_address; rewrite if_true by auto; reflexivity.
@@ -563,15 +562,15 @@ forward_if.
             HMAC_SHA256.mkArgZ (map Byte.repr (HMAC_SHA256.mkKey key)) Ipad,
             field_address t_struct_hmac_ctx_st [StructField _i_ctx] (Vptr cb cofs),
             Vptr pb pofs, Tsh, 64, kv) ipadSHAabs.
-    { entailer!. unfold field_address; rewrite if_true by auto; reflexivity. }
-    { unfold data_block. rewrite ZLI.
+      entailer!. unfold field_address; rewrite if_true by auto; reflexivity.
+      unfold data_block. rewrite ZLI.
       rewrite prop_true_andp by  apply isbyte_map_ByteUnsigned.
-      rewrite HeqIPADcont.  cancel. }
-    { clear Frame HeqOPADcont; subst IPADcont.
-      rewrite Zlength_mkArgZ, !map_length, mkKey_length. 
-      unfold SHA256.BlockSize; simpl. rewrite int_max_unsigned_eq.
-      unfold two_power_pos, shift_pos. simpl. omega.
-    }
+     rewrite HeqIPADcont.  cancel.
+      { clear Frame HeqOPADcont; subst IPADcont.
+        rewrite Zlength_mkArgZ, !map_length, mkKey_length. 
+        unfold SHA256.BlockSize; simpl. rewrite int_max_unsigned_eq.
+        unfold two_power_pos, shift_pos. simpl. omega.
+      }
     rename H into ipadAbs_def.
     normalize.
     rewrite firstn_precise in ipadAbs_def.
@@ -646,8 +645,8 @@ forward_if.
             rewrite !map_nth. rewrite Qb. trivial. 
           }
         forward.
-        { entailer!. 
-          (*apply prop_right.*) rewrite X. simpl. rewrite <- isbyte_zeroExt8'; trivial.
+        { entailer. 
+          apply prop_right. rewrite X. simpl. rewrite <- isbyte_zeroExt8'; trivial.
                 apply (isbyteZ_range _ isbyteZQb). 
         }
         unfold force_val. rewrite sem_cast_i2i_correct_range.
@@ -659,15 +658,15 @@ forward_if.
         entailer. 
         rewrite UPD_OPAD; try assumption. cancel.
       }
-      { entailer!. 
+    {  entailer!. 
         rewrite FIRSTN_precise.
-        rewrite SKIPn_short. rewrite app_nil_r.
-        cancel.
-        do 2 rewrite Zlength_map. unfold HMAC_SHA256.mkArgZ in ZLI; rewrite ZLI. omega. 
-        do 2 rewrite Zlength_map. unfold HMAC_SHA256.mkArgZ in ZLO; rewrite ZLO; trivial. 
-      } 
-    }
-    (*continuation after opad-loop*)  
+         rewrite SKIPn_short. rewrite app_nil_r.
+         cancel.
+         do 2 rewrite Zlength_map. unfold HMAC_SHA256.mkArgZ in ZLI; rewrite ZLI. omega. 
+         do 2 rewrite Zlength_map. unfold HMAC_SHA256.mkArgZ in ZLO; rewrite ZLO; trivial. 
+    } 
+  }
+   (*continuation after opad-loop*)  
     rewrite (field_at_data_at Tsh t_struct_hmac_ctx_st [StructField _o_ctx]).
     rewrite (field_at_data_at Tsh t_struct_hmac_ctx_st [StructField _key]).
     assert_PROP (field_compatible t_struct_hmac_ctx_st [StructField _key] (Vptr cb cofs) /\  
@@ -677,15 +676,13 @@ forward_if.
 
     (*Call to _SHA256_Init*) 
     forward_call' (field_address t_struct_hmac_ctx_st [StructField _o_ctx] (Vptr cb cofs)).
-    { entailer!. unfold field_address; rewrite if_true by auto; reflexivity. }
-
-    (* Call to sha_update*)
-    Opaque firstn. 
-    forward_call' (init_s256abs, 
+          entailer!. unfold field_address; rewrite if_true by auto; reflexivity.
+   Opaque firstn. 
+   forward_call' (init_s256abs, 
             HMAC_SHA256.mkArgZ (map Byte.repr (HMAC_SHA256.mkKey key)) Opad,
             field_address t_struct_hmac_ctx_st [StructField _o_ctx] (Vptr cb cofs),
             Vptr pb pofs, Tsh, 64, kv) opadSHAabs.
-    { entailer!. unfold field_address; rewrite if_true by auto; reflexivity. }
+          entailer!. unfold field_address; rewrite if_true by auto; reflexivity.
     { unfold data_block. 
       rewrite prop_true_andp by  apply isbyte_map_ByteUnsigned.
       rewrite ZLO. rewrite HeqOPADcont. cancel.
@@ -706,7 +703,7 @@ forward_if.
     entailer. unfold sha256state_; normalize. rename r into iUpd. rename x into oUpd.
         apply (exp_right (ipadSHAabs,(iUpd,(opadSHAabs,oUpd)))). entailer.
         unfold data_block, initPostResetConditional. simpl.
-        rewrite ZLO. entailer!. cancel.
+        rewrite ZLO. entailer. cancel.
         unfold_data_at 4%nat. cancel.
     rewrite (field_at_data_at Tsh t_struct_hmac_ctx_st [StructField _i_ctx]).
     rewrite (field_at_data_at Tsh t_struct_hmac_ctx_st [StructField _o_ctx]).
@@ -714,17 +711,17 @@ forward_if.
     unfold field_address. repeat rewrite if_true by auto. simpl. cancel.
   }
   { (*ELSE*) 
-    forward. subst. unfold initPostKeyNullConditional. entailer!. 
+    forward. subst. unfold initPostKeyNullConditional. entailer. 
     destruct R; subst. 2: discriminate.
-    simpl; clear H. destruct key'; try solve[entailer!]. 
+    simpl; clear H. destruct key'; try solve[entailer]. 
     unfold hmacstate_PreInitNull, hmac_relate_PreInitNull; simpl.
     destruct h1; entailer.
-    if_tac; entailer.
+    destruct (Int.eq i Int.zero); entailer.
     destruct H8 as [ii [KLi [KLunsig [SF [ISHA OSHA]]]]].
     apply (exp_right (iSha, (iCtx r, (oSha, oCtx r)))).
-    entailer!. cancel.
+    entailer. cancel.
     unfold hmacstate_PreInitNull, hmac_relate_PreInitNull; simpl.
     apply (exp_right r). apply (exp_right v).
-    entailer!. exists ii; eauto.  
-  } 
+    entailer. apply prop_right. exists ii; eauto.  
+   }
 Qed.

@@ -1,5 +1,9 @@
 Require Import floyd.proofauto.
 Require Import progs.sumarray.
+Definition CompSpecs' : compspecs.
+Proof. make_compspecs1 prog. Defined.
+Instance CompSpecs : compspecs.
+Proof. make_compspecs2 CompSpecs'. Defined.
 
 Local Open Scope logic.
 
@@ -7,14 +11,13 @@ Definition force_option {A} (x:A) (i: option A) :=
   match i with Some y => y | None => x end.
 
 Definition sum_int := fold_right Int.add Int.zero.
+  
 
 Definition sumarray_spec :=
  DECLARE _sumarray
   WITH a0: val, sh : share, contents : list int, size: Z
   PRE [ _a OF (tptr tint), _n OF tint ]
-          PROP  (0 <= size <= Int.max_signed;
-                 Zlength contents = size;
-                 forall i, 0 <= i < size -> is_int I32 Signed (Znth i (map Vint contents) Vundef))
+          PROP  (readable_share sh; 0 <= size <= Int.max_signed)
           LOCAL (temp _a a0; temp _n (Vint (Int.repr size)))
           SEP   (`(data_at sh (tarray tint size) (map Vint contents) a0))
   POST [ tint ]
@@ -34,105 +37,51 @@ Definition Gprog : funspecs :=
 
 Definition sumarray_Inv a0 sh contents size := 
  EX i: Z,
-   PROP  (0 <= i <= size;
-          forall j, 0 <= j < size -> is_int I32 Signed (Znth j (map Vint contents) Vundef))
+   PROP  (0 <= i <= size)
    LOCAL (temp _a a0; 
           temp _i (Vint (Int.repr i));
           temp _n (Vint (Int.repr size));
-          temp _s (Vint (sum_int (firstn (Z.to_nat i) contents))))
+          temp _s (Vint (sum_int (sublist 0 i contents))))
    SEP   (`(data_at sh (tarray tint size) (map Vint contents) a0)).
 
-(*
-Lemma fold_range_split:
-  forall A f (z: A) lo hi delta,
-   lo <= hi -> delta >= 0 ->
-   fold_range f z lo (hi+delta) =
-   fold_range f (fold_range f z hi (hi+delta)) lo hi.
-Proof.
-unfold fold_range; intros.
-replace (hi+delta-hi) with delta by omega.
-replace (hi+delta-lo) with ((hi-lo)+ delta) by omega.
-rewrite nat_of_Z_plus by omega.
-forget (nat_of_Z delta) as d.
-clear delta H0.
-pattern hi at 2.
-replace hi with (hi-lo+lo) by omega.
-remember (hi-lo) as r. 
-replace r with (Z.of_nat (Z.to_nat r))
- by (rewrite Z2Nat.id; omega).
-forget (Z.to_nat r) as n; clear r hi H Heqr.
-rewrite nat_of_Z_of_nat.
-revert z lo d; induction n; intros.
-reflexivity.
-change (S n + d)%nat with (S (n + d)).
-unfold fold_range' at 1 2; fold @fold_range'.
-f_equal.
-rewrite IHn; clear IHn.
-f_equal. f_equal.
-rewrite Nat2Z.inj_succ.
-omega.
-Qed.
-
-Lemma fold_range_fact1:
- forall lo hi contents,
-  lo <= hi ->
-  fold_range (add_elem contents) Int.zero lo (Z.succ hi) =
-  Int.add (fold_range (add_elem contents) Int.zero lo hi) 
-                 (force_int (contents hi)).
+Lemma Znth_overflow: (*  move to floyd/sublist.v *)
+  forall {A} i (al: list A) d, i >= Zlength al -> Znth i al d = d.
 Proof.
 intros.
-unfold Z.succ.
-rewrite fold_range_split by omega.
-unfold fold_range at 2.
-replace (hi+1-hi) with 1 by omega.
-change (nat_of_Z 1) with 1%nat.
-unfold fold_range'.
-*
-unfold fold_range.
-forget (nat_of_Z (hi-lo)) as n.
-unfold add_elem at 2.
-forget (contents hi) as a.
-rewrite Int.add_zero.
-clear.
-revert lo; induction n; intros.
-simpl. rewrite Int.add_zero_l. auto.
-simpl.
-rewrite (IHn (Z.succ lo)).
-clear IHn.
-forget (fold_range' (add_elem contents) Int.zero (Z.succ lo) n) as B.
-unfold add_elem.
-rewrite Int.add_assoc.
+  pose proof (Zlength_nonneg al).
+   unfold Znth. rewrite if_false by omega.
+  apply nth_overflow.
+  apply Nat2Z.inj_le. rewrite <- Zlength_correct.
+  rewrite Z2Nat.id by omega. omega.
+Qed.
+
+Lemma sublist_one: (*  move to floyd/sublist.v *)
+  forall {A} lo hi (al: list A) d, 
+    0 <= lo -> hi <= Zlength al ->
+    lo+1=hi -> sublist lo hi al = Znth lo al d :: nil.
+Proof.
+intros.
+subst.
+rewrite Znth_cons_sublist by omega. rewrite <- app_nil_end.
 auto.
 Qed.
-*)
 
 Lemma add_one_more_to_sum: forall contents i x,
   Znth i (map Vint contents) Vundef = Vint x ->
   0 <= i ->
-  sum_int (firstn (Z.to_nat (Z.succ i)) contents) =
-   Int.add (sum_int (firstn (Z.to_nat i) contents)) x.
+  sum_int (sublist 0 (Z.succ i) contents) =
+   Int.add (sum_int (sublist 0 i contents)) x.
 Proof.
   intros.
+  destruct (zlt i (Zlength contents));
+   [ | rewrite Znth_overflow in H by (rewrite Zlength_map; omega); inv H].
   rewrite Int.add_commut.
-  rewrite Z2Nat.inj_succ by eauto.
-  unfold Znth in H.
-  if_tac in H; [omega |].
-  forget (Z.to_nat i) as ii.
-  clear i H0 H1.
-  revert contents H.
-  induction ii; intros.
-  + simpl in *.
-    destruct contents.
-    - inversion H.
-    - simpl in H; inversion H.
-      reflexivity.
-  + destruct contents; [inversion H |].
-    remember (S ii).
-    rewrite Heqn at 2.
-    simpl firstn.
-    simpl sum_int.
-    subst n.
-    rewrite IHii by exact H.
+  rewrite (sublist_split 0 i (Z.succ i)) by omega.
+  rewrite (sublist_one i (Z.succ i) contents) with (d:=Int.zero) by omega. 
+  rewrite Znth_map with (d':=Int.zero) in H by omega.
+  injection H; intro. rewrite H1. clear.
+  induction (sublist 0 i contents); simpl; auto.
+  rewrite IHl.
     rewrite <- !Int.add_assoc.
     f_equal.
     apply Int.add_commut.
@@ -149,33 +98,32 @@ name x _x.
 forward.  (* i = 0; *) 
 forward.  (* s = 0; *)
 forward_while (sumarray_Inv a0 sh contents size)
-    (PROP  () 
-     LOCAL (temp _a a0;
-            temp _s (Vint (sum_int contents)))
-     SEP   (`(data_at sh (tarray tint size) (map Vint contents) a0)))
      a1.
 (* Prove that current precondition implies loop invariant *)
 apply exp_right with 0.
-entailer!.
+entailer!.  (* smt_test verif_sumarray_example1 *)
 (* Prove that loop invariant implies typechecking condition *)
 entailer!.
-(* Prove that invariant && not loop-cond implies postcondition *)
-entailer!.
-assert (a1 = Zlength contents) by omega; subst.
-rewrite Zlength_correct, Nat2Z.id, firstn_exact_length.
-reflexivity.
 (* Prove postcondition of loop body implies loop invariant *)
 forward. (* x = a[i] *)
-  entailer!. apply H1. omega.
-forward s_old. (* s += x; *)
-forward i_old. (* i++; *)
-  apply exp_right with (Zsucc a1).
-  entailer!.
- rewrite H7 in H6. inv H6. 
-  erewrite add_one_more_to_sum; eauto. omega.
+entailer!. (* smt_test verif_sumarray_example2 *)
+  (* there should be an easier way than this: *)
+   rewrite Znth_map with (d':=Int.zero). apply I.
+  rewrite Zlength_map in *; omega.
+forward. (* s += x; *)
+forward. (* i++; *)
+ apply exp_right with (Zsucc a1).
+ entailer!.  (* smt_test: verif_sumarray_example3 *)
+ rewrite H2 in H1; inv H1.
+ f_equal; apply add_one_more_to_sum; try omega; auto.
 (* After the loop *)
 forward.  (* return s; *)
+entailer!.
+rewrite Zlength_map in *.
+rewrite sublist_same by omega.
+reflexivity.
 Qed.
+
 
 Definition four_contents := [Int.repr 1; Int.repr 2; Int.repr 3; Int.repr 4].
 
@@ -212,17 +160,12 @@ Qed.
 Lemma body_main:  semax_body Vprog Gprog f_main main_spec.
 Proof.
 name s _s.
+name four _four.
 start_function.
-forward_intro four. normalize.
-forward_call' (*  r = sumarray(four,4); *)
+forward_call (*  r = sumarray(four,4); *)
   (four,Ews,four_contents,4) vret.
- split3. computable. reflexivity.
- intros. unfold four_contents.
-   apply forall_Forall; [| auto].
-   intros.
-   repeat (destruct H0; [subst; simpl; auto|]); inversion H0.
+ split; auto. computable. 
  forward. (* return s; *)
- unfold main_post. entailer!.
 Qed.
 
 Existing Instance NullExtension.Espec.

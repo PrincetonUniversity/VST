@@ -100,12 +100,13 @@ These signatures are used in particular to determine appropriate
 calling conventions for the function. *)
 
 Record calling_convention : Type := mkcallconv {
-  cc_vararg: bool;
-  cc_structret: bool
+  cc_vararg: bool;                      (**r variable-arity function *)
+  cc_unproto: bool;                     (**r old-style unprototyped function *)
+  cc_structret: bool                    (**r function returning a struct  *)
 }.
 
 Definition cc_default :=
-  {| cc_vararg := false; cc_structret := false |}.
+  {| cc_vararg := false; cc_unproto := false; cc_structret := false |}.
 
 Record signature : Type := mksignature {
   sig_args: list typ;
@@ -201,6 +202,8 @@ Record globvar (V: Type) : Type := mkglobvar {
 
 (** Whole programs consist of:
 - a collection of global definitions (name and description);
+- a set of public names (the names that are visible outside
+  this compilation unit);
 - the name of the ``main'' function that serves as entry point in the program.
 
 A global definition is either a global function or a global variable.
@@ -218,6 +221,7 @@ Implicit Arguments Gvar [F V].
 
 Record program (F V: Type) : Type := mkprogram {
   prog_defs: list (ident * globdef F V);
+  prog_public: list ident;
   prog_main: ident
 }.
 
@@ -244,6 +248,7 @@ Definition transform_program_globdef (idg: ident * globdef A V) : ident * globde
 Definition transform_program (p: program A V) : program B V :=
   mkprogram
     (List.map transform_program_globdef p.(prog_defs))
+    p.(prog_public)
     p.(prog_main).
 
 Lemma transform_program_function:
@@ -295,7 +300,8 @@ Fixpoint transf_globdefs (l: list (ident * globdef A V)) : res (list (ident * gl
   end.
 
 Definition transform_partial_program2 (p: program A V) : res (program B W) :=
-  do gl' <- transf_globdefs p.(prog_defs); OK(mkprogram gl' p.(prog_main)).
+  do gl' <- transf_globdefs p.(prog_defs);
+  OK (mkprogram gl' p.(prog_public) p.(prog_main)).
 
 Lemma transform_partial_program2_function:
   forall p tp i tf,
@@ -363,6 +369,14 @@ Proof.
   intros. monadInv H. reflexivity.
 Qed.
 
+Lemma transform_partial_program2_public:
+  forall p tp,
+  transform_partial_program2 p = OK tp ->
+  tp.(prog_public) = p.(prog_public).
+Proof.
+  intros. monadInv H. reflexivity.
+Qed.
+
 (** Additionally, we can also "augment" the program with new global definitions
   and a different "main" function. *)
 
@@ -373,7 +387,7 @@ Variable new_main: ident.
 
 Definition transform_partial_augment_program (p: program A V) : res (program B W) :=
   do gl' <- transf_globdefs p.(prog_defs);
-  OK(mkprogram (gl' ++ new_globs) new_main).
+  OK(mkprogram (gl' ++ new_globs) p.(prog_public) new_main).
 
 Lemma transform_partial_augment_program_main:
   forall p tp,
@@ -414,6 +428,14 @@ Lemma transform_partial_program_main:
   tp.(prog_main) = p.(prog_main).
 Proof.
   apply transform_partial_program2_main.
+Qed.
+
+Lemma transform_partial_program_public:
+  forall p tp,
+  transform_partial_program p = OK tp ->
+  tp.(prog_public) = p.(prog_public).
+Proof.
+  apply transform_partial_program2_public.
 Qed.
 
 Lemma transform_partial_program_function:
@@ -480,7 +502,8 @@ Definition match_program (new_globs : list (ident * globdef B W))
                          (p1: program A V)  (p2: program B W) : Prop :=
   (exists tglob, list_forall2 match_globdef p1.(prog_defs) tglob /\
                  p2.(prog_defs) = tglob ++ new_globs) /\
-  p2.(prog_main) = new_main.
+  p2.(prog_main) = new_main /\
+  p2.(prog_public) = p1.(prog_public).
 
 End MATCH_PROGRAM.
 
@@ -554,7 +577,7 @@ Inductive external_function : Type :=
          Produces no observable event. *)
   | EF_memcpy (sz: Z) (al: Z)
      (** Block copy, of [sz] bytes, between addresses that are [al]-aligned. *)
-  | EF_annot (text: ident) (targs: list annot_arg)
+  | EF_annot (text: ident) (targs: list typ)
      (** A programmer-supplied annotation.  Takes zero, one or several arguments,
          produces an event carrying the text and the values of these arguments,
          and returns no value. *)
@@ -562,26 +585,14 @@ Inductive external_function : Type :=
      (** Another form of annotation that takes one argument, produces
          an event carrying the text and the value of this argument,
          and returns the value of the argument. *)
-  | EF_inline_asm (text: ident)
+  | EF_inline_asm (text: ident) (sg: signature) (clobbers: list String.string).
      (** Inline [asm] statements.  Semantically, treated like an
          annotation with no parameters ([EF_annot text nil]).  To be
          used with caution, as it can invalidate the semantic
          preservation theorem.  Generated only if [-finline-asm] is
          given. *)
 
-with annot_arg : Type :=
-  | AA_arg (ty: typ)
-  | AA_int (n: int)
-  | AA_float (n: float).
-
 (** The type signature of an external function. *)
-
-Fixpoint annot_args_typ (targs: list annot_arg) : list typ :=
-  match targs with
-  | nil => nil
-  | AA_arg ty :: targs' => ty :: annot_args_typ targs'
-  | _ :: targs' => annot_args_typ targs'
-  end.
 
 Definition ef_sig (ef: external_function): signature :=
   match ef with
@@ -594,9 +605,9 @@ Definition ef_sig (ef: external_function): signature :=
   | EF_malloc => mksignature (Tint :: nil) (Some Tint) cc_default
   | EF_free => mksignature (Tint :: nil) None cc_default
   | EF_memcpy sz al => mksignature (Tint :: Tint :: nil) None cc_default
-  | EF_annot text targs => mksignature (annot_args_typ targs) None cc_default
+  | EF_annot text targs => mksignature targs None cc_default
   | EF_annot_val text targ => mksignature (targ :: nil) (Some targ) cc_default
-  | EF_inline_asm text => mksignature nil None cc_default
+  | EF_inline_asm text sg clob => sg
   end.
 
 (** Whether an external function should be inlined by the compiler. *)
@@ -614,7 +625,7 @@ Definition ef_inline (ef: external_function) : bool :=
   | EF_memcpy sz al => true
   | EF_annot text targs => true
   | EF_annot_val text targ => true
-  | EF_inline_asm text => true
+  | EF_inline_asm text sg clob => true
   end.
 
 (** Whether an external function must reload its arguments. *)
@@ -631,9 +642,19 @@ Definition external_function_eq: forall (ef1 ef2: external_function), {ef1=ef2} 
 Proof.
   generalize ident_eq signature_eq chunk_eq typ_eq zeq Int.eq_dec; intros.
   decide equality.
-  apply list_eq_dec. decide equality. apply Float.eq_dec. 
+  apply list_eq_dec. auto.
+  apply list_eq_dec. apply String.string_dec. 
 Defined.
 Global Opaque external_function_eq.
+
+(** Global variables referenced by an external function *)
+
+Definition globals_external (ef: external_function) : list ident :=
+  match ef with
+  | EF_vload_global _ id _ => id :: nil
+  | EF_vstore_global _ id _ => id :: nil
+  | _ => nil
+  end.
 
 (** Function definitions are the union of internal and external functions. *)
 
@@ -668,3 +689,56 @@ Definition transf_partial_fundef (fd: fundef A): res (fundef B) :=
   end.
 
 End TRANSF_PARTIAL_FUNDEF.
+
+(** * Arguments to annotations *)
+
+Set Contextual Implicit. 
+
+Inductive annot_arg (A: Type) : Type :=
+  | AA_base (x: A)
+  | AA_int (n: int)
+  | AA_long (n: int64)
+  | AA_float (f: float)
+  | AA_single (f: float32)
+  | AA_loadstack (chunk: memory_chunk) (ofs: int)
+  | AA_addrstack (ofs: int)
+  | AA_loadglobal (chunk: memory_chunk) (id: ident) (ofs: int)
+  | AA_addrglobal (id: ident) (ofs: int)
+  | AA_longofwords (hi lo: annot_arg A).
+
+Fixpoint globals_of_annot_arg (A: Type) (a: annot_arg A) : list ident :=
+  match a with
+  | AA_loadglobal chunk id ofs => id :: nil
+  | AA_addrglobal id ofs => id :: nil
+  | AA_longofwords hi lo => globals_of_annot_arg hi ++ globals_of_annot_arg lo
+  | _ => nil
+  end.
+
+Definition globals_of_annot_args (A: Type) (al: list (annot_arg A)) : list ident :=
+  List.fold_right (fun a l => globals_of_annot_arg a ++ l) nil al.
+
+Fixpoint params_of_annot_arg (A: Type) (a: annot_arg A) : list A :=
+  match a with
+  | AA_base x => x :: nil
+  | AA_longofwords hi lo => params_of_annot_arg hi ++ params_of_annot_arg lo
+  | _ => nil
+  end.
+
+Definition params_of_annot_args (A: Type) (al: list (annot_arg A)) : list A :=
+  List.fold_right (fun a l => params_of_annot_arg a ++ l) nil al.
+
+Fixpoint map_annot_arg (A B: Type) (f: A -> B) (a: annot_arg A) : annot_arg B :=
+  match a with
+  | AA_base x => AA_base (f x)
+  | AA_int n => AA_int n
+  | AA_long n => AA_long n
+  | AA_float n => AA_float n
+  | AA_single n => AA_single n
+  | AA_loadstack chunk ofs => AA_loadstack chunk ofs
+  | AA_addrstack ofs => AA_addrstack ofs
+  | AA_loadglobal chunk id ofs => AA_loadglobal chunk id ofs
+  | AA_addrglobal id ofs => AA_addrglobal id ofs
+  | AA_longofwords hi lo => 
+      AA_longofwords (map_annot_arg f hi) (map_annot_arg f lo)
+  end.
+

@@ -3,9 +3,8 @@ Require Import floyd.proofauto.
 Local Open Scope logic.
 Require Import List. Import ListNotations.
 Require Import general_lemmas.
-
+Require Import sublist.
 Require Import split_array_lemmas.
-Require Import fragments.
 Require Import ZArith. 
 Require Import tweetNaclBase.
 Require Import Salsa20.
@@ -13,22 +12,19 @@ Require Import verif_salsa_base.
 Require Import tweetnaclVerifiableC.
 Require Import spec_salsa.
 
-Require Import verif_fcore_loop1.
-
 Opaque Snuffle.Snuffle. Opaque core_spec. Opaque fcore_result.
 Opaque crypto_core_salsa20_spec. Opaque crypto_core_hsalsa20_spec.
 
 Definition Y_content (y: list val)
                      (i:Z) (l X:list val) : Prop :=
-    exists n l1 l2 yy xx, i = Z.of_nat n /\ l = l1 ++ l2 /\
+    exists l1 l2 yy xx, l = l1 ++ l2 /\
           l1++yy=y /\ xx++l2=X /\
-          length l1=n /\ length xx = n.
+          Zlength l1=i /\ Zlength xx =i.
 
 Lemma f_core_loop2: forall (Espec : OracleKind)
 c k h nonce out OUT 
 (data : SixteenByte * SixteenByte * (SixteenByte * SixteenByte))
-(OUTlen : length OUT = 64%nat)
-(Delta := initialized_list [_i] (func_tycontext f_core SalsaVarSpecs SalsaFunSpecs))
+(*(Delta := initialized_list [_i] (func_tycontext f_core SalsaVarSpecs SalsaFunSpecs))*)
 (out' : name _out)
 (in' : name _in)
 (k' : name _k)
@@ -37,8 +33,8 @@ c k h nonce out OUT
 (aux' : name _aux)
 w x y t
 (xInit : list val)
-(XInit : xInit = upd_upto data (Z.to_nat 4) (list_repeat 16 Vundef)),
-@semax Espec Delta
+(XInit : xInit = upd_upto data 4 (list_repeat 16 Vundef)),
+@semax CompSpecs Espec (initialized_list [_i] (func_tycontext f_core SalsaVarSpecs SalsaFunSpecs))
   (PROP  ()
    LOCAL  (temp _i (Vint (Int.repr 4)); lvar _t (tarray tuint 4) t;
    lvar _y (tarray tuint 16) y; lvar _x (tarray tuint 16) x;
@@ -76,7 +72,7 @@ w x y t
      data_at Tsh (tarray tuint 16) l y); `(data_at_ Tsh (tarray tuint 16) w);
    `(CoreInSEP data (nonce, c, k));
    `(data_at Tsh (tarray tuchar 64) OUT out)))).
-Proof. intros.
+Proof. intros. abbreviate_semax.
   forward_for_simple_bound 16 (EX i:Z, 
     PROP  ()
     LOCAL  ( 
@@ -89,79 +85,44 @@ Proof. intros.
      `(data_at_ Tsh (tarray tuint 16) w); `(CoreInSEP data (nonce, c, k));
      `(data_at Tsh (tarray tuchar 64) OUT out) (*`(data_block Tsh OUT out)*))).
   { clear XInit. entailer. 
-    apply (exp_right (list_repeat 16 Vundef)). cancel.
+    apply (exp_right (list_repeat 16 Vundef)). entailer.
     apply andp_right.
-      apply prop_right. exists O. exists nil,  (list_repeat 16 Vundef).
+      apply prop_right. exists nil,  (list_repeat 16 Vundef).
       exists xInit, nil; simpl. repeat split; auto.
     cancel. }
-  { forward.
-    { entailer. 
-      apply prop_right. unfold Znth. if_tac. omega. clear H10. 
-      destruct H9 as [n [l1 [l2 [yy [xx [? [? [? [? [? ?]]]]]]]]]].
-      subst i; rewrite Nat2Z.id.
-      rewrite <- H12, app_nth2, H14, minus_diag. simpl.
+  { rename H into I. normalize. intros Y. normalize. rename H into YCONT.
+    destruct (upd_upto_Vint data i I Vundef) as [vi Vi]. 
+    
+      destruct YCONT as [l1 [l2 [yy [xx [APP1 [APP2 [APP3 [L1 L2]]]]]]]].
       assert (V: exists v yT, yy = (Vint v)::yT).
-        destruct yy. rewrite app_nil_r in H12. subst l1. 
-         rewrite upd_upto_length in H14. omega. rewrite length_list_repeat. trivial. simpl; omega.
-
-       assert (HH: (0 <= n < 16)%nat) by omega. 
-       specialize (upd_upto_Vint data n HH Vundef). 
-       assert (ZF: Z.to_nat 4 = 4%nat) by reflexivity. rewrite ZF in H12; rewrite <- H12; clear H12.
-       intros Q. destruct Q. rewrite app_nth2, H14, minus_diag in H9. simpl in H9. subst v.
-       eexists; eexists; reflexivity.
-       rewrite H14. omega.
-
-      destruct V as [v [yT ?]]. subst yy; simpl. trivial. omega.
-    }
-    normalize. intros L. normalize. rename H0 into Ycont.
-    forward.
-    { entailer.
-      apply (exp_right (upd_reptype_array tuint i L
-       (force_val
-        (sem_cast_neutral
-           (Znth i (upd_upto data (Z.to_nat 4) (list_repeat 16 Vundef))
-              Vundef))))). 
-      entailer.
-      apply andp_right; try cancel.
-      apply prop_right. destruct Ycont as [n [l1 [l2 [yy [xx [? [? [? [? [? ?]]]]]]]]]].
-      assert (YY: exists yT, yy = (Vint aux')::yT).
-        destruct yy. rewrite app_nil_r in H13. subst l1. 
-          rewrite upd_upto_length in H15. omega. rewrite length_list_repeat; trivial.
-          simpl; omega. 
-        exists yy. f_equal.
-        unfold Znth in H1. if_tac in H1. omega. rewrite <- H13 in H1.
-        rewrite app_nth2 in H1. 
-           assert ((Z.to_nat i - length l1 = 0)%nat).
-             rewrite H11, H15, Nat2Z.id. apply minus_diag.
-           rewrite H18 in H1; simpl in H1. trivial.
-        rewrite H11, H15, Nat2Z.id. omega.
-      destruct YY as [yT Y]; subst yy. rewrite H1 in *; clear H1. rewrite <- H13.
-      assert (TT: exists lT, l2 = Vundef::lT).
-        destruct l2. rewrite app_nil_r in *.
-        subst xx. rewrite length_list_repeat in H16. rewrite <- H16 in *. 
-        assert (LL: length (l1 ++ Vint aux' :: yT) = length (upd_upto data (Z.to_nat 4) (list_repeat 16 Vundef))).
-            rewrite H13; trivial.
-        rewrite upd_upto_length, app_length, H15 in LL. simpl in LL. omega. rewrite length_list_repeat; trivial. simpl; omega.
-        rewrite (in_list_repeat 16 Vundef v). eexists; reflexivity. rewrite <- H14. apply in_app. right; left; trivial.
-      destruct TT as [lT L2]; subst l2.
-      exists (S n). rewrite Nat2Z.inj_succ.
-      exists (l1 ++ [Vint aux']), lT, yT, (xx ++ [Vundef]).
-      repeat rewrite app_length. rewrite H15, H16, Z.add_comm. 
-      split. omega.
-(*      repeat rewrite <- app_assoc. simpl. rewrite H13, H14.*)
-      assert (XX: xx = list_repeat n Vundef /\ Vundef :: lT=list_repeat (16-n) Vundef).
-        specialize (list_repeat_app _ n (16-n) Vundef).
-        rewrite <- le_plus_minus. intros. rewrite <- H1 in H14. clear H1. 
-        eapply hmac_pure_lemmas.app_inv_length1. assumption. rewrite length_list_repeat; trivial.
-        apply Nat2Z.inj_le. rewrite <- H16; simpl. omega.
-      destruct XX as [? VV]; subst xx. 
-      subst L i.
-      rewrite upd_reptype_array_char; trivial. simpl. 
-      do 3 rewrite <- app_assoc. simpl.
-      split. reflexivity.
-      split. reflexivity.
-      rewrite H14. split. reflexivity.  omega.
-    }
+        destruct yy. rewrite app_nil_r in APP2. subst l1 xInit. 
+         rewrite upd_upto_Zlength in L1. omega. 
+         rewrite Zlength_list_repeat'. trivial. simpl; omega. subst xInit. 
+        rewrite <- APP2, app_Znth2, L1, Zminus_diag, Znth_0_cons in Vi. rewrite Vi.
+        eexists; eexists; reflexivity. omega.
+      destruct V as [v [yT ?]]. subst yy; simpl.
+      forward.
+      { entailer. rewrite Vi. apply prop_right; simpl; trivial. }
+      rewrite <- XInit, <- APP2 in Vi. rewrite <- APP2, Vi.
+      rewrite app_Znth2, L1, Zminus_diag, Znth_0_cons in Vi. inversion Vi; clear Vi; subst vi. 2: omega. 
+      forward.
+      { Opaque upd_upto. entailer.
+        apply (exp_right (upd_Znth_in_list (Zlength l1) (l1 ++ l2) (Vint aux'))).
+        rewrite APP2. entailer. 
+        apply andp_right. 2: cancel.
+        apply prop_right. clear - APP2 APP3 I L2. 
+        assert (TT: exists lT, l2 = Vundef::lT).
+        { destruct l2.
+            rewrite app_nil_r in *. subst xx; rewrite <- L2, Zlength_list_repeat' in I. simpl in I; omega. 
+            rewrite (in_list_repeat 16 Vundef v). eexists; reflexivity.
+              rewrite <- APP3. apply in_app. right; left; trivial. }
+        destruct TT as [lT LT2]; subst l2.
+        exists (l1 ++ [Vint aux']), lT, yT, (xx ++ [Vundef]).
+        repeat rewrite Zlength_app.
+        repeat rewrite <- app_assoc. simpl. rewrite APP3, L2.
+        split. 
+          rewrite upd_Znth_in_list_char; trivial. omega.
+          rewrite Zlength_cons', Zlength_nil, Zplus_0_r. solve [auto]. }
   }
-  apply derives_refl.
+  normalize.
 Qed. 

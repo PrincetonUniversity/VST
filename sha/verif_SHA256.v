@@ -9,34 +9,31 @@ Local Open Scope logic.
 Lemma body_SHA256: semax_body Vprog Gtot f_SHA256 SHA256_spec.
 Proof.
 start_function.
-unfold POSTCONDITION, abbreviate; simpl_stackframe_of;
+
 abbreviate_semax.
 name d_ _d.
 name n_ _n.
 name md_ _md.
 name c_ _c.
-normalize.
-fixup_local_var; intro c.
+normalize. rename lvar0 into c.
 
-forward_call' (* SHA256_Init(&c); *)
+forward_call (* SHA256_Init(&c); *)
    (c).
 
-forward_call' (* SHA256_Update(&c,d,n); *)
+forward_call (* SHA256_Update(&c,d,n); *)
   (init_s256abs,data,c,d,dsh, Zlength data, kv) a.
- repeat split; try omega.
- pose proof (Zlength_nonneg data); omega.
- simpl. apply H0.
+ repeat split; auto; Omega1.
 
-forward_call' (* SHA256_Final(md,&c); *)
+forward_call (* SHA256_Final(md,&c); *)
     (a,md,c,msh,kv).
 
 forward. (* return; *)
-rewrite (lvar_eval_lvar _ _ _ _ H4).
+Exists c.
+entailer!.
 replace (SHA_256 data) with (sha_finish a); [cancel |].
-clear - H2.
-inv H2.
+clear - H1.
+inv H1.
 simpl in *.
 rewrite <- H8.
-rewrite firstn_same; auto.
-rewrite Zlength_correct. rewrite Nat2Z.id. omega.
+autorewrite with sublist. auto.
 Qed.

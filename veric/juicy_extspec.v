@@ -61,7 +61,7 @@ Qed.
 Record jm_init_package: Type := {
   jminit_m: Memory.mem;
   jminit_prog: program;
-  jminit_G: expr.funspecs;
+  jminit_G: tycontext.funspecs;
   jminit_lev: nat;
   jminit_init_mem: Genv.init_mem jminit_prog = Some jminit_m;
   jminit_defs_no_dups:   list_norepet (prog_defs_names jminit_prog);
@@ -208,12 +208,13 @@ Proof.
     rewrite Hnec in H. inversion H. subst. eexists. eauto. }
 Qed.
 
-Lemma age_safe {F V C}
-  (csem: CoreSemantics (Genv.t F V) C mem){Z}  (Hspec : juicy_ext_spec Z):
+Lemma age_safe {G C}
+  (csem: CoreSemantics G C mem) {Z}
+      (genv_symb: G -> PTree.t block) (Hspec : juicy_ext_spec Z):
   forall jm jm0, age jm0 jm -> 
   forall ge ora c, 
-   safeN (juicy_core_sem csem) Hspec ge (level jm0) ora c jm0 ->
-   safeN (juicy_core_sem csem) Hspec ge (level jm) ora c jm.
+   safeN genv_symb (juicy_core_sem csem) Hspec ge (level jm0) ora c jm0 ->
+   safeN genv_symb (juicy_core_sem csem) Hspec ge (level jm) ora c jm.
 Proof.
   intros. rename H into H2. 
    rewrite (age_level _ _ H2) in H0.

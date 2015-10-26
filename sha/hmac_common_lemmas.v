@@ -8,6 +8,7 @@ Require Import hmac_pure_lemmas.
 Require Import SHA256.
 Require Import pure_lemmas.     (* sha *)
 Require Import sha.spec_sha.
+Require Import sublist.
 
 Require Import HMAC_functional_prog.
 Require Import HMAC256_functional_prog.
@@ -149,7 +150,7 @@ Proof. intros. inversion H; clear H.
     clear H4. rewrite Zlength_app in H.
               rewrite <- (Z.mul_add_distr_r (Zlength oldfrag)), H. clear H.
               rewrite Zlength_app, Zlength_intlist_to_Zlist.
-              rewrite (Z.mul_comm WORD). rewrite Z.mul_add_distr_r. trivial. 
+(*              rewrite (Z.mul_comm WORD). *) rewrite Z.mul_add_distr_r. trivial. 
   rewrite H; trivial.
 Qed.
 

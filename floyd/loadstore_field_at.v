@@ -1,15 +1,13 @@
 Require Import floyd.base.
 Require Import floyd.assert_lemmas.
 Require Import floyd.client_lemmas.
-Require Import floyd.fieldlist.
 Require Import floyd.nested_field_lemmas.
 Require Import floyd.efield_lemmas.
-Require Import floyd.type_id_env.
 Require Import floyd.mapsto_memory_block.
+Require Import floyd.reptype_lemmas.
 Require Import floyd.data_at_lemmas.
 Require Import floyd.field_at.
-Require Import floyd.loadstore_data_at.
-Require Import Coq.Logic.JMeq.
+Require Import floyd.loadstore_mapsto.
 
 Local Open Scope logic.
 
@@ -22,19 +20,24 @@ Max length ids field_at load store:
 
 ********************************************)
 
+Section LOADSTORE_FIELD_AT.
+
+Context {cs: compspecs}.
+
 Lemma semax_max_path_field_load_37':
   forall {Espec: OracleKind},
-    forall Delta sh e id P Q R (e1: expr)
+    forall Delta sh id P Q R (e1: expr)
       (t t_root: type) (efs: list efield) (gfs: list gfield) (tts: list type)
       (v : val) (v' : reptype (nested_field_type2 t_root gfs)) lr,
       typeof_temp Delta id = Some t ->
       is_neutral_cast (typeof (nested_efield e1 efs tts)) t = true ->
-      legal_nested_efield e t_root e1 gfs tts lr = true ->
+      readable_share sh ->
+      legal_nested_efield t_root e1 gfs tts lr = true ->
       repinject _ v' = v ->
       PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |--
-        local (tc_LR Delta e1 lr) &&
+         (tc_LR Delta e1 lr) &&
         local `(tc_val (typeof (nested_efield e1 efs tts)) v) &&
-        local (tc_efield Delta efs) &&
+         (tc_efield Delta efs) &&
         efield_denote efs gfs &&
         (`(field_at sh t_root gfs v') (eval_LR e1 lr) * TT) ->
       semax Delta (|>PROPx P (LOCALx Q (SEPx R))) 
@@ -46,13 +49,10 @@ Lemma semax_max_path_field_load_37':
                   (SEPx (map (subst id `old) R))))).
 Proof.
   intros.
-  eapply semax_ucdata_load_37'.
-  + exact H.
-  + exact H0.
-  + exact H2.
-  + eapply derives_trans; [exact H3|].
-    instantiate (1:=sh).
-    instantiate (1:=e).
+  eapply semax_load_37' with (sh0 := sh); try eassumption.
+  eapply derives_trans; [exact H4|].
+Admitted.
+(*
     rewrite (andp_comm _ (_ * _)).
     rewrite !andp_assoc.
     rewrite (add_andp _ _ (typeof_nested_efield _ _ _ _ _ _ _ lr H1)).
@@ -71,20 +71,21 @@ Proof.
     apply andp_left1.
     apply derives_refl.
 Qed.
-
+*)
 Lemma semax_max_path_field_cast_load_37':
   forall {Espec: OracleKind},
-    forall Delta sh e id P Q R (e1: expr)
+    forall Delta sh id P Q R (e1: expr)
       (t t_root: type) (efs: list efield) (gfs: list gfield) (tts: list type)
       (v : val) (v' : reptype (nested_field_type2 t_root gfs)) lr,
       typeof_temp Delta id = Some t ->
       type_is_by_value (typeof (nested_efield e1 efs tts)) = true ->
-      legal_nested_efield e t_root e1 gfs tts lr = true ->
+      readable_share sh ->
+      legal_nested_efield t_root e1 gfs tts lr = true ->
       repinject _ v' = v ->
       PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |-- 
-        local (tc_LR Delta e1 lr) &&
+         (tc_LR Delta e1 lr) &&
         local (`(tc_val t (eval_cast (typeof (nested_efield e1 efs tts)) t v))) &&
-        local (tc_efield Delta efs) &&
+         (tc_efield Delta efs) &&
         efield_denote efs gfs &&
         (`(field_at sh t_root gfs v') (eval_LR e1 lr) * TT) ->
       semax Delta (|> PROPx P (LOCALx Q (SEPx R)))
@@ -96,10 +97,10 @@ Lemma semax_max_path_field_cast_load_37':
                   (SEPx (map (subst id (`old)) R))))).
 Proof.
   intros.
-  eapply semax_ucdata_cast_load_37'; try eassumption.
-  + eapply derives_trans; [exact H3|].
-    instantiate (1:=sh).
-    instantiate (1:=e).
+  eapply semax_cast_load_37'; try eassumption.
+  eapply derives_trans; [exact H4 |].
+Admitted.
+(*
     rewrite (andp_comm _ (_ * _)).
     rewrite !andp_assoc.
     rewrite (add_andp _ _ (typeof_nested_efield _ _ _ _ _ _ _ lr H1)).
@@ -118,7 +119,7 @@ Proof.
     apply andp_left1.
     apply derives_refl.
 Qed.
-
+*)
 Lemma lower_andp_lifted_val:
   forall (P Q: val->mpred) v, 
   (`(P && Q) v) = (`P v && `Q v).
@@ -132,25 +133,27 @@ Proof.
   intro rho; specialize (H rho).
   unfold PROPx, LOCALx, SEPx in *.
   normalize.
+  autorewrite with subst norm1 norm2; normalize.
   normalize in H.
+  autorewrite with subst norm1 norm2 in H; normalize in H; normalize.  
 Qed.
 
 Lemma semax_max_path_field_store_nth:
   forall {Espec: OracleKind},
-    forall Delta sh e n P Q R Rn (e1 e2 : expr)
+    forall Delta sh n P Q R Rn (e1 e2 : expr)
       (t t_root: type) (efs: list efield) (gfs: list gfield) (tts: list type) lr,
       typeof (nested_efield e1 efs tts) = t ->
       type_is_by_value t = true ->
-      legal_nested_efield e t_root e1 gfs tts lr = true ->
+      legal_nested_efield t_root e1 gfs tts lr = true ->
       nth_error R n = Some Rn ->
       PROPx P (LOCALx (tc_environ Delta :: Q) (SEP (Rn))) |--
         `(field_at_ sh t_root gfs) (eval_LR e1 lr) ->
       writable_share sh ->
       PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |--
-        local (tc_LR Delta e1 lr) && 
-        local (tc_efield Delta efs) &&
+         (tc_LR Delta e1 lr) && 
+         (tc_efield Delta efs) &&
         efield_denote efs gfs &&
-                local (tc_expr Delta (Ecast e2 t)) ->
+                 (tc_expr Delta (Ecast e2 t)) ->
       semax Delta (|>PROPx P (LOCALx Q (SEPx R))) 
         (Sassign (nested_efield e1 efs tts) e2)
           (normal_ret_assert
@@ -164,6 +167,8 @@ Lemma semax_max_path_field_store_nth:
                           )))))).
 Proof.
   intros.
+Admitted.
+(*
   eapply semax_pre_simple; [| eapply semax_post'].
   Focus 1. {
     hoist_later_left.
@@ -249,3 +254,6 @@ Proof.
   rewrite H9.
   normalize.
 Qed.
+*)
+
+End LOADSTORE_FIELD_AT.

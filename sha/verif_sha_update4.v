@@ -5,21 +5,22 @@ Require Import sha.spec_sha.
 Require Import sha.sha_lemmas.
 Require Import sha.verif_sha_update2.
 Require Import sha.verif_sha_update3.
-Local Open Scope nat.
+Local Open Scope Z.
 Local Open Scope logic.
 
 
 Lemma Hblocks_lem:
  forall {blocks: list int} {frag: list Z} {data},
- intlist_to_Zlist blocks = frag ++ firstn (length blocks * 4 - length frag) data ->
- length frag <= length blocks * 4.
+ intlist_to_Zlist blocks = frag ++ sublist 0 (Zlength blocks * 4 - Zlength frag) data ->
+ Zlength frag <= Zlength blocks * 4.
 Proof.
 intros.
-assert (length (intlist_to_Zlist blocks) = 
-               length ( frag ++
-     firstn (length blocks * 4 - length frag) data)) by congruence.
- rewrite length_intlist_to_Zlist, app_length in H0.
- rewrite mult_comm; omega.
+assert (Zlength (intlist_to_Zlist blocks) = 
+               Zlength ( frag ++
+     sublist 0 (Zlength blocks * 4 - Zlength frag) data)) by congruence.
+ autorewrite with sublist in H0.
+ pose proof (Zlength_nonneg (sublist 0 (Zlength blocks * 4 - Zlength frag) data)).
+ omega.
 Qed.
 
 Definition sha_update_loop_body :=
@@ -41,30 +42,162 @@ Definition sha_update_loop_body :=
               (Ebinop Omul (Econst_int (Int.repr 16) tint)
                  (Econst_int (Int.repr 4) tint) tint) tuint)))).
 
+
+Lemma split2_data_block:
+  forall n sh data d,
+  (0 <= n <= Zlength data)%Z ->
+  data_block sh data d = 
+  (data_block sh (sublist 0 n data) d *
+   data_block sh (sublist n (Zlength data) data) 
+   (field_address0 (tarray tuchar (Zlength data)) [ArraySubsc n] d))%logic.
+Proof.
+intros.
+unfold data_block. simpl.
+normalize.
+f_equal. 
+*
+f_equal.
+apply prop_ext; split; intro.
+split; apply Forall_sublist; auto.
+ destruct H0.
+ unfold sublist in *.
+ rewrite Z.sub_0_r in H0.
+ simpl in *.
+ rewrite Z2Nat.inj_sub in H1 by omega.
+ rewrite  Zlength_correct in *.
+ rewrite Nat2Z.id in H1.
+ assert (Z.to_nat n <= length data)%nat.
+ apply Nat2Z.inj_le.
+ rewrite Z2Nat.id by omega.
+ apply H.
+ clear H.
+ pose proof (firstn_skipn (Z.to_nat n) data).
+ rewrite <- H.
+ apply Forall_app. split.
+ auto.
+ rewrite firstn_same in H1; auto.
+ rewrite skipn_length.
+ omega.
+*
+  unfold data_at at 1.
+  erewrite field_at_Tarray; try reflexivity; try omega.
+  rewrite (split2_array_at _ _ _ 0%Z n (Zlength data)) by omega.
+  autorewrite with sublist. rewrite !sublist_map.
+  forget (map Vint (map Int.repr (sublist 0 n data))) as L1.
+  forget (map Vint (map Int.repr (sublist n (Zlength data) data))) as L2.
+  unfold data_at.
+(* need a more general version of field_at_Tarray *)
+Admitted.
+
+Lemma split3_data_block:
+  forall lo hi sh data d,
+  0 <= lo <= hi ->
+  hi <= Zlength data ->
+  field_compatible (tarray tuchar (Zlength data)) [] d ->
+  data_block sh data d = 
+  (data_block sh (sublist 0 lo data) d *
+   data_block sh (sublist lo hi data) 
+   (field_address0 (tarray tuchar (Zlength data)) [ArraySubsc lo] d) *
+   data_block sh (sublist hi (Zlength data) data) 
+   (field_address0 (tarray tuchar (Zlength data)) [ArraySubsc hi] d))%logic.
+Proof.
+  intros.
+  rewrite (split2_data_block hi) by omega.
+  rewrite (split2_data_block lo) by (autorewrite with sublist; omega).
+  autorewrite with sublist.
+  f_equal. f_equal.
+  f_equal.
+  unfold field_address0.
+  rewrite !if_true; auto.
+  eapply field_compatible0_cons_Tarray; try reflexivity; auto; try omega.
+  eapply field_compatible0_cons_Tarray; try reflexivity; auto; try omega.
+  hnf in H1|-*; intuition.
+  clear- H2 H3 H1 H0.
+  unfold legal_alignas_type in H1|-*; simpl in H1|-*.
+  unfold tarray in *.
+  rewrite nested_pred_ind in H1.
+  rewrite nested_pred_ind.
+  rewrite andb_true_iff in *. destruct H1; split; auto.
+  clear - H2 H3 H H0.
+  unfold local_legal_alignas_type in *. simpl in *.
+  rewrite <- Zle_is_le_bool in H|-*. omega.
+  clear - H6 H0 H2 H3.
+  simpl sizeof in *. rewrite Z.max_r in * by omega. omega.
+  destruct d; try contradiction; simpl in *.
+  rewrite Z.max_r in * by omega. omega.
+Qed.
+
+Lemma offset_val_field_address0:
+  forall {cs: compspecs} i n len t lo gfs t' p,
+ nested_field_type2 t gfs = tarray t' len ->
+ (n = sizeof cenv_cs t' * i)%Z ->
+ 0 <= lo <= len ->
+ 0 <= lo+i <= len ->
+ offset_val (Int.repr n) (field_address0 t (ArraySubsc lo::gfs) p) =
+  field_address0 t (ArraySubsc (lo+i) :: gfs) p.
+Proof.
+intros.
+rename H2 into H1'.
+unfold field_address0.
+if_tac.
+rewrite if_true.
+normalize.
+f_equal. f_equal.
+hnf in H2.
+decompose [and] H2; clear H2.
+rewrite nested_field_offset2_ind; auto.
+symmetry. 
+rewrite nested_field_offset2_ind; auto.
+rewrite <- Z.add_assoc.
+f_equal.
+rewrite H.
+simpl. rewrite Z.mul_add_distr_l.
+f_equal.  auto.
+constructor; auto.
+inv H11; auto.
+rewrite H. constructor; auto; omega.
+hnf in H2.
+decompose [and] H2; clear H2.
+inv H11.
+hnf. repeat split; auto.
+rewrite H in *.
+inv H10; split; omega.
+rewrite if_false; auto.
+contradict H2.
+hnf in H2.
+decompose [and] H2; clear H2.
+inv H11.
+hnf. repeat split; auto.
+rewrite H in *.
+inv H10; split; auto; omega.
+Qed.
+
 Lemma update_loop_body_proof:
  forall (Espec : OracleKind) (sh: share) (hashed : list int) (frag data : list Z) (c d : val)
   (len : Z) kv (r_h : list int)
    (Delta : tycontext) (blocks bl : list int)
  (HDelta: Delta = initialized_list [_p; _n; _data]
                      (func_tycontext f_SHA256_Update Vprog Gtot))
- (H: (0 <= len <= Zlength data)%Z)
+ (Hsh: readable_share sh)
+ (H: 0 <= len <= Zlength data)
  (Hdiv: (LBLOCKz | Zlength blocks))
  (H0: r_h = hash_blocks init_registers hashed)
  (H4: (LBLOCKz | Zlength hashed))
- (Hblocks: intlist_to_Zlist blocks =  frag ++ firstn (length blocks * 4 - length frag) data)
- (H3 : (Zlength frag < CBLOCKz)%Z)
- (Hlen: (len <= Int.max_unsigned)%Z)
- (Hlen_ge: (len - Z.of_nat (length blocks * 4 - length frag) >= 64)%Z)
- (H6: firstn CBLOCK (skipn (length blocks * 4 - length frag) data) =
-     intlist_to_Zlist bl)
+ (Hblocks: intlist_to_Zlist blocks =  frag ++ 
+          sublist 0 (Zlength blocks * 4 - Zlength frag) data)
+ (H3 : Zlength frag < CBLOCKz)
+ (Hlen: len <= Int.max_unsigned)
+ (Hlen_ge: len - (Zlength blocks * 4 - Zlength frag) >= 64)
+ (H6: sublist (Zlength blocks * 4 - Zlength frag) 
+                    (Zlength blocks * 4 - Zlength frag + CBLOCKz) data =
+        intlist_to_Zlist bl)
  (H7: Zlength bl = LBLOCKz)
- (LEN64: (bitlength hashed frag  + len * 8 < two_p 64)%Z),
+ (LEN64: bitlength hashed frag  + len * 8 < two_p 64),
  semax Delta
   (PROP  ()
    LOCAL 
    (temp _p (field_address t_struct_SHA256state_st [StructField _data] c);
-   temp _data
-     (offset_val (Int.repr (Z.of_nat (length blocks * 4 - length frag))) d);
+   temp _data (field_address0 (tarray tuchar (Zlength data)) [ArraySubsc (Zlength blocks * 4 - Zlength frag)] d);
    temp _c c;
    temp _len (Vint (Int.repr (len - (Zlength blocks * 4 - Zlength frag))));
    gvar _K256 kv)
@@ -72,19 +205,20 @@ Lemma update_loop_body_proof:
    `(data_at Tsh t_struct_SHA256state_st
        (map Vint (hash_blocks init_registers (hashed ++ blocks)),
        (Vint (lo_part (bitlength hashed frag + len * 8)),
-       (Vint (hi_part (bitlength hashed frag + len * 8)), ([], Vundef)))) c);
-   `(data_block sh data d))) sha_update_loop_body
+       (Vint (hi_part (bitlength hashed frag + len * 8)), 
+        (list_repeat (Z.to_nat CBLOCKz) Vundef, Vundef)))) c);
+   `(data_block sh data d))) 
+  sha_update_loop_body
   (normal_ret_assert
-     (EX  a : list int,
+   (@exp (environ->mpred) _ _  (fun a:list int => 
       PROP 
-      ((len >= Zlength a * 4 - Zlength frag)%Z;
+      (len >= Zlength a * 4 - Zlength frag;
        (LBLOCKz | Zlength a);
-       intlist_to_Zlist a = frag ++ firstn (length a * 4 - length frag) data;
+       intlist_to_Zlist a = frag ++ sublist 0 (Zlength a * 4 - Zlength frag) data;
        True)
       LOCAL 
       (temp _p (field_address t_struct_SHA256state_st [StructField _data] c);
-      temp _data
-        (offset_val (Int.repr (Z.of_nat (length a * 4 - length frag))) d);
+      temp _data (field_address0 (tarray tuchar (Zlength data)) [ArraySubsc (Zlength a * 4 - Zlength frag)] d);
       temp _c c;
       temp _len (Vint (Int.repr (len - (Zlength a * 4 - Zlength frag))));
       gvar _K256 kv)
@@ -92,8 +226,10 @@ Lemma update_loop_body_proof:
       `(data_at Tsh t_struct_SHA256state_st
           (map Vint (hash_blocks init_registers (hashed ++ a)),
           (Vint (lo_part (bitlength hashed frag + len * 8)),
-          (Vint (hi_part (bitlength hashed frag + len * 8)), ([], Vundef)))) c);
-      `(data_block sh data d)))).
+          (Vint (hi_part (bitlength hashed frag + len * 8)),
+          (list_repeat (Z.to_nat CBLOCKz) Vundef, 
+           Vundef)))) c);
+      `(data_block sh data d))))).
 Proof.
 assert (H4:=true).
 intros.
@@ -105,66 +241,53 @@ name p _p.
 name n _n.
 unfold sha_update_loop_body.
 subst Delta; abbreviate_semax.
- rewrite (split3_data_block (length blocks * 4 - length frag) CBLOCK sh data) by MyOmega.
-normalize.
- rewrite Zlength_correct in H3; change CBLOCKz with (Z.of_nat CBLOCK) in H3;
-  apply Nat2Z.inj_lt in H3.
+assert (Hblocks' := Hblocks_lem Hblocks).
+assert_PROP (field_compatible (tarray tuchar (Zlength data)) [] d) as FC by entailer!.
+set (lo := Zlength blocks * 4 - Zlength frag) in *.
+ replace_SEP 2
+  (`(data_block sh (sublist 0 lo data) d *
+       data_block sh (sublist lo (lo+CBLOCKz) data)
+         (field_address0 (tarray tuchar (Zlength data)) [ArraySubsc lo] d) *
+       data_block sh (sublist (lo+CBLOCKz) (Zlength data) data)
+         (field_address0 (tarray tuchar (Zlength data)) [ArraySubsc (lo+CBLOCKz)] d))).
+  {entailer!.
+   rewrite (split3_data_block lo (lo+CBLOCKz) sh data); auto;
+     subst lo; Omega1.
+  }
  rewrite H6.
-rename H2 into H98; rename H4 into H99.
-
-forward_call' (* sha256_block_data_order (c,data); *)
+ normalize.
+forward_call (* sha256_block_data_order (c,data); *)
  (hashed++ blocks,  bl, c, 
-  offset_val (Int.repr (Z.of_nat (length blocks * 4 - length frag))) d,
+  field_address0 (tarray tuchar (Zlength data))  [ArraySubsc lo] d,
   sh, kv).
- unfold_data_at 1.
-entailer!.
-split; auto.
-apply divide_length_app; auto.
- simpl map.
-
- forward data_old. (* data += SHA_CBLOCK; *)
- forward len_old. (* len  -= SHA_CBLOCK; *)
- unfold loop1_ret_assert.
- unfold sha_update_inv.
- apply exp_right with (blocks++ bl).
- entailer.
- clear TC1 TC.
- assert (Hblocks' := Hblocks_lem Hblocks).
- unfold_data_at 1.
- rewrite Nat2Z.inj_sub in Hlen_ge by Omega1.
- rewrite Nat2Z.inj_mul in Hlen_ge.
- change (Z.of_nat 4) with 4%Z in Hlen_ge.
- apply andp_right; [ apply prop_right; repeat split | cancel].
-*
- rewrite Zlength_app. rewrite Z.mul_add_distr_r.
- Omega1. 
-* apply divide_length_app; auto. rewrite H7. exists 1%Z; reflexivity.
-*
+ unfold data_at.
+ unfold_field_at 1%nat.
+ entailer!.
+ split3; auto. apply divide_length_app; auto.
+ simpl map. (* should not need this *)
+ forward. (* data += SHA_CBLOCK; *)
+ forward. (* len  -= SHA_CBLOCK; *)
+ Exists (blocks++ bl).
+ entailer!.
+ subst lo. autorewrite with sublist.
+ rewrite Z.mul_add_distr_r. 
+ erewrite (offset_val_field_address0 CBLOCKz) by (try reflexivity; Omega1).
+ repeat split; auto; try Omega1.
+ apply Z.divide_add_r; auto. rewrite H7. apply Z.divide_refl.
  rewrite intlist_to_Zlist_app.
  rewrite Hblocks; rewrite <- H6.
  rewrite app_ass.
- f_equal. rewrite app_length. apply Zlength_length in H7; auto.
-  rewrite H7.
-  rewrite  mult_plus_distr_r. change (LBLOCK*4)%nat with CBLOCK.
- rewrite NPeano.Nat.add_sub_swap by auto.
- apply firstn_app.
-*
- destruct d; inv Pd; simpl. f_equal.
-  f_equal.
- rewrite app_length.
- apply Zlength_length in H7; auto.
- rewrite H7.
- f_equal.
- rewrite  mult_plus_distr_r. Omega1.
-*
- f_equal.
- rewrite Zlength_app. rewrite Z.mul_add_distr_r. Omega1.
-*
+ f_equal. 
+ rewrite <- sublist_split; try Omega1.
+ f_equal. Omega1.
+ f_equal. f_equal. f_equal. Omega1.
+ f_equal. f_equal. 
+ autorewrite with sublist. Omega1.
+ unfold data_at. unfold_field_at 6%nat.
+ rewrite (split3_data_block lo (lo+CBLOCKz) sh data d)
+   by (auto; subst lo; Omega1).
  rewrite app_ass.
- rewrite (split3_data_block (length blocks * 4 - length frag) CBLOCK sh data)
-    by Omega1.
  rewrite H6.
- normalize.
  cancel.
 Qed.
 
@@ -182,8 +305,9 @@ Definition update_outer_if :=
 Lemma update_outer_if_proof:
  forall  (Espec : OracleKind) (hashed : list int) 
            (dd data : list Z) (c d : val) (sh : share) (len : Z) kv
-   (H : (0 <= len <= Zlength data)%Z)
-   (HBOUND : (bitlength hashed dd + len * 8 < two_p 64)%Z)
+   (H : 0 <= len <= Zlength data)
+   (Hsh: readable_share sh)
+   (HBOUND : bitlength hashed dd + len * 8 < two_p 64)
    (c' : name _c)
    (data_ : name _data_)
    (len' : name _len)
@@ -191,12 +315,12 @@ Lemma update_outer_if_proof:
    (p : name _p)
    (n : name _n)
    (fragment : name _fragment)
-   (H3 : (Zlength dd < CBLOCKz)%Z)
+   (H3 : Zlength dd < CBLOCKz)
    (H3' : Forall isbyteZ dd) 
    (H4 : (LBLOCKz | Zlength hashed))
-   (Hlen : (len <= Int.max_unsigned)%Z),
+   (Hlen : len <= Int.max_unsigned),
 semax
-  (initialized_list [_p; _n; _data]
+  (initialized_list [_data; _p; _n]
      (func_tycontext f_SHA256_Update Vprog Gtot))
   (PROP  ()
    LOCAL 
@@ -209,7 +333,7 @@ semax
                  (map Vint (hash_blocks init_registers hashed),
                   (Vint (lo_part (bitlength hashed dd + len*8)),
                    (Vint (hi_part (bitlength hashed dd + len*8)),
-                    (map Vint (map Int.repr dd), 
+                    (map Vint (map Int.repr dd) ++ list_repeat (Z.to_nat (CBLOCKz-Zlength dd)) Vundef, 
                      Vint (Int.repr (Zlength dd))))))
                c);
    `(K_vector kv);
@@ -217,7 +341,7 @@ semax
   (overridePost (sha_update_inv sh hashed len c d dd data kv false)
      (function_body_ret_assert tvoid
         (EX  a' : s256abs,
-         PROP  (update_abs (firstn (Z.to_nat len) data) (S256abs hashed dd) a')
+         PROP  (update_abs (sublist 0 len data) (S256abs hashed dd) a')
          LOCAL ()
          SEP  (`(K_vector kv);
                 `(sha256state_ a' c); `(data_block sh data d))))).
@@ -228,15 +352,14 @@ forward_if (sha_update_inv sh hashed len c d dd data kv false).
 * (* then clause *)
 
 forward.  (* fragment = SHA_CBLOCK-n; *)
-match goal with |- context [temp _fragment (Vint (Int.repr ?A))] =>
-   change A with (64-(Zlength dd))%Z
-end.
 drop_LOCAL 5%nat.
 rewrite semax_seq_skip.
 fold (inv_at_inner_if sh hashed len c d dd data kv).
 apply semax_seq with (sha_update_inv sh hashed len c d dd data kv false).
 change Delta with Delta_update_inner_if.
 weak_normalize_postcondition.
+pose (j := inv_at_inner_if sh hashed len c d dd data kv).
+unfold inv_at_inner_if in j.
 simple apply (update_inner_if_proof Espec hashed dd data c d sh len kv);
   try assumption.
 forward. 
@@ -244,37 +367,42 @@ apply andp_left2; auto.
 * (* else clause *)
 forward.  (* skip; *)
 apply exp_right with nil. rewrite <- app_nil_end.
-entailer.
 assert (Int.unsigned (Int.repr (Zlength dd)) = Int.unsigned (Int.repr 0)) by (f_equal; auto).
-repeat rewrite Int.unsigned_repr in H7 by Omega1.
-rewrite Zlength_correct in H7;  destruct dd; inv H7.
-rewrite Zlength_nil.
- entailer!.
- apply Z.divide_0_r.
- f_equal; omega.
- rewrite <- app_nil_end.
+repeat rewrite Int.unsigned_repr in H1 by Omega1.
+rewrite H1 in *.
+rewrite Zlength_correct in H1;  destruct dd; inv H1.
+autorewrite with sublist.
+simpl app; simpl intlist_to_Zlist.
+clear H0.
+Time entailer!.  (* 139 sec *)
+split.
+apply Z.divide_0_r.
+unfold field_address0. rewrite if_true.
+simpl. normalize.
+eapply field_compatible0_cons_Tarray; try reflexivity; auto; try omega.
 (* TODO:  see if a "stronger" proof system could work here
   rewrite data_at_field_at.
    apply field_at_stronger.
   ...
   with automatic cancel...
 *)
- unfold_data_at 1.
- unfold_data_at 1.
+ unfold data_at at 2; unfold_field_at 1%nat.
+ unfold data_at at 1; unfold_field_at 1%nat.
  cancel.
 Qed.
 
 Lemma update_while_proof:
  forall (Espec : OracleKind) (hashed : list int) (dd data: list Z) kv
     (c d : val) (sh : share) (len : Z) 
-  (H : (0 <= len <= Zlength data)%Z)
-  (HBOUND : (bitlength hashed dd + len * 8 < two_p 64)%Z)
+  (H : 0 <= len <= Zlength data)
+   (Hsh: readable_share sh)
+  (HBOUND : bitlength hashed dd + len * 8 < two_p 64)
   (c' : name _c) (data_ : name _data_) (len' : name _len)  
   (data' : name _data) (p : name _p) (n : name _n)  (fragment : name _fragment)
-  (H3 : (Zlength dd < CBLOCKz)%Z)
+  (H3 : Zlength dd < CBLOCKz)
   (H3' : Forall isbyteZ dd) 
   (H4 : (LBLOCKz | Zlength hashed)) 
-  (Hlen : (len <= Int.max_unsigned)%Z),
+  (Hlen : len <= Int.max_unsigned),
  semax
      (initialized_list [_p; _n; _data]
        (func_tycontext f_SHA256_Update Vprog Gtot))
@@ -289,27 +417,16 @@ intros.
 abbreviate_semax.
 unfold POSTCONDITION, abbreviate; clear POSTCONDITION.
 unfold sha_update_inv.
-apply extract_exists_pre; intro blocks.
+Intro blocks.
 repeat (apply semax_extract_PROP; intro).
 rewrite semax_seq_skip. (* should be part of forward_while *)
 forward_while
     (sha_update_inv sh hashed len c d dd data kv false)
-   (sha_update_inv sh hashed len c d dd data kv true)
    blocks'.
 *
- apply exp_right with blocks.
- entailer!.
+ Exists blocks. entailer!.
 *
   entailer!.
-*
- clear dependent blocks.
- apply exp_right with blocks'.
- entailer!.
- rewrite Int.unsigned_repr in HRE.
- apply HRE.
- split; try omega.
- assert (Hblocks' := Hblocks_lem H8).
- Omega1.
 *
  normalize_postcondition.
  clear dependent blocks.
@@ -322,37 +439,29 @@ forward_while
   rewrite (data_block_isbyteZ sh data d).
   entailer!.
  rename H1 into BYTESdata.
- pose (bl := Zlist_to_intlist (firstn CBLOCK (skipn (length blocks * 4 - length dd) data) )).
-
-assert (CBLOCK <= length (skipn (length blocks * 4 - length dd) data)).
- {
-  pose proof (Hblocks_lem H8). 
-  rewrite skipn_length.
-  Omega1. 
-}
+ pose (bl := Zlist_to_intlist (sublist (Zlength blocks * 4 - Zlength dd) 
+                                                   (Zlength blocks * 4 - Zlength dd + CBLOCKz) data)).
 assert (Zlength bl = LBLOCKz). {
- apply Zlength_length; auto.
- unfold bl.
- apply length_Zlist_to_intlist. 
- rewrite firstn_length.
- rewrite min_l by auto. reflexivity.
+ apply Zlength_Zlist_to_intlist.
+ pose proof CBLOCKz_eq; pose proof LBLOCKz_eq;
+  autorewrite with sublist. reflexivity.
 }
 simple apply (update_loop_body_proof Espec sh hashed dd data c d len kv (hash_blocks init_registers hashed) Delta blocks bl); 
    try assumption; auto.
 +
- rewrite Nat2Z.inj_sub by MyOmega. MyOmega.
-+
  unfold bl; rewrite Zlist_to_intlist_to_Zlist; auto.
- rewrite firstn_length.
- rewrite min_l by auto.
- exists LBLOCK; reflexivity.
- apply Forall_firstn.
- apply Forall_skipn; auto.
+ pose proof CBLOCKz_eq;  autorewrite with sublist.
+ exists LBLOCKz; reflexivity.
+ apply Forall_sublist; auto.
 *
+ assert  (Zlength blocks' * 4 >= Zlength dd).
+   rewrite <- (Zlength_intlist_to_Zlist blocks').
+   rewrite H8. autorewrite with sublist. Omega1.
  unfold sha_update_inv.
  clear dependent blocks.
- apply extract_exists_pre; intro blocks.
  forward.
- apply exp_right with blocks.
+ Exists blocks'.
  entailer!.
+ apply negb_false_iff in HRE. (* should not be necessary *)
+ apply ltu_repr in HRE; Omega1.
 Qed.

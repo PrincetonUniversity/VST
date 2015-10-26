@@ -47,7 +47,8 @@ endif
 endif
 
 
-COQFLAGS= $(INCLUDE)
+#COQFLAGS= $(foreach d, $(DIRS), -R $(d) -as VST.$(d)) -R $(COMPCERT) -as compcert
+COQFLAGS= $(foreach d, $(DIRS), -R $(d) -as $(d)) -R $(COMPCERT) -as compcert 
 DEPFLAGS= $(INCLUDE)
 COQC=coqc
 COQTOP=coqtop
@@ -72,7 +73,7 @@ MSL_FILES = \
   predicates_sa.v \
   normalize.v \
   env.v corec.v Coqlib2.v sepalg_list.v rmaps.v rmaps_lemmas.v op_classes.v \
-  seplog.v alg_seplog.v log_normalize.v
+  simple_CCC.v seplog.v alg_seplog.v log_normalize.v
 
 SEPCOMP_FILES= \
   Address.v \
@@ -119,35 +120,40 @@ LINKING_FILES= \
   finfun.v
 
 VERIC_FILES= \
-  base.v rmaps.v rmaps_lemmas.v compcert_rmaps.v Cop2.v\
-  lift.v expr.v environ_lemmas.v binop_lemmas.v \
-  expr_lemmas.v expr_lemmas2.v expr_lemmas3.v expr_rel.v \
+  base.v shares.v rmaps.v rmaps_lemmas.v compcert_rmaps.v Cop2.v\
+  tycontext.v lift.v expr.v expr2.v environ_lemmas.v binop_lemmas.v binop_lemmas2.v \
+  expr_lemmas.v expr_lemmas2.v expr_lemmas3.v expr_rel.v xexpr_rel.v extend_tc.v \
   Clight_lemmas.v Clight_new.v Clightnew_coop.v Clight_sim.v \
   slice.v res_predicates.v seplog.v assert_lemmas.v  ghost.v \
   juicy_mem.v juicy_mem_lemmas.v local.v juicy_mem_ops.v juicy_safety.v juicy_extspec.v \
   semax.v semax_lemmas.v semax_call.v semax_straight.v semax_loop.v semax_congruence.v \
   initial_world.v initialize.v semax_prog.v semax_ext.v SeparationLogic.v SeparationLogicSoundness.v  \
-  NullExtension.v SequentialClight.v superprecise.v jstep.v
+  NullExtension.v SequentialClight.v superprecise.v jstep.v address_conflict.v valid_pointer.v coqlib4.v
 
 FLOYD_FILES= \
-   coqlib3.v base.v proofauto.v \
+   coqlib3.v base.v proofauto.v computable_theorems.v \
+   type_induction.v reptype_lemmas.v aggregate_type.v aggregate_pred.v \
+   nested_pred_lemmas.v compact_prod_sum.v zlist.v \
+   sublist.v smt_test.v extract_smt.v \
    client_lemmas.v canon.v canonicalize.v assert_lemmas.v closed_lemmas.v jmeq_lemmas.v \
-   compare_lemmas.v rangespec_lemmas.v array_lemmas.v sc_set_load_store.v \
-   loadstore_mapsto.v loadstore_data_at.v loadstore_field_at.v nested_loadstore.v \
-   call_lemmas.v extcall_lemmas.v type_id_env.v forward_lemmas.v forward.v \
+   compare_lemmas.v sc_set_load_store.v \
+   loadstore_mapsto.v loadstore_field_at.v nested_loadstore.v \
+   call_lemmas.v extcall_lemmas.v forward_lemmas.v forward.v \
    entailer.v globals_lemmas.v local2ptree.v fieldlist.v mapsto_memory_block.v\
-   nested_field_lemmas.v efield_lemmas.v nested_field_re_lemmas.v \
-   data_at_lemmas.v field_at.v stronger.v unfold_data_at.v \
-   for_lemmas.v semax_tactics.v real_forward.v diagnosis.v
+   nested_field_lemmas.v efield_lemmas.v proj_reptype_lemmas.v replace_refill_reptype_lemmas.v \
+   data_at_lemmas.v field_at.v stronger.v \
+   for_lemmas.v semax_tactics.v expr_lemmas.v real_forward.v diagnosis.v simple_reify.v simpl_reptype.v
 
 PROGS_FILES= \
-  list_dt.v verif_reverse.v verif_queue.v verif_sumarray.v verif_message.v \
+  list_dt.v verif_reverse.v verif_queue.v verif_sumarray.v \
   insertionsort.v reverse.v queue.v sumarray.v message.v string.v\
-  revarray.v verif_revarray.v insertionsort.v verif_insertion_sort.v \
-  verif_float.v verif_dotprod.v \
-  verif_nest3.v verif_nest2.v prod.v \
+  revarray.v verif_revarray.v insertionsort.v \
+  verif_float.v verif_ptr_compare.v \
+  verif_nest3.v verif_nest2.v \
   logical_compare.v verif_logical_compare.v field_loadstore.v  verif_field_loadstore.v \
-  even.v verif_even.v odd.v verif_odd.v
+  even.v verif_even.v odd.v verif_odd.v \
+  merge.v verif_merge.v
+# verif_message.v verif_dotprod.v verif_insertion_sort.v 
 
 SHA_FILES= \
   general_lemmas.v SHA256.v common_lemmas.v pure_lemmas.v sha_lemmas.v functional_prog.v \
@@ -161,26 +167,27 @@ SHA_FILES= \
 HMAC_FILES= \
   HMAC_functional_prog.v HMAC256_functional_prog.v \
   vst_lemmas.v hmac_pure_lemmas.v hmac_common_lemmas.v \
-  hmac091c.v spec_hmac.v verif_hmac_cleanup.v \
-  verif_hmac_init_part1.v verif_hmac_init_part2.v verif_hmac_init.v \
-  verif_hmac_update.v verif_hmac_final.v verif_hmac_simple.v \
-  verif_hmac_double.v verif_hmac_crypto.v \
   hmac_NK.v spec_hmacNK.v verif_hmacNK_cleanup.v \
   verif_hmacNK_init_part1.v verif_hmacNK_init_part2.v verif_hmacNK_init.v\
   verif_hmacNK_update.v verif_hmacNK_final.v verif_hmacNK_simple.v \
-  verif_hmacNK_double.v verif_hmacNK_crypto.v \
-  spec_hmacADT.v verif_hmacADT_cleanup.v \
-  verif_hmacADT_init_part1.v \
-  verif_hmacADT_update.v verif_hmacADT_final.v verif_hmacADT_simple.v \
-  verif_hmacADT_double.v  verif_hmacADT_init_part1_5.v \
-  verif_hmacADT_init_part1.v  verif_hmacADT_init_part2.v verif_hmacADT_init.v 
+  verif_hmacNK_double.v verif_hmacNK_crypto.v 
+#  hmac091c.v spec_hmac.v \
+# verif_hmac_cleanup.v verif_hmac_init_part1.v \
+# verif_hmac_init_part2.v verif_hmac_init.v \
+# verif_hmac_update.v verif_hmac_final.v verif_hmac_simple.v \
+#  verif_hmac_double.v verif_hmac_crypto.v \
+#  spec_hmacADT.v verif_hmacADT_cleanup.v \
+#  verif_hmacADT_init_part1.v \
+#  verif_hmacADT_update.v verif_hmacADT_final.v verif_hmacADT_simple.v \
+#  verif_hmacADT_double.v  verif_hmacADT_init_part1_5.v \
+#  verif_hmacADT_init_part1.v  verif_hmacADT_init_part2.v verif_hmacADT_init.v 
 #  HMAC_lemmas.v HMAC_refined_fp.v hmac_sha256.v HMAC_definitions.v \
 #  HMAC_part2GT.v HMAC_part2LE.v \
 #  HMAC_LoopBodyGT.v HMAC_LoopBodyLE.v \
 #  HMAC_proofLE.v HMAC_proof.v
 
 FCF_FILES= \
-  Limit.v Blist.v StdNat.v Rat.v Fold.v Comp.v DetSem.v DistSem.v \
+  Limit.v Blist.v StdNat.v Rat.v EqDec.v Fold.v Comp.v DetSem.v DistSem.v \
   DistRules.v DistTacs.v ProgTacs.v GenTacs.v Crypto.v SemEquiv.v \
   ProgramLogic.v RndNat.v Bernoulli.v FCF.v HasDups.v CompFold.v \
   RepeatCore.v PRF_Encryption_IND_CPA.v PRF.v Array.v Encryption.v \
@@ -202,14 +209,14 @@ HMACEQUIV_FILES= \
   HMAC_isPRF.v HMAC256_isPRF.v
 
 TWEETNACL_FILES = \
-  split_array_lemmas.v fragments.v tweetNaclBase.v  Salsa20.v Snuffle.v \
+  split_array_lemmas.v Salsa20.v Snuffle.v tweetNaclBase.v \
   verif_salsa_base.v tweetnaclVerifiableC.v spec_salsa.v \
   verif_ld_st.v verif_fcore_loop1.v verif_fcore_loop2.v \
   verif_fcore_jbody.v verif_fcore_loop3.v \
-  verif_fcore_epilogue_hfalse.v verif_fcore_epilogue_htrue.v verif_fcore.v \
-  verif_crypto_core.v
+  verif_fcore_epilogue_hfalse.v verif_fcore_epilogue_htrue.v \
+  verif_fcore.v verif_crypto_core.v
 
-C_FILES = reverse.c queue.c sumarray.c message.c insertionsort.c float.c nest3.c nest2.c nest3.c dotprod.c string.c field_loadstore.c
+C_FILES = reverse.c queue.c sumarray.c message.c insertionsort.c float.c nest3.c nest2.c nest3.c dotprod.c string.c field_loadstore.c ptr_compare.c merge.c
 
 FILES = \
  $(MSL_FILES:%=msl/%) \
@@ -238,7 +245,7 @@ else
 	@$(COQC) $(COQFLAGS) $*.v
 endif
 
-COQVERSION=8.4pl3 or-else 8.4pl4 or-else 8.4pl5
+COQVERSION=8.4pl5 or-else 8.4pl6 or-else 8.4pl4
 COQV=$(shell $(COQC) -v)
 ifeq ("$(filter $(COQVERSION),$(COQV))","")
 $(error FAILURE: You need Coq $(COQVERSION) but you have this version: $(COQV))
@@ -269,7 +276,8 @@ CGFLAGS =  -DCOMPCERT
 
 CVFILES = progs/revarray.v progs/reverse.v progs/queue.v progs/sumarray.v \
          progs/message.v progs/insertionsort.v progs/float.v progs/logical_compare.v \
-         progs/nest2.v progs/nest3.v progs/dotprod.v
+         progs/nest2.v progs/nest3.v progs/dotprod.v progs/string.v progs/even.v progs/odd.v \
+         progs/merge.v
 
 cvfiles: $(CVFILES)
 
@@ -304,7 +312,19 @@ progs/nest2.v: progs/nest2.c
 	$(CLIGHTGEN) ${CGFLAGS} $<
 progs/nest3.v: progs/nest3.c
 	$(CLIGHTGEN) ${CGFLAGS} $<
+progs/ptr_compare.v: progs/ptr_compare.c
+	$(CLIGHTGEN) ${CGFLAGS} $<
 progs/dotprod.v: progs/dotprod.c
+	$(CLIGHTGEN) ${CGFLAGS} $<
+progs/string.v: progs/string.c
+	$(CLIGHTGEN) ${CGFLAGS} $<
+progs/even.v: progs/even.c
+	$(CLIGHTGEN) ${CGFLAGS} $<
+progs/odd.v: progs/odd.c
+	$(CLIGHTGEN) ${CGFLAGS} $<
+progs/field_loadstore.v: progs/field_loadstore.c
+	$(CLIGHTGEN) ${CGFLAGS} $<
+progs/merge.v: progs/merge.c
 	$(CLIGHTGEN) ${CGFLAGS} $<
 endif
 

@@ -13,7 +13,9 @@ Require Import veric.Clight_new.
 Require Import sepcomp.extspec.
 Require Import sepcomp.step_lemmas.
 Require Import veric.juicy_extspec.
-Require Import veric.expr veric.expr_lemmas.
+Require Import veric.tycontext.
+Require Import veric.expr2.
+Require Import veric.expr_lemmas.
 Require Import veric.semax.
 Require Import veric.semax_lemmas.
 Require Import veric.Clight_lemmas.
@@ -36,12 +38,12 @@ Section extensions.
 Context (Espec : OracleKind).
 
 Lemma safeN_step_jsem_spec: forall gx vx tx n k ora jm,
-  @safeN_ _ _ _ _ _ juicy_safety.Hrel (juicy_core_sem cl_core_sem) OK_spec
+  @safeN_ _ _ _ _ (fun x => Genv.genv_symb (genv_genv x)) juicy_safety.Hrel (juicy_core_sem cl_core_sem) OK_spec
     gx (S n) ora (State vx tx k) jm <->
   exists c' m', (cl_step gx (State vx tx k) (m_dry jm) c' (m_dry m') /\
   resource_decay (nextblock (m_dry jm)) (m_phi jm) (m_phi m') /\
   level jm = S (level m') /\
-  @safeN_ _ _ _ _ _ juicy_safety.Hrel (juicy_core_sem cl_core_sem) OK_spec gx n ora c' m').
+  @safeN_ _ _ _ _ (fun x => Genv.genv_symb (genv_genv x)) juicy_safety.Hrel (juicy_core_sem cl_core_sem) OK_spec gx n ora c' m').
 Proof.
   intros.
   split; intros.
@@ -108,14 +110,14 @@ Proof.
   rewrite H; reflexivity.
 Qed.
 
-Lemma semax_equiv_spec: forall c1 c2,
+Lemma semax_equiv_spec{CS: compspecs}: forall c1 c2,
   semax_equiv c1 c2 ->
   (forall P Q Delta, semax Espec Delta P c1 Q -> semax Espec Delta P c2 Q).
 Proof.
   rewrite semax_unfold.
   unfold semax_equiv.
   intros ? ? [JS_EQUIV [M_EQUIV U_EQUIV]] P Q Delta Hc1; intros.
-  specialize (Hc1 psi Delta' w TS Prog_OK k F).
+  specialize (Hc1 psi Delta' w TS HGG Prog_OK k F).
 
   apply modifiedvars_closed_wrt_modvars_equiv in M_EQUIV.
   specialize (M_EQUIV F).
@@ -405,7 +407,7 @@ Proof.
   apply unfold_Ssequence_unfold_Sseq_rel.
 Qed.
 
-Lemma semax_unfold_Ssequence: forall c1 c2,
+Lemma semax_unfold_Ssequence {CS: compspecs}: forall c1 c2,
   unfold_Ssequence c1 = unfold_Ssequence c2 ->
   (forall P Q Delta, semax Espec Delta P c1 Q -> semax Espec Delta P c2 Q).
 Proof.

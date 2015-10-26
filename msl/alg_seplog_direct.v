@@ -4,6 +4,7 @@ Require Import msl.base.
 Require Import msl.boolean_alg.
 Require Import msl.sepalg.
 Require Import msl.predicates_sa.
+Require Import msl.corable_direct.
 
 Local Open Scope logic.
 
@@ -44,13 +45,27 @@ Instance algSepLog (T: Type) {JoinT: Join T}{PermT: Perm_alg T}{SepT: Sep_alg T}
  intros. apply (predicates_sa.sepcon_andp_prop P Q R).
  intros; intro; apply sepcon_derives; auto.
  intros; apply predicates_sa.ewand_sepcon.
- admit. 
- admit.
- admit.
+ intros; simpl. apply ewand_TT_sepcon; auto.
+ intros; simpl. intros w [w1 [w2 [? [? ?]]]]. exists w1,w2; repeat split; auto. exists w2; exists w; repeat split; auto.
+ intros; simpl. apply ewand_conflict; auto.
 Defined.
 
 Instance algClassicalSep (T: Type) {JoinT: Join T}{PermT: Perm_alg T}{SepT: Sep_alg T}{CancT: Canc_alg T}:
      @ClassicalSep (pred T) (algNatDed T)(algSepLog T).
  constructor; intros. simpl. apply predicates_sa.sepcon_emp.
-Qed.
+Defined.
 
+Instance algCorableSepLog (T: Type){JoinT: Join T}{PermT: Perm_alg T}{SepT: Sep_alg T}:
+         @CorableSepLog (pred T) (algNatDed T) (algSepLog T).
+  apply mkCorableSepLog with (corable := corable_direct.corable); unfold algNatDed, algSepLog; simpl.
+  + apply corable_prop.
+  + apply corable_andp.
+  + apply corable_orp.
+  + apply corable_imp.
+  + intros. apply corable_allp; auto.
+  + intros; apply corable_exp; auto.
+  + apply corable_sepcon.
+  + apply corable_wand.
+  + intros; simpl.
+    apply corable_andp_sepcon1; auto.
+Defined.

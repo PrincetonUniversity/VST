@@ -12,10 +12,10 @@
 # 
 if [ -e "$1" -a ./GRAB ]; then 
   rm -f */*.v flocq/*/*.v Makefile
-  cp $1/Makefile $1/LICENSE $1/README $1/VERSION .
+  cp $1/Makefile $1/LICENSE $1/README.md $1/VERSION .
   cp $1/ia32/Archi.v ia32
   cp $1/lib/*.v lib
-  cp $1/common/{AST,Behaviors,Errors,Events,Globalenvs,Memdata,Memory,Memtype,Smallstep,Switch,Values}.v common
+  cp $1/common/*.v common
   cp $1/cfrontend/{Clight,ClightBigstep,Cop,Csem,Cstrategy,Csyntax,Ctypes}.v cfrontend
   cp $1/flocq/*.v flocq
   cp $1/flocq/Core/*.v flocq/Core

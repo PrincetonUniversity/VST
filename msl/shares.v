@@ -297,15 +297,26 @@ Proof.
   rewrite lub_bot in H0. apply nontrivial; auto.
 Qed.  
 
-Lemma bot_joins : forall x, joins bot x.
+Lemma bot_join_eq : forall x, join bot x x.
 Proof.
-  intro x; exists x.
+  intros.
   destruct (join_ex_identities x); intuition.
   destruct H0.
   generalize (H _ _ H0).
   intros; subst; auto.
   replace bot with x0; auto.
   apply identity_share_bot; auto.
+Qed.
+
+Lemma join_bot_eq : forall x, join x bot x.
+Proof.
+  intros.
+  apply join_comm, bot_join_eq.
+Qed.
+
+Lemma bot_joins : forall x, joins bot x.
+Proof.
+  intro x; exists x; apply bot_join_eq.
 Qed.
 
 Lemma dec_share_identity : forall x:t, { identity x } + { ~identity x }.
@@ -315,6 +326,14 @@ Proof.
   left; apply bot_identity.
   right; intro; elim n.
   apply identity_share_bot; auto.
+Qed.
+
+Lemma dec_share_nonunit : forall x:t, { nonunit x } + { ~ nonunit x }.
+Proof.
+  intro x.
+  destruct (dec_share_identity x) as [H | H]; [right | left].
+  + intro; revert H. apply nonunit_nonidentity; auto.
+  + apply nonidentity_nonunit; auto.
 Qed.
 
 Lemma fullshare_full : full fullshare.

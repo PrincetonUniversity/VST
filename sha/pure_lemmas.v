@@ -11,19 +11,97 @@ Require Import general_lemmas.
 Require Import sha.SHA256.
 Require Import msl.Coqlib2. 
 Require Import floyd.coqlib3. 
+Require Import floyd.sublist. 
 Require Export sha.common_lemmas. 
 Require Psatz.
 
 Global Opaque CBLOCKz LBLOCKz.
 
-Lemma Zlength_intlist_to_Zlist: forall l,
-  Zlength (intlist_to_Zlist l) = WORD*Zlength l.
+Lemma Zlength_intlist_to_Zlist:
+  forall l : list int,
+       Zlength (intlist_to_Zlist l) = (Zlength l * 4)%Z.
 Proof.
-intros. repeat rewrite Zlength_correct. rewrite length_intlist_to_Zlist.
-rewrite Nat2Z.inj_mul. reflexivity.
+intros.
+repeat rewrite Zlength_correct. rewrite length_intlist_to_Zlist.
+rewrite Nat2Z.inj_mul. rewrite Z.mul_comm. reflexivity.
 Qed.
 
-Lemma Zlist_to_intlist_to_Zlist:
+Hint Rewrite Zlength_intlist_to_Zlist : sublist.
+
+Lemma skipn_intlist_to_Zlist:
+  forall i m, skipn (4*i) (intlist_to_Zlist m) = intlist_to_Zlist (skipn i m).
+Proof.
+induction i; intros.
+reflexivity.
+replace (4 * S i)%nat with (4 + 4 * i)%nat by omega.
+destruct m; try reflexivity.
+apply IHi.
+Qed.
+
+Lemma firstn_intlist_to_Zlist:
+  forall i m, firstn (4*i) (intlist_to_Zlist m) = intlist_to_Zlist (firstn i m).
+Proof.
+induction i; intros.
+reflexivity.
+replace (4 * S i)%nat with (4 + 4 * i)%nat by omega.
+destruct m; try reflexivity.
+simpl. f_equal. f_equal. f_equal. f_equal. 
+apply IHi.
+Qed.
+
+Lemma sublist_intlist_to_Zlist:
+ forall i j m,
+  sublist (i * WORD) (j * WORD) (intlist_to_Zlist m) =
+  intlist_to_Zlist (sublist i j m).
+Proof.
+intros.
+unfold sublist.
+change WORD with 4.
+rewrite <- Z.mul_sub_distr_r.
+destruct (zlt (j-i) 0).
+rewrite (Z2Nat_neg _ l).
+rewrite (Z2Nat_neg ((j-i)*4)) by omega.
+reflexivity.
+rewrite ?(Z.mul_comm _ 4).
+rewrite ?Z2Nat.inj_mul by omega.
+change (Z.to_nat 4) with 4%nat.
+rewrite <- firstn_intlist_to_Zlist.
+f_equal.
+destruct (zlt i 0).
+rewrite (Z2Nat_neg _ l).
+rewrite (Z2Nat_neg (4*i)) by omega.
+reflexivity.
+rewrite ?Z2Nat.inj_mul by omega.
+change (Z.to_nat 4) with 4%nat.
+apply skipn_intlist_to_Zlist.
+Qed.
+
+Lemma sublist_singleton:
+  forall {A} i (al: list A) d,
+    0 <= i < Zlength al ->
+    sublist i (i+1) al = [Znth i al d].
+Proof.
+intros.
+unfold sublist.
+replace (i+1-i) with 1 by omega.
+change (Z.to_nat 1) with 1%nat.
+unfold Znth.
+rewrite if_false by omega.
+assert (Z.to_nat i < length al)%nat.
+destruct H.
+rewrite Zlength_correct in H0.
+apply Nat2Z.inj_lt.
+rewrite Z2Nat.id by omega. auto.
+clear H.
+revert al H0; induction (Z.to_nat i); destruct al; intros;
+  try (simpl in *; omega);  try reflexivity.
+simpl in H0.
+simpl nth.
+rewrite <- (IHn al) by omega.
+reflexivity.
+Qed.
+
+Lemma Zlist_to_intlist_to_Zlist':
   forall nl: list Z, 
   NPeano.divide (Z.to_nat WORD) (length nl) ->
   Forall isbyteZ nl ->
@@ -38,6 +116,41 @@ inv H0. inv H4. inv H5. inv H6.
 unfold Zlist_to_intlist; fold Zlist_to_intlist.
 rewrite intlist_to_Zlist_Z_to_int_cons by auto.
 repeat f_equal; auto.
+Qed.
+
+Lemma Ndivide_Zdivide_length:
+  forall {A} n (al: list A),
+   0 <= n ->
+   (NPeano.divide (Z.to_nat n) (length al) <->
+    (n | Zlength al)).
+Proof.
+intros; split; intros [i ?].
+exists (Z.of_nat i). rewrite Zlength_correct, H0.
+rewrite Nat2Z.inj_mul.
+rewrite Z2Nat.id; auto.
+exists (Z.to_nat i).
+rewrite Zlength_correct in H0.
+destruct (zeq n 0). subst.
+simpl. rewrite Z.mul_0_r in H0. destruct al; inv H0.
+rewrite mult_0_r. reflexivity.
+assert (0 <= i).
+assert (0 <= i * n) by omega.
+apply Z.mul_nonneg_cancel_r in H1; auto; omega.
+rewrite <- (Z2Nat.id (i*n)%Z) in H0 by omega.
+apply Nat2Z.inj in H0. rewrite H0.
+rewrite Z2Nat.inj_mul; auto.
+Qed.
+
+Lemma Zlist_to_intlist_to_Zlist:
+  forall nl: list Z, 
+  Z.divide WORD (Zlength nl) ->
+  Forall isbyteZ nl ->
+  intlist_to_Zlist (Zlist_to_intlist nl) = nl.
+Proof.
+intros.
+apply Zlist_to_intlist_to_Zlist'; auto.
+apply Ndivide_Zdivide_length; auto.
+compute; congruence.
 Qed.
 
 Lemma length_Zlist_to_intlist: forall n l, 
@@ -131,18 +244,10 @@ Lemma divide_hashed:
     NPeano.divide LBLOCK (length bb) <->
     (LBLOCKz | Zlength bb).
 Proof.
-intros; split; intros [n ?].
-exists (Z.of_nat n). rewrite Zlength_correct, H.
-rewrite Nat2Z.inj_mul; auto.
-exists (Z.to_nat n).
-rewrite Zlength_correct in H.
-assert (0 <= n).
-assert (0 <= n * LBLOCKz) by omega.
-apply Z.mul_nonneg_cancel_r in H0; auto.
-rewrite <- (Z2Nat.id (n*LBLOCKz)%Z) in H by omega.
-apply Nat2Z.inj in H. rewrite H.
+intros.
 change LBLOCK with (Z.to_nat LBLOCKz).
-rewrite Z2Nat.inj_mul; auto.
+apply Ndivide_Zdivide_length.
+auto.
 Qed.
 
 Lemma hash_blocks_equation' : forall (r : registers) (msg : list int),

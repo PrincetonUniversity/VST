@@ -1,26 +1,20 @@
+Require Import msl.log_normalize.
+Require Import msl.alg_seplog.
 Require Export veric.base.
 Require Import msl.rmaps.
 Require Import msl.rmaps_lemmas.
 Require Import veric.compcert_rmaps.
 Require Import veric.slice.
 Require Import veric.res_predicates.
-Require Import veric.expr.
+Require Import veric.tycontext.
+Require Import veric.expr2.
+Require Import veric.binop_lemmas2.
+Require Import veric.address_conflict.
+Require Export veric.shares.
 
 Definition assert := environ -> mpred.  (* Unfortunately
    can't export this abbreviation through SeparationLogic.v because
   it confuses the Lift system *)
-
-Definition writable_share (sh: share) := Share.unrel Share.Rsh sh = Share.top.
-
-Lemma writable_share_dec: forall sh, {writable_share sh} + {~ writable_share sh}.
-Proof.
-  intros.
-  unfold writable_share.
-  apply Share.EqDec_share.
-Qed.
-
-Lemma writable_share_right: forall sh, writable_share sh -> Share.unrel Share.Rsh sh = Share.top.
-Proof. (* apply Share.contains_Rsh_e.*) auto. Qed.
 
 Lemma address_mapsto_exists:
   forall ch v rsh (sh: pshare) loc w0
@@ -30,14 +24,7 @@ Lemma address_mapsto_exists:
                     /\ core w = core w0.
 Proof.  exact address_mapsto_exists. Qed.
 
-Lemma address_mapsto_VALspec_range: 
-  forall (ch : memory_chunk) (v : val) rsh (sh : Share.t) (l : address),
-       address_mapsto ch v rsh sh l
-       |-- VALspec_range (size_chunk ch) rsh sh l.
-Proof.  exact address_mapsto_VALspec_range. Qed.
-
 Open Local Scope pred.
-
 
 Definition func_at (f: funspec): address -> pred rmap :=
   match f with
@@ -84,12 +71,24 @@ Definition typed_true (t: type) (v: val)  : Prop := strict_bool_val v t
 Definition typed_false (t: type)(v: val) : Prop := strict_bool_val v t =
 Some false.
 
-Definition expr_true e := lift1 (typed_true (typeof e)) (eval_expr e).
+Definition expr_true {CS: compspecs} e := lift1 (typed_true (typeof e)) (eval_expr e).
 
-Definition expr_false e := lift1 (typed_false (typeof e)) (eval_expr e).
+Definition expr_false {CS: compspecs} e := lift1 (typed_false (typeof e)) (eval_expr e).
 
 Definition subst {A} (x: ident) (v: val) (P: environ -> A) : environ -> A :=
    fun s => P (env_set s x v).
+
+Definition permission_block (sh: Share.t)  (v: val) (t: type) : mpred :=
+    match access_mode t with
+         | By_value ch => 
+            match v with 
+            | Vptr b ofs => 
+                 nonlock_permission_bytes sh (b, Int.unsigned ofs)
+                       (size_chunk ch)
+            | _ => FF
+            end
+         | _ => FF
+         end.
 
 Definition mapsto (sh: Share.t) (t: type) (v1 v2 : val): mpred :=
   match access_mode t with
@@ -98,14 +97,22 @@ Definition mapsto (sh: Share.t) (t: type) (v1 v2 : val): mpred :=
    | false =>
     match v1 with
      | Vptr b ofs => 
-          (!!tc_val t v2 && address_mapsto ch v2 (Share.unrel Share.Lsh sh) (Share.unrel Share.Rsh sh) (b, Int.unsigned ofs))
-        || !! (v2 = Vundef) && EX v2':val, address_mapsto ch v2' (Share.unrel Share.Lsh sh) (Share.unrel Share.Rsh sh) (b, Int.unsigned ofs)
+       if readable_share_dec sh
+       then (!!tc_val t v2 &&
+             address_mapsto ch v2
+              (Share.unrel Share.Lsh sh) (Share.unrel Share.Rsh sh) (b, Int.unsigned ofs)) ||
+            (!! (v2 = Vundef) &&
+             EX v2':val, address_mapsto ch v2'
+              (Share.unrel Share.Lsh sh) (Share.unrel Share.Rsh sh) (b, Int.unsigned ofs))
+       else nonlock_permission_bytes sh (b, Int.unsigned ofs) (size_chunk ch)
      | _ => FF
     end
     | _ => FF
     end
   | _ => FF
   end. 
+
+Definition mapsto_ sh t v1 := mapsto sh t v1 Vundef.
 
 Definition int_range (sz: intsize) (sgn: signedness) (i: int) :=
  match sz, sgn with
@@ -119,10 +126,13 @@ Definition int_range (sz: intsize) (sgn: signedness) (i: int) :=
 end.
 
 Lemma mapsto_value_range:
- forall sh v sz sgn i, mapsto sh (Tint sz sgn noattr) v (Vint i) =
+ forall sh v sz sgn i, 
+   readable_share sh ->
+   mapsto sh (Tint sz sgn noattr) v (Vint i) =
     !! int_range sz sgn i && mapsto sh (Tint sz sgn noattr) v (Vint i).
 Proof.
 intros.
+rename H into Hsh.
 assert (GG: forall a b, (a || !!(Vint i = Vundef) && b) = a). {
 intros. apply pred_ext; intros ? ?. hnf in H.
 destruct H; auto; hnf in H; destruct H; discriminate.
@@ -141,7 +151,8 @@ apply andp_right; auto.
 unfold mapsto; intros.
 replace (type_is_volatile (Tint sz sgn noattr)) with false
   by (destruct sz,sgn; reflexivity).
-simpl. 
+simpl.
+destruct (readable_share_dec sh); [| tauto].
 destruct sz, sgn, v; (try rewrite FF_and; auto);
  repeat rewrite GG;
  apply prop_andp_left; intros ? ? _; hnf; try omega.
@@ -152,8 +163,6 @@ destruct sz, sgn, v; (try rewrite FF_and; auto);
  destruct H6; subst; 
   try rewrite Int.unsigned_zero; try rewrite Int.unsigned_one; omega.
 Qed.
-
-Definition mapsto_ sh t v1 := mapsto sh t v1 Vundef.
 
 Definition writable_block (id: ident) (n: Z): assert :=
    fun rho => 
@@ -449,8 +458,10 @@ Fixpoint memory_block' (sh: share) (n: nat) (b: block) (i: Z) : mpred :=
  end.
 
 Definition memory_block'_alt (sh: share) (n: nat) (b: block) (ofs: Z) : mpred :=
- VALspec_range (Z_of_nat n)
-               (Share.unrel Share.Lsh sh) (Share.unrel Share.Rsh sh) (b, ofs).
+ if readable_share_dec sh 
+ then VALspec_range (Z_of_nat n)
+               (Share.unrel Share.Lsh sh) (Share.unrel Share.Rsh sh) (b, ofs)
+ else nonlock_permission_bytes sh (b,ofs) (Z.of_nat n).
 
 Lemma memory_block'_eq: 
  forall sh n b i,
@@ -458,73 +469,407 @@ Lemma memory_block'_eq:
   Z_of_nat n + i <= Int.modulus ->
   memory_block' sh n b i = memory_block'_alt sh n b i.
 Proof.
-intros.
-unfold memory_block'_alt.
-revert i H H0; induction n; intros;
- [symmetry; apply VALspec_range_0 | ].
-unfold memory_block'; fold memory_block'.
-rewrite (IHn (i+1))
- by (rewrite inj_S in H0; omega).
-symmetry.
-rewrite (VALspec_range_split2 1 (Z_of_nat n))
- by (try rewrite inj_S; omega).
-f_equal.
-rewrite VALspec1.
-unfold mapsto_.
-unfold mapsto.
-simpl access_mode. cbv beta iota.
-assert (i < Int.modulus)
-  by (rewrite Nat2Z.inj_succ in H0; omega).
-rewrite Int.unsigned_repr by (unfold Int.max_unsigned; omega); clear H1.
-forget (Share.unrel Share.Lsh sh) as rsh.
-forget (Share.unrel Share.Rsh sh) as sh'.
-clear.
-assert (EQ: forall loc, jam (adr_range_dec loc (size_chunk Mint8unsigned)) = jam (eq_dec loc)).
-intros [b' z']; unfold jam; extensionality P Q loc;
- destruct loc as [b'' z'']; apply exist_ext; extensionality w;
- if_tac; [rewrite if_true | rewrite if_false]; auto;
-  [destruct H; subst; f_equal;  simpl in H0; omega 
-  | contradict H; inv H; split; simpl; auto; omega].
-apply pred_ext.
-intros w ?.
-right; split; hnf; auto.
-assert (H':= H (b,i)).
-hnf in H'. rewrite if_true in H' by auto.
-destruct H' as [v H'].
-pose (l := v::nil).
-destruct v; [exists Vundef | exists (Vint (Int.zero_ext 8 (Int.repr (Byte.unsigned i0)))) | exists Vundef];
-exists l; (split; [ split3; [reflexivity |unfold l; (reflexivity || apply decode_byte_val) |  apply Z.divide_1_l ] | ]);
-  rewrite EQ; intro loc; specialize (H loc);
- hnf in H|-*; if_tac; auto; subst loc; rewrite Zminus_diag;
- unfold l; simpl nth; auto.
-apply orp_left.
-apply andp_left2.
-intros w [l [[? [? ?]] ?]].
- intros [b' i']; specialize (H2 (b',i')); rewrite EQ in H2;
- hnf in H2|-*;  if_tac; auto. symmetry in H3; inv H3.
- destruct l; inv H. exists m.
- destruct H2 as [H2' H2]; exists H2'; hnf in H2|-*; rewrite H2.
- f_equal. f_equal. rewrite Zminus_diag. reflexivity.
-rewrite prop_true_andp by auto.
-intros w [v2' [l [[? [? ?]] ?]]].
- intros [b' i']; specialize (H2 (b',i')); rewrite EQ in H2;
- hnf in H2|-*;  if_tac; auto. symmetry in H3; inv H3.
- destruct l; inv H. exists m.
- destruct H2 as [H2' H2]; exists H2'; hnf in H2|-*; rewrite H2.
- f_equal. f_equal. rewrite Zminus_diag. reflexivity.
+  intros.
+  unfold memory_block'_alt.
+  revert i H H0; induction n; intros.
+  + unfold memory_block'.
+    simpl.
+    rewrite VALspec_range_0, nonlock_permission_bytes_0.
+    if_tac; auto.
+  + unfold memory_block'; fold memory_block'.
+    rewrite (IHn (i+1)) by (rewrite inj_S in H0; omega).
+    symmetry.
+    rewrite (VALspec_range_split2 1 (Z_of_nat n)) by (try rewrite inj_S; omega).
+    rewrite VALspec1.
+    unfold mapsto_, mapsto.
+    simpl access_mode. cbv beta iota.
+    change (type_is_volatile (Tint I8 Unsigned noattr)) with false. cbv beta iota.
+    destruct (readable_share_dec sh).
+    - f_equal.
+      assert (i < Int.modulus) by (rewrite Nat2Z.inj_succ in H0; omega).
+      rewrite Int.unsigned_repr by (unfold Int.max_unsigned; omega); clear H1.
+      forget (Share.unrel Share.Lsh sh) as rsh.
+      forget (Share.unrel Share.Rsh sh) as sh'.
+      clear.
+
+      assert (EQ: forall loc, jam (adr_range_dec loc (size_chunk Mint8unsigned)) = jam (eq_dec loc)).
+      intros [b' z']; unfold jam; extensionality P Q loc;
+       destruct loc as [b'' z'']; apply exist_ext; extensionality w;
+       if_tac; [rewrite if_true | rewrite if_false]; auto;
+        [destruct H; subst; f_equal;  simpl in H0; omega 
+        | contradict H; inv H; split; simpl; auto; omega].
+      apply pred_ext.
+      * intros w ?.
+        right; split; hnf; auto.
+        assert (H':= H (b,i)).
+        hnf in H'. rewrite if_true in H' by auto.
+        destruct H' as [v H'].
+        pose (l := v::nil).
+        destruct v; [exists Vundef | exists (Vint (Int.zero_ext 8 (Int.repr (Byte.unsigned i0)))) | exists Vundef];
+        exists l; (split; [ split3; [reflexivity |unfold l; (reflexivity || apply decode_byte_val) |  apply Z.divide_1_l ] | ]);
+          rewrite EQ; intro loc; specialize (H loc);
+         hnf in H|-*; if_tac; auto; subst loc; rewrite Zminus_diag;
+         unfold l; simpl nth; auto.
+      * apply orp_left.
+        apply andp_left2.
+        Focus 1. {
+          intros w [l [[? [? ?]] ?]].
+           intros [b' i']; specialize (H2 (b',i')); rewrite EQ in H2;
+           hnf in H2|-*;  if_tac; auto. symmetry in H3; inv H3.
+           destruct l; inv H. exists m.
+           destruct H2 as [H2' H2]; exists H2'; hnf in H2|-*; rewrite H2.
+           f_equal. f_equal. rewrite Zminus_diag. reflexivity.
+        } Unfocus.
+        Focus 1. {
+          rewrite prop_true_andp by auto.
+          intros w [v2' [l [[? [? ?]] ?]]].
+           intros [b' i']; specialize (H2 (b',i')); rewrite EQ in H2;
+           hnf in H2|-*;  if_tac; auto. symmetry in H3; inv H3.
+           destruct l; inv H. exists m.
+           destruct H2 as [H2' H2]; exists H2'; hnf in H2|-*; rewrite H2.
+           f_equal. f_equal. rewrite Zminus_diag. reflexivity.
+        } Unfocus.
+    - rewrite Int.unsigned_repr by (rewrite Nat2Z.inj_succ in H0; unfold Int.max_unsigned; omega).
+      change (size_chunk Mint8unsigned) with 1.
+      apply nonlock_permission_bytes_split2.
+      * rewrite Nat2Z.inj_succ; omega.
+      * omega.
+      * omega.
 Qed.
 
-Definition memory_block (sh: share) (n: int) (v: val) : mpred :=
+Definition memory_block (sh: share) (n: Z) (v: val) : mpred :=
  match v with 
- | Vptr b ofs => (!!(Int.unsigned ofs + Int.unsigned n <= Int.modulus)) && memory_block' sh (nat_of_Z (Int.unsigned n)) b (Int.unsigned ofs)
+ | Vptr b ofs => (!!(Int.unsigned ofs + n <= Int.modulus)) && memory_block' sh (nat_of_Z n) b (Int.unsigned ofs)
  | _ => FF
  end.
 
-Definition align_compatible t p :=
-  match p with
-  | Vptr b i_ofs => (alignof t | Int.unsigned i_ofs)
-  | _ => True
-  end.
+Lemma mapsto__exp_address_mapsto: forall sh t b i_ofs ch,
+  access_mode t = By_value ch ->
+  type_is_volatile t = false ->
+  readable_share sh ->
+  mapsto_ sh t (Vptr b i_ofs) = EX  v2' : val,
+            address_mapsto ch v2' (Share.unrel Share.Lsh sh)
+              (Share.unrel Share.Rsh sh) (b, (Int.unsigned i_ofs)).
+Proof.
+  pose proof (@FF_orp (pred rmap) (algNatDed _)) as HH0.
+  change seplog.orp with orp in HH0.
+  change seplog.FF with FF in HH0.
+  pose proof (@ND_prop_ext (pred rmap) (algNatDed _)) as HH1.
+  change seplog.prop with prop in HH1.
+
+  intros. rename H1 into RS.
+  unfold mapsto_, mapsto.
+  rewrite H, H0.
+  rewrite if_true by auto.
+  assert (!!(tc_val t Vundef) = FF)
+    by (destruct t as [ | | | [ | ] |  | | | | ]; reflexivity).
+  rewrite H1.
+  
+  rewrite FF_and, HH0.
+  assert (!!(Vundef = Vundef) = TT) by (apply HH1; tauto).
+  rewrite H2.
+  rewrite TT_and.
+  reflexivity.
+Qed.
+
+Lemma exp_address_mapsto_VALspec_range_eq:
+  forall ch rsh sh l,
+    EX v: val, address_mapsto ch v rsh sh l = !! (align_chunk ch | snd l) && VALspec_range (size_chunk ch) rsh sh l.
+Proof.
+  intros.
+  apply pred_ext.
+  + apply exp_left; intro.
+    apply andp_right; [| apply address_mapsto_VALspec_range].
+    unfold address_mapsto.
+    apply exp_left; intro.
+    apply andp_left1.
+    apply (@prop_derives (pred rmap) (algNatDed _)); tauto.
+  + apply prop_andp_left; intro.
+    apply VALspec_range_exp_address_mapsto; auto.
+Qed.
+
+Lemma VALspec_range_exp_address_mapsto_eq:
+  forall ch rsh sh l,
+    (align_chunk ch | snd l) ->
+    VALspec_range (size_chunk ch) rsh sh l = EX v: val, address_mapsto ch v rsh sh l.
+Proof.
+  intros.
+  apply pred_ext.
+  + apply VALspec_range_exp_address_mapsto; auto.
+  + apply exp_left; intro; apply address_mapsto_VALspec_range.
+Qed.
+
+Lemma mapsto__memory_block: forall sh b ofs t ch, 
+  access_mode t = By_value ch ->
+  type_is_volatile t = false ->
+  (align_chunk ch | Int.unsigned ofs) ->
+  Int.unsigned ofs + size_chunk ch <= Int.modulus ->
+  mapsto_ sh t (Vptr b ofs) = memory_block sh (size_chunk ch) (Vptr b ofs).
+Proof.
+  intros.
+  unfold memory_block.
+  rewrite memory_block'_eq.
+  2: pose proof Int.unsigned_range ofs; omega.
+  2: rewrite Coqlib.nat_of_Z_eq by (pose proof size_chunk_pos ch; omega); omega.
+  destruct (readable_share_dec sh).
+ *
+  rewrite mapsto__exp_address_mapsto with (ch := ch); auto.
+  unfold memory_block'_alt. rewrite if_true by auto.
+  rewrite Coqlib.nat_of_Z_eq by (pose proof size_chunk_pos ch; omega).
+  rewrite VALspec_range_exp_address_mapsto_eq by (exact H1).
+  rewrite <- (TT_and (EX  v2' : val,
+   address_mapsto ch v2' (Share.unrel Share.Lsh sh)
+     (Share.unrel Share.Rsh sh) (b, Int.unsigned ofs))) at 1.
+  f_equal.
+  pose proof (@ND_prop_ext (pred rmap) _).
+  simpl in H3.
+  change TT with (!! True).
+  apply H3.
+  tauto.
+ * unfold mapsto_, mapsto, memory_block'_alt.
+   rewrite prop_true_andp by auto.
+   rewrite H, H0.
+  rewrite !if_false by auto.
+   rewrite Z2Nat.id by (pose proof (size_chunk_pos ch); omega).
+   auto.
+Qed.
+
+Lemma tc_val_Vundef:
+  forall t, ~tc_val t Vundef.
+Proof.
+intros.
+intro. hnf in H.
+destruct t; try contradiction.
+destruct f; try contradiction.
+Qed.
+
+Lemma mapsto_share_join:
+ forall sh1 sh2 sh t p v,
+   join sh1 sh2 sh ->
+   mapsto sh1 t p v * mapsto sh2 t p v = mapsto sh t p v.
+Proof.
+  intros.
+  unfold mapsto.
+  destruct (access_mode t) eqn:?; try solve [rewrite FF_sepcon; auto].
+  destruct (type_is_volatile t) eqn:?; try solve [rewrite FF_sepcon; auto].
+  destruct p; try solve [rewrite FF_sepcon; auto].
+  destruct (readable_share_dec sh1), (readable_share_dec sh2).
+  + rewrite if_true by (eapply join_sub_readable; [unfold join_sub; eauto | auto]).
+    pose proof (@guarded_sepcon_orp_distr (pred rmap) (algNatDed _) (algSepLog _)).
+    simpl in H0; rewrite H0 by (intros; subst; pose proof tc_val_Vundef t; tauto); clear H0.
+    f_equal; f_equal.
+    - apply address_mapsto_share_join.
+      1: apply join_unrel; auto.
+      1: apply join_unrel; auto.
+      1: rewrite <- splice_unrel_unrel in r.
+         apply right_nonempty_readable in r; apply nonidentity_nonunit in r; auto.
+      1: rewrite <- splice_unrel_unrel in r0.
+         apply right_nonempty_readable in r0; apply nonidentity_nonunit in r0; auto.
+    - rewrite exp_sepcon1.
+      pose proof (@exp_congr (pred rmap) (algNatDed _) val); simpl in H0; apply H0; clear H0; intro.
+      rewrite exp_sepcon2.
+      transitivity
+       (address_mapsto m v0 (Share.unrel Share.Lsh sh1) (Share.unrel Share.Rsh sh1) (b, Int.unsigned i) *
+        address_mapsto m v0 (Share.unrel Share.Lsh sh2) (Share.unrel Share.Rsh sh2) (b, Int.unsigned i)).
+      * apply pred_ext; [| apply (exp_right v0); auto].
+        apply exp_left; intro.
+        pose proof (fun rsh1 sh0 rsh2 sh3 a => (@add_andp (pred rmap) (algNatDed _) _ _ (address_mapsto_value_cohere m v0 x rsh1 sh0 rsh2 sh3 a))).
+        simpl in H0; rewrite H0; clear H0.
+        apply normalize.derives_extract_prop'; intro; subst; auto.
+      * apply address_mapsto_share_join.
+        1: apply join_unrel; auto.
+        1: apply join_unrel; auto.
+        1: rewrite <- splice_unrel_unrel in r.
+           apply right_nonempty_readable in r; apply nonidentity_nonunit in r; auto.
+        1: rewrite <- splice_unrel_unrel in r0.
+           apply right_nonempty_readable in r0; apply nonidentity_nonunit in r0; auto.
+  + rewrite if_true by (eapply join_sub_readable; [unfold join_sub; eauto | auto]).
+    rewrite distrib_orp_sepcon.
+    f_equal; rewrite sepcon_comm, sepcon_andp_prop; f_equal.
+    - apply nonlock_permission_bytes_address_mapsto_join; auto.
+    - rewrite exp_sepcon2.
+      pose proof (@exp_congr (pred rmap) (algNatDed _) val); simpl in H0; apply H0; clear H0; intro.
+      apply nonlock_permission_bytes_address_mapsto_join; auto.
+  + rewrite if_true by (eapply join_sub_readable; [unfold join_sub; eexists; apply join_comm in H; eauto | auto]).
+    rewrite sepcon_comm, distrib_orp_sepcon.
+    f_equal; rewrite sepcon_comm, sepcon_andp_prop; f_equal.
+    - apply nonlock_permission_bytes_address_mapsto_join; auto.
+    - rewrite exp_sepcon2.
+      pose proof (@exp_congr (pred rmap) (algNatDed _) val); simpl in H0; apply H0; clear H0; intro.
+      apply nonlock_permission_bytes_address_mapsto_join; auto.
+  + rewrite if_false by (eapply join_unreadable_shares; eauto).
+    apply nonlock_permission_bytes_share_join; auto.
+Qed.
+
+Lemma mapsto_mapsto_: forall sh t v v', mapsto sh t v v' |-- mapsto_ sh t v.
+Proof. unfold mapsto_; intros.
+  unfold mapsto.
+  destruct (access_mode t); auto.
+  destruct (type_is_volatile t); auto.
+  destruct v; auto.
+  if_tac; [| auto].
+  apply orp_left.
+  apply orp_right2.
+  apply andp_left2.
+  apply andp_right.
+  + intros ? _; simpl; auto.
+  + apply exp_right with v'; auto.
+  + apply andp_left2. apply exp_left; intro v2'.
+  apply orp_right2. apply andp_right; [intros ? _; simpl; auto |]. apply exp_right with v2'.
+  auto.
+Qed.
+
+Lemma mapsto_not_nonunit: forall sh t p v, ~ nonunit sh -> mapsto sh t p v |-- emp.
+Proof.
+  intros.
+  unfold mapsto.
+  destruct (access_mode t); try solve [apply FF_derives].
+  destruct (type_is_volatile t); try solve [apply FF_derives].
+  destruct p; try solve [apply FF_derives].
+  if_tac.
+  + apply readable_nonidentity in H0.
+    apply nonidentity_nonunit in H0; tauto.
+  + apply nonlock_permission_bytes_not_nonunit; auto.
+Qed.
+
+Lemma mapsto_pure_facts: forall sh t p v,
+  mapsto sh t p v |-- !! ((exists ch, access_mode t = By_value ch) /\ isptr p).
+Proof.
+  intros.
+  unfold mapsto.
+  destruct (access_mode t); try solve [apply FF_derives].
+  destruct (type_is_volatile t); try solve [apply FF_derives].
+  destruct p; try solve [apply FF_derives].
+
+  pose proof (@seplog.prop_right (pred rmap) (algNatDed _)).
+  simpl in H; apply H; clear H.
+  split.
+  + eauto.
+  + simpl; auto.
+Qed.
+
+Lemma mapsto_overlap: forall sh env t1 t2 p1 p2 v1 v2,
+  nonunit sh ->
+  pointer_range_overlap p1 (sizeof env t1) p2 (sizeof env t2) ->
+  mapsto sh t1 p1 v1 * mapsto sh t2 p2 v2 |-- FF.
+Proof.
+  intros.
+  unfold mapsto.
+  destruct (access_mode t1) eqn:AM1; try (rewrite FF_sepcon; auto).
+  destruct (access_mode t2) eqn:AM2; try (rewrite normalize.sepcon_FF; auto).
+  destruct (type_is_volatile t1); try (rewrite FF_sepcon; auto).
+  destruct (type_is_volatile t2); try (rewrite normalize.sepcon_FF; auto).
+  destruct p1; try (rewrite FF_sepcon; auto).
+  destruct p2; try (rewrite normalize.sepcon_FF; auto).
+  if_tac.
+  + apply derives_trans with ((EX  v : val,
+          address_mapsto m v (Share.unrel Share.Lsh sh)
+            (Share.unrel Share.Rsh sh) (b, Int.unsigned i)) *
+      (EX  v : val,
+          address_mapsto m0 v (Share.unrel Share.Lsh sh)
+            (Share.unrel Share.Rsh sh) (b0, Int.unsigned i0))).
+    - apply sepcon_derives; apply orp_left.
+      * apply andp_left2, (exp_right v1).
+        auto.
+      * apply andp_left2; auto.
+      * apply andp_left2, (exp_right v2).
+        auto.
+      * apply andp_left2; auto.
+    - clear v1 v2.
+      rewrite exp_sepcon1.
+      apply exp_left; intro v1.
+      rewrite exp_sepcon2.
+      apply exp_left; intro v2.
+      clear H H1; rename H0 into H.
+      destruct H as [? [? [? [? ?]]]].
+      inversion H; subst.
+      inversion H0; subst.
+      erewrite !size_chunk_sizeof in H1 by eauto.
+      apply address_mapsto_overlap; auto.
+  + apply nonlock_permission_bytes_overlap; auto.
+    clear H H1; rename H0 into H.
+    erewrite !size_chunk_sizeof in H by eauto.
+    destruct H as [? [? [? [? ?]]]].
+    inversion H; subst.
+    inversion H0; subst.
+    auto.
+Qed.
+
+Lemma memory_block_overlap: forall sh p1 n1 p2 n2, nonunit sh -> pointer_range_overlap p1 n1 p2 n2 -> memory_block sh n1 p1 * memory_block sh n2 p2 |-- FF.
+Proof.
+  intros.
+  unfold memory_block.
+  destruct p1; try solve [rewrite FF_sepcon; auto].
+  destruct p2; try solve [rewrite normalize.sepcon_FF; auto].
+  rewrite sepcon_andp_prop1.
+  rewrite sepcon_andp_prop2.
+  apply normalize.derives_extract_prop; intros.
+  apply normalize.derives_extract_prop; intros.
+  rewrite memory_block'_eq; [| pose proof Int.unsigned_range i; omega | apply Clight_lemmas.Nat2Z_add_le; auto].
+  rewrite memory_block'_eq; [| pose proof Int.unsigned_range i0; omega | apply Clight_lemmas.Nat2Z_add_le; auto].
+  unfold memory_block'_alt.
+  if_tac.
+  + clear H2.
+    apply VALspec_range_overlap.
+    pose proof pointer_range_overlap_non_zero _ _ _ _ H0.
+    rewrite !Coqlib.nat_of_Z_eq by omega.
+    destruct H0 as [[? ?] [[? ?] [? [? ?]]]].
+    inversion H0; inversion H4.
+    subst.
+    auto.
+  + apply nonlock_permission_bytes_overlap; auto.
+    pose proof pointer_range_overlap_non_zero _ _ _ _ H0.
+    rewrite !Coqlib.nat_of_Z_eq by omega.
+    destruct H0 as [[? ?] [[? ?] [? [? ?]]]].
+    inversion H0; inversion H5.
+    subst.
+    auto.
+Qed.
+
+Lemma mapsto_conflict:
+  forall sh t v v2 v3,
+  nonunit sh ->
+  mapsto sh t v v2 * mapsto sh t v v3 |-- FF.
+Proof.
+  intros.
+  rewrite (@add_andp (pred rmap) (algNatDed _) _ _ (mapsto_pure_facts sh t v v3)).
+  simpl.
+  rewrite andp_comm.
+  rewrite sepcon_andp_prop.
+  apply prop_andp_left; intros [[? ?] ?].
+  apply mapsto_overlap with (env := PTree.empty _); auto.
+  apply pointer_range_overlap_refl; auto.
+  + erewrite size_chunk_sizeof by eauto.
+    apply size_chunk_pos.
+  + erewrite size_chunk_sizeof by eauto.
+    apply size_chunk_pos.
+Qed.
+
+Lemma memory_block_conflict: forall sh n m p,
+  nonunit sh ->
+  0 < n <= Int.max_unsigned -> 0 < m <= Int.max_unsigned ->
+  memory_block sh n p * memory_block sh m p |-- FF.
+Proof.
+  intros.
+  unfold memory_block.
+  destruct p; try solve [rewrite FF_sepcon; auto].
+  rewrite sepcon_andp_prop1.
+  apply prop_andp_left; intro.
+  rewrite sepcon_comm.
+  rewrite sepcon_andp_prop1.
+  apply prop_andp_left; intro.
+  rewrite memory_block'_eq; [| pose proof Int.unsigned_range i; omega | rewrite Z2Nat.id; omega].
+  rewrite memory_block'_eq; [| pose proof Int.unsigned_range i; omega | rewrite Z2Nat.id; omega].
+  unfold memory_block'_alt.
+  if_tac.
+  + apply VALspec_range_overlap.
+    exists (b, Int.unsigned i).
+    simpl; repeat split; auto; try omega;
+    rewrite Z2Nat.id; omega.
+  + apply nonlock_permission_bytes_overlap; auto.
+    exists (b, Int.unsigned i).
+    repeat split; auto; try rewrite Z2Nat.id; omega.
+Qed.
 
 Definition eval_lvar (id: ident) (ty: type) (rho: environ) :=
  match Map.get (ve_of rho) id with
@@ -532,23 +877,21 @@ Definition eval_lvar (id: ident) (ty: type) (rho: environ) :=
 | None => Vundef
 end.
 
-Definition var_block (sh: Share.t) (idt: ident * type) (rho: environ): mpred :=
-  !! (sizeof (snd idt) <= Int.max_unsigned) &&
-  !! (align_compatible (snd idt) (eval_lvar (fst idt) (snd idt) rho)) &&
-  (memory_block sh (Int.repr (sizeof (snd idt))))
-             (eval_lvar (fst idt) (snd idt) rho).
+Definition var_block (sh: Share.t) {cs: compspecs} (idt: ident * type) (rho: environ): mpred :=
+  !! (sizeof cenv_cs (snd idt) <= Int.max_unsigned) &&
+  (memory_block sh (sizeof cenv_cs (snd idt))) (eval_lvar (fst idt) (snd idt) rho).
 
 Fixpoint sepcon_list {A}{JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{AG: ageable A} {AgeA: Age_alg A}
    (p: list (pred A)) : pred A :=
  match p with nil => emp | h::t => h * sepcon_list t end.
 
-
-Definition stackframe_of (f: Clight.function) : assert :=
+Definition stackframe_of {cs: compspecs} (f: Clight.function) : assert :=
   fold_right (fun P Q rho => P rho * Q rho) (fun rho => emp) (map (fun idt => var_block Share.top idt) (Clight.fn_vars f)).
 
-Lemma stackframe_of_eq : stackframe_of = 
+Lemma stackframe_of_eq : forall {cs: compspecs}, stackframe_of = 
         fun f rho => fold_right sepcon emp (map (fun idt => var_block Share.top idt rho) (Clight.fn_vars f)).
 Proof.
+  intros.
  extensionality f rho.
  unfold stackframe_of.
  forget (fn_vars f) as vl.
@@ -769,89 +1112,51 @@ Definition function_body_ret_assert (ret: type) (Q: assert) : ret_assert :=
      | _ => fun rho => FF
      end.
 
-Definition tc_expr (Delta: tycontext) (e: expr) : assert:= 
-  fun rho => !! denote_tc_assert (typecheck_expr Delta e) rho.
 
-Definition tc_exprlist (Delta: tycontext) (t : list type) (e: list expr) : assert := 
-      fun rho => !! denote_tc_assert (typecheck_exprlist Delta t e) rho.
+Lemma same_glob_funassert:
+  forall Delta1 Delta2,
+     (forall id, (glob_specs Delta1) ! id = (glob_specs Delta2) ! id) ->
+              funassert Delta1 = funassert Delta2.
+Proof.
+assert (forall Delta Delta' rho, 
+             (forall id, (glob_specs Delta) ! id = (glob_specs Delta') ! id) ->
+             funassert Delta rho |-- funassert Delta' rho).
+intros.
+unfold funassert.
+intros w [? ?]; split.
+clear H1; intro id. rewrite <- (H id); auto.
+intros loc fs w' Hw' H4; destruct (H1 loc fs w' Hw' H4)  as [id H3].
+exists id; rewrite <- (H id); auto.
+intros.
+extensionality rho.
+apply pred_ext; apply H; intros; auto.
+Qed.
 
-Definition tc_lvalue (Delta: tycontext) (e: expr) : assert := 
-     fun rho => !! denote_tc_assert (typecheck_lvalue Delta e) rho.
-
-Definition allowedValCast v tfrom tto :=
-match Cop.classify_cast tfrom tto with 
-| Cop.cast_case_neutral => if andb (is_int_type tfrom) (is_pointer_type tto) 
-                          then 
-                            match v with 
-                              | Vint i => (Int.eq i Int.zero)
-                              | _ => false 
-                            end
-                          else if eqb (is_int_type tfrom) 
-                                      (is_int_type tto)
-                               then true else false
-| Cop.cast_case_i2i _ _ => true
-| Cop.cast_case_l2l => true
-| Cop.cast_case_f2f => true
-| Cop.cast_case_s2s => true
-| _  => false
-end. 
-
-Definition tc_temp_id (id : positive) (ty : type) 
-  (Delta : tycontext) (e : expr) : assert  :=
-     fun rho => !! denote_tc_assert (typecheck_temp_id id ty Delta e) rho.  
-
-Definition tc_temp_id_load id tfrom Delta v : assert  :=
-fun rho => !! (exists tto, exists x, (temp_types Delta) ! id = Some (tto, x) 
-                      /\ tc_val tto (eval_cast tfrom tto (v rho))).
-
-Lemma extend_prop: forall P, boxy extendM (prop P).
+Lemma funassert_exit_tycon: forall c Delta ek,
+     funassert (exit_tycon c Delta ek) = funassert Delta.
 Proof.
 intros.
-hnf.
-apply pred_ext. intros ? ?. apply H; auto. apply extendM_refl.
-repeat intro. apply H.
+apply same_glob_funassert.
+intro.
+unfold exit_tycon; simpl. destruct ek; auto.
+rewrite glob_specs_update_tycon. auto.
 Qed.
 
-Hint Resolve extend_prop.
-
-Lemma extend_tc_temp_id_load :  forall id tfrom Delta v rho, boxy extendM (tc_temp_id_load id tfrom Delta v rho).
-Proof. 
-intros. unfold tc_temp_id_load. auto.
-Qed. 
-
-Lemma extend_tc_temp_id: forall id ty Delta e rho, boxy extendM (tc_temp_id id ty Delta e rho). 
-Proof. 
-intros. unfold tc_temp_id. induction e; simpl; destruct t; simpl; auto. 
-Qed. 
-
-Lemma extend_tc_expr: forall Delta e rho, boxy extendM (tc_expr Delta e rho).
+(*
+Lemma strict_bool_val_sub : forall v t b, 
+ strict_bool_val v t = Some b ->
+  Cop.bool_val v t = Some b.
 Proof.
- intros.
-unfold tc_expr.
-  induction e; simpl;
-  destruct t; simpl; auto.
+  intros. destruct v; destruct t; simpl in *; auto; try congruence; 
+   unfold Cop.bool_val, Cop.classify_bool; simpl.
+  destruct i0; auto.
+  f_equal. destruct (Int.eq i Int.zero); try congruence. inv H. reflexivity.
+  f_equal. destruct (Int.eq i Int.zero); try congruence. inv H. reflexivity.
+  f_equal. destruct (Int.eq i Int.zero); try congruence. inv H. reflexivity.
+  destruct f0; inv  H; auto.
+  destruct f0; inv  H; auto.
 Qed.
-
-Lemma extend_tc_exprlist: forall Delta t e rho, boxy extendM (tc_exprlist Delta t e rho).
-Proof.
- intros. unfold tc_exprlist.
-  induction e; simpl; auto.
-Qed.
-
-Lemma extend_tc_lvalue: forall Delta e rho, boxy extendM (tc_lvalue Delta e rho).
-Proof.
- intros.
-unfold tc_lvalue.
-  induction e; simpl;
-  destruct t; simpl; auto.
-Qed.
-
-
-
-Hint Resolve extend_tc_expr extend_tc_temp_id extend_tc_temp_id_load extend_tc_exprlist extend_tc_lvalue.
-Hint Resolve (@extendM_refl rmap _ _ _ _ _).
-
-
+*)
 
 
 

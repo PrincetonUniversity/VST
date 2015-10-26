@@ -2,6 +2,9 @@ Require Import Coqlib.
 Require Import List. Import ListNotations.
 Require Import Integers.
 Require Import msl.Coqlib2.
+Require Import floyd.coqlib3.
+Require Import floyd.sublist.
+
 
 Local Open Scope nat.
 
@@ -20,88 +23,6 @@ induction al; destruct bl,n; simpl; intros; auto.
 inv H.
 Qed.
 
-Lemma skipn_nil: forall A n, skipn n (@nil A) = nil.
-Proof. induction n; simpl; auto.
-Qed.
-
-Lemma skipn_drop:
- forall A n m (al: list A), skipn n (skipn m al) = skipn (n+m) al.
-Proof.
-induction m; intros.
-* simpl; auto. f_equal; omega.
-* replace (n + S m)%nat with (S (n + m))%nat by omega.
-  destruct al; [ rewrite skipn_nil; auto | ].
-  unfold skipn at 3; fold skipn.
- rewrite <- IHm.
- f_equal.
-Qed.
-
-Lemma skipn_app1:
- forall A n (al bl: list A),
-  (n <= length al)%nat ->
-  skipn n (al++bl) = skipn n al ++ bl.
-Proof.
-intros. revert al H;
-induction n; destruct al; intros; simpl in *; try omega; auto.
-apply IHn; omega.
-Qed.
-
-Lemma skipn_app2:
- forall A n (al bl: list A),
-  (n >= length al)%nat ->
-  skipn n (al++bl) = skipn (n-length al) bl.
-Proof.
-intros. revert al H;
-induction n; destruct al; intros; simpl in *; try omega; auto.
-apply IHn; omega.
-Qed. 
-
-Lemma list_repeat_app: forall A a b (x:A),
-  list_repeat a x ++ list_repeat b x = list_repeat (a+b) x.
-Proof.
-intros; induction a; simpl; f_equal.
-auto.
-Qed.
-
-Lemma firstn_app1:
- forall A n (al bl: list A), 
-  (n <= length al -> firstn n (al++bl) = firstn n al)%nat.
-Proof.
-intros. revert n al H; induction n; destruct al; simpl; intros; auto.
-inv H.
-f_equal; auto.
-apply IHn.
-omega.
-Qed.
-
-Lemma firstn_same:
-  forall A n (b: list A), n >= length b -> firstn n b = b.
-Proof.
-induction n; destruct b; simpl; intros; auto.
-inv H.
-f_equal; auto.
-apply IHn.
-omega.
-Qed.
-
-Lemma nth_firstn_low:
- forall A i n al (d: A),
-  i < n <= length al -> nth i (firstn n al) d = nth i al d.
-Proof.
-intros.
-revert n al H; induction i; destruct n,al; simpl; intros; auto; try omega.
-apply IHi; omega.
-Qed.
-
-Lemma nth_error_nth:
-  forall A (d: A) i al, (i < length al)%nat -> nth_error al i = Some (nth i al d).
-Proof.
-induction i; destruct al; simpl; intros; auto.
-inv H.
-inv H.
-apply IHi; omega.
-Qed.
-
 Lemma list_repeat_injective {A} (a a':A) n: (0<n)%nat -> 
       list_repeat n a = list_repeat n a' -> a=a'.
   Proof. intros.
@@ -111,21 +32,6 @@ Lemma list_repeat_injective {A} (a a':A) n: (0<n)%nat ->
 Local Open Scope Z.
 
 Definition roundup (a b : Z) := (a + (b-1))/b*b.
-
-Lemma Zlength_app: forall T (al bl: list T),
-    Zlength (al++bl) = Zlength al + Zlength bl.
-Proof. induction al; intros. simpl app; rewrite Zlength_nil; omega.
- simpl app; repeat rewrite Zlength_cons; rewrite IHal; omega.
-Qed.
-
-Lemma Zlength_rev: forall T (vl: list T), Zlength (rev vl) = Zlength vl.
-Proof. induction vl; simpl; auto. rewrite Zlength_cons. rewrite <- IHvl.
-rewrite Zlength_app. rewrite Zlength_cons. rewrite Zlength_nil; omega.
-Qed.
-
-Lemma Zlength_map: forall A B (f: A -> B) l, Zlength (map f l) = Zlength l.
-Proof. induction l; simpl; auto. repeat rewrite Zlength_cons. f_equal; auto.
-Qed.
 
 Lemma roundup_minus:
    forall a b,  b > 0 -> roundup a b - a = (- a) mod b.
@@ -336,31 +242,6 @@ Qed.
 
 Local Open Scope nat.
 
-Lemma nth_skipn:
-  forall A i n data (d:A),
-       nth i (skipn n data) d = nth (i+n) data d.
-Proof.
-intros.
-revert i data; induction n; simpl; intros.
-f_equal; omega.
-destruct data; auto.
-destruct i; simpl; auto.
-rewrite IHn.
-replace (i + S n) with (S (i + n)) by omega; auto.
-Qed.
-
-Lemma skipn_0:
-  forall A (l: list A), skipn 0 l = l.
-Proof.
-reflexivity.
-Qed.
-
-Lemma map_firstn: forall A B (f: A -> B) len data,
-    map f (firstn len data) = firstn len (map f data).
-Proof.
-induction len; destruct data; simpl; auto.
-f_equal; auto.
-Qed.
 
 Lemma Forall_app :
 forall {A} P (l1 l2 :list A),
@@ -379,26 +260,6 @@ simpl. constructor.
 destruct H. inv H. auto.
 apply IHl1. intuition.
 inv H0; auto.
-Qed.
-
-Lemma firstn_firstn: forall {A} lo n (data: list A), firstn lo (firstn (lo + n) data) = firstn lo data.
-Proof.
-  intros.
-  revert data; induction lo; intros.
-  + reflexivity.
-  + destruct data; simpl; [reflexivity |].
-    rewrite IHlo.
-    reflexivity.
-Qed.
-
-Lemma skipn_firstn: forall {A} lo n (data: list A), skipn lo (firstn (lo + n) data) = firstn n (skipn lo data).
-Proof.
-  intros.
-  revert data; induction lo; intros.
-  + reflexivity.
-  + destruct data; simpl.
-    - destruct n; reflexivity.
-    - apply IHlo.
 Qed.
 
 Local Open Scope Z.
@@ -583,26 +444,6 @@ Lemma map_list_repeat:
   forall A B (f: A -> B) n x,
      map f (list_repeat n x) = list_repeat n (f x).
 Proof. induction n; simpl; intros; f_equal; auto.
-Qed.
-
-Lemma Forall_list_repeat:
-  forall A (f: A -> Prop) n (x: A),
-     f x -> Forall f (list_repeat n x).
-Proof.
- intros; induction n; simpl; auto.
-Qed.
-
-Lemma ZtoNat_Zlength: 
- forall {A} (l: list A), Z.to_nat (Zlength l) = length l.
-Proof.
-intros. rewrite Zlength_correct. apply Nat2Z.id.
-Qed.
-Hint Rewrite @ZtoNat_Zlength : norm.
-
-Lemma Zlength_nonneg:
- forall {A} (l: list A), 0 <= Zlength l.
-Proof.
-intros. rewrite Zlength_correct. omega.
 Qed.
 
 

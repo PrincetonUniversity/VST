@@ -1,6 +1,6 @@
 Require Import Events.
 Require Import Memory.
-Require Import Coqlib.
+Require Import compcert.lib.Coqlib.
 Require Import compcert.common.Values.
 Require Import Maps.
 Require Import Integers.
@@ -75,8 +75,8 @@ Definition GenvHyp {F1 V1 F2 V2}
     Genv.find_symbol (Genv.globalenv P2) id =
     Genv.find_symbol (Genv.globalenv P1) id) /\
   (forall b : block,
-    block_is_volatile (Genv.globalenv P2) b =
-    block_is_volatile (Genv.globalenv P1) b).
+    Genv.block_is_volatile (Genv.globalenv P2) b =
+    Genv.block_is_volatile (Genv.globalenv P1) b).
 
 Inductive core_correctness
   (I: forall F C V  

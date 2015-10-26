@@ -1,46 +1,13 @@
 Require Import floyd.base.
 Require Import floyd.assert_lemmas.
 Require Import floyd.client_lemmas.
-Require Import floyd.fieldlist.
+Require Import floyd.nested_pred_lemmas.
 Require Import floyd.nested_field_lemmas.
-Require Import floyd.type_id_env.
 Local Open Scope logic.
 
 Inductive LLRR : Type :=
   | LLLL : LLRR
   | RRRR : LLRR.
-
-Definition type_almost_match e t lr:=
-  match typeof e, t, lr with
-  | Tpointer t0 a0, Tarray t1 _ a1, RRRR => eqb_type (typeof e) (Tpointer t1 a1)
-  | _, _, LLLL => eqb_type (typeof e) t
-  | _, _, _ => false
-  end.
-
-Fixpoint legal_nested_efield_rec t_root e (gfs: list gfield) (tts: list type) lr: bool :=
-  match gfs, tts with
-  | nil, nil => type_almost_match e t_root lr
-  | nil, _ => false
-  | _ , nil => false
-  | gf :: gfs0, t0 :: tts0 => 
-    match nested_field_rec t_root gfs with
-    | Some (_, ttt) => (legal_nested_efield_rec t_root e gfs0 tts0 lr && eqb_type ttt t0)%bool
-    | None => false
-    end
-  end.
-
-Definition legal_nested_efield env t_root e gfs tts lr :=
-  match gfs, tts, lr with
-  | nil, nil, RRRR => false
-  | nil, nil, LLLL => eqb_type (uncompomize env t_root) (typeof e)
-  | nil, _, _ => false
-  | _ , nil, _ => false
-  | gf :: gfs0, t0 :: tts0, _ => 
-    match nested_field_rec t_root gfs with
-    | Some (_, ttt) => (legal_nested_efield_rec t_root e gfs0 tts0 lr && eqb_type (uncompomize env ttt) t0)%bool
-    | None => false
-    end
-  end.
 
 Inductive efield : Type :=
   | eArraySubsc: forall i: expr, efield
@@ -63,8 +30,8 @@ Fixpoint compute_nested_efield e : expr * list efield * list type :=
   match e with
   | Efield e' id t => 
     match compute_nested_efield e', typeof e' with
-    | (e'', efs, tts), Tstruct _ _ _ => (e'', eStructField id :: efs, t :: tts)
-    | (e'', efs, tts), Tunion _ _ _ => (e'', eUnionField id :: efs, t :: tts)
+    | (e'', efs, tts), Tstruct _ _ => (e'', eStructField id :: efs, t :: tts)
+    | (e'', efs, tts), Tunion _ _ => (e'', eUnionField id :: efs, t :: tts)
     | _, _ => (e, nil, nil)
     end
   | Ederef (Ebinop Oadd e' ei (Tpointer t a)) t' =>
@@ -82,7 +49,7 @@ Definition compute_lr e (efs: list efield) :=
   | _, _ => LLLL
   end.
 
-Fixpoint efield_denote (efs: list efield) (gfs: list gfield) : environ -> mpred :=
+Fixpoint efield_denote {cs: compspecs} (efs: list efield) (gfs: list gfield) : environ -> mpred :=
   match efs, gfs with
   | nil, nil => TT
   | eArraySubsc ei :: efs', ArraySubsc i :: gfs' => 
@@ -96,32 +63,17 @@ Fixpoint efield_denote (efs: list efield) (gfs: list gfield) : environ -> mpred 
   | _, _ => FF
   end.
 
-Fixpoint tc_efield (Delta: tycontext) (efs: list efield) rho : Prop :=
+Fixpoint tc_efield {cs: compspecs} (Delta: tycontext) (efs: list efield) rho : mpred :=
   match efs with
-  | nil => True
+  | nil => TT
   | eArraySubsc ei :: efs' => 
-    tc_expr Delta ei rho /\ tc_efield Delta efs' rho
+    tc_expr Delta ei rho && tc_efield Delta efs' rho
   | eStructField i :: efs' =>
     tc_efield Delta efs' rho
   | eUnionField i :: efs' =>
     tc_efield Delta efs' rho
   end.
 
-(*
-Lemma legal_nested_efield_cons: forall env t_root gf gfs t tts ,
-  legal_nested_efield env t_root (gf :: gfs) (t :: tts) = true ->
-  legal_nested_efield env t_root gfs tts = true.
-Proof.
-Opaque nested_field_rec.
-  intros.
-  simpl in H.
-  valid_nested_field_rec t_root (gf :: gfs) H.
-  solve_nested_field_rec_cons_eq_Some H0;
-  rewrite andb_true_iff in H;
-  tauto.
-Transparent nested_field_rec.
-Qed.
-*)
 Lemma compute_nested_efield_aux: forall e t,
   match compute_nested_efield e with
   | (e', gfs, tts) => nested_efield e' gfs tts = e
@@ -170,6 +122,57 @@ Proof.
   auto.
 Qed.
 
+Section CENV.
+
+Context {cs: compspecs}.
+
+Definition type_almost_match e t lr:=
+  match typeof e, t, lr with
+  | Tpointer t0 a0, Tarray t1 _ a1, RRRR => eqb_type (typeof e) (Tpointer t1 a1)
+  | _, _, LLLL => eqb_type (typeof e) t
+  | _, _, _ => false
+  end.
+
+Fixpoint legal_nested_efield_rec t_root e (gfs: list gfield) (tts: list type) lr: bool :=
+  match gfs, tts with
+  | nil, nil => type_almost_match e t_root lr
+  | nil, _ => false
+  | _ , nil => false
+  | gf :: gfs0, t0 :: tts0 => 
+    match nested_field_rec t_root gfs with
+    | Some (_, ttt) => (legal_nested_efield_rec t_root e gfs0 tts0 lr && eqb_type ttt t0)%bool
+    | None => false
+    end
+  end.
+
+Definition legal_nested_efield t_root e gfs tts lr :=
+  match gfs, tts, lr with
+  | nil, nil, RRRR => false
+  | nil, nil, LLLL => eqb_type t_root (typeof e)
+  | nil, _, _ => false
+  | _ , nil, _ => false
+  | gf :: gfs0, t0 :: tts0, _ => 
+    match nested_field_rec t_root gfs with
+    | Some (_, ttt) => (legal_nested_efield_rec t_root e gfs0 tts0 lr && eqb_type ttt t0)%bool
+    | None => false
+    end
+  end.
+
+(*
+Lemma legal_nested_efield_cons: forall env t_root gf gfs t tts ,
+  legal_nested_efield env t_root (gf :: gfs) (t :: tts) = true ->
+  legal_nested_efield env t_root gfs tts = true.
+Proof.
+Opaque nested_field_rec.
+  intros.
+  simpl in H.
+  valid_nested_field_rec t_root (gf :: gfs) H.
+  solve_nested_field_rec_cons_eq_Some H0;
+  rewrite andb_true_iff in H;
+  tauto.
+Transparent nested_field_rec.
+Qed.
+*)
 (*
 Lemma legal_nested_efield_nested_field_rec_isSome: forall env t_root e gfs tts lr,
   legal_nested_efield env t_root e gfs tts lr = true -> isSome (nested_field_rec t_root gfs).
@@ -185,45 +188,69 @@ Transparent nested_field_rec.
 Qed.
 *)
 
-Lemma typeof_nested_efield: forall env Delta t_root e efs gfs tts lr,
-  legal_nested_efield env t_root e gfs tts lr = true ->
-  local (tc_efield Delta efs) && efield_denote efs gfs |--
-    !! (uncompomize env (nested_field_type2 t_root gfs) = typeof (nested_efield e efs tts)).
+
+Lemma typeof_nested_efield: forall t_root e efs gfs tts lr,
+  legal_nested_efield t_root e gfs tts lr = true ->
+  efield_denote efs gfs |--
+    !! (nested_field_type2 t_root gfs = typeof (nested_efield e efs tts)).
 Proof.
-Admitted.
-(*
-Opaque nested_field_rec.
-  unfold type_almost_match.
-  intros.
-  eapply derives_trans.
-  Focus 2. {
-    apply prop_left; intros.
-    apply prop_right.
-    apply eqb_type_true.
-    exact H2.
-  } Unfocus.
-  revert efs tts H H0.
-  induction gfs as [| gf gfs']; intros;
-  destruct efs as [| ef efs']; destruct tts as [|t tts']; unfold nested_field_type2 in *;
-    simpl in *; intros; try solve [inversion H]; try congruence;
-    try solve [(apply prop_left; intro; inversion H0)].
-  + change (!! False) with FF; destruct ef; apply FF_left.
-  + specialize (IHgfs' efs' tts').
-    valid_nested_field_rec t_root (gf :: gfs') H.
-    solve_nested_field_rec_cons_eq_Some H2;
-    apply prop_right;
-    apply andb_true_iff in H; destruct H as [_ HH];
-    destruct ef;
-    exact HH.
-Transparent nested_field_rec.
+intros.
+simpl. intro rho.
+revert t_root efs tts H; induction gfs; intros.
+*
+destruct tts; [ | inv H].
+destruct lr; try discriminate.
+apply eqb_type_true in H. subst.
+destruct efs; simpl; intros.
+apply prop_right; reflexivity.
+destruct e0; apply FF_left.
+*
+destruct efs as [| ef efs].
+destruct a; simpl; intros; apply FF_left.
+destruct tts; [inv H | ].
+simpl in H.
+destruct (nested_field_rec t_root gfs) as [[ofs t0]|] eqn:?; [ | discriminate].
+(* specialize (IHgfs t0 efs tts).*)
+destruct t0; try discriminate; destruct a; try discriminate.
++
+rewrite andb_true_iff in H; destruct H.
+apply eqb_type_true in H0; subst; auto.
+destruct ef; simpl; try apply FF_left.
+normalize.
+destruct (typeof i0); try contradiction.
+unfold nested_field_type2.
+simpl.
+rewrite Heqo.
+apply prop_right; auto.
++
+destruct (compute_in_members i0 (co_members (get_co i))) eqn:?; try discriminate.
+rewrite andb_true_iff in H; destruct H.
+apply eqb_type_true in H0; subst; auto.
+destruct ef; simpl; try apply FF_left.
+normalize.
+unfold nested_field_type2.
+simpl.
+rewrite Heqo.
+rewrite Heqb.
+apply prop_right; auto.
++
+destruct (compute_in_members i0 (co_members (get_co i))) eqn:?; try discriminate.
+rewrite andb_true_iff in H; destruct H.
+apply eqb_type_true in H0; subst; auto.
+destruct ef; simpl; try apply FF_left.
+normalize.
+unfold nested_field_type2.
+simpl.
+rewrite Heqo.
+rewrite Heqb.
+apply prop_right; auto.
 Qed.
-*)
 
 Lemma offset_val_sem_add_pi: forall ofs t0 e rho i,
    offset_val (Int.repr ofs)
      (force_val (sem_add_pi t0 (eval_expr e rho) (Vint (Int.repr i)))) =
    offset_val (Int.repr ofs)
-     (offset_val (Int.mul (Int.repr (sizeof t0)) (Int.repr i)) (eval_expr e rho)).
+     (offset_val (Int.mul (Int.repr (sizeof cenv_cs t0)) (Int.repr i)) (eval_expr e rho)).
 Proof.
   intros.
   destruct (eval_expr e rho); try reflexivity.
@@ -231,40 +258,25 @@ Qed.
 
 Lemma By_reference_eval_expr: forall Delta e rho,
   access_mode (typeof (e)) = By_reference ->
-  tc_lvalue Delta e rho ->
-  eval_expr e rho = eval_lvalue e rho.
+  typecheck_environ Delta rho ->
+  tc_lvalue Delta e rho |-- 
+  !! (eval_expr e rho = eval_lvalue e rho).
 Proof.
   intros.
-  unfold tc_lvalue in H0.
-  destruct e; simpl in H0; try inversion H0.
-  + simpl in H.
-    simpl.
-    unfold deref_noload.
-    rewrite H.
-    reflexivity.
-  + simpl in H.
-    simpl.
-    unfold deref_noload.
-    rewrite H.
-    reflexivity.
-  + simpl in H.
-    simpl.
-    unfold deref_noload.
-    rewrite H.
-    reflexivity.
+  eapply derives_trans. apply typecheck_lvalue_sound; auto.
+  normalize.
+  destruct e; try contradiction; simpl in *; unfold deref_noload; rewrite H;
+     try reflexivity.
 Qed.
 
 Lemma By_reference_tc_expr: forall Delta e rho,
   access_mode (typeof (e)) = By_reference ->
-  tc_lvalue Delta e rho ->
-  tc_expr Delta e rho.
+  typecheck_environ Delta rho ->
+  tc_lvalue Delta e rho |--  tc_expr Delta e rho.
 Proof.
   intros.
   unfold tc_lvalue, tc_expr.
-  destruct e; simpl in H |- *; intros; normalize.
-  + rewrite H. exact H0.
-  + rewrite H. exact H0.
-  + rewrite H. exact H0.
+  destruct e; simpl in *; try apply @FF_left; rewrite H; auto.
 Qed.
 
 (*
@@ -406,12 +418,12 @@ Definition tc_LR Delta e lr :=
   | RRRR => tc_expr Delta e
   end.
 
-Lemma eval_lvalue_nested_efield_aux: forall Delta env t_root e efs gfs tts lr,
-  legal_nested_efield env t_root e gfs tts lr = true ->
-  local (`isptr (eval_LR e lr)) && local (tc_LR Delta e lr) &&
-    local (tc_efield Delta efs) && efield_denote efs gfs |--
+Lemma eval_lvalue_nested_efield_aux: forall Delta t_root e efs gfs tts lr,
+  legal_nested_efield t_root e gfs tts lr = true ->
+  local (`isptr (eval_LR e lr)) &&  (tc_LR Delta e lr) &&
+     (tc_efield Delta efs) && efield_denote efs gfs |--
   local (`isptr (eval_lvalue (nested_efield e efs tts))) &&
-    local (tc_lvalue Delta (nested_efield e efs tts)) &&
+     (tc_lvalue Delta (nested_efield e efs tts)) &&
     local (`eq (eval_lvalue (nested_efield e efs tts))
       (`(field_address t_root gfs) (eval_LR e lr))).
 Proof.
@@ -540,26 +552,27 @@ Opaque classify_add.
 Qed.
 *)
 
-Lemma eval_lvalue_nested_efield: forall Delta env t_root e efs gfs tts lr,
-  legal_nested_efield env t_root e gfs tts lr = true ->
-  local (`isptr (eval_LR e lr)) && local (tc_LR Delta e lr) &&
-  local (tc_efield Delta efs) && efield_denote efs gfs |-- local (`eq (eval_lvalue (nested_efield e efs tts))
+Lemma eval_lvalue_nested_efield: forall Delta t_root e efs gfs tts lr,
+  legal_nested_efield t_root e gfs tts lr = true ->
+  local (`isptr (eval_LR e lr)) &&  (tc_LR Delta e lr) &&
+   (tc_efield Delta efs) && efield_denote efs gfs |-- local (`eq (eval_lvalue (nested_efield e efs tts))
       (`(field_address t_root gfs) (eval_LR e lr))).
 Proof.
   intros.
   eapply derives_trans; [eapply eval_lvalue_nested_efield_aux; eauto |].
-  simpl; intros; normalize.
+  simpl; intros; normalize. autorewrite with norm1 norm2; normalize.
 Qed.
 
-Lemma tc_lvalue_nested_efield: forall Delta env t_root e efs gfs tts lr,
-  legal_nested_efield env t_root e gfs tts lr = true ->
-  local (`isptr (eval_LR e lr)) && local (tc_LR Delta e lr) &&
-  local (tc_efield Delta efs) && efield_denote efs gfs |--
+Lemma tc_lvalue_nested_efield: forall Delta t_root e efs gfs tts lr,
+  legal_nested_efield t_root e gfs tts lr = true ->
+  local (`isptr (eval_LR e lr)) &&  (tc_LR Delta e lr) &&
+   (tc_efield Delta efs) && efield_denote efs gfs |--
     local (`isptr (eval_lvalue (nested_efield e efs tts))) &&
-    local (tc_lvalue Delta (nested_efield e efs tts)).
+     (tc_lvalue Delta (nested_efield e efs tts)).
 Proof.
   intros.
   eapply derives_trans; [eapply eval_lvalue_nested_efield_aux; eauto |].
-  simpl; intros; normalize.
+  simpl; intros; normalize. autorewrite with norm1 norm2; normalize.
 Qed.
 
+End CENV.

@@ -3,6 +3,7 @@ Require Export msl.base.
 Require Export msl.boolean_alg.
 Require Export msl.sepalg.
 Require Export msl.predicates_sa.
+Require Export msl.corable_direct.
 Require Export msl.functors.
 Require Export msl.sepalg_functors.
 Require Export msl.sepalg_generators.

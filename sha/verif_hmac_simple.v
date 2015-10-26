@@ -31,7 +31,7 @@ rename keyVal into k. rename msgVal into d.
 destruct KEY as [kl key].
 destruct MSG as [dl data]. simpl in *.
 rename H into WrshMD.
-assert_PROP (isptr md). entailer!.
+assert_PROP (isptr md). entailer. 
 rename H into isPtrMD. rename H0 into KL. rename H1 into DL. 
 forward_if  (
   PROP  (isptr c)
@@ -41,11 +41,11 @@ forward_if  (
    SEP  (`(data_at_ Tsh t_struct_hmac_ctx_st c); `(data_block Tsh key k);
    `(data_block Tsh data d); `(K_vector kv);
    `(memory_block shmd (Int.repr 32) md))).
-  { (* Branch1 *) inv H. }
-  { (* Branch2 *) forward. entailer!. } 
+  { (*Branch1*) inv H.  }
+  { (* Branch2 *) forward. entailer. } 
 normalize. rename H into isptrC.
 remember (HMACabs init_s256abs init_s256abs init_s256abs Z0 nil) as dummyHMA.
-assert_PROP (isptr k). entailer!. 
+assert_PROP (isptr k). entailer. 
 rename H into isPtrK. 
 forward_call' (c, k, kl, key, kv, dummyHMA) h0.
  { apply isptrD in isPtrK. destruct isPtrK as [kb [kofs HK]]. rewrite HK.

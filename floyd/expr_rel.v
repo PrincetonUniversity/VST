@@ -6,14 +6,17 @@ Require Import floyd.canonicalize floyd.forward_lemmas floyd.call_lemmas.
 Require Import floyd.nested_field_lemmas.
 Require Import floyd.data_at_lemmas.
 Require Import floyd.field_at.
-Require Import floyd.array_lemmas.
-Require Import floyd.unfold_data_at.
 Require Import floyd.entailer.
 Require Import floyd.globals_lemmas.
-Require Import floyd.type_id_env.
+Require Import floyd.reptype_lemmas.
 Require Import floyd.semax_tactics.
+Require Import floyd.efield_lemmas.
+Require Import floyd.proj_reptype_lemmas.
+Require Import floyd.field_at.
+Require Import floyd.replace_refill_reptype_lemmas.
+Local Open Scope logic.
 
-Lemma rel_lvalue_var:
+Lemma rel_lvalue_var {cs: compspecs}:
  forall (P: mpred) i t v rho,
  v = eval_var i t rho ->
  isptr v -> 
@@ -82,9 +85,33 @@ Ltac rewrite_eval_id :=
     rewrite <- H
  end.
 
+Lemma rel_expr_nested_load {cs: compspecs}:
+  forall sh p t_root v e lr efs tts gfs P rho,
+  legal_nested_efield t_root e gfs tts lr = true ->
+  type_is_by_value (nested_field_type2 t_root gfs) = true ->
+  P |-- rel_LR e lr p rho && efield_denote efs gfs rho && (data_at sh t_root v p * TT) ->
+  P |-- rel_expr (nested_efield e efs tts) (repinject _ (proj_reptype t_root gfs v)) rho.
+Admitted.
+
+Lemma sc_semax_load_store:  forall {Espec: OracleKind} {CS: compspecs},
+ forall p (Delta: tycontext) t_root e lr efs tts gfs e2 sh v0 v2 P P', 
+  writable_share sh ->
+  legal_nested_efield t_root e gfs tts lr = true ->
+  type_is_by_value (nested_field_type2 t_root gfs) = true ->
+  P |-- !! (tc_val (nested_field_type2 t_root gfs) (repinject _ v2))
+           && rel_lvalue e p 
+           && rel_expr (Ecast e2 (typeof (nested_efield e efs tts))) (repinject _ v2)
+           && (`(data_at sh t_root v0 p) * P') ->
+  semax Delta (|> P) (Sassign (nested_efield e efs tts) e2) 
+          (normal_ret_assert (`(data_at sh t_root (upd_reptype t_root gfs v0 v2) p) * P')).
+Abort.
+
+Lemma rel_expr_array_load: True.
+Proof. auto. Qed.
+
 Ltac rel_expr :=
 first [
-   simple eapply rel_expr_array_load; [reflexivity | reflexivity | apply I 
+   simple eapply rel_expr_array_load; [reflexivity | reflexivity | apply Coq.Init.Logic.I 
    | repeat apply andp_right; [rel_expr | rel_expr | rewrite_eval_id; cancel | entailer.. ]]
  | simple apply rel_expr_tempvar;  apply eval_id_get; [solve [eauto] | congruence ]
  | simple eapply rel_expr_cast; [rel_expr | try (simpl; rewrite_eval_id; reflexivity) ]
@@ -103,7 +130,7 @@ first [
  | simple eapply rel_lvalue_field_struct; [ reflexivity | reflexivity | rel_expr ]
  | simple eapply rel_expr_lvalue_By_value; [ reflexivity | rel_expr | rewrite_eval_id; cancel | ]
  | simple eapply rel_expr_lvalue_By_reference; [ reflexivity | rel_expr ]
- | match goal with |- in_range _ _ _ => hnf; omega end
+(* | match goal with |- in_range _ _ _ => hnf; omega end *)
  | idtac
  ].
 
@@ -113,27 +140,27 @@ Ltac forward_nl :=
  first
  [ simple eapply semax_seq';
    [simple eapply semax_loadstore_array;
-       [ reflexivity | apply I | reflexivity | reflexivity| reflexivity 
+       [ reflexivity | apply Coq.Init.Logic.I | reflexivity | reflexivity| reflexivity 
        | entailer; repeat instantiate_Vptr; repeat apply andp_right;
                rel_expr
        | try solve_nth_error | auto | auto | hnf; try omega ]
     | unfold replace_nth; simpl valinject; abbreviate_semax ]
  | eapply semax_post_flipped';
    [simple eapply semax_loadstore_array;
-       [ reflexivity | apply I | reflexivity | reflexivity| reflexivity 
+       [ reflexivity | apply Coq.Init.Logic.I | reflexivity | reflexivity| reflexivity 
        | entailer; repeat instantiate_Vptr; repeat apply andp_right;
                rel_expr
        | try solve_nth_error | auto | auto | hnf; try omega ]
     |  ]
  | simple eapply semax_seq';
     [eapply semax_set_forward_nl;  
-      [reflexivity | entailer; repeat instantiate_Vptr; rel_expr | try apply I ]
+      [reflexivity | entailer; repeat instantiate_Vptr; rel_expr | try apply Coq.Init.Logic.I ]
       | let old := fresh "old" in apply exp_left; intro old;
         autorewrite with subst; try rewrite insert_local; abbreviate_semax
      ]
  | eapply semax_post_flipped';
     [eapply semax_set_forward_nl;  
-      [reflexivity | entailer; repeat instantiate_Vptr; rel_expr | try apply I ]
+      [reflexivity | entailer; repeat instantiate_Vptr; rel_expr | try apply Coq.Init.Logic.I ]
       | let old := fresh "old" in apply exp_left; intro old;
         autorewrite with subst; try rewrite insert_local
      ]

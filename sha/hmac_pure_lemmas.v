@@ -183,7 +183,7 @@ Proof. reflexivity. Qed.
 Definition Forall_tl (A : Type) (P : A -> Prop) (a : A) (l : list A) 
            (H : Forall P (a :: l)): Forall P l.
 Proof. inversion H. assumption. Defined. 
-
+(*Now in sublist
 Lemma Zlength_length:
   forall A (al: list A) (n: Z),
     0 <= n ->
@@ -197,7 +197,7 @@ rewrite H0.
 apply Z2Nat.inj; try omega.
 rewrite Nat2Z.id; auto.
 Qed.
-
+*)
 Lemma firstn_exact : 
   forall {A : Type} (l1 l2 : list A) (n : nat),
     (length l1 = n)%nat -> firstn n (l1 ++ l2) = l1.
@@ -250,7 +250,7 @@ intros. revert al H;
 induction n; destruct al; intros; simpl in *; try omega; auto.
 apply IHn; omega.
 Qed. 
-
+(*now in floyd_sublist
 Lemma firstn_app1: forall {A} n (p l: list A),
   (n <= Datatypes.length p)%nat ->
    firstn n (p ++ l) = firstn n p.
@@ -268,7 +268,7 @@ induction n; simpl; intros.
   destruct p; simpl in *. trivial. omega.
   destruct p; simpl in *. trivial.
   rewrite IHn. trivial. omega. 
-Qed.  
+Qed.  *)
 
 Lemma firstn_map {A B} (f:A -> B): forall n l, 
       firstn n (map f l) = map f (firstn n l).

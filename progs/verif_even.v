@@ -1,6 +1,9 @@
 Require Import floyd.proofauto.
-
 Require Import progs.even.
+Definition CompSpecs' : compspecs.
+Proof. make_compspecs1 prog. Defined.
+Instance CompSpecs : compspecs.
+Proof. make_compspecs2 CompSpecs'. Defined.
 Local Open Scope logic.
 
 Definition odd_spec :=
@@ -40,7 +43,7 @@ forward_if (PROP (z > 0) LOCAL (temp _n (Vint (Int.repr z))) SEP ()).
 *
  forward. entailer!.
 * normalize.
-  forward_call' (z-1, tt) vret.
+  forward_call (z-1, tt) vret.
   (* Prove that PROP precondition is OK *)
   repable_signed.
   (* After the call *)
@@ -53,7 +56,7 @@ Qed.
 Lemma body_main : semax_body Vprog Gprog f_main main_spec.
 Proof.
 start_function. 
-forward_call' (42) vret.
+forward_call (42) vret.
 repable_signed.
 forward.
 Qed.
@@ -79,8 +82,9 @@ Proof.
 unfold Gprog, prog, prog_funct.
 simpl.
 semax_func_skipn.
-semax_func_cons_ext.
-  apply temp_make_ext_rval_e in H; try congruence.
+semax_func_cons_ext. renormalize.
+ apply (temp_make_ext_rval_e gx (Vint (if Z.odd z then Int.one else Int.zero)) ret) in H;
+  try congruence.
   subst; simpl; entailer.
 semax_func_cons body_even.
 semax_func_cons body_main.

@@ -9,6 +9,7 @@ Require Import List. Import ListNotations.
 Require Import Integers.
 Require Import functional_prog.
 Require Import Salsa20.
+Require Import tweetNaclBase. (*for bind, combinelist*)
 
 Definition Step1 (x:list int): option (list int):=
 match x with [x0; x1; x2; x3; x4; x5; x6; x7; x8; x9; x10; x11; x12; x13; x14; x15]
@@ -114,9 +115,6 @@ Definition test1_out := map x2i ([
 "95b0c8b6"; "a45e5d04"; "f0a45550"; "a272317e"])%string.
 Goal transp test1_out4 = Some(test1_out). reflexivity. Qed.
 
-Definition bind {A B} (aopt: option A) (f: A -> option B): option B :=
-  match aopt with None => None | Some a => f a end.
-
 Definition snuffleStep x :=
   bind (Step1 x) (fun y => bind (Step2 y) (fun z => bind (Step3 z) Step4)).
 
@@ -167,9 +165,25 @@ destruct r; simpl in H; inv H.
 split; trivial. 
 Qed. 
 
+Lemma snuffleRound_Zlength r l (R: snuffleRound r = Some l):
+      Zlength l = 16 /\ Zlength r = 16.
+Proof. 
+  do 2 rewrite Zlength_correct.
+  destruct (snuffleRound_length _ _ R) as [A B].
+  rewrite A, B; split; reflexivity.
+Qed.
+
 Lemma Snuffle_length r: forall i l, Snuffle i r = Some l -> length r = 16%nat -> length l = 16%nat.
 Proof. induction i; simpl; intros. inv H; trivial.
 remember (Snuffle i r) as s. symmetry in Heqs; destruct s; inv H.
 apply snuffleRound_length in H2. apply H2.
+Qed.
+
+Lemma Snuffle_Zlength r i l (SN:Snuffle i r = Some l)
+      (R:Zlength r = 16): Zlength l= 16.
+Proof.
+  rewrite Zlength_correct.
+  rewrite (Snuffle_length _ _ _ SN); trivial.
+  apply sublist.Zlength_length in R; trivial.
 Qed.
 Opaque Snuffle.

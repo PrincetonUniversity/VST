@@ -12,20 +12,28 @@ Global Opaque K256.
 
 Transparent peq.
 
-Definition field_offset' (i: ident) (t: type) : Z :=
-match t with
-| Tstruct _ f _ => 
-    match field_offset i f with Errors.OK n => n | _ => -1 end
-| _ => -1
-end.
+Lemma mapsto_tc_val:
+  forall sh t p v,
+  readable_share sh ->
+  v <> Vundef ->
+  mapsto sh t p v = !! tc_val t v && mapsto sh t p v .
+Proof.
+intros.
+apply pred_ext.
+apply andp_right; auto.
+unfold mapsto; simpl.
+destruct (access_mode t); try apply FF_left.
+destruct (type_is_volatile t); try apply FF_left.
+destruct p; try apply FF_left.
+if_tac; try contradiction. apply orp_left.
+normalize.
+normalize.
+congruence.
+normalize.
+Qed.
 
-Definition data_offset : Z.  (* offset, in bytes, of _data field in struct SHA256_state *)
-pose (n := field_offset' _data t_struct_SHA256state_st); subst; compute in n.
-match goal with n := ?N |- _ => apply N end.
-Defined.
-
-(* Definition data_offset := 40%Z. (* offset  of _data field in the struct *) *)
-(*Global Opaque data_offset. *)
+Definition data_offset : Z :=  (* offset, in bytes, of _data field in struct SHA256_state *)
+  nested_field_offset2 t_struct_SHA256state_st [StructField _data].
 
 Lemma elim_globals_only'':
   forall i t rho,  
@@ -69,14 +77,14 @@ Fixpoint loops (s: statement) : list statement :=
 Lemma nth_big_endian_integer:
   forall i bl w, 
    nth_error bl i = Some w ->
-    w = big_endian_integer
-               (firstn (Z.to_nat WORD) 
-                 (skipn (i * Z.to_nat WORD) 
-                   (map Int.repr (intlist_to_Zlist bl)))).
+    w = big_endian_integer 
+                   (sublist (Z.of_nat i * WORD)
+                        (Z.succ (Z.of_nat i) * WORD)
+                   (map Int.repr (intlist_to_Zlist bl))).
 Proof.
 induction i; destruct bl; intros; inv H.
 *
- simpl.
+ unfold sublist; simpl.
  rewrite big_endian_integer4.
  repeat rewrite Int.repr_unsigned.
  assert (Int.zwordsize=32)%Z by reflexivity.
@@ -92,7 +100,36 @@ induction i; destruct bl; intros; inv H.
  autorewrite with testbit. f_equal; omega.
 *
 specialize (IHi _ _ H1); clear H1.
-apply IHi.
+simpl map.
+rewrite IHi.
+unfold sublist.
+replace (Z.to_nat (Z.of_nat (S i) * WORD)) with (4 + Z.to_nat (Z.of_nat i * WORD))%nat
+  by (rewrite plus_comm, inj_S; unfold Z.succ; rewrite Z.mul_add_distr_r;
+        rewrite Z2Nat.inj_add by (change WORD with 4; omega); reflexivity).
+rewrite <- skipn_skipn.
+simpl skipn.
+f_equal. f_equal. f_equal. rewrite inj_S.  unfold Z.succ. 
+rewrite !Z.mul_add_distr_r; omega.
+Qed.
+
+Lemma Znth_big_endian_integer:
+  forall i bl, 
+   0 <= i < Zlength bl ->
+   Znth i bl Int.zero =
+     big_endian_integer 
+                   (sublist (i * WORD) (Z.succ i * WORD)
+                   (map Int.repr (intlist_to_Zlist bl))).
+Proof.
+intros.
+unfold Znth.
+ rewrite if_false by omega.
+pose proof (nth_error_nth _ Int.zero (Z.to_nat i) bl).
+rewrite <- (Z2Nat.id i) at 2 3 by omega.
+apply nth_big_endian_integer.
+apply H0.
+apply Nat2Z.inj_lt.
+rewrite Z2Nat.id by omega.
+rewrite <- Zlength_correct; omega.
 Qed.
 
 Fixpoint sequence (cs: list statement) s :=
@@ -108,9 +145,9 @@ Fixpoint rsequence (cs: list statement) s :=
  end.
 
 Lemma sequence_rsequence:
- forall Espec Delta P cs s0 s R, 
-    @semax Espec Delta P (Ssequence s0 (sequence cs s)) R  <->
-  @semax Espec Delta P (Ssequence (rsequence (rev cs) s0) s) R.
+ forall Espec CS Delta P cs s0 s R, 
+    @semax CS Espec Delta P (Ssequence s0 (sequence cs s)) R  <->
+  @semax CS Espec Delta P (Ssequence (rsequence (rev cs) s0) s) R.
 Proof.
 intros.
 revert Delta P R s0 s; induction cs; intros.
@@ -125,12 +162,12 @@ rewrite IHl. auto.
 Qed.
 
 Lemma seq_assocN:  
-  forall {Espec: OracleKind},
+  forall {Espec: OracleKind} CS, 
    forall Q Delta P cs s R,
-        @semax Espec Delta P (sequence cs Sskip) (normal_ret_assert Q) ->
-         @semax Espec 
+        @semax CS Espec Delta P (sequence cs Sskip) (normal_ret_assert Q) ->
+         @semax CS Espec 
        (update_tycon Delta (sequence cs Sskip)) Q s R ->
-        @semax Espec Delta P (sequence cs s) R.
+        @semax CS Espec Delta P (sequence cs s) R.
 Proof.
 intros.
 rewrite semax_skip_seq.
@@ -142,12 +179,12 @@ eapply semax_seq'; [apply H | ].
 eapply semax_extensionality_Delta; try apply H0.
 clear.
 revert Delta; induction cs; simpl; intros.
-apply expr_lemmas.tycontext_sub_refl.
-eapply semax_lemmas.tycontext_sub_trans; [apply IHcs | ].
+apply tycontext_sub_refl.
+eapply tycontext_sub_trans; [apply IHcs | ].
 clear.
 revert Delta; induction (rev cs); simpl; intros.
-apply expr_lemmas.tycontext_sub_refl.
-apply expr_lemmas.update_tycon_sub.
+apply tycontext_sub_refl.
+apply update_tycon_sub.
 apply IHl.
 Qed.
 
@@ -157,41 +194,49 @@ Fixpoint sequenceN (n: nat) (s: statement) : list statement :=
  | _, _ => nil
  end.
 
-Lemma datablock_local_facts:
+Lemma data_block_local_facts:
  forall sh f data,
-  data_block sh f data |-- prop (isptr data /\ Forall isbyteZ f).
+  data_block sh f data |-- 
+   prop (field_compatible (tarray tuchar (Zlength f)) [] data
+           /\ Forall isbyteZ f).
 Proof.
 intros. unfold data_block, array_at.
 simpl.
 entailer.
 Qed.
-Hint Resolve datablock_local_facts : saturate_local.
+Hint Resolve data_block_local_facts : saturate_local.
 
 Require Import JMeq.
 
-Lemma array_at_isptr:
-  forall t sh f lo hi v p, array_at sh t f lo hi v p = (array_at sh t f lo hi v p && !! isptr p)%logic.
+Lemma reptype_tarray {cs: compspecs}:
+   forall t len, reptype (tarray t len) = list (reptype t).
 Proof.
 intros.
-apply pred_ext; intros.
-apply andp_right; auto.
-unfold array_at. simpl.
-normalize.
-normalize.
+rewrite reptype_ind. simpl. reflexivity.
 Qed.
 
+(*
 Lemma split_offset_array_at:
-  forall n sh t len (contents: list (reptype t)) v,
-  legal_alignas_type t = true ->
-  (Z.of_nat n <= Zlength contents)%Z ->
-  (Z.of_nat n <= len)%Z ->
+  forall n sh t len 
+    (contents': (@zlist _ _ (list_zlist _ (default_val t)) 0 len))
+    (contents: reptype (tarray t len))
+    (contents1: reptype (tarray t n))
+    (contents2: reptype (tarray t (len-n)))
+    v,
+    JMeq contents contents' ->
+    JMeq contents1 (zl_sublist 0 n contents') ->
+    JMeq contents2 (zl_shift 0 (len-n) (zl_sublist n len contents')) ->
+   legal_alignas_type t = true ->
+   (0 <= n <= len) ->
   data_at sh (tarray t len) contents v =
-  (!! (offset_in_range (sizeof t * 0) v) &&
-   !! (offset_in_range (sizeof t * len) v) && 
-  (data_at sh (tarray t (Z.of_nat n)) (firstn n contents) v * 
-    data_at sh (tarray t (len- Z.of_nat n)) (skipn n contents) (offset_val (Int.repr (sizeof t * Z.of_nat n)) v)))%logic.
+  (!! (offset_in_range (sizeof cenv_cs t * 0) v) &&
+   !! (offset_in_range (sizeof cenv_cs t * len) v) && 
+  (data_at sh (tarray t n) contents1 v * 
+    data_at sh (tarray t (len- n)) contents2 (offset_val (Int.repr (sizeof cenv_cs t * n)) v)))%logic.
+Admitted. 
 Proof.
   intros.
+ SearchAbout data_at array_at.
   apply extract_prop_from_equal' with (isptr v);
     [| rewrite data_at_isptr; normalize | rewrite data_at_isptr; normalize].
   intros.
@@ -232,7 +277,7 @@ Proof.
     apply Z.divide_add_r; auto.
     rewrite Z.mul_comm.
     apply Z.divide_mul_r; auto.
-    apply legal_alignas_sizeof_alignof_compat; auto.
+    apply legal_alignas_sizeof_alignof_compat; auto. (* legal_alignas_sizeof_alignof_compat's specificaltion is modified. *)
   - rewrite H10.
     apply Z.divide_0_r.
 +
@@ -299,6 +344,7 @@ Proof.
   apply Z.divide_mul_r; auto.
   apply legal_alignas_sizeof_alignof_compat; auto.
 Qed.
+*)
 
 Lemma firstn_map {A B} (f:A -> B): forall n l, 
       firstn n (map f l) = map f (firstn n l).
@@ -318,12 +364,22 @@ Qed.
 
 Local Open Scope nat.
 
+Lemma data_at_type_changable: forall (sh: Share.t) (t1 t2: type) v1 v2,
+  t1 = t2 ->
+  JMeq v1 v2 ->
+  data_at sh t1 v1 = data_at sh t2 v2.
+Proof.
+  intros.
+  subst. apply JMeq_eq in H0. subst v2. reflexivity.
+Qed.
+
+(*
 Lemma split2_data_block:
   forall n sh data d,
   n <= length data ->
   data_block sh data d = 
   (!! offset_in_range 0 d &&
-   !! offset_in_range (sizeof tuchar * Zlength data) d &&
+   !! offset_in_range (sizeof cenv_cs tuchar * Zlength data) d &&
   data_block sh (firstn n data) d *
   data_block sh (skipn n data) (offset_val (Int.repr (Z.of_nat n)) d))%logic.
 Proof.
@@ -331,7 +387,7 @@ Proof.
   assert (isptr d \/ ~isptr d) by (clear; destruct d; simpl; intuition).
   destruct H0; [ | apply pred_ext; entailer].
   unfold data_block.
-  remember (sizeof tuchar) as TU.
+  remember (sizeof cenv_cs tuchar) as TU.
   simpl.
   normalize.
   subst TU.
@@ -340,55 +396,26 @@ Proof.
   by (apply prop_ext; rewrite and_comm; rewrite <- Forall_app; rewrite firstn_skipn; intuition).
  rewrite andp_assoc.
   f_equal.
-  rewrite (split_offset_array_at n); auto;
-  [ 
-  | rewrite Zlength_correct, map_length, map_length; apply Nat2Z.inj_le; auto
-  |  repeat rewrite Zlength_map; rewrite Zlength_correct; omega].
+  simpl sizeof. rewrite Z.mul_1_l.
+  erewrite (split_offset_array_at (Z.of_nat n)); auto;
+   [ | split; [omega | rewrite Zlength_correct; apply Nat2Z.inj_le; auto]].
   f_equal.
  normalize.
-simpl sizeof. rewrite Z.mul_1_l.
+f_equal.
 repeat rewrite Zlength_correct.
 rewrite firstn_length. rewrite min_l by auto.
-repeat rewrite firstn_map.
-repeat rewrite skipn_map.
-rewrite skipn_length by auto.
-rewrite Nat2Z.inj_sub by omega.
-auto.
+f_equal.
+admit.  (* certainly true, but what a mess *)
+apply equal_f.
+apply data_at_type_changable.
+f_equal.
+rewrite !Zlength_correct.
+rewrite skipn_length. rewrite Nat2Z.inj_sub by omega. auto.
+rewrite <- !skipn_map.
+apply eq_JMeq.
+admit.  (* certainly true, but what a mess *)
 Qed.
-
-Lemma split3_data_block:
-  forall lo n sh data d,
-  lo+n <= length data ->
-  data_block sh data d = 
-  (!! offset_in_range 0 d &&
-   !! offset_in_range (sizeof tuchar * Zlength data) d &&
-  (data_block sh (firstn lo data) d *
-  data_block sh (firstn n (skipn lo data)) (offset_val (Int.repr (Z.of_nat lo)) d) *
-  data_block sh (skipn (lo+n) data)  (offset_val (Int.repr (Z.of_nat (lo+n))) d)))%logic.
-Proof.
-  intros.
-  rewrite split2_data_block with (n := lo + n) by omega.
-  rewrite split2_data_block with (n := lo) (data := firstn (lo + n) data) by
-    (rewrite firstn_length; rewrite Min.min_l by omega; omega).
-  assert (!!offset_in_range (sizeof tuchar * Zlength data) d |-- 
-    !! offset_in_range (sizeof tuchar * Zlength (firstn (lo + n) data)) d)%logic.
-    remember (sizeof tuchar) as ST; normalize; subst ST.
-    apply offset_in_range_mid with (lo := 0%Z) (hi := Zlength data); try assumption.
-    rewrite !Zlength_correct.
-    rewrite firstn_length; rewrite Min.min_l by omega. split; try omega.
-    apply inj_le, H.
-    rewrite Zmult_0_r.
-    unfold offset_in_range; destruct d; auto.
-    pose proof Int.unsigned_range i; omega.
-  rewrite (add_andp _ _ H0) at 2.
-  normalize.
-  f_equal.
-  f_equal. apply prop_ext; intuition.
-  f_equal.
-  f_equal; f_equal.
-  apply firstn_firstn.
-  apply skipn_firstn.
-Qed.
+*)
 
 (*** Application of Omega stuff ***)
 
@@ -428,80 +455,10 @@ Local Open Scope Z.
 Local Open Scope logic.
 
 Lemma mapsto_tuchar_isbyteZ:
-  forall sh v i, mapsto sh tuchar v (Vint i) =
+  forall sh v i, readable_share sh-> mapsto sh tuchar v (Vint i) =
     !! (0 <= Int.unsigned i < 256)%Z && mapsto sh tuchar v (Vint i).
 Proof.
-intros. apply mapsto_value_range.
-Qed.
-
-Lemma array_at_tuchar_isbyteZ:
- forall sh dd n v,
- data_at sh (tarray tuchar (Z.of_nat n)) (map Vint dd) v =
-  !! Forall isbyteZ (firstn n (map Int.unsigned dd)) &&
- data_at sh (tarray tuchar (Z.of_nat n)) (map Vint dd) v.
-Proof.
-intros.
-apply pred_ext; [ | normalize].
-apply andp_right; auto.
-saturate_local.
-destruct H as [Pv _].
-revert v Pv dd; induction n; intros.
-simpl. apply prop_right; constructor.
-rewrite inj_S. unfold Z.succ.
-destruct dd; simpl.
-apply prop_right; constructor.
-apply derives_trans with (!! isbyteZ (Int.unsigned i) && !! Forall isbyteZ (firstn n (map Int.unsigned dd)));
-  [ | normalize].
-apply andp_right.
-* (* first byte *)
-clear IHn.
-unfold data_at. simpl. normalize.
-unfold array_at'. normalize. unfold rangespec, rangespec'.
-rewrite Z.sub_0_r.
-unfold nat_of_Z.
-rewrite Z2Nat.inj_add by omega.
-simpl Z.to_nat.
-rewrite Nat2Z.id. replace (n+1)%nat with (S n) by omega.
-unfold Znth.
-rewrite if_false by omega.
-simpl nth.
-normalize.
-apply derives_trans with (at_offset2 (mapsto sh (Tint I8 Unsigned noattr)) (0 + 1 * 0) (Vint i) v * TT); [cancel | ].
-unfold at_offset2, at_offset'.
-simpl.
-rewrite mapsto_tuchar_isbyteZ.
-entailer!. split; auto.
-* (* rest of bytes, using induction hyp *)
-rewrite split_offset_array_at with (n := 1%nat);
- [ |reflexivity | rewrite Zlength_cons, Zlength_correct; simpl; omega | simpl; omega].
-normalize.
-apply derives_trans with (TT *  !!Forall isbyteZ (firstn n (map Int.unsigned dd))); auto.
-apply sepcon_derives; auto.
-replace v with (offset_val (Int.repr (sizeof tuchar * -1)) (offset_val (Int.repr 1%Z) v))
- by (destruct v; inv Pv; simpl; f_equal; normalize).
-eapply derives_trans; [ | apply (IHn (offset_val (Int.repr 1) v)); normalize].
-apply derives_refl'. 
-replace (offset_val (Int.repr 1)
-        (offset_val (Int.repr (sizeof tuchar * -1))
-           (offset_val (Int.repr 1) v))) with (offset_val (Int.repr 1) v).
-apply equal_f. simpl Z.of_nat. rewrite Z.add_simpl_r.
-simpl skipn. auto.
- destruct v; try contradiction.
- unfold offset_val, Int.add.
- f_equal.
- rewrite !Int.unsigned_repr_eq.
- rewrite Zplus_mod_idemp_r.
- rewrite Zplus_mod_idemp_l.
- change (1 mod Int.modulus) with 1.
- simpl.
- replace (Int.unsigned i0 + 1 + -1) with (Int.unsigned i0) by omega.
- rewrite <- Int.unsigned_repr_eq.
- rewrite Int.repr_unsigned.
- reflexivity.
-
-clear.
-rewrite <- (andp_TT (!! _)).
-normalize.
+intros. apply mapsto_value_range. trivial.
 Qed.
 
 Lemma data_block_isbyteZ:
@@ -514,7 +471,7 @@ f_equal. f_equal. apply prop_ext. intuition.
 Qed.
 
 Lemma sizeof_tarray_tuchar:
- forall (n:Z), (n>=0)%Z -> (sizeof (tarray tuchar n) =  n)%Z.
+ forall (n:Z), (n>=0)%Z -> (sizeof cenv_cs (tarray tuchar n) =  n)%Z.
 Proof. intros.
  unfold sizeof,tarray; cbv beta iota.
   rewrite Z.max_r by omega.
@@ -522,3 +479,51 @@ Proof. intros.
   rewrite Z.mul_1_l. auto.
 Qed.
 
+Lemma isbyte_value_fits_tuchar:
+  forall x, isbyteZ x -> value_fits true tuchar (Vint (Int.repr x)).
+Proof.
+intros. hnf in H|-*; intros.
+simpl. rewrite Int.unsigned_repr by repable_signed. 
+  change Byte.max_unsigned with 255%Z. omega.
+Qed.
+
+Lemma Forall_map:
+  forall {A B} (f: B -> Prop) (g: A -> B) al,
+   Forall f (map g al) <-> Forall (f oo g) al.
+Proof.
+intros.
+induction al; simpl; intuition; inv H1; constructor; intuition.
+Qed.
+
+Lemma Forall_sublist:
+  forall {A} (f: A -> Prop) lo hi al,
+   Forall f al -> Forall f (sublist lo hi al).
+Proof.
+intros. unfold sublist.
+apply Forall_firstn. apply Forall_skipn. auto.
+Qed.
+
+Lemma Zlength_Zlist_to_intlist: 
+  forall (n:Z) (l: list Z),
+   (Zlength l = WORD*n)%Z -> Zlength (Zlist_to_intlist l) = n.
+Proof.
+intros.
+rewrite Zlength_correct in *.
+assert (0 <= n)%Z by ( change WORD with 4%Z in H; omega).
+rewrite (length_Zlist_to_intlist (Z.to_nat n)).
+apply Z2Nat.id; auto.
+apply Nat2Z.inj. rewrite H.
+rewrite Nat2Z.inj_mul.
+f_equal. rewrite Z2Nat.id; omega.
+Qed.
+
+Lemma nth_intlist_to_Zlist_eq:
+ forall d (n i j k: nat) al, (i < n)%nat -> (i < j*4)%nat -> (i < k*4)%nat -> 
+    nth i (intlist_to_Zlist (firstn j al)) d = nth i (intlist_to_Zlist (firstn k al)) d.
+Proof.
+ induction n; destruct i,al,j,k; simpl; intros; auto; try omega.
+ destruct i; auto. destruct i; auto. destruct i; auto.
+ apply IHn; omega.
+Qed.
+
+Global Opaque WORD.

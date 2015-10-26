@@ -2,9 +2,9 @@ Require Import floyd.proofauto.
 Local Open Scope logic.
 Require Import List. Import ListNotations.
 Require Import general_lemmas.
+Require Import sublist.
 
 Require Import split_array_lemmas.
-Require Import fragments.
 Require Import ZArith. 
 Require Import tweetNaclBase.
 Require Import Salsa20.
@@ -17,11 +17,11 @@ Opaque core_spec. Opaque ld32_spec. Opaque L32_spec. Opaque st32_spec.
 Opaque crypto_core_salsa20_spec. Opaque crypto_core_hsalsa20_spec.
 
 Definition HFalse_inv l i xs ys :=
-        length l = 64%nat /\
+        Zlength l = 64 /\
                 forall ii, 0<=ii<i -> 
                   exists x_i, Znth ii (map Vint xs) Vundef = Vint x_i /\
                   exists y_i, Znth ii (map Vint ys) Vundef = Vint y_i /\
-                  firstn 4 (skipn ((4*Z.to_nat ii)%nat) l) =
+                  sublist (4*ii) (4*ii+4) l =
                   QuadByte2ValList (littleendian_invert (Int.add x_i y_i)).
 
 Definition HFalsePostCond t y x w nonce out c k h xs ys data := 
@@ -37,9 +37,8 @@ PROP  ()
  `(EX  l : list val,
    !!HFalse_inv l 16 xs ys && data_at Tsh (tarray tuchar 64) l out)).
 
-Lemma verif_fcore_epilogue_hfalse Espec: forall t y x w nonce out c k h data OUT
-  xs ys (ZL_X: Zlength xs = 16) (ZL_Y: Zlength ys = 16) (L_OUT: length OUT = 64%nat),
-@semax Espec
+Lemma verif_fcore_epilogue_hfalse Espec t y x w nonce out c k h data OUT xs ys:
+@semax CompSpecs Espec
   (initialized_list [_i] (func_tycontext f_core SalsaVarSpecs SalsaFunSpecs))
   (PROP  ()
    LOCAL  (lvar _t (tarray tuint 4) t; lvar _y (tarray tuint 16) y;
@@ -86,124 +85,99 @@ Lemma verif_fcore_epilogue_hfalse Espec: forall t y x w nonce out c k h data OUT
               (Ebinop Oadd (Etempvar _i tint) (Econst_int (Int.repr 1) tint)
                 tint))))
 (normal_ret_assert (HFalsePostCond t y x w nonce out c k h xs ys data)).
-Proof. intros.
+Proof. intros. abbreviate_semax.
 eapply semax_post'.
 Focus 2.
     Opaque littleendian.
     Opaque littleendian_invert. Opaque Snuffle20. Opaque prepare_data. 
     Opaque QuadByte2ValList.
-  forward_for_simple_bound 16 (EX i:Z, 
+forward_for_simple_bound 16 (EX i:Z, 
   (PROP  ()
    LOCAL  (lvar _t (tarray tuint 4) t;
    lvar _y (tarray tuint 16) y; lvar _x (tarray tuint 16) x;
    lvar _w (tarray tuint 16) w; temp _in nonce; temp _out out; temp _c c;
    temp _k k; temp _h (Vint (Int.repr h)))
    SEP 
-   (`(data_at Tsh (tarray tuint 16) (map Vint xs) x);
-   `(data_at Tsh (tarray tuint 16) (map Vint ys) y);
-   `(data_at_ Tsh (tarray tuint 4) t); `(data_at_ Tsh (tarray tuint 16) w);
+   (`(@data_at CompSpecs Tsh (tarray tuint 16) (map Vint xs) x);
+   `(@data_at CompSpecs Tsh (tarray tuint 16) (map Vint ys) y);
+   `(@data_at_ CompSpecs Tsh (tarray tuint 4) t); `(@data_at_ CompSpecs Tsh (tarray tuint 16) w);
    `(CoreInSEP data (nonce, c, k));
-   `(EX l:_, !!HFalse_inv l i xs ys && data_at Tsh (tarray tuchar 64) l out)))).
-  { entailer. apply (exp_right OUT). cancel. apply andp_right; try cancel.
-    apply prop_right. unfold HFalse_inv. rewrite L_OUT. split; trivial; intros. omega. } 
+   `(EX l:_, !!HFalse_inv l i xs ys && @data_at CompSpecs Tsh (tarray tuchar 64) l out)))).
+  { entailer. apply (exp_right OUT). entailer.
+    apply prop_right. unfold HFalse_inv. split; trivial; intros. omega. } 
   { rename H into I;  normalize. intros l; normalize. rename H into INV_l.
-    destruct (Znth_mapVint xs i Vundef) as [xi Xi]; try omega.
+    assert_PROP (Zlength (map Vint xs) = 16). entailer. rename H into XL; rewrite Zlength_map in XL.
+    destruct (Znth_mapVint (xs:list int) i Vundef) as [xi Xi]; try omega.
+    assert_PROP (Zlength (map Vint ys) = 16). entailer. rename H into YL; rewrite Zlength_map in YL.
     destruct (Znth_mapVint ys i Vundef) as [yi Yi]; try omega.
     forward. 
-    { entailer. apply prop_right. simpl. rewrite Xi. simpl; trivial. }
+    { entailer. apply prop_right. rewrite Xi. simpl; trivial. }
     forward.
-    { entailer. apply prop_right. rewrite Yi. simpl; trivial. }
-    forward sum. subst sum.
-    rewrite Xi, Yi. simpl. 
-    Opaque Z.mul. rewrite data_at_isptr at 1. normalize. rename H into isptrOut.
-    forward v.
-    assert (L: length l = 64%nat). apply INV_l.
-    assert (ZL: Zlength l = 64). rewrite Zlength_correct, L; simpl; trivial.
-    rewrite <- ZL, (split3_offset_array_at tuchar (eq_refl _) ((4 * Z.to_nat i)%nat) 4 Tsh l).
-    Focus 2. eapply Nat2Z.inj_le. rewrite Zlength_correct in ZL.
-             rewrite Nat2Z.inj_add, Nat2Z.inj_mul, Z2Nat.id. simpl. rewrite ZL. omega. apply I.
-    normalize. rename H into OIR_out0. rename H0 into OUR_out64.
-    rewrite Nat2Z.inj_mul. rewrite Z2Nat.id. 2: apply I.
-    assert (Z.of_nat 4 = 4). reflexivity. rewrite H; clear H.
-    Opaque firstn. Opaque skipn. Opaque mult.
+    { entailer. apply prop_right. rewrite Yi. simpl; trivial. } 
+    rewrite Xi, Yi.
+    forward.
+    Opaque Z.mul. Opaque Z.add. Opaque Z.sub.
+    rewrite data_at_isptr at 1. normalize. rename Pout into isptrOut.
+    forward.
+    assert (ZL: Zlength l = 64). apply INV_l.
+    assert_PROP(field_compatible (Tarray tuchar 64 noattr) [] out). entailer.
+    rename H into FCO.
+    rewrite <- ZL, (split3_data_at_Tarray_at_tuchar Tsh (Zlength l) (4 *i) 4); try rewrite ZL; try omega; trivial.
+    normalize. 
 Transparent core_spec. Transparent ld32_spec. Transparent L32_spec. Transparent st32_spec.
 Transparent crypto_core_salsa20_spec. Transparent crypto_core_hsalsa20_spec.
-    forward_call' (offset_val (Int.repr (4 * i)) out, Int.add xi yi).
+    forward_call (offset_val (Int.repr (4 * i)) out, Int.add xi yi).
 Opaque core_spec. Opaque ld32_spec. Opaque L32_spec. Opaque st32_spec.
 Opaque crypto_core_salsa20_spec. Opaque crypto_core_hsalsa20_spec.
-    { entailer. apply (exp_right (firstn 4 (skipn (4 * Z.to_nat i) l))).
-      rewrite firstn_length, skipn_length, L, Min.min_l. entailer; cancel.
-      apply Nat2Z.inj_le. rewrite Nat2Z.inj_sub, Nat2Z.inj_mul, Z2Nat.id. xomega. apply I.
-      apply Nat2Z.inj_le. rewrite Nat2Z.inj_mul, Z2Nat.id. xomega. apply I. }
+    { entailer. unfold at_offset at 1. apply (exp_right (sublist (4 * i) (4 + 4 * i) l)).
+      entailer. cancel. } 
 
-    simpl. intros. entailer.
-    apply (exp_right ((firstn (4 * Z.to_nat i) l) ++
+    entailer. rename _id1 into yi. (*Issue these kinds of weird renamings done by entailer etc show up at various places*)
+    apply (exp_right ((sublist 0 (4 * i) l) ++ 
                       (QuadByte2ValList (littleendian_invert (Int.add xi yi))) ++
-                      (skipn (4 * Z.to_nat i + 4) l))).
-    entailer.
-    unfold QByte. simpl.
-    assert (LL: length
-           (firstn (4 * Z.to_nat i) l ++
-            QuadByte2ValList (littleendian_invert (Int.add xi yi)) ++
-            skipn (4 * Z.to_nat i + 4) l) = 64%nat). 
-    { do 2 rewrite app_length. 
-      rewrite firstn_length, QuadByteValList_length, skipn_length, Min.min_l.
-      rewrite L. rewrite plus_assoc, (plus_comm _ 4), <- le_plus_minus. trivial.
-      apply Nat2Z.inj_le. rewrite Nat2Z.inj_add, Nat2Z.inj_mul, Z2Nat.id. xomega. apply I.
-      apply Nat2Z.inj_le. rewrite L, Nat2Z.inj_mul, Z2Nat.id. xomega. apply I. }
-    assert (ZLL: Zlength (firstn (4 * Z.to_nat i) l ++
-            QuadByte2ValList (littleendian_invert (Int.add xi yi)) ++
-            skipn (4 * Z.to_nat i + 4) l) = 64).
-    { rewrite Zlength_correct, LL. reflexivity. } 
-    apply andp_right. 
-    { apply prop_right. split; trivial. intros ii II. 
+                      (sublist (4 + 4 * i) 64 l))).
+    { unfold QByte. entailer.
+      apply andp_right.
+      apply prop_right. split; intros. do 2 rewrite Zlength_app; repeat rewrite Zlength_sublist.
+        rewrite <- QuadByteValList_ZLength, Zminus_0_r. rewrite (Z.add_comm _ (4*i)). rewrite Z.sub_add_distr. 
+        do 2 rewrite Z.add_sub_assoc, Z.add_simpl_l. trivial. 
+        omega. omega. omega. omega.
       destruct INV_l as [_ INV_l].
-      assert(QQ: (4 * Z.to_nat ii <= length l)%nat).
-         simpl in *; rewrite L. rewrite <- (Z2Nat.inj_mul 4). apply (Z2Nat.inj_le _ 64). omega. omega. omega. omega. omega.
       destruct (zlt ii i).
         + destruct (INV_l ii) as [x_ii [Z_ii [y_ii [Y_iiA Y_iiB]]]]. omega.
           rewrite Z_ii, Y_iiA. exists x_ii; split. trivial. 
           exists y_ii; split. trivial. rewrite <- Y_iiB. clear Y_iiB. clear INV_l.
-          assert (Arith: (4 * Z.to_nat i)%nat = (4 * Z.to_nat ii + 4 * Z.to_nat (i-ii))%nat).
-            rewrite <- mult_plus_distr_l, Z2Nat.inj_sub, le_plus_minus_r. trivial. apply Z2Nat.inj_le. omega. omega. omega. omega.
-          rewrite Arith. rewrite <- coqlib3.firstn_app. rewrite <- app_assoc.
-          rewrite skipn_app2; rewrite firstn_length, Min.min_l; trivial. 2: omega.
-          rewrite minus_diag, skipn_0.
-          rewrite firstn_app1. rewrite <- skipn_firstn. rewrite <- Arith. 
-          do 2 rewrite <- skipn_firstn. f_equal. apply coqlib3.firstn_firstn. 
-           specialize (mult_plus_distr_l 4 (Z.to_nat ii) 1); rewrite mult_1_r. intros WW; rewrite <- WW; clear WW. 
-            specialize (Z2Nat.inj_add ii 1); simpl.
-            intros WW; rewrite <- WW; clear WW; try omega. 
-            rewrite <- (Z2Nat.inj_mul 4); try omega. 
-            rewrite <- (Z2Nat.inj_mul 4); try omega.
-            apply Z2Nat.inj_le; omega.
-           rewrite firstn_length, Min.min_l.
-              rewrite <- (Z2Nat.inj_mul 4); try omega.
-              apply (Z2Nat.inj_le 4); omega.
-           rewrite skipn_length. simpl; rewrite L.
-           rewrite Z2Nat.inj_sub, mult_minus_distr_l; try apply II. apply minus_le_compat_r.
-              rewrite <- (Z2Nat.inj_mul 4); try omega. apply (Z2Nat.inj_le _ 64); omega.
-       +  assert (IX: ii = i) by omega. subst ii. clear g INV_l.
+          rewrite sublist_app1.
+          - rewrite sublist_sublist. do 2 rewrite Zplus_0_r. reflexivity. omega. omega. rewrite Zminus_0_r; omega.
+          - omega.
+          - rewrite Zlength_sublist, Zminus_0_r; omega.
+        + assert (IX: ii = i) by omega. subst ii. clear g INV_l.
           exists xi. split; trivial. exists yi; split; trivial.
-          rewrite skipn_app2; rewrite firstn_length, Min.min_l; try omega.
-          rewrite minus_diag, skipn_0. 
-          apply hmac_pure_lemmas.firstn_exact. apply QuadByteValList_length. }
-    cancel.
-    rewrite <- ZLL. remember (Zlength l - Z.of_nat (4 * Z.to_nat i + 4)).
-    specialize (append_split3_Tarray_at tuchar). intros DD; simpl in DD.
-    unfold tarray; erewrite DD; clear DD; try reflexivity.
-    rewrite ZLL. repeat rewrite Z.mul_1_l.
-    repeat rewrite <- (QuadByteValList_ZLength (littlendian_invert (Int.add xi _id0))).
-    assert (ZL3: Zlength (firstn (4 * Z.to_nat i) l) = (4 * i)%Z).
-      rewrite Zlength_correct, firstn_length, L, Min.min_l, Nat2Z.inj_mul, Z2Nat.id. trivial. apply I.
-      apply Nat2Z.inj_le. rewrite Nat2Z.inj_mul, Z2Nat.id. xomega. apply I.
-    rewrite ZL3. 
-    assert (ZL4: Zlength (skipn (4 * Z.to_nat i + 4) l) = z).
-      rewrite Zlength_correct, skipn_length, Heqz. rewrite ZL, L. rewrite Nat2Z.inj_sub. reflexivity.
-      apply Nat2Z.inj_le. rewrite Nat2Z.inj_add, Nat2Z.inj_mul, Z2Nat.id. xomega. apply I.
-    rewrite ZL4. rewrite <- ZL, Nat2Z.inj_add, Nat2Z.inj_mul, Z2Nat.id.
-       apply andp_right. apply andp_right; apply prop_right; simpl; assumption.
-    rewrite <- QuadByteValList_ZLength. simpl.  cancel. apply I. }
+          rewrite sublist_app2; rewrite Zlength_sublist; try rewrite Zminus_0_r; try omega.
+          rewrite Zminus_diag, Z.add_simpl_l.
+          rewrite sublist0_app1; try rewrite <- QuadByteValList_ZLength; try omega.
+          apply sublist_same. trivial. apply QuadByteValList_ZLength. 
+       + cancel. Transparent Z.sub. 
+         rewrite (split3_data_at_Tarray_at_tuchar Tsh 64 (4 *i) 4); 
+          repeat rewrite Zlength_app; repeat rewrite Zlength_sublist; repeat rewrite Zminus_0_r; repeat rewrite <- QuadByteValList_ZLength; trivial.
+          rewrite sublist0_app1. rewrite sublist_sublist. repeat rewrite Zplus_0_r. cancel.
+          unfold at_offset at 2.
+          rewrite sublist_app2; try rewrite Zlength_sublist, Zminus_0_r, Zminus_diag, Z.add_simpl_r.
+          rewrite sublist0_app1; try rewrite <- QuadByteValList_ZLength.
+          apply sepcon_derives. rewrite sublist_same; try rewrite <- QuadByteValList_ZLength; trivial.
+          rewrite sublist_app2; repeat rewrite Zlength_sublist, Zminus_0_r.
+          rewrite sublist_app2; try rewrite <- QuadByteValList_ZLength; repeat rewrite Zlength_sublist.
+          assert (A:(4 * i + (4 + (64 - (4 + 4 * i))) - (4 + 4 * i) = 64 - (4 + 4 * i))%Z). unfold Z.sub; omega.
+          rewrite A; clear A.
+          repeat rewrite Z.add_simpl_r. rewrite Zminus_diag.
+          rewrite sublist_sublist.
+          assert (A: (4 * i + (4 + (64 - (4 + 4 * i))) - 4 * i - 4 + (4 + 4 * i) = 64)%Z). unfold Z.sub; omega.
+          rewrite A; clear A. trivial.
+          omega. unfold Z.sub; omega. unfold Z.sub; omega. unfold Z.sub; omega. omega. omega. omega. omega. omega.
+          omega. omega. omega. rewrite Zlength_sublist, Zminus_0_r; omega. omega. omega. rewrite Zminus_0_r; omega.
+          rewrite Zlength_sublist, Zminus_0_r; omega. omega. omega. omega. omega. omega. omega. unfold Z.sub; omega.
+          omega. omega. omega. omega. } 
+    } 
   apply derives_refl.
 unfold HFalsePostCond. entailer. apply (exp_right l); entailer.
 (*With temp _i (Vint (Int.repr 16) in LOCAL of HfalsePostCond: apply derives_refl. *)

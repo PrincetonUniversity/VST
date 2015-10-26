@@ -131,6 +131,14 @@ Proof.
  apply (join_eq H4 H5).
 Qed.
 
+Lemma join_core2 {A}{J: Join A}{PA: Perm_alg A}{SA: Sep_alg A}:
+  forall a b c, join a b c -> core a = core b. 
+Proof.
+intros. generalize H; intro.
+apply join_comm in H.
+apply join_core in H0; apply join_core in H. congruence.
+Qed.
+
 (* Canc_alg: makes a Permission Algebra into a cancellative Perm.Alg. *)
 Class Canc_alg (t: Type) {J: Join t} :=
     join_canc: forall {a1 a2 b c}, join a1 b c -> join a2 b c -> a1 = a2.

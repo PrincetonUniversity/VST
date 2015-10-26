@@ -6,6 +6,7 @@ Import Mem.
 Require Import msl.msl_standard.
 Require Import veric.juicy_mem.
 Require Import veric.res_predicates.
+Require Import veric.shares.
 
 Definition juicy_mem_core (j: juicy_mem) : rmap := core (m_phi j).
 
@@ -211,7 +212,7 @@ spec Hacc (b, i).
 simpl in H.
 destruct (m_phi jm @ (b, i)).
 contradiction.
-destruct H as [H1 [? H2]]. subst k p.
+destruct H as [H1 H2]. destruct k; inv H2.
 unfold access_at in Hacc.
 simpl in Hacc.
 rewrite Hacc.
@@ -585,6 +586,7 @@ clear H4.
 unfold access_cohere in H3.
 spec H3 (b', ofs').
 unfold perm_of_res in *.
+(*
 assert (H99: valshare (m_phi m @ (b', ofs')) <> Share.bot).
 intro Hx; rewrite Hx in *.
 elimtype False; forget (res_retain' (m_phi m @ (b',ofs'))) as r; clear - H H0 H3.
@@ -595,34 +597,29 @@ rewrite perm_of_nonempty in H3; auto.
 destruct H0 as [? _]; specialize (H0 ofs'). destruct H.
 specialize (H0 H1). subst b'. 
 unfold perm, access_at in H0,H3. simpl in H3. rewrite H3 in H0. inv H0.
-case_eq (m_phi m @ (b', ofs')).
-intros rsh H4; rewrite H4 in H99; contradiction H99; simpl; auto.
-intros rsh [sh p] k pp H4.
-rewrite H4 in H3, H99.
-destruct k; try solve [contradiction H99; simpl; auto].
-exists rsh,sh; exists p.
-destruct (H1 _ _ _ _ _ H4). subst pp.
-cut (m0 = nth (nat_of_Z (snd (b', ofs') - snd (b, ofs)))
-           (Mem.getN (size_chunk_nat ch) ofs (PMap.get b (Mem.mem_contents (m_dry m))))
-           Undef). intro Heq0.
-f_equal; auto.
-f_equal; auto.
-subst. 
+*)
+destruct H0 as [H0 _].
+specialize (H0 ofs').
+destruct H.
+subst b'. clear Heqbb'. specialize (H0 H4).
+hnf in H0.
+unfold access_at in H3.
+simpl in H3.
+rewrite H3 in H0. clear H3.
+clear H5.
+destruct (m_phi m @ (b, ofs')) eqn:H8; try contradiction.
+if_tac in H0; try contradiction.
+inv H0.
+destruct k; try solve [inv H0].
+destruct (perm_of_sh t (pshare_sh p)) eqn:?H; try contradiction.
+pose proof (size_chunk_pos ch).
+rewrite <- nth_getN with (ofs := ofs) (z := size_chunk ch); auto.
 simpl.
-rewrite nth_getN with (ofs := ofs) (z := size_chunk ch); auto.
-unfold adr_range in H.
-replace (size_chunk ch) with (size_chunk ch) in H.
-omega.
-auto.
-generalize (size_chunk_pos ch).
-intros.
-omega.
-intros. rewrite H4 in H3. elimtype False.
-subst b'. hnf in H0. unfold access_at in H3. simpl in H3.
-destruct H0;  unfold range_perm in H0.
-unfold perm in H0. destruct H. specialize (H0 _ H7).
-rewrite H3 in H0. 
-rewrite H4 in H99. simpl in H99. contradiction H99; auto.
+destruct (H1 _ _ _ _ _ H8); subst.
+destruct p. simpl in *.
+exists t, x, n; auto.
+simpl. omega.
+inv H0.
 Qed.
 
 Lemma core_load_load: forall ch b ofs v m,
@@ -1015,7 +1012,7 @@ assert (~adr_range (b,lo) (hi-lo) loc).
  assert (Ha := juicy_mem_access (initial_mem m1 lev IOK1) loc).
   destruct loc. simpl in *.
   rewrite H1 in Ha.
-  destruct H0 as [_ H0]. destruct H0. rewrite H0 in Ha. 
+  destruct H0 as [_ H0]. destruct k; inv H0.
   intro Contra.
   destruct Contra.
   subst.
@@ -1034,7 +1031,7 @@ rewrite resource_at_make_rmap.
 destruct loc as (b',ofs').
 assert (Ha := juicy_mem_access (initial_mem m1 lev IOK1) (b',ofs')).
   rewrite H1 in Ha.
-  destruct H0 as [Hfree H0]. destruct H0. rewrite H0 in Ha. 
+  destruct H0 as [Hfree H0]. destruct k; try solve [inversion H0].
   unfold perm_of_res in Ha. simpl in Ha.
   destruct (perm_of_sh_pshare t pfullshare).
   subst.
@@ -1061,7 +1058,7 @@ assert (~adr_range (b,lo) (hi-lo) loc).
  assert (Ha := juicy_mem_access (initial_mem m1 lev IOK1) loc).
   destruct loc. simpl in *.
   rewrite H1 in Ha.
-  destruct H0. rewrite H0 in Ha. 
+  destruct k; try solve [inv H0].
   intro Contra.
   destruct Contra.
   subst.
@@ -1082,7 +1079,7 @@ destruct loc as (b',ofs').
 assert (exists p, access_at m1 (b', ofs') = Some p).
  assert (Ha := juicy_mem_access (initial_mem m1 lev IOK1) (b',ofs')).
   rewrite H1 in Ha.
-  destruct H0. rewrite H0 in Ha.   unfold perm_of_res in Ha; simpl in Ha.
+  destruct k; try solve [inv H0].   unfold perm_of_res in Ha; simpl in Ha.
   destruct (perm_of_sh_pshare t p).
   rewrite H4 in Ha. simpl in *.
   eexists; eauto.

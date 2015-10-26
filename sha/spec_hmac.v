@@ -22,6 +22,9 @@ to avoid a name clash between _key and sha._K256 *)
 
 Require Import sha.hmac091c.
 
+Instance CompSpecs : compspecs.
+Proof. make_compspecs prog. Defined.
+
 Record TREP := mkTrep { t: type; v: reptype t}.
 
 Definition tp_of (T:TREP) : type.
@@ -34,13 +37,14 @@ Defined.
 
 Definition memcpy_spec_data_at :=
   DECLARE _memcpy
-   WITH sh : share*share, p: val, q: val, T:TREP
+   WITH sh : share*share, p: val, q: val, T:TREP, n:Z
    PRE [ 1%positive OF tptr tvoid, 2%positive OF tptr tvoid, 3%positive OF tuint ]
-       PROP (writable_share (snd sh); 0 <= sizeof  (tp_of T) <= Int.max_unsigned)
+       PROP (writable_share (snd sh); n= sizeof (@cenv_cs CompSpecs)  (tp_of T);
+             0 <= n <= Int.max_unsigned)
        LOCAL (temp 1%positive p; temp 2%positive q;
-              temp 3%positive (Vint (Int.repr (sizeof (tp_of T)))))
+              temp 3%positive (Vint (Int.repr n)))
        SEP (`(data_at (fst sh) (tp_of T) (v_of T) q);
-            `(memory_block (snd sh) (Int.repr (sizeof  (tp_of T))) p))
+            `(memory_block (snd sh) n p))
     POST [ tptr tvoid ]
        PROP ()
        LOCAL (temp ret_temp p)
@@ -210,6 +214,8 @@ Definition hmac_relate (h: hmacabs) (r: hmacstate) : Prop :=
               (if zlt 64 (Zlength k) then 32 else Zlength k)=klen
   end.
 
+Definition t_struct_hmac_ctx_st := Tstruct _hmac_ctx_st noattr.
+
 Definition hmacstate_ (h: hmacabs) (c: val) : mpred :=
    EX r:hmacstate, 
     !!  hmac_relate h r && data_at Tsh t_struct_hmac_ctx_st r c.
@@ -327,7 +333,7 @@ Definition HMAC_Final_spec :=
        LOCAL (temp _md md; temp _ctx c;
               gvar sha._K256 kv)
        SEP(`(hmacstate_ h1 c); `(K_vector kv);
-           `(memory_block shmd (Int.repr 32) md))
+           `(memory_block shmd 32 md))
   POST [ tvoid ] 
          EX digestH2:_, 
           PROP (hmacFinal h1 (fst digestH2) (snd digestH2)) 
@@ -367,7 +373,7 @@ Definition HMAC_Cleanup_spec :=
           PROP (size_compatible t_struct_hmac_ctx_st c /\
                 align_compatible t_struct_hmac_ctx_st c) 
           LOCAL ()
-          SEP(`(data_block Tsh (list_repeat (Z.to_nat(sizeof t_struct_hmac_ctx_st)) 0) c)).
+          SEP(`(data_block Tsh (list_repeat (Z.to_nat(sizeof (@cenv_cs CompSpecs) t_struct_hmac_ctx_st)) 0) c)).
 
 (************************ Specification of oneshot HMAC *******************************************************)
 
@@ -394,7 +400,7 @@ Definition HMAC_spec :=
          SEP(`(data_block Tsh (CONT KEY) keyVal);
              `(data_block Tsh (CONT MSG) msgVal);
              `(K_vector kv);
-             `(memory_block shmd (Int.repr 32) md))
+             `(memory_block shmd 32 md))
   POST [ tvoid ] 
           PROP ()
           LOCAL ()

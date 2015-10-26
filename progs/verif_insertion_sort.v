@@ -356,7 +356,7 @@ unfold_data_at 1%nat.
 entailer.
  
 apply extract_exists_pre. intros sorted_val.
-forward_call'  (* sorted = insert(index, sorted); *)
+forward_call  (* sorted = insert(index, sorted); *)
   (sh, (insertion_sort sorted_list), insert_val, sorted_val, i)
   vret.
 forward index_old. (* index = next;*)

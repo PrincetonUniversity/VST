@@ -1,5 +1,9 @@
 Require Import floyd.proofauto.
 Require Import progs.odd.
+Definition CompSpecs' : compspecs.
+Proof. make_compspecs1 prog. Defined.
+Instance CompSpecs : compspecs.
+Proof. make_compspecs2 CompSpecs'. Defined.
 Local Open Scope logic.
 
 Require Import progs.verif_even.
@@ -18,7 +22,7 @@ forward_if (PROP (z > 0) LOCAL (temp _n (Vint (Int.repr z))) SEP ()).
  forward. entailer!.
 * 
   normalize. 
-  forward_call' (z-1) vret.
+  forward_call (z-1) vret.
   omega.
   subst vret.
   forward.
@@ -33,8 +37,8 @@ Lemma all_funcs_correct:
 Proof.
 unfold Gprog, prog, prog_funct; simpl.
 semax_func_skipn.
-semax_func_cons_ext.
-  apply temp_make_ext_rval_e in H; try congruence.
+semax_func_cons_ext. renormalize.
+  apply (temp_make_ext_rval_e gx (Vint (if Z.even x then Int.one else Int.zero)) ret) in H; try congruence.
   subst; simpl; entailer.
 semax_func_cons body_odd.
 apply semax_func_nil.

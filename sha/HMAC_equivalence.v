@@ -160,13 +160,13 @@ Module PAD := HMAC_Pad HF I.
   Definition opad_v : Bvector EQ.b := of_list_length _ OL.
   Lemma OPADX:bytes_bits_lists (Vector.to_list opad_v) (PAD.HM.sixtyfour opd).
     apply bytes_bits_comp_ind.
-      unfold PAD.HM.sixtyfour. apply Forall_list_repeat. unfold opd. omega.
+      unfold PAD.HM.sixtyfour. apply sublist.Forall_list_repeat. unfold opd. omega.
     unfold opad_v. rewrite of_length_proof_irrel. reflexivity.
   Qed.
 
   Lemma IPADX:bytes_bits_lists (Vector.to_list ipad_v) (PAD.HM.sixtyfour ipd).
     apply bytes_bits_comp_ind.
-      unfold PAD.HM.sixtyfour. apply Forall_list_repeat. unfold ipd. omega.
+      unfold PAD.HM.sixtyfour. apply sublist.Forall_list_repeat. unfold ipd. omega.
     unfold ipad_v. rewrite of_length_proof_irrel. reflexivity.
   Qed.
 

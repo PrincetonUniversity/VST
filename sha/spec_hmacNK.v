@@ -6,21 +6,10 @@ Require Import sha.spec_sha.
 Require Import sha_lemmas.
 Require Import sha.HMAC_functional_prog.
 Require Import sha.HMAC256_functional_prog.
-
-(*when generating hmac091c.v using clightgen, manually hack the generated 
-file hmac091c.v by adding
-
-Require Import sha.sha.
-Definition t_struct_SHA256state_st := sha.t_struct_SHA256state_st
-
-BEFORE the definition of all identifiers, and modifying
-
-Definition _key : ident := 41%positive. into
-Definition _key : ident := 141%positive.
-
-to avoid a name clash between _key and sha._K256 *)
-
 Require Import sha.hmac_NK.
+
+Instance CompSpecs : compspecs.
+Proof. make_compspecs prog. Defined.
 
 Record TREP := mkTrep { t: type; v: reptype t}.
 
@@ -34,13 +23,14 @@ Defined.
 
 Definition memcpy_spec_data_at :=
   DECLARE _memcpy
-   WITH sh : share*share, p: val, q: val, T:TREP
+   WITH sh : share*share, p: val, q: val, T:TREP, n:Z
    PRE [ 1%positive OF tptr tvoid, 2%positive OF tptr tvoid, 3%positive OF tuint ]
-       PROP (writable_share (snd sh); 0 <= sizeof  (tp_of T) <= Int.max_unsigned)
+       PROP (writable_share (snd sh); n= sizeof (@cenv_cs CompSpecs)  (tp_of T);
+             0 <= n <= Int.max_unsigned)
        LOCAL (temp 1%positive p; temp 2%positive q;
-              temp 3%positive (Vint (Int.repr (sizeof (tp_of T)))))
+              temp 3%positive (Vint (Int.repr n)))
        SEP (`(data_at (fst sh) (tp_of T) (v_of T) q);
-            `(memory_block (snd sh) (Int.repr (sizeof  (tp_of T))) p))
+            `(memory_block (snd sh) n p))
     POST [ tptr tvoid ]
        PROP ()
        LOCAL (temp ret_temp p)
@@ -49,7 +39,7 @@ Definition memcpy_spec_data_at :=
 
 (****** Coq-representation of hmac states, and predicates characterizing the incremental functions.
 
-If the corresponding predicates for SHA operations were urned into functions, the ones here could be, too *)
+If the corresponding predicates for SHA operations were modeled as functions, the ones here could be, too *)
 
 Inductive hmacabs :=  (* HMAC abstract state *)
  HMACabs: forall (ctx iSha oSha: s256abs) (*sha structures for md_ctx, i_ctx, o_ctx*), 
@@ -168,7 +158,39 @@ Proof.
  rewrite hmac_hmacSimple. exists h; eassumption. 
 Qed.
 
-(************Coq  ounterpart of HMAC_CTX, but for ComPCert values (val etc)***************************)
+Lemma update_abs_nil ctx x: s256_relate ctx x -> update_abs [] ctx ctx.
+Proof.
+  intros.
+  destruct ctx. simpl in H.
+  specialize (Update_abs nil hashed nil data data); simpl.
+  do 2 rewrite app_nil_r. intros U; apply U; trivial; clear U; intuition.
+Qed.
+
+Lemma update_abs_app ctx0 ctx1 ctx2 data data1:
+   update_abs data ctx0 ctx1 -> 
+   update_abs data1 ctx1 ctx2 ->
+   update_abs (data ++ data1) ctx0 ctx2.
+Proof. intros.
+  inv H. inv H0.
+  specialize (Update_abs (data ++ data1) hashed (blocks++blocks0) oldfrag newfrag0).
+    rewrite  <- app_assoc. intros ZZ; apply ZZ; clear ZZ; trivial.
+    rewrite Zlength_app. apply Z.divide_add_r; assumption.
+    rewrite app_assoc. rewrite H5; clear H5. rewrite <- app_assoc.
+    rewrite H13; clear H13. rewrite intlist_to_Zlist_app. rewrite app_assoc; trivial.
+Qed.
+
+Lemma hmacUpdate_app h0 h1 h2 data data1: 
+      hmacUpdate data h0 h1 ->
+      hmacUpdate data1 h1 h2 ->
+      hmacUpdate (data ++ data1) h0 h2.
+Proof.
+  intros.
+  destruct h0; simpl in *. destruct H as [? [UPD ?]]. subst h1. 
+  destruct H0 as [? [? ?]]. subst h2. exists x0; split; trivial.
+  eapply update_abs_app; eassumption.
+Qed.
+
+(************Coq counterpart of HMAC_CTX, but for CompCert values (val etc)*********************)
 Definition hmacstate: Type := 
   (s256state * (s256state * s256state))%type.
 
@@ -186,7 +208,8 @@ destruct h as [_ [_ OCTX]]. apply OCTX.
 Defined.
 
 (***************** The next two definitions link abstract states (hmacabs) with Coq
- representations of HMAC_CTX values (hmacstate), and lift the relationship to a separation logic predicates*)
+ representations of HMAC_CTX values (hmacstate), and lift
+ the relationship to a separation logic predicates*)
 Definition hmac_relate (h: hmacabs) (r: hmacstate) : Prop :=
   match h with HMACabs ctx iS oS =>
     s256_relate ctx (mdCtx r) /\
@@ -195,14 +218,16 @@ Definition hmac_relate (h: hmacabs) (r: hmacstate) : Prop :=
     s256a_len iS = 512 /\ s256a_len oS = 512
   end.
 
+Definition t_struct_hmac_ctx_st := Tstruct _hmac_ctx_st noattr.
+
 Definition hmacstate_ (h: hmacabs) (c: val) : mpred :=
    EX r:hmacstate, 
     !!  hmac_relate h r && data_at Tsh t_struct_hmac_ctx_st r c.
 
-(************************ Specification of HMAC_init *******************************************************)
+(************************ Specification of HMAC_init ********************************************)
 
 Definition has_lengthK (l:Z) (key:list Z) :=
-  l = Zlength key /\ 0 <= l <= Int.max_signed /\
+  l = Zlength key /\ 0 < l <= Int.max_signed /\ (*requirement 0<l new in new_compcert - previouslu, it was 0<=l*)
   l * 8 < two_p 64.
 
 Definition hmac_relate_PreInitNull (key:list Z) (h:hmacabs ) (r: hmacstate) : Prop :=
@@ -279,6 +304,14 @@ Definition HMAC_Update_spec :=
           SEP(`(K_vector kv);
               `(hmacstate_ h2 c); `(data_block Tsh data d)).
 
+Lemma hmacUpdate_nil h x: hmac_relate h x -> hmacUpdate [] h h.
+Proof.
+ intros.
+ destruct h. simpl. exists ctx; split; trivial.
+ simpl in H.
+ eapply update_abs_nil. apply H.
+Qed.
+
 (************************ Specification of HMAC_final *******************************************************)
 
 Definition hmac_relate_PostFinal (h:hmacabs ) (r: hmacstate) : Prop :=
@@ -305,7 +338,7 @@ Definition HMAC_Final_spec :=
        LOCAL (temp _md md; temp _ctx c;
               gvar sha._K256 kv)
        SEP(`(hmacstate_ h1 c); `(K_vector kv);
-           `(memory_block shmd (Int.repr 32) md))
+           `(memory_block shmd 32 md))
   POST [ tvoid ] 
          EX digestH2:_, 
           PROP (hmacFinal h1 (fst digestH2) (snd digestH2)) 
@@ -332,7 +365,27 @@ Definition HMAC_Final_spec :=
               `(hmacstate_PostFinal h2 c);
               `(data_block shmd digest md)).*)
 
-(************************ Specification of HMAC_cleanup *******************************************************)
+Lemma hmacstate_PostFinal_PreInitNull key h0 data h1 dig h2 v:
+      forall (HmacInit : hmacInit key h0)
+             (HmacUpdate : hmacUpdate data h0 h1)
+             (Round1Final : hmacFinal h1 dig h2),
+      hmacstate_PostFinal h2 v
+  |-- hmacstate_PreInitNull key h2 v.
+Proof. intros. 
+  unfold hmacstate_PostFinal, hmac_relate_PostFinal, hmacstate_PreInitNull; normalize.
+  Exists r.
+  Exists (default_val t_struct_SHA256state_st). 
+  apply andp_right. 2: apply derives_refl.
+  apply prop_right. 
+    destruct h2. destruct h1. simpl in *.
+    destruct Round1Final as [oSA [UPDO [XX FinDig]]]. inversion XX; subst; clear XX.
+    destruct h0. simpl in *. destruct HmacUpdate as [ctx2 [UpdI XX]]. inversion XX; subst; clear XX.
+    unfold  hmacInit in HmacInit. simpl in *. 
+    destruct HmacInit as [IS [OS [ISHA [OSHA XX]]]].  inversion XX; subst; clear XX. 
+    intuition.
+Qed.
+
+(************************ Specifications of HMAC_cleanup *******************************************************)
 
 Definition HMAC_Cleanup_spec :=
   DECLARE _HMAC_cleanup
@@ -342,10 +395,22 @@ Definition HMAC_Cleanup_spec :=
          LOCAL (temp _ctx c)
          SEP(`(hmacstate_PostFinal h c))
   POST [ tvoid ]  
-          PROP (size_compatible t_struct_hmac_ctx_st c /\
-                align_compatible t_struct_hmac_ctx_st c) 
+          PROP () 
           LOCAL ()
-          SEP(`(data_block Tsh (list_repeat (Z.to_nat(sizeof t_struct_hmac_ctx_st)) 0) c)).
+          SEP(`(data_block Tsh (list_repeat (Z.to_nat(sizeof (@cenv_cs CompSpecs) t_struct_hmac_ctx_st)) 0) c)).
+
+Definition HMAC_Cleanup_spec1 :=
+  DECLARE _HMAC_cleanup
+   WITH h: hmacabs, c : val
+   PRE [ _ctx OF tptr t_struct_hmac_ctx_st ]
+         PROP () 
+         LOCAL (temp _ctx c)
+         SEP(`(EX key:_, hmacstate_PreInitNull key h c))
+  POST [ tvoid ]  
+          PROP () 
+          LOCAL ()
+          SEP(`(data_block Tsh (list_repeat (Z.to_nat(sizeof (@cenv_cs CompSpecs) t_struct_hmac_ctx_st)) 0) c)).
+
 
 (************************ Specification of oneshot HMAC *******************************************************)
 
@@ -372,7 +437,7 @@ Definition HMAC_spec :=
          SEP(`(data_block Tsh (CONT KEY) keyVal);
              `(data_block Tsh (CONT MSG) msgVal);
              `(K_vector kv);
-             `(memory_block shmd (Int.repr 32) md))
+             `(memory_block shmd 32 md))
   POST [ tvoid ] 
           PROP ()
           LOCAL ()
@@ -409,7 +474,9 @@ Definition HmacFunSpecs : funspecs :=
   HMAC_Final_spec:: HMAC_spec ::nil.
 
 (**Finally, some auxiliary lemmas and constructions that are shared beween several downstream files ******)
-Definition emptySha:s256state := (nil, (Vundef, (Vundef, (nil, Vundef)))).
+(*Definition emptySha:s256state := (nil, (Vundef, (Vundef, (nil, Vundef)))).
  
 Definition keyedHMS: hmacstate :=
-  (emptySha, (emptySha, emptySha)).
+  (emptySha, (emptySha, emptySha)).*)
+
+Definition HMS : hmacstate := default_val t_struct_hmac_ctx_st.

@@ -1,36 +1,10 @@
 Require Import floyd.base.
 Require Import floyd.assert_lemmas.
 Require Import floyd.client_lemmas.
+Require Import floyd.reptype_lemmas.
+Require Import floyd.data_at_lemmas.
+
 Local Open Scope logic.
-
-(* move these lemma elsewhere *)
-Lemma force_signed_int_e:
-  forall i, force_signed_int (Vint i) = Int.signed i.
-Proof. reflexivity. Qed.
-Hint Rewrite force_signed_int_e : norm.
-
-Lemma sign_ext_range2:
-   forall lo n i hi,
-      0 < n < Int.zwordsize ->
-      lo = - two_p (n-1) ->
-      hi = two_p (n-1) - 1 ->
-      lo <= Int.signed (Int.sign_ext n i) <= hi.
-Proof.
-intros.
-subst. apply expr_lemmas3.sign_ext_range'; auto.
-Qed.
-
-Lemma zero_ext_range2:
-  forall n i lo hi,
-      0 <= n < Int.zwordsize ->
-      lo = 0 ->
-      hi = two_p n - 1 ->
-      lo <= Int.unsigned (Int.zero_ext n i) <= hi.
-Proof.
-intros; subst; apply expr_lemmas3.zero_ext_range'; auto.
-Qed.
-
-(* END of move these lemmas elsewhere *)
 
 Ltac simpl_compare :=
  match goal with
@@ -81,77 +55,6 @@ Ltac simpl_compare :=
  | |- _ => idtac
 end.
 
-Ltac no_evars P := (has_evar P; fail 1) || idtac.
-
-Inductive computable: forall {A}(x: A), Prop :=
-| computable_O: computable O
-| computable_S: forall x, computable x -> computable (S x)
-| computable_Zlt: forall x y, computable x -> computable y -> computable (Z.lt x y)
-| computable_Zle: forall x y, computable x -> computable y -> computable (Z.le x y)
-| computable_Zgt: forall x y, computable x -> computable y -> computable (Z.gt x y)
-| computable_Zge: forall x y, computable x -> computable y -> computable (Z.ge x y)
-| computable_eq: forall  A (x y: A), computable x -> computable y -> computable (eq x y)
-| computable_ne: forall  A (x y: A), computable x -> computable y -> computable (x <> y)
-| computable_Zpos: forall x, computable x -> computable (Zpos x)
-| computable_Zneg: forall x, computable x -> computable (Zneg x)
-| computable_Z0: computable Z0
-| computable_xI: forall x, computable x -> computable (xI x)
-| computable_xO: forall x, computable x -> computable (xO x)
-| computable_xH: computable xH
-| computable_Zadd: forall x y, computable x -> computable y -> computable (Z.add x y)
-| computable_Zsub: forall x y, computable x -> computable y -> computable (Z.sub x y)
-| computable_Zmul: forall x y, computable x -> computable y -> computable (Z.mul x y)
-| computable_Zdiv: forall x y, computable x -> computable y -> computable (Z.div x y)
-| computable_Zmod: forall x y, computable x -> computable y -> computable (Zmod x y)
-| computable_Zmax: forall x y, computable x -> computable y -> computable (Z.max x y)
-| computable_Zopp: forall x, computable x -> computable (Z.opp x)
-| computable_Inteq: forall x y, computable x -> computable y -> computable (Int.eq x y)
-| computable_Intlt: forall x y, computable x -> computable y -> computable (Int.lt x y)
-| computable_Intltu: forall x y, computable x -> computable y -> computable (Int.ltu x y)
-| computable_Intadd: forall x y, computable x -> computable y -> computable (Int.add x y)
-| computable_Intsub: forall x y, computable x -> computable y -> computable (Int.sub x y)
-| computable_Intmul: forall x y, computable x -> computable y -> computable (Int.mul x y)
-| computable_Intneg: forall x, computable x  -> computable (Int.neg x)
-| computable_Ceq: computable Ceq
-| computable_Cne: computable Cne
-| computable_Clt: computable Clt
-| computable_Cle: computable Cle
-| computable_Cgt: computable Cgt
-| computable_Cge: computable Cge
-| computable_Intcmp: forall op x y, 
-  computable op -> computable x -> computable y -> computable (Int.cmp op x y)
-| computable_Intcmpu: forall op x y, 
-  computable op -> computable x -> computable y -> computable (Int.cmpu op x y)
-| computable_Intrepr: forall x, computable x -> computable (Int.repr x)
-| computable_Intsigned: forall x, computable x -> computable (Int.signed x)
-| computable_Intunsigned: forall x, computable x -> computable (Int.unsigned x)
-| computable_two_power_nat: forall x, computable x -> computable (two_power_nat x)
-| computable_max_unsigned: computable (Int.max_unsigned)
-| computable_align: forall x y, computable x -> computable y -> computable (align x y)
-| computable_and: forall x y, computable x -> computable y -> computable (x /\ y)
-| computable_zwordsize: computable Int.zwordsize.
-
-Hint Constructors computable : computable. 
-Hint Extern 1 (computable ?A) => (unfold A) : computable.
-
-Ltac computable := match goal with |- ?x =>
- no_evars x;
- let H := fresh in assert (H: computable x) by auto 80 with computable; 
- clear H;
- compute; clear; repeat split; auto; congruence
-end.
-
-(* move these elsewhere? *)
-Hint Extern 3 (_ <= Int.signed (Int.sign_ext _ _) <= _) =>
-    (apply sign_ext_range2; [computable | reflexivity | reflexivity]).
-
-Hint Extern 3 (_ <= Int.unsigned (Int.zero_ext _ _) <= _) =>
-    (apply zero_ext_range2; [computable | reflexivity | reflexivity]).
-
-Hint Rewrite sign_ext_inrange using assumption : norm.
-Hint Rewrite zero_ext_inrange using assumption : norm.
-(* END move these elsewhere? *)
-
 Lemma prop_and_same_derives {A}{NA: NatDed A}:
   forall P Q, Q |-- !! P   ->   Q |-- !!P && Q.
 Proof.
@@ -180,7 +83,11 @@ Lemma try_conjuncts_start: forall A B: Prop,
 Ltac try_conjuncts_solver :=
     match goal with H:_ |- ?A => 
          no_evars A;
-         first [apply I | computable | omega | clear H; auto; fail 2 ]
+         first [clear H; try immediate; solve [auto] 
+                | apply Coq.Init.Logic.I 
+                | computable 
+                | omega 
+                ]
     end.
 
 Ltac try_conjuncts :=
@@ -219,21 +126,188 @@ Proof. intros.
  apply prop_derives; auto.
 Qed.
 
+Arguments denote_tc_isptr v / .
+Arguments denote_tc_iszero !v .
+Arguments denote_tc_nonzero !v .
+Arguments denote_tc_igt i !v .
+Arguments denote_tc_Zge z !v .
+Arguments denote_tc_Zle z !v .
+Arguments denote_tc_samebase !v1 !v2 .
+Arguments denote_tc_nodivover !v1 !v2 .
+Arguments denote_tc_initialized id ty rho / .
+
+Ltac simpl_denote_tc :=
+ simpl denote_tc_isptr;
+ simpl denote_tc_iszero;
+ simpl denote_tc_nonzero;
+ simpl denote_tc_igt;
+ simpl denote_tc_Zge;
+ simpl denote_tc_Zle;
+ simpl denote_tc_samebase;
+ simpl denote_tc_nodivover;
+ simpl denote_tc_initialized.
+
+Lemma valid_pointer_weak:
+ forall a, valid_pointer a |-- weak_valid_pointer a.
+Proof.
+intros.
+unfold valid_pointer, weak_valid_pointer.
+change predicates_hered.orp with orp. (* delete me *)
+apply orp_right1.
+auto.
+Qed.
+
+Lemma denote_tc_comparable_split:
+  forall P x y,
+    P |-- valid_pointer x ->
+    P |-- valid_pointer y ->
+    P |-- denote_tc_comparable x y.
+Proof.
+ intros.
+ eapply derives_trans with (valid_pointer x && valid_pointer y).
+ apply andp_right; auto.
+ clear H H0.
+ destruct x; try (apply andp_left1; apply @FF_left); try apply @TT_right;
+ destruct y; try (apply andp_left2; apply @FF_left); try apply @TT_right.
+ simpl valid_pointer at 1.
+ change predicates_hered.prop with prop. (* delete me *)
+ unfold denote_tc_comparable. auto.
+ simpl valid_pointer at 2.
+ change predicates_hered.prop with prop. (* delete me *)
+ unfold denote_tc_comparable. normalize.
+ unfold denote_tc_comparable.
+ rewrite andp_comm. apply andp_derives; auto.
+ unfold denote_tc_comparable. 
+ unfold comparable_ptrs.
+ if_tac; auto.
+ apply andp_derives; apply valid_pointer_weak.
+Qed.
+
+Lemma valid_pointer_null:
+  forall P, P |-- valid_pointer nullval.
+Proof.
+  intros. simpl valid_pointer.
+ change predicates_hered.prop with prop. (* delete me *)
+ normalize.
+Qed.
+
+
+Lemma extend_valid_pointer:
+  forall p Q, valid_pointer p * Q |-- valid_pointer p.
+Proof.
+intros.
+ unfold valid_pointer.
+ pose proof (extend_tc.extend_valid_pointer' p 0).
+ pose proof (predicates_hered.boxy_e _ _ H).
+
+Admitted.
+
+ Lemma sepcon_valid_pointer1:
+     forall (P Q: mpred) p,
+        P |-- valid_pointer p ->
+        P * Q |-- valid_pointer p.
+Proof.
+intros.
+ eapply derives_trans; [apply sepcon_derives; [eassumption | apply TT_right] |].
+ clear H.
+ apply extend_valid_pointer.
+Qed.
+
+ Lemma sepcon_valid_pointer2:
+     forall (P Q: mpred) p,
+        P |-- valid_pointer p ->
+        Q * P |-- valid_pointer p.
+Proof.
+ intros. rewrite sepcon_comm; apply sepcon_valid_pointer1.
+ auto.
+Qed.
+
+ Lemma andp_valid_pointer1:
+     forall (P Q: mpred) p,
+        P |-- valid_pointer p ->
+        P && Q |-- valid_pointer p.
+Proof.
+intros.
+ apply andp_left1; auto.
+Qed.
+
+ Lemma andp_valid_pointer2:
+     forall (P Q: mpred) p,
+        P |-- valid_pointer p ->
+        Q && P |-- valid_pointer p.
+Proof.
+intros.
+ apply andp_left2; auto.
+Qed.
+
+Lemma valid_pointer_zero:
+  forall P, P |-- valid_pointer (Vint (Int.repr 0)).
+Proof.
+ intros.
+ apply valid_pointer_null.
+Qed.
+
+Hint Resolve sepcon_valid_pointer1 sepcon_valid_pointer2 : valid_pointer.
+Hint Resolve andp_valid_pointer1 andp_valid_pointer2 : valid_pointer.
+Hint Resolve valid_pointer_null : valid_pointer.
+Hint Resolve valid_pointer_zero : valid_pointer.
+
+Ltac solve_valid_pointer := 
+match goal with
+| |- _ |-- denote_tc_comparable _ _ && _ =>
+           apply andp_right; 
+               [apply denote_tc_comparable_split; 
+                solve [auto 50 with valid_pointer] | ]
+| |- _ |-- valid_pointer _ && _ => 
+           apply andp_right; [ solve [auto 50 with valid_pointer] | ]
+| |- _ |-- weak_valid_pointer _ && _ => 
+           apply andp_right; [ solve [auto 50 with valid_pointer] | ]
+| |- _ |-- denote_tc_comparable _ _ =>
+              auto 50 with valid_pointer
+| |- _ |-- valid_pointer _ =>
+              auto 50 with valid_pointer
+| |- _ |-- weak_valid_pointer _ =>
+              auto 50 with valid_pointer
+end.
+
+Hint Rewrite (@TT_andp mpred _) : gather_prop.
+Hint Rewrite (@andp_TT mpred _) : gather_prop.
+
 Ltac ent_iter :=
-    repeat (((repeat simple apply go_lower_lem1'; simple apply go_lower_lem1)
-                || simple apply derives_extract_prop 
+    repeat (( simple apply derives_extract_prop 
                 || simple apply derives_extract_prop');
-                fancy_intro);
+                fancy_intros);
     autorewrite with gather_prop;
-    repeat (((repeat simple apply go_lower_lem1'; simple apply go_lower_lem1)
-                || simple apply derives_extract_prop 
+    repeat (( simple apply derives_extract_prop 
                 || simple apply derives_extract_prop');
-                fancy_intro);
+                fancy_intros);
    saturate_local;
-(* subst_any; *)
+   repeat erewrite unfold_reptype_elim in * by reflexivity;
    simpl_compare;
+   simpl_denote_tc;
    subst_any;
-   autorewrite with entailer_rewrite in *.
+   try autorewrite with entailer_rewrite in *;
+   try solve_valid_pointer.
+
+Lemma and_False: forall x, (x /\ False) = False.
+Proof.
+intros; apply prop_ext; intuition.
+Qed.
+
+Lemma and_True: forall x, (x /\ True) = x.
+Proof.
+intros; apply prop_ext; intuition.
+Qed.
+
+Lemma True_and: forall x, (True /\ x) = x.
+Proof.
+intros; apply prop_ext; intuition.
+Qed.
+
+Lemma False_and: forall x, (False /\ x) = False.
+Proof.
+intros; apply prop_ext; intuition.
+Qed.
 
 Ltac prune_conjuncts :=
  repeat rewrite and_assoc';
@@ -249,8 +323,11 @@ Ltac entailer' :=
  repeat (progress (ent_iter; normalize));
  try simple apply prop_and_same_derives;
  prune_conjuncts;
- try rewrite (prop_true_andp True) by apply I;
- auto.
+ try rewrite (prop_true_andp True) by apply Coq.Init.Logic.I;
+ try solve_valid_pointer;
+ try first [apply derives_refl
+              | simple apply FF_left 
+              | simple apply TT_right].
 
 Ltac entailer :=
  match goal with
@@ -263,21 +340,90 @@ Ltac entailer :=
  end;
  entailer'.
 
-Ltac prop_solve := 
-  match goal with |- ?A => (has_evar A; repeat simple apply conj) || (repeat split) end;
-  (computable || auto). 
- 
+
+Ltac splittable := 
+ match goal with 
+ | |- _ <= _ < _ => fail 1
+ | |- _ < _ <= _ => fail 1
+ | |- _ <= _ <= _ => fail 1
+ | |- _ < _ < _ => fail 1
+ | |- _ <-> _ => fail 1
+ | |- _ /\ _ => idtac
+ end.
+
+Lemma ptr_eq_refl: forall x, isptr x -> ptr_eq x x.
+Proof.
+destruct x; simpl; intros; try contradiction.
+split; auto. apply Int.eq_true.
+Qed.
+Hint Resolve ptr_eq_refl : prove_it_now.
+
+Hint Extern 4 (value_fits _ _ _) =>
+   (rewrite ?proj_sumbool_is_true by auto;
+    rewrite ?proj_sumbool_is_false by auto;
+    repeat simplify_value_fits; auto) : prove_it_now.
+
+Ltac prove_it_now :=
+ first [ splittable; fail 1
+        | computable 
+        | apply Coq.Init.Logic.I 
+        | reflexivity 
+        | omega
+        | repeat match goal with H: ?A |- _ => has_evar A; clear H end;
+          auto with prove_it_now;
+          normalize;
+          fail
+         ].
+
+Ltac try_prove_it_now :=
+ first [match goal with H := _ |- _ => instantiate (1:=True) in H; prove_it_now end
+       | eassumption].
+
+Lemma my_auto_lem:
+ forall (P Q: Prop), (P -> Q) -> (P -> Q).
+Proof. auto. Qed.
+
+Ltac my_auto_iter H :=
+ first [instantiate (1:=True) in H;  prove_it_now
+       | splittable; 
+         eapply try_conjuncts_lem;
+            [let H1 := fresh in intro H1; my_auto_iter H1
+            |let H1 := fresh in intro H1; my_auto_iter H1
+            | apply H ]
+       | apply H
+       ].
+
+Ltac all_True :=  solve [repeat simple apply conj; simple apply Coq.Init.Logic.I].
+
+Ltac my_auto_reiter :=
+ first [simple apply conj; [all_True | ]; my_auto_reiter
+        |simple apply conj; [ | all_True]; my_auto_reiter 
+        |splittable; eapply try_conjuncts_lem;
+                [intro; my_auto_reiter
+                |intro; my_auto_reiter
+                |eassumption]
+        |eassumption].
+
+Ltac my_auto := 
+ let H := fresh in eapply my_auto_lem; [intro H; my_auto_iter H | ];
+ try all_True;
+ (eapply my_auto_lem; [intro; my_auto_reiter | ]);
+ normalize.
+
+(*
 Ltac mysplit := 
  match goal with 
  | |- _ <= _ < _ => idtac
  | |- _ < _ <= _ => idtac
  | |- _ <= _ <= _ => idtac
  | |- _ < _ < _ => idtac
+ | |- _ <-> _ => idtac
  | |- _ => try simple apply conj
  end.
 
 Ltac my_auto :=
- repeat mysplit; try computable; normalize; auto; try apply I; try reflexivity; try omega.
+ repeat mysplit; try computable; normalize; auto; try apply Coq.Init.Logic.I; try reflexivity; try omega.
+*)
 
 Lemma prop_and_same_derives' {A}{NA: NatDed A}:
   forall (P: Prop) Q,   P   ->   Q |-- !!P && Q.
@@ -290,7 +436,8 @@ Ltac entailer_for_return :=
  normalize;
  repeat erewrite elim_globals_only by (split3; [eassumption | reflexivity.. ]);
  prune_conjuncts;
- try rewrite (prop_true_andp True) by apply I.
+ try rewrite (prop_true_andp True) by apply Coq.Init.Logic.I;
+ try solve [cancel].
 
 Ltac entbang := 
  match goal with
@@ -305,9 +452,8 @@ Ltac entbang :=
  first [ simple apply prop_right; my_auto
         | simple apply prop_and_same_derives'; my_auto
         | simple apply andp_right;
-            [apply prop_right; my_auto | normalize; cancel ]; my_auto
+            [apply prop_right; my_auto | cancel; autorewrite with norm ]
         | normalize; cancel
-        | my_auto
         ].
 
 Tactic Notation "entailer" "!" := entbang.
@@ -476,10 +622,10 @@ Ltac helper1 :=
 (*** End of Omega stuff *)
 
 Lemma offset_val_sizeof_hack:
- forall t i p,
+ forall cenv t i p,
    isptr p ->
    i=0 ->
-   (offset_val (Int.repr (sizeof t * i)) p = p) = True.
+   (offset_val (Int.repr (sizeof cenv t * i)) p = p) = True.
 Proof.
 intros.
 subst.
@@ -491,10 +637,10 @@ Qed.
 Hint Rewrite offset_val_sizeof_hack : norm.
 
 Lemma offset_val_sizeof_hack2:
- forall t i j p,
+ forall cenv t i j p,
    isptr p ->
    i=j ->
-   (offset_val (Int.repr (sizeof t * i)) p = offset_val (Int.repr (sizeof t * j)) p) = True.
+   (offset_val (Int.repr (sizeof cenv t * i)) p = offset_val (Int.repr (sizeof cenv t * j)) p) = True.
 Proof.
 intros.
 subst.
@@ -503,10 +649,10 @@ Qed.
 Hint Rewrite offset_val_sizeof_hack2 : norm.
 
 Lemma offset_val_sizeof_hack3:
- forall t i p,
+ forall cenv t i p,
    isptr p ->
    i=1 ->
-   (offset_val (Int.repr (sizeof t * i)) p = offset_val (Int.repr (sizeof t)) p) = True.
+   (offset_val (Int.repr (sizeof cenv t * i)) p = offset_val (Int.repr (sizeof cenv t)) p) = True.
 Proof.
 intros.
 subst.
@@ -515,11 +661,13 @@ apply prop_ext; intuition.
 Qed.
 Hint Rewrite offset_val_sizeof_hack3 : norm.
 
+(*
 Lemma cmpu_bool_ptr1: 
   forall validptr c p, isptr p -> 
-     Val.cmpu_bool validptr c p (Vint Int.zero) = Val.cmp_different_blocks c.
+     Val.cmpu_bool validptr c p (Vint Int.zero) 
+      = Val.cmp_different_blocks c.
 Proof.
-intros. destruct p; try contradiction. reflexivity.
+intros.  destruct p; try contradiction.  reflexivity.
 Qed.
 
 Lemma cmpu_bool_ptr2: 
@@ -550,7 +698,14 @@ normalize.
 Qed.
 
 Hint Rewrite sem_cmp_pp_ptr1 sem_cmp_pp_ptr2 using solve [auto] : norm.
+*)
 
 Ltac make_Vptr c :=
   let H := fresh in assert (isptr c) by auto;
   destruct c; try (contradiction H); clear H.
+
+Lemma Zmax0r: forall n, 0 <= n -> Z.max 0 n = n.
+Proof.
+intros. apply Z.max_r; auto.
+Qed.
+Hint Rewrite Zmax0r using (try computable; omega) : norm.

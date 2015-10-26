@@ -26,7 +26,6 @@ Definition ext_spec := external_specification mem external_function.
 Lemma extfunct_eqdec (ef1 ef2 : external_function) : {ef1=ef2} + {~ef1=ef2}.
 Proof. 
 repeat decide equality; try apply Integers.Int.eq_dec.
-apply Floats.Float.eq_dec.
 Defined.
 
 Set Implicit Arguments.
@@ -41,7 +40,7 @@ Definition spec_of
 Definition oval_inject j (v tv : option val) :=
   match v, tv with
     | None, None => True
-    | Some v', Some tv' => val_inject j v' tv'
+    | Some v', Some tv' => Val.inject j v' tv'
     | _, _ => False
   end.
 
@@ -60,7 +59,7 @@ Record closed (Z : Type) (spec : ext_spec Z) :=
   { P_closed : 
       forall ef (x : ext_spec_type spec ef) ge j tys vals z m tvals tm, 
       ext_spec_pre spec ef x ge tys vals z m -> 
-      val_list_inject j vals tvals -> 
+      Val.inject_list j vals tvals -> 
       Mem.inject j m tm -> 
       ext_spec_pre spec ef x ge tys tvals z tm
   ; Q_closed : 

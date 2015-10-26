@@ -2,6 +2,7 @@ Require Import veric.base.
 Require Import veric.rmaps.
 Require Import veric.rmaps_lemmas.
 Require Import veric.compcert_rmaps.
+Require Import veric.shares.
 Import Mem.
 Require Import msl.msl_standard.
 Import cjoins.
@@ -31,7 +32,7 @@ Definition contents_cohere (m: mem) (phi: rmap) :=
 
 Definition valshare (r: resource) : share :=
     match r with
-      | YES rsh sh (VAL v) _ => pshare_sh sh
+      | YES rsh sh _ _ => pshare_sh sh
       | _ => Share.bot
     end.
 
@@ -43,7 +44,14 @@ Definition res_retain' (r: resource) : Share.t :=
   | PURE _ _ => Share.top
  end.
 
-Definition perm_of_res (r: resource) := perm_of_sh (res_retain' r) (valshare r).
+Definition perm_of_res (r: resource) := 
+  (*  perm_of_sh (res_retain' r) (valshare r). *)
+ match r with
+ | NO sh => if eq_dec sh Share.bot then None else Some Nonempty
+ | PURE _ _ => Some Nonempty
+ | YES rsh sh (VAL _) _ => perm_of_sh rsh (pshare_sh sh)
+ | YES rsh sh _ _ => Some Nonempty
+ end.
 
 Definition access_cohere (m: mem)  (phi: rmap) :=
   forall loc,  access_at m loc = perm_of_res (phi @ loc).
@@ -140,7 +148,7 @@ destruct p.
 specialize (H _ _ _ H0).
 destruct k; solve [
     auto
-  | inversion H as [? H']; inversion H' ].
+  | inversion H ].
 Qed.
 
 Lemma age1_joinx {A}  {JA: Join A}{PA: Perm_alg A}{agA: ageable A}{AgeA: Age_alg A} : forall phi1 phi2 phi3 phi1' phi2' phi3',
@@ -447,11 +455,10 @@ intros.
 simpl in *.
 apply age1_resource_at with (loc := loc) (r := phi @ loc) in H.
  2: symmetry; apply resource_at_approx.
-destruct (phi' @ loc); inv H0.
-destruct (phi @ loc); inv H.
+destruct (phi' @ loc); try inv H0.
+destruct (phi @ loc); try inv H.
 auto.
 Qed.
-
 
 Lemma readable_inv: forall phi loc, readable loc phi ->
   exists rsh, exists sh, exists v, exists pp, phi @ loc = YES rsh sh (VAL v) pp.
@@ -459,7 +466,7 @@ Proof.
 simpl.
 intros phi loc H.
 destruct (phi @ loc); try solve [inversion H].
-destruct H. subst.
+destruct k; try inv H.
 eauto.
 Qed.
 
@@ -502,13 +509,6 @@ Variables (m: mem) (phi: rmap).
 
 Lemma phi_valid: valid (resource_at phi).
 Proof. unfold valid; apply rmap_valid. Qed.
-
-Definition read_sh: pshare := fst (split_pshare pfullshare).
-
-(* ersh - "extern variable retainer share" is exactly half of a retainer share,
-     preventing this thread from freeing the extern, but assuring that nobody else
-     does so either. *)
-Definition extern_retainer : share := Share.Lsh.
 
 Definition inflate_initial_mem' (w: rmap) (loc: address) :=
    match access_at m loc with
@@ -684,14 +684,14 @@ unfold valid, CompCert_AV.valid in *.
 unfold compose in *.
 intros b ofs.
 specialize VALID with b ofs.
-destruct (phi @ (b, ofs)); try destruct k; simpl in *; auto.
+destruct (phi @ (b, ofs)); simpl in *; auto.
+unfold res_option.
+destruct k; auto.
 destruct (access_at m (b, ofs)); simpl; auto.
 intros i H.
-specialize VALID with i.
-destruct (phi @ (b, ofs + i)); try destruct k; simpl in *; auto.
-destruct (access_at m (b, ofs + i)); simpl; auto.
-assert (Some (p1, VAL m0) = Some (p, CT i)) by apply (VALID H).
-inversion H0.
+specialize (VALID i H).
+destruct (phi @ (b, ofs + i)); try destruct k; simpl in *; inv VALID; auto.
+
 destruct VALID as [n [H H0]].
 exists n.
 split; auto.
@@ -761,12 +761,6 @@ unfold perm_of_sh in H.
 repeat if_tac in H; solve [inversion H | auto].
 Qed.
 
-Lemma top_pfullshare: forall psh, pshare_sh psh = Share.top -> psh = pfullshare.
-Proof.
-intros psh H.
-apply lifted_eq; auto.
-Qed.
-
 Lemma nextblock_access_empty: forall m b ofs, (b >= nextblock m)%positive
   -> access_at m (b, ofs) = None.
 Proof.
@@ -825,36 +819,6 @@ rewrite if_true by auto. auto.
 intro; contradiction Share.nontrivial; auto.
 Qed.
 
-
-Lemma fst_split_fullshare_not_bot: fst (Share.split fullshare) <> Share.bot.
-Proof.
-intro.
-case_eq (Share.split fullshare); intros.
-rewrite H0 in H. simpl in H. subst.
-apply Share.split_nontrivial in H0; auto.
-apply Share.nontrivial in H0. contradiction.
-Qed.
-
-Lemma fst_split_fullshare_not_top: fst (Share.split fullshare) <> Share.top.
-Proof.
-case_eq (Share.split fullshare); intros.
-simpl; intro. subst.
-apply nonemp_split_neq1 in H.
-apply H; auto.
-apply top_share_nonidentity.
-Qed.
-
-
-Lemma extern_retainer_neq_bot:
-  extern_retainer <> Share.bot.
-apply fst_split_fullshare_not_bot.
-Qed.
-
-Lemma extern_retainer_neq_top:
-  extern_retainer <> Share.top.
-apply fst_split_fullshare_not_top.
-Qed.
-
 Definition initial_mem (m: mem) lev (IOK: initial_rmap_ok m lev) : juicy_mem.
  refine (mkJuicyMem m  (inflate_initial_mem m lev) _ _ _ _); 
   unfold inflate_initial_mem, inflate_initial_mem';
@@ -876,10 +840,10 @@ apply extern_retainer_neq_top.
 simpl.
 destruct (IOK loc).
 case_eq (lev @ loc); intros.
-simpl; apply perm_of_nonempty; apply extern_retainer_neq_bot.
-simpl; apply perm_of_nonempty; apply extern_retainer_neq_bot.
-apply perm_of_nonempty; apply Share.nontrivial.
-apply perm_of_empty.
+simpl; rewrite if_false by apply extern_retainer_neq_bot; auto.
+simpl; rewrite if_false by apply extern_retainer_neq_bot; auto.
+reflexivity.
+rewrite if_true by auto; reflexivity.
 (* max_access_cohere *)
 generalize (perm_cur_max m (fst loc) (snd loc)); unfold perm; intros.
 case_eq (access_at m loc); try destruct p; intros.
@@ -1190,24 +1154,24 @@ unfold unchecked_free, contents_at; simpl.
 split; auto.
 symmetry in HeqHPHI.
 destruct (H _ _ _ _ _ HeqHPHI); auto.
-(* access_cohere *)
+* (* access_cohere *)
 intros [b' ofs']; spec H0 (b', ofs').
 unfold inflate_free; rewrite resource_at_make_rmap.
 destruct (adr_range_dec (b,lo) (hi-lo) (b',ofs')).
-(* adr_range *)
+ + (* adr_range *)
 destruct a as [H2 [H3 H4]].
 assert (lo + (hi - lo) = hi) by omega. rewrite H5 in H4; clear H5.
 subst b'.
 rewrite <- resource_at_approx.
 replace (access_at m' (b, ofs')) with (@None permission).
-Focus 2.
+Focus 2. {
 unfold free in FREE.
 if_tac in FREE; inv FREE.
 unfold access_at, unchecked_free. simpl. rewrite PMap.gss.
 destruct (zle lo ofs'); [ | omegaContradiction].
 destruct (zlt ofs' hi); [ | omegaContradiction].
 reflexivity.
-(* End Focus 2 *)
+} Unfocus.
 symmetry; simpl.
 assert (access_at (m_dry jm) (b, ofs') = Some Freeable).
 unfold free in FREE. if_tac in FREE; inv FREE.
@@ -1221,21 +1185,19 @@ rewrite H2 in H0.
 symmetry in H0.
 clear - H0.
 unfold perm_of_res in *.
-apply perm_of_sh_Freeable_top in H0.
-rename H0 into HH;
-revert HH;
-case_eq (m_phi jm @ (b, ofs')); try destruct k; simpl; intros;
-inv HH; try solve [contradiction Share.nontrivial; auto].
-apply perm_of_empty.
-(* ~adr_range *)
+destruct (m_phi jm @ (b, ofs')) eqn:?H; try destruct k; inv H0.
+if_tac in H2; inv H2.
+simpl.
+rewrite if_true by auto. auto.
++ (* ~adr_range *)
 destruct (free_nadr_range_eq _ _ _ _ _ _ _ n FREE) as [H2 H3].
 rewrite H2 in *. clear H2 H3.
 case_eq (m_phi jm @ (b', ofs')); intros; rewrite H2 in *; auto.
 destruct k; simpl; auto.
 unfold fmap_option.
 destruct (access_at m' (b', ofs')); auto.
-symmetry; apply perm_of_empty.
-(* max_access_cohere *)
+simpl.  rewrite if_true by auto; reflexivity.
+* (* max_access_cohere *)
 intro loc. specialize (H1 loc).
 unfold inflate_free. rewrite resource_at_make_rmap.
 unfold free in FREE. if_tac in FREE; inversion FREE; clear FREE.
@@ -1243,9 +1205,32 @@ rename H4 into FREE.
 rewrite FREE.
 rewrite <- resource_at_approx.
 destruct (adr_range_dec (b,lo) (hi-lo) loc).
-Focus 2.
++
+ destruct (m_phi jm @ loc) eqn:?H; try destruct k; simpl in H1 |- *;
+ try solve [subst m'; unfold max_access_at; unfold unchecked_free; simpl; auto].
+subst m'; unfold max_access_at; unfold unchecked_free; simpl.
+specialize (H0 loc). rewrite H3 in H0.
+destruct loc as [b' z]; destruct a; simpl in *; subst b'.
+rewrite PMap.gss.
+destruct (zle lo z); [ | omegaContradiction].
+destruct (zlt z hi); [ | omegaContradiction].
+simpl.
+specialize (H2 z).
+spec H2; [ omega |].
+unfold perm in H2; unfold access_at in H0. simpl in *. rewrite H0 in H2.
+if_tac in H2; inv H2.
+unfold fmap_option.
+destruct (access_at m' loc) eqn:?H.
+elimtype False; subst m'; unfold unchecked_free, access_at in H4; simpl in H4.
+destruct loc as [b' z]; simpl in H4.
+destruct a. subst b'. rewrite PMap.gss in H4. 
+destruct (zle lo z); try omega. destruct (zlt z hi); try omega. simpl in H4. inv H4.
+rewrite perm_of_empty.
+unfold perm_order''. 
+destruct (max_access_at m' loc); auto.
++ (* ~ (adr_range_dec (b,lo) (hi-lo) loc) *)
 replace (max_access_at m' loc) with (max_access_at (m_dry jm) loc).
-Focus 2.
+Focus 2. {
 subst m'; unfold max_access_at, unchecked_free; simpl.
 destruct (eq_dec (fst loc) b). subst. rewrite PMap.gss.
 destruct (PMap.get (fst loc) (mem_access (m_dry jm)) (snd loc) Max); auto.
@@ -1254,67 +1239,37 @@ destruct (zle lo z); simpl; auto. destruct (zlt z hi); simpl; auto.
 contradict n; auto.  repeat split; auto. omega.
 if_tac; auto.
 rewrite PMap.gso; solve [auto].
-Unfocus.
+} Unfocus.
 revert H1; case_eq (m_phi jm @ loc); intros; auto.
-destruct loc as [b' z]; destruct a; simpl in *; subst b'.
-specialize (H2 z). spec H2 ; [ omega | ].
-specialize (H0 (b,z)). rewrite H1 in H0. unfold perm in H2.
-unfold access_at in H0. simpl in H0; rewrite H0 in H2.
-elimtype False; clear - H2.
-unfold perm_order' in H2. revert H2; case_eq (perm_of_res (NO t)); intros; auto.
-unfold perm_of_res in H.
-simpl in H.
-inv H2; apply perm_of_sh_Freeable_top in H; inv H;  (contradiction Share.nontrivial; auto).
-replace (access_at m' loc) with (@None permission).
-Focus 2.
-subst m'; unfold access_at; unfold unchecked_free; simpl.
-destruct loc as [b' z]; destruct a; simpl in *; subst b'.
-rewrite PMap.gss.
-destruct (zle lo z); [ | omegaContradiction].
-destruct (zlt z hi); [ | omegaContradiction].
-reflexivity.
 simpl.
-replace (max_access_at m' loc) with (@None permission).
-Focus 2.
-subst m'; unfold max_access_at; unfold unchecked_free; simpl.
-destruct loc as [b' z]; destruct a; simpl in *; subst b'.
-rewrite PMap.gss.
-destruct (zle lo z); [ | omegaContradiction].
-destruct (zlt z hi); [ | omegaContradiction].
-reflexivity.
-specialize (H0 loc). rewrite H1 in H0.
-destruct loc as [b' z']; destruct a; simpl in *; subst b'.
-specialize (H2 z').
-spec H2; [ omega |].
-unfold perm in H2; unfold access_at in H0. simpl in *. rewrite H0 in H2.
-clear - H2.
+assert (nextblock (m_dry jm) = nextblock m') by (subst m'; reflexivity).
+rewrite <- H4.
 destruct k; auto.
+unfold fmap_option.
+subst m'; unfold unchecked_free, access_at; simpl.
+destruct loc as [b' z].
+destruct (eq_dec b b'). simpl. subst b'. rewrite PMap.gss.
+simpl in n.
+replace (if zle lo z && zlt z hi
+     then None
+     else (mem_access (m_dry jm)) !! b z Cur) 
+  with ((mem_access (m_dry jm)) !! b z Cur).
+Focus 2.
+ assert (z < lo \/ hi <= z) 
+   by (assert (~ (lo <= z < lo + (hi-lo))) by intuition; omega).
+ destruct (zle lo z); try reflexivity. destruct (zlt z hi); try reflexivity. omega.
+specialize (H0 (b,z)). rewrite H1 in H0. unfold perm in H2.
+unfold access_at in H0. simpl in H0. rewrite H0.
+destruct (perm_of_sh t (pshare_sh p)) eqn:?H. rewrite H5. auto.
 rewrite perm_of_empty; auto.
-unfold perm_of_res in H2; simpl in H2.
-elimtype False.
-unfold perm_order' in H2. revert H2; case_eq (perm_of_sh t Share.bot); intros; inv H2;
-  apply perm_of_sh_Freeable_top in H; inv H; apply Share.nontrivial; auto.
-unfold perm_of_res in H2; simpl in H2.
-elimtype False.
-unfold perm_order' in H2. revert H2; case_eq (perm_of_sh t Share.bot); intros; inv H2;
-  apply perm_of_sh_Freeable_top in H; inv H; apply Share.nontrivial; auto.
-unfold perm_of_res in H2; simpl in H2.
-elimtype False.
-unfold perm_order' in H2. revert H2; case_eq (perm_of_sh t Share.bot); intros; inv H2;
-  apply perm_of_sh_Freeable_top in H; inv H; apply Share.nontrivial; auto.
- simpl; auto.
- forget (m_dry jm) as m. subst m'. simpl. auto.
-assert (NEXT: nextblock (m_dry jm) = nextblock m').
-clear - FREE. subst. unfold unchecked_free; simpl. auto.
-revert H1; case_eq (m_phi jm @ loc); intros; auto.
-case_eq (access_at m' loc); intros; simpl; auto.
-forget (max_access_at (m_dry jm) loc) as x.
-destruct k; simpl; try rewrite <- NEXT; auto.
-destruct k; simpl; try rewrite <- NEXT; auto.
-rewrite perm_of_empty. 
-destruct (max_access_at (m_dry jm) loc); simpl; auto.
- simpl; auto.  subst m'; simpl; auto.
-(* alloc_cohere *)
+simpl. rewrite PMap.gso by auto.
+destruct ((mem_access (m_dry jm)) !! b' z Cur) eqn:?H.
+auto.
+rewrite perm_of_empty.
+destruct (max_access_at (m_dry jm) (b', z)); constructor.
+simpl.
+subst m'; apply H3.
+* (* alloc_cohere *)
 hnf; intros.
 unfold inflate_free. rewrite resource_at_make_rmap.
 pose proof (juicy_mem_alloc_cohere jm loc).
@@ -1498,7 +1453,7 @@ destruct loc as (b,ofs).
 intro Contra.
 hnf in Contra.
 destruct (m_phi m @ (b,ofs)); simpl in *; auto.
-destruct Contra as [x ?]. subst k.
+destruct k as [x | | |]; try inv Contra.
 unfold perm_of_res in H1. simpl in H1.
 rewrite H in H1.
 unfold perm_of_sh in H1.
@@ -1729,7 +1684,7 @@ intro l'.
 split.
 apply juicy_mem_alloc_cohere.
 destruct (adr_range_dec (b, ofs) (size_chunk ch) l') as [HA | HA].
-(* adr_range *)
+* (* adr_range *)
 right.
 unfold adr_range in HA.
 destruct l' as (b', ofs').
@@ -1741,32 +1696,44 @@ assert (H0: range_perm (m_dry jm) b ofs (ofs + size_chunk ch) Cur Writable).
   eapply store_valid_access_3; eauto.
 assert (H1: perm (m_dry jm) b ofs' Cur Writable) by (apply H0; auto).
 generalize (juicy_mem_access jm (b, ofs')); intro ACCESS.
-assert (valshare  (m_phi jm @ (b, ofs')) = fullshare).
+(* assert (valshare  (m_phi jm @ (b, ofs')) = fullshare). *)
 unfold perm, perm_order' in H1.
 unfold access_at in ACCESS.
 simpl in *.
-revert H1; case_eq (PMap.get b (mem_access (m_dry jm)) ofs' Cur); intros; try contradiction.
-rewrite H1 in ACCESS.
+destruct ((mem_access (m_dry jm)) !! b ofs' Cur) eqn:?H; try contradiction.
 unfold perm_of_res in ACCESS.
 symmetry in ACCESS.
-destruct p; inv H2.
-apply perm_of_sh_Freeable_top in ACCESS.
-injection ACCESS; intros.
-apply H.
-unfold perm_of_sh in ACCESS.
-if_tac in ACCESS; auto.
-if_tac in ACCESS; auto.
+destruct ( m_phi jm @ (b, ofs') ) eqn:?H; 
+destruct p; inv H1; try solve [inv ACCESS].
 if_tac in ACCESS; inv ACCESS.
+if_tac in ACCESS; inv ACCESS.
+destruct k; try solve [inv ACCESS].
+simpl.
+apply perm_of_sh_Freeable_top in ACCESS.
 inv ACCESS.
-unfold valshare in H2.
-revert H2; case_eq (m_phi jm @ (b,ofs')); intros; try destruct k; try solve [contradiction Share.nontrivial; auto].
-assert (p = pfullshare).  destruct p; simpl; subst; auto. subst.
-destruct (juicy_mem_contents _ _ _ _ _ _ H2); subst.
-do 2 econstructor; exists (contents_at m' (b, ofs')); split; try eassumption.
-unfold resource_fmap; f_equal; try reflexivity. apply preds_fmap_NoneP. 
+destruct (juicy_mem_contents _ _ _ _ _ _ H3); subst.
+rewrite preds_fmap_NoneP.
+assert (p0 = pfullshare).
+  destruct p0; simpl; subst; auto. subst.
+do 3 econstructor; split; try reflexivity.
 unfold inflate_store;  rewrite resource_at_make_rmap.
-rewrite H2. auto.
-(* ~ adr_range *)
+rewrite H3.
+reflexivity.
+destruct k; try solve [inv ACCESS].
+unfold perm_of_sh in ACCESS.
+if_tac in ACCESS.
+if_tac in ACCESS; inv ACCESS.
+destruct (juicy_mem_contents _ _ _ _ _ _ H3); subst.
+assert (p0 = pfullshare).
+  destruct p0; simpl; subst; auto. subst.
+unfold resource_fmap. rewrite preds_fmap_NoneP.
+do 3 econstructor; split; try reflexivity.
+unfold inflate_store;  rewrite resource_at_make_rmap.
+rewrite H3.
+reflexivity.
+if_tac in ACCESS; try solve [inv ACCESS].
+if_tac in ACCESS; try solve [inv ACCESS].
+* (* ~ adr_range *)
 left.
 assert (H0: level (m_phi jm) = level phi').
   rewrite <- H; unfold inflate_store; rewrite level_make_rmap; auto.
@@ -1801,7 +1768,7 @@ intros l.
 split.
 apply juicy_mem_alloc_cohere.
 destruct (adr_range_dec (b, lo) (hi-lo) l) as [HA | HA].
-(* adr_range *)
+* (* adr_range *)
 right. right.
 unfold adr_range in HA.
 destruct l; simpl in HA|-*.
@@ -1816,25 +1783,26 @@ rewrite resource_at_make_rmap.
 unfold access_at; simpl.
 rewrite PMap.gss.
 replace (proj_sumbool (zle lo z) && proj_sumbool (zlt z hi)) with true.
+2: destruct (zle lo z); destruct (zlt z hi); simpl; auto; try congruence.
 rewrite <- resource_at_approx.
 simpl.
 specialize (H _ (conj H1 H2)). unfold perm in H.
-generalize (juicy_mem_access jm (b,z)); intro H3.
+assert (H3 := juicy_mem_access jm (b,z)).
 assert (access_at (m_dry jm) (b, z) = Some Freeable).
 unfold access_at. unfold perm_order' in H.
 simpl. destruct (PMap.get b (mem_access (m_dry jm)) z Cur); try contradiction; inv H; auto.
 rewrite H3 in H0.
 unfold perm_of_res in *.
+destruct (m_phi jm @ (b,z)); try discriminate.
+if_tac in H0; inv H0.
+destruct k; try discriminate.
 apply perm_of_sh_Freeable_top in H0.
-injection H0; intros.
-destruct (m_phi jm @ (b,z)); simpl in H4; try destruct k; try solve [contradiction Share.nontrivial; auto].
+inv H0.
 exists m; econstructor. split.
-simpl in H5. subst. simpl. f_equal. destruct p. unfold pfullshare.
+simpl. f_equal. destruct p. unfold pfullshare.
  apply exist_ext; auto.
  simpl. auto.
-destruct (zle lo z); destruct (zlt z hi); simpl; auto; try congruence.
-
-(* ~adr_range *)
+* (* ~adr_range *)
 destruct l.
 destruct (free_nadr_range_eq _ _ _ _ _ _ _ HA FREE).
 left.

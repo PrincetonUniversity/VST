@@ -7,6 +7,7 @@ Require Import msl.msl_standard.
 Import cjoins.
 Require Import veric.juicy_mem.
 Require Import veric.juicy_mem_lemmas.
+Require Import veric.shares.
 
 Module Type JUICY_MEM_OPS.
 Parameter juicy_mem_store
@@ -176,10 +177,9 @@ simpl. auto.
 destruct loc as [b' z].
 destruct (eq_dec b b').
 subst b'.
-pose proof (juicy_mem_alloc_cohere jm (b,z)).
-rewrite H1.
+rewrite (juicy_mem_alloc_cohere jm (b,z)).
 simpl in *.
-unfold perm_of_res. simpl. rewrite perm_of_empty.
+rewrite if_true by auto.
 unfold access_at.
 inv H. simpl.
 rewrite PMap.gss.
@@ -472,11 +472,11 @@ Proof.
 constructor; intros; inv H. 
 Qed.
 
-Fixpoint alloc_juicy_variables (rho: env) (jm: juicy_mem) (vl: list (ident*type)) : env * juicy_mem :=
+Fixpoint alloc_juicy_variables (ge: genv) (rho: env) (jm: juicy_mem) (vl: list (ident*type)) : env * juicy_mem :=
  match vl with 
  | nil => (rho,jm)
- | (id,ty)::vars => match JuicyMemOps.juicy_mem_alloc jm 0 (sizeof ty) with
-                              (m1,b1) => alloc_juicy_variables (PTree.set id (b1,ty) rho) m1 vars
+ | (id,ty)::vars => match JuicyMemOps.juicy_mem_alloc jm 0 (sizeof ge ty) with
+                              (m1,b1) => alloc_juicy_variables ge (PTree.set id (b1,ty) rho) m1 vars
                            end
  end.
 
@@ -504,9 +504,9 @@ Proof.
 Qed. 
 
 Lemma alloc_juicy_variables_e:
-  forall rho jm vl rho' jm',
-    alloc_juicy_variables rho jm vl = (rho', jm') ->
-  Clight.alloc_variables rho (m_dry jm) vl rho' (m_dry jm')
+  forall ge rho jm vl rho' jm',
+    alloc_juicy_variables ge rho jm vl = (rho', jm') ->
+  Clight.alloc_variables ge rho (m_dry jm) vl rho' (m_dry jm')
    /\ level jm = level jm'
    /\ core (m_phi jm) = core (m_phi jm').
 Proof.
@@ -515,7 +515,7 @@ Proof.
  inv H. split; auto. constructor.
  unfold alloc_juicy_variables in H; fold alloc_juicy_variables in H.
  destruct a as [id ty].
- revert H; case_eq (JuicyMemOps.juicy_mem_alloc jm 0 (sizeof ty)); intros jm1 b1 ? ?.
+ revert H; case_eq (JuicyMemOps.juicy_mem_alloc jm 0 (sizeof ge ty)); intros jm1 b1 ? ?.
  specialize (IHvl (PTree.set id (b1,ty) rho) jm1 H0).
  destruct IHvl as [? [? ?]]; split3; auto.
  apply alloc_variables_cons  with  (m_dry jm1) b1; auto.

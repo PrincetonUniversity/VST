@@ -736,5 +736,4 @@ Module SalsaGeneralizedCascade <: GeneralizedCascade.
 Qed.
 End SalsaGeneralizedCascade. 
 Check SalsaGeneralizedCascade.X_char.
-
 (*About 1 day*)

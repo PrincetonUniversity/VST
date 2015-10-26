@@ -15,7 +15,7 @@
 
 include Makefile.config
 
-DIRS=lib common $(ARCH) backend cfrontend driver \
+DIRS=lib common $(ARCH) backend cfrontend driver debug\
   flocq/Core flocq/Prop flocq/Calc flocq/Appli exportclight \
   cparser cparser/validator
 
@@ -23,28 +23,13 @@ RECDIRS=lib common $(ARCH) backend cfrontend driver flocq exportclight cparser
 
 COQINCLUDES=$(foreach d, $(RECDIRS), -R $(d) -as compcert.$(d))
 
-CAMLINCLUDES=$(patsubst %,-I %, $(DIRS)) -I extraction
-
-MENHIR=menhir
 COQC="$(COQBIN)coqc" -q $(COQINCLUDES)
 COQDEP="$(COQBIN)coqdep" $(COQINCLUDES)
 COQDOC="$(COQBIN)coqdoc"
 COQEXEC="$(COQBIN)coqtop" $(COQINCLUDES) -batch -load-vernac-source
 COQCHK="$(COQBIN)coqchk" $(COQINCLUDES)
-
-OCAMLBUILD=ocamlbuild
-OCB_OPTIONS=\
-  -j 2 \
-  -no-hygiene \
-  -no-links \
-  $(CAMLINCLUDES)
-OCB_OPTIONS_CHECKLINK=\
-  $(OCB_OPTIONS) \
-  -I checklink \
-  -use-ocamlfind
-OCB_OPTIONS_CLIGHTGEN=\
-  $(OCB_OPTIONS) \
-  -I exportclight
+MENHIR=menhir
+CP=cp
 
 VPATH=$(DIRS)
 GPATH=$(DIRS)
@@ -60,11 +45,11 @@ FLOCQ=\
   Fcalc_round.v Fcalc_sqrt.v                                                \
   Fprop_div_sqrt_error.v Fprop_mult_error.v Fprop_plus_error.v              \
   Fprop_relative.v Fprop_Sterbenz.v                                         \
-  Fappli_rnd_odd.v Fappli_IEEE.v Fappli_IEEE_bits.v
+  Fappli_rnd_odd.v Fappli_double_round.v Fappli_IEEE.v Fappli_IEEE_bits.v
 
 # General-purpose libraries (in lib/)
 
-LIB=Axioms.v Coqlib.v Intv.v Maps.v Heaps.v Lattice.v Ordered.v \
+VLIB=Axioms.v Coqlib.v Intv.v Maps.v Heaps.v Lattice.v Ordered.v \
   Iteration.v Integers.v Archi.v Fappli_IEEE_extra.v Floats.v \
   Parmov.v UnionFind.v Wfsimpl.v \
   Postorder.v FSetAVLplus.v IntvSets.v
@@ -74,7 +59,7 @@ LIB=Axioms.v Coqlib.v Intv.v Maps.v Heaps.v Lattice.v Ordered.v \
 COMMON=Errors.v AST.v Events.v Globalenvs.v Memdata.v Memtype.v Memory.v \
   Values.v Smallstep.v Behaviors.v Switch.v Determinism.v Unityping.v
 
-# Back-end modules (in backend/, $(ARCH)/, $(ARCH)/$(VARIANT))
+# Back-end modules (in backend/, $(ARCH)/)
 
 BACKEND=\
   Cminor.v Op.v CminorSel.v \
@@ -91,6 +76,7 @@ BACKEND=\
   ConstpropOp.v Constprop.v ConstpropOpproof.v Constpropproof.v \
   CSEdomain.v CombineOp.v CSE.v CombineOpproof.v CSEproof.v \
   NeedDomain.v NeedOp.v Deadcode.v Deadcodeproof.v \
+  Unusedglob.v Unusedglobproof.v \
   Machregs.v Locations.v Conventions1.v Conventions.v LTL.v \
   Allocation.v Allocproof.v \
   Tunneling.v Tunnelingproof.v \
@@ -103,7 +89,7 @@ BACKEND=\
 
 # C front-end modules (in cfrontend/)
 
-CFRONTEND=Ctypes.v Cop.v Csyntax.v Csem.v Cstrategy.v Cexec.v \
+CFRONTEND=Ctypes.v Cop.v Csyntax.v Csem.v Ctyping.v Cstrategy.v Cexec.v \
   Initializers.v Initializersproof.v \
   SimplExpr.v SimplExprspec.v SimplExprproof.v \
   Clight.v ClightBigstep.v SimplLocals.v SimplLocalsproof.v \
@@ -126,16 +112,8 @@ DRIVER=Compopts.v Compiler.v Complements.v
 
 # All source files
 
-FILES=$(LIB) $(COMMON) $(BACKEND) $(CFRONTEND) $(DRIVER) $(FLOCQ) \
+FILES=$(VLIB) $(COMMON) $(BACKEND) $(CFRONTEND) $(DRIVER) $(FLOCQ) \
   $(PARSERVALIDATOR) $(PARSER)
-
-# Symbolic links vs. copy
-
-ifneq (,$(findstring CYGWIN,$(shell uname -s)))
-SLN=cp
-else
-SLN=ln -s
-endif
 
 all:
 	$(MAKE) proof
@@ -157,38 +135,30 @@ extraction/STAMP: $(FILES:.v=.vo) extraction/extraction.v $(ARCH)/extractionMach
 	$(COQEXEC) extraction/extraction.v
 	touch extraction/STAMP
 
-ccomp: extraction/STAMP driver/Configuration.ml
-	$(OCAMLBUILD) $(OCB_OPTIONS) Driver.native \
-        && rm -f ccomp && $(SLN) _build/driver/Driver.native ccomp
+.depend.extr: extraction/STAMP tools/modorder
+	$(MAKE) -f Makefile.extr depend
 
-ccomp.prof: extraction/STAMP driver/Configuration.ml
-	$(OCAMLBUILD) $(OCB_OPTIONS) Driver.p.native \
-        && rm -f ccomp.prof && $(SLN) _build/driver/Driver.p.native ccomp.prof
+ccomp: .depend.extr compcert.ini FORCE
+	$(MAKE) -f Makefile.extr ccomp
+ccomp.byte: .depend.extr compcert.ini FORCE
+	$(MAKE) -f Makefile.extr ccomp.byte
 
-ccomp.byte: extraction/STAMP driver/Configuration.ml
-	$(OCAMLBUILD) $(OCB_OPTIONS) Driver.d.byte \
-        && rm -f ccomp.byte && $(SLN) _build/driver/Driver.d.byte ccomp.byte
+cchecklink: .depend.extr compcert.ini FORCE
+	$(MAKE) -f Makefile.extr cchecklink
+cchecklink.byte: .depend.extr compcert.ini FORCE
+	$(MAKE) -f Makefile.extr cchecklink.byte
+
+clightgen: .depend.extr compcert.ini exportclight/Clightdefs.vo FORCE
+	$(MAKE) -f Makefile.extr clightgen
+clightgen.byte: .depend.extr compcert.ini exportclight/Clightdefs.vo FORCE
+	$(MAKE) -f Makefile.extr clightgen.byte
 
 runtime:
 	$(MAKE) -C runtime
 
-cchecklink: driver/Configuration.ml
-	$(OCAMLBUILD) $(OCB_OPTIONS_CHECKLINK) Validator.native \
-        && rm -f cchecklink && $(SLN) _build/checklink/Validator.native cchecklink
+FORCE:
 
-cchecklink.byte: driver/Configuration.ml
-	$(OCAMLBUILD) $(OCB_OPTIONS_CHECKLINK) Validator.d.byte \
-        && rm -f cchecklink.byte && $(SLN) _build/checklink/Validator.d.byte cchecklink.byte
-
-clightgen: extraction/STAMP driver/Configuration.ml exportclight/Clightdefs.vo
-	$(OCAMLBUILD) $(OCB_OPTIONS_CLIGHTGEN) Clightgen.native \
-        && rm -f clightgen && $(SLN) _build/exportclight/Clightgen.native clightgen
-
-clightgen.byte: extraction/STAMP driver/Configuration.ml exportclight/Clightdefs.vo
-	$(OCAMLBUILD) $(OCB_OPTIONS_CLIGHTGEN) Clightgen.d.byte \
-        && rm -f clightgen.byte && $(SLN) _build/exportclight/Clightgen.d.byte clightgen.byte
-
-.PHONY: proof extraction ccomp ccomp.prof ccomp.byte runtime cchecklink cchecklink.byte clightgen clightgen.byte
+.PHONY: proof extraction runtime FORCE
 
 documentation: doc/coq2html $(FILES)
 	mkdir -p doc/html
@@ -201,16 +171,18 @@ doc/coq2html: doc/coq2html.ml
 	ocamlopt -o doc/coq2html str.cmxa doc/coq2html.ml
 
 doc/coq2html.ml: doc/coq2html.mll
-	ocamllex doc/coq2html.mll
+	ocamllex -q doc/coq2html.mll
 
 tools/ndfun: tools/ndfun.ml
 	ocamlopt -o tools/ndfun str.cmxa tools/ndfun.ml
+tools/modorder: tools/modorder.ml
+	ocamlopt -o tools/modorder str.cmxa tools/modorder.ml
 
 latexdoc:
 	cd doc; $(COQDOC) --latex -o doc/doc.tex -g $(FILES)
 
 %.vo: %.v
-	@rm -f doc/glob/$(*F).glob
+	@rm -f doc/$(*F).glob
 	@echo "COQC $*.v"
 	@$(COQC) -dump-glob doc/$(*F).glob $*.v
 
@@ -220,20 +192,24 @@ latexdoc:
 	@tools/ndfun $*.vp > $*.v || { rm -f $*.v; exit 2; }
 	@chmod -w $*.v
 
-driver/Configuration.ml: Makefile.config VERSION
-	(echo let stdlib_path = "\"$(LIBDIR)\""; \
-         echo let prepro = "\"$(CPREPRO)\""; \
-         echo let asm = "\"$(CASM)\""; \
-         echo let linker = "\"$(CLINKER)\""; \
-         echo let arch = "\"$(ARCH)\""; \
-         echo let model = "\"$(MODEL)\""; \
-         echo let abi = "\"$(ABI)\""; \
-         echo let system = "\"$(SYSTEM)\""; \
-         echo let has_runtime_lib = $(HAS_RUNTIME_LIB); \
-         echo let asm_supports_cfi = $(ASM_SUPPORTS_CFI); \
+compcert.ini: Makefile.config VERSION
+	(echo "stdlib_path=$(LIBDIR)"; \
+         echo "prepro=$(CPREPRO)"; \
+         echo "asm=$(CASM)"; \
+         echo "linker=$(CLINKER)"; \
+         echo "arch=$(ARCH)"; \
+         echo "model=$(MODEL)"; \
+         echo "abi=$(ABI)"; \
+         echo "system=$(SYSTEM)"; \
+         echo "has_runtime_lib=$(HAS_RUNTIME_LIB)"; \
+         echo "has_standard_headers=$(HAS_STANDARD_HEADERS)"; \
+         echo "asm_supports_cfi=$(ASM_SUPPORTS_CFI)"; \
+         echo "advanced_debug=$(ADVANCED_DEBUG)"; \
+         echo "struct_passing_style=$(STRUCT_PASSING)"; \
+         echo "struct_return_style=$(STRUCT_RETURN)"; \
          version=`cat VERSION`; \
-         echo let version = "\"$$version\"") \
-        > driver/Configuration.ml
+         echo version=$$version) \
+        > compcert.ini
 
 cparser/Parser.v: cparser/Parser.vy
 	$(MENHIR) --coq cparser/Parser.vy
@@ -245,24 +221,23 @@ depend: $(FILES) exportclight/Clightdefs.v
 
 install:
 	install -d $(BINDIR)
-	install ./ccomp $(BINDIR)
+	install -m 0755 ./ccomp $(BINDIR)
+	install -d $(SHAREDIR)
+	install -m 0644 ./compcert.ini $(SHAREDIR)
 ifeq ($(CCHECKLINK),true)
-	install ./cchecklink $(BINDIR)
+	install -m 0755 ./cchecklink $(BINDIR)
 endif
-ifeq ($(HAS_RUNTIME_LIB),true)
 	$(MAKE) -C runtime install
-endif
 
 clean:
 	rm -f $(patsubst %, %/*.vo, $(DIRS))
-	rm -f ccomp ccomp.byte cchecklink cchecklink.byte clightgen clightgen.byte
-	rm -rf _build
 	rm -rf doc/html doc/*.glob
 	rm -f doc/coq2html.ml doc/coq2html doc/*.cm? doc/*.o
-	rm -f driver/Configuration.ml
-	rm -f extraction/STAMP extraction/*.ml extraction/*.mli
-	rm -f tools/ndfun tools/*.cm? tools/*.o
+	rm -f compcert.ini
+	rm -f extraction/STAMP extraction/*.ml extraction/*.mli .depend.extr
+	rm -f tools/ndfun tools/modorder tools/*.cm? tools/*.o
 	rm -f $(ARCH)/ConstpropOp.v $(ARCH)/SelectOp.v backend/SelectDiv.v backend/SelectLong.v
+	$(MAKE) -f Makefile.extr clean
 	$(MAKE) -C runtime clean
 	$(MAKE) -C test clean
 
