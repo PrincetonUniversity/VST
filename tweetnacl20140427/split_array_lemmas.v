@@ -3,9 +3,6 @@ Local Open Scope logic.
 Require Import List. Import ListNotations.
 Require Import ZArith. 
 
-Lemma max_unsigned_modulus: Int.max_unsigned + 1 = Int.modulus.
-Proof. reflexivity. Qed.
-
 (*generalizes Lemma data_at_lemmas.memory_block_data_at__aux1*)
 Lemma unsigned_add: forall i pos, 0 <= pos -> Int.unsigned (Int.add i (Int.repr pos)) = (Int.unsigned i + pos) mod Int.modulus.
 Proof.
@@ -75,7 +72,7 @@ Lemma sizeof_Zlength_nonneg {A ge} t (d:list A): 0 <= sizeof ge t * Zlength d.
   specialize (Zlength_nonneg d). specialize (sizeof_pos ge t); intros.
   apply Z.mul_nonneg_nonneg; omega.
 Qed.
-
+(*
 Lemma data_at_ext {cs} sh t v v' p: v=v' -> @data_at cs sh t v p |-- @data_at cs sh t v' p.
 Proof. intros; subst. trivial. Qed.
 
@@ -381,7 +378,7 @@ Lemma append_split3_data_at_Tarray_at_tuchar' {cs} sh data data1 data2 data3 p:
 Proof. intros. subst.
   apply append_split3_data_at_Tarray_at_tuchar; trivial.
 Qed.
-
+*)
 (*
 Lemma split3_data_at_Tarray_at_tuchar:    
       lo n sh data d

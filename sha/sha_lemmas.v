@@ -373,49 +373,6 @@ Proof.
   subst. apply JMeq_eq in H0. subst v2. reflexivity.
 Qed.
 
-(*
-Lemma split2_data_block:
-  forall n sh data d,
-  n <= length data ->
-  data_block sh data d = 
-  (!! offset_in_range 0 d &&
-   !! offset_in_range (sizeof cenv_cs tuchar * Zlength data) d &&
-  data_block sh (firstn n data) d *
-  data_block sh (skipn n data) (offset_val (Int.repr (Z.of_nat n)) d))%logic.
-Proof.
-  intros.
-  assert (isptr d \/ ~isptr d) by (clear; destruct d; simpl; intuition).
-  destruct H0; [ | apply pred_ext; entailer].
-  unfold data_block.
-  remember (sizeof cenv_cs tuchar) as TU.
-  simpl.
-  normalize.
-  subst TU.
-  do 2 rewrite prop_and. rewrite <- andp_assoc.  rewrite <- (prop_and (Forall _ _)).
-  replace (Forall isbyteZ (skipn n data) /\ Forall isbyteZ (firstn n data)) with (Forall isbyteZ data)
-  by (apply prop_ext; rewrite and_comm; rewrite <- Forall_app; rewrite firstn_skipn; intuition).
- rewrite andp_assoc.
-  f_equal.
-  simpl sizeof. rewrite Z.mul_1_l.
-  erewrite (split_offset_array_at (Z.of_nat n)); auto;
-   [ | split; [omega | rewrite Zlength_correct; apply Nat2Z.inj_le; auto]].
-  f_equal.
- normalize.
-f_equal.
-repeat rewrite Zlength_correct.
-rewrite firstn_length. rewrite min_l by auto.
-f_equal.
-admit.  (* certainly true, but what a mess *)
-apply equal_f.
-apply data_at_type_changable.
-f_equal.
-rewrite !Zlength_correct.
-rewrite skipn_length. rewrite Nat2Z.inj_sub by omega. auto.
-rewrite <- !skipn_map.
-apply eq_JMeq.
-admit.  (* certainly true, but what a mess *)
-Qed.
-*)
 
 (*** Application of Omega stuff ***)
 
@@ -459,6 +416,13 @@ Lemma mapsto_tuchar_isbyteZ:
     !! (0 <= Int.unsigned i < 256)%Z && mapsto sh tuchar v (Vint i).
 Proof.
 intros. apply mapsto_value_range. trivial.
+Qed.
+
+Lemma data_block_valid_pointer sh l p: sepalg.nonidentity sh -> Zlength l > 0 ->
+      data_block sh l p |-- valid_pointer p.
+Proof. unfold data_block. simpl; intros.
+  apply andp_valid_pointer2. apply data_at_valid_ptr; auto; simpl.
+  rewrite Z.max_r, Z.mul_1_l; omega.
 Qed.
 
 Lemma data_block_isbyteZ:
@@ -525,5 +489,149 @@ Proof.
  destruct i; auto. destruct i; auto. destruct i; auto.
  apply IHn; omega.
 Qed.
+
+Lemma split2_data_block_unfold:
+  forall n sh data d,
+  (0 <= n <= Zlength data)%Z ->
+  data_block sh data d |-- 
+  (data_block sh (sublist 0 n data) d *
+   data_block sh (sublist n (Zlength data) data) 
+   (field_address0 (tarray tuchar (Zlength data)) [ArraySubsc n] d))%logic.
+Proof.
+intros.
+unfold data_block. simpl. entailer. unfold tarray. eapply derives_trans.
+   apply (split2_data_at_Tarray_at_tuchar_unfold sh (Zlength data) n); auto;
+   repeat rewrite Zlength_map; try Omega1.
+   entailer.
+   repeat rewrite Zlength_sublist; repeat rewrite Zminus_0_r;
+      repeat rewrite sublist_map; repeat rewrite Zlength_map; try Omega1.
+   apply andp_right.
+      apply prop_right. repeat split; eapply isbyteZ_sublist; eassumption.
+   unfold at_offset, field_address0; simpl.
+      rewrite if_true. repeat rewrite Z.mul_1_l. cancel.
+     eapply field_compatible0_cons_Tarray. reflexivity. assumption. assumption.
+Qed.
+Lemma split2_data_block_fold:
+  forall n sh data d,
+  (0 <= n <= Zlength data)%Z -> Zlength data < Int.modulus->
+  field_compatible (Tarray tuchar (Zlength data) noattr) [] d ->
+  (data_block sh (sublist 0 n data) d *
+   data_block sh (sublist n (Zlength data) data) 
+   (field_address0 (tarray tuchar (Zlength data)) [ArraySubsc n] d)
+  |--
+  data_block sh data d)%logic.
+Proof.
+intros.
+unfold data_block. simpl. entailer. 
+ apply andp_right. admit.
+ unfold tarray. eapply derives_trans.
+ Focus 2. 
+ apply (split2_data_at_Tarray_at_tuchar_fold sh (Zlength data) n); trivial.
+ do 2 rewrite Zlength_map; trivial.
+
+  repeat rewrite sublist_map; repeat rewrite Zlength_sublist; try omega.
+  rewrite Zminus_0_r; cancel.
+  unfold at_offset, field_address0; simpl.
+      rewrite if_true. repeat rewrite Z.mul_1_l, Z.add_0_l.
+      repeat rewrite Zlength_map. trivial.
+  red; red in H1; intuition. split; simpl; trivial; omega.
+Qed.
+Lemma split2_data_block:
+  forall n sh data d,
+  (0 <= n <= Zlength data)%Z -> Zlength data < Int.modulus->
+  field_compatible (Tarray tuchar (Zlength data) noattr) [] d ->
+  data_block sh data d =
+  (data_block sh (sublist 0 n data) d *
+   data_block sh (sublist n (Zlength data) data) 
+   (field_address0 (tarray tuchar (Zlength data)) [ArraySubsc n] d))%logic.
+Proof. intros. apply pred_ext.
+  apply split2_data_block_unfold; trivial.
+  apply split2_data_block_fold; trivial.
+Qed.
+
+Lemma split3_data_block:
+  forall lo hi sh data d,
+  0 <= lo <= hi ->
+  hi <= Zlength data  < Int.modulus ->
+  field_compatible (tarray tuchar (Zlength data)) [] d ->
+  data_block sh data d = 
+  (data_block sh (sublist 0 lo data) d *
+   data_block sh (sublist lo hi data) 
+   (field_address0 (tarray tuchar (Zlength data)) [ArraySubsc lo] d) *
+   data_block sh (sublist hi (Zlength data) data) 
+   (field_address0 (tarray tuchar (Zlength data)) [ArraySubsc hi] d))%logic.
+Proof.
+  intros.
+  rewrite (split2_data_block hi); try omega; trivial.
+  rewrite (split2_data_block lo); autorewrite with sublist; try omega.
+  f_equal. f_equal.
+  f_equal.
+  unfold field_address0.
+  rewrite !if_true; auto.
+  eapply field_compatible0_cons_Tarray; try reflexivity; auto; try omega.
+  eapply field_compatible0_cons_Tarray; try reflexivity; auto; try omega.
+  hnf in H1|-*; intuition.
+  clear- H H2 H3 H1 H0.
+  unfold legal_alignas_type in H1|-*; simpl in H1|-*.
+  unfold tarray in *.
+  rewrite nested_pred_ind in H1.
+  rewrite nested_pred_ind.
+  rewrite andb_true_iff in *. destruct H1; split; auto.
+  clear - H2 H3 H H0 H.
+  unfold local_legal_alignas_type in *. simpl in *.
+  eapply Zle_is_le_bool. omega.
+  clear - H6 H0 H2 H3 H H4.
+  simpl sizeof in *. rewrite Z.max_r in * by omega. omega.
+  destruct d; try contradiction; simpl in *.
+  rewrite Z.max_r in * by omega. omega.
+  red. red in H1. intuition. unfold legal_alignas_type, nested_pred, local_legal_alignas_type in *. simpl. apply andb_true_intro. split; trivial.
+  eapply Zle_is_le_bool. omega.
+
+  simpl. rewrite Z.mul_1_l, Z.max_r; omega.
+  red; red in H8; intuition. destruct d; trivial. simpl in *. rewrite Z.mul_1_l, Z.max_r in *; omega.
+Qed.
+(*
+Lemma split2_data_block:
+  forall n sh data d,
+  n <= length data ->
+  data_block sh data d = 
+  (!! offset_in_range 0 d &&
+   !! offset_in_range (sizeof cenv_cs tuchar * Zlength data) d &&
+  data_block sh (firstn n data) d *
+  data_block sh (skipn n data) (offset_val (Int.repr (Z.of_nat n)) d))%logic.
+Proof.
+  intros.
+  assert (isptr d \/ ~isptr d) by (clear; destruct d; simpl; intuition).
+  destruct H0; [ | apply pred_ext; entailer].
+  unfold data_block.
+  remember (sizeof cenv_cs tuchar) as TU.
+  simpl.
+  normalize.
+  subst TU.
+  do 2 rewrite prop_and. rewrite <- andp_assoc.  rewrite <- (prop_and (Forall _ _)).
+  replace (Forall isbyteZ (skipn n data) /\ Forall isbyteZ (firstn n data)) with (Forall isbyteZ data)
+  by (apply prop_ext; rewrite and_comm; rewrite <- Forall_app; rewrite firstn_skipn; intuition).
+ rewrite andp_assoc.
+  f_equal.
+  simpl sizeof. rewrite Z.mul_1_l.
+  erewrite (split_offset_array_at (Z.of_nat n)); auto;
+   [ | split; [omega | rewrite Zlength_correct; apply Nat2Z.inj_le; auto]].
+  f_equal.
+ normalize.
+f_equal.
+repeat rewrite Zlength_correct.
+rewrite firstn_length. rewrite min_l by auto.
+f_equal.
+admit.  (* certainly true, but what a mess *)
+apply equal_f.
+apply data_at_type_changable.
+f_equal.
+rewrite !Zlength_correct.
+rewrite skipn_length. rewrite Nat2Z.inj_sub by omega. auto.
+rewrite <- !skipn_map.
+apply eq_JMeq.
+admit.  (* certainly true, but what a mess *)
+Qed.
+*)
 
 Global Opaque WORD.

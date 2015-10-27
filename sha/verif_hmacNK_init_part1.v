@@ -15,19 +15,6 @@ Require Import sha.hmac_pure_lemmas.
 Require Import sha.hmac_common_lemmas.
 Require Import sha.spec_hmacNK.
 
-Require Import split_array_lemmas. (*TODO: move this file to floyd?*)
-
-Lemma Zlength_list_repeat {A} n (v:A): Zlength (list_repeat n v) = Z.of_nat n.
-Proof. rewrite Zlength_correct, length_list_repeat; trivial. Qed. 
-(*from tweetnaclbase*)
-
-Lemma data_block_valid_pointer sh l p: sepalg.nonidentity sh -> Zlength l > 0 ->
-      data_block sh l p |-- valid_pointer p.
-Proof. unfold data_block. simpl; intros.
-  apply andp_valid_pointer2. apply data_at_valid_ptr; auto; simpl.
-  rewrite Z.max_r, Z.mul_1_l; omega.
-Qed.
-
 Definition initPostKeyNullConditional r (c:val) (k: val) h key ctxkey: mpred:=
   match k with
     Vint z => if Int.eq z Int.zero

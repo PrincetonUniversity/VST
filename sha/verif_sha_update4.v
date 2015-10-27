@@ -42,91 +42,6 @@ Definition sha_update_loop_body :=
               (Ebinop Omul (Econst_int (Int.repr 16) tint)
                  (Econst_int (Int.repr 4) tint) tint) tuint)))).
 
-
-Lemma split2_data_block:
-  forall n sh data d,
-  (0 <= n <= Zlength data)%Z ->
-  data_block sh data d = 
-  (data_block sh (sublist 0 n data) d *
-   data_block sh (sublist n (Zlength data) data) 
-   (field_address0 (tarray tuchar (Zlength data)) [ArraySubsc n] d))%logic.
-Proof.
-intros.
-unfold data_block. simpl.
-normalize.
-f_equal. 
-*
-f_equal.
-apply prop_ext; split; intro.
-split; apply Forall_sublist; auto.
- destruct H0.
- unfold sublist in *.
- rewrite Z.sub_0_r in H0.
- simpl in *.
- rewrite Z2Nat.inj_sub in H1 by omega.
- rewrite  Zlength_correct in *.
- rewrite Nat2Z.id in H1.
- assert (Z.to_nat n <= length data)%nat.
- apply Nat2Z.inj_le.
- rewrite Z2Nat.id by omega.
- apply H.
- clear H.
- pose proof (firstn_skipn (Z.to_nat n) data).
- rewrite <- H.
- apply Forall_app. split.
- auto.
- rewrite firstn_same in H1; auto.
- rewrite skipn_length.
- omega.
-*
-  unfold data_at at 1.
-  erewrite field_at_Tarray; try reflexivity; try omega.
-  rewrite (split2_array_at _ _ _ 0%Z n (Zlength data)) by omega.
-  autorewrite with sublist. rewrite !sublist_map.
-  forget (map Vint (map Int.repr (sublist 0 n data))) as L1.
-  forget (map Vint (map Int.repr (sublist n (Zlength data) data))) as L2.
-  unfold data_at.
-(* need a more general version of field_at_Tarray *)
-Admitted.
-
-Lemma split3_data_block:
-  forall lo hi sh data d,
-  0 <= lo <= hi ->
-  hi <= Zlength data ->
-  field_compatible (tarray tuchar (Zlength data)) [] d ->
-  data_block sh data d = 
-  (data_block sh (sublist 0 lo data) d *
-   data_block sh (sublist lo hi data) 
-   (field_address0 (tarray tuchar (Zlength data)) [ArraySubsc lo] d) *
-   data_block sh (sublist hi (Zlength data) data) 
-   (field_address0 (tarray tuchar (Zlength data)) [ArraySubsc hi] d))%logic.
-Proof.
-  intros.
-  rewrite (split2_data_block hi) by omega.
-  rewrite (split2_data_block lo) by (autorewrite with sublist; omega).
-  autorewrite with sublist.
-  f_equal. f_equal.
-  f_equal.
-  unfold field_address0.
-  rewrite !if_true; auto.
-  eapply field_compatible0_cons_Tarray; try reflexivity; auto; try omega.
-  eapply field_compatible0_cons_Tarray; try reflexivity; auto; try omega.
-  hnf in H1|-*; intuition.
-  clear- H2 H3 H1 H0.
-  unfold legal_alignas_type in H1|-*; simpl in H1|-*.
-  unfold tarray in *.
-  rewrite nested_pred_ind in H1.
-  rewrite nested_pred_ind.
-  rewrite andb_true_iff in *. destruct H1; split; auto.
-  clear - H2 H3 H H0.
-  unfold local_legal_alignas_type in *. simpl in *.
-  rewrite <- Zle_is_le_bool in H|-*. omega.
-  clear - H6 H0 H2 H3.
-  simpl sizeof in *. rewrite Z.max_r in * by omega. omega.
-  destruct d; try contradiction; simpl in *.
-  rewrite Z.max_r in * by omega. omega.
-Qed.
-
 Lemma offset_val_field_address0:
   forall {cs: compspecs} i n len t lo gfs t' p,
  nested_field_type2 t gfs = tarray t' len ->
@@ -171,7 +86,6 @@ hnf. repeat split; auto.
 rewrite H in *.
 inv H10; split; auto; omega.
 Qed.
-
 Lemma update_loop_body_proof:
  forall (Espec : OracleKind) (sh: share) (hashed : list int) (frag data : list Z) (c d : val)
   (len : Z) kv (r_h : list int)
@@ -243,6 +157,9 @@ unfold sha_update_loop_body.
 subst Delta; abbreviate_semax.
 assert (Hblocks' := Hblocks_lem Hblocks).
 assert_PROP (field_compatible (tarray tuchar (Zlength data)) [] d) as FC by entailer!.
+assert (DM: Zlength data < Int.modulus).
+{ clear - FC. red in FC. simpl in FC. rewrite Z.max_r in FC. omega.
+  specialize (Zlength_nonneg data); intros; omega. }
 set (lo := Zlength blocks * 4 - Zlength frag) in *.
  replace_SEP 2
   (`(data_block sh (sublist 0 lo data) d *
@@ -252,7 +169,7 @@ set (lo := Zlength blocks * 4 - Zlength frag) in *.
          (field_address0 (tarray tuchar (Zlength data)) [ArraySubsc (lo+CBLOCKz)] d))).
   {entailer!.
    rewrite (split3_data_block lo (lo+CBLOCKz) sh data); auto;
-     subst lo; Omega1.
+     subst lo; Omega1.      
   }
  rewrite H6.
  normalize.
@@ -285,7 +202,7 @@ forward_call (* sha256_block_data_order (c,data); *)
  autorewrite with sublist. Omega1.
  unfold data_at. unfold_field_at 6%nat.
  rewrite (split3_data_block lo (lo+CBLOCKz) sh data d)
-   by (auto; subst lo; Omega1).
+    by (auto; subst lo; try Omega1).
  rewrite app_ass.
  rewrite H6.
  cancel.

@@ -22,8 +22,6 @@ Require Import hmac_pure_lemmas.
 Require Import hmac_common_lemmas.
 Require Import sha.spec_hmacNK.
 
-Require Import split_array_lemmas. 
-
 Definition HMAC_Double_spec :=
   DECLARE _HMAC
    WITH keyVal: val, KEY:DATA,
