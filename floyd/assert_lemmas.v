@@ -879,8 +879,8 @@ match goal with
 | |- _ |-- fold_right sepcon emp ?F  =>
    repeat rewrite sepcon_assoc;
    repeat apply cancel_frame2_low;
-    try (unfold F; apply cancel_frame1_low);
-    try (unfold F; apply cancel_frame0_low)
+    try (unfold F; apply cancel_frame0_low);
+    try (unfold F; apply cancel_frame1_low)
  end.
 
 Ltac pull_left A :=
