@@ -295,7 +295,7 @@ Proof. intros. abbreviate_semax.
         unfold SHA256.Hash. rewrite Zlength_correct, length_SHA256'; reflexivity.
       rewrite sublist_app1; repeat rewrite Zlength_map; try omega. 
       rewrite sublist_same; repeat rewrite Zlength_map; try omega.
-      rewrite Zlength_app, Zlength_list_repeat, LHash.
+      rewrite Zlength_app, Zlength_list_repeat', LHash.
       rewrite sublist_app2; repeat rewrite Zlength_map. 2: omega.
       rewrite LHash, Zminus_diag, Zminus_plus. 
       rewrite sublist_same; repeat rewrite Zlength_map; try rewrite Zlength_list_repeat; trivial. 
@@ -317,6 +317,7 @@ Proof. intros. abbreviate_semax.
           Opaque default_val.
         unfold data_block. normalize. apply andp_left2. cancel. 
       Opaque hmac_init_part1_FRAME1.
+    rewrite Zlength_list_repeat'. trivial.
    }
 Qed.
 
@@ -455,7 +456,7 @@ Proof. intros.
      repeat rewrite map_list_repeat. 
      rewrite sublist_same; trivial. 
      cancel.
-     do 2 rewrite Zlength_list_repeat. trivial.
+     do 2 rewrite Zlength_list_repeat'. trivial.
 Qed.
 
 Lemma hmac_init_part1: forall

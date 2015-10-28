@@ -939,3 +939,7 @@ pose proof (eq_rect_JMeq _ (reptype t) t' (fun x : Type => x) v (reptype_ind t))
 apply JMeq_eq.
 apply JMeq_trans with (reptype t) v; auto.
 Qed.
+
+
+Lemma Zlength_default_val_Tarray_tuchar {cs} n a (N:0<=n): Zlength (@default_val cs (Tarray tuchar n a)) = n.
+Proof. unfold default_val; simpl. rewrite Zlength_list_repeat; trivial. Qed.
