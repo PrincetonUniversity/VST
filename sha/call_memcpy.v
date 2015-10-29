@@ -293,7 +293,7 @@ rewrite H99. rewrite <- H5. exists vp; auto.
 destruct H6 as [vpx Hvpx].
 assert_PROP (legal_nested_field tp pathp /\ legal_nested_field tq pathq). {
   eapply derives_trans; [apply Hpre | apply andp_left2]. 
-entailer. apply prop_right. clear - H10 H12; hnf in H10,H12; intuition.
+entailer.
 } destruct H6 as [LNFp LNFq].
 erewrite field_at_Tarray in Hpre; try eassumption; auto; try omega.
 
@@ -529,7 +529,7 @@ rewrite H99. eauto.
 destruct H6 as [vpx Hvpx].
 assert_PROP (legal_nested_field tp pathp). {
   eapply derives_trans; [apply Hpre | apply andp_left2]. 
-entailer. apply prop_right. clear - H8; hnf in H8; intuition.
+entailer.
 } rename H1 into LNFp.
 rewrite Hvpx in H3.
 assert (LENvpx: Zlength vpx = np). {
