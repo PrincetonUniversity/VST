@@ -13,8 +13,6 @@ Require Import vst_lemmas.
 Require Import hmac_pure_lemmas.
 Require Import hmac_common_lemmas.
 
-Require Import split_array_lemmas.
-
 Require Import sha.hmac_NK.
 Require Import sha.verif_hmacNK_init_part1.
 

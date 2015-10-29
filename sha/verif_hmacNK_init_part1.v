@@ -15,19 +15,6 @@ Require Import sha.hmac_pure_lemmas.
 Require Import sha.hmac_common_lemmas.
 Require Import sha.spec_hmacNK.
 
-Require Import split_array_lemmas. (*TODO: move this file to floyd?*)
-
-Lemma Zlength_list_repeat {A} n (v:A): Zlength (list_repeat n v) = Z.of_nat n.
-Proof. rewrite Zlength_correct, length_list_repeat; trivial. Qed. 
-(*from tweetnaclbase*)
-
-Lemma data_block_valid_pointer sh l p: sepalg.nonidentity sh -> Zlength l > 0 ->
-      data_block sh l p |-- valid_pointer p.
-Proof. unfold data_block. simpl; intros.
-  apply andp_valid_pointer2. apply data_at_valid_ptr; auto; simpl.
-  rewrite Z.max_r, Z.mul_1_l; omega.
-Qed.
-
 Definition initPostKeyNullConditional r (c:val) (k: val) h key ctxkey: mpred:=
   match k with
     Vint z => if Int.eq z Int.zero
@@ -308,7 +295,7 @@ Proof. intros. abbreviate_semax.
         unfold SHA256.Hash. rewrite Zlength_correct, length_SHA256'; reflexivity.
       rewrite sublist_app1; repeat rewrite Zlength_map; try omega. 
       rewrite sublist_same; repeat rewrite Zlength_map; try omega.
-      rewrite Zlength_app, Zlength_list_repeat, LHash.
+      rewrite Zlength_app, Zlength_list_repeat', LHash.
       rewrite sublist_app2; repeat rewrite Zlength_map. 2: omega.
       rewrite LHash, Zminus_diag, Zminus_plus. 
       rewrite sublist_same; repeat rewrite Zlength_map; try rewrite Zlength_list_repeat; trivial. 
@@ -330,6 +317,7 @@ Proof. intros. abbreviate_semax.
           Opaque default_val.
         unfold data_block. normalize. apply andp_left2. cancel. 
       Opaque hmac_init_part1_FRAME1.
+    rewrite Zlength_list_repeat'. trivial.
    }
 Qed.
 
@@ -468,7 +456,7 @@ Proof. intros.
      repeat rewrite map_list_repeat. 
      rewrite sublist_same; trivial. 
      cancel.
-     do 2 rewrite Zlength_list_repeat. trivial.
+     do 2 rewrite Zlength_list_repeat'. trivial.
 Qed.
 
 Lemma hmac_init_part1: forall

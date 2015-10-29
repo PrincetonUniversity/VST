@@ -5,7 +5,6 @@ Require Import List. Import ListNotations.
 Require Import general_lemmas.
 
 Require Import split_array_lemmas.
-(*Require Import fragments.*)
 Require Import ZArith. 
 Require Import tweetNaclBase.
 Require Import Salsa20.
@@ -485,4 +484,3 @@ Focus 2. entailer. apply (exp_right r). entailer. cancel.
   entailer.
   apply (exp_right wints). rewrite R. entailer. cancel. }
 Qed.
-

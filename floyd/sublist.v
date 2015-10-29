@@ -1120,6 +1120,39 @@ revert k H0; induction (Z.to_nat i); destruct k; simpl; intros.
 omega. auto. omega. apply IHn0; omega.
 Qed.
 
+Lemma firstn_nil {A} n: firstn n (nil:list A) = nil.
+Proof.  destruct n; reflexivity. Qed.
+
+Lemma firstn_In {A} (x:A): forall l n, In x (firstn n l) -> In x l.
+Proof.
+  induction l; simpl; intros.
+  rewrite firstn_nil in H. inv H.
+  destruct n; simpl in *. contradiction.
+  destruct H; eauto.
+Qed.
+Lemma skipn_In {A} (x:A): forall l n, In x (skipn n l) -> In x l.
+Proof.
+  induction l; simpl; intros.
+  rewrite skipn_nil in H. inv H.
+  destruct n; simpl in *. trivial. right; eauto.
+Qed.  
+
+Lemma sublist_In {A} lo hi data (x:A) (I:In x (sublist lo hi data)): In x data.
+Proof. eapply skipn_In. eapply firstn_In. apply I. Qed.
+
+Lemma Zlength_list_repeat' {A} n (v:A): Zlength (list_repeat n v) = Z.of_nat n.
+Proof. rewrite Zlength_correct, length_list_repeat; trivial. Qed.
+
+Lemma sublist0_app2 {A : Type} i (al bl : list A):
+  Zlength al <= i <= Zlength al + Zlength bl ->
+  sublist 0 i (al ++ bl) = al ++ sublist 0 (i - Zlength al) bl.
+Proof. specialize (Zlength_nonneg al); specialize (Zlength_nonneg bl); intros. 
+rewrite <- (sublist_rejoin 0 (Zlength al) i); try rewrite Zlength_app; try omega. 
+rewrite sublist0_app1, sublist_same; try omega.
+ rewrite sublist_app2, Zminus_diag; trivial. omega.
+Qed.
+
+(*Hint Rewrite @Zlength_list_repeat'  : sublist.*)
 Hint Rewrite @Znth_list_repeat_inrange : sublist.
 Hint Rewrite @Zlength_cons @Zlength_nil: sublist.
 Hint Rewrite @list_repeat_0: sublist.

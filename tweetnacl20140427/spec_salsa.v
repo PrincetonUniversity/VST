@@ -3,9 +3,6 @@ Require Import floyd.proofauto.
 Local Open Scope logic.
 Require Import List. Import ListNotations.
 Require Import general_lemmas.
-(*
-Require Import split_array_lemmas.
-Require Import fragments.*)
 Require Import ZArith. 
 Require Import Salsa20.
 Require Import tweetNaclBase.

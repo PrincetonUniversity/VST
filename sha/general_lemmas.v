@@ -446,4 +446,7 @@ Lemma map_list_repeat:
 Proof. induction n; simpl; intros; f_equal; auto.
 Qed.
 
-
+Lemma isbyteZ_sublist data lo hi: Forall isbyteZ data -> Forall isbyteZ (sublist lo hi data).
+Proof. intros. destruct (Forall_forall isbyteZ data) as [F _].
+   apply Forall_forall. intros. apply (F H x). eapply sublist_In. apply H0.
+Qed.

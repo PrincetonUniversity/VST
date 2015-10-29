@@ -308,22 +308,6 @@ Fixpoint upd_upto (x: SixteenByte * SixteenByte * (SixteenByte * SixteenByte)) i
      (Vint (littleendian (Select16Q Key2 (Z.of_nat n))))))
      end
   end.
-(*
-Fixpoint upd_upto (x: SixteenByte * SixteenByte * (SixteenByte * SixteenByte)) i (l:list val):list val :=
-  match i with
-    O => l
-  | S n => 
-     match x with (Nonce, C, (Key1, Key2)) =>
-     ((upd_reptype_array tuint (11 + (Z.of_nat n))
-     (upd_reptype_array tuint (6 + (Z.of_nat n))
-        (upd_reptype_array tuint (1 + (Z.of_nat n))
-           (upd_reptype_array tuint (5 * (Z.of_nat n)) (upd_upto x n l)
-              (Vint (littleendian (Select16Q C (Z.of_nat n)))))
-           (Vint (littleendian (Select16Q Key1 (Z.of_nat n)))))
-        (Vint (littleendian (Select16Q Nonce (Z.of_nat n)))))
-     (Vint (littleendian (Select16Q Key2 (Z.of_nat n))))))
-     end
-  end.*)
 
 Lemma upd_upto_Sn Nonce C Key1 Key2 n l: upd_upto (Nonce, C, (Key1, Key2)) (S n) l =
      ((upd_Znth_in_list (11 + (Z.of_nat n))

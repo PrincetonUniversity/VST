@@ -167,15 +167,15 @@ SHA_FILES= \
 HMAC_FILES= \
   HMAC_functional_prog.v HMAC256_functional_prog.v \
   vst_lemmas.v hmac_pure_lemmas.v hmac_common_lemmas.v \
+  hmac_NK.v spec_hmacNK.v verif_hmacNK_cleanup.v \
+  verif_hmacNK_init_part1.v verif_hmacNK_init_part2.v verif_hmacNK_init.v\
+  verif_hmacNK_update.v verif_hmacNK_final.v verif_hmacNK_simple.v \
+  verif_hmacNK_double.v verif_hmacNK_crypto.v 
 #  hmac091c.v spec_hmac.v \
 # verif_hmac_cleanup.v verif_hmac_init_part1.v \
 # verif_hmac_init_part2.v verif_hmac_init.v \
 # verif_hmac_update.v verif_hmac_final.v verif_hmac_simple.v \
 #  verif_hmac_double.v verif_hmac_crypto.v \
-  hmac_NK.v spec_hmacNK.v verif_hmacNK_cleanup.v \
-  verif_hmacNK_init_part1.v verif_hmacNK_init_part2.v verif_hmacNK_init.v\
-  verif_hmacNK_update.v verif_hmacNK_final.v verif_hmacNK_simple.v \
-  verif_hmacNK_double.v verif_hmacNK_crypto.v 
 #  spec_hmacADT.v verif_hmacADT_cleanup.v \
 #  verif_hmacADT_init_part1.v \
 #  verif_hmacADT_update.v verif_hmacADT_final.v verif_hmacADT_simple.v \
@@ -209,12 +209,12 @@ HMACEQUIV_FILES= \
   HMAC_isPRF.v HMAC256_isPRF.v
 
 TWEETNACL_FILES = \
-  Salsa20.v Snuffle.v \
-  tweetNaclBase.v  verif_salsa_base.v tweetnaclVerifiableC.v spec_salsa.v \
-  verif_ld_st.v  verif_fcore_epilogue_htrue.v verif_fcore_epilogue_hfalse.v \
-  split_array_lemmas.v verif_fcore_loop1.v verif_fcore_loop2.v \
-  verif_fcore_jbody.v verif_fcore_loop3.v verif_fcore.v \
-  verif_crypto_core.v
+  split_array_lemmas.v Salsa20.v Snuffle.v tweetNaclBase.v \
+  verif_salsa_base.v tweetnaclVerifiableC.v spec_salsa.v \
+  verif_ld_st.v verif_fcore_loop1.v verif_fcore_loop2.v \
+  verif_fcore_jbody.v verif_fcore_loop3.v \
+  verif_fcore_epilogue_hfalse.v verif_fcore_epilogue_htrue.v \
+  verif_fcore.v verif_crypto_core.v
 
 C_FILES = reverse.c queue.c sumarray.c message.c insertionsort.c float.c nest3.c nest2.c nest3.c dotprod.c string.c field_loadstore.c ptr_compare.c merge.c
 
