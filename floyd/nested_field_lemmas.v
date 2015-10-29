@@ -242,6 +242,24 @@ Proof.
     simpl. omega.
 Qed.
 
+Lemma offset_val_nested_field_offset2_ind: forall t gfs p,
+  legal_nested_field0 t gfs ->
+  offset_val (Int.repr (nested_field_offset2 t gfs)) p =
+  match gfs with
+  | nil => force_ptr p
+  | gf :: gfs0 => offset_val (Int.repr (gfield_offset (nested_field_type2 t gfs0) gf))
+                    (offset_val (Int.repr (nested_field_offset2 t gfs0)) p)
+  end.
+Proof.
+  intros.
+  rewrite nested_field_offset2_ind by auto.
+  destruct gfs as [| gf gfs].
+  + fold Int.zero. rewrite offset_val_force_ptr; auto.
+  + rewrite offset_offset_val.
+    rewrite add_repr.
+    auto.
+Qed.
+
 Lemma nested_field_array_type_ind: forall t gfs lo hi,
   nested_field_array_type t gfs lo hi =
   gfield_array_type (nested_field_type2 t gfs) lo hi.
@@ -1629,14 +1647,37 @@ Qed.
 
 Lemma field_compatible_isptr :
   forall t path p, field_compatible t path p -> isptr p.
-Proof.
-intros. destruct H; auto.
-Qed.
+Proof. intros. destruct H; auto. Qed.
 
 Lemma field_compatible0_isptr :
   forall t path p, field_compatible0 t path p -> isptr p.
 Proof.
 intros. destruct H; auto.
+Qed.
+
+Lemma field_compatible_complete_type:
+  forall t path p, field_compatible t path p -> complete_type cenv_cs t = true.
+Proof. intros. destruct H; tauto. Qed.
+
+Lemma field_compatible0_complete_type:
+  forall t path p, field_compatible0 t path p -> complete_type cenv_cs t = true.
+Proof. intros. destruct H; tauto. Qed.
+
+Lemma field_compatible_legal_nested_field:
+  forall (t : type) (path : list gfield) (p : val),
+  field_compatible t path p -> legal_nested_field t path.
+Proof.
+  intros.
+  destruct H; tauto.
+Qed.
+
+Lemma field_compatible_legal_nested_field0:
+  forall (t : type) (path : list gfield) (p : val),
+  field_compatible t path p -> legal_nested_field0 t path.
+Proof.
+  intros.
+  apply legal_nested_field0_field.
+  destruct H; tauto.
 Qed.
 
 End COMPOSITE_ENV.
@@ -1647,8 +1688,11 @@ Arguments nested_field_type2 {cs} t gfs /.
 
 (* Hint Resolve field_address_isptr. *)
 Hint Resolve is_pointer_or_null_field_compatible.
+Hint Extern 1 (complete_type _ _ = true) => (eapply field_compatible_complete_type; eassumption).
 Hint Extern 1 (isptr _) => (eapply field_compatible_isptr; eassumption).
 Hint Extern 1 (isptr _) => (eapply field_compatible0_isptr; eassumption).
+Hint Extern 1 (legal_nested_field _ _) => (eapply field_compatible_legal_nested_field; eassumption).
+Hint Extern 1 (legal_nested_field0 _ _) => (eapply field_compatible_legal_nested_field0; eassumption).
 
 Lemma lvar_size_compatible:
   forall  {cs: compspecs} id t v rho,

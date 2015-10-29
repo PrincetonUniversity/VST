@@ -380,13 +380,6 @@ f_equal. f_equal. f_equal.
 apply prop_ext; split; intro; hnf in *|-*; auto.
 Qed.
 
-Lemma offset_val_force_ptr:
-  offset_val Int.zero = force_ptr.
-Proof. extensionality v. destruct v; try reflexivity.
-simpl. rewrite Int.add_zero; auto.
-Qed.
-
-Hint Rewrite <- offset_val_force_ptr : norm.
 Hint Extern 0 (legal_alignas_type _ = true) => reflexivity : cancel.
 
 Lemma mapsto_force_ptr: forall sh t v v', 

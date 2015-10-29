@@ -37,7 +37,15 @@ Qed.
 Lemma isptr_offset_val':
  forall i p, isptr p -> isptr (offset_val i p).
 Proof. intros. destruct p; try contradiction; apply Coq.Init.Logic.I. Qed.
+Hint Extern 1 (isptr (offset_val _ _)) => apply isptr_offset_val'.
 Hint Resolve isptr_offset_val': norm.
+
+Lemma offset_val_force_ptr:
+  offset_val Int.zero = force_ptr.
+Proof. extensionality v. destruct v; try reflexivity.
+simpl. rewrite Int.add_zero; auto.
+Qed.
+Hint Rewrite <- offset_val_force_ptr : norm.
 
 Lemma sem_add_pi_ptr:
    forall {cs: compspecs}  t p i, 

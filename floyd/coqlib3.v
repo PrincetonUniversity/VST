@@ -365,3 +365,8 @@ intros.
  rewrite Z2Nat.id, Z.max_r by omega; omega.
 Qed.
 
+Lemma nil_or_non_nil: forall {A} (a: list A), {a = nil} + {a <> nil}.
+Proof.
+  intros.
+  destruct a; [left | right]; congruence.
+Qed.
