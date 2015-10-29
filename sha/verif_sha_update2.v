@@ -264,7 +264,6 @@ eapply semax_post_flipped'.
  simpl. apply Int.add_zero.
 +
  split3; auto.
- clear; compute; intuition.
  apply Zlength_nonneg.
  MyOmega.
 +
@@ -355,7 +354,7 @@ unfold k.
 change (LBLOCKz * 4)%Z with 64%Z.
 rewrite nested_field_offset2_ind.
 simpl. clear; omega.
-split; auto. constructor. constructor. Omega1. Omega1.
+split; auto. constructor. (*constructor.*) Omega1. Omega1.
 eapply field_compatible0_cons_Tarray; try reflexivity; auto; Omega1.
 unfold data_block. normalize.
 Qed.
