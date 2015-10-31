@@ -139,6 +139,7 @@ Proof.
   unfold field_type; simpl.
   unfold default_val. simpl.
   apply prop_ext; intuition.
+  apply default_value_fits.
 Qed.
 
 Lemma entail_rewrite A B : A |-- B -> A = A && B.

@@ -1092,20 +1092,16 @@ Definition address_mapsto (ch: memory_chunk) (v: val) : spec :=
                                     (fun loc => yesat NoneP (VAL (nth (nat_of_Z (snd loc - snd l)) bl Undef)) rsh sh loc)
                                     noat).
 
-Definition address_mapsto' ch v rsh sh loc bl :=
-  !!(length bl = size_chunk_nat ch /\ decode_val ch bl = v /\ (align_chunk ch | snd loc)) &&
-  allp
-  (jam (adr_range_dec loc (size_chunk ch))
-    (fun loc' : address =>
-      yesat NoneP
-      (VAL (nth (nat_of_Z (snd loc' - snd loc)) bl Undef)) rsh sh loc') noat).
-
-Lemma address_mapsto'_mapsto: forall ch v rsh sh loc bl phi,
-  address_mapsto' ch v rsh sh loc bl phi -> address_mapsto ch v rsh sh loc phi.
+Lemma address_mapsto_align: forall ch v rsh sh l,
+  address_mapsto ch v rsh sh l = address_mapsto ch v rsh sh l && !! (align_chunk ch | snd l).
 Proof.
-intros until phi; intro H.
-unfold address_mapsto' in H; unfold address_mapsto.
-exists bl; auto.
+  intros.
+  pose proof (@add_andp (pred rmap) _); simpl in H. apply H; clear H.
+  unfold address_mapsto.
+  apply exp_left; intro.
+  apply andp_left1.
+  intros ? [? [? ?]].
+  auto.
 Qed.
 
 Lemma address_mapsto_fun:
@@ -2516,3 +2512,24 @@ Lemma address_mapsto_value_cohere:
  address_mapsto ch v1 rsh1 sh1 a * address_mapsto ch v2 rsh2 sh2 a |-- !! (v1=v2).
 Proof.
 Admitted. 
+
+(*
+(* not used *)
+
+Definition address_mapsto' ch v rsh sh loc bl :=
+  !!(length bl = size_chunk_nat ch /\ decode_val ch bl = v /\ (align_chunk ch | snd loc)) &&
+  allp
+  (jam (adr_range_dec loc (size_chunk ch))
+    (fun loc' : address =>
+      yesat NoneP
+      (VAL (nth (nat_of_Z (snd loc' - snd loc)) bl Undef)) rsh sh loc') noat).
+
+Lemma address_mapsto'_mapsto: forall ch v rsh sh loc bl phi,
+  address_mapsto' ch v rsh sh loc bl phi -> address_mapsto ch v rsh sh loc phi.
+Proof.
+intros until phi; intro H.
+unfold address_mapsto' in H; unfold address_mapsto.
+exists bl; auto.
+Qed.
+
+*)

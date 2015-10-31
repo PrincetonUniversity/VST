@@ -243,8 +243,7 @@ Definition list_cell (ls: listspec list_structid list_link) (sh: Share.t)
    !! (field_compatible list_struct nil p 
   /\ struct_Prop (co_members (get_co list_structid))
   (fun it : ident * type =>
-   value_fits (readable_share_dec sh)
-     (field_type (fst it) (co_members (get_co list_structid))))
+   value_fits (field_type (fst it) (co_members (get_co list_structid))))
   (eq_rect list_fields (fun m : members => reptype_structlist m)
      (add_link_back list_fields list_fields v)
      (co_members (get_co list_structid)) list_members_eq))
@@ -1805,9 +1804,6 @@ Proof.
  f_equal.
  f_equal.
  apply prop_ext; intuition.
- admit.  (* by cases on readable_shares *)
- admit.  (* by cases on readable_shares *)
- admit.  (* by cases on readable_shares *)
  revert v; unfold elemtype.
  induction (all_but_link list_fields); intros.
  simpl. rewrite emp_sepcon; auto.

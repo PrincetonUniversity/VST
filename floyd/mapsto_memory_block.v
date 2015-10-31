@@ -371,13 +371,17 @@ Lemma mapsto_null_mapsto_pointer:
              mapsto sh tint v nullval = 
              mapsto sh (tptr t) v nullval.
 Proof.
-intros.
-unfold mapsto.
-simpl.
-destruct v; auto. f_equal; auto.
-if_tac; [| auto].
-f_equal. f_equal. f_equal.
-apply prop_ext; split; intro; hnf in *|-*; auto.
+  intros.
+  unfold mapsto.
+  simpl.
+  destruct v; auto. f_equal; auto.
+  if_tac.
+  + f_equal. f_equal. apply ND_prop_ext.
+    tauto.
+  + f_equal.
+    apply ND_prop_ext.
+    unfold tc_val', tc_val, tptr, tint, nullval; simpl.
+    tauto.
 Qed.
 
 Hint Extern 0 (legal_alignas_type _ = true) => reflexivity : cancel.

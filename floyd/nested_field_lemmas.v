@@ -1680,6 +1680,14 @@ Proof.
   destruct H; tauto.
 Qed.
 
+Lemma field_compatible_field_address: forall t gfs p, field_compatible t gfs p -> field_address t gfs p = offset_val (Int.repr (nested_field_offset2 t gfs)) p.
+Proof.
+  intros.
+  unfold field_address.
+  rewrite if_true by auto.
+  auto.
+Qed.
+
 End COMPOSITE_ENV.
 (*
 Arguments nested_field_offset2 {cs} t gfs /.

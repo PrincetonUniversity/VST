@@ -565,7 +565,20 @@ Proof.
  cbv beta;
  repeat first [rewrite @FF_orp | rewrite @orp_FF].
 *
- f_equal. if_tac; [| auto]; clear H.
+ f_equal. if_tac; clear H.
+ Focus 2. {
+   f_equal.
+   apply ND_prop_ext.
+   split; intros; (split; [| tauto]).
+   + intros _.
+     simpl.
+     destruct (expr_lemmas3.zero_ext_range' 8 i); [split; cbv; intros; congruence |].
+     exact H1.
+   + intros _.
+     simpl.
+     destruct (expr_lemmas3.sign_ext_range' 8 i); [split; cbv; intros; congruence |].
+     exact (conj H0 H1).
+ } Unfocus.
  f_equal; extensionality bl.
  f_equal. f_equal.
  simpl;  apply prop_ext; intuition.
@@ -590,7 +603,20 @@ Proof.
  f_equal; auto.
 *
  f_equal.
-  if_tac; [| auto]; clear H.
+ if_tac; clear H.
+ Focus 2. {
+   f_equal.
+   apply ND_prop_ext.
+   split; intros; (split; [| tauto]).
+   + intros _.
+     simpl.
+     destruct (expr_lemmas3.sign_ext_range' 8 i); [split; cbv; intros; congruence |].
+     exact (conj H0 H1).
+   + intros _.
+     simpl.
+     destruct (expr_lemmas3.zero_ext_range' 8 i); [split; cbv; intros; congruence |].
+     exact H1.
+ } Unfocus.
  f_equal; extensionality bl.
  f_equal. f_equal.
  simpl;  apply prop_ext; intuition.
@@ -615,6 +641,19 @@ Proof.
 *
  f_equal.
   if_tac; [| auto]; clear H.
+ Focus 2. {
+   f_equal.
+   apply ND_prop_ext.
+   split; intros; (split; [| tauto]).
+   + intros _.
+     simpl.
+     destruct (expr_lemmas3.zero_ext_range' 16 i); [split; cbv; intros; congruence |].
+     exact H1.
+   + intros _.
+     simpl.
+     destruct (expr_lemmas3.sign_ext_range' 16 i); [split; cbv; intros; congruence |].
+     exact (conj H0 H1).
+ } Unfocus.
   f_equal; extensionality bl.
  f_equal. f_equal.
  simpl;  apply prop_ext; intuition.
@@ -639,6 +678,19 @@ Proof.
 *
  f_equal.
   if_tac; [| auto]; clear H.
+ Focus 2. {
+   f_equal.
+   apply ND_prop_ext.
+   split; intros; (split; [| tauto]).
+   + intros _.
+     simpl.
+     destruct (expr_lemmas3.sign_ext_range' 16 i); [split; cbv; intros; congruence |].
+     exact (conj H0 H1).
+   + intros _.
+     simpl.
+     destruct (expr_lemmas3.zero_ext_range' 16 i); [split; cbv; intros; congruence |].
+     exact H1.
+ } Unfocus.
  f_equal; extensionality bl.
  f_equal. f_equal.
  simpl;  apply prop_ext; intuition.

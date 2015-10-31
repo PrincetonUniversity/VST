@@ -281,13 +281,13 @@ Definition mapsto (sh: Share.t) (t: type) (v1 v2 : val): mpred :=
             (!! (v2 = Vundef) &&
              EX v2':val, address_mapsto ch v2'
               (Share.unrel Share.Lsh sh) (Share.unrel Share.Rsh sh) (b, Int.unsigned ofs))
-       else res_predicates.nonlock_permission_bytes sh (b, Int.unsigned ofs) (Memdata.size_chunk ch)
+       else !! (tc_val' t v2 /\ (Memdata.align_chunk ch | Int.unsigned ofs)) && res_predicates.nonlock_permission_bytes sh (b, Int.unsigned ofs) (Memdata.size_chunk ch)
      | _ => FF
     end
     | _ => FF
     end
   | _ => FF
-  end. 
+  end.
 
 Definition mapsto_ sh t v1 := mapsto sh t v1 Vundef.
 
@@ -401,6 +401,9 @@ Definition memory_block (sh: share) (n: Z) (v: val) : mpred :=
 
 Lemma mapsto_mapsto_: forall sh t v v', mapsto sh t v v' |-- mapsto_ sh t v.
 Proof. exact seplog.mapsto_mapsto_. Qed.
+
+Lemma mapsto_tc_val': forall sh t p v, mapsto sh t p v |-- !! tc_val' t v.
+Proof. exact seplog.mapsto_tc_val'. Qed.
 
 Lemma memory_block'_split:
   forall sh b ofs i j,

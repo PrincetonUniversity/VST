@@ -243,14 +243,6 @@ Definition tc_LR Delta e lr :=
   | RRRR => tc_expr Delta e
   end.
 
-Lemma field_compatible_field_address: forall t gfs p, field_compatible t gfs p -> field_address t gfs p = offset_val (Int.repr (nested_field_offset2 t gfs)) p.
-Proof.
-  intros.
-  unfold field_address.
-  rewrite if_true by auto.
-  auto.
-Qed.
-
 Definition LR_of_type (t: type) :=
   match access_mode t with
   | By_reference => RRRR

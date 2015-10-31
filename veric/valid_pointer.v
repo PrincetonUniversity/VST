@@ -106,6 +106,7 @@ Proof.
     erewrite size_chunk_sizeof in H by eauto.
     erewrite size_chunk_sizeof in H0 by eauto.
     pose proof Int.unsigned_range i0.
+    apply andp_left2.
     apply nonlock_permission_bytes_valid_pointer.
     - omega.
     - rewrite Int.unsigned_repr by (unfold Int.max_unsigned; omega).

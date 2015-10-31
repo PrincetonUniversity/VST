@@ -11,9 +11,24 @@ Require Import floyd.loadstore_mapsto.
 
 Local Open Scope logic.
 
+Lemma is_neutral_cast_by_value: forall t t', 
+  is_neutral_cast t t' = true ->
+  type_is_by_value t = true.
+Proof.
+  intros.
+  destruct t, t'; try inversion H; simpl; auto.
+Qed.
+
+Ltac solve_andp' :=
+  first [ apply derives_refl
+        | apply andp_left1; solve_andp'
+        | apply andp_left2; solve_andp'].
+
+Ltac solve_andp := repeat apply andp_right; solve_andp'.
+
 (********************************************
 
-Max length ids field_at load store:
+Max length gfs field_at load store:
   semax_max_path_field_load_37'.
   semax_max_path_field_cast_load_37'.
   semax_max_path_field_store_nth.
@@ -28,18 +43,21 @@ Lemma semax_max_path_field_load_37':
   forall {Espec: OracleKind},
     forall Delta sh id P Q R (e1: expr)
       (t t_root: type) (efs: list efield) (gfs: list gfield) (tts: list type)
-      (v : val) (v' : reptype (nested_field_type2 t_root gfs)) lr,
+      (p v : val) (v' : reptype (nested_field_type2 t_root gfs)) lr,
       typeof_temp Delta id = Some t ->
       is_neutral_cast (typeof (nested_efield e1 efs tts)) t = true ->
       readable_share sh ->
+      LR_of_type t_root = lr ->
+      type_is_volatile (typeof (nested_efield e1 efs tts)) = false ->
       legal_nested_efield t_root e1 gfs tts lr = true ->
-      repinject _ v' = v ->
+      JMeq v' v ->
       PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |--
          (tc_LR Delta e1 lr) &&
         local `(tc_val (typeof (nested_efield e1 efs tts)) v) &&
          (tc_efield Delta efs) &&
         efield_denote efs gfs &&
-        (`(field_at sh t_root gfs v') (eval_LR e1 lr) * TT) ->
+        local (`(eq p) (eval_LR e1 lr)) &&
+        (`(field_at sh t_root gfs v' p) * TT) ->
       semax Delta (|>PROPx P (LOCALx Q (SEPx R))) 
         (Sset id (nested_efield e1 efs tts))
           (normal_ret_assert
@@ -49,45 +67,62 @@ Lemma semax_max_path_field_load_37':
                   (SEPx (map (subst id `old) R))))).
 Proof.
   intros.
+  pose proof is_neutral_cast_by_value _ _ H0.
   eapply semax_load_37' with (sh0 := sh); try eassumption.
-  eapply derives_trans; [exact H4|].
-Admitted.
-(*
-    rewrite (andp_comm _ (_ * _)).
-    rewrite !andp_assoc.
-    rewrite (add_andp _ _ (typeof_nested_efield _ _ _ _ _ _ _ lr H1)).
-    simpl; intro rho; normalize.
-    rewrite field_at_isptr.
-    rewrite field_at_data_at.
-    normalize.
-    pose proof (eval_lvalue_nested_efield Delta e t_root e1 efs gfs tts lr H1 rho).
-    pose proof (tc_lvalue_nested_efield Delta e t_root e1 efs gfs tts lr H1 rho).
-    normalize in H9.
-    normalize in H10.
-    rewrite (add_andp _ _ H9).
-    rewrite (add_andp _ _ H10).
-    normalize.
-    rewrite H11.
-    apply andp_left1.
-    apply derives_refl.
+  eapply derives_trans; [eapply andp_right; [| exact H6] | clear H6].
+  1: rewrite <- insert_local; apply andp_left1; apply derives_refl.
+  rewrite (add_andp _ _ (typeof_nested_efield _ _ _ _ _ _ H4)).
+  rewrite (add_andp _ _ (field_at_local_facts _ _ _ _ _)); normalize.
+  rewrite value_fits_by_value in H9 by (auto; rewrite H6; auto).
+  repeat apply andp_right.
+  + eapply derives_trans.
+    2: rewrite <- H6 in H7; eapply tc_lvalue_nested_efield; eauto.
+      (* This line can be "eapply tc_lvalue_nested_efield; eauto; rewrite H5; eauto" *)
+      (* But because of Coq bug, that does not work. And I cannot find a small case. *)
+    solve_andp.
+  + solve_andp.
+  + eapply derives_trans with
+    (local (`(eq (field_address t_root gfs p))
+                 (eval_lvalue (nested_efield e1 efs tts))) &&
+     (`(mapsto sh (typeof (nested_efield e1 efs tts))
+        (field_address t_root gfs p) v) * TT));
+    [apply andp_right |].
+    - eapply derives_trans.
+      2: rewrite <- H6 in H7; apply eval_lvalue_nested_efield; eauto.
+      solve_andp.
+    - rewrite <- H6; erewrite mapsto_field_at; eauto.
+      2: rewrite H6; auto.
+      2: rewrite H6; auto.
+      Focus 2. {
+        rewrite <- H6 in H7.
+        rewrite <- (repinject_JMeq _ _ H7) in H5.
+        apply JMeq_eq in H5.
+        rewrite <- H5; auto.
+      } Unfocus.
+      repeat apply andp_left2; auto.
+    - unfold local, lift1; unfold_lift; intro rho; simpl; normalize.
+      rewrite H10; auto.
 Qed.
-*)
+
 Lemma semax_max_path_field_cast_load_37':
   forall {Espec: OracleKind},
     forall Delta sh id P Q R (e1: expr)
       (t t_root: type) (efs: list efield) (gfs: list gfield) (tts: list type)
-      (v : val) (v' : reptype (nested_field_type2 t_root gfs)) lr,
+      (v p: val) (v' : reptype (nested_field_type2 t_root gfs)) lr,
       typeof_temp Delta id = Some t ->
       type_is_by_value (typeof (nested_efield e1 efs tts)) = true ->
       readable_share sh ->
+      LR_of_type t_root = lr ->
+      type_is_volatile (typeof (nested_efield e1 efs tts)) = false ->
       legal_nested_efield t_root e1 gfs tts lr = true ->
-      repinject _ v' = v ->
+      JMeq v' v ->
       PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |-- 
          (tc_LR Delta e1 lr) &&
         local (`(tc_val t (eval_cast (typeof (nested_efield e1 efs tts)) t v))) &&
          (tc_efield Delta efs) &&
         efield_denote efs gfs &&
-        (`(field_at sh t_root gfs v') (eval_LR e1 lr) * TT) ->
+        local (`(eq p) (eval_LR e1 lr)) &&
+        (`(field_at sh t_root gfs v' p) * TT) ->
       semax Delta (|> PROPx P (LOCALx Q (SEPx R)))
         (Sset id (Ecast (nested_efield e1 efs tts) t))
           (normal_ret_assert
@@ -98,28 +133,41 @@ Lemma semax_max_path_field_cast_load_37':
 Proof.
   intros.
   eapply semax_cast_load_37'; try eassumption.
-  eapply derives_trans; [exact H4 |].
-Admitted.
-(*
-    rewrite (andp_comm _ (_ * _)).
-    rewrite !andp_assoc.
-    rewrite (add_andp _ _ (typeof_nested_efield _ _ _ _ _ _ _ lr H1)).
-    simpl; intro rho; normalize.
-    rewrite field_at_isptr.
-    rewrite field_at_data_at.
-    normalize.
-    pose proof (eval_lvalue_nested_efield Delta e t_root e1 efs gfs tts lr H1 rho).
-    pose proof (tc_lvalue_nested_efield Delta e t_root e1 efs gfs tts lr H1 rho).
-    normalize in H9.
-    normalize in H10.
-    rewrite (add_andp _ _ H9).
-    rewrite (add_andp _ _ H10).
-    normalize.
-    rewrite H11.
-    apply andp_left1.
-    apply derives_refl.
+  eapply derives_trans; [eapply andp_right; [| exact H6] | clear H6].
+  1: rewrite <- insert_local; apply andp_left1; apply derives_refl.
+  rewrite (add_andp _ _ (typeof_nested_efield _ _ _ _ _ _ H4)).
+  rewrite (add_andp _ _ (field_at_local_facts _ _ _ _ _)); normalize.
+  rewrite value_fits_by_value in H8 by (auto; rewrite H6; auto).
+  repeat apply andp_right.
+  + eapply derives_trans.
+    2: rewrite <- H6 in H0; eapply tc_lvalue_nested_efield; eauto.
+      (* This line can be "eapply tc_lvalue_nested_efield; eauto; rewrite H5; eauto" *)
+      (* But because of Coq bug, that does not work. And I cannot find a small case. *)
+    solve_andp.
+  + solve_andp.
+  + eapply derives_trans with
+    (local (`(eq (field_address t_root gfs p))
+                 (eval_lvalue (nested_efield e1 efs tts))) &&
+     (`(mapsto sh (typeof (nested_efield e1 efs tts))
+        (field_address t_root gfs p) v) * TT));
+    [apply andp_right |].
+    - eapply derives_trans.
+      2: rewrite <- H6 in H0; apply eval_lvalue_nested_efield; eauto.
+      solve_andp.
+    - rewrite <- H6; erewrite mapsto_field_at; eauto.
+      2: rewrite H6; auto.
+      2: rewrite H6; auto.
+      Focus 2. {
+        rewrite <- H6 in H0.
+        rewrite <- (repinject_JMeq _ _ H0) in H5.
+        apply JMeq_eq in H5.
+        rewrite <- H5; auto.
+      } Unfocus.
+      repeat apply andp_left2; auto.
+    - unfold local, lift1; unfold_lift; intro rho; simpl; normalize.
+      rewrite H9; auto.
 Qed.
-*)
+
 Lemma lower_andp_lifted_val:
   forall (P Q: val->mpred) v, 
   (`(P && Q) v) = (`P v && `Q v).

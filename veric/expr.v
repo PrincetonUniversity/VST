@@ -685,6 +685,31 @@ Definition tc_val (ty: type) : val -> Prop :=
  | _ => fun _ => False
  end.
 
+Definition tc_val' t v := v <> Vundef -> tc_val t v.
+
+Lemma tc_val_Vundef:
+  forall t, ~tc_val t Vundef.
+Proof.
+intros.
+intro. hnf in H.
+destruct t; try contradiction.
+destruct f; try contradiction.
+Qed.
+
+Lemma tc_val'_Vundef:
+  forall t, tc_val' t Vundef.
+Proof.
+  intros.
+  intro; congruence.
+Qed.
+
+Lemma tc_val_tc_val':
+  forall t v, tc_val t v -> tc_val' t v.
+Proof.
+  intros.
+  intro; auto.
+Qed.
+
 (* A "neutral cast" from t1 to t2 is such that
   it satisfies the neutral_cast_lemma, i.e. if v already typechecks as t1
   then it will not be modified by casting to t2. *)

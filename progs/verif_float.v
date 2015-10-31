@@ -69,7 +69,6 @@ unfold data_at.
 entailer!.
 simpl.
 unfold field_at, data_at', at_offset. simpl.
-rewrite proj_sumbool_is_true by auto.
 repeat rewrite prop_true_andp by
  (split; [(split3; [ | | split3; [ | | split3; [ | | split]]]; auto; try reflexivity; try apply I;
    try (eapply gvar_size_compatible; eauto; simpl; computable);
