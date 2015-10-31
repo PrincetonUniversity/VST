@@ -66,14 +66,14 @@ MSL_FILES = \
   knot_hered.v knot_hered_sa.v \
   knot_full.v knot_shims.v \
   knot_sa_trivial.v \
-  corable.v \
+  corable.v corable_corable_direct.v \
   predicates_hered.v predicates_sl.v subtypes.v subtypes_sl.v \
   contractive.v predicates_rec.v \
   msl_direct.v msl_standard.v msl_classical.v \
   predicates_sa.v \
   normalize.v \
   env.v corec.v Coqlib2.v sepalg_list.v rmaps.v rmaps_lemmas.v op_classes.v \
-  simple_CCC.v seplog.v alg_seplog.v log_normalize.v
+  simple_CCC.v seplog.v alg_seplog.v alg_seplog_direct.v log_normalize.v
 
 SEPCOMP_FILES= \
   Address.v \
@@ -245,7 +245,7 @@ else
 	@$(COQC) $(COQFLAGS) $*.v
 endif
 
-COQVERSION=8.4pl5 or-else 8.4pl6 or-else 8.4pl4
+COQVERSION=8.4pl5 or-else 8.4pl6
 COQV=$(shell $(COQC) -v)
 ifeq ("$(filter $(COQVERSION),$(COQV))","")
 $(error FAILURE: You need Coq $(COQVERSION) but you have this version: $(COQV))
