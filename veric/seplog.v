@@ -104,13 +104,30 @@ Definition mapsto (sh: Share.t) (t: type) (v1 v2 : val): mpred :=
             (!! (v2 = Vundef) &&
              EX v2':val, address_mapsto ch v2'
               (Share.unrel Share.Lsh sh) (Share.unrel Share.Rsh sh) (b, Int.unsigned ofs))
-       else nonlock_permission_bytes sh (b, Int.unsigned ofs) (size_chunk ch)
+       else !! (tc_val' t v2 /\ (align_chunk ch | Int.unsigned ofs)) && nonlock_permission_bytes sh (b, Int.unsigned ofs) (size_chunk ch)
      | _ => FF
     end
     | _ => FF
     end
   | _ => FF
-  end. 
+  end.
+
+Lemma mapsto_tc_val': forall sh t p v, mapsto sh t p v |-- !! tc_val' t v.
+Proof.
+  intros.
+  unfold mapsto.
+  destruct (access_mode t); auto.
+  if_tac; auto.
+  destruct p; auto.
+  if_tac.
+  + apply orp_left; apply andp_left1.
+    - intros ?; simpl.
+      apply tc_val_tc_val'.
+    - intros ? ?; simpl in *; subst.
+      apply tc_val'_Vundef.
+  + apply andp_left1.
+    intros ?; simpl; tauto.
+Qed.
 
 Definition mapsto_ sh t v1 := mapsto sh t v1 Vundef.
 
@@ -531,6 +548,7 @@ Proof.
         } Unfocus.
     - rewrite Int.unsigned_repr by (rewrite Nat2Z.inj_succ in H0; unfold Int.max_unsigned; omega).
       change (size_chunk Mint8unsigned) with 1.
+      rewrite prop_true_andp by (split; [apply tc_val'_Vundef | apply Z.divide_1_l]).
       apply nonlock_permission_bytes_split2.
       * rewrite Nat2Z.inj_succ; omega.
       * omega.
@@ -630,17 +648,9 @@ Proof.
    rewrite prop_true_andp by auto.
    rewrite H, H0.
   rewrite !if_false by auto.
+   rewrite prop_true_andp by (split; [apply tc_val'_Vundef | auto]).
    rewrite Z2Nat.id by (pose proof (size_chunk_pos ch); omega).
    auto.
-Qed.
-
-Lemma tc_val_Vundef:
-  forall t, ~tc_val t Vundef.
-Proof.
-intros.
-intro. hnf in H.
-destruct t; try contradiction.
-destruct f; try contradiction.
 Qed.
 
 Lemma mapsto_share_join:
@@ -685,19 +695,41 @@ Proof.
            apply right_nonempty_readable in r0; apply nonidentity_nonunit in r0; auto.
   + rewrite if_true by (eapply join_sub_readable; [unfold join_sub; eauto | auto]).
     rewrite distrib_orp_sepcon.
-    f_equal; rewrite sepcon_comm, sepcon_andp_prop; f_equal.
-    - apply nonlock_permission_bytes_address_mapsto_join; auto.
+    f_equal; rewrite sepcon_comm, sepcon_andp_prop;
+    pose proof (@andp_prop_ext (pred rmap) _);
+    (simpl in H0; apply H0; clear H0; [reflexivity | intro]).
+    - rewrite (address_mapsto_align _ _ (Share.unrel Share.Lsh sh)).
+      rewrite (andp_comm (address_mapsto _ _ _ _ _)), sepcon_andp_prop1.
+      pose proof (@andp_prop_ext (pred rmap) _); simpl in H1; apply H1; clear H1; intros.
+      * apply tc_val_tc_val' in H0; tauto.
+      * apply nonlock_permission_bytes_address_mapsto_join; auto.
     - rewrite exp_sepcon2.
-      pose proof (@exp_congr (pred rmap) (algNatDed _) val); simpl in H0; apply H0; clear H0; intro.
-      apply nonlock_permission_bytes_address_mapsto_join; auto.
+      pose proof (@exp_congr (pred rmap) (algNatDed _) val); simpl in H1; apply H1; clear H1; intro.
+      rewrite (address_mapsto_align _ _ (Share.unrel Share.Lsh sh)).
+      rewrite (andp_comm (address_mapsto _ _ _ _ _)), sepcon_andp_prop1.
+      pose proof (@andp_prop_ext (pred rmap) _); simpl in H1; apply H1; clear H1; intros.
+      * subst; pose proof tc_val'_Vundef t. tauto.
+      * apply nonlock_permission_bytes_address_mapsto_join; auto.
   + rewrite if_true by (eapply join_sub_readable; [unfold join_sub; eexists; apply join_comm in H; eauto | auto]).
     rewrite sepcon_comm, distrib_orp_sepcon.
-    f_equal; rewrite sepcon_comm, sepcon_andp_prop; f_equal.
-    - apply nonlock_permission_bytes_address_mapsto_join; auto.
+    f_equal; rewrite sepcon_comm, sepcon_andp_prop;
+    pose proof (@andp_prop_ext (pred rmap) _);
+    (simpl in H0; apply H0; clear H0; [reflexivity | intro]).
+    - rewrite (address_mapsto_align _ _ (Share.unrel Share.Lsh sh)).
+      rewrite (andp_comm (address_mapsto _ _ _ _ _)), sepcon_andp_prop1.
+      pose proof (@andp_prop_ext (pred rmap) _); simpl in H1; apply H1; clear H1; intros.
+      * apply tc_val_tc_val' in H0; tauto.
+      * apply nonlock_permission_bytes_address_mapsto_join; auto.
     - rewrite exp_sepcon2.
-      pose proof (@exp_congr (pred rmap) (algNatDed _) val); simpl in H0; apply H0; clear H0; intro.
-      apply nonlock_permission_bytes_address_mapsto_join; auto.
+      pose proof (@exp_congr (pred rmap) (algNatDed _) val); simpl in H1; apply H1; clear H1; intro.
+      rewrite (address_mapsto_align _ _ (Share.unrel Share.Lsh sh)).
+      rewrite (andp_comm (address_mapsto _ _ _ _ _)), sepcon_andp_prop1.
+      pose proof (@andp_prop_ext (pred rmap) _); simpl in H1; apply H1; clear H1; intros.
+      * subst; pose proof tc_val'_Vundef t. tauto.
+      * apply nonlock_permission_bytes_address_mapsto_join; auto.
   + rewrite if_false by (eapply join_unreadable_shares; eauto).
+    rewrite sepcon_andp_prop1, sepcon_andp_prop2, <- andp_assoc, andp_dup.
+    f_equal.
     apply nonlock_permission_bytes_share_join; auto.
 Qed.
 
@@ -707,16 +739,20 @@ Proof. unfold mapsto_; intros.
   destruct (access_mode t); auto.
   destruct (type_is_volatile t); auto.
   destruct v; auto.
-  if_tac; [| auto].
-  apply orp_left.
-  apply orp_right2.
-  apply andp_left2.
-  apply andp_right.
-  + intros ? _; simpl; auto.
-  + apply exp_right with v'; auto.
-  + apply andp_left2. apply exp_left; intro v2'.
-  apply orp_right2. apply andp_right; [intros ? _; simpl; auto |]. apply exp_right with v2'.
-  auto.
+  if_tac.
+  + apply orp_left.
+    apply orp_right2.
+    apply andp_left2.
+    apply andp_right.
+    - intros ? _; simpl; auto.
+    - apply exp_right with v'; auto.
+    - apply andp_left2. apply exp_left; intro v2'.
+      apply orp_right2. apply andp_right; [intros ? _; simpl; auto |]. apply exp_right with v2'.
+      auto.
+  + apply andp_derives; [| auto].
+    intros ? [? ?].
+    split; auto.
+    apply tc_val'_Vundef.
 Qed.
 
 Lemma mapsto_not_nonunit: forall sh t p v, ~ nonunit sh -> mapsto sh t p v |-- emp.
@@ -729,7 +765,8 @@ Proof.
   if_tac.
   + apply readable_nonidentity in H0.
     apply nonidentity_nonunit in H0; tauto.
-  + apply nonlock_permission_bytes_not_nonunit; auto.
+  + apply andp_left2.
+    apply nonlock_permission_bytes_not_nonunit; auto.
 Qed.
 
 Lemma mapsto_pure_facts: forall sh t p v,
@@ -786,7 +823,9 @@ Proof.
       inversion H0; subst.
       erewrite !size_chunk_sizeof in H1 by eauto.
       apply address_mapsto_overlap; auto.
-  + apply nonlock_permission_bytes_overlap; auto.
+  + rewrite sepcon_andp_prop1, sepcon_andp_prop2.
+    apply andp_left2, andp_left2.
+    apply nonlock_permission_bytes_overlap; auto.
     clear H H1; rename H0 into H.
     erewrite !size_chunk_sizeof in H by eauto.
     destruct H as [? [? [? [? ?]]]].

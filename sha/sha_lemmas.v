@@ -444,7 +444,7 @@ Proof. intros.
 Qed.
 
 Lemma isbyte_value_fits_tuchar:
-  forall x, isbyteZ x -> value_fits true tuchar (Vint (Int.repr x)).
+  forall x, isbyteZ x -> value_fits tuchar (Vint (Int.repr x)).
 Proof.
 intros. hnf in H|-*; intros.
 simpl. rewrite Int.unsigned_repr by repable_signed. 

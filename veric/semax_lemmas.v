@@ -1505,7 +1505,9 @@ Proof.
      apply (age1_YES w r); auto.
      unfold noat in *; simpl in *.
     apply <- (age1_resource_at_identity _ _ loc' H1); auto.
-  + intro loc'; specialize (H0 loc').
+  + split; [exact (proj1 H0) |].
+    destruct H0 as [_ ?].
+    intro loc'; specialize (H loc').
     hnf in *.
     if_tac.
     - unfold shareat in *; simpl in *.
@@ -1568,7 +1570,6 @@ Proof.
  destruct (typeof a); inv H0; simpl;
  rewrite Int.eq_true; reflexivity.
 Qed.
-
 
 (*Is it ok to force store into int? seems fine, result will always be int. any cast seems silly*)
 Definition typecheck_tid_ptr_compare

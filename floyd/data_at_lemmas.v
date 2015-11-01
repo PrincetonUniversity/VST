@@ -31,11 +31,9 @@ Definition offset_strict_in_range ofs p :=
 
 (************************************************
 
-Definition of data_at 
+Definition of data_at'
 
-Always assume in arguments of data_at', array_at', sfieldlist_at', ufieldlist_
-at' has argument pos with alignment criterion. So, spacers are only added after
-fields of structs or unions.
+Always assume in arguments of data_at' has argument pos with alignment criterion.
 
 ************************************************)
 
@@ -681,38 +679,36 @@ Proof.
         auto.
 Qed.
 
-Definition tc_val' t v := v<>Vundef -> tc_val t v.
-
-Definition value_fits (sh: bool): forall t, reptype t -> Prop :=
+Definition value_fits: forall t, reptype t -> Prop :=
   func_type (fun t => reptype t -> Prop)
     (fun t v =>
-       if type_is_volatile t then True else if sh then tc_val' t (repinject t v) else True)
+       if type_is_volatile t then True else tc_val' t (repinject t v))
     (fun t n a P v => Zlength (unfold_reptype v) =  Z.max 0 n /\ Forall P (unfold_reptype v))
     (fun id a P v => struct_value_fits_aux (co_members (get_co id)) (co_members (get_co id)) P (unfold_reptype v))
     (fun id a P v => union_value_fits_aux (co_members (get_co id)) (co_members (get_co id)) P (unfold_reptype v)).
 
 Lemma value_fits_ind:
-  forall sh t v, 
-  value_fits sh t v = 
+  forall t v, 
+  value_fits t v = 
   match t as t0 return (reptype t0 -> Prop)  with
   | Tarray t' n a => fun v0 : reptype (Tarray t' n a) =>
     (fun v1 : reptype_array t' 0 n =>
-     Zlength v1 = Z.max 0 n /\ Forall (value_fits sh t') v1)
+     Zlength v1 = Z.max 0 n /\ Forall (value_fits t') v1)
       (unfold_reptype v0)
 | Tstruct i a =>
     fun v0 : reptype (Tstruct i a) =>
      struct_Prop (co_members (get_co i))
        (fun it : ident * type =>
-        value_fits sh (field_type (fst it) (co_members (get_co i)))) (unfold_reptype v0)
+        value_fits (field_type (fst it) (co_members (get_co i)))) (unfold_reptype v0)
 | Tunion i a =>
     fun v0 : reptype (Tunion i a) =>
      union_Prop (co_members (get_co i))
        (fun it : ident * type =>
-        value_fits sh (field_type (fst it) (co_members (get_co i)))) (unfold_reptype v0)
+        value_fits (field_type (fst it) (co_members (get_co i)))) (unfold_reptype v0)
   | t0 => fun v0: reptype t0 =>
              (if type_is_volatile t0
               then True
-              else if sh then tc_val' t0 (repinject t0 v0) else True)
+              else tc_val' t0 (repinject t0 v0))
   end v.
 Proof.
 intros.
@@ -723,10 +719,10 @@ apply struct_value_fits_aux_spec.
 apply union_value_fits_aux_spec.
 Qed.
 
-Lemma value_fits_type_changable: forall sh (t1 t2: type) v1 v2,
+Lemma value_fits_type_changable: forall (t1 t2: type) v1 v2,
   t1 = t2 ->
   JMeq v1 v2 ->
-  value_fits sh t1 v1 = value_fits sh t2 v2.
+  value_fits t1 v1 = value_fits t2 v2.
 Proof.
   intros.
   subst t2.
@@ -907,13 +903,13 @@ End CENV.
 (**** tactics for value_fits  ****)
 
 Lemma value_fits_Tstruct:
-  forall {cs: compspecs} sh t (v: reptype t) i a m v2 r,
+  forall {cs: compspecs} t (v: reptype t) i a m v2 r,
   t = Tstruct i a ->
   m = co_members (get_co i)  ->
   JMeq (@unfold_reptype cs t v) v2 ->
   r =struct_Prop m 
-          (fun it => value_fits sh (fieldlist.field_type (fst it) m))  v2 ->
-  value_fits sh t v = r.
+          (fun it => value_fits (field_type (fst it) m))  v2 ->
+  value_fits t v = r.
 Proof.
 intros.
 subst.
@@ -923,57 +919,57 @@ apply JMeq_eq in H1. auto.
 Qed.
 
 Lemma value_fits_by_value_defined:
-  forall {cs: compspecs} (sh: bool) t t' v r,
+  forall {cs: compspecs} t t' v r,
    type_is_by_value t = true ->  
    repinject t v <> Vundef  ->
    t = t' ->
    (r = if type_is_volatile t' then True
-       else if sh then tc_val t' (repinject t v) else True) ->
-   value_fits sh t v = r. 
+       else tc_val t' (repinject t v)) ->
+   value_fits t v = r. 
 Proof.
 intros. subst t' r.
 rewrite value_fits_ind.
 unfold tc_val'.
 destruct t; inv H;
- (if_tac; auto; if_tac; auto; apply prop_ext; intuition).
+ (if_tac; auto; apply prop_ext; intuition).
 Qed.
 
 Lemma value_fits_by_value_Vundef:
-  forall {cs: compspecs} (sh: bool) t v,
+  forall {cs: compspecs} t v,
    type_is_by_value t = true ->  
    repinject t v = Vundef  ->
-   value_fits sh t v = True. 
+   value_fits t v = True. 
 Proof.
 intros.
 rewrite value_fits_ind.
 unfold tc_val'.
 destruct t; inv H;
- (if_tac; auto; if_tac; auto; apply prop_ext; intuition).
+ (if_tac; auto; auto; apply prop_ext; intuition).
 Qed.
 
 Lemma value_fits_by_value:
-  forall {cs: compspecs} (sh: bool) t t' v r,
+  forall {cs: compspecs} t t' v r,
    type_is_by_value t = true ->
    t = t' ->  
    (r = if type_is_volatile t then True
-       else if sh then tc_val' t' (repinject t v) else True) ->
-   value_fits sh t v = r. 
+       else tc_val' t' (repinject t v)) ->
+   value_fits t v = r. 
 Proof.
 intros. subst r t'.
 rewrite value_fits_ind.
 unfold tc_val'.
 destruct t; inv H;
- (if_tac; auto; if_tac; auto; apply prop_ext; intuition).
+ (if_tac; auto; apply prop_ext; intuition).
 Qed.
 
 Lemma value_fits_Tarray:
-  forall {cs: compspecs} (sh: bool) t (v: reptype t) t' n a 
+  forall {cs: compspecs} t (v: reptype t) t' n a 
     (v' : list (reptype t')) r,
   t = (Tarray t' n a) ->
   JMeq (unfold_reptype v) v' ->
   n >= 0 ->
-  r = (Zlength v' = n /\ Forall (value_fits sh t') v') ->
-  value_fits sh t v =r.
+  r = (Zlength v' = n /\ Forall (value_fits t') v') ->
+  value_fits t v =r.
 Proof.
 intros.
 subst. rewrite value_fits_ind.

@@ -152,7 +152,6 @@ autorewrite with gather_prop.
 f_equal.
 f_equal.
 rewrite <- eq_rect_eq.
-rewrite !proj_sumbool_is_true by auto.
 unfold struct_Prop.
 simpl list_fields.
 unfold list_rect; simpl.

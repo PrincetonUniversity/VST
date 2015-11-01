@@ -121,12 +121,13 @@ Proof.
 Qed.
 
 Lemma default_value_fits:
-  forall sh t, value_fits sh t (default_val t).
+  forall t, value_fits t (default_val t).
 Proof.
   intros.
   type_induction t; try destruct f; rewrite value_fits_ind; 
     unfold tc_val'; simpl;
    try solve [if_tac; auto; if_tac; auto].
+  + intro auto; congruence.
   +
 simpl.
 cbv iota.
@@ -139,6 +140,7 @@ rewrite Z2Nat_neg, Z.max_l by omega. reflexivity.
 rewrite Z2Nat.id, Z.max_r by omega; reflexivity.
 apply Forall_list_repeat.
 auto.
++ intros; congruence.
 +
 rewrite default_val_ind.
 rewrite unfold_fold_reptype.
@@ -170,7 +172,7 @@ intros.
 destruct (ident_eq i0 i).
 subst i0.
 clear H3.
-match goal with H: value_fits _ _ ?A |- value_fits _ _ ?B => replace B with A; auto end.
+match goal with H: value_fits _ ?A |- value_fits _ ?B => replace B with A; auto end.
 clear - H H0.
 unfold struct_default_val.
 unfold proj_struct.
@@ -181,7 +183,7 @@ admit.
 Qed.
 
 Definition field_at (sh: Share.t) (t: type) (gfs: list gfield) (v: reptype (nested_field_type t gfs)) (p: val): mpred :=
- !! (field_compatible t gfs p /\ value_fits (readable_share_dec sh) (nested_field_type t gfs) v) 
+ !! (field_compatible t gfs p /\ value_fits (nested_field_type t gfs) v) 
     && at_offset (data_at' sh (nested_field_type t gfs) v) (nested_field_offset t gfs) p.
 Arguments field_at sh t gfs v p : simpl never.
 
@@ -257,7 +259,7 @@ Definition array_at (sh: Share.t) (t: type) (gfs: list gfield) (lo hi: Z)
   !! (field_compatible0 t (ArraySubsc lo :: gfs) p /\
       field_compatible0 t (ArraySubsc hi :: gfs) p /\
       Zlength v = Z.max 0 (hi-lo) /\
-      Forall (value_fits (readable_share_dec sh) (nested_field_type t (ArraySubsc 0 :: gfs))) v)
+      Forall (value_fits (nested_field_type t (ArraySubsc 0 :: gfs))) v)
   &&  array_pred  (default_val _) lo hi
     (fun i v => at_offset (data_at' sh (nested_field_type t (ArraySubsc 0 :: gfs)) v)
        (nested_field_offset t (ArraySubsc i :: gfs))) v p.
@@ -273,7 +275,7 @@ field_compatible, local_facts, isptr and offset_zero properties
 
 Lemma field_at_local_facts:
   forall sh t path v c,
-     field_at sh t path v c |-- !! (field_compatible t path c /\ value_fits (readable_share_dec sh) (nested_field_type t path) v).
+     field_at sh t path v c |-- !! (field_compatible t path c /\ value_fits (nested_field_type t path) v).
 Proof.
   intros.
   unfold field_at.
@@ -301,7 +303,7 @@ Proof.
 Qed.
 
 Lemma data_at_local_facts: 
-   forall sh t v p, data_at sh t v p |-- !! (field_compatible t nil p /\ value_fits (readable_share_dec sh) t v).
+   forall sh t v p, data_at sh t v p |-- !! (field_compatible t nil p /\ value_fits t v).
 Proof. intros. apply field_at_local_facts. Qed.
 
 Lemma data_at__local_facts: forall sh t p, data_at_ sh t p |-- !! field_compatible t nil p.
@@ -330,7 +332,7 @@ Lemma array_at_local_facts: forall sh t gfs lo hi v p,
     !! (field_compatible0 t (ArraySubsc lo :: gfs) p 
         /\ field_compatible0 t (ArraySubsc hi :: gfs) p 
         /\ Zlength v = Z.max 0 (hi-lo)
-        /\ Forall (value_fits (readable_share_dec sh) (nested_field_type t (ArraySubsc 0 :: gfs))) v).
+        /\ Forall (value_fits (nested_field_type t (ArraySubsc 0 :: gfs))) v).
 Proof.
   intros.
   unfold array_at.
@@ -669,7 +671,7 @@ destruct_ptr p.
 *)
 
 Lemma data_at_data_at': forall sh t v p,
-  data_at sh t v p = !! (field_compatible t nil p /\  value_fits (readable_share_dec sh) (nested_field_type t nil) v) && data_at' sh t v p.
+  data_at sh t v p = !! (field_compatible t nil p /\  value_fits (nested_field_type t nil) v) && data_at' sh t v p.
 Proof.
   intros.
   unfold data_at, field_at.
@@ -722,8 +724,8 @@ Proof.
   unfold gfield_offset; rewrite H.
   f_equal; [| f_equal].
   + apply ND_prop_ext.
-    assert (value_fits (readable_share_dec sh) (field_type i (co_members (get_co id)))
-     (proj_struct i (co_members (get_co id)) (unfold_reptype v1) d0) <-> value_fits (readable_share_dec sh) (nested_field_type t (gfs DOT i))
+    assert (value_fits (field_type i (co_members (get_co id)))
+     (proj_struct i (co_members (get_co id)) (unfold_reptype v1) d0) <-> value_fits (nested_field_type t (gfs DOT i))
      (proj_struct i (co_members (get_co id)) v2 d1));
      [| rewrite field_compatible_cons, H; tauto].
     apply prop_unext, value_fits_type_changable.
@@ -825,9 +827,9 @@ Proof.
   unfold gfield_offset; rewrite H.
   f_equal; [| f_equal].
   + apply ND_prop_ext.
-    assert (value_fits (readable_share_dec sh) (field_type i (co_members (get_co id)))
+    assert (value_fits (field_type i (co_members (get_co id)))
      (proj_union i (co_members (get_co id)) (unfold_reptype v1) d0) <->
-       value_fits (readable_share_dec sh) (nested_field_type t (gfs UDOT i))
+       value_fits (nested_field_type t (gfs UDOT i))
      (proj_union i (co_members (get_co id)) v2 d1));
     [| rewrite field_compatible_cons, H; tauto].
     apply prop_unext, value_fits_type_changable.
@@ -1145,8 +1147,8 @@ Proof.
 Qed.
 
 Lemma value_fits_JMeq:
-  forall sh t t' v v', 
-   t=t' -> JMeq v v' -> value_fits sh t v -> value_fits sh t' v'.
+  forall t t' v v', 
+   t=t' -> JMeq v v' -> value_fits t v -> value_fits t' v'.
 Proof.
 intros. subst. apply JMeq_eq in H0. subst. 
 auto.
@@ -1187,8 +1189,7 @@ Proof.
   split.
   intros [? ?].
   split; auto. split; auto.
- cut (value_fits (readable_share_dec sh)
-       (Tarray t0 (hi-lo) a)  (@fold_reptype _ (Tarray t0 (hi-lo) a) v')).
+ cut (value_fits (Tarray t0 (hi-lo) a)  (@fold_reptype _ (Tarray t0 (hi-lo) a) v')).
  intro.
  eapply value_fits_JMeq; try eassumption.
  unfold nested_field_array_type; 
@@ -1204,8 +1205,7 @@ Proof.
  apply JMeq_eq in Hv'. subst v'; auto.
  admit.  (* tedious *)
  intros [_ [? _]].
- assert (value_fits (readable_share_dec sh)
-       (Tarray t0 (hi-lo) a)  (@fold_reptype _ (Tarray t0 (hi-lo) a) v')).
+ assert (value_fits (Tarray t0 (hi-lo) a)  (@fold_reptype _ (Tarray t0 (hi-lo) a) v')).
  eapply value_fits_JMeq; try eassumption.
  unfold nested_field_array_type. f_equal.
  rewrite nested_field_type_ind.
@@ -1849,7 +1849,7 @@ Lemma data_array_at_local_facts {cs: compspecs}:
   data_at sh (Tarray t' n a) v p |-- 
   !! (field_compatible (Tarray t' n a) nil p 
      /\ Zlength (unfold_reptype v) = Z.max 0 n
-     /\ Forall (value_fits (readable_share_dec sh) t') (unfold_reptype v)).
+     /\ Forall (value_fits t') (unfold_reptype v)).
 Proof.
 intros.
 eapply derives_trans; [apply data_at_local_facts |].
@@ -1863,7 +1863,7 @@ Lemma data_array_at_local_facts' {cs: compspecs}:
   data_at sh (Tarray t' n a) v p |-- 
   !! (field_compatible (Tarray t' n a) nil p 
      /\ Zlength (unfold_reptype v) = n
-     /\ Forall (value_fits (readable_share_dec sh) t') (unfold_reptype v)).
+     /\ Forall (value_fits t') (unfold_reptype v)).
 Proof.
 intros.
 eapply derives_trans; [apply data_array_at_local_facts |].
@@ -1872,21 +1872,11 @@ intros [? [? ?]]; split3; auto.
 rewrite Z.max_r in H1 by omega. auto.
 Qed.
 
-Lemma value_fits_false_by_value {cs: compspecs}:
-  forall t v, 
-   type_is_by_value t = true ->
-   value_fits false t v = True.
-Proof.
-intros.
-rewrite value_fits_ind; destruct t; inv H; 
-simpl; if_tac; auto.
-Qed.
-
-Lemma value_fits_true_by_value {cs: compspecs}:
+Lemma value_fits_by_value {cs: compspecs}:
   forall t v, 
    type_is_volatile t = false ->
    type_is_by_value t = true ->
-   value_fits true t v = tc_val' t (repinject t v).
+   value_fits t v = tc_val' t (repinject t v).
 Proof.
 intros.
 rewrite value_fits_ind; destruct t; inv H; inv H0;
@@ -1902,8 +1892,7 @@ eapply derives_trans; [apply field_at_local_facts |];
   try rewrite proj_sumbool_is_false by auto;
   let p := fresh "p" in set (p := nested_field_type t path);
   simpl in p; unfold field_type in p; simpl in p; subst p;
-  try rewrite value_fits_false_by_value by reflexivity;
-  try rewrite value_fits_true_by_value by reflexivity;
+  try rewrite value_fits_by_value by reflexivity;
   try match goal with |- context [repinject ?t ?v] =>
     change (repinject t v) with v
   end;
@@ -2373,26 +2362,6 @@ contradict H0.
 apply identity_share_bot in H0.
 Admitted. (* should be easy *)
 
-Lemma value_fits_relax {cs: compspecs}:
-  forall  sh t v, value_fits true t v -> value_fits sh t v.
-Proof.
-intros sh t.
-destruct sh; auto.
-type_induction t; intros v;
-rewrite !value_fits_ind; simpl; intros; auto;
-try solve [if_tac; auto].
-* (* array case *)
-destruct H; split; auto.
-clear H.
-induction (unfold_reptype v). constructor.
-inv H0.
-constructor; auto.
-* (* struct case *)
-admit.
-* (* union case *)
-admit.
-Qed.
-
 Lemma field_at_share_join{cs: compspecs}:
   forall sh1 sh2 sh t gfs v p,
     sepalg.join sh1 sh2 sh ->
@@ -2404,21 +2373,7 @@ normalize.
 f_equal.
 apply ND_prop_ext.
 split. intros [? [? [? ?]]]; split; auto.
-destruct (readable_share_dec sh1); simpl in H1.
-apply value_fits_relax; auto.
-destruct (readable_share_dec sh2).
-apply value_fits_relax; auto.
-pose proof (@join_unreadable_shares _ _ _ H n n0).
-destruct (readable_share_dec sh); try contradiction; auto.
-intros [? ?]; split3; auto; [ | split; auto].
-destruct (readable_share_dec sh).
-apply value_fits_relax; auto.
-destruct (readable_share_dec sh1); auto.
-pose proof (readable_share_join _ _ _ H r); contradiction.
-destruct (readable_share_dec sh).
-apply value_fits_relax; auto.
-destruct (readable_share_dec sh2); auto.
-pose proof (readable_share_join _ _ _ (sepalg.join_comm H) r); contradiction.
+tauto.
 unfold at_offset.
 apply data_at'_share_join; auto.
 Qed.
@@ -2444,25 +2399,7 @@ intros.
 hnf in H0.
 destruct H0 as [Hp [? [_ [Hcom [Hsz [Hsc [Hal Hlnf]]]]]]].
 revert H0 Hsz v p Hcom Hsc Hp Hal Hlnf; pattern t; type_induction.type_induction t; intros; inv H0;
- rewrite  data_at'_ind; auto;
-match goal with
-| |- appcontext [type_is_volatile ?t] =>
-       destruct (type_is_volatile t) eqn:HH; [auto | rewrite memory_block_mapsto_ by auto];
-       unfold mapsto_, mapsto; destruct (access_mode t); auto;
-       rewrite HH; simpl;
-       destruct p; auto;
-       rewrite !if_false by auto; auto
-| _ => idtac
-end.
-
-* inversion Hcom.
-* (* Tarray *)
-  admit.  (* Qinxiang *)
-* inversion Hcom.
-* (* Tstruct *)
-  admit.  (* Qinxiang *)
-* (* Tunion *)
-  admit.  (* Qinxiang *)
+ rewrite  data_at'_ind; auto; admit.
 Qed.
 
 Lemma nonreadable_memory_block_data_at:
@@ -2470,12 +2407,11 @@ Lemma nonreadable_memory_block_data_at:
       sh t v p, 
   ~ readable_share sh ->
    field_compatible t nil p ->
-   value_fits false t v ->
+   value_fits t v ->
    memory_block sh (sizeof cenv_cs t) p = data_at sh t v p.
 Proof.
 intros.
 unfold data_at, field_at.
-destruct (readable_share_dec sh); try contradiction.
 rewrite prop_true_andp by auto.
 change (nested_field_offset t nil) with 0.
 unfold at_offset.
@@ -2486,7 +2422,7 @@ Qed.
 Lemma nonreadable_field_at_eq {cs: compspecs} :
   forall sh t gfs v v' p,
    ~ readable_share sh ->
-   (value_fits false (nested_field_type t gfs) v <-> value_fits false (nested_field_type t gfs) v') ->
+   (value_fits (nested_field_type t gfs) v <-> value_fits (nested_field_type t gfs) v') ->
    field_at sh t gfs v p = field_at sh t gfs v' p.
 Proof.
 intros.
@@ -2511,15 +2447,10 @@ apply pred_ext; saturate_local.
 rewrite nonreadable_memory_block_data_at with (v0:=v); auto.
 unfold data_at.
 erewrite field_at_share_join; eauto.
-destruct (readable_share_dec bsh); auto.
-eapply value_fits_relax; eauto.
 rewrite nonreadable_memory_block_data_at with (v0:=v); auto.
 unfold data_at.
 erewrite field_at_share_join; eauto.
-destruct (readable_share_dec psh); auto.
-eapply value_fits_relax; eauto.
 Qed.
-
 
 Lemma nonreadable_data_at'_eq {cs: compspecs} : 
   forall sh t v v' p,
@@ -2533,7 +2464,7 @@ Qed.
 
 Lemma nonreadable_data_at_eq {cs: compspecs}: 
   forall sh t v v' p, ~readable_share sh ->
-   (value_fits false t v <-> value_fits false t v') ->
+   (value_fits t v <-> value_fits t v') ->
      data_at sh t v p = data_at sh t v' p.
 Proof.
 intros.
@@ -2542,13 +2473,35 @@ apply nonreadable_field_at_eq; auto.
 Qed.
 
 Lemma value_fits_Tint_trivial {cs: compspecs} :
-  forall sh s a  i, value_fits sh (Tint I32 s a) (Vint i).
+  forall s a  i, value_fits (Tint I32 s a) (Vint i).
 Proof.
 intros.
 rewrite value_fits_ind; simpl.
 if_tac; auto.
-if_tac; auto.
 hnf. intro. apply Coq.Init.Logic.I.
+Qed.
+
+Lemma mapsto_field_at {cs: compspecs} sh t gfs v v' p:
+  type_is_by_value (nested_field_type t gfs) = true ->
+  type_is_volatile (nested_field_type t gfs) = false ->
+  field_compatible t gfs p ->
+  tc_val' (nested_field_type t gfs) v ->
+  JMeq v v' ->
+  mapsto sh (nested_field_type t gfs) (field_address t gfs p) v = field_at sh t gfs v' p.
+Proof.
+  intros.
+  unfold field_at, at_offset.
+  rewrite by_value_data_at' by auto.
+  rewrite <- (repinject_JMeq _ v' H) in H3.
+  apply JMeq_eq in H3.
+  rewrite prop_true_andp.
+  Focus 2. {
+    split; auto.
+    rewrite value_fits_by_value by auto.
+    subst; auto.
+  } Unfocus. 
+  f_equal; auto.
+  apply field_compatible_field_address; auto.
 Qed.
 
 Lemma mapsto_data_at {cs: compspecs} sh t v v' p :  (* not needed here *)
@@ -2580,7 +2533,6 @@ Proof.
   repeat split; auto.
   erewrite value_fits_by_value; auto.
   unfold nested_field_type; simpl.
-  rewrite H0. if_tac; auto.
   unfold tc_val'. rewrite <- H10. auto.
 Qed.
 
