@@ -33,7 +33,7 @@ normalize.
 Qed.
 
 Definition data_offset : Z :=  (* offset, in bytes, of _data field in struct SHA256_state *)
-  nested_field_offset2 t_struct_SHA256state_st [StructField _data].
+  nested_field_offset t_struct_SHA256state_st [StructField _data].
 
 Lemma elim_globals_only'':
   forall i t rho,  

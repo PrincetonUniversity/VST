@@ -87,7 +87,7 @@ apply semax_pre with (P':=
    `(memory_block shmd 32 md)))).
 { entailer. cancel. 
       unfold data_at_ at 1.
-      unfold data_at,field_at_, nested_field_type2; simpl.
+      unfold data_at,field_at_, nested_field_type; simpl.
       unfold_field_at 4%nat.
       rewrite (field_at_data_at Tsh t_struct_hmac_ctx_st [StructField _md_ctx]).
       rewrite field_at_data_at at 1. unfold field_address.
@@ -111,7 +111,7 @@ rewrite (field_at_data_at _ _ [StructField _md_ctx]); try reflexivity.
 unfold field_address. rewrite if_true; trivial.
 
 (*VST Issue: we shouldn't need to unfold all those fieldXXX notions here to get something readable...*)
-unfold nested_field_offset2, offset_val. simpl. unfold field_offset; simpl. unfold fieldlist.field_offset2; simpl. unfold field_type; simpl.
+unfold nested_field_offset, offset_val. simpl. unfold field_offset; simpl. unfold fieldlist.field_offset; simpl. unfold field_type; simpl.
 
 rewrite Int.add_zero.
 replace_SEP 0 `(memory_block Tsh 108 (Vptr b i)).

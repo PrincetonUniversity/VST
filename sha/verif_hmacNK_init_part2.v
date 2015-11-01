@@ -794,7 +794,7 @@ Opaque FRAME1. Opaque default_val.
     rewrite (field_at_data_at  Tsh t_struct_hmac_ctx_st [StructField 14%positive]). (*ie i_ctx*)
     assert_PROP (field_compatible t_struct_hmac_ctx_st [StructField 14%positive] (Vptr cb cofs)) as FC_ICTX.
     { apply prop_right. clear - FC_C. red in FC_C; red; intuition. split; trivial. right; left; trivial. }
-    unfold field_address; simpl. rewrite if_true; trivial. unfold field_offset, fieldlist.field_offset2; simpl.
+    unfold field_address; simpl. rewrite if_true; trivial. unfold field_offset, fieldlist.field_offset; simpl.
 
     (*Call to _SHA256_Init*)
     unfold field_type; simpl. 
@@ -846,7 +846,7 @@ Opaque FRAME1. Opaque default_val.
     rewrite (field_at_data_at Tsh t_struct_hmac_ctx_st [StructField 15%positive]).
     assert_PROP (field_compatible t_struct_hmac_ctx_st [StructField 15%positive] (Vptr cb cofs)) as FC_OCTX.
     { apply prop_right. clear - FC_C. red in FC_C; red; intuition. split; trivial. right; right; left; trivial. }
-    unfold field_address; simpl. rewrite if_true; trivial. unfold field_offset, fieldlist.field_offset2; simpl.
+    unfold field_address; simpl. rewrite if_true; trivial. unfold field_offset, fieldlist.field_offset; simpl.
 
     (*Call to _SHA256_Init*)
     unfold field_type; simpl. Transparent default_val. normalize. Opaque default_val.

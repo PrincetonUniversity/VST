@@ -503,7 +503,7 @@ Proof.
     - intros.
       pose proof get_co_members_no_replicate id as NO_REPLI.
       rewrite withspacer_spacer.
-      simpl.
+      simpl @fst.
       rewrite spacer_memory_block by (simpl; auto).
       rewrite at_offset_eq3.
       unfold offset_val; solve_mod_modulus.
@@ -542,7 +542,7 @@ Proof.
         pose proof @compact_sum_inj_in _ _ (co_members (get_co id)) (union_default_val (co_members (get_co id))) _ _ H3.
         apply in_map with (f := fst) in H5; unfold fst in H5.
         rewrite withspacer_spacer.
-        simpl.
+        simpl @fst.
         rewrite spacer_memory_block by (simpl; auto).
         unfold offset_val; solve_mod_modulus.
         unfold union_default_val.
@@ -632,7 +632,7 @@ Proof.
     apply struct_pred_ext_derives; [auto |].
     intros.
     rewrite !withspacer_spacer.
-    simpl.
+    simpl @fst.
     apply sepcon_derives; [auto |].
     rewrite !at_offset_eq3.
     rewrite Forall_forall in IH.
@@ -912,7 +912,7 @@ Lemma value_fits_Tstruct:
   m = co_members (get_co i)  ->
   JMeq (@unfold_reptype cs t v) v2 ->
   r =struct_Prop m 
-          (fun it => value_fits sh (fieldlist.field_type2 (fst it) m))  v2 ->
+          (fun it => value_fits sh (fieldlist.field_type (fst it) m))  v2 ->
   value_fits sh t v = r.
 Proof.
 intros.
@@ -1014,7 +1014,10 @@ first
    | simpl; reflexivity
    ]
  ];
- cbv beta.
+ cbv beta;
+ repeat match goal with |- context [@reptype ?cs ?t] =>
+   change (@reptype cs t) with val
+ end.
 
 Tactic Notation "simplify_value_fits" :=
   simplify_value_fits'.

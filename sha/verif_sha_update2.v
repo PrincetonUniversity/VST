@@ -248,14 +248,14 @@ eapply semax_post_flipped'.
   entailer!.
   unfold field_address0, field_address.
   rewrite !if_true; auto.
-  rewrite nested_field_offset2_ind at 1.
+  rewrite nested_field_offset_ind at 1.
 +
   destruct c; try (destruct H13 as [H13 _]; contradiction H13).
   destruct d; try (destruct H17 as [H17 _]; contradiction H17).
   unfold offset_val.
-  set (t := nested_field_type2 t_struct_SHA256state_st [StructField _data]).
+  set (t := nested_field_type t_struct_SHA256state_st [StructField _data]).
   compute in t. subst t.
-  set (a := nested_field_offset2 t_struct_SHA256state_st [StructField _data]).
+  set (a := nested_field_offset t_struct_SHA256state_st [StructField _data]).
   unfold gfield_offset.
    unfold sem_add_pi. unfold force_val.
   split; f_equal.
@@ -352,7 +352,7 @@ rewrite if_true.
 f_equal. f_equal.
 unfold k.
 change (LBLOCKz * 4)%Z with 64%Z.
-rewrite nested_field_offset2_ind.
+rewrite nested_field_offset_ind.
 simpl. clear; omega.
 split; auto. constructor. (*constructor.*) Omega1. Omega1.
 eapply field_compatible0_cons_Tarray; try reflexivity; auto; Omega1.

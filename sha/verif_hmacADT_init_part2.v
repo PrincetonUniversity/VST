@@ -561,10 +561,10 @@ Proof. intros.
         subst Frame; reflexivity.
       rewrite FR; clear FR Frame. 
       entailer. cancel.
-      assert (TP: nested_field_type2 t_struct_hmac_ctx_st [StructField _i_ctx]
+      assert (TP: nested_field_type t_struct_hmac_ctx_st [StructField _i_ctx]
                   = sha.t_struct_SHA256state_st).
         admit. (*TODO: struct equality
-        unfold nested_field_type2. simpl. unfold sha.t_struct_SHA256state_st. 
+        unfold nested_field_type. simpl. unfold sha.t_struct_SHA256state_st. 
         f_equal. reflexivity. unfold  sha.t_struct_SHA256state_st.*)
       erewrite data_at_type_changable. 2: eassumption. 2: apply JMeq.JMeq_refl. cancel.
     }

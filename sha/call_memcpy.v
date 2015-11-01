@@ -202,7 +202,7 @@ rewrite Zmax_l by omega; omega.
 rewrite Z.max_r; omega.
 Qed.
 
-Local Arguments nested_field_type2 cs t gfs : simpl never.
+Local Arguments nested_field_type cs t gfs : simpl never.
 
 (* Qinxiang:  look at the admits in this file.
  They are all about rerooting data_at and arrays.
@@ -214,8 +214,8 @@ Lemma call_memcpy_tuchar:
            (len : Z)
            (R': list (environ -> mpred))
            (np nq : Z)
-           (vp vp'': reptype (nested_field_type2 tp pathp))
-           (vq : reptype (nested_field_type2 tq pathq))
+           (vp vp'': reptype (nested_field_type tp pathp))
+           (vq : reptype (nested_field_type tq pathq))
            (e_p e_q e_n : expr)
            Espec Delta P Q R,
       typeof e_p = tptr tuchar ->
@@ -225,8 +225,8 @@ Lemma call_memcpy_tuchar:
      (glob_specs Delta) ! _memcpy = Some (snd memcpy_spec) ->
      (glob_types Delta) ! _memcpy = Some (type_of_funspec (snd memcpy_spec)) ->
      writable_share shp ->  readable_share shq ->
-     nested_field_type2 tp pathp = tarray tuchar np ->
-     nested_field_type2 tq pathq = tarray tuchar nq ->
+     nested_field_type tp pathp = tarray tuchar np ->
+     nested_field_type tq pathq = tarray tuchar nq ->
      (0 <= lop)%Z ->
      (0 <= len <= Int.max_unsigned)%Z ->
      (lop + len <= np)%Z ->
@@ -270,8 +270,8 @@ eapply derives_trans; [apply Hpre |].
 apply andp_left2.
 entailer. apply prop_right.
 clear - H10 H12 H0 H1 H2 H3 H Hlop Hloq Hnp Hnq Hlen.
-forget (nested_field_type2 tp pathp) as t0.
-forget (nested_field_type2 tq pathq) as t1.
+forget (nested_field_type tp pathp) as t0.
+forget (nested_field_type tq pathq) as t1.
 subst t0 t1.
 simplify_value_fits in H10. destruct H10 as [H10 _].
 simplify_value_fits in H12. destruct H12 as [H12 _].
@@ -283,11 +283,11 @@ split; auto.
 
 assert (reptype (tarray tuchar np) = list val) by reflexivity.
 rewrite <- H0 in H5.
-assert (H99: reptype (nested_field_type2 tp (ArraySubsc 0 :: pathp)) = val).
- clear - H0. unfold nested_field_type2 in *; simpl in *.
+assert (H99: reptype (nested_field_type tp (ArraySubsc 0 :: pathp)) = val).
+ clear - H0. unfold nested_field_type in *; simpl in *.
   destruct (nested_field_rec tp pathp); inv H0. destruct p. subst.
  reflexivity.
-assert (exists vpx : list (reptype (nested_field_type2 tp (ArraySubsc 0 :: pathp))),
+assert (exists vpx : list (reptype (nested_field_type tp (ArraySubsc 0 :: pathp))),
                     JMeq vp vpx).
 rewrite H99. rewrite <- H5. exists vp; auto.
 destruct H6 as [vpx Hvpx].
@@ -297,11 +297,11 @@ entailer.
 } destruct H6 as [LNFp LNFq].
 erewrite field_at_Tarray in Hpre; try eassumption; auto; try omega.
 
-assert (H98: reptype (nested_field_type2 tq (ArraySubsc 0 :: pathq)) = val).
- clear - H1. unfold nested_field_type2 in *; simpl in *.
+assert (H98: reptype (nested_field_type tq (ArraySubsc 0 :: pathq)) = val).
+ clear - H1. unfold nested_field_type in *; simpl in *.
   destruct (nested_field_rec tq pathq); inv H1. destruct p. subst.
  reflexivity.
-assert (exists vqx : list (reptype (nested_field_type2 tq (ArraySubsc 0 :: pathq))),
+assert (exists vqx : list (reptype (nested_field_type tq (ArraySubsc 0 :: pathq))),
                     JMeq vq vqx).
  rewrite H98. exists (map Vint contents); auto.
 destruct H6 as [vqx Hvqx].
@@ -401,7 +401,7 @@ eapply semax_post_flipped'.
  subst x.
  simpl.
  clear Hpre H7 H8 P Q rho .
-assert (exists (vpy : list (reptype (nested_field_type2 tp (ArraySubsc 0 :: pathp)))),
+assert (exists (vpy : list (reptype (nested_field_type tp (ArraySubsc 0 :: pathp)))),
                   JMeq vp'' vpy)
   by (rewrite H99; eauto).
 destruct H7 as [vpy H8].
@@ -436,7 +436,7 @@ repeat apply sepcon_derives.
  rewrite !Zlength_sublist; omega.
  intros.
  replace u0 with u1; auto.
- forget  (default_val (nested_field_type2 tp (ArraySubsc 0 :: pathp))) as d.
+ forget  (default_val (nested_field_type tp (ArraySubsc 0 :: pathp))) as d.
  apply JMeq_eq.
  rewrite H10,H11. clear u0 u1 H10 H11.
  rewrite Z.sub_0_r.
@@ -448,7 +448,7 @@ repeat apply sepcon_derives.
  rewrite !Zlength_sublist; omega.
  intros.
  replace u0 with u1; auto.
- forget  (default_val (nested_field_type2 tp (ArraySubsc 0 :: pathp))) as d.
+ forget  (default_val (nested_field_type tp (ArraySubsc 0 :: pathp))) as d.
  apply JMeq_eq.
  rewrite H10,H11. clear u0 u1 H10 H11.
   rewrite (Z.add_comm len lop).
@@ -463,7 +463,7 @@ Lemma call_memset_tuchar:
            (c: int) (len : Z)
            (R': list (environ -> mpred))
            (np : Z)
-           (vp vp'': reptype (nested_field_type2 tp pathp))
+           (vp vp'': reptype (nested_field_type tp pathp))
            (e_p e_c e_n : expr)
            Espec Delta P Q R (s: signedness) 
    (TCp : typeof e_p = tptr tuchar)
@@ -476,7 +476,7 @@ Lemma call_memset_tuchar:
    (H:  writable_share shp)
    (Hlop : (0 <= lop)%Z)
    (Hlen: (0 <= len <= Int.max_unsigned)%Z)
-   (H0:  nested_field_type2 tp pathp = tarray tuchar np)
+   (H0:  nested_field_type tp pathp = tarray tuchar np)
 (*   (Hvp' : (lop <= Zlength vp' <= np)%Z)*)
    (Hnp : (lop + len <= np)%Z)
    (H3:  JMeq vp vp')
@@ -512,18 +512,18 @@ assert_PROP (Zlength vp' = np). {
 eapply derives_trans; [apply Hpre | apply andp_left2].
 entailer. apply prop_right.
 clear - H8 H4 H3 Hnp H0 Hlen Hlop.
-forget (nested_field_type2 tp pathp) as t0.
+forget (nested_field_type tp pathp) as t0.
 subst t0.
 simplify_value_fits in H8. destruct H8 as [H8 _].
 apply JMeq_eq in H3. subst vp; auto.
 } rename H1 into Hvp'.
 assert (H5: reptype (tarray tuchar np) = list val) by reflexivity.
 rewrite <- H0 in H5.
-assert (H99: reptype (nested_field_type2 tp (ArraySubsc 0 :: pathp)) = val).
- clear - H0. unfold nested_field_type2 in *; simpl in *.
+assert (H99: reptype (nested_field_type tp (ArraySubsc 0 :: pathp)) = val).
+ clear - H0. unfold nested_field_type in *; simpl in *.
   destruct (nested_field_rec tp pathp); inv H0. destruct p. subst.
  reflexivity.
-assert (H6: exists vpx : list (reptype (nested_field_type2 tp (ArraySubsc 0 :: pathp))),
+assert (H6: exists vpx : list (reptype (nested_field_type tp (ArraySubsc 0 :: pathp))),
                     JMeq vp' vpx).
 rewrite H99. eauto.
 destruct H6 as [vpx Hvpx].
@@ -599,7 +599,7 @@ eapply semax_post_flipped'.
  clear witness Frame.
  hnf in H6. normalize in H6.
  subst x. clear dependent rho. clear H1 Hpre.
- assert (H2: exists (vpy : list (reptype (nested_field_type2 tp (ArraySubsc 0 :: pathp)))),
+ assert (H2: exists (vpy : list (reptype (nested_field_type tp (ArraySubsc 0 :: pathp)))),
                   JMeq vp'' vpy).
  rewrite H99. eauto.
 destruct H2 as [vpy H8].
@@ -610,7 +610,7 @@ clear dependent Delta.
 assert (Zlength vpy = np). {
 clear - H0 H8 Hvp' Hnp Hlop Hlen.
 generalize dependent vpy.
-rewrite nested_field_type2_ind, H0. simpl. rewrite reptype_ind; simpl.
+rewrite nested_field_type_ind, H0. simpl. rewrite reptype_ind; simpl.
 intros.
 subst.
 clear H0.

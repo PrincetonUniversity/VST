@@ -161,7 +161,7 @@ eapply semax_seq. instantiate (1:=PostResetBranch).
      forward_call ((Tsh, Tsh),
              Vptr cb cofs,
              offset_val
-              (Int.repr (nested_field_offset2 t_struct_hmac_ctx_st [StructField _i_ctx]))
+              (Int.repr (nested_field_offset t_struct_hmac_ctx_st [StructField _i_ctx]))
               (Vptr cb cofs),
              mkTrep t_struct_SHA256state_st iS, 
              @sizeof (@cenv_cs CompSpecs) t_struct_SHA256state_st) rv.
@@ -208,7 +208,7 @@ eapply semax_seq. instantiate (1:=PostResetBranch).
     forward_call ((Tsh, Tsh),
              Vptr cb cofs,
              offset_val
-              (Int.repr (nested_field_offset2 t_struct_hmac_ctx_st [StructField _i_ctx]))
+              (Int.repr (nested_field_offset t_struct_hmac_ctx_st [StructField _i_ctx]))
               (Vptr cb cofs),
              mkTrep t_struct_SHA256state_st iS,
              @sizeof (@cenv_cs CompSpecs) t_struct_SHA256state_st) rv.

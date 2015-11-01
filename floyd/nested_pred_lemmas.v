@@ -2,8 +2,7 @@ Require Import floyd.base.
 Require Import floyd.assert_lemmas.
 Require Import floyd.client_lemmas.
 Require Import floyd.type_induction.
-Require floyd.fieldlist.
-Import floyd.fieldlist.fieldlist.
+Require Import floyd.fieldlist.
 Open Scope Z.
 
 (************************************************

@@ -100,7 +100,7 @@ Proof.
  entailer!.
  unfold field_address, field_address0.
  rewrite !if_true; auto.
- erewrite nested_field_offset2_ind.
+ erewrite nested_field_offset_ind.
  normalize. f_equal. f_equal. f_equal. unfold gfield_offset; simpl. 
  clear; omega.
  apply compute_legal_nested_field0_spec'.

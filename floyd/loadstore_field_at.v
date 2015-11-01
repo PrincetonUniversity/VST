@@ -28,7 +28,7 @@ Lemma semax_max_path_field_load_37':
   forall {Espec: OracleKind},
     forall Delta sh id P Q R (e1: expr)
       (t t_root: type) (efs: list efield) (gfs: list gfield) (tts: list type)
-      (v : val) (v' : reptype (nested_field_type2 t_root gfs)) lr,
+      (v : val) (v' : reptype (nested_field_type t_root gfs)) lr,
       typeof_temp Delta id = Some t ->
       is_neutral_cast (typeof (nested_efield e1 efs tts)) t = true ->
       readable_share sh ->
@@ -76,7 +76,7 @@ Lemma semax_max_path_field_cast_load_37':
   forall {Espec: OracleKind},
     forall Delta sh id P Q R (e1: expr)
       (t t_root: type) (efs: list efield) (gfs: list gfield) (tts: list type)
-      (v : val) (v' : reptype (nested_field_type2 t_root gfs)) lr,
+      (v : val) (v' : reptype (nested_field_type t_root gfs)) lr,
       typeof_temp Delta id = Some t ->
       type_is_by_value (typeof (nested_efield e1 efs tts)) = true ->
       readable_share sh ->
@@ -162,7 +162,7 @@ Lemma semax_max_path_field_store_nth:
                 (SEPx
                   (replace_nth n R
                     (`(field_at sh t_root gfs)
-                      (`(valinject (nested_field_type2 t_root gfs)) (eval_expr (Ecast e2 t))) 
+                      (`(valinject (nested_field_type t_root gfs)) (eval_expr (Ecast e2 t))) 
                         (eval_LR e1 lr)
                           )))))).
 Proof.
@@ -180,7 +180,7 @@ Admitted.
                tc_lvalue Delta (nested_efield e1 efs tts) ::
                `eq (eval_lvalue (nested_efield e1 efs tts))
                  (`(field_address t_root gfs) (eval_LR e1 lr)) ::
-               `((uncompomize e (nested_field_type2 t_root gfs) =
+               `((uncompomize e (nested_field_type t_root gfs) =
                  typeof (nested_efield e1 efs tts))) ::
                Q) (SEPx R))).
     assert (PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |-- local (`isptr (eval_LR e1 lr))).
@@ -199,7 +199,7 @@ Admitted.
       (local (tc_lvalue Delta (nested_efield e1 efs tts)) &&
        local (`eq (eval_lvalue (nested_efield e1 efs tts)) 
          (`(field_address t_root gfs) (eval_LR e1 lr))) &&
-       !! (uncompomize e (nested_field_type2 t_root gfs) = typeof (nested_efield e1 efs tts)))).
+       !! (uncompomize e (nested_field_type t_root gfs) = typeof (nested_efield e1 efs tts)))).
     Focus 1. {
       apply andp_right.
       + eapply derives_trans; [exact H5 |].

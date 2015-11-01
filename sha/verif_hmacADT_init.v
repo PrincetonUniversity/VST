@@ -441,10 +441,10 @@ eapply semax_seq. instantiate (1:=PostResetBranch).
    `(data_block Tsh
        (HMAC_SHA256.mkArgZ (map Byte.repr (HMAC_SHA256.mkKey key)) Opad)
        (Vptr pb pofs));
-   `(data_at Tsh (nested_field_type2 t_struct_hmac_ctx_st [_o_ctx]) (snd (snd CONT))
+   `(data_at Tsh (nested_field_type t_struct_hmac_ctx_st [_o_ctx]) (snd (snd CONT))
        (Vptr cb
           (Int.add cofs
-             (Int.repr (nested_field_offset2 t_struct_hmac_ctx_st [_o_ctx])))));
+             (Int.repr (nested_field_offset t_struct_hmac_ctx_st [_o_ctx])))));
    `(field_at Tsh t_struct_hmac_ctx_st [_md_ctx] (fst CONT) (Vptr cb cofs));
    `(data_at Tsh (tarray tuchar 64)
        (map Vint (map Int.repr (HMAC_SHA256.mkKey key))) (Vptr ckb ckofs));
@@ -464,10 +464,10 @@ eapply semax_seq. instantiate (1:=PostResetBranch).
    `(sha256state_ ipadSHAabs (Vptr cb (Int.add cofs (Int.repr 108))));
    `(array_at tuchar Tsh OPADcont 0 i (Vptr pb pofs));
    `(array_at tuchar Tsh IPADcont i 64 (Vptr pb pofs));
-   `(data_at Tsh (nested_field_type2 t_struct_hmac_ctx_st [_o_ctx]) (snd (snd CONT))
+   `(data_at Tsh (nested_field_type t_struct_hmac_ctx_st [_o_ctx]) (snd (snd CONT))
        (Vptr cb
           (Int.add cofs
-             (Int.repr (nested_field_offset2 t_struct_hmac_ctx_st [_o_ctx])))));
+             (Int.repr (nested_field_offset t_struct_hmac_ctx_st [_o_ctx])))));
    `(field_at Tsh t_struct_hmac_ctx_st [_md_ctx] (fst CONT) (Vptr cb cofs));
          `(data_at Tsh (tarray tuchar 64)
               (map Vint (map Int.repr (HMAC_SHA256.mkKey key))) (Vptr ckb ckofs));
@@ -693,7 +693,7 @@ apply semax_extensionality_Delta with (Delta). apply expr_lemmas.tycontext_sub_r
      remember ((Tsh, Tsh),
              Vptr cb cofs,
              offset_val
-              (Int.repr (nested_field_offset2 t_struct_hmac_ctx_st [_i_ctx]))
+              (Int.repr (nested_field_offset t_struct_hmac_ctx_st [_i_ctx]))
               (Vptr cb cofs),
              mkTrep t_struct_SHA256state_st iS) as  WITNESS.
      forward_call WITNESS.
@@ -772,9 +772,9 @@ apply semax_extensionality_Delta with (Delta). apply expr_lemmas.tycontext_sub_r
           `(array_at tuchar Tsh (tuchars (map Int.repr key)) 0 (Zlength key)
               (Vptr kb kofs));
           `(data_at_ Tsh (tarray tuchar 64) ctxkey); `(K_vector KV);
-          `(memory_block Tsh (Int.repr (sizeof (nested_field_type2 t_struct_hmac_ctx_st [_md_ctx])))
+          `(memory_block Tsh (Int.repr (sizeof (nested_field_type t_struct_hmac_ctx_st [_md_ctx])))
              (offset_val
-                (Int.repr (nested_field_offset2 t_struct_hmac_ctx_st [_md_ctx]))
+                (Int.repr (nested_field_offset t_struct_hmac_ctx_st [_md_ctx]))
              (Vptr cb cofs))))).
     { entailer. cancel.
       unfold tarray. erewrite data_at__array_at_. 2: omega. 2: reflexivity. 
@@ -791,7 +791,7 @@ apply semax_extensionality_Delta with (Delta). apply expr_lemmas.tycontext_sub_r
     remember ((Tsh, Tsh),
              Vptr cb cofs,
              offset_val
-              (Int.repr (nested_field_offset2 t_struct_hmac_ctx_st [_i_ctx]))
+              (Int.repr (nested_field_offset t_struct_hmac_ctx_st [_i_ctx]))
               (Vptr cb cofs),
              mkTrep t_struct_SHA256state_st iS) as  WITNESS.
     forward_call WITNESS.

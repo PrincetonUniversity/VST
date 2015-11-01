@@ -30,7 +30,7 @@ Qed.
 
 Lemma cancel_field_at_array_partial_undef:
  forall {cs: compspecs} sh t t1 n gfs p (al bl: list (reptype t)) blen v1 v2,
-  nested_field_type2 t1 gfs = tarray t n ->
+  nested_field_type t1 gfs = tarray t n ->
   legal_nested_field t1 gfs ->
   Zlength (al++bl) = n ->
   Zlength bl = blen ->
@@ -41,20 +41,20 @@ Lemma cancel_field_at_array_partial_undef:
 Proof.
 intros.
 subst.
-assert (exists v1': list (reptype (nested_field_type2 t1 (gfs SUB 0))), JMeq v1 v1').
+assert (exists v1': list (reptype (nested_field_type t1 (gfs SUB 0))), JMeq v1 v1').
 clear - H.
-rewrite nested_field_type2_ind.
+rewrite nested_field_type_ind.
 revert v1 H. 
-forget (nested_field_type2 t1 gfs) as tx.
+forget (nested_field_type t1 gfs) as tx.
 intros. subst. simpl.
 revert v1. rewrite reptype_ind.  simpl. 
 unfold reptype_array.  intros; eauto. 
 destruct H1 as [v1' H1].
-assert (exists v2': list (reptype (nested_field_type2 t1 (gfs SUB 0))), JMeq v2 v2').
+assert (exists v2': list (reptype (nested_field_type t1 (gfs SUB 0))), JMeq v2 v2').
 clear - H.
-rewrite nested_field_type2_ind.
+rewrite nested_field_type_ind.
 revert v2 H. 
-forget (nested_field_type2 t1 gfs) as tx.
+forget (nested_field_type t1 gfs) as tx.
 intros. subst. simpl.
 revert v2. rewrite reptype_ind.  simpl. 
 unfold reptype_array.  intros; eauto. 
@@ -78,7 +78,7 @@ f_equal.
 rewrite Z.sub_0_r.
 clear - H1 H2 H5 H.
 revert v1' v2' H1 H2.
-rewrite nested_field_type2_ind.
+rewrite nested_field_type_ind.
 rewrite H.
 simpl.
 intros.
@@ -91,7 +91,7 @@ f_equal.
 rewrite Z.sub_0_r.
 clear - H2 H5 H.
 revert v2' H2.
-rewrite nested_field_type2_ind.
+rewrite nested_field_type_ind.
 rewrite H.
 simpl.
 intros. rewrite <- H2.
@@ -120,9 +120,11 @@ unfold s256_h, s256_Nh,s256_Nl, s256_num, s256_data, fst,snd in H0|-*.
 destruct a as [hashed dd].
 destruct H0 as [H0 [[H1 H6] [H2 [[H3 DDbytes] [H4 H5]]]]].
 clear H.
+
 assert_PROP (Zlength r_data = CBLOCKz
     /\ r_data = map Vint (map Int.repr dd) ++ sublist (Zlength dd) CBLOCKz r_data
-    /\ field_compatible t_struct_SHA256state_st [StructField _data] c).
+    /\ field_compatible t_struct_SHA256state_st [StructField _data] c)
+   as H; [ | destruct H as [H [H7 FC]]].
   { entailer!.
     simplify_value_fits in H15; destruct H15 as [H15 _].
      split; auto.
@@ -133,7 +135,6 @@ assert_PROP (Zlength r_data = CBLOCKz
     rewrite <- sublist_split; autorewrite with sublist; try omega.
     auto.
    }
-destruct H as [H [H7 FC]].
 rewrite H7. clear H7.
 subst r_Nh r_Nl r_num.
 assert (H3': Zlength dd < 64) by assumption.
@@ -143,15 +144,13 @@ forward. (* p = c->data;  *)
  drop_LOCAL 1%nat.
 forward. (* n = c->num; *)
 rewrite field_at_data_at with (gfs := [StructField _data]) by reflexivity.
-normalize.
-  change (nested_field_type2 t_struct_SHA256state_st [StructField _data])
+(*normalize.*)
+simpl.
+  change (nested_field_type t_struct_SHA256state_st [StructField _data])
    with (tarray tuchar CBLOCKz).
 forward. (* p[n] = 0x80; *)
-{
-   entailer!.
-  rewrite Zlength_correct in H3' |- *.
-  Omega1.
-}
+   entailer!
+     ; Omega1.  (* delete this line when recompiled *)
 change (Int.zero_ext 8 (Int.repr 128)) with (Int.repr 128).
 match goal with |- appcontext [upd_Znth_in_list ?A] =>
    change A with (Zlength dd)
@@ -160,34 +159,33 @@ rewrite upd_Znth_in_list_append
   by (autorewrite with sublist; Omega1).
 
 forward. (* n++; *)
-simpl.
 set (ddlen :=  Zlength dd).
-assert (Hddlen: (0 <= ddlen < 64)%Z).
-unfold ddlen. split; auto. rewrite Zlength_correct; omega.
-repeat rewrite  initial_world.Zlength_map.
+assert (Hddlen: (0 <= ddlen < 64)%Z)
+  by (unfold ddlen; split; auto; Omega1).
 forward_if   (invariant_after_if1 hashed dd c md shmd kv).
 * (* then-clause *)
  change Delta with Delta_final_if1.
-match goal with |- semax _ _ ?c _ => change c with Body_final_if1 end.
-  make_sequential.
-  unfold POSTCONDITION, abbreviate.
-  normalize_postcondition.
-unfold ddlen in *; clear ddlen.
-assert (Zlength dd + 1 > 16 * 4 - 8) by omega.
-eapply semax_pre0; 
+ match goal with |- semax _ _ ?c _ => change c with Body_final_if1 end.
+ make_sequential.
+ unfold POSTCONDITION, abbreviate.
+ normalize_postcondition.
+ subst ddlen.
+ assert (Zlength dd + 1 > 16 * 4 - 8) by omega.
+ eapply semax_pre0; 
   [|apply (ifbody_final_if1 Espec hashed md c shmd dd kv H4 H3 H5 DDbytes)].
-entailer!.
-unfold data_at. unfold_field_at 6%nat.
-rewrite field_at_data_at with (gfs := [StructField _data]) by reflexivity.
-entailer!.
-change (cons (Vint (Int.repr 128))) with (app [Vint (Int.repr 128)]).
-rewrite <- !(app_ass _ [_]).
-rewrite <- app_nil_end.
-unfold data_at.
-eapply cancel_field_at_array_partial_undef; try reflexivity.
-autorewrite with sublist; Omega1.
-apply eq_JMeq. f_equal. f_equal. f_equal.
-autorewrite with sublist; Omega1. 
+ entailer!.
+ unfold data_at. unfold_field_at 6%nat.
+ rewrite field_at_data_at with (gfs := [StructField _data]) by reflexivity.
+ simpl.
+ change (cons (Vint (Int.repr 128))) with (app [Vint (Int.repr 128)]).
+ rewrite <- !(app_ass _ [_]).
+ rewrite <- app_nil_end.
+ cancel.
+ unfold data_at.
+ eapply cancel_field_at_array_partial_undef; try reflexivity.
+ autorewrite with sublist; Omega1.
+ apply eq_JMeq. f_equal. f_equal. f_equal.
+ autorewrite with sublist; Omega1. 
 * (* else-clause *)
 forward. (* skip; *)
 unfold invariant_after_if1.

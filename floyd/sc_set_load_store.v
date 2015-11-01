@@ -279,7 +279,7 @@ Lemma semax_SC_field_load:
   forall {Espec: OracleKind},
     forall Delta sh n id P Q R Rn (e1: expr)
       (t t_root: type) (efs: list efield) (gfs0 gfs1 gfs: list gfield) (tts: list type)
-      (p: val) (v : val) (v' : reptype (nested_field_type2 t_root gfs0)) lr,
+      (p: val) (v : val) (v' : reptype (nested_field_type t_root gfs0)) lr,
       typeof_temp Delta id = Some t ->
       is_neutral_cast (typeof (nested_efield e1 efs tts)) t = true ->
       gfs = gfs1 ++ gfs0 ->
@@ -291,7 +291,7 @@ Lemma semax_SC_field_load:
       PROPx P (LOCALx (tc_environ Delta :: Q) (SEP (Rn))) |--
         `(field_at sh t_root gfs0 v' p) ->
       readable_share sh ->
-      repinject _ (proj_reptype (nested_field_type2 t_root gfs0) gfs1 v') = v ->
+      repinject _ (proj_reptype (nested_field_type t_root gfs0) gfs1 v') = v ->
       PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |--
          (tc_LR Delta e1 lr) &&
         local `(tc_val (typeof (nested_efield e1 efs tts)) v) &&
@@ -320,7 +320,7 @@ Lemma semax_SC_field_load1:
   forall {Espec: OracleKind},
     forall Delta sh n id P Q R Rn (e1: expr) old Q' P' P''
       (t t_root: type) (efs: list efield) (gfs0 gfs1 gfs: list gfield) (tts: list type)
-      (p: val) (v : val) (v' : reptype (nested_field_type2 t_root gfs0)) lr,
+      (p: val) (v : val) (v' : reptype (nested_field_type t_root gfs0)) lr,
       typeof_temp Delta id = Some t ->
       is_neutral_cast (typeof (nested_efield e1 efs tts)) t = true ->
       isolate_temp_binding id Q old Q' P' ->
@@ -335,7 +335,7 @@ Lemma semax_SC_field_load1:
       PROPx P (LOCALx (tc_environ Delta :: Q) (SEP (Rn))) |--
         `(field_at sh t_root gfs0 v' p) ->
       readable_share sh ->
-      repinject _ (proj_reptype (nested_field_type2 t_root gfs0) gfs1 v') = v ->
+      repinject _ (proj_reptype (nested_field_type t_root gfs0) gfs1 v') = v ->
       PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |--
          (tc_LR Delta e1 lr) &&
         local `(tc_val (typeof (nested_efield e1 efs tts)) v) &&
@@ -372,7 +372,7 @@ Lemma semax_SC_field_cast_load:
   forall {Espec: OracleKind},
     forall Delta sh n id P Q R Rn (e1: expr)
       (t t_root: type) (efs: list efield) (gfs0 gfs1 gfs: list gfield) (tts: list type)
-      (p: val) (v : val) (v' : reptype (nested_field_type2 t_root gfs0)) lr,
+      (p: val) (v : val) (v' : reptype (nested_field_type t_root gfs0)) lr,
       typeof_temp Delta id = Some t ->
       type_is_by_value (typeof (nested_efield e1 efs tts)) = true ->
       gfs = gfs1 ++ gfs0 ->
@@ -384,7 +384,7 @@ Lemma semax_SC_field_cast_load:
       PROPx P (LOCALx (tc_environ Delta :: Q) (SEP (Rn))) |--
         `(field_at sh t_root gfs0 v' p) ->
       readable_share sh ->
-      repinject _ (proj_reptype (nested_field_type2 t_root gfs0) gfs1 v') = v ->
+      repinject _ (proj_reptype (nested_field_type t_root gfs0) gfs1 v') = v ->
       PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |-- 
          (tc_LR Delta e1 lr) &&
         local (`(tc_val t (eval_cast (typeof (nested_efield e1 efs tts)) t v))) &&
@@ -413,7 +413,7 @@ Lemma semax_SC_field_cast_load1:
   forall {Espec: OracleKind},
     forall Delta sh n id P Q R Rn (e1: expr) P' P'' old Q'
       (t t_root: type) (efs: list efield) (gfs0 gfs1 gfs: list gfield) (tts: list type)
-      (p: val) (v : val) (v' : reptype (nested_field_type2 t_root gfs0)) lr,
+      (p: val) (v : val) (v' : reptype (nested_field_type t_root gfs0)) lr,
       typeof_temp Delta id = Some t ->
       type_is_by_value (typeof (nested_efield e1 efs tts)) = true ->
       isolate_temp_binding id Q old Q' P' ->
@@ -428,7 +428,7 @@ Lemma semax_SC_field_cast_load1:
       PROPx P (LOCALx (tc_environ Delta :: Q) (SEP (Rn))) |--
         `(field_at sh t_root gfs0 v' p) ->
       readable_share sh ->
-      repinject _ (proj_reptype (nested_field_type2 t_root gfs0) gfs1 v') = v ->
+      repinject _ (proj_reptype (nested_field_type t_root gfs0) gfs1 v') = v ->
       PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |-- 
          (tc_LR Delta e1 lr) &&
         local (`(tc_val t (eval_cast (typeof (nested_efield e1 efs tts)) t v))) &&
@@ -465,7 +465,7 @@ Lemma semax_SC_field_store:
   forall {Espec: OracleKind},
     forall Delta sh n P Q R Rn (e1 e2 : expr)
       (t t_root: type) (efs: list efield) (gfs0 gfs1 gfs: list gfield) (tts: list type)
-      (p: val) (v0: val) (v v_new: reptype (nested_field_type2 t_root gfs0)) lr,
+      (p: val) (v0: val) (v v_new: reptype (nested_field_type t_root gfs0)) lr,
       typeof (nested_efield e1 efs tts) = t ->
       type_is_by_value t = true ->
       gfs = gfs1 ++ gfs0 ->
@@ -478,7 +478,7 @@ Lemma semax_SC_field_store:
       PROPx P (LOCALx (tc_environ Delta :: Q) (SEP (Rn))) |--
         `(field_at sh t_root gfs0 v p) ->
       writable_share sh ->
-      data_equal (upd_reptype (nested_field_type2 t_root gfs0) gfs1 v (valinject _ v0)) v_new ->
+      data_equal (upd_reptype (nested_field_type t_root gfs0) gfs1 v (valinject _ v0)) v_new ->
       PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |--
          (tc_LR Delta e1 lr) && 
          (tc_expr Delta (Ecast e2 t)) &&
@@ -578,7 +578,7 @@ Lemma semax_PTree_load:
   forall {Espec: OracleKind},
     forall Delta sh n id P T1 T2 R Rn (e1: expr)
       (t t_root: type) (efs: list efield) (gfs0 gfs1 gfs: list gfield) (tts: list type)
-      (p: val) (v : val) (v' : reptype (nested_field_type2 t_root gfs0)) lr,
+      (p: val) (v : val) (v' : reptype (nested_field_type t_root gfs0)) lr,
       typeof_temp Delta id = Some t ->
       is_neutral_cast (typeof (nested_efield e1 efs tts)) t = true ->
       gfs = gfs1 ++ gfs0 ->
@@ -589,7 +589,7 @@ Lemma semax_PTree_load:
       (local (tc_environ Delta)) && (assertD P (localD T1 T2) (Rn :: nil)) |--
         `(field_at sh t_root gfs0 v' p) ->
       readable_share sh ->
-      repinject _ (proj_reptype (nested_field_type2 t_root gfs0) gfs1 v') = v ->
+      repinject _ (proj_reptype (nested_field_type t_root gfs0) gfs1 v') = v ->
       (local (tc_environ Delta)) && (assertD P (localD T1 T2) R) |--
          (tc_LR Delta e1 lr) &&
         local `(tc_val (typeof (nested_efield e1 efs tts)) v) &&
@@ -627,7 +627,7 @@ Lemma semax_PTree_cast_load:
   forall {Espec: OracleKind},
     forall Delta sh n id P T1 T2 R Rn (e1: expr)
       (t t_root: type) (efs: list efield) (gfs0 gfs1 gfs: list gfield) (tts: list type)
-      (p: val) (v : val) (v' : reptype (nested_field_type2 t_root gfs0)) lr,
+      (p: val) (v : val) (v' : reptype (nested_field_type t_root gfs0)) lr,
       typeof_temp Delta id = Some t ->
       type_is_by_value (typeof (nested_efield e1 efs tts)) = true ->
       gfs = gfs1 ++ gfs0 ->
@@ -638,7 +638,7 @@ Lemma semax_PTree_cast_load:
       (local (tc_environ Delta)) && (assertD P (localD T1 T2) (Rn :: nil)) |--
         `(field_at sh t_root gfs0 v' p) ->
       readable_share sh ->
-      repinject _ (proj_reptype (nested_field_type2 t_root gfs0) gfs1 v') = v ->
+      repinject _ (proj_reptype (nested_field_type t_root gfs0) gfs1 v') = v ->
       (local (tc_environ Delta)) && (assertD P (localD T1 T2) R) |--
          (tc_LR Delta e1 lr) &&
         local (`(tc_val t (eval_cast (typeof (nested_efield e1 efs tts)) t v))) &&
@@ -675,7 +675,7 @@ Lemma semax_PTree_store:
   forall {Espec: OracleKind},
     forall Delta sh n P T1 T2 R Rn (e1 e2 : expr)
       (t t_root: type) (efs: list efield) (gfs0 gfs1 gfs: list gfield) (tts: list type)
-      (p: val) (v0: val) (v v_new: reptype (nested_field_type2 t_root gfs0)) lr,
+      (p: val) (v0: val) (v v_new: reptype (nested_field_type t_root gfs0)) lr,
       typeof (nested_efield e1 efs tts) = t ->
       type_is_by_value t = true ->
       gfs = gfs1 ++ gfs0 ->
@@ -687,7 +687,7 @@ Lemma semax_PTree_store:
       (local (tc_environ Delta)) && (assertD P (localD T1 T2) (Rn :: nil))  |--
         `(field_at sh t_root gfs0 v p) ->
       writable_share sh ->
-      data_equal (upd_reptype (nested_field_type2 t_root gfs0) gfs1 v (valinject _ v0)) v_new ->
+      data_equal (upd_reptype (nested_field_type t_root gfs0) gfs1 v (valinject _ v0)) v_new ->
       (local (tc_environ Delta)) && (assertD P (localD T1 T2) R) |--
          (tc_LR Delta e1 lr) && 
          (tc_expr Delta (Ecast e2 t)) &&
@@ -726,9 +726,9 @@ Proof.
 Qed.
 
 Definition proj_val t_root gfs v :=
-   repinject (nested_field_type2 t_root gfs) (proj_reptype t_root gfs v).
+   repinject (nested_field_type t_root gfs) (proj_reptype t_root gfs v).
 
 Definition upd_val t_root gfs v v0 :=
-   upd_reptype t_root gfs v (valinject (nested_field_type2 t_root gfs) v0).
+   upd_reptype t_root gfs v (valinject (nested_field_type t_root gfs) v0).
 
 End SEMAX_SC.

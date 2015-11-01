@@ -169,7 +169,7 @@ Qed.
 
 Lemma stronger_proj_reptype: forall t v1 v2,
   (v1 >>> v2) <->
-  (forall gfs, legal_nested_field t gfs -> type_is_by_value (nested_field_type2 t gfs) = true ->
+  (forall gfs, legal_nested_field t gfs -> type_is_by_value (nested_field_type t gfs) = true ->
    proj_reptype t gfs v1 >>> proj_reptype t gfs v2).
 Proof.
 Admitted.
@@ -300,22 +300,22 @@ Defined.
 
 Lemma data_equal_proj_reptype: forall t v1 v2,
   (v1 === v2) <->
-  (forall gfs, legal_nested_field t gfs -> type_is_by_value (nested_field_type2 t gfs) = true ->
+  (forall gfs, legal_nested_field t gfs -> type_is_by_value (nested_field_type t gfs) = true ->
    proj_reptype t gfs v1 === proj_reptype t gfs v2).
 Proof.
   intros.
   rewrite data_equal_stronger.
   assert ((forall gfs : list gfield,
     legal_nested_field t gfs ->
-    type_is_by_value (nested_field_type2 t gfs) = true ->
+    type_is_by_value (nested_field_type t gfs) = true ->
     proj_reptype t gfs v1 === proj_reptype t gfs v2) <->
     (forall gfs : list gfield,
     legal_nested_field t gfs ->
-    type_is_by_value (nested_field_type2 t gfs) = true ->
+    type_is_by_value (nested_field_type t gfs) = true ->
     proj_reptype t gfs v1 >>> proj_reptype t gfs v2) /\
     (forall gfs : list gfield,
     legal_nested_field t gfs ->
-    type_is_by_value (nested_field_type2 t gfs) = true ->
+    type_is_by_value (nested_field_type t gfs) = true ->
     proj_reptype t gfs v2 >>> proj_reptype t gfs v1)).
   Focus 1. {
     split; intros; [split; intros |].

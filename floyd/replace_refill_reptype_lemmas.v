@@ -28,21 +28,21 @@ Fixpoint nested_field_type3 t gfs :=
 (* reverse gfs order *)
 Definition holes_subs t := forall gfs, reptype (nested_field_type3 t gfs).
 
-Lemma nested_field_type2_ind': forall t gf gfs, nested_field_type2 t (gfs ++ gf :: nil) = nested_field_type2 (gfield_type t gf) gfs.
+Lemma nested_field_type_ind': forall t gf gfs, nested_field_type t (gfs ++ gf :: nil) = nested_field_type (gfield_type t gf) gfs.
 Proof.
   intros.
-  rewrite <- nested_field_type2_nested_field_type2.
-  rewrite nested_field_type2_ind with (gfs0 := gf :: nil).
+  rewrite <- nested_field_type_nested_field_type.
+  rewrite nested_field_type_ind with (gfs0 := gf :: nil).
   reflexivity.
 Defined.
 
-Lemma nested_field_type3_spec: forall t gfs, nested_field_type3 t gfs = nested_field_type2 t (rev gfs).
+Lemma nested_field_type3_spec: forall t gfs, nested_field_type3 t gfs = nested_field_type t (rev gfs).
 Proof.
   intros.
   revert t; induction gfs; intros.
   + auto.
   + simpl.
-    rewrite nested_field_type2_ind'.
+    rewrite nested_field_type_ind'.
     rewrite IHgfs.
     auto.
 Defined.
@@ -107,7 +107,7 @@ eq_ind_r (fun l0 : list A => rev l = l0)
   (eq_ind_r (fun l0 : list A => rev l = l0) eq_refl (app_nil_r (rev l)))
   (rev_append_rev l nil).
 
-Lemma nested_field_type3_rev_spec: forall t gfs, nested_field_type3 t (rev gfs) = nested_field_type2 t gfs.
+Lemma nested_field_type3_rev_spec: forall t gfs, nested_field_type3 t (rev gfs) = nested_field_type t gfs.
 Proof.
   intros.
   etransitivity.
@@ -441,7 +441,7 @@ Admitted.
 Lemma replace_proj_self: forall t h v gfs,
   legal_holes t h ->
   legal_nested_field t gfs ->
-  type_is_by_value (nested_field_type2 t gfs) = true ->
+  type_is_by_value (nested_field_type t gfs) = true ->
   proj_reptype t gfs (replace_reptype t h (fun rgfs => eq_rect_r reptype (proj_reptype t (rev rgfs) v) (nested_field_type3_spec _ _)) v) = proj_reptype t gfs v \/
   proj_reptype t gfs (replace_reptype t h (fun rgfs => eq_rect_r reptype (proj_reptype t (rev rgfs) v) (nested_field_type3_spec _ _)) v) = default_val _.
 Admitted.
@@ -542,7 +542,7 @@ Proof.
   apply gfield_dec.
 Defined.
 
-Definition singleton_subs t gfs (v: reptype (nested_field_type2 t gfs)): holes_subs t.
+Definition singleton_subs t gfs (v: reptype (nested_field_type t gfs)): holes_subs t.
   rewrite <- nested_field_type3_rev_spec in v.
   intro rgfs.
   destruct (rgfs_dec rgfs (rev gfs)).
@@ -571,10 +571,10 @@ Qed.
 Definition proj_except_holes_1 t gfs v: reptype_with_holes t (singleton_hole gfs) :=
   proj_except_holes t (singleton_hole gfs) v.
 
-Definition refill_reptype_1 t gfs (v: reptype_with_holes t (singleton_hole gfs)) (v0: reptype (nested_field_type2 t gfs)) :=
+Definition refill_reptype_1 t gfs (v: reptype_with_holes t (singleton_hole gfs)) (v0: reptype (nested_field_type t gfs)) :=
   refill_reptype v (singleton_subs t gfs v0).
 
-Definition upd_reptype t gfs (v: reptype t) (v0: reptype (nested_field_type2 t gfs)) :=
+Definition upd_reptype t gfs (v: reptype t) (v0: reptype (nested_field_type t gfs)) :=
   replace_reptype t (singleton_hole gfs) (singleton_subs t gfs v0) v.
 
 Definition upd_Znth_in_list {A} (i: Z) (al: list A) (x: A): list A :=
@@ -593,16 +593,16 @@ Definition upd_gfield_reptype t gf (v: reptype t) (v0: reptype (gfield_type t gf
   | _, _ => fun v _ => v
   end (unfold_reptype v) v0).
 
-Fixpoint upd_reptype_rec (t: type) (gfs: list gfield) (v: reptype t) (v0: reptype (nested_field_type2 t gfs)): reptype t :=
+Fixpoint upd_reptype_rec (t: type) (gfs: list gfield) (v: reptype t) (v0: reptype (nested_field_type t gfs)): reptype t :=
   match gfs as gfs'
     return reptype (match gfs' with
                     | nil => t
-                    | gf :: gfs0 => gfield_type (nested_field_type2 t gfs0) gf
+                    | gf :: gfs0 => gfield_type (nested_field_type t gfs0) gf
                     end) -> reptype t
   with
   | nil => fun v0 => v0
   | gf :: gfs0 => fun v0 => upd_reptype_rec t gfs0 v (upd_gfield_reptype _ gf (proj_reptype t gfs0 v) v0)
-  end (eq_rect_r reptype v0 (eq_sym (nested_field_type2_ind t gfs))).
+  end (eq_rect_r reptype v0 (eq_sym (nested_field_type_ind t gfs))).
 
 Lemma upd_reptype_ind: forall t gfs v v0, upd_reptype t gfs v v0 = upd_reptype_rec t gfs v v0.
 Admitted.
@@ -707,20 +707,20 @@ Proof.
   + exact H.
   + change (upd_reptype_rec t (gf :: gfs) v v0) with
       (upd_reptype_rec t gfs v (upd_gfield_reptype _ gf (proj_reptype t gfs v)
-        (eq_rect_r reptype v0 (eq_sym (nested_field_type2_ind t (gf :: gfs)))))).
+        (eq_rect_r reptype v0 (eq_sym (nested_field_type_ind t (gf :: gfs)))))).
     change (upd_reptype_rec t (gf :: gfs) v v1) with
       (upd_reptype_rec t gfs v (upd_gfield_reptype _ gf (proj_reptype t gfs v)
-        (eq_rect_r reptype v1 (eq_sym (nested_field_type2_ind t (gf :: gfs)))))).
+        (eq_rect_r reptype v1 (eq_sym (nested_field_type_ind t (gf :: gfs)))))).
     apply IHgfs.
-    assert (data_equal (eq_rect_r reptype v0 (eq_sym (nested_field_type2_ind t (gf :: gfs))))
-              (eq_rect_r reptype v1 (eq_sym (nested_field_type2_ind t (gf :: gfs)))))
+    assert (data_equal (eq_rect_r reptype v0 (eq_sym (nested_field_type_ind t (gf :: gfs))))
+              (eq_rect_r reptype v1 (eq_sym (nested_field_type_ind t (gf :: gfs)))))
       by (apply eq_rect_r_data_equal; auto).
-    forget (eq_rect_r reptype v0 (eq_sym (nested_field_type2_ind t (gf :: gfs)))) as V0.
-    forget (eq_rect_r reptype v1 (eq_sym (nested_field_type2_ind t (gf :: gfs)))) as V1.
+    forget (eq_rect_r reptype v0 (eq_sym (nested_field_type_ind t (gf :: gfs)))) as V0.
+    forget (eq_rect_r reptype v1 (eq_sym (nested_field_type_ind t (gf :: gfs)))) as V1.
     forget (proj_reptype t gfs v) as V.
     clear - H0.
     revert V0 V1 H0 V.
-    destruct (nested_field_type2 t gfs), gf; unfold upd_gfield_reptype; intros; try reflexivity.
+    destruct (nested_field_type t gfs), gf; unfold upd_gfield_reptype; intros; try reflexivity.
     - admit.
     - admit.
     - admit.
@@ -809,7 +809,7 @@ Transparent peq.
 Ltac cbv_proj_struct H :=
     cbv beta zeta iota delta
     [proj_struct proj_compact_prod list_rect
-    member_dec field_type fieldlist.field_type2 Ctypes.field_type
+    member_dec field_type Ctypes.field_type
      ident_eq peq Pos.eq_dec BinNums.positive_rec positive_rect
     sumbool_rec sumbool_rect bool_dec bool_rec bool_rect option_rec option_rect
     eq_rect_r eq_rect eq_rec_r eq_rec eq_sym eq_trans f_equal
@@ -866,13 +866,13 @@ Ltac pose_proj_reptype CS t gfs v H :=
          let H1 := fresh "H" in
          match gfs0 with
          | nil => pose_proj_reptype_1 CS t gf v0 H1
-         | _ => pose_proj_reptype_1 CS (nested_field_type2 t gfs0) gf v0 H1
+         | _ => pose_proj_reptype_1 CS (nested_field_type t gfs0) gf v0 H1
          end;
          clear H;         (* *1* SEE LINE *0* *)
          match gfs0 with
          | nil => assert (eq_pose (@proj_reptype CS t gfs v) (@proj_gfield_reptype CS t gf v0)) as H
          | _ => assert (eq_pose (@proj_reptype CS t gfs v)
-                   (@proj_gfield_reptype CS (nested_field_type2 t gfs0) gf v0)) as H
+                   (@proj_gfield_reptype CS (nested_field_type t gfs0) gf v0)) as H
          end;
          [unfold eq_pose in *; rewrite <- H0; unfold proj_reptype, eq_rect_r; apply eq_sym, eq_rect_eq |];
          rewrite H1 in H;
@@ -911,7 +911,7 @@ Ltac pose_upd_reptype CS t gfs v v0 H :=
       match goal with
       | HH : eq_pose (proj_reptype t gfs0 v) ?v1 |- _ =>
           let H_upd1 := fresh "H_upd1" in
-          pose_upd_reptype_1 CS (nested_field_type2 t gfs0) gf v1 v0 H_upd1;
+          pose_upd_reptype_1 CS (nested_field_type t gfs0) gf v1 v0 H_upd1;
           match type of H_upd1 with
           | data_equal _ ?v1' =>
                   let H0 := fresh "H" in

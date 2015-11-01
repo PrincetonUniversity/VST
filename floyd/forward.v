@@ -34,7 +34,7 @@ Hint Resolve field_address_isptr : norm.
 Lemma field_address_eq_offset:
  forall {cs: compspecs} t path v,
   field_compatible t path v ->
-  field_address t path v = offset_val (Int.repr (nested_field_offset2 t path)) v.
+  field_address t path v = offset_val (Int.repr (nested_field_offset t path)) v.
 Proof.
 intros. unfold field_address; rewrite if_true by auto; reflexivity.
 Qed.
@@ -42,7 +42,7 @@ Qed.
 Lemma field_address_eq_offset':
  forall {cs: compspecs} t path v ofs,
     field_compatible t path v ->
-    ofs = Int.repr (nested_field_offset2 t path) ->
+    ofs = Int.repr (nested_field_offset t path) ->
     field_address t path v = offset_val ofs v.
 Proof.
 intros. subst. apply field_address_eq_offset; auto.
@@ -1917,14 +1917,14 @@ Ltac sc_new_instantiate P Q R Rnow Delta e gfs tts lr p sh t_root gfs0 v n N H:=
     | `(data_at_ ?SH ?TY _) => 
       test_legal_nested_efield TY e gfs tts lr;
       sc_try_instantiate P Q R0 Delta e gfs tts p sh t_root gfs0 v n N H SH (@nil gfield) TY
-      (default_val (nested_field_type2 TY nil))
+      (default_val (nested_field_type TY nil))
     | `(field_at ?SH ?TY ?GFS ?V _) =>
       test_legal_nested_efield TY e gfs tts lr;
       sc_try_instantiate P Q R0 Delta e gfs tts p sh t_root gfs0 v n N H SH GFS TY V
     | `(field_at_ ?SH ?TY ?GFS _) =>
       test_legal_nested_efield TY e gfs tts lr;
       sc_try_instantiate P Q R0 Delta e gfs tts p sh t_root gfs0 v n N H SH GFS TY
-      (default_val (nested_field_type2 TY GFS))
+      (default_val (nested_field_type TY GFS))
     | _ => sc_new_instantiate P Q R Rnow' Delta e gfs tts lr p sh t_root gfs0 v n (S N) H
     end
   end.
@@ -2020,20 +2020,20 @@ Ltac new_instantiate_load P Q R Rnow Delta e ids tts sh ids0 v n N H:=
       try_instantiate_load P Q R0 Delta e ids tts sh ids0 v n N H SH (@nil ident) V
     | `(data_at_ ?SH ?TY _) => 
       try_instantiate_load P Q R0 Delta e ids tts sh ids0 v n N H SH (@nil ident)
-      (default_val (nested_field_type2 TY nil))
+      (default_val (nested_field_type TY nil))
     | `(data_at_ ?SH ?TY) _ => 
       try_instantiate_load P Q R0 Delta e ids tts sh ids0 v n N H SH (@nil ident)
-      (default_val (nested_field_type2 TY nil))
+      (default_val (nested_field_type TY nil))
     | `(field_at ?SH _ ?IDS ?V _) =>
       try_instantiate_load P Q R0 Delta e ids tts sh ids0 v n N H SH IDS V
     | `(field_at ?SH _ ?IDS ?V) _ => 
       try_instantiate_load P Q R0 Delta e ids tts sh ids0 v n N H SH IDS V
     | `(field_at_ ?SH ?TY ?IDS _) =>
       try_instantiate_load P Q R0 Delta e ids tts sh ids0 v n N H SH IDS 
-      (default_val (nested_field_type2 TY IDS))
+      (default_val (nested_field_type TY IDS))
     | `(field_at_ ?SH ?TY ?IDS) _ => 
       try_instantiate_load P Q R0 Delta e ids tts sh ids0 v n N H SH IDS 
-      (default_val (nested_field_type2 TY IDS))
+      (default_val (nested_field_type TY IDS))
     | _ => new_instantiate_load P Q R Rnow' Delta e ids tts sh ids0 v n (S N) H
     end
   end.
@@ -2050,7 +2050,7 @@ Ltac try_instantiate_store P Q R0 Delta e ids tts sh ids0 v n N H SH TY IDS V:=
        instantiate (1 := V);
        try unfold field_at_;
        try rewrite <- (@liftx1_liftx0 val mpred);
-       try rewrite <- (@liftx2_liftx1 (reptype (nested_field_type2 TY IDS)) val mpred);
+       try rewrite <- (@liftx2_liftx1 (reptype (nested_field_type TY IDS)) val mpred);
        simpl typeof;
        simpl reptype;
        generalize V;
@@ -2070,10 +2070,10 @@ Ltac new_instantiate_store P Q R Rnow Delta e ids tts sh ids0 v n N H:=
       try_instantiate_store P Q R0 Delta e ids tts sh ids0 v n N H SH TY (@nil ident) V
     | `(data_at_ ?SH ?TY _) => 
       try_instantiate_store P Q R0 Delta e ids tts sh ids0 v n N H SH TY (@nil ident)
-      (`(default_val (nested_field_type2 TY nil)))
+      (`(default_val (nested_field_type TY nil)))
     | `(data_at_ ?SH ?TY) _ => 
       try_instantiate_store P Q R0 Delta e ids tts sh ids0 v n N H SH TY (@nil ident)
-      (`(default_val (nested_field_type2 TY nil)))
+      (`(default_val (nested_field_type TY nil)))
     | `(field_at ?SH ?TY ?IDS ?V _) =>
       try_instantiate_store P Q R0 Delta e ids tts sh ids0 v n N H SH TY IDS (` V)
     | `(field_at ?SH ?TY ?IDS ?V) _ => 
@@ -2082,10 +2082,10 @@ Ltac new_instantiate_store P Q R Rnow Delta e ids tts sh ids0 v n N H:=
       try_instantiate_store P Q R0 Delta e ids tts sh ids0 v n N H SH TY IDS V
     | `(field_at_ ?SH ?TY ?IDS _) =>
       try_instantiate_store P Q R0 Delta e ids tts sh ids0 v n N H SH TY IDS 
-      (`(default_val (nested_field_type2 TY IDS)))
+      (`(default_val (nested_field_type TY IDS)))
     | `(field_at_ ?SH ?TY ?IDS) _ => 
       try_instantiate_store P Q R0 Delta e ids tts sh ids0 v n N H SH TY IDS 
-      (`(default_val (nested_field_type2 TY IDS)))
+      (`(default_val (nested_field_type TY IDS)))
     | _ => new_instantiate_store P Q R Rnow' Delta e ids tts sh ids0 v n (S N) H
     end
   end.
@@ -2136,9 +2136,8 @@ intros. destruct v; inv H; reflexivity.
 Qed.
 Hint Rewrite @sem_add_ptr_int using assumption : norm1.
 
-Arguments field_type id fld / .
-Arguments fieldlist.field_type2 i m / .
-Arguments nested_field_type2 {cs} t gfs / .
+Arguments field_type i m / .
+Arguments nested_field_type {cs} t gfs / .
 
 (* old, slow version
 Ltac solve_load_rule_evaluation :=
@@ -2183,7 +2182,7 @@ Qed.
 Ltac candidate A :=
  match A with context [_ _] => idtac end.
 
-Ltac really_simplify_one_thing :=
+Ltac really_simplify_one_thing := (* obsolete *)
    match goal with
    | |- @eq ?T _ _ => 
     candidate T; progress (really_simplify T)
@@ -2213,8 +2212,8 @@ Ltac really_simplify_one_thing :=
     | context [ListTypeGen ?A ?B ?C] =>
        let s := fresh "s" in set (s := ListTypeGen A B C);
        unfold ListTypeGen in s; subst s
-    | context [nested_field_type2 ?A ?B] =>
-         really_simplify (nested_field_type2 A B)
+    | context [nested_field_type ?A ?B] =>
+         really_simplify (nested_field_type A B)
     | fold_reptype _  =>
            unfold fold_reptype at 1; rewrite eq_rect_r_eq
     | replace_reptype _ _ _ _ =>
@@ -2230,8 +2229,6 @@ Ltac really_simplify_one_thing :=
          really_simplify (gfield_dec A B)
     | context [member_dec ?A ?B] =>
        really_simplify (member_dec A B)
-    | context [fieldlist.fieldlist.field_type ?A ?B] =>
-         really_simplify (fieldlist.fieldlist.field_type A B)
     | context [field_type ?A ?B] =>
          really_simplify (field_type A B)
     | repinject _ _ =>
@@ -2256,9 +2253,6 @@ Ltac really_simplify_one_thing :=
         unfold singleton_subs; simpl rgfs_dec;
         unfold eq_rec_r, eq_rec;
         rewrite <- ?eq_rect_eq, ?eq_rect_r_eq
-(*    | appcontext [@zl_nth] =>
-              progress (autorewrite with zl_nth_db)
-*)
      | context [@proj_reptype ?a ?b ?c ?d ?e] =>
          let z := fresh "z" in set (z := @proj_reptype a b c d e);
          cbv beta iota zeta delta [
@@ -2448,7 +2442,7 @@ Ltac load_tac :=   (* matches:  semax _ _ (Sset _ (Efield _ _ _)) _  *)
     let sh := fresh "sh" in evar (sh: share);
     let t_root := fresh "t_root" in evar (t_root: type);
     let gfs0 := fresh "gfs" in evar (gfs0: list gfield);
-    let v := fresh "v" in evar (v: reptype (nested_field_type2 t_root gfs0));
+    let v := fresh "v" in evar (v: reptype (nested_field_type t_root gfs0));
     let n := fresh "n" in
     let H := fresh "H" in
     sc_new_instantiate P Q R R Delta e1 gfs tts lr p sh t_root gfs0 v n (0%nat) H;
@@ -2519,7 +2513,7 @@ Ltac load_tac :=   (* matches:  semax _ _ (Sset _ (Efield _ _ _)) _  *)
     let sh := fresh "sh" in evar (sh: share);
     let t_root := fresh "t_root" in evar (t_root: type);
     let gfs0 := fresh "gfs" in evar (gfs0: list gfield);
-    let v := fresh "v" in evar (v: reptype (nested_field_type2 t_root gfs0));
+    let v := fresh "v" in evar (v: reptype (nested_field_type t_root gfs0));
     let n := fresh "n" in
     let H := fresh "H" in
     sc_new_instantiate P Q R R Delta e1 gfs tts lr p sh t_root gfs0 v n (0%nat) H;
@@ -2685,7 +2679,7 @@ match goal with |- context [@proj_reptype ?cs ?t ?gfs ?v] =>
   let d := fresh "d" in let Hd := fresh "Hd" in
   remember (@proj_reptype cs t gfs v) as d eqn:Hd;
  unfold proj_reptype, proj_gfield_reptype, unfold_reptype,
-   nested_field_type2, nested_field_rec in Hd;
+   nested_field_type, nested_field_rec in Hd;
  rewrite ?eq_rect_r_eq, <- ?eq_rect_eq in Hd;
  simpl aggregate_type.aggregate_type.proj_struct in Hd;
  rewrite ?eq_rect_r_eq, <- ?eq_rect_eq in Hd;
@@ -2725,12 +2719,12 @@ match goal with
     let sh := fresh "sh" in evar (sh: share);
     let t_root := fresh "t_root" in evar (t_root: type);
     let gfs0 := fresh "gfs" in evar (gfs0: list gfield);
-    let v := fresh "v" in evar (v: reptype (nested_field_type2 t_root gfs0));
+    let v := fresh "v" in evar (v: reptype (nested_field_type t_root gfs0));
     let n := fresh "n" in
     let H := fresh "H" in
     sc_new_instantiate P Q R R Delta e1 gfs tts lr p sh t_root gfs0 v n (0%nat) H;
 
-    try (unify v (default_val (nested_field_type2 t_root gfs0));
+    try (unify v (default_val (nested_field_type t_root gfs0));
           lazy beta iota zeta delta - [list_repeat Z.to_nat] in v);
 
     let gfs1 := fresh "gfs" in

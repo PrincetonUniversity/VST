@@ -77,7 +77,7 @@ forward_call WITNESS.
     cancel.
     unfold sha256state_. apply exp_right with (x:= mdCtx ST). entailer.
     unfold offset_val in COff. destruct ctx'; inversion COff; clear COff. subst cb coff.
-    simpl. unfold nested_field_offset2, nested_field_type2. simpl. rewrite Int.add_zero. cancel.
+    simpl. unfold nested_field_offset, nested_field_type. simpl. rewrite Int.add_zero. cancel.
   }
 after_call. subst WITNESS. normalize. simpl. 
 
@@ -93,10 +93,10 @@ eapply semax_pre with (P':=(PROP  ()
 { entailer. cancel. 
       unfold_data_at 1%nat. simpl. cancel. unfold data_at_. 
       rewrite (field_at_data_at Tsh t_struct_hmac_ctx_st [StructField _md_ctx]); try reflexivity.
-      unfold nested_field_type2; simpl. unfold field_address. rewrite COff.
+      unfold nested_field_type; simpl. unfold field_address. rewrite COff.
       destruct (field_compatible_dec t_struct_hmac_ctx_st [StructField _md_ctx] ctx'); try contradiction.
       unfold offset_val in COff. destruct ctx'; inversion COff. subst cb coff. clear f0 COff Heqs.
-      unfold nested_field_offset2; simpl. rewrite Int.add_zero. entailer. 
+      unfold nested_field_offset; simpl. rewrite Int.add_zero. entailer. 
 }
 
 unfold_data_at 1%nat. (*qinxiang told me about this tactic - we need a list of all tactics!!!*)
@@ -116,12 +116,12 @@ rewrite (field_at_data_at _ _ [StructField _md_ctx]); try reflexivity.
       destruct (field_compatible_dec t_struct_hmac_ctx_st [StructField _md_ctx] c); inversion MDCTX. 
       clear H0. rewrite COff in MDCTX. apply eq_sym in MDCTX. inversion MDCTX. subst x1 x2; clear f0 Heqs MDCTX.
 
-rewrite OCTX, COff. unfold nested_field_type2; simpl.
+rewrite OCTX, COff. unfold nested_field_type; simpl.
 (*normalize. simpl.
 rewrite at_offset_data_at. *)
     unfold offset_val in COff. destruct c; inversion COff. clear COff. subst cb coff.
     unfold offset_val in OCTX. inversion OCTX. clear OCTX. subst x x0.
-unfold nested_field_offset2; simpl.
+unfold nested_field_offset; simpl.
 
 eapply semax_pre with (P':=
   (PROP  ()
@@ -137,22 +137,22 @@ eapply semax_pre with (P':=
                    (Fcons _data (tarray tuchar 64) (Fcons _num tuint Fnil)))))
           noattr) (snd (snd ST)) (Vptr b0 (Int.add i (Int.repr 216))));
    `(field_at Tsh t_struct_hmac_ctx_st [StructField _i_ctx] (fst (snd ST)) (Vptr b0 i));
-   `(memory_block Tsh (Int.repr (sizeof (nested_field_type2 t_struct_hmac_ctx_st [StructField _md_ctx]))) ((Vptr b0 i)));
+   `(memory_block Tsh (Int.repr (sizeof (nested_field_type t_struct_hmac_ctx_st [StructField _md_ctx]))) ((Vptr b0 i)));
    `(K_vector KV); `(data_block Tsh (sha_finish ctx) b);
    `(memory_block shmd (Int.repr 32) md)))).
   { entailer. cancel.
     eapply derives_trans. apply data_at_data_at_.
-    rewrite <- (memory_block_data_at_ Tsh (nested_field_type2 t_struct_hmac_ctx_st [StructField _md_ctx])).
-    unfold nested_field_type2; simpl. cancel.
+    rewrite <- (memory_block_data_at_ Tsh (nested_field_type t_struct_hmac_ctx_st [StructField _md_ctx])).
+    unfold nested_field_type; simpl. cancel.
     reflexivity. reflexivity. reflexivity.
-    unfold nested_field_offset2; simpl. apply f. 
-    unfold nested_field_offset2; simpl. rewrite <- initialize.max_unsigned_modulus.
+    unfold nested_field_offset; simpl. apply f. 
+    unfold nested_field_offset; simpl. rewrite <- initialize.max_unsigned_modulus.
        rewrite int_max_unsigned_eq. omega. 
   }
 
 destruct ST as [MD [iCTX oCTX]]. simpl in *.
 remember (Tsh, Tsh, Vptr b0 i, offset_val
-          (Int.repr (nested_field_offset2 t_struct_hmac_ctx_st [StructField _o_ctx])) (Vptr b0 i), 
+          (Int.repr (nested_field_offset t_struct_hmac_ctx_st [StructField _o_ctx])) (Vptr b0 i), 
           (mkTrep t_struct_SHA256state_st oCTX)) as WITNESS.
 forward_call WITNESS.
   { assert (FR: Frame = [
@@ -178,7 +178,7 @@ remember (oSha, sha_finish ctx, Vptr b0 i, b, Tsh, Z.of_nat SHA256.DigestLength,
 forward_call WITNESS.
   { assert (FR: Frame = [
        `(data_at Tsh t_struct_SHA256state_st oCTX
-           (offset_val (Int.repr (nested_field_offset2 t_struct_hmac_ctx_st [StructField _o_ctx])) (Vptr b0 i)));
+           (offset_val (Int.repr (nested_field_offset t_struct_hmac_ctx_st [StructField _o_ctx])) (Vptr b0 i)));
        `(field_at Tsh t_struct_hmac_ctx_st [StructField _i_ctx] iCTX (Vptr b0 i));
        `(memory_block shmd (Int.repr 32) md)]).
        subst Frame. reflexivity.
@@ -200,7 +200,7 @@ apply semax_pre with (P':=EX  x : s256abs,
    (`(K_vector KV); `(sha256state_ x (Vptr b0 i)); `(data_block Tsh SF b);
    `(data_at Tsh t_struct_SHA256state_st oCTX
        (offset_val
-          (Int.repr (nested_field_offset2 t_struct_hmac_ctx_st [StructField _o_ctx])) (Vptr b0 i)));
+          (Int.repr (nested_field_offset t_struct_hmac_ctx_st [StructField _o_ctx])) (Vptr b0 i)));
    `(field_at Tsh t_struct_hmac_ctx_st [StructField _i_ctx] iCTX (Vptr b0 i));
    `(memory_block shmd (Int.repr 32) md)))).
   { entailer. apply (exp_right x). entailer. }
@@ -216,7 +216,7 @@ remember (updSha, md, Vptr b0 i, shmd, KV) as WITNESS.
 forward_call WITNESS.
   { assert (FR: Frame = [ `(data_block Tsh SF b);
       `(data_at Tsh t_struct_SHA256state_st oCTX
-         (offset_val (Int.repr (nested_field_offset2 t_struct_hmac_ctx_st [StructField _o_ctx])) (Vptr b0 i)));
+         (offset_val (Int.repr (nested_field_offset t_struct_hmac_ctx_st [StructField _o_ctx])) (Vptr b0 i)));
       `(field_at Tsh t_struct_hmac_ctx_st [StructField _i_ctx] iCTX (Vptr b0 i))]).
        subst Frame. reflexivity.
     rewrite FR. clear FR Frame. 
@@ -251,12 +251,12 @@ unfold_data_at 3%nat.
 cancel.
 rewrite (field_at_data_at _ _ [StructField _o_ctx]); try reflexivity.
 rewrite (field_at_data_at _ _ [StructField _md_ctx]); try reflexivity.
-entailer. unfold nested_field_type2; simpl.
+entailer. unfold nested_field_type; simpl.
 unfold field_address.
 destruct (field_compatible_dec t_struct_hmac_ctx_st [StructField _md_ctx]
             (Vptr b0 i)); try contradiction. 
 destruct (field_compatible_dec t_struct_hmac_ctx_st [StructField _o_ctx]
             (Vptr b0 i)); try contradiction.
-unfold nested_field_offset2; simpl. rewrite Int.add_zero. entailer.
+unfold nested_field_offset; simpl. rewrite Int.add_zero. entailer.
 
 red.  destruct b; trivial. simpl. apply Z.divide_1_l.

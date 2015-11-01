@@ -3,7 +3,7 @@ Require Import floyd.assert_lemmas.
 Require Import floyd.client_lemmas.
 Require Import floyd.nested_pred_lemmas.
 Require Import floyd.nested_field_lemmas.
-Require floyd.fieldlist. Import floyd.fieldlist.fieldlist.
+Require Import floyd.fieldlist.
 Local Open Scope logic.
 
 Inductive LLRR : Type :=
@@ -147,7 +147,7 @@ Fixpoint legal_nested_efield_rec t_root (gfs: list gfield) (tts: list type): boo
   | nil, nil => true
   | nil, _ => false
   | _ , nil => false
-  | gf :: gfs0, t0 :: tts0 => (legal_nested_efield_rec t_root gfs0 tts0 && eqb_type (nested_field_type2 t_root gfs) t0)%bool
+  | gf :: gfs0, t0 :: tts0 => (legal_nested_efield_rec t_root gfs0 tts0 && eqb_type (nested_field_type t_root gfs) t0)%bool
   end.
 
 Definition legal_nested_efield t_root e gfs tts lr :=
@@ -170,7 +170,7 @@ Qed.
 Lemma typeof_nested_efield': forall rho t_root e ef efs gf gfs t tts,
   legal_nested_efield_rec t_root (gf :: gfs) (t :: tts) = true ->
   efield_denote (ef :: efs) (gf :: gfs) rho |--
-    !! (nested_field_type2 t_root (gf :: gfs) =
+    !! (nested_field_type t_root (gf :: gfs) =
         typeof (nested_efield e (ef :: efs) (t :: tts))).
 Proof.
   intros.
@@ -183,7 +183,7 @@ Qed.
 Lemma typeof_nested_efield: forall t_root e efs gfs tts lr,
   legal_nested_efield t_root e gfs tts lr = true ->
   efield_denote efs gfs |--
-    !! (nested_field_type2 t_root gfs = typeof (nested_efield e efs tts)).
+    !! (nested_field_type t_root gfs = typeof (nested_efield e efs tts)).
 Proof.
   intros.
   unfold legal_nested_efield in H.
@@ -243,7 +243,7 @@ Definition tc_LR Delta e lr :=
   | RRRR => tc_expr Delta e
   end.
 
-Lemma field_compatible_field_address: forall t gfs p, field_compatible t gfs p -> field_address t gfs p = offset_val (Int.repr (nested_field_offset2 t gfs)) p.
+Lemma field_compatible_field_address: forall t gfs p, field_compatible t gfs p -> field_address t gfs p = offset_val (Int.repr (nested_field_offset t gfs)) p.
 Proof.
   intros.
   unfold field_address.
@@ -278,7 +278,7 @@ Lemma weakened_legal_nested_efield_spec: forall t_root e gfs efs tts rho,
   legal_nested_efield_rec t_root gfs tts = true ->
   type_almost_match e t_root (LR_of_type t_root) = true ->
   efield_denote efs gfs rho
-       |-- !!(typeconv (nested_field_type2 t_root gfs) =
+       |-- !!(typeconv (nested_field_type t_root gfs) =
               typeconv (typeof (nested_efield e efs tts))).
 Proof.
   intros.
@@ -288,7 +288,7 @@ Proof.
              apply andp_left2; normalize; f_equal; auto].
 
   apply prop_right.
-  rewrite nested_field_type2_ind.
+  rewrite nested_field_type_ind.
   simpl typeof.
   unfold type_almost_match in H0.
   destruct (LR_of_type t_root), t_root, (typeof e); try solve [inv H0]; auto;
@@ -325,7 +325,7 @@ Lemma array_op_facts: forall ei rho t_root e efs gfs tts t n a t0 p,
   legal_nested_efield_rec t_root gfs tts = true ->
   type_almost_match e t_root (LR_of_type t_root) = true ->
   match typeof ei with | Tint _ _ _ => True | _ => False end ->
-  nested_field_type2 t_root gfs = Tarray t n a ->
+  nested_field_type t_root gfs = Tarray t n a ->
   field_compatible t_root gfs p ->
   complete_type cenv_cs t_root = true ->
   efield_denote efs gfs rho =
@@ -341,7 +341,7 @@ Proof.
   split.
   + eapply classify_add_add_case_pi; eauto.
   + eapply isBinOpResultType_add_ptr; eauto.
-    eapply nested_field_type2_complete_type with (gfs0 := gfs) in H4; [| destruct H3; tauto].
+    eapply nested_field_type_complete_type with (gfs0 := gfs) in H4; [| destruct H3; tauto].
     rewrite H2 in H4.
     exact H4.
 Qed.
@@ -363,7 +363,7 @@ Lemma struct_op_facts: forall Delta t_root e gfs efs tts i a i0 t rho,
   legal_nested_efield_rec t_root gfs tts = true ->
   legal_nested_field t_root (gfs DOT i0) ->
   type_almost_match e t_root (LR_of_type t_root) = true ->
-  nested_field_type2 t_root gfs = Tstruct i a ->
+  nested_field_type t_root gfs = Tstruct i a ->
   efield_denote efs gfs rho =
   efield_denote efs gfs rho &&
   ((tc_lvalue Delta (nested_efield e efs tts) rho -->
@@ -382,7 +382,7 @@ Proof.
   unfold tc_lvalue, eval_field.
   simpl.
   rewrite H4.
-  unfold field_offset, fieldlist.field_offset2.
+  unfold field_offset, fieldlist.field_offset.
   unfold get_co in *.
   destruct (cenv_cs ! i1); [| inv H3].
   destruct (Ctypes.field_offset cenv_cs i0 (co_members c)) eqn:?H.
@@ -396,7 +396,7 @@ Lemma union_op_facts: forall Delta t_root e gfs efs tts i a i0 t rho,
   legal_nested_efield_rec t_root gfs tts = true ->
   legal_nested_field t_root (gfs UDOT i0) ->
   type_almost_match e t_root (LR_of_type t_root) = true ->
-  nested_field_type2 t_root gfs = Tunion i a ->
+  nested_field_type t_root gfs = Tunion i a ->
   efield_denote efs gfs rho =
   efield_denote efs gfs rho &&
   ((tc_lvalue Delta (nested_efield e efs tts) rho -->
@@ -450,8 +450,8 @@ Lemma eval_lvalue_nested_efield_aux: forall Delta t_root e efs gfs tts p,
   tc_efield Delta efs &&
   efield_denote efs gfs |--
   local (`(eq (field_address t_root gfs p))
-   (eval_LR (nested_efield e efs tts) (LR_of_type (nested_field_type2 t_root gfs)))) &&
-  tc_LR Delta (nested_efield e efs tts) (LR_of_type (nested_field_type2 t_root gfs)).
+   (eval_LR (nested_efield e efs tts) (LR_of_type (nested_field_type t_root gfs)))) &&
+  tc_LR Delta (nested_efield e efs tts) (LR_of_type (nested_field_type t_root gfs)).
 Proof.
   intros.
   unfold local, lift1; simpl; intro rho.
@@ -465,7 +465,7 @@ Proof.
   specialize (IHefs gfs tts);
   (pose proof H;
    apply field_compatible_cons in H;
-    destruct (nested_field_type2 t_root gfs) eqn:?H; try solve [inv H]);
+    destruct (nested_field_type t_root gfs) eqn:?H; try solve [inv H]);
   pose proof (proj1 (proj1 (andb_true_iff _ _) H0) : legal_nested_efield_rec t_root gfs tts = true);
   (spec IHefs; [tauto |]);
   (spec IHefs; [auto |]);
@@ -483,14 +483,14 @@ Proof.
     rewrite !denote_tc_assert_andp, H10.
     unfold denote_tc_assert at 1 4, denote_tc_isptr; simpl.
     unfold local, lift1, force_val2; unfold_lift.
-    assert (offset_val (Int.repr (nested_field_offset2 t_root (gfs SUB i0)))
+    assert (offset_val (Int.repr (nested_field_offset t_root (gfs SUB i0)))
             (eval_LR e (LR_of_type t_root) rho) =
             force_val
                (sem_add (typeof (nested_efield e efs tts)) 
                   (typeof i) (eval_expr (nested_efield e efs tts) rho)
                   (eval_expr i rho)));
      [| repeat apply andp_right; try apply prop_right; auto].
-    - rewrite offset_val_nested_field_offset2_ind by auto.
+    - rewrite offset_val_nested_field_offset_ind by auto.
       simpl; unfold sem_add.
       unfold local, lift1; unfold_lift.
       rewrite H9.
@@ -518,7 +518,7 @@ Proof.
     eapply derives_trans; [apply modus_ponens |].
     apply andp_right; [apply prop_right | auto].
     rewrite H7.
-    rewrite offset_val_nested_field_offset2_ind by auto.
+    rewrite offset_val_nested_field_offset_ind by auto.
     rewrite H4; simpl.
     simpl in H8; rewrite <- H8.
     reflexivity.
@@ -534,7 +534,7 @@ Proof.
     eapply derives_trans; [apply modus_ponens |].
     apply andp_right; [apply prop_right | auto].
     rewrite H7.
-    rewrite offset_val_nested_field_offset2_ind by auto.
+    rewrite offset_val_nested_field_offset_ind by auto.
     rewrite H4; simpl.
     simpl in H8; rewrite <- H8.
     reflexivity.
@@ -544,7 +544,7 @@ Lemma eval_lvalue_nested_efield: forall Delta t_root e efs gfs tts lr p,
   field_compatible t_root gfs p ->
   LR_of_type t_root = lr ->
   legal_nested_efield t_root e gfs tts lr = true ->
-  type_is_by_value (nested_field_type2 t_root gfs) = true ->
+  type_is_by_value (nested_field_type t_root gfs) = true ->
   local (`(eq p) (eval_LR e lr)) &&
   tc_LR Delta e lr &&
   local (tc_environ Delta) &&
@@ -556,16 +556,16 @@ Proof.
   subst lr.
   eapply derives_trans; [apply eval_lvalue_nested_efield_aux; eauto |].
   apply andp_left1.
-  destruct (LR_of_type (nested_field_type2 t_root gfs)) eqn:?H; auto.
+  destruct (LR_of_type (nested_field_type t_root gfs)) eqn:?H; auto.
   unfold LR_of_type in H0.
-  destruct (nested_field_type2 t_root gfs) as [| [| | |] [|] | | [|] | | | | |]; inv H2; inv H0.
+  destruct (nested_field_type t_root gfs) as [| [| | |] [|] | | [|] | | | | |]; inv H2; inv H0.
 Qed.
 
 Lemma tc_lvalue_nested_efield: forall Delta t_root e efs gfs tts lr p,
   field_compatible t_root gfs p ->
   LR_of_type t_root = lr ->
   legal_nested_efield t_root e gfs tts lr = true ->
-  type_is_by_value (nested_field_type2 t_root gfs) = true ->
+  type_is_by_value (nested_field_type t_root gfs) = true ->
   local (`(eq p) (eval_LR e lr)) &&
   tc_LR Delta e lr &&
   local (tc_environ Delta) &&
@@ -577,9 +577,9 @@ Proof.
   subst lr.
   eapply derives_trans; [apply eval_lvalue_nested_efield_aux; eauto |].
   apply andp_left2.
-  destruct (LR_of_type (nested_field_type2 t_root gfs)) eqn:?H; auto.
+  destruct (LR_of_type (nested_field_type t_root gfs)) eqn:?H; auto.
   unfold LR_of_type in H0.
-  destruct (nested_field_type2 t_root gfs) as [| [| | |] [|] | | [|] | | | | |]; inv H2; inv H0.
+  destruct (nested_field_type t_root gfs) as [| [| | |] [|] | | [|] | | | | |]; inv H2; inv H0.
 Qed.
 
 End CENV.

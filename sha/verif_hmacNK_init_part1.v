@@ -42,7 +42,7 @@ Definition hmac_init_part1_FRAME1 key kb kofs cb cofs pad : mpred :=
 Opaque hmac_init_part1_FRAME1.
 
 Definition hmac_init_part1_FRAME2 cb cofs := data_at Tsh
-       (nested_field_type2 t_struct_hmac_ctx_st [StructField 13%positive])
+       (nested_field_type t_struct_hmac_ctx_st [StructField 13%positive])
        (fst (default_val t_struct_hmac_ctx_st))
        (field_address t_struct_hmac_ctx_st [StructField 13%positive]
           (Vptr cb cofs)). 
@@ -173,7 +173,7 @@ Proof. intros. abbreviate_semax.
       forward_call (Vptr cb cofs). (*Issue: takes 5mins...*)
       { repeat rewrite sepcon_assoc. apply sepcon_derives. 2: cancel.
         eapply derives_trans. apply data_at_data_at_. 
-          unfold offset_val. simpl. unfold field_offset; simpl. unfold fieldlist.field_offset2; simpl. unfold field_type; simpl.
+          unfold offset_val. simpl. unfold field_offset; simpl. unfold fieldlist.field_offset; simpl. unfold field_type; simpl.
           rewrite Int.add_zero. apply derives_refl. }
        normalize.
       (*call to SHA256_Update*) 
@@ -268,7 +268,7 @@ Proof. intros. abbreviate_semax.
       entailer!.
       unfold data_at at 3. 
       Transparent Z.add. unfold_field_at 1%nat. Opaque Z.add. normalize.
-      unfold nested_field_type2, HMS; simpl.
+      unfold nested_field_type, HMS; simpl.
       rewrite field_at_data_at at 1.  
      assert (SFL: Zlength  (sha_finish ctxSha) = 32).
         destruct ctxSha. simpl. rewrite <- functional_prog.SHA_256'_eq, Zlength_correct, length_SHA256'. reflexivity. 

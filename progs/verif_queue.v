@@ -177,7 +177,7 @@ rewrite <- !eq_rect_eq.
 unfold fold_reptype; simpl; rewrite !eq_rect_r_eq.
 unfold default_val; simpl.
 unfold field_at_.
-change (default_val (nested_field_type2 list_struct [StructField _next]))
+change (default_val (nested_field_type list_struct [StructField _next]))
   with Vundef.
 unfold data_at.
 unfold_field_at 5%nat.
@@ -218,9 +218,9 @@ unfold field_at_.
  probably related to the ordering of type-checking and type-class
  resolution; if the "rewrite" is filled in with all implicit
   type-class arguments, then it succeeds.
-change (default_val (nested_field_type2 t_struct_elem [StructField _next])) with Vundef. *)
+change (default_val (nested_field_type t_struct_elem [StructField _next])) with Vundef. *)
 rewrite <- (field_at_share_join _ _ _ _ _ _ _ Qsh_Qsh').
-change (default_val (nested_field_type2 t_struct_elem [StructField _next])) with Vundef.
+change (default_val (nested_field_type t_struct_elem [StructField _next])) with Vundef.
 rewrite <- !sepcon_assoc.
 pull_left (field_at Qsh' t_struct_elem [StructField _next] Vundef p).
 pull_left (field_at Qsh' t_struct_elem [StructField _b] (Vint b) p).
@@ -239,7 +239,7 @@ rewrite field_at_list_cell_weak by auto.
 rewrite sepcon_assoc.
 f_equal.
 unfold field_at_.
-change (default_val (nested_field_type2 t_struct_elem [StructField _next])) with Vundef.
+change (default_val (nested_field_type t_struct_elem [StructField _next])) with Vundef.
 rewrite sepcon_comm.
 symmetry.
 apply (field_at_share_join _ _ _ t_struct_elem [StructField _next] Vundef p Qsh_Qsh').

@@ -32,8 +32,8 @@ Require Export floyd.globals_lemmas.
 Require Export floyd.diagnosis.
 Export ListNotations.
 
-Arguments nested_field_type2 {cs} t gfs / .
-Arguments nested_field_offset2 {cs} t gfs / .
+Arguments nested_field_type {cs} t gfs / .  (* redundant? *)
+Arguments nested_field_offset {cs} t gfs / .  (* redundant? *)
 Arguments Z.mul !x !y.
 Arguments Z.sub !m !n.
 Arguments Z.add !x !y.

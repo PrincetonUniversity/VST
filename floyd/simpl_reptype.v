@@ -128,7 +128,7 @@ Ltac solve_load_rule_evaluation :=
     match gfs_opaque with
     | nil =>
       let opaque_v := fresh "v" in
-      pose (proj_reptype (nested_field_type2 t gfs_compute) gfs_opaque) as opaque_function;
+      pose (proj_reptype (nested_field_type t gfs_compute) gfs_opaque) as opaque_function;
       change (@repinject cs t0 (@proj_reptype cs t gfs v)) with
        (@proj_reptype cs t gfs_compute v);
       set (opaque_v := v);
@@ -137,7 +137,7 @@ Ltac solve_load_rule_evaluation :=
     | @cons _ _ _ =>
       let opaque_function := fresh "opaque_function" in
       let opaque_v := fresh "v" in
-      pose (proj_reptype (nested_field_type2 t gfs_compute) gfs_opaque) as opaque_function;
+      pose (proj_reptype (nested_field_type t gfs_compute) gfs_opaque) as opaque_function;
       change (@repinject cs t0 (@proj_reptype cs t gfs v)) with
        (opaque_function (@proj_reptype cs t gfs_compute v));
       set (opaque_v := v);    

@@ -5,14 +5,14 @@ Require Import floyd.client_lemmas.
 Arguments align !n !amount / .
 Arguments Z.max !n !m / .
 
-Definition field_type2 i m :=
-  match field_type i m with
+Definition field_type i m :=
+  match Ctypes.field_type i m with
   | Errors.OK t => t
   | _ => Tvoid
   end.
 
-Definition field_offset2 env i m :=
-  match field_offset env i m with
+Definition field_offset env i m :=
+  match Ctypes.field_offset env i m with
   | Errors.OK ofs => ofs
   | _ => 0
   end.
@@ -32,12 +32,12 @@ Fixpoint field_offset_next_rec env i m ofs sz :=
 
 Definition field_offset_next env i m sz := field_offset_next_rec env i m 0 sz.
 
-Lemma in_members_field_type2: forall i m,
+Lemma in_members_field_type: forall i m,
   in_members i m ->
-  In (i, field_type2 i m) m.
+  In (i, field_type i m) m.
 Proof.
   intros.
-  unfold field_type2.
+  unfold field_type.
   induction m as [|[i0 t0] m].
   + inversion H.
   + unfold in_members in H; simpl in H.
@@ -55,14 +55,14 @@ Proof.
 Qed.
  
 Lemma field_offset_field_type_match: forall cenv i m,
-  match field_offset cenv i m, field_type i m with
+  match Ctypes.field_offset cenv i m, Ctypes.field_type i m with
   | Errors.OK _, Errors.OK _ => True
   | Errors.Error _, Errors.Error _ => True
   | _, _ => False
   end.
 Proof.
   intros.
-  unfold field_offset.
+  unfold Ctypes.field_offset.
   remember 0 as pos; clear Heqpos.
   revert pos; induction m as [| [? ?] ?]; intros.
   + simpl. auto.
@@ -72,7 +72,7 @@ Proof.
 Defined.
 
 Lemma field_type_in_members: forall i m,
-  match field_type i m with
+  match Ctypes.field_type i m with
   | Errors.Error _ => ~ in_members i m
   | _ => in_members i m
   end.
@@ -99,28 +99,28 @@ Ltac solve_field_offset_type i m :=
   let t := fresh "t" in
   let ofs := fresh "ofs" in
   pose proof field_offset_field_type_match cenv_cs i m;
-  destruct (field_offset cenv_cs i m) as [ofs|?] eqn:Hofs, (field_type i m) as [t|?] eqn:Hty;
+  destruct (Ctypes.field_offset cenv_cs i m) as [ofs|?] eqn:Hofs, (Ctypes.field_type i m) as [t|?] eqn:Hty;
     [clear H | inversion H | inversion H | clear H].
 
-Lemma complete_type_field_type2: forall id i,
+Lemma complete_type_field_type: forall id i,
   in_members i (co_members (get_co id)) ->
-  complete_type cenv_cs (field_type2 i (co_members (get_co id))) = true.
+  complete_type cenv_cs (field_type i (co_members (get_co id))) = true.
 Proof.
   unfold get_co.
   intros.
   destruct (cenv_cs ! id) as [co |] eqn:CO.
-  + apply in_members_field_type2 in H.
+  + apply in_members_field_type in H.
     eapply complete_member; eauto.
     apply co_consistent_complete.
     exact (cenv_consistent id co CO).
   + inversion H.
 Qed.
 
-Lemma field_offset2_aligned: forall i m,
-  (alignof cenv_cs (field_type2 i m) | field_offset2 cenv_cs i m).
+Lemma field_offset_aligned: forall i m,
+  (alignof cenv_cs (field_type i m) | field_offset cenv_cs i m).
 Proof.
   intros.
-  unfold field_type2, field_offset2.
+  unfold field_type, field_offset.
   solve_field_offset_type i m.
   + eapply field_offset_aligned; eauto.
   + apply Z.divide_0_r.
@@ -148,16 +148,16 @@ Proof.
   exact (power_nat_divide N M H1).
 Qed.
 
-Lemma alignof_field_type2_divide_alignof: forall i m,
+Lemma alignof_field_type_divide_alignof: forall i m,
   in_members i m ->
-  (alignof cenv_cs (field_type2 i m) | alignof_composite cenv_cs m).
+  (alignof cenv_cs (field_type i m) | alignof_composite cenv_cs m).
 Proof.
   intros.
-  unfold field_type2.
+  unfold field_type.
   induction m as [| [i0 t0] m].
   + inversion H.
   + unfold in_members in H; simpl in H.
-    simpl field_type.
+    simpl Ctypes.field_type.
     if_tac.
     - apply alignof_composite_hd_divide.
     - eapply Zdivide_trans.
@@ -167,12 +167,12 @@ Proof.
 Qed.
 
 (* if sizeof Tvoid = 0, this lemma can be nicer. *)
-Lemma field_offset2_in_range: forall i m,
+Lemma field_offset_in_range: forall i m,
   in_members i m ->
-  0 <= field_offset2 cenv_cs i m /\ field_offset2 cenv_cs i m + sizeof cenv_cs (field_type2 i m) <= sizeof_struct cenv_cs 0 m.
+  0 <= field_offset cenv_cs i m /\ field_offset cenv_cs i m + sizeof cenv_cs (field_type i m) <= sizeof_struct cenv_cs 0 m.
 Proof.
   intros.
-  unfold field_offset2, field_type2.
+  unfold field_offset, field_type.
   solve_field_offset_type i m.
   + eapply field_offset_in_range; eauto.
   + pose proof field_type_in_members i m.
@@ -183,12 +183,12 @@ Qed.
 (* if sizeof Tvoid = 0, this lemma can be nicer. *)
 Lemma sizeof_union_in_members: forall i m,
   in_members i m ->
-  sizeof cenv_cs (field_type2 i m) <= sizeof_union cenv_cs m.
+  sizeof cenv_cs (field_type i m) <= sizeof_union cenv_cs m.
 (* field_offset2_in_range union's version *)
 Proof.
   intros.
   unfold in_members in H.
-  unfold field_type2.
+  unfold field_type.
   induction m as [|[i0 t0] m].
   + inversion H.
   + simpl.
@@ -201,16 +201,16 @@ Proof.
 Qed.
 
 (* if sizeof Tvoid = 0, this lemma can be nicer. *)
-Lemma field_offset2_no_overlap:
+Lemma field_offset_no_overlap:
   forall i1 i2 m,
   i1 <> i2 ->
   in_members i1 m ->
   in_members i2 m ->
-  field_offset2 cenv_cs i1 m + sizeof cenv_cs (field_type2 i1 m) <= field_offset2 cenv_cs i2 m \/
-  field_offset2 cenv_cs i2 m + sizeof cenv_cs (field_type2 i2 m) <= field_offset2 cenv_cs i1 m.
+  field_offset cenv_cs i1 m + sizeof cenv_cs (field_type i1 m) <= field_offset cenv_cs i2 m \/
+  field_offset cenv_cs i2 m + sizeof cenv_cs (field_type i2 m) <= field_offset cenv_cs i1 m.
 Proof.
   intros.
-  unfold field_offset2, field_type2.
+  unfold field_offset, field_type.
   pose proof field_type_in_members i1 m.
   pose proof field_type_in_members i2 m.
   solve_field_offset_type i1 m;
@@ -218,11 +218,11 @@ Proof.
   eapply field_offset_no_overlap; eauto.
 Qed.
 
-Lemma not_in_members_field_type2: forall i m,
+Lemma not_in_members_field_type: forall i m,
   ~ in_members i m ->
-  field_type2 i m = Tvoid.
+  field_type i m = Tvoid.
 Proof.
-  unfold in_members, field_type2.
+  unfold in_members, field_type.
   intros.
   induction m as [| [i0 t0] m].
   + reflexivity.
@@ -231,11 +231,11 @@ Proof.
     destruct (ident_eq i i0) as [HH | HH]; pose proof (@eq_sym ident i i0); tauto.
 Qed.
 
-Lemma not_in_members_field_offset2: forall i m,
+Lemma not_in_members_field_offset: forall i m,
   ~ in_members i m ->
-  field_offset2 cenv_cs i m = 0.
+  field_offset cenv_cs i m = 0.
 Proof.
-  unfold in_members, field_offset2, field_offset.
+  unfold in_members, field_offset, Ctypes.field_offset.
   intros.
   generalize 0 at 1.
   induction m as [| [i0 t0] m]; intros.
@@ -249,12 +249,12 @@ Qed.
 Lemma field_offset_next_in_range: forall i m sz,
   in_members i m ->
   sizeof_struct cenv_cs 0 m <= sz ->
-  field_offset2 cenv_cs i m + sizeof cenv_cs (field_type2 i m) <=
+  field_offset cenv_cs i m + sizeof cenv_cs (field_type i m) <=
   field_offset_next cenv_cs i m sz <= sz.
 Proof.
   intros.
   destruct m as [| [i0 t0] m]; [inversion H |].
-  unfold field_offset2, field_offset, field_offset_next, field_type2.
+  unfold field_offset, Ctypes.field_offset, field_offset_next, field_type.
   pattern 0 at 3 4; replace 0 with (align 0 (alignof cenv_cs t0)) by (apply align_0, alignof_pos).
   match goal with
   | |- ?A => assert (A /\
@@ -262,7 +262,7 @@ Proof.
                      | Errors.OK _ => True
                      | _ => False
                      end /\
-                     match field_type i ((i0, t0) :: m) with
+                     match Ctypes.field_type i ((i0, t0) :: m) with
                      | Errors.OK _ => True
                      | _ => False
                      end); [| tauto]
@@ -343,7 +343,7 @@ Defined.
 
 Lemma map_members_ext: forall A (f f':ident * type -> A) (m: members),
   members_no_replicate m = true ->
-  (forall i, in_members i m -> f (i, field_type2 i m) = f' (i, field_type2 i m)) ->
+  (forall i, in_members i m -> f (i, field_type i m) = f' (i, field_type i m)) ->
   map f m = map f' m.
 Proof.
   intros.
@@ -353,13 +353,13 @@ Proof.
     rewrite members_no_replicate_ind in H.
     f_equal.
     - specialize (H0 i0).
-      unfold field_type2, in_members in H0.
+      unfold field_type, in_members in H0.
       simpl in H0; if_tac in H0; [| congruence].
       apply H0; auto.
     - apply IHm; [tauto |].
       intros.
       specialize (H0 i).
-      unfold field_type2, in_members in H0.
+      unfold field_type, in_members in H0.
       simpl in H0; if_tac in H0; [subst; tauto |].
       apply H0; auto.
 Defined.
@@ -401,11 +401,11 @@ Qed.
 Lemma sizeof_struct_0: forall env i m,
   sizeof_struct env 0 m = 0 ->
   in_members i m ->
-  sizeof env (field_type2 i m) = 0 /\
-  field_offset_next env i m 0 - (field_offset2 env i m + sizeof env (field_type2 i m)) = 0.
+  sizeof env (field_type i m) = 0 /\
+  field_offset_next env i m 0 - (field_offset env i m + sizeof env (field_type i m)) = 0.
 Proof.
   intros.
-  unfold field_type2, field_offset2, field_offset, field_offset_next.
+  unfold field_type, field_offset, Ctypes.field_offset, field_offset_next.
   induction m as [| (i0, t0) m].
   + inversion H0.
   + simpl in H.
@@ -433,10 +433,10 @@ Qed.
 Lemma sizeof_union_0: forall env i m,
   sizeof_union env m = 0 ->
   in_members i m ->
-  sizeof env (field_type2 i m) = 0.
+  sizeof env (field_type i m) = 0.
 Proof.
   intros.
-  unfold field_type2.
+  unfold field_type.
   induction m as [| (i0, t0) m].
   + inversion H0.
   + simpl in H.
@@ -471,12 +471,12 @@ list_ind (fun l0 : list A => forall x : A, In x l0 -> In (f x) (map f l0))
         ((fun H1 : In x l0 -> In (f x) (map f l0) =>
           (fun H2 : In (f x) (map f l0) => H2) (H1 H0)) (IHl x))) H) l.
 
-Lemma In_field_type2: forall it m,
+Lemma In_field_type: forall it m,
   members_no_replicate m = true ->
   In it m ->
-  field_type2 (fst it) m = snd it.
+  field_type (fst it) m = snd it.
 Proof.
-  unfold field_type2.
+  unfold field_type.
   intros.
   induction m.
   + inversion H0.
@@ -497,11 +497,10 @@ Defined.
 
 End COMPOSITE_ENV.
 
-Module fieldlist.
+Arguments field_type i m / .
+Arguments field_offset env i m / .
 
-Definition field_type := @field_type2.
-Definition field_offset := @field_offset2.
-Definition field_offset_next := @field_offset_next.
+(*Module fieldlist.
 
 Definition map_members_ext: forall A (f f':ident * type -> A) (m: members),
   members_no_replicate m = true ->
@@ -602,164 +601,4 @@ Definition In_field_type: forall it m,
 := @In_field_type2.
 
 End fieldlist.
-
-(************************************************
-
-Lemmas about fieldlist_app
-
-************************************************)
-(*
-Lemma fieldlist_app_Fnil: forall f, fieldlist_app f Fnil = f.
-Proof.
-  intros.
-  induction f.
-  + reflexivity.
-  + simpl. rewrite IHf. reflexivity.
-Defined.
-
-Lemma fieldlist_app_Fcons: forall m1 i t f2, fieldlist_app m1 (Fcons i t f2) = fieldlist_app (fieldlist_app m1 (Fcons i t Fnil)) f2.
-Proof.
-  intros.
-  induction m1.
-  + reflexivity.
-  + simpl.
-    rewrite IHm1.
-    reflexivity.
-Defined.
-
-Lemma id_in_members_app: forall i (m1 m2: members),
-  id_in_members i (m1 ++ m2) = (id_in_members i m1 || id_in_members i m2)%bool.
-Proof.
-  intros.
-  induction m1 as [| [? ?] ?]; simpl.
-  + reflexivity.
-  + if_tac.
-    - reflexivity.
-    - exact IHm1.
-Qed.
-
-Lemma members_no_replicate_fact:
-  forall m1 m2 i, members_no_replicate (app m1 m2) = true ->
-  isOK (field_type i m1) = true -> isOK (field_type i m2) = true -> False.
-Proof.
-  intros.
-  induction m1 as [| [? ?] ?].
-  + inversion H0.
-  + unfold members_no_replicate in H; simpl in H0, H.
-    if_tac in H0.
-    - rewrite members_app_field_type_isOK in H.
-      rewrite negb_true_iff, orb_false_iff in H.
-      destruct H as [_ ?].
-      subst.
-      congruence.
-    - destruct H as [_ ?].
-      apply IHm1; auto.
-Qed.
-
-(****************************************************************
-
-field_type_hd, field_type_mid, field_offset_hd, field_offset_mid
-
-****************************************************************)
-
-Lemma field_type_hd: forall i t f, field_type i (Fcons i t f) = Errors.OK t.
-Proof.
-  intros.
-  simpl.
-  if_tac; [reflexivity | congruence].
-Defined.
-
-Lemma field_type_mid: forall i t f' f, fieldlist_no_replicate (fieldlist_app f' (Fcons i t f)) = true -> field_type i (fieldlist_app f' (Fcons i t f)) = Errors.OK t.
-Proof.
-  intros.
-  pose proof field_type_hd i t f.
-  assert (isOK (field_type i (Fcons i t f)) = true) by (simpl; if_tac; [| congruence]; reflexivity).
-  remember (Fcons i t f) as f''; clear Heqf'' f.
-  pose proof (fun HH => fieldlist_no_replicate_fact _ _ _ H HH H1).
-  clear H1.
-  induction f'.
-  + exact H0.
-  + simpl in *.
-    destruct (ident_eq i i0); [simpl in H2; congruence|].
-    apply andb_true_iff in H; destruct H as [_ ?]. 
-    exact (IHf' H H2).
-Defined.
-
-Lemma field_offset_hd: forall i t f, field_offset i (Fcons i t f) = Errors.OK 0.
-Proof.
-  intros.
-  unfold field_offset.
-  simpl.
-  if_tac; [rewrite (align_0 _ (alignof_pos _)); reflexivity | congruence].
-Defined.
-
-Lemma field_offset_mid: forall i0 t0 i1 t1 f' f ofs, fieldlist_no_replicate (fieldlist_app f' (Fcons i1 t1 (Fcons i0 t0 f))) = true -> field_offset i1 (fieldlist_app f' (Fcons i1 t1 (Fcons i0 t0 f))) = Errors.OK ofs -> field_offset i0 (fieldlist_app f' (Fcons i1 t1 (Fcons i0 t0 f))) = Errors.OK (align (ofs + sizeof t1) (alignof t0)).
-Proof.
-  intros.
-  unfold field_offset in *.
-  remember 0 as pos; clear Heqpos.
-  revert pos H0; induction f'; intros.
-  + simpl in *.
-    if_tac.
-    - if_tac in H; try congruence. inversion H.
-    - if_tac in H; try congruence; clear H1.
-      if_tac in H0; try congruence; clear H1.
-      if_tac; try congruence.
-  + simpl in *.
-    apply andb_true_iff in H.
-    destruct H.
-    destruct (isOK (field_type i (Fcons i1 t1 (Fcons i0 t0 f)))) eqn:H';
-      [rewrite fieldlist_app_field_type_isOK in H; rewrite H' in H;
-       destruct (isOK (field_type i f')); inversion H|].
-    simpl in H'.
-    if_tac in H'; try solve [inversion H'].
-    if_tac in H'; try solve [inversion H'].
-    if_tac; try congruence.
-    if_tac in H0; try congruence.
-    apply (IHf' H1), H0.
-Defined.
-
-(****************************************************************
-
-Other lemmas
-
-****************************************************************)
-
-Lemma field_offset_in_range': forall sid fld a fid ty,
-  field_type fid fld = Errors.OK ty ->
-  sizeof ty <= sizeof (Tunion sid fld a).
-Proof.
-  intros.
-  simpl.
-  pose proof alignof_pos (Tunion sid fld a).
-  assert (sizeof_union fld <= align (sizeof_union fld) (alignof (Tunion sid fld a)))
-    by (apply align_le; omega).
-  cut (sizeof ty <= sizeof_union fld); [simpl in *; omega |].
-  clear -H.
-  induction fld.
-  + inversion H.
-  + simpl in *. if_tac in H.
-    - inversion H.
-      apply Z.le_max_l.
-    - apply Zmax_bound_r, IHfld, H.
-Qed.
-
-Lemma eqb_fieldlist_true: forall m1 m2, eqb_fieldlist m1 m2 = true -> m1 = m2.
-Proof.
-  intros.
-  revert m2 H; induction m1; intros; destruct m2; simpl in *.
-  + reflexivity.
-  + inversion H.
-  + inversion H.
-  + apply andb_true_iff in H.
-    destruct H.
-    apply andb_true_iff in H0.
-    destruct H0.
-    apply IHm1 in H1.
-    apply eqb_type_true in H0.
-    apply eqb_ident_spec in H.
-    subst; reflexivity.
-Qed.
-
-
 *)

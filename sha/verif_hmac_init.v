@@ -130,7 +130,7 @@ remember (EX shaStates:_ ,
      forward_call' (((Tsh, Tsh),
              Vptr cb cofs,
              offset_val
-              (Int.repr (nested_field_offset2 t_struct_hmac_ctx_st [StructField _i_ctx]))
+              (Int.repr (nested_field_offset t_struct_hmac_ctx_st [StructField _i_ctx]))
               (Vptr cb cofs),
              mkTrep t_struct_SHA256state_st iS)) rv.
      { simpl. rewrite CIOff.
@@ -180,7 +180,7 @@ remember (EX shaStates:_ ,
     rewrite (field_at_data_at Tsh t_struct_hmac_ctx_st [StructField _md_ctx]); try reflexivity.
     rename b into kb; rename i into kofs.
     replace_SEP 4 
-      (`(memory_block Tsh (Int.repr (sizeof (nested_field_type2 t_struct_hmac_ctx_st [StructField _md_ctx])))
+      (`(memory_block Tsh (Int.repr (sizeof (nested_field_type t_struct_hmac_ctx_st [StructField _md_ctx])))
            (field_address t_struct_hmac_ctx_st [StructField _md_ctx] (Vptr cb cofs)))).
        entailer!.
     rewrite (field_at_data_at Tsh t_struct_hmac_ctx_st [StructField _i_ctx]); try reflexivity.

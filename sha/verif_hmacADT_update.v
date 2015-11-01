@@ -91,5 +91,5 @@ simpl. entailer.
 unfold_data_at 2%nat.
 destruct ST as [ST1 [ST2 ST3]]. simpl in *. cancel.
 rewrite field_at_data_at. 
-    unfold nested_field_type2, field_address; simpl.
+    unfold nested_field_type, field_address; simpl.
     rewrite <- Heqs. entailer. 

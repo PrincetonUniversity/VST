@@ -1,5 +1,5 @@
 Require Import floyd.base.
-Require floyd.fieldlist. Import floyd.fieldlist.fieldlist.
+Require Import floyd.fieldlist.
 Require Import floyd.computable_theorems.
 Open Scope nat.
 
@@ -361,7 +361,8 @@ Proof.
       pose proof get_co_members_no_replicate id.
       pose proof In_field_type (i, t) _ H1 Hin.
       rewrite <- (co_consistent_rank cenv_cs (get_co id) (get_co_consistent _)) in H3.
-      apply IH;
+      unfold field_type in H2.
+      apply IH; 
        (eapply le_trans; [ | eassumption]; rewrite H2; auto).
     - destruct n, n0; simpl;  unfold FT_aux in *;
       generalize (F_Tstruct id a) as FF; unfold get_co;

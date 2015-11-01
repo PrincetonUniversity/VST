@@ -1152,6 +1152,55 @@ rewrite sublist0_app1, sublist_same; try omega.
  rewrite sublist_app2, Zminus_diag; trivial. omega.
 Qed.
 
+
+Lemma sublist_rejoin':
+  forall {A} lo mid mid' hi (al: list A),
+  mid=mid' ->
+  0 <= lo <= mid ->
+  mid' <= hi <= Zlength al ->
+  sublist lo mid al ++ sublist mid' hi al = sublist lo hi al.
+Proof.
+intros.
+subst mid'.
+apply sublist_rejoin; auto.
+Qed.
+
+Hint Rewrite @sublist_nil' using (autorewrite with sublist; omega): sublist.
+Hint Rewrite @app_nil_l : sublist.
+Hint Rewrite @Zlength_rev : sublist.
+Hint Rewrite @sublist_rejoin' using (autorewrite with sublist; omega) : sublist.
+
+Lemma subsub1:
+ forall a b : Z, (a-(a-b)) = b.
+Proof.  intros. omega. Qed.
+Hint Rewrite subsub1 : sublist.
+
+Lemma sublist_app':
+  forall {A} lo hi (al bl: list A),
+  0 <= lo <= Zlength al ->
+  0 <= hi-Zlength al <= Zlength bl ->
+  sublist lo hi (al++bl) = 
+  sublist lo (Zlength al) al ++
+  sublist 0 (hi-Zlength al) bl.
+Proof.
+intros.
+unfold sublist.
+simpl.
+rewrite Zskipn_app1 by omega.
+rewrite Zfirstn_app2
+ by (rewrite Zlength_skipn, Z.max_r;
+      rewrite ?Z.max_r; omega).
+rewrite Zlength_skipn, Z.max_r;
+      rewrite ?Z.max_r; try omega.
+rewrite (Zfirstn_exact_length (Zlength al - lo))
+ by (rewrite Zlength_skipn, Z.max_r;
+      rewrite ?Z.max_r; omega).
+f_equal.
+f_equal.
+f_equal.
+omega.
+Qed.
+
 (*Hint Rewrite @Zlength_list_repeat'  : sublist.*)
 Hint Rewrite @Znth_list_repeat_inrange : sublist.
 Hint Rewrite @Zlength_cons @Zlength_nil: sublist.

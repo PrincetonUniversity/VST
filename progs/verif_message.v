@@ -453,7 +453,7 @@ Admitted.
    with (t0 := (tptr
           (Tfunction (Tcons (tptr tvoid) (Tcons (tptr tuchar) Tnil)) tint
              cc_default)))
-     (e:= PTree.empty _)(sh := sh_obj) (v':= valinject (nested_field_type2 (typeof e_obj) (StructField _serialize :: @nil gfield)) f) (*t:= t_struct_message*);
+     (e:= PTree.empty _)(sh := sh_obj) (v':= valinject (nested_field_type (typeof e_obj) (StructField _serialize :: @nil gfield)) f) (*t:= t_struct_message*);
     try assumption; try rewrite H2; try reflexivity.
   admit.  (* closed...  should be fine *)
    admit.  (* closed...  should be fine *)

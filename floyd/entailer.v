@@ -5,6 +5,112 @@ Require Import floyd.reptype_lemmas.
 Require Import floyd.data_at_lemmas.
 
 Local Open Scope logic.
+(*** Omega stuff ***)
+Ltac  add_nonredundant' F T G :=
+   match G with
+        | T -> _ => fail 1
+        | _ -> ?G' => add_nonredundant' F T G' || fail 1
+        | _ => generalize F
+  end.
+
+Ltac  add_nonredundant F :=
+ match type of F with ?T =>
+   match goal with |- ?G => add_nonredundant' F T G
+   end
+ end.
+
+Lemma omega_aux: forall {A} (B C: A),
+   B=C -> forall D, (B=C->D) -> D.
+Proof. intuition. Qed.
+
+Ltac is_const A :=
+ match A with
+ | Z0 => idtac
+ | Zpos ?B => is_const B
+ | Zneg ?B => is_const B
+ | xH => idtac
+ | xI ?B => is_const B
+ | xO ?B => is_const B
+ | O => idtac
+ | S ?B => is_const B
+ end.
+
+Ltac simpl_const :=
+  match goal with
+   | |- context [Z.of_nat ?A] =>
+     is_const A; 
+     let H := fresh in set (H:= Z.of_nat A); simpl in H; unfold H; clear H
+   | |- context [Z.to_nat ?A] =>
+     is_const A; 
+     let H := fresh in set (H:= Z.to_nat A); simpl in H; unfold H; clear H
+  end.
+
+Ltac Omega' L :=
+repeat match goal with
+ | H: @eq Z _ _ |- _ => revert H
+ | H: @eq nat _ _ |- _ => revert H
+ | H: @neq Z _ _ |- _ => revert H
+ | H: not (@eq Z _ _) |- _ => revert H
+ | H: @neq nat _ _ |- _ => revert H
+ | H: not (@eq nat _ _) |- _ => revert H
+ | H: _ <> _ |- _ => revert H
+ | H: Z.lt _ _ |- _ => revert H
+ | H: Z.le _ _ |- _ => revert H
+ | H: Z.gt _ _ |- _ => revert H
+ | H: Z.ge _ _ |- _ => revert H
+ | H: Z.le _ _ /\ Z.le _ _ |- _ => revert H
+ | H: Z.lt _ _ /\ Z.le _ _ |- _ => revert H
+ | H: Z.le _ _ /\ Z.lt _ _ |- _ => revert H
+ | H: lt _ _ |- _ => revert H
+ | H: le _ _ |- _ => revert H
+ | H: gt _ _ |- _ => revert H
+ | H: ge _ _ |- _ => revert H
+ | H: le _ _ /\ le _ _ |- _ => revert H
+ | H: lt _ _ /\ le _ _ |- _ => revert H
+ | H: le _ _ /\ lt _ _ |- _ => revert H
+ | H := ?A : Z |- _ => apply (omega_aux H A (eq_refl _)); clearbody H 
+ | H := ?A : nat |- _ => apply (omega_aux H A (eq_refl _)); clearbody H 
+ | H: _ |- _ => clear H
+ end;
+ clear;
+ abstract (
+   repeat (L || simpl_const);
+   intros; omega).
+
+Ltac Omega'' L :=
+  match goal with
+  | |- (_ >= _)%nat => apply <- Nat2Z.inj_ge
+  | |- (_ > _)%nat => apply <- Nat2Z.inj_gt
+  | |- (_ <= _)%nat => apply <- Nat2Z.inj_le
+  | |- (_ < _)%nat => apply <- Nat2Z.inj_lt
+  | |- @eq nat _ _ => apply Nat2Z.inj
+  | |- _ => idtac
+  end;
+ repeat first
+     [ simpl_const
+     | rewrite Nat2Z.id
+     | rewrite Nat2Z.inj_add
+     | rewrite Nat2Z.inj_mul
+     | rewrite Z2Nat.id by Omega'' L
+     | rewrite Nat2Z.inj_sub by Omega'' L
+     | rewrite Z2Nat.inj_sub by Omega'' L
+     | rewrite Z2Nat.inj_add by Omega'' L
+     ];
+  Omega' L.
+
+Tactic Notation "Omega" tactic(L) := Omega'' L.
+
+Ltac helper1 := 
+ match goal with
+   | |- context [Zlength ?A] => add_nonredundant (Zlength_correct A)
+   | |- context [Int.max_unsigned] => add_nonredundant int_max_unsigned_eq
+   | |- context [Int.max_signed] => add_nonredundant int_max_signed_eq
+   | |- context [Int.min_signed] => add_nonredundant int_min_signed_eq
+  end. 
+
+Ltac Omega0 := Omega (now helper1).
+
+(*** End of Omega stuff *)
 
 Ltac simpl_compare :=
  match goal with
@@ -86,7 +192,7 @@ Ltac try_conjuncts_solver :=
          first [clear H; try immediate; solve [auto] 
                 | apply Coq.Init.Logic.I 
                 | computable 
-                | omega 
+                | Omega0
                 ]
     end.
 
@@ -368,7 +474,7 @@ Ltac prove_it_now :=
         | computable 
         | apply Coq.Init.Logic.I 
         | reflexivity 
-        | omega
+        | Omega0
         | repeat match goal with H: ?A |- _ => has_evar A; clear H end;
           auto with prove_it_now;
           normalize;
@@ -519,108 +625,6 @@ match goal with
   | |- _ => intros
  end.
 
-(*** Omega stuff ***)
-Ltac  add_nonredundant' F T G :=
-   match G with
-        | T -> _ => fail 1
-        | _ -> ?G' => add_nonredundant' F T G' || fail 1
-        | _ => generalize F
-  end.
-
-Ltac  add_nonredundant F :=
- match type of F with ?T =>
-   match goal with |- ?G => add_nonredundant' F T G
-   end
- end.
-
-Lemma omega_aux: forall {A} (B C: A),
-   B=C -> forall D, (B=C->D) -> D.
-Proof. intuition. Qed.
-
-Ltac is_const A :=
- match A with
- | Z0 => idtac
- | Zpos ?B => is_const B
- | Zneg ?B => is_const B
- | xH => idtac
- | xI ?B => is_const B
- | xO ?B => is_const B
- | O => idtac
- | S ?B => is_const B
- end.
-
-Ltac simpl_const :=
-  match goal with
-   | |- context [Z.of_nat ?A] =>
-     is_const A; 
-     let H := fresh in set (H:= Z.of_nat A); simpl in H; unfold H; clear H
-   | |- context [Z.to_nat ?A] =>
-     is_const A; 
-     let H := fresh in set (H:= Z.to_nat A); simpl in H; unfold H; clear H
-  end.
-
-Ltac Omega' L :=
-repeat match goal with
- | H: @eq Z _ _ |- _ => revert H
- | H: @eq nat _ _ |- _ => revert H
- | H: @neq Z _ _ |- _ => revert H
- | H: @neq nat _ _ |- _ => revert H
- | H: Z.lt _ _ |- _ => revert H
- | H: Z.le _ _ |- _ => revert H
- | H: Z.gt _ _ |- _ => revert H
- | H: Z.ge _ _ |- _ => revert H
- | H: Z.le _ _ /\ Z.le _ _ |- _ => revert H
- | H: Z.lt _ _ /\ Z.le _ _ |- _ => revert H
- | H: Z.le _ _ /\ Z.lt _ _ |- _ => revert H
- | H: lt _ _ |- _ => revert H
- | H: le _ _ |- _ => revert H
- | H: gt _ _ |- _ => revert H
- | H: ge _ _ |- _ => revert H
- | H: le _ _ /\ le _ _ |- _ => revert H
- | H: lt _ _ /\ le _ _ |- _ => revert H
- | H: le _ _ /\ lt _ _ |- _ => revert H
- | H := ?A : Z |- _ => apply (omega_aux H A (eq_refl _)); clearbody H 
- | H := ?A : nat |- _ => apply (omega_aux H A (eq_refl _)); clearbody H 
- | H: _ |- _ => clear H
- end;
- clear;
- abstract (
-   repeat (L || simpl_const);
-   intros; omega).
-
-Ltac Omega'' L :=
-  match goal with
-  | |- (_ >= _)%nat => apply <- Nat2Z.inj_ge
-  | |- (_ > _)%nat => apply <- Nat2Z.inj_gt
-  | |- (_ <= _)%nat => apply <- Nat2Z.inj_le
-  | |- (_ < _)%nat => apply <- Nat2Z.inj_lt
-  | |- @eq nat _ _ => apply Nat2Z.inj
-  | |- _ => idtac
-  end;
- repeat first
-     [ simpl_const
-     | rewrite Nat2Z.id
-     | rewrite Nat2Z.inj_add
-     | rewrite Nat2Z.inj_mul
-     | rewrite Z2Nat.id by Omega'' L
-     | rewrite Nat2Z.inj_sub by Omega'' L
-     | rewrite Z2Nat.inj_sub by Omega'' L
-     | rewrite Z2Nat.inj_add by Omega'' L
-     ];
-  Omega' L.
-
-Tactic Notation "Omega" tactic(L) := Omega'' L.
-
-Ltac helper1 := 
- match goal with
-   | |- context [Zlength ?A] => add_nonredundant (Zlength_correct A)
-   | |- context [Int.max_unsigned] => add_nonredundant int_max_unsigned_eq
-   | |- context [Int.max_signed] => add_nonredundant int_max_signed_eq
-   | |- context [Int.min_signed] => add_nonredundant int_min_signed_eq
-  end. 
-
-(*** End of Omega stuff *)
-
 Lemma offset_val_sizeof_hack:
  forall cenv t i p,
    isptr p ->
@@ -708,4 +712,4 @@ Lemma Zmax0r: forall n, 0 <= n -> Z.max 0 n = n.
 Proof.
 intros. apply Z.max_r; auto.
 Qed.
-Hint Rewrite Zmax0r using (try computable; omega) : norm.
+Hint Rewrite Zmax0r using (try computable; Omega0) : norm.

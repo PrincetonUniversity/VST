@@ -199,7 +199,6 @@ forward_call (* sha256_block_data_order (c,p); *)
  entailer!.
 *
 split; [ Omega1 |].
-split; [ Omega1 |].
 split. 
  + rewrite initial_world.Zlength_app.
   apply Z.divide_add_r; auto. rewrite H1'.
@@ -228,7 +227,7 @@ split.
  change (LBLOCKz * 4)%Z with 64%Z.
  autorewrite with sublist.
  eapply derives_trans; [apply data_at_data_at_ | ].
- change (nested_field_type2 t_struct_SHA256state_st [StructField _data])
+ change (nested_field_type t_struct_SHA256state_st [StructField _data])
     with (tarray tuchar 64).
  apply derives_refl.
 Qed.

@@ -2034,12 +2034,12 @@ Lemma semax_nested_efield_field_load_37':
   forall {Espec: OracleKind},
     forall Delta sh id P Q R (e1: expr)
       (t t_root: type) (efs: list efield) (gfs0 gfs1 gfs: list gfield) (tts: list type)
-      (v : val) (v' : reptype (nested_field_type2 t_root gfs0)) lr,
+      (v : val) (v' : reptype (nested_field_type t_root gfs0)) lr,
       typeof_temp Delta id = Some t ->
       is_neutral_cast (typeof (nested_efield e1 efs tts)) t = true ->
       gfs = gfs1 ++ gfs0 ->
       legal_nested_efield t_root e1 gfs tts lr = true ->
-      repinject _ (proj_reptype (nested_field_type2 t_root gfs0) gfs1 v') = v ->
+      repinject _ (proj_reptype (nested_field_type t_root gfs0) gfs1 v') = v ->
       PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |--
          (tc_LR Delta e1 lr) &&
         local `(tc_val (typeof (nested_efield e1 efs tts)) v) &&
@@ -2117,12 +2117,12 @@ Lemma semax_nested_efield_field_cast_load_37':
   forall {Espec: OracleKind},
     forall Delta sh id P Q R (e1: expr)
       (t t_root: type) (efs: list efield) (gfs0 gfs1 gfs: list gfield) (tts: list type)
-      (v : val) (v' : reptype (nested_field_type2 t_root gfs0)) lr,
+      (v : val) (v' : reptype (nested_field_type t_root gfs0)) lr,
       typeof_temp Delta id = Some t ->
       type_is_by_value (typeof (nested_efield e1 efs tts)) = true ->
       gfs = gfs1 ++ gfs0 ->
       legal_nested_efield t_root e1 gfs tts lr = true ->
-      repinject _ (proj_reptype (nested_field_type2 t_root gfs0) gfs1 v') = v ->
+      repinject _ (proj_reptype (nested_field_type t_root gfs0) gfs1 v') = v ->
       PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |-- 
          (tc_LR Delta e1 lr) &&
         local (`(tc_val t (eval_cast (typeof (nested_efield e1 efs tts)) t v))) &&
@@ -2199,7 +2199,7 @@ Lemma semax_nested_efield_field_store_nth:
   forall {Espec: OracleKind},
     forall Delta sh n P Q R Rn (e1 e2 : expr)
       (t t_root: type) (efs: list efield) (gfs0 gfs1 gfs: list gfield) (tts: list type)
-      (v: environ -> reptype (nested_field_type2 t_root gfs0)) lr,
+      (v: environ -> reptype (nested_field_type t_root gfs0)) lr,
       typeof (nested_efield e1 efs tts) = t ->
       type_is_by_value t = true ->
       gfs = gfs1 ++ gfs0 ->
@@ -2222,8 +2222,8 @@ Lemma semax_nested_efield_field_store_nth:
                 (SEPx
                   (replace_nth n R
                     (`(field_at sh t_root gfs0)
-                      (`(upd_reptype (nested_field_type2 t_root gfs0) gfs1) v
-                        (`(valinject (nested_field_type2 (nested_field_type2 t_root gfs0) gfs1)) (eval_expr (Ecast e2 t))))
+                      (`(upd_reptype (nested_field_type t_root gfs0) gfs1) v
+                        (`(valinject (nested_field_type (nested_field_type t_root gfs0) gfs1)) (eval_expr (Ecast e2 t))))
                           (eval_LR e1 lr)
                             )))))).
 Admitted.

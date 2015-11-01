@@ -77,9 +77,9 @@ Proof.
   clearbody X.
   revert X H4.
 
-  change (list val) with (reptype (nested_field_type2 t_struct_SHA256state_st [StructField _data])).
-  pattern (nested_field_type2 t_struct_SHA256state_st [StructField _data]) at 1 2 4.
-  replace (nested_field_type2 t_struct_SHA256state_st [StructField _data])
+  change (list val) with (reptype (nested_field_type t_struct_SHA256state_st [StructField _data])).
+  pattern (nested_field_type t_struct_SHA256state_st [StructField _data]) at 1 2 4.
+  replace (nested_field_type t_struct_SHA256state_st [StructField _data])
     with (tarray tuchar (Zlength (intlist_to_Zlist lastblock))).
   Focus 2. {
     rewrite Zlength_correct, length_intlist_to_Zlist.

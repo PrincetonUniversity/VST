@@ -53,7 +53,7 @@ remember (field_compatible_dec t_struct_hmac_ctx_st [StructField _md_ctx]
              c) as s.
 destruct s; simpl in *; inversion COff. simpl in *. rewrite COff. clear H0.
 
-unfold nested_field_offset2, offset_val in COff. simpl in  COff. 
+unfold nested_field_offset, offset_val in COff. simpl in  COff. 
 destruct c; inversion COff; clear COff. rewrite Int.add_zero in H1. subst cb coff.
 
 rewrite <- memory_block_data_at_ ; try reflexivity.
@@ -87,7 +87,7 @@ eapply semax_pre with (P':=(PROP  ()
 { entailer. 
       unfold_data_at 1%nat. simpl. cancel. unfold data_at_.
       rewrite (field_at_data_at Tsh t_struct_hmac_ctx_st [StructField _md_ctx]); try reflexivity.
-      unfold nested_field_type2, nested_field_offset2, field_address; simpl. rewrite <- Heqs. simpl. entailer.
+      unfold nested_field_type, nested_field_offset, field_address; simpl. rewrite <- Heqs. simpl. entailer.
 }
 
 unfold_data_at 1%nat.
@@ -102,15 +102,15 @@ apply isptrD in H; destruct H as [? [? OCTX]]; rewrite OCTX.
       rename f0 into FCO.
 rewrite (field_at_data_at _ _ [StructField _md_ctx]); try reflexivity.
 unfold field_address. rewrite <- Heqs.
-unfold nested_field_type2; simpl.
-unfold nested_field_offset2; simpl. clear OCTX.
+unfold nested_field_type; simpl.
+unfold nested_field_offset; simpl. clear OCTX.
 
-replace_SEP 4 `(memory_block Tsh (Int.repr (sizeof (nested_field_type2 t_struct_hmac_ctx_st [StructField _md_ctx]))) ((Vptr b0 i))).
+replace_SEP 4 `(memory_block Tsh (Int.repr (sizeof (nested_field_type t_struct_hmac_ctx_st [StructField _md_ctx]))) ((Vptr b0 i))).
    entailer!.
 
 destruct ST as [MD [iCTX [oCTX [KEYLENST KEYST]]]]. simpl in *.
 forward_call' (Tsh, Tsh, Vptr b0 i, offset_val
-          (Int.repr (nested_field_offset2 t_struct_hmac_ctx_st [StructField _o_ctx])) (Vptr b0 i), 
+          (Int.repr (nested_field_offset t_struct_hmac_ctx_st [StructField _o_ctx])) (Vptr b0 i), 
           (mkTrep t_struct_SHA256state_st oCTX)) rv.
 subst rv; simpl.
 
@@ -123,7 +123,7 @@ Opaque firstn.
 forward_call' (oSha, sha_finish ctx, Vptr b0 i, b, Tsh, Z.of_nat SHA256.DigestLength, kv) updSha. 
   { assert (FR: Frame = [
        (data_at Tsh t_struct_SHA256state_st oCTX
-           (offset_val (Int.repr (nested_field_offset2 t_struct_hmac_ctx_st [StructField _o_ctx])) (Vptr b0 i)));
+           (offset_val (Int.repr (nested_field_offset t_struct_hmac_ctx_st [StructField _o_ctx])) (Vptr b0 i)));
        (field_at Tsh t_struct_hmac_ctx_st [StructField _key_length] KEYLENST (Vptr b0 i));
        (field_at Tsh t_struct_hmac_ctx_st [StructField _key] KEYST (Vptr b0 i));
        (field_at Tsh t_struct_hmac_ctx_st [StructField _i_ctx] iCTX (Vptr b0 i));
@@ -150,7 +150,7 @@ unfold sha256state_. normalize. intros updShaST. normalize. rename H into updSha
 forward_call'  (updSha, md, Vptr b0 i, shmd, kv). (*TODO: This line now takes > 5mins. In the corresponding place in verif_hmacNK_final, it takes about 30secs*)
   { assert (FR: Frame = [ (data_block Tsh (sha_finish ctx) b);
       (data_at Tsh t_struct_SHA256state_st oCTX
-         (offset_val (Int.repr (nested_field_offset2 t_struct_hmac_ctx_st [StructField _o_ctx])) (Vptr b0 i)));
+         (offset_val (Int.repr (nested_field_offset t_struct_hmac_ctx_st [StructField _o_ctx])) (Vptr b0 i)));
       (field_at Tsh t_struct_hmac_ctx_st [StructField _key_length] KEYLENST (Vptr b0 i));
       (field_at Tsh t_struct_hmac_ctx_st [StructField _key] KEYST (Vptr b0 i));
       (field_at Tsh t_struct_hmac_ctx_st [StructField _i_ctx] iCTX (Vptr b0 i))]).
@@ -189,8 +189,8 @@ unfold_data_at 3%nat.
 cancel.
 rewrite (field_at_data_at _ _ [StructField _o_ctx]); try reflexivity.
 rewrite (field_at_data_at _ _ [StructField _md_ctx]); try reflexivity.
-entailer. unfold nested_field_type2; simpl.
+entailer. unfold nested_field_type; simpl.
 unfold field_address. rewrite <- Heqs.
 destruct (field_compatible_dec t_struct_hmac_ctx_st [StructField _o_ctx]
             (Vptr b0 i)); try contradiction.
-unfold nested_field_offset2; simpl. rewrite Int.add_zero. entailer.
+unfold nested_field_offset; simpl. rewrite Int.add_zero. entailer.

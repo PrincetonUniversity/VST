@@ -318,7 +318,7 @@ Lemma struct_pred_ext_derives: forall m {A0 A1} (P0: forall it, A0 it -> val -> 
      P0 _ (proj_struct i m v0 d0) p |-- P1 _ (proj_struct i m v1 d1) p) ->
   struct_pred m P0 v0 p |-- struct_pred m P1 v1 p.
 Proof.
-  unfold proj_struct, field_type2.
+  unfold proj_struct, field_type.
   intros.
   destruct m as [| (i0, t0) m]; [simpl; auto |].
   revert i0 t0 v0 v1 H H0; induction m as [| (i1, t1) m]; intros.
@@ -358,10 +358,10 @@ Proof.
         spec H0; [right; auto |].
         change (if ident_eq i i1
                 then Errors.OK t1
-                else field_type i m) with (field_type i ((i1, t1) :: m)) in H0.
+                else Ctypes.field_type i m) with (Ctypes.field_type i ((i1, t1) :: m)) in H0.
         destruct (member_dec
              (i,
-             match field_type i ((i1, t1) :: m) with
+             match Ctypes.field_type i ((i1, t1) :: m) with
              | Errors.OK t => t
              | Errors.Error _ => Tvoid
              end) (i0, t0)); [congruence |].
@@ -478,11 +478,11 @@ Qed.
 Lemma union_pred_ext_derives: forall m {A0 A1} (P0: forall it, A0 it -> val -> mpred) (P1: forall it, A1 it -> val -> mpred) v0 v1 p,
   members_no_replicate m = true ->
   (forall it, members_union_inj v0 it <-> members_union_inj v1 it) ->
-  (forall i d0 d1, members_union_inj v0 (i, field_type2 i m) -> members_union_inj v1 (i, field_type2 i m) ->
+  (forall i d0 d1, members_union_inj v0 (i, field_type i m) -> members_union_inj v1 (i, field_type i m) ->
      P0 _ (proj_union i m v0 d0) p |-- P1 _ (proj_union i m v1 d1) p) ->
   union_pred m P0 v0 p |-- union_pred m P1 v1 p.
 Proof.
-  unfold members_union_inj, proj_union, field_type2.
+  unfold members_union_inj, proj_union, field_type.
   intros.
   destruct m as [| (i0, t0) m]; [simpl; auto |].
   revert i0 t0 v0 v1 H H0 H1; induction m as [| (i1, t1) m]; intros.
@@ -522,7 +522,7 @@ Proof.
       simpl in H1.
       if_tac in H1. (* i = i0 vs i <> i0 *)
       * clear - H H2 H4 t0.
-        pose proof compact_sum_inj_in v0 (i, field_type2 i ((i1, t1) :: m)) member_dec.
+        pose proof compact_sum_inj_in v0 (i, field_type i ((i1, t1) :: m)) member_dec.
         spec H0; [exact H2 |].
         subst.
         apply in_map with (f := fst) in H0.
@@ -531,10 +531,10 @@ Proof.
       * specialize (H1 d0 d1).
         change (if ident_eq i i1
                 then Errors.OK t1
-                else field_type i m) with (field_type i ((i1, t1) :: m)) in H1.
+                else Ctypes.field_type i m) with (Ctypes.field_type i ((i1, t1) :: m)) in H1.
         destruct (member_dec
              (i,
-             match field_type i ((i1, t1) :: m) with
+             match Ctypes.field_type i ((i1, t1) :: m) with
              | Errors.OK t => t
              | Errors.Error _ => Tvoid
              end) (i0, t0)); [congruence |].
@@ -546,7 +546,7 @@ Qed.
 Lemma union_pred_ext: forall m {A0 A1} (P0: forall it, A0 it -> val -> mpred) (P1: forall it, A1 it -> val -> mpred) v0 v1 p,
   members_no_replicate m = true ->
   (forall it, members_union_inj v0 it <-> members_union_inj v1 it) ->
-  (forall i d0 d1, members_union_inj v0 (i, field_type2 i m) -> members_union_inj v1 (i, field_type2 i m) ->
+  (forall i d0 d1, members_union_inj v0 (i, field_type i m) -> members_union_inj v1 (i, field_type i m) ->
      P0 _ (proj_union i m v0 d0) p = P1 _ (proj_union i m v1 d1) p) ->
   union_pred m P0 v0 p = union_pred m P1 v1 p.
 Proof.
@@ -651,11 +651,11 @@ Lemma memory_block_struct_pred: forall sh m sz {A} (v: compact_prod (map A m)) b
   0 <= ofs /\ ofs + sz <= Int.modulus ->
   struct_pred m
    (fun it _ p =>
-     (memory_block sh (field_offset_next cenv_cs (fst it) m sz - field_offset2 cenv_cs (fst it) m))
-     (offset_val (Int.repr (field_offset2 cenv_cs (fst it) m)) p)) v (Vptr b (Int.repr ofs)) =
+     (memory_block sh (field_offset_next cenv_cs (fst it) m sz - field_offset cenv_cs (fst it) m))
+     (offset_val (Int.repr (field_offset cenv_cs (fst it) m)) p)) v (Vptr b (Int.repr ofs)) =
   memory_block sh sz (Vptr b (Int.repr ofs)).
 Proof.
-  unfold field_offset2, field_offset, field_offset_next.
+  unfold field_offset, Ctypes.field_offset, field_offset_next.
   intros sh m sz A v b ofs NIL_CASE NO_REPLI; intros.
   destruct m as [| (i0, t0) m].
   1: rewrite (NIL_CASE eq_refl), memory_block_zero; simpl; normalize.
@@ -900,50 +900,50 @@ Context {cs: compspecs}.
 
 Variable sh: share.
 
-Definition struct_data_at'_aux (m m0: members) (sz: Z) (P: ListType (map (fun it => reptype (field_type2 (fst it) m0) -> (val -> mpred)) m)) (v: compact_prod (map (fun it => reptype (field_type2 (fst it) m0)) m)) : (val -> mpred).
+Definition struct_data_at'_aux (m m0: members) (sz: Z) (P: ListType (map (fun it => reptype (field_type (fst it) m0) -> (val -> mpred)) m)) (v: compact_prod (map (fun it => reptype (field_type (fst it) m0)) m)) : (val -> mpred).
 Proof.
   destruct m as [| (i0, t0) m]; [exact (fun _ => emp) |].
   revert i0 t0 v P; induction m as [| (i0, t0) m]; intros ? ? v P.
   + simpl in v, P.
     inversion P; subst.
     exact (withspacer sh
-            (field_offset2 cenv_cs i0 m0 + sizeof cenv_cs (field_type2 i0 m0))
+            (field_offset cenv_cs i0 m0 + sizeof cenv_cs (field_type i0 m0))
             (field_offset_next cenv_cs i0 m0 sz)
-            (at_offset (a v) (field_offset2 cenv_cs i0 m0))).
+            (at_offset (a v) (field_offset cenv_cs i0 m0))).
   + simpl in v, P.
     destruct (ident_eq i1 i1); [| congruence].
     inversion P; subst.
     exact (withspacer sh
-            (field_offset2 cenv_cs i1 m0 + sizeof cenv_cs (field_type2 i1 m0))
+            (field_offset cenv_cs i1 m0 + sizeof cenv_cs (field_type i1 m0))
             (field_offset_next cenv_cs i1 m0 sz)
-            (at_offset (a (fst v)) (field_offset2 cenv_cs i1 m0)) * IHm i0 t0 (snd v) b)%logic.
+            (at_offset (a (fst v)) (field_offset cenv_cs i1 m0)) * IHm i0 t0 (snd v) b)%logic.
 Defined.
 
-Definition union_data_at'_aux (m m0: members) (sz: Z) (P: ListType (map (fun it => reptype (field_type2 (fst it) m0) -> (val -> mpred)) m)) (v: compact_sum (map (fun it => reptype (field_type2 (fst it) m0)) m)) : (val -> mpred).
+Definition union_data_at'_aux (m m0: members) (sz: Z) (P: ListType (map (fun it => reptype (field_type (fst it) m0) -> (val -> mpred)) m)) (v: compact_sum (map (fun it => reptype (field_type (fst it) m0)) m)) : (val -> mpred).
 Proof.
   destruct m as [| (i0, t0) m]; [exact (fun _ => emp) |].
   revert i0 t0 v P; induction m as [| (i0, t0) m]; intros ? ? v P.
   + simpl in v, P.
     inversion P; subst.
-    exact (withspacer sh (sizeof cenv_cs (field_type2 i0 m0)) sz (a v)).
+    exact (withspacer sh (sizeof cenv_cs (field_type i0 m0)) sz (a v)).
   + simpl in v, P.
     inversion P; subst.
     destruct v as [v | v].
-    - exact (withspacer sh (sizeof cenv_cs (field_type2 i1 m0)) sz (a v)).
+    - exact (withspacer sh (sizeof cenv_cs (field_type i1 m0)) sz (a v)).
     - exact (IHm i0 t0 v b).
 Defined.
 
 Lemma struct_data_at'_aux_spec: forall m m0 sz v P,
   struct_data_at'_aux m m0 sz
    (ListTypeGen
-     (fun it => reptype (field_type2 (fst it) m0) -> val -> mpred)
+     (fun it => reptype (field_type (fst it) m0) -> val -> mpred)
      P m) v =
   struct_pred m 
    (fun it v =>
       withspacer sh
-       (field_offset2 cenv_cs (fst it) m0 + sizeof cenv_cs (field_type2 (fst it) m0))
+       (field_offset cenv_cs (fst it) m0 + sizeof cenv_cs (field_type (fst it) m0))
        (field_offset_next cenv_cs (fst it) m0 sz)
-       (at_offset (P it v) (field_offset2 cenv_cs (fst it) m0))) v.
+       (at_offset (P it v) (field_offset cenv_cs (fst it) m0))) v.
 Proof.
   intros.
   destruct m as [| (i0, t0) m]; [reflexivity |].
@@ -951,14 +951,14 @@ Proof.
   + simpl; reflexivity.
   + replace
      (struct_data_at'_aux ((i1, t1) :: (i0, t0) :: m) m0 sz
-     (ListTypeGen (fun it : ident * type => reptype (field_type2 (fst it) m0) -> val -> mpred)
+     (ListTypeGen (fun it : ident * type => reptype (field_type (fst it) m0) -> val -> mpred)
         P ((i1, t1) :: (i0, t0) :: m)) v) with
      (withspacer sh
-       (field_offset2 cenv_cs i1 m0 + sizeof cenv_cs (field_type2 i1 m0))
+       (field_offset cenv_cs i1 m0 + sizeof cenv_cs (field_type i1 m0))
          (field_offset_next cenv_cs i1 m0 sz)
-           (at_offset (P (i1, t1) (fst v)) (field_offset2 cenv_cs i1 m0)) *
+           (at_offset (P (i1, t1) (fst v)) (field_offset cenv_cs i1 m0)) *
       struct_data_at'_aux ((i0, t0) :: m) m0 sz
-     (ListTypeGen (fun it : ident * type => reptype (field_type2 (fst it) m0) -> val -> mpred)
+     (ListTypeGen (fun it : ident * type => reptype (field_type (fst it) m0) -> val -> mpred)
         P ((i0, t0) :: m)) (snd v))%logic.
     - rewrite IHm.
       reflexivity.
@@ -970,12 +970,12 @@ Qed.
 Lemma union_data_at'_aux_spec: forall m m0 sz v P,
   union_data_at'_aux m m0 sz
    (ListTypeGen
-     (fun it => reptype (field_type2 (fst it) m0) -> val -> mpred)
+     (fun it => reptype (field_type (fst it) m0) -> val -> mpred)
      P m) v =
   union_pred m
    (fun it v =>
       withspacer sh
-       (sizeof cenv_cs (field_type2 (fst it) m0))
+       (sizeof cenv_cs (field_type (fst it) m0))
        sz
        (P it v)) v.
 Proof.
@@ -989,8 +989,8 @@ Proof.
 Qed.
 
 Definition struct_value_fits_aux (m m0: members)
-      (P: ListType (map (fun it => reptype (field_type2 (fst it) m0) -> Prop) m))
-      (v: compact_prod (map (fun it => reptype (field_type2 (fst it) m0)) m)) : Prop.
+      (P: ListType (map (fun it => reptype (field_type (fst it) m0) -> Prop) m))
+      (v: compact_prod (map (fun it => reptype (field_type (fst it) m0)) m)) : Prop.
 Proof.
   destruct m as [| (i0, t0) m]; [exact True |].
   revert i0 t0 v P; induction m as [| (i0, t0) m]; intros ? ? v P.
@@ -1004,8 +1004,8 @@ Proof.
 Defined.
 
 Definition union_value_fits_aux (m m0: members)
-      (P: ListType (map (fun it => reptype (field_type2 (fst it) m0) -> Prop) m)) 
-      (v: compact_sum (map (fun it => reptype (field_type2 (fst it) m0)) m)) : Prop.
+      (P: ListType (map (fun it => reptype (field_type (fst it) m0) -> Prop) m)) 
+      (v: compact_sum (map (fun it => reptype (field_type (fst it) m0)) m)) : Prop.
 Proof.
   destruct m as [| (i0, t0) m]; [exact True |].
   revert i0 t0 v P; induction m as [| (i0, t0) m]; intros ? ? v P.
@@ -1022,7 +1022,7 @@ Defined.
 Lemma struct_value_fits_aux_spec: forall m m0 v P,
   struct_value_fits_aux m m0
    (ListTypeGen
-     (fun it => reptype (field_type2 (fst it) m0) -> Prop)
+     (fun it => reptype (field_type (fst it) m0) -> Prop)
      P m) v =
   struct_Prop m P v.
 Proof.
@@ -1032,10 +1032,10 @@ Proof.
   + simpl; reflexivity.
   + replace
      (struct_value_fits_aux ((i1, t1) :: (i0, t0) :: m) m0
-     (ListTypeGen (fun it : ident * type => reptype (field_type2 (fst it) m0) -> Prop)
+     (ListTypeGen (fun it : ident * type => reptype (field_type (fst it) m0) -> Prop)
         P ((i1, t1) :: (i0, t0) :: m)) v) with
      (P (i1, t1) (fst v) /\  struct_value_fits_aux ((i0, t0) :: m) m0 
-     (ListTypeGen (fun it : ident * type => reptype (field_type2 (fst it) m0) -> Prop)
+     (ListTypeGen (fun it : ident * type => reptype (field_type (fst it) m0) -> Prop)
         P ((i0, t0) :: m)) (snd v)).
     - rewrite IHm.
       reflexivity.
@@ -1047,7 +1047,7 @@ Qed.
 Lemma union_value_fits_aux_spec: forall m m0 v P,
   union_value_fits_aux m m0
    (ListTypeGen
-     (fun it => reptype (field_type2 (fst it) m0) -> Prop)
+     (fun it => reptype (field_type (fst it) m0) -> Prop)
      P m) v =
   union_Prop m P v.
 Proof.
@@ -1082,9 +1082,9 @@ Definition struct_data_at'_aux_spec: forall {cs: compspecs} (sh: share) m m0 sz 
   struct_pred m 
    (fun it v =>
       withspacer sh
-       (field_offset2 cenv_cs (fst it) m0 + sizeof cenv_cs (field_type (fst it) m0))
+       (field_offset cenv_cs (fst it) m0 + sizeof cenv_cs (field_type (fst it) m0))
        (field_offset_next cenv_cs (fst it) m0 sz)
-       (at_offset (P it v) (field_offset2 cenv_cs (fst it) m0))) v
+       (at_offset (P it v) (field_offset cenv_cs (fst it) m0))) v
 := @struct_data_at'_aux_spec.
 
 Definition union_data_at'_aux_spec: forall {cs: compspecs} sh m m0 sz v P,
@@ -1102,20 +1102,20 @@ Definition union_data_at'_aux_spec: forall {cs: compspecs} sh m m0 sz v P,
 
 Definition struct_value_fits_aux:
   forall {cs: compspecs} (m m0: members)
-      (P: ListType (map (fun it => reptype (field_type2 (fst it) m0) -> Prop) m))
-      (v: compact_prod (map (fun it => reptype (field_type2 (fst it) m0)) m)), Prop
+      (P: ListType (map (fun it => reptype (field_type (fst it) m0) -> Prop) m))
+      (v: compact_prod (map (fun it => reptype (field_type (fst it) m0)) m)), Prop
 := @struct_value_fits_aux.
 
 Definition union_value_fits_aux:
   forall {cs: compspecs} (m m0: members)
-      (P: ListType (map (fun it => reptype (field_type2 (fst it) m0) -> Prop) m)) 
-      (v: compact_sum (map (fun it => reptype (field_type2 (fst it) m0)) m)), Prop
+      (P: ListType (map (fun it => reptype (field_type (fst it) m0) -> Prop) m)) 
+      (v: compact_sum (map (fun it => reptype (field_type (fst it) m0)) m)), Prop
 := @union_value_fits_aux.
 
 Definition struct_value_fits_aux_spec: forall {cs: compspecs} m m0 v P,
   struct_value_fits_aux m m0
    (ListTypeGen
-     (fun it => reptype (field_type2 (fst it) m0) -> Prop)
+     (fun it => reptype (field_type (fst it) m0) -> Prop)
      P m) v =
   struct_Prop m P v
 := @struct_value_fits_aux_spec.
@@ -1123,7 +1123,7 @@ Definition struct_value_fits_aux_spec: forall {cs: compspecs} m m0 v P,
 Definition union_value_fits_aux_spec: forall {cs: compspecs} m m0 v P,
   union_value_fits_aux m m0
    (ListTypeGen
-     (fun it => reptype (field_type2 (fst it) m0) -> Prop)
+     (fun it => reptype (field_type (fst it) m0) -> Prop)
      P m) v =
   union_Prop m P v
 := @union_value_fits_aux_spec.

@@ -44,7 +44,7 @@ Definition sha_update_loop_body :=
 
 Lemma offset_val_field_address0:
   forall {cs: compspecs} i n len t lo gfs t' p,
- nested_field_type2 t gfs = tarray t' len ->
+ nested_field_type t gfs = tarray t' len ->
  (n = sizeof cenv_cs t' * i)%Z ->
  0 <= lo <= len ->
  0 <= lo+i <= len ->
@@ -60,9 +60,9 @@ normalize.
 f_equal. f_equal.
 hnf in H2.
 decompose [and] H2; clear H2.
-rewrite nested_field_offset2_ind; auto.
+rewrite nested_field_offset_ind; auto.
 symmetry. 
-rewrite nested_field_offset2_ind; auto.
+rewrite nested_field_offset_ind; auto.
 rewrite <- Z.add_assoc.
 f_equal.
 rewrite H.

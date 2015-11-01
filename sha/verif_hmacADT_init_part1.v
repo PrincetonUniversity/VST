@@ -274,7 +274,7 @@ forward_if PostKeyNull.
          subst Frame. reflexivity.
        rewrite FR. clear FR Frame.   
        entailer. clear HeqPostKeyNull.
-       unfold nested_field_type2, t_struct_hmac_ctx_st; simpl.
+       unfold nested_field_type, t_struct_hmac_ctx_st; simpl.
        eapply derives_trans.
          apply data_at_data_at_. (*reflexivity.*)
          cancel.
@@ -359,7 +359,7 @@ forward_if PostKeyNull.
    normalize. 
    rewrite at_offset'_eq.
      2: simpl; rewrite Int.add_zero; reflexivity.
-   unfold nested_field_offset2, nested_field_type2; simpl.
+   unfold nested_field_offset, nested_field_type; simpl.
    unfold tarray.*) (*
    unfold data_at_, tarray. simpl. erewrite (data_at_array_at Tsh tuchar 64 noattr []).
      2: apply JMeq.JMeq_refl. 
@@ -429,11 +429,11 @@ forward_if PostKeyNull.
    destruct (zlt 64 (Zlength key)). 2: omega.
    cancel. 
    rewrite (field_at_data_at Tsh t_struct_hmac_ctx_st [StructField _md_ctx]); try reflexivity.
-      simpl. unfold nested_field_type2. simpl. unfold field_address; simpl.
+      simpl. unfold nested_field_type. simpl. unfold field_address; simpl.
    destruct (field_compatible_dec t_struct_hmac_ctx_st [StructField _md_ctx]
             (Vptr cb cofs)).
    2: elim (n FC).
-   unfold nested_field_offset2; simpl. rewrite Int.add_zero. cancel.
+   unfold nested_field_offset; simpl. rewrite Int.add_zero. cancel.
      unfold tarray. rewrite (data_at_Tarray_split3 Tsh tuchar 64 noattr 32). 2: omega.
      specialize (split_offset_array_at 32). unfold tarray; intros SOA.
      rewrite SOA with (len :=64)(v:=(eval_var _ctx_key (Tarray tuchar 64 noattr) rho)); try reflexivity; clear SOA.

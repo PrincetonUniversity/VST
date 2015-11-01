@@ -2,8 +2,7 @@ Require Import floyd.base.
 Require Import floyd.client_lemmas.
 Require Import floyd.type_induction.
 Require Export floyd.compact_prod_sum.
-Require floyd.fieldlist.
-Import floyd.fieldlist.fieldlist.
+Require Import floyd.fieldlist.
 Require Import floyd.sublist.
 
 Definition 

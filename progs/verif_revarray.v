@@ -31,7 +31,7 @@ Definition Vprog : varspecs := (_four, Tarray tint 4 noattr)::nil.
 Definition Gprog : funspecs := 
     reverse_spec :: main_spec::nil.
 
-Definition flip_between {A} lo hi (contents: list A) :=
+Definition flip_ends {A} lo hi (contents: list A) :=
   sublist 0 lo (rev contents)
   ++ sublist lo hi contents
   ++ sublist hi (Zlength contents) (rev contents).
@@ -40,128 +40,80 @@ Definition reverse_Inv a0 sh contents size :=
  EX j:Z,
   (PROP  (0 <= j; j <= size-j)
    LOCAL  (temp _a a0; temp _lo (Vint (Int.repr j)); temp _hi (Vint (Int.repr (size-j))))
-   SEP (`(data_at sh (tarray tint size) (flip_between j (size-j) contents) a0))).
+   SEP (`(data_at sh (tarray tint size) (flip_ends j (size-j) contents) a0))).
 
-Lemma flip_fact_0: forall A size (contents: list A),
-  Zlength contents = size ->
-  contents = flip_between 0 (size - 0) contents.
+
+Lemma Zlength_flip_ends:
+ forall A i j (al: list A),
+ 0 <= i  -> i<=j -> j <= Zlength al ->
+ Zlength (flip_ends i j al) = Zlength al.
 Proof.
-  intros.
-  unfold flip_between.
-  replace (size-0) with (Zlength contents) by omega.
-  rewrite !sublist_nil.
-  simpl. rewrite <- app_nil_end.
-  rewrite sublist_same by auto.
-  auto.
+intros.
+unfold flip_ends.
+autorewrite with sublist. omega.
 Qed.
+Hint Rewrite @Zlength_flip_ends using (autorewrite with sublist; omega) : sublist.
 
 Lemma flip_fact_1: forall A size (contents: list A) j,
   Zlength contents = size ->
   0 <= j ->
   size - j - 1 <= j <= size - j ->
-  flip_between j (size - j) contents = rev contents.
+  flip_ends j (size - j) contents = rev contents.
 Proof.
   intros.
-  unfold flip_between.
-  symmetry.
-  replace (sublist j (size-j) contents) with
-    (sublist j (size-j) (rev contents)).
-  rewrite !sublist_rejoin by (rewrite ?Zlength_rev; omega).
-  rewrite sublist_same by (rewrite ?Zlength_rev; omega).
-  auto.
-  rewrite sublist_rev by omega.
-  rewrite len_le_1_rev.
-  f_equal. f_equal. omega. omega.
-  apply Nat2Z.inj_le. change (Z.of_nat 1) with 1.
-  rewrite <- Zlength_correct.
-  rewrite Zlength_sublist; omega.
+  unfold flip_ends.
+  rewrite <- (Zlen_le_1_rev (sublist j (size-j) contents))
+      by (autorewrite with sublist; omega).
+  rewrite !sublist_rev by (autorewrite with sublist; omega).
+ rewrite <- !rev_app_distr, ?H.
+ autorewrite with sublist; auto. 
 Qed.
-
-Lemma Zlength_flip_between:
- forall A i j (al: list A),
- 0 <= i  -> i<=j -> j <= Zlength al ->
- Zlength (flip_between i j al) = Zlength al.
-Proof.
-intros.
-unfold flip_between.
-rewrite !Zlength_app, !Zlength_sublist by  (rewrite ?Zlength_rev; omega).
-omega.
-Qed.
-
-
-Ltac list_simpl :=
-try omega;
-repeat 
-  (first [ rewrite Zlength_sublist
-       | rewrite Zlength_flip_between
-       | rewrite Zlength_rev
-       | rewrite Zlength_app
-       | rewrite Z.min_l by omega
-       | rewrite Z.min_r by omega
-       | rewrite Z.max_l by omega
-       | rewrite Z.max_r by omega
-       | rewrite sublist_nil
-       | rewrite <- app_nil_end
-       | rewrite app_nil_l
-       | rewrite Z.add_0_r
-       | rewrite Z.sub_0_r 
-       | rewrite Z.add_0_l
-       | rewrite Z.sub_diag
-       | rewrite Z.sub_add];
-    try omega).
-
 
 Lemma flip_fact_3:
  forall A (al: list A) j size,
   size = Zlength al ->
   0 <= j < size - j - 1 ->
-sublist 0 j
-  (sublist 0 (size - j - 1) (flip_between j (size - j) al) ++
-   sublist j (j + 1) (flip_between j (size - j) al) ++
-   sublist (size - j - 1 + 1) (Zlength al) (flip_between j (size - j) al)) ++
-sublist (size - j - 1) (size - j - 1 + 1) al ++
-sublist (j + 1)
-  (size - j - 1 - 0 + (j + 1 - j + (Zlength al - (size - j - 1 + 1))))
-  (sublist 0 (size - j - 1) (flip_between j (size - j) al) ++
-   sublist j (j + 1) (flip_between j (size - j) al) ++
-   sublist (size - j - 1 + 1) (Zlength al) (flip_between j (size - j) al)) =
-flip_between (Z.succ j) (size - Z.succ j) al.
+sublist 0 j (flip_ends j (size - j) al) ++
+sublist (size - j - 1) (size - j) al ++
+sublist (j + 1) size
+  (sublist 0 (size - j - 1) (flip_ends j (size - j) al) ++
+   sublist j (j + 1) (flip_ends j (size - j) al) ++
+   sublist (size - j) size (flip_ends j (size - j) al)) =
+flip_ends (j + 1) (size - (j + 1)) al.
 Proof.
 intros.
+unfold flip_ends.
 rewrite <- H.
-list_simpl.
-replace (size - j - 1 + (j + 1 - j + (size - (size - j ))))
-  with size by omega.
-unfold Z.succ.
-unfold flip_between.
-rewrite <- H.
-repeat (rewrite sublist_app, ?sublist_sublist; list_simpl).
-replace (size - (size - j - 1) - (j + 1 - j) + (size - j) - j - (size - j - j) +
-   (size - j))
- with size by omega.
-replace (size-(j+1)) with (size-j-1) by omega.
-rewrite (sublist_split 0 j (j+1)); list_simpl.
-rewrite <- app_assoc.
-f_equal.
-f_equal.
-rewrite sublist_rev; list_simpl.
-rewrite Zlen_le_1_rev; list_simpl.
+autorewrite with sublist.
+rewrite (sublist_split 0 j (j+1)) by (autorewrite with sublist; omega).
+rewrite !app_ass.
+f_equal. f_equal.
+rewrite !sublist_rev, <- ?H by omega.
+rewrite Zlen_le_1_rev by (autorewrite with sublist; omega).
 f_equal; omega.
+rewrite (sublist_app2 (size-j) size)
+ by (autorewrite with sublist; omega).
+autorewrite with sublist.
+rewrite sublist_app'
+ by (autorewrite with sublist; omega).
+autorewrite with sublist.
 f_equal.
-rewrite (sublist_split (size-j-1) (size-j) size); list_simpl.
-f_equal.
-rewrite sublist_rev; list_simpl.
-rewrite Zlen_le_1_rev; list_simpl.
-f_equal; list_simpl.
+f_equal; omega.
+autorewrite with sublist.
+  rewrite <- (Zlen_le_1_rev (sublist j (1+j) al))
+      by (autorewrite with sublist; omega).
+rewrite !sublist_rev, <- ?H by omega.
+ rewrite <- !rev_app_distr, <- ?H.
+ autorewrite with sublist.
+ f_equal; f_equal; omega.
 Qed.
 
-Lemma flip_between_map:
+Lemma flip_ends_map:
   forall A B (F: A -> B) lo hi (al: list A),
-   0 <= lo -> lo <= hi -> hi <= Zlength al ->
-  flip_between lo hi (map F al) = map F (flip_between lo hi al).
+  flip_ends lo hi (map F al) = map F (flip_ends lo hi al).
 Proof.
 intros.
-unfold flip_between.
+unfold flip_ends.
 rewrite !map_app.
 rewrite !map_sublist, !map_rev, Zlength_map.
 auto.
@@ -173,48 +125,11 @@ Lemma flip_fact_2:
   j < size - j - 1 ->
    0 <= j ->
   Znth (size - j - 1) al d =
-  Znth (size - j - 1) (flip_between j (size - j) al) d.
+  Znth (size - j - 1) (flip_ends j (size - j) al) d.
 Proof.
 intros.
-unfold flip_between.
-rewrite app_Znth2
- by (rewrite Zlength_sublist; rewrite ?Zlength_rev; omega).
-rewrite Zlength_sublist; rewrite ?Zlength_rev; try omega.
-rewrite app_Znth1
- by (rewrite Zlength_sublist; rewrite ?Zlength_rev; omega).
-rewrite Znth_sublist by omega.
-f_equal; omega.
-Qed.
-
-Lemma skipn2sublist:
- forall {A} n (al: list A),
- 0 <= n <= Zlength al ->
- skipn (Z.to_nat n) al = sublist n (Zlength al) al.
-Proof.
-intros.
-unfold sublist.
-symmetry.
-etransitivity; [ | apply (firstn_exact_length (skipn (Z.to_nat n) al))].
-f_equal.
-apply Nat2Z.inj.
-rewrite  <- Zlength_correct.
-rewrite Zlength_skipn.
-rewrite (Z.max_r 0 n) by omega.
-rewrite Z.max_r by omega.
-rewrite Z2Nat.id by omega.
-auto.
-Qed.
-
-Lemma firstn2sublist:
- forall {A} n (al: list A),
- 0 <= n <= Zlength al ->
- firstn (Z.to_nat n) al = sublist 0 n al.
-Proof.
-intros.
-unfold sublist.
-f_equal.
-f_equal.
-omega.
+unfold flip_ends.
+autorewrite with sublist. auto.
 Qed.
 
 Lemma body_reverse: semax_body Vprog Gprog f_reverse reverse_spec.
@@ -230,106 +145,71 @@ name t _t.
 forward.  (* lo = 0; *)
 forward. (* hi = n; *)
 
-assert_PROP (Zlength (map Vint contents) = size).
- entailer.
-rename H0 into ZL.
+assert_PROP (Zlength (map Vint contents) = size)
+    as ZL by entailer!.
 forward_while (reverse_Inv a0 sh (map Vint contents) size)
    j.
-(* Prove that current precondition implies loop invariant *)
-apply exp_right with 0.
-entailer!; try omega.
-f_equal; f_equal; omega.
-apply derives_refl'.
-f_equal.
-apply flip_fact_0; auto.
-(* Prove that loop invariant implies typechecking condition *)
+* (* Prove that current precondition implies loop invariant *)
+Exists 0.
 entailer!.
-(* Prove that loop body preserves invariant *)
++ f_equal; f_equal; omega.
++ unfold flip_ends; autorewrite with sublist; auto.
+* (* Prove that loop invariant implies typechecking condition *)
+entailer!.
+* (* Prove that loop body preserves invariant *)
 forward. (* t = a[lo]; *)
 {
   entailer!.
-  clear - H0 H HRE H1.
-  rewrite Zlength_map in *.
-  rewrite flip_between_map by omega.
-  rewrite Znth_map with (d':=Int.zero).
+  clear - H0 HRE.
+  autorewrite with sublist in *|-*.
+  rewrite flip_ends_map.
+  rewrite Znth_map with (d':=Int.zero)
+   by (autorewrite with sublist; omega).
   apply I.
-  rewrite Zlength_flip_between by omega.
-  omega.
 }
 forward.  (* s = a[hi-1]; *)
 {
   entailer!.
-  clear - H0 HRE H1.
-  rewrite Zlength_map in *.
-  rewrite flip_between_map by omega.
-  rewrite Znth_map with (d':=Int.zero).
+  clear - H0 HRE.
+  autorewrite with sublist in *|-*.
+  rewrite flip_ends_map.
+  rewrite Znth_map with (d':=Int.zero)
+   by (autorewrite with sublist; omega).
   apply I.
-  rewrite Zlength_flip_between by omega.
-  omega.
 }
-rewrite <- flip_fact_2 by (rewrite ?Zlength_flip_between; omega).
+rewrite <- flip_fact_2 by (rewrite ?Zlength_flip_ends; omega).
 forward. (*  a[hi-1] = t; *)
 forward. (* a[lo] = s; *)
 forward. (* lo++; *)
 forward. (* hi--; *)
 
 (* Prove postcondition of loop body implies loop invariant *)
-{
-  apply exp_right with (Zsucc j).
- entailer. rewrite prop_true_andp by (f_equal; f_equal; omega).
- apply derives_refl'. clear H5 H4.
- rewrite H3,H2; simpl. rewrite <- H3, <- H2. clear H2 H3 TC.
+ Exists (Zsucc j).
+ entailer!.
+ f_equal; f_equal; omega.
+ apply derives_refl'.
  unfold data_at.    f_equal.
- clear - H0 H HRE H1.
- remember (Zlength (map Vint contents)) as size.
+ rewrite H3,H2; simpl. rewrite <- H3, <- H2.
+ clear - H0 HRE H1.
  forget (map Vint contents) as al.
+ remember (Zlength al) as size.
  repeat match goal with |- context [reptype ?t] => change (reptype t) with val end.
  unfold upd_Znth_in_list.
- rewrite !Znth_cons_sublist by (repeat rewrite Zlength_flip_between; try omega).
+ rewrite !Znth_cons_sublist by (repeat rewrite Zlength_flip_ends; try omega).
  rewrite ?Zlength_app, ?Zlength_firstn, ?Z.max_r by omega.
- rewrite ?Zlength_flip_between by omega.
- rewrite ?Zlength_sublist by (rewrite ?Zlength_flip_between ; omega).
+ rewrite ?Zlength_flip_ends by omega.
+ rewrite ?Zlength_sublist by (rewrite ?Zlength_flip_ends ; omega).
+ unfold Z.succ. rewrite <- Heqsize. autorewrite with sublist.
+ replace (size - j - 1 + (1 + j)) with size by (clear; omega).
  apply flip_fact_3; auto.
-}
-(* after the loop *)
+
+* (* after the loop *)
 forward. (* return; *)
 rewrite map_rev. rewrite flip_fact_1 by omega.
 auto.
 Qed.
 
 Definition four_contents := [Int.repr 1; Int.repr 2; Int.repr 3; Int.repr 4].
-
-(*
-Lemma forall_Forall: forall A (P: A -> Prop) xs d,
-  (forall x, In x xs -> P x) ->
-  forall i, 0 <= i < Zlength xs -> P (Znth i xs d).
-Proof.
-  intros.
-  unfold Znth.
-  if_tac; [omega |].
-  assert (Z.to_nat i < length xs)%nat.
-  Focus 1. {
-    rewrite Zlength_correct in H0.
-    destruct H0 as [_ ?].
-    apply Z2Nat.inj_lt in H0; [| omega | omega].
-    rewrite Nat2Z.id in H0.
-    exact H0.
-  } Unfocus.
-  forget (Z.to_nat i) as n.
-  clear i H0 H1.
-  revert n H2; induction xs; intros.
-  + destruct n; simpl in H2; omega.
-  + destruct n.
-    - specialize (H a (or_introl eq_refl)).
-      simpl.
-      tauto.
-    - simpl in *.
-      apply IHxs; [| omega].
-      intros.
-      apply H.
-      tauto.
-Qed.
-*)
 
 Lemma body_main:  semax_body Vprog Gprog f_main main_spec.
 Proof.

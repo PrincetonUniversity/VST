@@ -97,5 +97,5 @@ apply andp_right. apply prop_right. exists l; eauto.
 unfold_data_at 2%nat.
 destruct ST as [ST1 [ST2 [ST3 [ST4 ST5]]]]. simpl in *. subst ST4. cancel.
 rewrite field_at_data_at. 
-    unfold nested_field_type2, field_address; simpl.
+    unfold nested_field_type, field_address; simpl.
     rewrite <- Heqs. entailer. 

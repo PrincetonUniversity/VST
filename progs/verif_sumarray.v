@@ -99,12 +99,12 @@ forward.  (* i = 0; *)
 forward.  (* s = 0; *)
 forward_while (sumarray_Inv a0 sh contents size)
      a1.
-(* Prove that current precondition implies loop invariant *)
-apply exp_right with 0.
+* (* Prove that current precondition implies loop invariant *)
+Exists 0.
 entailer!.  (* smt_test verif_sumarray_example1 *)
-(* Prove that loop invariant implies typechecking condition *)
+* (* Prove that loop invariant implies typechecking condition *)
 entailer!.
-(* Prove postcondition of loop body implies loop invariant *)
+* (* Prove postcondition of loop body implies loop invariant *)
 forward. (* x = a[i] *)
 entailer!. (* smt_test verif_sumarray_example2 *)
   (* there should be an easier way than this: *)
@@ -116,7 +116,7 @@ forward. (* i++; *)
  entailer!.  (* smt_test: verif_sumarray_example3 *)
  rewrite H2 in H1; inv H1.
  f_equal; apply add_one_more_to_sum; try omega; auto.
-(* After the loop *)
+* (* After the loop *)
 forward.  (* return s; *)
 entailer!.
 rewrite Zlength_map in *.
