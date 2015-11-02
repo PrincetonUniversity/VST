@@ -8,8 +8,10 @@ Require Import sha.HMAC_functional_prog.
 Require Import sha.HMAC256_functional_prog.
 Require Import sha.hmac_NK.
 
+Definition CompSpecs' : compspecs.
+Proof. make_compspecs1 prog. Defined.
 Instance CompSpecs : compspecs.
-Proof. make_compspecs prog. Defined.
+Proof. make_compspecs2 CompSpecs'. Defined. 
 
 Record TREP := mkTrep { t: type; v: reptype t}.
 
