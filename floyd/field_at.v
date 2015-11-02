@@ -1972,35 +1972,43 @@ Definition field_at_hide := @field_at.
 Ltac find_field_at N :=
  match N with
  | S O =>  change @field_at with field_at_mark at 1;
-                 change @field_at with @field_at_hide;
-                 change field_at_mark with @field_at
+              change field_at_hide with @field_at
  | S ?k => change @field_at with field_at_hide at 1;
                 find_field_at k
  end.
 
-Ltac unfold_field_at N :=
- find_field_at N;
+Definition protect (T: Type) (x: T) := x.
+Global Opaque protect.
+
+Ltac unfold_field_at N  :=
+  find_field_at N;
  match goal with 
- | |- context [@field_at ?cs ?sh ?t ?gfs ?v ?p] =>
+ | |- context [field_at_mark ?cs ?sh ?t ?gfs ?v ?p] =>
+     let F := fresh "F" in
+       set (F := field_at_mark cs sh t gfs v p);
+       change field_at_mark with @field_at in F;   
+     let V := fresh "V" in set (V:=v) in F;
+     let P := fresh "P" in set (P:=p) in F;  
+     let T := fresh "T" in set (T:=t) in F;
      let id := fresh "id" in evar (id: ident);
      let Heq := fresh "Heq" in
-     assert (Heq: nested_field_type t gfs = Tstruct id noattr)
-           by (unfold id; reflexivity);
+     assert (Heq: nested_field_type T gfs = Tstruct id noattr)
+           by (unfold id,T; reflexivity);
      let H := fresh in 
-     assert (H:= @field_at_Tstruct cs sh t gfs id noattr
-                          v v p  Heq (JMeq_refl _));
+     assert (H:= @field_at_Tstruct cs sh T gfs id noattr
+                          V V P  (eq_refl _) (JMeq_refl _));
      unfold id in H; clear Heq id;
-     let FLD := fresh "FLD" in
-     forget (@field_at cs sh t gfs v p) as FLD;
-   cbv beta iota zeta delta 
-     [co_members cenv_cs get_co nested_sfieldlist_at
-      nested_field_offset nested_field_type
-      nested_field_rec
-      alignof withspacer
-     ] in H;
-   simpl in H;
-   subst FLD;
-   change field_at_hide with @field_at in *
+     fold F in H; clearbody F; 
+     simpl co_members in H;
+     lazy beta iota zeta delta  [nested_sfieldlist_at ] in H;
+     change (field_at sh T) with (field_at sh t) in H;
+     hnf in T; subst T;
+     change v with (protect _ v) in V;
+     simpl in H;
+     unfold withspacer in H; simpl in H;
+     change (protect _ v) with v in V;
+     subst V P;
+     subst F
  end.
 
 Lemma field_at_ptr_neq{cs: compspecs} :

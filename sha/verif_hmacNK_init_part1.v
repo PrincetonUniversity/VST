@@ -154,7 +154,9 @@ Proof. intros. abbreviate_semax.
       (*call to SHA256_init*)
 (*      remember (`(data_at_ Tsh (tarray tuchar 64) pad)) as PAD.*)
       unfold data_at_ at 1. unfold field_at_ at 1.
-      Opaque default_val. unfold_field_at 1%nat. normalize. Transparent default_val.
+      simpl.
+     unfold_field_at 1%nat.
+      normalize. 
       rewrite (field_at_data_at Tsh t_struct_hmac_ctx_st [StructField _md_ctx]).
       unfold field_address. rewrite if_true; trivial.
 

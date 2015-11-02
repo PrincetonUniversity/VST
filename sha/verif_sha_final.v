@@ -211,7 +211,7 @@ cancel.
 rewrite (field_at_data_at _ _ [_]).
 eapply cancel_field_at_array_partial_undef; try reflexivity.
 subst ddlen. autorewrite with sublist; Omega1.
-apply eq_JMeq. f_equal. 
+apply eq_JMeq. simpl. f_equal.
 rewrite !map_app. reflexivity.
 f_equal. f_equal. subst ddlen; autorewrite with sublist; Omega1. 
 * unfold invariant_after_if1.
@@ -281,6 +281,10 @@ eapply semax_pre_post; [ | |
   try eassumption; try Omega1; reflexivity].
 +
 apply andp_left2.
+autorewrite with sublist.
+replace (CBLOCKz - Zlength dd' - (56 - Zlength dd'))
+  with 8 by Omega1.
+change (Z.to_nat 8) with (Z.to_nat (CBLOCKz-56)).
 entailer!.
 rewrite <- H11.
 unfold field_address.
@@ -293,8 +297,13 @@ rewrite (split2_array_at _ _ _ 0 (Zlength dd') 64) by Omega1.
 autorewrite with sublist.
 rewrite (split2_array_at _ _ _ (Zlength dd') 56 64) by Omega1.
 autorewrite with sublist.
+replace 
 cancel.
+
+simpl list_repeat.
 rewrite array_at_data_at'; auto.
+simpl.
+cancel.
 +
 intros.
 apply andp_left2.
