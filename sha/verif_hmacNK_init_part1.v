@@ -156,15 +156,14 @@ Proof. intros. abbreviate_semax.
       unfold data_at_ at 1. unfold field_at_ at 1.
       simpl.
      unfold_field_at 1%nat.
-      normalize. 
       rewrite (field_at_data_at Tsh t_struct_hmac_ctx_st [StructField _md_ctx]).
-      unfold field_address. rewrite if_true; trivial.
-
+      unfold field_address. rewrite if_true by trivial.
+      simpl @nested_field_type. simpl @nested_field_offset.
+      normalize.
       (*new: extract info from field_address as early as possible*)
       assert_PROP (isptr (field_address t_struct_hmac_ctx_st [StructField _md_ctx]
-                          (Vptr cb cofs))).
-      { entailer. } 
-      rename H into FA_MDCTX. (*
+                          (Vptr cb cofs))) as FA_MDCTX by entailer!.
+ (*
       apply isptrD in H; destruct H as [? [? PT]]; rewrite PT.
       unfold field_address in PT.
       destruct (field_compatible_dec t_struct_hmac_ctx_st [StructField _md_ctx]
@@ -172,22 +171,21 @@ Proof. intros. abbreviate_semax.
       subst x x0.
       rename f into FC.*)
 (*      subst PAD. normalize.*)
-      forward_call (Vptr cb cofs). (*Issue: takes 5mins...*)
-      { repeat rewrite sepcon_assoc. apply sepcon_derives. 2: cancel.
-        eapply derives_trans. apply data_at_data_at_. 
-          unfold offset_val. simpl. unfold field_offset; simpl. unfold fieldlist.field_offset; simpl. unfold field_type; simpl.
+Time      forward_call (Vptr cb cofs). (*Issue: takes 5mins... [now takes 28 sec] *)
+(*
+      { match goal with |- _ * _ * ?A * _ * _ * _ * _ |-- _ => pull_left A end.
+        repeat rewrite sepcon_assoc. apply sepcon_derives. 2: cancel.
+        eapply derives_trans; [apply data_at_data_at_ | ].
+          unfold offset_val. simpl.
           rewrite Int.add_zero. apply derives_refl. }
-       normalize.
+       unfold map at 1.  (* should not be necessary *)
       (*call to SHA256_Update*) 
       assert (MaxSignedMod: Int.max_signed < Int.modulus) by intuition. 
-      assert_PROP (field_compatible (Tarray tuchar (Zlength key) noattr) [] (Vptr kb kofs)). entailer.
-      rename H into FC_k.
+      assert_PROP (field_compatible (Tarray tuchar (Zlength key) noattr) [] (Vptr kb kofs))
+         as FC_k by entailer!.
       unfold tarray. rewrite (split2_data_at_Tarray_at_tuchar _ _ l); trivial; try omega.
       Focus 2. repeat rewrite Zlength_map; trivial.
       rewrite sublist_same; repeat rewrite Zlength_map; trivial.
- (*     normalize. simpl in H, H0. rewrite Zplus_0_r in H.
-      rename H into OIR_kofs. rename H0 into OIR_kofs_key.
-*)
       rewrite KL1, Zminus_diag, sublist_nil. normalize.
       replace_SEP 1 (`emp). 
       { unfold at_offset. entailer. 
@@ -195,12 +193,16 @@ Proof. intros. abbreviate_semax.
              rewrite data_at__memory_block.
                rewrite memory_block_zero_Vptr. entailer. 
       }
+*)
       forward_call (init_s256abs, key, Vptr cb cofs, Vptr kb kofs, Tsh, l, kv) ctxSha.
-      { (*Issue: this side condition is NEW*)
+(*      { (*Issue: this side condition is NEW*)
         apply prop_right. simpl. rewrite Int.add_zero, <- KL1. split; trivial. }
+*)
       { unfold data_block.
         (*Issue: calling entailer or normalize here yields 
              "Anomaly: undefined_evars_of_term: evar not found. Please report."*)
+       rewrite prop_true_andp by auto. cancel.
+(*
         assert (FR: Frame = [
          field_at Tsh t_struct_hmac_ctx_st [StructField 14%positive]
             (fst (snd (default_val t_struct_hmac_ctx_st))) (Vptr cb cofs);
@@ -211,12 +213,14 @@ Proof. intros. abbreviate_semax.
           subst Frame; reflexivity.
          rewrite FR; clear FR Frame. 
          simpl. (*Issue: Yes, simpl is crucial here*) normalize.
+*)
       }
       { clear Frame HeqPostIf_j_Len HeqPostKeyNull.
         specialize Int.max_signed_unsigned.
         subst l. intuition.
       }
-      Opaque default_val.
+    unfold map at 1. (* this should not be necessary *)
+(*      Opaque default_val.*)
       simpl. rename H into updAbs.
       rewrite sublist_same in updAbs; trivial.
 
@@ -224,28 +228,29 @@ Proof. intros. abbreviate_semax.
 (*     assert_PROP(isptr ctxkey). entailer.
      apply isptrD in H; destruct H as [ckb [ckoff X]]; subst ctxkey.*)
      focus_SEP 6. unfold data_at_ at 1. unfold field_at_.
-     rewrite field_at_data_at at 1. (*Issue very slow...*)
-     unfold field_address. rewrite if_true. 2: assumption.
+     Time rewrite field_at_data_at at 1. (*Issue very slow...  now takes 5.5 sec*)
+     unfold field_address. rewrite if_true by assumption.
      simpl. rewrite Int.add_zero.
 
-    assert_PROP (field_compatible (Tarray tuchar 64 noattr) [] (Vptr ckb ckoff)). normalize.
-    rename H into FC_ctxkey.
-
+    assert_PROP (field_compatible (Tarray tuchar 64 noattr) [] (Vptr ckb ckoff))
+      as  FC_ctxkey by entailer!.
      replace_SEP 0 (`(memory_block Tsh 64 (Vptr ckb ckoff))).
      { entailer!. apply data_at_memory_block. }
     
      specialize (memory_block_split Tsh ckb (Int.unsigned ckoff) 32 32).
      rewrite Int.repr_unsigned.
-     assert (32 + 32 =64) by reflexivity. rewrite H. Opaque Zplus. clear H.
+     change (32+32) with 64.
+     Opaque Zplus.
      intros MBS; rewrite MBS; clear MBS; trivial. 
      Focus 2. destruct (Int.unsigned_range ckoff). split; try omega.
               red in FC_ctxkey. simpl in FC_ctxkey. intuition.
      normalize. 
 
-   gather_SEP 4 5 6 7. (*Issue: why does gather_SEP take 1min???*)  (*How can the order of arguments affect what's unfolded: try gather_SEP 7 5 6 4 instead!!*)
+Time   gather_SEP 4 5 6 7. (*Issue: why does gather_SEP take 1min???
+                 takes only 0.01 seconds now. *)
    replace_SEP 0 (`(hmac_init_part1_FRAME1 key kb kofs cb cofs pad)).
    { Transparent hmac_init_part1_FRAME1. unfold hmac_init_part1_FRAME1. Opaque hmac_init_part1_FRAME1.
-     Transparent default_val. entailer. cancel. Opaque default_val. (*Issue: without making default_val transparent, entailer/nornmalize/entailer! here don't terminate within 1h*)
+     Transparent default_val. entailer!. Opaque default_val. (*Issue: without making default_val transparent, entailer/nornmalize/entailer! here don't terminate within 1h*)
    } 
    forward_call (ctxSha, Vptr ckb ckoff, Vptr cb cofs, Tsh, kv). (*with transparent hmac_init_part1_FRAME1 it's a bit faster, but then unfolds hmac_init_part1_FRAME in the precondition of the next goal*) 
 (*Issue : WAS: Transparent default_val. unfold default_val. simpl. (*Issue: adding this line is necessary to make the following forward_call terminate in < 5mins*)
@@ -255,7 +260,7 @@ Proof. intros. abbreviate_semax.
 
      replace_SEP 1 (`(hmac_init_part1_FRAME2 cb cofs)).
      { Transparent hmac_init_part1_FRAME2. unfold hmac_init_part1_FRAME2. Opaque hmac_init_part1_FRAME2.
-       Transparent default_val. entailer. Opaque default_val. 
+       Transparent default_val. entailer!. Opaque default_val. 
        unfold data_at_, field_at_.
        rewrite field_at_data_at.
        unfold field_address. rewrite if_true; trivial. rewrite if_true; trivial. }
@@ -268,10 +273,11 @@ Proof. intros. abbreviate_semax.
      { subst PostIf_j_Len.
       unfold data_block.
       entailer!.
-      unfold data_at at 3. 
-      Transparent Z.add. unfold_field_at 1%nat. Opaque Z.add. normalize.
-      unfold nested_field_type, HMS; simpl.
-      rewrite field_at_data_at at 1.  
+      unfold HMS.
+      Transparent Z.add.  unfold_data_at 3%nat. Opaque Z.add. normalize.
+      rewrite field_at_data_at at 1.
+      simpl @nested_field_type.
+ 
      assert (SFL: Zlength  (sha_finish ctxSha) = 32).
         destruct ctxSha. simpl. rewrite <- functional_prog.SHA_256'_eq, Zlength_correct, length_SHA256'. reflexivity. 
      rewrite SFL.

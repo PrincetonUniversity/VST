@@ -106,9 +106,7 @@ set (ddlen := Zlength dd) in *.
 set (fill_len := (64 - (ddlen + 1))).
  unfold Delta_final_if1; simplify_Delta; unfold Body_final_if1; abbreviate_semax.
 change CBLOCKz with 64 in Hddlen.
-unfold data_at. unfold_field_at 1%nat.
-normalize.
-
+unfold_data_at 1%nat. 
 eapply semax_seq'.
 evar (Frame: list (LiftEnviron mpred)).
 evar (V: list val).
@@ -122,7 +120,7 @@ evar (V: list val).
  change CBLOCKz with 64; omega.
  subst V.
  entailer!. {
- clear - Hddlen H11.
+ clear - Hddlen H5.
  unfold field_address, field_address0. 
  rewrite ?if_true; auto.
  normalize. f_equal. f_equal.
@@ -217,18 +215,15 @@ split.
  apply Int.unsigned_repr; unfold isbyteZ in H1; repable_signed.
  rewrite map_list_repeat. reflexivity.
 *
- unfold data_at. unfold_field_at 5%nat.
+ unfold_data_at 1%nat.
  unfold data_block.
  normalize.
  cancel.
  rewrite field_at_data_at by reflexivity.
- normalize.
+ simpl.
  rewrite Zlength_intlist_to_Zlist, H1'.
  change (LBLOCKz * 4)%Z with 64%Z.
- autorewrite with sublist.
  eapply derives_trans; [apply data_at_data_at_ | ].
- change (nested_field_type t_struct_SHA256state_st [StructField _data])
-    with (tarray tuchar 64).
  apply derives_refl.
 Qed.
 
