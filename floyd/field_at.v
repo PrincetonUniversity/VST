@@ -1542,8 +1542,6 @@ rewrite H1.
 normalize.
 Qed.
 
-Hint Resolve data_at_valid_ptr field_at_valid_ptr field_at_valid_ptr0 : valid_pointer.
-
 (************************************************
 
 Other lemmas
@@ -1843,6 +1841,8 @@ Proof.
 Qed.
 
 End CENV.
+
+Hint Resolve data_at_valid_ptr field_at_valid_ptr field_at_valid_ptr0 : valid_pointer.
 
 Lemma data_array_at_local_facts {cs: compspecs}:
  forall t' n a sh v p,

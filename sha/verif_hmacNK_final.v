@@ -139,7 +139,8 @@ subst rv; simpl.
 assert (SFL: Zlength (sha_finish ctx) = 32). 
   unfold sha_finish. destruct ctx. 
   rewrite <- functional_prog.SHA_256'_eq, Zlength_correct, length_SHA256'. trivial.
-clear H H0.
+rename H into FC_o_ctx;
+rename H0 into FC_md_ctx.
 
 (*Call sha256Update*)
 forward_call (oSha, sha_finish ctx, Vptr b i, buf, Tsh, Z.of_nat SHA256.DigestLength, kv) updSha.
@@ -169,11 +170,16 @@ apply derives_trans with (Q:= hmacstate_PostFinal (HMACabs updSha iSha oSha)
 cancel.
 unfold hmacstate_PostFinal, hmac_relate_PostFinal. normalize.
 Exists (updShaST, (iCTX, oCTX)). normalize.
-unfold data_at at 2. unfold_field_at 2%nat. (* VST Issue: unfold_field_at here takes ages*)
+match goal with |- _ |-- data_at _ _ ?A _ =>
+change A with (default_val t_struct_SHA256state_st, (iCTX, oCTX))
+end.
+Time unfold_data_at 2%nat. (* VST Issue: unfold_field_at here takes ages ... now 0.623 sec *)
 cancel.
 rewrite (field_at_data_at _ _ [StructField _o_ctx]). 
 rewrite (field_at_data_at _ _ [StructField _md_ctx]).
 unfold data_at_. unfold field_at_.
 rewrite field_at_data_at.
-unfold field_address. rewrite if_true; trivial. rewrite if_true; trivial. rewrite if_true; trivial.
+simpl.
+unfold field_address. rewrite if_true by trivial. rewrite if_true by trivial. rewrite if_true by trivial.
+trivial.
 Qed.
