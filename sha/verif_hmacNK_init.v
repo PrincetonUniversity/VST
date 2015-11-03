@@ -144,20 +144,24 @@ eapply semax_seq. instantiate (1:=PostResetBranch).
      destruct Hs as [IREL [OREL [ILEN [OLEN [ISHA OSHA]]]]].
      destruct s as [mdS [iS oS]]. simpl in *.
 
-     assert_PROP (field_compatible t_struct_hmac_ctx_st [] (Vptr cb cofs)) as FC_cb by entailer.
-     assert (FC_cb_ictx: field_compatible t_struct_hmac_ctx_st [StructField 14%positive] (Vptr cb cofs)).
+(* Issue: why is update_reptype not simplifying? *)
+     match goal with |- context [@upd_reptype ?cs ?t ?gfs ?x ?v] => 
+           change (@upd_reptype cs t gfs x v) with (v,(iS,oS)) end.
+
+     assert_PROP (field_compatible t_struct_hmac_ctx_st [] (Vptr cb cofs))
+        as FC_cb by entailer!.
+     assert (FC_cb_ictx: field_compatible t_struct_hmac_ctx_st [StructField _i_ctx] (Vptr cb cofs)).
        red; red in FC_cb. intuition. split; trivial. right; left. reflexivity.
-     assert (FC_cb_md: field_compatible t_struct_hmac_ctx_st [StructField 13%positive] (Vptr cb cofs)).
+     assert (FC_cb_md: field_compatible t_struct_hmac_ctx_st [StructField _md_ctx] (Vptr cb cofs)).
        red; red in FC_cb. intuition. split; trivial. left. reflexivity.
 
-     unfold data_at at 1.
-     unfold_field_at 1%nat. (*Issue: Why is this so slow here (2mins)*)
-     normalize. 
-     (*rewrite field_at_data_at at 2. *)
-     (*VST Issue: why does rewrite field_at_data_at at 2 FAIL, but focus_SEP 1. rewrite field_at_data_at at 1. SUCCEED???*)
-     focus_SEP 1. rewrite field_at_data_at at 1. 
-     unfold field_address. rewrite if_true; trivial.
-
+Time     unfold_data_at 1%nat. (*Issue: Why is this so slow here (2mins) ... now down to 0.7 seconds *)
+     rewrite (field_at_data_at _ _ [StructField _i_ctx]).
+     (*VST Issue: why does rewrite field_at_data_at at 2 FAIL, but focus_SEP 1. rewrite field_at_data_at at 1. SUCCEED???
+       Answer: instead of using "at 2", use the field-specificer in the line above.*)
+     unfold field_address. rewrite if_true by trivial.
+     simpl @nested_field_type.
+      
      forward_call ((Tsh, Tsh),
              Vptr cb cofs,
              offset_val
@@ -165,29 +169,35 @@ eapply semax_seq. instantiate (1:=PostResetBranch).
               (Vptr cb cofs),
              mkTrep t_struct_SHA256state_st iS, 
              @sizeof (@cenv_cs CompSpecs) t_struct_SHA256state_st) rv.
-     { rewrite field_at_data_at at 1. 
-       unfold field_address; simpl. rewrite if_true, Int.add_zero; trivial.
-       repeat rewrite sepcon_assoc.
-       apply sepcon_derives.
-          eapply derives_trans. apply data_at_memory_block. apply derives_refl.
-          cancel.
+     {      rewrite (field_at_data_at _ _ [StructField _md_ctx]).
+       unfold field_address; simpl. rewrite if_true by auto; rewrite Int.add_zero.
+       change 108 with (sizeof cenv_cs t_struct_SHA256state_st).
+       rewrite memory_block_data_at_ .
+       change (Tstruct _SHA256state_st noattr) with t_struct_SHA256state_st.
+       (* cancel.  Issue: doesn't work, for some reason. *)
+       pull_left (data_at Tsh t_struct_SHA256state_st v (Vptr cb cofs)).
+       rewrite !sepcon_assoc. apply sepcon_derives; [ | cancel].
+       apply data_at_data_at_.
+       clear - FC_cb; hnf in FC_cb|-*; intuition.
+       red in H4|-*. simpl in H4|-*. omega.
      }
      subst rv. simpl.
 
      forward. (*return*)
      Exists (Vptr ckb ckoff). normalize.
      Exists pad. normalize.
+     Exists (HMACabs iSha iSha oSha).   
      unfold hmacInit. 
      remember (Int.unsigned (Int.repr (if zlt 64 (Zlength key) then 32 else Zlength key)))as KL.
-     Exists (HMACabs iSha iSha oSha).   
      entailer!. exists iSha, oSha. auto.
      unfold hmacstate_, hmac_relate.
       Exists (iS, (iS, oS)).
       simpl. entailer!.
 
-      unfold data_at at 3. unfold_field_at 2%nat. entailer!.
-      do 2 rewrite field_at_data_at.
-      unfold field_address; simpl. rewrite if_true; trivial. rewrite if_true; trivial.
+      unfold_data_at 3%nat.
+       rewrite (field_at_data_at _ _ [StructField _md_ctx]).
+       rewrite (field_at_data_at _ _ [StructField _i_ctx]).
+      unfold field_address; simpl. rewrite if_true by trivial. rewrite if_true by trivial.
       rewrite Int.add_zero. cancel.
   }
 
@@ -212,15 +222,15 @@ eapply semax_seq. instantiate (1:=PostResetBranch).
               (Vptr cb cofs),
              mkTrep t_struct_SHA256state_st iS,
              @sizeof (@cenv_cs CompSpecs) t_struct_SHA256state_st) rv.
-    { simpl. rewrite field_at_data_at at 1. 
-       unfold field_address; simpl. rewrite if_true; trivial. rewrite if_true; trivial. rewrite Int.add_zero.
-       repeat rewrite sepcon_assoc. rewrite sepcon_comm. repeat rewrite sepcon_assoc. 
-       apply sepcon_derives.
-          eapply derives_refl.
-       repeat rewrite <- sepcon_assoc. rewrite sepcon_comm. 
-       apply sepcon_derives.
-          eapply derives_trans. apply data_at_memory_block. apply derives_refl.
-          cancel.
+    { simpl. rewrite (field_at_data_at _ _ [StructField _i_ctx] ).
+       unfold field_address; simpl. rewrite if_true by trivial. rewrite if_true by trivial. rewrite Int.add_zero.
+      cancel.
+      change 108 with (sizeof cenv_cs t_struct_SHA256state_st).
+      rewrite memory_block_data_at_ .
+      change (Tstruct _SHA256state_st noattr) with t_struct_SHA256state_st.
+      cancel.
+       clear - FC_cb; hnf in FC_cb|-*; intuition.
+       red in H4|-*. simpl in H4|-*. omega.
     }
     simpl.
     forward. (*return*)
@@ -238,9 +248,10 @@ eapply semax_seq. instantiate (1:=PostResetBranch).
       rewrite (updAbs_len _ _ _ OUTER), Zlength_mkArgZ,
            map_length, mkKey_length; reflexivity.
 
-      unfold data_at at 3. unfold_field_at 2%nat. entailer!.
-      do 2 rewrite field_at_data_at.
-      unfold field_address; simpl. rewrite if_true; trivial. rewrite if_true; trivial.
+      unfold_data_at 3%nat.
+      rewrite (field_at_data_at _ _ [StructField _md_ctx]).
+      rewrite (field_at_data_at _ _ [StructField _i_ctx]).
+      unfold field_address; simpl. rewrite if_true by trivial. rewrite if_true by trivial.
       rewrite Int.add_zero. cancel.
   }
 } 
