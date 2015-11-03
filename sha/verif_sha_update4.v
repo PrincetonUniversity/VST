@@ -177,8 +177,7 @@ forward_call (* sha256_block_data_order (c,data); *)
  (hashed++ blocks,  bl, c, 
   field_address0 (tarray tuchar (Zlength data))  [ArraySubsc lo] d,
   sh, kv).
- unfold data_at.
- unfold_field_at 1%nat.
+ unfold_data_at 1%nat.
  entailer!.
  split3; auto. apply divide_length_app; auto.
  simpl map. (* should not need this *)
@@ -200,7 +199,7 @@ forward_call (* sha256_block_data_order (c,data); *)
  f_equal. f_equal. f_equal. Omega1.
  f_equal. f_equal. 
  autorewrite with sublist. Omega1.
- unfold data_at. unfold_field_at 6%nat.
+ unfold_data_at 1%nat.
  rewrite (split3_data_block lo (lo+CBLOCKz) sh data d)
     by (auto; subst lo; try Omega1).
  rewrite app_ass.
@@ -303,8 +302,8 @@ eapply field_compatible0_cons_Tarray; try reflexivity; auto; try omega.
   ...
   with automatic cancel...
 *)
- unfold data_at at 2; unfold_field_at 1%nat.
- unfold data_at at 1; unfold_field_at 1%nat.
+ unfold_data_at 1%nat.
+ unfold_data_at 1%nat.
  cancel.
 Qed.
 
