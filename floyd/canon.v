@@ -1,6 +1,17 @@
 Require Import floyd.base.
 Local Open Scope logic.
 
+Lemma later_left2 {T}{ND: NatDed T}{IT: Indir T}:
+ forall A B C : T, A && B |-- C -> A && |> B |-- |>C.
+Proof.
+intros.
+apply derives_trans with (|> (A && B)).
+rewrite later_andp.
+apply andp_derives; auto.
+apply now_later.
+apply later_derives; assumption.
+Qed.
+
 (* is this lemma useful? *)
 Lemma exp_prop: forall A P, exp (fun x: A => prop (P x)) = prop (exists x: A, P x).
 Proof.
@@ -1236,6 +1247,23 @@ apply semax_extract_prop.
 auto.
 Qed.
 
+Lemma assert_later_PROP:
+ forall P1 Espec {cs: compspecs} Delta P Q R c Post,
+    PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |-- !! P1 ->
+   (P1 -> @semax cs Espec Delta (|> PROPx P (LOCALx Q (SEPx R))) c Post) ->
+   @semax cs Espec Delta (|> PROPx P (LOCALx Q (SEPx R))) c Post.
+Proof.
+intros.
+eapply semax_pre_simple.
+apply later_left2.
+apply andp_right.
+rewrite insert_local.
+apply H.
+apply andp_left2; apply derives_refl.
+apply semax_extract_later_prop.
+auto.
+Qed.
+
 Lemma assert_PROP' {A}{NA: NatDed A}:
  forall P Pre (Post: A),
    Pre |-- !! P ->
@@ -1250,16 +1278,16 @@ Qed.
 
 
 Tactic Notation "assert_PROP" constr(A) :=
-  first [apply (assert_PROP A) | apply (assert_PROP' A)]; [ | intro ].
+  first [apply (assert_PROP A) | apply (assert_PROP' A) | apply (assert_later_PROP A)]; [ | intro ].
 
 Tactic Notation "assert_PROP" constr(A) "by" tactic(t) :=
-  first [apply (assert_PROP A) | apply (assert_PROP' A)]; [ now t | intro ].
+  first [apply (assert_PROP A) | apply (assert_PROP' A) | apply (assert_later_PROP A)]; [ now t | intro ].
 
 Tactic Notation "assert_PROP" constr(A) "as" simple_intropattern(H)  :=
-  first [apply (assert_PROP A) | apply (assert_PROP' A)]; [ | intro H ].
+  first [apply (assert_PROP A) | apply (assert_PROP' A) | apply (assert_later_PROP A)]; [ | intro H ].
 
 Tactic Notation "assert_PROP" constr(A) "as" simple_intropattern(H) "by" tactic(t) :=
-  first [apply (assert_PROP A) | apply (assert_PROP' A)]; [ now t | intro H ].
+  first [apply (assert_PROP A) | apply (assert_PROP' A) | apply (assert_later_PROP A)]; [ now t | intro H ].
 
 Lemma assert_LOCAL:
  forall Q1 Espec {cs: compspecs} Delta P Q R c Post,

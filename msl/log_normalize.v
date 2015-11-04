@@ -200,6 +200,15 @@ intros.
   rewrite sepcon_comm.  apply wand_sepcon_adjoint. auto.
 Qed.
 
+Lemma wand_sepcon_wand: forall {A} {NA: NatDed A} {SA: SepLog A} (P1 P2 Q1 Q2: A),
+  (P1 -* Q1) * (P2 -* Q2) |-- P1 * P2 -* Q1 * Q2.
+Proof.
+  intros.
+  rewrite <- wand_sepcon_adjoint.
+  rewrite (sepcon_comm P1), <- !sepcon_assoc, (sepcon_comm _ P1), (sepcon_assoc _ _ P2), <- (sepcon_assoc P1), (sepcon_comm _ P2).
+  apply sepcon_derives; apply modus_ponens_wand.
+Qed.
+
 Lemma sepcon_FF {A}{ND: NatDed A}{SL: SepLog A} :
            forall P: A, sepcon P FF = FF.
 Proof.
