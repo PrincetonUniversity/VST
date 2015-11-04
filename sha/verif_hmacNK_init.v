@@ -28,10 +28,10 @@ name len' _len.
 rename lvar0 into pad. rename lvar1 into ctxkey.
 
 destruct H as [KL1 [KL2 KL3]]. 
-forward.
+Time forward. (*1.3*)
  
-assert_PROP (isptr ctxkey). { entailer. }
-apply isptrD in H; destruct H as [ckb [ckoff X]]; subst ctxkey.
+Time assert_PROP (isptr ctxkey) as Pckey by entailer!. (*0.7*) 
+apply isptrD in Pckey; destruct Pckey as [ckb [ckoff X]]; subst ctxkey.
 
 (*isolate branch if (key != NULL) *)
 apply seq_assoc.
@@ -69,14 +69,14 @@ forward_seq. instantiate (1:= PostKeyNull).
    rewrite DD.  
    eapply semax_pre_simple.
    2: eapply hmac_init_part1; eassumption.
-   entailer. cancel.
-}
-subst PostKeyNull. normalize.
+   Time entailer!. (*2.3*) }
+subst PostKeyNull.
 apply extract_exists_pre; intros cb. 
 apply extract_exists_pre; intros cofs. 
 apply extract_exists_pre; intros r.
-normalize. unfold POSTCONDITION, abbreviate. subst c.
- (*rename H into HC; rewrite HC.*) rename H0 into R.
+Time normalize. (*2.2*)
+unfold POSTCONDITION, abbreviate. subst c.
+rename H0 into R.
 
 (*isolate branch if (reset) *)
 apply seq_assoc.
@@ -115,8 +115,8 @@ remember (EX shaStates:_ ,
 eapply semax_seq. instantiate (1:=PostResetBranch).
 { eapply semax_pre_post.
   Focus 3 . apply init_part2; eassumption.
-  entailer.
-  intros ? ?. apply andp_left2. entailer. }
+  apply andp_left2. apply derives_refl.  (*alternative Time entailer!. (*1.4*)*)
+  intros ? ?. apply andp_left2. apply derives_refl. }
 
 { (*Continuation after if (reset*)
   subst PostResetBranch.
@@ -125,19 +125,24 @@ eapply semax_seq. instantiate (1:=PostResetBranch).
   apply tycontext_sub_refl.
   apply extract_exists_pre; intros [iSA [iS [oSA oS]]]. 
   unfold initPostResetConditional.
-  normalize. 
+  Time normalize. (*6*)
   rename H into INNER. rename H0 into InnerRelate.
   rename H1 into OUTER. rename H2 into OuterRelate.
   unfold initPostResetConditional.
   destruct k;
-    try solve [apply semax_pre with (P':=FF); try entailer; try apply semax_ff].
+    try solve [apply semax_pre with (P':=FF); try entailer!; try apply semax_ff].
   { (*k is integer, ie key==null*)
      destruct (Int.eq i Int.zero). 
-     Focus 2. apply semax_pre with (P':=FF); try entailer; try apply semax_ff.
+      2: solve [apply semax_pre with (P':=FF); try entailer; try apply semax_ff].
      destruct R; subst r; simpl.
-     Focus 2. apply semax_pre with (P':=FF); try entailer; try apply semax_ff.
-     unfold hmacstate_PreInitNull; simpl. normalize.
-     intros s. normalize. intros v. normalize. rename H into Hs.
+      2: solve [apply semax_pre with (P':=FF); try entailer; try apply semax_ff].
+     unfold hmacstate_PreInitNull; simpl. 
+     Time normalize. (*25 SLOW*)
+     intros s.
+     Time extract_exists_in_SEP. (*41 SLOW*)
+     intros v.
+     Time normalize. (*20 SLOW*)
+     rename H into Hs.
      unfold hmac_relate_PreInitNull in Hs. 
      clear INNER InnerRelate OUTER OuterRelate iSA iS oSA oS.
      destruct h1.
@@ -148,28 +153,29 @@ eapply semax_seq. instantiate (1:=PostResetBranch).
      match goal with |- context [@upd_reptype ?cs ?t ?gfs ?x ?v] => 
            change (@upd_reptype cs t gfs x v) with (v,(iS,oS)) end.
 
-     assert_PROP (field_compatible t_struct_hmac_ctx_st [] (Vptr cb cofs))
-        as FC_cb by entailer!.
+     Time assert_PROP (field_compatible t_struct_hmac_ctx_st [] (Vptr cb cofs))
+        as FC_cb by entailer!. (*3.9*)
      assert (FC_cb_ictx: field_compatible t_struct_hmac_ctx_st [StructField _i_ctx] (Vptr cb cofs)).
        red; red in FC_cb. intuition. split; trivial. right; left. reflexivity.
      assert (FC_cb_md: field_compatible t_struct_hmac_ctx_st [StructField _md_ctx] (Vptr cb cofs)).
        red; red in FC_cb. intuition. split; trivial. left. reflexivity.
 
-Time     unfold_data_at 1%nat. (*Issue: Why is this so slow here (2mins) ... now down to 0.7 seconds *)
+     Time unfold_data_at 1%nat. (*0.8, was slow*)
      rewrite (field_at_data_at _ _ [StructField _i_ctx]).
      (*VST Issue: why does rewrite field_at_data_at at 2 FAIL, but focus_SEP 1. rewrite field_at_data_at at 1. SUCCEED???
        Answer: instead of using "at 2", use the field-specificer in the line above.*)
      unfold field_address. rewrite if_true by trivial.
      simpl @nested_field_type.
       
-     forward_call ((Tsh, Tsh),
+     Time forward_call ((Tsh, Tsh),
              Vptr cb cofs,
              offset_val
               (Int.repr (nested_field_offset t_struct_hmac_ctx_st [StructField _i_ctx]))
               (Vptr cb cofs),
              mkTrep t_struct_SHA256state_st iS, 
              @sizeof (@cenv_cs CompSpecs) t_struct_SHA256state_st) rv.
-     {      rewrite (field_at_data_at _ _ [StructField _md_ctx]).
+     (* 13 secs*)
+     { rewrite (field_at_data_at _ _ [StructField _md_ctx]).
        unfold field_address; simpl. rewrite if_true by auto; rewrite Int.add_zero.
        change 108 with (sizeof cenv_cs t_struct_SHA256state_st).
        rewrite memory_block_data_at_ .
@@ -183,66 +189,68 @@ Time     unfold_data_at 1%nat. (*Issue: Why is this so slow here (2mins) ... now
      }
      subst rv. simpl.
 
-     forward. (*return*)
-     Exists (Vptr ckb ckoff). normalize.
-     Exists pad. normalize.
+     Time forward. (*return*) (*13 secs SLOW, and leaves a somewhat messy subgoal (Issue)*)
+     Exists (Vptr ckb ckoff). Time normalize. (*3.5*)
+     Exists pad. Time normalize. (*3.3*)
      Exists (HMACabs iSha iSha oSha).   
      unfold hmacInit. 
      remember (Int.unsigned (Int.repr (if zlt 64 (Zlength key) then 32 else Zlength key)))as KL.
-     entailer!. exists iSha, oSha. auto.
+     Time entailer!. (*4.5*)
+     exists iSha, oSha. auto.
      unfold hmacstate_, hmac_relate.
       Exists (iS, (iS, oS)).
-      simpl. entailer!.
+      simpl. Time entailer!. (*3.5*)
 
       unfold_data_at 3%nat.
-       rewrite (field_at_data_at _ _ [StructField _md_ctx]).
-       rewrite (field_at_data_at _ _ [StructField _i_ctx]).
+      rewrite (field_at_data_at _ _ [StructField _md_ctx]).
+      rewrite (field_at_data_at _ _ [StructField _i_ctx]).
       unfold field_address; simpl. rewrite if_true by trivial. rewrite if_true by trivial.
-      rewrite Int.add_zero. cancel.
+      rewrite Int.add_zero. Time cancel. (*0.5*) 
   }
 
   { (*k is Vptr, key!=NULL*)
     destruct R; subst r; simpl. 
     apply semax_pre with (P':=FF); try entailer; try apply semax_ff.
-    normalize. rename H into isbyteKey. 
+    Time normalize. (*9.3*) rename H into isbyteKey. 
     unfold postResetHMS. simpl.
-     assert_PROP (field_compatible t_struct_hmac_ctx_st [] (Vptr cb cofs)) as FC_cb by entailer.
-     assert (FC_cb_ictx: field_compatible t_struct_hmac_ctx_st [StructField 14%positive] (Vptr cb cofs)).
+    Time assert_PROP (field_compatible t_struct_hmac_ctx_st [] (Vptr cb cofs)) as FC_cb by entailer!. (*6.7*)
+    assert (FC_cb_ictx: field_compatible t_struct_hmac_ctx_st [StructField 14%positive] (Vptr cb cofs)).
        red; red in FC_cb. intuition. split; trivial. right; left. reflexivity.
-     assert (FC_cb_md: field_compatible t_struct_hmac_ctx_st [StructField 13%positive] (Vptr cb cofs)).
+    assert (FC_cb_md: field_compatible t_struct_hmac_ctx_st [StructField 13%positive] (Vptr cb cofs)).
        red; red in FC_cb. intuition. split; trivial. left. reflexivity.
 
-    unfold data_at at 1. unfold_field_at 1%nat. normalize.
+    unfold_data_at 1%nat. 
     rewrite (field_at_data_at Tsh t_struct_hmac_ctx_st [StructField _md_ctx]).
-
-    forward_call ((Tsh, Tsh),
+    rewrite (field_at_data_at Tsh t_struct_hmac_ctx_st [StructField _i_ctx]).
+    unfold field_address. rewrite if_true by trivial. rewrite if_true by trivial. simpl. rewrite Int.add_zero.
+   
+    Time forward_call ((Tsh, Tsh),
              Vptr cb cofs,
              offset_val
               (Int.repr (nested_field_offset t_struct_hmac_ctx_st [StructField _i_ctx]))
               (Vptr cb cofs),
              mkTrep t_struct_SHA256state_st iS,
              @sizeof (@cenv_cs CompSpecs) t_struct_SHA256state_st) rv.
-    { simpl. rewrite (field_at_data_at _ _ [StructField _i_ctx] ).
-       unfold field_address; simpl. rewrite if_true by trivial. rewrite if_true by trivial. rewrite Int.add_zero.
-      cancel.
+    (* 16 - SLOW -- maybe can spead up by doing some of the stuff in the proof of the SC prior to the call?*)
+    { simpl. 
       change 108 with (sizeof cenv_cs t_struct_SHA256state_st).
       rewrite memory_block_data_at_ .
       change (Tstruct _SHA256state_st noattr) with t_struct_SHA256state_st.
-      cancel.
+      Time cancel. (*3*)
        clear - FC_cb; hnf in FC_cb|-*; intuition.
        red in H4|-*. simpl in H4|-*. omega.
     }
     simpl.
-    forward. (*return*)
-     Exists (Vptr ckb ckoff). normalize.
-     Exists pad. normalize.
+    Time forward. (*return*) (*19 SLOW*) (*ISssue: leaves a messy subgoal*)
+    Exists (Vptr ckb ckoff). Time normalize. (*4.3*)
+    Exists pad. Time normalize. (*4.1*)
     Exists (HMACabs iSA iSA oSA). 
-    entailer!.
+    Time entailer!. (*7*)
       exists iSA, oSA. auto.
     unfold data_block, hmacstate_, hmac_relate.
-    normalize.
+    Time normalize. (*2.6*)
     Exists (iS, (iS, oS)).
-    entailer!.
+    Time entailer!. (*6*)
       split. rewrite (updAbs_len _ _ _ INNER), Zlength_mkArgZ,
            map_length, mkKey_length; reflexivity.
       rewrite (updAbs_len _ _ _ OUTER), Zlength_mkArgZ,
@@ -252,7 +260,7 @@ Time     unfold_data_at 1%nat. (*Issue: Why is this so slow here (2mins) ... now
       rewrite (field_at_data_at _ _ [StructField _md_ctx]).
       rewrite (field_at_data_at _ _ [StructField _i_ctx]).
       unfold field_address; simpl. rewrite if_true by trivial. rewrite if_true by trivial.
-      rewrite Int.add_zero. cancel.
+      rewrite Int.add_zero. Time cancel. (*0.3*)
   }
 } 
-Qed.
+Time Qed. (*52*)
