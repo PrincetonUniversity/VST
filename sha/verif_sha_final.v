@@ -112,7 +112,6 @@ name cNl _cNl.
 name cNh _cNh.
 unfold sha256state_.
 forward_intro [r_h [r_Nl [r_Nh [r_data r_num]]]].
-unfold data_at. unfold_field_at 1%nat.
 pose proof I.
 normalize.
 unfold s256_relate in H0.
@@ -121,14 +120,16 @@ destruct a as [hashed dd].
 destruct H0 as [H0 [[H1 H6] [H2 [[H3 DDbytes] [H4 H5]]]]].
 clear H.
 
+unfold_data_at 1%nat.
+
 assert_PROP (Zlength r_data = CBLOCKz
     /\ r_data = map Vint (map Int.repr dd) ++ sublist (Zlength dd) CBLOCKz r_data
     /\ field_compatible t_struct_SHA256state_st [StructField _data] c)
    as H; [ | destruct H as [H [H7 FC]]].
   { entailer!.
-    simplify_value_fits in H15; destruct H15 as [H15 _].
+    simplify_value_fits in H9; destruct H9 as [H9 _].
      split; auto.
-    change  (@reptype CompSpecs tuchar) with val in H15. (* should not be necessary *) 
+    change  (@reptype CompSpecs tuchar) with val in H9. (* should not be necessary *) 
     rewrite <- H2.
     pose proof CBLOCKz_eq. 
     pose proof (Zlength_nonneg dd).
@@ -174,7 +175,7 @@ forward_if   (invariant_after_if1 hashed dd c md shmd kv).
  eapply semax_pre0; 
   [|apply (ifbody_final_if1 Espec hashed md c shmd dd kv H4 H3 H5 DDbytes)].
  entailer!.
- unfold data_at. unfold_field_at 6%nat.
+ unfold_data_at 1%nat.
  rewrite field_at_data_at with (gfs := [StructField _data]) by reflexivity.
  simpl.
  change (cons (Vint (Int.repr 128))) with (app [Vint (Int.repr 128)]).
@@ -202,16 +203,12 @@ change (Z.of_nat 1) with 1%Z; change (Z.of_nat 8) with 8%Z.
 omega.
 f_equal. unfold ddlen; repeat rewrite Zlength_correct; f_equal.
 rewrite app_length; simpl. rewrite Nat2Z.inj_add; reflexivity.
-unfold data_at. unfold_field_at 6%nat.
-repeat rewrite sepcon_assoc.
-simple apply sepcon_derives; [now auto | ].
-simple apply sepcon_derives; [now auto | ].
-simple apply sepcon_derives; [now auto | ].
+unfold_data_at 1%nat.
 cancel.
 rewrite (field_at_data_at _ _ [_]).
 eapply cancel_field_at_array_partial_undef; try reflexivity.
 subst ddlen. autorewrite with sublist; Omega1.
-apply eq_JMeq. f_equal. 
+apply eq_JMeq. simpl. f_equal.
 rewrite !map_app. reflexivity.
 f_equal. f_equal. subst ddlen; autorewrite with sublist; Omega1. 
 * unfold invariant_after_if1.
@@ -222,7 +219,7 @@ normalize.
 unfold POSTCONDITION, abbreviate; clear POSTCONDITION.
 unfold sha_finish.
 unfold SHA_256.
-unfold data_at. unfold_field_at 1%nat.
+unfold_data_at 1%nat.
 erewrite (field_at_Tarray Tsh _ [StructField _data]); try reflexivity; try omega.
 rewrite (split2_array_at _ _ _ 0 (Zlength dd') 64); try Omega1.
 2: apply compute_legal_nested_field_spec'; repeat constructor.
@@ -281,6 +278,10 @@ eapply semax_pre_post; [ | |
   try eassumption; try Omega1; reflexivity].
 +
 apply andp_left2.
+autorewrite with sublist.
+replace (CBLOCKz - Zlength dd' - (56 - Zlength dd'))
+  with 8 by Omega1.
+change (Z.to_nat 8) with (Z.to_nat (CBLOCKz-56)).
 entailer!.
 rewrite <- H11.
 unfold field_address.
@@ -294,6 +295,7 @@ autorewrite with sublist.
 rewrite (split2_array_at _ _ _ (Zlength dd') 56 64) by Omega1.
 autorewrite with sublist.
 cancel.
+simpl list_repeat.
 rewrite array_at_data_at'; auto.
 +
 intros.

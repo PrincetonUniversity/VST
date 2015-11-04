@@ -388,9 +388,9 @@ unfold HMAC_SHA256.mkArgZ in ZLI; rewrite ZLI; trivial.
 Qed. 
 
 Definition FRAME1 cb cofs ckb ckoff kb kofs key (HMS': reptype t_struct_hmac_ctx_st) := 
-    (field_at Tsh t_struct_hmac_ctx_st [StructField 13%positive] (fst HMS')
+    (field_at Tsh t_struct_hmac_ctx_st [StructField _md_ctx] (fst HMS')
         (Vptr cb cofs)) *
-    (field_at Tsh t_struct_hmac_ctx_st [StructField 15%positive]
+    (field_at Tsh t_struct_hmac_ctx_st [StructField _o_ctx]
          (snd (snd HMS')) (Vptr cb cofs)) *
     (data_at Tsh (tarray tuchar 64)
           (map Vint (map Int.repr (HMAC_SHA256.mkKey key))) (Vptr ckb ckoff)) *
@@ -399,9 +399,9 @@ Definition FRAME1 cb cofs ckb ckoff kb kofs key (HMS': reptype t_struct_hmac_ctx
 Definition FRAME2 kb kofs cb cofs kv key ipadSHAabs 
                 (HMS' : reptype t_struct_hmac_ctx_st) := (K_vector kv) * 
    (sha256state_ ipadSHAabs (Vptr cb (Int.add cofs (Int.repr 108)))) *
-   (field_at Tsh t_struct_hmac_ctx_st [StructField 13%positive] (fst HMS')
+   (field_at Tsh t_struct_hmac_ctx_st [StructField _md_ctx] (fst HMS')
        (Vptr cb cofs)) *
-   (field_at Tsh t_struct_hmac_ctx_st [StructField 15%positive]
+   (field_at Tsh t_struct_hmac_ctx_st [StructField _o_ctx]
        (snd (snd HMS')) (Vptr cb cofs)) * 
    ( data_at Tsh (tarray tuchar (Zlength key)) (map Vint (map Int.repr key))
        (Vptr kb kofs)). 
@@ -784,15 +784,17 @@ forward_if PostResetBranch.
     (*continuation after ipad-loop*) 
     assert_PROP (field_compatible t_struct_hmac_ctx_st [] (Vptr cb cofs)) as FC_C by entailer.
     unfold data_at at 2. unfold_field_at 1%nat. normalize.
-
-    gather_SEP 0 2 5 6.
+    simpl.
+    gather_SEP 1 2 5 6.
     replace_SEP 0 (`(FRAME1 cb cofs ckb ckoff kb kofs key HMS')).
     { subst HMS'. Transparent default_val. Transparent FRAME1. 
-         unfold HMS, FRAME1, default_val. entailer. (*Issue: again unfold default_val here is the key *)
+         unfold HMS, FRAME1 (*, default_val*).
+      repeat simplify_project_default_val.
+      fold _md_ctx. fold _o_ctx. entailer!.
     }
-Opaque FRAME1. Opaque default_val.
-    rewrite (field_at_data_at  Tsh t_struct_hmac_ctx_st [StructField 14%positive]). (*ie i_ctx*)
-    assert_PROP (field_compatible t_struct_hmac_ctx_st [StructField 14%positive] (Vptr cb cofs)) as FC_ICTX.
+    Opaque FRAME1. Opaque default_val.
+    rewrite (field_at_data_at  Tsh t_struct_hmac_ctx_st [StructField _i_ctx]).
+    assert_PROP (field_compatible t_struct_hmac_ctx_st [StructField _i_ctx] (Vptr cb cofs)) as FC_ICTX.
     { apply prop_right. clear - FC_C. red in FC_C; red; intuition. split; trivial. right; left; trivial. }
     unfold field_address; simpl. rewrite if_true; trivial. unfold field_offset, fieldlist.field_offset; simpl.
 
@@ -852,7 +854,7 @@ Opaque FRAME1. Opaque default_val.
     unfold field_type; simpl. Transparent default_val. normalize. Opaque default_val.
     gather_SEP 0 2 3 5. 
 Definition FRAME3 (kb cb ckb: block) kofs cofs ckoff key ipadSHAabs (HMS' : reptype t_struct_hmac_ctx_st):= 
-       (field_at Tsh t_struct_hmac_ctx_st [StructField 13%positive] (fst HMS') (Vptr cb cofs) ) * 
+       (field_at Tsh t_struct_hmac_ctx_st [StructField _md_ctx] (fst HMS') (Vptr cb cofs) ) * 
        (data_at Tsh (tarray tuchar 64) (map Vint (map Int.repr (HMAC_SHA256.mkKey key))) (Vptr ckb ckoff)) *
        (data_at Tsh (tarray tuchar (Zlength key)) (map Vint (map Int.repr key)) (Vptr kb kofs)) *
        (sha256state_ ipadSHAabs (Vptr cb (Int.add cofs (Int.repr 108)))).
@@ -901,10 +903,11 @@ Definition FRAME3 (kb cb ckb: block) kofs cofs ckoff key ipadSHAabs (HMS' : rept
         repeat rewrite sepcon_assoc. 
         apply sepcon_derives. eapply derives_trans. apply data_at_data_at_. apply derives_refl.
 
-    unfold data_at at 3. unfold_field_at 2%nat. 
+    unfold_data_at 3%nat.
     rewrite (field_at_data_at Tsh t_struct_hmac_ctx_st [StructField _i_ctx]).
     rewrite (field_at_data_at Tsh t_struct_hmac_ctx_st [StructField _o_ctx]).
-    unfold field_address. rewrite if_true; trivial. rewrite if_true; trivial.
+    unfold field_address. rewrite if_true by trivial. rewrite if_true by trivial.
+    trivial.
   }
   { (*ELSE*) 
     forward. subst. unfold initPostKeyNullConditional. entailer. 
@@ -912,16 +915,13 @@ Definition FRAME3 (kb cb ckb: block) kofs cofs ckoff key ipadSHAabs (HMS' : rept
     simpl; clear H. destruct key'; try solve[entailer]. 
     unfold hmacstate_PreInitNull, hmac_relate_PreInitNull; simpl.
     destruct h1; entailer.
-    if_tac. Focus 2. entailer. 
-    normalize.
-    Exists (iSha, (iCtx v, (oSha, oCtx v))). simpl. 
-    apply andp_right. apply prop_right. intuition.
-    apply andp_right. apply prop_right. intuition.
-    cancel.
+    if_tac; [ | entailer!].
+    Intros v x.
+    Exists (iSha, (iCtx v, (oSha, oCtx v))). simpl.
+    entailer!. 
     unfold hmacstate_PreInitNull, hmac_relate_PreInitNull; simpl.
     Exists v x.
-    apply andp_right. apply prop_right. intuition.
-    cancel.
+     entailer!.
    }
 intros ? ?. apply andp_left2.  
    unfold POSTCONDITION, abbreviate. rewrite overridePost_overridePost. 

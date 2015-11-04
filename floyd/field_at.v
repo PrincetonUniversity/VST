@@ -1542,8 +1542,6 @@ rewrite H1.
 normalize.
 Qed.
 
-Hint Resolve data_at_valid_ptr field_at_valid_ptr field_at_valid_ptr0 : valid_pointer.
-
 (************************************************
 
 Other lemmas
@@ -1844,6 +1842,8 @@ Qed.
 
 End CENV.
 
+Hint Resolve data_at_valid_ptr field_at_valid_ptr field_at_valid_ptr0 : valid_pointer.
+
 Lemma data_array_at_local_facts {cs: compspecs}:
  forall t' n a sh v p,
   data_at sh (Tarray t' n a) v p |-- 
@@ -1966,42 +1966,109 @@ Hint Rewrite @isptr_field_address_lemma : entailer_rewrite.
 
 Global Transparent alignof. (* MOVE ME *)
 
+Ltac simplify_project_default_val :=
+match goal with
+  | |- context [@fst ?A ?B (?x, ?y)] =>
+         change (@fst A B (x,y)) with x
+  | |- context [@snd ?A ?B (?x, ?y)] =>
+         change (@snd A B (x,y)) with y
+  | |- context [fst (@default_val ?cs ?t)] =>
+  let E := fresh "E" in let D := fresh "D" in let H := fresh in
+   set (E := fst (@default_val cs t));
+   set (D := @default_val cs t) in E;
+   unfold compact_prod_sigT_type in E; simpl in E;
+   assert (H := @default_val_ind cs t);
+   simpl in H;
+   match type of H with 
+      @eq (@reptype cs t) _ (@fold_reptype _ _ (@pair ?A ?B ?x ?y)) =>
+   change (@reptype cs t) with (@prod A B) in *;
+   change (@default_val cs t) with (x,y) in *
+   end;
+   clear H; subst D; simpl in E; subst E
+ | |- context [snd (@default_val ?cs ?t)] =>
+  let E := fresh "E" in let D := fresh "D" in let H := fresh in
+   set (E := snd (@default_val cs t));
+   set (D := @default_val cs t) in E;
+   unfold compact_prod_sigT_type in E; simpl in E;
+   assert (H := @default_val_ind cs t);
+   simpl in H;
+   match type of H with 
+      @eq (@reptype cs t) _ (@fold_reptype _ _ (@pair ?A ?B ?x ?y)) =>
+   change (@reptype cs t) with (@prod A B) in *;
+   change (@default_val cs t) with (x,y) in *
+   end;
+   clear H; subst D; simpl in E; subst E
+end.
+
 Definition field_at_mark := @field_at.
 Definition field_at_hide := @field_at.
+Definition data_at_hide := @data_at.
 
 Ltac find_field_at N :=
  match N with
  | S O =>  change @field_at with field_at_mark at 1;
-                 change @field_at with @field_at_hide;
-                 change field_at_mark with @field_at
+              change field_at_hide with @field_at
  | S ?k => change @field_at with field_at_hide at 1;
                 find_field_at k
  end.
 
-Ltac unfold_field_at N :=
- find_field_at N;
+Ltac find_data_at N :=
+ match N with
+ | S O =>  match goal with |- appcontext [@data_at ?cs ?sh ?t] =>
+                 change (@data_at cs sh t) with (field_at_mark cs sh t nil) at 1
+                 end;
+                 change data_at_hide with @data_at
+ | S ?k => change @data_at with data_at_hide at 1;
+                find_data_at k
+ end.
+
+Definition protect (T: Type) (x: T) := x.
+Global Opaque protect.
+
+Ltac unfold_field_at' :=
  match goal with 
- | |- context [@field_at ?cs ?sh ?t ?gfs ?v ?p] =>
+ | |- context [field_at_mark ?cs ?sh ?t ?gfs ?v ?p] =>
+     let F := fresh "F" in
+       set (F := field_at_mark cs sh t gfs v p);
+       change field_at_mark with @field_at in F;   
+     let V := fresh "V" in set (V:=v) in F;
+     let P := fresh "P" in set (P:=p) in F;  
+     let T := fresh "T" in set (T:=t) in F;
      let id := fresh "id" in evar (id: ident);
      let Heq := fresh "Heq" in
-     assert (Heq: nested_field_type t gfs = Tstruct id noattr)
-           by (unfold id; reflexivity);
+     assert (Heq: nested_field_type T gfs = Tstruct id noattr)
+           by (unfold id,T; reflexivity);
      let H := fresh in 
-     assert (H:= @field_at_Tstruct cs sh t gfs id noattr
-                          v v p  Heq (JMeq_refl _));
+     assert (H:= @field_at_Tstruct cs sh T gfs id noattr
+                          V V P  (eq_refl _) (JMeq_refl _));
      unfold id in H; clear Heq id;
-     let FLD := fresh "FLD" in
-     forget (@field_at cs sh t gfs v p) as FLD;
-   cbv beta iota zeta delta 
-     [co_members cenv_cs get_co nested_sfieldlist_at
-      nested_field_offset nested_field_type
-      nested_field_rec
-      alignof withspacer
-     ] in H;
-   simpl in H;
-   subst FLD;
-   change field_at_hide with @field_at in *
+     fold F in H; clearbody F; 
+     simpl co_members in H;
+     lazy beta iota zeta delta  [nested_sfieldlist_at ] in H;
+     change (@field_at cs sh T) with (@field_at cs sh t) in H;
+     hnf in T; subst T;
+     change v with (protect _ v) in V;
+     simpl in H;
+     unfold withspacer in H; simpl in H;
+     change (protect _ v) with v in V;
+     subst V;
+     repeat match type of H with
+     | context [fst (?A,?B)] => change (fst (A,B)) with A in H
+     | context [snd (?A,?B)] => change (snd (A,B)) with B in H
+     end;
+     subst P;
+     subst F;
+     cbv beta;
+     try (rewrite !lift0C_sepcon;
+           repeat flatten_sepcon_in_SEP);
+     repeat simplify_project_default_val
  end.
+
+Ltac unfold_field_at N  :=
+  find_field_at N; unfold_field_at'.
+
+Ltac unfold_data_at N  :=
+  find_data_at N; unfold_field_at'.
 
 Lemma field_at_ptr_neq{cs: compspecs} :
    forall sh t fld p1 p2 v1 v2,

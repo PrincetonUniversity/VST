@@ -44,23 +44,36 @@ assert_PROP (field_compatible (tarray tuchar 32) [] buf). entailer.
 rename H into FC_buf.
 rewrite <- memory_block_data_at_ ; trivial.
 
-assert_PROP (field_compatible t_struct_hmac_ctx_st [] (Vptr b i)). entailer.
-rename H into FC_c.
+unfold_data_at 1%nat.
 
+(*assert_PROP (field_compatible t_struct_hmac_ctx_st [] (Vptr b i))
+  as FC_c by entailer!.
+rename H into FC_c.
+*)
+(*
 assert_PROP (field_compatible t_struct_hmac_ctx_st [StructField 13%positive] (Vptr b i)).
   apply prop_right. red in FC_c; red; intuition. split; trivial. unfold t_struct_hmac_ctx_st.
     constructor. reflexivity.
 rename H into FC_c13.
+*)
 
-unfold data_at. unfold_field_at 1%nat. normalize. (*Issue Takes 1 min*) 
-rewrite field_at_data_at at 1. unfold field_address; normalize.
-rewrite if_true by auto.
+(*
+assert_PROP (field_compatible t_struct_hmac_ctx_st [StructField _i_ctx] (Vptr b i))
+  as FC_i_ctx by entailer!.
+rewrite field_at_data_at at 1.
+unfold field_address; rewrite if_true by assumption.
+*)
+
 destruct ST as [MD [iCTX oCTX]]. simpl in *.
 forward_call (ctx, buf, Vptr b i, Tsh, kv). 
-  { unfold sha256state_. entailer. Exists MD.
-    repeat rewrite sepcon_assoc. apply sepcon_derives. entailer!. cancel.
+  { unfold sha256state_. Exists MD.
+    entailer!.
+    rewrite (field_at_data_at _ _ [StructField _md_ctx]).
+    simpl @nested_field_type.
+    unfold field_address; rewrite if_true by auto.
+    simpl. rewrite Int.add_zero. cancel.
   }
-normalize. 
+ unfold map at 1.  (* should not be necessary *)
 
 (*VST Issue: calls to forward-call with type-incorrect WITH-list instantiations simply succeed immediately, 
   without doing anything. Instead, they should fail with a meaningful error message.*)
@@ -85,39 +98,38 @@ apply semax_pre with (P':=
    `(data_at Tsh t_struct_hmac_ctx_st l' (Vptr b i));
    `(data_block Tsh (sha_finish ctx) buf);
    `(memory_block shmd 32 md)))).
-{ entailer. cancel. 
-      unfold data_at_ at 1.
-      unfold data_at,field_at_, nested_field_type; simpl.
-      unfold_field_at 4%nat.
+{ entailer!.
+      unfold_data_at 1%nat.
       rewrite (field_at_data_at Tsh t_struct_hmac_ctx_st [StructField _md_ctx]).
-      rewrite field_at_data_at at 1. unfold field_address.
-      rewrite if_true; trivial.
-      rewrite if_true; trivial.
-      cancel. 
+      simpl @nested_field_type.
+      unfold field_address; rewrite if_true.
+      simpl. rewrite Int.add_zero. cancel.
+      hnf in H5; hnf; intuition.
+      apply compute_legal_nested_field_spec'; repeat constructor.
 }
 subst l'.
-normalize. 
 
+(*
 assert (field_compatible t_struct_hmac_ctx_st [StructField _o_ctx] (Vptr b i)).
   red. red in FC_c. intuition. split; trivial.
     right. right. left. reflexivity.
 rename H into FCO.
+*)
 
-unfold data_at at 1. unfold_field_at 1%nat. normalize.
-rewrite (field_at_data_at _ _ [StructField _o_ctx]); try reflexivity.
-unfold field_address. rewrite if_true; trivial.
+unfold_data_at 1%nat.
+rewrite (field_at_data_at _ _ [StructField _o_ctx]).
+unfold field_address.
+if_tac; [ | apply semax_pre with FF; [ entailer!; destruct H5; contradiction | apply semax_ff ]].
+rewrite (field_at_data_at _ _ [StructField _md_ctx]).
+unfold field_address.
+if_tac; [ | apply semax_pre with FF; [ entailer!; destruct H8; contradiction | apply semax_ff ]].
 
-rewrite (field_at_data_at _ _ [StructField _md_ctx]); try reflexivity.
-unfold field_address. rewrite if_true; trivial.
-
-(*VST Issue: we shouldn't need to unfold all those fieldXXX notions here to get something readable...*)
-unfold nested_field_offset, offset_val. simpl. unfold field_offset; simpl. unfold fieldlist.field_offset; simpl. unfold field_type; simpl.
-
+simpl.
 rewrite Int.add_zero.
-replace_SEP 0 `(memory_block Tsh 108 (Vptr b i)).
-  { entailer. 
+replace_SEP 2 `(memory_block Tsh 108 (Vptr b i)).
+  { entailer!. 
     eapply derives_trans. apply data_at_data_at_.
-    rewrite <- (memory_block_data_at_ Tsh _ _ H2). apply derives_refl.
+    rewrite <- (memory_block_data_at_ Tsh _ _ H4). apply derives_refl.
   }
 
 forward_call ((Tsh, Tsh), Vptr b i, Vptr b (Int.add i (Int.repr 216)), 
@@ -127,6 +139,8 @@ subst rv; simpl.
 assert (SFL: Zlength (sha_finish ctx) = 32). 
   unfold sha_finish. destruct ctx. 
   rewrite <- functional_prog.SHA_256'_eq, Zlength_correct, length_SHA256'. trivial.
+rename H into FC_o_ctx;
+rename H0 into FC_md_ctx.
 
 (*Call sha256Update*)
 forward_call (oSha, sha_finish ctx, Vptr b i, buf, Tsh, Z.of_nat SHA256.DigestLength, kv) updSha.
@@ -156,11 +170,16 @@ apply derives_trans with (Q:= hmacstate_PostFinal (HMACabs updSha iSha oSha)
 cancel.
 unfold hmacstate_PostFinal, hmac_relate_PostFinal. normalize.
 Exists (updShaST, (iCTX, oCTX)). normalize.
-unfold data_at at 2. unfold_field_at 2%nat. (* VST Issue: unfold_field_at here takes ages*)
+match goal with |- _ |-- data_at _ _ ?A _ =>
+change A with (default_val t_struct_SHA256state_st, (iCTX, oCTX))
+end.
+Time unfold_data_at 2%nat. (* VST Issue: unfold_field_at here takes ages ... now 0.623 sec *)
 cancel.
 rewrite (field_at_data_at _ _ [StructField _o_ctx]). 
 rewrite (field_at_data_at _ _ [StructField _md_ctx]).
 unfold data_at_. unfold field_at_.
 rewrite field_at_data_at.
-unfold field_address. rewrite if_true; trivial. rewrite if_true; trivial. rewrite if_true; trivial.
+simpl.
+unfold field_address. rewrite if_true by trivial. rewrite if_true by trivial. rewrite if_true by trivial.
+trivial.
 Qed.

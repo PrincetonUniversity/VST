@@ -26,38 +26,43 @@ destruct H as [DL1 [DL2 DL3]].
 destruct h1; simpl in *.
 destruct H0 as [reprMD [reprI [reprO [iShaLen oShaLen]]]].
 
-assert_PROP (isptr c /\ field_compatible t_struct_hmac_ctx_st [] c). entailer.
+assert_PROP (isptr c /\ field_compatible t_struct_hmac_ctx_st [] c)
+   as H by entailer!.
 destruct H as [isptr_c FC_c].
-assert_PROP (field_compatible t_struct_hmac_ctx_st [StructField _md_ctx] c).
-  { apply prop_right. red in FC_c. red. intuition.
-    constructor. trivial. constructor. reflexivity. }
-rename H into FC_mdCtx.
-unfold data_at. unfold_field_at 1%nat. normalize. 
-apply isptrD in isptr_c. destruct isptr_c as [b [i Cptr]]. rewrite Cptr in *.
-rewrite field_at_data_at at 1. unfold field_address; normalize.
-rewrite if_true by eauto.
+assert (FC_md_ctx: field_compatible t_struct_hmac_ctx_st [StructField _md_ctx] c).
+ {red in FC_c. red. intuition.  constructor. trivial. constructor. reflexivity. }
+assert (FC_i_ctx: field_compatible t_struct_hmac_ctx_st [StructField _i_ctx] c).
+ {red in FC_c. red. intuition.  constructor. trivial. right; left. reflexivity. }
+unfold data_at. unfold_field_at 1%nat.
+rewrite field_at_data_at at 1. unfold field_address; rewrite if_true by auto.
+make_Vptr c.
+simpl.
 forward_call (ctx, data, Vptr b i, d, Tsh, len, kv) s. 
  (*Issue: the forward_call takes ca 50secs in newComCert, instead of 6secs in Master, 
    no matter wther the field_at_data_at stuff s done outside of the call or inside*)
   { (* rewrite field_at_data_at at 1.*)
-    unfold sha256state_ (*, field_address*); normalize.
-    (*rewrite if_true by eauto.*) Exists (fst ST). entailer!. }
-  { intuition. }
+    unfold sha256state_. Exists (fst ST). normalize.
+    rewrite (field_at_data_at _ _ [StructField _md_ctx]).
+    unfold field_address. rewrite if_true by auto. simpl. rewrite Int.add_zero.
+    cancel.
+  }
+  intuition.
 
 rename H into HmacUpdate.
 normalize.
 rewrite sublist_same in HmacUpdate; trivial.
 forward. (*Issue: leaves RHS in less normalized shape than previously*)
-Exists (HMACabs s iSha oSha). entailer.
-apply andp_right. apply prop_right. exists s; eauto.
-cancel. 
-unfold hmacstate_, sha256state_, hmac_relate. normalize.
-Exists (r, (iCtx ST, oCtx ST)). 
-simpl. entailer. 
-unfold data_at at 2. unfold_field_at 3%nat. 
-destruct ST as [ST1 [ST2 ST3]]. simpl in *. 
-rewrite sepcon_assoc. apply sepcon_derives. 2: cancel.
-rewrite field_at_data_at.
-unfold field_address. rewrite if_true by eauto. rewrite offset_val_zero_Vptr.
-apply derives_refl.
+Exists (HMACabs s iSha oSha). entailer!.
+exists s; eauto.
+unfold hmacstate_, sha256state_, hmac_relate.
+Intros r. Exists (r,(iCtx ST, oCtx ST)).
+simpl.
+entailer!.
+unfold_data_at 3%nat. 
+destruct ST as [ST1 [ST2 ST3]]. simpl in *.
+rewrite (field_at_data_at _ _ [StructField _i_ctx]).
+rewrite (field_at_data_at _ _ [StructField _md_ctx]).
+unfold field_address. rewrite !if_true by eauto.
+simpl. rewrite Int.add_zero.
+cancel.
 Qed.

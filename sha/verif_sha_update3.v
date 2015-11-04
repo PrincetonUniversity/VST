@@ -106,8 +106,7 @@ Proof.
  apply compute_legal_nested_field0_spec'.
  repeat constructor; auto; try Omega1.
  apply field_compatible0_cons; simpl. split; auto; Omega1.
- unfold data_at.
- unfold_field_at 1%nat. cancel.
+ unfold_data_at 1%nat. cancel.
  abbreviate_semax.
  autorewrite with sublist.
  unfold splice_into_list. 
@@ -145,7 +144,7 @@ Proof.
                     (map Vint (map Int.repr (dd ++ sublist 0 len data))
                        ++list_repeat (Z.to_nat (64 - Zlength dd - len)) Vundef,
                      Vint (Int.repr (Zlength dd + len)))))).
- unfold data_at. unfold_field_at 6%nat.
+ unfold_data_at 1%nat.
  apply andp_right; [apply prop_right | ].
  simpl; unfold s256_Nh, s256_Nl, s256_data, s256_num, bitlength; simpl.
  autorewrite with sublist.

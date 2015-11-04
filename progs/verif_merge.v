@@ -567,7 +567,8 @@ clear Heqmerged' merged.
 rewrite merge_nil_r in *.
 entailer!.
 unfold field_type; simpl.
-unfold data_at; unfold_field_at 3%nat. 
+unfold data_at; unfold_field_at 3%nat.
+simpl. 
 (* @Andrew: same bug here, rewrite does not work directly but it does after
 a pose *)
 pose proof (field_at_data_at sh t_struct_list [StructField _tail] a__ c_) as R.
@@ -609,6 +610,7 @@ clear Heqmerged' merged.
 entailer!.
 unfold field_type; simpl.
 unfold data_at; unfold_field_at 3%nat.
+simpl.
 pose proof (field_at_data_at sh t_struct_list [StructField _tail] b__ c_) as R.
 fold _tail.
 rewrite R.

@@ -64,37 +64,16 @@ semax
       `(data_block shmd (SHA_256 msg) md)))).
 Proof.
   intros.
+  normalize.
   unfold sha_final_epilog.
   abbreviate_semax.
-
-  unfold data_block.
-  unfold data_at. unfold_field_at 1%nat.
-(*  rewrite field_at_data_at by reflexivity.*)
-  normalize.
-(*
-  set (X := map Vint (map Int.repr (intlist_to_Zlist lastblock))).
-  assert (JMeq.JMeq X (map Vint (map Int.repr (intlist_to_Zlist lastblock)))) by reflexivity.
-  clearbody X.
-  revert X H4.
-
-  change (list val) with (reptype (nested_field_type t_struct_SHA256state_st [StructField _data])).
-  pattern (nested_field_type t_struct_SHA256state_st [StructField _data]) at 1 2 4.
-  replace (nested_field_type t_struct_SHA256state_st [StructField _data])
-    with (tarray tuchar (Zlength (intlist_to_Zlist lastblock))).
-  Focus 2. {
-    rewrite Zlength_correct, length_intlist_to_Zlist.
-    apply Zlength_length in H0; [| rewrite Zlength_correct in H0; omega].
-    rewrite H0.
-    reflexivity.
-  } Unfocus.
-  intros; subst X.
-*)
+  unfold_data_at 1%nat. 
   forward_call (* sha256_block_data_order (c,p); *)
     (hashed, lastblock, c,
       field_address t_struct_SHA256state_st [StructField _data] c,
        Tsh, kv).
   {
-    unfold data_block.
+    unfold data_block. simpl.
    entailer!. autorewrite with sublist.
    rewrite H0.
    rewrite field_at_data_at with (gfs := [StructField _data]).
@@ -120,9 +99,10 @@ Proof.
   change Delta with
     (initialized _cNl (initialized _cNh Delta_final_if1)).
   eapply semax_pre; [ | apply final_part4; auto].
-  + unfold data_at. unfold_field_at 6%nat.
+  + unfold_data_at 2%nat.
     rewrite field_at_data_at with (gfs := [StructField _data]) by reflexivity.
-    entailer!. apply derives_refl.
+    entailer!.
+    apply derives_refl. (* this should have cancelled *)
   + apply length_hash_blocks; auto.
     rewrite H1.
     apply divide_length_app; auto.
@@ -324,37 +304,6 @@ Proof.
   eapply field_compatible0_cons_Tarray; try reflexivity; auto; omega.
   split; auto.
   subst hibytes; clear; compute; congruence.
-(*
-  gather_SEP 0 1 2.
-  replace_SEP 0 (`(field_at Tsh t_struct_SHA256state_st [StructField _data]
-    ((map Vint (map Int.repr dd') ++
-     list_repeat (Z.to_nat (CBLOCKz - 8 - Zlength dd')) (Vint Int.zero) ++
-     map Vint hibytes) ++ list_repeat (Z.to_nat 4) Vundef ++ []) c)).
-   {
-    rewrite app_nil_r.
-    rewrite app_assoc with (n0 := map Vint hibytes).
-    rewrite <- app_assoc with (m := map Vint hibytes).
-  erewrite field_at_Tarray; try reflexivity;
-   [ | apply compute_legal_nested_field_spec'; repeat constructor; auto; omega
-   | omega].
-   rewrite (split2_array_at _ _ _ 0 56 64) by omega.
-   rewrite (split2_array_at _ _ _ 56 60 64) by omega.
-   assert (Zlength hibytes = 4) by reflexivity. 
-   assert (Zlength lobytes = 4) by reflexivity. 
-   clearbody hibytes. clearbody lobytes.
-   assert (CBZ: CBLOCKz = 64) by reflexivity.
-   autorewrite with sublist.
-   entailer!.
-  rewrite array_at_data_at.
-  unfold field_address0 in H11.
-  if_tac in H11; [ | destruct H11; contradiction].
-  rewrite !prop_true_andp by auto.
-  unfold at_offset.
-   unfold nested_field_array_type;  simpl.
-  unfold field_address0; rewrite if_true by auto.
-  apply derives_refl.
-  } 
-*)
   forward. (* p += 4; *)
   forward. (* cNl=c->Nl; *)
   forward_call (* (void)HOST_l2c(cNl,p); *)
@@ -385,21 +334,6 @@ Proof.
   if_tac in H9; [ | destruct H9; contradiction].
   normalize.
 }
-(*
-  {
-  apply prop_right; repeat constructor; hnf; simpl; auto.
-  rewrite (nth_big_endian_integer 0 [lo_part bitlen] (lo_part bitlen)) at 1 by reflexivity;
-  reflexivity.
-  make_Vptr c_; simpl.
-  symmetry.
-  rewrite field_address0_clarify by auto.
-  rewrite field_address_clarify. simpl.
-  normalize.
-  clear - TC0.
-  unfold field_address in *; simpl in *.
-  if_tac; try contradiction. apply I.
- }
-*)
   gather_SEP 0 1 2.
   replace_SEP 0
     (`(field_at Tsh t_struct_SHA256state_st [StructField _data]
@@ -488,7 +422,7 @@ Proof.
   eapply semax_pre; [ | simple apply (sha_final_part3 Espec md c shmd hashed' lastblock'); auto].
   * entailer!.
     + apply isbyte_intlist_to_Zlist.
-    + unfold data_at. unfold_field_at 6%nat.
+    + unfold_data_at 1%nat.
       unfold lastblock'.
       rewrite Zlist_to_intlist_to_Zlist; auto.
       2:    rewrite Zlength_map, H99; exists LBLOCKz; reflexivity.

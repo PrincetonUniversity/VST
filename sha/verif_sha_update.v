@@ -104,7 +104,7 @@ eapply semax_post_flipped3.
    (*len*) (len - b4d)
         Frame); try reflexivity; auto; try MyOmega.
  - 
-  unfold data_at at 1.   unfold_field_at 1%nat.
+  unfold_data_at 1%nat.
   entailer!.
   make_Vptr c.
   unfold field_address, field_address0.
@@ -146,7 +146,7 @@ assert (Hbb: bitlength hashed dd + len * 8 =
  split3; auto. apply Forall_sublist; auto.
  apply Z.divide_add_r; auto.
    rewrite <- H2.
-   unfold data_at; unfold_field_at 6%nat. entailer!.
+   unfold_data_at 1%nat. entailer!.
    unfold dd'.
    rewrite !sublist_map; auto.
 + (* else-clause *)
@@ -214,7 +214,7 @@ destruct H0 as [H0 [H1 [H8 [[H3 H3'] [H4 H5]]]]].
 destruct H1 as [H1 H6].
 subst.
 
-unfold data_at; unfold_field_at 1%nat.
+unfold_data_at 1%nat.
 forward_call (* SHA256_addlength(c, len); *)
   (len, c, s256a_len (S256abs hashed dd)).
   repeat split; simpl; omega.
@@ -227,7 +227,7 @@ replace_SEP 0 `(data_at Tsh t_struct_SHA256state_st
         (map Vint (map Int.repr dd)++ 
          list_repeat (Z.to_nat (CBLOCKz - Zlength dd)) Vundef,
          Vint (Int.repr (Zlength dd)))))) c). {
-  unfold data_at; unfold_field_at 6%nat; entailer!.
+  unfold_data_at 1%nat; entailer!.
   assert (legal_nested_field t_struct_SHA256state_st [StructField _data]).
     apply compute_legal_nested_field_spec'; repeat constructor.
   erewrite field_at_Tarray; try reflexivity; auto.
@@ -235,8 +235,8 @@ replace_SEP 0 `(data_at Tsh t_struct_SHA256state_st
   rewrite <- H8.
   rewrite (split2_array_at _ _ _ 0 (Zlength dd) 64) by Omega1.
   rewrite (split2_array_at _ _ _ 0 (Zlength dd) 64) by Omega1.
-  simplify_value_fits in H14. destruct H14.
-  change (@reptype CompSpecs tuchar) with val in H14. (* should not need this! *)
+  simplify_value_fits in H5. destruct H5.
+  change (@reptype CompSpecs tuchar) with val in H5. (* should not need this! *)
   pose proof CBLOCKz_eq.
   pose proof (Zlength_nonneg dd).
   autorewrite with sublist.
@@ -251,7 +251,7 @@ forward. (* p=c->data; *)
     (* TODO: should this produce field_address instead of (Int.repr 40) ? *)
 assert_PROP (field_address t_struct_SHA256state_st [StructField _data] c
           = offset_val (Int.repr 40) c).
-  unfold data_at; unfold_field_at 1%nat; rewrite (field_at_compatible' _ _ [StructField _data]).
+  unfold_data_at 1%nat; rewrite (field_at_compatible' _ _ [StructField _data]).
   entailer!.
 rewrite <- H0.
 apply semax_seq with (sha_update_inv sh hashed len c d dd data kv false).

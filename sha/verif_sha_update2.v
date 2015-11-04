@@ -244,7 +244,7 @@ eapply semax_post_flipped'.
   try reflexivity; auto; try omega.
   apply Zlength_nonneg. 
   subst k; omega.
-  unfold data_at. unfold_field_at 1%nat.
+  unfold_data_at 1%nat.
   entailer!.
   unfold field_address0, field_address.
   rewrite !if_true; auto.
@@ -273,7 +273,7 @@ eapply semax_post_flipped'.
  eapply field_compatible0_cons_Tarray.
  reflexivity. auto. subst k; omega.
 *
-  unfold data_at.   unfold_field_at 7%nat.
+  unfold_data_at 1%nat.
   entailer!.
   replace (Zlength dd + k)%Z with 64%Z by Omega1.
   subst k.
@@ -284,7 +284,7 @@ change (PTree.tree funspec)  with (PTree.t funspec) in Delta_specs.
 simplify_Delta.
   abbreviate_semax.
   repeat rewrite sublist_map. repeat rewrite <- map_app.
-  unfold data_at.   unfold_field_at 1%nat.
+  unfold_data_at 1%nat.
   rewrite <- (data_block_data_field _ (dd ++ sublist 0 k data));
  [
  | rewrite Forall_app; split; auto; apply Forall_sublist; auto
@@ -340,7 +340,7 @@ evar (Frame: list (LiftEnviron mpred)).
  | rewrite Zlength_correct, length_list_repeat; reflexivity
  | rewrite !Zlength_map; auto
 ].
-unfold data_at. unfold_field_at 7%nat.
+unfold_data_at 2%nat.
  rewrite Zlist_to_intlist_to_Zlist;
  [ | exists LBLOCKz; rewrite H5; reflexivity
    | rewrite Forall_app; split; auto; apply Forall_firstn; auto
