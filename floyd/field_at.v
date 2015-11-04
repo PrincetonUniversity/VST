@@ -2504,6 +2504,32 @@ Proof.
   apply field_compatible_field_address; auto.
 Qed.
 
+Lemma mapsto_field_at_ramify {cs: compspecs} sh t gfs v v' w w' p:
+  type_is_by_value (nested_field_type t gfs) = true ->
+  type_is_volatile (nested_field_type t gfs) = false ->
+  JMeq v v' ->
+  JMeq w w' ->
+  field_at sh t gfs v' p |--
+    mapsto sh (nested_field_type t gfs) (field_address t gfs p) v *
+     (mapsto sh (nested_field_type t gfs) (field_address t gfs p) w -*
+        field_at sh t gfs w' p).
+Proof.
+  intros.
+  unfold field_at, at_offset.
+  rewrite !by_value_data_at' by auto.
+  rewrite <- (repinject_JMeq _ v' H) in H1; apply JMeq_eq in H1.
+  rewrite <- (repinject_JMeq _ w' H) in H2; apply JMeq_eq in H2.
+  normalize.
+  rewrite field_compatible_field_address by auto.
+  subst.
+  apply solve_ramify with emp; [rewrite sepcon_emp | rewrite emp_sepcon]; auto.
+  apply andp_right; auto.
+  eapply derives_trans; [apply mapsto_tc_val' |].
+  normalize.
+  rewrite value_fits_by_value by auto.
+  auto.
+Qed.
+
 Lemma mapsto_data_at {cs: compspecs} sh t v v' p :  (* not needed here *)
   type_is_by_value t = true ->
   type_is_volatile t = false ->

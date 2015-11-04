@@ -1788,17 +1788,6 @@ Proof. intros. apply derives_trans with (!!Y); auto.
 apply prop_derives; auto.
 Qed.
 
-Lemma later_left2 {T}{ND: NatDed T}{IT: Indir T}:
- forall A B C : T, A && B |-- C -> A && |> B |-- |>C.
-Proof.
-intros.
-apply derives_trans with (|> (A && B)).
-rewrite later_andp.
-apply andp_derives; auto.
-apply now_later.
-apply later_derives; assumption.
-Qed.
-
 Lemma subst_ewand: forall i v (P Q: environ->mpred),
   subst i v (ewand P Q) = ewand (subst i v P) (subst i v Q).
 Proof. reflexivity. Qed.
