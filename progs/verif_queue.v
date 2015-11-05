@@ -378,8 +378,7 @@ start_function.
 name Q _Q.
 name h _h.
 unfold fifo.
-normalize.
-forward_intro [hd tl].
+Intros ht; destruct ht as [hd tl].
 normalize.
 forward. (* h = Q->head; *)
 forward. (* return (h == NULL); *)
@@ -434,11 +433,11 @@ name Q _Q.
 name p' _p.
 name h _h.
 name t _t.
-unfold fifo at 1. renormalize.
-forward_intro [hd tl]. normalize.
+unfold fifo at 1.
+Intros ht; destruct ht as [hd tl].
+normalize.
 (* goal_7 *)
 forward. (* p->next = NULL; *)
-renormalize.
 forward. (*   h = Q->head; *)
 forward_if 
   (PROP() LOCAL () SEP (`(fifo (contents ++ p :: nil) q))).
@@ -460,16 +459,17 @@ forward_if
    + Intros prefix.
       destruct prefix;
       entailer!.
-      contradiction (field_compatible_isptr _ _ _ H5).
+      contradiction (field_compatible_isptr _ _ _ H6).
       rewrite lseg_cons_eq by auto. simpl.
-      normalize.
       entailer!.
-      contradiction (field_compatible_isptr _ _ _ H7).      
+      saturate_local. (* why is this needed? *)
+      contradiction (field_compatible_isptr _ _ _ H8).      
 * (* else clause *)
   forward. (*  t = Q->tail; *)
   destruct (isnil contents).
   + normalize. contradiction H; auto.
-  + normalize. intro prefix. normalize.
+  + Intros prefix.
+     normalize.
      forward. (*  t->next=p; *)
   (* goal 12 *)
      forward. (* Q->tail=p; *)
@@ -497,11 +497,11 @@ start_function.
 name Q _Q.
 name h _h.
 name n _n.
-unfold fifo at 1. renormalize.
-forward_intro [hd tl].
+unfold fifo at 1.
+Intros ht; destruct ht as [hd tl].
 rewrite if_false by congruence.
-renormalize.
-forward_intro prefix. normalize.
+Intros prefix.
+normalize.
 forward.  (*   p = Q->head; *)
 destruct prefix; inversion H; clear H.
 + subst_any.
@@ -515,7 +515,8 @@ destruct prefix; inversion H; clear H.
    rewrite if_true by congruence.
    entailer!.
 + rewrite lseg_cons_eq by auto.
-    forward_intro x. normalize.
+    Intros x. 
+    normalize.
     simpl @valinject. (* can we make this automatic? *)
     subst_any.
     forward. (*  n=h->next; *)

@@ -240,8 +240,7 @@ rewrite lseg_unfold.
 destruct a as [|va a']; simpl.
   (* [a] cannot be empty *)
   normalize. now intuition.
-normalize.
-intros a_'.
+Intros a_'.
 normalize.
 (* Now the command [va = a->head] can proceed *)
 rewrite list_cell_field_at.
@@ -251,8 +250,7 @@ rewrite lseg_unfold with (v1:=b_).
 destruct b as [|vb b']; simpl.
   (* [b] cannot be empty *)
   normalize; now intuition.
-normalize.
-intros b_'.
+Intros b_'.
 normalize.
 clear H2 H3.  (* redundant *)
 
@@ -303,13 +301,13 @@ name cond__ _cond.
 
 rewrite !@lseg_nil_eq.
 rewrite (lseg_unfold LS _ _ b_).
-Time entailer!. (* 24.7 sec -> 12.6 sec*)
+Time entailer!. (* 24.7 sec -> 10.16 sec*)
 Exists b_'.
 rewrite list_cell_field_at.
 Time entailer!.  (* 12.6 -> 5.2 sec sec *)
 unfold data_at.
 unfold_field_at 3%nat.
-Time entailer!. (* 3.9 sec -> 1.46 sec *) 
+Time cancel.  (* 3.9 sec -> 0.07 sec *) 
 }
 
 (* we have now finished the case merged=nil, proceeding to the other case *)
@@ -320,7 +318,6 @@ clear hmerge tmerge Heqmerged.
 (* Command: *x = a *)
 unfold data_at.
 unfold_field_at 6%nat.
-normalize.
 (* we replace [field_at ...tail _c] with [data_at .. (field_adress ...tail _c)] for forward*)
 focus_SEP 1.
 rewrite field_at_data_at.
@@ -338,14 +335,11 @@ rewrite <- H1. clear H1.
 destruct (merged ++ [va]) eqn:?.
 destruct merged; inv Heql.
 forget (i::l) as merged''; clear i l.
-Time entailer!.  (* 42.3 sec -> 21.3 sec  *)
+Time entailer!.  (* 42.3 sec -> 13.9 sec  *)
 rewrite butlast_snoc. rewrite last_snoc.
 rewrite (snoc merged) at 3 by auto.
 rewrite map_app. simpl map.
-match goal with |- ?A |-- _ => set (PQR := A);
-  unfold data_at; unfold_field_at 1%nat;
-  subst PQR
-end.
+unfold_data_at 1%nat.
 match goal with |- ?A * ?B * ?C * ?D * ?E * ?F * ?G * ?H |-- _ =>
  apply derives_trans with ((B * A * H * G) * (C * D * E * F));
   [cancel | ]
@@ -354,8 +348,7 @@ eapply derives_trans; [apply sepcon_derives; [ | apply derives_refl] | ].
 assert (LCR := lseg_cons_right_neq LS sh (map Vint (butlast merged)) begin (Vint (last merged)) c_ _id a_);
 simpl in LCR. rewrite list_cell_field_at in LCR. apply LCR; auto.
 rewrite @lseg_cons_eq.
-normalize.
-apply exp_right with b_'.
+Exists b_'.
 rewrite list_cell_field_at.
 entailer!.
 apply derives_refl.
@@ -419,12 +412,10 @@ name x__ _x.
 name ret__ _ret.
 name cond__ _cond.
 simpl map. rewrite @lseg_cons_eq.
-entailer!.
 Exists a_'.
-entailer!.
 rewrite list_cell_field_at.
-unfold data_at.
-unfold_field_at 5%nat.
+entailer!.
+unfold_data_at 2%nat.
 entailer!.
 
 (* we have now finished the case merged=nil, proceeding to the other case *)
@@ -433,9 +424,7 @@ assert (Hm: merged <> []) by congruence.
 clear hmerge tmerge Heqmerged.
 
 (* Command: *x = b *)
-unfold data_at.
-unfold_field_at 6%nat.
-normalize.
+unfold_data_at 2%nat.
 (* we replace [field_at ...tail _c] with [data_at .. (field_adress ...tail _c)] for forward*)
 focus_SEP 1.
 rewrite field_at_data_at.
@@ -454,7 +443,7 @@ Exists (va::a') b' (merged ++ [vb]) a_ b_' b_ begin.
 destruct (merged ++ [vb]) eqn:?. destruct merged; inv Heql.
 forget (i::l) as merged''; clear i l; subst merged''.
 rewrite app_ass.
-Time entailer!. (* 22 sec *)
+Time entailer!. (* 22 sec -> 17.33 sec *)
 rewrite butlast_snoc. rewrite last_snoc.
 rewrite @lseg_cons_eq.
 Exists a_'.
@@ -553,9 +542,7 @@ now entailer!.
 remember (hmerge :: tmerge) as merged.
 assert (Hm: merged <> []) by congruence.
 clear hmerge tmerge Heqmerged.
-unfold data_at.
-unfold_field_at 2%nat.
-normalize.
+unfold_data_at 2%nat.
 (* we replace [field_at ...tail _c] with [data_at .. (field_adress ...tail _c)] for forward*)
 focus_SEP 1.
 rewrite field_at_data_at.
@@ -569,8 +556,7 @@ clear Heqmerged' merged.
 rewrite merge_nil_r in *.
 entailer!.
 unfold field_type; simpl.
-unfold data_at; unfold_field_at 3%nat.
-simpl. 
+unfold_data_at 1%nat.
 (* @Andrew: same bug here, rewrite does not work directly but it does after
 a pose *)
 pose proof (field_at_data_at sh t_struct_list [StructField _tail] a__ c_) as R.
@@ -597,9 +583,7 @@ now entailer!.
 remember (hmerge :: tmerge) as merged.
 assert (Hm: merged <> []) by congruence.
 clear hmerge tmerge Heqmerged.
-unfold data_at.
-unfold_field_at 2%nat.
-normalize.
+unfold_data_at 2%nat.
 focus_SEP 1.
 rewrite field_at_data_at.
 forward.
@@ -611,8 +595,7 @@ end.
 clear Heqmerged' merged.
 entailer!.
 unfold field_type; simpl.
-unfold data_at; unfold_field_at 3%nat.
-simpl.
+unfold_data_at 1%nat.
 pose proof (field_at_data_at sh t_struct_list [StructField _tail] b__ c_) as R.
 fold _tail.
 rewrite R.
@@ -654,13 +637,11 @@ cancel.
 (* part 2 : we join the middle element and the right part of the list *)
 idtac.
 rewrite (lseg_unfold LS _ _ c_).
-Exists ab_; entailer.
-apply andp_right.
-entailer!. apply H6. (* TODO-LTAC entailer should see that data_at ... _c implies that _c is not null*)
+Exists ab_; entailer!.
+apply H6. (* TODO-LTAC entailer should see that data_at ... _c implies that _c is not null*)
 rewrite list_cell_field_at.
-unfold data_at.
-unfold_field_at 1%nat.
-entailer!.
+unfold_data_at 1%nat.
+simpl. cancel.
 
 (* part 3 : left part of the list *)
 rewrite H.
@@ -672,4 +653,4 @@ clear -Hm.
 change (butlast merged ++ ([last merged] ++ merge a b) = merged ++ merge a b).
 rewrite <-app_ass.
 now rewrite <-snoc; auto.
-Time Qed. (* 199 sec *)
+Time Qed. (* 199 sec -> 331 sec *)
