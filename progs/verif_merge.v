@@ -205,11 +205,12 @@ Time entailer!.  (* 1.65 sec *)
  destruct b__; inv TC; simpl.
   rewrite if_true by auto;  intuition discriminate.
   rewrite if_false by (intro Hx; inv Hx); intuition discriminate.
+  apply derives_refl.
 * (* a_ = null *)
 forward.
 Exists Int.zero a b (@nil int) a_ b_ ret_ ret_.
  simpl map. rewrite @lseg_nil_eq.
-entailer!. intuition.
+entailer!. intuition. apply derives_refl.
 * (* finally the [condition] is given the value of the temporary variable 67. *)
 (* TODO-LTAC here [normalize] should probably do [apply
    extract_exists_pre] for us. *)
@@ -357,6 +358,7 @@ normalize.
 apply exp_right with b_'.
 rewrite list_cell_field_at.
 entailer!.
+apply derives_refl.
 
 (* other branch of the if: contradiction *)
 rewrite H2 in HeqB; inversion HeqB.
@@ -472,7 +474,7 @@ end.
 eapply derives_trans; [apply sepcon_derives; [ | apply derives_refl] | ].
 apply LCR; auto.
 rewrite list_cell_field_at.
-cancel.
+cancel. apply derives_refl.
 
 (* After the if, putting boolean value into "cond" *)
 clear -SH.

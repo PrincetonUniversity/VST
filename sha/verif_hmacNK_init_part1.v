@@ -48,6 +48,17 @@ Definition hmac_init_part1_FRAME2 cb cofs := data_at Tsh
           (Vptr cb cofs)). 
 Opaque hmac_init_part1_FRAME2.
 
+Lemma change_compspecs_t_struct_SHA256state_st':
+  @data_at_ spec_sha.CompSpecs Tsh t_struct_SHA256state_st =
+  @data_at_ CompSpecs Tsh t_struct_SHA256state_st.
+Proof.
+extensionality v.
+reflexivity.
+Qed.
+
+Hint Rewrite change_compspecs_t_struct_SHA256state_st' : norm.
+
+
 Lemma Init_part1_keynonnull Espec (kb ckb cb: block) (kofs ckoff cofs:int) l key kv pad: forall h1
 (KL1 : l = Zlength key)
 (KL2 : 0 < l <= Int.max_signed)
@@ -171,29 +182,11 @@ Proof. intros. abbreviate_semax.
       subst x x0.
       rename f into FC.*)
 (*      subst PAD. normalize.*)
-Time      forward_call (Vptr cb cofs). (*Issue: takes 5mins... [now takes 28 sec] *)
-(*
-      { match goal with |- _ * _ * ?A * _ * _ * _ * _ |-- _ => pull_left A end.
-        repeat rewrite sepcon_assoc. apply sepcon_derives. 2: cancel.
-        eapply derives_trans; [apply data_at_data_at_ | ].
-          unfold offset_val. simpl.
-          rewrite Int.add_zero. apply derives_refl. }
-       unfold map at 1.  (* should not be necessary *)
-      (*call to SHA256_Update*) 
-      assert (MaxSignedMod: Int.max_signed < Int.modulus) by intuition. 
-      assert_PROP (field_compatible (Tarray tuchar (Zlength key) noattr) [] (Vptr kb kofs))
-         as FC_k by entailer!.
-      unfold tarray. rewrite (split2_data_at_Tarray_at_tuchar _ _ l); trivial; try omega.
-      Focus 2. repeat rewrite Zlength_map; trivial.
-      rewrite sublist_same; repeat rewrite Zlength_map; trivial.
-      rewrite KL1, Zminus_diag, sublist_nil. normalize.
-      replace_SEP 1 (`emp). 
-      { unfold at_offset. entailer. 
-        eapply derives_trans. apply data_at_data_at_.
-             rewrite data_at__memory_block.
-               rewrite memory_block_zero_Vptr. entailer. 
+Time      forward_call (Vptr cb cofs). (*Issue: takes 5mins... [now takes 18 sec] *)
+      { change (Tstruct _SHA256state_st noattr) with  t_struct_SHA256state_st.
+        rewrite change_compspecs_t_struct_SHA256state_st'.
+        cancel.
       }
-*)
       forward_call (init_s256abs, key, Vptr cb cofs, Vptr kb kofs, Tsh, l, kv) ctxSha.
 (*      { (*Issue: this side condition is NEW*)
         apply prop_right. simpl. rewrite Int.add_zero, <- KL1. split; trivial. }
@@ -201,19 +194,10 @@ Time      forward_call (Vptr cb cofs). (*Issue: takes 5mins... [now takes 28 sec
       { unfold data_block.
         (*Issue: calling entailer or normalize here yields 
              "Anomaly: undefined_evars_of_term: evar not found. Please report."*)
-       rewrite prop_true_andp by auto. cancel.
-(*
-        assert (FR: Frame = [
-         field_at Tsh t_struct_hmac_ctx_st [StructField 14%positive]
-            (fst (snd (default_val t_struct_hmac_ctx_st))) (Vptr cb cofs);
-         field_at Tsh t_struct_hmac_ctx_st [StructField 15%positive]
-            (snd (snd (default_val t_struct_hmac_ctx_st))) (Vptr cb cofs);
-         data_at_ Tsh (Tarray tuchar 64 noattr) pad;
-         data_at_ Tsh (Tarray tuchar 64 noattr) (Vptr ckb ckoff)]).
-          subst Frame; reflexivity.
-         rewrite FR; clear FR Frame. 
-         simpl. (*Issue: Yes, simpl is crucial here*) normalize.
-*)
+       rewrite prop_true_andp by auto.
+       change (@data_at spec_sha.CompSpecs Tsh (tarray tuchar (@Zlength Z key)))
+        with (@data_at CompSpecs Tsh (tarray tuchar (@Zlength Z key))).
+       cancel.
       }
       { clear Frame HeqPostIf_j_Len HeqPostKeyNull.
         specialize Int.max_signed_unsigned.
@@ -251,6 +235,7 @@ Time   gather_SEP 4 5 6 7. (*Issue: why does gather_SEP take 1min???
    replace_SEP 0 (`(hmac_init_part1_FRAME1 key kb kofs cb cofs pad)).
    { Transparent hmac_init_part1_FRAME1. unfold hmac_init_part1_FRAME1. Opaque hmac_init_part1_FRAME1.
      Transparent default_val. entailer!. Opaque default_val. (*Issue: without making default_val transparent, entailer/nornmalize/entailer! here don't terminate within 1h*)
+     apply derives_refl.
    } 
    forward_call (ctxSha, Vptr ckb ckoff, Vptr cb cofs, Tsh, kv). (*with transparent hmac_init_part1_FRAME1 it's a bit faster, but then unfolds hmac_init_part1_FRAME in the precondition of the next goal*) 
 (*Issue : WAS: Transparent default_val. unfold default_val. simpl. (*Issue: adding this line is necessary to make the following forward_call terminate in < 5mins*)
@@ -312,19 +297,23 @@ Time   gather_SEP 4 5 6 7. (*Issue: why does gather_SEP take 1min???
       assert (AR2 :64 - 32 = 32). omega. unfold SHA256.BlockSize. rewrite AR2.
       assert (AR3: (64 - 32 = 32)%nat). omega. rewrite AR3. clear AR1 AR2 AR3.
 
-      simpl. cancel. destruct ctxSha. simpl. inv updAbs. simpl in H18; rewrite <- H18. unfold SHA256.Hash. 
+      simpl. 
+      change (@data_at spec_sha.CompSpecs Tsh (Tarray tuchar 32 noattr))
+        with (@data_at CompSpecs Tsh (Tarray tuchar 32 noattr)).
+      change (Int.repr 0) with Int.zero.
+      fold (list_repeat 32 (Vint Int.zero)).
+      change 32%nat with (Z.to_nat 32).
+      change (Int.repr (Int.unsigned ckoff + 32))
+             with (Int.add ckoff (Int.repr 32)).
+      cancel. destruct ctxSha. simpl. inv updAbs. simpl in H18; rewrite <- H18. unfold SHA256.Hash. 
       rewrite functional_prog.SHA_256'_eq. cancel.
 
-      Transparent hmac_init_part1_FRAME1. unfold hmac_init_part1_FRAME1. (* remember (default_val t_struct_hmac_ctx_st) as DDD. *) clear. 
-       (*cancel. FAILS to solve - terminated after 2mins*)
-      apply sepcon_derives.
-          (*cancel. FAILS  to solve - terminated after 2mins*)
-          Transparent default_val. 
-            (*cancel. still FAILS  to solve - terminated after 2mins*) 
-             apply derives_refl. (*Succeeds in 1sec*)
-          Opaque default_val.
-        unfold data_block. normalize. apply andp_left2. cancel. 
-      Opaque hmac_init_part1_FRAME1.
+      Transparent hmac_init_part1_FRAME1. unfold hmac_init_part1_FRAME1. (* remember (default_val t_struct_hmac_ctx_st) as DDD. *) clear.
+      repeat simplify_project_default_val.
+      cancel. (* previously: terminated after 2mins; now 0.44 sec *)
+      unfold data_block. simpl. rewrite sepcon_andp_prop.
+      apply andp_left2. cancel.  
+      apply derives_refl.
     rewrite Zlength_list_repeat'. trivial.
    }
 Qed.
@@ -463,7 +452,10 @@ Proof. intros.
      rewrite XX.
      repeat rewrite map_list_repeat. 
      rewrite sublist_same; trivial. 
-     cancel.
+     change (@data_at spec_sha.CompSpecs Tsh (tarray tuchar SF))
+     with (@data_at CompSpecs Tsh (tarray tuchar SF)).
+     change (Tarray tuchar 64 noattr) with (tarray tuchar 64).
+     cancel. apply derives_refl.
      do 2 rewrite Zlength_list_repeat'. trivial.
 Qed.
 

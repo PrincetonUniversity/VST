@@ -37,13 +37,17 @@ unfold data_at. unfold_field_at 1%nat.
 rewrite field_at_data_at at 1. unfold field_address; rewrite if_true by auto.
 make_Vptr c.
 simpl.
-forward_call (ctx, data, Vptr b i, d, Tsh, len, kv) s. 
+Time forward_call (ctx, data, Vptr b i, d, Tsh, len, kv) s. 
  (*Issue: the forward_call takes ca 50secs in newComCert, instead of 6secs in Master, 
-   no matter wther the field_at_data_at stuff s done outside of the call or inside*)
+   no matter wther the field_at_data_at stuff s done outside of the call or inside.
+   Resolved (11/4/15): with the faster canceler, now 12.5 sec.
+ *)
   { (* rewrite field_at_data_at at 1.*)
     unfold sha256state_. Exists (fst ST). normalize.
     rewrite (field_at_data_at _ _ [StructField _md_ctx]).
     unfold field_address. rewrite if_true by auto. simpl. rewrite Int.add_zero.
+    change (Tstruct _SHA256state_st noattr) with  t_struct_SHA256state_st.
+    change (@reptype CompSpecs t_struct_SHA256state_st) with s256state.
     cancel.
   }
   intuition.

@@ -333,29 +333,53 @@ extensionality v1 v2.
 reflexivity.
 Qed.
 
-Lemma mapsto_mapsto__int32:
-  forall sh p v s1 s2,
-  mapsto sh (Tint I32 s1 noattr) p v |-- mapsto_ sh (Tint I32 s2 noattr) p.
-Proof.
-intros.
-eapply derives_trans; [ apply mapsto_mapsto_ | ].
-destruct s1,s2; fold tuint; fold tint; 
-  repeat rewrite mapsto_tuint_tint; auto.
-Qed.
 
+Definition is_int32_noattr_type t :=
+ match t with
+ | Tint I32 _ {| attr_volatile := false; attr_alignas := None |} => True
+ | _ => False
+ end.
 
 Lemma mapsto_mapsto_int32:
-  forall sh p v s1 s2,
-  mapsto sh (Tint I32 s1 noattr) p v |-- mapsto sh (Tint I32 s2 noattr) p v.
+  forall sh t1 t2 p v,
+   is_int32_noattr_type t1 ->
+   is_int32_noattr_type t2 ->
+   mapsto sh t1 p v |-- mapsto sh t2 p v.
 Proof.
 intros.
-destruct s1,s2; fold tuint; fold tint; 
-  repeat rewrite mapsto_tuint_tint; auto.
+destruct t1; try destruct i; try contradiction.
+destruct a as [ [ | ] [ | ] ]; try contradiction.
+destruct t2; try destruct i; try contradiction.
+destruct a as [ [ | ] [ | ] ]; try contradiction.
+apply derives_refl.
 Qed.
 
-
+Lemma mapsto_mapsto__int32:
+  forall sh t1 t2 p v,
+   is_int32_noattr_type t1 ->
+   is_int32_noattr_type t2 ->
+   mapsto sh t1 p v |-- mapsto_ sh t2 p.
+Proof.
+intros.
+destruct t1; try destruct i; try contradiction.
+destruct a as [ [ | ] [ | ] ]; try contradiction.
+destruct t2; try destruct i; try contradiction.
+destruct a as [ [ | ] [ | ] ]; try contradiction.
+fold noattr.
+unfold mapsto_.
+destruct s,s0; fold tuint; fold tint; 
+  repeat rewrite mapsto_tuint_tint;
+  try apply mapsto_mapsto_.
+Qed.
+ 
 (* We do these as Hint Extern, instead of Hint Resolve,
   to limit their application and make them fail faster *)
+
+Hint Extern 1 (mapsto _ _ _ _ |-- mapsto _ _ _ _) =>
+   (simple apply mapsto_mapsto_int32; apply Coq.Init.Logic.I)  : cancel.
+
+Hint Extern 1 (mapsto _ _ _ _ |-- mapsto_ _ _ _) =>
+   (simple apply mapsto_mapsto__int32; apply Coq.Init.Logic.I)  : cancel.
 
 Hint Extern 1 (mapsto _ _ _ _ |-- mapsto_ _ _ _) =>
     (apply mapsto_mapsto_) : cancel.

@@ -103,7 +103,7 @@ apply semax_pre with (P':=
       rewrite (field_at_data_at Tsh t_struct_hmac_ctx_st [StructField _md_ctx]).
       simpl @nested_field_type.
       unfold field_address; rewrite if_true.
-      simpl. rewrite Int.add_zero. cancel.
+      simpl. rewrite Int.add_zero. cancel. apply derives_refl.
       hnf in H5; hnf; intuition.
       apply compute_legal_nested_field_spec'; repeat constructor.
 }
@@ -133,7 +133,8 @@ replace_SEP 2 `(memory_block Tsh 108 (Vptr b i)).
   }
 
 forward_call ((Tsh, Tsh), Vptr b i, Vptr b (Int.add i (Int.repr 216)), 
-              mkTrep t_struct_SHA256state_st oCTX, 108) rv. 
+              mkTrep t_struct_SHA256state_st oCTX, 108) rv.
+simpl. cancel. 
 subst rv; simpl. 
 
 assert (SFL: Zlength (sha_finish ctx) = 32). 
@@ -167,7 +168,12 @@ apply derives_trans with (Q:= hmacstate_PostFinal (HMACabs updSha iSha oSha)
       (Vptr b i) *
     data_at Tsh (tarray tuchar 32) (map Vint (map Int.repr (sha_finish ctx))) buf).
 2: cancel.
-cancel.
+ change (@data_at spec_sha.CompSpecs Tsh (tarray tuchar 32))
+     with (@data_at CompSpecs Tsh (tarray tuchar 32)).
+ change (@data_at_ spec_sha.CompSpecs Tsh t_struct_SHA256state_st)
+     with (@data_at_ CompSpecs Tsh t_struct_SHA256state_st).
+ cancel.
+
 unfold hmacstate_PostFinal, hmac_relate_PostFinal. normalize.
 Exists (updShaST, (iCTX, oCTX)). normalize.
 match goal with |- _ |-- data_at _ _ ?A _ =>

@@ -449,8 +449,13 @@ start_function.
 eapply semax_pre; [
   eapply derives_trans; [ | apply (setup_globals three) ] | ].
  entailer!.
+ change (Tpointer
+     (Tstruct 8%positive {| attr_volatile := false; attr_alignas := None |})
+     noattr) with (tptr t_struct_list).
+  cancel.
 forward_call (*  r = reverse(three); *)
   (Ews, map Vint [Int.repr 1; Int.repr 2; Int.repr 3], three) r'.
+rewrite <- map_rev. simpl rev.
 forward_call  (* s = sumlist(r); *)
    (Ews, Int.repr 3 :: Int.repr 2 :: Int.repr 1 :: nil, r') s'.
 forward.  (* return s; *)

@@ -19,6 +19,8 @@ normalize. rename lvar0 into c.
 
 forward_call (* SHA256_Init(&c); *)
    (c).
+rewrite !sepcon_assoc; (* need this with weak canceller *)
+ apply sepcon_derives; [apply derives_refl | cancel].
 
 forward_call (* SHA256_Update(&c,d,n); *)
   (init_s256abs,data,c,d,dsh, Zlength data, kv) a.
@@ -29,6 +31,7 @@ forward_call (* SHA256_Final(md,&c); *)
 
 forward. (* return; *)
 Exists c.
+change (Tstruct _SHA256state_st noattr) with t_struct_SHA256state_st.
 entailer!.
 replace (SHA_256 data) with (sha_finish a); [cancel |].
 clear - H1.

@@ -290,7 +290,7 @@ rewrite Zlength_correct in H1;  destruct dd; inv H1.
 autorewrite with sublist.
 simpl app; simpl intlist_to_Zlist.
 clear H0.
-Time entailer!.  (* 139 sec *)
+Time entailer!.  (* 139 sec -> 5.4 sec *)
 split.
 apply Z.divide_0_r.
 unfold field_address0. rewrite if_true.

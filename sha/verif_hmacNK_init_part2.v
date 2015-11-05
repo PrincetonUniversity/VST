@@ -345,7 +345,7 @@ Focus 2.
               (Vptr kb kofs))*)))).
       { (*precondition implies "invariant"*)
         rewrite sublist_nil, sublist_same; trivial. simpl app.
-        entailer.  
+        entailer!.  
       }
       { rename H into I. 
         assert (Xb: exists qb, nth (Z.to_nat i) (HMAC_SHA256.mkKey key) Z0 = qb /\ isbyteZ qb).
@@ -362,9 +362,9 @@ Focus 2.
               Focus 2. repeat rewrite map_length. rewrite mkKey_length. unfold SHA256.BlockSize; simpl. apply (Z2Nat.inj_lt _ 64); omega. 
             repeat rewrite map_nth. rewrite Qb. trivial. 
           }
-        forward. entailer.
+        forward. entailer!.
 
-        apply prop_right. rewrite X. simpl. rewrite <- isbyte_zeroExt8'; trivial.
+        rewrite X. simpl. rewrite <- isbyte_zeroExt8'; trivial.
                apply (isbyteZ_range _ isbyteZQb). 
         rewrite X.
         forward. 
@@ -382,7 +382,7 @@ Focus 2.
         unfold field_address; simpl. rewrite if_true, Int.add_zero; trivial. (*Issue: we're (forced to?) unfolding field_address too often*)
       }
 Unfocus.
-cbv beta. rewrite sublist_same, sublist_nil, app_nil_r; trivial. entailer.
+cbv beta. rewrite sublist_same, sublist_nil, app_nil_r; trivial. entailer!.
 subst IPADcont; do 2 rewrite Zlength_map. 
 unfold HMAC_SHA256.mkArgZ in ZLI; rewrite ZLI; trivial.
 Qed. 
@@ -492,7 +492,7 @@ Focus 2.
       { (*precondition implies "invariant"*)
         unfold data_block.
         rewrite sublist_nil, sublist_same; trivial.
-          simpl app. entailer. cancel. rewrite ZLI. unfold tarray, HMAC_SHA256.mkArgZ. trivial.
+          simpl app. entailer!. rewrite ZLI. unfold tarray, HMAC_SHA256.mkArgZ. trivial.
         subst IPADcont. do 2 rewrite Zlength_map. unfold HMAC_SHA256.mkArgZ in ZLI; rewrite ZLI. trivial. 
       } 
       { rename H into I. 
@@ -517,15 +517,15 @@ Focus 2.
                            (sublist 0 i OPADcont ++ sublist i 64 IPADcont) (Vptr pb pofs)) *
                        `(data_at Tsh (tarray tuchar 64)
                            (map Vint (map Int.repr (HMAC_SHA256.mkKey key))) (Vptr ckb ckoff))).
-        { entailer. Transparent FRAME1. Transparent FRAME2. Transparent default_val.
+        { entailer!. Transparent FRAME1. Transparent FRAME2. Transparent default_val.
             unfold FRAME1, FRAME2, HMS, default_val. simpl. cancel.
         } Opaque FRAME1. Opaque FRAME2. 
         normalize.
         forward. Opaque default_val. (*Issue : forward succeeds in 3secs, but if 
               we put the Opaque declaration before the forward (next to Opaque FRAME2, as one would expect),
               the forward leads to memory exhaustion. *)
-        { entailer.
-          apply prop_right. rewrite X. simpl. rewrite <- isbyte_zeroExt8'; trivial.
+        { entailer!.
+          rewrite X. simpl. rewrite <- isbyte_zeroExt8'; trivial.
                 apply (isbyteZ_range _ isbyteZQb). 
         }
         rewrite X.
@@ -726,7 +726,7 @@ forward_if PostResetBranch.
             repeat rewrite map_length. rewrite mkKey_length.
             unfold SHA256.BlockSize; simpl. trivial. 
     unfold data_at_, tarray.
-    assert_PROP (isptr pad). entailer. apply isptrD in H; destruct H as [pb [pofs Hpad]]. subst pad. 
+    assert_PROP (isptr pad). entailer!. apply isptrD in H; destruct H as [pb [pofs Hpad]]. subst pad. 
     apply semax_pre with (P':=PROP  (r<>0 /\ Forall isbyteZ key)
          LOCAL  (temp _reset (Vint (Int.repr r));
             lvar _ctx_key (Tarray tuchar 64 noattr) (Vptr ckb ckoff);
@@ -745,13 +745,18 @@ forward_if PostResetBranch.
       destruct key'; try contradiction.
       (*integer, ie key==NULL*)
           simpl in TC. subst i. simpl. if_tac. subst r. inversion r_true.
-          apply andp_right. entailer. entailer.
+Lemma FF_local_facts: forall {A}{NA: NatDed A}, (FF:A) |-- !!False.
+Proof. intros. apply FF_left. Qed.
+Hint Resolve @FF_local_facts: saturate_local. (* move to floyd *)
+
+          entailer!
+           ; entailer!.  (* delete this line after recompile *)
       (*key == Vptr*)
-       if_tac. subst r. inversion r_true.
-          entailer. cancel.
+       if_tac; entailer!
+           ; entailer!.  (* delete this line after recompile *)
     }
     normalize. destruct R; subst r. omega. clear H. rename H0 into isbyte_key.
-    assert_PROP (isptr k). entailer. apply isptrD in H; destruct H as [kb [kofs HK]]. 
+    assert_PROP (isptr k). entailer!. apply isptrD in H; destruct H as [kb [kofs HK]]. 
     rewrite HK in *. 
 
     eapply semax_seq'. (*TODO: using forward_seq here introduces another Delta0 in goal2 - but it worked fine before I split this off into file XXX_part2.v *)
@@ -776,13 +781,13 @@ forward_if PostResetBranch.
                          (K_vector kv * data_at Tsh t_struct_hmac_ctx_st HMS' (Vptr cb cofs)
                           * data_at Tsh (tarray tuchar (Zlength key)) (map Vint (map Int.repr key))
                          (Vptr kb kofs))); try eassumption.
-      apply andp_left2. entailer. cancel.
+      apply andp_left2. entailer!.
       intros ? ?. apply andp_left2. apply assert_lemmas.normal_ret_assert_derives'.
-                  entailer. cancel.
+                  entailer!. 
     }
 
     (*continuation after ipad-loop*) 
-    assert_PROP (field_compatible t_struct_hmac_ctx_st [] (Vptr cb cofs)) as FC_C by entailer.
+    assert_PROP (field_compatible t_struct_hmac_ctx_st [] (Vptr cb cofs)) as FC_C by entailer!.
     unfold data_at at 2. unfold_field_at 1%nat. normalize.
     simpl.
     gather_SEP 1 2 5 6.
@@ -803,7 +808,10 @@ forward_if PostResetBranch.
     rewrite KHMS at 2. (*Issue: note: don't rewrite in the FRAME1-erm*)
     Transparent default_val. unfold HMS, default_val; simpl. Opaque default_val.
     forward_call (Vptr cb (Int.add cofs (Int.repr 108))). 
-
+    change (Tstruct _SHA256state_st noattr) with t_struct_SHA256state_st.
+    change (@data_at_ spec_sha.CompSpecs Tsh t_struct_SHA256state_st)
+      with (@data_at_ CompSpecs Tsh t_struct_SHA256state_st).
+    cancel.
     (*Call to _SHA256_Update*)
     forward_call (init_s256abs, 
                   HMAC_SHA256.mkArgZ (map Byte.repr (HMAC_SHA256.mkKey key)) Ipad,
@@ -814,7 +822,11 @@ forward_if PostResetBranch.
       assert (FR : Frame = [FRAME1 cb cofs ckb ckoff kb kofs key HMS']).
         subst Frame; reflexivity.
       rewrite FR; clear FR Frame. 
-      simpl. normalize. apply andp_right. apply prop_right. apply isbyte_map_ByteUnsigned. cancel. 
+      simpl. normalize. apply andp_right. apply prop_right. apply isbyte_map_ByteUnsigned.
+      change (@data_at spec_sha.CompSpecs Tsh (tarray tuchar 64))
+        with (@data_at CompSpecs Tsh (tarray tuchar 64)).
+      change (Tarray tuchar 64 noattr) with (tarray tuchar 64).
+      cancel. 
     } 
     { clear Frame HeqPostResetBranch HeqOPADcont; subst IPADcont.
         rewrite Zlength_mkArgZ. repeat rewrite map_length. rewrite mkKey_length. intuition. 
@@ -865,7 +877,10 @@ Definition FRAME3 (kb cb ckb: block) kofs cofs ckoff key ipadSHAabs (HMS' : rept
     unfold MORE_COMMANDS, abbreviate.
     (*This line is crucial: *) rewrite KHMS. unfold HMS; simpl.
     forward_call (Vptr cb (Int.add cofs (Int.repr 216))).
- 
+    change (@data_at_ spec_sha.CompSpecs Tsh t_struct_SHA256state_st)
+       with (@data_at_ CompSpecs Tsh t_struct_SHA256state_st).
+    change  (Tstruct _SHA256state_st noattr) with t_struct_SHA256state_st.
+    cancel.
     (* Call to sha_update*)
     forward_call (init_s256abs, 
             HMAC_SHA256.mkArgZ (map Byte.repr (HMAC_SHA256.mkKey key)) Opad,
@@ -878,7 +893,11 @@ Definition FRAME3 (kb cb ckb: block) kofs cofs ckoff key ipadSHAabs (HMS' : rept
                              (default_val t_struct_hmac_ctx_st)]).
         subst Frame; reflexivity.
       rewrite FR; clear FR Frame. 
-      simpl. normalize. apply andp_right. apply prop_right. apply isbyte_map_ByteUnsigned. cancel. 
+      simpl. entailer!. apply isbyte_map_ByteUnsigned.
+      change (@data_at spec_sha.CompSpecs Tsh (tarray tuchar 64))
+        with (@data_at CompSpecs Tsh (tarray tuchar 64)).
+      change (Tarray tuchar 64 noattr) with (tarray tuchar 64).
+      cancel.
     }
     { rewrite ZLO. intuition. } 
 
@@ -886,42 +905,37 @@ Definition FRAME3 (kb cb ckb: block) kofs cofs ckoff key ipadSHAabs (HMS' : rept
     normalize.
     rewrite sublist_same in opadAbs_def; try rewrite ZLO; trivial.
 
-    subst PostResetBranch; entailer.
+    subst PostResetBranch; entailer!.
     unfold FRAME3, sha256state_, default_val; simpl.
-    normalize. rename r into iUpd. rename x into oUpd.
+    Intros oUpd iUpd. normalize.
     Exists (ipadSHAabs,(iUpd,(opadSHAabs,oUpd))). simpl.
-    apply andp_right. apply prop_right. intuition.
-    apply andp_right. apply prop_right. intuition.
-    cancel.
-        unfold data_block. (* initPostResetConditional. simpl.*)
-        rewrite ZLO. normalize. cancel.
-
-        (*Issue: VST's canceler fails to cancel the pad terms (Vptr pb pofs), 
-            since they';re at different CompSpecs*)
-        repeat rewrite <- sepcon_assoc.
-        repeat rewrite sepcon_assoc. rewrite sepcon_comm. repeat rewrite <- sepcon_assoc.
-        repeat rewrite sepcon_assoc. 
-        apply sepcon_derives. eapply derives_trans. apply data_at_data_at_. apply derives_refl.
-
+    rewrite !prop_true_andp by intuition.
+    unfold data_block. (* initPostResetConditional. simpl.*)
+    rewrite ZLO. normalize.
+    change (@data_at spec_sha.CompSpecs Tsh (tarray tuchar 64))
+      with (@data_at CompSpecs Tsh (tarray tuchar 64)).
+      cancel.
     unfold_data_at 3%nat.
     rewrite (field_at_data_at Tsh t_struct_hmac_ctx_st [StructField _i_ctx]).
     rewrite (field_at_data_at Tsh t_struct_hmac_ctx_st [StructField _o_ctx]).
-    unfold field_address. rewrite if_true by trivial. rewrite if_true by trivial.
-    trivial.
+    unfold field_address. rewrite !if_true by trivial.
+    simpl.
+    cancel.
   }
   { (*ELSE*) 
-    forward. subst. unfold initPostKeyNullConditional. entailer. 
-    destruct R; subst. 2: discriminate.
-    simpl; clear H. destruct key'; try solve[entailer]. 
+    forward. subst. unfold initPostKeyNullConditional. entailer!. 
+    destruct R; subst; [ |discriminate].
+    simpl; clear H. destruct key'; try solve[entailer!]. 
     unfold hmacstate_PreInitNull, hmac_relate_PreInitNull; simpl.
-    destruct h1; entailer.
+    destruct h1; entailer!.
     if_tac; [ | entailer!].
     Intros v x.
     Exists (iSha, (iCtx v, (oSha, oCtx v))). simpl.
     entailer!. 
     unfold hmacstate_PreInitNull, hmac_relate_PreInitNull; simpl.
     Exists v x.
-     entailer!.
+    change (Tarray tuchar 64 noattr) with (tarray tuchar 64).
+    entailer!.
    }
 intros ? ?. apply andp_left2.  
    unfold POSTCONDITION, abbreviate. rewrite overridePost_overridePost. 

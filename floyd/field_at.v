@@ -1542,6 +1542,8 @@ rewrite H1.
 normalize.
 Qed.
 
+Hint Resolve data_at_valid_ptr field_at_valid_ptr field_at_valid_ptr0 : valid_pointer.
+
 (************************************************
 
 Other lemmas
@@ -1842,8 +1844,6 @@ Qed.
 
 End CENV.
 
-Hint Resolve data_at_valid_ptr field_at_valid_ptr field_at_valid_ptr0 : valid_pointer.
-
 Lemma data_array_at_local_facts {cs: compspecs}:
  forall t' n a sh v p,
   data_at sh (Tarray t' n a) v p |-- 
@@ -1931,34 +1931,70 @@ Hint Rewrite <- @data_at__offset_zero: cancel.
 Hint Rewrite <- @data_at_offset_zero: cancel.
 
 
+(* We do these as specific lemmas, rather than
+  as Hint Resolve derives_refl, to limit their application 
+  and make them fail faster *)
+
+Lemma data_at_cancel:
+  forall {cs: compspecs} sh t v p,
+    data_at sh t v p |-- data_at sh t v p.
+Proof. intros. apply derives_refl. Qed.
+Lemma field_at_cancel:
+  forall {cs: compspecs} sh t gfs v p,
+    field_at sh t gfs v p |-- field_at sh t gfs v p.
+Proof. intros. apply derives_refl. Qed.
+
+Lemma data_at_field_at_cancel:
+  forall {cs: compspecs} sh t v p,
+    data_at sh t v p |-- field_at sh t nil v p.
+Proof. intros. apply derives_refl. Qed.
+Lemma field_at_data_at_cancel:
+  forall {cs: compspecs} sh t v p,
+    field_at sh t nil v p |-- data_at sh t v p.
+Proof. intros. apply derives_refl. Qed.
+ 
+Hint Resolve data_at_cancel field_at_cancel
+   data_at_field_at_cancel field_at_data_at_cancel : cancel.
+
+Lemma field_at__data_at__cancel:
+  forall {cs: compspecs} sh t p,
+   field_at_ sh t nil p |-- data_at_ sh t p.
+Proof. intros. apply derives_refl. Qed.
+
+Lemma data_at__field_at__cancel:
+  forall {cs: compspecs} sh t p,
+   data_at_ sh t p |-- field_at_ sh t nil p.
+Proof. intros. apply derives_refl. Qed.
+Hint Resolve  field_at__data_at__cancel data_at__field_at__cancel : cancel.
+
+
 (* We do these as Hint Extern, instead of Hint Resolve,
   to limit their application and make them fail faster *)
 
 Hint Extern 2 (field_at _ _ _ _ _ |-- field_at_ _ _ _ _) => 
-   (apply field_at_field_at_) : cancel.
-
-Hint Extern 2 (field_at _ _ _ _ _ |-- field_at ?sh ?t ?gfs ?v _) => 
-   (change (field_at sh t gfs v) with (field_at_ sh t gfs);
-    apply field_at_field_at_) : cancel.
-
-Hint Extern 2 (field_at ?sh ?t ?gfs ?v _ |-- field_at_ _ _ _ _) => 
-   (change (field_at sh t gfs v) with (field_at_ sh t gfs);
-    apply derives_refl) : cancel.
+   (simple apply field_at_field_at_) : cancel.
 
 Hint Extern 2 (field_at _ _ _ _ _ |-- field_at _ _ _ _ _) =>
-  (apply field_at_field_at_default; reflexivity) : cancel.
+  (simple apply field_at_field_at_default; 
+   match goal with |- _ = default_val _ => reflexivity end) : cancel.
 
 Hint Extern 1 (data_at _ _ _ _ |-- data_at_ _ _ _) =>
-    (apply data_at_data_at_) : cancel.
+    (simple apply data_at_data_at_) : cancel.
 
 Hint Extern 1 (data_at _ _ _ _ |-- memory_block _ _ _) =>
     (simple apply data_at__memory_block_cancel) : cancel.
 
 Hint Extern 2 (data_at _ _ _ _ |-- data_at _ _ _ _) =>
+  (simple apply data_at_data_at_default; 
+   match goal with |- _ = default_val _ => reflexivity end) : cancel.
+
+(* too slow this way.
+Hint Extern 2 (data_at _ _ _ _ |-- data_at _ _ _ _) =>
   (apply data_at_data_at_default; reflexivity) : cancel.
+*)
 
 Hint Extern 2 (array_at _ _ _ _ _ _ _ |-- array_at_ _ _ _ _ _ _) =>
-  (apply array_at_array_at_) : cancel.
+  (simple apply array_at_array_at_) : cancel.
 Hint Extern 1 (isptr _) => (eapply field_compatible_offset_isptr; eassumption).
 Hint Extern 1 (isptr _) => (eapply field_compatible0_offset_isptr; eassumption).
 Hint Rewrite @is_pointer_or_null_field_address_lemma : entailer_rewrite.

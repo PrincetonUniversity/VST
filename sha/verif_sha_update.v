@@ -241,9 +241,12 @@ replace_SEP 0 `(data_at Tsh t_struct_SHA256state_st
   pose proof (Zlength_nonneg dd).
   autorewrite with sublist.
   rewrite H17.
-  cancel.
+  change  (@reptype CompSpecs
+        (@nested_field_type CompSpecs t_struct_SHA256state_st
+           [ArraySubsc 0; StructField _data])) with val.
+  cancel. 
   apply derives_trans with (array_at_ Tsh t_struct_SHA256state_st [StructField _data] (Zlength dd) 64 c');
-     cancel.
+     [ cancel | apply derives_refl].
 }
 (* end of TODO *)
 forward. (* n = c->num; *)

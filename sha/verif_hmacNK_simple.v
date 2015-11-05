@@ -74,7 +74,8 @@ assert_PROP (field_compatible (Tstruct _hmac_ctx_st noattr) [] c).
 rename H into FC_c.
 
 forward_call (h1, c, md, shmd, kv) [dig h2]. 
-simpl in H; rename H into HmacFinalSimple. 
+simpl in H; rename H into HmacFinalSimple.
+simpl. 
 
 forward_call (h2,c). 
 forward.

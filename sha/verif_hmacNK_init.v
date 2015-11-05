@@ -69,7 +69,7 @@ forward_seq. instantiate (1:= PostKeyNull).
    rewrite DD.  
    eapply semax_pre_simple.
    2: eapply hmac_init_part1; eassumption.
-   entailer. cancel.
+   entailer!.
 }
 subst PostKeyNull. normalize.
 apply extract_exists_pre; intros cb. 
@@ -115,8 +115,8 @@ remember (EX shaStates:_ ,
 eapply semax_seq. instantiate (1:=PostResetBranch).
 { eapply semax_pre_post.
   Focus 3 . apply init_part2; eassumption.
-  entailer.
-  intros ? ?. apply andp_left2. entailer. }
+  entailer!.
+  intros ? ?. apply andp_left2. entailer!. }
 
 { (*Continuation after if (reset*)
   subst PostResetBranch.
@@ -198,7 +198,9 @@ Time     unfold_data_at 1%nat. (*Issue: Why is this so slow here (2mins) ... now
        rewrite (field_at_data_at _ _ [StructField _md_ctx]).
        rewrite (field_at_data_at _ _ [StructField _i_ctx]).
       unfold field_address; simpl. rewrite if_true by trivial. rewrite if_true by trivial.
-      rewrite Int.add_zero. cancel.
+      rewrite Int.add_zero. 
+      change (Tarray tuchar 64 noattr) with (tarray tuchar 64).
+      cancel.
   }
 
   { (*k is Vptr, key!=NULL*)
@@ -206,7 +208,7 @@ Time     unfold_data_at 1%nat. (*Issue: Why is this so slow here (2mins) ... now
     apply semax_pre with (P':=FF); try entailer; try apply semax_ff.
     normalize. rename H into isbyteKey. 
     unfold postResetHMS. simpl.
-     assert_PROP (field_compatible t_struct_hmac_ctx_st [] (Vptr cb cofs)) as FC_cb by entailer.
+     assert_PROP (field_compatible t_struct_hmac_ctx_st [] (Vptr cb cofs)) as FC_cb by entailer!.
      assert (FC_cb_ictx: field_compatible t_struct_hmac_ctx_st [StructField 14%positive] (Vptr cb cofs)).
        red; red in FC_cb. intuition. split; trivial. right; left. reflexivity.
      assert (FC_cb_md: field_compatible t_struct_hmac_ctx_st [StructField 13%positive] (Vptr cb cofs)).
@@ -242,6 +244,9 @@ Time     unfold_data_at 1%nat. (*Issue: Why is this so slow here (2mins) ... now
     unfold data_block, hmacstate_, hmac_relate.
     normalize.
     Exists (iS, (iS, oS)).
+    change (@data_at spec_sha.CompSpecs Tsh (tarray tuchar (@Zlength Z key)))
+       with (@data_at CompSpecs Tsh (tarray tuchar (@Zlength Z key))).
+    change (Tarray tuchar 64 noattr) with (tarray tuchar 64).
     entailer!.
       split. rewrite (updAbs_len _ _ _ INNER), Zlength_mkArgZ,
            map_length, mkKey_length; reflexivity.

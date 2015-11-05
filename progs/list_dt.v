@@ -2374,25 +2374,31 @@ Lemma list_append: forall {dsh psh: share}
   (lseg ls dsh psh ct1 hd mid) * lseg ls dsh psh ct2 mid tl * P tl|--
   (lseg ls dsh psh (ct1 ++ ct2) hd tl) * P tl.
 Proof.
-  intros.
-  unfold lseg.
-  revert hd; induction ct1; simpl; intros; auto.
-  *
-  normalize.
-  *
-  normalize.
-  progress (autorewrite with subst norm1 norm2); normalize.
-  apply exp_right with y.
-  apply andp_right.
+ intros.
+ unfold lseg.
+ revert hd; induction ct1; simpl; intros; auto.
+*
+ normalize.
+*
+ normalize.
+ progress (autorewrite with subst norm1 norm2); normalize.
+ apply exp_right with y.
+ apply andp_right.
+ +
   apply not_prop_right; intro. apply ptr_eq_e in H1; subst hd.
   clear IHct1.
   specialize (H y).
   unfold lseg_cell in H.
   rewrite prop_true_andp in H by auto.
+  change (LsegGeneral.lseg ls dsh psh (map (fun v : val => (v, vund ls)) ct1))
+    with (lseg ls dsh psh ct1).
+  change (LsegGeneral.lseg ls dsh psh (map (fun v : val => (v, vund ls)) ct2))
+    with (lseg ls dsh psh ct2).
   apply derives_trans with
         (lseg ls dsh psh ct1 y mid * lseg ls dsh psh ct2 mid tl * FF).
- cancel. auto.
+  cancel. auto.
   rewrite sepcon_FF; auto.
+ +
   normalize.
   specialize (IHct1 y). clear H. 
    do 2 rewrite sepcon_assoc.
