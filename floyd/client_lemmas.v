@@ -1788,17 +1788,6 @@ Proof. intros. apply derives_trans with (!!Y); auto.
 apply prop_derives; auto.
 Qed.
 
-Lemma later_left2 {T}{ND: NatDed T}{IT: Indir T}:
- forall A B C : T, A && B |-- C -> A && |> B |-- |>C.
-Proof.
-intros.
-apply derives_trans with (|> (A && B)).
-rewrite later_andp.
-apply andp_derives; auto.
-apply now_later.
-apply later_derives; assumption.
-Qed.
-
 Lemma subst_ewand: forall i v (P Q: environ->mpred),
   subst i v (ewand P Q) = ewand (subst i v P) (subst i v Q).
 Proof. reflexivity. Qed.
@@ -1923,6 +1912,73 @@ Qed.
 Hint Rewrite wand_sepcon wand_sepcon' : norm.
 
 
+
+Lemma extract_nth_exists_in_SEP:
+  forall n P Q (R: list (environ->mpred))
+              {A} (S: A -> mpred),
+   nth n R emp = `(exp S) ->
+   PROPx P (LOCALx Q (SEPx R)) =
+   exp (fun x => PROPx P (LOCALx Q (SEPx (replace_nth n R (`(S x)))))).
+Proof.
+intros.
+transitivity (PROPx P (LOCALx Q (EX x:A, SEPx (replace_nth n R `(S x))))).
+*
+f_equal. f_equal.
+unfold SEPx.
+revert R H; induction n; destruct R; intros.
+unfold replace_nth, fold_right.
+unfold nth in H. rewrite H; clear H.
+unfold_lift.
+extensionality rho. simpl.
+apply pred_ext.
+apply exp_left; intro x. apply exp_right with x.
+apply exp_right with x.
+auto.
+apply exp_left; intro x. auto.
+unfold replace_nth, nth in *. subst m.
+unfold fold_right.
+fold (fold_right sepcon emp R).
+normalize.
+unfold nth in H. unfold replace_nth.
+rewrite H.
+simpl.
+unfold_lift.
+extensionality rho; simpl.
+apply pred_ext.
+apply exp_left; intro x. apply exp_right with x.
+apply exp_right with x.
+auto.
+apply exp_left; intro x. auto.
+unfold nth in H.
+fold (nth n R) in H.
+change (fold_right sepcon emp (m::R)) with
+     (m * fold_right sepcon emp R).
+rewrite (IHn _ H). clear.
+normalize.
+*
+unfold PROPx, LOCALx.
+normalize.
+Qed.
+
+Ltac extract_exists_in_SEP' PQR :=
+ match PQR with
+ | PROPx ?P (LOCALx ?Q (SEPx (?R))) =>
+   match R with context [`(@exp _ _ ?A ?S) :: ?R'] =>
+      let n := constr:(length R - Datatypes.S (length R'))%nat in
+      let n' := eval lazy beta zeta iota delta in n in
+      rewrite (@extract_nth_exists_in_SEP n' P Q R A S (eq_refl _))
+   end
+ end.
+
+Ltac extract_exists_from_SEP :=
+match goal with
+  | |- semax _ ?Pre _ _ =>
+    extract_exists_in_SEP' Pre; apply extract_exists_pre
+  | |- ?Pre |-- ?Post =>
+     let P := fresh "POST" in set (P := Post);
+    extract_exists_in_SEP' Pre; subst P; apply exp_left
+end.
+
 Ltac Intro'' a :=
   first [apply extract_exists_pre; intro a
          | apply exp_left; intro a
@@ -1930,6 +1986,7 @@ Ltac Intro'' a :=
          | rewrite exp_andp2; Intro'' a
          | rewrite exp_sepcon1; Intro'' a
          | rewrite exp_sepcon2; Intro'' a
+         | extract_exists_from_SEP; intro a
          ].
 
 Ltac Intro a :=
@@ -2022,12 +2079,21 @@ Tactic Notation "Intros" simple_intropattern(x0)
  Intro x5; Intro x6; Intro x7; Intro x8; Intro x9;
  Intro x10; Intro x11.
 
+
+Ltac extract_exists_from_SEP_right :=
+match goal with
+  | |- ?Pre |-- ?Post =>
+     let P := fresh "PRE" in set (P := Pre);
+    extract_exists_in_SEP' Post; subst P
+end.
+
 Ltac Exists'' a :=
   first [apply exp_right with a
          | rewrite exp_andp1; Exists'' a
          | rewrite exp_andp2; Exists'' a
          | rewrite exp_sepcon1; Exists'' a
          | rewrite exp_sepcon2; Exists'' a
+         | extract_exists_from_SEP_right; apply exp_right with a
          ].
 
 Ltac Exists' a :=

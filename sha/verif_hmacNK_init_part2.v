@@ -327,7 +327,7 @@ Lemma ipad_loop Espec pb pofs cb cofs ckb ckoff kb kofs l key kv
 Proof. intros. abbreviate_semax.   
 eapply semax_post'.
 Focus 2.   
-      forward_for_simple_bound' 64 (EX i:Z, 
+      Time forward_for_simple_bound' 64 (EX i:Z, 
         (PROP  ()
          LOCAL  (temp _reset (Vint (Int.repr 1));
            lvar _ctx_key (Tarray tuchar 64 noattr) (Vptr ckb ckoff);
@@ -342,10 +342,10 @@ Focus 2.
           `(data_at Tsh (tarray tuchar 64)
               (map Vint (map Int.repr (HMAC_SHA256.mkKey key))) (Vptr ckb ckoff)) (*;
          `(data_at Tsh (tarray tuchar (Zlength key)) (map Vint (map Int.repr key))
-              (Vptr kb kofs))*)))).
+              (Vptr kb kofs))*)))). (*3.6secs*)
       { (*precondition implies "invariant"*)
         rewrite sublist_nil, sublist_same; trivial. simpl app.
-        entailer!.  
+        Time entailer!. (*3*)  
       }
       { rename H into I. 
         assert (Xb: exists qb, nth (Z.to_nat i) (HMAC_SHA256.mkKey key) Z0 = qb /\ isbyteZ qb).
@@ -370,22 +370,24 @@ Focus 2.
         forward. 
         unfold Int.xor. 
         rewrite Int.unsigned_repr. 2: rewrite int_max_unsigned_eq; omega.
-        (*rewrite Int.unsigned_repr. 2: destruct isbyteZQb; rewrite int_max_unsigned_eq; omega.*)
         exploit (isbyteZ_xor 54 qb); trivial. split; omega.
         intros isbyteXOR.
         rewrite <- (isbyte_zeroExt8 qb); trivial.
         rewrite Int.unsigned_repr. 2: destruct isbyteZQb; rewrite int_max_unsigned_eq; omega.
         rewrite Z.lxor_comm. remember (Vint (Int.repr (Z.lxor qb 54))) as xorval.
-        forward. entailer!.
+
+        Time forward. (*5.8*)
+        Time entailer!. (*37, SLOW*)
         rewrite field_at_data_at. 
         apply derives_refl'. f_equal. apply UPD_IPAD; assumption. 
         unfold field_address; simpl. rewrite if_true, Int.add_zero; trivial. (*Issue: we're (forced to?) unfolding field_address too often*)
       }
 Unfocus.
-cbv beta. rewrite sublist_same, sublist_nil, app_nil_r; trivial. entailer!.
+cbv beta. rewrite sublist_same, sublist_nil, app_nil_r; trivial. 
+Time entailer!. (*3.4*)
 subst IPADcont; do 2 rewrite Zlength_map. 
 unfold HMAC_SHA256.mkArgZ in ZLI; rewrite ZLI; trivial.
-Qed. 
+Time Qed.  (*15*)
 
 Definition FRAME1 cb cofs ckb ckoff kb kofs key (HMS': reptype t_struct_hmac_ctx_st) := 
     (field_at Tsh t_struct_hmac_ctx_st [StructField _md_ctx] (fst HMS')
@@ -478,7 +480,7 @@ Lemma opadloop Espec pb pofs cb cofs ckb ckoff kb kofs l key kv
 Proof. intros. abbreviate_semax. 
 eapply semax_post'.
 Focus 2.   
-      forward_for_simple_bound' 64 (EX i:Z, 
+      Time forward_for_simple_bound' 64 (EX i:Z, 
         (PROP  ()
          LOCAL  (temp _reset (Vint (Int.repr 1));
             lvar _ctx_key (Tarray tuchar 64 noattr) (Vptr ckb ckoff);
@@ -492,8 +494,9 @@ Focus 2.
       { (*precondition implies "invariant"*)
         unfold data_block.
         rewrite sublist_nil, sublist_same; trivial.
-          simpl app. entailer!. rewrite ZLI. unfold tarray, HMAC_SHA256.mkArgZ. trivial.
-        subst IPADcont. do 2 rewrite Zlength_map. unfold HMAC_SHA256.mkArgZ in ZLI; rewrite ZLI. trivial. 
+          simpl app. Time entailer!. (*3.3*) 
+          rewrite ZLI. unfold tarray, HMAC_SHA256.mkArgZ. trivial.
+          subst IPADcont. do 2 rewrite Zlength_map. unfold HMAC_SHA256.mkArgZ in ZLI; rewrite ZLI. trivial. 
       } 
       { rename H into I. 
         assert (Xb: exists qb, nth (Z.to_nat i) (HMAC_SHA256.mkKey key) Z0 = qb /\ isbyteZ qb).
@@ -517,30 +520,34 @@ Focus 2.
                            (sublist 0 i OPADcont ++ sublist i 64 IPADcont) (Vptr pb pofs)) *
                        `(data_at Tsh (tarray tuchar 64)
                            (map Vint (map Int.repr (HMAC_SHA256.mkKey key))) (Vptr ckb ckoff))).
-        { entailer!. Transparent FRAME1. Transparent FRAME2. Transparent default_val.
-            unfold FRAME1, FRAME2, HMS, default_val. simpl. cancel.
-        } Opaque FRAME1. Opaque FRAME2. 
-        normalize.
-        forward. Opaque default_val. (*Issue : forward succeeds in 3secs, but if 
-              we put the Opaque declaration before the forward (next to Opaque FRAME2, as one would expect),
-              the forward leads to memory exhaustion. *)
-        { entailer!.
-          rewrite X. simpl. rewrite <- isbyte_zeroExt8'; trivial.
-                apply (isbyteZ_range _ isbyteZQb). 
+        { Time entailer!. (*5.6*)
+          Transparent FRAME1. Transparent FRAME2. 
+            unfold FRAME1, FRAME2; simpl.
+          Opaque FRAME1. Opaque FRAME2.
+          Time cancel. (*0.9*)
         }
-        rewrite X.
-        forward.
-        entailer!. rewrite field_at_data_at. 
-        Transparent FRAME1. Transparent FRAME2. Transparent default_val.
-            unfold FRAME1, FRAME2, HMS, default_val. simpl. cancel.
+        Time normalize. (*1.4*)
+        Time forward; rewrite X. (*7.4*) 
+        { Time entailer!. (*2.5*)
+          rewrite <- isbyte_zeroExt8'; trivial; apply (isbyteZ_range _ isbyteZQb). 
+        }
+        Time forward. (*4.5*)
+        Time entailer!. (*13.3 SLOW*) 
+
+        rewrite field_at_data_at. 
+        Transparent FRAME1. Transparent FRAME2. 
+            unfold FRAME1, FRAME2; simpl.
+        Opaque FRAME1. Opaque FRAME2.
+        Time cancel. (*2.8*)
         apply derives_refl'. f_equal. apply UPD_OPAD; eassumption.
         unfold field_address; simpl. rewrite if_true, Int.add_zero; trivial.
       }
 Unfocus.
-cbv beta. rewrite sublist_same, sublist_nil, app_nil_r; trivial. entailer!.
+cbv beta. rewrite sublist_same, sublist_nil, app_nil_r; trivial.
+Time entailer!. (*2.6*)
 subst OPADcont; do 2 rewrite Zlength_map. 
 unfold HMAC_SHA256.mkArgZ in ZLO; rewrite ZLO; trivial.
-Qed. 
+Time Qed. (*28.5*)
 
 Opaque FRAME1. Opaque FRAME2.
 
@@ -726,7 +733,8 @@ forward_if PostResetBranch.
             repeat rewrite map_length. rewrite mkKey_length.
             unfold SHA256.BlockSize; simpl. trivial. 
     unfold data_at_, tarray.
-    assert_PROP (isptr pad). entailer!. apply isptrD in H; destruct H as [pb [pofs Hpad]]. subst pad. 
+    Time assert_PROP (isptr pad) as Ppad by entailer!. (*0.8*)
+    apply isptrD in Ppad; destruct Ppad as [pb [pofs Hpad]]. subst pad. 
     apply semax_pre with (P':=PROP  (r<>0 /\ Forall isbyteZ key)
          LOCAL  (temp _reset (Vint (Int.repr r));
             lvar _ctx_key (Tarray tuchar 64 noattr) (Vptr ckb ckoff);
@@ -741,14 +749,10 @@ forward_if PostResetBranch.
                   (Vptr ckb ckoff));
                `(data_at Tsh (tarray tuchar (Zlength key)) (map Vint (map Int.repr key)) k))).
     { clear POSTCONDITION HeqPostResetBranch PostResetBranch.
-      unfold initPostKeyNullConditional. entailer.
+      unfold initPostKeyNullConditional. Time entailer. (*40 SLOW*)
       destruct key'; try contradiction.
       (*integer, ie key==NULL*)
           simpl in TC. subst i. simpl. if_tac. subst r. inversion r_true.
-Lemma FF_local_facts: forall {A}{NA: NatDed A}, (FF:A) |-- !!False.
-Proof. intros. apply FF_left. Qed.
-Hint Resolve @FF_local_facts: saturate_local. (* move to floyd *)
-
           entailer!
            ; entailer!.  (* delete this line after recompile *)
       (*key == Vptr*)
@@ -758,22 +762,7 @@ Hint Resolve @FF_local_facts: saturate_local. (* move to floyd *)
     normalize. destruct R; subst r. omega. clear H. rename H0 into isbyte_key.
     assert_PROP (isptr k). entailer!. apply isptrD in H; destruct H as [kb [kofs HK]]. 
     rewrite HK in *. 
-
-    eapply semax_seq'. (*TODO: using forward_seq here introduces another Delta0 in goal2 - but it worked fine before I split this off into file XXX_part2.v *)
-    instantiate (1:= 
-  (PROP  ()
-   LOCAL  (temp _reset (Vint (Int.repr 1));
-      lvar _ctx_key (Tarray tuchar 64 noattr) (Vptr ckb ckoff);
-      lvar _pad (Tarray tuchar 64 noattr) (Vptr pb pofs);
-      temp _ctx (Vptr cb cofs); temp _key (Vptr kb kofs);
-      temp _len (Vint (Int.repr l)); gvar sha._K256 kv)
-   SEP  (`(K_vector kv);
-     `(data_at Tsh (Tarray tuchar 64 noattr) IPADcont (Vptr pb pofs));
-     `(data_at Tsh t_struct_hmac_ctx_st (*keyedHMS*)HMS' (Vptr cb cofs));
-     `(data_at Tsh (tarray tuchar 64)
-         (map Vint (map Int.repr (HMAC_SHA256.mkKey key))) (Vptr ckb ckoff));
-     `(data_at Tsh (tarray tuchar (Zlength key)) (map Vint (map Int.repr key))
-         (Vptr kb kofs))))).
+    forward_seq. 
     { (*ipad loop*)
       (*semax_subcommand HmacVarSpecs HmacFunSpecs f_HMAC_Init.*)
       eapply semax_pre_post.
@@ -781,23 +770,22 @@ Hint Resolve @FF_local_facts: saturate_local. (* move to floyd *)
                          (K_vector kv * data_at Tsh t_struct_hmac_ctx_st HMS' (Vptr cb cofs)
                           * data_at Tsh (tarray tuchar (Zlength key)) (map Vint (map Int.repr key))
                          (Vptr kb kofs))); try eassumption.
-      apply andp_left2. entailer!.
+      apply andp_left2. entailer!.  (*7.6*)
       intros ? ?. apply andp_left2. apply assert_lemmas.normal_ret_assert_derives'.
-                  entailer!. 
+      apply derives_refl.  (*  entailer!. *)
     }
 
     (*continuation after ipad-loop*) 
     assert_PROP (field_compatible t_struct_hmac_ctx_st [] (Vptr cb cofs)) as FC_C by entailer!.
-    unfold data_at at 2. unfold_field_at 1%nat. normalize.
+    unfold_data_at 1%nat.
     simpl.
-    gather_SEP 1 2 5 6.
+    gather_SEP 1 2 4 6.
     replace_SEP 0 (`(FRAME1 cb cofs ckb ckoff kb kofs key HMS')).
-    { subst HMS'. Transparent default_val. Transparent FRAME1. 
-         unfold HMS, FRAME1 (*, default_val*).
-      repeat simplify_project_default_val.
-      fold _md_ctx. fold _o_ctx. entailer!.
+    { subst HMS'. 
+      Transparent FRAME1. unfold HMS, FRAME1. Opaque FRAME1.
+      Time repeat simplify_project_default_val. (*4.6*)
+      fold _md_ctx. fold _o_ctx. Time entailer!. (*7.9*)
     }
-    Opaque FRAME1. Opaque default_val.
     rewrite (field_at_data_at  Tsh t_struct_hmac_ctx_st [StructField _i_ctx]).
     assert_PROP (field_compatible t_struct_hmac_ctx_st [StructField _i_ctx] (Vptr cb cofs)) as FC_ICTX.
     { apply prop_right. clear - FC_C. red in FC_C; red; intuition. split; trivial. right; left; trivial. }
@@ -813,12 +801,11 @@ Hint Resolve @FF_local_facts: saturate_local. (* move to floyd *)
       with (@data_at_ CompSpecs Tsh t_struct_SHA256state_st).
     cancel.
     (*Call to _SHA256_Update*)
-    forward_call (init_s256abs, 
+    Time forward_call (init_s256abs, 
                   HMAC_SHA256.mkArgZ (map Byte.repr (HMAC_SHA256.mkKey key)) Ipad,
                   Vptr cb (Int.add cofs (Int.repr 108)), Vptr pb pofs, Tsh, 64, kv)
-               ipadSHAabs.
+               ipadSHAabs. (*5.7*)
     { unfold data_block. rewrite ZLI, HeqIPADcont. unfold HMAC_SHA256.mkArgZ. 
-      (* Issue: entailer.Anomaly: undefined_evars_of_term: evar not found. Please report.*)
       assert (FR : Frame = [FRAME1 cb cofs ckb ckoff kb kofs key HMS']).
         subst Frame; reflexivity.
       rewrite FR; clear FR Frame. 
@@ -831,39 +818,29 @@ Hint Resolve @FF_local_facts: saturate_local. (* move to floyd *)
     { clear Frame HeqPostResetBranch HeqOPADcont; subst IPADcont.
         rewrite Zlength_mkArgZ. repeat rewrite map_length. rewrite mkKey_length. intuition. 
     }
-    rename H into ipadAbs_def.
-    normalize.
+    rename H into ipadAbs_def. simpl.
     rewrite sublist_same in ipadAbs_def; try rewrite ZLI; trivial.
 
     (*essentially the same for opad*)
-    eapply semax_seq'. (* TODO: using forward_seq here introduces another Delta0 in goal2 - but 
-                          it worked fine before I split this off into file XXX_part2.v *)
-    instantiate (1:= PROP  ()
-       LOCAL  (temp _reset (Vint (Int.repr 1));
-               lvar _ctx_key (Tarray tuchar 64 noattr) (Vptr ckb ckoff);
-               lvar _pad (Tarray tuchar 64 noattr) (Vptr pb pofs); temp _ctx (Vptr cb cofs);
-               temp _key (Vptr kb kofs); temp _len (Vint (Int.repr l)); gvar sha._K256 kv)
-       SEP  (`(K_vector kv);
-             `(sha256state_ ipadSHAabs (Vptr cb (Int.add cofs (Int.repr 108))));
-             `(data_at Tsh (Tarray tuchar 64 noattr) OPADcont (Vptr pb pofs));
-             `(FRAME1 cb cofs ckb ckoff kb kofs key HMS'))). 
+    forward_seq.
     { (*opad loop*)
       eapply semax_pre_post.
       Focus 3. eapply (opadloop Espec pb pofs cb cofs ckb ckoff kb kofs l key kv HMS');
                try eassumption. 
-      apply andp_left2. apply derives_refl.
-      intros ? ?. apply andp_left2. apply derives_refl.
+      apply andp_left2. Time apply derives_refl. (*0*)
+      intros ? ?. apply andp_left2. apply derives_refl. (*0*)
     }
 
     (*continuation after opad-loop*) 
-    Transparent FRAME1. unfold FRAME1. 
-    rewrite (field_at_data_at Tsh t_struct_hmac_ctx_st [StructField 15%positive]).
-    assert_PROP (field_compatible t_struct_hmac_ctx_st [StructField 15%positive] (Vptr cb cofs)) as FC_OCTX.
+    Transparent FRAME1. unfold FRAME1. Transparent FRAME1. 
+    simpl. (*Important for efficientcy of the field_at_data_at*)
+    rewrite (field_at_data_at Tsh t_struct_hmac_ctx_st [StructField _o_ctx]).
+    assert_PROP (field_compatible t_struct_hmac_ctx_st [StructField _o_ctx] (Vptr cb cofs)) as FC_OCTX.
     { apply prop_right. clear - FC_C. red in FC_C; red; intuition. split; trivial. right; right; left; trivial. }
     unfold field_address; simpl. rewrite if_true; trivial. unfold field_offset, fieldlist.field_offset; simpl.
 
     (*Call to _SHA256_Init*)
-    unfold field_type; simpl. Transparent default_val. normalize. Opaque default_val.
+    unfold field_type; simpl. Time normalize. (*37 SLOW -it's jst putting the SEP *'s into a list I think*) 
     gather_SEP 0 2 3 5. 
 Definition FRAME3 (kb cb ckb: block) kofs cofs ckoff key ipadSHAabs (HMS' : reptype t_struct_hmac_ctx_st):= 
        (field_at Tsh t_struct_hmac_ctx_st [StructField _md_ctx] (fst HMS') (Vptr cb cofs) ) * 
@@ -871,7 +848,8 @@ Definition FRAME3 (kb cb ckb: block) kofs cofs ckoff key ipadSHAabs (HMS' : rept
        (data_at Tsh (tarray tuchar (Zlength key)) (map Vint (map Int.repr key)) (Vptr kb kofs)) *
        (sha256state_ ipadSHAabs (Vptr cb (Int.add cofs (Int.repr 108)))).
     replace_SEP 0 (`(FRAME3 kb cb ckb kofs cofs ckoff key ipadSHAabs HMS')).
-    { Transparent default_val. rewrite KHMS. entailer!. }  (*Don't use entailer here!!*)
+    {  rewrite KHMS. Time entailer!. (*7*) }  (*Don't use entailer here!!*)
+
     (*TODO: one of the most recent changes in floyd (or elsewhere?) meant
     that I have to do the following unfold here t get forward_call' to apply*)
     unfold MORE_COMMANDS, abbreviate.
@@ -882,10 +860,10 @@ Definition FRAME3 (kb cb ckb: block) kofs cofs ckoff key ipadSHAabs (HMS' : rept
     change  (Tstruct _SHA256state_st noattr) with t_struct_SHA256state_st.
     cancel.
     (* Call to sha_update*)
-    forward_call (init_s256abs, 
+    Time forward_call (init_s256abs, 
             HMAC_SHA256.mkArgZ (map Byte.repr (HMAC_SHA256.mkKey key)) Opad,
             Vptr cb (Int.add cofs (Int.repr 216)),
-            Vptr pb pofs, Tsh, 64, kv)  opadSHAabs.
+            Vptr pb pofs, Tsh, 64, kv)  opadSHAabs. (*6.1*)
     { unfold data_block. rewrite ZLO, HeqOPADcont. 
       (*Issue: same as in ipad loop: need to instantiate Frame manually:
            entailer/entailer!/normalize don't appear to terminate, or creash with "anomaly"*)
@@ -901,11 +879,11 @@ Definition FRAME3 (kb cb ckb: block) kofs cofs ckoff key ipadSHAabs (HMS' : rept
     }
     { rewrite ZLO. intuition. } 
 
-    rename H into opadAbs_def.
-    normalize.
+    rename H into opadAbs_def. simpl map.
     rewrite sublist_same in opadAbs_def; try rewrite ZLO; trivial.
 
     subst PostResetBranch; entailer!.
+   Transparent default_val.
     unfold FRAME3, sha256state_, default_val; simpl.
     Intros oUpd iUpd. normalize.
     Exists (ipadSHAabs,(iUpd,(opadSHAabs,oUpd))). simpl.
@@ -931,7 +909,7 @@ Definition FRAME3 (kb cb ckb: block) kofs cofs ckoff key ipadSHAabs (HMS' : rept
     if_tac; [ | entailer!].
     Intros v x.
     Exists (iSha, (iCtx v, (oSha, oCtx v))). simpl.
-    entailer!. 
+    Time entailer!. (*10*) 
     unfold hmacstate_PreInitNull, hmac_relate_PreInitNull; simpl.
     Exists v x.
     change (Tarray tuchar 64 noattr) with (tarray tuchar 64).
@@ -940,4 +918,4 @@ Definition FRAME3 (kb cb ckb: block) kofs cofs ckoff key ipadSHAabs (HMS' : rept
 intros ? ?. apply andp_left2.  
    unfold POSTCONDITION, abbreviate. rewrite overridePost_overridePost. 
    apply derives_refl. 
-Qed.
+Time Qed. (*137*)

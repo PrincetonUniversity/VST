@@ -105,8 +105,7 @@ forward_for_simple_bound 4
             && data_at Tsh (tarray tuint 4) l t); `(CoreInSEP data (nonce, c, k));
    `(data_at Tsh (tarray tuchar 64) OUT out)))); try reflexivity; try auto with closed; try repable_signed.
 
-  { entailer. apply (exp_right (list_repeat 4 Vundef)). entailer. 
-    apply andp_right. apply prop_right. intros; omega. cancel. }
+  { entailer. apply (exp_right (list_repeat 4 Vundef)). entailer!. }
   { rename i0 into m. rename H into M. normalize. intros T. normalize.
     rename H into HT.
     assert_PROP (Zlength T = 4). entailer. rename H into TL.
@@ -211,7 +210,7 @@ forward_for_simple_bound 16 (EX m:Z,
                 && data_at Tsh (tarray tuint 16) mlist x);
    `(data_at_ Tsh (tarray tuint 4) t); `(CoreInSEP data (nonce, c, k));
    `(data_at Tsh (tarray tuchar 64) OUT out)))).
-{ entailer. apply (exp_right xlist). entailer. apply andp_right. apply prop_right. intros; omega. cancel. }
+{ entailer. apply (exp_right xlist). entailer!. } 
 { normalize. intros mlist. normalize. rename H into M. rename i0 into m.
        rename H0 into HM.
        destruct (WZ _ M) as [mval MVAL].

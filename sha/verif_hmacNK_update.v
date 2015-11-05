@@ -21,7 +21,8 @@ start_function.
 name ctx' _ctx.
 name data' _data.
 name len' _len.
-unfold hmacstate_. normalize. intros ST. normalize.
+unfold hmacstate_.
+Intros ST. normalize.
 destruct H as [DL1 [DL2 DL3]].
 destruct h1; simpl in *.
 destruct H0 as [reprMD [reprI [reprO [iShaLen oShaLen]]]].
