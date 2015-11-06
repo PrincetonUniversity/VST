@@ -1057,6 +1057,40 @@ apply pred_ext; normalize.
   apply sepcon_derives; auto.
 Qed.
 
+Lemma extract_prop_in_SEP':
+  forall n P1 (Rn: mpred) P Q R, 
+   nth n R emp = `(prop P1 && Rn) -> 
+   PROPx P (LOCALx Q (SEPx R)) = PROPx (P1::P) (LOCALx Q (SEPx (replace_nth n R `Rn))).
+Proof.
+intros.
+extensionality rho.
+unfold PROPx,LOCALx,SEPx,local,lift1.
+simpl.
+apply pred_ext; normalize.
+* match goal with |- _ |-- !! ?PP && _ => replace PP with P1
+   by (apply prop_ext; intuition)
+  end.
+ rewrite (prop_true_andp (fold_right _ _ _ _)) by auto.
+ clear - H.
+ revert R H; induction n; destruct R; simpl; intros.
+  apply andp_right; auto.
+  apply equal_f with rho in H.
+  rewrite H; apply andp_left1; auto.
+  rewrite H. unfold liftx at 1. simpl. unfold lift.
+  autorewrite with norm. apply andp_derives; auto.
+  apply andp_right; auto.
+  apply equal_f with rho in H.
+  rewrite H; apply andp_left1; auto.
+  rewrite <- sepcon_andp_prop.
+  apply sepcon_derives; auto.
+*
+ destruct H0. rewrite !prop_true_andp by auto.
+ clear - H H0.
+  revert R H; induction n; destruct R; simpl; intros; auto. 
+  subst l. rewrite prop_true_andp; auto.
+  apply sepcon_derives; auto.
+Qed.
+
 Lemma insert_SEP: 
  forall R1 P Q R, R1 * PROPx P (LOCALx Q (SEPx R)) = PROPx P (LOCALx Q (SEPx (R1::R))).
 Proof.
