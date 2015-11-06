@@ -597,11 +597,37 @@ first [ reflexivity
      apply exp_congr; intros [[[? ?] ?] ?]; simpl; reflexivity
   ].
 
+Ltac change_compspecs cs :=
+repeat 
+ match goal with 
+  | |- appcontext [@data_at ?cs' ?sh ?t] =>
+          (constr_eq cs cs'; fail 1) || change (@data_at cs' sh t) with (@data_at cs sh t)
+  | |- appcontext [@data_at_ ?cs' ?sh ?t] =>
+          (constr_eq cs cs'; fail 1) || change (@data_at_ cs' sh t) with (@data_at_ cs sh t)
+  | |- appcontext [@field_at ?cs' ?sh ?t ?gfs] =>
+          (constr_eq cs cs'; fail 1) || change (@field_at cs' sh t gfs) with (@field_at cs sh t gfs)
+  | |- appcontext [@field_at_ ?cs' ?sh ?t ?gfs] =>
+          (constr_eq cs cs'; fail 1) || change (@field_at_ cs' sh t gfs) with (@field_at_ cs sh t gfs)
+  | |- appcontext [@nested_field_type ?cs' ?t ?gfs] =>
+       (constr_eq cs cs'; fail 1) || change (@nested_field_type cs' t gfs) with (@nested_field_type cs t gfs) 
+  | |- appcontext [@default_val ?cs' ?t] =>
+       (constr_eq cs cs'; fail 1) || change (@default_val cs' t) with (@default_val cs t)
+ end.
+
+Ltac lookup_spec_and_change_compspecs CS :=
+ match goal with |- ?A = ?B => 
+      let x := fresh "x" in set (x := A);
+      let y := fresh "y" in set (y := B);
+      hnf in x; subst x; change_compspecs CS; subst y; reflexivity
+ end.
+
 Ltac forward_call_id1_x_wow witness :=
 let Frame := fresh "Frame" in
  evar (Frame: list (mpred));
+ match goal with |- @semax ?CS _ _ _ _ _ =>
  eapply (semax_call_id1_x_wow witness Frame);
- [ reflexivity | reflexivity | reflexivity | reflexivity | reflexivity
+ [ reflexivity | lookup_spec_and_change_compspecs CS
+ | reflexivity | reflexivity | reflexivity
  | apply Coq.Init.Logic.I | apply Coq.Init.Logic.I | reflexivity 
  | (clear; let H := fresh in intro H; inversion H)
  | reflexivity
@@ -624,13 +650,15 @@ let Frame := fresh "Frame" in
  | repeat constructor; auto with closed
  | unify_postcondition_exps
  | unfold fold_right_and; repeat rewrite and_True; auto
- ].
+ ] end.
 
 Ltac forward_call_id1_y_wow witness :=
 let Frame := fresh "Frame" in
  evar (Frame: list (mpred));
+ match goal with |- @semax ?CS _ _ _ _ _ =>
  eapply (semax_call_id1_y_wow witness Frame);
- [ reflexivity | reflexivity | reflexivity | reflexivity | reflexivity
+ [ reflexivity | lookup_spec_and_change_compspecs CS
+ | reflexivity | reflexivity | reflexivity
  | apply Coq.Init.Logic.I | apply Coq.Init.Logic.I | reflexivity 
  | (clear; let H := fresh in intro H; inversion H)
  | reflexivity
@@ -653,13 +681,15 @@ let Frame := fresh "Frame" in
  | repeat constructor; auto with closed
  | unify_postcondition_exps
  | unfold fold_right_and; repeat rewrite and_True; auto
- ].
+ ] end.
 
 Ltac forward_call_id1_wow witness :=
 let Frame := fresh "Frame" in
  evar (Frame: list (mpred));
+ match goal with |- @semax ?CS _ _ _ _ _ =>
  eapply (semax_call_id1_wow witness Frame);
- [ reflexivity | reflexivity | reflexivity | reflexivity
+ [ reflexivity | lookup_spec_and_change_compspecs CS
+ | reflexivity | reflexivity
  | apply Coq.Init.Logic.I | reflexivity
  | prove_local2ptree
  | repeat constructor 
@@ -680,13 +710,15 @@ let Frame := fresh "Frame" in
  | repeat constructor; auto with closed
  | unify_postcondition_exps
  | unfold fold_right_and; repeat rewrite and_True; auto
- ].
+ ] end.
 
 Ltac forward_call_id01_wow witness :=
 let Frame := fresh "Frame" in
  evar (Frame: list (mpred));
+ match goal with |- @semax ?CS _ _ _ _ _ =>
  eapply (semax_call_id01_wow witness Frame);
- [ reflexivity | reflexivity | reflexivity | apply Coq.Init.Logic.I | reflexivity
+ [ reflexivity | lookup_spec_and_change_compspecs CS
+ | reflexivity | apply Coq.Init.Logic.I | reflexivity
  | prove_local2ptree | repeat constructor 
  | try apply local_True_right; entailer!
  | reflexivity
@@ -704,13 +736,15 @@ let Frame := fresh "Frame" in
      end
  | unify_postcondition_exps
  | unfold fold_right_and; repeat rewrite and_True; auto
- ].
+ ] end.
 
 Ltac forward_call_id00_wow witness :=
 let Frame := fresh "Frame" in
  evar (Frame: list (mpred));
+ match goal with |- @semax ?CS _ _ _ _ _ =>
  eapply (semax_call_id00_wow witness Frame);
- [ reflexivity | reflexivity | reflexivity | reflexivity
+ [ reflexivity | lookup_spec_and_change_compspecs CS
+ | reflexivity | reflexivity
  | prove_local2ptree | repeat constructor 
  | try apply local_True_right; entailer!
  | reflexivity
@@ -728,7 +762,8 @@ let Frame := fresh "Frame" in
      end
  | unify_postcondition_exps
  | unfold fold_right_and; repeat rewrite and_True; auto
- ].
+ ]
+ end.
 
 Ltac simpl_strong_cast :=
 try match goal with |- context [strong_cast ?t1 ?t2 ?v] =>

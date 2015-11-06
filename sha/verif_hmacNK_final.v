@@ -94,10 +94,7 @@ apply semax_pre with (P':=
       simpl @nested_field_type.
       unfold field_address; rewrite if_true by trivial.
       simpl. rewrite Int.add_zero. Time cancel. (*3.4*)
-      (*Unnecessary, presumably due to introduction of FC_octx above:
-      hnf in H5; hnf; intuition.*)
-      (*Unnecessary, presumably due to introduction of FC_mdctx above:
-        apply compute_legal_nested_field_spec'; repeat constructor.*)
+      apply derives_refl.
 }
 subst l'.
 
@@ -155,30 +152,24 @@ Exists buf. Time normalize. (*3.2*)
 Exists (sha_finish updSha, HMACabs updSha iSha oSha). Time normalize. (*3.1*)
 apply andp_right. apply prop_right. split; trivial.
   exists updSha; eauto.
-Time cancel. (*3.6*)
-unfold data_block. rewrite SFL. Time normalize. (*2.1*)
+unfold data_block. rewrite SFL.
+change_compspecs CompSpecs.
+Time normalize. (*2.1*)
+cancel.
 apply derives_trans with (Q:= hmacstate_PostFinal (HMACabs updSha iSha oSha)
-      (Vptr b i) *
-    data_at Tsh (tarray tuchar 32) (map Vint (map Int.repr (sha_finish ctx))) buf).
-2: cancel.
- change (@data_at spec_sha.CompSpecs Tsh (tarray tuchar 32))
-     with (@data_at CompSpecs Tsh (tarray tuchar 32)).
- change (@data_at_ spec_sha.CompSpecs Tsh t_struct_SHA256state_st)
-     with (@data_at_ CompSpecs Tsh t_struct_SHA256state_st).
- cancel.
+      (Vptr b i)); auto.
 
-unfold hmacstate_PostFinal, hmac_relate_PostFinal. normalize.
-Exists (updShaST, (iCTX, oCTX)). normalize.
+unfold hmacstate_PostFinal, hmac_relate_PostFinal.
+Exists (updShaST, (iCTX, oCTX)). rewrite prop_true_andp by (split3; auto).
 match goal with |- _ |-- data_at _ _ ?A _ =>
 change A with (default_val t_struct_SHA256state_st, (iCTX, oCTX))
 end.
 Time unfold_data_at 2%nat. (* 0.5, was slow*)
-Time cancel. (*6.3*)
 rewrite (field_at_data_at _ _ [StructField _o_ctx]). 
 rewrite (field_at_data_at _ _ [StructField _md_ctx]).
 unfold data_at_. unfold field_at_.
 rewrite field_at_data_at.
 simpl.
-unfold field_address. rewrite if_true by trivial. rewrite if_true by trivial. rewrite if_true by trivial.
-Time trivial. (*3*)
+unfold field_address. rewrite !if_true by trivial.
+cancel.
 Time Qed. (*43*)

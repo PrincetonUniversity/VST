@@ -48,17 +48,6 @@ Definition hmac_init_part1_FRAME2 cb cofs := data_at Tsh
           (Vptr cb cofs)). 
 Opaque hmac_init_part1_FRAME2.
 
-Lemma change_compspecs_t_struct_SHA256state_st':
-  @data_at_ spec_sha.CompSpecs Tsh t_struct_SHA256state_st =
-  @data_at_ CompSpecs Tsh t_struct_SHA256state_st.
-Proof.
-extensionality v.
-reflexivity.
-Qed.
-
-Hint Rewrite change_compspecs_t_struct_SHA256state_st' : norm.
-
-
 Lemma Init_part1_keynonnull Espec (kb ckb cb: block) (kofs ckoff cofs:int) l key kv pad: forall h1
 (KL1 : l = Zlength key)
 (KL2 : 0 < l <= Int.max_signed)
@@ -183,20 +172,12 @@ Proof. intros. abbreviate_semax.
       rename f into FC.*)
 (*      subst PAD. normalize.*)
 Time      forward_call (Vptr cb cofs). (*Issue: takes 5mins... [now takes 18 sec] *)
-      { change (Tstruct _SHA256state_st noattr) with  t_struct_SHA256state_st.
-        rewrite change_compspecs_t_struct_SHA256state_st'.
-        cancel.
-      }
       forward_call (init_s256abs, key, Vptr cb cofs, Vptr kb kofs, Tsh, l, kv) ctxSha.
-(*      { (*Issue: this side condition is NEW*)
-        apply prop_right. simpl. rewrite Int.add_zero, <- KL1. split; trivial. }
-*)
       { unfold data_block.
+        change_compspecs CompSpecs. (* needed, because spec_sha.compspecs was hidden by data_block *)
         (*Issue: calling entailer or normalize here yields 
              "Anomaly: undefined_evars_of_term: evar not found. Please report."*)
        rewrite prop_true_andp by auto.
-       change (@data_at spec_sha.CompSpecs Tsh (tarray tuchar (@Zlength Z key)))
-        with (@data_at CompSpecs Tsh (tarray tuchar (@Zlength Z key))).
        cancel.
       }
       { clear Frame HeqPostIf_j_Len HeqPostKeyNull.
@@ -447,8 +428,7 @@ Proof. intros.
      rewrite XX.
      repeat rewrite map_list_repeat. 
      rewrite sublist_same; trivial. 
-     change (@data_at spec_sha.CompSpecs Tsh (tarray tuchar SF))
-     with (@data_at CompSpecs Tsh (tarray tuchar SF)).
+     change_compspecs CompSpecs.
      change (Tarray tuchar 64 noattr) with (tarray tuchar 64).
      cancel. apply derives_refl.
      do 2 rewrite Zlength_list_repeat'. trivial.

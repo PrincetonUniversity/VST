@@ -48,10 +48,7 @@ Time forward_call (ctx, data, Vptr b i, d, Tsh, len, kv) s. (*12.7 secs*)
  *)
   { (* rewrite field_at_data_at at 1.*)
     unfold sha256state_. Exists (fst ST). normalize.
-    rewrite (field_at_data_at _ _ [StructField _md_ctx]).
-    unfold field_address. rewrite if_true by auto. simpl. rewrite Int.add_zero.
     change (Tstruct _SHA256state_st noattr) with  t_struct_SHA256state_st.
-    change (@reptype CompSpecs t_struct_SHA256state_st) with s256state.
     cancel.
   }
   intuition.
