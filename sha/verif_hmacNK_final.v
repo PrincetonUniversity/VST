@@ -93,17 +93,10 @@ apply semax_pre with (P':=
       rewrite (field_at_data_at Tsh t_struct_hmac_ctx_st [StructField _md_ctx]).
       simpl @nested_field_type.
       unfold field_address; rewrite if_true by trivial.
-      simpl. rewrite Int.add_zero. Time cancel. (*3.4*)
+      simpl. rewrite Int.add_zero. Time cancel. (*0.4*)
       apply derives_refl.
 }
 subst l'.
-
-(*
-assert (field_compatible t_struct_hmac_ctx_st [StructField _o_ctx] (Vptr b i)).
-  red. red in FC_c. intuition. split; trivial.
-    right. right. left. reflexivity.
-rename H into FCO.
-*)
 
 unfold_data_at 1%nat.
 rewrite (field_at_data_at _ _ [StructField _o_ctx]).
@@ -120,8 +113,8 @@ replace_SEP 2 `(memory_block Tsh 108 (Vptr b i)).
   }
 
 Time forward_call ((Tsh, Tsh), Vptr b i, Vptr b (Int.add i (Int.repr 216)), 
-              mkTrep t_struct_SHA256state_st oCTX, 108) rv. (*7.7*) 
-simpl. cancel. 
+              mkTrep t_struct_SHA256state_st oCTX, 108) rv. (*9*) 
+Time solve [simpl; cancel]. (*1*)
 subst rv; simpl. 
 
 assert (SFL: Zlength (sha_finish ctx) = 32). 
@@ -132,12 +125,12 @@ assert (SFL: Zlength (sha_finish ctx) = 32).
 Time forward_call (oSha, sha_finish ctx, Vptr b i, buf, Tsh, Z.of_nat SHA256.DigestLength, kv) updSha.
   (*8.1*)
   { unfold sha256state_. Time normalize. (*1.3*)
-    Exists oCTX. Time (normalize; cancel). (*6.8*) } 
+    Exists oCTX. Time (normalize; cancel). (*4*) } 
   { unfold SHA256.DigestLength. 
     rewrite oShaLen. simpl; intuition. }
 simpl.
 rename H into UPDSHA. rewrite sublist_same in UPDSHA; try omega. 
-unfold sha256state_. Time normalize. (*5.3*)
+unfold sha256state_. Time normalize. (*6.7*)
 intros updShaST. Time normalize. (*1.3*)
 rename H into updShaREL. 
 
