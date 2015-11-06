@@ -163,41 +163,31 @@ PostKeyNull
      (overridePost PostKeyNull (normal_ret_assert PostKeyNull))).
 Proof. intros. abbreviate_semax.
       (*call to SHA256_init*)
-(*      remember (`(data_at_ Tsh (tarray tuchar 64) pad)) as PAD.*)
       unfold data_at_ at 1. unfold field_at_ at 1.
       simpl.
-      Time unfold_field_at 1%nat. (*7.6*)
+      Time unfold_field_at 1%nat. (*7.7*)
       rewrite (field_at_data_at Tsh t_struct_hmac_ctx_st [StructField _md_ctx]).
       unfold field_address. rewrite if_true by trivial.
       simpl @nested_field_type. simpl @nested_field_offset.
-      Time normalize. (*2.3*) 
+      Time normalize. (*2.6*) 
+
       (*new: extract info from field_address as early as possible*)
-      assert_PROP (isptr (field_address t_struct_hmac_ctx_st [StructField _md_ctx]
-                          (Vptr cb cofs))) as FA_MDCTX by entailer!.
- (*
-      apply isptrD in H; destruct H as [? [? PT]]; rewrite PT.
-      unfold field_address in PT.
-      destruct (field_compatible_dec t_struct_hmac_ctx_st [StructField _md_ctx]
-           (Vptr cb cofs)); inversion PT; clear PT. 
-      subst x x0.
-      rename f into FC.*)
-(*      subst PAD. normalize.*)
-Time      forward_call (Vptr cb cofs). (*Issue: takes 5mins... [now takes 18 sec] *)
+      Time assert_PROP (isptr (field_address t_struct_hmac_ctx_st [StructField _md_ctx]
+                          (Vptr cb cofs))) as FA_MDCTX by entailer!. (*4.2*)
+
+      Time forward_call (Vptr cb cofs). (*Issue: takes 5mins... [now takes 18 sec] *)
       { change (Tstruct _SHA256state_st noattr) with  t_struct_SHA256state_st.
         rewrite change_compspecs_t_struct_SHA256state_st'.
-        cancel.
+        Time cancel. (*5.8*)
       }
-      forward_call (init_s256abs, key, Vptr cb cofs, Vptr kb kofs, Tsh, l, kv) ctxSha.
-(*      { (*Issue: this side condition is NEW*)
-        apply prop_right. simpl. rewrite Int.add_zero, <- KL1. split; trivial. }
-*)
-      { unfold data_block.
-        (*Issue: calling entailer or normalize here yields 
-             "Anomaly: undefined_evars_of_term: evar not found. Please report."*)
-       rewrite prop_true_andp by auto.
-       change (@data_at spec_sha.CompSpecs Tsh (tarray tuchar (@Zlength Z key)))
-        with (@data_at CompSpecs Tsh (tarray tuchar (@Zlength Z key))).
-       cancel.
+
+      (*call to SHA256_Update*) 
+      Time forward_call (init_s256abs, key, Vptr cb cofs, Vptr kb kofs, Tsh, l, kv) ctxSha. (*10*)
+      { unfold data_block. 
+        rewrite prop_true_andp by auto.
+        change (@data_at spec_sha.CompSpecs Tsh (tarray tuchar (@Zlength Z key)))
+          with (@data_at CompSpecs Tsh (tarray tuchar (@Zlength Z key))).
+        Time cancel. (*1.4*)
       }
       { clear Frame HeqPostIf_j_Len HeqPostKeyNull.
         specialize Int.max_signed_unsigned.
@@ -226,16 +216,15 @@ Time      forward_call (Vptr cb cofs). (*Issue: takes 5mins... [now takes 18 sec
      intros MBS; rewrite MBS; clear MBS; trivial. 
      Focus 2. destruct (Int.unsigned_range ckoff). split; try omega.
               red in FC_ctxkey. simpl in FC_ctxkey. intuition.
-     Time normalize. 
+     Time normalize. (*3.2*)
 
-Time   gather_SEP 4 5 6 7. (*Issue: why does gather_SEP take 1min???
-                 takes only 0.01 seconds now. *)
-   replace_SEP 0 (`(hmac_init_part1_FRAME1 key kb kofs cb cofs pad)).
-   { Transparent hmac_init_part1_FRAME1. unfold hmac_init_part1_FRAME1. Opaque hmac_init_part1_FRAME1.
-     entailer!.
-     apply derives_refl.
-   } 
-   forward_call (ctxSha, Vptr ckb ckoff, Vptr cb cofs, Tsh, kv). (*with transparent hmac_init_part1_FRAME1 it's a bit faster, but then unfolds hmac_init_part1_FRAME in the precondition of the next goal*) 
+     Time gather_SEP 4 5 6 7. (*0.1*)
+     replace_SEP 0 (`(hmac_init_part1_FRAME1 key kb kofs cb cofs pad)).
+     { Transparent hmac_init_part1_FRAME1. unfold hmac_init_part1_FRAME1. Opaque hmac_init_part1_FRAME1.
+       Time entailer!. (*10*)
+       apply derives_refl.
+     } 
+     Time forward_call (ctxSha, Vptr ckb ckoff, Vptr cb cofs, Tsh, kv). (*4.7*) (*with transparent hmac_init_part1_FRAME1 it's a bit faster, but then unfolds hmac_init_part1_FRAME in the precondition of the next goal*) 
      replace_SEP 1 (`(hmac_init_part1_FRAME2 cb cofs)).
      { Transparent hmac_init_part1_FRAME2. unfold hmac_init_part1_FRAME2. Opaque hmac_init_part1_FRAME2.
        Time entailer!. (*3.8*)
@@ -246,25 +235,25 @@ Time   gather_SEP 4 5 6 7. (*Issue: why does gather_SEP take 1min???
      (*call memset*) 
      unfold tarray in *.
      Time forward_call (Tsh, Vptr ckb (Int.repr (Int.unsigned ckoff + 32)), 32, Int.zero)
-        vret. (*7.5*)
+        vret. (*9.1*)
      { rewrite (lvar_eval_var _ _ _ _ H0). split; trivial. }
      { subst PostIf_j_Len.
-      unfold data_block.
-      Time entailer!. (*13.5 SLOW*)
-      unfold HMS.
-      assert (SFL: Zlength  (sha_finish ctxSha) = 32).
-        destruct ctxSha. simpl. rewrite <- functional_prog.SHA_256'_eq, Zlength_correct, length_SHA256'. reflexivity. 
-      rewrite SFL.
-      assert (LK64: Zlength (HMAC_SHA256.mkKey key) = 64).
-        unfold HMAC_SHA256.mkKey.
-        remember (Zlength key >? Z.of_nat SHA256.BlockSize).
-        destruct b; rewrite Zlength_correct, zeroPad_BlockSize. reflexivity. 
-                    unfold SHA256.Hash. rewrite length_SHA256'. unfold SHA256.DigestLength, SHA256.BlockSize. omega.
-        reflexivity. apply Nat2Z.inj_le.
-        specialize (Zgt_cases (Zlength key) (Z.of_nat SHA256.BlockSize)). rewrite <- Heqb. rewrite Zlength_correct; trivial.
+       Time entailer!. (*11*)
+       unfold data_block. simpl. Time normalize. (*1.4*) 
+       unfold HMS.
+       assert (SFL: Zlength  (sha_finish ctxSha) = 32).
+         destruct ctxSha. simpl. rewrite <- functional_prog.SHA_256'_eq, Zlength_correct, length_SHA256'. reflexivity. 
+       rewrite SFL.
+       assert (LK64: Zlength (HMAC_SHA256.mkKey key) = 64).
+         unfold HMAC_SHA256.mkKey.
+         remember (Zlength key >? Z.of_nat SHA256.BlockSize).
+         destruct b; rewrite Zlength_correct, zeroPad_BlockSize. reflexivity. 
+                     unfold SHA256.Hash. rewrite length_SHA256'. unfold SHA256.DigestLength, SHA256.BlockSize. omega.
+         reflexivity. apply Nat2Z.inj_le.
+         specialize (Zgt_cases (Zlength key) (Z.of_nat SHA256.BlockSize)). rewrite <- Heqb. rewrite Zlength_correct; trivial.
 
       Transparent Z.add. unfold_data_at 3%nat. Opaque Z.add.
-      Time normalize. (*1.5*)
+      Time normalize. (*1.8*)
       Time rewrite field_at_data_at at 1. (*1.2*)
       simpl @nested_field_type.
  
@@ -300,18 +289,20 @@ Time   gather_SEP 4 5 6 7. (*Issue: why does gather_SEP take 1min???
       change 32%nat with (Z.to_nat 32).
       change (Int.repr (Int.unsigned ckoff + 32))
              with (Int.add ckoff (Int.repr 32)).
-      cancel. destruct ctxSha. simpl. inv updAbs. simpl in H18; rewrite <- H18. unfold SHA256.Hash. 
-      rewrite functional_prog.SHA_256'_eq. cancel.
+      Time cancel. (*1.*) 
+      destruct ctxSha. simpl. inv updAbs. simpl in H16; rewrite <- H16. unfold SHA256.Hash. 
+      rewrite functional_prog.SHA_256'_eq. Time cancel. (*0.6*)
 
-      Transparent hmac_init_part1_FRAME1. unfold hmac_init_part1_FRAME1. (* remember (default_val t_struct_hmac_ctx_st) as DDD. *) clear.
-      repeat simplify_project_default_val.
-      cancel. (* previously: terminated after 2mins; now 0.44 sec *)
+      Transparent hmac_init_part1_FRAME1. unfold hmac_init_part1_FRAME1. Opaque hmac_init_part1_FRAME1.
+      clear.
+      Time repeat simplify_project_default_val. (*5.2*)
+      Time cancel. (* 0.4*)
       unfold data_block. simpl. rewrite sepcon_andp_prop.
-      apply andp_left2. cancel.  
+      apply andp_left2. Time cancel. (*0.2*)   
       apply derives_refl.
     rewrite Zlength_list_repeat'. trivial.
    }
-Time Qed. (*68*)
+Time Qed. (*66*)
 
 Lemma Init_part1_keynull Espec (kb ckb cb: block) (kofs ckoff cofs:int) l key kv pad: forall h1
 (KL1 : l = Zlength key)
@@ -411,7 +402,7 @@ Proof. intros.
 
      (*call memset*)
      Time forward_call (Tsh, Vptr ckb (Int.add ckoff (Int.repr (Zlength key))), l64, Int.zero)
-       vret.
+       vret. (*10.7*)
      { rewrite (lvar_eval_var _ _ _ _ H0). split; trivial. }
      { (*Issue: this side condition is NEW*) 
        apply prop_right. simpl. rewrite Int.mul_commut, Int.mul_one.
@@ -428,7 +419,7 @@ Proof. intros.
 
      subst PostIf_j_Len.
 
-   Time entailer!. (*5.6*)
+   Time entailer!. (*6.2*)
    rewrite sepcon_comm.
    rewrite (split2_data_at_Tarray_at_tuchar Tsh 64 (Zlength key)); 
      try repeat rewrite Zlength_map; try rewrite Zlength_correct, mkKey_length; 
@@ -614,8 +605,8 @@ forward_if PostKeyNull.
     replace_SEP 1 (`(data_at Tsh (tarray tuchar (Zlength key)) (map Vint (map Int.repr key)) (Vptr kb kofs))).
        Time unfold data_block; entailer!. (*1.5*)
 
-    Time forward. (*1.7*)
-    Time forward. (*j=HMAC_MAX_MD_CBLOCK*) (*1.7*)
+    Time forward. (*2*)
+    Time forward. (*j=HMAC_MAX_MD_CBLOCK*) (*1.8*)
 
     (* Issue: Potential Coq (8.4?) bug about type equalities*)
 (*    assert (exists keyedHMS': reptype t_struct_hmac_ctx_st, keyedHMS'=keyedHMS). exists keyedHMS; reflexivity.
@@ -638,17 +629,17 @@ forward_if PostKeyNull.
                   (Vptr ckb ckoff));
           `(K_vector kv))) as PostIf_j_Len.
 
-    assert_PROP (field_compatible t_struct_hmac_ctx_st [] (Vptr cb cofs)) as FC_ctx. 
-    { Time entailer!. (*1.8*) }
+    Time assert_PROP (field_compatible t_struct_hmac_ctx_st [] (Vptr cb cofs))
+      as FC_ctx by entailer!. (*1.7*)
 
     assert (field_compatible t_struct_hmac_ctx_st [StructField _md_ctx] (Vptr cb cofs)) as  FC_md_ctx.
     { red. clear - FC_ctx. red in FC_ctx; simpl in FC_ctx.
       intuition. split; trivial. left; reflexivity. }
 
-    assert_PROP (field_compatible (Tarray tuchar 64 noattr) [] (Vptr ckb ckoff)) as FC_cxtkey.
-    { Time entailer!. (*1.8*) }
+    Time assert_PROP (field_compatible (Tarray tuchar 64 noattr) [] (Vptr ckb ckoff))
+      as FC_cxtkey by entailer!. (*1.9*) 
 
-    Time forward_if PostIf_j_Len. (*5.2*)
+    Time forward_if PostIf_j_Len. (*5.6*)
     { (* j < len*) 
       rename H into lt_64_l.
       eapply (Init_part1_keynonnull Espec kb ckb cb kofs ckoff cofs l key kv pad h1); try eassumption.
@@ -660,22 +651,22 @@ forward_if PostKeyNull.
   intros ek vl. apply andp_left2.
    unfold POSTCONDITION, abbreviate.
    unfold overridePost, initPostKeyNullConditional. 
-   if_tac; trivial. Time normalize. (*0.4*)
+   if_tac; trivial. Time normalize. (*0.8*)
    subst.
-   Exists cb. Exists cofs 1. Time entailer!. (*8.4*)
+   Exists cb cofs 1. Time entailer!. (*8.1*)
   }
   { (*key == NULL*)
      Time forward. (*0.2*)
      rewrite HeqPostKeyNull; clear HeqPostKeyNull. 
      unfold initPre, initPostKeyNullConditional.
-     destruct key'; try contradiction. subst k. Time entailer!. (*3.9*)
+     destruct key'; try contradiction. subst k. Time entailer!. (*4.3*)
      (*integer*)
-        unfold hmacstate_PreInitNull. Time normalize. (*21secs SLOW*)
+        unfold hmacstate_PreInitNull. Intros r v.
         rewrite data_at_isptr.
-        Time normalize. (*4.2*)
+        Time normalize. (*16*) 
         apply isptrD in Pctx'. destruct Pctx' as [cb [cofs CTX']].
-        Exists cb cofs 0. rewrite if_true; trivial. Time entailer!. (*10.8*)
-        Exists r v. apply sepcon_derives. trivial. apply andp_right; trivial. apply prop_right; trivial. }
+        Exists cb cofs 0. rewrite if_true; trivial.
+        Exists r v. Time entailer!. (*7*) }
   { (*side condition of forward_if key != NULL*)
     intros. apply andp_left2. unfold POSTCONDITION, abbreviate, overridePost. 
     if_tac. unfold normal_ret_assert. Time entailer!. (*0.2*)
