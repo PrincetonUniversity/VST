@@ -1980,6 +1980,42 @@ match goal with
     extract_exists_in_SEP' Pre; subst P; apply exp_left
 end.
 
+
+Ltac move_from_SEP' PQR :=
+ match PQR with
+ | PROPx ?P (LOCALx ?Q (SEPx (?R))) =>
+   match R with context [`(prop ?P1 && ?S) :: ?R'] =>
+      let n := constr:(length R - Datatypes.S (length R'))%nat in
+      let n' := eval lazy beta zeta iota delta in n in
+      rewrite(@extract_prop_in_SEP' n' P1 S P Q R (eq_refl _));
+      unfold replace_nth at 1
+   end
+ end.
+
+Lemma derives_extract_PROP : 
+  forall (P1: Prop) P QR S, 
+     (P1 -> PROPx P QR |-- S) ->
+     PROPx (P1::P) QR |-- S.
+Proof.
+unfold PROPx in *.
+intros.
+rewrite fold_right_cons.
+normalize.
+eapply derives_trans; [ | apply H; auto].
+normalize.
+Qed.
+
+Ltac Intro_prop := 
+autorewrite with gather_prop;
+match goal with
+ | |- semax _ ?PQR _ _ => move_from_SEP' PQR; 
+               apply semax_extract_PROP; 
+               fancy_intros
+ | |- ?PQR |-- _ => move_from_SEP' PQR;
+               apply derives_extract_PROP; 
+               fancy_intros
+end.
+
 Ltac Intro'' a :=
   first [apply extract_exists_pre; intro a
          | apply exp_left; intro a
@@ -1991,6 +2027,7 @@ Ltac Intro'' a :=
          ].
 
 Ltac Intro a :=
+  repeat Intro_prop;
   match goal with
   | |- ?A |-- ?B => 
      let z := fresh "z" in pose (z:=B); change (A|--z); Intro'' a; subst z
@@ -1999,40 +2036,43 @@ Ltac Intro a :=
   end. 
 
 (* Tactic Notation "Intros" := repeat (let x := fresh "x" in Intro x). *)
+
+Tactic Notation "Intros" := repeat Intro_prop.
+
 Tactic Notation "Intros" simple_intropattern(x0) :=
- Intro x0.
+ Intro x0; repeat Intro_prop.
 
 Tactic Notation "Intros" simple_intropattern(x0)
  simple_intropattern(x1) :=
- Intro x0; Intro x1.
+ Intro x0; Intro x1; repeat Intro_prop.
 
 Tactic Notation "Intros" simple_intropattern(x0)
  simple_intropattern(x1) simple_intropattern(x2) :=
- Intro x0; Intro x1; Intro x2.
+ Intro x0; Intro x1; Intro x2; repeat Intro_prop.
 
 Tactic Notation "Intros" simple_intropattern(x0)
  simple_intropattern(x1) simple_intropattern(x2)
  simple_intropattern(x3) :=
- Intro x0; Intro x1; Intro x2; Intro x3.
+ Intro x0; Intro x1; Intro x2; Intro x3; repeat Intro_prop.
 
 Tactic Notation "Intros" simple_intropattern(x0)
  simple_intropattern(x1) simple_intropattern(x2)
  simple_intropattern(x3) simple_intropattern(x4) :=
- Intro x0; Intro x1; Intro x2; Intro x3; Intro x4.
+ Intro x0; Intro x1; Intro x2; Intro x3; Intro x4; repeat Intro_prop.
 
 Tactic Notation "Intros" simple_intropattern(x0)
  simple_intropattern(x1) simple_intropattern(x2)
  simple_intropattern(x3) simple_intropattern(x4)
  simple_intropattern(x5) :=
  Intro x0; Intro x1; Intro x2; Intro x3; Intro x4;
- Intro x5.
+ Intro x5; repeat Intro_prop.
 
 Tactic Notation "Intros" simple_intropattern(x0)
  simple_intropattern(x1) simple_intropattern(x2)
  simple_intropattern(x3) simple_intropattern(x4)
  simple_intropattern(x5) simple_intropattern(x6) :=
  Intro x0; Intro x1; Intro x2; Intro x3; Intro x4;
- Intro x5; Intro x6.
+ Intro x5; Intro x6; repeat Intro_prop.
 
 Tactic Notation "Intros" simple_intropattern(x0)
  simple_intropattern(x1) simple_intropattern(x2)
@@ -2040,7 +2080,7 @@ Tactic Notation "Intros" simple_intropattern(x0)
  simple_intropattern(x5) simple_intropattern(x6)
  simple_intropattern(x7) :=
  Intro x0; Intro x1; Intro x2; Intro x3; Intro x4;
- Intro x5; Intro x6; Intro x7.
+ Intro x5; Intro x6; Intro x7; repeat Intro_prop.
 
 Tactic Notation "Intros" simple_intropattern(x0)
  simple_intropattern(x1) simple_intropattern(x2)
@@ -2048,7 +2088,7 @@ Tactic Notation "Intros" simple_intropattern(x0)
  simple_intropattern(x5) simple_intropattern(x6)
  simple_intropattern(x7) simple_intropattern(x8) :=
  Intro x0; Intro x1; Intro x2; Intro x3; Intro x4;
- Intro x5; Intro x6; Intro x7; Intro x8.
+ Intro x5; Intro x6; Intro x7; Intro x8; repeat Intro_prop.
 
 Tactic Notation "Intros" simple_intropattern(x0)
  simple_intropattern(x1) simple_intropattern(x2)
@@ -2057,7 +2097,7 @@ Tactic Notation "Intros" simple_intropattern(x0)
  simple_intropattern(x7) simple_intropattern(x8)
  simple_intropattern(x9) :=
  Intro x0; Intro x1; Intro x2; Intro x3; Intro x4;
- Intro x5; Intro x6; Intro x7; Intro x8; Intro x9.
+ Intro x5; Intro x6; Intro x7; Intro x8; Intro x9; repeat Intro_prop.
 
 Tactic Notation "Intros" simple_intropattern(x0)
  simple_intropattern(x1) simple_intropattern(x2)
@@ -2067,7 +2107,7 @@ Tactic Notation "Intros" simple_intropattern(x0)
  simple_intropattern(x9) simple_intropattern(x10) :=
  Intro x0; Intro x1; Intro x2; Intro x3; Intro x4;
  Intro x5; Intro x6; Intro x7; Intro x8; Intro x9;
- Intro x10.
+ Intro x10; repeat Intro_prop.
 
 Tactic Notation "Intros" simple_intropattern(x0)
  simple_intropattern(x1) simple_intropattern(x2)
@@ -2078,7 +2118,7 @@ Tactic Notation "Intros" simple_intropattern(x0)
  simple_intropattern(x11) :=
  Intro x0; Intro x1; Intro x2; Intro x3; Intro x4;
  Intro x5; Intro x6; Intro x7; Intro x8; Intro x9;
- Intro x10; Intro x11.
+ Intro x10; Intro x11; repeat Intro_prop.
 
 
 Ltac extract_exists_from_SEP_right :=

@@ -158,19 +158,11 @@ Proof. intros. abbreviate_semax.
       rewrite (field_at_data_at Tsh t_struct_hmac_ctx_st [StructField _md_ctx]).
       unfold field_address. rewrite if_true by trivial.
       simpl @nested_field_type. simpl @nested_field_offset.
-      Time normalize. (*2.6*) 
+      rewrite offset_val_zero_Vptr.
 
       (*new: extract info from field_address as early as possible*)
       assert_PROP (isptr (field_address t_struct_hmac_ctx_st [StructField _md_ctx]
                           (Vptr cb cofs))) as FA_MDCTX by entailer!.
- (*
-      apply isptrD in H; destruct H as [? [? PT]]; rewrite PT.
-      unfold field_address in PT.
-      destruct (field_compatible_dec t_struct_hmac_ctx_st [StructField _md_ctx]
-           (Vptr cb cofs)); inversion PT; clear PT. 
-      subst x x0.
-      rename f into FC.*)
-(*      subst PAD. normalize.*)
 Time      forward_call (Vptr cb cofs). (*Issue: takes 5mins... [now takes 18 sec] *)
       forward_call (init_s256abs, key, Vptr cb cofs, Vptr kb kofs, Tsh, l, kv) ctxSha.
       { unfold data_block.
@@ -194,8 +186,8 @@ Time      forward_call (Vptr cb cofs). (*Issue: takes 5mins... [now takes 18 sec
      unfold field_address. rewrite if_true by assumption.
      simpl. rewrite Int.add_zero.
 
-    assert_PROP (field_compatible (Tarray tuchar 64 noattr) [] (Vptr ckb ckoff)) as FC_ctxkey.
-    { Time normalize. (*1.7*) }
+Time    assert_PROP (field_compatible (Tarray tuchar 64 noattr) [] (Vptr ckb ckoff)) as FC_ctxkey
+       by entailer!.
 
      replace_SEP 0 (`(memory_block Tsh 64 (Vptr ckb ckoff))).
      { Time entailer!. (*2.7*) apply data_at_memory_block. }
