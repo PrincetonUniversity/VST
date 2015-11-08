@@ -22,7 +22,8 @@ Proof.
 start_function.
 name x' _x.
 name c' _c.
-forward. entailer. apply prop_right.
+Time forward. (*8.8*)
+Time entailer!. (*0.8*)
 assert (W: Int.zwordsize = 32). reflexivity.
 assert (U: Int.unsigned Int.iwordsize=32). reflexivity.
 remember (Int.ltu c' Int.iwordsize) as d. symmetry in Heqd.
@@ -46,7 +47,7 @@ apply ltu_inv in Heqz. unfold Int.sub in *.
   rewrite H0, W. f_equal. f_equal. f_equal.
   rewrite Int.unsigned_repr. 2: rewrite int_max_unsigned_eq; omega.
   rewrite Int.and_mone. trivial.
-Qed.
+Time Qed. (*0.9*)
 
 Lemma ld32_spec_ok: semax_body SalsaVarSpecs SalsaFunSpecs
        f_ld32 ld32_spec.
@@ -59,15 +60,18 @@ assert (RNG3:= Byte.unsigned_range_2 b3).
 assert (RNG2:= Byte.unsigned_range_2 b2).
 assert (RNG1:= Byte.unsigned_range_2 b1).
 assert (RNG0:= Byte.unsigned_range_2 b0).
-forward. entailer. (*NEW*)
-forward. entailer. (*NEW*)
-forward.
-forward. entailer. (*NEW*)
-forward.
-forward. entailer. (*NEW*) 
-forward. 
-  entailer.
-  apply prop_right. 
+Time forward. (*1.8*)
+Time entailer!; omega. (*1.1*)
+Time forward. (*2*)
+Time entailer!; omega. (*1.1*)
+Time forward. (*1.1*)
+Time forward. (*2.2*)
+Time entailer!; omega. (*1.3*)
+Time forward. (*1.5*)
+Time forward. (*2.1*)
+Time entailer!; omega. (*1.3*)
+Time forward. (*5.2*)
+Time entailer!.
   unfold Znth in H. simpl in H. inv H. clear - BND RNG0 RNG1 RNG2 RNG3.
   assert (WS: Int.zwordsize = 32). reflexivity.
   assert (TP: two_p 8 = Byte.max_unsigned + 1). reflexivity.
@@ -85,7 +89,7 @@ forward.
   rewrite TP, BMU, Z.mul_add_distr_l, int_max_unsigned_eq. omega.
   rewrite TP, BMU, Z.mul_add_distr_l, int_max_unsigned_eq. omega.
   rewrite TP, BMU, Z.mul_add_distr_l, int_max_unsigned_eq. omega.
-Qed.
+Time Qed. (*6.7*)
 
 Lemma ST32_spec_ok: semax_body SalsaVarSpecs SalsaFunSpecs
        f_st32 st32_spec.
@@ -93,23 +97,26 @@ Proof.
 start_function.
 name x' _x.
 name u' _u.
-normalize. intros l. normalize. rename H into Hl.
+Intros l. rename H into Hl.
 remember (littleendian_invert u) as U. destruct U as [[[u0 u1] u2] u3].
 
-  forward_for_simple_bound 4 (EX i:Z, 
+Time forward_for_simple_bound 4 (EX i:Z, 
   (PROP  ()
    LOCAL (temp _x x; temp _u (Vint (iterShr8 u (Z.to_nat i))))
    SEP (`(data_at Tsh (Tarray tuchar 4 noattr) 
               (sublist 0 i (map Vint (map Int.repr (map Byte.unsigned ([u0;u1;u2;u3])))) ++ 
                sublist i (Zlength l) l)
                 x)))).
-{ entailer. rewrite sublist_same; trivial. }
-{ rename H into I. normalize. (* intros LST. normalize.*)
-
-  assert_PROP (field_compatible (Tarray tuchar 4 noattr) [] x /\ isptr x). solve [entailer].
-  destruct H as [FC ptrX].
-  forward. forward. 
-  entailer. unfold upd_Znth_in_list. rewrite Zlength_app; repeat rewrite Zlength_sublist; try omega.
+(*0.9*)
+{ Time entailer!. (*1*) rewrite sublist_same; trivial. }
+{ rename H into I.
+  Time assert_PROP (field_compatible (Tarray tuchar 4 noattr) [] x /\ isptr x) 
+       as FC_ptrX by solve [entailer!]. (*2.3*)
+  destruct FC_ptrX as [FC ptrX].
+  Time forward. (*1.9*)
+  Time forward. (*0.8*) 
+  Time entailer. (*6*)
+  unfold upd_Znth_in_list. rewrite Zlength_app; repeat rewrite Zlength_sublist; try omega.
     2: rewrite Zlength_correct; simpl; omega.
   clear H TC.
   rewrite sublist0_app1.
@@ -197,8 +204,8 @@ remember (littleendian_invert u) as U. destruct U as [[[u0 u1] u2] u3].
           rewrite Int.bits_above. trivial. omega. }
         omega. }
   rewrite Hl.
-  forward. 
-Qed.
+  Time forward. (*1.6*)
+Time Qed. (*4.9*)
 
 (*
 Definition L32_specZ :=

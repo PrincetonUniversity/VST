@@ -84,13 +84,11 @@ Proof. intros. abbreviate_semax.
      `(EX l:_, !!(Y_content xInit i l (list_repeat 16 Vundef)) && data_at Tsh (tarray tuint 16) l y);
      `(data_at_ Tsh (tarray tuint 16) w); `(CoreInSEP data (nonce, c, k));
      `(data_at Tsh (tarray tuchar 64) OUT out) (*`(data_block Tsh OUT out)*))).
-  { clear XInit. entailer. 
-    apply (exp_right (list_repeat 16 Vundef)). entailer.
-    apply andp_right.
-      apply prop_right. exists nil,  (list_repeat 16 Vundef).
-      exists xInit, nil; simpl. repeat split; auto.
-    cancel. }
-  { rename H into I. normalize. intros Y. normalize. rename H into YCONT.
+  { clear XInit. Time entailer!. (*4.5*) 
+    Exists (list_repeat 16 Vundef). Time entailer!.
+    exists nil,  (list_repeat 16 Vundef).
+      exists xInit, nil; simpl. repeat split; auto. }
+  { rename H into I. Intros Y. rename H into YCONT.
     destruct (upd_upto_Vint data i I Vundef) as [vi Vi]. 
     
       destruct YCONT as [l1 [l2 [yy [xx [APP1 [APP2 [APP3 [L1 L2]]]]]]]].
@@ -101,16 +99,15 @@ Proof. intros. abbreviate_semax.
         rewrite <- APP2, app_Znth2, L1, Zminus_diag, Znth_0_cons in Vi. rewrite Vi.
         eexists; eexists; reflexivity. omega.
       destruct V as [v [yT ?]]. subst yy; simpl.
-      forward.
-      { entailer. rewrite Vi. apply prop_right; simpl; trivial. }
+      Time forward. (*12.5*) 
+      { Time entailer!. (*4.2*) rewrite Vi; simpl; trivial. }
       rewrite <- XInit, <- APP2 in Vi. rewrite <- APP2, Vi.
       rewrite app_Znth2, L1, Zminus_diag, Znth_0_cons in Vi. inversion Vi; clear Vi; subst vi. 2: omega. 
-      forward.
-      { Opaque upd_upto. entailer.
-        apply (exp_right (upd_Znth_in_list (Zlength l1) (l1 ++ l2) (Vint aux'))).
-        rewrite APP2. entailer. 
-        apply andp_right. 2: cancel.
-        apply prop_right. clear - APP2 APP3 I L2. 
+      Time forward. (*6.4*)
+      { Opaque upd_upto. Time entailer!. (*8.4*)
+        Exists (upd_Znth_in_list (Zlength l1) (l1 ++ l2) (Vint aux')).
+        rewrite APP2. Time entailer!. (*1.7*) 
+        clear - APP2 APP3 I L2. 
         assert (TT: exists lT, l2 = Vundef::lT).
         { destruct l2.
             rewrite app_nil_r in *. subst xx; rewrite <- L2, Zlength_list_repeat' in I. simpl in I; omega. 
@@ -124,5 +121,5 @@ Proof. intros. abbreviate_semax.
           rewrite upd_Znth_in_list_char; trivial. omega.
           rewrite Zlength_cons', Zlength_nil, Zplus_0_r. solve [auto]. }
   }
-  normalize.
-Qed. 
+  apply derives_refl.
+Time Qed. (*16*) 
