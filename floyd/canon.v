@@ -995,20 +995,68 @@ unfold SEPx.
 simpl. rewrite sepcon_assoc. auto.
 Qed.
 
+Lemma flatten_sepcon_in_SEP':
+  forall P Q R1 R2 R, 
+           PROPx P (LOCALx Q (SEPx (`(R1*R2) :: R))) = 
+           PROPx P (LOCALx Q (SEPx (`R1 :: `R2 :: R))).
+Proof.
+intros.
+f_equal. f_equal. extensionality rho.
+unfold SEPx.
+unfold_lift. simpl. rewrite sepcon_assoc. auto.
+Qed.
+
+Lemma flatten_sepcon_in_SEP'':
+  forall n P Q (R1 R2: mpred) (R: list (environ->mpred)) R',
+   nth_error R n = Some (`(R1 * R2)) ->
+   R' = firstn n R ++ `R1 :: `R2 :: skipn (S n) R ->
+   PROPx P (LOCALx Q (SEPx R)) = PROPx P (LOCALx Q (SEPx R')).
+Proof.
+intros.
+f_equal.
+f_equal.
+unfold SEPx.
+subst R'.
+revert R H.
+clear.
+induction n; destruct R; intros.
+inv H.
+simpl nth_error in H. inv H.
+unfold firstn, skipn, app.
+repeat rewrite fold_right_cons.
+repeat rewrite <- sepcon_assoc.
+reflexivity.
+inv H.
+specialize (IHn _ H). clear H.
+simpl firstn.
+change (m :: firstn n R) with (app (m::nil) (firstn n R)).
+rewrite app_ass. unfold app at 1.
+repeat rewrite fold_right_cons.
+f_equal.
+auto.
+Qed.
+
+Ltac flatten_in_SEP PQR :=
+ match PQR with
+ | PROPx ?P (LOCALx ?Q (SEPx (?R))) =>
+   match R with context [`(?R1 * ?R2) :: ?R'] =>
+      let n := constr:(length R - Datatypes.S (length R'))%nat in
+      let n' := eval lazy beta zeta iota delta in n in
+      erewrite(@flatten_sepcon_in_SEP'' n' P Q R1 R2 R _ (eq_refl _));
+      [ | 
+        let RR := fresh "RR" in set (RR := R);
+        let RR1 := fresh "RR1" in set (RR1 := R1);
+        let RR2 := fresh "RR2" in set (RR2 := R2);
+        unfold firstn, app, skipn; subst RR RR1 RR2; cbv beta iota;
+        apply eq_refl
+      ]
+   end
+ end.
+
 Ltac flatten_sepcon_in_SEP :=
   match goal with
-  | |- @semax _ _ _ (PROPx _ (LOCALx _ (SEPx ?R))) _ _ =>
-   match R with context [ (sepcon ?x  ?y) :: ?R'] =>
-  let n := length_of R in let n' := length_of R' in 
-         rewrite (grab_nth_SEP (n-S n')); simpl minus; unfold nth, delete_nth; 
-         rewrite flatten_sepcon_in_SEP
-    end
-  | |-  (PROPx _ (LOCALx _ (SEPx ?R))) |-- _ =>
-   match R with context [ (sepcon ?x  ?y) :: ?R'] =>
-  let n := length_of R in let n' := length_of R' in 
-         rewrite (grab_nth_SEP (n-S n')); simpl minus; unfold nth, delete_nth; 
-         rewrite flatten_sepcon_in_SEP
-  end
+  | |- semax _ ?PQR _ _ => flatten_in_SEP PQR
+  | |-  ?PQR |-- _ => flatten_in_SEP PQR
 end.
 
 Lemma semax_ff:

@@ -379,7 +379,7 @@ name Q _Q.
 name h _h.
 unfold fifo.
 Intros ht; destruct ht as [hd tl].
-normalize.
+Intros.
 forward. (* h = Q->head; *)
 forward. (* return (h == NULL); *)
 unfold fifo.
@@ -387,7 +387,8 @@ Exists (h,tl).
 destruct (isnil contents).
 * entailer!.
   apply andp_right; auto with valid_pointer.
-* Intros prefix. Exists prefix.
+* Intros prefix.
+Exists prefix.
   assert_PROP (isptr h).
     destruct prefix; entailer.
     rewrite lseg_cons_eq by auto. 
@@ -418,14 +419,6 @@ Proof.
   rewrite if_true by auto.
   entailer!.
 Qed.
-
-(*
-Lemma readable_nonidentity_share:
-  forall sh, readable_share sh -> sepalg.nonidentity sh.
-Admitted. (* share hacking *)
-Hint Resolve readable_nonidentity_share.
-*)
-
 Lemma body_fifo_put: semax_body Vprog Gprog f_fifo_put fifo_put_spec.
 Proof.
 start_function.
@@ -435,7 +428,7 @@ name h _h.
 name t _t.
 unfold fifo at 1.
 Intros ht; destruct ht as [hd tl].
-normalize.
+Intros.
 (* goal_7 *)
 forward. (* p->next = NULL; *)
 forward. (*   h = Q->head; *)
@@ -467,14 +460,13 @@ forward_if
 * (* else clause *)
   forward. (*  t = Q->tail; *)
   destruct (isnil contents).
-  + normalize. contradiction H; auto.
+  + Intros. contradiction H; auto.
   + Intros prefix.
-     normalize.
      forward. (*  t->next=p; *)
   (* goal 12 *)
      forward. (* Q->tail=p; *)
   (* goal 13 *)
-     entailer.
+     entailer!.
      unfold fifo. Exists (h, p').
      rewrite if_false by (clear; destruct prefix; simpl; congruence).
      Exists  (prefix ++ t :: nil).
@@ -501,12 +493,11 @@ unfold fifo at 1.
 Intros ht; destruct ht as [hd tl].
 rewrite if_false by congruence.
 Intros prefix.
-normalize.
 forward.  (*   p = Q->head; *)
 destruct prefix; inversion H; clear H.
 + subst_any.
    rewrite lseg_nil_eq by auto.
-   normalize.
+   Intros.
    subst_any.
    forward. (*  n=h->next; *)
    forward. (* Q->head=n; *)
@@ -516,7 +507,6 @@ destruct prefix; inversion H; clear H.
    entailer!.
 + rewrite lseg_cons_eq by auto.
     Intros x. 
-    normalize.
     simpl @valinject. (* can we make this automatic? *)
     subst_any.
     forward. (*  n=h->next; *)

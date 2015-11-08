@@ -127,9 +127,9 @@ assert_PROP (Zlength r_data = CBLOCKz
     /\ field_compatible t_struct_SHA256state_st [StructField _data] c)
    as H; [ | destruct H as [H [H7 FC]]].
   { entailer!.
-    simplify_value_fits in H9; destruct H9 as [H9 _].
+    simplify_value_fits in H15; destruct H15 as [H15 _].
      split; auto.
-    change  (@reptype CompSpecs tuchar) with val in H9. (* should not be necessary *) 
+    change  (@reptype CompSpecs tuchar) with val in H15. (* should not be necessary *) 
     rewrite <- H2.
     pose proof CBLOCKz_eq. 
     pose proof (Zlength_nonneg dd).
@@ -213,9 +213,8 @@ rewrite !map_app. reflexivity.
 f_equal. f_equal. subst ddlen; autorewrite with sublist; Omega1. 
 * unfold invariant_after_if1.
 Intros hashed' dd' pad.
-apply semax_extract_PROP; intro DDbytes'.
-apply semax_extract_PROP; intro PAD.
-normalize.
+rename H1 into DDbytes'.
+rename H2 into PAD.
 unfold POSTCONDITION, abbreviate; clear POSTCONDITION.
 unfold sha_finish.
 unfold SHA_256.

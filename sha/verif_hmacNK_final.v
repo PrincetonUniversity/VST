@@ -31,8 +31,8 @@ name md' _md.
 rename lvar0 into buf.
 
 Time assert_PROP (isptr md) as isptrMD by entailer!. (*0.6*)
-unfold hmacstate_. Time normalize. (*8.1*)
-intros ST. Time normalize. (*2*)
+unfold hmacstate_.
+Intros ST.
 destruct h1; simpl in *.
 destruct H as [reprMD [reprI [reprO [iShaLen oShaLen]]]].
 
@@ -61,7 +61,8 @@ Time forward_call (ctx, buf, Vptr b i, Tsh, kv). (*9.5*)
     rewrite (field_at_data_at _ _ [StructField _md_ctx]).
     simpl @nested_field_type.
     unfold field_address; rewrite if_true by trivial.
-    simpl. rewrite Int.add_zero. Time (normalize; cancel). (*5.7*)
+    simpl. rewrite Int.add_zero.
+    Time (normalize; cancel). (*5.7*)
   }
  unfold map at 1.  (* should not be necessary *)
 
@@ -106,7 +107,7 @@ unfold field_address. rewrite if_true by trivial.
 
 simpl.
 rewrite Int.add_zero.
-replace_SEP 2 `(memory_block Tsh 108 (Vptr b i)).
+replace_SEP 1 `(memory_block Tsh 108 (Vptr b i)).
   { Time entailer!. (*1*) 
     eapply derives_trans. apply data_at_data_at_.
     rewrite <- (memory_block_data_at_ Tsh _ _ H2). apply derives_refl.

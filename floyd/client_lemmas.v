@@ -2005,20 +2005,28 @@ eapply derives_trans; [ | apply H; auto].
 normalize.
 Qed.
 
+
 Ltac Intro_prop := 
 autorewrite with gather_prop;
 match goal with
- | |- semax _ ?PQR _ _ => move_from_SEP' PQR; 
-               apply semax_extract_PROP; 
-               fancy_intros
- | |- ?PQR |-- _ => move_from_SEP' PQR;
-               apply derives_extract_PROP; 
-               fancy_intros
+ | |- semax _ ?PQR _ _ =>
+     first [ simple apply semax_extract_PROP; fancy_intros
+            | move_from_SEP' PQR; 
+              simple apply semax_extract_PROP; fancy_intros
+            | flatten_in_SEP PQR
+            ]
+ | |- ?PQR |-- _ => 
+     first [ simple apply derives_extract_prop; fancy_intros
+             | simple apply derives_extract_PROP; fancy_intros
+            | move_from_SEP' PQR;
+               simple apply derives_extract_PROP; fancy_intros
+            | flatten_in_SEP PQR
+             ]
 end.
 
 Ltac Intro'' a :=
-  first [apply extract_exists_pre; intro a
-         | apply exp_left; intro a
+  first [ simple apply extract_exists_pre; intro a
+         | simple apply exp_left; intro a
          | rewrite exp_andp1; Intro'' a
          | rewrite exp_andp2; Intro'' a
          | rewrite exp_sepcon1; Intro'' a

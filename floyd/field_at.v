@@ -2095,8 +2095,7 @@ Ltac unfold_field_at' :=
      subst P;
      subst F;
      cbv beta;
-     try (rewrite !lift0C_sepcon;
-           repeat flatten_sepcon_in_SEP);
+     repeat flatten_sepcon_in_SEP;
      repeat simplify_project_default_val
  end.
 

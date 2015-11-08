@@ -778,7 +778,7 @@ forward_if PostResetBranch.
     Time normalize. (*3.4 s--doing normalize speeds up the unfold_data_at 2 lines down*)
     Time assert_PROP (field_compatible t_struct_hmac_ctx_st [] (Vptr cb cofs)) as FC_C by entailer!. (*5*)
     Time unfold_data_at 1%nat. (*5.3*)
-    gather_SEP 1 2 4 6.
+    gather_SEP 1 3 4 6.
     replace_SEP 0 (`(FRAME1 cb cofs ckb ckoff kb kofs key HMS')).
     { subst HMS'. 
       Transparent FRAME1. unfold HMS, FRAME1. Opaque FRAME1.

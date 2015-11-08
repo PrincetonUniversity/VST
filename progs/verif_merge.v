@@ -217,9 +217,9 @@ entailer!. intuition. apply derives_refl.
 rename a into init_a.
 rename b into init_b.
 clear a_ b_.
+unfold merge_invariant.
 Intros cond a b merged a_ b_ c_ begin.
  forward.
-
 
 (* The loop *)
 forward_while (merge_invariant _cond sh init_a init_b ret_)
@@ -316,7 +316,7 @@ clear hmerge tmerge Heqmerged.
 (* Command: *x = a *)
 unfold_data_at 2%nat.
 (* we replace [field_at ...tail _c] with [data_at .. (field_adress ...tail _c)] for forward*)
-focus_SEP 1.
+focus_SEP 9.
 rewrite field_at_data_at.
 forward.
 (* we put back the [field_at ...tail _c] *)
@@ -337,7 +337,7 @@ rewrite (snoc merged) at 3 by auto.
 rewrite map_app. simpl map.
 unfold_data_at 1%nat.
 match goal with |- ?A * ?B * ?C * ?D * ?E * ?F * ?G * ?H |-- _ =>
- apply derives_trans with ((B * A * H * G) * (C * D * E * F));
+ apply derives_trans with ((H * A * G * C) * (B * D * E * F));
   [cancel | ]
 end.
 eapply derives_trans; [apply sepcon_derives; [ | apply derives_refl] | ].
@@ -378,6 +378,7 @@ entailer!; intuition.
 
 (* setting value in cond *)
 clear -SH.
+unfold merge_invariant.
 Intros cond a b merged a_ b_ c_ begin.
 forward.
 Exists (cond, a, b, merged, a_, b_, c_, begin).
@@ -422,7 +423,7 @@ clear hmerge tmerge Heqmerged.
 (* Command: *x = b *)
 unfold_data_at 2%nat.
 (* we replace [field_at ...tail _c] with [data_at .. (field_adress ...tail _c)] for forward*)
-focus_SEP 1.
+focus_SEP 9.
 rewrite field_at_data_at.
 forward.
 (* we put back the [field_at ...tail _c] *)
@@ -450,7 +451,7 @@ assert (LCR := lseg_cons_right_neq LS sh (map Vint (butlast merged)) begin (Vint
 simpl in LCR. rewrite list_cell_field_at in LCR.
 unfold_data_at 1%nat.
 match goal with |- ?A * ?B * ?C * ?D * ?E * ?F |-- _ =>
- apply derives_trans with ((B * A * F * D) * (C * E)); [cancel | ]
+ apply derives_trans with ((F * A * E * D) * (B * C)); [cancel | ]
 end.
 eapply derives_trans; [apply sepcon_derives; [ | apply derives_refl] | ].
 apply LCR; auto.
@@ -483,6 +484,7 @@ entailer!; intuition.
 
 (* setting value in cond *)
 clear -SH.
+unfold merge_invariant.
 Intros cond a b merged a_ b_ c_ begin.
 forward.
 Exists (cond, a, b, merged, a_, b_, c_, begin).
@@ -536,7 +538,7 @@ assert (Hm: merged <> []) by congruence.
 clear hmerge tmerge Heqmerged.
 unfold_data_at 2%nat.
 (* we replace [field_at ...tail _c] with [data_at .. (field_adress ...tail _c)] for forward*)
-focus_SEP 1.
+focus_SEP 5.
 rewrite field_at_data_at.
 forward.
 Exists a (@nil int) merged a_ c_ begin.
@@ -576,7 +578,7 @@ remember (hmerge :: tmerge) as merged.
 assert (Hm: merged <> []) by congruence.
 clear hmerge tmerge Heqmerged.
 unfold_data_at 2%nat.
-focus_SEP 1.
+focus_SEP 5.
 rewrite field_at_data_at.
 forward.
 Exists (@nil int) b merged b_ c_ begin.

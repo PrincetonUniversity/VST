@@ -152,7 +152,7 @@ evar (V: list val).
  change CBLOCKz with 64; omega.
  subst V.
  entailer!. {
- clear - Hddlen H5.
+ clear - Hddlen H11.
  unfold field_address, field_address0. 
  rewrite ?if_true; auto.
  normalize. f_equal. f_equal.
@@ -243,9 +243,10 @@ split.
  apply Int.unsigned_repr; unfold isbyteZ in H1; repable_signed.
  rewrite map_list_repeat. reflexivity.
 *
+ rewrite Zlength_nil, Z.sub_0_r.
  unfold_data_at 1%nat.
- unfold data_block.
- normalize.
+ unfold data_block. simpl.
+ Intros.
  cancel.
  rewrite field_at_data_at by reflexivity.
  simpl.
@@ -342,7 +343,7 @@ forward_for_simple_bound 8
   change 32%Z with (sizeof cenv_cs (tarray tuchar 32)) at 1.
 rewrite memory_block_size_compatible
   by (compute; auto).
-normalize.
+Intros.
 rewrite memory_block_data_at_; [ cancel | ].
 apply derives_refl.
 repeat split; auto; try reflexivity.
@@ -383,7 +384,7 @@ apply align_compatible_tarray_tuchar.
  change WORD with 4.
  autorewrite with sublist.
  replace (32 - 4 * i - 4)  with (32 - (i*4+4)) by (clear; omega).
- normalize.
+ Intros.
   change 64 with CBLOCKz. set (N32 := 32).
   set (N32W := N32 - i*4).
   change (Z.to_nat 4) with (Z.to_nat WORD).
@@ -416,9 +417,9 @@ assert (forall m,
 intro.
 clear Frame.
 rewrite array_at_data_at.
-normalize.
-unfold at_offset.
 unfold nested_field_array_type; simpl.
+Intros.
+unfold at_offset.
 autorewrite with sublist.
 eapply derives_trans; [apply data_at_data_at_ | ].
 rewrite <- memory_block_data_at_.
@@ -473,6 +474,7 @@ destruct H9; auto.
   change (32 - i*4 - 4) with (N32W - WORD).
   cancel.
 rewrite !array_at_data_at.
+Intros.
 normalize.
 unfold at_offset.
 unfold nested_field_array_type.
