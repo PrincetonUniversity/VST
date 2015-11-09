@@ -14,3 +14,10 @@ Definition proj_union (i : ident) (m : members) {A: ident * type -> Type} (v: co
 Definition members_union_inj {m: members} {A} (v: compact_sum (map A m)) (it: ident * type): Prop :=
   compact_sum_inj v it member_dec.
 
+(* We should use the following two definition in replace_refill lemmas in the future. And avoid using compact prod/sum directly. *)
+
+Definition upd_struct (i : ident) (m : members) {A: ident * type -> Type} (v: compact_prod (map A m)) (v0: A (i, field_type i m)): compact_prod (map A m) :=
+  compact_prod_upd _ v (i, field_type i m) v0 member_dec.
+
+Definition upd_union (i : ident) (m : members) {A: ident * type -> Type} (v: compact_sum (map A m)) (v0: A (i, field_type i m)): compact_sum (map A m) :=
+  compact_sum_upd _ v (i, field_type i m) v0 member_dec.
