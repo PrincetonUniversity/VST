@@ -5,6 +5,11 @@ Require Import floyd.reptype_lemmas.
 Require Import floyd.data_at_lemmas.
 
 Local Open Scope logic.
+
+Lemma FF_local_facts: forall {A}{NA: NatDed A}, (FF:A) |-- !!False.
+Proof. intros. apply FF_left. Qed.
+Hint Resolve @FF_local_facts: saturate_local. (* move to floyd *)
+
 (*** Omega stuff ***)
 Ltac  add_nonredundant' F T G :=
    match G with
@@ -555,7 +560,8 @@ Ltac entbang :=
  | |- _ => fail "The entailer tactic works only on entailments   _ |-- _ "
  end;
  ent_iter;
- first [ simple apply prop_right; my_auto
+ first [ contradiction
+        | simple apply prop_right; my_auto
         | simple apply prop_and_same_derives'; my_auto
         | simple apply andp_right;
             [apply prop_right; my_auto | cancel; autorewrite with norm ]

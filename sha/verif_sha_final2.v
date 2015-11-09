@@ -65,6 +65,38 @@ Definition invariant_after_if1 hashed (dd: list Z) c md shmd kv:=
          `(K_vector kv);
          `(memory_block shmd 32 md))))).
 
+(*
+Hint Extern 1 (@field_at _ _ _ _ _ _ |-- @field_at _ _ _ _ ?u _) =>
+    (is_evar u; apply derives_refl) : cancel.
+Hint Extern 1 (@data_at _ _ _ _ _ |-- @data_at _ _ _ ?u _) =>
+    (is_evar u; apply derives_refl) : cancel.
+Hint Extern 1 (@data_at _ _ _ _ _ |-- @field_at _ _ _ nil ?u _) =>
+    (is_evar u; apply derives_refl) : cancel.
+Hint Extern 1 (@field_at _ _ _ nil _ _ |-- @data_at _ _ _ ?u _) =>
+    (is_evar u; apply derives_refl) : cancel.
+*)
+
+Lemma data_at_cancel:
+  forall {cs: compspecs} sh t v p,
+    data_at sh t v p |-- data_at sh t v p.
+Proof. intros. apply derives_refl. Qed.
+Lemma field_at_cancel:
+  forall {cs: compspecs} sh t gfs v p,
+    field_at sh t gfs v p |-- field_at sh t gfs v p.
+Proof. intros. apply derives_refl. Qed.
+
+Lemma data_at_field_at_cancel:
+  forall {cs: compspecs} sh t v p,
+    data_at sh t v p |-- field_at sh t nil v p.
+Proof. intros. apply derives_refl. Qed.
+Lemma field_at_data_at_cancel:
+  forall {cs: compspecs} sh t v p,
+    field_at sh t nil v p |-- data_at sh t v p.
+Proof. intros. apply derives_refl. Qed.
+ 
+Hint Resolve data_at_cancel field_at_cancel
+   data_at_field_at_cancel field_at_data_at_cancel : cancel.
+
 Lemma ifbody_final_if1:
   forall (Espec : OracleKind) (hashed : list int) (md c : val) (shmd : share)
   (dd : list Z) (kv: val)
@@ -120,7 +152,7 @@ evar (V: list val).
  change CBLOCKz with 64; omega.
  subst V.
  entailer!. {
- clear - Hddlen H5.
+ clear - Hddlen H11.
  unfold field_address, field_address0. 
  rewrite ?if_true; auto.
  normalize. f_equal. f_equal.
@@ -175,21 +207,17 @@ forward_call (* sha256_block_data_order (c,p); *)
     field_address t_struct_SHA256state_st [StructField _data] c,
     Tsh, kv).
 {
+  simpl.
   repeat rewrite sepcon_assoc; apply sepcon_derives; [ | cancel].
   unfold data_block.
-  simpl. apply andp_right.
-  apply prop_right.
-  apply isbyte_intlist_to_Zlist.
-  apply derives_refl'.
-  rewrite Zlength_intlist_to_Zlist.
-  rewrite H1'.
-  rewrite <- HU.
-  unfold tarray.
+  rewrite prop_true_andp by apply isbyte_intlist_to_Zlist.
+  autorewrite with sublist.
+  rewrite H1', <- HU. change (LBLOCKz*4)%Z with 64.
   rewrite map_map with (g := Int.repr).
   replace (fun x => Int.repr (Int.unsigned x)) with (@id int) by 
     (extensionality xx; rewrite Int.repr_unsigned; auto).
   rewrite map_id.
-  reflexivity.
+  apply derives_refl.
 }
  simpl map.  (* SHOULD NOT BE NECESSARY *)
  set (pad := (CBLOCKz - (ddlen+1))%Z) in *.
@@ -215,9 +243,10 @@ split.
  apply Int.unsigned_repr; unfold isbyteZ in H1; repable_signed.
  rewrite map_list_repeat. reflexivity.
 *
+ rewrite Zlength_nil, Z.sub_0_r.
  unfold_data_at 1%nat.
- unfold data_block.
- normalize.
+ unfold data_block. simpl.
+ Intros.
  cancel.
  rewrite field_at_data_at by reflexivity.
  simpl.
@@ -314,8 +343,9 @@ forward_for_simple_bound 8
   change 32%Z with (sizeof cenv_cs (tarray tuchar 32)) at 1.
 rewrite memory_block_size_compatible
   by (compute; auto).
-normalize.
+Intros.
 rewrite memory_block_data_at_; [ cancel | ].
+apply derives_refl.
 repeat split; auto; try reflexivity.
 apply align_compatible_tarray_tuchar.
 *
@@ -354,7 +384,7 @@ apply align_compatible_tarray_tuchar.
  change WORD with 4.
  autorewrite with sublist.
  replace (32 - 4 * i - 4)  with (32 - (i*4+4)) by (clear; omega).
- normalize.
+ Intros.
   change 64 with CBLOCKz. set (N32 := 32).
   set (N32W := N32 - i*4).
   change (Z.to_nat 4) with (Z.to_nat WORD).
@@ -387,9 +417,9 @@ assert (forall m,
 intro.
 clear Frame.
 rewrite array_at_data_at.
-normalize.
-unfold at_offset.
 unfold nested_field_array_type; simpl.
+Intros.
+unfold at_offset.
 autorewrite with sublist.
 eapply derives_trans; [apply data_at_data_at_ | ].
 rewrite <- memory_block_data_at_.
@@ -444,6 +474,7 @@ destruct H9; auto.
   change (32 - i*4 - 4) with (N32W - WORD).
   cancel.
 rewrite !array_at_data_at.
+Intros.
 normalize.
 unfold at_offset.
 unfold nested_field_array_type.

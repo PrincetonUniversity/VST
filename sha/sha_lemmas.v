@@ -236,7 +236,6 @@ Lemma split_offset_array_at:
 Admitted. 
 Proof.
   intros.
- SearchAbout data_at array_at.
   apply extract_prop_from_equal' with (isptr v);
     [| rewrite data_at_isptr; normalize | rewrite data_at_isptr; normalize].
   intros.

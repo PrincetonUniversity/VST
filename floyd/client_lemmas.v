@@ -1912,16 +1912,130 @@ Qed.
 Hint Rewrite wand_sepcon wand_sepcon' : norm.
 
 
+
+Lemma extract_nth_exists_in_SEP:
+  forall n P Q (R: list (environ->mpred))
+              {A} (S: A -> mpred),
+   nth n R emp = `(exp S) ->
+   PROPx P (LOCALx Q (SEPx R)) =
+   exp (fun x => PROPx P (LOCALx Q (SEPx (replace_nth n R (`(S x)))))).
+Proof.
+intros.
+transitivity (PROPx P (LOCALx Q (EX x:A, SEPx (replace_nth n R `(S x))))).
+*
+f_equal. f_equal.
+unfold SEPx.
+revert R H; induction n; destruct R; intros.
+unfold replace_nth, fold_right.
+unfold nth in H. rewrite H; clear H.
+unfold_lift.
+extensionality rho. simpl.
+apply pred_ext.
+apply exp_left; intro x. apply exp_right with x.
+apply exp_right with x.
+auto.
+apply exp_left; intro x. auto.
+unfold replace_nth, nth in *. subst m.
+unfold fold_right.
+fold (fold_right sepcon emp R).
+normalize.
+unfold nth in H. unfold replace_nth.
+rewrite H.
+simpl.
+unfold_lift.
+extensionality rho; simpl.
+apply pred_ext.
+apply exp_left; intro x. apply exp_right with x.
+apply exp_right with x.
+auto.
+apply exp_left; intro x. auto.
+unfold nth in H.
+fold (nth n R) in H.
+change (fold_right sepcon emp (m::R)) with
+     (m * fold_right sepcon emp R).
+rewrite (IHn _ H). clear.
+normalize.
+*
+unfold PROPx, LOCALx.
+normalize.
+Qed.
+
+Ltac extract_exists_in_SEP' PQR :=
+ match PQR with
+ | PROPx ?P (LOCALx ?Q (SEPx (?R))) =>
+   match R with context [`(@exp _ _ ?A ?S) :: ?R'] =>
+      let n := constr:(length R - Datatypes.S (length R'))%nat in
+      let n' := eval lazy beta zeta iota delta in n in
+      rewrite (@extract_nth_exists_in_SEP n' P Q R A S (eq_refl _));
+      unfold replace_nth at 1
+   end
+ end.
+
+Ltac extract_exists_from_SEP :=
+match goal with
+  | |- semax _ ?Pre _ _ =>
+    extract_exists_in_SEP' Pre; apply extract_exists_pre
+  | |- ?Pre |-- ?Post =>
+     let P := fresh "POST" in set (P := Post);
+    extract_exists_in_SEP' Pre; subst P; apply exp_left
+end.
+
+
+Ltac move_from_SEP' PQR :=
+ match PQR with
+ | PROPx ?P (LOCALx ?Q (SEPx (?R))) =>
+   match R with context [`(prop ?P1 && ?S) :: ?R'] =>
+      let n := constr:(length R - Datatypes.S (length R'))%nat in
+      let n' := eval lazy beta zeta iota delta in n in
+      rewrite(@extract_prop_in_SEP' n' P1 S P Q R (eq_refl _));
+      unfold replace_nth at 1
+   end
+ end.
+
+Lemma derives_extract_PROP : 
+  forall (P1: Prop) P QR S, 
+     (P1 -> PROPx P QR |-- S) ->
+     PROPx (P1::P) QR |-- S.
+Proof.
+unfold PROPx in *.
+intros.
+rewrite fold_right_cons.
+normalize.
+eapply derives_trans; [ | apply H; auto].
+normalize.
+Qed.
+
+
+Ltac Intro_prop := 
+autorewrite with gather_prop;
+match goal with
+ | |- semax _ ?PQR _ _ =>
+     first [ simple apply semax_extract_PROP; fancy_intros
+            | move_from_SEP' PQR; 
+              simple apply semax_extract_PROP; fancy_intros
+            | flatten_in_SEP PQR
+            ]
+ | |- ?PQR |-- _ => 
+     first [ simple apply derives_extract_prop; fancy_intros
+             | simple apply derives_extract_PROP; fancy_intros
+            | move_from_SEP' PQR;
+               simple apply derives_extract_PROP; fancy_intros
+            | flatten_in_SEP PQR
+             ]
+end.
+
 Ltac Intro'' a :=
-  first [apply extract_exists_pre; intro a
-         | apply exp_left; intro a
+  first [ simple apply extract_exists_pre; intro a
+         | simple apply exp_left; intro a
          | rewrite exp_andp1; Intro'' a
          | rewrite exp_andp2; Intro'' a
          | rewrite exp_sepcon1; Intro'' a
          | rewrite exp_sepcon2; Intro'' a
+         | extract_exists_from_SEP; intro a
          ].
 
 Ltac Intro a :=
+  repeat Intro_prop;
   match goal with
   | |- ?A |-- ?B => 
      let z := fresh "z" in pose (z:=B); change (A|--z); Intro'' a; subst z
@@ -1930,40 +2044,43 @@ Ltac Intro a :=
   end. 
 
 (* Tactic Notation "Intros" := repeat (let x := fresh "x" in Intro x). *)
+
+Tactic Notation "Intros" := repeat Intro_prop.
+
 Tactic Notation "Intros" simple_intropattern(x0) :=
- Intro x0.
+ Intro x0; repeat Intro_prop.
 
 Tactic Notation "Intros" simple_intropattern(x0)
  simple_intropattern(x1) :=
- Intro x0; Intro x1.
+ Intro x0; Intro x1; repeat Intro_prop.
 
 Tactic Notation "Intros" simple_intropattern(x0)
  simple_intropattern(x1) simple_intropattern(x2) :=
- Intro x0; Intro x1; Intro x2.
+ Intro x0; Intro x1; Intro x2; repeat Intro_prop.
 
 Tactic Notation "Intros" simple_intropattern(x0)
  simple_intropattern(x1) simple_intropattern(x2)
  simple_intropattern(x3) :=
- Intro x0; Intro x1; Intro x2; Intro x3.
+ Intro x0; Intro x1; Intro x2; Intro x3; repeat Intro_prop.
 
 Tactic Notation "Intros" simple_intropattern(x0)
  simple_intropattern(x1) simple_intropattern(x2)
  simple_intropattern(x3) simple_intropattern(x4) :=
- Intro x0; Intro x1; Intro x2; Intro x3; Intro x4.
+ Intro x0; Intro x1; Intro x2; Intro x3; Intro x4; repeat Intro_prop.
 
 Tactic Notation "Intros" simple_intropattern(x0)
  simple_intropattern(x1) simple_intropattern(x2)
  simple_intropattern(x3) simple_intropattern(x4)
  simple_intropattern(x5) :=
  Intro x0; Intro x1; Intro x2; Intro x3; Intro x4;
- Intro x5.
+ Intro x5; repeat Intro_prop.
 
 Tactic Notation "Intros" simple_intropattern(x0)
  simple_intropattern(x1) simple_intropattern(x2)
  simple_intropattern(x3) simple_intropattern(x4)
  simple_intropattern(x5) simple_intropattern(x6) :=
  Intro x0; Intro x1; Intro x2; Intro x3; Intro x4;
- Intro x5; Intro x6.
+ Intro x5; Intro x6; repeat Intro_prop.
 
 Tactic Notation "Intros" simple_intropattern(x0)
  simple_intropattern(x1) simple_intropattern(x2)
@@ -1971,7 +2088,7 @@ Tactic Notation "Intros" simple_intropattern(x0)
  simple_intropattern(x5) simple_intropattern(x6)
  simple_intropattern(x7) :=
  Intro x0; Intro x1; Intro x2; Intro x3; Intro x4;
- Intro x5; Intro x6; Intro x7.
+ Intro x5; Intro x6; Intro x7; repeat Intro_prop.
 
 Tactic Notation "Intros" simple_intropattern(x0)
  simple_intropattern(x1) simple_intropattern(x2)
@@ -1979,7 +2096,7 @@ Tactic Notation "Intros" simple_intropattern(x0)
  simple_intropattern(x5) simple_intropattern(x6)
  simple_intropattern(x7) simple_intropattern(x8) :=
  Intro x0; Intro x1; Intro x2; Intro x3; Intro x4;
- Intro x5; Intro x6; Intro x7; Intro x8.
+ Intro x5; Intro x6; Intro x7; Intro x8; repeat Intro_prop.
 
 Tactic Notation "Intros" simple_intropattern(x0)
  simple_intropattern(x1) simple_intropattern(x2)
@@ -1988,7 +2105,7 @@ Tactic Notation "Intros" simple_intropattern(x0)
  simple_intropattern(x7) simple_intropattern(x8)
  simple_intropattern(x9) :=
  Intro x0; Intro x1; Intro x2; Intro x3; Intro x4;
- Intro x5; Intro x6; Intro x7; Intro x8; Intro x9.
+ Intro x5; Intro x6; Intro x7; Intro x8; Intro x9; repeat Intro_prop.
 
 Tactic Notation "Intros" simple_intropattern(x0)
  simple_intropattern(x1) simple_intropattern(x2)
@@ -1998,7 +2115,7 @@ Tactic Notation "Intros" simple_intropattern(x0)
  simple_intropattern(x9) simple_intropattern(x10) :=
  Intro x0; Intro x1; Intro x2; Intro x3; Intro x4;
  Intro x5; Intro x6; Intro x7; Intro x8; Intro x9;
- Intro x10.
+ Intro x10; repeat Intro_prop.
 
 Tactic Notation "Intros" simple_intropattern(x0)
  simple_intropattern(x1) simple_intropattern(x2)
@@ -2009,7 +2126,15 @@ Tactic Notation "Intros" simple_intropattern(x0)
  simple_intropattern(x11) :=
  Intro x0; Intro x1; Intro x2; Intro x3; Intro x4;
  Intro x5; Intro x6; Intro x7; Intro x8; Intro x9;
- Intro x10; Intro x11.
+ Intro x10; Intro x11; repeat Intro_prop.
+
+
+Ltac extract_exists_from_SEP_right :=
+match goal with
+  | |- ?Pre |-- ?Post =>
+     let P := fresh "PRE" in set (P := Pre);
+    extract_exists_in_SEP' Post; subst P
+end.
 
 Ltac Exists'' a :=
   first [apply exp_right with a
@@ -2017,6 +2142,7 @@ Ltac Exists'' a :=
          | rewrite exp_andp2; Exists'' a
          | rewrite exp_sepcon1; Exists'' a
          | rewrite exp_sepcon2; Exists'' a
+         | extract_exists_from_SEP_right; apply exp_right with a
          ].
 
 Ltac Exists' a :=

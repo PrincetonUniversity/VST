@@ -766,16 +766,6 @@ destr
 Qed.
 *)
 
-Lemma derives_extract_PROP : 
-  forall (P1: Prop) P QR S, 
-     (P1 -> PROPx P QR |-- S) ->
-     PROPx (P1::P) QR |-- S.
-Proof.
-intros.
-rewrite <- canonicalize.canon17.
-normalize.
-Qed.
-
 Lemma semax_call_id1_wow:
  forall  {A} (witness: A) (Frame: list mpred) 
            Espec {cs: compspecs} Delta P Q R ret id (paramty: typelist) (retty: type) (bl: list expr)

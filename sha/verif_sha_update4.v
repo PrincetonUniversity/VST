@@ -156,7 +156,7 @@ name n _n.
 unfold sha_update_loop_body.
 subst Delta; abbreviate_semax.
 assert (Hblocks' := Hblocks_lem Hblocks).
-assert_PROP (field_compatible (tarray tuchar (Zlength data)) [] d) as FC by entailer!.
+Time assert_PROP (field_compatible (tarray tuchar (Zlength data)) [] d) as FC by entailer!. (*1.8*)
 assert (DM: Zlength data < Int.modulus).
 { clear - FC. red in FC. simpl in FC. rewrite Z.max_r in FC. omega.
   specialize (Zlength_nonneg data); intros; omega. }
@@ -167,24 +167,24 @@ set (lo := Zlength blocks * 4 - Zlength frag) in *.
          (field_address0 (tarray tuchar (Zlength data)) [ArraySubsc lo] d) *
        data_block sh (sublist (lo+CBLOCKz) (Zlength data) data)
          (field_address0 (tarray tuchar (Zlength data)) [ArraySubsc (lo+CBLOCKz)] d))).
-  {entailer!.
+  { Time entailer!. (*2.5*)
    rewrite (split3_data_block lo (lo+CBLOCKz) sh data); auto;
      subst lo; Omega1.      
   }
  rewrite H6.
- normalize.
-forward_call (* sha256_block_data_order (c,data); *)
+ Time normalize. (*3.8*)
+Time forward_call (* sha256_block_data_order (c,data); *)
  (hashed++ blocks,  bl, c, 
   field_address0 (tarray tuchar (Zlength data))  [ArraySubsc lo] d,
-  sh, kv).
- unfold_data_at 1%nat.
- entailer!.
+  sh, kv). (*3.8*)
+ Time unfold_data_at 1%nat. (*0.8*)
+ Time entailer!. (*6.2*)
  split3; auto. apply divide_length_app; auto.
  simpl map. (* should not need this *)
- forward. (* data += SHA_CBLOCK; *)
- forward. (* len  -= SHA_CBLOCK; *)
+ Time forward. (* data += SHA_CBLOCK; *) (*5*)
+ Time forward. (* len  -= SHA_CBLOCK; *) (*6*)
  Exists (blocks++ bl).
- entailer!.
+ Time entailer!. (*17 SLOW*)
  subst lo. autorewrite with sublist.
  rewrite Z.mul_add_distr_r. 
  erewrite (offset_val_field_address0 CBLOCKz) by (try reflexivity; Omega1).
@@ -199,13 +199,13 @@ forward_call (* sha256_block_data_order (c,data); *)
  f_equal. f_equal. f_equal. Omega1.
  f_equal. f_equal. 
  autorewrite with sublist. Omega1.
- unfold_data_at 1%nat.
+ Time unfold_data_at 1%nat. (*0.8*)
  rewrite (split3_data_block lo (lo+CBLOCKz) sh data d)
     by (auto; subst lo; try Omega1).
  rewrite app_ass.
  rewrite H6.
- cancel.
-Qed.
+ Time cancel. (*1.2*)
+Time Qed. (*17*)
 
 Definition update_outer_if :=
      Sifthenelse
@@ -267,7 +267,7 @@ unfold update_outer_if.
 forward_if (sha_update_inv sh hashed len c d dd data kv false).
 * (* then clause *)
 
-forward.  (* fragment = SHA_CBLOCK-n; *)
+Time forward.  (* fragment = SHA_CBLOCK-n; *) (*2.2*)
 drop_LOCAL 5%nat.
 rewrite semax_seq_skip.
 fold (inv_at_inner_if sh hashed len c d dd data kv).
@@ -278,10 +278,10 @@ pose (j := inv_at_inner_if sh hashed len c d dd data kv).
 unfold inv_at_inner_if in j.
 simple apply (update_inner_if_proof Espec hashed dd data c d sh len kv);
   try assumption.
-forward. 
+Time forward. (*0.2*) 
 apply andp_left2; auto.
 * (* else clause *)
-forward.  (* skip; *)
+Time forward.  (* skip; *) (*0.3*)
 apply exp_right with nil. rewrite <- app_nil_end.
 assert (Int.unsigned (Int.repr (Zlength dd)) = Int.unsigned (Int.repr 0)) by (f_equal; auto).
 repeat rewrite Int.unsigned_repr in H1 by Omega1.
@@ -290,11 +290,11 @@ rewrite Zlength_correct in H1;  destruct dd; inv H1.
 autorewrite with sublist.
 simpl app; simpl intlist_to_Zlist.
 clear H0.
-Time entailer!.  (* 139 sec *)
+Time entailer!.  (* 139 sec -> 5.4 sec *)
 split.
 apply Z.divide_0_r.
 unfold field_address0. rewrite if_true.
-simpl. normalize.
+simpl. Time normalize. (*0.1*)
 eapply field_compatible0_cons_Tarray; try reflexivity; auto; try omega.
 (* TODO:  see if a "stronger" proof system could work here
   rewrite data_at_field_at.
@@ -302,10 +302,10 @@ eapply field_compatible0_cons_Tarray; try reflexivity; auto; try omega.
   ...
   with automatic cancel...
 *)
- unfold_data_at 1%nat.
- unfold_data_at 1%nat.
- cancel.
-Qed.
+ Time unfold_data_at 1%nat. (*0.7*)
+ Time unfold_data_at 1%nat. (*0.8*)
+ Time cancel. (*0.4*)
+Time Qed. (*5.4*)
 
 Lemma update_while_proof:
  forall (Espec : OracleKind) (hashed : list int) (dd data: list Z) kv
@@ -375,9 +375,9 @@ simple apply (update_loop_body_proof Espec sh hashed dd data c d len kv (hash_bl
    rewrite H8. autorewrite with sublist. Omega1.
  unfold sha_update_inv.
  clear dependent blocks.
- forward.
+ Time forward. (*0.2*)
  Exists blocks'.
- entailer!.
+ Time entailer!. (*2.9*)
  apply negb_false_iff in HRE. (* should not be necessary *)
  apply ltu_repr in HRE; Omega1.
-Qed.
+Time Qed. (*6*)

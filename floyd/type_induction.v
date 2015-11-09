@@ -318,7 +318,6 @@ simpl in *. destruct (cenv_cs ! i); try reflexivity; try solve [inv H ];
 simpl in *.
  inv H.
 simpl in H.
-Print rank_type.
  simpl.
  simp
   type_induction t; intros.

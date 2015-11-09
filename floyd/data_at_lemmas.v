@@ -590,7 +590,6 @@ type_induction t; intros;
 rewrite data_at'_ind; try apply FF_left.
 if_tac.
 + simpl. destruct i; simpl.
-SearchAbout memory_block.
 rewrite memory_block_eq.
 saturate_local.
 simpl.

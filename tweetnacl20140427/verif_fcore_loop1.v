@@ -431,20 +431,20 @@ Opaque crypto_core_salsa20_spec. Opaque crypto_core_hsalsa20_spec.
   (*Store into x[...]*)
   forward. clear FL.
 
-  entailer. 
-  apply (exp_right (upd_Znth_in_list (11 + i)
+  Time entailer!. (*14*) 
+  Exists (upd_Znth_in_list (11 + i)
      (upd_Znth_in_list (6 + i)
         (upd_Znth_in_list (1 + i)
            (upd_Znth_in_list (5 * i) X0
               (Vint (littleendian (Select16Q C i))))
            (Vint (littleendian (Select16Q Key1 i))))
         (Vint (littleendian (Select16Q Nonce i))))
-     (Vint (littleendian (Select16Q Key2 i))))).
-  entailer.
-  apply andp_right. 2: cancel.
-  apply prop_right. clear - X0cont I. apply XcontUpdate; trivial. }
-entailer. apply (exp_right l). entailer.
-Qed.
+     (Vint (littleendian (Select16Q Key2 i)))).
+  Time entailer!. (*4*) 
+    clear - X0cont I. apply XcontUpdate; trivial.
+  apply derives_refl. }
+Time entailer!. (*2.6*)
+Time Qed. (*304*)
 
 Lemma XX data l: X_content data 4 l -> 
   l = match data with ((Nonce, C), (Key1, Key2)) =>

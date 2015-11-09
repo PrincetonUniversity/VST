@@ -19,14 +19,16 @@ name out' _out.
 name in' _in.
 name k' _k.
 name c' _c.
-normalize. 
-forward_call (c, k, Z0, nonce, out, OUT, data) l.
-forward. apply (exp_right l).
-entailer. unfold fcore_result in H.
-remember (Snuffle20 (prepare_data data)) as d; symmetry in Heqd.
-destruct d. 2: inv H. rewrite Int.eq_true in H.
-apply prop_right. exists l0; split; trivial. 
-Qed.
+Time forward_call (c, k, Z0, nonce, out, OUT, data) l. (*2.3*)
+Time forward. (*1.7*)
+Exists l.
+Time entailer!. (*1.6*)
+{ unfold fcore_result in H.
+  remember (Snuffle20 (prepare_data data)) as d; symmetry in Heqd.
+  destruct d. 2: inv H. rewrite Int.eq_true in H.
+  exists l0; split; trivial. }
+apply derives_refl. 
+Time Qed.
 
 Lemma prepare_data_length data: length (prepare_data data) = 16%nat.
 Proof.
@@ -63,35 +65,36 @@ name out' _out.
 name in' _in.
 name k' _k.
 name c' _c.
-normalize. 
-forward_call (c, k, 1, nonce, out, OUT, data) l.
-forward. apply (exp_right l).
-entailer.
-apply prop_right. clear - H. unfold fcore_result in H.
-remember (Snuffle20 (prepare_data data)) as d; symmetry in Heqd.
-destruct d. 2: inv H. rewrite Int.eq_false in H.
-apply Snuffle_sub_simpl in Heqd. destruct Heqd as [s [SN I]].
-rewrite SN; clear SN. exists s; split; trivial.
-destruct data as[[Nonce C] [K L]].
-destruct C as [[[C1 C2] C3] C4]. 
-destruct Nonce as [[[N1 N2] N3] N4].
-destruct K as [[[K1 K2] K3] K4].  
-destruct L as [[[L1 L2] L3] L4]. 
-rewrite I in H.
-rewrite I in H.
-rewrite I in H.
-rewrite I in H.
-rewrite I in H.
-rewrite I in H.
-rewrite I in H.
-rewrite I in H. assumption.
-omega. reflexivity.
-omega. reflexivity.
-omega. reflexivity.
-omega. reflexivity.
-omega. reflexivity.
-omega. reflexivity.
-omega. reflexivity.
-omega. reflexivity.
-apply Int.one_not_zero.
-Qed.
+Time forward_call (c, k, 1, nonce, out, OUT, data) l. (*1.6*)
+Time forward. (*9*) (*Issue: prevent this term from exploding by setting the right thing Opaque*)
+Exists l.
+Time entailer!. (*5.6*)
+{ clear - H. unfold fcore_result in H.
+  remember (Snuffle20 (prepare_data data)) as d; symmetry in Heqd.
+  destruct d. 2: inv H. rewrite Int.eq_false in H.
+  apply Snuffle_sub_simpl in Heqd. destruct Heqd as [s [SN I]].
+  rewrite SN; clear SN. exists s; split; trivial.
+  destruct data as[[Nonce C] [K L]].
+  destruct C as [[[C1 C2] C3] C4]. 
+  destruct Nonce as [[[N1 N2] N3] N4].
+  destruct K as [[[K1 K2] K3] K4].  
+  destruct L as [[[L1 L2] L3] L4]. 
+  rewrite I in H.
+  rewrite I in H.
+  rewrite I in H.
+  rewrite I in H.
+  rewrite I in H.
+  rewrite I in H.
+  rewrite I in H.
+  rewrite I in H. assumption.
+  omega. reflexivity.
+  omega. reflexivity.
+  omega. reflexivity.
+  omega. reflexivity.
+  omega. reflexivity.
+  omega. reflexivity.
+  omega. reflexivity.
+  omega. reflexivity.
+  apply Int.one_not_zero. }
+apply derives_refl.
+Time Qed. (*6.1*)

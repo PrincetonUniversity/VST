@@ -1446,7 +1446,6 @@ with fill_l_cont (e: l_cont) (v: val): l_value :=
   end.
 
 (*
-Check rel_r_value.
 Lemma compute_LR_cont_sound: forall (cs: compspecs) (T1: PTree.t val) (T2: PTree.t vardesc) P Q R,
   (forall e v,
     compute_r_cont T1 T2 e = Some (inl v) ->

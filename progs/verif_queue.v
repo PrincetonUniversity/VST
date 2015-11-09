@@ -378,30 +378,24 @@ start_function.
 name Q _Q.
 name h _h.
 unfold fifo.
-normalize.
-forward_intro [hd tl].
-normalize.
+Intros ht; destruct ht as [hd tl].
+Intros.
 forward. (* h = Q->head; *)
 forward. (* return (h == NULL); *)
 unfold fifo.
-entailer.
-apply exp_right with (h,tl).
-entailer.
+Exists (h,tl).
 destruct (isnil contents).
 * entailer!.
   apply andp_right; auto with valid_pointer.
-* normalize.  
-  apply exp_right with prefix.
+* Intros prefix.
+Exists prefix.
   assert_PROP (isptr h).
     destruct prefix; entailer.
     rewrite lseg_cons_eq by auto. 
     entailer.
  destruct h; try contradiction.
-  entailer!.
-apply andp_right; entailer!;
- fail. Admitted.  (* This hack because otherwise we run out of memory *)
-   (* Each individual body_fifo_xxx can fit in memory, but not all of them. *)
-(*Qed.*)
+ entailer!. entailer!.
+Qed.
 
 Lemma body_fifo_new: semax_body Vprog Gprog f_fifo_new fifo_new_spec.
 Proof.
@@ -421,19 +415,10 @@ Proof.
   forward. (* Q->tail = NULL; *)
   forward. (* return Q; *)
   (* goal_5 *)
-  apply exp_right with Q; normalize. renormalize.
-  unfold fifo.
-  apply exp_right with (nullval,nullval).
+  Exists Q. unfold fifo. Exists (nullval,nullval).
   rewrite if_true by auto.
-  entailer!;
-  fail. Admitted.  (* This hack because otherwise we run out of memory *)
-(*Qed.*)
-
-Lemma readable_nonidentity_share:
-  forall sh, readable_share sh -> sepalg.nonidentity sh.
-Admitted. (* share hacking *)
-Hint Resolve readable_nonidentity_share.
-
+  entailer!.
+Qed.
 Lemma body_fifo_put: semax_body Vprog Gprog f_fifo_put fifo_put_spec.
 Proof.
 start_function.
@@ -441,16 +426,16 @@ name Q _Q.
 name p' _p.
 name h _h.
 name t _t.
-unfold fifo at 1. renormalize.
-forward_intro [hd tl]. normalize.
+unfold fifo at 1.
+Intros ht; destruct ht as [hd tl].
+Intros.
 (* goal_7 *)
-
 forward. (* p->next = NULL; *)
-renormalize.
 forward. (*   h = Q->head; *)
 forward_if 
   (PROP() LOCAL () SEP (`(fifo (contents ++ p :: nil) q))).
 * if_tac; entailer.  (* typechecking clause *)
+    (* entailer! should perhaps solve this one too *)
 * (* then clause *)
   subst.
   (* goal 9 *)
@@ -459,49 +444,44 @@ forward_if
   (* goal 10 *)
   entailer.
   destruct (isnil contents).
-  + subst. apply exp_right with (p',p').
-      simpl. rewrite if_false by congruence.
-      normalize.
-      apply exp_right with nil.
+  + subst. Exists (p',p').
+     simpl. rewrite if_false by congruence.
+     Exists (@nil val).
       rewrite lseg_nil_eq by auto.
       entailer!.
-   + normalize.
-      destruct prefix; normalize;
+   + Intros prefix.
+      destruct prefix;
       entailer!.
-      contradiction (field_compatible_isptr _ _ _ H4).
-      rewrite lseg_cons_eq by auto.
-      entailer.
-      contradiction (field_compatible_isptr _ _ _ H7).      
+      contradiction (field_compatible_isptr _ _ _ H6).
+      rewrite lseg_cons_eq by auto. simpl.
+      entailer!.
+      saturate_local. (* why is this needed? *)
+      contradiction (field_compatible_isptr _ _ _ H8).      
 * (* else clause *)
   forward. (*  t = Q->tail; *)
   destruct (isnil contents).
-  + abstract (apply semax_pre with FF; 
-         [entailer | apply semax_ff]).
-  + normalize. intro prefix. normalize.
+  + Intros. contradiction H; auto.
+  + Intros prefix.
      forward. (*  t->next=p; *)
   (* goal 12 *)
      forward. (* Q->tail=p; *)
   (* goal 13 *)
-     entailer.
-     unfold fifo.
-     apply exp_right with (h, p').
+     entailer!.
+     unfold fifo. Exists (h, p').
      rewrite if_false by (clear; destruct prefix; simpl; congruence).
-     normalize.
-     apply exp_right with (prefix ++ t :: nil).
+     Exists  (prefix ++ t :: nil).
      entailer.
      match goal with
      | |- _ |-- _ * _ * ?AA => remember AA as A
-     end.
-     (* prevent it from canceling! *)
+     end.     (* prevent it from canceling! *)
      cancel. subst A.
      eapply derives_trans; [ |
        apply (lseg_cons_right_neq _ _ _ _ _ (Vundef,Vundef));
         auto ].
      cancel.
 * (* after the if *)
-     forward; (* return ; *)
-      fail. Admitted.  (* This hack because otherwise we run out of memory *)
-(*Qed.*)
+     forward. (* return ; *)
+Qed.
 
 Lemma body_fifo_get: semax_body Vprog Gprog f_fifo_get fifo_get_spec.
 Proof.
@@ -509,40 +489,35 @@ start_function.
 name Q _Q.
 name h _h.
 name n _n.
-unfold fifo at 1. renormalize.
-forward_intro [hd tl].
+unfold fifo at 1.
+Intros ht; destruct ht as [hd tl].
 rewrite if_false by congruence.
-renormalize.
-forward_intro prefix. normalize.
+Intros prefix.
 forward.  (*   p = Q->head; *)
 destruct prefix; inversion H; clear H.
 + subst_any.
    rewrite lseg_nil_eq by auto.
-   normalize.
+   Intros.
    subst_any.
    forward. (*  n=h->next; *)
    forward. (* Q->head=n; *)
    forward. (* return p; *)
-   entailer!.
-   unfold fifo. apply exp_right with (nullval, h).
+   unfold fifo. Exists (nullval, h).
    rewrite if_true by congruence.
    entailer!.
 + rewrite lseg_cons_eq by auto.
-    forward_intro x. normalize.
+    Intros x. 
     simpl @valinject. (* can we make this automatic? *)
     subst_any.
     forward. (*  n=h->next; *)
     forward. (* Q->head=n; *)
-(*    replace_SEP 3%Z (`(data_at Tsh t_struct_fifo (x, tl) q)); [ entailer! | ]. (* can we do this automatically? *)
-*)
     forward. (* return p; *)
-    entailer.
-    unfold fifo. normalize. apply exp_right with (n, tl).
+    unfold fifo. Exists (n, tl).
     rewrite if_false by (destruct prefix; simpl; congruence).
-    normalize. apply exp_right with prefix.
-    entailer!;
-   fail. Admitted.  (* This hack because otherwise we run out of memory *)
-(* Qed.*)
+    Exists prefix.
+    entailer!.
+    apply derives_refl.
+Qed.
 
 Lemma body_make_elem: semax_body Vprog Gprog f_make_elem make_elem_spec.
 Proof.
@@ -559,20 +534,19 @@ forward_call (*  p = mallocN(sizeof ( *p));  *)
 2:  eapply malloc_compatible_field_compatible; try eassumption; 
       auto with typeclass_instances;
       exists 2; reflexivity.
-Time forward.  (*  p->a=a; *)  (* 11.6 sec -> 10.78 sec -> 7.8 sec -> 6.36*)
+Time forward.  (*  p->a=a; *)  (* 11.6 sec -> 10.78 sec -> 7.8 sec -> 6.36 -> 0.775 *)
 (* UGLY:  there's an (offset_val Int.zero p0) where a p0 would
   suffice.  One could rewrite <- field_at_offset_zero;
   but this would slow down the next forward by a factor of 2.
   The better fix would be to adjust the semax_SC_field_store
   theorem, and the store_tac, to get rid of (offset zero).   *)
-Time forward.  (*  p->b=b; *) (* 21 secs -> 56 sec -> 6.82 sec -> 4.84 *)
-Time forward. (* return p; *)  (* 4.73 sec -> 5.0 *)
-apply exp_right with p.
-Time entailer.  (* 7.2 sec -> 5.6 *)
+Time forward.  (*  p->b=b; *) (* 21 secs -> 56 sec -> 6.82 sec -> 4.84 -> 1.122 *)
+Time forward. (* return p; *)  (* 4.73 sec -> 5.0 -> 2.76 *)
+Exists p.
+Time entailer!.  (* 7.2 sec -> 5.6 -> 1.074 *)
 rewrite make_unmake.
-solve [auto];
-fail. Admitted.  (* This hack because otherwise we run out of memory *)
-(*Qed.*)
+solve [auto].
+Qed.
 
 Hint Resolve readable_share_Qsh'.
 
@@ -593,12 +567,14 @@ forward_call (* fifo_put(Q,p);*)
 
 forward_call  (*  p = make_elem(2,20); *)
      (Int.repr 2, Int.repr 20) p2.
+simpl app.
  forward_call  (* fifo_put(Q,p); *)
     ((q,(p':: nil)),p2).
+simpl app.
 forward_call  (*   p' = fifo_get(Q); p = p'; *)
     ((q,(p2 :: nil)),p') vret.
 subst vret.
-Time forward. (*   i = p->a;  *) (* 28.8 sec -> 15.2 sec *)
+Time forward. (*   i = p->a;  *) (* 28.8 sec -> 1.96 sec *)
 forward. (*   j = p->b; *)
 
 forward_call (*  freeN(p, sizeof( *p)); *)
@@ -616,9 +592,8 @@ pose (work_around_coq_bug := fifo [p2] q *
  rewrite data_at__memory_block by reflexivity. entailer.
 }
 unfold map.
-forward; (* return i+j; *)
-fail. Admitted.  (* This hack because otherwise we run out of memory *)
-(*Qed.*)
+forward. (* return i+j; *)
+Qed.
 
 Existing Instance NullExtension.Espec.
 

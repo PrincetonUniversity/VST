@@ -91,7 +91,7 @@ Focus 2.
     Opaque littleendian.
     Opaque littleendian_invert. Opaque Snuffle20. Opaque prepare_data. 
     Opaque QuadByte2ValList.
-forward_for_simple_bound 16 (EX i:Z, 
+Time forward_for_simple_bound 16 (EX i:Z, 
   (PROP  ()
    LOCAL  (lvar _t (tarray tuint 4) t;
    lvar _y (tarray tuint 16) y; lvar _x (tarray tuint 16) x;
@@ -103,45 +103,45 @@ forward_for_simple_bound 16 (EX i:Z,
    `(@data_at_ CompSpecs Tsh (tarray tuint 4) t); `(@data_at_ CompSpecs Tsh (tarray tuint 16) w);
    `(CoreInSEP data (nonce, c, k));
    `(EX l:_, !!HFalse_inv l i xs ys && @data_at CompSpecs Tsh (tarray tuchar 64) l out)))).
-  { entailer. apply (exp_right OUT). entailer.
-    apply prop_right. unfold HFalse_inv. split; trivial; intros. omega. } 
-  { rename H into I;  normalize. intros l; normalize. rename H into INV_l.
-    assert_PROP (Zlength (map Vint xs) = 16). entailer. rename H into XL; rewrite Zlength_map in XL.
+  (*2.9*)
+  { Exists OUT. Time entailer!. (*5.6*)
+    split; trivial; intros. omega. } 
+  { rename H into I. Intros l. rename H into INV_l.
+    Time assert_PROP (Zlength (map Vint xs) = 16) as XL by entailer!. (*3*)
+    rewrite Zlength_map in XL.
     destruct (Znth_mapVint (xs:list int) i Vundef) as [xi Xi]; try omega.
-    assert_PROP (Zlength (map Vint ys) = 16). entailer. rename H into YL; rewrite Zlength_map in YL.
+    Time assert_PROP (Zlength (map Vint ys) = 16) as YL by entailer!.
+    rewrite Zlength_map in YL.
     destruct (Znth_mapVint ys i Vundef) as [yi Yi]; try omega.
-    forward. 
-    { entailer. apply prop_right. rewrite Xi. simpl; trivial. }
-    forward.
-    { entailer. apply prop_right. rewrite Yi. simpl; trivial. } 
-    rewrite Xi, Yi.
-    forward.
+    Time forward; rewrite Xi. (*9.1*)
+    Time solve[entailer!]. (*2.9*) 
+    Time forward; rewrite Yi. (*9.6*)
+    Time solve[entailer!]. (*3.1*) 
+    Time forward. (*3.7*)
     Opaque Z.mul. Opaque Z.add. Opaque Z.sub.
-    rewrite data_at_isptr at 1. normalize. rename Pout into isptrOut.
-    forward.
+    rewrite data_at_isptr with (p:=out). Time normalize. (*4.5*) rename Pout into isptrOut.
+    Time forward. (*3.9*)
     assert (ZL: Zlength l = 64). apply INV_l.
-    assert_PROP(field_compatible (Tarray tuchar 64 noattr) [] out). entailer.
-    rename H into FCO.
+    Time assert_PROP(field_compatible (Tarray tuchar 64 noattr) [] out) as FCO by entailer!. (*3*)
     rewrite <- ZL, (split3_data_at_Tarray_at_tuchar Tsh (Zlength l) (4 *i) 4); try rewrite ZL; try omega; trivial.
-    normalize. 
+    Time normalize. 
 Transparent core_spec. Transparent ld32_spec. Transparent L32_spec. Transparent st32_spec.
 Transparent crypto_core_salsa20_spec. Transparent crypto_core_hsalsa20_spec.
-    forward_call (offset_val (Int.repr (4 * i)) out, Int.add xi yi).
+    Time forward_call (offset_val (Int.repr (4 * i)) out, Int.add xi yi). (*6.8*)
 Opaque core_spec. Opaque ld32_spec. Opaque L32_spec. Opaque st32_spec.
 Opaque crypto_core_salsa20_spec. Opaque crypto_core_hsalsa20_spec.
-    { entailer. unfold at_offset at 1. apply (exp_right (sublist (4 * i) (4 + 4 * i) l)).
-      entailer. cancel. } 
+    { Exists (sublist (4 * i) (4 + 4 * i) l).
+      unfold at_offset at 1. 
+      Time entailer!. (*6*) }
 
-    entailer. rename _id1 into yi. (*Issue these kinds of weird renamings done by entailer etc show up at various places*)
-    apply (exp_right ((sublist 0 (4 * i) l) ++ 
+    Exists ((sublist 0 (4 * i) l) ++ 
                       (QuadByte2ValList (littleendian_invert (Int.add xi yi))) ++
-                      (sublist (4 + 4 * i) 64 l))).
-    { unfold QByte. entailer.
-      apply andp_right.
-      apply prop_right. split; intros. do 2 rewrite Zlength_app; repeat rewrite Zlength_sublist.
+                      (sublist (4 + 4 * i) 64 l)).
+    Time entailer!.
+    {  split; intros. do 2 rewrite Zlength_app; repeat rewrite Zlength_sublist.
         rewrite <- QuadByteValList_ZLength, Zminus_0_r. rewrite (Z.add_comm _ (4*i)). rewrite Z.sub_add_distr. 
         do 2 rewrite Z.add_sub_assoc, Z.add_simpl_l. trivial. 
-        omega. omega. omega. omega.
+        omega. omega. omega. omega. 
       destruct INV_l as [_ INV_l].
       destruct (zlt ii i).
         + destruct (INV_l ii) as [x_ii [Z_ii [y_ii [Y_iiA Y_iiB]]]]. omega.
@@ -152,12 +152,13 @@ Opaque crypto_core_salsa20_spec. Opaque crypto_core_hsalsa20_spec.
           - omega.
           - rewrite Zlength_sublist, Zminus_0_r; omega.
         + assert (IX: ii = i) by omega. subst ii. clear g INV_l.
-          exists xi. split; trivial. exists yi; split; trivial.
+          exists xi. split; trivial. exists _id1; split; trivial.
           rewrite sublist_app2; rewrite Zlength_sublist; try rewrite Zminus_0_r; try omega.
           rewrite Zminus_diag, Z.add_simpl_l.
           rewrite sublist0_app1; try rewrite <- QuadByteValList_ZLength; try omega.
-          apply sublist_same. trivial. apply QuadByteValList_ZLength. 
-       + cancel. Transparent Z.sub. 
+          apply sublist_same. trivial. apply QuadByteValList_ZLength. }
+
+    { unfold QByte. Transparent Z.sub. 
          rewrite (split3_data_at_Tarray_at_tuchar Tsh 64 (4 *i) 4); 
           repeat rewrite Zlength_app; repeat rewrite Zlength_sublist; repeat rewrite Zminus_0_r; repeat rewrite <- QuadByteValList_ZLength; trivial.
           rewrite sublist0_app1. rewrite sublist_sublist. repeat rewrite Zplus_0_r. cancel.
@@ -179,6 +180,6 @@ Opaque crypto_core_salsa20_spec. Opaque crypto_core_hsalsa20_spec.
           omega. omega. omega. omega. } 
     } 
   apply derives_refl.
-unfold HFalsePostCond. entailer. apply (exp_right l); entailer.
+unfold HFalsePostCond.  (*Exists l. *) Time entailer!. (*2.6*)
 (*With temp _i (Vint (Int.repr 16) in LOCAL of HfalsePostCond: apply derives_refl. *)
-Qed.
+Time Qed. (*57*)

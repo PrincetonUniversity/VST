@@ -235,15 +235,18 @@ replace_SEP 0 `(data_at Tsh t_struct_SHA256state_st
   rewrite <- H8.
   rewrite (split2_array_at _ _ _ 0 (Zlength dd) 64) by Omega1.
   rewrite (split2_array_at _ _ _ 0 (Zlength dd) 64) by Omega1.
-  simplify_value_fits in H5. destruct H5.
-  change (@reptype CompSpecs tuchar) with val in H5. (* should not need this! *)
+  simplify_value_fits in H14. destruct H14.
+  change (@reptype CompSpecs tuchar) with val in H14. (* should not need this! *)
   pose proof CBLOCKz_eq.
   pose proof (Zlength_nonneg dd).
   autorewrite with sublist.
   rewrite H17.
-  cancel.
+  change  (@reptype CompSpecs
+        (@nested_field_type CompSpecs t_struct_SHA256state_st
+           [ArraySubsc 0; StructField _data])) with val.
+  cancel. 
   apply derives_trans with (array_at_ Tsh t_struct_SHA256state_st [StructField _data] (Zlength dd) 64 c');
-     cancel.
+     [ cancel | apply derives_refl].
 }
 (* end of TODO *)
 forward. (* n = c->num; *)
@@ -251,7 +254,8 @@ forward. (* p=c->data; *)
     (* TODO: should this produce field_address instead of (Int.repr 40) ? *)
 assert_PROP (field_address t_struct_SHA256state_st [StructField _data] c
           = offset_val (Int.repr 40) c).
-  unfold_data_at 1%nat; rewrite (field_at_compatible' _ _ [StructField _data]).
+  unfold_data_at 1%nat.
+ rewrite (field_at_compatible' _ _ [StructField _data]).
   entailer!.
 rewrite <- H0.
 apply semax_seq with (sha_update_inv sh hashed len c d dd data kv false).
@@ -268,7 +272,6 @@ omega.
 
 abbreviate_semax.
 unfold sha_update_inv.   apply extract_exists_pre; intro blocks.
-normalize.
 forward.    (* c->num=len; *)
 
 apply semax_seq with (EX  a' : s256abs,

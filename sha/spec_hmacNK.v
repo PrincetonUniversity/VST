@@ -482,3 +482,14 @@ Definition keyedHMS: hmacstate :=
   (emptySha, (emptySha, emptySha)).*)
 
 Definition HMS : hmacstate := default_val t_struct_hmac_ctx_st.
+
+Lemma change_compspecs_t_struct_SHA256state_st:
+  @data_at spec_sha.CompSpecs Tsh t_struct_SHA256state_st =
+  @data_at CompSpecs Tsh t_struct_SHA256state_st.
+Proof.
+extensionality gfs v.
+reflexivity.
+Qed.
+
+Hint Rewrite change_compspecs_t_struct_SHA256state_st : norm.
+

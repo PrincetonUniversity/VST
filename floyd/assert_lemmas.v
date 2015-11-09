@@ -708,8 +708,14 @@ Lemma TT_sepcon {A} {NA: NatDed A}{SA: SepLog A}{CA: ClassicalSep A}:
 Proof. intros. rewrite sepcon_comm; apply sepcon_TT.
 Qed.
 
-Hint Resolve (@derives_refl mpred _) : cancel.
-Hint Resolve (@now_later mpred _ _) : cancel.
+(* These versions can sometimes take minutes,
+   when A and B can't be unified
+Hint Extern 1 (_ |-- _) => (simple apply (@derives_refl mpred _) ) : cancel.
+Hint Extern 1 (_ |-- |> _) => (simple apply (@now_later mpred _ _) ) : cancel.
+*)
+
+Hint Extern 2 (?A |-- ?B) => (constr_eq A B; simple apply derives_refl) : cancel.
+Hint Extern 2 (?A |-- |> ?B) => (constr_eq A B; simple apply now_later) : cancel.
 
 Lemma cancel1_start:
  forall P Q : mpred, 
@@ -918,7 +924,7 @@ match goal with
  end;
   repeat first [rewrite emp_sepcon | rewrite sepcon_emp];
   pull_left (@TT mpred _);
-  first [apply derives_refl
+  first [ match goal with |- ?A |-- ?A => apply derives_refl end
           | apply TT_right
           | apply sepcon_TT 
           | apply TT_sepcon
