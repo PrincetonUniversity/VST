@@ -769,7 +769,9 @@ Module aggregate_pred.
 
 Open Scope Z.
 Open Scope logic.
-Export floyd.aggregate_type.aggregate_type.
+
+Require Export floyd.fieldlist.
+Require Export floyd.aggregate_type.
 
 Definition array_pred: forall {A: Type} (d:A) (lo hi: Z) (P: Z -> A -> val -> mpred) (v: list A),
     val -> mpred := @array_pred.

@@ -2,8 +2,8 @@ Require Import floyd.base.
 Require Import floyd.assert_lemmas.
 Require Import floyd.client_lemmas.
 Require Import floyd.nested_field_lemmas.
-Require Import type_induction.
-Require floyd.aggregate_type. Import floyd.aggregate_type.aggregate_type.
+Require Import floyd.type_induction.
+Require Import floyd.aggregate_type.
 Require Import floyd.reptype_lemmas.
 Require Import floyd.proj_reptype_lemmas.
 Require Import Coq.Classes.RelationClasses.

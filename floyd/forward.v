@@ -2267,9 +2267,9 @@ Ltac really_simplify_one_thing := (* obsolete *)
                  really_simplify (member_dec A B);
                 cbv beta iota zeta
          end
-     | context [@aggregate_type.proj_struct _ _ _ _ _] => 
+     | context [@proj_struct _ _ _ _ _] => 
          cbv delta [
-             aggregate_type.proj_struct proj_compact_prod list_rect
+             proj_struct proj_compact_prod list_rect
          ]
      | context [unfold_reptype _] =>
         unfold unfold_reptype at 1; rewrite <- eq_rect_eq
@@ -2325,7 +2325,7 @@ Ltac solve_load_rule_evaluation' := (* old faster version *)
   really_simplify_some_things;
   cbv beta iota delta [proj_gfield_reptype]; 
   really_simplify_some_things;
-  cbv beta iota delta [aggregate_type.proj_struct proj_struct proj_compact_prod list_rect]; 
+  cbv beta iota delta [proj_struct proj_struct proj_compact_prod list_rect]; 
   really_simplify_some_things;
   repeat match goal with A := _ |- _ => subst A end;
   really_simplify_some_things;
@@ -2681,7 +2681,7 @@ match goal with |- context [@proj_reptype ?cs ?t ?gfs ?v] =>
  unfold proj_reptype, proj_gfield_reptype, unfold_reptype,
    nested_field_type, nested_field_rec in Hd;
  rewrite ?eq_rect_r_eq, <- ?eq_rect_eq in Hd;
- simpl aggregate_type.aggregate_type.proj_struct in Hd;
+ simpl proj_struct in Hd;
  rewrite ?eq_rect_r_eq, <- ?eq_rect_eq in Hd;
   subst d
 end.
