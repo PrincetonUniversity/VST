@@ -2624,7 +2624,7 @@ Proof.
   normalize.
   rewrite field_compatible_field_address by auto.
   subst.
-  apply solve_ramify with emp; [rewrite sepcon_emp | rewrite emp_sepcon]; auto.
+  apply RAMIF_PLAIN.solve with emp; [rewrite sepcon_emp | rewrite emp_sepcon]; auto.
   apply andp_right; auto.
   eapply derives_trans; [apply mapsto_tc_val' |].
   normalize.

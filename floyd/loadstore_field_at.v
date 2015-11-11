@@ -109,8 +109,8 @@ Proof.
     eapply derives_trans; [| apply eval_lvalue_nested_efield; eassumption].
     rewrite <- insert_local; solve_andp.
   + eapply self_ramify_trans; [exact H7 |].
-    apply self_ramify_spec.
-    apply mapsto_field_at_ramify; [auto | rewrite <- H11; auto | auto | auto].
+    eapply RAMIF_PLAIN.weak_ramif_spec.
+    apply mapsto_field_at_ramify; [auto | rewrite <- H11; auto | auto | eauto].
   + rewrite (add_andp _ _ H8), (add_andp _ _ H9).
     eapply derives_trans; [| eapply tc_lvalue_nested_efield; eassumption].
     rewrite <- insert_local; solve_andp.
@@ -178,8 +178,8 @@ Proof.
     eapply derives_trans; [| apply eval_lvalue_nested_efield; eassumption].
     rewrite <- insert_local; solve_andp.
   + eapply self_ramify_trans; [exact H7 |].
-    apply self_ramify_spec.
-    apply mapsto_field_at_ramify; [auto | rewrite <- H10; auto | auto | auto].
+    eapply RAMIF_PLAIN.weak_ramif_spec.
+    apply mapsto_field_at_ramify; [auto | rewrite <- H10; auto | auto | eauto].
   + rewrite (add_andp _ _ H8), (add_andp _ _ H9).
     eapply derives_trans; [| eapply tc_lvalue_nested_efield; eassumption].
     rewrite <- insert_local; solve_andp.
@@ -260,7 +260,7 @@ Proof.
     eapply derives_trans; [| apply eval_lvalue_nested_efield; eassumption].
     rewrite <- insert_local; solve_andp.
   + rewrite <- H10; exact H8.
-  + eapply ramify_trans; [exact H6 |].
+  + eapply RAMIF_PLAIN.trans; [exact H6 |].
     apply mapsto_field_at_ramify; [auto | rewrite <- H10; auto | | auto].
     symmetry; apply by_value_default_val; auto.
   + rewrite (add_andp _ _ H7), (add_andp _ _ H9).

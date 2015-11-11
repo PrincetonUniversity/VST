@@ -379,37 +379,19 @@ Proof.
   intros; erewrite H0 by eauto; auto.
 Qed.
 
-Lemma struct_pred_proj: forall m {A} (P: forall it, A it -> val -> mpred) (i: ident) v p d,
+Lemma struct_pred_not_member: forall m {A} (P: forall it, A it -> val -> mpred) (i: ident) v p,
   let P' it := if ident_eq i (fst it) then fun _ _ => emp else P it in
-  members_no_replicate m = true ->
-  in_members i m ->
-  struct_pred m P v p = P _ (proj_struct i m v d) p * struct_pred m P' v p.
+  ~ in_members i m ->
+  struct_pred m P v p = struct_pred m P' v p.
 Proof.
   intros.
-  revert H0 d.
-  assert (
-   (in_members i m ->
-    forall d,
-    struct_pred m P v p =
-      P _ (proj_struct i m v d) p * struct_pred m P' v p) /\
-   (~ in_members i m ->
-    struct_pred m P v p = struct_pred m P' v p)); [| tauto].
-  destruct m as [| (i0, t0) m]; [split; [intros [] | auto] |].
+  destruct m as [| (i0, t0) m]; [auto |].
   unfold proj_struct, field_type in *.
   revert i0 t0 H v; induction m as [| (i1, t1) m]; intros i0 t0 H.
-  + subst P'; simpl.
-    split; intros.
-    - destruct H0; [simpl in H0; subst i | tauto].
-      destruct (ident_eq i0 i0); [| congruence].
-      destruct (member_dec (i0, t0) (i0, t0)); [| congruence].
-      unfold eq_rect_r; rewrite <- eq_rect_eq.
-      rewrite sepcon_emp; auto.
-    - intros.
-      rewrite if_false; auto.
-      intro; apply H0; subst; left; auto.
-  + pose proof H.
-    apply members_no_replicate_ind in H0; destruct H0.
-    set (M := (i1, t1) :: m).
+  + intros; subst P'; simpl.
+    rewrite if_false; auto.
+    intro; apply H; subst; left; auto.
+  + set (M := (i1, t1) :: m).
     simpl compact_prod; simpl Ctypes.field_type.
     intros v.
     subst M.
@@ -417,25 +399,63 @@ Proof.
       with (P _ (fst v) p * struct_pred ((i1, t1) :: m) P (snd v) p).
     change (struct_pred ((i0, t0) :: (i1, t1) :: m) P' v p) 
       with (P' _ (fst v) p * struct_pred ((i1, t1) :: m) P' (snd v) p).
-    split; destruct (ident_eq i i0).
-    - intros _ ?; subst i0.
+    destruct (ident_eq i i0).
+    - subst P'; intros; subst.
+      exfalso; apply H.
+      left; auto.
+    - intros.
+      f_equal.
+      * unfold P'.
+        rewrite if_false by auto.
+        auto.
+      * apply IHm.
+        intro; apply H; right; auto.
+Qed.
+
+Lemma struct_pred_proj: forall m {A} (P: forall it, A it -> val -> mpred) (i: ident) v p d,
+  let P' it := if ident_eq i (fst it) then fun _ _ => emp else P it in
+  members_no_replicate m = true ->
+  in_members i m ->
+  struct_pred m P v p = P _ (proj_struct i m v d) p * struct_pred m P' v p.
+Proof.
+  intros.
+  destruct m as [| (i0, t0) m]; [inv H0 |].
+  unfold proj_struct, field_type in *.
+  revert i0 t0 H v d H0; induction m as [| (i1, t1) m]; intros.
+  + subst P'; simpl in *.
+    destruct H0; [simpl in H0; subst i | tauto].
+    destruct (ident_eq i0 i0); [| congruence].
+    destruct (member_dec (i0, t0) (i0, t0)); [| congruence].
+    unfold eq_rect_r; rewrite <- eq_rect_eq.
+    rewrite sepcon_emp; auto.
+  + pose proof H.
+    apply members_no_replicate_ind in H1; destruct H1.
+    set (M := (i1, t1) :: m).
+    simpl compact_prod in v |- *; simpl Ctypes.field_type in d |- *.
+    subst M.
+    change (struct_pred ((i0, t0) :: (i1, t1) :: m) P v p) 
+      with (P _ (fst v) p * struct_pred ((i1, t1) :: m) P (snd v) p).
+    change (struct_pred ((i0, t0) :: (i1, t1) :: m) P' v p) 
+      with (P' _ (fst v) p * struct_pred ((i1, t1) :: m) P' (snd v) p).
+    destruct (ident_eq i i0).
+    - subst i0.
       f_equal.
       * simpl.
         destruct (member_dec (i, t0) (i, t0)); [| congruence].
         unfold eq_rect_r; rewrite <- eq_rect_eq.
         auto.
-      * rewrite (proj2 (IHm _ _ H1 (snd v))) by auto.
-        unfold P' at 2.
+      * erewrite struct_pred_not_member by eauto.
+        unfold P' at 1.
         rewrite if_true by auto.
         rewrite emp_sepcon; auto.
     - intros.
-      destruct H2; [simpl in H2; congruence |].
+      destruct H0; [simpl in H0; congruence |].
       rewrite <- sepcon_assoc, (sepcon_comm _ (P' _ _ _)), sepcon_assoc.
       f_equal.
       * unfold P'.
         rewrite if_false by (simpl; congruence).
         auto.
-      * erewrite (proj1 (IHm _ _ H1 (snd v)) H2 d).
+      * erewrite IHm by eauto.
         f_equal.
         simpl.
         match goal with
@@ -444,46 +464,81 @@ Proof.
                   [inversion e; congruence |]
         end.
         auto.
-    - subst P'; clear - e; intros; subst.
-      exfalso; apply H.
-      left; auto.
-    - intros.
-      f_equal.
-      * unfold P'.
-        rewrite if_false by auto.
-        auto.
-      * apply (proj2 (IHm _ _ H1 (snd v))).
-        intro; apply H2; right; auto.
 Qed.
 
-(*
-Lemma struct_pred_ramif: forall m {A} (P: forall it, A it -> val -> mpred) (i: ident) v v0 p d,
+Lemma struct_pred_upd: forall m {A} (P: forall it, A it -> val -> mpred) (i: ident) v p v0,
+  let P' it := if ident_eq i (fst it) then fun _ _ => emp else P it in
+  members_no_replicate m = true ->
+  in_members i m ->
+  struct_pred m P (upd_struct i m v v0) p = P _ v0 p * struct_pred m P' v p.
+Proof.
+  intros.
+  destruct m as [| (i0, t0) m]; [inv H0 |].
+  unfold proj_struct, field_type in *.
+  revert i0 t0 H v v0 H0; induction m as [| (i1, t1) m]; intros.
+  + subst P'; simpl in *.
+    destruct H0; [simpl in H0; subst i | tauto].
+    destruct (ident_eq i0 i0); [| congruence].
+    destruct (member_dec (i0, t0) (i0, t0)); [| congruence].
+    unfold eq_rect_r; rewrite <- eq_rect_eq.
+    rewrite sepcon_emp; auto.
+  + pose proof H.
+    apply members_no_replicate_ind in H1; destruct H1.
+    simpl compact_prod in v |- *; simpl Ctypes.field_type in v0 |- *.
+    set (v' := (upd_struct i ((i0, t0) :: (i1, t1) :: m) v v0)).
+    change (struct_pred ((i0, t0) :: (i1, t1) :: m) P v' p) 
+      with (P _ (fst v') p * struct_pred ((i1, t1) :: m) P (snd v') p).
+    change (struct_pred ((i0, t0) :: (i1, t1) :: m) P' v p) 
+      with (P' _ (fst v) p * struct_pred ((i1, t1) :: m) P' (snd v) p).
+    subst v'.
+    simpl upd_struct.
+    destruct (ident_eq i i0).
+    - subst i0.
+      destruct (member_dec (i, t0) (i, t0)); [| congruence].
+      f_equal.
+      * simpl.
+        unfold eq_rect_r; rewrite <- eq_rect_eq.
+        auto.
+      * unfold eq_rect_r; rewrite <- eq_rect_eq.
+        change (snd (v0, snd v)) with (snd v).
+        erewrite struct_pred_not_member by eauto.
+        unfold P' at 1.
+        rewrite if_true by auto.
+        rewrite emp_sepcon; auto.
+    - destruct H0; [simpl in H0; congruence |].
+      rewrite <- sepcon_assoc, (sepcon_comm _ (P' _ _ _)), sepcon_assoc.
+      match goal with
+      | |- appcontext [member_dec (i, ?t') (i0, t0)] =>
+              destruct (member_dec (i, t') (i0, t0));
+                [inversion e; congruence |]
+      end.
+      f_equal.
+      * unfold P'; simpl.
+        rewrite if_false by (simpl; congruence).
+        auto.
+      * simpl snd.
+        simpl in IHm |- *; erewrite IHm by auto.
+        reflexivity.
+Qed.
+
+Lemma struct_pred_ramif: forall m {A} (P: forall it, A it -> val -> mpred) (i: ident) v p d,
   in_members i m ->
   members_no_replicate m = true ->
   struct_pred m P v p |--
     P _ (proj_struct i m v d) p *
-     (P _ v0 p -* struct_pred m P (upd_struct i m v v0) p).
+     (ALL v0: _, P _ v0 p -* struct_pred m P (upd_struct i m v v0) p).
 Proof.
   intros.
   set (P' it := if ident_eq i (fst it) then fun _ _ => emp else P it).
-  apply solve_ramify with (struct_pred m P' v p).
-  + replace 
+  apply RAMIF_Q.solve with (struct_pred m P' v p).
+  + apply derives_refl'.
+    apply struct_pred_proj; auto.
+  + intro v0.
+    apply derives_refl'.
+    symmetry; rewrite sepcon_comm.
+    apply struct_pred_upd; auto.
+Qed.
 
-     (P _ v0 p -* struct_pred m P (upd_struct i m v v0) p).
-
-
-unfold proj_struct, field_type.
-    destruct m as [| (i0, t0) m]; [inversion H |].
-    subst P'.
-    revert v v0 d H H0; induction m; intros.
-    - inv H; [| tauto].
-      revert v v0 d; simpl.
-      destruct (ident_eq i0 i0); [| congruence]; intros.
-      destruct (member_dec (i0, t0) (i0, t0)); [| congruence].
-      unfold eq_rect_r; rewrite <- eq_rect_eq.
-      rewrite sepcon_emp; auto.
-    - SearchAbout in_members sumbool.
-*)
 Lemma at_offset_struct_pred: forall m {A} (P: forall it, A it -> val -> mpred) v p ofs,
   at_offset (struct_pred m P v) ofs p = struct_pred m (fun it v => at_offset (P it v) ofs) v p.
 Proof.
@@ -932,6 +987,14 @@ Definition array_pred_ext:
 Definition at_offset_array_pred: forall {A} (d:A) lo hi P v ofs p,
   at_offset (array_pred d lo hi P v) ofs p = array_pred d lo hi (fun i v => at_offset (P i v) ofs) v p
 := @at_offset_array_pred.
+
+Definition struct_pred_ramif: forall m {A} (P: forall it, A it -> val -> mpred) (i: ident) v p d,
+  in_members i m ->
+  members_no_replicate m = true ->
+  struct_pred m P v p |--
+    P _ (proj_struct i m v d) p *
+     (ALL v0: _, P _ v0 p -* struct_pred m P (upd_struct i m v v0) p)
+:= @struct_pred_ramif.
 
 Definition struct_pred_ext_derives:
   forall m {A0 A1} (P0: forall it, A0 it -> val -> mpred) (P1: forall it, A1 it -> val -> mpred) v0 v1 p,
