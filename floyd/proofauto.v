@@ -13,7 +13,7 @@ Require Export floyd.nested_pred_lemmas.
 Require Export floyd.nested_field_lemmas.
 Require Export floyd.efield_lemmas.
 Require Export floyd.mapsto_memory_block.
-Require floyd.aggregate_type. Export floyd.aggregate_type.aggregate_type.
+Require Export floyd.aggregate_type.
 Require floyd.aggregate_pred. Export floyd.aggregate_pred.aggregate_pred.
 Require Export floyd.reptype_lemmas.
 Require Export floyd.data_at_lemmas.

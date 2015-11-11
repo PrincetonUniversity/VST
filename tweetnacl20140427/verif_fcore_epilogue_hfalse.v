@@ -119,12 +119,12 @@ Time forward_for_simple_bound 16 (EX i:Z,
     Time solve[entailer!]. (*3.1*) 
     Time forward. (*3.7*)
     Opaque Z.mul. Opaque Z.add. Opaque Z.sub.
-    rewrite data_at_isptr with (p:=out). Time normalize. (*4.5*) rename Pout into isptrOut.
+    Time assert_PROP (isptr out) as Pout by entailer!. (*3.2*)
     Time forward. (*3.9*)
     assert (ZL: Zlength l = 64). apply INV_l.
     Time assert_PROP(field_compatible (Tarray tuchar 64 noattr) [] out) as FCO by entailer!. (*3*)
     rewrite <- ZL, (split3_data_at_Tarray_at_tuchar Tsh (Zlength l) (4 *i) 4); try rewrite ZL; try omega; trivial.
-    Time normalize. 
+    Time normalize. (*5.5*)
 Transparent core_spec. Transparent ld32_spec. Transparent L32_spec. Transparent st32_spec.
 Transparent crypto_core_salsa20_spec. Transparent crypto_core_hsalsa20_spec.
     Time forward_call (offset_val (Int.repr (4 * i)) out, Int.add xi yi). (*6.8*)
@@ -132,12 +132,12 @@ Opaque core_spec. Opaque ld32_spec. Opaque L32_spec. Opaque st32_spec.
 Opaque crypto_core_salsa20_spec. Opaque crypto_core_hsalsa20_spec.
     { Exists (sublist (4 * i) (4 + 4 * i) l).
       unfold at_offset at 1. 
-      Time entailer!. (*6*) }
+      Time entailer!. (*6.9*) }
 
     Exists ((sublist 0 (4 * i) l) ++ 
                       (QuadByte2ValList (littleendian_invert (Int.add xi yi))) ++
                       (sublist (4 + 4 * i) 64 l)).
-    Time entailer!.
+    Time entailer!. (*8.7*)
     {  split; intros. do 2 rewrite Zlength_app; repeat rewrite Zlength_sublist.
         rewrite <- QuadByteValList_ZLength, Zminus_0_r. rewrite (Z.add_comm _ (4*i)). rewrite Z.sub_add_distr. 
         do 2 rewrite Z.add_sub_assoc, Z.add_simpl_l. trivial. 
@@ -180,6 +180,6 @@ Opaque crypto_core_salsa20_spec. Opaque crypto_core_hsalsa20_spec.
           omega. omega. omega. omega. } 
     } 
   apply derives_refl.
-unfold HFalsePostCond.  (*Exists l. *) Time entailer!. (*2.6*)
+unfold HFalsePostCond.  (*Exists l. *) Time entailer!. (*3.1*)
 (*With temp _i (Vint (Int.repr 16) in LOCAL of HfalsePostCond: apply derives_refl. *)
-Time Qed. (*57*)
+Time Qed. (*60*)
