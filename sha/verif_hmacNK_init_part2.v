@@ -793,7 +793,8 @@ forward_if PostResetBranch.
     (*Call to _SHA256_Init*)
     unfold field_type; simpl. 
     Time forward_call (Vptr cb (Int.add cofs (Int.repr 108))). (*10.5 *)
-      
+     change_compspecs CompSpecs.
+     cancel.
     (*Call to _SHA256_Update*)
     Time forward_call (init_s256abs, 
                   HMAC_SHA256.mkArgZ (map Byte.repr (HMAC_SHA256.mkKey key)) Ipad,
@@ -841,7 +842,7 @@ Definition FRAME3 (kb cb ckb: block) kofs cofs ckoff key ipadSHAabs:=
        go_lower. do 2 apply andp_left2. Time cancel. (*0.5*) }
 
     Time forward_call (Vptr cb (Int.add cofs (Int.repr 216))). (*10.6*)
-
+    change_compspecs CompSpecs; cancel.
     (* Call to sha_update*)
     Time forward_call (init_s256abs, 
             HMAC_SHA256.mkArgZ (map Byte.repr (HMAC_SHA256.mkKey key)) Opad,
@@ -872,6 +873,7 @@ Definition FRAME3 (kb cb ckb: block) kofs cofs ckoff key ipadSHAabs:=
     rewrite (field_at_data_at Tsh t_struct_hmac_ctx_st [StructField _i_ctx]).
     rewrite (field_at_data_at Tsh t_struct_hmac_ctx_st [StructField _o_ctx]).
     unfold field_address. rewrite !if_true by trivial. simpl.
+    change_compspecs CompSpecs.
     Time cancel. (*0.5*)
   }
   { (*ELSE*) 

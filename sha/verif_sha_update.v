@@ -143,7 +143,7 @@ assert (Hbb: bitlength hashed dd + len * 8 =
  rewrite Hbb.
  entailer!.
  unfold s256_data, dd'; simpl. autorewrite with sublist.
- split3; auto. apply Forall_sublist; auto.
+ split3; auto.
  apply Z.divide_add_r; auto.
    rewrite <- H2.
    unfold_data_at 1%nat. entailer!.

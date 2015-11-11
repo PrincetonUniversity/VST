@@ -34,17 +34,17 @@ Definition initPostKeyNullConditional r (c:val) (k: val) h key ctxkey: mpred:=
 
 Definition hmac_init_part1_FRAME1 key kb kofs cb cofs pad : mpred :=  
    (data_at_ Tsh (Tarray tuchar 64 noattr) pad) *
-   (field_at Tsh t_struct_hmac_ctx_st [StructField 14%positive]
+   (field_at Tsh t_struct_hmac_ctx_st [StructField _i_ctx]
        (fst (snd (default_val t_struct_hmac_ctx_st))) (Vptr cb cofs)) *
-   (field_at Tsh t_struct_hmac_ctx_st [StructField 15%positive]
+   (field_at Tsh t_struct_hmac_ctx_st [StructField _o_ctx]
        (snd (snd (default_val t_struct_hmac_ctx_st))) (Vptr cb cofs)) *
    (data_block Tsh key (Vptr kb kofs)).
 Opaque hmac_init_part1_FRAME1.
 
 Definition hmac_init_part1_FRAME2 cb cofs := data_at Tsh
-       (nested_field_type t_struct_hmac_ctx_st [StructField 13%positive])
+       (nested_field_type t_struct_hmac_ctx_st [StructField _md_ctx])
        (fst (default_val t_struct_hmac_ctx_st))
-       (field_address t_struct_hmac_ctx_st [StructField 13%positive]
+       (field_address t_struct_hmac_ctx_st [StructField _md_ctx]
           (Vptr cb cofs)). 
 Opaque hmac_init_part1_FRAME2.
 
@@ -156,7 +156,7 @@ Proof. intros. abbreviate_semax.
       simpl.
       Time unfold_field_at 1%nat. (*7.7*)
       rewrite (field_at_data_at Tsh t_struct_hmac_ctx_st [StructField _md_ctx]).
-      unfold field_address. rewrite if_true by trivial.
+      rewrite field_address_offset by trivial.
       simpl @nested_field_type. simpl @nested_field_offset.
       rewrite offset_val_zero_Vptr.
 
@@ -164,12 +164,11 @@ Proof. intros. abbreviate_semax.
       assert_PROP (isptr (field_address t_struct_hmac_ctx_st [StructField _md_ctx]
                           (Vptr cb cofs))) as FA_MDCTX by entailer!.
 Time      forward_call (Vptr cb cofs). (*Issue: takes 5mins... [now takes 18 sec] *)
+     change_compspecs CompSpecs. (* this should not be needed *)
+     cancel.
       forward_call (init_s256abs, key, Vptr cb cofs, Vptr kb kofs, Tsh, l, kv) ctxSha.
-      { unfold data_block.
-        change_compspecs CompSpecs. (* needed, because spec_sha.compspecs was hidden by data_block *)
-        (*Issue: calling entailer or normalize here yields 
-             "Anomaly: undefined_evars_of_term: evar not found. Please report."*)
-       rewrite prop_true_andp by auto.
+      { unfold data_block. rewrite prop_true_andp by auto.
+       change_compspecs CompSpecs.  (* this should not be needed *)
        cancel.
       }
       { clear Frame HeqPostIf_j_Len HeqPostKeyNull.
@@ -183,7 +182,7 @@ Time      forward_call (Vptr cb cofs). (*Issue: takes 5mins... [now takes 18 sec
      (*call Final*)
      focus_SEP 6. unfold data_at_ at 1. unfold field_at_.
      Time rewrite field_at_data_at at 1. (* 5.2 sec*)
-     unfold field_address. rewrite if_true by assumption.
+     rewrite field_address_offset by auto.
      simpl. rewrite Int.add_zero.
 
 Time    assert_PROP (field_compatible (Tarray tuchar 64 noattr) [] (Vptr ckb ckoff)) as FC_ctxkey
@@ -202,8 +201,10 @@ Time    assert_PROP (field_compatible (Tarray tuchar 64 noattr) [] (Vptr ckb cko
      Time normalize. (*3.2*)
 
      Time gather_SEP 4 5 6 7. (*0.1*)
+
      replace_SEP 0 (`(hmac_init_part1_FRAME1 key kb kofs cb cofs pad)).
      { Transparent hmac_init_part1_FRAME1. unfold hmac_init_part1_FRAME1. Opaque hmac_init_part1_FRAME1.
+       change_compspecs CompSpecs.
        Time entailer!. (*10*)
        apply derives_refl.
      } 
@@ -265,8 +266,7 @@ Time    assert_PROP (field_compatible (Tarray tuchar 64 noattr) [] (Vptr ckb cko
       change ((64 - 32)%nat) with 32%nat.
 
       simpl. 
-      change (@data_at spec_sha.CompSpecs Tsh (Tarray tuchar 32 noattr))
-        with (@data_at CompSpecs Tsh (Tarray tuchar 32 noattr)).
+      change_compspecs CompSpecs.
       change (Int.repr 0) with Int.zero.
       fold (list_repeat 32 (Vint Int.zero)).
       change 32%nat with (Z.to_nat 32).

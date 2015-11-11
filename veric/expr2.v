@@ -196,9 +196,9 @@ Definition denote_tc_comparable v1 v2 : mpred :=
  match v1, v2 with
  | Vint i, Vint j => andp (prop (i = Int.zero)) (prop (j = Int.zero))
  | Vint i, Vptr _ _ =>
-      andp (prop (i = Int.zero)) (valid_pointer v2)
+      andp (prop (i = Int.zero)) (weak_valid_pointer v2)
  | Vptr _ _, Vint i => 
-      andp (prop (i = Int.zero)) (valid_pointer v1)
+      andp (prop (i = Int.zero)) (weak_valid_pointer v1)
  | Vptr _ _, Vptr _ _ => 
       comparable_ptrs v1 v2
  | _, _ => FF

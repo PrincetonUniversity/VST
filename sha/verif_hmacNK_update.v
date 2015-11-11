@@ -50,6 +50,8 @@ Time forward_call (ctx, data, Vptr b i, d, Tsh, len, kv) s. (*12.7 secs*)
     unfold sha256state_. Exists (fst ST).
     rewrite prop_true_andp by auto. 
     change_compspecs CompSpecs.
+   change (@data_block spec_sha.CompSpecs Tsh data d)
+     with (@data_block CompSpecs Tsh data d).
     change (Tstruct _SHA256state_st noattr) with  t_struct_SHA256state_st.
     cancel.
   }
@@ -70,5 +72,7 @@ rewrite (field_at_data_at _ _ [StructField _i_ctx]).
 rewrite (field_at_data_at _ _ [StructField _md_ctx]).
 unfold field_address. rewrite !if_true by eauto.
 simpl. rewrite Int.add_zero.
-Time cancel. (*3.1*)
+   change (@data_block spec_sha.CompSpecs Tsh data data')
+     with (@data_block CompSpecs Tsh data data').
+Time cancel. (*0.75 *)
 Time Qed. (*22*)

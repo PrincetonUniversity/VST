@@ -90,7 +90,7 @@ assert (HS: hmacSimple key data dig).
     rewrite hmacFinal_hmacFinalSimple. exists h2; trivial.
 apply hmacSimple_sound in HS. subst dig.
 cancel. 
-simpl in H5.
+simpl in H2.
 
 unfold data_block.
   rewrite Zlength_correct; simpl.

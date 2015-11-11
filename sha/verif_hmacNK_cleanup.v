@@ -24,13 +24,15 @@ forward_call (Tsh, c, sizeof (@cenv_cs CompSpecs) t_struct_hmac_ctx_st, Int.zero
     rewrite <- memory_block_data_at_; try reflexivity. cancel.
     trivial. }
 subst rv.
+simpl map.
+subst POSTCONDITION; unfold abbreviate.
+pose proof (sizeof_pos cenv_cs t_struct_hmac_ctx_st).
+forget (sizeof cenv_cs t_struct_hmac_ctx_st) as NN.
 forward.
-unfold data_block. rewrite Zlength_correct; simpl.
-apply andp_right.
-  apply prop_right. 
-  assert (isByte0:  isbyteZ 0). unfold isbyteZ; omega.
-  apply (Forall_list_repeat _ (Z.to_nat (sizeof (@cenv_cs CompSpecs) t_struct_hmac_ctx_st)) _ isByte0). 
-cancel.
+unfold data_block. simpl. rewrite Zlength_list_repeat by omega.
+rewrite !map_list_repeat.
+ entailer!.
+apply Forall_list_repeat; hnf; clear; omega.
 Qed.
 
 (*Here's the proof for the alternative specification:*)
@@ -49,11 +51,13 @@ forward_call (Tsh, c, sizeof (@cenv_cs CompSpecs) t_struct_hmac_ctx_st, Int.zero
     rewrite <- memory_block_data_at_; try reflexivity. cancel.
     trivial. }
 subst rv.
+simpl map.
+subst POSTCONDITION; unfold abbreviate.
+pose proof (sizeof_pos cenv_cs t_struct_hmac_ctx_st).
+forget (sizeof cenv_cs t_struct_hmac_ctx_st) as NN.
 forward.
-unfold data_block. rewrite Zlength_correct; simpl.
-apply andp_right.
-  apply prop_right. 
-  assert (isByte0:  isbyteZ 0). unfold isbyteZ; omega.
-  apply (Forall_list_repeat _ (Z.to_nat (sizeof (@cenv_cs CompSpecs) t_struct_hmac_ctx_st)) _ isByte0). 
-cancel.
+unfold data_block. simpl. rewrite Zlength_list_repeat by omega.
+rewrite !map_list_repeat.
+ entailer!.
+apply Forall_list_repeat; hnf; clear; omega.
 Qed.

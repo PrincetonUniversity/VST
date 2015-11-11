@@ -732,11 +732,14 @@ Definition sem_shr (t1:type) (t2:type) (v1:val) (v2: val)  : option val :=
 Definition sem_cmp_pp c(valid_pointer : block -> Z -> bool) v1 v2 := 
 option_map Val.of_bool (Val.cmpu_bool valid_pointer c v1 v2).
 
+Definition weakv (valid_pointer': block ->Z -> bool) (b: block) (i: Z) : bool :=
+ orb (valid_pointer' b i) (valid_pointer' b (i-1)).
+
 Definition sem_cmp_pl c (valid_pointer : block -> Z -> bool) v1 v2 :=
  match v2 with
       | Vlong n2 => 
           let n2 := Int.repr (Int64.unsigned n2) in
-          option_map Val.of_bool (Val.cmpu_bool valid_pointer c v1 (Vint n2))
+          option_map Val.of_bool (Val.cmpu_bool (weakv valid_pointer) c v1 (Vint n2))
       | _ => None
       end.
 
@@ -744,7 +747,7 @@ Definition sem_cmp_lp c (valid_pointer : block -> Z -> bool) v1 v2   :=
       match v1 with
       | Vlong n1 => 
           let n1 := Int.repr (Int64.unsigned n1) in
-          option_map Val.of_bool (Val.cmpu_bool valid_pointer c (Vint n1) v2)
+          option_map Val.of_bool (Val.cmpu_bool (weakv valid_pointer) c (Vint n1) v2)
       | _ => None
       end.
 

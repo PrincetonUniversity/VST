@@ -1542,8 +1542,6 @@ rewrite H1.
 normalize.
 Qed.
 
-Hint Resolve data_at_valid_ptr field_at_valid_ptr field_at_valid_ptr0 : valid_pointer.
-
 (************************************************
 
 Other lemmas
@@ -1899,6 +1897,8 @@ eapply derives_trans; [apply field_at_local_facts |];
   apply derives_refl
 end.
 
+
+Hint Resolve data_at_valid_ptr field_at_valid_ptr field_at_valid_ptr0 : valid_pointer.
 
 (*Hint Resolve field_at_local_facts : saturate_local.*)
 Hint Extern 1 (field_at _ _ _ _ _ |-- _) =>

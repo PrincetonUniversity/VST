@@ -249,8 +249,10 @@ unfold denote_tc_comparable in *.
 destruct (eval_expr e1 rho); auto;
 destruct (eval_expr e2 rho); auto.
 destruct H0; split; auto.
+destruct H1 as [H1|H1]; [left|right];
 apply (boxy_e _ _ (extend_valid_pointer' _ _) _ w' H H1).
 destruct H0; split; auto.
+destruct H1 as [H1|H1]; [left|right];
 apply (boxy_e _ _ (extend_valid_pointer' _ _) _ w' H H1).
 unfold comparable_ptrs in *.
 if_tac.

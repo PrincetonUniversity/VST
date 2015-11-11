@@ -95,19 +95,18 @@ forward_call (c, k, kl, key, kv, dummyHMA) h0.
   }
 rename H into HmacInit. normalize.
 
-assert_PROP (s256a_len (absCtxt h0) = 512).
-  { unfold hmacstate_. entailer. apply prop_right. 
+assert_PROP (s256a_len (absCtxt h0) = 512) as H0_len512.
+  { unfold hmacstate_. Intros r. apply prop_right.
     destruct h0; simpl in *.  
-    destruct H5 as [reprMD [reprI [reprO [iShaLen oShaLen]]]].
+    destruct H as [reprMD [reprI [reprO [iShaLen oShaLen]]]].
     inversion HmacInit; clear HmacInit.
-    destruct H5 as [oS [InnSHA [OntSHA XX]]]. inversion XX; clear XX.
+    destruct H as [oS [InnSHA [OntSHA XX]]]. inversion XX; clear XX.
     subst. assumption.
   }
-rename H into H0_len512.
+
 forward_call (h0, c, d, dl, data, kv) h1.
   { rewrite H0_len512. assumption. } 
 rename H into HmacUpdate. 
-
 apply isptrD in Pmd. destruct Pmd as [b [i Pmd]]. rewrite Pmd in *.
 assert (GTmod64: 64 < Int.modulus).
   rewrite <- initialize.max_unsigned_modulus, int_max_unsigned_eq. omega.
@@ -146,59 +145,58 @@ forward_call (h3, c, d, dl, data, kv) h4.
   { rewrite H3_len512. assumption. }
 rename H into h4_update.
 
-assert_PROP (field_compatible (Tstruct _hmac_ctx_st noattr) [] c).
-{ unfold hmacstate_; entailer. }
-rename H into FC_c.
+assert_PROP (field_compatible (Tstruct _hmac_ctx_st noattr) [] c)
+  as FC_c by (unfold hmacstate_; entailer).
+simpl.
+Intros.
 
 forward_call (h4, c, Vptr b (Int.repr (Int.unsigned i + 32)), shmd, kv) [dig2 h5].
 simpl in H; rename H into Round2Final. simpl.
 
 forward_call (h5,c).
+Definition n324 := 324%Z.
+Opaque n324.
+match goal with |- context [data_block  Tsh ?A c] =>
+  change A with (list_repeat (Z.to_nat n324) 0)
+end.
 forward.
-
-assert_PROP (field_compatible (tarray tuchar (sizeof cenv_cs t_struct_hmac_ctx_st)) [] c).
-{ unfold data_block at 1. unfold Zlength. simpl. rewrite data_at_data_at'. normalize. }
 clear H2.
-Exists c. entailer.
+
 assert (HS: hmacSimple key data dig).
     exists h0, h1. 
     split. assumption.
     split; try assumption.
     rewrite hmacFinal_hmacFinalSimple. exists h2; assumption.
-apply hmacSimple_sound in HS. Exists dig; subst dig. entailer.
-cancel.
-
-unfold data_block.
-  rewrite Zlength_correct; simpl.
-rewrite <- memory_block_data_at_; trivial.
-normalize. clear H4.
-apply andp_right. 
-  apply prop_right. apply Forall_app. split; trivial.
-  rewrite (memory_block_data_at_ Tsh (tarray tuchar (sizeof (@cenv_cs CompSpecs) t_struct_hmac_ctx_st))).
-  2: trivial.
+apply hmacSimple_sound in HS.
 assert (HS2: hmacSimple key data dig2).
     exists h3, h4. 
     split. assumption.
     split; try assumption.
     rewrite hmacFinal_hmacFinalSimple. exists h5; assumption.
   apply hmacSimple_sound in HS2. subst dig2.
-rewrite Zlength_app, HMAC_Zlength. 
+Exists c dig.
+unfold data_block at 1. simpl.
+entailer!.
+clear H4.
+rewrite <- memory_block_data_at_ by auto.
+change (sizeof cenv_cs (Tstruct _hmac_ctx_st noattr))
+   with (sizeof cenv_cs (tarray tuchar (Zlength (list_repeat (Z.to_nat n324) 0)))).
+rewrite memory_block_data_at_ by auto.
+cancel.
 
-assert (FC_b: field_compatible (Tarray tuchar (32 + 32) noattr) [] (Vptr b i)).
+
+assert (FC_b: field_compatible (Tarray tuchar 64 noattr) [] (Vptr b i)).
   red. intuition. apply Z.divide_1_l.
 
-rewrite sepcon_assoc. rewrite sepcon_comm.
-apply sepcon_derives.
-
-  eapply derives_trans.
-  Focus 2. apply split2_data_at_Tarray_at_tuchar_fold with (n1:=Zlength (HMAC256 data key)); trivial;
-            repeat rewrite Zlength_map; try rewrite Zlength_app; try rewrite HMAC_Zlength; omega.
-  repeat rewrite Zlength_map.
-  repeat rewrite map_app. rewrite Zlength_app, HMAC_Zlength, Zminus_plus.
-  rewrite sublist_app1; repeat rewrite Zlength_map; try rewrite HMAC_Zlength; try omega.
-  rewrite sublist_same; repeat rewrite Zlength_map; try rewrite HMAC_Zlength; try omega.
-  rewrite sublist_app2; repeat rewrite Zlength_map; try rewrite HMAC_Zlength; try omega.
-  rewrite Zminus_diag, sublist_same; try rewrite Zlength_app; repeat rewrite Zlength_map; try rewrite HMAC_Zlength; try omega.
-  unfold at_offset. cancel.
-eapply derives_trans. apply data_at_data_at_. apply derives_refl.
+pose proof (HMAC_Zlength data key).
+rewrite (split2_data_block 32 _ (HMAC256 data key ++ HMAC256 data key))
+ by (autorewrite with sublist; omega).
+autorewrite with sublist.
+cancel.
+apply derives_refl'.
+f_equal.
+rewrite field_address0_offset.
+reflexivity.
+rewrite H4. simpl.
+auto with field_compatible.
 Qed.
