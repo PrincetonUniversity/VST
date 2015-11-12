@@ -461,6 +461,89 @@ Proof. intros.
  eapply split2_data_at_Tarray_fold; try eassumption.
 Qed.
 
+Lemma field_compatible0_Tarray_offset:
+ forall {cs: compspecs} t n i n' i' p p',
+  field_compatible0 (Tarray t n' noattr) (ArraySubsc i' :: nil) p ->
+  naturally_aligned t ->
+  0 <= n <= n' ->
+  0 <= i <= n ->
+  n-i <= n'-i' ->
+  i <= i' ->
+  p' = offset_val (Int.repr (sizeof cenv_cs t * (i'-i))) p ->
+  field_compatible0 (Tarray t n noattr) (ArraySubsc i :: nil) p'.
+Proof.
+intros until 1. intros NA ?H ?H Hni Hii Hp. subst p'.
+  assert (SP := sizeof_pos cenv_cs t).
+  assert (SS: sizeof cenv_cs t * n <= sizeof cenv_cs t * n').
+  apply Zmult_le_compat_l. omega. omega.
+  assert (SS': (sizeof cenv_cs t * n + sizeof cenv_cs t * (n'-n) = sizeof cenv_cs t * n')%Z).
+  rewrite <- Z.mul_add_distr_l. f_equal. omega.
+  hnf in H|-*.
+  intuition.
+  *
+  unfold legal_alignas_type in H1|-*; simpl in H1|-*.
+  rewrite nested_pred_ind in H1.
+  rewrite nested_pred_ind.
+  rewrite andb_true_iff in *. destruct H1; split; auto.
+  unfold local_legal_alignas_type in *.
+  rewrite andb_true_iff in *. destruct H1; split; auto.
+  destruct (attr_alignas (attr_of_type t)); auto.
+  eapply Zle_is_le_bool. omega.
+  *  
+  simpl sizeof in H7|-*.
+  rewrite Z.max_r in * by omega. omega.
+  *
+  destruct p; try contradiction.
+  clear - SP SS SS' H H4 H0 H5 H7 H8 Hni Hii.
+  red in H8|-*.
+  simpl in H7,H8|-*. rewrite Z.max_r in H7,H8|-* by omega.
+  rename i0 into j.
+   pose proof (Int.unsigned_range j).
+   assert (0 <= sizeof cenv_cs t * (i'-i) <= sizeof cenv_cs t * n').
+   split. apply Z.mul_nonneg_nonneg; omega.
+   apply Zmult_le_compat_l. omega. omega.
+  assert (sizeof cenv_cs t * (i'-i+n) <= sizeof cenv_cs t * n').
+   apply Zmult_le_compat_l. omega. omega.
+  unfold Int.add. 
+  rewrite (Int.unsigned_repr (_ * _))
+    by (change Int.max_unsigned with (Int.modulus -1); omega).
+   rewrite Int.unsigned_repr_eq.
+  apply Z.le_trans with
+    ((Int.unsigned j + sizeof cenv_cs t * (i' - i))+ sizeof cenv_cs t * n ).
+   apply Zplus_le_compat_r.
+   apply Zmod_le. computable.
+   omega.
+  rewrite <- Z.add_assoc. rewrite <- Z.mul_add_distr_l. omega.
+ *
+  destruct p; try contradiction.
+  clear H1 H3 H6 H7 H11.
+  simpl in H8,H9|-*. rewrite Z.max_r in * by omega.
+    unfold align_attr, noattr in *. simpl in *.
+  apply (sizeof_alignof_compat cenv_cs) in NA.
+  unfold Int.add. 
+   rewrite !Int.unsigned_repr_eq.
+  assert (Int.modulus <> 0) by computable.
+  rewrite Z.add_mod by auto.
+  rewrite Z.mod_mod by auto.
+  rewrite <- Z.add_mod by auto.
+  apply arith_aux04.
+  rename i0 into j.
+   pose proof (Int.unsigned_range j).
+   assert (0 <= sizeof cenv_cs t * (i'-i) <= sizeof cenv_cs t * n').
+   split. apply Z.mul_nonneg_nonneg; omega.
+   apply Zmult_le_compat_l. omega. omega.
+   omega.
+  apply Z.divide_add_r; auto.
+  apply Z.divide_mul_l; auto.
+Qed.
+
+(*
+Hint Extern 2 (field_compatible0 (Tarray _ _ _) (ArraySubsc _ :: nil) _) =>
+    (eapply field_compatible0_Tarray_offset; [eassumption | omega | omega]) : field_compatible.
+
+Hint Extern 2 (field_compatible0 (tarray _ _) (ArraySubsc _ :: nil) _) =>
+    (eapply field_compatible0_Tarray_offset; [eassumption | omega | omega]) : field_compatible.
+*)
 
 Lemma split3_data_at_Tarray {cs: compspecs} sh t n n1 n2 v (v': list (reptype t)) v1 v2 v3 p:
    naturally_aligned t ->
@@ -508,68 +591,8 @@ Proof. intros until 1. rename H into NA; intros.
   rewrite !nested_field_offset_ind by auto with field_compatible.
   rewrite !nested_field_type_ind;   unfold gfield_offset.
   rewrite Z.add_0_l.
-  {
-  clear - H H0 f NA.
-  unfold tarray in *.
-  assert (SS: sizeof cenv_cs t * (n-n1) <= sizeof cenv_cs t * n).
-  apply Zmult_le_compat_l. omega. pose proof (sizeof_pos cenv_cs t); omega.
-  assert (SS': (sizeof cenv_cs t * n1 + sizeof cenv_cs t * (n-n1) = sizeof cenv_cs t * n)%Z).
-  rewrite <- Z.mul_add_distr_l. f_equal. omega.
-  hnf in f|-*.
-  intuition.
-  *
-  unfold legal_alignas_type in H4|-*; simpl in H4|-*.
-  rewrite nested_pred_ind in H4.
-  rewrite nested_pred_ind.
-  rewrite andb_true_iff in *. destruct H4; split; auto.
-  unfold local_legal_alignas_type in *.
-  rewrite andb_true_iff in *. destruct H4; split; auto.
-  destruct (attr_alignas (attr_of_type t)); auto.
-  eapply Zle_is_le_bool. omega.
-  *  
-  simpl sizeof in H6|-*.
-  rewrite Z.max_r in * by omega. omega.
-  *
-  destruct p; try contradiction. red in H7|-*.
-  simpl sizeof in H7|-*. simpl.
-  rewrite Z.max_r in * by omega.
-  rewrite <- (Int.repr_unsigned i). rewrite add_repr.
-  pose proof (Int.unsigned_range i). 
-  destruct (zlt (Int.unsigned i + (sizeof cenv_cs t * n1)) Int.modulus).
-  rewrite Int.unsigned_repr.
-  omega.
-  change Int.max_unsigned with (Int.modulus-1).
-  split; try omega.
-  assert (Int.unsigned (Int.repr (Int.unsigned i + sizeof cenv_cs t * n1)) <=
-              Int.unsigned i + sizeof cenv_cs t * n1).
-  clear - g. forget (Int.unsigned i + sizeof cenv_cs t * n1) as x.
-  unfold Int.unsigned, Int.repr in *; destruct i; simpl in *.
-  rewrite Int.Z_mod_modulus_eq.
-  apply Zmod_le; omega.
-  omega.
-  *
-  destruct p; try contradiction; red in H8|-*.
-  simpl in H7,H8|-*. rewrite Z.max_r in H7 by omega.
-  assert (0 <= Int.unsigned i + sizeof cenv_cs t * n1 <= Int.modulus).
-  assert ( sizeof cenv_cs t * n1 <= sizeof cenv_cs t * n).
-  apply Zmult_le_compat_l. omega. pose proof (sizeof_pos cenv_cs t); omega.
-  split; [ | omega].
-  pose proof (Int.unsigned_range i).
-  assert (0 <= sizeof cenv_cs t * n1); [ | omega].
-   apply Z.mul_nonneg_nonneg. pose proof (sizeof_pos cenv_cs t); omega. omega.
-  clear - H8 H9 NA.
-  unfold align_attr, noattr in *. simpl in *.
-  apply (sizeof_alignof_compat cenv_cs) in NA.
-  unfold Int.repr, Int.unsigned in *; simpl in *. unfold Int.unsigned; simpl.
-  rewrite !Int.Z_mod_modulus_eq.
-  assert (Int.modulus <> 0) by computable.
-  rewrite Z.add_mod by auto.
-  rewrite Z.mod_mod by auto.
-  rewrite <- Z.add_mod by auto.
-  apply arith_aux04. omega.
-  apply Z.divide_add_r; auto.
-  apply Z.divide_mul_l; auto.
-  }
+  eapply field_compatible0_Tarray_offset; try eassumption; try omega.
+  f_equal. f_equal. f_equal. omega.
   apply pred_ext.
   eapply derives_trans. apply data_at_local_facts. normalize.
   contradiction n0. auto with field_compatible.

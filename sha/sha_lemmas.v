@@ -380,59 +380,20 @@ Lemma split3_data_block:
    (field_address0 (tarray tuchar (Zlength data)) [ArraySubsc hi] d))%logic.
 Proof.
   intros.
-  destruct (field_compatible0_dec (tarray tuchar (Zlength data)) [ArraySubsc hi] d).
- *
-  rewrite (split2_data_block lo); try omega; trivial.
-  rewrite sepcon_assoc. f_equal.
-  rewrite (split2_data_block (hi-lo)); autorewrite with sublist; try omega.
+  unfold data_block. simpl. normalize.
   f_equal. f_equal.
-  unfold field_address0 at 3. rewrite if_true by auto.
-  rewrite !field_address0_offset.
-  rewrite offset_offset_val. f_equal. rewrite add_repr. f_equal.
-  simpl. omega.
-  auto with field_compatible.
-  rewrite !field_address0_offset.
-  simpl. normalize.
-  { hnf in f|-*; intuition.
-  unfold tarray in *.
-  unfold legal_alignas_type in H4|-*; simpl in H4|-*.
-  rewrite nested_pred_ind in H4.
-  rewrite nested_pred_ind.
-  rewrite andb_true_iff in *. destruct H4; split; auto.
-  unfold local_legal_alignas_type in *.
-  rewrite andb_true_iff in *. destruct H4; split; auto.
-  destruct (attr_alignas (attr_of_type tuchar)); auto.
-  eapply Zle_is_le_bool. omega.  
-  simpl sizeof in H6|-*.
-  rewrite Z.max_r in * by omega. omega.
-  make_Vptr d. red in H7|-*.
-  simpl sizeof in H7|-*. simpl.
-  rewrite Z.max_r in * by omega.
-  rewrite <- (Int.repr_unsigned i). rewrite add_repr.
-  pose proof (Int.unsigned_range i). 
-  destruct (zlt (Int.unsigned i + lo) Int.modulus).
-  rewrite Int.unsigned_repr by (change Int.max_unsigned with (Int.modulus-1); omega).
-  omega.
-  assert (Int.unsigned (Int.repr (Int.unsigned i + lo)) <= Int.unsigned i + lo);
-    [ | omega].
-  clear - H1; unfold Int.unsigned, Int.repr in *; destruct i; simpl in *.
-  rewrite Int.Z_mod_modulus_eq.
-  apply Zmod_le; omega.
-  make_Vptr d; red in H8|-*.
-  apply Z.divide_1_l.
-  }
- auto with field_compatible.
- *
-  apply pred_ext.
-  unfold data_block at 1; simpl; entailer!.
-  contradiction n; auto with field_compatible.
-  unfold field_address0.
-  if_tac. 
-  contradiction n; clear n; hnf in H1|-*; intuition.
-  unfold data_block at 2. simpl; normalize.
-  saturate_local.
-  destruct H5; contradiction.
+  apply prop_ext.
+  split; intro. split3; apply Forall_sublist; auto.
+  erewrite <- (sublist_same 0 (Zlength data)); auto.
+  rewrite (sublist_split 0 lo (Zlength data)) by omega.
+  rewrite (sublist_split lo hi (Zlength data)) by omega.
+  destruct H1 as [? [? ?]].
+  repeat (apply Forall_app; split);  auto.
+  rewrite <- !sublist_map.
+  unfold tarray.
+  rewrite split3_data_at_Tarray_tuchar with (n1:=lo)(n2:=hi) by (autorewrite with sublist; auto).
+  autorewrite with sublist.
+  reflexivity.  
 Qed.
-
 
 Global Opaque WORD.
