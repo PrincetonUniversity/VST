@@ -137,7 +137,7 @@ FLOYD_FILES= \
    sublist.v smt_test.v extract_smt.v \
    client_lemmas.v canon.v canonicalize.v assert_lemmas.v closed_lemmas.v jmeq_lemmas.v \
    compare_lemmas.v sc_set_load_store.v \
-   loadstore_mapsto.v loadstore_field_at.v nested_loadstore.v \
+   loadstore_mapsto.v loadstore_field_at.v field_compat.v nested_loadstore.v \
    call_lemmas.v extcall_lemmas.v forward_lemmas.v forward.v \
    entailer.v globals_lemmas.v local2ptree.v fieldlist.v mapsto_memory_block.v\
    nested_field_lemmas.v efield_lemmas.v proj_reptype_lemmas.v replace_refill_reptype_lemmas.v \

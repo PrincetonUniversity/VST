@@ -242,8 +242,7 @@ Time    assert_PROP (field_compatible (Tarray tuchar 64 noattr) [] (Vptr ckb cko
       simpl @nested_field_type.
  
       unfold tarray.
-      rewrite (split2_data_at_Tarray_at_tuchar Tsh 64 32); repeat rewrite Zlength_map; trivial; try omega.
-      unfold at_offset.  
+      rewrite (split2_data_at_Tarray_tuchar Tsh 64 32); repeat rewrite Zlength_map; trivial; try omega.
       unfold HMAC_SHA256.mkKey. 
       remember (Zlength key >? Z.of_nat SHA256.BlockSize).
       destruct b.
@@ -253,25 +252,23 @@ Time    assert_PROP (field_compatible (Tarray tuchar 64 noattr) [] (Vptr ckb cko
       unfold HMAC_SHA256.zeroPad. repeat rewrite map_app. 
       assert (LHash: Zlength (SHA256.Hash key) = 32).
         unfold SHA256.Hash. rewrite Zlength_correct, length_SHA256'; reflexivity.
-      rewrite sublist_app1; repeat rewrite Zlength_map; try omega. 
-      rewrite sublist_same; repeat rewrite Zlength_map; try omega.
-      rewrite Zlength_app, Zlength_list_repeat', LHash.
-      rewrite sublist_app2; repeat rewrite Zlength_map. 2: omega.
-      rewrite LHash, Zminus_diag, Zminus_plus. 
-      rewrite sublist_same; repeat rewrite Zlength_map; try rewrite Zlength_list_repeat; trivial. 
-      assert (AR1: length (SHA256.Hash key) = 32%nat). unfold SHA256.Hash. rewrite length_SHA256'; reflexivity.
-      rewrite AR1; clear AR1. 
+      autorewrite with sublist. rewrite LHash.
       unfold SHA256.BlockSize.
+      replace (length (SHA256.Hash key)) with 32%nat
+        by (apply Nat2Z.inj; rewrite <- Zlength_correct, LHash; reflexivity).
+      change (64-32)%nat with (Z.to_nat 32).
+      autorewrite with sublist.
       change (64 - 32) with 32.
-      change ((64 - 32)%nat) with 32%nat.
-
-      simpl. 
+      match goal with |- data_at _ _ ?A _ * _ * _ * _ |-- _ =>
+        change A with(list_repeat (Z.to_nat 32) (Vint Int.zero))
+      end.
+      rewrite !map_list_repeat. fold Int.zero.
+      rewrite field_address0_offset by auto with field_compatible.
+      unfold offset_val.
+      simpl Vptr.
       change_compspecs CompSpecs.
-      change (Int.repr 0) with Int.zero.
-      fold (list_repeat 32 (Vint Int.zero)).
-      change 32%nat with (Z.to_nat 32).
       change (Int.repr (Int.unsigned ckoff + 32))
-             with (Int.add ckoff (Int.repr 32)).
+             with (Int.add ckoff (Int.repr 32)). rewrite Z.add_0_l.
       Time cancel. (*1.*) 
       destruct ctxSha. simpl. inv updAbs. simpl in H16; rewrite <- H16. unfold SHA256.Hash. 
       rewrite functional_prog.SHA_256'_eq. Time cancel. (*0.6*)
@@ -283,7 +280,6 @@ Time    assert_PROP (field_compatible (Tarray tuchar 64 noattr) [] (Vptr ckb cko
       unfold data_block. simpl. rewrite sepcon_andp_prop.
       apply andp_left2. Time cancel. (*0.2*)   
       apply derives_refl.
-    rewrite Zlength_list_repeat'. trivial.
    }
 Time Qed. (*66*)
 
@@ -372,7 +368,7 @@ Proof. intros.
                      (map Vint (map Int.repr key)), l) v. (*4.4*)
      { unfold tarray. unfold field_at_ at 1. rewrite field_at_data_at.
        unfold field_address. rewrite if_true; trivial. simpl. rewrite Int.add_zero.
-       rewrite (split2_data_at_Tarray_at_tuchar _ _ l); trivial. 2: omega.
+       rewrite (split2_data_at_Tarray_tuchar _ _ l); trivial. 2: omega.
        repeat rewrite sepcon_assoc.
        apply sepcon_derives. eapply derives_trans. apply data_at_memory_block.
           Opaque Z.mul. simpl. rewrite Z.max_r. rewrite Z.mul_1_l. apply derives_refl. omega.
@@ -397,6 +393,8 @@ Proof. intros.
        unfold at_offset. simpl.
        eapply derives_trans; try apply data_at_memory_block.
                rewrite sizeof_Tarray. trivial.
+       rewrite field_address0_offset by auto with field_compatible.
+       simpl. rewrite Z.add_0_l, Z.mul_1_l. auto.
        apply Z.max_r. omega. }
      { split; auto. repable_signed. }
 
@@ -404,27 +402,24 @@ Proof. intros.
 
    Time entailer!. (*6.2*)
    rewrite sepcon_comm.
-   rewrite (split2_data_at_Tarray_at_tuchar Tsh 64 (Zlength key)); 
+   rewrite (split2_data_at_Tarray_tuchar Tsh 64 (Zlength key)); 
      try repeat rewrite Zlength_map; try rewrite Zlength_correct, mkKey_length; 
-     trivial. 2: omega. 
-     unfold at_offset. rewrite sepcon_comm.
+     trivial. 2: omega.
+     rewrite field_address0_offset by auto with field_compatible. 
+     simpl offset_val. rewrite Z.add_0_l, Z.mul_1_l. 
+     rewrite sepcon_comm.
      unfold HMAC_SHA256.mkKey. remember (64 - Zlength key) as SF. simpl. 
        remember (Zlength key >? 64).
        destruct b. symmetry in Heqb; apply Zgt_is_gt_bool in Heqb. omega. 
-       unfold HMAC_SHA256.zeroPad. repeat rewrite map_app. 
-     rewrite sublist_app1; repeat rewrite Zlength_map; try omega.
-     rewrite sublist_same; repeat rewrite Zlength_map; trivial.
-     rewrite sublist_app2; repeat rewrite Zlength_map; try omega.
-     rewrite Zminus_diag, Zlength_app. rewrite Z.add_comm, Z.add_simpl_r. 
+       unfold HMAC_SHA256.zeroPad. repeat rewrite map_app.
      assert (XX: (SHA256.BlockSize - length key = Z.to_nat SF)%nat).
           subst SF. rewrite Zlength_correct, Z2Nat.inj_sub, Nat2Z.id. reflexivity. omega.
      rewrite XX.
+     autorewrite with sublist. 
      repeat rewrite map_list_repeat. 
-     rewrite sublist_same; trivial. 
      change_compspecs CompSpecs.
      change (Tarray tuchar 64 noattr) with (tarray tuchar 64).
      cancel. apply derives_refl.
-     do 2 rewrite Zlength_list_repeat'. trivial.
 Time Qed. (*18*)
 
 Lemma hmac_init_part1: forall
