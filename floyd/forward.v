@@ -597,29 +597,37 @@ first [ reflexivity
      apply exp_congr; intros [[[? ?] ?] ?]; simpl; reflexivity
   ].
 
-Ltac change_compspecs cs :=
-repeat 
- match goal with 
-  | |- appcontext [@data_at ?cs' ?sh ?t] =>
-          (constr_eq cs cs'; fail 1) || change (@data_at cs' sh t) with (@data_at cs sh t)
-  | |- appcontext [@data_at_ ?cs' ?sh ?t] =>
-          (constr_eq cs cs'; fail 1) || change (@data_at_ cs' sh t) with (@data_at_ cs sh t)
-  | |- appcontext [@field_at ?cs' ?sh ?t ?gfs] =>
-          (constr_eq cs cs'; fail 1) || change (@field_at cs' sh t gfs) with (@field_at cs sh t gfs)
-  | |- appcontext [@field_at_ ?cs' ?sh ?t ?gfs] =>
-          (constr_eq cs cs'; fail 1) || change (@field_at_ cs' sh t gfs) with (@field_at_ cs sh t gfs)
-  | |- appcontext [@nested_field_type ?cs' ?t ?gfs] =>
-       (constr_eq cs cs'; fail 1) || change (@nested_field_type cs' t gfs) with (@nested_field_type cs t gfs) 
-  | |- appcontext [@default_val ?cs' ?t] =>
-       (constr_eq cs cs'; fail 1) || change (@default_val cs' t) with (@default_val cs t)
+Ltac change_compspecs' cs cs' :=
+  match goal with
+  | |- context [?A cs'] => change (A cs') with (A cs)
+  | |- context [?A cs' ?B] => change (A cs' B) with (A cs B)
+  | |- context [?A cs' ?B ?C] => change (A cs' B C) with (A cs B C)
+  | |- context [?A cs' ?B ?C ?D] => change (A cs' B C D) with (A cs B C D)
+  | |- context [?A cs' ?B ?C ?D ?E] => change (A cs' B C D E) with (A cs B C D E)
+  | |- context [?A cs' ?B ?C ?D ?E ?F] => change (A cs' B C D E F) with (A cs B C D E F)
  end.
+
+Ltac change_compspecs cs :=
+ match goal with |- context [?cs'] => 
+   match type of cs' with compspecs =>
+     try (constr_eq cs cs'; fail 1);
+     change_compspecs' cs cs';
+     repeat change_compspecs' cs cs'
+   end
+end.
 
 Ltac lookup_spec_and_change_compspecs CS :=
  match goal with |- ?A = ?B => 
       let x := fresh "x" in set (x := A);
       let y := fresh "y" in set (y := B);
-      hnf in x; subst x; change_compspecs CS; subst y; reflexivity
+      hnf in x; subst x; try change_compspecs CS; subst y; reflexivity
  end.
+
+Definition Warning_perhaps_funspec_postcondition_needs_EX_outside_PROP_LOCAL_SEP (p: Prop) := p.
+Ltac give_EX_warning :=
+     match goal with |- ?A => change 
+                 (Warning_perhaps_funspec_postcondition_needs_EX_outside_PROP_LOCAL_SEP A)
+             end.
 
 Ltac forward_call_id1_x_wow witness :=
 let Frame := fresh "Frame" in
@@ -642,7 +650,9 @@ let Frame := fresh "Frame" in
  | cbv beta; extensionality rho; 
    repeat rewrite exp_uncurry;
    try rewrite no_post_exists; repeat rewrite exp_unfold;
-   apply exp_congr; intros ?vret; reflexivity
+   first [apply exp_congr; intros ?vret; reflexivity
+           | give_EX_warning
+           ]
  | intros; try match goal with  |- extract_trivial_liftx ?A _ =>
         (has_evar A; fail 1) || (repeat constructor)
      end
@@ -673,7 +683,9 @@ let Frame := fresh "Frame" in
  | cbv beta; extensionality rho; 
    repeat rewrite exp_uncurry;
    try rewrite no_post_exists; repeat rewrite exp_unfold;
-   apply exp_congr; intros ?vret; reflexivity
+   first [apply exp_congr; intros ?vret; reflexivity
+           | give_EX_warning
+           ]
  | intros; try match goal with  |- extract_trivial_liftx ?A _ =>
         (has_evar A; fail 1) || (repeat constructor)
      end
@@ -703,7 +715,9 @@ let Frame := fresh "Frame" in
  | cbv beta; extensionality rho; 
    repeat rewrite exp_uncurry;
    try rewrite no_post_exists; repeat rewrite exp_unfold;
-   apply exp_congr; intros ?vret; reflexivity
+   first [apply exp_congr; intros ?vret; reflexivity
+           | give_EX_warning
+           ]
  | intros; try match goal with  |- extract_trivial_liftx ?A _ =>
         (has_evar A; fail 1) || (repeat constructor)
      end
@@ -730,7 +744,9 @@ let Frame := fresh "Frame" in
  | cbv beta; extensionality rho; 
    repeat rewrite exp_uncurry;
    try rewrite no_post_exists; repeat rewrite exp_unfold;
-   apply exp_congr; intros ?vret; reflexivity
+   first [apply exp_congr; intros ?vret; reflexivity
+           | give_EX_warning
+           ]
  | intros; try match goal with  |- extract_trivial_liftx ?A _ =>
         (has_evar A; fail 1) || (repeat constructor)
      end
@@ -2861,8 +2877,11 @@ Qed.
 
 Ltac forward_return :=
      repeat match goal with |- semax _ _ _ ?D => unfold D, abbreviate; clear D end;
-     (eapply semax_pre; [  | apply semax_return ]; 
-      entailer_for_return).
+     match goal with |- @semax ?CS _ _ _ _ _ =>
+       eapply semax_pre; [  | apply semax_return ]; 
+       try change_compspecs CS;
+       entailer_for_return
+     end.
 
 Ltac forward_ifthenelse :=
            (*semax_logic_and_or 

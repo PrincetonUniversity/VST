@@ -8,7 +8,7 @@ Local Open Scope logic.
 
 Lemma FF_local_facts: forall {A}{NA: NatDed A}, (FF:A) |-- !!False.
 Proof. intros. apply FF_left. Qed.
-Hint Resolve @FF_local_facts: saturate_local. (* move to floyd *)
+Hint Resolve @FF_local_facts: saturate_local. 
 
 (*** Omega stuff ***)
 Ltac  add_nonredundant' F T G :=
@@ -278,17 +278,16 @@ Proof.
  eapply derives_trans with (valid_pointer x && valid_pointer y).
  apply andp_right; auto.
  clear H H0.
+ unfold denote_tc_comparable, weak_valid_pointer.
+change predicates_hered.orp with orp.
  destruct x; try (apply andp_left1; apply @FF_left); try apply @TT_right;
  destruct y; try (apply andp_left2; apply @FF_left); try apply @TT_right.
- simpl valid_pointer at 1.
- change predicates_hered.prop with prop. (* delete me *)
- unfold denote_tc_comparable. auto.
- simpl valid_pointer at 2.
- change predicates_hered.prop with prop. (* delete me *)
- unfold denote_tc_comparable. normalize.
- unfold denote_tc_comparable.
- rewrite andp_comm. apply andp_derives; auto.
- unfold denote_tc_comparable. 
+ apply andp_derives; try apply derives_refl.
+ apply andp_derives; try apply derives_refl.
+ apply orp_right1. apply derives_refl.
+ rewrite andp_comm.
+ apply andp_derives; try apply derives_refl.
+ apply orp_right1. apply derives_refl.
  unfold comparable_ptrs.
  if_tac; auto.
  apply andp_derives; apply valid_pointer_weak.

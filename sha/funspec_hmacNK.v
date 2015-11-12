@@ -28,9 +28,13 @@ Parameter REP: HABS -> val -> mpred.
 Parameter FULL: list Z -> val -> mpred.
 
 (*EMPTY c captures the situation where we either haven't provided any key yet,
-  or want to use an oldd ctx, but reinitialize its key. It occurs explicitly
+  or want to use an old ctx, but reinitialize its key. It occurs explicitly
   in the precondition of init_call with argument key==Vptr b i*)
 Parameter EMPTY: val -> mpred.
+
+(*We can turn a memory block of hmac_ctx size into an EMPTY abstract HMAC REP*)
+Parameter mkEmpty: forall v, field_compatible t_struct_hmac_ctx_st [] v -> 
+memory_block Tsh (sizeof (@cenv_cs CompSpecs) t_struct_hmac_ctx_st) v |-- EMPTY v.
 
 (* We can prematurely terminate sequences of hmac-update by simply declaring
    an updateable ctx FULL*)
@@ -162,6 +166,10 @@ Definition FULL key c:mpred :=
    EX h:_, hmacstate_PreInitNull key h c.
 
 Definition EMPTY c : mpred := data_at_ Tsh t_struct_hmac_ctx_st c.
+
+Lemma mkEmpty v: field_compatible t_struct_hmac_ctx_st [] v -> 
+  memory_block Tsh (sizeof (@cenv_cs CompSpecs) t_struct_hmac_ctx_st) v |-- EMPTY v.
+Proof. intros. unfold EMPTY. rewrite data_at__memory_block. entailer!. Qed.
 
 Lemma REP_FULL key data c: REP (hABS key data) c |-- FULL key c.
 Proof. unfold REP, FULL. normalize.

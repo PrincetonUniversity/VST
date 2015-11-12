@@ -19,8 +19,8 @@ name out' _out.
 name in' _in.
 name k' _k.
 name c' _c.
-Time forward_call (c, k, Z0, nonce, out, OUT, data) l. (*2.3*)
-Time forward. (*1.7*)
+Time forward_call (c, k, Z0, nonce, out, OUT, data) l. (*2.6*)
+Time forward. (*1.8*)
 Exists l.
 Time entailer!. (*1.6*)
 { unfold fcore_result in H.
@@ -28,7 +28,7 @@ Time entailer!. (*1.6*)
   destruct d. 2: inv H. rewrite Int.eq_true in H.
   exists l0; split; trivial. }
 apply derives_refl. 
-Time Qed.
+Time Qed. (*4.2*)
 
 Lemma prepare_data_length data: length (prepare_data data) = 16%nat.
 Proof.
@@ -65,10 +65,10 @@ name out' _out.
 name in' _in.
 name k' _k.
 name c' _c.
-Time forward_call (c, k, 1, nonce, out, OUT, data) l. (*1.6*)
-Time forward. (*9*) (*Issue: prevent this term from exploding by setting the right thing Opaque*)
+Time forward_call (c, k, 1, nonce, out, OUT, data) l. (*2.5*)
+Time forward. (*9.4*) (*Issue: prevent this term from exploding by setting the right thing Opaque*)
 Exists l.
-Time entailer!. (*5.6*)
+Time entailer!. (*6*)
 { clear - H. unfold fcore_result in H.
   remember (Snuffle20 (prepare_data data)) as d; symmetry in Heqd.
   destruct d. 2: inv H. rewrite Int.eq_false in H.
@@ -97,4 +97,4 @@ Time entailer!. (*5.6*)
   omega. reflexivity.
   apply Int.one_not_zero. }
 apply derives_refl.
-Time Qed. (*6.1*)
+Time Qed. (*6.5*)

@@ -56,12 +56,12 @@ Lemma f_core_loop1: forall (Espec : OracleKind)
 c k h nonce out OUT 
 (data : SixteenByte * SixteenByte * (SixteenByte * SixteenByte))
 (*(Delta := func_tycontext f_core SalsaVarSpecs SalsaFunSpecs) *)
-(out' : name _out)
+(*(out' : name _out)
 (in' : name _in)
 (k' : name _k)
 (c' : name _c)
 (h' : name _h)
-(aux' : name _aux)
+(aux' : name _aux)*)
 w x y t,
 @semax CompSpecs Espec (func_tycontext f_core SalsaVarSpecs SalsaFunSpecs) (* Delta*)
   (PROP  ()
@@ -161,7 +161,7 @@ PROP  ()
    `(data_at_ Tsh (tarray tuint 16) w); `(CoreInSEP data (nonce, c, k));
    `(data_at Tsh (tarray tuchar 64) OUT out)))).
 Proof. intros. abbreviate_semax.
-forward_for_simple_bound 4 (EX i:Z, 
+Time forward_for_simple_bound 4 (EX i:Z, 
    PROP  ()
    LOCAL  ( 
    lvar _t (tarray tuint 4) t; lvar _y (tarray tuint 16) y;
@@ -171,20 +171,19 @@ forward_for_simple_bound 4 (EX i:Z,
    `(data_at_ Tsh (tarray tuint 4) t);
    `(EX l:_, !!(X_content data i l) && data_at Tsh (tarray tuint 16) l x);
    `(data_at_ Tsh (tarray tuint 16) w); `(CoreInSEP data (nonce, c, k));
-   `(data_at Tsh (tarray tuchar 64) OUT out))).
-{ entailer. apply (exp_right (list_repeat 16 Vundef)). entailer. }
+   `(data_at Tsh (tarray tuchar 64) OUT out))). (*2.4*)
+{ Exists (list_repeat 16 Vundef). Time entailer!. (*3.6*) }
 { rename H into I.
  
   destruct data as ((Nonce, C), Key). unfold CoreInSEP.
-  unfold SByte at 2. normalize. intros X0; normalize. rename H into X0cont.
+  unfold SByte at 2. Intros X0; rename H into X0cont.
 
   assert (C16:= SixteenByte2ValList_Zlength C).
   remember (SplitSelect16Q C i) as FB; destruct FB as (Front, Back).
   (*rewrite (Select_SplitSelect16Q C i _ _ HeqFB) in *.*)
   (*assert (FrontBack:= Select_SplitSelect16Q_Zlength _ _ _ _ HeqFB I). (* as [FL BL].*)*)
-  assert_PROP (field_compatible (Tarray tuchar 16 noattr) [] c). entailer.
-  rename H into FC.
-  assert_PROP(isptr c). entailer. apply isptrD in H; destruct H as [cb [coff CP]]. rewrite CP in *.
+  Time assert_PROP (isptr c /\ field_compatible (Tarray tuchar 16 noattr) [] c) as FCc by entailer!. (*3.7*)
+  destruct FCc as [Pc FC]; apply isptrD in Pc; destruct Pc as [cb [coff CP]]; rewrite CP in *.
   destruct (Select_SplitSelect16Q_Zlength _ _ _ _ HeqFB I) as [FL _].
   rewrite (split3_data_at_Tarray_at_tuchar Tsh 16 (Zlength (QuadChunks2ValList Front)) 
         (Zlength (QuadChunks2ValList [Select16Q C i]))); trivial; 
@@ -194,7 +193,7 @@ forward_for_simple_bound 4 (EX i:Z,
     try rewrite <- QuadByteValList_ZLength; try rewrite Z.mul_1_r; try omega.
 (*    2: destruct (Select_SplitSelect16Q_Zlength _ _ _ _ HeqFB I) as [FL _]; rewrite FL; omega.
     2: destruct (Select_SplitSelect16Q_Zlength _ _ _ _ HeqFB I) as [FL _]; rewrite FL; omega.*)
-  normalize. 
+  Time normalize.  (*6.3*)
   rewrite (Select_SplitSelect16Q C i _ _ HeqFB) at 2.
   rewrite (sublist_app2 (4 * Zlength Front) (4 + 4 * Zlength Front)); 
     repeat rewrite QuadChunk2ValList_ZLength. 
@@ -205,13 +204,13 @@ forward_for_simple_bound 4 (EX i:Z,
      try rewrite Z.mul_1_r; trivial; try omega.
 Transparent core_spec. Transparent ld32_spec. Transparent L32_spec. Transparent st32_spec.
 Transparent crypto_core_salsa20_spec. Transparent crypto_core_hsalsa20_spec. 
-  (*Issue this is where the call fails if we use abbreviation Detla := ... in the statemtn of the lemma*)
-  forward_call (offset_val (Int.repr (4 * i)) (Vptr cb coff), Select16Q C i) pat.
+  (*Issue this is where the call fails if we use abbreviation Delta := ... in the statement of the lemma*)
+  Time forward_call (offset_val (Int.repr (4 * i)) (Vptr cb coff), Select16Q C i) pat. (*13*)
 Opaque core_spec. Opaque ld32_spec. Opaque L32_spec. Opaque st32_spec.
 Opaque crypto_core_salsa20_spec. Opaque crypto_core_hsalsa20_spec.
-  { simpl. rewrite app_nil_r, FL. cancel. }
+  { simpl. rewrite app_nil_r, FL. Time cancel. (*4.2*) }
 
-normalize. subst pat.
+  subst pat; simpl.
   apply semax_pre with (P':=
   (PROP  ()
    LOCAL  ( temp _aux (Vint (littleendian (Select16Q C i)));
@@ -237,32 +236,33 @@ normalize. subst pat.
      2: destruct (Select_SplitSelect16Q_Zlength _ _ _ _ HeqFB I) as [FL _]; rewrite FL; omega.*)
      2: destruct (Select_SplitSelect16Q_Zlength _ _ _ _ HeqFB I) as [_ BL]; rewrite FL, BL; omega.
      2: rewrite CP; trivial.
-    Opaque Z.sub. Opaque Z.mul. Opaque Z.add. entailer. 
+    Opaque Z.sub. Opaque Z.mul. Opaque Z.add. Time entailer!. (*9.7*) 
 (*    destruct (Select_SplitSelect16Q_Zlength _ _ _ _ HeqFB I) as [FL BL]; rewrite FL, BL. *)
-    cancel. 
     rewrite sublist_app2; repeat rewrite QuadChunk2ValList_ZLength; repeat rewrite FL; try omega.
     rewrite Zminus_diag, Z.add_simpl_r.
     unfold at_offset at 1.
     rewrite (sublist0_app1 4), (sublist_same 0 4); try rewrite <- QuadByteValList_ZLength;
         try rewrite app_nil_r; try omega.
-    cancel. apply QuadByteValList_ZLength. rewrite <- QuadByteValList_ZLength; omega. }
+    apply derives_refl.
+    apply QuadByteValList_ZLength.
+    rewrite <- QuadByteValList_ZLength; omega. }
 
   (*Store into x[...]*)
   Transparent firstn.
-  forward.
+  Time forward. (*5.8*)
 
   destruct Key as [Key1 Key2]. 
-  assert_PROP (field_compatible (Tarray tuchar 32 noattr) [] k).
-    solve [unfold ThirtyTwoByte; entailer]. 
-  rename H into FCK32.
-  erewrite ThirtyTwoByte_split16; trivial. unfold SByte at 2. normalize.
-  assert_PROP (field_compatible (Tarray tuchar 16 noattr) [] k). solve [entailer].
-  rename H into FCK16.
+  Time assert_PROP (field_compatible (Tarray tuchar 32 noattr) [] k) as FCK32 
+    by (unfold ThirtyTwoByte; entailer!). (*4.9*)
+  erewrite ThirtyTwoByte_split16; trivial. unfold SByte at 2.
+  Time normalize. (*3.8*)
+  Time assert_PROP (field_compatible (Tarray tuchar 16 noattr) [] k) as FCK16 by entailer!. (*4.7*)
   assert (K1_16:= SixteenByte2ValList_Zlength Key1).
   remember (SplitSelect16Q Key1 i) as FB_K1. destruct FB_K1 as (Front_K1, Back_K1).
 (*  rewrite (Select_SplitSelect16Q Key1 i _ _ HeqFB_K1).*)
   erewrite Select_Unselect_Tarray_at. (*; repeat rewrite <- K1_16; trivial.*)
-    2: symmetry; apply (Select_SplitSelect16Q Key1 i _ _ HeqFB_K1). 2: assumption. 
+    2: symmetry; apply (Select_SplitSelect16Q Key1 i _ _ HeqFB_K1).
+    2: assumption. 
     2: rewrite <- (Select_SplitSelect16Q Key1 i _ _ HeqFB_K1), <- K1_16; trivial.
     2: rewrite <- (Select_SplitSelect16Q Key1 i _ _ HeqFB_K1), <- K1_16; cbv; trivial.
   unfold Select_at. simpl. rewrite app_nil_r.
@@ -271,13 +271,13 @@ normalize. subst pat.
   rewrite  QuadChunk2ValList_ZLength.
 Transparent core_spec. Transparent ld32_spec. Transparent L32_spec. Transparent st32_spec.
 Transparent crypto_core_salsa20_spec. Transparent crypto_core_hsalsa20_spec.
-  forward_call (offset_val (Int.repr (4 * i)) k, 
-                 Select16Q Key1 i) v. 
+  Time forward_call (offset_val (Int.repr (4 * i)) k, 
+                 Select16Q Key1 i) v. (*15.3*)
   { destruct (Select_SplitSelect16Q_Zlength _ _ _ _ HeqFB_K1 I) as [FLK _]; rewrite FLK.
-    cancel. }
+    Time cancel. (*5.9*) }
 Opaque core_spec. Opaque ld32_spec. Opaque L32_spec. Opaque st32_spec.
 Opaque crypto_core_salsa20_spec. Opaque crypto_core_hsalsa20_spec.
-  normalize. subst v.
+  subst v; simpl.
 
   apply semax_pre with (P':=
   (PROP  ()
@@ -296,7 +296,7 @@ Opaque crypto_core_salsa20_spec. Opaque crypto_core_hsalsa20_spec.
    `(data_at_ Tsh (tarray tuint 16) w);
    `(data_at Tsh (tarray tuchar 64) OUT out)))). 
   { erewrite ThirtyTwoByte_split16; trivial. 
-    entailer. cancel.
+    Time entailer!. (*7.3*)
     unfold SByte. rewrite (Select_SplitSelect16Q _ _ _ _ HeqFB_K1) in *.
     erewrite Select_Unselect_Tarray_at; try rewrite <- K1_16; try reflexivity; try assumption.
     unfold QByte, Select_at. simpl. repeat rewrite app_nil_r.
@@ -306,31 +306,31 @@ Opaque crypto_core_salsa20_spec. Opaque crypto_core_hsalsa20_spec.
     rewrite <- K1_16; trivial. rewrite <- K1_16; cbv; trivial. }
 
   (*Store into x[...]*)
-  forward. simpl.
+  Time forward. (*7.8*)
 
   (*Load nonce*)
-  unfold SByte at 1.
+  unfold SByte at 1; simpl.
   assert (N16:= SixteenByte2ValList_Zlength Nonce).
   remember (SplitSelect16Q Nonce i) as FB_N; destruct FB_N as (Front_N, BACK_N).
     rewrite (Select_SplitSelect16Q _ i _ _ HeqFB_N) in *. 
-  assert_PROP (field_compatible (Tarray tuchar 16 noattr) [] nonce). entailer.
-  rename H into FCN.
-  erewrite Select_Unselect_Tarray_at with (d:=nonce); try reflexivity; try assumption. normalize.
+  Time assert_PROP (field_compatible (Tarray tuchar 16 noattr) [] nonce) as FCN by entailer!. (*6.8*)
+  erewrite Select_Unselect_Tarray_at with (d:=nonce); try reflexivity; try assumption.
+  Time normalize. (*5.2*)
   2: rewrite <- N16; trivial. 2: rewrite <- N16; cbv; trivial.
   unfold Select_at. simpl. rewrite app_nil_r.
   (*destruct (Select_SplitSelect16Q_Zlength _ _ _ _ HeqFB_N I) as [FrontN BackN].*)
 Transparent core_spec. Transparent ld32_spec. Transparent L32_spec. Transparent st32_spec.
 Transparent crypto_core_salsa20_spec. Transparent crypto_core_hsalsa20_spec.
-  forward_call (offset_val (Int.repr (4 * i)) nonce, 
-                 Select16Q Nonce i) v. 
+  Time forward_call (offset_val (Int.repr (4 * i)) nonce, 
+                 Select16Q Nonce i) v. (*18*)
   { rewrite <- QuadByteValList_ZLength. (*rewrite Z.mul_1_l.  simpl.*)
     rewrite  QuadChunk2ValList_ZLength.
     destruct (Select_SplitSelect16Q_Zlength _ _ _ _ HeqFB_N I) as [FrontN _]; rewrite FrontN.
-    cancel. }
+    Time cancel. (*5*)}
 Opaque core_spec. Opaque ld32_spec. Opaque L32_spec. Opaque st32_spec.
 Opaque crypto_core_salsa20_spec. Opaque crypto_core_hsalsa20_spec.
   
-  normalize. subst v.
+  subst v; simpl.
   apply semax_pre with (P':=
   (PROP  ()
    LOCAL  ((*temp _aux v; *)
@@ -351,7 +351,7 @@ Opaque crypto_core_salsa20_spec. Opaque crypto_core_hsalsa20_spec.
           (Vint (littleendian (Select16Q Key1 i)))) x);
    `(data_at_ Tsh (tarray tuint 16) w);
    `(data_at Tsh (tarray tuchar 64) OUT out) (*`(data_block Tsh OUT out)*)))). 
-  { entailer. cancel. 
+  { Time entailer!. (*9.5*)
    
     (*Apart from the unfold QByte, the next 9 lines are exactly as above, inside the function call*)
     unfold SByte. rewrite (Select_SplitSelect16Q _ _ _ _ HeqFB_N) in *.
@@ -364,36 +364,36 @@ Opaque crypto_core_salsa20_spec. Opaque crypto_core_hsalsa20_spec.
     rewrite <- N16; trivial. rewrite <- N16; cbv; trivial. }
 
   (*Store into x[...]*)
-  forward.
+  Time forward. (*8.8*)
 
   (*Load Key2*)
-  rewrite ThirtyTwoByte_split16; trivial. normalize.
+  rewrite ThirtyTwoByte_split16; trivial. Time normalize. (*4.1*)
   unfold SByte at 2.
   assert (K2_16:= SixteenByte2ValList_Zlength Key2).
-  assert_PROP(field_compatible (Tarray tuchar 16 noattr) [] (offset_val (Int.repr 16) k)). entailer.
-  rename H into FCK2.
+  Time assert_PROP (isptr k/\ field_compatible (Tarray tuchar 16 noattr) [] (offset_val (Int.repr 16) k))
+     as Pk_FCK2 by entailer!. (*6.6*)
+  destruct Pk_FCK2 as [Pk FCK2]; apply isptrD in Pk; destruct Pk as [kb [koff Pk]]; rewrite Pk in *. 
   remember (SplitSelect16Q Key2 i) as FB_K2; destruct FB_K2 as (Front_K2, Back_K2).
   rewrite (Select_SplitSelect16Q _ i _ _ HeqFB_K2) in *. 
-    erewrite Select_Unselect_Tarray_at with (d:=offset_val (Int.repr 16) k); try reflexivity; try assumption. normalize.
+  erewrite Select_Unselect_Tarray_at with (d:=offset_val (Int.repr 16) (Vptr kb koff)); try reflexivity; try assumption.
   2: rewrite <- K2_16; trivial. 2: rewrite <- K2_16; cbv; trivial.
+  Time normalize. (*6.6*)
   unfold Select_at. simpl. rewrite app_nil_r.
-  assert_PROP (isptr k). unfold SByte. entailer. 
-  apply isptrD in H; destruct H as [kb [koff KP]]; rewrite KP in *. 
+  repeat rewrite <- QuadByteValList_ZLength.
+  rewrite QuadChunk2ValList_ZLength.
    
 Transparent core_spec. Transparent ld32_spec. Transparent L32_spec. Transparent st32_spec.
 Transparent crypto_core_salsa20_spec. Transparent crypto_core_hsalsa20_spec.
-repeat rewrite <- QuadByteValList_ZLength. simpl.
-    rewrite  QuadChunk2ValList_ZLength.
-  forward_call (Vptr kb
+  Time forward_call (Vptr kb
            (Int.add (Int.add koff (Int.repr 16)) (Int.repr (4 * Zlength Front_K2))),
-                 Select16Q Key2 i) v. 
+                 Select16Q Key2 i) v. (*22.8 SLOW*)
 Opaque core_spec. Opaque ld32_spec. Opaque L32_spec. Opaque st32_spec.
 Opaque crypto_core_salsa20_spec. Opaque crypto_core_hsalsa20_spec.
   { destruct (Select_SplitSelect16Q_Zlength _ _ _ _ HeqFB_K2 I) as [FK2 _]; rewrite FK2.
      apply prop_right; simpl. do 2 rewrite Int.mul_commut, Int.mul_one. rewrite mul_repr. 
      trivial. }
 
-  normalize. subst v.
+  subst v; simpl.
   apply semax_pre with (P':=
   (PROP  ()
    LOCAL  ((*temp _aux v;*)
@@ -415,8 +415,8 @@ Opaque crypto_core_salsa20_spec. Opaque crypto_core_hsalsa20_spec.
           (Vint (littleendian (Select16Q Nonce i)))) x);
    `(data_at_ Tsh (tarray tuint 16) w); 
    `(data_at Tsh (tarray tuchar 64) OUT out) (*`(data_block Tsh OUT out)*)))). 
-  { erewrite ThirtyTwoByte_split16. 2: rewrite KP; assumption.
-    entailer. cancel. 
+  { erewrite ThirtyTwoByte_split16. 2: rewrite Pk; assumption.
+    Time entailer!. (*9.5*)
    
     (*Apart from the unfold QByte, the next 9 lines are exactly as above, inside the function call*)
     unfold SByte. rewrite (Select_SplitSelect16Q _ _ _ _ HeqFB_K2) in *.
@@ -429,9 +429,9 @@ Opaque crypto_core_salsa20_spec. Opaque crypto_core_hsalsa20_spec.
     rewrite <- K2_16. cbv; trivial. }
 
   (*Store into x[...]*)
-  forward. clear FL.
+  Time forward. (*10.6*) clear FL.
 
-  Time entailer!. (*14*) 
+  Time entailer!. (*16.1 SLOW*) 
   Exists (upd_Znth_in_list (11 + i)
      (upd_Znth_in_list (6 + i)
         (upd_Znth_in_list (1 + i)
@@ -440,11 +440,11 @@ Opaque crypto_core_salsa20_spec. Opaque crypto_core_hsalsa20_spec.
            (Vint (littleendian (Select16Q Key1 i))))
         (Vint (littleendian (Select16Q Nonce i))))
      (Vint (littleendian (Select16Q Key2 i)))).
-  Time entailer!. (*4*) 
+  Time entailer!. (*1.9*) 
     clear - X0cont I. apply XcontUpdate; trivial.
   apply derives_refl. }
-Time entailer!. (*2.6*)
-Time Qed. (*304*)
+apply derives_refl.
+Time Qed. (*280*)
 
 Lemma XX data l: X_content data 4 l -> 
   l = match data with ((Nonce, C), (Key1, Key2)) =>

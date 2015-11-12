@@ -32,9 +32,7 @@ congruence.
 normalize.
 Qed.
 
-Definition data_offset : Z :=  (* offset, in bytes, of _data field in struct SHA256_state *)
-  nested_field_offset t_struct_SHA256state_st [StructField _data].
-
+(*
 Lemma elim_globals_only'':
   forall i t rho,  
    (exists Delta, tc_environ Delta rho /\
@@ -65,6 +63,7 @@ Proof.
 Qed.
 
 Hint Rewrite elim_make_args using (eexists; split3; [eassumption | reflexivity | apply I]) : norm.
+*)
 
 Fixpoint loops (s: statement) : list statement :=
  match s with 
@@ -195,7 +194,7 @@ Fixpoint sequenceN (n: nat) (s: statement) : list statement :=
  end.
 
 Lemma data_block_local_facts:
- forall sh f data,
+ forall {cs: compspecs} sh f data,
   data_block sh f data |-- 
    prop (field_compatible (tarray tuchar (Zlength f)) [] data
            /\ Forall isbyteZ f).
@@ -204,7 +203,7 @@ intros. unfold data_block, array_at.
 simpl.
 entailer.
 Qed.
-Hint Resolve data_block_local_facts : saturate_local.
+Hint Resolve @data_block_local_facts : saturate_local.
 
 Require Import JMeq.
 
@@ -216,135 +215,6 @@ rewrite reptype_ind. simpl. reflexivity.
 Qed.
 
 (*
-Lemma split_offset_array_at:
-  forall n sh t len 
-    (contents': (@zlist _ _ (list_zlist _ (default_val t)) 0 len))
-    (contents: reptype (tarray t len))
-    (contents1: reptype (tarray t n))
-    (contents2: reptype (tarray t (len-n)))
-    v,
-    JMeq contents contents' ->
-    JMeq contents1 (zl_sublist 0 n contents') ->
-    JMeq contents2 (zl_shift 0 (len-n) (zl_sublist n len contents')) ->
-   legal_alignas_type t = true ->
-   (0 <= n <= len) ->
-  data_at sh (tarray t len) contents v =
-  (!! (offset_in_range (sizeof cenv_cs t * 0) v) &&
-   !! (offset_in_range (sizeof cenv_cs t * len) v) && 
-  (data_at sh (tarray t n) contents1 v * 
-    data_at sh (tarray t (len- n)) contents2 (offset_val (Int.repr (sizeof cenv_cs t * n)) v)))%logic.
-Admitted. 
-Proof.
-  intros.
-  apply extract_prop_from_equal' with (isptr v);
-    [| rewrite data_at_isptr; normalize | rewrite data_at_isptr; normalize].
-  intros.
-  unfold data_at.
-  simpl.
-  normalize.
-  apply prop_andp_ext'.
-*
-  unfold size_compatible, offset_in_range.
-  destruct v; try contradiction H2.
-  simpl.
-  clear b H2.
-  rewrite Z.max_r by omega.
-  rewrite Z.max_r by omega.
-  rewrite Z.max_r by omega.
-  replace (Int.add i) with (Int.add (Int.repr (Int.unsigned i))) by (rewrite Int.repr_unsigned; auto).
-  rewrite add_repr.
-  pose proof (Int.unsigned_range i).
-  forget (Int.unsigned i) as z; clear i.
-  assert (0 <= Z.of_nat n)%Z by omega.
-  forget (Z.of_nat n) as N. clear n.
-  pose proof (sizeof_pos t).
-  pose proof (Z.mul_nonneg_nonneg (sizeof t) N).
-  spec H5; [omega |].
-  spec H5; [omega |].
-  assert (Int.max_unsigned + 1 = Int.modulus) by computable.
-  assert (N = len \/ N < len) by omega.
-  destruct H7.
-+
-   subst N. clear H1.
-  intuition.
-  rewrite Z.sub_diag.
-  rewrite Z.mul_0_r. rewrite Z.add_0_r.
-  pose proof (Int.unsigned_range (Int.repr (z + sizeof t * len))); omega.
-  assert (z + sizeof t * len < Int.modulus \/ z + sizeof t * len = Int.modulus) by omega.
-  destruct H10.
-  - rewrite Int.unsigned_repr; try (unfold Int.max_unsigned; omega).
-    apply Z.divide_add_r; auto.
-    rewrite Z.mul_comm.
-    apply Z.divide_mul_r; auto.
-    apply legal_alignas_sizeof_alignof_compat; auto. (* legal_alignas_sizeof_alignof_compat's specificaltion is modified. *)
-  - rewrite H10.
-    apply Z.divide_0_r.
-+
-  assert (sizeof t = 0 \/ 0 < sizeof t) by omega.
-  destruct H8.
-  - rewrite H8 in *.
-     repeat rewrite Z.mul_0_l. repeat rewrite Z.add_0_r.
-     intuition.
-     pose proof (Int.unsigned_range (Int.repr z)); omega.
-     rewrite Int.unsigned_repr; auto; omega.
- -
-   assert (sizeof t * N < sizeof t * len)%Z
-    by (   apply Zmult_lt_compat_l; omega).
-  rewrite Z.mul_sub_distr_l.
-  intuition.
-  rewrite Int.unsigned_repr; try omega.
-  rewrite Int.unsigned_repr; try omega.
-  apply Z.divide_add_r; auto.
-  rewrite Z.mul_comm.
-  apply Z.divide_mul_r; auto.
-  apply legal_alignas_sizeof_alignof_compat; auto.
-*
-  intros [? ?].
-  rewrite split2_array_at' with (mid := Z.of_nat n) by omega.
-  simpl.
-  f_equal.
-  + unfold array_at'; f_equal.
-    apply rangespec_ext; intros.
-    f_equal.
-    unfold Znth; if_tac; [omega |].
-    rewrite nth_firstn; [reflexivity |].
-    rewrite Z.sub_0_r.
-    destruct H5.
-    apply Z2Nat.inj_lt in H7; try omega.
-    rewrite Nat2Z.id in H7.
-    exact H7.
-  + unfold array_at', rangespec.
-      normalize.
-    rewrite !Z.sub_0_r.
-    apply rangespec'_shift; intros.
-    rewrite Z.sub_0_r in H6. subst i'.
-    change nat_of_Z with Z.to_nat in H5.
-    rewrite Z2Nat.id in H5 by omega.
-    rewrite Z.sub_0_r.
-    repeat rewrite Z.add_0_l.
-    rewrite Nat2Z.id.
-    forget (Znth (i - Z.of_nat n) (skipn n contents) (default_val t)) as c.
-    rewrite data_at'_at_offset'; auto.
-    symmetry.
-    rewrite data_at'_at_offset'; auto.
-    repeat rewrite at_offset'_eq.
-    f_equal. rewrite offset_offset_val.
-    f_equal.
-    rewrite add_repr.
-    f_equal.
-    rewrite <- Z.mul_add_distr_l.
-    f_equal. omega.
-    normalize.
-    normalize.
-  rewrite Z.mul_comm.
-  apply Z.divide_mul_r; auto.
-  apply legal_alignas_sizeof_alignof_compat; auto.
-  rewrite Z.mul_comm.
-  apply Z.divide_mul_r; auto.
-  apply legal_alignas_sizeof_alignof_compat; auto.
-Qed.
-*)
-
 Lemma firstn_map {A B} (f:A -> B): forall n l, 
       firstn n (map f l) = map f (firstn n l).
 Proof. intros n.
@@ -360,18 +230,9 @@ induction n; simpl; intros. trivial.
   destruct l; simpl. trivial.
   rewrite IHn. trivial.
 Qed.
+*)
 
 Local Open Scope nat.
-
-Lemma data_at_type_changable: forall (sh: Share.t) (t1 t2: type) v1 v2,
-  t1 = t2 ->
-  JMeq v1 v2 ->
-  data_at sh t1 v1 = data_at sh t2 v2.
-Proof.
-  intros.
-  subst. apply JMeq_eq in H0. subst v2. reflexivity.
-Qed.
-
 
 (*** Application of Omega stuff ***)
 
@@ -392,8 +253,6 @@ Ltac helper2 :=
    | H: context [LBLOCKz] |- _ => add_nonredundant (LBLOCKz_eq)
   end.
 
-(*** End Omega stuff ***)
-
 Ltac Omega1 := Omega (helper1 || helper2).
 
 Ltac MyOmega :=
@@ -404,18 +263,11 @@ Ltac MyOmega :=
   pose proof LBLOCK_eq;
   pose proof LBLOCKz_eq;
   Omega1.
-(*  Omega OmegaHelper1.*)
+(*** End Omega stuff ***)
 
 Local Open Scope Z.
 
 Local Open Scope logic.
-
-Lemma mapsto_tuchar_isbyteZ:
-  forall sh v i, readable_share sh-> mapsto sh tuchar v (Vint i) =
-    !! (0 <= Int.unsigned i < 256)%Z && mapsto sh tuchar v (Vint i).
-Proof.
-intros. apply mapsto_value_range. trivial.
-Qed.
 
 Lemma data_block_valid_pointer sh l p: sepalg.nonidentity sh -> Zlength l > 0 ->
       data_block sh l p |-- valid_pointer p.
@@ -489,70 +341,37 @@ Proof.
  apply IHn; omega.
 Qed.
 
-Lemma split2_data_block_unfold:
-  forall n sh data d,
-  (0 <= n <= Zlength data)%Z ->
-  data_block sh data d |-- 
-  (data_block sh (sublist 0 n data) d *
-   data_block sh (sublist n (Zlength data) data) 
-   (field_address0 (tarray tuchar (Zlength data)) [ArraySubsc n] d))%logic.
-Proof.
-intros.
-unfold data_block. simpl. entailer. unfold tarray. eapply derives_trans.
-   apply (split2_data_at_Tarray_at_tuchar_unfold sh (Zlength data) n); auto;
-   repeat rewrite Zlength_map; try Omega1.
-   entailer.
-   repeat rewrite Zlength_sublist; repeat rewrite Zminus_0_r;
-      repeat rewrite sublist_map; repeat rewrite Zlength_map; try Omega1.
-   apply andp_right.
-      apply prop_right. repeat split; eapply isbyteZ_sublist; eassumption.
-   unfold at_offset, field_address0; simpl.
-      rewrite if_true. repeat rewrite Z.mul_1_l. cancel.
-     eapply field_compatible0_cons_Tarray. reflexivity. assumption. assumption.
-Qed.
-Lemma split2_data_block_fold:
-  forall n sh data d,
-  (0 <= n <= Zlength data)%Z -> Zlength data < Int.modulus->
-  field_compatible (Tarray tuchar (Zlength data) noattr) [] d ->
-  (data_block sh (sublist 0 n data) d *
-   data_block sh (sublist n (Zlength data) data) 
-   (field_address0 (tarray tuchar (Zlength data)) [ArraySubsc n] d)
-  |--
-  data_block sh data d)%logic.
-Proof.
-intros.
-unfold data_block. simpl. entailer. 
- apply andp_right. admit.
- unfold tarray. eapply derives_trans.
- Focus 2. 
- apply (split2_data_at_Tarray_at_tuchar_fold sh (Zlength data) n); trivial.
- do 2 rewrite Zlength_map; trivial.
 
-  repeat rewrite sublist_map; repeat rewrite Zlength_sublist; try omega.
-  rewrite Zminus_0_r; cancel.
-  unfold at_offset, field_address0; simpl.
-      rewrite if_true. repeat rewrite Z.mul_1_l, Z.add_0_l.
-      repeat rewrite Zlength_map. trivial.
-  red; red in H1; intuition. split; simpl; trivial; omega.
-Qed.
+Hint Resolve isbyteZ_sublist.
+
+
 Lemma split2_data_block:
-  forall n sh data d,
-  (0 <= n <= Zlength data)%Z -> Zlength data < Int.modulus->
-  field_compatible (Tarray tuchar (Zlength data) noattr) [] d ->
+  forall  {cs: compspecs}  n sh data d,
+  (0 <= n <= Zlength data)%Z ->
   data_block sh data d =
   (data_block sh (sublist 0 n data) d *
    data_block sh (sublist n (Zlength data) data) 
    (field_address0 (tarray tuchar (Zlength data)) [ArraySubsc n] d))%logic.
-Proof. intros. apply pred_ext.
-  apply split2_data_block_unfold; trivial.
-  apply split2_data_block_fold; trivial.
+Proof.
+  intros.
+  unfold data_block. simpl. normalize.
+  f_equal. f_equal.
+  apply prop_ext.
+  split; intro. split; apply Forall_sublist; auto.
+  erewrite <- (sublist_same 0 (Zlength data)); auto.
+  rewrite (sublist_split 0 n) by omega.
+  apply Forall_app; auto.
+  rewrite <- !sublist_map.
+  unfold tarray.
+  rewrite split2_data_at_Tarray_tuchar with (n1:=n) by (autorewrite with sublist; auto).
+  autorewrite with sublist.
+  reflexivity.  
 Qed.
 
 Lemma split3_data_block:
-  forall lo hi sh data d,
+  forall  {cs: compspecs} lo hi sh data d,
   0 <= lo <= hi ->
-  hi <= Zlength data  < Int.modulus ->
-  field_compatible (tarray tuchar (Zlength data)) [] d ->
+  hi <= Zlength data  ->
   data_block sh data d = 
   (data_block sh (sublist 0 lo data) d *
    data_block sh (sublist lo hi data) 
@@ -561,76 +380,20 @@ Lemma split3_data_block:
    (field_address0 (tarray tuchar (Zlength data)) [ArraySubsc hi] d))%logic.
 Proof.
   intros.
-  rewrite (split2_data_block hi); try omega; trivial.
-  rewrite (split2_data_block lo); autorewrite with sublist; try omega.
+  unfold data_block. simpl. normalize.
   f_equal. f_equal.
-  f_equal.
-  unfold field_address0.
-  rewrite !if_true; auto.
-  eapply field_compatible0_cons_Tarray; try reflexivity; auto; try omega.
-  eapply field_compatible0_cons_Tarray; try reflexivity; auto; try omega.
-  hnf in H1|-*; intuition.
-  clear- H H2 H3 H1 H0.
-  unfold legal_alignas_type in H1|-*; simpl in H1|-*.
-  unfold tarray in *.
-  rewrite nested_pred_ind in H1.
-  rewrite nested_pred_ind.
-  rewrite andb_true_iff in *. destruct H1; split; auto.
-  clear - H2 H3 H H0 H.
-  unfold local_legal_alignas_type in *. simpl in *.
-  eapply Zle_is_le_bool. omega.
-  clear - H6 H0 H2 H3 H H4.
-  simpl sizeof in *. rewrite Z.max_r in * by omega. omega.
-  destruct d; try contradiction; simpl in *.
-  rewrite Z.max_r in * by omega. omega.
-  red. red in H1. intuition. unfold legal_alignas_type, nested_pred, local_legal_alignas_type in *. simpl. apply andb_true_intro. split; trivial.
-  eapply Zle_is_le_bool. omega.
-
-  simpl. rewrite Z.mul_1_l, Z.max_r; omega.
-  red; red in H8; intuition. destruct d; trivial. simpl in *. rewrite Z.mul_1_l, Z.max_r in *; omega.
+  apply prop_ext.
+  split; intro. split3; apply Forall_sublist; auto.
+  erewrite <- (sublist_same 0 (Zlength data)); auto.
+  rewrite (sublist_split 0 lo (Zlength data)) by omega.
+  rewrite (sublist_split lo hi (Zlength data)) by omega.
+  destruct H1 as [? [? ?]].
+  repeat (apply Forall_app; split);  auto.
+  rewrite <- !sublist_map.
+  unfold tarray.
+  rewrite split3_data_at_Tarray_tuchar with (n1:=lo)(n2:=hi) by (autorewrite with sublist; auto).
+  autorewrite with sublist.
+  reflexivity.  
 Qed.
-(*
-Lemma split2_data_block:
-  forall n sh data d,
-  n <= length data ->
-  data_block sh data d = 
-  (!! offset_in_range 0 d &&
-   !! offset_in_range (sizeof cenv_cs tuchar * Zlength data) d &&
-  data_block sh (firstn n data) d *
-  data_block sh (skipn n data) (offset_val (Int.repr (Z.of_nat n)) d))%logic.
-Proof.
-  intros.
-  assert (isptr d \/ ~isptr d) by (clear; destruct d; simpl; intuition).
-  destruct H0; [ | apply pred_ext; entailer].
-  unfold data_block.
-  remember (sizeof cenv_cs tuchar) as TU.
-  simpl.
-  normalize.
-  subst TU.
-  do 2 rewrite prop_and. rewrite <- andp_assoc.  rewrite <- (prop_and (Forall _ _)).
-  replace (Forall isbyteZ (skipn n data) /\ Forall isbyteZ (firstn n data)) with (Forall isbyteZ data)
-  by (apply prop_ext; rewrite and_comm; rewrite <- Forall_app; rewrite firstn_skipn; intuition).
- rewrite andp_assoc.
-  f_equal.
-  simpl sizeof. rewrite Z.mul_1_l.
-  erewrite (split_offset_array_at (Z.of_nat n)); auto;
-   [ | split; [omega | rewrite Zlength_correct; apply Nat2Z.inj_le; auto]].
-  f_equal.
- normalize.
-f_equal.
-repeat rewrite Zlength_correct.
-rewrite firstn_length. rewrite min_l by auto.
-f_equal.
-admit.  (* certainly true, but what a mess *)
-apply equal_f.
-apply data_at_type_changable.
-f_equal.
-rewrite !Zlength_correct.
-rewrite skipn_length. rewrite Nat2Z.inj_sub by omega. auto.
-rewrite <- !skipn_map.
-apply eq_JMeq.
-admit.  (* certainly true, but what a mess *)
-Qed.
-*)
 
 Global Opaque WORD.

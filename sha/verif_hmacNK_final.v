@@ -126,7 +126,11 @@ assert (SFL: Zlength (sha_finish ctx) = 32).
 Time forward_call (oSha, sha_finish ctx, Vptr b i, buf, Tsh, Z.of_nat SHA256.DigestLength, kv) updSha.
   (*8.1*)
   { unfold sha256state_. Time normalize. (*1.3*)
-    Exists oCTX. Time (normalize; cancel). (*4*) } 
+    Exists oCTX.
+    rewrite prop_true_andp by auto.
+    change (@data_block spec_sha.CompSpecs Tsh (sha_finish ctx))
+     with (@data_block CompSpecs Tsh (sha_finish ctx)).
+     Time cancel. (*1.7 *) } 
   { unfold SHA256.DigestLength. 
     rewrite oShaLen. simpl; intuition. }
 simpl.
@@ -137,19 +141,18 @@ rename H into updShaREL.
 
 (*Call SHA_Final*)
 Time forward_call (updSha, md, Vptr b i, shmd, kv). (*27 SLOW. takes 3.2 in version with freezer*) (*Issue: was faster in old_compcert, so probably related to new memory/type treatment*)
-  { unfold sha256state_. Time normalize. (*1.4*)
-    Exists updShaST. Time (normalize; cancel). (*3.4*)} 
-simpl.
+  { unfold sha256state_. 
+    Exists updShaST.
+    rewrite prop_true_andp by auto.
+    change_compspecs CompSpecs.
+    Time cancel. (* 1.6 *)
+  } 
 
 Time forward. (*9.7*)
-Exists buf. Time normalize. (*3.2*)
-Exists (sha_finish updSha, HMACabs updSha iSha oSha). Time normalize. (*3.1*)
-apply andp_right. apply prop_right. split; trivial.
-  exists updSha; eauto.
-unfold data_block. rewrite SFL.
-change_compspecs CompSpecs.
-Time normalize. (*2.1*)
-cancel.
+Exists buf (sha_finish updSha, HMACabs updSha iSha oSha).
+unfold data_block at 2. simpl. rewrite SFL.
+entailer!.
+  exists updSha; auto.
 apply derives_trans with (Q:= hmacstate_PostFinal (HMACabs updSha iSha oSha)
       (Vptr b i)); auto.
 

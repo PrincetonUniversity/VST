@@ -59,9 +59,9 @@ Definition sha256state_ (a: s256abs) (c: val) : mpred :=
    EX r:s256state, 
     !!  s256_relate a r  &&  data_at Tsh t_struct_SHA256state_st r c.
 
-Definition data_block (sh: share) (contents: list Z) :=
+Definition data_block {cs: compspecs} (sh: share) (contents: list Z) :=
   !! Forall isbyteZ contents &&
-  data_at sh (tarray tuchar (Zlength contents)) (map Vint (map Int.repr contents)).
+  @data_at cs sh (tarray tuchar (Zlength contents)) (map Vint (map Int.repr contents)).
 
 Definition _ptr : ident := 81%positive.
 Definition _x : ident := 82%positive.

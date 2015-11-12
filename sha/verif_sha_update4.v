@@ -368,7 +368,6 @@ simple apply (update_loop_body_proof Espec sh hashed dd data c d len kv (hash_bl
  unfold bl; rewrite Zlist_to_intlist_to_Zlist; auto.
  pose proof CBLOCKz_eq;  autorewrite with sublist.
  exists LBLOCKz; reflexivity.
- apply Forall_sublist; auto.
 *
  assert  (Zlength blocks' * 4 >= Zlength dd).
    rewrite <- (Zlength_intlist_to_Zlist blocks').

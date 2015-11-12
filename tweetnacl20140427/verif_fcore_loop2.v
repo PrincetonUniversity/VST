@@ -73,7 +73,7 @@ w x y t
    `(CoreInSEP data (nonce, c, k));
    `(data_at Tsh (tarray tuchar 64) OUT out)))).
 Proof. intros. abbreviate_semax.
-  forward_for_simple_bound 16 (EX i:Z, 
+  Time forward_for_simple_bound 16 (EX i:Z, 
     PROP  ()
     LOCAL  ( 
       lvar _t (tarray tuint 4) t; lvar _y (tarray tuint 16) y;
@@ -84,8 +84,9 @@ Proof. intros. abbreviate_semax.
      `(EX l:_, !!(Y_content xInit i l (list_repeat 16 Vundef)) && data_at Tsh (tarray tuint 16) l y);
      `(data_at_ Tsh (tarray tuint 16) w); `(CoreInSEP data (nonce, c, k));
      `(data_at Tsh (tarray tuchar 64) OUT out) (*`(data_block Tsh OUT out)*))).
-  { clear XInit. Time entailer!. (*4.5*) 
-    Exists (list_repeat 16 Vundef). Time entailer!.
+  (*4.1*)
+  { clear XInit. Time entailer!. (*4.9*)
+    Exists (list_repeat 16 Vundef). Time entailer!. (*0.5*)
     exists nil,  (list_repeat 16 Vundef).
       exists xInit, nil; simpl. repeat split; auto. }
   { rename H into I. Intros Y. rename H into YCONT.
@@ -99,14 +100,14 @@ Proof. intros. abbreviate_semax.
         rewrite <- APP2, app_Znth2, L1, Zminus_diag, Znth_0_cons in Vi. rewrite Vi.
         eexists; eexists; reflexivity. omega.
       destruct V as [v [yT ?]]. subst yy; simpl.
-      Time forward. (*12.5*) 
-      { Time entailer!. (*4.2*) rewrite Vi; simpl; trivial. }
+      Time forward. (*11.3*) 
+      { Time entailer!. (*4.5*) rewrite Vi; simpl; trivial. }
       rewrite <- XInit, <- APP2 in Vi. rewrite <- APP2, Vi.
       rewrite app_Znth2, L1, Zminus_diag, Znth_0_cons in Vi. inversion Vi; clear Vi; subst vi. 2: omega. 
-      Time forward. (*6.4*)
-      { Opaque upd_upto. Time entailer!. (*8.4*)
-        Exists (upd_Znth_in_list (Zlength l1) (l1 ++ l2) (Vint aux')).
-        rewrite APP2. Time entailer!. (*1.7*) 
+      Time forward. (*8.2*)
+      { Opaque upd_upto. 
+        Exists (upd_Znth_in_list (Zlength l1) (l1 ++ l2) (Vint v)). 
+        rewrite APP2. Time entailer!. (*7.4*) 
         clear - APP2 APP3 I L2. 
         assert (TT: exists lT, l2 = Vundef::lT).
         { destruct l2.
@@ -122,4 +123,4 @@ Proof. intros. abbreviate_semax.
           rewrite Zlength_cons', Zlength_nil, Zplus_0_r. solve [auto]. }
   }
   apply derives_refl.
-Time Qed. (*16*) 
+Time Qed. (*16.2*) 

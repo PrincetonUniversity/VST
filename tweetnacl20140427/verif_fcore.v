@@ -308,7 +308,7 @@ name k' _k.
 name c' _c.
 name h' _h.
 name aux' _aux.
-(*VST Issue: can we remove the need for these renamings?*)
+(*VST Issue: can we automate these renamings?*)
 rename lvar3 into t.
 rename lvar2 into y.
 rename lvar1 into x.
@@ -317,7 +317,7 @@ Time assert_PROP (Zlength OUT = 64) as ZL_OUT by entailer!. (*1.4*)
 apply semax_seq with (Q:=fcore_EpiloguePOST t y x w nonce out c k h OUT data).
   + forward_seq.
     eapply semax_pre.
-    Focus 2. apply (f_core_loop1 Espec c k h nonce out OUT data out' in' k' c' h' aux' w x y t); trivial.
+    Focus 2. apply (f_core_loop1 Espec c k h nonce out OUT data (*out' in' k' c' h' aux'*) w x y t); trivial.
              Time entailer!. (*2.4*)
     (*NEW: the following used to work insetad of the semax_pre: apply f_core_loop1; trivial.*)
  
@@ -366,15 +366,17 @@ apply semax_seq with (Q:=fcore_EpiloguePOST t y x w nonce out c k h OUT data).
                      OUT snuffleRes (map littleendian xInit)
                      (N1, N2, N3, N4) (C1, C2, C3, C4) (K1, K2, K3, K4, (L1, L2, L3, L4))).
       apply andp_left2. apply derives_refl.
-      intros ? ?. apply andp_left2.
+      intros ? ?. apply andp_left2. 
         unfold typed_true in H. simpl in H. inv H. apply negb_true_iff in H1. 
         unfold POSTCONDITION, abbreviate, overridePost, normal_ret_assert. 
         Transparent HTruePostCond. unfold HTruePostCond. Opaque HTruePostCond.
-        Time normalize. (*13*) rewrite if_true by trivial.
-         Exists snuffleRes
+        Time entailer!. (*21*) rewrite if_true by trivial.
+        rename x0 into intsums.
+        apply andp_right. apply prop_right; trivial.
+        Exists snuffleRes
               (map littleendian [C1; K1; K2; K3; K4; C2; N1; N2; N3; N4; C3; L1; L2; L3; L4; C4]).
-         rewrite H1. Exists intsums.
-         Time entailer!. (*13*) 
+        rewrite H1. Exists intsums.
+        Time entailer!. (*11.3*)
 
     - eapply semax_pre_post.
       Focus 3. eapply (verif_fcore_epilogue_hfalse Espec t y x w nonce out c k h 
@@ -388,7 +390,7 @@ apply semax_seq with (Q:=fcore_EpiloguePOST t y x w nonce out c k h OUT data).
         Time normalize. (*11*) rewrite if_true by trivial.
         Exists snuffleRes (map littleendian [C1; K1; K2; K3; K4; C2; N1; N2;
                N3; N4; C3; L1; L2; L3; L4; C4]).
-        rewrite H1. Time entailer!. (*9.4*) 
+        rewrite H1. Time entailer!. (*10.2*) 
         Intros l. Exists l. Time entailer!. (*1.5*)
     - intros ? ?. apply andp_left2.
       unfold POSTCONDITION, abbreviate, fcore_EpiloguePOST, overridePost.
@@ -401,32 +403,36 @@ apply semax_seq with (Q:=fcore_EpiloguePOST t y x w nonce out c k h OUT data).
     destruct Key2 as [[[L1 L2] L3] L4]. 
     Intros snuffleRes ys.
     unfold MORE_COMMANDS, abbreviate. (*Issue: Why's this line needed?*)   
-    Time forward. (*13*)
+    Time forward. (*15*)
     (*New Issue: postcondition really looks ugly here now, and (re)normalize/entailer doesn't help*)
 
-    Exists t y x w. Time entailer!. (*7.3*)
+    Exists t y x w. Time entailer!. (*8.3*)
     unfold fcorePOST_SEP. 
-    destruct H0 as [YS SNUFF]. rewrite Zlength_map in H6. apply Zlength_length in H6; try omega; simpl in H6.
-    specialize (Snuffle_length _ _ _ SNUFF H6); intros L.
+    (*destruct H as [YS SNUFF]. *)
+    (*rewrite Zlength_map in H6. apply Zlength_length in H6; try omega; simpl in H6.*)
+    specialize (Snuffle_length _ _ _  H (prepare_data_length _ )); intros L.
+    (*specialize (Snuffle_length _ _ _ SNUFF H6); intros L.*)
     unfold fcore_result. 
     destruct (Int.eq (Int.repr h) Int.zero).
-    - Intros l. Exists l. Time normalize. (*8*)
+    - Intros l. Exists l. Time cancel. (*0.7*)
       apply andp_right. apply prop_right.
-        destruct (HFalse_inv16_char _ _ _ H0) as [sums [SUMS1 SUMS2]].
-        rewrite Zlength_correct, L; reflexivity. rewrite Zlength_correct, H6; reflexivity.
-        unfold Snuffle20, prepare_data. simpl. rewrite <- YS, SNUFF.
-        simpl. rewrite <- SUMS1. split; trivial.
+        destruct (HFalse_inv16_char _ _ _ H9) as [sums [SUMS1 SUMS2]].
+        rewrite Zlength_correct, L; reflexivity. rewrite Zlength_correct; reflexivity.
+        unfold Snuffle20, prepare_data. simpl in H. simpl. rewrite H. simpl. rewrite <- SUMS1.
+        split; trivial.
+      apply andp_right; trivial.
       unfold CoreInSEP. Time cancel. (*0.2*)
     - Intros intsums.
       Exists (hPosLoop3 4 (hPosLoop2 4 intsums (C1, C2, C3, C4) (N1, N2, N3, N4)) OUT).
-      Time normalize. (*15*)
-      apply andp_right. apply prop_right.
-        unfold Snuffle20, prepare_data. simpl. rewrite <- YS, SNUFF.
-        simpl. split; trivial. 
-        apply HTrue_inv_char in H0. rewrite <- H0. apply TP1.
-        rewrite Zlength_correct, (sumlist_length _ _ _ H0), H6. reflexivity.
+      Time cancel. (*1*)
+      apply andp_right. apply prop_right. split; trivial. 
+        apply HTrue_inv_char in H9.
+        unfold Snuffle20, prepare_data. simpl in H. simpl. rewrite H. simpl. rewrite <- H9.
+          apply TP1. 
+        rewrite Zlength_correct, (sumlist_length _ _ _ H9); reflexivity.
         assumption.
-        rewrite Zlength_correct, L. reflexivity.
-        rewrite Zlength_correct, H6. reflexivity.
+        rewrite Zlength_correct, L; reflexivity.
+        rewrite Zlength_correct; reflexivity.
+      apply andp_right; trivial.
       unfold CoreInSEP. Time cancel. (*0.26*)
-Time Qed. (*51*)
+Time Qed. (*61*)

@@ -98,9 +98,7 @@ destruct KEY as [kl key].
 destruct MSG as [dl data]. simpl in *.
 rewrite memory_block_isptr. normalize.
 (*NEW: crypto proof requires that we first extract isbyteZ key*)
-assert_PROP (Forall isbyteZ key).
-  entailer.
-rename H into isbyteZ_Key.
+assert_PROP (Forall isbyteZ key) as isbyteZ_key by entailer!.
 
 forward_if  (
   PROP  (isptr c)

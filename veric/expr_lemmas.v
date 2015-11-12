@@ -270,14 +270,14 @@ unfold denote_tc_comparable in H.
  unfold sem_cmp_pp; simpl.
  destruct H.
  hnf in H. subst i; rewrite Int.eq_true. simpl.
- apply valid_pointer_dry in H0.
- rewrite Z.add_0_r in H0. rewrite H0. simpl. auto.
+ apply weak_valid_pointer_dry in H0.
+ rewrite H0. simpl. auto.
 *
  unfold sem_cmp_pp; simpl.
  destruct H.
  hnf in H. subst i0; rewrite Int.eq_true. simpl.
- apply valid_pointer_dry in H0.
- rewrite Z.add_0_r in H0. rewrite H0. simpl. auto.
+ apply weak_valid_pointer_dry in H0.
+ rewrite H0. simpl. auto.
 *
  unfold sem_cmp_pp; simpl.
  unfold comparable_ptrs in *.
@@ -487,10 +487,8 @@ Lemma comparable1:
 Proof.
 intros.
 destruct H.
-apply valid_pointer_dry in H0.
-rewrite Z.add_0_r in H0.
-unfold Mem.weak_valid_pointer;
-rewrite orb_true_iff; left; auto.
+apply weak_valid_pointer_dry in H0.
+apply H0.
 Qed.
 
 Lemma eval_both_relate:
