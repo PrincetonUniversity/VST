@@ -546,6 +546,51 @@ Unfold and split lemmas
 
 ************************************************)
 
+Lemma nested_sfieldlist_at_ramif: forall sh t gfs id a i v d p,
+  nested_field_type t gfs = Tstruct id a ->
+  in_members i (co_members (get_co id)) ->
+  nested_sfieldlist_at sh t gfs (co_members (get_co id)) v p |--
+  field_at sh t (StructField i :: gfs)
+    (proj_struct i (co_members (get_co id)) v d) p *
+      (ALL v0: _,
+         field_at sh t (StructField i :: gfs) v0 p -*
+           nested_sfieldlist_at sh t gfs (co_members (get_co id))
+            (upd_struct i (co_members (get_co id)) v v0) p).
+Proof.
+  intros.
+  destruct (co_members (get_co id)) eqn:?; [inv H0 |].
+  revert v d H0; rewrite <- Heqm; intros.
+  unfold nested_sfieldlist_at.
+  pattern (co_members (get_co id)) at 1 7; rewrite Heqm.
+
+  match goal with
+  | |- _ |-- _ * (ALL v0: _, ?A1 v0 p -* ?A2 (?A3 v0) p) =>
+      change (ALL v0: _, A1 v0 p -* A2 (A3 v0) p)
+      with (allp (Basics.compose (fun P => P p) (fun v0 => A1 v0) -*
+                  Basics.compose (fun v0 => A2 (A3 v0) p) (fun v0 => v0)))
+  end.
+  
+  Opaque struct_pred. eapply @RAMIF_Q.trans. Transparent struct_pred.
+  Focus 2. {
+    apply (struct_pred_ramif (co_members (get_co id))
+            (fun it v p =>
+              withspacer sh
+                (nested_field_offset t gfs +
+                (field_offset cenv_cs (fst it) (co_members (get_co id)) +
+                 sizeof cenv_cs (field_type (fst it) (co_members (get_co id)))))
+                (nested_field_offset t gfs +
+                 field_offset_next cenv_cs (fst it) (co_members (get_co id))
+                   (sizeof cenv_cs (nested_field_type t gfs)))
+                (field_at sh t (gfs DOT fst it) v) p)); auto.
+    apply get_co_members_no_replicate.
+  } Unfocus.
+  Focus 2. {
+    apply withspacer_ramif_Q.
+  } Unfocus.
+  intros.
+  apply derives_refl.
+Qed.
+
 Lemma field_at_Tarray: forall sh t gfs t0 n a v1 v2 p,
   legal_nested_field t gfs ->
   nested_field_type t gfs = Tarray t0 n a ->

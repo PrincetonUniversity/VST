@@ -717,6 +717,148 @@ Proof.
   intros; erewrite H1 by eauto; auto.
 Qed.
 
+Lemma union_pred_derives_const: forall m {A} (P: forall it, A it -> val -> mpred) p v R,
+  members_no_replicate m = true ->
+  m <> nil ->
+  (forall i (v: A (i, field_type i m)), in_members i m -> P _ v p |-- R) ->
+  union_pred m P v p |-- R.
+Proof.
+  intros.
+  destruct m as [| (i0, t0) m]; [congruence |].
+  clear H0.
+  revert i0 t0 v H H1; induction m as [| (i1, t1) m]; intros.
+  + simpl.
+    specialize (H1 i0); simpl in H1.
+    destruct (ident_eq i0 i0); [| congruence].
+    apply H1; left; auto.
+  + destruct v; simpl.
+    - specialize (H1 i0); simpl in H1.
+      destruct (ident_eq i0 i0); [| congruence].
+      apply H1; left; auto.
+    - pose proof H.
+      rewrite members_no_replicate_ind in H; destruct H.
+      apply (IHm i1 t1); auto.
+      intros.
+      specialize (H1 i).
+      pose proof in_members_tail_no_replicate _ _ _ _ H0 H3.
+      simpl in H1; destruct (ident_eq i i0); [congruence |].
+      apply H1.
+      right; auto.
+Qed.
+
+Lemma union_pred_proj: forall m {A} (P: forall it, A it -> val -> mpred) (i: ident) v p d,
+  members_no_replicate m = true ->
+  in_members i m ->
+  (forall i' (v': A (i', field_type i' m)), in_members i' m -> P _ v' p |-- P _ d p) ->
+  union_pred m P v p |-- P _ (proj_union i m v d) p.
+Proof.
+  intros.
+  destruct m as [| (i0, t0) m]; [inv H0 |].
+  revert i0 t0 v d H H0 H1; induction m as [| (i1, t1) m]; intros.
+  + destruct H0; [simpl in H0; subst i | tauto].
+    simpl in *.
+    destruct (ident_eq i0 i0); [| congruence].
+    destruct (member_dec (i0, t0) (i0, t0)); [| congruence].
+    unfold eq_rect_r; rewrite <- eq_rect_eq.
+    auto.
+  + pose proof H.
+    rewrite members_no_replicate_ind in H; destruct H.
+    simpl in *; destruct (ident_eq i i0), v.
+    - subst i.
+      destruct (member_dec (i0, t0) (i0, t0)); [| congruence].
+      unfold eq_rect_r; rewrite <- eq_rect_eq.
+      auto.
+    - subst i.
+      destruct (member_dec (i0, t0) (i0, t0)); [| congruence].
+      unfold eq_rect_r; rewrite <- eq_rect_eq.
+      apply (union_pred_derives_const ((i1, t1) :: m) P p y); [auto | congruence |].
+      intros.
+      specialize (H1 i).
+      pose proof in_members_tail_no_replicate _ _ _ _ H2 H4.
+      simpl in H1; destruct (ident_eq i i0); [congruence |].
+      apply H1.
+      right; auto.
+    - match goal with
+      | |- appcontext [member_dec (i, ?t') (i0, t0)] =>
+              destruct (member_dec (i, t') (i0, t0));
+                [inversion e; congruence |]
+      end.
+      specialize (H1 i0).
+      destruct (ident_eq i0 i0); [| congruence].
+      apply H1.
+      left; auto.
+    - match goal with
+      | |- appcontext [member_dec (i, ?t') (i0, t0)] =>
+              destruct (member_dec (i, t') (i0, t0));
+                [inversion e; congruence |]
+      end.
+      apply (IHm i1 t1); auto.
+      * destruct H0; [| auto].
+        simpl in H0; congruence.
+      * intros.
+        specialize (H1 i').
+        pose proof in_members_tail_no_replicate _ _ _ _ H2 H4.
+        simpl in H1; destruct (ident_eq i' i0); [congruence |].
+        apply H1.
+        right; auto.
+Qed.
+
+Lemma union_pred_upd: forall m {A} (P: forall it, A it -> val -> mpred) (i: ident) v p v0,
+  members_no_replicate m = true ->
+  in_members i m ->
+  union_pred m P (upd_union i m v v0) p = P _ v0 p.
+Proof.
+  intros.
+  intros.
+  unfold upd_union, compact_sum_upd.
+  destruct (in_dec member_dec (i, field_type i m) m) as [?H | ?H];
+    [| apply in_members_field_type in H0; tauto].
+  clear v.
+  destruct m as [| (i0, t0) m]; [inv H0 |].
+  revert i0 t0 v0 H H0 H1; induction m as [| (i1, t1) m]; intros.
+  + simpl in *.
+    destruct H0; [simpl in H0; subst i | tauto].
+    destruct (ident_eq i0 i0); [| congruence].
+    destruct (member_dec (i0, t0) (i0, t0)); [| congruence].
+    unfold eq_rect_r; rewrite <- eq_rect_eq.
+    auto.
+  + destruct H0; [simpl in H0; subst i |].
+    - simpl in *.
+      destruct (ident_eq i0 i0); [| congruence].
+      destruct (member_dec (i0, t0) (i0, t0)); [| congruence].
+      unfold eq_rect_r; rewrite <- eq_rect_eq.
+      auto.
+    - simpl in *.
+      pose proof in_members_tail_no_replicate _ _ _ _ H H0.
+      destruct (ident_eq i i0); [congruence |].
+      match goal with
+      | |- appcontext [member_dec (i, ?t') (i0, t0)] =>
+              destruct (member_dec (i, t') (i0, t0));
+                [inversion e; congruence |]
+      end.
+      rewrite members_no_replicate_ind in H; destruct H.
+      apply (IHm i1 t1); auto.
+Qed.
+
+Lemma union_pred_ramif: forall m {A} (P: forall it, A it -> val -> mpred) (i: ident) v p d,
+  (forall i' (v': A (i', field_type i' m)), in_members i' m -> P _ v' p |-- P _ d p) ->
+  in_members i m ->
+  members_no_replicate m = true ->
+  union_pred m P v p |--
+    P _ (proj_union i m v d) p *
+     (ALL v0: _, P _ v0 p -* union_pred m P (upd_union i m v v0) p).
+Proof.
+  intros.
+  apply RAMIF_Q.solve with emp.
+  + rewrite sepcon_emp.
+    apply union_pred_proj; auto.
+  + intro v0.
+    rewrite emp_sepcon.
+    apply derives_refl'.
+    symmetry.
+    apply union_pred_upd; auto.
+Qed.
+
 Lemma at_offset_union_pred: forall m {A} (P: forall it, A it -> val -> mpred) v p ofs,
   at_offset (union_pred m P v) ofs p = union_pred m (fun it v => at_offset (P it v) ofs) v p.
 Proof.
@@ -993,7 +1135,7 @@ Definition struct_pred_ramif: forall m {A} (P: forall it, A it -> val -> mpred) 
   members_no_replicate m = true ->
   struct_pred m P v p |--
     P _ (proj_struct i m v d) p *
-     (ALL v0: _, P _ v0 p -* struct_pred m P (upd_struct i m v v0) p)
+     allp ((fun v0: _ => P _ v0 p) -* (fun v0: _ => struct_pred m P (upd_struct i m v v0) p))
 := @struct_pred_ramif.
 
 Definition struct_pred_ext_derives:
@@ -1023,6 +1165,15 @@ Definition andp_struct_pred: forall m {A} (P: forall it, A it -> val -> mpred) v
   | _ => struct_pred m (fun it v p => !! (Q /\ R it v) && P it v p) v p
   end
 := @andp_struct_pred.
+
+Definition union_pred_ramif: forall m {A} (P: forall it, A it -> val -> mpred) (i: ident) v p d,
+  (forall i' (v': A (i', field_type i' m)), in_members i' m -> P _ v' p |-- P _ d p) ->
+  in_members i m ->
+  members_no_replicate m = true ->
+  union_pred m P v p |--
+    P _ (proj_union i m v d) p *
+     allp ((fun v0: _ => P _ v0 p) -* (fun v0 =>union_pred m P (upd_union i m v v0) p))
+:= @union_pred_ramif.
 
 Definition union_pred_ext_derives:
   forall m {A0 A1} (P0: forall it, A0 it -> val -> mpred) (P1: forall it, A1 it -> val -> mpred) v0 v1 p,

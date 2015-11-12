@@ -13,6 +13,7 @@
 (*    RAMIF_PLAIN.trans                                                       *)
 (*    RAMIF_PLAIN.weak_ramif_spec                                             *)
 (*    RAMIF_Q.trans                                                           *)
+(*    RAMIF_Q.simple_trans                                                    *)
 (*    RAMIF_Q.weak_ramif_spec                                                 *)
 (*    RAMIF_Q.plain_spec                                                      *)
 
@@ -141,32 +142,41 @@ Proof.
   apply (allp_left _ x); auto.
 Qed.
 
-Lemma trans: forall {B C} g m l g' mG' mL' l' (f: B -> C),
-  (forall b, mL' b |-- mG' (f b)) ->
+Lemma trans: forall {B BG BL} g m l g' mG' mL' l' (fG: B -> BG) (fL: B -> BL),
+  (forall b, mL' (fL b) |-- mG' (fG b)) ->
   g |-- m * allp (mG' -* g') ->
   m |-- l * allp (l' -* mL') ->
-  g |-- l * allp (l' -* Basics.compose g' f).
+  g |-- l * allp (Basics.compose l' fL -* Basics.compose g' fG).
 Proof.
   intros.
   apply solve with (allp (l' -* mL') * allp (mG' -* g')); auto.
   + eapply derives_trans; [exact H0 |].
     eapply derives_trans; [apply sepcon_derives; [exact H1 | apply derives_refl] |].
     rewrite sepcon_assoc; auto.
-  + intro x.
+  + intro b.
     rewrite sepcon_assoc.
     apply wand_sepcon_adjoint.
-    apply (allp_left _ x).
+    apply (allp_left _ (fL b)).
     apply wand_sepcon_adjoint.
     rewrite sepcon_comm, sepcon_assoc, sepcon_comm.
     apply wand_sepcon_adjoint.
-    apply derives_trans with (mG' (f x)).
+    apply derives_trans with (mG' (fG b)).
     - eapply derives_trans; [| apply H].
       simpl; apply modus_ponens_wand.
     - apply wand_sepcon_adjoint.
       rewrite sepcon_comm.
       apply wand_sepcon_adjoint.
-      apply (allp_left _ (f x)).
+      apply (allp_left _ (fG b)).
       auto.
+Qed.
+
+Lemma simple_trans: forall {B} g m l (g' m' l': B -> A),
+  g |-- m * allp (m' -* g') ->
+  m |-- l * allp (l' -* m') ->
+  g |-- l * allp (l' -* g').
+Proof.
+  intros.
+  eapply trans with (mL' := m') (mG' := m') (fL := id B) (fG := id B); eauto.
 Qed.
 
 Lemma frame: forall {B} g l (g' l': B -> A) F,
