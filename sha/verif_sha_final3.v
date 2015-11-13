@@ -109,21 +109,6 @@ Proof.
     rewrite H0. apply Z.divide_refl.
 Time Qed.
 
-Lemma nth_list_repeat': (* obsolete ?*) 
-  forall A i n (a d: A),
-   (i < n)%nat -> nth i (list_repeat n a) d = a.
-Proof.
- induction i; destruct n; simpl; intros; auto; try omega.
- apply IHi; omega.
-Qed.
-
-
-Lemma NPeano_divide_add: (* obsolete ?*) 
-  forall a b c, NPeano.divide a b -> NPeano.divide a c -> NPeano.divide a (b+c).
-Proof. intros.
- destruct H,H0. exists (x+x0)%nat. rewrite mult_plus_distr_r. subst; auto.
-Qed.
-
 Lemma array_at_memory_block:
  forall {cs: compspecs} sh t gfs lo hi v p n,
   sizeof cenv_cs (nested_field_array_type t gfs lo hi) = n ->
@@ -134,8 +119,7 @@ intros.
 rewrite  array_at_data_at.
 normalize.
 unfold at_offset.
-unfold field_address0.
-rewrite if_true by auto.
+rewrite field_address0_offset by auto.
 subst n.
 apply data_at_memory_block.
 Qed.
@@ -287,7 +271,7 @@ Proof.
    assert (CBZ: CBLOCKz = 64) by reflexivity.
    Time autorewrite with sublist. (*11.5*)
    clear CBZ; subst GOAL. cbv beta.
-   Time normalize.
+   Time Intros.  (* to flatten the SEP *)
   Time forward_call (* (void)HOST_l2c(cNh,p); *)
      (field_address0 t_struct_SHA256state_st
                     [ArraySubsc 56; StructField _data] c,
@@ -297,11 +281,9 @@ Proof.
   rewrite (nth_big_endian_integer 0 [hi_part bitlen] (hi_part bitlen)) at 1 by reflexivity.
   reflexivity.
 
-  unfold field_address, field_address0; rewrite !if_true by auto.
+  rewrite field_address_offset by auto.
+  rewrite field_address0_offset by auto with field_compatible.
   destruct c_; try contradiction; simpl; auto.
-  if_tac; reflexivity.
-  rewrite if_true; [ reflexivity |].
-  eapply field_compatible0_cons_Tarray; try reflexivity; auto; omega.
   split; auto.
   subst hibytes; clear; compute; congruence.
   Time forward. (* p += 4; *) (*11 secs*)
@@ -315,24 +297,19 @@ Proof.
   rewrite (nth_big_endian_integer 0 [lo_part bitlen] (lo_part bitlen)) at 1 by reflexivity.
   reflexivity.
 
-  make_Vptr c_. 
-  unfold field_address, field_address0; rewrite !if_true; auto.
-  simpl. f_equal. f_equal. Time (clear; normalize). (*0.25*) 
-  eapply field_compatible0_cons_Tarray; try reflexivity; auto.
-  eapply field_compatible_cons_Tarray; try reflexivity; auto.
+  pose proof CBLOCKz_eq.
+  rewrite field_address0_offset by auto with field_compatible.
+  rewrite field_address_offset by auto with field_compatible.
+  destruct c_; try contradiction; simpl; auto.
+  normalize.
 
   split; auto.   compute; congruence.
 
   replace_SEP 0 (`(array_at Tsh t_struct_SHA256state_st [StructField _data] 60 64
                            (map Vint lobytes) c)). {
   clearbody lobytes.
-  rewrite array_at_data_at.
-  Time entailer!. (*2.4*)
-  split;   eapply field_compatible0_cons_Tarray; try reflexivity; auto; omega.
-  unfold at_offset; simpl.
-  unfold field_address0 in H9|-*.
-  if_tac in H9; [ | destruct H9; contradiction].
-  Time normalize. (*0.07*)
+  rewrite array_at_data_at' by auto with field_compatible.
+  Time entailer!. (*2.4 -> 2.0 *)
 }
   gather_SEP 0 1 2. 
   replace_SEP 0
@@ -361,12 +338,14 @@ Proof.
  }
   Time forward. (* p += 4; *) (*5.1*)
     Time entailer!. (*4.6*)
-    unfold field_address in *. if_tac; try contradiction.
-    Time normalize. (*0.3*)
+    pose proof CBLOCKz_eq.
+    rewrite field_address_offset by auto with field_compatible.
+    normalize.
   Time forward. (* p -= SHA_CBLOCK; *) (*5.9*)
   {
     Time entailer!. (*4.8*)
-    unfold field_address in *. if_tac; try contradiction.
+    pose proof CBLOCKz_eq.
+    rewrite field_address_offset by auto with field_compatible.
     make_Vptr c_; simpl in *; auto.
   }
   drop_LOCAL 1%nat. (* drop cNl *)
@@ -381,16 +360,12 @@ Proof.
     clearbody hibytes lobytes.
     Time entailer!. (*3.3*)
     rewrite <- H6.
-    unfold field_address.
+    pose proof CBLOCKz_eq.
+    rewrite !field_address_offset by auto with field_compatible.
     make_Vptr (eval_id _c rho).
-    simpl.
-    if_tac; [rewrite if_true | rewrite if_false]; auto.
-    unfold offset_val, force_val; simpl.
-    f_equal.     rewrite Int.sub_add_opp.
+    simpl.  rewrite Int.sub_add_opp.
     rewrite !Int.add_assoc.
-    f_equal. Time normalize. (*0.4*)
-    rewrite Int.neg_repr. Time normalize. (*0.3*)
-    eapply field_compatible_cons_Tarray; try reflexivity; auto.
+    Time normalize. (*0.4*)
   } Unfocus.
   change (map Vint hibytes) with (map Vint (map Int.repr (intlist_to_Zlist [hi_part bitlen]))).
   change (map Vint lobytes) with (map Vint (map Int.repr (intlist_to_Zlist [lo_part bitlen]))).

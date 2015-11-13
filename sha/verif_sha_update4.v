@@ -42,50 +42,6 @@ Definition sha_update_loop_body :=
               (Ebinop Omul (Econst_int (Int.repr 16) tint)
                  (Econst_int (Int.repr 4) tint) tint) tuint)))).
 
-Lemma offset_val_field_address0:
-  forall {cs: compspecs} i n len t lo gfs t' p,
- nested_field_type t gfs = tarray t' len ->
- (n = sizeof cenv_cs t' * i)%Z ->
- 0 <= lo <= len ->
- 0 <= lo+i <= len ->
- offset_val (Int.repr n) (field_address0 t (ArraySubsc lo::gfs) p) =
-  field_address0 t (ArraySubsc (lo+i) :: gfs) p.
-Proof.
-intros.
-rename H2 into H1'.
-unfold field_address0.
-if_tac.
-rewrite if_true.
-normalize.
-f_equal. f_equal.
-hnf in H2.
-decompose [and] H2; clear H2.
-rewrite nested_field_offset_ind; auto.
-symmetry. 
-rewrite nested_field_offset_ind; auto.
-rewrite <- Z.add_assoc.
-f_equal.
-rewrite H.
-simpl. rewrite Z.mul_add_distr_l.
-f_equal.  auto.
-constructor; auto.
-inv H11; auto.
-rewrite H. constructor; auto; omega.
-hnf in H2.
-decompose [and] H2; clear H2.
-inv H11.
-hnf. repeat split; auto.
-rewrite H in *.
-inv H10; split; omega.
-rewrite if_false; auto.
-contradict H2.
-hnf in H2.
-decompose [and] H2; clear H2.
-inv H11.
-hnf. repeat split; auto.
-rewrite H in *.
-inv H10; split; auto; omega.
-Qed.
 Lemma update_loop_body_proof:
  forall (Espec : OracleKind) (sh: share) (hashed : list int) (frag data : list Z) (c d : val)
   (len : Z) kv (r_h : list int)
@@ -187,18 +143,22 @@ Time forward_call (* sha256_block_data_order (c,data); *)
  Time entailer!. (*17 SLOW*)
  subst lo. autorewrite with sublist.
  rewrite Z.mul_add_distr_r. 
- erewrite (offset_val_field_address0 CBLOCKz) by (try reflexivity; Omega1).
- repeat split; auto; try Omega1.
- apply Z.divide_add_r; auto. rewrite H7. apply Z.divide_refl.
- rewrite intlist_to_Zlist_app.
- rewrite Hblocks; rewrite <- H6.
- rewrite app_ass.
- f_equal. 
- rewrite <- sublist_split; try Omega1.
- f_equal. Omega1.
- f_equal. f_equal. f_equal. Omega1.
- f_equal. f_equal. 
- autorewrite with sublist. Omega1.
+ {repeat split; auto.
+  + Omega1.
+  + rewrite H7; apply Z.divide_add_r; auto. apply Z.divide_refl.
+  + rewrite intlist_to_Zlist_app.
+      rewrite Hblocks; rewrite <- H6.
+      rewrite app_ass.
+      f_equal.
+      rewrite <- sublist_split; try Omega1.
+      f_equal. Omega1.
+  + assert (0 <= Zlength blocks * 4 + Zlength bl * 4 - Zlength frag <= Zlength data)
+         by Omega1.
+      rewrite !field_address0_offset by auto with field_compatible.
+      rewrite offset_offset_val, add_repr.
+      simpl. f_equal. f_equal. Omega1.
+  + f_equal. f_equal. Omega1.
+ }
  Time unfold_data_at 1%nat. (*0.8*)
  rewrite (split3_data_block lo (lo+CBLOCKz) sh data d)
     by (auto; subst lo; try Omega1).
@@ -283,19 +243,17 @@ apply andp_left2; auto.
 * (* else clause *)
 Time forward.  (* skip; *) (*0.3*)
 apply exp_right with nil. rewrite <- app_nil_end.
-assert (Int.unsigned (Int.repr (Zlength dd)) = Int.unsigned (Int.repr 0)) by (f_equal; auto).
-repeat rewrite Int.unsigned_repr in H1 by Omega1.
+apply repr_inj_unsigned in H0; try Omega1. rename H0 into H1.
 rewrite H1 in *.
 rewrite Zlength_correct in H1;  destruct dd; inv H1.
 autorewrite with sublist.
 simpl app; simpl intlist_to_Zlist.
-clear H0.
-Time entailer!.  (* 139 sec -> 5.4 sec *)
+Time entailer!.  (* 139 sec -> 3.27 sec *)
 split.
 apply Z.divide_0_r.
-unfold field_address0. rewrite if_true.
+rewrite field_address0_offset by auto with field_compatible.
 simpl. Time normalize. (*0.1*)
-eapply field_compatible0_cons_Tarray; try reflexivity; auto; try omega.
+
 (* TODO:  see if a "stronger" proof system could work here
   rewrite data_at_field_at.
    apply field_at_stronger.
@@ -347,14 +305,12 @@ forward_while
  normalize_postcondition.
  clear dependent blocks.
  rename blocks' into blocks.
-  pose proof (Hblocks_lem H8).
+ pose proof (Hblocks_lem H8).
  assert (H0': (Zlength dd <= Zlength blocks * 4)%Z) by Omega1.
  clear H0; rename H0' into H0.
  rewrite Int.unsigned_repr in HRE by omega.
- assert_PROP (Forall isbyteZ data).
-  rewrite (data_block_isbyteZ sh data d).
-  entailer!.
- rename H1 into BYTESdata.
+ assert_PROP (Forall isbyteZ data) as BYTESdata
+  by (rewrite (data_block_isbyteZ sh data d); entailer!).
  pose (bl := Zlist_to_intlist (sublist (Zlength blocks * 4 - Zlength dd) 
                                                    (Zlength blocks * 4 - Zlength dd + CBLOCKz) data)).
 assert (Zlength bl = LBLOCKz). {

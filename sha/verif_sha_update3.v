@@ -8,26 +8,6 @@ Require Import sha.verif_sha_update2.
 Local Open Scope nat.
 Local Open Scope logic.
 
-
-Lemma firstn_app2: forall {A} n (p l: list A), (* duplicate *)
-  (n > Datatypes.length p)%nat ->
-   firstn n (p ++ l) = p ++ (firstn (n-Datatypes.length p) l).
-Proof. intros A n.
-induction n; simpl; intros. 
-  destruct p; simpl in *. trivial. omega.
-  destruct p; simpl in *. trivial.
-  rewrite IHn. trivial. omega. 
-Qed.  
-
-Lemma skipn_list_repeat:
-   forall A k n (a: A),
-     (k <= n)%nat -> 
-     skipn k (list_repeat n a) = list_repeat (n-k) a.
-Proof.
- induction k; destruct n; simpl; intros; auto.
- apply IHk; auto. omega.
-Qed.
-
 Lemma update_inner_if_else_proof:
  forall (Espec : OracleKind) (hashed : list int)
           (dd data : list Z) (c d: val) (sh: share) (len: Z) kv
@@ -78,13 +58,12 @@ Proof.
   unfold update_inner_if_else;
   simplify_Delta; abbreviate_semax.
 
- assert_PROP (field_address0 (tarray tuchar (Zlength data)) [ArraySubsc 0] d = d). {
+ assert_PROP (field_address0 (tarray tuchar (Zlength data)) [ArraySubsc 0] d = d)
+     as Hd. {
   entailer!.
-  unfold field_address0. rewrite if_true. 
-  normalize. eapply field_compatible0_cons_Tarray; try reflexivity; auto.
-  Omega1.
+  rewrite field_address0_offset by auto with field_compatible.
+  normalize.
 }
- rename H5 into Hd.
  eapply semax_seq'.
  evar (Frame: list (LiftEnviron mpred)).
   eapply(call_memcpy_tuchar
@@ -98,14 +77,10 @@ Proof.
   apply Zlength_nonneg.
   repeat rewrite Zlength_map; unfold k in *; omega.
  entailer!.
- unfold field_address, field_address0.
- rewrite !if_true; auto.
- erewrite nested_field_offset_ind.
- normalize. f_equal. f_equal. f_equal. unfold gfield_offset; simpl. 
- clear; omega.
- apply compute_legal_nested_field0_spec'.
- repeat constructor; auto; try Omega1.
- apply field_compatible0_cons; simpl. split; auto; Omega1.
+ rewrite field_address_offset by auto with field_compatible.
+ rewrite field_address0_offset by 
+   (subst k; auto with field_compatible).
+ rewrite offset_offset_val, add_repr; simpl. rewrite Z.mul_1_l; auto.
  unfold_data_at 1%nat. cancel.
  abbreviate_semax.
  autorewrite with sublist.
@@ -145,13 +120,12 @@ Proof.
                        ++list_repeat (Z.to_nat (64 - Zlength dd - len)) Vundef,
                      Vint (Int.repr (Zlength dd + len)))))).
  unfold_data_at 1%nat.
- apply andp_right; [apply prop_right | ].
+ entailer!.
  simpl; unfold s256_Nh, s256_Nl, s256_data, s256_num, bitlength; simpl.
  autorewrite with sublist.
  rewrite !Z.mul_add_distr_r, !Z.add_assoc.
  repeat split; auto; try Omega1.
  rewrite Forall_app; split; auto; apply Forall_firstn; auto.
- cancel.
  repeat rewrite map_app. repeat rewrite <- sublist_map.
  rewrite <- app_assoc. auto.
 Qed.

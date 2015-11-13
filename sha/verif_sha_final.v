@@ -147,11 +147,9 @@ forward. (* n = c->num; *)
 rewrite field_at_data_at with (gfs := [StructField _data]) by reflexivity.
 (*normalize.*)
 simpl.
-  change (nested_field_type t_struct_SHA256state_st [StructField _data])
-   with (tarray tuchar CBLOCKz).
 forward. (* p[n] = 0x80; *)
-   entailer!
-     ; Omega1.  (* delete this line when recompiled *)
+   entailer!.
+    Omega1.
 change (Int.zero_ext 8 (Int.repr 128)) with (Int.repr 128).
 match goal with |- appcontext [upd_Znth_in_list ?A] =>
    change A with (Zlength dd)
@@ -237,10 +235,9 @@ forward_call (* memset (p+n,0,SHA_CBLOCK-8-n); *)
      (Z.of_nat CBLOCK - 8 - Zlength dd')%Z,
      Int.zero) vret. 
 {apply prop_right; repeat constructor; hnf; simpl; auto.
- unfold field_address, field_address0. rewrite !if_true; try auto.
- make_Vptr c_. simpl. f_equal.  f_equal. 
-  rewrite Z.mul_1_l. normalize.
- eapply field_compatible0_cons_Tarray; try reflexivity; eauto; Omega1.
+ rewrite field_address_offset by auto with field_compatible.
+ rewrite field_address0_offset by auto with field_compatible.
+ make_Vptr c_. simpl. normalize. 
  normalize.
 }
 {
@@ -267,11 +264,8 @@ assert_PROP (force_val
                 [ArraySubsc (CBLOCKz - 8); StructField _data] c).
 entailer!.
 make_Vptr c_.
-unfold field_address.
-rewrite !if_true.
+ rewrite !field_address_offset by auto with field_compatible.
 simpl. normalize.
-eapply field_compatible_cons_Tarray; try reflexivity; auto.
-auto.
 eapply semax_pre_post; [ | | 
   apply final_part2 with (hashed:=hashed)(pad:=pad)(c:=c)(kv:=kv)(md:=md); 
   try eassumption; try Omega1; reflexivity].
@@ -283,10 +277,8 @@ replace (CBLOCKz - Zlength dd' - (56 - Zlength dd'))
 change (Z.to_nat 8) with (Z.to_nat (CBLOCKz-56)).
 entailer!.
 rewrite <- H11.
-unfold field_address.
-rewrite !if_true; auto.
+ rewrite !field_address_offset by auto with field_compatible.
 normalize.
-eapply field_compatible_cons_Tarray; try reflexivity; auto.
 erewrite field_at_Tarray; try reflexivity; try omega.
 2: compute; clear; intuition.
 rewrite (split2_array_at _ _ _ 0 (Zlength dd') 64) by Omega1.
