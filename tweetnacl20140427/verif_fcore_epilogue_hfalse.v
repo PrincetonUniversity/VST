@@ -118,27 +118,35 @@ Time forward_for_simple_bound 16 (EX i:Z,
     Time forward; rewrite Yi. (*9.6*)
     Time solve[entailer!]. (*3.1*) 
     Time forward. (*3.7*)
-    Opaque Z.mul. Opaque Z.add. Opaque Z.sub.
-    Time assert_PROP (isptr out) as Pout by entailer!. (*3.2*)
+    Time assert_PROP (isptr out) as Pout by entailer!. (*2.9*)
     Time forward. (*3.9*)
     assert (ZL: Zlength l = 64). apply INV_l.
     Time assert_PROP(field_compatible (Tarray tuchar 64 noattr) [] out) as FCO by entailer!. (*3*)
-    rewrite <- ZL, (split3_data_at_Tarray_at_tuchar Tsh (Zlength l) (4 *i) 4); try rewrite ZL; try omega; trivial.
+    rewrite <- ZL, (split3_data_at_Tarray_tuchar Tsh (Zlength l) (4 *i) (4+4*i)); try rewrite ZL; try omega; trivial.
+    rewrite field_address0_offset by auto with field_compatible.
+    rewrite field_address0_offset by auto with field_compatible.
+    unfold offset_val. simpl. 
+    apply isptrD in Pout. destruct Pout as [b [z Pout]]; rewrite Pout in *; simpl in *.
     Time normalize. (*5.5*)
 Transparent core_spec. Transparent ld32_spec. Transparent L32_spec. Transparent st32_spec.
 Transparent crypto_core_salsa20_spec. Transparent crypto_core_hsalsa20_spec.
-    Time forward_call (offset_val (Int.repr (4 * i)) out, Int.add xi yi). (*6.8*)
+    Time forward_call (Vptr b (Int.add z (Int.repr (4 * i))), Int.add xi yi). (*7.5*)
 Opaque core_spec. Opaque ld32_spec. Opaque L32_spec. Opaque st32_spec.
 Opaque crypto_core_salsa20_spec. Opaque crypto_core_hsalsa20_spec.
     { Exists (sublist (4 * i) (4 + 4 * i) l).
-      unfold at_offset at 1. 
-      Time entailer!. (*6.9*) }
+      autorewrite with sublist. (*Coq bug: entailer!. yields Anomaly: Coq_omega: Z.sub is not an evaluable constant. Please report.*)
+      Time (normalize; cancel). (*6.5*) }
 
     Exists ((sublist 0 (4 * i) l) ++ 
                       (QuadByte2ValList (littleendian_invert (Int.add xi yi))) ++
                       (sublist (4 + 4 * i) 64 l)).
-    Time entailer!. (*8.7*)
-    {  split; intros. do 2 rewrite Zlength_app; repeat rewrite Zlength_sublist.
+    autorewrite with sublist. rewrite Pout in *.
+    normalize. (*entailer!*)
+    (*Note: we again get the Anomaly in the entailer!*)
+    simpl. intros. renormalize.
+    apply andp_right.    
+    { apply prop_right. intuition.
+      split; intros. do 2 rewrite Zlength_app; repeat rewrite Zlength_sublist.
         rewrite <- QuadByteValList_ZLength, Zminus_0_r. rewrite (Z.add_comm _ (4*i)). rewrite Z.sub_add_distr. 
         do 2 rewrite Z.add_sub_assoc, Z.add_simpl_l. trivial. 
         omega. omega. omega. omega. 
@@ -152,32 +160,27 @@ Opaque crypto_core_salsa20_spec. Opaque crypto_core_hsalsa20_spec.
           - omega.
           - rewrite Zlength_sublist, Zminus_0_r; omega.
         + assert (IX: ii = i) by omega. subst ii. clear g INV_l.
-          exists xi. split; trivial. exists _id1; split; trivial.
+          exists xi. split; trivial. exists yi; split; trivial.
           rewrite sublist_app2; rewrite Zlength_sublist; try rewrite Zminus_0_r; try omega.
           rewrite Zminus_diag, Z.add_simpl_l.
           rewrite sublist0_app1; try rewrite <- QuadByteValList_ZLength; try omega.
           apply sublist_same. trivial. apply QuadByteValList_ZLength. }
 
-    { unfold QByte. Transparent Z.sub. 
-         rewrite (split3_data_at_Tarray_at_tuchar Tsh 64 (4 *i) 4); 
-          repeat rewrite Zlength_app; repeat rewrite Zlength_sublist; repeat rewrite Zminus_0_r; repeat rewrite <- QuadByteValList_ZLength; trivial.
-          rewrite sublist0_app1. rewrite sublist_sublist. repeat rewrite Zplus_0_r. cancel.
-          unfold at_offset at 2.
-          rewrite sublist_app2; try rewrite Zlength_sublist, Zminus_0_r, Zminus_diag, Z.add_simpl_r.
-          rewrite sublist0_app1; try rewrite <- QuadByteValList_ZLength.
-          apply sepcon_derives. rewrite sublist_same; try rewrite <- QuadByteValList_ZLength; trivial.
-          rewrite sublist_app2; repeat rewrite Zlength_sublist, Zminus_0_r.
-          rewrite sublist_app2; try rewrite <- QuadByteValList_ZLength; repeat rewrite Zlength_sublist.
-          assert (A:(4 * i + (4 + (64 - (4 + 4 * i))) - (4 + 4 * i) = 64 - (4 + 4 * i))%Z). unfold Z.sub; omega.
-          rewrite A; clear A.
-          repeat rewrite Z.add_simpl_r. rewrite Zminus_diag.
-          rewrite sublist_sublist.
-          assert (A: (4 * i + (4 + (64 - (4 + 4 * i))) - 4 * i - 4 + (4 + 4 * i) = 64)%Z). unfold Z.sub; omega.
-          rewrite A; clear A. trivial.
-          omega. unfold Z.sub; omega. unfold Z.sub; omega. unfold Z.sub; omega. omega. omega. omega. omega. omega.
-          omega. omega. omega. rewrite Zlength_sublist, Zminus_0_r; omega. omega. omega. rewrite Zminus_0_r; omega.
-          rewrite Zlength_sublist, Zminus_0_r; omega. omega. omega. omega. omega. omega. omega. unfold Z.sub; omega.
-          omega. omega. omega. omega. } 
+    { unfold QByte. Time cancel. (*0.8*) Transparent Z.sub. 
+         rewrite (split3_data_at_Tarray_tuchar Tsh 64 (4 *i) (4+4*i)); 
+          repeat rewrite Zlength_app; repeat rewrite Zlength_sublist; repeat rewrite Zminus_0_r; repeat rewrite <- QuadByteValList_ZLength; try rewrite ZL; trivial; try omega.
+          autorewrite with sublist.
+          rewrite field_address0_offset by auto with field_compatible.
+          rewrite field_address0_offset by auto with field_compatible. simpl.
+          repeat rewrite Z.mul_1_l.
+          rewrite sublist0_app1. 2: rewrite <- QuadByteValList_ZLength; omega.
+          cancel.
+          rewrite sublist_app2; try rewrite <- QuadByteValList_ZLength; try rewrite Zlength_sublist, Zminus_0_r, Zminus_diag, Z.add_simpl_r.
+          autorewrite with sublist.
+          rewrite sublist_app2; try rewrite <- QuadByteValList_ZLength; try rewrite Zlength_sublist, Zminus_0_r, Zminus_diag, Z.add_simpl_r.
+          rewrite Zminus_diag.
+          autorewrite with sublist. apply derives_refl'. f_equal. f_equal. omega.
+          omega. autorewrite with sublist. omega. } 
     } 
   apply derives_refl.
 unfold HFalsePostCond.  (*Exists l. *) Time entailer!. (*3.1*)

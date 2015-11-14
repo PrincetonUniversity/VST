@@ -59,10 +59,8 @@ destruct ST as [MD [iCTX oCTX]]. simpl in *.
 Time forward_call (ctx, buf, Vptr b i, Tsh, kv). (*9.5*)
   { unfold sha256state_. Exists MD.
     rewrite (field_at_data_at _ _ [StructField _md_ctx]).
-    simpl @nested_field_type.
-    unfold field_address; rewrite if_true by trivial.
-    simpl. rewrite Int.add_zero.
-    Time (normalize; cancel). (*5.7*)
+    rewrite field_address_offset by auto with field_compatible. 
+    Time (normalize; cancel). (*4.1*)
   }
  unfold map at 1.  (* should not be necessary *)
 
@@ -89,26 +87,24 @@ apply semax_pre with (P':=
    `(data_at Tsh t_struct_hmac_ctx_st l' (Vptr b i));
    `(data_block Tsh (sha_finish ctx) buf);
    `(memory_block shmd 32 md)))).
-{ Time entailer!. (*8*)
+{ Time entailer!. (*10*)
       unfold_data_at 1%nat.
       rewrite (field_at_data_at Tsh t_struct_hmac_ctx_st [StructField _md_ctx]).
-      simpl @nested_field_type.
-      unfold field_address; rewrite if_true by trivial.
-      simpl. rewrite Int.add_zero. Time cancel. (*0.4*)
+      rewrite field_address_offset by auto with field_compatible. 
+      simpl. rewrite Int.add_zero. Time cancel. (*1.1*)
       apply derives_refl.
 }
 subst l'.
 
 unfold_data_at 1%nat.
 rewrite (field_at_data_at _ _ [StructField _o_ctx]).
-unfold field_address. rewrite if_true by trivial. 
 rewrite (field_at_data_at _ _ [StructField _md_ctx]).
-unfold field_address. rewrite if_true by trivial.
-
-simpl.
+rewrite field_address_offset by auto with field_compatible. 
+rewrite field_address_offset by auto with field_compatible. 
+unfold offset_val; simpl.
 rewrite Int.add_zero.
 replace_SEP 1 `(memory_block Tsh 108 (Vptr b i)).
-  { Time entailer!. (*1*) 
+  { Time entailer!. (*1.6*) 
     eapply derives_trans. apply data_at_data_at_.
     rewrite <- (memory_block_data_at_ Tsh _ _ H2). apply derives_refl.
   }
@@ -125,12 +121,12 @@ assert (SFL: Zlength (sha_finish ctx) = 32).
 (*Call sha256Update*)
 Time forward_call (oSha, sha_finish ctx, Vptr b i, buf, Tsh, Z.of_nat SHA256.DigestLength, kv) updSha.
   (*8.1*)
-  { unfold sha256state_. Time normalize. (*1.3*)
-    Exists oCTX.
-    rewrite prop_true_andp by auto.
+  { unfold sha256state_.
+    Exists oCTX. Time normalize. (*3.2*)
+    (*rewrite prop_true_andp by auto.*)
     change (@data_block spec_sha.CompSpecs Tsh (sha_finish ctx))
      with (@data_block CompSpecs Tsh (sha_finish ctx)).
-     Time cancel. (*1.7 *) } 
+     Time cancel. (*1.4 *) } 
   { unfold SHA256.DigestLength. 
     rewrite oShaLen. simpl; intuition. }
 simpl.
@@ -166,7 +162,9 @@ rewrite (field_at_data_at _ _ [StructField _o_ctx]).
 rewrite (field_at_data_at _ _ [StructField _md_ctx]).
 unfold data_at_. unfold field_at_.
 rewrite field_at_data_at.
+rewrite field_address_offset by auto with field_compatible. 
+rewrite field_address_offset by auto with field_compatible.
+rewrite field_address_offset by auto with field_compatible.  
 simpl.
-unfold field_address. rewrite !if_true by trivial.
 cancel.
-Time Qed. (*43*)
+Time Qed. (*45*)
