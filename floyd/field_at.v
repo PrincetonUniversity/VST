@@ -120,68 +120,6 @@ Proof.
   erewrite H0 by auto; eauto.
 Qed.
 
-Lemma default_value_fits:
-  forall t, value_fits t (default_val t).
-Proof.
-  intros.
-  type_induction t; try destruct f; rewrite value_fits_ind; 
-    unfold tc_val'; simpl;
-   try solve [if_tac; auto; if_tac; auto].
-  + intro auto; congruence.
-  +
-simpl.
-cbv iota.
-rewrite default_val_ind.
-rewrite unfold_fold_reptype. 
-rewrite Zlength_correct. rewrite length_list_repeat.
-split.
-destruct (zlt z 0).
-rewrite Z2Nat_neg, Z.max_l by omega. reflexivity.
-rewrite Z2Nat.id, Z.max_r by omega; reflexivity.
-apply Forall_list_repeat.
-auto.
-+ intros; congruence.
-+
-rewrite default_val_ind.
-rewrite unfold_fold_reptype.
-assert (NR:= get_co_members_no_replicate id).
-apply compute_list_norepet_e in NR.
-move IH after NR.
-induction (co_members (get_co id)).
-apply Coq.Init.Logic.I.
-destruct a0 as [i t].
-destruct m.
-simpl.
-inv IH. simpl in *. auto.
-inv IH.
-destruct p as [i' t'].
-inv NR.
-specialize (IHm H4). clear H4.
-assert (i<>i').
-contradict H3. subst; left; auto. clear H3.
-rewrite struct_Prop_cons2.
-split.
-apply H1.
-spec IHm.
-clear - H2 H. admit.
-revert IHm.
-apply struct_Prop_ext_derives.
-admit.
-simpl @fst in *.
-intros.
-destruct (ident_eq i0 i).
-subst i0.
-clear H3.
-match goal with H: value_fits _ ?A |- value_fits _ ?B => replace B with A; auto end.
-clear - H H0.
-unfold struct_default_val.
-unfold proj_struct.
-admit.
-admit.
-+
-admit.
-Qed.
-
 Definition field_at (sh: Share.t) (t: type) (gfs: list gfield) (v: reptype (nested_field_type t gfs)) (p: val): mpred :=
  !! (field_compatible t gfs p /\ value_fits (nested_field_type t gfs) v) 
     && at_offset (data_at' sh (nested_field_type t gfs) v) (nested_field_offset t gfs) p.

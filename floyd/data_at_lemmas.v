@@ -737,6 +737,33 @@ Proof.
   reflexivity.
 Qed.
 
+Lemma default_value_fits:
+  forall t, value_fits t (default_val t).
+Proof.
+  intros.
+  type_induction t; try destruct f; rewrite value_fits_ind;
+  try solve [simpl; try (if_tac; auto); apply tc_val'_Vundef];
+  rewrite default_val_ind, unfold_fold_reptype.
+  + (* Tarray *)
+    split.
+    - rewrite Zlength_list_repeat', Z2Nat_id'; auto.
+    - apply Forall_list_repeat; auto.
+  + (* Tstruct *)
+    cbv zeta in IH.
+    apply struct_Prop_compact_prod_gen.
+    - apply get_co_members_no_replicate.
+    - rewrite Forall_forall in IH.
+      intros; apply IH.
+      apply in_members_field_type; auto.
+  + (* Tunion *)
+    cbv zeta in IH.
+    apply union_Prop_compact_sum_gen.
+    - apply get_co_members_no_replicate.
+    - rewrite Forall_forall in IH.
+      intros; apply IH.
+      apply in_members_field_type; auto.
+Qed.    
+
 (*
 Lemma f_equal_Int_repr:
   forall i j, i=j -> Int.repr i = Int.repr j.

@@ -921,6 +921,57 @@ Proof.
       apply IHm.
 Qed.
 
+Lemma struct_Prop_compact_prod_gen: forall m (F: ident * type -> Type) (P: forall it, F it -> Prop) (f: forall it, F it),
+  members_no_replicate m = true ->
+  (forall i, in_members i m -> P (i, field_type i m) (f (i, field_type i m))) ->
+  struct_Prop m P (compact_prod_gen f m).
+Proof.
+  intros.
+  destruct m as [| (i0, t0) m]; [simpl; auto |].
+  revert i0 t0 H H0; induction m as [| (i1, t1) m]; intros.
+  + simpl.
+    specialize (H0 i0).
+    simpl in H0.
+    rewrite if_true in H0 by auto.
+    apply H0; left; auto.
+  + change (struct_Prop ((i0, t0) :: (i1, t1) :: m) P
+             (compact_prod_gen f ((i0, t0) :: (i1, t1) :: m)))
+    with (P (i0, t0) (f (i0, t0)) /\
+            struct_Prop ((i1, t1) :: m) P (compact_prod_gen f ((i1, t1) :: m))).
+    split.
+    - specialize (H0 i0).
+      simpl in H0.
+      rewrite if_true in H0 by auto.
+      apply H0; left; auto.
+    - rewrite members_no_replicate_ind in H; destruct H.
+      apply (IHm i1 t1); auto.
+      intros.
+      specialize (H0 i).
+      simpl in H0.
+      destruct (ident_eq i i0); [subst; tauto |].
+      apply H0; right; auto.
+Qed.
+
+Lemma union_Prop_compact_sum_gen: forall m (F: ident * type -> Type) (P: forall it, F it -> Prop) (f: forall it, F it),
+  members_no_replicate m = true ->
+  (forall i, in_members i m -> P (i, field_type i m) (f (i, field_type i m))) ->
+  union_Prop m P (compact_sum_gen (fun _ => true) f m).
+Proof.
+  intros.
+  destruct m as [| (i0, t0) m]; [simpl; auto |].
+  destruct m as [| (i1, t1) m].
+  + simpl.
+    specialize (H0 i0).
+    simpl in H0.
+    rewrite if_true in H0 by auto.
+    apply H0; left; auto.
+  + simpl.
+    specialize (H0 i0).
+    simpl in H0.
+    rewrite if_true in H0 by auto.
+    apply H0; left; auto.
+Qed.
+
 Section MEMORY_BLOCK_AGGREGATE.
 
 Context {cs: compspecs}.
@@ -1050,53 +1101,6 @@ Proof.
 Qed.
 
 End MEMORY_BLOCK_AGGREGATE.
-
-Section EMPTY_AGGREGATE.
-
-Context {cs: compspecs}.
-
-Lemma emp_array_pred: forall {A} (d:A) lo hi v p,
-  Zlength v = hi - lo ->
-  array_pred d lo hi (fun _ _ _ => emp) v p =  emp.
-Proof.
-  intros.
-  unfold array_pred.
-  rewrite prop_true_andp by auto; clear H.
-  forget (Z.to_nat (hi-lo)) as n.
-  revert lo; induction n; simpl; intros. auto.
-  rewrite emp_sepcon; auto.
-Qed.
-
-Lemma emp_struct_pred: forall m {A} (v: compact_prod (map A m)) p,
-  struct_pred m (fun _ _ _ => emp) v p = emp.
-Proof.
-  intros.
-  destruct m as [| (i0, t0) m].
-  + simpl. auto.
-  + revert i0 t0 v; induction m as [| (i1, t1) m]; intros.
-    - simpl. auto.
-    - change (struct_pred ((i0, t0) :: (i1, t1) :: m) (fun _ _ _ => emp) v p) with
-        (emp * struct_pred ((i1, t1) :: m) (fun _ _ _ => emp) (snd v) p).
-      rewrite IHm.
-      apply sepcon_emp.
-Qed.
-
-Lemma emp_union_pred: forall m {A} (v: compact_sum (map A m)) p,
-  union_pred m (fun _ _ _ => emp) v p = emp.
-Proof.
-  intros.
-  destruct m as [| (i0, t0) m].
-  + simpl. auto.
-  + revert i0 t0 v; induction m as [| (i1, t1) m]; intros.
-    - simpl. auto.
-    - destruct v as [v | v].
-      * simpl. auto.
-      * change (union_pred ((i0, t0) :: (i1, t1) :: m) (fun _ _ _ => emp) (inr v) p) with
-          (union_pred ((i1, t1) :: m) (fun _ _ _ => emp) v p).
-        apply IHm.
-Qed.
-
-End EMPTY_AGGREGATE.
 
 Module aggregate_pred.
 
@@ -1237,6 +1241,18 @@ Definition andp_union_pred: forall m {A} (P: forall it, A it -> val -> mpred) v 
   | _ => union_pred m (fun it v p => !! (Q /\ R it v) && P it v p) v p
   end
 := @andp_union_pred.
+
+Definition struct_Prop_compact_prod_gen: forall m (F: ident * type -> Type) (P: forall it, F it -> Prop) (f: forall it, F it),
+  members_no_replicate m = true ->
+  (forall i, in_members i m -> P (i, field_type i m) (f (i, field_type i m))) ->
+  struct_Prop m P (compact_prod_gen f m)
+:= @struct_Prop_compact_prod_gen.
+
+Definition union_Prop_compact_sum_gen: forall m (F: ident * type -> Type) (P: forall it, F it -> Prop) (f: forall it, F it),
+  members_no_replicate m = true ->
+  (forall i, in_members i m -> P (i, field_type i m) (f (i, field_type i m))) ->
+  union_Prop m P (compact_sum_gen (fun _ => true) f m)
+:= @union_Prop_compact_sum_gen.
 
 End aggregate_pred.
 
@@ -1514,18 +1530,5 @@ Definition memory_block_union_pred:
   union_pred m (fun it _ => memory_block sh sz) v (Vptr b (Int.repr ofs)) =
   memory_block sh sz (Vptr b (Int.repr ofs))
 := @memory_block_union_pred.
-
-Definition emp_array_pred: forall {A} (d:A) lo hi v p,
-  Zlength v = hi - lo ->
-  array_pred d lo hi (fun _ _ _ => emp) v p = emp
-:= @emp_array_pred.
-
-Definition emp_struct_pred: forall m {A} (v: compact_prod (map A m)) p,
-  struct_pred m (fun _ _ _ => emp) v p = emp
-:= @emp_struct_pred.
-
-Definition emp_union_pred: forall m {A} (v: compact_sum (map A m)) p,
-  union_pred m (fun _ _ _ => emp) v p = emp
-:= @emp_union_pred.
 
 End auxiliary_pred.
