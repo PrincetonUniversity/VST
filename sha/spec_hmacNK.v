@@ -249,12 +249,13 @@ Definition hmacstate_PreInitNull key (h: hmacabs) (c: val) : mpred :=
     data_at Tsh t_struct_hmac_ctx_st 
        (upd_reptype t_struct_hmac_ctx_st [StructField _md_ctx] r v) c.
 
-Definition initPre (c:val) (k: val) h key : mpred:=
+Definition initPre (c:val) (k: val) h l key : mpred:=
   match k with
     Vint z => if Int.eq z Int.zero
               then hmacstate_PreInitNull key h c
               else FF
-  | Vptr b ofs => ((data_at_ Tsh t_struct_hmac_ctx_st c) *
+  | Vptr b ofs => !!has_lengthK l key && 
+                  (data_at_ Tsh t_struct_hmac_ctx_st c *
                         (data_block Tsh key (Vptr b ofs)))
   | _ => FF
   end.
@@ -272,10 +273,10 @@ Definition HMAC_Init_spec :=
    PRE [ _ctx OF tptr t_struct_hmac_ctx_st,
          _key OF tptr tuchar,
          _len OF tint ]
-         PROP (has_lengthK l key)
+         PROP ((*has_lengthK l key*))
          LOCAL (temp _ctx c; temp _key k; temp _len (Vint (Int.repr l));
                 gvar sha._K256 kv)
-         SEP (`(K_vector kv); `(initPre c k h1 key))
+         SEP (`(K_vector kv); `(initPre c k h1 l key))
   POST [ tvoid ] 
      EX h:hmacabs, PROP (hmacInit key h)
                      LOCAL ()

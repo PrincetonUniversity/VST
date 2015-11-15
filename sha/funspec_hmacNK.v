@@ -56,7 +56,7 @@ Definition hmac_reset_spec :=
          _key OF tptr tuchar,
          _len OF tint ]
          PROP ((*has_lengthK l key*))
-         LOCAL (temp _ctx c; temp _key nullval; temp _len (Vint (Int.repr (Zlength key)));
+         LOCAL (temp _ctx c; temp _key nullval; temp _len (Vint (Int.repr l));
                 gvar sha._K256 kv)
          SEP ( `(FULL key c); `(K_vector kv))
   POST [ tvoid ] 
@@ -165,8 +165,8 @@ Definition abs_relate (a: HABS) (r: hmacstate) : Prop :=
   exists hInit hUpd, 
     hmacInit key hInit /\ 
     hmacUpdate data hInit hUpd /\
-    hmac_relate hUpd r /\ 
-    0 < Zlength key <= Int.max_signed
+    hmac_relate hUpd r(* /\ 
+    0 < Zlength key <= Int.max_signed*)
   end. 
 
 Definition REP (a: HABS) (c: val) : mpred :=
@@ -174,7 +174,7 @@ Definition REP (a: HABS) (c: val) : mpred :=
     (!!(abs_relate a r) && data_at Tsh t_struct_hmac_ctx_st r c).
 
 Definition FULL key c:mpred :=
-   !!(has_lengthK (Zlength key) key) && EX h:_, hmacstate_PreInitNull key h c.
+   (*!!(has_lengthK (Zlength key) key) &&*) EX h:_, hmacstate_PreInitNull key h c.
 
 Definition EMPTY c : mpred := data_at_ Tsh t_struct_hmac_ctx_st c.
 
@@ -185,9 +185,9 @@ Proof. intros. unfold EMPTY. rewrite data_at__memory_block. entailer!. Qed.
 Lemma REP_FULL key data c: REP (hABS key data) c |-- FULL key c.
 Proof. unfold REP, FULL. Intros r.
   unfold hmacstate_PreInitNull.
-  destruct H as [hInit [hUpd [INIT [UPD [REL ZLK]]]]].
-  apply andp_right. apply prop_right. split; trivial. split; trivial.
-     apply haslengthK_simple; trivial.
+  destruct H as [hInit [hUpd [INIT [UPD REL]]]].
+  (*apply andp_right. apply prop_right. split; trivial. split; trivial.
+     apply haslengthK_simple; trivial.*)
   Exists hUpd. Exists r. Exists (fst r).
   apply andp_right.
     apply prop_right. destruct hUpd. simpl in *.
@@ -215,7 +215,7 @@ Definition hmac_reset_spec :=
          _key OF tptr tuchar,
          _len OF tint ]
          PROP ((*has_lengthK l key*))
-         LOCAL (temp _ctx c; temp _key nullval; temp _len (Vint (Int.repr (Zlength key)));
+         LOCAL (temp _ctx c; temp _key nullval; temp _len (Vint (Int.repr l));
                 gvar sha._K256 kv)
          SEP ( `(FULL key c); `(K_vector kv))
   POST [ tvoid ] 
@@ -326,7 +326,7 @@ Lemma updatebodyproof Espec c d len data kv (h1 : hmacabs)
      emp).
 Admitted.
 
-Lemma initbodyproof Espec c k l key kv h1 pad ctxkey (H : has_lengthK l key):
+Lemma initbodyproof Espec c k l key kv h1 pad ctxkey:
 @semax CompSpecs Espec (func_tycontext f_HMAC_Init HmacVarSpecs HmacFunSpecs)
   (PROP  ()
    LOCAL  (lvar _ctx_key (tarray tuchar 64) ctxkey;
@@ -334,7 +334,7 @@ Lemma initbodyproof Espec c k l key kv h1 pad ctxkey (H : has_lengthK l key):
    temp _len (Vint (Int.repr l)); gvar sha._K256 kv)
    SEP  (`(data_at_ Tsh (tarray tuchar 64) ctxkey);
    `(data_at_ Tsh (tarray tuchar 64) pad); `(K_vector kv);
-   `(initPre c k h1 key)))
+   `(initPre c k h1 l key)))
   (Ssequence (fn_body f_HMAC_Init) (Sreturn None)) 
   (frame_ret_assert
      (function_body_ret_assert tvoid
@@ -374,18 +374,19 @@ name ctx' _ctx.
 name key' _key.
 name len' _len.
 rename lvar0 into pad. rename lvar1 into ctxkey.
+abbreviate_semax.
 apply semax_pre with (P':=EX h1:hmacabs, 
-  (PROP  (has_lengthK (Zlength key) key)
+  (PROP  ()
    LOCAL  (lvar _ctx_key (tarray tuchar 64) ctxkey;
    lvar _pad (tarray tuchar 64) pad; temp _ctx c; temp _key nullval;
-   temp _len (Vint (Int.repr (Zlength key)));  gvar sha._K256 kv)
+   temp _len (Vint (Int.repr l));  gvar sha._K256 kv)
    SEP  (`(data_at_ Tsh (tarray tuchar 64) ctxkey);
    `(data_at_ Tsh (tarray tuchar 64) pad); `(K_vector kv);
-   `(initPre c nullval h1 key)))). 
-{ unfold FULL. Intros h1. Exists h1. red in H.  entailer!. }
+   `(initPre c nullval h1 l key)))). 
+{ unfold FULL. Intros h1. Exists h1. (*red in H.*)  entailer!. }
 Intros h1.
 eapply semax_pre_post.
-Focus 3. apply (initbodyproof Espec c nullval (Zlength key) key kv h1 pad ctxkey H).
+Focus 3. apply (initbodyproof Espec c nullval l key kv h1 pad ctxkey).
   apply andp_left2. apply derives_refl.
   intros. apply andp_left2. unfold POSTCONDITION, abbreviate.
    entailer!. destruct ek; entailer!.
@@ -394,7 +395,7 @@ Focus 3. apply (initbodyproof Espec c nullval (Zlength key) key kv h1 pad ctxkey
    unfold hmacstate_, REP. Intros r. Exists r. entailer!.
    red. exists x1, x1. split; trivial. 
    split. eapply hmacUpdate_nil. eassumption.
-   split; trivial. apply H.
+   (*split; trivial.*) assumption.
 Qed.
 
 Lemma body_hmac_final: semax_body HmacVarSpecs HmacFunSpecs 
@@ -404,12 +405,12 @@ start_function.
 name ctx' _ctx.
 name md' _md.
 rename lvar0 into buf.
-unfold REP, abs_relate; normalize. intros h1. normalize.
-destruct H as [hInit [hUpd [Init [UPD [REL ZLK]]]]].
+unfold REP, abs_relate. Intros r.
+destruct H as [hInit [hUpd [Init [UPD REL]]]].
 eapply semax_pre_post.
   3: apply (finalbodyproof Espec c md shmd kv buf hUpd SH).
   
-  apply andp_left2. unfold hmacstate_. Exists h1; entailer!.
+  apply andp_left2. unfold hmacstate_. Exists r; entailer!.
 
   intros. apply andp_left2. unfold POSTCONDITION, abbreviate. entailer!.
     destruct ek; entailer!. destruct vl; entailer!.
@@ -419,8 +420,8 @@ eapply semax_pre_post.
              rewrite hmacFinal_hmacFinalSimple. exists (snd x0); trivial.
     cancel. 
     unfold FULL. Exists (snd x0).
-    apply andp_right. apply prop_right.
-      split; trivial. split; trivial. apply haslengthK_simple; trivial.
+    (*apply andp_right. apply prop_right.
+      split; trivial. split; trivial. apply haslengthK_simple; trivial.*)
     eapply hmacstate_PostFinal_PreInitNull; eassumption. 
 Qed.
 
@@ -433,7 +434,7 @@ name data' _data.
 name len' _len.
 destruct H as [Prop1 Prop2].
 unfold REP. Intros r.
-destruct H as [hInit [hUpd [INIT [UPD [REL ZLK]]]]].
+destruct H as [hInit [hUpd [INIT [UPD REL]]]].
 eapply semax_pre_post.
   3: apply (updatebodyproof Espec c d (Zlength data1) data1 kv hUpd).
 
@@ -468,8 +469,8 @@ rename lvar0 into pad. rename lvar1 into ctxkey.
 unfold EMPTY. 
 remember (HMACabs (S256abs nil nil) (S256abs nil nil) (S256abs nil nil)) as hdummy.
 eapply semax_pre_post.
-Focus 3. apply (initbodyproof Espec c (Vptr b i) l key kv hdummy pad ctxkey H).
-  entailer. cancel.
+Focus 3. apply (initbodyproof Espec c (Vptr b i) l key kv hdummy pad ctxkey).
+  apply andp_left2. entailer!.
   intros. apply andp_left2. unfold POSTCONDITION, abbreviate.
    entailer. destruct ek; entailer.
    destruct vl; entailer!.
@@ -477,7 +478,7 @@ Focus 3. apply (initbodyproof Espec c (Vptr b i) l key kv hdummy pad ctxkey H).
    unfold hmacstate_, REP. Intros r. Exists r. entailer!.
    red. exists x1, x1. split; trivial.
    split. eapply hmacUpdate_nil. eassumption.
-   split; trivial. destruct H. omega.
+   (*split; trivial. destruct H. omega.*) assumption.
 Qed.
 
 Lemma body_hmac_cleanup: semax_body HmacVarSpecs HmacFunSpecs 
@@ -496,7 +497,8 @@ eapply semax_pre_post.
    entailer. destruct ek; entailer.
    destruct vl; entailer. unfold EMPTY. 
    rewrite <- memory_block_data_at_. simpl. unfold data_block.
-   entailer!. apply data_at_memory_block. trivial.
+   (*entailer!. TAKES AGES*)
+   clear. simpl. apply andp_left2. apply data_at_memory_block. trivial.
 Qed. 
 
 End OPENSSL_HMAC_ABSTRACT_SPEC.

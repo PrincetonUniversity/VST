@@ -119,7 +119,7 @@ assert_PROP (isptr k). { unfold data_block. normalize. rewrite data_at_isptr wit
 rename H into isPtrK. 
 forward_call (c, k, kl, key, kv, dummyHMA) h.
   { apply isptrD in isPtrK. destruct isPtrK as [kb [kofs HK]]. rewrite HK.
-    unfold initPre. cancel.
+    unfold initPre. entailer!. 
   }
 normalize. rename H into HmacInit.
 assert_PROP (s256a_len (absCtxt h) = 512).
@@ -148,8 +148,7 @@ forward.
 assert_PROP (field_compatible (tarray tuchar (sizeof cenv_cs t_struct_hmac_ctx_st)) nil c).
 { unfold data_block at 1. unfold Zlength. simpl. rewrite data_at_data_at'. normalize. }
 rename H8 into FC.
-Exists c. entailer.
-Exists dig. entailer. clear H3.
+Exists c dig. clear H3. entailer!.
 assert (HS: hmacSimple key data dig).
     exists h, h1. 
     split. destruct KL as [KL1 [KLb KLc]].
@@ -157,7 +156,6 @@ assert (HS: hmacSimple key data dig).
     split; try assumption.
     rewrite hmacFinal_hmacFinalSimple. exists h2; trivial.
 clear H2.
-apply andp_right. apply prop_right.
   rewrite hmac_hmacSimple in HS. destruct HS as [hh HH]. 
   specialize (hmac_sound _ _ _ _ HH). intros D; subst dig.
   split. unfold bitspec. simpl. rewrite Equivalence.
@@ -170,7 +168,6 @@ apply andp_right. apply prop_right.
            apply H7. 
            intros ? X; eapply X. 
   unfold CRYPTO; intros. apply HMAC256_isPRF; assumption.
-cancel.
 unfold data_block.
   rewrite Zlength_correct; simpl.
 apply andp_left2.
