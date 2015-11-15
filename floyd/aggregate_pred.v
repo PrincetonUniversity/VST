@@ -197,6 +197,7 @@ Proof.
   unfold Znth. rewrite Z.sub_diag. rewrite if_false by omega. change (Z.to_nat 0) with 0%nat. auto.
 Qed.
 
+(* Move this to correct place *)
 Lemma Znth_sublist:
   forall {A} lo i hi (al: list A) d,
  0 <= lo ->
@@ -972,6 +973,117 @@ Proof.
     apply H0; left; auto.
 Qed.
 
+Lemma array_pred_local_facts: forall {A} (d: A) lo hi P v p Q,
+  (forall i x, lo <= i < hi -> P i x p |-- !! Q x) ->
+  array_pred d lo hi P v p |-- !! (Zlength v = hi - lo /\ Forall Q v).
+Proof.
+  intros.
+  unfold array_pred.
+  normalize.
+  rewrite prop_and; apply andp_right; [normalize |].
+  pose proof ZtoNat_Zlength v.
+  rewrite H0 in H1; symmetry in H1; clear H0.
+  revert hi lo H H1; induction v; intros.
+  + apply prop_right; constructor.
+  + replace (hi - lo) with (Z.succ (hi - Z.succ lo)) in * by omega.
+    assert (hi - Z.succ lo >= 0).
+    Focus 1. {
+      destruct (zlt (hi - Z.succ lo) 0); auto.
+      assert (Z.succ (hi - Z.succ lo) <= 0) by omega.
+      simpl length in H1.
+      destruct (zeq (Z.succ (hi - Z.succ lo)) 0);
+       [rewrite e in H1 | rewrite Z2Nat_neg in H1 by omega]; inv H1.
+    } Unfocus.
+    rewrite Z2Nat.inj_succ in H1 |- * by omega.
+    inv H1.
+    simpl rangespec.
+    replace (rangespec (Z.succ lo) (length v)
+              (fun i : Z => P i (Znth (i - lo) (a :: v) d)) p)
+    with (rangespec (Z.succ lo) (length v)
+            (fun i : Z => P i (Znth (i - Z.succ lo) v d)) p).
+    Focus 2. {
+      apply rangespec_ext; intros.
+      change v with (skipn 1 (a :: v)) at 1.
+      rewrite <- Znth_succ by omega.
+      auto.
+    } Unfocus.
+    rewrite H3.
+    eapply derives_trans; [apply sepcon_derives; [apply H | apply IHv; auto] |].
+    - omega.
+    - intros; apply H; omega.
+    - rewrite sepcon_prop_prop.
+      apply prop_derives; intros.
+      rewrite Z.sub_diag in H1; cbv in H1.
+      constructor; tauto.
+Qed.
+
+Lemma struct_pred_local_facts: forall m {A} (P: forall it, A it -> val -> mpred)v p (R: forall it, A it -> Prop),
+  members_no_replicate m = true ->
+  (forall i v0, in_members i m -> P (i, field_type i m) v0 p |-- !! R _ v0) ->
+  struct_pred m P v p |-- !! struct_Prop m R v.
+Proof.
+  intros.
+  destruct m as [| (i0, t0) m]; [simpl; apply prop_right; auto |].
+  revert i0 t0 v H H0; induction m as [| (i1, t1) m]; intros.
+  + simpl.
+    specialize (H0 i0).
+    simpl in H0.
+    rewrite if_true in H0 by auto.
+    apply H0; left; auto.
+  + change (struct_Prop ((i0, t0) :: (i1, t1) :: m) R v)
+      with (R (i0, t0) (fst v) /\ struct_Prop ((i1, t1) :: m) R (snd v)).
+    change (struct_pred ((i0, t0) :: (i1, t1) :: m) P v p)
+      with (P (i0, t0) (fst v) p * struct_pred ((i1, t1) :: m) P (snd v) p).
+    rewrite members_no_replicate_ind in H.
+
+    pose proof H0 i0.
+    simpl in H1.
+    if_tac in H1; [| congruence].
+    specialize (H1 (fst v)).
+    spec H1; [left; auto |].
+
+    specialize (IHm i1 t1 (snd v)).
+    spec IHm; [tauto |].
+    eapply derives_trans; [apply sepcon_derives; [apply H1 | apply IHm] |].
+    - intros.
+      specialize (H0 i).
+      simpl in H0.
+      destruct (ident_eq i i0); [subst; tauto |].
+      apply H0; right; auto.
+    - rewrite sepcon_prop_prop; normalize.
+Qed.
+
+Lemma union_pred_local_facts: forall m {A} (P: forall it, A it -> val -> mpred)v p (R: forall it, A it -> Prop),
+  members_no_replicate m = true ->
+  (forall i v0, in_members i m -> P (i, field_type i m) v0 p |-- !! R _ v0) ->
+  union_pred m P v p |-- !! union_Prop m R v.
+Proof.
+  intros.
+  destruct m as [| (i0, t0) m]; [simpl; apply prop_right; auto |].
+  revert i0 t0 v H H0; induction m as [| (i1, t1) m]; intros.
+  + simpl.
+    specialize (H0 i0).
+    simpl in H0.
+    rewrite if_true in H0 by auto.
+    apply H0; left; auto.
+  + rewrite members_no_replicate_ind in H.
+    destruct v.
+    - simpl.
+      pose proof H0 i0.
+      simpl in H1.
+      if_tac in H1; [| congruence].
+      specialize (H1 a).
+      apply H1; left; auto.
+    - specialize (IHm i1 t1 c).
+      spec IHm; [tauto |].
+      apply IHm.
+      intros.
+      specialize (H0 i).
+      simpl in H0.
+      destruct (ident_eq i i0); [subst; tauto |].
+      apply H0; right; auto.
+Qed.
+
 Section MEMORY_BLOCK_AGGREGATE.
 
 Context {cs: compspecs}.
@@ -1253,6 +1365,23 @@ Definition union_Prop_compact_sum_gen: forall m (F: ident * type -> Type) (P: fo
   (forall i, in_members i m -> P (i, field_type i m) (f (i, field_type i m))) ->
   union_Prop m P (compact_sum_gen (fun _ => true) f m)
 := @union_Prop_compact_sum_gen.
+
+Definition array_pred_local_facts: forall {A} (d: A) lo hi P v p Q,
+  (forall i x, lo <= i < hi -> P i x p |-- !! Q x) ->
+  array_pred d lo hi P v p |-- !! (Zlength v = hi - lo /\ Forall Q v)
+:= @array_pred_local_facts.
+
+Definition struct_pred_local_facts: forall m {A} (P: forall it, A it -> val -> mpred)v p (R: forall it, A it -> Prop),
+  members_no_replicate m = true ->
+  (forall i v0, in_members i m -> P (i, field_type i m) v0 p |-- !! R _ v0) ->
+  struct_pred m P v p |-- !! struct_Prop m R v
+:= @struct_pred_local_facts.
+
+Definition union_pred_local_facts: forall m {A} (P: forall it, A it -> val -> mpred)v p (R: forall it, A it -> Prop),
+  members_no_replicate m = true ->
+  (forall i v0, in_members i m -> P (i, field_type i m) v0 p |-- !! R _ v0) ->
+  union_pred m P v p |-- !! union_Prop m R v
+:= @union_pred_local_facts.
 
 End aggregate_pred.
 

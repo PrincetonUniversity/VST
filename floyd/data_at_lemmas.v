@@ -764,6 +764,52 @@ Proof.
       apply in_members_field_type; auto.
 Qed.    
 
+Lemma data_at'_value_fits: forall sh t v p
+(*  (LEGAL_ALIGNAS: legal_alignas_type t = true)
+  (LEGAL_COSU: legal_cosu_type t = true)
+  (COMPLETE: complete_type cenv_cs t = true) *),
+  data_at' sh t v p |-- !! value_fits t v.
+Proof.
+  intros until p.
+  revert v p; type_induction t; intros;
+  rewrite value_fits_ind, data_at'_ind;
+  try solve [normalize];
+  try solve [cbv zeta; if_tac; [normalize | apply mapsto_tc_val']].
+  + (* Tarray *)
+    eapply derives_trans; [apply array_pred_local_facts |].
+    - intros.
+      unfold at_offset.
+      instantiate (1 := fun x => value_fits t x); simpl.
+      apply IH.
+    - apply prop_derives.
+      intros [? ?]; split; auto.
+      rewrite Zlength_correct in *.
+      rewrite Z.max_r by omega.
+      omega.
+  + (* Tstruct *)
+    apply struct_pred_local_facts; [apply get_co_members_no_replicate |].
+    intros.
+    rewrite withspacer_spacer.
+    unfold at_offset.
+    cbv zeta in IH.
+    rewrite Forall_forall in IH.
+    specialize (IH (i, (field_type i (co_members (get_co id))))).
+    spec IH; [apply in_members_field_type; auto |].
+    eapply derives_trans; [apply sepcon_derives; [apply derives_refl | apply IH] |].
+    rewrite sepcon_comm; apply derives_left_sepcon_right_corable; auto.
+  + (* Tunion *)
+    apply union_pred_local_facts; [apply get_co_members_no_replicate |].
+    intros.
+    rewrite withspacer_spacer.
+    unfold at_offset.
+    cbv zeta in IH.
+    rewrite Forall_forall in IH.
+    specialize (IH (i, (field_type i (co_members (get_co id))))).
+    spec IH; [apply in_members_field_type; auto |].
+    eapply derives_trans; [apply sepcon_derives; [apply derives_refl | apply IH] |].
+    rewrite sepcon_comm; apply derives_left_sepcon_right_corable; auto.
+Qed.
+
 (*
 Lemma f_equal_Int_repr:
   forall i j, i=j -> Int.repr i = Int.repr j.
