@@ -167,9 +167,7 @@ eapply semax_seq. instantiate (1:=PostResetBranch).
     rewrite (field_at_data_at _ _ [StructField _i_ctx]).
      (*VST Issue: why does rewrite field_at_data_at at 2 FAIL, but focus_SEP 1. rewrite field_at_data_at at 1. SUCCEED???
        Answer: instead of using "at 2", use the field-specificer in the line above.*)
-     unfold field_address. rewrite if_true by trivial.
-     simpl @nested_field_type.
-      
+    rewrite field_address_offset by auto with field_compatible. 
     Time forward_call ((Tsh, Tsh),
              Vptr cb cofs,
              offset_val
@@ -179,13 +177,14 @@ eapply semax_seq. instantiate (1:=PostResetBranch).
              @sizeof (@cenv_cs CompSpecs) t_struct_SHA256state_st) rv.
      (* 13 secs*)
      { rewrite (field_at_data_at _ _ [StructField _md_ctx]).
-       unfold field_address; simpl. rewrite if_true by auto; rewrite Int.add_zero.
+       rewrite field_address_offset by auto with field_compatible.
+       simpl; rewrite Int.add_zero.
        change 108 with (sizeof cenv_cs t_struct_SHA256state_st).
        rewrite memory_block_data_at_ .
        change (Tstruct _SHA256state_st noattr) with t_struct_SHA256state_st.
        (* cancel.  Issue: doesn't work, for some reason. *)
        pull_left (data_at Tsh t_struct_SHA256state_st v (Vptr cb cofs)).
-       rewrite !sepcon_assoc. apply sepcon_derives; [ | cancel].
+       rewrite !sepcon_assoc. apply sepcon_derives; [ | cancel]. 
        apply data_at_data_at_.
        clear - FC_cb; hnf in FC_cb|-*; intuition.
        red in H4|-*. simpl in H4|-*. omega.
@@ -205,10 +204,11 @@ eapply semax_seq. instantiate (1:=PostResetBranch).
       unfold_data_at 3%nat.
       rewrite (field_at_data_at _ _ [StructField _md_ctx]).
       rewrite (field_at_data_at _ _ [StructField _i_ctx]).
-      unfold field_address; simpl. rewrite if_true by trivial. rewrite if_true by trivial.
-      rewrite Int.add_zero. 
+      rewrite field_address_offset by auto with field_compatible.
+      rewrite field_address_offset by auto with field_compatible.
+      simpl; rewrite Int.add_zero. 
       change (Tarray tuchar 64 noattr) with (tarray tuchar 64).
-      Time cancel. (*1*)
+      Time cancel. (*0.7*)
   }
 
   { (*k is Vptr, key!=NULL*)
@@ -227,7 +227,9 @@ eapply semax_seq. instantiate (1:=PostResetBranch).
     unfold_data_at 1%nat. 
     rewrite (field_at_data_at Tsh t_struct_hmac_ctx_st [StructField _md_ctx]).
     rewrite (field_at_data_at Tsh t_struct_hmac_ctx_st [StructField _i_ctx]).
-    unfold field_address. rewrite if_true by trivial. rewrite if_true by trivial. simpl. rewrite Int.add_zero.
+    rewrite field_address_offset by auto with field_compatible.
+    rewrite field_address_offset by auto with field_compatible.
+    simpl; rewrite Int.add_zero. 
    
     Time forward_call ((Tsh, Tsh),
              Vptr cb cofs,
@@ -264,8 +266,10 @@ eapply semax_seq. instantiate (1:=PostResetBranch).
       unfold_data_at 4%nat.
       rewrite (field_at_data_at _ _ [StructField _md_ctx]).
       rewrite (field_at_data_at _ _ [StructField _i_ctx]).
-      unfold field_address; simpl. rewrite if_true by trivial. rewrite if_true by trivial.
-      rewrite Int.add_zero. Time cancel. (*0.3*)
+    rewrite field_address_offset by auto with field_compatible.
+    rewrite field_address_offset by auto with field_compatible.
+    simpl; rewrite Int.add_zero. 
+    Time cancel. (*1.2*)
   }
 } 
 Time Qed. (*57*)

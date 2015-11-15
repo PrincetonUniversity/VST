@@ -375,8 +375,8 @@ Focus 2.
         assert_PROP (field_compatible (Tarray tuchar 64 noattr) [] (Vptr pb pofs)) as FC_pad. Time entailer!. (*2.8*)
         Time forward. (*5*)
         rewrite field_at_data_at.
-        Time entailer!. (*8*)
-        unfold field_address; simpl. rewrite if_true, Int.add_zero by trivial.
+        rewrite field_address_offset by auto with field_compatible. 
+        Time entailer!. (*9.6*)
         apply derives_refl'. f_equal. apply UPD_IPAD; assumption. 
       }
 Unfocus.
@@ -534,8 +534,9 @@ Focus 2.
             unfold FRAME1, FRAME2; simpl.
         Opaque FRAME1. Opaque FRAME2.
         Time cancel. (*2.9*)
+        rewrite field_address_offset by auto with field_compatible. 
+        simpl; rewrite Int.add_zero.
         apply derives_refl'. f_equal. apply UPD_OPAD; eassumption.
-        unfold field_address; simpl. rewrite if_true, Int.add_zero; trivial.
       }
 Unfocus.
 cbv beta. rewrite sublist_same, sublist_nil, app_nil_r; trivial.
@@ -788,7 +789,7 @@ forward_if PostResetBranch.
     rewrite (field_at_data_at  Tsh t_struct_hmac_ctx_st [StructField _i_ctx]).
     assert_PROP (field_compatible t_struct_hmac_ctx_st [StructField _i_ctx] (Vptr cb cofs)) as FC_ICTX.
     { apply prop_right. clear - FC_C. red in FC_C; red; intuition. split; trivial. right; left; trivial. }
-    unfold field_address; simpl. rewrite if_true; trivial. unfold field_offset, fieldlist.field_offset; simpl.
+    rewrite field_address_offset by auto with field_compatible. 
 
     (*Call to _SHA256_Init*)
     unfold field_type; simpl. 
@@ -825,7 +826,7 @@ forward_if PostResetBranch.
     rewrite (field_at_data_at Tsh t_struct_hmac_ctx_st [StructField _o_ctx]).
     assert_PROP (field_compatible t_struct_hmac_ctx_st [StructField _o_ctx] (Vptr cb cofs)) as FC_OCTX.
     { apply prop_right. clear - FC_C. red in FC_C; red; intuition. split; trivial. right; right; left; trivial. }
-    unfold field_address; simpl. rewrite if_true; trivial. unfold field_offset, fieldlist.field_offset; simpl.
+    rewrite field_address_offset by auto with field_compatible.
 
     (*Call to _SHA256_Init*)
     unfold field_type; simpl.
@@ -872,7 +873,8 @@ Definition FRAME3 (kb cb ckb: block) kofs cofs ckoff key ipadSHAabs:=
     unfold_data_at 3%nat.
     rewrite (field_at_data_at Tsh t_struct_hmac_ctx_st [StructField _i_ctx]).
     rewrite (field_at_data_at Tsh t_struct_hmac_ctx_st [StructField _o_ctx]).
-    unfold field_address. rewrite !if_true by trivial. simpl.
+    rewrite field_address_offset by auto with field_compatible.
+    rewrite field_address_offset by auto with field_compatible.
     change_compspecs CompSpecs.
     Time cancel. (*0.5*)
   }
@@ -894,4 +896,4 @@ Definition FRAME3 (kb cb ckb: block) kofs cofs ckoff key ipadSHAabs:=
 intros ? ?. apply andp_left2.  
    unfold POSTCONDITION, abbreviate. rewrite overridePost_overridePost. 
    apply derives_refl. 
-Time Qed. (*76*)
+Time Qed. (*75*)

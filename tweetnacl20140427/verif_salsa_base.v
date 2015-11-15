@@ -71,9 +71,16 @@ Lemma ThirtyTwoByte_split16 q v:
   field_compatible (Tarray tuchar 32 noattr) [] v ->
   ThirtyTwoByte q v = 
   (SByte (fst q) v * SByte (snd q) (offset_val (Int.repr 16) v))%logic.
-Proof. destruct q as [s1 s2]. simpl; intros.
-  erewrite append_split2_data_at_Tarray_at_tuchar; try reflexivity;
-  try rewrite Zlength_app; repeat rewrite <- SixteenByte2ValList_Zlength; trivial.
+Proof. destruct q as [s1 s2]. simpl; intros. unfold SByte.
+  rewrite split2_data_at_Tarray_tuchar with (n1:= Zlength (SixteenByte2ValList s1));
+     try rewrite Zlength_app; repeat rewrite <- SixteenByte2ValList_Zlength; try omega. 
+  unfold offset_val. red in H. destruct v; intuition. 
+  rewrite field_address0_offset. simpl.
+  rewrite sublist_app1; try rewrite <- SixteenByte2ValList_Zlength; try omega.
+  rewrite sublist_app2; try rewrite <- SixteenByte2ValList_Zlength; try omega.
+  rewrite sublist_same; try rewrite <- SixteenByte2ValList_Zlength; trivial. 
+  rewrite sublist_same; try rewrite <- SixteenByte2ValList_Zlength; trivial. 
+  red; intuition.
 Qed.
 
 Lemma QuadByte2ValList_firstn4 q l: 

@@ -546,15 +546,18 @@ Proof. intros. abbreviate_semax.
     apply isptrD in Pout; destruct Pout as [ob [ooff OC]]; rewrite OC in *.
     Time forward. (*3.7*)
     rewrite <- P3_Zlength.
-    rewrite (split3_data_at_Tarray_at_tuchar Tsh (Zlength ll) (4 *i) 4); try rewrite P3_Zlength; trivial; try omega. 
-    unfold at_offset at 1.
+    rewrite (split3_data_at_Tarray_tuchar Tsh (Zlength ll) (4 *i) (4+4*i)); try rewrite P3_Zlength; trivial; try omega. 
+    rewrite field_address0_offset by auto with field_compatible.
+    rewrite field_address0_offset by auto with field_compatible.
+    unfold offset_val; simpl.   
     Time normalize. (*5.4*)
 Transparent core_spec. Transparent ld32_spec. Transparent L32_spec. Transparent st32_spec.
 Transparent crypto_core_salsa20_spec. Transparent crypto_core_hsalsa20_spec.
     Time forward_call (offset_val (Int.repr (4 * i)) (Vptr ob ooff), xi). (*8.2*)
 Opaque core_spec. Opaque ld32_spec. Opaque L32_spec. Opaque st32_spec.
 Opaque crypto_core_salsa20_spec. Opaque crypto_core_hsalsa20_spec.
-    { Exists (sublist (4 * i) (4 + 4 * i) ll). Time entailer!. (*9.3*) }
+    { Exists (sublist (4 * i) (4 + 4 * i) ll). unfold offset_val; simpl.
+      autorewrite with sublist. Time entailer!. (*10.3*) }
     simpl. Opaque mult.
     assert (Upd_ll_Zlength: Zlength (UpdateOut ll (4 * i) xi) = 64).
       rewrite UpdateOut_Zlength; trivial. omega. omega.
@@ -573,28 +576,36 @@ Opaque crypto_core_salsa20_spec. Opaque crypto_core_hsalsa20_spec.
    `(data_at Tsh (tarray tuint 16) (map Vint ys) y);
    `(data_at_ Tsh (tarray tuint 4) t); `(data_at_ Tsh (tarray tuint 16) w)))).
     { clear Heqll. Opaque Zminus. Time entailer!. (*7.5*) unfold QByte.
-      rewrite <- Upd_ll_Zlength.
-      erewrite (append_split3_data_at_Tarray_at_tuchar' Tsh  (UpdateOut ll (4 * i) _id0)); try rewrite UpdateOut_Zlength, P3_Zlength; try omega.
-       2: reflexivity.
-       2: cbv; trivial.
-       2: assumption.
-      unfold at_offset.
-      rewrite <- QuadByteValList_ZLength. repeat rewrite Zlength_sublist; try omega.
-      rewrite P3_Zlength, Zminus_0_r, (Zplus_comm 4). Time cancel. (*0.1*) }
+      rewrite <- Upd_ll_Zlength. unfold tarray. 
+      erewrite (split3_data_at_Tarray_tuchar Tsh _ (4 * i) (4+4 * i) (UpdateOut ll (4 * i) _id0)); try rewrite UpdateOut_Zlength, P3_Zlength; try omega.
+      rewrite field_address0_offset by auto with field_compatible.
+      rewrite field_address0_offset by auto with field_compatible.
+      unfold offset_val. Opaque QuadByte2ValList.  simpl. repeat rewrite Z.mul_1_l.
+      Transparent QuadByte2ValList. Transparent Zminus.
+      assert (AR: 64 - 4 * i - 4 + (4 * i + 4) = 64) by omega. 
+      unfold UpdateOut. 
+      autorewrite with sublist. Time cancel. (*0.5*)
+      rewrite sublist_app2; autorewrite with sublist; try omega.
+      rewrite sublist_app2; try rewrite <- QuadByteValList_ZLength; try omega.
+      autorewrite with sublist. rewrite Zplus_comm, AR. trivial. }
  
     destruct (Znth_mapVint xs (6+i) Vundef) as [zi Zi]. omega.
     Time forward; rewrite Zi. (*10.3*)
     Time solve[entailer!]. (*3.2*)
     Time forward. (*4.1*) 
-    erewrite (split3_data_at_Tarray_at_tuchar Tsh 64 (16 + 4 *i) 4); trivial; try omega.
-    unfold at_offset at 1. 
+    erewrite (split3_data_at_Tarray_tuchar Tsh 64 (16 + 4 *i) (4+16 + 4 *i)); trivial; try omega.
+    rewrite field_address0_offset by auto with field_compatible.
+    rewrite field_address0_offset by auto with field_compatible.
+    unfold offset_val; simpl.
+    autorewrite with sublist. repeat rewrite Z.mul_1_l. 
 Transparent core_spec. Transparent ld32_spec. Transparent L32_spec. Transparent st32_spec.
 Transparent crypto_core_salsa20_spec. Transparent crypto_core_hsalsa20_spec.
-    Time forward_call (offset_val (Int.repr (16 + 4 * i)) (Vptr ob ooff), zi). (*10.3*)
+    Time forward_call (Vptr ob (Int.add ooff (Int.repr (16 + 4 * i))), zi). (*9.8*)
 Opaque core_spec. Opaque ld32_spec. Opaque L32_spec. Opaque st32_spec.
 Opaque crypto_core_salsa20_spec. Opaque crypto_core_hsalsa20_spec.
     { Exists (sublist (16 + 4 * i) (4 + (16 + 4 * i)) (UpdateOut ll (4 * i) xi)).
-      Time entailer!. (*11.5*) }
+      autorewrite with sublist. rewrite Z.add_assoc. 
+      Time entailer!. (*11.8*) }
     Time entailer!. (*9.7*)
     assert (AA:  Z.to_nat (i + 1) = S (Z.to_nat i)).
       rewrite (Z.add_comm _ 1), Z2Nat.inj_add. simpl. apply NPeano.Nat.add_1_l. omega. omega.
@@ -610,13 +621,17 @@ Opaque crypto_core_salsa20_spec. Opaque crypto_core_hsalsa20_spec.
     remember (UpdateOut ll (4 * i) xi) as l.
     assert (ZLU: Zlength(UpdateOut l (16 + 4 * i) _id0) = 64).
       rewrite UpdateOut_Zlength; trivial. omega. omega.
-    rewrite <- ZLU.
-    erewrite (append_split3_data_at_Tarray_at_tuchar' Tsh  (UpdateOut l (16 + 4 * i) _id0)); 
-      try rewrite ZLU; try rewrite P3_Zlength; try omega; try reflexivity; trivial.
-    unfold at_offset.
-    repeat rewrite Zlength_sublist; try omega. 
-    rewrite <- QuadByteValList_ZLength, Upd_ll_Zlength, Zminus_0_r, (Zplus_comm 4). Time cancel. (*0.2*) }
-Time entailer!. (*10.4*) (*With temp _i (Vint (Int.repr 4)) in LOCAL of HTruePostCondL apply derives_refl.*)
+    rewrite (split3_data_at_Tarray_tuchar Tsh 64 (16 + 4 * i) (4+16 + 4 * i)); try omega.
+      rewrite field_address0_offset by auto with field_compatible.
+      rewrite field_address0_offset by auto with field_compatible.
+      unfold offset_val. Opaque QuadByte2ValList.  simpl. repeat rewrite Z.mul_1_l.
+      Transparent QuadByte2ValList. Transparent Zminus.
+      unfold UpdateOut. 
+      autorewrite with sublist. Time cancel. (*1.1*)
+      rewrite sublist_app2; autorewrite with sublist; try omega.
+      rewrite sublist_app2; try rewrite <- QuadByteValList_ZLength; try omega.
+      autorewrite with sublist. rewrite Zplus_comm. apply derives_refl'. f_equal. f_equal; omega. }
+  Time entailer!. (*10.1*)
 Time Qed. (*105.4*)
 
 Lemma hposLoop2_Zlength16 C N l (L:Zlength l = 16): forall n, 

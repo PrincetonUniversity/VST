@@ -320,7 +320,7 @@ Proof.
   {
     assert (LENhi: Zlength hibytes = 4) by reflexivity.
     clearbody hibytes. clearbody lobytes.
-    Time entailer!. (*7.9*)
+    Time entailer!. (*8.7*)
   erewrite field_at_Tarray; try reflexivity;
    [ | apply compute_legal_nested_field_spec'; repeat constructor; auto; omega
    | omega].
@@ -343,7 +343,7 @@ Proof.
     normalize.
   Time forward. (* p -= SHA_CBLOCK; *) (*5.9*)
   {
-    Time entailer!. (*4.8*)
+    Time entailer!. (*5.9*)
     pose proof CBLOCKz_eq.
     rewrite field_address_offset by auto with field_compatible.
     make_Vptr c_; simpl in *; auto.
@@ -515,5 +515,5 @@ f_equal. {
  apply isbyte_intlist_to_Zlist.
  constructor; auto. split; clear; omega.
  apply Forall_list_repeat. split; clear; omega. 
-Time Qed. (*78*)
+Time Qed. (*83.4*)
 

@@ -133,14 +133,15 @@ Time forward_call (* sha256_block_data_order (c,data); *)
  (hashed++ blocks,  bl, c, 
   field_address0 (tarray tuchar (Zlength data))  [ArraySubsc lo] d,
   sh, kv). (*3.8*)
- Time unfold_data_at 1%nat. (*0.8*)
- Time entailer!. (*6.2*)
+{ Time unfold_data_at 1%nat. (*0.8*)
+  Time cancel. (*2.5*) 
+}
  split3; auto. apply divide_length_app; auto.
  simpl map. (* should not need this *)
  Time forward. (* data += SHA_CBLOCK; *) (*5*)
  Time forward. (* len  -= SHA_CBLOCK; *) (*6*)
  Exists (blocks++ bl).
- Time entailer!. (*17 SLOW*)
+ Time entailer!. (*17.4 SLOW*)
  subst lo. autorewrite with sublist.
  rewrite Z.mul_add_distr_r. 
  {repeat split; auto.
@@ -248,7 +249,7 @@ rewrite H1 in *.
 rewrite Zlength_correct in H1;  destruct dd; inv H1.
 autorewrite with sublist.
 simpl app; simpl intlist_to_Zlist.
-Time entailer!.  (* 139 sec -> 3.27 sec *)
+Time entailer!.  (* 4.6; was: 139 sec -> 3.27 sec *)
 split.
 apply Z.divide_0_r.
 rewrite field_address0_offset by auto with field_compatible.
@@ -335,4 +336,4 @@ simple apply (update_loop_body_proof Espec sh hashed dd data c d len kv (hash_bl
  Time entailer!. (*2.9*)
  apply negb_false_iff in HRE. (* should not be necessary *)
  apply ltu_repr in HRE; Omega1.
-Time Qed. (*6*)
+Time Qed. (*6.3*)

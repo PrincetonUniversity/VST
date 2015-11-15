@@ -185,30 +185,34 @@ Time forward_for_simple_bound 4 (EX i:Z,
   Time assert_PROP (isptr c /\ field_compatible (Tarray tuchar 16 noattr) [] c) as FCc by entailer!. (*3.7*)
   destruct FCc as [Pc FC]; apply isptrD in Pc; destruct Pc as [cb [coff CP]]; rewrite CP in *.
   destruct (Select_SplitSelect16Q_Zlength _ _ _ _ HeqFB I) as [FL _].
-  rewrite (split3_data_at_Tarray_at_tuchar Tsh 16 (Zlength (QuadChunks2ValList Front)) 
-        (Zlength (QuadChunks2ValList [Select16Q C i]))); trivial; 
-    repeat rewrite Zlength_app;
-    repeat rewrite QuadChunk2ValList_ZLength;
+  specialize (split3_data_at_Tarray_tuchar Tsh 16 (Zlength (QuadChunks2ValList Front)) 
+        (Zlength (QuadChunks2ValList Front) + Zlength (QuadChunks2ValList [Select16Q C i]))).
+  repeat rewrite Zminus_plus; repeat rewrite QuadChunk2ValList_ZLength.
+  intros. rewrite H; clear H; try rewrite FL; try rewrite <- C1; try rewrite Zlength_cons, Zlength_nil; try solve[simpl; omega].
+  change (Z.succ 0) with 1. repeat rewrite Z.mul_1_r.
+  (*rewrite field_address_offset0 by auto with field_compatible.*)
+(*    repeat rewrite Zlength_app;
+    repeat rewrite QuadChunk2ValList_ZLength;*)
 (*    repeat rewrite FL; try rewrite BL; *)
-    try rewrite <- QuadByteValList_ZLength; try rewrite Z.mul_1_r; try omega.
+(*    try rewrite <- QuadByteValList_ZLength; try rewrite Z.mul_1_r; try omega.*)
 (*    2: destruct (Select_SplitSelect16Q_Zlength _ _ _ _ HeqFB I) as [FL _]; rewrite FL; omega.
     2: destruct (Select_SplitSelect16Q_Zlength _ _ _ _ HeqFB I) as [FL _]; rewrite FL; omega.*)
-  Time normalize.  (*6.3*)
+  Time normalize.  (*5.9*)
   rewrite (Select_SplitSelect16Q C i _ _ HeqFB) at 2.
-  rewrite (sublist_app2 (4 * Zlength Front) (4 + 4 * Zlength Front)); 
-    repeat rewrite QuadChunk2ValList_ZLength. 
-    2: (*destruct (Select_SplitSelect16Q_Zlength _ _ _ _ HeqFB I) as [FL _];*) rewrite FL; omega.
-  rewrite Zminus_diag, Z.add_simpl_r.
-  unfold at_offset at 1.
-  rewrite (sublist0_app1 4), (sublist_same 0 4); try rewrite QuadChunk2ValList_ZLength;
-     try rewrite Z.mul_1_r; trivial; try omega.
+  rewrite field_address0_offset by auto with field_compatible.
+  rewrite field_address0_offset by auto with field_compatible. simpl.  
+  autorewrite with sublist. 
+  rewrite sublist_app2; (*. (4 * Zlength Front) (4 + 4 * Zlength Front)); *)
+    repeat rewrite QuadChunk2ValList_ZLength; repeat rewrite FL. 
+    2: omega.
+  rewrite Zminus_diag. rewrite Z.add_simpl_l. repeat rewrite Z.mul_1_l.
+  rewrite (sublist0_app1 4), (sublist_same 0 4); try rewrite <- QuadByteValList_ZLength; try omega.
 Transparent core_spec. Transparent ld32_spec. Transparent L32_spec. Transparent st32_spec.
 Transparent crypto_core_salsa20_spec. Transparent crypto_core_hsalsa20_spec. 
   (*Issue this is where the call fails if we use abbreviation Delta := ... in the statement of the lemma*)
-  Time forward_call (offset_val (Int.repr (4 * i)) (Vptr cb coff), Select16Q C i) pat. (*13*)
+  Time forward_call (Vptr cb (Int.add coff (Int.repr (4 * i))), Select16Q C i) pat. (*15*)
 Opaque core_spec. Opaque ld32_spec. Opaque L32_spec. Opaque st32_spec.
 Opaque crypto_core_salsa20_spec. Opaque crypto_core_hsalsa20_spec.
-  { simpl. rewrite app_nil_r, FL. Time cancel. (*4.2*) }
 
   subst pat; simpl.
   apply semax_pre with (P':=
@@ -227,7 +231,7 @@ Opaque crypto_core_salsa20_spec. Opaque crypto_core_hsalsa20_spec.
    `(data_at_ Tsh (tarray tuint 16) w); 
    `(data_at Tsh (tarray tuchar 64) OUT out)))). 
   { rewrite (Select_SplitSelect16Q C i _ _ HeqFB). unfold QByte.
-    rewrite (split3_data_at_Tarray_at_tuchar Tsh 16 (Zlength (QuadChunks2ValList Front)) 4); trivial;
+    rewrite (split3_data_at_Tarray_tuchar Tsh 16 (Zlength (QuadChunks2ValList Front)) (4+Zlength (QuadChunks2ValList Front))); trivial;
     repeat rewrite Zlength_app; 
     repeat rewrite QuadChunk2ValList_ZLength;
 (*    repeat rewrite FL; try rewrite BL; *)
@@ -235,17 +239,23 @@ Opaque crypto_core_salsa20_spec. Opaque crypto_core_hsalsa20_spec.
      (*2: destruct (Select_SplitSelect16Q_Zlength _ _ _ _ HeqFB I) as [FL _]; rewrite FL; omega.
      2: destruct (Select_SplitSelect16Q_Zlength _ _ _ _ HeqFB I) as [FL _]; rewrite FL; omega.*)
      2: destruct (Select_SplitSelect16Q_Zlength _ _ _ _ HeqFB I) as [_ BL]; rewrite FL, BL; omega.
-     2: rewrite CP; trivial.
-    Opaque Z.sub. Opaque Z.mul. Opaque Z.add. Time entailer!. (*9.7*) 
+    autorewrite with sublist.
+    (*Opaque Z.sub. Opaque Z.mul. Opaque Z.add.*) Time entailer!. (*13*) 
 (*    destruct (Select_SplitSelect16Q_Zlength _ _ _ _ HeqFB I) as [FL BL]; rewrite FL, BL. *)
     rewrite sublist_app2; repeat rewrite QuadChunk2ValList_ZLength; repeat rewrite FL; try omega.
-    rewrite Zminus_diag, Z.add_simpl_r.
-    unfold at_offset at 1.
-    rewrite (sublist0_app1 4), (sublist_same 0 4); try rewrite <- QuadByteValList_ZLength;
-        try rewrite app_nil_r; try omega.
-    apply derives_refl.
-    apply QuadByteValList_ZLength.
-    rewrite <- QuadByteValList_ZLength; omega. }
+    repeat rewrite Z.add_simpl_l, app_nil_r.
+    rewrite field_address0_offset by auto with field_compatible.
+    rewrite field_address0_offset by auto with field_compatible. simpl.
+    repeat rewrite Z.mul_1_l. 
+    rewrite sublist_app2; try rewrite <- QuadByteValList_ZLength; try omega.
+    rewrite sublist_app2; try rewrite  QuadChunk2ValList_ZLength; try omega.
+    rewrite sublist_app1; try rewrite <- QuadByteValList_ZLength; try omega.
+    rewrite sublist_app2; try rewrite  QuadChunk2ValList_ZLength; try omega.
+    rewrite sublist_app2; try rewrite <- QuadByteValList_ZLength; try omega.
+    repeat rewrite Zminus_diag. rewrite Z.add_simpl_r.
+    apply sepcon_derives.
+      rewrite sublist_same; try rewrite <- QuadByteValList_ZLength; try omega. cancel.
+    repeat rewrite Zminus_diag. rewrite Z.add_comm. cancel. }
 
   (*Store into x[...]*)
   Transparent firstn.

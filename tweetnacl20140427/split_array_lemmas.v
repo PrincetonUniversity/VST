@@ -55,7 +55,7 @@ intros.
   rewrite  (Z.add_comm n), Z.add_assoc in *.
   rewrite Int.add_unsigned. 
   rewrite Int.unsigned_repr; trivial.
-  rewrite <- max_unsigned_modulus in H0. omega. 
+  rewrite <- initialize.max_unsigned_modulus in H0. omega. 
 Qed.
 
 Lemma offset_in_range_offset_val z1 z2 v
@@ -531,6 +531,45 @@ Qed.
 *)
 
 Definition Select_at {cs} sh n data2 d :=
+   @data_at cs sh (Tarray tuchar (Zlength data2) noattr) data2
+             (offset_val (Int.repr n) d).
+
+Definition Unselect_at {cs} sh (data1 data2 data3: list val) d :=
+  (@data_at cs sh (Tarray tuchar (Zlength data1) noattr) data1 d *
+   @data_at cs sh (Tarray tuchar (Zlength data3) noattr) data3
+             (offset_val (Int.repr (Zlength data2 + Zlength data1)) d)).
+
+Lemma Select_Unselect_Tarray_at {cs} l d sh data1 data2 data3 data
+  (DATA: (data1 ++ data2 ++ data3) = data)
+  (L: l = Zlength data)
+  (F: @field_compatible cs (Tarray tuchar (Zlength (data1 ++ data2 ++ data3)) noattr) [] d)
+  (ZL: Zlength (data1 ++ data2 ++ data3) < Int.modulus):
+  @data_at cs sh (Tarray tuchar l noattr) data d = 
+  @Select_at cs sh (Zlength data1) data2 d * @Unselect_at cs sh data1 data2 data3 d.
+Proof.
+  subst l. subst data.
+  specialize (Zlength_nonneg data1). intros.
+  specialize (Zlength_nonneg data2). intros.
+  specialize (Zlength_nonneg data3). intros.
+  rewrite split3_data_at_Tarray_tuchar with (n1:=Zlength data1)(n2:=Zlength data2 +Zlength data1); try omega.
+  autorewrite with sublist. 
+  unfold Select_at, Unselect_at. simpl.
+  unfold offset_val. red in F. destruct d; intuition. 
+  rewrite field_address0_offset. simpl. 
+  rewrite field_address0_offset. simpl. 
+  rewrite (sepcon_comm (data_at sh (Tarray tuchar (Zlength data2) noattr) data2
+  (Vptr b (Int.add i (Int.repr (Zlength data1)))))).
+  repeat rewrite sepcon_assoc.
+  f_equal. repeat rewrite Z.mul_1_l. rewrite sepcon_comm. f_equal.
+  repeat rewrite Zlength_app in *.
+  red; simpl. intuition; try omega.
+  repeat rewrite Zlength_app in *.
+  red; simpl. intuition; try omega.
+  repeat rewrite Zlength_app in *. omega.
+Qed.
+(*
+
+Definition Select_at {cs} sh n data2 d :=
    @data_at cs sh (Tarray tuchar (Zlength data2) noattr) data2 
              (offset_val (Int.repr n) d).
 Definition Unselect_at {cs} sh data1 data2 data3 d :=
@@ -549,10 +588,16 @@ Lemma Select_Unselect_Tarray_at {cs} l d sh data1 data2 data3 data
   @Select_at cs sh (Zlength data1) data2 d * @Unselect_at cs sh data1 data2 data3 d.
 Proof.
   (*fold reptype in *. *) subst l. subst data.
+  erewrite split3_data_at_Tarray_tuchar.
+  rewrite field_address0_offset.
+  unfold Select_at, Unselect_at. simpl.
+  unfold offset_val, at_offset. apply pred_ext. subst; normalize.
+  unfold at_offset. apply pred_ext; cancel.
   erewrite append_split3_data_at_Tarray_at_tuchar; trivial.
   unfold Select_at, Unselect_at. subst; normalize.
   unfold at_offset. apply pred_ext; cancel.
 Qed.
+*)
 (*
 Lemma Select_Unselect_tarray_at t (A: legal_alignas_type t = true) sh data1 data2 data3 data d
   (DATA: (data1 ++ data2 ++ data3) = data):
