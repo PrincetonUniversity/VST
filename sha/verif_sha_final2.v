@@ -66,16 +66,6 @@ Definition invariant_after_if1 hashed (dd: list Z) c md shmd kv:=
          `(memory_block shmd 32 md))))).
 
 (*
-Hint Extern 1 (@field_at _ _ _ _ _ _ |-- @field_at _ _ _ _ ?u _) =>
-    (is_evar u; apply derives_refl) : cancel.
-Hint Extern 1 (@data_at _ _ _ _ _ |-- @data_at _ _ _ ?u _) =>
-    (is_evar u; apply derives_refl) : cancel.
-Hint Extern 1 (@data_at _ _ _ _ _ |-- @field_at _ _ _ nil ?u _) =>
-    (is_evar u; apply derives_refl) : cancel.
-Hint Extern 1 (@field_at _ _ _ nil _ _ |-- @data_at _ _ _ ?u _) =>
-    (is_evar u; apply derives_refl) : cancel.
-*)
-
 Lemma data_at_cancel:
   forall {cs: compspecs} sh t v p,
     data_at sh t v p |-- data_at sh t v p.
@@ -96,6 +86,7 @@ Proof. intros. apply derives_refl. Qed.
  
 Hint Resolve data_at_cancel field_at_cancel
    data_at_field_at_cancel field_at_data_at_cancel : cancel.
+*)
 
 Lemma ifbody_final_if1:
   forall (Espec : OracleKind) (hashed : list int) (md c : val) (shmd : share)
@@ -153,12 +144,9 @@ evar (V: list val).
  subst V.
  entailer!. {
  clear - Hddlen H11.
- unfold field_address, field_address0. 
- rewrite ?if_true; auto.
- normalize. f_equal. f_equal.
- simpl. omega.
- eapply field_compatible0_cons_Tarray; try reflexivity; auto.
- omega.
+ rewrite field_address0_offset by auto with field_compatible.
+ rewrite field_address_offset by auto with field_compatible.
+ simpl. normalize. 
 }
  abbreviate_semax.
 replace (ddlen + 1 + (CBLOCKz - (ddlen + 1))) with CBLOCKz by (clear; omega).
@@ -248,7 +236,7 @@ split.
  unfold data_block. simpl.
  Intros.
  cancel.
- rewrite field_at_data_at by reflexivity.
+ rewrite field_at_data_at.
  simpl.
  rewrite Zlength_intlist_to_Zlist, H1'.
  change (LBLOCKz * 4)%Z with 64%Z.
@@ -322,7 +310,7 @@ Proof.
 intros.
 unfold final_loop.
 abbreviate_semax.
-rewrite memory_block_isptr. normalize. (* not clear we need this *)
+(*rewrite memory_block_isptr. normalize. (* not clear we need this *)*)
 assert (H': Zlength hashedmsg = 8) by (rewrite Zlength_correct, H; reflexivity).
 forward_for_simple_bound 8 
    (@exp (environ -> mpred) _ _ (fun i: Z =>
@@ -340,17 +328,17 @@ forward_for_simple_bound 8
      ))).
 *
  entailer!.
-  change 32%Z with (sizeof cenv_cs (tarray tuchar 32)) at 1.
-rewrite memory_block_size_compatible
-  by (compute; auto).
-Intros.
-rewrite memory_block_data_at_; [ cancel | ].
-apply derives_refl.
-repeat split; auto; try reflexivity.
-apply align_compatible_tarray_tuchar.
+ change 32%Z with (sizeof cenv_cs (tarray tuchar 32)) at 1.
+ rewrite memory_block_size_compatible by (compute; auto).
+ (* memory_block_size_compatible should be
+     woven into memory_block_local_facts *)
+ Intros.
+ rewrite memory_block_data_at_; [ cancel | ].
+ apply derives_refl.
+ repeat split; auto; try reflexivity.
+ apply align_compatible_tarray_tuchar.
 *
   drop_LOCAL 1%nat. (* shouldn't need this *)
-(*  assert (H1': (Z.to_nat i < 8)%nat) by Omega1. *)
   forward. (* ll=(c)->h[xn]; *)
   {
     entailer!.
@@ -376,8 +364,8 @@ apply align_compatible_tarray_tuchar.
   reflexivity.
  } 
  unfold data_at.
- assert_PROP (field_compatible (tarray tuchar 32) [] md).
-   entailer!. rename H2 into FCmd.
+ assert_PROP (field_compatible (tarray tuchar 32) [] md)
+     as FCmd by entailer!.
  erewrite (field_at_Tarray _ (tarray tuchar 32)) by (try reflexivity; computable).
      rewrite (split2_array_at _ _ _ 0 (i*4)) by omega.
      rewrite (split2_array_at _ _ _ (i*4) (i*4+4)) by omega.
@@ -405,9 +393,8 @@ apply align_compatible_tarray_tuchar.
   change WORD with 4; clear; omega.
   simpl; f_equal.
   destruct md; try contradiction; simpl.
-  unfold field_address0. rewrite if_true by auto.
-  unfold offset_val. f_equal. f_equal. f_equal.
-  simpl. clear; omega. 
+  rewrite field_address0_offset by auto with field_compatible.
+  simpl. normalize.
  +
 assert (forall m,
   array_at shmd (tarray tuchar N32) [] (i * 4) (i * 4 + 4) m md
@@ -417,14 +404,14 @@ assert (forall m,
 intro.
 clear Frame.
 rewrite array_at_data_at.
-unfold nested_field_array_type; simpl.
+simpl.
 Intros.
 unfold at_offset.
 autorewrite with sublist.
 eapply derives_trans; [apply data_at_data_at_ | ].
 rewrite <- memory_block_data_at_.
-unfold field_address0.
-rewrite if_true by auto. apply derives_refl.
+rewrite field_address0_offset by auto with field_compatible.
+apply derives_refl.
 clear - COMPAT FCmd H1.
 hnf in COMPAT |- *.
 intuition.
@@ -473,24 +460,18 @@ destruct H9; auto.
   fold vbytes.
   change (32 - i*4 - 4) with (N32W - WORD).
   cancel.
-rewrite !array_at_data_at.
-Intros.
-normalize.
-unfold at_offset.
-unfold nested_field_array_type.
- autorewrite with sublist.
-simpl attr_of_type.
+rewrite !array_at_data_at' by auto with field_compatible.
+simpl.
+autorewrite with sublist.
 apply derives_refl'.
 f_equal.
-unfold field_address0. rewrite if_true by auto.
+rewrite field_address0_offset by auto with field_compatible.
 normalize.
 *
   change 64%Z with CBLOCKz.
-(*  set (32 - WORD * 8) as N24. *)
-Time  forward. (* return; *)  (* 60 seconds!!!! *)
-  autorewrite with sublist.
+Time  forward. (* return; *)  (* 60 seconds -> 6 seconds*)
   unfold data_block.
-  rewrite prop_true_andp with (P:= Forall isbyteZ (intlist_to_Zlist hashedmsg))
+  rewrite prop_true_andp 
     by apply isbyte_intlist_to_Zlist.
   autorewrite with sublist. rewrite H'.
   cancel.

@@ -148,18 +148,15 @@ assert_PROP (data_block sh (intlist_to_Zlist b) data =
   rewrite <- !sepcon_assoc.
   f_equal. f_equal.
   rewrite Zlength_intlist_to_Zlist in H7.
-  rewrite array_at_data_at'.
-  unfold nested_field_array_type; simpl.
+  rewrite array_at_data_at'  by auto with field_compatible.
+  simpl.
   autorewrite with sublist.
   fold (tarray tuchar 4). f_equal.
    rewrite <- sublist_map.
   rewrite Z.add_comm, Z.mul_add_distr_r.
   reflexivity.
-  unfold field_address0; rewrite if_true.
+ rewrite field_address0_offset by auto with field_compatible.
   f_equal. f_equal. simpl. omega.
-  eapply field_compatible0_cons_Tarray; try reflexivity; auto; omega.
-  eapply field_compatible0_cons_Tarray; try reflexivity; auto; omega.
-  eapply field_compatible0_cons_Tarray; try reflexivity; auto; omega.
  }
 
 forward_call (* l = __builtin_read32_reversed(_data) *)

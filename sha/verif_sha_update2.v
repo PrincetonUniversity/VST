@@ -154,17 +154,7 @@ Lemma field_at_cancel_undef_example:
   field_at Tsh t_struct_SHA256state_st [StructField _data] (list_repeat (Z.to_nat 64) Vundef) c.
 Proof.
   intros.
-  apply field_at_stronger.
-  apply stronger_array_ext.
-  change (list val) in d. apply JMeq_eq in H0. subst.
-  erewrite !unfold_reptype_elim by reflexivity.
-  rewrite Zlength_list_repeat, Z.max_r by omega.
-  auto.
-  intros.
-  erewrite !unfold_reptype_elim by reflexivity.
- rewrite Znth_list_repeat_inrange by omega.
-  intros sh p.
-  apply data_at_data_at_.
+  eapply derives_trans; [apply field_at_field_at_ | apply derives_refl].
 Qed.
 
 Lemma update_inner_if_then_proof:
@@ -228,8 +218,8 @@ eapply semax_post_flipped'.
 *
   assert_PROP (field_address (tarray tuchar (Zlength data)) [ArraySubsc 0] d = d). {
     entailer!.
-    unfold field_address; rewrite if_true; normalize.
-    eapply field_compatible_cons_Tarray; try reflexivity; auto; omega.
+    rewrite field_address_offset by auto with field_compatible.
+    normalize.
   }
  rename H5 into Hd.
   evar (Frame: list (LiftEnviron mpred)).
@@ -246,32 +236,10 @@ eapply semax_post_flipped'.
   subst k; omega.
   unfold_data_at 1%nat.
   entailer!.
-  unfold field_address0, field_address.
-  rewrite !if_true; auto.
-  rewrite nested_field_offset_ind at 1.
-+
-  destruct c; try (destruct H13 as [H13 _]; contradiction H13).
-  destruct d; try (destruct H17 as [H17 _]; contradiction H17).
-  unfold offset_val.
-  set (t := nested_field_type t_struct_SHA256state_st [StructField _data]).
-  compute in t. subst t.
-  set (a := nested_field_offset t_struct_SHA256state_st [StructField _data]).
-  unfold gfield_offset.
-   unfold sem_add_pi. unfold force_val.
-  split; f_equal.
-  rewrite Int.add_assoc. f_equal. rewrite add_repr.
-  f_equal. simpl sizeof. omega.
- simpl. apply Int.add_zero.
-+
- split3; auto.
- apply Zlength_nonneg.
- MyOmega.
-+
- eapply field_compatible0_cons_Tarray.
- reflexivity. auto. omega.
-+
- eapply field_compatible0_cons_Tarray.
- reflexivity. auto. subst k; omega.
+  rewrite field_address_offset by auto.
+  rewrite !field_address0_offset by (subst k; auto with field_compatible).
+  simpl.
+  normalize.
 *
   unfold_data_at 1%nat.
   entailer!.
@@ -305,7 +273,7 @@ simplify_Delta.
  ].
  entailer!.
 }
-simpl map. (* SHOULD NOT BE NECESSARY *)
+simpl map. (* should not be necessary *)
 forward. (* data  += fragment; *)
 forward. (* len -= fragment; *)
   normalize_postcondition.
@@ -328,10 +296,10 @@ evar (Frame: list (LiftEnviron mpred)).
    | rewrite Forall_app; split; auto; apply Forall_firstn; auto
  ].
  entailer!.
- unfold field_address, field_address0; rewrite !if_true; auto.
- eapply field_compatible0_cons_Tarray; [reflexivity | auto | Omega1 ].
+ rewrite field_address_offset by auto with field_compatible.
+ rewrite field_address0_offset by auto with field_compatible.
+  reflexivity.
  Exists (Zlist_to_intlist (dd ++ sublist 0 k data)).
-
  erewrite Zlength_Zlist_to_intlist
   by (instantiate (1:=LBLOCKz); assumption).
  simpl update_tycon; rewrite insert_local.
@@ -347,14 +315,8 @@ unfold_data_at 2%nat.
  ].
 change 64%Z with CBLOCKz.
 entailer!.
-unfold field_address0.
-rewrite if_true.
-f_equal. f_equal.
-unfold k.
-change (LBLOCKz * 4)%Z with 64%Z.
-rewrite nested_field_offset_ind.
-simpl. clear; omega.
-split; auto. constructor. (*constructor.*) Omega1. Omega1.
-eapply field_compatible0_cons_Tarray; try reflexivity; auto; Omega1.
+rewrite field_address0_offset
+ by (pose proof LBLOCKz_eq; subst k; auto with field_compatible).
+f_equal. f_equal. unfold k. simpl. Omega1.
 unfold data_block. normalize.
 Qed.

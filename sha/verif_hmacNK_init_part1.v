@@ -156,14 +156,13 @@ Proof. intros. abbreviate_semax.
       simpl.
       Time unfold_field_at 1%nat. (*7.7*)
       rewrite (field_at_data_at Tsh t_struct_hmac_ctx_st [StructField _md_ctx]).
-      rewrite field_address_offset by trivial.
-      simpl @nested_field_type. simpl @nested_field_offset.
-      rewrite offset_val_zero_Vptr.
+      rewrite field_address_offset by auto with field_compatible. simpl.
+      rewrite Int.add_zero.
 
       (*new: extract info from field_address as early as possible*)
       assert_PROP (isptr (field_address t_struct_hmac_ctx_st [StructField _md_ctx]
                           (Vptr cb cofs))) as FA_MDCTX by entailer!.
-Time      forward_call (Vptr cb cofs). (*Issue: takes 5mins... [now takes 18 sec] *)
+      Time forward_call (Vptr cb cofs). (*Issue: takes 5mins... [now takes 18 sec] *)
      change_compspecs CompSpecs. (* this should not be needed *)
      cancel.
       forward_call (init_s256abs, key, Vptr cb cofs, Vptr kb kofs, Tsh, l, kv) ctxSha.
@@ -214,7 +213,8 @@ Time    assert_PROP (field_compatible (Tarray tuchar 64 noattr) [] (Vptr ckb cko
        Time entailer!. (*3.8*)
        unfold data_at_, field_at_.
        rewrite field_at_data_at.
-       unfold field_address. rewrite if_true; trivial. rewrite if_true; trivial. }
+       rewrite field_address_offset by auto with field_compatible. 
+       rewrite field_address_offset by auto with field_compatible. trivial. }
 
      (*call memset*) 
      unfold tarray in *.
@@ -281,7 +281,7 @@ Time    assert_PROP (field_compatible (Tarray tuchar 64 noattr) [] (Vptr ckb cko
       apply andp_left2. Time cancel. (*0.2*)   
       apply derives_refl.
    }
-Time Qed. (*66*)
+Time Qed. (*67*)
 
 Lemma Init_part1_keynull Espec (kb ckb cb: block) (kofs ckoff cofs:int) l key kv pad: forall h1
 (KL1 : l = Zlength key)
@@ -367,8 +367,9 @@ Proof. intros.
              Vptr kb kofs, mkTrep (Tarray tuchar (Zlength key) noattr) 
                      (map Vint (map Int.repr key)), l) v. (*4.4*)
      { unfold tarray. unfold field_at_ at 1. rewrite field_at_data_at.
-       unfold field_address. rewrite if_true; trivial. simpl. rewrite Int.add_zero.
-       rewrite (split2_data_at_Tarray_tuchar _ _ l); trivial. 2: omega.
+       rewrite field_address_offset by auto with field_compatible.
+       simpl. rewrite Int.add_zero.
+       rewrite (split2_data_at_Tarray_tuchar _ _ l); trivial; try omega.
        repeat rewrite sepcon_assoc.
        apply sepcon_derives. eapply derives_trans. apply data_at_memory_block.
           Opaque Z.mul. simpl. rewrite Z.max_r. rewrite Z.mul_1_l. apply derives_refl. omega.
@@ -420,7 +421,7 @@ Proof. intros.
      change_compspecs CompSpecs.
      change (Tarray tuchar 64 noattr) with (tarray tuchar 64).
      cancel. apply derives_refl.
-Time Qed. (*18*)
+Time Qed. (*22*)
 
 Lemma hmac_init_part1: forall
 (Espec : OracleKind)

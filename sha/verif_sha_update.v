@@ -92,7 +92,7 @@ eapply semax_post_flipped3.
 *
  assert_PROP (field_compatible0 (tarray tuchar (Zlength data)) [ArraySubsc b4d] d). {
     entailer!.
-    eapply field_compatible0_cons_Tarray; try reflexivity; auto; omega.
+    auto with field_compatible.
   }   
  evar (Frame: list (LiftEnviron mpred)).
   eapply(call_memcpy_tuchar
@@ -107,10 +107,9 @@ eapply semax_post_flipped3.
   unfold_data_at 1%nat.
   entailer!.
   make_Vptr c.
-  unfold field_address, field_address0.
-  rewrite if_true; auto.
-  rewrite if_true; auto.
-  eapply field_compatible0_cons_Tarray; try reflexivity; auto; omega.
+  rewrite field_address_offset by auto with field_compatible.
+  rewrite field_address0_offset by auto with field_compatible.
+  reflexivity.
 * 
  simpl tc_environ; rewrite insert_local.
  clear POSTCONDITION.

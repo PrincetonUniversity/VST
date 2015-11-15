@@ -3353,38 +3353,59 @@ Definition compspecs_program (p: program): compspecs.
 Defined.
 *)
 
+Lemma composite_env_legal_alignas_lem:
+ forall p, let cenv := prog_comp_env p in
+       Forall
+       (fun x : ident * composite =>
+        composite_legal_alignas cenv (snd x) /\
+        composite_legal_fieldlist (snd x)) (PTree.elements cenv) ->
+composite_env_legal_alignas cenv.
+Proof.
+ intros p cenv Ha ? ? ?.
+    apply PTree.elements_correct in H.
+    revert H.
+    change co with (snd (id, co)) at 2.
+    forget (id, co) as ele.
+    revert ele.
+    apply Forall_forall. auto.
+    induction (PTree.elements cenv). constructor.
+   inv Ha. constructor; auto.  destruct H1; auto.
+Qed.
+
+Lemma composite_env_legal_fieldlist_lem:
+ forall p, let cenv := prog_comp_env p in
+       Forall
+       (fun x : ident * composite =>
+        composite_legal_alignas cenv (snd x) /\
+        composite_legal_fieldlist (snd x)) (PTree.elements cenv) ->
+composite_env_legal_fieldlist cenv.
+Proof.
+ intros p cenv Ha ? ? ?.
+    apply PTree.elements_correct in H.
+    revert H.
+    change co with (snd (id, co)) at 2.
+    forget (id, co) as ele.
+    revert ele.
+    apply Forall_forall. auto.
+    induction (PTree.elements cenv). constructor.
+   inv Ha. constructor; auto.  destruct H1; auto.
+Qed.
+
 Definition mk_prog_compspecs:
   forall (p: program),
-  (Forall
+   let cenv := prog_comp_env p in
+   Forall
     (fun x : ident * composite =>
-      composite_legal_alignas (prog_comp_env p) (snd x) /\
+      composite_legal_alignas cenv (snd x) /\
       composite_legal_fieldlist (snd x))
-      (PTree.elements (prog_comp_env p))) ->
-  compspecs.
+      (PTree.elements cenv) ->
+   compspecs.
 Proof.
-intros p Ha.
-apply (mkcompspecs (prog_comp_env p)).
-+
-eapply build_composite_env_consistent.
-apply (prog_comp_env_eq p).
-+ intros ? ? ?.
-    apply PTree.elements_correct in H.
-    revert H.
-    change co with (snd (id, co)) at 2.
-    forget (id, co) as ele.
-    revert ele.
-    apply Forall_forall. auto.
-    induction (PTree.elements (prog_comp_env p)). constructor.
-   inv Ha. constructor; auto.  destruct H1; auto.
-+ intros ? ? ?.
-    apply PTree.elements_correct in H.
-    revert H.
-    change co with (snd (id, co)) at 2.
-    forget (id, co) as ele.
-    revert ele.
-    apply Forall_forall. auto.
-    induction (PTree.elements (prog_comp_env p)). constructor.
-   inv Ha. constructor; auto.  destruct H1; auto.
+intros p cenv Ha.
+apply (mkcompspecs cenv).
+apply (build_composite_env_consistent _ _ (prog_comp_env_eq p)).
+apply (composite_env_legal_alignas_lem p Ha).
+apply (composite_env_legal_fieldlist_lem p Ha).
 Defined.
 
 Lemma Zge_refl: forall (n: Z), n >= n.
