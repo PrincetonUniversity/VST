@@ -30,12 +30,12 @@ PROP  ()
  lvar _y (tarray tuint 16) y; lvar _x (tarray tuint 16) x;
  lvar _w (tarray tuint 16) w; temp _in nonce; temp _out out; temp _c c;
  temp _k k; temp _h (Vint (Int.repr h)))
- SEP  (`(data_at Tsh (tarray tuint 16) (map Vint xs) x);
- `(data_at Tsh (tarray tuint 16) (map Vint ys) y);
- `(data_at_ Tsh (tarray tuint 4) t); `(data_at_ Tsh (tarray tuint 16) w);
- `(CoreInSEP data (nonce, c, k));
- `(EX  l : list val,
-   !!HFalse_inv l 16 xs ys && data_at Tsh (tarray tuchar 64) l out)).
+ SEP  (data_at Tsh (tarray tuint 16) (map Vint xs) x;
+ data_at Tsh (tarray tuint 16) (map Vint ys) y;
+ data_at_ Tsh (tarray tuint 4) t; data_at_ Tsh (tarray tuint 16) w;
+ CoreInSEP data (nonce, c, k);
+ EX  l : list val,
+   !!HFalse_inv l 16 xs ys && data_at Tsh (tarray tuchar 64) l out).
 
 Lemma verif_fcore_epilogue_hfalse Espec t y x w nonce out c k h data OUT xs ys:
 @semax CompSpecs Espec
@@ -44,10 +44,10 @@ Lemma verif_fcore_epilogue_hfalse Espec t y x w nonce out c k h data OUT xs ys:
    LOCAL  (lvar _t (tarray tuint 4) t; lvar _y (tarray tuint 16) y;
    lvar _x (tarray tuint 16) x; lvar _w (tarray tuint 16) w; temp _in nonce;
    temp _out out; temp _c c; temp _k k; temp _h (Vint (Int.repr h)))
-   SEP  (`(data_at Tsh (tarray tuint 16) (map Vint xs) x);
-   `(data_at Tsh (tarray tuint 16) (map Vint ys) y);
-   `(data_at_ Tsh (tarray tuint 4) t); `(data_at_ Tsh (tarray tuint 16) w);
-   `(CoreInSEP data (nonce, c, k)); `(data_at Tsh (tarray tuchar 64) OUT out)))
+   SEP  (data_at Tsh (tarray tuint 16) (map Vint xs) x;
+   data_at Tsh (tarray tuint 16) (map Vint ys) y;
+   data_at_ Tsh (tarray tuint 4) t; data_at_ Tsh (tarray tuint 16) w;
+   CoreInSEP data (nonce, c, k); data_at Tsh (tarray tuchar 64) OUT out))
         (Ssequence
           (Sset _i (Econst_int (Int.repr 0) tint))
           (Sloop
@@ -98,11 +98,11 @@ Time forward_for_simple_bound 16 (EX i:Z,
    lvar _w (tarray tuint 16) w; temp _in nonce; temp _out out; temp _c c;
    temp _k k; temp _h (Vint (Int.repr h)))
    SEP 
-   (`(@data_at CompSpecs Tsh (tarray tuint 16) (map Vint xs) x);
-   `(@data_at CompSpecs Tsh (tarray tuint 16) (map Vint ys) y);
-   `(@data_at_ CompSpecs Tsh (tarray tuint 4) t); `(@data_at_ CompSpecs Tsh (tarray tuint 16) w);
-   `(CoreInSEP data (nonce, c, k));
-   `(EX l:_, !!HFalse_inv l i xs ys && @data_at CompSpecs Tsh (tarray tuchar 64) l out)))).
+   (@data_at CompSpecs Tsh (tarray tuint 16) (map Vint xs) x;
+   @data_at CompSpecs Tsh (tarray tuint 16) (map Vint ys) y;
+   @data_at_ CompSpecs Tsh (tarray tuint 4) t; @data_at_ CompSpecs Tsh (tarray tuint 16) w;
+   CoreInSEP data (nonce, c, k);
+   EX l:_, !!HFalse_inv l i xs ys && @data_at CompSpecs Tsh (tarray tuchar 64) l out))).
   (*2.9*)
   { Exists OUT. Time entailer!. (*5.6*)
     split; trivial; intros. omega. } 

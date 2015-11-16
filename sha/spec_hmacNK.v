@@ -31,13 +31,13 @@ Definition memcpy_spec_data_at :=
              0 <= n <= Int.max_unsigned)
        LOCAL (temp 1%positive p; temp 2%positive q;
               temp 3%positive (Vint (Int.repr n)))
-       SEP (`(data_at (fst sh) (tp_of T) (v_of T) q);
-            `(memory_block (snd sh) n p))
+       SEP (data_at (fst sh) (tp_of T) (v_of T) q;
+            memory_block (snd sh) n p)
     POST [ tptr tvoid ]
        PROP ()
        LOCAL (temp ret_temp p)
-       SEP (`(data_at (snd sh) (tp_of T) (v_of T) p);
-            `(data_at (fst sh) (tp_of T) (v_of T) q)).
+       SEP (data_at (snd sh) (tp_of T) (v_of T) p;
+            data_at (fst sh) (tp_of T) (v_of T) q).
 
 (****** Coq-representation of hmac states, and predicates characterizing the incremental functions.
 
@@ -276,12 +276,12 @@ Definition HMAC_Init_spec :=
          PROP ((*has_lengthK l key*))
          LOCAL (temp _ctx c; temp _key k; temp _len (Vint (Int.repr l));
                 gvar sha._K256 kv)
-         SEP (`(K_vector kv); `(initPre c k h1 l key))
+         SEP (K_vector kv; initPre c k h1 l key)
   POST [ tvoid ] 
-     EX h:hmacabs, PROP (hmacInit key h)
-                     LOCAL ()
-                      SEP (`(hmacstate_ h c);
-                           `(initPostKey k key); `(K_vector kv)).
+     EX h:hmacabs, 
+     PROP (hmacInit key h)
+     LOCAL ()
+     SEP (hmacstate_ h c; initPostKey k key; K_vector kv).
 
 (************************ Specification of HMAC_update *******************************************************)
 
@@ -298,14 +298,12 @@ Definition HMAC_Update_spec :=
          PROP (has_lengthD (s256a_len (absCtxt h1)) len data) 
          LOCAL (temp _ctx c; temp _data d; temp  _len (Vint (Int.repr len));
                 gvar sha._K256 kv)
-         SEP(`(K_vector kv);
-             `(hmacstate_ h1 c); `(data_block Tsh data d))
+         SEP(K_vector kv; hmacstate_ h1 c; data_block Tsh data d)
   POST [ tvoid ] 
          EX h2:hmacabs, 
           PROP (hmacUpdate data h1 h2) 
           LOCAL ()
-          SEP(`(K_vector kv);
-              `(hmacstate_ h2 c); `(data_block Tsh data d)).
+          SEP(K_vector kv; hmacstate_ h2 c; data_block Tsh data d).
 
 Lemma hmacUpdate_nil h x: hmac_relate h x -> hmacUpdate [] h h.
 Proof.
@@ -340,15 +338,13 @@ Definition HMAC_Final_spec :=
        PROP (writable_share shmd) 
        LOCAL (temp _md md; temp _ctx c;
               gvar sha._K256 kv)
-       SEP(`(hmacstate_ h1 c); `(K_vector kv);
-           `(memory_block shmd 32 md))
+       SEP(hmacstate_ h1 c; K_vector kv; memory_block shmd 32 md)
   POST [ tvoid ] 
          EX digestH2:_, 
           PROP (hmacFinal h1 (fst digestH2) (snd digestH2)) 
           LOCAL ()
-          SEP(`(K_vector kv);
-              `(hmacstate_PostFinal (snd digestH2) c);
-              `(data_block shmd (fst digestH2) md)).
+          SEP(K_vector kv; hmacstate_PostFinal (snd digestH2) c;
+              data_block shmd (fst digestH2) md).
 (*Spec with two EX's in postcondition:
 Definition HMAC_Final_spec :=
   DECLARE _HMAC_Final
@@ -358,15 +354,15 @@ Definition HMAC_Final_spec :=
        PROP (writable_share shmd) 
        LOCAL (temp _md md; temp _ctx c;
               gvar sha._K256 kv)
-       SEP(`(hmacstate_ h1 c); `(K_vector kv);
-           `(memory_block shmd (Int.repr 32) md))
+       SEP(hmacstate_ h1 c; K_vector kv;
+           memory_block shmd (Int.repr 32) md)
   POST [ tvoid ] 
          EX digest:_, EX h2:_, 
           PROP (hmacFinal h1 digest h2) 
           LOCAL ()
-          SEP(`(K_vector kv);
-              `(hmacstate_PostFinal h2 c);
-              `(data_block shmd digest md)).*)
+          SEP(K_vector kv;
+              hmacstate_PostFinal h2 c;
+              data_block shmd digest md).*)
 
 Lemma hmacstate_PostFinal_PreInitNull key h0 data h1 dig h2 v:
       forall (HmacInit : hmacInit key h0)
@@ -396,11 +392,11 @@ Definition HMAC_Cleanup_spec :=
    PRE [ _ctx OF tptr t_struct_hmac_ctx_st ]
          PROP () 
          LOCAL (temp _ctx c)
-         SEP(`(hmacstate_PostFinal h c))
+         SEP(hmacstate_PostFinal h c)
   POST [ tvoid ]  
           PROP () 
           LOCAL ()
-          SEP(`(data_block Tsh (list_repeat (Z.to_nat(sizeof (@cenv_cs CompSpecs) t_struct_hmac_ctx_st)) 0) c)).
+          SEP(data_block Tsh (list_repeat (Z.to_nat(sizeof (@cenv_cs CompSpecs) t_struct_hmac_ctx_st)) 0) c).
 
 Definition HMAC_Cleanup_spec1 :=
   DECLARE _HMAC_cleanup
@@ -408,11 +404,11 @@ Definition HMAC_Cleanup_spec1 :=
    PRE [ _ctx OF tptr t_struct_hmac_ctx_st ]
          PROP () 
          LOCAL (temp _ctx c)
-         SEP(`(EX key:_, hmacstate_PreInitNull key h c))
+         SEP(EX key:_, hmacstate_PreInitNull key h c)
   POST [ tvoid ]  
           PROP () 
           LOCAL ()
-          SEP(`(data_block Tsh (list_repeat (Z.to_nat(sizeof (@cenv_cs CompSpecs) t_struct_hmac_ctx_st)) 0) c)).
+          SEP(data_block Tsh (list_repeat (Z.to_nat(sizeof (@cenv_cs CompSpecs) t_struct_hmac_ctx_st)) 0) c).
 
 
 (************************ Specification of oneshot HMAC *******************************************************)
@@ -437,17 +433,17 @@ Definition HMAC_spec :=
                 temp _d msgVal;
                 temp _n (Vint (Int.repr (LEN MSG)));
                 gvar sha._K256 kv)
-         SEP(`(data_block Tsh (CONT KEY) keyVal);
-             `(data_block Tsh (CONT MSG) msgVal);
-             `(K_vector kv);
-             `(memory_block shmd 32 md))
+         SEP(data_block Tsh (CONT KEY) keyVal;
+             data_block Tsh (CONT MSG) msgVal;
+             K_vector kv;
+             memory_block shmd 32 md)
   POST [ tvoid ] 
           PROP ()
           LOCAL ()
-          SEP(`(K_vector kv);
-              `(data_block shmd (HMAC256 (CONT MSG) (CONT KEY)) md);
-              `(initPostKey keyVal (CONT KEY) );
-              `(data_block Tsh (CONT MSG) msgVal)).
+          SEP(K_vector kv;
+              data_block shmd (HMAC256 (CONT MSG) (CONT KEY)) md;
+              initPostKey keyVal (CONT KEY);
+              data_block Tsh (CONT MSG) msgVal).
 
 (*A stronger spec of oneshot hmac that includes the cryptographic assertion in the postcondition 
   is given in the verif_hmacNK_crpyto.v. This avoids having to Import FCF, hmacfc, and the

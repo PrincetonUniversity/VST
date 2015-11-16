@@ -103,10 +103,10 @@ remember (littleendian_invert u) as U. destruct U as [[[u0 u1] u2] u3].
 Time forward_for_simple_bound 4 (EX i:Z, 
   (PROP  ()
    LOCAL (temp _x x; temp _u (Vint (iterShr8 u (Z.to_nat i))))
-   SEP (`(data_at Tsh (Tarray tuchar 4 noattr) 
+   SEP (data_at Tsh (Tarray tuchar 4 noattr) 
               (sublist 0 i (map Vint (map Int.repr (map Byte.unsigned ([u0;u1;u2;u3])))) ++ 
                sublist i (Zlength l) l)
-                x)))).
+                x))).
 (*0.9*)
 { Time entailer!. (*1*) rewrite sublist_same; trivial. }
 { rename H into I.
