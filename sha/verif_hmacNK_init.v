@@ -26,8 +26,8 @@ name ctx' _ctx.
 name key' _key.
 name len' _len.
 rename lvar0 into pad. rename lvar1 into ctxkey.
-
-destruct H as [KL1 [KL2 KL3]]. 
+abbreviate_semax.
+(*destruct H as [KL1 [KL2 KL3]]. *)
 Time forward. (*1.3*)
  
 Time assert_PROP (isptr ctxkey) as Pckey by entailer!. (*0.7*) 
@@ -52,7 +52,7 @@ Definition initPostKeyNullConditional r (c:val) (k: val) h key ctxkey: mpred:=
                       (Vptr b ofs)))
   | _ => FF
   end.*)
-remember (EX  cb : block,
+(*remember (EX  cb : block,
                  (EX  cofs : int,
                    (EX  r : Z, 
                     PROP  (c = Vptr cb cofs /\ (r=0 \/ r=1))
@@ -63,17 +63,17 @@ remember (EX  cb : block,
                       gvar sha._K256 kv)
                     SEP  (`(data_at_ Tsh (tarray tuchar 64) pad);
                     `(initPostKeyNullConditional r c k h1 key (Vptr ckb ckoff));
-                    `(K_vector kv))))) as PostKeyNull. 
-forward_seq. instantiate (1:= PostKeyNull). 
+                    `(K_vector kv))))) as PostKeyNull. *)
+forward_seq. instantiate (1:= PostKeyNull c k pad kv h1 l key ckb ckoff). 
 {  assert (DD: Delta= initialized _reset Delta) by reflexivity.
    rewrite DD.  
    eapply semax_pre_simple.
    2: eapply hmac_init_part1; eassumption.
-   entailer!.
+   apply andp_left2. entailer!.
 }
-subst PostKeyNull.
-Intros cb cofs r.
-Time normalize. (*2.3*)
+(*subst PostKeyNull.*)
+unfold PostKeyNull. Intros cb cofs r.
+(*Time normalize. 2.3*)
 unfold POSTCONDITION, abbreviate. subst c.
 rename H0 into R.
 
@@ -269,7 +269,7 @@ eapply semax_seq. instantiate (1:=PostResetBranch).
     rewrite field_address_offset by auto with field_compatible.
     rewrite field_address_offset by auto with field_compatible.
     simpl; rewrite Int.add_zero. 
-    Time cancel. (*1.2*)
+    Time cancel. (*0.6*)
   }
 } 
 Time Qed. (*57*)

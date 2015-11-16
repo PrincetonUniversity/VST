@@ -258,9 +258,9 @@ Definition initPostResetConditional r (c:val) (k: val) h key iS oS: mpred:=
   end.
 
 Lemma ipad_loop Espec pb pofs cb cofs ckb ckoff kb kofs l key kv (FR:mpred): forall
-(KL1 : l = Zlength key)
+(*(KL1 : l = Zlength key)
 (KL2 : 0 < l <= Int.max_signed)
-(KL3 : l * 8 < two_p 64)
+(KL3 : l * 8 < two_p 64)*)
 (IPADcont : list val)
 (HeqIPADcont : IPADcont =
               map Vint
@@ -408,9 +408,9 @@ Definition FRAME2 kb kofs cb cofs kv key ipadSHAabs :=
 Opaque FRAME1. Opaque FRAME2.
 
 Lemma opadloop Espec pb pofs cb cofs ckb ckoff kb kofs l key kv: forall
-(KL1 : l = Zlength key)
+(*(KL1 : l = Zlength key)
 (KL2 : 0 < l <= Int.max_signed)
-(KL3 : l * 8 < two_p 64)
+(KL3 : l * 8 < two_p 64)*)
 (h1 : hmacabs)
 (IPADcont : list val)
 (HeqIPADcont : IPADcont =
@@ -554,10 +554,10 @@ Lemma init_part2: forall
 (l : Z)
 (key : list Z)
 (kv : val)
-(h1 : hmacabs)
+(h1 : hmacabs)(*
 (KL1 : l = Zlength key)
 (KL2 : 0 < l <= Int.max_signed)
-(KL3 : l * 8 < two_p 64)
+(KL3 : l * 8 < two_p 64)*)
 (ctx' : name _ctx)
 (key' : name _key)
 (len' : name _len)
@@ -896,4 +896,4 @@ Definition FRAME3 (kb cb ckb: block) kofs cofs ckoff key ipadSHAabs:=
 intros ? ?. apply andp_left2.  
    unfold POSTCONDITION, abbreviate. rewrite overridePost_overridePost. 
    apply derives_refl. 
-Time Qed. (*75*)
+Time Qed. (*71*)

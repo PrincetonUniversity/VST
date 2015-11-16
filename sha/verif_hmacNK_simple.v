@@ -53,15 +53,15 @@ assert_PROP (isptr k). { unfold data_block. normalize. rewrite data_at_isptr wit
 rename H into isPtrK. 
 forward_call (c, k, kl, key, kv, dummyHMA) h0. 
  { apply isptrD in isPtrK. destruct isPtrK as [kb [kofs HK]]. rewrite HK.
-   unfold initPre. cancel.
+   unfold initPre. Time entailer!. (*1.1*)
  }
 normalize. rename H into HmacInit. 
 assert_PROP (s256a_len (absCtxt h0) = 512).
-  { unfold hmacstate_. entailer. apply prop_right. 
+  { unfold hmacstate_. Intros r. apply prop_right.
     destruct h0; simpl in *.
-    destruct H4 as [reprMD [reprI [reprO [iShaLen oShaLen]]]].
+    destruct H as [reprMD [reprI [reprO [iShaLen oShaLen]]]].
     inversion HmacInit; clear HmacInit.
-    destruct H4 as [oS [InnSHA [OntSHA XX]]]. inversion XX; clear XX.
+    destruct H as [oS [InnSHA [OntSHA XX]]]. inversion XX; clear XX.
     subst. assumption.
   }
 rename H into H0_len512.
