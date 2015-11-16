@@ -1,6 +1,6 @@
 Require Import compcert.lib.Coqlib.
 Require Import msl.Coqlib2.
-Require Import List.
+Require Import Coq.Lists.List.
 Import ListNotations.
 
 Lemma Zlength_length:
@@ -823,15 +823,26 @@ intros.
 symmetry. apply sublist_map.
 Qed.
 
+Lemma sublist_len_1: 
+  forall {A} i (al: list A) d,
+  0 <= i < Zlength al ->
+  sublist i (i+1) al = Znth i al d :: nil.
+Proof.
+  intros.
+  unfold sublist.
+  replace (i+1-i) with 1 by omega.
+  rewrite Znth_cons by omega.
+  symmetry; apply app_nil_r.
+Qed.
+
 Lemma Znth_cons_sublist:
   forall {A} i (al: list A) d bl,
   0 <= i < Zlength al ->
   Znth i al d :: bl = sublist i (i+1) al ++ bl.
 Proof.
-intros.
-unfold sublist.
-replace (i+1-i) with 1 by omega.
-rewrite Znth_cons by omega. reflexivity.
+  intros.
+  erewrite sublist_len_1 by eauto.
+  reflexivity.
 Qed.
 
 Lemma Zlength_sublist:
