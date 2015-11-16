@@ -91,7 +91,7 @@ remember (HMACabs init_s256abs init_s256abs init_s256abs) as dummyHMA.
 forward_call (c, k, kl, key, kv, dummyHMA) h0.
   { unfold initPre.
     destruct k; try contradiction.
-    cancel.
+    entailer!.
   }
 rename H into HmacInit. normalize.
 
@@ -126,7 +126,7 @@ simpl in H; rename H into Round1Final.
 
 (**************Round 2*******************************)
 
-replace_SEP 1 (`(initPre c nullval h2 key)). 
+replace_SEP 1 (`(initPre c nullval h2 kl key)). 
   { entailer. eapply hmacstate_PostFinal_PreInitNull; eassumption.
   }
 

@@ -32,6 +32,20 @@ Definition initPostKeyNullConditional r (c:val) (k: val) h key ctxkey: mpred:=
   | _ => FF
   end.
 
+Definition PostKeyNull c k pad kv h1 l key ckb ckoff: environ -> mpred :=
+                 EX  cb : block,
+                 (EX  cofs : int,
+                  (EX  r : Z,
+                   PROP  (c = Vptr cb cofs /\ (r = 0 \/ r = 1))
+                   LOCAL  (temp _reset (Vint (Int.repr r));
+                   lvar _ctx_key (tarray tuchar 64) (Vptr ckb ckoff);
+                   lvar _pad (tarray tuchar 64) pad; temp _ctx c;
+                   temp _key k; temp _len (Vint (Int.repr l));
+                   gvar sha._K256 kv)
+                   SEP  (`(data_at_ Tsh (tarray tuchar 64) pad);
+                   `(initPostKeyNullConditional r c k h1 key (Vptr ckb ckoff));
+                   `(K_vector kv)))).
+
 Definition hmac_init_part1_FRAME1 key kb kofs cb cofs pad : mpred :=  
    (data_at_ Tsh (Tarray tuchar 64 noattr) pad) *
    (field_at Tsh t_struct_hmac_ctx_st [StructField _i_ctx]
@@ -48,11 +62,11 @@ Definition hmac_init_part1_FRAME2 cb cofs := data_at Tsh
           (Vptr cb cofs)). 
 Opaque hmac_init_part1_FRAME2.
 
-Lemma Init_part1_keynonnull Espec (kb ckb cb: block) (kofs ckoff cofs:int) l key kv pad: forall h1
+Lemma Init_part1_j_lt_len Espec (kb ckb cb: block) (kofs ckoff cofs:int) l key kv pad 
+      (HMS' : reptype t_struct_hmac_ctx_st): forall h1
 (KL1 : l = Zlength key)
 (KL2 : 0 < l <= Int.max_signed)
-(KL3 : l * 8 < two_p 64)
-PostKeyNull
+(KL3 : l * 8 < two_p 64)(*
 (HeqPostKeyNull : PostKeyNull =
                  EX  cb0 : block,
                  (EX  cofs0 : int,
@@ -66,9 +80,8 @@ PostKeyNull
                    SEP  (`(data_at_ Tsh (tarray tuchar 64) pad);
                    `(initPostKeyNullConditional r (Vptr cb cofs)
                        (Vptr kb kofs) h1 key (Vptr ckb ckoff));
-                   `(K_vector kv)))))
+                   `(K_vector kv)))))*)
 (isbyte_key : Forall isbyteZ key)
-(HMS' : reptype t_struct_hmac_ctx_st)
 (KHMS : HMS' = HMS)
 (PostIf_j_Len : environ -> mpred)
 (HeqPostIf_j_Len : PostIf_j_Len =
@@ -149,7 +162,8 @@ PostKeyNull
                  (tptr tuchar); Econst_int (Int.repr 0) tint;
               Econst_int (Int.repr 32) tint]))))
   (overridePost PostIf_j_Len
-     (overridePost PostKeyNull (normal_ret_assert PostKeyNull))).
+     (overridePost (PostKeyNull (Vptr cb cofs) (Vptr kb kofs) pad kv h1 l key ckb ckoff)
+                   (normal_ret_assert (PostKeyNull (Vptr cb cofs) (Vptr kb kofs) pad kv h1 l key ckb ckoff)))).
 Proof. intros. abbreviate_semax.
       (*call to SHA256_init*)
       unfold data_at_ at 1. unfold field_at_ at 1.
@@ -170,7 +184,7 @@ Proof. intros. abbreviate_semax.
        change_compspecs CompSpecs.  (* this should not be needed *)
        cancel.
       }
-      { clear Frame HeqPostIf_j_Len HeqPostKeyNull.
+      { clear Frame HeqPostIf_j_Len (* HeqPostKeyNull*).
         specialize Int.max_signed_unsigned.
         subst l. intuition.
       }
@@ -283,11 +297,12 @@ Time    assert_PROP (field_compatible (Tarray tuchar 64 noattr) [] (Vptr ckb cko
    }
 Time Qed. (*67*)
 
-Lemma Init_part1_keynull Espec (kb ckb cb: block) (kofs ckoff cofs:int) l key kv pad: forall h1
+Lemma Init_part1_len_le_j Espec (kb ckb cb: block) (kofs ckoff cofs:int) l key kv pad
+      (HMS' : reptype t_struct_hmac_ctx_st): forall h1
 (KL1 : l = Zlength key)
 (KL2 : 0 < l <= Int.max_signed)
 (KL3 : l * 8 < two_p 64)
-(PostKeyNull : environ -> mpred)
+(*(PostKeyNull : environ -> mpred)
 (*Delta_specs := abbreviate : PTree.t funspec*)
 (HeqPostKeyNull : PostKeyNull =
                  EX  cb0 : block,
@@ -302,9 +317,8 @@ Lemma Init_part1_keynull Espec (kb ckb cb: block) (kofs ckoff cofs:int) l key kv
                    SEP  (`(data_at_ Tsh (tarray tuchar 64) pad);
                    `(initPostKeyNullConditional r (Vptr cb cofs)
                        (Vptr kb kofs) h1 key (Vptr ckb ckoff));
-                   `(K_vector kv)))))
+                   `(K_vector kv)))))*)
 (isbyte_key : Forall isbyteZ key)
-(HMS' : reptype t_struct_hmac_ctx_st)
 (KHMS : HMS' = HMS)
 (PostIf_j_Len : environ -> mpred)
 (HeqPostIf_j_Len : PostIf_j_Len =
@@ -358,7 +372,8 @@ Lemma Init_part1_keynull Espec (kb ckb cb: block) (kofs ckoff cofs:int) l key kv
         Ebinop Osub (Esizeof (tarray tuchar 64) tuint) (Etempvar _len tint)
           tuint]))
   (overridePost PostIf_j_Len
-     (overridePost PostKeyNull (normal_ret_assert PostKeyNull))).
+     (overridePost (PostKeyNull (Vptr cb cofs) (Vptr kb kofs) pad kv h1 l key ckb ckoff)
+                   (normal_ret_assert (PostKeyNull (Vptr cb cofs) (Vptr kb kofs) pad kv h1 l key ckb ckoff)))).
 Proof. intros.
      (*call to memcpy*)
      focus_SEP 1 3.
@@ -423,6 +438,7 @@ Proof. intros.
      cancel. apply derives_refl.
 Time Qed. (*22*)
 
+
 Lemma hmac_init_part1: forall
 (Espec : OracleKind)
 (c : val)
@@ -431,32 +447,14 @@ Lemma hmac_init_part1: forall
 (key : list Z)
 (kv : val)
 (h1:hmacabs)
-(KL1 : l = Zlength key)
-(KL2 : 0 < l <= Int.max_signed)
-(KL3 : l * 8 < two_p 64)
 (ctx' : name _ctx)
 (key' : name _key)
 (len' : name _len)
 (pad : val)
-(*(ctxkey : val)*)
 (Delta := initialized _reset 
        (func_tycontext f_HMAC_Init HmacVarSpecs HmacFunSpecs))
 (ckb : block)
-(ckoff : int)
-(PostKeyNull : environ -> mpred)
-(HeqPostKeyNull : PostKeyNull =
-                 EX  cb : block,
-                 (EX  cofs : int,
-                  (EX  r : Z,
-                   PROP  (c = Vptr cb cofs /\ (r = 0 \/ r = 1))
-                   LOCAL  (temp _reset (Vint (Int.repr r));
-                   lvar _ctx_key (tarray tuchar 64) (Vptr ckb ckoff);
-                   lvar _pad (tarray tuchar 64) pad; temp _ctx c;
-                   temp _key k; temp _len (Vint (Int.repr l));
-                   gvar sha._K256 kv)
-                   SEP  (`(data_at_ Tsh (tarray tuchar 64) pad);
-                   `(initPostKeyNullConditional r c k h1 key (Vptr ckb ckoff));
-                   `(K_vector kv))))),
+(ckoff : int),
 @semax CompSpecs Espec Delta
   (PROP  ()
    LOCAL  (temp _reset (Vint (Int.repr 0));
@@ -465,7 +463,7 @@ Lemma hmac_init_part1: forall
    gvar sha._K256 kv)
    SEP  (`(data_at_ Tsh (tarray tuchar 64) pad);
    `(data_at_ Tsh (tarray tuchar 64) (Vptr ckb ckoff)); `(K_vector kv);
-   `(initPre c k h1 key)))
+   `(initPre c k h1 l key)))
   (Sifthenelse
      (Ebinop One (Etempvar _key (tptr tuchar))
         (Ecast (Econst_int (Int.repr 0) tint) (tptr tvoid)) tint)
@@ -555,14 +553,16 @@ Lemma hmac_init_part1: forall
                        (tptr tuchar); Econst_int (Int.repr 0) tint;
                     Ebinop Osub (Esizeof (tarray tuchar 64) tuint)
                       (Etempvar _len tint) tuint]))))) Sskip)
-  (normal_ret_assert PostKeyNull).
+  (normal_ret_assert (PostKeyNull c k pad kv h1 l key ckb ckoff)).
 Proof. intros. subst Delta. abbreviate_semax.
-forward_if PostKeyNull.
+forward_if (PostKeyNull c k pad kv h1 l key ckb ckoff).
   { apply denote_tc_comparable_split. unfold initPre; normalize. destruct k; try contradiction.
+    clear H. 
     remember (Int.eq i Int.zero). destruct b. 
-     apply binop_lemmas2.int_eq_true in Heqb. rewrite Heqb; apply valid_pointer_zero. entailer. 
-     apply sepcon_valid_pointer2. apply sepcon_valid_pointer2.
-      apply data_block_valid_pointer. auto. omega. apply valid_pointer_null. }
+     apply binop_lemmas2.int_eq_true in Heqb. rewrite Heqb; apply valid_pointer_zero. entailer!. 
+     entailer!. apply sepcon_valid_pointer2. apply data_block_valid_pointer. auto. 
+     red in H6. omega.
+     apply valid_pointer_null. }
   { (* THEN*)
     simpl.  
     unfold force_val2, force_val1 in H; simpl in H. 
@@ -571,12 +571,11 @@ forward_if PostKeyNull.
     (*key' is integer, ie Null*)
       remember (Int.eq i Int.zero) as d.
       destruct d; try solve [eapply semax_pre; try eapply semax_ff; entailer].
-      apply binop_lemmas2.int_eq_true in Heqd. simpl in *. subst i.
-      elim H. reflexivity.
+      apply binop_lemmas2.int_eq_true in Heqd. simpl in *. elim H. subst; reflexivity. 
     (*key' is ptr*)
-    normalize. clear H.
+    normalize. clear H. rename H0 into keyLen. (*destruct H0 as [KL1 [KL2 KL3]].*)
     Time assert_PROP (isptr c) as Pc by entailer!. (*1*)
-    apply isptrD in Pc; destruct Pc as [cb [cofs CC]]; subst c.
+    apply isptrD in Pc; destruct Pc as [cb [cofs CC]]; rewrite CC in *.
     rename b into kb; rename i into kofs.
     assert_PROP (Forall isbyteZ key) as isbyte_key.
       { unfold data_block. Time entailer!. (*1.5*) }
@@ -615,28 +614,32 @@ forward_if PostKeyNull.
       intuition. split; trivial. left; reflexivity. }
 
     Time assert_PROP (field_compatible (Tarray tuchar 64 noattr) [] (Vptr ckb ckoff))
-      as FC_cxtkey by entailer!. (*1.9*) 
+      as FC_cxtkey by entailer!. (*1.9*)
+    normalize. 
 
     Time forward_if PostIf_j_Len. (*5.6*)
     { (* j < len*) 
-      rename H into lt_64_l.
-      eapply (Init_part1_keynonnull Espec kb ckb cb kofs ckoff cofs l key kv pad h1); try eassumption.
+      rename H into lt_64_l. unfold POSTCONDITION, abbreviate. subst.
+      destruct keyLen as [? [? ?]].
+      eapply (Init_part1_j_lt_len Espec kb ckb cb kofs ckoff cofs l key kv pad HMS h1); try eassumption; trivial.
+      rewrite Int.signed_repr in lt_64_l. trivial. rewrite client_lemmas.int_min_signed_eq; omega.
     }
     { (* j >= len*)
-      rename H into ge_64_l. unfold MORE_COMMANDS, abbreviate.
-      eapply (Init_part1_keynull Espec kb ckb cb kofs ckoff cofs l key kv pad h1); try eassumption.
+      rename H into ge_64_l. unfold MORE_COMMANDS, POSTCONDITION, abbreviate. subst.
+      destruct keyLen as [? [? ?]].
+      eapply (Init_part1_len_le_j Espec kb ckb cb kofs ckoff cofs l key kv pad HMS h1); try eassumption; trivial.
+      rewrite Int.signed_repr in ge_64_l. trivial. rewrite client_lemmas.int_min_signed_eq; omega.
     }
-  intros ek vl. apply andp_left2.
-   unfold POSTCONDITION, abbreviate.
-   unfold overridePost, initPostKeyNullConditional. 
-   if_tac; trivial. Time normalize. (*0.8*)
-   subst.
-   Exists cb cofs 1. Time entailer!. (*8.1*)
+    intros ek vl. apply andp_left2.
+    unfold POSTCONDITION, abbreviate.
+    unfold overridePost, initPostKeyNullConditional. 
+    if_tac; trivial. Time normalize. (*0.8*)
+    subst.
+    Exists cb cofs 1. Time entailer!. (*8.1*)
   }
   { (*key == NULL*)
      Time forward. (*0.2*)
-     rewrite HeqPostKeyNull; clear HeqPostKeyNull. 
-     unfold initPre, initPostKeyNullConditional.
+     unfold PostKeyNull, initPre, initPostKeyNullConditional.
      destruct key'; try contradiction. subst k. Time entailer!. (*4.3*)
      (*integer*)
         unfold hmacstate_PreInitNull. Intros r v.
