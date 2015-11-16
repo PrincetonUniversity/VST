@@ -56,22 +56,16 @@ Lemma f_core_loop1: forall (Espec : OracleKind)
 c k h nonce out OUT 
 (data : SixteenByte * SixteenByte * (SixteenByte * SixteenByte))
 (*(Delta := func_tycontext f_core SalsaVarSpecs SalsaFunSpecs) *)
-(*(out' : name _out)
-(in' : name _in)
-(k' : name _k)
-(c' : name _c)
-(h' : name _h)
-(aux' : name _aux)*)
 w x y t,
 @semax CompSpecs Espec (func_tycontext f_core SalsaVarSpecs SalsaFunSpecs) (* Delta*)
   (PROP  ()
    LOCAL  (lvar _t (tarray tuint 4) t; lvar _y (tarray tuint 16) y;
    lvar _x (tarray tuint 16) x; lvar _w (tarray tuint 16) w; temp _in nonce;
    temp _out out; temp _c c; temp _k k; temp _h (Vint (Int.repr h)))
-   SEP  (`(data_at_ Tsh (tarray tuint 16) y);
-   `(data_at_ Tsh (tarray tuint 4) t); `(data_at_ Tsh (tarray tuint 16) x);
-   `(data_at_ Tsh (tarray tuint 16) w); `(CoreInSEP data (nonce, c, k));
-   `(data_at Tsh (tarray tuchar 64) OUT out)))
+   SEP  (data_at_ Tsh (tarray tuint 16) y;
+   data_at_ Tsh (tarray tuint 4) t; data_at_ Tsh (tarray tuint 16) x;
+   data_at_ Tsh (tarray tuint 16) w; CoreInSEP data (nonce, c, k);
+   data_at Tsh (tarray tuchar 64) OUT out))
   (Ssequence
     (Sset _i (Econst_int (Int.repr 0) tint))
     (Sloop
@@ -154,12 +148,12 @@ PROP  ()
    lvar _y (tarray tuint 16) y; lvar _x (tarray tuint 16) x;
    lvar _w (tarray tuint 16) w; temp _in nonce; temp _out out; temp _c c;
    temp _k k; temp _h (Vint (Int.repr h)))
-   SEP  (`(data_at_ Tsh (tarray tuint 16) y);
-   `(data_at_ Tsh (tarray tuint 4) t);
-   `(EX  l : list val,
-     !!X_content data 4 l && data_at Tsh (tarray tuint 16) l x);
-   `(data_at_ Tsh (tarray tuint 16) w); `(CoreInSEP data (nonce, c, k));
-   `(data_at Tsh (tarray tuchar 64) OUT out)))).
+   SEP  (data_at_ Tsh (tarray tuint 16) y;
+   data_at_ Tsh (tarray tuint 4) t;
+   EX  l : list val,
+     !!X_content data 4 l && data_at Tsh (tarray tuint 16) l x;
+   data_at_ Tsh (tarray tuint 16) w; CoreInSEP data (nonce, c, k);
+   data_at Tsh (tarray tuchar 64) OUT out))).
 Proof. intros. abbreviate_semax.
 Time forward_for_simple_bound 4 (EX i:Z, 
    PROP  ()
@@ -167,11 +161,11 @@ Time forward_for_simple_bound 4 (EX i:Z,
    lvar _t (tarray tuint 4) t; lvar _y (tarray tuint 16) y;
    lvar _x (tarray tuint 16) x; lvar _w (tarray tuint 16) w; temp _in nonce;
    temp _out out; temp _c c; temp _k k; temp _h (Vint (Int.repr h)))
-   SEP  (`(data_at_ Tsh (tarray tuint 16) y);
-   `(data_at_ Tsh (tarray tuint 4) t);
-   `(EX l:_, !!(X_content data i l) && data_at Tsh (tarray tuint 16) l x);
-   `(data_at_ Tsh (tarray tuint 16) w); `(CoreInSEP data (nonce, c, k));
-   `(data_at Tsh (tarray tuchar 64) OUT out))). (*2.4*)
+   SEP  (data_at_ Tsh (tarray tuint 16) y;
+   data_at_ Tsh (tarray tuint 4) t;
+   EX l:_, !!(X_content data i l) && data_at Tsh (tarray tuint 16) l x;
+   data_at_ Tsh (tarray tuint 16) w; CoreInSEP data (nonce, c, k);
+   data_at Tsh (tarray tuchar 64) OUT out)). (*2.4*)
 { Exists (list_repeat 16 Vundef). Time entailer!. (*3.6*) }
 { rename H into I.
  
@@ -223,13 +217,13 @@ Opaque crypto_core_salsa20_spec. Opaque crypto_core_hsalsa20_spec.
    lvar _x (tarray tuint 16) x; lvar _w (tarray tuint 16) w; temp _in nonce;
    temp _out out; temp _c c; temp _k k; temp _h (Vint (Int.repr h)))
    SEP 
-   (`(data_at Tsh (Tarray tuchar 16 noattr) (SixteenByte2ValList C) c);
-   `(SByte Nonce nonce);
-   `(ThirtyTwoByte Key k);
-   `(data_at_ Tsh (tarray tuint 16) y); `(data_at_ Tsh (tarray tuint 4) t);
-   `(data_at Tsh (tarray tuint 16) X0 x);
-   `(data_at_ Tsh (tarray tuint 16) w); 
-   `(data_at Tsh (tarray tuchar 64) OUT out)))). 
+   (data_at Tsh (Tarray tuchar 16 noattr) (SixteenByte2ValList C) c;
+   SByte Nonce nonce;
+   ThirtyTwoByte Key k;
+   data_at_ Tsh (tarray tuint 16) y; data_at_ Tsh (tarray tuint 4) t;
+   data_at Tsh (tarray tuint 16) X0 x;
+   data_at_ Tsh (tarray tuint 16) w; 
+   data_at Tsh (tarray tuchar 64) OUT out))). 
   { rewrite (Select_SplitSelect16Q C i _ _ HeqFB). unfold QByte.
     rewrite (split3_data_at_Tarray_tuchar Tsh 16 (Zlength (QuadChunks2ValList Front)) (4+Zlength (QuadChunks2ValList Front))); trivial;
     repeat rewrite Zlength_app; 
@@ -296,15 +290,15 @@ Opaque crypto_core_salsa20_spec. Opaque crypto_core_hsalsa20_spec.
    lvar _t (tarray tuint 4) t; lvar _y (tarray tuint 16) y;
    lvar _x (tarray tuint 16) x; lvar _w (tarray tuint 16) w; temp _in nonce;
    temp _out out; temp _c c; temp _k k; temp _h (Vint (Int.repr h)))
-   SEP  (`(ThirtyTwoByte (Key1,Key2) k);
-   `(data_at Tsh (Tarray tuchar 16 noattr) (SixteenByte2ValList C) c);
-   `(SByte Nonce nonce); `(data_at_ Tsh (tarray tuint 16) y);
-   `(data_at_ Tsh (tarray tuint 4) t);
-   `(data_at Tsh (tarray tuint 16)
+   SEP  (ThirtyTwoByte (Key1,Key2) k;
+   data_at Tsh (Tarray tuchar 16 noattr) (SixteenByte2ValList C) c;
+   SByte Nonce nonce; data_at_ Tsh (tarray tuint 16) y;
+   data_at_ Tsh (tarray tuint 4) t;
+   data_at Tsh (tarray tuint 16)
        (upd_Znth_in_list (5 * i) X0
-          (Vint (littleendian (Select16Q C i)))) x);
-   `(data_at_ Tsh (tarray tuint 16) w);
-   `(data_at Tsh (tarray tuchar 64) OUT out)))). 
+          (Vint (littleendian (Select16Q C i)))) x;
+   data_at_ Tsh (tarray tuint 16) w;
+   data_at Tsh (tarray tuchar 64) OUT out))). 
   { erewrite ThirtyTwoByte_split16; trivial. 
     Time entailer!. (*7.3*)
     unfold SByte. rewrite (Select_SplitSelect16Q _ _ _ _ HeqFB_K1) in *.
@@ -350,17 +344,17 @@ Opaque crypto_core_salsa20_spec. Opaque crypto_core_hsalsa20_spec.
    lvar _x (tarray tuint 16) x; lvar _w (tarray tuint 16) w; temp _in nonce;
    temp _out out; temp _c c; temp _k k; temp _h (Vint (Int.repr h)))
    SEP 
-   (`(data_at Tsh (Tarray tuchar 16 noattr) (SixteenByte2ValList C) c);
-   `(SByte Nonce nonce);
-   `(ThirtyTwoByte (Key1,Key2) k);
-   `(data_at_ Tsh (tarray tuint 16) y); `(data_at_ Tsh (tarray tuint 4) t);
-   `(data_at Tsh (tarray tuint 16)
+   (data_at Tsh (Tarray tuchar 16 noattr) (SixteenByte2ValList C) c;
+   SByte Nonce nonce;
+   ThirtyTwoByte (Key1,Key2) k;
+   data_at_ Tsh (tarray tuint 16) y; data_at_ Tsh (tarray tuint 4) t;
+   data_at Tsh (tarray tuint 16)
        (upd_Znth_in_list (1 + i)
           (upd_Znth_in_list (5 * i) X0
              (Vint (littleendian (Select16Q C i))))
-          (Vint (littleendian (Select16Q Key1 i)))) x);
-   `(data_at_ Tsh (tarray tuint 16) w);
-   `(data_at Tsh (tarray tuchar 64) OUT out) (*`(data_block Tsh OUT out)*)))). 
+          (Vint (littleendian (Select16Q Key1 i)))) x;
+   data_at_ Tsh (tarray tuint 16) w;
+   data_at Tsh (tarray tuchar 64) OUT out (*data_block Tsh OUT out)*)))). 
   { Time entailer!. (*9.5*)
    
     (*Apart from the unfold QByte, the next 9 lines are exactly as above, inside the function call*)
@@ -412,19 +406,19 @@ Opaque crypto_core_salsa20_spec. Opaque crypto_core_hsalsa20_spec.
    lvar _t (tarray tuint 4) t; lvar _y (tarray tuint 16) y;
    lvar _x (tarray tuint 16) x; lvar _w (tarray tuint 16) w; temp _in nonce;
    temp _out out; temp _c c; temp _k k; temp _h (Vint (Int.repr h)))
-   SEP  (`(ThirtyTwoByte (Key1,Key2) k);
-   `(data_at Tsh (Tarray tuchar 16 noattr) (SixteenByte2ValList C) c);
-   `(SByte Nonce nonce); `(data_at_ Tsh (tarray tuint 16) y);
-   `(data_at_ Tsh (tarray tuint 4) t);
-   `(data_at Tsh (tarray tuint 16)
+   SEP  (ThirtyTwoByte (Key1,Key2) k;
+   data_at Tsh (Tarray tuchar 16 noattr) (SixteenByte2ValList C) c;
+   SByte Nonce nonce; data_at_ Tsh (tarray tuint 16) y;
+   data_at_ Tsh (tarray tuint 4) t;
+   data_at Tsh (tarray tuint 16)
        (upd_Znth_in_list (6 + i)
           (upd_Znth_in_list (1 + i)
              (upd_Znth_in_list (5 * i) X0
                 (Vint (littleendian (Select16Q C i))))
              (Vint (littleendian (Select16Q Key1 i))))
-          (Vint (littleendian (Select16Q Nonce i)))) x);
-   `(data_at_ Tsh (tarray tuint 16) w); 
-   `(data_at Tsh (tarray tuchar 64) OUT out) (*`(data_block Tsh OUT out)*)))). 
+          (Vint (littleendian (Select16Q Nonce i)))) x;
+   data_at_ Tsh (tarray tuint 16) w; 
+   data_at Tsh (tarray tuchar 64) OUT out (*data_block Tsh OUT out)*)))). 
   { erewrite ThirtyTwoByte_split16. 2: rewrite Pk; assumption.
     Time entailer!. (*9.5*)
    

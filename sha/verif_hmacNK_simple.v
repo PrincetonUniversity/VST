@@ -32,16 +32,15 @@ rename keyVal into k. rename msgVal into d.
 destruct KEY as [kl key].
 destruct MSG as [dl data]. simpl in *.
 rename H into KL. rename H0 into DL. 
-assert_PROP (isptr md). entailer.
-rename H into isPtrMD. 
+assert_PROP (isptr md) as isPtrMD by entailer!.
 forward_if  (
   PROP  (isptr c)
    LOCAL  (lvar _c t_struct_hmac_ctx_st c; temp _md md; temp _key k;
    temp _key_len (Vint (Int.repr kl)); temp _d d;
    temp _n (Vint (Int.repr dl)); gvar sha._K256 kv)
-   SEP  (`(data_at_ Tsh t_struct_hmac_ctx_st c); `(data_block Tsh key k);
-   `(data_block Tsh data d); `(K_vector kv);
-   `(memory_block shmd 32 md))).
+   SEP  (data_at_ Tsh t_struct_hmac_ctx_st c; data_block Tsh key k;
+   data_block Tsh data d; K_vector kv;
+   memory_block shmd 32 md)).
   { apply denote_tc_comparable_split. 
     apply sepcon_valid_pointer2. apply memory_block_valid_ptr. auto. omega.
     apply valid_pointer_zero. }

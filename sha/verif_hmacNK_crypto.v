@@ -69,19 +69,19 @@ Definition HMAC_crypto :=
                 temp _key_len (Vint (Int.repr (LEN KEY)));
                 temp _d msgVal; temp _n (Vint (Int.repr (LEN MSG)));
                 gvar sha._K256 kv)
-         SEP(`(data_block Tsh (CONT KEY) keyVal);
-             `(data_block Tsh (CONT MSG) msgVal);
-             `(K_vector kv);
-             `(memory_block shmd 32 md))
+         SEP(data_block Tsh (CONT KEY) keyVal;
+             data_block Tsh (CONT MSG) msgVal;
+             K_vector kv;
+             memory_block shmd 32 md)
   POST [ tvoid ] 
          EX digest:_,
           PROP (bytesToBits digest = bitspec KEY MSG /\ 
                 forall A Awf, CRYPTO A Awf)
           LOCAL ()
-          SEP(`(K_vector kv);
-              `(data_block shmd digest md);
-              `(initPostKey keyVal (CONT KEY) );
-              `(data_block Tsh (CONT MSG) msgVal)).
+          SEP(K_vector kv;
+              data_block shmd digest md;
+              initPostKey keyVal (CONT KEY);
+              data_block Tsh (CONT MSG) msgVal).
 
 Lemma body_hmacNK_crypto: semax_body HmacVarSpecs HmacFunSpecs 
       f_HMAC HMAC_crypto.
@@ -103,11 +103,11 @@ assert_PROP (Forall isbyteZ key) as isbyteZ_key by entailer!.
 forward_if  (
   PROP  (isptr c)
    LOCAL  (lvar _c t_struct_hmac_ctx_st c; temp _md md; temp _key k;
-   temp _key_len (Vint (Int.repr kl)); temp _d d;
-   temp _n (Vint (Int.repr dl)); gvar sha._K256 kv)
-   SEP  (`(data_at_ Tsh t_struct_hmac_ctx_st c); `(data_block Tsh key k);
-   `(data_block Tsh data d); `(K_vector kv);
-   `(memory_block shmd 32 md))).
+      temp _key_len (Vint (Int.repr kl)); temp _d d;
+       temp _n (Vint (Int.repr dl)); gvar sha._K256 kv)
+   SEP  (data_at_ Tsh t_struct_hmac_ctx_st c; data_block Tsh key k;
+         data_block Tsh data d; K_vector kv;
+         memory_block shmd 32 md)).
   { apply denote_tc_comparable_split. 
     apply sepcon_valid_pointer2. apply memory_block_valid_ptr. auto. omega.
     apply valid_pointer_zero. }

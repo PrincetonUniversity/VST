@@ -279,11 +279,11 @@ LOCAL (lvar _t (tarray tuint 4) t;
        lvar _y (tarray tuint 16) y; lvar _x (tarray tuint 16) x;
        lvar _w (tarray tuint 16) w; temp _in nonce; temp _out out; temp _c c;
        temp _k k; temp _h (Vint (Int.repr h)))
-  SEP (`(SByte Nonce nonce); `(SByte C c);
-       `(ThirtyTwoByte K k);
-       `(data_at Tsh (tarray tuint 16) (map Vint ys) y);
-       `(data_at_ Tsh (tarray tuint 4) t); `(data_at_ Tsh (tarray tuint 16) w);
-       `(if Int.eq (Int.repr h) Int.zero 
+  SEP (SByte Nonce nonce; SByte C c;
+       ThirtyTwoByte K k;
+       data_at Tsh (tarray tuint 16) (map Vint ys) y;
+       data_at_ Tsh (tarray tuint 4) t; data_at_ Tsh (tarray tuint 16) w;
+       if Int.eq (Int.repr h) Int.zero 
          then EX l:_, 
           !!HFalse_inv l 16 xs ys && 
           (data_at Tsh (tarray tuchar 64) l out *
@@ -292,7 +292,7 @@ LOCAL (lvar _t (tarray tuint 4) t;
             (data_at Tsh (tarray tuchar 64)
                (hPosLoop3 4 (hPosLoop2 4 intsums C Nonce) OUT) out
              * data_at Tsh (tarray tuint 16)
-                 (map Vint (hPosLoop2 4 intsums C Nonce)) x)))
+                 (map Vint (hPosLoop2 4 intsums C Nonce)) x))
 end.
 
 Opaque HTruePostCond. Opaque HFalsePostCond. Opaque Snuffle.

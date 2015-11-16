@@ -40,18 +40,18 @@ Definition HMAC_Double_spec :=
                 temp _d msgVal;
                 temp _n (Vint (Int.repr (LEN MSG)));
                 gvar sha._K256 kv)
-         SEP(`(data_block Tsh (CONT KEY) keyVal);
-             `(data_block Tsh (CONT MSG) msgVal);
-             `(K_vector kv);
-             `(memory_block shmd 64 md))
+         SEP(data_block Tsh (CONT KEY) keyVal;
+             data_block Tsh (CONT MSG) msgVal;
+             K_vector kv;
+             memory_block shmd 64 md)
   POST [ tvoid ] 
          EX digest:_, 
           PROP (digest = HMAC256 (CONT MSG) (CONT KEY))
           LOCAL ()
-          SEP(`(K_vector kv);
-              `(data_block shmd (digest++digest) md);
-              `(initPostKey keyVal (CONT KEY) );
-              `(data_block Tsh (CONT MSG) msgVal)).
+          SEP(K_vector kv;
+              data_block shmd (digest++digest) md;
+              initPostKey keyVal (CONT KEY);
+              data_block Tsh (CONT MSG) msgVal).
 
 Lemma body_hmac_double: semax_body HmacVarSpecs HmacFunSpecs 
       f_HMAC2 HMAC_Double_spec.
@@ -74,9 +74,9 @@ forward_if  (
    LOCAL  (lvar _c t_struct_hmac_ctx_st c; temp _md md; temp _key k;
    temp _key_len (Vint (Int.repr kl)); temp _d d;
    temp _n (Vint (Int.repr dl)); gvar sha._K256 kv)
-   SEP  (`(data_at_ Tsh t_struct_hmac_ctx_st c); `(data_block Tsh key k);
-   `(data_block Tsh data d); `(K_vector kv);
-   `(memory_block shmd 64 md))).
+   SEP  (data_at_ Tsh t_struct_hmac_ctx_st c; data_block Tsh key k;
+   data_block Tsh data d; K_vector kv;
+   memory_block shmd 64 md)).
   { apply denote_tc_comparable_split. 
        apply sepcon_valid_pointer2. apply memory_block_valid_ptr. auto. omega.
        apply valid_pointer_zero. }
@@ -126,7 +126,7 @@ simpl in H; rename H into Round1Final.
 
 (**************Round 2*******************************)
 
-replace_SEP 1 (`(initPre c nullval h2 kl key)). 
+replace_SEP 1 (initPre c nullval h2 kl key). 
   { entailer. eapply hmacstate_PostFinal_PreInitNull; eassumption.
   }
 

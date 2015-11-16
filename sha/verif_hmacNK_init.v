@@ -105,10 +105,10 @@ remember (EX shaStates:_ ,
                   temp _ctx (Vptr cb cofs); temp _key k;
                   temp _len (Vint (Int.repr l));
                   gvar sha._K256 kv)
-          SEP  (`(data_at_ Tsh (tarray tuchar 64) pad);
-                `(data_at_ Tsh (Tarray tuchar 64 noattr) (Vptr ckb ckoff)); 
-                `(initPostResetConditional r (Vptr cb cofs) k h1 key (fst (snd shaStates)) (snd (snd (snd shaStates))));
-                `(K_vector kv)))
+          SEP  (data_at_ Tsh (tarray tuchar 64) pad;
+                data_at_ Tsh (Tarray tuchar 64 noattr) (Vptr ckb ckoff); 
+                initPostResetConditional r (Vptr cb cofs) k h1 key (fst (snd shaStates)) (snd (snd (snd shaStates)));
+                K_vector kv))
   as PostResetBranch.
 eapply semax_seq. instantiate (1:=PostResetBranch).
 { eapply semax_pre_post.
@@ -138,12 +138,12 @@ eapply semax_seq. instantiate (1:=PostResetBranch).
               @lvar CompSpecs _ctx_key (tarray tuchar 64) (Vptr ckb ckoff);
               temp _ctx (Vptr cb cofs); temp _key (Vint Int.zero);
               temp _len (Vint (Int.repr l)); gvar sha._K256 kv)
-      SEP  (`(@data_at_ CompSpecs Tsh (tarray tuchar 64) pad);
-            `(@data_at_ CompSpecs Tsh (Tarray tuchar 64 noattr) (Vptr ckb ckoff));
-            `(@data_at CompSpecs Tsh t_struct_hmac_ctx_st
+      SEP  (@data_at_ CompSpecs Tsh (tarray tuchar 64) pad;
+            @data_at_ CompSpecs Tsh (Tarray tuchar 64 noattr) (Vptr ckb ckoff);
+            @data_at CompSpecs Tsh t_struct_hmac_ctx_st
                 (@upd_reptype CompSpecs t_struct_hmac_ctx_st [StructField _md_ctx] s v)
-                (Vptr cb cofs));
-            `(K_vector kv))). 
+                (Vptr cb cofs);
+            K_vector kv)). 
     { Time entailer!. (*8*) }
     Time normalize. (*15.7 SLOW - -should become more wefficient when in next round of extarct_prop Issue*) 
     rename H into Hs.
