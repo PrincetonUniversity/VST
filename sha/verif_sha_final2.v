@@ -207,7 +207,6 @@ forward_call (* sha256_block_data_order (c,p); *)
   rewrite map_id.
   apply derives_refl.
 }
- simpl map.  (* SHOULD NOT BE NECESSARY *)
  set (pad := (CBLOCKz - (ddlen+1))%Z) in *.
  Exists (hashed ++ ddzw) (@nil Z) pad.
  entailer!.

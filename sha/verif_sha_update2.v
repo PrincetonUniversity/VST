@@ -273,7 +273,6 @@ simplify_Delta.
  ].
  entailer!.
 }
-simpl map. (* should not be necessary *)
 forward. (* data  += fragment; *)
 forward. (* len -= fragment; *)
   normalize_postcondition.

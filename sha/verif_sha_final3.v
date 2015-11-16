@@ -79,7 +79,6 @@ Proof.
     rewrite field_at_data_at with (gfs := [StructField _data]).
     Time cancel. 
   }
-  simpl map.  (* SHOULD NOT BE NECESSARY *)
   unfold data_block.
   simpl. rewrite prop_true_andp by apply isbyte_intlist_to_Zlist.
   rewrite <- H1.
@@ -95,7 +94,6 @@ Proof.
     rewrite memory_block_data_at_ by auto.
     Time cancel.
   }
-  simpl map. (* SHOULD NOT BE NECESSARY *)
   change Delta with
     (initialized _cNl (initialized _cNh Delta_final_if1)).
   eapply semax_pre; [ | apply final_part4; auto].

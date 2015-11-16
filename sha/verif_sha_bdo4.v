@@ -166,7 +166,6 @@ forward_call (* l = __builtin_read32_reversed(_data) *)
  entailer!; make_Vptr data; reflexivity.
  rewrite H1; cancel.
  autorewrite with sublist; omega.
- simpl map.
  gather_SEP 3 0 4.
  match goal with |- context [SEPx (?A::_)] => 
   replace A with (data_block sh (intlist_to_Zlist b) data)
