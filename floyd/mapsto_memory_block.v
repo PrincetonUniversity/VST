@@ -432,11 +432,13 @@ Proof.
   normalize.
 Qed.
 
-Lemma remove_PROP_LOCAL_left': forall P Q R S, R |-- S -> PROPx P (LOCALx Q SEP (R)) |-- S.
+Lemma remove_PROP_LOCAL_left': 
+     forall P Q R S, `R |-- S -> 
+     PROPx P (LOCALx Q SEP (R)) |-- S.
 Proof.
   intros.
   go_lower.
-  normalize.
+  normalize. apply H.
 Qed.
 
 Lemma SEP_nth_isolate:
@@ -444,15 +446,17 @@ Lemma SEP_nth_isolate:
       SEPx R = SEPx (Rn :: replace_nth n R emp).
 Proof.
  unfold SEPx.
- induction n; destruct R; intros; inv H; extensionality rho.
+ intros. extensionality rho.
+ revert R H; 
+ induction n; destruct R; intros; inv H.
  simpl; rewrite emp_sepcon; auto.
  unfold replace_nth; fold @replace_nth.
- transitivity (m rho * fold_right sepcon emp R rho).
+ transitivity (m * fold_right sepcon emp R).
  reflexivity.
- rewrite (IHn R Rn H1).
+ rewrite (IHn R H1).
  simpl.
  rewrite <- sepcon_assoc.
- rewrite (sepcon_comm (Rn rho)).
+ rewrite (sepcon_comm Rn).
  simpl.
  repeat rewrite sepcon_assoc.
  f_equal. rewrite sepcon_comm; reflexivity.
@@ -489,16 +493,17 @@ Lemma SEP_replace_nth_isolate:
 Proof.
  unfold SEPx.
  intros.
+ extensionality rho.
  revert R H.
- induction n; destruct R; intros; inv H; intros; extensionality rho.
+ induction n; destruct R; intros; inv H; intros.
  simpl; rewrite emp_sepcon; auto.
  unfold replace_nth; fold @replace_nth.
- transitivity (m rho * fold_right sepcon emp (replace_nth n R Rn') rho).
+ transitivity (m * fold_right sepcon emp (replace_nth n R Rn')).
  reflexivity.
  rewrite (IHn R H1). clear IHn.
  simpl.
  repeat rewrite <- sepcon_assoc.
- rewrite (sepcon_comm (Rn' rho)).
+ rewrite (sepcon_comm Rn').
  rewrite sepcon_assoc.
  reflexivity.
 Qed.
@@ -521,7 +526,6 @@ Lemma replace_nth_SEP: forall P Q R n Rn Rn', Rn |-- Rn' -> PROPx P (LOCALx Q (S
 Proof.
   simpl.
   intros.
-  specialize (H x).
   normalize.
       autorewrite with subst norm1 norm2; normalize.
   revert R.
@@ -534,7 +538,9 @@ Proof.
     - intros. simpl in *. cancel.
 Qed.
 
-Lemma replace_nth_SEP': forall P Q R n Rn Rn', PROPx P (LOCALx Q (SEP (Rn))) |-- Rn' -> (PROPx P (LOCALx Q (SEPx (replace_nth n R Rn)))) |-- (PROPx P (LOCALx Q (SEPx (replace_nth n R Rn')))).
+Lemma replace_nth_SEP': 
+  forall P Q R n Rn Rn', PROPx P (LOCALx Q (SEP (Rn))) |-- `Rn' -> 
+  (PROPx P (LOCALx Q (SEPx (replace_nth n R Rn)))) |-- (PROPx P (LOCALx Q (SEPx (replace_nth n R Rn')))).
 Proof.
   simpl.
   intros.
@@ -552,60 +558,34 @@ Proof.
     - intros. simpl in *. cancel.
 Qed.
 
-Lemma replace_nth_SEP_andp_local': forall P Q R n Rn (Rn': environ -> mpred) Rn'' x,
+Lemma replace_nth_SEP_andp_local: 
+   forall P Q R n (Rn Rn': mpred) (Rn'': Prop) x,
   nth_error R n = Some Rn ->
-  (PROPx P (LOCALx Q (SEPx (replace_nth n R ((`prop Rn'') && Rn'))))) x
-  = (PROPx P (LOCALx (Rn'' :: Q) (SEPx (replace_nth n R Rn')))) x.
+  (PROPx P (LOCALx Q (SEPx (replace_nth n R ((prop Rn'') && Rn'))))) x
+  = (PROPx P (LOCALx (`Rn'' :: Q) (SEPx (replace_nth n R Rn')))) x.
 Proof.
   intros.
   normalize.
-      autorewrite with subst norm1 norm2; normalize.
-  assert ((@fold_right (environ -> mpred) (environ -> mpred)
-              (@sepcon (environ -> mpred) (@LiftNatDed' mpred Nveric)
-                 (@LiftSepLog' mpred Nveric Sveric))
-              (@emp (environ -> mpred) (@LiftNatDed' mpred Nveric)
-                 (@LiftSepLog' mpred Nveric Sveric))
-              (@replace_nth (lifted (LiftEnviron mpred)) n R
-                 (@andp (lifted (LiftEnviron mpred))
-                    (@LiftNatDed' mpred Nveric)
-                    (@liftx (Tarrow Prop (LiftEnviron mpred))
-                       (@prop (lift_T (LiftEnviron mpred)) Nveric) Rn'') Rn'))
-              x) =
-   (@andp mpred Nveric
-           (@prop mpred Nveric
-              (Rn'' x))
-           (@fold_right (environ -> mpred) (environ -> mpred)
-              (@sepcon (environ -> mpred) (@LiftNatDed' mpred Nveric)
-                 (@LiftSepLog' mpred Nveric Sveric))
-              (@emp (environ -> mpred) (@LiftNatDed' mpred Nveric)
-                 (@LiftSepLog' mpred Nveric Sveric))
-              (@replace_nth (lifted (LiftEnviron mpred)) n R Rn') x))); 
-  [| rewrite H0; apply pred_ext; normalize].
-
-  revert R H.
+  f_equal.
+  extensionality rho.
+  unfold_for_go_lower. simpl.
+  forget (fold_right
+     (fun (x0 x1 : environ -> Prop) (x2 : environ) => x0 x2 /\ x1 x2)
+     (fun _ : environ => True) Q rho) as Q'.
+ rewrite <- gather_prop_right.
+ rewrite andp_comm. f_equal.
+  revert R H. clear.
   induction n; intros.
   + destruct R; inversion H.
-    subst l.
+    subst m.
     simpl. normalize.
-      autorewrite with subst norm1 norm2; normalize.
   + destruct R; inversion H.
     pose proof IHn R H1.
     unfold replace_nth in *.
-    fold (@replace_nth (LiftEnviron mpred)) in *.
+    fold (@replace_nth mpred) in *.
     simpl fold_right in *.
-    rewrite <- sepcon_andp_prop, H0.
-    reflexivity.
-Qed.
-
-Lemma replace_nth_SEP_andp_local: forall P Q R n Rn (Rn': environ -> mpred) Rn'',
-  nth_error R n = Some Rn ->
-  (PROPx P (LOCALx Q (SEPx (replace_nth n R ((`prop Rn'') && Rn')))))
-  = (PROPx P (LOCALx (Rn'' :: Q) (SEPx (replace_nth n R Rn')))).
-Proof.
-  intros.
-  extensionality.
-  eapply replace_nth_SEP_andp_local'.
-  exact H.
+    rewrite H0.
+    normalize.
 Qed.
 
 Lemma LOCAL_2_hd: forall P Q R Q1 Q2,
@@ -641,9 +621,9 @@ Qed.
 (* This lemma is for load_37 *)
 Lemma eq_sym_post_LOCAL: forall P Q R id v,
   (EX  old : val, PROPx P
-  (LOCALx (`eq (subst id `old v) (eval_id id)::map (subst id `old) Q) (SEPx (map (subst id `old) R)))) = 
+  (LOCALx (`eq (subst id `old v) (eval_id id)::map (subst id `old) Q) (SEPx R))) = 
   (EX  old : val, PROPx P
-  (LOCALx (`eq (eval_id id) (subst id `old v)::map (subst id `old) Q) (SEPx (map (subst id `old) R)))).
+  (LOCALx (`eq (eval_id id) (subst id `old v)::map (subst id `old) Q) (SEPx R))).
 Proof.
   intros.
   apply pred_ext; normalize; apply (exp_right old);
@@ -653,9 +633,9 @@ Qed.
 (* This lemma is for load_37' *)
 Lemma eq_sym_post_LOCAL': forall P Q R id v,
   (EX  old : val, PROPx P
-  (LOCALx (`(eq v) (eval_id id) :: map (subst id `old) Q) (SEPx (map (subst id `old) R)))) = 
+  (LOCALx (`(eq v) (eval_id id) :: map (subst id `old) Q) (SEPx R))) = 
   (EX  old : val, PROPx P
-  (LOCALx (`eq (eval_id id) `v ::  map (subst id `old) Q) (SEPx (map (subst id `old) R)))).
+  (LOCALx (`eq (eval_id id) `v ::  map (subst id `old) Q) (SEPx R))).
 Proof.
   intros.
   apply pred_ext; normalize; apply (exp_right old);

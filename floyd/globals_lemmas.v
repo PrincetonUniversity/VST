@@ -941,11 +941,10 @@ Lemma process_globvar:
        init_data_size idata <= sizeof cenv_cs t ->
        sizeof cenv_cs t <= Int.max_unsigned ->
  (forall v: val,
-   semax Delta (PROPx P (LOCALx (gvar i v :: Q)
-                      (SEPx (init_data2pred' Delta idata 
+   semax Delta (PROPx P (LOCALx (gvar i v :: Q) (SEPx R))
+                       * (init_data2pred' Delta idata 
                          (Share.splice  extern_retainer (readonly2share (gvar_readonly gv)))
-                         t v :: R)))
-                       * globvars2pred gvs * SF)
+                         t v * globvars2pred gvs) * SF)
      c Post) ->
  semax Delta (PROPx P (LOCALx Q (SEPx R)) 
                       * globvars2pred ((i,gv)::gvs) * SF)
@@ -955,9 +954,10 @@ intros.
 eapply semax_pre_post; [ | intros; apply andp_left2; apply derives_refl | ].
 instantiate (1 := EX  s : val,
            PROPx P (LOCALx (gvar i s :: Q) 
-          (SEPx (init_data2pred' Delta idata
+          (SEPx R)) * (init_data2pred' Delta idata
              (Share.splice extern_retainer
-                (readonly2share (gvar_readonly gv))) t s :: R))) * fold_right sepcon emp (map globvar2pred gvs) * SF).
+                (readonly2share (gvar_readonly gv))) t s 
+                *fold_right sepcon emp (map globvar2pred gvs)) * SF).
 unfold globvars2pred.
 change  (fold_right sepcon emp (map globvar2pred ((i, gv) :: gvs)))
  with (globvar2pred (i,gv) * fold_right sepcon emp (map globvar2pred gvs)).
@@ -975,12 +975,9 @@ rewrite <- (sepcon_comm SF).
 rewrite ! sepcon_assoc.
 apply sepcon_derives; auto.
 rewrite <- insert_local.
-rewrite <- insert_SEP.
 rewrite ! local_sepcon_assoc2.
 rewrite ! local_sepcon_assoc1.
 apply andp_derives; auto.
-pull_left (PROPx P (LOCALx Q (SEPx R))).
-rewrite ! sepcon_assoc.
 apply sepcon_derives; auto.
 rewrite sepcon_comm; auto.
 apply extract_exists_pre.
@@ -1003,7 +1000,7 @@ Lemma process_globvar_array:
        Int.max_unsigned ->
  (forall v: val,
    semax Delta (PROPx P (LOCALx (gvar i v :: Q)
-                      (SEPx (`(data_at
+                      (SEPx ((data_at
                    (Share.splice extern_retainer (readonly2share (gvar_readonly gv)))
                    (tarray (Tint sz sign noattr) n)
                    (map (Vint oo cast_int_int sz sign) data) v)
@@ -1018,7 +1015,7 @@ intros.
 eapply semax_pre_post; [ | intros; apply andp_left2; apply derives_refl | ].
 instantiate (1 := EX  v : val,
            PROPx P (LOCALx (gvar i v :: Q) 
-          (SEPx (`(data_at
+          (SEPx ((data_at
                    (Share.splice extern_retainer (readonly2share (gvar_readonly gv)))
                    (tarray (Tint sz sign noattr) n)
                    (map (Vint oo cast_int_int sz sign) data) v) :: R))) * fold_right sepcon emp (map globvar2pred gvs) * SF).
@@ -1124,12 +1121,12 @@ Lemma process_globvar_star:
        Int.max_unsigned ->
  (forall s: val,
    semax Delta (PROPx P (LOCALx (gvar i s :: Q)
-                      (SEPx (id2pred_star Delta
+                      (SEPx R))
+                       * (id2pred_star Delta
              (Share.splice extern_retainer
                 (readonly2share (gvar_readonly gv))) (gvar_info gv) s 0
-             (gvar_init gv)
-                    :: R)))
-                       * globvars2pred gvs * SF)
+             (gvar_init gv) *
+                    globvars2pred gvs) * SF)
      c Post) ->
  semax Delta (PROPx P (LOCALx Q (SEPx R)) 
                       * globvars2pred ((i,gv)::gvs) * SF)
@@ -1139,35 +1136,29 @@ intros.
 eapply semax_pre_post; [ | intros; apply andp_left2; apply derives_refl | ].
 instantiate (1 := EX  s : val,
            PROPx P (LOCALx (gvar i s :: Q) 
-          (SEPx (id2pred_star Delta
+          (SEPx R)) * ((id2pred_star Delta
              (Share.splice extern_retainer
                 (readonly2share (gvar_readonly gv))) (gvar_info gv) s 0
-             (gvar_init gv) :: R))) * fold_right sepcon emp (map globvar2pred gvs) * SF).
+             (gvar_init gv)) * fold_right sepcon emp (map globvar2pred gvs)) * SF).
 unfold globvars2pred.
 change  (fold_right sepcon emp (map globvar2pred ((i, gv) :: gvs)))
  with (globvar2pred (i,gv) * fold_right sepcon emp (map globvar2pred gvs)).
-rewrite <- (sepcon_comm SF).
- rewrite <- sepcon_assoc.
-rewrite <- (sepcon_comm (fold_right _ _ _)).
- rewrite <- !sepcon_assoc.
-rewrite <- local_sepcon_assoc2.
-eapply derives_trans.
-apply sepcon_derives; [apply derives_refl | ].
+rewrite <- local_sepcon_assoc1.
+rewrite <- sepcon_assoc.
+pull_left (globvar2pred (i, gv)).
+rewrite <- local_sepcon_assoc1.
+rewrite <- local_sepcon_assoc1.
+rewrite !sepcon_assoc.
+eapply derives_trans; [ apply sepcon_derives; [ | apply derives_refl] | ].
 eapply unpack_globvar_star; try eassumption.
-normalize.
-apply exp_right with s.
-rewrite <- (sepcon_comm SF).
-rewrite ! sepcon_assoc.
-apply sepcon_derives; auto.
+Intros s. Exists s.
 rewrite <- insert_local.
-rewrite <- insert_SEP.
-rewrite ! local_sepcon_assoc2.
 rewrite ! local_sepcon_assoc1.
 apply andp_derives; auto.
+rewrite <- sepcon_assoc.
 pull_left (PROPx P (LOCALx Q (SEPx R))).
 rewrite ! sepcon_assoc.
-apply sepcon_derives; auto.
-rewrite sepcon_comm; auto.
+apply derives_refl.
 apply extract_exists_pre.
 assumption.
 Qed.
@@ -1184,6 +1175,7 @@ Proof.
 intros. rewrite fold_right_sepcon'_eq; reflexivity.
 Qed.
 
+(*
 Definition expand_globvars (Delta: tycontext)  (R R': list (environ -> mpred)) :=
  forall rho, 
     tc_environ Delta rho ->
@@ -1224,6 +1216,7 @@ Proof.
 intros. hnf; intros.
 auto.
 Qed.
+*)
 
 Ltac expand_one_globvar :=
  (* given a proof goal of the form   local (tc_environ Delta) && globvar2pred (_,_) |-- ?33 *)
@@ -1246,11 +1239,13 @@ first [
  | apply andp_left2; apply derives_refl
  ].
 
+(*
 Lemma start_main_pre:
   forall p u Q, main_pre p u * Q = PROP() LOCAL() (SEP (main_pre p u;Q)).
 Proof. intros. unfold_for_go_lower. simpl. extensionality rho; normalize.
   autorewrite with subst norm1 norm2; normalize.
 Qed.
+*)
 
 Definition is_Tint sz t :=
   match t with 
@@ -1258,13 +1253,8 @@ Definition is_Tint sz t :=
   | _ => False
   end.
 
-(*
-Inductive init_rep : list init_data -> forall {t}, reptype t -> Prop :=
-  | IRi8: forall {t} i, is_Tint I8 t -> init_rep (Init_int8 i :: nil) (valinject t (Vint i))
-  | IRi16: forall {t} i, is_Tint I16 t -> init_rep (Init_int16 i :: nil) (valinject t (Vint i))
-  | IRi32: forall {t} i, is_Tint I32 t -> init_rep (Init_int32 i :: nil) (valinject t (Vint i))
-*)
 
+(* FIXME
 Ltac simpl_main_pre' := 
   repeat match goal with
   | |- semax _ (PROPx _ (LOCALx _ (SEPx ?R))) _ _ =>
@@ -1285,22 +1275,6 @@ Ltac simpl_main_pre' :=
              try rewrite sepcon_emp; repeat flatten_sepcon_in_SEP
         end
   end.
-
-(* OLD 
-Ltac expand_main_pre :=
-   rewrite start_main_pre, main_pre_eq; simpl map; unfold fold_right_sepcon';
-   repeat flatten_sepcon_in_SEP; eapply do_expand_globvars;
-   [ repeat (eapply do_expand_globvars_cons; [ expand_one_globvar | idtac ]);
-      apply do_expand_globvars_nil
-   | idtac ]; cbv beta;
-   simpl_main_pre';
-  (* is the next bunch of folds necessary? *)
-  fold Ews; fold Ers; fold tint;
-   fold tuint; fold tuchar; fold tschar; fold tshort; fold tushort.
-*)
-
-(*
- change (Share.splice extern_retainer Tsh) with Ews;
 *)
 
 Lemma main_pre_start:
@@ -1333,7 +1307,7 @@ Ltac process_one_globvar :=
 Lemma move_globfield_into_SEP:
  forall {cs: compspecs}{Espec: OracleKind} Delta P Q R 
    (S1: mpred) (S2 S3 S4: environ -> mpred) c Post,
- semax Delta (PROPx P (LOCALx Q (SEPx (`S1::R))) * S2 * S3 * S4) c Post ->
+ semax Delta (PROPx P (LOCALx Q (SEPx (S1::R))) * S2 * S3 * S4) c Post ->
  semax Delta (PROPx P (LOCALx Q (SEPx R)) * (`S1 * S2) * S3 * S4) c Post.
 Proof.
 intros.
@@ -1350,7 +1324,7 @@ Lemma move_globfield_into_SEP':
    (g: val -> mpred)
    (h: val -> val) (S2 S3 S4: environ -> mpred) c Post,
   (forall x: val,
-   semax Delta (PROPx P (LOCALx (f x :: Q) (SEPx (`(g (h x))::R))) * S2 * S3 * S4) c Post) ->
+   semax Delta (PROPx P (LOCALx (f x :: Q) (SEPx ((g (h x))::R))) * S2 * S3 * S4) c Post) ->
  semax Delta (PROPx P (LOCALx Q (SEPx R)) * ((EX x:val, local (f x) && `(g (h x))) * S2) * S3 * S4) c Post.
 Proof.
 intros.
@@ -1375,7 +1349,7 @@ Lemma move_globfield_into_SEP'':
    (g: val -> mpred)
    (h: val -> val) (S2 S3 S4: environ -> mpred) c Post,
    In (gvar i v) Q ->
-  semax Delta (PROPx P (LOCALx Q (SEPx (`(g (h v))::R))) * S2 * S3 * S4) c Post ->
+  semax Delta (PROPx P (LOCALx Q (SEPx ((g (h v))::R))) * S2 * S3 * S4) c Post ->
  semax Delta (PROPx P (LOCALx Q (SEPx R)) * ((EX x:val, local (sgvar i x) && `(g (h x))) * S2) * S3 * S4) c Post.
 Proof.
 intros.

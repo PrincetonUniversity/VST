@@ -1563,7 +1563,7 @@ Hint Rewrite subst_sepcon : subst.
 
 Lemma subst_PROP: forall i v P Q R,
      subst i v (PROPx P (LOCALx Q (SEPx R))) =
-    PROPx P (LOCALx (map (subst i v) Q) (SEPx (map (subst i v) R))).
+    PROPx P (LOCALx (map (subst i v) Q) (SEPx R)).
 Proof.
 intros.
 unfold PROPx.
@@ -1579,10 +1579,6 @@ f_equal.
 induction Q; simpl; auto.
 autorewrite with subst norm norm2.
 f_equal;  apply IHQ.
-unfold SEPx.
-induction R; auto.
-autorewrite with subst norm.
-f_equal; auto.
 Qed.
 Hint Rewrite subst_PROP : subst.
 
@@ -1914,22 +1910,21 @@ Hint Rewrite wand_sepcon wand_sepcon' : norm.
 
 
 Lemma extract_nth_exists_in_SEP:
-  forall n P Q (R: list (environ->mpred))
+  forall n P Q (R: list mpred)
               {A} (S: A -> mpred),
-   nth n R emp = `(exp S) ->
+   nth n R emp = (exp S) ->
    PROPx P (LOCALx Q (SEPx R)) =
-   exp (fun x => PROPx P (LOCALx Q (SEPx (replace_nth n R (`(S x)))))).
+   exp (fun x => PROPx P (LOCALx Q (SEPx (replace_nth n R (S x))))).
 Proof.
 intros.
-transitivity (PROPx P (LOCALx Q (EX x:A, SEPx (replace_nth n R `(S x))))).
+transitivity (PROPx P (LOCALx Q (EX x:A, SEPx (replace_nth n R (S x))))).
 *
 f_equal. f_equal.
 unfold SEPx.
+simpl. extensionality rho.
 revert R H; induction n; destruct R; intros.
 unfold replace_nth, fold_right.
 unfold nth in H. rewrite H; clear H.
-unfold_lift.
-extensionality rho. simpl.
 apply pred_ext.
 apply exp_left; intro x. apply exp_right with x.
 apply exp_right with x.
@@ -1942,8 +1937,6 @@ normalize.
 unfold nth in H. unfold replace_nth.
 rewrite H.
 simpl.
-unfold_lift.
-extensionality rho; simpl.
 apply pred_ext.
 apply exp_left; intro x. apply exp_right with x.
 apply exp_right with x.
@@ -1963,7 +1956,7 @@ Qed.
 Ltac extract_exists_in_SEP' PQR :=
  match PQR with
  | PROPx ?P (LOCALx ?Q (SEPx (?R))) =>
-   match R with context [`(@exp _ _ ?A ?S) :: ?R'] =>
+   match R with context [(@exp _ _ ?A ?S) :: ?R'] =>
       let n := constr:(length R - Datatypes.S (length R'))%nat in
       let n' := eval lazy beta zeta iota delta in n in
       rewrite (@extract_nth_exists_in_SEP n' P Q R A S (eq_refl _));
@@ -1984,10 +1977,10 @@ end.
 Ltac move_from_SEP' PQR :=
  match PQR with
  | PROPx ?P (LOCALx ?Q (SEPx (?R))) =>
-   match R with context [`(prop ?P1 && ?S) :: ?R'] =>
+   match R with context [(prop ?P1 && ?S) :: ?R'] =>
       let n := constr:(length R - Datatypes.S (length R'))%nat in
       let n' := eval lazy beta zeta iota delta in n in
-      rewrite(@extract_prop_in_SEP' n' P1 S P Q R (eq_refl _));
+      rewrite(@extract_prop_in_SEP n' P1 S P Q R (eq_refl _));
       unfold replace_nth at 1
    end
  end.

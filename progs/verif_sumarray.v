@@ -19,10 +19,10 @@ Definition sumarray_spec :=
   PRE [ _a OF (tptr tint), _n OF tint ]
           PROP  (readable_share sh; 0 <= size <= Int.max_signed)
           LOCAL (temp _a a0; temp _n (Vint (Int.repr size)))
-          SEP   (`(data_at sh (tarray tint size) (map Vint contents) a0))
+          SEP   (data_at sh (tarray tint size) (map Vint contents) a0)
   POST [ tint ]
         PROP () LOCAL(temp ret_temp  (Vint (sum_int contents)))
-           SEP (`(data_at sh (tarray tint size) (map Vint contents) a0)).
+           SEP (data_at sh (tarray tint size) (map Vint contents) a0).
 
 Definition main_spec :=
  DECLARE _main
@@ -42,7 +42,7 @@ Definition sumarray_Inv a0 sh contents size :=
           temp _i (Vint (Int.repr i));
           temp _n (Vint (Int.repr size));
           temp _s (Vint (sum_int (sublist 0 i contents))))
-   SEP   (`(data_at sh (tarray tint size) (map Vint contents) a0)).
+   SEP   (data_at sh (tarray tint size) (map Vint contents) a0).
 
 Lemma Znth_overflow: (*  move to floyd/sublist.v *)
   forall {A} i (al: list A) d, i >= Zlength al -> Znth i al d = d.

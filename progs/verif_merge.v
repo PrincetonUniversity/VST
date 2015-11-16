@@ -39,13 +39,13 @@ Definition merge_spec :=
   PRE  [ _a OF tlist,  _b OF tlist ]
      PROP (writable_share sh)
      LOCAL (temp _a a_; temp _b b_)
-     SEP (`(lseg LS sh (map Vint a) a_ nullval);
-          `(lseg LS sh (map Vint b) b_ nullval))
+     SEP (lseg LS sh (map Vint a) a_ nullval;
+            lseg LS sh (map Vint b) b_ nullval)
   POST [ tlist ]
     EX pt:val,
      PROP ()
      LOCAL (temp ret_temp pt) 
-     SEP (`(lseg LS sh (map Vint (merge a b)) pt nullval)).
+     SEP (lseg LS sh (map Vint (merge a b)) pt nullval).
 
 Definition Vprog : varspecs := nil.
 
@@ -110,11 +110,11 @@ Definition merge_invariant _cond sh init_a init_b ret_ :=
          lvar _ret tlist ret_;
          temp _cond (Vint cond)
         )
-  SEP (`(lseg LS sh (map Vint a) a_ nullval);
-       `(lseg LS sh (map Vint b) b_ nullval);
-       `(data_at Tsh tlist (if merged then Vundef else begin) ret_);
-       `(lseg LS sh (map Vint (butlast merged)) begin c_);
-       `(if merged then emp else data_at sh t_struct_list (Vint (last merged), Vundef) c_)
+  SEP (lseg LS sh (map Vint a) a_ nullval;
+         lseg LS sh (map Vint b) b_ nullval;
+         data_at Tsh tlist (if merged then Vundef else begin) ret_;
+         lseg LS sh (map Vint (butlast merged)) begin c_;
+         if merged then emp else data_at sh t_struct_list (Vint (last merged), Vundef) c_
 ))))))))).
 
 Lemma merge_nil_r a : merge a nil = a.
@@ -276,11 +276,11 @@ forward_if (
          temp _x (if merged then ret_ else field_address (Tstruct _list noattr) [StructField _tail] c_);
          lvar _ret tlist ret_
         )
-  SEP (`(lseg LS sh (map Vint a) a_ nullval);
-       `(lseg LS sh (map Vint b) b_ nullval);
-       `(data_at Tsh tlist (if merged then Vundef else begin) ret_);
-       `(lseg LS sh (map Vint (butlast merged)) begin c_);
-       `(if merged then emp else data_at sh t_struct_list (Vint (last merged), Vundef) c_)
+  SEP (lseg LS sh (map Vint a) a_ nullval;
+         lseg LS sh (map Vint b) b_ nullval;
+         data_at Tsh tlist (if merged then Vundef else begin) ret_;
+         lseg LS sh (map Vint (butlast merged)) begin c_;
+         if merged then emp else data_at sh t_struct_list (Vint (last merged), Vundef) c_
 ))))))))).
 (* after the [forward_if], 3 new goals *)
 (* the effect of [*x=a] on the invariant depends on whether merged is nil or not *)
@@ -512,10 +512,10 @@ forward_if (
          temp _x (if merged then ret_ else field_address (Tstruct _list noattr) [StructField _tail] c_);
          lvar _ret tlist ret_
         )
-  SEP (`(lseg LS sh (map Vint (merge a b)) ab_ nullval);
-       `(data_at Tsh tlist (if merged then ab_ else begin) ret_);
-       `(lseg LS sh (map Vint (butlast merged)) begin c_);
-       `(if merged then emp else data_at sh t_struct_list (Vint (last merged), ab_) c_)
+  SEP (lseg LS sh (map Vint (merge a b)) ab_ nullval;
+         data_at Tsh tlist (if merged then ab_ else begin) ret_;
+         lseg LS sh (map Vint (butlast merged)) begin c_;
+         if merged then emp else data_at sh t_struct_list (Vint (last merged), ab_) c_
 )))))))).
 
 (* when a <> [] *)

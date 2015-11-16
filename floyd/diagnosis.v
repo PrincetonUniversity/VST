@@ -61,7 +61,7 @@ Ltac ccf_LOCAL id0 fsig Q :=
 Ltac ccf_SEP id0 R :=
  match R with
  | nil => idtac
- | liftx _ :: ?R' => ccf_SEP id0 R'
+ | _ :: ?R' => ccf_SEP id0 R'
  | ?R1 :: _ => stuckwith (Error__Funspec id0 not_in_canonical_form
                      (because_of_SEP R1))
  end.

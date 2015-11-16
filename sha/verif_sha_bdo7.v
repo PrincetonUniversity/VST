@@ -402,8 +402,8 @@ semax (initialized _i Delta_loop1)
                  temp _h  (Vint (nthi (Round regs (nthi b) (i - 1)) 7));
                  lvar _X (tarray tuint LBLOCKz) Xv;
                  gvar  _K256 kv)
-   SEP  (`(K_vector kv);
-   `(data_at Tsh (tarray tuint LBLOCKz) (map Vint (Xarray b (Z.to_nat i))) Xv)))
+   SEP  (K_vector kv;
+     data_at Tsh (tarray tuint LBLOCKz) (map Vint (Xarray b (Z.to_nat i))) Xv))
   bdo_loop2_body
   (normal_ret_assert
       (PROP  (Int.min_signed <= i + 1 <= 64; 16 <= i + 1)
@@ -419,9 +419,9 @@ semax (initialized _i Delta_loop1)
        temp _g (Vint (nthi (Round regs (nthi b) (i + 1 - 1)) 6));
        temp _h (Vint (nthi (Round regs (nthi b) (i + 1 - 1)) 7));
        lvar _X (tarray tuint LBLOCKz) Xv; gvar _K256 kv)
-       SEP  (`(K_vector kv);
-       `(data_at Tsh (tarray tuint LBLOCKz)
-           (map Vint (Xarray b (Z.to_nat (i + 1)))) Xv)))).
+       SEP  (K_vector kv;
+           data_at Tsh (tarray tuint LBLOCKz)
+               (map Vint (Xarray b (Z.to_nat (i + 1)))) Xv))).
 Proof.
 intros.
 unfold bdo_loop2_body; abbreviate_semax.
@@ -538,8 +538,8 @@ Lemma sha256_block_data_order_loop2_proof:
                temp _g (Vint (nthi (Round regs (nthi b) (LBLOCKz-1)) 6));
                temp _h (Vint (nthi (Round regs (nthi b) (LBLOCKz-1)) 7));
                gvar  _K256 kv; lvar _X (tarray tuint LBLOCKz) Xv)
-   SEP ( `(K_vector kv);
-           `(data_at Tsh (tarray tuint LBLOCKz) (map Vint b) Xv)))
+   SEP ( K_vector kv;
+           data_at Tsh (tarray tuint LBLOCKz) (map Vint b) Xv))
   block_data_order_loop2
   (normal_ret_assert
     (PROP () 
@@ -553,8 +553,8 @@ Lemma sha256_block_data_order_loop2_proof:
                 temp _g (Vint (nthi (Round regs (nthi b) 63) 6));
                 temp _h (Vint (nthi (Round regs (nthi b) 63) 7));
                 gvar  _K256 kv; lvar _X (tarray tuint LBLOCKz) Xv)
-     SEP (`(K_vector kv);
-           `(data_at_ Tsh (tarray tuint LBLOCKz) Xv)))).
+     SEP (K_vector kv;
+            data_at_ Tsh (tarray tuint LBLOCKz) Xv))).
 Proof.
 intros.
 unfold block_data_order_loop2; simpl nth.
@@ -595,8 +595,8 @@ forward_for_simple_bound 64%Z
                   temp _h (Vint (nthi (Round regs (nthi b) (i - 1)) 7));
                   lvar _X (tarray tuint LBLOCKz) Xv;
                   gvar  _K256 kv)
-     SEP (`(K_vector kv);
-   `(data_at Tsh (tarray tuint LBLOCKz) (map Vint (Xarray b (Z.to_nat i))) Xv))).
+     SEP (K_vector kv;
+       data_at Tsh (tarray tuint LBLOCKz) (map Vint (Xarray b (Z.to_nat i))) Xv)).
 *
 forward. (* skip; *)
 apply exp_right with 16%Z.

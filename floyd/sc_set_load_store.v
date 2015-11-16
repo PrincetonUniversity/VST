@@ -68,7 +68,7 @@ Transparent andp.
     - destruct (typeof i) eqn:?; try solve [inversion H].
       destruct (msubst_eval_expr T1 T2 i) eqn:?H; [| inversion H].
       destruct v; try solve [inversion H].
-      apply msubst_eval_expr_eq with (P0 := P) (Q := nil) (R0 := map liftx R) in H0.
+      apply msubst_eval_expr_eq with (P0 := P) (Q := nil) (R0 := R) in H0.
       destruct (msubst_efield_denote T1 T2 efs) eqn:?H; [| inversion H].
       inversion H.
       rewrite (add_andp _ _ (IHefs l eq_refl)).
@@ -186,7 +186,7 @@ Lemma semax_SC_set:
             (EX old : val,
               PROPx P
                 (LOCALx (temp id v :: map (subst id `old) Q)
-                  (SEPx (map (subst id `old) R))))).
+                  (SEPx R)))).
 Proof.
   intros.
   assert (PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |--
@@ -246,7 +246,7 @@ Lemma semax_SC_set1:
       is_neutral_cast (implicit_deref (typeof e2)) t = true ->
       isolate_temp_binding id Q old Q' P' ->
       P'' = P' ++ P ->
-      Forall trivially_lifted R ->
+(*      Forall trivially_lifted R ->*)
       PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |-- local (`(eq v) (eval_expr e2)) ->
       PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |-- (tc_expr Delta e2) ->
       semax Delta (|>PROPx P (LOCALx Q (SEPx R)))
@@ -254,17 +254,17 @@ Lemma semax_SC_set1:
         (normal_ret_assert
             (PROPx P'' (LOCALx (temp id v :: Q') (SEPx R)))).
 Proof.
-intros.
+intros until 4. pose proof I. intros.
 eapply semax_post'; [ | eapply semax_SC_set; try eassumption].
 apply exp_left; intro old'.
 subst P''.
 clear - H1 H3.
 go_lowerx.
 change (fold_right `and `True (map (subst id `old') Q) rho) in H2.
-change (fold_right sepcon emp (map (subst id `old') R) rho |--
+change (fold_right sepcon emp R |--
    !! fold_right and True (P'++P) &&
    (!! (temp id v rho /\ fold_right `and `True Q' rho) &&
-      fold_right sepcon emp R rho)).
+      fold_right sepcon emp R)).
 normalize.
 apply andp_right;
  [ |clear - H3; induction H3; auto; inversion H; apply sepcon_derives; simpl; auto].
@@ -304,7 +304,7 @@ Lemma semax_SC_field_load:
             (EX old : val,
               PROPx P
                 (LOCALx (temp id v :: map (subst id `old) Q)
-                  (SEPx (map (subst id `old) R))))).
+                  (SEPx R)))).
 Proof.
   intros.
   eapply semax_extract_later_prop'; [exact H10 | clear H10; intro H10].
@@ -325,7 +325,7 @@ Lemma semax_SC_field_load1:
       is_neutral_cast (typeof (nested_efield e1 efs tts)) t = true ->
       isolate_temp_binding id Q old Q' P' ->
       P'' = P' ++ P ->
-      Forall trivially_lifted R ->
+(*      Forall trivially_lifted R ->*)
       gfs = gfs1 ++ gfs0 ->
       legal_nested_efield t_root e1 gfs tts lr = true ->
       nth_error R n = Some Rn ->
@@ -349,7 +349,7 @@ Lemma semax_SC_field_load1:
                 (LOCALx (temp id v :: Q')
                   (SEPx R)))).
 Proof.
-  intros.
+  intros until 4; pose proof I; intros.
   eapply semax_extract_later_prop'; [exact H13 | clear H13; intro H13].
   eapply semax_post_flipped'.
   eapply semax_nested_efield_field_load_37' with (gfs4 := gfs); eauto.
@@ -365,7 +365,6 @@ Proof.
   subst P''.
   rewrite fold_right_and_app_low.
   split; auto.
-  clear - H3; induction H3; auto; inversion H; apply sepcon_derives; simpl; auto.  
 Qed.
 
 Lemma semax_SC_field_cast_load:
@@ -397,7 +396,7 @@ Lemma semax_SC_field_cast_load:
             (EX old:val,
               PROPx P
                 (LOCALx (temp id (eval_cast (typeof (nested_efield e1 efs tts)) t v) :: map (subst id (`old)) Q)
-                  (SEPx (map (subst id (`old)) R))))).
+                  (SEPx R)))).
 Proof.
   intros.
   eapply semax_extract_later_prop'; [exact H10 | clear H10; intro H10].
@@ -418,7 +417,7 @@ Lemma semax_SC_field_cast_load1:
       type_is_by_value (typeof (nested_efield e1 efs tts)) = true ->
       isolate_temp_binding id Q old Q' P' ->
       P'' = P' ++ P ->
-      Forall trivially_lifted R ->
+(*      Forall trivially_lifted R ->*)
       gfs = gfs1 ++ gfs0 ->
       legal_nested_efield t_root e1 gfs tts lr = true ->
       nth_error R n = Some Rn ->
@@ -442,7 +441,7 @@ Lemma semax_SC_field_cast_load1:
                 (LOCALx (temp id (eval_cast (typeof (nested_efield e1 efs tts)) t v) :: Q')
                   (SEPx R)))).
 Proof.
-  intros.
+  intros until 4; pose proof I; intros.
   eapply semax_extract_later_prop'; [exact H13 | clear H13; intro H13].
   eapply semax_post_flipped'.
   eapply semax_nested_efield_field_cast_load_37' with (gfs4 := gfs); eauto.
@@ -458,7 +457,6 @@ Proof.
   subst P''.
   rewrite fold_right_and_app_low.
   split; auto.
-  clear - H3; induction H3; auto; inversion H; apply sepcon_derives; simpl; auto.  
 Qed.
 
 Lemma semax_SC_field_store:
@@ -492,7 +490,7 @@ Lemma semax_SC_field_store:
               (LOCALx Q
                 (SEPx
                   (replace_nth n R
-                    (`(field_at sh t_root gfs0 v_new p))))))).
+                    (field_at sh t_root gfs0 v_new p)))))).
 Proof.
   intros.
   erewrite field_at_data_equal by (symmetry; apply H9).
@@ -513,7 +511,9 @@ Proof.
     rewrite insert_local.
     apply derives_refl.
   }
-  eapply semax_post'; [ | eapply semax_nested_efield_field_store_nth with (v1 := `v); eauto].
+Admitted. (* Qinxiang *)
+(*
+  eapply semax_post'; [ | eapply semax_nested_efield_field_store_nth with (v1 := v); eauto].
   + eapply derives_trans; [apply replace_nth_SEP' |].
     Focus 2. {
       rewrite <- !insert_local.
@@ -537,6 +537,7 @@ Proof.
       eapply derives_trans; [| exact H9].
       entailer!.
 Qed.
+*)
 
 (************************************************
 
@@ -607,7 +608,7 @@ Proof.
   eapply semax_post'.
   Focus 2. {
     eapply semax_SC_field_load with (n0 := n); eauto.
-    + apply map_nth_error, H3.
+(*    + apply map_nth_error, H3.*)
     + rewrite <- insert_local.
       apply andp_left2.
       destruct lr;
@@ -656,7 +657,7 @@ Proof.
   eapply semax_post'.
   Focus 2. {
     eapply semax_SC_field_cast_load with (n0 := n); eauto.
-    + apply map_nth_error, H3.
+(*    + apply map_nth_error, H3.*)
     + rewrite <- insert_local.
       apply andp_left2.
       destruct lr;
@@ -707,7 +708,7 @@ Proof.
   eapply semax_post'.
   Focus 2. {
     eapply semax_SC_field_store with (n0 := n); eauto.
-    + apply map_nth_error, H3.
+(*    + apply map_nth_error, H3.*)
     + rewrite <- insert_local.
       apply andp_left2.
       destruct lr;
@@ -721,7 +722,7 @@ Proof.
     + rewrite <- insert_local. apply andp_left2.
       apply msubst_efield_denote_equiv, H6.
   } Unfocus.
-  rewrite map_replace_nth.
+(*  rewrite map_replace_nth.*)
   auto.
 Qed.
 

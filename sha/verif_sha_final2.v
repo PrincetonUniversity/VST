@@ -54,16 +54,16 @@ Definition invariant_after_if1 hashed (dd: list Z) c md shmd kv:=
     temp _p (field_address t_struct_SHA256state_st [StructField _data] c);
     temp _md md; temp _c c;
     gvar _K256 kv)
-   SEP  (`(data_at Tsh t_struct_SHA256state_st 
+   SEP  (data_at Tsh t_struct_SHA256state_st 
            (map Vint (hash_blocks init_registers hashed'),
             (Vint (lo_part (bitlength hashed dd)),
              (Vint (hi_part (bitlength hashed dd)),
               (map Vint (map Int.repr dd') 
                  ++ list_repeat (Z.to_nat (CBLOCKz - Zlength dd')) Vundef,
                Vundef))))
-           c);
-         `(K_vector kv);
-         `(memory_block shmd 32 md))))).
+           c;
+           K_vector kv;
+           memory_block shmd 32 md)))).
 
 (*
 Lemma data_at_cancel:
@@ -103,16 +103,16 @@ Lemma ifbody_final_if1:
     temp _md md; temp _c c;
     gvar _K256 kv)
    SEP 
-   (`(data_at Tsh t_struct_SHA256state_st
+   (data_at Tsh t_struct_SHA256state_st
        (map Vint (hash_blocks init_registers hashed),
         (Vint (lo_part (bitlength hashed dd)), 
          (Vint (hi_part (bitlength hashed dd)),
           (map Vint (map Int.repr dd) ++ [Vint (Int.repr 128)] ++
             list_repeat (Z.to_nat (64 - (Zlength dd + 1))) Vundef,
            Vint (Int.repr (Zlength dd))))))
-      c);
-    `(K_vector kv);
-    `(memory_block shmd 32 md)))
+      c;
+      K_vector kv;
+      memory_block shmd 32 md))
   Body_final_if1
   (normal_ret_assert (invariant_after_if1 hashed dd c md shmd kv)).
 Proof.
@@ -131,7 +131,7 @@ set (fill_len := (64 - (ddlen + 1))).
 change CBLOCKz with 64 in Hddlen.
 unfold_data_at 1%nat. 
 eapply semax_seq'.
-evar (Frame: list (LiftEnviron mpred)).
+evar (Frame: list mpred).
 evar (V: list val).
   eapply (call_memset_tuchar Tsh
    (*dst*) t_struct_SHA256state_st [StructField _data] (ddlen+1)
@@ -294,18 +294,18 @@ semax
   (PROP  ()
    LOCAL  (temp _md md; temp _c c)
    SEP 
-   (`(data_at Tsh t_struct_SHA256state_st
+   (data_at Tsh t_struct_SHA256state_st
        (map Vint hashedmsg,  (Vundef, (Vundef, (list_repeat (Z.to_nat CBLOCKz) (Vint Int.zero), Vint Int.zero))))
-      c);
-    `(K_vector kv);
-    `(memory_block shmd 32 md)))
+      c;
+    K_vector kv;
+    memory_block shmd 32 md))
   (Ssequence final_loop (Sreturn None))
   (function_body_ret_assert tvoid
      (PROP  ()
       LOCAL ()
-      SEP  (`(K_vector kv);
-      `(data_at_ Tsh t_struct_SHA256state_st c);
-      `(data_block shmd (intlist_to_Zlist hashedmsg) md)))).
+      SEP  (K_vector kv;
+       data_at_ Tsh t_struct_SHA256state_st c;
+       data_block shmd (intlist_to_Zlist hashedmsg) md))).
 Proof.
 intros.
 unfold final_loop.
@@ -318,14 +318,14 @@ forward_for_simple_bound 8
    LOCAL  (temp _md (offset_val (Int.repr (i * 4)) md);
                 temp _c c)
    SEP 
-   (`(data_at Tsh t_struct_SHA256state_st
+   (data_at Tsh t_struct_SHA256state_st
        (map Vint hashedmsg, (Vundef, (Vundef, (list_repeat (Z.to_nat 64) (Vint Int.zero), Vint Int.zero))))
-      c);
-    `(K_vector kv);
-    `(data_at shmd (tarray tuchar 32) 
+      c;
+    K_vector kv;
+    data_at shmd (tarray tuchar 32) 
          (map Vint (map Int.repr (intlist_to_Zlist (sublist 0 i hashedmsg)))
            ++ list_repeat (Z.to_nat (32 - WORD*i)) Vundef) md)
-     ))).
+     )).
 *
  entailer!.
  change 32%Z with (sizeof cenv_cs (tarray tuchar 32)) at 1.

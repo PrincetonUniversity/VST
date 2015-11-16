@@ -19,13 +19,12 @@ Definition op_Z_uint (op: Z->Z->Prop) (x: Z) (y: val) :=
 
 Lemma semax_for_simple : 
  forall Inv Espec {cs: compspecs} Delta Pre
-           (P:  Z -> list Prop) (Q: Z -> list (environ -> Prop)) (R: Z -> list (environ -> mpred))
+           (P:  Z -> list Prop) (Q: Z -> list (environ -> Prop)) (R: Z -> list mpred)
            _i init hi body Post
      (INV: Inv = EX i:Z, PROPx (P i)  (LOCALx (Q i) (SEPx (R i))))
      (TI: (temp_types (update_tycon Delta init)) ! _i = Some (tint, true))
      (Thi: typeof hi = tint)
-     (CLOQ: forall i, Forall (closed_wrt_vars (eq _i)) (Q i))
-     (CLOR: forall i, Forall (closed_wrt_vars (eq _i)) (R i)),
+     (CLOQ: forall i, Forall (closed_wrt_vars (eq _i)) (Q i)),
      @semax cs Espec Delta Pre init
       (normal_ret_assert 
         (EX i:Z, PROPx ((Int.min_signed <= i <= Int.max_signed) :: P i)
@@ -199,20 +198,19 @@ normalize.
 rewrite <- H. simpl. rewrite add_repr; auto.
 hnf; normalize.
 apply andp_left2. apply andp_left2.
-specialize (CLOQ (i+1)). specialize (CLOR (i+1)).
-clear - CLOQ CLOR.
+specialize (CLOQ (i+1)).
+clear - CLOQ.
 rewrite closed_env_set; auto 50 with closed.
 Qed.
 
 Lemma semax_for_simple_u : 
  forall Inv Espec {cs: compspecs} Delta Pre
-           (P:  Z -> list Prop) (Q: Z -> list (environ -> Prop)) (R: Z -> list (environ -> mpred))
+           (P:  Z -> list Prop) (Q: Z -> list (environ -> Prop)) (R: Z -> list mpred)
            _i init hi body Post s1 s2 s3
      (INV: Inv = EX i:Z, PROPx (P i)  (LOCALx (Q i) (SEPx (R i))))
      (TI: (temp_types (update_tycon Delta init)) ! _i = Some (tuint, true))
      (Thi: typeof hi = Tint I32 s1 noattr)
-     (CLOQ: forall i, Forall (closed_wrt_vars (eq _i)) (Q i))
-     (CLOR: forall i, Forall (closed_wrt_vars (eq _i)) (R i)),
+     (CLOQ: forall i, Forall (closed_wrt_vars (eq _i)) (Q i)),
      @semax cs Espec Delta Pre init
       (normal_ret_assert 
         (EX i:Z, PROPx ((0 <=i <= Int.max_unsigned) :: P i)
@@ -385,8 +383,8 @@ normalize.  autorewrite with norm1 norm2; normalize.
 rewrite <- H. simpl. rewrite add_repr; auto.
 hnf; normalize.
 apply andp_left2. apply andp_left2.
-specialize (CLOQ (i+1)). specialize (CLOR (i+1)).
-clear - CLOQ CLOR.
+specialize (CLOQ (i+1)).
+clear - CLOQ.
 rewrite closed_env_set; auto 50 with closed.
 Qed.
 
@@ -414,15 +412,14 @@ Hint Rewrite op_Z_uint_Vint_repr using repable_signed : norm.
 
 Lemma semax_for_simple_bound : 
  forall n Inv Espec {cs: compspecs} Delta Pre
-           (P:  Z -> list Prop) (Q: Z -> list (environ -> Prop)) (R: Z -> list (environ -> mpred))
+           (P:  Z -> list Prop) (Q: Z -> list (environ -> Prop)) (R: Z -> list mpred)
            _i init hi body Post 
      (INV: Inv = EX i:Z, PROPx (P i)  (LOCALx (Q i) (SEPx (R i))))
      (RANGE: Int.min_signed <= n <= Int.max_signed)
      (TI: (temp_types (update_tycon Delta init)) ! _i = Some (tint, true))
      (Thi: typeof hi = tint)
      (CLOhi: closed_wrt_vars (eq _i) (eval_expr hi))
-     (CLOQ: forall i, Forall (closed_wrt_vars (eq _i)) (Q i))
-     (CLOR: forall i, Forall (closed_wrt_vars (eq _i)) (R i)),
+     (CLOQ: forall i, Forall (closed_wrt_vars (eq _i)) (Q i)),
      @semax cs Espec Delta Pre init
       (normal_ret_assert 
         (EX i:Z, PROPx ((Int.min_signed <= i <= n) :: P i)
@@ -499,15 +496,14 @@ Qed.
 
 Lemma semax_for_simple_bound_u : 
  forall n Inv Espec {cs: compspecs} Delta Pre
-           (P:  Z -> list Prop) (Q: Z -> list (environ -> Prop)) (R: Z -> list (environ -> mpred))
+           (P:  Z -> list Prop) (Q: Z -> list (environ -> Prop)) (R: Z -> list mpred)
            _i init hi body Post s1 s2 s3
      (INV: Inv = EX i:Z, PROPx (P i)  (LOCALx (Q i) (SEPx (R i))))
      (RANGE: 0 <= n <= Int.max_unsigned)
      (TI: (temp_types (update_tycon Delta init)) ! _i = Some (tuint, true))
      (Thi: typeof hi = Tint I32 s1 noattr)
      (CLOhi: closed_wrt_vars (eq _i) (eval_expr hi))
-     (CLOQ: forall i, Forall (closed_wrt_vars (eq _i)) (Q i))
-     (CLOR: forall i, Forall (closed_wrt_vars (eq _i)) (R i)),
+     (CLOQ: forall i, Forall (closed_wrt_vars (eq _i)) (Q i)),
      @semax cs Espec Delta Pre init
       (normal_ret_assert 
         (EX i:Z, PROPx ((0 <= i <= n) :: P i)
@@ -583,7 +579,7 @@ Qed.
 
 Lemma semax_for_simple_bound_const_init : 
  forall n Inv Espec {cs: compspecs} Delta (Pre: environ -> mpred)
-           (P:  Z -> list Prop) (Q: Z -> list (environ -> Prop)) (R: Z -> list (environ -> mpred))
+           (P:  Z -> list Prop) (Q: Z -> list (environ -> Prop)) (R: Z -> list mpred)
            _i lo hi body Post
      (INV: Inv = EX i:Z, PROPx (P i)  (LOCALx (Q i) (SEPx (R i))))
      (RANGElo: Int.min_signed <= lo <= n)
@@ -591,8 +587,7 @@ Lemma semax_for_simple_bound_const_init :
      (TI: typeof_temp Delta _i = Some tint)
      (Thi: typeof hi = tint)
      (CLOhi: closed_wrt_vars (eq _i) (eval_expr hi))
-     (CLOQ: forall i, Forall (closed_wrt_vars (eq _i)) (Q i))
-     (CLOR: forall i, Forall (closed_wrt_vars (eq _i)) (R i)),
+     (CLOQ: forall i, Forall (closed_wrt_vars (eq _i)) (Q i)),
      local (tc_environ Delta) && Pre |-- 
         (PROPx (P lo)
          (LOCALx (`(eq (Vint (Int.repr n))) (eval_expr hi) :: Q lo)
@@ -696,7 +691,7 @@ Qed.
 
 Lemma semax_for_simple_bound_const_init_u : 
  forall n Inv Espec {cs: compspecs} Delta (Pre: environ -> mpred)
-           (P:  Z -> list Prop) (Q: Z -> list (environ -> Prop)) (R: Z -> list (environ -> mpred))
+           (P:  Z -> list Prop) (Q: Z -> list (environ -> Prop)) (R: Z -> list mpred)
            _i lo hi body Post s0 s1 s2 s3
      (INV: Inv = EX i:Z, PROPx (P i)  (LOCALx (Q i) (SEPx (R i))))
      (RANGElo: 0 <= lo <= n)
@@ -704,8 +699,7 @@ Lemma semax_for_simple_bound_const_init_u :
      (TI: typeof_temp Delta _i = Some tuint)
      (Thi: typeof hi = Tint I32 s1 noattr)
      (CLOhi: closed_wrt_vars (eq _i) (eval_expr hi))
-     (CLOQ: forall i, Forall (closed_wrt_vars (eq _i)) (Q i))
-     (CLOR: forall i, Forall (closed_wrt_vars (eq _i)) (R i)),
+     (CLOQ: forall i, Forall (closed_wrt_vars (eq _i)) (Q i)),
      local (tc_environ Delta) && Pre |-- 
         (PROPx (P lo)
          (LOCALx (`(eq (Vint (Int.repr n))) (eval_expr hi) :: Q lo)
@@ -809,15 +803,14 @@ Qed.
 
 Lemma semax_for_const_bound_const_init : 
  forall n Inv Espec {cs: compspecs} Delta (Pre: environ -> mpred)
-           (P:  Z -> list Prop) (Q: Z -> list (environ -> Prop)) (R: Z -> list (environ -> mpred))
+           (P:  Z -> list Prop) (Q: Z -> list (environ -> Prop)) (R: Z -> list mpred)
            _i lo hi body Post
      (INV: Inv = EX i:Z, PROPx (P i)  (LOCALx (Q i) (SEPx (R i))))
      (RANGElo: Int.min_signed <= lo <= n)
      (RANGE: n <= Int.max_signed)
      (TI: typeof_temp Delta _i = Some tint)
      (Thi: hi=n)
-     (CLOQ: forall i, Forall (closed_wrt_vars (eq _i)) (Q i))
-     (CLOR: forall i, Forall (closed_wrt_vars (eq _i)) (R i)),
+     (CLOQ: forall i, Forall (closed_wrt_vars (eq _i)) (Q i)),
      local (tc_environ Delta) && Pre |-- 
         (PROPx (P lo) (LOCALx (Q lo) (SEPx (R lo)))) ->
      (forall i, PROPx ((lo <= i <= n) :: P i) 
@@ -870,15 +863,14 @@ Qed.
 
 Lemma semax_for_const_bound_const_init_u : 
  forall n Inv Espec {cs: compspecs} Delta (Pre: environ -> mpred)
-           (P:  Z -> list Prop) (Q: Z -> list (environ -> Prop)) (R: Z -> list (environ -> mpred))
+           (P:  Z -> list Prop) (Q: Z -> list (environ -> Prop)) (R: Z -> list mpred)
            _i lo hi body Post s1 s2
      (INV: Inv = EX i:Z, PROPx (P i)  (LOCALx (Q i) (SEPx (R i))))
      (RANGElo: 0 <= lo <= n)
      (RANGE: n <= Int.max_unsigned)
      (TI: typeof_temp Delta _i = Some tuint)
      (Thi: hi=n)
-     (CLOQ: forall i, Forall (closed_wrt_vars (eq _i)) (Q i))
-     (CLOR: forall i, Forall (closed_wrt_vars (eq _i)) (R i)),
+     (CLOQ: forall i, Forall (closed_wrt_vars (eq _i)) (Q i)),
      local (tc_environ Delta) && Pre |-- 
         (PROPx (P lo) (LOCALx (Q lo) (SEPx (R lo)))) ->
      (forall i, PROPx ((lo <= i <= n) :: P i) 
@@ -959,7 +951,6 @@ Ltac forward_for_simple_bound' n Pre :=
   [reflexivity | try repable_signed | try repable_signed | reflexivity | try reflexivity; omega
 (*  | auto 50 with closed*)
   | intro; cbv beta; simpl; auto 50 with closed
-  | intro; cbv beta; simpl; auto 50 with closed
   | cbv beta; simpl update_tycon; rewrite insert_local
   | intro; cbv beta; simpl update_tycon; try solve [entailer!]
   | try apply semax_for_resolve_postcondition
@@ -970,7 +961,6 @@ Ltac forward_for_simple_bound' n Pre :=
   [reflexivity | try repable_signed | try repable_signed | reflexivity | reflexivity
   | auto 50 with closed
   | intro; cbv beta; simpl; auto 50 with closed
-  | intro; cbv beta; simpl; auto 50 with closed
   | cbv beta; simpl update_tycon; rewrite insert_local
   | intro; cbv beta; simpl update_tycon; try solve [entailer!]
   | try apply semax_for_resolve_postcondition
@@ -980,7 +970,6 @@ Ltac forward_for_simple_bound' n Pre :=
          |eapply (semax_for_simple_bound_u n Pre)];
   [reflexivity | try repable_signed | reflexivity | reflexivity
   | auto 50 with closed
-  | intro; cbv beta; simpl; auto 50 with closed
   | intro; cbv beta; simpl; auto 50 with closed
   | cbv beta; simpl update_tycon
   | intro; cbv beta; simpl update_tycon; try solve [entailer!]

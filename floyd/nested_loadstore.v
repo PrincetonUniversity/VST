@@ -1710,8 +1710,8 @@ Proof.
 Qed.
 
 Lemma insert_corable_sep: forall R1 P Q R,
-  (forall rho, corable (R1 rho)) ->
-  R1 && PROPx P (LOCALx Q (SEPx R)) = PROPx P (LOCALx Q (SEPx (R1 && emp :: R))).
+  corable R1 ->
+  `R1 && PROPx P (LOCALx Q (SEPx R)) = PROPx P (LOCALx Q (SEPx (R1 && emp :: R))).
 Proof.
   intros.
   rewrite andp_comm.
@@ -1885,7 +1885,7 @@ Lemma semax_nested_efield_field_load_37':
             (EX old : val,
               PROPx P
                 (LOCALx (`(eq v) (eval_id id) :: map (subst id `old) Q)
-                  (SEPx (map (subst id `old) R))))).
+                  (SEPx R)))).
 Proof.
 Admitted.
 (*
@@ -1968,7 +1968,7 @@ Lemma semax_nested_efield_field_cast_load_37':
             (EX old:val,
               PROPx P
                 (LOCALx (`(eq (eval_cast (typeof (nested_efield e1 efs tts)) t v)) (eval_id id) :: map (subst id (`old)) Q)
-                  (SEPx (map (subst id (`old)) R))))).
+                  (SEPx R)))).
 Admitted.
 (*
 Proof.
@@ -2026,6 +2026,7 @@ Proof.
         exact H7.
 Qed.
 *)
+(*
 Lemma semax_nested_efield_field_store_nth:
   forall {Espec: OracleKind},
     forall Delta sh n P Q R Rn (e1 e2 : expr)
@@ -2052,12 +2053,13 @@ Lemma semax_nested_efield_field_store_nth:
               (LOCALx Q
                 (SEPx
                   (replace_nth n R
-                    (`(field_at sh t_root gfs0)
-                      (`(upd_reptype (nested_field_type t_root gfs0) gfs1) v
-                        (`(valinject (nested_field_type (nested_field_type t_root gfs0) gfs1)) (eval_expr (Ecast e2 t))))
-                          (eval_LR e1 lr)
+                    (field_at sh t_root gfs0
+                       (upd_reptype (nested_field_type t_root gfs0) gfs1) v
+                         (valinject (nested_field_type (nested_field_type t_root gfs0) gfs1) (eval_expr (Ecast e2 t)))
+                        (eval_LR e1 lr)
                             )))))).
 Admitted.
+*)
 (*
 Proof.
   intros.

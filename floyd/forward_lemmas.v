@@ -181,7 +181,7 @@ Definition logical_and tid e1 e2 :=
 Lemma semax_pre_flipped : 
  forall (P' : environ -> mpred) (Espec : OracleKind) {cs: compspecs}
          (Delta : tycontext) (P1 : list Prop) (P2 : list (environ -> Prop))
-         (P3 : list (environ -> mpred)) (c : statement) 
+         (P3 : list mpred) (c : statement) 
          (R : ret_assert),
        semax Delta P' c R ->
        PROPx P1 (LOCALx (tc_environ Delta :: P2) (SEPx P3)) |-- P' ->
@@ -548,9 +548,8 @@ rewrite insert_local; auto.
 Qed.
 
 Lemma forward_setx_closed_now':
-  forall Espec {cs: compspecs} Delta P (Q: list (environ -> Prop)) (R: list (environ->mpred)) id e,
+  forall Espec {cs: compspecs} Delta P (Q: list (environ -> Prop)) (R: list mpred) id e,
   Forall (closed_wrt_vars (eq id)) Q ->
-  Forall (closed_wrt_vars (eq id)) R ->
   closed_wrt_vars (eq id) (eval_expr e) ->
   PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |-- (tc_expr Delta e)  ->
   PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R))  |-- (tc_temp_id id (typeof e) Delta e) ->
@@ -569,14 +568,13 @@ apply andp_derives; auto.
 intro rho; unfold local,lift1; simpl.
 apply prop_derives; simpl; intro; split; auto.
 unfold_lift; reflexivity.
-unfold_lift; unfold_lift in H4. destruct H4; auto.
+unfold_lift; unfold_lift in H3. destruct H3; auto.
 Qed.
 
 
 Lemma forward_setx_closed_now:
-  forall Espec {cs: compspecs} Delta (Q: list (environ -> Prop)) (R: list (environ->mpred)) id e PQR,
+  forall Espec {cs: compspecs} Delta (Q: list (environ -> Prop)) (R: list mpred) id e PQR,
   Forall (closed_wrt_vars (eq id)) Q ->
-  Forall (closed_wrt_vars (eq id)) R ->
   closed_wrt_vars (eq id) (eval_expr e) ->
   PROPx nil (LOCALx (tc_environ Delta :: Q) (SEPx R)) |-- (tc_expr Delta e)  ->
   PROPx nil (LOCALx (tc_environ Delta :: Q) (SEPx R))  |-- (tc_temp_id id (typeof e) Delta e) ->
@@ -585,7 +583,7 @@ Lemma forward_setx_closed_now:
 Proof.
 intros.
 eapply semax_post.
-intros ek vl. apply andp_left2. apply H4.
+intros ek vl. apply andp_left2. apply H3.
 apply forward_setx_closed_now'; auto.
 Qed.
 
@@ -596,7 +594,6 @@ forall Espec {cs: compspecs} Delta P Q R id e1 e2 cmp ty sh1 sh2 PQR
  sepalg.nonidentity sh1 ->
  sepalg.nonidentity sh2 ->
 Forall (closed_wrt_vars (eq id)) Q ->
-Forall (closed_wrt_vars (eq id)) R ->
 closed_wrt_vars (eq id) (eval_expr ((Ebinop cmp e1 e2 ty))) ->
 ( PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |-- (tc_expr Delta (Ebinop cmp e1 e2 ty))  /\
   PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R))  |-- (tc_temp_id id (ty) Delta (Ebinop cmp e1 e2 ty)))
@@ -619,14 +616,14 @@ intuition.
 eapply semax_post; [ | apply forward_setx_closed_now'; auto with closed].
 intros.  intro rho. normalize.
 autorewrite with subst norm1 norm2; normalize.
- apply H3.
+ apply H2.
 
 eapply semax_post. intros ek vl rho. 
-simpl. apply andp_left2. apply H3.
+simpl. apply andp_left2. apply H2.
 
 eapply semax_pre_post; [ | | eapply (semax_ptr_compare Delta (PROPx P (LOCALx Q (SEPx R))) _ _ _ _ _ sh1 sh2)]; auto.
   +eapply derives_trans; [ | apply now_later].
-  apply andp_right. rewrite insert_local.  apply H5. apply andp_left2; auto.
+  apply andp_right. rewrite insert_local.  apply H4. apply andp_left2; auto.
   
   +intros ex vl.
     unfold normal_ret_assert.
@@ -636,9 +633,8 @@ eapply semax_pre_post; [ | | eapply (semax_ptr_compare Delta (PROPx P (LOCALx Q 
 Qed.  
 
 Lemma forward_setx_closed_now_seq:
-  forall Espec {cs: compspecs} Delta (Q: list (environ -> Prop)) (R: list (environ->mpred)) id e c PQR,
+  forall Espec {cs: compspecs} Delta (Q: list (environ -> Prop)) (R: list mpred) id e c PQR,
   Forall (closed_wrt_vars (eq id)) Q ->
-  Forall (closed_wrt_vars (eq id)) R ->
   closed_wrt_vars (eq id) (eval_expr e) ->
   PROPx nil (LOCALx (tc_environ Delta :: Q) (SEPx R)) |-- (tc_expr Delta e)  ->
   PROPx nil (LOCALx (tc_environ Delta :: Q) (SEPx R))  |-- (tc_temp_id id (typeof e) Delta e) ->
@@ -650,7 +646,7 @@ Proof.
  eapply semax_seq.
  apply sequential'.
  apply forward_setx_closed_now; auto.
- apply H4.
+ apply H3.
 Qed.
 
 (*
@@ -715,7 +711,7 @@ Lemma forward_setx:
                     PROPx P
                      (LOCALx (`eq (eval_id id) (subst id (`old) (eval_expr e)) ::
                                      map (subst id (`old)) Q)
-                      (SEPx (map (subst id (`old)) R))))).
+                      (SEPx R)))).
 Proof.
  intros.
 intros.
@@ -754,7 +750,7 @@ Lemma forward_setx_weak:
                     PROPx P
                      (LOCALx (`eq (eval_id id) (subst id (`old) (eval_expr e)) ::
                                      map (subst id (`old)) Q)
-                      (SEPx (map (subst id (`old)) R))))).
+                      (SEPx R)))).
 Proof.
  intros.
  eapply semax_post; [ | apply forward_setx'; auto].
@@ -817,7 +813,7 @@ forall (Delta: tycontext) P Q R id cmp e1 e2 ty sh1 sh2 PQR,
            (LOCALx (`eq (eval_id id)  (subst id `old 
                      (eval_expr (Ebinop cmp e1 e2 ty))) ::
                        map (subst id `old) Q)
-           (SEPx (map (subst id `old) R))))) |-- PQR ->
+           (SEPx R)))) |-- PQR ->
    @semax cs Espec Delta 
          (PROPx P (LOCALx Q (SEPx R)))
           (Sset id (Ebinop cmp e1 e2 ty)) PQR
@@ -861,7 +857,7 @@ typecheck_tid_ptr_compare Delta id = true ->
            (LOCALx (`eq (eval_id id)  (subst id `old 
                      (eval_expr (Ebinop cmp e1 e2 ty))) ::
                        map (subst id `old) Q)
-           (SEPx (map (subst id `old) R))))). 
+           (SEPx R)))). 
 Proof. 
  intros.
  eapply semax_post; [ | apply forward_ptr_compare'' with (sh1 := sh1) (sh2 := sh2); auto].

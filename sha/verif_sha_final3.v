@@ -50,18 +50,18 @@ semax
            temp _md md; temp _c c;
            gvar _K256 kv)
    SEP 
-   (`(data_at Tsh t_struct_SHA256state_st
+   (data_at Tsh t_struct_SHA256state_st
        (map Vint (hash_blocks init_registers hashed),
-        (Vundef, (Vundef, (map Vint (map Int.repr (intlist_to_Zlist lastblock)), Vundef)))) c);
-    `(K_vector kv);
-    `(memory_block shmd 32 md)))
+        (Vundef, (Vundef, (map Vint (map Int.repr (intlist_to_Zlist lastblock)), Vundef)))) c;
+    K_vector kv;
+    memory_block shmd 32 md))
   sha_final_epilog
   (function_body_ret_assert tvoid
      (PROP  ()
       LOCAL ()
-      SEP  (`(K_vector kv);
-      `(data_at_ Tsh t_struct_SHA256state_st c);
-      `(data_block shmd (SHA_256 msg) md)))).
+      SEP  (K_vector kv;
+        data_at_ Tsh t_struct_SHA256state_st c;
+        data_block shmd (SHA_256 msg) md))).
 Proof.
   intros.
   Time normalize.
@@ -157,17 +157,17 @@ semax Delta_final_if1
       temp _n (Vint (Int.repr (Zlength dd'))); 
       temp _md md; temp _c c; gvar _K256 kv)
       SEP 
-      (`(field_at Tsh t_struct_SHA256state_st [StructField _data]
+      (field_at Tsh t_struct_SHA256state_st [StructField _data]
            (map Vint (map Int.repr dd') ++
             list_repeat (Z.to_nat (CBLOCKz - 8 - Zlength dd'))
-              (Vint Int.zero) ++ list_repeat (Z.to_nat 8) Vundef) c);
-      `(field_at Tsh t_struct_SHA256state_st [StructField _num] Vundef c);
-      `(field_at Tsh t_struct_SHA256state_st [StructField _Nh] (Vint (hi_part bitlen)) c);
-      `(field_at Tsh t_struct_SHA256state_st [StructField _Nl] (Vint (lo_part bitlen)) c);
-      `(field_at Tsh t_struct_SHA256state_st [StructField _h]
-          (map Vint (hash_blocks init_registers hashed')) c);
-      `(K_vector kv);
-      `(memory_block shmd 32 md)))
+              (Vint Int.zero) ++ list_repeat (Z.to_nat 8) Vundef) c;
+      field_at Tsh t_struct_SHA256state_st [StructField _num] Vundef c;
+      field_at Tsh t_struct_SHA256state_st [StructField _Nh] (Vint (hi_part bitlen)) c;
+      field_at Tsh t_struct_SHA256state_st [StructField _Nl] (Vint (lo_part bitlen)) c;
+      field_at Tsh t_struct_SHA256state_st [StructField _h]
+          (map Vint (hash_blocks init_registers hashed')) c;
+      K_vector kv;
+      memory_block shmd 32 md))
   (Ssequence
      (Sset _cNh
         (Efield
@@ -236,14 +236,14 @@ semax Delta_final_if1
   (function_body_ret_assert tvoid
      (PROP  ()
       LOCAL ()
-      SEP  (`(K_vector kv);
-      `(data_at_ Tsh t_struct_SHA256state_st c);
-      `(data_block shmd
+      SEP  (K_vector kv;
+        data_at_ Tsh t_struct_SHA256state_st c;
+        data_block shmd
           (intlist_to_Zlist
              (hash_blocks init_registers
                 (generate_and_pad
                    (intlist_to_Zlist hashed ++ dd))))
-          md)))).
+          md))).
 Proof.
   intros Espec hashed md c shmd kv H md_ c_ p n cNl cNh
   bitlen dd H4 H7 H3 DDbytes hashed' dd' pad
@@ -256,7 +256,7 @@ Proof.
 
   Time forward. (* cNh=c->Nh; *) (*3.5*)
   
-  match goal with |- semax _ (PROPx _ (LOCALx _ (SEPx (` ?A :: _)))) _ _ =>
+  match goal with |- semax _ (PROPx _ (LOCALx _ (SEPx (?A :: _)))) _ _ =>
     pattern A;
     match goal with |- ?F A => set (GOAL := F) end
   end.
@@ -305,18 +305,18 @@ Proof.
 
   split; auto.   compute; congruence.
 
-  replace_SEP 0 (`(array_at Tsh t_struct_SHA256state_st [StructField _data] 60 64
-                           (map Vint lobytes) c)). {
+  replace_SEP 0 (array_at Tsh t_struct_SHA256state_st [StructField _data] 60 64
+                           (map Vint lobytes) c). {
   clearbody lobytes.
   rewrite array_at_data_at' by auto with field_compatible.
   Time entailer!. (*2.4 -> 2.0 *)
 }
   gather_SEP 0 1 2. 
   replace_SEP 0
-    (`(field_at Tsh t_struct_SHA256state_st [StructField _data]
+    (field_at Tsh t_struct_SHA256state_st [StructField _data]
          (map Vint (map Int.repr dd') ++
              list_repeat (Z.to_nat (CBLOCKz - 8 - Zlength dd'))
-               (Vint Int.zero) ++ ((map Vint hibytes) ++ (map Vint lobytes))) c)).
+               (Vint Int.zero) ++ ((map Vint hibytes) ++ (map Vint lobytes))) c).
   {
     assert (LENhi: Zlength hibytes = 4) by reflexivity.
     clearbody hibytes. clearbody lobytes.
