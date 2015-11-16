@@ -53,9 +53,9 @@ Definition sumlist_spec :=
   WITH sh : share, contents : list int, p: val
   PRE [ _p OF (tptr (t_struct_list))] 
      PROP(readable_share sh) LOCAL (temp _p p)
-     SEP (`(lseg LS sh (map Vint contents) p nullval))
+     SEP (lseg LS sh (map Vint contents) p nullval)
   POST [ tint ]  
-     PROP() LOCAL(temp ret_temp (Vint (sum_int contents))) SEP(`TT).
+     PROP() LOCAL(temp ret_temp (Vint (sum_int contents))) SEP(TT).
 (** This specification has an imprecise and leaky postcondition:
  ** it neglects to say that the original list [p] is still there.
  ** Because the postcondition has no spatial part, it makes no
@@ -71,11 +71,11 @@ Definition reverse_spec :=
   PRE  [ _p OF (tptr t_struct_list) ]
      PROP (writable_share sh)
      LOCAL (temp _p p)
-     SEP (`(lseg LS sh contents p nullval))
+     SEP (lseg LS sh contents p nullval)
   POST [ (tptr t_struct_list) ]
     EX p:val,
      PROP () LOCAL (temp ret_temp p) 
-     SEP (`(lseg LS sh (rev contents) p nullval)).
+     SEP (lseg LS sh (rev contents) p nullval).
 
 Definition main_spec :=
  DECLARE _main
@@ -103,7 +103,8 @@ Proof.
   intros.
   rewrite list_cell_link_join_nospacer by reflexivity.
   unfold data_at. unfold list_data, add_link_back, fold_reptype.
-  simpl; really_simplify_some_things.
+  rewrite !eq_rect_r_eq. rewrite <- eq_rect_eq. unfold list_rect; simpl.
+  rewrite !eq_rect_r_eq. 
   unfold_field_at 1%nat. auto.
 Qed.
 
@@ -162,7 +163,7 @@ Definition sumlist_Inv (sh: share) (contents: list int) : environ->mpred :=
             PROP () 
             LOCAL (temp _t t; 
                         temp _s (Vint (Int.sub (sum_int contents) (sum_int cts))))
-            SEP ( `TT ; `(lseg LS sh (map Vint cts) t nullval))).
+            SEP ( TT ; lseg LS sh (map Vint cts) t nullval)).
 
 (** For every function definition in the C program, prove that the
  ** function-body (in this case, f_sumlist) satisfies its specification
@@ -189,9 +190,9 @@ entailer!.
 destruct cts; inv H.
 gather_SEP 0 1. 
 match goal with |- context [SEPx (?A::_)] =>
-   replace A with (`(field_at sh t_struct_list (DOT _head) (Vint i) t0 *
-                              field_at sh list_struct (DOT _tail) y t0))
- by (extensionality rho; unfold_lift; simpl; symmetry; apply list_cell_eq''; auto)
+   replace A with (field_at sh t_struct_list (DOT _head) (Vint i) t0 *
+                              field_at sh list_struct (DOT _tail) y t0)
+ by (symmetry; apply list_cell_eq''; auto)
 end.
 normalize.
 forward.  (* h = t->head; *)
@@ -212,8 +213,8 @@ Definition reverse_Inv (sh: share) (contents: list val) : environ->mpred :=
           (EX cts1: list val, EX cts2 : list val, EX w: val, EX v: val,
             PROP (contents = rev cts1 ++ cts2) 
             LOCAL (temp _w w; temp _v v)
-            SEP (`(lseg LS sh cts1 w nullval);
-                   `(lseg LS sh cts2 v nullval))).
+            SEP (lseg LS sh cts1 w nullval;
+                   lseg LS sh cts2 v nullval)).
 
 Lemma body_reverse: semax_body Vprog Gprog f_reverse reverse_spec.
 Proof.
@@ -235,7 +236,7 @@ focus_SEP 1; apply semax_lseg_nonnull;
 subst cts2.
 forward. (* t = v->tail; *)
 forward. (* v->tail = w; *)
-replace_SEP 1 (`(field_at sh t_struct_list (DOT _tail) w v)) by entailer!.
+replace_SEP 1 (field_at sh t_struct_list (DOT _tail) w v) by entailer!.
 forward.  (*  w = v; *)
 forward.  (* v = t; *)
 (* at end of loop body, re-establish invariant *)
@@ -335,17 +336,17 @@ Lemma setup_globals:
   (PROP  ()
    LOCAL  (gvar _three x)
    SEP 
-   (`(mapsto Ews tuint (offset_val (Int.repr 0) x) (Vint (Int.repr 1)));
-    `(mapsto Ews (tptr t_struct_list) (offset_val (Int.repr 4) x)
-        (offset_val (Int.repr 8) x));
-   `(mapsto Ews tuint (offset_val (Int.repr 8) x) (Vint (Int.repr 2)));
-   `(mapsto Ews (tptr t_struct_list) (offset_val (Int.repr 12) x)
-       (offset_val (Int.repr 16) x));
-   `(mapsto Ews tuint (offset_val (Int.repr 16) x) (Vint (Int.repr 3)));
-   `(mapsto Ews tuint (offset_val (Int.repr 20) x) (Vint (Int.repr 0)))))
+   (mapsto Ews tuint (offset_val (Int.repr 0) x) (Vint (Int.repr 1));
+    mapsto Ews (tptr t_struct_list) (offset_val (Int.repr 4) x)
+        (offset_val (Int.repr 8) x);
+   mapsto Ews tuint (offset_val (Int.repr 8) x) (Vint (Int.repr 2));
+   mapsto Ews (tptr t_struct_list) (offset_val (Int.repr 12) x)
+       (offset_val (Int.repr 16) x);
+   mapsto Ews tuint (offset_val (Int.repr 16) x) (Vint (Int.repr 3));
+   mapsto Ews tuint (offset_val (Int.repr 20) x) (Vint (Int.repr 0))))
   |-- PROP() LOCAL(gvar _three x) 
-        SEP (`(lseg LS Ews (map Vint (Int.repr 1 :: Int.repr 2 :: Int.repr 3 :: nil))
-                  x nullval)).
+        SEP (lseg LS Ews (map Vint (Int.repr 1 :: Int.repr 2 :: Int.repr 3 :: nil))
+                  x nullval).
 Proof.
   intros.
   entailer.

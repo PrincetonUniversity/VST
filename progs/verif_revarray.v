@@ -15,10 +15,10 @@ Definition reverse_spec :=
   PRE [ _a OF (tptr tint), _n OF tint ]
           PROP (0 <= size <= Int.max_signed; writable_share sh)
           LOCAL (temp _a a0; temp _n (Vint (Int.repr size)))
-          SEP (`(data_at sh (tarray tint size) (map Vint contents) a0))
+          SEP (data_at sh (tarray tint size) (map Vint contents) a0)
   POST [ tvoid ]
      PROP() LOCAL()
-     SEP(`(data_at sh (tarray tint size) (map Vint (rev contents)) a0)).
+     SEP(data_at sh (tarray tint size) (map Vint (rev contents)) a0).
 
 Definition main_spec :=
  DECLARE _main
@@ -40,7 +40,7 @@ Definition reverse_Inv a0 sh contents size :=
  EX j:Z,
   (PROP  (0 <= j; j <= size-j)
    LOCAL  (temp _a a0; temp _lo (Vint (Int.repr j)); temp _hi (Vint (Int.repr (size-j))))
-   SEP (`(data_at sh (tarray tint size) (flip_ends j (size-j) contents) a0))).
+   SEP (data_at sh (tarray tint size) (flip_ends j (size-j) contents) a0)).
 
 
 Lemma Zlength_flip_ends:

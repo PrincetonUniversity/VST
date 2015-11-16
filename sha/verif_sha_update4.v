@@ -71,13 +71,13 @@ Lemma update_loop_body_proof:
    temp _c c;
    temp _len (Vint (Int.repr (len - (Zlength blocks * 4 - Zlength frag))));
    gvar _K256 kv)
-   SEP  (`(K_vector kv);
-   `(data_at Tsh t_struct_SHA256state_st
+   SEP  (K_vector kv;
+     data_at Tsh t_struct_SHA256state_st
        (map Vint (hash_blocks init_registers (hashed ++ blocks)),
        (Vint (lo_part (bitlength hashed frag + len * 8)),
        (Vint (hi_part (bitlength hashed frag + len * 8)), 
-        (list_repeat (Z.to_nat CBLOCKz) Vundef, Vundef)))) c);
-   `(data_block sh data d))) 
+        (list_repeat (Z.to_nat CBLOCKz) Vundef, Vundef)))) c;
+    data_block sh data d)) 
   sha_update_loop_body
   (normal_ret_assert
    (@exp (environ->mpred) _ _  (fun a:list int => 
@@ -92,14 +92,14 @@ Lemma update_loop_body_proof:
       temp _c c;
       temp _len (Vint (Int.repr (len - (Zlength a * 4 - Zlength frag))));
       gvar _K256 kv)
-      SEP  (`(K_vector kv);
-      `(data_at Tsh t_struct_SHA256state_st
+      SEP  (K_vector kv;
+        data_at Tsh t_struct_SHA256state_st
           (map Vint (hash_blocks init_registers (hashed ++ a)),
           (Vint (lo_part (bitlength hashed frag + len * 8)),
           (Vint (hi_part (bitlength hashed frag + len * 8)),
           (list_repeat (Z.to_nat CBLOCKz) Vundef, 
-           Vundef)))) c);
-      `(data_block sh data d))))).
+           Vundef)))) c;
+        data_block sh data d)))).
 Proof.
 assert (H4:=true).
 intros.
@@ -118,11 +118,11 @@ assert (DM: Zlength data < Int.modulus).
   specialize (Zlength_nonneg data); intros; omega. }
 set (lo := Zlength blocks * 4 - Zlength frag) in *.
  replace_SEP 2
-  (`(data_block sh (sublist 0 lo data) d *
+  (data_block sh (sublist 0 lo data) d *
        data_block sh (sublist lo (lo+CBLOCKz) data)
          (field_address0 (tarray tuchar (Zlength data)) [ArraySubsc lo] d) *
        data_block sh (sublist (lo+CBLOCKz) (Zlength data) data)
-         (field_address0 (tarray tuchar (Zlength data)) [ArraySubsc (lo+CBLOCKz)] d))).
+         (field_address0 (tarray tuchar (Zlength data)) [ArraySubsc (lo+CBLOCKz)] d)).
   { Time entailer!. (*2.5*)
    rewrite (split3_data_block lo (lo+CBLOCKz) sh data); auto;
      subst lo; Omega1.      
@@ -137,7 +137,6 @@ Time forward_call (* sha256_block_data_order (c,data); *)
   Time cancel. (*2.5*) 
 }
  split3; auto. apply divide_length_app; auto.
- simpl map. (* should not need this *)
  Time forward. (* data += SHA_CBLOCK; *) (*5*)
  Time forward. (* len  -= SHA_CBLOCK; *) (*6*)
  Exists (blocks++ bl).
@@ -206,22 +205,23 @@ semax
     temp _data d; temp _c c;temp _data_ d;
     temp _len (Vint (Int.repr len));
     gvar _K256 kv)
-   SEP  (`(data_at Tsh t_struct_SHA256state_st
+   SEP  (data_at Tsh t_struct_SHA256state_st
                  (map Vint (hash_blocks init_registers hashed),
                   (Vint (lo_part (bitlength hashed dd + len*8)),
                    (Vint (hi_part (bitlength hashed dd + len*8)),
                     (map Vint (map Int.repr dd) ++ list_repeat (Z.to_nat (CBLOCKz-Zlength dd)) Vundef, 
                      Vint (Int.repr (Zlength dd))))))
-               c);
-   `(K_vector kv);
-   `(data_block sh data d))) update_outer_if
+               c;
+     K_vector kv;
+     data_block sh data d)) 
+  update_outer_if
   (overridePost (sha_update_inv sh hashed len c d dd data kv false)
      (function_body_ret_assert tvoid
         (EX  a' : s256abs,
          PROP  (update_abs (sublist 0 len data) (S256abs hashed dd) a')
          LOCAL ()
-         SEP  (`(K_vector kv);
-                `(sha256state_ a' c); `(data_block sh data d))))).
+         SEP  (K_vector kv;
+                 sha256state_ a' c; data_block sh data d)))).
 Proof.
 intros.
 unfold update_outer_if.

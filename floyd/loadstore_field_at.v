@@ -60,7 +60,7 @@ Lemma semax_max_path_field_load_nth_ram:
       type_is_volatile (typeof (nested_efield e1 efs tts)) = false ->
       legal_nested_efield t_root e1 gfs tts lr = true ->
       JMeq v' v ->
-      nth_error R n = Some `Pre ->
+      nth_error R n = Some Pre ->
       Pre |-- field_at sh t_root gfs v' p * TT ->
       PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |--
         local (`(eq p) (eval_LR e1 lr)) ->
@@ -75,7 +75,7 @@ Lemma semax_max_path_field_load_nth_ram:
             (EX old : val,
               PROPx P
                 (LOCALx (temp id v :: map (subst id `old) Q)
-                  (SEPx (map (subst id `old) R))))).
+                  (SEPx R)))).
 Proof.
   intros.
   pose proof is_neutral_cast_by_value _ _ H0.
@@ -130,7 +130,7 @@ Lemma semax_max_path_field_cast_load_nth_ram:
       type_is_volatile (typeof (nested_efield e1 efs tts)) = false ->
       legal_nested_efield t_root e1 gfs tts lr = true ->
       JMeq v v' ->
-      nth_error R n = Some `Pre ->
+      nth_error R n = Some Pre ->
       Pre |-- field_at sh t_root gfs v' p * TT ->
       PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |--
         local (`(eq p) (eval_LR e1 lr)) ->
@@ -145,7 +145,7 @@ Lemma semax_max_path_field_cast_load_nth_ram:
             (EX old:val,
               PROPx P
                 (LOCALx (temp id (eval_cast (typeof (nested_efield e1 efs tts)) t v) :: map (subst id (`old)) Q)
-                  (SEPx (map (subst id (`old)) R))))).
+                  (SEPx R)))).
 Proof.
   intros.
   assert_PROP (typeof (nested_efield e1 efs tts) = nested_field_type t_root gfs).
@@ -216,7 +216,7 @@ Lemma semax_max_path_field_store_nth:
       type_is_volatile (typeof (nested_efield e1 efs tts)) = false ->
       legal_nested_efield t_root e1 gfs tts lr = true ->
       JMeq v v' ->
-      nth_error R n = Some `Pre ->
+      nth_error R n = Some Pre ->
       Pre |-- field_at_ sh t_root gfs p *
         (field_at sh t_root gfs v' p -* Post) ->
       PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |--
@@ -234,7 +234,7 @@ Lemma semax_max_path_field_store_nth:
             (PROPx P
               (LOCALx Q
                 (SEPx
-                  (replace_nth n R `Post))))).
+                  (replace_nth n R Post))))).
 Proof.
   intros.
   assert_PROP (typeof (nested_efield e1 efs tts) = nested_field_type t_root gfs).

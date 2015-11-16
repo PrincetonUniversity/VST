@@ -16,11 +16,11 @@ Definition get_spec :=
   PRE  [] 
         PROP ()
         LOCAL(gvar _p p)
-        SEP(`(data_at Ews t_struct_b (repinj _ v) p))
+        SEP(data_at Ews t_struct_b (repinj _ v) p)
   POST [ tint ]
          PROP() 
          LOCAL (temp 1%positive (Vint (snd (snd v))))
-         SEP (`(data_at Ews t_struct_b (repinj _ v) p)).
+         SEP (data_at Ews t_struct_b (repinj _ v) p).
 
 Definition get_spec' :=
  DECLARE _get
@@ -28,11 +28,11 @@ Definition get_spec' :=
   PRE  [] 
         PROP ()
         LOCAL(gvar _p p)
-        SEP(`(data_at Ews t_struct_b (repinj t_struct_b v) p))
+        SEP(data_at Ews t_struct_b (repinj t_struct_b v) p)
   POST [ tint ]
          PROP() 
          LOCAL (temp 1%positive (Vint (snd (snd v))))
-         SEP (`(data_at Ews t_struct_b (repinj t_struct_b v) p)).
+         SEP (data_at Ews t_struct_b (repinj t_struct_b v) p).
 
 Definition update22 (i: int) (v: reptype' t_struct_b) : reptype' t_struct_b :=
    (fst v, (fst (snd v), i)).
@@ -44,10 +44,10 @@ Definition set_spec :=
          PROP  ()
          LOCAL (gvar _p p; 
                 temp _i (Vint i))
-         SEP   (`(data_at Ews t_struct_b (repinj _ v) p))
+         SEP   (data_at Ews t_struct_b (repinj _ v) p)
   POST [ tvoid ]
          PROP() LOCAL()
-        SEP(`(data_at Ews t_struct_b (repinj _ (update22 i v)) p)).
+        SEP(data_at Ews t_struct_b (repinj _ (update22 i v)) p).
 
 Definition Vprog : varspecs := (_p, t_struct_b)::nil.
 

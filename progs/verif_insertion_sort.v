@@ -25,12 +25,12 @@ Definition insert_spec :=
     PRE [_insert_node OF (tptr t_struct_list), _sorted OF (tptr t_struct_list)]
         PROP (writable_share sh)
         LOCAL (temp _sorted sorted_ptr; temp _insert_node insert_ptr)
-        SEP (`(lseg LS sh (map Vint contents) sorted_ptr nullval);
-             `(data_at sh t_struct_list (Vint insert_val, nullval) insert_ptr))
+        SEP (lseg LS sh (map Vint contents) sorted_ptr nullval;
+               data_at sh t_struct_list (Vint insert_val, nullval) insert_ptr)
     POST [tptr t_struct_list]
       EX v: val,
         PROP() LOCAL(temp ret_temp v)
-        SEP(`(lseg LS sh (map Vint (insert insert_val contents)) v nullval)).
+        SEP(lseg LS sh (map Vint (insert insert_val contents)) v nullval).
 
 Definition insertionsort_spec :=
   DECLARE  _insertionsort
@@ -38,11 +38,11 @@ Definition insertionsort_spec :=
     PRE [_p OF (tptr t_struct_list)]
         PROP (writable_share sh)
         LOCAL (temp _p list_ptr)
-        SEP (`(lseg LS sh (map Vint contents) list_ptr nullval))
+        SEP (lseg LS sh (map Vint contents) list_ptr nullval)
     POST [tptr t_struct_list]
       EX v: val,
         PROP() LOCAL(temp ret_temp v)
-        SEP(`(lseg LS sh (map Vint (insertion_sort contents)) v nullval)).
+        SEP(lseg LS sh (map Vint (insertion_sort contents)) v nullval).
 
 Definition main_spec := 
  DECLARE _main
@@ -109,12 +109,12 @@ LOCAL (temp _index index_ptr; temp _insert_value (Vint insert_val);
 SEP (
      (if(isptrb index_ptr)
       then
-       (`(list_cell LS sh (index_ptr) (Vint (sorted_val))) *
-        `(field_at sh t_struct_list [StructField _tail] next_ptr index_ptr))
+       (list_cell LS sh (index_ptr) (Vint (sorted_val)) *
+        field_at sh t_struct_list [StructField _tail] next_ptr index_ptr)
       else
          emp);
       (if(isptrb prev_ptr)
-       then  `(lseg LS sh (map Vint (contents_lt))) (eval_id _sorted) `(prev_ptr) *
+       then lseg LS sh (map Vint (contents_lt))) (eval_id _sorted) `(prev_ptr) *
              `(list_cell LS sh (prev_ptr) (Vint (prev_val))) *
              `(field_at sh t_struct_list [StructField _tail] index_ptr prev_ptr)
        else emp);

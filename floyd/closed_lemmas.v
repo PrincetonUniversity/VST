@@ -1573,26 +1573,19 @@ Qed.
 Hint Resolve closed_wrt_LOCALx closed_wrtl_LOCALx: closed.
 
 Lemma closed_wrt_SEPx: forall S P, 
-     Forall (closed_wrt_vars S) P -> closed_wrt_vars S (SEPx P).
+     closed_wrt_vars S (SEPx P).
 Proof.
 intros.
-induction P; auto.
-hnf; intros; reflexivity.
-inv H.
 unfold SEPx.
-rewrite fold_right_cons.
-apply closed_wrt_sepcon; auto.
+auto with closed.
 Qed.
+
 Lemma closed_wrtl_SEPx: forall S P, 
-     Forall (closed_wrt_lvars S) P -> closed_wrt_lvars S (SEPx P).
+     closed_wrt_lvars S (SEPx P).
 Proof.
 intros.
-induction P; auto.
-hnf; intros; reflexivity.
-inv H.
 unfold SEPx.
-rewrite fold_right_cons.
-apply closed_wrtl_sepcon; auto.
+auto with closed.
 Qed.
 Hint Resolve closed_wrt_SEPx closed_wrtl_SEPx: closed.
 

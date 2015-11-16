@@ -79,15 +79,15 @@ Definition inv_at_inner_if sh hashed len c d dd data kv :=
        temp _data d; temp _c c; 
        temp _len (Vint (Int.repr len));
        gvar  _K256 kv)
-   SEP  (`(data_at Tsh t_struct_SHA256state_st
+   SEP  (data_at Tsh t_struct_SHA256state_st
                  (map Vint (hash_blocks init_registers hashed),
                   (Vint (lo_part (bitlength hashed dd + len*8)),
                    (Vint (hi_part (bitlength hashed dd + len*8)),
                     (map Vint (map Int.repr dd) ++ list_repeat (Z.to_nat (CBLOCKz-Zlength dd)) Vundef,
                      Vint (Int.repr (Zlength dd))))))
-               c);
-   `(K_vector kv);
-   `(data_block sh data d)))).
+               c;
+     K_vector kv;
+     data_block sh data d))).
 
 Definition  S_struct (hashed: list int) (len:Z) (dd: list Z) (num: val) :=
     data_at Tsh t_struct_SHA256state_st
@@ -112,14 +112,14 @@ Definition sha_update_inv sh hashed len c d (dd: list Z) (data: list Z) kv (done
                 temp _c c; 
                 temp _len (Vint (Int.repr (len- (Zlength blocks*4 - Zlength dd))));
                 gvar  _K256 kv)
-   SEP  (`(K_vector kv);
-           `(@data_at CompSpecs Tsh t_struct_SHA256state_st
+   SEP  (K_vector kv;
+           @data_at CompSpecs Tsh t_struct_SHA256state_st
                  ((map Vint (hash_blocks init_registers (hashed++blocks)),
                   (Vint (lo_part (bitlength hashed dd + len*8)),
                    (Vint (hi_part (bitlength hashed dd + len*8)),
                     (list_repeat (Z.to_nat CBLOCKz) Vundef, Vundef)))) : reptype t_struct_SHA256state_st)
-               c);
-   `(data_block sh data d))).
+               c;
+            data_block sh data d)).
 
 Definition Delta_update_inner_if : tycontext.
 simplify_Delta_from
@@ -183,16 +183,16 @@ semax Delta_update_inner_if
     temp _data d; temp _c c; temp _len (Vint (Int.repr (len)));
     gvar  _K256 kv)
    SEP 
-   (`(data_at Tsh t_struct_SHA256state_st
+   (data_at Tsh t_struct_SHA256state_st
                  (map Vint (hash_blocks init_registers hashed),
                   (Vint (lo_part (bitlength hashed dd + len*8)),
                    (Vint (hi_part (bitlength hashed dd + len*8)),
                     (map Vint (map Int.repr dd)
                        ++list_repeat (Z.to_nat k) Vundef,
                      Vint (Int.repr (Zlength dd))))))
-               c);
-   `(K_vector kv);
-   `(data_at sh (tarray tuchar (Zlength data)) (map Vint (map Int.repr data)) d)))
+               c;
+     K_vector kv;
+     data_at sh (tarray tuchar (Zlength data)) (map Vint (map Int.repr data)) d))
   update_inner_if_then
   (normal_ret_assert (sha_update_inv sh hashed len c d dd data kv false)).
 Proof.
@@ -202,7 +202,7 @@ Proof.
 match goal with |- semax _ (PROP() (LOCALx ?Q (SEPx _))) _ _ =>
  apply semax_seq'
  with (PROP() (LOCALx Q 
-        (SEP (`(data_at Tsh t_struct_SHA256state_st 
+        (SEP (data_at Tsh t_struct_SHA256state_st 
                 ( (map Vint (hash_blocks init_registers hashed),
                   (Vint (lo_part (bitlength hashed dd + len*8)),
                    (Vint (hi_part (bitlength hashed dd + len*8)),
@@ -210,9 +210,9 @@ match goal with |- semax _ (PROP() (LOCALx ?Q (SEPx _))) _ _ =>
                       sublist 0 k (map Vint (map Int.repr data)),
                      Vint (Int.repr (Zlength dd))))))
                    : @reptype CompSpecs t_struct_SHA256state_st)
-               c);
-      `(K_vector kv);
-      `(data_at sh (tarray tuchar (Zlength data)) (map Vint (map Int.repr data)) d)))))
+               c;
+        K_vector kv;
+        data_at sh (tarray tuchar (Zlength data)) (map Vint (map Int.repr data)) d))))
 end.
 eapply semax_post_flipped'.
 *
@@ -222,7 +222,7 @@ eapply semax_post_flipped'.
     normalize.
   }
  rename H5 into Hd.
-  evar (Frame: list (LiftEnviron mpred)).
+  evar (Frame: list mpred).
   eapply(call_memcpy_tuchar
    (*dst*) Tsh t_struct_SHA256state_st [StructField _data] (Zlength dd) 
               (map Vint (map Int.repr dd)
@@ -273,12 +273,11 @@ simplify_Delta.
  ].
  entailer!.
 }
-simpl map. (* should not be necessary *)
 forward. (* data  += fragment; *)
 forward. (* len -= fragment; *)
   normalize_postcondition.
 eapply semax_post_flipped3.
-evar (Frame: list (LiftEnviron mpred)).
+evar (Frame: list mpred).
   eapply(call_memset_tuchar
    (*dst*) Tsh t_struct_SHA256state_st [StructField _data] 0 
                 (map Vint (map Int.repr (dd ++ sublist 0 k data))) c

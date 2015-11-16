@@ -813,18 +813,11 @@ Qed.
 Lemma SC_remove_subst {cs: compspecs} : forall P T1 T2 R id v old,
    PROPx P
      (LOCALx (temp id v :: map (subst id `old) (LocalD T1 T2 nil))
-        (SEPx (map (subst id `old) (map liftx R))))
+        (SEPx R))
    |-- PROPx P
-         (LOCALx (LocalD (PTree.set id v T1) T2 nil) (SEPx (map liftx R))).
+         (LOCALx (LocalD (PTree.set id v T1) T2 nil) (SEPx R)).
 Proof.
   intros.
-  replace (SEPx (map (subst id `old) (map liftx R))) with (SEPx (map liftx R)).
-  Focus 2. {
-    f_equal.
-    f_equal.
-    rewrite map_map.
-    f_equal.
-  } Unfocus.
   apply LOCALx_shuffle_derives; intros.
   apply LOCALx_expand_temp_var in H.
   destruct H; [left; auto | right].
@@ -1323,7 +1316,7 @@ Definition localD {cs: compspecs} (temps : PTree.t val) (locals : PTree.t vardes
 LocalD temps locals nil.
 
 Definition assertD (P : list Prop) (Q : list (environ -> Prop)) (sep : list mpred) := 
-PROPx P (LOCALx Q (SEPx (map (liftx) sep))).
+PROPx P (LOCALx Q (SEPx sep)).
 
 Fixpoint explicit_cast_exprlist (et: list type) (el: list expr) {struct et} : list expr :=
  match et, el with

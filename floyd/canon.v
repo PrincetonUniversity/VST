@@ -39,7 +39,8 @@ Notation " 'LOCAL' ()   z" := (LOCALx nil z)  (at level 9) : logic.
 Notation " 'LOCAL' ( x ; .. ; y )   z" := (LOCALx (cons x%type .. (cons y%type nil) ..) z)
          (at level 9) : logic.
 
-Definition SEPx: forall (R: list(environ->mpred)), environ->mpred := fold_right sepcon emp.
+Definition SEPx (R: list mpred) : environ->mpred := 
+    fun _ => (fold_right sepcon emp R).
 Arguments SEPx R _ : simpl never.
 
 Notation " 'SEP' ( x ; .. ; y )" := (SEPx (cons x%logic .. (cons y%logic nil) ..))
@@ -140,8 +141,7 @@ unfold delete_nth.
 auto.
 simpl.
 rewrite sepcon_emp; auto.
-change (fold_right sepcon emp (m :: R) rho)
-  with (m rho * fold_right sepcon emp R rho).
+simpl.
 rewrite IHn.
 simpl.
 repeat rewrite <- sepcon_assoc.
@@ -256,7 +256,7 @@ f_equal; auto.
 Qed.
 
 Lemma grab_indexes_SEP : 
-  forall (ns: list Z) (xs: list(environ->mpred)),   SEPx xs = SEPx (grab_indexes ns xs).
+  forall (ns: list Z) xs,   SEPx xs = SEPx (grab_indexes ns xs).
 Proof.
 intros.
 unfold SEPx; extensionality rho.
@@ -273,15 +273,15 @@ specialize (IHks xs).
 case_eq (grab_indexes' ks xs); intros.
 rewrite H in IHks.
 rewrite fold_right_app.
-transitivity (m rho * fold_right sepcon emp xs rho); try reflexivity.
+transitivity (m * fold_right sepcon emp xs); try reflexivity.
 rewrite IHks.
 rewrite fold_right_app.
 forget (fold_right sepcon emp l0) as P.
-transitivity (fold_right sepcon P (m::l) rho). reflexivity.
+transitivity (fold_right sepcon P (m::l)). reflexivity.
 clear.
 revert l; induction n; intro l. reflexivity.
 simpl. destruct l. simpl. auto.
-simpl. rewrite <- sepcon_assoc. rewrite (sepcon_comm (m rho)).
+simpl. rewrite <- sepcon_assoc. rewrite (sepcon_comm m).
 rewrite sepcon_assoc. f_equal.
 specialize (IHn l). simpl in IHn.
 auto.
@@ -576,7 +576,7 @@ Lemma derives_frame_PQR:
 Proof.
 intros.
 eapply derives_trans; [ | eapply derives_trans].
-2: apply sepcon_derives; [ apply H | apply (derives_refl  (fold_right sepcon emp R2))].
+2: apply sepcon_derives; [ apply H | apply (derives_refl  (fun _ => (fold_right sepcon emp R2)))].
 clear H.
 unfold PROPx, LOCALx, SEPx, local; super_unfold_lift; intros.
 rewrite fold_right_sepcon_app.
@@ -762,7 +762,7 @@ Qed.
 
 Lemma replace_SEP':
  forall n R' Espec {cs: compspecs} Delta P Q Rs c Post,
- (PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx (my_nth n Rs TT ::  nil)))) |-- R' ->
+ (PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx (my_nth n Rs TT ::  nil)))) |-- `R' ->
  @semax cs Espec Delta (PROPx P (LOCALx Q (SEPx (replace_nth n Rs R')))) c Post ->
  @semax cs Espec Delta (PROPx P (LOCALx Q (SEPx Rs))) c Post.
 Proof.
@@ -785,7 +785,7 @@ Qed.
 
 Lemma replace_SEP'':
  forall n R' P Q Rs Post,
- (PROPx P (LOCALx Q (SEPx (my_nth n Rs TT ::  nil)))) |-- R' ->
+ (PROPx P (LOCALx Q (SEPx (my_nth n Rs TT ::  nil)))) |-- `R' ->
  PROPx P (LOCALx Q (SEPx (replace_nth n Rs R'))) |-- Post ->
  PROPx P (LOCALx Q (SEPx Rs)) |-- Post.
 Proof.
@@ -882,7 +882,6 @@ intros; normalize.
 simpl.
 rewrite later_sepcon.
 apply sepcon_derives; auto.
-apply H.
 Qed.
 Hint Resolve PROP_later_derives LOCAL_later_derives SEP_later_derives : derives.
 
@@ -965,7 +964,7 @@ Ltac repeat_extract_exists_pre :=
           ].
              
 Lemma extract_exists_in_SEP:
-  forall {A} (R1: A -> environ->mpred) P Q R,   
+  forall {A} (R1: A -> mpred) P Q R,   
     PROPx P (LOCALx Q (SEPx (exp R1 :: R))) = 
     EX x:A, PROPx P (LOCALx Q (SEPx (R1 x::R))).
 Proof.
@@ -995,27 +994,17 @@ unfold SEPx.
 simpl. rewrite sepcon_assoc. auto.
 Qed.
 
-Lemma flatten_sepcon_in_SEP':
-  forall P Q R1 R2 R, 
-           PROPx P (LOCALx Q (SEPx (`(R1*R2) :: R))) = 
-           PROPx P (LOCALx Q (SEPx (`R1 :: `R2 :: R))).
-Proof.
-intros.
-f_equal. f_equal. extensionality rho.
-unfold SEPx.
-unfold_lift. simpl. rewrite sepcon_assoc. auto.
-Qed.
-
 Lemma flatten_sepcon_in_SEP'':
-  forall n P Q (R1 R2: mpred) (R: list (environ->mpred)) R',
-   nth_error R n = Some (`(R1 * R2)) ->
-   R' = firstn n R ++ `R1 :: `R2 :: skipn (S n) R ->
+  forall n P Q (R1 R2: mpred) (R: list mpred) R',
+   nth_error R n = Some ((R1 * R2)) ->
+   R' = firstn n R ++ R1 :: R2 :: skipn (S n) R ->
    PROPx P (LOCALx Q (SEPx R)) = PROPx P (LOCALx Q (SEPx R')).
 Proof.
 intros.
 f_equal.
 f_equal.
 unfold SEPx.
+extensionality rho.
 subst R'.
 revert R H.
 clear.
@@ -1039,7 +1028,7 @@ Qed.
 Ltac flatten_in_SEP PQR :=
  match PQR with
  | PROPx ?P (LOCALx ?Q (SEPx (?R))) =>
-   match R with context [`(?R1 * ?R2) :: ?R'] =>
+   match R with context [(?R1 * ?R2) :: ?R'] =>
       let n := constr:(length R - Datatypes.S (length R'))%nat in
       let n' := eval lazy beta zeta iota delta in n in
       erewrite(@flatten_sepcon_in_SEP'' n' P Q R1 R2 R _ (eq_refl _));
@@ -1088,12 +1077,10 @@ apply pred_ext; normalize.
   clear - H.
   revert R H; induction n; destruct R; simpl; intros.
   apply andp_right; auto.
-  apply equal_f with rho in H.
   rewrite H; apply andp_left1; auto.
   rewrite H.
   normalize.
   apply andp_right; auto.
-  apply equal_f with rho in H.
   rewrite H; apply andp_left1; auto.
   rewrite <- sepcon_andp_prop.
   apply sepcon_derives; auto.
@@ -1105,42 +1092,8 @@ apply pred_ext; normalize.
   apply sepcon_derives; auto.
 Qed.
 
-Lemma extract_prop_in_SEP':
-  forall n P1 (Rn: mpred) P Q R, 
-   nth n R emp = `(prop P1 && Rn) -> 
-   PROPx P (LOCALx Q (SEPx R)) = PROPx (P1::P) (LOCALx Q (SEPx (replace_nth n R `Rn))).
-Proof.
-intros.
-extensionality rho.
-unfold PROPx,LOCALx,SEPx,local,lift1.
-simpl.
-apply pred_ext; normalize.
-* match goal with |- _ |-- !! ?PP && _ => replace PP with P1
-   by (apply prop_ext; intuition)
-  end.
- rewrite (prop_true_andp (fold_right _ _ _ _)) by auto.
- clear - H.
- revert R H; induction n; destruct R; simpl; intros.
-  apply andp_right; auto.
-  apply equal_f with rho in H.
-  rewrite H; apply andp_left1; auto.
-  rewrite H. unfold liftx at 1. simpl. unfold lift.
-  autorewrite with norm. apply andp_derives; auto.
-  apply andp_right; auto.
-  apply equal_f with rho in H.
-  rewrite H; apply andp_left1; auto.
-  rewrite <- sepcon_andp_prop.
-  apply sepcon_derives; auto.
-*
- destruct H0. rewrite !prop_true_andp by auto.
- clear - H H0.
-  revert R H; induction n; destruct R; simpl; intros; auto. 
-  subst l. rewrite prop_true_andp; auto.
-  apply sepcon_derives; auto.
-Qed.
-
 Lemma insert_SEP: 
- forall R1 P Q R, R1 * PROPx P (LOCALx Q (SEPx R)) = PROPx P (LOCALx Q (SEPx (R1::R))).
+ forall R1 P Q R, `R1 * PROPx P (LOCALx Q (SEPx R)) = PROPx P (LOCALx Q (SEPx (R1::R))).
 Proof.
 intros. 
 unfold PROPx,LOCALx,SEPx,local,lift1.
@@ -1149,7 +1102,7 @@ repeat rewrite sepcon_andp_prop. f_equal; auto.
 Qed.
 
 Lemma delete_emp_in_SEP:
-  forall n (R: list (environ->mpred)), 
+  forall n (R: list mpred), 
     nth_error R n = Some emp ->
     SEPx R = SEPx (firstn n R ++ list_drop (S n) R).
 Proof.
@@ -1164,8 +1117,6 @@ reflexivity.
 Qed.
 
 Ltac delete_emp_in_SEP :=
- change (@liftx (LiftEnviron mpred) (@emp mpred _ _)) with 
-       (@emp (environ->mpred) _ _); 
  repeat  
  match goal with |- context [SEPx ?R] =>
    match R with context [emp:: ?R'] =>
@@ -1174,6 +1125,7 @@ Ltac delete_emp_in_SEP :=
    end
  end.
 
+(*
 Lemma extract_local_in_SEP :
   forall n Q1 Rn P Q R, 
    nth_error R n = Some (local Q1 && Rn) -> 
@@ -1205,16 +1157,19 @@ match goal with |- context [PROPx _ (LOCALx _ (SEPx ?R))] =>
     simpl minus; unfold replace_nth 
  end
 end.
+*)
 
 Ltac move_from_SEP :=
-  (* combines extract_exists_in_SEP, move_prop_from_SEP, move_local_from_SEP, 
+  (* combines extract_exists_in_SEP, move_prop_from_SEP, (*move_local_from_SEP, *)
                   flatten_sepcon_in_SEP *)
 match goal with |- context [PROPx _ (LOCALx _ (SEPx ?R))] =>
   match R with 
+(*
   | context [(local ?P1 && ?Rn) :: ?R'] =>
       let n := length_of R in let n' := length_of R' in 
        rewrite (extract_local_in_SEP (n-S n')%nat P1 Rn) by reflexivity;
         simpl minus; unfold replace_nth 
+*)
   | context [(prop ?P1 && ?Rn) :: ?R'] =>
       let n := length_of R in let n' := length_of R' in 
         rewrite (extract_prop_in_SEP (n-S n')%nat P1 Rn) by reflexivity;
@@ -1231,6 +1186,7 @@ match goal with |- context [PROPx _ (LOCALx _ (SEPx ?R))] =>
  end
 end.
 
+(*
 
 Lemma move_local_from_SEP':
   forall P1 R1 P Q R, 
@@ -1245,6 +1201,7 @@ Proof.
  autorewrite with norm1 norm2; normalize.
  destruct H0; normalize.
 Qed.
+*)
 
 Lemma nth_error_local:
   forall n P Q R (Qn: environ -> Prop),
@@ -1285,7 +1242,7 @@ Qed.
 
 Lemma lower_PROP_LOCAL_SEP:
   forall P Q R rho, PROPx P (LOCALx Q (SEPx R)) rho = 
-     (!!fold_right and True P && (local (fold_right (`and) (`True) Q) && (fold_right sepcon emp R))) rho.
+     (!!fold_right and True P && (local (fold_right (`and) (`True) Q) && `(fold_right sepcon emp R))) rho.
 Proof. reflexivity. Qed.
 Hint Rewrite lower_PROP_LOCAL_SEP : norm2.
 
@@ -1461,16 +1418,16 @@ Definition sgvar (i: ident) (v: val) (rho: environ) : Prop :=
 Lemma PROP_LOCAL_SEP_f:
   forall P Q R f, `(PROPx P (LOCALx Q (SEPx R))) f =
      PROPx P (LOCALx (map (fun q : environ -> Prop => `q f) Q)
-            (SEPx (map (fun r : environ -> mpred => `r f) R))).
+            (SEPx R)).
 Proof. intros. extensionality rho.
 cbv delta [PROPx LOCALx SEPx local lift lift1 liftx]; simpl.
 f_equal. f_equal.
 f_equal.
 induction Q; simpl; auto. f_equal; auto.
-induction R; simpl; auto. f_equal; auto.
 Qed.
 Hint Rewrite PROP_LOCAL_SEP_f: norm2.
 
+(*
 Lemma SEP_PROP:
  forall P Q R P' Q' R', 
      PROPx P (LOCALx Q (SEPx (PROPx P' (LOCALx Q' (SEPx R')) :: R))) =
@@ -1500,6 +1457,7 @@ destruct H0; split; auto.
 induction P; simpl; auto. destruct H; split; auto.
 Qed.
 Hint Rewrite SEP_PROP: norm1.
+*)
 
 Ltac clean_up_app_carefully := (* useful after rewriting by SEP_PROP *)
  repeat
@@ -1578,6 +1536,7 @@ destruct H; split; auto.
 destruct H as [? [? ?]]. split3; auto.
 clear- H1.
 unfold SEPx.
+intro rho; simpl.
 induction H1; intuition.
 unfold fold_right; fold fold_right. apply sepcon_derives; auto.
 unfold fold_right; fold fold_right.
@@ -1636,14 +1595,14 @@ Qed.
  
 Lemma semax_frame_perm:
 forall (Qframe : list (environ -> Prop))
-         (Rframe : list (environ -> mpred))
+         (Rframe : list mpred)
          (Espec : OracleKind) {cs: compspecs}
          (Delta : tycontext)
          (P : list Prop) (Q : list (environ -> Prop)) (c : statement)
-         (R : list (environ -> mpred))
-         (Q1 : list (environ -> Prop)) (R1 : list (environ -> mpred))
+         (R : list mpred)
+         (Q1 : list (environ -> Prop)) (R1 : list mpred)
          (P2 : list Prop) (Q2 : list (environ -> Prop))
-         (R2 : list (environ -> mpred)),
+         (R2 : list mpred),
        closed_wrt_modvars c (LOCALx Qframe (SEPx Rframe)) ->
        Permutation (Qframe ++ Q1) Q ->
        Permutation (Rframe ++ R1)  R ->

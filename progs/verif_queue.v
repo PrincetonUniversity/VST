@@ -185,20 +185,6 @@ symmetry; apply wand_sepcon.
 *)
 Qed.
 
-Ltac simplify_value_fits' :=
-  rewrite ?proj_sumbool_is_true by auto;
-   rewrite ?proj_sumbool_is_false by auto;
-   try
-    match goal with
-    |- context [value_fits ?sh ?t ?v] =>
-        let t' := fresh "t" in
-        set (t' := t); hnf in t'; subst t'; rewrite (value_fits_ind sh _ v);
-        match goal with
-         |- context [unfold_reptype v] =>
-             change (unfold_reptype v) with v
-         end; rewrite ?Z.max_r by (try computable; omega)
-    end.
-
 Lemma make_unmake:
  forall a b p,
  field_at Tsh t_struct_elem [] (Vint a, (Vint b, Vundef)) p =
@@ -255,7 +241,7 @@ Definition mallocN_spec :=
      EX v: val,
      PROP (malloc_compatible n v) 
      LOCAL (temp ret_temp v) 
-     SEP (`(memory_block Tsh n v)).
+     SEP (memory_block Tsh n v).
 
 Definition freeN_spec :=
  DECLARE _freeN
@@ -263,7 +249,7 @@ Definition freeN_spec :=
   PRE [ 1%positive OF tptr tvoid , 2%positive OF tint]  
      (* we should also require natural_align_compatible (eval_id 1) *)
       PROP() LOCAL (temp 1%positive p; temp 2%positive (Vint (Int.repr n)))
-      SEP (`(memory_block Tsh n p))
+      SEP (memory_block Tsh n p)
   POST [ tvoid ]  
     PROP () LOCAL () SEP ().
 
@@ -291,40 +277,40 @@ Definition fifo_new_spec :=
   PRE  [  ]
        PROP() LOCAL() SEP ()
   POST [ (tptr t_struct_fifo) ] 
-    EX v:val, PROP() LOCAL(temp ret_temp v) SEP (`(fifo nil v)).
+    EX v:val, PROP() LOCAL(temp ret_temp v) SEP (fifo nil v).
 
 Definition fifo_put_spec :=
  DECLARE _fifo_put
   WITH q: val, contents: list val, p: val
   PRE  [ _Q OF (tptr t_struct_fifo) , _p OF (tptr t_struct_elem) ]
           PROP () LOCAL (temp _Q q; temp _p p) 
-          SEP (`(fifo contents q);
-                 `(list_cell QS Qsh (Vundef, Vundef) p);
-                 `(field_at_ Tsh t_struct_elem [StructField _next] p))
+          SEP (fifo contents q;
+                 list_cell QS Qsh (Vundef, Vundef) p;
+                 field_at_ Tsh t_struct_elem [StructField _next] p)
   POST [ tvoid ]
-          PROP() LOCAL() SEP (`(fifo (contents++(p :: nil)) q)).
+          PROP() LOCAL() SEP (fifo (contents++(p :: nil)) q).
 
 Definition fifo_empty_spec :=
  DECLARE _fifo_empty
   WITH q: val, contents: list val
   PRE  [ _Q OF (tptr t_struct_fifo) ]
-     PROP() LOCAL (temp _Q q) SEP(`(fifo contents q))
+     PROP() LOCAL (temp _Q q) SEP(fifo contents q)
   POST [ tint ]
       PROP ()
       LOCAL(temp ret_temp (if isnil contents then Vtrue else Vfalse)) 
-      SEP (`(fifo (contents) q)).
+      SEP (fifo (contents) q).
 
 Definition fifo_get_spec :=
  DECLARE _fifo_get
   WITH q: val, contents: list val, p: val
   PRE  [ _Q OF (tptr t_struct_fifo) ]
-       PROP() LOCAL (temp _Q q) SEP (`(fifo (p :: contents) q)) 
+       PROP() LOCAL (temp _Q q) SEP (fifo (p :: contents) q) 
   POST [ (tptr t_struct_elem) ] 
        PROP ()
        LOCAL(temp ret_temp p) 
-       SEP (`(fifo contents q);
-              `(list_cell QS Qsh (Vundef, Vundef) p);
-              `(field_at_ Tsh t_struct_elem [StructField _next] p)).
+       SEP (fifo contents q;
+              list_cell QS Qsh (Vundef, Vundef) p;
+              field_at_ Tsh t_struct_elem [StructField _next] p).
 
 Definition make_elem_spec :=
  DECLARE _make_elem
@@ -335,10 +321,10 @@ Definition make_elem_spec :=
       @exp (environ->mpred) _ _ (fun p:val =>  (* EX notation doesn't work for some reason *)
        PROP() 
        LOCAL (temp ret_temp p) 
-       SEP (`(field_at Qsh' list_struct [StructField _a] (Vint a) p);
-              `(field_at Qsh' list_struct [StructField _b] (Vint b) p);
-              `(list_cell QS Qsh (Vundef, Vundef) p);
-              `(field_at_ Tsh t_struct_elem [StructField _next] p))).              
+       SEP (field_at Qsh' list_struct [StructField _a] (Vint a) p;
+              field_at Qsh' list_struct [StructField _b] (Vint b) p;
+              list_cell QS Qsh (Vundef, Vundef) p;
+              field_at_ Tsh t_struct_elem [StructField _next] p)).  
 
 Definition main_spec := 
  DECLARE _main
@@ -433,7 +419,7 @@ Intros.
 forward. (* p->next = NULL; *)
 forward. (*   h = Q->head; *)
 forward_if 
-  (PROP() LOCAL () SEP (`(fifo (contents ++ p :: nil) q))).
+  (PROP() LOCAL () SEP (fifo (contents ++ p :: nil) q)).
 * if_tac; entailer.  (* typechecking clause *)
     (* entailer! should perhaps solve this one too *)
 * (* then clause *)
@@ -607,7 +593,7 @@ Parameter body_mallocN:
   (fun n : Z =>
    EX  v : val,
    PROP  (malloc_compatible n v)
-   LOCAL  (temp ret_temp v)  SEP  (`(memory_block Tsh n v))).
+   LOCAL  (temp ret_temp v)  SEP  (memory_block Tsh n v)).
 
 Parameter body_freeN:
 semax_external
@@ -616,7 +602,7 @@ semax_external
      {| sig_args := AST.Tint :: AST.Tint :: nil; sig_res := None; sig_cc := cc_default |}) (val*Z)
   (fun pn : val*Z => let (p,n) := pn in
       PROP() LOCAL (temp 1%positive p; temp 2%positive (Vint (Int.repr n)))
-      SEP (`(memory_block Tsh n p)))
+      SEP (memory_block Tsh n p))
   (fun pn => let (p,n) := pn in
     PROP () LOCAL () SEP ()).
 

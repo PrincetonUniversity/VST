@@ -59,22 +59,22 @@ semax
                 temp _c c;
                 temp _len (Vint (Int.repr (len - (Zlength blocks * 4 - Zlength dd))));
                 gvar  _K256 kv)
-   SEP  (`(K_vector kv);
-           `(data_at Tsh t_struct_SHA256state_st
+   SEP  (K_vector kv;
+           data_at Tsh t_struct_SHA256state_st
                  (map Vint (hash_blocks init_registers (hashed++blocks)),
                   (Vint (lo_part (bitlength hashed dd + len*8)),
                    (Vint (hi_part (bitlength hashed dd + len*8)),
                     (list_repeat (Z.to_nat CBLOCKz) Vundef, 
                      (Vint (Int.repr (len - (Zlength blocks * 4 - Zlength dd))))))))
-                c);
-            `(data_block sh data d)))
+                c;
+            data_block sh data d))
   update_last_if
   (normal_ret_assert
      (EX  a' : s256abs,
       PROP  (update_abs (sublist 0 len data) (S256abs hashed dd) a')
       LOCAL (gvar  _K256 kv)
-      SEP  (`(K_vector kv);
-             `(sha256state_ a' c); `(data_block sh data d)))).
+      SEP  (K_vector kv;
+             sha256state_ a' c; data_block sh data d))).
 Proof.
   intros.
   unfold update_last_if; abbreviate_semax.
@@ -94,7 +94,7 @@ eapply semax_post_flipped3.
     entailer!.
     auto with field_compatible.
   }   
- evar (Frame: list (LiftEnviron mpred)).
+ evar (Frame: list mpred).
   eapply(call_memcpy_tuchar
    (*dst*) Tsh t_struct_SHA256state_st [StructField _data] 0
                    (list_repeat (Z.to_nat CBLOCKz) Vundef) c
@@ -219,7 +219,7 @@ forward_call (* SHA256_addlength(c, len); *)
   repeat split; simpl; omega.
 (* TODO:  need a fold_data_at tactic; the next few lines do that here *)
 gather_SEP' [4;0;1;2;3]%Z.
-replace_SEP 0 `(data_at Tsh t_struct_SHA256state_st
+replace_SEP 0 (data_at Tsh t_struct_SHA256state_st
     (map Vint (hash_blocks init_registers hashed),
         (Vint (lo_part (bitlength hashed dd + len * 8)),
         (Vint (hi_part (bitlength hashed dd + len * 8)),
@@ -277,8 +277,8 @@ apply semax_seq with (EX  a' : s256abs,
                     PROP  (update_abs (sublist 0 len data) (S256abs hashed dd) a')
                     LOCAL (gvar  _K256 kv)
                     SEP 
-                    (`(K_vector kv);
-                     `(sha256state_ a' c); `(data_block sh data d))).
+                    (K_vector kv;
+                     sha256state_ a' c; data_block sh data d)).
 
 make_sequential.
  semax_subcommand Vprog Gtot  f_SHA256_Update.

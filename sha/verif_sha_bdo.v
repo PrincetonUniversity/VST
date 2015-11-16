@@ -40,16 +40,16 @@ forward. (* data = in; *)
 *
 semax_frame
              [ lvar _X (tarray tuint 16) Xv  ] 
-             [`(data_at_ Tsh (tarray tuint 16) Xv);
-                         `(data_block sh (intlist_to_Zlist b) data);
-                         `(K_vector kv)].
+             [data_at_ Tsh (tarray tuint 16) Xv;
+                      data_block sh (intlist_to_Zlist b) data;
+                      K_vector kv].
 apply sha256_block_load8 with (ctx:=ctx); eassumption.
 *
 abbreviate_semax.
 eapply semax_seq'.
 semax_frame 
       [  ]
-      [`(field_at Tsh t_struct_SHA256state_st [StructField _h] (map Vint regs) ctx)].
+      [field_at Tsh t_struct_SHA256state_st [StructField _h] (map Vint regs) ctx].
 change Delta with Delta_loop1.
 
     fold block_data_order_loop1.
@@ -57,8 +57,8 @@ change Delta with Delta_loop1.
 simpl; abbreviate_semax.
 eapply semax_seq'.
 semax_frame  [ ]
-        [`(field_at Tsh t_struct_SHA256state_st [StructField _h] (map Vint regs) ctx);
-         `(data_block sh (intlist_to_Zlist b) data)].
+        [field_at Tsh t_struct_SHA256state_st [StructField _h] (map Vint regs) ctx;
+         data_block sh (intlist_to_Zlist b) data].
  match goal with |- semax _ _ ?c _ => change c with block_data_order_loop2 end.
  simple eapply sha256_block_data_order_loop2_proof;
    try  eassumption.
@@ -66,9 +66,9 @@ abbreviate_semax.
 subst MORE_COMMANDS; unfold abbreviate.
 eapply seq_assocN with (cs := add_them_back).
 semax_frame  [  lvar _X (tarray tuint 16) Xv ]
-             [`(K_vector kv);
-             `(data_at_ Tsh (tarray tuint LBLOCKz) Xv);
-             `(data_block sh (intlist_to_Zlist b) data)].
+             [K_vector kv;
+             data_at_ Tsh (tarray tuint LBLOCKz) Xv;
+             data_block sh (intlist_to_Zlist b) data].
   change Delta with (initialized _i Delta_loop1).
   simple apply (add_them_back_proof _ regs (Round regs (nthi b) 63) ctx); try assumption.
   apply length_Round; auto.

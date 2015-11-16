@@ -837,26 +837,26 @@ intro. simpl in H. congruence.
 Qed.
 
 Lemma unfold_lseg_neq (ls: listspec list_structid list_link):
-   forall P Q1 Q R (v v2: environ -> val) dsh psh (s: list (val * elemtype ls)),
-      PROPx P (LOCALx (Q1::Q) (SEPx (`(lseg ls dsh psh s) v v2 :: R))) |-- 
-                        local (`ptr_neq v v2) ->
-      PROPx P (LOCALx (Q1::Q) (SEPx (`(lseg ls dsh psh s) v v2 :: R))) |--
+   forall P Q1 Q R (v v2: val) dsh psh (s: list (val * elemtype ls)),
+      PROPx P (LOCALx (Q1::Q) (SEPx (lseg ls dsh psh s v v2 :: R))) |-- 
+                        !! (ptr_neq v v2) ->
+      PROPx P (LOCALx (Q1::Q) (SEPx (lseg ls dsh psh s v v2 :: R))) |--
      EX hryp: elemtype ls * list (val * elemtype ls) * val * val,
       match hryp with (h,r,y,p) => 
        !! (s=(p,h)::r /\ is_pointer_or_null y) &&
-       local (`(eq p) v) &&
+       !! (p=v) &&
       PROPx P (LOCALx Q 
-        (SEPx (`(list_cell ls dsh h) v::
-                  `(field_at psh list_struct (StructField list_link :: nil) (valinject (nested_field_type list_struct (StructField list_link :: nil)) y)) v ::
-                  `(lseg ls dsh psh r) (`y) (v2) ::
+        (SEPx (list_cell ls dsh h v::
+                  field_at psh list_struct (StructField list_link :: nil) (valinject (nested_field_type list_struct (StructField list_link :: nil)) y) v ::
+                  lseg ls dsh psh r y v2 ::
                   R)))
         end.
 Proof.
 intros.
 apply derives_trans with
-(PROPx P (LOCALx (Q1::Q) (SEPx (`(lseg_cons ls dsh psh s) v v2 :: R)))).
+(PROPx P (LOCALx (Q1::Q) (SEPx (lseg_cons ls dsh psh s v v2 :: R)))).
 apply derives_trans with
-(local (`ptr_neq v v2) && PROPx P (LOCALx (Q1::Q) (SEPx (`(lseg ls dsh psh s) v v2 :: R)))).
+(!! ptr_neq v v2 && PROPx P (LOCALx (Q1::Q) (SEPx (lseg ls dsh psh s v v2 :: R)))).
 apply andp_right; auto.
 intro rho; unfold PROPx,LOCALx,SEPx,local,tc_expr,tc_lvalue; unfold_lift; simpl.
 unfold lift1; simpl. 
@@ -878,7 +878,7 @@ intro rho; unfold PROPx,LOCALx,SEPx,local,tc_expr,tc_lvalue,lift2,lift1,lift0; s
  repeat rewrite sepcon_andp_prop'.
  apply derives_extract_prop; intros [? ?].
  subst.
- apply exp_right with (h,r,y, v rho).
+ apply exp_right with (h,r,y, v).
  repeat rewrite prop_true_andp by auto.
  repeat rewrite sepcon_assoc.
  auto.
@@ -886,17 +886,17 @@ Qed.
 
 Lemma unfold_lseg_cons (ls: listspec list_structid list_link):
    forall P Q1 Q R e dsh psh s,
-      PROPx P (LOCALx (Q1::Q) (SEPx (`(lseg ls dsh psh s) e (`nullval) :: R))) |-- 
-                        local (`(typed_true (tptr list_struct)) e) ->
-      PROPx P (LOCALx (Q1::Q) (SEPx (`(lseg ls dsh psh s) e (`nullval) :: R))) |--
+      PROPx P (LOCALx (Q1::Q) (SEPx (lseg ls dsh psh s e nullval :: R))) |-- 
+                        !! (typed_true (tptr list_struct) e) ->
+      PROPx P (LOCALx (Q1::Q) (SEPx (lseg ls dsh psh s e nullval :: R))) |--
      EX hryp: elemtype ls * list (val * elemtype ls) * val * val,
       match hryp with (h,r,y,p) => 
        !! (s=(p,h)::r /\ is_pointer_or_null y) &&
-       local (`(eq p) e) && 
+       !! (p=e)&& 
       PROPx P (LOCALx Q 
-        (SEPx (`(list_cell ls dsh h) e ::
-                  `(field_at psh list_struct (StructField list_link :: nil) (valinject (nested_field_type list_struct (StructField list_link :: nil)) y)) e ::
-                  `(lseg ls dsh psh r) (`y) (`nullval) ::
+        (SEPx (list_cell ls dsh h e ::
+                  field_at psh list_struct (StructField list_link :: nil) (valinject (nested_field_type list_struct (StructField list_link :: nil)) y) e ::
+                  lseg ls dsh psh r y nullval ::
                   R)))
         end.
 Proof.
@@ -904,10 +904,9 @@ intros. apply unfold_lseg_neq.
 eapply derives_trans.
 apply H. normalize.
 unfold local. super_unfold_lift.
- intro rho.
-apply derives_extract_prop0; intro.
 unfold nullval.
-normalize. destruct (e rho); inv H0; try congruence; auto.
+normalize. destruct e; inv H0; try congruence; auto.
+destruct (Int.eq i Int.zero); inv H2.
 intro. apply ptr_eq_e in H0. congruence.
 Qed.
 
@@ -919,13 +918,13 @@ Lemma semax_lseg_neq (ls: listspec list_structid list_link):
     s=(v,h)::r -> is_pointer_or_null y ->
     semax Delta 
         (PROPx P (LOCALx Q 
-        (SEPx (`(list_cell ls dsh h v) ::
-                  `(field_at psh list_struct (StructField list_link :: nil) 
-                      (valinject (nested_field_type list_struct (StructField list_link :: nil)) y) v) ::
-                  `(lseg ls dsh psh r y v2) ::
+        (SEPx (list_cell ls dsh h v ::
+                  field_at psh list_struct (StructField list_link :: nil) 
+                      (valinject (nested_field_type list_struct (StructField list_link :: nil)) y) v ::
+                  lseg ls dsh psh r y v2 ::
                   R)))) c Post) ->
    semax Delta 
-       (PROPx P (LOCALx Q (SEPx (`(lseg ls dsh psh s v v2) :: R)))) 
+       (PROPx P (LOCALx Q (SEPx (lseg ls dsh psh s v v2 :: R)))) 
        c Post.
 Proof.
 intros.
@@ -934,12 +933,12 @@ unfold lseg_cons.
 apply semax_pre0 with
  (EX h: elemtype ls, EX r: list (val * elemtype ls), EX y: val,
   !!(s = (v, h) :: r /\ is_pointer_or_null y) &&
-    PROPx P (LOCALx Q (SEPx (`(list_cell ls dsh h v) ::
-       `(field_at psh list_struct (StructField list_link :: nil)
+    PROPx P (LOCALx Q (SEPx (list_cell ls dsh h v ::
+       field_at psh list_struct (StructField list_link :: nil)
                    (valinject
                       (nested_field_type list_struct
-                         (StructField list_link :: nil)) y) v) ::
-        `(lseg ls dsh psh r y v2) :: R)))).
+                         (StructField list_link :: nil)) y) v ::
+        lseg ls dsh psh r y v2 :: R)))).
 entailer.
 apply exp_right with h.
 apply exp_right with r.
@@ -958,18 +957,18 @@ Lemma semax_lseg_nonnull (ls: listspec list_structid list_link):
   forall (Espec: OracleKind)
       Delta P Q dsh psh s v R c Post,
    PROPx P (LOCALx (tc_environ Delta :: Q)
-            (SEPx (`(lseg ls dsh psh s v nullval) :: R))) |-- 
+            (SEPx (lseg ls dsh psh s v nullval :: R))) |-- 
                         !!(typed_true (tptr list_struct) v)  ->
   (forall (h: elemtype ls) (r: list (val * elemtype ls)) (y: val), 
     s=(v,h)::r -> is_pointer_or_null y -> 
     semax Delta 
         (PROPx P (LOCALx Q 
-        (SEPx (`(list_cell ls dsh h v) ::
-                  `(field_at psh list_struct (StructField list_link :: nil) (valinject (nested_field_type list_struct (StructField list_link :: nil)) y) v) ::
-                  `(lseg ls dsh psh r y nullval) ::
+        (SEPx (list_cell ls dsh h v ::
+                  field_at psh list_struct (StructField list_link :: nil) (valinject (nested_field_type list_struct (StructField list_link :: nil)) y) v ::
+                  lseg ls dsh psh r y nullval ::
                   R)))) c Post) ->
    semax Delta 
-       (PROPx P (LOCALx Q (SEPx (`(lseg ls dsh psh s v nullval) :: R)))) 
+       (PROPx P (LOCALx Q (SEPx (lseg ls dsh psh s v nullval :: R)))) 
        c Post.
 Proof.
 intros.
@@ -1400,25 +1399,25 @@ intro. simpl in H. congruence.
 Qed.
 
 Lemma unfold_lseg_neq (ls: listspec list_structid list_link):
-   forall P Q1 Q R (v v2: environ -> val) sh (s: list (elemtype ls)),
-      PROPx P (LOCALx (Q1::Q) (SEPx (`(lseg ls sh s) v v2 :: R))) |-- 
-                        local (`ptr_neq v v2) ->
-      PROPx P (LOCALx (Q1::Q) (SEPx (`(lseg ls sh s) v v2 :: R))) |--
+   forall P Q1 Q R (v v2: val) sh (s: list (elemtype ls)),
+      PROPx P (LOCALx (Q1::Q) (SEPx (lseg ls sh s v v2 :: R))) |-- 
+                        !! (ptr_neq v v2) ->
+      PROPx P (LOCALx (Q1::Q) (SEPx (lseg ls sh s v v2 :: R))) |--
      EX hryp: elemtype ls * list (elemtype ls) * val,
       match hryp with (h,r,y) => 
        !! (s=h::r /\ is_pointer_or_null y) &&
       PROPx P (LOCALx Q 
-        (SEPx (`(list_cell ls sh h) v::
-                  `(field_at sh list_struct (StructField list_link :: nil) (valinject (nested_field_type list_struct (StructField list_link :: nil)) y)) v ::
-                   `(lseg ls sh r) (`y) (v2) ::
+        (SEPx (list_cell ls sh h v::
+                  field_at sh list_struct (StructField list_link :: nil) (valinject (nested_field_type list_struct (StructField list_link :: nil)) y) v ::
+                   lseg ls sh r y v2 ::
                   R)))
         end.
 Proof.
 intros.
 apply derives_trans with
-(PROPx P (LOCALx (Q1::Q) (SEPx (`(lseg_cons ls sh s) v v2 :: R)))).
+(PROPx P (LOCALx (Q1::Q) (SEPx (lseg_cons ls sh s v v2 :: R)))).
 apply derives_trans with
-(local (`ptr_neq v v2) && PROPx P (LOCALx (Q1::Q) (SEPx (`(lseg ls sh s) v v2 :: R)))).
+(!! (ptr_neq v v2) && PROPx P (LOCALx (Q1::Q) (SEPx (lseg ls sh s v v2 :: R)))).
 apply andp_right; auto.
 intro rho; unfold PROPx,LOCALx,SEPx,local,tc_expr,tc_lvalue; unfold_lift; simpl.
 unfold lift1; simpl. 
@@ -1448,16 +1447,16 @@ Qed.
 
 Lemma unfold_lseg_cons (ls: listspec list_structid list_link):
    forall P Q1 Q R e sh s,
-      PROPx P (LOCALx (Q1::Q) (SEPx (`(lseg ls sh s) e (`nullval) :: R))) |-- 
-                        local (`(typed_true (tptr list_struct)) e) ->
-      PROPx P (LOCALx (Q1::Q) (SEPx (`(lseg ls sh s) e (`nullval) :: R))) |--
+      PROPx P (LOCALx (Q1::Q) (SEPx (lseg ls sh s e nullval :: R))) |-- 
+                        !!(typed_true (tptr list_struct) e) ->
+      PROPx P (LOCALx (Q1::Q) (SEPx (lseg ls sh s e nullval :: R))) |--
      EX hryp: elemtype ls * list (elemtype ls) * val,
       match hryp with (h,r,y) => 
        !! (s=h::r /\ is_pointer_or_null y) &&
       PROPx P (LOCALx Q 
-        (SEPx (`(list_cell ls sh h) e ::
-                  `(field_at sh list_struct (StructField list_link :: nil) (valinject (nested_field_type list_struct (StructField list_link :: nil)) y)) e ::
-                   `(lseg ls sh r) (`y) (`nullval) ::
+        (SEPx (list_cell ls sh h e ::
+                  field_at sh list_struct (StructField list_link :: nil) (valinject (nested_field_type list_struct (StructField list_link :: nil)) y) e ::
+                   lseg ls sh r y nullval ::
                   R)))
         end.
 Proof.
@@ -1465,10 +1464,9 @@ intros. apply unfold_lseg_neq.
 eapply derives_trans.
 apply H. normalize.
 unfold local. super_unfold_lift.
- intro rho.
-apply derives_extract_prop0; intro.
 unfold nullval.
-normalize. destruct (e rho); inv H0; try congruence; auto.
+destruct e; inv H0; try congruence; auto.
+destruct (Int.eq i Int.zero); inv H2.
 intro. apply ptr_eq_e in H0. congruence.
 Qed.
 
@@ -1480,13 +1478,13 @@ Lemma semax_lseg_neq (ls: listspec list_structid list_link):
     s=h::r -> is_pointer_or_null y ->
     semax Delta 
         (PROPx P (LOCALx Q 
-        (SEPx (`(list_cell ls sh h v) ::
-                  `(field_at sh list_struct (StructField list_link :: nil) 
-                      (valinject (nested_field_type list_struct (StructField list_link :: nil)) y) v) ::
-                   `(lseg ls sh r y v2) ::
+        (SEPx (list_cell ls sh h v ::
+                  field_at sh list_struct (StructField list_link :: nil) 
+                      (valinject (nested_field_type list_struct (StructField list_link :: nil)) y) v ::
+                   lseg ls sh r y v2 ::
                   R)))) c Post) ->
    semax Delta 
-       (PROPx P (LOCALx Q (SEPx (`(lseg ls sh s v v2) :: R)))) 
+       (PROPx P (LOCALx Q (SEPx (lseg ls sh s v v2 :: R)))) 
        c Post.
 Proof.
 intros.
@@ -1495,12 +1493,12 @@ unfold lseg_cons.
 apply semax_pre0 with
  (EX h: elemtype ls, EX r: list (elemtype ls), EX y: val,
   !!(s = h :: r /\ is_pointer_or_null y) &&
-    PROPx P (LOCALx Q (SEPx (`(list_cell ls sh h v) ::
-       `(field_at sh list_struct (StructField list_link :: nil)
+    PROPx P (LOCALx Q (SEPx (list_cell ls sh h v ::
+       field_at sh list_struct (StructField list_link :: nil)
                    (valinject
                       (nested_field_type list_struct
-                         (StructField list_link :: nil)) y) v) ::
-        `(lseg ls sh r y v2) :: R)))).
+                         (StructField list_link :: nil)) y) v ::
+        lseg ls sh r y v2 :: R)))).
 entailer.
 apply exp_right with h.
 apply exp_right with r.
@@ -1519,18 +1517,18 @@ Lemma semax_lseg_nonnull (ls: listspec list_structid list_link):
   forall (Espec: OracleKind)
       Delta P Q sh s v R c Post,
    PROPx P (LOCALx (tc_environ Delta :: Q)
-            (SEPx (`(lseg ls sh s v nullval) :: R))) |-- 
+            (SEPx (lseg ls sh s v nullval :: R))) |-- 
                         !!(typed_true (tptr list_struct) v)  ->
   (forall (h: elemtype ls) (r: list (elemtype ls)) (y: val), 
     s=h::r -> is_pointer_or_null y -> 
     semax Delta 
         (PROPx P (LOCALx Q 
-        (SEPx (`(list_cell ls sh h v) ::
-                  `(field_at sh list_struct (StructField list_link :: nil) (valinject (nested_field_type list_struct (StructField list_link :: nil)) y) v) ::
-                   `(lseg ls sh r y nullval) ::
+        (SEPx (list_cell ls sh h v ::
+                  field_at sh list_struct (StructField list_link :: nil) (valinject (nested_field_type list_struct (StructField list_link :: nil)) y) v ::
+                   lseg ls sh r y nullval ::
                   R)))) c Post) ->
    semax Delta 
-       (PROPx P (LOCALx Q (SEPx (`(lseg ls sh s v nullval) :: R)))) 
+       (PROPx P (LOCALx Q (SEPx (lseg ls sh s v nullval :: R)))) 
        c Post.
 Proof.
 intros.
@@ -2008,27 +2006,27 @@ intro. simpl in H0. auto.
 Qed.
 
 Lemma unfold_lseg_neq (ls: listspec list_structid list_link):
-   forall P Q1 Q R (v v2: environ -> val) dsh psh (s: list val),
+   forall P Q1 Q R (v v2: val) dsh psh (s: list val),
     ~ (readable_share dsh) ->
-      PROPx P (LOCALx (Q1::Q) (SEPx (`(lseg ls dsh psh s) v v2 :: R))) |-- 
-                        local (`ptr_neq v v2) ->
-      PROPx P (LOCALx (Q1::Q) (SEPx (`(lseg ls dsh psh s) v v2 :: R))) |--
+      PROPx P (LOCALx (Q1::Q) (SEPx (lseg ls dsh psh s v v2 :: R))) |-- 
+                        !! (ptr_neq v v2) ->
+      PROPx P (LOCALx (Q1::Q) (SEPx (lseg ls dsh psh s v v2 :: R))) |--
      EX hryp: elemtype ls * list val * val * val,
       match hryp with (h,r,y,p) => 
        !! (s=p::r /\ is_pointer_or_null y) &&
-       local (`(eq p) v) &&
+       !! (p=v) &&
       PROPx P (LOCALx Q 
-        (SEPx (`(list_cell ls dsh h) v::
-                  `(field_at psh list_struct (StructField list_link :: nil) (valinject (nested_field_type list_struct (StructField list_link :: nil)) y)) v ::
-                  `(lseg ls dsh psh r) (`y) (v2) ::
+        (SEPx (list_cell ls dsh h v::
+                  field_at psh list_struct (StructField list_link :: nil) (valinject (nested_field_type list_struct (StructField list_link :: nil)) y) v ::
+                  lseg ls dsh psh r y v2 ::
                   R)))
         end.
 Proof.
 intros.
 apply derives_trans with
-(PROPx P (LOCALx (Q1::Q) (SEPx (`(lseg_cons ls dsh psh s) v v2 :: R)))).
+(PROPx P (LOCALx (Q1::Q) (SEPx (lseg_cons ls dsh psh s v v2 :: R)))).
 apply derives_trans with
-(local (`ptr_neq v v2) && PROPx P (LOCALx (Q1::Q) (SEPx (`(lseg ls dsh psh s) v v2 :: R)))).
+(!! (ptr_neq v v2) && PROPx P (LOCALx (Q1::Q) (SEPx (lseg ls dsh psh s v v2 :: R)))).
 apply andp_right; auto.
 intro rho; unfold PROPx,LOCALx,SEPx,local,tc_expr,tc_lvalue; unfold_lift; simpl.
 unfold lift1; simpl. 
@@ -2050,7 +2048,7 @@ intro rho; unfold PROPx,LOCALx,SEPx,local,tc_expr,tc_lvalue,lift2,lift1,lift0; s
  repeat rewrite sepcon_andp_prop'.
  apply derives_extract_prop; intros [? ?].
  subst.
- apply exp_right with (h,r,y, v rho).
+ apply exp_right with (h,r,y, v).
  repeat rewrite prop_true_andp by auto.
  repeat rewrite sepcon_assoc.
  auto.
@@ -2059,17 +2057,17 @@ Qed.
 Lemma unfold_lseg_cons (ls: listspec list_structid list_link):
    forall P Q1 Q R e dsh psh s,
     ~ (readable_share dsh) ->
-      PROPx P (LOCALx (Q1::Q) (SEPx (`(lseg ls dsh psh s) e (`nullval) :: R))) |-- 
-                        local (`(typed_true (tptr list_struct)) e) ->
-      PROPx P (LOCALx (Q1::Q) (SEPx (`(lseg ls dsh psh s) e (`nullval) :: R))) |--
+      PROPx P (LOCALx (Q1::Q) (SEPx (lseg ls dsh psh s e nullval :: R))) |-- 
+                        !! (typed_true (tptr list_struct) e) ->
+      PROPx P (LOCALx (Q1::Q) (SEPx (lseg ls dsh psh s e nullval :: R))) |--
      EX hryp: elemtype ls * list val * val * val,
       match hryp with (h,r,y,p) => 
        !! (s=p::r /\ is_pointer_or_null y) &&
-       local (`(eq p) e) && 
+       !! (p = e) && 
       PROPx P (LOCALx Q 
-        (SEPx (`(list_cell ls dsh h) e ::
-                  `(field_at psh list_struct (StructField list_link :: nil) (valinject (nested_field_type list_struct (StructField list_link :: nil)) y)) e ::
-                  `(lseg ls dsh psh r) (`y) (`nullval) ::
+        (SEPx (list_cell ls dsh h e ::
+                  field_at psh list_struct (StructField list_link :: nil) (valinject (nested_field_type list_struct (StructField list_link :: nil)) y) e ::
+                  lseg ls dsh psh r y nullval ::
                   R)))
         end.
 Proof.
@@ -2077,10 +2075,8 @@ intros. apply unfold_lseg_neq; auto.
 eapply derives_trans.
 apply H0. normalize.
 unfold local. super_unfold_lift.
- intro rho.
-apply derives_extract_prop0; intro.
-unfold nullval.
-normalize. destruct (e rho); inv H1; try congruence; auto.
+unfold nullval. destruct e; inv H1; try congruence; auto.
+destruct (Int.eq i Int.zero); inv H3.
 intro. apply ptr_eq_e in H1. congruence.
 Qed.
 
@@ -2093,13 +2089,13 @@ Lemma semax_lseg_neq (ls: listspec list_structid list_link):
     s=v::r -> is_pointer_or_null y ->
     semax Delta 
         (PROPx P (LOCALx Q 
-        (SEPx (`(list_cell ls dsh h v) ::
-                  `(field_at psh list_struct (StructField list_link :: nil) 
-                      (valinject (nested_field_type list_struct (StructField list_link :: nil)) y) v) ::
-                  `(lseg ls dsh psh r y v2) ::
+        (SEPx (list_cell ls dsh h v ::
+                  field_at psh list_struct (StructField list_link :: nil) 
+                      (valinject (nested_field_type list_struct (StructField list_link :: nil)) y) v ::
+                  lseg ls dsh psh r y v2 ::
                   R)))) c Post) ->
    semax Delta 
-       (PROPx P (LOCALx Q (SEPx (`(lseg ls dsh psh s v v2) :: R)))) 
+       (PROPx P (LOCALx Q (SEPx (lseg ls dsh psh s v v2 :: R)))) 
        c Post.
 Proof.
 intros.
@@ -2108,12 +2104,12 @@ unfold lseg_cons.
 apply semax_pre0 with
  (EX h: elemtype ls, EX r: list val, EX y: val,
   !!(s = v :: r /\ is_pointer_or_null y) &&
-    PROPx P (LOCALx Q (SEPx (`(list_cell ls dsh h v) ::
-       `(field_at psh list_struct (StructField list_link :: nil)
+    PROPx P (LOCALx Q (SEPx (list_cell ls dsh h v ::
+       field_at psh list_struct (StructField list_link :: nil)
                    (valinject
                       (nested_field_type list_struct
-                         (StructField list_link :: nil)) y) v) ::
-        `(lseg ls dsh psh r y v2) :: R)))).
+                         (StructField list_link :: nil)) y) v ::
+        lseg ls dsh psh r y v2 :: R)))).
 entailer.
 apply exp_right with h.
 apply exp_right with r.
@@ -2133,18 +2129,18 @@ Lemma semax_lseg_nonnull (ls: listspec list_structid list_link):
       Delta P Q dsh psh s v R c Post,
     ~ (readable_share dsh) ->
    PROPx P (LOCALx (tc_environ Delta :: Q)
-            (SEPx (`(lseg ls dsh psh s v nullval) :: R))) |-- 
+            (SEPx (lseg ls dsh psh s v nullval :: R))) |-- 
                         !!(typed_true (tptr list_struct) v)  ->
   (forall (h: elemtype ls) (r: list val) (y: val), 
     s=v::r -> is_pointer_or_null y -> 
     semax Delta 
         (PROPx P (LOCALx Q 
-        (SEPx (`(list_cell ls dsh h v) ::
-                  `(field_at psh list_struct (StructField list_link :: nil) (valinject (nested_field_type list_struct (StructField list_link :: nil)) y) v) ::
-                  `(lseg ls dsh psh r y nullval) ::
+        (SEPx (list_cell ls dsh h v ::
+                  field_at psh list_struct (StructField list_link :: nil) (valinject (nested_field_type list_struct (StructField list_link :: nil)) y) v ::
+                  lseg ls dsh psh r y nullval ::
                   R)))) c Post) ->
    semax Delta 
-       (PROPx P (LOCALx Q (SEPx (`(lseg ls dsh psh s v nullval) :: R)))) 
+       (PROPx P (LOCALx Q (SEPx (lseg ls dsh psh s v nullval :: R)))) 
        c Post.
 Proof.
 intros.

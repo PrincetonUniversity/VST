@@ -14,11 +14,11 @@ Definition f_spec :=
   PRE  [_p OF tptr tint, _q OF tptr tint] 
         PROP ()
         LOCAL(temp _p p; temp _q q)
-        SEP(`(data_at sh tint (Vint Int.zero) p);`(data_at sh tint (Vint Int.zero) q))
+        SEP(data_at sh tint (Vint Int.zero) p; data_at sh tint (Vint Int.zero) q)
   POST [ tint ]
          PROP() 
          LOCAL (temp 1%positive (if eq_dec p q then Vtrue else Vfalse))
-         SEP (`(data_at sh tint (Vint Int.zero) p);`(data_at sh tint (Vint Int.zero) q)).
+         SEP (data_at sh tint (Vint Int.zero) p; data_at sh tint (Vint Int.zero) q).
 
 Definition Vprog : varspecs := nil.
 
