@@ -581,32 +581,26 @@ Proof.
     f_equal.
 Qed.
 
-Lemma andp_struct_pred: forall m {A} (P: forall it, A it -> val -> mpred) v p Q R,
-  !! (Q /\ struct_Prop m R v) && struct_pred m P v p =
+Lemma corable_andp_struct_pred: forall m {A} (P: forall it, A it -> val -> mpred) v p Q,
+  corable Q ->
+  Q && struct_pred m P v p =
   match m with
-  | nil => !! Q && emp
-  | _ => struct_pred m (fun it v p => !! (Q /\ R it v) && P it v p) v p
+  | nil => Q && emp
+  | _ => struct_pred m (fun it v p => Q && P it v p) v p
   end.
 Proof.
   intros.
-  destruct m as [| (i0, t0) m]; [simpl; f_equal; apply ND_prop_ext; tauto |].
+  destruct m as [| (i0, t0) m]; [auto |].
   revert i0 t0 v; induction m as [| (i1, t1) m]; intros.
   + simpl.
     auto.
   + change (struct_pred ((i0, t0) :: (i1, t1) :: m) P v p)
       with (P (i0, t0) (fst v) p * struct_pred ((i1, t1) :: m) P (snd v) p).
-    change (struct_Prop ((i0, t0) :: (i1, t1) :: m) R v)
-      with (R (i0, t0) (fst v) /\ struct_Prop ((i1, t1) :: m) R (snd v)).
-    rewrite !prop_and.
-    pattern (!! Q) at 1; rewrite <- (andp_dup (!! Q)).
-    rewrite !andp_assoc.
+    pattern Q at 1; rewrite <- (andp_dup Q).
+    rewrite andp_assoc.
     rewrite <- corable_sepcon_andp1 by auto.
-    rewrite <- corable_andp_sepcon1 by auto.
-    rewrite <- corable_sepcon_andp1 by auto.
-    rewrite <- corable_andp_sepcon1 by auto.
-    rewrite <- !andp_assoc.
-    rewrite <- !prop_and.
     rewrite IHm.
+    rewrite <- corable_andp_sepcon1 by auto.
     reflexivity.
 Qed.
 
@@ -903,15 +897,15 @@ Proof.
     - apply IHm.
 Qed.
 
-Lemma andp_union_pred: forall m {A} (P: forall it, A it -> val -> mpred) v p Q R,
-  !! (Q /\ union_Prop m R v) && union_pred m P v p =
+Lemma andp_union_pred: forall m {A} (P: forall it, A it -> val -> mpred) v p Q,
+  Q && union_pred m P v p =
   match m with
-  | nil => !! Q && emp
-  | _ => union_pred m (fun it v p => !! (Q /\ R it v) && P it v p) v p
+  | nil => Q && emp
+  | _ => union_pred m (fun it v p => Q && P it v p) v p
   end.
 Proof.
   intros.
-  destruct m as [| (i0, t0) m]; [simpl; f_equal; apply ND_prop_ext; tauto |].
+  destruct m as [| (i0, t0) m]; [auto |].
   revert i0 t0 v; induction m as [| (i1, t1) m]; intros.
   + simpl.
     auto.
@@ -1307,13 +1301,14 @@ Definition at_offset_struct_pred: forall m {A} (P: forall it, A it -> val -> mpr
   at_offset (struct_pred m P v) ofs p = struct_pred m (fun it v => at_offset (P it v) ofs) v p
 := @at_offset_struct_pred.
 
-Definition andp_struct_pred: forall m {A} (P: forall it, A it -> val -> mpred) v p Q R,
-  !! (Q /\ struct_Prop m R v) && struct_pred m P v p =
+Definition andp_struct_pred: forall m {A} (P: forall it, A it -> val -> mpred) v p Q,
+  corable Q ->
+  Q && struct_pred m P v p =
   match m with
-  | nil => !! Q && emp
-  | _ => struct_pred m (fun it v p => !! (Q /\ R it v) && P it v p) v p
+  | nil => Q && emp
+  | _ => struct_pred m (fun it v p => Q && P it v p) v p
   end
-:= @andp_struct_pred.
+:= @corable_andp_struct_pred.
 
 Definition union_pred_ramif: forall m {A} (P: forall it, A it -> val -> mpred) (i: ident) v p d,
   (forall i' (v': A (i', field_type i' m)), in_members i' m -> P _ v' p |-- P _ d p) ->
@@ -1346,11 +1341,11 @@ Definition at_offset_union_pred: forall m {A} (P: forall it, A it -> val -> mpre
   at_offset (union_pred m P v) ofs p = union_pred m (fun it v => at_offset (P it v) ofs) v p
 := at_offset_union_pred.
 
-Definition andp_union_pred: forall m {A} (P: forall it, A it -> val -> mpred) v p Q R,
-  !! (Q /\ union_Prop m R v) && union_pred m P v p =
+Definition andp_union_pred: forall m {A} (P: forall it, A it -> val -> mpred) v p Q,
+  Q && union_pred m P v p =
   match m with
-  | nil => !! Q && emp
-  | _ => union_pred m (fun it v p => !! (Q /\ R it v) && P it v p) v p
+  | nil => Q && emp
+  | _ => union_pred m (fun it v p => Q && P it v p) v p
   end
 := @andp_union_pred.
 

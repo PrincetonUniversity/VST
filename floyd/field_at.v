@@ -121,8 +121,8 @@ Proof.
 Qed.
 
 Definition field_at (sh: Share.t) (t: type) (gfs: list gfield) (v: reptype (nested_field_type t gfs)) (p: val): mpred :=
- !! (field_compatible t gfs p /\ value_fits (nested_field_type t gfs) v) 
-    && at_offset (data_at' sh (nested_field_type t gfs) v) (nested_field_offset t gfs) p.
+ !! (field_compatible t gfs p) &&
+ at_offset (data_at' sh (nested_field_type t gfs) v) (nested_field_offset t gfs) p.
 Arguments field_at sh t gfs v p : simpl never.
 
 Definition field_at_ (sh: Share.t) (t: type) (gfs: list gfield) (p: val): mpred :=
@@ -195,10 +195,8 @@ Definition nested_ufieldlist_at sh t gfs m (v: nested_reptype_unionlist t gfs m)
 Definition array_at (sh: Share.t) (t: type) (gfs: list gfield) (lo hi: Z)
   (v: list (reptype (nested_field_type t (ArraySubsc 0 :: gfs)))) (p: val) : mpred :=
   !! (field_compatible0 t (ArraySubsc lo :: gfs) p /\
-      field_compatible0 t (ArraySubsc hi :: gfs) p /\
-      Zlength v = Z.max 0 (hi-lo) /\
-      Forall (value_fits (nested_field_type t (ArraySubsc 0 :: gfs))) v)
-  &&  array_pred  (default_val _) lo hi
+      field_compatible0 t (ArraySubsc hi :: gfs) p) &&
+  array_pred (default_val _) lo hi
     (fun i v => at_offset (data_at' sh (nested_field_type t (ArraySubsc 0 :: gfs)) v)
        (nested_field_offset t (ArraySubsc i :: gfs))) v p.
 
@@ -217,7 +215,9 @@ Lemma field_at_local_facts:
 Proof.
   intros.
   unfold field_at.
-  normalize. autorewrite with subst norm1 norm2; normalize.
+  rewrite prop_and; apply andp_derives; auto.
+  unfold at_offset.
+  apply data_at'_value_fits.
 Qed.
 
 Lemma field_at_compatible':
@@ -249,32 +249,24 @@ Proof. intros.
   apply field_at__local_facts.
 Qed.
 
-Lemma field_compatible_range:
- forall i n t gfs p, 
-   0 <= i <= n ->
-   field_compatible0 t (ArraySubsc 0 :: gfs) p ->
-   field_compatible0 t (ArraySubsc n :: gfs) p ->
-   field_compatible0 t (ArraySubsc i :: gfs) p.
-Proof.
-intros.
-destruct H0 as [? [? [? [? [? [? [? [? ?]]]]]]]].
-destruct H1 as [? [? [? [? [? [? [? [? ?]]]]]]]].
-repeat split; auto.
-hnf in H9,H17|-*.
-destruct (nested_field_type t gfs); auto.
-omega.
-Qed.
-
 Lemma array_at_local_facts: forall sh t gfs lo hi v p,
   array_at sh t gfs lo hi v p |--
     !! (field_compatible0 t (ArraySubsc lo :: gfs) p 
         /\ field_compatible0 t (ArraySubsc hi :: gfs) p 
-        /\ Zlength v = Z.max 0 (hi-lo)
+        /\ Zlength v = hi - lo
         /\ Forall (value_fits (nested_field_type t (ArraySubsc 0 :: gfs))) v).
 Proof.
   intros.
   unfold array_at.
-  apply andp_left1; auto.
+  rewrite !prop_and.
+  rewrite <- andp_assoc.
+  apply andp_derives; auto.
+  eapply derives_trans; [apply array_pred_local_facts |].
+  + intros.
+    unfold at_offset.
+    instantiate (1 := fun x => value_fits _ x).
+    apply data_at'_value_fits.
+ + normalize.
 Qed.
 
 Lemma array_at__local_facts: forall sh t gfs lo hi p,
@@ -351,105 +343,22 @@ Lemma array_at_ext_derives: forall sh t gfs lo hi v0 v1 p,
 Proof.
   intros until p. intro ZL; intros.
   unfold array_at, field_at.
-   rewrite <- !and_assoc.
-   rewrite <- gather_prop_left.
-   rewrite <- (gather_prop_left _ (Forall _ _)).
-  apply derives_extract_prop; intro G2.
-  apply andp_right; [apply prop_right | ].
-  destruct G2 as [[? ?] ?]; split; auto. congruence.
-  destruct G2 as [[G2 G3] ZL'].
-  unfold array_pred, aggregate_pred.array_pred.
-  destruct (zlt (hi-lo) 0).
-* (* negative case *)
-  rewrite Z.max_l in ZL' by omega.
-  rewrite Zlength_correct in ZL'; destruct v0; inv ZL'.
-  rewrite !Zlength_correct in ZL; destruct v1; inv ZL.
-  apply andp_derives.
-  apply prop_derives; intros; constructor.
-  rewrite Z2Nat_neg by auto. simpl. auto.
-* (* nonnegative case *)
-  assert (Hg: lo<=hi) by omega; clear g.
-  rewrite Z.max_r in ZL' by omega.
-  assert (hi = lo + Zlength v0). omega. subst hi. clear ZL'.
-  replace (lo + Zlength v0 - lo) with (Zlength v0) by omega.
-  remember (Zlength v0) as n. 
-  assert (ZL0: length v0 = Z.to_nat n) by admit.
-  assert (ZL1: length v1 = Z.to_nat n) by admit.
-  rewrite <- (Z2Nat.id n) in H,G3 by admit.
-  forget (Z.to_nat n) as n'. 
-Admitted.
-(*
-clear n Hg Heqn ZL. rename n' into n.
-  revert lo G2 G3 v0 v1 ZL0 ZL1 H; induction n; intros.
-  simpl. apply andp_derives; auto. apply prop_right. destruct v1; inv ZL1; constructor.
-  destruct v0 as [ | x0 v0 ]; inv ZL0.
-  destruct v1 as [ | x1 v1 ]; inv ZL1.
-  simpl.
-  match goal with |- !! Forall ?P _ && (?A * ?A') |-- !! Forall ?P _ && (?B * ?B') =>
-     eapply derives_trans; [instantiate (1:= (!! P x0 && A) * (!! Forall P v0 && A')) |
-         eapply derives_trans; [instantiate (1:= (!! P x1 && B) * (!! Forall P v1 && B')) | ]]
- end.
-  normalize. apply andp_right; auto. inv H0; apply prop_right; split; auto.
- 2: normalize; apply andp_right; auto; apply prop_right; constructor; auto.
- apply sepcon_derives.
- specialize (H lo). rewrite Z.sub_diag in H|-*.
- unfold Znth in H|-*. rewrite !if_false in H|-* by omega. rewrite inj_S in H. simpl nth in H|-*.
- assert (exists u0: reptype (nested_field_type t (ArraySubsc lo :: gfs)),
-             JMeq u0 x0).
- rewrite (nested_field_type_ArraySubsc t lo gfs). exists x0. reflexivity.
- destruct H0 as [u0 H0].
- assert (exists u1: reptype (nested_field_type t (ArraySubsc lo :: gfs)),
-             JMeq u1 x1).
- rewrite (nested_field_type_ArraySubsc t lo gfs). exists x1. reflexivity.
- destruct H2 as [u1 H2].
- specialize (H u0 u1). spec H; [ omega | ].
- specialize (H H0 H2).
- admit.  (* may have to split on cases, (readable_share_dec sh) *)
- clear H.
- specialize (IHn (Z.succ lo)).
- spec IHn.
-(*
- clear IHn.
- rewrite field_compatible0_cons in G2, G3 |- *.
-    destruct (nested_field_type2 t gfs); try tauto.
-    destruct G3 as [G3 ?].
-    split; auto. 
-    rewrite inj_S in G3; destruct G3; omega.
- specialize (IHn v0 v1 (eq_refl _) H1).
- apply IHn.
- replace (Z
- apply andp_derives. apply prop_derives.
- [ | eapply derives_trans; []
-
-  revert lo v0 v1 ZL0 ZL1 H G2 G3; induction n.
-  rewrite <- ZL'. replaceclear ZL' hi.
-
-
-
-  apply andp_derives.
-   admit.  (* fold this proof into the next subproof, using H *)
-  apply array_pred_ext_derives.
+  normalize.
+  eapply array_pred_ext_derives.
+  1: intro; omega.
   intros.
-  generalize (H i).
-  unfold  field_at.
-  replace (!! (field_compatible t (ArraySubsc i :: gfs) p): mpred) with TT.
-  Focus 2. {
-    apply ND_prop_ext.
-    rewrite field_compatible_cons.
-    rewrite field_compatible0_cons in G2, G3.
-    destruct (nested_field_type2 t gfs); try tauto.
-    assert (0 <= i < z) by omega.
-    tauto.
-  } Unfocus.
-  erewrite nested_field_type2_ArraySubsc.
+  specialize (H i).
+  clear ZL.
+  revert v0 v1 H.
+  unfold field_at.
+  rewrite nested_field_type_ArraySubsc with (i0 := i).
   intros.
-  clear - H0 H1.
-  specialize (H1 (zl_nth i v0) (zl_nth i v1) H0 JMeq_refl JMeq_refl).
-  normalize in H1.  
+  specialize (H (Znth (i - lo) v0 (default_val _)) (Znth (i - lo) v1 (default_val _))).
+  do 3 (spec H; [auto |]).
+  rewrite !prop_true_andp in H by (apply (field_compatible_range _ lo hi); auto).
+  auto.
 Qed.
-*)
-Admitted.
-*)
+
 Lemma array_at_ext: forall sh t gfs lo hi v0 v1 p,
   Zlength v0 = Zlength v1 ->
   (forall i u0 u1,
@@ -481,39 +390,37 @@ Lemma field_at_Tarray: forall sh t gfs t0 n a v1 v2 p,
 Proof.
   intros.
   unfold field_at, array_at.
-  unfold field_compatible0, field_compatible, legal_nested_field0.
   revert v1 v2 H2;
   rewrite (nested_field_type_ind t (ArraySubsc 0 :: gfs)).
   rewrite H0; unfold gfield_type.
   intros.
   rewrite data_at'_ind.
-  unfold legal_field0.
   rewrite at_offset_array_pred.
-   assert (H7:= JMeq_trans (unfold_reptype_JMeq _ v1) H2).
-   apply JMeq_eq in H7; subst v2. clear H2.
   f_equal.
-  + assert (0 <= 0 <= n /\ 0 <= n <= n) by omega.    
-    apply ND_prop_ext; split; intros [? ?].
-    rewrite value_fits_ind in H4. destruct H4.
-   split3; try tauto.
-   split; auto.
-   rewrite H4, !Z.max_r by omega. omega.
-   split. tauto. destruct H4. destruct H5.
-   rewrite value_fits_ind.
-   split; auto.
-   rewrite Z.max_r in H5|-*; try omega.
-  + apply array_pred_ext.
-    intros.
-Admitted.
-(*
-    rewrite at_offset_eq.
-    rewrite <- at_offset_eq2.
-    rewrite !at_offset_eq.
-    rewrite (nested_field_offset_ind t (ArraySubsc i :: gfs))
-      by (apply legal_nested_field0_field; simpl; unfold legal_field; rewrite H0; auto).
-   rewrite H0. reflexivity.
+  + apply ND_prop_ext.
+    rewrite !field_compatible0_cons, H0.
+    assert (0 <= 0 <= n) by omega.
+    assert (0 <= n <= n) by omega.
+    tauto.
+  + rewrite <- (unfold_reptype_JMeq _ v1) in H2.
+    forget (unfold_reptype v1) as v1'.
+    clear v1.
+    cbv iota beta in v1'.
+    unfold reptype_array in v1'.
+    apply JMeq_eq in H2.
+    apply array_pred_ext.
+    - subst; auto.
+    - intros.
+      rewrite at_offset_eq.
+      rewrite <- at_offset_eq2.
+      rewrite !at_offset_eq.
+      rewrite (nested_field_offset_ind t (ArraySubsc i :: gfs))
+        by (apply legal_nested_field0_field; simpl; unfold legal_field; rewrite H0; auto).
+      rewrite H0.
+      f_equal.
+      subst; auto.
 Qed.
-*)
+
 Lemma not_ptr_FF: forall A p, (A |-- !! isptr p) <-> (~ isptr p -> A = FF).
 Proof.
   intros.
@@ -591,27 +498,13 @@ Ltac destruct_ptr p :=
        inv_int ofs
   end.
 
-(* Goal forall t gfs p, (!! field_compatible t gfs p) = (!! field_compatible0 t gfs p). *)
-(*
-Goal forall sh t gfs p, !! field_compatible t gfs (offset_val Int.zero Vundef) && at_offset (memory_block sh Int.zero) 14 (offset_val Int.zero p) = (!! field_compatible0 t gfs p).
-intros.
-destruct_ptr p.
-*)
-
+(* TODO: In fact, we should not need this lemma. Remove this lemma some how from hmac proof. *)
 Lemma data_at_data_at': forall sh t v p,
   data_at sh t v p = !! (field_compatible t nil p /\  value_fits (nested_field_type t nil) v) && data_at' sh t v p.
 Proof.
   intros.
   unfold data_at, field_at.
-  apply andp_prop_ext; [reflexivity |].
-  intros [? _].
-  destruct p; try solve [destruct H; simpl in *; tauto].
-  inv_int i.
-  rewrite at_offset_eq3.
-  rewrite nested_field_offset_ind, Z.add_0_r by (unfold field_compatible in H; tauto).
-  change (nested_field_type t nil) with t.
-  auto.
-Qed.
+Admitted.
 
 Lemma field_at_Tstruct: forall sh t gfs id a v1 v2 p,
   nested_field_type t gfs = Tstruct id a ->
@@ -622,14 +515,12 @@ Proof.
   unfold field_at, nested_sfieldlist_at.
   revert v1 H0; rewrite H; intros.
   rewrite data_at'_ind.
-  rewrite value_fits_ind.
   rewrite at_offset_struct_pred.
   rewrite andp_struct_pred by apply corable_prop.
-  generalize (co_members (get_co id)) at 1 11; intro m; destruct m; [auto |].
+  generalize (co_members (get_co id)) at 1 10; intro m; destruct m; [auto |].
   apply struct_pred_ext; [apply get_co_members_no_replicate |].
   
   intros.
-  rewrite prop_and.
   destruct_ptr p.
   unfold field_at, fst, snd.
   autorewrite with at_offset_db.
@@ -638,7 +529,6 @@ Proof.
   normalize.
   destruct (legal_nested_field_dec t (StructField i :: gfs)).
   Focus 2. {
-    rewrite !prop_and.
     replace (!!field_compatible t (StructField i :: gfs) (Vptr b (Int.repr ofs)) : mpred) with (FF: mpred)
       by (apply ND_prop_ext; unfold field_compatible; tauto; apply ND_prop_ext; tauto).
     simpl in n.
@@ -696,11 +586,10 @@ Proof.
   unfold field_at, nested_ufieldlist_at.
   revert v1 H0; rewrite H; intros.
   rewrite data_at'_ind.
-  rewrite value_fits_ind.
   rewrite at_offset_union_pred.
   rewrite andp_union_pred by apply corable_prop.
   generalize (eq_refl (co_members (get_co id))).
-  generalize (co_members (get_co id)) at 2 3 10; intro m; destruct m; [auto |].
+  generalize (co_members (get_co id)) at 2 3 9; intro m; destruct m; [auto |].
   intro HH; assert (co_members (get_co id) <> nil) by congruence; clear HH.
 
   assert (
@@ -726,7 +615,6 @@ Proof.
     + eapply JMeq_trans; [apply (unfold_reptype_JMeq _ v1) | auto].
   } Unfocus.
   intros.
-  rewrite prop_and.
   destruct_ptr p.
   assert (in_members i (co_members (get_co id))).
   Focus 1. {
@@ -741,7 +629,6 @@ Proof.
   normalize.
   destruct (legal_nested_field_dec t (UnionField i :: gfs)).
   Focus 2. {
-    rewrite !prop_and.
     replace (!!field_compatible t (UnionField i :: gfs) (Vptr b (Int.repr ofs)) : mpred) with (FF: mpred)
       by (apply ND_prop_ext; unfold field_compatible; tauto).
     simpl in n.
@@ -789,20 +676,19 @@ Proof.
       * eapply JMeq_trans; [apply (unfold_reptype_JMeq _ v1) | auto].
 Qed.
 
+(*
 Lemma array_at_len_0: forall sh t gfs i v p,
   array_at sh t gfs i i v p = !! (field_compatible0 t (ArraySubsc i :: gfs) p /\ v=nil) && emp.
 Proof.
   intros.
   unfold array_at.
-Admitted.
-(*
   rewrite array_pred_len_0 by omega.
   f_equal. f_equal; apply prop_ext; split; intros.
   destruct H as [? [? [? ?]]]. rewrite Zlength_correct, Z.sub_diag in H1.
   destruct v; inv H1. split; auto.
   destruct H. subst v. split3; auto. split; auto. rewrite Z.sub_diag; reflexivity.
 Qed.
-*)
+
 Lemma array_at_len_1: forall sh t gfs i v v0 p,
   JMeq (Znth 0 v (default_val _)) v0 ->
   array_at sh t gfs i (i + 1) v p = !! (JMeq v (v0::nil)) && field_at sh t (ArraySubsc i :: gfs) v0 p.
@@ -842,6 +728,8 @@ Admitted.
     - rewrite !nested_field_type_ind with (gfs0 := _ :: gfs).
       destruct (nested_field_type t gfs); auto.
 Qed.
+*)
+*)
 
 Lemma split2_array_at: forall sh t gfs lo mid hi v p,
   lo <= mid <= hi ->
@@ -851,85 +739,14 @@ Lemma split2_array_at: forall sh t gfs lo mid hi v p,
 Proof.
   intros.
   unfold array_at.
-  match goal with |- !!(?A /\ ?B /\ ?C /\ ?D) && ?E = 
-                             (!!(?A1 /\ ?B1 /\ ?C1 /\ ?D1) && ?E1) * 
-                             (!!(?A2 /\ ?B2 /\ ?C2 /\ ?D2) && ?E2) =>
-      transitivity (!!(C/\D) && (!!(A/\B) && E));
-      [ | transitivity ((!!(C1/\D1) && (!!(A1/\B1) && E1) * (!!(C2/\D2) && (!!(A2/\B2) && E2))))]
- end.
-  normalize. f_equal.   apply ND_prop_ext; tauto.
- 2: normalize; f_equal; apply ND_prop_ext; tauto.
   normalize.
   apply andp_prop_ext.
-*
-  split. intros [? [? [? ?]]].
-  split3; auto.
-  rewrite Z.max_r in H0|-* by omega.
-  rewrite Zlength_sublist by omega. omega.
-  unfold sublist. simpl skipn. rewrite Z.sub_0_r.
-  clear - H1.
-  revert v H1; induction (Z.to_nat (mid-lo)); intros. constructor.
-  destruct v; inv H1; simpl; constructor; auto.
-  split3; auto.
-  rewrite field_compatible0_cons with (gfs0 := gfs) in H2,H3.
-  destruct (nested_field_type t gfs) eqn:?; try contradiction.
-  destruct H2, H3.
-  rewrite !field_compatible0_cons with (gfs0 := gfs), Heqt0.
-  split; split; auto; omega.
-  split.
-  rewrite Z.max_r in * by omega.
-  rewrite Zlength_sublist; try omega.
-  rewrite Z.max_r in * by omega.
-  unfold sublist.
- rewrite Zfirstn_exact_length 
-    by (rewrite Zlength_skipn, (Z.max_r 0 (mid-lo)), Z.max_r by omega; omega).
-  clear - H1.
-  revert v H1; induction (Z.to_nat (mid-lo)); intros. simpl; auto.
-  destruct v. constructor. simpl. apply IHn. inv H1; auto.
-  split; auto.
-  rewrite field_compatible0_cons with (gfs0 := gfs) in H2,H3.
-  destruct (nested_field_type t gfs) eqn:?; try contradiction.
-  destruct H2, H3.
-  rewrite !field_compatible0_cons with (gfs0 := gfs), Heqt0. split; auto. omega.
-  rewrite Z.max_r by omega.
-  intros [? [? [[? ?] [[? ?] [? ?]]]]].
-  rewrite Z.max_r  in * by omega.
-  assert (Zlength v = hi-lo). {
-  clear - H4 H H0.
-  unfold sublist in H0, H4.
-  rewrite Zlength_firstn in H0,H4.
-  simpl skipn in *.
-  rewrite Z.max_r in H0 by omega.
-  destruct (zlt (Zlength v) (mid-lo)).
-  rewrite Z.min_r in H0 by omega. omega.
-  clear H0. rewrite Z.max_r in H4 by omega.
-  rewrite Zlength_skipn in H4. 
-  rewrite (Z.max_r 0 (mid-lo)) in H4 by omega.
-  rewrite (Z.max_r) in H4 by omega.
-  rewrite Z.min_r in H4 by omega. omega.
-}
- split; auto.
-  clear H0 H4.  
-  split3.
-  unfold sublist in H1,H5. simpl skipn in H1.
-  rewrite Z.sub_0_r in *.
-  rewrite Zfirstn_exact_length in H5
-    by (rewrite Zlength_skipn, (Z.max_r 0 (mid-lo)), Z.max_r by omega; omega).
-  replace (hi-lo) with (Z.of_nat (Z.to_nat (mid-lo)+ Z.to_nat(hi-mid))) in H8
-   by (rewrite <- Z2Nat.inj_add, Z2Nat.id by omega; omega).
-  rewrite Zlength_correct in *. apply Nat2Z.inj in H8.
-  clear - H8 H5 H1.
-  revert v H8 H1 H5; induction (Z.to_nat (mid-lo)); intros. 
-  simpl in H5; auto.
-  destruct v; simpl in *.
-  constructor.
-  inv H1.
-  constructor; auto.
-  auto. auto.
-*
-  intros [? [? [? ?]]].
-  rewrite Z.max_r in H0 by omega.
-  rewrite split_array_pred with (mid0 := mid) by auto.
+  + split; [| tauto].
+    intros [? ?].
+    assert (field_compatible0 t (gfs SUB mid) p) by (apply (field_compatible0_range _ lo hi); auto).
+    tauto.
+  + intros [? ?].
+    rewrite split_array_pred with (mid0 := mid). by auto.
   rewrite H0; auto.
 Qed.
 
@@ -1001,7 +818,7 @@ Proof.
   destruct v. inv H0. reflexivity.
   destruct v. reflexivity. simpl skipn. simpl in H0; rewrite <- IHn by omega. reflexivity.
 Qed.
-*)
+
 (*
 Lemma data_at_field_at: forall sh t, data_at sh t = field_at sh t nil.
 Proof. intros. reflexivity. Qed.

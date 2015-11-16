@@ -645,6 +645,34 @@ Proof.
   tauto.
 Qed.
 
+Lemma field_compatible0_range:
+ forall i lo hi t gfs p, 
+   lo <= i <= hi ->
+   field_compatible0 t (ArraySubsc lo :: gfs) p ->
+   field_compatible0 t (ArraySubsc hi :: gfs) p ->
+   field_compatible0 t (ArraySubsc i :: gfs) p.
+Proof.
+  intros.
+  destruct H0 as [? [? [? [? [? [? [? [? ?]]]]]]]].
+  destruct H1 as [? [? [? [? [? [? [? [? ?]]]]]]]].
+  repeat split; auto.
+  hnf in H9,H17|-*.
+  destruct (nested_field_type t gfs); auto.
+  omega.
+Qed.
+
+Lemma field_compatible_range:
+ forall i lo hi t gfs p, 
+   lo <= i < hi ->
+   field_compatible0 t (ArraySubsc lo :: gfs) p ->
+   field_compatible0 t (ArraySubsc hi :: gfs) p ->
+   field_compatible t (ArraySubsc i :: gfs) p.
+Proof.
+  intros.
+  rewrite field_compatible_field_compatible0'.
+  split; apply (field_compatible0_range _ lo hi); eauto; omega.
+Qed.
+
 Lemma is_pointer_or_null_field_compatible:
   forall t path c, 
      is_pointer_or_null (field_address t path c) ->
