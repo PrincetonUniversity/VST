@@ -2103,7 +2103,7 @@ Ltac solve_store_rule_evaluation :=
    rewrite upd_reptype_ind;
    let j := fresh "j" in match type of h0 with ?J => set (j := J) in h0 end;
    lazy beta zeta iota delta in j; subst j;
-   lazy beta zeta iota delta - [rhs h0 h1 upd_Znth_in_list];
+   lazy beta zeta iota delta - [rhs h0 h1 upd_Znth_in_list Zlength];
    subst rhs h0 h1;
    subst; apply eq_refl
   end.
