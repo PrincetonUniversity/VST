@@ -131,3 +131,9 @@ Lemma eq_JMeq: forall A (x y: A), x=y -> JMeq x y.
 Proof. intros. subst. reflexivity.
 Qed.
 
+Lemma list_func_JMeq: forall {A B C} (a: list A) (b: list B) (f: forall X, list X -> C), A = B -> JMeq a b -> f A a = f B b.
+Proof.
+  intros; subst.
+  subst.
+  auto.
+Qed.

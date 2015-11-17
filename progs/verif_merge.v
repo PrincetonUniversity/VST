@@ -132,14 +132,10 @@ Lemma list_cell_field_at sh (v : val) p :
   list_cell LS sh v p = field_at sh list_struct [StructField _head] v p.
 Proof.
   unfold list_cell, withspacer, field_at; simpl.
-  f_equal. f_equal. f_equal.
-  apply prop_ext.
+  f_equal.
+  apply ND_prop_ext.
   unfold field_compatible, legal_nested_field, legal_field in *; simpl.
   intuition. repeat constructor.
-  unfold field_type; simpl.
-  unfold default_val. simpl.
-  apply prop_ext; intuition.
-  apply default_value_fits.
 Qed.
 
 Lemma entail_rewrite A B : A |-- B -> A = A && B.

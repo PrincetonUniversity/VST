@@ -19,6 +19,7 @@ Lemma field_address0_offset:
 Proof. intros. unfold field_address0; rewrite if_true by auto; reflexivity.
 Qed.
 
+(* TODO: This has already been proved in nested_field_lemmas already. *)
 Lemma field_address_offset:
   forall {cs: compspecs} t gfs p,
     field_compatible t gfs p ->
@@ -333,7 +334,8 @@ Proof.
   unfold data_at at 1. intros; simpl; normalize.
   erewrite (field_at_Tarray sh  (Tarray t n noattr) _ t); try reflexivity; trivial.
   2: omega. 2: eauto.
-  rewrite (split2_array_at sh (Tarray t n noattr) nil 0 n1); trivial.
+  rewrite (split2_array_at sh (Tarray t n noattr) nil 0 n1).
+  2: auto. 2: rewrite Z.sub_0_r; auto.
   do 2 rewrite array_at_data_at. normalize.
   rewrite Zminus_0_r.
   unfold at_offset.
@@ -443,7 +445,8 @@ Proof. intros.
  rewrite !nested_field_type_ind.  unfold gfield_type. simpl. f_equal; omega.
   unfold nested_field_array_type. simpl.
   rewrite !fold_reptype_JMeq. apply JMeq_refl.
-Qed. 
+  admit.
+Qed.
 
 Lemma split2_data_at_Tarray {cs: compspecs} sh t n n1 v (v': list (reptype t)) v1 v2 p:
    0 <= n1 <= n ->

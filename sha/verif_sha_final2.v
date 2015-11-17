@@ -366,8 +366,17 @@ forward_for_simple_bound 8
  assert_PROP (field_compatible (tarray tuchar 32) [] md)
      as FCmd by entailer!.
  erewrite (field_at_Tarray _ (tarray tuchar 32)) by (try reflexivity; computable).
-     rewrite (split2_array_at _ _ _ 0 (i*4)) by omega.
-     rewrite (split2_array_at _ _ _ (i*4) (i*4+4)) by omega.
+ rewrite (split3seg_array_at _ _ _ 0 (i*4) (i*4+4)).
+2: omega.
+ 2: omega.
+ 2: omega.
+ Focus 2. {
+   rewrite Zlength_app, !Zlength_map, Zlength_intlist_to_Zlist, Zlength_list_repeat.
+   change WORD with 4.
+   rewrite Zlength_sublist by omega.
+   rewrite Z.max_r by omega.
+   omega.
+ } Unfocus.
  change WORD with 4.
  autorewrite with sublist.
  replace (32 - 4 * i - 4)  with (32 - (i*4+4)) by (clear; omega).
@@ -441,8 +450,17 @@ destruct H9; auto.
    unfold data_at.
    erewrite field_at_Tarray; try reflexivity; try omega.
    erewrite field_at_Tarray; try reflexivity; try omega.
-     rewrite (split2_array_at _ _ _ 0 (i*4) 32) by omega.
-     rewrite (split2_array_at _ _ _ (i*4) (i*4+4) 32) by omega.
+     rewrite (split3seg_array_at _ _ _ 0 (i*4) (i*4+4) 32).
+     2: omega.
+     2: omega.
+     2: omega.
+     Focus 2. {
+       rewrite Zlength_app, !Zlength_map, Zlength_intlist_to_Zlist, Zlength_list_repeat.
+       change WORD with 4.
+       rewrite Zlength_sublist by omega.
+       unfold N32W, N32; rewrite Z.max_r by omega.
+       omega.
+     } Unfocus.
   unfold N32W, N32; change WORD with 4.
   autorewrite with sublist.
    replace (32 - i * 4 - 4 - (4 + i * 4 - (i + 1) * 4))
@@ -454,7 +472,6 @@ destruct H9; auto.
   change (@sublist Z 0 (i*4)) with (@sublist Z (0*WORD) (i*WORD)).
   rewrite sublist_intlist_to_Zlist.
   rewrite <- !(sublist_map Int.repr). 
-  rewrite (Z.add_comm 4 (i*4)).
   rewrite <- BYTES.
   fold vbytes.
   change (32 - i*4 - 4) with (N32W - WORD).
@@ -466,6 +483,12 @@ apply derives_refl'.
 f_equal.
 rewrite field_address0_offset by auto with field_compatible.
 normalize.
+f_equal.
+f_equal.
+f_equal.
+f_equal.
+unfold N32W, N32.
+change WORD with 4; omega.
 *
   change 64%Z with CBLOCKz.
 Time  forward. (* return; *)  (* 60 seconds -> 6 seconds*)

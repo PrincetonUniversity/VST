@@ -4,7 +4,7 @@ Require Import Integers.
 Require Import Coq.Strings.String.
 Require Import Coq.Strings.Ascii.
 Require Import Integers.
-Require Import List.
+Require Import Coq.Lists.List.
 Require Import msl.Coqlib2.
 
 Lemma power_nat_one_divede_other: forall n m : nat,

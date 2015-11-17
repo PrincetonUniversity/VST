@@ -838,85 +838,38 @@ Proof.
   intros.
   unfold array_at.
   rewrite at_offset_eq.
-  rewrite data_at_data_at'.
-  unfold nested_field_array_type.
+  unfold data_at, field_at.
+  change (nested_field_type (nested_field_array_type t gfs lo hi) nil)
+    with (Tarray (nested_field_type t (gfs SUB 0)) 
+           (hi - lo) (attr_of_type (nested_field_type t gfs))).
   rewrite data_at'_ind.
   rewrite <- at_offset_eq.
-  rewrite at_offset_array_pred.
-Admitted.
-(*
-  destruct (field_compatible0_dec t (ArraySubsc lo :: gfs) p);
-   [ | apply pred_ext; normalize].
-  destruct (field_compatible0_dec t (ArraySubsc hi :: gfs) p);
-   [ | apply pred_ext; normalize].
-  pose proof field_compatible0_nested_field_array t gfs lo hi p f f0.
   normalize.
-  f_equal.
-*
-  fold (nested_field_array_type t gfs lo hi).
-  generalize f; intros [_  [_ [_ [_ [_ [_ [_ [_ Ha]]]]]]]].
-  destruct (nested_field_type t gfs) eqn:?;  try contradiction.
-  clear Ha.
-  assert (Hv': exists v': list (reptype t0), JMeq v v').
-    revert v. rewrite nested_field_type_ind, Heqt0; eauto.
- destruct Hv' as [v' Hv']. 
-  apply ND_prop_ext.
-  split.
-  intros [? ?].
-  split; auto. split; auto.
- cut (value_fits (Tarray t0 (hi-lo) a)  (@fold_reptype _ (Tarray t0 (hi-lo) a) v')).
- intro.
- eapply value_fits_JMeq; try eassumption.
- unfold nested_field_array_type; 
- do 2 rewrite nested_field_type_ind; rewrite Heqt0; reflexivity.
- rewrite ! fold_reptype_JMeq. auto.
- rewrite value_fits_ind. 
- rewrite unfold_fold_reptype.
- split.
- clear - Hv' H0 Heqt0.
- generalize dependent v.
- rewrite nested_field_type_ind. rewrite Heqt0. simpl.
- intros.
- apply JMeq_eq in Hv'. subst v'; auto.
- admit.  (* tedious *)
- intros [_ [? _]].
- assert (value_fits (Tarray t0 (hi-lo) a)  (@fold_reptype _ (Tarray t0 (hi-lo) a) v')).
- eapply value_fits_JMeq; try eassumption.
- unfold nested_field_array_type. f_equal.
- rewrite nested_field_type_ind.
- rewrite Heqt0; reflexivity. rewrite Heqt0; reflexivity.
- rewrite ! fold_reptype_JMeq. auto.
- clear H0.
- rewrite value_fits_ind in H1.
- rewrite unfold_fold_reptype in H1.
- admit. (* tedious *)
-*
-  rewrite unfold_fold_reptype.
-  symmetry; apply array_pred_shift with (mv := lo); [omega | omega |].
-  intros.
-  rewrite !at_offset_eq.
-  rewrite offset_offset_val.
-  rewrite add_repr.
-  f_equal.
-  f_equal.
-  f_equal.
-  assert (field_compatible0 t (ArraySubsc i :: gfs) p).
-  Focus 1. {
-    unfold field_compatible0 in *.
-    simpl in f, f0 |- *.
-    destruct (nested_field_type t gfs); try tauto.
-    simpl in f, f0 |- *.
-    assert (0 <= i <= z) by omega.
+  apply andp_prop_ext.  f_equal.
+  + pose proof field_compatible0_nested_field_array t gfs lo hi p.
     tauto.
-  } Unfocus.
-  unfold field_compatible0 in *.
-  rewrite nested_field_type_ind.
-  rewrite !nested_field0_offset_ind with (gfs0 := _ :: gfs) by tauto.
-  simpl in f.
-  destruct (nested_field_type t gfs); try tauto.
-  simpl.
-  pose_size_mult cenv_cs t0 (i - i' :: lo :: i - i' :: nil).
-  omega.
+  + intros [? ?].
+    rewrite at_offset_eq, <- at_offset_eq2.
+    rewrite at_offset_array_pred.
+    rewrite unfold_fold_reptype.
+    eapply array_pred_shift; [reflexivity | omega |].
+    intros.
+    rewrite at_offset_eq at 1.
+    rewrite at_offset_eq, <- at_offset_eq2, at_offset_eq.
+    f_equal.
+    f_equal.
+    f_equal.
+    rewrite nested_field_offset_ind with (gfs0 := nil) by (apply (field_compatible0_nested_field_array t gfs lo hi p); auto).
+    assert (field_compatible0 t (gfs SUB i') p)
+      by (apply (field_compatible0_range _ lo hi); auto; omega).
+    rewrite nested_field_offset_ind with (gfs0 := ArraySubsc i' :: _) by auto.
+    rewrite nested_field_offset_ind with (gfs0 := ArraySubsc lo :: _) by auto.
+    rewrite nested_field_type_ind with (gfs0 := ArraySubsc 0 :: _).
+    rewrite field_compatible0_cons in H3.
+    destruct (nested_field_type t gfs); try tauto.
+    unfold gfield_offset, gfield_type.
+    assert (sizeof cenv_cs t0 * i' = sizeof cenv_cs t0 * lo + sizeof cenv_cs t0 * i)%Z by (rewrite Zred_factor4; f_equal; omega).
+    omega.
 Qed.
 
 Lemma array_at_data_at':   
@@ -937,6 +890,7 @@ Proof.
   rewrite if_true; auto.
 Qed.
 
+(* TODO: this lemma is not useful. Delete it. *)
 Lemma array_at_data_at_with_tl: forall sh t gfs lo mid hi v v' p,
   array_at sh t gfs lo mid v p * array_at sh t gfs mid hi v' p =
   data_at sh (nested_field_array_type t gfs lo mid) (@fold_reptype _ (nested_field_array_type t gfs lo mid)  v) (field_address0 t (ArraySubsc lo :: gfs) p) *
@@ -959,7 +913,7 @@ Proof.
     normalize.
    apply pred_ext. normalize. apply FF_left.
 Qed.
-*)
+
 (************************************************
 
 Lemmas about underscore and memory_block

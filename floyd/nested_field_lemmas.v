@@ -1708,6 +1708,14 @@ Proof.
   destruct H; tauto.
 Qed.
 
+Lemma field_compatible0_legal_nested_field0:
+  forall (t : type) (path : list gfield) (p : val),
+  field_compatible0 t path p -> legal_nested_field0 t path.
+Proof.
+  intros.
+  destruct H; tauto.
+Qed.
+
 Lemma field_compatible_field_address: forall t gfs p, field_compatible t gfs p -> field_address t gfs p = offset_val (Int.repr (nested_field_offset t gfs)) p.
 Proof.
   intros.
@@ -1729,6 +1737,7 @@ Hint Extern 1 (isptr _) => (eapply field_compatible_isptr; eassumption).
 Hint Extern 1 (isptr _) => (eapply field_compatible0_isptr; eassumption).
 Hint Extern 1 (legal_nested_field _ _) => (eapply field_compatible_legal_nested_field; eassumption).
 Hint Extern 1 (legal_nested_field0 _ _) => (eapply field_compatible_legal_nested_field0; eassumption).
+Hint Extern 1 (legal_nested_field0 _ _) => (eapply field_compatible0_legal_nested_field0; eassumption).
 
 Lemma lvar_size_compatible:
   forall  {cs: compspecs} id t v rho,
