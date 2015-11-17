@@ -1162,6 +1162,21 @@ Proof.
     omega.
 Qed.
 
+Lemma array_at_ramif: forall sh t gfs t0 n a lo hi i v v0 p, 
+  let d := default_val _ in
+  nested_field_type t gfs = Tarray t0 n a ->
+  lo <= i < hi ->
+  JMeq v0 (Znth (i - lo) v d) ->
+  array_at sh t gfs lo hi v p = field_at sh t (ArraySubsc i :: gfs) v0 p *
+   (ALL v0: _, ALL v0': _, !! JMeq v0 v0' -->
+      field_at sh t (ArraySubsc i :: gfs) v0 p -*
+        array_at sh t gfs lo hi (upd_Znth (i - lo) v v0') p).
+Proof.
+  intros.
+(* Change upd_Znth into upd_Znth_in_list *)
+Abort.
+  
+
 Lemma nested_sfieldlist_at_ramif: forall sh t gfs id a i v p,
   let d := default_val _ in
   nested_field_type t gfs = Tstruct id a ->

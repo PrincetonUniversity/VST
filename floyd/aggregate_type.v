@@ -15,9 +15,6 @@ Definition proj_union (i : ident) (m : members) {A: ident * type -> Type} (v: co
 Definition members_union_inj {m: members} {A} (v: compact_sum (map A m)) (it: ident * type): Prop :=
   compact_sum_inj v it member_dec.
 
-Definition upd_Znth {X: Type} (n: Z) (l: list X) (x: X) : list X :=
-  if zlt n 0 then l else replace_nth (Z.to_nat n) l x.
-
 Definition upd_sublist {X: Type} (lo hi: Z) (l: list X) (l0: list X) : list X :=
   firstn (Z.to_nat lo) l ++ l0 ++ skipn (Z.to_nat hi) l.
 

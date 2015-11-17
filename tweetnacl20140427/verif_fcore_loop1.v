@@ -25,10 +25,10 @@ Lemma XcontUpdate Nonce C Key1 Key2 i l
       (I: 0 <= i < 4)
       (L: X_content (Nonce, C, (Key1, Key2)) i l):
 X_content (Nonce, C, (Key1, Key2)) (i + 1)
-  (upd_Znth_in_list (11 + i)
-     (upd_Znth_in_list (6 + i)
-        (upd_Znth_in_list (1 + i)
-           (upd_Znth_in_list (5 * i) l
+  (upd_Znth (11 + i)
+     (upd_Znth (6 + i)
+        (upd_Znth (1 + i)
+           (upd_Znth (5 * i) l
               (Vint (littleendian (Select16Q C i))))
            (Vint (littleendian (Select16Q Key1 i))))
         (Vint (littleendian (Select16Q Nonce i))))
@@ -295,7 +295,7 @@ Opaque crypto_core_salsa20_spec. Opaque crypto_core_hsalsa20_spec.
    SByte Nonce nonce; data_at_ Tsh (tarray tuint 16) y;
    data_at_ Tsh (tarray tuint 4) t;
    data_at Tsh (tarray tuint 16)
-       (upd_Znth_in_list (5 * i) X0
+       (upd_Znth (5 * i) X0
           (Vint (littleendian (Select16Q C i)))) x;
    data_at_ Tsh (tarray tuint 16) w;
    data_at Tsh (tarray tuchar 64) OUT out))). 
@@ -349,8 +349,8 @@ Opaque crypto_core_salsa20_spec. Opaque crypto_core_hsalsa20_spec.
    ThirtyTwoByte (Key1,Key2) k;
    data_at_ Tsh (tarray tuint 16) y; data_at_ Tsh (tarray tuint 4) t;
    data_at Tsh (tarray tuint 16)
-       (upd_Znth_in_list (1 + i)
-          (upd_Znth_in_list (5 * i) X0
+       (upd_Znth (1 + i)
+          (upd_Znth (5 * i) X0
              (Vint (littleendian (Select16Q C i))))
           (Vint (littleendian (Select16Q Key1 i)))) x;
    data_at_ Tsh (tarray tuint 16) w;
@@ -411,9 +411,9 @@ Opaque crypto_core_salsa20_spec. Opaque crypto_core_hsalsa20_spec.
    SByte Nonce nonce; data_at_ Tsh (tarray tuint 16) y;
    data_at_ Tsh (tarray tuint 4) t;
    data_at Tsh (tarray tuint 16)
-       (upd_Znth_in_list (6 + i)
-          (upd_Znth_in_list (1 + i)
-             (upd_Znth_in_list (5 * i) X0
+       (upd_Znth (6 + i)
+          (upd_Znth (1 + i)
+             (upd_Znth (5 * i) X0
                 (Vint (littleendian (Select16Q C i))))
              (Vint (littleendian (Select16Q Key1 i))))
           (Vint (littleendian (Select16Q Nonce i)))) x;
@@ -436,10 +436,10 @@ Opaque crypto_core_salsa20_spec. Opaque crypto_core_hsalsa20_spec.
   Time forward. (*10.6*) clear FL.
 
   Time entailer!. (*16.1 SLOW*) 
-  Exists (upd_Znth_in_list (11 + i)
-     (upd_Znth_in_list (6 + i)
-        (upd_Znth_in_list (1 + i)
-           (upd_Znth_in_list (5 * i) X0
+  Exists (upd_Znth (11 + i)
+     (upd_Znth (6 + i)
+        (upd_Znth (1 + i)
+           (upd_Znth (5 * i) X0
               (Vint (littleendian (Select16Q C i))))
            (Vint (littleendian (Select16Q Key1 i))))
         (Vint (littleendian (Select16Q Nonce i))))

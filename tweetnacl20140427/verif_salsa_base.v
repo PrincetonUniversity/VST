@@ -1,7 +1,7 @@
 Require Import Recdef.
 Require Import floyd.proofauto.
 Local Open Scope logic.
-Require Import List. Import ListNotations.
+Require Import Coq.Lists.List. Import ListNotations.
 Require Import general_lemmas.
 
 Require Import split_array_lemmas.
@@ -305,10 +305,10 @@ Fixpoint upd_upto (x: SixteenByte * SixteenByte * (SixteenByte * SixteenByte)) i
     O => l
   | S n => 
      match x with (Nonce, C, (Key1, Key2)) =>
-     ((upd_Znth_in_list (11 + (Z.of_nat n))
-     (upd_Znth_in_list(6 + (Z.of_nat n))
-        (upd_Znth_in_list (1 + (Z.of_nat n))
-           (upd_Znth_in_list (5 * (Z.of_nat n)) (upd_upto x n l)
+     ((upd_Znth (11 + (Z.of_nat n))
+     (upd_Znth(6 + (Z.of_nat n))
+        (upd_Znth (1 + (Z.of_nat n))
+           (upd_Znth (5 * (Z.of_nat n)) (upd_upto x n l)
               (Vint (littleendian (Select16Q C (Z.of_nat n)))))
            (Vint (littleendian (Select16Q Key1 (Z.of_nat n)))))
         (Vint (littleendian (Select16Q Nonce (Z.of_nat n)))))
@@ -317,10 +317,10 @@ Fixpoint upd_upto (x: SixteenByte * SixteenByte * (SixteenByte * SixteenByte)) i
   end.
 
 Lemma upd_upto_Sn Nonce C Key1 Key2 n l: upd_upto (Nonce, C, (Key1, Key2)) (S n) l =
-     ((upd_Znth_in_list (11 + (Z.of_nat n))
-     (upd_Znth_in_list (6 + (Z.of_nat n))
-        (upd_Znth_in_list (1 + (Z.of_nat n))
-           (upd_Znth_in_list (5 * (Z.of_nat n)) (upd_upto (Nonce, C, (Key1, Key2))  n l)
+     ((upd_Znth (11 + (Z.of_nat n))
+     (upd_Znth (6 + (Z.of_nat n))
+        (upd_Znth (1 + (Z.of_nat n))
+           (upd_Znth (5 * (Z.of_nat n)) (upd_upto (Nonce, C, (Key1, Key2))  n l)
               (Vint (littleendian (Select16Q C (Z.of_nat n)))))
            (Vint (littleendian (Select16Q Key1 (Z.of_nat n)))))
         (Vint (littleendian (Select16Q Nonce (Z.of_nat n)))))
@@ -349,15 +349,14 @@ Lemma upd_upto_Zlength data l (H: Zlength l = 16): forall i (I:(0<=i<=4)%nat),
     remember (Vint (littleendian (Select16Q K2 (Z.of_nat i)))) as u1.
     assert ((0 <= i <= 4)%nat).
       split. omega. omega. (*rewrite Nat2Z.inj_succ in I. omega.*)
-    repeat rewrite upd_Znth_in_list_Zlength; rewrite (IHi H); intros; try omega.
+    repeat rewrite upd_Znth_Zlength; rewrite (IHi H); intros; try omega.
 Qed.
 
 Lemma upd_upto_Vint data: forall n, 0<=n<16 -> 
       forall d, exists i, Znth n (upd_upto data 4 (list_repeat 16 Vundef)) d = Vint i.
   Proof. unfold upd_upto; intros. destruct data as [[N C] [K1 K2]].
-   repeat rewrite (upd_Znth_in_list_lookup' 16); trivial; simpl; try omega.
-   if_tac. eexists; reflexivity.
-   if_tac. eexists; reflexivity.
+   repeat rewrite (upd_Znth_lookup' 16); trivial; simpl; try omega.
+   if_tac. eexists; reflexivity.   if_tac. eexists; reflexivity.
    if_tac. eexists; reflexivity.
    if_tac. eexists; reflexivity.
    if_tac. eexists; reflexivity.

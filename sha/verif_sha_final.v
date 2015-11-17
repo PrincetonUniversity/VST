@@ -8,16 +8,16 @@ Require Import sha.verif_sha_final3.
 Local Open Scope logic.
 
 
-Lemma upd_Znth_in_list_append:
+Lemma upd_Znth_append:
  forall (t: Type) len N dd ee (v: t), 
    len = Zlength dd ->
    len < N ->
    N <= Zlength ee ->
-   upd_Znth_in_list len (dd++ sublist len N ee) v =
+   upd_Znth len (dd++ sublist len N ee) v =
     (dd ++ [v]) ++ sublist (len+1) N ee.
 Proof.
 intros. subst.
-unfold upd_Znth_in_list.
+unfold upd_Znth.
 pose proof (Zlength_nonneg dd).
 autorewrite with sublist.
 rewrite app_ass.
@@ -160,10 +160,10 @@ forward. (* p[n] = 0x80; *)
    entailer!.
     Omega1.
 change (Int.zero_ext 8 (Int.repr 128)) with (Int.repr 128).
-match goal with |- appcontext [upd_Znth_in_list ?A] =>
+match goal with |- appcontext [upd_Znth ?A] =>
    change A with (Zlength dd)
 end. (* should not be necessary *)
-rewrite upd_Znth_in_list_append
+rewrite upd_Znth_append
   by (autorewrite with sublist; Omega1).
 
 forward. (* n++; *)

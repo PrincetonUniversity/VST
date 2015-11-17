@@ -197,19 +197,6 @@ Proof.
   unfold Znth. rewrite Z.sub_diag. rewrite if_false by omega. change (Z.to_nat 0) with 0%nat. auto.
 Qed.
 
-(* Move this to correct place *)
-Lemma Znth_sublist:
-  forall {A} lo i hi (al: list A) d,
- 0 <= lo ->
- 0 <= i < hi-lo ->
- Znth i (sublist lo hi al) d = Znth (i+lo) al d.
-Proof.
-intros.
-unfold sublist.
-rewrite Znth_firstn by omega.
-rewrite Znth_skipn by omega. auto.
-Qed.
-
 Lemma split_array_pred: forall {A}  (d: A) lo mid hi P v p,
   lo <= mid <= hi ->
   Zlength v = hi - lo ->

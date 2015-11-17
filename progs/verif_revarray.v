@@ -194,7 +194,7 @@ forward. (* hi--; *)
  forget (map Vint contents) as al.
  remember (Zlength al) as size.
  repeat match goal with |- context [reptype ?t] => change (reptype t) with val end.
- unfold upd_Znth_in_list.
+ unfold upd_Znth.
  rewrite !Znth_cons_sublist by (repeat rewrite Zlength_flip_ends; try omega).
  rewrite ?Zlength_app, ?Zlength_firstn, ?Z.max_r by omega.
  rewrite ?Zlength_flip_ends by omega.

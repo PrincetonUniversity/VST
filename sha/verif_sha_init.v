@@ -11,7 +11,7 @@ Proof.
 start_function.
 name c_ _c.
 unfold data_at_.
-do 8 (forward; unfold upd_Znth_in_list, sublist; simpl app).
+do 8 (forward; unfold upd_Znth, sublist; simpl app).
 repeat forward.
 Exists (map Vint init_registers, 
       (Vint Int.zero, (Vint Int.zero, (list_repeat (Z.to_nat 64) Vundef, Vint Int.zero)))).

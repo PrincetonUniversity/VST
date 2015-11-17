@@ -23,13 +23,13 @@ Lemma loop1_aux_lemma1:
   forall i b,
   (0 <= i < Zlength b) ->
   Zlength b <= 16 ->
-  upd_Znth_in_list i
+  upd_Znth i
           (map Vint (sublist 0 i b) ++ list_repeat (Z.to_nat (16 - i)) Vundef)
           (Vint (Znth i b Int.zero))
   =  map Vint (sublist 0 (i+1) b) ++ list_repeat (Z.to_nat (16 - (i+1))) Vundef.
 Proof.
 intros.
-unfold upd_Znth_in_list.
+unfold upd_Znth.
 autorewrite with sublist.
 rewrite (sublist_split 0 i (i+1)) by omega.
 rewrite map_app.

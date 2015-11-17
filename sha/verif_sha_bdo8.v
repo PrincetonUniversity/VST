@@ -161,7 +161,7 @@ Lemma add_upto_S:
   length regs = 8%nat ->
    (i < 8)%nat ->
   map Vint (add_upto (S i) regs atoh) =
-  upd_Znth_in_list (Z.of_nat i) (map Vint (add_upto i regs atoh))
+  upd_Znth (Z.of_nat i) (map Vint (add_upto i regs atoh))
    (Vint
      (Int.add (nthi (add_upto i regs atoh) (Z.of_nat i))
         (nthi atoh (Z.of_nat i)))).
@@ -169,7 +169,7 @@ Proof.
 intros. rename H1 into H4.
  assert ( i < length (add_upto i regs atoh))%nat
     by (rewrite length_add_upto; omega).
- unfold upd_Znth_in_list.
+ unfold upd_Znth.
  rewrite !sublist_map, <- map_cons, <- map_app.
  f_equal.
  
@@ -231,10 +231,10 @@ Lemma upd_reptype_array_gso: (* perhaps move to floyd? *)
     0 <= j <= Zlength a ->
     0 <= i < Zlength a ->
     i<>j ->
-    Znth i (upd_Znth_in_list j a v) (default_val t) = Znth i a (default_val t).
+    Znth i (upd_Znth j a v) (default_val t) = Znth i a (default_val t).
 Proof.
 intros.
-unfold upd_Znth_in_list.
+unfold upd_Znth.
 assert (i<j \/ i>j) by omega.
 clear H1; destruct H2.
 autorewrite with sublist; auto.
@@ -307,7 +307,7 @@ assert (ADD_S:
  forall i i',
     (i < 8)%nat ->
     i' = Z.of_nat i ->
-   upd_Znth_in_list i' (map Vint (add_upto i regs atoh))
+   upd_Znth i' (map Vint (add_upto i regs atoh))
        (force_val
               (sem_cast_neutral
                  (force_val
@@ -340,21 +340,21 @@ Opaque add_upto.
 forward.
 entailer!. apply INT_ADD_UPTO; auto; computable.
 forward.
-simpl upd_Znth_in_list; rewrite ADD_S by (try reflexivity; clear; try omega).
+simpl upd_Znth; rewrite ADD_S by (try reflexivity; clear; try omega).
 forward; forward.
-simpl upd_Znth_in_list; rewrite ADD_S by (try reflexivity; clear; try omega).
+simpl upd_Znth; rewrite ADD_S by (try reflexivity; clear; try omega).
 forward; forward.
-simpl upd_Znth_in_list; rewrite ADD_S by (try reflexivity; clear; try omega).
+simpl upd_Znth; rewrite ADD_S by (try reflexivity; clear; try omega).
 forward; forward.
-simpl upd_Znth_in_list; rewrite ADD_S by (try reflexivity; clear; try omega).
+simpl upd_Znth; rewrite ADD_S by (try reflexivity; clear; try omega).
 forward; forward.
-simpl upd_Znth_in_list; rewrite ADD_S by (try reflexivity; clear; try omega).
+simpl upd_Znth; rewrite ADD_S by (try reflexivity; clear; try omega).
 forward; forward.
-simpl upd_Znth_in_list; rewrite ADD_S by (try reflexivity; clear; try omega).
+simpl upd_Znth; rewrite ADD_S by (try reflexivity; clear; try omega).
 forward; forward.
-simpl upd_Znth_in_list; rewrite ADD_S by (try reflexivity; clear; try omega).
+simpl upd_Znth; rewrite ADD_S by (try reflexivity; clear; try omega).
 forward; forward.
-simpl upd_Znth_in_list; rewrite ADD_S by (try reflexivity; clear; try omega).
+simpl upd_Znth; rewrite ADD_S by (try reflexivity; clear; try omega).
 replace (add_upto 8 regs atoh) with  (map2 Int.add regs atoh).
 entailer!. auto.
 clear - H H0.

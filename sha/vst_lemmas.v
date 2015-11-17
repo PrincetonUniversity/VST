@@ -22,7 +22,7 @@ Require Import replace_refill_reptype_lemmas.
 Lemma data_at_Tarray_split3a {cs}: forall sh t n a i v,
   0 <= i <= n ->
   @data_at cs sh (Tarray t n a) v = 
-  @data_at cs sh (Tarray t n a) (upd_Znth_in_list i v (Znth i v (default_val _))) v.
+  @data_at cs sh (Tarray t n a) (upd_Znth i v (Znth i v (default_val _))) v.
     @data_at cs sh (Tarray t n a) (force_lengthn (nat_of_Z i) v (default_val _) ++
       (Znth i v (default_val _)) :: skipn (nat_of_Z (i + 1)) v).
 Proof.
