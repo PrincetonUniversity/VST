@@ -55,14 +55,14 @@ Definition hmac_reset_spec :=
    PRE [ _ctx OF tptr t_struct_hmac_ctx_st,
          _key OF tptr tuchar,
          _len OF tint ]
-         PROP ((*has_lengthK l key*))
+         PROP ()
          LOCAL (temp _ctx c; temp _key nullval; temp _len (Vint (Int.repr l));
                 gvar sha._K256 kv)
-         SEP ( `(FULL key c); `(K_vector kv))
+         SEP (FULL key c; K_vector kv)
   POST [ tvoid ] 
      PROP ()
      LOCAL ()
-     SEP (`(REP (hABS key nil) c); `(K_vector kv)).
+     SEP (REP (hABS key nil) c; K_vector kv).
 
 Definition hmac_starts_spec :=
   DECLARE _HMAC_Init (*Naphat: you'll probably have DECLARE mbedtls_hmac_starts here, and the
@@ -74,12 +74,11 @@ Definition hmac_starts_spec :=
          PROP (has_lengthK l key)
          LOCAL (temp _ctx c; temp _key (Vptr b i); temp _len (Vint (Int.repr l));
                 gvar sha._K256 kv)
-         SEP (`(EMPTY c); 
-              `(data_block Tsh key (Vptr b i)); `(K_vector kv))
+         SEP (EMPTY c; data_block Tsh key (Vptr b i); K_vector kv)
   POST [ tvoid ] 
      PROP ()
      LOCAL ()
-     SEP (`(REP (hABS key nil) c); `(data_block Tsh key (Vptr b i)); `(K_vector kv)).
+     SEP (REP (hABS key nil) c; data_block Tsh key (Vptr b i); K_vector kv).
 
 Definition hmac_update_spec :=
   DECLARE _HMAC_Update
@@ -91,12 +90,12 @@ Definition hmac_update_spec :=
                Zlength data1 + Zlength data + 64 < two_power_pos 61) 
          LOCAL (temp _ctx c; temp _data d; temp  _len (Vint (Int.repr (Zlength data1)));
                 gvar sha._K256 kv)
-         SEP(`(REP (hABS key data) c); `(data_block Tsh data1 d); `(K_vector kv))
+         SEP(REP (hABS key data) c; data_block Tsh data1 d; K_vector kv)
   POST [ tvoid ] 
           PROP () 
           LOCAL ()
-          SEP(`(REP (hABS key (data++data1)) c); 
-              `(data_block Tsh data1 d);`(K_vector kv)).
+          SEP(REP (hABS key (data++data1)) c; 
+              data_block Tsh data1 d; K_vector kv).
 
 Definition hmac_final_spec :=
   DECLARE _HMAC_Final
@@ -106,14 +105,13 @@ Definition hmac_final_spec :=
        PROP (writable_share shmd) 
        LOCAL (temp _md md; temp _ctx c;
               gvar sha._K256 kv)
-       SEP(`(REP (hABS key data) c); `(K_vector kv);
-           `(memory_block shmd 32 md))
+       SEP(REP (hABS key data) c; K_vector kv;
+           memory_block shmd 32 md)
   POST [ tvoid ] 
           PROP () 
           LOCAL ()
-          SEP(`(K_vector kv);
-              `(FULL key c);
-              `(data_block shmd (HMAC256 data key) md)).
+          SEP(K_vector kv; FULL key c;
+              data_block shmd (HMAC256 data key) md).
 
 (*Maybe this is not needed in mbedtls?*)
 Definition hmac_cleanup_spec :=
@@ -122,11 +120,11 @@ Definition hmac_cleanup_spec :=
    PRE [ _ctx OF tptr t_struct_hmac_ctx_st ]
          PROP () 
          LOCAL (temp _ctx c)
-         SEP(`(FULL key c))
+         SEP(FULL key c)
   POST [ tvoid ]  
           PROP () 
           LOCAL ()
-          SEP(`(EMPTY c)).
+          SEP(EMPTY c).
 
 (* Finally, we have prrofs that the openssl implementations satisfy these specs*)
 
@@ -214,14 +212,14 @@ Definition hmac_reset_spec :=
    PRE [ _ctx OF tptr t_struct_hmac_ctx_st,
          _key OF tptr tuchar,
          _len OF tint ]
-         PROP ((*has_lengthK l key*))
+         PROP ()
          LOCAL (temp _ctx c; temp _key nullval; temp _len (Vint (Int.repr l));
                 gvar sha._K256 kv)
-         SEP ( `(FULL key c); `(K_vector kv))
+         SEP (FULL key c; K_vector kv)
   POST [ tvoid ] 
      PROP ()
      LOCAL ()
-     SEP (`(REP (hABS key nil) c); `(K_vector kv)).
+     SEP (REP (hABS key nil) c; K_vector kv).
 
 Definition hmac_starts_spec :=
   DECLARE _HMAC_Init
@@ -232,12 +230,11 @@ Definition hmac_starts_spec :=
          PROP (has_lengthK l key)
          LOCAL (temp _ctx c; temp _key (Vptr b i); temp _len (Vint (Int.repr l));
                 gvar sha._K256 kv)
-         SEP ((*`(EX a:_, REP a c)*) `(EMPTY c); 
-              `(data_block Tsh key (Vptr b i)); `(K_vector kv))
+         SEP (EMPTY c; data_block Tsh key (Vptr b i); K_vector kv)
   POST [ tvoid ] 
      PROP ()
      LOCAL ()
-     SEP (`(REP (hABS key nil) c); `(data_block Tsh key (Vptr b i)); `(K_vector kv)).
+     SEP (REP (hABS key nil) c; data_block Tsh key (Vptr b i); K_vector kv).
 
 Definition hmac_update_spec :=
   DECLARE _HMAC_Update
@@ -249,12 +246,12 @@ Definition hmac_update_spec :=
                Zlength data1 + Zlength data + 64 < two_power_pos 61) 
          LOCAL (temp _ctx c; temp _data d; temp  _len (Vint (Int.repr (Zlength data1)));
                 gvar sha._K256 kv)
-         SEP(`(REP (hABS key data) c); `(data_block Tsh data1 d); `(K_vector kv))
+         SEP(REP (hABS key data) c; data_block Tsh data1 d; K_vector kv)
   POST [ tvoid ] 
           PROP () 
           LOCAL ()
-          SEP(`(REP (hABS key (data++data1)) c); 
-              `(data_block Tsh data1 d);`(K_vector kv)).
+          SEP(REP (hABS key (data++data1)) c; 
+              data_block Tsh data1 d; K_vector kv).
 
 Definition hmac_final_spec :=
   DECLARE _HMAC_Final
@@ -264,14 +261,14 @@ Definition hmac_final_spec :=
        PROP (writable_share shmd) 
        LOCAL (temp _md md; temp _ctx c;
               gvar sha._K256 kv)
-       SEP(`(REP (hABS key data) c); `(K_vector kv);
-           `(memory_block shmd 32 md))
+       SEP(REP (hABS key data) c; K_vector kv;
+           memory_block shmd 32 md)
   POST [ tvoid ] 
           PROP () 
           LOCAL ()
-          SEP(`(K_vector kv);
-              `(FULL key c);
-              `(data_block shmd (HMAC256 data key) md)).
+          SEP(K_vector kv;
+              FULL key c;
+              data_block shmd (HMAC256 data key) md).
 
 Definition hmac_cleanup_spec :=
   DECLARE _HMAC_cleanup
@@ -279,11 +276,11 @@ Definition hmac_cleanup_spec :=
    PRE [ _ctx OF tptr t_struct_hmac_ctx_st ]
          PROP () 
          LOCAL (temp _ctx c)
-         SEP(`(FULL key c))
+         SEP(FULL key c)
   POST [ tvoid ]  
           PROP () 
           LOCAL ()
-          SEP(`(EMPTY c)).
+          SEP(EMPTY c).
 
 (******** Statements about the "true" bodies of all functions, 
          extracted from the proofs in verif_hmacNK_XXX.v ************)
@@ -294,16 +291,16 @@ Lemma finalbodyproof Espec c md shmd kv buf (h1 : hmacabs)
   (PROP  ()
    LOCAL  (lvar _buf (tarray tuchar 32) buf; temp _md md; temp _ctx c;
    gvar sha._K256 kv)
-   SEP  (`(data_at_ Tsh (tarray tuchar 32) buf); `(hmacstate_ h1 c);
-   `(K_vector kv); `(memory_block shmd 32 md)))
+   SEP  (data_at_ Tsh (tarray tuchar 32) buf; hmacstate_ h1 c;
+   K_vector kv; memory_block shmd 32 md))
   (Ssequence (fn_body f_HMAC_Final) (Sreturn None)) 
   (frame_ret_assert
      (function_body_ret_assert tvoid
         (EX  digestH2 : list Z * hmacabs,
          PROP  (hmacFinal h1 (fst digestH2) (snd digestH2))
          LOCAL ()
-         SEP  (`(K_vector kv); `(hmacstate_PostFinal (snd digestH2) c);
-         `(data_block shmd (fst digestH2) md))))
+         SEP  (K_vector kv; hmacstate_PostFinal (snd digestH2) c;
+         data_block shmd (fst digestH2) md)))
      (EX  v : val,
       local (lvar _buf (tarray tuchar 32) v) &&
       `(data_at_ Tsh (tarray tuchar 32) v))).
@@ -315,14 +312,13 @@ Lemma updatebodyproof Espec c d len data kv (h1 : hmacabs)
   (PROP  ()
    LOCAL  (temp _ctx c; temp _data d; temp _len (Vint (Int.repr len));
    gvar sha._K256 kv)
-   SEP  (`(K_vector kv); `(hmacstate_ h1 c); `(data_block Tsh data d)))
+   SEP  (K_vector kv; hmacstate_ h1 c; data_block Tsh data d))
   (Ssequence (fn_body f_HMAC_Update) (Sreturn None)) 
   (frame_ret_assert
      (function_body_ret_assert tvoid
         (EX  h2 : hmacabs,
          PROP  (hmacUpdate data h1 h2)
-         LOCAL ()
-         SEP  (`(K_vector kv); `(hmacstate_ h2 c); `(data_block Tsh data d))))
+         LOCAL ()  SEP  (K_vector kv; hmacstate_ h2 c; data_block Tsh data d)))
      emp).
 Admitted.
 
@@ -332,16 +328,15 @@ Lemma initbodyproof Espec c k l key kv h1 pad ctxkey:
    LOCAL  (lvar _ctx_key (tarray tuchar 64) ctxkey;
    lvar _pad (tarray tuchar 64) pad; temp _ctx c; temp _key k;
    temp _len (Vint (Int.repr l)); gvar sha._K256 kv)
-   SEP  (`(data_at_ Tsh (tarray tuchar 64) ctxkey);
-   `(data_at_ Tsh (tarray tuchar 64) pad); `(K_vector kv);
-   `(initPre c k h1 l key)))
+   SEP  (data_at_ Tsh (tarray tuchar 64) ctxkey;
+   data_at_ Tsh (tarray tuchar 64) pad; K_vector kv;
+   initPre c k h1 l key))
   (Ssequence (fn_body f_HMAC_Init) (Sreturn None)) 
   (frame_ret_assert
      (function_body_ret_assert tvoid
         (EX  h : hmacabs,
          PROP  (hmacInit key h)
-         LOCAL ()
-         SEP  (`(hmacstate_ h c); `(initPostKey k key); `(K_vector kv))))
+         LOCAL ()  SEP  (hmacstate_ h c; initPostKey k key; K_vector kv)))
      ((EX  v : val,
        local (lvar _pad (tarray tuchar 64) v) &&
        `(data_at_ Tsh (tarray tuchar 64) v)) *
@@ -354,16 +349,16 @@ Lemma cleanupbodyproof1 Espec c h :
 @semax CompSpecs Espec (func_tycontext f_HMAC_cleanup HmacVarSpecs HmacFunSpecs)
   (PROP  ()
    LOCAL  (temp _ctx c)
-   SEP  (`(EX  key : list Z, hmacstate_PreInitNull key h c)))
+   SEP  (EX  key : list Z, hmacstate_PreInitNull key h c))
   (Ssequence (fn_body f_HMAC_cleanup) (Sreturn None)) 
   (frame_ret_assert
      (function_body_ret_assert tvoid
         (PROP  ()
          LOCAL ()
          SEP 
-         (`(data_block Tsh
-              (list_repeat (Z.to_nat (sizeof cenv_cs t_struct_hmac_ctx_st)) 0)
-              c)))) emp).
+         (data_block Tsh
+            (list_repeat (Z.to_nat (sizeof cenv_cs t_struct_hmac_ctx_st)) 0)
+            c))) emp).
 Admitted. 
 
 Lemma body_hmac_reset: semax_body HmacVarSpecs HmacFunSpecs 
@@ -380,9 +375,9 @@ apply semax_pre with (P':=EX h1:hmacabs,
    LOCAL  (lvar _ctx_key (tarray tuchar 64) ctxkey;
    lvar _pad (tarray tuchar 64) pad; temp _ctx c; temp _key nullval;
    temp _len (Vint (Int.repr l));  gvar sha._K256 kv)
-   SEP  (`(data_at_ Tsh (tarray tuchar 64) ctxkey);
-   `(data_at_ Tsh (tarray tuchar 64) pad); `(K_vector kv);
-   `(initPre c nullval h1 l key)))). 
+   SEP  (data_at_ Tsh (tarray tuchar 64) ctxkey;
+   data_at_ Tsh (tarray tuchar 64) pad; K_vector kv;
+   initPre c nullval h1 l key))). 
 { unfold FULL. Intros h1. Exists h1. (*red in H.*)  entailer!. }
 Intros h1.
 eapply semax_pre_post.
