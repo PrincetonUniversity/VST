@@ -154,22 +154,17 @@ forward. (* p = c->data;  *)
  drop_LOCAL 1%nat.
 forward. (* n = c->num; *)
 rewrite field_at_data_at with (gfs := [StructField _data]) by reflexivity.
-(*normalize.*)
-simpl.
+assert (Hddlen: 0 <= Zlength dd < 64) by Omega1.
 forward. (* p[n] = 0x80; *)
-   entailer!.
-    Omega1.
 change (Int.zero_ext 8 (Int.repr 128)) with (Int.repr 128).
-match goal with |- appcontext [upd_Znth ?A] =>
-   change A with (Zlength dd)
-end. (* should not be necessary *)
 rewrite upd_Znth_append
   by (autorewrite with sublist; Omega1).
-
+simpl.
 forward. (* n++; *)
-set (ddlen :=  Zlength dd).
+(*set (ddlen :=  Zlength dd). 
 assert (Hddlen: (0 <= ddlen < 64)%Z)
   by (unfold ddlen; split; auto; Omega1).
+*)
 forward_if   (invariant_after_if1 hashed dd c md shmd kv).
 * (* then-clause *)
  change Delta with Delta_final_if1.
@@ -177,7 +172,7 @@ forward_if   (invariant_after_if1 hashed dd c md shmd kv).
  make_sequential.
  unfold POSTCONDITION, abbreviate.
  normalize_postcondition.
- subst ddlen.
+(*  subst ddlen.*)
  assert (Zlength dd + 1 > 16 * 4 - 8) by omega.
  eapply semax_pre0; 
   [|apply (ifbody_final_if1 Espec hashed md c shmd dd kv H4 H3 H5 DDbytes)].
@@ -204,20 +199,20 @@ rewrite Forall_app; split; auto.
 repeat constructor; omega.
 rewrite app_length; simpl. apply Nat2Z.inj_ge.
 repeat rewrite Nat2Z.inj_add. 
-change (Z.of_nat CBLOCK) with 64; subst ddlen.
+change (Z.of_nat CBLOCK) with 64.
 rewrite <- Zlength_correct. 
 change (Z.of_nat 1) with 1%Z; change (Z.of_nat 8) with 8%Z.
 omega.
-f_equal. unfold ddlen; repeat rewrite Zlength_correct; f_equal.
+f_equal. repeat rewrite Zlength_correct; f_equal.
 rewrite app_length; simpl. rewrite Nat2Z.inj_add; reflexivity.
 unfold_data_at 1%nat.
 cancel.
 rewrite (field_at_data_at _ _ [_]).
 eapply cancel_field_at_array_partial_undef; try reflexivity.
-subst ddlen. autorewrite with sublist; Omega1.
+autorewrite with sublist; Omega1.
 apply eq_JMeq. simpl. f_equal.
 rewrite !map_app. reflexivity.
-f_equal. f_equal. subst ddlen; autorewrite with sublist; Omega1. 
+f_equal. f_equal. autorewrite with sublist; Omega1. 
 * unfold invariant_after_if1.
 Intros hashed' dd' pad.
 rename H1 into DDbytes'.
@@ -321,7 +316,6 @@ Focus 2. {
 } Unfocus.
 autorewrite with sublist.
 cancel.
-simpl list_repeat.
 rewrite array_at_data_at'; auto.
 +
 intros.
