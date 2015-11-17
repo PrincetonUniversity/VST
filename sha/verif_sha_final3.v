@@ -206,14 +206,14 @@ forward_for_simple_bound 8
   f_equal.
   rewrite sublist_singleton with (d:=Int.zero) by omega.
   reflexivity.
- } 
+ }
  unfold data_at.
  assert_PROP (field_compatible (tarray tuchar 32) [] md)
      as FCmd by entailer!.
- erewrite (field_at_Tarray _ (tarray tuchar 32)) by (try reflexivity; computable).
-     rewrite (split2_array_at _ _ _ 0 (i*4)) by omega.
-     rewrite (split2_array_at _ _ _ (i*4) (i*4+4)) by omega.
  change WORD with 4.
+ erewrite (field_at_Tarray _ (tarray tuchar 32)) by (try reflexivity; computable).
+     rewrite (split2_array_at _ _ _ 0 (i*4)) by (autorewrite with sublist; omega).
+     rewrite (split2_array_at _ _ _ (i*4) (i*4+4)) by (autorewrite with sublist; omega).
  autorewrite with sublist.
  replace (32 - 4 * i - 4)  with (32 - (i*4+4)) by (clear; omega).
  Intros.
@@ -284,9 +284,9 @@ destruct H9; auto.
    unfold data_at.
    erewrite field_at_Tarray; try reflexivity; try omega.
    erewrite field_at_Tarray; try reflexivity; try omega.
-     rewrite (split2_array_at _ _ _ 0 (i*4) 32) by omega.
-     rewrite (split2_array_at _ _ _ (i*4) (i*4+4) 32) by omega.
   unfold N32; change WORD with 4.
+     rewrite (split2_array_at _ _ _ 0 (i*4) 32) by (autorewrite with sublist; omega).
+     rewrite (split2_array_at _ _ _ (i*4) (i*4+4) 32) by (autorewrite with sublist; omega).
   autorewrite with sublist.
    replace (32 - i * 4 - 4 - (4 + i * 4 - (i + 1) * 4))
         with (32-i*4-4)
@@ -578,8 +578,14 @@ Proof.
   rewrite <- app_ass.
    change (Z.to_nat 8) with (Z.to_nat 4 + Z.to_nat 4)%nat.
    rewrite <- list_repeat_app.
-   rewrite (split2_array_at _ _ _ 0 56) by omega.
-   rewrite (split2_array_at _ _ _ 56 60) by omega.
+   rewrite (split3seg_array_at _ _ _ 0 56 60).
+   2: omega.
+   2: omega.
+   2: omega.
+   Focus 2. {
+     rewrite !Zlength_app, !Zlength_list_repeat, !Zlength_map by omega.
+     change CBLOCKz with 64; omega.
+   } Unfocus.
    assert (CBZ: CBLOCKz = 64) by reflexivity.
    Time autorewrite with sublist. (*11.5*)
    clear CBZ; subst GOAL. cbv beta.
@@ -637,8 +643,15 @@ Proof.
    [ | apply compute_legal_nested_field_spec'; repeat constructor; auto; omega
    | omega].
    rewrite <- app_ass.
-   rewrite (split2_array_at _ _ _ 0 56 64) by omega.
-   rewrite (split2_array_at _ _ _ 56 60 64) by omega.
+   rewrite (split3seg_array_at _ _ _ 0 56 60 64).
+   2: omega.
+   2: omega.
+   2: omega.
+   Focus 2. {
+     rewrite !Zlength_app, !Zlength_list_repeat, !Zlength_map by omega.
+     rewrite Zlength_map in H14, H11.
+     change CBLOCKz with 64; omega.
+   } Unfocus.
    assert (CBZ: CBLOCKz = 64) by reflexivity.
    clear - CBZ H13 H11 H1 H0 H3 H9 LENhi. rewrite CBZ in *.   
    pose proof (Zlength_nonneg dd').

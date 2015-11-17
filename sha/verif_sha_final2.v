@@ -218,5 +218,3 @@ split.
  eapply derives_trans; [apply data_at_data_at_ | ].
  apply derives_refl.
 Qed.
-
-

@@ -93,7 +93,7 @@ Definition f_core_POST d out h (data: SixteenByte * SixteenByte * (SixteenByte *
 EX RESULT:_,     
    PROP (fcore_result h data RESULT)
    LOCAL ()
-   SEP (`(fcorePOST_SEP data d out RESULT)).
+   SEP (fcorePOST_SEP data d out RESULT).
 
 Definition core_spec :=
   DECLARE _core
@@ -105,11 +105,11 @@ Definition core_spec :=
          _k OF tptr tuchar,
          _c OF tptr tuchar,
          _h OF tint ]
-      PROP ((*length OUT = 64%nat*))
+      PROP ()
       LOCAL (temp _in nonce; temp _out out; 
              temp _c c; temp _k k; temp _h (Vint (Int.repr h)))
-      SEP ( `(CoreInSEP data (nonce, c, k)); 
-            `(data_at Tsh (tarray tuchar 64) OUT out))
+      SEP (CoreInSEP data (nonce, c, k); 
+           data_at Tsh (tarray tuchar 64) OUT out)
   POST [ tvoid ] (f_core_POST (nonce, c, k) out h data).
 
 Definition ld32_spec :=
@@ -118,11 +118,11 @@ Definition ld32_spec :=
    PRE [ _x OF tptr tuchar ]
       PROP ()
       LOCAL (temp _x x)
-      SEP ( `(data_at Tsh (Tarray tuchar 4 noattr) (QuadByte2ValList B) x))
+      SEP (data_at Tsh (Tarray tuchar 4 noattr) (QuadByte2ValList B) x)
   POST [ tuint ] 
      PROP ()
      LOCAL (temp ret_temp (Vint (littleendian B)))
-     SEP (`(QByte B x)).
+     SEP (QByte B x).
 
 Definition st32_spec :=
   DECLARE _st32
@@ -130,11 +130,11 @@ Definition st32_spec :=
    PRE [ _x OF tptr tuchar, _u OF tuint ]
       PROP ()
       LOCAL (temp _x x; temp _u (Vint u))
-      SEP (`(EX l:_, !!(Zlength l = 4) && data_at Tsh (Tarray tuchar 4 noattr) l x))
+      SEP (EX l:_, !!(Zlength l = 4) && data_at Tsh (Tarray tuchar 4 noattr) l x)
   POST [ tvoid ] 
      PROP ()
      LOCAL ()
-     SEP (`(QByte (littleendian_invert u) x)).
+     SEP (QByte (littleendian_invert u) x).
 
 Definition L32_spec :=
   DECLARE _L32
@@ -160,14 +160,14 @@ Definition crypto_core_salsa20_spec :=
       PROP ((*length OUT = 64%nat*))
       LOCAL (temp _in nonce; temp _out out; 
              temp _c c; temp _k k)
-      SEP ( `(CoreInSEP data (nonce, c, k)); 
-            `(data_at Tsh (tarray tuchar 64) OUT out))
+      SEP ( CoreInSEP data (nonce, c, k); 
+            data_at Tsh (tarray tuchar 64) OUT out)
   POST [ tint ] 
        EX l:_, 
        PROP (exists x, Snuffle20 (prepare_data data) = Some x /\
              l=QuadChunks2ValList (map littleendian_invert x))
        LOCAL (temp ret_temp (Vint (Int.repr 0)))
-       SEP (`(CoreInSEP data (nonce, c, k)); `(data_at Tsh (tarray tuchar 64) l out)).
+       SEP (CoreInSEP data (nonce, c, k); data_at Tsh (tarray tuchar 64) l out).
             
 Definition crypto_core_hsalsa20_spec :=
   DECLARE _crypto_core_hsalsa20_tweet
@@ -181,8 +181,8 @@ Definition crypto_core_hsalsa20_spec :=
       PROP ((*length OUT = 64%nat*))
       LOCAL (temp _in nonce; temp _out out; 
              temp _c c; temp _k k)
-      SEP ( `(CoreInSEP data (nonce, c, k)); 
-            `(data_at Tsh (tarray tuchar 64) OUT out))
+      SEP (CoreInSEP data (nonce, c, k); 
+           data_at Tsh (tarray tuchar 64) OUT out)
   POST [ tint ] 
        EX l:_, 
        PROP (exists x, Snuffle 20 (prepare_data data) = Some x /\
@@ -195,7 +195,7 @@ Definition crypto_core_hsalsa20_spec :=
                             QuadByte2ValList (littleendian_invert (Znth 8  x Int.zero)) ++
                             QuadByte2ValList (littleendian_invert (Znth 9  x Int.zero)))
        LOCAL (temp ret_temp (Vint (Int.repr 0)))
-       SEP (`(CoreInSEP data (nonce, c, k)); `(data_at Tsh (tarray tuchar 64) l out)).
+       SEP (CoreInSEP data (nonce, c, k); data_at Tsh (tarray tuchar 64) l out).
 (*Could stengthen postcondition to include the guarantee that second half of OUT 
   is not modified, by replacing firstn 32 l = ... by l = ... ++ Skipn32 OUT*)
 

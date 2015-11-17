@@ -65,10 +65,19 @@ rewrite (field_at_Tarray sh t1 gfs t (Zlength (al++bl)) noattr v1 v1')
   by (auto; apply Zlength_nonneg).
 rewrite (field_at_Tarray sh t1 gfs t (Zlength (al++bl)) noattr v2 v2')
   by (auto; apply Zlength_nonneg).
+rewrite (add_andp _ _ (array_at_local_facts _ _ _ _ _ _ _)).
+normalize.
 rewrite (split2_array_at _ _ _ 0 (Zlength al) (Zlength (al++bl)))
-  by (autorewrite with sublist; omega).
-rewrite (split2_array_at _ _ _ 0 (Zlength al) (Zlength (al++bl)))
-  by (autorewrite with sublist; omega).
+  by (try omega; rewrite Zlength_app; omega).
+rewrite (split2_array_at _ _ _ 0 (Zlength al) (Zlength (al++bl))).
+2: rewrite Zlength_app; omega.
+Focus 2. {
+  rewrite H4 in H2.
+  erewrite <- list_func_JMeq with (f := Zlength); [| | exact H2].
+  2: rewrite nested_field_type_ind; rewrite H; auto.
+  rewrite !Zlength_app, Zlength_list_repeat by omega.
+  omega.
+} Unfocus.
 rewrite H3 in H1.
 rewrite H4 in H2.
 clear H3 H4.
@@ -214,8 +223,29 @@ unfold SHA_256.
 unfold_data_at 1%nat.
 erewrite (field_at_Tarray Tsh _ [StructField _data]); try reflexivity; try omega.
 rewrite (split2_array_at _ _ _ 0 (Zlength dd') 64); try Omega1.
-2: apply compute_legal_nested_field_spec'; repeat constructor.
+3: apply compute_legal_nested_field_spec'; repeat constructor.
+Focus 2. {
+  rewrite Zlength_app, !Zlength_map, Zlength_list_repeat.
+  + change CBLOCKz with 64; omega.
+  + assert (length dd' <= 56)%nat by (change CBLOCK with 64%nat in H6; omega).
+    rewrite Zlength_correct.
+    change CBLOCKz with 64; omega.
+} Unfocus.
  rewrite (split2_array_at _ _ _ (Zlength dd') 56 64); try Omega1.
+Focus 2. {
+  rewrite !Zlength_app, !Zlength_map, !Zlength_list_repeat, Zlength_sublist.
+  + change CBLOCKz with 64; omega.
+  + assert (length dd' <= 56)%nat by (change CBLOCK with 64%nat in H6; omega).
+    rewrite !Zlength_correct.
+    change CBLOCKz with 64; omega.
+  + rewrite !Zlength_app, !Zlength_map, !Zlength_list_repeat; [omega |].
+    assert (length dd' <= 56)%nat by (change CBLOCK with 64%nat in H6; omega).
+    rewrite Zlength_correct.
+    change CBLOCKz with 64; omega.
+  + assert (length dd' <= 56)%nat by (change CBLOCK with 64%nat in H6; omega).
+    rewrite Zlength_correct.
+    change CBLOCKz with 64; omega.
+} Unfocus.
  pose proof CBLOCKz_eq.
  assert (0 <= Zlength dd' <= 56).
     split. apply Zlength_nonneg. rewrite Zlength_correct.
@@ -276,9 +306,14 @@ rewrite <- H11.
 normalize.
 erewrite field_at_Tarray; try reflexivity; try omega.
 2: compute; clear; intuition.
-rewrite (split2_array_at _ _ _ 0 (Zlength dd') 64) by Omega1.
-autorewrite with sublist.
-rewrite (split2_array_at _ _ _ (Zlength dd') 56 64) by Omega1.
+rewrite (split3seg_array_at _ _ _ 0 (Zlength dd') 56 64).
+2: Omega1.
+2: Omega1.
+2: Omega1.
+Focus 2. {
+  rewrite !Zlength_app, !Zlength_map, !Zlength_list_repeat by omega.
+  change CBLOCKz with 64; omega.
+} Unfocus.
 autorewrite with sublist.
 cancel.
 rewrite array_at_data_at'; auto.

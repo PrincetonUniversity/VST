@@ -110,13 +110,7 @@ Qed.
 
 Lemma f_core_loop3: forall (Espec : OracleKind)
 c k h nonce out w x y t OUT (xI:list int)
-(data : SixteenByte * SixteenByte * (SixteenByte * SixteenByte))
-(out' : name _out)
-(in' : name _in)
-(k' : name _k)
-(c' : name _c)
-(h' : name _h)
-(aux' : name _aux),
+(data : SixteenByte * SixteenByte * (SixteenByte * SixteenByte)),
 @semax CompSpecs Espec
   (initialized_list [_i] (func_tycontext f_core SalsaVarSpecs SalsaFunSpecs))
   (PROP  ()
@@ -124,11 +118,11 @@ c k h nonce out w x y t OUT (xI:list int)
    lvar _y (tarray tuint 16) y; lvar _x (tarray tuint 16) x;
    lvar _w (tarray tuint 16) w; temp _in nonce; temp _out out; temp _c c;
    temp _k k; temp _h (Vint (Int.repr h)))
-   SEP  (`(data_at Tsh (tarray tuint 16) (map Vint xI) y);
-   `(data_at Tsh (tarray tuint 16) (map Vint xI) x);
-   `(data_at_ Tsh (tarray tuint 4) t); `(data_at_ Tsh (tarray tuint 16) w);
-   `(CoreInSEP data (nonce, c, k));
-   `(data_at Tsh (tarray tuchar 64) OUT out)))
+   SEP  (data_at Tsh (tarray tuint 16) (map Vint xI) y;
+   data_at Tsh (tarray tuint 16) (map Vint xI) x;
+   data_at_ Tsh (tarray tuint 4) t; data_at_ Tsh (tarray tuint 16) w;
+   CoreInSEP data (nonce, c, k);
+   data_at Tsh (tarray tuchar 64) OUT out))
   (Sfor (Sset _i (Econst_int (Int.repr 0) tint))
      (Ebinop Olt (Etempvar _i tint) (Econst_int (Int.repr 20) tint) tint)
      (Ssequence
@@ -404,11 +398,11 @@ c k h nonce out w x y t OUT (xI:list int)
    lvar _x (tarray tuint 16) x; lvar _w (tarray tuint 16) w; temp _in nonce;
    temp _out out; temp _c c; temp _k k; temp _h (Vint (Int.repr h)))
    SEP 
-   (`(EX r:_, !!(Snuffle 20 xI = Some r) && data_at Tsh (tarray tuint 16) (map Vint r) x);
-   `(data_at Tsh (tarray tuint 16) (map Vint xI) y);
-   `(data_at_ Tsh (tarray tuint 4) t); `(data_at_ Tsh (tarray tuint 16) w);
-   `(CoreInSEP data (nonce, c, k)); 
-   `(data_at Tsh (tarray tuchar 64) OUT out)))).
+   (EX r:_, !!(Snuffle 20 xI = Some r) && data_at Tsh (tarray tuint 16) (map Vint r) x;
+   data_at Tsh (tarray tuint 16) (map Vint xI) y;
+   data_at_ Tsh (tarray tuint 4) t; data_at_ Tsh (tarray tuint 16) w;
+   CoreInSEP data (nonce, c, k); 
+   data_at Tsh (tarray tuchar 64) OUT out))).
 Proof. intros. abbreviate_semax.
 Time assert_PROP (Zlength (map Vint xI) = 16) as XIZ by entailer!. (*5.1*)
 rewrite Zlength_map in XIZ.
@@ -421,10 +415,10 @@ Time forward_for_simple_bound 20 (EX i:Z,
    lvar _y (tarray tuint 16) y; lvar _x (tarray tuint 16) x;
    lvar _w (tarray tuint 16) w; temp _in nonce; temp _out out; temp _c c;
    temp _k k; temp _h (Vint (Int.repr h)))
-   SEP  (`(data_at Tsh (tarray tuint 16) (map Vint xI) y);
-   `(EX r:_, !!(Snuffle (Z.to_nat i) xI = Some r) && data_at Tsh (tarray tuint 16) (map Vint r) x);
-   `(data_at_ Tsh (tarray tuint 4) t); `(data_at_ Tsh (tarray tuint 16) w);
-   `(CoreInSEP data (nonce, c, k)); `(data_at Tsh (tarray tuchar 64) OUT out)))). (*3.6*)
+   SEP  (data_at Tsh (tarray tuint 16) (map Vint xI) y;
+   EX r:_, !!(Snuffle (Z.to_nat i) xI = Some r) && data_at Tsh (tarray tuint 16) (map Vint r) x;
+   data_at_ Tsh (tarray tuint 4) t; data_at_ Tsh (tarray tuint 16) w;
+   CoreInSEP data (nonce, c, k); data_at Tsh (tarray tuchar 64) OUT out))). (*3.6*)
 { Exists xI. Time entailer!. (*7.1*) } 
 
 (*Issue: why doesn't this work if we move it to the end of the proof of this lemma, 
@@ -442,12 +436,12 @@ Focus 2. Time entailer!. (*5.4*) Intros r. Exists r. Time entailer!. (*0.7*)
    lvar _y (tarray tuint 16) y; lvar _x (tarray tuint 16) x;
    lvar _w (tarray tuint 16) w; temp _in nonce; temp _out out; temp _c c;
    temp _k k; temp _h (Vint (Int.repr h)))
-   SEP  (`(data_at Tsh (tarray tuint 16) (map Vint r) x);
-   `(data_at Tsh (tarray tuint 16) (map Vint xI) y);
-   `(data_at_ Tsh (tarray tuint 4) t); 
-   `(EX l:_, !!(WcontI r (Z.to_nat j) l) && data_at Tsh (tarray tuint 16) l w);
-   `(CoreInSEP data (nonce, c, k));
-   `(data_at Tsh (tarray tuchar 64) OUT out)))). (*5.1*)
+   SEP  (data_at Tsh (tarray tuint 16) (map Vint r) x;
+   data_at Tsh (tarray tuint 16) (map Vint xI) y;
+   data_at_ Tsh (tarray tuint 4) t; 
+   EX l:_, !!(WcontI r (Z.to_nat j) l) && data_at Tsh (tarray tuint 16) l w;
+   CoreInSEP data (nonce, c, k);
+   data_at Tsh (tarray tuchar 64) OUT out))). (*5.1*)
   { Exists (list_repeat 16 Vundef). Time entailer!. (*9.2*) apply derives_refl. }
   { rename H into J. rename i0 into j.
     Intros wlist. rename H into WCONT.

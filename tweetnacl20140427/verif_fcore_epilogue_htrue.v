@@ -31,10 +31,10 @@ Lemma HTrue_loop1 Espec: forall t y x w nonce out c k h data OUT xs ys,
    lvar _y (tarray tuint 16) y; lvar _x (tarray tuint 16) x;
    lvar _w (tarray tuint 16) w; temp _in nonce; temp _out out; temp _c c;
    temp _k k; temp _h (Vint (Int.repr h)))
-   SEP  (`(data_at Tsh (tarray tuint 16) (map Vint xs) x);
-   `(data_at Tsh (tarray tuint 16) (map Vint ys) y);
-   `(data_at_ Tsh (tarray tuint 4) t); `(data_at_ Tsh (tarray tuint 16) w);
-   `(CoreInSEP data (nonce, c, k)); `(data_at Tsh (tarray tuchar 64) OUT out)))
+   SEP  (data_at Tsh (tarray tuint 16) (map Vint xs) x;
+   data_at Tsh (tarray tuint 16) (map Vint ys) y;
+   data_at_ Tsh (tarray tuint 4) t; data_at_ Tsh (tarray tuint 16) w;
+   CoreInSEP data (nonce, c, k); data_at Tsh (tarray tuchar 64) OUT out))
   (Sfor (Sset _i (Econst_int (Int.repr 0) tint))
      (Ebinop Olt (Etempvar _i tint) (Econst_int (Int.repr 16) tint) tint)
      (Ssequence
@@ -61,10 +61,10 @@ Lemma HTrue_loop1 Espec: forall t y x w nonce out c k h data OUT xs ys,
              lvar _y (tarray tuint 16) y; lvar _x (tarray tuint 16) x;
              lvar _w (tarray tuint 16) w; temp _in nonce; temp _out out;
              temp _c c; temp _k k; temp _h (Vint (Int.repr h)))
-     SEP (`(data_at Tsh (tarray tuint 16) l x);
-          `(data_at Tsh (tarray tuint 16) (map Vint ys) y);
-          `(data_at_ Tsh (tarray tuint 4) t); `(data_at_ Tsh (tarray tuint 16) w);
-          `(CoreInSEP data (nonce, c, k)); `(data_at Tsh (tarray tuchar 64) OUT out)))).
+     SEP (data_at Tsh (tarray tuint 16) l x;
+          data_at Tsh (tarray tuint 16) (map Vint ys) y;
+          data_at_ Tsh (tarray tuint 4) t; data_at_ Tsh (tarray tuint 16) w;
+          CoreInSEP data (nonce, c, k); data_at Tsh (tarray tuchar 64) OUT out))).
 Proof. 
   intros. abbreviate_semax.
   Time assert_PROP (Zlength (map Vint xs) = 16 /\ Zlength (map Vint ys) = 16) 
@@ -76,12 +76,12 @@ Proof.
    lvar _y (tarray tuint 16) y; lvar _x (tarray tuint 16) x;
    lvar _w (tarray tuint 16) w; temp _in nonce; temp _out out; temp _c c;
    temp _k k; temp _h (Vint (Int.repr h)))
-   SEP  (`(EX l:_, !!HTrue_inv1 l i (map Vint ys) (map Vint xs)
-              && data_at Tsh (tarray tuint 16) l x);
-   `(data_at Tsh (tarray tuint 16) (map Vint ys) y);
-   `(data_at_ Tsh (tarray tuint 4) t); `(data_at_ Tsh (tarray tuint 16) w);
-   `(CoreInSEP data (nonce, c, k));
-   `(data_at Tsh (tarray tuchar 64) OUT out)))). (*2.5*)
+   SEP  (EX l:_, !!HTrue_inv1 l i (map Vint ys) (map Vint xs)
+              && data_at Tsh (tarray tuint 16) l x;
+   data_at Tsh (tarray tuint 16) (map Vint ys) y;
+   data_at_ Tsh (tarray tuint 4) t; data_at_ Tsh (tarray tuint 16) w;
+   CoreInSEP data (nonce, c, k);
+   data_at Tsh (tarray tuchar 64) OUT out))). (*2.5*)
   { Exists (map Vint xs).
     Time entailer!. (*5.1*)
     split. assumption.
@@ -152,11 +152,11 @@ Lemma HTrue_loop2 Espec: forall t y x w nonce out c k h OUT ys intsums Nonce C K
    lvar _y (tarray tuint 16) y; lvar _x (tarray tuint 16) x;
    lvar _w (tarray tuint 16) w; temp _in nonce; temp _out out; temp _c c;
    temp _k k; temp _h (Vint (Int.repr h)))
-   SEP  (`(data_at Tsh (tarray tuint 16) (map Vint intsums) x);
-   `(data_at Tsh (tarray tuint 16) (map Vint ys) y);
-   `(data_at_ Tsh (tarray tuint 4) t); `(data_at_ Tsh (tarray tuint 16) w);
-   `(CoreInSEP(Nonce, C, K) (nonce, c, k));
-   `(data_at Tsh (tarray tuchar 64) OUT out)))
+   SEP  (data_at Tsh (tarray tuint 16) (map Vint intsums) x;
+   data_at Tsh (tarray tuint 16) (map Vint ys) y;
+   data_at_ Tsh (tarray tuint 4) t; data_at_ Tsh (tarray tuint 16) w;
+   CoreInSEP(Nonce, C, K) (nonce, c, k);
+   data_at Tsh (tarray tuchar 64) OUT out))
    (Ssequence (Sset _i (Econst_int (Int.repr 0) tint))
               (Sloop
                 (Ssequence
@@ -229,11 +229,11 @@ Lemma HTrue_loop2 Espec: forall t y x w nonce out c k h OUT ys intsums Nonce C K
  lvar _y (tarray tuint 16) y; lvar _x (tarray tuint 16) x;
  lvar _w (tarray tuint 16) w; temp _in nonce; temp _out out; temp _c c;
  temp _k k; temp _h (Vint (Int.repr h)))
- SEP  (`(SByte Nonce nonce); `(SByte C c); `(ThirtyTwoByte K k);
- `(data_at Tsh (tarray tuint 16) (map Vint (hPosLoop2 4 intsums C Nonce)) x);
- `(data_at Tsh (tarray tuint 16) (map Vint ys) y);
- `(data_at_ Tsh (tarray tuint 4) t); `(data_at_ Tsh (tarray tuint 16) w);
- `(data_at Tsh (tarray tuchar 64) OUT out)))).
+ SEP  (SByte Nonce nonce; SByte C c; ThirtyTwoByte K k;
+ data_at Tsh (tarray tuint 16) (map Vint (hPosLoop2 4 intsums C Nonce)) x;
+ data_at Tsh (tarray tuint 16) (map Vint ys) y;
+ data_at_ Tsh (tarray tuint 4) t; data_at_ Tsh (tarray tuint 16) w;
+ data_at Tsh (tarray tuchar 64) OUT out))).
 Proof. intros. abbreviate_semax. unfold CoreInSEP. 
   Time assert_PROP (Zlength (map Vint intsums) = 16) as SL by entailer!. (*2.8*)
   rewrite Zlength_map in SL. 
@@ -244,11 +244,11 @@ Proof. intros. abbreviate_semax. unfold CoreInSEP.
    lvar _y (tarray tuint 16) y; lvar _x (tarray tuint 16) x;
    lvar _w (tarray tuint 16) w; temp _in nonce; temp _out out; temp _c c;
    temp _k k; temp _h (Vint (Int.repr h)))
-   SEP  (`(SByte Nonce nonce); `(SByte C c); `(ThirtyTwoByte K k);
-   `(data_at Tsh (tarray tuint 16) (map Vint (hPosLoop2 (Z.to_nat i) intsums C Nonce)) x);
-   `(data_at Tsh (tarray tuint 16) (map Vint ys) y);
-   `(data_at_ Tsh (tarray tuint 4) t); `(data_at_ Tsh (tarray tuint 16) w);
-   `(data_at Tsh (tarray tuchar 64) OUT out)))). (*3.6*)
+   SEP  (SByte Nonce nonce; SByte C c; ThirtyTwoByte K k;
+   data_at Tsh (tarray tuint 16) (map Vint (hPosLoop2 (Z.to_nat i) intsums C Nonce)) x;
+   data_at Tsh (tarray tuint 16) (map Vint ys) y;
+   data_at_ Tsh (tarray tuint 4) t; data_at_ Tsh (tarray tuint 16) w;
+   data_at Tsh (tarray tuchar 64) OUT out))). (*3.6*)
     Time solve[entailer!]. (*4*)
     { rename H into I.
       unfold SByte at 2.
@@ -459,12 +459,12 @@ Lemma HTrue_loop3 Espec t y x w nonce out c k h OUT xs ys Nonce C K:
    lvar _y (tarray tuint 16) y; lvar _x (tarray tuint 16) x;
    lvar _w (tarray tuint 16) w; temp _in nonce; temp _out out; temp _c c;
    temp _k k; temp _h (Vint (Int.repr h)))
-   SEP  (`(SByte Nonce nonce); `(SByte C c);
-   `(ThirtyTwoByte K k);
-   `(data_at Tsh (tarray tuint 16) (map Vint xs) x);
-   `(data_at Tsh (tarray tuint 16) (map Vint ys) y);
-   `(data_at_ Tsh (tarray tuint 4) t); `(data_at_ Tsh (tarray tuint 16) w);
-   `(data_at Tsh (tarray tuchar 64) OUT out)))
+   SEP  (SByte Nonce nonce; SByte C c;
+   ThirtyTwoByte K k;
+   data_at Tsh (tarray tuint 16) (map Vint xs) x;
+   data_at Tsh (tarray tuint 16) (map Vint ys) y;
+   data_at_ Tsh (tarray tuint 4) t; data_at_ Tsh (tarray tuint 16) w;
+   data_at Tsh (tarray tuchar 64) OUT out))
   (Sfor (Sset _i (Econst_int (Int.repr 0) tint))
      (Ebinop Olt (Etempvar _i tint) (Econst_int (Int.repr 4) tint) tint)
      (Ssequence
@@ -510,11 +510,11 @@ Lemma HTrue_loop3 Espec t y x w nonce out c k h OUT xs ys Nonce C K:
           lvar _y (tarray tuint 16) y; lvar _x (tarray tuint 16) x;
           lvar _w (tarray tuint 16) w; temp _in nonce; temp _out out; temp _c c;
           temp _k k; temp _h (Vint (Int.repr h)))
-  SEP (`(SByte Nonce nonce); `(SByte C c); `(ThirtyTwoByte K k);
-       `(data_at Tsh (tarray tuint 16) (map Vint xs) x);
-       `(data_at Tsh (tarray tuint 16) (map Vint ys) y);
-       `(data_at_ Tsh (tarray tuint 4) t); `(data_at_ Tsh (tarray tuint 16) w);
-       `(data_at Tsh (tarray tuchar 64) (hPosLoop3 4 xs OUT) out)))).
+  SEP (SByte Nonce nonce; SByte C c; ThirtyTwoByte K k;
+       data_at Tsh (tarray tuint 16) (map Vint xs) x;
+       data_at Tsh (tarray tuint 16) (map Vint ys) y;
+       data_at_ Tsh (tarray tuint 4) t; data_at_ Tsh (tarray tuint 16) w;
+       data_at Tsh (tarray tuchar 64) (hPosLoop3 4 xs OUT) out))).
 Proof. intros. abbreviate_semax.
  Time assert_PROP (Zlength (map Vint xs) = 16 /\ Zlength OUT = 64) as XX by entailer!. (*3.1*)
  rewrite Zlength_map in XX. destruct XX as [ZL_X OL].
@@ -523,11 +523,11 @@ Proof. intros. abbreviate_semax.
    LOCAL  (lvar _t (tarray tuint 4) t; lvar _y (tarray tuint 16) y;
    lvar _x (tarray tuint 16) x; lvar _w (tarray tuint 16) w; temp _in nonce;
    temp _out out; temp _c c; temp _k k; temp _h (Vint (Int.repr h)))
-   SEP  (`(SByte Nonce nonce); `(SByte C c); `(ThirtyTwoByte K k);
-   `(data_at Tsh (tarray tuint 16) (map Vint xs) x);
-   `(data_at Tsh (tarray tuint 16) (map Vint ys) y);
-   `(data_at_ Tsh (tarray tuint 4) t); `(data_at_ Tsh (tarray tuint 16) w);
-   `(data_at Tsh (tarray tuchar 64) (hPosLoop3 (Z.to_nat i) xs OUT) out)))). (*3.4*)
+   SEP  (SByte Nonce nonce; SByte C c; ThirtyTwoByte K k;
+   data_at Tsh (tarray tuint 16) (map Vint xs) x;
+   data_at Tsh (tarray tuint 16) (map Vint ys) y;
+   data_at_ Tsh (tarray tuint 4) t; data_at_ Tsh (tarray tuint 16) w;
+   data_at Tsh (tarray tuchar 64) (hPosLoop3 (Z.to_nat i) xs OUT) out))). (*3.4*)
     Time entailer!. (*4*)
   { rename H into I. 
 
@@ -570,11 +570,11 @@ Opaque crypto_core_salsa20_spec. Opaque crypto_core_hsalsa20_spec.
    temp _out (Vptr ob ooff); temp _c c; temp _k k;
    temp _h (Vint (Int.repr h)))
    SEP 
-   (`(data_at Tsh (tarray tuchar 64) (UpdateOut ll (4*i) xi) (Vptr ob ooff));
-   `(SByte Nonce nonce); `(SByte C c); `(ThirtyTwoByte K k);
-   `(data_at Tsh (tarray tuint 16) (map Vint xs) x);
-   `(data_at Tsh (tarray tuint 16) (map Vint ys) y);
-   `(data_at_ Tsh (tarray tuint 4) t); `(data_at_ Tsh (tarray tuint 16) w)))).
+   (data_at Tsh (tarray tuchar 64) (UpdateOut ll (4*i) xi) (Vptr ob ooff);
+   SByte Nonce nonce; SByte C c; ThirtyTwoByte K k;
+   data_at Tsh (tarray tuint 16) (map Vint xs) x;
+   data_at Tsh (tarray tuint 16) (map Vint ys) y;
+   data_at_ Tsh (tarray tuint 4) t; data_at_ Tsh (tarray tuint 16) w))).
     { clear Heqll. Opaque Zminus. Time entailer!. (*7.5*) unfold QByte.
       rewrite <- Upd_ll_Zlength. unfold tarray. 
       erewrite (split3_data_at_Tarray_tuchar Tsh _ (4 * i) (4+4 * i) (UpdateOut ll (4 * i) _id0)); try rewrite UpdateOut_Zlength, P3_Zlength; try omega.
@@ -658,14 +658,14 @@ Definition HTruePostCond t y x w nonce out c k h (xs:list int) ys Nonce C K OUT 
    lvar _y (tarray tuint 16) y; lvar _x (tarray tuint 16) x;
    lvar _w (tarray tuint 16) w; temp _in nonce; temp _out out; temp _c c;
    temp _k k; temp _h (Vint (Int.repr h)))
-  SEP (`(SByte Nonce nonce); `(SByte C c);
-       `(ThirtyTwoByte K k);
-       `(data_at Tsh (tarray tuint 16)
-         (map Vint (hPosLoop2 4 intsums C Nonce)) x);
-       `(data_at Tsh (tarray tuint 16) (map Vint ys) y);
-       `(data_at_ Tsh (tarray tuint 4) t); `(data_at_ Tsh (tarray tuint 16) w);
-       `(data_at Tsh (tarray tuchar 64)
-          (hPosLoop3 4 (hPosLoop2 4 intsums C Nonce) OUT) out))).
+  SEP (SByte Nonce nonce; SByte C c;
+       ThirtyTwoByte K k;
+       data_at Tsh (tarray tuint 16)
+         (map Vint (hPosLoop2 4 intsums C Nonce)) x;
+       data_at Tsh (tarray tuint 16) (map Vint ys) y;
+       data_at_ Tsh (tarray tuint 4) t; data_at_ Tsh (tarray tuint 16) w;
+       data_at Tsh (tarray tuchar 64)
+          (hPosLoop3 4 (hPosLoop2 4 intsums C Nonce) OUT) out)).
 
 Lemma verif_fcore_epilogue_htrue Espec t y x w nonce out c k h OUT xs ys Nonce C K:
 @semax CompSpecs Espec
@@ -675,10 +675,10 @@ Lemma verif_fcore_epilogue_htrue Espec t y x w nonce out c k h OUT xs ys Nonce C
    lvar _y (tarray tuint 16) y; lvar _x (tarray tuint 16) x;
    lvar _w (tarray tuint 16) w; temp _in nonce; temp _out out; temp _c c;
    temp _k k; temp _h (Vint (Int.repr h)))
-   SEP  (`(data_at Tsh (tarray tuint 16) (map Vint xs) x);
-   `(data_at Tsh (tarray tuint 16) (map Vint ys) y);
-   `(data_at_ Tsh (tarray tuint 4) t); `(data_at_ Tsh (tarray tuint 16) w);
-   `(CoreInSEP (Nonce, C, K) (nonce, c, k)); `(data_at Tsh (tarray tuchar 64) OUT out)))
+   SEP  (data_at Tsh (tarray tuint 16) (map Vint xs) x;
+   data_at Tsh (tarray tuint 16) (map Vint ys) y;
+   data_at_ Tsh (tarray tuint 4) t; data_at_ Tsh (tarray tuint 16) w;
+   CoreInSEP (Nonce, C, K) (nonce, c, k); data_at Tsh (tarray tuchar 64) OUT out))
         (Ssequence
           (Ssequence
             (Sset _i (Econst_int (Int.repr 0) tint))

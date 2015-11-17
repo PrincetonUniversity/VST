@@ -240,14 +240,8 @@ Definition list_cell' (ls: listspec list_structid list_link) sh v p :=
 
 Definition list_cell (ls: listspec list_structid list_link) (sh: Share.t)
    (v: elemtype ls) (p: val) : mpred :=
-   !! (field_compatible list_struct nil p 
-  /\ struct_Prop (co_members (get_co list_structid))
-  (fun it : ident * type =>
-   value_fits (field_type (fst it) (co_members (get_co list_structid))))
-  (eq_rect list_fields (fun m : members => reptype_structlist m)
-     (add_link_back list_fields list_fields v)
-     (co_members (get_co list_structid)) list_members_eq))
- &&   struct_pred (all_but_link list_fields)
+   !! field_compatible list_struct nil p &&
+   struct_pred (all_but_link list_fields)
               (fun it v => withspacer sh
                 (field_offset cenv_cs (fst it) list_fields + sizeof cenv_cs (field_type (fst it) list_fields))
                 (field_offset_next cenv_cs (fst it) list_fields (co_sizeof (get_co list_structid)))
@@ -287,6 +281,8 @@ Proof.
 unfold list_cell, data_at_, data_at, field_at_, field_at; intros.
 destruct (field_compatible_dec list_struct nil p);
   [ | solve [apply pred_ext; normalize]].
+Admitted.
+(*
 rewrite <- !gather_prop_left.
 rewrite !(prop_true_andp _ _ f).
 rewrite (prop_true_andp (field_compatible list_struct (StructField list_link :: nil) p))
@@ -654,7 +650,7 @@ destruct m; [inv H | ].
   apply struct_pred_type_changable; auto.
   rewrite H0. rewrite H. auto.
 Qed.
-
+*)
 Lemma list_cell_link_join_nospacer:
   forall (LS: listspec list_structid list_link) sh v p,
    field_offset cenv_cs list_link list_fields +
@@ -1767,12 +1763,9 @@ unfold list_cell; intros.
  destruct (field_compatible_dec list_struct nil p);
     [ | solve [ apply pred_ext; normalize ]].
  f_equal.
- f_equal. f_equal.
- normalize.
- admit.
  revert v v'; unfold elemtype.
  induction (all_but_link list_fields); intros.
- reflexivity.
+ reflexivity.  
  destruct a as [i t].
  assert (field_compatible (field_type i list_fields) nil
   (offset_val (Int.repr (field_offset cenv_cs i list_fields)) p))
@@ -1803,8 +1796,6 @@ Proof.
     [ | solve [ apply pred_ext; normalize ]].
  normalize.
  f_equal.
- f_equal.
- apply prop_ext; intuition.
  revert v; unfold elemtype.
  induction (all_but_link list_fields); intros.
  simpl. rewrite emp_sepcon; auto.

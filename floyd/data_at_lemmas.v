@@ -610,7 +610,15 @@ Proof.
   try solve [rewrite !data_at'_ind; try (if_tac; auto);
   try solve [rewrite default_val_ind, unfold_fold_reptype; apply mapsto_mapsto_]].
   + rewrite !data_at'_ind.
-    apply array_pred_ext_derives. rewrite default_val_ind.
+    apply array_pred_ext_derives.
+    Focus 1. {
+      intros; rewrite default_val_ind.
+      rewrite unfold_fold_reptype.
+      rewrite Zlength_correct in H2.
+      rewrite Zlength_list_repeat by omega.
+      omega.
+    } Unfocus.
+    rewrite default_val_ind.
     intros.
     rewrite !at_offset_eq3.
     rewrite default_val_ind with (t0 := (Tarray t z a)), unfold_fold_reptype.
@@ -729,62 +737,77 @@ Proof.
   reflexivity.
 Qed.
 
-Lemma empty_data_at': forall sh t v b ofs,
-  legal_cosu_type t = true ->
-  sizeof cenv_cs t = 0 ->
-  data_at' sh t v (Vptr b (Int.repr ofs)) = emp.
+Lemma default_value_fits:
+  forall t, value_fits t (default_val t).
 Proof.
-  intros ? ?.
-  type_induction t; [| destruct i | | destruct f | | | | |]; intros; rewrite data_at'_ind;
-  try solve [inversion H0].
-  + apply Tarray_sizeof_0 in H0.
-    destruct H0.
-    - rewrite array_pred_ext with (P1 := fun _ _ _ => emp) (v1 := unfold_reptype v).
-      * apply emp_array_pred.
-      * intros.
-        rewrite at_offset_eq.
-        apply IH; auto.
-    - apply array_pred_len_0; auto.
-  + pose proof Tstruct_sizeof_0 id a H H0.
-    rewrite struct_pred_ext with (P1 := fun _ _ _ => emp) (v1 := unfold_reptype v).
-    - apply emp_struct_pred.
+  intros.
+  type_induction t; try destruct f; rewrite value_fits_ind;
+  try solve [simpl; try (if_tac; auto); apply tc_val'_Vundef];
+  rewrite default_val_ind, unfold_fold_reptype.
+  + (* Tarray *)
+    split.
+    - rewrite Zlength_list_repeat', Z2Nat_id'; auto.
+    - apply Forall_list_repeat; auto.
+  + (* Tstruct *)
+    cbv zeta in IH.
+    apply struct_Prop_compact_prod_gen.
     - apply get_co_members_no_replicate.
+    - rewrite Forall_forall in IH.
+      intros; apply IH.
+      apply in_members_field_type; auto.
+  + (* Tunion *)
+    cbv zeta in IH.
+    apply union_Prop_compact_sum_gen.
+    - apply get_co_members_no_replicate.
+    - rewrite Forall_forall in IH.
+      intros; apply IH.
+      apply in_members_field_type; auto.
+Qed.    
+
+Lemma data_at'_value_fits: forall sh t v p
+(*  (LEGAL_ALIGNAS: legal_alignas_type t = true)
+  (LEGAL_COSU: legal_cosu_type t = true)
+  (COMPLETE: complete_type cenv_cs t = true) *),
+  data_at' sh t v p |-- !! value_fits t v.
+Proof.
+  intros until p.
+  revert v p; type_induction t; intros;
+  rewrite value_fits_ind, data_at'_ind;
+  try solve [normalize];
+  try solve [cbv zeta; if_tac; [normalize | apply mapsto_tc_val']].
+  + (* Tarray *)
+    eapply derives_trans; [apply array_pred_local_facts |].
     - intros.
-      destruct (H1 i H2).
-      rewrite Forall_forall in IH.
-      specialize (IH (i, (field_type i (co_members (get_co id))))).
-      spec IH; [apply in_members_field_type; auto |].
-      autorewrite with at_offset_db.
-      unfold fst, snd in *.
-      rewrite H4, H3.
-      rewrite memory_block_zero.
-      rewrite IH by (auto; AUTO_IND).
-      unfold offset_val; normalize.
-  + assert (co_members (get_co id) = nil \/ co_members (get_co id) <> nil) as HH
-      by (destruct (co_members (get_co id)); [left | right]; congruence).
-    destruct HH as [HH | HH].
-    - generalize (unfold_reptype v); rewrite HH; intros.
-      simpl; auto.
-    - pose proof Tunion_sizeof_0 id a H H0.
-      rewrite union_pred_ext with (P1 := fun _ _ _ => emp) (v1 := unfold_reptype v).
-      * apply emp_union_pred.
-      * apply get_co_members_no_replicate.
-      * intros; tauto.
-      * intros.
-        pose proof compact_sum_inj_in (unfold_reptype v) _ _ H2.
-        unfold members_union_inj in *.
-        apply in_map with (f := fst) in H4.
-        specialize (H1 i H4).
-        rewrite Forall_forall in IH.
-        specialize (IH (i, (field_type i (co_members (get_co id))))).
-        spec IH; [apply in_members_field_type; auto |].
-        autorewrite with at_offset_db.
-        unfold fst, snd in *.
-        rewrite sizeof_Tunion in H0.
-        rewrite H1, H0.
-        rewrite memory_block_zero.
-        rewrite IH by (auto; AUTO_IND).
-        unfold offset_val; normalize.
+      unfold at_offset.
+      instantiate (1 := fun x => value_fits t x); simpl.
+      apply IH.
+    - apply prop_derives.
+      intros [? ?]; split; auto.
+      rewrite Zlength_correct in *.
+      rewrite Z.max_r by omega.
+      omega.
+  + (* Tstruct *)
+    apply struct_pred_local_facts; [apply get_co_members_no_replicate |].
+    intros.
+    rewrite withspacer_spacer.
+    unfold at_offset.
+    cbv zeta in IH.
+    rewrite Forall_forall in IH.
+    specialize (IH (i, (field_type i (co_members (get_co id))))).
+    spec IH; [apply in_members_field_type; auto |].
+    eapply derives_trans; [apply sepcon_derives; [apply derives_refl | apply IH] |].
+    rewrite sepcon_comm; apply derives_left_sepcon_right_corable; auto.
+  + (* Tunion *)
+    apply union_pred_local_facts; [apply get_co_members_no_replicate |].
+    intros.
+    rewrite withspacer_spacer.
+    unfold at_offset.
+    cbv zeta in IH.
+    rewrite Forall_forall in IH.
+    specialize (IH (i, (field_type i (co_members (get_co id))))).
+    spec IH; [apply in_members_field_type; auto |].
+    eapply derives_trans; [apply sepcon_derives; [apply derives_refl | apply IH] |].
+    rewrite sepcon_comm; apply derives_left_sepcon_right_corable; auto.
 Qed.
 
 (*

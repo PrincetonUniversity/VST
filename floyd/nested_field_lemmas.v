@@ -645,6 +645,34 @@ Proof.
   tauto.
 Qed.
 
+Lemma field_compatible0_range:
+ forall i lo hi t gfs p, 
+   lo <= i <= hi ->
+   field_compatible0 t (ArraySubsc lo :: gfs) p ->
+   field_compatible0 t (ArraySubsc hi :: gfs) p ->
+   field_compatible0 t (ArraySubsc i :: gfs) p.
+Proof.
+  intros.
+  destruct H0 as [? [? [? [? [? [? [? [? ?]]]]]]]].
+  destruct H1 as [? [? [? [? [? [? [? [? ?]]]]]]]].
+  repeat split; auto.
+  hnf in H9,H17|-*.
+  destruct (nested_field_type t gfs); auto.
+  omega.
+Qed.
+
+Lemma field_compatible_range:
+ forall i lo hi t gfs p, 
+   lo <= i < hi ->
+   field_compatible0 t (ArraySubsc lo :: gfs) p ->
+   field_compatible0 t (ArraySubsc hi :: gfs) p ->
+   field_compatible t (ArraySubsc i :: gfs) p.
+Proof.
+  intros.
+  rewrite field_compatible_field_compatible0'.
+  split; apply (field_compatible0_range _ lo hi); eauto; omega.
+Qed.
+
 Lemma is_pointer_or_null_field_compatible:
   forall t path c, 
      is_pointer_or_null (field_address t path c) ->
@@ -1680,6 +1708,14 @@ Proof.
   destruct H; tauto.
 Qed.
 
+Lemma field_compatible0_legal_nested_field0:
+  forall (t : type) (path : list gfield) (p : val),
+  field_compatible0 t path p -> legal_nested_field0 t path.
+Proof.
+  intros.
+  destruct H; tauto.
+Qed.
+
 Lemma field_compatible_field_address: forall t gfs p, field_compatible t gfs p -> field_address t gfs p = offset_val (Int.repr (nested_field_offset t gfs)) p.
 Proof.
   intros.
@@ -1701,6 +1737,7 @@ Hint Extern 1 (isptr _) => (eapply field_compatible_isptr; eassumption).
 Hint Extern 1 (isptr _) => (eapply field_compatible0_isptr; eassumption).
 Hint Extern 1 (legal_nested_field _ _) => (eapply field_compatible_legal_nested_field; eassumption).
 Hint Extern 1 (legal_nested_field0 _ _) => (eapply field_compatible_legal_nested_field0; eassumption).
+Hint Extern 1 (legal_nested_field0 _ _) => (eapply field_compatible0_legal_nested_field0; eassumption).
 
 Lemma lvar_size_compatible:
   forall  {cs: compspecs} id t v rho,

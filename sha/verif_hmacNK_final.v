@@ -62,7 +62,7 @@ Time forward_call (ctx, buf, Vptr b i, Tsh, kv). (*9.5*)
     rewrite field_address_offset by auto with field_compatible. 
     Time (normalize; cancel). (*4.1*)
   }
- unfold map at 1.  (* should not be necessary *)
+ (*unfold map at 1.   should not be necessary *)
 
 (*VST Issue: calls to forward-call with type-incorrect WITH-list instantiations simply succeed immediately, 
   without doing anything. Instead, they should fail with a meaningful error message.*)
@@ -83,10 +83,8 @@ apply semax_pre with (P':=
   (PROP  ()
    LOCAL  (lvar _buf (tarray tuchar 32) buf; temp _md md; 
            temp _ctx (Vptr b i); gvar sha._K256 kv)
-   SEP  (`(K_vector kv); 
-   `(data_at Tsh t_struct_hmac_ctx_st l' (Vptr b i));
-   `(data_block Tsh (sha_finish ctx) buf);
-   `(memory_block shmd 32 md)))).
+   SEP  (K_vector kv; data_at Tsh t_struct_hmac_ctx_st l' (Vptr b i);
+         data_block Tsh (sha_finish ctx) buf; memory_block shmd 32 md))).
 { Time entailer!. (*10*)
       unfold_data_at 1%nat.
       rewrite (field_at_data_at Tsh t_struct_hmac_ctx_st [StructField _md_ctx]).
@@ -103,7 +101,7 @@ rewrite field_address_offset by auto with field_compatible.
 rewrite field_address_offset by auto with field_compatible. 
 unfold offset_val; simpl.
 rewrite Int.add_zero.
-replace_SEP 1 `(memory_block Tsh 108 (Vptr b i)).
+replace_SEP 1 (memory_block Tsh 108 (Vptr b i)).
   { Time entailer!. (*1.6*) 
     eapply derives_trans. apply data_at_data_at_.
     rewrite <- (memory_block_data_at_ Tsh _ _ H2). apply derives_refl.

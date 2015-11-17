@@ -280,14 +280,14 @@ Lemma ipad_loop Espec pb pofs cb cofs ckb ckoff kb kofs l key kv (FR:mpred): for
    lvar _pad (Tarray tuchar 64 noattr) (Vptr pb pofs);
    temp _ctx (Vptr cb cofs); temp _key (Vptr kb kofs);
    temp _len (Vint (Int.repr l)); gvar sha._K256 kv)
-   SEP  ( (*`(K_vector kv);*) `(FR);
-   `(data_at Tsh (Tarray tuchar 64 noattr)
-       (default_val (Tarray tuchar 64 noattr)) (Vptr pb pofs));
-   (*`(data_at Tsh t_struct_hmac_ctx_st HMS' (Vptr cb cofs));*)
-   `(data_at Tsh (tarray tuchar 64)
-       (map Vint (map Int.repr (HMAC_SHA256.mkKey key))) (Vptr ckb ckoff)) (*;
-   `(data_at Tsh (tarray tuchar (Zlength key)) (map Vint (map Int.repr key))
-       (Vptr kb kofs))*)))
+   SEP  (FR;
+   data_at Tsh (Tarray tuchar 64 noattr)
+       (default_val (Tarray tuchar 64 noattr)) (Vptr pb pofs);
+   (*data_at Tsh t_struct_hmac_ctx_st HMS' (Vptr cb cofs));*)
+   data_at Tsh (tarray tuchar 64)
+       (map Vint (map Int.repr (HMAC_SHA256.mkKey key))) (Vptr ckb ckoff) (*;
+   data_at Tsh (tarray tuchar (Zlength key)) (map Vint (map Int.repr key))
+       (Vptr kb kofs)*)))
   (Sfor (Sset _i (Econst_int (Int.repr 0) tint))
      (Ebinop Olt (Etempvar _i tint) (Econst_int (Int.repr 64) tint) tint)
      (Ssequence
@@ -315,13 +315,13 @@ Lemma ipad_loop Espec pb pofs cb cofs ckb ckoff kb kofs l key kv (FR:mpred): for
       lvar _pad (Tarray tuchar 64 noattr) (Vptr pb pofs);
       temp _ctx (Vptr cb cofs); temp _key (Vptr kb kofs);
       temp _len (Vint (Int.repr l)); gvar sha._K256 kv)
-      SEP  ((*`(K_vector kv);*) `(FR);
-      `(data_at Tsh (Tarray tuchar 64 noattr) IPADcont (Vptr pb pofs));
-(*      `(data_at Tsh t_struct_hmac_ctx_st HMS' (Vptr cb cofs));*)
-      `(data_at Tsh (tarray tuchar 64)
-          (map Vint (map Int.repr (HMAC_SHA256.mkKey key))) (Vptr ckb ckoff)) (*;
-      `(data_at Tsh (tarray tuchar (Zlength key))
-          (map Vint (map Int.repr key)) (Vptr kb kofs))*)))).
+      SEP  (FR;
+      data_at Tsh (Tarray tuchar 64 noattr) IPADcont (Vptr pb pofs);
+(*      data_at Tsh t_struct_hmac_ctx_st HMS' (Vptr cb cofs));*)
+      data_at Tsh (tarray tuchar 64)
+          (map Vint (map Int.repr (HMAC_SHA256.mkKey key))) (Vptr ckb ckoff) (*;
+      data_at Tsh (tarray tuchar (Zlength key))
+          (map Vint (map Int.repr key)) (Vptr kb kofs)*)))).
 Proof. intros. abbreviate_semax.   
 eapply semax_post'.
 Focus 2.   
@@ -332,15 +332,15 @@ Focus 2.
            lvar _pad (Tarray tuchar 64 noattr) (Vptr pb pofs);
            temp _ctx (Vptr cb cofs); temp _key (Vptr kb kofs);
            temp _len (Vint (Int.repr l)); gvar sha._K256 kv)
-         SEP  ((*`(K_vector kv);*) `(FR);
-          `(data_at Tsh (Tarray tuchar 64 noattr) 
+         SEP  (FR;
+          data_at Tsh (Tarray tuchar 64 noattr) 
              ((sublist 0 i IPADcont) ++ (sublist i 64  (default_val (Tarray tuchar 64 noattr))))
-             (Vptr pb pofs));
-(*          `(data_at Tsh t_struct_hmac_ctx_st (*keyedHMS*)HMS' (Vptr cb cofs));*)
-          `(data_at Tsh (tarray tuchar 64)
-              (map Vint (map Int.repr (HMAC_SHA256.mkKey key))) (Vptr ckb ckoff)) (*;
-         `(data_at Tsh (tarray tuchar (Zlength key)) (map Vint (map Int.repr key))
-              (Vptr kb kofs))*)))). (*3.6secs*)
+             (Vptr pb pofs);
+(*          data_at Tsh t_struct_hmac_ctx_st (*keyedHMS*)HMS' (Vptr cb cofs);*)
+          data_at Tsh (tarray tuchar 64)
+              (map Vint (map Int.repr (HMAC_SHA256.mkKey key))) (Vptr ckb ckoff) (*;
+         data_at Tsh (tarray tuchar (Zlength key)) (map Vint (map Int.repr key))
+              (Vptr kb kofs)*)))). (*3.6secs*)
       { (*precondition implies "invariant"*)
         rewrite sublist_nil, sublist_same; trivial. simpl app.
         Time entailer!. (*4*)  
@@ -408,9 +408,6 @@ Definition FRAME2 kb kofs cb cofs kv key ipadSHAabs :=
 Opaque FRAME1. Opaque FRAME2.
 
 Lemma opadloop Espec pb pofs cb cofs ckb ckoff kb kofs l key kv: forall
-(*(KL1 : l = Zlength key)
-(KL2 : 0 < l <= Int.max_signed)
-(KL3 : l * 8 < two_p 64)*)
 (h1 : hmacabs)
 (IPADcont : list val)
 (HeqIPADcont : IPADcont =
@@ -441,11 +438,12 @@ Lemma opadloop Espec pb pofs cb cofs ckb ckoff kb kofs l key kv: forall
    lvar _pad (Tarray tuchar 64 noattr) (Vptr pb pofs);
    temp _ctx (Vptr cb cofs); temp _key (Vptr kb kofs);
    temp _len (Vint (Int.repr l)); gvar sha._K256 kv)
-   SEP  (`(K_vector kv);
-   `(sha256state_ ipadSHAabs (Vptr cb (Int.add cofs (Int.repr 108))));
-   `(data_block Tsh
-       (HMAC_SHA256.mkArgZ (map Byte.repr (HMAC_SHA256.mkKey key)) Ipad)
-       (Vptr pb pofs)); `(FRAME1 cb cofs ckb ckoff kb kofs key)))
+   SEP  (K_vector kv;
+         sha256state_ ipadSHAabs (Vptr cb (Int.add cofs (Int.repr 108)));
+         data_block Tsh
+           (HMAC_SHA256.mkArgZ (map Byte.repr (HMAC_SHA256.mkKey key)) Ipad)
+           (Vptr pb pofs);
+         FRAME1 cb cofs ckb ckoff kb kofs key))
   (Sfor (Sset _i (Econst_int (Int.repr 0) tint))
      (Ebinop Olt (Etempvar _i tint) (Econst_int (Int.repr 64) tint) tint)
      (Ssequence
@@ -468,10 +466,10 @@ Lemma opadloop Espec pb pofs cb cofs ckb ckoff kb kofs l key kv: forall
              lvar _ctx_key (Tarray tuchar 64 noattr) (Vptr ckb ckoff);
              lvar _pad (Tarray tuchar 64 noattr) (Vptr pb pofs); temp _ctx (Vptr cb cofs);
              temp _key (Vptr kb kofs); temp _len (Vint (Int.repr l)); gvar sha._K256 kv)
-      SEP  (`(K_vector kv);
-            `(sha256state_ ipadSHAabs (Vptr cb (Int.add cofs (Int.repr 108))));
-            `(data_at Tsh (Tarray tuchar 64 noattr) OPADcont (Vptr pb pofs));
-            `(FRAME1 cb cofs ckb ckoff kb kofs key)))).
+      SEP  (K_vector kv;
+            sha256state_ ipadSHAabs (Vptr cb (Int.add cofs (Int.repr 108)));
+            data_at Tsh (Tarray tuchar 64 noattr) OPADcont (Vptr pb pofs);
+            FRAME1 cb cofs ckb ckoff kb kofs key))).
 Proof. intros. abbreviate_semax. 
 eapply semax_post'.
 Focus 2.   
@@ -482,10 +480,10 @@ Focus 2.
             lvar _pad (Tarray tuchar 64 noattr) (Vptr pb pofs);
             temp _ctx (Vptr cb cofs); temp _key (Vptr kb kofs);
             temp _len (Vint (Int.repr l)); gvar sha._K256 kv)
-         SEP  (`(K_vector kv); `(sha256state_ ipadSHAabs (Vptr cb (Int.add cofs (Int.repr 108))));
-          `(data_at Tsh (Tarray tuchar 64 noattr) 
-              ((sublist 0 i OPADcont) ++ (sublist i 64 IPADcont)) (Vptr pb pofs));
-          `(FRAME1 cb cofs ckb ckoff kb kofs key)))).
+         SEP  (K_vector kv; sha256state_ ipadSHAabs (Vptr cb (Int.add cofs (Int.repr 108)));
+          data_at Tsh (Tarray tuchar 64 noattr) 
+              ((sublist 0 i OPADcont) ++ (sublist i 64 IPADcont)) (Vptr pb pofs);
+          FRAME1 cb cofs ckb ckoff kb kofs key))).
       { (*precondition implies "invariant"*)
         unfold data_block.
         rewrite sublist_nil, sublist_same; trivial.
@@ -510,11 +508,11 @@ Focus 2.
           }
 
         gather_SEP 0 1 2 3. 
-        replace_SEP 0 (`(FRAME2 kb kofs cb cofs kv key ipadSHAabs) *
-                       `(data_at Tsh (Tarray tuchar 64 noattr)
-                           (sublist 0 i OPADcont ++ sublist i 64 IPADcont) (Vptr pb pofs)) *
-                       `(data_at Tsh (tarray tuchar 64)
-                           (map Vint (map Int.repr (HMAC_SHA256.mkKey key))) (Vptr ckb ckoff))).
+        replace_SEP 0 (FRAME2 kb kofs cb cofs kv key ipadSHAabs *
+                       data_at Tsh (Tarray tuchar 64 noattr)
+                           (sublist 0 i OPADcont ++ sublist i 64 IPADcont) (Vptr pb pofs) *
+                       data_at Tsh (tarray tuchar 64)
+                           (map Vint (map Int.repr (HMAC_SHA256.mkKey key))) (Vptr ckb ckoff)).
         { Time entailer!. (*6.6*)
           Transparent FRAME1. Transparent FRAME2. 
             unfold FRAME1, FRAME2; simpl.
@@ -547,20 +545,14 @@ Time Qed. (*18.7*)
 
 Opaque FRAME1. Opaque FRAME2.
 
-Lemma init_part2: forall
+Lemma init_part2: forall MYPOST
 (Espec : OracleKind)
 (c : val)
 (k : val)
 (l : Z)
 (key : list Z)
 (kv : val)
-(h1 : hmacabs)(*
-(KL1 : l = Zlength key)
-(KL2 : 0 < l <= Int.max_signed)
-(KL3 : l * 8 < two_p 64)*)
-(ctx' : name _ctx)
-(key' : name _key)
-(len' : name _len)
+(h1 : hmacabs)
 (*(Delta := initialized _reset 
        (func_tycontext f_HMAC_Init HmacVarSpecs HmacFunSpecs))*)
 (cb : block)
@@ -569,7 +561,6 @@ Lemma init_part2: forall
 (r : Z)
 (ckb : block)
 (ckoff : int)
-(*(HC : c = Vptr cb cofs)*)
 (R : r = 0 \/ r = 1)
 (PostResetBranch : environ -> mpred)
 (HeqPostResetBranch : PostResetBranch = EX shaStates:_ ,
@@ -584,10 +575,10 @@ Lemma init_part2: forall
                   temp _ctx (Vptr cb cofs); temp _key k;
                   temp _len (Vint (Int.repr l));
                   gvar sha._K256 kv)
-          SEP  (`(data_at_ Tsh (tarray tuchar 64) pad);
-                `(data_at_ Tsh (Tarray tuchar 64 noattr) (Vptr ckb ckoff)); 
-                `(initPostResetConditional r (Vptr cb cofs) k h1 key (fst (snd shaStates)) (snd (snd (snd shaStates))));
-                `(K_vector kv))),
+          SEP  (data_at_ Tsh (tarray tuchar 64) pad;
+                data_at_ Tsh (Tarray tuchar 64 noattr) (Vptr ckb ckoff); 
+                initPostResetConditional r (Vptr cb cofs) k h1 key (fst (snd shaStates)) (snd (snd (snd shaStates)));
+                K_vector kv)),
 @semax CompSpecs Espec (*Delta*) (initialized _reset 
        (func_tycontext f_HMAC_Init HmacVarSpecs HmacFunSpecs))
   (PROP  ()
@@ -595,9 +586,9 @@ Lemma init_part2: forall
    lvar _ctx_key (tarray tuchar 64) (Vptr ckb ckoff); lvar _pad (tarray tuchar 64) pad;
    temp _ctx (Vptr cb cofs); temp _key k; temp _len (Vint (Int.repr l));
    gvar sha._K256 kv)
-   SEP  (`(data_at_ Tsh (tarray tuchar 64) pad);
-   `(initPostKeyNullConditional r (Vptr cb cofs) k h1 key (Vptr ckb ckoff));
-   `(K_vector kv)))
+   SEP  (data_at_ Tsh (tarray tuchar 64) pad;
+   initPostKeyNullConditional r (Vptr cb cofs) k h1 key (Vptr ckb ckoff);
+   K_vector kv))
   (Sifthenelse (Etempvar _reset tint)
      (Ssequence
         (Sfor (Sset _i (Econst_int (Int.repr 0) tint))
@@ -695,20 +686,15 @@ Lemma init_part2: forall
                           (tptr t_struct_SHA256state_st);
                        Evar _pad (tarray tuchar 64);
                        Econst_int (Int.repr 64) tint])))))) Sskip)
-    (overridePost PostResetBranch
-     (frame_ret_assert
+    (overridePost PostResetBranch MYPOST)
+    (* (frame_ret_assert
          (function_body_ret_assert tvoid
-            (EX  h : hmacabs,
+            (EX  h : hmacabs, EX  v : val, EX u : val,
              PROP  (hmacInit key h)
-             LOCAL ()
-             SEP  (`(hmacstate_ h (Vptr cb cofs)); `(initPostKey k key);
-             `(K_vector kv))))
-         ((EX  v : val,
-           local (lvar _pad (tarray tuchar 64) v) &&
-           `(data_at_ Tsh (tarray tuchar 64) v)) *
-          (EX  v : val,
-           local (lvar _ctx_key (tarray tuchar 64) v) &&
-           `(data_at_ Tsh (tarray tuchar 64) v))))).
+             LOCAL (lvar _pad (tarray tuchar 64) v; lvar _ctx_key (tarray tuchar 64) u)
+             SEP  (hmacstate_ h (Vptr cb cofs); initPostKey k key;
+                   K_vector kv; data_at_ Tsh (tarray tuchar 64) v;
+                   data_at_ Tsh (tarray tuchar 64) u)))))*).
 Proof. intros. abbreviate_semax. (*
     (* Issue: Potential Coq (8.4?) bug about type equalities*)
     assert (HH: exists HMS': reptype t_struct_hmac_ctx_st, HMS'=HMS). exists HMS; reflexivity.
@@ -742,25 +728,24 @@ forward_if PostResetBranch.
               @lvar CompSpecs _pad (Tarray tuchar 64 noattr) (Vptr pb pofs);
               temp _ctx (Vptr cb cofs); temp _key (Vptr b i);
               temp _len (Vint (Int.repr l)); gvar sha._K256 kv)
-       SEP  (`(@data_at CompSpecs Tsh t_struct_hmac_ctx_st HMS (Vptr cb cofs));
-             `(@data_at CompSpecs Tsh (tarray tuchar 64)
+       SEP  (@data_at CompSpecs Tsh t_struct_hmac_ctx_st HMS (Vptr cb cofs);
+             @data_at CompSpecs Tsh (tarray tuchar 64)
                   (@map int val Vint (@map Z int Int.repr (HMAC_SHA256.mkKey key)))
-                  (Vptr ckb ckoff));
-            `(@data_at CompSpecs Tsh (tarray tuchar (@Zlength Z key))
-                  (@map int val Vint (@map Z int Int.repr key)) (Vptr b i));
-            `(@field_at_ CompSpecs Tsh (Tarray tuchar 64 noattr) [] (Vptr pb pofs));
-            `(K_vector kv))). 
+                  (Vptr ckb ckoff);
+            @data_at CompSpecs Tsh (tarray tuchar (@Zlength Z key))
+                  (@map int val Vint (@map Z int Int.repr key)) (Vptr b i);
+            @field_at_ CompSpecs Tsh (Tarray tuchar 64 noattr) [] (Vptr pb pofs);
+            K_vector kv)). 
     { clear POSTCONDITION HeqPostResetBranch PostResetBranch.
       unfold initPostKeyNullConditional.
       go_lower. ent_iter. (* Issue: we just want these two parts of entailer here... *)
-      destruct key'; try contradiction.
+      destruct _id1; try contradiction.
       Time if_tac; entailer!. (* 0.92 *)
       Exists b i.
       Time entailer!. (* 6.7 *) } 
 
     Intros kb kofs. (*Time normalize. (*1.3*)*)
-    rename H into HK.
-    rewrite HK in *. rename H0 into isbyte_key.
+    rename H into isbyte_key.
 
     forward_seq. 
     { (*ipad loop*)
@@ -781,7 +766,7 @@ forward_if PostResetBranch.
     Time assert_PROP (field_compatible t_struct_hmac_ctx_st [] (Vptr cb cofs)) as FC_C by entailer!. (*6.9 *)
     Time unfold_data_at 1%nat. (*1.0*)
     gather_SEP 1 3 4 6.
-    replace_SEP 0 (`(FRAME1 cb cofs ckb ckoff kb kofs key)).
+    replace_SEP 0 (FRAME1 cb cofs ckb ckoff kb kofs key).
     { Transparent FRAME1. unfold HMS, FRAME1. Opaque FRAME1.
       Time repeat simplify_project_default_val. (*1.8*) 
       fold _md_ctx. fold _o_ctx. Time entailer!. (*12.4*)
@@ -837,7 +822,7 @@ Definition FRAME3 (kb cb ckb: block) kofs cofs ckoff key ipadSHAabs:=
        (data_at Tsh (tarray tuchar 64) (map Vint (map Int.repr (HMAC_SHA256.mkKey key))) (Vptr ckb ckoff)) *
        (data_at Tsh (tarray tuchar (Zlength key)) (map Vint (map Int.repr key)) (Vptr kb kofs)) *
        (sha256state_ ipadSHAabs (Vptr cb (Int.add cofs (Int.repr 108)))).
-    replace_SEP 0 (`(FRAME3 kb cb ckb kofs cofs ckoff key ipadSHAabs (*HMS'*))).
+    replace_SEP 0 (FRAME3 kb cb ckb kofs cofs ckoff key ipadSHAabs (*HMS'*)).
     {  (*VST Issue: entailer! takes 9 secs - manually, it's faster:*)
        unfold FRAME3, HMS; simpl. 
        go_lower. do 2 apply andp_left2. Time cancel. (*0.5*) }
@@ -882,7 +867,7 @@ Definition FRAME3 (kb cb ckb: block) kofs cofs ckoff key ipadSHAabs:=
     Time forward. (*0.2*)
     subst. unfold initPostKeyNullConditional. Time entailer!. (*6.5*) 
     destruct R; subst; [ |discriminate].
-    simpl; clear H. Time destruct key'; try solve[entailer!]. (*3.3*) 
+    simpl; clear H. Time destruct _id1; try solve[entailer!]. (*3.3*) 
     unfold hmacstate_PreInitNull, hmac_relate_PreInitNull; simpl.
     Time destruct h1; entailer. (*8.2*) (* entailer! takes 31 secs*)
     Time if_tac; [ | entailer!].

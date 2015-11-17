@@ -31,12 +31,12 @@ forall i (wlist ys OUT:list val) data j t y x w nonce out c k h (xs:list int)
    lvar _t (tarray tuint 4) t; lvar _y (tarray tuint 16) y;
    lvar _x (tarray tuint 16) x; lvar _w (tarray tuint 16) w; temp _in nonce;
    temp _out out; temp _c c; temp _k k; temp _h (Vint (Int.repr h)))
-   SEP  (`(data_at Tsh (tarray tuint 16) wlist w);
-   `(data_at Tsh (tarray tuint 16) (map Vint xs) x);
-   `(data_at Tsh (tarray tuint 16) ys y);
-   `(data_at_ Tsh (tarray tuint 4) t);
-   `(CoreInSEP data (nonce, c, k));
-   `(data_at Tsh (tarray tuchar 64) OUT out)))
+   SEP  (data_at Tsh (tarray tuint 16) wlist w;
+   data_at Tsh (tarray tuint 16) (map Vint xs) x;
+   data_at Tsh (tarray tuint 16) ys y;
+   data_at_ Tsh (tarray tuint 4) t;
+   CoreInSEP data (nonce, c, k);
+   data_at Tsh (tarray tuchar 64) OUT out))
    (Ssequence
                         (Sset _m (Econst_int (Int.repr 0) tint))
                         (Sloop
@@ -77,17 +77,17 @@ forall i (wlist ys OUT:list val) data j t y x w nonce out c k h (xs:list int)
    lvar _t (tarray tuint 4) t; lvar _y (tarray tuint 16) y;
    lvar _x (tarray tuint 16) x; lvar _w (tarray tuint 16) w; temp _in nonce;
    temp _out out; temp _c c; temp _k k; temp _h (Vint (Int.repr h)))
-   SEP  (`(data_at Tsh (tarray tuint 16) wlist w);
-   `(data_at Tsh (tarray tuint 16) (map Vint xs) x);
-   `(data_at Tsh (tarray tuint 16) ys y);
-   `(EX  l : list val,
+   SEP  (data_at Tsh (tarray tuint 16) wlist w;
+   data_at Tsh (tarray tuint 16) (map Vint xs) x;
+   data_at Tsh (tarray tuint 16) ys y;
+   EX  l : list val,
      !!(forall mm : Z,
          0 <= mm < 4 ->
          Znth mm l Vundef =
          Znth ((5 * j + 4 * mm) mod 16) (map Vint xs) Vundef)
-        && data_at Tsh (tarray tuint 4) l t);
-   `(CoreInSEP data (nonce, c, k)); 
-   `(data_at Tsh (tarray tuchar 64) OUT out)))).
+        && data_at Tsh (tarray tuint 4) l t;
+   CoreInSEP data (nonce, c, k); 
+   data_at Tsh (tarray tuchar 64) OUT out))).
 Proof. intros. abbreviate_semax.
 Time assert_PROP (Zlength (map Vint xs) = 16) as XL by entailer!. (*4.8*)
 Time forward_for_simple_bound 4
@@ -97,13 +97,13 @@ Time forward_for_simple_bound 4
    lvar _y (tarray tuint 16) y; lvar _x (tarray tuint 16) x;
    lvar _w (tarray tuint 16) w; temp _in nonce; temp _out out; temp _c c;
    temp _k k; temp _h (Vint (Int.repr h)))
-   SEP  (`(data_at Tsh (tarray tuint 16) wlist w);
-   `(data_at Tsh (tarray tuint 16) ys y);
-   `(data_at Tsh (tarray tuint 16) (map Vint xs) x);
-   `(EX l:_, !!(forall mm, 0<=mm<m -> Znth mm l Vundef = 
+   SEP  (data_at Tsh (tarray tuint 16) wlist w;
+   data_at Tsh (tarray tuint 16) ys y;
+   data_at Tsh (tarray tuint 16) (map Vint xs) x;
+   EX l:_, !!(forall mm, 0<=mm<m -> Znth mm l Vundef = 
                   Znth ((5*j+4*mm) mod 16) (map Vint xs) Vundef)
-            && data_at Tsh (tarray tuint 4) l t); `(CoreInSEP data (nonce, c, k));
-   `(data_at Tsh (tarray tuchar 64) OUT out)))); try reflexivity; try auto with closed; try repable_signed.
+            && data_at Tsh (tarray tuint 4) l t; CoreInSEP data (nonce, c, k);
+   data_at Tsh (tarray tuchar 64) OUT out))); try reflexivity; try auto with closed; try repable_signed.
   (*4.1*)
   { Exists (list_repeat 4 Vundef). Time entailer!. (*7*) apply derives_refl. }
   { rename i0 into m. rename H into M. Intros T.
@@ -145,15 +145,7 @@ Time Qed. (*33*)
 Lemma array_copy3:
 forall (Espec : OracleKind) c k h nonce out (OUT:list val)
        (data : SixteenByte * SixteenByte * (SixteenByte * SixteenByte))
-       (out' : name _out)
-       (in' : name _in)
-       (k' : name _k)
-       (c' : name _c)
-       (h' : name _h)
-       (aux' : name _aux)
-       i w x y t (ys xlist wlist:list val) (*
-       (WL: length wlist = 16%nat)
-       (XL: length xlist = 16%nat)*)
+       i w x y t (ys xlist wlist:list val) 
        (WZ: forall m, 0<=m<16 -> exists mval, Znth m wlist Vundef =Vint mval),
 @semax CompSpecs Espec
   (initialized_list [_i; _j]
@@ -163,12 +155,12 @@ forall (Espec : OracleKind) c k h nonce out (OUT:list val)
    lvar _y (tarray tuint 16) y; lvar _x (tarray tuint 16) x;
    lvar _w (tarray tuint 16) w; temp _in nonce; temp _out out; temp _c c;
    temp _k k; temp _h (Vint (Int.repr h)))
-   SEP  (`(data_at Tsh (tarray tuint 16) wlist w);
-   `(data_at Tsh (tarray tuint 16) xlist x); 
-   `(data_at Tsh (tarray tuint 16) ys y);
-   `(data_at_ Tsh (tarray tuint 4) t);
-   `(CoreInSEP data (nonce, c, k));
-   `(data_at Tsh (tarray tuchar 64) OUT out)))
+   SEP  (data_at Tsh (tarray tuint 16) wlist w;
+   data_at Tsh (tarray tuint 16) xlist x; 
+   data_at Tsh (tarray tuint 16) ys y;
+   data_at_ Tsh (tarray tuint 4) t;
+   CoreInSEP data (nonce, c, k);
+   data_at Tsh (tarray tuchar 64) OUT out))
   (Sfor (Sset _m (Econst_int (Int.repr 0) tint))
      (Ebinop Olt (Etempvar _m tint) (Econst_int (Int.repr 16) tint) tint)
      (Ssequence
@@ -188,12 +180,12 @@ forall (Espec : OracleKind) c k h nonce out (OUT:list val)
    lvar _y (tarray tuint 16) y; lvar _x (tarray tuint 16) x;
    lvar _w (tarray tuint 16) w; temp _in nonce; temp _out out; temp _c c;
    temp _k k; temp _h (Vint (Int.repr h)))
-   SEP  (`(data_at Tsh (tarray tuint 16) wlist w);
-   `(data_at Tsh (tarray tuint 16) ys y);
-   `(data_at Tsh (tarray tuint 16) wlist x); 
-   `(data_at_ Tsh (tarray tuint 4) t);
-   `(CoreInSEP data (nonce, c, k));
-   `(data_at Tsh (tarray tuchar 64) OUT out)))).
+   SEP  (data_at Tsh (tarray tuint 16) wlist w;
+   data_at Tsh (tarray tuint 16) ys y;
+   data_at Tsh (tarray tuint 16) wlist x; 
+   data_at_ Tsh (tarray tuint 4) t;
+   CoreInSEP data (nonce, c, k);
+   data_at Tsh (tarray tuchar 64) OUT out))).
 Proof. intros. abbreviate_semax.
 Time assert_PROP (Zlength wlist = 16 /\ Zlength xlist = 16) as WXL by entailer!. (*3.4*)
 destruct WXL as [WL XL].
@@ -203,12 +195,12 @@ Time forward_for_simple_bound 16 (EX m:Z,
    lvar _y (tarray tuint 16) y; lvar _x (tarray tuint 16) x;
    lvar _w (tarray tuint 16) w; temp _in nonce; temp _out out; temp _c c;
    temp _k k; temp _h (Vint (Int.repr h)))
-   SEP  (`(data_at Tsh (tarray tuint 16) wlist w);
-   `(data_at Tsh (tarray tuint 16) ys y);
-   `(EX mlist:_, !!(forall mm, 0<=mm<m -> Znth mm mlist Vundef = Znth mm wlist Vundef)
-                && data_at Tsh (tarray tuint 16) mlist x);
-   `(data_at_ Tsh (tarray tuint 4) t); `(CoreInSEP data (nonce, c, k));
-   `(data_at Tsh (tarray tuchar 64) OUT out)))).
+   SEP  (data_at Tsh (tarray tuint 16) wlist w;
+   data_at Tsh (tarray tuint 16) ys y;
+   EX mlist:_, !!(forall mm, 0<=mm<m -> Znth mm mlist Vundef = Znth mm wlist Vundef)
+                && data_at Tsh (tarray tuint 16) mlist x;
+   data_at_ Tsh (tarray tuint 4) t; CoreInSEP data (nonce, c, k);
+   data_at Tsh (tarray tuchar 64) OUT out))).
 (*4.3*)
 { Exists xlist. Time entailer!. (*5.3*) } 
 { Intros mlist. rename H into M. rename i0 into m. rename H0 into HM.
@@ -247,12 +239,12 @@ Lemma pattern1_noStmt Espec Source1 Source2 Target Offset: forall
    lvar _y (tarray tuint 16) y; lvar _x (tarray tuint 16) x;
    lvar _w (tarray tuint 16) w; temp _in nonce; temp _out out; temp _c c;
    temp _k k; temp _h (Vint (Int.repr h)))
-   SEP  (`(data_at Tsh (tarray tuint 4) tlist t);
-   `(data_at Tsh (tarray tuint 16) wlist w);
-   `(data_at Tsh (tarray tuint 16) xs x); 
-   `(data_at Tsh (tarray tuint 16) ys y);
-   `(CoreInSEP data (nonce, c, k));
-   `(data_at Tsh (tarray tuchar 64) OUT out)))
+   SEP  (data_at Tsh (tarray tuint 4) tlist t;
+   data_at Tsh (tarray tuint 16) wlist w;
+   data_at Tsh (tarray tuint 16) xs x; 
+   data_at Tsh (tarray tuint 16) ys y;
+   CoreInSEP data (nonce, c, k);
+   data_at Tsh (tarray tuchar 64) OUT out))
                         (Ssequence
                           (Sset _aux
                             (Ederef
@@ -303,16 +295,15 @@ Lemma pattern1_noStmt Espec Source1 Source2 Target Offset: forall
    lvar _y (tarray tuint 16) y; lvar _x (tarray tuint 16) x;
    lvar _w (tarray tuint 16) w; temp _in nonce; temp _out out; temp _c c;
    temp _k k; temp _h (Vint (Int.repr h)))
-   SEP  (`(data_at Tsh (tarray tuint 4) 
+   SEP  (data_at Tsh (tarray tuint 4) 
         (upd_Znth_in_list Target tlist
            (Vint
-              (Int.xor ValTgt (Int.rol (Int.add ValS1 ValS2) (Int.repr Offset)))))
-        t); 
-   `(data_at Tsh (tarray tuint 16) wlist w);
-   `(data_at Tsh (tarray tuint 16) xs x);
-   `(data_at Tsh (tarray tuint 16) ys y);
-   `(CoreInSEP data (nonce, c, k));
-   `(data_at Tsh (tarray tuchar 64) OUT out)))).
+              (Int.xor ValTgt (Int.rol (Int.add ValS1 ValS2) (Int.repr Offset))))) t; 
+   data_at Tsh (tarray tuint 16) wlist w;
+   data_at Tsh (tarray tuint 16) xs x;
+   data_at Tsh (tarray tuint 16) ys y;
+   CoreInSEP data (nonce, c, k);
+   data_at Tsh (tarray tuchar 64) OUT out))).
 Proof. intros. abbreviate_semax.
   Time forward; rewrite HS1. (*13.4*)  
   Time solve[entailer!]. (*4.5*)
@@ -349,12 +340,12 @@ Lemma pattern2_noStmt Espec Source1 Source2 Target Offset: forall
    lvar _y (tarray tuint 16) y; lvar _x (tarray tuint 16) x;
    lvar _w (tarray tuint 16) w; temp _in nonce; temp _out out; temp _c c;
    temp _k k; temp _h (Vint (Int.repr h)))
-   SEP  (`(data_at Tsh (tarray tuint 4) tlist t);
-   `(data_at Tsh (tarray tuint 16) wlist w);
-   `(data_at Tsh (tarray tuint 16) xs x); 
-   `(data_at Tsh (tarray tuint 16) ys y);
-   `(CoreInSEP data (nonce, c, k));
-   `(data_at Tsh (tarray tuchar 64) OUT out)))
+   SEP  (data_at Tsh (tarray tuint 4) tlist t;
+   data_at Tsh (tarray tuint 16) wlist w;
+   data_at Tsh (tarray tuint 16) xs x; 
+   data_at Tsh (tarray tuint 16) ys y;
+   CoreInSEP data (nonce, c, k);
+   data_at Tsh (tarray tuchar 64) OUT out))
   (Ssequence
      (Sset _aux
         (Ederef
@@ -397,16 +388,15 @@ Lemma pattern2_noStmt Espec Source1 Source2 Target Offset: forall
    lvar _y (tarray tuint 16) y; lvar _x (tarray tuint 16) x;
    lvar _w (tarray tuint 16) w; temp _in nonce; temp _out out; temp _c c;
    temp _k k; temp _h (Vint (Int.repr h)))
-   SEP  (`(data_at Tsh (tarray tuint 4) 
+   SEP  (data_at Tsh (tarray tuint 4) 
         (upd_Znth_in_list Target tlist
            (Vint
-              (Int.xor ValTgt (Int.rol (Int.add ValS1 ValS2) (Int.repr Offset)))))
-        t); 
-   `(data_at Tsh (tarray tuint 16) wlist w);
-   `(data_at Tsh (tarray tuint 16) xs x);
-   `(data_at Tsh (tarray tuint 16) ys y);
-   `(CoreInSEP data (nonce, c, k));
-   `(data_at Tsh (tarray tuchar 64) OUT out)))).
+              (Int.xor ValTgt (Int.rol (Int.add ValS1 ValS2) (Int.repr Offset))))) t; 
+   data_at Tsh (tarray tuint 16) wlist w;
+   data_at Tsh (tarray tuint 16) xs x;
+   data_at Tsh (tarray tuint 16) ys y;
+   CoreInSEP data (nonce, c, k);
+   data_at Tsh (tarray tuchar 64) OUT out))).
 Proof. intros. abbreviate_semax.
   Time forward; rewrite HS1. (*14*)  
   Time solve[entailer!]. (*4.3*)
@@ -443,12 +433,12 @@ Lemma pattern3_noStmt Espec Source1 Source2 Target Offset: forall
    lvar _y (tarray tuint 16) y; lvar _x (tarray tuint 16) x;
    lvar _w (tarray tuint 16) w; temp _in nonce; temp _out out; temp _c c;
    temp _k k; temp _h (Vint (Int.repr h)))
-   SEP  (`(data_at Tsh (tarray tuint 4) tlist t);
-   `(data_at Tsh (tarray tuint 16) wlist w);
-   `(data_at Tsh (tarray tuint 16) xs x); 
-   `(data_at Tsh (tarray tuint 16) ys y);
-   `(CoreInSEP data (nonce, c, k));
-   `(data_at Tsh (tarray tuchar 64) OUT out)))
+   SEP  (data_at Tsh (tarray tuint 4) tlist t;
+   data_at Tsh (tarray tuint 16) wlist w;
+   data_at Tsh (tarray tuint 16) xs x; 
+   data_at Tsh (tarray tuint 16) ys y;
+   CoreInSEP data (nonce, c, k);
+   data_at Tsh (tarray tuchar 64) OUT out))
   (Ssequence
      (Sset _aux
         (Ederef
@@ -491,16 +481,15 @@ Lemma pattern3_noStmt Espec Source1 Source2 Target Offset: forall
    lvar _y (tarray tuint 16) y; lvar _x (tarray tuint 16) x;
    lvar _w (tarray tuint 16) w; temp _in nonce; temp _out out; temp _c c;
    temp _k k; temp _h (Vint (Int.repr h)))
-   SEP  (`(data_at Tsh (tarray tuint 4) 
+   SEP  (data_at Tsh (tarray tuint 4) 
         (upd_Znth_in_list Target tlist
            (Vint
-              (Int.xor ValTgt (Int.rol (Int.add ValS1 ValS2) (Int.repr Offset)))))
-        t); 
-   `(data_at Tsh (tarray tuint 16) wlist w);
-   `(data_at Tsh (tarray tuint 16) xs x);
-   `(data_at Tsh (tarray tuint 16) ys y);
-   `(CoreInSEP data (nonce, c, k));
-   `(data_at Tsh (tarray tuchar 64) OUT out)))).
+              (Int.xor ValTgt (Int.rol (Int.add ValS1 ValS2) (Int.repr Offset))))) t; 
+   data_at Tsh (tarray tuint 16) wlist w;
+   data_at Tsh (tarray tuint 16) xs x;
+   data_at Tsh (tarray tuint 16) ys y;
+   CoreInSEP data (nonce, c, k);
+   data_at Tsh (tarray tuchar 64) OUT out))).
 Proof. intros. abbreviate_semax.
   Time forward; rewrite HS1. (*14*)  
   Time solve[entailer!]. (*4.3*)
@@ -537,12 +526,12 @@ Lemma pattern4_noStmt Espec Source1 Source2 Target Offset: forall
    lvar _y (tarray tuint 16) y; lvar _x (tarray tuint 16) x;
    lvar _w (tarray tuint 16) w; temp _in nonce; temp _out out; temp _c c;
    temp _k k; temp _h (Vint (Int.repr h)))
-   SEP  (`(data_at Tsh (tarray tuint 4) tlist t);
-   `(data_at Tsh (tarray tuint 16) wlist w);
-   `(data_at Tsh (tarray tuint 16) xs x); 
-   `(data_at Tsh (tarray tuint 16) ys y);
-   `(CoreInSEP data (nonce, c, k));
-   `(data_at Tsh (tarray tuchar 64) OUT out)))
+   SEP  (data_at Tsh (tarray tuint 4) tlist t;
+   data_at Tsh (tarray tuint 16) wlist w;
+   data_at Tsh (tarray tuint 16) xs x; 
+   data_at Tsh (tarray tuint 16) ys y;
+   CoreInSEP data (nonce, c, k);
+   data_at Tsh (tarray tuchar 64) OUT out))
   (Ssequence
      (Sset _aux
         (Ederef
@@ -585,16 +574,15 @@ Lemma pattern4_noStmt Espec Source1 Source2 Target Offset: forall
    lvar _y (tarray tuint 16) y; lvar _x (tarray tuint 16) x;
    lvar _w (tarray tuint 16) w; temp _in nonce; temp _out out; temp _c c;
    temp _k k; temp _h (Vint (Int.repr h)))
-   SEP  (`(data_at Tsh (tarray tuint 4) 
+   SEP  (data_at Tsh (tarray tuint 4) 
         (upd_Znth_in_list Target tlist
            (Vint
-              (Int.xor ValTgt (Int.rol (Int.add ValS1 ValS2) (Int.repr Offset)))))
-        t); 
-   `(data_at Tsh (tarray tuint 16) wlist w);
-   `(data_at Tsh (tarray tuint 16) xs x);
-   `(data_at Tsh (tarray tuint 16) ys y);
-   `(CoreInSEP data (nonce, c, k));
-   `(data_at Tsh (tarray tuchar 64) OUT out)))).
+              (Int.xor ValTgt (Int.rol (Int.add ValS1 ValS2) (Int.repr Offset))))) t; 
+   data_at Tsh (tarray tuint 16) wlist w;
+   data_at Tsh (tarray tuint 16) xs x;
+   data_at Tsh (tarray tuint 16) ys y;
+   CoreInSEP data (nonce, c, k);
+   data_at Tsh (tarray tuchar 64) OUT out))).
 Proof. intros. abbreviate_semax.
   Time forward; rewrite HS1. (*14*)  
   Time solve[entailer!]. (*4.3*)
@@ -649,12 +637,12 @@ Lemma array_copy2 Espec i (xs ys wlist:list val) data OUT j t y x w nonce out c 
    lvar _y (tarray tuint 16) y; lvar _x (tarray tuint 16) x;
    lvar _w (tarray tuint 16) w; temp _in nonce; temp _out out; temp _c c;
    temp _k k; temp _h (Vint (Int.repr h)))
-   SEP  (`(data_at Tsh (tarray tuint 4) (map Vint [t0;t1;t2;t3]) t);
-   `(data_at Tsh (tarray tuint 16) wlist w);
-   `(data_at Tsh (tarray tuint 16) xs x);
-   `(data_at Tsh (tarray tuint 16) ys y);
-   `(CoreInSEP data (nonce, c, k));
-   `(data_at Tsh (tarray tuchar 64) OUT out)))
+   SEP  (data_at Tsh (tarray tuint 4) (map Vint [t0;t1;t2;t3]) t;
+   data_at Tsh (tarray tuint 16) wlist w;
+   data_at Tsh (tarray tuint 16) xs x;
+   data_at Tsh (tarray tuint 16) ys y;
+   CoreInSEP data (nonce, c, k);
+   data_at Tsh (tarray tuchar 64) OUT out))
   (Sfor (Sset _m (Econst_int (Int.repr 0) tint))
      (Ebinop Olt (Etempvar _m tint) (Econst_int (Int.repr 4) tint) tint)
      (Ssequence
@@ -684,12 +672,12 @@ Lemma array_copy2 Espec i (xs ys wlist:list val) data OUT j t y x w nonce out c 
    lvar _y (tarray tuint 16) y; lvar _x (tarray tuint 16) x;
    lvar _w (tarray tuint 16) w; temp _in nonce; temp _out out; temp _c c;
    temp _k k; temp _h (Vint (Int.repr h)))
-   SEP  (`(data_at Tsh (tarray tuint 4) (map Vint [t0;t1;t2;t3]) t);
-   `(EX W:_, !!(wlistJ' wlist j t0 t1 t2 t3 W) && data_at Tsh (tarray tuint 16) W w);
-   `(data_at Tsh (tarray tuint 16) xs x);
-   `(data_at Tsh (tarray tuint 16) ys y);
-   `(CoreInSEP data (nonce, c, k));
-   `(data_at Tsh (tarray tuchar 64) OUT out)))).
+   SEP  (data_at Tsh (tarray tuint 4) (map Vint [t0;t1;t2;t3]) t;
+   EX W:_, !!(wlistJ' wlist j t0 t1 t2 t3 W) && data_at Tsh (tarray tuint 16) W w;
+   data_at Tsh (tarray tuint 16) xs x;
+   data_at Tsh (tarray tuint 16) ys y;
+   CoreInSEP data (nonce, c, k);
+   data_at Tsh (tarray tuchar 64) OUT out))).
 Proof. intros. abbreviate_semax.
 Time assert_PROP (Zlength wlist=16) as WL by entailer!. (*4.5*)
 (*first, delete old m*) drop_LOCAL 1%nat.
@@ -700,12 +688,12 @@ Time forward_for_simple_bound 4 (EX m:Z,
    lvar _y (tarray tuint 16) y; lvar _x (tarray tuint 16) x;
    lvar _w (tarray tuint 16) w; temp _in nonce; temp _out out; temp _c c;
    temp _k k; temp _h (Vint (Int.repr h)))
-   SEP  (`(data_at Tsh (tarray tuint 4) (map Vint [t0;t1;t2;t3]) t);
-   `(EX l:_, !!WLIST' wlist [t0;t1;t2;t3] j (Z.to_nat m) l && data_at Tsh (tarray tuint 16) l w);
-   `(data_at Tsh (tarray tuint 16) xs x);
-   `(data_at Tsh (tarray tuint 16) ys y);
-   `(CoreInSEP data (nonce, c, k));
-   `(data_at Tsh (tarray tuchar 64) OUT out)))). (*7.4*)
+   SEP  (data_at Tsh (tarray tuint 4) (map Vint [t0;t1;t2;t3]) t;
+   EX l:_, !!WLIST' wlist [t0;t1;t2;t3] j (Z.to_nat m) l && data_at Tsh (tarray tuint 16) l w;
+   data_at Tsh (tarray tuint 16) xs x;
+   data_at Tsh (tarray tuint 16) ys y;
+   CoreInSEP data (nonce, c, k);
+   data_at Tsh (tarray tuchar 64) OUT out))). (*7.4*)
 { Exists wlist. Time entailer!. (*6.3*) }
 { rename H into M; rename i0 into m. 
   Intros wlist1. rename H into WLIST1.
@@ -832,12 +820,6 @@ Proof. apply SixteenWR_Znth_int. Qed.
 Lemma Jbody (Espec : OracleKind): forall 
 c k h nonce out w x y t ys i j OUT
 (data : SixteenByte * SixteenByte * (SixteenByte * SixteenByte))
-(out' : name _out)
-(in' : name _in)
-(k' : name _k)
-(c' : name _c)
-(h' : name _h)
-(aux' : name _aux)
 xs
 (I : 0 <= i < 20)
 (J : 0 <= j < 4)
@@ -855,11 +837,11 @@ t0 t1 t2 t3
    lvar _t (tarray tuint 4) t; lvar _y (tarray tuint 16) y;
    lvar _x (tarray tuint 16) x; lvar _w (tarray tuint 16) w; temp _in nonce;
    temp _out out; temp _c c; temp _k k; temp _h (Vint (Int.repr h)))
-   SEP  (`(data_at Tsh (tarray tuint 16) (*(map Vint wlist)*) wlist w);
-   `(data_at Tsh (tarray tuint 16) (map Vint xs) x);
-   `(data_at Tsh (tarray tuint 16) ys y);
-   `(data_at_ Tsh (tarray tuint 4) t); `(CoreInSEP data (nonce, c, k));
-   `(data_at Tsh (tarray tuchar 64) OUT out)))
+   SEP  (data_at Tsh (tarray tuint 16) (*(map Vint wlist)*) wlist w;
+   data_at Tsh (tarray tuint 16) (map Vint xs) x;
+   data_at Tsh (tarray tuint 16) ys y;
+   data_at_ Tsh (tarray tuint 4) t; CoreInSEP data (nonce, c, k);
+   data_at Tsh (tarray tuchar 64) OUT out))
                     (Ssequence
                       (Ssequence
                         (Sset _m (Econst_int (Int.repr 0) tint))
@@ -1124,16 +1106,16 @@ t0 t1 t2 t3
       lvar _x (tarray tuint 16) x; lvar _w (tarray tuint 16) w;
       temp _in nonce; temp _out out; temp _c c; temp _k k;
       temp _h (Vint (Int.repr h)))
-      SEP  (`(data_at Tsh (tarray tuint 16) ys y);
-      `(data_at Tsh (tarray tuint 16) (map Vint xs) x);
-      `(data_at_ Tsh (tarray tuint 4) t);
-      `(EX W:_, 
+      SEP  (data_at Tsh (tarray tuint 16) ys y;
+      data_at Tsh (tarray tuint 16) (map Vint xs) x;
+      data_at_ Tsh (tarray tuint 4) t;
+      EX W:_, 
              !!(match Wcopyspec t0 t1 t2 t3 with
                  (s0,s1,s2,s3) => wlistJ' wlist j s0 s1 s2 s3 W
                 end) 
-             && data_at Tsh (tarray tuint 16) (*(map Vint W)*)W w);
-      `(CoreInSEP data (nonce, c, k));
-      `(data_at Tsh (tarray tuchar 64) OUT out)))).
+             && data_at Tsh (tarray tuint 16) (*(map Vint W)*)W w;
+      CoreInSEP data (nonce, c, k);
+      data_at Tsh (tarray tuchar 64) OUT out))).
 Proof. intros. abbreviate_semax.
 (*(XZL: Zlength xs = 16)
 wlist (WL: Zlength wlist = 16)*)
