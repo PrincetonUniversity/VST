@@ -68,7 +68,7 @@ Lemma HTrue_loop1 Espec: forall t y x w nonce out c k h data OUT xs ys,
 Proof. 
   intros. abbreviate_semax.
   Time assert_PROP (Zlength (map Vint xs) = 16 /\ Zlength (map Vint ys) = 16) 
-     as XLYL by entailer!. (*3.3*)
+     as XLYL by entailer!. (*2.6*)
   destruct XLYL as [XL YL].
   Time forward_for_simple_bound 16 (EX i:Z, 
    (PROP  ()
@@ -81,9 +81,9 @@ Proof.
    data_at Tsh (tarray tuint 16) (map Vint ys) y;
    data_at_ Tsh (tarray tuint 4) t; data_at_ Tsh (tarray tuint 16) w;
    CoreInSEP data (nonce, c, k);
-   data_at Tsh (tarray tuchar 64) OUT out))). (*2.5*)
+   data_at Tsh (tarray tuchar 64) OUT out))). (*3.3*)
   { Exists (map Vint xs).
-    Time entailer!. (*5.1*)
+    Time entailer!. (*3.9*)
     split. assumption.
     exists xs; split; trivial.
     intros. 
@@ -95,13 +95,13 @@ Proof.
     destruct XLIST as [xints [INTS J]]. subst xlist.
     destruct (J _ I) as [xi [Xi [_ HXi]]].
     destruct (Znth_mapVint ys i Vundef) as [yi Yi]. rewrite Zlength_map in YL; omega.
-    Time forward; rewrite Yi. (*9.2*)
+    Time forward; rewrite Yi. (*7.2*)
     Time solve[entailer!]. (*2.7*)
-    Time forward; rewrite HXi by omega. (*8*)
-    Time solve[entailer!]. (*2.*) 
-    Time forward. (*5.5*) 
+    Time forward; rewrite HXi by omega. (*12.3*)
+    Time solve[entailer!]. (*3.6*) 
+    Time forward. (*12.1*) 
     Exists (upd_Znth i (map Vint xints) (Vint (Int.add yi xi))).
-    Time entailer!. (*6.9*) (*
+    Time entailer!. (*6.8*) (*
     rewrite Yi in H1. symmetry in H1; inv H1. rewrite Yi, HXi; simpl. 2: omega. 
     apply (exp_right (upd_Znth i (map Vint xints) (Vint (Int.add yi xi)))); entailer.
     apply prop_right.*)
@@ -125,9 +125,9 @@ Proof.
             simpl in *; omega.
             simpl in *; omega.
             omega. }
-Time entailer!. (*11*)
-Exists l. Time entailer!. (*3.1*) 
-Time Qed. (*26*)
+Time entailer!. (*9.8*)
+Exists l. Time entailer!. (*3.2*) 
+Time Qed. (*24*)
 
 (* Fragment:
        FOR(i,4) {
@@ -148,15 +148,15 @@ Lemma HTrue_loop2 Espec: forall t y x w nonce out c k h OUT ys intsums Nonce C K
 @semax CompSpecs Espec 
   (initialized_list [_i] (func_tycontext f_core SalsaVarSpecs SalsaFunSpecs))
   (PROP  ()
-   LOCAL  ((*temp _i (Vint (Int.repr 16)); *) lvar _t (tarray tuint 4) t;
-   lvar _y (tarray tuint 16) y; lvar _x (tarray tuint 16) x;
-   lvar _w (tarray tuint 16) w; temp _in nonce; temp _out out; temp _c c;
-   temp _k k; temp _h (Vint (Int.repr h)))
+   LOCAL  (lvar _t (tarray tuint 4) t;
+     lvar _y (tarray tuint 16) y; lvar _x (tarray tuint 16) x;
+     lvar _w (tarray tuint 16) w; temp _in nonce; temp _out out; temp _c c;
+     temp _k k; temp _h (Vint (Int.repr h)))
    SEP  (data_at Tsh (tarray tuint 16) (map Vint intsums) x;
-   data_at Tsh (tarray tuint 16) (map Vint ys) y;
-   data_at_ Tsh (tarray tuint 4) t; data_at_ Tsh (tarray tuint 16) w;
-   CoreInSEP(Nonce, C, K) (nonce, c, k);
-   data_at Tsh (tarray tuchar 64) OUT out))
+     data_at Tsh (tarray tuint 16) (map Vint ys) y;
+     data_at_ Tsh (tarray tuint 4) t; data_at_ Tsh (tarray tuint 16) w;
+     CoreInSEP(Nonce, C, K) (nonce, c, k);
+     data_at Tsh (tarray tuchar 64) OUT out))
    (Ssequence (Sset _i (Econst_int (Int.repr 0) tint))
               (Sloop
                 (Ssequence
@@ -235,7 +235,7 @@ Lemma HTrue_loop2 Espec: forall t y x w nonce out c k h OUT ys intsums Nonce C K
  data_at_ Tsh (tarray tuint 4) t; data_at_ Tsh (tarray tuint 16) w;
  data_at Tsh (tarray tuchar 64) OUT out))).
 Proof. intros. abbreviate_semax. unfold CoreInSEP. 
-  Time assert_PROP (Zlength (map Vint intsums) = 16) as SL by entailer!. (*2.8*)
+  Time assert_PROP (Zlength (map Vint intsums) = 16) as SL by entailer!. (*2.7*)
   rewrite Zlength_map in SL. 
   Time forward_for_simple_bound 4 (EX i:Z, 
   (PROP  ()
@@ -248,11 +248,11 @@ Proof. intros. abbreviate_semax. unfold CoreInSEP.
    data_at Tsh (tarray tuint 16) (map Vint (hPosLoop2 (Z.to_nat i) intsums C Nonce)) x;
    data_at Tsh (tarray tuint 16) (map Vint ys) y;
    data_at_ Tsh (tarray tuint 4) t; data_at_ Tsh (tarray tuint 16) w;
-   data_at Tsh (tarray tuchar 64) OUT out))). (*3.6*)
-    Time solve[entailer!]. (*4*)
+   data_at Tsh (tarray tuchar 64) OUT out))). (*3.2*)
+    Time solve[entailer!]. (*3.4*)
     { rename H into I.
       unfold SByte at 2.
-      Time assert_PROP (isptr c) as Pc by entailer!. (*4.2*)
+      Time assert_PROP (isptr c) as Pc by entailer!. (*4.1*)
       apply isptrD in Pc; destruct Pc as [cb [coff HC]]. rewrite HC in *.
       Opaque Zmult. Opaque Z.add. 
 
@@ -261,7 +261,7 @@ Proof. intros. abbreviate_semax. unfold CoreInSEP.
       remember (SplitSelect16Q C i) as FB; destruct FB as (Front, BACK).
       specialize (Select_SplitSelect16Q C i _ _ HeqFB); intros SSS.
       Time assert_PROP (field_compatible (Tarray tuchar 16 noattr) [] (Vptr cb coff))
-        as FC by entailer!. (*4.6*)
+        as FC by entailer!. (*4.3*)
       destruct (Select_SplitSelect16Q_Zlength _ _ _ _ HeqFB I) as[FL BL].
 
  (* An alternative to Select_Unselect_Tarray_at is to use
@@ -279,12 +279,12 @@ Proof. intros. abbreviate_semax. unfold CoreInSEP.
       2: rewrite <- SSS, <- C16; cbv; trivial.
   unfold Select_at. repeat rewrite QuadChunk2ValList_ZLength. rewrite Z.mul_1_r, FL.
        simpl. rewrite app_nil_r. simpl. 
-    Time normalize. (*3.6*)
+    Time normalize. (*1.4*)
       
 Transparent core_spec. Transparent ld32_spec. Transparent L32_spec. Transparent st32_spec.
 Transparent crypto_core_salsa20_spec. Transparent crypto_core_hsalsa20_spec.
     Time forward_call ((Vptr cb (Int.add coff (Int.repr (4 * i)))),
-                      Select16Q C i) pat. (*10.7*)
+                      Select16Q C i) pat. (*10.3*)
 Opaque core_spec. Opaque ld32_spec. Opaque L32_spec. Opaque st32_spec.
 Opaque crypto_core_salsa20_spec. Opaque crypto_core_hsalsa20_spec. 
       subst pat.
@@ -299,14 +299,14 @@ Opaque crypto_core_salsa20_spec. Opaque crypto_core_hsalsa20_spec.
         
       destruct (Znth_mapVint (hPosLoop2 (Z.to_nat i) intsums C Nonce) (5*i) Vundef) as [vj Vj].
       rewrite PL2Zlength; omega. 
-      Time forward; rewrite Vj. (*11.5*)
-      Time solve[entailer!]. (*3.7*)
+      Time forward; rewrite Vj. (*10.9*)
+      Time solve[entailer!]. (*3.6*)
 
-      Time forward. (*6.4*)
+      Time forward. (*10.3*)
 
       unfold SByte.
       Time assert_PROP (isptr nonce /\ field_compatible (Tarray tuchar 16 noattr) [] nonce)
-        as PnonceFCN by entailer!. (*5*)
+        as PnonceFCN by entailer!. (*4.9*)
       destruct PnonceFCN as [Pnonce FCN]. 
       apply isptrD in Pnonce; destruct Pnonce as [nb [noff NC]]; rewrite NC in *.
       Time forward. (*5*)
@@ -322,26 +322,26 @@ Opaque crypto_core_salsa20_spec. Opaque crypto_core_hsalsa20_spec.
       2: rewrite <- NNN, <- N16; cbv; trivial.
       unfold Select_at. repeat rewrite QuadChunk2ValList_ZLength. rewrite Zmult_1_r, FN.
       simpl. rewrite app_nil_r. simpl. 
-      Time normalize. (*4.5*) (*rewrite Vj.*)
+      Time normalize. (*1.7*) (*rewrite Vj.*)
 Transparent core_spec. Transparent ld32_spec. Transparent L32_spec. Transparent st32_spec.
 Transparent crypto_core_salsa20_spec. Transparent crypto_core_hsalsa20_spec.
       Time forward_call (Vptr nb (Int.add noff (Int.repr (4 * i))),
-                     Select16Q Nonce i) pat. (*14.3*)
+                     Select16Q Nonce i) pat. (*14.8*)
 Opaque core_spec. Opaque ld32_spec. Opaque L32_spec. Opaque st32_spec.
 Opaque crypto_core_salsa20_spec. Opaque crypto_core_hsalsa20_spec.
      subst pat. simpl. 
      destruct (Znth_mapVint (hPosLoop2 (Z.to_nat i) intsums C Nonce) (6+i) Vundef) as [uj Uj].
       rewrite PL2Zlength; omega.  
-     Time forward; rewrite upd_Znth_diff; try (rewrite Zlength_map, PL2Zlength; simpl; omega). (*13.7*)
-     { Time entailer!. (*5*)
+     Time forward; rewrite upd_Znth_diff; try (rewrite Zlength_map, PL2Zlength; simpl; omega). (*13*)
+     { Time entailer!. (*4.6*)
        rewrite ZtoNat_Zlength in Uj, PL2Zlength; rewrite Uj.
        simpl; trivial. }
      { omega. } 
-     Time forward. (*8*)
+     Time forward. (*12.9 SLOW; was 8*)
 (*Issue: substitution in entailer/entailer! is a bit too eager here. Without the following assert (FLN: ...) ... destruct FLN,
   the two hypotheses are simply combined to Zlength Front = Zlength FrontN by entailer (and again by the inv H0) *)
      assert (FLN: Zlength Front = i /\ Zlength FrontN = i). split; assumption. clear FL FN.
-     Time entailer!. (*12.2*)
+     Time entailer!. (*11.6*)
      rewrite Uj in H0. symmetry in H0; inv H0.
      destruct FLN as [FL FLN].
 
@@ -360,9 +360,10 @@ Opaque crypto_core_salsa20_spec. Opaque crypto_core_hsalsa20_spec.
        rewrite <- SSS, <- C16. cbv; trivial.
        rewrite <- NNN, <- N16; trivial.
        rewrite <- NNN, <- N16. cbv; trivial.
-     + rewrite field_at_isptr. normalize. apply isptrD in Px. destruct Px as [xb [xoff XP]]. rewrite XP in *.
-       rewrite field_at_data_at. unfold tarray, field_address; simpl. if_tac; try contradiction.
-       rewrite Int.add_zero. 
+     + rewrite field_at_isptr. Time normalize. apply isptrD in Px. destruct Px as [xb [xoff XP]]; subst x.
+       rewrite field_at_data_at.
+       rewrite field_address_offset by auto with field_compatible.
+       rewrite isptr_offset_val_zero; trivial.
        apply data_at_ext.
        rewrite (Zplus_comm i 1), Z2Nat.inj_add; simpl; try omega.
        rewrite Z2Nat.id.
@@ -415,8 +416,8 @@ Opaque crypto_core_salsa20_spec. Opaque crypto_core_hsalsa20_spec.
        rewrite <- UJeq, Zlength_map. reflexivity. apply I.
     +  omega. 
    } 
-  Time entailer!. (*11.7*)
-Time Qed. (*88.5*)
+  Time entailer!. (*13.3*)
+Time Qed. (*86*)
 
 Definition UpdateOut (l: list val) (i:Z) (xi:int) :=
          (sublist 0 i l) ++ QuadByte2ValList (littleendian_invert xi) ++ sublist (i+4) (Zlength l) l.
@@ -516,7 +517,7 @@ Lemma HTrue_loop3 Espec t y x w nonce out c k h OUT xs ys Nonce C K:
        data_at_ Tsh (tarray tuint 4) t; data_at_ Tsh (tarray tuint 16) w;
        data_at Tsh (tarray tuchar 64) (hPosLoop3 4 xs OUT) out))).
 Proof. intros. abbreviate_semax.
- Time assert_PROP (Zlength (map Vint xs) = 16 /\ Zlength OUT = 64) as XX by entailer!. (*3.1*)
+ Time assert_PROP (Zlength (map Vint xs) = 16 /\ Zlength OUT = 64) as XX by entailer!. (*3.5*)
  rewrite Zlength_map in XX. destruct XX as [ZL_X OL].
  Time forward_for_simple_bound 4 (EX i:Z, 
   (PROP  ()
@@ -528,7 +529,7 @@ Proof. intros. abbreviate_semax.
    data_at Tsh (tarray tuint 16) (map Vint ys) y;
    data_at_ Tsh (tarray tuint 4) t; data_at_ Tsh (tarray tuint 16) w;
    data_at Tsh (tarray tuchar 64) (hPosLoop3 (Z.to_nat i) xs OUT) out))). (*3.4*)
-    Time entailer!. (*4*)
+    Time entailer!. (*6*)
   { rename H into I. 
 
     assert (P3_Zlength: Zlength (hPosLoop3 (Z.to_nat i) xs OUT) = 64).
@@ -538,26 +539,26 @@ Proof. intros. abbreviate_semax.
     remember (hPosLoop3 (Z.to_nat i) xs OUT) as ll. (*clear Heqll.*)
       
     destruct (Znth_mapVint xs (5 * i) Vundef) as [xi Xi]. omega.
-    Time forward; rewrite Xi. (*9.1*)
-    Time solve[entailer!]. (*3.2*)
+    Time forward; rewrite Xi. (*8.8*)
+    Time solve[entailer!]. (*3.1*)
     Time assert_PROP (isptr out /\ field_compatible (Tarray tuchar 64 noattr) [] out)
-          as Pout_FCO by entailer!. (*3.7*)
+          as Pout_FCO by entailer!. (*3.6*)
     destruct Pout_FCO as [Pout FCO].
     apply isptrD in Pout; destruct Pout as [ob [ooff OC]]; rewrite OC in *.
-    Time forward. (*3.7*)
+    Time forward. (*4*)
     rewrite <- P3_Zlength.
     rewrite (split3_data_at_Tarray_tuchar Tsh (Zlength ll) (4 *i) (4+4*i)); try rewrite P3_Zlength; trivial; try omega. 
     rewrite field_address0_offset by auto with field_compatible.
     rewrite field_address0_offset by auto with field_compatible.
     unfold offset_val; simpl.   
-    Time normalize. (*5.4*)
+    Time normalize. (*5*)
 Transparent core_spec. Transparent ld32_spec. Transparent L32_spec. Transparent st32_spec.
 Transparent crypto_core_salsa20_spec. Transparent crypto_core_hsalsa20_spec.
     Time forward_call (offset_val (Int.repr (4 * i)) (Vptr ob ooff), xi). (*8.2*)
 Opaque core_spec. Opaque ld32_spec. Opaque L32_spec. Opaque st32_spec.
 Opaque crypto_core_salsa20_spec. Opaque crypto_core_hsalsa20_spec.
     { Exists (sublist (4 * i) (4 + 4 * i) ll). unfold offset_val; simpl.
-      autorewrite with sublist. Time entailer!. (*10.3*) }
+      autorewrite with sublist. Time entailer!. (*10.7*) }
     simpl. Opaque mult.
     assert (Upd_ll_Zlength: Zlength (UpdateOut ll (4 * i) xi) = 64).
       rewrite UpdateOut_Zlength; trivial. omega. omega.
@@ -590,9 +591,9 @@ Opaque crypto_core_salsa20_spec. Opaque crypto_core_hsalsa20_spec.
       autorewrite with sublist. rewrite Zplus_comm, AR. trivial. }
  
     destruct (Znth_mapVint xs (6+i) Vundef) as [zi Zi]. omega.
-    Time forward; rewrite Zi. (*10.3*)
+    Time forward; rewrite Zi. (*11.1*)
     Time solve[entailer!]. (*3.2*)
-    Time forward. (*4.1*) 
+    Time forward. (*4.5*) 
     erewrite (split3_data_at_Tarray_tuchar Tsh 64 (16 + 4 *i) (4+16 + 4 *i)); trivial; try omega.
     rewrite field_address0_offset by auto with field_compatible.
     rewrite field_address0_offset by auto with field_compatible.
@@ -600,13 +601,13 @@ Opaque crypto_core_salsa20_spec. Opaque crypto_core_hsalsa20_spec.
     autorewrite with sublist. repeat rewrite Z.mul_1_l. 
 Transparent core_spec. Transparent ld32_spec. Transparent L32_spec. Transparent st32_spec.
 Transparent crypto_core_salsa20_spec. Transparent crypto_core_hsalsa20_spec.
-    Time forward_call (Vptr ob (Int.add ooff (Int.repr (16 + 4 * i))), zi). (*9.8*)
+    Time forward_call (Vptr ob (Int.add ooff (Int.repr (16 + 4 * i))), zi). (*11.2*)
 Opaque core_spec. Opaque ld32_spec. Opaque L32_spec. Opaque st32_spec.
 Opaque crypto_core_salsa20_spec. Opaque crypto_core_hsalsa20_spec.
     { Exists (sublist (16 + 4 * i) (4 + (16 + 4 * i)) (UpdateOut ll (4 * i) xi)).
       autorewrite with sublist. rewrite Z.add_assoc. 
-      Time entailer!. (*11.8*) }
-    Time entailer!. (*9.7*)
+      Time entailer!. (*13.5*) }
+    Time entailer!. (*11.5*)
     assert (AA:  Z.to_nat (i + 1) = S (Z.to_nat i)).
       rewrite (Z.add_comm _ 1), Z2Nat.inj_add. simpl. apply NPeano.Nat.add_1_l. omega. omega.
     rewrite AA. simpl. 
@@ -631,8 +632,8 @@ Opaque crypto_core_salsa20_spec. Opaque crypto_core_hsalsa20_spec.
       rewrite sublist_app2; autorewrite with sublist; try omega.
       rewrite sublist_app2; try rewrite <- QuadByteValList_ZLength; try omega.
       autorewrite with sublist. rewrite Zplus_comm. apply derives_refl'. f_equal. f_equal; omega. }
-  Time entailer!. (*10.1*)
-Time Qed. (*105.4*)
+  Time entailer!. (*12.8*)
+Time Qed. (*110*)
 
 Lemma hposLoop2_Zlength16 C N l (L:Zlength l = 16): forall n, 
       5 * Z.of_nat n < 16-> 6+ Z.of_nat n < 16 -> Zlength (hPosLoop2 (S n) l C N) = 16.
@@ -834,20 +835,19 @@ forward_seq. apply HTrue_loop1; trivial.
 Intros sums.
 destruct H as [SL [intsums [? HSums1]]]; subst sums. rewrite Zlength_map in SL.
 forward_seq.
-  eapply semax_pre. 
-   2: apply (HTrue_loop2 Espec t y x w nonce out c k h OUT ys intsums Nonce C K); assumption.
-   Time entailer!. (*3.7*) 
-eapply semax_pre_post.
-  Focus 3. apply (HTrue_loop3 Espec t y x w nonce out c k h OUT 
-            (hPosLoop2 4 intsums C Nonce) ys Nonce C K); try assumption.
-  apply andp_left2. Time entailer!. (*9.8*)
-unfold POSTCONDITION, abbreviate, HTruePostCond.
+drop_LOCAL 0%nat.  
+apply (HTrue_loop2 Espec t y x w nonce out c k h OUT ys intsums Nonce C K); assumption.
+drop_LOCAL 0%nat.  
+eapply semax_post.
+  2: apply (HTrue_loop3 Espec t y x w nonce out c k h OUT 
+            (hPosLoop2 4 intsums C Nonce) ys Nonce C K); assumption.
+intros ? ?. apply andp_left2. unfold POSTCONDITION, abbreviate, HTruePostCond.
+apply normal_ret_assert_derives'.
+Exists intsums. 
 Opaque ThirtyTwoByte. Opaque hPosLoop2. Opaque hPosLoop3.
-intros ? ?.
-apply andp_left2. Time entailer!. (*7.4*) apply normal_ret_assert_derives.
-Exists intsums. Time entailer!. (*6.8*)
+Time entailer!. (*6.6*)
 clear - HSums1 SL. intros j J.
   destruct (HSums1 _ J) as [xj [Xj [X _]]].
   destruct X as [yj [Yi Sj]]. apply J.
   exists xj, yj. auto.
-Time Qed. (*7.8*)
+Time Qed. (*3*)

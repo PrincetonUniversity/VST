@@ -313,12 +313,12 @@ rename lvar3 into t.
 rename lvar2 into y.
 rename lvar1 into x.
 rename lvar0 into w.
-Time assert_PROP (Zlength OUT = 64) as ZL_OUT by entailer!. (*1.4*)
+Time assert_PROP (Zlength OUT = 64) as ZL_OUT by entailer!. 
 apply semax_seq with (Q:=fcore_EpiloguePOST t y x w nonce out c k h OUT data).
   + forward_seq.
     eapply semax_pre.
     Focus 2. apply (f_core_loop1 Espec c k h nonce out OUT data (*out' in' k' c' h' aux'*) w x y t); trivial.
-             Time entailer!. (*2.4*)
+             Time entailer!. (*2.3*)
     (*NEW: the following used to work insetad of the semax_pre: apply f_core_loop1; trivial.*)
  
     (*/FOR(i,16) y[i] = x[i]*)
@@ -352,14 +352,14 @@ apply semax_seq with (Q:=fcore_EpiloguePOST t y x w nonce out c k h OUT data).
              (map littleendian
                     [C1; K1; K2; K3; K4; C2; N1; N2; N3; N4; C3; L1; L2; L3; L4; C4])) with
              (data:=(N1, N2, N3, N4, (C1, C2, C3, C4), (K1, K2, K3, K4, (L1, L2, L3, L4)))); trivial.
-    apply andp_left2. Time entailer!. (*8.7*) apply derives_refl.
+    apply andp_left2. Time entailer!. (*9.6*) apply derives_refl.
     intros ? ?. apply andp_left2. apply assert_lemmas.normal_ret_assert_derives'. apply derives_refl.
  
     remember [C1; K1; K2; K3; K4; C2; N1; N2; N3; N4; C3; L1; L2; L3; L4; C4] as xInit.
     Intros snuffleRes. rename H into RES.
 
     Time forward_if (fcore_EpiloguePOST t y x w nonce out c k h OUT 
-               ((N1, N2, N3, N4), (C1, C2, C3, C4), ((K1, K2, K3, K4), (L1, L2, L3, L4)))). (*10.8*)
+               ((N1, N2, N3, N4), (C1, C2, C3, C4), ((K1, K2, K3, K4), (L1, L2, L3, L4)))). (*11.6*)
     (*mkConciseDelta SalsaVarSpecs SalsaFunSpecs f_core Delta.*)
     - eapply semax_pre_post.
       Focus 3. eapply (verif_fcore_epilogue_htrue Espec t y x w nonce out c k h 
@@ -370,19 +370,19 @@ apply semax_seq with (Q:=fcore_EpiloguePOST t y x w nonce out c k h OUT data).
         unfold typed_true in H. simpl in H. inv H. apply negb_true_iff in H1. 
         unfold POSTCONDITION, abbreviate, overridePost, normal_ret_assert. 
         Transparent HTruePostCond. unfold HTruePostCond. Opaque HTruePostCond.
-        Time entailer!. (*21*) rewrite if_true by trivial.
+        Time entailer!. (*21.1*) rewrite if_true by trivial.
         rename x0 into intsums.
         apply andp_right. apply prop_right; trivial.
         Exists snuffleRes
               (map littleendian [C1; K1; K2; K3; K4; C2; N1; N2; N3; N4; C3; L1; L2; L3; L4; C4]).
         rewrite H1. Exists intsums.
-        Time entailer!. (*11.3*)
+        Time entailer!. (*12.1*)
 
     - eapply semax_pre_post.
       Focus 3. eapply (verif_fcore_epilogue_hfalse Espec t y x w nonce out c k h 
                        (N1, N2, N3, N4, (C1, C2, C3, C4), (K1, K2, K3, K4, (L1, L2, L3, L4)))
                        OUT snuffleRes (map littleendian xInit)).
-      apply andp_left2. Time entailer!. (*6*)
+      apply andp_left2. Time entailer!. (*5.4*)
       intros ? ?. apply andp_left2.
         unfold typed_false in H. simpl in H. inv H. apply negb_false_iff in H1. 
         unfold POSTCONDITION, abbreviate, normal_ret_assert, overridePost.
@@ -390,7 +390,7 @@ apply semax_seq with (Q:=fcore_EpiloguePOST t y x w nonce out c k h OUT data).
         Time normalize. (*11*) rewrite if_true by trivial.
         Exists snuffleRes (map littleendian [C1; K1; K2; K3; K4; C2; N1; N2;
                N3; N4; C3; L1; L2; L3; L4; C4]).
-        rewrite H1. Time entailer!. (*10.2*) 
+        rewrite H1. Time entailer!. (*10.7*) 
         Intros l. Exists l. Time entailer!. (*1.5*)
     - intros ? ?. apply andp_left2.
       unfold POSTCONDITION, abbreviate, fcore_EpiloguePOST, overridePost.
@@ -403,10 +403,10 @@ apply semax_seq with (Q:=fcore_EpiloguePOST t y x w nonce out c k h OUT data).
     destruct Key2 as [[[L1 L2] L3] L4]. 
     Intros snuffleRes ys.
     unfold MORE_COMMANDS, abbreviate. (*Issue: Why's this line needed?*)   
-    Time forward. (*15*)
+    Time forward. (*18*)
     (*New Issue: postcondition really looks ugly here now, and (re)normalize/entailer doesn't help*)
 
-    Exists t y x w. Time entailer!. (*8.3*)
+    Exists t y x w. Time entailer!. (*8.4*)
     unfold fcorePOST_SEP. 
     (*destruct H as [YS SNUFF]. *)
     (*rewrite Zlength_map in H6. apply Zlength_length in H6; try omega; simpl in H6.*)
@@ -435,4 +435,4 @@ apply semax_seq with (Q:=fcore_EpiloguePOST t y x w nonce out c k h OUT data).
         rewrite Zlength_correct; reflexivity.
       apply andp_right; trivial.
       unfold CoreInSEP. Time cancel. (*0.26*)
-Time Qed. (*61*)
+Time Qed. (*58*)

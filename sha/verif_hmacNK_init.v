@@ -113,8 +113,8 @@ remember (EX shaStates:_ ,
 eapply semax_seq. instantiate (1:=PostResetBranch).
 { eapply semax_pre_post.
   Focus 3 . apply init_part2; eassumption.
-  entailer!.
-  intros ? ?. apply andp_left2. entailer!. }
+  apply andp_left2. apply derives_refl.
+  intros ? ?. apply andp_left2. apply derives_refl. }
 
 { (*Continuation after if (reset*)
   subst PostResetBranch.
@@ -272,4 +272,4 @@ eapply semax_seq. instantiate (1:=PostResetBranch).
     Time cancel. (*0.6*)
   }
 } 
-Time Qed. (*57*)
+Time Qed. (*52*)
