@@ -345,11 +345,30 @@ forward_if (sha_update_inv sh hashed len c d dd data kv false).
                      Vint (Int.repr (Zlength dd + len)))))).
   unfold_data_at 1%nat.
   entailer!.
-  simpl; unfold s256_Nh, s256_Nl, s256_data, s256_num, bitlength; simpl.
+  assert (Zlength (dd ++ sublist 0 len data) < CBLOCKz).
+  autorewrite with sublist. pose proof CBLOCKz_eq; omega.
+  hnf; unfold s256_Nh, s256_Nl, s256_data, s256_num; simpl.
+  rewrite bitlength_eq.
+  replace (s256a_len (S256abs hashed dd) + len * 8)
+     with (s256a_len (S256abs hashed (dd ++ sublist 0 len data))).
+  unfold s256a_regs. 
+  rewrite S256abs_hashed; auto.
+  rewrite S256abs_data; auto.
+  split3; auto.
+  split3.
+  rewrite sublist_app1. rewrite !sublist_map.
+  autorewrite with sublist. auto.
+  autorewrite with sublist. omega.
+  autorewrite with sublist. omega.
+  unfold S256abs.
+  rewrite !Forall_app. split3; auto.
+  apply isbyte_intlist_to_Zlist.
+  autorewrite with sublist. auto.
+  rewrite <- !bitlength_eq.
+  unfold bitlength.
   autorewrite with sublist.
-  rewrite !Z.mul_add_distr_r, !Z.add_assoc.
-  repeat split; auto; try Omega1.
-  rewrite Forall_app; split; auto; apply Forall_firstn; auto.
+  rewrite !Z.mul_add_distr_r, !Z.add_assoc. auto.
+  apply derives_refl'; f_equal.
   repeat rewrite map_app. repeat rewrite <- sublist_map.
   rewrite <- app_assoc. auto.
 +

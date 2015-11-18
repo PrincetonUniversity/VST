@@ -3,7 +3,6 @@ Require Import sha.sha.
 Require Import sha.SHA256.
 Require Import sha.spec_sha.
 Require Import sha.sha_lemmas.
-Require Import sha.verif_sha_update2.
 Require Import sha.verif_sha_update3.
 Require Import sha.verif_sha_update4.
 Require Import sha.call_memcpy.
@@ -142,13 +141,29 @@ assert (Hbb: bitlength hashed dd + len * 8 =
  rewrite Hbb.
  entailer!.
  unfold s256_data, dd'; simpl. autorewrite with sublist.
+ hnf.
+ rewrite S256abs_data
+  by first [rewrite Zlength_app; apply Z.divide_add_r; auto
+              | autorewrite with sublist; omega].
+ unfold s256_h, s256_data, s256_num, s256_Nh, s256_Nl, fst, snd.
+ unfold s256a_regs.
+ rewrite S256abs_hashed
+  by first [rewrite Zlength_app; apply Z.divide_add_r; auto
+              | autorewrite with sublist; omega].
+ rewrite bitlength_eq. autorewrite with sublist.
  split3; auto.
- apply Z.divide_add_r; auto.
-   rewrite <- H2.
-   unfold_data_at 1%nat. entailer!.
-   unfold dd'.
-   rewrite !sublist_map; auto.
+ split; auto.
+ rewrite !sublist_map; auto.
+ autorewrite with sublist; auto.
+ split; auto.
+ unfold S256abs. apply Forall_app; split; auto.
+ apply isbyte_intlist_to_Zlist.
+  unfold dd'.
+ rewrite !sublist_map. autorewrite with sublist.
+ unfold_data_at 1%nat. entailer!.
 + (* else-clause *)
+ assert (H4': (LBLOCKz | Zlength (hashed ++ blocks))%Z)
+   by (rewrite Zlength_app; apply Z.divide_add_r; auto).
  forward. 
  normalize.
  Exists (S256abs (hashed++blocks) nil).
@@ -164,13 +179,28 @@ assert (Hbb: bitlength hashed dd + len * 8 =
  split; auto.
  unfold bitlen, bitlength.
  autorewrite with sublist.
+ unfold s256a_regs. rewrite S256abs_hashed; auto.
+ subst bitlen; rewrite <- bitlength_eq.
+ replace (bitlength hashed dd + len * 8) 
+  with (bitlength (hashed ++ blocks) []).
+ split3; auto.
+ rewrite S256abs_data; auto.
+ split.
+ unfold S256abs.
+ rewrite Forall_app. split.
+ apply isbyte_intlist_to_Zlist.
+ constructor.
+ f_equal. f_equal.
+ rewrite S256abs_data; auto.
+ unfold bitlength.
  rewrite <- (Z.mul_add_distr_r _ _ 8).
+ rewrite Zlength_nil, Z.add_0_r.
+ rewrite Zlength_app.
  rewrite (Z.mul_add_distr_r _ _ WORD).
  rewrite <- Z.add_assoc.
  replace len with (Zlength blocks * 4 - Zlength dd) by omega.
  change 4%Z with WORD.
  repeat split; auto; try now (f_equal; f_equal; clear; omega).
- apply Z.divide_add_r; auto.
 Qed.
 
 Lemma body_SHA256_Update: semax_body Vprog Gtot f_SHA256_Update SHA256_Update_spec.
@@ -193,12 +223,8 @@ fold update_outer_if in *.
 fold sha_update_loop_body in *.
 forward.  (* data=data_; *)
 assert (LEN: 0 <= s256a_len a). {
- destruct a; simpl.
- unfold bitlength. change WORD with 4.
+ unfold s256a_len.
  apply Z.mul_nonneg_nonneg; try computable.
- apply Z.add_nonneg_nonneg.
- apply Z.mul_nonneg_nonneg; try computable.
- apply Zlength_nonneg.
  apply Zlength_nonneg.
 }
 unfold sha256state_.
@@ -206,53 +232,55 @@ normalize.
 intros [r_h [lo' [hi' [r_data r_num]]]].
 normalize.
 unfold s256_relate in H0.
-destruct a as [hashed dd].
-simpl in LEN, HBOUND.
 unfold s256_h, s256_Nh,s256_Nl, s256_num, s256_data, fst,snd in H0|-*.
-destruct H0 as [H0 [H1 [H8 [[H3 H3'] [H4 H5]]]]].
+destruct H0 as [H0 [H1 [H8 [H3 H4]]]].
 destruct H1 as [H1 H6].
 subst.
 
 unfold_data_at 1%nat.
 forward_call (* SHA256_addlength(c, len); *)
-  (len, c, s256a_len (S256abs hashed dd)).
-  repeat split; simpl; omega.
+  (len, c, s256a_len (S256abs (s256a_hashed a) (s256a_data a))).
+ rewrite S256abs_recombine by auto.
+ cancel.
+ rewrite S256abs_recombine by auto.
+ repeat split; simpl; try omega.
+ apply HBOUND.
 (* TODO:  need a fold_data_at tactic; the next few lines do that here *)
 gather_SEP' [4;0;1;2;3]%Z.
+ rewrite <- bitlength_eq.
 replace_SEP 0 (data_at Tsh t_struct_SHA256state_st
-    (map Vint (hash_blocks init_registers hashed),
-        (Vint (lo_part (bitlength hashed dd + len * 8)),
-        (Vint (hi_part (bitlength hashed dd + len * 8)),
-        (map Vint (map Int.repr dd)++ 
-         list_repeat (Z.to_nat (CBLOCKz - Zlength dd)) Vundef,
-         Vint (Int.repr (Zlength dd)))))) c). {
+    (map Vint (hash_blocks init_registers (s256a_hashed a)),
+        (Vint (lo_part (bitlength (s256a_hashed a) (s256a_data a) + len * 8)),
+        (Vint (hi_part (bitlength (s256a_hashed a) (s256a_data a) + len * 8)),
+        (map Vint (map Int.repr (s256a_data a))++ 
+         list_repeat (Z.to_nat (CBLOCKz - Zlength (s256a_data a))) Vundef,
+         Vint (Int.repr (Zlength (s256a_data a))))))) c). {
   unfold_data_at 1%nat; entailer!.
   assert (legal_nested_field t_struct_SHA256state_st [StructField _data]).
     apply compute_legal_nested_field_spec'; repeat constructor.
   erewrite field_at_Tarray; try reflexivity; auto.
   erewrite field_at_Tarray; try reflexivity; auto.
   rewrite <- H8.
-  simplify_value_fits in H14. destruct H14.
-  rewrite (split2_array_at _ _ _ 0 (Zlength dd) 64) by (auto; Omega1).
-  rewrite (split2_array_at _ _ _ 0 (Zlength dd) 64).
+  simplify_value_fits in H13. destruct H13.
+  pose proof (s256a_data_Zlength_less a).
+  rewrite (split2_array_at _ _ _ 0 (Zlength (s256a_data a)) 64) by (auto; Omega1).
+  rewrite (split2_array_at _ _ _ 0 (Zlength (s256a_data a)) 64).
   2: Omega1.
   Focus 2. {
-    rewrite Zlength_app, Zlength_list_repeat, Zlength_sublist.
-    2: rewrite Zlength_correct; omega.
-    2: change CBLOCKz with 64 in H3; omega.
-    rewrite Z.max_r by omega.
-    change CBLOCKz with 64; omega.
+    autorewrite with sublist.
+    rewrite Zlength_sublist by Omega1. Omega1.
   } Unfocus.
-  change (@reptype CompSpecs tuchar) with val in H14. (* should not need this! *)
+  change (@reptype CompSpecs tuchar) with val in H13. (* should not need this! *)
   pose proof CBLOCKz_eq.
-  pose proof (Zlength_nonneg dd).
+  pose proof (Zlength_nonneg (s256a_data a)).
   autorewrite with sublist.
-  rewrite H17.
-  change  (@reptype CompSpecs
-        (@nested_field_type CompSpecs t_struct_SHA256state_st
-           [ArraySubsc 0; StructField _data])) with val.
+  change (@reptype CompSpecs tuchar) with val. (* should not need this! *)
+ change ( (@reptype CompSpecs
+           (@nested_field_type CompSpecs t_struct_SHA256state_st
+              [ArraySubsc 0; StructField _data]))) with val.
+  rewrite H13.
   cancel. 
-  apply derives_trans with (array_at_ Tsh t_struct_SHA256state_st [StructField _data] (Zlength dd) 64 c');
+  apply derives_trans with (array_at_ Tsh t_struct_SHA256state_st [StructField _data] (Zlength (s256a_data a)) 64 c');
      [ cancel | apply derives_refl].
 }
 (* end of TODO *)
@@ -265,24 +293,35 @@ assert_PROP (field_address t_struct_SHA256state_st [StructField _data] c
  rewrite (field_at_compatible' _ _ [StructField _data]).
   entailer!.
 rewrite <- H0.
-apply semax_seq with (sha_update_inv sh hashed len c d dd data kv false).
+apply semax_seq with (sha_update_inv sh (s256a_hashed a) len c d (s256a_data a) data kv false).
 *
  semax_subcommand Vprog Gtot  f_SHA256_Update.
- simple apply update_outer_if_proof; try assumption; omega.
+ eapply semax_post;
+   [ | simple apply update_outer_if_proof; try eassumption; auto; try omega].
+ intros; apply andp_left2.
+ rewrite S256abs_recombine.
+ auto.
+ auto.
+ rewrite bitlength_eq, S256abs_recombine; auto.
+ apply s256a_data_Zlength_less.
+ apply Forall_sublist; auto.
+ apply s256a_hashed_divides.
 * (* after if (n!=0) *)
  eapply semax_seq' with
-     (sha_update_inv sh hashed len c d dd data kv true).
+     (sha_update_inv sh (s256a_hashed a) len c d (s256a_data a) data kv true).
  semax_subcommand Vprog Gtot  f_SHA256_Update.
-simple apply update_while_proof; try assumption.
-omega.
-omega.
+simple apply update_while_proof; try assumption; try omega; auto.
+ rewrite bitlength_eq, S256abs_recombine; auto.
+ apply s256a_data_Zlength_less.
+ apply Forall_sublist; auto.
+ apply s256a_hashed_divides.
 
 abbreviate_semax.
 unfold sha_update_inv.   apply extract_exists_pre; intro blocks.
 forward.    (* c->num=len; *)
 
 apply semax_seq with (EX  a' : s256abs,
-                    PROP  (update_abs (sublist 0 len data) (S256abs hashed dd) a')
+                    PROP  (update_abs (sublist 0 len data) (S256abs (s256a_hashed a) (s256a_data a)) a')
                     LOCAL (gvar  _K256 kv)
                     SEP 
                     (K_vector kv;
@@ -291,16 +330,22 @@ apply semax_seq with (EX  a' : s256abs,
 make_sequential.
  semax_subcommand Vprog Gtot  f_SHA256_Update.
 fold update_last_if.
-pose proof (Hblocks_lem H5).
+pose proof (Hblocks_lem H4).
 assert_PROP (isptr c) by entailer!.
 rewrite isptr_offset_val_zero by auto.
 change (field_at  Tsh t_struct_SHA256state_st [])
   with (data_at Tsh t_struct_SHA256state_st).
+
 simple apply update_last_if_proof; try assumption; try omega.
+ rewrite bitlength_eq, S256abs_recombine; auto.
+ apply s256a_data_Zlength_less.
+ apply Forall_sublist; auto.
+ apply s256a_hashed_divides.
 abbreviate_semax.
 (* after the last if *)
  Intro a'.
  forward.  (* return; *)
  Exists a'.
  entailer!.
+ rewrite S256abs_recombine in H7; auto.
 Qed.

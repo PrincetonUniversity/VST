@@ -19,8 +19,9 @@ Exists (map Vint init_registers,
  becuase [simple apply prop_and_same_derives'] takes forever. *)
 simple apply andp_right; [apply prop_right | ].
 repeat split; auto.
+unfold s256_h, fst, s256a_regs.
 rewrite hash_blocks_equation. reflexivity.
-apply Z.divide_0_r.
+constructor.
 unfold data_at. apply derives_refl'; f_equal.
 f_equal.
 simpl.

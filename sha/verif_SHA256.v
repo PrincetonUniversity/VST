@@ -37,6 +37,19 @@ replace (SHA_256 data) with (sha_finish a); [cancel |].
 clear - H1.
 inv H1.
 simpl in *.
-rewrite <- H8.
-autorewrite with sublist. auto.
+autorewrite with sublist in H6.
+unfold init_s256abs in H.
+unfold S256abs in H.
+apply app_eq_nil in H. destruct H.
+subst. simpl in H6.
+assert (Zlength (intlist_to_Zlist hashed) = 0).
+ rewrite H; reflexivity.
+rewrite Zlength_intlist_to_Zlist in H1.
+assert (hashed = nil). {
+  destruct hashed; auto.
+  rewrite Zlength_cons in H1.
+  pose proof (Zlength_nonneg hashed). omega.
+} subst.
+ simpl.
+ reflexivity.
 Qed.
