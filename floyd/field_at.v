@@ -1167,15 +1167,45 @@ Lemma array_at_ramif: forall sh t gfs t0 n a lo hi i v v0 p,
   nested_field_type t gfs = Tarray t0 n a ->
   lo <= i < hi ->
   JMeq v0 (Znth (i - lo) v d) ->
-  array_at sh t gfs lo hi v p = field_at sh t (ArraySubsc i :: gfs) v0 p *
+  array_at sh t gfs lo hi v p |-- field_at sh t (ArraySubsc i :: gfs) v0 p *
    (ALL v0: _, ALL v0': _, !! JMeq v0 v0' -->
-      field_at sh t (ArraySubsc i :: gfs) v0 p -*
-        array_at sh t gfs lo hi (upd_Znth (i - lo) v v0') p).
+      (field_at sh t (ArraySubsc i :: gfs) v0 p -*
+        array_at sh t gfs lo hi (upd_Znth (i - lo) v v0') p)).
 Proof.
   intros.
-(* Change upd_Znth into upd_Znth_in_list *)
-Abort.
-  
+  rewrite (add_andp _ _ (array_at_local_facts _ _ _ _ _ _ _)).
+  normalize.
+  rewrite allp_uncurry'.
+  change (ALL  st: _,
+    !!JMeq (fst st) (snd st) -->
+     (field_at sh t (gfs SUB i) (fst st) p -*
+      array_at sh t gfs lo hi (upd_Znth (i - lo) v (snd st)) p))
+  with (allp ((fun st => !!JMeq (fst st) (snd st)) -->
+               ((fun st => field_at sh t (gfs SUB i) (fst st) p) -*
+                 fun st => array_at sh t gfs lo hi (upd_Znth (i - lo) v (snd st)) p))).
+  eapply RAMIF_Q'.solve with
+    (array_at sh t gfs lo i (sublist 0 (i - lo) v) p *
+     array_at sh t gfs (i + 1) hi (sublist (i + 1 - lo) (hi - lo) v) p).
+  + simpl; auto.
+  + erewrite (split3_array_at sh t gfs lo i hi) by (eauto; omega).
+    cancel.
+  + clear v0 H1.
+    intros [v0 v0'].
+    normalize.
+    erewrite (split3_array_at sh t gfs lo i hi).
+    Focus 2. { auto. } Unfocus.
+    Focus 2. {
+      rewrite upd_Znth_Zlength by omega.
+      auto.
+    } Unfocus.
+    Focus 2. {
+      rewrite upd_Znth_same by omega.
+      exact H1.
+    } Unfocus.
+    rewrite sublist_upd_Znth_l with (lo0 := 0) by omega.
+    rewrite sublist_upd_Znth_r with (lo0 := (i + 1 - lo)) by omega.
+    unfold fst; cancel.
+Qed.
 
 Lemma nested_sfieldlist_at_ramif: forall sh t gfs id a i v p,
   let d := default_val _ in

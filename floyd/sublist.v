@@ -1298,6 +1298,59 @@ Lemma upd_Znth0 {A} (l:list A) v:
 upd_Znth 0 l v = v :: sublist 1 (Zlength l) l.
 Proof. unfold upd_Znth. rewrite sublist_nil. reflexivity. Qed.
 
+Lemma sublist_upd_Znth_l: forall {A} (l: list A) i lo hi v,
+  0 <= lo <= hi ->
+  hi <= i < Zlength l ->
+  sublist lo hi (upd_Znth i l v) = sublist lo hi l.
+Proof.
+  intros.
+  unfold upd_Znth.
+  rewrite sublist_app1.
+  2: omega.
+  2: rewrite Zlength_sublist by omega; omega.
+  rewrite sublist_sublist by omega.
+  f_equal; omega.
+Qed.
+
+Lemma sublist_upd_Znth_r: forall {A} (l: list A) i lo hi v,
+  0 <= i < lo ->
+  lo <= hi <= Zlength l ->
+  sublist lo hi (upd_Znth i l v) = sublist lo hi l.
+Proof.
+  intros.
+  unfold upd_Znth.
+  replace (sublist 0 i l ++ v :: sublist (i + 1) (Zlength l) l) with 
+    ((sublist 0 i l ++ v :: nil) ++ sublist (i + 1) (Zlength l) l)
+    by (rewrite <- app_assoc; auto).
+  rewrite sublist_app2.
+  2: rewrite Zlength_app, Zlength_sublist, Zlength_correct by omega; simpl; omega.
+  rewrite Zlength_app, Zlength_sublist, Zlength_correct by omega; simpl.
+  rewrite sublist_sublist by omega.
+  f_equal; omega.
+Qed.
+
+Lemma sublist_upd_Znth_lr: forall {A} (l: list A) i lo hi v,
+  0 <= lo <= i->
+  i < hi <= Zlength l ->
+  sublist lo hi (upd_Znth i l v) = upd_Znth (i - lo) (sublist lo hi l) v.
+Proof.
+  intros.
+  unfold upd_Znth.
+  change (v :: sublist (i + 1) (Zlength l) l) with
+    ((v :: nil) ++ sublist (i + 1) (Zlength l) l).
+  rewrite !sublist_app'.
+  2: change (Zlength [v]) with 1; omega.
+  2: change (Zlength [v]) with 1; rewrite !Zlength_sublist by omega; omega.
+  2: rewrite !Zlength_sublist by omega; omega.
+  2: rewrite Zlength_app, !Zlength_sublist by omega; change (Zlength [v]) with 1; omega.
+  rewrite !Zlength_sublist by omega.
+  change (Zlength [v]) with 1.
+  rewrite sublist_len_1 with (d := v) by (change (Zlength [v]) with 1; omega).
+  change (Znth 0 [v] v) with v.
+  simpl.
+  rewrite !sublist_sublist by omega.
+  f_equal; [| f_equal]; f_equal; omega.
+Qed.
 
 (*Hint Rewrite @Zlength_list_repeat'  : sublist.*)
 Hint Rewrite @Znth_list_repeat_inrange : sublist.

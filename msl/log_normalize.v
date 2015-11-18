@@ -297,6 +297,69 @@ intros.
 apply pred_ext; apply allp_derives; intros; rewrite H; auto.
 Qed.
 
+Lemma allp_uncurry: forall {A} `{NatDed A} (S T: Type) (P: S -> T -> A),
+  allp (allp P) = allp (fun st => P (fst st) (snd st)).
+Proof.
+  intros.
+  apply pred_ext.
+  + apply allp_right; intros [s t].
+    simpl.
+    apply (allp_left _ t).
+    apply (allp_left _ s).
+    apply derives_refl.
+  + apply allp_right; intro t.
+    simpl.
+    apply allp_right; intro s.
+    apply (allp_left _ (s, t)).
+    apply derives_refl.
+Qed.
+
+Lemma allp_depended_uncurry': forall {A} `{NatDed A} {S: Type} {T: S -> Type} (P: forall s: S, T s -> A),
+  ALL s: S, (ALL t: T s, P s t) = ALL st: sigT T, P (projT1 st) (projT2 st).
+Proof.
+  intros.
+  apply pred_ext.
+  + apply allp_right; intros [s t].
+    simpl.
+    apply (allp_left _ s).
+    apply (allp_left _ t).
+    apply derives_refl.
+  + apply allp_right; intro s.
+    simpl.
+    apply allp_right; intro t.
+    apply (allp_left _ (existT T s t)).
+    apply derives_refl.
+Qed.
+
+Lemma allp_uncurry': forall {A} `{NatDed A} (S T: Type) (P: S -> T -> A),
+  ALL s: S, (ALL t: T, P s t) = ALL st: prod S T, P (fst st) (snd st).
+Proof.
+  intros.
+  pose proof (@allp_depended_uncurry' A H S (fun _ => T) P).
+  simpl in H0.
+  rewrite H0.
+  apply pred_ext; apply allp_right; intro st; destruct st as [s t].
+  + apply (allp_left _ (existT (fun _ => T) s t)).
+    apply derives_refl.
+  + apply (allp_left _ (s, t)).
+    apply derives_refl.
+Qed.
+
+Lemma allp_curry: forall {A} `{NatDed A} (S T: Type) (P: S * T -> A),
+  allp P = allp (fun s => allp (fun t => P (s, t))).
+Proof.
+  intros.
+  apply pred_ext.
+  + apply allp_right; intro s.
+    apply allp_right; intro t.
+    apply (allp_left _ (s, t)).
+    apply derives_refl.
+  + apply allp_right; intros [s t].
+    apply (allp_left _ s).
+    apply (allp_left _ t).
+    apply derives_refl.
+Qed.
+
 Lemma allp_andp: forall {A B: Type} `{NatDed A} (P Q: B -> A), allp (P && Q) = allp P && allp Q.
 Proof.
   intros.
