@@ -3,7 +3,6 @@ Require Import sha.sha.
 Require Import sha.SHA256.
 Require Import sha.spec_sha.
 Require Import sha.sha_lemmas.
-Require Import sha.verif_sha_update2.
 Require Import sha.verif_sha_update3.
 Local Open Scope Z.
 Local Open Scope logic.
@@ -41,131 +40,6 @@ Definition sha_update_loop_body :=
            (Ebinop Osub (Etempvar _len tuint)
               (Ebinop Omul (Econst_int (Int.repr 16) tint)
                  (Econst_int (Int.repr 4) tint) tint) tuint)))).
-
-Lemma update_loop_body_proof:
- forall (Espec : OracleKind) (sh: share) (hashed : list int) (frag data : list Z) (c d : val)
-  (len : Z) kv (r_h : list int)
-   (Delta : tycontext) (blocks bl : list int)
- (HDelta: Delta = initialized_list [_p; _n; _data]
-                     (func_tycontext f_SHA256_Update Vprog Gtot))
- (Hsh: readable_share sh)
- (H: 0 <= len <= Zlength data)
- (Hdiv: (LBLOCKz | Zlength blocks))
- (H0: r_h = hash_blocks init_registers hashed)
- (H4: (LBLOCKz | Zlength hashed))
- (Hblocks: intlist_to_Zlist blocks =  frag ++ 
-          sublist 0 (Zlength blocks * 4 - Zlength frag) data)
- (H3 : Zlength frag < CBLOCKz)
- (Hlen: len <= Int.max_unsigned)
- (Hlen_ge: len - (Zlength blocks * 4 - Zlength frag) >= 64)
- (H6: sublist (Zlength blocks * 4 - Zlength frag) 
-                    (Zlength blocks * 4 - Zlength frag + CBLOCKz) data =
-        intlist_to_Zlist bl)
- (H7: Zlength bl = LBLOCKz)
- (LEN64: bitlength hashed frag  + len * 8 < two_p 64),
- semax Delta
-  (PROP  ()
-   LOCAL 
-   (temp _p (field_address t_struct_SHA256state_st [StructField _data] c);
-   temp _data (field_address0 (tarray tuchar (Zlength data)) [ArraySubsc (Zlength blocks * 4 - Zlength frag)] d);
-   temp _c c;
-   temp _len (Vint (Int.repr (len - (Zlength blocks * 4 - Zlength frag))));
-   gvar _K256 kv)
-   SEP  (K_vector kv;
-     data_at Tsh t_struct_SHA256state_st
-       (map Vint (hash_blocks init_registers (hashed ++ blocks)),
-       (Vint (lo_part (bitlength hashed frag + len * 8)),
-       (Vint (hi_part (bitlength hashed frag + len * 8)), 
-        (list_repeat (Z.to_nat CBLOCKz) Vundef, Vundef)))) c;
-    data_block sh data d)) 
-  sha_update_loop_body
-  (normal_ret_assert
-   (@exp (environ->mpred) _ _  (fun a:list int => 
-      PROP 
-      (len >= Zlength a * 4 - Zlength frag;
-       (LBLOCKz | Zlength a);
-       intlist_to_Zlist a = frag ++ sublist 0 (Zlength a * 4 - Zlength frag) data;
-       True)
-      LOCAL 
-      (temp _p (field_address t_struct_SHA256state_st [StructField _data] c);
-      temp _data (field_address0 (tarray tuchar (Zlength data)) [ArraySubsc (Zlength a * 4 - Zlength frag)] d);
-      temp _c c;
-      temp _len (Vint (Int.repr (len - (Zlength a * 4 - Zlength frag))));
-      gvar _K256 kv)
-      SEP  (K_vector kv;
-        data_at Tsh t_struct_SHA256state_st
-          (map Vint (hash_blocks init_registers (hashed ++ a)),
-          (Vint (lo_part (bitlength hashed frag + len * 8)),
-          (Vint (hi_part (bitlength hashed frag + len * 8)),
-          (list_repeat (Z.to_nat CBLOCKz) Vundef, 
-           Vundef)))) c;
-        data_block sh data d)))).
-Proof.
-assert (H4:=true).
-intros.
-name c' _c.
-name data_ _data_.
-name len' _len.
-name data' _data.
-name p _p.
-name n _n.
-unfold sha_update_loop_body.
-subst Delta; abbreviate_semax.
-assert (Hblocks' := Hblocks_lem Hblocks).
-Time assert_PROP (field_compatible (tarray tuchar (Zlength data)) [] d) as FC by entailer!. (*1.8*)
-assert (DM: Zlength data < Int.modulus).
-{ clear - FC. red in FC. simpl in FC. rewrite Z.max_r in FC. omega.
-  specialize (Zlength_nonneg data); intros; omega. }
-set (lo := Zlength blocks * 4 - Zlength frag) in *.
- replace_SEP 2
-  (data_block sh (sublist 0 lo data) d *
-       data_block sh (sublist lo (lo+CBLOCKz) data)
-         (field_address0 (tarray tuchar (Zlength data)) [ArraySubsc lo] d) *
-       data_block sh (sublist (lo+CBLOCKz) (Zlength data) data)
-         (field_address0 (tarray tuchar (Zlength data)) [ArraySubsc (lo+CBLOCKz)] d)).
-  { Time entailer!. (*2.5*)
-   rewrite (split3_data_block lo (lo+CBLOCKz) sh data); auto;
-     subst lo; Omega1.      
-  }
- rewrite H6.
- Time normalize. (*3.8*)
-Time forward_call (* sha256_block_data_order (c,data); *)
- (hashed++ blocks,  bl, c, 
-  field_address0 (tarray tuchar (Zlength data))  [ArraySubsc lo] d,
-  sh, kv). (*3.8*)
-{ Time unfold_data_at 1%nat. (*0.8*)
-  Time cancel. (*2.5*) 
-}
- split3; auto. apply divide_length_app; auto.
- Time forward. (* data += SHA_CBLOCK; *) (*5*)
- Time forward. (* len  -= SHA_CBLOCK; *) (*6*)
- Exists (blocks++ bl).
- Time entailer!. (*17.4 SLOW*)
- subst lo. autorewrite with sublist.
- rewrite Z.mul_add_distr_r. 
- {repeat split; auto.
-  + Omega1.
-  + rewrite H7; apply Z.divide_add_r; auto. apply Z.divide_refl.
-  + rewrite intlist_to_Zlist_app.
-      rewrite Hblocks; rewrite <- H6.
-      rewrite app_ass.
-      f_equal.
-      rewrite <- sublist_split; try Omega1.
-      f_equal. Omega1.
-  + assert (0 <= Zlength blocks * 4 + Zlength bl * 4 - Zlength frag <= Zlength data)
-         by Omega1.
-      rewrite !field_address0_offset by auto with field_compatible.
-      rewrite offset_offset_val, add_repr.
-      simpl. f_equal. f_equal. Omega1.
-  + f_equal. f_equal. Omega1.
- }
- Time unfold_data_at 1%nat. (*0.8*)
- rewrite (split3_data_block lo (lo+CBLOCKz) sh data d)
-    by (auto; subst lo; try Omega1).
- rewrite app_ass.
- rewrite H6.
- Time cancel. (*1.2*)
-Time Qed. (*17*)
 
 Definition update_outer_if :=
      Sifthenelse
@@ -319,12 +193,75 @@ assert (Zlength bl = LBLOCKz). {
  pose proof CBLOCKz_eq; pose proof LBLOCKz_eq;
   autorewrite with sublist. reflexivity.
 }
-simple apply (update_loop_body_proof Espec sh hashed dd data c d len kv (hash_blocks init_registers hashed) Delta blocks bl); 
-   try assumption; auto.
-+
- unfold bl; rewrite Zlist_to_intlist_to_Zlist; auto.
- pose proof CBLOCKz_eq;  autorewrite with sublist.
- exists LBLOCKz; reflexivity.
+ {
+  rename H7 into Hdiv. rename H0 into H7.
+  assert (H0:=True). rename H8 into Hblocks. rename HRE into Hlen_ge.
+  clear H6.
+  assert (H6: sublist (Zlength blocks * 4 - Zlength dd) 
+                    (Zlength blocks * 4 - Zlength dd + CBLOCKz) data =
+        intlist_to_Zlist bl).
+  unfold bl; rewrite Zlist_to_intlist_to_Zlist; auto.
+  pose proof CBLOCKz_eq;  autorewrite with sublist.
+  exists LBLOCKz; reflexivity.
+  rename dd into frag. 
+  clear H7; rename H1 into H7.
+  rename HBOUND into LEN64.
+  clear - Hsh H H0 Hdiv H4 Hblocks H3 Hlen Hlen_ge H6 H7 LEN64.
+  unfold sha_update_loop_body.
+  assert (Hblocks' := Hblocks_lem Hblocks).
+  Time assert_PROP (field_compatible (tarray tuchar (Zlength data)) [] d) as FC by entailer!. (*1.8*)
+  assert (DM: Zlength data < Int.modulus).
+  { clear - FC. red in FC. simpl in FC. rewrite Z.max_r in FC. omega.
+    specialize (Zlength_nonneg data); intros; omega. }
+  set (lo := Zlength blocks * 4 - Zlength frag) in *.
+  replace_SEP 2
+    (data_block sh (sublist 0 lo data) d *
+       data_block sh (sublist lo (lo+CBLOCKz) data)
+         (field_address0 (tarray tuchar (Zlength data)) [ArraySubsc lo] d) *
+       data_block sh (sublist (lo+CBLOCKz) (Zlength data) data)
+         (field_address0 (tarray tuchar (Zlength data)) [ArraySubsc (lo+CBLOCKz)] d)).
+  { Time entailer!. (*2.5*)
+   rewrite (split3_data_block lo (lo+CBLOCKz) sh data); auto;
+     subst lo; Omega1.
+  }
+ rewrite H6.
+ Time forward_call (* sha256_block_data_order (c,data); *)
+   (hashed++ blocks,  bl, c, 
+    field_address0 (tarray tuchar (Zlength data))  [ArraySubsc lo] d,
+    sh, kv). (*3.8*)
+  { Time unfold_data_at 1%nat. (*0.8*)
+    Time cancel. (*2.5*) 
+  }
+ split3; auto. apply divide_length_app; auto.
+ Time forward. (* data += SHA_CBLOCK; *) (*5*)
+ Time forward. (* len  -= SHA_CBLOCK; *) (*6*)
+ Exists (blocks++ bl).
+ Time entailer!. (*17.4 SLOW*)
+ subst lo. autorewrite with sublist.
+ rewrite Z.mul_add_distr_r. 
+ {repeat split; auto.
+  + Omega1.
+  + rewrite H7; apply Z.divide_add_r; auto. apply Z.divide_refl.
+  + rewrite intlist_to_Zlist_app.
+      rewrite Hblocks; rewrite <- H6.
+      rewrite app_ass.
+      f_equal.
+      rewrite <- sublist_split; try Omega1.
+      f_equal. Omega1.
+  + assert (0 <= Zlength blocks * 4 + Zlength bl * 4 - Zlength frag <= Zlength data)
+         by Omega1.
+      rewrite !field_address0_offset by auto with field_compatible.
+      rewrite offset_offset_val, add_repr.
+      simpl. f_equal. f_equal. Omega1.
+  + f_equal. f_equal. Omega1.
+ }
+ Time unfold_data_at 1%nat. (*0.8*)
+ rewrite (split3_data_block lo (lo+CBLOCKz) sh data d)
+    by (auto; subst lo; try Omega1).
+ rewrite app_ass.
+ rewrite H6.
+ Time cancel. (*1.2*)
+ }
 *
  assert  (Zlength blocks' * 4 >= Zlength dd).
    rewrite <- (Zlength_intlist_to_Zlist blocks').
@@ -336,4 +273,4 @@ simple apply (update_loop_body_proof Espec sh hashed dd data c d len kv (hash_bl
  Time entailer!. (*2.9*)
  apply negb_false_iff in HRE. (* should not be necessary *)
  apply ltu_repr in HRE; Omega1.
-Time Qed. (*6.3*)
+Time Qed. (*31.3 *)
