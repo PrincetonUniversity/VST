@@ -150,39 +150,12 @@ f_equal.
 unfold field_at, list_cell.
 autorewrite with gather_prop.
 f_equal.
-f_equal.
-rewrite <- eq_rect_eq.
-unfold struct_Prop.
-simpl list_fields.
-unfold list_rect; simpl.
-repeat match goal with |- context [field_type ?i ?m] =>
-  set (t := field_type i m); compute in t; subst t
-end.
-apply prop_ext; split.
-intros [? [? [? ?]]].
-rewrite field_compatible_cons in H2; destruct H2; auto.
-split; auto.
-split3; auto.
-compute; auto.
-intros [? [? [? ?]]].
+apply ND_prop_ext.
+rewrite field_compatible_cons; simpl.
+rewrite field_compatible_cons; simpl.
 intuition.
-rewrite field_compatible_cons; split; auto.
-left; reflexivity.
-rewrite field_compatible_cons; split; auto.
-right; left; reflexivity.
-(* old version of proof, for wand-based spec of list_cell 
-unfold list_cell, list_data.
-rewrite <- !eq_rect_eq.
-unfold fold_reptype; simpl; rewrite !eq_rect_r_eq.
-unfold default_val; simpl.
-unfold field_at_.
-change (default_val (nested_field_type list_struct [StructField _next]))
-  with Vundef.
-unfold data_at.
-unfold_field_at 5%nat.
-rewrite <- !sepcon_assoc.
-symmetry; apply wand_sepcon.
-*)
++ left; auto.
++ right; left; auto.
 Qed.
 
 Lemma make_unmake:

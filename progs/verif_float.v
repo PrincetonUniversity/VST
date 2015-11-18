@@ -70,12 +70,11 @@ entailer!.
 simpl.
 unfold field_at, data_at', at_offset. simpl.
 repeat rewrite prop_true_andp by
- (split; [(split3; [ | | split3; [ | | split3; [ | | split]]]; auto; try reflexivity; try apply I;
+ ((split3; [ | | split3; [ | | split3; [ | | split]]]; auto; try reflexivity; try apply I;
    try (eapply gvar_size_compatible; eauto; simpl; computable);
    try (eapply gvar_align_compatible; eauto);
    solve [compute; auto])
-  | intro; apply I
-  ]).
+  ).
 fold noattr; fold tint; fold tfloat; fold tdouble.
 repeat match goal with |- context [field_offset ?A ?B ?C] =>
   set (aa :=field_offset A B C); compute in aa; subst aa

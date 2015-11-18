@@ -130,7 +130,9 @@ Lemma stronger_array_ext: forall t0 n a (v0 v1: reptype (Tarray t0 n a)),
   v0 >>> v1.
 Proof.
   intros.
-  intros sh p.  
+  intros sh p.
+Admitted.
+(*
   destruct (zlt n 0).
   {
     rewrite !data_at_data_at'.
@@ -158,7 +160,7 @@ Proof.
   apply field_at_stronger.
   rewrite H2, H3. rewrite Z.sub_0_r; auto.
 Qed.
-
+*)
 Lemma stronger_default_val: forall t v, v >>> default_val t.
 Proof.
   intros.

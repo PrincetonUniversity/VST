@@ -129,18 +129,18 @@ Time forward_for_simple_bound 4
       2: rewrite int_max_signed_eq, int_min_signed_eq; omega.
       2: rewrite int_max_signed_eq, int_min_signed_eq; omega.
     rewrite Z.rem_mod_nonneg; try omega.
-    Time forward; rewrite NV. (*15 SLOW*)
-    Time solve[entailer!]. (*5.4*)
-    Time forward. (*14.7 SLOW (was 8)*)
-    { Exists (upd_Znth_in_list m T (Vint v)).
-      Time entailer!. (*8.9*)
+    Time forward; rewrite NV. (*19 SLOW*)
+    Time solve[entailer!]. (*6*)
+    Time forward. (*16.8 SLOW*)
+    { Exists (upd_Znth m T (Vint v)).
+      Time entailer!. (*11.1*)
       intros mm ?. 
       destruct (zeq mm m); subst.
       + rewrite upd_Znth_same; try omega. rewrite NV; trivial. 
       + rewrite upd_Znth_diff; try omega. apply HT; omega. } 
   }
-Time entailer!. (*7.6*)
-Time Qed. (*32.2*)
+Time entailer!. (*8*)
+Time Qed. (*40.1*)
 
 Lemma array_copy3:
 forall (Espec : OracleKind) c k h nonce out (OUT:list val)
@@ -206,11 +206,11 @@ Time forward_for_simple_bound 16 (EX m:Z,
 { Intros mlist. rename H into M. rename i0 into m. rename H0 into HM.
        destruct (WZ _ M) as [mval MVAL].
        Time assert_PROP (Zlength mlist = 16) as ML by entailer!. (*3.5*)
-       Time forward;  rewrite MVAL. (*8.7*)
-       Time solve[entailer!]. (*3.3*)
-       Time forward. (*9*)
-       { Exists (upd_Znth_in_list m mlist (Vint mval)).
-         Time entailer!. (*5.6*)
+       Time forward;  rewrite MVAL. (*11*)
+       Time solve[entailer!]. (*4.3*)
+       Time forward. (*12.6*)
+       { Exists (upd_Znth m mlist (Vint mval)).
+         Time entailer!. (*8.2*)
          intros mm ?.
          destruct (zeq mm m); subst.
          + rewrite MVAL, upd_Znth_same; trivial. omega.
@@ -296,7 +296,7 @@ Lemma pattern1_noStmt Espec Source1 Source2 Target Offset: forall
    lvar _w (tarray tuint 16) w; temp _in nonce; temp _out out; temp _c c;
    temp _k k; temp _h (Vint (Int.repr h)))
    SEP  (data_at Tsh (tarray tuint 4) 
-        (upd_Znth_in_list Target tlist
+        (upd_Znth Target tlist
            (Vint
               (Int.xor ValTgt (Int.rol (Int.add ValS1 ValS2) (Int.repr Offset))))) t; 
    data_at Tsh (tarray tuint 16) wlist w;
@@ -389,7 +389,7 @@ Lemma pattern2_noStmt Espec Source1 Source2 Target Offset: forall
    lvar _w (tarray tuint 16) w; temp _in nonce; temp _out out; temp _c c;
    temp _k k; temp _h (Vint (Int.repr h)))
    SEP  (data_at Tsh (tarray tuint 4) 
-        (upd_Znth_in_list Target tlist
+        (upd_Znth Target tlist
            (Vint
               (Int.xor ValTgt (Int.rol (Int.add ValS1 ValS2) (Int.repr Offset))))) t; 
    data_at Tsh (tarray tuint 16) wlist w;
@@ -482,7 +482,7 @@ Lemma pattern3_noStmt Espec Source1 Source2 Target Offset: forall
    lvar _w (tarray tuint 16) w; temp _in nonce; temp _out out; temp _c c;
    temp _k k; temp _h (Vint (Int.repr h)))
    SEP  (data_at Tsh (tarray tuint 4) 
-        (upd_Znth_in_list Target tlist
+        (upd_Znth Target tlist
            (Vint
               (Int.xor ValTgt (Int.rol (Int.add ValS1 ValS2) (Int.repr Offset))))) t; 
    data_at Tsh (tarray tuint 16) wlist w;
@@ -575,7 +575,7 @@ Lemma pattern4_noStmt Espec Source1 Source2 Target Offset: forall
    lvar _w (tarray tuint 16) w; temp _in nonce; temp _out out; temp _c c;
    temp _k k; temp _h (Vint (Int.repr h)))
    SEP  (data_at Tsh (tarray tuint 4) 
-        (upd_Znth_in_list Target tlist
+        (upd_Znth Target tlist
            (Vint
               (Int.xor ValTgt (Int.rol (Int.add ValS1 ValS2) (Int.repr Offset))))) t; 
    data_at Tsh (tarray tuint 16) wlist w;
@@ -605,10 +605,10 @@ Time Qed. (*77*) (*VST Issue -- why is this Qed another 20 secs SLOWer???*)
 
 Definition wlistJ' (wlist:list val) (j: Z) (t0 t1 t2 t3:int) (l: list val): Prop :=
   Zlength l = 16 /\ 
-  l = upd_Znth_in_list (4 * j + (j + 3) mod 4)
-       (upd_Znth_in_list (4 * j + (j + 2) mod 4)
-         (upd_Znth_in_list (4 * j + (j + 1) mod 4)
-          (upd_Znth_in_list (4 * j + (j + 0) mod 4) wlist (Vint t0))
+  l = upd_Znth (4 * j + (j + 3) mod 4)
+       (upd_Znth (4 * j + (j + 2) mod 4)
+         (upd_Znth (4 * j + (j + 1) mod 4)
+          (upd_Znth (4 * j + (j + 0) mod 4) wlist (Vint t0))
           (Vint t1)) (Vint t2)) (Vint t3).
 
 Fixpoint WLIST' (wlist : list val) (tlist: list int) (j:Z) m l :=
@@ -618,7 +618,7 @@ Fixpoint WLIST' (wlist : list val) (tlist: list int) (j:Z) m l :=
             Zlength l = Zlength wlist /\
             WLIST' wlist tlist j m' l' /\
             Znth (Z.of_nat m') (map Vint tlist) Vundef = Vint tm /\
-            l = upd_Znth_in_list (4*j+ ((j+Z.of_nat m') mod 4)) l' (Vint tm)
+            l = upd_Znth (4*j+ ((j+Z.of_nat m') mod 4)) l' (Vint tm)
   end.
 
 Lemma WLIST'_length wlist tlist j : forall m l, WLIST' wlist tlist j m l -> Zlength l=Zlength wlist.
@@ -741,7 +741,7 @@ Opaque Z.mul. Opaque Z.add.
   Time forward. (*12.5 SLOW; was 7.7*)
   { apply prop_right.
     assert (0<= (j + m) mod 4 < 4). apply Z_mod_lt; omega. omega. }
-  Exists (upd_Znth_in_list (4 * j + (j + m) mod 4) wlist1 (Vint tm)). (*_id0)). *)
+  Exists (upd_Znth (4 * j + (j + m) mod 4) wlist1 (Vint tm)). (*_id0)). *)
   rewrite TM.
   Time entailer!. (*8.7*)
   (*
@@ -753,7 +753,7 @@ Opaque Z.mul. Opaque Z.add.
     rewrite SS; simpl.
     exists wlist1, _id0.
     assert (WL1: Zlength wlist1 = 16). erewrite WLIST'_length. 2: eassumption. assumption.
-    split. rewrite upd_Znth_in_list_Zlength. eapply WLIST'_length; eassumption.
+    split. rewrite upd_Znth_Zlength. eapply WLIST'_length; eassumption.
            rewrite WL1. omega.
            split. trivial.  
            rewrite Z2Nat.id. split; trivial. omega. }
@@ -1144,7 +1144,7 @@ wlist (WL: Zlength wlist = 16)*)
     apply andp_left2. Time entailer!. (*7.4*) 
     intros ? ?. apply andp_left2. apply derives_refl.
     remember (Int.xor t1 (Int.rol (Int.add t0 t3) (Int.repr 7))) as tt0.
-    remember (upd_Znth_in_list 1 tlist (Vint tt0)) as tlist1.
+    remember (upd_Znth 1 tlist (Vint tt0)) as tlist1.
     assert(ZNTH1_1: Znth 1 tlist1 Vundef = Vint tt0).
       subst tlist1; apply upd_Znth_same. omega.
     assert(ZNTH1_0: Znth 0 tlist1 Vundef = Vint t0).
@@ -1154,7 +1154,7 @@ wlist (WL: Zlength wlist = 16)*)
     assert(ZNTH1_3: Znth 3 tlist1 Vundef = Vint t3).
       subst tlist1; rewrite upd_Znth_diff; trivial; omega.
   assert (LT1: Zlength tlist1 = 4).
-    subst tlist1. rewrite upd_Znth_in_list_Zlength. apply TL. omega.
+    subst tlist1. rewrite upd_Znth_Zlength. apply TL. omega.
  
   (*VST Issue: mkConciseDelta SalsaVarSpecs SalsaFunSpecs f_core Delta. doesn't work any longer*)
   forward_seq. 
@@ -1162,7 +1162,7 @@ wlist (WL: Zlength wlist = 16)*)
           rewrite Int.unsigned_repr. omega. rewrite int_max_unsigned_eq; omega.
     remember (Int.xor t2 (Int.rol (Int.add tt0 t0) (Int.repr 9))) as tt1.
 
-  remember (upd_Znth_in_list 2 tlist1 (Vint tt1)) as tlist2.
+  remember (upd_Znth 2 tlist1 (Vint tt1)) as tlist2.
     assert(ZNTH2_1: Znth 1 tlist2 Vundef = Vint tt0).
       subst tlist2. rewrite upd_Znth_diff; trivial; omega.
     assert(ZNTH2_0: Znth 0 tlist2 Vundef = Vint t0).
@@ -1172,15 +1172,15 @@ wlist (WL: Zlength wlist = 16)*)
     assert(ZNTH2_3: Znth 3 tlist2 Vundef = Vint t3).
       subst tlist2; rewrite upd_Znth_diff; trivial; omega.
   assert (LT2: Zlength tlist2 = 4).
-    subst tlist2. rewrite upd_Znth_in_list_Zlength; trivial. omega.
+    subst tlist2. rewrite upd_Znth_Zlength; trivial. omega.
 
   forward_seq. 
   eapply (pattern3_noStmt _ 2 1 3 13); try omega; try eassumption.
           rewrite Int.unsigned_repr. omega. rewrite int_max_unsigned_eq; omega.
   remember (Int.xor t3 (Int.rol (Int.add tt1 tt0) (Int.repr 13))) as tt2.  
-  remember (upd_Znth_in_list 3 tlist2 (Vint tt2)) as tlist3.
+  remember (upd_Znth 3 tlist2 (Vint tt2)) as tlist3.
   assert (LT3:  Zlength tlist3 = 4).
-    subst tlist3. rewrite upd_Znth_in_list_Zlength; trivial. omega.
+    subst tlist3. rewrite upd_Znth_Zlength; trivial. omega.
 
   assert(ZNTH3_1: Znth 1 tlist3 Vundef = Vint tt0).
       subst tlist3; rewrite upd_Znth_diff; trivial; omega.
@@ -1195,9 +1195,9 @@ wlist (WL: Zlength wlist = 16)*)
     eapply (pattern4_noStmt _ 3 2 0 18); try omega; try eassumption.
           rewrite Int.unsigned_repr. omega. rewrite int_max_unsigned_eq; omega.
   remember (Int.xor t0 (Int.rol (Int.add tt2 tt1) (Int.repr 18))) as tt3.
-  remember (upd_Znth_in_list 0 tlist3 (Vint tt3)) as tlist4.
+  remember (upd_Znth 0 tlist3 (Vint tt3)) as tlist4.
   assert (LT4:  Zlength tlist4 = 4).
-    subst tlist4. rewrite upd_Znth_in_list_Zlength; trivial. omega.
+    subst tlist4. rewrite upd_Znth_Zlength; trivial. omega.
 
    assert (TLI: tlist = map Vint [t0; t1;t2;t3]).
       clear - T0 T1 T2 T3 TL.
@@ -1212,7 +1212,7 @@ wlist (WL: Zlength wlist = 16)*)
       destruct tlist; trivial. repeat rewrite Zlength_cons' in TL. specialize (Zlength_nonneg tlist); intros; omega.
    subst tlist.
    assert (tlist4 = map Vint [tt3; tt0; tt1; tt2]).
-     subst tlist4 tlist3 tlist2 tlist1. unfold upd_Znth_in_list. Transparent plus. Transparent Z.add. Transparent Z.sub. simpl.
+     subst tlist4 tlist3 tlist2 tlist1. unfold upd_Znth. Transparent plus. Transparent Z.add. Transparent Z.sub. simpl.
      f_equal.
    clear Heqtlist4 Heqtlist3 Heqtlist2 Heqtlist1.
    subst tlist4.

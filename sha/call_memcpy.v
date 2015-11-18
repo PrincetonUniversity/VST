@@ -340,18 +340,9 @@ forget val as t. subst t.
 apply JMeq_eq in H. subst; auto.
 }
 erewrite (field_at_Tarray shq) in Hpre|-*; try eassumption; auto; try omega.
-rewrite (split2_array_at shp tp pathp 0 (lop+len)) in Hpre by omega.
-rewrite (split2_array_at shp tp pathp 0 lop) in Hpre by omega.
-rewrite (split2_array_at shq tq pathq 0 (loq+len)) in Hpre|-* by omega.
-rewrite (split2_array_at shq tq pathq 0 loq (loq+len)) in Hpre|-* by omega.
+rewrite (split3seg_array_at shp tp pathp 0 lop (lop+len)) in Hpre by omega.
+rewrite (split3seg_array_at shq tq pathq 0 loq (loq+len)) in Hpre|-* by omega.
 
-rewrite !Z.sub_0_r in *.
-rewrite Zlength_sublist in Hpre|-*; try omega.
-rewrite Zlength_sublist in Hpre; try omega.
-rewrite sublist_sublist in Hpre|-* by omega.
-rewrite sublist_sublist in Hpre|-* by omega.
-rewrite sublist_sublist in Hpre; try omega.
-rewrite !Z.add_0_r in *.
 rewrite !Z.sub_0_r in *.
 
 normalize in Hpre. normalize.
@@ -427,7 +418,7 @@ eapply semax_pre_post;
  unfold SEPx.
  f_equal.
  simpl.
- cancel.
+ rewrite LENvqx, LENvpx; cancel.
  rewrite sepcon_comm.
  apply sepcon_derives.
  rewrite array_at_data_at' by (clear - FC; intuition).
@@ -452,7 +443,7 @@ eapply semax_pre_post;
  simpl.
  Intros x. rewrite prop_true_andp by auto.
  rewrite map_sublist.
- cancel.
+ rewrite LENvqx; cancel.
  clear witness Frame.
 (* hnf in H7. normalize in H7.*)
  normalize in H8.
@@ -476,12 +467,11 @@ assert (Zlength vpy = np). {
  rewrite Zlength_splice_into_list; try omega.
 }
  erewrite field_at_Tarray; try eassumption; try omega.
- rewrite (split2_array_at shp tp pathp 0 lop np)  by omega.
- rewrite (split2_array_at shp tp pathp lop (lop+len) np)  by omega.
+ rewrite (split3seg_array_at shp tp pathp 0 lop (lop+len) np) by omega.
  rewrite Z.sub_0_r.
  replace (lop+len-lop)%Z with len by omega.
  autorewrite with sublist.
- rewrite <- sepcon_assoc.
+ 
 match goal with |- ?A * ?B * ?C * ?D |-- _ =>
  apply derives_trans with (C * B * D * A); [solve [cancel] | ]
 end.
@@ -513,7 +503,7 @@ repeat apply sepcon_derives.
  forget  (default_val (nested_field_type tp (ArraySubsc 0 :: pathp))) as d.
  apply JMeq_eq.
  rewrite H10,H11. clear u0 u1 H10 H11.
-  rewrite (Z.add_comm len lop).
+ rewrite LENvpx.
  admit.  (* tedious *)
 +
  rewrite array_at_data_at' by (clear - FC; intuition).
@@ -607,13 +597,8 @@ forget val as t. subst t.
 apply JMeq_eq in Hvpx. subst; auto.
 }
 erewrite field_at_Tarray in Hpre; try eassumption; auto; try omega.
-rewrite (split2_array_at shp tp pathp 0 (lop+len)) in Hpre by omega.
-rewrite (split2_array_at shp tp pathp 0 lop) in Hpre by omega.
-rewrite Zlength_sublist in Hpre; try omega.
-rewrite sublist_sublist in Hpre by omega.
-rewrite sublist_sublist in Hpre by omega.
+rewrite (split3seg_array_at shp tp pathp 0 lop (lop+len)) in Hpre by omega.
 rewrite !Z.sub_0_r in Hpre.
-rewrite !Z.add_0_r in Hpre.
 
 assert_PROP (field_compatible0 tp (pathp SUB lop) p /\
             field_compatible0 tp (pathp SUB (lop + len)) p)
@@ -679,7 +664,6 @@ eapply semax_pre_post;
  f_equal.
  simpl.
  cancel.
- apply sepcon_derives.
  rewrite array_at_data_at' by (clear - FC; intuition).
  eapply derives_trans; [apply data_at_data_at_ | ].
  eapply derives_trans; [apply data_at__memory_block_cancel | ].
@@ -687,8 +671,6 @@ eapply semax_pre_post;
   unfold nested_field_array_type.
    rewrite nested_field_type_ind, H0. simpl.
   rewrite Z.max_r by omega. omega.
- apply derives_refl'; f_equal.
- rewrite LENvpx; auto.
 *
  intros. apply andp_left2. apply normal_ret_assert_derives'.
  unfold ifvoid. unfold tptr at 1.
@@ -720,15 +702,8 @@ clear H0.
 rewrite Zlength_splice_into_list by omega.
 auto.
 }
-rewrite (split2_array_at shp tp pathp 0 (lop+len) np) by omega.
-rewrite (split2_array_at shp tp pathp 0 lop (lop+len)) by omega.
+rewrite (split3seg_array_at shp tp pathp 0 lop (lop+len) np) by omega.
 rewrite !Z.sub_0_r.
-rewrite Zlength_sublist by omega.
-rewrite sublist_sublist by omega.
-rewrite sublist_sublist by omega.
-rewrite !Z.sub_0_r.
-rewrite !Z.add_0_r.
-rewrite H1.
 replace (sublist 0 lop vpx) with (sublist 0 lop vpy).
 Focus 2. {
 generalize dependent vpy.

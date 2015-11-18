@@ -80,26 +80,26 @@ destruct W4 as [_ W4]; simpl in W4.
 rewrite Z.mod_small in W4. 2: omega. 
 rewrite Z.mod_small in W4. 2: omega. 
 rewrite Z.mod_small in W4. 2: omega.*)
-unfold upd_Znth_in_list, sublist in W4; simpl in W4. subst w3. 
+unfold upd_Znth, sublist in W4; simpl in W4. subst w3. 
 simpl in W3.
 remember (Int.xor x9 (Int.rol (Int.add x5 x1) (Int.repr 7))) as z6.
 remember (Int.xor x13 (Int.rol (Int.add z6 x5) (Int.repr 9))) as z7.
 remember (Int.xor x1 (Int.rol (Int.add z7 z6) (Int.repr 13))) as z4.
 remember (Int.xor x5 (Int.rol (Int.add z4 z7) (Int.repr 18))) as z5. 
 destruct W3 as [_ W3]; simpl in W3. 
-unfold upd_Znth_in_list, sublist in W3; simpl in W3. subst w2. 
+unfold upd_Znth, sublist in W3; simpl in W3. subst w2. 
 destruct W2 as [_ W2]. simpl in W2. 
 remember (Int.xor x14 (Int.rol (Int.add x10 x6) (Int.repr 7))) as z11.
 remember (Int.xor x2 (Int.rol (Int.add z11 x10) (Int.repr 9))) as z8.
 remember (Int.xor x6 (Int.rol (Int.add z8 z11) (Int.repr 13))) as z9.
 remember (Int.xor x10 (Int.rol (Int.add z9 z8) (Int.repr 18))) as z10. 
-unfold upd_Znth_in_list, sublist in W2; simpl in W2. subst w1. 
+unfold upd_Znth, sublist in W2; simpl in W2. subst w1. 
 destruct W1 as [_ W1]; simpl in W1. 
 remember (Int.xor x3 (Int.rol (Int.add x15 x11) (Int.repr 7))) as z12.
 remember (Int.xor x7 (Int.rol (Int.add z12 x15) (Int.repr 9))) as z13.
 remember (Int.xor x11 (Int.rol (Int.add z13 z12) (Int.repr 13))) as z14.
 remember (Int.xor x15 (Int.rol (Int.add z14 z13) (Int.repr 18))) as z15.
-unfold upd_Znth_in_list, sublist in W1; simpl in W1. subst w. clear HW. 
+unfold upd_Znth, sublist in W1; simpl in W1. subst w. clear HW. 
 exists [z0; z1; z2; z3; z4; z5; z6; z7;
         z8; z9; z10; z11; z12; z13; z14; z15].
 split. reflexivity.

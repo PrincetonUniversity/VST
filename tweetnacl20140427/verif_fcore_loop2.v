@@ -100,7 +100,7 @@ Proof. intros. abbreviate_semax.
       rewrite app_Znth2, L1, Zminus_diag, Znth_0_cons in Vi. inversion Vi; clear Vi; subst vi. 2: omega. 
       Time forward. (*8.2*)
       { Opaque upd_upto. 
-        Exists (upd_Znth_in_list (Zlength l1) (l1 ++ l2) (Vint v)). 
+        Exists (upd_Znth (Zlength l1) (l1 ++ l2) (Vint v)). 
         rewrite APP2. Time entailer!. (*7.4*) 
         clear - APP2 APP3 I L2. 
         assert (TT: exists lT, l2 = Vundef::lT).
@@ -113,7 +113,7 @@ Proof. intros. abbreviate_semax.
         repeat rewrite Zlength_app.
         repeat rewrite <- app_assoc. simpl. rewrite APP3, L2.
         split. 
-          rewrite upd_Znth_in_list_char; trivial. omega.
+          rewrite upd_Znth_char; trivial. omega.
           rewrite Zlength_cons', Zlength_nil, Zplus_0_r. solve [auto]. }
   }
   apply derives_refl.

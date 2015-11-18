@@ -97,17 +97,17 @@ Proof.
     destruct (Znth_mapVint ys i Vundef) as [yi Yi]. rewrite Zlength_map in YL; omega.
     Time forward; rewrite Yi. (*7.2*)
     Time solve[entailer!]. (*2.7*)
-    Time forward; rewrite HXi by omega. (*7.4*)
-    Time solve[entailer!]. (*2.6*) 
-    Time forward. (*7.4*) 
-    Exists (upd_Znth_in_list i (map Vint xints) (Vint (Int.add yi xi))).
-    Time entailer!. (*4.6*) (*
+    Time forward; rewrite HXi by omega. (*12.3*)
+    Time solve[entailer!]. (*3.6*) 
+    Time forward. (*12.1*) 
+    Exists (upd_Znth i (map Vint xints) (Vint (Int.add yi xi))).
+    Time entailer!. (*6.8*) (*
     rewrite Yi in H1. symmetry in H1; inv H1. rewrite Yi, HXi; simpl. 2: omega. 
-    apply (exp_right (upd_Znth_in_list i (map Vint xints) (Vint (Int.add yi xi)))); entailer.
+    apply (exp_right (upd_Znth i (map Vint xints) (Vint (Int.add yi xi)))); entailer.
     apply prop_right.*)
     split.
-      rewrite upd_Znth_in_list_Zlength. assumption. simpl; rewrite XLL. omega.
-    eexists; split. apply upd_Znth_in_list_ints. 
+      rewrite upd_Znth_Zlength. assumption. simpl; rewrite XLL. omega.
+    eexists; split. apply upd_Znth_ints. 
     intros k K. destruct (J _ K) as [xj [Xj [IJ1 IJ2]]].
       exists xj. split. assumption.
       split; intros. 
@@ -141,7 +141,7 @@ Fixpoint hPosLoop2 (n:nat) (sumlist: list int) (C Nonce: SixteenByte): list int 
                 let s := hPosLoop2 m sumlist C Nonce in
                 let five := Int.sub (Znth (5*j) sumlist Int.zero) (littleendian (Select16Q C j)) in
                 let six := Int.sub (Znth (6+j) sumlist Int.zero) (littleendian (Select16Q Nonce j)) in
-                upd_Znth_in_list (6+j) (upd_Znth_in_list (5*j) s five) six
+                upd_Znth (6+j) (upd_Znth (5*j) s five) six
        end.
 
 Lemma HTrue_loop2 Espec: forall t y x w nonce out c k h OUT ys intsums Nonce C K,
@@ -291,7 +291,7 @@ Opaque crypto_core_salsa20_spec. Opaque crypto_core_hsalsa20_spec.
       assert (PL2length: forall n, (0<=n<4)%nat -> Zlength (hPosLoop2 n intsums C Nonce) = 16).
         clear - SL.
         induction n; simpl; intros. trivial.
-        repeat rewrite upd_Znth_in_list_Zlength. apply IHn; omega. omega. 
+        repeat rewrite upd_Znth_Zlength. apply IHn; omega. omega. 
           rewrite IHn; omega. 
           rewrite IHn; omega. 
       assert (PL2Zlength: Zlength (hPosLoop2 (Z.to_nat i) intsums C Nonce) = 16).
@@ -367,29 +367,29 @@ Opaque crypto_core_salsa20_spec. Opaque crypto_core_hsalsa20_spec.
        apply data_at_ext.
        rewrite (Zplus_comm i 1), Z2Nat.inj_add; simpl; try omega.
        rewrite Z2Nat.id.
-       rewrite upd_Znth_in_list_ints.
-       rewrite upd_Znth_in_list_ints. 
-       unfold upd_Znth_in_list.
+       rewrite upd_Znth_ints.
+       rewrite upd_Znth_ints. 
+       unfold upd_Znth.
        assert (VJeq: vj = Znth (5 * i) intsums Int.zero). 
        { clear - Vj SL PL2length I.
          rewrite (Znth_map _ _ (5 * i) Vint) with (d':=Int.zero) in Vj. inv Vj.
          2: rewrite PL2length; try omega. Focus 2. split. apply (Z2Nat.inj_le 0); omega. apply (Z2Nat.inj_lt _ 4); omega.        
          destruct (zeq i 0); subst; simpl. trivial.
          destruct (zeq i 1); subst; simpl.
-               rewrite upd_Znth_diff; repeat rewrite upd_Znth_in_list_Zlength; try omega.
-               rewrite upd_Znth_diff; repeat rewrite upd_Znth_in_list_Zlength; try omega. trivial.
+               rewrite upd_Znth_diff; repeat rewrite upd_Znth_Zlength; try omega.
+               rewrite upd_Znth_diff; repeat rewrite upd_Znth_Zlength; try omega. trivial.
          destruct (zeq i 2); subst; simpl.
-               rewrite upd_Znth_diff; repeat rewrite upd_Znth_in_list_Zlength; try omega.
-               rewrite upd_Znth_diff; repeat rewrite upd_Znth_in_list_Zlength; try omega. 
-               rewrite upd_Znth_diff; repeat rewrite upd_Znth_in_list_Zlength; try omega.
-               rewrite upd_Znth_diff; repeat rewrite upd_Znth_in_list_Zlength; try omega. trivial.
+               rewrite upd_Znth_diff; repeat rewrite upd_Znth_Zlength; try omega.
+               rewrite upd_Znth_diff; repeat rewrite upd_Znth_Zlength; try omega. 
+               rewrite upd_Znth_diff; repeat rewrite upd_Znth_Zlength; try omega.
+               rewrite upd_Znth_diff; repeat rewrite upd_Znth_Zlength; try omega. trivial.
          destruct (zeq i 3); subst; simpl.
-               rewrite upd_Znth_diff; repeat rewrite upd_Znth_in_list_Zlength; try omega.
-               rewrite upd_Znth_diff; repeat rewrite upd_Znth_in_list_Zlength; try omega. 
-               rewrite upd_Znth_diff; repeat rewrite upd_Znth_in_list_Zlength; try omega.
-               rewrite upd_Znth_diff; repeat rewrite upd_Znth_in_list_Zlength; try omega. 
-               rewrite upd_Znth_diff; repeat rewrite upd_Znth_in_list_Zlength; try omega.
-               rewrite upd_Znth_diff; repeat rewrite upd_Znth_in_list_Zlength; try omega. trivial.
+               rewrite upd_Znth_diff; repeat rewrite upd_Znth_Zlength; try omega.
+               rewrite upd_Znth_diff; repeat rewrite upd_Znth_Zlength; try omega. 
+               rewrite upd_Znth_diff; repeat rewrite upd_Znth_Zlength; try omega.
+               rewrite upd_Znth_diff; repeat rewrite upd_Znth_Zlength; try omega. 
+               rewrite upd_Znth_diff; repeat rewrite upd_Znth_Zlength; try omega.
+               rewrite upd_Znth_diff; repeat rewrite upd_Znth_Zlength; try omega. trivial.
          omega. } 
        rewrite <- VJeq, Zlength_map. trivial.
        assert (UJeq: uj = Znth (6 + i) intsums Int.zero).
@@ -398,20 +398,20 @@ Opaque crypto_core_salsa20_spec. Opaque crypto_core_hsalsa20_spec.
          2: rewrite PL2length; try omega. Focus 2. split. apply (Z2Nat.inj_le 0); omega. apply (Z2Nat.inj_lt _ 4); omega.        
          destruct (zeq i 0); subst; simpl. trivial.
          destruct (zeq i 1); subst; simpl.
-               rewrite upd_Znth_diff; repeat rewrite upd_Znth_in_list_Zlength; try omega.
-               rewrite upd_Znth_diff; repeat rewrite upd_Znth_in_list_Zlength; try omega. trivial.
+               rewrite upd_Znth_diff; repeat rewrite upd_Znth_Zlength; try omega.
+               rewrite upd_Znth_diff; repeat rewrite upd_Znth_Zlength; try omega. trivial.
          destruct (zeq i 2); subst; simpl.
-               rewrite upd_Znth_diff; repeat rewrite upd_Znth_in_list_Zlength; try omega.
-               rewrite upd_Znth_diff; repeat rewrite upd_Znth_in_list_Zlength; try omega. 
-               rewrite upd_Znth_diff; repeat rewrite upd_Znth_in_list_Zlength; try omega.
-               rewrite upd_Znth_diff; repeat rewrite upd_Znth_in_list_Zlength; try omega. trivial.
+               rewrite upd_Znth_diff; repeat rewrite upd_Znth_Zlength; try omega.
+               rewrite upd_Znth_diff; repeat rewrite upd_Znth_Zlength; try omega. 
+               rewrite upd_Znth_diff; repeat rewrite upd_Znth_Zlength; try omega.
+               rewrite upd_Znth_diff; repeat rewrite upd_Znth_Zlength; try omega. trivial.
          destruct (zeq i 3); subst; simpl.
-               rewrite upd_Znth_diff; repeat rewrite upd_Znth_in_list_Zlength; try omega.
-               rewrite upd_Znth_diff; repeat rewrite upd_Znth_in_list_Zlength; try omega. 
-               rewrite upd_Znth_diff; repeat rewrite upd_Znth_in_list_Zlength; try omega.
-               rewrite upd_Znth_diff; repeat rewrite upd_Znth_in_list_Zlength; try omega. 
-               rewrite upd_Znth_diff; repeat rewrite upd_Znth_in_list_Zlength; try omega.
-               rewrite upd_Znth_diff; repeat rewrite upd_Znth_in_list_Zlength; try omega. trivial.
+               rewrite upd_Znth_diff; repeat rewrite upd_Znth_Zlength; try omega.
+               rewrite upd_Znth_diff; repeat rewrite upd_Znth_Zlength; try omega. 
+               rewrite upd_Znth_diff; repeat rewrite upd_Znth_Zlength; try omega.
+               rewrite upd_Znth_diff; repeat rewrite upd_Znth_Zlength; try omega. 
+               rewrite upd_Znth_diff; repeat rewrite upd_Znth_Zlength; try omega.
+               rewrite upd_Znth_diff; repeat rewrite upd_Znth_Zlength; try omega. trivial.
          omega. }
        rewrite <- UJeq, Zlength_map. reflexivity. apply I.
     +  omega. 
@@ -639,9 +639,9 @@ Lemma hposLoop2_Zlength16 C N l (L:Zlength l = 16): forall n,
       5 * Z.of_nat n < 16-> 6+ Z.of_nat n < 16 -> Zlength (hPosLoop2 (S n) l C N) = 16.
 Proof. intros. simpl. 
   induction n; simpl; intros; trivial.
-  rewrite upd_Znth_in_list_Zlength; rewrite upd_Znth_in_list_Zlength; omega. 
+  rewrite upd_Znth_Zlength; rewrite upd_Znth_Zlength; omega. 
   rewrite Nat2Z.inj_succ in *.
-  rewrite upd_Znth_in_list_Zlength; rewrite upd_Znth_in_list_Zlength; rewrite IHn; simpl; try omega. 
+  rewrite upd_Znth_Zlength; rewrite upd_Znth_Zlength; rewrite IHn; simpl; try omega. 
   rewrite Zpos_P_of_succ_nat. omega.
   rewrite Zpos_P_of_succ_nat. omega.
   rewrite Zpos_P_of_succ_nat. omega.

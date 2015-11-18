@@ -232,9 +232,17 @@ replace_SEP 0 (data_at Tsh t_struct_SHA256state_st
   erewrite field_at_Tarray; try reflexivity; auto.
   erewrite field_at_Tarray; try reflexivity; auto.
   rewrite <- H8.
-  rewrite (split2_array_at _ _ _ 0 (Zlength dd) 64) by Omega1.
-  rewrite (split2_array_at _ _ _ 0 (Zlength dd) 64) by Omega1.
   simplify_value_fits in H14. destruct H14.
+  rewrite (split2_array_at _ _ _ 0 (Zlength dd) 64) by (auto; Omega1).
+  rewrite (split2_array_at _ _ _ 0 (Zlength dd) 64).
+  2: Omega1.
+  Focus 2. {
+    rewrite Zlength_app, Zlength_list_repeat, Zlength_sublist.
+    2: rewrite Zlength_correct; omega.
+    2: change CBLOCKz with 64 in H3; omega.
+    rewrite Z.max_r by omega.
+    change CBLOCKz with 64; omega.
+  } Unfocus.
   change (@reptype CompSpecs tuchar) with val in H14. (* should not need this! *)
   pose proof CBLOCKz_eq.
   pose proof (Zlength_nonneg dd).

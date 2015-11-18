@@ -800,7 +800,7 @@ Qed.
 Transparent memory_block.
 
 Lemma spacer_memory_block:
-  forall sh be ed v, isptr v -> 
+  forall sh be ed v, isptr v ->
  spacer sh be ed v = memory_block sh (ed - be) (offset_val (Int.repr be) v).
 Proof.
   intros.
@@ -810,6 +810,23 @@ Proof.
   try solve [rewrite e; simpl offset_val; rewrite memory_block_zero_Vptr; auto].
   rewrite at_offset_eq.
   destruct be; auto.
+Qed.
+
+Lemma spacer_sepcon_memory_block: forall sh ofs lo hi b i,
+  0 <= lo ->
+  0 <= ofs ->
+  lo <= hi < Int.modulus ->
+  Int.unsigned i + ofs + hi <= Int.modulus ->
+  spacer sh (ofs + lo) (ofs + hi) (Vptr b i) * memory_block sh lo (offset_val (Int.repr ofs) (Vptr b i)) = memory_block sh hi (offset_val (Int.repr ofs) (Vptr b i)).
+Proof.
+  intros.
+  rewrite spacer_memory_block by (simpl; auto).
+  simpl offset_val.
+  inv_int i.
+  rewrite !add_repr.
+  rewrite sepcon_comm, Z.add_assoc, <- memory_block_split by omega.
+  f_equal.
+  omega.
 Qed.
 
 Hint Rewrite at_offset_eq3 : at_offset_db.

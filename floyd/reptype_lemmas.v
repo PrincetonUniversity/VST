@@ -310,6 +310,13 @@ Proof.
   destruct m; simpl; auto.
   destruct (member_dec p p); auto.
 Qed.
+
+Lemma const_true_is_default_filter: forall m, is_default_filter (fun _: ident * type => true) m.
+Proof.
+  intros.
+  destruct m; simpl; auto.
+Qed.
+
 (*
 Lemma union_default_filter_legal: forall m, m <> nil ->
   legal_compact_sum_filter (union_default_filter m) m = true.
@@ -323,7 +330,7 @@ Qed.
 *)
 
 Definition struct_default_val (m : members) := compact_prod_gen (fun it => default_val (field_type (fst it) m)) m.
-Definition union_default_val (m : members) := compact_sum_gen (union_default_filter m) (fun it => default_val (field_type (fst it) m)) m.
+Definition union_default_val (m : members) := compact_sum_gen (fun it => true) (fun it => default_val (field_type (fst it) m)) m.
 
 Lemma compact_prod_sigT_compact_prod_gen:
   forall {A B} {P: A -> Type} (genT: B -> A) (genV: forall b: B, P (genT b)) (gen: B -> sigT P) (l: list B),
@@ -425,7 +432,7 @@ Proof.
       (fun it => reptype_gen (field_type (fst it) (co_members (get_co i))))); intros.
     unfold reptype, default_val.
     destruct (reptype_gen (field_type (fst b) (co_members (get_co i)))); reflexivity.
-    apply union_default_filter_is_default_filter.
+    apply const_true_is_default_filter.
 Qed.
 
 Inductive pointer_val : Type :=

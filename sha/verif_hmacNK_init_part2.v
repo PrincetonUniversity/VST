@@ -79,7 +79,7 @@ Lemma UPD_IPAD: forall
   (isbyteZQb : isbyteZ (nth (Z.to_nat i) (HMAC_SHA256.mkKey key) 0))
   (X : Znth i (map Vint (map Int.repr (HMAC_SHA256.mkKey key))) Vundef =
       Vint (Int.repr (nth (Z.to_nat i) (HMAC_SHA256.mkKey key) 0))),
-upd_Znth_in_list i
+upd_Znth i
   (sublist 0 i
      (map Vint
         (map Int.repr
@@ -96,8 +96,8 @@ sublist 0 (i + 1)
            (HMAC_SHA256.mkArg (map Byte.repr (HMAC_SHA256.mkKey key)) Ipad)))) ++
 sublist (i + 1) 64 (default_val (Tarray tuchar 64 noattr)).
 Proof. intros. unfold HMAC_SHA256.mkArgZ in *.
-  rewrite upd_Znth_in_list_app2, Zlength_sublist, Zminus_0_r, Zminus_diag,
-     upd_Znth_in_list0; repeat rewrite Zlength_sublist; try omega.
+  rewrite upd_Znth_app2, Zlength_sublist, Zminus_0_r, Zminus_diag,
+     upd_Znth0; repeat rewrite Zlength_sublist; try omega.
   2: rewrite Zlength_default_val_Tarray_tuchar; omega. 
   2: do 2 rewrite Zlength_map; rewrite ZLI; omega.
   2: rewrite Zlength_default_val_Tarray_tuchar; omega. 
@@ -153,7 +153,7 @@ Lemma UPD_OPAD: forall
   (I : 0 <= i < 64)
   (isbyteZQb : isbyteZ (nth (Z.to_nat i) (HMAC_SHA256.mkKey key) 0))
   (X : Znth i (map Vint (map Int.repr (HMAC_SHA256.mkKey key))) Vundef =
-       Vint (Int.repr (nth (Z.to_nat i) (HMAC_SHA256.mkKey key) 0))),upd_Znth_in_list i
+       Vint (Int.repr (nth (Z.to_nat i) (HMAC_SHA256.mkKey key) 0))),upd_Znth i
   (sublist 0 i
      (map Vint
         (map Int.repr
@@ -180,8 +180,8 @@ sublist (i + 1) 64
         (map Byte.unsigned
            (HMAC_SHA256.mkArg (map Byte.repr (HMAC_SHA256.mkKey key)) Ipad)))).
 Proof. intros. unfold HMAC_SHA256.mkArgZ in *.
-  rewrite upd_Znth_in_list_app2, Zlength_sublist, Zminus_0_r, Zminus_diag,
-     upd_Znth_in_list0; repeat rewrite Zlength_sublist; try omega.
+  rewrite upd_Znth_app2, Zlength_sublist, Zminus_0_r, Zminus_diag,
+     upd_Znth0; repeat rewrite Zlength_sublist; try omega.
   2: do 2 rewrite Zlength_map; rewrite ZLI; omega.
   2: do 2 rewrite Zlength_map; rewrite ZLO; omega.
   2: do 2 rewrite Zlength_map; rewrite ZLI; omega.

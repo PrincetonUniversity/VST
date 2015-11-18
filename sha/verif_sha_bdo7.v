@@ -343,12 +343,12 @@ Lemma Xarray_update:
  forall i b,
   Zlength b = LBLOCKz ->
   16 <= i < 64 ->
-   upd_Znth_in_list (i mod 16) (map Vint (Xarray b (Z.to_nat i)))
+   upd_Znth (i mod 16) (map Vint (Xarray b (Z.to_nat i)))
           (Vint (W (nthi b) i))
   = map Vint (Xarray b (Z.to_nat i+1)).
 Proof.
 intros.
-unfold upd_Znth_in_list.
+unfold upd_Znth.
 rewrite !sublist_map.
 rewrite <- !map_cons, <- !map_app.
 f_equal.
