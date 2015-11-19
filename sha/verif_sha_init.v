@@ -21,7 +21,6 @@ simple apply andp_right; [apply prop_right | ].
 repeat split; auto.
 unfold s256_h, fst, s256a_regs.
 rewrite hash_blocks_equation. reflexivity.
-constructor.
 unfold data_at. apply derives_refl'; f_equal.
 f_equal.
 simpl.

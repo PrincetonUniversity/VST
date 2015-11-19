@@ -225,7 +225,6 @@ Intros hashed' dd' pad.
 rename H1 into DDbytes'.
 rename H2 into PAD.
 unfold POSTCONDITION, abbreviate; clear POSTCONDITION.
-unfold sha_finish.
 unfold SHA_256.
 unfold_data_at 1%nat.
 erewrite (field_at_Tarray Tsh _ [StructField _data]); try reflexivity; try omega.

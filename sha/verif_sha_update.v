@@ -69,11 +69,11 @@ semax
             data_block sh data d))
   update_last_if
   (normal_ret_assert
-     (EX  a' : s256abs,
-      PROP  (update_abs (sublist 0 len data) (S256abs hashed dd) a')
+     (PROP  ()
       LOCAL (gvar  _K256 kv)
       SEP  (K_vector kv;
-             sha256state_ a' c; data_block sh data d))).
+             sha256state_ (S256abs hashed dd ++ sublist 0 len data) c; 
+             data_block sh data d))).
 Proof.
   intros.
   unfold update_last_if; abbreviate_semax.
@@ -110,15 +110,31 @@ eapply semax_post_flipped3.
   rewrite field_address0_offset by auto with field_compatible.
   reflexivity.
 * 
+ assert (Hdiv': (LBLOCKz | Zlength (hashed ++ blocks)))
+   by (rewrite Zlength_app; apply Z.divide_add_r; auto).
  simpl tc_environ; rewrite insert_local.
  clear POSTCONDITION.
  pose proof CBLOCKz_eq.
  unfold splice_into_list; autorewrite with sublist.
  unfold data_block.  rewrite prop_true_andp by auto.
- Exists (S256abs (hashed++blocks) dd').
+(* Exists (S256abs (hashed++blocks) dd'). *)
  unfold sha256state_.
- entailer!.
- rewrite update_abs_eq.
+ Exists    (map Vint (hash_blocks init_registers (hashed ++ blocks)),
+                (Vint (lo_part (bitlength hashed dd + len * 8)),
+                 (Vint (hi_part (bitlength hashed dd + len * 8)),
+                  (map Vint (map Int.repr dd') ++ list_repeat (Z.to_nat (64-(len-b4d))) Vundef, 
+                   Vint (Int.repr (Zlength dd')))))).
+ pose proof (update_abs_eq  (sublist 0 len data) (S256abs hashed dd)
+                     (S256abs (hashed++blocks) dd')).
+ destruct H5 as [_ ?].
+ apply Forall_app; split; auto.
+ apply Forall_app; split; auto.
+ apply isbyte_intlist_to_Zlist.
+ apply Forall_app; split; auto.
+ apply isbyte_intlist_to_Zlist.
+ subst dd'; auto.
+ unfold update_abs in H5. rewrite <- H5.
+Focus 2. {
  exists blocks.
  rewrite !S256abs_hashed; auto; try omega.
  rewrite !S256abs_data; auto; try omega.
@@ -126,20 +142,7 @@ eapply semax_post_flipped3.
  rewrite Hblocks. unfold dd'. rewrite app_ass.
  f_equal.
  rewrite (sublist_split 0 b4d len); auto; omega.
- rewrite Zlength_app; apply Z.divide_add_r; auto.
- rewrite Zlength_app; apply Z.divide_add_r; auto.
- apply Forall_app; split; auto.
- apply Forall_app; split; auto.
- apply isbyte_intlist_to_Zlist.
- apply Forall_app; split; auto.
- apply isbyte_intlist_to_Zlist.
- subst dd'; apply Forall_sublist; auto.
- Exists    (map Vint (hash_blocks init_registers (hashed ++ blocks)),
-                (Vint (lo_part (bitlength hashed dd + len * 8)),
-                 (Vint (hi_part (bitlength hashed dd + len * 8)),
-                  (map Vint (map Int.repr dd') ++ list_repeat (Z.to_nat (64-(len-b4d))) Vundef, 
-                   Vint (Int.repr (Zlength dd')))))).
- simpl.
+ } Unfocus.
 assert (Hbb: bitlength hashed dd + len * 8 =
             bitlength (hashed ++ blocks) dd'). {
     unfold bitlength, dd'.
@@ -152,67 +155,60 @@ assert (Hbb: bitlength hashed dd + len * 8 =
 }
  rewrite Hbb.
  entailer!.
- unfold s256_data, dd'; simpl. autorewrite with sublist.
- hnf.
- rewrite S256abs_data
-  by first [rewrite Zlength_app; apply Z.divide_add_r; auto
-              | autorewrite with sublist; omega].
- unfold s256_h, s256_data, s256_num, s256_Nh, s256_Nl, fst, snd.
- unfold s256a_regs.
- rewrite S256abs_hashed
-  by first [rewrite Zlength_app; apply Z.divide_add_r; auto
-              | autorewrite with sublist; omega].
- rewrite bitlength_eq. autorewrite with sublist.
+hnf.  unfold s256_h, s256_data, s256_num, s256_Nh, s256_Nl, s256a_regs, fst, snd.
+ rewrite <- bitlength_eq.
+ rewrite !S256abs_hashed; auto; try omega.
+ rewrite !S256abs_data; auto; try omega.
  split3; auto.
  split; auto.
- rewrite !sublist_map; auto.
  autorewrite with sublist; auto.
  split; auto.
- unfold S256abs. apply Forall_app; split; auto.
+ apply Forall_app; split; auto.
  apply isbyte_intlist_to_Zlist.
-  unfold dd'.
- rewrite !sublist_map. autorewrite with sublist.
- unfold_data_at 1%nat. entailer!.
+ subst dd'; auto.
+ unfold_data_at 1%nat.
+ rewrite H2.
+ cancel. unfold dd'. rewrite !sublist_map. cancel.
 + (* else-clause *)
  assert (H4': (LBLOCKz | Zlength (hashed ++ blocks))%Z)
    by (rewrite Zlength_app; apply Z.divide_add_r; auto).
- forward. 
- normalize.
- Exists (S256abs (hashed++blocks) nil).
+ forward.
+ unfold sha256state_.
  entailer!.
- rewrite update_abs_eq.
+ eapply exp_right. apply andp_right; [ | apply derives_refl]. 
+ apply prop_right.
+ pose proof (update_abs_eq  (sublist 0 len data) (S256abs hashed dd)
+                     (S256abs (hashed++blocks) nil)).
+ destruct H9 as [_ ?].
+ apply Forall_app; split; auto.
+ apply Forall_app; split; auto.
+ apply isbyte_intlist_to_Zlist.
+ apply Forall_app; split; auto.
+ apply isbyte_intlist_to_Zlist.
+ unfold update_abs in H9. rewrite <- H9.
+Focus 2. {
  exists blocks.
  rewrite !S256abs_hashed; auto; try omega.
  rewrite !S256abs_data; auto; try omega.
- split; auto. rewrite <- app_nil_end.
- rewrite Hblocks. f_equal. f_equal. Omega1.
- apply Forall_app; split; auto.
- apply Forall_app; split; auto.
- apply isbyte_intlist_to_Zlist.
- apply Forall_app; split; auto.
- apply isbyte_intlist_to_Zlist.
- unfold sha256state_.
- set (bitlen := bitlength hashed dd + len * 8).
- eapply exp_right. apply andp_right; [ | apply derives_refl]. 
- entailer!.
- unfold s256_relate, s256_h, s256_Nh,s256_Nl, s256_num, s256_data, fst,snd.
- simpl.
  split; auto.
- unfold bitlen, bitlength.
- autorewrite with sublist.
- unfold s256a_regs. rewrite S256abs_hashed; auto.
- subst bitlen; rewrite <- bitlength_eq.
+ rewrite Hblocks. rewrite <- app_nil_end.
+ f_equal.
+ f_equal; omega.
+ } Unfocus.
+ clear H9.
+ hnf.  unfold s256_relate, s256_h, s256_Nh,s256_Nl, s256_num, s256_data, s256a_regs, fst,snd.
+ rewrite !S256abs_hashed; auto; try omega.
+ rewrite !S256abs_data; auto; try omega.
+ rewrite <- bitlength_eq.
  replace (bitlength hashed dd + len * 8) 
   with (bitlength (hashed ++ blocks) []).
  split3; auto.
- rewrite S256abs_data; auto.
- split.
- unfold S256abs.
- rewrite Forall_app. split.
+ split3; auto.
+ apply Forall_app; split.
  apply isbyte_intlist_to_Zlist.
  constructor.
  f_equal. f_equal.
- rewrite S256abs_data; auto.
+ rewrite Zlength_nil; omega.
  unfold bitlength.
  rewrite <- (Z.mul_add_distr_r _ _ 8).
  rewrite Zlength_nil, Z.add_0_r.
@@ -222,6 +218,36 @@ assert (Hbb: bitlength hashed dd + len * 8 =
  replace len with (Zlength blocks * 4 - Zlength dd) by omega.
  change 4%Z with WORD.
  repeat split; auto; try now (f_equal; f_equal; clear; omega).
+Qed.
+
+Lemma overridePost_derives:
+  forall F F' G G' ek vl,
+     F |-- F'  ->
+     G ek vl |-- G' ek vl ->
+     overridePost F G ek vl |-- overridePost F' G' ek vl.
+Proof.
+intros.
+unfold overridePost.
+if_tac.
+apply andp_derives; auto.
+auto.
+Qed.
+
+Lemma function_body_ret_assert_derives:
+  forall F F' t ek vl,
+   F |-- F' ->
+  function_body_ret_assert t F ek vl 
+    |-- function_body_ret_assert t F' ek vl.
+Proof.
+intros.
+unfold function_body_ret_assert.
+destruct ek; auto.
+unfold bind_ret.
+destruct vl; auto.
+apply andp_derives; auto.
+unfold_lift. intro rho. apply H.
+destruct t; auto.
+intro rho. apply H.
 Qed.
 
 Lemma body_SHA256_Update: semax_body Vprog Gtot f_SHA256_Update SHA256_Update_spec.
@@ -321,7 +347,9 @@ apply semax_seq with (sha_update_inv sh (s256a_hashed a) len c d (s256a_data a) 
    [ | simple apply update_outer_if_proof; try eassumption; auto; try omega].
  intros; apply andp_left2.
  rewrite S256abs_recombine.
- auto.
+ apply overridePost_derives; auto.
+ apply function_body_ret_assert_derives.
+ Intros a'. rewrite H1. auto.
  auto.
  rewrite bitlength_eq, S256abs_recombine; auto.
  apply s256a_data_Zlength_less.
@@ -341,12 +369,12 @@ abbreviate_semax.
 unfold sha_update_inv.   apply extract_exists_pre; intro blocks.
 forward.    (* c->num=len; *)
 
-apply semax_seq with (EX  a' : s256abs,
-                    PROP  (update_abs (sublist 0 len data) (S256abs (s256a_hashed a) (s256a_data a)) a')
+apply semax_seq with (
+                    PROP  ()
                     LOCAL (gvar  _K256 kv)
                     SEP 
                     (K_vector kv;
-                     sha256state_ a' c; data_block sh data d)).
+                     sha256state_ (S256abs (s256a_hashed a) (s256a_data a) ++ sublist 0 len data) c; data_block sh data d)).
 
 make_sequential.
  semax_subcommand Vprog Gtot  f_SHA256_Update.
@@ -364,9 +392,6 @@ simple apply update_last_if_proof; try assumption; try omega.
  apply s256a_hashed_divides.
 abbreviate_semax.
 (* after the last if *)
- Intro a'.
  forward.  (* return; *)
- Exists a'.
- entailer!.
- rewrite S256abs_recombine in H7; auto.
+ rewrite S256abs_recombine; auto.
 Qed.

@@ -41,10 +41,6 @@ Definition s256_relate (a: s256abs) (r: s256state) : Prop :=
        /\ Forall isbyteZ a
        /\ s256_num r = Vint (Int.repr (Zlength (s256a_data a))).
 
-Definition init_s256abs : s256abs := nil.
-
-Definition sha_finish (a: s256abs) : list Z := SHA_256 a.
-
 Definition cVint (f: Z -> int) (i: Z) := Vint (f i).
 
 Definition t_struct_SHA256state_st := Tstruct _SHA256state_st noattr.
@@ -147,23 +143,7 @@ Definition SHA256_Init_spec :=
          PROP () LOCAL (temp _c c)
          SEP(data_at_ Tsh t_struct_SHA256state_st c)
   POST [ tvoid ] 
-         PROP() LOCAL() SEP(sha256state_ init_s256abs c).
-
-(*
-Inductive update_abs: list Z -> s256abs -> s256abs -> Prop :=
- Update_abs:
-   (forall msg hashed blocks oldfrag newfrag,
-        Zlength oldfrag < CBLOCKz ->
-        Zlength newfrag < CBLOCKz ->
-       (LBLOCKz | Zlength hashed) ->
-       (LBLOCKz | Zlength blocks) -> 
-       oldfrag++msg = intlist_to_Zlist blocks ++ newfrag ->
-   update_abs msg (S256abs hashed oldfrag) 
-                              (S256abs (hashed++blocks) newfrag)).
-*)
-
-Definition update_abs (incr: list Z) (a: list Z) (a': list Z) :=
-    a' = a ++ incr.
+         PROP() LOCAL() SEP(sha256state_ nil c).
 
 Definition SHA256_Update_spec :=
   DECLARE _SHA256_Update
@@ -176,10 +156,11 @@ Definition SHA256_Update_spec :=
          SEP(K_vector kv;
                sha256state_ a c; data_block sh data d)
   POST [ tvoid ] 
-         EX a':_, 
-          PROP (update_abs (sublist 0 len data) a a')
+          PROP ()
           LOCAL ()
-          SEP(K_vector kv; sha256state_ a' c; data_block sh data d).
+          SEP(K_vector kv; 
+                sha256state_ (a ++ sublist 0 len data) c; 
+                data_block sh data d).
 
 Definition SHA256_Final_spec :=
   DECLARE _SHA256_Final
@@ -195,7 +176,7 @@ Definition SHA256_Final_spec :=
          PROP () LOCAL ()
          SEP(K_vector kv;
                data_at_ Tsh t_struct_SHA256state_st c;
-               data_block shmd (sha_finish a) md).
+               data_block shmd (SHA_256 a) md).
 
 Definition SHA256_spec :=
   DECLARE _SHA256

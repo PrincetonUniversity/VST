@@ -650,6 +650,9 @@ rewrite H3.
 apply Zlist_to_intlist_to_Zlist; auto.
 Qed.
 
+Definition update_abs (incr: list Z) (a: list Z) (a': list Z) :=
+    a' = a ++ incr.
+
 Lemma update_abs_eq:
   forall msg a a',
  Forall isbyteZ (a++msg) ->
