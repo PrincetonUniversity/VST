@@ -330,10 +330,26 @@ forward_if (sha_update_inv sh hashed len c d dd data kv false).
   rewrite (prop_true_andp (_ /\ _)).
   Focus 2. {
     split; auto.
+    assert (Zlength (dd ++ sublist 0 len data) < CBLOCKz).
+         clear - H2 H8. simplify_value_fits in H8. destruct H8 as [? _].
+   rewrite !sublist_map in H.
+   autorewrite with sublist in H. rewrite Zlength_app.
+   pose proof CBLOCKz_eq. rewrite Zlength_list_repeat in H.
+   rewrite Z.max_r in H by omega. omega.
     rewrite (app_nil_end hashed) at 2.
-    apply (Update_abs _ hashed nil dd (dd++sublist 0 len data)); auto.
-    autorewrite with sublist; Omega1.
-    apply Z.divide_0_r.
+    rewrite update_abs_eq.
+    exists nil. rewrite <- !app_nil_end.
+    rewrite !S256abs_hashed; auto.
+    rewrite !S256abs_data; auto.
+    apply Forall_app; split; auto.
+    unfold S256abs.
+    apply Forall_app; split; auto.
+    apply isbyte_intlist_to_Zlist.
+    rewrite <- !app_nil_end.
+    unfold S256abs.
+    apply Forall_app; split; auto.
+    apply isbyte_intlist_to_Zlist.
+    apply Forall_app; split; auto.
   } Unfocus.
   unfold sha256state_.
   cancel.

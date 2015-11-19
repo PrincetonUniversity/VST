@@ -118,10 +118,22 @@ eapply semax_post_flipped3.
  Exists (S256abs (hashed++blocks) dd').
  unfold sha256state_.
  entailer!.
- constructor; auto; try Omega1.
+ rewrite update_abs_eq.
+ exists blocks.
+ rewrite !S256abs_hashed; auto; try omega.
+ rewrite !S256abs_data; auto; try omega.
+ split; auto.
  rewrite Hblocks. unfold dd'. rewrite app_ass.
  f_equal.
  rewrite (sublist_split 0 b4d len); auto; omega.
+ rewrite Zlength_app; apply Z.divide_add_r; auto.
+ rewrite Zlength_app; apply Z.divide_add_r; auto.
+ apply Forall_app; split; auto.
+ apply Forall_app; split; auto.
+ apply isbyte_intlist_to_Zlist.
+ apply Forall_app; split; auto.
+ apply isbyte_intlist_to_Zlist.
+ subst dd'; apply Forall_sublist; auto.
  Exists    (map Vint (hash_blocks init_registers (hashed ++ blocks)),
                 (Vint (lo_part (bitlength hashed dd + len * 8)),
                  (Vint (hi_part (bitlength hashed dd + len * 8)),
@@ -168,8 +180,17 @@ assert (Hbb: bitlength hashed dd + len * 8 =
  normalize.
  Exists (S256abs (hashed++blocks) nil).
  entailer!.
- constructor; auto. rewrite Hblocks.
- autorewrite with sublist. f_equal. f_equal. omega.
+ rewrite update_abs_eq.
+ exists blocks.
+ rewrite !S256abs_hashed; auto; try omega.
+ rewrite !S256abs_data; auto; try omega.
+ split; auto. rewrite <- app_nil_end.
+ rewrite Hblocks. f_equal. f_equal. Omega1.
+ apply Forall_app; split; auto.
+ apply Forall_app; split; auto.
+ apply isbyte_intlist_to_Zlist.
+ apply Forall_app; split; auto.
+ apply isbyte_intlist_to_Zlist.
  unfold sha256state_.
  set (bitlen := bitlength hashed dd + len * 8).
  eapply exp_right. apply andp_right; [ | apply derives_refl]. 

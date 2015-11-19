@@ -149,6 +149,7 @@ Definition SHA256_Init_spec :=
   POST [ tvoid ] 
          PROP() LOCAL() SEP(sha256state_ init_s256abs c).
 
+(*
 Inductive update_abs: list Z -> s256abs -> s256abs -> Prop :=
  Update_abs:
    (forall msg hashed blocks oldfrag newfrag,
@@ -159,6 +160,10 @@ Inductive update_abs: list Z -> s256abs -> s256abs -> Prop :=
        oldfrag++msg = intlist_to_Zlist blocks ++ newfrag ->
    update_abs msg (S256abs hashed oldfrag) 
                               (S256abs (hashed++blocks) newfrag)).
+*)
+
+Definition update_abs (incr: list Z) (a: list Z) (a': list Z) :=
+    a' = a ++ incr.
 
 Definition SHA256_Update_spec :=
   DECLARE _SHA256_Update
