@@ -97,8 +97,7 @@ name s _s.
 name x _x.
 forward.  (* i = 0; *) 
 forward.  (* s = 0; *)
-forward_while (sumarray_Inv a0 sh contents size)
-     a1.
+forward_while (sumarray_Inv a0 sh contents size).
 * (* Prove that current precondition implies loop invariant *)
 Exists 0.
 entailer!.  (* smt_test verif_sumarray_example1 *)
@@ -112,7 +111,7 @@ entailer!. (* smt_test verif_sumarray_example2 *)
   rewrite Zlength_map in *; omega.
 forward. (* s += x; *)
 forward. (* i++; *)
- apply exp_right with (Zsucc a1).
+ apply exp_right with (Zsucc i0).
  entailer!.  (* smt_test: verif_sumarray_example3 *)
  rewrite H2 in H1; inv H1.
  f_equal; apply add_one_more_to_sum; try omega; auto.

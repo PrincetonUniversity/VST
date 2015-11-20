@@ -147,8 +147,7 @@ forward. (* hi = n; *)
 
 assert_PROP (Zlength (map Vint contents) = size)
     as ZL by entailer!.
-forward_while (reverse_Inv a0 sh (map Vint contents) size)
-   j.
+forward_while (reverse_Inv a0 sh (map Vint contents) size).
 * (* Prove that current precondition implies loop invariant *)
 Exists 0.
 entailer!.

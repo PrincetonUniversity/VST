@@ -1126,6 +1126,31 @@ clear IHl.
 cancel.
 Qed.
 
+
+Lemma lseg_cons_right_list (ls: listspec list_structid list_link): forall dsh psh l l' x h y z, 
+    sepalg.nonidentity psh ->
+             list_cell ls dsh h y 
+           * field_at psh list_struct (StructField list_link :: nil) (valinject (nested_field_type list_struct (StructField list_link :: nil)) z) y 
+           * lseg ls dsh psh l x y
+           * lseg ls dsh psh l' z nullval
+   |--   lseg ls dsh psh (l++(y,h)::nil) x z * lseg ls dsh psh l' z nullval.
+Proof.
+intros.
+destruct l'.
+rewrite lseg_nil_eq.
+normalize.
+rewrite prop_true_andp by (split; reflexivity).
+apply lseg_cons_right_null.
+rewrite lseg_cons_eq.
+Intros u. Exists u.
+rewrite !prop_true_andp by auto.
+normalize.
+apply sepcon_derives; auto.
+pull_right (list_cell ls dsh (snd p) (fst p)).
+apply sepcon_derives; auto.
+apply lseg_cons_right_neq; auto.
+Qed.
+
 Lemma lseg_unroll_right (ls: listspec list_structid list_link): forall sh sh' l x z , 
     lseg ls sh sh' l x z = (!! (ptr_eq x z) && !! (l=nil) && emp) || lseg_cons_right ls sh sh' l x z.
 Abort.  (* not likely true *)
@@ -1613,6 +1638,31 @@ apply exp_right with (al ++ (y,h)::nil).
 rewrite prop_true_andp by (rewrite map_app; reflexivity).
 eapply derives_trans; [ | apply LsegGeneral.lseg_cons_right_null].
 cancel.
+Qed.
+
+
+Lemma lseg_cons_right_list (ls: listspec list_structid list_link): forall sh l l' x h y z, 
+              sepalg.nonidentity sh ->
+             list_cell ls sh h y * field_at sh list_struct (StructField list_link :: nil) (valinject (nested_field_type list_struct (StructField list_link :: nil)) z) y * 
+             lseg ls sh l x y * lseg ls sh l' z nullval
+   |--   lseg ls sh (l++h::nil) x z * lseg ls sh l' z nullval.
+Proof.
+intros.
+destruct l'.
+rewrite lseg_nil_eq.
+normalize.
+rewrite prop_true_andp by (split; reflexivity).
+apply lseg_cons_right_null.
+rewrite lseg_cons_eq.
+Intros u.
+Exists u.
+rewrite !prop_true_andp by auto.
+rewrite <- !sepcon_assoc.
+apply sepcon_derives; auto.
+pull_right (list_cell ls sh e z).
+apply sepcon_derives; auto.
+apply lseg_cons_right_neq.
+auto.
 Qed.
 
 Lemma lseg_unroll_right (ls: listspec list_structid list_link): forall sh l x z , 
@@ -2296,6 +2346,32 @@ eapply derives_trans.
 2: apply sepcon_derives; [ | eassumption]; apply derives_refl.
 clear IHl.
 cancel.
+Qed.
+
+
+Lemma lseg_cons_right_list (ls: listspec list_structid list_link): 
+      forall dsh psh l l' x h y z, 
+     sepalg.nonidentity psh ->
+     ~ (readable_share dsh) ->
+             list_cell ls dsh h y * field_at psh list_struct (StructField list_link :: nil) (valinject (nested_field_type list_struct (StructField list_link :: nil)) z) y * 
+             lseg ls dsh psh l x y * lseg ls dsh psh l' z nullval
+   |--   lseg ls dsh psh (l++y::nil) x z * lseg ls dsh psh l' z nullval.
+Proof.
+intros.
+destruct l'.
+rewrite lseg_nil_eq.
+normalize.
+rewrite prop_true_andp by (split; reflexivity).
+apply lseg_cons_right_null; auto.
+rewrite lseg_cons_eq; auto.
+Intros u.
+Exists u.
+rewrite !prop_true_andp by auto.
+rewrite <- !sepcon_assoc.
+apply sepcon_derives; auto.
+pull_right (list_cell ls dsh (vund ls) v).
+apply sepcon_derives; auto.
+apply lseg_cons_right_neq; auto.
 Qed.
 
 Lemma lseg_unroll_right (ls: listspec list_structid list_link): forall sh sh' l x z , 

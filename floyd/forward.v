@@ -1163,70 +1163,62 @@ repeat match goal with
 | |- context [snd (?a,?b) ] => change (snd (a,b)) with b 
 end.
 
-Tactic Notation "forward_while" constr(Inv) :=
-  check_Delta;
-  repeat (apply -> seq_assoc; abbreviate_semax);
-  first [ignore (Inv: bool -> environ->mpred) 
-         | fail 1 "Invariant (first argument to forward_while) must have type (bool -> environ->mpred)"];
-  apply semax_pre with Inv;
-    [  unfold_function_derives_right 
-    | eapply semax_seq;
-      [repeat match goal with
-       | |- semax _ (exp _) _ _ => fail 1
-       | |- semax _ (PROPx _ _) _ _ => fail 1
-       | |- semax _ ?Pre _ _ => match Pre with context [ ?F ] => unfold F end
-       end;
-       match goal with |- semax _ ?Pre _ _ =>
-          let p := fresh "Pre" in let Hp := fresh "HPre" in 
-          remember Pre as p eqn:Hp;
-          repeat rewrite exp_uncurry in Hp; subst p
-       end;
-       match goal with |- semax ?Delta ?Pre (Swhile ?e _) _ =>
-        eapply semax_while_3g; 
-        simpl typeof;
-       [ reflexivity 
-       | no_intros || idtac
-       | do_compute_expr1 Delta Pre e; eassumption
-       | no_intros; simpl_fst_snd; 
-         let HRE := fresh "HRE" in apply semax_extract_PROP; intro HRE;
-         first [simple apply typed_true_of_bool in HRE
-               | apply typed_true_tint_Vint in HRE
-               | apply typed_true_tint in HRE
-               | idtac ];
-         repeat (apply semax_extract_PROP; intro); 
-         do_repr_inj HRE; normalize in HRE
-        ]
-       end
-       | simpl update_tycon; 
-         apply extract_exists_pre; no_intros; simpl_fst_snd;
-         let HRE := fresh "HRE" in apply semax_extract_PROP; intro HRE;
-         first [simple apply typed_false_of_bool in HRE
-               | apply typed_false_tint_Vint in HRE
-               | apply typed_false_tint in HRE
-               | idtac ];
-         repeat (apply semax_extract_PROP; intro)
-       ]
-     ]; abbreviate_semax; autorewrite with ret_assert.
+Definition EXP_NAME := tt.
+Definition MARKED_ONE {A} (z: A) := z.
+Definition EXP_UNIT := tt.
 
-Tactic Notation "forward_while" constr(Inv)
-     simple_intropattern(pat) :=
+Ltac special_intros_EX :=
+   match goal with
+   | z := EXP_UNIT |- _ => clear z; cbv beta; intros _
+   | z := EXP_NAME |- _ =>
+         intro;
+         match goal with a : ?x |- _ => 
+             change x with (MARKED_ONE x) in a 
+         end;
+         repeat match goal with
+         | w := EXP_NAME, v := EXP_NAME, a: MARKED_ONE _ |- _ =>
+           clear v; unfold MARKED_ONE in a;
+           destruct a as [a v]; 
+           match type of a with ?x =>
+             change x with (MARKED_ONE x) in a
+           end
+         | v := EXP_NAME, a: MARKED_ONE _ |- _ => 
+           clear v; unfold MARKED_ONE in a; rename a into v
+         end;
+         simpl_fst_snd
+   end.
+
+Lemma trivial_exp:
+ forall P: environ -> mpred,
+ P = exp (fun x: unit => P).
+Proof.
+intros. apply pred_ext. Exists tt. auto. Intros u; auto.
+Qed.
+
+Tactic Notation "forward_while" constr(Inv) :=
   repeat (apply -> seq_assoc; abbreviate_semax);
   first [ignore (Inv: environ->mpred) 
          | fail 1 "Invariant (first argument to forward_while) must have type (environ->mpred)"];
   apply semax_pre with Inv;
-    [  unfold_function_derives_right 
-    | eapply semax_seq;
-      [repeat match goal with
+    [ unfold_function_derives_right 
+    | repeat match goal with
        | |- semax _ (exp _) _ _ => fail 1
        | |- semax _ (PROPx _ _) _ _ => fail 1
        | |- semax _ ?Pre _ _ => match Pre with context [ ?F ] => unfold F end
        end;
-       match goal with |- semax _ ?Pre _ _ =>
-          let p := fresh "Pre" in let Hp := fresh "HPre" in 
-          remember Pre as p eqn:Hp;
-          repeat rewrite exp_uncurry in Hp; subst p
+       match goal with
+       | |- semax _ (exp (fun a1 => _)) _ _ => 
+             let a := fresh a1 in pose (a := EXP_NAME)
+       | |- semax _ (PROPx ?P ?QR) _ _ =>
+             let a := fresh "u" in pose (a := EXP_UNIT);
+                  rewrite (trivial_exp (PROPx P QR))
        end;
-      match goal with |- semax ?Delta ?Pre (Swhile ?e _) _ =>
+       repeat match goal with |- semax _ (exp (fun a1 => (exp (fun a2 => _)))) _ _ => 
+          let a := fresh a2 in pose (a := EXP_NAME); 
+          rewrite exp_uncurry
+      end;
+      eapply semax_seq;
+      [match goal with |- semax ?Delta ?Pre (Swhile ?e _) _ =>
         (* the following line was before: eapply semax_while_3g1; *)
         match goal with [ |- semax _ (@exp _ _ ?A _) _ _ ] => eapply (@semax_while_3g1 _ _ A) end;
         (* check if we can revert back to the old one with coq 8.5. 
@@ -1251,29 +1243,33 @@ Tactic Notation "forward_while" constr(Inv)
              forward_while Inv VAR. (** FAILS WITH THE FORMER VERSION OF forward_while **)
          *)
         simpl typeof;
-       [ reflexivity 
-       | intros pat; simpl_fst_snd
+       [ reflexivity
+       | special_intros_EX 
        | do_compute_expr1 Delta Pre e; eassumption
-       | intros pat; simpl_fst_snd; 
+       | special_intros_EX;
          let HRE := fresh "HRE" in apply semax_extract_PROP; intro HRE;
          first [simple apply typed_true_of_bool in HRE
                | apply typed_true_tint_Vint in HRE
                | apply typed_true_tint in HRE
+               | apply typed_true_ptr in HRE
                | idtac ];
          repeat (apply semax_extract_PROP; intro); 
          do_repr_inj HRE; normalize in HRE
         ]
        end
        | simpl update_tycon; 
-         apply extract_exists_pre; intros pat; simpl_fst_snd;
+         apply extract_exists_pre; special_intros_EX;
          let HRE := fresh "HRE" in apply semax_extract_PROP; intro HRE;
          first [simple apply typed_false_of_bool in HRE
                | apply typed_false_tint_Vint in HRE
                | apply typed_false_tint in HRE
+               | apply typed_false_ptr in HRE
                | idtac ];
          repeat (apply semax_extract_PROP; intro)
        ]
-     ]; abbreviate_semax; autorewrite with ret_assert.
+    ]; abbreviate_semax; autorewrite with ret_assert.
+
+(* Note: Lemma semax_while_3g is obsolete; delete it *)
 
 Ltac forward_for_simple_bound n Pre :=
   check_Delta;

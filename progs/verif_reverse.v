@@ -55,15 +55,8 @@ Definition sumlist_spec :=
      PROP(readable_share sh) LOCAL (temp _p p)
      SEP (lseg LS sh (map Vint contents) p nullval)
   POST [ tint ]  
-     PROP() LOCAL(temp ret_temp (Vint (sum_int contents))) SEP(TT).
-(** This specification has an imprecise and leaky postcondition:
- ** it neglects to say that the original list [p] is still there.
- ** Because the postcondition has no spatial part, it makes no
- ** claim at all: the list [p] leaks away, and arbitrary other stuff
- ** might have been allocated.  All the postcondition specifies
- ** is that the contents of the list has been added up correctly.
- ** One could easily make a more precise specification of this function.
- **)
+     PROP() LOCAL(temp ret_temp (Vint (sum_int contents)))
+     SEP (lseg LS sh (map Vint contents) p nullval).
 
 Definition reverse_spec :=
  DECLARE _reverse
@@ -158,12 +151,19 @@ Proof.
 Qed.
 
 (** Here's a loop invariant for use in the body_sumlist proof *)
-Definition sumlist_Inv (sh: share) (contents: list int) : environ->mpred :=
-          (EX cts: list int, EX t: val, 
-            PROP () 
-            LOCAL (temp _t t; 
-                        temp _s (Vint (Int.sub (sum_int contents) (sum_int cts))))
-            SEP ( TT ; lseg LS sh (map Vint cts) t nullval)).
+Definition sumlist_Inv (sh: share) (contents: list int) (p: val) : environ->mpred :=
+          (EX cts1: list int, EX cts2: list int, EX t: val, 
+            PROP (contents = cts1++cts2) 
+            LOCAL (temp _t t; temp _s (Vint (sum_int cts1)))
+            SEP ( lseg LS sh (map Vint cts1) p t ; lseg LS sh (map Vint cts2) t nullval)).
+
+Lemma sum_int_app:
+  forall a b, sum_int (a++b) = Int.add (sum_int a) (sum_int b).
+Proof.
+intros.
+induction a; simpl. rewrite Int.add_zero_l; auto.
+rewrite IHa. rewrite Int.add_assoc. auto.
+Qed.
 
 (** For every function definition in the C program, prove that the
  ** function-body (in this case, f_sumlist) satisfies its specification
@@ -177,36 +177,38 @@ Proof.
 start_function.
 forward.  (* s = 0; *) 
 forward.  (* t = p; *)
-forward_while (sumlist_Inv sh contents)
-    [cts t0].
+forward_while (sumlist_Inv sh contents p).
 * (* Prove that current precondition implies loop invariant *)
-Exists contents p.
-entailer!.
+Exists (@nil int) contents p.
+entailer!. cancel.
 * (* Prove that loop invariant implies typechecking condition *)
 entailer!.
 * (* Prove that loop body preserves invariant *)
 focus_SEP 1; apply semax_lseg_nonnull; [ | intros h' r y ? ?].
 entailer!.
-destruct cts; inv H.
+destruct cts2; inversion H0; clear H0; subst_any.
 gather_SEP 0 1. 
-match goal with |- context [SEPx (?A::_)] =>
-   replace A with (field_at sh t_struct_list (DOT _head) (Vint i) t0 *
-                              field_at sh list_struct (DOT _tail) y t0)
- by (symmetry; apply list_cell_eq''; auto)
-end.
-normalize.
+rewrite list_cell_eq'' by auto.
+Intros.  (* flatten the SEP *)
 forward.  (* h = t->head; *)
 forward.  (*  t = t->tail; *)
 forward.  (* s = s + h; *)
-Exists (cts,y).
+Exists (cts1++[i],cts2,y).
 name h _h.
-entailer!. (* smt_test verif_reverse_example1 *)
-   rewrite Int.sub_add_r, Int.add_assoc, (Int.add_commut (Int.neg h)),
-             Int.add_neg_zero, Int.add_zero; auto.
+entailer. 
+apply andp_right.
+apply prop_right.
+split.
+rewrite app_ass; reflexivity.
+ f_equal. rewrite sum_int_app. f_equal. simpl. apply Int.add_zero.
+rewrite map_app. simpl map.
+eapply derives_trans; [ | apply (lseg_cons_right_list LS) with (y:=t); auto].
+rewrite list_cell_eq'' by auto.
+cancel.
 * (* After the loop *)
 forward.  (* return s; *)
-destruct cts; [| inversion H0].
-normalize.
+destruct cts2; [| inversion H]. rewrite <- app_nil_end.
+entailer!.
 Qed.
 
 Definition reverse_Inv (sh: share) (contents: list val) : environ->mpred :=
@@ -222,8 +224,7 @@ start_function.
 name w_ _w.
 forward.  (* w = NULL; *)
 forward.  (* v = p; *)
-forward_while (reverse_Inv sh contents)
-      [[[cts1 cts2] w] v].
+forward_while (reverse_Inv sh contents).
 * (* precondition implies loop invariant *)
 Exists (@nil val) contents (Vint (Int.repr 0)) p.
 rewrite lseg_eq by (simpl; auto).

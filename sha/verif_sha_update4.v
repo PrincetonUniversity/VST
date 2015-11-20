@@ -170,8 +170,8 @@ Intro blocks.
 repeat (apply semax_extract_PROP; intro).
 rewrite semax_seq_skip. (* should be part of forward_while *)
 forward_while
-    (sha_update_inv sh hashed len c d dd data kv false)
-   blocks'.
+    (sha_update_inv sh hashed len c d dd data kv false);
+  try rename blocks0 into blocks'.
 *
  Exists blocks. entailer!.
 *
