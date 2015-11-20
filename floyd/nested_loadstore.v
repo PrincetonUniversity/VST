@@ -16,83 +16,303 @@ Import DataCmpNotations.
 
 Local Open Scope logic.
 
-(******************************************
+Section NESTED_RAMIF.
 
-Lemmas about force_lengthn
+Context {cs: compspecs}.
 
-******************************************)
-(*
-Lemma force_lengthn_length_n: forall {A} n (xs : list A) (default: A),
-  length (force_lengthn n xs default) = n.
+Lemma reptype_Tarray_JMeq_constr0: forall t gfs t0 n a (v: reptype (nested_field_type t gfs)),
+  legal_nested_field t gfs ->
+  nested_field_type t gfs = Tarray t0 n a ->
+  {v': list (reptype (nested_field_type t (ArraySubsc 0 :: gfs))) |
+   JMeq v v'}.
 Proof.
   intros.
-  revert xs; induction n; intros.
-  + reflexivity.
-  + simpl.
-    destruct xs; simpl; rewrite IHn; reflexivity.
+  apply JMeq_sigT.
+  rewrite nested_field_type_ind with (gfs0 := cons _ _).
+  rewrite !H0.
+  rewrite reptype_ind.
+  auto.
+Qed.
+       
+Lemma reptype_Tarray_JMeq_constr1: forall t gfs t0 n a i (v: reptype (nested_field_type t (ArraySubsc i :: gfs))),
+  legal_nested_field t gfs ->
+  nested_field_type t gfs = Tarray t0 n a ->
+  {v': reptype (gfield_type (nested_field_type t gfs) (ArraySubsc i)) |
+   JMeq v v'}.
+Proof.
+  intros.
+  apply JMeq_sigT.
+  rewrite nested_field_type_ind with (gfs0 := cons _ _).
+  reflexivity.
 Qed.
 
-Lemma nth_force_lengthn_nil: forall {A} n i (default: A),
-  nth i (force_lengthn n nil default) default = default.
+Lemma reptype_Tarray_JMeq_constr2: forall t gfs t0 n a i (v': reptype (nested_field_type t (ArraySubsc i :: gfs))),
+  legal_nested_field t gfs ->
+  nested_field_type t gfs = Tarray t0 n a ->
+  {v: reptype (nested_field_type t (ArraySubsc 0 :: gfs)) |
+   JMeq v' v}.
 Proof.
   intros.
-  revert i; induction n; intros.
-  + simpl. destruct i; reflexivity.
-  + simpl. destruct i.
-    - reflexivity.
-    - rewrite IHn. reflexivity.
+  apply JMeq_sigT.
+  rewrite nested_field_type_ArraySubsc with (i0 := i).
+  auto.
 Qed.
 
-Lemma nth_force_lengthn: forall {A} n i (xs : list A) (default: A),
-  (0 <= i < n) %nat ->
-  nth i (force_lengthn n xs default) default = nth i xs default.
+Lemma reptype_Tstruct_JMeq_constr0: forall t gfs id a (v: reptype (nested_field_type t gfs)),
+  legal_nested_field t gfs ->
+  nested_field_type t gfs = Tstruct id a ->
+  {v' : nested_reptype_structlist t gfs (co_members (get_co id)) |
+   JMeq v v'}.
 Proof.
   intros.
-  revert i H xs; induction n; intros.
-  + omega.
-  + simpl.
-    destruct xs.
-    - simpl.
-      destruct i; [reflexivity |].
-      apply nth_force_lengthn_nil.
-    - simpl.
-      destruct i; [reflexivity |].
-      apply IHn.
-      omega.
+  apply JMeq_sigT.
+  eapply nested_reptype_structlist_lemma; eauto.
 Qed.
 
-Lemma force_lengthn_id: forall {A} n ct (d: A), length ct = n -> force_lengthn n ct d = ct.
+(* This lemma is mainly dealing with all JMeq subtle issues and combine 3 ramif lemmas together. *)
+Lemma gfield_ramif: forall sh t gfs gf v v0 p,
+  JMeq (proj_gfield_reptype (nested_field_type t gfs) gf v) v0 ->
+  field_compatible t (gf :: gfs) p ->
+  field_at sh t gfs v p |-- field_at sh t (gf :: gfs) v0 p *
+    (ALL v0': _,
+      (field_at sh t (gf :: gfs) v0' p -*
+         field_at sh t gfs
+           (upd_gfield_reptype (nested_field_type t gfs) gf v
+              (eq_rect_r reptype v0' (eq_sym (nested_field_type_ind t _))))
+           p)).
 Proof.
   intros.
-  revert ct H; induction n; intros.
-  + destruct ct; try solve [inversion H].
+  destruct gf.
+  + (* ArraySubsc *)
+    pose proof H0.
+    rewrite field_compatible_cons in H1.
+    (* A Coq bug here. I cannot do destruct eqn in H1. So using next two lines instead. *)
+    remember (nested_field_type t gfs) as t0 eqn:H2 in H1.
+    destruct t0; try tauto; symmetry in H2.
+    destruct H1.
+    destruct (reptype_Tarray_JMeq_constr0 t gfs t0 z a v) as [v' ?H]; auto.
+    erewrite field_at_Tarray; [| eauto | eauto | omega | eauto].
+    replace
+      (ALL  v0' : _,
+        field_at sh t (gfs SUB i) v0' p -*
+        field_at sh t gfs
+          (upd_gfield_reptype (nested_field_type t gfs) 
+             (ArraySubsc i) v
+             (eq_rect_r reptype v0'
+                (eq_sym (nested_field_type_ind t (gfs SUB i))))) p)
+    with
+      (ALL  v0' : _, (ALL  v0'': _,
+        !!JMeq v0' v0'' -->
+        (field_at sh t (gfs SUB i) v0' p -*
+         array_at sh t gfs 0 z (upd_Znth (i - 0) v' v0'') p))).
+    Focus 2. {
+      rewrite Z.sub_0_r.
+      clear v0 H.
+      apply pred_ext.
+      + apply allp_right; intro v0.
+        apply (allp_left _ v0).
+        destruct (reptype_Tarray_JMeq_constr2 t gfs t0 z a i v0) as [v0' ?H]; auto.
+        apply (allp_left _ v0').
+        rewrite prop_imp by auto.
+        apply wand_derives; auto.
+        erewrite field_at_Tarray; [apply derives_refl | eauto | eauto | omega |].
+        set (v0'' := eq_rect_r reptype v0 (eq_sym (nested_field_type_ind t (gfs SUB i)))).
+        assert (JMeq v0' v0'') by (subst v0''; rewrite eq_rect_r_JMeq; auto).
+        clearbody v0''; clear v0 H.
+        revert v v0'' H4 H5; rewrite H2; intros.
+        unfold upd_gfield_reptype.
+        rewrite fold_reptype_JMeq.
+        rewrite <- (unfold_reptype_JMeq _ v) in H4.
+        revert v' v0' H4 H5; rewrite nested_field_type_ind with (gfs0 := cons _ _), H2; simpl; intros.
+        apply JMeq_eq in H4; apply JMeq_eq in H5.
+        subst; reflexivity.
+      + apply allp_right; intro v0.
+        apply allp_right; intro v0'.
+        apply (allp_left _ v0).
+        apply imp_andp_adjoint; normalize.
+        apply wand_derives; auto.
+        destruct (reptype_Tarray_JMeq_constr1 t gfs t0 z a i v0) as [v0'' ?H]; auto.
+        erewrite field_at_Tarray; [apply derives_refl | eauto | eauto | omega |].
+        clear v0'' H5.
+        set (v0'' := eq_rect_r reptype v0 (eq_sym (nested_field_type_ind t (gfs SUB i)))).
+        assert (JMeq v0' v0'') by (subst v0''; rewrite eq_rect_r_JMeq; auto).
+        clearbody v0''; clear v0 H.
+        revert v v0'' H4 H5; rewrite H2; intros.
+        unfold upd_gfield_reptype.
+        rewrite fold_reptype_JMeq.
+        rewrite <- (unfold_reptype_JMeq _ v) in H4.
+        revert v' v0' H4 H5; rewrite nested_field_type_ind with (gfs0 := cons _ _), H2; simpl; intros.
+        apply JMeq_eq in H4; apply JMeq_eq in H5.
+        subst; reflexivity.
+    } Unfocus.
+    apply (array_at_ramif sh t gfs t0 z a 0 z i v' v0 p); auto.
+    rewrite <- H; clear v0 H.
+    revert v v' H4.
+    rewrite nested_field_type_ind with (gfs0 := cons _ _), H2.
+    unfold proj_gfield_reptype, gfield_type.
+    intros.
+    rewrite <- (unfold_reptype_JMeq _ v) in H4.
+    apply JMeq_eq in H4; subst.
+    rewrite Z.sub_0_r.
     reflexivity.
-  + destruct ct; try solve [inversion H].
-    simpl.
-    rewrite IHn by auto.
-    reflexivity.
-Qed.
+  + pose proof H0.
+    rewrite field_compatible_cons in H1.
+    (* A Coq bug here. I cannot do destruct eqn in H1. So using next two lines instead. *)
+    remember (nested_field_type t gfs) as t0 eqn:H2 in H1.
+    destruct t0; try tauto; symmetry in H2.
+    destruct H1.
+    destruct (reptype_Tstruct_JMeq_constr0 t gfs i0 a v) as [v' ?H]; auto.
+    erewrite field_at_Tstruct by eauto.
+    eapply derives_trans; [eapply nested_sfieldlist_at_ramif; eauto |].
+    apply sepcon_derives.
+    - apply derives_refl'.
+      f_equal.
+      apply JMeq_eq.
+      etransitivity; [| exact H].
+      clear v0 H.
+      revert v H4; rewrite H2; intros.
+      unfold proj_gfield_reptype.
+      rewrite <- (unfold_reptype_JMeq _ v) in H4.
+      forget (unfold_reptype v) as v''; clear v.
+      cbv iota beta in v''.
+      unfold reptype_structlist in v''.
+      unfold nested_reptype_structlist in v'.
+      apply (proj_compact_prod_JMeq _ (i, field_type i (co_members (get_co i0)))
+             _
+             (fun it => reptype (nested_field_type t (gfs DOT fst it)))
+             (fun it => reptype (field_type (fst it) (co_members (get_co i0))))); auto.
+      * intros.
+        rewrite nested_field_type_ind, H2; reflexivity.
+      * apply in_members_field_type; auto.
+    - clear v0 H.
+      apply allp_derives; intro v0.
+      apply wand_derives; auto.
+      erewrite field_at_Tstruct; [apply derives_refl | eauto |].
+      set (v0' := eq_rect_r reptype v0 (eq_sym (nested_field_type_ind t (gfs DOT i)))).
+      assert (JMeq v0' v0) by apply eq_rect_r_JMeq.
+      clearbody v0'.
+      revert v v0' H H4.
+      rewrite H2.
+      unfold gfield_type, upd_gfield_reptype.
+      intros.
+      rewrite <- (unfold_reptype_JMeq _ v) in H4.
+      forget (unfold_reptype v) as v''; clear v.
+      cbv iota beta in v''.
+      rewrite fold_reptype_JMeq.
+Admitted.
 
-Lemma equal_data_one_more_on_list: forall t n a (ct: list (reptype t)) i v,
-  legal_alignas_type (Tarray t n a) = true ->
-  i < n ->
-  Zlength ct = i ->
-  (upd_reptype (Tarray t n a) (ArraySubsc i :: nil) ct v) === (ct ++ (v::nil)).
+Lemma nested_field_ramif: forall sh t gfs0 gfs1 v v0 p,
+  JMeq (proj_reptype (nested_field_type t gfs0) gfs1 v) v0 ->
+  field_compatible t (gfs1 ++ gfs0) p ->
+  field_at sh t gfs0 v p |--
+    field_at sh t (gfs1 ++ gfs0) v0 p *
+    (ALL v0': _, ALL v0'': _, !! JMeq v0' v0'' -->
+      (field_at sh t (gfs1 ++ gfs0) v0' p -*
+         field_at sh t gfs0 (upd_reptype (nested_field_type t gfs0) gfs1 v v0'') p)).
 Proof.
   intros.
-  apply data_equal_array_ext.
-  intros.
-  unfold Znth.
-  if_tac; [omega |].
-  simpl.
-  unfold upd_reptype_array, eq_rect_r; simpl.
-  assert (i >= 0) by (rewrite Zlength_correct in H1; omega).
-  apply Zlength_length in H1; [| omega].
-  rewrite force_lengthn_id by auto.
-  rewrite skipn_short by (rewrite Z2Nat.inj_add by omega; omega).
-  apply data_equal_refl.
+  rewrite allp_uncurry'.
+  change
+    (ALL st: _,
+      !!JMeq (fst st) (snd st) -->
+      (field_at sh t (gfs1 ++ gfs0) (fst st) p -*
+       field_at sh t gfs0
+         (upd_reptype (nested_field_type t gfs0) gfs1 v (snd st)) p))
+  with
+    (allp 
+      ((fun st => !!JMeq (fst st) (snd st)) -->
+        ((fun st => field_at sh t (gfs1 ++ gfs0) (fst st) p) -*
+         (fun st => field_at sh t gfs0
+                      (upd_reptype (nested_field_type t gfs0)
+                         gfs1 v (snd st)) p)))).
+  revert v0 H; induction gfs1 as [| gf gfs1]; intros.
+  + simpl app in *.
+    apply RAMIF_Q'.solve with emp.
+    - simpl; auto.
+    - simpl in H. unfold eq_rect_r in H; rewrite <- eq_rect_eq in H.
+      rewrite H, sepcon_emp; auto.
+    - clear v0 H.
+      intros [v0 v0']; unfold fst, snd.
+      normalize.
+      simpl.
+      unfold eq_rect_r; rewrite <- eq_rect_eq.
+      rewrite H; auto.
+  + simpl app in H0, v0, H |- *.
+    assert ({v1: reptype (nested_field_type t (gfs1 ++ gfs0)) | JMeq (proj_reptype (nested_field_type t gfs0) gfs1 v) v1})
+      by (apply JMeq_sigT; admit).
+    destruct X as [v1 ?H].
+    change
+      (fun st: reptype (nested_field_type t (gf :: gfs1 ++ gfs0)) *
+               reptype (nested_field_type (nested_field_type t gfs0) (gf :: gfs1)) =>
+       field_at sh t (gf :: gfs1 ++ gfs0) (fst st) p)
+    with
+      (Basics.compose
+        (fun v => field_at sh t (gf :: gfs1 ++ gfs0) v p)
+        (fun st: reptype (nested_field_type t (gf :: gfs1 ++ gfs0)) *
+               reptype (nested_field_type (nested_field_type t gfs0) (gf :: gfs1)) =>
+         fst st)).
+    change (fun st: reptype (nested_field_type t (gf :: gfs1 ++ gfs0)) *
+               reptype (nested_field_type (nested_field_type t gfs0) (gf :: gfs1)) =>
+       field_at sh t gfs0
+         (upd_reptype (nested_field_type t gfs0) (gf :: gfs1) v (snd st)) p)
+      with
+      (Basics.compose
+        (fun st: reptype (nested_field_type t (gfs1 ++ gfs0)) *
+                 reptype (nested_field_type (nested_field_type t gfs0) gfs1) =>
+         field_at sh t gfs0
+           (upd_reptype (nested_field_type t gfs0) gfs1 v (snd st)) p)
+        (fun st: reptype (nested_field_type t (gf :: gfs1 ++ gfs0)) *
+                 reptype (nested_field_type (nested_field_type t gfs0) (gf :: gfs1)) =>
+           (upd_gfield_reptype _ gf v1 (eq_rect_r reptype (fst st) (eq_sym (nested_field_type_ind _ (gf :: _)))),
+            upd_gfield_reptype _ gf (proj_reptype _ gfs1 v) (eq_rect_r reptype (snd st) (eq_sym (nested_field_type_ind _ (gf :: _))))))).
+    eapply RAMIF_Q'.trans with
+      (pL := fun _ => !! True)
+      (pG := fun st => !! JMeq (fst st) (snd st)).
+    - simpl; auto.
+    - simpl; auto.
+    - simpl; auto.
+    - apply IHgfs1; clear IHgfs1.
+      * clear - H0.
+        rewrite field_compatible_cons in H0.
+        destruct (nested_field_type t (gfs1 ++ gfs0)), gf; tauto.
+      * exact H1.
+    - eapply derives_trans; [apply gfield_ramif |].
+      * instantiate (1 := v0).
+        rewrite <- H.
+        clear - H1.
+        unfold proj_reptype; fold proj_reptype.
+        rewrite eq_rect_r_JMeq.
+        revert v1 H1; rewrite <- nested_field_type_nested_field_type; intros.
+        apply JMeq_eq in H1; subst v1.
+        reflexivity.
+      * auto.
+      * apply sepcon_derives; auto.
+        apply allp_derives; intros v0'.
+        Opaque nested_field_type_ind. simpl. Transparent nested_field_type_ind.
+        rewrite prop_imp by auto.
+        apply derives_refl.
+    - intros; apply prop_right; auto.
+    - clear v0 H.
+      intros [v0 v0']; unfold fst, snd.
+      apply andp_derives; [| auto].
+      apply prop_derives; intro.
+      clear - H H1.
+      set (v0'' := eq_rect_r reptype v0 (eq_sym (nested_field_type_ind t (gf :: gfs1 ++ gfs0)))).
+      set (v0''' := eq_rect_r reptype v0' (eq_sym (nested_field_type_ind (nested_field_type t gfs0) (gf :: gfs1)))).
+      assert (JMeq v0'' v0''') by (subst v0'' v0'''; rewrite !eq_rect_r_JMeq; auto).
+      clearbody v0'' v0'''.
+      clear v0 v0' H.
+      revert v0'' v1 H0 H1.
+      change (gf :: gfs1 ++ gfs0) with ((gf :: gfs1) ++ gfs0).
+      rewrite <- nested_field_type_nested_field_type.
+      intros.
+      apply JMeq_eq in H1; subst v1.
+      apply JMeq_eq in H0; subst v0'''.
+      reflexivity.
 Qed.
-*)
+
+End NESTED_RAMIF.
+
 (******************************************
 
 Proof of field_except lemma
@@ -424,20 +644,6 @@ Defined.
 Section DATA_AT_WITH_HOLES.
 
 Context {cs: compspecs}.
-
-Definition data_at'_with_holes (sh: Share.t) t h (v: reptype_with_holes t h) (p: val) : mpred.
-  admit.
-Defined.
-
-Definition holes_at (sh: Share.t) t (h: holes) (v: holes_subs t) (p: val) : mpred.
-  admit.
-Defined.
-
-Lemma holes_at_lemma: forall sh t h v v0 p,
-  legal_holes t h ->
-  data_at' sh t (refill_reptype v v0) p =
-  data_at'_with_holes sh t h v p * holes_at sh t h v0 p.
-Admitted.
 
 (*
 Lemma upd_stronger: forall t gfs v v0 v1,
