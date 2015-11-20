@@ -2100,7 +2100,6 @@ Ltac solve_store_rule_evaluation :=
    remember_indexes gfs;
    let h0 := fresh "h0" in let h1 := fresh "h1" in
    set (h0:=v0); set (h1:=v1);
-   rewrite upd_reptype_ind;
    let j := fresh "j" in match type of h0 with ?J => set (j := J) in h0 end;
    lazy beta zeta iota delta in j; subst j;
    lazy beta zeta iota delta - [rhs h0 h1 upd_Znth Zlength];

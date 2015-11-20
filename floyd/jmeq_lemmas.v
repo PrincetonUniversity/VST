@@ -137,3 +137,11 @@ Proof.
   subst.
   auto.
 Qed.
+
+Lemma JMeq_sigT: forall {A B} (a: A), A = B -> {b: B | JMeq a b}.
+Proof.
+  intros.
+  subst.
+  exists a.
+  reflexivity.
+Qed.
