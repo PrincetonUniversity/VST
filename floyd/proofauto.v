@@ -31,6 +31,7 @@ Require Export floyd.sc_set_load_store.
 Require Export floyd.entailer.
 Require Export floyd.globals_lemmas.
 Require Export floyd.diagnosis.
+Require Export floyd.freezer.
 Export ListNotations.
 
 Arguments nested_field_array_type {cs} t gfs lo hi / .
