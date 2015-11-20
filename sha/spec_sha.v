@@ -16,40 +16,30 @@ Definition s256_Nh (s: s256state) := fst (snd (snd s)).
 Definition s256_data (s: s256state) := fst (snd (snd (snd s))).
 Definition s256_num (s: s256state) := snd (snd (snd (snd s))).
 
-Inductive s256abs :=  (* SHA-256 abstract state *)
- S256abs: forall (hashed: list int)   (* words hashed, so far *)
-                         (data: list Z)  (* bytes in the partial block not yet hashed *),
-                     s256abs.
+Definition s256abs := list Z. (* SHA-256 abstract state *)
+
+Definition s256a_hashed (a: s256abs) : list int :=
+  Zlist_to_intlist (sublist 0 ((Zlength a / CBLOCKz) * CBLOCKz) a).
+
+Definition s256a_data (a: s256abs) : list Z :=
+  sublist ((Zlength a / CBLOCKz) * CBLOCKz) (Zlength a) a.
+
+Definition S256abs (hashed: list int) (data: list Z) : s256abs :=
+ intlist_to_Zlist hashed ++ data.
 
 Definition s256a_regs (a: s256abs) : list int :=
- match a with S256abs hashed data  => 
-          hash_blocks init_registers hashed 
- end.
+      hash_blocks init_registers (s256a_hashed a).
 
-Definition bitlength (hashed: list int) (data: list Z) := 
-     ((Zlength hashed * WORD + Zlength data) * 8)%Z. 
-
-Definition s256a_len (a: s256abs) : Z := 
-  match a with S256abs hashed data => bitlength hashed data  end.
+Definition s256a_len (a: s256abs) := (Zlength a * 8)%Z.
 
 Definition s256_relate (a: s256abs) (r: s256state) : Prop :=
-     match a with S256abs hashed data =>
-         s256_h r = map Vint (hash_blocks init_registers hashed) 
-       /\ (s256_Nh r = Vint (hi_part (bitlength hashed data)) /\
-            s256_Nl r = Vint (lo_part (bitlength hashed data)))
-       /\ sublist 0 (Zlength data) (s256_data r) = map Vint (map Int.repr data)
-       /\ (Zlength data < CBLOCKz /\ Forall isbyteZ data)
-       /\ (LBLOCKz | Zlength hashed)
-       /\ s256_num r = Vint (Int.repr (Zlength data))
-     end.
-
-Definition init_s256abs : s256abs := S256abs nil nil.
-
-Definition sha_finish (a: s256abs) : list Z :=
- match a with
- | S256abs hashed data => 
-     SHA_256 (intlist_to_Zlist hashed ++ data)
- end.
+         s256_h r = map Vint (s256a_regs a) 
+       /\ (s256_Nh r = Vint (hi_part (s256a_len a)) /\
+            s256_Nl r = Vint (lo_part (s256a_len a)))
+       /\ sublist 0 (Zlength (s256a_data a)) (s256_data r) = 
+             map Vint (map Int.repr (s256a_data a))
+       /\ Forall isbyteZ a
+       /\ s256_num r = Vint (Int.repr (Zlength (s256a_data a))).
 
 Definition cVint (f: Z -> int) (i: Z) := Vint (f i).
 
@@ -153,18 +143,7 @@ Definition SHA256_Init_spec :=
          PROP () LOCAL (temp _c c)
          SEP(data_at_ Tsh t_struct_SHA256state_st c)
   POST [ tvoid ] 
-         PROP() LOCAL() SEP(sha256state_ init_s256abs c).
-
-Inductive update_abs: list Z -> s256abs -> s256abs -> Prop :=
- Update_abs:
-   (forall msg hashed blocks oldfrag newfrag,
-        Zlength oldfrag < CBLOCKz ->
-        Zlength newfrag < CBLOCKz ->
-       (LBLOCKz | Zlength hashed) ->
-       (LBLOCKz | Zlength blocks) -> 
-       oldfrag++msg = intlist_to_Zlist blocks ++ newfrag ->
-   update_abs msg (S256abs hashed oldfrag) 
-                              (S256abs (hashed++blocks) newfrag)).
+         PROP() LOCAL() SEP(sha256state_ nil c).
 
 Definition SHA256_Update_spec :=
   DECLARE _SHA256_Update
@@ -177,10 +156,11 @@ Definition SHA256_Update_spec :=
          SEP(K_vector kv;
                sha256state_ a c; data_block sh data d)
   POST [ tvoid ] 
-         EX a':_, 
-          PROP (update_abs (sublist 0 len data) a a')
+          PROP ()
           LOCAL ()
-          SEP(K_vector kv; sha256state_ a' c; data_block sh data d).
+          SEP(K_vector kv; 
+                sha256state_ (a ++ sublist 0 len data) c; 
+                data_block sh data d).
 
 Definition SHA256_Final_spec :=
   DECLARE _SHA256_Final
@@ -196,7 +176,7 @@ Definition SHA256_Final_spec :=
          PROP () LOCAL ()
          SEP(K_vector kv;
                data_at_ Tsh t_struct_SHA256state_st c;
-               data_block shmd (sha_finish a) md).
+               data_block shmd (SHA_256 a) md).
 
 Definition SHA256_spec :=
   DECLARE _SHA256

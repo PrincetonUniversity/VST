@@ -125,14 +125,14 @@ pose proof I.
 normalize.
 unfold s256_relate in H0.
 unfold s256_h, s256_Nh,s256_Nl, s256_num, s256_data, fst,snd in H0|-*.
-destruct a as [hashed dd].
-destruct H0 as [H0 [[H1 H6] [H2 [[H3 DDbytes] [H4 H5]]]]].
+destruct H0 as [H0 [[H1 H6] [H2 [DDbytes H4]]]].
+assert (H3 := s256a_data_Zlength_less a).
+pose proof I.
 clear H.
-
 unfold_data_at 1%nat.
 
 assert_PROP (Zlength r_data = CBLOCKz
-    /\ r_data = map Vint (map Int.repr dd) ++ sublist (Zlength dd) CBLOCKz r_data
+    /\ r_data = map Vint (map Int.repr (s256a_data a)) ++ sublist (Zlength (s256a_data a)) CBLOCKz r_data
     /\ field_compatible t_struct_SHA256state_st [StructField _data] c)
    as H; [ | destruct H as [H [H7 FC]]].
   { entailer!.
@@ -141,31 +141,27 @@ assert_PROP (Zlength r_data = CBLOCKz
     change  (@reptype CompSpecs tuchar) with val in H15. (* should not be necessary *) 
     rewrite <- H2.
     pose proof CBLOCKz_eq. 
-    pose proof (Zlength_nonneg dd).
+    pose proof (Zlength_nonneg (s256a_data a)).
     rewrite <- sublist_split; autorewrite with sublist; try omega.
     auto.
    }
 rewrite H7. clear H7.
 subst r_Nh r_Nl r_num.
-assert (H3': Zlength dd < 64) by assumption.
+assert (H3': Zlength (s256a_data a) < 64) by assumption.
 forward. (* p = c->data;  *)
  assert_LOCAL (temp _p (field_address t_struct_SHA256state_st [StructField _data] c))
     by entailer!. 
  drop_LOCAL 1%nat.
 forward. (* n = c->num; *)
 rewrite field_at_data_at with (gfs := [StructField _data]) by reflexivity.
-assert (Hddlen: 0 <= Zlength dd < 64) by Omega1.
+assert (Hddlen: 0 <= Zlength (s256a_data a) < 64) by Omega1.
 forward. (* p[n] = 0x80; *)
 change (Int.zero_ext 8 (Int.repr 128)) with (Int.repr 128).
 rewrite upd_Znth_append
   by (autorewrite with sublist; Omega1).
 simpl.
 forward. (* n++; *)
-(*set (ddlen :=  Zlength dd). 
-assert (Hddlen: (0 <= ddlen < 64)%Z)
-  by (unfold ddlen; split; auto; Omega1).
-*)
-forward_if   (invariant_after_if1 hashed dd c md shmd kv).
+forward_if   (invariant_after_if1 (s256a_hashed a) (s256a_data a) c md shmd kv).
 * (* then-clause *)
  change Delta with Delta_final_if1.
  match goal with |- semax _ _ ?c _ => change c with Body_final_if1 end.
@@ -173,9 +169,11 @@ forward_if   (invariant_after_if1 hashed dd c md shmd kv).
  unfold POSTCONDITION, abbreviate.
  normalize_postcondition.
 (*  subst ddlen.*)
- assert (Zlength dd + 1 > 16 * 4 - 8) by omega.
+ assert (Zlength (s256a_data a) + 1 > 16 * 4 - 8) by omega.
+ assert (DDbytes': Forall isbyteZ (s256a_data a)).
+ unfold s256a_data. apply Forall_sublist; auto.
  eapply semax_pre0; 
-  [|apply (ifbody_final_if1 Espec hashed md c shmd dd kv H4 H3 H5 DDbytes)].
+  [|apply (ifbody_final_if1 Espec (s256a_hashed a) md c shmd (s256a_data a) kv (s256a_hashed_divides _) H3' H4 DDbytes')].
  entailer!.
  unfold_data_at 1%nat.
  rewrite field_at_data_at with (gfs := [StructField _data]) by reflexivity.
@@ -183,6 +181,9 @@ forward_if   (invariant_after_if1 hashed dd c md shmd kv).
  change (cons (Vint (Int.repr 128))) with (app [Vint (Int.repr 128)]).
  rewrite <- !(app_ass _ [_]).
  rewrite <- app_nil_end.
+ unfold s256a_regs.
+ rewrite bitlength_eq.
+ rewrite S256abs_recombine by auto.
  cancel.
  unfold data_at.
  eapply cancel_field_at_array_partial_undef; try reflexivity.
@@ -192,20 +193,26 @@ forward_if   (invariant_after_if1 hashed dd c md shmd kv).
 * (* else-clause *)
 forward. (* skip; *)
 unfold invariant_after_if1.
-Exists hashed (dd ++ [128]) 0.
+Exists (s256a_hashed a) ((s256a_data a) ++ [128]) 0.
 entailer!.
 split3.
 rewrite Forall_app; split; auto.
+unfold s256a_data; apply Forall_sublist; auto.
 repeat constructor; omega.
+split.
 rewrite app_length; simpl. apply Nat2Z.inj_ge.
 repeat rewrite Nat2Z.inj_add. 
 change (Z.of_nat CBLOCK) with 64.
 rewrite <- Zlength_correct. 
 change (Z.of_nat 1) with 1%Z; change (Z.of_nat 8) with 8%Z.
 omega.
+apply s256a_hashed_divides.
 f_equal. repeat rewrite Zlength_correct; f_equal.
 rewrite app_length; simpl. rewrite Nat2Z.inj_add; reflexivity.
 unfold_data_at 1%nat.
+unfold s256a_regs.
+rewrite bitlength_eq.
+ rewrite S256abs_recombine by auto.
 cancel.
 rewrite (field_at_data_at _ _ [_]).
 eapply cancel_field_at_array_partial_undef; try reflexivity.
@@ -218,7 +225,6 @@ Intros hashed' dd' pad.
 rename H1 into DDbytes'.
 rename H2 into PAD.
 unfold POSTCONDITION, abbreviate; clear POSTCONDITION.
-unfold sha_finish.
 unfold SHA_256.
 unfold_data_at 1%nat.
 erewrite (field_at_Tarray Tsh _ [StructField _data]); try reflexivity; try omega.
@@ -292,8 +298,8 @@ make_Vptr c_.
  rewrite !field_address_offset by auto with field_compatible.
 simpl. normalize.
 eapply semax_pre_post; [ | | 
-  apply final_part2 with (hashed:=hashed)(pad:=pad)(c:=c)(kv:=kv)(md:=md); 
-  try eassumption; try Omega1; reflexivity].
+  apply final_part2 with (hashed:= s256a_hashed a)(pad:=pad)(c:=c)(kv:=kv)(md:=md); 
+  try eassumption; try Omega1; try apply s256a_hashed_divides].
 +
 apply andp_left2.
 autorewrite with sublist.
@@ -321,6 +327,12 @@ rewrite array_at_data_at'; auto.
 intros.
 apply andp_left2.
 autorewrite with ret_assert.
+rewrite hashed_data_recombine by auto.
 auto.
++
+reflexivity.
++
+unfold s256a_data.
+apply Forall_sublist; auto.
 Qed.
 

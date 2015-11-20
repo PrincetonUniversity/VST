@@ -218,8 +218,9 @@ Intros cond a b merged a_ b_ c_ begin.
  forward.
 
 (* The loop *)
-forward_while (merge_invariant _cond sh init_a init_b ret_)
-  [[[[[[[cond0 a0] b0] merged0] a_0] b_0] c_0] begin0].
+forward_while (merge_invariant _cond sh init_a init_b ret_).
+
+(*  [[[[[[[cond0 a0] b0] merged0] a_0] b_0] c_0] begin0]. *)
 + (* Loop: precondition => invariant *)
  Exists cond a b merged a_ b_ c_ begin; entailer!.
 + (* Loop: condition has nice format *)

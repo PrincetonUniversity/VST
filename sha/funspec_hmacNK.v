@@ -43,6 +43,24 @@ Parameter REP_FULL: forall key data c, REP (hABS key data) c |-- FULL key c.
 (*We can also "wipe" a ctx, ie forget/erase any key material from ctx*)
 Parameter FULL_EMPTY: forall key c, FULL key c |-- EMPTY c.
 
+Parameter EMPTY_isptr: forall c, EMPTY c |-- !!isptr c.
+
+Lemma FULL_isptr: forall key c, FULL key c |-- !!isptr c.
+Proof.
+  intros.
+  eapply derives_trans.
+  apply FULL_EMPTY.
+  apply EMPTY_isptr.
+Qed.
+
+Lemma REP_isptr: forall key data c, REP (hABS key data) c |-- !!isptr c.
+Proof.
+  intros.
+  eapply derives_trans.
+  apply REP_FULL.
+  apply FULL_isptr.
+Qed.
+
 (****** Next, here are the new specs of openssl's API functions *************)
 (* I have split the two cases for hmac_init. mbedtls separates these situations in its API:
    mbedtls_md_hmac_reset prepares to authenticate a new message with the same key;
@@ -203,6 +221,29 @@ Proof. unfold FULL, EMPTY. normalize.
  apply andp_left2. apply data_at_data_at_.
 Qed.
 (*VST Issue: normalize or entailer or entailer! or simpl; normalize. here take ages!!!*)
+
+Lemma EMPTY_isptr: forall c, EMPTY c |-- !!isptr c. 
+Proof.
+  intros c.
+  unfold EMPTY.
+  entailer!.
+Qed.
+
+Lemma FULL_isptr: forall key c, FULL key c |-- !!isptr c.
+Proof.
+  intros.
+  eapply derives_trans.
+  apply FULL_EMPTY.
+  apply EMPTY_isptr.
+Qed.
+
+Lemma REP_isptr: forall key data c, REP (hABS key data) c |-- !!isptr c.
+Proof.
+  intros.
+  eapply derives_trans.
+  apply REP_FULL.
+  apply FULL_isptr.
+Qed.
 
 (************************ Abstract specifications of HMAC_init *******************************************************)
 
