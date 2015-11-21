@@ -34,7 +34,7 @@ Proof.
     - exact (inr (IHl a)).
 Defined.
 
-Definition compact_prod_upd {A} {F} (l: list A) (v: compact_prod (map F l)) (a: A) (v0: F a) (H: forall a b: A, {a = b} + {a <> b}) : compact_prod (map F l).
+Definition upd_compact_prod {A} {F} (l: list A) (v: compact_prod (map F l)) (a: A) (v0: F a) (H: forall a b: A, {a = b} + {a <> b}) : compact_prod (map F l).
 Proof.
   intros.
   destruct l; [exact v |].
@@ -61,7 +61,7 @@ Proof.
   destruct H; [congruence | tauto].
 Defined.
 
-Definition compact_sum_upd {A} {F} (l: list A) (v: compact_sum (map F l)) (a: A) (v0: F a) (H: forall a b: A, {a = b} + {a <> b}) : compact_sum (map F l).
+Definition upd_compact_sum {A} {F} (l: list A) (v: compact_sum (map F l)) (a: A) (v0: F a) (H: forall a b: A, {a = b} + {a <> b}) : compact_sum (map F l).
 Proof.
   destruct (in_dec H a l); [| exact v].
   clear v.

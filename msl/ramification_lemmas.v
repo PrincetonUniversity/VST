@@ -289,40 +289,46 @@ Proof.
   apply (allp_left _ x); auto.
 Qed.
 
-Lemma trans: forall {B C} g m l pG pL g' mG' mL' l' (f: B -> C),
+Lemma trans: forall {B BG BL} g m l p pG pL g' mG' mL' l' (fG: B -> BG) (fL: B -> BL),
+  corable p ->
   corable pL ->
   corable pG ->
-  (forall b, pL b && mL' b |-- pG (f b) && mG' (f b)) ->
   g |-- m * allp (pG --> (mG' -* g')) ->
   m |-- l * allp (pL --> (l' -* mL')) ->
-  g |-- l * allp (pL --> (l' -* Basics.compose g' f)).
+  (forall b, p b |-- pL (fL b)) ->
+  (forall b, p b && mL' (fL b) |-- pG (fG b) && mG' (fG b)) ->
+  g |-- l * allp (p --> (Basics.compose l' fL -* Basics.compose g' fG)).
 Proof.
   intros.
-  apply solve with (allp (pL --> (l' -* mL')) * allp (pG --> (mG' -* g'))); auto.
+  apply solve with (allp (pL --> (l' -* mL')) * allp (pG --> (mG' -* g'))).
+  + simpl; unfold Basics.compose.
+    auto.
   + eapply derives_trans; [exact H2 |].
     eapply derives_trans; [apply sepcon_derives; [exact H3 | apply derives_refl] |].
     rewrite sepcon_assoc; auto.
-  + intro x.
+  + intro b.
+    unfold Basics.compose.
     rewrite <- !corable_andp_sepcon1 by auto.
     rewrite sepcon_assoc.
     apply wand_sepcon_adjoint.
     rewrite andp_comm; apply imp_andp_adjoint.
-    apply (allp_left _ x); apply imp_andp_adjoint.
+    apply (allp_left _ (fL b)); apply imp_andp_adjoint.
     apply wand_sepcon_adjoint.
     rewrite sepcon_comm, sepcon_assoc, sepcon_comm.
     apply wand_sepcon_adjoint.
-    apply derives_trans with (pG (f x) && mG' (f x)).
-    - eapply derives_trans; [| apply H1].
+    apply derives_trans with (pG (fG b) && mG' (fG b)).
+    - apply derives_trans with (p b && mL' (fL b)); [| apply H5].
       rewrite corable_sepcon_andp2 by auto.
       apply andp_right; [apply andp_left1; auto |].
       rewrite <- corable_sepcon_andp1 by auto.
       rewrite sepcon_comm.
       apply wand_sepcon_adjoint.
-      simpl; apply modus_ponens.
+      simpl; eapply derives_trans; [| apply modus_ponens].
+      apply andp_derives; [apply H4 | apply derives_refl].
     - apply wand_sepcon_adjoint.
       rewrite sepcon_comm.
       apply wand_sepcon_adjoint.
-      apply (allp_left _ (f x)); simpl; unfold Basics.compose.
+      apply (allp_left _ (fG b)); simpl.
       apply wand_sepcon_adjoint.
       rewrite corable_sepcon_andp1, <- corable_andp_sepcon1 by auto.
       apply wand_sepcon_adjoint.

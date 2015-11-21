@@ -818,7 +818,7 @@ Lemma union_pred_upd: forall m {A} (P: forall it, A it -> val -> mpred) (i: iden
 Proof.
   intros.
   intros.
-  unfold upd_union, compact_sum_upd.
+  unfold upd_union, upd_compact_sum.
   destruct (in_dec member_dec (i, field_type i m) m) as [?H | ?H];
     [| apply in_members_field_type in H0; tauto].
   clear v.
