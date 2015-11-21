@@ -437,10 +437,12 @@ eapply semax_pre; [
   eapply derives_trans; [ | apply (setup_globals three) ] | ].
  entailer!.
 forward_call (*  r = reverse(three); *)
-  (Ews, map Vint [Int.repr 1; Int.repr 2; Int.repr 3], three) r'.
+  (Ews, map Vint [Int.repr 1; Int.repr 2; Int.repr 3], three).
+Intros r'.
 rewrite <- map_rev. simpl rev.
 forward_call  (* s = sumlist(r); *)
-   (Ews, Int.repr 3 :: Int.repr 2 :: Int.repr 1 :: nil, r') s'.
+   (Ews, Int.repr 3 :: Int.repr 2 :: Int.repr 1 :: nil, r').
+Intros s'.
 forward.  (* return s; *)
 Qed.
 

@@ -202,7 +202,7 @@ match goal with |- ?P -> _ =>
   ((assert P by immediate; fail 1) || fail 1) || intros _
 end.
 
-Ltac fancy_intro :=
+Ltac fancy_intro aggressive :=
  match goal with
  | |- ?P -> _ => match type of P with Prop => idtac end
  | |- ~ _ => idtac
@@ -214,7 +214,8 @@ Ltac fancy_intro :=
  match type of H with
  | ?P => clear H; (((assert (H:P) by immediate; fail 1) || fail 1) || idtac)
                 (* do it in this complicated way because the proof will come out smaller *)
- | ?x = ?y => first [subst x | subst y 
+ | ?x = ?y => constr_eq aggressive true;
+                     first [subst x | subst y 
                              | is_var x; rewrite H 
                              | is_var y; rewrite <- H
                              | idtac]
@@ -224,25 +225,27 @@ Ltac fancy_intro :=
         first [simple apply typed_false_of_bool in H
                | apply typed_false_tint_Vint in H
                | apply typed_false_tint in H
+               | apply typed_false_ptr in H
                | idtac ]
  | typed_true _ _ =>  
         first [simple apply typed_true_of_bool in H
                | apply typed_true_tint_Vint in H
                | apply typed_true_tint in H
+               | apply typed_true_ptr in H
                | idtac ]
  | temp _ _ _ => hnf in H
  | var _ _ _ _ => hnf in H
  | _ => try solve [discriminate H]
  end.
 
-Ltac fancy_intros :=
+Ltac fancy_intros aggressive :=
  repeat match goal with
-  | |- (_ <= _ < _) -> _ => fancy_intro
-  | |- (_ < _ <= _) -> _ => fancy_intro
-  | |- (_ <= _ <= _) -> _ => fancy_intro
-  | |- (_ < _ < _) -> _ => fancy_intro
+  | |- (_ <= _ < _) -> _ => fancy_intro aggressive
+  | |- (_ < _ <= _) -> _ => fancy_intro aggressive
+  | |- (_ <= _ <= _) -> _ => fancy_intro aggressive
+  | |- (_ < _ < _) -> _ => fancy_intro aggressive
   | |- (_ /\ _) -> _ => simple apply and_ind
-  | |- _ -> _ => fancy_intro
+  | |- _ -> _ => fancy_intro aggressive
   end.
 
 Ltac normalize1 := 
@@ -294,10 +297,10 @@ Ltac normalize1 :=
                             (rewrite (prop_true_andp' (x=y))
                                             by (unfold x; reflexivity); unfold x in *; clear x)
               |  |- ?ZZ -> ?YY => match type of ZZ with 
-                                               | Prop => fancy_intros || fail 1
+                                               | Prop => fancy_intros true || fail 1
                                                | _ => intros _
                                               end
-              | |- ~ _ => fancy_intro
+              | |- ~ _ => fancy_intro true
               | |- _ => progress (norm_rewrite) (*; auto with typeclass_instances *)
               | |- forall _, _ => let x := fresh "x" in (intro x; repeat normalize1; try generalize dependent x)
               end.
@@ -307,7 +310,7 @@ Ltac normalize :=
    repeat (((repeat simple apply go_lower_lem1'; simple apply go_lower_lem1)
               || simple apply derives_extract_prop
               || simple apply derives_extract_prop');
-              fancy_intros);
+              fancy_intros true);
    repeat normalize1; try contradiction.
 
 (****** END experimental normalize ******************)
@@ -1745,7 +1748,7 @@ simple eapply saturate_aux21x;
  | simple apply derives_extract_prop;
    match goal with |- _ -> ?A => 
        let P := fresh "P" in set (P := A); autorewrite with norm; 
-              rewrite -> ?and_assoc; fancy_intros;  subst P
+              rewrite -> ?and_assoc; fancy_intros true;  subst P
       end
  ].
 
@@ -2003,16 +2006,16 @@ Ltac Intro_prop :=
 autorewrite with gather_prop;
 match goal with
  | |- semax _ ?PQR _ _ =>
-     first [ simple apply semax_extract_PROP; fancy_intros
+     first [ simple apply semax_extract_PROP; fancy_intros false
             | move_from_SEP' PQR; 
-              simple apply semax_extract_PROP; fancy_intros
+              simple apply semax_extract_PROP; fancy_intros false
             | flatten_in_SEP PQR
             ]
  | |- ?PQR |-- _ => 
-     first [ simple apply derives_extract_prop; fancy_intros
-             | simple apply derives_extract_PROP; fancy_intros
+     first [ simple apply derives_extract_prop; fancy_intros false
+             | simple apply derives_extract_PROP; fancy_intros false
             | move_from_SEP' PQR;
-               simple apply derives_extract_PROP; fancy_intros
+               simple apply derives_extract_PROP; fancy_intros false
             | flatten_in_SEP PQR
              ]
 end.

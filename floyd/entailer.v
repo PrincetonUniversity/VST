@@ -386,11 +386,11 @@ Hint Rewrite (@andp_TT mpred _) : gather_prop.
 Ltac ent_iter :=
     repeat (( simple apply derives_extract_prop 
                 || simple apply derives_extract_prop');
-                fancy_intros);
+                fancy_intros true);
     autorewrite with gather_prop;
     repeat (( simple apply derives_extract_prop 
                 || simple apply derives_extract_prop');
-                fancy_intros);
+                fancy_intros true);
    saturate_local;
    repeat erewrite unfold_reptype_elim in * by reflexivity;
    simpl_compare;

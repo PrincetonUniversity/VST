@@ -127,8 +127,22 @@ Ltac simplify_Delta_OLD :=
      simplify_Delta_at A; simplify_Delta_at B; reflexivity
 end.
 
-Ltac simplify_func_tycontext := 
-  match goal with |- context [func_tycontext ?f ?V ?G] =>
+Ltac reduce_snd S1 := 
+match goal with
+| |- context [snd ?A] =>
+   let j := fresh in set (j := snd A) at 1;
+   hnf in j;
+   reduce_snd S1;
+   subst j
+| |- _ => intro S1; simpl in S1
+end.
+
+Ltac simplify_func_tycontext :=
+ match goal with |- @semax _ _ ?DD ?Pre ?Body ?Post =>  
+  match DD with context [(func_tycontext ?f ?V ?G)] =>
+    let Pre' := fresh "Pre" in set (Pre':=Pre) at 1;
+    let Body' := fresh "Body" in set (Body':=Body) at 1;
+    let Post' := fresh "Post" in set (Post':=Post) at 1;
     let D1 := fresh "D1" in let Delta := fresh "Delta" in 
     set (Delta := func_tycontext f V G);
     set (D1 := func_tycontext f V G) in Delta;
@@ -139,7 +153,12 @@ Ltac simplify_func_tycontext :=
     set (S1 := make_tycontext_s G) in DS;
     change S1 with (@abbreviate (PTree.t funspec) S1) in DS;
     lazy beta iota zeta delta - [DS] in D1; subst D1;
-    unfold make_tycontext_s in S1; simpl in S1; subst S1
+    unfold make_tycontext_s, fold_right in S1; red in S1;
+    revert S1 DS Delta;
+    reduce_snd S1; (* carefully staged to avoid "simpl"
+                 in any of the user's funspecs! *)
+    intros DS Delta; subst S1 Pre' Body' Post'
+   end
  end.
 
 Ltac simplify_Delta :=

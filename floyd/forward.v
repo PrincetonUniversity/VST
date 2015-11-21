@@ -436,11 +436,11 @@ Ltac Forall_pTree_from_elements :=
  go_lower;
  repeat (( simple apply derives_extract_prop 
                 || simple apply derives_extract_prop');
-                fancy_intros);
+                fancy_intros true);
  autorewrite with gather_prop;
  repeat (( simple apply derives_extract_prop 
                 || simple apply derives_extract_prop');
-                fancy_intros);
+                fancy_intros true);
    repeat erewrite unfold_reptype_elim in * by reflexivity;
    try autorewrite with entailer_rewrite in *;
    repeat first
@@ -687,14 +687,7 @@ try match goal with |- context [strong_cast ?t1 ?t2 ?v] =>
           ]
 end.
 
-Ltac unfold_map_liftx_etc := 
-change (@map (lift_T (LiftEnviron mpred)) (LiftEnviron mpred)
-                 (@liftx (LiftEnviron mpred)))
- with (fix map (l : list (lift_T (LiftEnviron mpred))) : list (LiftEnviron mpred) :=
-  match l with
-  | nil => nil 
-  | cons a t => cons (liftx a) (map t)
-  end); 
+Ltac unfold_app := 
 change (@app mpred)
   with (fix app (l m : list mpred) {struct l} : list mpred :=
   match l with
@@ -713,20 +706,6 @@ Lemma revert_unit: forall (P: Prop), (forall u: unit, P) -> P.
 Proof. intros. apply (H tt).
 Qed.
 
-Ltac after_forward_call2 :=
-      cbv beta iota; 
-      try rewrite <- no_post_exists0;
-      unfold_map_liftx_etc;
-      fold (@map (lift_T (LiftEnviron mpred)) (LiftEnviron mpred) liftx); 
-      simpl_strong_cast;
-      abbreviate_semax.
-
-Ltac after_forward_call :=
-  first [apply extract_exists_pre; 
-             let v := fresh "v" in intro v; after_forward_call; revert v
-          | after_forward_call2
-          ].
-
 Ltac fwd_skip :=
  match goal with |- semax _ _ Sskip _ =>
    normalize_postcondition;
@@ -734,7 +713,46 @@ Ltac fwd_skip :=
       [ | apply semax_skip]
  end.
 
+
+Definition BINDER_NAME := tt.
+Ltac find_postcond_binder_names :=
+  match goal with |- semax ?Delta _ ?c _ =>
+     match c with context [Scall _ (Evar ?id _) _] =>
+     let x := constr:((glob_specs Delta) ! id) in
+     let x' := eval hnf in x in 
+     match x' with 
+     | Some (mk_funspec _ _ _ (fun _ => exp (fun y1 => exp (fun y2 => exp (fun y3 => exp (fun y4 => _)))))) =>
+         let y4' := fresh y4 in  pose (y4' := BINDER_NAME);
+         let y3' := fresh y3 in  pose (y3' := BINDER_NAME);
+         let y2' := fresh y2 in  pose (y2' := BINDER_NAME);
+         let y1' := fresh y1 in  pose (y1' := BINDER_NAME)
+     | Some (mk_funspec _ _ _ (fun _ => exp (fun y1 => exp (fun y2 => exp (fun y3 => _))))) =>
+         let y3' := fresh y3 in  pose (y3' := BINDER_NAME);
+         let y2' := fresh y2 in  pose (y2' := BINDER_NAME);
+         let y1' := fresh y1 in  pose (y1' := BINDER_NAME)
+     | Some (mk_funspec _ _ _ (fun _ => exp (fun y1 => exp (fun y2 => _)))) =>
+         let y2' := fresh y2 in  pose (y2' := BINDER_NAME);
+         let y1' := fresh y1 in  pose (y1' := BINDER_NAME)
+     | Some (mk_funspec _ _ _ (fun _ => exp (fun y1 => _))) =>
+         let y1' := fresh y1 in  pose (y1' := BINDER_NAME)
+     | _ => idtac
+     end
+   end
+ end.
+
+Ltac after_forward_call_binders :=
+ repeat match goal with
+ | r := BINDER_NAME |- _ => 
+    clear r; apply extract_exists_pre; intro r
+ | |- _ => apply extract_exists_pre; intros ?vret
+ end.
+
+Ltac after_forward_call := 
+    cbv beta; unfold_app;
+    try (apply extract_exists_pre; intros _).
+
 Ltac fwd_call' witness :=
+  (* find_postcond_binder_names; *)
  try match goal with
       | |- semax _ _ (Scall _ _ _) _ => rewrite -> semax_seq_skip
       end;
@@ -756,22 +774,6 @@ Ltac fwd_call' witness :=
 
 Definition In_the_previous_'forward'_use_an_intro_pattern_of_type (t: Type) := False.
 
-Ltac no_intros :=
-     match goal with
-     | |- ?t -> _ => 
-         elimtype False; fold (In_the_previous_'forward'_use_an_intro_pattern_of_type t)
-     end.
-
-(* 
-Tactic Notation "forward_call'" constr(witness) :=
-    check_canonical_call;
-    fwd_call' witness;
-   [ .. | 
-    first [intros _ | no_intros];
-    repeat (apply semax_extract_PROP; intro);
-    try fwd_skip
-   ].
-*)
 
 Definition In_the_previous_forward_call__use_intropatterns_to_intro_values_of_these_types := Stuck.
 
@@ -786,7 +788,7 @@ Tactic Notation "uniform_intros" simple_intropattern_list(v) :=
    by (intros v; apply Coq.Init.Logic.I);
   fail 1) || intros v) || idtac).
 
-Tactic Notation "forward_call" constr(witness) simple_intropattern_list(v) :=
+Tactic Notation "forward_call" constr(witness) :=
     check_canonical_call; 
     try  (* BUG IN THIS LINE!  If check_canonical_call succeeds, but the
           rest of the tactic fails, then the whole tactic should fail,
@@ -1369,7 +1371,7 @@ Ltac normalize :=
   repeat 
   (first [ simpl_tc_expr
 (*         | simple apply semax_extract_PROP_True; [solve [auto] | ]*)
-         | simple apply semax_extract_PROP; fancy_intros
+         | simple apply semax_extract_PROP; fancy_intros true
          | extract_prop_from_LOCAL
          | move_from_SEP
          ]; cbv beta; msl.log_normalize.normalize)
