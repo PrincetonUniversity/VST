@@ -2821,111 +2821,88 @@ Arguments overridePost Q R !ek !vl / _ .
 Arguments eq_dec A EqDec / a a' .
 Arguments EqDec_exitkind !a !a'.
 
-(*
-Definition compspecs_program (p: program): compspecs.
-  apply (mkcompspecs (prog_comp_env p)).
-  eapply build_composite_env_consistent.
-  apply (prog_comp_env_eq p).
-Defined.
-*)
+(**** make_compspecs ****)
 
-Lemma composite_env_legal_alignas_lem:
- forall p, let cenv := prog_comp_env p in
-       Forall
-       (fun x : ident * composite =>
-        composite_legal_alignas cenv (snd x) /\
-        composite_legal_fieldlist (snd x)) (PTree.elements cenv) ->
-composite_env_legal_alignas cenv.
+Fixpoint log_base_two_pos (x:positive) : nat :=
+ match x with 
+ | xI y => S (log_base_two_pos y)
+ | xO y => S (log_base_two_pos y)
+ | xH => O
+ end.
+
+Definition log_base_two (x: Z) : nat :=
+match x with Zpos y => log_base_two_pos y | _ => O end.
+
+Ltac make_composite_env env c :=
+ match c with
+ | nil => refine (  {| cenv_cs := env;
+    cenv_consistent := _;
+    cenv_legal_alignas := _;
+    cenv_legal_fieldlist := _ |})
+ | Composite ?id ?su ?m ?a :: ?c' =>
+ let t := constr: (PTree.get id env) in
+ let t := eval hnf in t in
+ constr_eq t (@None composite);
+ let cm := constr: (complete_members env m) in
+ let cm := eval hnf in cm in
+ constr_eq cm true;
+ let al := constr:(align_attr a (alignof_composite env m)) in
+ let al := eval compute in al in
+ let sz := constr:(align (sizeof_composite env su m) al) in
+ let sz := eval compute in sz in
+ let r := constr:(rank_members env m) in
+ let r := eval compute in r in
+ let szpos := constr:(Z.le_ge 0 sz (proj1 (Z.geb_le sz 0) (eq_refl _))) in
+ let al_two_p := constr:(ex_intro (fun n : nat => al = two_power_nat n) (log_base_two al) (eq_refl _)) in
+ let sz_al := constr:(ex_intro (fun z : Z => sz = (z * al)%Z) (sz / al) (eq_refl _)) in
+ let c1 := constr:( {| co_su := su;
+            co_members := m;
+            co_attr := a;
+            co_sizeof := sz;
+            co_alignof := al;
+            co_rank := r;
+            co_sizeof_pos := szpos;
+            co_alignof_two_p := al_two_p;
+            co_sizeof_alignof := sz_al |}) in
+ let env' := constr:(PTree.set id c1 env) in
+ let env' := eval simpl in env' in
+  make_composite_env env' c'
+end.
+
+Ltac make_composite_env0 prog := 
+let p := constr:(prog_types prog) in
+let c := eval hnf in p in
+let e := constr:(@PTree.empty composite) in
+let e := eval hnf in e in
+make_composite_env e c.
+
+
+Lemma composite_env_consistent_i':
+  forall (f: composite -> Prop) (env: composite_env), 
+   Forall (fun idco => f (snd idco)) (PTree.elements env) ->
+   (forall id co, env ! id = Some co -> f co).
 Proof.
- intros p cenv Ha ? ? ?.
-    apply PTree.elements_correct in H.
-    revert H.
-    change co with (snd (id, co)) at 2.
-    forget (id, co) as ele.
-    revert ele.
-    apply Forall_forall. auto.
-    induction (PTree.elements cenv). constructor.
-   inv Ha. constructor; auto.  destruct H1; auto.
+intros.
+pose proof (Forall_ptree_elements_e _ (fun idco : positive * composite => f (snd idco))).
+simpl in H1.
+eapply H1; eassumption.
 Qed.
 
-Lemma composite_env_legal_fieldlist_lem:
- forall p, let cenv := prog_comp_env p in
-       Forall
-       (fun x : ident * composite =>
-        composite_legal_alignas cenv (snd x) /\
-        composite_legal_fieldlist (snd x)) (PTree.elements cenv) ->
-composite_env_legal_fieldlist cenv.
+Lemma composite_env_consistent_i:
+  forall (f: composite_env -> composite -> Prop) (env: composite_env), 
+   Forall (fun idco => f env (snd idco)) (PTree.elements env) ->
+   (forall id co, env ! id = Some co -> f env co).
 Proof.
- intros p cenv Ha ? ? ?.
-    apply PTree.elements_correct in H.
-    revert H.
-    change co with (snd (id, co)) at 2.
-    forget (id, co) as ele.
-    revert ele.
-    apply Forall_forall. auto.
-    induction (PTree.elements cenv). constructor.
-   inv Ha. constructor; auto.  destruct H1; auto.
+intros.
+eapply composite_env_consistent_i'; eassumption.
 Qed.
-
-Definition mk_prog_compspecs:
-  forall (p: program),
-   let cenv := prog_comp_env p in
-   Forall
-    (fun x : ident * composite =>
-      composite_legal_alignas cenv (snd x) /\
-      composite_legal_fieldlist (snd x))
-      (PTree.elements cenv) ->
-   compspecs.
-Proof.
-intros p cenv Ha.
-apply (mkcompspecs cenv).
-apply (build_composite_env_consistent _ _ (prog_comp_env_eq p)).
-apply (composite_env_legal_alignas_lem p Ha).
-apply (composite_env_legal_fieldlist_lem p Ha).
-Defined.
-
-Lemma Zge_refl: forall (n: Z), n >= n.
-Proof. intros. omega. Qed.
-
-Lemma EqLtFalse: Eq = Lt -> False.
-Proof. intro. discriminate. Qed.
-
-Ltac make_compspecs1 prog :=
-let p := eval lazy beta zeta iota delta [
-   prog_comp_env 
-   PTree.elements PTree.xelements prog
-   make_composite_env build_composite_env
-  add_composite_definitions composite_of_def
-  Errors.bind PTree.get PTree.empty
-  ] in (prog_comp_env prog)
-in let p := eval simpl in p
-in 
-assert (H : Forall
-       (fun x : ident * composite =>
-        composite_legal_alignas p (snd x) /\
-        composite_legal_fieldlist (snd x))
-        (PTree.elements p)) 
-  by (repeat constructor; compute; apply EqLtFalse);
-let b :=eval lazy beta zeta iota delta [
-   H mk_prog_compspecs prog_comp_env 
-   PTree.elements PTree.xelements prog
-   make_composite_env build_composite_env
-  add_composite_definitions composite_of_def
-  Errors.bind PTree.get PTree.empty
-  ] in (mk_prog_compspecs prog H)
-in let b := eval simpl in b
-in exact b.
-
-Ltac make_compspecs2 CS :=
- let a := eval lazy beta delta [CS] in CS
- in exact a.
 
 Ltac make_compspecs prog :=
-assert (H : Forall
-       (fun x : ident * composite =>
-        composite_legal_alignas (prog_comp_env prog) (snd x) /\
-        composite_legal_fieldlist (snd x))
-       (PTree.elements (prog_comp_env prog)))
-  by (repeat constructor; try apply Zge_refl);
-let a := eval vm_compute in (mk_prog_compspecs prog H)
- in exact a.
+ make_composite_env0 prog;
+ [now (red; apply (composite_env_consistent_i composite_consistent);
+          repeat constructor)
+ |now (red; apply (composite_env_consistent_i composite_legal_alignas);
+          repeat constructor)
+ |now(red; apply (composite_env_consistent_i' composite_legal_fieldlist);
+         repeat constructor)
+ ].
