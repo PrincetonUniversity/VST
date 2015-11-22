@@ -95,10 +95,10 @@ Definition initPostResetConditional r (c:val) (k: val) h key iS oS: mpred:=
   end.*)
 remember (EX shaStates:_ ,
           PROP  (innerShaInit (map Byte.repr (HMAC_SHA256.mkKey key))
-                           (fst shaStates) /\
+                           =(fst shaStates) /\
                   s256_relate (fst shaStates) (fst (snd shaStates)) /\
                   outerShaInit (map Byte.repr (HMAC_SHA256.mkKey key))
-                           (fst (snd (snd shaStates))) /\ 
+                           =(fst (snd (snd shaStates))) /\ 
                   s256_relate (fst (snd (snd shaStates))) (snd (snd (snd shaStates))))
           LOCAL  (lvar _pad (tarray tuchar 64) pad; 
                   lvar _ctx_key (tarray tuchar 64) (Vptr ckb ckoff); 
@@ -129,11 +129,22 @@ eapply semax_seq. instantiate (1:=PostResetBranch).
     destruct R; subst r; simpl.
     2: solve [apply semax_pre with (P':=FF); try entailer!; try apply semax_ff].
     Time normalize. (*5.7*)
-    rename H into INNER. rename H0 into InnerRelate.
-    rename H1 into OUTER. rename H2 into OuterRelate.
+    rename H into InnerRelate.
+    rename H0 into OuterRelate.
     unfold hmacstate_PreInitNull; simpl.
     Intros s v.
-    apply semax_pre with (P':= PROP (hmac_relate_PreInitNull key h1 s)
+    rename H into Hs.
+    unfold hmac_relate_PreInitNull in Hs. 
+    clear InnerRelate OuterRelate iS oS.
+    destruct h1.
+    destruct Hs as [IREL [OREL [ILEN [OLEN [ISHA OSHA]]]]].
+    destruct s as [mdS [iS oS]]. 
+
+(* Issue: why is update_reptype not simplifying? *) 
+     match goal with |- context [@upd_gfield_reptype ?cs ?t ?gfs ?x ?v] => 
+           change (@upd_gfield_reptype cs t gfs x v) with (v,(iS,oS)) end.
+     simpl in *.
+    apply semax_pre with (P':= PROP ()
       LOCAL  (@lvar CompSpecs _pad (tarray tuchar 64) pad;
               @lvar CompSpecs _ctx_key (tarray tuchar 64) (Vptr ckb ckoff);
               temp _ctx (Vptr cb cofs); temp _key (Vint Int.zero);
@@ -141,20 +152,11 @@ eapply semax_seq. instantiate (1:=PostResetBranch).
       SEP  (@data_at_ CompSpecs Tsh (tarray tuchar 64) pad;
             @data_at_ CompSpecs Tsh (Tarray tuchar 64 noattr) (Vptr ckb ckoff);
             @data_at CompSpecs Tsh t_struct_hmac_ctx_st
-                (@upd_reptype CompSpecs t_struct_hmac_ctx_st [StructField _md_ctx] s v)
+                (v,(iS,oS))
                 (Vptr cb cofs);
             K_vector kv)). 
-    { Time entailer!. (*8*) }
-    Time normalize. (*15.7 SLOW - -should become more wefficient when in next round of extarct_prop Issue*) 
-    rename H into Hs.
-    clear INNER InnerRelate OUTER OuterRelate iSA iS oSA oS.
-    destruct h1.
-    destruct Hs as [IREL [OREL [ILEN [OLEN [ISHA OSHA]]]]].
-    destruct s as [mdS [iS oS]].
+    { Time entailer!. (*6 SLOW*) }
 
-(* Issue: why is update_reptype not simplifying? *)
-    match goal with |- context [@upd_reptype ?cs ?t ?gfs ?x ?v] => 
-          change (@upd_reptype cs t gfs x v) with (v,(iS,oS)) end.
      
     Time assert_PROP (field_compatible t_struct_hmac_ctx_st [] (Vptr cb cofs))
         as FC_cb by entailer!. (*4*)
@@ -174,8 +176,7 @@ eapply semax_seq. instantiate (1:=PostResetBranch).
               (Int.repr (nested_field_offset t_struct_hmac_ctx_st [StructField _i_ctx]))
               (Vptr cb cofs),
              mkTrep t_struct_SHA256state_st iS, 
-             @sizeof (@cenv_cs CompSpecs) t_struct_SHA256state_st) rv.
-     (* 13 secs*)
+             @sizeof (@cenv_cs CompSpecs) t_struct_SHA256state_st). (* 12.2 secs*)
      { rewrite (field_at_data_at _ _ [StructField _md_ctx]).
        rewrite field_address_offset by auto with field_compatible.
        simpl; rewrite Int.add_zero.
@@ -189,17 +190,16 @@ eapply semax_seq. instantiate (1:=PostResetBranch).
        clear - FC_cb; hnf in FC_cb|-*; intuition.
        red in H4|-*. simpl in H4|-*. omega.
      }
-     subst rv. simpl.
+     Intros rv; subst rv. simpl.
 
      Time forward. (*return*) (*14 secs SLOW, and leaves a somewhat messy subgoal (Issue)*)
-     Exists (Vptr ckb ckoff) pad (HMACabs iSha iSha oSha). 
+     Exists (Vptr ckb ckoff) pad. 
      unfold hmacInit. 
      remember (Int.unsigned (Int.repr (if zlt 64 (Zlength key) then 32 else Zlength key)))as KL.
      Time entailer!. (*7.4*)
-     exists iSha, oSha. auto.
      unfold hmacstate_, hmac_relate.
       Exists (iS, (iS, oS)).
-      simpl. Time entailer!. (*5.8*)
+      simpl. Time entailer!. (*5.6*)
 
       unfold_data_at 3%nat.
       rewrite (field_at_data_at _ _ [StructField _md_ctx]).
@@ -214,9 +214,9 @@ eapply semax_seq. instantiate (1:=PostResetBranch).
   { (*k is Vptr, key!=NULL*)
     destruct R; subst r; simpl. 
     solve [apply semax_pre with (P':=FF); try entailer; try apply semax_ff].
-    Time normalize. (*15.3 SLOW*) 
-    rename H into INNER. rename H0 into InnerRelate.
-    rename H1 into OUTER. rename H2 into OuterRelate. rename H3 into isbyteKey. 
+    Intros. 
+    rename H0 into InnerRelate.
+    rename H2 into OuterRelate. rename H3 into isbyteKey. 
     unfold postResetHMS. simpl.
      assert_PROP (field_compatible t_struct_hmac_ctx_st [] (Vptr cb cofs)) as FC_cb by entailer!.
      assert (FC_cb_ictx: field_compatible t_struct_hmac_ctx_st [StructField 14%positive] (Vptr cb cofs)).
@@ -237,8 +237,8 @@ eapply semax_seq. instantiate (1:=PostResetBranch).
               (Int.repr (nested_field_offset t_struct_hmac_ctx_st [StructField _i_ctx]))
               (Vptr cb cofs),
              mkTrep t_struct_SHA256state_st iS,
-             @sizeof (@cenv_cs CompSpecs) t_struct_SHA256state_st) rv.
-    (* 18 - SLOW -- maybe can spead up by doing some of the stuff in the proof of the SC prior to the call?*)
+             @sizeof (@cenv_cs CompSpecs) t_struct_SHA256state_st).
+    (* 14.7 - SLOW -- maybe can spead up by doing some of the stuff in the proof of the SC prior to the call?*)
     { simpl. 
       change 108 with (sizeof cenv_cs t_struct_SHA256state_st).
       rewrite memory_block_data_at_ .
@@ -247,29 +247,27 @@ eapply semax_seq. instantiate (1:=PostResetBranch).
        clear - FC_cb; hnf in FC_cb|-*; intuition.
        red in H4|-*. simpl in H4|-*. omega.
     }
+    Intros vret; subst vret.
     simpl.
-    Time forward. (*return*) (*19 SLOW*) (*ISssue: leaves a messy subgoal*)
-    Exists (Vptr ckb ckoff) pad (HMACabs iSA iSA oSA). 
-    Time entailer!. (*11*)
-      exists iSA, oSA. auto.
+    Time forward. (*return*) (*17 SLOW*) (*ISssue: leaves a messy subgoal*)
+    Exists (Vptr ckb ckoff) pad. 
+    Time entailer!. (*9*)
     unfold data_block, hmacstate_, hmac_relate.
     Exists (iS, (iS, oS)).
     change (@data_at spec_sha.CompSpecs Tsh (tarray tuchar (@Zlength Z key)))
        with (@data_at CompSpecs Tsh (tarray tuchar (@Zlength Z key))).
-    change (Tarray tuchar 64 noattr) with (tarray tuchar 64).
-    Time cancel. (*3*)
-    Time entailer!. (*9*)
-      split. rewrite (updAbs_len _ _ _ INNER), Zlength_mkArgZ,
-           map_length, mkKey_length; reflexivity.
-      rewrite (updAbs_len _ _ _ OUTER), Zlength_mkArgZ,
-           map_length, mkKey_length; reflexivity.
-      unfold_data_at 4%nat.
+    change (Tarray tuchar 64 noattr) with (tarray tuchar 64). simpl.
+    Time entailer!. (*6.4*)
+      unfold s256a_len, innerShaInit, outerShaInit.
+      repeat rewrite Zlength_mkArgZ,
+           map_length, mkKey_length. split; reflexivity.
+    unfold_data_at 3%nat.
       rewrite (field_at_data_at _ _ [StructField _md_ctx]).
       rewrite (field_at_data_at _ _ [StructField _i_ctx]).
     rewrite field_address_offset by auto with field_compatible.
     rewrite field_address_offset by auto with field_compatible.
     simpl; rewrite Int.add_zero. 
-    Time cancel. (*0.6*)
+    Time cancel. (*0.4*)
   }
 } 
-Time Qed. (*52*)
+Time Qed. (*49*)

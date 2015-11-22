@@ -363,8 +363,9 @@ Proof.
   name Q' 68%positive.
  
   forward_call (* Q = mallocN(sizeof ( *Q)); *)
-     8 q.
+     8.
     computable.
+  Intros q.
   rewrite memory_block_fifo.
 2:  eapply malloc_compatible_field_compatible; try eassumption; 
       auto with typeclass_instances;
@@ -411,7 +412,7 @@ forward_if
    + Intros prefix.
       destruct prefix;
       entailer!.
-      contradiction (field_compatible_isptr _ _ _ H6).
+      contradiction (field_compatible_isptr _ _ _ H7).
       rewrite lseg_cons_eq by auto. simpl.
       entailer!.
       saturate_local. (* why is this needed? *)
@@ -486,8 +487,9 @@ name b _b.
 name p _p.
 name p' 69%positive.
 forward_call (*  p = mallocN(sizeof ( *p));  *) 
-  12 p0.
+  12.
  computable.
+Intros p0.
   change 12 with (sizeof cenv_cs t_struct_elem).
   rewrite memory_block_data_at_.
 2:  eapply malloc_compatible_field_compatible; try eassumption; 
@@ -517,22 +519,25 @@ name j _j.
 name Q _Q.
 name p _p.
 
-forward_call (* Q = fifo_new(); *)  tt q.
+forward_call (* Q = fifo_new(); *)  tt.
+Intros q.
 
 forward_call  (*  p = make_elem(1,10); *)
-     (Int.repr 1, Int.repr 10) p'.
+     (Int.repr 1, Int.repr 10).
+Intros p'.
 forward_call (* fifo_put(Q,p);*) 
     ((q, @nil val),p').
 
 forward_call  (*  p = make_elem(2,20); *)
-     (Int.repr 2, Int.repr 20) p2.
+     (Int.repr 2, Int.repr 20).
+Intros p2.
 simpl app.
  forward_call  (* fifo_put(Q,p); *)
     ((q,(p':: nil)),p2).
 simpl app.
 forward_call  (*   p' = fifo_get(Q); p = p'; *)
-    ((q,(p2 :: nil)),p') vret.
-subst vret.
+    ((q,(p2 :: nil)),p').
+Intros vret; subst vret.
 Time forward. (*   i = p->a;  *) (* 28.8 sec -> 1.96 sec *)
 forward. (*   j = p->b; *)
 

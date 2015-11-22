@@ -84,8 +84,8 @@ apply semax_pre with (P':=
    LOCAL  (lvar _buf (tarray tuchar 32) buf; temp _md md; 
            temp _ctx (Vptr b i); gvar sha._K256 kv)
    SEP  (K_vector kv; data_at Tsh t_struct_hmac_ctx_st l' (Vptr b i);
-         data_block Tsh (sha_finish ctx) buf; memory_block shmd 32 md))).
-{ Time entailer!. (*10*)
+         data_block Tsh (SHA256.SHA_256 ctx) buf; memory_block shmd 32 md))).
+{ Time entailer!. (*11.7*)
       unfold_data_at 1%nat.
       rewrite (field_at_data_at Tsh t_struct_hmac_ctx_st [StructField _md_ctx]).
       rewrite field_address_offset by auto with field_compatible. 
@@ -108,33 +108,32 @@ replace_SEP 1 (memory_block Tsh 108 (Vptr b i)).
   }
 
 Time forward_call ((Tsh, Tsh), Vptr b i, Vptr b (Int.add i (Int.repr 216)), 
-              mkTrep t_struct_SHA256state_st oCTX, 108) rv. (*9*) 
+              mkTrep t_struct_SHA256state_st oCTX, 108). (*8.7*) 
 Time solve [simpl; cancel]. (*1*)
-subst rv; simpl. 
+Intros rv; subst rv; simpl. 
 
-assert (SFL: Zlength (sha_finish ctx) = 32). 
-  unfold sha_finish. destruct ctx. 
+assert (SFL: Zlength (SHA256.SHA_256 ctx) = 32).
   rewrite <- functional_prog.SHA_256'_eq, Zlength_correct, length_SHA256'; trivial.
 
 (*Call sha256Update*)
-Time forward_call (oSha, sha_finish ctx, Vptr b i, buf, Tsh, Z.of_nat SHA256.DigestLength, kv) updSha.
-  (*8.1*)
+Time forward_call (oSha, SHA256.SHA_256 ctx, Vptr b i, buf, Tsh, Z.of_nat SHA256.DigestLength, kv).
+  (*10.2*)
   { unfold sha256state_.
     Exists oCTX. Time normalize. (*3.2*)
     (*rewrite prop_true_andp by auto.*)
-    change (@data_block spec_sha.CompSpecs Tsh (sha_finish ctx))
-     with (@data_block CompSpecs Tsh (sha_finish ctx)).
-     Time cancel. (*1.4 *) } 
+    change (@data_block spec_sha.CompSpecs Tsh (SHA256.SHA_256 ctx))
+     with (@data_block CompSpecs Tsh (SHA256.SHA_256 ctx)).
+     Time cancel. (*1.6 *) } 
   { unfold SHA256.DigestLength. 
     rewrite oShaLen. simpl; intuition. }
 simpl.
-rename H into UPDSHA. rewrite sublist_same in UPDSHA; try omega. 
-unfold sha256state_. Time normalize. (*6.7*)
-intros updShaST. Time normalize. (*1.3*)
+rewrite sublist_same; try omega.
+unfold sha256state_. Intros updShaST.
 rename H into updShaREL. 
 
 (*Call SHA_Final*)
-Time forward_call (updSha, md, Vptr b i, shmd, kv). (*27 SLOW. takes 3.2 in version with freezer*) (*Issue: was faster in old_compcert, so probably related to new memory/type treatment*)
+remember (oSha ++ SHA256.SHA_256 ctx) as updSha.
+Time forward_call (updSha, md, Vptr b i, shmd, kv). (*21 SLOW.*)
   { unfold sha256state_. 
     Exists updShaST.
     rewrite prop_true_andp by auto.
@@ -142,14 +141,10 @@ Time forward_call (updSha, md, Vptr b i, shmd, kv). (*27 SLOW. takes 3.2 in vers
     Time cancel. (* 1.6 *)
   } 
 
-Time forward. (*9.7*)
-Exists buf (sha_finish updSha, HMACabs updSha iSha oSha).
+Time forward. (*10.2*)
+Exists buf. (* (updSha, HMACabs updSha iSha oSha).*)
 unfold data_block at 2. simpl. rewrite SFL.
 entailer!.
-  exists updSha; auto.
-apply derives_trans with (Q:= hmacstate_PostFinal (HMACabs updSha iSha oSha)
-      (Vptr b i)); auto.
-
 unfold hmacstate_PostFinal, hmac_relate_PostFinal.
 Exists (updShaST, (iCTX, oCTX)). rewrite prop_true_andp by (split3; auto).
 match goal with |- _ |-- data_at _ _ ?A _ =>
@@ -165,4 +160,4 @@ rewrite field_address_offset by auto with field_compatible.
 rewrite field_address_offset by auto with field_compatible.  
 simpl.
 cancel.
-Time Qed. (*45*)
+Time Qed. (*38*)

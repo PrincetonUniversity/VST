@@ -410,15 +410,15 @@ apply semax_seq with (Q:=fcore_EpiloguePOST t y x w nonce out c k h OUT data).
     unfold fcorePOST_SEP. 
     (*destruct H as [YS SNUFF]. *)
     (*rewrite Zlength_map in H6. apply Zlength_length in H6; try omega; simpl in H6.*)
-    specialize (Snuffle_length _ _ _  H (prepare_data_length _ )); intros L.
+    specialize (Snuffle_length _ _ _  H0 (prepare_data_length _ )); intros L.
     (*specialize (Snuffle_length _ _ _ SNUFF H6); intros L.*)
     unfold fcore_result. 
     destruct (Int.eq (Int.repr h) Int.zero).
     - Intros l. Exists l. Time cancel. (*0.7*)
       apply andp_right. apply prop_right.
-        destruct (HFalse_inv16_char _ _ _ H9) as [sums [SUMS1 SUMS2]].
+        destruct (HFalse_inv16_char _ _ _ H) as [sums [SUMS1 SUMS2]].
         rewrite Zlength_correct, L; reflexivity. rewrite Zlength_correct; reflexivity.
-        unfold Snuffle20, prepare_data. simpl in H. simpl. rewrite H. simpl. rewrite <- SUMS1.
+        unfold Snuffle20, bind. rewrite H0, <- SUMS1.
         split; trivial.
       apply andp_right; trivial.
       unfold CoreInSEP. Time cancel. (*0.2*)
@@ -426,13 +426,13 @@ apply semax_seq with (Q:=fcore_EpiloguePOST t y x w nonce out c k h OUT data).
       Exists (hPosLoop3 4 (hPosLoop2 4 intsums (C1, C2, C3, C4) (N1, N2, N3, N4)) OUT).
       Time cancel. (*1*)
       apply andp_right. apply prop_right. split; trivial. 
-        apply HTrue_inv_char in H9.
-        unfold Snuffle20, prepare_data. simpl in H. simpl. rewrite H. simpl. rewrite <- H9.
+        apply HTrue_inv_char in H.
+        unfold Snuffle20, bind. rewrite H0, <- H.
           apply TP1. 
-        rewrite Zlength_correct, (sumlist_length _ _ _ H9); reflexivity.
+        rewrite Zlength_correct, (sumlist_length _ _ _ H); reflexivity.
         assumption.
         rewrite Zlength_correct, L; reflexivity.
         rewrite Zlength_correct; reflexivity.
       apply andp_right; trivial.
       unfold CoreInSEP. Time cancel. (*0.26*)
-Time Qed. (*58*)
+Time Qed. (*58.9*)

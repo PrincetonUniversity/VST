@@ -42,7 +42,7 @@ rewrite field_address_offset by auto with field_compatible.
 simpl @nested_field_type.
 make_Vptr c.
 simpl. rewrite Int.add_zero.
-Time forward_call (ctx, data, Vptr b i, d, Tsh, len, kv) s. (*17.6 secs*) 
+Time forward_call (ctx, data, Vptr b i, d, Tsh, len, kv). (*21.9 secs*) 
  (*Issue: the forward_call takes ca 50secs in newComCert, instead of 6secs in Master, 
    no matter wther the field_at_data_at stuff s done outside of the call or inside.
    Resolved (11/4/15): with the faster canceler, now 12.5 sec.
@@ -57,12 +57,9 @@ Time forward_call (ctx, data, Vptr b i, d, Tsh, len, kv) s. (*17.6 secs*)
     cancel.
   }
   intuition.
-
-rename H into HmacUpdate. simpl.
-rewrite sublist_same in HmacUpdate; trivial.
-Time forward. (*10.4*) (*Issue: leaves RHS in less normalized shape than previously*)
-Exists (HMACabs s iSha oSha). Time entailer!. (*5.6*)
-exists s; eauto.
+rewrite sublist_same; trivial.
+Time forward. (*12.4*)
+cancel.
 unfold hmacstate_, sha256state_, hmac_relate.
 Intros r. Exists (r,(iCtx ST, oCtx ST)).
 simpl.
@@ -77,4 +74,4 @@ simpl. rewrite Int.add_zero.
    change (@data_block spec_sha.CompSpecs Tsh data data')
      with (@data_block CompSpecs Tsh data data').
 Time cancel. (*0.5 *)
-Time Qed. (*22.8*)
+Time Qed. (*20.3*)

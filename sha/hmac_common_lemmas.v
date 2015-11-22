@@ -136,7 +136,7 @@ Qed.
 Lemma isbyte_hmac ipad opad m k: 
    Forall isbyteZ (HMAC_SHA256.HMAC ipad opad m k).
 Proof. apply SHA256.Hash_isbyteZ.  Qed.
-
+(*
 Lemma updAbs_len: forall L s t, update_abs L s t -> s256a_len t = s256a_len s + Zlength L * 8.
 Proof. intros. inversion H; clear H.
   unfold s256a_len, bitlength. simpl.
@@ -152,7 +152,7 @@ Proof. intros. inversion H; clear H.
               rewrite Zlength_app, Zlength_intlist_to_Zlist.
 (*              rewrite (Z.mul_comm WORD). *) rewrite Z.mul_add_distr_r. trivial. 
   rewrite H; trivial.
-Qed.
+Qed.*)
 
 Lemma HMAC_length d k: length (HMAC256 d k) = 32%nat.
 Proof.

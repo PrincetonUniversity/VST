@@ -408,7 +408,6 @@ Definition FRAME2 kb kofs cb cofs kv key ipadSHAabs :=
 Opaque FRAME1. Opaque FRAME2.
 
 Lemma opadloop Espec pb pofs cb cofs ckb ckoff kb kofs l key kv: forall
-(h1 : hmacabs)
 (IPADcont : list val)
 (HeqIPADcont : IPADcont =
               map Vint
@@ -564,10 +563,10 @@ Lemma init_part2: forall MYPOST
 (R : r = 0 \/ r = 1)
 (PostResetBranch : environ -> mpred)
 (HeqPostResetBranch : PostResetBranch = EX shaStates:_ ,
-          PROP  (innerShaInit (map Byte.repr (HMAC_SHA256.mkKey key))
+          PROP  (innerShaInit (map Byte.repr (HMAC_SHA256.mkKey key)) =
                            (fst shaStates) /\
                   s256_relate (fst shaStates) (fst (snd shaStates)) /\
-                  outerShaInit (map Byte.repr (HMAC_SHA256.mkKey key))
+                  outerShaInit (map Byte.repr (HMAC_SHA256.mkKey key)) =
                            (fst (snd (snd shaStates))) /\ 
                   s256_relate (fst (snd (snd shaStates))) (snd (snd (snd shaStates))))
           LOCAL  (lvar _pad (tarray tuchar 64) pad; 
@@ -782,10 +781,9 @@ forward_if PostResetBranch.
      change_compspecs CompSpecs.
      cancel.
     (*Call to _SHA256_Update*)
-    Time forward_call (init_s256abs, 
+    Time forward_call (@nil Z, 
                   HMAC_SHA256.mkArgZ (map Byte.repr (HMAC_SHA256.mkKey key)) Ipad,
-                  Vptr cb (Int.add cofs (Int.repr 108)), Vptr pb pofs, Tsh, 64, kv)
-               ipadSHAabs. (*4.8*)
+                  Vptr cb (Int.add cofs (Int.repr 108)), Vptr pb pofs, Tsh, 64, kv). (*4.4*)
     { unfold data_block. rewrite ZLI, HeqIPADcont. unfold HMAC_SHA256.mkArgZ. 
       assert (FR : Frame = [FRAME1 cb cofs ckb ckoff kb kofs key (*HMS'*)]).
         subst Frame; reflexivity.
@@ -796,13 +794,16 @@ forward_if PostResetBranch.
     { clear Frame HeqPostResetBranch HeqOPADcont; subst IPADcont.
         rewrite Zlength_mkArgZ. repeat rewrite map_length. rewrite mkKey_length. intuition. 
     }
-    rename H into ipadAbs_def. simpl.
-    rewrite sublist_same in ipadAbs_def; try rewrite ZLI; trivial.
+    simpl.
+    rewrite sublist_same; try rewrite ZLI; trivial.
+    remember (HMAC_SHA256.mkArgZ (map Byte.repr (HMAC_SHA256.mkKey key)) Ipad) as ipadSHAabs.
 
     (*essentially the same for opad*)
     forward_seq.
-    { (*opad loop*)
-      eapply (opadloop Espec pb pofs cb cofs ckb ckoff kb kofs l key kv (*HMS'*)); eassumption.
+    { (*opad loop*) 
+      eapply semax_pre.
+      2: apply (opadloop Espec pb pofs cb cofs ckb ckoff kb kofs l key kv (*HMS'*)IPADcont) with (ipadSHAabs:=ipadSHAabs); try reflexivity; subst ipadSHAabs; try assumption.
+      entailer!. 
     }
 
     (*continuation after opad-loop*) 
@@ -830,30 +831,29 @@ Definition FRAME3 (kb cb ckb: block) kofs cofs ckoff key ipadSHAabs:=
     Time forward_call (Vptr cb (Int.add cofs (Int.repr 216))). (*10.6*)
     change_compspecs CompSpecs; cancel.
     (* Call to sha_update*)
-    Time forward_call (init_s256abs, 
+    Time forward_call (@nil Z, 
             HMAC_SHA256.mkArgZ (map Byte.repr (HMAC_SHA256.mkKey key)) Opad,
             Vptr cb (Int.add cofs (Int.repr 216)),
-            Vptr pb pofs, Tsh, 64, kv)  opadSHAabs. (*5.5*)
-    { unfold data_block. rewrite ZLO, HeqOPADcont.
+            Vptr pb pofs, Tsh, 64, kv). (*4.8*)
+    { unfold data_block. (*rewrite (*ZLO, *) HeqOPADcont.*)
       change_compspecs CompSpecs. 
-      assert (FR : Frame = [FRAME3 kb cb ckb kofs cofs ckoff key ipadSHAabs
-                            (* (default_val t_struct_hmac_ctx_st)*)]).
+      assert (FR : Frame = [FRAME3 kb cb ckb kofs cofs ckoff key ipadSHAabs]).
         subst Frame; reflexivity.
       rewrite FR; clear FR Frame. 
-      simpl. Time entailer!. (*1.2*) apply isbyte_map_ByteUnsigned.
+      simpl. Time entailer!. (*1.5*) apply isbyte_map_ByteUnsigned.
+      rewrite ZLO; trivial.
     }
     { rewrite ZLO. intuition. } 
 
-    rename H into opadAbs_def. simpl map.
-    rewrite sublist_same in opadAbs_def; try rewrite ZLO; trivial.
+    rewrite sublist_same; try rewrite ZLO; trivial.
 
-    Time subst PostResetBranch; entailer!. (*6.1*) 
+    Time subst PostResetBranch; entailer!. (*4.7*) 
     unfold FRAME3, sha256state_, data_block. 
     rewrite ZLO. 
     change_compspecs CompSpecs.
     Intros oUpd iUpd.
-    Exists (ipadSHAabs,(iUpd,(opadSHAabs,oUpd))).
-    rewrite !prop_true_andp by (auto; intuition).
+    Exists (innerShaInit (map Byte.repr (HMAC_SHA256.mkKey key)),(iUpd,(outerShaInit (map Byte.repr (HMAC_SHA256.mkKey key)),oUpd))).
+    simpl. rewrite !prop_true_andp by (auto; intuition).
     Time cancel. (*4*)
     unfold_data_at 3%nat.
     rewrite (field_at_data_at Tsh t_struct_hmac_ctx_st [StructField _i_ctx]).
@@ -869,16 +869,15 @@ Definition FRAME3 (kb cb ckb: block) kofs cofs ckoff key ipadSHAabs:=
     destruct R; subst; [ |discriminate].
     simpl; clear H. Time destruct _id1; try solve[entailer!]. (*3.3*) 
     unfold hmacstate_PreInitNull, hmac_relate_PreInitNull; simpl.
-    Time destruct h1; entailer. (*8.2*) (* entailer! takes 31 secs*)
     Time if_tac; [ | entailer!].
-    Intros v x.
+    Intros v x. destruct h1.
     Exists (iSha, (iCtx v, (oSha, oCtx v))). simpl. 
     unfold hmacstate_PreInitNull, hmac_relate_PreInitNull; simpl.
     Exists v x.
     change (Tarray tuchar 64 noattr) with (tarray tuchar 64).
-    Time entailer!. (*9.1*)
+    rewrite !prop_true_andp by (auto; intuition). Time cancel. (*0.7*)
    }
 intros ? ?. apply andp_left2.  
    unfold POSTCONDITION, abbreviate. rewrite overridePost_overridePost. 
    apply derives_refl. 
-Time Qed. (*71*)
+Time Qed. (*63*)

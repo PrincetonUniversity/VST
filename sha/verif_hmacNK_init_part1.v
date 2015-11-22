@@ -165,7 +165,7 @@ Proof. intros. abbreviate_semax.
       Time forward_call (Vptr cb cofs). (*Issue: takes 5mins... [now takes 18 sec] *)
      change_compspecs CompSpecs. (* this should not be needed *)
      cancel.
-      forward_call (init_s256abs, key, Vptr cb cofs, Vptr kb kofs, Tsh, l, kv) ctxSha.
+      forward_call (@nil Z, key, Vptr cb cofs, Vptr kb kofs, Tsh, l, kv).
       { unfold data_block. rewrite prop_true_andp by auto.
        change_compspecs CompSpecs.  (* this should not be needed *)
        cancel.
@@ -175,8 +175,7 @@ Proof. intros. abbreviate_semax.
         subst l. intuition.
       }
       (*unfold map at 1. (* this should not be necessary *)*)
-      rename H into updAbs.
-      rewrite sublist_same in updAbs; trivial.
+      rewrite sublist_same; trivial.
 
      (*call Final*)
      focus_SEP 6. unfold data_at_ at 1. unfold field_at_.
@@ -207,10 +206,10 @@ Time    assert_PROP (field_compatible (Tarray tuchar 64 noattr) [] (Vptr ckb cko
        Time entailer!. (*10*)
        apply derives_refl.
      } 
-     Time forward_call (ctxSha, Vptr ckb ckoff, Vptr cb cofs, Tsh, kv). (*4.7*) (*with transparent hmac_init_part1_FRAME1 it's a bit faster, but then unfolds hmac_init_part1_FRAME in the precondition of the next goal*) 
+     Time forward_call (key, Vptr ckb ckoff, Vptr cb cofs, Tsh, kv). (*4.3*) (*with transparent hmac_init_part1_FRAME1 it's a bit faster, but then unfolds hmac_init_part1_FRAME in the precondition of the next goal*) 
      replace_SEP 1 (hmac_init_part1_FRAME2 cb cofs).
      { Transparent hmac_init_part1_FRAME2. unfold hmac_init_part1_FRAME2. Opaque hmac_init_part1_FRAME2.
-       Time entailer!. (*3.8*)
+       Time entailer!. (*3.7*)
        unfold data_at_, field_at_.
        rewrite field_at_data_at.
        rewrite field_address_offset by auto with field_compatible. 
@@ -218,15 +217,16 @@ Time    assert_PROP (field_compatible (Tarray tuchar 64 noattr) [] (Vptr ckb cko
 
      (*call memset*) 
      unfold tarray in *.
-     Time forward_call (Tsh, Vptr ckb (Int.repr (Int.unsigned ckoff + 32)), 32, Int.zero)
-        vret. (*9.1*)
+     Time forward_call (Tsh, Vptr ckb (Int.repr (Int.unsigned ckoff + 32)), 32, Int.zero). (*6.9*)
      { rewrite (lvar_eval_var _ _ _ _ H0). split; trivial. }
-     { subst PostIf_j_Len.
-       Time entailer!. (*11*)
+     { apply andp_left2. 
+       Intros vret; subst vret.
+       subst PostIf_j_Len.
+       Time entailer!. (*10.2*)
        unfold data_block. simpl. Time normalize. (*1.4*) 
        unfold HMS.
-       assert (SFL: Zlength  (sha_finish ctxSha) = 32).
-         destruct ctxSha. simpl. rewrite <- functional_prog.SHA_256'_eq, Zlength_correct, length_SHA256'. reflexivity. 
+       assert (SFL: Zlength  (SHA_256 key) = 32).
+         rewrite <- functional_prog.SHA_256'_eq, Zlength_correct, length_SHA256'. reflexivity. 
        rewrite SFL.
        assert (LK64: Zlength (HMAC_SHA256.mkKey key) = 64).
          unfold HMAC_SHA256.mkKey.
@@ -247,7 +247,7 @@ Time    assert_PROP (field_compatible (Tarray tuchar 64 noattr) [] (Vptr ckb cko
       remember (Zlength key >? Z.of_nat SHA256.BlockSize).
       destruct b.
       Focus 2. specialize (Zgt_cases (Zlength key) (Z.of_nat SHA256.BlockSize)).
-               rewrite <- Heqb. intros. simpl in H. omega.
+               rewrite <- Heqb. intros ZZ. simpl in ZZ. omega.
       clear Heqb.
       unfold HMAC_SHA256.zeroPad. repeat rewrite map_app. 
       assert (LHash: Zlength (SHA256.Hash key) = 32).
@@ -264,24 +264,24 @@ Time    assert_PROP (field_compatible (Tarray tuchar 64 noattr) [] (Vptr ckb cko
       end.
       rewrite !map_list_repeat. fold Int.zero.
       rewrite field_address0_offset by auto with field_compatible.
+      rewrite field_address_offset by auto with field_compatible.
       unfold offset_val.
       simpl Vptr.
       change_compspecs CompSpecs.
       change (Int.repr (Int.unsigned ckoff + 32))
              with (Int.add ckoff (Int.repr 32)). rewrite Z.add_0_l.
       Time cancel. (*1.*) 
-      destruct ctxSha. simpl. inv updAbs. simpl in H16; rewrite <- H16. unfold SHA256.Hash. 
-      rewrite functional_prog.SHA_256'_eq. Time cancel. (*0.6*)
-
+      Transparent hmac_init_part1_FRAME2. unfold hmac_init_part1_FRAME2. Opaque hmac_init_part1_FRAME2.
+      rewrite field_address_offset by auto with field_compatible.
+      unfold SHA256.Hash. rewrite functional_prog.SHA_256'_eq. simpl. Time cancel. (*0.8*)
       Transparent hmac_init_part1_FRAME1. unfold hmac_init_part1_FRAME1. Opaque hmac_init_part1_FRAME1.
       clear.
-      Time repeat simplify_project_default_val. (*5.2*)
-      Time cancel. (* 0.4*)
-      unfold data_block. simpl. rewrite sepcon_andp_prop.
-      apply andp_left2. Time cancel. (*0.2*)   
-      apply derives_refl.
+      Time repeat simplify_project_default_val. (*4.5*)
+      Time cancel. (* 0.3*)
+      unfold data_block. simpl.
+      apply andp_left2. apply derives_refl.
    }
-Time Qed. (*67*)
+Time Qed. (*58*)
 
 Lemma Init_part1_len_le_j Espec (kb ckb cb: block) (kofs ckoff cofs:int) l key kv pad
       (HMS' : reptype t_struct_hmac_ctx_st): forall h1
@@ -350,7 +350,7 @@ Proof. intros.
      unfold data_at_. 
      Time forward_call ((Tsh, Tsh), Vptr ckb ckoff, 
              Vptr kb kofs, mkTrep (Tarray tuchar (Zlength key) noattr) 
-                     (map Vint (map Int.repr key)), l) v. (*4.4*)
+                     (map Vint (map Int.repr key)), l). (*4.4*)
      { unfold tarray. unfold field_at_ at 1. rewrite field_at_data_at.
        rewrite field_address_offset by auto with field_compatible.
        simpl. rewrite Int.add_zero.
@@ -360,14 +360,13 @@ Proof. intros.
           Opaque Z.mul. simpl. rewrite Z.max_r. rewrite Z.mul_1_l. apply derives_refl. omega.
        Time cancel. (*2.4*) }
      { simpl. rewrite Z.max_r. rewrite Z.mul_1_l.  intuition. specialize Int.max_signed_unsigned; omega. omega. }
-     simpl.
+     Intros v; subst v. simpl.
      unfold tarray.
      remember (64 - l) as l64.
-     simpl. subst v. remember (map Vint (map Int.repr key)) as KCONT.
+     remember (map Vint (map Int.repr key)) as KCONT.
 
      (*call memset*)
-     Time forward_call (Tsh, Vptr ckb (Int.add ckoff (Int.repr (Zlength key))), l64, Int.zero)
-       vret. (*10.7*)
+     Time forward_call (Tsh, Vptr ckb (Int.add ckoff (Int.repr (Zlength key))), l64, Int.zero). (*10.4*)
      { rewrite (lvar_eval_var _ _ _ _ H0). split; trivial. }
      { (*Issue: this side condition is NEW*) 
        apply prop_right. simpl. rewrite Int.mul_commut, Int.mul_one.
@@ -384,7 +383,7 @@ Proof. intros.
        apply Z.max_r. omega. }
      { split; auto. repable_signed. }
 
-     subst PostIf_j_Len.
+     apply andp_left2. Intros vret; subst PostIf_j_Len.
 
    Time entailer!. (*6.2*)
    rewrite sepcon_comm.
@@ -406,7 +405,7 @@ Proof. intros.
      change_compspecs CompSpecs.
      change (Tarray tuchar 64 noattr) with (tarray tuchar 64).
      cancel. apply derives_refl.
-Time Qed. (*22*)
+Time Qed. (*18*)
 
 Lemma hmac_init_part1: forall
 (Espec : OracleKind)

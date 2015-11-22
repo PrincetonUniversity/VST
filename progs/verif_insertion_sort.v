@@ -357,8 +357,8 @@ entailer.
  
 apply extract_exists_pre. intros sorted_val.
 forward_call  (* sorted = insert(index, sorted); *)
-  (sh, (insertion_sort sorted_list), insert_val, sorted_val, i)
-  vret.
+  (sh, (insertion_sort sorted_list), insert_val, sorted_val, i).
+Intros vret.
 forward index_old. (* index = next;*)
 unfold body_invariant.
 entailer.

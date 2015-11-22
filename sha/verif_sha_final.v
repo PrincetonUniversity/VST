@@ -264,7 +264,7 @@ forward_call (* memset (p+n,0,SHA_CBLOCK-8-n); *)
      field_address0 t_struct_SHA256state_st
          [ArraySubsc (Zlength dd'); StructField _data] c, 
      (Z.of_nat CBLOCK - 8 - Zlength dd')%Z,
-     Int.zero) vret. 
+     Int.zero).
 {apply prop_right; repeat constructor; hnf; simpl; auto.
  rewrite field_address_offset by auto with field_compatible.
  rewrite field_address0_offset by auto with field_compatible.
@@ -282,6 +282,7 @@ cancel.
 }
  split; auto.  Omega1.
  
+Intros vret. 
 normalize.
 clear vret H10.
 forward.  (* p += SHA_CBLOCK-8; *)

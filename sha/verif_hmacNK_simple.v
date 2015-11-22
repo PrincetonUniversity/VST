@@ -47,50 +47,35 @@ forward_if  (
   { (*Branch1*) exfalso. subst md. contradiction.  }
   { (* Branch2 *) forward. entailer. } 
 normalize.
-remember (HMACabs init_s256abs init_s256abs init_s256abs) as dummyHMA.
 assert_PROP (isptr k). { unfold data_block. normalize. rewrite data_at_isptr with (p:=k). entailer!. (*Issue: need to do unfold data_block. normalize. rewrite data_at_isptr with (p:=k). here is NEW*) }
 rename H into isPtrK. 
-forward_call (c, k, kl, key, kv, dummyHMA) h0. 
+forward_call (c, k, kl, key, kv, HMACabs nil nil nil). 
  { apply isptrD in isPtrK. destruct isPtrK as [kb [kofs HK]]. rewrite HK.
    unfold initPre. Time entailer!. (*1.1*)
  }
-normalize. rename H into HmacInit. 
-assert_PROP (s256a_len (absCtxt h0) = 512).
-  { unfold hmacstate_. Intros r. apply prop_right.
-    destruct h0; simpl in *.
-    destruct H as [reprMD [reprI [reprO [iShaLen oShaLen]]]].
-    inversion HmacInit; clear HmacInit.
-    destruct H as [oS [InnSHA [OntSHA XX]]]. inversion XX; clear XX.
-    subst. assumption.
-  }
+assert_PROP (s256a_len (absCtxt (hmacInit key)) = 512).
+  { unfold hmacstate_. Intros r. apply prop_right. apply H. } 
 rename H into H0_len512.
-forward_call (h0, c, d, dl, data, kv) h1.
+forward_call (hmacInit key, c, d, dl, data, kv).
   { rewrite H0_len512. assumption. } 
-rename H into HmacUpdate. 
 
 assert_PROP (field_compatible (Tstruct _hmac_ctx_st noattr) [] c).
 { unfold hmacstate_; entailer. }
 rename H into FC_c.
+remember  (hmacInit key) as h0.
+forward_call ((hmacUpdate data h0), c, md, shmd, kv).
+forward_call (fst (hmacFinal (hmacUpdate data h0)), c). 
+(*VST Issue: 
+remember (hmacFinal (hmacUpdate data h0)) as h2.  
+forward_call (h2,c). does not work*)
 
-forward_call (h1, c, md, shmd, kv) [dig h2]. 
-simpl in H; rename H into HmacFinalSimple.
-simpl. 
-
-forward_call (h2,c). 
 forward.
 
 assert_PROP (field_compatible (tarray tuchar (sizeof cenv_cs t_struct_hmac_ctx_st)) [] c).
 { unfold data_block at 1. unfold Zlength. simpl. rewrite data_at_data_at'. normalize. }
-Exists c. entailer. cancel.
-assert (HS: hmacSimple key data dig).
-    exists h0, h1. 
-    split. assumption.
-    split; try assumption.
-    rewrite hmacFinal_hmacFinalSimple. exists h2; trivial.
-apply hmacSimple_sound in HS. subst dig.
-cancel. 
-simpl in H2.
-
+Exists c. entailer!.
+rewrite <- (hmac_sound key data). unfold hmac.
+cancel.  clear H3.
 unfold data_block.
   rewrite Zlength_correct; simpl.
 rewrite <- memory_block_data_at_; trivial.

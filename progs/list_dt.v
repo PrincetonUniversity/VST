@@ -901,9 +901,8 @@ eapply derives_trans.
 apply H. normalize.
 unfold local. super_unfold_lift.
 unfold nullval.
-normalize. destruct e; inv H0; try congruence; auto.
-destruct (Int.eq i Int.zero); inv H2.
-intro. apply ptr_eq_e in H0. congruence.
+normalize. destruct e; try contradiction. 
+intro. apply ptr_eq_e in H1. congruence.
 Qed.
 
 Lemma semax_lseg_neq (ls: listspec list_structid list_link):
@@ -970,7 +969,7 @@ Proof.
 intros.
 assert_PROP (~ ptr_eq v nullval).
 eapply derives_trans; [apply H |].
-normalize. inv H1.
+normalize.
 apply semax_lseg_neq; auto.
 Qed.
 
@@ -1142,7 +1141,7 @@ normalize.
 rewrite prop_true_andp by (split; reflexivity).
 apply lseg_cons_right_null.
 rewrite lseg_cons_eq.
-Intros u. Exists u.
+Intros u. Exists u. subst z.
 rewrite !prop_true_andp by auto.
 normalize.
 apply sepcon_derives; auto.
@@ -1487,7 +1486,6 @@ apply H. normalize.
 unfold local. super_unfold_lift.
 unfold nullval.
 destruct e; inv H0; try congruence; auto.
-destruct (Int.eq i Int.zero); inv H2.
 intro. apply ptr_eq_e in H0. congruence.
 Qed.
 
@@ -1521,14 +1519,10 @@ apply semax_pre0 with
                          (StructField list_link :: nil)) y) v ::
         lseg ls sh r y v2 :: R)))).
 entailer.
-apply exp_right with h.
-apply exp_right with r.
-apply exp_right with y.
+Exists h r y.
 normalize.
   autorewrite with subst norm1 norm2; normalize.
-apply extract_exists_pre; intro h.
-apply extract_exists_pre; intro r.
-apply extract_exists_pre; intro y.
+Intros h r y.
 apply semax_extract_prop; intros [? ?].
 eapply H0; eauto.
 Qed.
@@ -1556,7 +1550,6 @@ intros.
 assert_PROP (~ ptr_eq v nullval).
 eapply derives_trans; [apply H |].
 normalize.
-inv H1.
 apply semax_lseg_neq; auto.
 Qed.
 
@@ -2117,7 +2110,6 @@ eapply derives_trans.
 apply H0. normalize.
 unfold local. super_unfold_lift.
 unfold nullval. destruct e; inv H1; try congruence; auto.
-destruct (Int.eq i Int.zero); inv H3.
 intro. apply ptr_eq_e in H1. congruence.
 Qed.
 
@@ -2187,7 +2179,7 @@ Proof.
 intros.
 assert_PROP (~ ptr_eq v nullval).
 eapply derives_trans; [eapply H0 |].
-normalize. inv H2.
+normalize.
 apply semax_lseg_neq; auto.
 Qed.
 
@@ -2364,8 +2356,7 @@ normalize.
 rewrite prop_true_andp by (split; reflexivity).
 apply lseg_cons_right_null; auto.
 rewrite lseg_cons_eq; auto.
-Intros u.
-Exists u.
+Intros u. Exists u. subst.
 rewrite !prop_true_andp by auto.
 rewrite <- !sepcon_assoc.
 apply sepcon_derives; auto.

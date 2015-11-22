@@ -162,9 +162,10 @@ name s _s.
 name four _four.
 start_function.
 forward_call (*  r = sumarray(four,4); *)
-  (four,Ews,four_contents,4) vret.
+  (four,Ews,four_contents,4).
  split; auto. computable. 
- forward. (* return s; *)
+Intros vret.
+forward. (* return s; *)
 Qed.
 
 Existing Instance NullExtension.Espec.
