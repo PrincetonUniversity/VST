@@ -13,7 +13,10 @@ Require Import verif_salsa_base.
 Require Import spec_salsa.
 
 Opaque Snuffle20. Opaque Snuffle.Snuffle. Opaque prepare_data. 
-Opaque core_spec. Opaque fcore_result.
+Opaque fcore_result.
+
+(*VST Issue: why do these two sepcs have to be made Opaque?
+  (If we delete the line, one for the "forward" in this file fails*)
 Opaque crypto_core_salsa20_spec. Opaque crypto_core_hsalsa20_spec.
 
 Lemma L32_spec_ok: semax_body SalsaVarSpecs SalsaFunSpecs

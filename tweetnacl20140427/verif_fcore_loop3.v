@@ -14,8 +14,7 @@ Require Import Snuffle.
 Require Import spec_salsa.  
 
 Require Import verif_fcore_jbody. 
-Opaque Snuffle.Snuffle. Opaque core_spec. Opaque fcore_result.
-Opaque crypto_core_salsa20_spec. Opaque crypto_core_hsalsa20_spec.
+Opaque Snuffle.Snuffle. Opaque fcore_result.
 
 Fixpoint WcontI (xs: list int) (j:nat) (l:list val):Prop :=
    match j with O => Zlength l = 16

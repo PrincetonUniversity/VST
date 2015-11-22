@@ -26,8 +26,6 @@ Require Import verif_fcore_epilogue_htrue.
 Require Import verif_fcore_epilogue_hfalse.
 
 Opaque littleendian_invert. Opaque Snuffle.Snuffle.
-Opaque core_spec. Opaque ld32_spec. Opaque L32_spec. Opaque st32_spec.
-Opaque crypto_core_salsa20_spec. Opaque crypto_core_hsalsa20_spec.
 
 Lemma HFalse_inv16_char: forall l xs ys,
   HFalse_inv l 16 xs ys ->
@@ -300,7 +298,7 @@ Opaque hPosLoop2. Opaque hPosLoop3. Opaque ThirtyTwoByte.
 
 Lemma core_spec_ok: semax_body SalsaVarSpecs SalsaFunSpecs
        f_core core_spec.
-Proof. Transparent core_spec. unfold core_spec, f_core_POST. Opaque core_spec. 
+Proof. unfold core_spec, f_core_POST. 
 start_function. abbreviate_semax.
 name out' _out.
 name in' _in.

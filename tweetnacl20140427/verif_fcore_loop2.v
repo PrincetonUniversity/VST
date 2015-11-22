@@ -12,9 +12,6 @@ Require Import verif_salsa_base.
 Require Import tweetnaclVerifiableC.
 Require Import spec_salsa.
 
-Opaque Snuffle.Snuffle. Opaque core_spec. Opaque fcore_result.
-Opaque crypto_core_salsa20_spec. Opaque crypto_core_hsalsa20_spec.
-
 Definition Y_content (y: list val)
                      (i:Z) (l X:list val) : Prop :=
     exists l1 l2 yy xx, l = l1 ++ l2 /\

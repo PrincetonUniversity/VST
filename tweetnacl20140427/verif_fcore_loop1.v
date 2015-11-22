@@ -14,9 +14,6 @@ Require Import verif_salsa_base.
 
 Require Import spec_salsa. Opaque Snuffle.Snuffle. Opaque fcore_result.
 
-Opaque core_spec. Opaque ld32_spec. Opaque L32_spec. Opaque st32_spec.
-Opaque crypto_core_salsa20_spec. Opaque crypto_core_hsalsa20_spec.
-
 Definition X_content (x: SixteenByte * SixteenByte * (SixteenByte * SixteenByte))
                      (i:Z) (l:list val) : Prop :=
     l = upd_upto x (Z.to_nat i) (list_repeat 16 Vundef).
@@ -193,12 +190,9 @@ Time forward_for_simple_bound 4 (EX i:Z,
     2: omega.
   rewrite Zminus_diag. rewrite Z.add_simpl_l. repeat rewrite Z.mul_1_l.
   rewrite (sublist0_app1 4), (sublist_same 0 4); try rewrite <- QuadByteValList_ZLength; try omega.
-Transparent core_spec. Transparent ld32_spec. Transparent L32_spec. Transparent st32_spec.
-Transparent crypto_core_salsa20_spec. Transparent crypto_core_hsalsa20_spec. 
+
   (*Issue this is where the call fails if we use abbreviation Delta := ... in the statement of the lemma*)
   Time forward_call (Vptr cb (Int.add coff (Int.repr (4 * i))), Select16Q C i). (*16.3*)
-Opaque core_spec. Opaque ld32_spec. Opaque L32_spec. Opaque st32_spec.
-Opaque crypto_core_salsa20_spec. Opaque crypto_core_hsalsa20_spec.
 
   Intros pat; subst pat; simpl.
   apply semax_pre with (P':=
@@ -262,14 +256,11 @@ Opaque crypto_core_salsa20_spec. Opaque crypto_core_hsalsa20_spec.
   (*assert (FrontBackK1:= (Select_SplitSelect16Q_Zlength _ _ _ _ HeqFB_K1 I)) as [FLK BLK].*)
   rewrite <- QuadByteValList_ZLength. (*rewrite Z.mul_1_l. *)
   rewrite  QuadChunk2ValList_ZLength.
-Transparent core_spec. Transparent ld32_spec. Transparent L32_spec. Transparent st32_spec.
-Transparent crypto_core_salsa20_spec. Transparent crypto_core_hsalsa20_spec.
+
   Time forward_call (offset_val (Int.repr (4 * i)) k, 
                  Select16Q Key1 i). (*22.4*)
   { destruct (Select_SplitSelect16Q_Zlength _ _ _ _ HeqFB_K1 I) as [FLK _]; rewrite FLK.
     Time cancel. (*8.7*) }
-Opaque core_spec. Opaque ld32_spec. Opaque L32_spec. Opaque st32_spec.
-Opaque crypto_core_salsa20_spec. Opaque crypto_core_hsalsa20_spec.
   Intros v; subst v; simpl.
 
   apply semax_pre with (P':=
@@ -312,16 +303,13 @@ Opaque crypto_core_salsa20_spec. Opaque crypto_core_hsalsa20_spec.
   2: rewrite <- N16; trivial. 2: rewrite <- N16; cbv; trivial.
   unfold Select_at. simpl. rewrite app_nil_r.
   (*destruct (Select_SplitSelect16Q_Zlength _ _ _ _ HeqFB_N I) as [FrontN BackN].*)
-Transparent core_spec. Transparent ld32_spec. Transparent L32_spec. Transparent st32_spec.
-Transparent crypto_core_salsa20_spec. Transparent crypto_core_hsalsa20_spec.
+
   Time forward_call (offset_val (Int.repr (4 * i)) nonce, 
                  Select16Q Nonce i). (*22.8 SLOW*)
   { rewrite <- QuadByteValList_ZLength. (*rewrite Z.mul_1_l.  simpl.*)
     rewrite  QuadChunk2ValList_ZLength.
     destruct (Select_SplitSelect16Q_Zlength _ _ _ _ HeqFB_N I) as [FrontN _]; rewrite FrontN.
     Time cancel. (*4.2*)}
-Opaque core_spec. Opaque ld32_spec. Opaque L32_spec. Opaque st32_spec.
-Opaque crypto_core_salsa20_spec. Opaque crypto_core_hsalsa20_spec.
   
   Intros v; subst v; simpl.
   apply semax_pre with (P':=
@@ -374,14 +362,10 @@ Opaque crypto_core_salsa20_spec. Opaque crypto_core_hsalsa20_spec.
   unfold Select_at. simpl. rewrite app_nil_r.
   repeat rewrite <- QuadByteValList_ZLength.
   rewrite QuadChunk2ValList_ZLength.
-   
-Transparent core_spec. Transparent ld32_spec. Transparent L32_spec. Transparent st32_spec.
-Transparent crypto_core_salsa20_spec. Transparent crypto_core_hsalsa20_spec.
+
   Time forward_call (Vptr kb
            (Int.add (Int.add koff (Int.repr 16)) (Int.repr (4 * Zlength Front_K2))),
                  Select16Q Key2 i). (*26 SLOW*)
-Opaque core_spec. Opaque ld32_spec. Opaque L32_spec. Opaque st32_spec.
-Opaque crypto_core_salsa20_spec. Opaque crypto_core_hsalsa20_spec.
   { destruct (Select_SplitSelect16Q_Zlength _ _ _ _ HeqFB_K2 I) as [FK2 _]; rewrite FK2.
      apply prop_right; simpl. do 2 rewrite Int.mul_commut, Int.mul_one. rewrite mul_repr. 
      trivial. }

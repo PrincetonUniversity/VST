@@ -12,8 +12,6 @@ Require Import verif_salsa_base.
 
 Require Import spec_salsa. 
 Opaque Snuffle.Snuffle. Opaque prepare_data.
-Opaque core_spec. Opaque ld32_spec. Opaque L32_spec. Opaque st32_spec.
-Opaque crypto_core_salsa20_spec. Opaque crypto_core_hsalsa20_spec.
 
 Definition HTrue_inv1 l i ys xs : Prop :=
       Zlength l = 16 /\ exists ints, l=map Vint ints /\
@@ -281,12 +279,8 @@ Proof. intros. abbreviate_semax. unfold CoreInSEP.
        simpl. rewrite app_nil_r. simpl. 
     Time normalize. (*1.4*)
       
-Transparent core_spec. Transparent ld32_spec. Transparent L32_spec. Transparent st32_spec.
-Transparent crypto_core_salsa20_spec. Transparent crypto_core_hsalsa20_spec.
     Time forward_call ((Vptr cb (Int.add coff (Int.repr (4 * i)))),
                       Select16Q C i). (*11.1*)
-Opaque core_spec. Opaque ld32_spec. Opaque L32_spec. Opaque st32_spec.
-Opaque crypto_core_salsa20_spec. Opaque crypto_core_hsalsa20_spec. 
       Intros pat; subst pat.
       assert (PL2length: forall n, (0<=n<4)%nat -> Zlength (hPosLoop2 n intsums C Nonce) = 16).
         clear - SL.
@@ -323,12 +317,9 @@ Opaque crypto_core_salsa20_spec. Opaque crypto_core_hsalsa20_spec.
       unfold Select_at. repeat rewrite QuadChunk2ValList_ZLength. rewrite Zmult_1_r, FN.
       simpl. rewrite app_nil_r. simpl. 
       Time normalize. (*1.7*) (*rewrite Vj.*)
-Transparent core_spec. Transparent ld32_spec. Transparent L32_spec. Transparent st32_spec.
-Transparent crypto_core_salsa20_spec. Transparent crypto_core_hsalsa20_spec.
+
       Time forward_call (Vptr nb (Int.add noff (Int.repr (4 * i))),
                      Select16Q Nonce i). (*15.3*)
-Opaque core_spec. Opaque ld32_spec. Opaque L32_spec. Opaque st32_spec.
-Opaque crypto_core_salsa20_spec. Opaque crypto_core_hsalsa20_spec.
      Intros pat; subst pat. simpl. 
      destruct (Znth_mapVint (hPosLoop2 (Z.to_nat i) intsums C Nonce) (6+i) Vundef) as [uj Uj].
       rewrite PL2Zlength; omega.  
@@ -552,11 +543,8 @@ Proof. intros. abbreviate_semax.
     rewrite field_address0_offset by auto with field_compatible.
     unfold offset_val; simpl.   
     Time normalize. (*5*)
-Transparent core_spec. Transparent ld32_spec. Transparent L32_spec. Transparent st32_spec.
-Transparent crypto_core_salsa20_spec. Transparent crypto_core_hsalsa20_spec.
+
     Time forward_call (offset_val (Int.repr (4 * i)) (Vptr ob ooff), xi). (*8.2*)
-Opaque core_spec. Opaque ld32_spec. Opaque L32_spec. Opaque st32_spec.
-Opaque crypto_core_salsa20_spec. Opaque crypto_core_hsalsa20_spec.
     { Exists (sublist (4 * i) (4 + 4 * i) ll). unfold offset_val; simpl.
       autorewrite with sublist. Time entailer!. (*10.7*) }
     simpl. Opaque mult.
@@ -599,14 +587,12 @@ Opaque crypto_core_salsa20_spec. Opaque crypto_core_hsalsa20_spec.
     rewrite field_address0_offset by auto with field_compatible.
     unfold offset_val; simpl.
     autorewrite with sublist. repeat rewrite Z.mul_1_l. 
-Transparent core_spec. Transparent ld32_spec. Transparent L32_spec. Transparent st32_spec.
-Transparent crypto_core_salsa20_spec. Transparent crypto_core_hsalsa20_spec.
+
     Time forward_call (Vptr ob (Int.add ooff (Int.repr (16 + 4 * i))), zi). (*11.2*)
-Opaque core_spec. Opaque ld32_spec. Opaque L32_spec. Opaque st32_spec.
-Opaque crypto_core_salsa20_spec. Opaque crypto_core_hsalsa20_spec.
     { Exists (sublist (16 + 4 * i) (4 + (16 + 4 * i)) (UpdateOut ll (4 * i) xi)).
       autorewrite with sublist. rewrite Z.add_assoc. 
       Time entailer!. (*13.5*) }
+
     Time entailer!. (*11.5*)
     assert (AA:  Z.to_nat (i + 1) = S (Z.to_nat i)).
       rewrite (Z.add_comm _ 1), Z2Nat.inj_add. simpl. apply NPeano.Nat.add_1_l. omega. omega.

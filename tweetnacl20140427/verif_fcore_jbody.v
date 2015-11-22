@@ -17,9 +17,6 @@ Opaque Zplus. Opaque Z.mul. Opaque mult. Opaque plus. Opaque skipn. Opaque Z.sub
     Opaque littleendian_invert. Opaque Snuffle20. Opaque prepare_data. 
     Opaque QuadByte2ValList. Opaque fcore_result.
 
-Opaque core_spec. Opaque ld32_spec. Opaque L32_spec. Opaque st32_spec.
-Opaque crypto_core_salsa20_spec. Opaque crypto_core_hsalsa20_spec.
-
 Lemma array_copy1I Espec:
 forall i (wlist ys OUT:list val) data j t y x w nonce out c k h (xs:list int)
        (J:0<=j<4),
@@ -310,12 +307,9 @@ Proof. intros. abbreviate_semax.
   Time forward; rewrite HS2. (*12*) 
   Time solve[entailer!]. (*4.5*)
   Time forward. (*4.9*)
-(*VST Issue: failure to make these specs Opaque leads to stack overflow!!*)
-Transparent core_spec. Transparent ld32_spec. Transparent L32_spec. Transparent st32_spec.
-Transparent crypto_core_salsa20_spec. Transparent crypto_core_hsalsa20_spec.
+
   Time forward_call (Int.add ValS1 ValS2, Int.repr Offset). (*8.9*)
-Opaque core_spec. Opaque ld32_spec. Opaque L32_spec. Opaque st32_spec.
-Opaque crypto_core_salsa20_spec. Opaque crypto_core_hsalsa20_spec.
+
   Intros v; subst v.
   Time forward; rewrite HTgt. (*12.8*) 
   Time solve[entailer!]. (*4.7*)
@@ -403,12 +397,9 @@ Proof. intros. abbreviate_semax.
   Time forward; rewrite HS2. (*12*) 
   Time solve[entailer!]. (*4.5*)
   Time forward. (*4.9*)
-(*VST Issue: failure to make these specs Opaque leads to stack overflow!!*)
-Transparent core_spec. Transparent ld32_spec. Transparent L32_spec. Transparent st32_spec.
-Transparent crypto_core_salsa20_spec. Transparent crypto_core_hsalsa20_spec.
+
   Time forward_call (Int.add ValS1 ValS2, Int.repr Offset). (*8.9*)
-Opaque core_spec. Opaque ld32_spec. Opaque L32_spec. Opaque st32_spec.
-Opaque crypto_core_salsa20_spec. Opaque crypto_core_hsalsa20_spec.
+
   Intros v; subst v.
   Time forward; rewrite HTgt. (*12.8*) 
   Time solve[entailer!]. (*4.7*)
@@ -496,12 +487,9 @@ Proof. intros. abbreviate_semax.
   Time forward; rewrite HS2. (*12*) 
   Time solve[entailer!]. (*4.5*)
   Time forward. (*4.9*)
-(*VST Issue: failure to make these specs Opaque leads to stack overflow!!*)
-Transparent core_spec. Transparent ld32_spec. Transparent L32_spec. Transparent st32_spec.
-Transparent crypto_core_salsa20_spec. Transparent crypto_core_hsalsa20_spec.
+
   Time forward_call (Int.add ValS1 ValS2, Int.repr Offset). (*8.9*)
-Opaque core_spec. Opaque ld32_spec. Opaque L32_spec. Opaque st32_spec.
-Opaque crypto_core_salsa20_spec. Opaque crypto_core_hsalsa20_spec.
+
   Intros v; subst v.
   Time forward; rewrite HTgt. (*12.8*) 
   Time solve[entailer!]. (*4.7*)
@@ -589,12 +577,9 @@ Proof. intros. abbreviate_semax.
   Time forward; rewrite HS2. (*12*) 
   Time solve[entailer!]. (*4.5*)
   Time forward. (*4.9*)
-(*VST Issue: failure to make these specs Opaque leads to stack overflow!!*)
-Transparent core_spec. Transparent ld32_spec. Transparent L32_spec. Transparent st32_spec.
-Transparent crypto_core_salsa20_spec. Transparent crypto_core_hsalsa20_spec.
+
   Time forward_call (Int.add ValS1 ValS2, Int.repr Offset). (*8.9*)
-Opaque core_spec. Opaque ld32_spec. Opaque L32_spec. Opaque st32_spec.
-Opaque crypto_core_salsa20_spec. Opaque crypto_core_hsalsa20_spec.
+
   Intros v; subst v.
   Time forward; rewrite HTgt. (*12.8*) 
   Time solve[entailer!]. (*4.7*)

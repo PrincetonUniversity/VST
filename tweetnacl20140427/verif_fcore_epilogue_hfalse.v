@@ -13,8 +13,6 @@ Require Import tweetnaclVerifiableC.
 
 Require Import spec_salsa.
 Opaque Snuffle.Snuffle. Opaque prepare_data.
-Opaque core_spec. Opaque ld32_spec. Opaque L32_spec. Opaque st32_spec.
-Opaque crypto_core_salsa20_spec. Opaque crypto_core_hsalsa20_spec.
 
 Definition HFalse_inv l i xs ys :=
         Zlength l = 64 /\
@@ -128,11 +126,8 @@ Time forward_for_simple_bound 16 (EX i:Z,
     unfold offset_val. simpl. 
     apply isptrD in Pout. destruct Pout as [b [z Pout]]; rewrite Pout in *; simpl in *.
     Time normalize. (*5.5*)
-Transparent core_spec. Transparent ld32_spec. Transparent L32_spec. Transparent st32_spec.
-Transparent crypto_core_salsa20_spec. Transparent crypto_core_hsalsa20_spec.
+
     Time forward_call (Vptr b (Int.add z (Int.repr (4 * i))), Int.add xi yi). (*7.5*)
-Opaque core_spec. Opaque ld32_spec. Opaque L32_spec. Opaque st32_spec.
-Opaque crypto_core_salsa20_spec. Opaque crypto_core_hsalsa20_spec.
     { Exists (sublist (4 * i) (4 + 4 * i) l).
       autorewrite with sublist. (*Coq bug: entailer!. yields Anomaly: Coq_omega: Z.sub is not an evaluable constant. Please report.*)
       Time (normalize; cancel). (*6.5*) }
