@@ -2,10 +2,8 @@ Require Import floyd.proofauto.
 Require Import progs.merge.
 Require Import progs.list_dt. Import LsegSpecial.
 
-Definition CompSpecs' : compspecs.
-Proof. make_compspecs1 prog. Defined.
 Instance CompSpecs : compspecs.
-Proof. make_compspecs2 CompSpecs'. Defined.
+Proof. make_compspecs prog. Defined.
 
 Local Open Scope logic.
 

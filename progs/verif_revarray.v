@@ -4,10 +4,8 @@ Require Import floyd.sublist.
 
 Local Open Scope logic.
 
-Definition CompSpecs' : compspecs.
-Proof. make_compspecs1 prog. Defined.
 Instance CompSpecs : compspecs.
-Proof. make_compspecs2 CompSpecs'. Defined.
+Proof. make_compspecs prog. Defined.
 
 Definition reverse_spec :=
  DECLARE _reverse

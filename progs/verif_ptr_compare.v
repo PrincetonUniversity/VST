@@ -1,10 +1,8 @@
 Require Import floyd.proofauto.
 Require Import progs.ptr_compare.
 
-Definition CompSpecs' : compspecs.
-Proof. make_compspecs1 prog. Defined.
 Instance CompSpecs : compspecs.
-Proof. make_compspecs2 CompSpecs'. Defined.
+Proof. make_compspecs prog. Defined.
 
 Local Open Scope logic.
 

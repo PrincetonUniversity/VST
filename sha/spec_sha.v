@@ -3,10 +3,8 @@ Import ListNotations.
 Require Import sha.sha.
 Require Import general_lemmas.
 Require Import sha.SHA256.
-Definition CompSpecs' : compspecs.
-Proof. make_compspecs1 prog. Defined.
 Instance CompSpecs : compspecs.
-Proof. make_compspecs2 CompSpecs'. Defined. 
+Proof. make_compspecs prog. Defined. 
 Open Scope logic.
 
 Definition s256state := (list val * (val * (val * (list val * val))))%type.
