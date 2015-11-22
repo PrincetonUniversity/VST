@@ -204,10 +204,11 @@ Definition denote_tc_comparable v1 v2 : mpred :=
  | _, _ => FF
  end.
 
+Definition typecheck_error (e: tc_error) : Prop := False.
+
 Fixpoint denote_tc_assert {CS: compspecs}(a: tc_assert) : environ -> mpred :=
   match a with
-  | tc_FF _ => `FF
-  | tc_noproof => `FF
+  | tc_FF msg => `(prop (typecheck_error msg))
   | tc_TT => `TT
   | tc_andp' b c => `andp (denote_tc_assert b) (denote_tc_assert c)
   | tc_orp' b c => `orp (denote_tc_assert b) (denote_tc_assert c)
@@ -243,6 +244,13 @@ Proof.
 intros; apply prop_ext; intuition.
 Qed.
 
+(*
+Lemma typecheck_error_False:
+  forall msg, typecheck_error msg <-> False.
+Proof.
+split; intro; inv H.
+Qed.
+*)
 
 Lemma tc_andp_sound : forall {CS: compspecs} a1 a2 rho m, 
     denote_tc_assert  (tc_andp a1 a2) rho m <->  
@@ -251,10 +259,12 @@ Proof.
 intros.
  unfold tc_andp.
  destruct a1; simpl; unfold_lift;
- repeat first [rewrite False_and | rewrite True_and | rewrite and_False | rewrite and_True];
+ repeat first [rewrite False_and | rewrite True_and 
+                    | rewrite and_False | rewrite and_True ];
   try apply iff_refl;
   destruct a2; simpl in *; unfold_lift;
- repeat first [rewrite False_and | rewrite True_and | rewrite and_False | rewrite and_True];
+ repeat first [rewrite False_and | rewrite True_and
+                    | rewrite and_False | rewrite and_True ];
   try apply iff_refl.
 Qed. 
 

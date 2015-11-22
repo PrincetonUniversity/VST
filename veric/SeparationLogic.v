@@ -197,10 +197,12 @@ Definition denote_tc_comparable v1 v2 : mpred :=
  | _, _ => FF
  end.
 
+Definition typecheck_error (e: tc_error) : Prop := False.
+Global Opaque typecheck_error.
+
 Fixpoint denote_tc_assert {CS: compspecs} (a: tc_assert) : environ -> mpred :=
   match a with
-  | tc_FF _ => FF
-  | tc_noproof => FF
+  | tc_FF msg => `(prop (typecheck_error msg))
   | tc_TT => TT
   | tc_andp' b c => `andp (denote_tc_assert b) (denote_tc_assert c)
   | tc_orp' b c => `orp (denote_tc_assert b) (denote_tc_assert c)

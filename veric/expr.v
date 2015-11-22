@@ -388,11 +388,11 @@ Inductive tc_error :=
 | invalid_composite_name: ident -> tc_error
 | invalid_struct_field : ident (* field name *) -> ident (* struct name *) -> tc_error
 | invalid_lvalue : expr -> tc_error
-| wrong_signature : tc_error.
+| wrong_signature : tc_error
+| miscellaneous_typecheck_error : tc_error.
 
 Inductive tc_assert :=
 | tc_FF: tc_error -> tc_assert
-| tc_noproof : tc_assert
 | tc_TT : tc_assert
 | tc_andp': tc_assert -> tc_assert -> tc_assert
 | tc_orp' : tc_assert -> tc_assert -> tc_assert
@@ -406,6 +406,8 @@ Inductive tc_assert :=
 | tc_samebase: expr -> expr -> tc_assert
 | tc_nodivover': expr -> expr -> tc_assert
 | tc_initialized: PTree.elt -> type -> tc_assert.
+
+Definition tc_noproof := tc_FF miscellaneous_typecheck_error.
 
 Definition tc_iszero {CS: compspecs} (e: expr) : tc_assert :=
   match eval_expr e any_environ with

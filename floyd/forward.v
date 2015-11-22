@@ -512,12 +512,6 @@ Ltac change_compspecs cs :=
    end
 end.
 
-Ltac lookup_spec_and_change_compspecs CS :=
- match goal with |- ?A = ?B => 
-      let x := fresh "x" in set (x := A);
-      let y := fresh "y" in set (y := B);
-      hnf in x; subst x; try change_compspecs CS; subst y; reflexivity
- end.
 
 Definition Warning_perhaps_funspec_postcondition_needs_EX_outside_PROP_LOCAL_SEP (p: Prop) := p.
 Ltac give_EX_warning :=
@@ -525,21 +519,66 @@ Ltac give_EX_warning :=
                  (Warning_perhaps_funspec_postcondition_needs_EX_outside_PROP_LOCAL_SEP A)
              end.
 
+Ltac check_parameter_types := 
+   first [reflexivity | elimtype  Parameter_types_in_funspec_different_from_call_statement].
+
+Ltac check_result_type := 
+   first [reflexivity | elimtype  Result_type_in_funspec_different_from_call_statement].
+
+Inductive Cannot_find_function_spec_in_Delta := .
+Inductive Global_function_name_shadowed_by_local_variable := .
+
+Ltac check_function_name :=
+   first [reflexivity | elimtype Global_function_name_shadowed_by_local_variable].
+
+Inductive Actual_parameters_cannot_be_coerced_to_formal_parameter_types := .
+
+Ltac check_cast_params :=
+   first [reflexivity | elimtype Actual_parameters_cannot_be_coerced_to_formal_parameter_types].
+
+Ltac find_spec_in_globals :=
+   first [reflexivity | elimtype  Cannot_find_function_spec_in_Delta].
+
+Inductive Funspec_precondition_is_not_in_PROP_LOCAL_SEP_form := .
+
+Ltac check_funspec_precondition := 
+   first [reflexivity | elimtype  Funspec_precondition_is_not_in_PROP_LOCAL_SEP_form].
+
+Ltac lookup_spec_and_change_compspecs CS :=
+ match goal with |- ?A = ?B => 
+      let x := fresh "x" in set (x := A);
+      let y := fresh "y" in set (y := B);
+      hnf in x; subst x; try change_compspecs CS; subst y; 
+      find_spec_in_globals
+ end.
+
+Inductive Function_arguments_include_a_memory_load_of_type (t:type) := .
+
+Ltac check_typecheck :=
+ try apply local_True_right; 
+ entailer!;
+ match goal with
+ | |- typecheck_error (deref_byvalue ?T) =>
+       elimtype (Function_arguments_include_a_memory_load_of_type T)
+ | |- _ => idtac
+ end.
+
 Ltac forward_call_id1_x_wow witness :=
 let Frame := fresh "Frame" in
  evar (Frame: list (mpred));
  match goal with |- @semax ?CS _ _ _ _ _ =>
  eapply (semax_call_id1_x_wow witness Frame);
- [ reflexivity | lookup_spec_and_change_compspecs CS
- | reflexivity | reflexivity | reflexivity
+ [ check_function_name
+ | lookup_spec_and_change_compspecs CS
+ | find_spec_in_globals | check_result_type | check_result_type
  | apply Coq.Init.Logic.I | apply Coq.Init.Logic.I | reflexivity 
  | (clear; let H := fresh in intro H; inversion H)
- | reflexivity
- | prove_local2ptree (*| repeat constructor *)
- | entailer!
- | reflexivity
- | prove_local2ptree (* | repeat constructor *)
- | reflexivity | reflexivity
+ | check_parameter_types
+ | prove_local2ptree
+ | check_typecheck
+ | check_funspec_precondition
+ | prove_local2ptree
+ | check_cast_params | reflexivity
  | Forall_pTree_from_elements
  | Forall_pTree_from_elements
  | unfold fold_right at 1 2; cancel
@@ -549,9 +588,6 @@ let Frame := fresh "Frame" in
    first [apply exp_congr; intros ?vret; reflexivity
            | give_EX_warning
            ]
-(* | intros; try match goal with  |- extract_trivial_liftx ?A _ =>
-        (has_evar A; fail 1) || (repeat constructor)
-     end *)
  | repeat constructor; auto with closed
  | repeat constructor; auto with closed
  | unify_postcondition_exps
@@ -563,16 +599,16 @@ let Frame := fresh "Frame" in
  evar (Frame: list (mpred));
  match goal with |- @semax ?CS _ _ _ _ _ =>
  eapply (semax_call_id1_y_wow witness Frame);
- [ reflexivity | lookup_spec_and_change_compspecs CS
- | reflexivity | reflexivity | reflexivity
+ [ check_function_name | lookup_spec_and_change_compspecs CS
+ | find_spec_in_globals | check_result_type | check_result_type
  | apply Coq.Init.Logic.I | apply Coq.Init.Logic.I | reflexivity 
  | (clear; let H := fresh in intro H; inversion H)
- | reflexivity
- | prove_local2ptree (* | repeat constructor *)
- | entailer!
- | reflexivity
- | prove_local2ptree (*| repeat constructor  *)
- | reflexivity | reflexivity
+ | check_parameter_types
+ | prove_local2ptree
+ | check_typecheck
+ | check_funspec_precondition
+ | prove_local2ptree
+ | check_cast_params | reflexivity
  | Forall_pTree_from_elements
  | Forall_pTree_from_elements
  | unfold fold_right at 1 2; cancel
@@ -582,10 +618,6 @@ let Frame := fresh "Frame" in
    first [apply exp_congr; intros ?vret; reflexivity
            | give_EX_warning
            ]
-(* | intros; try match goal with  |- extract_trivial_liftx ?A _ =>
-        (has_evar A; fail 1) || (repeat constructor)
-     end
-*)
  | repeat constructor; auto with closed
  | repeat constructor; auto with closed
  | unify_postcondition_exps
@@ -597,14 +629,14 @@ let Frame := fresh "Frame" in
  evar (Frame: list (mpred));
  match goal with |- @semax ?CS _ _ _ _ _ =>
  eapply (semax_call_id1_wow witness Frame);
- [ reflexivity | lookup_spec_and_change_compspecs CS
- | reflexivity | reflexivity
- | apply Coq.Init.Logic.I | reflexivity
- | prove_local2ptree (* | repeat constructor *)
- | try apply local_True_right; entailer!
- | reflexivity
- | prove_local2ptree (* | repeat constructor  *)
- | reflexivity | reflexivity
+ [ check_function_name | lookup_spec_and_change_compspecs CS
+ | find_spec_in_globals | check_result_type
+ | apply Coq.Init.Logic.I | check_parameter_types
+ | prove_local2ptree
+ | check_typecheck
+ | check_funspec_precondition
+ | prove_local2ptree
+ | check_cast_params | reflexivity
  | Forall_pTree_from_elements
  | Forall_pTree_from_elements
  | unfold fold_right at 1 2; cancel
@@ -614,9 +646,6 @@ let Frame := fresh "Frame" in
    first [apply exp_congr; intros ?vret; reflexivity
            | give_EX_warning
            ]
-(* | intros; try match goal with  |- extract_trivial_liftx ?A _ =>
-        (has_evar A; fail 1) || (repeat constructor)
-     end *)
  | repeat constructor; auto with closed
  | unify_postcondition_exps
  | unfold fold_right_and; repeat rewrite and_True; auto
@@ -627,13 +656,13 @@ let Frame := fresh "Frame" in
  evar (Frame: list (mpred));
  match goal with |- @semax ?CS _ _ _ _ _ =>
  eapply (semax_call_id01_wow witness Frame);
- [ reflexivity | lookup_spec_and_change_compspecs CS
- | reflexivity | apply Coq.Init.Logic.I | reflexivity
- | prove_local2ptree (* | repeat constructor  *)
- | try apply local_True_right; entailer!
- | reflexivity
- | prove_local2ptree (* | repeat constructor  *)
- | reflexivity | reflexivity
+ [ check_function_name | lookup_spec_and_change_compspecs CS
+ | find_spec_in_globals | apply Coq.Init.Logic.I | reflexivity
+ | prove_local2ptree
+ | check_typecheck
+ | check_funspec_precondition
+ | prove_local2ptree
+ | check_cast_params | reflexivity
  | Forall_pTree_from_elements
  | Forall_pTree_from_elements
  | unfold fold_right at 1 2; cancel
@@ -643,10 +672,6 @@ let Frame := fresh "Frame" in
    first [apply exp_congr; intros ?vret; reflexivity
            | give_EX_warning
            ]
-(* | intros; try match goal with  |- extract_trivial_liftx ?A _ =>
-        (has_evar A; fail 1) || (repeat constructor)
-     end
-*)
  | unify_postcondition_exps
  | unfold fold_right_and; repeat rewrite and_True; auto
  ] end.
@@ -656,13 +681,13 @@ let Frame := fresh "Frame" in
  evar (Frame: list (mpred));
  match goal with |- @semax ?CS _ _ _ _ _ =>
  eapply (semax_call_id00_wow witness Frame);
- [ reflexivity | lookup_spec_and_change_compspecs CS
- | reflexivity | reflexivity
- | prove_local2ptree (* | repeat constructor *)
- | try apply local_True_right; entailer!
- | reflexivity
- | prove_local2ptree (* | repeat constructor  *)
- | reflexivity | reflexivity
+ [ check_function_name | lookup_spec_and_change_compspecs CS
+ | find_spec_in_globals | check_result_type | check_parameter_types
+ | prove_local2ptree
+ | check_typecheck
+ | check_funspec_precondition
+ | prove_local2ptree
+ | check_cast_params | reflexivity
  | Forall_pTree_from_elements
  | Forall_pTree_from_elements
  | unfold fold_right at 1 2; cancel
@@ -670,10 +695,6 @@ let Frame := fresh "Frame" in
     repeat rewrite exp_uncurry;
     try rewrite no_post_exists0; 
     first [reflexivity | extensionality; simpl; reflexivity]
-(* | intros; try match goal with  |- extract_trivial_liftx ?A _ =>
-        (has_evar A; fail 1) || (repeat constructor)
-     end
-*)
  | unify_postcondition_exps
  | unfold fold_right_and; repeat rewrite and_True; auto
  ]
@@ -782,22 +803,15 @@ Ltac complain_intros :=
          | stuckwith In_the_previous_forward_call__use_intropatterns_to_intro_values_of_these_types
          ].
 
+
 Tactic Notation "uniform_intros" simple_intropattern_list(v) :=
  (((assert True by (intros v; apply Coq.Init.Logic.I);
   assert (forall a: unit, True)
    by (intros v; apply Coq.Init.Logic.I);
   fail 1) || intros v) || idtac).
 
-Tactic Notation "forward_call" constr(witness) :=
-    check_canonical_call; 
-    try  (* BUG IN THIS LINE!  If check_canonical_call succeeds, but the
-          rest of the tactic fails, then the whole tactic should fail,
-         but the "try" makes it fail.  Can't simply delete the try, 
-         in case check_canonical_call returns a diagnostic message.
-         Need to handle the diagnostic the proper way *)
-      match goal with |- semax _ _ _ _ =>
-    check_Delta;
-    fwd_call' witness;
+Ltac fwd_call witness :=
+fwd_call' witness;
   [ .. 
   | first 
       [ (* body of uniform_intros tactic *)
@@ -816,7 +830,19 @@ Tactic Notation "forward_call" constr(witness) :=
        try fwd_skip
      | complain_intros
      ]  
-  ] end.
+  ].
+
+Tactic Notation "forward_call" constr(witness) :=
+    check_canonical_call; 
+   match goal with |- semax _ _ _ _ =>
+    check_Delta;
+    match goal with
+    | |- semax _ _ _ _ =>
+        first [fwd_call witness | fail 3]
+    | |- _ => idtac
+    end
+   | _ => idtac 
+   end.
 
 Lemma seq_assoc2:
   forall (Espec: OracleKind) {cs: compspecs}  Delta P c1 c2 c3 c4 Q,
