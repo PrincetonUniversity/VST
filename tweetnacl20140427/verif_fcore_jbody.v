@@ -313,16 +313,16 @@ Proof. intros. abbreviate_semax.
 (*VST Issue: failure to make these specs Opaque leads to stack overflow!!*)
 Transparent core_spec. Transparent ld32_spec. Transparent L32_spec. Transparent st32_spec.
 Transparent crypto_core_salsa20_spec. Transparent crypto_core_hsalsa20_spec.
-  Time forward_call (Int.add ValS1 ValS2, Int.repr Offset) v. (*9*)
+  Time forward_call (Int.add ValS1 ValS2, Int.repr Offset). (*8.9*)
 Opaque core_spec. Opaque ld32_spec. Opaque L32_spec. Opaque st32_spec.
 Opaque crypto_core_salsa20_spec. Opaque crypto_core_hsalsa20_spec.
-  subst v.
+  Intros v; subst v.
   Time forward; rewrite HTgt. (*12.8*) 
   Time solve[entailer!]. (*4.7*)
   Time forward. (*5*)
   Time forward. (*7*)
-  Time entailer!. (*6.2*)
-Time Qed. (*42*)
+  Time entailer!. (*5.8*)
+Time Qed. (*44*)
 
 Lemma pattern2_noStmt Espec Source1 Source2 Target Offset: forall
   (S1Range: 0 <= Source1 < 4) (S2Range: 0 <= Source2 < 4) (TgtRange: 0 <= Target < 4)
@@ -398,24 +398,24 @@ Lemma pattern2_noStmt Espec Source1 Source2 Target Offset: forall
    CoreInSEP data (nonce, c, k);
    data_at Tsh (tarray tuchar 64) OUT out))).
 Proof. intros. abbreviate_semax.
-  Time forward; rewrite HS1. (*14*)  
-  Time solve[entailer!]. (*4.3*)
+  Time forward; rewrite HS1. (*13.4*)  
+  Time solve[entailer!]. (*4.5*)
   Time forward; rewrite HS2. (*12*) 
   Time solve[entailer!]. (*4.5*)
-  Time forward. (*5*)
-(*VST Issue: failure to make these specs Opaque leads to stack oveflow!!*)
+  Time forward. (*4.9*)
+(*VST Issue: failure to make these specs Opaque leads to stack overflow!!*)
 Transparent core_spec. Transparent ld32_spec. Transparent L32_spec. Transparent st32_spec.
 Transparent crypto_core_salsa20_spec. Transparent crypto_core_hsalsa20_spec.
-  Time forward_call (Int.add ValS1 ValS2, Int.repr Offset) v. (*9.4*)
+  Time forward_call (Int.add ValS1 ValS2, Int.repr Offset). (*8.9*)
 Opaque core_spec. Opaque ld32_spec. Opaque L32_spec. Opaque st32_spec.
 Opaque crypto_core_salsa20_spec. Opaque crypto_core_hsalsa20_spec.
-  subst v.
-  Time forward; rewrite HTgt. (*13*) 
-  Time solve[entailer!]. (*4.5*)
+  Intros v; subst v.
+  Time forward; rewrite HTgt. (*12.8*) 
+  Time solve[entailer!]. (*4.7*)
   Time forward. (*5*)
-  Time forward. (*7.1*)
-  Time entailer!. (*6.4*)
-Time Qed. (*44.7*)
+  Time forward. (*7*)
+  Time entailer!. (*5.8*)
+Time Qed. (*54 -- ten seconds slower*)
 
 Lemma pattern3_noStmt Espec Source1 Source2 Target Offset: forall
   (S1Range: 0 <= Source1 < 4) (S2Range: 0 <= Source2 < 4) (TgtRange: 0 <= Target < 4)
@@ -491,24 +491,24 @@ Lemma pattern3_noStmt Espec Source1 Source2 Target Offset: forall
    CoreInSEP data (nonce, c, k);
    data_at Tsh (tarray tuchar 64) OUT out))).
 Proof. intros. abbreviate_semax.
-  Time forward; rewrite HS1. (*14*)  
-  Time solve[entailer!]. (*4.3*)
+  Time forward; rewrite HS1. (*13.4*)  
+  Time solve[entailer!]. (*4.5*)
   Time forward; rewrite HS2. (*12*) 
   Time solve[entailer!]. (*4.5*)
-  Time forward. (*5*)
-(*VST Issue: failure to make these specs Opaque leads to stack oveflow!!*)
+  Time forward. (*4.9*)
+(*VST Issue: failure to make these specs Opaque leads to stack overflow!!*)
 Transparent core_spec. Transparent ld32_spec. Transparent L32_spec. Transparent st32_spec.
 Transparent crypto_core_salsa20_spec. Transparent crypto_core_hsalsa20_spec.
-  Time forward_call (Int.add ValS1 ValS2, Int.repr Offset) v. (*8.9*)
+  Time forward_call (Int.add ValS1 ValS2, Int.repr Offset). (*8.9*)
 Opaque core_spec. Opaque ld32_spec. Opaque L32_spec. Opaque st32_spec.
 Opaque crypto_core_salsa20_spec. Opaque crypto_core_hsalsa20_spec.
-  subst v.
-  Time forward; rewrite HTgt. (*13*) 
-  Time solve[entailer!]. (*4.5*)
+  Intros v; subst v.
+  Time forward; rewrite HTgt. (*12.8*) 
+  Time solve[entailer!]. (*4.7*)
   Time forward. (*5*)
-  Time forward. (*7.1*)
-  Time entailer!. (*6.4*)
-Time Qed. (*52 -- VST 10 secs SLOWer than previous 2 lemmas*)
+  Time forward. (*7*)
+  Time entailer!. (*5.8*)
+Time Qed. (*73 -- another 20 seconds slower*)
 
 Lemma pattern4_noStmt Espec Source1 Source2 Target Offset: forall
   (S1Range: 0 <= Source1 < 4) (S2Range: 0 <= Source2 < 4) (TgtRange: 0 <= Target < 4)
@@ -584,24 +584,24 @@ Lemma pattern4_noStmt Espec Source1 Source2 Target Offset: forall
    CoreInSEP data (nonce, c, k);
    data_at Tsh (tarray tuchar 64) OUT out))).
 Proof. intros. abbreviate_semax.
-  Time forward; rewrite HS1. (*14*)  
-  Time solve[entailer!]. (*4.3*)
+  Time forward; rewrite HS1. (*13.4*)  
+  Time solve[entailer!]. (*4.5*)
   Time forward; rewrite HS2. (*12*) 
   Time solve[entailer!]. (*4.5*)
-  Time forward. (*5*)
-(*VST Issue: failure to make these specs Opaque leads to stack oveflow!!*)
+  Time forward. (*4.9*)
+(*VST Issue: failure to make these specs Opaque leads to stack overflow!!*)
 Transparent core_spec. Transparent ld32_spec. Transparent L32_spec. Transparent st32_spec.
 Transparent crypto_core_salsa20_spec. Transparent crypto_core_hsalsa20_spec.
-  Time forward_call (Int.add ValS1 ValS2, Int.repr Offset) v. (*9.3*)
+  Time forward_call (Int.add ValS1 ValS2, Int.repr Offset). (*8.9*)
 Opaque core_spec. Opaque ld32_spec. Opaque L32_spec. Opaque st32_spec.
 Opaque crypto_core_salsa20_spec. Opaque crypto_core_hsalsa20_spec.
-  subst v.
-  Time forward; rewrite HTgt. (*13*) 
-  Time solve[entailer!]. (*4.5*)
+  Intros v; subst v.
+  Time forward; rewrite HTgt. (*12.8*) 
+  Time solve[entailer!]. (*4.7*)
   Time forward. (*5*)
-  Time forward. (*7.1*)
-  Time entailer!. (*6.4*)
-Time Qed. (*77*) (*VST Issue -- why is this Qed another 20 secs SLOWer???*)
+  Time forward. (*7*)
+  Time entailer!. (*5.8*)
+Time Qed. (*156 -- twice as SLOW*)
 
 Definition wlistJ' (wlist:list val) (j: Z) (t0 t1 t2 t3:int) (l: list val): Prop :=
   Zlength l = 16 /\ 

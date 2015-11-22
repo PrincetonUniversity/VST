@@ -114,33 +114,27 @@ forward_if  (
   { (* Branch1 *) exfalso. subst md. contradiction.  }
   { (* Branch2 *) forward. entailer. } 
 normalize.
-remember (HMACabs init_s256abs init_s256abs init_s256abs) as dummyHMA.
 assert_PROP (isptr k). { unfold data_block. normalize. rewrite data_at_isptr with (p:=k). entailer!. (*Issue: need to do unfold data_block. normalize. rewrite data_at_isptr with (p:=k). here is NEW*) }
 rename H into isPtrK. 
-forward_call (c, k, kl, key, kv, dummyHMA) h.
+forward_call (c, k, kl, key, kv, HMACabs nil nil nil).
   { apply isptrD in isPtrK. destruct isPtrK as [kb [kofs HK]]. rewrite HK.
     unfold initPre. entailer!. 
   }
-normalize. rename H into HmacInit.
-assert_PROP (s256a_len (absCtxt h) = 512).
-  { unfold hmacstate_. entailer.
-    destruct h; simpl in *. 
-    destruct HmacInit as [iS [oS [IS [OS XX]]]]. inv XX.
-    apply prop_right. intuition.
-  }
+assert_PROP (s256a_len (absCtxt (hmacInit key)) = 512).
+  { unfold hmacstate_. Intros r. apply prop_right. apply H. }
 rename H into absH_len512.
 
-forward_call (h, c, d, dl, data, kv) h1. 
+forward_call (hmacInit key, c, d, dl, data, kv). 
   { rewrite absH_len512. assumption. } 
-rename H into HmacUpdate. 
 
 (* Call to HMAC_Final*)
 assert_PROP (@field_compatible CompSpecs (Tstruct _hmac_ctx_st noattr) nil c).
 { unfold hmacstate_; entailer. }
 rename H into FC_c.
 
-forward_call (h1, c, md, shmd, kv) [dig h2].
-simpl in H; rename H into HmacFinalSimple.
+forward_call (hmacUpdate data (hmacInit key), c, md, shmd, kv).
+remember (hmacFinal (hmacUpdate data (hmacInit key))) as RES.
+destruct RES as [h2 dig].
 simpl.
 
 forward_call (h2,c).
@@ -148,30 +142,29 @@ forward.
 assert_PROP (field_compatible (tarray tuchar (sizeof cenv_cs t_struct_hmac_ctx_st)) nil c).
 { unfold data_block at 1. unfold Zlength. simpl. rewrite data_at_data_at'. normalize. }
 rename H8 into FC.
-Exists c dig. clear H3. entailer!.
-assert (HS: hmacSimple key data dig).
-    exists h, h1. 
-    split. destruct KL as [KL1 [KLb KLc]].
-           assumption.
-    split; try assumption.
-    rewrite hmacFinal_hmacFinalSimple. exists h2; trivial.
-clear H2.
-  rewrite hmac_hmacSimple in HS. destruct HS as [hh HH]. 
-  specialize (hmac_sound _ _ _ _ HH). intros D; subst dig.
-  split. unfold bitspec. simpl. rewrite Equivalence.
+specialize (hmac_sound key data). unfold hmac. 
+rewrite <- HeqRES. simpl; intros.
+Exists c dig. 
+clear - FC FC_c H7 H8 isbyteZ_key H0.
+Time normalize. (*6.4*) (*calling entailer! here takes > 13 secs*)
+apply andp_right. apply prop_right. subst.
+       split. unfold bitspec. simpl. rewrite Equivalence.
          f_equal. unfold HMAC_spec_abstract.HMAC_Abstract.Message2Blist.
-       remember (mkCont data) as dd. destruct dd. destruct a; subst x.
+         remember (mkCont data) as dd. destruct dd. destruct a; subst x.
          rewrite ByteBitRelations.bytes_bits_bytes_id.
          rewrite HMAC_equivalence.of_length_proof_irrel.
          rewrite ByteBitRelations.bytes_bits_bytes_id. reflexivity.
            apply isbyteZ_mkKey. assumption.   
            apply H7. 
-           intros ? X; eapply X. 
-  unfold CRYPTO; intros. apply HMAC256_isPRF; assumption.
-unfold data_block.
+           intros ? X. apply X.
+       split; trivial. split; trivial. 
+       intros ? X.
+        unfold CRYPTO; intros. apply HMAC256_isPRF; assumption.
+cancel.
+  unfold data_block.
   rewrite Zlength_correct; simpl.
-apply andp_left2.
-rewrite <- memory_block_data_at_; trivial.
+  apply andp_left2.
+  rewrite <- memory_block_data_at_; trivial.
   rewrite (memory_block_data_at_ Tsh (tarray tuchar (sizeof (@cenv_cs CompSpecs) t_struct_hmac_ctx_st))).
   2: trivial.
   eapply derives_trans. apply data_at_data_at_. apply derives_refl.

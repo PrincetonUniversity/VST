@@ -23,9 +23,9 @@ Ltac go_FWD f :=
          let y := constr:(f1 x) in let y' := (eval cbv beta in y) in
          go_FWD y'  
   | FWD_while0 ?P ?Q ?f1 ?f2 => 
-          forward_while P Q; [ | | | go_FWD f1 | go_FWD f2] 
+          forward_while P (*Q*); [ | | | go_FWD f1 | go_FWD f2] 
   | FWD_while1 ?P ?Q ?f1 ?f2 => 
-            let x := fresh "x" in forward_while P x;
+            let x := fresh "x" in forward_while P (*x*);
              [ | |
              |  let y := constr:(f1 x) in let y' := (eval cbv beta in y) in
                  go_FWD y' 

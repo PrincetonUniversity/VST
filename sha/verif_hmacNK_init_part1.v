@@ -15,6 +15,16 @@ Require Import sha.hmac_pure_lemmas.
 Require Import sha.hmac_common_lemmas.
 Require Import sha.spec_hmacNK.
 
+Lemma change_compspecs_t_struct_SHA256state_st':
+  @data_at_ spec_sha.CompSpecs Tsh t_struct_SHA256state_st =
+  @data_at_ CompSpecs Tsh t_struct_SHA256state_st.
+Proof.
+extensionality v.
+reflexivity.
+Qed.
+
+Hint Rewrite change_compspecs_t_struct_SHA256state_st' : norm.
+
 Definition initPostKeyNullConditional r (c:val) (k: val) h key ctxkey: mpred:=
   match k with
     Vint z => if Int.eq z Int.zero
@@ -43,31 +53,16 @@ Definition PostKeyNull c k pad kv h1 l key ckb ckoff: environ -> mpred :=
                    temp _key k; temp _len (Vint (Int.repr l));
                    gvar sha._K256 kv)
                    SEP  (data_at_ Tsh (tarray tuchar 64) pad;
-                     initPostKeyNullConditional r c k h1 key (Vptr ckb ckoff);
-                     K_vector kv))).
+                   initPostKeyNullConditional r c k h1 key (Vptr ckb ckoff);
+                   K_vector kv))).
 
-Definition hmac_init_part1_FRAME1 key kb kofs cb cofs pad : mpred :=  
-   (data_at_ Tsh (Tarray tuchar 64 noattr) pad) *
-   (field_at Tsh t_struct_hmac_ctx_st [StructField _i_ctx]
-       (fst (snd (default_val t_struct_hmac_ctx_st))) (Vptr cb cofs)) *
-   (field_at Tsh t_struct_hmac_ctx_st [StructField _o_ctx]
-       (snd (snd (default_val t_struct_hmac_ctx_st))) (Vptr cb cofs)) *
-   (data_block Tsh key (Vptr kb kofs)).
-Opaque hmac_init_part1_FRAME1.
-
-Definition hmac_init_part1_FRAME2 cb cofs := data_at Tsh
-       (nested_field_type t_struct_hmac_ctx_st [StructField _md_ctx])
-       (fst (default_val t_struct_hmac_ctx_st))
-       (field_address t_struct_hmac_ctx_st [StructField _md_ctx]
-          (Vptr cb cofs)). 
-Opaque hmac_init_part1_FRAME2.
-
-Lemma Init_part1_j_lt_len Espec (kb ckb cb: block) (kofs ckoff cofs:int) l key kv pad 
+Lemma Init_part1_j_lt_len Espec (kb ckb cb: block) (kofs ckoff cofs:int) l key kv pad
       (HMS' : reptype t_struct_hmac_ctx_st): forall h1
 (KL1 : l = Zlength key)
 (KL2 : 0 < l <= Int.max_signed)
 (KL3 : l * 8 < two_p 64)
 (isbyte_key : Forall isbyteZ key)
+(HMS' : reptype t_struct_hmac_ctx_st)
 (KHMS : HMS' = HMS)
 (PostIf_j_Len : environ -> mpred)
 (HeqPostIf_j_Len : PostIf_j_Len =
@@ -97,10 +92,10 @@ Lemma Init_part1_j_lt_len Espec (kb ckb cb: block) (kofs ckoff cofs:int) l key k
    lvar _pad (tarray tuchar 64) pad; temp _ctx (Vptr cb cofs);
    temp _key (Vptr kb kofs); temp _len (Vint (Int.repr l));
    gvar sha._K256 kv)
-   SEP  (data_at_ Tsh t_struct_hmac_ctx_st (Vptr cb cofs);
-   data_at Tsh (tarray tuchar (Zlength key)) (map Vint (map Int.repr key))
-       (Vptr kb kofs); data_at_ Tsh (tarray tuchar 64) pad;
-   data_at_ Tsh (tarray tuchar 64) (Vptr ckb ckoff); K_vector kv))
+   SEP  (data_at Tsh (tarray tuchar (Zlength key)) (map Vint (map Int.repr key))
+        (Vptr kb kofs); data_at_ Tsh (tarray tuchar 64) pad;
+   K_vector kv; data_at_ Tsh t_struct_hmac_ctx_st (Vptr cb cofs);
+   data_at_ Tsh (tarray tuchar 64) (Vptr ckb ckoff)))
   (Ssequence
      (Scall None
         (Evar _SHA256_Init
@@ -152,82 +147,86 @@ Lemma Init_part1_j_lt_len Espec (kb ckb cb: block) (kofs ckoff cofs:int) l key k
                    (normal_ret_assert (PostKeyNull (Vptr cb cofs) (Vptr kb kofs) pad kv h1 l key ckb ckoff)))).
 Proof. intros. abbreviate_semax.
       (*call to SHA256_init*)
+      freeze [0; 1; 4] FR1. 
       unfold data_at_ at 1. unfold field_at_ at 1.
-      simpl.
+      simpl. 
       Time unfold_field_at 1%nat. (*7.7*)
       rewrite (field_at_data_at Tsh t_struct_hmac_ctx_st [StructField _md_ctx]).
-      rewrite field_address_offset by auto with field_compatible. simpl.
-      rewrite Int.add_zero.
+      rewrite field_address_offset by auto with field_compatible.
+      simpl. rewrite Int.add_zero.
+
+      freeze [0;1] FR2.
 
       (*new: extract info from field_address as early as possible*)
-      assert_PROP (isptr (field_address t_struct_hmac_ctx_st [StructField _md_ctx]
-                          (Vptr cb cofs))) as FA_MDCTX by entailer!.
-      Time forward_call (Vptr cb cofs). (*Issue: takes 5mins... [now takes 18 sec] *)
-     change_compspecs CompSpecs. (* this should not be needed *)
-     cancel.
-      forward_call (init_s256abs, key, Vptr cb cofs, Vptr kb kofs, Tsh, l, kv) ctxSha.
-      { unfold data_block. rewrite prop_true_andp by auto.
-       change_compspecs CompSpecs.  (* this should not be needed *)
-       cancel.
+      Time assert_PROP (isptr (field_address t_struct_hmac_ctx_st [StructField _md_ctx]
+                          (Vptr cb cofs))) as FA_MDCTX by entailer!. (*2.9 versus 4.2*)
+      Time assert_PROP (field_compatible t_struct_SHA256state_st [] (Vptr cb cofs)) as 
+         FCcb by entailer!. (*3.8*)
+
+      freeze [0;2;3] FR3.
+      Time forward_call (Vptr cb cofs). (* 4.3 versus 18 *)
+      { change (Tstruct _SHA256state_st noattr) with  t_struct_SHA256state_st.
+        rewrite change_compspecs_t_struct_SHA256state_st'.
+        Time cancel. (*0.1 versus 5.8*)
       }
-      { clear Frame HeqPostIf_j_Len (* HeqPostKeyNull*).
+
+      (*call to SHA256_Update*) 
+      thaw FR3.
+      thaw FR2.
+      thaw FR1.
+      freeze [2;3;5;6] FR4.
+      Time forward_call (@nil Z, key, Vptr cb cofs, Vptr kb kofs, Tsh, l, kv). (*4.5*)
+      { unfold data_block. rewrite prop_true_andp by auto.      
+        change_compspecs CompSpecs.  (* this should not be needed *)
+        Time cancel. (*0.1*)
+      }
+      { clear Frame HeqPostIf_j_Len (*HeqPostKeyNull*).
         specialize Int.max_signed_unsigned.
         subst l. intuition.
       }
-      (*unfold map at 1. (* this should not be necessary *)*)
-      rename H into updAbs.
-      rewrite sublist_same in updAbs; trivial.
+      rewrite sublist_same; trivial.
 
      (*call Final*)
-     focus_SEP 6. unfold data_at_ at 1. unfold field_at_.
-     Time rewrite field_at_data_at at 1. (* 5.2 sec*)
-     rewrite field_address_offset by auto.
+     thaw FR4. simpl.
+     freeze [2;3;5;6] FR5. 
+     freeze [0;1;2] FR6.
+     unfold data_at_ at 1. unfold field_at_.
+     Time rewrite field_at_data_at at 1. (* 4.2*)
+     rewrite field_address_offset by auto with field_compatible.
      simpl. rewrite Int.add_zero.
 
-Time    assert_PROP (field_compatible (Tarray tuchar 64 noattr) [] (Vptr ckb ckoff)) as FC_ctxkey
-       by entailer!.
+     assert_PROP (field_compatible (Tarray tuchar 64 noattr) [] (Vptr ckb ckoff)) as FC_ctxkey. 
+     { Time entailer!. (*1.4*) } 
 
-     replace_SEP 0 (memory_block Tsh 64 (Vptr ckb ckoff)).
-     { Time entailer!. (*2.7*) apply data_at_memory_block. }
+     replace_SEP 1 (memory_block Tsh 64 (Vptr ckb ckoff)).
+     { Time entailer!. (*2*) apply data_at_memory_block. }
     
      Time specialize (memory_block_split Tsh ckb (Int.unsigned ckoff) 32 32).
      rewrite Int.repr_unsigned.
      change (32+32) with 64.
-     Opaque Zplus.
      intros MBS; rewrite MBS; clear MBS; trivial. 
      Focus 2. destruct (Int.unsigned_range ckoff). split; try omega.
               red in FC_ctxkey. simpl in FC_ctxkey. intuition.
-     Time normalize. (*3.2*)
+     flatten_sepcon_in_SEP.
+     
+     thaw FR6.
+     freeze [0;4] FR7. 
+     Time forward_call (key, Vptr ckb ckoff, Vptr cb cofs, Tsh, kv). (*3.3.versus 4.3*)
 
-     Time gather_SEP 4 5 6 7. (*0.1*)
-
-     replace_SEP 0 (hmac_init_part1_FRAME1 key kb kofs cb cofs pad).
-     { Transparent hmac_init_part1_FRAME1. unfold hmac_init_part1_FRAME1. Opaque hmac_init_part1_FRAME1.
-       change_compspecs CompSpecs.
-       Time entailer!. (*10*)
-       apply derives_refl.
-     } 
-     Time forward_call (ctxSha, Vptr ckb ckoff, Vptr cb cofs, Tsh, kv). (*4.7*) (*with transparent hmac_init_part1_FRAME1 it's a bit faster, but then unfolds hmac_init_part1_FRAME in the precondition of the next goal*) 
-     replace_SEP 1 (hmac_init_part1_FRAME2 cb cofs).
-     { Transparent hmac_init_part1_FRAME2. unfold hmac_init_part1_FRAME2. Opaque hmac_init_part1_FRAME2.
-       Time entailer!. (*3.8*)
-       unfold data_at_, field_at_.
-       rewrite field_at_data_at.
-       rewrite field_address_offset by auto with field_compatible. 
-       rewrite field_address_offset by auto with field_compatible. trivial. }
-
-     (*call memset*) 
-     unfold tarray in *.
-     Time forward_call (Tsh, Vptr ckb (Int.repr (Int.unsigned ckoff + 32)), 32, Int.zero)
-        vret. (*9.1*)
+     (*call memset*)
+     thaw FR7.
+     unfold tarray.
+     freeze [0;1;2;3] FR8. (*everything except memory_block Tsh 32 (Vptr ckb (Int.repr (Int.unsigned ckoff + 32))))*)
+     Time forward_call (Tsh, Vptr ckb (Int.repr (Int.unsigned ckoff + 32)), 32, Int.zero). (*6.1 versus 6.9*)
      { rewrite (lvar_eval_var _ _ _ _ H0). split; trivial. }
-     { subst PostIf_j_Len.
-       Time entailer!. (*11*)
+     { apply andp_left2. 
+       Intros vret; subst vret.
+       subst PostIf_j_Len.
+       Time entailer!. (*10.2*)
        unfold data_block. simpl. Time normalize. (*1.4*) 
        unfold HMS.
-       assert (SFL: Zlength  (sha_finish ctxSha) = 32).
-         destruct ctxSha. simpl. rewrite <- functional_prog.SHA_256'_eq, Zlength_correct, length_SHA256'. reflexivity. 
-       rewrite SFL.
+       assert (SFL: Zlength  (SHA_256 key) = 32).
+         rewrite <- functional_prog.SHA_256'_eq, Zlength_correct, length_SHA256'. reflexivity. 
        assert (LK64: Zlength (HMAC_SHA256.mkKey key) = 64).
          unfold HMAC_SHA256.mkKey.
          remember (Zlength key >? Z.of_nat SHA256.BlockSize).
@@ -235,53 +234,48 @@ Time    assert_PROP (field_compatible (Tarray tuchar 64 noattr) [] (Vptr ckb cko
                      unfold SHA256.Hash. rewrite length_SHA256'. unfold SHA256.DigestLength, SHA256.BlockSize. omega.
          reflexivity. apply Nat2Z.inj_le.
          specialize (Zgt_cases (Zlength key) (Z.of_nat SHA256.BlockSize)). rewrite <- Heqb. rewrite Zlength_correct; trivial.
+(*
+       Transparent Z.add. unfold_data_at 2%nat. Opaque Z.add. unfold data_block.
+       Time entailer!. (*1.8*)
+       Time rewrite field_at_data_at at 1. (*1.2*)
+       simpl @nested_field_type.*)
 
-      Transparent Z.add. unfold_data_at 3%nat. Opaque Z.add.
-      Time normalize. (*1.8*)
-      Time rewrite field_at_data_at at 1. (*1.2*)
-      simpl @nested_field_type.
- 
-      unfold tarray.
-      rewrite (split2_data_at_Tarray_tuchar Tsh 64 32); repeat rewrite Zlength_map; trivial; try omega.
-      unfold HMAC_SHA256.mkKey. 
-      remember (Zlength key >? Z.of_nat SHA256.BlockSize).
-      destruct b.
-      Focus 2. specialize (Zgt_cases (Zlength key) (Z.of_nat SHA256.BlockSize)).
-               rewrite <- Heqb. intros. simpl in H. omega.
-      clear Heqb.
-      unfold HMAC_SHA256.zeroPad. repeat rewrite map_app. 
-      assert (LHash: Zlength (SHA256.Hash key) = 32).
-        unfold SHA256.Hash. rewrite Zlength_correct, length_SHA256'; reflexivity.
-      autorewrite with sublist. rewrite LHash.
-      unfold SHA256.BlockSize.
-      replace (length (SHA256.Hash key)) with 32%nat
-        by (apply Nat2Z.inj; rewrite <- Zlength_correct, LHash; reflexivity).
-      change (64-32)%nat with (Z.to_nat 32).
-      autorewrite with sublist.
-      change (64 - 32) with 32.
-      match goal with |- data_at _ _ ?A _ * _ * _ * _ |-- _ =>
-        change A with(list_repeat (Z.to_nat 32) (Vint Int.zero))
-      end.
-      rewrite !map_list_repeat. fold Int.zero.
-      rewrite field_address0_offset by auto with field_compatible.
-      unfold offset_val.
-      simpl Vptr.
-      change_compspecs CompSpecs.
-      change (Int.repr (Int.unsigned ckoff + 32))
-             with (Int.add ckoff (Int.repr 32)). rewrite Z.add_0_l.
-      Time cancel. (*1.*) 
-      destruct ctxSha. simpl. inv updAbs. simpl in H16; rewrite <- H16. unfold SHA256.Hash. 
-      rewrite functional_prog.SHA_256'_eq. Time cancel. (*0.6*)
-
-      Transparent hmac_init_part1_FRAME1. unfold hmac_init_part1_FRAME1. Opaque hmac_init_part1_FRAME1.
-      clear.
-      Time repeat simplify_project_default_val. (*5.2*)
-      Time cancel. (* 0.4*)
-      unfold data_block. simpl. rewrite sepcon_andp_prop.
-      apply andp_left2. Time cancel. (*0.2*)   
-      apply derives_refl.
-   }
-Time Qed. (*67*)
+       unfold tarray.
+       rewrite (split2_data_at_Tarray_tuchar Tsh 64 32); repeat rewrite Zlength_map; trivial; try omega.
+       unfold HMAC_SHA256.mkKey. 
+       remember (Zlength key >? Z.of_nat SHA256.BlockSize).
+       destruct b.
+       Focus 2. specialize (Zgt_cases (Zlength key) (Z.of_nat SHA256.BlockSize)).
+                rewrite <- Heqb. intros. simpl in H9. omega.
+       clear Heqb.
+       unfold HMAC_SHA256.zeroPad. repeat rewrite map_app. 
+       assert (LHash: Zlength (SHA256.Hash key) = 32).
+         unfold SHA256.Hash. rewrite Zlength_correct, length_SHA256'; reflexivity.
+       autorewrite with sublist. rewrite LHash.  
+       unfold SHA256.BlockSize.
+       replace (length (SHA256.Hash key)) with 32%nat
+         by (apply Nat2Z.inj; rewrite <- Zlength_correct, LHash; reflexivity).
+       change (64-32)%nat with (Z.to_nat 32).
+       autorewrite with sublist.
+       change (64 - 32) with 32.
+       rewrite !map_list_repeat. fold Int.zero.
+       rewrite field_address0_offset by auto with field_compatible. simpl. 
+       change_compspecs CompSpecs.
+       change (Int.repr (Int.unsigned ckoff + 32))
+             with (Int.add ckoff (Int.repr 32)). (*rewrite Z.add_0_l.*)
+       Time cancel. (*0.6*)
+       thaw FR8. Time cancel.
+       unfold data_block, SHA256.Hash, tarray. rewrite functional_prog.SHA_256'_eq, SFL. simpl.
+       change_compspecs CompSpecs. Time entailer!. (*2.1*)
+       thaw FR5.
+       unfold data_at_, field_at_, tarray, data_block.  
+       unfold_data_at 2%nat. simpl. Time cancel. (*0.7*)
+       change_compspecs CompSpecs. Time (normalize; cancel). (*0.6*)
+       rewrite field_at_data_at, field_address_offset by auto with field_compatible.
+       rewrite field_at_data_at, field_address_offset by auto with field_compatible.
+       Time cancel. (*0.1*)
+  }
+Time Qed. (*31.3 secs versus 58 secs*)
 
 Lemma Init_part1_len_le_j Espec (kb ckb cb: block) (kofs ckoff cofs:int) l key kv pad
       (HMS' : reptype t_struct_hmac_ctx_st): forall h1
@@ -318,10 +312,10 @@ Lemma Init_part1_len_le_j Espec (kb ckb cb: block) (kofs ckoff cofs:int) l key k
    lvar _pad (tarray tuchar 64) pad; temp _ctx (Vptr cb cofs);
    temp _key (Vptr kb kofs); temp _len (Vint (Int.repr l));
    gvar sha._K256 kv)
-   SEP  (data_at_ Tsh t_struct_hmac_ctx_st (Vptr cb cofs);
-   data_at Tsh (tarray tuchar (Zlength key)) (map Vint (map Int.repr key))
-       (Vptr kb kofs); data_at_ Tsh (tarray tuchar 64) pad;
-   data_at_ Tsh (tarray tuchar 64) (Vptr ckb ckoff); K_vector kv))
+   SEP  (data_at Tsh (tarray tuchar (Zlength key)) (map Vint (map Int.repr key))
+        (Vptr kb kofs); data_at_ Tsh (tarray tuchar 64) pad;
+   K_vector kv; data_at_ Tsh t_struct_hmac_ctx_st (Vptr cb cofs);
+   data_at_ Tsh (tarray tuchar 64) (Vptr ckb ckoff)))
 (Ssequence
      (Scall None
         (Evar _memcpy
@@ -346,67 +340,68 @@ Lemma Init_part1_len_le_j Espec (kb ckb cb: block) (kofs ckoff cofs:int) l key k
                    (normal_ret_assert (PostKeyNull (Vptr cb cofs) (Vptr kb kofs) pad kv h1 l key ckb ckoff)))).
 Proof. intros.
      (*call to memcpy*)
-     focus_SEP 1 3.
+     freeze [1; 2; 3] FR1. 
      unfold data_at_. 
      Time forward_call ((Tsh, Tsh), Vptr ckb ckoff, 
              Vptr kb kofs, mkTrep (Tarray tuchar (Zlength key) noattr) 
-                     (map Vint (map Int.repr key)), l) v. (*4.4*)
+                     (map Vint (map Int.repr key)), l). (*2 versus 4.4*)
      { unfold tarray. unfold field_at_ at 1. rewrite field_at_data_at.
-       rewrite field_address_offset by auto with field_compatible.
-       simpl. rewrite Int.add_zero.
-       rewrite (split2_data_at_Tarray_tuchar _ _ l); trivial; try omega.
-       repeat rewrite sepcon_assoc.
+       rewrite field_address_offset by auto with field_compatible; simpl. rewrite Int.add_zero.
+       rewrite (split2_data_at_Tarray_tuchar _ _ l); trivial. 2: omega.
+       rewrite sepcon_comm.
+       rewrite sepcon_assoc.
        apply sepcon_derives. eapply derives_trans. apply data_at_memory_block.
-          Opaque Z.mul. simpl. rewrite Z.max_r. rewrite Z.mul_1_l. apply derives_refl. omega.
-       Time cancel. (*2.4*) }
-     { simpl. rewrite Z.max_r. rewrite Z.mul_1_l.  intuition. specialize Int.max_signed_unsigned; omega. omega. }
-     simpl.
+           simpl. rewrite Z.max_r. rewrite Z.mul_1_l. trivial. omega.
+       Time cancel. (*0.1 versus 2.4*) }
+     { simpl. rewrite Z.max_r, Z.mul_1_l. intuition. specialize Int.max_signed_unsigned; omega. omega. }
+     Intros v; subst v; simpl.
      unfold tarray.
      remember (64 - l) as l64.
-     simpl. subst v. remember (map Vint (map Int.repr key)) as KCONT.
+     remember (map Vint (map Int.repr key)) as KCONT.
 
      (*call memset*)
-     Time forward_call (Tsh, Vptr ckb (Int.add ckoff (Int.repr (Zlength key))), l64, Int.zero)
-       vret. (*10.7*)
+     freeze [0;1;3] FR2. 
+     Time forward_call (Tsh, Vptr ckb (Int.add ckoff (Int.repr (Zlength key))), l64, Int.zero). (*6.4 versus 10.4*)
      { rewrite (lvar_eval_var _ _ _ _ H0). split; trivial. }
      { (*Issue: this side condition is NEW*) 
        apply prop_right. simpl. rewrite Int.mul_commut, Int.mul_one.
        rewrite sub_repr, <- KL1, Heql64. split; trivial. }
      { rewrite <- KL1.
-       match goal with |- _ * _ * ?A * _ * _ * _ |-- _ => 
-                  pull_left A end.
-       repeat rewrite sepcon_assoc. Time apply sepcon_derives; [ | cancel]. (*1.2*)
+       rewrite sepcon_comm. Time apply sepcon_derives; [ | cancel]. (*0.1 versus 1.2*)
        unfold at_offset. simpl.
-       eapply derives_trans; try apply data_at_memory_block.
+         eapply derives_trans; try apply data_at_memory_block.
                rewrite sizeof_Tarray. trivial.
        rewrite field_address0_offset by auto with field_compatible.
-       simpl. rewrite Z.add_0_l, Z.mul_1_l. auto.
+       simpl. rewrite Z.add_0_l, Z.mul_1_l; trivial.
        apply Z.max_r. omega. }
      { split; auto. repable_signed. }
 
-     subst PostIf_j_Len.
+     apply andp_left2. Intros vret; subst PostIf_j_Len.
 
-   Time entailer!. (*6.2*)
-   rewrite sepcon_comm.
-   rewrite (split2_data_at_Tarray_tuchar Tsh 64 (Zlength key)); 
-     try repeat rewrite Zlength_map; try rewrite Zlength_correct, mkKey_length; 
-     trivial. 2: omega.
-     rewrite field_address0_offset by auto with field_compatible. 
-     simpl offset_val. rewrite Z.add_0_l, Z.mul_1_l. 
-     rewrite sepcon_comm.
+     Time entailer!. (*3.5 versus 6.2*)
+     thaw FR2. thaw FR1. Time cancel. (*1.2 penalty*)
+     rewrite (split2_data_at_Tarray_tuchar Tsh 64 (Zlength key)); 
+       try repeat rewrite Zlength_map; try rewrite Zlength_correct, mkKey_length; 
+     trivial. 2: omega. 
+     unfold at_offset. 
      unfold HMAC_SHA256.mkKey. remember (64 - Zlength key) as SF. simpl. 
        remember (Zlength key >? 64).
        destruct b. symmetry in Heqb; apply Zgt_is_gt_bool in Heqb. omega. 
        unfold HMAC_SHA256.zeroPad. repeat rewrite map_app.
+     autorewrite with sublist. 
      assert (XX: (SHA256.BlockSize - length key = Z.to_nat SF)%nat).
           subst SF. rewrite Zlength_correct, Z2Nat.inj_sub, Nat2Z.id. reflexivity. omega.
-     rewrite XX.
-     autorewrite with sublist. 
+     rewrite XX, HeqKCONT.
      repeat rewrite map_list_repeat. 
-     change_compspecs CompSpecs.
-     change (Tarray tuchar 64 noattr) with (tarray tuchar 64).
-     cancel. apply derives_refl.
-Time Qed. (*22*)
+     rewrite sublist_same; trivial. subst l64 l.
+     change (@data_at spec_sha.CompSpecs Tsh (tarray tuchar SF))
+     with (@data_at CompSpecs Tsh (tarray tuchar SF)).
+     change (Tarray tuchar 64 noattr) with (tarray tuchar 64). 
+     rewrite field_address0_offset by auto with field_compatible. simpl. rewrite Z.mul_1_l. 
+     change (0 + Zlength key) with (Zlength key).
+     Time cancel. rewrite sepcon_comm, <- HeqSF. apply derives_refl. 
+     rewrite Zlength_list_repeat', Z2Nat.id; omega.
+Time Qed. (*10 secs versus 18*)
 
 Lemma hmac_init_part1: forall
 (Espec : OracleKind)
@@ -428,8 +423,8 @@ Lemma hmac_init_part1: forall
    temp _ctx c; temp _key k; temp _len (Vint (Int.repr l));
    gvar sha._K256 kv)
    SEP  (data_at_ Tsh (tarray tuchar 64) pad;
-         data_at_ Tsh (tarray tuchar 64) (Vptr ckb ckoff); K_vector kv;
-         initPre c k h1 l key))
+   data_at_ Tsh (tarray tuchar 64) (Vptr ckb ckoff); K_vector kv;
+   initPre c k h1 l key))
   (Sifthenelse
      (Ebinop One (Etempvar _key (tptr tuchar))
         (Ecast (Econst_int (Int.repr 0) tint) (tptr tvoid)) tint)
@@ -521,7 +516,7 @@ Lemma hmac_init_part1: forall
                       (Etempvar _len tint) tuint]))))) Sskip)
   (normal_ret_assert (PostKeyNull c k pad kv h1 l key ckb ckoff)).
 Proof. intros. subst Delta. abbreviate_semax.
-forward_if (PostKeyNull c k pad kv h1 l key ckb ckoff).
+forward_if  (PostKeyNull c k pad kv h1 l key ckb ckoff).
   { apply denote_tc_comparable_split. unfold initPre; normalize. destruct k; try contradiction.
     clear H. 
     remember (Int.eq i Int.zero). destruct b. 
@@ -537,9 +532,9 @@ forward_if (PostKeyNull c k pad kv h1 l key ckb ckoff).
     (*key' is integer, ie Null*)
       remember (Int.eq i Int.zero) as d.
       destruct d; try solve [eapply semax_pre; try eapply semax_ff; entailer].
-      apply binop_lemmas2.int_eq_true in Heqd. simpl in *. elim H. subst; reflexivity. 
+      apply binop_lemmas2.int_eq_true in Heqd. simpl in *. elim H. subst; reflexivity.
     (*key' is ptr*)
-    normalize. clear H. rename H0 into keyLen. (*destruct H0 as [KL1 [KL2 KL3]].*)
+    normalize. clear H. rename H0 into keyLen. 
     Time assert_PROP (isptr c) as Pc by entailer!. (*1*)
     apply isptrD in Pc; destruct Pc as [cb [cofs CC]]; rewrite CC in *.
     rename b into kb; rename i into kofs.
@@ -547,9 +542,10 @@ forward_if (PostKeyNull c k pad kv h1 l key ckb ckoff).
       { unfold data_block. Time entailer!. (*1.5*) }
     replace_SEP 1 (data_at Tsh (tarray tuchar (Zlength key)) (map Vint (map Int.repr key)) (Vptr kb kofs)).
        Time unfold data_block; entailer!. (*1.5*)
-
-    Time forward. (*2*)
-    Time forward. (*j=HMAC_MAX_MD_CBLOCK*) (*1.8*)
+    
+    freeze [0; 1; 2; 3; 4] FR1.
+    Time forward. (*1secs, versus 2secs*)
+    Time forward. (*0.8 versus 1.8 j=HMAC_MAX_MD_CBLOCK*)
 
     (* Issue: Potential Coq (8.4?) bug about type equalities*)
 (*    assert (exists keyedHMS': reptype t_struct_hmac_ctx_st, keyedHMS'=keyedHMS). exists keyedHMS; reflexivity.
@@ -572,20 +568,23 @@ forward_if (PostKeyNull c k pad kv h1 l key ckb ckoff).
                   (Vptr ckb ckoff);
           K_vector kv)) as PostIf_j_Len.
 
+    thaw FR1.
+    freeze [1;2;4] FR2. 
     Time assert_PROP (field_compatible t_struct_hmac_ctx_st [] (Vptr cb cofs))
-      as FC_ctx by entailer!. (*1.7*)
+        as FC_ctx by entailer!. (*1 versus 1.7*) 
 
     assert (field_compatible t_struct_hmac_ctx_st [StructField _md_ctx] (Vptr cb cofs)) as  FC_md_ctx.
     { red. clear - FC_ctx. red in FC_ctx; simpl in FC_ctx.
       intuition. split; trivial. left; reflexivity. }
 
     Time assert_PROP (field_compatible (Tarray tuchar 64 noattr) [] (Vptr ckb ckoff))
-      as FC_cxtkey by entailer!. (*1.9*)
-    normalize. 
+      as FC_cxtkey by entailer!. (*1.1 versus 1.9*) 
 
-    Time forward_if PostIf_j_Len. (*5.6*)
+    Time forward_if PostIf_j_Len. (*4.3 versus 5.6*) 
     { (* j < len*) 
-      rename H into lt_64_l. unfold POSTCONDITION, abbreviate. subst.
+      rename H into lt_64_l. 
+      thaw FR2.
+      unfold POSTCONDITION, abbreviate. subst.
       destruct keyLen as [? [? ?]].
       eapply (Init_part1_j_lt_len Espec kb ckb cb kofs ckoff cofs l key kv pad HMS h1); try eassumption; trivial.
       rewrite Int.signed_repr in lt_64_l. trivial. rewrite client_lemmas.int_min_signed_eq; omega.
@@ -593,28 +592,29 @@ forward_if (PostKeyNull c k pad kv h1 l key ckb ckoff).
     { (* j >= len*)
       rename H into ge_64_l. unfold MORE_COMMANDS, POSTCONDITION, abbreviate. subst.
       destruct keyLen as [? [? ?]].
-      eapply (Init_part1_len_le_j Espec kb ckb cb kofs ckoff cofs l key kv pad HMS h1); try eassumption; trivial.
-      rewrite Int.signed_repr in ge_64_l. trivial. rewrite client_lemmas.int_min_signed_eq; omega.
+      thaw FR2.
+      apply (Init_part1_len_le_j Espec kb ckb cb kofs ckoff cofs l key kv pad HMS h1); try eassumption; trivial.
+      rewrite Int.signed_repr in ge_64_l. trivial. rewrite client_lemmas.int_min_signed_eq; omega.      
     }
-    intros ek vl. apply andp_left2.
-    unfold POSTCONDITION, abbreviate.
-    unfold overridePost, initPostKeyNullConditional. 
-    if_tac; trivial. Time normalize. (*0.8*)
-    subst.
-    Exists cb cofs 1. Time entailer!. (*8.1*)
+   intros ek vl. apply andp_left2.
+   unfold POSTCONDITION, abbreviate.
+   unfold overridePost, initPostKeyNullConditional. 
+   if_tac; trivial. Time normalize. (*0.8*)
+   subst.
+   Exists cb cofs 1. Time entailer!. (*7.3 versus 8.1*)
   }
   { (*key == NULL*)
      rename H into Hk; rewrite Hk in *. 
      Time forward. (*0.2*)
      unfold PostKeyNull, initPre, initPostKeyNullConditional. subst k.
-     Time entailer!. (*3.9*) 
+     Time entailer. (*4.2 versus 3.9*)
         unfold hmacstate_PreInitNull. Intros r v.
-        Time assert_PROP (isptr _id0) as Pctx' by entailer!. (*4.4*)
-        apply isptrD in Pctx'. destruct Pctx' as [cb [cofs CTX']].
+        Time assert_PROP (isptr _id0) as Pctx' by entailer!. (*4.3*)
+        apply isptrD in Pctx'; destruct Pctx' as [cb [cofs CTX']].
         Exists cb cofs 0. rewrite if_true; trivial.
-        Exists r v. Time entailer!. (*6.9*) }
+        Exists r v. Time entailer!. (*6.9*) } 
   { (*side condition of forward_if key != NULL*)
     intros. apply andp_left2. unfold POSTCONDITION, abbreviate, overridePost. 
     if_tac. unfold normal_ret_assert. Time entailer!. (*0.2*)
     apply derives_refl. }
-Time Qed. (*17.8*)
+Time Qed. (*14.8 versus 17.8*)

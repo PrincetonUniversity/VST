@@ -284,10 +284,10 @@ Proof. intros. abbreviate_semax. unfold CoreInSEP.
 Transparent core_spec. Transparent ld32_spec. Transparent L32_spec. Transparent st32_spec.
 Transparent crypto_core_salsa20_spec. Transparent crypto_core_hsalsa20_spec.
     Time forward_call ((Vptr cb (Int.add coff (Int.repr (4 * i)))),
-                      Select16Q C i) pat. (*10.3*)
+                      Select16Q C i). (*11.1*)
 Opaque core_spec. Opaque ld32_spec. Opaque L32_spec. Opaque st32_spec.
 Opaque crypto_core_salsa20_spec. Opaque crypto_core_hsalsa20_spec. 
-      subst pat.
+      Intros pat; subst pat.
       assert (PL2length: forall n, (0<=n<4)%nat -> Zlength (hPosLoop2 n intsums C Nonce) = 16).
         clear - SL.
         induction n; simpl; intros. trivial.
@@ -326,10 +326,10 @@ Opaque crypto_core_salsa20_spec. Opaque crypto_core_hsalsa20_spec.
 Transparent core_spec. Transparent ld32_spec. Transparent L32_spec. Transparent st32_spec.
 Transparent crypto_core_salsa20_spec. Transparent crypto_core_hsalsa20_spec.
       Time forward_call (Vptr nb (Int.add noff (Int.repr (4 * i))),
-                     Select16Q Nonce i) pat. (*14.8*)
+                     Select16Q Nonce i). (*15.3*)
 Opaque core_spec. Opaque ld32_spec. Opaque L32_spec. Opaque st32_spec.
 Opaque crypto_core_salsa20_spec. Opaque crypto_core_hsalsa20_spec.
-     subst pat. simpl. 
+     Intros pat; subst pat. simpl. 
      destruct (Znth_mapVint (hPosLoop2 (Z.to_nat i) intsums C Nonce) (6+i) Vundef) as [uj Uj].
       rewrite PL2Zlength; omega.  
      Time forward; rewrite upd_Znth_diff; try (rewrite Zlength_map, PL2Zlength; simpl; omega). (*13*)
