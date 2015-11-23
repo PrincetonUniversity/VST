@@ -21,7 +21,7 @@ Definition HTrue_inv1 l i ys xs : Prop :=
                                       Znth j l Vundef = Vint (Int.add yj xj)) 
                 /\ (i<=j ->  Znth j l Vundef = Vint xj).
 
-Lemma HTrue_loop1 Espec: forall (FR:mpred) t y x w nonce out c k h xs ys,
+Lemma HTrue_loop1 Espec (FR:mpred) t y x w nonce out c k h xs ys:
 @semax CompSpecs Espec
   (initialized_list [_i] (func_tycontext f_core SalsaVarSpecs SalsaFunSpecs))
   (PROP  ()
@@ -29,8 +29,8 @@ Lemma HTrue_loop1 Espec: forall (FR:mpred) t y x w nonce out c k h xs ys,
    lvar _y (tarray tuint 16) y; lvar _x (tarray tuint 16) x;
    lvar _w (tarray tuint 16) w; temp _in nonce; temp _out out; temp _c c;
    temp _k k; temp _h (Vint (Int.repr h)))
-   SEP  (FR; data_at Tsh (tarray tuint 16) (map Vint xs) x;
-         data_at Tsh (tarray tuint 16) (map Vint ys) y))
+   SEP  (FR; data_at Tsh (tarray tuint 16) (map Vint ys) y; 
+         data_at Tsh (tarray tuint 16) (map Vint xs) x))
   (Sfor (Sset _i (Econst_int (Int.repr 0) tint))
      (Ebinop Olt (Etempvar _i tint) (Econst_int (Int.repr 16) tint) tint)
      (Ssequence
@@ -51,16 +51,16 @@ Lemma HTrue_loop1 Espec: forall (FR:mpred) t y x w nonce out c k h xs ys,
      (Sset _i
         (Ebinop Oadd (Etempvar _i tint) (Econst_int (Int.repr 1) tint) tint)))
   (normal_ret_assert 
-   (EX  l : list val,
-     PROP  (HTrue_inv1 l 16 (map Vint ys) (map Vint xs))
+    (PROP  ()
      LOCAL  (temp _i (Vint (Int.repr 16)); lvar _t (tarray tuint 4) t;
              lvar _y (tarray tuint 16) y; lvar _x (tarray tuint 16) x;
              lvar _w (tarray tuint 16) w; temp _in nonce; temp _out out;
              temp _c c; temp _k k; temp _h (Vint (Int.repr h)))
-     SEP (FR; data_at Tsh (tarray tuint 16) l x;
-          data_at Tsh (tarray tuint 16) (map Vint ys) y))).
+     SEP (FR; data_at Tsh (tarray tuint 16) (map Vint ys) y;
+          EX  l : list val, !!HTrue_inv1 l 16 (map Vint ys) (map Vint xs) &&
+               data_at Tsh (tarray tuint 16) l x))).
 Proof. 
-  intros. abbreviate_semax.
+  abbreviate_semax.
   Time assert_PROP (Zlength (map Vint xs) = 16 /\ Zlength (map Vint ys) = 16) 
      as XLYL by entailer!. (*2 versus 2.6*)
   destruct XLYL as [XL YL].
@@ -70,10 +70,9 @@ Proof.
    lvar _y (tarray tuint 16) y; lvar _x (tarray tuint 16) x;
    lvar _w (tarray tuint 16) w; temp _in nonce; temp _out out; temp _c c;
    temp _k k; temp _h (Vint (Int.repr h)))
-   SEP  (FR;
+   SEP  (FR; data_at Tsh (tarray tuint 16) (map Vint ys) y;
          EX l:_, !!HTrue_inv1 l i (map Vint ys) (map Vint xs)
-              && data_at Tsh (tarray tuint 16) l x;
-         data_at Tsh (tarray tuint 16) (map Vint ys) y))). (*1.2 versus 3.3*)
+              && data_at Tsh (tarray tuint 16) l x))). (*1.2 versus 3.3*)
   { Exists (map Vint xs).
     Time entailer!. (*3.3 versus 3.9*)
     split. assumption.
@@ -87,16 +86,15 @@ Proof.
     destruct XLIST as [xints [INTS J]]. subst xlist.
     destruct (J _ I) as [xi [Xi [_ HXi]]].
     destruct (Znth_mapVint ys i Vundef) as [yi Yi]. rewrite Zlength_map in YL; omega.
-    Time forward; rewrite Yi. (*6 versus 7.2*)
-    Time solve[entailer!]. (*2 versus 2.7*)
-    Time forward; rewrite HXi by omega. (*5.7 versus 7.4*)
+    freeze [0;2] FR1.
+    Time forward; rewrite Yi. (*4.5 versus 7.2*)
+    Time solve[entailer!]. (*1 versus 2.7*)
+    thaw FR1. freeze [0;2] FR2.
+    Time forward; rewrite HXi by omega. (*4.6 versus 7.4*)
     Time solve[entailer!]. (*1.6 versus 2.6*) 
-    Time forward. (*5.9 versus 7.4*) 
+    Time forward. (*4.8 versus 7.4*) 
     Exists (upd_Znth i (map Vint xints) (Vint (Int.add yi xi))).
-    Time entailer!. (*3.9 versus 4.6*) (*
-    rewrite Yi in H1. symmetry in H1; inv H1. rewrite Yi, HXi; simpl. 2: omega. 
-    apply (exp_right (upd_Znth i (map Vint xints) (Vint (Int.add yi xi)))); entailer.
-    apply prop_right.*)
+    Time entailer!. (*4.3 versus 4.6*)
     split.
       rewrite upd_Znth_Zlength. assumption. simpl; rewrite XLL. omega.
     eexists; split. apply upd_Znth_ints. 
@@ -116,10 +114,11 @@ Proof.
       + rewrite upd_Znth_diff. apply IJ2; omega. 
             simpl in *; omega.
             simpl in *; omega.
-            omega. }
-Time entailer!. (*4.5 versus 9.8*)
-Exists l. Time entailer!. (*3.2*) 
-Time Qed. (*19.3 versus 24*)
+            omega. 
+      + thaw FR2; cancel. }
+apply derives_refl.
+Time Qed. (*14.3 versus 24*)
+
 
 (* Fragment:
        FOR(i,4) {
@@ -136,7 +135,7 @@ Fixpoint hPosLoop2 (n:nat) (sumlist: list int) (C Nonce: SixteenByte): list int 
                 upd_Znth (6+j) (upd_Znth (5*j) s five) six
        end.
 
-Lemma HTrue_loop2 Espec: forall (FR:mpred) t y x w nonce out c k h (*OUT ys*) intsums Nonce C K,
+Lemma HTrue_loop2 Espec (FR:mpred) t y x w nonce out c k h intsums Nonce C K:
 @semax CompSpecs Espec 
   (initialized_list [_i] (func_tycontext f_core SalsaVarSpecs SalsaFunSpecs))
   (PROP  ()
@@ -218,11 +217,13 @@ Lemma HTrue_loop2 Espec: forall (FR:mpred) t y x w nonce out c k h (*OUT ys*) in
          lvar _y (tarray tuint 16) y; lvar _x (tarray tuint 16) x;
          lvar _w (tarray tuint 16) w; temp _in nonce; temp _out out; temp _c c;
          temp _k k; temp _h (Vint (Int.repr h)))
- SEP  (FR; SByte Nonce nonce; SByte C c; ThirtyTwoByte K k;
+ SEP  (FR; CoreInSEP(Nonce, C, K) (nonce, c, k);
         data_at Tsh (tarray tuint 16) (map Vint (hPosLoop2 4 intsums C Nonce)) x))).
-Proof. intros. abbreviate_semax. unfold CoreInSEP. 
+Proof. intros. abbreviate_semax. 
+  freeze [0;1] FR1.
   Time assert_PROP (Zlength (map Vint intsums) = 16) as SL by entailer!. (*0.9 versus 2.7*)
-  rewrite Zlength_map in SL. 
+  rewrite Zlength_map in SL.
+  thaw FR1. 
   Time forward_for_simple_bound 4 (EX i:Z, 
   (PROP  ()
    LOCAL  ((*NOTE: we have to remove the old i here to get things to work: temp _i (Vint (Int.repr 16)); *)
@@ -230,15 +231,16 @@ Proof. intros. abbreviate_semax. unfold CoreInSEP.
    lvar _y (tarray tuint 16) y; lvar _x (tarray tuint 16) x;
    lvar _w (tarray tuint 16) w; temp _in nonce; temp _out out; temp _c c;
    temp _k k; temp _h (Vint (Int.repr h)))
-   SEP  (FR; SByte Nonce nonce; SByte C c; ThirtyTwoByte K k;
-   data_at Tsh (tarray tuint 16) (map Vint (hPosLoop2 (Z.to_nat i) intsums C Nonce)) x))). (*1.2 versus 3.2*)
+   SEP  (FR; CoreInSEP (Nonce, C, K) (nonce, c, k);
+   data_at Tsh (tarray tuint 16) (map Vint (hPosLoop2 (Z.to_nat i) intsums C Nonce)) x))). (*2.7 versus 3.2*)
     Time solve[entailer!]. (*1.6 versus 4.4*)
     { rename H into I.
+      unfold CoreInSEP. do 2 flatten_sepcon_in_SEP.
+      freeze [0;3] FRk.
       unfold SByte at 2.
       Time assert_PROP (isptr c) as Pc by entailer!. (*3.2 versus 4.1*)
       apply isptrD in Pc; destruct Pc as [cb [coff HC]]. rewrite HC in *.
-      Opaque Zmult. Opaque Z.add. 
-
+      
       Time forward. (*1.9 versus 4.2*)
       assert (C16:= SixteenByte2ValList_Zlength C).
       remember (SplitSelect16Q C i) as FB; destruct FB as (Front, BACK).
@@ -262,10 +264,11 @@ Proof. intros. abbreviate_semax. unfold CoreInSEP.
       2: rewrite <- SSS, <- C16; cbv; trivial.
   unfold Select_at. repeat rewrite QuadChunk2ValList_ZLength. rewrite Z.mul_1_r, FL.
        simpl. rewrite app_nil_r. simpl. 
-    Time normalize. (*1.1 versus 1.4*)
-      
+    flatten_sepcon_in_SEP.
+    freeze [0;1;3] FR2.
+    freeze [0;2] FR3.
     Time forward_call ((Vptr cb (Int.add coff (Int.repr (4 * i)))),
-                      Select16Q C i). (*4.8 versus 10.3*)
+                      Select16Q C i). (*2.4 versus 10.3*)
  
       Intros pat; subst pat.
       assert (PL2length: forall n, (0<=n<4)%nat -> Zlength (hPosLoop2 n intsums C Nonce) = 16).
@@ -279,14 +282,16 @@ Proof. intros. abbreviate_semax. unfold CoreInSEP.
         
       destruct (Znth_mapVint (hPosLoop2 (Z.to_nat i) intsums C Nonce) (5*i) Vundef) as [vj Vj].
       rewrite PL2Zlength; omega. 
-      Time forward; rewrite Vj. (*5.4 versus 10.9*)
-      Time solve[entailer!]. (*1.4 versus 3.6*)
+      thaw FR3.
+      Time forward; rewrite Vj. (*5.3 versus 10.9*)
+      Time solve[entailer!]. (*1.3 versus 3.6*)
 
       Time forward. (*4.9 versus 10.3*)
 
+      thaw FR2. freeze [0;1;3;4] FR3.
       unfold SByte.
       Time assert_PROP (isptr nonce /\ field_compatible (Tarray tuchar 16 noattr) [] nonce)
-        as PnonceFCN by entailer!. (*1.9 versus 4.9*)
+        as PnonceFCN by entailer!. (*1.8 versus 4.9*)
       destruct PnonceFCN as [Pnonce FCN]. 
       apply isptrD in Pnonce; destruct Pnonce as [nb [noff NC]]; rewrite NC in *.
       Time forward. (*2.4 versus 5*)
@@ -301,39 +306,43 @@ Proof. intros. abbreviate_semax. unfold CoreInSEP.
       2: rewrite <- NNN, <- N16; trivial.
       2: rewrite <- NNN, <- N16; cbv; trivial.
       unfold Select_at. repeat rewrite QuadChunk2ValList_ZLength. rewrite Zmult_1_r, FN.
-      simpl. rewrite app_nil_r. simpl. 
-      Time normalize. (*1.3 versus 1.7*) (*rewrite Vj.*)
+      simpl. rewrite app_nil_r. simpl.
+      flatten_sepcon_in_SEP. 
 
+      freeze [0;2] FR4.
       Time forward_call (Vptr nb (Int.add noff (Int.repr (4 * i))),
-                     Select16Q Nonce i). (*6.6 versus 14.8*)
+                     Select16Q Nonce i). (*3 versus 14.8*)
 
      Intros pat; subst pat. simpl. 
      destruct (Znth_mapVint (hPosLoop2 (Z.to_nat i) intsums C Nonce) (6+i) Vundef) as [uj Uj].
       rewrite PL2Zlength; omega.  
-     Time forward; rewrite upd_Znth_diff; try (rewrite Zlength_map, PL2Zlength; simpl; omega). (*7.2 versus 13*)
+     thaw FR4. thaw FR3. freeze [0;1;2;3;5] FR5.
+     Time forward; rewrite upd_Znth_diff; try (rewrite Zlength_map, PL2Zlength; simpl; omega). (*5.9 versus 13*)
      { Time entailer!. (*2 versus 4.6*)
-       rewrite ZtoNat_Zlength in Uj, PL2Zlength; rewrite Uj.
-       simpl; trivial. }
+       rewrite Uj. simpl; trivial. }
      { omega. } 
-     Time forward. (*5.6 versus 12.9*)
+     Opaque Z.mul. Opaque Z.add.
+     Time forward. (*5.8 versus 12.9*) rewrite Uj.
+     Transparent Z.add. Transparent Z.mul.
 (*Issue: substitution in entailer/entailer! is a bit too eager here. Without the following assert (FLN: ...) ... destruct FLN,
   the two hypotheses are simply combined to Zlength Front = Zlength FrontN by entailer (and again by the inv H0) *)
      assert (FLN: Zlength Front = i /\ Zlength FrontN = i). split; assumption. clear FL FN.
-     Time entailer!. (*6.2 versus 11.6*)
-     rewrite Uj in H0. symmetry in H0; inv H0.
+     Time entailer!. (*4.8 versus 11.6*)
+     thaw FR5. thaw FRk. Time cancel. (*2.2*)
+(*     rewrite Uj in H0. symmetry in H0; inv H0.*)
      destruct FLN as [FL FLN].
 
-     rewrite Uj. simpl.
+     (*rewrite Uj. simpl.*)
      repeat rewrite <- sepcon_assoc.
      apply sepcon_derives.
-     + unfold SByte.
-       erewrite Select_Unselect_Tarray_at; try reflexivity; try assumption.
+     + unfold SByte, QByte. subst c nonce.
+       erewrite (Select_Unselect_Tarray_at 16); try reflexivity; try assumption.
        2: rewrite NNN; reflexivity.
-       erewrite Select_Unselect_Tarray_at; try reflexivity; try assumption.
+       erewrite (Select_Unselect_Tarray_at 16); try reflexivity; try assumption.
        2: rewrite SSS; reflexivity. 
        unfold Select_at. repeat rewrite QuadChunk2ValList_ZLength. rewrite FL, FLN.
-        rewrite Zmult_1_r. simpl. 
-        unfold QByte. repeat rewrite app_nil_r. cancel.
+       rewrite Zmult_1_r. simpl. 
+        repeat rewrite app_nil_r. cancel. 
        rewrite <- SSS, <- C16; trivial.
        rewrite <- SSS, <- C16. cbv; trivial.
        rewrite <- NNN, <- N16; trivial.
@@ -370,7 +379,7 @@ Proof. intros. abbreviate_semax. unfold CoreInSEP.
                rewrite upd_Znth_diff; repeat rewrite upd_Znth_Zlength; try omega. trivial.
          omega. } 
        rewrite <- VJeq, Zlength_map. trivial.
-       assert (UJeq: uj = Znth (6 + i) intsums Int.zero).
+       assert (UJeq: _id = Znth (6 + i) intsums Int.zero).
        { clear - Uj SL PL2length I.
          rewrite (Znth_map _ _ (6 + i) Vint) with (d':=Int.zero) in Uj. inv Uj.
          2: rewrite PL2length; try omega. Focus 2. split. apply (Z2Nat.inj_le 0); omega. apply (Z2Nat.inj_lt _ 4); omega.        
@@ -393,9 +402,9 @@ Proof. intros. abbreviate_semax. unfold CoreInSEP.
          omega. }
        rewrite <- UJeq, Zlength_map. reflexivity. apply I.
     +  omega. 
-   } 
-  Time entailer!. (*6.6 versus 13.3*)
-Time Qed. (*53 versus 86*)
+   }
+  apply derives_refl. 
+Time Qed. (*37 versus 86*)
 
 Definition UpdateOut (l: list val) (i:Z) (xi:int) :=
          (sublist 0 i l) ++ QuadByte2ValList (littleendian_invert xi) ++ sublist (i+4) (Zlength l) l.
@@ -416,6 +425,7 @@ Fixpoint hPosLoop3 (n:nat) (xlist: list int) (old: list val): list val :=
                 UpdateOut (UpdateOut s (4*j) five) (16+4*j) six
        end.
 
+     Opaque Z.mul. Opaque Z.add.
 Lemma hposLoop3_length xlist old: forall n, (16+4*Z.of_nat n<Zlength old) ->
         Zlength (hPosLoop3 n xlist old) = Zlength old. 
   Proof. induction n; simpl; intros. trivial.
@@ -429,6 +439,7 @@ Lemma hposLoop3_length xlist old: forall n, (16+4*Z.of_nat n<Zlength old) ->
     omega. 
     simpl. rewrite IHn. omega. omega. 
   Qed.
+     Transparent Z.add. Transparent Z.mul.
 
 Lemma HTrue_loop3 Espec (FR:mpred) t y x w nonce out c k h OUT xs (*ys Nonce C K*):
 @semax CompSpecs Espec 
@@ -507,25 +518,32 @@ Proof. intros. abbreviate_semax.
     remember (hPosLoop3 (Z.to_nat i) xs OUT) as ll. (*clear Heqll.*)
       
     destruct (Znth_mapVint xs (5 * i) Vundef) as [xi Xi]. omega.
-    Time forward; rewrite Xi. (*4.8 versus 8.8*)
-    Time solve[entailer!]. (*1.5 versus 3.21*)
+    freeze [0;2] FR1.
+    Time forward; rewrite Xi. (*3.7 versus 8.8*)
+    Time solve[entailer!]. (*0.9 versus 3.21*)
+    thaw FR1.
+    freeze [0;2] FR2.
     Time assert_PROP (isptr out /\ field_compatible (Tarray tuchar 64 noattr) [] out)
-          as Pout_FCO by entailer!. (*1.8 versus 3.6*)
+          as Pout_FCO by entailer!. (*1.2 versus 3.6*)
     destruct Pout_FCO as [Pout FCO].
     apply isptrD in Pout; destruct Pout as [ob [ooff OC]]; rewrite OC in *.
-    Time forward. (*1.9 versus 4*)
+    Time forward. (*1.4 versus 4*)
     rewrite <- P3_Zlength.
     rewrite (split3_data_at_Tarray_tuchar Tsh (Zlength ll) (4 *i) (4+4*i)); try rewrite P3_Zlength; trivial; try omega. 
     rewrite field_address0_offset by auto with field_compatible.
     rewrite field_address0_offset by auto with field_compatible.
     unfold offset_val; simpl.
-    Time normalize. (*4.1 versus 5*)
+    repeat flatten_sepcon_in_SEP.
+    freeze [0;1;3] FR3.
+    Time forward_call (offset_val (Int.repr (4 * i)) (Vptr ob ooff), xi). (*2.6 versus 8.2*)
 
-    Time forward_call (offset_val (Int.repr (4 * i)) (Vptr ob ooff), xi). (*3.6 versus 8.2*)
-
-    { Exists (sublist (4 * i) (4 + 4 * i) ll). unfold offset_val; simpl.
-      autorewrite with sublist. Time entailer!. (*3.7 versus 9.3*) }
-    simpl. Opaque mult.
+    { Exists (sublist (4 * i) (4 + 4 * i) ll).
+      assert (F: Frame = [FRZL FR3]). subst Frame; reflexivity.
+      subst Frame; simpl.
+      unfold offset_val; simpl.
+      autorewrite with sublist. Time entailer!. (*1.9 versus 9.3*)
+      apply derives_refl. }
+    simpl.
     assert (Upd_ll_Zlength: Zlength (UpdateOut ll (4 * i) xi) = 64).
       rewrite UpdateOut_Zlength; trivial. omega. omega.
     apply semax_pre with (P':=
@@ -539,41 +557,48 @@ Proof. intros. abbreviate_semax.
    SEP 
    (FR; data_at Tsh (tarray tuchar 64) (UpdateOut ll (4*i) xi) (Vptr ob ooff);
    data_at Tsh (tarray tuint 16) (map Vint xs) x))).
-    { clear Heqll. Opaque Zminus. Time entailer!. (*5.6 versus 7.5*) unfold QByte.
+    { clear Heqll. Time entailer!. (*2.5 versus 7.5*)
+      thaw FR3. thaw FR2. cancel.
+      unfold QByte.
       rewrite <- Upd_ll_Zlength. unfold tarray. 
       erewrite (split3_data_at_Tarray_tuchar Tsh _ (4 * i) (4+4 * i) (UpdateOut ll (4 * i) _id0)); try rewrite UpdateOut_Zlength, P3_Zlength; try omega.
       rewrite field_address0_offset by auto with field_compatible.
       rewrite field_address0_offset by auto with field_compatible.
       unfold offset_val. Opaque QuadByte2ValList.  simpl. repeat rewrite Z.mul_1_l.
-      Transparent QuadByte2ValList. Transparent Zminus.
-      assert (AR: 64 - 4 * i - 4 + (4 * i + 4) = 64) by omega. 
       unfold UpdateOut. 
       autorewrite with sublist. Time cancel. (*0.5*)
       rewrite sublist_app2; autorewrite with sublist; try omega.
       rewrite sublist_app2; try rewrite <- QuadByteValList_ZLength; try omega.
-      autorewrite with sublist. rewrite Zplus_comm, AR. trivial. }
+      autorewrite with sublist. rewrite Zplus_comm.
+      apply derives_refl'. f_equal. f_equal. omega. }
  
     destruct (Znth_mapVint xs (6+i) Vundef) as [zi Zi]. omega.
-    Time forward; rewrite Zi. (*6 versus 11.1*)
-    Time solve[entailer!]. (*1.7 versus 3.2*)
-    Time forward. (*2.2 versus 4.5*) 
+    freeze [0;1] FR4.
+    Time forward; rewrite Zi. (*5 versus 11.1*)
+    Time solve[entailer!]. (*1.3 versus 3.2*)
+    thaw FR4. freeze [0;2] FR5.
+    Time forward. (*1.7 versus 4.5*) 
     erewrite (split3_data_at_Tarray_tuchar Tsh 64 (16 + 4 *i) (4+16 + 4 *i)); trivial; try omega.
     rewrite field_address0_offset by auto with field_compatible.
     rewrite field_address0_offset by auto with field_compatible.
     unfold offset_val; simpl.
-    autorewrite with sublist. repeat rewrite Z.mul_1_l. 
+    autorewrite with sublist. repeat rewrite Z.mul_1_l.
+    repeat flatten_sepcon_in_SEP.
 
-    Time forward_call (Vptr ob (Int.add ooff (Int.repr (16 + 4 * i))), zi). (*4.8 versus 11.2*)
+    freeze [0;1;3] FR6.
+    Time forward_call (Vptr ob (Int.add ooff (Int.repr (16 + 4 * i))), zi). (*3.1 versus 11.2*)
     { Exists (sublist (16 + 4 * i) (4 + (16 + 4 * i)) (UpdateOut ll (4 * i) xi)).
       autorewrite with sublist. rewrite Z.add_assoc. 
-      Time entailer!. (*5.1 versus 13.5*) }
+      Time entailer!. (*1.2 versus 13.5*) }
 
-    Time entailer!. (*8.1 versus 11.5*)
+    Time entailer!. (*3.6 versus 11.5*)
     assert (AA:  Z.to_nat (i + 1) = S (Z.to_nat i)).
       rewrite (Z.add_comm _ 1), Z2Nat.inj_add. simpl. apply NPeano.Nat.add_1_l. omega. omega.
-    rewrite AA. simpl. 
-    clear H6 H9 TC TC0 TC1 TC2 TC3(* H7*).
-    remember (hPosLoop3 (Z.to_nat i) xs OUT) as ll; clear Heqll.
+    rewrite AA. simpl.
+    thaw FR6. thaw FR5. Time cancel. (*0.8*) 
+    clear TC TC0 TC1 TC2 TC3(* H7*).
+    rewrite <- Heqll. clear Heqll.
+(*    remember (hPosLoop3 (Z.to_nat i) xs OUT) as ll; clear Heqll.*)
     assert (XXi: xi = Znth (5 * i) xs Int.zero).
       rewrite Znth_map' with (d':=Int.zero) in Xi; try omega. clear -Xi. inv Xi. trivial.
     assert (ZZi: _id0 = Znth (6 + i) xs Int.zero).
@@ -584,18 +609,20 @@ Proof. intros. abbreviate_semax.
     assert (ZLU: Zlength(UpdateOut l (16 + 4 * i) _id0) = 64).
       rewrite UpdateOut_Zlength; trivial. omega. omega.
     rewrite (split3_data_at_Tarray_tuchar Tsh 64 (16 + 4 * i) (4+16 + 4 * i)); try omega.
+      rewrite OC in *.
       rewrite field_address0_offset by auto with field_compatible.
       rewrite field_address0_offset by auto with field_compatible.
       unfold offset_val. Opaque QuadByte2ValList.  simpl. repeat rewrite Z.mul_1_l.
-      Transparent QuadByte2ValList. Transparent Zminus.
+      Transparent QuadByte2ValList. 
       unfold UpdateOut. 
       autorewrite with sublist. Time cancel. (*0.6*)
       rewrite sublist_app2; autorewrite with sublist; try omega.
       rewrite sublist_app2; try rewrite <- QuadByteValList_ZLength; try omega.
       autorewrite with sublist. rewrite Zplus_comm. apply derives_refl'. f_equal. f_equal; omega. }
-  Time entailer!. (*7.9 versus 12.8*) (*With temp _i (Vint (Int.repr 4)) in LOCAL of HTruePostCondL apply derives_refl.*)
-Time Qed. (*62 versus 110*)
+  Time entailer!. (*3.7 versus 12.8*) (*With temp _i (Vint (Int.repr 4)) in LOCAL of HTruePostCondL apply derives_refl.*)
+Time Qed. (*36 versus 110*)
 
+     Opaque Z.mul. Opaque Z.add.
 Lemma hposLoop2_Zlength16 C N l (L:Zlength l = 16): forall n, 
       5 * Z.of_nat n < 16-> 6+ Z.of_nat n < 16 -> Zlength (hPosLoop2 (S n) l C N) = 16.
 Proof. intros. simpl. 
@@ -607,6 +634,7 @@ Proof. intros. simpl.
   rewrite Zpos_P_of_succ_nat. omega.
   rewrite Zpos_P_of_succ_nat. omega.
 Qed.
+     Transparent Z.add. Transparent Z.mul.
 
 Definition HTruePostCond (FR:mpred) t y x w nonce out c k h (xs:list int) ys Nonce C K OUT := 
 (EX intsums:_,
@@ -620,8 +648,8 @@ Definition HTruePostCond (FR:mpred) t y x w nonce out c k h (xs:list int) ys Non
    lvar _y (tarray tuint 16) y; lvar _x (tarray tuint 16) x;
    lvar _w (tarray tuint 16) w; temp _in nonce; temp _out out; temp _c c;
    temp _k k; temp _h (Vint (Int.repr h)))
-  SEP (FR; SByte Nonce nonce; SByte C c;
-       ThirtyTwoByte K k;
+  SEP (FR; CoreInSEP (Nonce, C, K) (nonce, c, k); (*SByte Nonce nonce; SByte C c;
+       ThirtyTwoByte K k;*)
        data_at Tsh (tarray tuint 16)
          (map Vint (hPosLoop2 4 intsums C Nonce)) x;
        data_at Tsh (tarray tuint 16) (map Vint ys) y;
@@ -636,9 +664,10 @@ Lemma verif_fcore_epilogue_htrue Espec (FR:mpred) t y x w nonce out c k h OUT xs
    lvar _y (tarray tuint 16) y; lvar _x (tarray tuint 16) x;
    lvar _w (tarray tuint 16) w; temp _in nonce; temp _out out; temp _c c;
    temp _k k; temp _h (Vint (Int.repr h)))
-   SEP  (FR; data_at Tsh (tarray tuint 16) (map Vint xs) x;
-   data_at Tsh (tarray tuint 16) (map Vint ys) y;
-   CoreInSEP (Nonce, C, K) (nonce, c, k); data_at Tsh (tarray tuchar 64) OUT out))
+   SEP  (FR; data_at Tsh (tarray tuchar 64) OUT out;
+         CoreInSEP (Nonce, C, K) (nonce, c, k);
+         data_at Tsh (tarray tuint 16) (map Vint ys) y;
+         data_at Tsh (tarray tuint 16) (map Vint xs) x))
         (Ssequence
           (Ssequence
             (Sset _i (Econst_int (Int.repr 0) tint))
@@ -790,30 +819,30 @@ Lemma verif_fcore_epilogue_htrue Espec (FR:mpred) t y x w nonce out c k h OUT xs
                     (Econst_int (Int.repr 1) tint) tint))))))
 (normal_ret_assert (HTruePostCond FR t y x w nonce out c k h xs ys Nonce C K OUT)).
 Proof. intros.
-(*Lemma semax_nprmal_ret_assert_frame Espec Delta P L F R c RR: 
+(*Lemma semax_normal_ret_assert_frame Espec Delta P L F R c RR: 
       @semax CompSpecs Espec Delta (PROPx P (LOCALx L (SEPx R))) c
                        (normal_ret_assert RR) -> 
       @semax CompSpecs Espec Delta (PROPx P (LOCALx L (SEPx (F::R)))) c
                        (normal_ret_assert (`F * RR)).*)
-freeze [0;3;4] FR1.
+freeze [0;1;2] FR1.
 forward_seq. apply HTrue_loop1. 
 Intros sums.
 destruct H as [SL [intsums [? HSums1]]]; subst sums. rewrite Zlength_map in SL.
 drop_LOCAL 0%nat.  
-thaw FR1. freeze [0;2;4] FR2.
+thaw FR1. freeze [0;1;3] FR2.
 forward_seq. apply HTrue_loop2.
 drop_LOCAL 0%nat.  
-thaw FR2. freeze [0;2;3;4;5] FR3.
+thaw FR2. freeze [0;2;3] FR3.
 eapply semax_post. 2: apply HTrue_loop3.
-intros ? ?. apply andp_left2. unfold POSTCONDITION, abbreviate. (*, HTruePostCond.*)
+intros ? ?. apply andp_left2. unfold POSTCONDITION, abbreviate.
 apply normal_ret_assert_derives'.
 Exists intsums.
 clear - HSums1 SL.
 (*Opaque ThirtyTwoByte.*) Opaque hPosLoop2. Opaque hPosLoop3.
-Time entailer!. (*5.2 versus 6.6*)
+Time entailer!. (*5 versus 6.6*)
   intros j J.
   destruct (HSums1 _ J) as [xj [Xj [X _]]].
   destruct X as [yj [Yi Sj]]. apply J.
   exists xj, yj. auto.
-thaw FR3. subst c k nonce. Time cancel. (*0.2 penalty*)
-Time Qed. (*3.8 versus 3 -- penalty*)
+thaw FR3. subst c k nonce. unfold CoreInSEP. Time cancel. (*0.1 penalty*)
+Time Qed. (*3.9 versus 3 -- penalty*)
