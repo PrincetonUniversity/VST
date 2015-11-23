@@ -119,16 +119,13 @@ name p _p.
 name n _n.
 name cNl _cNl.
 name cNh _cNh.
+assert (CB := CBLOCKz_eq).
 unfold sha256state_.
-forward_intro [r_h [r_Nl [r_Nh [r_data r_num]]]].
-pose proof I.
-normalize.
-unfold s256_relate in H0.
-unfold s256_h, s256_Nh,s256_Nl, s256_num, s256_data, fst,snd in H0|-*.
-destruct H0 as [H0 [[H1 H6] [H2 [DDbytes H4]]]].
+Intros r. destruct r as [r_h [r_Nl [r_Nh [r_data r_num]]]].
+unfold s256_relate in H.
+unfold s256_h, s256_Nh,s256_Nl, s256_num, s256_data, fst,snd in H.
+destruct H as [H0 [[H1 H6] [H2 [DDbytes H4]]]].
 assert (H3 := s256a_data_Zlength_less a).
-pose proof I.
-clear H.
 unfold_data_at 1%nat.
 
 assert_PROP (Zlength r_data = CBLOCKz
@@ -136,11 +133,10 @@ assert_PROP (Zlength r_data = CBLOCKz
     /\ field_compatible t_struct_SHA256state_st [StructField _data] c)
    as H; [ | destruct H as [H [H7 FC]]].
   { entailer!.
-    simplify_value_fits in H15; destruct H15 as [H15 _].
+    simplify_value_fits in H14; destruct H14 as [LEN _].
      split; auto.
-    change  (@reptype CompSpecs tuchar) with val in H15. (* should not be necessary *) 
+    change  (@reptype CompSpecs tuchar) with val in LEN. (* should not be necessary *) 
     rewrite <- H2.
-    pose proof CBLOCKz_eq. 
     pose proof (Zlength_nonneg (s256a_data a)).
     rewrite <- sublist_split; autorewrite with sublist; try omega.
     auto.
@@ -231,26 +227,20 @@ erewrite (field_at_Tarray Tsh _ [StructField _data]); try reflexivity; try omega
 rewrite (split2_array_at _ _ _ 0 (Zlength dd') 64); try Omega1.
 3: apply compute_legal_nested_field_spec'; repeat constructor.
 Focus 2. {
-  rewrite Zlength_app, !Zlength_map, Zlength_list_repeat.
-  + change CBLOCKz with 64; omega.
-  + assert (length dd' <= 56)%nat by (change CBLOCK with 64%nat in H6; omega).
-    rewrite Zlength_correct.
-    change CBLOCKz with 64; omega.
+  rewrite Zlength_app, !Zlength_map, Zlength_list_repeat; try omega.
+  + assert (length dd' <= 56)%nat by (change CBLOCK with 64%nat in H5; omega).
+    rewrite Zlength_correct. omega.
 } Unfocus.
  rewrite (split2_array_at _ _ _ (Zlength dd') 56 64); try Omega1.
 Focus 2. {
-  rewrite !Zlength_app, !Zlength_map, !Zlength_list_repeat, Zlength_sublist.
-  + change CBLOCKz with 64; omega.
-  + assert (length dd' <= 56)%nat by (change CBLOCK with 64%nat in H6; omega).
-    rewrite !Zlength_correct.
-    change CBLOCKz with 64; omega.
-  + rewrite !Zlength_app, !Zlength_map, !Zlength_list_repeat; [omega |].
-    assert (length dd' <= 56)%nat by (change CBLOCK with 64%nat in H6; omega).
-    rewrite Zlength_correct.
-    change CBLOCKz with 64; omega.
-  + assert (length dd' <= 56)%nat by (change CBLOCK with 64%nat in H6; omega).
-    rewrite Zlength_correct.
-    change CBLOCKz with 64; omega.
+  rewrite !Zlength_app, !Zlength_map, !Zlength_list_repeat, Zlength_sublist; try omega.
+  + assert (length dd' <= 56)%nat by (change CBLOCK with 64%nat in H5; omega).
+    rewrite !Zlength_correct. omega.
+  + rewrite !Zlength_app, !Zlength_map, !Zlength_list_repeat; try omega.
+    assert (length dd' <= 56)%nat by (change CBLOCK with 64%nat in H5; omega).
+    rewrite Zlength_correct. omega.
+  + assert (length dd' <= 56)%nat by (change CBLOCK with 64%nat in H5; omega).
+    rewrite Zlength_correct. omega.
 } Unfocus.
  pose proof CBLOCKz_eq.
  assert (0 <= Zlength dd' <= 56).
@@ -284,7 +274,7 @@ cancel.
  
 Intros vret. 
 normalize.
-clear vret H10.
+clear vret H9.
 forward.  (* p += SHA_CBLOCK-8; *)
 change Delta with Delta_final_if1.
 subst POSTCONDITION; unfold abbreviate.
@@ -308,7 +298,7 @@ replace (CBLOCKz - Zlength dd' - (56 - Zlength dd'))
   with 8 by Omega1.
 change (Z.to_nat 8) with (Z.to_nat (CBLOCKz-56)).
 entailer!.
-rewrite <- H11.
+rewrite <- H10.
  rewrite !field_address_offset by auto with field_compatible.
 normalize.
 erewrite field_at_Tarray; try reflexivity; try omega.
@@ -319,7 +309,7 @@ rewrite (split3seg_array_at _ _ _ 0 (Zlength dd') 56 64).
 2: Omega1.
 Focus 2. {
   rewrite !Zlength_app, !Zlength_map, !Zlength_list_repeat by omega.
-  change CBLOCKz with 64; omega.
+  omega.
 } Unfocus.
 autorewrite with sublist.
 cancel.

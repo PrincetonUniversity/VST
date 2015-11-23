@@ -275,13 +275,10 @@ assert (LEN: 0 <= s256a_len a). {
  apply Zlength_nonneg.
 }
 unfold sha256state_.
-normalize.
-intros [r_h [lo' [hi' [r_data r_num]]]].
-normalize.
+Intros r; destruct r as [r_h [lo' [hi' [r_data r_num]]]].
 unfold s256_relate in H0.
 unfold s256_h, s256_Nh,s256_Nl, s256_num, s256_data, fst,snd in H0|-*.
-destruct H0 as [H0 [H1 [H8 [H3 H4]]]].
-destruct H1 as [H1 H6].
+destruct H0 as [H0 [[H1 H6] [H8 [H3 H4]]]].
 subst.
 
 unfold_data_at 1%nat.
@@ -293,7 +290,7 @@ forward_call (* SHA256_addlength(c, len); *)
  repeat split; simpl; try omega.
  apply HBOUND.
 (* TODO:  need a fold_data_at tactic; the next few lines do that here *)
-gather_SEP' [4;0;1;2;3]%Z.
+gather_SEP' [5;0;1;3;4]%Z.
  rewrite <- bitlength_eq.
 replace_SEP 0 (data_at Tsh t_struct_SHA256state_st
     (map Vint (hash_blocks init_registers (s256a_hashed a)),

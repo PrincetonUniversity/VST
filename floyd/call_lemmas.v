@@ -744,7 +744,7 @@ eapply semax_pre_post;
  rewrite PRE1.
  match goal with |- PROPx ?A ?B |-- ?C =>
   apply derives_trans with (PROPx ((length (argtypes argsig) = length bl) :: A) B);
-    [ rewrite <- canonicalize.canon17; apply andp_right; auto | ]
+    [ rewrite <- insert_prop; apply andp_right; auto | ]
  end.
  eapply derives_trans; [apply TC1 | ].
  clear. go_lowerx.
@@ -1168,7 +1168,7 @@ eapply semax_pre_post;
  rewrite PRE1.
  match goal with |- PROPx ?A ?B |-- ?C =>
   apply derives_trans with (PROPx ((length (argtypes argsig) = length bl) :: A) B);
-    [ rewrite <- canonicalize.canon17; apply andp_right; auto | ]
+    [ rewrite <- insert_prop; apply andp_right; auto | ]
  end.
  eapply derives_trans; [apply TC1 | ].
  clear. go_lowerx.
@@ -1315,7 +1315,7 @@ eapply semax_pre_post;
  rewrite PRE1.
  match goal with |- PROPx ?A ?B |-- ?C =>
   apply derives_trans with (PROPx ((length (argtypes argsig) = length bl) :: A) B);
-    [ rewrite <- canonicalize.canon17; apply andp_right; auto | ]
+    [ rewrite <- insert_prop; apply andp_right; auto | ]
  end.
  eapply derives_trans; [apply TC1 | ].
  clear. go_lowerx. 

@@ -49,6 +49,16 @@ Notation " 'SEP' ( x ; .. ; y )" := (SEPx (cons x%logic .. (cons y%logic nil) ..
 Notation " 'SEP' ( ) " := (SEPx nil) (at level 8) : logic.
 Notation " 'SEP' () " := (SEPx nil) (at level 8) : logic.
 
+Lemma insert_prop : forall (P: Prop) PP QR, prop P && (PROPx PP QR) = PROPx (P::PP) QR.
+Proof.
+intros. unfold PROPx. simpl. extensionality rho.
+apply pred_ext. apply derives_extract_prop; intro.
+apply derives_extract_prop; intro.
+apply andp_right; auto. apply prop_right; auto.
+apply derives_extract_prop; intros [? ?].
+repeat apply andp_right; auto. apply prop_right; auto. apply prop_right; auto.
+Qed.
+
 Lemma insert_local': forall Q1 P Q R,
   local Q1 && (PROPx P (LOCALx Q R)) = (PROPx P (LOCALx (Q1 :: Q) R)).
 Proof.

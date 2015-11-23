@@ -2,7 +2,7 @@ Require Import floyd.base.
 Require Import floyd.client_lemmas.
 Require Import floyd.assert_lemmas.
 Require Import floyd.closed_lemmas.
-Require Import floyd.canonicalize floyd.forward_lemmas floyd.call_lemmas.
+Require Import floyd.forward_lemmas floyd.call_lemmas.
 Require Import floyd.extcall_lemmas.
 Require Import floyd.nested_field_lemmas.
 Require Import floyd.efield_lemmas.
@@ -251,52 +251,7 @@ Ltac forward_seq :=
   first [eapply semax_seq'; [  | abbreviate_semax ]
          | eapply semax_post_flipped' ].
 
-(*
-Ltac simpl_stackframe_of := 
-  unfold stackframe_of, fn_vars; simpl map; unfold fold_right; rewrite sepcon_emp;
-  repeat fixup_local_var;
-  repeat rewrite prop_true_andp by (simpl sizeof; computable).
-*)
-
 (* end of "stuff to move elsewhere" *)
-
-Definition query_context Delta id :=
-     match ((temp_types Delta) ! id) with 
-      | Some _ => (temp_types Delta) ! id =
-                  (temp_types Delta) ! id
-      | None => 
-        match (var_types Delta) ! id with
-          | Some _ =>   (var_types Delta) ! id =
-                        (var_types Delta) ! id
-          | None =>
-            match (glob_types Delta) ! id with
-              | Some _ => (var_types Delta) ! id =
-                          (var_types Delta) ! id
-              | None => (temp_types Delta) ! id = None /\
-                        (var_types Delta) ! id = None /\
-                        (glob_types Delta) ! id = None
-            end
-        end
-    end.
-
-
-Lemma is_and : forall A B,
-A /\ B -> A /\ B.
-Proof.
-auto.
-Qed.
-
-Ltac solve_query_context :=
-unfold query_context; simpl; auto.
-
-
-Ltac query_context Delta id :=
-let qu := fresh "QUERY" in
-assert (query_context Delta id) as qu by solve_query_context;
-hnf in qu;
-first [apply is_and in qu |
-simpl PTree.get at 2 in qu].
-
 
 Lemma local_True_right:
  forall (P: environ -> mpred),
@@ -915,7 +870,7 @@ try rewrite <- local_lift2_and;
 unfold_and_function_derives_left;
 repeat intro_ex_local_derives;
 try rewrite local_lift2_and;
-repeat (try rewrite andp_assoc; rewrite canonicalize.canon9).
+repeat (try rewrite andp_assoc; rewrite insert_local).
 
 Ltac unfold_function_derives_right :=
 (repeat match goal with 
@@ -951,7 +906,7 @@ end).
 Ltac unfold_and_local_semax :=
 unfold_pre_local_andp;
 repeat intro_ex_local_semax;
-try rewrite canonicalize.canon9.
+try rewrite insert_local.
 
 Lemma quick_typecheck1: 
  forall (P B: environ -> mpred), 
@@ -1396,7 +1351,6 @@ Ltac normalize :=
   floyd.client_lemmas.normalize;
   repeat 
   (first [ simpl_tc_expr
-(*         | simple apply semax_extract_PROP_True; [solve [auto] | ]*)
          | simple apply semax_extract_PROP; fancy_intros true
          | extract_prop_from_LOCAL
          | move_from_SEP
@@ -1437,20 +1391,6 @@ Proof.
 Qed.
 Hint Rewrite subst_temp_special using safe_auto_with_closed: subst.
 
-Ltac do_subst_eval_expr :=
- change (@map (environ->Prop) (environ->Prop))
-   with (fun f: (environ->Prop)->(environ->Prop) =>
-              fix map l := match l with nil => nil | a::t => f a :: map t end);
- change (@map (environ->mpred) (environ->mpred))
-   with (fun f: (environ->mpred)->(environ->mpred) =>
-              fix map l := match l with nil => nil | a::t => f a :: map t end);
-  cbv beta iota;
-  autorewrite with subst; 
-  unfold subst_eval_expr, subst_eval_lvalue, sem_cast;
-  simpl eqb_ident; cbv iota;
-  fold sem_cast; fold eval_expr; fold eval_lvalue;
-  simpl typeof.
-
 Lemma forward_setx_aux1:
   forall P (X Y: environ -> Prop),
   (forall rho, X rho) ->
@@ -1459,32 +1399,6 @@ Lemma forward_setx_aux1:
 Proof.
 intros; intro rho; rewrite andp_unfold; apply andp_right; apply prop_right; auto.
 Qed.
-
-Ltac intro_old_var' id :=
-  match goal with 
-  | Name: name id |- _ => 
-        let x := fresh Name in
-        intro x; do_subst_eval_expr; try clear x
-  | |- _ => let x := fresh "x" in 
-        intro x; do_subst_eval_expr; try clear x  
-  end.
-
-Ltac intro_old_var c :=
-  match c with 
-  | Sset ?id _ => intro_old_var' id
-  | Scall (Some ?id) _ _ => intro_old_var' id
-  | Ssequence _ (Sset ?id _) => intro_old_var' id
-  | _ => intro x; do_subst_eval_expr; try clear x
-  end.
-
-Ltac intro_old_var'' id :=
-  match goal with 
-  | Name: name id |- _ => 
-        let x := fresh Name in
-        intro x
-  | |- _ => let x := fresh "x" in 
-        intro x
-  end.
 
 Ltac ensure_normal_ret_assert :=
  match goal with 
@@ -1525,15 +1439,6 @@ Definition IGNORE_THIS_WARNING_USING_THE_ack_TACTIC_IF_YOU_WISH := tt.
 
 Ltac ack := apply ack.
 
-Ltac all_closed R :=
- match R with 
-  | @liftx (LiftEnviron mpred) _ :: ?R' => all_closed R'  
-  | @liftx (Tarrow val (LiftEnviron mpred)) _ (eval_var _ _) :: ?R' => all_closed R'
-  | nil => idtac
-  end.
-
-Definition WARNING__in_your_SEP_clauses_there_is_at_least_one_that_is_not_closed_Use_the_lemma__remember_value__before_moving_forward_through_a_function_call := tt.
-
 Ltac assert_ P :=
   let H := fresh in assert (H: P); [ | clear H].
 
@@ -1541,12 +1446,6 @@ Ltac warn s :=
    assert_ (Warning s
                IGNORE_THIS_WARNING_USING_THE_ack_TACTIC_IF_YOU_WISH).
 
-Ltac complain_open_sep_terms :=
- match goal with |- semax _ (PROPx _ (LOCALx _ (SEPx ?R))) _ _ =>
-    first [all_closed R;  assert_ True
-            | warn WARNING__in_your_SEP_clauses_there_is_at_least_one_that_is_not_closed_Use_the_lemma__remember_value__before_moving_forward_through_a_function_call
-            ]
- end.
 
 Lemma semax_post3: 
   forall R' Espec {cs: compspecs} Delta P c R,
@@ -1570,59 +1469,6 @@ Proof.
 intros; eapply semax_post3; eauto.
 Qed.
 
-Ltac forward_call_complain' Delta id ty W :=
-     (assert ((var_types Delta) ! id = None) by reflexivity
-         || fail 4 "The function-identifier " id " is not a global variable");
-    match type of W with ?Wty =>
-    assert (match (glob_specs Delta) ! id with
-               | Some (mk_funspec fsig t _ _) => Some (type_of_funsig fsig, t)
-               | _ => None
-               end = Some (ty, Wty)); [
-     unfold type_of_funsig; simpl; 
-     match goal with
-     | |- None = _ => fail 4 "The function identifier " id " is not a function"
-     | |- Some (?fsig, ?A) = _ => 
-             (assert (ty=fsig) by reflexivity
-              || fail 5 "The declared parameter/result types in the funspec for " id " are 
-" fsig "which does not match the C program which has" ty);
-            (assert (Wty=A) by reflexivity || fail 5 "Use forward_call W, where W is a witness of type " A ";
-your witness has type " Wty ".
-");
-           fail
-     | |- _ => fail 4 "Undiagnosed error in forward_call"
-     end | ] end.
- 
-Ltac forward_call_complain W :=
- match goal with 
- | |- semax ?Delta _ (Ssequence (Scall _ (Evar ?id ?ty) _) _) _ =>
-       forward_call_complain' Delta id ty W
- | |- semax ?Delta _ (Scall _ (Evar ?id ?ty) _) _ =>
-       forward_call_complain' Delta id ty W
-  end.
-
-Definition  DO_THE_after_call_TACTIC_NOW (x: Prop) := x.
-Arguments DO_THE_after_call_TACTIC_NOW {x}.
-
-Ltac after_call :=  
-  match goal with |- @DO_THE_after_call_TACTIC_NOW _ =>
-   unfold DO_THE_after_call_TACTIC_NOW;
-   match goal with |- semax _ (PROPx _ (LOCALx _ (SEPx (ifvoid ?A ?B ?C :: _)))) _ _ =>
-      first [change (ifvoid A B C) with B | change (ifvoid A B C) with C]
-   | _ => idtac
-   end;
-   autorewrite with subst; normalize;
-   clean_up_app_carefully;
-   match goal with 
-   | |- forall x:val, _ => intros ?retval0; normalize
-   | _ => idtac
-   end
-  end.
-
-Ltac say_after_call :=
- match goal with |- ?x => 
- change (@DO_THE_after_call_TACTIC_NOW x)
- end.
-
 Lemma focus_make_args:
   forall A Q R R' Frame,
     R = R' ->
@@ -1636,16 +1482,8 @@ Lemma subst_make_args1:
   forall i e j v,
     subst i e (make_args (j::nil) (v::nil)) = make_args (j::nil) (v::nil).
 Proof. reflexivity. Qed.
-Hint Rewrite subst_make_args1 : norm2.
-Hint Rewrite subst_make_args1 : subst.
-
-Ltac normalize_make_args :=
- cbv beta iota;
- repeat rewrite subst_make_args1;
- let R' := fresh "R" in evar (R': environ->mpred);
-   apply focus_make_args with R';
-  [norm_rewrite; unfold R'; reflexivity
-  | unfold R'; clear R'].
+(*Hint Rewrite subst_make_args1 : norm2.*)
+(*Hint Rewrite subst_make_args1 : subst.*)
 
 Ltac check_sequential s :=
  match s with
@@ -1719,7 +1557,6 @@ Ltac forward_setx :=
       [reflexivity | reflexivity 
       | solve [repeat econstructor]
       | unfold app at 1; reflexivity
-(*      | solve [repeat econstructor] *)
       | exact HRE
       | pre_entailer; clear HRE; subst v; try solve [entailer!]
       ]
@@ -1793,7 +1630,6 @@ Proof.
 Qed.
 
 Ltac test_legal_nested_efield TY e gfs tts lr  :=
-(*  assert (legal_nested_efield TY e gfs tts lr = true) as H_LEGAL by reflexivity. *)
    unify (legal_nested_efield TY e gfs tts lr) true.
 
 Ltac sc_try_instantiate P Q R0 Delta e gfs tts p sh t_root gfs0 v n N H SH GFS TY V:=
@@ -1814,10 +1650,6 @@ Ltac sc_try_instantiate P Q R0 Delta e gfs tts p sh t_root gfs0 v n N H SH GFS T
        solve [
              go_lowerx; rewrite sepcon_emp, <- ?field_at_offset_zero; 
              apply derives_refl
-(*
-         first [apply remove_PROP_LOCAL_left'; apply derives_refl
-               | entailer!; cancel]
-*)
        ]
       | pose N as n ].
 
@@ -1907,139 +1739,6 @@ Ltac solve_efield_denote Delta P Q R efs gfs H :=
       end
     end
   |].
-
-Ltac try_instantiate_load P Q R0 Delta e ids tts sh ids0 v n N H SH IDS V:=
-      assert (PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx (R0 :: nil))) 
-         |-- (`(field_at sh (typeof e) ids0 v) (eval_lvalue e))) as H;
-      [unfold sh, ids0, v;
-       unfold data_at;
-       instantiate (2 := IDS);
-       assert (IDS = skipn (length ids - length IDS) ids) as _ by reflexivity;
-       simpl skipn; subst e ids tts;
-       instantiate (2 := SH);
-       instantiate (1 := V);
-       try unfold field_at_;
-       generalize V;
-       intro;
-       solve [ (entailer!; cancel) ]
-      | pose N as n ].
-
-Ltac new_instantiate_load P Q R Rnow Delta e ids tts sh ids0 v n N H:=
-  match Rnow with
-  | ?R0 :: ?Rnow' => 
-    match R0 with
-    | `(data_at ?SH _ ?V _) => 
-      try_instantiate_load P Q R0 Delta e ids tts sh ids0 v n N H SH (@nil ident) V
-    | `(data_at ?SH _ ?V) _ => 
-      try_instantiate_load P Q R0 Delta e ids tts sh ids0 v n N H SH (@nil ident) V
-    | `(data_at_ ?SH ?TY _) => 
-      try_instantiate_load P Q R0 Delta e ids tts sh ids0 v n N H SH (@nil ident)
-      (default_val (nested_field_type TY nil))
-    | `(data_at_ ?SH ?TY) _ => 
-      try_instantiate_load P Q R0 Delta e ids tts sh ids0 v n N H SH (@nil ident)
-      (default_val (nested_field_type TY nil))
-    | `(field_at ?SH _ ?IDS ?V _) =>
-      try_instantiate_load P Q R0 Delta e ids tts sh ids0 v n N H SH IDS V
-    | `(field_at ?SH _ ?IDS ?V) _ => 
-      try_instantiate_load P Q R0 Delta e ids tts sh ids0 v n N H SH IDS V
-    | `(field_at_ ?SH ?TY ?IDS _) =>
-      try_instantiate_load P Q R0 Delta e ids tts sh ids0 v n N H SH IDS 
-      (default_val (nested_field_type TY IDS))
-    | `(field_at_ ?SH ?TY ?IDS) _ => 
-      try_instantiate_load P Q R0 Delta e ids tts sh ids0 v n N H SH IDS 
-      (default_val (nested_field_type TY IDS))
-    | _ => new_instantiate_load P Q R Rnow' Delta e ids tts sh ids0 v n (S N) H
-    end
-  end.
-
-Ltac try_instantiate_store P Q R0 Delta e ids tts sh ids0 v n N H SH TY IDS V:=
-      assert (PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx (R0 :: nil))) 
-         |-- (`(field_at sh (typeof e) ids0) v (eval_lvalue e))) as H;
-      [unfold sh, ids0, v;
-       unfold data_at; (* move to somewhere later? *)
-       instantiate (2 := IDS);
-       assert (IDS = skipn (length ids - length IDS) ids) as _ by reflexivity;
-       simpl skipn; subst e ids tts;
-       instantiate (2 := SH);
-       instantiate (1 := V);
-       try unfold field_at_;
-       try rewrite <- (@liftx1_liftx0 val mpred);
-       try rewrite <- (@liftx2_liftx1 (reptype (nested_field_type TY IDS)) val mpred);
-       simpl typeof;
-       simpl reptype;
-       generalize V;
-       intro;
-       solve [ (entailer!; cancel) ]
-      | pose N as n ].
-
-Ltac new_instantiate_store P Q R Rnow Delta e ids tts sh ids0 v n N H:=
-  match Rnow with
-  | ?R0 :: ?Rnow' => 
-    match R0 with
-    | `(data_at ?SH ?TY ?V _) => 
-      try_instantiate_store P Q R0 Delta e ids tts sh ids0 v n N H SH TY (@nil ident) (` V)
-    | `(data_at ?SH ?TY ?V) _ => 
-      try_instantiate_store P Q R0 Delta e ids tts sh ids0 v n N H SH TY (@nil ident) (` V)
-    | `(data_at ?SH ?TY) ?V _ => 
-      try_instantiate_store P Q R0 Delta e ids tts sh ids0 v n N H SH TY (@nil ident) V
-    | `(data_at_ ?SH ?TY _) => 
-      try_instantiate_store P Q R0 Delta e ids tts sh ids0 v n N H SH TY (@nil ident)
-      (`(default_val (nested_field_type TY nil)))
-    | `(data_at_ ?SH ?TY) _ => 
-      try_instantiate_store P Q R0 Delta e ids tts sh ids0 v n N H SH TY (@nil ident)
-      (`(default_val (nested_field_type TY nil)))
-    | `(field_at ?SH ?TY ?IDS ?V _) =>
-      try_instantiate_store P Q R0 Delta e ids tts sh ids0 v n N H SH TY IDS (` V)
-    | `(field_at ?SH ?TY ?IDS ?V) _ => 
-      try_instantiate_store P Q R0 Delta e ids tts sh ids0 v n N H SH TY IDS (` V)
-    | `(field_at ?SH ?TY ?IDS) ?V _ => 
-      try_instantiate_store P Q R0 Delta e ids tts sh ids0 v n N H SH TY IDS V
-    | `(field_at_ ?SH ?TY ?IDS _) =>
-      try_instantiate_store P Q R0 Delta e ids tts sh ids0 v n N H SH TY IDS 
-      (`(default_val (nested_field_type TY IDS)))
-    | `(field_at_ ?SH ?TY ?IDS) _ => 
-      try_instantiate_store P Q R0 Delta e ids tts sh ids0 v n N H SH TY IDS 
-      (`(default_val (nested_field_type TY IDS)))
-    | _ => new_instantiate_store P Q R Rnow' Delta e ids tts sh ids0 v n (S N) H
-    end
-  end.
-
-Lemma go_lower_lem24:
-  forall rho (Q1: environ -> Prop)  Q R PQR,
-  (Q1 rho -> LOCALx Q R rho |-- PQR) ->
-  LOCALx (Q1::Q) R rho |-- PQR.
-Proof.
-   unfold LOCALx,local; super_unfold_lift; simpl; intros.
- normalize. 
- eapply derives_trans;  [ | apply (H H0) ].
- normalize.
-Qed.
-Definition force_eq ( x y: val) := force_ptr x = force_ptr y.
-
-Lemma force_force_eq:
-  forall v, force_ptr (force_ptr v) = force_ptr v.
-Proof. intros. destruct v; reflexivity. Qed.
-
-Lemma force_eq1: forall v w, force_eq v w -> force_eq (force_ptr v) w .
-Proof. unfold force_eq; intros; rewrite force_force_eq; auto. Qed.
-
-Lemma force_eq2: forall v w, force_eq v w -> force_eq v (force_ptr w).
-Proof. unfold force_eq; intros; rewrite force_force_eq; auto. Qed.
-
-Lemma force_eq0: forall v w, v=w -> force_eq v w.
-Proof. intros. subst. reflexivity. Qed.
-
-Ltac force_eq_tac := repeat first [simple apply force_eq1 | simple apply force_eq2];
-                                 try apply force_eq0;
-                                 first [assumption |  reflexivity].
-
-Ltac quick_load_equality :=
- (intros ?rho; apply prop_right; unfold_lift; force_eq_tac) ||
- (apply go_lower_lem20;
-  intros ?rho; 
-  simpl derives; repeat (simple apply go_lower_lem24; intro);
-  apply prop_right; simpl; unfold_lift; force_eq_tac) ||
-  idtac.
 
 Lemma sem_add_ptr_int:
  forall {cs: compspecs} v t i, 
@@ -2190,7 +1889,6 @@ Ltac load_tac :=   (* matches:  semax _ _ (Sset _ (Efield _ _ _)) _  *)
     [reflexivity | reflexivity
       | solve [repeat econstructor]
       | unfold app at 1; reflexivity
-(*      | solve [repeat econstructor]*)
     | reflexivity
     | reflexivity | exact Heq | exact HLE | exact H_Denote | exact H
     | auto (* readable share *)
@@ -2263,7 +1961,6 @@ Ltac load_tac :=   (* matches:  semax _ _ (Sset _ (Efield _ _ _)) _  *)
     [reflexivity | reflexivity
       | solve [repeat econstructor]
       | unfold app at 1; reflexivity
-(*      | solve [repeat econstructor]*)
     | reflexivity
     | reflexivity | exact Heq | exact HLE | exact H_Denote | exact H
     | auto (* readable share *)
@@ -2277,41 +1974,6 @@ Ltac load_tac :=   (* matches:  semax _ _ (Sset _ (Efield _ _ _)) _  *)
     | solve_legal_nested_field_in_entailment; try clear Heq HLE H_Denote H (*H_LEGAL*);
       subst e1 gfs0 gfs1 efs tts t_root v sh lr n]
 end.
-
-Lemma semax_store_aux31:
- forall P Q1 Q R R', 
-    PROPx P (LOCALx (Q1::Q) (SEPx R)) |-- ` (fold_right sepcon emp R') ->
-    PROPx P (LOCALx (Q1::Q) (SEPx R)) |-- PROPx P (LOCALx Q (SEPx R')).
-Proof.
-intros. 
-apply andp_right. apply andp_left1; auto.
-apply andp_right. apply andp_left2; apply andp_left1.
-intro rho; unfold local, lift1; unfold_lift; apply prop_derives; intros [? ?]; auto.
-apply H.
-Qed.
-
-Lemma fast_entail:
-  forall n P Q1 Q Rn Rn' R, 
-      nth_error R n = Some Rn ->
-      PROPx P (LOCALx (Q1::Q) (SEP (Rn))) |-- `Rn'  ->
-      PROPx P (LOCALx (Q1::Q) (SEPx R)) |-- PROPx P (LOCALx Q (SEPx (replace_nth n R Rn'))).
-Proof.
-intros.
-go_lowerx.
-specialize (H0 rho).
-unfold PROPx, LOCALx, SEPx, local,lift1 in H0.
-unfold_lift in H0. simpl in H0.
-repeat  rewrite prop_true_andp in H0 by auto.
-clear P H1 Q1 Q H3 H2.
-rewrite sepcon_emp in H0.
-revert R H H0; induction n; destruct R; simpl; intros; inv H;
- apply sepcon_derives; auto.
-Qed.
-
-Lemma local_lifted_reflexivity:
-forall A P (x: environ -> A), P |-- local (`eq x x).
-Proof. intros. intro rho. apply prop_right. hnf. reflexivity.
-Qed.
 
 Ltac simpl_proj_reptype :=
 progress
@@ -2526,9 +2188,6 @@ Ltac forward1 s :=  (* Note: this should match only those commands that
   | Sifthenelse ?e _ _ => no_loads_expr e false false; forward_ifthenelse
   | Swhile _ _ => forward_while_complain
   | Sloop (Ssequence (Sifthenelse _ Sskip Sbreak) _) _ => forward_for_complain
-(*  | Ssequence (Scall (Some ?id') (Evar _ _) ?el) (Sset _ (Etempvar ?id' _)) => 
-          no_loads_exprlist el false; forward_compound_call
-*)
   | Scall _ (Evar _ _) _ =>  advise_forward_call
   | Sskip => forward_skip
   end.
@@ -2555,74 +2214,8 @@ try match goal with
          simpl in x; unfold x; clear x
 end.
 
-Ltac forward_with F1 :=
- match goal with 
-(*  | |- semax _ _ (Ssequence (Sset _ ?e) _) _ =>
-         no_loads_expr e false true;
-         forward_setx_wow_seq*)
-  | |- semax _ _ (Ssequence (Sreturn _) _) _ =>
-            apply semax_seq with FF; [ | apply semax_ff];
-            forward_return
-  | |- semax _ _ (Sreturn _) _ =>  forward_return
-  | |- semax _ _ (Ssequence Sbreak _) _ =>
-            apply semax_seq with FF; [ | apply semax_ff];
-            forward_break
-  | |- semax _ _ Sbreak _ => forward_break
-  | |- semax _ _ (Ssequence ?c _) _ =>
-    let ftac := F1 c in
-       ((eapply semax_seq'; 
-             [ftac; derives_after_forward
-             | unfold replace_nth; cbv beta;
-               try (apply extract_exists_pre; intro_old_var c);
-               simpl_first_temp;
-               repeat simpl_proj_reptype;
-(*               try simpl_fold_reptype;*)
-               abbreviate_semax
-             ]) 
-        ||  fail 0)  (* see comment FORWARD_FAILOVER below *)
-  | |- semax _ _ (Ssequence (Ssequence _ _) _) _ =>
-       apply -> seq_assoc; forward_with F1
-  | |- semax _ _ ?c _ =>
-     let ftac := F1 c in
-      normalize_postcondition;
-       eapply semax_post_flipped3;
-             [ftac; derives_after_forward
-             | try rewrite exp_andp2;
-               try (apply exp_left; intro_old_var c);
-               simpl_first_temp;
-(*               try simpl_fold_reptype;*)
-               try rewrite insert_local
-             ] 
-end.
-
-(* FORWARD_FAILOVER:
-  The first clause of forward_with starts by calling F1, and if it matches,
-  then, in principle, no other clause of forward_with should be needed.
-  The way to enforce "no other clause" is by writing "fail 1".
-  However, there is a small bug in the forward_compound_call tactic:
-  if the second assignment has an _implicit_ cast, then the lemma
-  semax_call_id1_x  is just a bit too weak to work.   An example
-  that demonstrates this is in verif_queue.v, in make_elem at the
-  call to mallocN.   Until this lemma
-  is generalized, then failover is necessary, so we have "fail 0" instead
-  of "fail 1".
-*)
-
-Ltac forward' := forward_with forward1; try unfold repinject.
-
 Ltac fwd_result :=
   unfold replace_nth, repinject; cbv beta;
-(*  first
-   [ simple apply extract_exists_pre;
-     let v := fresh "v" in intros v;
-     autorewrite with subst;
-     simpl_first_temp;
-     repeat extract_prop_from_LOCAL;
-     revert v
-   | (* try simpl_fold_reptype;*)
-     simple apply revert_unit
-   ];
-*)
    repeat simpl_proj_reptype.
 
 Ltac fwd' :=
@@ -2657,35 +2250,11 @@ Ltac forward :=
  | fwd_skip
  | fwd';
   [ .. |
-   repeat (apply semax_extract_PROP; intro);
+   Intros;
    abbreviate_semax;
    try fwd_skip]
  ].
 
-(*
-Tactic Notation "forward" :=
-  check_Delta;
- repeat simple apply seq_assoc2;
- first
- [ fwd_last
- | fwd_skip
- | fwd';
-  [ .. |
-  first [intros _ | no_intros ];
-   repeat (apply semax_extract_PROP; intro);
-   abbreviate_semax;
-   try fwd_skip]
- ].
-
-Tactic Notation "forward" simple_intropattern(v1) :=
-  check_Delta;
-  fwd';
-  [ .. 
-  | intros v1;
-  repeat (apply semax_extract_PROP; intro);
-  abbreviate_semax;
-  try fwd_skip].
-*)
 
 Lemma start_function_aux1:
   forall (Espec: OracleKind) {cs: compspecs} Delta R1 P Q R c Post,
@@ -2705,25 +2274,6 @@ Proof. intros.
             rewrite frame_ret_assert_emp;
    auto.
 Qed.
-
-Ltac unfold_Delta :=  (* obsolete? replaced by simplify_func_tycontext *)
-  repeat match goal with Delta := func_tycontext ?f ?V ?G |- _ =>
-     first [unfold f in Delta | unfold V in Delta | unfold G in Delta ]
-  end;
- match goal with
-   | Delta:=func_tycontext ?f ?V ?G:_
-     |- _ =>
-         change (func_tycontext f V G)
-          with (@abbreviate _ (func_tycontext f V G)) in Delta;
-          unfold func_tycontext, make_tycontext, make_tycontext_t,
-           make_tycontext_v, make_tycontext_g, fn_temps, fn_params, fn_vars,
-           fn_return in Delta;
-           let s := fresh in set (s := make_tycontext_s G) in Delta;
-           simpl in Delta;
-           hnf in s;
-           let s' := fresh  "Delta_specs" in pose (s' := @abbreviate _ s); 
-           change s with s' in Delta; subst s       
-   end.
 
 Fixpoint quickflow (c: statement) (ok: exitkind->bool) : bool :=
  match c with

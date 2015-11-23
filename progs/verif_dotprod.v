@@ -171,7 +171,7 @@ inv H1. eapply temp_types_init_same; eauto.
 }
 apply semax_pre0 with
  (PROPx (isptr x :: isptr y :: isptr z :: P) (LOCALx Q (SEPx R))). {
-repeat rewrite <- canonicalize.canon17.
+repeat rewrite <- insert_prop.
 repeat rewrite <- andp_assoc. apply andp_right; auto.
 repeat apply andp_right.
 rewrite (replace_nth_nth_error _ _ _ H3).
@@ -184,7 +184,7 @@ rewrite (replace_nth_nth_error _ _ _ H5).
 erewrite SEP_replace_nth_isolate by (eapply H5).
 go_lowerx; normalize; rewrite array_at_isptr; normalize.
 }
-repeat rewrite <- canonicalize.canon17.
+repeat rewrite <- insert_prop.
 apply semax_extract_prop; intro Px.
 apply semax_extract_prop; intro Py.
 apply semax_extract_prop; intro Pz.
