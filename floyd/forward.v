@@ -1252,8 +1252,6 @@ Tactic Notation "forward_while" constr(Inv) :=
        ]
     ]; abbreviate_semax; autorewrite with ret_assert.
 
-(* Note: Lemma semax_while_3g is obsolete; delete it *)
-
 Ltac forward_for_simple_bound n Pre :=
   check_Delta;
  repeat match goal with |-
@@ -1292,16 +1290,6 @@ Ltac forward_for Inv PreIncr Postcond :=
        | simpl update_tycon 
        ])
     ]; abbreviate_semax; autorewrite with ret_assert.
-
-
-Ltac forward_if' := 
-  check_Delta;
-match goal with 
-| |- @semax _ _ ?Delta (PROPx ?P (LOCALx ?Q (SEPx ?R))) 
-                                 (Sifthenelse ?e _ _) _ => 
- (apply semax_ifthenelse_PQR; [ reflexivity | quick_typecheck | | ])
-  || fail 2 "semax_ifthenelse_PQR did not match"
-end.
 
 Ltac forward_if'_new := 
   check_Delta;
@@ -1363,11 +1351,6 @@ Ltac renormalize :=
   progress (autorewrite with subst norm1 norm2); normalize;
  repeat (progress (autorewrite with subst norm1 norm2); normalize).
 
-Tactic Notation "forward_intro" simple_intropattern(v) :=
- match goal with |- _ -> _ => idtac | |- _ => normalize end;
- first [apply extract_exists_pre | apply exp_left | idtac];
- intros v.
-
 Lemma eqb_ident_true: forall i, eqb_ident i i = true.
 Proof.
 intros; apply Pos.eqb_eq. auto.
@@ -1391,15 +1374,6 @@ Proof.
 Qed.
 Hint Rewrite subst_temp_special using safe_auto_with_closed: subst.
 
-Lemma forward_setx_aux1:
-  forall P (X Y: environ -> Prop),
-  (forall rho, X rho) ->
-  (forall rho, Y rho) ->
-   P |-- local X && local Y.
-Proof.
-intros; intro rho; rewrite andp_unfold; apply andp_right; apply prop_right; auto.
-Qed.
-
 Ltac ensure_normal_ret_assert :=
  match goal with 
  | |- semax _ _ _ (normal_ret_assert _) => idtac
@@ -1422,6 +1396,7 @@ Ltac ensure_open_normal_ret_assert :=
  match goal with 
  | |- semax _ _ _ (normal_ret_assert ?X) => is_evar X
  end.
+
 Ltac get_global_fun_def Delta f fsig A Pre Post :=
     let VT := fresh "VT" in let GT := fresh "GT" in
       assert (VT: (var_types Delta) ! f = None) by 
@@ -1501,41 +1476,9 @@ Ltac sequential :=
  |  |- @semax _ _ _ ?s _ =>  check_sequential s; apply sequential
  end.
 
-Ltac is_canonical P :=
- match P with 
- | PROPx _ (LOCALx _ (SEPx _)) => idtac
- | _ => fail 2 "precondition is not canonical (PROP _ LOCAL _ SEP _)"
- end.
-
-Ltac bool_compute b :=
-let H:= fresh in 
-  assert (b=true) as H by auto; clear H. 
-
-Ltac tac_if b T F := 
-first [bool_compute b;T | F].
-
-Definition ptr_compare e :=
-match e with
-| (Ebinop cmp e1 e2 ty) =>
-   andb (andb (is_comparison cmp) (is_pointer_type (typeof e1))) (is_pointer_type (typeof e2))
-| _ => false
-end.
-
-Ltac forward_ptr_cmp := 
-  check_Delta;
-first [eapply forward_ptr_compare_closed_now;
-       [    solve [auto 50 with closed] 
-          | solve [auto 50 with closed] 
-          | solve [auto 50 with closed] 
-          | solve [auto 50 with closed]
-          | first [solve [auto] 
-                  | (right; go_lower; apply andp_right; 
-                                [ | solve [subst;cancel]];
-                                apply andp_right; 
-                                [ normalize 
-                                | solve [subst;cancel]]) ]
-          | reflexivity ]
-       | eapply forward_ptr_compare'; try reflexivity; auto].
+(* move these two elsewhere, perhaps entailer.v *)
+Hint Extern 1 (sizeof _ _ > 0) => (simpl sizeof; computable) : valid_pointer.
+Hint Resolve denote_tc_comparable_split : valid_pointer.
 
 Ltac pre_entailer :=
   try match goal with
@@ -1561,9 +1504,6 @@ Ltac forward_setx :=
       | pre_entailer; clear HRE; subst v; try solve [entailer!]
       ]
  end.
-
-Ltac forward_setx_with_pcmp e :=
-tac_if (ptr_compare e) ltac:forward_ptr_cmp ltac:forward_setx.
 
 (* BEGIN new semax_load and semax_store tactics *************************)
 
@@ -2102,7 +2042,7 @@ Ltac forward_return :=
        entailer_for_return
      end.
 
-Ltac forward_ifthenelse :=
+Ltac forward_if_complain :=
            (*semax_logic_and_or 
            ||*)  fail 2 "Use this tactic:  forward_if POST, where POST is the post condition".
 
@@ -2117,31 +2057,26 @@ Ltac forward_for_complain :=
 
 Ltac forward_skip := apply semax_skip.
 
-Ltac no_loads_expr e as_lvalue enforce :=
+Ltac is_array_type t :=
+ let t' := eval hnf in t in
+ match t' with Tarray _ _ _ => idtac end.
+
+Ltac no_loads_expr e as_lvalue :=
  match e with
  | Econst_int _ _ => idtac
  | Econst_float _ _ => idtac
+ | Econst_single _ _ => idtac
  | Econst_long _ _ => idtac
- | Evar _ _ => match as_lvalue with true => idtac end
+ | Evar _ ?t => match as_lvalue with true => idtac | false => is_array_type t end
  | Etempvar _ _ => idtac
- | Eaddrof ?e1 _ => no_loads_expr e1 true enforce
- | Eunop _ ?e1 _ => no_loads_expr e1 as_lvalue enforce
- | Ebinop _ ?e1 ?e2 _ => no_loads_expr e1 as_lvalue enforce; no_loads_expr e2 as_lvalue enforce
- | Ecast ?e1 _ => no_loads_expr e1 as_lvalue enforce
- | Efield ?e1 _ _ => match as_lvalue with true =>
-                              no_loads_expr e1 true enforce
-                              end
- | _ => match enforce with false =>
-            let r := fresh "The_expression_or_parameter_list_must_not_contain_any_loads_but_the_following_subexpression_is_an_implicit_or_explicit_load_Please_refactor_this_stament_of_your_program" 
-           in pose (r:=e) 
-            end
+ | Ederef ?e1 ?t => constr_eq as_lvalue true; no_loads_expr e1 true 
+ | Eaddrof ?e1 _ => no_loads_expr e1 true 
+ | Eunop _ ?e1 _ => no_loads_expr e1 as_lvalue 
+ | Ebinop _ ?e1 ?e2 _ => no_loads_expr e1 as_lvalue ; no_loads_expr e2 as_lvalue 
+ | Ecast ?e1 _ => no_loads_expr e1 as_lvalue 
+ | Efield ?e1 _ ?t => match as_lvalue with true => idtac | false => is_array_type t end;
+                               no_loads_expr e1 true 
 end.
-
-Ltac no_loads_exprlist e enforce :=
- match e with
- | ?e1::?er => no_loads_expr e1 false enforce; no_loads_exprlist er enforce
- | nil => idtac
- end.
 
 Definition Undo__Then_do__forward_call_W__where_W_is_a_witness_whose_type_is_given_above_the_line_now := False.
 
@@ -2162,30 +2097,10 @@ Ltac forward1 s :=  (* Note: this should match only those commands that
                                      can take a normal_ret_assert *)
   lazymatch s with 
   | Sassign _ _ => store_tac
-  | Sset _ (Efield ?e _ ?t)  => 
-      no_loads_expr e true false;
-      first [unify true (match t with Tarray _ _ _ => true | _ => false end);
-               forward_setx
-              |load_tac]
-  | Sset _ (Ecast (Efield ?e _ ?t) _) => 
-      no_loads_expr e true false;
-      first [unify true (match t with Tarray _ _ _ => true | _ => false end);
-               forward_setx
-              |load_tac]
-  | Sset _ (Ederef ?e _) => 
-         no_loads_expr e true false; load_tac
-  | Sset _ (Ecast (Ederef ?e _) ?t) => 
-         no_loads_expr e true false; 
-      first [unify true (match t with Tarray _ _ _ => true | _ => false end);
-               forward_setx
-              |load_tac]
-  | Sset _ (Evar _ ?t)  => 
-      first [unify true (match t with Tarray _ _ _ => true | _ => false end);
-               forward_setx
-              |load_tac]
-  | Sset _ (Ecast (Evar _ _) _) => load_tac
-  | Sset _ ?e => no_loads_expr e false false; (bool_compute e; forward_ptr_cmp) || forward_setx
-  | Sifthenelse ?e _ _ => no_loads_expr e false false; forward_ifthenelse
+  | Sset _ ?e => 
+    first [no_loads_expr e false; forward_setx
+            | load_tac]
+  | Sifthenelse ?e _ _ => forward_if_complain
   | Swhile _ _ => forward_while_complain
   | Sloop (Ssequence (Sifthenelse _ Sskip Sbreak) _) _ => forward_for_complain
   | Scall _ (Evar _ _) _ =>  advise_forward_call
