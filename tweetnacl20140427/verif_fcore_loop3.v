@@ -405,8 +405,8 @@ c k h nonce out w x y t OUT (xI:list int)
 Proof. intros. abbreviate_semax.
 Time assert_PROP (Zlength (map Vint xI) = 16) as XIZ by entailer!. (*5.1*)
 rewrite Zlength_map in XIZ.
-Opaque Zplus. Opaque Z.mul. Opaque mult. Opaque plus.
-Opaque Z.sub. Opaque Snuffle.
+(*Opaque Zplus. Opaque Z.mul. Opaque mult. Opaque plus.
+Opaque Z.sub.*) Opaque Snuffle.
 drop_LOCAL 0%nat. 
 Time forward_for_simple_bound 20 (EX i:Z, 
   (PROP  ()
@@ -422,7 +422,7 @@ Time forward_for_simple_bound 20 (EX i:Z,
 
 (*Issue: why doesn't this work if we move it to the end of the proof of this lemma, 
   after the other subgoal has been proven?*)
-Focus 2. Time entailer!. (*5.4*) Intros r. Exists r. Time entailer!. (*0.7*)
+Focus 2. Time entailer!. (*3.4*) (*Intros r. Exists r. Time entailer!. (*0.7*)*)
 
 { rename H into I. Intros r. rename H into R. 
   assert (XI: length xI = 16%nat). eapply (Zlength_length _ _ 16). omega. trivial.
@@ -452,35 +452,39 @@ Focus 2. Time entailer!. (*5.4*) Intros r. Exists r. Time entailer!. (*0.7*)
       rewrite RZL; apply Z_mod_lt; omega.
     destruct (Znth_mapVint r ((5 * j + 4 * 3) mod 16) Vundef) as [t3 T3].
       rewrite RZL; apply Z_mod_lt; omega.
+    freeze [1;4;5] FR1.
     eapply semax_pre_post.
-    Focus 3. apply (Jbody _ c k h nonce out w x y t (map Vint xI) i j OUT data) with (wlist0:=wlist); trivial; try eassumption.
-    Time entailer!. (*11.5*)
+    Focus 3. (*apply (Jbody _ c k h nonce out w x y t (map Vint xI) i j OUT data) with (wlist0:=wlist); trivial; try eassumption.*)
+      apply (Jbody _ (FRZL FR1) c k h nonce out w x y t i j r) with (wlist0:=wlist); eassumption.
+    Time entailer!. (*4.3*)
     intros; apply andp_left2. unfold POSTCONDITION, abbreviate.
     apply assert_lemmas.normal_ret_assert_derives'.
-    Intros W. Exists W. Time entailer!. (*12.5*) 
+    Intros W. Exists W. Time entailer!. (*7.1*) 
     rewrite Z.add_comm, Z2Nat.inj_add; try omega.
     assert (X: (Z.to_nat 1 + Z.to_nat j = S (Z.to_nat j))%nat) by reflexivity.
     rewrite X. simpl. split. assumption. 
-    exists t0, t1, t2, t3. rewrite Z2Nat.id, T0, T1, T2, T3.
+    exists t0, t1, t2, t3. simpl in *. rewrite Z2Nat.id, T0, T1, T2, T3.
     split. trivial. split. trivial. split. trivial. split. trivial.
-    exists wlist. split; trivial. omega. }
+    exists wlist. split; trivial. omega.
+    thaw FR1. subst nonce c k out. cancel. }
 
   Intros wlist. rename H into HW.
   destruct (WWI _ _ HW RZL) as [wints [WI SNUFF]]. subst wlist.
 (*  assert (WL: Zlength wlist = 16) by apply WLIST.
   destruct (WcontI_4I _ _ WLIST RZL) as [wints WW]. subst wlist.*)
+  freeze [1;2;4;5] FR2.
   eapply semax_pre_post.
-  Focus 3. apply (array_copy3 _ c k h nonce out OUT data)
-            with (i0:=i)(w0:=w)(x0:=x)(y0:=y)(t0:=t)
-                 (ys:=map Vint xI)(xlist:=map Vint r)(wlist:=map Vint wints); trivial.
+  Focus 3. apply (array_copy3 _ (FRZL FR2) c k h nonce out 
+                  i w x y t (map Vint r) (map Vint wints)); trivial.
            intros. apply Znth_mapVint. 
               destruct (snuffleRound_length _ _ SNUFF) as [WL _].
               rewrite Zlength_correct, WL; simpl; omega.
-  apply andp_left2. Time entailer!. (*8.6*)
+  apply andp_left2. Time entailer!. (*3.4*)
   intros ? ?. apply andp_left2.
     unfold POSTCONDITION, abbreviate.
-    apply assert_lemmas.normal_ret_assert_derives'. Time entailer!. (*11.4*)
+    apply assert_lemmas.normal_ret_assert_derives'. Time entailer!. (*5.8*)
   rewrite Z.add_comm, Z2Nat.inj_add; try omega.
   Transparent Snuffle. Transparent plus.
-  Exists wints. simpl. rewrite R. Time entailer!. (*0.7*) }
-Time Qed. (*23.6*)
+  Exists wints. simpl. rewrite R. Time entailer!. (*1.5*)
+  thaw FR2. subst nonce c k out. cancel. }
+Time Qed. (*16*)

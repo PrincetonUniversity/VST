@@ -49,20 +49,18 @@ Qed.
   2. In the master-branch, we actually could write the lemma using Delta :=,
      so this is really an issue ith the new_compcert branch*)
 
-Lemma f_core_loop1: forall (Espec : OracleKind)
-c k h nonce out OUT 
+Lemma f_core_loop1: forall (Espec : OracleKind) FR
+c k h nonce out 
 (data : SixteenByte * SixteenByte * (SixteenByte * SixteenByte))
 (*(Delta := func_tycontext f_core SalsaVarSpecs SalsaFunSpecs) *)
 w x y t,
 @semax CompSpecs Espec (func_tycontext f_core SalsaVarSpecs SalsaFunSpecs) (* Delta*)
   (PROP  ()
    LOCAL  (lvar _t (tarray tuint 4) t; lvar _y (tarray tuint 16) y;
-   lvar _x (tarray tuint 16) x; lvar _w (tarray tuint 16) w; temp _in nonce;
-   temp _out out; temp _c c; temp _k k; temp _h (Vint (Int.repr h)))
-   SEP  (data_at_ Tsh (tarray tuint 16) y;
-   data_at_ Tsh (tarray tuint 4) t; data_at_ Tsh (tarray tuint 16) x;
-   data_at_ Tsh (tarray tuint 16) w; CoreInSEP data (nonce, c, k);
-   data_at Tsh (tarray tuchar 64) OUT out))
+           lvar _x (tarray tuint 16) x; lvar _w (tarray tuint 16) w; temp _in nonce;
+           temp _out out; temp _c c; temp _k k; temp _h (Vint (Int.repr h)))
+   SEP  (FR; data_at_ Tsh (tarray tuint 16) x;
+         CoreInSEP data (nonce, c, k)))
   (Ssequence
     (Sset _i (Econst_int (Int.repr 0) tint))
     (Sloop
@@ -145,12 +143,10 @@ PROP  ()
    lvar _y (tarray tuint 16) y; lvar _x (tarray tuint 16) x;
    lvar _w (tarray tuint 16) w; temp _in nonce; temp _out out; temp _c c;
    temp _k k; temp _h (Vint (Int.repr h)))
-   SEP  (data_at_ Tsh (tarray tuint 16) y;
-   data_at_ Tsh (tarray tuint 4) t;
-   EX  l : list val,
-     !!X_content data 4 l && data_at Tsh (tarray tuint 16) l x;
-   data_at_ Tsh (tarray tuint 16) w; CoreInSEP data (nonce, c, k);
-   data_at Tsh (tarray tuchar 64) OUT out))).
+   SEP  (FR; 
+         EX  l : list val, !!X_content data 4 l && 
+                 data_at Tsh (tarray tuint 16) l x;
+         CoreInSEP data (nonce, c, k)))).
 Proof. intros. abbreviate_semax.
 Time forward_for_simple_bound 4 (EX i:Z, 
    PROP  ()
@@ -158,29 +154,30 @@ Time forward_for_simple_bound 4 (EX i:Z,
    lvar _t (tarray tuint 4) t; lvar _y (tarray tuint 16) y;
    lvar _x (tarray tuint 16) x; lvar _w (tarray tuint 16) w; temp _in nonce;
    temp _out out; temp _c c; temp _k k; temp _h (Vint (Int.repr h)))
-   SEP  (data_at_ Tsh (tarray tuint 16) y;
-   data_at_ Tsh (tarray tuint 4) t;
-   EX l:_, !!(X_content data i l) && data_at Tsh (tarray tuint 16) l x;
-   data_at_ Tsh (tarray tuint 16) w; CoreInSEP data (nonce, c, k);
-   data_at Tsh (tarray tuchar 64) OUT out)). (*2.1*)
-{ Exists (list_repeat 16 Vundef). Time entailer!. (*4.2*) }
+   SEP  (FR; 
+         EX l:_, !!(X_content data i l) && data_at Tsh (tarray tuint 16) l x;
+         CoreInSEP data (nonce, c, k))). (*0.8 versus 2.1*)
+{ Exists (list_repeat 16 Vundef). Time entailer!. (*1.3 versus 4.2*) }
 { rename H into I.
  
   destruct data as ((Nonce, C), Key). unfold CoreInSEP.
   unfold SByte at 2. Intros X0; rename H into X0cont.
 
+  freeze [0;2;4] FR1.
+  freeze [0;1] FR2.
+
   assert (C16:= SixteenByte2ValList_Zlength C).
   remember (SplitSelect16Q C i) as FB; destruct FB as (Front, Back).
-  Time assert_PROP (isptr c /\ field_compatible (Tarray tuchar 16 noattr) [] c) as FCc by entailer!. (*3.7*)
+  Time assert_PROP (isptr c /\ field_compatible (Tarray tuchar 16 noattr) [] c) as FCc by entailer!. (*2.1 versus 3.7*)
   destruct FCc as [Pc FC]; apply isptrD in Pc; destruct Pc as [cb [coff CP]]; rewrite CP in *.
   destruct (Select_SplitSelect16Q_Zlength _ _ _ _ HeqFB I) as [FL _].
-
+ 
   rewrite (split3_data_at_Tarray_tuchar Tsh 16 (Zlength (QuadChunks2ValList Front)) 
         (Zlength (QuadChunks2ValList Front) + Zlength (QuadChunks2ValList [Select16Q C i])));
     repeat rewrite QuadChunk2ValList_ZLength;
     try rewrite FL; try rewrite <- C1; try rewrite Zlength_cons, Zlength_nil; try solve[simpl; omega].
   rewrite Zminus_plus. change (Z.succ 0) with 1. repeat rewrite Z.mul_1_r.
-  Time normalize.  (*2.8*)
+  Time normalize. (*2 versus 2.8*) 
   rewrite (Select_SplitSelect16Q C i _ _ HeqFB) at 2.
   rewrite field_address0_offset by auto with field_compatible.
   rewrite field_address0_offset by auto with field_compatible. simpl.  
@@ -189,12 +186,16 @@ Time forward_for_simple_bound 4 (EX i:Z,
     repeat rewrite QuadChunk2ValList_ZLength; repeat rewrite FL. 
     2: omega.
   rewrite Zminus_diag. rewrite Z.add_simpl_l. repeat rewrite Z.mul_1_l.
+
+  freeze [0;2;3] FR3.
   rewrite (sublist0_app1 4), (sublist_same 0 4); try rewrite <- QuadByteValList_ZLength; try omega.
 
   (*Issue this is where the call fails if we use abbreviation Delta := ... in the statement of the lemma*)
-  Time forward_call (Vptr cb (Int.add coff (Int.repr (4 * i))), Select16Q C i). (*16.3*)
+  Time forward_call (offset_val (Int.repr (4 * i)) (Vptr cb coff), Select16Q C i). (*3.4 versus 15.4*)
+  (*{ goal automatically discharged versus 4.2 }*)
 
   Intros pat; subst pat; simpl.
+  thaw FR3.  
   apply semax_pre with (P':=
   (PROP  ()
    LOCAL  ( temp _aux (Vint (littleendian (Select16Q C i)));
@@ -203,47 +204,43 @@ Time forward_for_simple_bound 4 (EX i:Z,
    lvar _x (tarray tuint 16) x; lvar _w (tarray tuint 16) w; temp _in nonce;
    temp _out out; temp _c c; temp _k k; temp _h (Vint (Int.repr h)))
    SEP 
-   (data_at Tsh (Tarray tuchar 16 noattr) (SixteenByte2ValList C) c;
-   SByte Nonce nonce;
-   ThirtyTwoByte Key k;
-   data_at_ Tsh (tarray tuint 16) y; data_at_ Tsh (tarray tuint 4) t;
-   data_at Tsh (tarray tuint 16) X0 x;
-   data_at_ Tsh (tarray tuint 16) w; 
-   data_at Tsh (tarray tuchar 64) OUT out))). 
+   (FRZL FR2; data_at Tsh (Tarray tuchar 16 noattr) (SixteenByte2ValList C) c))). 
   { rewrite (Select_SplitSelect16Q C i _ _ HeqFB). unfold QByte.
-    rewrite (split3_data_at_Tarray_tuchar Tsh 16 (Zlength (QuadChunks2ValList Front)) (4+Zlength (QuadChunks2ValList Front))); trivial;
+    rewrite (split3_data_at_Tarray_tuchar Tsh 16 (Zlength (QuadChunks2ValList Front)) (Zlength (QuadChunks2ValList Front)+4)); trivial;
     repeat rewrite Zlength_app; 
     repeat rewrite QuadChunk2ValList_ZLength;
 (*    repeat rewrite FL; try rewrite BL; *)
     try rewrite <- QuadByteValList_ZLength; try rewrite Z.mul_1_r; try omega.
      2: destruct (Select_SplitSelect16Q_Zlength _ _ _ _ HeqFB I) as [_ BL]; rewrite FL, BL; omega.
-    autorewrite with sublist.
-    Time entailer!. (*12.5*) 
-    rewrite sublist_app2; repeat rewrite QuadChunk2ValList_ZLength; repeat rewrite FL; try omega.
-    repeat rewrite Z.add_simpl_l, app_nil_r.
+    autorewrite with sublist. 
+    rewrite CP in *. 
     rewrite field_address0_offset by auto with field_compatible.
-    rewrite field_address0_offset by auto with field_compatible. simpl.
-    repeat rewrite Z.mul_1_l. 
-    rewrite sublist_app2; try rewrite <- QuadByteValList_ZLength; try omega.
-    rewrite sublist_app2; try rewrite  QuadChunk2ValList_ZLength; try omega.
-    rewrite sublist_app1; try rewrite <- QuadByteValList_ZLength; try omega.
-    rewrite sublist_app2; try rewrite  QuadChunk2ValList_ZLength; try omega.
-    rewrite sublist_app2; try rewrite <- QuadByteValList_ZLength; try omega.
-    repeat rewrite Zminus_diag. rewrite Z.add_simpl_r.
-    apply sepcon_derives.
-      rewrite sublist_same; try rewrite <- QuadByteValList_ZLength; try omega. cancel.
-    repeat rewrite Zminus_diag. rewrite Z.add_comm. cancel. }
+    rewrite field_address0_offset by auto with field_compatible.
+    Time entailer!. (*7.8*)
+    rewrite app_nil_r.
+    apply sepcon_derives. autorewrite with sublist.
+      rewrite sublist_app2; repeat rewrite QuadChunk2ValList_ZLength; repeat rewrite FL; try omega.
+      repeat rewrite Zminus_diag. rewrite Z.add_simpl_l.
+      rewrite sublist_app1; try rewrite <- QuadByteValList_ZLength; try omega.
+      rewrite sublist_same; try rewrite <- QuadByteValList_ZLength; try omega. trivial.
+    rewrite sublist_app2; repeat rewrite QuadChunk2ValList_ZLength; repeat rewrite FL; try omega.
+    repeat rewrite Z.add_simpl_l, app_nil_r in *. trivial. }
 
   (*Store into x[...]*)
-  Transparent firstn.
-  Time forward. (*9.8*)
+  thaw FR2. 
+  freeze [0;2] FR4.
+  Time forward. (*2.5 versus 5.8*)
 
   destruct Key as [Key1 Key2]. 
+  thaw FR4. 
+  Opaque ThirtyTwoByte. 
+  thaw FR1.
+  freeze [0;1;3;4] FR5. Transparent ThirtyTwoByte.
   Time assert_PROP (field_compatible (Tarray tuchar 32 noattr) [] k) as FCK32 
-    by (unfold ThirtyTwoByte; entailer!). (*5.1*)
-  erewrite ThirtyTwoByte_split16; trivial. unfold SByte at 2.
-  Time normalize. (*3.8*)
-  Time assert_PROP (field_compatible (Tarray tuchar 16 noattr) [] k) as FCK16 by entailer!. (*4.7*)
+    by (unfold ThirtyTwoByte; entailer!). (*1.1 versus 5.1*) 
+  erewrite ThirtyTwoByte_split16; trivial. unfold SByte at 1. Opaque ThirtyTwoByte.
+  Time normalize. (*2.2 versus 3.8*)
+  Time assert_PROP (field_compatible (Tarray tuchar 16 noattr) [] k) as FCK16 by entailer!. (*1 versus 4.7*)
   assert (K1_16:= SixteenByte2ValList_Zlength Key1).
   remember (SplitSelect16Q Key1 i) as FB_K1. destruct FB_K1 as (Front_K1, Back_K1).
 (*  rewrite (Select_SplitSelect16Q Key1 i _ _ HeqFB_K1).*)
@@ -252,17 +249,18 @@ Time forward_for_simple_bound 4 (EX i:Z,
     2: assumption. 
     2: rewrite <- (Select_SplitSelect16Q Key1 i _ _ HeqFB_K1), <- K1_16; trivial.
     2: rewrite <- (Select_SplitSelect16Q Key1 i _ _ HeqFB_K1), <- K1_16; cbv; trivial.
-  unfold Select_at. simpl. rewrite app_nil_r.
+  unfold Select_at. simpl. rewrite app_nil_r. flatten_sepcon_in_SEP.
+  freeze [1;2;3] FR6.
   (*assert (FrontBackK1:= (Select_SplitSelect16Q_Zlength _ _ _ _ HeqFB_K1 I)) as [FLK BLK].*)
   rewrite <- QuadByteValList_ZLength. (*rewrite Z.mul_1_l. *)
   rewrite  QuadChunk2ValList_ZLength.
+  destruct (Select_SplitSelect16Q_Zlength _ _ _ _ HeqFB_K1 I) as [FLK _]; rewrite FLK.   
 
   Time forward_call (offset_val (Int.repr (4 * i)) k, 
-                 Select16Q Key1 i). (*22.4*)
-  { destruct (Select_SplitSelect16Q_Zlength _ _ _ _ HeqFB_K1 I) as [FLK _]; rewrite FLK.
-    Time cancel. (*8.7*) }
+                 Select16Q Key1 i). (*8.9 versus 19.5; both were 3-4 secs faster befor tick elimination etc*)
   Intros v; subst v; simpl.
 
+  thaw  FR6.
   apply semax_pre with (P':=
   (PROP  ()
    LOCAL  (temp _aux (Vint (littleendian (Select16Q Key1 i)));
@@ -270,69 +268,56 @@ Time forward_for_simple_bound 4 (EX i:Z,
    lvar _t (tarray tuint 4) t; lvar _y (tarray tuint 16) y;
    lvar _x (tarray tuint 16) x; lvar _w (tarray tuint 16) w; temp _in nonce;
    temp _out out; temp _c c; temp _k k; temp _h (Vint (Int.repr h)))
-   SEP  (ThirtyTwoByte (Key1,Key2) k;
-   data_at Tsh (Tarray tuchar 16 noattr) (SixteenByte2ValList C) c;
-   SByte Nonce nonce; data_at_ Tsh (tarray tuint 16) y;
-   data_at_ Tsh (tarray tuint 4) t;
-   data_at Tsh (tarray tuint 16)
-       (upd_Znth (5 * i) X0
-          (Vint (littleendian (Select16Q C i)))) x;
-   data_at_ Tsh (tarray tuint 16) w;
-   data_at Tsh (tarray tuchar 64) OUT out))). 
-  { erewrite ThirtyTwoByte_split16; trivial. 
-    Time entailer!. (*6.6*)
+   SEP  (FRZL FR5; ThirtyTwoByte (Key1,Key2) k))). 
+  { erewrite ThirtyTwoByte_split16; trivial.
+    repeat rewrite  <- QuadByteValList_ZLength; repeat rewrite QuadChunk2ValList_ZLength.
+    Time entailer!. (*4.4 versus 6.6*)
     unfold SByte. rewrite (Select_SplitSelect16Q _ _ _ _ HeqFB_K1) in *.
-    erewrite Select_Unselect_Tarray_at; try rewrite <- K1_16; try reflexivity; try assumption.
+    erewrite Select_Unselect_Tarray_at with (data:= QuadChunks2ValList Front_K1 ++
+       QuadChunks2ValList [Select16Q Key1 i] ++ QuadChunks2ValList Back_K1); try rewrite <- K1_16; try reflexivity; try assumption.
     unfold QByte, Select_at. simpl. repeat rewrite app_nil_r.
+    unfold Unselect_at. 
     rewrite  QuadChunk2ValList_ZLength.
-    rewrite <- QuadByteValList_ZLength.
-    destruct (Select_SplitSelect16Q_Zlength _ _ _ _ HeqFB_K1 I) as [FLK _]; rewrite FLK; cancel.
+    rewrite <- QuadByteValList_ZLength, FLK. cancel.
     rewrite <- K1_16; trivial. rewrite <- K1_16; cbv; trivial. }
 
   (*Store into x[...]*)
-  Time forward. (* 13.6 SLOW was: 7.8*)
+  thaw FR5.
+  freeze [0;1;2;4] FR6.
+  Time forward. (*2.8 versus 7.8*)
 
   (*Load nonce*)
+  thaw FR6. freeze [0;2;3;4] FR7.
   unfold SByte at 1; simpl.
   assert (N16:= SixteenByte2ValList_Zlength Nonce).
   remember (SplitSelect16Q Nonce i) as FB_N; destruct FB_N as (Front_N, BACK_N).
     rewrite (Select_SplitSelect16Q _ i _ _ HeqFB_N) in *. 
-  Time assert_PROP (field_compatible (Tarray tuchar 16 noattr) [] nonce) as FCN by entailer!. (*6.8*)
+  Time assert_PROP (field_compatible (Tarray tuchar 16 noattr) [] nonce) as FCN by entailer!. (*1.2 versus 6.8*)
   erewrite Select_Unselect_Tarray_at with (d:=nonce); try reflexivity; try assumption.
-  Time normalize. (*5.2*)
+  Time normalize. (*2.4 versus 5.2*)
   2: rewrite <- N16; trivial. 2: rewrite <- N16; cbv; trivial.
+  freeze [1;2] FR8.
   unfold Select_at. simpl. rewrite app_nil_r.
+  rewrite <- QuadByteValList_ZLength. (*rewrite Z.mul_1_l.  simpl.*)
+  rewrite  QuadChunk2ValList_ZLength.
+  destruct (Select_SplitSelect16Q_Zlength _ _ _ _ HeqFB_N I) as [FrontN _]; rewrite FrontN.    
   (*destruct (Select_SplitSelect16Q_Zlength _ _ _ _ HeqFB_N I) as [FrontN BackN].*)
 
   Time forward_call (offset_val (Int.repr (4 * i)) nonce, 
-                 Select16Q Nonce i). (*22.8 SLOW*)
-  { rewrite <- QuadByteValList_ZLength. (*rewrite Z.mul_1_l.  simpl.*)
-    rewrite  QuadChunk2ValList_ZLength.
-    destruct (Select_SplitSelect16Q_Zlength _ _ _ _ HeqFB_N I) as [FrontN _]; rewrite FrontN.
-    Time cancel. (*4.2*)}
+                 Select16Q Nonce i). (*11.7 versus 21*)
   
   Intros v; subst v; simpl.
+  thaw FR8.
   apply semax_pre with (P':=
   (PROP  ()
-   LOCAL  ((*temp _aux v; *)
+   LOCAL  (
    temp _aux (Vint (littleendian (Select16Q Nonce i)));
    temp _i (Vint (Int.repr i));
    lvar _t (tarray tuint 4) t; lvar _y (tarray tuint 16) y;
    lvar _x (tarray tuint 16) x; lvar _w (tarray tuint 16) w; temp _in nonce;
    temp _out out; temp _c c; temp _k k; temp _h (Vint (Int.repr h)))
-   SEP 
-   (data_at Tsh (Tarray tuchar 16 noattr) (SixteenByte2ValList C) c;
-   SByte Nonce nonce;
-   ThirtyTwoByte (Key1,Key2) k;
-   data_at_ Tsh (tarray tuint 16) y; data_at_ Tsh (tarray tuint 4) t;
-   data_at Tsh (tarray tuint 16)
-       (upd_Znth (1 + i)
-          (upd_Znth (5 * i) X0
-             (Vint (littleendian (Select16Q C i))))
-          (Vint (littleendian (Select16Q Key1 i)))) x;
-   data_at_ Tsh (tarray tuint 16) w;
-   data_at Tsh (tarray tuchar 64) OUT out (*data_block Tsh OUT out)*)))). 
-  { Time entailer!. (*9.5*)
+   SEP (FRZL FR7; SByte Nonce nonce))). 
+  { Time entailer!. (*1.8 versus 9.5*)
    
     (*Apart from the unfold QByte, the next 9 lines are exactly as above, inside the function call*)
     unfold SByte. rewrite (Select_SplitSelect16Q _ _ _ _ HeqFB_N) in *.
@@ -340,37 +325,41 @@ Time forward_for_simple_bound 4 (EX i:Z,
     unfold QByte, Select_at. simpl. rewrite app_nil_r. cancel.
     rewrite <- QuadByteValList_ZLength. (*rewrite Z.mul_1_l. simpl.*)
     rewrite  QuadChunk2ValList_ZLength.
-    destruct (Select_SplitSelect16Q_Zlength _ _ _ _ HeqFB_N I) as [FrontN _]; rewrite FrontN; cancel. 
-
+    (*destruct (Select_SplitSelect16Q_Zlength _ _ _ _ HeqFB_N I) as [FrontN _]; rewrite FrontN; cancel.*) 
+    rewrite FrontN; cancel.
     rewrite <- N16; trivial. rewrite <- N16; cbv; trivial. }
 
   (*Store into x[...]*)
-  Time forward. (*15.7 SLOW; was 8.8 fore teick-eleimination*)
+  thaw FR7. freeze [0;1;2;4] FR9.
+  Time forward. (*3.2 versus 15*)
 
   (*Load Key2*)
-  rewrite ThirtyTwoByte_split16; trivial. Time normalize. (*4.1*)
+  thaw FR9. freeze [0;1;3;4] FR10.
+  rewrite ThirtyTwoByte_split16; trivial. Time normalize. (*2.2 versus 4.1*)
   unfold SByte at 2.
   assert (K2_16:= SixteenByte2ValList_Zlength Key2).
   Time assert_PROP (isptr k/\ field_compatible (Tarray tuchar 16 noattr) [] (offset_val (Int.repr 16) k))
-     as Pk_FCK2 by entailer!. (*6.6*)
+     as Pk_FCK2 by entailer!. (*1.4 versus 6.6*)
   destruct Pk_FCK2 as [Pk FCK2]; apply isptrD in Pk; destruct Pk as [kb [koff Pk]]; rewrite Pk in *. 
   remember (SplitSelect16Q Key2 i) as FB_K2; destruct FB_K2 as (Front_K2, Back_K2).
   rewrite (Select_SplitSelect16Q _ i _ _ HeqFB_K2) in *. 
   erewrite Select_Unselect_Tarray_at with (d:=offset_val (Int.repr 16) (Vptr kb koff)); try reflexivity; try assumption.
   2: rewrite <- K2_16; trivial. 2: rewrite <- K2_16; cbv; trivial.
-  Time normalize. (*6.6*)
+  Time normalize. (*1.4 versus 6.6*)
   unfold Select_at. simpl. rewrite app_nil_r.
   repeat rewrite <- QuadByteValList_ZLength.
   rewrite QuadChunk2ValList_ZLength.
 
+  freeze [1;2;3] FR11.
   Time forward_call (Vptr kb
            (Int.add (Int.add koff (Int.repr 16)) (Int.repr (4 * Zlength Front_K2))),
-                 Select16Q Key2 i). (*26 SLOW*)
+                 Select16Q Key2 i). (*8.9 versus 20.5 SLOW*)
   { destruct (Select_SplitSelect16Q_Zlength _ _ _ _ HeqFB_K2 I) as [FK2 _]; rewrite FK2.
      apply prop_right; simpl. do 2 rewrite Int.mul_commut, Int.mul_one. rewrite mul_repr. 
      trivial. }
 
   Intros v; subst v; simpl.
+  thaw FR11.
   apply semax_pre with (P':=
   (PROP  ()
    LOCAL  (
@@ -379,21 +368,9 @@ Time forward_for_simple_bound 4 (EX i:Z,
    lvar _t (tarray tuint 4) t; lvar _y (tarray tuint 16) y;
    lvar _x (tarray tuint 16) x; lvar _w (tarray tuint 16) w; temp _in nonce;
    temp _out out; temp _c c; temp _k k; temp _h (Vint (Int.repr h)))
-   SEP  (ThirtyTwoByte (Key1,Key2) k;
-   data_at Tsh (Tarray tuchar 16 noattr) (SixteenByte2ValList C) c;
-   SByte Nonce nonce; data_at_ Tsh (tarray tuint 16) y;
-   data_at_ Tsh (tarray tuint 4) t;
-   data_at Tsh (tarray tuint 16)
-       (upd_Znth (6 + i)
-          (upd_Znth (1 + i)
-             (upd_Znth (5 * i) X0
-                (Vint (littleendian (Select16Q C i))))
-             (Vint (littleendian (Select16Q Key1 i))))
-          (Vint (littleendian (Select16Q Nonce i)))) x;
-   data_at_ Tsh (tarray tuint 16) w; 
-   data_at Tsh (tarray tuchar 64) OUT out))). 
-  { erewrite ThirtyTwoByte_split16. 2: rewrite Pk; assumption.
-    Time entailer!. (*7.4*)
+   SEP  (FRZL FR10; ThirtyTwoByte (Key1,Key2) k))). 
+  { rewrite Pk in *. erewrite ThirtyTwoByte_split16 by assumption.
+    Time entailer!. (*4.6 versus 7.4*)
    
     (*Apart from the unfold QByte, the next 9 lines are exactly as above, inside the function call*)
     unfold SByte. rewrite (Select_SplitSelect16Q _ _ _ _ HeqFB_K2) in *.
@@ -406,8 +383,10 @@ Time forward_for_simple_bound 4 (EX i:Z,
     rewrite <- K2_16. cbv; trivial. }
 
   (*Store into x[...]*)
-  Time forward. (*14.7 SLOW; was 10.6*) clear FL.
-  Time entailer!. (*11 SLOW*) 
+  thaw FR10. freeze [0;1;2;4] FR11.
+  Time forward. (*4.3 versus 14.7*) clear FL.
+
+  Time entailer!. (*4.9 versus 16.1*) 
   Exists (upd_Znth (11 + i)
      (upd_Znth (6 + i)
         (upd_Znth (1 + i)
@@ -416,11 +395,13 @@ Time forward_for_simple_bound 4 (EX i:Z,
            (Vint (littleendian (Select16Q Key1 i))))
         (Vint (littleendian (Select16Q Nonce i))))
      (Vint (littleendian (Select16Q Key2 i)))).
-  Time entailer!. (*3.9*) 
+  Time entailer!. (*2 versus 2.8  - penalty*) 
     clear - X0cont I. apply XcontUpdate; trivial.
-  apply derives_refl. }
+
+  thaw FR11. Time cancel. (*0.3*) apply derives_refl.
+ }
 apply derives_refl.
-Time Qed. (*250*)
+Time Qed. (*78 versus 283*)
 
 Lemma XX data l: X_content data 4 l -> 
   l = match data with ((Nonce, C), (Key1, Key2)) =>
