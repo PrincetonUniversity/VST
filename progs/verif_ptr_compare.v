@@ -29,15 +29,4 @@ name p' _p.
 name q' _q.
 forward.
 entailer!.
-make_Vptr p'. make_Vptr q'.
-split. unfold sem_cmp_pp.
-simpl. if_tac. simpl. destruct (Int.eq i i0); simpl; auto.
-simpl. auto.
-if_tac; simpl; auto. inv H2. unfold sem_cmp_pp; simpl.
-rewrite if_true by auto. rewrite Int.eq_true. reflexivity.
-unfold sem_cmp_pp. simpl.
-if_tac. rewrite Int.eq_false by congruence.
-reflexivity. reflexivity.
-apply andp_right; auto.
-auto 50 with valid_pointer.
 Qed.

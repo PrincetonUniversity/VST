@@ -91,19 +91,6 @@ apply andp_derives; auto.
 eapply derives_trans.
 apply andp_derives; apply typecheck_expr_sound; auto.
 normalize. split; auto.
-(*
-apply andp_derives; auto.
-unfold local, lift1.
-apply prop_derives.
-unfold_lift.
-intros [? [? [? [? ?]]]].
-split; auto.
-clear H6.
-unfold tc_expr in H2,H3.
-apply expr_lemmas.typecheck_expr_sound in H2; auto.
-apply expr_lemmas.typecheck_expr_sound in H3; auto.
-rewrite H0 in *; rewrite H1 in *.
-*)
 rewrite H1,H0 in *.
 clear H5 H2 H0 H1.
 destruct (eval_expr e1 rho); inv H6.
@@ -309,9 +296,43 @@ match goal with
 | |- _ => idtac
 end.
 
-(*
-Goal forall i, force_signed_int (Vint i) = Int.signed i.
+Definition compare_pp op p q :=
+   match p with
+            | Vptr b z =>
+               match q with
+               | Vptr b' z' => if eq_block b b' 
+                              then Vint (if Int.cmpu op z z' then Int.one else Int.zero)
+                              else Vundef
+               | _ => Vundef
+               end
+             | _ => Vundef
+   end.
+
+Lemma force_sem_cmp_pp: 
+  forall op p q, 
+  isptr p -> isptr q -> 
+  force_val (sem_cmp_pp op true2 p q) = 
+   match op with
+   | Ceq => Vint (if eq_dec p q then Int.one else Int.zero)
+   | Cne => Vint (if eq_dec p q then Int.zero else Int.one)
+   | _ => compare_pp op p q
+   end.
+Proof.
 intros.
-simpl.
-Abort.
-*)
+destruct p; try contradiction.
+destruct q; try contradiction.
+unfold sem_cmp_pp.
+destruct op; simpl; auto.
+if_tac. if_tac. inv H2. rewrite Int.eq_true; reflexivity.
+rewrite Int.eq_false by congruence; reflexivity.
+if_tac. congruence. reflexivity.
+if_tac. if_tac. inv H2. rewrite Int.eq_true by auto. reflexivity.
+rewrite Int.eq_false by congruence; reflexivity.
+rewrite if_false by congruence. reflexivity.
+if_tac; [destruct (Int.ltu i i0); reflexivity | reflexivity].
+if_tac; [destruct (Int.ltu i0 i); reflexivity | reflexivity].
+if_tac; [destruct (Int.ltu i0 i); reflexivity | reflexivity].
+if_tac; [destruct (Int.ltu i i0); reflexivity | reflexivity].
+Qed.
+
+Hint Rewrite force_sem_cmp_pp using (now auto) : norm.
