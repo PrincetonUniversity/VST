@@ -1056,7 +1056,6 @@ Proof. intros. abbreviate_semax.
    freeze [0;2] FR3.
    eapply semax_post. 2: apply (array_copy2 Espec (FRZL FR3)); trivial.
    intros ek vl. apply andp_left2.
-   unfold POSTCONDITION, abbreviate. 
    apply assert_lemmas.normal_ret_assert_derives'.
    thaw FR3. Intros l. Exists l. Time entailer!. (*8*)   
 Time Qed. (*13.3*)

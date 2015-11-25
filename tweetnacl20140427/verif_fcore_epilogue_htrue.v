@@ -636,7 +636,8 @@ Proof. intros. simpl.
 Qed.
      Transparent Z.add. Transparent Z.mul.
 
-Definition HTruePostCond (FR:mpred) t y x w nonce out c k h (xs:list int) ys Nonce C K OUT := 
+Definition HTruePostCond (FR:mpred) t y x w nonce out c k h (xs:list int) ys data OUT := 
+match data with ((Nonce, C), K) =>
 (EX intsums:_,
   PROP (Zlength intsums = 16 /\
         (forall j, 0 <= j < 16 -> 
@@ -648,15 +649,16 @@ Definition HTruePostCond (FR:mpred) t y x w nonce out c k h (xs:list int) ys Non
    lvar _y (tarray tuint 16) y; lvar _x (tarray tuint 16) x;
    lvar _w (tarray tuint 16) w; temp _in nonce; temp _out out; temp _c c;
    temp _k k; temp _h (Vint (Int.repr h)))
-  SEP (FR; CoreInSEP (Nonce, C, K) (nonce, c, k); (*SByte Nonce nonce; SByte C c;
+  SEP (FR; CoreInSEP data (nonce, c, k); (*SByte Nonce nonce; SByte C c;
        ThirtyTwoByte K k;*)
        data_at Tsh (tarray tuint 16)
          (map Vint (hPosLoop2 4 intsums C Nonce)) x;
        data_at Tsh (tarray tuint 16) (map Vint ys) y;
        data_at Tsh (tarray tuchar 64)
-          (hPosLoop3 4 (hPosLoop2 4 intsums C Nonce) OUT) out)).
+          (hPosLoop3 4 (hPosLoop2 4 intsums C Nonce) OUT) out))
+end.
 
-Lemma verif_fcore_epilogue_htrue Espec (FR:mpred) t y x w nonce out c k h OUT xs ys Nonce C K:
+Lemma verif_fcore_epilogue_htrue Espec (FR:mpred) t y x w nonce out c k h OUT xs ys data:
 @semax CompSpecs Espec
   (initialized_list [_i] (func_tycontext f_core SalsaVarSpecs SalsaFunSpecs))
   (PROP  ()
@@ -665,7 +667,7 @@ Lemma verif_fcore_epilogue_htrue Espec (FR:mpred) t y x w nonce out c k h OUT xs
    lvar _w (tarray tuint 16) w; temp _in nonce; temp _out out; temp _c c;
    temp _k k; temp _h (Vint (Int.repr h)))
    SEP  (FR; data_at Tsh (tarray tuchar 64) OUT out;
-         CoreInSEP (Nonce, C, K) (nonce, c, k);
+         CoreInSEP data (nonce, c, k);
          data_at Tsh (tarray tuint 16) (map Vint ys) y;
          data_at Tsh (tarray tuint 16) (map Vint xs) x))
         (Ssequence
@@ -817,7 +819,7 @@ Lemma verif_fcore_epilogue_htrue Espec (FR:mpred) t y x w nonce out c k h OUT xs
                 (Sset _i
                   (Ebinop Oadd (Etempvar _i tint)
                     (Econst_int (Int.repr 1) tint) tint))))))
-(normal_ret_assert (HTruePostCond FR t y x w nonce out c k h xs ys Nonce C K OUT)).
+(normal_ret_assert (HTruePostCond FR t y x w nonce out c k h xs ys data OUT)).
 Proof. intros.
 (*Lemma semax_normal_ret_assert_frame Espec Delta P L F R c RR: 
       @semax CompSpecs Espec Delta (PROPx P (LOCALx L (SEPx R))) c
@@ -830,11 +832,12 @@ Intros sums.
 destruct H as [SL [intsums [? HSums1]]]; subst sums. rewrite Zlength_map in SL.
 drop_LOCAL 0%nat.  
 thaw FR1. freeze [0;1;3] FR2.
+destruct data as ((Nonce, C), K).
 forward_seq. apply HTrue_loop2.
 drop_LOCAL 0%nat.  
 thaw FR2. freeze [0;2;3] FR3.
 eapply semax_post. 2: apply HTrue_loop3.
-intros ? ?. apply andp_left2. unfold POSTCONDITION, abbreviate.
+intros ? ?. apply andp_left2. 
 apply normal_ret_assert_derives'.
 Exists intsums.
 clear - HSums1 SL.
