@@ -69,6 +69,17 @@ Proof.
   eapply nested_reptype_structlist_lemma; eauto.
 Qed.
 
+Lemma reptype_Tunion_JMeq_constr0: forall t gfs id a (v: reptype (nested_field_type t gfs)),
+  legal_nested_field t gfs ->
+  nested_field_type t gfs = Tunion id a ->
+  {v' : nested_reptype_unionlist t gfs (co_members (get_co id)) |
+   JMeq v v'}.
+Proof.
+  intros.
+  apply JMeq_sigT.
+  eapply nested_reptype_unionlist_lemma; eauto.
+Qed.
+
 (* This lemma is mainly dealing with all JMeq subtle issues and combine 3 ramif lemmas together. *)
 Lemma gfield_ramif: forall sh t gfs gf v v0 p,
   JMeq (proj_gfield_reptype (nested_field_type t gfs) gf v) v0 ->
@@ -199,7 +210,59 @@ Proof.
       forget (unfold_reptype v) as v''; clear v.
       cbv iota beta in v''.
       rewrite fold_reptype_JMeq.
-Admitted.
+      apply upd_compact_prod_JMeq; auto.
+      intros.
+      rewrite nested_field_type_ind, H2.
+      reflexivity.
+  + pose proof H0.
+    rewrite field_compatible_cons in H1.
+    (* A Coq bug here. I cannot do destruct eqn in H1. So using next two lines instead. *)
+    remember (nested_field_type t gfs) as t0 eqn:H2 in H1.
+    destruct t0; try tauto; symmetry in H2.
+    destruct H1.
+    destruct (reptype_Tunion_JMeq_constr0 t gfs i0 a v) as [v' ?H]; auto.
+    erewrite field_at_Tunion by eauto.
+    eapply derives_trans; [eapply nested_ufieldlist_at_ramif; eauto |].
+    apply sepcon_derives.
+    - apply derives_refl'.
+      f_equal.
+      apply JMeq_eq.
+      etransitivity; [| exact H].
+      clear v0 H.
+      revert v H4; rewrite H2; intros.
+      unfold proj_gfield_reptype.
+      rewrite <- (unfold_reptype_JMeq _ v) in H4.
+      forget (unfold_reptype v) as v''; clear v.
+      cbv iota beta in v''.
+      unfold reptype_structlist in v''.
+      unfold nested_reptype_unionlist in v'.
+      apply (proj_compact_sum_JMeq' _ (i, field_type i (co_members (get_co i0)))
+             _
+             (fun it => reptype (nested_field_type t (gfs UDOT fst it)))
+             (fun it => reptype (field_type (fst it) (co_members (get_co i0))))); auto.
+      * intros.
+        rewrite nested_field_type_ind, H2; reflexivity.
+      * rewrite nested_field_type_ind, H2; reflexivity.
+    - clear v0 H.
+      apply allp_derives; intro v0.
+      apply wand_derives; auto.
+      erewrite field_at_Tunion; [apply derives_refl | eauto |].
+      set (v0' := eq_rect_r reptype v0 (eq_sym (nested_field_type_ind t (gfs UDOT i)))).
+      assert (JMeq v0' v0) by apply eq_rect_r_JMeq.
+      clearbody v0'.
+      revert v v0' H H4.
+      rewrite H2.
+      unfold gfield_type, upd_gfield_reptype.
+      intros.
+      rewrite <- (unfold_reptype_JMeq _ v) in H4.
+      forget (unfold_reptype v) as v''; clear v.
+      cbv iota beta in v''.
+      rewrite fold_reptype_JMeq.
+      apply upd_compact_sum_JMeq; auto.
+      intros.
+      rewrite nested_field_type_ind, H2.
+      reflexivity.
+Qed.
 
 Lemma nested_field_ramif: forall sh t gfs0 gfs1 v v0 p,
   JMeq (proj_reptype (nested_field_type t gfs0) gfs1 v) v0 ->

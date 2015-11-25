@@ -205,7 +205,7 @@ Proof.
   autorewrite with subst norm1 norm2 in H; normalize in H; normalize.  
 Qed.
 
-Lemma semax_max_path_field_store_nth:
+Lemma semax_max_path_field_store_nth_ram:
   forall {Espec: OracleKind},
     forall n Delta sh P Q R (e1 e2 : expr) Pre Post
       (t_root: type) (efs: list efield) (gfs: list gfield) (tts: list type)

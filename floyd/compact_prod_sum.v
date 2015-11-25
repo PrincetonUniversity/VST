@@ -1,5 +1,5 @@
-Require Import List.
-Require Import Coqlib msl.Coqlib2 floyd.coqlib3.
+Require Import Coq.Lists.List.
+Require Import compcert.lib.Coqlib msl.Coqlib2 floyd.coqlib3.
 Require Import floyd.jmeq_lemmas.
 
 Fixpoint compact_prod (T: list Type): Type :=
@@ -48,6 +48,42 @@ Proof.
       exact (v0, (snd v)).
     - exact ((fst v), IHl a0 (snd v)).
 Defined.
+
+Lemma compact_prod_eq: forall {A} {F1 F2} (l: list A), (forall a, In a l -> F1 a = F2 a) -> compact_prod (map F1 l) = compact_prod (map F2 l).
+Proof.
+  intros.
+  destruct l; auto.
+  revert a H; induction l; intros.
+  + simpl.
+    apply H.
+    simpl; auto.
+  + simpl.
+    f_equal.
+    - apply H.
+      simpl; auto.
+    - apply IHl.
+      intros.
+      apply H.
+      simpl; auto.
+Qed.
+
+Lemma compact_sum_eq: forall {A} {F1 F2} (l: list A), (forall a, In a l -> F1 a = F2 a) -> compact_sum (map F1 l) = compact_sum (map F2 l).
+Proof.
+  intros.
+  destruct l; auto.
+  revert a H; induction l; intros.
+  + simpl.
+    apply H.
+    simpl; auto.
+  + simpl.
+    f_equal.
+    - apply H.
+      simpl; auto.
+    - apply IHl.
+      intros.
+      apply H.
+      simpl; auto.
+Qed.
 
 Lemma aux0: forall {A} {a a0: A}, In a (a0 :: nil) -> a <> a0 -> False.
 Proof.
@@ -265,6 +301,59 @@ Proof.
       * apply JMeq_snd; auto.
 Qed.
 
+Lemma proj_compact_sum_JMeq': forall A i (l: list A) F1 F2 d1 d2 (v1: compact_sum (map F1 l)) (v2: compact_sum (map F2 l)) H,
+  (forall i, In i l -> F1 i = F2 i) ->
+  JMeq d1 d2 ->
+  JMeq v1 v2 ->
+  JMeq (proj_compact_sum i l v1 d1 H) (proj_compact_sum i l v2 d2 H).
+Proof.
+Admitted.
+(* This proof script may cause Universe inconsistency. *)
+(* Hopefully, this problem will be solved in Coq8.5. *)
+(*
+  intros.
+  destruct l as [| a0 l]; [simpl in H1; tauto |].
+  revert a0 v1 v2 H0 H1 H2; induction l as [| a1 l]; intros.
+  + simpl in H1 |- *.
+    destruct (H i a0); [| tauto].
+    subst.
+    unfold eq_rect_r; rewrite <- !eq_rect_eq.
+    auto.
+  + assert (F1 a0 = F2 a0).
+    Focus 1. {
+      clear - H0.
+      apply H0.
+      left; simpl; auto.
+    } Unfocus.
+    assert (compact_sum (map F1 (a1 :: l)) = compact_sum (map F2 (a1 :: l))).
+    Focus 1. {
+      f_equal.
+      clear - H0.
+      apply list_map_exten.
+      intros i ?H.
+      specialize (H0 i).
+      spec H0; [right; auto |].
+      symmetry; auto.
+    } Unfocus.
+    simpl in H2.
+    solve_JMeq_sumtype H2.
+    - simpl in H1 |- *.
+      destruct (H i a0); [| tauto].
+      subst.
+      unfold eq_rect_r; rewrite <- !eq_rect_eq.
+      auto.
+    - simpl in H1 |- *.
+      destruct (H i a0).
+      * subst i.
+        unfold eq_rect_r; rewrite <- !eq_rect_eq; auto.
+      * apply (IHl a1 c c0); auto.
+        clear - H0.
+        intros ?i ?.
+        apply H0.
+        right; auto.
+Qed.
+*)
+
 Lemma proj_compact_sum_JMeq: forall A i (l: list A) F1 F2 d1 d2 (v1: compact_sum (map F1 l)) (v2: compact_sum (map F2 l)) H,
   (forall i, In i l -> F1 i = F2 i) ->
   compact_sum_inj v1 i H ->
@@ -348,6 +437,97 @@ Proof.
       apply (IHl a1 c c0); auto.
 Qed.
 
+Lemma upd_compact_prod_JMeq: forall A i (l: list A) F1 F2 d1 d2 (v1: compact_prod (map F1 l)) (v2: compact_prod (map F2 l)) H,
+  (forall i, In i l -> F1 i = F2 i) ->
+  JMeq d1 d2 ->
+  JMeq v1 v2 ->
+  JMeq (upd_compact_prod l v1 i d1 H) (upd_compact_prod l v2 i d2 H).
+Proof.
+Admitted.
+(* This proof script may cause Universe inconsistency. *)
+(* Hopefully, this problem will be solved in Coq8.5. *)
+(*
+  intros.
+  destruct l as [| a0 l]; [simpl; auto |].
+  revert a0 v1 v2 H2 H0; induction l as [| a1 l]; intros.
+  + simpl.
+    destruct (H i a0); auto.
+    subst i.
+    unfold eq_rect_r.
+    rewrite <- !eq_rect_eq.
+    auto.
+  + simpl.
+    assert (JMeq (fst v1) (fst v2)).
+    Focus 1. {
+      apply JMeq_fst; auto.
+      + apply H0; simpl; auto.
+      + apply (@compact_prod_eq _ F1 F2 (a1 :: l)).
+        intros.
+        apply H0.
+        simpl; auto.
+    } Unfocus.
+    assert (JMeq (snd v1) (snd v2)).
+    Focus 1. {
+      apply JMeq_snd; auto.
+      + apply H0; simpl; auto.
+      + apply (@compact_prod_eq _ F1 F2 (a1 :: l)).
+        intros.
+        apply H0.
+        simpl; auto.
+    } Unfocus.
+    destruct (H i a0).
+    - subst i.
+      unfold eq_rect_r.
+      rewrite <- !eq_rect_eq.
+      apply JMeq_pair; auto.
+    - apply JMeq_pair; auto.
+      apply IHl; auto.
+      intros; apply H0; simpl; auto.
+Qed.
+*)
+
+Lemma upd_compact_sum_JMeq: forall A i (l: list A) F1 F2 d1 d2 (v1: compact_sum (map F1 l)) (v2: compact_sum (map F2 l)) H,
+  (forall i, In i l -> F1 i = F2 i) ->
+  JMeq d1 d2 ->
+  JMeq v1 v2 ->
+  JMeq (upd_compact_sum l v1 i d1 H) (upd_compact_sum l v2 i d2 H).
+Proof.
+Admitted.
+(*
+  intros.
+  unfold upd_compact_sum.
+  destruct (in_dec H i l) as [?H | ?H]; auto.
+  clear v1 v2 H2.
+  destruct l as [| a0 l]; [simpl; auto |].
+  revert a0 H0 H3; induction l as [| a1 l]; intros.
+  + simpl.
+    destruct (H i a0); [| destruct H3; [congruence | inv i0]].
+    subst i.
+    unfold eq_rect_r.
+    rewrite <- !eq_rect_eq.
+    auto.
+  + simpl.
+    destruct (H i a0).
+    - subst i.
+      unfold eq_rect_r.
+      rewrite <- !eq_rect_eq.
+      apply JMeq_inl; auto.
+      apply (@compact_sum_eq _ F1 F2 (a1 :: l)).
+      intros.
+      apply H0.
+      simpl; auto.
+    - apply JMeq_inr; auto.
+      * apply H0; simpl; auto.
+      * apply (@compact_sum_eq _ F1 F2 (a1 :: l)).
+        intros.
+        apply H0.
+        simpl; auto.
+      * apply IHl.
+        intros.
+        apply H0.
+        simpl; auto.
+Qed.
+*)
 (*
 Require Import floyd.fieldlist.
 

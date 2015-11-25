@@ -69,6 +69,24 @@ Ltac solve_JMeq_sumtype H :=
      |apply JMeq_sumtype_rr in H; auto]
   end.
 
+Lemma JMeq_inl: forall A B C D (x: A) (y: C), A = C -> B = D -> JMeq x y -> @JMeq (A + B) (inl x) (C + D) (inl y).
+Proof.
+  intros.
+  subst.
+  apply JMeq_eq in H1.
+  subst.
+  reflexivity.
+Qed.
+
+Lemma JMeq_inr: forall A B C D (x: B) (y: D), A = C -> B = D -> JMeq x y -> @JMeq (A + B) (inr x) (C + D) (inr y).
+Proof.
+  intros.
+  subst.
+  apply JMeq_eq in H1.
+  subst.
+  reflexivity.
+Qed.
+
 Lemma JMeq_fst: forall A B C D (x: A*B) (y: C*D), A = C -> B = D -> JMeq x y -> JMeq (fst x) (fst y).
 Proof.
   intros.
