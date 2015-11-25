@@ -790,6 +790,14 @@ Proof.
   + apply sepcon_TT.
 Qed.
 
+Lemma not_prop_right: forall {A} {NA: NatDed A} (P: A) (Q: Prop), (Q -> derives P FF) -> derives P (prop (not Q)).
+Proof.
+  intros.
+  eapply derives_trans; [| apply prop_imp_prop_left].
+  apply imp_andp_adjoint.
+  apply derives_extract_prop'; auto.
+Qed.
+
 Lemma prop_and {A} {NA: NatDed A}: 
     forall P Q: Prop, prop (P /\ Q) = (prop P && prop Q).
 Proof.
@@ -799,6 +807,28 @@ Proof.
   + apply derives_extract_prop; intros.
     apply prop_left; intros.
     apply prop_right; auto.
+Qed.
+
+Lemma prop_impl {A} {NA: NatDed A}: 
+  forall P Q: Prop, prop (P -> Q) = (prop P --> prop Q).
+Proof.
+  intros.
+  apply pred_ext.
+  + apply imp_andp_adjoint.
+    apply derives_extract_prop'; intros.
+    apply prop_derives.
+    auto.
+  + apply prop_imp_prop_left.
+Qed.
+
+Lemma prop_forall {A B} {NA: NatDed A}: 
+  forall P: B -> Prop, prop (forall b, P b) = ALL b: B, !! P b.
+Proof.
+  intros.
+  apply pred_ext.
+  + apply allp_right; intros.
+    apply prop_derives; auto.
+  + apply allp_prop_left.
 Qed.
 
 Lemma sepcon_prop_prop:

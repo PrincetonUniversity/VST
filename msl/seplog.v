@@ -28,7 +28,9 @@ Class NatDed (A: Type) := mkNatDed {
   imp_andp_adjoint: forall P Q R, derives (andp P Q) R <-> derives P (imp Q R);
   prop_left: forall (P: Prop) Q, (P -> derives TT Q) -> derives (prop P) Q;
   prop_right: forall (P: Prop) Q, P -> derives Q (prop P);
-  not_prop_right: forall (P: A) (Q: Prop), (Q -> derives P FF) -> derives P (prop (not Q))
+  prop_imp_prop_left: forall (P Q: Prop), derives (imp (prop P) (prop Q)) (prop (P -> Q));
+  allp_prop_left: forall {B: Type} (P: B -> Prop), derives (allp (fun b => prop (P b))) (prop (forall b, P b))
+(* not_prop_right: forall (P: A) (Q: Prop), (Q -> derives P FF) -> derives P (prop (not Q)) *)
 }.
 
 Instance LiftNatDed (A B: Type) {ND: NatDed B} : NatDed (A -> B) :=
@@ -40,7 +42,7 @@ Instance LiftNatDed (A B: Type) {ND: NatDed B} : NatDed (A -> B) :=
     (*imp*) (fun P Q x => imp (P x) (Q x))
     (*prop*) (fun P x => prop P)
     (*derives*) (fun P Q => forall x, derives (P x) (Q x))
-     _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _.
+     _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _.
  intros; extensionality x; apply pred_ext; auto.
  intros; apply derives_refl.
  intros; eapply derives_trans; eauto.
@@ -57,7 +59,8 @@ Instance LiftNatDed (A B: Type) {ND: NatDed B} : NatDed (A -> B) :=
  intros; split; intros;  eapply imp_andp_adjoint; eauto.
  intros; eapply prop_left; eauto.
  intros; eapply prop_right; eauto.
- intros; eapply not_prop_right; eauto.
+ intros; eapply prop_imp_prop_left; eauto.
+ intros; eapply allp_prop_left; eauto.
 Defined.
 
 Delimit Scope logic with logic.
