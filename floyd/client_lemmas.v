@@ -2006,14 +2006,16 @@ Ltac Intro_prop :=
 autorewrite with gather_prop;
 match goal with
  | |- semax _ ?PQR _ _ =>
-     first [ simple apply semax_extract_PROP; fancy_intros false
+     first [ is_evar PQR; fail 1
+            | simple apply semax_extract_PROP; fancy_intros false
             | move_from_SEP' PQR; 
               simple apply semax_extract_PROP; fancy_intros false
             | flatten_in_SEP PQR
             ]
  | |- ?PQR |-- _ => 
-     first [ simple apply derives_extract_prop; fancy_intros false
-             | simple apply derives_extract_PROP; fancy_intros false
+     first [ is_evar PQR; fail 1
+            | simple apply derives_extract_prop; fancy_intros false
+            | simple apply derives_extract_PROP; fancy_intros false
             | move_from_SEP' PQR;
                simple apply derives_extract_PROP; fancy_intros false
             | flatten_in_SEP PQR

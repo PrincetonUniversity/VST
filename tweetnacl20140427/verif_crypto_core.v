@@ -68,10 +68,11 @@ name in' _in.
 name k' _k.
 name c' _c.
 Time forward_call (c, k, 1, nonce, out, OUT, data). (*1.5*)
-Intros l.
-Time forward. (*8.8*) (*Issue: prevent this term from exploding by setting the right thing Opaque*)
+Intros l. unfold POSTCONDITION, abbreviate.
+Opaque firstn. Opaque QuadByte2ValList.
+Time forward. (*2.3*)
 Exists l.
-Time entailer!. (*6*)
+Time entailer!. (*1.2*)
 { clear - H. unfold fcore_result in H.
   remember (Snuffle20 (prepare_data data)) as d; symmetry in Heqd.
   destruct d. 2: inv H. rewrite Int.eq_false in H.
@@ -100,4 +101,4 @@ Time entailer!. (*6*)
   omega. reflexivity.
   apply Int.one_not_zero. }
 apply derives_refl.
-Time Qed. (*6.2*)
+Time Qed. (*3.1*)

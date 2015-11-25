@@ -12,225 +12,18 @@ Require Import verif_salsa_base.
 Require Import tweetnaclVerifiableC.
 Require Import spec_salsa. Opaque Snuffle.Snuffle.
 
-Opaque Zplus. Opaque Z.mul. Opaque mult. Opaque plus. Opaque skipn. Opaque Z.sub.
-    Opaque littleendian.
+Opaque littleendian.
     Opaque littleendian_invert. Opaque Snuffle20. Opaque prepare_data. 
     Opaque QuadByte2ValList. Opaque fcore_result.
 
-Opaque core_spec. Opaque ld32_spec. Opaque L32_spec. Opaque st32_spec.
-Opaque crypto_core_salsa20_spec. Opaque crypto_core_hsalsa20_spec.
-
-Lemma array_copy1I Espec:
-forall i (wlist ys OUT:list val) data j t y x w nonce out c k h (xs:list int)
-       (J:0<=j<4),
-@semax CompSpecs Espec
-  (initialized_list [_i; _j]
-     (func_tycontext f_core SalsaVarSpecs SalsaFunSpecs))
-  (PROP  ()
-   LOCAL  (temp _j (Vint (Int.repr j)); temp _i (Vint (Int.repr i));
-   lvar _t (tarray tuint 4) t; lvar _y (tarray tuint 16) y;
-   lvar _x (tarray tuint 16) x; lvar _w (tarray tuint 16) w; temp _in nonce;
-   temp _out out; temp _c c; temp _k k; temp _h (Vint (Int.repr h)))
-   SEP  (data_at Tsh (tarray tuint 16) wlist w;
-   data_at Tsh (tarray tuint 16) (map Vint xs) x;
-   data_at Tsh (tarray tuint 16) ys y;
-   data_at_ Tsh (tarray tuint 4) t;
-   CoreInSEP data (nonce, c, k);
-   data_at Tsh (tarray tuchar 64) OUT out))
-   (Ssequence
-                        (Sset _m (Econst_int (Int.repr 0) tint))
-                        (Sloop
-                          (Ssequence
-                            (Sifthenelse (Ebinop Olt (Etempvar _m tint)
-                                           (Econst_int (Int.repr 4) tint)
-                                           tint)
-                              Sskip
-                              Sbreak)
-                            (Ssequence
-                              (Sset _index
-                                (Ebinop Omod
-                                  (Ebinop Oadd
-                                    (Ebinop Omul
-                                      (Econst_int (Int.repr 5) tint)
-                                      (Etempvar _j tint) tint)
-                                    (Ebinop Omul
-                                      (Econst_int (Int.repr 4) tint)
-                                      (Etempvar _m tint) tint) tint)
-                                  (Econst_int (Int.repr 16) tint) tint))
-                              (Ssequence
-                                (Sset _aux
-                                  (Ederef
-                                    (Ebinop Oadd (Evar _x (tarray tuint 16))
-                                      (Etempvar _index tint) (tptr tuint))
-                                    tuint))
-                                (Sassign
-                                  (Ederef
-                                    (Ebinop Oadd (Evar _t (tarray tuint 4))
-                                      (Etempvar _m tint) (tptr tuint)) tuint)
-                                  (Etempvar _aux tuint)))))
-                          (Sset _m
-                            (Ebinop Oadd (Etempvar _m tint)
-                              (Econst_int (Int.repr 1) tint) tint))))
-  (normal_ret_assert 
-  (PROP  ()
-   LOCAL  (temp _i (Vint (Int.repr i)); temp _m (Vint (Int.repr 4)); temp _j (Vint (Int.repr j));
-   lvar _t (tarray tuint 4) t; lvar _y (tarray tuint 16) y;
-   lvar _x (tarray tuint 16) x; lvar _w (tarray tuint 16) w; temp _in nonce;
-   temp _out out; temp _c c; temp _k k; temp _h (Vint (Int.repr h)))
-   SEP  (data_at Tsh (tarray tuint 16) wlist w;
-   data_at Tsh (tarray tuint 16) (map Vint xs) x;
-   data_at Tsh (tarray tuint 16) ys y;
-   EX  l : list val,
-     !!(forall mm : Z,
-         0 <= mm < 4 ->
-         Znth mm l Vundef =
-         Znth ((5 * j + 4 * mm) mod 16) (map Vint xs) Vundef)
-        && data_at Tsh (tarray tuint 4) l t;
-   CoreInSEP data (nonce, c, k); 
-   data_at Tsh (tarray tuchar 64) OUT out))).
-Proof. intros. abbreviate_semax.
-Time assert_PROP (Zlength (map Vint xs) = 16) as XL by entailer!. (*5.8*)
-Time forward_for_simple_bound 4
- (EX m:Z, 
-  (PROP  ()
-   LOCAL  (temp _i (Vint (Int.repr i)); temp _j (Vint (Int.repr j)); lvar _t (tarray tuint 4) t;
-   lvar _y (tarray tuint 16) y; lvar _x (tarray tuint 16) x;
-   lvar _w (tarray tuint 16) w; temp _in nonce; temp _out out; temp _c c;
-   temp _k k; temp _h (Vint (Int.repr h)))
-   SEP  (data_at Tsh (tarray tuint 16) wlist w;
-   data_at Tsh (tarray tuint 16) ys y;
-   data_at Tsh (tarray tuint 16) (map Vint xs) x;
-   EX l:_, !!(forall mm, 0<=mm<m -> Znth mm l Vundef = 
-                  Znth ((5*j+4*mm) mod 16) (map Vint xs) Vundef)
-            && data_at Tsh (tarray tuint 4) l t; CoreInSEP data (nonce, c, k);
-   data_at Tsh (tarray tuchar 64) OUT out))); try reflexivity; try auto with closed; try repable_signed.
-  (*4.9*)
-  { Exists (list_repeat 4 Vundef). Time entailer!. (*7.8*) apply derives_refl. }
-  { rename i0 into m. rename H into M. Intros T.
-    rename H into HT.
-    Time assert_PROP (Zlength T = 4) as TL by entailer!. (*5.7*)
-    destruct (Z_mod_lt (5 * j + 4 * m) 16) as [M1 M2]. omega.
-    destruct (Znth_mapVint xs ((5 * j + 4 * m) mod 16) Vundef) as [v NV].
-       simpl in XL. rewrite <- (Zlength_map _ _ Vint xs), XL. split; assumption.
-    remember ((Int.eq (Int.repr (5 * j + 4 * m))
-                         (Int.repr Int.min_signed) &&
-                       Int.eq (Int.repr 16) Int.mone)%bool).
-    destruct b; simpl.
-       { apply andb_true_eq in Heqb. destruct Heqb. 
-         apply binop_lemmas2.int_eq_true in H0.
-          assert (IS: Int.signed (Int.repr 16) = 
-                  Int.signed (Int.repr (-1))) by (rewrite H0; trivial).  clear - IS.
-          rewrite Int.signed_repr in IS. 2: rewrite int_max_signed_eq, int_min_signed_eq; omega. 
-          rewrite Int.signed_repr in IS. omega. rewrite int_max_signed_eq, int_min_signed_eq; omega. }
-    Time forward. (*8.1*)
-    { Time entailer!. (*6.6*) rewrite <- Heqb. simpl; trivial. }
-    unfold sem_mod, sem_binarith, both_int; simpl. rewrite <- Heqb. simpl.
-    unfold Int.mods. repeat rewrite Int.signed_repr.
-      2: rewrite int_max_signed_eq, int_min_signed_eq; omega.
-      2: rewrite int_max_signed_eq, int_min_signed_eq; omega.
-    rewrite Z.rem_mod_nonneg; try omega.
-    Time forward; rewrite NV. (*19 SLOW*)
-    Time solve[entailer!]. (*6*)
-    Time forward. (*16.8 SLOW*)
-    { Exists (upd_Znth m T (Vint v)).
-      Time entailer!. (*11.1*)
-      intros mm ?. 
-      destruct (zeq mm m); subst.
-      + rewrite upd_Znth_same; try omega. rewrite NV; trivial. 
-      + rewrite upd_Znth_diff; try omega. apply HT; omega. } 
-  }
-Time entailer!. (*8*)
-Time Qed. (*40.1*)
-
-Lemma array_copy3:
-forall (Espec : OracleKind) c k h nonce out (OUT:list val)
-       (data : SixteenByte * SixteenByte * (SixteenByte * SixteenByte))
-       i w x y t (ys xlist wlist:list val) 
-       (WZ: forall m, 0<=m<16 -> exists mval, Znth m wlist Vundef =Vint mval),
-@semax CompSpecs Espec
-  (initialized_list [_i; _j]
-     (func_tycontext f_core SalsaVarSpecs SalsaFunSpecs))
-  (PROP  ()
-   LOCAL  (temp _j (Vint (Int.repr 4)); temp _i (Vint (Int.repr i)); lvar _t (tarray tuint 4) t;
-   lvar _y (tarray tuint 16) y; lvar _x (tarray tuint 16) x;
-   lvar _w (tarray tuint 16) w; temp _in nonce; temp _out out; temp _c c;
-   temp _k k; temp _h (Vint (Int.repr h)))
-   SEP  (data_at Tsh (tarray tuint 16) wlist w;
-   data_at Tsh (tarray tuint 16) xlist x; 
-   data_at Tsh (tarray tuint 16) ys y;
-   data_at_ Tsh (tarray tuint 4) t;
-   CoreInSEP data (nonce, c, k);
-   data_at Tsh (tarray tuchar 64) OUT out))
-  (Sfor (Sset _m (Econst_int (Int.repr 0) tint))
-     (Ebinop Olt (Etempvar _m tint) (Econst_int (Int.repr 16) tint) tint)
-     (Ssequence
-        (Sset _aux
-           (Ederef
-              (Ebinop Oadd (Evar _w (tarray tuint 16)) (Etempvar _m tint)
-                 (tptr tuint)) tuint))
-        (Sassign
-           (Ederef
-              (Ebinop Oadd (Evar _x (tarray tuint 16)) (Etempvar _m tint)
-                 (tptr tuint)) tuint) (Etempvar _aux tuint)))
-     (Sset _m
-        (Ebinop Oadd (Etempvar _m tint) (Econst_int (Int.repr 1) tint) tint)))
-  (normal_ret_assert
-  (PROP  ()
-   LOCAL  (temp _j (Vint (Int.repr 4)); temp _i (Vint (Int.repr i)); lvar _t (tarray tuint 4) t;
-   lvar _y (tarray tuint 16) y; lvar _x (tarray tuint 16) x;
-   lvar _w (tarray tuint 16) w; temp _in nonce; temp _out out; temp _c c;
-   temp _k k; temp _h (Vint (Int.repr h)))
-   SEP  (data_at Tsh (tarray tuint 16) wlist w;
-   data_at Tsh (tarray tuint 16) ys y;
-   data_at Tsh (tarray tuint 16) wlist x; 
-   data_at_ Tsh (tarray tuint 4) t;
-   CoreInSEP data (nonce, c, k);
-   data_at Tsh (tarray tuchar 64) OUT out))).
-Proof. intros. abbreviate_semax.
-Time assert_PROP (Zlength wlist = 16 /\ Zlength xlist = 16) as WXL by entailer!. (*5.4*)
-destruct WXL as [WL XL].
-Time forward_for_simple_bound 16 (EX m:Z, 
-  (PROP  ()
-   LOCAL  (temp _j (Vint (Int.repr 4)); temp _i (Vint (Int.repr i)); lvar _t (tarray tuint 4) t;
-   lvar _y (tarray tuint 16) y; lvar _x (tarray tuint 16) x;
-   lvar _w (tarray tuint 16) w; temp _in nonce; temp _out out; temp _c c;
-   temp _k k; temp _h (Vint (Int.repr h)))
-   SEP  (data_at Tsh (tarray tuint 16) wlist w;
-   data_at Tsh (tarray tuint 16) ys y;
-   EX mlist:_, !!(forall mm, 0<=mm<m -> Znth mm mlist Vundef = Znth mm wlist Vundef)
-                && data_at Tsh (tarray tuint 16) mlist x;
-   data_at_ Tsh (tarray tuint 4) t; CoreInSEP data (nonce, c, k);
-   data_at Tsh (tarray tuchar 64) OUT out))).
-(*2.7*)
-{ Exists xlist. Time entailer!. (*6.7*) } 
-{ Intros mlist. rename H into M. rename i0 into m. rename H0 into HM.
-       destruct (WZ _ M) as [mval MVAL].
-       Time assert_PROP (Zlength mlist = 16) as ML by entailer!. (*3.5*)
-       Time forward;  rewrite MVAL. (*11*)
-       Time solve[entailer!]. (*4.3*)
-       Time forward. (*12.6*)
-       { Exists (upd_Znth m mlist (Vint mval)).
-         Time entailer!. (*8.2*)
-         intros mm ?.
-         destruct (zeq mm m); subst.
-         + rewrite MVAL, upd_Znth_same; trivial. omega.
-         + rewrite <- HM. 2: omega.
-        apply upd_Znth_diff; trivial; omega. }
-}
-{ Time entailer!. (*4.3*) Intros mlist. Time entailer!. (*1.7*)
-  apply data_at_ext.
-  eapply Znth_extensional with (d:=Vundef). clear - WL H18. rewrite <- WL in H18. apply H18.
-  intros k K. apply H16. rewrite <- H18; apply K. }
-Time Qed. (*21.4*)
-
-Lemma pattern1_noStmt Espec Source1 Source2 Target Offset: forall
+Lemma pattern1_noStmt Espec Source1 Source2 Target Offset: forall FR
   (S1Range: 0 <= Source1 < 4) (S2Range: 0 <= Source2 < 4) (TgtRange: 0 <= Target < 4)
   (HOffset: 0 < Int.unsigned (Int.repr Offset) < 32)
   ValS1 ValS2 ValTgt (tlist:list val)
   (HS1: Znth Source1 tlist Vundef = Vint ValS1)
   (HS2: Znth Source2 tlist Vundef = Vint ValS2)
   (HTgt: Znth Target tlist Vundef = Vint ValTgt)
-  data c (xs ys wlist OUT:list val) i j t y x w out nonce k h,
+  c  i j t y x w out nonce k h,
 @semax CompSpecs Espec (initialized_list [_i; _j; _m]
      (func_tycontext f_core SalsaVarSpecs SalsaFunSpecs))
   (PROP  ()
@@ -239,12 +32,7 @@ Lemma pattern1_noStmt Espec Source1 Source2 Target Offset: forall
    lvar _y (tarray tuint 16) y; lvar _x (tarray tuint 16) x;
    lvar _w (tarray tuint 16) w; temp _in nonce; temp _out out; temp _c c;
    temp _k k; temp _h (Vint (Int.repr h)))
-   SEP  (data_at Tsh (tarray tuint 4) tlist t;
-   data_at Tsh (tarray tuint 16) wlist w;
-   data_at Tsh (tarray tuint 16) xs x; 
-   data_at Tsh (tarray tuint 16) ys y;
-   CoreInSEP data (nonce, c, k);
-   data_at Tsh (tarray tuchar 64) OUT out))
+   SEP  (FR; data_at Tsh (tarray tuint 4) tlist t))
                         (Ssequence
                           (Sset _aux
                             (Ederef
@@ -295,43 +83,39 @@ Lemma pattern1_noStmt Espec Source1 Source2 Target Offset: forall
    lvar _y (tarray tuint 16) y; lvar _x (tarray tuint 16) x;
    lvar _w (tarray tuint 16) w; temp _in nonce; temp _out out; temp _c c;
    temp _k k; temp _h (Vint (Int.repr h)))
-   SEP  (data_at Tsh (tarray tuint 4) 
+   SEP  (FR; data_at Tsh (tarray tuint 4) 
         (upd_Znth Target tlist
            (Vint
-              (Int.xor ValTgt (Int.rol (Int.add ValS1 ValS2) (Int.repr Offset))))) t; 
-   data_at Tsh (tarray tuint 16) wlist w;
-   data_at Tsh (tarray tuint 16) xs x;
-   data_at Tsh (tarray tuint 16) ys y;
-   CoreInSEP data (nonce, c, k);
-   data_at Tsh (tarray tuchar 64) OUT out))).
+              (Int.xor ValTgt (Int.rol (Int.add ValS1 ValS2) (Int.repr Offset))))) t))).
 Proof. intros. abbreviate_semax.
-  Time forward; rewrite HS1. (*13.4*)  
-  Time solve[entailer!]. (*4.5*)
-  Time forward; rewrite HS2. (*12*) 
-  Time solve[entailer!]. (*4.5*)
-  Time forward. (*4.9*)
-(*VST Issue: failure to make these specs Opaque leads to stack overflow!!*)
-Transparent core_spec. Transparent ld32_spec. Transparent L32_spec. Transparent st32_spec.
-Transparent crypto_core_salsa20_spec. Transparent crypto_core_hsalsa20_spec.
-  Time forward_call (Int.add ValS1 ValS2, Int.repr Offset). (*8.9*)
-Opaque core_spec. Opaque ld32_spec. Opaque L32_spec. Opaque st32_spec.
-Opaque crypto_core_salsa20_spec. Opaque crypto_core_hsalsa20_spec.
-  Intros v; subst v.
-  Time forward; rewrite HTgt. (*12.8*) 
-  Time solve[entailer!]. (*4.7*)
-  Time forward. (*5*)
-  Time forward. (*7*)
-  Time entailer!. (*5.8*)
-Time Qed. (*44*)
+  Time forward; rewrite HS1. (*3 versus 13.4*)  
+  Time solve[entailer!]. (*0.8 versus 4.5*)
+  Time forward; rewrite HS2. (*3.3 versus 12*) 
+  Time solve[entailer!]. (*0.7 versus 4.5*)
+  freeze [0;1] FR1.
+  Time forward. (*0.7 versus 4.9*)
 
-Lemma pattern2_noStmt Espec Source1 Source2 Target Offset: forall
+  Time forward_call (Int.add ValS1 ValS2, Int.repr Offset). (*2.4 versus 9*)
+
+  Intros v; subst v.
+  thaw FR1.
+  Time forward; rewrite HTgt. (*3.4 versus 12.8*) 
+  Time solve[entailer!]. (*1 versus 4.7*)
+  freeze [0;1] FR2.
+  Time forward. (*0.7 versus 5*)
+  thaw FR2.
+  Time forward. (*3.3 versus 7*)
+  Time entailer!. (*1.3 versus 6.2*)
+Time Qed. (*22.7 versus 42*)
+
+Lemma pattern2_noStmt Espec Source1 Source2 Target Offset: forall FR
   (S1Range: 0 <= Source1 < 4) (S2Range: 0 <= Source2 < 4) (TgtRange: 0 <= Target < 4)
   (HOffset: 0 < Int.unsigned (Int.repr Offset) < 32)
   ValS1 ValS2 ValTgt (tlist:list val)
   (HS1: Znth Source1 tlist Vundef = Vint ValS1)
   (HS2: Znth Source2 tlist Vundef = Vint ValS2)
   (HTgt: Znth Target tlist Vundef = Vint ValTgt)
-  data c (xs ys wlist OUT:list val) i j t y x w out nonce k h,
+  c i j t y x w out nonce k h,
 @semax CompSpecs Espec (initialized_list [_i; _j; _m; _aux; _aux1; 181%positive]
      (func_tycontext f_core SalsaVarSpecs SalsaFunSpecs))
   (PROP  ()
@@ -340,12 +124,7 @@ Lemma pattern2_noStmt Espec Source1 Source2 Target Offset: forall
    lvar _y (tarray tuint 16) y; lvar _x (tarray tuint 16) x;
    lvar _w (tarray tuint 16) w; temp _in nonce; temp _out out; temp _c c;
    temp _k k; temp _h (Vint (Int.repr h)))
-   SEP  (data_at Tsh (tarray tuint 4) tlist t;
-   data_at Tsh (tarray tuint 16) wlist w;
-   data_at Tsh (tarray tuint 16) xs x; 
-   data_at Tsh (tarray tuint 16) ys y;
-   CoreInSEP data (nonce, c, k);
-   data_at Tsh (tarray tuchar 64) OUT out))
+   SEP  (FR; data_at Tsh (tarray tuint 4) tlist t))
   (Ssequence
      (Sset _aux
         (Ederef
@@ -388,43 +167,39 @@ Lemma pattern2_noStmt Espec Source1 Source2 Target Offset: forall
    lvar _y (tarray tuint 16) y; lvar _x (tarray tuint 16) x;
    lvar _w (tarray tuint 16) w; temp _in nonce; temp _out out; temp _c c;
    temp _k k; temp _h (Vint (Int.repr h)))
-   SEP  (data_at Tsh (tarray tuint 4) 
+   SEP  (FR; data_at Tsh (tarray tuint 4) 
         (upd_Znth Target tlist
            (Vint
-              (Int.xor ValTgt (Int.rol (Int.add ValS1 ValS2) (Int.repr Offset))))) t; 
-   data_at Tsh (tarray tuint 16) wlist w;
-   data_at Tsh (tarray tuint 16) xs x;
-   data_at Tsh (tarray tuint 16) ys y;
-   CoreInSEP data (nonce, c, k);
-   data_at Tsh (tarray tuchar 64) OUT out))).
+              (Int.xor ValTgt (Int.rol (Int.add ValS1 ValS2) (Int.repr Offset))))) t))).
 Proof. intros. abbreviate_semax.
-  Time forward; rewrite HS1. (*13.4*)  
-  Time solve[entailer!]. (*4.5*)
-  Time forward; rewrite HS2. (*12*) 
-  Time solve[entailer!]. (*4.5*)
-  Time forward. (*4.9*)
-(*VST Issue: failure to make these specs Opaque leads to stack overflow!!*)
-Transparent core_spec. Transparent ld32_spec. Transparent L32_spec. Transparent st32_spec.
-Transparent crypto_core_salsa20_spec. Transparent crypto_core_hsalsa20_spec.
-  Time forward_call (Int.add ValS1 ValS2, Int.repr Offset). (*8.9*)
-Opaque core_spec. Opaque ld32_spec. Opaque L32_spec. Opaque st32_spec.
-Opaque crypto_core_salsa20_spec. Opaque crypto_core_hsalsa20_spec.
-  Intros v; subst v.
-  Time forward; rewrite HTgt. (*12.8*) 
-  Time solve[entailer!]. (*4.7*)
-  Time forward. (*5*)
-  Time forward. (*7*)
-  Time entailer!. (*5.8*)
-Time Qed. (*54 -- ten seconds slower*)
+  Time forward; rewrite HS1. (*3 versus 13.4*)  
+  Time solve[entailer!]. (*0.8 versus 4.5*)
+  Time forward; rewrite HS2. (*3.3 versus 12*) 
+  Time solve[entailer!]. (*0.7 versus 4.5*)
+  freeze [0;1] FR1.
+  Time forward. (*0.7 versus 4.9*)
 
-Lemma pattern3_noStmt Espec Source1 Source2 Target Offset: forall
+  Time forward_call (Int.add ValS1 ValS2, Int.repr Offset). (*2.5 versus 9*)
+
+  Intros v; subst v.
+  thaw FR1.
+  Time forward; rewrite HTgt. (*3.4 versus 12.8*) 
+  Time solve[entailer!]. (*1 versus 4.7*)
+  freeze [0;1] FR2.
+  Time forward. (*0.7 versus 5*)
+  thaw FR2.
+  Time forward. (*3.3 versus 7*)
+  Time entailer!. (*1.3 versus 6.2*)
+Time Qed. (*27 versus 44*)
+
+Lemma pattern3_noStmt Espec Source1 Source2 Target Offset: forall FR
   (S1Range: 0 <= Source1 < 4) (S2Range: 0 <= Source2 < 4) (TgtRange: 0 <= Target < 4)
   (HOffset: 0 < Int.unsigned (Int.repr Offset) < 32)
   ValS1 ValS2 ValTgt (tlist:list val)
   (HS1: Znth Source1 tlist Vundef = Vint ValS1)
   (HS2: Znth Source2 tlist Vundef = Vint ValS2)
   (HTgt: Znth Target tlist Vundef = Vint ValTgt)
-  data c (xs ys wlist OUT:list val) i j t y x w out nonce k h,
+  c i j t y x w out nonce k h,
 @semax CompSpecs Espec (initialized_list [_i; _j; _m; _aux; _aux1; 182%positive; 181%positive]
      (func_tycontext f_core SalsaVarSpecs SalsaFunSpecs))
   (PROP  ()
@@ -433,12 +208,7 @@ Lemma pattern3_noStmt Espec Source1 Source2 Target Offset: forall
    lvar _y (tarray tuint 16) y; lvar _x (tarray tuint 16) x;
    lvar _w (tarray tuint 16) w; temp _in nonce; temp _out out; temp _c c;
    temp _k k; temp _h (Vint (Int.repr h)))
-   SEP  (data_at Tsh (tarray tuint 4) tlist t;
-   data_at Tsh (tarray tuint 16) wlist w;
-   data_at Tsh (tarray tuint 16) xs x; 
-   data_at Tsh (tarray tuint 16) ys y;
-   CoreInSEP data (nonce, c, k);
-   data_at Tsh (tarray tuchar 64) OUT out))
+   SEP  (FR; data_at Tsh (tarray tuint 4) tlist t))
   (Ssequence
      (Sset _aux
         (Ederef
@@ -481,43 +251,40 @@ Lemma pattern3_noStmt Espec Source1 Source2 Target Offset: forall
    lvar _y (tarray tuint 16) y; lvar _x (tarray tuint 16) x;
    lvar _w (tarray tuint 16) w; temp _in nonce; temp _out out; temp _c c;
    temp _k k; temp _h (Vint (Int.repr h)))
-   SEP  (data_at Tsh (tarray tuint 4) 
+   SEP  (FR; data_at Tsh (tarray tuint 4) 
         (upd_Znth Target tlist
            (Vint
-              (Int.xor ValTgt (Int.rol (Int.add ValS1 ValS2) (Int.repr Offset))))) t; 
-   data_at Tsh (tarray tuint 16) wlist w;
-   data_at Tsh (tarray tuint 16) xs x;
-   data_at Tsh (tarray tuint 16) ys y;
-   CoreInSEP data (nonce, c, k);
-   data_at Tsh (tarray tuchar 64) OUT out))).
+              (Int.xor ValTgt (Int.rol (Int.add ValS1 ValS2) (Int.repr Offset)))))
+        t))).
 Proof. intros. abbreviate_semax.
-  Time forward; rewrite HS1. (*13.4*)  
-  Time solve[entailer!]. (*4.5*)
-  Time forward; rewrite HS2. (*12*) 
-  Time solve[entailer!]. (*4.5*)
-  Time forward. (*4.9*)
-(*VST Issue: failure to make these specs Opaque leads to stack overflow!!*)
-Transparent core_spec. Transparent ld32_spec. Transparent L32_spec. Transparent st32_spec.
-Transparent crypto_core_salsa20_spec. Transparent crypto_core_hsalsa20_spec.
-  Time forward_call (Int.add ValS1 ValS2, Int.repr Offset). (*8.9*)
-Opaque core_spec. Opaque ld32_spec. Opaque L32_spec. Opaque st32_spec.
-Opaque crypto_core_salsa20_spec. Opaque crypto_core_hsalsa20_spec.
-  Intros v; subst v.
-  Time forward; rewrite HTgt. (*12.8*) 
-  Time solve[entailer!]. (*4.7*)
-  Time forward. (*5*)
-  Time forward. (*7*)
-  Time entailer!. (*5.8*)
-Time Qed. (*73 -- another 20 seconds slower*)
+  Time forward; rewrite HS1. (*3.4 versus 13.4*)  
+  Time solve[entailer!]. (*0.8 versus 4.5*)
+  Time forward; rewrite HS2. (*5.1 versus 12*) 
+  Time solve[entailer!]. (*0.8 versus 4.5*)
+  freeze [0;1] FR1.
+  Time forward. (*0.9 versus 4.9*)
 
-Lemma pattern4_noStmt Espec Source1 Source2 Target Offset: forall
+  Time forward_call (Int.add ValS1 ValS2, Int.repr Offset). (*2.5 versus 9*)
+
+  Intros v; subst v.
+  thaw FR1.
+  Time forward; rewrite HTgt. (*3.4 versus 12.8*) 
+  Time solve[entailer!]. (*1 versus 4.7*)
+  freeze [0;1] FR2.
+  Time forward. (*0.7 versus 5*)
+  thaw FR2.
+  Time forward. (*3.3 versus 7*)
+  Time entailer!. (*1.3 versus 6.2*)
+Time Qed. (*41.6 versus 52 -- noticably SLOWER than previous 2 lemmas*)
+
+Lemma pattern4_noStmt Espec Source1 Source2 Target Offset: forall FR
   (S1Range: 0 <= Source1 < 4) (S2Range: 0 <= Source2 < 4) (TgtRange: 0 <= Target < 4)
   (HOffset: 0 < Int.unsigned (Int.repr Offset) < 32)
   ValS1 ValS2 ValTgt (tlist:list val)
   (HS1: Znth Source1 tlist Vundef = Vint ValS1)
   (HS2: Znth Source2 tlist Vundef = Vint ValS2)
   (HTgt: Znth Target tlist Vundef = Vint ValTgt)
-  data c (xs ys wlist OUT:list val) i j t y x w out nonce k h,
+   c i j t y x w out nonce k h,
 @semax CompSpecs Espec (initialized_list [_i; _j; _m; _aux; _aux1; 183%positive; 182%positive; 181%positive]
      (func_tycontext f_core SalsaVarSpecs SalsaFunSpecs))
   (PROP  ()
@@ -526,12 +293,7 @@ Lemma pattern4_noStmt Espec Source1 Source2 Target Offset: forall
    lvar _y (tarray tuint 16) y; lvar _x (tarray tuint 16) x;
    lvar _w (tarray tuint 16) w; temp _in nonce; temp _out out; temp _c c;
    temp _k k; temp _h (Vint (Int.repr h)))
-   SEP  (data_at Tsh (tarray tuint 4) tlist t;
-   data_at Tsh (tarray tuint 16) wlist w;
-   data_at Tsh (tarray tuint 16) xs x; 
-   data_at Tsh (tarray tuint 16) ys y;
-   CoreInSEP data (nonce, c, k);
-   data_at Tsh (tarray tuchar 64) OUT out))
+   SEP  (FR; data_at Tsh (tarray tuint 4) tlist t))
   (Ssequence
      (Sset _aux
         (Ederef
@@ -574,34 +336,31 @@ Lemma pattern4_noStmt Espec Source1 Source2 Target Offset: forall
    lvar _y (tarray tuint 16) y; lvar _x (tarray tuint 16) x;
    lvar _w (tarray tuint 16) w; temp _in nonce; temp _out out; temp _c c;
    temp _k k; temp _h (Vint (Int.repr h)))
-   SEP  (data_at Tsh (tarray tuint 4) 
+   SEP  (FR; data_at Tsh (tarray tuint 4) 
         (upd_Znth Target tlist
            (Vint
-              (Int.xor ValTgt (Int.rol (Int.add ValS1 ValS2) (Int.repr Offset))))) t; 
-   data_at Tsh (tarray tuint 16) wlist w;
-   data_at Tsh (tarray tuint 16) xs x;
-   data_at Tsh (tarray tuint 16) ys y;
-   CoreInSEP data (nonce, c, k);
-   data_at Tsh (tarray tuchar 64) OUT out))).
+              (Int.xor ValTgt (Int.rol (Int.add ValS1 ValS2) (Int.repr Offset)))))
+        t))).
 Proof. intros. abbreviate_semax.
-  Time forward; rewrite HS1. (*13.4*)  
-  Time solve[entailer!]. (*4.5*)
-  Time forward; rewrite HS2. (*12*) 
-  Time solve[entailer!]. (*4.5*)
-  Time forward. (*4.9*)
-(*VST Issue: failure to make these specs Opaque leads to stack overflow!!*)
-Transparent core_spec. Transparent ld32_spec. Transparent L32_spec. Transparent st32_spec.
-Transparent crypto_core_salsa20_spec. Transparent crypto_core_hsalsa20_spec.
-  Time forward_call (Int.add ValS1 ValS2, Int.repr Offset). (*8.9*)
-Opaque core_spec. Opaque ld32_spec. Opaque L32_spec. Opaque st32_spec.
-Opaque crypto_core_salsa20_spec. Opaque crypto_core_hsalsa20_spec.
+  Time forward; rewrite HS1. (*3.4 versus 13.4*)  
+  Time solve[entailer!]. (*0.8 versus 4.5*)
+  Time forward; rewrite HS2. (*5.1 versus 12*) 
+  Time solve[entailer!]. (*0.8 versus 4.5*)
+  freeze [0;1] FR1.
+  Time forward. (*0.9 versus 4.9*)
+
+  Time forward_call (Int.add ValS1 ValS2, Int.repr Offset). (*2.6 versus 9*)
+
   Intros v; subst v.
-  Time forward; rewrite HTgt. (*12.8*) 
-  Time solve[entailer!]. (*4.7*)
-  Time forward. (*5*)
-  Time forward. (*7*)
-  Time entailer!. (*5.8*)
-Time Qed. (*156 -- twice as SLOW*)
+  thaw FR1.
+  Time forward; rewrite HTgt. (*3.4 versus 12.8*) 
+  Time solve[entailer!]. (*1 versus 4.7*)
+  freeze [0;1] FR2.
+  Time forward. (*0.7 versus 5*)
+  thaw FR2.
+  Time forward. (*3.3 versus 7*)
+  Time entailer!. (*1.3 versus 6.2*)
+Time Qed. (*91!*) (*SLOW*)
 
 Definition wlistJ' (wlist:list val) (j: Z) (t0 t1 t2 t3:int) (l: list val): Prop :=
   Zlength l = 16 /\ 
@@ -626,7 +385,7 @@ Proof. induction m; simpl; intros; subst; trivial.
   destruct H as [l' [tm [ L [W [ZZ LL]]]]]. subst. apply IHm in W; trivial.
 Qed.
   
-Lemma array_copy2 Espec i (xs ys wlist:list val) data OUT j t y x w nonce out c k h
+Lemma array_copy2 Espec FR i (wlist:list val) j t y x w nonce out c k h
        (t0 t1 t2 t3:int) (J:0<=j<4):
 @semax CompSpecs Espec
   (initialized_list [_i; _j; _m; _aux; _aux1; 184%positive; 183%positive; 182%positive; 181%positive]
@@ -637,12 +396,8 @@ Lemma array_copy2 Espec i (xs ys wlist:list val) data OUT j t y x w nonce out c 
    lvar _y (tarray tuint 16) y; lvar _x (tarray tuint 16) x;
    lvar _w (tarray tuint 16) w; temp _in nonce; temp _out out; temp _c c;
    temp _k k; temp _h (Vint (Int.repr h)))
-   SEP  (data_at Tsh (tarray tuint 4) (map Vint [t0;t1;t2;t3]) t;
-   data_at Tsh (tarray tuint 16) wlist w;
-   data_at Tsh (tarray tuint 16) xs x;
-   data_at Tsh (tarray tuint 16) ys y;
-   CoreInSEP data (nonce, c, k);
-   data_at Tsh (tarray tuchar 64) OUT out))
+   SEP  (FR; data_at Tsh (tarray tuint 16) wlist w; 
+         data_at Tsh (tarray tuint 4) (map Vint [t0;t1;t2;t3]) t))
   (Sfor (Sset _m (Econst_int (Int.repr 0) tint))
      (Ebinop Olt (Etempvar _m tint) (Econst_int (Int.repr 4) tint) tint)
      (Ssequence
@@ -672,15 +427,11 @@ Lemma array_copy2 Espec i (xs ys wlist:list val) data OUT j t y x w nonce out c 
    lvar _y (tarray tuint 16) y; lvar _x (tarray tuint 16) x;
    lvar _w (tarray tuint 16) w; temp _in nonce; temp _out out; temp _c c;
    temp _k k; temp _h (Vint (Int.repr h)))
-   SEP  (data_at Tsh (tarray tuint 4) (map Vint [t0;t1;t2;t3]) t;
-   EX W:_, !!(wlistJ' wlist j t0 t1 t2 t3 W) && data_at Tsh (tarray tuint 16) W w;
-   data_at Tsh (tarray tuint 16) xs x;
-   data_at Tsh (tarray tuint 16) ys y;
-   CoreInSEP data (nonce, c, k);
-   data_at Tsh (tarray tuchar 64) OUT out))).
+   SEP  (FR; data_at Tsh (tarray tuint 4) (map Vint [t0;t1;t2;t3]) t;
+         EX W:_, !!(wlistJ' wlist j t0 t1 t2 t3 W) && data_at Tsh (tarray tuint 16) W w))).
 Proof. intros. abbreviate_semax.
-Time assert_PROP (Zlength wlist=16) as WL by entailer!. (*4.4*)
 (*first, delete old m*) drop_LOCAL 1%nat.
+Time assert_PROP (Zlength wlist=16) as WL by entailer!. (*1.6 versus 4.4*)
 Time forward_for_simple_bound 4 (EX m:Z, 
   (PROP  ()
    LOCAL  (temp _i (Vint (Int.repr i)); 
@@ -688,13 +439,10 @@ Time forward_for_simple_bound 4 (EX m:Z,
    lvar _y (tarray tuint 16) y; lvar _x (tarray tuint 16) x;
    lvar _w (tarray tuint 16) w; temp _in nonce; temp _out out; temp _c c;
    temp _k k; temp _h (Vint (Int.repr h)))
-   SEP  (data_at Tsh (tarray tuint 4) (map Vint [t0;t1;t2;t3]) t;
-   EX l:_, !!WLIST' wlist [t0;t1;t2;t3] j (Z.to_nat m) l && data_at Tsh (tarray tuint 16) l w;
-   data_at Tsh (tarray tuint 16) xs x;
-   data_at Tsh (tarray tuint 16) ys y;
-   CoreInSEP data (nonce, c, k);
-   data_at Tsh (tarray tuchar 64) OUT out))). (*6.3*)
-{ Exists wlist. Time entailer!. (*6.3*) }
+   SEP  (FR; data_at Tsh (tarray tuint 4) (map Vint [t0;t1;t2;t3]) t;
+         EX l:_, !!WLIST' wlist [t0;t1;t2;t3] j (Z.to_nat m) l && data_at Tsh (tarray tuint 16) l w))).
+   (*1.2 versus 6.3*)
+{ Exists wlist. Time entailer!. (*2.4 versus 6.3*) }
 { rename H into M; rename i0 into m. 
   Intros wlist1. rename H into WLIST1.
   assert (TM: exists tm, Znth m [Vint t0; Vint t1; Vint t2; Vint t3] Vundef = Vint tm).
@@ -703,8 +451,9 @@ Time forward_for_simple_bound 4 (EX m:Z,
     destruct (zeq m 2); subst; simpl. eexists; reflexivity. 
     destruct (zeq m 3); subst; simpl. eexists; reflexivity. omega.
   destruct TM as [tm TM].
-  Time forward. (*11.6*)
-  { Time entailer!. (*5*) rewrite TM; simpl; trivial. }
+  freeze [0;2] FR1.
+  Time forward. (*3.6 versus 11.6*)
+  { Time entailer!. (*1 versus 5*) rewrite TM; simpl; trivial. }
   assert (NEQ: (Int.eq (Int.repr (j + m)) (Int.repr Int.min_signed) &&
                  Int.eq (Int.repr 4) Int.mone)%bool = false).
   { rewrite (Int.eq_false (Int.repr 4)), andb_false_r. simpl; trivial.
@@ -714,8 +463,8 @@ Time forward_for_simple_bound 4 (EX m:Z,
     rewrite Int.signed_repr, Int.signed_repr in SGN. omega.
     rewrite client_lemmas.int_min_signed_eq, client_lemmas.int_max_signed_eq; omega.
     rewrite client_lemmas.int_min_signed_eq, client_lemmas.int_max_signed_eq; omega. }
-  Time forward. (*6*)
-  { Time entailer!. (*5.5*) rewrite NEQ; simpl; trivial. }
+  Time forward. (*2.2 versus 6*)
+  { Time entailer!. (*1.6 versus 5.5*) rewrite NEQ; simpl; trivial. }
   unfold force_val, sem_mod, both_int; simpl.
               unfold sem_cast_neutral, both_int; simpl.
               rewrite NEQ. simpl.
@@ -728,22 +477,14 @@ Time forward_for_simple_bound 4 (EX m:Z,
              rewrite (Int.signed_repr 4).  
              2: rewrite client_lemmas.int_min_signed_eq, client_lemmas.int_max_signed_eq; omega.  
              rewrite add_repr. rewrite Z.rem_mod_nonneg. trivial. omega. omega.
-  rewrite A.
-(*  assert (A: 4 * j + Int.unsigned (Int.mods (Int.repr (j + m)) (Int.repr 4)) = 4 * j + (j + m) mod 4).
-             unfold Int.mods.
-             rewrite Int.signed_repr.  
-             2: rewrite client_lemmas.int_min_signed_eq, client_lemmas.int_max_signed_eq; omega.  
-             rewrite Int.signed_repr.  
-             2: rewrite client_lemmas.int_min_signed_eq, client_lemmas.int_max_signed_eq; omega.  
-             rewrite Int.unsigned_repr. rewrite Z.rem_mod_nonneg. trivial. omega. omega. 
-             rewrite int_max_unsigned_eq; omega.*)
-Opaque Z.mul. Opaque Z.add. 
-  Time forward. (*12.5 SLOW; was 7.7*)
+  rewrite A; clear A.
+  thaw FR1. freeze [0;2] FR2.
+  Time forward. (*4.8 versus 12.5*)
   { apply prop_right.
     assert (0<= (j + m) mod 4 < 4). apply Z_mod_lt; omega. omega. }
   Exists (upd_Znth (4 * j + (j + m) mod 4) wlist1 (Vint tm)). (*_id0)). *)
   rewrite TM.
-  Time entailer!. (*8.7*)
+  Time entailer!. (*3.2 versus 8.7*)
   (*
   clear H1 H2 H3 H4 H4 H5 H6 H7 H8 H9 H10 H11 H12 H13 H14 H15 H16 H17 H18 H19 H20.
   assert (L1: length wlist1 = 16%nat) by (erewrite (WLIST'_length _ _ _ _ _ WLIST1); trivial).*)
@@ -756,12 +497,12 @@ Opaque Z.mul. Opaque Z.add.
     split. rewrite upd_Znth_Zlength. eapply WLIST'_length; eassumption.
            rewrite WL1. omega.
            split. trivial.  
-           rewrite Z2Nat.id. split; trivial. omega. }
-Time entailer!. (*5.8*)
-Intros l. Exists l. Time entailer!. (*0.7*)
+           rewrite Z2Nat.id. split; trivial. omega. 
+    Time thaw FR2; cancel. (*0.1 *) }
+Time entailer!. (*3.7 versus 5.8*)
+Intros l. Exists l. Time entailer!. (*0.5 versus 0.7*)
 split. (*rewrite Zlength_map in H20.*) assumption.
-Transparent plus. 
-destruct H18 as [l1 [tm1 [ZL1 [XX1 [Z3 HL1]]]]].
+destruct H9 as [l1 [tm1 [ZL1 [XX1 [Z3 HL1]]]]].
 destruct XX1 as [l2 [tm2 [ZL2 [XX2 [Z2 HL2]]]]].
 destruct XX2 as [l3 [tm3 [ZL3 [XX3 [Z1 HL3]]]]].
 destruct XX3 as [l4 [tm4 [ZL4 [XX4 [Z0 HL4]]]]].
@@ -770,12 +511,12 @@ assert (T1: Znth 1 [Vint t0; Vint t1; Vint t2; Vint t3] Vundef = Vint t1) by ref
 assert (T2: Znth 2 [Vint t0; Vint t1; Vint t2; Vint t3] Vundef = Vint t2) by reflexivity.
 assert (T3: Znth 3 [Vint t0; Vint t1; Vint t2; Vint t3] Vundef = Vint t3) by reflexivity.
 simpl in *.
+rewrite Zplus_0_r.
 rewrite T0 in Z0; inv Z0.
 rewrite T1 in Z1; inv Z1.
 rewrite T2 in Z2; inv Z2.
-rewrite T3 in Z3; inv Z3. trivial.
-Opaque plus.
-Time Qed. (*159 SLOW*)
+rewrite T3 in Z3; inv Z3; trivial.
+Time Qed. (*285 versus 159 SLOW; was 130 in previous round- and I didn't change this lemma at all*)
 
 Definition Wcopyspec (t0 t1 t2 t3: int):=
 (Int.xor t0
@@ -817,18 +558,134 @@ Lemma SixteenWR_Znth_int' s i:
   0 <= i < 16 -> exists ii : int, Znth i (SixteenWordRep s) Vundef = Vint ii.
 Proof. apply SixteenWR_Znth_int. Qed.
 
-Lemma Jbody (Espec : OracleKind): forall 
-c k h nonce out w x y t ys i j OUT
-(data : SixteenByte * SixteenByte * (SixteenByte * SixteenByte))
-xs
-(I : 0 <= i < 20)
-(J : 0 <= j < 4)
-wlist
-t0 t1 t2 t3
-(T0: Znth ((5*j+4*0) mod 16) (map Vint xs) Vundef = Vint t0)
-(T0: Znth ((5*j+4*1) mod 16) (map Vint  xs) Vundef = Vint t1)
-(T0: Znth ((5*j+4*2) mod 16) (map Vint xs) Vundef = Vint t2)
-(T0: Znth ((5*j+4*3) mod 16) (map Vint xs) Vundef = Vint t3),
+Lemma array_copy1 Espec: forall FR 
+      i j t y x w nonce out c k h (xs:list int) (J:0<=j<4),
+@semax CompSpecs Espec
+  (initialized_list [_i; _j]
+     (func_tycontext f_core SalsaVarSpecs SalsaFunSpecs))
+  (PROP  ()
+   LOCAL  (temp _j (Vint (Int.repr j)); temp _i (Vint (Int.repr i));
+   @lvar CompSpecs _t (tarray tuint 4) t;
+   @lvar CompSpecs _y (tarray tuint 16) y;
+   @lvar CompSpecs _x (tarray tuint 16) x;
+   @lvar CompSpecs _w (tarray tuint 16) w; temp _in nonce; temp _out out;
+   temp _c c; temp _k k; temp _h (Vint (Int.repr h)))
+   SEP  (FR; @data_at_ CompSpecs Tsh (tarray tuint 4) t; 
+     @data_at CompSpecs Tsh (tarray tuint 16) (@map int val Vint xs) x))
+   (Ssequence
+                        (Sset _m (Econst_int (Int.repr 0) tint))
+                        (Sloop
+                          (Ssequence
+                            (Sifthenelse (Ebinop Olt (Etempvar _m tint)
+                                           (Econst_int (Int.repr 4) tint)
+                                           tint)
+                              Sskip
+                              Sbreak)
+                            (Ssequence
+                              (Sset _index
+                                (Ebinop Omod
+                                  (Ebinop Oadd
+                                    (Ebinop Omul
+                                      (Econst_int (Int.repr 5) tint)
+                                      (Etempvar _j tint) tint)
+                                    (Ebinop Omul
+                                      (Econst_int (Int.repr 4) tint)
+                                      (Etempvar _m tint) tint) tint)
+                                  (Econst_int (Int.repr 16) tint) tint))
+                              (Ssequence
+                                (Sset _aux
+                                  (Ederef
+                                    (Ebinop Oadd (Evar _x (tarray tuint 16))
+                                      (Etempvar _index tint) (tptr tuint))
+                                    tuint))
+                                (Sassign
+                                  (Ederef
+                                    (Ebinop Oadd (Evar _t (tarray tuint 4))
+                                      (Etempvar _m tint) (tptr tuint)) tuint)
+                                  (Etempvar _aux tuint)))))
+                          (Sset _m
+                            (Ebinop Oadd (Etempvar _m tint)
+                              (Econst_int (Int.repr 1) tint) tint))))
+  (normal_ret_assert 
+  (PROP  ()
+   LOCAL  (temp _i (Vint (Int.repr i)); temp _m (Vint (Int.repr 4)); temp _j (Vint (Int.repr j));
+   lvar _t (tarray tuint 4) t; lvar _y (tarray tuint 16) y;
+   lvar _x (tarray tuint 16) x; lvar _w (tarray tuint 16) w; temp _in nonce;
+   temp _out out; temp _c c; temp _k k; temp _h (Vint (Int.repr h)))
+   SEP  (FR; data_at Tsh (tarray tuint 16) (map Vint xs) x;
+     EX  l : list val,
+     !!(forall mm : Z,
+         0 <= mm < 4 ->
+         Znth mm l Vundef =
+         Znth ((5 * j + 4 * mm) mod 16) (map Vint xs) Vundef)
+        && data_at Tsh (tarray tuint 4) l t))).
+Proof. intros. abbreviate_semax.
+freeze [0;1] FR1.
+Time assert_PROP (Zlength (map Vint xs) = 16) as XL by entailer!. (*1*)
+thaw FR1.
+Time forward_for_simple_bound 4
+ (EX m:Z, 
+  (PROP  ()
+   LOCAL  (temp _i (Vint (Int.repr i)); temp _j (Vint (Int.repr j)); lvar _t (tarray tuint 4) t;
+   lvar _y (tarray tuint 16) y; lvar _x (tarray tuint 16) x;
+   lvar _w (tarray tuint 16) w; temp _in nonce; temp _out out; temp _c c;
+   temp _k k; temp _h (Vint (Int.repr h)))
+   SEP  (FR;
+     EX l:_, !!(forall mm, 0<=mm<m -> Znth mm l Vundef = 
+                  Znth ((5*j+4*mm) mod 16) (map Vint xs) Vundef)
+            && data_at Tsh (tarray tuint 4) l t; 
+       data_at Tsh (tarray tuint 16) (map Vint xs) x))); try reflexivity; try auto with closed; try repable_signed.
+  (*1.3*)
+  { Exists (list_repeat 4 Vundef). Time entailer!. (*2.2*) }
+  { rename i0 into m. rename H into M. Intros T.
+    rename H into HT.
+    Time assert_PROP (Zlength T = 4) as TL by entailer!. (*2.2 versus 5.7*)
+    destruct (Z_mod_lt (5 * j + 4 * m) 16) as [M1 M2]. omega.
+    destruct (Znth_mapVint xs ((5 * j + 4 * m) mod 16) Vundef) as [v NV].
+       simpl in XL. rewrite <- (Zlength_map _ _ Vint xs), XL. split; assumption.
+    remember ((Int.eq (Int.repr (5 * j + 4 * m))
+                         (Int.repr Int.min_signed) &&
+                       Int.eq (Int.repr 16) Int.mone)%bool).
+    destruct b; simpl.
+       { apply andb_true_eq in Heqb. destruct Heqb. 
+         apply binop_lemmas2.int_eq_true in H0.
+          assert (IS: Int.signed (Int.repr 16) = 
+                  Int.signed (Int.repr (-1))) by (rewrite H0; trivial).  clear - IS.
+          rewrite Int.signed_repr in IS. 2: rewrite int_max_signed_eq, int_min_signed_eq; omega. 
+          rewrite Int.signed_repr in IS. omega. rewrite int_max_signed_eq, int_min_signed_eq; omega. }
+    freeze [0;1;2] FR1.
+    Time forward. (*2.5*)
+    { Time entailer!. (*1.9 versus 6.6*) rewrite <- Heqb. simpl; trivial. }
+    unfold sem_mod, sem_binarith, both_int; simpl. rewrite <- Heqb. simpl.
+    unfold Int.mods. repeat rewrite Int.signed_repr.
+      2: rewrite int_max_signed_eq, int_min_signed_eq; omega.
+      2: rewrite int_max_signed_eq, int_min_signed_eq; omega.
+    rewrite Z.rem_mod_nonneg; try omega.
+    thaw FR1. freeze [0;1] FR2.
+    Time forward; rewrite NV. (*4.5 versus 15*)
+    Time solve[entailer!]. (*1.1 versus 5.4*)
+    thaw FR2. freeze [0;2] FR3.
+    Time forward. (*3.9 versus 14.7*)
+    { Exists (upd_Znth m T (Vint v)).
+      Time entailer!. (*4.2 versus 8.9*)
+      intros mm ?. 
+      destruct (zeq mm m); subst.
+      + rewrite upd_Znth_same; try omega. rewrite NV; trivial. 
+      + rewrite upd_Znth_diff; try omega. apply HT; omega.
+      + thaw FR3. Time cancel. (*0.1*) } 
+  }
+Time entailer!. (*2.4 versus 7.6*)
+Time Qed. (*14.5 versus 32.2*)
+
+Lemma Jbody (Espec : OracleKind) FR c k h nonce out w x y t i j xs
+  (I : 0 <= i < 20)
+  (J : 0 <= j < 4)
+  wlist
+  t0 t1 t2 t3
+  (T0: Znth ((5*j+4*0) mod 16) (map Vint xs) Vundef = Vint t0)
+  (T1: Znth ((5*j+4*1) mod 16) (map Vint  xs) Vundef = Vint t1)
+  (T2: Znth ((5*j+4*2) mod 16) (map Vint xs) Vundef = Vint t2)
+  (T3: Znth ((5*j+4*3) mod 16) (map Vint xs) Vundef = Vint t3):
 @semax CompSpecs Espec
   (initialized_list [_i; _j]
      (func_tycontext f_core SalsaVarSpecs SalsaFunSpecs))
@@ -837,11 +694,9 @@ t0 t1 t2 t3
    lvar _t (tarray tuint 4) t; lvar _y (tarray tuint 16) y;
    lvar _x (tarray tuint 16) x; lvar _w (tarray tuint 16) w; temp _in nonce;
    temp _out out; temp _c c; temp _k k; temp _h (Vint (Int.repr h)))
-   SEP  (data_at Tsh (tarray tuint 16) (*(map Vint wlist)*) wlist w;
-   data_at Tsh (tarray tuint 16) (map Vint xs) x;
-   data_at Tsh (tarray tuint 16) ys y;
-   data_at_ Tsh (tarray tuint 4) t; CoreInSEP data (nonce, c, k);
-   data_at Tsh (tarray tuchar 64) OUT out))
+   SEP  (FR; data_at_ Tsh (tarray tuint 4) t;
+         data_at Tsh (tarray tuint 16) (*(map Vint wlist)*) wlist w;
+         data_at Tsh (tarray tuint 16) (map Vint xs) x))
                     (Ssequence
                       (Ssequence
                         (Sset _m (Econst_int (Int.repr 0) tint))
@@ -1106,43 +961,27 @@ t0 t1 t2 t3
       lvar _x (tarray tuint 16) x; lvar _w (tarray tuint 16) w;
       temp _in nonce; temp _out out; temp _c c; temp _k k;
       temp _h (Vint (Int.repr h)))
-      SEP  (data_at Tsh (tarray tuint 16) ys y;
-      data_at Tsh (tarray tuint 16) (map Vint xs) x;
-      data_at_ Tsh (tarray tuint 4) t;
-      EX W:_, 
+      SEP  (FR; data_at Tsh (tarray tuint 16) (map Vint xs) x;
+          data_at_ Tsh (tarray tuint 4) t; 
+          EX W:_, 
              !!(match Wcopyspec t0 t1 t2 t3 with
                  (s0,s1,s2,s3) => wlistJ' wlist j s0 s1 s2 s3 W
                 end) 
-             && data_at Tsh (tarray tuint 16) (*(map Vint W)*)W w;
-      CoreInSEP data (nonce, c, k);
-      data_at Tsh (tarray tuchar 64) OUT out))).
+             && data_at Tsh (tarray tuint 16) (*(map Vint W)*)W w))). 
 Proof. intros. abbreviate_semax.
-(*(XZL: Zlength xs = 16)
-wlist (WL: Zlength wlist = 16)*)
-  forward_seq. apply array_copy1I; trivial.
-
+  freeze [0;2] FR1.
+  forward_seq. apply (array_copy1 _ (FRZL FR1)); trivial.
   Intros tlist. rename H into HT.
-  Time assert_PROP (Zlength tlist = 4) as TL by entailer!. (*5*)
+  freeze [0;1] FR2. 
+  Time assert_PROP (Zlength tlist = 4) as TL by entailer!. (*1.1*)
 
   rewrite <- HT in T0; try omega.
   rewrite <- HT in T1; try omega.
   rewrite <- HT in T2; try omega.
   rewrite <- HT in T3; try omega.
-
-  (*VST Issue: why does call the pattern1 only succeed if wrapped in semx_pre-post (no matter whether we do the "changes" or not? 
-    For pattern2-4 this problem does not appear*)
   forward_seq.
-  change (reptype (tarray tuint 16)) with (list val) in *. change (reptype (tarray tuchar 64)) with (list val) in *.
-  eapply semax_pre_post.
-  Focus 3.
-    eapply (pattern1_noStmt _ 0 3 1 7) with 
-       (w0:=w)(i0:=i)(j0:=j)(y0:=y)(x0:=x)(data0:=data)
-       (OUT0:=OUT)(nonce0:=nonce)(out0:=out)(c0:=c)(xs0:=(@map int val Vint xs))
-       (wlist0:=wlist)(ys0:=ys)(k0:=k)(h0:=h)(tlist0:=tlist); try omega; try eassumption.
+  apply (pattern1_noStmt _ 0 3 1 7); try omega; try eassumption.
           rewrite Int.unsigned_repr. omega. rewrite int_max_unsigned_eq; omega.
-    instantiate (1:=t).
-    apply andp_left2. Time entailer!. (*7.4*) 
-    intros ? ?. apply andp_left2. apply derives_refl.
     remember (Int.xor t1 (Int.rol (Int.add t0 t3) (Int.repr 7))) as tt0.
     remember (upd_Znth 1 tlist (Vint tt0)) as tlist1.
     assert(ZNTH1_1: Znth 1 tlist1 Vundef = Vint tt0).
@@ -1155,13 +994,12 @@ wlist (WL: Zlength wlist = 16)*)
       subst tlist1; rewrite upd_Znth_diff; trivial; omega.
   assert (LT1: Zlength tlist1 = 4).
     subst tlist1. rewrite upd_Znth_Zlength. apply TL. omega.
- 
+
   (*VST Issue: mkConciseDelta SalsaVarSpecs SalsaFunSpecs f_core Delta. doesn't work any longer*)
   forward_seq. 
     eapply (pattern2_noStmt _ 1 0 2 9); try omega; try eassumption.
           rewrite Int.unsigned_repr. omega. rewrite int_max_unsigned_eq; omega.
     remember (Int.xor t2 (Int.rol (Int.add tt0 t0) (Int.repr 9))) as tt1.
-
   remember (upd_Znth 2 tlist1 (Vint tt1)) as tlist2.
     assert(ZNTH2_1: Znth 1 tlist2 Vundef = Vint tt0).
       subst tlist2. rewrite upd_Znth_diff; trivial; omega.
@@ -1210,16 +1048,15 @@ wlist (WL: Zlength wlist = 16)*)
       destruct tlist; simpl in *. repeat rewrite Zlength_cons' in TL; rewrite Zlength_nil in TL. omega.
       assert (Znth 3 (Vint t0 :: Vint t1 :: Vint t2 ::v :: tlist) Vundef = v) by reflexivity. rewrite H in T3; clear H. subst v.
       destruct tlist; trivial. repeat rewrite Zlength_cons' in TL. specialize (Zlength_nonneg tlist); intros; omega.
-   subst tlist.
    assert (tlist4 = map Vint [tt3; tt0; tt1; tt2]).
-     subst tlist4 tlist3 tlist2 tlist1. unfold upd_Znth. Transparent plus. Transparent Z.add. Transparent Z.sub. simpl.
-     f_equal.
+     subst tlist tlist4 tlist3 tlist2 tlist1. unfold upd_Znth. simpl. f_equal.
    clear Heqtlist4 Heqtlist3 Heqtlist2 Heqtlist1.
    subst tlist4.
-   eapply semax_post. 2: eapply array_copy2; trivial; try eassumption.
-   intros ek vl.
-   apply andp_left2.
-   unfold POSTCONDITION, abbreviate.
- 
-   apply assert_lemmas.normal_ret_assert_derives'. Time entailer!. (*9.9*)
-Time Qed. (*16.5*)
+   thaw FR2. thaw FR1.
+   freeze [0;2] FR3.
+   eapply semax_post. 2: apply (array_copy2 Espec (FRZL FR3)); trivial.
+   intros ek vl. apply andp_left2.
+   unfold POSTCONDITION, abbreviate. 
+   apply assert_lemmas.normal_ret_assert_derives'.
+   thaw FR3. Intros l. Exists l. Time entailer!. (*8*)   
+Time Qed. (*13.3*)

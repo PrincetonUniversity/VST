@@ -2,7 +2,6 @@ Require Import floyd.base.
 Require Import floyd.client_lemmas.
 Require Import floyd.assert_lemmas.
 Require Import floyd.closed_lemmas.
-Require Import floyd.canonicalize.
 
 Local Open Scope logic.
 
@@ -912,21 +911,21 @@ Proof.
      rewrite <- insert_local'.
      rewrite !LOCALx_expand_vardesc'.
      simpl app. unfold denote_vardesc.
-     rewrite  <- !canon17, <- !insert_local', <- !andp_assoc.
+     rewrite  <- !insert_prop, <- !insert_local', <- !andp_assoc.
      rewrite local_equal_lemma; auto.
    -
      rewrite <- (PTree.gsident _ _ H9) by auto.
      rewrite <- insert_local'.
      rewrite !LOCALx_expand_vardesc'.
      simpl app. unfold denote_vardesc.
-     rewrite  <- !canon17, <- !insert_local', <- !andp_assoc.
+     rewrite  <- !insert_prop, <- !insert_local', <- !andp_assoc.
      rewrite local_equal_lemma; auto.
   -
      rewrite <- (PTree.gsident _ _ H9) by auto.
      rewrite <- !insert_local'.
      rewrite !LOCALx_expand_vardesc'.
      simpl app. unfold denote_vardesc.
-     rewrite  <- !canon17, <- !insert_local', <- !andp_assoc.
+     rewrite  <- !insert_prop, <- !insert_local', <- !andp_assoc.
      f_equal.
      extensionality rho; unfold local, lift1, lvar, gvar; simpl;
      normalize.
@@ -957,7 +956,7 @@ Proof.
      rewrite <- (PTree.gsident _ _ H9) by auto.
      rewrite !LOCALx_expand_vardesc'.
      simpl app. unfold denote_vardesc.
-     rewrite  <- !canon17, <- !insert_local', <- !andp_assoc.
+     rewrite  <- !insert_prop, <- !insert_local', <- !andp_assoc.
      f_equal.
      extensionality rho; unfold local, lift1, lvar, gvar; simpl;
      normalize.
@@ -967,7 +966,7 @@ Proof.
      rewrite <- (PTree.gsident _ _ H9) by auto.
      rewrite !LOCALx_expand_vardesc'.
      simpl app. unfold denote_vardesc.
-     rewrite  <- !canon17, <- !insert_local', <- !andp_assoc.
+     rewrite  <- !insert_prop, <- !insert_local', <- !andp_assoc.
      f_equal.
      extensionality rho; unfold local, lift1, lvar, gvar; simpl;
      normalize.
@@ -977,7 +976,7 @@ Proof.
      rewrite <- (PTree.gsident _ _ H9) by auto.
      rewrite !LOCALx_expand_vardesc'.
      simpl app. unfold denote_vardesc.
-     rewrite  <- !canon17, <- !insert_local', <- !andp_assoc.
+     rewrite  <- !insert_prop, <- !insert_local', <- !andp_assoc.
      f_equal.
      extensionality rho; unfold local, lift1, lvar, gvar; simpl;
      normalize.
@@ -990,7 +989,7 @@ Proof.
      rewrite <- (PTree.gsident _ _ H9) at 1 by auto.
      rewrite !LOCALx_expand_vardesc'.
      simpl app. unfold denote_vardesc.
-     rewrite  <- !canon17,  <- !insert_local', <- !andp_assoc.
+     rewrite  <- !insert_prop,  <- !insert_local', <- !andp_assoc.
      f_equal.
      extensionality rho; unfold local, lift1, lvar, gvar, sgvar; simpl;
      normalize.
@@ -1017,7 +1016,7 @@ Proof.
      rewrite <- (PTree.gsident _ _ H9) by auto.
      rewrite !LOCALx_expand_vardesc'.
      simpl app. unfold denote_vardesc.
-     rewrite  <- !canon17, <- !insert_local', <- !andp_assoc.
+     rewrite  <- !insert_prop, <- !insert_local', <- !andp_assoc.
      f_equal.
      extensionality rho; unfold local, lift1, lvar, gvar, sgvar; simpl;
      normalize.
@@ -1030,14 +1029,14 @@ Proof.
      rewrite <- (PTree.gsident _ _ H9) at 1 by auto.
      rewrite !LOCALx_expand_vardesc'.
      simpl app. unfold denote_vardesc.
-     rewrite  <- ?canon17, <- !insert_local', <- !andp_assoc.
+     rewrite  <- ?insert_prop, <- !insert_local', <- !andp_assoc.
      f_equal.
      apply andp_comm.
   -
      rewrite <- (PTree.gsident _ _ H9) by auto.
      rewrite !LOCALx_expand_vardesc'.
      simpl app. unfold denote_vardesc.
-     rewrite  <- !canon17, <- !insert_local', <- !andp_assoc.
+     rewrite  <- !insert_prop, <- !insert_local', <- !andp_assoc.
      f_equal.
      extensionality rho; unfold local, lift1, lvar, gvar, sgvar; simpl;
      normalize.
@@ -1050,7 +1049,7 @@ Proof.
      rewrite <- (PTree.gsident _ _ H9) by auto.
      rewrite !LOCALx_expand_vardesc'.
      simpl app. unfold denote_vardesc.
-     rewrite  <- !canon17,  <- !insert_local', <- !andp_assoc.
+     rewrite  <- !insert_prop,  <- !insert_local', <- !andp_assoc.
      f_equal.
      extensionality rho; unfold local, lift1, lvar, gvar, sgvar; simpl;
      normalize.
