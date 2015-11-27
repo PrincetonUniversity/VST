@@ -15,8 +15,9 @@ Require Import spec_salsa.
 Opaque Snuffle20. Opaque Snuffle.Snuffle. Opaque prepare_data. 
 Opaque fcore_result.
 
-(*VST Issue: why do these two sepcs have to be made Opaque?
-  (If we delete the line, one for the "forward" in this file fails*)
+(*VST Issue: why do these two specs have to be made Opaque?
+ If we delete the line, the "forward" for statement aux = x[0] in 
+ the verifacation of ld32 gets stuck.*)
 Opaque crypto_core_salsa20_spec. Opaque crypto_core_hsalsa20_spec.
 
 Lemma L32_spec_ok: semax_body SalsaVarSpecs SalsaFunSpecs
@@ -71,7 +72,8 @@ Time forward. (*1.1*)
 Time forward. (*2.2*)
 Time entailer!; omega. (*1.3*)
 Time forward. (*1.5*)
-Time forward. (*2.1*)
+(*drop_LOCAL 1%nat. inclusion of this doesn't help*)
+Time forward. (*2.1 - THIS IS THE FORWARD THAT FAILS IF WE DON'T DECLARE SOME SPECS OPAQUE: aux = x[0];*)
 Time entailer!; omega. (*1.3*)
 Time forward. (*5.2*)
 Time entailer!.

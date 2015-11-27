@@ -87,19 +87,20 @@ destruct (H2 15) as [x [X [y [Y Q]]]]; try omega.
 simpl in X, Y, Q. symmetry in X, Y; inv X; inv Y. rewrite <- Q; clear Q.
 reflexivity.
 Qed.
-(*
-Lemma TP C1 C2 C3 C4 N1 N2 N3 N4 intsums OUT: length intsums = 16%nat -> length OUT = 64%nat ->
+
+Lemma TP C1 C2 C3 C4 N1 N2 N3 N4 intsums OUT: Zlength intsums = 16 -> Zlength OUT = 64 ->
   hPosLoop3 4 (hPosLoop2 4 intsums (C1, C2, C3, C4) (N1, N2, N3, N4)) OUT = 
- QuadByte2ValList (littlendian_invert (Int.sub (Znth 0 intsums Int.zero)  (littleendian C1))) ++
- QuadByte2ValList (littlendian_invert (Int.sub (Znth 5 intsums Int.zero)  (littleendian C2))) ++
- QuadByte2ValList (littlendian_invert (Int.sub (Znth 10 intsums Int.zero) (littleendian C3))) ++
- QuadByte2ValList (littlendian_invert (Int.sub (Znth 15 intsums Int.zero) (littleendian C4))) ++
- QuadByte2ValList (littlendian_invert (Int.sub (Znth 6 intsums Int.zero)  (littleendian N1))) ++
- QuadByte2ValList (littlendian_invert (Int.sub (Znth 7 intsums Int.zero)  (littleendian N2))) ++
- QuadByte2ValList (littlendian_invert (Int.sub (Znth 8 intsums Int.zero)  (littleendian N3))) ++
- QuadByte2ValList (littlendian_invert (Int.sub (Znth 9 intsums Int.zero)  (littleendian N4))) ++
+ QuadByte2ValList (littleendian_invert (Int.sub (Znth 0 intsums Int.zero)  (littleendian C1))) ++
+ QuadByte2ValList (littleendian_invert (Int.sub (Znth 5 intsums Int.zero)  (littleendian C2))) ++
+ QuadByte2ValList (littleendian_invert (Int.sub (Znth 10 intsums Int.zero) (littleendian C3))) ++
+ QuadByte2ValList (littleendian_invert (Int.sub (Znth 15 intsums Int.zero) (littleendian C4))) ++
+ QuadByte2ValList (littleendian_invert (Int.sub (Znth 6 intsums Int.zero)  (littleendian N1))) ++
+ QuadByte2ValList (littleendian_invert (Int.sub (Znth 7 intsums Int.zero)  (littleendian N2))) ++
+ QuadByte2ValList (littleendian_invert (Int.sub (Znth 8 intsums Int.zero)  (littleendian N3))) ++
+ QuadByte2ValList (littleendian_invert (Int.sub (Znth 9 intsums Int.zero)  (littleendian N4))) ++
  skipn 32 OUT.
-Proof. intros.
+Proof. intros. 
+rewrite Zlength_length in H, H0. simpl in H, H0.  
 destruct intsums; simpl in H. omega. rename i into v0. 
 destruct intsums; simpl in H. omega. rename i into v1. 
 destruct intsums; simpl in H. omega. rename i into v2. 
@@ -182,9 +183,9 @@ destruct OUT; simpl in H0. omega. rename v into u60.
 destruct OUT; simpl in H0. omega. rename v into u61. 
 destruct OUT; simpl in H0. omega. rename v into u62. 
 destruct OUT; simpl in H0. omega. rename v into u63. 
-destruct OUT; simpl in H0. 2: omega. clear H0. simpl. reflexivity.
-Qed.*)
-
+destruct OUT; simpl in H0. 2: omega. clear H0. simpl. reflexivity. omega. omega.
+Qed.
+(*
 Opaque firstn.
 Lemma TP1 C1 C2 C3 C4 N1 N2 N3 N4 intsums OUT: Zlength intsums = 16 -> Zlength OUT = 64 ->
  firstn 32 (hPosLoop3 4 (hPosLoop2 4 intsums (C1, C2, C3, C4) (N1, N2, N3, N4)) OUT) = 
@@ -215,7 +216,7 @@ Proof. intros.
  apply Zlength_nil_inv in L4. subst; reflexivity.
 Qed.
 Transparent firstn. 
-
+*)
 Definition HTrue_inv intsums xs ys:Prop:=
 Zlength intsums = 16 /\
         (forall j, 0 <= j < 16 -> 
@@ -278,8 +279,7 @@ LOCAL (lvar _t (tarray tuint 4) t;
        lvar _y (tarray tuint 16) y; lvar _x (tarray tuint 16) x;
        lvar _w (tarray tuint 16) w; temp _in nonce; temp _out out; temp _c c;
        temp _k k; temp _h (Vint (Int.repr h)))
-  SEP (CoreInSEP data (nonce, c, k); (*SByte Nonce nonce; SByte C c;
-       ThirtyTwoByte K k;*)
+  SEP (CoreInSEP data (nonce, c, k); 
        data_at Tsh (tarray tuint 16) (map Vint ys) y;
        data_at_ Tsh (tarray tuint 4) t; data_at_ Tsh (tarray tuint 16) w;
        if Int.eq (Int.repr h) Int.zero 
@@ -441,10 +441,10 @@ apply semax_seq with (Q:=fcore_EpiloguePOST t y x w nonce out c k h OUT data).
       Exists (hPosLoop3 4 (hPosLoop2 4 intsums C Nonce) OUT).
       apply HTrue_inv_char in H. rewrite <- H.
       destruct Nonce as [[[? ?] ?] ?]. destruct C as [[[? ?] ?] ?]. 
-      rewrite TP1.
+      rewrite <- TP. (*rewrite TP1.*)
       Time entailer!. (*4.3*)
        apply derives_refl.
-     rewrite Zlength_correct, (sumlist_length _ _ _ H), prepare_data_length; trivial.
+       rewrite Zlength_correct, (sumlist_length _ _ _ H), prepare_data_length; trivial.
         trivial.
         rewrite Zlength_correct, L; reflexivity.
         rewrite Zlength_correct, prepare_data_length; reflexivity.
