@@ -12,202 +12,9 @@ Require Import verif_salsa_base.
 Require Import tweetnaclVerifiableC.
 Require Import spec_salsa. Opaque Snuffle.Snuffle.
 
-(*Opaque Zplus. Opaque Z.mul. Opaque mult. Opaque plus. Opaque skipn. Opaque Z.sub.*)
-    Opaque littleendian.
+Opaque littleendian.
     Opaque littleendian_invert. Opaque Snuffle20. Opaque prepare_data. 
     Opaque QuadByte2ValList. Opaque fcore_result.
-
-Lemma array_copy1I Espec:
-forall FR i (*(wlist ys OUT:list val) data*) j t y x w 
-       nonce out c k h (xs:list int) (J:0<=j<4),
-@semax CompSpecs Espec
-  (initialized_list [_i; _j]
-     (func_tycontext f_core SalsaVarSpecs SalsaFunSpecs))
-  (PROP  ()
-   LOCAL  (temp _j (Vint (Int.repr j)); temp _i (Vint (Int.repr i));
-   @lvar CompSpecs _t (tarray tuint 4) t;
-   @lvar CompSpecs _y (tarray tuint 16) y;
-   @lvar CompSpecs _x (tarray tuint 16) x;
-   @lvar CompSpecs _w (tarray tuint 16) w; temp _in nonce; temp _out out;
-   temp _c c; temp _k k; temp _h (Vint (Int.repr h)))
-   SEP  (FR; 
-     @data_at CompSpecs Tsh (tarray tuint 16) (@map int val Vint xs) x;
-     @data_at_ CompSpecs Tsh (tarray tuint 4) t))
-   (Ssequence
-                        (Sset _m (Econst_int (Int.repr 0) tint))
-                        (Sloop
-                          (Ssequence
-                            (Sifthenelse (Ebinop Olt (Etempvar _m tint)
-                                           (Econst_int (Int.repr 4) tint)
-                                           tint)
-                              Sskip
-                              Sbreak)
-                            (Ssequence
-                              (Sset _index
-                                (Ebinop Omod
-                                  (Ebinop Oadd
-                                    (Ebinop Omul
-                                      (Econst_int (Int.repr 5) tint)
-                                      (Etempvar _j tint) tint)
-                                    (Ebinop Omul
-                                      (Econst_int (Int.repr 4) tint)
-                                      (Etempvar _m tint) tint) tint)
-                                  (Econst_int (Int.repr 16) tint) tint))
-                              (Ssequence
-                                (Sset _aux
-                                  (Ederef
-                                    (Ebinop Oadd (Evar _x (tarray tuint 16))
-                                      (Etempvar _index tint) (tptr tuint))
-                                    tuint))
-                                (Sassign
-                                  (Ederef
-                                    (Ebinop Oadd (Evar _t (tarray tuint 4))
-                                      (Etempvar _m tint) (tptr tuint)) tuint)
-                                  (Etempvar _aux tuint)))))
-                          (Sset _m
-                            (Ebinop Oadd (Etempvar _m tint)
-                              (Econst_int (Int.repr 1) tint) tint))))
-  (normal_ret_assert 
-  (PROP  ()
-   LOCAL  (temp _i (Vint (Int.repr i)); temp _m (Vint (Int.repr 4)); temp _j (Vint (Int.repr j));
-   lvar _t (tarray tuint 4) t; lvar _y (tarray tuint 16) y;
-   lvar _x (tarray tuint 16) x; lvar _w (tarray tuint 16) w; temp _in nonce;
-   temp _out out; temp _c c; temp _k k; temp _h (Vint (Int.repr h)))
-   SEP  (FR; data_at Tsh (tarray tuint 16) (map Vint xs) x;
-     EX  l : list val,
-     !!(forall mm : Z,
-         0 <= mm < 4 ->
-         Znth mm l Vundef =
-         Znth ((5 * j + 4 * mm) mod 16) (map Vint xs) Vundef)
-        && data_at Tsh (tarray tuint 4) l t))).
-Proof. intros. abbreviate_semax.
-Time assert_PROP (Zlength (map Vint xs) = 16) as XL by entailer!. (*1.3 versus 5.8*)
-Time forward_for_simple_bound 4
- (EX m:Z, 
-  (PROP  ()
-   LOCAL  (temp _i (Vint (Int.repr i)); temp _j (Vint (Int.repr j)); lvar _t (tarray tuint 4) t;
-   lvar _y (tarray tuint 16) y; lvar _x (tarray tuint 16) x;
-   lvar _w (tarray tuint 16) w; temp _in nonce; temp _out out; temp _c c;
-   temp _k k; temp _h (Vint (Int.repr h)))
-   SEP  (FR; data_at Tsh (tarray tuint 16) (map Vint xs) x;
-     EX l:_, !!(forall mm, 0<=mm<m -> Znth mm l Vundef = 
-                  Znth ((5*j+4*mm) mod 16) (map Vint xs) Vundef)
-            && data_at Tsh (tarray tuint 4) l t))); try reflexivity; try auto with closed; try repable_signed.
-  (*2.7 versus 4.9*)
-  { Exists (list_repeat 4 Vundef). Time entailer!. (*2.6 versus 7.8*) }
-  { rename i0 into m. rename H into M. Intros T.
-    rename H into HT.
-    Time assert_PROP (Zlength T = 4) as TL by entailer!. (*2.2 versus 5.7*)
-    destruct (Z_mod_lt (5 * j + 4 * m) 16) as [M1 M2]. omega.
-    destruct (Znth_mapVint xs ((5 * j + 4 * m) mod 16) Vundef) as [v NV].
-       simpl in XL. rewrite <- (Zlength_map _ _ Vint xs), XL. split; assumption.
-    remember ((Int.eq (Int.repr (5 * j + 4 * m))
-                         (Int.repr Int.min_signed) &&
-                       Int.eq (Int.repr 16) Int.mone)%bool).
-    destruct b; simpl.
-       { apply andb_true_eq in Heqb. destruct Heqb. 
-         apply binop_lemmas2.int_eq_true in H0.
-          assert (IS: Int.signed (Int.repr 16) = 
-                  Int.signed (Int.repr (-1))) by (rewrite H0; trivial).  clear - IS.
-          rewrite Int.signed_repr in IS. 2: rewrite int_max_signed_eq, int_min_signed_eq; omega. 
-          rewrite Int.signed_repr in IS. omega. rewrite int_max_signed_eq, int_min_signed_eq; omega. }
-    freeze [0;1;2] FR1.
-    Time forward. (*1.4 versus 8.1*)
-    { Time entailer!. (*1.9 versus 6.6*) rewrite <- Heqb. simpl; trivial. }
-    unfold sem_mod, sem_binarith, both_int; simpl. rewrite <- Heqb. simpl.
-    unfold Int.mods. repeat rewrite Int.signed_repr.
-      2: rewrite int_max_signed_eq, int_min_signed_eq; omega.
-      2: rewrite int_max_signed_eq, int_min_signed_eq; omega.
-    rewrite Z.rem_mod_nonneg; try omega.
-    thaw FR1. freeze [0;2] FR2.
-    Time forward; rewrite NV. (*4.7 versus 15*)
-    Time solve[entailer!]. (*1.4 versus 5.4*)
-    thaw FR2. freeze [0;2] FR3.
-    Time forward. (*3.9 versus 14.7*)
-    { Exists (upd_Znth m T (Vint v)).
-      Time entailer!. (*4.2 versus 8.9*)
-      intros mm ?. 
-      destruct (zeq mm m); subst.
-      + rewrite upd_Znth_same; try omega. rewrite NV; trivial. 
-      + rewrite upd_Znth_diff; try omega. apply HT; omega.
-      + thaw FR3. Time cancel. (*0.1*) } 
-  }
-Time entailer!. (*2.9 versus 7.6*)
-Time Qed. (*16.4 versus 32.2*)
-
-Lemma array_copy3 Espec:
-forall FR c k h nonce out 
-       i w x y t (xlist wlist:list val) 
-       (WZ: forall m, 0<=m<16 -> exists mval, Znth m wlist Vundef =Vint mval),
-@semax CompSpecs Espec
-  (initialized_list [_i; _j]
-     (func_tycontext f_core SalsaVarSpecs SalsaFunSpecs))
-  (PROP  ()
-   LOCAL  (temp _j (Vint (Int.repr 4)); temp _i (Vint (Int.repr i)); lvar _t (tarray tuint 4) t;
-   lvar _y (tarray tuint 16) y; lvar _x (tarray tuint 16) x;
-   lvar _w (tarray tuint 16) w; temp _in nonce; temp _out out; temp _c c;
-   temp _k k; temp _h (Vint (Int.repr h)))
-   SEP  (FR; data_at Tsh (tarray tuint 16) wlist w;
-   data_at Tsh (tarray tuint 16) xlist x))
-  (Sfor (Sset _m (Econst_int (Int.repr 0) tint))
-     (Ebinop Olt (Etempvar _m tint) (Econst_int (Int.repr 16) tint) tint)
-     (Ssequence
-        (Sset _aux
-           (Ederef
-              (Ebinop Oadd (Evar _w (tarray tuint 16)) (Etempvar _m tint)
-                 (tptr tuint)) tuint))
-        (Sassign
-           (Ederef
-              (Ebinop Oadd (Evar _x (tarray tuint 16)) (Etempvar _m tint)
-                 (tptr tuint)) tuint) (Etempvar _aux tuint)))
-     (Sset _m
-        (Ebinop Oadd (Etempvar _m tint) (Econst_int (Int.repr 1) tint) tint)))
-  (normal_ret_assert
-  (PROP  ()
-   LOCAL  (temp _j (Vint (Int.repr 4)); temp _i (Vint (Int.repr i)); lvar _t (tarray tuint 4) t;
-   lvar _y (tarray tuint 16) y; lvar _x (tarray tuint 16) x;
-   lvar _w (tarray tuint 16) w; temp _in nonce; temp _out out; temp _c c;
-   temp _k k; temp _h (Vint (Int.repr h)))
-   SEP  (FR; data_at Tsh (tarray tuint 16) wlist w;
-   data_at Tsh (tarray tuint 16) wlist x))).
-Proof. intros. abbreviate_semax.
-Time assert_PROP (Zlength wlist = 16 /\ Zlength xlist = 16) as WXL by entailer!. (*1.4 versus 5.4*)
-destruct WXL as [WL XL].
-Time forward_for_simple_bound 16 (EX m:Z, 
-  (PROP  ()
-   LOCAL  (temp _j (Vint (Int.repr 4)); temp _i (Vint (Int.repr i)); lvar _t (tarray tuint 4) t;
-   lvar _y (tarray tuint 16) y; lvar _x (tarray tuint 16) x;
-   lvar _w (tarray tuint 16) w; temp _in nonce; temp _out out; temp _c c;
-   temp _k k; temp _h (Vint (Int.repr h)))
-   SEP  (FR;data_at Tsh (tarray tuint 16) wlist w;
-         EX mlist:_, !!(forall mm, 0<=mm<m -> Znth mm mlist Vundef = Znth mm wlist Vundef)
-                && data_at Tsh (tarray tuint 16) mlist x))).
-(*1 versus 2.7*)
-{ Exists xlist. Time entailer!. (*2.3 versus 6.7*) } 
-{ Intros mlist. rename H into M. rename i0 into m. rename H0 into HM.
-       destruct (WZ _ M) as [mval MVAL].
-  freeze [0;2] FR1.
-  Time forward; rewrite MVAL. (*3.1 versus 8.7*)
-       Time solve[entailer!]. (*0.9 versus 3.3*)
-  thaw FR1. (*freeze [0;2] FR2.  *)
-  Time assert_PROP (Zlength mlist = 16) as ML by entailer!. (*0.9 versus 3.5*)
-  Time forward. (*3.2 versus 9*)
-   { Exists (upd_Znth m mlist (Vint mval)).
-     Time entailer!. (*2.8 versus 5.6*)
-     intros mm ?.
-     destruct (zeq mm m); subst.
-     + rewrite MVAL, upd_Znth_same; trivial. omega.
-     + rewrite <- HM. 2: omega.
-       apply upd_Znth_diff; trivial; omega. }
-(*     + Time thaw FR2; cancel. (*0.0*) }*)
-}
-{ Time entailer!. (*1.8 versus 4.3*)
-  Intros mlist.
-  assert_PROP (Zlength mlist = 16) as ML by entailer. 
-  apply derives_refl'. f_equal.
-  eapply Znth_extensional with (d:=Vundef). omega.
-  intros k K. apply H9. omega. }
-Time Qed. (*12.6 versus 21.4*)
 
 Lemma pattern1_noStmt Espec Source1 Source2 Target Offset: forall FR
   (S1Range: 0 <= Source1 < 4) (S2Range: 0 <= Source2 < 4) (TgtRange: 0 <= Target < 4)
@@ -383,7 +190,7 @@ Proof. intros. abbreviate_semax.
   thaw FR2.
   Time forward. (*3.3 versus 7*)
   Time entailer!. (*1.3 versus 6.2*)
-Time Qed. (*25.4 versus 44*)
+Time Qed. (*27 versus 44*)
 
 Lemma pattern3_noStmt Espec Source1 Source2 Target Offset: forall FR
   (S1Range: 0 <= Source1 < 4) (S2Range: 0 <= Source2 < 4) (TgtRange: 0 <= Target < 4)
@@ -470,7 +277,6 @@ Proof. intros. abbreviate_semax.
   Time entailer!. (*1.3 versus 6.2*)
 Time Qed. (*41.6 versus 52 -- noticably SLOWER than previous 2 lemmas*)
 
-(*Opaque Zplus. Opaque Z.mul. Opaque mult. Opaque plus. Opaque skipn. Opaque Z.sub.*)
 Lemma pattern4_noStmt Espec Source1 Source2 Target Offset: forall FR
   (S1Range: 0 <= Source1 < 4) (S2Range: 0 <= Source2 < 4) (TgtRange: 0 <= Target < 4)
   (HOffset: 0 < Int.unsigned (Int.repr Offset) < 32)
@@ -546,7 +352,6 @@ Proof. intros. abbreviate_semax.
   Time forward_call (Int.add ValS1 ValS2, Int.repr Offset). (*2.6 versus 9*)
 
   Intros v; subst v.
-(*Transparent skipn.*)
   thaw FR1.
   Time forward; rewrite HTgt. (*3.4 versus 12.8*) 
   Time solve[entailer!]. (*1 versus 4.7*)
@@ -580,7 +385,7 @@ Proof. induction m; simpl; intros; subst; trivial.
   destruct H as [l' [tm [ L [W [ZZ LL]]]]]. subst. apply IHm in W; trivial.
 Qed.
   
-Lemma array_copy2 Espec FR i ((*xs ys*) wlist:list val) (*data OUT*) j t y x w nonce out c k h
+Lemma array_copy2 Espec FR i (wlist:list val) j t y x w nonce out c k h
        (t0 t1 t2 t3:int) (J:0<=j<4):
 @semax CompSpecs Espec
   (initialized_list [_i; _j; _m; _aux; _aux1; 184%positive; 183%positive; 182%positive; 181%positive]
@@ -673,7 +478,6 @@ Time forward_for_simple_bound 4 (EX m:Z,
              2: rewrite client_lemmas.int_min_signed_eq, client_lemmas.int_max_signed_eq; omega.  
              rewrite add_repr. rewrite Z.rem_mod_nonneg. trivial. omega. omega.
   rewrite A; clear A.
-(*Opaque Z.mul. Opaque Z.add. *)
   thaw FR1. freeze [0;2] FR2.
   Time forward. (*4.8 versus 12.5*)
   { apply prop_right.
@@ -712,7 +516,7 @@ rewrite T0 in Z0; inv Z0.
 rewrite T1 in Z1; inv Z1.
 rewrite T2 in Z2; inv Z2.
 rewrite T3 in Z3; inv Z3; trivial.
-Time Qed. (*143 versus 159 SLOW*)
+Time Qed. (*285 versus 159 SLOW; was 130 in previous round- and I didn't change this lemma at all*)
 
 Definition Wcopyspec (t0 t1 t2 t3: int):=
 (Int.xor t0
@@ -754,17 +558,134 @@ Lemma SixteenWR_Znth_int' s i:
   0 <= i < 16 -> exists ii : int, Znth i (SixteenWordRep s) Vundef = Vint ii.
 Proof. apply SixteenWR_Znth_int. Qed.
 
-Lemma Jbody (Espec : OracleKind): forall FR
-c k h nonce out w x y t i j 
-xs
-(I : 0 <= i < 20)
-(J : 0 <= j < 4)
-wlist
-t0 t1 t2 t3
-(T0: Znth ((5*j+4*0) mod 16) (map Vint xs) Vundef = Vint t0)
-(T0: Znth ((5*j+4*1) mod 16) (map Vint  xs) Vundef = Vint t1)
-(T0: Znth ((5*j+4*2) mod 16) (map Vint xs) Vundef = Vint t2)
-(T0: Znth ((5*j+4*3) mod 16) (map Vint xs) Vundef = Vint t3),
+Lemma array_copy1 Espec: forall FR 
+      i j t y x w nonce out c k h (xs:list int) (J:0<=j<4),
+@semax CompSpecs Espec
+  (initialized_list [_i; _j]
+     (func_tycontext f_core SalsaVarSpecs SalsaFunSpecs))
+  (PROP  ()
+   LOCAL  (temp _j (Vint (Int.repr j)); temp _i (Vint (Int.repr i));
+   @lvar CompSpecs _t (tarray tuint 4) t;
+   @lvar CompSpecs _y (tarray tuint 16) y;
+   @lvar CompSpecs _x (tarray tuint 16) x;
+   @lvar CompSpecs _w (tarray tuint 16) w; temp _in nonce; temp _out out;
+   temp _c c; temp _k k; temp _h (Vint (Int.repr h)))
+   SEP  (FR; @data_at_ CompSpecs Tsh (tarray tuint 4) t; 
+     @data_at CompSpecs Tsh (tarray tuint 16) (@map int val Vint xs) x))
+   (Ssequence
+                        (Sset _m (Econst_int (Int.repr 0) tint))
+                        (Sloop
+                          (Ssequence
+                            (Sifthenelse (Ebinop Olt (Etempvar _m tint)
+                                           (Econst_int (Int.repr 4) tint)
+                                           tint)
+                              Sskip
+                              Sbreak)
+                            (Ssequence
+                              (Sset _index
+                                (Ebinop Omod
+                                  (Ebinop Oadd
+                                    (Ebinop Omul
+                                      (Econst_int (Int.repr 5) tint)
+                                      (Etempvar _j tint) tint)
+                                    (Ebinop Omul
+                                      (Econst_int (Int.repr 4) tint)
+                                      (Etempvar _m tint) tint) tint)
+                                  (Econst_int (Int.repr 16) tint) tint))
+                              (Ssequence
+                                (Sset _aux
+                                  (Ederef
+                                    (Ebinop Oadd (Evar _x (tarray tuint 16))
+                                      (Etempvar _index tint) (tptr tuint))
+                                    tuint))
+                                (Sassign
+                                  (Ederef
+                                    (Ebinop Oadd (Evar _t (tarray tuint 4))
+                                      (Etempvar _m tint) (tptr tuint)) tuint)
+                                  (Etempvar _aux tuint)))))
+                          (Sset _m
+                            (Ebinop Oadd (Etempvar _m tint)
+                              (Econst_int (Int.repr 1) tint) tint))))
+  (normal_ret_assert 
+  (PROP  ()
+   LOCAL  (temp _i (Vint (Int.repr i)); temp _m (Vint (Int.repr 4)); temp _j (Vint (Int.repr j));
+   lvar _t (tarray tuint 4) t; lvar _y (tarray tuint 16) y;
+   lvar _x (tarray tuint 16) x; lvar _w (tarray tuint 16) w; temp _in nonce;
+   temp _out out; temp _c c; temp _k k; temp _h (Vint (Int.repr h)))
+   SEP  (FR; data_at Tsh (tarray tuint 16) (map Vint xs) x;
+     EX  l : list val,
+     !!(forall mm : Z,
+         0 <= mm < 4 ->
+         Znth mm l Vundef =
+         Znth ((5 * j + 4 * mm) mod 16) (map Vint xs) Vundef)
+        && data_at Tsh (tarray tuint 4) l t))).
+Proof. intros. abbreviate_semax.
+freeze [0;1] FR1.
+Time assert_PROP (Zlength (map Vint xs) = 16) as XL by entailer!. (*1*)
+thaw FR1.
+Time forward_for_simple_bound 4
+ (EX m:Z, 
+  (PROP  ()
+   LOCAL  (temp _i (Vint (Int.repr i)); temp _j (Vint (Int.repr j)); lvar _t (tarray tuint 4) t;
+   lvar _y (tarray tuint 16) y; lvar _x (tarray tuint 16) x;
+   lvar _w (tarray tuint 16) w; temp _in nonce; temp _out out; temp _c c;
+   temp _k k; temp _h (Vint (Int.repr h)))
+   SEP  (FR;
+     EX l:_, !!(forall mm, 0<=mm<m -> Znth mm l Vundef = 
+                  Znth ((5*j+4*mm) mod 16) (map Vint xs) Vundef)
+            && data_at Tsh (tarray tuint 4) l t; 
+       data_at Tsh (tarray tuint 16) (map Vint xs) x))); try reflexivity; try auto with closed; try repable_signed.
+  (*1.3*)
+  { Exists (list_repeat 4 Vundef). Time entailer!. (*2.2*) }
+  { rename i0 into m. rename H into M. Intros T.
+    rename H into HT.
+    Time assert_PROP (Zlength T = 4) as TL by entailer!. (*2.2 versus 5.7*)
+    destruct (Z_mod_lt (5 * j + 4 * m) 16) as [M1 M2]. omega.
+    destruct (Znth_mapVint xs ((5 * j + 4 * m) mod 16) Vundef) as [v NV].
+       simpl in XL. rewrite <- (Zlength_map _ _ Vint xs), XL. split; assumption.
+    remember ((Int.eq (Int.repr (5 * j + 4 * m))
+                         (Int.repr Int.min_signed) &&
+                       Int.eq (Int.repr 16) Int.mone)%bool).
+    destruct b; simpl.
+       { apply andb_true_eq in Heqb. destruct Heqb. 
+         apply binop_lemmas2.int_eq_true in H0.
+          assert (IS: Int.signed (Int.repr 16) = 
+                  Int.signed (Int.repr (-1))) by (rewrite H0; trivial).  clear - IS.
+          rewrite Int.signed_repr in IS. 2: rewrite int_max_signed_eq, int_min_signed_eq; omega. 
+          rewrite Int.signed_repr in IS. omega. rewrite int_max_signed_eq, int_min_signed_eq; omega. }
+    freeze [0;1;2] FR1.
+    Time forward. (*2.5*)
+    { Time entailer!. (*1.9 versus 6.6*) rewrite <- Heqb. simpl; trivial. }
+    unfold sem_mod, sem_binarith, both_int; simpl. rewrite <- Heqb. simpl.
+    unfold Int.mods. repeat rewrite Int.signed_repr.
+      2: rewrite int_max_signed_eq, int_min_signed_eq; omega.
+      2: rewrite int_max_signed_eq, int_min_signed_eq; omega.
+    rewrite Z.rem_mod_nonneg; try omega.
+    thaw FR1. freeze [0;1] FR2.
+    Time forward; rewrite NV. (*4.5 versus 15*)
+    Time solve[entailer!]. (*1.1 versus 5.4*)
+    thaw FR2. freeze [0;2] FR3.
+    Time forward. (*3.9 versus 14.7*)
+    { Exists (upd_Znth m T (Vint v)).
+      Time entailer!. (*4.2 versus 8.9*)
+      intros mm ?. 
+      destruct (zeq mm m); subst.
+      + rewrite upd_Znth_same; try omega. rewrite NV; trivial. 
+      + rewrite upd_Znth_diff; try omega. apply HT; omega.
+      + thaw FR3. Time cancel. (*0.1*) } 
+  }
+Time entailer!. (*2.4 versus 7.6*)
+Time Qed. (*14.5 versus 32.2*)
+
+Lemma Jbody (Espec : OracleKind) FR c k h nonce out w x y t i j xs
+  (I : 0 <= i < 20)
+  (J : 0 <= j < 4)
+  wlist
+  t0 t1 t2 t3
+  (T0: Znth ((5*j+4*0) mod 16) (map Vint xs) Vundef = Vint t0)
+  (T1: Znth ((5*j+4*1) mod 16) (map Vint  xs) Vundef = Vint t1)
+  (T2: Znth ((5*j+4*2) mod 16) (map Vint xs) Vundef = Vint t2)
+  (T3: Znth ((5*j+4*3) mod 16) (map Vint xs) Vundef = Vint t3):
 @semax CompSpecs Espec
   (initialized_list [_i; _j]
      (func_tycontext f_core SalsaVarSpecs SalsaFunSpecs))
@@ -773,9 +694,9 @@ t0 t1 t2 t3
    lvar _t (tarray tuint 4) t; lvar _y (tarray tuint 16) y;
    lvar _x (tarray tuint 16) x; lvar _w (tarray tuint 16) w; temp _in nonce;
    temp _out out; temp _c c; temp _k k; temp _h (Vint (Int.repr h)))
-   SEP  (FR; data_at Tsh (tarray tuint 16) (*(map Vint wlist)*) wlist w;
-   data_at Tsh (tarray tuint 16) (map Vint xs) x;
-   data_at_ Tsh (tarray tuint 4) t))
+   SEP  (FR; data_at_ Tsh (tarray tuint 4) t;
+         data_at Tsh (tarray tuint 16) (*(map Vint wlist)*) wlist w;
+         data_at Tsh (tarray tuint 16) (map Vint xs) x))
                     (Ssequence
                       (Ssequence
                         (Sset _m (Econst_int (Int.repr 0) tint))
@@ -1041,25 +962,23 @@ t0 t1 t2 t3
       temp _in nonce; temp _out out; temp _c c; temp _k k;
       temp _h (Vint (Int.repr h)))
       SEP  (FR; data_at Tsh (tarray tuint 16) (map Vint xs) x;
-      data_at_ Tsh (tarray tuint 4) t; 
-      EX W:_, 
+          data_at_ Tsh (tarray tuint 4) t; 
+          EX W:_, 
              !!(match Wcopyspec t0 t1 t2 t3 with
                  (s0,s1,s2,s3) => wlistJ' wlist j s0 s1 s2 s3 W
                 end) 
-             && data_at Tsh (tarray tuint 16) (*(map Vint W)*)W w))).
+             && data_at Tsh (tarray tuint 16) (*(map Vint W)*)W w))). 
 Proof. intros. abbreviate_semax.
-  freeze [0;1] FR1.
-  forward_seq.
-  apply (array_copy1I _ (FRZL FR1)); trivial.
-  Intros tlist. rename H into HT. 
-  Time assert_PROP (Zlength tlist = 4) as TL by entailer!. (*1.6 versus 5*)
+  freeze [0;2] FR1.
+  forward_seq. apply (array_copy1 _ (FRZL FR1)); trivial.
+  Intros tlist. rename H into HT.
+  freeze [0;1] FR2. 
+  Time assert_PROP (Zlength tlist = 4) as TL by entailer!. (*1.1*)
 
   rewrite <- HT in T0; try omega.
   rewrite <- HT in T1; try omega.
   rewrite <- HT in T2; try omega.
   rewrite <- HT in T3; try omega.
-
-  freeze [0;1] FR2.
   forward_seq.
   apply (pattern1_noStmt _ 0 3 1 7); try omega; try eassumption.
           rewrite Int.unsigned_repr. omega. rewrite int_max_unsigned_eq; omega.
@@ -1129,7 +1048,6 @@ Proof. intros. abbreviate_semax.
       destruct tlist; simpl in *. repeat rewrite Zlength_cons' in TL; rewrite Zlength_nil in TL. omega.
       assert (Znth 3 (Vint t0 :: Vint t1 :: Vint t2 ::v :: tlist) Vundef = v) by reflexivity. rewrite H in T3; clear H. subst v.
       destruct tlist; trivial. repeat rewrite Zlength_cons' in TL. specialize (Zlength_nonneg tlist); intros; omega.
-   (*subst tlist.*)
    assert (tlist4 = map Vint [tt3; tt0; tt1; tt2]).
      subst tlist tlist4 tlist3 tlist2 tlist1. unfold upd_Znth. simpl. f_equal.
    clear Heqtlist4 Heqtlist3 Heqtlist2 Heqtlist1.
@@ -1138,8 +1056,7 @@ Proof. intros. abbreviate_semax.
    freeze [0;2] FR3.
    eapply semax_post. 2: apply (array_copy2 Espec (FRZL FR3)); trivial.
    intros ek vl. apply andp_left2.
-   unfold POSTCONDITION, abbreviate.
- 
+   unfold POSTCONDITION, abbreviate. 
    apply assert_lemmas.normal_ret_assert_derives'.
-   thaw FR3. Intros l. Exists l. Time entailer!. (*7 versus 9.9*)
-Time Qed. (*12.2 versus 16.5*)
+   thaw FR3. Intros l. Exists l. Time entailer!. (*8*)   
+Time Qed. (*13.3*)

@@ -2040,6 +2040,22 @@ Proof.
 intros. apply andp_left2; auto.
 Qed.
 
+Lemma frame_ret_assert_derives P Q: P |-- Q -> frame_ret_assert P |-- frame_ret_assert Q.
+Proof. intros.
+ unfold frame_ret_assert. intros ? ? ?. apply sepcon_derives; trivial. apply H. Qed.
+
+Lemma bind_ret_derives t P Q v: P|-- Q -> bind_ret v t P |-- bind_ret v t Q.
+Proof. intros. destruct v. simpl; intros. entailer!. apply H.
+  destruct t; trivial. simpl; intros. apply H.
+Qed.
+
+Lemma function_body_ret_assert_derives t P Q: P |-- Q -> 
+      function_body_ret_assert t P |-- function_body_ret_assert t Q.
+Proof. intros. intros ek v.
+  destruct ek; simpl; trivial. 
+  intros. apply bind_ret_derives; trivial. 
+Qed.
+
 Ltac forward_return :=
      repeat match goal with |- semax _ _ _ ?D => unfold D, abbreviate; clear D end;
      match goal with |- @semax ?CS _ _ _ _ _ =>

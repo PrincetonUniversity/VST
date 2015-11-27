@@ -154,6 +154,7 @@ Definition reptype_gen: type -> (sigT (fun x => x)) :=
   (fun id a TVs => existT (fun x => x) (compact_sum_sigT_type (decay TVs)) (compact_sum_sigT_value (decay TVs))).
 
 Definition reptype t: Type := match reptype_gen t with existT t _ => t end.
+
 Definition default_val t: reptype t :=
   match reptype_gen t as tv
     return match tv with existT t _ => t end
@@ -949,3 +950,4 @@ Qed.
 
 Lemma Zlength_default_val_Tarray_tuchar {cs} n a (N:0<=n): Zlength (@default_val cs (Tarray tuchar n a)) = n.
 Proof. unfold default_val; simpl. rewrite Zlength_list_repeat; trivial. Qed.
+

@@ -7,9 +7,9 @@
 Require Import floyd.proofauto.
 Local Open Scope logic.
 Require Import List. Import ListNotations.
-Require Import general_lemmas.
+(*Require Import general_lemmas.
 
-Require Import split_array_lemmas.
+Require Import split_array_lemmas.*)
 Require Import ZArith. 
 Require Import tweetNaclBase.
 Require Import Salsa20.
@@ -312,20 +312,20 @@ rename lvar3 into t.
 rename lvar2 into y.
 rename lvar1 into x.
 rename lvar0 into w.
-Time assert_PROP (Zlength OUT = 64) as ZL_OUT by entailer!. (*1.3*) 
-freeze [0;1;3;5] FR1.
+freeze [0;1;2;3;4] FR1.
+Time assert_PROP (Zlength OUT = 64) as ZL_OUT by entailer!. (*0.9*) 
+(*freeze [0;1;3;5] FR1.*)
 apply semax_seq with (Q:=fcore_EpiloguePOST t y x w nonce out c k h OUT data).
-  + forward_seq.
-    apply (f_core_loop1 Espec (FRZL FR1) c k h nonce out data w x y t); trivial.
+  + thaw FR1. freeze [0;1;3;5] FR2. 
+    forward_seq. 
+    apply (f_core_loop1 Espec (FRZL FR2) c k h nonce out w x y t data); trivial.
  
     (*/FOR(i,16) y[i] = x[i]*)
     Intros xInit. red in H. rename H into XInit.
-    thaw FR1. 
-    forward_seq. 
-    eapply semax_pre.
-    2: apply (f_core_loop2 _ c k h nonce out OUT data) with (w0:=w)(x0:=x)(y0:=y)(t0:=t)(xInit0:=xInit); trivial. 
+    thaw FR2. freeze [0;2;3;5] FR3.
+    forward_seq.
+    apply (f_core_loop2 _ (FRZL FR3) c k h nonce out w x y t data); trivial.
     (* mkConciseDelta SalsaVarSpecs SalsaFunSpecs f_core Delta.*)
-    Time entailer!. (*3.9*)
   
     Intros YS. 
     destruct H as [? [? [? [? [? [? [? [? ?]]]]]]]]. 
@@ -342,55 +342,54 @@ apply semax_seq with (Q:=fcore_EpiloguePOST t y x w nonce out c k h OUT data).
     destruct Nonce as [[[N1 N2] N3] N4].
     destruct C as [[[C1 C2] C3] C4].
     destruct Key1 as [[[K1 K2] K3] K4].
-    destruct Key2 as [[[L1 L2] L3] L4]. subst xInit.
-
-    forward_seq.
-    eapply semax_pre_post. 
-    Focus 3. apply (f_core_loop3 _ c k h nonce out w x y t OUT
-             (map littleendian
-                    [C1; K1; K2; K3; K4; C2; N1; N2; N3; N4; C3; L1; L2; L3; L4; C4])) with
-             (data:=(N1, N2, N3, N4, (C1, C2, C3, C4), (K1, K2, K3, K4, (L1, L2, L3, L4)))); trivial.
-    apply andp_left2. Time entailer!. (*9.7 versus 9.6*) apply derives_refl.
-    intros ? ?. apply andp_left2. apply assert_lemmas.normal_ret_assert_derives'. apply derives_refl.
- 
+    destruct Key2 as [[[L1 L2] L3] L4]. 
+  
+    thaw FR3. subst xInit.
+    freeze [2;3;5] FR4.
     remember [C1; K1; K2; K3; K4; C2; N1; N2; N3; N4; C3; L1; L2; L3; L4; C4] as xInit.
+    forward_seq.
+    apply (f_core_loop3 _ (FRZL FR4) c k h nonce out w x y t (map littleendian xInit)).
     Intros snuffleRes. rename H into RES.
 
+    freeze [0;1;2;3] FR5.
     Time forward_if (fcore_EpiloguePOST t y x w nonce out c k h OUT 
-               ((N1, N2, N3, N4), (C1, C2, C3, C4), ((K1, K2, K3, K4), (L1, L2, L3, L4)))). (*13.5 versus 11.6 -- penalty*)
+               ((N1, N2, N3, N4), (C1, C2, C3, C4), ((K1, K2, K3, K4), (L1, L2, L3, L4)))). (*4.8*)
     (*mkConciseDelta SalsaVarSpecs SalsaFunSpecs f_core Delta.*)
-    - freeze [2;3] FR2.
+    - thaw FR5. thaw FR4. freeze [3;4] FR6.
       eapply semax_post.
-      2: eapply (verif_fcore_epilogue_htrue Espec (FRZL FR2) t y x w nonce out c k h 
+      2: eapply (verif_fcore_epilogue_htrue Espec (FRZL FR6) t y x w nonce out c k h 
                      OUT snuffleRes (map littleendian xInit)
                      (N1, N2, N3, N4) (C1, C2, C3, C4) (K1, K2, K3, K4, (L1, L2, L3, L4))).
       intros ? ?. apply andp_left2.
-        unfold typed_true in H. simpl in H. inversion H. apply negb_true_iff in H1. 
-        unfold POSTCONDITION, abbreviate, overridePost, normal_ret_assert. 
+        unfold typed_true in H. simpl in H. inversion H. clear H. apply negb_true_iff in H1. 
+        unfold POSTCONDITION, abbreviate, overridePost. 
         Transparent HTruePostCond. unfold HTruePostCond. Opaque HTruePostCond.
-        Time entailer!. (*19.3 versus 21.1*) rewrite if_true by trivial.
+        unfold normal_ret_assert.
+        Time entailer!. (*21 SLOW*) rewrite if_true by trivial.
         rename x0 into intsums.
         apply andp_right. apply prop_right; trivial.
         Exists snuffleRes
               (map littleendian [C1; K1; K2; K3; K4; C2; N1; N2; N3; N4; C3; L1; L2; L3; L4; C4]).
         rewrite H1. Exists intsums.
-        thaw FR2. simpl.
-        Time entailer!. (*11.9 versus 11.3*)
+        thaw FR6. simpl.
+        Time entailer!. (*11.8*)
 
-    - eapply semax_pre_post.
-      Focus 3. eapply (verif_fcore_epilogue_hfalse Espec t y x w nonce out c k h 
-                       (N1, N2, N3, N4, (C1, C2, C3, C4), (K1, K2, K3, K4, (L1, L2, L3, L4)))
-                       OUT snuffleRes (map littleendian xInit)).
-      apply andp_left2. Time entailer!. (*5.4*)
+    - thaw FR5. thaw FR4. freeze [1;3;4] FR6.
+      drop_LOCAL 0%nat.
+      eapply semax_post.
+      2: apply (verif_fcore_epilogue_hfalse Espec (FRZL FR6) 
+            t y x w nonce out c k h OUT). 
       intros ? ?. apply andp_left2.
-        unfold typed_false in H. simpl in H. inv H. apply negb_false_iff in H1. 
+        unfold typed_false in H. simpl in H. inversion H. apply negb_false_iff in H1. clear H. 
         unfold POSTCONDITION, abbreviate, normal_ret_assert, overridePost.
         Transparent HFalsePostCond. unfold HFalsePostCond. Opaque HTruePostCond.
-        Time normalize. (*11*) rewrite if_true by trivial.
-        Exists snuffleRes (map littleendian [C1; K1; K2; K3; K4; C2; N1; N2;
-               N3; N4; C3; L1; L2; L3; L4; C4]).
-        rewrite H1. Time entailer!. (*10.9 versus 10.7*) 
-        Intros l. Exists l. Time entailer!. (*1.5*)
+        Time normalize. (*7.7*) rewrite if_true by trivial.
+(*        Exists snuffleRes (map littleendian [C1; K1; K2; K3; K4; C2; N1; N2;
+               N3; N4; C3; L1; L2; L3; L4; C4]).*)
+        Exists snuffleRes (map littleendian xInit).
+        rewrite H1. Time entailer!. (*8*) rewrite HeqxInit ; reflexivity. 
+        Intros l. Exists l. Time entailer!. (*2.6*) 
+        thaw FR6. subst c nonce k. simpl. Time cancel. (*0.4*) apply derives_refl. 
     - intros ? ?. apply andp_left2.
       unfold POSTCONDITION, abbreviate, fcore_EpiloguePOST, overridePost.
       destruct (eq_dec ek EK_normal); apply derives_refl. 
@@ -435,4 +434,4 @@ apply semax_seq with (Q:=fcore_EpiloguePOST t y x w nonce out c k h OUT data).
         rewrite Zlength_correct, L; reflexivity.
         rewrite Zlength_correct; reflexivity.
       apply andp_right; trivial.
-Time Qed. (*52 versus 58*)
+Time Qed. (*39 versus 58*)

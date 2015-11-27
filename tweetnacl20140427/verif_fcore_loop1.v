@@ -2,8 +2,6 @@ Require Import Recdef.
 Require Import floyd.proofauto.
 Local Open Scope logic.
 Require Import List. Import ListNotations.
-Require Import general_lemmas.
-Require Import sublist.
 
 Require Import split_array_lemmas.
 Require Import ZArith. 
@@ -30,7 +28,7 @@ X_content (Nonce, C, (Key1, Key2)) (i + 1)
            (Vint (littleendian (Select16Q Key1 i))))
         (Vint (littleendian (Select16Q Nonce i))))
      (Vint (littleendian (Select16Q Key2 i)))).
-Proof. unfold X_content in *. Opaque Z.add. Opaque Z.mul. simpl.
+Proof. unfold X_content in *.
   rewrite (Z.add_comm _ 1), Z2Nat.inj_add; try omega. simpl.
   rewrite Z2Nat.id; try omega. subst l; reflexivity.
 Qed.
@@ -49,12 +47,11 @@ Qed.
   2. In the master-branch, we actually could write the lemma using Delta :=,
      so this is really an issue ith the new_compcert branch*)
 
-Lemma f_core_loop1: forall (Espec : OracleKind) FR
-c k h nonce out 
+Lemma f_core_loop1 (Espec : OracleKind) FR c k h nonce out w x y t
 (data : SixteenByte * SixteenByte * (SixteenByte * SixteenByte))
-(*(Delta := func_tycontext f_core SalsaVarSpecs SalsaFunSpecs) *)
-w x y t,
-@semax CompSpecs Espec (func_tycontext f_core SalsaVarSpecs SalsaFunSpecs) (* Delta*)
+(*(Delta := func_tycontext f_core SalsaVarSpecs SalsaFunSpecs) *):
+@semax CompSpecs Espec 
+  (func_tycontext f_core SalsaVarSpecs SalsaFunSpecs) (*Delta*)
   (PROP  ()
    LOCAL  (lvar _t (tarray tuint 4) t; lvar _y (tarray tuint 16) y;
            lvar _x (tarray tuint 16) x; lvar _w (tarray tuint 16) w; temp _in nonce;

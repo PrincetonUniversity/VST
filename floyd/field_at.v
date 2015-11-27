@@ -542,22 +542,7 @@ Proof.
   unfold gfield_offset; rewrite H.
   f_equal; [| f_equal].
   + apply ND_prop_ext.
-    assert (value_fits (field_type i (co_members (get_co id)))
-     (proj_struct i (co_members (get_co id)) (unfold_reptype v1) d0) <-> value_fits (nested_field_type t (gfs DOT i))
-     (proj_struct i (co_members (get_co id)) v2 d1));
-     [| rewrite field_compatible_cons, H; tauto].
-    apply prop_unext, value_fits_type_changable.
-    - rewrite nested_field_type_ind.
-      rewrite H.
-      reflexivity.
-    - apply (proj_compact_prod_JMeq _ _ (co_members (get_co id)) _ _
-        d0 d1 (unfold_reptype v1) v2 member_dec).
-      * intros.
-        rewrite nested_field_type_ind, H.
-        auto.
-      * apply in_members_field_type; auto.
-      * rewrite (unfold_reptype_JMeq (Tstruct id a)).
-        auto.
+    rewrite field_compatible_cons, H; tauto.
   + rewrite sizeof_Tstruct.
     f_equal; [| f_equal; f_equal]; omega.
   + rewrite Z.add_assoc.
@@ -642,23 +627,7 @@ Proof.
   unfold gfield_offset; rewrite H.
   f_equal; [| f_equal].
   + apply ND_prop_ext.
-    assert (value_fits (field_type i (co_members (get_co id)))
-     (proj_union i (co_members (get_co id)) (unfold_reptype v1) d0) <->
-       value_fits (nested_field_type t (gfs UDOT i))
-     (proj_union i (co_members (get_co id)) v2 d1));
-    [| rewrite field_compatible_cons, H; tauto].
-    apply prop_unext, value_fits_type_changable.
-    - rewrite nested_field_type_ind.
-      rewrite H.
-      reflexivity.
-    - apply (proj_compact_sum_JMeq _ _ (co_members (get_co id)) _ _
-        d0 d1 (unfold_reptype v1) v2 member_dec).
-      * intros.
-        rewrite nested_field_type_ind, H.
-        auto.
-      * auto.
-      * rewrite (unfold_reptype_JMeq (Tunion id a)).
-        auto.
+    rewrite field_compatible_cons, H; tauto.
   + rewrite sizeof_Tunion.
     f_equal; [| f_equal; f_equal]; omega.
   + rewrite Z.add_0_r.

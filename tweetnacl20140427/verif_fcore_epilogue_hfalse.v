@@ -1,10 +1,6 @@
 Require Import floyd.proofauto.
 Local Open Scope logic.
 Require Import List. Import ListNotations.
-Require Import general_lemmas.
-Require Import sublist.
-
-Require Import split_array_lemmas.
 Require Import ZArith. 
 Require Import tweetNaclBase.
 Require Import Salsa20.
@@ -22,32 +18,28 @@ Definition HFalse_inv l i xs ys :=
                   sublist (4*ii) (4*ii+4) l =
                   QuadByte2ValList (littleendian_invert (Int.add x_i y_i)).
 
-Definition HFalsePostCond t y x w nonce out c k h xs ys data := 
+Definition HFalsePostCond FR t y x w nonce out c k h xs ys := 
 PROP  ()
- LOCAL  ((*temp _i (Vint (Int.repr 16));*) lvar _t (tarray tuint 4) t;
+ LOCAL  (lvar _t (tarray tuint 4) t;
  lvar _y (tarray tuint 16) y; lvar _x (tarray tuint 16) x;
  lvar _w (tarray tuint 16) w; temp _in nonce; temp _out out; temp _c c;
  temp _k k; temp _h (Vint (Int.repr h)))
- SEP  (data_at Tsh (tarray tuint 16) (map Vint xs) x;
+ SEP  (FR; data_at Tsh (tarray tuint 16) (map Vint xs) x;
  data_at Tsh (tarray tuint 16) (map Vint ys) y;
- data_at_ Tsh (tarray tuint 4) t; data_at_ Tsh (tarray tuint 16) w;
- CoreInSEP data (nonce, c, k);
  EX  l : list val,
    !!HFalse_inv l 16 xs ys && data_at Tsh (tarray tuchar 64) l out).
 
-Lemma verif_fcore_epilogue_hfalse Espec t y x w nonce out c k h data OUT xs ys:
+Lemma verif_fcore_epilogue_hfalse Espec FR t y x w nonce out c k h OUT xs ys:
 @semax CompSpecs Espec
   (initialized_list [_i] (func_tycontext f_core SalsaVarSpecs SalsaFunSpecs))
   (PROP  ()
    LOCAL  (lvar _t (tarray tuint 4) t; lvar _y (tarray tuint 16) y;
    lvar _x (tarray tuint 16) x; lvar _w (tarray tuint 16) w; temp _in nonce;
    temp _out out; temp _c c; temp _k k; temp _h (Vint (Int.repr h)))
-   SEP  (data_at Tsh (tarray tuint 16) (map Vint xs) x;
-   data_at Tsh (tarray tuint 16) (map Vint ys) y;
-   data_at_ Tsh (tarray tuint 4) t; data_at_ Tsh (tarray tuint 16) w;
-   CoreInSEP data (nonce, c, k); data_at Tsh (tarray tuchar 64) OUT out))
-        (Ssequence
-          (Sset _i (Econst_int (Int.repr 0) tint))
+   SEP  (FR; data_at Tsh (tarray tuchar 64) OUT out;
+         data_at Tsh (tarray tuint 16) (map Vint ys) y;
+         data_at Tsh (tarray tuint 16) (map Vint xs) x))
+(Ssequence (Sset _i (Econst_int (Int.repr 0) tint))
           (Sloop
             (Ssequence
               (Sifthenelse (Ebinop Olt (Etempvar _i tint)
@@ -82,69 +74,61 @@ Lemma verif_fcore_epilogue_hfalse Espec t y x w nonce out c k h data OUT xs ys:
             (Sset _i
               (Ebinop Oadd (Etempvar _i tint) (Econst_int (Int.repr 1) tint)
                 tint))))
-(normal_ret_assert (HFalsePostCond t y x w nonce out c k h xs ys data)).
+(normal_ret_assert (HFalsePostCond FR t y x w nonce out c k h xs ys (*data*))).
 Proof. intros. abbreviate_semax.
 eapply semax_post'.
 Focus 2.
-    Opaque littleendian.
-    Opaque littleendian_invert. Opaque Snuffle20. Opaque prepare_data. 
-    Opaque QuadByte2ValList.
-Time forward_for_simple_bound 16 (EX i:Z, 
+  Time forward_for_simple_bound 16 (EX i:Z, 
   (PROP  ()
    LOCAL  (lvar _t (tarray tuint 4) t;
    lvar _y (tarray tuint 16) y; lvar _x (tarray tuint 16) x;
    lvar _w (tarray tuint 16) w; temp _in nonce; temp _out out; temp _c c;
    temp _k k; temp _h (Vint (Int.repr h)))
    SEP 
-   (@data_at CompSpecs Tsh (tarray tuint 16) (map Vint xs) x;
+   (FR; @data_at CompSpecs Tsh (tarray tuint 16) (map Vint xs) x;
    @data_at CompSpecs Tsh (tarray tuint 16) (map Vint ys) y;
-   @data_at_ CompSpecs Tsh (tarray tuint 4) t; @data_at_ CompSpecs Tsh (tarray tuint 16) w;
-   CoreInSEP data (nonce, c, k);
    EX l:_, !!HFalse_inv l i xs ys && @data_at CompSpecs Tsh (tarray tuchar 64) l out))).
-  (*2.9*)
-  { Exists OUT. Time entailer!. (*5.6*)
+  (*1.9*)
+  { Exists OUT. Time entailer!. (*4.2*)
     split; trivial; intros. omega. } 
   { rename H into I. Intros l. rename H into INV_l.
-    Time assert_PROP (Zlength (map Vint xs) = 16) as XL by entailer!. (*3*)
+    freeze [0;2;3] FR1.
+    Time assert_PROP (Zlength (map Vint xs) = 16) as XL by entailer!. (*1*)
     rewrite Zlength_map in XL.
     destruct (Znth_mapVint (xs:list int) i Vundef) as [xi Xi]; try omega.
-    Time assert_PROP (Zlength (map Vint ys) = 16) as YL by entailer!.
+    Time forward; rewrite Xi. (*3.3*)
+    Time solve[entailer!]. (*1*)
+    thaw FR1. freeze [0;2;3] FR2. 
+    Time assert_PROP (Zlength (map Vint ys) = 16) as YL by entailer!. (*1*)
     rewrite Zlength_map in YL.
     destruct (Znth_mapVint ys i Vundef) as [yi Yi]; try omega.
-    Time forward; rewrite Xi. (*9.1*)
-    Time solve[entailer!]. (*2.9*) 
-    Time forward; rewrite Yi. (*9.6*)
-    Time solve[entailer!]. (*3.1*) 
-    Time forward. (*3.7*)
-    Time assert_PROP (isptr out) as Pout by entailer!. (*2.9*)
-    Time forward. (*3.9*)
+    Time forward; rewrite Yi. (*3.7*)
+    Time solve[entailer!]. (*1.4*)
+    Time forward. (*1.3*)
+    thaw FR2. freeze [0;2;3] FR3.
+    Time assert_PROP (isptr out) as Pout by entailer!. (*1.9*)
+    Time forward. (*1.5*)
     assert (ZL: Zlength l = 64). apply INV_l.
-    Time assert_PROP(field_compatible (Tarray tuchar 64 noattr) [] out) as FCO by entailer!. (*3*)
+    Time assert_PROP(field_compatible (Tarray tuchar 64 noattr) [] out) as FCO by entailer!. (*1.1*)
     rewrite <- ZL, (split3_data_at_Tarray_tuchar Tsh (Zlength l) (4 *i) (4+4*i)); try rewrite ZL; try omega; trivial.
     rewrite field_address0_offset by auto with field_compatible.
     rewrite field_address0_offset by auto with field_compatible.
     unfold offset_val. simpl. 
     apply isptrD in Pout. destruct Pout as [b [z Pout]]; rewrite Pout in *; simpl in *.
-    Time normalize. (*5.5*)
+    repeat flatten_sepcon_in_SEP.
 
-    Time forward_call (Vptr b (Int.add z (Int.repr (4 * i))), Int.add xi yi). (*7.5*)
+    freeze [0;1;3] FR4.
+    Time forward_call (Vptr b (Int.add z (Int.repr (4 * i))), Int.add xi yi). (*3.6*)
     { Exists (sublist (4 * i) (4 + 4 * i) l).
       autorewrite with sublist. (*Coq bug: entailer!. yields Anomaly: Coq_omega: Z.sub is not an evaluable constant. Please report.*)
-      Time (normalize; cancel). (*6.5*) }
+      Time (normalize; cancel). (*2.4*) }
 
     Exists ((sublist 0 (4 * i) l) ++ 
                       (QuadByte2ValList (littleendian_invert (Int.add xi yi))) ++
                       (sublist (4 + 4 * i) 64 l)).
     autorewrite with sublist. rewrite Pout in *.
-    normalize. (*entailer!*)
-    (*Note: we again get the Anomaly in the entailer!*)
-    simpl. intros. renormalize.
-    apply andp_right.    
-    { apply prop_right. intuition.
-      split; intros. do 2 rewrite Zlength_app; repeat rewrite Zlength_sublist.
-        rewrite <- QuadByteValList_ZLength, Zminus_0_r. rewrite (Z.add_comm _ (4*i)). rewrite Z.sub_add_distr. 
-        do 2 rewrite Z.add_sub_assoc, Z.add_simpl_l. trivial. 
-        omega. omega. omega. omega. 
+    Time entailer!.
+    { split; intros; autorewrite with sublist. omega.
       destruct INV_l as [_ INV_l].
       destruct (zlt ii i).
         + destruct (INV_l ii) as [x_ii [Z_ii [y_ii [Y_iiA Y_iiB]]]]. omega.
@@ -155,29 +139,25 @@ Time forward_for_simple_bound 16 (EX i:Z,
           - omega.
           - rewrite Zlength_sublist, Zminus_0_r; omega.
         + assert (IX: ii = i) by omega. subst ii. clear g INV_l.
-          exists xi. split; trivial. exists yi; split; trivial.
+          exists xi. split; trivial. exists _id1; split; trivial.
           rewrite sublist_app2; rewrite Zlength_sublist; try rewrite Zminus_0_r; try omega.
           rewrite Zminus_diag, Z.add_simpl_l.
-          rewrite sublist0_app1; try rewrite <- QuadByteValList_ZLength; try omega.
-          apply sublist_same. trivial. apply QuadByteValList_ZLength. }
+(*          autorewrite with sublist.*)
+          unfold sublist. reflexivity. (* autorewrite with sublist. fails*) }
 
-    { unfold QByte. Time cancel. (*0.8*) Transparent Z.sub. 
-         rewrite (split3_data_at_Tarray_tuchar Tsh 64 (4 *i) (4+4*i)); 
-          repeat rewrite Zlength_app; repeat rewrite Zlength_sublist; repeat rewrite Zminus_0_r; repeat rewrite <- QuadByteValList_ZLength; try rewrite ZL; trivial; try omega.
-          autorewrite with sublist.
+    { unfold QByte. thaw FR4. thaw FR3. Time cancel. (*0.9*) 
+      rewrite (split3_data_at_Tarray_tuchar Tsh 64 (4 *i) (4+4*i)); 
+       autorewrite with sublist; try omega.
           rewrite field_address0_offset by auto with field_compatible.
           rewrite field_address0_offset by auto with field_compatible. simpl.
           repeat rewrite Z.mul_1_l.
-          rewrite sublist0_app1. 2: rewrite <- QuadByteValList_ZLength; omega.
-          cancel.
-          rewrite sublist_app2; try rewrite <- QuadByteValList_ZLength; try rewrite Zlength_sublist, Zminus_0_r, Zminus_diag, Z.add_simpl_r.
-          autorewrite with sublist.
-          rewrite sublist_app2; try rewrite <- QuadByteValList_ZLength; try rewrite Zlength_sublist, Zminus_0_r, Zminus_diag, Z.add_simpl_r.
-          rewrite Zminus_diag.
-          autorewrite with sublist. apply derives_refl'. f_equal. f_equal. omega.
-          omega. autorewrite with sublist. omega. } 
+          unfold sublist; simpl. cancel. 
+          apply derives_refl'. f_equal. f_equal. rewrite Z.add_comm. f_equal. omega.
+          rewrite Z2Nat.inj_sub. rewrite <- skipn_firstn, firstn_same. trivial.
+          rewrite <- ZtoNat_Zlength, ZL. omega.
+          omega. } 
     } 
   apply derives_refl.
-unfold HFalsePostCond.  (*Exists l. *) Time entailer!. (*3.1*)
+unfold HFalsePostCond. Time entailer!. (*2.6*)
 (*With temp _i (Vint (Int.repr 16) in LOCAL of HfalsePostCond: apply derives_refl. *)
-Time Qed. (*60*)
+Time Qed. (*27*)

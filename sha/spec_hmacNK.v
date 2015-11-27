@@ -147,6 +147,13 @@ Proof.
 Qed.
 *)
 
+Lemma hmacUpdate_nil h: hmacUpdate [] h = h.
+Proof. destruct h. simpl. rewrite app_nil_r. trivial. Qed.  
+
+Lemma hmacUpdate_app data data' h: 
+      hmacUpdate data (hmacUpdate data' h) = hmacUpdate (data'++data) h.
+Proof. destruct h; simpl. rewrite app_assoc; trivial. Qed.
+
 (************Coq counterpart of HMAC_CTX, but for CompCert values (val etc)*********************)
 Definition hmacstate: Type := 
   (s256state * (s256state * s256state))%type.
