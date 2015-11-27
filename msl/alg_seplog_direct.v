@@ -32,7 +32,8 @@ Instance algNatDed (T: Type) : NatDed (pred T).
  apply imp_andp_adjoint.
  repeat intro. eapply H; eauto.
  repeat intro. hnf; auto.
- intros. intro; intros. intro.  specialize (H H1 _ H0). apply H.
+ repeat intro. unfold imp, prop in H. auto.
+ repeat intro. specialize (H b); unfold prop in H. auto.
 Defined.
 
 Instance algSepLog (T: Type) {JoinT: Join T}{PermT: Perm_alg T}{SepT: Sep_alg T} :

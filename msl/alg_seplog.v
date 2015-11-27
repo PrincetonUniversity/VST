@@ -37,7 +37,8 @@ Instance algNatDed (T: Type){agT: ageable T} : NatDed (pred T).
  apply imp_andp_adjoint.
  repeat intro. eapply H; eauto. hnf; auto.
  repeat intro. hnf; auto.
- repeat intro. specialize (H H1 _ H0). hnf in H. auto.
+ repeat intro. specialize (H a (necR_refl _)). simpl in H. auto.
+ repeat intro. specialize (H b). simpl in H. auto.
 Defined.
 
 Instance algSepLog (T: Type) {agT: ageable T}{JoinT: Join T}{PermT: Perm_alg T}{SepT: Sep_alg T}{AgeT: Age_alg T} :

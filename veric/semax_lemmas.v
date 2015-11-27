@@ -410,7 +410,6 @@ apply semax'_post.
 auto.
 Qed.
 
-
 Lemma semax_pre {CS: compspecs}:
  forall P' Delta P c R,
    (forall rho,  !!(typecheck_environ Delta rho) &&  P rho |-- P' rho )%pred ->
