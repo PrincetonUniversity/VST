@@ -467,6 +467,7 @@ rewrite Znth_nthi' by reflexivity.
 rewrite extract_from_b by (try assumption; try omega).
 
 forward.  (* T1 += s0 + s1 + t; *)
+normalize.
 rewrite <- (Z.add_0_r (i - 16)) at 1.
 rewrite <- (W_unfold i b) by auto.
 

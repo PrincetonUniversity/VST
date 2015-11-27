@@ -820,9 +820,12 @@ Ltac do_compute_lvalue Delta P Q R e v H :=
      exact HH |
      unfold v;
      simpl;
-     try unfold force_val2; try unfold force_val1;
+     cbv beta iota zeta delta [force_val2 force_val1];
+     rewrite ?isptr_force_ptr, <- ?offset_val_force_ptr by auto;
+(*     try unfold force_val2; try unfold force_val1;
      autorewrite with norm;
      simpl;
+*)
      reflexivity]
   ]).
 
@@ -838,8 +841,10 @@ Ltac do_compute_expr Delta P Q R e v H :=
      exact HH |
      unfold v;
      simpl;
-     try unfold force_val2; try unfold force_val1;
+     cbv beta iota zeta delta [force_val2 force_val1];
+(*     try unfold force_val2; try unfold force_val1;
      autorewrite with norm;
+*)
      simpl;
      reflexivity]
   ]).
@@ -1072,6 +1077,7 @@ unfold Int.lt in H. if_tac in H; inv H. auto.
 Qed.
 
 Ltac cleanup_repr H :=
+rewrite ?mul_repr, ?add_repr, ?sub_repr in H;
 match type of H with
  | _ (Int.signed (Int.repr ?A)) (Int.signed (Int.repr ?B)) => 
     try (rewrite (Int.signed_repr A) in H by repable_signed);

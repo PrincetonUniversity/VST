@@ -156,7 +156,10 @@ forward_if (
  f_equal.
  unfold carry.
   
- clear - MN H1 H. rename H1 into H0.
+ clear - MN H1 H.
+ assert (Int.unsigned (Int.add (lo_part n) (Int.repr (len * 8))) <
+     Int.unsigned (lo_part n)) by normalize.
+ clear H1.
  destruct (Int.unsigned_add_either (lo_part n) (Int.repr (len*8))) as [H9|H9].
  elimtype False; rewrite H9 in H0; clear H9.
  destruct (Int.unsigned_range (Int.repr (len*8))) as [? _]; omega.
@@ -182,9 +185,12 @@ forward_if (
  unfold carry; clear carry.
  clear H0.
  clear - MN H1 H.
+ assert (Int.unsigned (Int.add (lo_part n) (Int.repr (len * 8))) >=
+     Int.unsigned (lo_part n)) by normalize.
+ clear H1.
  destruct (Int.unsigned_add_either (lo_part n) (Int.repr (len*8))) as [H9|H9];
   [ | destruct (Int.unsigned_range (Int.repr (len*8))); omega].
- clear H1.
+ clear H0.
  rewrite <- (Int.repr_unsigned (lo_part n)) in H9 at 1.
  rewrite add_repr in H9.
  rewrite Int.unsigned_repr_eq in H9 .

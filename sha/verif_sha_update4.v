@@ -109,8 +109,7 @@ fold (inv_at_inner_if sh hashed len c d dd data kv).
 apply semax_seq with (sha_update_inv sh hashed len c d dd data kv false).
 change Delta with Delta_update_inner_if.
 weak_normalize_postcondition.
-pose (j := inv_at_inner_if sh hashed len c d dd data kv).
-unfold inv_at_inner_if in j.
+normalize. change (16*4)%Z with 64.
 simple apply (update_inner_if_proof Espec hashed dd data c d sh len kv);
   try assumption.
 Time forward. (*0.2*) 
