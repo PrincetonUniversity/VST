@@ -1,7 +1,6 @@
 Require Import floyd.proofauto.
 Local Open Scope logic.
 Require Import List. Import ListNotations.
-Require Import general_lemmas.
 Require Import Snuffle. 
 Require Import Salsa20.
 Require Import ZArith. 
@@ -20,26 +19,21 @@ name in' _in.
 name k' _k.
 name c' _c.
 abbreviate_semax.
-Time forward_call (c, k, Z0, nonce, out, OUT, data). (*1.7*)
-Intros l.
-Time forward. (*2.3*)
-Exists l.
-Time entailer!. (*0.8*)
-{ unfold fcore_result in H.
+assert_PROP (field_compatible (tarray tuchar 64) [] out /\ isptr out) as HH by entailer!.
+destruct HH as [FCout isptrout].
+Time forward_call (c, k, Z0, nonce, out, default_val (tarray tuchar 64), data). (*1.8*)
+  unfold data_at_, field_at_. rewrite field_at_data_at.
+  rewrite field_address_offset by auto with field_compatible.
+  rewrite isptr_offset_val_zero; trivial. cancel.
+Intros ret.
+Time forward. (*1.7*)
+unfold fcore_result in H.
   remember (Snuffle20 (prepare_data data)) as d; symmetry in Heqd.
   destruct d. 2: inv H. rewrite Int.eq_true in H.
-  exists l0; split; trivial. }
+Exists l.
+Time entailer!. 
 apply derives_refl. 
-Time Qed. (*4.4*)
-
-Lemma prepare_data_length data: length (prepare_data data) = 16%nat.
-Proof.
-destruct data as[[Nonce C] [K L]].
-destruct C as [[[C1 C2] C3] C4]. 
-destruct Nonce as [[[N1 N2] N3] N4].
-destruct K as [[[K1 K2] K3] K4].  
-destruct L as [[[L1 L2] L3] L4]. reflexivity.
-Qed.
+Time Qed. (*4.3*)
 
 Lemma Snuffle_sub_simpl data x:
     Snuffle20 (prepare_data data) = Some x -> 
@@ -67,30 +61,32 @@ name out' _out.
 name in' _in.
 name k' _k.
 name c' _c.
-Time forward_call (c, k, 1, nonce, out, OUT, data). (*1.5*)
-Intros l. unfold POSTCONDITION, abbreviate.
-Opaque firstn. Opaque QuadByte2ValList.
-Time forward. (*2.3*)
-Exists l.
-Time entailer!. (*1.2*)
-{ clear - H. unfold fcore_result in H.
+Time forward_call (c, k, 1, nonce, out, OUT, data). (*1.4*)
+Intros res.
+Time forward. (*1.6*)
+unfold fcore_result in H.
   remember (Snuffle20 (prepare_data data)) as d; symmetry in Heqd.
   destruct d. 2: inv H. rewrite Int.eq_false in H.
-  apply Snuffle_sub_simpl in Heqd. destruct Heqd as [s [SN I]].
-  rewrite SN; clear SN. exists s; split; trivial.
+destruct (Snuffle_sub_simpl _ _ Heqd) as [x [X1 X2]].
+Exists x.
+Time entailer!. (*0.6*)
+2: apply Int.one_not_zero.
+unfold fcorePOST_SEP; cancel.
   destruct data as[[Nonce C] [K L]].
   destruct C as [[[C1 C2] C3] C4]. 
   destruct Nonce as [[[N1 N2] N3] N4].
   destruct K as [[[K1 K2] K3] K4].  
   destruct L as [[[L1 L2] L3] L4]. 
-  rewrite I in H.
-  rewrite I in H.
-  rewrite I in H.
-  rewrite I in H.
-  rewrite I in H.
-  rewrite I in H.
-  rewrite I in H.
-  rewrite I in H. assumption.
+apply derives_refl'. f_equal.
+  rewrite X2 in H.
+  rewrite X2 in H.
+  rewrite X2 in H.
+  rewrite X2 in H.
+  rewrite X2 in H.
+  rewrite X2 in H.
+  rewrite X2 in H.
+  rewrite X2 in H.
+subst res. reflexivity. 
   omega. reflexivity.
   omega. reflexivity.
   omega. reflexivity.
@@ -99,6 +95,4 @@ Time entailer!. (*1.2*)
   omega. reflexivity.
   omega. reflexivity.
   omega. reflexivity.
-  apply Int.one_not_zero. }
-apply derives_refl.
-Time Qed. (*3.1*)
+Time Qed. (*2.8*)
