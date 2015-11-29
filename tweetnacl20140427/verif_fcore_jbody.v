@@ -467,6 +467,7 @@ Time forward_for_simple_bound 4 (EX m:Z,
   { Time entailer!. (*1.6 versus 5.5*) rewrite NEQ; simpl; trivial. }
   unfold force_val, sem_mod, both_int; simpl.
               unfold sem_cast_neutral, both_int; simpl.
+              rewrite mul_repr, add_repr.
               rewrite NEQ. simpl.
   assert (JM: 0 <= Z.rem (j + m) 4 < 4) by (apply Zquot.Zrem_lt_pos_pos; omega).
   assert (A: Int.add (Int.repr (4 * j)) (Int.mods (Int.repr (j + m)) (Int.repr 4))
@@ -656,7 +657,7 @@ Time forward_for_simple_bound 4
     freeze [0;1;2] FR1.
     Time forward. (*2.5*)
     { Time entailer!. (*1.9 versus 6.6*) rewrite <- Heqb. simpl; trivial. }
-    unfold sem_mod, sem_binarith, both_int; simpl. rewrite <- Heqb. simpl.
+    unfold sem_mod, sem_binarith, both_int; simpl. rewrite ?mul_repr, ?add_repr, <- Heqb. simpl.
     unfold Int.mods. repeat rewrite Int.signed_repr.
       2: rewrite int_max_signed_eq, int_min_signed_eq; omega.
       2: rewrite int_max_signed_eq, int_min_signed_eq; omega.
