@@ -410,11 +410,11 @@ forward_if
    + Intros prefix.
       destruct prefix;
       entailer!.
-      contradiction (field_compatible_isptr _ _ _ H7).
+      contradiction (field_compatible_isptr _ _ _ H5).
       rewrite lseg_cons_eq by auto. simpl.
       entailer!.
       saturate_local. (* why is this needed? *)
-      contradiction (field_compatible_isptr _ _ _ H8).      
+      contradiction (field_compatible_isptr _ _ _ H6).
 * (* else clause *)
   forward. (*  t = Q->tail; *)
   destruct (isnil contents).

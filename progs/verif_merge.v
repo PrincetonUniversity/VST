@@ -315,7 +315,6 @@ focus_SEP 9.
 rewrite field_at_data_at.
 forward.
 (* we put back the [field_at ...tail _c] *)
-rewrite <-field_at_offset_zero.
 rewrite fold_data_at.
 rewrite <-field_at_data_at.
 
@@ -422,7 +421,6 @@ focus_SEP 9.
 rewrite field_at_data_at.
 forward.
 (* we put back the [field_at ...tail _c] *)
-rewrite <-field_at_offset_zero.
 rewrite fold_data_at.
 rewrite <-field_at_data_at.
 

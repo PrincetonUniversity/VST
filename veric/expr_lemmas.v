@@ -619,7 +619,7 @@ specialize (H1 H3).
 apply tc_bool_e in H4. simpl in H4.
 hnf in H5.
 destruct (eval_expr e rho) eqn:?; try contradiction.
-exists b, i. simpl in *. unfold_lift. rewrite Heqv. intuition. constructor.
+exists b, i. simpl in *. unfold_lift. intuition. constructor.
 auto.
 * (*addrof*)
 
@@ -631,9 +631,8 @@ specialize (H2 H3).
 apply tc_bool_e in H4.
 assert (mkEnviron (ge_of rho) (ve_of rho) (te_of rho) = rho). destruct rho; auto.
 destruct rho. unfold typecheck_environ in *. intuition. 
-destruct H2 as [b [? ?]]. intuition. congruence. 
-destruct H2 as [b [? ?]]. destruct H8 as [base [ofs ?]].  simpl in *.
-intuition. rewrite H8 in *. constructor. inv H11. auto.
+destruct H2 as [b [? ?]]. destruct H10 as [base [ofs ?]].  simpl in *.
+intuition. rewrite H11 in *. constructor. inv H8. auto.
 
 * (*unop*)
 

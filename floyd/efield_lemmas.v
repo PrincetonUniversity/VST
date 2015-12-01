@@ -493,7 +493,6 @@ Proof.
       f_equal.
       rewrite H4.
       reflexivity.
-    - rewrite <- H12, isptr_offset_val_zero; auto.
     - simpl in H11; rewrite <- H11; auto.
     - apply andp_left1; auto.
     - apply andp_left2; auto.
