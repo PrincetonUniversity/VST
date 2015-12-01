@@ -12,6 +12,7 @@ Require Import floyd.entailer.
 Require Import floyd.closed_lemmas.
 Require Import floyd.proj_reptype_lemmas.
 Require Import floyd.replace_refill_reptype_lemmas.
+Require Import floyd.loadstore_field_at.
 Import DataCmpNotations.
 
 Local Open Scope logic.
@@ -302,7 +303,7 @@ Proof.
       rewrite H; auto.
   + simpl app in H0, v0, H |- *.
     assert ({v1: reptype (nested_field_type t (gfs1 ++ gfs0)) | JMeq (proj_reptype (nested_field_type t gfs0) gfs1 v) v1})
-      by (apply JMeq_sigT; admit).
+      by (apply JMeq_sigT; rewrite nested_field_type_nested_field_type; auto).
     destruct X as [v1 ?H].
     change
       (fun st: reptype (nested_field_type t (gf :: gfs1 ++ gfs0)) *
@@ -372,6 +373,23 @@ Proof.
       apply JMeq_eq in H1; subst v1.
       apply JMeq_eq in H0; subst v0'''.
       reflexivity.
+Qed.
+
+Lemma nested_field_ramif': forall sh t gfs0 gfs1 v v0 p,
+  JMeq (proj_reptype (nested_field_type t gfs0) gfs1 v) v0 ->
+  legal_nested_field t (gfs1 ++ gfs0) ->
+  field_at sh t gfs0 v p |--
+    field_at sh t (gfs1 ++ gfs0) v0 p *
+    (ALL v0': _, ALL v0'': _, !! JMeq v0' v0'' -->
+      (field_at sh t (gfs1 ++ gfs0) v0' p -*
+         field_at sh t gfs0 (upd_reptype (nested_field_type t gfs0) gfs1 v v0'') p)).
+Proof.
+  intros.
+  rewrite field_at_compatible'.
+  normalize.
+  eapply nested_field_ramif; eauto.
+  unfold field_compatible in *.
+  tauto.
 Qed.
 
 End NESTED_RAMIF.
@@ -2506,6 +2524,7 @@ Transparent efield_denote.
       (repeat apply andp_right); solve_andp_left.
 Qed.
 *)
+
 Arguments eq_rect_r /.
 
 End DATA_AT_WITH_HOLES.

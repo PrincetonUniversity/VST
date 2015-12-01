@@ -1984,29 +1984,26 @@ match goal with
     simpl skipn in gfs0;
 
     change gfs with (gfs1 ++ gfs0) in *;
-    subst gfs p;
+    subst gfs;
 
-    let Heq := fresh "H" in
-    match type of H with
-    | (PROPx _ (LOCALx _ (SEPx (?R0 :: nil))) 
-           |-- _) => assert (nth_error R n = Some R0) as Heq by reflexivity
-    end;
-          eapply (semax_SC_field_store Delta sh n)
-            with (lr0 := lr) (t_root0 := t_root) (gfs2 := gfs0) (gfs3 := gfs1);
-            [reflexivity | reflexivity | reflexivity
-            | reflexivity | exact Heq | exact HLE 
-            | exact HRE | exact H_Denote | exact H | solve [auto]
-            | solve_store_rule_evaluation
-            | subst e1 gfs0 gfs1 efs tts t_root sh v0 lr n;
-              pre_entailer;
-              try quick_typecheck3; 
-              clear Heq HLE HRE H_Denote H;
-              unfold tc_efield; try solve[entailer!]; 
-              simpl app; simpl typeof
-            | subst e1 gfs0 gfs1 efs tts t_root sh v0 lr n;
-              clear Heq HLE HRE H_Denote H;
-              solve_legal_nested_field_in_entailment
-           ]
+    eapply (semax_SC_field_store Delta sh n p)
+      with (lr0 := lr) (t_root0 := t_root) (gfs2 := gfs0) (gfs3 := gfs1);
+    subst p;
+      [ reflexivity | reflexivity | reflexivity
+      | reflexivity | reflexivity | reflexivity
+      | rewrite <- ?field_at_offset_zero; reflexivity | exact HLE 
+      | exact HRE | exact H_Denote | solve [auto]
+      | solve_store_rule_evaluation
+      | subst e1 gfs0 gfs1 efs tts t_root sh v0 lr n;
+        pre_entailer;
+        try quick_typecheck3; 
+        clear HLE HRE H_Denote H;
+        unfold tc_efield; try solve[entailer!]; 
+        simpl app; simpl typeof
+      | subst e1 gfs0 gfs1 efs tts t_root sh v0 lr n;
+        clear HLE HRE H_Denote H;
+        solve_legal_nested_field_in_entailment
+     ]
 end.
 
 (* END new semax_load and semax_store tactics *************************)

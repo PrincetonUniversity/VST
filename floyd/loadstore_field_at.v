@@ -129,7 +129,7 @@ Lemma semax_max_path_field_cast_load_nth_ram:
       LR_of_type t_root = lr ->
       type_is_volatile (typeof (nested_efield e1 efs tts)) = false ->
       legal_nested_efield t_root e1 gfs tts lr = true ->
-      JMeq v v' ->
+      JMeq v' v ->
       nth_error R n = Some Pre ->
       Pre |-- field_at sh t_root gfs v' p * TT ->
       PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |--
