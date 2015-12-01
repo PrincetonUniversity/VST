@@ -254,15 +254,13 @@ Lemma call_memcpy_tuchar:  (* Uses CompSpecs from sha. *)
      JMeq vq (map Vint contents) ->
      JMeq vp vp' ->
      JMeq vp'' (splice_into_list lop (lop+len) np (sublist loq (Zlength contents) (map Vint contents)) vp') ->
-     PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |--
-         tc_exprlist Delta [tptr tvoid; tptr tvoid; tuint] [e_p; e_q; e_n]  &&         
-         PROP () (LOCALx
-                (`(eq (field_address0 tp (ArraySubsc lop :: pathp) p)) (eval_expr e_p) ::
-                 `(eq (field_address0 tq (ArraySubsc loq :: pathq) q)) (eval_expr e_q) ::
-                 `(eq (Vint (Int.repr len))) (eval_expr e_n) ::
-                 Q)
-         (SEPx (field_at shp tp pathp vp p :: 
-                   field_at shq tq pathq vq q :: R'))) ->
+     PROPx P (LOCALx (tc_env Delta :: Q) (SEPx R)) |--
+         tc_exprlist Delta [tptr tvoid; tptr tvoid; tuint] [e_p; e_q; e_n]  &&
+         local (`(eq (field_address0 tp (ArraySubsc lop :: pathp) p)) (eval_expr e_p)) &&
+         local (`(eq (field_address0 tq (ArraySubsc loq :: pathq) q)) (eval_expr e_q)) &&
+         local (`(eq (Vint (Int.repr len))) (eval_expr e_n)) &&
+         PROP () (LOCALx Q (SEPx (field_at shp tp pathp vp p :: 
+                                                 field_at shq tq pathq vq q :: R'))) ->
    @semax _ Espec Delta 
     (PROPx P (LOCALx Q (SEPx R)))
     (Scall None
@@ -289,15 +287,15 @@ assert_PROP (Zlength vp' = np /\ Zlength contents = nq). {
 eapply derives_trans; [apply Hpre |].
 apply andp_left2.
 entailer!.
-clear - H10 H12 H0 H1 H2 H3 H Hlop Hloq Hnp Hnq Hlen.
+clear - H7 H9 H0 H1 H2 H3 H Hlop Hloq Hnp Hnq Hlen.
 forget (nested_field_type tp pathp) as t0.
 forget (nested_field_type tq pathq) as t1.
 subst t0 t1.
-simplify_value_fits in H10. destruct H10 as [H10 _].
-simplify_value_fits in H12. destruct H12 as [H12 _].
+simplify_value_fits in H7. destruct H7 as [H7 _].
+simplify_value_fits in H9. destruct H9 as [H9 _].
 apply JMeq_eq in H3. subst vp; auto.
 apply JMeq_eq in H2. subst vq; auto.
-rewrite Zlength_map in H12.
+rewrite Zlength_map in H9.
 split; auto.
 } destruct H5 as [Hvp' Hvq'].
 
@@ -375,8 +373,9 @@ eapply semax_pre_post;
        try eassumption;
        try (rewrite ?Hspec, ?Hglob; reflexivity)].
 *
- rewrite insert_local.
+ rewrite insert_tce.
  eapply derives_trans; [ apply Hpre | ].
+ rewrite !andp_assoc.
  apply andp_derives; auto.
  subst witness. cbv beta iota. simpl @fst; simpl @snd.
  clear Hpre.
@@ -385,39 +384,24 @@ eapply semax_pre_post;
  unfold app at 1.
  instantiate (1:=Frame).
  unfold app at 2.
+ go_lowerx.
  apply andp_right.
- apply prop_right. split3; auto. split; auto. apply I.
- apply andp_right.
- apply andp_left2. apply andp_left1.
- intro rho.
- simpl argtypes. unfold eval_exprlist.
- unfold make_args'. simpl map at 2.
- rewrite TCp, TCq, TCn. 
- unfold local, lift1; unfold_lift.
- apply prop_derives; intros [? [? [? ?]]].
- rewrite fold_right_and_app. split; auto.
- unfold map.
- unfold_lift.
- rewrite !fold_right_cons.
- unfold temp; 
- autorewrite with norm1 norm2.
- rewrite eval_id_same.
- rewrite !eval_id_other by (clear; congruence).
- rewrite eval_id_same.
- rewrite !eval_id_other by (clear; congruence).
- rewrite eval_id_same.
+ apply prop_right.
+ unfold make_args'. simpl.
+ unfold eval_id, env_set.
+ rewrite TCp, TCq, TCn.  simpl.
+ unfold_lift; simpl.
  rewrite <- H7, <- H8, <- H9.
  split3; auto.
  unfold field_address0; if_tac; try reflexivity.
- destruct H11; try contradiction; normalize.
+ destruct H12; normalize.
  unfold field_address0; if_tac; try reflexivity.
- destruct H11; try contradiction; normalize.
- apply andp_left2. apply andp_left2.
+ destruct H12; normalize.
+ apply andp_right.
+ apply prop_right; split3; auto.
+ apply andp_right.
+ apply prop_right; auto.
  subst Frame.
- intro rho.
- unfold SEPx.
- f_equal.
- simpl.
  rewrite LENvqx, LENvpx; cancel.
  rewrite sepcon_comm.
  apply sepcon_derives.
@@ -540,14 +524,12 @@ Lemma call_memset_tuchar:
    (Hnp : (lop + len <= np)%Z)
    (H3:  JMeq vp vp')
    (H4:  JMeq vp'' (splice_into_list lop (lop+len) np (list_repeat (Z.to_nat len) (Vint c)) vp'))
-   (H5: PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |-- 
-         tc_exprlist Delta [tptr tvoid; tint; tuint] [e_p; e_c; e_n] &&                 
-         PROP () (LOCALx
-                (`(eq (field_address0 tp (ArraySubsc lop :: pathp) p)) (eval_expr e_p) ::
-                 `(eq (Vint c)) (eval_expr e_c) ::
-                 `(eq (Vint (Int.repr len))) (eval_expr e_n) ::
-                 Q)
-         (SEPx (field_at shp tp pathp vp p :: R')))),
+   (H5: PROPx P (LOCALx (tc_env Delta :: Q) (SEPx R)) |-- 
+         tc_exprlist Delta [tptr tvoid; tint; tuint] [e_p; e_c; e_n] &&
+         local (`(eq (field_address0 tp (ArraySubsc lop :: pathp) p)) (eval_expr e_p)) &&
+         local (`(eq (Vint c)) (eval_expr e_c)) &&
+         local (`(eq (Vint (Int.repr len))) (eval_expr e_n)) && 
+         PROP () (LOCALx Q (SEPx (field_at shp tp pathp vp p :: R')))),
    @semax _ Espec Delta 
     (PROPx P (LOCALx Q (SEPx R)))
     (Scall None
@@ -570,10 +552,10 @@ clear H1.
 assert_PROP (Zlength vp' = np). {
 eapply derives_trans; [apply Hpre | apply andp_left2].
 entailer. apply prop_right.
-clear - H8 H4 H3 Hnp H0 Hlen Hlop.
+clear - H5 H4 H3 Hnp H0 Hlen Hlop.
 forget (nested_field_type tp pathp) as t0.
 subst t0.
-simplify_value_fits in H8. destruct H8 as [H8 _].
+simplify_value_fits in H5. destruct H5 as [H5 _].
 apply JMeq_eq in H3. subst vp; auto.
 } rename H1 into Hvp'.
 assert (H5: reptype (tarray tuchar np) = list val) by reflexivity.
@@ -622,8 +604,9 @@ eapply semax_pre_post;
        try eassumption;
        try (rewrite ?Hspec, ?Hglob; reflexivity)].
 *
- rewrite insert_local.
+ rewrite insert_tce.
  eapply derives_trans; [ apply Hpre | ].
+ rewrite !andp_assoc.
  apply andp_derives; auto.
  subst witness. cbv beta iota. simpl @fst; simpl @snd.
  clear Hpre.
@@ -632,37 +615,19 @@ eapply semax_pre_post;
  unfold app at 1.
  instantiate (1:=Frame).
  unfold app at 2.
- apply andp_right.
- apply prop_right. split3; auto. apply I.
- apply andp_right.
- apply andp_left2. apply andp_left1.
- intro rho.
  simpl argtypes. unfold eval_exprlist.
  unfold make_args'. simpl map at 2.
- rewrite TCp, TCc, TCn. 
- unfold local, lift1; unfold_lift.
- apply prop_derives; intros [? [? [? ?]]].
- rewrite fold_right_and_app. split; auto.
- unfold map.
- unfold_lift.
- rewrite !fold_right_cons.
- unfold temp; 
- autorewrite with norm1 norm2.
- rewrite eval_id_same.
- rewrite !eval_id_other by (clear; congruence).
- rewrite eval_id_same.
- rewrite !eval_id_other by (clear; congruence).
- rewrite eval_id_same.
- rewrite <- H1, <- H2, <- H6.
- split3; auto.
+ rewrite TCp, TCc, TCn.
+ go_lowerx. unfold env_set, eval_id. unfold_lift. simpl.
+ autorewrite with gather_prop. 
+ apply andp_right.
+ apply prop_right. split3; auto.
+ rewrite <- H1.
  unfold field_address0; if_tac; try reflexivity.
- destruct H8; try contradiction; normalize.
- apply andp_left2. apply andp_left2.
+ destruct H1; normalize.
+ rewrite <- H2; simpl. split3; auto.
+ rewrite <- H6; reflexivity.
  subst Frame.
- intro rho.
- unfold SEPx.
- f_equal.
- simpl.
  cancel.
  rewrite array_at_data_at' by (clear - FC; intuition).
  eapply derives_trans; [apply data_at_data_at_ | ].

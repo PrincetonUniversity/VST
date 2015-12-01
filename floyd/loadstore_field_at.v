@@ -56,15 +56,16 @@ Lemma semax_max_path_field_load_nth_ram:
       typeof_temp Delta id = Some t ->
       is_neutral_cast (typeof (nested_efield e1 efs tts)) t = true ->
       readable_share sh ->
+      forallb subst_localdef_ok Q = true ->
       LR_of_type t_root = lr ->
       type_is_volatile (typeof (nested_efield e1 efs tts)) = false ->
       legal_nested_efield t_root e1 gfs tts lr = true ->
       JMeq v' v ->
       nth_error R n = Some Pre ->
       Pre |-- field_at sh t_root gfs v' p * TT ->
-      PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |--
+      PROPx P (LOCALx (tc_env Delta :: Q) (SEPx R)) |--
         local (`(eq p) (eval_LR e1 lr)) ->
-      PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |--
+      PROPx P (LOCALx (tc_env Delta :: Q) (SEPx R)) |--
         (tc_LR Delta e1 lr) &&
         (tc_efield Delta efs) &&
         efield_denote efs gfs &&
@@ -74,48 +75,43 @@ Lemma semax_max_path_field_load_nth_ram:
           (normal_ret_assert
             (EX old : val,
               PROPx P
-                (LOCALx (temp id v :: map (subst id `old) Q)
+                (LOCALx (temp id v :: map (subst_localdef id old) Q)
                   (SEPx R)))).
 Proof.
   intros.
   pose proof is_neutral_cast_by_value _ _ H0.
   assert_PROP (typeof (nested_efield e1 efs tts) = nested_field_type t_root gfs).
   Focus 1. {
-    eapply derives_trans; [exact H9 |].
-    rewrite (add_andp _ _ (typeof_nested_efield _ _ _ _ _ _ H4)).
+    eapply derives_trans; [exact H10 |].
+    rewrite (add_andp _ _ (typeof_nested_efield _ _ _ _ _ _ H5)).
     normalize.
     apply prop_right; symmetry; auto.
   } Unfocus.
-  rewrite H11 in H10.
+  rewrite H12 in H11.
   assert_PROP (field_compatible t_root gfs p).
   Focus 1. {
     erewrite SEP_nth_isolate, <- insert_SEP by eauto.
     apply derives_left_sepcon_right_corable; auto.
     intro rho; unfold_lift; simpl.
-    eapply derives_trans; [apply H7 |].
+    eapply derives_trans; [apply H8 |].
     rewrite field_at_compatible'.
     normalize.
   } Unfocus.
-  eapply semax_load_nth_ram;
-  [ eassumption 
-  | eassumption 
-  | eassumption 
-  | idtac
-  | eassumption
-  | eassumption
+  eapply semax_load_nth_ram; try eassumption;
+  [ idtac
   | idtac
   | apply andp_right].
-  + rewrite (add_andp _ _ H8), (add_andp _ _ H9).
+  + rewrite (add_andp _ _ H9), (add_andp _ _ H10).
     eapply derives_trans; [| apply eval_lvalue_nested_efield; eassumption].
     rewrite <- insert_local; solve_andp.
-  + eapply self_ramify_trans; [exact H7 |].
+  + eapply self_ramify_trans; [exact H8 |].
     eapply RAMIF_PLAIN.weak_ramif_spec.
-    apply mapsto_field_at_ramify; [auto | rewrite <- H11; auto | auto | eauto].
-  + rewrite (add_andp _ _ H8), (add_andp _ _ H9).
+    apply mapsto_field_at_ramify; [auto | rewrite <- H12; auto | auto | eauto].
+  + rewrite (add_andp _ _ H9), (add_andp _ _ H10).
     eapply derives_trans; [| eapply tc_lvalue_nested_efield; eassumption].
     rewrite <- insert_local; solve_andp.
-  + eapply derives_trans; [exact H9 |].
-    rewrite H11; solve_andp.
+  + eapply derives_trans; [exact H10 |].
+    rewrite H12; solve_andp.
 Qed.
 
 Lemma semax_max_path_field_cast_load_nth_ram:
@@ -126,15 +122,16 @@ Lemma semax_max_path_field_cast_load_nth_ram:
       typeof_temp Delta id = Some t ->
       type_is_by_value (typeof (nested_efield e1 efs tts)) = true ->
       readable_share sh ->
+      forallb subst_localdef_ok Q = true ->
       LR_of_type t_root = lr ->
       type_is_volatile (typeof (nested_efield e1 efs tts)) = false ->
       legal_nested_efield t_root e1 gfs tts lr = true ->
       JMeq v v' ->
       nth_error R n = Some Pre ->
       Pre |-- field_at sh t_root gfs v' p * TT ->
-      PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |--
+      PROPx P (LOCALx (tc_env Delta :: Q) (SEPx R)) |--
         local (`(eq p) (eval_LR e1 lr)) ->
-      PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |--
+      PROPx P (LOCALx (tc_env Delta :: Q) (SEPx R)) |--
         (tc_LR Delta e1 lr) &&
         (tc_efield Delta efs) &&
         efield_denote efs gfs &&
@@ -144,10 +141,11 @@ Lemma semax_max_path_field_cast_load_nth_ram:
           (normal_ret_assert
             (EX old:val,
               PROPx P
-                (LOCALx (temp id (eval_cast (typeof (nested_efield e1 efs tts)) t v) :: map (subst id (`old)) Q)
+                (LOCALx (temp id (eval_cast (typeof (nested_efield e1 efs tts)) t v)
+                                :: map (subst_localdef id old) Q)
                   (SEPx R)))).
 Proof.
-  intros.
+  intros until 3. intro OKsubst; intros.
   assert_PROP (typeof (nested_efield e1 efs tts) = nested_field_type t_root gfs).
   Focus 1. {
     eapply derives_trans; [exact H9 |].
@@ -166,14 +164,8 @@ Proof.
     normalize.
   } Unfocus.
   rewrite H10.
-  eapply semax_cast_load_nth_ram;
-  [ eassumption 
-  | eassumption 
-  | idtac
-  | eassumption
-  | eassumption
-  | idtac
-  | apply andp_right].
+  eapply semax_cast_load_nth_ram; try eassumption;
+  [ idtac | idtac | apply andp_right].
   + rewrite (add_andp _ _ H8), (add_andp _ _ H9).
     eapply derives_trans; [| apply eval_lvalue_nested_efield; eassumption].
     rewrite <- insert_local; solve_andp.
@@ -212,6 +204,7 @@ Lemma semax_max_path_field_store_nth_ram:
       (p v : val) (v' : reptype (nested_field_type t_root gfs)) lr,
       type_is_by_value (typeof (nested_efield e1 efs tts)) = true ->
       writable_share sh ->
+      forallb subst_localdef_ok Q = true ->
       LR_of_type t_root = lr ->
       type_is_volatile (typeof (nested_efield e1 efs tts)) = false ->
       legal_nested_efield t_root e1 gfs tts lr = true ->
@@ -219,11 +212,11 @@ Lemma semax_max_path_field_store_nth_ram:
       nth_error R n = Some Pre ->
       Pre |-- field_at_ sh t_root gfs p *
         (field_at sh t_root gfs v' p -* Post) ->
-      PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |--
+      PROPx P (LOCALx (tc_env Delta :: Q) (SEPx R)) |--
         local (`(eq p) (eval_LR e1 lr)) ->
-      PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |--
+      PROPx P (LOCALx (tc_env Delta :: Q) (SEPx R)) |--
         local (`(eq v) (eval_expr (Ecast e2 (typeof (nested_efield e1 efs tts))))) ->
-      PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |--
+      PROPx P (LOCALx (tc_env Delta :: Q) (SEPx R)) |--
         (tc_LR Delta e1 lr) && 
         (tc_efield Delta efs) &&
         efield_denote efs gfs &&
@@ -236,7 +229,7 @@ Lemma semax_max_path_field_store_nth_ram:
                 (SEPx
                   (replace_nth n R Post))))).
 Proof.
-  intros.
+  intros until 2. intros OKsubst. intros.
   assert_PROP (typeof (nested_efield e1 efs tts) = nested_field_type t_root gfs).
   Focus 1. {
     eapply derives_trans; [exact H9 |].

@@ -4,6 +4,7 @@ Require Import floyd.client_lemmas.
 
 Local Open Scope logic.
 
+(*
 Lemma gvar_globals_only:
   forall i v rho, gvar i v rho -> gvar i v (globals_only rho).
 Proof.
@@ -14,6 +15,7 @@ unfold globals_only.
 simpl. auto.
 Qed.
 Hint Resolve gvar_globals_only.
+*)
 
 Ltac safe_auto_with_closed := 
    (* won't instantiate evars by accident *)
@@ -49,6 +51,7 @@ Qed.
 Hint Rewrite subst_eval_id_eq : subst.
 Hint Rewrite subst_eval_id_neq using safe_auto_with_closed : subst.
 
+(*
 Lemma subst_temp_eq:
   forall i v w, subst i `v (temp i w) = `(eq w v).
 Proof.
@@ -72,6 +75,7 @@ Qed.
 Hint Rewrite subst_var : subst.
 Hint Rewrite subst_temp_eq : subst.
 Hint Rewrite subst_temp_neq using safe_auto_with_closed : subst.
+*)
 
 Fixpoint subst_eval_expr  {cs: compspecs}  (j: ident) (v: environ -> val) (e: expr) : environ -> val :=
  match e with
@@ -492,6 +496,7 @@ rewrite <- H1; auto.
 Qed.
 Hint Resolve closed_wrtl_eval_var : closed.
 
+(*
 Lemma closed_wrt_var:
   forall S id t v, closed_wrt_vars S (var id t v).
 Proof.
@@ -506,57 +511,60 @@ Proof.
 unfold var; intros; auto with closed.
 Qed.
 Hint Resolve closed_wrtl_var : closed.
+*)
 
 Lemma closed_wrt_lvar:
-  forall {cs: compspecs} S id t v, closed_wrt_vars S (lvar id t v).
+  forall {cs: compspecs} S id t v, closed_wrt_vars S (locald_denote (lvar id t v)).
 Proof.
-unfold lvar; intros.
+intros.
 hnf; intros; simpl.
 destruct (Map.get (ve_of rho) id); auto.
 Qed.
 Hint Resolve closed_wrt_lvar : closed.
 
 Lemma closed_wrt_gvar:
-  forall S id v, closed_wrt_vars S (gvar id v).
+  forall S id v, closed_wrt_vars S (locald_denote (gvar id v)).
 Proof.
-unfold gvar; intros.
+intros.
 hnf; intros; simpl. auto.
 Qed.
 Hint Resolve closed_wrt_gvar : closed.
 
 Lemma closed_wrt_sgvar:
-  forall S id v, closed_wrt_vars S (sgvar id v).
+  forall S id v, closed_wrt_vars S (locald_denote (sgvar id v)).
 Proof.
-unfold sgvar; intros.
+intros.
 hnf; intros; simpl. auto.
 Qed.
 Hint Resolve closed_wrt_sgvar : closed.
 
-
 Lemma closed_wrtl_lvar:
- forall  {cs: compspecs} S id t v, ~ S id -> closed_wrt_lvars S (lvar id t v).
+ forall  {cs: compspecs} S id t v,
+    ~ S id -> closed_wrt_lvars S (locald_denote (lvar id t v)).
 Proof.
-unfold lvar; intros.
+intros.
 hnf; intros; simpl.
+unfold lvar_denote.
 destruct (H0 id); try contradiction.
 rewrite H1; auto.
 Qed.
 Hint Resolve closed_wrtl_lvar : closed.
 
 Lemma closed_wrtl_gvar:
- forall S id v,   ~ S id -> closed_wrt_lvars S (gvar id v).
+ forall S id v,   ~ S id -> closed_wrt_lvars S (locald_denote (gvar id v)).
 Proof.
-unfold gvar; intros.
+intros.
 hnf; intros; simpl.
+unfold gvar_denote.
 destruct (H0 id); try contradiction.
 rewrite H1; auto.
 Qed.
 Hint Resolve closed_wrtl_gvar : closed.
 
 Lemma closed_wrtl_sgvar:
- forall S id v,  closed_wrt_lvars S (sgvar id v).
+ forall S id v,  closed_wrt_lvars S (locald_denote (sgvar id v)).
 Proof.
-unfold sgvar; intros.
+intros.
 hnf; intros; simpl. auto.
 Qed.
 Hint Resolve closed_wrtl_sgvar : closed.
@@ -625,14 +633,24 @@ Qed.
 Hint Resolve closed_wrt_eval_id closed_wrtl_eval_id : closed.
 
 Lemma closed_wrt_temp: forall S i v,
-    ~ S i -> closed_wrt_vars S (temp i v).
+    ~ S i -> closed_wrt_vars S (locald_denote (temp i v)).
 Proof.
-unfold temp; intros; auto with closed.
+intros.
+hnf; simpl; intros.
+unfold_lift.
+unfold eval_id; simpl.
+destruct (H0 i).
+contradiction.
+rewrite H1; auto.
 Qed.
+
 Lemma closed_wrtl_temp: forall S i v,
-    closed_wrt_lvars S (temp i v).
+    closed_wrt_lvars S (locald_denote (temp i v)).
 Proof.
-unfold temp; auto with closed.
+intros.
+unfold locald_denote.
+hnf; intros. simpl.
+unfold eval_id; simpl. auto.
 Qed.
 Hint Resolve closed_wrt_temp closed_wrtl_temp : closed.
 
@@ -1524,7 +1542,7 @@ Hint Resolve closed_wrt_PROPx closed_wrtl_PROPx: closed.
 
 
 Lemma closed_wrt_LOCALx:
- forall S Q R, Forall (closed_wrt_vars S) Q -> 
+ forall S Q R, Forall (closed_wrt_vars S) (map locald_denote Q) -> 
                     closed_wrt_vars S R -> 
                     closed_wrt_vars S (LOCALx Q R).
 Proof.
@@ -1540,7 +1558,7 @@ Qed.
 
 
 Lemma closed_wrtl_LOCALx:
- forall S Q R, Forall (closed_wrt_lvars S) Q -> 
+ forall S Q R, Forall (closed_wrt_lvars S) (map locald_denote Q) -> 
                     closed_wrt_lvars S R -> 
                     closed_wrt_lvars S (LOCALx Q R).
 Proof.
@@ -1626,3 +1644,23 @@ Ltac precondition_closed :=
           end;
   [simpl not_a_param; auto 50 with closed
   | simpl is_a_local; auto 50 with closed ].
+
+Lemma Forall_map_cons:
+  forall {A B} (F: A -> Prop) (g: B -> A) b bl,
+  F (g b) -> Forall F (map g bl) ->
+  Forall F (map g (b::bl)).
+Proof.
+simpl.
+intros.
+constructor; auto.
+Qed.
+
+Lemma Forall_map_nil:
+  forall {A B} (F: A -> Prop) (g: B -> A),
+  Forall F (map g nil).
+Proof.
+simpl.
+intros.
+constructor; auto.
+Qed.
+Hint Resolve @Forall_map_cons @Forall_map_nil : closed.

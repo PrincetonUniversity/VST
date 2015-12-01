@@ -233,8 +233,7 @@ Ltac fancy_intro aggressive :=
                | apply typed_true_tint in H
                | apply typed_true_ptr in H
                | idtac ]
- | temp _ _ _ => hnf in H
- | var _ _ _ _ => hnf in H
+ | locald_denote _ _ => hnf in H
  | _ => try solve [discriminate H]
  end.
 
@@ -1029,7 +1028,7 @@ Arguments ret_type !Delta /.
 Arguments Datatypes.id {A} x / .
 
 Ltac unfold_for_go_lower :=
-  cbv delta [PROPx LOCALx SEPx temp var
+  cbv delta [PROPx LOCALx SEPx locald_denote
                        eval_exprlist eval_expr eval_lvalue cast_expropt 
                        sem_cast eval_binop eval_unop force_val1 force_val2
                       tc_expropt tc_expr tc_exprlist tc_lvalue 
@@ -1564,9 +1563,37 @@ Lemma subst_sepcon: forall i v (P Q: environ->mpred),
 Proof. reflexivity. Qed.
 Hint Rewrite subst_sepcon : subst.
 
+Definition subst_localdef (i: ident) (v:val) (d: localdef) : localdef :=
+     match d with
+     | temp j v' => if ident_eq i j then localprop (v=v') else d
+     | _ => d
+     end.
+
+Fixpoint subst_localdef_ok d : bool := 
+ match d with tc_env _ => false | _ => true end.
+
+Lemma subst_localdef_lem: forall (i: ident) (v:val) d,
+  subst_localdef_ok d = true ->
+  subst i `v (locald_denote d) = locald_denote (subst_localdef i v d).
+Proof.
+intros.
+extensionality rho. unfold_lift.
+unfold subst. simpl.
+destruct d; inv H; simpl in *; auto.
+unfold eval_id. unfold_lift. simpl.
+destruct (ident_eq i i0).
+subst; rewrite Map.gss. 
+apply prop_ext; split; intro. subst; reflexivity.
+hnf in H. subst; reflexivity.
+rewrite Map.gso by auto. 
+apply prop_ext; split; intro. subst; reflexivity.
+hnf in H. subst; reflexivity.
+Qed.
+
 Lemma subst_PROP: forall i v P Q R,
-     subst i v (PROPx P (LOCALx Q (SEPx R))) =
-    PROPx P (LOCALx (map (subst i v) Q) (SEPx R)).
+    forallb subst_localdef_ok Q = true ->
+     subst i `v (PROPx P (LOCALx Q (SEPx R))) =
+     PROPx P (LOCALx (map (subst_localdef i v) Q) (SEPx R)).
 Proof.
 intros.
 unfold PROPx.
@@ -1577,13 +1604,17 @@ autorewrite with subst norm.
 f_equal.
 extensionality rho.
 unfold lift1.
-simpl.
 f_equal.
-induction Q; simpl; auto.
-autorewrite with subst norm norm2.
-f_equal;  apply IHQ.
+revert H; induction Q; simpl; intros; auto.
+rewrite andb_true_iff in H.
+destruct H.
+autorewrite with subst.
+unfold liftx at 1 6.
+simpl. unfold lift.
+f_equal; auto.
+rewrite subst_localdef_lem; auto.
 Qed.
-Hint Rewrite subst_PROP : subst.
+Hint Rewrite subst_PROP using reflexivity : subst.
 
 Lemma subst_stackframe_of:
   forall {cs: compspecs} i v f, subst i v (stackframe_of f) = stackframe_of f.

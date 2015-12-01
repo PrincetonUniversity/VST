@@ -112,7 +112,7 @@ eapply semax_post_flipped3.
 * 
  assert (Hdiv': (LBLOCKz | Zlength (hashed ++ blocks)))
    by (rewrite Zlength_app; apply Z.divide_add_r; auto).
- simpl tc_environ; rewrite insert_local.
+ simpl tc_environ; rewrite insert_tce.
  clear POSTCONDITION.
  pose proof CBLOCKz_eq.
  unfold splice_into_list; autorewrite with sublist.

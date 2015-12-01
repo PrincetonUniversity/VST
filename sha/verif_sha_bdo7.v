@@ -408,7 +408,6 @@ semax (initialized _i Delta_loop1)
   (normal_ret_assert
       (PROP  (Int.min_signed <= i + 1 <= 64; 16 <= i + 1)
        LOCAL  (temp _i (Vint (Int.repr i));
-       `(eq (Vint (Int.repr 64))) (eval_expr (Econst_int (Int.repr 64) tint));
        temp _ctx ctx;
        temp _a (Vint (nthi (Round regs (nthi b) (i + 1 - 1)) 0));
        temp _b (Vint (nthi (Round regs (nthi b) (i + 1 - 1)) 1));
@@ -606,11 +605,13 @@ rewrite Xarray_simpl; auto.
 apply Zlength_length in H; auto.
 *
 unfold POSTCONDITION, abbreviate; clear POSTCONDITION.
-drop_LOCAL 1%nat.
 change Delta with (initialized _i Delta_loop1).
 apply semax_extract_PROP; intro.
+eapply semax_post_flipped'.
 simple apply bdo_loop2_body_proof; auto.
  change LBLOCKz with 16%Z; omega.
+apply andp_right; auto.
+intro rho; apply prop_right. reflexivity.
 *
  cbv beta. change (64-1)%Z with 63%Z.
  entailer!.

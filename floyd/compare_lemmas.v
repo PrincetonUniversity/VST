@@ -52,13 +52,14 @@ Definition  binary_operation_to_comparison (op: binary_operation) :=
  | _ => None
  end.
 
+(*
 Lemma typed_true_binop_int:
   forall op op' e1 e2 Espec  {cs: compspecs} Delta P Q R c Post,
    binary_operation_to_comparison op = Some op' ->
    typeof e1 = tint ->
    typeof e2 = tint ->
-   (PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R))) |--  tc_expr Delta e1 ->
-   (PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R))) |-- tc_expr Delta e2 ->
+   (PROPx P (LOCALx (tc_env Delta :: Q) (SEPx R))) |--  tc_expr Delta e1 ->
+   (PROPx P (LOCALx (tc_env Delta :: Q) (SEPx R))) |-- tc_expr Delta e2 ->
   @semax cs Espec Delta (PROPx P (LOCALx 
       (`op' (`force_signed_int (eval_expr e1)) (`force_signed_int (eval_expr e2))
           :: Q) (SEPx R))) c Post ->
@@ -115,6 +116,7 @@ destruct (zlt (Int.signed i0) (Int.signed i)); auto; try omega; contradict H4; a
 unfold Int.lt in H4.
 destruct (zlt (Int.signed i) (Int.signed i0)); auto; try omega; contradict H4; auto.
 Qed.
+*)
 
 Definition  binary_operation_to_opp_comparison (op: binary_operation) :=
  match op with
@@ -127,6 +129,7 @@ Definition  binary_operation_to_opp_comparison (op: binary_operation) :=
  | _ => None
  end.
 
+(*
 Lemma typed_false_binop_int:
   forall op op' e1 e2 Espec  {cs: compspecs} Delta P Q R c Post,
    binary_operation_to_opp_comparison op = Some op' ->
@@ -192,6 +195,7 @@ destruct (zlt (Int.signed i0) (Int.signed i)); inv H5; omega.
 unfold Int.lt in H5.
 destruct (zlt (Int.signed i) (Int.signed i0)); inv H5; omega.
 Qed.
+*)
 
 Lemma typed_false_One_nullval:
  forall  {cs: compspecs}  v t t',
@@ -234,7 +238,7 @@ intros. subst.
 Qed.
 
 Lemma local_entail_at: 
-  forall n S T (H: local S |-- local T)
+  forall n S T (H: local (locald_denote S) |-- local (locald_denote T))
     P Q R,
     nth_error Q n = Some S ->
     PROPx P (LOCALx Q (SEPx R)) |-- 
@@ -254,7 +258,7 @@ Qed.
 
 Lemma local_entail_at_semax_0:
   forall Espec {cs: compspecs}Delta P Q1 Q1' Q R c Post,
-   local Q1 |-- local Q1' ->
+   local (locald_denote Q1) |-- local (locald_denote Q1') ->
    @semax cs Espec Delta (PROPx P (LOCALx (Q1'::Q) (SEPx R))) c Post  ->
    @semax cs Espec Delta (PROPx P (LOCALx (Q1::Q) (SEPx R))) c Post.
 Proof.
@@ -265,6 +269,7 @@ apply H. reflexivity.
 auto.
 Qed.
 
+(*
 Ltac simplify_typed_comparison :=
 match goal with
 | |- semax _ (PROPx _ (LOCALx (`(typed_true _) ?A :: _) _)) _ _ =>
@@ -295,6 +300,7 @@ match goal with
     |  ]
 | |- _ => idtac
 end.
+*)
 
 Definition compare_pp op p q :=
    match p with

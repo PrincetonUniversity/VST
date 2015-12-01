@@ -584,11 +584,11 @@ semax_external
 
 Lemma ret_temp_make_ext_rval:
   forall gx ret p,  
-   temp ret_temp p (make_ext_rval gx ret) -> 
+   locald_denote (temp ret_temp p) (make_ext_rval gx ret) -> 
     p = force_val ret.
 Proof.
   intros.
-  unfold temp in H; unfold_lift in H.
+  hnf in H.
   rewrite retval_ext_rval in H. auto.
 Qed.
 

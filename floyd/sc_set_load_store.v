@@ -97,7 +97,7 @@ The set, load, cast-load and store rules used before Dec 3. 2014
 
 ************************************************)
 
-Inductive isolate_temp_binding {cs: compspecs} (id: ident): list (environ->Prop) -> option val -> list (environ -> Prop) -> list Prop -> Prop :=
+Inductive isolate_temp_binding {cs: compspecs} (id: ident): list localdef -> option val -> list localdef -> list Prop -> Prop :=
 | ITB_same: 
     forall Q v v' Q' P,
      isolate_temp_binding id Q v' Q' P ->
@@ -123,14 +123,22 @@ Inductive isolate_temp_binding {cs: compspecs} (id: ident): list (environ->Prop)
      isolate_temp_binding id Q v Q' P ->
      isolate_temp_binding id (sgvar j v'::Q) v (sgvar j v' :: Q') P.
 
+Lemma isolate_temp_binding_subst_ok:
+  forall {cs: compspecs} id Q v Q' P,
+  isolate_temp_binding id Q v Q' P ->
+  forallb subst_localdef_ok Q = true.
+Proof.
+induction 1; simpl; auto.
+Qed.
+
 Inductive trivially_lifted:  (environ->mpred) -> Prop :=
   TL_ok: forall (R1: mpred), trivially_lifted (`R1).
 
 Lemma isolate_temp_binding_e {cs: compspecs}:
   forall id Q old (old': val) Q' P' (rho: environ),
  isolate_temp_binding id Q old Q' P' ->
- fold_right `and `True (map (subst id `old') Q) rho ->
- fold_right and True P' /\ fold_right `and `True Q' rho
+ fold_right `and `True (map locald_denote (map (subst_localdef id old') Q)) rho ->
+ fold_right and True P' /\ fold_right `and `True (map locald_denote Q') rho
  /\ match old with Some w => w=old' | None => True end.
 Proof.
 intros.
@@ -139,10 +147,10 @@ induction H; try rename IHisolate_temp_binding into IH.
 destruct H0.
 specialize (IH H1); destruct IH as [? [? ?]].
 hnf in H0; simpl in H0; unfold eval_id in H0; simpl in H0.
-rewrite Map.gss in H0. unfold_lift in H0; simpl in H0.
+rewrite if_true in H0. hnf in H0.
 subst old'.
 split; auto.
-destruct v'; [ split | ]; auto.
+destruct v'; [ split | ]; auto. auto.
 *
 destruct H0.
 specialize (IH H2); destruct IH as [? [? ?]].
@@ -150,7 +158,7 @@ split3; auto.
 split; auto.
 apply -> Pos.eqb_neq in H.
 hnf in H0. unfold eval_id in H0. simpl in H0.
-rewrite Map.gso in H0 by auto. 
+rewrite if_false in H0 by auto.
 hnf. unfold eval_id. rewrite <- H0. auto.
 *
 split3; auto.
@@ -177,23 +185,24 @@ Lemma semax_SC_set:
     forall Delta id P Q R (e2: expr) t v,
       typeof_temp Delta id = Some t ->
       is_neutral_cast (implicit_deref (typeof e2)) t = true ->
-      PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |-- local (`(eq v) (eval_expr e2)) ->
-      PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |--
+      forallb subst_localdef_ok Q = true ->
+      PROPx P (LOCALx (tc_env Delta :: Q) (SEPx R)) |-- local (`(eq v) (eval_expr e2)) ->
+      PROPx P (LOCALx (tc_env Delta :: Q) (SEPx R)) |--
          (tc_expr Delta e2) ->
       semax Delta (|>PROPx P (LOCALx Q (SEPx R)))
         (Sset id e2)
           (normal_ret_assert
             (EX old : val,
               PROPx P
-                (LOCALx (temp id v :: map (subst id `old) Q)
+                (LOCALx (temp id v :: map (subst_localdef id old) Q)
                   (SEPx R)))).
 Proof.
   intros.
-  assert (PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |--
+  assert (PROPx P (LOCALx (tc_env Delta :: Q) (SEPx R)) |--
      (tc_expr Delta e2) &&  (tc_temp_id id (typeof e2) Delta e2)).
   {
     apply andp_right.
-    + eapply derives_trans; [exact H2 | apply derives_refl].
+    + eapply derives_trans; [exact H3 | apply derives_refl].
     + unfold tc_temp_id.
       unfold typecheck_temp_id.
       unfold typeof_temp in H.
@@ -208,9 +217,9 @@ Proof.
   {
     hoist_later_left.
     rewrite insert_local.
-    rewrite (add_andp _ _ H3).
+    rewrite (add_andp _ _ H4).
     rewrite andp_comm.
-    rewrite (add_andp _ _ H1).
+    rewrite (add_andp _ _ H2).
     apply later_derives.
     apply andp_derives; [apply derives_refl |].
     apply andp_derives; [| apply derives_refl].
@@ -226,6 +235,7 @@ Proof.
   rewrite subst_local.
   rewrite subst_lift1C.
   entailer!. 
+  auto.
 Qed.
 
 Lemma fold_right_and_app_low: (* duplicated from call_lemmas.v *)
@@ -247,32 +257,31 @@ Lemma semax_SC_set1:
       isolate_temp_binding id Q old Q' P' ->
       P'' = P' ++ P ->
 (*      Forall trivially_lifted R ->*)
-      PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |-- local (`(eq v) (eval_expr e2)) ->
-      PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |-- (tc_expr Delta e2) ->
+      PROPx P (LOCALx (tc_env Delta :: Q) (SEPx R)) |-- local (`(eq v) (eval_expr e2)) ->
+      PROPx P (LOCALx (tc_env Delta :: Q) (SEPx R)) |-- (tc_expr Delta e2) ->
       semax Delta (|>PROPx P (LOCALx Q (SEPx R)))
         (Sset id e2)
         (normal_ret_assert
             (PROPx P'' (LOCALx (temp id v :: Q') (SEPx R)))).
 Proof.
-intros until 4. pose proof I. intros.
+intros.
 eapply semax_post'; [ | eapply semax_SC_set; try eassumption].
 apply exp_left; intro old'.
 subst P''.
-clear - H1 H3.
+clear - H1 H4.
 go_lowerx.
-change (fold_right `and `True (map (subst id `old') Q) rho) in H2.
+change (fold_right `and `True (map locald_denote (map (subst_localdef id old') Q)) rho) in H2.
 change (fold_right sepcon emp R |--
    !! fold_right and True (P'++P) &&
-   (!! (temp id v rho /\ fold_right `and `True Q' rho) &&
+   (!! (locald_denote (temp id v) rho /\ fold_right `and `True (map locald_denote Q') rho) &&
       fold_right sepcon emp R)).
 normalize.
-apply andp_right;
- [ |clear - H3; induction H3; auto; inversion H; apply sepcon_derives; simpl; auto].
+apply andp_right; auto.
 apply prop_right.
-clear - H1 H H0 H2.
-destruct (isolate_temp_binding_e _ _ _ _ _ _ _ H1 H2) as [? [? ?]].
 rewrite fold_right_and_app_low.
-repeat split; auto.
+destruct (isolate_temp_binding_e _ _ _ _ _ _ _ H1 H2) as [? [? ?]].
+ auto.
+eapply isolate_temp_binding_subst_ok; eauto.
 Qed.
 
 Lemma semax_SC_field_load:
@@ -285,31 +294,32 @@ Lemma semax_SC_field_load:
       gfs = gfs1 ++ gfs0 ->
       legal_nested_efield t_root e1 gfs tts lr = true ->
       nth_error R n = Some Rn ->
-      PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |-- local (`(eq p) (eval_LR e1 lr)) ->
-      PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |--
+      PROPx P (LOCALx (tc_env Delta :: Q) (SEPx R)) |-- local (`(eq p) (eval_LR e1 lr)) ->
+      PROPx P (LOCALx (tc_env Delta :: Q) (SEPx R)) |--
         efield_denote efs gfs ->
-      PROPx P (LOCALx (tc_environ Delta :: Q) (SEP (Rn))) |--
+      PROPx P (LOCALx (tc_env Delta :: Q) (SEP (Rn))) |--
         `(field_at sh t_root gfs0 v' p) ->
       readable_share sh ->
+      forallb subst_localdef_ok Q = true ->
       repinject _ (proj_reptype (nested_field_type t_root gfs0) gfs1 v') = v ->
-      PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |--
+      PROPx P (LOCALx (tc_env Delta :: Q) (SEPx R)) |--
          (tc_LR Delta e1 lr) &&
         local `(tc_val (typeof (nested_efield e1 efs tts)) v) &&
          (tc_efield Delta efs) ->
-      PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |--
+      PROPx P (LOCALx (tc_env Delta :: Q) (SEPx R)) |--
         (!! legal_nested_field t_root gfs) ->
       semax Delta (|>PROPx P (LOCALx Q (SEPx R))) 
         (Sset id (nested_efield e1 efs tts))
           (normal_ret_assert
             (EX old : val,
               PROPx P
-                (LOCALx (temp id v :: map (subst id `old) Q)
+                (LOCALx (temp id v :: map (subst_localdef id old) Q)
                   (SEPx R)))).
 Proof.
   intros.
-  eapply semax_extract_later_prop'; [exact H10 | clear H10; intro H10].
+  eapply semax_extract_later_prop'; [exact H11 | clear H11; intro H11].
   eapply semax_nested_efield_field_load_37' with (gfs4 := gfs); eauto.
-  apply andp_right; [apply andp_right; [exact H9 | exact H5] |].
+  apply andp_right; [apply andp_right; [exact H10 | exact H5] |].
   rewrite (add_andp _ _ H4).
   eapply derives_trans; [apply andp_derives; [| apply derives_refl] |].
   eapply nth_error_SEP_sepcon_TT; eauto.
@@ -329,18 +339,18 @@ Lemma semax_SC_field_load1:
       gfs = gfs1 ++ gfs0 ->
       legal_nested_efield t_root e1 gfs tts lr = true ->
       nth_error R n = Some Rn ->
-      PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |-- local (`(eq p) (eval_LR e1 lr)) ->
-      PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |--
+      PROPx P (LOCALx (tc_env Delta :: Q) (SEPx R)) |-- local (`(eq p) (eval_LR e1 lr)) ->
+      PROPx P (LOCALx (tc_env Delta :: Q) (SEPx R)) |--
         efield_denote efs gfs ->
-      PROPx P (LOCALx (tc_environ Delta :: Q) (SEP (Rn))) |--
+      PROPx P (LOCALx (tc_env Delta :: Q) (SEP (Rn))) |--
         `(field_at sh t_root gfs0 v' p) ->
       readable_share sh ->
       repinject _ (proj_reptype (nested_field_type t_root gfs0) gfs1 v') = v ->
-      PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |--
+      PROPx P (LOCALx (tc_env Delta :: Q) (SEPx R)) |--
          (tc_LR Delta e1 lr) &&
         local `(tc_val (typeof (nested_efield e1 efs tts)) v) &&
          (tc_efield Delta efs) ->
-      PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |--
+      PROPx P (LOCALx (tc_env Delta :: Q) (SEPx R)) |--
         (!! legal_nested_field t_root gfs) ->
       semax Delta (|>PROPx P (LOCALx Q (SEPx R))) 
         (Sset id (nested_efield e1 efs tts))
@@ -377,25 +387,26 @@ Lemma semax_SC_field_cast_load:
       gfs = gfs1 ++ gfs0 ->
       legal_nested_efield t_root e1 gfs tts lr = true ->
       nth_error R n = Some Rn ->
-      PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |-- local (`(eq p) (eval_LR e1 lr)) ->
-      PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |--
+      PROPx P (LOCALx (tc_env Delta :: Q) (SEPx R)) |-- local (`(eq p) (eval_LR e1 lr)) ->
+      PROPx P (LOCALx (tc_env Delta :: Q) (SEPx R)) |--
         efield_denote efs gfs ->
-      PROPx P (LOCALx (tc_environ Delta :: Q) (SEP (Rn))) |--
+      PROPx P (LOCALx (tc_env Delta :: Q) (SEP (Rn))) |--
         `(field_at sh t_root gfs0 v' p) ->
       readable_share sh ->
       repinject _ (proj_reptype (nested_field_type t_root gfs0) gfs1 v') = v ->
-      PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |-- 
+      PROPx P (LOCALx (tc_env Delta :: Q) (SEPx R)) |-- 
          (tc_LR Delta e1 lr) &&
         local (`(tc_val t (eval_cast (typeof (nested_efield e1 efs tts)) t v))) &&
          (tc_efield Delta efs) ->
-      PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |--
+      PROPx P (LOCALx (tc_env Delta :: Q) (SEPx R)) |--
         (!! legal_nested_field t_root gfs) ->
       semax Delta (|> PROPx P (LOCALx Q (SEPx R)))
         (Sset id (Ecast (nested_efield e1 efs tts) t))
           (normal_ret_assert
             (EX old:val,
               PROPx P
-                (LOCALx (temp id (eval_cast (typeof (nested_efield e1 efs tts)) t v) :: map (subst id (`old)) Q)
+                (LOCALx (temp id (eval_cast (typeof (nested_efield e1 efs tts)) t v)
+                        :: map (subst_localdef id old) Q)
                   (SEPx R)))).
 Proof.
   intros.
@@ -421,18 +432,18 @@ Lemma semax_SC_field_cast_load1:
       gfs = gfs1 ++ gfs0 ->
       legal_nested_efield t_root e1 gfs tts lr = true ->
       nth_error R n = Some Rn ->
-      PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |-- local (`(eq p) (eval_LR e1 lr)) ->
-      PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |--
+      PROPx P (LOCALx (tc_env Delta :: Q) (SEPx R)) |-- local (`(eq p) (eval_LR e1 lr)) ->
+      PROPx P (LOCALx (tc_env Delta :: Q) (SEPx R)) |--
         efield_denote efs gfs ->
-      PROPx P (LOCALx (tc_environ Delta :: Q) (SEP (Rn))) |--
+      PROPx P (LOCALx (tc_env Delta :: Q) (SEP (Rn))) |--
         `(field_at sh t_root gfs0 v' p) ->
       readable_share sh ->
       repinject _ (proj_reptype (nested_field_type t_root gfs0) gfs1 v') = v ->
-      PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |-- 
+      PROPx P (LOCALx (tc_env Delta :: Q) (SEPx R)) |-- 
          (tc_LR Delta e1 lr) &&
         local (`(tc_val t (eval_cast (typeof (nested_efield e1 efs tts)) t v))) &&
          (tc_efield Delta efs) ->
-      PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |--
+      PROPx P (LOCALx (tc_env Delta :: Q) (SEPx R)) |--
         (!! legal_nested_field t_root gfs) ->
       semax Delta (|> PROPx P (LOCALx Q (SEPx R)))
         (Sset id (Ecast (nested_efield e1 efs tts) t))
@@ -469,19 +480,19 @@ Lemma semax_SC_field_store:
       gfs = gfs1 ++ gfs0 ->
       legal_nested_efield t_root e1 gfs tts lr = true ->
       nth_error R n = Some Rn ->
-      PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |-- local (`(eq p) (eval_LR e1 lr)) ->
-      PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |-- local (`(eq v0) (eval_expr (Ecast e2 t))) ->
-      PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |--
+      PROPx P (LOCALx (tc_env Delta :: Q) (SEPx R)) |-- local (`(eq p) (eval_LR e1 lr)) ->
+      PROPx P (LOCALx (tc_env Delta :: Q) (SEPx R)) |-- local (`(eq v0) (eval_expr (Ecast e2 t))) ->
+      PROPx P (LOCALx (tc_env Delta :: Q) (SEPx R)) |--
         efield_denote efs gfs ->
-      PROPx P (LOCALx (tc_environ Delta :: Q) (SEP (Rn))) |--
+      PROPx P (LOCALx (tc_env Delta :: Q) (SEP (Rn))) |--
         `(field_at sh t_root gfs0 v p) ->
       writable_share sh ->
       data_equal (upd_reptype (nested_field_type t_root gfs0) gfs1 v (valinject _ v0)) v_new ->
-      PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |--
+      PROPx P (LOCALx (tc_env Delta :: Q) (SEPx R)) |--
          (tc_LR Delta e1 lr) && 
          (tc_expr Delta (Ecast e2 t)) &&
          (tc_efield Delta efs) ->
-      PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |--
+      PROPx P (LOCALx (tc_env Delta :: Q) (SEPx R)) |--
         (!! legal_nested_field t_root gfs) ->
       semax Delta (|>PROPx P (LOCALx Q (SEPx R))) 
         (Sassign (nested_efield e1 efs tts) e2)
@@ -506,11 +517,13 @@ Proof.
     rewrite andp_comm.
     rewrite (add_andp _ _ H5).
     rewrite <- andp_assoc.
+(*
     rewrite insert_local.
     rewrite andp_comm.
     rewrite insert_local.
     apply derives_refl.
   }
+*)
 Admitted. (* Qinxiang *)
 (*
   eapply semax_post'; [ | eapply semax_nested_efield_field_store_nth with (v1 := v); eauto].
@@ -547,6 +560,12 @@ The set, load, cast-load and store rules will be used in the future.
 
 Require Import floyd.local2ptree.
 
+Lemma subst_LocalD_ok:
+  forall T1 T2, 
+    forallb subst_localdef_ok (LocalD T1 T2 nil) = true.
+Proof.
+Admitted.  (* should be easy *)
+
 Lemma semax_PTree_set:
   forall {Espec: OracleKind},
     forall Delta id P T1 T2 R (e2: Clight.expr) t v,
@@ -562,10 +581,11 @@ Lemma semax_PTree_set:
 Proof.
   intros.
   unfold assertD, localD in *.
-  rewrite insert_local in H2.
+  rewrite insert_tce in H2.
   eapply semax_post'.
   Focus 2. {
     eapply semax_SC_set; eauto.
+    apply subst_LocalD_ok.
     instantiate (1 := v).
     rewrite <- insert_local.
     apply andp_left2.
@@ -604,21 +624,22 @@ Lemma semax_PTree_load:
 Proof.
   intros.
   unfold assertD, localD in *.
-  rewrite insert_local in H6, H9, H10.
+  rewrite insert_tce in H6, H9, H10.
   eapply semax_post'.
   Focus 2. {
     eapply semax_SC_field_load with (n0 := n); eauto.
 (*    + apply map_nth_error, H3.*)
-    + rewrite <- insert_local.
+    + rewrite <- insert_tce.
       apply andp_left2.
       destruct lr;
       unfold eval_LR;
       unfold msubst_eval_LR in H4.
       - apply msubst_eval_lvalue_eq, H4.
       - apply msubst_eval_expr_eq, H4.
-    + rewrite <- insert_local.
+    + rewrite <- insert_tce.
       apply andp_left2.
       apply msubst_efield_denote_equiv, H5.
+    + apply subst_LocalD_ok.
   } Unfocus.
   normalize.
   apply SC_remove_subst.
@@ -653,7 +674,7 @@ Lemma semax_PTree_cast_load:
 Proof.
   intros.
   unfold assertD, localD in *.
-  rewrite insert_local in H6, H9, H10.
+  rewrite insert_tce in H6, H9, H10.
   eapply semax_post'.
   Focus 2. {
     eapply semax_SC_field_cast_load with (n0 := n); eauto.
@@ -704,7 +725,7 @@ Lemma semax_PTree_store:
 Proof.
   intros.
   unfold assertD, localD in *.
-  rewrite insert_local in H7, H10, H11.
+  rewrite insert_tce in H7, H10, H11.
   eapply semax_post'.
   Focus 2. {
     eapply semax_SC_field_store with (n0 := n); eauto.

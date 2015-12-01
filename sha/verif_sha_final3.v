@@ -182,7 +182,7 @@ forward_for_simple_bound 8
  repeat split; auto; try reflexivity.
  apply align_compatible_tarray_tuchar.
 *
-  drop_LOCAL 1%nat. (* shouldn't need this *)
+(*  drop_LOCAL 1%nat. (* shouldn't need this *)*)
   forward. (* ll=(c)->h[xn]; *)
   {
     entailer!.

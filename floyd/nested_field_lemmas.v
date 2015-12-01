@@ -1741,7 +1741,7 @@ Hint Extern 1 (legal_nested_field0 _ _) => (eapply field_compatible0_legal_neste
 
 Lemma lvar_size_compatible:
   forall  {cs: compspecs} id t v rho,
-  lvar id t v rho -> size_compatible t v.
+  locald_denote (lvar id t v) rho -> size_compatible t v.
 Proof.
 intros. hnf in H. 
 destruct (Map.get (ve_of rho) id); try contradiction.
@@ -1752,7 +1752,7 @@ Qed.
 
 Lemma lvar_field_compatible:
    forall {cs: compspecs} id t v rho,
-    lvar id t v rho ->
+    locald_denote (lvar id t v) rho ->
     legal_alignas_type t = true ->
     legal_cosu_type t = true ->
     complete_type cenv_cs t = true ->

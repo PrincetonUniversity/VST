@@ -274,7 +274,7 @@ Fixpoint list_init_rep (i: ident) (ofs: Z) (l: list int) :=
  end.
 
 Lemma gvar_uniq:
-  forall i v v' rho, gvar i v rho -> gvar i v' rho -> v=v'.
+  forall i v v' rho, locald_denote (gvar i v) rho -> locald_denote (gvar i v') rho -> v=v'.
 Proof.
 intros.
 hnf in H,H0.
@@ -285,7 +285,7 @@ Qed.
 
 Lemma gvar_size_compatible:
   forall i s rho t, 
-    gvar i s rho -> 
+    locald_denote (gvar i s) rho -> 
     sizeof cenv_cs t <= Int.modulus ->
     size_compatible t s.
 Proof.
@@ -298,7 +298,7 @@ Qed.
 
 Lemma gvar_align_compatible:
   forall i s rho t, 
-    gvar i s rho -> 
+    locald_denote (gvar i s) rho -> 
     align_compatible t s.
 Proof.
 intros.
@@ -322,7 +322,7 @@ destruct (attr_volatile a); auto.
 Qed.
 
 Lemma gvar_offset: forall i v rho,
-  gvar i v rho -> exists b, v = Vptr b Int.zero.
+  locald_denote (gvar i v) rho -> exists b, v = Vptr b Int.zero.
 Proof.
 intros.
 hnf in H. destruct (Map.get (ve_of rho) i) as [[? ? ] | ]; try contradiction.

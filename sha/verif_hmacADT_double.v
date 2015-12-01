@@ -78,7 +78,7 @@ subst WITNESS. normalize. simpl.
 apply semax_pre with (P':=
       EX  x : hmacabs,
   (PROP  (hmacInit key x)
-   LOCAL  (tc_environ Delta; `(eq md) (eval_id _md); `(eq k) (eval_id _key);
+   LOCAL  (tc_env Delta; `(eq md) (eval_id _md); `(eq k) (eval_id _key);
    `(eq (Vint (Int.repr kl))) (eval_id _key_len); `(eq d) (eval_id _d);
    `(eq (Vint (Int.repr dl))) (eval_id _n);
    `(eq c) (eval_var _c t_struct_hmac_ctx_st);
@@ -118,7 +118,7 @@ subst WITNESS. normalize.
   It seems exp doesn't distribute over liftx, but it should *)
 eapply semax_pre with (P':= EX  x : hmacabs, 
    PROP  (hmacUpdate data h0 x)
-   LOCAL  (tc_environ Delta; `(eq md) (eval_id _md);
+   LOCAL  (tc_env Delta; `(eq md) (eval_id _md);
    `(eq k) (eval_id _key); `(eq (Vint (Int.repr kl))) (eval_id _key_len);
    `(eq d) (eval_id _d); `(eq (Vint (Int.repr dl))) (eval_id _n);
    `(eq c) (eval_var _c t_struct_hmac_ctx_st);
@@ -161,7 +161,7 @@ subst WITNESS. normalize. simpl.
 eapply semax_pre with (P':=
       EX dig : list Z, EX  h2 : hmacabs,
   (PROP  (hmacFinal h1 dig h2)
-   LOCAL  (tc_environ Delta; 
+   LOCAL  (tc_env Delta; 
    `(eq (Vptr b i)) (eval_id _md); `(eq k) (eval_id _key);
    `(eq (Vint (Int.repr kl))) (eval_id _key_len); `(eq d) (eval_id _d);
    `(eq (Vint (Int.repr dl))) (eval_id _n);
@@ -202,7 +202,7 @@ Qed.
 (**************Round 2*******************************)
 eapply semax_pre with (P':=
   (PROP  ()
-   LOCAL  (tc_environ Delta; 
+   LOCAL  (tc_env Delta; 
    `(eq (Vptr b i)) (eval_id _md); `(eq k) (eval_id _key);
    `(eq (Vint (Int.repr kl))) (eval_id _key_len); `(eq d) (eval_id _d);
    `(eq (Vint (Int.repr dl))) (eval_id _n);
@@ -229,7 +229,7 @@ normalize. simpl.
 apply semax_pre with (P':=
       EX  x : hmacabs,
   (PROP  (hmacInit key x)
-   LOCAL  (tc_environ Delta; `(eq (Vptr b i)) (eval_id _md);
+   LOCAL  (tc_env Delta; `(eq (Vptr b i)) (eval_id _md);
    `(eq k) (eval_id _key); `(eq (Vint (Int.repr kl))) (eval_id _key_len);
    `(eq d) (eval_id _d); `(eq (Vint (Int.repr dl))) (eval_id _n);
    `(eq c) (eval_var _c t_struct_hmac_ctx_st);
@@ -262,7 +262,7 @@ normalize. simpl.
 
 eapply semax_pre with (P':=EX  x : hmacabs, 
   (PROP  (hmacUpdate data h3 x)
-   LOCAL  (tc_environ Delta; 
+   LOCAL  (tc_env Delta; 
    `(eq (Vptr b i)) (eval_id _md); `(eq k) (eval_id _key);
    `(eq (Vint (Int.repr kl))) (eval_id _key_len); `(eq d) (eval_id _d);
    `(eq (Vint (Int.repr dl))) (eval_id _n);
@@ -289,7 +289,7 @@ normalize. simpl.
 eapply semax_pre with (P':=
       EX dig2 : list Z, EX h5 : hmacabs,
   (PROP  (hmacFinal h4 dig2 h5)
-   LOCAL  (tc_environ Delta; 
+   LOCAL  (tc_env Delta; 
    `(eq (Vptr b i)) (eval_id _md); `(eq k) (eval_id _key);
    `(eq (Vint (Int.repr kl))) (eval_id _key_len); `(eq d) (eval_id _d);
    `(eq (Vint (Int.repr dl))) (eval_id _n);
