@@ -1263,11 +1263,12 @@ Proof. intros.
   destruct (upd_Znth_lookup K l L i j d v I J) as [[X Y] | [X Y]]; if_tac; try omega; trivial.
 Qed.
 
-Lemma upd_Znth_char {A} n l1 (v:A) l2 w: Zlength l1=n -> 0<=n -> 
+Lemma upd_Znth_char {A} n l1 (v:A) l2 w: Zlength l1=n -> 
       upd_Znth n (l1 ++ v :: l2) w = l1 ++ w :: l2.
-Proof. intros. unfold upd_Znth. 
-   f_equal. rewrite sublist0_app1. apply sublist_same; omega. omega.
-   f_equal. rewrite sublist_app2, <- H, Zlength_app, Zlength_cons. do 2 rewrite Zminus_plus.
+Proof. intros. unfold upd_Znth.
+  specialize (Zlength_nonneg l1); intros.
+  f_equal. rewrite sublist0_app1. apply sublist_same; omega. omega.
+  f_equal. rewrite sublist_app2, <- H, Zlength_app, Zlength_cons. do 2 rewrite Zminus_plus.
                 rewrite sublist_1_cons. apply sublist_same; omega. omega. 
 Qed.
 
@@ -1283,6 +1284,20 @@ Proof.
   intros. rewrite (upd_Znth_lookup' _ _ (eq_refl _)); trivial.
   rewrite zeq_false; trivial.
 Qed.
+
+Lemma upd_Znth_app1 {A} i l1 l2 (I: 0 <= i < Zlength l1) (v:A): 
+      upd_Znth i (l1++l2) v = upd_Znth i l1 v ++ l2.
+Proof.
+  assert (L2NN:= Zlength_nonneg l2).
+  unfold upd_Znth.
+  rewrite sublist_app1, Zlength_app, <- app_assoc; try omega.
+  f_equal. simpl. f_equal.
+  rewrite <- (sublist_rejoin (i+1) (Zlength l1)); try omega.
+  rewrite sublist_app1; try omega. f_equal. 
+  rewrite sublist_app2, Zminus_diag, Zminus_plus; try omega.
+  apply sublist_same; trivial.
+  rewrite Zlength_app; omega.
+Qed. 
 
 Lemma upd_Znth_app2 {A} (l1 l2:list A) i v:
   Zlength l1 <= i <= Zlength l1 + Zlength l2 ->
