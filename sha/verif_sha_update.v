@@ -112,7 +112,7 @@ eapply semax_post_flipped3.
 * 
  assert (Hdiv': (LBLOCKz | Zlength (hashed ++ blocks)))
    by (rewrite Zlength_app; apply Z.divide_add_r; auto).
- simpl tc_environ; rewrite insert_local.
+ simpl tc_environ; rewrite insert_tce.
  clear POSTCONDITION.
  pose proof CBLOCKz_eq.
  unfold splice_into_list; autorewrite with sublist.
@@ -336,7 +336,8 @@ assert_PROP (field_address t_struct_SHA256state_st [StructField _data] c
   unfold_data_at 1%nat.
  rewrite (field_at_compatible' _ _ [StructField _data]).
   entailer!.
-rewrite <- H0.
+ normalize.
+ rewrite <- H0.
 apply semax_seq with (sha_update_inv sh (s256a_hashed a) len c d (s256a_data a) data kv false).
 *
  semax_subcommand Vprog Gtot  f_SHA256_Update.

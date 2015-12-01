@@ -326,7 +326,7 @@ forward_if PostKeyNull.
      apply semax_pre with (P':=
       EX  xx : s256abs,
   (PROP  (update_abs key init_s256abs xx)
-   LOCAL  (tc_environ Delta; 
+   LOCAL  (tc_env Delta; 
    `(eq (Vint (Int.repr 64))) (eval_id _j);
    `(eq (Vint (Int.repr 1))) (eval_id _reset);
    `(eq pad) (eval_var _pad (tarray tuchar 64));

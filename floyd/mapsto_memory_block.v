@@ -562,16 +562,17 @@ Lemma replace_nth_SEP_andp_local:
    forall P Q R n (Rn Rn': mpred) (Rn'': Prop) x,
   nth_error R n = Some Rn ->
   (PROPx P (LOCALx Q (SEPx (replace_nth n R ((prop Rn'') && Rn'))))) x
-  = (PROPx P (LOCALx (`Rn'' :: Q) (SEPx (replace_nth n R Rn')))) x.
+  = (PROPx P (LOCALx (localprop Rn'' :: Q) (SEPx (replace_nth n R Rn')))) x.
 Proof.
   intros.
   normalize.
   f_equal.
   extensionality rho.
   unfold_for_go_lower. simpl.
+  fold locald_denote.
   forget (fold_right
      (fun (x0 x1 : environ -> Prop) (x2 : environ) => x0 x2 /\ x1 x2)
-     (fun _ : environ => True) Q rho) as Q'.
+     (fun _ : environ => True) (map locald_denote Q) rho) as Q'.
  rewrite <- gather_prop_right.
  rewrite andp_comm. f_equal.
   revert R H. clear.
@@ -598,6 +599,7 @@ Proof.
       autorewrite with subst norm1 norm2; normalize.
 Qed.
 
+(*
 Lemma eq_sym_LOCAL: forall P Q R id v, 
   PROPx P (LOCALx (`eq v (eval_id id) :: Q) (SEPx R)) = 
   PROPx P (LOCALx (`eq (eval_id id) v:: Q) (SEPx R)).
@@ -617,8 +619,10 @@ Proof.
   intros.
   normalize.
 Qed.
+*)
 
 (* This lemma is for load_37 *)
+(*
 Lemma eq_sym_post_LOCAL: forall P Q R id v,
   (EX  old : val, PROPx P
   (LOCALx (`eq (subst id `old v) (eval_id id)::map (subst id `old) Q) (SEPx R))) = 
@@ -629,8 +633,10 @@ Proof.
   apply pred_ext; normalize; apply (exp_right old);
   rewrite eq_sym_LOCAL; apply derives_refl.
 Qed.
+*)
 
 (* This lemma is for load_37' *)
+(*
 Lemma eq_sym_post_LOCAL': forall P Q R id v,
   (EX  old : val, PROPx P
   (LOCALx (`(eq v) (eval_id id) :: map (subst id `old) Q) (SEPx R))) = 
@@ -641,6 +647,7 @@ Proof.
   apply pred_ext; normalize; apply (exp_right old);
   rewrite eq_sym_LOCAL'; apply derives_refl.
 Qed.
+*)
 
 (******************************************
 

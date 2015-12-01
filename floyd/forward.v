@@ -76,8 +76,8 @@ assert (Int.unsigned Int.zero + sizeof cenv_cs t <= Int.modulus)
 eapply semax_pre_post; [ | intros; apply andp_left2; apply derives_refl | ].
 instantiate (1 := EX v:val, (PROPx P (LOCALx (lvar id t v :: Q) (SEPx (data_at_ Tsh t v :: R)))) 
                       * fold_right sepcon emp Vs).
-unfold var_block, lvar, eval_lvar.
-go_lowerx.
+unfold var_block,  eval_lvar.
+go_lowerx. unfold lvar_denote.
 normalize.
 unfold Map.get.
 destruct (ve_of rho id) as [[? ?] | ] eqn:?.
@@ -102,9 +102,9 @@ apply extract_exists_pre.  apply H4.
 Qed.
 
 Lemma lvar_eval_lvar {cs: compspecs}:
-  forall i t v rho, lvar i t v rho -> eval_lvar i t rho = v.
+  forall i t v rho, locald_denote (lvar i t v) rho -> eval_lvar i t rho = v.
 Proof.
-unfold lvar, eval_lvar; intros.
+unfold eval_lvar; intros. hnf in H.
 destruct (Map.get (ve_of rho) i) as [[? ?]|]; try contradiction.
 destruct (eqb_type t t0); try contradiction.
 destruct H; subst; auto.
@@ -118,10 +118,11 @@ Lemma var_block_lvar0
        complete_type cenv_cs t = true ->
        sizeof cenv_cs t < Int.modulus ->
        tc_environ Delta rho ->
-       lvar id t v rho ->
+       locald_denote (lvar id t v) rho ->
        data_at_ Tsh t v |-- var_block Tsh (id, t) rho.
 Proof.
 intros.
+hnf in H5.
 assert (Int.unsigned Int.zero + sizeof cenv_cs t <= Int.modulus)
  by (rewrite Int.unsigned_zero; omega).
 unfold var_block.
@@ -147,7 +148,7 @@ Lemma postcondition_var_block:
        complete_type cenv_cs t = true ->
        sizeof cenv_cs t < Int.modulus ->
    semax Delta Pre c (frame_ret_assert S1 
-     (S2 *  (EX  v : val, local (lvar i t v) && `(data_at_ Tsh t v))
+     (S2 *  (EX  v : val, local (locald_denote (lvar i t v)) && `(data_at_ Tsh t v))
       * fold_right sepcon emp vbs)) ->  
   semax Delta Pre c (frame_ret_assert S1 
      (S2 * fold_right sepcon emp (var_block Tsh (i,t) :: vbs))).
@@ -260,33 +261,33 @@ Proof. intros. intro rho; apply TT_right.
 Qed.
 
 Lemma lvar_isptr {cs: compspecs}:
-  forall i t v rho, lvar i t v rho -> isptr v.
+  forall i t v rho, locald_denote (lvar i t v) rho -> isptr v.
 Proof.
-unfold lvar; intros.
+intros. hnf in H.
 destruct (Map.get (ve_of rho) i) as [[? ?]|]; try contradiction.
 destruct (eqb_type t t0); try contradiction.
 destruct H; subst; apply Coq.Init.Logic.I.
 Qed.
 
 Lemma gvar_isptr:
-  forall i v rho, gvar i v rho -> isptr v.
+  forall i v rho, locald_denote (gvar i v) rho -> isptr v.
 Proof.
-unfold gvar; intros.
+intros. hnf in H.
 destruct (Map.get (ve_of rho) i) as [[? ?]|]; try contradiction.
 destruct (ge_of rho i); try contradiction.
 subst; apply Coq.Init.Logic.I.
 Qed.
 
 Lemma sgvar_isptr:
-  forall i v rho, sgvar i v rho -> isptr v.
+  forall i v rho, locald_denote (sgvar i v) rho -> isptr v.
 Proof.
-unfold sgvar; intros.
+intros. hnf in H.
 destruct (ge_of rho i); try contradiction.
 subst; apply Coq.Init.Logic.I.
 Qed.
 
 Lemma lvar_eval_var {cs: compspecs}:
- forall i t v rho, lvar i t v rho -> eval_var i t rho = v.
+ forall i t v rho, locald_denote (lvar i t v) rho -> eval_var i t rho = v.
 Proof.
 intros.
 unfold eval_var. hnf in H. destruct (Map.get (ve_of rho) i) as [[? ?]|]; try inv H.
@@ -295,7 +296,7 @@ destruct H; auto.
 Qed.
 
 Lemma lvar_isptr_eval_var {cs: compspecs}:
- forall i t v rho, lvar i t v rho -> isptr (eval_var i t rho).
+ forall i t v rho, locald_denote (lvar i t v) rho -> isptr (eval_var i t rho).
 Proof.
 intros.
 erewrite lvar_eval_var; eauto.
@@ -316,7 +317,7 @@ Qed.
 
 Lemma force_val_sem_cast_neutral_lvar {cs: compspecs}:
   forall i t v rho,
-  lvar i t v rho ->
+  locald_denote (lvar i t v) rho ->
   Some (force_val (sem_cast_neutral v)) = Some v.
 Proof.
 intros.
@@ -325,7 +326,7 @@ Qed.
 
 Lemma force_val_sem_cast_neutral_gvar:
   forall i v rho,
-  gvar i v rho ->
+  locald_denote (gvar i v) rho ->
   Some (force_val (sem_cast_neutral v)) = Some v.
 Proof.
 intros.
@@ -334,7 +335,7 @@ Qed.
 
 Lemma force_val_sem_cast_neutral_sgvar:
   forall i v rho,
-  sgvar i v rho ->
+  locald_denote (sgvar i v) rho ->
   Some (force_val (sem_cast_neutral v)) = Some v.
 Proof.
 intros.
@@ -810,36 +811,34 @@ Qed.
 
 Ltac do_compute_lvalue Delta P Q R e v H :=
   let rho := fresh "rho" in
-  assert (PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |--
+  assert (PROPx P (LOCALx (tc_env Delta :: Q) (SEPx R)) |--
     local (`(eq v) (eval_lvalue e))) as H by
   (first [ assumption |
     eapply derives_trans; [| apply msubst_eval_lvalue_eq];
     [apply derives_refl'; apply local2ptree_soundness; try assumption;
      let HH := fresh "H" in
-     construct_local2ptree (tc_environ Delta :: Q) HH;
+     construct_local2ptree (tc_env Delta :: Q) HH;
      exact HH |
      unfold v;
      simpl;
-     try unfold force_val2; try unfold force_val1;
-     autorewrite with norm;
-     simpl;
+     cbv beta iota zeta delta [force_val2 force_val1];
+     rewrite ?isptr_force_ptr, <- ?offset_val_force_ptr by auto;
      reflexivity]
   ]).
 
 Ltac do_compute_expr Delta P Q R e v H :=
   let rho := fresh "rho" in
-  assert (PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |--
+  assert (PROPx P (LOCALx (tc_env Delta :: Q) (SEPx R)) |--
     local (`(eq v) (eval_expr e))) as H by
   (first [ assumption |
     eapply derives_trans; [| apply msubst_eval_expr_eq];
     [apply derives_refl'; apply local2ptree_soundness; try assumption;
      let HH := fresh "H" in
-     construct_local2ptree (tc_environ Delta :: Q) HH;
+     construct_local2ptree (tc_env Delta :: Q) HH;
      exact HH |
      unfold v;
      simpl;
-     try unfold force_val2; try unfold force_val1;
-     autorewrite with norm;
+     cbv beta iota zeta delta [force_val2 force_val1];
      simpl;
      reflexivity]
   ]).
@@ -937,7 +936,7 @@ Ltac do_compute_expr_helper Delta Q v :=
    eapply derives_trans; [| apply msubst_eval_expr_eq];
     [apply derives_refl'; apply local2ptree_soundness; try assumption;
      let HH := fresh "H" in
-     construct_local2ptree (tc_environ Delta :: Q) HH;
+     construct_local2ptree (tc_env Delta :: Q) HH;
      exact HH |
      unfold v;
      simpl;
@@ -952,18 +951,18 @@ Ltac do_compute_expr1 Delta Pre e :=
   let P := fresh "P" in let Q := fresh "Q" in let R := fresh "R" in
   let H8 := fresh "DCE" in let H9 := fresh "DCE" in
   evar (P: A -> list Prop);
-  evar (Q: A -> list (environ -> Prop));
+  evar (Q: A -> list localdef);
   evar (R: A -> list mpred);
   assert (H8: Pre1 =  (fun a => PROPx (P a) (LOCALx (Q a) (SEPx (R a)))))
     by (extensionality; unfold P,Q,R; reflexivity);
   let v := fresh "v" in evar (v: A -> val);
-  assert (H9: forall a, PROPx (P a) (LOCALx (tc_environ Delta :: (Q a)) (SEPx (R a))) |--
+  assert (H9: forall a, PROPx (P a) (LOCALx (tc_env Delta :: (Q a)) (SEPx (R a))) |--
                        local (`(eq (v a)) (eval_expr e)))
      by (let a := fresh "a" in intro a; do_compute_expr_helper Delta (Q a) v)
  | PROPx ?P (LOCALx ?Q (SEPx ?R)) =>
   let H9 := fresh "H" in
   let v := fresh "v" in evar (v: val);
-  assert (H9:  PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R))|-- 
+  assert (H9:  PROPx P (LOCALx (tc_env Delta :: Q) (SEPx R))|-- 
                      local (`(eq v) (eval_expr e)))
    by (do_compute_expr_helper Delta Q v) 
  end.
@@ -1072,6 +1071,7 @@ unfold Int.lt in H. if_tac in H; inv H. auto.
 Qed.
 
 Ltac cleanup_repr H :=
+rewrite ?mul_repr, ?add_repr, ?sub_repr in H;
 match type of H with
  | _ (Int.signed (Int.repr ?A)) (Int.signed (Int.repr ?B)) => 
     try (rewrite (Int.signed_repr A) in H by repable_signed);
@@ -1278,8 +1278,7 @@ Ltac forward_for Inv PreIncr Postcond :=
     [  unfold_function_derives_right 
     | (apply semax_seq with Postcond;
        [ first 
-          [ apply semax_for' with PreIncr
-          | apply semax_for with PreIncr
+          [ apply semax_for with PreIncr
           ]; 
           [ compute; auto 
           | unfold_and_local_derives
@@ -1573,7 +1572,7 @@ Ltac test_legal_nested_efield TY e gfs tts lr  :=
    unify (legal_nested_efield TY e gfs tts lr) true.
 
 Ltac sc_try_instantiate P Q R0 Delta e gfs tts p sh t_root gfs0 v n N H SH GFS TY V:=
-      assert (PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx (R0 :: nil))) 
+      assert (PROPx P (LOCALx (tc_env Delta :: Q) (SEPx (R0 :: nil))) 
          |-- `(field_at sh t_root gfs0 v p)) as H;
       [instantiate (1:=GFS) in (Value of gfs0);
        instantiate (1:=TY) in (Value of t_root);
@@ -1617,7 +1616,7 @@ Ltac sc_new_instantiate P Q R Rnow Delta e gfs tts lr p sh t_root gfs0 v n N H:=
 
 Ltac solve_efield_denote Delta P Q R efs gfs H :=
   evar (gfs : list gfield);
-  assert (PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |-- efield_denote efs gfs) as H; 
+  assert (PROPx P (LOCALx (tc_env Delta :: Q) (SEPx R)) |-- efield_denote efs gfs) as H; 
   [
     unfold efs, gfs;
     match goal with
@@ -1990,7 +1989,7 @@ match goal with
       with (lr0 := lr) (t_root0 := t_root) (gfs2 := gfs0) (gfs3 := gfs1);
     subst p;
       [ reflexivity | reflexivity | reflexivity
-      | reflexivity | reflexivity | reflexivity
+      | reflexivity | reflexivity | reflexivity | reflexivity
       | rewrite <- ?field_at_offset_zero; reflexivity | exact HLE 
       | exact HRE | exact H_Denote | solve [auto]
       | solve_store_rule_evaluation

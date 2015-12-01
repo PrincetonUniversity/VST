@@ -66,7 +66,7 @@ Existing Instance Espec.
 
 Lemma temp_make_ext_rval_e:
   forall gx v v', 
-   temp ret_temp v (make_ext_rval gx v') ->
+   locald_denote (temp ret_temp v) (make_ext_rval gx v') ->
    v <> Vundef ->
    v' = Some v.
 Proof.

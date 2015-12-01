@@ -352,7 +352,7 @@ Time forward_for_simple_bound 4 (EX i:Z,
            (Int.add (Int.add koff (Int.repr 16)) (Int.repr (4 * Zlength Front_K2))),
                  Select16Q Key2 i). (*8.9 versus 20.5 SLOW*)
   { destruct (Select_SplitSelect16Q_Zlength _ _ _ _ HeqFB_K2 I) as [FK2 _]; rewrite FK2.
-     apply prop_right; simpl. do 2 rewrite Int.mul_commut, Int.mul_one. rewrite mul_repr. 
+     apply prop_right; simpl. rewrite Z.mul_1_l.
      trivial. }
 
   Intros v; subst v; simpl.

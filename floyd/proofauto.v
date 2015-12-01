@@ -34,6 +34,8 @@ Require Export floyd.diagnosis.
 Require Export floyd.freezer.
 Export ListNotations.
 
+Hint Rewrite add_repr mul_repr sub_repr : entailer_rewrite.
+Arguments deref_noload ty v / .
 Arguments nested_field_array_type {cs} t gfs lo hi / .
 Arguments nested_field_type {cs} t gfs / .  (* redundant? *)
 Arguments nested_field_offset {cs} t gfs / .  (* redundant? *)

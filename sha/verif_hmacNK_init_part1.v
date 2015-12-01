@@ -364,8 +364,8 @@ Proof. intros.
      Time forward_call (Tsh, Vptr ckb (Int.add ckoff (Int.repr (Zlength key))), l64, Int.zero). (*6.4 versus 10.4*)
      { rewrite (lvar_eval_var _ _ _ _ H0). split; trivial. }
      { (*Issue: this side condition is NEW*) 
-       apply prop_right. simpl. rewrite Int.mul_commut, Int.mul_one.
-       rewrite sub_repr, <- KL1, Heql64. split; trivial. }
+       apply prop_right. simpl. rewrite Z.mul_1_l.
+       rewrite <- KL1, Heql64. split; trivial. }
      { rewrite <- KL1.
        rewrite sepcon_comm. Time apply sepcon_derives; [ | cancel]. (*0.1 versus 1.2*)
        unfold at_offset. simpl.

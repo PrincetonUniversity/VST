@@ -65,7 +65,7 @@ Proof. unfold Snuffle20, bind; intros. remember (Snuffle 20 s).
       apply (Snuffle_length _ _ _ Heqo H0). inv H.
 Qed.
 
-Definition fcore_result h data l :=
+Definition fcore_result h data oldOUT l :=
   match Snuffle20 (prepare_data data) 
   with None => False
      | Some x => 
@@ -74,31 +74,31 @@ Definition fcore_result h data l :=
              else match data with ((Nonce, C), K) =>
                     match Nonce with (N1, N2, N3, N4) => 
                     match C with (C1, C2, C3, C4) => 
-                    firstn 32 l = QuadByte2ValList (littleendian_invert (Int.sub (Znth 0 x Int.zero)  (littleendian C1))) ++
+                    l = QuadByte2ValList (littleendian_invert (Int.sub (Znth 0 x Int.zero)  (littleendian C1))) ++
                     QuadByte2ValList (littleendian_invert (Int.sub (Znth 5 x Int.zero)  (littleendian C2))) ++
                     QuadByte2ValList (littleendian_invert (Int.sub (Znth 10 x Int.zero) (littleendian C3))) ++
                     QuadByte2ValList (littleendian_invert (Int.sub (Znth 15 x Int.zero) (littleendian C4))) ++
                     QuadByte2ValList (littleendian_invert (Int.sub (Znth 6 x Int.zero)  (littleendian N1))) ++
                     QuadByte2ValList (littleendian_invert (Int.sub (Znth 7 x Int.zero)  (littleendian N2))) ++
                     QuadByte2ValList (littleendian_invert (Int.sub (Znth 8 x Int.zero)  (littleendian N3))) ++
-                    QuadByte2ValList (littleendian_invert (Int.sub (Znth 9 x Int.zero)  (littleendian N4)))
+                    QuadByte2ValList (littleendian_invert (Int.sub (Znth 9 x Int.zero)  (littleendian N4))) ++ skipn 32 oldOUT
                     end end end
   end.
 
-Definition fcorePOST_SEP data d out RESULT :=
+Definition fcorePOST_SEP data d l out :=
   CoreInSEP data d *
-  data_at Tsh (tarray tuchar 64) RESULT out.
+  data_at Tsh (tarray tuchar 64) l out.
 
-Definition f_core_POST d out h (data: SixteenByte * SixteenByte * (SixteenByte * SixteenByte) ) := 
-EX RESULT:_,     
-   PROP (fcore_result h data RESULT)
+Definition f_core_POST oldOUT d out h (data: SixteenByte * SixteenByte * (SixteenByte * SixteenByte) ) := 
+EX l:_,     
+   PROP (fcore_result h data oldOUT l)
    LOCAL ()
-   SEP (fcorePOST_SEP data d out RESULT).
+   SEP (fcorePOST_SEP data d l out).
 
 Definition core_spec :=
   DECLARE _core
    WITH c : val, k:val, h:Z,
-        nonce:val, out:val, OUT: list val,
+        nonce:val, out:val, OUT:list val,
         data : SixteenByte * SixteenByte * (SixteenByte * SixteenByte)
    PRE [ _out OF tptr tuchar,
          _in OF tptr tuchar,
@@ -110,7 +110,7 @@ Definition core_spec :=
              temp _c c; temp _k k; temp _h (Vint (Int.repr h)))
       SEP (CoreInSEP data (nonce, c, k); 
            data_at Tsh (tarray tuchar 64) OUT out)
-  POST [ tvoid ] (f_core_POST (nonce, c, k) out h data).
+  POST [ tvoid ] (f_core_POST OUT (nonce, c, k) out h data).
 
 Definition ld32_spec :=
   DECLARE _ld32
@@ -147,28 +147,37 @@ Definition L32_spec :=
      PROP ()
      LOCAL (temp ret_temp (Vint (Int.rol x c)))
      SEP ().
-
 Definition crypto_core_salsa20_spec :=
   DECLARE _crypto_core_salsa20_tweet
    WITH c : val, k:val, 
-        nonce:val, out:val, OUT: list val,
+        nonce:val, out:val, 
         data : SixteenByte * SixteenByte * (SixteenByte * SixteenByte)
    PRE [ _out OF tptr tuchar,
          _in OF tptr tuchar,
          _k OF tptr tuchar,
          _c OF tptr tuchar ]
-      PROP ((*length OUT = 64%nat*))
+      PROP ()
       LOCAL (temp _in nonce; temp _out out; 
              temp _c c; temp _k k)
       SEP ( CoreInSEP data (nonce, c, k); 
-            data_at Tsh (tarray tuchar 64) OUT out)
+            data_at_ Tsh (tarray tuchar 64) out)
   POST [ tint ] 
-       EX l:_, 
-       PROP (exists x, Snuffle20 (prepare_data data) = Some x /\
-             l=QuadChunks2ValList (map littleendian_invert x))
+       EX res:_, 
+       PROP (Snuffle20 (prepare_data data) = Some res)
        LOCAL (temp ret_temp (Vint (Int.repr 0)))
-       SEP (CoreInSEP data (nonce, c, k); data_at Tsh (tarray tuchar 64) l out).
-            
+       SEP (CoreInSEP data (nonce, c, k); 
+            data_at Tsh (tarray tuchar 64) (QuadChunks2ValList (map littleendian_invert res)) out).
+
+Definition hSalsaOut x OUT :=
+           QuadByte2ValList (littleendian_invert (Znth 0  x Int.zero)) ++
+           QuadByte2ValList (littleendian_invert (Znth 5  x Int.zero)) ++
+           QuadByte2ValList (littleendian_invert (Znth 10 x Int.zero)) ++
+           QuadByte2ValList (littleendian_invert (Znth 15 x Int.zero)) ++
+           QuadByte2ValList (littleendian_invert (Znth 6  x Int.zero)) ++
+           QuadByte2ValList (littleendian_invert (Znth 7  x Int.zero)) ++
+           QuadByte2ValList (littleendian_invert (Znth 8  x Int.zero)) ++
+           QuadByte2ValList (littleendian_invert (Znth 9  x Int.zero)) ++ skipn 32 OUT.
+  
 Definition crypto_core_hsalsa20_spec :=
   DECLARE _crypto_core_hsalsa20_tweet
    WITH c : val, k:val, 
@@ -178,26 +187,16 @@ Definition crypto_core_hsalsa20_spec :=
          _in OF tptr tuchar,
          _k OF tptr tuchar,
          _c OF tptr tuchar ]
-      PROP ((*length OUT = 64%nat*))
+      PROP ()
       LOCAL (temp _in nonce; temp _out out; 
              temp _c c; temp _k k)
       SEP (CoreInSEP data (nonce, c, k); 
            data_at Tsh (tarray tuchar 64) OUT out)
   POST [ tint ] 
-       EX l:_, 
-       PROP (exists x, Snuffle 20 (prepare_data data) = Some x /\
-             firstn 32 l = QuadByte2ValList (littleendian_invert (Znth 0  x Int.zero)) ++
-                            QuadByte2ValList (littleendian_invert (Znth 5  x Int.zero)) ++
-                            QuadByte2ValList (littleendian_invert (Znth 10 x Int.zero)) ++
-                            QuadByte2ValList (littleendian_invert (Znth 15 x Int.zero)) ++
-                            QuadByte2ValList (littleendian_invert (Znth 6  x Int.zero)) ++
-                            QuadByte2ValList (littleendian_invert (Znth 7  x Int.zero)) ++
-                            QuadByte2ValList (littleendian_invert (Znth 8  x Int.zero)) ++
-                            QuadByte2ValList (littleendian_invert (Znth 9  x Int.zero)))
+       EX res:_, 
+       PROP (Snuffle 20 (prepare_data data) = Some res)
        LOCAL (temp ret_temp (Vint (Int.repr 0)))
-       SEP (CoreInSEP data (nonce, c, k); data_at Tsh (tarray tuchar 64) l out).
-(*Could stengthen postcondition to include the guarantee that second half of OUT 
-  is not modified, by replacing firstn 32 l = ... by l = ... ++ Skipn32 OUT*)
+       SEP (CoreInSEP data (nonce, c, k); data_at Tsh (tarray tuchar 64) (hSalsaOut res OUT) out).
 
 Definition SalsaVarSpecs : varspecs := (_sigma, tarray tuchar 16)::nil.
 Definition SalsaFunSpecs : funspecs := 

@@ -67,7 +67,7 @@ rewrite FF in *.
 (**** Again, distribute EX over lift*)
 apply semax_pre with (P' :=EX  x : s256abs,
   (PROP  (update_abs data ctx x)
-   LOCAL  (tc_environ Delta; `(eq c) (eval_id _ctx); `(eq d) (eval_id _data);
+   LOCAL  (tc_env Delta; `(eq c) (eval_id _ctx); `(eq d) (eval_id _data);
    `(eq (Vint (Int.repr len))) (eval_id _len);
    `(eq KV) (eval_var sha._K256 (tarray tuint 64)))
    SEP 

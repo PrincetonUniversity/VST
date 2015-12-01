@@ -35,7 +35,7 @@ Qed.
 (*
 Lemma elim_globals_only'':
   forall i t rho,  
-   (exists Delta, tc_environ Delta rho /\
+   (exists Delta, tc_env Delta rho /\
        (var_types Delta) ! i = None /\ isSome ((glob_types Delta) ! i)) ->
        (eval_var i t (globals_only rho)) = eval_var i t rho.
 Proof. 
@@ -50,7 +50,7 @@ Hint Rewrite elim_globals_only'' using (eexists; split3; [eassumption | reflexiv
 
 Lemma elim_make_args:
   forall i t il vl rho,  
-   (exists Delta, tc_environ Delta rho /\
+   (exists Delta, tc_env Delta rho /\
        (var_types Delta) ! i = None /\ isSome ((glob_types Delta) ! i)) ->
        (eval_var i t (make_args il vl rho)) = eval_var i t rho.
 Proof. 

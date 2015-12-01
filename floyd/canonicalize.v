@@ -13,7 +13,7 @@ normalize.
 Qed.
 
 Lemma canon2: forall Q1 B P Q R,
-    do_canon (local Q1 && B) (PROPx P (LOCALx Q (SEPx R))) = do_canon B (PROPx (P) (LOCALx (Q1::Q) (SEPx R))).
+    do_canon (local (locald_denote Q1) && B) (PROPx P (LOCALx Q (SEPx R))) = do_canon B (PROPx (P) (LOCALx (Q1::Q) (SEPx R))).
 Proof.
 unfold do_canon, PROPx, LOCALx, SEPx; intros.
 extensionality rho.
@@ -179,7 +179,7 @@ Hint Rewrite exp_do_canon: canon.
 Hint Rewrite exp_do_canon: norm2.
 
 Lemma canon9: forall Q1 P Q R,
-       local Q1 && (PROPx P (LOCALx Q R)) = 
+       local (locald_denote Q1) && (PROPx P (LOCALx Q R)) = 
          PROPx P (LOCALx (Q1::Q) R).
 Proof.
 intros; unfold PROPx, LOCALx; simpl.

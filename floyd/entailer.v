@@ -514,7 +514,8 @@ Ltac my_auto_reiter :=
                 |eassumption]
         |eassumption].
 
-Ltac my_auto := 
+Ltac my_auto :=
+ rewrite ?isptr_force_ptr by auto;
  let H := fresh in eapply my_auto_lem; [intro H; my_auto_iter H | ];
  try all_True;
  (eapply my_auto_lem; [intro; my_auto_reiter | ]);

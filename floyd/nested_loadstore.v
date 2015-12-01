@@ -1955,7 +1955,7 @@ Defined.
 Lemma semax_extract_later_prop': 
   forall {Espec: OracleKind},
     forall (Delta : tycontext) (PP : Prop) P Q R c post,
-      PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |-- !!PP ->
+      PROPx P (LOCALx (tc_env Delta :: Q) (SEPx R)) |-- !!PP ->
       (PP -> semax Delta (|>PROPx P (LOCALx Q (SEPx R))) c post) ->
       semax Delta (|>PROPx P (LOCALx Q (SEPx R))) c post.
 Proof.
@@ -2158,7 +2158,7 @@ Lemma semax_nested_efield_field_load_37':
       gfs = gfs1 ++ gfs0 ->
       legal_nested_efield t_root e1 gfs tts lr = true ->
       repinject _ (proj_reptype (nested_field_type t_root gfs0) gfs1 v') = v ->
-      PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |--
+      PROPx P (LOCALx (tc_env Delta :: Q) (SEPx R)) |--
          (tc_LR Delta e1 lr) &&
         local `(tc_val (typeof (nested_efield e1 efs tts)) v) &&
          (tc_efield Delta efs) &&
@@ -2171,7 +2171,7 @@ Lemma semax_nested_efield_field_load_37':
           (normal_ret_assert
             (EX old : val,
               PROPx P
-                (LOCALx (`(eq v) (eval_id id) :: map (subst id `old) Q)
+                (LOCALx (temp id v :: map (subst_localdef id old) Q)
                   (SEPx R)))).
 Proof.
 Admitted.
@@ -2241,7 +2241,7 @@ Lemma semax_nested_efield_field_cast_load_37':
       gfs = gfs1 ++ gfs0 ->
       legal_nested_efield t_root e1 gfs tts lr = true ->
       repinject _ (proj_reptype (nested_field_type t_root gfs0) gfs1 v') = v ->
-      PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |-- 
+      PROPx P (LOCALx (tc_env Delta :: Q) (SEPx R)) |-- 
          (tc_LR Delta e1 lr) &&
         local (`(tc_val t (eval_cast (typeof (nested_efield e1 efs tts)) t v))) &&
          (tc_efield Delta efs) &&
@@ -2254,7 +2254,8 @@ Lemma semax_nested_efield_field_cast_load_37':
           (normal_ret_assert
             (EX old:val,
               PROPx P
-                (LOCALx (`(eq (eval_cast (typeof (nested_efield e1 efs tts)) t v)) (eval_id id) :: map (subst id (`old)) Q)
+                (LOCALx (temp id (eval_cast (typeof (nested_efield e1 efs tts)) t v)
+                               :: map (subst_localdef id old) Q)
                   (SEPx R)))).
 Admitted.
 (*

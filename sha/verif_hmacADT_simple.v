@@ -137,7 +137,7 @@ Focus 2. destruct DL as [DL1 [DL2 DL3]]; subst.
   It seems exp doesn't distribute over liftx, but it should *)
 eapply semax_pre with (P':=EX  x : hmacabs, 
    PROP  (hmacUpdate data h0 x)
-   LOCAL  (tc_environ Delta; `(eq md) (eval_id _md);
+   LOCAL  (tc_env Delta; `(eq md) (eval_id _md);
    `(eq k) (eval_id _key); `(eq (Vint (Int.repr kl))) (eval_id _key_len);
    `(eq d) (eval_id _d); `(eq (Vint (Int.repr dl))) (eval_id _n);
    `(eq c) (eval_var _c t_struct_hmac_ctx_st);
@@ -161,7 +161,7 @@ simpl.
 eapply semax_pre with (P':=
       EX  x : list Z, EX  x0 : hmacabs,
   (PROP  (hmacFinal h1 x x0)
-   LOCAL  (tc_environ Delta; 
+   LOCAL  (tc_env Delta; 
    `(eq md) (eval_id _md); `(eq k) (eval_id _key);
    `(eq (Vint (Int.repr kl))) (eval_id _key_len); `(eq d) (eval_id _d);
    `(eq (Vint (Int.repr dl))) (eval_id _n);

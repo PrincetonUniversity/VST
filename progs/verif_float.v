@@ -21,7 +21,7 @@ Definition Gprog : funspecs :=
 
 Lemma gvar_size_compatible:
   forall i s rho t, 
-    gvar i s rho -> 
+    locald_denote (gvar i s) rho -> 
     sizeof cenv_cs t <= Int.modulus ->
     size_compatible t s.
 Proof.
@@ -35,7 +35,7 @@ Qed.
 
 Lemma gvar_align_compatible:
   forall i s rho t, 
-    gvar i s rho -> 
+    locald_denote (gvar i s) rho -> 
     align_compatible t s.
 Proof.
 intros.

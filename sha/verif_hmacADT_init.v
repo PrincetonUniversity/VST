@@ -200,7 +200,7 @@ eapply semax_seq. instantiate (1:=PostResetBranch).
     rewrite array_at_isptr. normalize. apply isptrD in H. destruct H as [pb [pofs Hpad]]. subst pad.
     apply semax_pre with (P':=EX ll:_,EX CONT:_,
          PROP  (r<>0 /\ Forall isbyteZ key/\ has_lengthK ll key /\ l = Vint(Int.repr ll))
-         LOCAL  (tc_environ Delta;
+         LOCAL  (tc_env Delta;
             `(eq (Vint (Int.repr r))) (eval_id _reset);
             `(eq (Vptr pb pofs)) (eval_var _pad (Tarray tuchar 64 noattr));
             `(eq (Vptr cb cofs)) (eval_id _ctx); `(eq k) (eval_id _key);
@@ -390,7 +390,7 @@ eapply semax_seq. instantiate (1:=PostResetBranch).
     simpl.
     apply semax_pre with (P':=EX x : s256abs,
   (PROP  ()
-   LOCAL  (tc_environ Delta; tc_environ Delta;
+   LOCAL  (tc_env Delta; tc_environ Delta;
    `(eq (Vint (Int.repr 1))) (eval_id _reset);
    `(eq (Vptr pb pofs)) (eval_var _pad (Tarray tuchar 64 noattr));
    `(eq (Vptr cb cofs)) (eval_id _ctx); `(eq k) (eval_id _key);
@@ -429,7 +429,7 @@ eapply semax_seq. instantiate (1:=PostResetBranch).
     forward_seq.
     instantiate (1:= 
   (PROP  ()
-   LOCAL  (tc_environ Delta; tc_environ Delta;
+   LOCAL  (tc_env Delta; tc_environ Delta;
    `(eq (Vint (Int.repr 1))) (eval_id _reset);
    `(eq (Vptr pb pofs)) (eval_var _pad (Tarray tuchar 64 noattr));
    `(eq (Vptr cb cofs)) (eval_id _ctx); `(eq (Vptr kb kofs)) (eval_id _key);
