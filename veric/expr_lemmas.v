@@ -514,13 +514,10 @@ try solve[intuition; constructor; auto | subst; inv H1]; intuition.
 assert (TC_Sound:= typecheck_expr_sound).
 rewrite tc_val_eq in TC_Sound.
 specialize (TC_Sound Delta rho _ (Evar i t) H0 H1).
-simpl in TC_Sound|-*.
+simpl in H1, TC_Sound |- *.
 super_unfold_lift.
-unfold deref_noload in TC_Sound|-*.
-revert TC_Sound; case_eq (access_mode t); intros; try solve [inv TC_Sound].
-rename H2 into MODE.
+destruct (access_mode t) eqn:MODE; try solve [inv H1].
 
-simpl in *. rewrite MODE in H1.
 unfold get_var_type, eval_var in *. 
 remember (Map.get (ve_of rho) i); destruct o; try destruct p; 
 try rewrite eqb_type_eq in *; simpl in *.
@@ -607,9 +604,7 @@ destruct (eval_expr e rho) eqn:?H; try contradiction.
 eapply eval_Elvalue.
 econstructor. eassumption.
 simpl.
-  unfold deref_noload.
-  rewrite H4.
-  unfold Datatypes.id. constructor. auto.
+constructor. auto.
 * (*deref*)
 assert (TC:= typecheck_lvalue_sound _ _ _ _ H0 H3).
 simpl in *.
@@ -703,7 +698,6 @@ simpl in H1.
    destruct (field_offset cenv_cs i (co_members co)) eqn:?;
      try contradiction.
   inv H3. simpl in *.
-  unfold deref_noload in *. rewrite Heqm0 in *. 
   eapply Clight.eval_Elvalue; eauto. 
   eapply Clight.eval_Efield_struct; eauto. 
   eapply Clight.eval_Elvalue; auto. eassumption.
@@ -716,7 +710,7 @@ simpl in H1.
   rewrite Heqt0. rewrite H4. simpl. rewrite Hco. rewrite Heqr.
    apply Clight.deref_loc_reference. auto.
    
-+ unfold deref_noload. simpl. unfold_lift.
++ simpl. unfold_lift.
    rewrite Heqt0. simpl. rewrite Hco.
   eapply Clight.eval_Elvalue; eauto.
   eapply Clight.eval_Efield_union. 
@@ -725,7 +719,6 @@ simpl in H1.
   rewrite Heqt0. auto. eauto.
   rewrite Hcenv; eauto.
   rewrite H4. simpl.
-  unfold deref_noload. rewrite Heqm0.
   apply Clight.deref_loc_reference; auto.
 *
  clear H1.

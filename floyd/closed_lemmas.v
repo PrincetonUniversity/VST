@@ -89,9 +89,9 @@ Fixpoint subst_eval_expr  {cs: compspecs}  (j: ident) (v: environ -> val) (e: ex
  | Ebinop op a1 a2 ty =>  
                   `(eval_binop op (typeof a1) (typeof a2)) (subst_eval_expr j v a1) (subst_eval_expr j v a2)
  | Ecast a ty => `(eval_cast (typeof a) ty) (subst_eval_expr j v a)
- | Evar id ty => `(deref_noload ty) (eval_var id ty)
- | Ederef a ty => `(deref_noload ty) (subst_eval_expr j v a)
- | Efield a i ty => `(deref_noload ty) (`(eval_field (typeof a) i) (subst_eval_lvalue j v a))
+ | Evar id ty => eval_var id ty
+ | Ederef a ty => subst_eval_expr j v a
+ | Efield a i ty => `(eval_field (typeof a) i) (subst_eval_lvalue j v a)
  | Esizeof t ty => `(Vint (Int.repr (sizeof cenv_cs t)))
  | Ealignof t ty => `(Vint (Int.repr (alignof cenv_cs t)))
  end
@@ -119,9 +119,6 @@ rewrite <- IHe; clear IHe.
 unfold_lift.
 extensionality rho; unfold subst.
 reflexivity.
-unfold_lift.
-extensionality rho; unfold subst.
-rewrite <- IHe; reflexivity.
 unfold_lift.
 extensionality rho; unfold subst.
 rewrite <- IHe1, <- IHe2; reflexivity.
@@ -938,7 +935,7 @@ Proof.
  simpl.
  super_unfold_lift.
  f_equal.
- f_equal. apply H.  auto.
+ apply H.  auto.
 Qed.
 Lemma expr_closedl_field: forall S e f t,
   lvalue_closed_wrt_lvars S e ->
@@ -948,7 +945,7 @@ Proof.
  simpl.
  super_unfold_lift.
  f_equal.
- f_equal. apply H.  auto.
+ apply H.  auto.
 Qed.
 Hint Resolve expr_closed_field expr_closedl_field : closed.
 
@@ -1193,7 +1190,7 @@ intros.
 destruct e; simpl in *; auto with closed;
 unfold closed_wrt_vars in *;
 intros; specialize (H0 _ _ H1); clear H1; super_unfold_lift;
-unfold deref_noload in *; auto; rewrite H in H0; auto.
+auto.
 Qed.
 (* Hint Resolve closed_wrt_lvalue : closed. *)
 

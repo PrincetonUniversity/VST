@@ -1990,7 +1990,7 @@ match goal with
     subst p;
       [ reflexivity | reflexivity | reflexivity
       | reflexivity | reflexivity | reflexivity | reflexivity
-      | rewrite <- ?field_at_offset_zero; reflexivity | exact HLE 
+      | reflexivity | exact HLE 
       | exact HRE | exact H_Denote | solve [auto]
       | solve_store_rule_evaluation
       | subst e1 gfs0 gfs1 efs tts t_root sh v0 lr n;

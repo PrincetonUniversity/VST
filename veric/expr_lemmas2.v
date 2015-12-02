@@ -217,7 +217,7 @@ Proof.
 intros.
 assert (MODE: access_mode t = By_reference)
  by (unfold typecheck_expr in H0; destruct (access_mode t); try (hnf in H0; contradiction); auto).
-simpl. super_unfold_lift. unfold deref_noload. rewrite MODE.
+simpl. super_unfold_lift. unfold deref_noload.
 
  unfold typecheck_environ in H. intuition. 
 rename H4 into SM. 
