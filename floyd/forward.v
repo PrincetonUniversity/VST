@@ -106,8 +106,7 @@ Lemma lvar_eval_lvar {cs: compspecs}:
 Proof.
 unfold eval_lvar; intros. hnf in H.
 destruct (Map.get (ve_of rho) i) as [[? ?]|]; try contradiction.
-destruct (eqb_type t t0); try contradiction.
-destruct H; subst; auto.
+destruct H; subst. rewrite eqb_type_refl; auto.
 Qed.
 
 Lemma var_block_lvar0
@@ -134,10 +133,10 @@ rewrite (lvar_eval_lvar _ _ _ _ H5).
 rewrite memory_block_data_at_; auto.
 hnf in H5.
 destruct ( Map.get (ve_of rho) id); try contradiction.
-destruct p. destruct (eqb_type t t0); try contradiction.
+destruct p.
 destruct H5; subst.
 repeat split; auto.
-exists 0. rewrite Z.mul_0_l. reflexivity. 
+exists 0. rewrite Z.mul_0_l. reflexivity.
 Qed.
 
 Lemma postcondition_var_block:
@@ -260,12 +259,11 @@ Lemma local_True_right:
 Proof. intros. intro rho; apply TT_right.
 Qed.
 
-Lemma lvar_isptr {cs: compspecs}:
+Lemma lvar_isptr:
   forall i t v rho, locald_denote (lvar i t v) rho -> isptr v.
 Proof.
 intros. hnf in H.
 destruct (Map.get (ve_of rho) i) as [[? ?]|]; try contradiction.
-destruct (eqb_type t t0); try contradiction.
 destruct H; subst; apply Coq.Init.Logic.I.
 Qed.
 
@@ -286,16 +284,16 @@ destruct (ge_of rho i); try contradiction.
 subst; apply Coq.Init.Logic.I.
 Qed.
 
-Lemma lvar_eval_var {cs: compspecs}:
+Lemma lvar_eval_var:
  forall i t v rho, locald_denote (lvar i t v) rho -> eval_var i t rho = v.
 Proof.
 intros.
-unfold eval_var. hnf in H. destruct (Map.get (ve_of rho) i) as [[? ?]|]; try inv H.
-destruct (eqb_type t t0); try contradiction.
-destruct H; auto.
+unfold eval_var. hnf in H. 
+destruct (Map.get (ve_of rho) i) as [[? ?]|]; try contradiction.
+destruct H; subst. rewrite eqb_type_refl; auto.
 Qed.
 
-Lemma lvar_isptr_eval_var {cs: compspecs}:
+Lemma lvar_isptr_eval_var :
  forall i t v rho, locald_denote (lvar i t v) rho -> isptr (eval_var i t rho).
 Proof.
 intros.
@@ -315,7 +313,7 @@ intros.
  destruct v; try contradiction; reflexivity.
 Qed.
 
-Lemma force_val_sem_cast_neutral_lvar {cs: compspecs}:
+Lemma force_val_sem_cast_neutral_lvar :
   forall i t v rho,
   locald_denote (lvar i t v) rho ->
   Some (force_val (sem_cast_neutral v)) = Some v.
