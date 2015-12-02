@@ -1387,13 +1387,15 @@ Hint Extern 1 (legal_nested_field0 _ _) => (eapply field_compatible0_legal_neste
 
 Lemma lvar_size_compatible:
   forall  {cs: compspecs} id t v rho,
-  locald_denote (lvar id t v) rho -> size_compatible t v.
+  locald_denote (lvar id t v) rho -> 
+  sizeof cenv_cs t <= Int.modulus ->
+  size_compatible t v.
 Proof.
 intros. hnf in H. 
-destruct (Map.get (ve_of rho) id); try contradiction.
-destruct p.
-if_tac in H; try contradiction.
-destruct H; auto.
+destruct (Map.get (ve_of rho) id) as [[? ?] | ]; try contradiction.
+destruct H; subst.
+red. 
+rewrite Int.unsigned_zero. rewrite Z.add_0_l; auto.
 Qed.
 
 Lemma lvar_field_compatible:
@@ -1409,12 +1411,10 @@ intros.
 pose proof (lvar_size_compatible _ _ _ _ H).
 hnf in H.
 destruct (Map.get (ve_of rho) id); try contradiction.
-destruct p.
-if_tac in H; try contradiction.
-destruct H.
+destruct p. destruct H. subst v t0.
 repeat split; auto.
-subst; apply Coq.Init.Logic.I.
-subst; hnf. exists 0. rewrite Z.mul_0_l.
+apply H4; omega.
+hnf. exists 0. rewrite Z.mul_0_l.
 reflexivity.
 Qed.
 

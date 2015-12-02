@@ -507,7 +507,7 @@ Hint Resolve closed_wrtl_var : closed.
 *)
 
 Lemma closed_wrt_lvar:
-  forall {cs: compspecs} S id t v, closed_wrt_vars S (locald_denote (lvar id t v)).
+  forall S id t v, closed_wrt_vars S (locald_denote (lvar id t v)).
 Proof.
 intros.
 hnf; intros; simpl.
@@ -1657,3 +1657,4 @@ intros.
 constructor; auto.
 Qed.
 Hint Resolve @Forall_map_cons @Forall_map_nil : closed.
+Hint Resolve Forall_cons Forall_nil : closed.

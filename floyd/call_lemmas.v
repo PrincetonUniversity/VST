@@ -348,7 +348,7 @@ Definition check_one_var_spec (Q: PTree.t vardesc) (idv: ident * vardesc) : Prop
 Definition check_one_var_spec' (Q: PTree.t vardesc) (idv: ident * vardesc) : Prop :=
    (Q ! (fst idv)) = Some (snd idv).
 
-Inductive delete_temp_from_locals {cs} (id: ident) : list localdef -> list localdef -> Prop :=
+Inductive delete_temp_from_locals  (id: ident) : list localdef -> list localdef -> Prop :=
 | dtfl_nil: delete_temp_from_locals id nil nil
 | dtfl_here: forall v Q Q',
                 delete_temp_from_locals id Q Q' ->
@@ -359,7 +359,7 @@ Inductive delete_temp_from_locals {cs} (id: ident) : list localdef -> list local
                 delete_temp_from_locals id (temp j v :: Q) (temp j v :: Q')
 | dtfl_lvar: forall j t v Q Q',
                 delete_temp_from_locals id Q Q' ->
-                delete_temp_from_locals id (lvar j t v :: Q) (@lvar cs j t v :: Q')
+                delete_temp_from_locals id (lvar j t v :: Q) (lvar j t v :: Q')
 | dtfl_gvar: forall j v Q Q',
                 delete_temp_from_locals id Q Q' ->
                 delete_temp_from_locals id (gvar j v :: Q) (gvar j v :: Q')
@@ -613,7 +613,7 @@ Proof.
   rewrite ge_of_make_args. auto.
 Qed.
 
-Lemma check_specs_lemma' {cs: compspecs}:
+Lemma check_specs_lemma' :
   forall Ptemp Pvar Qtemp Qvar rho,
     Forall (check_one_var_spec' Pvar) (PTree.elements Qvar) ->
     Forall (check_one_temp_spec Ptemp) (PTree.elements Qtemp) ->
@@ -1282,7 +1282,6 @@ apply andp_left2. apply andp_left1.
  rewrite PTREE'. clear PTREE' Qpre.
  apply prop_derives; intro. forget (var_names argsig) as fl.
  forget (eval_exprlist tys bl rho) as vl.
- clear - CVAR CTEMP H LEN'.
  eapply check_specs_lemma; try eassumption.
 *
  clear CHECKVAR CHECKTEMP TC1 PRE1 PPRE.
@@ -1394,19 +1393,6 @@ apply derives_refl.
 intro rho; unfold SEPx.
  rewrite fold_right_sepcon_app.
  assumption.
-(*
-
- intro rho.
- unfold local, lift1. unfold_lift. simpl.
- rewrite prop_and.
- apply andp_right.
-Focus 2. {
- unfold PROPx, LOCALx. simpl. apply andp_left2.
- apply andp_left1.
- unfold local, lift1; unfold_lift; simpl.
- apply prop_derives. intros [? ?]; auto.
- } Unfocus.
-*)
  apply (local2ptree_soundness P _ R) in PTREE.
  simpl app in PTREE.
  apply msubst_eval_exprlist_eq with (P:=P)(R:=R)(Q:=nil) in MSUBST.
@@ -1440,7 +1426,6 @@ apply andp_left2. apply andp_left1.
  rewrite PTREE'. clear PTREE' Qpre.
  apply prop_derives; intro. forget (var_names argsig) as fl.
  forget (eval_exprlist tys bl rho) as vl.
- clear - CVAR CTEMP H LEN'.
  eapply check_specs_lemma; try eassumption.
 *
  clear CHECKVAR CHECKTEMP TC1 PRE1 PPRE.

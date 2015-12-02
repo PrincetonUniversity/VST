@@ -101,7 +101,7 @@ Proof. intros. abbreviate_semax.
           repeat rewrite Zlength_app.
           repeat rewrite <- app_assoc. simpl. rewrite APP3, L2.
           split. 
-            rewrite upd_Znth_char; trivial. omega.
+            rewrite upd_Znth_char; trivial.
             rewrite Zlength_cons', Zlength_nil, Zplus_0_r. solve [auto].
         + rewrite <- APP1. thaw FR2. Time cancel. (*0.1*)  }
   }
