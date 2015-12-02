@@ -151,10 +151,7 @@ forward. (* p = c->data;  *)
 forward. (* n = c->num; *)
 rewrite field_at_data_at with (gfs := [StructField _data]) by reflexivity.
 assert (Hddlen: 0 <= Zlength (s256a_data a) < 64) by Omega1.
-remember ((map Vint (map Int.repr (s256a_data a)) ++
-         sublist (Zlength (s256a_data a)) CBLOCKz r_data)) as temp.
 forward. (* p[n] = 0x80; *)
-subst temp.
 change (Int.zero_ext 8 (Int.repr 128)) with (Int.repr 128).
 rewrite upd_Znth_append
   by (autorewrite with sublist; Omega1).
