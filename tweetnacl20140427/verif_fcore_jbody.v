@@ -566,10 +566,10 @@ Lemma array_copy1 Espec: forall FR
      (func_tycontext f_core SalsaVarSpecs SalsaFunSpecs))
   (PROP  ()
    LOCAL  (temp _j (Vint (Int.repr j)); temp _i (Vint (Int.repr i));
-   @lvar CompSpecs _t (tarray tuint 4) t;
-   @lvar CompSpecs _y (tarray tuint 16) y;
-   @lvar CompSpecs _x (tarray tuint 16) x;
-   @lvar CompSpecs _w (tarray tuint 16) w; temp _in nonce; temp _out out;
+   lvar _t (tarray tuint 4) t;
+   lvar _y (tarray tuint 16) y;
+   lvar _x (tarray tuint 16) x;
+   lvar _w (tarray tuint 16) w; temp _in nonce; temp _out out;
    temp _c c; temp _k k; temp _h (Vint (Int.repr h)))
    SEP  (FR; @data_at_ CompSpecs Tsh (tarray tuint 4) t; 
      @data_at CompSpecs Tsh (tarray tuint 16) (@map int val Vint xs) x))

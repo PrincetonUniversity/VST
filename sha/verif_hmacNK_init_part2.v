@@ -685,8 +685,8 @@ forward_if PostResetBranch.
     apply semax_pre with (P':=EX b:_, EX i:_,
        PROP  (k=Vptr b i /\ Forall isbyteZ key)
        LOCAL  (temp _reset (Vint (Int.repr 1));
-              @lvar CompSpecs _ctx_key (Tarray tuchar 64 noattr) (Vptr ckb ckoff);
-              @lvar CompSpecs _pad (Tarray tuchar 64 noattr) (Vptr pb pofs);
+              lvar _ctx_key (Tarray tuchar 64 noattr) (Vptr ckb ckoff);
+              lvar _pad (Tarray tuchar 64 noattr) (Vptr pb pofs);
               temp _ctx (Vptr cb cofs); temp _key (Vptr b i);
               temp _len (Vint (Int.repr l)); gvar sha._K256 kv)
        SEP  (@data_at CompSpecs Tsh t_struct_hmac_ctx_st HMS (Vptr cb cofs);
