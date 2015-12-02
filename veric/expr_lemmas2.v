@@ -14,57 +14,76 @@ Import Cop2.
 Opaque tc_andp. (* This is needed otherwise certain Qeds take
     forever in Coq 8.3.  *)
 
+Lemma typecheck_var_environ_None: forall ve vt,
+  typecheck_var_environ ve vt ->
+  forall i,
+  vt ! i = None <-> Map.get ve i = None.
+Proof.
+  intros.
+  destruct (vt ! i) eqn:?H, (Map.get ve i) eqn:?H; try (split; congruence).
+  + apply H in H0.
+    destruct H0; congruence.
+  + destruct p.
+    assert (vt ! i = Some t) by (apply H; eauto).
+    congruence.
+Qed.
+
 Lemma eval_lvalue_ptr : forall {CS: compspecs} rho m e (Delta: tycontext) te ve ge,
 mkEnviron ge ve te = rho -> 
 typecheck_var_environ ve (var_types Delta) -> 
 typecheck_glob_environ ge (glob_types Delta) ->
 denote_tc_assert (typecheck_lvalue Delta e) rho m ->
-eval_lvalue e rho = Vundef \/ exists base, exists ofs, eval_lvalue e rho  = Vptr base ofs.
+exists base, exists ofs, eval_lvalue e rho  = Vptr base ofs.
 Proof. 
 intros.
-induction e; eauto.
+induction e; eauto;
+try now inversion H2.
 *
-simpl. unfold eval_var. 
-remember (Map.get (ve_of rho) i). destruct o; try rewrite eqb_type_eq; intuition;
-try destruct p; try rewrite eqb_type_eq; simpl; try remember (type_eq t t0); try destruct s;
-simpl; (* try remember (negb (type_is_volatile t0));try destruct b0; auto; *)
-try solve[right; eauto].
-auto.
-remember (ge_of rho i); try rewrite eqb_type_eq; simpl.
-destruct o; try rewrite eqb_type_eq; simpl; eauto.
+simpl. unfold eval_var.
+simpl in H2.
+unfold get_var_type in H2.
+subst rho; simpl ve_of; simpl ge_of.
+destruct ((var_types Delta) ! i) eqn:?H;
+ [| destruct ((glob_types Delta) ! i) eqn:?H].
++ apply tc_bool_e in H2.
+  apply H0 in H.
+  destruct H as [b ?].
+  exists b, Int.zero.
+  rewrite H, H2.
+  auto.
++ apply tc_bool_e in H2.
+  apply (typecheck_var_environ_None _ _ H0) in H.
+  apply H1 in H3.
+  destruct H3 as [b [? ?]].
+  exists b, Int.zero.
+  rewrite H, H3.
+  auto.
++ inv H2.
 *
-(*destruct p; try rewrite eqb_type_eq; simpl; eauto.*)
-(*if_tac; eauto. *)
-simpl. super_unfold_lift.
-destruct (eval_expr e rho); simpl; eauto.
+simpl in H2.
+rewrite !denote_tc_assert_andp in H2.
+destruct H2 as [[? ?] ?].
+simpl in H4.
+simpl.
+destruct (eval_expr e rho); simpl; try now inversion H4; eauto.
 *
 simpl in *. super_unfold_lift.
 rewrite denote_tc_assert_andp in H2.
 destruct H2.
 spec IHe; auto. destruct IHe. 
 unfold eval_field.
-destruct (eval_lvalue e rho); eauto;
-destruct (typeof e); try congruence; auto.
-destruct (cenv_cs ! i0) as [co |]; auto.
-destruct (field_offset cenv_cs i (co_members co)); eauto.
-unfold eval_field.
-destruct (eval_lvalue e rho); eauto;
-destruct (typeof e); try congruence; auto;
-destruct (cenv_cs ! i0) as [co |]; auto;
-try destruct (field_offset (composite_types Delta) i (co_members co)); eauto.
-
-destruct H4 as [? [? H4]]; inv H4.
-right.
-rewrite H6.
-
-unfold eval_field.
-destruct (typeof e); try inv H3.
-destruct (cenv_cs ! i0) as [co |]; try inv H3.
-destruct (field_offset cenv_cs i (co_members co)); try inv H3.
-simpl; eauto.
-
-destruct (cenv_cs ! i0) as [co |]; try inv H3.
-simpl; eauto.
+destruct H4 as [ofs ?].
+destruct (eval_lvalue e rho); try congruence.
+inversion H4; subst x i0; clear H4.
+destruct (typeof e); try now inversion H3.
++
+destruct (cenv_cs ! i0) as [co |]; [| inv H3].
+destruct (field_offset cenv_cs i (co_members co)); [| inv H3].
+unfold offset_val; eauto.
++
+destruct (cenv_cs ! i0) as [co |]; [| inv H3].
+simpl.
+eauto.
 Qed. 
  
 Ltac unfold_tc_denote :=
@@ -148,12 +167,12 @@ assert (PTR := eval_lvalue_ptr _ _ e Delta te ve ge (eq_refl _) Hve Hge H0).
 specialize (H2 t H0).
 spec H2. clear - MODE; destruct t; try destruct i; try destruct s; try destruct f; inv MODE; simpl; auto.
 destruct PTR.
-elimtype False; clear - H H2. rewrite H in H2; inv H2.
-destruct H as [b [ofs ?]]. 
-rewrite H in *.
-destruct (typeof e); intuition;
-destruct (cenv_cs ! i0) as [co |]; intuition.
-destruct (field_offset cenv_cs i (co_members co)); intuition.
+destruct (typeof e); try now inv H3.
++ destruct (cenv_cs ! i0) as [co |]; try now inv H3.
+  destruct (field_offset cenv_cs i (co_members co)); try now inv H3.
+  destruct (eval_lvalue e (mkEnviron ge ve te)); try now inv H.
++ destruct (cenv_cs ! i0) as [co |]; try now inv H3.
+  destruct (eval_lvalue e (mkEnviron ge ve te)); try now inv H.
 Qed.
 
 Lemma typecheck_lvalue_sound_Efield:
@@ -176,14 +195,17 @@ super_unfold_lift.
 specialize  (H4 pt).
 destruct rho.
 unfold typecheck_environ in *. intuition.
-assert (PTR := eval_lvalue_ptr _ m e _ te _ _ (eq_refl _) H H6).
+assert (PTR := eval_lvalue_ptr _ m e _ te _ _ (eq_refl _) H H6 H0).
 simpl in *.
 remember (eval_lvalue e (mkEnviron ge ve te)). unfold isptr in *.
-destruct v; intuition; try congruence;
-try solve [destruct H9 as [? [? ?]]; congruence].
-destruct (typeof e); intuition;
-destruct (cenv_cs ! i1) as [co |]; intuition.
-destruct (field_offset cenv_cs i (co_members co)); intuition.
+subst v.
+destruct PTR as [b [ofs ?]].
+destruct (typeof e); try now inv H2.
++ destruct (cenv_cs ! i0) as [co |]; try now inv H2.
+  destruct (field_offset cenv_cs i (co_members co)); try now inv H2.
+  destruct (eval_lvalue e (mkEnviron ge ve te)); try now inv H7.
++ destruct (cenv_cs ! i0) as [co |]; try now inv H2.
+  destruct (eval_lvalue e (mkEnviron ge ve te)); try now inv H7.
 Qed.
 
 Lemma typecheck_expr_sound_Evar:
@@ -195,7 +217,7 @@ Proof.
 intros.
 assert (MODE: access_mode t = By_reference)
  by (unfold typecheck_expr in H0; destruct (access_mode t); try (hnf in H0; contradiction); auto).
-simpl. super_unfold_lift. unfold deref_noload. rewrite MODE.
+simpl. super_unfold_lift. unfold deref_noload.
 
  unfold typecheck_environ in H. intuition. 
 rename H4 into SM. 

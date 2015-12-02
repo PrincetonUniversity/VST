@@ -379,7 +379,6 @@ make_sequential.
 fold update_last_if.
 pose proof (Hblocks_lem H4).
 assert_PROP (isptr c) by entailer!.
-rewrite isptr_offset_val_zero by auto.
 change (field_at  Tsh t_struct_SHA256state_st [])
   with (data_at Tsh t_struct_SHA256state_st).
 

@@ -1098,20 +1098,17 @@ Fixpoint msubst_eval_expr {cs: compspecs} (T1: PTree.t val) (T2: PTree.t vardesc
       | _, _ => None
       end
   | Ecast a ty => option_map (eval_cast (typeof a) ty) (msubst_eval_expr T1 T2 a)
-  | Evar id ty => option_map (deref_noload ty) (eval_vardesc ty (PTree.get id T2))
+  | Evar id ty => eval_vardesc ty (PTree.get id T2)
 
-  | Ederef a ty => option_map (deref_noload ty)
-                              (option_map force_ptr (msubst_eval_expr T1 T2 a))
-  | Efield a i ty => option_map (deref_noload ty) 
-                                (option_map (eval_field (typeof a) i)
-                                    (msubst_eval_lvalue T1 T2 a))
+  | Ederef a ty => msubst_eval_expr T1 T2 a
+  | Efield a i ty => option_map (eval_field (typeof a) i) (msubst_eval_lvalue T1 T2 a)
   | Esizeof t _ => Some (Vint (Int.repr (sizeof cenv_cs t)))
   | Ealignof t _ => Some (Vint (Int.repr (alignof cenv_cs t)))
   end
   with msubst_eval_lvalue {cs: compspecs} (T1: PTree.t val) (T2: PTree.t vardesc) (e: Clight.expr) : option val := 
   match e with 
   | Evar id ty => eval_vardesc ty (PTree.get id T2)
-  | Ederef a ty => option_map force_ptr (msubst_eval_expr T1 T2 a)
+  | Ederef a ty => msubst_eval_expr T1 T2 a
   | Efield a i ty => option_map (eval_field (typeof a) i)
                               (msubst_eval_lvalue T1 T2 a)
   | _  => Some Vundef
@@ -1134,16 +1131,6 @@ with msubst_eval_lvalue_eq_aux:
 Proof.
   + clear msubst_eval_expr_eq_aux.
     induction e; intros; simpl in H1 |- *; try solve [inversion H1; auto].
-    -
-      unfold_lift; simpl.
-      specialize (H0 i t);
-      destruct (eval_vardesc t T2 ! i) eqn:?; inv H1.
-      rewrite (H0 v0); reflexivity.
-    - unfold_lift; simpl.
-      destruct (msubst_eval_expr T1 T2 e) eqn:?; [| inversion H1].
-      inversion H1.
-      rewrite IHe with (v := v0) by auto.
-      reflexivity.
     - erewrite msubst_eval_lvalue_eq_aux; eauto.
     - unfold_lift; simpl.
       destruct (msubst_eval_expr T1 T2 e) eqn:?; [| inversion H1].
@@ -1173,7 +1160,7 @@ Proof.
       destruct (msubst_eval_expr T1 T2 e) eqn:?; [| inversion H1].
       inversion H1.
       erewrite msubst_eval_expr_eq_aux by eauto;
-      reflexivity.
+      auto.
     - unfold_lift; simpl.
       destruct (msubst_eval_lvalue T1 T2 e) eqn:?; [| inversion H1].
       inversion H1.

@@ -347,7 +347,7 @@ Proof. reflexivity. Qed.
 Hint Rewrite subst_local : subst.
 
 Lemma eval_lvalue_Ederef:
-  forall {cs: compspecs}  e t, eval_lvalue (Ederef e t) = `force_ptr (eval_expr e).
+  forall {cs: compspecs}  e t, eval_lvalue (Ederef e t) = eval_expr e.
 Proof. reflexivity. Qed.
 Hint Rewrite @eval_lvalue_Ederef : eval.
 

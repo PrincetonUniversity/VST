@@ -47,6 +47,7 @@ Fixpoint compute_nested_efield e : expr * list efield * list type :=
 Definition compute_lr e (efs: list efield) :=
   match typeof e, length efs with
   | Tpointer _ _, S _ => RRRR
+  | Tarray _ _ _, _ => RRRR
   | _, _ => LLLL
   end.
 
@@ -130,12 +131,12 @@ Context {cs: compspecs}.
 (* Null Empty Path situation *)
 Definition type_almost_match e t lr:=
   match typeof e, t, lr with
-  | Tpointer t0 a0, Tarray t1 _ a1, RRRR => eqb_type (typeof e) (Tpointer t1 a1)
+  | _, Tarray t1 _ a1, RRRR => eqb_type (typeconv (typeof e)) (Tpointer t1 noattr)
   | _, _, LLLL => eqb_type (typeof e) t
   | _, _, _ => false
   end.
 
-(* Null Empty Path situation *)
+(* Empty Path situation *)
 Definition type_almost_match' e t lr:=
   match typeof e, t, lr with
   | _, _, LLLL => eqb_type (typeof e) t
@@ -217,8 +218,8 @@ Proof.
   intros.
   eapply derives_trans. apply typecheck_lvalue_sound; auto.
   normalize.
-  destruct e; try contradiction; simpl in *; unfold deref_noload; rewrite H;
-     try reflexivity.
+  destruct e; try contradiction; simpl in *;
+  reflexivity.
 Qed.
 
 Lemma By_reference_tc_expr: forall Delta e rho,
@@ -493,7 +494,6 @@ Proof.
       f_equal.
       rewrite H4.
       reflexivity.
-    - rewrite <- H12, isptr_offset_val_zero; auto.
     - simpl in H11; rewrite <- H11; auto.
     - apply andp_left1; auto.
     - apply andp_left2; auto.

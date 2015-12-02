@@ -39,8 +39,10 @@ Proof.
           rewrite (IHe _ (eq_refl _)); auto
  | _ => try congruence
  end.
-*  
- apply eval_lvalue_any; auto.
+*
+  apply IHe; auto.
+* 
+  apply eval_lvalue_any; auto.
 * destruct (eval_expr e any_environ) eqn:?; simpl in *;
   [elimtype False; apply H0; clear;
    try destruct u;
@@ -118,9 +120,7 @@ Proof.
 *
  unfold eval_var in *;  simpl in *; congruence.
 *
- destruct (eval_expr e any_environ) eqn:?; simpl in *;
-  try congruence.
- rewrite (eval_expr_any _ _ _ _ Heqv); auto.
+  apply eval_expr_any; auto.
   * destruct (typeof e) as [ | [ | | | ] [ | ] | [ | ] | [ | ] | | | | | ];
     simpl in *; unfold always; auto.
     destruct (cenv_cs ! i0) as [co |]; auto.

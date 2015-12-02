@@ -295,9 +295,9 @@ Fixpoint eval_expr {CS: compspecs} (e: expr) : environ -> val :=
  | Ebinop op a1 a2 ty =>  
                   `(eval_binop op (typeof a1) (typeof a2)) (eval_expr a1) (eval_expr a2)
  | Ecast a ty => `(eval_cast (typeof a) ty) (eval_expr a)
- | Evar id ty => `(deref_noload ty) (eval_var id ty)
- | Ederef a ty => `(deref_noload ty) (`force_ptr (eval_expr a))
- | Efield a i ty => `(deref_noload ty) (`(eval_field (typeof a) i) (eval_lvalue a))
+ | Evar id ty => eval_var id ty (* typecheck ensure by-reference *)
+ | Ederef a ty => eval_expr a (* typecheck ensure by-reference and isptr *)
+ | Efield a i ty => `(eval_field (typeof a) i) (eval_lvalue a) (* typecheck ensure by-reference *)
  | Esizeof t ty => `(Vint (Int.repr (sizeof cenv_cs t)))
  | Ealignof t ty => `(Vint (Int.repr (alignof cenv_cs t)))
  end
@@ -305,7 +305,7 @@ Fixpoint eval_expr {CS: compspecs} (e: expr) : environ -> val :=
  with eval_lvalue {CS: compspecs} (e: expr) : environ -> val := 
  match e with 
  | Evar id ty => eval_var id ty
- | Ederef a ty => `force_ptr (eval_expr a)
+ | Ederef a ty => eval_expr a (* typecheck ensure isptr *)
  | Efield a i ty => `(eval_field (typeof a) i) (eval_lvalue a)
  | _  => `Vundef
  end.
