@@ -64,18 +64,15 @@ Definition sgvar (i: ident) (v: val) (rho: environ) : Prop :=
 *)
 Inductive localdef : Type :=
  | temp: ident -> val -> localdef
- | lvar: forall {cs: compspecs}, ident -> type -> val -> localdef
+ | lvar: ident -> type -> val -> localdef
  | gvar: ident -> val -> localdef
  | sgvar: ident -> val -> localdef
  | tc_env: tycontext -> localdef
  | localprop: Prop -> localdef.
 
-Definition lvar_denote {cs: compspecs} (i: ident) (t: type) (v: val) rho :=
+Definition lvar_denote (i: ident) (t: type) (v: val) rho :=
      match Map.get (ve_of rho) i with
-         | Some (b, ty') => 
-             if eqb_type t ty' 
-             then v = Vptr b Int.zero /\ @size_compatible cs t v
-             else False
+         | Some (b, ty') => t=ty' /\ v = Vptr b Int.zero
          | None => False
          end.
 
@@ -98,7 +95,7 @@ Definition sgvar_denote (i: ident) (v: val) rho :=
 Definition locald_denote (d: localdef) : environ -> Prop :=
  match d with
  | temp i v => `(eq v) (eval_id i)
- | @lvar cs i t v => @lvar_denote cs i t v
+ | lvar i t v => lvar_denote i t v
  | gvar i v =>  gvar_denote i v
  | sgvar i v => sgvar_denote i v
  | tc_env D => tc_environ D
