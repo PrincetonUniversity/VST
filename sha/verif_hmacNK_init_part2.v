@@ -364,17 +364,21 @@ Focus 2.
 
         thaw FR1.
  
-        freeze [0; 2] FR2. 
-        Time forward. (*5.4 versus 5*)
-        Time entailer!. (*5.7 versus 9.6*)
+        freeze [0; 2] FR2.
+Opaque sublist. Opaque app. (*FIXME NOW: ARE NOW NEEDED TO PREVENT UNFOLDING*)
+        Time forward. (*5.4 versus 5*) (*FIXME NOW takes 35secs*)
+Transparent sublist. Transparent app.
+        Time entailer!. (*5.7 versus 9.6*) 
         Time (thaw FR2; simpl; rewrite HeqIPADcont, UPD_IPAD; simpl; trivial; cancel). (*0.6*)
+     (*simpl. apply derives_refl'. unfold data_at. f_equal.
+        simpl; trivial. cancel). (*0.6*)*)
       }
 Unfocus.
-cbv beta. rewrite sublist_same, sublist_nil, app_nil_r; trivial. 
-Time entailer!. (*2.6 versus 3.4*)
+cbv beta. rewrite sublist_same, sublist_nil, app_nil_r; trivial.
+drop_LOCAL 0%nat. apply derives_refl. 
 subst IPADcont; do 2 rewrite Zlength_map. 
 unfold HMAC_SHA256.mkArgZ in ZLI; rewrite ZLI; trivial.
-Time Qed. (*11.1 versus 16.8*)
+Time Qed. (*11.1 versus 16.8*) (*NOW 14*)
 
 Lemma opadloop Espec pb pofs cb cofs ckb ckoff kb kofs l key kv (FR:mpred): forall
 (IPADcont : list val)
@@ -499,7 +503,7 @@ thaw' FR1.
 Time entailer!. (*3.4 versus 2.6*)
 subst OPADcont; do 2 rewrite Zlength_map. 
 unfold HMAC_SHA256.mkArgZ in ZLO; rewrite ZLO; trivial.
-Time Qed. (*12.3 versus 18.7*) 
+Time Qed. (*12.3 versus 18.7*)  (*FIXME NOW 20secs*)
 
 Lemma init_part2: forall MYPOST
 (Espec : OracleKind)
@@ -517,7 +521,6 @@ Lemma init_part2: forall MYPOST
 (r : Z)
 (ckb : block)
 (ckoff : int)
-(*(HC : c = Vptr cb cofs)*)
 (R : r = 0 \/ r = 1)
 (PostResetBranch : environ -> mpred)
 (HeqPostResetBranch : PostResetBranch = EX shaStates:_ ,
