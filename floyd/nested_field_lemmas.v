@@ -1418,5 +1418,69 @@ hnf. exists 0. rewrite Z.mul_0_l.
 reflexivity.
 Qed.
 
+Lemma gvar_field_compatible:
+  forall {cs: compspecs} i s rho t, 
+    locald_denote (gvar i s) rho -> 
+    sizeof cenv_cs t < Int.modulus ->
+   legal_alignas_type t = true ->
+   legal_cosu_type t = true ->
+  complete_type cenv_cs t = true ->
+    field_compatible t nil s.
+Proof.
+intros.
+hnf in H. destruct (Map.get (ve_of rho) i) as [[? ? ] | ]; try contradiction.
+destruct (ge_of rho i); try contradiction.
+subst s.
+split3; auto; try apply I.
+split3; auto.
+split3; auto.
+red. rewrite Int.unsigned_zero, Z.add_0_l; omega.
+split; red; auto.
+exists 0. rewrite Int.unsigned_zero, Z.mul_0_l; auto.
+Qed.
 
+
+Lemma field_compatible_array_member:
+ forall {cs: compspecs} (k i: Z) t n p,
+  field_compatible (tarray t n) nil p ->
+  i = (sizeof cenv_cs t * k)%Z ->
+  0 <= k < n ->
+  field_compatible t nil (offset_val (Int.repr i) p).
+Proof.
+intros.
+hnf in H; decompose [and] H; clear H.
+split3; auto.
+unfold legal_alignas_type in H4.
+rewrite nested_pred_ind in H4. simpl in H4. rewrite andb_true_iff in H4; destruct H4; auto.
+split3; auto.
+split3.
+simpl in H6.
+rewrite Z.max_r in H6 by omega.
+clear - H6  H1. admit. (* easy *)
+admit. (* easy *)
+split; auto.
+hnf in H8|-*.
+destruct p; try contradiction. simpl.
+unfold Int.add.
+rewrite Int.unsigned_repr.
+apply Z.divide_add_r.
+eapply Z.divide_trans; [apply (alignof_divide_alignof_Tarray _ _ _ H4) | assumption].
+subst i.
+rewrite Int.unsigned_repr.
+apply Z.divide_mul_l.
+admit. (* should be fine *)
+admit. (* should be fine *)
+admit. (* should be fine *)
+Qed.
+
+Lemma compute_in_members_e:
+ forall i al, compute_in_members i al = true -> in_members i al.
+Proof.
+intros.
+apply compute_in_members_true_iff. auto.
+Qed.
+
+Hint Extern 2 (field_compatible _ (StructField _ :: _) _) =>
+  (apply field_compatible_cons; split; [ apply compute_in_members_e; reflexivity | ]) 
+      : field_compatible.
 

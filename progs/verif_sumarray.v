@@ -10,6 +10,13 @@ Definition force_option {A} (x:A) (i: option A) :=
 
 Definition sum_int := fold_right Int.add Int.zero.
   
+Lemma sum_int_app:
+  forall a b, sum_int (a++b) = Int.add (sum_int a) (sum_int b).
+Proof.
+intros.
+induction a; simpl. rewrite Int.add_zero_l; auto.
+rewrite IHa. rewrite Int.add_assoc. auto.
+Qed.
 
 Definition sumarray_spec :=
  DECLARE _sumarray
@@ -42,47 +49,23 @@ Definition sumarray_Inv a0 sh contents size :=
           temp _s (Vint (sum_int (sublist 0 i contents))))
    SEP   (data_at sh (tarray tint size) (map Vint contents) a0).
 
-Lemma Znth_overflow: (*  move to floyd/sublist.v *)
-  forall {A} i (al: list A) d, i >= Zlength al -> Znth i al d = d.
-Proof.
-intros.
-  pose proof (Zlength_nonneg al).
-   unfold Znth. rewrite if_false by omega.
-  apply nth_overflow.
-  apply Nat2Z.inj_le. rewrite <- Zlength_correct.
-  rewrite Z2Nat.id by omega. omega.
-Qed.
-
-Lemma sublist_one: (*  move to floyd/sublist.v *)
-  forall {A} lo hi (al: list A) d, 
-    0 <= lo -> hi <= Zlength al ->
-    lo+1=hi -> sublist lo hi al = Znth lo al d :: nil.
-Proof.
-intros.
-subst.
-rewrite Znth_cons_sublist by omega. rewrite <- app_nil_end.
-auto.
-Qed.
-
 Lemma add_one_more_to_sum: forall contents i x,
   Znth i (map Vint contents) Vundef = Vint x ->
-  0 <= i ->
   sum_int (sublist 0 (Z.succ i) contents) =
    Int.add (sum_int (sublist 0 i contents)) x.
 Proof.
   intros.
-  destruct (zlt i (Zlength contents));
-   [ | rewrite Znth_overflow in H by (rewrite Zlength_map; omega); inv H].
-  rewrite Int.add_commut.
+  assert (0 <= i < Zlength contents \/ (i < 0 \/ i >= Zlength contents)) by omega.
+  destruct H0.
+*
   rewrite (sublist_split 0 i (Z.succ i)) by omega.
   rewrite (sublist_one i (Z.succ i) contents) with (d:=Int.zero) by omega. 
   rewrite Znth_map with (d':=Int.zero) in H by omega.
   injection H; intro. rewrite H1. clear.
-  induction (sublist 0 i contents); simpl; auto.
-  rewrite IHl.
-    rewrite <- !Int.add_assoc.
-    f_equal.
-    apply Int.add_commut.
+  rewrite sum_int_app. simpl. rewrite Int.add_zero. auto.
+*
+  rewrite Znth_outofbounds in H by (autorewrite with sublist; auto).
+  inv H.
 Qed.
 
 Lemma body_sumarray: semax_body Vprog Gprog f_sumarray sumarray_spec.

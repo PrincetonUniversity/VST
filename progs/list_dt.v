@@ -1781,6 +1781,17 @@ match goal with
 Hint Extern 10 (_ |-- valid_pointer _) => 
    resolve_lseg_valid_pointer : valid_pointer.
 
+Lemma list_cell_local_facts:
+  forall {cs: compspecs} {list_structid list_link: ident}
+    (ls: listspec list_structid list_link) sh v p, 
+   list_cell ls sh v p |-- !! field_compatible list_struct nil p.
+Proof.
+intros.
+unfold list_cell.
+normalize.
+Qed.
+Hint Resolve list_cell_local_facts : saturate_local.
+
 End LsegSpecial.
 
 Module Links.
@@ -2333,7 +2344,7 @@ apply andp_right; [ | apply prop_right; auto].
 apply not_prop_right; intro.
 apply ptr_eq_e in H0. subst x.
 entailer.
-destruct H2; contradiction H2.
+destruct H3; contradiction H3.
 eapply derives_trans.
 2: apply sepcon_derives; [ | eassumption]; apply derives_refl.
 clear IHl.

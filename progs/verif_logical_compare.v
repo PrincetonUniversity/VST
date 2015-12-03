@@ -72,7 +72,7 @@ Lemma semax_shortcut_logical:
   forall Espec {cs: compspecs} Delta P Q R tid s v Qtemp Qvar el,
    quick_shortcut_logical s = Some tid ->
    typeof_temp Delta tid = Some tint ->
-   local2ptree Q Qtemp Qvar nil nil ->
+   local2ptree Q = (Qtemp, Qvar, nil, nil) ->
    Qtemp ! tid = None ->
    shortcut_logical (msubst_eval_expr Qtemp Qvar) tid s = Some (v, el) ->
    PROPx P (LOCALx (tc_env Delta :: Q) (SEPx R)) |-- fold_right (fun e q => tc_expr Delta e && q) TT el ->

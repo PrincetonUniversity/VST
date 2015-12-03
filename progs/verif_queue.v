@@ -377,6 +377,7 @@ Proof.
   rewrite if_true by auto.
   entailer!.
 Qed.
+
 Lemma body_fifo_put: semax_body Vprog Gprog f_fifo_put fifo_put_spec.
 Proof.
 start_function.
@@ -410,11 +411,11 @@ forward_if
    + Intros prefix.
       destruct prefix;
       entailer!.
-      contradiction (field_compatible_isptr _ _ _ H5).
+      contradiction (field_compatible_isptr _ _ _ H6).
       rewrite lseg_cons_eq by auto. simpl.
       entailer!.
       saturate_local. (* why is this needed? *)
-      contradiction (field_compatible_isptr _ _ _ H6).
+      contradiction (field_compatible_isptr _ _ _ H8).
 * (* else clause *)
   forward. (*  t = Q->tail; *)
   destruct (isnil contents).
@@ -489,16 +490,12 @@ forward_call (*  p = mallocN(sizeof ( *p));  *)
  computable.
 Intros p0.
   change 12 with (sizeof cenv_cs t_struct_elem).
-  rewrite memory_block_data_at_.
-2:  eapply malloc_compatible_field_compatible; try eassumption; 
+  rewrite memory_block_data_at_
+  by (eapply malloc_compatible_field_compatible; try eassumption; 
       auto with typeclass_instances;
-      exists 2; reflexivity.
+      exists 2; reflexivity).
 Time forward.  (*  p->a=a; *)  (* 11.6 sec -> 10.78 sec -> 7.8 sec -> 6.36 -> 0.775 *)
-(* UGLY:  there's an (offset_val Int.zero p0) where a p0 would
-  suffice.  One could rewrite <- field_at_offset_zero;
-  but this would slow down the next forward by a factor of 2.
-  The better fix would be to adjust the semax_SC_field_store
-  theorem, and the store_tac, to get rid of (offset zero).   *)
+simpl.  (* this should not be necessary -- Qinxiang, please look *)
 Time forward.  (*  p->b=b; *) (* 21 secs -> 56 sec -> 6.82 sec -> 4.84 -> 1.122 *)
 Time forward. (* return p; *)  (* 4.73 sec -> 5.0 -> 2.76 *)
 Exists p.

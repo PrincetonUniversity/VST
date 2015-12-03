@@ -517,6 +517,10 @@ Ltac check_typecheck :=
  | |- _ => idtac
  end.
 
+Ltac prove_delete_temp := match goal with |- ?A = _ =>
+  let Q := fresh "Q" in set (Q:=A); hnf in Q; subst Q; reflexivity
+end.
+
 Ltac forward_call_id1_x_wow witness :=
 let Frame := fresh "Frame" in
  evar (Frame: list (mpred));
@@ -542,8 +546,8 @@ let Frame := fresh "Frame" in
    first [apply exp_congr; intros ?vret; reflexivity
            | give_EX_warning
            ]
- | repeat constructor; auto with closed
- | repeat constructor; auto with closed
+ | prove_delete_temp
+ | prove_delete_temp
  | unify_postcondition_exps
  | unfold fold_right_and; repeat rewrite and_True; auto
  ] end.
@@ -572,8 +576,8 @@ let Frame := fresh "Frame" in
    first [apply exp_congr; intros ?vret; reflexivity
            | give_EX_warning
            ]
- | repeat constructor; auto with closed
- | repeat constructor; auto with closed
+ | prove_delete_temp
+ | prove_delete_temp
  | unify_postcondition_exps
  | unfold fold_right_and; repeat rewrite and_True; auto
  ] end.
@@ -600,7 +604,7 @@ let Frame := fresh "Frame" in
    first [apply exp_congr; intros ?vret; reflexivity
            | give_EX_warning
            ]
- | repeat constructor; auto with closed
+ | prove_delete_temp
  | unify_postcondition_exps
  | unfold fold_right_and; repeat rewrite and_True; auto
  ] end.
@@ -2057,8 +2061,7 @@ Ltac forward_if_complain :=
            ||*)  fail 2 "Use this tactic:  forward_if POST, where POST is the post condition".
 
 Ltac forward_while_complain :=
-           fail 2 "Use this tactic:  forward_while INV POST,
-    where INV is the loop invariant and POST is the postcondition".
+           fail 2 "Use this tactic:  forward_while INV, where INV is the loop invariant".
 
 Ltac forward_for_complain := 
            fail 2 "Use this tactic:  forward_for INV PRE_INCR POST,

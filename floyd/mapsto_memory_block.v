@@ -333,6 +333,21 @@ extensionality v1 v2.
 reflexivity.
 Qed.
 
+Lemma mapsto_tuint_tptr_nullval:
+  forall sh p t, mapsto sh (Tpointer t noattr) p nullval = mapsto sh tuint p nullval.
+Proof.
+intros.
+unfold mapsto.
+simpl.
+destruct p; simpl; auto.
+if_tac; simpl; auto.
+rewrite !prop_true_andp by auto.
+rewrite (prop_true_andp True) by auto.
+reflexivity.
+f_equal. f_equal. f_equal.
+unfold tc_val'.
+apply prop_ext; intuition; hnf; auto.
+Qed.
 
 Definition is_int32_noattr_type t :=
  match t with
