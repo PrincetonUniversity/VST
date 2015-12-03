@@ -238,11 +238,52 @@ Definition eval_LR e lr :=
   | RRRR => eval_expr e
   end.
 
-Definition tc_LR Delta e lr :=
+Definition tc_LR_strong Delta e lr :=
   match lr with
   | LLLL => tc_lvalue Delta e
   | RRRR => tc_expr Delta e
   end.
+
+Definition tc_LR Delta e lr :=
+  match e with
+  | Ederef e0 t =>
+     match lr with
+     | LLLL => denote_tc_assert
+                 (tc_andp 
+                   (typecheck_expr Delta e0) 
+                   (tc_bool (is_pointer_type (typeof e0))(op_result_type e)))
+     | RRRR => denote_tc_assert
+                match access_mode t with
+                | By_reference =>
+                   (tc_andp 
+                      (typecheck_expr Delta e0) 
+                      (tc_bool (is_pointer_type (typeof e0))(op_result_type e)))
+                | _ => tc_FF (deref_byvalue t)
+                end
+    end
+  | _ => tc_LR_strong Delta e lr
+  end.
+
+Lemma tc_LR_tc_LR_strong: forall Delta e lr rho,
+  tc_LR Delta e lr rho && !! isptr (eval_LR e lr rho) |-- tc_LR_strong Delta e lr rho.
+Proof.
+  intros.
+  unfold tc_LR, tc_LR_strong.
+  destruct e; try solve [apply andp_left1; auto].
+  unfold tc_lvalue, tc_expr.
+  destruct lr; simpl.
+  + rewrite !denote_tc_assert_andp.
+    simpl.
+    unfold denote_tc_isptr.
+    unfold_lift.
+    auto.
+  + destruct (access_mode t); try solve [apply andp_left1; auto].
+    rewrite !denote_tc_assert_andp.
+    simpl.
+    unfold denote_tc_isptr.
+    unfold_lift.
+    auto.
+Qed.
 
 Definition LR_of_type (t: type) :=
   match access_mode t with
@@ -417,7 +458,7 @@ Definition lvalue_LR_of_type: forall Delta rho P p t e,
   P |-- !! (t = typeof e) ->
   tc_environ Delta rho ->
   P |-- !! (p = eval_lvalue e rho) && tc_lvalue Delta e rho ->
-  P |-- !! (p = eval_LR e (LR_of_type t) rho) && tc_LR Delta e (LR_of_type t) rho.
+  P |-- !! (p = eval_LR e (LR_of_type t) rho) && tc_LR_strong Delta e (LR_of_type t) rho.
 Proof.
   intros.
   destruct (LR_of_type t) eqn:?H.
@@ -444,12 +485,22 @@ Lemma eval_lvalue_nested_efield_aux: forall Delta t_root e efs gfs tts p,
   efield_denote efs gfs |--
   local (`(eq (field_address t_root gfs p))
    (eval_LR (nested_efield e efs tts) (LR_of_type (nested_field_type t_root gfs)))) &&
-  tc_LR Delta (nested_efield e efs tts) (LR_of_type (nested_field_type t_root gfs)).
+  tc_LR_strong Delta (nested_efield e efs tts) (LR_of_type (nested_field_type t_root gfs)).
 Proof.
   intros.
   unfold local, lift1; simpl; intro rho.
   unfold_lift.
   normalize.
+  apply derives_trans with
+    (tc_LR_strong Delta e (LR_of_type t_root) rho && tc_efield Delta efs rho &&
+     efield_denote efs gfs rho).
+  Focus 1. {
+    repeat (apply andp_derives; auto).
+    eapply derives_trans; [| apply tc_LR_tc_LR_strong].
+    rewrite andp_comm, prop_true_andp by auto.
+    auto.
+  } Unfocus.
+
   apply legal_nested_efield_weaken in H0; destruct H0.
   rewrite field_compatible_field_address by auto.
   revert gfs tts H H0; induction efs as [| [| |]]; intros; destruct gfs as [| [| |]], tts;
