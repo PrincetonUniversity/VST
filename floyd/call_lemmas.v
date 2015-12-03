@@ -348,25 +348,6 @@ Definition check_one_var_spec (Q: PTree.t vardesc) (idv: ident * vardesc) : Prop
 Definition check_one_var_spec' (Q: PTree.t vardesc) (idv: ident * vardesc) : Prop :=
    (Q ! (fst idv)) = Some (snd idv).
 
-Inductive delete_temp_from_locals  (id: ident) : list localdef -> list localdef -> Prop :=
-| dtfl_nil: delete_temp_from_locals id nil nil
-| dtfl_here: forall v Q Q',
-                delete_temp_from_locals id Q Q' ->
-                delete_temp_from_locals id (temp id v :: Q) Q'
-| dtfl_cons: forall j v Q Q',
-                j<>id ->
-                delete_temp_from_locals id Q Q' ->
-                delete_temp_from_locals id (temp j v :: Q) (temp j v :: Q')
-| dtfl_lvar: forall j t v Q Q',
-                delete_temp_from_locals id Q Q' ->
-                delete_temp_from_locals id (lvar j t v :: Q) (lvar j t v :: Q')
-| dtfl_gvar: forall j v Q Q',
-                delete_temp_from_locals id Q Q' ->
-                delete_temp_from_locals id (gvar j v :: Q) (gvar j v :: Q')
-| dtfl_sgvar: forall j v Q Q',
-                delete_temp_from_locals id Q Q' ->
-                delete_temp_from_locals id (sgvar j v :: Q) (sgvar j v :: Q').      
-
 Definition strong_cast (t1 t2: type) (v: val) : val :=
  force_val (sem_cast t1 t2 v).
 
@@ -709,21 +690,31 @@ induction Q; simpl; auto. f_equal; auto.
 Qed.
 Hint Rewrite PROP_LOCAL_SEP_f: norm2.
 
+Lemma local2ptree_aux_OKsubst:
+forall Q (Qt : PTree.tree val) (Qv : PTree.tree vardesc) (P0 : list Prop)
+  (Q0 : list localdef) (Qtemp : PTree.t val) (Qvar : PTree.t vardesc)
+  (P : list Prop),
+  local2ptree_aux Q Qt Qv P0 Q0 = (Qtemp, Qvar, P, nil) ->
+  forallb subst_localdef_ok Q = true /\ Q0=nil.
+Proof.
+induction Q; intros.
+inv H. split; reflexivity.
+destruct a; simpl in H|-*;
+ try now (destruct (Qv!i); try destruct v0; eauto). 
+destruct (Qt!i); eauto.
+apply IHQ in H.
+destruct H; discriminate.
+apply IHQ in H. auto.
+Qed.
+
 Lemma local2ptree_OKsubst:
-  forall {cs: compspecs} Q Qtemp Qvar, 
-     local2ptree Q Qtemp Qvar nil nil ->
+  forall Q Qtemp Qvar P, 
+     local2ptree Q = (Qtemp, Qvar, P, nil) ->
      forallb subst_localdef_ok Q = true.
 Proof.
-induction Q; intros. reflexivity.
-inv H. simpl. 
-destruct (T1!i) eqn:?. inv H7. inv H7.
-eauto.
-destruct (T2!i) eqn:?; try destruct v0; inv H7. eauto.
-eauto.
-destruct (T2!i) eqn:?; try destruct v0; inv H7. eauto.
-eauto.
-destruct (T2!i) eqn:?; try destruct v0; inv H7. eauto.
-eauto.
+intros.
+apply local2ptree_aux_OKsubst in H.
+destruct H; auto.
 Qed.
 
 Lemma semax_call_id1_wow:
@@ -747,11 +738,11 @@ Lemma semax_call_id1_wow:
    (TYret: typeof_temp Delta ret = Some retty)
    (OKretty: check_retty retty)
    (H: paramty = type_of_params argsig)
-   (PTREE: local2ptree Q Qtemp Qvar nil nil)
+   (PTREE: local2ptree Q = (Qtemp, Qvar, nil, nil))
    (TC1: PROPx P (LOCALx (tc_env Delta :: Q) (SEPx R))
           |--  (tc_exprlist Delta (argtypes argsig) bl))
    (PRE1: Pre witness = PROPx Ppre (LOCALx Qpre (SEPx Rpre)))
-   (PTREE': local2ptree Qpre Qpre_temp Qpre_var nil nil)
+   (PTREE': local2ptree Qpre = (Qpre_temp, Qpre_var, nil, nil))
    (MSUBST: force_list (map (msubst_eval_expr Qtemp Qvar) 
                     (explicit_cast_exprlist (argtypes argsig) bl))
                 = Some vl)
@@ -764,7 +755,7 @@ Lemma semax_call_id1_wow:
    (POST1: Post witness = EX vret:B, PROPx (Ppost vret)
                               (LOCALx (temp ret_temp (F vret) :: nil) 
                               (SEPx (Rpost vret))))
-   (DELETE: delete_temp_from_locals ret Q Qnew)
+   (DELETE: delete_temp_from_locals ret Q = Qnew)
    (H0: Post2 = EX vret:B, PROPx (P++ Ppost vret) (LOCALx (temp ret (F vret) :: Qnew)
              (SEPx (Rpost vret ++ Frame))))
    (PPRE: fold_right_and True Ppre),
@@ -889,16 +880,11 @@ apply andp_left2. apply andp_left1.
  apply local2ptree_soundness'' in PTREE.
  unfold LOCALx in PTREE. rewrite !andp_TT in PTREE.
  simpl app. 
- clear - DELETE H3. rename H3 into H.
- induction DELETE.
- + apply Coq.Init.Logic.I.
- + destruct H. auto.
- + destruct H; split; auto.
-     clear - H H0. simpl in *. rewrite if_false in H by auto.
-     simpl in H. auto.
- + destruct H; split; auto.
- + destruct H; split; auto.
- + destruct H; split; auto.
+ clear - H3. rename H3 into H.
+ induction Q; simpl in *; auto.
+ destruct H, a; specialize (IHQ H0); try now (simpl; split; auto).
+ hnf in H. unfold subst_localdef in H. 
+ if_tac; [rewrite if_true in H by auto | rewrite if_false in H by auto]; simpl; auto.
 Qed.
 
 Lemma semax_call_id1_x_wow:
@@ -926,11 +912,11 @@ Lemma semax_call_id1_x_wow:
    (NEUTRAL: is_neutral_cast retty' retty = true) 
    (NEret: ret <> ret')
    (H: paramty = type_of_params argsig)
-   (PTREE: local2ptree Q Qtemp Qvar nil nil)
+   (PTREE: local2ptree Q = (Qtemp, Qvar, nil, nil))
    (TC1: PROPx P (LOCALx (tc_env Delta :: Q) (SEPx R))
              |--  (tc_exprlist Delta (argtypes argsig) bl))
    (PRE1: Pre witness = PROPx Ppre (LOCALx Qpre (SEPx Rpre)))
-   (PTREE': local2ptree Qpre Qpre_temp Qpre_var nil nil)
+   (PTREE': local2ptree Qpre = (Qpre_temp, Qpre_var, nil, nil))
    (MSUBST: force_list (map (msubst_eval_expr Qtemp Qvar)
          (explicit_cast_exprlist (argtypes argsig) bl)) = Some vl)
    (PTREE'': pTree_from_elements (List.combine (var_names argsig) vl) = Qactuals)
@@ -942,8 +928,8 @@ Lemma semax_call_id1_x_wow:
    (POST1: Post witness = EX vret:B, PROPx (Ppost vret)
                               (LOCALx (temp ret_temp (F vret) :: nil) 
                               (SEPx (Rpost vret))))
-   (DELETE: delete_temp_from_locals ret Q Qnew)
-   (DELETE' : delete_temp_from_locals ret' Q Q)
+   (DELETE: delete_temp_from_locals ret Q = Qnew)
+   (DELETE' : delete_temp_from_locals ret' Q = Q)
    (H0: Post2 = EX vret:B, PROPx (P++ Ppost vret)
                    (LOCALx (temp ret (F vret) :: Qnew)
                     (SEPx (Rpost vret ++ Frame))))
@@ -985,7 +971,7 @@ eapply semax_call_id1_wow; try eassumption; auto.
  unfold tc_temp_id, typecheck_temp_id.
  rewrite <- tycontext.initialized_ne by auto.
  unfold typeof_temp in TYret.
- destruct ((temp_types Delta) ! ret) as [[? ?]  | ]; inv TYret.
+ destruct ((temp_types Delta) ! ret) as [[? ?]  | ]; inversion TYret; clear TYret; try subst t.
  go_lowerx.
  repeat rewrite denote_tc_assert_andp.
  rewrite denote_tc_assert_bool.
@@ -995,9 +981,11 @@ eapply semax_call_id1_wow; try eassumption; auto.
  apply andp_right. apply prop_right; auto.
  apply neutral_isCastResultType; auto.
  go_lowerx. normalize. apply andp_right; auto. apply prop_right.
- clear - H4 DELETE. rename H4 into H3.
-   induction DELETE. constructor. destruct H3. auto. destruct H3; constructor; auto.
-       destruct H3; constructor; auto.  destruct H3; constructor; auto. destruct H3; constructor; auto. 
+ subst Qnew; clear - H4. rename H4 into H.
+ induction Q; simpl in *; auto.
+ destruct H, a; specialize (IHQ H0); try now (simpl; split; auto).
+ hnf in H.
+ if_tac; simpl; auto.
 +
  intros. subst Post2.
  unfold normal_ret_assert.
@@ -1022,14 +1010,14 @@ eapply semax_call_id1_wow; try eassumption; auto.
  assert (H7 := expr2.neutral_cast_lemma); 
    unfold eval_cast in H7. rewrite H7 by auto.
  unfold eval_id, env_set. simpl. rewrite Map.gso by auto. reflexivity.
- clear - DELETE H4.
- induction DELETE; simpl in *; auto.
- unfold_lift in H4; unfold_lift.
- destruct H4. split; auto. subst. unfold eval_id, env_set. simpl.
+ apply local2ptree_OKsubst in PTREE.
+ subst Qnew; clear - H4 PTREE. rename H4 into H.
+ induction Q; simpl in *; auto.
+ destruct a; try now (destruct H; simpl in *; split; auto).
+ if_tac; simpl in *; auto.
+ destruct H; split; auto.
+ hnf in H|-*; subst. unfold eval_id, env_set. simpl.
  rewrite Map.gso by auto. auto.
- destruct H4; split; auto.
- destruct H4; split; auto.
- destruct H4; split; auto.
 Qed.
 
 Lemma semax_call_id1_y_wow:
@@ -1057,11 +1045,11 @@ Lemma semax_call_id1_y_wow:
    (NEUTRAL: is_neutral_cast retty' retty = true) 
    (NEret: ret <> ret')
    (H: paramty = type_of_params argsig)
-   (PTREE: local2ptree Q Qtemp Qvar nil nil)
+   (PTREE: local2ptree Q = (Qtemp, Qvar, nil, nil))
    (TC1: PROPx P (LOCALx (tc_env Delta :: Q) (SEPx R))
              |--  (tc_exprlist Delta (argtypes argsig) bl))
    (PRE1: Pre witness = PROPx Ppre (LOCALx Qpre (SEPx Rpre)))
-   (PTREE': local2ptree Qpre Qpre_temp Qpre_var nil nil)
+   (PTREE': local2ptree Qpre = (Qpre_temp, Qpre_var, nil, nil))
    (MSUBST: force_list (map (msubst_eval_expr Qtemp Qvar)
          (explicit_cast_exprlist (argtypes argsig) bl)) = Some vl)
    (PTREE'': pTree_from_elements (List.combine (var_names argsig) vl) = Qactuals)
@@ -1073,8 +1061,8 @@ Lemma semax_call_id1_y_wow:
    (POST1: Post witness = EX vret:B, PROPx (Ppost vret)
                               (LOCALx (temp ret_temp (F vret) :: nil) 
                               (SEPx (Rpost vret))))
-   (DELETE: delete_temp_from_locals ret Q Qnew)
-   (DELETE' : delete_temp_from_locals ret' Q Q)
+   (DELETE: delete_temp_from_locals ret Q = Qnew)
+   (DELETE' : delete_temp_from_locals ret' Q = Q)
    (H0: Post2 = EX vret:B, PROPx (P++ Ppost vret)
                    (LOCALx (temp ret (F vret) :: Qnew)
                     (SEPx (Rpost vret ++ Frame))))
@@ -1116,7 +1104,7 @@ end.
  unfold tc_temp_id, typecheck_temp_id.
  rewrite <- tycontext.initialized_ne by auto.
  unfold typeof_temp in TYret.
- destruct ((temp_types Delta) ! ret) as [[? ?]  | ]; inv TYret.
+ destruct ((temp_types Delta) ! ret) as [[? ?]  | ]; inversion TYret; clear TYret; try subst t.
  go_lowerx.
  repeat rewrite denote_tc_assert_andp.
  rewrite denote_tc_assert_bool.
@@ -1127,9 +1115,11 @@ end.
  apply andp_right. apply prop_right; auto.
  apply neutral_isCastResultType; auto.
  go_lowerx. normalize. apply andp_right; auto. apply prop_right.
- clear - H4 DELETE. rename H4 into H3.
-   induction DELETE. constructor. destruct H3. auto. destruct H3; constructor; auto.
-       destruct H3; constructor; auto.  destruct H3; constructor; auto.  destruct H3; constructor; auto. 
+ subst Qnew; clear - H4. rename H4 into H.
+ induction Q; simpl in *; auto.
+ destruct H, a; specialize (IHQ H0); try now (simpl; split; auto).
+ hnf in H.
+ if_tac; simpl; auto.
 +
  intros. subst Post2.
  unfold normal_ret_assert.
@@ -1146,13 +1136,14 @@ end.
       contradiction NEret; intuition).
  rewrite H5 in *.
  hnf in H3. rewrite H3. unfold eval_id, env_set; simpl. rewrite Map.gso; auto.
- clear - DELETE H4.
- induction DELETE; auto.
- destruct H4; constructor; auto.
- hnf in H0|-*. subst v. unfold eval_id, env_set; simpl. rewrite Map.gso; auto.
- destruct H4; constructor; auto.
- destruct H4; constructor; auto.
- destruct H4; constructor; auto.
+ apply local2ptree_OKsubst in PTREE.
+ subst Qnew; clear - H4 PTREE. rename H4 into H.
+ induction Q; simpl in *; auto.
+ destruct a; try now (destruct H; simpl in *; split; auto).
+ if_tac; simpl in *; auto.
+ destruct H; split; auto.
+ hnf in H|-*; subst. unfold eval_id, env_set. simpl.
+ rewrite Map.gso by auto. auto.
 Qed.
 
 Lemma semax_call_id01_wow:
@@ -1176,11 +1167,11 @@ Lemma semax_call_id01_wow:
    (_: check_retty retty)
          (* this hypothesis is not needed for soundness, just for selectivity *)
    (H: paramty = type_of_params argsig)
-   (PTREE: local2ptree Q Qtemp Qvar nil nil)
+   (PTREE: local2ptree Q = (Qtemp, Qvar, nil, nil))
    (TC1: PROPx P (LOCALx (tc_env Delta :: Q) (SEPx R))
           |--  (tc_exprlist Delta (argtypes argsig) bl))
    (PRE1: Pre witness = PROPx Ppre (LOCALx Qpre (SEPx Rpre)))
-   (PTREE': local2ptree Qpre Qpre_temp Qpre_var nil nil)
+   (PTREE': local2ptree Qpre = (Qpre_temp, Qpre_var, nil, nil))
    (MSUBST: force_list (map (msubst_eval_expr Qtemp Qvar) 
                     (explicit_cast_exprlist (argtypes argsig) bl))
                 = Some vl)
@@ -1320,11 +1311,11 @@ Lemma semax_call_id00_wow:
    (GLOBT: (glob_types Delta) ! id = Some (type_of_funspec (mk_funspec (argsig,retty) A Pre Post)))
    (RETTY: retty = Tvoid)
    (H: paramty = type_of_params argsig)
-   (PTREE: local2ptree Q Qtemp Qvar nil nil)
+   (PTREE: local2ptree Q = (Qtemp, Qvar, nil, nil))
    (TC1: PROPx P (LOCALx (tc_env Delta :: Q) (SEPx R))
           |-- (tc_exprlist Delta (argtypes argsig) bl))
    (PRE1: Pre witness = PROPx Ppre (LOCALx Qpre (SEPx Rpre)))
-   (PTREE': local2ptree Qpre Qpre_temp Qpre_var nil nil)
+   (PTREE': local2ptree Qpre = (Qpre_temp, Qpre_var, nil, nil))
    (MSUBST: force_list (map (msubst_eval_expr Qtemp Qvar) 
                     (explicit_cast_exprlist (argtypes argsig) bl))
                 = Some vl)
