@@ -118,7 +118,7 @@ Time forward_for_simple_bound 4 (EX i:Z,
   Time assert_PROP (field_compatible (Tarray tuchar 4 noattr) [] x /\ isptr x) 
        as FC_ptrX by solve [entailer!]. (*2.3*)
   destruct FC_ptrX as [FC ptrX].
-  Time forward. (*1.9*)
+  Time forward. (*1.9*) (*FIXME NOW: THIS FORWARD RUNS OUT OF MEMORY*)
   Time forward. (*0.8*) 
   Time entailer. (*6*)
   unfold upd_Znth. rewrite Zlength_app; repeat rewrite Zlength_sublist; try omega.
