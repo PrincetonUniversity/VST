@@ -73,30 +73,55 @@ Definition local2ptree (Q: list localdef)
      : (PTree.t val * PTree.t vardesc * list Prop * list localdef) :=
 local2ptree_aux Q PTree.Leaf PTree.Leaf nil nil.
 
-Ltac prove_local2ptree := 
-unfold local2ptree, local2ptree_aux;
-repeat (unfold local2ptree1 at 1; simpl PTree.get; cbv beta iota zeta;
- simpl PTree.set);
-reflexivity.
+Definition CLEAR_ME {T} (x:T) := x.
+Ltac hide_it z := let x := fresh "x" in set (x:=z); change z with (CLEAR_ME z) in x.
 
-Goal exists x, local2ptree (temp 1%positive Vundef :: lvar 1%positive tint (Vint (Int.repr 1)) :: 
-   (localprop(eq 1 3)) :: nil) = x.
+Ltac hnf_localdef_list A :=
+  match A with
+ | temp _ ?v :: ?Q' => hide_it v; hnf_localdef_list Q'
+ | lvar _ ?t ?v :: ?Q' => hide_it t; hide_it v; hnf_localdef_list Q'
+ | gvar _ ?v :: ?Q' => hide_it v; hnf_localdef_list Q'
+ | sgvar _ ?v :: ?Q' => hide_it v; hnf_localdef_list Q'
+ | localprop ?v :: ?Q' => hide_it v; hnf_localdef_list Q'
+ | tc_env ?v :: ?Q' => hide_it v;  hnf_localdef_list Q'     
+  | ?B :: ?C => let x := eval hnf in B in change B with x; hnf_localdef_list (x::C)
+  | nil => idtac
+  | _ => let x := eval hnf in A in (change A with x); hnf_localdef_list x
+  end.
+
+Ltac prove_local2ptree := 
+ clear;
+ match goal with |- local2ptree ?A = _ => hnf_localdef_list A end;
+ unfold local2ptree, local2ptree_aux; simpl;
+ repeat match goal with x := CLEAR_ME _ |- _ => unfold CLEAR_ME in x; subst x end;
+ reflexivity.
+
+Goal exists x,  local2ptree (
+      temp 1%positive Vundef
+   :: temp 3%positive (Vint (Int.repr (3+4)))
+   :: lvar 1%positive tint (Vint (Int.repr 1))
+   :: localprop(eq (1+2) 3)
+   :: tc_env empty_tycontext
+   :: nil) = x.
+set (Three := 3). (* This definition should not be unfolded! *)
+set (T := temp 1%positive Vundef). (* This should be unfolded! *)
+set (Q := tc_env empty_tycontext :: nil).  (* This should be unfolded! *)
 eexists.
+etransitivity.
 prove_local2ptree.
+match goal with |- context [1+2] => idtac end.
+match goal with |- context [Three] => idtac end.
 Abort.
 
 Ltac construct_local2ptree Q H :=
-  let T1 := fresh "T" in evar (T1: PTree.t val);
-  let T2 := fresh "T" in evar (T2: PTree.t vardesc);
-  let P' := fresh "P'" in evar (P' : list Prop);
-  let Q' := fresh "Q'" in evar (Q' : list localdef);
-  assert (local2ptree Q = (T1, T2, P', Q')) as H; subst T1 T2 P' Q';
+  let t := fresh "t" in 
+  evar (t: (PTree.t val * PTree.t vardesc * list Prop * list localdef)%type);
+  assert (H: local2ptree Q = t); subst t;
    [ prove_local2ptree | ].
 
 Goal False.
- intros.
   construct_local2ptree (temp 1%positive Vundef :: lvar 1%positive tint (Vint (Int.repr 1)) :: 
-   (localprop(eq 1 3)) :: nil) H.
+   (localprop(eq (1+2) 3)) :: nil) H.
 Abort.
 
 Definition LocalD (T1: PTree.t val) (T2: PTree.t vardesc) (Q: list localdef) :=

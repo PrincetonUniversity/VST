@@ -1392,3 +1392,39 @@ Hint Rewrite @app_Znth1 using (autorewrite with sublist; omega) : sublist.
 Hint Rewrite @app_Znth2 using (autorewrite with sublist; omega) : sublist.
 Hint Rewrite @Znth_sublist using (autorewrite with sublist; omega) : sublist.
 
+
+Lemma Znth_overflow: 
+  forall {A} i (al: list A) d, i >= Zlength al -> Znth i al d = d.
+Proof.
+intros.
+  pose proof (Zlength_nonneg al).
+   unfold Znth. rewrite if_false by omega.
+  apply nth_overflow.
+  apply Nat2Z.inj_le. rewrite <- Zlength_correct.
+  rewrite Z2Nat.id by omega. omega.
+Qed.
+
+Lemma Znth_underflow:
+  forall {A} i (al: list A) d,  i < 0 -> Znth i al d = d.
+Proof.
+intros.
+   unfold Znth. rewrite if_true by omega. auto.
+Qed.
+
+Lemma Znth_outofbounds:
+  forall {A} i (al: list A) d,  (i < 0 \/ i >= Zlength al) -> Znth i al d = d.
+Proof.
+intros.
+  destruct H. apply Znth_underflow; auto. apply Znth_overflow; auto.
+Qed.
+
+Lemma sublist_one:
+  forall {A} lo hi (al: list A) d, 
+    0 <= lo -> hi <= Zlength al ->
+    lo+1=hi -> sublist lo hi al = Znth lo al d :: nil.
+Proof.
+intros.
+subst.
+rewrite Znth_cons_sublist by omega. rewrite <- app_nil_end.
+auto.
+Qed.
