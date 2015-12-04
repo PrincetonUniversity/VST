@@ -1489,6 +1489,22 @@ Ltac pre_entailer :=
   | H := @abbreviate ret_assert _ |- _ => clear H
   end.
 
+Lemma quick_derives_right:
+  forall P Q : environ -> mpred,
+   TT |-- Q -> P |-- Q.
+Proof.
+intros. eapply derives_trans; try eassumption; auto.
+Qed.
+
+Ltac quick_typecheck3 := 
+ clear; 
+ repeat match goal with
+ | H := _ |- _ => clear H 
+ | H : _ |- _ => clear H 
+ end;
+ apply quick_derives_right; clear; go_lower;
+ clear; repeat apply andp_right; auto; fail.
+
 Ltac forward_setx :=
   ensure_normal_ret_assert;
     hoist_later_in_pre;
@@ -1502,7 +1518,8 @@ Ltac forward_setx :=
       | solve [repeat econstructor]
       | unfold app at 1; reflexivity
       | exact HRE
-      | pre_entailer; clear HRE; subst v; try solve [entailer!]
+      | first [quick_typecheck3
+            | pre_entailer; clear HRE; subst v; try solve [entailer!]]
       ]
  end.
 
@@ -1717,22 +1734,6 @@ Lemma pair_congr: forall (A B: Type) (x x': A) (y y': B),
 Proof.
 intros; subst; auto.
 Qed.
-
-Lemma quick_derives_right:
-  forall P Q : environ -> mpred,
-   TT |-- Q -> P |-- Q.
-Proof.
-intros. eapply derives_trans; try eassumption; auto.
-Qed.
-
-Ltac quick_typecheck3 := 
- clear; 
- repeat match goal with
- | H := _ |- _ => clear H 
- | H : _ |- _ => clear H 
- end;
- apply quick_derives_right; clear; go_lower;
- clear; repeat apply andp_right; auto; fail.
 
 Ltac simple_value v :=
  match v with
