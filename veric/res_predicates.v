@@ -967,7 +967,7 @@ apply pred_ext; intro w; simpl.
     simpl in H6.
     subst x0.
     generalize (join_eq HR RJ); intro; subst rsh5.
-    f_equal; auto.
+    f_equal; auto with extensionality.
   - intros.
     generalize (resource_at_join _ _ _ l' H0); intro.
     apply H2 in H4. rewrite H4 in H3; auto.
@@ -1996,7 +1996,7 @@ rewrite if_true in H.
 destruct H as [v [p ?]].
 hnf in H.
 do 3 red.
-rewrite H; auto.
+rewrite H; auto with extensionality.
 destruct loc; split; unfold adr_add; auto.
 simpl. omega.
 Qed.
@@ -2038,7 +2038,7 @@ hnf in H, H0. if_tac in H.
   unfold yesat_raw in *.
   generalize (resource_at_join_sub _ _ l0 H1); rewrite H; clear H1; intro.
   generalize (resource_at_join_sub _ _ l0 H2); rewrite H0; clear H2; intro.
-  f_equal. auto.
+  f_equal. auto with extensionality.
   clear - H1 H2.
   destruct H1; destruct H2.
   simpl in *.
@@ -2445,13 +2445,13 @@ Proof.
         rewrite Share.unrel_splice_R, Share.unrel_splice_L.
         destruct (dec_share_identity sh1); [pose proof nonunit_nonidentity NON_UNIT1; tauto |].
         f_equal.
-        auto.
+        auto with extensionality.
       * exists NON_UNIT2.
         subst; simpl.
         rewrite Share.unrel_splice_R, Share.unrel_splice_L.
         destruct (dec_share_identity sh2); [pose proof nonunit_nonidentity NON_UNIT2; tauto |].
         f_equal.
-        auto.
+        auto with extensionality. 
     - simpl; intros.
       destruct H2, H3.
       exists NON_UNIT.

@@ -258,7 +258,7 @@ Proof.
   intros.
   unfold mk_pshare.
   destruct p; simpl.
-  auto.
+  auto with extensionality.
 Qed.
 
 Definition fixup_splitting
@@ -299,13 +299,13 @@ Proof.
   intros.
   generalize (H0 _ H2); intros.
   rewrite  H3. simpl. replace (ofs+i-i) with ofs by omega.
-  destruct (dec_share_identity (a (b,ofs))); auto; contradiction.
+  destruct (dec_share_identity (a (b,ofs))); auto with extensionality; contradiction.
   simpl.
   destruct H0 as [n [? ?]].
   destruct ( dec_share_identity (a (b, ofs - z0))); auto.
   exists n. split; auto.
   rewrite H2.
-  destruct ( dec_share_identity (a (b, ofs - z0))); auto; contradiction.
+  destruct ( dec_share_identity (a (b, ofs - z0))); auto with extensionality; contradiction.
   simpl.
   destruct (dec_share_identity (a (b,ofs))); auto.
 Qed.
@@ -411,7 +411,7 @@ Proof.
  subst k.
  specialize (H b ofs). rewrite H7 in H. destruct H as [? [? ?]].
  rewrite H8. simpl. destruct p0; simpl.
- destruct (dec_share_identity x0); auto.
+ destruct (dec_share_identity x0); auto with extensionality.
  elimtype False; clear - n0 i0; apply nonunit_nonidentity in n0; contradiction n0.
  revert H4; case_eq (a (b,ofs-z0)); intros.
  elimtype False.
