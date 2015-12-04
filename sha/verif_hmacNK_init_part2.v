@@ -365,20 +365,16 @@ Focus 2.
         thaw FR1.
  
         freeze [0; 2] FR2.
-Opaque sublist. Opaque app. (*FIXME NOW: ARE NOW NEEDED TO PREVENT UNFOLDING*)
-        Time forward. (*5.4 versus 5*) (*FIXME NOW takes 35secs*)
-Transparent sublist. Transparent app.
+        Time forward. (*5.4 versus 5*) (*FIXME NOW takes 20secs; this is the forward the ran out of 2GB memory in the previous version of floyd*)
         Time entailer!. (*5.7 versus 9.6*) 
         Time (thaw FR2; simpl; rewrite HeqIPADcont, UPD_IPAD; simpl; trivial; cancel). (*0.6*)
-     (*simpl. apply derives_refl'. unfold data_at. f_equal.
-        simpl; trivial. cancel). (*0.6*)*)
       }
 Unfocus.
 cbv beta. rewrite sublist_same, sublist_nil, app_nil_r; trivial.
 drop_LOCAL 0%nat. apply derives_refl. 
 subst IPADcont; do 2 rewrite Zlength_map. 
 unfold HMAC_SHA256.mkArgZ in ZLI; rewrite ZLI; trivial.
-Time Qed. (*11.1 versus 16.8*) (*NOW 14*)
+Time Qed. (*11.1 versus 16.8*) (*FIXME NOW 39*)
 
 Lemma opadloop Espec pb pofs cb cofs ckb ckoff kb kofs l key kv (FR:mpred): forall
 (IPADcont : list val)
@@ -490,7 +486,7 @@ Focus 2.
         thaw FR2.
        (*doing freeze [0; 2] FR3. here lets the entailer! 2 lines below take 11 secs instead of 5, 
            with a residual subgoal thats more complex to discharge*)
-        Time forward. (*5.8 versus 4.8*)
+        Time forward. (*5.8 versus 4.8*) (*FIXME NOW: 19 secs*)
         Time entailer!. (*4.2 versus 5.6*) 
         rewrite field_at_data_at. 
         rewrite field_address_offset by auto with field_compatible. 
@@ -503,7 +499,7 @@ thaw' FR1.
 Time entailer!. (*3.4 versus 2.6*)
 subst OPADcont; do 2 rewrite Zlength_map. 
 unfold HMAC_SHA256.mkArgZ in ZLO; rewrite ZLO; trivial.
-Time Qed. (*12.3 versus 18.7*)  (*FIXME NOW 20secs*)
+Time Qed. (*12.3 versus 18.7*)  (*FIXME NOW 36secs*)
 
 Lemma init_part2: forall MYPOST
 (Espec : OracleKind)
@@ -851,4 +847,4 @@ Qed.*)
 intros ? ?. apply andp_left2.  
    unfold POSTCONDITION, abbreviate. rewrite overridePost_overridePost. 
    apply derives_refl. 
-Time Qed. (*60 versus 63*)
+Time Qed. (*60 versus 63*) (*FIXME NOW: 80secs*)

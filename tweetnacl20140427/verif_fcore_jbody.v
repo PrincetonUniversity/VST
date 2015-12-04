@@ -106,7 +106,7 @@ Proof. intros. abbreviate_semax.
   thaw FR2.
   Time forward. (*3.3 versus 7*)
   Time entailer!. (*1.3 versus 6.2*)
-Time Qed. (*22.7 versus 42*)
+Time Qed. (*22.7 versus 42*) (*NOW: 36secs*)
 
 Lemma pattern2_noStmt Espec Source1 Source2 Target Offset: forall FR
   (S1Range: 0 <= Source1 < 4) (S2Range: 0 <= Source2 < 4) (TgtRange: 0 <= Target < 4)
@@ -190,7 +190,7 @@ Proof. intros. abbreviate_semax.
   thaw FR2.
   Time forward. (*3.3 versus 7*)
   Time entailer!. (*1.3 versus 6.2*)
-Time Qed. (*27 versus 44*)
+Time Qed. (*27 versus 44*) (*NOW: 37 secs*)
 
 Lemma pattern3_noStmt Espec Source1 Source2 Target Offset: forall FR
   (S1Range: 0 <= Source1 < 4) (S2Range: 0 <= Source2 < 4) (TgtRange: 0 <= Target < 4)
@@ -275,7 +275,7 @@ Proof. intros. abbreviate_semax.
   thaw FR2.
   Time forward. (*3.3 versus 7*)
   Time entailer!. (*1.3 versus 6.2*)
-Time Qed. (*41.6 versus 52 -- noticably SLOWER than previous 2 lemmas*)
+Time Qed. (*41.6 versus 52 -- noticably SLOWER than previous 2 lemmas*) (*NOW: 51 secs*)
 
 Lemma pattern4_noStmt Espec Source1 Source2 Target Offset: forall FR
   (S1Range: 0 <= Source1 < 4) (S2Range: 0 <= Source2 < 4) (TgtRange: 0 <= Target < 4)
@@ -360,7 +360,7 @@ Proof. intros. abbreviate_semax.
   thaw FR2.
   Time forward. (*3.3 versus 7*)
   Time entailer!. (*1.3 versus 6.2*)
-Time Qed. (*91!*) (*SLOW*)
+Time Qed. (*91!*) (*NOW 103*)
 
 Definition wlistJ' (wlist:list val) (j: Z) (t0 t1 t2 t3:int) (l: list val): Prop :=
   Zlength l = 16 /\ 
@@ -518,6 +518,7 @@ rewrite T1 in Z1; inv Z1.
 rewrite T2 in Z2; inv Z2.
 rewrite T3 in Z3; inv Z3; trivial.
 Time Qed. (*285 versus 159 SLOW; was 130 in previous round- and I didn't change this lemma at all*)
+  (*NOW: 290 secs*)
 
 Definition Wcopyspec (t0 t1 t2 t3: int):=
 (Int.xor t0
@@ -676,7 +677,7 @@ Time forward_for_simple_bound 4
       + thaw FR3. Time cancel. (*0.1*) } 
   }
 Time entailer!. (*2.4 versus 7.6*)
-Time Qed. (*14.5 versus 32.2*)
+Time Qed. (*14.5 versus 32.2*) (*FIXME NOW: 122secs*)
 
 Lemma Jbody (Espec : OracleKind) FR c k h nonce out w x y t i j xs
   (I : 0 <= i < 20)

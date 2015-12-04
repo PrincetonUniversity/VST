@@ -72,8 +72,8 @@ Time forward. (*1.1*)
 Time forward. (*2.2*)
 Time entailer!; omega. (*1.3*)
 Time forward. (*1.5*)
-(*drop_LOCAL 1%nat. inclusion of this doesn't help*)
-Time forward. (*2.1 - THIS IS THE FORWARD THAT FAILS IF WE DON'T DECLARE SOME SPECS OPAQUE: aux = x[0];*)
+drop_LOCAL 1%nat. 
+Time forward.
 Time entailer!; omega. (*1.3*)
 Time forward. (*5.2*)
 Time entailer!.
@@ -94,7 +94,7 @@ Time entailer!.
   rewrite TP, BMU, Z.mul_add_distr_l, int_max_unsigned_eq. omega.
   rewrite TP, BMU, Z.mul_add_distr_l, int_max_unsigned_eq. omega.
   rewrite TP, BMU, Z.mul_add_distr_l, int_max_unsigned_eq. omega.
-Time Qed. (*6.7*)
+Time Qed. (*6.7*) (*FIXME NOW: 18secs*)
 
 Lemma ST32_spec_ok: semax_body SalsaVarSpecs SalsaFunSpecs
        f_st32 st32_spec.
@@ -118,23 +118,12 @@ Time forward_for_simple_bound 4 (EX i:Z,
   Time assert_PROP (field_compatible (Tarray tuchar 4 noattr) [] x /\ isptr x) 
        as FC_ptrX by solve [entailer!]. (*2.3*)
   destruct FC_ptrX as [FC ptrX].
-  Time forward. (*1.9*) (*FIXME NOW: THIS FORWARD RUNS OUT OF MEMORY*)
-  Time forward. (*0.8*) 
-  Time entailer. (*6*)
-  unfold upd_Znth. rewrite Zlength_app; repeat rewrite Zlength_sublist; try omega.
-    2: rewrite Zlength_correct; simpl; omega.
-  clear H TC.
-  rewrite sublist0_app1.
-   2: rewrite Zlength_sublist; try rewrite Zlength_correct; simpl; omega.
-  rewrite sublist_sublist; try omega. rewrite Zminus_0_r, Zplus_minus.
-  rewrite sublist_app2. Focus 2. rewrite Zlength_sublist; simpl; try omega. rewrite Zlength_correct; simpl; omega.
-  rewrite Zlength_sublist; simpl. 2: omega. Focus 2. rewrite Zlength_correct; simpl; omega.
-  rewrite Zminus_0_r, Zminus_plus.
-  rewrite sublist_sublist; try omega. 
-  rewrite <- Z.sub_sub_distr, Zminus_diag, Zminus_0_r, Zplus_0_r.
-  rewrite sublist_skip. 2: omega. repeat rewrite sublist_firstn.
-  apply andp_right. 
-    apply prop_right. rewrite Z.add_comm, Z2Nat.inj_add; try omega. trivial.
+  Time forward. (*3.2*)
+  Time forward. (*0.8*)  
+  rewrite Z.add_comm, Z2Nat.inj_add; try omega.
+  Time entailer!. (*1.5*)
+  unfold upd_Znth.
+  autorewrite with sublist. 
   rewrite field_at_data_at. simpl. unfold field_address. simpl.
   if_tac. 2: solve [contradiction].
   rewrite isptr_offset_val_zero; trivial. clear H.
@@ -210,7 +199,7 @@ Time forward_for_simple_bound 4 (EX i:Z,
         omega. }
   rewrite Hl.
   Time forward. (*1.6*)
-Time Qed. (*4.9*)
+Time Qed. (*4.9*) (*FIXME NOW: 11secs*)
 
 (*
 Definition L32_specZ :=
