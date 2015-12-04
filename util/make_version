@@ -1,11 +1,11 @@
 #!/bin/bash
-echo >version.v 'Require Import Coq.Strings.String. Open Scope string.'
-echo -n >>version.v 'Definition git_rev := "'
+printf >version.v 'Require Import Coq.Strings.String. Open Scope string.\n'
+printf >>version.v 'Definition git_rev := "'
 git log -n 1 --pretty=format:"%H" >>version.v
-echo >>version.v '".'
-echo -n >>version.v 'Definition release := "'
+printf >>version.v '".\n'
+printf >>version.v 'Definition release := "'
 tr -d '[:cntrl:]' <VERSION >>version.v
-echo >>version.v '".'
-echo -n >>version.v 'Definition date := "'
+printf >>version.v '".\n'
+printf >>version.v 'Definition date := "'
 date --rfc-3339=date | tr -d '[:cntrl:]' >>version.v
-echo >>version.v '".'
+printf >>version.v '".\n'

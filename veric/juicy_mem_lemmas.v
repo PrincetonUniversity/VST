@@ -787,7 +787,7 @@ pose proof (mapsto_valid_access_wr _ _ _ _ _ _ MAPSTO).
 unfold mapsto_can_store_definition. simpl.
 Transparent Mem.store. unfold store.
 destruct (valid_access_dec (m_dry jm) ch b ofs Writable).
-f_equal. f_equal; auto.
+f_equal. f_equal; auto with extensionality.
 contradiction.
 Opaque Mem.store.
 Qed.

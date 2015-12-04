@@ -775,7 +775,7 @@ Module Rmaps (AV':ADR_VAL) : RMAPS with Module AV:=AV'.
     rewrite (resource_fmap_id).
     simpl.
     rewrite (id_unit2 _ (resource) x).
-    intro v0. f_equal; auto.
+    intro v0. f_equal; auto. apply proof_irr.
   Qed.
 
   Lemma rmap_fmap_comp : forall f g, rmap_fmap g oo rmap_fmap f = rmap_fmap (g oo f).

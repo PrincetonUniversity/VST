@@ -2,15 +2,19 @@ Require Import compcert.lib.Coqlib.
 Require Import msl.base.
 Require Export msl.Extensionality.
 
+(*  These three hints are considered "dangerous"
+   because they make proofs noncomputational, which is an issue
+  for things we want to solve with "compute".
+*)
 (* Can't use "Hint Resolve" because a bug in "apply proof_irr" matches
    things that are not Props, which leads the Qed to fail (later) *)
-Hint Extern 1 (@eq _ _ _) => exact (proof_irr _ _).
+Hint Extern 1 (@eq _ _ _) => exact (proof_irr _ _) : extensionality.
 
 (* Can't use "Hint Resolve" because it doesn't seem to do anything... *)
-Hint Extern 2 (eq _ _)  => apply exist_ext.
+Hint Extern 2 (eq _ _)  => apply exist_ext : extensionality.
 
 (* Can't use "Hint Resolve" because it doesn't seem to do anything... *)
-Hint Extern 2 (@eq _ (@existT _ _ _ _) (@existT _ _ _ _))  => apply existT_ext.
+Hint Extern 2 (@eq _ (@existT _ _ _ _) (@existT _ _ _ _))  => apply existT_ext : extensionality.
 
 Tactic Notation "forget" constr(X) "as" ident(y) := 
    set (y:=X) in *; clearbody y.

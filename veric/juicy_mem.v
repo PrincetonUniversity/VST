@@ -1714,7 +1714,7 @@ inv ACCESS.
 destruct (juicy_mem_contents _ _ _ _ _ _ H3); subst.
 rewrite preds_fmap_NoneP.
 assert (p0 = pfullshare).
-  destruct p0; simpl; subst; auto. subst.
+  destruct p0; simpl; subst; auto with extensionality. subst.
 do 3 econstructor; split; try reflexivity.
 unfold inflate_store;  rewrite resource_at_make_rmap.
 rewrite H3.
@@ -1725,7 +1725,7 @@ if_tac in ACCESS.
 if_tac in ACCESS; inv ACCESS.
 destruct (juicy_mem_contents _ _ _ _ _ _ H3); subst.
 assert (p0 = pfullshare).
-  destruct p0; simpl; subst; auto. subst.
+  destruct p0; simpl; subst; auto with extensionality. subst.
 unfold resource_fmap. rewrite preds_fmap_NoneP.
 do 3 econstructor; split; try reflexivity.
 unfold inflate_store;  rewrite resource_at_make_rmap.

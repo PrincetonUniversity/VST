@@ -567,7 +567,7 @@ replace (exist (fun m : AV.address -> resource => valid m)
 (exist (fun m : AV.address -> resource => valid m)
   (resource_fmap (approx n) oo resource_fmap (approx n) oo x)
   (valid_res_map (approx n) (resource_fmap (approx n) oo x) H0)); auto.
-assert (Hex: forall A (F: A -> Prop) (x x': A) y y', x=x' -> exist F x y = exist F x' y') by auto.
+assert (Hex: forall A (F: A -> Prop) (x x': A) y y', x=x' -> exist F x y = exist F x' y') by auto with extensionality.
 apply Hex.
 unfold compose.
 extensionality y.

@@ -491,7 +491,7 @@ Qed.
 Lemma read_sh_readonly:
   forall NU, read_sh = mk_lifted (readonly2share true) NU.
 Proof.
-  simpl. unfold read_sh. simpl. f_equal; auto.
+  simpl. unfold read_sh. simpl. f_equal; auto with extensionality.
 Qed.  
 
 Lemma rev_if_be_1: forall i, rev_if_be (i::nil) = (i::nil).
@@ -734,7 +734,7 @@ Proof.
   unfold inflate_initial_mem. rewrite resource_at_make_rmap.
   unfold inflate_initial_mem'. rewrite H4.
  unfold Genv.perm_globvar. rewrite VOL. rewrite preds_fmap_NoneP.
-  destruct (gvar_readonly v);  repeat f_equal; auto.
+  destruct (gvar_readonly v);  repeat f_equal; auto with extensionality.
   rewrite H0.
   destruct loc; destruct H; subst b0.
   apply nth_getN; simpl; omega.
@@ -756,7 +756,7 @@ Proof.
   unfold inflate_initial_mem. rewrite resource_at_make_rmap.
   unfold inflate_initial_mem'. rewrite H4.
  unfold Genv.perm_globvar. rewrite VOL. rewrite preds_fmap_NoneP.
-  destruct (gvar_readonly v);  repeat f_equal; auto.
+  destruct (gvar_readonly v);  repeat f_equal; auto with extensionality.
   rewrite H0.
   destruct loc; destruct H; subst b0.
   apply nth_getN; simpl; omega.
@@ -778,7 +778,7 @@ Proof.
   unfold inflate_initial_mem. rewrite resource_at_make_rmap.
   unfold inflate_initial_mem'. rewrite H4.
  unfold Genv.perm_globvar. rewrite VOL. rewrite preds_fmap_NoneP.
-  destruct (gvar_readonly v);  repeat f_equal; auto.
+  destruct (gvar_readonly v);  repeat f_equal; auto with extensionality.
   rewrite H0.
   destruct loc; destruct H; subst b0.
   apply nth_getN; simpl; omega.
@@ -800,7 +800,7 @@ Proof.
   unfold inflate_initial_mem. rewrite resource_at_make_rmap.
   unfold inflate_initial_mem'. rewrite H4.
  unfold Genv.perm_globvar. rewrite VOL. rewrite preds_fmap_NoneP.
-  destruct (gvar_readonly v);  repeat f_equal; auto.
+  destruct (gvar_readonly v);  repeat f_equal; auto with extensionality.
   rewrite H0.
   destruct loc; destruct H; subst b0.
   apply nth_getN; simpl; omega.
@@ -822,7 +822,7 @@ Proof.
   unfold inflate_initial_mem. rewrite resource_at_make_rmap.
   unfold inflate_initial_mem'. rewrite H4.
  unfold Genv.perm_globvar. rewrite VOL. rewrite preds_fmap_NoneP.
-  destruct (gvar_readonly v);  repeat f_equal; auto.
+  destruct (gvar_readonly v);  repeat f_equal; auto with extensionality.
   rewrite H0.
   destruct loc; destruct H; subst b0.
   apply nth_getN; simpl; omega.
@@ -848,7 +848,7 @@ Proof.
   unfold inflate_initial_mem. rewrite resource_at_make_rmap.
   unfold inflate_initial_mem'. rewrite H4.
  unfold Genv.perm_globvar. rewrite VOL. rewrite preds_fmap_NoneP.
-  destruct (gvar_readonly v);  repeat f_equal; auto.
+  destruct (gvar_readonly v);  repeat f_equal; auto with extensionality.
   rewrite H0.
   destruct loc; destruct H; subst b0.
   apply nth_getN; simpl; omega.
@@ -893,7 +893,7 @@ if_tac; auto.
     replace (Byte.unsigned i + 0) with (Byte.unsigned i) in H7 by omega.
     f_equal.
    apply zero_ext_inj. forget (Int.zero_ext 8 (Int.repr (Byte.unsigned i))) as j; inv H7; auto.
-  destruct (gvar_readonly v);  repeat f_equal; auto.
+  destruct (gvar_readonly v);  repeat f_equal; auto with extensionality.
 
 * (* symbol case *)
  rewrite RHO.
@@ -921,7 +921,7 @@ if_tac; auto.
   unfold inflate_initial_mem. rewrite resource_at_make_rmap.
   unfold inflate_initial_mem'. rewrite H6.
  unfold Genv.perm_globvar. rewrite VOL. rewrite preds_fmap_NoneP.
-  destruct (gvar_readonly v);  repeat f_equal; auto.
+  destruct (gvar_readonly v);  repeat f_equal; auto with extensionality.
   rewrite H0.
   destruct loc; destruct H5.  subst b1.
   apply nth_getN; simpl; omega.
