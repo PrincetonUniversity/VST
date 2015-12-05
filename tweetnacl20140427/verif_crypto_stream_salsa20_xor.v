@@ -12,12 +12,73 @@ Require Import tweetnaclVerifiableC.
 Require Import Snuffle. 
 Require Import spec_salsa. Opaque Snuffle.Snuffle.
 
-Lemma sublist_hi {A} (l:list A) a b: 0<=a -> 0<=b -> sublist 0 (a + b) l =
+Lemma sublist_hi_plus {A} (l:list A) lo a b: 0<=lo<=a -> 0<=b -> sublist lo (a + b) l =
+   sublist lo a l ++ sublist a (a+b) l.
+Proof. intros.
+  unfold sublist.
+  assert (X: a+b -lo = a-lo + b) by omega. rewrite X; clear X.
+  rewrite Z2Nat.inj_add, <- firstn_app; try omega. f_equal.
+  assert (Y: a + b - a = b) by omega. rewrite Y; clear Y.
+  rewrite skipn_skipn, Z2Nat.inj_sub; try omega.
+  f_equal. f_equal. rewrite <- le_plus_minus; trivial.
+  apply Z2Nat.inj_le; omega.
+Qed.
+
+Lemma sublist0_hi_plus {A} (l:list A) a b: 0<=a -> 0<=b -> sublist 0 (a + b) l =
    sublist 0 a l ++ sublist a (a+b) l.
 Proof. intros.
-  unfold sublist. do 2 rewrite Zminus_0_r. rewrite skipn_0.
-  rewrite <- Zfirstn_app; trivial.
-  f_equal. f_equal. f_equal. omega.
+  apply sublist_hi_plus; omega.
+Qed.
+
+Lemma byte_unsigned_range_3 b: 0 <= Byte.unsigned b <= Int.max_unsigned.
+Proof.
+  destruct (Byte.unsigned_range_2 b). unfold Byte.max_unsigned in H0; simpl in H0.
+  rewrite int_max_unsigned_eq; omega.
+Qed.
+
+Lemma Int_unsigned_repr_byte b: Int.unsigned (Int.repr (Byte.unsigned b)) = Byte.unsigned b.
+Proof. rewrite Int.unsigned_repr. trivial.
+  apply byte_unsigned_range_3 .
+Qed. 
+
+Lemma zero_ext8_byte b: Int.zero_ext 8 (Int.repr (Byte.unsigned b)) = Int.repr (Byte.unsigned b).
+  apply zero_ext_inrange.
+  rewrite Int.unsigned_repr. apply Byte.unsigned_range_2.
+  apply byte_unsigned_range_3. 
+Qed.
+
+Lemma Zlxor_range_byte b1 b2: 0<= Z.lxor (Byte.unsigned b1) (Byte.unsigned b2) <= Byte.max_unsigned.
+Proof.
+  destruct (Byte.unsigned_range_2 b1).
+  destruct (Byte.unsigned_range_2 b2).
+  split. apply Z.lxor_nonneg. omega. 
+  apply Byte.Ztestbit_le. omega. clear.
+  intros i I H. rewrite Z.lxor_spec in H.
+  destruct (zlt i 8).
+  + clear - I l.  
+    destruct (zeq i 0); subst. reflexivity.
+    destruct (zeq i 1); subst. reflexivity.
+    destruct (zeq i 2); subst. reflexivity.
+    destruct (zeq i 3); subst. reflexivity.
+    destruct (zeq i 4); subst. reflexivity.
+    destruct (zeq i 5); subst. reflexivity.
+    destruct (zeq i 6); subst. reflexivity.
+    destruct (zeq i 7); subst. reflexivity. omega. 
+  + rewrite (isbyteZ_testbit _ i) in H; trivial. 2: apply Byte.unsigned_range.
+    rewrite (isbyteZ_testbit _ i) in H; trivial. 2: apply Byte.unsigned_range.
+    inv H.
+Qed.
+
+Lemma xor_byte_int b1 b2: Int.xor (Int.repr (Byte.unsigned b1)) (Int.repr (Byte.unsigned b2)) =
+      Int.repr (Byte.unsigned (Byte.xor b1 b2)).
+Proof.
+unfold Byte.xor, Int.xor.
+  rewrite Byte.unsigned_repr. 
+  rewrite Int.unsigned_repr.
+  rewrite Int.unsigned_repr; trivial.
+  apply byte_unsigned_range_3.
+  apply byte_unsigned_range_3.
+  apply Zlxor_range_byte.
 Qed.
 
 Lemma Zlength_combinelist {A} f xs ys l:
@@ -554,66 +615,43 @@ store_tac.
   autorewrite with sublist in LL.
   rewrite upd_Znth_app2. 
   Focus 2. rewrite Zlength_Bl2VL. autorewrite with sublist. omega.
-  rewrite SNR, field_at_data_at, Zlength_Bl2VL, LL, Zminus_diag, upd_Znth0, sublist_list_repeat.
+  rewrite SNR, field_at_data_at, Zlength_Bl2VL, LL, Zminus_diag, upd_Znth0, sublist_list_repeat; try omega.
+  2: autorewrite with sublist; omega.
   simpl.
-  rewrite Znth_map with (d':=Int.zero) in Xi. inv Xi.
-  rewrite Znth_map with (d':=Z0). 
-  rewrite Znth_map with (d':=Byte.zero). 
+  rewrite Znth_map with (d':=Int.zero) in Xi. inv Xi. 2: repeat rewrite Zlength_map; omega.
+  rewrite Znth_map with (d':=Z0). 2: rewrite Zlength_map; omega.
+  rewrite Znth_map with (d':=Byte.zero). 2: omega. 
   Exists (l ++ [Byte.xor (Znth (Zlength l)
                                (sublist (Z.of_nat rounds * 64) (Zlength mCont) mCont)
                                Byte.zero)
                          (Znth (Zlength l) sr_bytes Byte.zero)]).
   cancel.
-  apply andp_right. apply prop_right. remember (sublist (Z.of_nat rounds * 64) (Zlength mCont) mCont) as MM.
-  rewrite (sublist_hi MM). rewrite (sublist_hi sr_bytes).
-  apply bxorlist_app. assumption. 
-  autorewrite with sublist.
-  rewrite pure_lemmas.sublist_singleton with (d:=Byte.zero).
-  rewrite pure_lemmas.sublist_singleton with (d:=Byte.zero). reflexivity.
-  rewrite SRL. omega.
-  subst MM; autorewrite with sublist. omega.
-  omega.
-  omega.
-  omega.
-  omega. 
-  2: omega.
-  2: rewrite Zlength_map; omega.
-  2: repeat rewrite Zlength_map; omega.
-  2: omega.
-  2: autorewrite with sublist; omega.
-  rewrite field_address_offset by auto with field_compatible. 
-  rewrite offset_offset_val; simpl. rewrite Int.add_zero.
-  apply derives_refl'. f_equal.
-  unfold Bl2VL. repeat rewrite map_app. rewrite <- app_assoc. f_equal.
-  repeat rewrite map_app. simpl. f_equal.
-  Focus 2. assert (Int64.unsigned bInit - Z.of_nat rounds * 64 - (Zlength l + 1) = Int64.unsigned bInit - Z.of_nat rounds * 64 - Zlength l - 1). omega.
-           rewrite H10; clear H10; rewrite Zlength_list_repeat; trivial. omega.
-  f_equal. autorewrite with sublist.
-  specialize Byte_max_unsigned_Int_max_unsigned; intros HI.
-  destruct (Byte.unsigned_range_2 (Znth (Zlength l) sr_bytes Byte.zero)).
-  destruct (Byte.unsigned_range_2 (Znth (Zlength l + Z.of_nat rounds * 64) mCont Byte.zero)).
-  repeat rewrite zero_ext_inrange.
-  unfold Int.xor. unfold Byte.xor.
-  rewrite Byte.unsigned_repr.
-  repeat rewrite Int.unsigned_repr. trivial.
-  omega. omega.  
-  admit. (*TODO 0 <= Z.lxor*)
-  rewrite Int.unsigned_repr. clear - H11. unfold Byte.max_unsigned in H11. simpl in *. omega.
-  omega.
-  rewrite Int.unsigned_repr. clear - H13. unfold Byte.max_unsigned in H13. simpl in *. omega.
-  omega.
-  unfold Int.xor. 
-  repeat rewrite Int.unsigned_repr. (*TODO Z.lxor <= ...*) admit.
-  omega. omega. 
-  admit. (*TODO 0 <= Z.lxor*)
-  omega.
-  omega.
-  rewrite Int.unsigned_repr. clear - H11. unfold Byte.max_unsigned in H11. simpl in *. omega. 
-  omega.
-  rewrite Int.unsigned_repr. clear - H13. unfold Byte.max_unsigned in H13. simpl in *. omega. 
-  omega. 
+  apply andp_right.
+  + apply prop_right. remember (sublist (Z.of_nat rounds * 64) (Zlength mCont) mCont) as MM.
+    rewrite (sublist0_hi_plus MM); try omega. rewrite (sublist0_hi_plus sr_bytes); try omega.
+    apply bxorlist_app. assumption.   
+    autorewrite with sublist.
+    rewrite pure_lemmas.sublist_singleton with (d:=Byte.zero).
+    rewrite pure_lemmas.sublist_singleton with (d:=Byte.zero). reflexivity.
+    rewrite SRL; omega.
+    subst MM; autorewrite with sublist; omega.
+  + autorewrite with sublist.
+    rewrite field_address_offset by auto with field_compatible.   
+    rewrite offset_offset_val; simpl. rewrite Int.add_zero.
+    apply derives_refl'. f_equal.
+    unfold Bl2VL. repeat rewrite map_app. rewrite <- app_assoc. f_equal.
+    repeat rewrite map_app. simpl. f_equal.
+    Focus 2. assert (X: Int64.unsigned bInit - Z.of_nat rounds * 64 - (Zlength l + 1) = Int64.unsigned bInit - Z.of_nat rounds * 64 - Zlength l - 1) by omega.
+             rewrite X; trivial.
+    f_equal.
 
-  }
+  rewrite zero_ext8_byte.
+  rewrite zero_ext8_byte.
+  rewrite zero_ext_inrange.
+  apply xor_byte_int.
+  rewrite xor_byte_int. rewrite Int.unsigned_repr. apply Byte.unsigned_range_2.
+  apply byte_unsigned_range_3.
+ }  
 
 (*continuation after the FOR(i,64) loop*)
 drop_LOCAL 0%nat.
@@ -622,7 +660,7 @@ forward.
 thaw FR1. unfold CoreInSEP. repeat flatten_sepcon_in_SEP.
 freeze [1;2;3;4;5;6;7;8] FR2.
 unfold SByte.
-apply -> seq_assoc; abbreviate_semax. unfold MORE_COMMANDS, abbreviate.
+apply -> seq_assoc; abbreviate_semax.
 forward.
 
 Parameter zVal:Z-> list val.
@@ -674,4 +712,4 @@ admit.
 
 (*continuation if (b) {...} *)
 admit.
-Qed.
+Time Qed. (*121 secs*)
