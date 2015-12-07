@@ -120,10 +120,279 @@ You will need to install:
 \item VST 1.6 (if available), or else a recent
   stable trunk version such as
   \href{https://github.com/PrincetonUniversity/VST/archive/f42918bceb828706f4274705613f7e4e644557ce.zip}{f42918bceb}.  Follow the instructions in the file BUILD\_ORGANIZATION.
-  
+\end{enumerate}  
 
 
+\newthought{Workflow.}
+Within vst, the \file{progs} directory contains some sample C programs
+with their verifications.  The workflow is:
+\begin{itemize}
+\item Write a C program $F$.c.
+\item Run \lstinline{clightgen $F$.c} to translate it into a Coq
+file $F$.v.
+\item Write a verification of $F$.v in a file such as
+\lstinline{verif_$F$.v}.  That latter file must import
+both $F$.v and the VST \emph{Floyd}\footnote{Named after Robert W. Floyd (1936--2001), a pioneer in program verification.} program verification system,
+\lstinline{floyd.proofauto}.
+\end{itemize}
 
+\newthought{Load paths.}
+Interactive development environments (CoqIDE or Proof General)
+will need their load paths properly initialized through 
+command-line arguments.  Running \textsf{make} in 
+\lstinline{vst} creates a file \lstinline{.loadpath} with
+the right arguments.  You can then do (for example),
+\newline
+\lstinline{coqide `cat .loadpath` $$ progs/verif_reverse.v}
+\newline
+\emph{See the heading} 
+\textsc{using proof general and coqide}
+\emph{in the file} \textsc{build\_organization}
+\emph{for more information.}
+
+\chapter{Clightgen and ASTs}
+
+We will introduce Verifiable C by explaining the
+proof of a simple C program:  adding up the elements of an array.
+
+\begin{lstlisting}
+#include <stddef.h>
+
+int sumarray(int a[], int n) {
+  int i,s,x;
+  i=0;
+  s=0;
+  while (i<n) {
+    x=a[i];
+    s+=x;
+    i++;
+  }
+  return s;
+}
+
+int four[4] = {1,2,3,4};
+
+int main(void) {
+  int s;
+  s = sumarray(four,4);
+  return s;
+}
+\end{lstlisting}
+
+You can examine this program in VST/progs/sumarray.c.
+Then look at progs/sumarray.v to find the output
+of CompCert's \emph{clightgen} utility:  it is the
+abstract syntax tree (AST) of the C program, expressed in Coq.
+In sumarray.v there are definitions such as,
+\begin{lstlisting}
+$\cdots$
+Definition _main : ident := 54%positive.
+$\cdots$
+Definition _s : ident := 50%positive.$\label{s-has-type-ident}$
+$\cdots$
+Definition f_sumarray := {|
+  fn_return := tint;  $\ldots$
+  fn_params := ((_a, (tptr tint)) :: (_n, tint) :: nil);
+  fn_temps := ((_i, tint) :: (_s, tint) :: (_x, tint) :: nil);
+  fn_body :=
+(Ssequence
+  (Sset _i (Econst_int (Int.repr 0) tint))
+  (Ssequence
+    (Sset _s (Econst_int (Int.repr 0) tint))
+    (Ssequence $\ldots$ 
+   )))
+  |}.
+$\cdots$
+
+Definition prog : Clight.program := {| $\ldots$ |}
+\end{lstlisting}
+
+In general it's never necessary to read the AST file such as
+\lstinline{sumarray.v}.  But it's useful to know what kind of thing
+is in there. C-language identifiers such as \lstinline{main} and \lstinline{s}
+are represented in ASTs as positive numbers; the definitions
+\lstinline{_main} and \lstinline{_s} are abbreviations for these.
+The AST for \lstinline{sumarray} is in the function-definition
+\lstinline{f_sumarray}.
+
+There you can see that \lstinline{sumarray}'s return type is
+is \lstinline{int}.  To represent the syntax of C type-expressions,
+CompCert defines,
+\begin{lstlisting}
+Inductive type : Type :=
+  | Tvoid: type   
+  | Tint: intsize -> signedness -> attr -> type
+  | Tpointer: type -> attr -> type
+  | Tstruct: ident -> attr -> type
+  | $\ldots~~$.
+\end{lstlisting}
+and we abbreviate \lstinline{tint := Tint I32 Signed noattr}.
+
+\chapter{Functional spec, API spec}
+
+\emph{A program without a specification cannot be \emph{incorrect},
+it can only be \emph{surprising}.  \hfill (Paraphrase of J. J. Horning, 1982)}
+
+To prove correctness of \lstinline{sumarray.c},
+we start by writing a \emph{functional spec} of adding-up-a-sequence,
+then an \emph{API spec} of adding-up-an-array-in-C.
+
+\newthought{Functional spec.}
+A \emph{mathematical model} of this program is the sum of a sequence
+of integers: $\sum_{i=0}^{n-1}x_i$.  It's conventional in Coq to use
+\textsf{list} to represent a sequence; we can represent the sum
+with a list-fold:
+\begin{lstlisting}
+Definition sum_Z := fold_right Z.add 0.
+\end{lstlisting}
+A functional spec contains not only definitions; it's also
+useful to include theorems about this mathematical domain:
+\begin{lstlisting}
+Lemma sum_Z_app: forall a b, sum_Z (a++b) =  sum_Z a + sum_Z b.
+Proof.
+  intros. induction a; simpl; omega.
+Qed.
+\end{lstlisting}
+The data types used in a functional spec can be any kind of mathematics
+at all, as long as we have a way to relate them to the integers,
+tuples, and sequences used in a C program.  But the mathematical integers
+\lstinline{Z} and the 32-bit modular integers
+\lstinline{Int.int} are often relevant.
+
+\newthought{API spec.}
+The API, or \emph{application programmer interface}, of a C program
+is expressed in its header file: function prototypes and data-structure
+definitions that explain how to call upon the modules' functionality.
+In \emph{Verifiable C}, an \emph{API specification} is written
+as a series of \emph{function specifications} (\lstinline{funspec}s)
+corresponding to the function prototypes.
+
+\pagebreak
+\begin{lstlisting}
+Definition sumarray_spec :=
+DECLARE _sumarray
+ WITH a: val, sh : share, contents : list int, size: Z
+ PRE [ _a OF (tptr tint), _n OF tint ]
+      PROP  (readable_share sh; 0 <= size <= Int.max_signed)
+      LOCAL (temp _a a; temp _n (Vint (Int.repr size)))
+      SEP   (data_at sh (tarray tint size) (map Vint contents) a)
+ POST [ tint ]
+      PROP () LOCAL(temp ret_temp  (Vint (sum_int contents)))
+      SEP (data_at sh (tarray tint size) (map Vint contents) a).
+\end{lstlisting}
+
+The funspec begins, \lstinline{Definition $f$_spec := DECLARE $\mathrm{id}_f$ ...}
+where $f$ is the name of the C function.  
+
+A function is specified by its \emph{precondition} and its \emph{postcondition}.
+The \textsc{with} clause quantifies over Coq values that
+may appear in both the precondition and the postcondition.
+The precondition is parameterized by the C-language function parameters,
+and the postcondition is parameterized by a identifier \lstinline{ret_temp},
+which is short for, ``the temporary variable holding the return value.''
+But really, the Coq variable \lstinline{_a} does not have type (pointer-to-int);
+it has type \lstinline{ident} (see
+\autopageref{s-has-type-ident}).  
+
+An assertion in Verifiable C's \emph{separation logic}
+can be written at either of two levels:
+The \emph{lifted level}, implicitly quantifying over all
+local-variable states; or the \emph{base level}, at a particular
+  local-variable state.  Program assertions are written
+  at the lifted level, for which the notation is
+  \lstinline{PROP($\ldots$) LOCAL($\ldots$) SEP($\ldots$)}.
+
+In an assertion
+\lstinline{PROP($\vec{P}$) LOCAL($\vec{Q}$) SEP($\vec{R}$)},
+the propositions in the sequence $\vec{P}$ are all of Coq type
+\lstinline{Prop}.  They describe things that are forever true,
+independent of program state.  Of course, in the function precondition
+above, the statement \lstinline{0 <= size <= Int.max_signed} is
+``forever'' true \emph{just within the scope of the quantification of
+  the variable \lstinline{size}}; it is bound by 
+\lstinline{WITH} and spans the \lstinline{PRE} and
+\lstinline{POST} assertions.
+
+The \lstinline{LOCAL} propositions $\vec{Q}$ are \emph{variable
+  bindings} of type \lstinline{localdef}.  Here, the
+function-parameters $a$ and $n$ are treated as nonaddressable local
+variables, or ``temp'' variables.  The localdef
+\lstinline{(temp _a  a)}
+says that (in this program state) the contents of C local
+variable \lstinline{_a} is the Coq value \lstinline{a}.  In general,
+the contents of a C scalar variable is always a \lstinline{val}; this
+type is defined by CompCert as,
+
+\begin{lstlisting}
+Inductive val: Type :=
+| Vundef: val
+| Vint: int -> val
+| Vlong: int64 -> val
+| Vfloat: float -> val
+| Vsingle: float32 -> val
+| Vptr: block -> int -> val.
+\end{lstlisting}
+
+The \lstinline{SEP} conjuncts $\vec{R}$ are
+\emph{spatial assertions} in separation logic.
+In this case, there's just one, a \lstinline{data_at}
+assertion saying that at address \lstinline{a} in memory,
+there is a data structure of type \emph{array[size] of integers},
+with access-permission \lstinline{sh},
+and the contents of that array is the sequence
+\lstinline{map Vint contents}.
+
+\newthought{The postcondition} is introduced by \lstinline{POST [ tint ]},
+indicating that this function returns a value of type \lstinline{int}.
+There are no \lstinline{PROP} statements in the postcondition,
+because no forever-true facts exist in the world that weren't
+already true on entry to the function.  (This is typical!)
+The \lstinline{LOCAL} \emph{must not mention} the function parameters,
+because they are destroyed on function exit; it will only mention
+the return-temporary \lstinline{ret_temp}.
+The \lstinline{SEP} clause mentions all the spatial resources
+from the precondition, minus ones that have been freed (deallocated),
+plus ones that have been malloc'd (allocated).
+
+So, overall, the specification for \lstinline{sumarray} is this:
+``At any call to sumarray, there exist values $a,\mathit{sh},
+\mathit{contents},\mathit{size}$
+such that $\mathit{sh}$ gives at least read-permission;
+$\mathit{size}$ is representable as a nonnegative 32-bit signed integer;
+function-parameter \lstinline{_a} contains value $a$
+and \lstinline{_n} contains the 32-bit representation of $\mathit{size}$;
+and there's an array in memory at address $a$
+with permission $\mathit{sh}$ containing $\mathit{contents}$.
+The function returns a value equal to \lstinline{sum_int($\mathit{contents}$)},
+and leaves the array unaltered.''
+
+\chapter{Proof of \textsf{sumarray} program}
+\label{refcard:sumarray-proof}
+
+\chapter{CompSpecs}
+\label{refcard:compspecs}
+\chapter{data\_at}
+\label{refcard:data-at}
+
+\chapter{Separation logic: \texttt{EX}, $*$, \texttt{emp}, !!}
+\label{refcard:separation-logic}
+
+\chapter{PROP()LOCAL()SEP()}
+\label{refcard:prop-local-sep}
+
+\chapter{Intros, Exists}
+\label{refcard:intros}
+\chapter{Localdefs: temp, lvar, gvar, sgvar, tc_env}
+\label{refcard:localdefs}
+
+\chapter{entailer!}
+\label{refcard:entailer}
+
+
+\chapter{BOUNDARY}
+Everything beyond here is junk, left over from the
+old Verifiable C manual, that needs to be rewritten and moved
+above the boundary.
 
 \chapter{Getting started}
 
@@ -170,31 +439,6 @@ Do not create a CONFIGURE file, and do:\newline
 \end{enumerate}
 See also the file \file{vst/BUILD\_ORGANIZATION}.
 
-Within vst, the \file{progs} directory contains some sample C programs
-with their verifications.  The workflow is:
-\begin{itemize}
-\item Write a C program $F$.c.
-\item Run \lstinline{clightgen $F$.c} to translate it into a Coq
-file $F$.v.
-\item Write a verification of $F$.v in a file such as
-\lstinline{verif_$F$.v}.  That latter file must import
-both $F$.v and the VST \emph{Floyd}\footnote{Named after Robert W. Floyd (1936--2001), a pioneer in program verification.} program verification system,
-\lstinline{floyd.proofauto}.
-\end{itemize}
-
-\newthought{Load paths.}
-Interactive development environments (CoqIDE or Proof General)
-will need their load paths properly initialized through 
-command-line arguments.  Running \textsf{make} in 
-\lstinline{vst} creates a file \lstinline{.loadpath} with
-the right arguments.  You can then do (for example),
-\newline
-\lstinline{coqide `cat .loadpath` $$ progs/verif_reverse.v}
-\newline
-\emph{See the heading} 
-\textsc{using proof general and coqide}
-\emph{in the file} \textsc{build\_organization}
-\emph{for more information.}
 
 The \lstinline{verif_reverse.v} example is described
 in PLCC \autoref{ch:clight-program}.

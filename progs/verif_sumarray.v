@@ -1,13 +1,10 @@
-Require Import floyd.proofauto.
-Require Import progs.sumarray.
-Instance CompSpecs : compspecs.
-Proof. make_compspecs prog. Defined.
+Require Import floyd.proofauto. (* Import the Verifiable C system *)
+Require Import progs.sumarray. (* Import the AST of this C program *)
+(* The next line is "boilerplate", always required after importing an AST. *)
+Instance CompSpecs : compspecs. Proof. make_compspecs prog. Defined.
+Local Open Scope logic.  (* Recommended; imports Notation for separation logic *)
 
-Local Open Scope logic.
-
-Definition force_option {A} (x:A) (i: option A) := 
-  match i with Some y => y | None => x end.
-
+(* Some definitions relating to the functional spec of this particular program.  *)
 Definition sum_int := fold_right Int.add Int.zero.
   
 Lemma sum_int_app:
@@ -17,37 +14,6 @@ intros.
 induction a; simpl. rewrite Int.add_zero_l; auto.
 rewrite IHa. rewrite Int.add_assoc. auto.
 Qed.
-
-Definition sumarray_spec :=
- DECLARE _sumarray
-  WITH a0: val, sh : share, contents : list int, size: Z
-  PRE [ _a OF (tptr tint), _n OF tint ]
-          PROP  (readable_share sh; 0 <= size <= Int.max_signed)
-          LOCAL (temp _a a0; temp _n (Vint (Int.repr size)))
-          SEP   (data_at sh (tarray tint size) (map Vint contents) a0)
-  POST [ tint ]
-        PROP () LOCAL(temp ret_temp  (Vint (sum_int contents)))
-           SEP (data_at sh (tarray tint size) (map Vint contents) a0).
-
-Definition main_spec :=
- DECLARE _main
-  WITH u : unit
-  PRE  [] main_pre prog u
-  POST [ tint ] main_post prog u.
-
-Definition Vprog : varspecs := (_four, Tarray tint 4 noattr)::nil.
-
-Definition Gprog : funspecs := 
-    sumarray_spec :: main_spec::nil.
-
-Definition sumarray_Inv a0 sh contents size := 
- EX i: Z,
-   PROP  (0 <= i <= size)
-   LOCAL (temp _a a0; 
-          temp _i (Vint (Int.repr i));
-          temp _n (Vint (Int.repr size));
-          temp _s (Vint (sum_int (sublist 0 i contents))))
-   SEP   (data_at sh (tarray tint size) (map Vint contents) a0).
 
 Lemma add_one_more_to_sum: forall contents i x,
   Znth i (map Vint contents) Vundef = Vint x ->
@@ -68,74 +34,99 @@ Proof.
   inv H.
 Qed.
 
+(* Beginning of the API spec for the sumarray.c program *)
+Definition sumarray_spec :=
+ DECLARE _sumarray
+  WITH a: val, sh : share, contents : list int, size: Z
+  PRE [ _a OF (tptr tint), _n OF tint ]
+          PROP  (readable_share sh; 0 <= size <= Int.max_signed)
+          LOCAL (temp _a a; temp _n (Vint (Int.repr size)))
+          SEP   (data_at sh (tarray tint size) (map Vint contents) a)
+  POST [ tint ]
+        PROP () LOCAL(temp ret_temp  (Vint (sum_int contents)))
+           SEP (data_at sh (tarray tint size) (map Vint contents) a).
+
+(* The spec of "int main(void){}" always looks like this. *)
+Definition main_spec :=
+ DECLARE _main
+  WITH u : unit
+  PRE  [] main_pre prog u
+  POST [ tint ] main_post prog u.
+
+(* Packaging the API spec all together. *)
+Definition Vprog : varspecs := (_four, Tarray tint 4 noattr)::nil. 
+Definition Gprog : funspecs := sumarray_spec :: main_spec::nil.
+
+(* Loop invariant, for use in body_sumarray.  *)
+Definition sumarray_Inv a sh contents size := 
+ EX i: Z,
+   PROP  (0 <= i <= size)
+   LOCAL (temp _a a; 
+          temp _i (Vint (Int.repr i));
+          temp _n (Vint (Int.repr size));
+          temp _s (Vint (sum_int (sublist 0 i contents))))
+   SEP   (data_at sh (tarray tint size) (map Vint contents) a).
+
+(** Proof that f_sumarray, the body of the sumarray() function,
+ ** satisfies sumarray_spec, in the global context (Vprog,Gprog).
+ **)
 Lemma body_sumarray: semax_body Vprog Gprog f_sumarray sumarray_spec.
 Proof.
-start_function.
-name a _a.
-name n _n.
-name i _i.
+start_function.  (* Always do this at the beginning of a semax_body proof *)
+name a0 _a.   (* Hint: use name [a] for any Coq variables that are *)
+name n _n.   (*  introduced to represent the contents of C variable _a; *)
+name i _i.     (*  use [n] for contents of _n, et cetera *)
 name s _s.
 name x _x.
+(* The next two lines do forward symbolic execution through
+   the first two executable statements of the function body *)
 forward.  (* i = 0; *) 
 forward.  (* s = 0; *)
-forward_while (sumarray_Inv a0 sh contents size).
+(* To do symbolic execution through a [while] loop, we must
+ * provide a loop invariant, so we use [forward_while] with
+ * the invariant as an argument .*)
+forward_while (sumarray_Inv a sh contents size).
+(* forward_while leaves four subgoals; here we label them
+   with the * bullet. *)
 * (* Prove that current precondition implies loop invariant *)
-Exists 0.
-entailer!.  (* smt_test verif_sumarray_example1 *)
+Exists 0.   (* Instantiate the existential on the right-side of |--   *)
+entailer!.  (* Simplify this entailment as much as possible; in this
+      case, it solves entirely; in other cases, entailer! leaves subgoals *)
 * (* Prove that loop invariant implies typechecking condition *)
-entailer!.
+entailer!.  (* Typechecking conditions usually solve quite easily *)
 * (* Prove postcondition of loop body implies loop invariant *)
+(* In order to get to the postcondition of the loop body, of course,
+   we must forward-symbolic-execute through the loop body;
+   so we start that here. *)
 forward. (* x = a[i] *)
-entailer!. (* smt_test verif_sumarray_example2 *)
-  (* there should be an easier way than this: *)
-   rewrite Znth_map with (d':=Int.zero). apply I.
+entailer!. (* This is an example of a typechecking condition 
+   that is nontrivial; entailer! leaves a subgoal.  The subgoal basically
+   says that the array-subscript index is in range;  not just in 
+   the bounds of the array, but in the _initialized_ portion of the array.*)
+   rewrite Znth_map with (d':=Int.zero). hnf; auto.
   rewrite Zlength_map in *; omega.
 forward. (* s += x; *)
 forward. (* i++; *)
- apply exp_right with (Zsucc i0).
- entailer!.  (* smt_test: verif_sumarray_example3 *)
+ (* Now we have reached the end of the loop body, and it's
+   time to prove that the _current precondition_  (which is the 
+   postcondition of the loop body) entails the loop invariant. *)
+ Exists (Zsucc i0).
+ entailer!.
  rewrite H2 in H1; inv H1.
  f_equal; apply add_one_more_to_sum; try omega; auto.
 * (* After the loop *)
 forward.  (* return s; *)
+ (* Here we prove that the postcondition of the function body
+    entails the postcondition demanded by the function specification. *)
 entailer!.
 rewrite Zlength_map in *.
-rewrite sublist_same by omega.
+autorewrite with sublist.
 reflexivity.
 Qed.
 
 
-Definition four_contents := [Int.repr 1; Int.repr 2; Int.repr 3; Int.repr 4].
-
-Lemma forall_Forall: forall A (P: A -> Prop) xs d,
-  (forall x, In x xs -> P x) ->
-  forall i, 0 <= i < Zlength xs -> P (Znth i xs d).
-Proof.
-  intros.
-  unfold Znth.
-  if_tac; [omega |].
-  assert (Z.to_nat i < length xs)%nat.
-  Focus 1. {
-    rewrite Zlength_correct in H0.
-    destruct H0 as [_ ?].
-    apply Z2Nat.inj_lt in H0; [| omega | omega].
-    rewrite Nat2Z.id in H0.
-    exact H0.
-  } Unfocus.
-  forget (Z.to_nat i) as n.
-  clear i H0 H1.
-  revert n H2; induction xs; intros.
-  + destruct n; simpl in H2; omega.
-  + destruct n.
-    - specialize (H a (or_introl eq_refl)).
-      simpl.
-      tauto.
-    - simpl in *.
-      apply IHxs; [| omega].
-      intros.
-      apply H.
-      tauto.
-Qed.
+(* Contents of the extern global initialized array "_four" *)
+Definition four_contents := map Int.repr [1;2;3;4].
 
 Lemma body_main:  semax_body Vprog Gprog f_main main_spec.
 Proof.
