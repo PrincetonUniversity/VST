@@ -273,7 +273,7 @@ Definition sumarray_spec :=
 DECLARE _sumarray
  WITH a: val, sh : share, contents : list int, size: Z
  PRE [ _a OF (tptr tint), _n OF tint ]
-      PROP  (readable_share sh; 0 <= size <= Int.max_signed)
+      PROP  (readable_share sh; 0 <= size <= Int.max_signed)$\label{refcard:example-readable-share}$
       LOCAL (temp _a a; temp _n (Vint (Int.repr size)))
       SEP   (data_at sh (tarray tint size) (map Vint contents) a)
  POST [ tint ]
@@ -366,28 +366,178 @@ with permission $\mathit{sh}$ containing $\mathit{contents}$.
 The function returns a value equal to \lstinline{sum_int($\mathit{contents}$)},
 and leaves the array unaltered.''
 
-\chapter{Proof of \textsf{sumarray} program}
+\newthought{Integer overflow.}
+The C language specification says that a C compiler may treat
+signed integer overflow by wrapping around mod $2^n$, where n is the
+word size (e.g., 32).  In practice, almost all C compilers (including
+CompCert) do this wraparound, and it is part of the CompCert
+C light operational semantics. See \autoref{refcard:int-repr}.
+The function \lstinline{Int.repr: Z -> int} truncates mathematical
+integers into 32-bit integers by taking the (sign-extended) low-order
+32 bits.  \lstinline{Int.signed: int -> Z} injects back into the signed
+integers.
+
+In this program, \lstinline{sum_int contents} is the signed,
+mod-$2^{32}$ sum.  Suppose \lstinline{$s$: list Z} is a sequence of
+integers, and \lstinline{contents = map Int.repr $s$}.
+Is it true that \lstinline{sum_int contents = Int.repr ($\sum s$)}?
+Well, yes, but that is not necessarily what we want to know:
+the more important question is: \lstinline{Int.signed (sum_int contents) $\stackrel{?}{=}~\sum s$}.
+This will be true only if \lstinline{Int.min_signed $\le \sum s \le$ Int.max_signed}.
+Whoever calls this \lstinline{sumarray} function will likely
+need to prove this range fact about $s$ in order to make use
+of the specification of the function.\footnote{What if $s$
+  is the sequence \lstinline{[Int.max_signed; 5; 1-Int.max_signed]}?
+  Then $\sum\,s=6$.  Does the program really work?  Answer: Yes,
+  by the miracle of modular arithmetic.}
+But it does not need to part of the specification itself.
+
+\newthought{In most cases,}
+the WITH clause of a function-spec should not mention
+values of type \lstinline{int}, but only values of type Z.
+Thus, a more idiomatic use of Verifiable C would have
+\lstinline{WITH$\ldots$s: list Z$\ldots$}
+and then mention \lstinline{map Vint (map Int.repr s)}.
+This is the way the \lstinline{size} variable is treated, for example.
+
+
+
+
+\chapter{Proof of the \textsf{sumarray} program}
 \label{refcard:sumarray-proof}
+
+\chapter{Integers: Z and int}
+
+\ychapter{Values: {\upshape Vint, Vptr,} etc.}{(\file{compcert/common/Values.v})}
+
+\begin{lstlisting}
+Definition block : Type := positive.
+
+Inductive val: Type :=
+  | Vundef: val
+  | Vint: int -> val
+  | Vlong: int64 -> val
+  | Vfloat: float -> val
+  | Vsingle: float32 -> val
+  | Vptr: block -> int -> val.
+\end{lstlisting}
+\lstinline{Vundef} is the \emph{undefined} value---found, for example,
+in an uninitialized local variable.  
+
+\lstinline{Vint($i$)} is an integer value,
+where $i$ is a CompCert 32-bit integer.  These 32-bit integers
+can also
+represent short (16-bit) and char (8-bit) values.
+
+\lstinline{Vfloat($f$)} is an floating-point value,
+where $f$ is a Flocq 64-bit floating-point number.
+
+\lstinline{Vfloat($f$)} is a single-precision floating-point value.
+
+\lstinline{Vptr $b$ $z$} is a pointer value,
+where $b$ is an abstract block number and $z$ is an offset
+within that block.  Different \emph{malloc} operations,
+or different extern global variables, or 
+stack-memory-resident local variables,
+will have different abstract block numbers.
+Pointer arithmetic must be done within the same abstract block,
+with $(\mathsf{Vptr}\,b\,z)+(\mathsf{Vint}~i)~=~\mathsf{Vptr}\,b\,(z+i)$.
+Of course, the C-language + operator first multiplies $i$
+by the size of the array-element that 
+$\mathsf{Vptr}\,b\,z$ points to.
+
+\lstinline{Vundef} is not always treated as distinct from a defined value.
+For example, $p\mapsto \mathsf{Vint}\,5 ~\vdash~ p\mapsto \mathsf{Vundef}$,
+where $\mapsto$ is the \lstinline{data_at} operator (\autoref{refcard:data-at}).
+That is, $p\mapsto \mathsf{Vundef}$ really means
+$\exists v, p\mapsto v$.  \lstinline{Vundef} could mean
+``truly uninitialized'' or it could mean ``initialized but arbitrary.''
+
 
 \chapter{CompSpecs}
 \label{refcard:compspecs}
-\chapter{data\_at}
+\chapter{\upshape data\_at}
 \label{refcard:data-at}
 
-\chapter{Separation logic: \texttt{EX}, $*$, \texttt{emp}, !!}
+
+
+\chapter{Separation logic: \upshape \textsf{EX}, $*$, \textsf{emp}, !!}
 \label{refcard:separation-logic}
 
-\chapter{PROP()LOCAL()SEP()}
+\chapter{\upshape PROP( ) LOCAL( ) SEP( )}
 \label{refcard:prop-local-sep}
 
 \chapter{Intros, Exists}
 \label{refcard:intros}
-\chapter{Localdefs: temp, lvar, gvar, sgvar, tc_env}
+\chapter{Localdefs: \upshape \sffamily temp, lvar, gvar}
 \label{refcard:localdefs}
 
 \chapter{entailer!}
 \label{refcard:entailer}
 
+\ychapter{Shares}{(See PLCC Chapters~\ref{ch:shares},\ref{ch:share-model})}
+The \lstinline{mapsto} operator (and related operators) take a
+\emph{permission share}, expressing whether
+the \lstinline{mapsto} grants read permission, write permission,
+or some other fractional permission.
+
+\centerline{\includegraphics[scale=1.25]{graphics/shares.pdf}}
+
+The \emph{top} share, written \lstinline{Tsh} or
+\lstinline{Share.top}, gives total permission: to deallocate any cells
+within the footprint of this mapsto, to read, to write.
+\[
+\begin{array}{ll}
+\mathsf{Share.split}~\mathsf{Tsh} = (\mathsf{Lsh},\mathsf{Rsh}) & \\
+\mathsf{Share.split}~\mathsf{Lsh} = (a,a')  & \mathsf{Share.split}~\mathsf{Rsh} = (b,b') \\
+a'\oplus b = c & \mathrm{lub}(c,\mathsf{Rsh})=a'\oplus \mathsf{Rsh}=d\\
+\multicolumn{2}{l}{\forall \mathit{sh}.~\mathsf{writable\_share}~\mathit{sh}~\rightarrow~\mathsf{readable\_share}~\mathit{sh}}\\
+\mathsf{writable\_share}~\mathsf{Ews} & \mathsf{readable\_share}~\mathsf{b} \\
+\mathsf{writable\_share}~d & \mathsf{readable\_share}~c \\
+\mathsf{writable\_share}~\mathsf{Tsh} &  \neg \mathsf{readable\_share}~\mathsf{Lsh} \\
+\end{array}
+\]
+Any share may be split into a \emph{left half} and a \emph{right half}.
+The left and right of the top share are given distinguished names
+\lstinline{Lsh, Rsh}.
+
+The right-half share of the top share (or any share containing it such
+as $d$) is sufficient to grant \emph{write permission} to the data:
+``the right share is the write share.''  A thread of execution holding
+only \lstinline{Lsh}---or subshares of it such as $a,a'$---can neither
+read or write the object, but such shares are not completely useless:
+holding any nonempty share prevents other threads from deallocating
+the object.
+
+Any subshare of \lstinline{Rsh}, in fact any share that overlaps
+ \lstinline{Rsh}, grants \emph{read} permission to the object.
+Overlap can be tested using the glb (greatest lower bound) operator.
+
+Whenever \lstinline{(mapsto $\mathit{sh}$ t v w)} holds, then the share $\mathit{sh}$
+must include at least a read share, thus this give permission to load
+memory at address $v$ to get a value $w$ of type $t$.
+
+To make sure $\mathit{sh}$ has enough permission to write (i.e., 
+$\mathsf{Rsh} \subset \mathit{sh}$, we can say \lstinline{writable_share $\mathit{sh}$ : Prop}.
+
+Memory obtained from \lstinline{malloc} comes with the top share
+\lstinline{Tsh}.  Writable extern global variables
+and stack-allocated addressable locals (which of course
+must not be deallocated) come with the ``extern writable share'' 
+\lstinline{Ews} which is equal to \lstinline{Rsh}.
+Read-only globals come with a half-share of \lstinline{Rsh}.
+
+Sequential programs usually have little need of any shares except
+the \lstinline{Tsh} and \lstinline{Ews}.  However, many function 
+specifications can be parameterized over any share (example: \autopageref{refcard:example-readable-share}), and this sort
+of generalized specification makes the functions usable in more contexts.
+
+In C it is undefined to test deallocated pointers for equality or inequalities,
+so the Hoare-logic rule for pointer comparison also requires some
+permission-share; see \autopageref{refcard:pointer-cmp}.
+
+
+\chapter{Pointer comparisons}
 
 \chapter{BOUNDARY}
 Everything beyond here is junk, left over from the
@@ -475,11 +625,11 @@ typed; see \autoref{refcard:structured} of this manual.
    last two arguments are swapped.
 \item \lstinline{umapsto} (``untyped mapsto'') no
 longer exists.
-\item \lstinline{mapsto $\pi$ $t$ $v$ $w$}
+\item \lstinline{mapsto $\mathit{sh}$ $t$ $v$ $w$}
 ~~~now permits either ($w=$\lstinline{Vundef})
 or the value $w$ belongs to type $t$.  
 This permits describing uninitialized locations,
-i.e., \lstinline{mapsto_ $\pi$ $t$ $v$ = mapsto_ $\pi$ $t$ $v$ Vundef}.
+i.e., \lstinline{mapsto_ $\mathit{sh}$ $t$ $v$ = mapsto_ $\mathit{sh}$ $t$ $v$ Vundef}.
 See \autoref{refcard:structured} of this manual.
 \item Supercanonical form is now suggested; see 
 \autoref{refcard:supercanonical} of this manual.
@@ -611,19 +761,19 @@ written $x\mapsto y$ in separation logic,
 that is, a singleton heap containing just value $y$ at address $x$.
 But we almost always use one of the following derived forms:
 
-\noindent \lstinline{mapsto ($\pi$:share) (t:type) (v w: val) : mpred}
+\noindent \lstinline{mapsto ($\mathit{sh}$:share) (t:type) (v w: val) : mpred}
 $\qquad$describes a singleton heap with
 just one value $w$ of (C-language) type $t$
-at address $v$, with permission-share $\pi$.
+at address $v$, with permission-share $\mathit{sh}$.
 
-\noindent \lstinline{mapsto_ $$ ($\pi$:share) (t:type) (v:val) : mpred}
+\noindent \lstinline{mapsto_ $$ ($\mathit{sh}$:share) (t:type) (v:val) : mpred}
 $\qquad$
 describes an \emph{uninitialized} singleton heap with
 space to hold a value of type $t$
-at address $v$, with permission-share $\pi$.
+at address $v$, with permission-share $\mathit{sh}$.
 
 \noindent
-\lstinline{field_at ($\pi$: share) (t: type) (f: list ident) (w: reptype (nested\_field\_type2 f) (v: val) : mpred}
+\lstinline{field_at ($\mathit{sh}$: share) (t: type) (f: list ident) (w: reptype (nested\_field\_type2 f) (v: val) : mpred}
 \newline  describes a heap
 that holds just field \lstinline{fld} 
 of \lstinline{struct}-value $v$,
@@ -637,65 +787,8 @@ If $f$ is the empty path, then the field is equivalent to
 The type of $w$ is a dependent type.
 \emph{Note: arguments $w,v$ are swapped compared to the PLCC book.}
 
-\lstinline{field_at_ ($\pi$: share) (t: type) (fld: ident) (v: val) : mpred}
+\lstinline{field_at_ ($\mathit{sh}$: share) (t: type) (fld: ident) (v: val) : mpred}
 \newline is the corresponding uninitialized structure-field.
-
-\ychapter{Shares}{(See PLCC Chapters~\ref{ch:shares},\ref{ch:share-model})}
-The \lstinline{mapsto} operator (and related operators) take a
-\emph{permission share}, here written $\pi$ and typically
-written \lstinline{sh} in Coq, expressing whether
-the \lstinline{mapsto} grants read permission, write permission,
-or some other fractional permission.
-
-\centerline{\includegraphics[scale=1.25]{graphics/shares.pdf}}
-
-The \emph{top} share, written \lstinline{Tsh} or
-\lstinline{Share.top}, gives total permission: to deallocate any cells
-within the footprint of this mapsto, to read, to write.
-
-\begin{lstlisting}
-Share.split Tsh = (Lsh,Rsh)
-Share.split Lsh = ($a,a'$)  $\qquad$ Share.split Rsh = ($b,b'$)
-$a'\oplus b = c\qquad\qquad \mathrm{lub}(c,\mathsf{Rsh})=a'\oplus \mathsf{Rsh}=d$
-\end{lstlisting}
-Any share may be split into a \emph{left half} and a \emph{right half}.
-The left and right of the top share are given distinguished names
-\lstinline{Lsh, Rsh}.
-
-The right-half share of the top share (or any share containing it such
-as $d$) is sufficient to grant \emph{write permission} to the data:
-``the right share is the write share.''  A thread of execution holding
-only \lstinline{Lsh}---or subshares of it such as $a,a'$---can neither
-read or write the object, but such shares are not completely useless:
-holding any nonempty share prevents other threads from deallocating
-the object.
-
-Any subshare of \lstinline{Rsh}, in fact any share that overlaps
- \lstinline{Rsh}, grants \emph{read} permission to the object.
-Overlap can be tested using the glb (greatest lower bound) operator.
-
-Whenever \lstinline{(mapsto $\pi$ t v w)} holds, then the share $\pi$
-must include at least a read share, thus this give permission to load
-memory at address $v$ to get a value $w$ of type $t$.
-
-To make sure $\pi$ has enough permission to write (i.e., 
-$\mathsf{Rsh} \subset \pi$, we can say \lstinline{writable_share $\pi$ : Prop}.
-
-Memory obtained from \lstinline{malloc} comes with the top share
-\lstinline{Tsh}.  Writable extern global variables
-and stack-allocated addressable locals (which of course
-must not be deallocated) come with the ``extern writable share'' 
-\lstinline{Ews} which is equal to \lstinline{Rsh}.
-Read-only globals come with a half-share of \lstinline{Rsh}.
-
-Sequential programs usually have little need of any shares except
-the \lstinline{Tsh} and \lstinline{Ews}.  However, many function 
-specifications can be parameterized over any share, and this sort
-of generalized specification makes the functions usable in more contexts.
-
-In C it is undefined to test deallocated pointers for equality or inequalities,
-so the Hoare-logic rule for pointer comparison also requires some
-permission-share; see \autopageref{refcard:pointer-cmp}.
 
 
 \ychapter{CompCert C}{}
@@ -854,39 +947,6 @@ and many more axioms for the bitwise operators, shift operators,
 signed/unsigned division and mod operators.
 
 
-\ychapter{Values}{(\file{compcert/common/Values.v})}
-
-\begin{lstlisting}
-Definition block : Type := positive.
-
-Inductive val: Type :=
-  | Vundef: val
-  | Vint: int -> val
-  | Vlong: int64 -> val
-  | Vfloat: float -> val
-  | Vptr: block -> int -> val.
-\end{lstlisting}
-
-\lstinline{Vundef} is the \emph{undefined} value---found, for example,
-in an uninitialized local variable.
-
-\lstinline{Vint($i$)} is an integer value,
-where $i$ is a CompCert 32-bit integer.
-
-\lstinline{Vfloat($f$)} is an floating-point value,
-where $f$ is a Flocq 64-bit floating-point number.
-
-\lstinline{Vptr $b$ $z$} is a pointer value,
-where $b$ is an abstract block number and $z$ is an offset
-within that block.  Different \emph{malloc} operations,
-or different extern global variables, or 
-stack-memory-resident local variables,
-will have different abstract block numbers.
-Pointer arithmetic must be done within the same abstract block,
-with $(\mathsf{Vptr}\,b\,z)+(\mathsf{Vint}~i)~=~\mathsf{Vptr}\,b\,(z+i)$.
-Of course, the C-language + operator first multiplies $i$
-by the size of the array-element that 
-$\mathsf{Vptr}\,b\,z$ points to.
 
 \ychapter{C types}{(\file{compcert/cfrontend/Ctypes.v})}
 \begin{lstlisting}
@@ -1299,8 +1359,8 @@ then we can write $P*Q$,  $P \andp Q$, and so on.
 
 Consider this assertion:
 \begin{lstlisting}
-fun $\rho$ => mapsto $\pi$ tint (eval_id _x $\rho$) (eval_id _y $\rho$) 
-             * mapsto $\pi$ tint (eval_id _u $\rho$) (Vint Int.zero)
+fun $\rho$ => mapsto $\mathit{sh}$ tint (eval_id _x $\rho$) (eval_id _y $\rho$) 
+             * mapsto $\mathit{sh}$ tint (eval_id _u $\rho$) (Vint Int.zero)
 \end{lstlisting}
 which might appear as the precondition of a Hoare triple.
 It represents $(x\mapsto y) *(u\mapsto 0)$ written in informal
@@ -1310,8 +1370,8 @@ Because it can be inconvenient to manipulate explicit lambda expressions
 and explicit environment variables $\rho$, we may write it in lifted
 form,
 \begin{lstlisting}
- `(mapsto $\pi$ tint) (eval_id _x) (eval_id _y) 
-* `(mapsto $\pi$ tint) (eval_id _u) `(Vint Int.zero)
+ `(mapsto $\mathit{sh}$ tint) (eval_id _x) (eval_id _y) 
+* `(mapsto $\mathit{sh}$ tint) (eval_id _u) `(Vint Int.zero)
 \end{lstlisting}
 Each of the first two backquotes lifts a function
 from type \lstinline{val->val->mpred} to type
@@ -1719,15 +1779,15 @@ x\not=y \rightarrow
 
 \textbf{Structure fields.}
 \begin{mathpar}
-\mathsf{field\_mapsto}~\pi~t~\mathit{fld}~(\mathsf{force\_ptr}~ v) =
-\mathsf{field\_mapsto}~\pi~t~\mathit{fld}~v \and
-\mathsf{field\_mapsto\_}~\pi~t~\mathit{fld}~(\mathsf{force\_ptr}~ v) =
-\mathsf{field\_mapsto\_}~\pi~t~\mathit{fld}~v \and
-\mathsf{field\_mapsto}~\pi~t~x~(\mathsf{offset\_val}~v~\mathsf{Int.zero}) =
-\mathsf{field\_mapsto}~\pi~t~x~v \and
-\mathsf{field\_mapsto\_}~\pi~t~x~(\mathsf{offset\_val}~v~\mathsf{Int.zero}) =
-\mathsf{field\_mapsto\_}~\pi~t~x~v \and
-\mathsf{memory\_block}~\pi~\mathsf{Int.zero}~(\mathsf{Vptr}~b~z)~=~\mathsf{emp} 
+\mathsf{field\_mapsto}~\mathit{sh}~t~\mathit{fld}~(\mathsf{force\_ptr}~ v) =
+\mathsf{field\_mapsto}~\mathit{sh}~t~\mathit{fld}~v \and
+\mathsf{field\_mapsto\_}~\mathit{sh}~t~\mathit{fld}~(\mathsf{force\_ptr}~ v) =
+\mathsf{field\_mapsto\_}~\mathit{sh}~t~\mathit{fld}~v \and
+\mathsf{field\_mapsto}~\mathit{sh}~t~x~(\mathsf{offset\_val}~v~\mathsf{Int.zero}) =
+\mathsf{field\_mapsto}~\mathit{sh}~t~x~v \and
+\mathsf{field\_mapsto\_}~\mathit{sh}~t~x~(\mathsf{offset\_val}~v~\mathsf{Int.zero}) =
+\mathsf{field\_mapsto\_}~\mathit{sh}~t~x~v \and
+\mathsf{memory\_block}~\mathit{sh}~\mathsf{Int.zero}~(\mathsf{Vptr}~b~z)~=~\mathsf{emp} 
 \end{mathpar}
 
 \textbf{Postconditions.} (\lstinline{autorewrite with ret_assert.})
@@ -2146,7 +2206,7 @@ No restrictions on the form of the precondition (except that it must be in canon
 load or store (it just computes an address) and is permitted.
 \item[\textsf{$x$= *$E$;}]  Memory load.
 The \SEP{} component of the precondition must contain
-an item of the form \lstinline{`(mapsto $\pi$ t) $e$ $v$},
+an item of the form \lstinline{`(mapsto $\mathit{sh}$ t) $e$ $v$},
 where $e$ is equivalent to \lstinline{(eval_expr $E$)}.
 For example, if $E$ is just an identifer \lstinline{(Etempvar _y t)},
 then $e$ could be either \lstinline{(eval_expr (Etempvar _y t))}
@@ -2162,14 +2222,14 @@ just a memory load, equivalent to
 field-load rule is easier to use (and will be automatically
 applied by the \lstinline{forward} tactic).  In this case the \SEP{} component
 of the precondition must contain
-\lstinline{`(field_at $\pi$ $t$ $\mathit{fld}$) $v$ $e$},
+\lstinline{`(field_at $\mathit{sh}$ $t$ $\mathit{fld}$) $v$ $e$},
 where $t$ is the structure type to which the field $\mathit{fld}$
 belongs, and $e$ is equivalent to  \lstinline{(eval_expr $E$)}.
 
 \item[\textsf{*$E_1$ = $E_2$;}]  Memory store.
 The \SEP{} component of the precondition must contain
-an item of the form \lstinline{`(mapsto $\pi$ t) $e_1$ $v$}
-or an item \lstinline{`(mapsto_ $\pi$ t) $e_1$},
+an item of the form \lstinline{`(mapsto $\mathit{sh}$ t) $e_1$ $v$}
+or an item \lstinline{`(mapsto_ $\mathit{sh}$ t) $e_1$},
 where $e_1$ is equivalent to \lstinline{(eval_expr $E_1$)}.
 
 \item[\textsf{a[$E_1$]=$E_2$;}]  Array store.  This is
@@ -2180,12 +2240,12 @@ by the previous case.
 can be handled by the general store case, but a special-purpose
 field-store rule is easier to use.  The \SEP{} component
 of the precondition must contain
-either \lstinline{`(field_at $\pi$ $t$ $\mathit{fld}$) $v$ $e_1$}
-or \lstinline{`(field_mapsto_ $$ $\pi$ $t$ $\mathit{fld}$) $e_1$},
+either \lstinline{`(field_at $\mathit{sh}$ $t$ $\mathit{fld}$) $v$ $e_1$}
+or \lstinline{`(field_mapsto_ $$ $\mathit{sh}$ $t$ $\mathit{fld}$) $e_1$},
 where $t$ is the structure type to which the field $\mathit{fld}$
 belongs, and $e_1$ is equivalent to  \lstinline{(eval_expr $E_1$)}.
-The share $\pi$ must be strong enough to grant write permission, 
-that is, \lstinline{writable_share($\pi$)}.
+The share $\mathit{sh}$ must be strong enough to grant write permission, 
+that is, \lstinline{writable_share($\mathit{sh}$)}.
 
 \item[\textsf{$x$ = $E_1~\mathit{op}~E_2$};]
 If $E_1$ or $E_2$ evaluate to \emph{pointers},
@@ -2202,9 +2262,9 @@ program logic uses the \lstinline{semax_ptr_compare} rule
 the \lstinline{forward} tactic, the user will be left
 with some proof obligations:  Prove that both $E_1$ and
 $E_2$ evaluate to allocated locations (i.e., that
-the precondition implies $E_1\stackrel{\pi_1}{\mapsto} \_ * TT$ and
-also implies $E_2\stackrel{\pi_2}{\mapsto} \_ * TT$,
-for any $\pi_1$ and $\pi_2$).  If the comparison is
+the precondition implies $E_1\stackrel{\mathit{sh}_1}{\mapsto} \_ * TT$ and
+also implies $E_2\stackrel{\mathit{sh}_2}{\mapsto} \_ * TT$,
+for any $\mathit{sh}_1$ and $\mathit{sh}_2$).  If the comparison is
 any of \lstinline{>}, \lstinline{<}, \lstinline{>=}, \lstinline{<=},
 prove that $E_1$ and $E_2$ both point within the same allocated
 object.  These are preconditions for even being permitted
@@ -2403,14 +2463,14 @@ type \lstinline{t_struct_list} describing fields
 Then these assertions are all equivalent:
 
 \begin{lstlisting}
-mapsto $\pi$ tint p h * 
-    mapsto $\pi$ (tptr t_struct_list) (offset_val p (Vint (Int.repr 4))) t
+mapsto $\mathit{sh}$ tint p h * 
+    mapsto $\mathit{sh}$ (tptr t_struct_list) (offset_val p (Vint (Int.repr 4))) t
 
-field_at $\pi$ t_struct_list [_head] h p * field_at $\pi$ t_struct_list [_tail] t p
+field_at $\mathit{sh}$ t_struct_list [_head] h p * field_at $\mathit{sh}$ t_struct_list [_tail] t p
 
-data_at $\pi$ t_struct_list (h,t) p
+data_at $\mathit{sh}$ t_struct_list (h,t) p
 
-field_at $\pi$ t_struct_list nil (h,t) p
+field_at $\mathit{sh}$ t_struct_list nil (h,t) p
 \end{lstlisting}
 The version using \lstinline{mapsto} is correct (assuming a 32-bit 
 configuration of CompCert) but rather ugly;
@@ -2437,8 +2497,8 @@ data fields.
 
 When $\tau$ is a struct type and $n$ is a \lstinline{nat},
 the tactic \lstinline{unfold_data_at $n$}
-unfolds the $n$th occurrence of \lstinline{data_at $\pi$ $\tau$}
-to a series of \lstinline{field_at $\pi$ $\tau$ ($f$::nil)},
+unfolds the $n$th occurrence of \lstinline{data_at $\mathit{sh}$ $\tau$}
+to a series of \lstinline{field_at $\mathit{sh}$ $\tau$ ($f$::nil)},
 where the $f$ are the various fields of the struct $\tau$.
 For example, it would unfold the third assertion above
 to look like the second one.
@@ -2450,21 +2510,21 @@ assertions; it is not necessary to unfold them to individual
 of VST 1.5.
 
 \newthought{Why are the arguments backwards?}
-We write\newline \lstinline{field_at $\pi$ t_struct_list [head] h p}
+We write\newline \lstinline{field_at $\mathit{sh}$ t_struct_list [head] h p}
 \ \ \ where Reynolds would have written $p.\mathrm{head}\mapsto h$,
 and we write 
-\lstinline{data_at $\pi$ t_struct_list (h,t) p}
+\lstinline{data_at $\mathit{sh}$ t_struct_list (h,t) p}
 where Reynolds would have written $p\hookrightarrow(h,t)$.
 Putting the \emph{contents} argument before the \emph{pointer}
 argument makes it easier to express identities in our lifted
 separation logic.  That is, we commonly have formulas such as
 \begin{lstlisting}
-`(data_at $\pi$ t_struct_list (h,t)) (eval_id _p )tptr t_struct_list))
+`(data_at $\mathit{sh}$ t_struct_list (h,t)) (eval_id _p )tptr t_struct_list))
 \end{lstlisting}
 \vspace{-\baselineskip}
 which simplify to 
 \begin{lstlisting}
-`(field_at $\pi$ t_struct_list [head] h * field_at $\pi$ t_struct_list [_tail] t)
+`(field_at $\mathit{sh}$ t_struct_list [head] h * field_at $\mathit{sh}$ t_struct_list [_tail] t)
    (eval_id _p (tptr t_struct_list))
 \end{lstlisting}
 \vspace{-\baselineskip}
@@ -2575,7 +2635,7 @@ We call \lstinline{y2.x2} the \emph{field path}.
 The precondition for this command might include the assertion,
 \begin{lstlisting}
 LOCAL (`(eq pb) (eval_var _pb)) 
-SEP( `(data_at $\pi$ t_struct_b (y1,(x1,x2)) pb); Frame)
+SEP( `(data_at $\mathit{sh}$ t_struct_b (y1,(x1,x2)) pb); Frame)
 \end{lstlisting}
 where \lstinline{Frame} has some unrelated spatial conjuncts.
 The postcondition (after the load) would include the new \LOCAL fact,
@@ -2887,5 +2947,45 @@ semax Delta
   MORE_COMMANDS
   POSTCONDITION
 \end{lstlisting}
+\chapter{JUNK}
+\newcommand\islockshT{\mbox{\raisebox{4pt}{\makebox[0pt][l]{\hspace*{10pt}\small$\bullet$}}}\islock}
+\begin{figure}[htbp]\begin{shaded}\vspace{-1ex}
+\begin{mathpar}
+% \inference[makelock]
+% {R~\mathrm{positive}\quad
+% R~\mathrm{precise}\quad
+% \Delta\vdash\triple{l\islocksh\T R \,* P}{c}{Q}}
+% {\Delta\vdash\triple{l\mapsto 0 \,* P}{c}{Q}}
+% \and
+% \inference[freelock]
+% {\Delta\vdash\triple{l\mapsto 0 \,* P}{c}{Q}}
+% {\Delta\vdash\triple{l\islocksh\T R \,* P}{c}{Q}}
+\inference[makelock]
+{R~\mathrm{positive}\qquad R~\mathrm{precise}}
+{\Delta\vdash\triple{l\mapsto 0}{\mathsf{makelock}\,l}{l\islockshT R}}
+\and
+\inference[freelock]
+{}
+{\Delta\vdash\triple{R * l\islockshT R}{\mathsf{freelock}\,l}{R * l\mapsto 0}}
+\and
+\inference[splitlock]{\pi_1 \oplus \pi_2 = \pi}
+{l\islocksh{\pi_1}R ~*~l\islocksh{\pi_2}R~~\leftrightarrow~~
+l\islocksh{\pi}R}
+\and
+\inference[acq]{}{\Delta\vdash\triple{l \islocksh\pi R}{~\mathsf{acquire}\,l~}{R\,*\,l \islocksh\pi R}}\and
+\inference[rel]{}{\Delta\vdash\triple{R\,*\,l \islocksh\pi R}{~\mathsf{release}\,l~}{l \islocksh\pi R}}
+\and
+\inference[spawn]{}
+{\Delta\vdash \triple{(a:\{\vec{y}P\}\{\mathsf{emp}\})\,\wedge
+(Px)[\vec{b}/\vec{y}] * F}{\,\mathsf{spawn}~a(\vec{b})\,}{F}}
+\and
+\inference[exit]{}
+{\Delta\vdash \triple{\mathsf{emp}}{\,\mathsf{exit}()\,}{\FF}}
+\end{mathpar}
+\caption{CSL rules for threads and locks}
+\label{fig-csl}
+\vspace{-1ex}\end{shaded}\end{figure}
+
+
 
 \end{document}
