@@ -1,6 +1,6 @@
 Require Import floyd.proofauto.
 Local Open Scope logic.
-Require Import List. Import ListNotations.
+Require Import Coq.Lists.List. Import ListNotations.
 Require Import general_lemmas.
 
 Require Import split_array_lemmas.
@@ -504,111 +504,9 @@ forward_for_simple_bound 64 (EX i:Z,
     eapply zero_ext_range2; try reflexivity. cbv; intuition.
     repeat rewrite Zlength_map. rewrite SRL; omega. }
   simpl. 
-
 (*QINXIANG: THIS FORWARD CAUSES MEMORY EXHAUSTION*)
-(*  forward.*)
+  forward.
 
-apply semax_seq_skip. 
-eapply semax_seq'.
-
-ensure_open_normal_ret_assert;
-hoist_later_in_pre;
-match goal with
-| |- semax ?Delta (|> (PROPx ?P (LOCALx ?Q (SEPx ?R)))) (Sassign ?e ?e2) _ =>
-  (* Super canonical field store *)
-    let e1 := fresh "e" in
-    let efs := fresh "efs" in
-    let tts := fresh "tts" in
-      construct_nested_efield e e1 efs tts;
-
-    let lr := fresh "lr" in
-      pose (compute_lr e1 efs) as lr;
-      vm_compute in lr;
-
-    let HLE := fresh "H" in
-    let p := fresh "p" in evar (p: val);
-      match goal with
-      | lr := LLLL |- _ => do_compute_lvalue Delta P Q R e1 p HLE
-      | lr := RRRR |- _ => do_compute_expr Delta P Q R e1 p HLE
-      end;
-
-    let HRE := fresh "H" in
-    let v0 := fresh "v" in evar (v0: val);
-      do_compute_expr Delta P Q R (Ecast e2 (typeof (nested_efield e1 efs tts))) v0 HRE;
-
-    let H_Denote := fresh "H" in
-    let gfs := fresh "gfs" in
-      solve_efield_denote Delta P Q R efs gfs H_Denote;
-
-    let sh := fresh "sh" in evar (sh: share);
-    let t_root := fresh "t_root" in evar (t_root: type);
-    let gfs0 := fresh "gfs" in evar (gfs0: list gfield);
-    let v := fresh "v" in evar (v: reptype (nested_field_type t_root gfs0));
-    let n := fresh "n" in
-    let H := fresh "H" in
-    sc_new_instantiate P Q R R Delta e1 gfs tts lr p sh t_root gfs0 v n (0%nat) H;
-
-    try (unify v (default_val (nested_field_type t_root gfs0));
-          lazy beta iota zeta delta - [list_repeat Z.to_nat] in v);
-
-    let gfs1 := fresh "gfs" in
-    let len := fresh "len" in
-    pose ((length gfs - length gfs0)%nat) as len;
-    simpl in len;
-    match goal with
-    | len := ?len' |- _ =>
-      pose (firstn len' gfs) as gfs1
-    end;
-
-    clear len;
-    unfold gfs in gfs0, gfs1;
-    simpl firstn in gfs1;
-    simpl skipn in gfs0;
-
-    change gfs with (gfs1 ++ gfs0) in *;
-    subst gfs;
-
-    eapply (semax_SC_field_store Delta sh n p)
-      with (lr0 := lr) (t_root0 := t_root) (gfs2 := gfs0) (gfs3 := gfs1);
-    subst p;
-      [ reflexivity | reflexivity | reflexivity
-      | reflexivity | reflexivity | reflexivity | reflexivity
-      | reflexivity | exact HLE 
-      | exact HRE | exact H_Denote | solve [auto]
-      | solve_store_rule_evaluation
-      | subst e1 gfs0 gfs1 efs tts t_root sh v0 lr n;
-        pre_entailer;
-        try quick_typecheck3
-        clear HLE HRE H_Denote H;
-        unfold tc_efield; try solve[entailer!]; 
-        simpl app; simpl typeof
-      | subst e1 gfs0 gfs1 efs tts t_root sh v0 lr n;
-        clear HLE HRE H_Denote H
-]
-end. (*
-IT SEEMS, THIS TACTIC IS TO BLAME: 
-solve_legal_nested_field_in_entailment.*)
-
-apply compute_legal_nested_field_spec.
-  match goal with
-  | |- Forall ?F _ =>
-      let F0 := fresh "F" in
-      remember F as F0;
-      simpl;
-      subst F0
-  end.
-  repeat constructor.
-apply prop_right. clear - I R64next. omega.
-(*entailer!.
-  try solve [entailer!].
-
-        solve_legal_nested_field_in_entailment.
-     ]
-end.
-
-store_tac.
-*)
-  forward. (*Skip*)
   entailer!.
   clear H10 TC TC1 TC2 TC3 TC4 TC5.
   specialize (Zlength_combinelist _ _ _ _ XOR); intros LL.

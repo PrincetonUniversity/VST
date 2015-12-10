@@ -1528,10 +1528,20 @@ Ltac forward_setx :=
 
 Ltac solve_legal_nested_field_in_entailment :=
    match goal with
-   | |- _ |-- !! ?A => try solve [apply prop_right; clear; compute; intuition congruence]
    | |- _ |-- !! legal_nested_field ?t_root (?gfs1 ++ ?gfs0) =>
     unfold t_root, gfs0, gfs1
   end;
+  first
+  [ apply prop_right; apply compute_legal_nested_field_spec';
+    match goal with
+  | |- Forall ?F _ =>
+      let F0 := fresh "F" in
+      remember F as F0;
+      simpl;
+      subst F0
+  end;
+  repeat constructor; omega
+  |
   apply compute_legal_nested_field_spec;
   match goal with
   | |- Forall ?F _ =>
@@ -1541,7 +1551,9 @@ Ltac solve_legal_nested_field_in_entailment :=
       subst F0
   end;
   repeat constructor;
-  try solve [entailer!].
+  try solve [apply prop_right; auto; omega];
+  try solve [normalize; apply prop_right; auto; omega]
+  ].
 
 Ltac construct_nested_efield e e1 efs tts :=
   let pp := fresh "pp" in
@@ -2003,9 +2015,9 @@ match goal with
         clear HLE HRE H_Denote H;
         unfold tc_efield; try solve[entailer!]; 
         simpl app; simpl typeof
-      | subst e1 gfs0 gfs1 efs tts t_root sh v0 lr n;
-        clear HLE HRE H_Denote H;
-        solve_legal_nested_field_in_entailment
+      | solve_legal_nested_field_in_entailment;
+        subst e1 gfs0 gfs1 efs tts t_root sh v0 lr n;
+        clear HLE HRE H_Denote H
      ]
 end.
 
