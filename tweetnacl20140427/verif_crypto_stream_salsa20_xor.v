@@ -1,6 +1,6 @@
 Require Import floyd.proofauto.
 Local Open Scope logic.
-Require Import List. Import ListNotations.
+Require Import Coq.Lists.List. Import ListNotations.
 Require Import general_lemmas.
 
 Require Import split_array_lemmas.
@@ -11,6 +11,84 @@ Require Import verif_salsa_base.
 Require Import tweetnaclVerifiableC.
 Require Import Snuffle. 
 Require Import spec_salsa. Opaque Snuffle.Snuffle.
+
+Ltac my_store_tac := 
+ensure_open_normal_ret_assert;
+hoist_later_in_pre;
+match goal with
+| |- semax ?Delta (|> (PROPx ?P (LOCALx ?Q (SEPx ?R)))) (Sassign ?e ?e2) _ =>
+  (* Super canonical field store *)
+    let e1 := fresh "e" in
+    let efs := fresh "efs" in
+    let tts := fresh "tts" in
+      construct_nested_efield e e1 efs tts;
+
+    let lr := fresh "lr" in
+      pose (compute_lr e1 efs) as lr;
+      vm_compute in lr;
+
+    let HLE := fresh "H" in
+    let p := fresh "p" in evar (p: val);
+      match goal with
+      | lr := LLLL |- _ => do_compute_lvalue Delta P Q R e1 p HLE
+      | lr := RRRR |- _ => do_compute_expr Delta P Q R e1 p HLE
+      end;
+
+    let HRE := fresh "H" in
+    let v0 := fresh "v" in evar (v0: val);
+      do_compute_expr Delta P Q R (Ecast e2 (typeof (nested_efield e1 efs tts))) v0 HRE;
+
+    let H_Denote := fresh "H" in
+    let gfs := fresh "gfs" in
+      solve_efield_denote Delta P Q R efs gfs H_Denote;
+
+    let sh := fresh "sh" in evar (sh: share);
+    let t_root := fresh "t_root" in evar (t_root: type);
+    let gfs0 := fresh "gfs" in evar (gfs0: list gfield);
+    let v := fresh "v" in evar (v: reptype (nested_field_type t_root gfs0));
+    let n := fresh "n" in
+    let H := fresh "H" in
+    sc_new_instantiate P Q R R Delta e1 gfs tts lr p sh t_root gfs0 v n (0%nat) H;
+
+    try (unify v (default_val (nested_field_type t_root gfs0));
+          lazy beta iota zeta delta - [list_repeat Z.to_nat] in v);
+
+    let gfs1 := fresh "gfs" in
+    let len := fresh "len" in
+    pose ((length gfs - length gfs0)%nat) as len;
+    simpl in len;
+    match goal with
+    | len := ?len' |- _ =>
+      pose (firstn len' gfs) as gfs1
+    end;
+
+    clear len;
+    unfold gfs in gfs0, gfs1;
+    simpl firstn in gfs1;
+    simpl skipn in gfs0;
+
+    change gfs with (gfs1 ++ gfs0) in *;
+    subst gfs;
+
+    eapply (semax_SC_field_store Delta sh n p)
+      with (lr0 := lr) (t_root0 := t_root) (gfs2 := gfs0) (gfs3 := gfs1);
+    subst p;
+      [ reflexivity | reflexivity | reflexivity
+      | reflexivity | reflexivity | reflexivity | reflexivity
+      | reflexivity | exact HLE 
+      | exact HRE | exact H_Denote | solve [auto]
+      | solve_store_rule_evaluation
+      | subst e1 gfs0 gfs1 efs tts t_root sh v0 lr n;
+        pre_entailer;
+        try quick_typecheck3; 
+        clear HLE HRE H_Denote H;
+        unfold tc_efield; try solve[entailer!]; 
+        simpl app; simpl typeof
+      | subst e1 gfs0 gfs1 efs tts t_root sh v0 lr n;
+        clear HLE HRE H_Denote H(*;
+        solve_legal_nested_field_in_entailment*)
+     ]
+end.
 
 Lemma Int64_sub_sub a b c: 
       Int64.min_signed <= - c <= Int64.max_signed ->
@@ -521,6 +599,76 @@ Proof. induction n; simpl; intros. inv H. unfold Int.one. rewrite Int.unsigned_r
   rewrite Int.unsigned_repr; rewrite Int.unsigned_repr; trivial. omega.
 Qed.
 
+Definition Data_as_QuadBytes
+           (data : SixteenByte * SixteenByte * (SixteenByte * SixteenByte)): list QuadByte :=
+match data with ((Nonce, C), K) =>
+  match Nonce with (N1, N2, N3, N4) => 
+  match C with (C1, C2, C3, C4) => 
+  match K with ((K1, K2, K3, K4), (L1, L2, L3, L4)) =>
+  [N1;N2;N3;N4;C1;C2;C3;C4;K1;K2;K3;K4;L1;L2;L3;L4]
+  end end end
+end.
+
+Definition Data_as_reordered_QuadBytes
+           (data : SixteenByte * SixteenByte * (SixteenByte * SixteenByte)): list QuadByte :=
+match data with ((Nonce, C), K) =>
+  match Nonce with (N1, N2, N3, N4) => 
+  match C with (C1, C2, C3, C4) => 
+  match K with ((K1, K2, K3, K4), (L1, L2, L3, L4)) =>
+  [C1; K1; K2; K3; K4; C2; N1; N2; N3; N4; C3; L1; L2; L3; L4; C4]
+  end end end
+end.
+
+Fixpoint flatten {A} (l: list (list A)): list A :=
+  match l with [] => [] | (h::t) => h ++ flatten t end.
+
+Definition Data_as_bytelist data:= flatten (map QuadByte2ByteList (Data_as_reordered_QuadBytes data)).
+
+(*
+Fixpoint ZZb (zbytes: list byte) (n: nat): byte * list byte :=
+  match n with
+   O => (Byte.one, zbytes)
+  | S k => match ZZb zbytes k with (u,zb) => 
+             let v := (Byte.unsigned u + (Byte.unsigned (Znth (Z.of_nat k+8) zb Byte.zero)))
+             in (Byte.shru (Byte.repr v) (Byte.repr 8), 
+                 upd_Znth (Z.of_nat k+8) zb (Byte.repr (v mod 256))) end
+          
+  end.
+
+Lemma ZZb_ZZ: forall n zbytes, 
+  match ZZb zbytes n with (x,y) => ZZ zbytes n = (Int.repr (Byte.unsigned x), y) end.
+Proof.
+induction n; simpl; intros. unfold Byte.one. rewrite Byte.unsigned_repr. reflexivity. cbv; intuition.
+remember (ZZb zbytes n). destruct p. 
+specialize (IHn zbytes). rewrite <- Heqp in IHn. rewrite IHn; clear IHn.
+rewrite Int_unsigned_repr_byte.
+ f_equal.
+  unfold Int.shru. rewrite Int.unsigned_repr. rewrite Int.unsigned_repr. 
+  unfold Byte.shru. rewrite (Byte.unsigned_repr 8).
+  rewrite (Byte.unsigned_repr (Byte.unsigned i + Byte.unsigned (Znth (Z.of_nat n + 8) l Byte.zero))).
+  rewrite Byte.unsigned_repr. trivial.
+  3: cbv; intuition.
+  3: cbv; intuition. Focus 2.
+    
+rewrite 
+
+Definition ZZb (zbytes: list byte) (n: nat): byte * list byte :=
+  match ZZ zbytes n with (u,zb) => (Byte.repr (Int.unsigned u), zb) end.
+
+Lemma ROTATE N1 N2 N3 N4 zbytes: 
+      SixteenByte2ValList (N1, N2, N3, N4) =
+         map Vint (map Int.repr (map Byte.unsigned zbytes)) ->
+      SixteenByte2ValList (N2, N3, N4, (Byte.zero, Byte.zero, Byte.zero, Byte.zero)) =
+         map Vint (map Int.repr (map Byte.unsigned (snd (ZZ zbytes 8)))).
+Proof. intros. 
+  specialize (SixteenByte2ValList_Zlength (N1, N2, N3, N4)).
+  rewrite H; repeat rewrite Zlength_map; intros. symmetry in H0.
+  remember (ZZ zbytes 8) as Q. 
+  destruct (listD16 _ H0) as
+  [y0 [y1 [y2 [y3 [y4 [y5 [y6 [y7 [y8 [y9 [y10 [y11 [y12 [y13 [y14 [y15 Y]]]]]]]]]]]]]]]].
+  subst zbytes. simpl in HeqQ. simpl. 
+*)
+
 Definition i_8_16_inv F x z c b m nonce k SV zbytes: environ -> mpred := 
 EX i:_,
   (PROP  ()
@@ -869,21 +1017,30 @@ rename H into I.
 apply derives_refl.
 Qed.
 
-(*TODO: refine non-zero-case of this spec, relating COUT to mCont and K and Nonce*)
-Definition crypto_stream_xor_postsep b Nonce K mCont cLen nonce c k m :=
-  (if Int64.eq b Int64.zero 
-   then data_at_ Tsh (Tarray tuchar cLen noattr) c
-   else (EX COUT:_, data_at Tsh (Tarray tuchar cLen noattr) COUT c))
-                    * SByte Nonce nonce * ThirtyTwoByte K k
-                    * message_at mCont m (*data_at Tsh (tarray tuchar mLen) mCont m*).
-
 Parameter SIGMA: SixteenByte.
 Definition Sigma_vector : val -> mpred :=
   data_at Tsh (tarray tuchar 16) (SixteenByte2ValList SIGMA).
 
-Lemma loop2 Espec F x z c mInit m b nonce k xbytes mbytes SV (*cLen *)
+Definition loop2Inv F x z c mInit m b nonce k SV q xbytes mbytes cLen: environ -> mpred:=
+EX i:Z, 
+  (PROP  ()
+   LOCAL  (lvar _x (Tarray tuchar 64 noattr) x;
+   lvar _z (Tarray tuchar 16 noattr) z; temp _c c; temp _m m;
+   temp _b b; temp _n nonce;
+   temp _k k; gvar _sigma SV)
+   SEP (F;
+     data_at Tsh (tarray tuchar 64)
+       (map Vint (map Int.repr (map Byte.unsigned xbytes))) x;
+     message_at mbytes mInit;
+     EX l:_,!!(bxorlist (bytes_at mInit q i mbytes) 
+                        (sublist 0 i xbytes)
+               = Some l)
+         && data_at Tsh (Tarray tuchar cLen noattr)
+                        (Bl2VL l ++ list_repeat (Z.to_nat (cLen - i)) Vundef) c)).
+
+Lemma loop2 Espec F x z c mInit m b nonce k xbytes mbytes SV
       q (M: null_or_offset mInit q m) (Q: 0 <= q) (QB: q+Int64.unsigned b = Zlength mbytes) (*(CL: 64 > cLen) *) (*should be b <= cLen or so?*)
-      (B: Int64.unsigned b < 64 (*Int.max_unsigned*)):
+      (B: Int64.unsigned b < 64):
 @semax CompSpecs Espec
 
   (initialized_list [_i]
@@ -939,26 +1096,9 @@ Lemma loop2 Espec F x z c mInit m b nonce k xbytes mbytes SV (*cLen *)
           message_at mbytes mInit;
          EX  l : list byte,
           !!(bxorlist (bytes_at mInit q (Int64.unsigned b) mbytes) (sublist 0 (Int64.unsigned b) xbytes) = Some l) &&
-          data_at Tsh (Tarray tuchar (Int64.unsigned b) noattr)
-            (Bl2VL l (* ++ list_repeat (Z.to_nat (cLen - (Int64.unsigned b))) Vundef*)) c))).
+          data_at Tsh (Tarray tuchar (Int64.unsigned b) noattr) (Bl2VL l) c))).
 Proof. intros.
 destruct (Int64.unsigned_range_2 b) as [bLo bHi].
-Definition loop2Inv F x z c mInit m b nonce k SV q xbytes mbytes cLen: environ -> mpred:=
-EX i:Z, 
-  (PROP  ()
-   LOCAL  (lvar _x (Tarray tuchar 64 noattr) x;
-   lvar _z (Tarray tuchar 16 noattr) z; temp _c c; temp _m m;
-   temp _b b; temp _n nonce;
-   temp _k k; gvar _sigma SV)
-   SEP (F;
-     data_at Tsh (tarray tuchar 64)
-       (map Vint (map Int.repr (map Byte.unsigned xbytes))) x;
-     message_at mbytes mInit;
-     EX l:_,!!(bxorlist (bytes_at mInit q i mbytes) 
-                        (sublist 0 i xbytes)
-               = Some l)
-         && data_at Tsh (Tarray tuchar cLen noattr)
-                        (Bl2VL l ++ list_repeat (Z.to_nat (cLen - i)) Vundef) c)).
 
 eapply semax_post.
 Focus 2.
@@ -1060,85 +1200,8 @@ Focus 2.
   simpl. 
   apply isptrD in C. destruct C as [cb [coff C]]. rewrite C in *.
 *)
-Ltac store_tac := 
-ensure_open_normal_ret_assert;
-hoist_later_in_pre;
-match goal with
-| |- semax ?Delta (|> (PROPx ?P (LOCALx ?Q (SEPx ?R)))) (Sassign ?e ?e2) _ =>
-  (* Super canonical field store *)
-    let e1 := fresh "e" in
-    let efs := fresh "efs" in
-    let tts := fresh "tts" in
-      construct_nested_efield e e1 efs tts;
-
-    let lr := fresh "lr" in
-      pose (compute_lr e1 efs) as lr;
-      vm_compute in lr;
-
-    let HLE := fresh "H" in
-    let p := fresh "p" in evar (p: val);
-      match goal with
-      | lr := LLLL |- _ => do_compute_lvalue Delta P Q R e1 p HLE
-      | lr := RRRR |- _ => do_compute_expr Delta P Q R e1 p HLE
-      end;
-
-    let HRE := fresh "H" in
-    let v0 := fresh "v" in evar (v0: val);
-      do_compute_expr Delta P Q R (Ecast e2 (typeof (nested_efield e1 efs tts))) v0 HRE;
-
-    let H_Denote := fresh "H" in
-    let gfs := fresh "gfs" in
-      solve_efield_denote Delta P Q R efs gfs H_Denote;
-
-    let sh := fresh "sh" in evar (sh: share);
-    let t_root := fresh "t_root" in evar (t_root: type);
-    let gfs0 := fresh "gfs" in evar (gfs0: list gfield);
-    let v := fresh "v" in evar (v: reptype (nested_field_type t_root gfs0));
-    let n := fresh "n" in
-    let H := fresh "H" in
-    sc_new_instantiate P Q R R Delta e1 gfs tts lr p sh t_root gfs0 v n (0%nat) H;
-
-    try (unify v (default_val (nested_field_type t_root gfs0));
-          lazy beta iota zeta delta - [list_repeat Z.to_nat] in v);
-
-    let gfs1 := fresh "gfs" in
-    let len := fresh "len" in
-    pose ((length gfs - length gfs0)%nat) as len;
-    simpl in len;
-    match goal with
-    | len := ?len' |- _ =>
-      pose (firstn len' gfs) as gfs1
-    end;
-
-    clear len;
-    unfold gfs in gfs0, gfs1;
-    simpl firstn in gfs1;
-    simpl skipn in gfs0;
-
-    change gfs with (gfs1 ++ gfs0) in *;
-    subst gfs;
-
-    eapply (semax_SC_field_store Delta sh n p)
-      with (lr0 := lr) (t_root0 := t_root) (gfs2 := gfs0) (gfs3 := gfs1);
-    subst p;
-      [ reflexivity | reflexivity | reflexivity
-      | reflexivity | reflexivity | reflexivity | reflexivity
-      | reflexivity | exact HLE 
-      | exact HRE | exact H_Denote | solve [auto]
-      | solve_store_rule_evaluation
-      | subst e1 gfs0 gfs1 efs tts t_root sh v0 lr n;
-        pre_entailer;
-        try quick_typecheck3; 
-        clear HLE HRE H_Denote H;
-        unfold tc_efield; try solve[entailer!]; 
-        simpl app; simpl typeof
-      | subst e1 gfs0 gfs1 efs tts t_root sh v0 lr n;
-        clear HLE HRE H_Denote H(*;
-        solve_legal_nested_field_in_entailment*)
-     ]
-end.
 eapply semax_post.
-Focus 2. store_tac. apply prop_right. split; simpl; trivial. 
+Focus 2. my_store_tac. apply prop_right. split; simpl; trivial. 
   (*Qinxiang: forward again runs out of heap here - just commenting out the solve_legal_nested_field_in_entailment 
     in store_tac solves the problem*)
 (*  forward.*)
@@ -1180,6 +1243,15 @@ apply assert_lemmas.normal_ret_assert_derives'. entailer!. Intros l. rewrite app
  entailer!. 
 Qed.
 
+
+(*TODO: refine non-zero-case of this spec, relating COUT to mCont and K and Nonce*)
+Definition crypto_stream_xor_postsep b Nonce K mCont cLen nonce c k m :=
+  (if Int64.eq b Int64.zero 
+   then data_at_ Tsh (Tarray tuchar cLen noattr) c
+   else (EX COUT:_, data_at Tsh (Tarray tuchar cLen noattr) COUT c))
+                    * SByte Nonce nonce * ThirtyTwoByte K k
+                    * message_at mCont m (*data_at Tsh (tarray tuchar mLen) mCont m*).
+
 (*Precondition length mCont = Int64.unsigned b comes from textual spec in
   https://download.libsodium.org/doc/advanced/salsa20.html
   TODO: support the following part of the tetxual spec:
@@ -1211,6 +1283,17 @@ Definition crypto_stream_salsa20_xor_spec :=
 Definition joinMXC i (mCont xCont: list int) (cCont: list val):=
    bind (xorlist (firstn i mCont) (firstn i xCont)) (fun l => Some (map Vint l ++ skipn i cCont)).
 *)
+
+Fixpoint ZCont (r: nat) (zcont: list byte): list byte := 
+  match r with
+     O => zcont
+   | S n => let zb := ZCont n zcont in 
+            let zz := ZZ zb (8:nat) in snd zz
+  end.
+
+Lemma ZCont0 bytes: ZCont O bytes = bytes. reflexivity. Qed.
+Lemma ZContS bytes n: ZCont (S n) bytes = snd (ZZ (ZCont n bytes) 8). reflexivity. Qed.
+Opaque ZCont.
 
 Lemma crypto_stream_salsa20_xor_ok: semax_body SalsaVarSpecs SalsaFunSpecs
       f_crypto_stream_salsa20_tweet_xor
@@ -1353,13 +1436,14 @@ Parameter WHILE : nat -> list byte -> SixteenByte * SixteenByte -> list val -> P
 rename c into cInit. rename m into mInit. rename b into bInit.
 Parameter CCont: (* rounds:*) nat -> list val.
 Axiom CCont0: CCont O = nil.
-Parameter ZCont: (*zcont:*) SixteenByte ->  (* rounds:*) nat -> SixteenByte.
+(*Parameter ZCont: (*zcont:*) SixteenByte ->  (* rounds:*) nat -> SixteenByte.
 Axioms ZCont0: forall zcont, ZCont zcont O = zcont.
+*)
 (*Parameter MCont: (*mCont :*) list byte -> (* rounds:*) nat -> list byte.
 Axioms MCont0: forall mcont, MCont mcont O = mcont.*)
 
 Definition Inv cInit mInit bInit k nonce x z Nonce K SV mcont zcont:=
-(EX rounds:nat, EX m:_,
+(EX rounds:nat, EX m:_, EX d:_,
  let r64 := (Z.of_nat rounds * 64)%Z in
  let c := offset_val (Int.repr r64) cInit in
 (* let m := offset_val (Int.repr r64) mInit in*)
@@ -1372,15 +1456,15 @@ Definition Inv cInit mInit bInit k nonce x z Nonce K SV mcont zcont:=
           (*Z.of_nat rounds * 64 <= Zlength mcont /\*)
           (*length cCont = (rounds * 64)%nat*)
           (*Int64.ltu (Int64.repr (Z.of_nat rounds * 64)) bInit = true*)
-          0 <= r64 <= Int64.unsigned bInit /\ null_or_offset mInit r64 m)
+          0 <= r64 <= Int64.unsigned bInit /\ null_or_offset mInit r64 m
+          /\ SixteenByte2ValList d = Bl2VL (ZCont rounds zcont))
    LOCAL  (lvar _x (Tarray tuchar 64 noattr) x;
            lvar _z (Tarray tuchar 16 noattr) z; temp _c c; temp _m m;
            temp _b (Vlong b); temp _n nonce; temp _k k; gvar _sigma SV)
    SEP 
    (data_at Tsh (Tarray tuchar 16 noattr)
-        (*(firstn (Z.to_nat 8) (SixteenByte2ValList Nonce) ++
-         list_repeat (Z.to_nat 8) (Vint Int.zero))*) 
-        (SixteenByte2ValList  (ZCont zcont rounds)) z;
+        (*(SixteenByte2ValList  (ZCont zcont rounds)) z*)
+        (Bl2VL (ZCont rounds zcont)) z;
    data_at_ Tsh (Tarray tuchar 64 noattr) x; Sigma_vector SV;
    data_at Tsh (Tarray tuchar 16 noattr) (SixteenByte2ValList Nonce) nonce;
    ThirtyTwoByte K k; 
@@ -1397,19 +1481,22 @@ Definition Inv cInit mInit bInit k nonce x z Nonce K SV mcont zcont:=
   assert (sublist 0 8 (SixteenByte2ValList (N0, N1, N2, N3)) ++
        list_repeat (Z.to_nat (16 - 8)) (Vint Int.zero)
      = (SixteenByte2ValList (((N0, N1), ZeroQuadByte), ZeroQuadByte))).
-     unfold  SixteenByte2ValList; simpl. 
+  { do 2 rewrite SixteenByte2ValList_char. 
     rewrite app_assoc, sublist_app1; try omega. 
         2: rewrite Zlength_app; do 2 rewrite Zlength_correct, QuadByteValList_length; simpl; omega.
     rewrite sublist_same; try omega. 
         2: rewrite Zlength_app; do 2 rewrite Zlength_correct, QuadByteValList_length; simpl; omega.
-    subst ZeroQuadByte. simpl. rewrite Byte.unsigned_zero. rewrite <- app_assoc. reflexivity.
+    subst ZeroQuadByte. simpl. rewrite Byte.unsigned_zero. rewrite <- app_assoc. reflexivity. }
   rewrite H; clear H.
   assert (Int64.max_unsigned = 18446744073709551615) by reflexivity. rename H into I64MAX.
-
-forward_while (Inv cInit mInit bInit k nonce x z (N0, N1,N2,N3) K SV mCont 
-            (N0, N1, ZeroQuadByte, ZeroQuadByte)).
+  (*destruct (SixteenByte2ValList_bytes (N0, N1, N2, N3)) as [nbytes [Lnbytes NBytes]].
+  rewrite NBytes.*) 
+  destruct (SixteenByte2ValList_bytes (N0, N1, ZeroQuadByte, ZeroQuadByte)) as [zbytes [Lzbytes ZBytes]].
+  rewrite ZBytes.
+forward_while (Inv cInit mInit bInit k nonce x z (N0, N1,N2,N3) K SV mCont zbytes).
 { (*precondition*)
-  Exists O mInit. rewrite ZCont0, (*MCont0,*) CCont0. 
+  Exists O mInit. Exists (N0, N1, ZeroQuadByte, ZeroQuadByte).
+  rewrite ZCont0, (*MCont0,*) CCont0. 
   destruct (Int64.unsigned_range bInit). 
   specialize (Zlength_nonneg mCont); intros. unfold Bl2VL.
   thaw FR2.
@@ -1430,16 +1517,13 @@ forward_while (Inv cInit mInit bInit k nonce x z (N0, N1,N2,N3) K SV mCont
            destruct (Int64.unsigned_range_2 bInit) as [X1 X2].
            unfold Int64.sub in HRE. rewrite (Int64.unsigned_repr r64) in HRE. 2: omega.
            rewrite Int64.unsigned_repr in HRE; omega.
-  destruct H as [R64old M]. rename l into R64next.
-  forward_call (SV, k, z, x, 
-                 (ZCont (((N0, N1), ZeroQuadByte), ZeroQuadByte) rounds, SIGMA, K)). 
-  { unfold CoreInSEP, SByte, Sigma_vector, tarray. cancel. }
+  destruct H as [R64old [M D]]. rename l into R64next.
+   
+  forward_call (SV, k, z, x, (d, SIGMA, K)). 
+  { unfold CoreInSEP, SByte, Sigma_vector, tarray. rewrite D; cancel. }
 Intros snuff. rename H into Snuff.
 
 destruct (QuadChunks2ValList_bytes (map littleendian_invert snuff)) as [sr_bytes [SRBL SNR]].
-(*  rewrite map_length, (Snuffle20_length _ _ HSnuffleRes) in SRBL.
-  2: apply prepare_data_length.
-  rewrite <- R in *. *)
 assert (Zlength sr_bytes = 64).
   rewrite map_length, (Snuffle20_length _ _ Snuff) in SRBL.
   rewrite Zlength_correct, SRBL. reflexivity.
@@ -1457,8 +1541,6 @@ assert(INT64SUB: Int64.sub bInit (Int64.repr (r64 + 64)) =
 } 
 
 assert_PROP (isptr c) as C by entailer!.
-(*assert_PROP (is_pointer_or_null mInit) as MI. implied by M
-{ unfold message_at. destruct mInit; entailer!. }*)
 rewrite SNR.
 forward_seq. (*
 mkConciseDelta SalsaVarSpecs SalsaFunSpecs
@@ -1467,234 +1549,6 @@ eapply semax_extensionality_Delta.*)
   apply (loop1 Espec (FRZL FR3) x z c mInit (Vlong (Int64.sub bInit (Int64.repr r64))) nonce k m sr_bytes mCont).
     eassumption. (* subst m. destruct mInit; simpl in MI; try contradiction. split; trivial. reflexivity.*)
     clear - SRL R64next R64old HRE Heqr64 MLEN. rewrite MLEN. omega. omega.
-(*
-forward_for_simple_bound 64 (EX i:Z, 
-  (PROP  ()
-   LOCAL  (lvar _x (Tarray tuchar 64 noattr) x;
-   lvar _z (Tarray tuchar 16 noattr) z; temp _c c; temp _m m;
-   temp _b (Vlong (Int64.sub bInit (Int64.repr r64))); temp _n nonce;
-   temp _k k; gvar _sigma SV)
-   SEP (FRZL FR1;
-     data_at Tsh (tarray tuchar 64)
-       (QuadChunks2ValList (map littleendian_invert snuff)) x;
-     data_at Tsh (Tarray tuchar (Zlength mCont - r64) noattr)
-       (sublist r64 (Zlength mCont) (Bl2VL mCont)) m;
-     EX l:_,
-         !!(bxorlist (sublist 0 i (sublist r64 (Zlength mCont) mCont))
-                     (sublist 0 i sr_bytes)
-            = Some l)
-         && data_at Tsh (Tarray tuchar ((Int64.unsigned bInit) - r64) noattr)
-                        (Bl2VL l ++ list_repeat (Z.to_nat ((Int64.unsigned bInit) - r64 - i)) Vundef) c))).
-{ entailer!. rewrite Zminus_0_r. 
-  Exists (@nil byte). (* (list_repeat (Z.to_nat ((Int64.unsigned bInit) - r64)) Vundef). *)
-  (*rewrite Zlength_list_repeat. *)
-  unfold Bl2VL; simpl.
-  entailer!. }
-{ rename H into I.
-  Intros l. rename H into XOR.
-  assert_PROP (isptr m) by entailer!.
-  apply isptrD in H. destruct H as [? [? MR]]. rewrite MR in *.
-  forward_if
-  (PROP  ()
-   LOCAL  (temp _i (Vint (Int.repr i)); lvar _x (Tarray tuchar 64 noattr) x;
-   lvar _z (Tarray tuchar 16 noattr) z; temp _c c; temp _m m;
-   temp _b (Vlong (Int64.sub bInit (Int64.repr r64))); temp _n nonce;
-   temp _k k; gvar _sigma SV;
-   temp 187%positive (Vint (Int.repr (Byte.unsigned (Znth i (sublist r64 (Zlength mCont) mCont) Byte.zero)))))
-(*   temp _loop2left (Vint (Int.repr (Byte.unsigned (Znth i (sublist r64 (Zlength mCont) mCont) Byte.zero)))))*)
-   SEP  (FRZL FR1;
-   data_at Tsh (tarray tuchar 64)
-     (QuadChunks2ValList (map littleendian_invert snuff)) x;
-   data_at Tsh (Tarray tuchar (Zlength mCont - r64) noattr)
-     (sublist r64 (Zlength mCont) (Bl2VL mCont)) m;
-   data_at Tsh (Tarray tuchar (Int64.unsigned bInit - r64) noattr)
-     (Bl2VL l ++
-      list_repeat (Z.to_nat (Int64.unsigned bInit - r64 - i)) Vundef) c)).
-  { apply denote_tc_comparable_split.
-    + apply sepcon_valid_pointer1. apply sepcon_valid_pointer2. apply data_at_valid_ptr.
-      apply top_share_nonidentity.
-      simpl. rewrite Z.mul_1_l, Z.max_r; omega.
-    + entailer!. }
-  { unfold Bl2VL in *. rename H into M.
-    forward.
-    { entailer!.
-      rewrite Znth_sublist; try omega.
-      rewrite Znth_map with (d':=Int.zero); trivial.
-      repeat rewrite Zlength_map; omega. }
-    rewrite MR in *.
-    entailer!. clear - H0 I R64next R64old MLEN.
-    rewrite Znth_sublist in H0; try omega. rewrite Znth_map with (d':=Int.zero) in H0.
-    2: repeat rewrite Zlength_map; omega.
-    simpl in H0. rewrite <- H0; clear H0.
-    f_equal. erewrite (Znth_map _ _ (i + r64)) with (d':=Z0).
-    2: repeat rewrite Zlength_map; omega.
-    rewrite Znth_sublist; try omega. 
-    rewrite Znth_map with (d':=Byte.zero); trivial. omega.
-  }
-  { inv H. } (*THIS CASE IS TRIVIAL -- m can't be NULL!!*) 
-
-  forward. drop_LOCAL 10%nat. (*variable 187*)
-  rewrite SNR.
-  rewrite map_length, (Snuffle20_length _ _ Snuff (prepare_data_length _ )) in SRBL.
-  destruct (Znth_mapVint (map Int.repr (map Byte.unsigned sr_bytes)) i Vundef) as  [xi Xi].
-    repeat rewrite Zlength_map. rewrite SRL; omega.
-  forward; rewrite Xi.
-  { entailer!.
-    clear - Xi I SRL.
-    rewrite Znth_map with (d':= Int.zero) in Xi. inv Xi.
-    eapply zero_ext_range2; try reflexivity. cbv; intuition.
-    repeat rewrite Zlength_map. rewrite SRL; omega. }
-  simpl. 
-
-(*QIapply tycontext_eqv_sub.
-NXIANG: THIS FORWARD CAUSES MEMORY EXHAUSTION*)
-(*  forward.*)
-
-apply semax_seq_skip. 
-eapply semax_seq'.
-
-ensure_open_normal_ret_assert;
-hoist_later_in_pre;
-match goal with
-| |- semax ?Delta (|> (PROPx ?P (LOCALx ?Q (SEPx ?R)))) (Sassign ?e ?e2) _ =>
-  (* Super canonical field store *)
-    let e1 := fresh "e" in
-    let efs := fresh "efs" in
-    let tts := fresh "tts" in
-      construct_nested_efield e e1 efs tts;
-
-    let lr := fresh "lr" in
-      pose (compute_lr e1 efs) as lr;
-      vm_compute in lr;
-
-    let HLE := fresh "H" in
-    let p := fresh "p" in evar (p: val);
-      match goal with
-      | lr := LLLL |- _ => do_compute_lvalue Delta P Q R e1 p HLE
-      | lr := RRRR |- _ => do_compute_expr Delta P Q R e1 p HLE
-      end;
-
-    let HRE := fresh "H" in
-    let v0 := fresh "v" in evar (v0: val);
-      do_compute_expr Delta P Q R (Ecast e2 (typeof (nested_efield e1 efs tts))) v0 HRE;
-
-    let H_Denote := fresh "H" in
-    let gfs := fresh "gfs" in
-      solve_efield_denote Delta P Q R efs gfs H_Denote;
-
-    let sh := fresh "sh" in evar (sh: share);
-    let t_root := fresh "t_root" in evar (t_root: type);
-    let gfs0 := fresh "gfs" in evar (gfs0: list gfield);
-    let v := fresh "v" in evar (v: reptype (nested_field_type t_root gfs0));
-    let n := fresh "n" in
-    let H := fresh "H" in
-    sc_new_instantiate P Q R R Delta e1 gfs tts lr p sh t_root gfs0 v n (0%nat) H;
-
-    try (unify v (default_val (nested_field_type t_root gfs0));
-          lazy beta iota zeta delta - [list_repeat Z.to_nat] in v);
-
-    let gfs1 := fresh "gfs" in
-    let len := fresh "len" in
-    pose ((length gfs - length gfs0)%nat) as len;
-    simpl in len;
-    match goal with
-    | len := ?len' |- _ =>
-      pose (firstn len' gfs) as gfs1
-    end;
-
-    clear len;
-    unfold gfs in gfs0, gfs1;
-    simpl firstn in gfs1;
-    simpl skipn in gfs0;
-
-    change gfs with (gfs1 ++ gfs0) in *;
-    subst gfs;
-
-    eapply (semax_SC_field_store Delta sh n p)
-      with (lr0 := lr) (t_root0 := t_root) (gfs2 := gfs0) (gfs3 := gfs1);
-    subst p;
-      [ reflexivity | reflexivity | reflexivity
-      | reflexivity | reflexivity | reflexivity | reflexivity
-      | reflexivity | exact HLE 
-      | exact HRE | exact H_Denote | solve [auto]
-      | solve_store_rule_evaluation
-      | subst e1 gfs0 gfs1 efs tts t_root sh v0 lr n;
-        pre_entailer;
-        try quick_typecheck3
-        clear HLE HRE H_Denote H;
-        unfold tc_efield; try solve[entailer!]; 
-        simpl app; simpl typeof
-      | subst e1 gfs0 gfs1 efs tts t_root sh v0 lr n;
-        clear HLE HRE H_Denote H
-]
-end. (*
-IT SEEMS, THIS TACTIC IS TO BLAME: 
-solve_legal_nested_field_in_entailment.*)
-
-apply compute_legal_nested_field_spec.
-  match goal with
-  | |- Forall ?F _ =>
-      let F0 := fresh "F" in
-      remember F as F0;
-      simpl;
-      subst F0
-  end.
-  repeat constructor.
-apply prop_right. clear - I R64next. omega.
-(*entailer!.
-  try solve [entailer!].
-
-        solve_legal_nested_field_in_entailment.
-     ]
-end.
-
-store_tac.
-*)
-  forward. (*Skip*)
-  entailer!.
-  clear H10 TC TC1 TC2 TC3 TC4 TC5.
-  specialize (Zlength_combinelist _ _ _ _ XOR); intros LL.
-  autorewrite with sublist in LL.
-  rewrite upd_Znth_app2. 
-  Focus 2. rewrite Zlength_Bl2VL. autorewrite with sublist. omega.
-  rewrite SNR, field_at_data_at, Zlength_Bl2VL, LL, Zminus_diag, upd_Znth0, sublist_list_repeat; try omega.
-  2: autorewrite with sublist; omega.
-  simpl.
-  rewrite Znth_map with (d':=Int.zero) in Xi. inv Xi. 2: repeat rewrite Zlength_map; omega.
-  rewrite Znth_map with (d':=Z0). 2: rewrite Zlength_map; omega.
-  rewrite Znth_map with (d':=Byte.zero). 2: omega. 
-  Exists (l ++ [Byte.xor (Znth (Zlength l)
-                               (sublist (Z.of_nat rounds * 64) (Zlength mCont) mCont)
-                               Byte.zero)
-                         (Znth (Zlength l) sr_bytes Byte.zero)]).
-  cancel.
-  apply andp_right.
-  + apply prop_right. remember (sublist (Z.of_nat rounds * 64) (Zlength mCont) mCont) as MM.
-    rewrite (sublist0_hi_plus MM); try omega. rewrite (sublist0_hi_plus sr_bytes); try omega.
-    apply bxorlist_app. assumption.   
-    autorewrite with sublist.
-    rewrite pure_lemmas.sublist_singleton with (d:=Byte.zero).
-    rewrite pure_lemmas.sublist_singleton with (d:=Byte.zero). reflexivity.
-    rewrite SRL; omega.
-    subst MM; autorewrite with sublist; omega.
-  + autorewrite with sublist.
-    rewrite field_address_offset by auto with field_compatible.   
-    rewrite offset_offset_val; simpl. rewrite Int.add_zero.
-    apply derives_refl'. f_equal.
-    unfold Bl2VL. repeat rewrite map_app. rewrite <- app_assoc. f_equal.
-    repeat rewrite map_app. simpl. f_equal.
-    Focus 2. assert (X: Int64.unsigned bInit - Z.of_nat rounds * 64 - (Zlength l + 1) = Int64.unsigned bInit - Z.of_nat rounds * 64 - Zlength l - 1) by omega.
-             rewrite X; trivial.
-    f_equal.
-
-  rewrite zero_ext8_byte.
-  rewrite zero_ext8_byte.
-  rewrite zero_ext_inrange.
-  apply xor_byte_int.
-  rewrite xor_byte_int. rewrite Int.unsigned_repr. apply Byte.unsigned_range_2.
-  apply byte_unsigned_range_3.
- }  
-*)
 
 (*continuation after the FOR(i,64) loop*)
 drop_LOCAL 0%nat.
@@ -1702,13 +1556,14 @@ Intros xorlist. rename H into XOR.
 forward.
 thaw FR3. unfold CoreInSEP. repeat flatten_sepcon_in_SEP.
 freeze [1;2;3;4;5;6;7;8] FR4.
-unfold SByte.
+unfold SByte. (*
 destruct (SixteenByte2ValList_bytes (ZCont (N0, N1, ZeroQuadByte, ZeroQuadByte) rounds)) as [zbytes [Lzbytes Hzbytes]].
-rewrite Hzbytes.
+rewrite Hzbytes.*)
 (*mkConciseDelta SalsaVarSpecs SalsaFunSpecs
       f_crypto_stream_salsa20_tweet_xor Delta.*) 
-forward_seq. 
-  apply (For_i_8_16_loop Espec (FRZL FR4) x z c m (Vlong (Int64.sub bInit (Int64.repr r64))) nonce k SV zbytes).
+forward_seq. rewrite D.
+  apply (For_i_8_16_loop Espec (FRZL FR4) x z c m 
+           (Vlong (Int64.sub bInit (Int64.repr r64))) nonce k SV (ZCont rounds zbytes)).
 freeze [0;1] FR5.
 forward.
 forward.
@@ -1725,14 +1580,7 @@ forward_if (EX m:_,
         (Int64.sub (Int64.sub bInit (Int64.repr r64))
            (Int64.repr (Int.signed (Int.repr 64)))));
    lvar _x (Tarray tuchar 64 noattr) x; lvar _z (Tarray tuchar 16 noattr) z;
-   temp _m m (* (match mInit with
-       | Vundef => offset_val (Int.repr (r64 + 64)) mInit
-       | Vint _ => nullval
-       | Vlong _ => offset_val (Int.repr (r64+64)) mInit
-       | Vfloat _ => offset_val (Int.repr (r64+64)) mInit
-       | Vsingle _ => offset_val (Int.repr (r64+64)) mInit
-       | Vptr _ _ => offset_val (Int.repr (r64+64)) mInit
-       end)*); temp _n nonce; temp _k k; gvar _sigma SV)  SEP  (FRZL FR5))).
+   temp _m m; temp _n nonce; temp _k k; gvar _sigma SV)  SEP  (FRZL FR5))).
 {  clear H v. apply denote_tc_comparable_split.
    destruct mInit; simpl in M; try contradiction.
    destruct M as [II M]; rewrite M in *.
@@ -1759,17 +1607,42 @@ apply andp_left2. unfold overridePost. if_tac. 2: trivial.
 destruct cInit; simpl in Heqc; rewrite Heqc in C; try contradiction.
 subst ek.
 unfold POSTCONDITION, abbreviate. entailer!. rewrite Int.add_assoc in H0.
-  Exists (S rounds, eval_id _m rho).
-  (*rewrite Nat2Z.inj_succ, <- Zmult_succ_l_reverse, <- Heqr64, add_repr. simpl.*)
-  entailer!. rewrite  Nat2Z.inj_succ, <- Zmult_succ_l_reverse, <- H0, <- Heqr64, <- H1.
-  intuition. 
-  rewrite Int.signed_repr, INT64SUB; trivial.
-  unfold Int.min_signed, Int.max_signed; simpl; omega.
-(*  thaw FR5; thaw FR4. unfold SByte, Sigma_vector. subst c nonce k; entailer!. rewrite  Nat2Z.inj_succ, <- Zmult_succ_l_reverse,  <- Heqr64. add_repr.
-  rewrite <- H0, Int.signed_repr, INT64SUB; trivial.
-   unfold Int.min_signed, Int.max_signed; simpl; omega.*)
 
+assert (DD: exists dd, SixteenByte2ValList dd = Bl2VL (ZCont (S rounds) zbytes)). admit. (*TODO*)
+destruct DD as [dd DD].
+
+  Exists (S rounds, eval_id _m rho, dd).
+  entailer!. rewrite  Nat2Z.inj_succ, <- Zmult_succ_l_reverse, <- H0, <- Heqr64, <- H1.
+  rewrite Int.signed_repr, INT64SUB; trivial.
+  intuition. 
+  unfold Int.min_signed, Int.max_signed; simpl; omega.
   thaw FR5; thaw FR4. unfold SByte, Sigma_vector. subst c nonce k; cancel.
+
+  assert (Zlength xorlist = 64).
+     unfold bxorlist in XOR; destruct (combinelist_Zlength _ _ _ _ _ XOR).
+     autorewrite with sublist in H5. rewrite H4. unfold bytes_at. destruct mInit; autorewrite with sublist; trivial.
+  assert (Zlength (Bl2VL xorlist) = 64). rewrite Zlength_Bl2VL; omega.
+
+  erewrite (split2_data_at_Tarray_tuchar _ (Int64.unsigned bInit - r64) (Zlength (Bl2VL xorlist))).
+  2: omega. 2: rewrite Zlength_app; autorewrite with sublist; omega.
+  autorewrite with sublist. rewrite H5.
+  destruct rounds; simpl in *. subst r64; simpl in *.
+    rewrite CCont0. rewrite Tarray_0_emp_iff.
+    assert ().
+  destruct (beq_nat rounds O); simpl.
+  unfold field_address0. simpl. autorewrite with sublist in *. 
+  if_tac.
+  assert (Int.add i (Int.repr (Z.pos (Pos.of_succ_nat rounds * 64))) = 
+          Int.add (Int.add i (Int.repr r64)) (Int.repr 64)). 
+    rewrite Int.add_assoc. f_equal. rewrite add_repr. f_equal. 
+    subst r64. rewrite <- Pos.succ_of_nat, Pos.mul_succ_l, Pos2Z.inj_add, 
+       <- initial_world.Zpos_Posofnat, Pos2Z.inj_mul.  omega.
+    red in H. red in H7. simpl in H7.
+    omega. Pos.of_nat_succ. unfold Pos.of_succ_nat. rewrite (Zpos_P_of_succ_nat rounds). omega.  2: admit. (*TODO*)  elim H7; clear H7.  try contradiction.
+      rewrite Z.mul_1_l. cancel.
+
+
+
 admit. (*data_at Tsh (Tarray tuchar r64 noattr) (CCont rounds) (Vptr b i) *
 data_at Tsh (Tarray tuchar (Int64.unsigned bInit - r64) noattr)
   (Bl2VL xorlist ++
