@@ -2,7 +2,6 @@ Require Import floyd.proofauto. (* Import the Verifiable C system *)
 Require Import progs.sumarray. (* Import the AST of this C program *)
 (* The next line is "boilerplate", always required after importing an AST. *)
 Instance CompSpecs : compspecs. Proof. make_compspecs prog. Defined.
-Local Open Scope logic.  (* Recommended; imports Notation for separation logic *)
 
 (* Some definitions relating to the functional spec of this particular program.  *)
 Definition sum_int := fold_right Int.add Int.zero.
@@ -59,13 +58,13 @@ Definition Gprog : funspecs := sumarray_spec :: main_spec::nil.
 
 (* Loop invariant, for use in body_sumarray.  *)
 Definition sumarray_Inv a sh contents size := 
- EX i: Z,
+ (EX i: Z,
    PROP  (0 <= i <= size)
    LOCAL (temp _a a; 
           temp _i (Vint (Int.repr i));
           temp _n (Vint (Int.repr size));
           temp _s (Vint (sum_int (sublist 0 i contents))))
-   SEP   (data_at sh (tarray tint size) (map Vint contents) a).
+   SEP   (data_at sh (tarray tint size) (map Vint contents) a))%assert.
 
 (** Proof that f_sumarray, the body of the sumarray() function,
  ** satisfies sumarray_spec, in the global context (Vprog,Gprog).

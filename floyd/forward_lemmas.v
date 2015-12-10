@@ -105,9 +105,9 @@ Qed.
 Lemma semax_ifthenelse_PQR' : 
    forall Espec {cs: compspecs} (v: val) Delta P Q R (b: expr) c d Post,
       bool_type (typeof b) = true ->
-     PROPx P (LOCALx (tc_env Delta :: Q) (SEPx R)) |-- 
+     ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) |-- 
          (tc_expr Delta (Eunop Cop.Onotbool b tint))  ->
-     PROPx P (LOCALx (tc_env Delta :: Q) (SEPx R)) |-- 
+     ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) |-- 
         local (`(eq v) (eval_expr b)) ->
      @semax cs Espec Delta (PROPx (typed_true (typeof b) v :: P) (LOCALx Q (SEPx R)))
                         c Post -> 
@@ -120,7 +120,7 @@ Proof.
  eapply semax_pre;  [ | apply semax_ifthenelse]; auto.
  instantiate (1:=(local (`(eq v) (eval_expr b)) && PROPx P (LOCALx Q (SEPx R)))).
  apply andp_right; try assumption. apply andp_right; try assumption.
- rewrite <- insert_tce. apply andp_left2; auto.
+ apply andp_left2; auto.
  eapply semax_pre_post; [ | | eassumption].
  rewrite <- insert_prop.
  forget ( PROPx P (LOCALx Q (SEPx R))) as PQR.
@@ -184,7 +184,7 @@ Lemma semax_pre_flipped :
          (P3 : list mpred) (c : statement) 
          (R : ret_assert),
        semax Delta P' c R ->
-       PROPx P1 (LOCALx (tc_env Delta :: P2) (SEPx P3)) |-- P' ->
+       ENTAIL Delta, PROPx P1 (LOCALx P2 (SEPx P3)) |-- P' ->
         semax Delta (PROPx P1 (LOCALx P2 (SEPx P3))) c R.
 Proof. intros. 
 eapply semax_pre. apply H0. auto.
@@ -231,8 +231,8 @@ Qed.
 Lemma semax_while_3g1 : 
  forall Espec {cs: compspecs} {A} (v: A -> val) Delta P Q R test body Post,
      bool_type (typeof test) = true ->
-     (forall a, PROPx (P a) (LOCALx (tc_env Delta :: Q a) (SEPx (R a))) |-- (tc_expr Delta (Eunop Cop.Onotbool test tint))) ->
-     (forall a, PROPx (P a) (LOCALx (tc_env Delta :: Q a) (SEPx (R a))) |-- local (`(eq (v a)) (eval_expr test))) ->
+     (forall a, ENTAIL Delta, PROPx (P a) (LOCALx (Q a) (SEPx (R a))) |-- (tc_expr Delta (Eunop Cop.Onotbool test tint))) ->
+     (forall a, ENTAIL Delta, PROPx (P a) (LOCALx (Q a) (SEPx (R a))) |-- local (`(eq (v a)) (eval_expr test))) ->
      (forall a, @semax cs Espec Delta (PROPx (typed_true (typeof test) (v a) :: (P a)) (LOCALx (Q a) (SEPx (R a))))
                  body (loop1_ret_assert (EX a:A, PROPx (P a) (LOCALx (Q a) (SEPx (R a)))) 
                            (overridePost 
@@ -249,7 +249,7 @@ apply semax_while; auto.
 *
  rewrite exp_andp2. apply exp_left; intro a.
  eapply derives_trans; [ | apply H0].
- rewrite insert_tce; apply derives_refl.
+ apply derives_refl.
 *
 repeat rewrite exp_andp2. apply exp_left; intro a.
 rewrite overridePost_normal'.
@@ -258,7 +258,7 @@ eapply derives_trans.
 apply andp_right; [ | apply derives_refl].
 eapply derives_trans; [ | apply (H1 a)].
 rewrite (andp_comm (local _)).
-rewrite andp_assoc. apply andp_left2. rewrite insert_tce; auto.
+rewrite andp_assoc. apply andp_left2. auto.
 go_lowerx; normalize.
 repeat apply andp_right; auto. apply prop_right; split; auto.
 rewrite H3; auto.
@@ -269,7 +269,7 @@ rewrite H3; auto.
  rewrite <- andp_assoc.
  rewrite <- insert_prop.
  apply andp_right; [ | apply andp_left2; auto].
- rewrite (andp_comm (local _)). rewrite andp_assoc. rewrite insert_tce. 
+ rewrite (andp_comm (local _)). rewrite andp_assoc.
  eapply derives_trans.
  apply andp_right; [ | apply derives_refl].
  apply andp_left2; apply (H1 a).
@@ -333,14 +333,14 @@ Qed.
 Lemma semax_for : 
  forall Espec {cs: compspecs} {A:Type} (v: A -> val) Delta P Q R test body incr PreIncr Post,
      bool_type (typeof test) = true ->
-     (forall a:A, PROPx (P a) (LOCALx (tc_env Delta :: (Q a)) (SEPx (R a))) 
+     (forall a:A, ENTAIL Delta, PROPx (P a) (LOCALx (Q a) (SEPx (R a))) 
            |-- tc_expr Delta (Eunop Cop.Onotbool test tint)) ->
-     (forall a:A, PROPx (P a) (LOCALx (tc_env Delta :: (Q a)) (SEPx (R a))) |--  local (`(eq (v a)) (eval_expr test))) ->
+     (forall a:A, ENTAIL Delta, PROPx (P a) (LOCALx (Q a) (SEPx (R a))) |--  local (`(eq (v a)) (eval_expr test))) ->
      (forall a:A, 
         @semax cs Espec Delta (PROPx (typed_true (typeof test) (v a) :: P a) (LOCALx (Q a) (SEPx (R a))))
              body (loop1_ret_assert (PreIncr a) Post)) ->
      (forall a, @semax cs Espec Delta (PreIncr a) incr (normal_ret_assert (PROPx (P a) (LOCALx (Q a) (SEPx (R a)))))) ->
-     (forall a:A, PROPx (typed_false (typeof test) (v a) :: P a) (LOCALx (tc_env Delta :: (Q a)) (SEPx (R a))) 
+     (forall a:A, ENTAIL Delta, PROPx (typed_false (typeof test) (v a) :: P a) (LOCALx (Q a) (SEPx (R a))) 
           |-- Post EK_normal None) ->
      @semax cs Espec Delta (EX a:A, PROPx (P a) (LOCALx (Q a) (SEPx (R a))))
        (Sloop (Ssequence (Sifthenelse test Sskip Sbreak) body) incr)
@@ -349,15 +349,13 @@ Proof.
 intros.
 apply semax_for_x with (EX a:A, PreIncr a); auto.
 normalize.
-rewrite insert_tce; auto.
 normalize.
 eapply derives_trans; [ | apply (H4 a)].
-rewrite <- insert_tce.
 clear - H4 H1.
 eapply derives_trans; [ | eapply derives_trans; [ eapply andp_derives | ]].
 apply andp_right.
 rewrite (andp_comm (local (tc_environ _))).
-rewrite andp_assoc. apply andp_left2. rewrite insert_tce.
+rewrite andp_assoc. apply andp_left2.
 apply H1. apply derives_refl. apply derives_refl. apply derives_refl.
 rewrite <- insert_prop.
 rewrite <- !andp_assoc.
@@ -371,7 +369,6 @@ rewrite <- insert_prop.
 eapply derives_trans; [ | eapply derives_trans].
 eapply andp_right; [ | apply derives_refl].
 eapply derives_trans; [ | apply (H1 a)].
-rewrite <- insert_local.
 apply andp_derives; auto.
 apply andp_left2; auto.
 apply derives_refl.
@@ -499,7 +496,7 @@ Proof. intros; intros ek vl; unfold normal_ret_assert.
   go_lowerx. subst; apply H.
 Qed.
 
-
+(*
 Lemma elim_redundant_Delta:
   forall Espec {cs: compspecs} Delta P Q R c Post,
   @semax cs Espec Delta (PROPx P (LOCALx Q R)) c Post ->
@@ -514,6 +511,7 @@ Proof.
   unfold local,lift1; unfold_lift; simpl.
  apply prop_derives; intros [? ?]; auto.
 Qed.
+*)
 
 Transparent tc_andp.  (* ? should leave it opaque, maybe? *)
 

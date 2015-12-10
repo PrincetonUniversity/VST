@@ -57,7 +57,7 @@ match Q with
       | Some (vardesc_visible_global vg) => f T1 T2 ((vg=v)::P') Q'
       | Some (vardesc_shadowed_global vg) =>  f T1 T2 ((vg=v)::P') Q'
       end
-| tc_env D => f T1 T2 P' (tc_env D :: Q')
+(*| tc_env D => f T1 T2 P' (tc_env D :: Q') *)
 | localprop P => f T1 T2 (P :: P') Q'
 end.
 
@@ -83,7 +83,7 @@ Ltac hnf_localdef_list A :=
  | gvar _ ?v :: ?Q' => hide_it v; hnf_localdef_list Q'
  | sgvar _ ?v :: ?Q' => hide_it v; hnf_localdef_list Q'
  | localprop ?v :: ?Q' => hide_it v; hnf_localdef_list Q'
- | tc_env ?v :: ?Q' => hide_it v;  hnf_localdef_list Q'     
+(* | tc_env ?v :: ?Q' => hide_it v;  hnf_localdef_list Q'      *)
   | ?B :: ?C => let x := eval hnf in B in change B with x; hnf_localdef_list (x::C)
   | nil => idtac
   | _ => let x := eval hnf in A in (change A with x); hnf_localdef_list x
@@ -101,11 +101,11 @@ Goal exists x,  local2ptree (
    :: temp 3%positive (Vint (Int.repr (3+4)))
    :: lvar 1%positive tint (Vint (Int.repr 1))
    :: localprop(eq (1+2) 3)
-   :: tc_env empty_tycontext
+(*   :: tc_env empty_tycontext*)
    :: nil) = x.
 set (Three := 3). (* This definition should not be unfolded! *)
 set (T := temp 1%positive Vundef). (* This should be unfolded! *)
-set (Q := tc_env empty_tycontext :: nil).  (* This should be unfolded! *)
+set (Q := (*tc_env empty_tycontext :: *) nil).  (* This should be unfolded! *)
 eexists.
 etransitivity.
 prove_local2ptree.
@@ -833,13 +833,36 @@ Proof.
   reflexivity.
 Qed.
 
+
+Lemma nth_error_local':
+  forall n P Q R (Qn: localdef),
+    nth_error Q n = Some Qn ->
+    PROPx P (LOCALx Q R) |-- local (locald_denote Qn).
+Proof.
+intros.
+apply andp_left2. apply andp_left1.
+go_lowerx. normalize.
+revert Q H H0; induction n; destruct Q; intros; inv H.
+destruct H0; auto.
+destruct H0. apply (IHn Q); auto.
+Qed.
+
+Lemma in_local': forall Q0 P Q R, In Q0 Q -> 
+   PROPx P (LOCALx Q R) |-- local (locald_denote Q0).
+Proof.
+  intros.
+  destruct (in_nth_error _ _ H) as [?n ?H].
+  eapply nth_error_local'.
+  eauto.
+Qed.
+
 Lemma local2ptree_sound_aux: forall P Q R Q0 Q1 Q2,
   Q1 && local (locald_denote Q0) = Q2 && local (locald_denote Q0) ->
   In Q0 Q ->
   Q1 && PROPx P (LOCALx Q R) = Q2 && PROPx P (LOCALx Q R).
 Proof.
   intros.
-  pose proof in_local _ P _ R H0.
+  pose proof in_local' _ P _ R H0.
   rewrite (add_andp _ _ H1).
   rewrite (andp_comm _ (local (locald_denote Q0))).
   rewrite <- !andp_assoc.
@@ -1139,15 +1162,16 @@ Proof.
        with (Q:= LocalD T1a (PTree.remove i T2a) Qa)
               (Q':= LocalD T1a T2a Qa); auto.
     intro; symmetry; apply (LocalD_remove_empty_from_PTree2); auto.
- +
+(* +
     rewrite <- (IHQ _ _ _ _ _ _ _ _ H); clear IHQ H.
     simpl. rewrite <- insert_local'.
     rewrite <- !insert_locals;
     forget (local (fold_right `and `True (map locald_denote Q))) as QQ;
      rewrite !(andp_comm QQ); rewrite <- !andp_assoc; f_equal; clear QQ.
-    rewrite (insert_local' (tc_env t)).
+    rewrite inser
     apply LOCALx_shuffle'; intros.
     apply LOCALx_expand_res.
+*)
  +
     rewrite <- (IHQ _ _ _ _ _ _ _ _ H); clear IHQ H.
     simpl app. rewrite <- insert_prop. rewrite <- insert_local'. reflexivity.
@@ -1169,7 +1193,7 @@ Proof.
   intros.
   eapply local2ptree_soundness in H.
   match goal with |- LOCALx _ ?B = _ =>
-    replace B with (SEP(TT))
+    replace B with (SEPx(TT::nil))
   end.
   instantiate (2:=@nil Prop) in H.
   simpl app in H.

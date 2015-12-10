@@ -951,7 +951,7 @@ Qed.
 Lemma semax_lseg_nonnull (ls: listspec list_structid list_link):
   forall (Espec: OracleKind)
       Delta P Q dsh psh s v R c Post,
-   PROPx P (LOCALx (tc_env Delta :: Q)
+   ENTAIL Delta, PROPx P (LOCALx Q
             (SEPx (lseg ls dsh psh s v nullval :: R))) |-- 
                         !!(typed_true (tptr list_struct) v)  ->
   (forall (h: elemtype ls) (r: list (val * elemtype ls)) (y: val), 
@@ -1531,7 +1531,7 @@ Qed.
 Lemma semax_lseg_nonnull (ls: listspec list_structid list_link):
   forall (Espec: OracleKind)
       Delta P Q sh s v R c Post,
-   PROPx P (LOCALx (tc_env Delta :: Q)
+      ENTAIL Delta, PROPx P (LOCALx Q
             (SEPx (lseg ls sh s v nullval :: R))) |-- 
                         !!(typed_true (tptr list_struct) v)  ->
   (forall (h: elemtype ls) (r: list (elemtype ls)) (y: val), 
@@ -2172,7 +2172,7 @@ Lemma semax_lseg_nonnull (ls: listspec list_structid list_link):
   forall (Espec: OracleKind)
       Delta P Q dsh psh s v R c Post,
     ~ (readable_share dsh) ->
-   PROPx P (LOCALx (tc_env Delta :: Q)
+   ENTAIL Delta, PROPx P (LOCALx Q
             (SEPx (lseg ls dsh psh s v nullval :: R))) |-- 
                         !!(typed_true (tptr list_struct) v)  ->
   (forall (h: elemtype ls) (r: list val) (y: val), 

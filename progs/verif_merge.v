@@ -5,8 +5,6 @@ Require Import progs.list_dt. Import LsegSpecial.
 Instance CompSpecs : compspecs.
 Proof. make_compspecs prog. Defined.
 
-Local Open Scope logic.
-
 Instance LS: listspec _list _tail.
 Proof. eapply mk_listspec; reflexivity. Defined.
 
@@ -91,14 +89,8 @@ Proof.
 Qed.
 
 Definition merge_invariant _cond sh init_a init_b ret_ :=
-  @exp (environ -> mpred) _ _ (fun cond : int =>
-  @exp (environ -> mpred) _ _ (fun a : list int =>
-  @exp (environ -> mpred) _ _ (fun b : list int =>
-  @exp (environ -> mpred) _ _ (fun merged : list int =>
-  @exp (environ -> mpred) _ _ (fun a_ : val =>
-  @exp (environ -> mpred) _ _ (fun b_ : val =>
-  @exp (environ -> mpred) _ _ (fun c_ : val =>    (* dummy pointer if merged=[] *)
-  @exp (environ -> mpred) _ _ (fun begin : val => (* c_            if merged=[] *)
+ (EX cond: int, EX a: list int, EX b: list int, EX merged: list int, 
+  EX a_: val, EX b_: val, EX c_: val, EX begin: val,
   PROP (merge init_a init_b = merged ++ merge a b;
         cond = Int.zero <-> (a_ = nullval \/ b_ = nullval)
        )
@@ -113,7 +105,7 @@ Definition merge_invariant _cond sh init_a init_b ret_ :=
          data_at Tsh tlist (if merged then Vundef else begin) ret_;
          lseg LS sh (map Vint (butlast merged)) begin c_;
          if merged then emp else data_at sh t_struct_list (Vint (last merged), Vundef) c_
-))))))))).
+   ))%assert.
 
 Lemma merge_nil_r a : merge a nil = a.
 Proof.
@@ -258,13 +250,8 @@ the actual if. *)
 simpl in H1.
 remember (negb (Int.lt vb va)) as B; destruct B ;
 forward_if (
-  @exp (environ -> mpred) _ _ (fun a : list int =>
-  @exp (environ -> mpred) _ _ (fun b : list int =>
-  @exp (environ -> mpred) _ _ (fun merged : list int =>
-  @exp (environ -> mpred) _ _ (fun a_ : val =>
-  @exp (environ -> mpred) _ _ (fun b_ : val =>
-  @exp (environ -> mpred) _ _ (fun c_ : val =>
-  @exp (environ -> mpred) _ _ (fun begin : val =>
+  EX a: list int, EX b: list int, EX merged: list int,
+  EX a_: val, EX b_: val, EX c_: val, EX begin: val,
   PROP (merge init_a init_b = merged ++ merge a b)
   LOCAL (temp _a a_;
          temp _b b_;
@@ -276,7 +263,7 @@ forward_if (
          data_at Tsh tlist (if merged then Vundef else begin) ret_;
          lseg LS sh (map Vint (butlast merged)) begin c_;
          if merged then emp else data_at sh t_struct_list (Vint (last merged), Vundef) c_
-))))))))).
+   ))%assert.
 (* after the [forward_if], 3 new goals *)
 (* the effect of [*x=a] on the invariant depends on whether merged is nil or not *)
 destruct merged as [|hmerge tmerge].

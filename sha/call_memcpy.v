@@ -254,7 +254,7 @@ Lemma call_memcpy_tuchar:  (* Uses CompSpecs from sha. *)
      JMeq vq (map Vint contents) ->
      JMeq vp vp' ->
      JMeq vp'' (splice_into_list lop (lop+len) np (sublist loq (Zlength contents) (map Vint contents)) vp') ->
-     PROPx P (LOCALx (tc_env Delta :: Q) (SEPx R)) |--
+     ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) |--
          tc_exprlist Delta [tptr tvoid; tptr tvoid; tuint] [e_p; e_q; e_n]  &&
          local (`(eq (field_address0 tp (ArraySubsc lop :: pathp) p)) (eval_expr e_p)) &&
          local (`(eq (field_address0 tq (ArraySubsc loq :: pathq) q)) (eval_expr e_q)) &&
@@ -373,7 +373,6 @@ eapply semax_pre_post;
        try eassumption;
        try (rewrite ?Hspec, ?Hglob; reflexivity)].
 *
- rewrite insert_tce.
  eapply derives_trans; [ apply Hpre | ].
  rewrite !andp_assoc.
  apply andp_derives; auto.
@@ -524,7 +523,7 @@ Lemma call_memset_tuchar:
    (Hnp : (lop + len <= np)%Z)
    (H3:  JMeq vp vp')
    (H4:  JMeq vp'' (splice_into_list lop (lop+len) np (list_repeat (Z.to_nat len) (Vint c)) vp'))
-   (H5: PROPx P (LOCALx (tc_env Delta :: Q) (SEPx R)) |-- 
+   (H5: ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) |-- 
          tc_exprlist Delta [tptr tvoid; tint; tuint] [e_p; e_c; e_n] &&
          local (`(eq (field_address0 tp (ArraySubsc lop :: pathp) p)) (eval_expr e_p)) &&
          local (`(eq (Vint c)) (eval_expr e_c)) &&
@@ -604,7 +603,6 @@ eapply semax_pre_post;
        try eassumption;
        try (rewrite ?Hspec, ?Hglob; reflexivity)].
 *
- rewrite insert_tce.
  eapply derives_trans; [ apply Hpre | ].
  rewrite !andp_assoc.
  apply andp_derives; auto.

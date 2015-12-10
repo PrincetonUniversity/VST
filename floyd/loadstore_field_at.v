@@ -63,9 +63,9 @@ Lemma semax_max_path_field_load_nth_ram:
       JMeq v' v ->
       nth_error R n = Some Pre ->
       Pre |-- field_at sh t_root gfs v' p * TT ->
-      PROPx P (LOCALx (tc_env Delta :: Q) (SEPx R)) |--
+      ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) |--
         local (`(eq p) (eval_LR e1 lr)) ->
-      PROPx P (LOCALx (tc_env Delta :: Q) (SEPx R)) |--
+      ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) |--
         (tc_LR Delta e1 lr) &&
         (tc_efield Delta efs) &&
         efield_denote efs gfs &&
@@ -91,6 +91,7 @@ Proof.
   assert_PROP (field_compatible t_root gfs p).
   Focus 1. {
     erewrite SEP_nth_isolate, <- insert_SEP by eauto.
+    apply andp_left2;
     apply derives_left_sepcon_right_corable; auto.
     intro rho; unfold_lift; simpl.
     eapply derives_trans; [apply H8 |].
@@ -103,13 +104,13 @@ Proof.
   | apply andp_right].
   + rewrite (add_andp _ _ H9), (add_andp _ _ H10).
     eapply derives_trans; [| apply eval_lvalue_nested_efield; eassumption].
-    rewrite <- insert_local; solve_andp.
+    solve_andp.
   + eapply self_ramify_trans; [exact H8 |].
     eapply RAMIF_PLAIN.weak_ramif_spec.
     apply mapsto_field_at_ramify; [auto | rewrite <- H12; auto | auto | eauto].
   + rewrite (add_andp _ _ H9), (add_andp _ _ H10).
     eapply derives_trans; [| eapply tc_lvalue_nested_efield; eassumption].
-    rewrite <- insert_local; solve_andp.
+    solve_andp.
   + eapply derives_trans; [exact H10 |].
     rewrite H12; solve_andp.
 Qed.
@@ -129,9 +130,9 @@ Lemma semax_max_path_field_cast_load_nth_ram:
       JMeq v' v ->
       nth_error R n = Some Pre ->
       Pre |-- field_at sh t_root gfs v' p * TT ->
-      PROPx P (LOCALx (tc_env Delta :: Q) (SEPx R)) |--
+      ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) |--
         local (`(eq p) (eval_LR e1 lr)) ->
-      PROPx P (LOCALx (tc_env Delta :: Q) (SEPx R)) |--
+      ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) |--
         (tc_LR Delta e1 lr) &&
         (tc_efield Delta efs) &&
         efield_denote efs gfs &&
@@ -157,7 +158,7 @@ Proof.
   assert_PROP (field_compatible t_root gfs p).
   Focus 1. {
     erewrite SEP_nth_isolate, <- insert_SEP by eauto.
-    apply derives_left_sepcon_right_corable; auto.
+    apply andp_left2; apply derives_left_sepcon_right_corable; auto.
     intro rho; unfold_lift; simpl.
     eapply derives_trans; [apply H7 |].
     rewrite field_at_compatible'.
@@ -168,13 +169,13 @@ Proof.
   [ idtac | idtac | apply andp_right].
   + rewrite (add_andp _ _ H8), (add_andp _ _ H9).
     eapply derives_trans; [| apply eval_lvalue_nested_efield; eassumption].
-    rewrite <- insert_local; solve_andp.
+    solve_andp.
   + eapply self_ramify_trans; [exact H7 |].
     eapply RAMIF_PLAIN.weak_ramif_spec.
     apply mapsto_field_at_ramify; [auto | rewrite <- H10; auto | auto | eauto].
   + rewrite (add_andp _ _ H8), (add_andp _ _ H9).
     eapply derives_trans; [| eapply tc_lvalue_nested_efield; eassumption].
-    rewrite <- insert_local; solve_andp.
+    solve_andp.
   + eapply derives_trans; [exact H9 |].
     rewrite H10; solve_andp.
 Qed.
@@ -212,11 +213,11 @@ Lemma semax_max_path_field_store_nth_ram:
       nth_error R n = Some Pre ->
       Pre |-- field_at_ sh t_root gfs p *
         (field_at sh t_root gfs v' p -* Post) ->
-      PROPx P (LOCALx (tc_env Delta :: Q) (SEPx R)) |--
+      ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) |--
         local (`(eq p) (eval_LR e1 lr)) ->
-      PROPx P (LOCALx (tc_env Delta :: Q) (SEPx R)) |--
+      ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) |--
         local (`(eq v) (eval_expr (Ecast e2 (typeof (nested_efield e1 efs tts))))) ->
-      PROPx P (LOCALx (tc_env Delta :: Q) (SEPx R)) |--
+      ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) |--
         (tc_LR Delta e1 lr) && 
         (tc_efield Delta efs) &&
         efield_denote efs gfs &&
@@ -240,7 +241,7 @@ Proof.
   assert_PROP (field_compatible t_root gfs p).
   Focus 1. {
     erewrite SEP_nth_isolate, <- insert_SEP by eauto.
-    apply derives_left_sepcon_right_corable; auto.
+    apply andp_left2; apply derives_left_sepcon_right_corable; auto.
     intro rho; unfold_lift; simpl.
     eapply derives_trans; [apply H6 |].
     unfold field_at_; rewrite (field_at_compatible' _ _ _ (default_val _)).
@@ -251,14 +252,14 @@ Proof.
   4: apply andp_right.
   + rewrite (add_andp _ _ H7), (add_andp _ _ H9).
     eapply derives_trans; [| apply eval_lvalue_nested_efield; eassumption].
-    rewrite <- insert_local; solve_andp.
+    solve_andp.
   + rewrite <- H10; exact H8.
   + eapply RAMIF_PLAIN.trans; [exact H6 |].
     apply mapsto_field_at_ramify; [auto | rewrite <- H10; auto | | auto].
     symmetry; apply by_value_default_val; auto.
   + rewrite (add_andp _ _ H7), (add_andp _ _ H9).
     eapply derives_trans; [| eapply tc_lvalue_nested_efield; eassumption].
-    rewrite <- insert_local; solve_andp.
+    solve_andp.
   + eapply derives_trans; [exact H9 |].
     rewrite H10; solve_andp.
 Qed.

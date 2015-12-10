@@ -838,30 +838,6 @@ simpl; normalize.
  destruct (eval_var i t rho); inv H0; simpl; auto.
 Qed.
 
-(*  TC_LVALUE_EVAR
-Lemma force_eval_var_int_ptr':
- forall i t rho,
-  (exists Delta,
-    tc_environ Delta rho /\  tc_lvalue Delta (Evar i t) rho) ->
-  force_val
-            match eval_var i t rho with
-            | Vint _ => Some (eval_var i t rho)
-            | Vptr _ _ => Some (eval_var i t rho)
-            | _ => None
-            end = eval_var i t rho.
-Proof.
-intros.
- destruct H as [Delta [? ?]];
- eapply force_eval_var_int_ptr; eauto.
-Qed.
-
-Hint Rewrite force_eval_var_int_ptr' using 
-   match goal with Delta := _ : tycontext |- _ => 
-       exists Delta; split; hnf; solve [auto]
-   end : norm.     
-*)
-
-
 Lemma is_pointer_or_null_force_int_ptr:
    forall v, is_pointer_or_null v -> (force_val
         match v with
@@ -949,37 +925,6 @@ Qed.
 
 Hint Rewrite isptr_match : norm1.
 
-(*  TC_LVALUE_EVAR
-Lemma eval_cast_neutral_var:
- forall Delta rho, 
-  tc_environ Delta rho -> 
-  forall i t,
-   tc_lvalue Delta (Evar i t) rho ->
-  sem_cast_neutral (eval_var i t rho) = Some (eval_var i t rho).
-Proof.
-intros.
- pose proof (expr_lemmas.typecheck_lvalue_sound _ _ _ H H0).
- simpl in H1.
- destruct (eval_var i t rho); inv H1; simpl; auto.
-Qed.
-  
-Lemma eval_cast_neutral_var':
- forall i t rho,
-  (exists Delta,
-    tc_environ Delta rho /\  tc_lvalue Delta (Evar i t) rho) ->
-  sem_cast_neutral (eval_var i t rho) = Some (eval_var i t rho).
-Proof.
-intros.
- destruct H as [Delta [? ?]];
- eapply eval_cast_neutral_var; eauto.
-Qed.
-
-Hint Rewrite eval_cast_neutral_var' using 
-   match goal with Delta := _ : tycontext |- _ => 
-       exists Delta; split; hnf; solve [auto]
-   end : norm.
-*)
-
 Lemma eval_cast_neutral_tc_val:
    forall v, (exists t, tc_val t v /\ is_pointer_type t = true) -> 
        sem_cast_neutral v = Some v.
@@ -1013,10 +958,6 @@ Ltac eval_cast_simpl :=
     try (try unfold eval_cast; simpl Cop.classify_cast; cbv iota);
      try match goal with H: tc_environ ?Delta ?rho |- _ =>
        repeat first [
-  (*  TC_LVALUE_EVAR
-     rewrite (eval_cast_neutral_var Delta rho H) by reflexivity
-               | 
-    *)
    rewrite eval_cast_neutral_isptr by auto
                | rewrite (sem_cast_id Delta rho H); [ | reflexivity | reflexivity ]
                | erewrite sem_cast_pointer2; [ | | | eassumption ]; [ | reflexivity | reflexivity ]
@@ -1042,6 +983,18 @@ Ltac unfold_for_go_lower :=
     lift_prod lift_last lifted lift_uncurry_open lift_curry 
      local lift lift0 lift1 lift2 lift3 
    ] beta iota.
+
+
+Lemma grab_tc_environ:
+  forall Delta PQR S rho,
+    (tc_environ Delta rho -> PQR rho |-- S) ->
+    (local (tc_environ Delta) && PQR) rho |-- S.
+Proof.
+intros.
+unfold PROPx,LOCALx in *; simpl in *.
+normalize.
+unfold local, lift1. normalize.
+Qed.
 
 Ltac go_lower0 := 
 intros ?rho;
@@ -1231,124 +1184,124 @@ Notation " a 'OF' ta " := (a%type,ta%type) (at level 100, only parsing): formals
 Delimit Scope formals with formals.
 
 Notation "'WITH' x : tx 'PRE'  [ u , .. , v ] P 'POST' [ tz ] Q" :=
-     (mk_funspec ((cons u%formals .. (cons v%formals nil) ..), tz) tx (fun x => P%logic) (fun x => Q%logic))
+     (mk_funspec ((cons u%formals .. (cons v%formals nil) ..), tz) tx (fun x => P%assert) (fun x => Q%assert))
             (at level 200, x at level 0, P at level 100, Q at level 100).
 
 Notation "'WITH' x : tx 'PRE'  [ ] P 'POST' [ tz ] Q" :=
-     (mk_funspec (nil, tz) tx (fun x => P%logic) (fun x => Q%logic))
+     (mk_funspec (nil, tz) tx (fun x => P%assert) (fun x => Q%assert))
             (at level 200, x at level 0, P at level 100, Q at level 100).
 
 Notation "'WITH'  x1 : t1 , x2 : t2 'PRE'  [ u , .. , v ] P 'POST' [ tz ] Q" :=
      (mk_funspec ((cons u%formals .. (cons v%formals nil) ..), tz) (t1*t2)
-           (fun x => match x with (x1,x2) => P%logic end)
-           (fun x => match x with (x1,x2) => Q%logic end))
+           (fun x => match x with (x1,x2) => P%assert end)
+           (fun x => match x with (x1,x2) => Q%assert end))
             (at level 200, x1 at level 0, x2 at level 0, P at level 100, Q at level 100).
 
 Notation "'WITH'  x1 : t1 , x2 : t2 'PRE'  [ ] P 'POST' [ tz ] Q" :=
      (mk_funspec (nil, tz) (t1*t2)
-           (fun x => match x with (x1,x2) => P%logic end)
-           (fun x => match x with (x1,x2) => Q%logic end))
+           (fun x => match x with (x1,x2) => P%assert end)
+           (fun x => match x with (x1,x2) => Q%assert end))
             (at level 200, x1 at level 0, x2 at level 0, P at level 100, Q at level 100).
 
 Notation "'WITH'  x1 : t1 , x2 : t2 , x3 : t3 'PRE'  [ u , .. , v ] P 'POST' [ tz ] Q" :=
      (mk_funspec ((cons u%formals .. (cons v%formals nil) ..), tz) (t1*t2*t3)
-           (fun x => match x with (x1,x2,x3) => P%logic end)
-           (fun x => match x with (x1,x2,x3) => Q%logic end))
+           (fun x => match x with (x1,x2,x3) => P%assert end)
+           (fun x => match x with (x1,x2,x3) => Q%assert end))
             (at level 200, x1 at level 0, x2 at level 0, x3 at level 0, P at level 100, Q at level 100).
 
 Notation "'WITH'  x1 : t1 , x2 : t2 , x3 : t3 'PRE'  [ ] P 'POST' [ tz ] Q" :=
      (mk_funspec (nil, tz) (t1*t2*t3)
-           (fun x => match x with (x1,x2,x3) => P%logic end)
-           (fun x => match x with (x1,x2,x3) => Q%logic end))
+           (fun x => match x with (x1,x2,x3) => P%assert end)
+           (fun x => match x with (x1,x2,x3) => Q%assert end))
             (at level 200, x1 at level 0, x2 at level 0, x3 at level 0, P at level 100, Q at level 100).
 
 
 Notation "'WITH'  x1 : t1 , x2 : t2 , x3 : t3 , x4 : t4 'PRE'  [ u , .. , v ] P 'POST' [ tz ] Q" :=
      (mk_funspec ((cons u%formals .. (cons v%formals nil) ..), tz) (t1*t2*t3*t4)
-           (fun x => match x with (x1,x2,x3,x4) => P%logic end)
-           (fun x => match x with (x1,x2,x3,x4) => Q%logic end))
+           (fun x => match x with (x1,x2,x3,x4) => P%assert end)
+           (fun x => match x with (x1,x2,x3,x4) => Q%assert end))
             (at level 200, x1 at level 0, x2 at level 0, x3 at level 0, x4 at level 0, P at level 100, Q at level 100).
 
 Notation "'WITH'  x1 : t1 , x2 : t2 , x3 : t3 , x4 : t4 'PRE'  [ ] P 'POST' [ tz ] Q" :=
      (mk_funspec (nil, tz) (t1*t2*t3*t4)
-           (fun x => match x with (x1,x2,x3,x4) => P%logic end)
-           (fun x => match x with (x1,x2,x3,x4) => Q%logic end))
+           (fun x => match x with (x1,x2,x3,x4) => P%assert end)
+           (fun x => match x with (x1,x2,x3,x4) => Q%assert end))
             (at level 200, x1 at level 0, x2 at level 0, x3 at level 0, x4 at level 0, P at level 100, Q at level 100).
 
 Notation "'WITH'  x1 : t1 , x2 : t2 , x3 : t3 , x4 : t4 , x5 : t5 'PRE'  [ ] P 'POST' [ tz ] Q" :=
      (mk_funspec (nil, tz) (t1*t2*t3*t4*t5)
-           (fun x => match x with (x1,x2,x3,x4,x5) => P%logic end)
-           (fun x => match x with (x1,x2,x3,x4,x5) => Q%logic end))
+           (fun x => match x with (x1,x2,x3,x4,x5) => P%assert end)
+           (fun x => match x with (x1,x2,x3,x4,x5) => Q%assert end))
             (at level 200, x1 at level 0, x2 at level 0, x3 at level 0, x4 at level 0, x5 at level 0, P at level 100, Q at level 100).
 
 Notation "'WITH'  x1 : t1 , x2 : t2 , x3 : t3 , x4 : t4 , x5 : t5 'PRE'  [ u , .. , v ] P 'POST' [ tz ] Q" :=
      (mk_funspec ((cons u%formals .. (cons v%formals nil) ..), tz) (t1*t2*t3*t4*t5)
-           (fun x => match x with (x1,x2,x3,x4,x5) => P%logic end)
-           (fun x => match x with (x1,x2,x3,x4,x5) => Q%logic end))
+           (fun x => match x with (x1,x2,x3,x4,x5) => P%assert end)
+           (fun x => match x with (x1,x2,x3,x4,x5) => Q%assert end))
             (at level 200, x1 at level 0, x2 at level 0, x3 at level 0, x4 at level 0, x5 at level 0, P at level 100, Q at level 100).
 
 Notation "'WITH'  x1 : t1 , x2 : t2 , x3 : t3 , x4 : t4 , x5 : t5 , x6 : t6 'PRE'  [ ] P 'POST' [ tz ] Q" :=
      (mk_funspec (nil, tz) (t1*t2*t3*t4*t5*t6)
-           (fun x => match x with (x1,x2,x3,x4,x5,x6) => P%logic end)
-           (fun x => match x with (x1,x2,x3,x4,x5,x6) => Q%logic end))
+           (fun x => match x with (x1,x2,x3,x4,x5,x6) => P%assert end)
+           (fun x => match x with (x1,x2,x3,x4,x5,x6) => Q%assert end))
             (at level 200, x1 at level 0, x2 at level 0, x3 at level 0, x4 at level 0, 
               x5 at level 0, x6 at level 0, P at level 100, Q at level 100).
 
 Notation "'WITH'  x1 : t1 , x2 : t2 , x3 : t3 , x4 : t4 , x5 : t5 , x6 : t6 'PRE'  [ u , .. , v ] P 'POST' [ tz ] Q" :=
      (mk_funspec ((cons u%formals .. (cons v%formals nil) ..), tz) (t1*t2*t3*t4*t5*t6)
-           (fun x => match x with (x1,x2,x3,x4,x5,x6) => P%logic end)
-           (fun x => match x with (x1,x2,x3,x4,x5,x6) => Q%logic end))
+           (fun x => match x with (x1,x2,x3,x4,x5,x6) => P%assert end)
+           (fun x => match x with (x1,x2,x3,x4,x5,x6) => Q%assert end))
             (at level 200, x1 at level 0, x2 at level 0, x3 at level 0, x4 at level 0, 
              x5 at level 0, x6 at level 0, P at level 100, Q at level 100).
 
 Notation "'WITH'  x1 : t1 , x2 : t2 , x3 : t3 , x4 : t4 , x5 : t5 , x6 : t6 , x7 : t7 'PRE'  [ ] P 'POST' [ tz ] Q" :=
      (mk_funspec (nil, tz) (t1*t2*t3*t4*t5*t6*t7)
-           (fun x => match x with (x1,x2,x3,x4,x5,x6,x7) => P%logic end)
-           (fun x => match x with (x1,x2,x3,x4,x5,x6,x7) => Q%logic end))
+           (fun x => match x with (x1,x2,x3,x4,x5,x6,x7) => P%assert end)
+           (fun x => match x with (x1,x2,x3,x4,x5,x6,x7) => Q%assert end))
             (at level 200, x1 at level 0, x2 at level 0, x3 at level 0, x4 at level 0, 
               x5 at level 0, x6 at level 0, x7 at level 0, P at level 100, Q at level 100).
 
 Notation "'WITH'  x1 : t1 , x2 : t2 , x3 : t3 , x4 : t4 , x5 : t5 , x6 : t6 , x7 : t7 'PRE'  [ u , .. , v ] P 'POST' [ tz ] Q" :=
      (mk_funspec ((cons u%formals .. (cons v%formals nil) ..), tz) (t1*t2*t3*t4*t5*t6*t7)
-           (fun x => match x with (x1,x2,x3,x4,x5,x6,x7) => P%logic end)
-           (fun x => match x with (x1,x2,x3,x4,x5,x6,x7) => Q%logic end))
+           (fun x => match x with (x1,x2,x3,x4,x5,x6,x7) => P%assert end)
+           (fun x => match x with (x1,x2,x3,x4,x5,x6,x7) => Q%assert end))
             (at level 200, x1 at level 0, x2 at level 0, x3 at level 0, x4 at level 0, 
              x5 at level 0, x6 at level 0, x7 at level 0, P at level 100, Q at level 100).
 
 Notation "'WITH'  x1 : t1 , x2 : t2 , x3 : t3 , x4 : t4 , x5 : t5 , x6 : t6 , x7 : t7 , x8 : t8 'PRE'  [ ] P 'POST' [ tz ] Q" :=
      (mk_funspec (nil, tz) (t1*t2*t3*t4*t5*t6*t7*t8) 
-           (fun x => match x with (x1,x2,x3,x4,x5,x6,x7,x8) => P%logic end)
-           (fun x => match x with (x1,x2,x3,x4,x5,x6,x7,x8) => Q%logic end))
+           (fun x => match x with (x1,x2,x3,x4,x5,x6,x7,x8) => P%assert end)
+           (fun x => match x with (x1,x2,x3,x4,x5,x6,x7,x8) => Q%assert end))
             (at level 200, x1 at level 0, x2 at level 0, x3 at level 0, x4 at level 0, 
               x5 at level 0, x6 at level 0, x7 at level 0, x8 at level 0, P at level 100, Q at level 100).
 
 Notation "'WITH'  x1 : t1 , x2 : t2 , x3 : t3 , x4 : t4 , x5 : t5 , x6 : t6 , x7 : t7 , x8 : t8 'PRE'  [ u , .. , v ] P 'POST' [ tz ] Q" :=
      (mk_funspec ((cons u%formals .. (cons v%formals nil) ..), tz) (t1*t2*t3*t4*t5*t6*t7*t8)
-           (fun x => match x with (x1,x2,x3,x4,x5,x6,x7,x8) => P%logic end)
-           (fun x => match x with (x1,x2,x3,x4,x5,x6,x7,x8) => Q%logic end))
+           (fun x => match x with (x1,x2,x3,x4,x5,x6,x7,x8) => P%assert end)
+           (fun x => match x with (x1,x2,x3,x4,x5,x6,x7,x8) => Q%assert end))
             (at level 200, x1 at level 0, x2 at level 0, x3 at level 0, x4 at level 0, 
              x5 at level 0, x6 at level 0, x7 at level 0, x8 at level 0, P at level 100, Q at level 100).
 
 Notation "'WITH'  x1 : t1 , x2 : t2 , x3 : t3 , x4 : t4 , x5 : t5 , x6 : t6 , x7 : t7 , x8 : t8 , x9 : t9 'PRE'  [ ] P 'POST' [ tz ] Q" :=
      (mk_funspec (nil, tz) (t1*t2*t3*t4*t5*t6*t7*t8*t9) 
-           (fun x => match x with (x1,x2,x3,x4,x5,x6,x7,x8,x9) => P%logic end)
-           (fun x => match x with (x1,x2,x3,x4,x5,x6,x7,x8,x9) => Q%logic end))
+           (fun x => match x with (x1,x2,x3,x4,x5,x6,x7,x8,x9) => P%assert end)
+           (fun x => match x with (x1,x2,x3,x4,x5,x6,x7,x8,x9) => Q%assert end))
             (at level 200, x1 at level 0, x2 at level 0, x3 at level 0, x4 at level 0, 
               x5 at level 0, x6 at level 0, x7 at level 0, x8 at level 0, x9 at level 0,
              P at level 100, Q at level 100).
 
 Notation "'WITH'  x1 : t1 , x2 : t2 , x3 : t3 , x4 : t4 , x5 : t5 , x6 : t6 , x7 : t7 , x8 : t8 , x9 : t9 'PRE'  [ u , .. , v ] P 'POST' [ tz ] Q" :=
      (mk_funspec ((cons u%formals .. (cons v%formals nil) ..), tz) (t1*t2*t3*t4*t5*t6*t7*t8*t9)
-           (fun x => match x with (x1,x2,x3,x4,x5,x6,x7,x8,x9) => P%logic end)
-           (fun x => match x with (x1,x2,x3,x4,x5,x6,x7,x8,x9) => Q%logic end))
+           (fun x => match x with (x1,x2,x3,x4,x5,x6,x7,x8,x9) => P%assert end)
+           (fun x => match x with (x1,x2,x3,x4,x5,x6,x7,x8,x9) => Q%assert end))
             (at level 200, x1 at level 0, x2 at level 0, x3 at level 0, x4 at level 0, 
              x5 at level 0, x6 at level 0, x7 at level 0, x8 at level 0, x9 at level 0,
              P at level 100, Q at level 100).
 
 Notation "'WITH'  x1 : t1 , x2 : t2 , x3 : t3 , x4 : t4 , x5 : t5 , x6 : t6 , x7 : t7 , x8 : t8 , x9 : t9 , x10 : t10 'PRE'  [ ] P 'POST' [ tz ] Q" :=
      (mk_funspec (nil, tz) (t1*t2*t3*t4*t5*t6*t7*t8*t9*t10) 
-           (fun x => match x with (x1,x2,x3,x4,x5,x6,x7,x8,x9,x10) => P%logic end)
-           (fun x => match x with (x1,x2,x3,x4,x5,x6,x7,x8,x9,x10) => Q%logic end))
+           (fun x => match x with (x1,x2,x3,x4,x5,x6,x7,x8,x9,x10) => P%assert end)
+           (fun x => match x with (x1,x2,x3,x4,x5,x6,x7,x8,x9,x10) => Q%assert end))
             (at level 200, x1 at level 0, x2 at level 0, x3 at level 0, x4 at level 0, 
               x5 at level 0, x6 at level 0, x7 at level 0, x8 at level 0, x9 at level 0,
               x10 at level 0, 
@@ -1356,8 +1309,8 @@ Notation "'WITH'  x1 : t1 , x2 : t2 , x3 : t3 , x4 : t4 , x5 : t5 , x6 : t6 , x7
 
 Notation "'WITH'  x1 : t1 , x2 : t2 , x3 : t3 , x4 : t4 , x5 : t5 , x6 : t6 , x7 : t7 , x8 : t8 , x9 : t9 , x10 : t10 'PRE'  [ u , .. , v ] P 'POST' [ tz ] Q" :=
      (mk_funspec ((cons u%formals .. (cons v%formals nil) ..), tz) (t1*t2*t3*t4*t5*t6*t7*t8*t9*t10)
-           (fun x => match x with (x1,x2,x3,x4,x5,x6,x7,x8,x9,x10) => P%logic end)
-           (fun x => match x with (x1,x2,x3,x4,x5,x6,x7,x8,x9,x10) => Q%logic end))
+           (fun x => match x with (x1,x2,x3,x4,x5,x6,x7,x8,x9,x10) => P%assert end)
+           (fun x => match x with (x1,x2,x3,x4,x5,x6,x7,x8,x9,x10) => Q%assert end))
             (at level 200, x1 at level 0, x2 at level 0, x3 at level 0, x4 at level 0, 
              x5 at level 0, x6 at level 0, x7 at level 0, x8 at level 0, x9 at level 0,
               x10 at level 0, 
@@ -1365,8 +1318,8 @@ Notation "'WITH'  x1 : t1 , x2 : t2 , x3 : t3 , x4 : t4 , x5 : t5 , x6 : t6 , x7
 
 Notation "'WITH'  x1 : t1 , x2 : t2 , x3 : t3 , x4 : t4 , x5 : t5 , x6 : t6 , x7 : t7 , x8 : t8 , x9 : t9 , x10 : t10 , x11 : t11 'PRE'  [ ] P 'POST' [ tz ] Q" :=
      (mk_funspec (nil, tz) (t1*t2*t3*t4*t5*t6*t7*t8*t9*t10*t11) 
-           (fun x => match x with (x1,x2,x3,x4,x5,x6,x7,x8,x9,x10,x11) => P%logic end)
-           (fun x => match x with (x1,x2,x3,x4,x5,x6,x7,x8,x9,x10,x11) => Q%logic end))
+           (fun x => match x with (x1,x2,x3,x4,x5,x6,x7,x8,x9,x10,x11) => P%assert end)
+           (fun x => match x with (x1,x2,x3,x4,x5,x6,x7,x8,x9,x10,x11) => Q%assert end))
             (at level 200, x1 at level 0, x2 at level 0, x3 at level 0, x4 at level 0, 
               x5 at level 0, x6 at level 0, x7 at level 0, x8 at level 0, x9 at level 0,
               x10 at level 0, x11 at level 0, 
@@ -1374,8 +1327,8 @@ Notation "'WITH'  x1 : t1 , x2 : t2 , x3 : t3 , x4 : t4 , x5 : t5 , x6 : t6 , x7
 
 Notation "'WITH'  x1 : t1 , x2 : t2 , x3 : t3 , x4 : t4 , x5 : t5 , x6 : t6 , x7 : t7 , x8 : t8 , x9 : t9 , x10 : t10 , x11 : t11 'PRE'  [ u , .. , v ] P 'POST' [ tz ] Q" :=
      (mk_funspec ((cons u%formals .. (cons v%formals nil) ..), tz) (t1*t2*t3*t4*t5*t6*t7*t8*t9*t10*t11)
-           (fun x => match x with (x1,x2,x3,x4,x5,x6,x7,x8,x9,x10,x11) => P%logic end)
-           (fun x => match x with (x1,x2,x3,x4,x5,x6,x7,x8,x9,x10,x11) => Q%logic end))
+           (fun x => match x with (x1,x2,x3,x4,x5,x6,x7,x8,x9,x10,x11) => P%assert end)
+           (fun x => match x with (x1,x2,x3,x4,x5,x6,x7,x8,x9,x10,x11) => Q%assert end))
             (at level 200, x1 at level 0, x2 at level 0, x3 at level 0, x4 at level 0, 
              x5 at level 0, x6 at level 0, x7 at level 0, x8 at level 0, x9 at level 0,
               x10 at level 0, x11 at level 0, 
@@ -1383,8 +1336,8 @@ Notation "'WITH'  x1 : t1 , x2 : t2 , x3 : t3 , x4 : t4 , x5 : t5 , x6 : t6 , x7
 
 Notation "'WITH'  x1 : t1 , x2 : t2 , x3 : t3 , x4 : t4 , x5 : t5 , x6 : t6 , x7 : t7 , x8 : t8 , x9 : t9 , x10 : t10 , x11 : t11 , x12 : t12 'PRE'  [ ] P 'POST' [ tz ] Q" :=
      (mk_funspec (nil, tz) (t1*t2*t3*t4*t5*t6*t7*t8*t9*t10*t11*t12) 
-           (fun x => match x with (x1,x2,x3,x4,x5,x6,x7,x8,x9,x10,x11,x12) => P%logic end)
-           (fun x => match x with (x1,x2,x3,x4,x5,x6,x7,x8,x9,x10,x11,x12) => Q%logic end))
+           (fun x => match x with (x1,x2,x3,x4,x5,x6,x7,x8,x9,x10,x11,x12) => P%assert end)
+           (fun x => match x with (x1,x2,x3,x4,x5,x6,x7,x8,x9,x10,x11,x12) => Q%assert end))
             (at level 200, x1 at level 0, x2 at level 0, x3 at level 0, x4 at level 0, 
               x5 at level 0, x6 at level 0, x7 at level 0, x8 at level 0, x9 at level 0,
               x10 at level 0, x11 at level 0, x12 at level 0, 
@@ -1392,8 +1345,8 @@ Notation "'WITH'  x1 : t1 , x2 : t2 , x3 : t3 , x4 : t4 , x5 : t5 , x6 : t6 , x7
 
 Notation "'WITH'  x1 : t1 , x2 : t2 , x3 : t3 , x4 : t4 , x5 : t5 , x6 : t6 , x7 : t7 , x8 : t8 , x9 : t9 , x10 : t10 , x11 : t11 , x12 : t12 'PRE'  [ u , .. , v ] P 'POST' [ tz ] Q" :=
      (mk_funspec ((cons u%formals .. (cons v%formals nil) ..), tz) (t1*t2*t3*t4*t5*t6*t7*t8*t9*t10*t11*t12)
-           (fun x => match x with (x1,x2,x3,x4,x5,x6,x7,x8,x9,x10,x11,x12) => P%logic end)
-           (fun x => match x with (x1,x2,x3,x4,x5,x6,x7,x8,x9,x10,x11,x12) => Q%logic end))
+           (fun x => match x with (x1,x2,x3,x4,x5,x6,x7,x8,x9,x10,x11,x12) => P%assert end)
+           (fun x => match x with (x1,x2,x3,x4,x5,x6,x7,x8,x9,x10,x11,x12) => Q%assert end))
             (at level 200, x1 at level 0, x2 at level 0, x3 at level 0, x4 at level 0, 
              x5 at level 0, x6 at level 0, x7 at level 0, x8 at level 0, x9 at level 0,
               x10 at level 0, x11 at level 0, x12 at level 0, 
@@ -1401,8 +1354,8 @@ Notation "'WITH'  x1 : t1 , x2 : t2 , x3 : t3 , x4 : t4 , x5 : t5 , x6 : t6 , x7
 
 Notation "'WITH'  x1 : t1 , x2 : t2 , x3 : t3 , x4 : t4 , x5 : t5 , x6 : t6 , x7 : t7 , x8 : t8 , x9 : t9 , x10 : t10 , x11 : t11 , x12 : t12 , x13 : t13 'PRE'  [ ] P 'POST' [ tz ] Q" :=
      (mk_funspec (nil, tz) (t1*t2*t3*t4*t5*t6*t7*t8*t9*t10*t11*t12*t13) 
-           (fun x => match x with (x1,x2,x3,x4,x5,x6,x7,x8,x9,x10,x11,x12,x13) => P%logic end)
-           (fun x => match x with (x1,x2,x3,x4,x5,x6,x7,x8,x9,x10,x11,x12,x13) => Q%logic end))
+           (fun x => match x with (x1,x2,x3,x4,x5,x6,x7,x8,x9,x10,x11,x12,x13) => P%assert end)
+           (fun x => match x with (x1,x2,x3,x4,x5,x6,x7,x8,x9,x10,x11,x12,x13) => Q%assert end))
             (at level 200, x1 at level 0, x2 at level 0, x3 at level 0, x4 at level 0, 
               x5 at level 0, x6 at level 0, x7 at level 0, x8 at level 0, x9 at level 0,
               x10 at level 0, x11 at level 0, x12 at level 0, x13 at level 0,  
@@ -1410,8 +1363,8 @@ Notation "'WITH'  x1 : t1 , x2 : t2 , x3 : t3 , x4 : t4 , x5 : t5 , x6 : t6 , x7
 
 Notation "'WITH'  x1 : t1 , x2 : t2 , x3 : t3 , x4 : t4 , x5 : t5 , x6 : t6 , x7 : t7 , x8 : t8 , x9 : t9 , x10 : t10 , x11 : t11 , x12 : t12 , x13 : t13 'PRE'  [ u , .. , v ] P 'POST' [ tz ] Q" :=
      (mk_funspec ((cons u%formals .. (cons v%formals nil) ..), tz) (t1*t2*t3*t4*t5*t6*t7*t8*t9*t10*t11*t12*t13)
-           (fun x => match x with (x1,x2,x3,x4,x5,x6,x7,x8,x9,x10,x11,x12,x13) => P%logic end)
-           (fun x => match x with (x1,x2,x3,x4,x5,x6,x7,x8,x9,x10,x11,x12,x13) => Q%logic end))
+           (fun x => match x with (x1,x2,x3,x4,x5,x6,x7,x8,x9,x10,x11,x12,x13) => P%assert end)
+           (fun x => match x with (x1,x2,x3,x4,x5,x6,x7,x8,x9,x10,x11,x12,x13) => Q%assert end))
             (at level 200, x1 at level 0, x2 at level 0, x3 at level 0, x4 at level 0, 
              x5 at level 0, x6 at level 0, x7 at level 0, x8 at level 0, x9 at level 0,
               x10 at level 0, x11 at level 0, x12 at level 0,  x13 at level 0, 
@@ -1419,8 +1372,8 @@ Notation "'WITH'  x1 : t1 , x2 : t2 , x3 : t3 , x4 : t4 , x5 : t5 , x6 : t6 , x7
 
 Notation "'WITH'  x1 : t1 , x2 : t2 , x3 : t3 , x4 : t4 , x5 : t5 , x6 : t6 , x7 : t7 , x8 : t8 , x9 : t9 , x10 : t10 , x11 : t11 , x12 : t12 , x13 : t13 , x14 : t14 'PRE'  [ ] P 'POST' [ tz ] Q" :=
      (mk_funspec (nil, tz) (t1*t2*t3*t4*t5*t6*t7*t8*t9*t10*t11*t12*t13*t14) 
-           (fun x => match x with (x1,x2,x3,x4,x5,x6,x7,x8,x9,x10,x11,x12,x13,x14) => P%logic end)
-           (fun x => match x with (x1,x2,x3,x4,x5,x6,x7,x8,x9,x10,x11,x12,x13,x14) => Q%logic end))
+           (fun x => match x with (x1,x2,x3,x4,x5,x6,x7,x8,x9,x10,x11,x12,x13,x14) => P%assert end)
+           (fun x => match x with (x1,x2,x3,x4,x5,x6,x7,x8,x9,x10,x11,x12,x13,x14) => Q%assert end))
             (at level 200, x1 at level 0, x2 at level 0, x3 at level 0, x4 at level 0, 
               x5 at level 0, x6 at level 0, x7 at level 0, x8 at level 0, x9 at level 0,
               x10 at level 0, x11 at level 0, x12 at level 0, x13 at level 0, x14 at level 0,  
@@ -1428,8 +1381,8 @@ Notation "'WITH'  x1 : t1 , x2 : t2 , x3 : t3 , x4 : t4 , x5 : t5 , x6 : t6 , x7
 
 Notation "'WITH'  x1 : t1 , x2 : t2 , x3 : t3 , x4 : t4 , x5 : t5 , x6 : t6 , x7 : t7 , x8 : t8 , x9 : t9 , x10 : t10 , x11 : t11 , x12 : t12 , x13 : t13 , x14 : t14 'PRE'  [ u , .. , v ] P 'POST' [ tz ] Q" :=
      (mk_funspec ((cons u%formals .. (cons v%formals nil) ..), tz) (t1*t2*t3*t4*t5*t6*t7*t8*t9*t10*t11*t12*t13*t14)
-           (fun x => match x with (x1,x2,x3,x4,x5,x6,x7,x8,x9,x10,x11,x12,x13,x14) => P%logic end)
-           (fun x => match x with (x1,x2,x3,x4,x5,x6,x7,x8,x9,x10,x11,x12,x13,x14) => Q%logic end))
+           (fun x => match x with (x1,x2,x3,x4,x5,x6,x7,x8,x9,x10,x11,x12,x13,x14) => P%assert end)
+           (fun x => match x with (x1,x2,x3,x4,x5,x6,x7,x8,x9,x10,x11,x12,x13,x14) => Q%assert end))
             (at level 200, x1 at level 0, x2 at level 0, x3 at level 0, x4 at level 0, 
              x5 at level 0, x6 at level 0, x7 at level 0, x8 at level 0, x9 at level 0,
               x10 at level 0, x11 at level 0, x12 at level 0,  x13 at level 0, x14 at level 0,
@@ -1569,8 +1522,8 @@ Definition subst_localdef (i: ident) (v:val) (d: localdef) : localdef :=
      | _ => d
      end.
 
-Fixpoint subst_localdef_ok d : bool := 
- match d with tc_env _ => false | _ => true end.
+Fixpoint subst_localdef_ok (d: localdef) : bool := 
+ match d with (*tc_env _ => false |*) _ => true end.
 
 Lemma subst_localdef_lem: forall (i: ident) (v:val) d,
   subst_localdef_ok d = true ->
@@ -1994,7 +1947,8 @@ Ltac extract_exists_in_SEP' PQR :=
       let n := constr:(length R - Datatypes.S (length R'))%nat in
       let n' := eval lazy beta zeta iota delta in n in
       rewrite (@extract_nth_exists_in_SEP n' P Q R A S (eq_refl _));
-      unfold replace_nth at 1
+      unfold replace_nth at 1;
+      rewrite ?exp_andp2
    end
  end.
 
@@ -2002,11 +1956,13 @@ Ltac extract_exists_from_SEP :=
 match goal with
   | |- semax _ ?Pre _ _ =>
     extract_exists_in_SEP' Pre; apply extract_exists_pre
-  | |- ?Pre |-- ?Post =>
+  | |- _ && ?Pre |-- ?Post =>
+     let P := fresh "POST" in set (P := Post);
+    extract_exists_in_SEP' Pre; subst P; apply exp_left
+  | |- ?Pre |-- ?Post => (* this case is obsolete, should probably be deleted *)
      let P := fresh "POST" in set (P := Post);
     extract_exists_in_SEP' Pre; subst P; apply exp_left
 end.
-
 
 Ltac move_from_SEP' PQR :=
  match PQR with
@@ -2020,6 +1976,19 @@ Ltac move_from_SEP' PQR :=
  end.
 
 Lemma derives_extract_PROP : 
+  forall (P1: Prop) A P QR S, 
+     (P1 -> A && PROPx P QR |-- S) ->
+     A && PROPx (P1::P) QR |-- S.
+Proof.
+unfold PROPx in *.
+intros.
+rewrite fold_right_cons.
+normalize.
+eapply derives_trans; [ | apply H; auto].
+normalize.
+Qed.
+
+Lemma derives_extract_PROP' : 
   forall (P1: Prop) P QR S, 
      (P1 -> PROPx P QR |-- S) ->
      PROPx (P1::P) QR |-- S.
@@ -2043,7 +2012,15 @@ match goal with
               simple apply semax_extract_PROP; fancy_intros false
             | flatten_in_SEP PQR
             ]
- | |- ?PQR |-- _ => 
+ | |- _ && ?PQR |-- _ => 
+     first [ is_evar PQR; fail 1
+            | simple apply derives_extract_prop; fancy_intros false
+            | simple apply derives_extract_PROP; fancy_intros false
+            | move_from_SEP' PQR;
+               simple apply derives_extract_PROP; fancy_intros false
+            | flatten_in_SEP PQR
+             ]
+ | |- ?PQR |-- _ =>  (* this case is obsolete, should probably be deleted *)
      first [ is_evar PQR; fail 1
             | simple apply derives_extract_prop; fancy_intros false
             | simple apply derives_extract_PROP; fancy_intros false

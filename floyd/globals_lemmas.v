@@ -1281,7 +1281,7 @@ Ltac simpl_main_pre' :=
 
 Lemma main_pre_start:
  forall prog u,
-   main_pre prog u = (PROP() LOCAL() SEP()) * globvars2pred (prog_vars prog).
+   main_pre prog u = (PROP() LOCAL() SEP())%assert * globvars2pred (prog_vars prog).
 Proof.
 intros.
 unfold main_pre, prog_vars, prog_vars', PROPx, LOCALx, SEPx.

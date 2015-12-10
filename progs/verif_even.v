@@ -2,7 +2,7 @@ Require Import floyd.proofauto.
 Require Import progs.even.
 Instance CompSpecs : compspecs.
 Proof. make_compspecs prog. Defined.
-Local Open Scope logic.
+Local Open Scope assert.
 
 Definition odd_spec :=
  DECLARE _odd

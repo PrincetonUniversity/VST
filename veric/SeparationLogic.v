@@ -61,9 +61,6 @@ Definition address_mapsto: memory_chunk -> val -> Share.t -> Share.t -> address 
 
 Local Open Scope logic.
 
-Bind Scope pred with mpred.
-Local Open Scope pred.
-
 Transparent mpred Nveric Sveric Cveric Iveric Rveric Sveric SIveric CSLveric CIveric SRveric.
 
 Lemma address_mapsto_readable:

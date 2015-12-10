@@ -219,8 +219,7 @@ Proof. intros. abbreviate_semax.
      freeze [0;1;2;3] FR8. (*everything except memory_block Tsh 32 (Vptr ckb (Int.repr (Int.unsigned ckoff + 32))))*)
      Time forward_call (Tsh, Vptr ckb (Int.repr (Int.unsigned ckoff + 32)), 32, Int.zero). (*6.1 versus 6.9*)
      { rewrite (lvar_eval_var _ _ _ _ H0). split; trivial. }
-     { apply andp_left2. 
-       Intros vret; subst vret.
+     { Intros vret; subst vret.
        subst PostIf_j_Len.
        Time entailer!. (*10.2*)
        unfold data_block. simpl. Time normalize. (*1.4*) 
@@ -246,7 +245,7 @@ Proof. intros. abbreviate_semax.
        remember (Zlength key >? Z.of_nat SHA256.BlockSize).
        destruct b.
        Focus 2. specialize (Zgt_cases (Zlength key) (Z.of_nat SHA256.BlockSize)).
-                rewrite <- Heqb. intros. simpl in H9. omega.
+                rewrite <- Heqb. intros. simpl in H5. omega.
        clear Heqb.
        unfold HMAC_SHA256.zeroPad. repeat rewrite map_app. 
        assert (LHash: Zlength (SHA256.Hash key) = 32).
