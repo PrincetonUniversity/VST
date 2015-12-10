@@ -217,7 +217,7 @@ int crypto_stream_salsa20_xor(u8 *c,const u8 *m,u64 b,const u8 *n,const u8 *k)
 {
   u8 z[16],x[64];
   u32 u,i;
-  u8 loop1aux, loop2left, loop2right, loop3left, loop3right;
+  u8 loop1aux, loop2left, loop2right, loop3left, loop3right, temp;
 
   if (!b) return 0;
   FOR(i,16) z[i] = 0;
@@ -234,7 +234,9 @@ int crypto_stream_salsa20_xor(u8 *c,const u8 *m,u64 b,const u8 *n,const u8 *k)
     }
     u = 1;
     for (i = 8;i < 16;++i) {
-      u += (u32) z[i];
+      //u += (u32) z[i];
+      temp = z[i];
+      u += (u32) temp;
       z[i] = u;
       u >>= 8;
     }
