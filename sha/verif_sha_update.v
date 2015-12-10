@@ -112,7 +112,7 @@ eapply semax_post_flipped3.
 * 
  assert (Hdiv': (LBLOCKz | Zlength (hashed ++ blocks)))
    by (rewrite Zlength_app; apply Z.divide_add_r; auto).
- simpl tc_environ; rewrite insert_tce.
+ simpl tc_environ.
  clear POSTCONDITION.
  pose proof CBLOCKz_eq.
  unfold splice_into_list; autorewrite with sublist.
@@ -221,21 +221,21 @@ Focus 2. {
 Qed.
 
 Lemma overridePost_derives:
-  forall F F' G G' ek vl,
-     F |-- F'  ->
-     G ek vl |-- G' ek vl ->
-     overridePost F G ek vl |-- overridePost F' G' ek vl.
+  forall D F F' G G' ek vl,
+     D && F |-- F'  ->
+     D && G ek vl |-- G' ek vl ->
+     D && overridePost F G ek vl |-- overridePost F' G' ek vl.
 Proof.
 intros.
 unfold overridePost.
 if_tac.
-apply andp_derives; auto.
+normalize.
 auto.
 Qed.
 
 Lemma function_body_ret_assert_derives:
   forall F F' t ek vl,
-   F |-- F' ->
+    F |-- F' ->
   function_body_ret_assert t F ek vl 
     |-- function_body_ret_assert t F' ek vl.
 Proof.
@@ -343,11 +343,15 @@ apply semax_seq with (sha_update_inv sh (s256a_hashed a) len c d (s256a_data a) 
  semax_subcommand Vprog Gtot  f_SHA256_Update.
  eapply semax_post;
    [ | simple apply update_outer_if_proof; try eassumption; auto; try omega].
- intros; apply andp_left2.
+ intros.
  rewrite S256abs_recombine.
- apply overridePost_derives; auto.
+ apply overridePost_derives.
+ apply andp_left2; auto.
+ apply andp_left2.  (* this should be done a better way *)
  apply function_body_ret_assert_derives.
- Intros a'. rewrite H1. auto.
+ Intros a'.
+ apply derives_extract_PROP'; intro. (* this should be done a better way *)
+ rewrite H1. auto.
  auto.
  rewrite bitlength_eq, S256abs_recombine; auto.
  apply s256a_data_Zlength_less.

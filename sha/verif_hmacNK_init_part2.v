@@ -314,7 +314,7 @@ Lemma ipad_loop Espec pb pofs cb cofs ckb ckoff kb kofs l key kv (FR:mpred): for
       data_at Tsh (tarray tuchar 64)
           (map Vint (map Int.repr (HMAC_SHA256.mkKey key))) (Vptr ckb ckoff)))).
 Proof. intros. abbreviate_semax.
-eapply semax_post'.
+eapply semax_post.
 Focus 2.   
       Time forward_for_simple_bound' 64 (EX i:Z, 
         (PROP  ()
@@ -371,6 +371,9 @@ Focus 2.
       }
 Unfocus.
 cbv beta. rewrite sublist_same, sublist_nil, app_nil_r; trivial.
+unfold POSTCONDITION, abbreviate.
+intros; apply andp_left2.
+apply normal_ret_assert_derives'.
 drop_LOCAL 0%nat. apply derives_refl. 
 subst IPADcont; do 2 rewrite Zlength_map. 
 unfold HMAC_SHA256.mkArgZ in ZLI; rewrite ZLI; trivial.

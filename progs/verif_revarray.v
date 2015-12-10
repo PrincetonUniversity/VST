@@ -2,8 +2,6 @@ Require Import floyd.proofauto.
 Require Import progs.revarray.
 Require Import floyd.sublist.
 
-Local Open Scope logic.
-
 Instance CompSpecs : compspecs.
 Proof. make_compspecs prog. Defined.
 
@@ -35,10 +33,10 @@ Definition flip_ends {A} lo hi (contents: list A) :=
   ++ sublist hi (Zlength contents) (rev contents).
 
 Definition reverse_Inv a0 sh contents size := 
- EX j:Z,
+ (EX j:Z,
   (PROP  (0 <= j; j <= size-j)
    LOCAL  (temp _a a0; temp _lo (Vint (Int.repr j)); temp _hi (Vint (Int.repr (size-j))))
-   SEP (data_at sh (tarray tint size) (flip_ends j (size-j) contents) a0)).
+   SEP (data_at sh (tarray tint size) (flip_ends j (size-j) contents) a0)))%assert.
 
 
 Lemma Zlength_flip_ends:

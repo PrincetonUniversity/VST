@@ -449,7 +449,7 @@ Qed.
 
 Lemma remove_PROP_LOCAL_left': 
      forall P Q R S, `R |-- S -> 
-     PROPx P (LOCALx Q SEP (R)) |-- S.
+     PROPx P (LOCALx Q (SEPx (R::nil))) |-- S.
 Proof.
   intros.
   go_lower.
@@ -533,7 +533,7 @@ apply andp_left2; auto.
 Qed.
 
 Lemma SEP_TT_right:
-  forall R, R |-- SEP(TT).
+  forall R, R |-- SEPx(TT::nil).
 Proof. intros. go_lowerx. rewrite sepcon_emp. apply TT_right.
 Qed.
 
@@ -554,13 +554,13 @@ Proof.
 Qed.
 
 Lemma replace_nth_SEP': 
-  forall P Q R n Rn Rn', PROPx P (LOCALx Q (SEP (Rn))) |-- `Rn' -> 
-  (PROPx P (LOCALx Q (SEPx (replace_nth n R Rn)))) |-- (PROPx P (LOCALx Q (SEPx (replace_nth n R Rn')))).
+  forall A P Q R n Rn Rn', local A && PROPx P (LOCALx Q (SEPx (Rn::nil))) |-- `Rn' -> 
+  (local A && PROPx P (LOCALx Q (SEPx (replace_nth n R Rn)))) |-- (PROPx P (LOCALx Q (SEPx (replace_nth n R Rn')))).
 Proof.
-  simpl.
+  simpl. unfold local, lift1.
   intros.
   specialize (H x).
-  normalize. 
+  normalize. rewrite prop_true_andp in H by auto. clear H0. 
       autorewrite with subst norm1 norm2; normalize.
     autorewrite with subst norm1 norm2 in H; normalize in H.
   revert R.

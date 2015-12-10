@@ -34,10 +34,6 @@ Require Import progs.reverse.
 Instance CompSpecs : compspecs.
 Proof. make_compspecs prog. Defined.
 
-(** Open the notation scope containing  !! * && operators of separation logic *)
-Local Open Scope logic.
-
-
 (** The reverse.c program uses the linked list structure [struct list].
  ** This satisfies the linked-list pattern, in that it has one self-reference
  ** field (in this case, called [tail]) and arbitrary other fields.  The [Instance]

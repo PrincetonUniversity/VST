@@ -8,7 +8,6 @@ Proof. make_compspecs prog. Defined.
 Definition t_struct_elem := Tstruct _elem noattr.
 Definition t_struct_fifo := Tstruct _fifo noattr.
 
-Local Open Scope logic.
 
 Instance QS: listspec _elem _next. 
 Proof. eapply mk_listspec; reflexivity. Defined.
@@ -230,8 +229,8 @@ Definition elemrep (rep: elemtype QS) (p: val) : mpred :=
   (field_at Tsh t_struct_elem [StructField _b] (snd rep) p *
    (field_at_ Tsh t_struct_elem [StructField _next]) p).
 
-Definition fifo (contents: list val) (p: val) : mpred:=
-  EX ht: (val*val), let (hd,tl) := ht in
+Definition fifo (contents: list val) (p: val) : mpred :=
+  (EX ht: (val*val), let (hd,tl) := ht in
       !! is_pointer_or_null hd && !! is_pointer_or_null tl &&
       data_at Tsh t_struct_fifo (hd, tl) p *
       if isnil contents
@@ -240,7 +239,7 @@ Definition fifo (contents: list val) (p: val) : mpred:=
               !!(contents = prefix++tl::nil)
             &&  (lseg QS Qsh Tsh prefix hd tl
                    * list_cell QS Qsh (Vundef,Vundef) tl
-                   * field_at Tsh t_struct_elem [StructField _next] nullval tl)).
+                   * field_at Tsh t_struct_elem [StructField _next] nullval tl)))%logic.
 
 Definition fifo_new_spec :=
  DECLARE _fifo_new
@@ -391,8 +390,9 @@ Intros.
 (* goal_7 *)
 forward. (* p->next = NULL; *)
 forward. (*   h = Q->head; *)
+
 forward_if 
-  (PROP() LOCAL () SEP (fifo (contents ++ p :: nil) q)).
+  (PROP() LOCAL () SEP (fifo (contents ++ p :: nil) q))%assert.
 * if_tac; entailer.  (* typechecking clause *)
     (* entailer! should perhaps solve this one too *)
 * (* then clause *)
@@ -562,7 +562,7 @@ Parameter body_mallocN:
   (EF_external _mallocN
      {| sig_args := AST.Tint :: nil; sig_res := Some AST.Tint; sig_cc := cc_default |}) Z
   (fun n : Z =>
-   PROP  (4 <= n <= Int.max_unsigned)  LOCAL  (temp 1%positive (Vint (Int.repr n)))  SEP())
+   PROP  (4 <= n <= Int.max_unsigned)  LOCAL  (temp 1%positive (Vint (Int.repr n)))  SEP())%assert
   (fun n : Z =>
    EX  v : val,
    PROP  (malloc_compatible n v)

@@ -1955,17 +1955,15 @@ Defined.
 Lemma semax_extract_later_prop': 
   forall {Espec: OracleKind},
     forall (Delta : tycontext) (PP : Prop) P Q R c post,
-      PROPx P (LOCALx (tc_env Delta :: Q) (SEPx R)) |-- !!PP ->
+      ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) |-- !!PP ->
       (PP -> semax Delta (|>PROPx P (LOCALx Q (SEPx R))) c post) ->
       semax Delta (|>PROPx P (LOCALx Q (SEPx R))) c post.
 Proof.
   intros.
   eapply semax_pre_simple.
   + hoist_later_left.
-    rewrite insert_local.
     apply later_derives.
     rewrite (add_andp _ _ H).
-    rewrite <- insert_local.
     rewrite andp_assoc.
     apply andp_left2.
     rewrite andp_comm.
@@ -2158,7 +2156,7 @@ Lemma semax_nested_efield_field_load_37':
       gfs = gfs1 ++ gfs0 ->
       legal_nested_efield t_root e1 gfs tts lr = true ->
       repinject _ (proj_reptype (nested_field_type t_root gfs0) gfs1 v') = v ->
-      PROPx P (LOCALx (tc_env Delta :: Q) (SEPx R)) |--
+      ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) |--
          (tc_LR Delta e1 lr) &&
         local `(tc_val (typeof (nested_efield e1 efs tts)) v) &&
          (tc_efield Delta efs) &&
@@ -2241,7 +2239,7 @@ Lemma semax_nested_efield_field_cast_load_37':
       gfs = gfs1 ++ gfs0 ->
       legal_nested_efield t_root e1 gfs tts lr = true ->
       repinject _ (proj_reptype (nested_field_type t_root gfs0) gfs1 v') = v ->
-      PROPx P (LOCALx (tc_env Delta :: Q) (SEPx R)) |-- 
+      ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) |-- 
          (tc_LR Delta e1 lr) &&
         local (`(tc_val t (eval_cast (typeof (nested_efield e1 efs tts)) t v))) &&
          (tc_efield Delta efs) &&

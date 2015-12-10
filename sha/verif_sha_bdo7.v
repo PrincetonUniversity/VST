@@ -606,10 +606,11 @@ apply Zlength_length in H; auto.
 *
 unfold POSTCONDITION, abbreviate; clear POSTCONDITION.
 change Delta with (initialized _i Delta_loop1).
-apply semax_extract_PROP; intro.
+Intros.
 eapply semax_post_flipped'.
 simple apply bdo_loop2_body_proof; auto.
  change LBLOCKz with 16%Z; omega.
+apply andp_left2.
 apply andp_right; auto.
 intro rho; apply prop_right. reflexivity.
 *

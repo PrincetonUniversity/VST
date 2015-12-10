@@ -3,9 +3,6 @@ Require Import progs.logical_compare.
 Instance CompSpecs : compspecs.
 Proof. make_compspecs prog. Defined.
 
-Local Open Scope logic.
-
-
 (****  START *)
 
 Definition logical_and_result v1 v2 : int :=
@@ -75,7 +72,7 @@ Lemma semax_shortcut_logical:
    local2ptree Q = (Qtemp, Qvar, nil, nil) ->
    Qtemp ! tid = None ->
    shortcut_logical (msubst_eval_expr Qtemp Qvar) tid s = Some (v, el) ->
-   PROPx P (LOCALx (tc_env Delta :: Q) (SEPx R)) |-- fold_right (fun e q => tc_expr Delta e && q) TT el ->
+   ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) |-- fold_right (fun e q => tc_expr Delta e && q) TT el ->
    @semax cs Espec Delta (PROPx P (LOCALx Q (SEPx R)))
           s (normal_ret_assert (PROPx P (LOCALx (temp tid (Vint v) :: Q) (SEPx R)))).
 Admitted.

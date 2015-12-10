@@ -813,13 +813,13 @@ Qed.
 
 Ltac do_compute_lvalue Delta P Q R e v H :=
   let rho := fresh "rho" in
-  assert (PROPx P (LOCALx (tc_env Delta :: Q) (SEPx R)) |--
+  assert (ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) |--
     local (`(eq v) (eval_lvalue e))) as H by
   (first [ assumption |
     eapply derives_trans; [| apply msubst_eval_lvalue_eq];
-    [apply derives_refl'; apply local2ptree_soundness; try assumption;
+    [apply andp_left2; apply derives_refl'; apply local2ptree_soundness; try assumption;
      let HH := fresh "H" in
-     construct_local2ptree (tc_env Delta :: Q) HH;
+     construct_local2ptree Q HH;
      exact HH |
      unfold v;
      simpl;
@@ -830,13 +830,13 @@ Ltac do_compute_lvalue Delta P Q R e v H :=
 
 Ltac do_compute_expr Delta P Q R e v H :=
   let rho := fresh "rho" in
-  assert (PROPx P (LOCALx (tc_env Delta :: Q) (SEPx R)) |--
+  assert (ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) |--
     local (`(eq v) (eval_expr e))) as H by
   (first [ assumption |
     eapply derives_trans; [| apply msubst_eval_expr_eq];
-    [apply derives_refl'; apply local2ptree_soundness; try assumption;
+    [apply andp_left2; apply derives_refl'; apply local2ptree_soundness; try assumption;
      let HH := fresh "H" in
-     construct_local2ptree (tc_env Delta :: Q) HH;
+     construct_local2ptree Q HH;
      exact HH |
      unfold v;
      simpl;
@@ -935,10 +935,11 @@ Ltac quick_typecheck :=
 
 Ltac do_compute_expr_helper Delta Q v :=
    try assumption;
+   apply andp_left2;
    eapply derives_trans; [| apply msubst_eval_expr_eq];
     [apply derives_refl'; apply local2ptree_soundness; try assumption;
      let HH := fresh "H" in
-     construct_local2ptree (tc_env Delta :: Q) HH;
+     construct_local2ptree Q HH;
      exact HH |
      unfold v;
      simpl;
@@ -958,13 +959,13 @@ Ltac do_compute_expr1 Delta Pre e :=
   assert (H8: Pre1 =  (fun a => PROPx (P a) (LOCALx (Q a) (SEPx (R a)))))
     by (extensionality; unfold P,Q,R; reflexivity);
   let v := fresh "v" in evar (v: A -> val);
-  assert (H9: forall a, PROPx (P a) (LOCALx (tc_env Delta :: (Q a)) (SEPx (R a))) |--
+  assert (H9: forall a, ENTAIL Delta, PROPx (P a) (LOCALx (Q a) (SEPx (R a))) |--
                        local (`(eq (v a)) (eval_expr e)))
      by (let a := fresh "a" in intro a; do_compute_expr_helper Delta (Q a) v)
  | PROPx ?P (LOCALx ?Q (SEPx ?R)) =>
   let H9 := fresh "H" in
   let v := fresh "v" in evar (v: val);
-  assert (H9:  PROPx P (LOCALx (tc_env Delta :: Q) (SEPx R))|-- 
+  assert (H9:  ENTAIL Delta, PROPx P (LOCALx Q (SEPx R))|-- 
                      local (`(eq v) (eval_expr e)))
    by (do_compute_expr_helper Delta Q v) 
  end.
@@ -1603,7 +1604,7 @@ Ltac test_legal_nested_efield TY e gfs tts lr  :=
    unify (legal_nested_efield TY e gfs tts lr) true.
 
 Ltac sc_try_instantiate P Q R0 Delta e gfs tts p sh t_root gfs0 v n N H SH GFS TY V:=
-      assert (PROPx P (LOCALx (tc_env Delta :: Q) (SEPx (R0 :: nil))) 
+      assert (ENTAIL Delta, PROPx P (LOCALx Q (SEPx (R0 :: nil))) 
          |-- `(field_at sh t_root gfs0 v p)) as H;
       [instantiate (1:=GFS) in (Value of gfs0);
        instantiate (1:=TY) in (Value of t_root);
@@ -1647,7 +1648,7 @@ Ltac sc_new_instantiate P Q R Rnow Delta e gfs tts lr p sh t_root gfs0 v n N H:=
 
 Ltac solve_efield_denote Delta P Q R efs gfs H :=
   evar (gfs : list gfield);
-  assert (PROPx P (LOCALx (tc_env Delta :: Q) (SEPx R)) |-- efield_denote efs gfs) as H; 
+  assert (ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) |-- efield_denote efs gfs) as H; 
   [
     unfold efs, gfs;
     match goal with
@@ -1836,7 +1837,7 @@ Ltac load_tac :=   (* matches:  semax _ _ (Sset _ (Efield _ _ _)) _  *)
 
     let Heq := fresh "H" in
     match type of H with
-    | (PROPx _ (LOCALx _ (SEPx (?R0 :: nil))) 
+    | (ENTAIL _, PROPx _ (LOCALx _ (SEPx (?R0 :: nil))) 
            |-- _) => assert (nth_error R n = Some R0) as Heq by reflexivity
     end;
     eapply (semax_SC_field_cast_load1 Delta sh n) with (lr0 := lr) (t_root0 := t_root) (gfs2 := gfs0) (gfs3 := gfs1);
@@ -1907,7 +1908,7 @@ Ltac load_tac :=   (* matches:  semax _ _ (Sset _ (Efield _ _ _)) _  *)
 
     let Heq := fresh "H" in
     match type of H with
-    | (PROPx _ (LOCALx _ (SEPx (?R0 :: nil))) 
+    | (ENTAIL _, PROPx _ (LOCALx _ (SEPx (?R0 :: nil))) 
            |-- _) => assert (nth_error R n = Some R0) as Heq by reflexivity
     end;
 

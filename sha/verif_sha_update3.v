@@ -253,7 +253,7 @@ forward_if (sha_update_inv sh hashed len c d dd data kv false).
   rewrite field_address_offset by auto with field_compatible.
   rewrite field_address0_offset by auto with field_compatible.
   reflexivity.
-  simpl update_tycon; rewrite insert_tce.
+  simpl update_tycon.
   Exists (Zlist_to_intlist (dd ++ sublist 0 k data)).
   erewrite Zlength_Zlist_to_intlist
      by (instantiate (1:=LBLOCKz); assumption).
