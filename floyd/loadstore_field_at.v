@@ -56,7 +56,6 @@ Lemma semax_max_path_field_load_nth_ram:
       typeof_temp Delta id = Some t ->
       is_neutral_cast (typeof (nested_efield e1 efs tts)) t = true ->
       readable_share sh ->
-      forallb subst_localdef_ok Q = true ->
       LR_of_type t_root = lr ->
       type_is_volatile (typeof (nested_efield e1 efs tts)) = false ->
       legal_nested_efield t_root e1 gfs tts lr = true ->
@@ -82,19 +81,19 @@ Proof.
   pose proof is_neutral_cast_by_value _ _ H0.
   assert_PROP (typeof (nested_efield e1 efs tts) = nested_field_type t_root gfs).
   Focus 1. {
-    eapply derives_trans; [exact H10 |].
-    rewrite (add_andp _ _ (typeof_nested_efield _ _ _ _ _ _ H5)).
+    eapply derives_trans; [exact H9 |].
+    rewrite (add_andp _ _ (typeof_nested_efield _ _ _ _ _ _ H4)).
     normalize.
     apply prop_right; symmetry; auto.
   } Unfocus.
-  rewrite H12 in H11.
+  rewrite H11 in H10.
   assert_PROP (field_compatible t_root gfs p).
   Focus 1. {
     erewrite SEP_nth_isolate, <- insert_SEP by eauto.
     apply andp_left2;
     apply derives_left_sepcon_right_corable; auto.
     intro rho; unfold_lift; simpl.
-    eapply derives_trans; [apply H8 |].
+    eapply derives_trans; [apply H7 |].
     rewrite field_at_compatible'.
     normalize.
   } Unfocus.
@@ -102,17 +101,17 @@ Proof.
   [ idtac
   | idtac
   | apply andp_right].
-  + rewrite (add_andp _ _ H9), (add_andp _ _ H10).
+  + rewrite (add_andp _ _ H8), (add_andp _ _ H9).
     eapply derives_trans; [| apply eval_lvalue_nested_efield; eassumption].
     solve_andp.
-  + eapply self_ramify_trans; [exact H8 |].
+  + eapply self_ramify_trans; [exact H7 |].
     eapply RAMIF_PLAIN.weak_ramif_spec.
-    apply mapsto_field_at_ramify; [auto | rewrite <- H12; auto | auto | eauto].
-  + rewrite (add_andp _ _ H9), (add_andp _ _ H10).
+    apply mapsto_field_at_ramify; [auto | rewrite <- H11; auto | auto | eauto].
+  + rewrite (add_andp _ _ H8), (add_andp _ _ H9).
     eapply derives_trans; [| eapply tc_lvalue_nested_efield; eassumption].
     solve_andp.
-  + eapply derives_trans; [exact H10 |].
-    rewrite H12; solve_andp.
+  + eapply derives_trans; [exact H9 |].
+    rewrite H11; solve_andp.
 Qed.
 
 Lemma semax_max_path_field_cast_load_nth_ram:
@@ -123,7 +122,6 @@ Lemma semax_max_path_field_cast_load_nth_ram:
       typeof_temp Delta id = Some t ->
       type_is_by_value (typeof (nested_efield e1 efs tts)) = true ->
       readable_share sh ->
-      forallb subst_localdef_ok Q = true ->
       LR_of_type t_root = lr ->
       type_is_volatile (typeof (nested_efield e1 efs tts)) = false ->
       legal_nested_efield t_root e1 gfs tts lr = true ->
@@ -146,7 +144,7 @@ Lemma semax_max_path_field_cast_load_nth_ram:
                                 :: map (subst_localdef id old) Q)
                   (SEPx R)))).
 Proof.
-  intros until 3. intro OKsubst; intros.
+  intros.
   assert_PROP (typeof (nested_efield e1 efs tts) = nested_field_type t_root gfs).
   Focus 1. {
     eapply derives_trans; [exact H9 |].
@@ -205,7 +203,6 @@ Lemma semax_max_path_field_store_nth_ram:
       (p v : val) (v' : reptype (nested_field_type t_root gfs)) lr,
       type_is_by_value (typeof (nested_efield e1 efs tts)) = true ->
       writable_share sh ->
-      forallb subst_localdef_ok Q = true ->
       LR_of_type t_root = lr ->
       type_is_volatile (typeof (nested_efield e1 efs tts)) = false ->
       legal_nested_efield t_root e1 gfs tts lr = true ->
@@ -230,7 +227,7 @@ Lemma semax_max_path_field_store_nth_ram:
                 (SEPx
                   (replace_nth n R Post))))).
 Proof.
-  intros until 2. intros OKsubst. intros.
+  intros.
   assert_PROP (typeof (nested_efield e1 efs tts) = nested_field_type t_root gfs).
   Focus 1. {
     eapply derives_trans; [exact H9 |].

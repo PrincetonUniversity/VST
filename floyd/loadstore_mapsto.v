@@ -25,7 +25,6 @@ forall (Delta: tycontext) sh id P Q R e1 t2 (v2: val),
     typeof_temp Delta id = Some t2 ->
     is_neutral_cast (typeof e1) t2 = true ->
     readable_share sh ->
-    forallb subst_localdef_ok Q = true ->
       ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) |-- 
           (tc_lvalue Delta e1) &&
          local (`(tc_val (typeof e1) v2)) &&
@@ -38,7 +37,7 @@ forall (Delta: tycontext) sh id P Q R e1 t2 (v2: val),
      (SEPx R)))).
 Proof.
   intros.
-  rename H1 into H_READABLE; rename H2 into OK; rename H3 into H1.
+  rename H1 into H_READABLE; rename H2 into H1.
   eapply semax_pre_post; [ | | apply semax_load with sh t2; auto].
   + instantiate (1:= PROPx P (LOCALx Q (SEPx R))).
     apply later_left2.
@@ -59,7 +58,6 @@ Proof.
      intros. apply andp_left2. apply normal_ret_assert_derives'.
     apply exp_derives; intro old.
     autorewrite with subst.
-    rewrite subst_PROP by auto.
     rewrite <- insert_local.
     apply andp_derives; auto.
     intro rho; unfold local, lift1; unfold_lift; simpl; auto.
@@ -77,7 +75,6 @@ Lemma semax_cast_load_37' :
 forall (Delta: tycontext) sh id P Q R e1 t1 (v2: val),
     typeof_temp Delta id = Some t1 ->
     readable_share sh ->
-    forallb subst_localdef_ok Q = true ->
       ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) |-- 
           (tc_lvalue Delta e1) &&
          local (`(tc_val t1 (eval_cast (typeof e1) t1 v2))) &&
@@ -89,7 +86,7 @@ forall (Delta: tycontext) sh id P Q R e1 t1 (v2: val),
    (LOCALx (temp id (eval_cast (typeof e1) t1 v2) :: map (subst_localdef id old) Q)
      (SEPx R)))).
 Proof.
-  intros. rename H0 into H_READABLE; rename H1 into OK; rename H2 into H1; pose proof I.
+  intros. rename H0 into H_READABLE; pose proof I.
   eapply semax_pre_post; [ | | apply semax_cast_load with (sh0:=sh)(v3:= `v2); auto].
   * instantiate (1:= PROPx P (LOCALx Q (SEPx R))).
     apply later_left2.
@@ -109,7 +106,7 @@ Proof.
     intros. apply andp_left2; auto.
     apply normal_ret_assert_derives'.
     apply exp_derives; intro old.
-    autorewrite with subst. rewrite subst_PROP by auto.
+    autorewrite with subst.
     rewrite <- insert_local.
     apply andp_derives; auto.
     intro rho; unfold local, lift1; unfold_lift; simpl; auto.
@@ -191,7 +188,6 @@ Lemma semax_load_nth_ram :
        local (`(eq p) (eval_lvalue e1)) ->
     nth_error R n = Some Pre ->
     readable_share sh ->
-    forallb subst_localdef_ok Q = true ->    
     Pre |-- mapsto sh t1 p v * TT ->
     ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) |-- 
       (tc_lvalue Delta e1) && local (`(tc_val t1 v)) ->
@@ -227,7 +223,6 @@ Lemma semax_cast_load_nth_ram :
       local (`(eq p) (eval_lvalue e1)) ->
     nth_error R n = Some Pre ->
     readable_share sh ->
-    forallb subst_localdef_ok Q = true ->
     Pre |-- mapsto sh t1 p v * TT ->
     ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) |-- 
      (tc_lvalue Delta e1) && local (`(tc_val t2 (eval_cast t1 t2 v))) ->

@@ -2005,7 +2005,7 @@ match goal with
       with (lr0 := lr) (t_root0 := t_root) (gfs2 := gfs0) (gfs3 := gfs1);
     subst p;
       [ reflexivity | reflexivity | reflexivity
-      | reflexivity | reflexivity | reflexivity | reflexivity
+      | reflexivity | reflexivity | reflexivity
       | reflexivity | exact HLE 
       | exact HRE | exact H_Denote | solve [auto]
       | solve_store_rule_evaluation
