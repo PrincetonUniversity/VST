@@ -539,6 +539,216 @@ permission-share; see \autopageref{refcard:pointer-cmp}.
 
 \chapter{Pointer comparisons}
 
+\chapter{Proving larg(ish) programs}
+
+\subsection{Code preparation}
+In order to seprate the namespaces of multiple files compiled by CompCert's clightgen tool, it is necessary to apply
+
+python fix\_clightgen.py file1.v ...fileN.v
+
+The sript reads in the named files, concisely renames variables etc by
+making up new positives, and writes the modified files back to the
+given names.
+
+\subsection{Extraction of subordinate semax-goals}
+To ease memory pressure and recompilation time, it is often advisable
+to partition the proof of a function into several lemmas. Any proof
+state whose goal is a semax-term can be extracted as a stand-alone
+statement by invoking tactic $\mathit{semax\_subcommand}\ V\ G\ F$.
+The three arguments are as in the statement of surrounding semax-body
+lemma, i.e.~are of type $\mathit{varspecs}$, $\mathit{funspecs}$, and
+$\mathit{function}$. 
+
+The subordinate tactic $\mathit{mkConciseDelta}\ V\ G\ F\ \mathit{Delta}$ can
+also be invoked individually, to simply display the type context Delta
+in consise form, as the application of a sequence of initializations
+to the host function's func\_tycontext.
+
+\subsection{The freezer}
+A distinguishing feature of separation logic is the frame rule,
+i.e.~the ability to modularly verify a statement w.r.t.~its minimal
+resource footprint. Unfortunately, being phrased in terms of the
+syntatic program structure, the standard frame rule does not easily
+interact with forward symbolic execution as implemented by the Floyd
+tactics (and many other systems), as these continuously rearrange the
+associativity of statement sqeuencing to peel off the redex of the
+next \emph{forward}, and (purposely) hide the program continuation as
+the abbreviation \emph{MORE\_COMMANDS}. 
+
+Resolving this conflict, Floyd's \emph{freezer} abstraction provides a
+means for flexible framing, by implementing a veil that opaquely hides
+selected items of a SEP clause from non-symbolic treatment by
+non-freezer tactics.
+
+The freezer abstraction consists of two main tactics, $\mathit{freeze}\
+N\ F$ and $\mathit{thaw}\ F$, where $N:\mathit{list\ nat}$ and $F$ is
+a user-supplied (fresh) Coq name. The result of applying
+$\mathit{freeze}\ [i_1;\ldots;i_n]\ F$ to a semax goal is to remove
+items $i_1,\ldots,i_n$ from the precondition's SEP clause, inserting
+the item $\mathit{FRZL}\ F$ at the head of the SEP list, and adding a
+hypothesis $F := \mathit{abbreviate}$ to Coq's proof context.
+
+The term $\mathit{FRZL}\ F$ participates symbolically in all
+non-freezer tactics just like any other SEP item, so can in particular
+be canceled, and included in a function call's frame.  Unfolding a
+freezer is not tied to the associativity structure of program
+statements but can be achieved by invoking $\mathit{thaw}\ F$, which
+simply replaces $\mathit{FRZL}\ F$ by the the list of $F$'s
+constiuents.  As multiple freezers can coexists and freezers can be
+arbitrarily nested, SEP-clauses $R$ effectively contain forests of
+freezers, each constituent being thawable independently and
+freezer-level by freezer-level.
+
+Wrapping single \emph{forward} or \emph{forward\_call} commands in a
+freezer often speeds up the processing time noticably, as invocations
+of subordinate tactics \emph{entailer}, \emph{cancel}, etc.~are
+supplied with smaller and more symbolic proof goals. In our
+experience, applying the freezer throughout the proof of an entire
+function body typically yields a speedup of about 30\% on average with
+improvements of up to 55\% in some cases, while also easing the memory
+pressure and freeing up valuable real estate on the user's screen.
+
+
+A more invasive implementation of a freezer-like abstraction would
+refine the \lstinline{PROP($P$) LOCAL($Q$) SEP($R$)} structure to
+terms of the form \lstinline{PROP($P$) LOCAL($Q$) SEP($R$) FR($H$)}
+where $H: \emph{list\ mpred}$. Again, terms in $H$ would be treated
+opaquely by all tactics, and freezing/thawing would correspond to
+transfer rules between $R$ and $H$. In either case, forward symbolic
+execution is reconciled with the frame rule, and the use of the
+mechanism is sound engineering practice as documentation of
+programmer's insight is combined with performance improvements.
+
+\chapter{Appendix: catalog of major tactics/commands}
+Below is an alphabetic catalog of the major floyd tactics. In addition
+to short descriptions, the entries indicate whether a tactic (or
+tactic notation) is typically user-applied [u], primarily of
+internal use [i] or is expected to be used at development-time
+but unlikely to appear in a finished proof script [d]. We also
+mention major interdependencies between tactics, and their points of
+definition.
+
+\paragraph{[ui] andp\_left2}
+
+Used frequently in combination with \emph{derives\_refl} to clean up
+proofs states at the end of a loop or function, or after a \emph{forward\_seq}.\\
+Subordinate tactics: \ldots\\
+Superordinate tactics: \ldots\\
+Defined in XXX.v
+
+\paragraph{[u] cancel}
+Main vehicle for resolving entailments between mpred lists.  Performs
+symbolic cancellation, i.e.~performs little inspection of the
+internals of mpreds. May turn a provable goal into an unprovable goal,
+by cancelling too aggressively. Occasionally needs to be finished off
+with a \emph{derives\_refl}, in case of syntatically not mtaching
+compspecs\footnote{Do these cases still occur? Any other cases?}.
+
+Subordinate tactics: \ldots\\
+Superordinate tactics: \ldots\\
+Defined in XXX.v
+
+\paragraph{[u] derives\_refl'}
+(Actually, a lemma, not a tactic). Often followed by
+$\mathit{f_equal}$ to solve, say, an entailment between two almost
+identical $\mathit{data\_at}$ predicates.
+
+\paragraph{[u] entailer}
+
+Vehicle for proving entailments at the mpred level or the assertion
+level\ldots\\
+Say sth about (non-)inclusion of saturate\_locals, normalize, cancel?\\
+Subordinate tactics: \ldots\\
+Superordinate tactics: \ldots\\
+Defined in  XXX.v\\
+
+
+\paragraph{[ui] derives\_refl and derives\_refl'}
+
+Subordinate tactics: \ldots\\
+Superordinate tactics: \ldots\\
+Defined in XXX.v
+
+\paragraph{[u] drop\_LOCAL n}
+where $n:nat$. Removes the $n$th entry of a the LOCAL block of a
+semax\_statement's precondition\footnote{or of an assertion-level
+  entailment's LHS?}.
+
+Subordinate tactics: \ldots\\
+Superordinate tactics: \ldots\\
+Defined in XXX.v
+
+\paragraph{[u] entailer!}
+
+Vehicle for proving entailments at the mpred level or the assertion
+level\ldots
+In contrast to \emph{entailer}, \emph{entailer!} may turn a provable
+entailment into an unprovable one, but is usually more efficient.\\
+Say sth about (non-)inclusion of saturate\_locals, normalize, cancel?\\
+Subordinate tactics: \ldots\\
+Superordinate tactics: \ldots\\
+Defined in  XXX.v
+
+\paragraph{[u] forward}
+
+Subordinate tactics: \ldots\\
+Superordinate tactics: \ldots\\
+Defined in XXX.
+
+\paragraph{[u] forward\_call ARGS}
+Tactic for stepping through the call to a specified function, where
+\emph{ARGS} is the product of arguments, i.e.~an in-order
+instantiation of the function specification's WITH clause (Note:
+little type checking is applied to \emph{ARGS} and the tactic may
+behave erratically if incorrect/wrongly-typed arguments are supplied).
+
+Always leaves a \emph{semax}-subgoal for the program
+continuation.  Frequently, leaves an entailment subgoal for
+establishing the function procondition, and/or a subgoal for a typing
+side condition.
+
+Subordinate tactics: \ldots\\
+Superordinate tactics: None.\\
+Defined in XXX.v, with the underlying proof rules being defined in YYY.v
+
+\paragraph{[u] forward\_for}
+
+Including its variants for simple bounds etc
+
+Is expected to leave the following subgoals:\ldots
+
+Subordinate tactics: \ldots\\
+Superordinate tactics: \ldots\\
+Defined in XXX
+
+
+\paragraph{[u] forward\_seq}
+
+Subordinate tactics: \ldots\\
+Superordinate tactics: \ldots\\
+Defined in XXX.
+
+\paragraph{[i] mkConciseDelta\ V\ G\ F\ Delta}
+Applicable to a proof state with a semax goal. Simplies the $\Delta$
+component to the application of a sequence of initializations to the
+host function's func\_tycontext.
+
+Superordinate tactics:  $\mathit{semax\_subcommand}$\\
+Defined in semax\_tactics.v. 
+
+\paragraph{[u] semax\_subcommand\ V\ G\ F}
+Applicable to a proof state with a semax goal.
+Extracts the current proof state as a stand-alone
+statement that can be copy-and pasted to a separate file.
+The three arguments are as in the statement of surrounding semax-body
+lemma, i.e.~are of type $\mathit{varspecs}$, $\mathit{funspecs}$, and
+$\mathit{function}$. 
+
+Subordinate tactic: $\mathit{mkConciseDelta}$.
+Defined in semax\_tactics.v. 
+
+
+
 \chapter{BOUNDARY}
 Everything beyond here is junk, left over from the
 old Verifiable C manual, that needs to be rewritten and moved
