@@ -40,7 +40,6 @@ Lemma semax_call': forall Espec {cs: compspecs} Delta A (Pre Post: A -> environ-
    | _, _ => True
    end ->
    tc_fn_return Delta ret retsig ->
-  forallb subst_localdef_ok Q = true ->
   @semax cs Espec Delta
           (tc_expr Delta a && tc_exprlist Delta (argtypes argsig) bl 
            && 
@@ -53,7 +52,7 @@ Lemma semax_call': forall Espec {cs: compspecs} Delta A (Pre Post: A -> environ-
               (maybe_retval (Post x) retsig ret *
                PROPx P (LOCALx (map (substopt_localdef ret old) Q) (SEPx R))))).
 Proof.
- intros. rename H1 into Hret. rename H2 into OK.
+ intros. rename H1 into Hret.
  rewrite argtypes_eq.
 eapply semax_pre_post ; [ | | 
    apply (semax_call Delta A Pre Post x (PROPx P (LOCALx Q (SEPx R))) ret argsig retsig a bl H); auto].
@@ -78,7 +77,6 @@ repeat rewrite normal_ret_assert_eq.
 normalize.
 apply exp_right with old; destruct ret; normalize.
 autorewrite with subst.
-rewrite subst_PROP by auto.
 intro rho; simpl; normalize.
 autorewrite with norm1 norm2; normalize.
 rewrite sepcon_comm; auto.
@@ -97,7 +95,6 @@ Lemma semax_call1: forall Espec {cs: compspecs} Delta A (Pre Post: A -> environ-
    | _ => True
    end ->
    tc_fn_return Delta (Some id) retsig ->
-  forallb subst_localdef_ok Q = true ->
   @semax cs Espec Delta
          (tc_expr Delta a && tc_exprlist Delta (argtypes argsig) bl 
            && (`(Pre x) ( (make_args' (argsig,retsig) (eval_exprlist (argtypes argsig) bl))) *
@@ -251,7 +248,6 @@ Lemma semax_call_id1:
    | _ => True
    end ->
    tc_fn_return Delta (Some ret) retty ->
-  forallb subst_localdef_ok Q = true ->
   @semax cs Espec Delta (tc_exprlist Delta (argtypes argsig) bl && 
                 (`(Pre x) (make_args' (argsig,Tvoid) (eval_exprlist (argtypes argsig) bl)) 
                   * PROPx P (LOCALx Q (SEPx R))))
@@ -690,32 +686,6 @@ induction Q; simpl; auto. f_equal; auto.
 Qed.
 Hint Rewrite PROP_LOCAL_SEP_f: norm2.
 
-Lemma local2ptree_aux_OKsubst:
-forall Q (Qt : PTree.tree val) (Qv : PTree.tree vardesc) (P0 : list Prop)
-  (Q0 : list localdef) (Qtemp : PTree.t val) (Qvar : PTree.t vardesc)
-  (P : list Prop),
-  local2ptree_aux Q Qt Qv P0 Q0 = (Qtemp, Qvar, P, nil) ->
-  forallb subst_localdef_ok Q = true /\ Q0=nil.
-Proof.
-induction Q; intros.
-inv H. split; reflexivity.
-destruct a; simpl in H|-*;
- try now (destruct (Qv!i); try destruct v0; eauto). 
-destruct (Qt!i); eauto.
-apply IHQ in H.
-auto.
-Qed.
-
-Lemma local2ptree_OKsubst:
-  forall Q Qtemp Qvar P, 
-     local2ptree Q = (Qtemp, Qvar, P, nil) ->
-     forallb subst_localdef_ok Q = true.
-Proof.
-intros.
-apply local2ptree_aux_OKsubst in H.
-destruct H; auto.
-Qed.
-
 Lemma semax_call_id1_wow:
  forall  {A} (witness: A) (Frame: list mpred) 
            Espec {cs: compspecs} Delta P Q R ret id (paramty: typelist) (retty: type) (bl: list expr)
@@ -1002,8 +972,9 @@ eapply semax_call_id1_wow; try eassumption; auto.
  by (clear - NEret; pose proof (eqb_ident_spec ret ret');
        destruct (eqb_ident ret ret'); auto;
       contradiction NEret; intuition).
- rewrite H5 in *.
- hnf in H3. rewrite H3. 
+ rewrite H5 in *. apply Pos.eqb_neq in H5.
+ rewrite if_false in H3 by auto.
+ hnf in H3. rewrite H3.
  assert (tc_val retty' (eval_id ret' rho)).
  eapply tc_eval_id_i; try eassumption.
  rewrite <- initialized_ne by auto.
@@ -1011,15 +982,14 @@ eapply semax_call_id1_wow; try eassumption; auto.
  rewrite RETinit. auto.
  assert (H7 := expr2.neutral_cast_lemma); 
    unfold eval_cast in H7. rewrite H7 by auto.
- unfold eval_id, env_set. simpl. rewrite Map.gso by auto. reflexivity.
- apply local2ptree_OKsubst in PTREE.
- subst Qnew; clear - H4 PTREE. rename H4 into H.
+ unfold eval_id, env_set, Map.get. auto.
+ subst Qnew; clear - H4. rename H4 into H.
  induction Q; simpl in *; auto.
  destruct a; try now (destruct H; simpl in *; split; auto).
  if_tac; simpl in *; auto.
  destruct H; split; auto.
  hnf in H|-*; subst. unfold eval_id, env_set. simpl.
- rewrite Map.gso by auto. auto.
+ rewrite if_false in H by auto. hnf in H. subst; reflexivity.
 Qed.
 
 Lemma semax_call_id1_y_wow:
@@ -1136,16 +1106,16 @@ end.
  by (clear - NEret; pose proof (eqb_ident_spec ret ret');
        destruct (eqb_ident ret ret'); auto;
       contradiction NEret; intuition).
- rewrite H5 in *.
- hnf in H3. rewrite H3. unfold eval_id, env_set; simpl. rewrite Map.gso; auto.
- apply local2ptree_OKsubst in PTREE.
- subst Qnew; clear - H4 PTREE. rename H4 into H.
+ rewrite H5 in *.  apply Pos.eqb_neq in H5.
+ rewrite if_false in H3 by auto.
+ hnf in H3. rewrite H3. auto.
+ subst Qnew; clear - H4. rename H4 into H.
  induction Q; simpl in *; auto.
  destruct a; try now (destruct H; simpl in *; split; auto).
  if_tac; simpl in *; auto.
  destruct H; split; auto.
  hnf in H|-*; subst. unfold eval_id, env_set. simpl.
- rewrite Map.gso by auto. auto.
+ rewrite if_false in H by auto; apply H. 
 Qed.
 
 Lemma semax_call_id01_wow:

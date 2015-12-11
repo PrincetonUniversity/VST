@@ -1522,17 +1522,13 @@ Definition subst_localdef (i: ident) (v:val) (d: localdef) : localdef :=
      | _ => d
      end.
 
-Fixpoint subst_localdef_ok (d: localdef) : bool := 
- match d with (*tc_env _ => false |*) _ => true end.
-
 Lemma subst_localdef_lem: forall (i: ident) (v:val) d,
-  subst_localdef_ok d = true ->
   subst i `v (locald_denote d) = locald_denote (subst_localdef i v d).
 Proof.
 intros.
 extensionality rho. unfold_lift.
 unfold subst. simpl.
-destruct d; inv H; simpl in *; auto.
+destruct d; simpl in *; auto.
 unfold eval_id. unfold_lift. simpl.
 destruct (ident_eq i i0).
 subst; rewrite Map.gss. 
@@ -1544,7 +1540,6 @@ hnf in H. subst; reflexivity.
 Qed.
 
 Lemma subst_PROP: forall i v P Q R,
-    forallb subst_localdef_ok Q = true ->
      subst i `v (PROPx P (LOCALx Q (SEPx R))) =
      PROPx P (LOCALx (map (subst_localdef i v) Q) (SEPx R)).
 Proof.
@@ -1558,9 +1553,7 @@ f_equal.
 extensionality rho.
 unfold lift1.
 f_equal.
-revert H; induction Q; simpl; intros; auto.
-rewrite andb_true_iff in H.
-destruct H.
+induction Q; simpl; intros; auto.
 autorewrite with subst.
 unfold liftx at 1 6.
 simpl. unfold lift.

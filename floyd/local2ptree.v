@@ -783,11 +783,10 @@ Proof.
 Qed.
 
 Lemma LocalD_subst : forall id v Q0 T1 T2 Q,
-  forallb subst_localdef_ok Q = true -> 
   In Q0 (LocalD (PTree.remove id T1) T2 (map (subst_localdef id v) Q)) ->
   In Q0 (map (subst_localdef id v) (LocalD T1 T2 Q)). 
 Proof.
-  intros until 1. rename H into OK. intros.
+  intros.
   apply in_map_iff.
   apply LocalD_complete in H.
     repeat match type of H with
@@ -830,7 +829,6 @@ Proof.
   apply LOCALx_expand_temp_var in H.
   destruct H; [left; auto | right].
   apply LocalD_subst, H.
-  reflexivity.
 Qed.
 
 
