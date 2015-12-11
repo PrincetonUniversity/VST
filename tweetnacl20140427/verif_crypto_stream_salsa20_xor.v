@@ -1324,6 +1324,7 @@ forward_if
   specialize (Int64.eq_spec b Int64.zero). intros.
   destruct (Int64.eq b Int64.zero); simpl in *. 2: inv H.
   clear H.
+Check 
 Ltac mkConciseDelta V G F Delta :=
   let vv := constr:(filter (is_init_temp Delta) (map fst (fn_temps F))) in
     let inits := (eval simpl in vv) in

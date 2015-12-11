@@ -68,13 +68,13 @@ Lemma f_core_loop1 (Espec : OracleKind) FR c k h nonce out w x y t
           Sbreak)
         (Ssequence
           (Ssequence
-            (Scall (Some 177%positive)
+            (Scall (Some 178%positive)
               (Evar _ld32 (Tfunction (Tcons (tptr tuchar) Tnil) tuint
                             cc_default))
               ((Ebinop Oadd (Etempvar _c (tptr tuchar))
                  (Ebinop Omul (Econst_int (Int.repr 4) tint)
                    (Etempvar _i tint) tint) (tptr tuchar)) :: nil))
-            (Sset _aux (Etempvar 177%positive tuint)))
+            (Sset _aux (Etempvar 178%positive tuint)))
           (Ssequence
             (Sassign
               (Ederef
@@ -84,13 +84,13 @@ Lemma f_core_loop1 (Espec : OracleKind) FR c k h nonce out w x y t
               (Etempvar _aux tuint))
             (Ssequence
               (Ssequence
-                (Scall (Some 178%positive)
+                (Scall (Some 179%positive)
                   (Evar _ld32 (Tfunction (Tcons (tptr tuchar) Tnil) tuint
                                 cc_default))
                   ((Ebinop Oadd (Etempvar _k (tptr tuchar))
                      (Ebinop Omul (Econst_int (Int.repr 4) tint)
                        (Etempvar _i tint) tint) (tptr tuchar)) :: nil))
-                (Sset _aux (Etempvar 178%positive tuint)))
+                (Sset _aux (Etempvar 179%positive tuint)))
               (Ssequence
                 (Sassign
                   (Ederef
@@ -100,13 +100,13 @@ Lemma f_core_loop1 (Espec : OracleKind) FR c k h nonce out w x y t
                   (Etempvar _aux tuint))
                 (Ssequence
                   (Ssequence
-                    (Scall (Some 179%positive)
+                    (Scall (Some 180%positive)
                       (Evar _ld32 (Tfunction (Tcons (tptr tuchar) Tnil) tuint
                                     cc_default))
                       ((Ebinop Oadd (Etempvar _in (tptr tuchar))
                          (Ebinop Omul (Econst_int (Int.repr 4) tint)
                            (Etempvar _i tint) tint) (tptr tuchar)) :: nil))
-                    (Sset _aux (Etempvar 179%positive tuint)))
+                    (Sset _aux (Etempvar 180%positive tuint)))
                   (Ssequence
                     (Sassign
                       (Ederef
@@ -116,7 +116,7 @@ Lemma f_core_loop1 (Espec : OracleKind) FR c k h nonce out w x y t
                       (Etempvar _aux tuint))
                     (Ssequence
                       (Ssequence
-                        (Scall (Some 180%positive)
+                        (Scall (Some 181%positive)
                           (Evar _ld32 (Tfunction (Tcons (tptr tuchar) Tnil)
                                         tuint cc_default))
                           ((Ebinop Oadd
@@ -125,7 +125,7 @@ Lemma f_core_loop1 (Espec : OracleKind) FR c k h nonce out w x y t
                              (Ebinop Omul (Econst_int (Int.repr 4) tint)
                                (Etempvar _i tint) tint) (tptr tuchar)) ::
                            nil))
-                        (Sset _aux (Etempvar 180%positive tuint)))
+                        (Sset _aux (Etempvar 181%positive tuint)))
                       (Sassign
                         (Ederef
                           (Ebinop Oadd (Evar _x (tarray tuint 16))
@@ -188,6 +188,8 @@ Time forward_for_simple_bound 4 (EX i:Z,
   rewrite (sublist0_app1 4), (sublist_same 0 4); try rewrite <- QuadByteValList_ZLength; try omega.
 
   (*Issue this is where the call fails if we use abbreviation Delta := ... in the statement of the lemma*)
+
+
   Time forward_call (offset_val (Int.repr (4 * i)) (Vptr cb coff), Select16Q C i). (*3.4 versus 15.4*)
   (*{ goal automatically discharged versus 4.2 }*)
 
@@ -397,8 +399,8 @@ Time forward_for_simple_bound 4 (EX i:Z,
 
   thaw FR11. Time cancel. (*0.3*) apply derives_refl.
  }
-apply derives_refl.
-Time Qed. (*78 versus 283*)
+apply andp_left2; apply derives_refl.
+Time Qed. (*75*)
 
 Lemma XX data l: X_content data 4 l -> 
   l = match data with ((Nonce, C), (Key1, Key2)) =>

@@ -382,13 +382,14 @@ apply semax_seq with (Q:=fcore_EpiloguePOST t y x w nonce out c k h OUT data).
     freeze [2;3;5] FR4.
     remember [C1; K1; K2; K3; K4; C2; N1; N2; N3; N4; C3; L1; L2; L3; L4; C4] as xInit.
     forward_seq.
-    apply (f_core_loop3 _ (FRZL FR4) c k h nonce out w x y t (map littleendian xInit)).
+    eapply semax_post.
+    2: apply (f_core_loop3 _ (FRZL FR4) c k h nonce out w x y t (map littleendian xInit)).
+    intros. apply andp_left2. apply derives_refl. 
     Intros snuffleRes. rename H into RES.
 
     freeze [0;1;2;3] FR5.
     Time forward_if (fcore_EpiloguePOST t y x w nonce out c k h OUT 
                ((N1, N2, N3, N4), (C1, C2, C3, C4), ((K1, K2, K3, K4), (L1, L2, L3, L4)))). (*4.8*)
-    (*mkConciseDelta SalsaVarSpecs SalsaFunSpecs f_core Delta.*)
     - thaw FR5. thaw FR4. freeze [3;4] FR6.
       eapply semax_post.
       2: eapply (verif_fcore_epilogue_htrue Espec (FRZL FR6) t y x w nonce out c k h 
@@ -448,4 +449,4 @@ apply semax_seq with (Q:=fcore_EpiloguePOST t y x w nonce out c k h OUT data).
         trivial.
         rewrite Zlength_correct, L; reflexivity.
         rewrite Zlength_correct, prepare_data_length; reflexivity.
-Time Qed. (*17 versus 58*)
+Time Qed. (*20 versus 58*)
