@@ -551,13 +551,14 @@ Ltac entailer_for_return :=
  try solve [cancel].
 
 Ltac entbang := 
+ intros;
  match goal with
- | |- ?P |-- _ => 
-    match type of P with
-    | ?T => unify T (environ->mpred); go_lower
-    | _ => idtac
+ | |- local _ && ?P |-- _ => go_lower
+ | |- ?P |-- _ =>
+    match type of P with 
+    | ?T => unify T mpred; idtac
     end
- | |- _ => fail "The entailer tactic works only on entailments   _ |-- _ "
+ | |- _ => fail "The entailer tactic works only on entailments  _ |-- _ "
  end;
  ent_iter;
  first [ contradiction

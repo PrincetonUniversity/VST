@@ -305,7 +305,7 @@ replace_SEP 0 (data_at Tsh t_struct_SHA256state_st
   erewrite field_at_Tarray; try reflexivity; auto.
   erewrite field_at_Tarray; try reflexivity; auto.
   rewrite <- H8.
-  simplify_value_fits in H13. destruct H13.
+  simplify_value_fits in H11. destruct H11.
   pose proof (s256a_data_Zlength_less a).
   rewrite (split2_array_at _ _ _ 0 (Zlength (s256a_data a)) 64) by (auto; Omega1).
   rewrite (split2_array_at _ _ _ 0 (Zlength (s256a_data a)) 64).
@@ -314,7 +314,7 @@ replace_SEP 0 (data_at Tsh t_struct_SHA256state_st
     autorewrite with sublist.
     rewrite Zlength_sublist by Omega1. Omega1.
   } Unfocus.
-  change (@reptype CompSpecs tuchar) with val in H13. (* should not need this! *)
+  change (@reptype CompSpecs tuchar) with val in H11. (* should not need this! *)
   pose proof CBLOCKz_eq.
   pose proof (Zlength_nonneg (s256a_data a)).
   autorewrite with sublist.
@@ -322,9 +322,9 @@ replace_SEP 0 (data_at Tsh t_struct_SHA256state_st
  change ( (@reptype CompSpecs
            (@nested_field_type CompSpecs t_struct_SHA256state_st
               [ArraySubsc 0; StructField _data]))) with val.
-  rewrite H13.
+  rewrite H11.
   cancel. 
-  apply derives_trans with (array_at_ Tsh t_struct_SHA256state_st [StructField _data] (Zlength (s256a_data a)) 64 c');
+  apply derives_trans with (array_at_ Tsh t_struct_SHA256state_st [StructField _data] (Zlength (s256a_data a)) 64 c);
      [ cancel | apply derives_refl].
 }
 (* end of TODO *)

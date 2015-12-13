@@ -19,33 +19,6 @@ Definition Vprog : varspecs := (_s, t_struct_foo)::nil.
 Definition Gprog : funspecs := 
      main_spec::nil.
 
-Lemma gvar_size_compatible:
-  forall i s rho t, 
-    locald_denote (gvar i s) rho -> 
-    sizeof cenv_cs t <= Int.modulus ->
-    size_compatible t s.
-Proof.
-intros.
-hnf in H. destruct (Map.get (ve_of rho) i) as [[? ? ] | ]; try contradiction.
-destruct (ge_of rho i); try contradiction.
-subst s.
-simpl; auto.
-Qed.
-
-
-Lemma gvar_align_compatible:
-  forall i s rho t, 
-    locald_denote (gvar i s) rho -> 
-    align_compatible t s.
-Proof.
-intros.
-hnf in H. destruct (Map.get (ve_of rho) i) as [[? ? ] | ]; try contradiction.
-destruct (ge_of rho i); try contradiction.
-subst s.
-simpl; auto.
-exists 0. reflexivity.
-Qed.
-
 Lemma body_main:  semax_body Vprog Gprog f_main main_spec.
 Proof.
 name x1 _x1.

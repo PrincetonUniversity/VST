@@ -275,18 +275,18 @@ Lemma call_memcpy_tuchar:  (* Uses CompSpecs from sha. *)
 Proof.
 intros until R.
 intros TCp TCq TCn Hvar Hspec Hglob ? SHq ? ? Hlop Hlen Hnp Hloq Hnq; intros.
-assert_PROP (fold_right and True P); [ entailer | ].
+assert_PROP (fold_right and True P); [ old_go_lower; entailer! | ].
 apply semax_post' with
    (PROPx nil   (LOCALx Q
            (SEPx
               (field_at shp tp pathp vp'' p
                :: field_at shq tq pathq vq q :: R'))));
- [ entailer | ].
+ [ old_go_lower; entailer! | ].
 clear H6. rename H5 into Hpre.
 assert_PROP (Zlength vp' = np /\ Zlength contents = nq). {
 eapply derives_trans; [apply Hpre |].
 apply andp_left2.
-entailer!.
+old_go_lower; entailer!.
 clear - H7 H9 H0 H1 H2 H3 H Hlop Hloq Hnp Hnq Hlen.
 forget (nested_field_type tp pathp) as t0.
 forget (nested_field_type tq pathq) as t1.
@@ -309,7 +309,7 @@ assert (exists vpx : list (reptype (nested_field_type tp (ArraySubsc 0 :: pathp)
 destruct H6 as [vpx Hvpx].
 assert_PROP (legal_nested_field tp pathp /\ legal_nested_field tq pathq). {
   eapply derives_trans; [apply Hpre | apply andp_left2]. 
-entailer!.
+old_go_lower; entailer!.
 } destruct H6 as [LNFp LNFq].
 erewrite field_at_Tarray in Hpre; try eassumption; auto; try omega.
 
@@ -541,16 +541,17 @@ Lemma call_memset_tuchar:
      (SEPx (field_at shp tp pathp vp'' p :: R'))))).
 Proof.
 intros.
-assert_PROP (fold_right and True P); [ entailer | ].
+assert_PROP (fold_right and True P)
+  by (old_go_lower; entailer!).
 apply semax_post' with
    (PROPx nil   (LOCALx Q
            (SEPx (field_at shp tp pathp vp'' p :: R'))));
- [ entailer | ].
+ [ old_go_lower; entailer! | ].
 rename H5 into Hpre.
 clear H1.
 assert_PROP (Zlength vp' = np). {
 eapply derives_trans; [apply Hpre | apply andp_left2].
-entailer. apply prop_right.
+old_go_lower; entailer!.
 clear - H5 H4 H3 Hnp H0 Hlen Hlop.
 forget (nested_field_type tp pathp) as t0.
 subst t0.
@@ -569,7 +570,7 @@ rewrite H99. eauto.
 destruct H6 as [vpx Hvpx].
 assert_PROP (legal_nested_field tp pathp). {
   eapply derives_trans; [apply Hpre | apply andp_left2]. 
-entailer.
+old_go_lower; entailer!.
 } rename H1 into LNFp.
 rewrite Hvpx in H3.
 assert (LENvpx: Zlength vpx = np). {
@@ -644,7 +645,7 @@ eapply semax_pre_post;
  unfold app at 1.
  subst Frame. 
  simpl map.
- go_lower. normalize.
+ old_go_lower. normalize.
  cancel.
  clear H1.
  assert (H2: exists (vpy : list (reptype (nested_field_type tp (ArraySubsc 0 :: pathp)))),

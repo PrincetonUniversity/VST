@@ -968,11 +968,68 @@ Arguments ret_type !Delta /.
 
 Arguments Datatypes.id {A} x / .
 
+Inductive LLRR : Type :=
+  | LLLL : LLRR
+  | RRRR : LLRR.
+
+Definition tc_LR_strong {cs: compspecs} Delta e lr :=
+  match lr with
+  | LLLL => tc_lvalue Delta e
+  | RRRR => tc_expr Delta e
+  end.
+
+Definition tc_LR {cs: compspecs} Delta e lr :=
+  match e with
+  | Ederef e0 t =>
+     match lr with
+     | LLLL => denote_tc_assert
+                 (tc_andp 
+                   (typecheck_expr Delta e0) 
+                   (tc_bool (is_pointer_type (typeof e0))(op_result_type e)))
+     | RRRR => denote_tc_assert
+                match access_mode t with
+                | By_reference =>
+                   (tc_andp 
+                      (typecheck_expr Delta e0) 
+                      (tc_bool (is_pointer_type (typeof e0))(op_result_type e)))
+                | _ => tc_FF (deref_byvalue t)
+                end
+    end
+  | _ => tc_LR_strong Delta e lr
+  end.
+
+Definition eval_LR {cs: compspecs} e lr :=
+  match lr with
+  | LLLL => eval_lvalue e
+  | RRRR => eval_expr e
+  end.
+
+Lemma tc_LR_tc_LR_strong: forall {cs: compspecs} Delta e lr rho,
+  tc_LR Delta e lr rho && !! isptr (eval_LR e lr rho) |-- tc_LR_strong Delta e lr rho.
+Proof.
+  intros.
+  unfold tc_LR, tc_LR_strong.
+  destruct e; try solve [apply andp_left1; auto].
+  unfold tc_lvalue, tc_expr.
+  destruct lr; simpl.
+  + rewrite !denote_tc_assert_andp.
+    simpl.
+    unfold denote_tc_isptr.
+    unfold_lift.
+    auto.
+  + destruct (access_mode t); try solve [apply andp_left1; auto].
+    rewrite !denote_tc_assert_andp.
+    simpl.
+    unfold denote_tc_isptr.
+    unfold_lift.
+    auto.
+Qed.
+
 Ltac unfold_for_go_lower :=
   cbv delta [PROPx LOCALx SEPx locald_denote
                        eval_exprlist eval_expr eval_lvalue cast_expropt 
                        sem_cast eval_binop eval_unop force_val1 force_val2
-                      tc_expropt tc_expr tc_exprlist tc_lvalue 
+                      tc_expropt tc_expr tc_exprlist tc_lvalue tc_LR tc_LR_strong
                       typecheck_expr typecheck_exprlist typecheck_lvalue
                       function_body_ret_assert frame_ret_assert
                       make_args' bind_ret get_result1 retval
@@ -1001,7 +1058,7 @@ intros ?rho;
  try (simple apply grab_tc_environ; intro);
  repeat (progress unfold_for_go_lower; simpl).
 
-Ltac go_lower :=
+Ltac old_go_lower :=
  go_lower0;
  autorewrite with go_lower;
  try findvars;
@@ -1012,6 +1069,314 @@ Ltac go_lower :=
 Hint Rewrite eval_id_same : go_lower.
 Hint Rewrite eval_id_other using solve [clear; intro Hx; inversion Hx] : go_lower.
 (*Hint Rewrite Vint_inj' : go_lower.*)
+
+(*** New go_lower stuff ****)
+
+
+Lemma lower_one_temp:
+ forall t rho Delta P i v Q R S,
+  (temp_types Delta) ! i = Some (t,true) ->
+  (tc_val t v -> eval_id i rho = v ->
+   (local (tc_environ Delta) && PROPx P (LOCALx Q (SEPx R))) rho |-- S rho) ->
+  (local (tc_environ Delta) && PROPx P (LOCALx (temp i v :: Q) (SEPx R))) rho |-- S rho.
+Proof.
+intros.
+rewrite <- insert_local.
+forget (PROPx P (LOCALx Q (SEPx R))) as PQR.
+unfold local,lift1 in *.
+simpl in *. unfold_lift.
+normalize.
+rewrite prop_true_andp in H0 by auto.
+apply H0; auto.
+apply tc_eval_id_i with Delta; auto.
+Qed.
+
+Lemma lower_one_temp_Vint:
+ forall t rho Delta P i v Q R S,
+  (temp_types Delta) ! i = Some (t,true) ->
+  (tc_val t (Vint v) -> eval_id i rho = Vint v ->
+   (local (tc_environ Delta) && PROPx P (LOCALx Q (SEPx R))) rho |-- S rho) ->
+  (local (tc_environ Delta) && PROPx P (LOCALx (temp i (Vint v) :: Q) (SEPx R))) rho |-- S rho.
+Proof.
+intros.
+eapply lower_one_temp; eauto.
+Qed.
+
+Lemma lower_one_lvar:
+ forall t rho Delta P i v Q R S,
+  (isptr v -> lvar_denote i t v rho ->
+   (local (tc_environ Delta) && PROPx P (LOCALx Q (SEPx R))) rho |-- S rho) ->
+  (local (tc_environ Delta) && PROPx P (LOCALx (lvar i t v :: Q) (SEPx R))) rho |-- S rho.
+Proof.
+intros.
+rewrite <- insert_local.
+forget (PROPx P (LOCALx Q (SEPx R))) as PQR.
+unfold local,lift1 in *.
+simpl in *. unfold_lift.
+normalize.
+rewrite prop_true_andp in H by auto.
+apply H; auto.
+hnf in H1.
+destruct (Map.get (ve_of rho) i); try contradiction.
+destruct p. destruct H1; subst. apply I.
+Qed.
+
+Lemma gvar_size_compatible:
+  forall {cs: compspecs} i s rho t, 
+    gvar_denote i s rho -> 
+    sizeof cenv_cs t <= Int.modulus ->
+    size_compatible t s.
+Proof.
+intros.
+hnf in H. destruct (Map.get (ve_of rho) i) as [[? ? ] | ]; try contradiction.
+destruct (ge_of rho i); try contradiction.
+subst s.
+simpl; auto.
+Qed.
+
+Lemma gvar_align_compatible:
+  forall  {cs: compspecs} i s rho t, 
+    gvar_denote i s rho -> 
+    align_compatible t s.
+Proof.
+intros.
+hnf in H. destruct (Map.get (ve_of rho) i) as [[? ? ] | ]; try contradiction.
+destruct (ge_of rho i); try contradiction.
+subst s.
+simpl; auto.
+exists 0. reflexivity.
+Qed.
+
+Lemma sgvar_size_compatible:
+  forall {cs: compspecs} i s rho t, 
+    sgvar_denote i s rho -> 
+    sizeof cenv_cs t <= Int.modulus ->
+    size_compatible t s.
+Proof.
+intros.
+hnf in H.
+destruct (ge_of rho i); try contradiction.
+subst s.
+simpl; auto.
+Qed.
+
+Lemma sgvar_align_compatible:
+  forall  {cs: compspecs} i s rho t, 
+    sgvar_denote i s rho -> 
+    align_compatible t s.
+Proof.
+intros.
+hnf in H. 
+destruct (ge_of rho i); try contradiction.
+subst s.
+simpl; auto.
+exists 0. reflexivity.
+Qed.
+
+Lemma finish_compute_le:  Lt = Gt -> False.
+Proof. congruence. Qed.
+
+Lemma lower_one_gvar:
+ forall t {cs: compspecs} rho Delta P i v Q R S,
+  (glob_types Delta) ! i = Some t ->
+  sizeof cenv_cs t <= Int.modulus  ->
+  (isptr v -> gvar_denote i v rho ->
+     size_compatible t v -> align_compatible t v ->
+   (local (tc_environ Delta) && PROPx P (LOCALx Q (SEPx R))) rho |-- S rho) ->
+  (local (tc_environ Delta) && PROPx P (LOCALx (gvar i v :: Q) (SEPx R))) rho |-- S rho.
+Proof.
+intros.
+rewrite <- insert_local.
+forget (PROPx P (LOCALx Q (SEPx R))) as PQR.
+unfold local,lift1 in *.
+simpl in *. unfold_lift.
+normalize.
+rewrite prop_true_andp in H1 by auto.
+apply H1; auto.
+hnf in H3; destruct (Map.get (ve_of rho) i) as [[? ?] |  ]; try contradiction.
+destruct (ge_of rho i); try contradiction.
+subst. apply I.
+eapply gvar_size_compatible; eauto.
+eapply gvar_align_compatible; eauto.
+Qed.
+
+Lemma lower_one_sgvar:
+ forall t {cs: compspecs}  rho Delta P i v Q R S,
+  (glob_types Delta) ! i = Some t ->
+  sizeof cenv_cs t <= Int.modulus  ->
+  (isptr v -> sgvar_denote i v rho ->
+     size_compatible t v -> align_compatible t v ->
+   (local (tc_environ Delta) && PROPx P (LOCALx Q (SEPx R))) rho |-- S rho) ->
+  (local (tc_environ Delta) && PROPx P (LOCALx (sgvar i v :: Q) (SEPx R))) rho |-- S rho.
+Proof.
+intros.
+rewrite <- insert_local.
+forget (PROPx P (LOCALx Q (SEPx R))) as PQR.
+unfold local,lift1 in *.
+simpl in *. unfold_lift.
+normalize.
+rewrite prop_true_andp in H1 by auto.
+apply H1; auto.
+hnf in H3.
+destruct (ge_of rho i); try contradiction.
+subst. apply I.
+eapply sgvar_size_compatible; eauto.
+eapply sgvar_align_compatible; eauto.
+Qed.
+
+Lemma lower_one_prop:
+ forall  rho Delta P (P1: Prop) Q R S,
+  (P1 ->
+   (local (tc_environ Delta) && PROPx P (LOCALx Q (SEPx R))) rho |-- S rho) ->
+  (local (tc_environ Delta) && PROPx P (LOCALx (localprop P1 :: Q) (SEPx R))) rho |-- S rho.
+Proof.
+intros.
+rewrite <- insert_local.
+forget (PROPx P (LOCALx Q (SEPx R))) as PQR.
+unfold local,lift1 in *.
+simpl in *.
+normalize.
+rewrite prop_true_andp in H by auto.
+hnf in H1.
+apply H; auto.
+Qed.
+
+Lemma finish_lower:
+  forall rho D R S,
+  fold_right sepcon emp R |-- S rho ->
+  (local D && PROP() LOCAL() (SEPx R)) rho |-- S rho.
+Proof.
+intros.
+simpl.
+apply andp_left2.
+unfold_for_go_lower; simpl. normalize.
+Qed.
+
+Lemma lower_one_temp_Vint':
+ forall sz sg rho Delta P i v Q R S,
+  (temp_types Delta) ! i = Some (Tint sz sg noattr, true) ->
+  ((exists j, v = Vint j /\ tc_val (Tint sz sg noattr) (Vint j) /\ eval_id i rho = (Vint j)) ->
+   (local (tc_environ Delta) && PROPx P (LOCALx Q (SEPx R))) rho |-- S rho) ->
+  (local (tc_environ Delta) && PROPx P (LOCALx (temp i v :: Q) (SEPx R))) rho |-- S rho.
+Proof.
+intros.
+eapply lower_one_temp; eauto.
+intros.
+apply H0; auto.
+generalize H1; intro.
+hnf in H3. destruct v; try contradiction.
+exists i0. split3; auto.
+Qed.
+
+Ltac lower_one_temp_Vint' :=
+ match goal with
+ | a : name ?i |- (local _ && PROPx _ (LOCALx (temp ?i ?v :: _) _)) _ |-- _ =>
+     simple eapply lower_one_temp_Vint';
+     [ reflexivity | ];
+     let tc := fresh "TC" in 
+     clear a; intros [a [? [tc ?EVAL]]]; unfold tc_val in tc; try subst v;
+     revert tc; fancy_intro true
+ | |- (local _ && PROPx _ (LOCALx (temp _ ?v :: _) _)) _ |-- _ =>
+    is_var v;
+     simple eapply lower_one_temp_Vint';
+     [ reflexivity | ];
+    let v' := fresh "v" in rename v into v';
+     let tc := fresh "TC" in 
+     intros [v [? [tc ?EVAL]]]; unfold tc_val in tc; subst v';
+     revert tc; fancy_intro true
+ end.
+
+Lemma eq_True:
+   forall (A: Prop), A -> (A=True).
+Proof.
+intros.
+apply prop_ext; intuition.
+Qed.
+
+Ltac fold_types := 
+ fold noattr tuint tint tschar tuchar;
+ repeat match goal with
+ | |- context [Tpointer ?t noattr] => 
+      change (Tpointer t noattr) with (tptr t)
+ | |- context [Tarray ?t ?n noattr] => 
+      change (Tarray t n noattr) with (tarray t n)
+ end.
+
+Ltac fold_types1 := 
+  match goal with |- _ -> ?A =>
+  let a := fresh "H" in set (a:=A); fold_types; subst a
+  end.
+
+Ltac fold_types4 := 
+  match goal with |- _ -> _ -> _ -> _ -> ?A =>
+  let a := fresh "H" in set (a:=A); fold_types; subst a
+  end.
+
+Lemma derives_extract_PROP : 
+  forall (P1: Prop) A P QR S, 
+     (P1 -> A && PROPx P QR |-- S) ->
+     A && PROPx (P1::P) QR |-- S.
+Proof.
+unfold PROPx in *.
+intros.
+rewrite fold_right_cons.
+normalize.
+eapply derives_trans; [ | apply H; auto].
+normalize.
+Qed.
+
+Lemma ENTAIL_normal_ret_assert:
+  forall Delta P Q ek vl,
+ (ek = EK_normal -> vl = None -> ENTAIL Delta, P |-- Q) ->
+ ENTAIL Delta, normal_ret_assert P ek vl |-- normal_ret_assert Q ek vl.
+Proof.
+intros.
+unfold normal_ret_assert. normalize.
+Qed.
+
+Ltac go_lower :=
+intros;
+match goal with
+ | |- ENTAIL ?D, normal_ret_assert _ _ _ |-- _ =>
+       apply ENTAIL_normal_ret_assert; fancy_intros true
+ | |- local _ && _ |-- _ => idtac
+ | |- ENTAIL _, _ |-- _ => idtac
+ | _ => fail 10 "go_lower requires a proof goal in the form of (ENTAIL _ , _ |-- _)"
+end;
+repeat (simple apply derives_extract_PROP; fancy_intro true);
+let rho := fresh "rho" in 
+intro rho;
+repeat first
+ [ simple eapply lower_one_temp_Vint;
+     [try reflexivity; eauto | unfold tc_val at 1; fancy_intro true; intros ?EVAL ]
+ | lower_one_temp_Vint'
+ | simple eapply lower_one_temp; 
+     [try reflexivity; eauto | unfold tc_val at 1; fancy_intro true; intros ?EVAL]
+ | simple apply lower_one_lvar;
+     fold_types1; fancy_intro true; intros ?LV
+ | simple eapply lower_one_gvar;
+     [try reflexivity; eauto  | compute; apply finish_compute_le
+     | fold_types4; fancy_intro true; intros ?GV ?SC ?AC]
+ | simple eapply lower_one_sgvar;
+     [try reflexivity; eauto  | compute; apply finish_compute_le
+     | fold_types4; fancy_intro true; intros ?GV ?SC ?AC]
+ ];
+apply finish_lower;
+unfold_for_go_lower;
+simpl; rewrite ?sepcon_emp;
+repeat match goal with H: eval_id ?i rho = _ |- _ =>
+  let x := fresh "x" in 
+    set (x := eval_id i rho) in *; clearbody x; subst x
+end;
+repeat match goal with
+ | H: lvar_denote ?i ?t ?v rho |- context [lvar_denote ?i ?t' ?v' rho] =>
+     rewrite (eq_True (lvar_denote i t' v' rho) H)
+ | H: gvar_denote ?i ?v rho |- context [gvar_denote ?i ?v' rho] =>
+     rewrite (eq_True (gvar_denote i v' rho) H)
+ | H: sgvar_denote ?i ?v rho |- context [sgvar_denote ?i ?v' rho] =>
+     rewrite (eq_True (sgvar_denote i v' rho) H)
+end;
+try clear dependent rho.
 
 Lemma raise_sepcon:
  forall A B : environ -> mpred , 
@@ -1967,19 +2332,6 @@ Ltac move_from_SEP' PQR :=
       unfold replace_nth at 1
    end
  end.
-
-Lemma derives_extract_PROP : 
-  forall (P1: Prop) A P QR S, 
-     (P1 -> A && PROPx P QR |-- S) ->
-     A && PROPx (P1::P) QR |-- S.
-Proof.
-unfold PROPx in *.
-intros.
-rewrite fold_right_cons.
-normalize.
-eapply derives_trans; [ | apply H; auto].
-normalize.
-Qed.
 
 Lemma derives_extract_PROP' : 
   forall (P1: Prop) P QR S, 

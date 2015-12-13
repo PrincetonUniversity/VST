@@ -106,7 +106,7 @@ rewrite Int.add_zero.
 replace_SEP 1 (memory_block Tsh 108 (Vptr b i)).
   { Time entailer!. (*1.3 versus 1.6*)
     eapply derives_trans. apply data_at_data_at_.
-    rewrite <- (memory_block_data_at_ Tsh _ _ H2). apply derives_refl.
+    rewrite <- (memory_block_data_at_ Tsh _ _ H). apply derives_refl.
   }
 freeze [0;2] FR3.
 Time forward_call ((Tsh, Tsh), Vptr b i, Vptr b (Int.add i (Int.repr 216)), 

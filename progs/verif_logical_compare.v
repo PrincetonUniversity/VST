@@ -124,7 +124,7 @@ name b_ _b.
 
 eapply semax_seq'; [do_semax_shortcut_logical | abbreviate_semax].
 forward.
-destruct TC,TC0; subst; entailer!.
+destruct H,H0; subst; simpl; entailer!.
 Qed.
 
 Lemma body_do_and: semax_body Vprog Gprog f_do_and do_and_spec.
@@ -134,7 +134,7 @@ name a_ _a.
 name b_ _b.
 eapply semax_seq'; [do_semax_shortcut_logical | abbreviate_semax].
 forward.
-destruct TC,TC0; subst; entailer!.
+destruct H,H0; subst; simpl; entailer!.
 Qed.
 
 Lemma body_main:  semax_body Vprog Gprog f_main main_spec.

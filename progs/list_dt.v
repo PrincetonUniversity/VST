@@ -934,15 +934,11 @@ apply semax_pre0 with
                       (nested_field_type list_struct
                          (StructField list_link :: nil)) y) v ::
         lseg ls dsh psh r y v2 :: R)))).
-entailer.
-apply exp_right with h.
-apply exp_right with r.
-apply exp_right with y.
+old_go_lower; entailer.
+Exists h r y.
 normalize.
   autorewrite with subst norm1 norm2; normalize.
-apply extract_exists_pre; intro h.
-apply extract_exists_pre; intro r.
-apply extract_exists_pre; intro y.
+Intros h r y.
 apply semax_extract_prop; intros [? ?].
 eapply H0; eauto.
 Qed.
@@ -1518,7 +1514,7 @@ apply semax_pre0 with
                       (nested_field_type list_struct
                          (StructField list_link :: nil)) y) v ::
         lseg ls sh r y v2 :: R)))).
-entailer.
+old_go_lower; entailer.  (* Intros h r y should work here, but doesn't. *)
 Exists h r y.
 normalize.
   autorewrite with subst norm1 norm2; normalize.
@@ -2154,15 +2150,11 @@ apply semax_pre0 with
                       (nested_field_type list_struct
                          (StructField list_link :: nil)) y) v ::
         lseg ls dsh psh r y v2 :: R)))).
-entailer.
-apply exp_right with h.
-apply exp_right with r.
-apply exp_right with y.
+old_go_lower; entailer.
+Exists h r y.
 normalize.
   autorewrite with subst norm1 norm2; normalize.
-apply extract_exists_pre; intro h.
-apply extract_exists_pre; intro r.
-apply extract_exists_pre; intro y.
+Intros h r y.
 apply semax_extract_prop; intros [? ?].
 eauto.
 Qed.

@@ -510,7 +510,7 @@ which is admitted and should be removed. *)
   rewrite (add_andp _ _ H7).
   eapply derives_trans; [apply andp_derives; [| apply derives_refl] |].
   eapply nth_error_SEP_sepcon_TT'; eauto.
-  entailer!.
+  old_go_lower; entailer!.
   Intro old'.
   go_lowerx.
   destruct (isolate_temp_binding_e _ _ _ _ _ _ _ H1 H17) as [? [? ?]].

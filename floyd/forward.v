@@ -727,7 +727,9 @@ Ltac after_forward_call_binders :=
  end.
 
 Ltac after_forward_call := 
-    cbv beta; unfold_app;
+    cbv beta iota delta [delete_temp_from_locals]; 
+    simpl ident_eq; cbv beta iota zeta;
+    unfold_app;
     try (apply extract_exists_pre; intros _).
 
 Ltac fwd_call' witness :=
@@ -1503,7 +1505,7 @@ Ltac quick_typecheck3 :=
  | H := _ |- _ => clear H 
  | H : _ |- _ => clear H 
  end;
- apply quick_derives_right; clear; go_lower;
+ apply quick_derives_right; clear; go_lowerx; intros;
  clear; repeat apply andp_right; auto; fail.
 
 Ltac forward_setx :=

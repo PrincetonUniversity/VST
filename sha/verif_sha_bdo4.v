@@ -138,7 +138,7 @@ assert_PROP (data_block sh (intlist_to_Zlist b) data =
           (map Vint (map Int.repr (intlist_to_Zlist b)))) data). {
  entailer!.
  unfold data_block. rewrite prop_true_andp by auto.
- clear H5 H6.
+(* clear H5 H6.*)
  unfold data_at at 1. 
    erewrite field_at_Tarray; try reflexivity; auto; try omega.
   2: autorewrite with sublist; Omega1.
@@ -147,7 +147,7 @@ assert_PROP (data_block sh (intlist_to_Zlist b) data =
    autorewrite with sublist.
   rewrite <- !sepcon_assoc.
   f_equal. f_equal.
-  rewrite Zlength_intlist_to_Zlist in H7.
+  rewrite Zlength_intlist_to_Zlist in H5.
   rewrite array_at_data_at'  by auto with field_compatible.
   simpl.
   autorewrite with sublist.
@@ -158,7 +158,6 @@ assert_PROP (data_block sh (intlist_to_Zlist b) data =
  rewrite field_address0_offset by auto with field_compatible.
   f_equal. f_equal. simpl. omega.
  }
-
 forward_call (* l = __builtin_read32_reversed(_data) *)
       (offset_val (Int.repr (i*4)) data, sh, 
          sublist (i*4) ((i+1)*4) (map Int.repr (intlist_to_Zlist b))).
@@ -174,9 +173,6 @@ gather_SEP 3 0 4.
  clear H1. subst l.
 rewrite <- Znth_big_endian_integer by omega.
 forward. (* data := data + 4; *)
-(* 1,194,800 849,172 *)
-(* 1,291,784 894,136 *)
-
 forward. (* X[i]=l; *)
 simpl.
 rewrite loop1_aux_lemma1 by Omega1.
@@ -233,9 +229,9 @@ split3.
 + f_equal.  f_equal.
   rewrite rearrange_aux. rewrite rearrange_aux. auto.
 + f_equal. f_equal.
-   rewrite (Int.add_commut (Int.add Ki _)).
+   rewrite (Int.add_commut (Int.add k _)).
    do 5 rewrite Int.add_assoc.
-   f_equal. rewrite (Int.add_commut (Int.add Ki _)).
+   f_equal. rewrite (Int.add_commut (Int.add k _)).
    rewrite <- Int.add_assoc. auto.
 * (* loop invariant & not test implies postcondition *)
 cbv beta.

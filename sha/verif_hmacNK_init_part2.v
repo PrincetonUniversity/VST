@@ -445,7 +445,7 @@ Lemma opadloop Espec pb pofs cb cofs ckb ckoff kb kofs l key kv (FR:mpred): fora
             FR))).
 Proof. intros. abbreviate_semax. 
 freeze [0;2] FR1.
-eapply semax_post'.
+eapply semax_post.
 Focus 2.   
       Time forward_for_simple_bound' 64 (EX i:Z, 
         (PROP  ()
@@ -699,7 +699,7 @@ forward_if PostResetBranch.
     { clear POSTCONDITION HeqPostResetBranch PostResetBranch.
       unfold initPostKeyNullConditional.
       go_lower. ent_iter. (* Issue: we just want these two parts of entailer here... *)
-      destruct _id1; try contradiction.
+      destruct k; try contradiction.
       Time if_tac; entailer!. (* 0.92 *)
       Exists b i.
       Time entailer!. (* 6.7 *) } 
@@ -733,7 +733,7 @@ Qed.*)
                          (K_vector kv * data_at Tsh t_struct_hmac_ctx_st HMS(*'*) (Vptr cb cofs)
                           * data_at Tsh (tarray tuchar (Zlength key)) (map Vint (map Int.repr key))
                          (Vptr kb kofs))); try eassumption.
-      apply andp_left2. Time entailer!. (*8.7 *) apply derives_refl.
+      Time entailer!. (*8.7 *) apply derives_refl.
       intros ? ?. apply andp_left2. apply derives_refl.
     }
 
@@ -837,7 +837,7 @@ Qed.*)
     Time forward. (*0.2*) 
     subst. unfold initPostKeyNullConditional. Time entailer!.  (*6.5*)
     destruct R; subst; [ |discriminate].
-    simpl; clear H. Time destruct _id1; try solve[entailer!]. (*2.9*) 
+    simpl; clear H. Time destruct k; try solve[entailer!]. (*2.9*) 
     unfold hmacstate_PreInitNull, hmac_relate_PreInitNull; simpl.
     Time if_tac; [ | entailer!].
     Intros v x. destruct h1.

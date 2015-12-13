@@ -218,7 +218,10 @@ Proof. intros. abbreviate_semax.
      unfold tarray.
      freeze [0;1;2;3] FR8. (*everything except memory_block Tsh 32 (Vptr ckb (Int.repr (Int.unsigned ckoff + 32))))*)
      Time forward_call (Tsh, Vptr ckb (Int.repr (Int.unsigned ckoff + 32)), 32, Int.zero). (*6.1 versus 6.9*)
-     { rewrite (lvar_eval_var _ _ _ _ H0). split; trivial. }
+     {
+      (* this proof should be automatic; perhaps eval_var needs
+          to be expanded automatically by go_lower? *)
+       rewrite (lvar_eval_var _ _ _ _ LV). split; hnf; trivial. }
      { Intros vret; subst vret.
        subst PostIf_j_Len.
        Time entailer!. (*10.2*)
@@ -245,7 +248,7 @@ Proof. intros. abbreviate_semax.
        remember (Zlength key >? Z.of_nat SHA256.BlockSize).
        destruct b.
        Focus 2. specialize (Zgt_cases (Zlength key) (Z.of_nat SHA256.BlockSize)).
-                rewrite <- Heqb. intros. simpl in H5. omega.
+                rewrite <- Heqb. intro Hx; simpl in Hx; omega.
        clear Heqb.
        unfold HMAC_SHA256.zeroPad. repeat rewrite map_app. 
        assert (LHash: Zlength (SHA256.Hash key) = 32).
@@ -361,7 +364,7 @@ Proof. intros.
      (*call memset*)
      freeze [0;1;3] FR2. 
      Time forward_call (Tsh, Vptr ckb (Int.add ckoff (Int.repr (Zlength key))), l64, Int.zero). (*6.4 versus 10.4*)
-     { rewrite (lvar_eval_var _ _ _ _ H0). split; trivial. }
+     { rewrite (lvar_eval_var _ _ _ _ LV). split; hnf; trivial. }
      { (*Issue: this side condition is NEW*) 
        apply prop_right. simpl. rewrite Z.mul_1_l.
        rewrite <- KL1, Heql64. split; trivial. }
@@ -375,8 +378,7 @@ Proof. intros.
        apply Z.max_r. omega. }
      { split; auto. repable_signed. }
 
-     apply andp_left2. Intros vret; subst PostIf_j_Len.
-
+     Intros vret; subst PostIf_j_Len.
      Time entailer!. (*3.5 versus 6.2*)
      thaw FR2. thaw FR1. Time cancel. (*1.2 penalty*)
      rewrite (split2_data_at_Tarray_tuchar Tsh 64 (Zlength key)); 
@@ -521,7 +523,7 @@ forward_if  (PostKeyNull c k pad kv h1 l key ckb ckoff).
     remember (Int.eq i Int.zero). destruct b. 
      apply binop_lemmas2.int_eq_true in Heqb. rewrite Heqb; apply valid_pointer_zero. entailer!. 
      entailer!. apply sepcon_valid_pointer2. apply data_block_valid_pointer. auto. 
-     red in H6. omega.
+     red in H2. omega.
      apply valid_pointer_null. }
   { (* THEN*)
     simpl.  
@@ -595,10 +597,11 @@ forward_if  (PostKeyNull c k pad kv h1 l key ckb ckoff).
       apply (Init_part1_len_le_j Espec kb ckb cb kofs ckoff cofs l key kv pad HMS h1); try eassumption; trivial.
       rewrite Int.signed_repr in ge_64_l. trivial. rewrite client_lemmas.int_min_signed_eq; omega.      
     }
-   intros ek vl. apply andp_left2.
+   intros ek vl.
    unfold POSTCONDITION, abbreviate.
-   unfold overridePost, initPostKeyNullConditional. 
-   if_tac; trivial. Time normalize. (*0.8*)
+   unfold overridePost, initPostKeyNullConditional.
+   if_tac;  [| apply andp_left2; trivial].
+   Time normalize. (*0.8*)
    subst.
    Exists cb cofs 1. Time entailer!. (*7.3 versus 8.1*)
   }
@@ -608,12 +611,15 @@ forward_if  (PostKeyNull c k pad kv h1 l key ckb ckoff).
      unfold PostKeyNull, initPre, initPostKeyNullConditional. subst k.
      Time entailer. (*4.2 versus 3.9*)
         unfold hmacstate_PreInitNull. Intros r v.
-        Time assert_PROP (isptr _id0) as Pctx' by entailer!. (*4.3*)
+        Time assert_PROP (isptr c) as Pctx' by entailer!. (*4.3*)
         apply isptrD in Pctx'; destruct Pctx' as [cb [cofs CTX']].
         Exists cb cofs 0. rewrite if_true; trivial.
         Exists r v. Time entailer!. (*6.9*) } 
   { (*side condition of forward_if key != NULL*)
-    intros. apply andp_left2. unfold POSTCONDITION, abbreviate, overridePost. 
-    if_tac. unfold normal_ret_assert. Time entailer!. (*0.2*)
-    apply derives_refl. }
+    intros. unfold POSTCONDITION, abbreviate, overridePost. 
+    if_tac.
+    + apply andp_left2; normalize. subst. unfold normal_ret_assert.
+       normalize.
+    + apply andp_left2; apply derives_refl. (* should have an ENTAIL_refl  ? *)
+   }
 Time Qed. (*14.8 versus 17.8*)

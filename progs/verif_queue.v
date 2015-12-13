@@ -339,17 +339,17 @@ Intros.
 forward. (* h = Q->head; *)
 forward. (* return (h == NULL); *)
 unfold fifo.
-Exists (h,tl).
+Exists (hd,tl).
 destruct (isnil contents).
 * entailer!.
   apply andp_right; auto with valid_pointer.
 * Intros prefix.
 Exists prefix.
-  assert_PROP (isptr h).
+  assert_PROP (isptr hd).
     destruct prefix; entailer.
     rewrite lseg_cons_eq by auto. 
     entailer.
- destruct h; try contradiction.
+ destruct hd; try contradiction.
  entailer!. entailer!.
 Qed.
 
@@ -372,7 +372,7 @@ Proof.
   forward. (* Q->tail = NULL; *)
   forward. (* return Q; *)
   (* goal_5 *)
-  Exists Q. unfold fifo. Exists (nullval,nullval).
+  Exists q. unfold fifo. Exists (nullval,nullval).
   rewrite if_true by auto.
   entailer!.
 Qed.
@@ -403,7 +403,7 @@ forward_if
   (* goal 10 *)
   entailer.
   destruct (isnil contents).
-  + subst. Exists (p',p').
+  + subst. Exists (p,p).
      simpl. rewrite if_false by congruence.
      Exists (@nil val).
       rewrite lseg_nil_eq by auto.
@@ -426,9 +426,9 @@ forward_if
      forward. (* Q->tail=p; *)
   (* goal 13 *)
      entailer!.
-     unfold fifo. Exists (h, p').
+     unfold fifo. Exists (hd, p).
      rewrite if_false by (clear; destruct prefix; simpl; congruence).
-     Exists  (prefix ++ t :: nil).
+     Exists  (prefix ++ tl :: nil).
      entailer.
      match goal with
      | |- _ |-- _ * _ * ?AA => remember AA as A
@@ -461,7 +461,7 @@ destruct prefix; inversion H; clear H.
    forward. (*  n=h->next; *)
    forward. (* Q->head=n; *)
    forward. (* return p; *)
-   unfold fifo. Exists (nullval, h).
+   unfold fifo. Exists (nullval, p).
    rewrite if_true by congruence.
    entailer!.
 + rewrite lseg_cons_eq by auto.
@@ -471,7 +471,7 @@ destruct prefix; inversion H; clear H.
     forward. (*  n=h->next; *)
     forward. (* Q->head=n; *)
     forward. (* return p; *)
-    unfold fifo. Exists (n, tl).
+    unfold fifo. Exists (x, tl).
     rewrite if_false by (destruct prefix; simpl; congruence).
     Exists prefix.
     entailer!.
@@ -498,7 +498,7 @@ Time forward.  (*  p->a=a; *)  (* 11.6 sec -> 10.78 sec -> 7.8 sec -> 6.36 -> 0.
 simpl.  (* this should not be necessary -- Qinxiang, please look *)
 Time forward.  (*  p->b=b; *) (* 21 secs -> 56 sec -> 6.82 sec -> 4.84 -> 1.122 *)
 Time forward. (* return p; *)  (* 4.73 sec -> 5.0 -> 2.76 *)
-Exists p.
+Exists p0.
 Time entailer!.  (* 7.2 sec -> 5.6 -> 1.074 *)
 rewrite make_unmake.
 solve [auto].

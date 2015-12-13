@@ -6,10 +6,6 @@ Require Import floyd.nested_field_lemmas.
 Require Import floyd.fieldlist.
 Local Open Scope logic.
 
-Inductive LLRR : Type :=
-  | LLLL : LLRR
-  | RRRR : LLRR.
-
 Inductive efield : Type :=
   | eArraySubsc: forall i: expr, efield
   | eStructField: forall i: ident, efield
@@ -230,59 +226,6 @@ Proof.
   intros.
   unfold tc_lvalue, tc_expr.
   destruct e; simpl in *; try apply @FF_left; rewrite H; auto.
-Qed.
-
-Definition eval_LR e lr :=
-  match lr with
-  | LLLL => eval_lvalue e
-  | RRRR => eval_expr e
-  end.
-
-Definition tc_LR_strong Delta e lr :=
-  match lr with
-  | LLLL => tc_lvalue Delta e
-  | RRRR => tc_expr Delta e
-  end.
-
-Definition tc_LR Delta e lr :=
-  match e with
-  | Ederef e0 t =>
-     match lr with
-     | LLLL => denote_tc_assert
-                 (tc_andp 
-                   (typecheck_expr Delta e0) 
-                   (tc_bool (is_pointer_type (typeof e0))(op_result_type e)))
-     | RRRR => denote_tc_assert
-                match access_mode t with
-                | By_reference =>
-                   (tc_andp 
-                      (typecheck_expr Delta e0) 
-                      (tc_bool (is_pointer_type (typeof e0))(op_result_type e)))
-                | _ => tc_FF (deref_byvalue t)
-                end
-    end
-  | _ => tc_LR_strong Delta e lr
-  end.
-
-Lemma tc_LR_tc_LR_strong: forall Delta e lr rho,
-  tc_LR Delta e lr rho && !! isptr (eval_LR e lr rho) |-- tc_LR_strong Delta e lr rho.
-Proof.
-  intros.
-  unfold tc_LR, tc_LR_strong.
-  destruct e; try solve [apply andp_left1; auto].
-  unfold tc_lvalue, tc_expr.
-  destruct lr; simpl.
-  + rewrite !denote_tc_assert_andp.
-    simpl.
-    unfold denote_tc_isptr.
-    unfold_lift.
-    auto.
-  + destruct (access_mode t); try solve [apply andp_left1; auto].
-    rewrite !denote_tc_assert_andp.
-    simpl.
-    unfold denote_tc_isptr.
-    unfold_lift.
-    auto.
 Qed.
 
 Definition LR_of_type (t: type) :=

@@ -119,7 +119,6 @@ evar (V: list val).
  change CBLOCKz with 64; omega.
  subst V.
  entailer!. {
- clear - Hddlen H11.
  rewrite field_address0_offset by auto with field_compatible.
  rewrite field_address_offset by auto with field_compatible.
  simpl. normalize. 

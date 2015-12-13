@@ -133,7 +133,7 @@ assert_PROP (Zlength r_data = CBLOCKz
     /\ field_compatible t_struct_SHA256state_st [StructField _data] c)
    as H; [ | destruct H as [H [H7 FC]]].
   { entailer!.
-    simplify_value_fits in H14; destruct H14 as [LEN _].
+    simplify_value_fits in H12; destruct H12 as [LEN _].
      split; auto.
     change  (@reptype CompSpecs tuchar) with val in LEN. (* should not be necessary *) 
     rewrite <- H2.
@@ -168,7 +168,7 @@ forward_if   (invariant_after_if1 (s256a_hashed a) (s256a_data a) c md shmd kv).
  assert (Zlength (s256a_data a) + 1 > 16 * 4 - 8) by omega.
  assert (DDbytes': Forall isbyteZ (s256a_data a)).
  unfold s256a_data. apply Forall_sublist; auto.
- eapply semax_pre0; 
+ eapply semax_pre; 
   [|apply (ifbody_final_if1 Espec (s256a_hashed a) md c shmd (s256a_data a) kv (s256a_hashed_divides _) H3' H4 DDbytes')].
  entailer!.
  unfold_data_at 1%nat.
@@ -258,7 +258,7 @@ forward_call (* memset (p+n,0,SHA_CBLOCK-8-n); *)
 {apply prop_right; repeat constructor; hnf; simpl; auto.
  rewrite field_address_offset by auto with field_compatible.
  rewrite field_address0_offset by auto with field_compatible.
- make_Vptr c_. simpl. normalize. 
+ make_Vptr c. simpl. normalize. 
 }
 {
 change  (Z.of_nat CBLOCK - 8 - Zlength dd')
@@ -284,41 +284,31 @@ assert_PROP (force_val
        = field_address t_struct_SHA256state_st
                 [ArraySubsc (CBLOCKz - 8); StructField _data] c).
 entailer!.
-make_Vptr c_.
+make_Vptr c.
  rewrite !field_address_offset by auto with field_compatible.
 simpl. normalize.
 eapply semax_pre_post; [ | | 
   apply final_part2 with (hashed:= s256a_hashed a)(pad:=pad)(c:=c)(kv:=kv)(md:=md); 
   try eassumption; try Omega1; try apply s256a_hashed_divides].
 +
-apply andp_left2.
-autorewrite with sublist.
-replace (CBLOCKz - Zlength dd' - (56 - Zlength dd'))
-  with 8 by Omega1.
+change (Z.of_nat CBLOCK) with CBLOCKz.
 change (Z.to_nat 8) with (Z.to_nat (CBLOCKz-56)).
 entailer!.
-rewrite <- H10.
- rewrite !field_address_offset by auto with field_compatible.
-normalize.
 erewrite field_at_Tarray; try reflexivity; try omega.
 2: compute; clear; intuition.
-rewrite (split3seg_array_at _ _ _ 0 (Zlength dd') 56 64).
-2: Omega1.
-2: Omega1.
-2: Omega1.
+rewrite (split3seg_array_at _ _ _ 0 (Zlength dd') 56 64); try Omega1.
 Focus 2. {
   rewrite !Zlength_app, !Zlength_map, !Zlength_list_repeat by omega.
   omega.
 } Unfocus.
-autorewrite with sublist.
+progress (autorewrite with sublist).
 cancel.
 rewrite array_at_data_at'; auto.
 +
 intros.
-apply andp_left2.
 autorewrite with ret_assert.
 rewrite hashed_data_recombine by auto.
-auto.
+apply andp_left2; auto.
 +
 reflexivity.
 +

@@ -331,7 +331,7 @@ forward_if (sha_update_inv sh hashed len c d dd data kv false).
   Focus 2. {
     split; auto.
     assert (Zlength (dd ++ sublist 0 len data) < CBLOCKz).
-         clear - H2 H8. simplify_value_fits in H8. destruct H8 as [? _].
+         clear - H2 H7. simplify_value_fits in H7. destruct H7 as [? _].
    rewrite !sublist_map in H.
    autorewrite with sublist in H. rewrite Zlength_app.
    pose proof CBLOCKz_eq. rewrite Zlength_list_repeat in H.

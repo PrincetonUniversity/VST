@@ -896,7 +896,7 @@ split. destruct sz; reflexivity.
   eapply derives_trans; [| apply id2pred_star_ZnthV_Tint; auto].
  2: rewrite <- H5; auto.
 Opaque sizeof. 
-  go_lower.
+  old_go_lower.
 Transparent sizeof.
   normalize.
  rename H8 into H19.

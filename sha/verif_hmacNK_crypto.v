@@ -141,11 +141,11 @@ forward_call (h2,c).
 forward.
 assert_PROP (field_compatible (tarray tuchar (sizeof cenv_cs t_struct_hmac_ctx_st)) nil c).
 { unfold data_block at 1. unfold Zlength. simpl. rewrite data_at_data_at'. normalize. }
-rename H8 into FC.
+rename H5 into FC.
 specialize (hmac_sound key data). unfold hmac. 
 rewrite <- HeqRES. simpl; intros.
 Exists c dig. 
-clear - FC FC_c H7 H8 isbyteZ_key H0.
+(*clear - FC FC_c H7 H8 isbyteZ_key H0.*)
 Time normalize. (*6.4*) (*calling entailer! here takes > 13 secs*)
 apply andp_right. apply prop_right. subst.
        split. unfold bitspec. simpl. rewrite Equivalence.
@@ -155,7 +155,7 @@ apply andp_right. apply prop_right. subst.
          rewrite HMAC_equivalence.of_length_proof_irrel.
          rewrite ByteBitRelations.bytes_bits_bytes_id. reflexivity.
            apply isbyteZ_mkKey. assumption.   
-           apply H7. 
+           assumption.
            intros ? X. apply X.
        split; trivial. split; trivial. 
        intros ? X.

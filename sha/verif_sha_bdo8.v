@@ -89,7 +89,7 @@ assert (H5': Zlength r_h = 8%Z).
 rewrite Zlength_correct; rewrite H5; reflexivity.
 do 8 (forward; [ entailer!; apply Znth_is_int; omega | ]).
 entailer!.
-rewrite <- H0,  <-H1; clear H0 H1.
+rewrite <- H, <- H0, <- H1, <- H2, <- H3, <- H4, <- H6, <- H7.
 repeat (rewrite Znth_map with (d':=Int.zero); [ | omega]).
 unfold Znth.
 repeat rewrite if_false by (apply Zle_not_lt; computable).

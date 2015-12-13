@@ -601,7 +601,7 @@ Proof.
 
   rewrite field_address_offset by auto.
   rewrite field_address0_offset by auto with field_compatible.
-  destruct c_; try contradiction; simpl; auto.
+  destruct c; try contradiction; simpl; auto.
   split; auto.
   subst hibytes; clear; compute; congruence.
   Time forward. (* p += 4; *) (*11 secs*)
@@ -618,9 +618,8 @@ Proof.
   pose proof CBLOCKz_eq.
   rewrite field_address0_offset by auto with field_compatible.
   rewrite field_address_offset by auto with field_compatible.
-  destruct c_; try contradiction; simpl; auto.
+  destruct c; try contradiction; simpl; auto.
   normalize.
-
   split; auto.   compute; congruence.
 
   replace_SEP 0 (array_at Tsh t_struct_SHA256state_st [StructField _data] 60 64
@@ -649,11 +648,11 @@ Proof.
    2: omega.
    Focus 2. {
      rewrite !Zlength_app, !Zlength_list_repeat, !Zlength_map by omega.
-     rewrite Zlength_map in H14, H11.
+     rewrite Zlength_map in H13, H10.
      change CBLOCKz with 64; omega.
    } Unfocus.
    assert (CBZ: CBLOCKz = 64) by reflexivity.
-   clear - CBZ H13 H11 H1 H0 H3 H9 LENhi. rewrite CBZ in *.   
+ (*  clear - CBZ H13 H11 H1 H0 H3 H9 LENhi.*) rewrite CBZ in *.   
    pose proof (Zlength_nonneg dd').
    Time autorewrite with sublist in * |- * . (*7*)
    replace (Zlength dd' + (64 - 8 - Zlength dd')) with 56 by (clear; omega).
@@ -671,23 +670,24 @@ Proof.
     Time entailer!. (*5.9*)
     pose proof CBLOCKz_eq.
     rewrite field_address_offset by auto with field_compatible.
-    make_Vptr c_; simpl in *; auto.
+    make_Vptr c; simpl in *; auto.
   }
   drop_LOCAL 1%nat. (* drop cNl *)
   drop_LOCAL 1%nat. (* drop cNh *)
   match goal with
   | |- semax _ (PROPx nil (LOCALx (_ :: ?L) (SEPx ?S))) _ _ =>
-         apply semax_pre0 with (PROPx nil (LOCALx (
+         apply semax_pre with (PROPx nil (LOCALx (
            temp _p (field_address t_struct_SHA256state_st [StructField _data] c)
            :: L) (SEPx S)))
   end.
   Focus 1. {
     clearbody hibytes lobytes.
     Time entailer!. (*3.3*)
-    rewrite <- H6.
+  
+(*    rewrite <- H5.*)
     pose proof CBLOCKz_eq.
     rewrite !field_address_offset by auto with field_compatible.
-    make_Vptr (eval_id _c rho).
+    make_Vptr c.
     simpl.  rewrite Int.sub_add_opp.
     rewrite !Int.add_assoc.
     Time normalize. (*0.4*)

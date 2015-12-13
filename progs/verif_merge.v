@@ -188,7 +188,7 @@ Exists (if Val.eq b_ nullval then Int.zero else Int.one)
  a b (@nil int) a_ b_ ret_ ret_.
  simpl map. rewrite @lseg_nil_eq.
 Time entailer!.  (* 1.65 sec *)
- destruct b__; inv TC; simpl.
+ destruct b_; inv PNb_; simpl.
   rewrite if_true by auto;  intuition discriminate.
   rewrite if_false by (intro Hx; inv Hx); intuition discriminate.
   apply derives_refl.
@@ -322,7 +322,7 @@ match goal with |- ?A * ?B * ?C * ?D * ?E * ?F * ?G * ?H |-- _ =>
   [cancel | ]
 end.
 eapply derives_trans; [apply sepcon_derives; [ | apply derives_refl] | ].
-assert (LCR := lseg_cons_right_neq LS sh (map Vint (butlast merged)) begin (Vint (last merged)) c_ _id a_);
+assert (LCR := lseg_cons_right_neq LS sh (map Vint (butlast merged)) begin (Vint (last merged)) c_ a_' a_);
 simpl in LCR. rewrite list_cell_field_at in LCR. apply LCR; auto.
 rewrite @lseg_cons_eq.
 Exists b_'.
@@ -427,7 +427,7 @@ Exists a_'.
 Time entailer!. (* 14.3 sec *)
 pattern merged at 3; rewrite snoc by auto.
 rewrite map_app. simpl map.
-assert (LCR := lseg_cons_right_neq LS sh (map Vint (butlast merged)) begin (Vint (last merged)) c_ _id b_).
+assert (LCR := lseg_cons_right_neq LS sh (map Vint (butlast merged)) begin (Vint (last merged)) c_ b_' b_).
 simpl in LCR. rewrite list_cell_field_at in LCR.
 unfold_data_at 1%nat.
 match goal with |- ?A * ?B * ?C * ?D * ?E * ?F |-- _ =>
@@ -480,12 +480,8 @@ assert (a_ = nullval \/ b_ = nullval) by (clear - H2; intuition).
 clear H2.
 
 forward_if (
-  @exp (environ -> mpred) _ _ (fun a : list int =>
-  @exp (environ -> mpred) _ _ (fun b : list int =>
-  @exp (environ -> mpred) _ _ (fun merged : list int =>
-  @exp (environ -> mpred) _ _ (fun ab_ : val =>
-  @exp (environ -> mpred) _ _ (fun c_ : val =>
-  @exp (environ -> mpred) _ _ (fun begin : val =>
+  EX a: list int, EX b: list int, EX merged: list int,
+  EX ab_: val, EX c_: val, EX begin: val,
   PROP (merge init_a init_b = merged ++ merge a b)
   LOCAL (temp _a a_;
          temp _b b_;
@@ -496,7 +492,7 @@ forward_if (
          data_at Tsh tlist (if merged then ab_ else begin) ret_;
          lseg LS sh (map Vint (butlast merged)) begin c_;
          if merged then emp else data_at sh t_struct_list (Vint (last merged), ab_) c_
-)))))))).
+   ))%assert.
 
 (* when a <> [] *)
 assert_PROP (b_ = nullval /\ b = []).
@@ -533,7 +529,7 @@ unfold field_type; simpl.
 unfold_data_at 1%nat.
 (* @Andrew: same bug here, rewrite does not work directly but it does after
 a pose *)
-pose proof (field_at_data_at sh t_struct_list [StructField _tail] a__ c_) as R.
+pose proof (field_at_data_at sh t_struct_list [StructField _tail] a_ c_) as R.
 fold _tail.
 rewrite R.
 entailer!.
@@ -543,7 +539,7 @@ assert_PROP (a = []).
   destruct a; [ apply prop_right; reflexivity | ].
   simpl map; rewrite lseg_unfold.
   subst a_; entailer!.
-  elim H3; clear; intuition.
+  elim H2; clear; intuition.
 subst a.
 
 destruct merged as [|hmerge tmerge].
