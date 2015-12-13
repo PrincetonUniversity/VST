@@ -176,8 +176,8 @@ Time forward_for_simple_bound 16 (EX m:Z,
   assert_PROP (Zlength mlist = 16) as ML by entailer. 
   apply derives_refl'. f_equal.
   eapply Znth_extensional with (d:=Vundef). omega.
-  intros k K. apply H9. omega. }
-Time Qed. (*12.5 versus 21.4*)
+  intros k K. apply H6. omega. }
+Time Qed. (*16.8*)
 
 Lemma f_core_loop3: forall (Espec : OracleKind) FR
 c k h nonce out w x y t (xI:list int),
@@ -241,14 +241,14 @@ c k h nonce out w x y t (xI:list int),
                                 (Etempvar _aux1 tuint) tuint))
                           (Ssequence
                              (Ssequence
-                                (Scall (Some 181%positive)
+                                (Scall (Some 182%positive)
                                    (Evar _L32
                                       (Tfunction
                                          (Tcons tuint (Tcons tint Tnil))
                                          tuint cc_default))
                                    [Etempvar _aux tuint;
                                    Econst_int (Int.repr 7) tint])
-                                (Sset _aux (Etempvar 181%positive tuint)))
+                                (Sset _aux (Etempvar 182%positive tuint)))
                              (Ssequence
                                 (Sset _aux1
                                    (Ederef
@@ -285,14 +285,14 @@ c k h nonce out w x y t (xI:list int),
                                    (Etempvar _aux1 tuint) tuint))
                              (Ssequence
                                 (Ssequence
-                                   (Scall (Some 182%positive)
+                                   (Scall (Some 183%positive)
                                       (Evar _L32
                                          (Tfunction
                                             (Tcons tuint (Tcons tint Tnil))
                                             tuint cc_default))
                                       [Etempvar _aux tuint;
                                       Econst_int (Int.repr 9) tint])
-                                   (Sset _aux (Etempvar 182%positive tuint)))
+                                   (Sset _aux (Etempvar 183%positive tuint)))
                                 (Ssequence
                                    (Sset _aux1
                                       (Ederef
@@ -330,7 +330,7 @@ c k h nonce out w x y t (xI:list int),
                                       (Etempvar _aux1 tuint) tuint))
                                 (Ssequence
                                    (Ssequence
-                                      (Scall (Some 183%positive)
+                                      (Scall (Some 184%positive)
                                          (Evar _L32
                                             (Tfunction
                                                (Tcons tuint (Tcons tint Tnil))
@@ -338,7 +338,7 @@ c k h nonce out w x y t (xI:list int),
                                          [Etempvar _aux tuint;
                                          Econst_int (Int.repr 13) tint])
                                       (Sset _aux
-                                         (Etempvar 183%positive tuint)))
+                                         (Etempvar 184%positive tuint)))
                                    (Ssequence
                                       (Sset _aux1
                                          (Ederef
@@ -377,7 +377,7 @@ c k h nonce out w x y t (xI:list int),
                                          (Etempvar _aux1 tuint) tuint))
                                    (Ssequence
                                       (Ssequence
-                                         (Scall (Some 184%positive)
+                                         (Scall (Some 185%positive)
                                             (Evar _L32
                                                (Tfunction
                                                   (Tcons tuint
@@ -386,7 +386,7 @@ c k h nonce out w x y t (xI:list int),
                                             [Etempvar _aux tuint;
                                             Econst_int (Int.repr 18) tint])
                                          (Sset _aux
-                                            (Etempvar 184%positive tuint)))
+                                            (Etempvar 185%positive tuint)))
                                       (Ssequence
                                          (Sset _aux1
                                             (Ederef
@@ -539,5 +539,5 @@ Time forward_for_simple_bound 20 (EX i:Z,
   Time entailer!. (*4.3*)
   rewrite SnuffleS, R; trivial.
   thaw FR2; cancel. }
-apply derives_refl. 
-Time Qed. (*7.7*)
+apply andp_left2; apply derives_refl. 
+Time Qed. (*7.9*)

@@ -306,9 +306,9 @@ Ltac initialized_temps_of_fundec F Delta :=
 Ltac mkConciseDelta V G F Delta :=
   let vv := constr:(filter (is_init_temp Delta) (map fst (fn_temps F))) in
     let inits := (eval simpl in vv) in
-    change Delta with (initialized_list inits (func_tycontext F V G));
+    change Delta with (initialized_list inits (func_tycontext F V G))(*;
     refold_temp_names F;
-  clear Delta.
+  clear Delta*).
 
 Ltac semax_subcommand V G F :=
   abbreviate_semax;

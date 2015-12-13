@@ -105,5 +105,5 @@ Proof. intros. abbreviate_semax.
             rewrite Zlength_cons', Zlength_nil, Zplus_0_r. solve [auto].
         + rewrite <- APP1. thaw FR2. Time cancel. (*0.1*)  }
   }
-  apply derives_refl.
-Time Qed. (*9.2*) 
+  apply andp_left2; apply derives_refl.
+Time Qed. (*13*) 

@@ -51,14 +51,14 @@ Lemma pattern1_noStmt Espec Source1 Source2 Target Offset: forall FR
                                   (Etempvar _aux1 tuint) tuint))
                               (Ssequence
                                 (Ssequence
-                                  (Scall (Some 181%positive)
+                                  (Scall (Some 182%positive)
                                     (Evar _L32 (Tfunction
                                                  (Tcons tuint
                                                    (Tcons tint Tnil)) tuint
                                                  cc_default))
                                     ((Etempvar _aux tuint) ::
                                      (Econst_int (Int.repr Offset) tint) :: nil))
-                                  (Sset _aux (Etempvar 181%positive tuint)))
+                                  (Sset _aux (Etempvar 182%positive tuint)))
                                 (Ssequence
                                   (Sset _aux1
                                     (Ederef
@@ -116,7 +116,7 @@ Lemma pattern2_noStmt Espec Source1 Source2 Target Offset: forall FR
   (HS2: Znth Source2 tlist Vundef = Vint ValS2)
   (HTgt: Znth Target tlist Vundef = Vint ValTgt)
   c i j t y x w out nonce k h,
-@semax CompSpecs Espec (initialized_list [_i; _j; _m; _aux; _aux1; 181%positive]
+@semax CompSpecs Espec (initialized_list [_i; _j; _m; _aux; _aux1; 182%positive]
      (func_tycontext f_core SalsaVarSpecs SalsaFunSpecs))
   (PROP  ()
    LOCAL  (temp _i (Vint (Int.repr i)); temp _m (Vint (Int.repr 4));
@@ -140,12 +140,12 @@ Lemma pattern2_noStmt Espec Source1 Source2 Target Offset: forall FR
               (Ebinop Oadd (Etempvar _aux tuint) (Etempvar _aux1 tuint) tuint))
            (Ssequence
               (Ssequence
-                 (Scall (Some 182%positive)
+                 (Scall (Some 183%positive)
                     (Evar _L32
                        (Tfunction (Tcons tuint (Tcons tint Tnil)) tuint
                           cc_default))
                     [Etempvar _aux tuint; Econst_int (Int.repr Offset) tint])
-                 (Sset _aux (Etempvar 182%positive tuint)))
+                 (Sset _aux (Etempvar 183%positive tuint)))
               (Ssequence
                  (Sset _aux1
                     (Ederef
@@ -200,7 +200,7 @@ Lemma pattern3_noStmt Espec Source1 Source2 Target Offset: forall FR
   (HS2: Znth Source2 tlist Vundef = Vint ValS2)
   (HTgt: Znth Target tlist Vundef = Vint ValTgt)
   c i j t y x w out nonce k h,
-@semax CompSpecs Espec (initialized_list [_i; _j; _m; _aux; _aux1; 182%positive; 181%positive]
+@semax CompSpecs Espec (initialized_list [_i; _j; _m; _aux; _aux1; 183%positive; 182%positive]
      (func_tycontext f_core SalsaVarSpecs SalsaFunSpecs))
   (PROP  ()
    LOCAL  (temp _i (Vint (Int.repr i)); temp _m (Vint (Int.repr 4));
@@ -224,12 +224,12 @@ Lemma pattern3_noStmt Espec Source1 Source2 Target Offset: forall FR
               (Ebinop Oadd (Etempvar _aux tuint) (Etempvar _aux1 tuint) tuint))
            (Ssequence
               (Ssequence
-                 (Scall (Some 183%positive)
+                 (Scall (Some 184%positive)
                     (Evar _L32
                        (Tfunction (Tcons tuint (Tcons tint Tnil)) tuint
                           cc_default))
                     [Etempvar _aux tuint; Econst_int (Int.repr Offset) tint])
-                 (Sset _aux (Etempvar 183%positive tuint)))
+                 (Sset _aux (Etempvar 184%positive tuint)))
               (Ssequence
                  (Sset _aux1
                     (Ederef
@@ -285,7 +285,7 @@ Lemma pattern4_noStmt Espec Source1 Source2 Target Offset: forall FR
   (HS2: Znth Source2 tlist Vundef = Vint ValS2)
   (HTgt: Znth Target tlist Vundef = Vint ValTgt)
    c i j t y x w out nonce k h,
-@semax CompSpecs Espec (initialized_list [_i; _j; _m; _aux; _aux1; 183%positive; 182%positive; 181%positive]
+@semax CompSpecs Espec (initialized_list [_i; _j; _m; _aux; _aux1; 184%positive; 183%positive; 182%positive]
      (func_tycontext f_core SalsaVarSpecs SalsaFunSpecs))
   (PROP  ()
    LOCAL  (temp _i (Vint (Int.repr i)); temp _m (Vint (Int.repr 4));
@@ -309,12 +309,12 @@ Lemma pattern4_noStmt Espec Source1 Source2 Target Offset: forall FR
               (Ebinop Oadd (Etempvar _aux tuint) (Etempvar _aux1 tuint) tuint))
            (Ssequence
               (Ssequence
-                 (Scall (Some 184%positive)
+                 (Scall (Some 185%positive)
                     (Evar _L32
                        (Tfunction (Tcons tuint (Tcons tint Tnil)) tuint
                           cc_default))
                     [Etempvar _aux tuint; Econst_int (Int.repr Offset) tint])
-                 (Sset _aux (Etempvar 184%positive tuint)))
+                 (Sset _aux (Etempvar 185%positive tuint)))
               (Ssequence
                  (Sset _aux1
                     (Ederef
@@ -388,7 +388,7 @@ Qed.
 Lemma array_copy2 Espec FR i (wlist:list val) j t y x w nonce out c k h
        (t0 t1 t2 t3:int) (J:0<=j<4):
 @semax CompSpecs Espec
-  (initialized_list [_i; _j; _m; _aux; _aux1; 184%positive; 183%positive; 182%positive; 181%positive]
+  (initialized_list [_i; _j; _m; _aux; _aux1; 185%positive; 184%positive; 183%positive; 182%positive]
      (func_tycontext f_core SalsaVarSpecs SalsaFunSpecs))
   (PROP  ()
    LOCAL  (temp _i (Vint (Int.repr i)); temp _m (Vint (Int.repr 4));
@@ -503,7 +503,7 @@ Time forward_for_simple_bound 4 (EX m:Z,
 Time entailer!. (*3.7 versus 5.8*)
 Intros l. Exists l. Time entailer!. (*0.5 versus 0.7*)
 split. (*rewrite Zlength_map in H20.*) assumption.
-destruct H9 as [l1 [tm1 [ZL1 [XX1 [Z3 HL1]]]]].
+destruct H6 as [l1 [tm1 [ZL1 [XX1 [Z3 HL1]]]]].
 destruct XX1 as [l2 [tm2 [ZL2 [XX2 [Z2 HL2]]]]].
 destruct XX2 as [l3 [tm3 [ZL3 [XX3 [Z1 HL3]]]]].
 destruct XX3 as [l4 [tm4 [ZL4 [XX4 [Z0 HL4]]]]].
@@ -677,7 +677,7 @@ Time forward_for_simple_bound 4
       + thaw FR3. Time cancel. (*0.1*) } 
   }
 Time entailer!. (*2.4 versus 7.6*)
-Time Qed. (*14.5 versus 32.2*) (*FIXME NOW: 122secs*)
+Time Qed. (*19*) 
 
 Lemma Jbody (Espec : OracleKind) FR c k h nonce out w x y t i j xs
   (I : 0 <= i < 20)
@@ -699,263 +699,220 @@ Lemma Jbody (Espec : OracleKind) FR c k h nonce out w x y t i j xs
    SEP  (FR; data_at_ Tsh (tarray tuint 4) t;
          data_at Tsh (tarray tuint 16) (*(map Vint wlist)*) wlist w;
          data_at Tsh (tarray tuint 16) (map Vint xs) x))
+  (Ssequence
+     (Sfor (Sset _m (Econst_int (Int.repr 0) tint))
+        (Ebinop Olt (Etempvar _m tint) (Econst_int (Int.repr 4) tint) tint)
+        (Ssequence
+           (Sset _index
+              (Ebinop Omod
+                 (Ebinop Oadd
+                    (Ebinop Omul (Econst_int (Int.repr 5) tint)
+                       (Etempvar _j tint) tint)
+                    (Ebinop Omul (Econst_int (Int.repr 4) tint)
+                       (Etempvar _m tint) tint) tint)
+                 (Econst_int (Int.repr 16) tint) tint))
+           (Ssequence
+              (Sset _aux
+                 (Ederef
+                    (Ebinop Oadd (Evar _x (tarray tuint 16))
+                       (Etempvar _index tint) (tptr tuint)) tuint))
+              (Sassign
+                 (Ederef
+                    (Ebinop Oadd (Evar _t (tarray tuint 4))
+                       (Etempvar _m tint) (tptr tuint)) tuint)
+                 (Etempvar _aux tuint))))
+        (Sset _m
+           (Ebinop Oadd (Etempvar _m tint) (Econst_int (Int.repr 1) tint)
+              tint)))
+     (Ssequence
+        (Ssequence
+           (Sset _aux
+              (Ederef
+                 (Ebinop Oadd (Evar _t (tarray tuint 4))
+                    (Econst_int (Int.repr 0) tint) (tptr tuint)) tuint))
+           (Ssequence
+              (Sset _aux1
+                 (Ederef
+                    (Ebinop Oadd (Evar _t (tarray tuint 4))
+                       (Econst_int (Int.repr 3) tint) (tptr tuint)) tuint))
+              (Ssequence
+                 (Sset _aux
+                    (Ebinop Oadd (Etempvar _aux tuint) (Etempvar _aux1 tuint)
+                       tuint))
+                 (Ssequence
                     (Ssequence
-                      (Ssequence
-                        (Sset _m (Econst_int (Int.repr 0) tint))
-                        (Sloop
-                          (Ssequence
-                            (Sifthenelse (Ebinop Olt (Etempvar _m tint)
-                                           (Econst_int (Int.repr 4) tint)
-                                           tint)
-                              Sskip
-                              Sbreak)
-                            (Ssequence
-                              (Sset _index
-                                (Ebinop Omod
-                                  (Ebinop Oadd
-                                    (Ebinop Omul
-                                      (Econst_int (Int.repr 5) tint)
-                                      (Etempvar _j tint) tint)
-                                    (Ebinop Omul
-                                      (Econst_int (Int.repr 4) tint)
-                                      (Etempvar _m tint) tint) tint)
-                                  (Econst_int (Int.repr 16) tint) tint))
-                              (Ssequence
-                                (Sset _aux
-                                  (Ederef
-                                    (Ebinop Oadd (Evar _x (tarray tuint 16))
-                                      (Etempvar _index tint) (tptr tuint))
-                                    tuint))
-                                (Sassign
-                                  (Ederef
-                                    (Ebinop Oadd (Evar _t (tarray tuint 4))
-                                      (Etempvar _m tint) (tptr tuint)) tuint)
-                                  (Etempvar _aux tuint)))))
-                          (Sset _m
-                            (Ebinop Oadd (Etempvar _m tint)
-                              (Econst_int (Int.repr 1) tint) tint))))
-                      (Ssequence
-                        (Ssequence
-                          (Sset _aux
-                            (Ederef
-                              (Ebinop Oadd (Evar _t (tarray tuint 4))
-                                (Econst_int (Int.repr 0) tint) (tptr tuint))
-                              tuint))
-                          (Ssequence
-                            (Sset _aux1
-                              (Ederef
+                       (Scall (Some 182%positive)
+                          (Evar _L32
+                             (Tfunction (Tcons tuint (Tcons tint Tnil)) tuint
+                                cc_default))
+                          [Etempvar _aux tuint; Econst_int (Int.repr 7) tint])
+                       (Sset _aux (Etempvar 182%positive tuint)))
+                    (Ssequence
+                       (Sset _aux1
+                          (Ederef
+                             (Ebinop Oadd (Evar _t (tarray tuint 4))
+                                (Econst_int (Int.repr 1) tint) (tptr tuint))
+                             tuint))
+                       (Ssequence
+                          (Sset _aux1
+                             (Ebinop Oxor (Etempvar _aux1 tuint)
+                                (Etempvar _aux tuint) tuint))
+                          (Sassign
+                             (Ederef
                                 (Ebinop Oadd (Evar _t (tarray tuint 4))
-                                  (Econst_int (Int.repr 3) tint)
-                                  (tptr tuint)) tuint))
-                            (Ssequence
-                              (Sset _aux
-                                (Ebinop Oadd (Etempvar _aux tuint)
-                                  (Etempvar _aux1 tuint) tuint))
-                              (Ssequence
-                                (Ssequence
-                                  (Scall (Some 181%positive)
-                                    (Evar _L32 (Tfunction
-                                                 (Tcons tuint
-                                                   (Tcons tint Tnil)) tuint
-                                                 cc_default))
-                                    ((Etempvar _aux tuint) ::
-                                     (Econst_int (Int.repr 7) tint) :: nil))
-                                  (Sset _aux (Etempvar 181%positive tuint)))
-                                (Ssequence
-                                  (Sset _aux1
-                                    (Ederef
-                                      (Ebinop Oadd (Evar _t (tarray tuint 4))
-                                        (Econst_int (Int.repr 1) tint)
-                                        (tptr tuint)) tuint))
-                                  (Ssequence
-                                    (Sset _aux1
-                                      (Ebinop Oxor (Etempvar _aux1 tuint)
-                                        (Etempvar _aux tuint) tuint))
-                                    (Sassign
-                                      (Ederef
-                                        (Ebinop Oadd
-                                          (Evar _t (tarray tuint 4))
-                                          (Econst_int (Int.repr 1) tint)
-                                          (tptr tuint)) tuint)
-                                      (Etempvar _aux1 tuint))))))))
-                        (Ssequence
-                          (Ssequence
-                            (Sset _aux
-                              (Ederef
+                                   (Econst_int (Int.repr 1) tint)
+                                   (tptr tuint)) tuint)
+                             (Etempvar _aux1 tuint))))))))
+        (Ssequence
+           (Ssequence
+              (Sset _aux
+                 (Ederef
+                    (Ebinop Oadd (Evar _t (tarray tuint 4))
+                       (Econst_int (Int.repr 1) tint) (tptr tuint)) tuint))
+              (Ssequence
+                 (Sset _aux1
+                    (Ederef
+                       (Ebinop Oadd (Evar _t (tarray tuint 4))
+                          (Econst_int (Int.repr 0) tint) (tptr tuint)) tuint))
+                 (Ssequence
+                    (Sset _aux
+                       (Ebinop Oadd (Etempvar _aux tuint)
+                          (Etempvar _aux1 tuint) tuint))
+                    (Ssequence
+                       (Ssequence
+                          (Scall (Some 183%positive)
+                             (Evar _L32
+                                (Tfunction (Tcons tuint (Tcons tint Tnil))
+                                   tuint cc_default))
+                             [Etempvar _aux tuint;
+                             Econst_int (Int.repr 9) tint])
+                          (Sset _aux (Etempvar 183%positive tuint)))
+                       (Ssequence
+                          (Sset _aux1
+                             (Ederef
                                 (Ebinop Oadd (Evar _t (tarray tuint 4))
-                                  (Econst_int (Int.repr 1) tint)
-                                  (tptr tuint)) tuint))
-                            (Ssequence
-                              (Sset _aux1
-                                (Ederef
-                                  (Ebinop Oadd (Evar _t (tarray tuint 4))
-                                    (Econst_int (Int.repr 0) tint)
-                                    (tptr tuint)) tuint))
-                              (Ssequence
-                                (Sset _aux
-                                  (Ebinop Oadd (Etempvar _aux tuint)
-                                    (Etempvar _aux1 tuint) tuint))
-                                (Ssequence
-                                  (Ssequence
-                                    (Scall (Some 182%positive)
-                                      (Evar _L32 (Tfunction
-                                                   (Tcons tuint
-                                                     (Tcons tint Tnil)) tuint
-                                                   cc_default))
-                                      ((Etempvar _aux tuint) ::
-                                       (Econst_int (Int.repr 9) tint) :: nil))
-                                    (Sset _aux (Etempvar 182%positive tuint)))
-                                  (Ssequence
-                                    (Sset _aux1
-                                      (Ederef
-                                        (Ebinop Oadd
-                                          (Evar _t (tarray tuint 4))
-                                          (Econst_int (Int.repr 2) tint)
-                                          (tptr tuint)) tuint))
-                                    (Ssequence
-                                      (Sset _aux1
-                                        (Ebinop Oxor (Etempvar _aux1 tuint)
-                                          (Etempvar _aux tuint) tuint))
-                                      (Sassign
-                                        (Ederef
-                                          (Ebinop Oadd
-                                            (Evar _t (tarray tuint 4))
-                                            (Econst_int (Int.repr 2) tint)
-                                            (tptr tuint)) tuint)
-                                        (Etempvar _aux1 tuint))))))))
+                                   (Econst_int (Int.repr 2) tint)
+                                   (tptr tuint)) tuint))
                           (Ssequence
-                            (Ssequence
-                              (Sset _aux
+                             (Sset _aux1
+                                (Ebinop Oxor (Etempvar _aux1 tuint)
+                                   (Etempvar _aux tuint) tuint))
+                             (Sassign
                                 (Ederef
-                                  (Ebinop Oadd (Evar _t (tarray tuint 4))
-                                    (Econst_int (Int.repr 2) tint)
-                                    (tptr tuint)) tuint))
-                              (Ssequence
-                                (Sset _aux1
-                                  (Ederef
-                                    (Ebinop Oadd (Evar _t (tarray tuint 4))
-                                      (Econst_int (Int.repr 1) tint)
-                                      (tptr tuint)) tuint))
-                                (Ssequence
-                                  (Sset _aux
-                                    (Ebinop Oadd (Etempvar _aux tuint)
-                                      (Etempvar _aux1 tuint) tuint))
-                                  (Ssequence
-                                    (Ssequence
-                                      (Scall (Some 183%positive)
-                                        (Evar _L32 (Tfunction
-                                                     (Tcons tuint
-                                                       (Tcons tint Tnil))
-                                                     tuint cc_default))
-                                        ((Etempvar _aux tuint) ::
-                                         (Econst_int (Int.repr 13) tint) ::
-                                         nil))
-                                      (Sset _aux
-                                        (Etempvar 183%positive tuint)))
-                                    (Ssequence
-                                      (Sset _aux1
-                                        (Ederef
-                                          (Ebinop Oadd
-                                            (Evar _t (tarray tuint 4))
-                                            (Econst_int (Int.repr 3) tint)
-                                            (tptr tuint)) tuint))
-                                      (Ssequence
-                                        (Sset _aux1
-                                          (Ebinop Oxor (Etempvar _aux1 tuint)
-                                            (Etempvar _aux tuint) tuint))
-                                        (Sassign
-                                          (Ederef
-                                            (Ebinop Oadd
-                                              (Evar _t (tarray tuint 4))
-                                              (Econst_int (Int.repr 3) tint)
-                                              (tptr tuint)) tuint)
-                                          (Etempvar _aux1 tuint))))))))
-                            (Ssequence
-                              (Ssequence
-                                (Sset _aux
-                                  (Ederef
-                                    (Ebinop Oadd (Evar _t (tarray tuint 4))
+                                   (Ebinop Oadd (Evar _t (tarray tuint 4))
+                                      (Econst_int (Int.repr 2) tint)
+                                      (tptr tuint)) tuint)
+                                (Etempvar _aux1 tuint))))))))
+           (Ssequence
+              (Ssequence
+                 (Sset _aux
+                    (Ederef
+                       (Ebinop Oadd (Evar _t (tarray tuint 4))
+                          (Econst_int (Int.repr 2) tint) (tptr tuint)) tuint))
+                 (Ssequence
+                    (Sset _aux1
+                       (Ederef
+                          (Ebinop Oadd (Evar _t (tarray tuint 4))
+                             (Econst_int (Int.repr 1) tint) (tptr tuint))
+                          tuint))
+                    (Ssequence
+                       (Sset _aux
+                          (Ebinop Oadd (Etempvar _aux tuint)
+                             (Etempvar _aux1 tuint) tuint))
+                       (Ssequence
+                          (Ssequence
+                             (Scall (Some 184%positive)
+                                (Evar _L32
+                                   (Tfunction (Tcons tuint (Tcons tint Tnil))
+                                      tuint cc_default))
+                                [Etempvar _aux tuint;
+                                Econst_int (Int.repr 13) tint])
+                             (Sset _aux (Etempvar 184%positive tuint)))
+                          (Ssequence
+                             (Sset _aux1
+                                (Ederef
+                                   (Ebinop Oadd (Evar _t (tarray tuint 4))
                                       (Econst_int (Int.repr 3) tint)
                                       (tptr tuint)) tuint))
-                                (Ssequence
-                                  (Sset _aux1
-                                    (Ederef
+                             (Ssequence
+                                (Sset _aux1
+                                   (Ebinop Oxor (Etempvar _aux1 tuint)
+                                      (Etempvar _aux tuint) tuint))
+                                (Sassign
+                                   (Ederef
                                       (Ebinop Oadd (Evar _t (tarray tuint 4))
-                                        (Econst_int (Int.repr 2) tint)
-                                        (tptr tuint)) tuint))
-                                  (Ssequence
-                                    (Sset _aux
-                                      (Ebinop Oadd (Etempvar _aux tuint)
-                                        (Etempvar _aux1 tuint) tuint))
-                                    (Ssequence
-                                      (Ssequence
-                                        (Scall (Some 184%positive)
-                                          (Evar _L32 (Tfunction
-                                                       (Tcons tuint
-                                                         (Tcons tint Tnil))
-                                                       tuint cc_default))
-                                          ((Etempvar _aux tuint) ::
-                                           (Econst_int (Int.repr 18) tint) ::
-                                           nil))
-                                        (Sset _aux
-                                          (Etempvar 184%positive tuint)))
-                                      (Ssequence
-                                        (Sset _aux1
-                                          (Ederef
-                                            (Ebinop Oadd
-                                              (Evar _t (tarray tuint 4))
-                                              (Econst_int (Int.repr 0) tint)
-                                              (tptr tuint)) tuint))
-                                        (Ssequence
-                                          (Sset _aux1
-                                            (Ebinop Oxor
-                                              (Etempvar _aux1 tuint)
-                                              (Etempvar _aux tuint) tuint))
-                                          (Sassign
-                                            (Ederef
-                                              (Ebinop Oadd
-                                                (Evar _t (tarray tuint 4))
-                                                (Econst_int (Int.repr 0) tint)
-                                                (tptr tuint)) tuint)
-                                            (Etempvar _aux1 tuint))))))))
-                              (Ssequence
-                                (Sset _m (Econst_int (Int.repr 0) tint))
-                                (Sloop
-                                  (Ssequence
-                                    (Sifthenelse (Ebinop Olt
-                                                   (Etempvar _m tint)
-                                                   (Econst_int (Int.repr 4) tint)
-                                                   tint)
-                                      Sskip
-                                      Sbreak)
-                                    (Ssequence
-                                      (Sset _aux
-                                        (Ederef
-                                          (Ebinop Oadd
+                                         (Econst_int (Int.repr 3) tint)
+                                         (tptr tuint)) tuint)
+                                   (Etempvar _aux1 tuint))))))))
+              (Ssequence
+                 (Ssequence
+                    (Sset _aux
+                       (Ederef
+                          (Ebinop Oadd (Evar _t (tarray tuint 4))
+                             (Econst_int (Int.repr 3) tint) (tptr tuint))
+                          tuint))
+                    (Ssequence
+                       (Sset _aux1
+                          (Ederef
+                             (Ebinop Oadd (Evar _t (tarray tuint 4))
+                                (Econst_int (Int.repr 2) tint) (tptr tuint))
+                             tuint))
+                       (Ssequence
+                          (Sset _aux
+                             (Ebinop Oadd (Etempvar _aux tuint)
+                                (Etempvar _aux1 tuint) tuint))
+                          (Ssequence
+                             (Ssequence
+                                (Scall (Some 185%positive)
+                                   (Evar _L32
+                                      (Tfunction
+                                         (Tcons tuint (Tcons tint Tnil))
+                                         tuint cc_default))
+                                   [Etempvar _aux tuint;
+                                   Econst_int (Int.repr 18) tint])
+                                (Sset _aux (Etempvar 185%positive tuint)))
+                             (Ssequence
+                                (Sset _aux1
+                                   (Ederef
+                                      (Ebinop Oadd (Evar _t (tarray tuint 4))
+                                         (Econst_int (Int.repr 0) tint)
+                                         (tptr tuint)) tuint))
+                                (Ssequence
+                                   (Sset _aux1
+                                      (Ebinop Oxor (Etempvar _aux1 tuint)
+                                         (Etempvar _aux tuint) tuint))
+                                   (Sassign
+                                      (Ederef
+                                         (Ebinop Oadd
                                             (Evar _t (tarray tuint 4))
-                                            (Etempvar _m tint) (tptr tuint))
-                                          tuint))
-                                      (Ssequence
-                                        (Sset _aux1
-                                          (Ebinop Oadd
-                                            (Ebinop Omul
-                                              (Econst_int (Int.repr 4) tint)
-                                              (Etempvar _j tint) tint)
-                                            (Ebinop Omod
-                                              (Ebinop Oadd (Etempvar _j tint)
-                                                (Etempvar _m tint) tint)
-                                              (Econst_int (Int.repr 4) tint)
-                                              tint) tint))
-                                        (Sassign
-                                          (Ederef
-                                            (Ebinop Oadd
-                                              (Evar _w (tarray tuint 16))
-                                              (Etempvar _aux1 tuint)
-                                              (tptr tuint)) tuint)
-                                          (Etempvar _aux tuint)))))
-                                  (Sset _m
-                                    (Ebinop Oadd (Etempvar _m tint)
-                                      (Econst_int (Int.repr 1) tint) tint)))))))))
+                                            (Econst_int (Int.repr 0) tint)
+                                            (tptr tuint)) tuint)
+                                      (Etempvar _aux1 tuint))))))))
+                 (Sfor (Sset _m (Econst_int (Int.repr 0) tint))
+                    (Ebinop Olt (Etempvar _m tint)
+                       (Econst_int (Int.repr 4) tint) tint)
+                    (Ssequence
+                       (Sset _aux
+                          (Ederef
+                             (Ebinop Oadd (Evar _t (tarray tuint 4))
+                                (Etempvar _m tint) (tptr tuint)) tuint))
+                       (Ssequence
+                          (Sset _aux1
+                             (Ebinop Oadd
+                                (Ebinop Omul (Econst_int (Int.repr 4) tint)
+                                   (Etempvar _j tint) tint)
+                                (Ebinop Omod
+                                   (Ebinop Oadd (Etempvar _j tint)
+                                      (Etempvar _m tint) tint)
+                                   (Econst_int (Int.repr 4) tint) tint) tint))
+                          (Sassign
+                             (Ederef
+                                (Ebinop Oadd (Evar _w (tarray tuint 16))
+                                   (Etempvar _aux1 tuint) (tptr tuint)) tuint)
+                             (Etempvar _aux tuint))))
+                    (Sset _m
+                       (Ebinop Oadd (Etempvar _m tint)
+                          (Econst_int (Int.repr 1) tint) tint)))))))) 
   (normal_ret_assert
      (PROP  (0 <= j + 1 <= 4)
       LOCAL  (temp _j (Vint (Int.repr j)); temp _i (Vint (Int.repr i));
@@ -1060,4 +1017,4 @@ Proof. intros. abbreviate_semax.
    intros ek vl. apply andp_left2.
    apply assert_lemmas.normal_ret_assert_derives'.
    thaw FR3. Intros l. Exists l. Time entailer!. (*8*)   
-Time Qed. (*13.3*)
+Time Qed. (*13.7*)

@@ -20,10 +20,12 @@ Definition EightWord (q:QuadWord * QuadWord) (v:val) : mpred :=
   match q with ((q0, q1, q2, q3),(q4, q5, q6, q7)) =>
     data_at Tsh (Tarray tuchar 4 noattr) (map Vint [q0; q1; q2; q3; q4; q5; q6; q7]) v
   end.*)
-Definition QuadByte2ValList B : list val :=
-  match B with (b0, b1, b2, b3) => 
-   map Vint (map Int.repr (map Byte.unsigned [b0; b1; b2; b3]))
+Definition QuadByte2ByteList (B:QuadByte) : list byte :=
+  match B with (b0, b1, b2, b3) => [b0; b1; b2; b3]
   end.
+
+Definition QuadByte2ValList (B:QuadByte) : list val :=
+   map Vint (map Int.repr (map Byte.unsigned (QuadByte2ByteList B))).
 
 Lemma QuadByteValList_length q: length (QuadByte2ValList q) = 4%nat.
   destruct q as [[[? ?] ?] ?]. reflexivity. Qed.
@@ -33,10 +35,21 @@ Definition EightByte (q:QuadByte * QuadByte) (v:val) : mpred :=
     data_at Tsh (Tarray tuchar 8 noattr) ((QuadByte2ValList q1) ++ (QuadByte2ValList q2)) v
   end.
 
+Definition SixteenByte2ByteList (B:SixteenByte) : list byte :=
+  match B with (q0, q1, q2, q3) => 
+   QuadByte2ByteList q0 ++ QuadByte2ByteList q1 ++ QuadByte2ByteList q2 ++ QuadByte2ByteList q3
+  end.
+
 Definition SixteenByte2ValList (B:SixteenByte) : list val :=
+   map Vint (map Int.repr (map Byte.unsigned (SixteenByte2ByteList B))).
+
+Lemma SixteenByte2ValList_char B: SixteenByte2ValList B = 
   match B with (q0, q1, q2, q3) => 
    QuadByte2ValList q0 ++ QuadByte2ValList q1 ++ QuadByte2ValList q2 ++ QuadByte2ValList q3
   end.
+Proof. unfold SixteenByte2ValList, QuadByte2ValList .
+ destruct B as [[[? ?] ?] ?]. simpl. repeat rewrite map_app. trivial.
+Qed.
 
 Definition ThirtyTwoByte (q:SixteenByte * SixteenByte) (v:val) : mpred :=
   match q with (q1, q2) =>
@@ -53,15 +66,19 @@ Definition flatten16 (B:SixteenByte) : list QuadByte :=
   match B with (q0, q1, q2, q3) => [q0; q1; q2; q3] end.
 Lemma SixteenByte2ValList_flatten B:
   QuadChunks2ValList (flatten16 B) = SixteenByte2ValList B.
-  destruct B as (((q0, q1), q2), q3). simpl. rewrite app_nil_r. trivial.
+  destruct B as (((q0, q1), q2), q3). simpl.
+  rewrite SixteenByte2ValList_char, app_nil_r. trivial. 
 Qed.
 
+Lemma QuadByteByteList_ZLength q: 4 = Zlength (QuadByte2ByteList q).
+  destruct q as (((q0, q1), q2), q3). simpl. reflexivity. Qed.
 Lemma QuadByteValList_ZLength q: 4 = Zlength (QuadByte2ValList q).
   destruct q as (((q0, q1), q2), q3). simpl. reflexivity. Qed.
 
 Lemma SixteenByte2ValList_Zlength C: 16 = Zlength (SixteenByte2ValList C).
-  destruct C as (((q0, q1), q2), q3). simpl.
-  repeat rewrite Zlength_app. repeat rewrite <- QuadByteValList_ZLength.
+  destruct C as (((q0, q1), q2), q3). unfold SixteenByte2ValList.
+  repeat rewrite Zlength_map.  simpl.
+  repeat rewrite Zlength_app. repeat rewrite <- QuadByteByteList_ZLength.
   reflexivity. Qed.
 
 Definition SByte (q:SixteenByte) (v:val) : mpred :=
@@ -116,19 +133,18 @@ Lemma Select_SplitSelect16Q Q i front back:
 Proof.
   unfold Select16Q, SplitSelect16Q; intros.
   destruct Q as (((q0, q1), q2), q3). simpl.
-  destruct (zeq i 0); simpl. inv H; simpl. repeat rewrite app_nil_r; trivial.
-  destruct (zeq i 1); simpl. inv H; simpl. repeat rewrite app_nil_r; trivial.
-  destruct (zeq i 2); simpl. inv H; simpl. repeat rewrite app_nil_r. repeat rewrite app_assoc. trivial.
-  destruct (zeq i 3); simpl; inv H; simpl. repeat rewrite app_nil_r. repeat rewrite app_assoc. trivial.
-  repeat rewrite app_nil_r. repeat rewrite app_assoc. trivial.
+  destruct (zeq i 0); simpl. inv H; simpl. repeat rewrite app_nil_r. apply SixteenByte2ValList_char.
+  destruct (zeq i 1); simpl. inv H; simpl. repeat rewrite app_nil_r. apply SixteenByte2ValList_char.
+  destruct (zeq i 2); simpl. inv H; simpl. repeat rewrite app_nil_r. repeat rewrite <- app_assoc. apply SixteenByte2ValList_char.
+  destruct (zeq i 3); simpl; inv H; simpl. repeat rewrite app_nil_r. repeat rewrite <- app_assoc. apply SixteenByte2ValList_char.
+  repeat rewrite app_nil_r. repeat rewrite <- app_assoc. apply SixteenByte2ValList_char.
 Qed.
 
 Lemma QuadChunk2ValList_ZLength: forall l, Zlength (QuadChunks2ValList l) = (4 * Zlength l)%Z.
-Proof. Opaque Z.mul.
+Proof. 
   unfold QuadChunks2ValList. induction l; simpl. reflexivity.
   rewrite Zlength_app, IHl, <- QuadByteValList_ZLength.
   rewrite Zlength_cons; omega.
-  Transparent Z.mul.
 Qed.
 
 Lemma Select_SplitSelect16Q_Zlength Q i front back:
@@ -149,8 +165,8 @@ Definition QBytes (l:list QuadByte) (v:val) : mpred :=
 Lemma QBytes16 s: SByte s = QBytes (flatten16 s).
 Proof. 
   destruct s as (((q0, q1), q2), q3). simpl. 
-  unfold SByte, QBytes. simpl. rewrite app_nil_r.
-  trivial.
+  unfold SByte, QBytes. extensionality v. simpl. rewrite app_nil_r.
+  rewrite SixteenByte2ValList_char. trivial.
 Qed. 
 
 Definition QuadWordRep (q:QuadWord):list val :=
@@ -251,6 +267,24 @@ Qed.
       repeat rewrite app_length. repeat rewrite QuadWordRepI_length. reflexivity.
     Qed.
 
+Lemma QuadByte2ValList_bytes q: exists bytes, length bytes = 4%nat /\
+      QuadByte2ValList q = map Vint (map Int.repr (map Byte.unsigned bytes)).
+Proof. destruct q as [[[b0 b1] b2] b3]. unfold QuadByte2ValList; simpl.
+  exists [b0;b1;b2;b3]. split; trivial.
+Qed. 
+
+Lemma SixteenByte2ValList_bytes N: exists bytes, length bytes = 16%nat /\
+      SixteenByte2ValList N =  map Vint (map Int.repr (map Byte.unsigned bytes)).
+Proof. destruct N as [[[q0 q1] q2] q3]. rewrite SixteenByte2ValList_char.
+  destruct (QuadByte2ValList_bytes q0) as [bytes0 [L0 Q0]]. rewrite Q0.
+  destruct (QuadByte2ValList_bytes q1) as [bytes1 [L1 Q1]]; rewrite Q1.
+  destruct (QuadByte2ValList_bytes q2) as [bytes2 [L2 Q2]]; rewrite Q2.
+  destruct (QuadByte2ValList_bytes q3) as [bytes3 [L3 Q3]]; rewrite Q3.
+  exists (bytes0 ++ bytes1 ++ bytes2 ++ bytes3).
+  repeat rewrite map_app. repeat rewrite app_length. rewrite L0, L1, L2, L3.
+  split; trivial.
+Qed.
+
 Lemma QuadByte2ValList_ints q: exists ints, length ints = 4%nat /\
       QuadByte2ValList q = map Vint ints.
 Proof. destruct q as [[[b0 b1] b2] b3]. unfold QuadByte2ValList; simpl.
@@ -261,30 +295,12 @@ Qed.
 
 Lemma SixteenByte2ValList_ints N: exists ints, length ints = 16%nat /\
       SixteenByte2ValList N = map Vint ints.
-Proof. destruct N as [[[q0 q1] q2] q3]. unfold SixteenByte2ValList.
+Proof. destruct N as [[[q0 q1] q2] q3]. rewrite SixteenByte2ValList_char.
   destruct (QuadByte2ValList_ints q0) as [ints0 [L0 Q0]]; rewrite Q0.
   destruct (QuadByte2ValList_ints q1) as [ints1 [L1 Q1]]; rewrite Q1.
   destruct (QuadByte2ValList_ints q2) as [ints2 [L2 Q2]]; rewrite Q2.
   destruct (QuadByte2ValList_ints q3) as [ints3 [L3 Q3]]; rewrite Q3.
   exists (ints0 ++ ints1 ++ ints2 ++ ints3).
-  repeat rewrite map_app. repeat rewrite app_length. rewrite L0, L1, L2, L3.
-  split; trivial.
-Qed.
-
-Lemma QuadByte2ValList_bytes q: exists bytes, length bytes = 4%nat /\
-      QuadByte2ValList q = map Vint (map Int.repr (map Byte.unsigned bytes)).
-Proof. destruct q as [[[b0 b1] b2] b3]. unfold QuadByte2ValList; simpl.
-  exists [b0;b1;b2;b3]. split; trivial.
-Qed. 
-
-Lemma SixteenByte2ValList_bytes N: exists bytes, length bytes = 16%nat /\
-      SixteenByte2ValList N =  map Vint (map Int.repr (map Byte.unsigned bytes)).
-Proof. destruct N as [[[q0 q1] q2] q3]. unfold SixteenByte2ValList.
-  destruct (QuadByte2ValList_bytes q0) as [bytes0 [L0 Q0]]; rewrite Q0.
-  destruct (QuadByte2ValList_bytes q1) as [bytes1 [L1 Q1]]; rewrite Q1.
-  destruct (QuadByte2ValList_bytes q2) as [bytes2 [L2 Q2]]; rewrite Q2.
-  destruct (QuadByte2ValList_bytes q3) as [bytes3 [L3 Q3]]; rewrite Q3.
-  exists (bytes0 ++ bytes1 ++ bytes2 ++ bytes3).
   repeat rewrite map_app. repeat rewrite app_length. rewrite L0, L1, L2, L3.
   split; trivial.
 Qed.
