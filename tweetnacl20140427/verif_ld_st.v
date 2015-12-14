@@ -24,40 +24,35 @@ Lemma L32_spec_ok: semax_body SalsaVarSpecs SalsaFunSpecs
        f_L32 L32_spec.
 Proof.
 start_function.
-name x' _x.
-name c' _c.
 Time forward. (*8.8*)
 Time entailer!. (*0.8*)
 assert (W: Int.zwordsize = 32). reflexivity.
-assert (U: Int.unsigned Int.iwordsize=32). reflexivity.
-remember (Int.ltu c' Int.iwordsize) as d. symmetry in Heqd.
+assert (U: Int.unsigned Int.iwordsize=32). reflexivity. simpl.
+remember (Int.ltu c Int.iwordsize) as d. symmetry in Heqd.
 destruct d; simpl. 
-Focus 2. apply ltu_false_inv in Heqd. rewrite U in *. omega.
-clear Heqd.
-remember (Int.ltu (Int.sub (Int.repr 32) c') Int.iwordsize) as z. symmetry in Heqz.
-destruct z.
-Focus 2. apply ltu_false_inv in Heqz. rewrite U in *. 
-         unfold Int.sub in Heqz. 
-         rewrite (Int.unsigned_repr 32) in Heqz. 
-           rewrite Int.unsigned_repr in Heqz. omega. rewrite int_max_unsigned_eq; omega.
-           rewrite int_max_unsigned_eq; omega.
-simpl; split; trivial. split. 2: split; trivial.
-apply ltu_inv in Heqz. unfold Int.sub in *.
-  rewrite (Int.unsigned_repr 32) in *; try (rewrite int_max_unsigned_eq; omega).
-  rewrite Int.unsigned_repr in Heqz. 2: rewrite int_max_unsigned_eq; omega.
-  unfold Int.rol, Int.shl, Int.shru. rewrite or_repr. 
-  assert (Int.unsigned c' mod Int.zwordsize = Int.unsigned c').
-    apply Zmod_small. rewrite W; omega.
-  rewrite H0, W. f_equal. f_equal. f_equal.
-  rewrite Int.unsigned_repr. 2: rewrite int_max_unsigned_eq; omega.
-  rewrite Int.and_mone. trivial.
+{ clear Heqd.
+  remember (Int.ltu (Int.sub (Int.repr 32) c) Int.iwordsize) as z. symmetry in Heqz.
+  destruct z.
+  - simpl; split; trivial. split. 2: split; trivial.
+    apply ltu_inv in Heqz. unfold Int.sub in *.
+    rewrite (Int.unsigned_repr 32) in *; try (rewrite int_max_unsigned_eq; omega).
+    rewrite Int.unsigned_repr in Heqz. 2: rewrite int_max_unsigned_eq; omega.
+    unfold Int.rol, Int.shl, Int.shru. rewrite or_repr. 
+    rewrite Z.mod_small, W; simpl; try omega.
+    rewrite Int.unsigned_repr. 2: rewrite int_max_unsigned_eq; omega.
+    rewrite Int.and_mone. trivial.
+  - apply ltu_false_inv in Heqz. rewrite U in *. 
+    unfold Int.sub in Heqz. 
+    rewrite (Int.unsigned_repr 32), Int.unsigned_repr in Heqz. omega.
+    rewrite int_max_unsigned_eq; omega.
+    rewrite int_max_unsigned_eq; omega. }
+{ apply ltu_false_inv in Heqd. rewrite U in *. omega. }
 Time Qed. (*0.9*)
 
 Lemma ld32_spec_ok: semax_body SalsaVarSpecs SalsaFunSpecs
        f_ld32 ld32_spec.
 Proof.
 start_function.
-name x' _x.
 destruct B as (((b0, b1), b2), b3). simpl.
 specialize Byte_max_unsigned_Int_max_unsigned; intros BND.
 assert (RNG3:= Byte.unsigned_range_2 b3).
@@ -77,31 +72,30 @@ Time forward.
 Time entailer!; omega. (*1.3*)
 Time forward. (*5.2*)
 Time entailer!.
-  unfold Znth in H. simpl in H. inv H. clear - BND RNG0 RNG1 RNG2 RNG3.
   assert (WS: Int.zwordsize = 32). reflexivity.
   assert (TP: two_p 8 = Byte.max_unsigned + 1). reflexivity.
-  assert (BMU: Byte.max_unsigned = 255). reflexivity.
+  assert (BMU: Byte.max_unsigned = 255). reflexivity. simpl.
   repeat rewrite Int.shifted_or_is_add; try repeat rewrite Int.unsigned_repr; try omega.
-  f_equal. f_equal. repeat rewrite Z.mul_add_distr_r.
+  f_equal. f_equal. simpl. 
+    rewrite Z.mul_add_distr_r. 
     rewrite (Zmult_comm (Z.pow_pos 2 8)).
     rewrite (Zmult_comm (Z.pow_pos 2 16)).
     rewrite (Zmult_comm (Z.pow_pos 2 24)). 
     simpl. repeat rewrite <- two_power_pos_correct.
+    rewrite Z.mul_add_distr_r.
+    rewrite Z.mul_add_distr_r.
+    repeat rewrite <- Z.mul_assoc. 
     rewrite <- Z.add_assoc. rewrite <- Z.add_assoc. rewrite Z.add_comm. f_equal.
     rewrite Z.add_comm. f_equal. rewrite Z.add_comm. f_equal.
-    repeat rewrite <- Z.mul_assoc. f_equal.
-    repeat rewrite <- Z.mul_assoc. f_equal. 
+  rewrite TP, BMU, Z.mul_add_distr_l, int_max_unsigned_eq. omega. 
   rewrite TP, BMU, Z.mul_add_distr_l, int_max_unsigned_eq. omega.
   rewrite TP, BMU, Z.mul_add_distr_l, int_max_unsigned_eq. omega.
-  rewrite TP, BMU, Z.mul_add_distr_l, int_max_unsigned_eq. omega.
-Time Qed. (*6.7*) (*FIXME NOW: 18secs*)
+Time Qed. (*6.7*)
 
 Lemma ST32_spec_ok: semax_body SalsaVarSpecs SalsaFunSpecs
        f_st32 st32_spec.
 Proof. 
 start_function.
-name x' _x.
-name u' _u.
 Intros l. rename H into Hl.
 remember (littleendian_invert u) as U. destruct U as [[[u0 u1] u2] u3].
 

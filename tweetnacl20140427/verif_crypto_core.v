@@ -14,10 +14,6 @@ Lemma crypto_core_salsa20_ok: semax_body SalsaVarSpecs SalsaFunSpecs
       f_crypto_core_salsa20_tweet crypto_core_salsa20_spec.
 Proof. unfold crypto_core_salsa20_spec.
 start_function.
-name out' _out.
-name in' _in.
-name k' _k.
-name c' _c.
 abbreviate_semax.
 assert_PROP (field_compatible (tarray tuchar 64) [] out /\ isptr out) as HH by entailer!.
 destruct HH as [FCout isptrout].
@@ -57,10 +53,6 @@ Lemma crypto_core_hsalsa20_ok: semax_body SalsaVarSpecs SalsaFunSpecs
       f_crypto_core_hsalsa20_tweet crypto_core_hsalsa20_spec.
 Proof. unfold crypto_core_hsalsa20_spec. 
 start_function.
-name out' _out.
-name in' _in.
-name k' _k.
-name c' _c.
 Time forward_call (c, k, 1, nonce, out, OUT, data). (*1.4*)
 Intros res.
 Time forward. (*1.6*)

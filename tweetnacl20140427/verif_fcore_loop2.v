@@ -93,11 +93,12 @@ Proof. intros. abbreviate_semax.
         + clear - APP2 APP3 I L2. 
           assert (TT: exists lT, l2 = Vundef::lT).
           { destruct l2.
-            rewrite app_nil_r in *. subst xx; rewrite <- L2, Zlength_list_repeat' in I. simpl in I; omega. 
-            rewrite (in_list_repeat 16 Vundef v). eexists; reflexivity.
+            - rewrite app_nil_r in *. subst xx; rewrite <- L2, Zlength_list_repeat' in I.
+              simpl in I; omega.
+            - rewrite (in_list_repeat 16 Vundef v0). eexists; reflexivity.
               rewrite <- APP3. apply in_app. right; left; trivial. }
           destruct TT as [lT LT2]; subst l2. 
-          exists (l1 ++ [Vint _id]), lT, yT, (xx ++ [Vundef]).
+          exists (l1 ++ [Vint v]), lT, yT, (xx ++ [Vundef]).
           repeat rewrite Zlength_app.
           repeat rewrite <- app_assoc. simpl. rewrite APP3, L2.
           split. 

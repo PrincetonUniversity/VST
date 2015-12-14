@@ -98,18 +98,18 @@ Proof.
     split.
       rewrite upd_Znth_Zlength. assumption. simpl; rewrite XLL. omega.
     eexists; split. apply upd_Znth_ints. 
-    intros k K. destruct (J _ K) as [xj [Xj [IJ1 IJ2]]].
+    intros kk KK. destruct (J _ KK) as [xj [Xj [IJ1 IJ2]]].
       exists xj. split. assumption.
       split; intros. 
-      + destruct (zlt k i).
+      + destruct (zlt kk i).
         - destruct (IJ1 l) as [yj [Yj Xj']]. exists yj; split; trivial.
           rewrite upd_Znth_diff; trivial. 
             simpl in *; omega.
             simpl in *; omega.
             omega.
-        - assert (JJ: k=i) by omega. subst k.
+        - assert (JJ: kk=i) by omega. subst kk.
           rewrite Xj in Xi; inv Xi. 
-          rewrite upd_Znth_same, Yi. exists _id0; split; trivial.
+          rewrite upd_Znth_same, Yi. exists yi; split; trivial.
           simpl in *; omega.
       + rewrite upd_Znth_diff. apply IJ2; omega. 
             simpl in *; omega.
@@ -375,7 +375,7 @@ Proof. intros. abbreviate_semax.
                rewrite upd_Znth_diff; repeat rewrite upd_Znth_Zlength; try omega. trivial.
          omega. } 
        rewrite <- VJeq, Zlength_map. trivial.
-       assert (UJeq: _id = Znth (6 + i) intsums Int.zero).
+       assert (UJeq: uj = Znth (6 + i) intsums Int.zero).
        { clear - Uj SL PL2length I.
          rewrite (Znth_map _ _ (6 + i) Vint) with (d':=Int.zero) in Uj. inv Uj.
          2: rewrite PL2length; try omega. Focus 2. split. apply (Z2Nat.inj_le 0); omega. apply (Z2Nat.inj_lt _ 4); omega.        
@@ -397,6 +397,7 @@ Proof. intros. abbreviate_semax.
                rewrite upd_Znth_diff; repeat rewrite upd_Znth_Zlength; try omega. trivial.
          omega. }
        rewrite <- UJeq, Zlength_map. reflexivity. apply I.
+       simpl; trivial.
     +  omega. 
    }
   apply andp_left2; apply derives_refl. 
@@ -574,7 +575,7 @@ Proof. intros. abbreviate_semax.
       thaw FR3. thaw FR2. cancel.
       unfold QByte.
       rewrite <- Upd_ll_Zlength. unfold tarray. 
-      erewrite (split3_data_at_Tarray_tuchar Tsh _ (4 * i) (4+4 * i) (UpdateOut ll (4 * i) _id0)); try rewrite UpdateOut_Zlength, P3_Zlength; try omega.
+      erewrite (split3_data_at_Tarray_tuchar Tsh _ (4 * i) (4+4 * i) (UpdateOut ll (4 * i) xi)); try rewrite UpdateOut_Zlength, P3_Zlength; try omega.
       rewrite field_address0_offset by auto with field_compatible.
       rewrite field_address0_offset by auto with field_compatible.
       unfold offset_val. Opaque QuadByte2ValList.  simpl. repeat rewrite Z.mul_1_l.
@@ -609,17 +610,16 @@ Proof. intros. abbreviate_semax.
       rewrite (Z.add_comm _ 1), Z2Nat.inj_add. simpl. apply NPeano.Nat.add_1_l. omega. omega.
     rewrite AA. simpl.
     thaw FR6. thaw FR5. Time cancel. (*0.8*) 
-    clear TC TC0 TC1 TC2 TC3(* H7*).
     rewrite <- Heqll. clear Heqll.
 (*    remember (hPosLoop3 (Z.to_nat i) xs OUT) as ll; clear Heqll.*)
     assert (XXi: xi = Znth (5 * i) xs Int.zero).
       rewrite Znth_map' with (d':=Int.zero) in Xi; try omega. clear -Xi. inv Xi. trivial.
-    assert (ZZi: _id0 = Znth (6 + i) xs Int.zero).
+    assert (ZZi: zi = Znth (6 + i) xs Int.zero).
       rewrite Znth_map' with (d':=Int.zero) in Zi; try omega. clear -Zi. inv Zi. trivial.
     rewrite Z2Nat.id, <- XXi, <- ZZi; try omega; clear XXi ZZi.
     unfold QByte.
     remember (UpdateOut ll (4 * i) xi) as l.
-    assert (ZLU: Zlength(UpdateOut l (16 + 4 * i) _id0) = 64).
+    assert (ZLU: Zlength(UpdateOut l (16 + 4 * i) zi) = 64).
       rewrite UpdateOut_Zlength; trivial. omega. omega.
     rewrite (split3_data_at_Tarray_tuchar Tsh 64 (16 + 4 * i) (4+16 + 4 * i)); try omega.
       rewrite OC in *.
@@ -819,6 +819,7 @@ apply normal_ret_assert_derives'.
 Exists intsums.
 clear - HSums1 SL.
 (*Opaque ThirtyTwoByte.*) Opaque hPosLoop2. Opaque hPosLoop3.
+old_go_lower. (*TODO: eliminate*)
 Time entailer!. (*5 versus 6.6*)
   intros j J.
   destruct (HSums1 _ J) as [xj [Xj [X _]]].
