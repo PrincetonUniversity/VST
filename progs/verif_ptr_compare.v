@@ -25,8 +25,6 @@ Definition Gprog : funspecs := nil.
 Lemma body_f: semax_body Vprog Gprog f_f f_spec.
 Proof.
 start_function.
-name p' _p.
-name q' _q.
 forward.
 entailer!.
 Qed.

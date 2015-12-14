@@ -30,13 +30,6 @@ Lemma update_last_if_proof:
    (H : 0 <= len <= Zlength data)
    (Hsh: readable_share sh)
    (HBOUND : (bitlength hashed dd + len * 8 < two_p 64)%Z)
-   (c' : name _c)
-   (data_ : name _data_)
-   (len' : name _len)
-   (data' : name _data)
-   (p : name _p)
-   (n : name _n)
-   (fragment : name _fragment)
    (H3 : Zlength dd < CBLOCKz)
    (H3' : Forall isbyteZ dd) 
    (H4 : (LBLOCKz | Zlength hashed))
@@ -253,13 +246,6 @@ Qed.
 Lemma body_SHA256_Update: semax_body Vprog Gtot f_SHA256_Update SHA256_Update_spec.
 Proof.
 start_function.
-name c' _c.
-name data_ _data_.
-name len' _len.
-name data' _data.
-name p _p.
-name n _n.
-name fragment _fragment.
 rename H0 into HBOUND'.
 rename H1 into HBOUND.
 
