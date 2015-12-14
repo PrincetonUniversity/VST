@@ -331,8 +331,6 @@ Hint Resolve fifo_isptr : saturate_local.
 Lemma body_fifo_empty: semax_body Vprog Gprog f_fifo_empty fifo_empty_spec.
 Proof.
 start_function.
-name Q _Q.
-name h _h.
 unfold fifo.
 Intros ht; destruct ht as [hd tl].
 Intros.
@@ -356,8 +354,6 @@ Qed.
 Lemma body_fifo_new: semax_body Vprog Gprog f_fifo_new fifo_new_spec.
 Proof.
   start_function.
-  name Q _Q.
-  name Q' 68%positive.
  
   forward_call (* Q = mallocN(sizeof ( *Q)); *)
      8.
@@ -380,10 +376,6 @@ Qed.
 Lemma body_fifo_put: semax_body Vprog Gprog f_fifo_put fifo_put_spec.
 Proof.
 start_function.
-name Q _Q.
-name p' _p.
-name h _h.
-name t _t.
 unfold fifo at 1.
 Intros ht; destruct ht as [hd tl].
 Intros.
@@ -445,9 +437,6 @@ Qed.
 Lemma body_fifo_get: semax_body Vprog Gprog f_fifo_get fifo_get_spec.
 Proof.
 start_function.
-name Q _Q.
-name h _h.
-name n _n.
 unfold fifo at 1.
 Intros ht; destruct ht as [hd tl].
 rewrite if_false by congruence.
@@ -481,10 +470,6 @@ Qed.
 Lemma body_make_elem: semax_body Vprog Gprog f_make_elem make_elem_spec.
 Proof.
 start_function. rename a into a0; rename b into b0.
-name a _a.
-name b _b.
-name p _p.
-name p' 69%positive.
 forward_call (*  p = mallocN(sizeof ( *p));  *) 
   12.
  computable.
@@ -509,11 +494,6 @@ Hint Resolve readable_share_Qsh'.
 Lemma body_main:  semax_body Vprog Gprog f_main main_spec.
 Proof.
 start_function.
-name i _i.
-name j _j.
-name Q _Q.
-name p _p.
-
 forward_call (* Q = fifo_new(); *)  tt.
 Intros q.
 

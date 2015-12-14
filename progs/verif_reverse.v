@@ -153,7 +153,6 @@ forward.  (* h = t->head; *)
 forward.  (*  t = t->tail; *)
 forward.  (* s = s + h; *)
 Exists (cts1++[i],cts2,y).
-name h _h.
 entailer. 
 apply andp_right.
 apply prop_right.
@@ -180,7 +179,6 @@ Definition reverse_Inv (sh: share) (contents: list val) : environ->mpred :=
 Lemma body_reverse: semax_body Vprog Gprog f_reverse reverse_spec.
 Proof.
 start_function.
-name w_ _w.
 forward.  (* w = NULL; *)
 forward.  (* v = p; *)
 forward_while (reverse_Inv sh contents).
@@ -271,8 +269,6 @@ Qed.
 
 Lemma body_main:  semax_body Vprog Gprog f_main main_spec.
 Proof.
-name r _r.
-name s _s.
 name three _three.
 start_function.
  change (Tpointer

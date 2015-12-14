@@ -34,7 +34,6 @@ Definition Gprog : funspecs := odd_spec :: even_spec :: main_spec :: nil.
 Lemma body_even : semax_body Vprog Gprog f_even even_spec.
 Proof.
 start_function.
-name n _n.
 forward_if (PROP (z > 0) LOCAL (temp _n (Vint (Int.repr z))) SEP ()).
 *
  forward.

@@ -131,13 +131,6 @@ Qed.
 Lemma body_reverse: semax_body Vprog Gprog f_reverse reverse_spec.
 Proof.
 start_function.
-name a _a.
-name n _n.
-name lo' _lo.
-name hi' _hi.
-name s _s.
-name t _t.
-
 forward.  (* lo = 0; *)
 forward. (* hi = n; *)
 
@@ -184,7 +177,6 @@ forward. (* hi--; *)
  f_equal; f_equal; omega.
  apply derives_refl'.
  unfold data_at.    f_equal.
- rewrite H3,H2; simpl. rewrite <- H3, <- H2.
  clear - H0 HRE H1.
  forget (map Vint contents) as al.
  remember (Zlength al) as size.

@@ -119,8 +119,6 @@ Ltac do_semax_shortcut_logical :=
 Lemma body_do_or: semax_body Vprog Gprog f_do_or do_or_spec.
 Proof.
 start_function.
-name a_ _a.
-name b_ _b.
 
 eapply semax_seq'; [do_semax_shortcut_logical | abbreviate_semax].
 forward.
@@ -130,8 +128,6 @@ Qed.
 Lemma body_do_and: semax_body Vprog Gprog f_do_and do_and_spec.
 Proof.
 start_function.
-name a_ _a.
-name b_ _b.
 eapply semax_seq'; [do_semax_shortcut_logical | abbreviate_semax].
 forward.
 destruct H,H0; subst; simpl; entailer!.

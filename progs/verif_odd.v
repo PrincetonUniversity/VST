@@ -12,7 +12,6 @@ Lemma body_odd : semax_body Vprog Gprog f_odd odd_spec.
 Proof.
 start_function.
 change even._n with _n.
-name n _n.
 forward_if (PROP (z > 0) LOCAL (temp _n (Vint (Int.repr z))) SEP ()).
 *
  forward.

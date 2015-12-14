@@ -55,7 +55,6 @@ Definition Gprog : funspecs :=
 Lemma body_get:  semax_body Vprog Gprog f_get get_spec.
 Proof.
 start_function.
-name i _i.
 simpl in v.
 unfold_repinj.
 Time forward. (* 5.989 sec  -> 2.6 -> 1.5 *)
@@ -65,7 +64,6 @@ Time Qed.
 Lemma body_get':  semax_body Vprog Gprog f_get get_spec'.
 Proof.
 start_function.
-name i _i.
 simpl in v.
 unfold_repinj.
 Time forward. (* 5.989 sec  -> 2.6*)
@@ -75,7 +73,6 @@ Qed.
 Lemma body_set:  semax_body Vprog Gprog f_set set_spec.
 Proof.
  start_function.
-name i_ _i.
 simpl in v.
 (*destruct v as [a [b c]]; simpl in *. *)
 unfold_repinj.

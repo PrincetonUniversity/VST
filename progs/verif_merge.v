@@ -157,13 +157,17 @@ Qed.
 
 Lemma body_merge: semax_body Vprog Gprog f_merge merge_spec.
 Proof.
+(*
 name a__ _a.
 name b__ _b.
 name va__ _va.
 name vb__ _vb.
 name x__ _x.
+*)
 name ret_ _ret.
+(*
 name cond__ _cond.
+*)
 start_function.
 forward.
 
@@ -272,13 +276,7 @@ forward. (* COMMAND : [*x = a] *)
 forward. (* COMMAND : [x = &(a->tail)] *)
 forward. (* COMMAND : [a = a -> tail] *)
 Exists a' (vb::b') [va] a_' b_ a_ a_.
-name a__ _a.
-name b__ _b.
-name va__ _va.
-name vb__ _vb.
-name x__ _x.
 name ret__ _ret.
-name cond__ _cond.
 {
 
 rewrite !@lseg_nil_eq.
@@ -382,13 +380,7 @@ forward.
 forward. (* COMMAND : [x = &(b->tail)] *)
 forward. (* COMMAND : [b = b -> tail] *)
 Exists (va::a') b' [vb] a_ b_' b_ b_.
-name a__ _a.
-name b__ _b.
-name va__ _va.
-name vb__ _vb.
-name x__ _x.
 name ret__ _ret.
-name cond__ _cond.
 simpl map. rewrite @lseg_cons_eq.
 Exists a_'.
 rewrite list_cell_field_at.

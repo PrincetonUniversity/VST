@@ -14,25 +14,6 @@ induction a; simpl. rewrite Int.add_zero_l; auto.
 rewrite IHa. rewrite Int.add_assoc. auto.
 Qed.
 
-Lemma add_one_more_to_sum: forall contents i x,
-  Znth i (map Vint contents) Vundef = Vint x ->
-  sum_int (sublist 0 (Z.succ i) contents) =
-   Int.add (sum_int (sublist 0 i contents)) x.
-Proof.
-  intros.
-  assert (0 <= i < Zlength contents \/ (i < 0 \/ i >= Zlength contents)) by omega.
-  destruct H0.
-*
-  rewrite (sublist_split 0 i (Z.succ i)) by omega.
-  rewrite (sublist_one i (Z.succ i) contents) with (d:=Int.zero) by omega. 
-  rewrite Znth_map with (d':=Int.zero) in H by omega.
-  injection H; intro. rewrite H1. clear.
-  rewrite sum_int_app. simpl. rewrite Int.add_zero. auto.
-*
-  rewrite Znth_outofbounds in H by (autorewrite with sublist; auto).
-  inv H.
-Qed.
-
 (* Beginning of the API spec for the sumarray.c program *)
 Definition sumarray_spec :=
  DECLARE _sumarray
@@ -72,11 +53,6 @@ Definition sumarray_Inv a sh contents size :=
 Lemma body_sumarray: semax_body Vprog Gprog f_sumarray sumarray_spec.
 Proof.
 start_function.  (* Always do this at the beginning of a semax_body proof *)
-name a0 _a.   (* Hint: use name [a] for any Coq variables that are *)
-name n _n.   (*  introduced to represent the contents of C variable _a; *)
-name i _i.     (*  use [n] for contents of _n, et cetera *)
-name s _s.
-name x _x.
 (* The next two lines do forward symbolic execution through
    the first two executable statements of the function body *)
 forward.  (* i = 0; *) 
@@ -109,10 +85,15 @@ forward. (* i++; *)
  (* Now we have reached the end of the loop body, and it's
    time to prove that the _current precondition_  (which is the 
    postcondition of the loop body) entails the loop invariant. *)
- Exists (Zsucc i0).
+ Exists (Zsucc i).
  entailer!.
- rewrite H2 in H1; inv H1.
- f_equal; apply add_one_more_to_sum; try omega; auto.
+ rewrite Zlength_map in *.
+ rewrite Znth_map with (d':=Int.zero) by omega.
+ simpl. f_equal.
+ rewrite (sublist_split 0 i (Z.succ i)) by omega.
+ rewrite sum_int_app. f_equal.
+ rewrite sublist_one with (d:=Int.zero) by omega.
+ simpl. rewrite Int.add_zero. reflexivity.
 * (* After the loop *)
 forward.  (* return s; *)
  (* Here we prove that the postcondition of the function body
@@ -129,7 +110,6 @@ Definition four_contents := map Int.repr [1;2;3;4].
 
 Lemma body_main:  semax_body Vprog Gprog f_main main_spec.
 Proof.
-name s _s.
 name four _four.
 start_function.
 forward_call (*  r = sumarray(four,4); *)
