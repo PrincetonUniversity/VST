@@ -129,7 +129,7 @@ Proof.
     replace (Zlength (intlist_to_Zlist lastblock)) with 64
         by (rewrite Zlength_intlist_to_Zlist, H0; reflexivity).
     Time saturate_local.
-    change (memory_block Tsh 64) with (memory_block Tsh (sizeof cenv_cs (tarray tuchar 64))).
+    change (memory_block Tsh 64) with (memory_block Tsh (sizeof (tarray tuchar 64))).
     rewrite memory_block_data_at_ by auto.
     Time cancel.
   }
@@ -172,7 +172,7 @@ forward_for_simple_bound 8
      )).
 *
  entailer!.
- change 32%Z with (sizeof cenv_cs (tarray tuchar 32)) at 1.
+ change 32%Z with (sizeof (tarray tuchar 32)) at 1.
  rewrite memory_block_size_compatible by (compute; auto).
  (* memory_block_size_compatible should perhaps(?) be
      woven into memory_block_local_facts *)
@@ -322,7 +322,7 @@ Time Qed. (* 64 sec *)
 
 Lemma array_at_memory_block:
  forall {cs: compspecs} sh t gfs lo hi v p n,
-  sizeof cenv_cs (nested_field_array_type t gfs lo hi) = n ->
+  sizeof (nested_field_array_type t gfs lo hi) = n ->
   array_at sh t gfs lo hi v p |-- 
   memory_block sh n (field_address0 t (ArraySubsc lo :: gfs) p).
 Proof.

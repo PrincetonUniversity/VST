@@ -265,7 +265,7 @@ change  (Z.of_nat CBLOCK - 8 - Zlength dd')
    with (56 - Zlength dd').
 entailer!.
 replace (memory_block Tsh (56 - Zlength dd'))
- with (memory_block Tsh (sizeof cenv_cs (tarray tuchar (56 - Zlength dd'))))
+ with (memory_block Tsh (sizeof (tarray tuchar (56 - Zlength dd'))))
   by (f_equal; rewrite sizeof_tarray_tuchar; auto; omega).
 cancel.
 }

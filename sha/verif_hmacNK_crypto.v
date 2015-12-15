@@ -139,7 +139,7 @@ simpl.
 
 forward_call (h2,c).
 forward.
-assert_PROP (field_compatible (tarray tuchar (sizeof cenv_cs t_struct_hmac_ctx_st)) nil c).
+assert_PROP (field_compatible (tarray tuchar (sizeof t_struct_hmac_ctx_st)) nil c).
 { unfold data_block at 1. unfold Zlength. simpl. rewrite data_at_data_at'. normalize. }
 rename H5 into FC.
 specialize (hmac_sound key data). unfold hmac. 
@@ -165,7 +165,8 @@ cancel.
   rewrite Zlength_correct; simpl.
   apply andp_left2.
   rewrite <- memory_block_data_at_; trivial.
-  rewrite (memory_block_data_at_ Tsh (tarray tuchar (sizeof (@cenv_cs CompSpecs) t_struct_hmac_ctx_st))).
+  rewrite (memory_block_data_at_ Tsh 
+                    (tarray tuchar (@sizeof (@cenv_cs CompSpecs) (Tstruct _hmac_ctx_st noattr)))).
   2: trivial.
   eapply derives_trans. apply data_at_data_at_. apply derives_refl.
 Qed.

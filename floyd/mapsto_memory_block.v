@@ -196,7 +196,7 @@ Lemma memory_block_mapsto_:
    legal_alignas_type t = true ->
    size_compatible t p ->
    align_compatible t p ->
-   memory_block sh (sizeof cenv_cs t) p = mapsto_ sh t p.
+   memory_block sh (sizeof t) p = mapsto_ sh t p.
 Proof.
   intros.
   assert (isptr p \/ ~isptr p) by (destruct p; simpl; auto).
@@ -204,7 +204,7 @@ Proof.
     simpl in H2, H3.
     destruct (access_mode_by_value _ H) as [ch ?].
     apply legal_alignas_type_spec in H1.
-    erewrite size_chunk_sizeof in H2 |- * by eauto.
+    unfold sizeof in *; erewrite size_chunk_sizeof in H2 |- * by eauto.
     pose proof Z.divide_trans _ _ _ H1 H3.
     erewrite align_chunk_alignof in H6 by eauto.
     rewrite seplog.mapsto__memory_block with (ch := ch); auto.
@@ -213,9 +213,9 @@ Qed.
 
 Lemma memory_block_size_compatible:
   forall sh t p,
-  sizeof cenv_cs t < Int.modulus ->
-  memory_block sh (sizeof cenv_cs t) p = 
-  !! (size_compatible t p) && memory_block sh (sizeof cenv_cs t) p.
+  sizeof t < Int.modulus ->
+  memory_block sh (sizeof t) p = 
+  !! (size_compatible t p) && memory_block sh (sizeof t) p.
 Proof.
   intros.
   unfold memory_block, size_compatible.
@@ -253,7 +253,7 @@ Proof.
     normalize.
 Qed.
 
-Lemma mapsto_size_compatible_aux: forall t, type_is_by_value t = true -> legal_alignas_type t = true -> alignof cenv_cs t < Int.modulus.
+Lemma mapsto_size_compatible_aux: forall t, type_is_by_value t = true -> legal_alignas_type t = true -> alignof t < Int.modulus.
 Proof.
   unfold legal_alignas_type.
   intros. 
@@ -276,7 +276,7 @@ Qed.
 
 Lemma mapsto_size_compatible:
   forall sh t p v, legal_alignas_type t = true ->
-  sizeof cenv_cs t = alignof cenv_cs t ->
+  sizeof t = alignof t ->
   mapsto sh t p v = !!(size_compatible t p) && mapsto sh t p v.
 Proof.
   intros.

@@ -26,11 +26,11 @@ Definition malloc_compatible (n: Z) (p: val) : Prop :=
 
 Lemma malloc_compatible_field_compatible:
   forall (cs: compspecs) t p n,
-     sizeof cenv_cs t = n ->
+     sizeof t = n ->
      legal_alignas_type t = true ->
      legal_cosu_type t = true ->
      complete_type cenv_cs t = true ->
-     (alignof cenv_cs t | natural_alignment) ->
+     (alignof t | natural_alignment) ->
      malloc_compatible n p ->
      field_compatible t nil p.
 Proof.
@@ -315,7 +315,7 @@ Lemma memory_block_fifo:
   memory_block Tsh 8 p = field_at_ Tsh t_struct_fifo nil p.
 Proof.
  intros.
- change 8 with (sizeof cenv_cs t_struct_fifo).
+ change 8 with (sizeof t_struct_fifo).
  rewrite memory_block_data_at_; auto.
 Qed.
 
@@ -474,7 +474,7 @@ forward_call (*  p = mallocN(sizeof ( *p));  *)
   12.
  computable.
 Intros p0.
-  change 12 with (sizeof cenv_cs t_struct_elem).
+  change 12 with (sizeof t_struct_elem).
   rewrite memory_block_data_at_
   by (eapply malloc_compatible_field_compatible; try eassumption; 
       auto with typeclass_instances;
@@ -517,7 +517,7 @@ Time forward. (*   i = p->a;  *) (* 28.8 sec -> 1.96 sec *)
 forward. (*   j = p->b; *)
 
 forward_call (*  freeN(p, sizeof( *p)); *)
-   (p', sizeof cenv_cs t_struct_elem).
+   (p', sizeof t_struct_elem).
 {
 pose (work_around_coq_bug := fifo [p2] q * 
    data_at Tsh t_struct_elem (Vint (Int.repr 1), (Vint (Int.repr 10), Vundef)) p' *

@@ -544,7 +544,7 @@ match op with
                              (tc_isptr a1))
                               (tc_isptr a2))
                                (tc_bool (is_int32_type ty) reterr))
-			        (tc_bool (negb (Int.eq (Int.repr (sizeof cenv_cs t)) Int.zero)) 
+			        (tc_bool (negb (Int.eq (Int.repr (sizeof t)) Int.zero)) 
                                       (pp_compare_size_0 t)))
                                  (tc_bool (complete_type cenv_cs t) reterr))
                                   (tc_bool (is_pointer_type ty) reterr)

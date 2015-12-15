@@ -76,9 +76,9 @@ Definition data_at': forall t, reptype t -> val -> mpred :=
   func_type (fun t => reptype t -> val -> mpred)
     (fun t v p =>
        if type_is_volatile t
-       then memory_block sh (sizeof cenv_cs t) p
+       then memory_block sh (sizeof t) p
        else mapsto sh t p (repinject t v))
-    (fun t n a P v => array_pred (default_val t) 0 n (fun i v => at_offset (P v) (sizeof cenv_cs t * i)) (unfold_reptype v))
+    (fun t n a P v => array_pred (default_val t) 0 n (fun i v => at_offset (P v) (sizeof t * i)) (unfold_reptype v))
     (fun id a P v => struct_data_at'_aux sh (co_members (get_co id)) (co_members (get_co id)) (co_sizeof (get_co id)) P (unfold_reptype v))
     (fun id a P v => union_data_at'_aux sh (co_members (get_co id)) (co_members (get_co id)) (co_sizeof (get_co id)) P (unfold_reptype v)).
 
@@ -92,17 +92,17 @@ Lemma data_at'_ind: forall t v,
   | Tlong _ _
   | Tpointer _ _ => fun v p => 
                       if type_is_volatile t
-                      then memory_block sh (sizeof cenv_cs t) p
+                      then memory_block sh (sizeof t) p
                       else mapsto sh t p v
-  | Tarray t0 n a => array_pred (default_val t0) 0 n (fun i v => at_offset (data_at' t0 v) (sizeof cenv_cs t0 * i))
+  | Tarray t0 n a => array_pred (default_val t0) 0 n (fun i v => at_offset (data_at' t0 v) (sizeof t0 * i))
   | Tstruct id a => struct_pred (co_members (get_co id))
                       (fun it v => withspacer sh
-                        (field_offset cenv_cs (fst it) (co_members (get_co id)) + sizeof cenv_cs (field_type (fst it) (co_members (get_co id))))
+                        (field_offset cenv_cs (fst it) (co_members (get_co id)) + sizeof (field_type (fst it) (co_members (get_co id))))
                         (field_offset_next cenv_cs (fst it) (co_members (get_co id)) (co_sizeof (get_co id)))
                         (at_offset (data_at' (field_type (fst it) (co_members (get_co id))) v) (field_offset cenv_cs (fst it) (co_members (get_co id)))))
   | Tunion id a => union_pred (co_members (get_co id))
                      (fun it v => withspacer sh
-                      (sizeof cenv_cs (field_type (fst it) (co_members (get_co id))))
+                      (sizeof (field_type (fst it) (co_members (get_co id))))
                       (co_sizeof (get_co id))
                       (data_at' (field_type (fst it) (co_members (get_co id))) v))
   end (unfold_reptype v).
@@ -184,7 +184,7 @@ Lemma by_value_data_at'_default_val: forall sh t p,
   legal_alignas_type t = true ->
   size_compatible t p ->
   align_compatible t p ->
-  data_at' sh t (default_val t) p = memory_block sh (sizeof cenv_cs t) p.
+  data_at' sh t (default_val t) p = memory_block sh (sizeof t) p.
 Proof.
   intros.
   rewrite data_at'_ind; destruct t; try solve [inversion H];
@@ -202,10 +202,10 @@ Qed.
 Lemma by_value_data_at'_default_val2: forall sh t b ofs,
   type_is_by_value t = true ->
   legal_alignas_type t = true ->
-  0 <= ofs /\ ofs + sizeof cenv_cs t <= Int.modulus ->
-  (alignof cenv_cs t | ofs) ->
+  0 <= ofs /\ ofs + sizeof t <= Int.modulus ->
+  (alignof t | ofs) ->
   data_at' sh t (default_val t) (Vptr b (Int.repr ofs)) =
-  memory_block sh (sizeof cenv_cs t) (Vptr b (Int.repr ofs)).
+  memory_block sh (sizeof t) (Vptr b (Int.repr ofs)).
 Proof.
   intros.
   apply by_value_data_at'_default_val; auto.
@@ -309,8 +309,8 @@ Proof.
 Qed.
 
 Lemma memory_block_data_at__aux1: forall i pos t,
-  0 <= pos /\ pos + sizeof cenv_cs t <= Int.modulus - Int.unsigned i ->
-  Int.unsigned (Int.add i (Int.repr pos)) + sizeof cenv_cs t <= Int.modulus.
+  0 <= pos /\ pos + sizeof t <= Int.modulus - Int.unsigned i ->
+  Int.unsigned (Int.add i (Int.repr pos)) + sizeof t <= Int.modulus.
 Proof.
   intros.
   destruct H.
@@ -323,10 +323,10 @@ Proof.
 Qed.
 
 Lemma memory_block_data_at__aux2: forall i pos t,
-  0 <= pos /\ pos + sizeof cenv_cs t <= Int.modulus - Int.unsigned i ->
-  (alignof cenv_cs t | Int.unsigned i) ->
-  (alignof cenv_cs t | pos) ->
-  (alignof cenv_cs t | Int.unsigned (Int.add i (Int.repr pos))).
+  0 <= pos /\ pos + sizeof t <= Int.modulus - Int.unsigned i ->
+  (alignof t | Int.unsigned i) ->
+  (alignof t | pos) ->
+  (alignof t | Int.unsigned (Int.add i (Int.repr pos))).
 Proof.
   intros.
   destruct H.
@@ -373,8 +373,8 @@ Ltac AUTO_IND :=
     exact H
   | H: complete_type ?env (Tarray ?t ?n ?a) = true |- complete_type ?env ?t = true =>
     simpl in H; auto
-  | H: (alignof cenv_cs (Tarray ?t ?z ?a) | ?ofs)
-    |- (alignof cenv_cs ?t | ?ofs + _) =>
+  | H: (alignof (Tarray ?t ?z ?a) | ?ofs)
+    |- (alignof ?t | ?ofs + _) =>
     apply Z.divide_add_r;
     [ eapply Z.divide_trans; [eapply alignof_divide_alignof_Tarray |]; eauto
     | apply Z.divide_mul_l; erewrite legal_alignas_type_Tarray by eauto;
@@ -391,8 +391,8 @@ Ltac AUTO_IND :=
     [exact H | auto]
   | |- complete_type ?env (field_type ?i (co_members (get_co ?id))) = true =>
     apply complete_type_field_type; auto
-  | H: (alignof cenv_cs (Tstruct ?id ?a) | ?ofs)
-    |- (alignof cenv_cs (field_type ?i (co_members (get_co ?id))) | ?ofs + _) =>
+  | H: (alignof (Tstruct ?id ?a) | ?ofs)
+    |- (alignof (field_type ?i (co_members (get_co ?id))) | ?ofs + _) =>
     apply Z.divide_add_r;
     [ eapply Z.divide_trans; [apply alignof_field_type_divide_alignof; auto |];
       eapply Z.divide_trans; [apply legal_alignas_type_Tstruct; eauto | auto] 
@@ -407,8 +407,8 @@ Ltac AUTO_IND :=
     unfold legal_cosu_type in H;
     apply nested_pred_Tunion2 with (i0 := i) in H;
     [exact H | auto]
-  | H: (alignof cenv_cs (Tunion ?id ?a) | ?ofs)
-    |- (alignof cenv_cs (field_type ?i (co_members (get_co ?id))) | ?ofs) =>
+  | H: (alignof (Tunion ?id ?a) | ?ofs)
+    |- (alignof (field_type ?i (co_members (get_co ?id))) | ?ofs) =>
     eapply Z.divide_trans; [apply alignof_field_type_divide_alignof; auto |];
     eapply Z.divide_trans; [apply legal_alignas_type_Tunion; eauto | auto]
   end.
@@ -446,11 +446,11 @@ Lemma memory_block_data_at'_default_val: forall sh t b ofs
   (LEGAL_ALIGNAS: legal_alignas_type t = true)
   (LEGAL_COSU: legal_cosu_type t = true) (* isn't this subsumed by complete_type ?*)
   (COMPLETE: complete_type cenv_cs t = true),
-  0 <= ofs /\ ofs + sizeof cenv_cs t <= Int.modulus ->
-  sizeof cenv_cs t < Int.modulus -> (* check why need this *)
-  (alignof cenv_cs t | ofs) ->
+  0 <= ofs /\ ofs + sizeof t <= Int.modulus ->
+  sizeof t < Int.modulus -> (* check why need this *)
+  (alignof t | ofs) ->
   data_at' sh t (default_val t) (Vptr b (Int.repr ofs)) =
-    memory_block sh (sizeof cenv_cs t) (Vptr b (Int.repr ofs)).
+    memory_block sh (sizeof t) (Vptr b (Int.repr ofs)).
 Proof.
   intros sh t.
   type_induction t; intros;
@@ -460,12 +460,12 @@ Proof.
   + rewrite (default_val_ind (Tarray t z a)).
     rewrite unfold_fold_reptype.
     rewrite array_pred_ext with
-     (P1 := fun i _ p => memory_block sh (sizeof cenv_cs t)
-                          (offset_val (Int.repr (sizeof cenv_cs t * i)) p))
+     (P1 := fun i _ p => memory_block sh (sizeof t)
+                          (offset_val (Int.repr (sizeof t * i)) p))
      (v1 := list_repeat (Z.to_nat z) (default_val t)); auto.
     pose proof (legal_alignas_array_size _ _ _ LEGAL_ALIGNAS).
     rewrite memory_block_array_pred; auto.
-    - simpl sizeof; rewrite Z.max_r by omega; auto.
+    - unfold sizeof; simpl; rewrite Z.max_r by omega; auto.
     - simpl in H; rewrite Z.max_r in H by omega; auto.
     - simpl in H0; rewrite Z.max_r in H0 by omega; auto.
     - intros.
@@ -473,7 +473,7 @@ Proof.
       unfold offset_val; solve_mod_modulus.
       unfold Znth. rewrite if_false by omega.
       rewrite nth_list_repeat.
-      simpl sizeof in H, H0;
+      unfold sizeof in H, H0; fold @sizeof in H,H0;
       rewrite Z.max_r in H, H0 by omega.
       apply IH; try AUTO_IND;
       pose_size_mult cenv_cs t (0 :: i :: i + 1 :: z :: nil); omega.
@@ -491,7 +491,7 @@ Proof.
       * rewrite sizeof_Tstruct; auto.
       * apply get_co_members_nil_sizeof_0.
       * apply get_co_members_no_replicate.
-      * rewrite sizeof_Tstruct in H0.
+      * rewrite sizeof_Tstruct in H0. 
         pose proof co_consistent_sizeof cenv_cs (get_co id) (get_co_consistent id).
         erewrite legal_cosu_type_Tstruct in H2 by eauto.
         unfold sizeof_composite in H2.
@@ -599,9 +599,9 @@ Lemma data_at'_data_at'_ : forall sh t v b ofs
   (LEGAL_ALIGNAS: legal_alignas_type t = true)
   (LEGAL_COSU: legal_cosu_type t = true)
   (COMPLETE: complete_type cenv_cs t = true),
-  0 <= ofs /\ ofs + sizeof cenv_cs t <= Int.modulus ->
-  sizeof cenv_cs t < Int.modulus -> (* check why need this *)
-  (alignof cenv_cs t | ofs) ->
+  0 <= ofs /\ ofs + sizeof t <= Int.modulus ->
+  sizeof t < Int.modulus -> (* check why need this *)
+  (alignof t | ofs) ->
   data_at' sh t v (Vptr b (Int.repr ofs)) |-- data_at' sh t (default_val t) (Vptr b (Int.repr ofs)).
 Proof.
   intros sh t.
@@ -618,15 +618,16 @@ Proof.
       rewrite Zlength_list_repeat by omega.
       omega.
     } Unfocus.
-    rewrite default_val_ind.
+    rewrite default_val_ind. simpl.
     intros.
     rewrite !at_offset_eq3.
     rewrite default_val_ind with (t0 := (Tarray t z a)), unfold_fold_reptype.
-    simpl sizeof in H, H0;
-    rewrite Z.max_r in H, H0 by omega.
+    unfold sizeof in H, H0;
+    rewrite Z.max_r in H, H0 by omega;
+    fold (sizeof t) in H,H0.
     eapply derives_trans.
     apply IH; try AUTO_IND;
-    pose_size_mult cenv_cs t (0 :: i :: i + 1 :: z :: nil); omega.
+    pose_size_mult cenv_cs t (0 :: i :: i + 1 :: z :: nil); try omega.
     apply derives_refl'. f_equal. unfold Znth. rewrite if_false by omega.
     rewrite nth_list_repeat'; auto.
     apply Nat2Z.inj_lt. rewrite !Z2Nat.id by omega. omega.
@@ -660,7 +661,7 @@ Proof.
       * assert (members_no_replicate (co_members (get_co id)) = true) as NO_REPLI
           by apply get_co_members_no_replicate.
         apply union_pred_ext_derives with
-          (P1 := fun _ _ => memory_block sh (sizeof cenv_cs (Tunion id a)));
+          (P1 := fun _ _ => memory_block sh (sizeof (Tunion id a)));
           [auto | reflexivity | ].
         intros.
         clear H4.
@@ -669,8 +670,8 @@ Proof.
         rewrite withspacer_spacer, sizeof_Tunion.
         simpl.
         pattern (co_sizeof (get_co id)) at 2;
-        replace (co_sizeof (get_co id)) with (sizeof cenv_cs (field_type i (co_members (get_co id))) +
-          (co_sizeof (get_co id) - sizeof cenv_cs (field_type i (co_members (get_co id))))) by omega.
+        replace (co_sizeof (get_co id)) with (sizeof (field_type i (co_members (get_co id))) +
+          (co_sizeof (get_co id) - sizeof (field_type i (co_members (get_co id))))) by omega.
         rewrite sepcon_comm.
         rewrite memory_block_split by (pose_field; omega).
         apply sepcon_derives; [| rewrite spacer_memory_block by (simpl; auto);

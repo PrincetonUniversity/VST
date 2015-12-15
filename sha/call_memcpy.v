@@ -415,7 +415,7 @@ eapply semax_pre_post;
    apply JMeq_sublist; auto.
  rewrite array_at_data_at' by (clear - FC; intuition).
  replace (memory_block shp len) with
-    (memory_block shp (sizeof cenv_cs (nested_field_array_type tp pathp lop (lop + len)))).
+    (memory_block shp (sizeof (nested_field_array_type tp pathp lop (lop + len)))).
  eapply derives_trans; [ | apply data_at__memory_block_cancel]; cancel.
  f_equal. unfold nested_field_array_type.
  rewrite nested_field_type_ind. rewrite H0. simpl.

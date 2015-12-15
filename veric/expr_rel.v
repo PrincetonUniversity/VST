@@ -43,10 +43,10 @@ Inductive rel_expr' {CS: compspecs} (rho: environ) (phi: rmap): expr -> val -> P
                  rel_expr' rho phi (Ecast a ty) v
  | rel_expr'_sizeof: forall t ty,
                  complete_type cenv_cs t = true ->
-                 rel_expr' rho phi (Esizeof t ty) (Vint (Int.repr (sizeof cenv_cs t)))
+                 rel_expr' rho phi (Esizeof t ty) (Vint (Int.repr (sizeof t)))
  | rel_expr'_alignof: forall t ty,
                  complete_type cenv_cs t = true ->
-                 rel_expr' rho phi (Ealignof t ty) (Vint (Int.repr (alignof cenv_cs t)))
+                 rel_expr' rho phi (Ealignof t ty) (Vint (Int.repr (alignof t)))
  | rel_expr'_lvalue_By_value: forall a ch sh v1 v2,
                  access_mode (typeof a) = By_value ch ->
                  rel_lvalue' rho phi a v1 ->
@@ -151,9 +151,9 @@ apply (rel_lvalue'_expr'_sch _ rho (m_phi jm)
   econstructor; eauto.
   rewrite H. auto.
 * (* Esizeof *)
-  rewrite <- H. constructor.
+  unfold sizeof; rewrite <- H. constructor.
 * (* Ealignof *)
-  rewrite <- H. constructor.
+  unfold alignof; rewrite <- H. constructor.
 * (* lvalue *)
   destruct v1; try contradiction.
   eapply Clight.eval_Elvalue; eauto.

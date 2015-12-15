@@ -61,7 +61,7 @@ Lemma var_block_lvar2:
    legal_alignas_type t = true ->
    legal_cosu_type t = true ->
    complete_type cenv_cs t = true ->
-   sizeof cenv_cs t < Int.modulus ->
+   sizeof t < Int.modulus ->
   (forall v,
    semax Delta ((PROPx P (LOCALx (lvar id t v :: Q) (SEPx (data_at_ Tsh t v :: R)))) 
                       * fold_right sepcon emp Vs)
@@ -71,7 +71,7 @@ Lemma var_block_lvar2:
                c Post.
 Proof.
 intros.
-assert (Int.unsigned Int.zero + sizeof cenv_cs t <= Int.modulus)
+assert (Int.unsigned Int.zero + sizeof t <= Int.modulus)
  by (rewrite Int.unsigned_zero; omega).
 eapply semax_pre_post; [ | intros; apply andp_left2; apply derives_refl | ].
 instantiate (1 := EX v:val, (PROPx P (LOCALx (lvar id t v :: Q) (SEPx (data_at_ Tsh t v :: R)))) 
@@ -115,14 +115,14 @@ Lemma var_block_lvar0
        legal_alignas_type t = true ->
        legal_cosu_type t = true ->
        complete_type cenv_cs t = true ->
-       sizeof cenv_cs t < Int.modulus ->
+       sizeof t < Int.modulus ->
        tc_environ Delta rho ->
        locald_denote (lvar id t v) rho ->
        data_at_ Tsh t v |-- var_block Tsh (id, t) rho.
 Proof.
 intros.
 hnf in H5.
-assert (Int.unsigned Int.zero + sizeof cenv_cs t <= Int.modulus)
+assert (Int.unsigned Int.zero + sizeof t <= Int.modulus)
  by (rewrite Int.unsigned_zero; omega).
 unfold var_block.
 simpl @fst; simpl @snd.
@@ -145,7 +145,7 @@ Lemma postcondition_var_block:
        legal_alignas_type t = true ->
        legal_cosu_type t = true ->
        complete_type cenv_cs t = true ->
-       sizeof cenv_cs t < Int.modulus ->
+       sizeof t < Int.modulus ->
    semax Delta Pre c (frame_ret_assert S1 
      (S2 *  (EX  v : val, local (locald_denote (lvar i t v)) && `(data_at_ Tsh t v))
       * fold_right sepcon emp vbs)) ->  
@@ -1481,7 +1481,9 @@ Ltac sequential :=
  end.
 
 (* move these two elsewhere, perhaps entailer.v *)
-Hint Extern 1 (sizeof _ _ > 0) => (simpl sizeof; computable) : valid_pointer.
+Hint Extern 1 (@sizeof _ ?A > 0) =>  
+   (let a := fresh in set (a:= sizeof A); hnf in a; subst a; computable)
+  : valid_pointer.
 Hint Resolve denote_tc_comparable_split : valid_pointer.
 
 Ltac pre_entailer :=

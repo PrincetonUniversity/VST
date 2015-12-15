@@ -176,9 +176,9 @@ Definition nested_sfieldlist_at sh t gfs m (v: nested_reptype_structlist t gfs m
   | _ => struct_pred m (fun it v p =>
            withspacer sh
             (nested_field_offset t gfs +
-              (field_offset cenv_cs (fst it) m + sizeof cenv_cs (field_type (fst it) m)))
+              (field_offset cenv_cs (fst it) m + sizeof (field_type (fst it) m)))
             (nested_field_offset t gfs +
-              field_offset_next cenv_cs (fst it) m (sizeof cenv_cs (nested_field_type t gfs)))
+              field_offset_next cenv_cs (fst it) m (sizeof (nested_field_type t gfs)))
             (field_at sh t (StructField (fst it) :: gfs) v) p) v p
   end.
 
@@ -187,8 +187,8 @@ Definition nested_ufieldlist_at sh t gfs m (v: nested_reptype_unionlist t gfs m)
   | nil => (!! field_compatible t gfs p) && emp
   | _ => union_pred m (fun it v p =>
            withspacer sh
-            (nested_field_offset t gfs + sizeof cenv_cs (field_type (fst it) m))
-            (nested_field_offset t gfs + sizeof cenv_cs (nested_field_type t gfs))
+            (nested_field_offset t gfs + sizeof (field_type (fst it) m))
+            (nested_field_offset t gfs + sizeof (nested_field_type t gfs))
             (field_at sh t (UnionField (fst it) :: gfs) v) p) v p
   end.
 
@@ -837,7 +837,7 @@ Proof.
     rewrite field_compatible0_cons in H3.
     destruct (nested_field_type t gfs); try tauto.
     unfold gfield_offset, gfield_type.
-    assert (sizeof cenv_cs t0 * i' = sizeof cenv_cs t0 * lo + sizeof cenv_cs t0 * i)%Z by (rewrite Zred_factor4; f_equal; omega).
+    assert (sizeof t0 * i' = sizeof t0 * lo + sizeof t0 * i)%Z by (rewrite Zred_factor4; f_equal; omega).
     omega.
 Qed.
 
@@ -929,7 +929,7 @@ Qed.
 
 Lemma field_at__memory_block: forall sh t gfs p, 
   field_at_ sh t gfs p =
-  memory_block sh (sizeof cenv_cs (nested_field_type t gfs)) (field_address t gfs p).
+  memory_block sh (sizeof (nested_field_type t gfs)) (field_address t gfs p).
 Proof.
   intros. 
   unfold field_address.
@@ -979,7 +979,7 @@ Qed.
 
 Lemma data_at__memory_block: forall sh t p,
   data_at_ sh t p =
-  (!! field_compatible t nil p) && memory_block sh (sizeof cenv_cs t) p.
+  (!! field_compatible t nil p) && memory_block sh (sizeof t) p.
 Proof.
   intros.
   unfold data_at_, data_at.
@@ -996,7 +996,7 @@ Qed.
 
 Lemma memory_block_data_at_: forall sh t p,
   field_compatible t nil p ->
-  memory_block sh (sizeof cenv_cs t) p = data_at_ sh t p.
+  memory_block sh (sizeof t) p = data_at_ sh t p.
 Proof.
   intros.
   rewrite data_at__memory_block.
@@ -1005,7 +1005,7 @@ Qed.
 
 Lemma data_at__memory_block_cancel:
    forall sh t p, 
-       data_at_ sh t p |-- memory_block sh (sizeof cenv_cs t) p.
+       data_at_ sh t p |-- memory_block sh (sizeof t) p.
 Proof.
   intros.
   rewrite data_at__memory_block.
@@ -1014,7 +1014,7 @@ Qed.
 
 Lemma data_at_memory_block:
   forall sh t v p, 
-     data_at sh t v p |-- memory_block sh (sizeof cenv_cs t) p.
+     data_at sh t v p |-- memory_block sh (sizeof t) p.
 Proof.
   intros.
   eapply derives_trans; [apply data_at_data_at_; reflexivity |].
@@ -1076,10 +1076,10 @@ Lemma withspacer_field_at__Tunion: forall sh t gfs i id a p,
   in_members i (co_members (get_co id)) ->
   withspacer sh
    (nested_field_offset t gfs +
-    sizeof cenv_cs (field_type i (co_members (get_co id))))
-   (nested_field_offset t gfs + sizeof cenv_cs (nested_field_type t gfs))
+    sizeof (field_type i (co_members (get_co id))))
+   (nested_field_offset t gfs + sizeof (nested_field_type t gfs))
    (field_at_ sh t (gfs UDOT i)) p =
-  memory_block sh (sizeof cenv_cs (nested_field_type t gfs)) (field_address t gfs p).
+  memory_block sh (sizeof (nested_field_type t gfs)) (field_address t gfs p).
 Proof.
   intros.
   rewrite withspacer_spacer.
@@ -1109,7 +1109,7 @@ Proof.
   spec HH; [unfold field_compatible in *; tauto |].
   rewrite spacer_sepcon_memory_block.
   + reflexivity.
-  + pose proof sizeof_pos cenv_cs (field_type i (co_members (get_co id))); omega.
+  + pose proof sizeof_pos (field_type i (co_members (get_co id))); omega.
   + omega.
   + split.
     - rewrite sizeof_Tunion.
@@ -1208,10 +1208,10 @@ Proof.
               withspacer sh
                 (nested_field_offset t gfs +
                 (field_offset cenv_cs (fst it) (co_members (get_co id)) +
-                 sizeof cenv_cs (field_type (fst it) (co_members (get_co id)))))
+                 sizeof (field_type (fst it) (co_members (get_co id)))))
                 (nested_field_offset t gfs +
                  field_offset_next cenv_cs (fst it) (co_members (get_co id))
-                   (sizeof cenv_cs (nested_field_type t gfs)))
+                   (sizeof (nested_field_type t gfs)))
                 (field_at sh t (gfs DOT fst it) v) p)); auto.
     apply get_co_members_no_replicate.
   } Unfocus.
@@ -1253,10 +1253,10 @@ Proof.
             (fun it v p =>
               withspacer sh
                 (nested_field_offset t gfs +
-                 sizeof cenv_cs
+                 sizeof
                    (field_type (fst it) (co_members (get_co id))))
                 (nested_field_offset t gfs +
-                 sizeof cenv_cs (nested_field_type t gfs))
+                 sizeof (nested_field_type t gfs))
                 (field_at sh t (gfs UDOT fst it) v) p)); auto.
     2: apply get_co_members_no_replicate.
     instantiate (1 := default_val _).
@@ -1298,7 +1298,7 @@ Qed.
 Lemma data_at_valid_ptr:
   forall sh t v p,
      sepalg.nonidentity sh ->
-     sizeof cenv_cs t > 0 ->
+     sizeof t > 0 ->
      data_at sh t v p |-- valid_pointer p.
 Proof.
   intros.
@@ -1311,7 +1311,7 @@ Qed.
 Lemma field_at_valid_ptr:
   forall sh t path v p, 
      sepalg.nonidentity sh ->
-     sizeof cenv_cs (nested_field_type t path) > 0 ->
+     sizeof (nested_field_type t path) > 0 ->
      field_at sh t path v p |-- valid_pointer (field_address t path p).
 Proof.
 intros.
@@ -1322,7 +1322,7 @@ Qed.
 Lemma field_at_valid_ptr0:
   forall sh t path v p, 
      sepalg.nonidentity sh ->
-     sizeof cenv_cs (nested_field_type t path) > 0 ->
+     sizeof (nested_field_type t path) > 0 ->
      nested_field_offset t path = 0 ->
      field_at sh t path v p |-- valid_pointer p.
 Proof.
@@ -1515,7 +1515,7 @@ Qed.
 
 Lemma field_at_conflict: forall sh t fld p v v',
   sepalg.nonidentity sh ->
-  0 < sizeof cenv_cs (nested_field_type t fld) < Int.modulus ->
+  0 < sizeof (nested_field_type t fld) < Int.modulus ->
   legal_alignas_type t = true ->
   field_at sh t fld v p * field_at sh t fld v' p|-- FF.
 Proof.
@@ -1534,7 +1534,7 @@ Qed.
 Lemma data_at_conflict: forall sh t v v' p,
   sepalg.nonidentity sh ->
   field_compatible t nil p ->
-  0 < sizeof cenv_cs t < Int.modulus ->
+  0 < sizeof t < Int.modulus ->
   data_at sh t v p * data_at sh t v' p |-- FF.
 Proof.
   intros. unfold data_at. apply field_at_conflict; auto.
@@ -1544,7 +1544,7 @@ Qed.
 Lemma field_at__conflict:
   forall sh t fld p,
   sepalg.nonidentity sh ->
-  0 < sizeof cenv_cs (nested_field_type t fld) < Int.modulus ->
+  0 < sizeof (nested_field_type t fld) < Int.modulus ->
   legal_alignas_type t = true ->
         field_at_ sh t fld p
         * field_at_ sh t fld p |-- FF.
@@ -1608,7 +1608,7 @@ Lemma var_block_data_at_:
   legal_alignas_type t = true ->
   legal_cosu_type t = true ->
   complete_type cenv_cs t = true ->
-  Z.ltb (sizeof cenv_cs t) Int.modulus = true ->
+  Z.ltb (sizeof t) Int.modulus = true ->
   readable_share sh ->
   var_block sh (id, t) = `(data_at_ sh t) (eval_lvar id t).
 Proof.
@@ -1630,9 +1630,9 @@ Proof.
   unfold isptr, legal_nested_field, size_compatible, align_compatible.
   change (Int.unsigned Int.zero) with 0.
   rewrite Z.add_0_l.
-  pose proof Z.divide_0_r (alignof cenv_cs t).
-  assert (sizeof cenv_cs t <= Int.modulus) by omega.
-  assert (sizeof cenv_cs t <= Int.max_unsigned) by (unfold Int.max_unsigned; omega).
+  pose proof Z.divide_0_r (alignof t).
+  assert (sizeof t <= Int.modulus) by omega.
+  assert (sizeof t <= Int.max_unsigned) by (unfold Int.max_unsigned; omega).
   tauto.
 Qed.
 
@@ -1904,7 +1904,7 @@ Ltac unfold_data_at N  :=
 Lemma field_at_ptr_neq{cs: compspecs} :
    forall sh t fld p1 p2 v1 v2,
   sepalg.nonidentity sh ->
- 0 < sizeof cenv_cs (nested_field_type t (fld :: nil)) < Int.modulus ->
+ 0 < sizeof (nested_field_type t (fld :: nil)) < Int.modulus ->
  legal_alignas_type t = true ->
    field_at sh t (fld::nil) v1 p1 *
    field_at sh t (fld::nil) v2 p2
@@ -1920,7 +1920,7 @@ Qed.
 Lemma field_at_ptr_neq_andp_emp{cs: compspecs} : 
     forall sh t fld p1 p2 v1 v2,
   sepalg.nonidentity sh ->
- 0 < sizeof cenv_cs (nested_field_type t (fld :: nil)) < Int.modulus ->
+ 0 < sizeof (nested_field_type t (fld :: nil)) < Int.modulus ->
  legal_alignas_type t = true ->
    field_at sh t (fld::nil) v1 p1 *
    field_at sh t (fld::nil) v2 p2
@@ -2063,7 +2063,7 @@ struct_pred m
      (v0 : reptype (field_type (fst it) m)) =>
    withspacer sh1
      (field_offset cenv_cs (fst it) m +
-      sizeof cenv_cs (field_type (fst it) m))
+      sizeof (field_type (fst it) m))
      (field_offset_next cenv_cs (fst it) m
         sz)
      (at_offset
@@ -2074,7 +2074,7 @@ struct_pred m
      (v0 : reptype (field_type (fst it) m)) =>
    withspacer sh2
      (field_offset cenv_cs (fst it) m +
-      sizeof cenv_cs (field_type (fst it) m))
+      sizeof (field_type (fst it) m))
      (field_offset_next cenv_cs (fst it) m
         sz)
      (at_offset
@@ -2085,7 +2085,7 @@ struct_pred m
      (v0 : reptype (field_type (fst it) m)) =>
    withspacer sh
      (field_offset cenv_cs (fst it) m +
-      sizeof cenv_cs (field_type (fst it) m))
+      sizeof (field_type (fst it) m))
      (field_offset_next cenv_cs (fst it) m
         sz)
      (at_offset
@@ -2105,7 +2105,7 @@ Transparent field_offset. Transparent field_type.
     rewrite !withspacer_spacer.
     rewrite <- !sepcon_assoc.
     forget (field_offset cenv_cs i ((i, t) :: nil) +
-    sizeof cenv_cs (field_type i ((i, t) :: nil))) as J.
+    sizeof (field_type i ((i, t) :: nil))) as J.
     forget (field_offset_next cenv_cs i ((i, t) :: nil) sz) as K.
     pull_left (spacer sh2 J K q);
     pull_left (spacer sh1 J K q).
@@ -2121,7 +2121,7 @@ Transparent field_offset. Transparent field_type.
      (v0 : reptype (field_type (fst it) mems)) =>
    withspacer sh
      (field_offset cenv_cs (fst it) mems +
-      sizeof cenv_cs (field_type (fst it) mems))
+      sizeof (field_type (fst it) mems))
      (field_offset_next cenv_cs (fst it) mems sz)
      (at_offset (data_at' sh (field_type (fst it) mems) v0)
         (field_offset cenv_cs (fst it) mems)))).
@@ -2139,7 +2139,7 @@ Transparent field_offset. Transparent field_type.
     unfold Q at 1 3 5. rewrite !withspacer_spacer.
     rewrite <- !sepcon_assoc.
     forget (field_offset cenv_cs (fst (i, t)) ((i, t) :: p :: m) +
-   sizeof cenv_cs (field_type (fst (i, t)) ((i, t) :: p :: m))) as J.
+   sizeof (field_type (fst (i, t)) ((i, t) :: p :: m))) as J.
     forget(field_offset_next cenv_cs (fst (i, t)) ((i, t) :: p :: m) sz) as K.
     pull_left (spacer sh2 J K q);
     pull_left (spacer sh1 J K q).
@@ -2208,24 +2208,24 @@ rewrite !data_at'_ind;
   rewrite !Z.sub_0_r.
 replace (fun i : Z =>
    at_offset (data_at' sh1 t0 (Znth (i - 0) vl (default_val t0)))
-     (sizeof cenv_cs t0 * i))
+     (sizeof t0 * i))
  with (fun i : Z =>
    at_offset (data_at' sh1 t0 (Znth i vl (default_val t0)))
-     (sizeof cenv_cs t0 * i))
+     (sizeof t0 * i))
   by (extensionality i; rewrite Z.sub_0_r; auto).
 replace (fun i : Z =>
    at_offset (data_at' sh2 t0 (Znth (i - 0) vl (default_val t0)))
-     (sizeof cenv_cs t0 * i))
+     (sizeof t0 * i))
  with (fun i : Z =>
    at_offset (data_at' sh2 t0 (Znth i vl (default_val t0)))
-     (sizeof cenv_cs t0 * i))
+     (sizeof t0 * i))
   by (extensionality i; rewrite Z.sub_0_r; auto).
 replace (fun i : Z =>
    at_offset (data_at' sh t0 (Znth (i - 0) vl (default_val t0)))
-     (sizeof cenv_cs t0 * i))
+     (sizeof t0 * i))
  with (fun i : Z =>
    at_offset (data_at' sh t0 (Znth i vl (default_val t0)))
-     (sizeof cenv_cs t0 * i))
+     (sizeof t0 * i))
   by (extensionality i; rewrite Z.sub_0_r; auto).
   forget 0 as lo.
   revert lo vl ; induction n; intros.
@@ -2294,7 +2294,7 @@ Lemma nonreadable_memory_block_data_at':
    forall {cs: compspecs} sh t v p,
    ~ readable_share sh ->
     field_compatible t nil p ->
-    memory_block sh (sizeof cenv_cs t) p = data_at' sh t v p.
+    memory_block sh (sizeof t) p = data_at' sh t v p.
 Proof.
 intros.
 hnf in H0.
@@ -2309,7 +2309,7 @@ Lemma nonreadable_memory_block_data_at:
   ~ readable_share sh ->
    field_compatible t nil p ->
    value_fits t v ->
-   memory_block sh (sizeof cenv_cs t) p = data_at sh t v p.
+   memory_block sh (sizeof t) p = data_at sh t v p.
 Proof.
 intros.
 unfold data_at, field_at.
@@ -2341,7 +2341,7 @@ Lemma nonreadable_readable_memory_block_data_at_join
   forall ash bsh psh t v p,
     sepalg.join ash bsh psh ->
     ~ readable_share ash ->   
-   memory_block ash (sizeof cenv_cs t) p * data_at bsh t v p = data_at psh t v p.
+   memory_block ash (sizeof t) p * data_at bsh t v p = data_at psh t v p.
 Proof.
 intros.
 apply pred_ext; saturate_local.
@@ -2430,7 +2430,7 @@ Lemma mapsto_data_at {cs: compspecs} sh t v v' p :  (* not needed here *)
   legal_alignas_type t = true ->
   legal_cosu_type t = true ->
   complete_type cenv_cs t = true ->
-  sizeof cenv_cs t < Int.modulus ->
+  sizeof t < Int.modulus ->
   (v <> Vundef -> tc_val t v) ->
   JMeq v v' ->
   mapsto sh t p v = data_at sh t v' p.

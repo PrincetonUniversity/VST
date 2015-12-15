@@ -165,7 +165,7 @@ typedef more_aligned_int more_aligned_int_array[5];
 *)
 
 Definition local_legal_alignas_type (t: type): bool :=
-  Z.leb (plain_alignof cenv_cs t) (alignof cenv_cs t) &&
+  Z.leb (plain_alignof cenv_cs t) (alignof t) &&
   match t with
   | Tarray t' n a => match attr_alignas (attr_of_type t') with 
                               | None => Z.leb 0 n
@@ -193,7 +193,7 @@ Qed.
 
 Lemma local_legal_alignas_type_spec: forall t,
   local_legal_alignas_type t = true ->
-  (plain_alignof cenv_cs t | alignof cenv_cs t).
+  (plain_alignof cenv_cs t | alignof t).
 Proof.
   intros.
   apply andb_true_iff in H.
@@ -204,13 +204,13 @@ Qed.
   
 Lemma local_legal_alignas_type_Tarray: forall t z a,
   local_legal_alignas_type (Tarray t z a) = true ->
-  alignof cenv_cs t = plain_alignof cenv_cs t.
+  alignof t = plain_alignof cenv_cs t.
 Proof.
   intros.
   unfold local_legal_alignas_type in H.
   apply andb_true_iff in H.
   destruct H as [_ ?].
-  rewrite plain_alignof_spec.
+  unfold alignof; rewrite plain_alignof_spec.
   unfold align_attr.
   destruct (attr_alignas (attr_of_type t)); [inversion H |].
   auto.
@@ -218,7 +218,7 @@ Qed.
 
 Lemma local_legal_alignas_type_Tstruct: forall id a,
   local_legal_alignas_type (Tstruct id a) = true ->
-  (alignof_composite cenv_cs (co_members (get_co id)) | alignof cenv_cs (Tstruct id a)).
+  (alignof_composite cenv_cs (co_members (get_co id)) | alignof (Tstruct id a)).
 Proof.
   intros.
   eapply Z.divide_trans; [| apply local_legal_alignas_type_spec; auto].
@@ -232,7 +232,7 @@ Qed.
 
 Lemma local_legal_alignas_type_Tunion: forall id a,
   local_legal_alignas_type (Tunion id a) = true ->
-  (alignof_composite cenv_cs (co_members (get_co id)) | alignof cenv_cs (Tunion id a)).
+  (alignof_composite cenv_cs (co_members (get_co id)) | alignof (Tunion id a)).
 Proof.
   intros.
   eapply Z.divide_trans; [| apply local_legal_alignas_type_spec; auto].
@@ -246,7 +246,7 @@ Qed.
 
 Lemma legal_alignas_type_spec: forall t,
   legal_alignas_type t = true ->
-  (plain_alignof cenv_cs t | alignof cenv_cs t).
+  (plain_alignof cenv_cs t | alignof t).
 Proof.
   intros.
   unfold legal_alignas_type in H.
@@ -256,7 +256,7 @@ Qed.
 
 Lemma legal_alignas_type_Tarray: forall t z a,
   legal_alignas_type (Tarray t z a) = true ->
-  alignof cenv_cs t = plain_alignof cenv_cs t.
+  alignof t = plain_alignof cenv_cs t.
 Proof.
   intros.
   unfold legal_alignas_type in H.
@@ -267,7 +267,7 @@ Qed.
 
 Lemma legal_alignas_type_Tstruct: forall id a,
   legal_alignas_type (Tstruct id a) = true ->
-  (alignof_composite cenv_cs (co_members (get_co id)) | alignof cenv_cs (Tstruct id a)).
+  (alignof_composite cenv_cs (co_members (get_co id)) | alignof (Tstruct id a)).
 Proof.
   intros.
   unfold legal_alignas_type in H.
@@ -277,7 +277,7 @@ Qed.
 
 Lemma legal_alignas_type_Tunion: forall id a,
   legal_alignas_type (Tunion id a) = true ->
-  (alignof_composite cenv_cs (co_members (get_co id)) | alignof cenv_cs (Tunion id a)).
+  (alignof_composite cenv_cs (co_members (get_co id)) | alignof (Tunion id a)).
 Proof.
   intros.
   unfold legal_alignas_type in H.
@@ -286,7 +286,7 @@ Proof.
 Qed.
 
 Lemma legal_alignas_sizeof_alignof_compat: forall t,
-  legal_alignas_type t = true -> (plain_alignof cenv_cs t | sizeof cenv_cs t).
+  legal_alignas_type t = true -> (plain_alignof cenv_cs t | sizeof t).
 Proof.
   intros.
   revert H.
@@ -299,18 +299,18 @@ Proof.
     unfold Z.divide. exists 2. reflexivity.
   - apply Z.divide_refl.
   - simpl.
-    erewrite legal_alignas_type_Tarray by eauto.
+    fold (alignof t); erewrite legal_alignas_type_Tarray by eauto.
     apply (nested_pred_Tarray local_legal_alignas_type) in H.
     apply IH in H.
     apply Z.divide_mul_l.
     exact H.
   - apply Z.divide_refl.
-  - unfold plain_alignof.
+  - unfold plain_alignof, sizeof.
     simpl.
     destruct (cenv_cs ! id) as [co |] eqn:CO.
     * apply co_sizeof_alignof.
     * exists 0; auto.
-  - unfold plain_alignof.
+  - unfold plain_alignof, sizeof.
     simpl.
     destruct (cenv_cs ! id) as [co |] eqn:CO.
     * apply co_sizeof_alignof.
@@ -319,7 +319,7 @@ Qed.
 
 Lemma alignof_divide_alignof_Tarray: forall t z a,
   legal_alignas_type (Tarray t z a) = true ->
-  (alignof cenv_cs t | alignof cenv_cs (Tarray t z a)).
+  (alignof t | alignof (Tarray t z a)).
 Proof.
   intros.
   apply legal_alignas_type_spec; auto.
@@ -367,8 +367,8 @@ Proof.
 Qed.
 
 Lemma Tarray_sizeof_0: forall t n a,
-  sizeof cenv_cs (Tarray t n a) = 0 ->
-  sizeof cenv_cs t = 0 \/ n <= 0.
+  sizeof (Tarray t n a) = 0 ->
+  sizeof t = 0 \/ n <= 0.
 Proof.
   intros.
   simpl in H.
@@ -382,12 +382,12 @@ Qed.
 
 Lemma Tstruct_sizeof_0: forall id a,
   legal_cosu_type (Tstruct id a) = true ->
-  sizeof cenv_cs (Tstruct id a) = 0 ->
+  sizeof (Tstruct id a) = 0 ->
   forall i, in_members i (co_members (get_co id)) ->
-  sizeof cenv_cs (field_type i (co_members (get_co id))) = 0 /\
+  sizeof (field_type i (co_members (get_co id))) = 0 /\
   field_offset_next cenv_cs i (co_members (get_co id)) (co_sizeof (get_co id)) -
    (field_offset cenv_cs i (co_members (get_co id)) +
-      sizeof cenv_cs (field_type i (co_members (get_co id)))) = 0.
+      sizeof (field_type i (co_members (get_co id)))) = 0.
 Proof.
   intros.
   rewrite sizeof_Tstruct in H0.
@@ -404,9 +404,9 @@ Qed.
 
 Lemma Tunion_sizeof_0: forall id a,
   legal_cosu_type (Tunion id a) = true ->
-  sizeof cenv_cs (Tunion id a) = 0 ->
+  sizeof (Tunion id a) = 0 ->
   forall i, in_members i (co_members (get_co id)) ->
-  sizeof cenv_cs (field_type i (co_members (get_co id))) = 0.
+  sizeof (field_type i (co_members (get_co id))) = 0.
 Proof.
   intros.
   rewrite sizeof_Tunion in H0.
@@ -454,10 +454,10 @@ Ltac pose_size_mult' env t l :=
   | nil => idtac
   | ?z :: ?l0 =>
     match l0 with
-    | nil => pose_mul_distr_l (sizeof env t) z
-    | ?z0 :: _ => pose_mul_distr_l (sizeof env t) z;
-                  assert (sizeof env t * z <= sizeof env t * z0) by
-                    (pose proof sizeof_pos env t; apply Zmult_le_compat_l; omega);
+    | nil => pose_mul_distr_l (@sizeof env t) z
+    | ?z0 :: _ => pose_mul_distr_l (@sizeof env t) z;
+                  assert (@sizeof env t * z <= @sizeof env t * z0) by
+                    (pose proof @sizeof_pos env t; apply Zmult_le_compat_l; omega);
                   pose_size_mult' env t l0
     end
   end.
@@ -474,9 +474,9 @@ Definition sizeof_struct_le := sizeof_struct.
 Ltac pose_align_le :=
   repeat
   match goal with
-  | |- context [align ?A (alignof ?env ?t)] =>
-         assert (A <= align A (alignof env t)) by (apply align_le, alignof_pos);
-         change (align A (alignof env t)) with (align_alignof A (alignof env t))
+  | |- context [align ?A (@alignof ?env ?t)] =>
+         assert (A <= align A (@alignof env t)) by (apply align_le, @alignof_pos);
+         change (align A (@alignof env t)) with (align_alignof A (@alignof env t))
   | |- context [align ?A (co_alignof ?co)] =>
          let x := fresh "x" in
          assert (A <= align A (co_alignof co)) by (apply align_le; destruct (co_alignof_two_p co) as [x ?];
@@ -489,14 +489,14 @@ Ltac pose_align_le :=
   try unfold align_alignof in *;
   try unfold sizeof_struct_le in *.
 
-Definition sizeofp := sizeof.
+Definition sizeofp := @sizeof.
 
 Ltac pose_sizeof_pos :=
   repeat
   match goal with
-  | |- context [sizeof ?env ?t] =>
-         pose proof sizeof_pos env t;
-         change (sizeof env t) with (sizeofp env t)
+  | |- context [@sizeof ?env ?t] =>
+         pose proof @sizeof_pos env t;
+         change (@sizeof env t) with (sizeofp env t)
   end;
   unfold sizeofp in *.
 
@@ -522,19 +522,19 @@ Ltac pose_sizeof_co t :=
 Ltac pose_field :=
   match goal with
   | _ : legal_cosu_type (Tstruct ?id ?a) = true |-
-    context [sizeof cenv_cs (field_type ?i (co_members (get_co ?id)))] =>
+    context [@sizeof cenv_cs (field_type ?i (co_members (get_co ?id)))] =>
       pose_sizeof_co (Tstruct id a);
       let H := fresh "H" in
       pose proof field_offset_in_range i (co_members (get_co id)) as H;
       spec H; [solve [auto] |];
-      pose proof sizeof_pos cenv_cs (field_type i (co_members (get_co id)))
+      pose proof @sizeof_pos cenv_cs (field_type i (co_members (get_co id)))
   | _ : legal_cosu_type (Tunion ?id ?a) = true |-
-    context [sizeof cenv_cs (field_type ?i (co_members (get_co ?id)))] =>
+    context [@sizeof cenv_cs (field_type ?i (co_members (get_co ?id)))] =>
       pose_sizeof_co (Tunion id a);
       let H := fresh "H" in
       pose proof sizeof_union_in_members i (co_members (get_co id)) as H;
       spec H; [solve [auto] |];
-      pose proof sizeof_pos cenv_cs (field_type i (co_members (get_co id)))
+      pose proof @sizeof_pos cenv_cs (field_type i (co_members (get_co id)))
   | _ => idtac
   end;
   match goal with
@@ -552,14 +552,14 @@ Ltac pose_field :=
 Ltac pose_field :=
   match goal with
   | _ : legal_cosu_type (Tstruct ?id ?a) = true |-
-    context [sizeof cenv_cs (field_type2 ?i (co_members (get_co ?id)))] =>
+    context [sizeof (field_type2 ?i (co_members (get_co ?id)))] =>
       pose_sizeof_co (Tstruct id a);
       let H := fresh "H" in
       pose proof field_offset2_in_range i (co_members (get_co id)) as H;
       spec H; [solve [auto] |];
       pose proof sizeof_pos cenv_cs (field_type2 i (co_members (get_co id)))
   | _ : legal_cosu_type (Tunion ?id ?a) = true |-
-    context [sizeof cenv_cs (field_type2 ?i (co_members (get_co ?id)))] =>
+    context [sizeof (field_type2 ?i (co_members (get_co ?id)))] =>
       pose_sizeof_co (Tunion id a);
       let H := fresh "H" in
       pose proof sizeof_union_in_members i (co_members (get_co id)) as H;

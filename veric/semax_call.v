@@ -877,7 +877,7 @@ match goal with |- ?A |-- _ =>
             (fn_vars f)))
 end.
  2: clear; induction (fn_vars f); simpl; f_equal; auto.
- unfold var_block. simpl. unfold eval_lvar.
+ unfold var_block. unfold eval_lvar. simpl.
   rewrite H0. unfold make_venv. forget (ge_of rho) as ZZ. rewrite H0 in H7; clear rho H0.
  revert ve H1 H7; induction (fn_vars f); simpl; intros.
  case_eq (PTree.elements ve); simpl; intros; auto.
@@ -898,12 +898,12 @@ end.
  destruct (@PTree.elements_remove _ id (b,ty) ve H) as [l1 [l2 [? ?]]].
  rewrite H0.
  rewrite map_app. simpl map.
- apply derives_trans with (freeable_blocks ((b,0,sizeof ge ty) ::  (map (block_of_binding ge) (l1 ++ l2)))).
+ apply derives_trans with (freeable_blocks ((b,0,@sizeof ge ty) ::  (map (block_of_binding ge) (l1 ++ l2)))).
  Focus 2. {
    clear.
    induction l1; simpl; try auto.
    destruct a as [id' [hi lo]]. simpl. rewrite <- sepcon_assoc. 
-   rewrite (sepcon_comm (VALspec_range (sizeof ge ty - 0) Share.top Share.top (b, 0))).
+   rewrite (sepcon_comm (VALspec_range (@sizeof ge ty - 0) Share.top Share.top (b, 0))).
    rewrite sepcon_assoc. apply sepcon_derives; auto.
  } Unfocus.
  unfold freeable_blocks; simpl. rewrite <- H2.
@@ -920,15 +920,15 @@ end.
  Focus 2.
  rewrite Int.unsigned_zero. rewrite Zplus_0_r.
  rewrite Coqlib.nat_of_Z_eq; auto.
- pose proof (sizeof_pos cenv_cs ty); omega.
- replace (sizeof ge ty - 0) with (sizeof ge ty) by omega.
+ pose proof (sizeof_pos ty); omega.
+ rewrite Z.sub_0_r.
  unfold memory_block'_alt.
  rewrite Share.contains_Rsh_e by apply top_correct'.
  rewrite Share.contains_Lsh_e by apply top_correct'.
  rewrite if_true by apply readable_share_top.
  rewrite Coqlib.nat_of_Z_eq.
  + rewrite HGG. auto.
- + pose proof (sizeof_pos cenv_cs ty); omega.
+ + pose proof (sizeof_pos ty); omega.
 }
  eapply derives_trans; [ | apply IHl]; clear IHl.
  clear - H3.
@@ -1118,7 +1118,7 @@ Proof.
   unfold var_block in H3.
   normalize in H3.
   simpl in H3.
-  assert (0 <= sizeof cenv_cs t) by (pose proof (sizeof_pos cenv_cs t); omega).
+  assert (0 <= sizeof t) by (pose proof (sizeof_pos t); omega).
   simpl in H5.
   unfold eval_lvar, Map.get in H3. simpl in H3.
   unfold make_venv in H3.
@@ -1830,7 +1830,7 @@ Proof.
    apply juicy_mem_alloc_cohere. apply Ple_refl.
  destruct a as [id ty].
  unfold alloc_juicy_variables in H; fold alloc_juicy_variables in H.
- revert H; case_eq (juicy_mem_alloc jm 0 (sizeof ge ty)); intros jm1 b1 ? ?.
+ revert H; case_eq (juicy_mem_alloc jm 0 (@sizeof ge ty)); intros jm1 b1 ? ?.
  pose proof (juicy_mem_alloc_succeeds _ _ _ _ _ H).
 (*  rewrite (juicy_mem_alloc_core _ _ _ _ _ H) in H1. *)
 (*  rewrite H2 in H1. *)
@@ -1848,7 +1848,7 @@ Proof.
  split.
  apply juicy_mem_alloc_cohere.
  rewrite (juicy_mem_alloc_at _ _ _ _ _ H).
- replace (sizeof ge ty - 0) with (sizeof ge ty) by omega.
+ rewrite Z.sub_0_r.
  destruct loc as [b z]. simpl in *.
  if_tac. destruct H2; subst b1.
  right. right. left. split. apply alloc_result in H1; subst b; xomega.
@@ -1906,7 +1906,7 @@ simpl.
  revert ve m H H1; induction vars as [ | [? ?]]; intros. inv H1; auto.
  spec IHvars. contradict n. right; auto.
  unfold alloc_juicy_variables in H1; fold alloc_juicy_variables in H1.
- destruct (juicy_mem_alloc m 0 (sizeof ge t)).
+ destruct (juicy_mem_alloc m 0 (@sizeof ge t)).
  eapply IHvars; try apply H1.
  rewrite PTree.gso; auto.
  contradict n. left. auto.
@@ -2035,7 +2035,7 @@ Lemma alloc_juicy_variables_lem2:
   forall {CS: compspecs} jm f (ge: genv) ve te jm' (F: pred rmap)
       (HGG:  genv_cenv ge = cenv_cs)
       (COMPLETE: Forall (fun it => complete_type cenv_cs (snd it) = true) (fn_vars f))
-      (Hsize: Forall (fun var => sizeof ge (snd var) <= Int.max_unsigned) (fn_vars f)),
+      (Hsize: Forall (fun var => @sizeof ge (snd var) <= Int.max_unsigned) (fn_vars f)),
       list_norepet (map fst (fn_vars f)) ->
       alloc_juicy_variables ge empty_env jm (fn_vars f) = (ve, jm') ->
       app_pred F (m_phi jm) ->
@@ -2053,7 +2053,7 @@ inv Hsize. rename H4 into Hsize'; rename H5 into Hsize.
 simpl fold_right.
 unfold alloc_juicy_variables in H0; fold alloc_juicy_variables in H0.
 destruct a as [id ty].
-destruct (juicy_mem_alloc jm 0 (sizeof ge ty)) eqn:?H.
+destruct (juicy_mem_alloc jm 0 (@sizeof ge ty)) eqn:?H.
 rewrite <- sepcon_assoc.
 inv H.
 simpl in COMPLETE; inversion COMPLETE; subst.
@@ -2075,7 +2075,7 @@ assert (Map.get (make_venv ve) id = Some (b,ty)). {
  inv H0; auto.
  unfold alloc_juicy_variables in H0; fold alloc_juicy_variables in H0.
  destruct a as [id' ty'].
- destruct (juicy_mem_alloc j 0 (sizeof ge ty')) eqn:?H.
+ destruct (juicy_mem_alloc j 0 (@sizeof ge ty')) eqn:?H.
  rewrite (IHvars _ _ H0).
  rewrite PTree.gso; auto. contradict H5. subst; left; auto.
  contradict H5; right; auto.
@@ -2084,8 +2084,9 @@ rewrite H3. rewrite eqb_type_refl.
 simpl in Hsize'.
 rewrite <- HGG.
 rewrite prop_true_andp by auto.
-assert (0 <= sizeof ge ty <= Int.max_unsigned) by (pose proof (sizeof_pos ge ty); omega).
-forget (sizeof ge ty) as n.
+assert (0 <= @sizeof ge ty <= Int.max_unsigned) by (pose proof (@sizeof_pos ge ty); omega).
+simpl.
+forget (@sizeof ge ty) as n.
 clear - H2 H1 H4.
 eapply juicy_mem_alloc_block; eauto.
 unfold Int.max_unsigned in H4; omega.

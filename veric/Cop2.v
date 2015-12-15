@@ -494,13 +494,13 @@ Definition sem_binarith
 Definition sem_add_pi {CS: compspecs} ty (v1 v2 : val) : option val :=
 match v1,v2 with
       | Vptr b1 ofs1, Vint n2 => 
-        Some (Vptr b1 (Int.add ofs1 (Int.mul (Int.repr (sizeof cenv_cs ty)) n2)))
+        Some (Vptr b1 (Int.add ofs1 (Int.mul (Int.repr (sizeof ty)) n2)))
       | _,  _ => None
       end.
 Definition sem_add_ip  {CS: compspecs} ty (v1 v2 : val) : option val :=
  match v1,v2 with
       | Vint n1, Vptr b2 ofs2 => 
-        Some (Vptr b2 (Int.add ofs2 (Int.mul (Int.repr (sizeof cenv_cs ty)) n1)))
+        Some (Vptr b2 (Int.add ofs2 (Int.mul (Int.repr (sizeof ty)) n1)))
       | _,  _ => None
       end.
  
@@ -508,7 +508,7 @@ Definition sem_add_pl {CS: compspecs} ty (v1 v2 : val) : option val :=
 match v1,v2 with
       | Vptr b1 ofs1, Vlong n2 => 
         let n2 := Int.repr (Int64.unsigned n2) in
-        Some (Vptr b1 (Int.add ofs1 (Int.mul (Int.repr (sizeof cenv_cs ty)) n2)))
+        Some (Vptr b1 (Int.add ofs1 (Int.mul (Int.repr (sizeof ty)) n2)))
       | _,  _ => None
       end.
 
@@ -516,7 +516,7 @@ Definition sem_add_lp {CS: compspecs} ty (v1 v2 : val) : option val :=
 match v1,v2 with
       | Vlong n1, Vptr b2 ofs2 => 
         let n1 := Int.repr (Int64.unsigned n1) in
-        Some (Vptr b2 (Int.add ofs2 (Int.mul (Int.repr (sizeof cenv_cs ty)) n1)))
+        Some (Vptr b2 (Int.add ofs2 (Int.mul (Int.repr (sizeof ty)) n1)))
       | _,  _ => None
       end.
 
@@ -542,7 +542,7 @@ Definition sem_add {CS: compspecs} (t1:type) (t2:type) :  val->val->option val :
 Definition sem_sub_pi {CS: compspecs} ty (v1 v2 : val) : option val :=
 match v1,v2 with
       | Vptr b1 ofs1, Vint n2 => 
-          Some (Vptr b1 (Int.sub ofs1 (Int.mul (Int.repr (sizeof cenv_cs ty)) n2)))
+          Some (Vptr b1 (Int.sub ofs1 (Int.mul (Int.repr (sizeof ty)) n2)))
       | _,  _ => None
       end.
 
@@ -550,7 +550,7 @@ Definition sem_sub_pl {CS: compspecs} ty (v1 v2 : val) : option val :=
  match v1,v2 with
       | Vptr b1 ofs1, Vlong n2 => 
           let n2 := Int.repr (Int64.unsigned n2) in
-          Some (Vptr b1 (Int.sub ofs1 (Int.mul (Int.repr (sizeof cenv_cs ty)) n2)))
+          Some (Vptr b1 (Int.sub ofs1 (Int.mul (Int.repr (sizeof ty)) n2)))
       | _,  _ => None
       end.
 
@@ -558,8 +558,8 @@ Definition sem_sub_pp {CS: compspecs} ty (v1 v2 : val) : option val :=
 match v1,v2 with
       | Vptr b1 ofs1, Vptr b2 ofs2 =>
           if eq_block b1 b2 then
-            if Int.eq (Int.repr (sizeof cenv_cs ty)) Int.zero then None
-            else Some (Vint (Int.divu (Int.sub ofs1 ofs2) (Int.repr (sizeof cenv_cs ty))))
+            if Int.eq (Int.repr (sizeof ty)) Int.zero then None
+            else Some (Vint (Int.divu (Int.sub ofs1 ofs2) (Int.repr (sizeof ty))))
           else None
       | _, _ => None
       end.

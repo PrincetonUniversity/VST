@@ -50,7 +50,7 @@ Hint Rewrite <- offset_val_force_ptr : norm.
 Lemma sem_add_pi_ptr:
    forall {cs: compspecs}  t p i, 
     isptr p ->
-    sem_add_pi t p (Vint i) = Some (offset_val (Int.mul (Int.repr (sizeof cenv_cs t)) i) p).
+    sem_add_pi t p (Vint i) = Some (offset_val (Int.mul (Int.repr (sizeof t)) i) p).
 Proof. intros. destruct p; try contradiction. reflexivity. Qed.
 Hint Rewrite @sem_add_pi_ptr using (solve [auto with norm]) : norm.
 
@@ -85,9 +85,9 @@ Proof.
 Qed.
 Hint Rewrite sem_cast_neutral_int using (solve [eauto with norm]) : norm.
 
-Lemma sizeof_tuchar: forall cenv, sizeof cenv tuchar = 1%Z.
+Lemma sizeof_tuchar: forall {cs: compspecs}, sizeof tuchar = 1%Z.
 Proof. reflexivity. Qed.
-Hint Rewrite sizeof_tuchar: norm.
+Hint Rewrite @sizeof_tuchar: norm.
 
 Hint Rewrite Z.mul_1_l Z.mul_1_r Z.add_0_l Z.add_0_r : norm.
 
@@ -1070,10 +1070,10 @@ Proof.
 Defined.
 
 Definition add_ptr_int'  {cs: compspecs}  (ty: type) (v: val) (i: Z) : val :=
-  if repable_signed_dec (sizeof cenv_cs ty * i)
+  if repable_signed_dec (sizeof ty * i)
    then match v with
       | Vptr b ofs => 
-           Vptr b (Int.add ofs (Int.repr (sizeof cenv_cs ty * i)))
+           Vptr b (Int.add ofs (Int.repr (sizeof ty * i)))
       | _ => Vundef
       end
   else Vundef.
@@ -1137,7 +1137,7 @@ Qed.
 
 Lemma add_ptr_int_eq:
   forall  {cs: compspecs}  ty v i, 
-       repable_signed (sizeof cenv_cs ty * i) ->
+       repable_signed (sizeof ty * i) ->
        add_ptr_int' ty v i = add_ptr_int ty v i.
 Proof.
  intros.
@@ -1149,9 +1149,9 @@ Qed.
 
 Lemma add_ptr_int_offset:
   forall  {cs: compspecs}  t v n, 
-  repable_signed (sizeof cenv_cs t) ->
+  repable_signed (sizeof t) ->
   repable_signed n ->
-  add_ptr_int t v n = offset_val (Int.repr (sizeof cenv_cs t * n)) v.
+  add_ptr_int t v n = offset_val (Int.repr (sizeof t * n)) v.
 Proof.
  unfold add_ptr_int; intros.
  unfold eval_binop, force_val2; destruct v; simpl; auto.
@@ -1163,8 +1163,8 @@ Qed.
 
 Lemma add_ptr_int'_offset:
   forall  {cs: compspecs}  t v n, 
-  repable_signed (sizeof cenv_cs t * n) ->
-  add_ptr_int' t v n = offset_val (Int.repr (sizeof cenv_cs t * n)) v.
+  repable_signed (sizeof t * n) ->
+  add_ptr_int' t v n = offset_val (Int.repr (sizeof t * n)) v.
 Proof.
  intros.
  unfold add_ptr_int'. 

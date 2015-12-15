@@ -1124,7 +1124,7 @@ Qed.
 Lemma gvar_size_compatible:
   forall {cs: compspecs} i s rho t, 
     gvar_denote i s rho -> 
-    sizeof cenv_cs t <= Int.modulus ->
+    sizeof t <= Int.modulus ->
     size_compatible t s.
 Proof.
 intros.
@@ -1150,7 +1150,7 @@ Qed.
 Lemma sgvar_size_compatible:
   forall {cs: compspecs} i s rho t, 
     sgvar_denote i s rho -> 
-    sizeof cenv_cs t <= Int.modulus ->
+    sizeof t <= Int.modulus ->
     size_compatible t s.
 Proof.
 intros.
@@ -1179,7 +1179,7 @@ Proof. congruence. Qed.
 Lemma lower_one_gvar:
  forall t {cs: compspecs} rho Delta P i v Q R S,
   (glob_types Delta) ! i = Some t ->
-  sizeof cenv_cs t <= Int.modulus  ->
+  sizeof t <= Int.modulus  ->
   (isptr v -> gvar_denote i v rho ->
      size_compatible t v -> align_compatible t v ->
    (local (tc_environ Delta) && PROPx P (LOCALx Q (SEPx R))) rho |-- S rho) ->
@@ -1203,7 +1203,7 @@ Qed.
 Lemma lower_one_sgvar:
  forall t {cs: compspecs}  rho Delta P i v Q R S,
   (glob_types Delta) ! i = Some t ->
-  sizeof cenv_cs t <= Int.modulus  ->
+  sizeof t <= Int.modulus  ->
   (isptr v -> sgvar_denote i v rho ->
      size_compatible t v -> align_compatible t v ->
    (local (tc_environ Delta) && PROPx P (LOCALx Q (SEPx R))) rho |-- S rho) ->

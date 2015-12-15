@@ -1070,14 +1070,14 @@ Section MEMORY_BLOCK_AGGREGATE.
 Context {cs: compspecs}.
 
 Lemma memory_block_array_pred: forall  {A} (d:A) sh t lo hi v b ofs,
-  0 <= ofs + sizeof cenv_cs t * lo /\ ofs + sizeof cenv_cs t * hi <= Int.modulus ->
+  0 <= ofs + sizeof t * lo /\ ofs + sizeof t * hi <= Int.modulus ->
   0 <= lo <= hi ->
-  sizeof cenv_cs t * (hi - lo) < Int.modulus ->
+  sizeof t * (hi - lo) < Int.modulus ->
   Zlength v = hi - lo ->
   array_pred d lo hi
-    (fun i _ p => memory_block sh (sizeof cenv_cs t) (offset_val (Int.repr (sizeof cenv_cs t * i)) p)) v
+    (fun i _ p => memory_block sh (sizeof t) (offset_val (Int.repr (sizeof t * i)) p)) v
     (Vptr b (Int.repr ofs)) =
-   memory_block sh (sizeof cenv_cs t * (hi - lo)) (Vptr b (Int.repr (ofs + sizeof cenv_cs t * lo))).
+   memory_block sh (sizeof t * (hi - lo)) (Vptr b (Int.repr (ofs + sizeof t * lo))).
 Proof.
   intros.
   unfold array_pred.
@@ -1094,7 +1094,7 @@ Proof.
     solve_mod_modulus.
     pose_size_mult cenv_cs t (0 :: hi - Z.succ lo :: hi - lo :: nil).
     rewrite IHn; [| apply arith_aux02; auto | omega | omega | omega | exact v].
-    replace (ofs + sizeof cenv_cs t * Z.succ lo) with (ofs + sizeof cenv_cs t * lo + sizeof cenv_cs t) by omega.
+    replace (ofs + sizeof  t * Z.succ lo) with (ofs + sizeof t * lo + sizeof t) by omega.
     rewrite <- memory_block_split by (auto; omega).
     f_equal.
     omega.
@@ -1102,14 +1102,14 @@ Qed.
 
 Lemma memory_block_array_pred': forall {A} (d:A)  sh t z b ofs,
   0 <= z ->
-  0 <= ofs /\ ofs + sizeof cenv_cs t * z <= Int.modulus ->
-  sizeof cenv_cs t * z < Int.modulus ->
+  0 <= ofs /\ ofs + sizeof t * z <= Int.modulus ->
+  sizeof t * z < Int.modulus ->
   array_pred d 0 z
      (fun i _ p =>
-      memory_block sh (sizeof cenv_cs t) (offset_val (Int.repr (sizeof cenv_cs t * i)) p))
+      memory_block sh (sizeof t) (offset_val (Int.repr (sizeof t * i)) p))
              (list_repeat (Z.to_nat z) d)
      (Vptr b (Int.repr ofs))  =
-  memory_block sh (sizeof cenv_cs t * z) (Vptr b (Int.repr ofs)).
+  memory_block sh (sizeof t * z) (Vptr b (Int.repr ofs)).
 Proof.
   intros.
   rewrite memory_block_array_pred.
@@ -1134,9 +1134,9 @@ Proof.
   intros sh m sz A v b ofs NIL_CASE NO_REPLI; intros.
   destruct m as [| (i0, t0) m].
   1: rewrite (NIL_CASE eq_refl), memory_block_zero; simpl; normalize.
-  assert (align 0 (alignof cenv_cs t0) = 0) by apply align_0, alignof_pos.
-  revert H0; pattern ofs at 1 4; replace ofs with (ofs + align 0 (alignof cenv_cs t0)) by omega; intros.
-  revert H; pattern sz at 2 4; replace sz with (sz - align 0 (alignof cenv_cs t0)) by omega; intros.
+  assert (align 0 (alignof t0) = 0) by apply align_0, alignof_pos.
+  revert H0; pattern ofs at 1 4; replace ofs with (ofs + align 0 (alignof t0)) by omega; intros.
+  revert H; pattern sz at 2 4; replace sz with (sz - align 0 (alignof t0)) by omega; intros.
   pattern 0 at 1; rewrite <- H1.
   clear NIL_CASE H1.
   revert H H0; generalize 0 at 1 2 4 5 6 8 10 11; revert i0 t0 v NO_REPLI;
@@ -1155,14 +1155,14 @@ Proof.
     solve_mod_modulus.
     erewrite struct_pred_ext.
     - rewrite members_no_replicate_ind in NO_REPLI; destruct NO_REPLI as [NOT_IN NO_REPLI].
-      rewrite IHm with (z := align z (alignof cenv_cs t0) + sizeof cenv_cs t0);
-        [| auto
+      rewrite IHm with (z := align z (alignof t0) + sizeof t0);
+        [| now auto
          | simpl in H |- *; pose_align_le; pose_sizeof_pos; omega 
          | pose_align_le; pose_sizeof_pos; omega].
-      replace (ofs + align (align z (alignof cenv_cs t0) + sizeof cenv_cs t0) (alignof cenv_cs t1)) with
-        (ofs + align z (alignof cenv_cs t0) +
-         (align (align z (alignof cenv_cs t0) + sizeof cenv_cs t0) (alignof cenv_cs t1) -
-          align z (alignof cenv_cs t0))) by omega.
+      replace (ofs + align (align z (alignof t0) + sizeof t0) (alignof t1)) with
+        (ofs + align z (alignof t0) +
+         (align (align z (alignof t0) + sizeof t0) (alignof t1) -
+          align z (alignof t0))) by omega.
       rewrite <- memory_block_split by
         (simpl in H; revert H; pose_align_le; pose_sizeof_pos; intros; omega).
       f_equal; omega.
@@ -1388,14 +1388,14 @@ Proof.
   + simpl in v, P.
     inversion P; subst.
     exact (withspacer sh
-            (field_offset cenv_cs i0 m0 + sizeof cenv_cs (field_type i0 m0))
+            (field_offset cenv_cs i0 m0 + sizeof (field_type i0 m0))
             (field_offset_next cenv_cs i0 m0 sz)
             (at_offset (a v) (field_offset cenv_cs i0 m0))).
   + simpl in v, P.
     destruct (ident_eq i1 i1); [| congruence].
     inversion P; subst.
     exact (withspacer sh
-            (field_offset cenv_cs i1 m0 + sizeof cenv_cs (field_type i1 m0))
+            (field_offset cenv_cs i1 m0 + sizeof (field_type i1 m0))
             (field_offset_next cenv_cs i1 m0 sz)
             (at_offset (a (fst v)) (field_offset cenv_cs i1 m0)) * IHm i0 t0 (snd v) b)%logic.
 Defined.
@@ -1406,11 +1406,11 @@ Proof.
   revert i0 t0 v P; induction m as [| (i0, t0) m]; intros ? ? v P.
   + simpl in v, P.
     inversion P; subst.
-    exact (withspacer sh (sizeof cenv_cs (field_type i0 m0)) sz (a v)).
+    exact (withspacer sh (sizeof (field_type i0 m0)) sz (a v)).
   + simpl in v, P.
     inversion P; subst.
     destruct v as [v | v].
-    - exact (withspacer sh (sizeof cenv_cs (field_type i1 m0)) sz (a v)).
+    - exact (withspacer sh (sizeof (field_type i1 m0)) sz (a v)).
     - exact (IHm i0 t0 v b).
 Defined.
 
@@ -1422,7 +1422,7 @@ Lemma struct_data_at'_aux_spec: forall m m0 sz v P,
   struct_pred m 
    (fun it v =>
       withspacer sh
-       (field_offset cenv_cs (fst it) m0 + sizeof cenv_cs (field_type (fst it) m0))
+       (field_offset cenv_cs (fst it) m0 + sizeof (field_type (fst it) m0))
        (field_offset_next cenv_cs (fst it) m0 sz)
        (at_offset (P it v) (field_offset cenv_cs (fst it) m0))) v.
 Proof.
@@ -1435,7 +1435,7 @@ Proof.
      (ListTypeGen (fun it : ident * type => reptype (field_type (fst it) m0) -> val -> mpred)
         P ((i1, t1) :: (i0, t0) :: m)) v) with
      (withspacer sh
-       (field_offset cenv_cs i1 m0 + sizeof cenv_cs (field_type i1 m0))
+       (field_offset cenv_cs i1 m0 + sizeof (field_type i1 m0))
          (field_offset_next cenv_cs i1 m0 sz)
            (at_offset (P (i1, t1) (fst v)) (field_offset cenv_cs i1 m0)) *
       struct_data_at'_aux ((i0, t0) :: m) m0 sz
@@ -1456,7 +1456,7 @@ Lemma union_data_at'_aux_spec: forall m m0 sz v P,
   union_pred m
    (fun it v =>
       withspacer sh
-       (sizeof cenv_cs (field_type (fst it) m0))
+       (sizeof (field_type (fst it) m0))
        sz
        (P it v)) v.
 Proof.
@@ -1563,7 +1563,7 @@ Definition struct_data_at'_aux_spec: forall {cs: compspecs} (sh: share) m m0 sz 
   struct_pred m 
    (fun it v =>
       withspacer sh
-       (field_offset cenv_cs (fst it) m0 + sizeof cenv_cs (field_type (fst it) m0))
+       (field_offset cenv_cs (fst it) m0 + sizeof (field_type (fst it) m0))
        (field_offset_next cenv_cs (fst it) m0 sz)
        (at_offset (P it v) (field_offset cenv_cs (fst it) m0))) v
 := @struct_data_at'_aux_spec.
@@ -1576,7 +1576,7 @@ Definition union_data_at'_aux_spec: forall {cs: compspecs} sh m m0 sz v P,
   union_pred m
    (fun it v =>
       withspacer sh
-       (sizeof cenv_cs (field_type (fst it) m0))
+       (sizeof (field_type (fst it) m0))
        sz
        (P it v)) v
 := @union_data_at'_aux_spec.
@@ -1612,14 +1612,14 @@ Definition union_value_fits_aux_spec: forall {cs: compspecs} m m0 v P,
 Definition memory_block_array_pred:
   forall {cs: compspecs} (A : Type) (d : A) sh t z b ofs,
   0 <= z ->
-  0 <= ofs /\ ofs + sizeof cenv_cs t * z <= Int.modulus ->
-  sizeof cenv_cs t * z < Int.modulus ->
+  0 <= ofs /\ ofs + sizeof t * z <= Int.modulus ->
+  sizeof t * z < Int.modulus ->
   array_pred d 0 z
      (fun i _ p =>
-      memory_block sh (sizeof cenv_cs t)
-        (offset_val (Int.repr (sizeof cenv_cs t * i)) p)) (list_repeat (Z.to_nat z) d)
+      memory_block sh (sizeof t)
+        (offset_val (Int.repr (sizeof t * i)) p)) (list_repeat (Z.to_nat z) d)
      (Vptr b (Int.repr ofs))  =
-  memory_block sh (sizeof cenv_cs t * z) (Vptr b (Int.repr ofs))
+  memory_block sh (sizeof t * z) (Vptr b (Int.repr ofs))
 := @memory_block_array_pred'.
 
 Definition memory_block_struct_pred:
