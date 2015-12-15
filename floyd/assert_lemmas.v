@@ -1354,6 +1354,7 @@ Ltac putable x :=
  | Int.unsigned ?x => putable x
  | two_power_nat ?x => putable x
  | Int.max_unsigned => idtac
+ | Int.min_signed => idtac
  | Int.max_signed => idtac
  | Int.modulus => idtac
  | ?x /\ ?y => putable x; putable y

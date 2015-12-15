@@ -86,7 +86,8 @@ Ltac hnf_localdef_list A :=
 (* | tc_env ?v :: ?Q' => hide_it v;  hnf_localdef_list Q'      *)
   | ?B :: ?C => let x := eval hnf in B in change B with x; hnf_localdef_list (x::C)
   | nil => idtac
-  | _ => let x := eval hnf in A in (change A with x); hnf_localdef_list x
+  | _ => try (is_evar A; fail 1);
+            let x := eval hnf in A in (change A with x); hnf_localdef_list x
   end.
 
 Ltac prove_local2ptree := 

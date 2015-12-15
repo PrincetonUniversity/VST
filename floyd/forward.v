@@ -490,8 +490,24 @@ Inductive Actual_parameters_cannot_be_coerced_to_formal_parameter_types := .
 Ltac check_cast_params :=
    first [reflexivity | elimtype Actual_parameters_cannot_be_coerced_to_formal_parameter_types].
 
+Inductive Witness_type_of_forward_call_does_not_match_witness_type_of_funspec:
+    Type -> Type -> Prop := .
+     
+
 Ltac find_spec_in_globals :=
-   first [reflexivity | elimtype  Cannot_find_function_spec_in_Delta].
+ first [reflexivity | 
+   match goal with
+   | |- Some (mk_funspec _ ?t1 _ _) = Some (mk_funspec _ ?t2 _ _) =>
+      first [unify t1 t2
+     | elimtype False; elimtype (Witness_type_of_forward_call_does_not_match_witness_type_of_funspec
+      t2 t1)]
+   | |- _ => elimtype  Cannot_find_function_spec_in_Delta
+  end].
+
+Inductive Cannot_analyze_LOCAL_definitions : Prop := .
+
+Ltac check_prove_local2ptree :=
+   first [prove_local2ptree | elimtype Cannot_analyze_LOCAL_definitions].
 
 Inductive Funspec_precondition_is_not_in_PROP_LOCAL_SEP_form := .
 
@@ -508,14 +524,18 @@ Ltac lookup_spec_and_change_compspecs CS :=
 
 Inductive Function_arguments_include_a_memory_load_of_type (t:type) := .
 
+Ltac goal_has_evars :=
+ match goal with |- ?A => has_evar A end.
+
 Ltac check_typecheck :=
+ first [goal_has_evars; idtac |
  try apply local_True_right; 
  entailer!;
  match goal with
  | |- typecheck_error (deref_byvalue ?T) =>
        elimtype (Function_arguments_include_a_memory_load_of_type T)
  | |- _ => idtac
- end.
+ end].
 
 Ltac prove_delete_temp := match goal with |- ?A = _ =>
   let Q := fresh "Q" in set (Q:=A); hnf in Q; subst Q; reflexivity
@@ -532,10 +552,10 @@ let Frame := fresh "Frame" in
  | apply Coq.Init.Logic.I | apply Coq.Init.Logic.I | reflexivity 
  | (clear; let H := fresh in intro H; inversion H)
  | check_parameter_types
- | prove_local2ptree
+ | check_prove_local2ptree
  | check_typecheck
  | check_funspec_precondition
- | prove_local2ptree
+ | check_prove_local2ptree
  | check_cast_params | reflexivity
  | Forall_pTree_from_elements
  | Forall_pTree_from_elements
@@ -562,10 +582,10 @@ let Frame := fresh "Frame" in
  | apply Coq.Init.Logic.I | apply Coq.Init.Logic.I | reflexivity 
  | (clear; let H := fresh in intro H; inversion H)
  | check_parameter_types
- | prove_local2ptree
+ | check_prove_local2ptree
  | check_typecheck
  | check_funspec_precondition
- | prove_local2ptree
+ | check_prove_local2ptree
  | check_cast_params | reflexivity
  | Forall_pTree_from_elements
  | Forall_pTree_from_elements
@@ -590,10 +610,10 @@ let Frame := fresh "Frame" in
  [ check_function_name | lookup_spec_and_change_compspecs CS
  | find_spec_in_globals | check_result_type
  | apply Coq.Init.Logic.I | check_parameter_types
- | prove_local2ptree
+ | check_prove_local2ptree
  | check_typecheck
  | check_funspec_precondition
- | prove_local2ptree
+ | check_prove_local2ptree
  | check_cast_params | reflexivity
  | Forall_pTree_from_elements
  | Forall_pTree_from_elements
@@ -616,10 +636,10 @@ let Frame := fresh "Frame" in
  eapply (semax_call_id01_wow witness Frame);
  [ check_function_name | lookup_spec_and_change_compspecs CS
  | find_spec_in_globals | apply Coq.Init.Logic.I | reflexivity
- | prove_local2ptree
+ | check_prove_local2ptree
  | check_typecheck
  | check_funspec_precondition
- | prove_local2ptree
+ | check_prove_local2ptree
  | check_cast_params | reflexivity
  | Forall_pTree_from_elements
  | Forall_pTree_from_elements
@@ -641,10 +661,10 @@ let Frame := fresh "Frame" in
  eapply (semax_call_id00_wow witness Frame);
  [ check_function_name | lookup_spec_and_change_compspecs CS
  | find_spec_in_globals | check_result_type | check_parameter_types
- | prove_local2ptree
+ | check_prove_local2ptree
  | check_typecheck
  | check_funspec_precondition
- | prove_local2ptree
+ | check_prove_local2ptree
  | check_cast_params | reflexivity
  | Forall_pTree_from_elements
  | Forall_pTree_from_elements
