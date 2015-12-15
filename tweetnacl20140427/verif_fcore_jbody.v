@@ -493,7 +493,7 @@ Time forward_for_simple_bound 4 (EX m:Z,
   rewrite Z.add_comm. rewrite Z2Nat.inj_add; try omega.
     assert (SS: (Z.to_nat 1 + Z.to_nat m)%nat = S (Z.to_nat m)) by reflexivity.
     rewrite SS; simpl.
-    exists wlist1, _id0.
+    exists wlist1, tm.
     assert (WL1: Zlength wlist1 = 16). erewrite WLIST'_length. 2: eassumption. assumption.
     split. rewrite upd_Znth_Zlength. eapply WLIST'_length; eassumption.
            rewrite WL1. omega.
@@ -503,7 +503,7 @@ Time forward_for_simple_bound 4 (EX m:Z,
 Time entailer!. (*3.7 versus 5.8*)
 Intros l. Exists l. Time entailer!. (*0.5 versus 0.7*)
 split. (*rewrite Zlength_map in H20.*) assumption.
-destruct H6 as [l1 [tm1 [ZL1 [XX1 [Z3 HL1]]]]].
+destruct H1 as [l1 [tm1 [ZL1 [XX1 [Z3 HL1]]]]].
 destruct XX1 as [l2 [tm2 [ZL2 [XX2 [Z2 HL2]]]]].
 destruct XX2 as [l3 [tm3 [ZL3 [XX3 [Z1 HL3]]]]].
 destruct XX3 as [l4 [tm4 [ZL4 [XX4 [Z0 HL4]]]]].
@@ -1015,6 +1015,6 @@ Proof. intros. abbreviate_semax.
    freeze [0;2] FR3.
    eapply semax_post. 2: apply (array_copy2 Espec (FRZL FR3)); trivial.
    intros ek vl. apply andp_left2.
-   apply assert_lemmas.normal_ret_assert_derives'.
-   thaw FR3. Intros l. Exists l. Time entailer!. (*8*)   
+   apply assert_lemmas.normal_ret_assert_derives'. Intros l.
+   thaw FR3. Exists l. old_go_lower. Time entailer!. (*8*)   (*TODO: eliminate old_go_lower*)
 Time Qed. (*13.7*)

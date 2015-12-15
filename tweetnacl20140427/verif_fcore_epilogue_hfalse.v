@@ -139,7 +139,7 @@ Focus 2.
           - omega.
           - rewrite Zlength_sublist, Zminus_0_r; omega.
         + assert (IX: ii = i) by omega. subst ii. clear g INV_l.
-          exists xi. split; trivial. exists _id1; split; trivial.
+          exists xi. split; trivial. exists yi; split; trivial.
           rewrite sublist_app2; rewrite Zlength_sublist; try rewrite Zminus_0_r; try omega.
           rewrite Zminus_diag, Z.add_simpl_l.
 (*          autorewrite with sublist.*)

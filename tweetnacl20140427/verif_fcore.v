@@ -309,7 +309,7 @@ destruct data as [[? ?] [? ?]].
 Exists snuffleRes l.
 rewrite H0, <- H1, H. clear - H2.
 Time normalize. (*1.4*)
-Exists intsums. Time entailer!. (*6.8*)
+Exists intsums. old_go_lower. Time entailer!. (*6.8*) (*TODO: eliminate old_go_lower*)
 Qed.
 
 Lemma HFalsePOST F t y x w nonce out c k h snuffleRes l data OUT: 
@@ -325,7 +325,7 @@ unfold HFalsePostCond, fcore_EpiloguePOST.
 destruct data as [[? ?] [? ?]].
 Exists snuffleRes l.
 rewrite H0, <- H1, H. clear - H2.
-Time entailer!. (*3.4*)
+old_go_lower. Time entailer!. (*3.4*) (*TODO: eliminate old_go_lower*)
 Intros intsums. Time Exists intsums; entailer!. (*0.8*) 
 Qed.
     
@@ -335,13 +335,6 @@ Lemma core_spec_ok: semax_body SalsaVarSpecs SalsaFunSpecs
        f_core core_spec.
 Proof. unfold core_spec, f_core_POST.
 start_function. abbreviate_semax.
-name out' _out.
-name in' _in.
-name k' _k.
-name c' _c.
-name h' _h.
-name aux' _aux.
-(*VST Issue: can we automate these renamings?*)
 rename lvar3 into t.
 rename lvar2 into y.
 rename lvar1 into x.
@@ -427,7 +420,7 @@ apply semax_seq with (Q:=fcore_EpiloguePOST t y x w nonce out c k h OUT data).
     Exists t y x w. thaw FR2. Time entailer!. (*4.6 versus 8.4*)
 (*    unfold fcorePOST_SEP, CoreInSEP. 
     (*destruct H as [YS SNUFF]. *)*)
-    rewrite Zlength_map in H7. (* apply Zlength_length in H6; try omega; simpl in H6.*)
+    rewrite Zlength_map in H2. (* apply Zlength_length in H6; try omega; simpl in H6.*)
 (*    rewrite H in *.*)
     specialize (Snuffle_length _ _ _  H0 (prepare_data_length _ )); intros L.
     unfold fcore_result.

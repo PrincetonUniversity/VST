@@ -176,7 +176,7 @@ Time forward_for_simple_bound 16 (EX m:Z,
   assert_PROP (Zlength mlist = 16) as ML by entailer. 
   apply derives_refl'. f_equal.
   eapply Znth_extensional with (d:=Vundef). omega.
-  intros k K. apply H6. omega. }
+  intros kk K. apply H1. omega. }
 Time Qed. (*16.8*)
 
 Lemma f_core_loop3: forall (Espec : OracleKind) FR
@@ -515,7 +515,7 @@ Time forward_for_simple_bound 20 (EX i:Z,
     intros; apply andp_left2.
     unfold POSTCONDITION, abbreviate.
     apply assert_lemmas.normal_ret_assert_derives'.
-    Intros W. Exists W. Time entailer!. (*6.1*) 
+    Intros W. Exists W. old_go_lower. Time entailer!. (*6.1*) (*TODO: eliminate old_go_lower*)
     rewrite Z.add_comm, Z2Nat.inj_add; try omega.
     assert (X: (Z.to_nat 1 + Z.to_nat j = S (Z.to_nat j))%nat) by reflexivity.
     rewrite X. simpl. split. assumption. 
@@ -536,7 +536,7 @@ Time forward_for_simple_bound 20 (EX i:Z,
     unfold POSTCONDITION, abbreviate.
     apply assert_lemmas.normal_ret_assert_derives'.
   Exists wints. rewrite Z.add_comm, Z2Nat.inj_add; try omega.
-  Time entailer!. (*4.3*)
+  old_go_lower. Time entailer!. (*4.3*)(*TODO: eliminate old_go_lower*)
   rewrite SnuffleS, R; trivial.
   thaw FR2; cancel. }
 apply andp_left2; apply derives_refl. 
