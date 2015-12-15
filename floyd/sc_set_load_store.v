@@ -92,83 +92,6 @@ Transparent andp.
       simpl; intros; normalize.
 Qed.
 
-(************************************************
-
-The set, load, cast-load and store rules used before Dec 3. 2014
-
-************************************************)
-
-Inductive isolate_temp_binding {cs: compspecs} (id: ident): list localdef -> option val -> list localdef -> list Prop -> Prop :=
-| ITB_same: 
-    forall Q v v' Q' P,
-     isolate_temp_binding id Q v' Q' P ->
-     isolate_temp_binding id (temp id v::Q) (Some v) Q' 
-        match v' with Some v1 => (v=v1) :: P | None => P end
-| ITB_other:
-    forall Q v j v' Q' P,
-     Pos.eqb id j = false ->
-     isolate_temp_binding id Q v Q' P ->
-     isolate_temp_binding id (temp j v'::Q) v (temp j v' :: Q') P
-| ITB_nil:
-     isolate_temp_binding id nil None nil nil
-| ITB_lvar:
-    forall  Q v j v' t Q' P,
-     isolate_temp_binding id Q v Q' P ->
-     isolate_temp_binding id (lvar j v' t::Q) v (lvar j v' t:: Q') P
-| ITB_gvar:
-    forall  Q v j v' Q' P,
-     isolate_temp_binding id Q v Q' P ->
-     isolate_temp_binding id (gvar j v'::Q) v (gvar j v' :: Q') P
-| ITB_sgvar:
-    forall  Q v j v' Q' P,
-     isolate_temp_binding id Q v Q' P ->
-     isolate_temp_binding id (sgvar j v'::Q) v (sgvar j v' :: Q') P.
-
-Inductive trivially_lifted:  (environ->mpred) -> Prop :=
-  TL_ok: forall (R1: mpred), trivially_lifted (`R1).
-
-Lemma isolate_temp_binding_e {cs: compspecs}:
-  forall id Q old (old': val) Q' P' (rho: environ),
- isolate_temp_binding id Q old Q' P' ->
- fold_right `and `True (map locald_denote (map (subst_localdef id old') Q)) rho ->
- fold_right and True P' /\ fold_right `and `True (map locald_denote Q') rho
- /\ match old with Some w => w=old' | None => True end.
-Proof.
-intros.
-induction H; try rename IHisolate_temp_binding into IH.
-*
-destruct H0.
-specialize (IH H1); destruct IH as [? [? ?]].
-hnf in H0; simpl in H0; unfold eval_id in H0; simpl in H0.
-rewrite if_true in H0. hnf in H0.
-subst old'.
-split; auto.
-destruct v'; [ split | ]; auto. auto.
-*
-destruct H0.
-specialize (IH H2); destruct IH as [? [? ?]].
-split3; auto.
-split; auto.
-apply -> Pos.eqb_neq in H.
-hnf in H0. unfold eval_id in H0. simpl in H0.
-rewrite if_false in H0 by auto.
-hnf. unfold eval_id. rewrite <- H0. auto.
-*
-split3; auto.
-*
-destruct H0.
-destruct IH as [? [? ?]]; auto. split3; auto.
-split; auto.
-*
-destruct H0.
-destruct IH as [? [? ?]]; auto. split3; auto.
-split; auto.
-*
-destruct H0.
-destruct IH as [? [? ?]]; auto. split3; auto.
-split; auto.
-Qed.
-
 Section SEMAX_SC.
 
 Context {cs: compspecs}.
@@ -184,10 +107,9 @@ Lemma semax_SC_set:
       semax Delta (|>PROPx P (LOCALx Q (SEPx R)))
         (Sset id e2)
           (normal_ret_assert
-            (EX old : val,
-              PROPx P
-                (LOCALx (temp id v :: map (subst_localdef id old) Q)
-                  (SEPx R)))).
+            (PROPx P 
+              (LOCALx (temp id v :: remove_localdef id Q)
+                (SEPx R)))).
 Proof.
   intros.
   assert (ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) |--
@@ -218,58 +140,15 @@ Proof.
     apply derives_refl.
   }
   eapply semax_post'; [| apply semax_set_forward].
+  rewrite <- insert_local.
+  rewrite <- remove_localdef_PROP.
   normalize.
   apply (exp_right old).
-  rewrite subst_andp, subst_PROP.
-  rewrite <- insert_local.
-  go_lowerx. simpl.
-  repeat apply andp_right; try apply prop_right; auto.
-  hnf. rewrite H4. auto.
-Qed.
-
-Lemma fold_right_and_app_low: (* duplicated from call_lemmas.v *)
-  forall (Q1 Q2 : list Prop),
-  fold_right and True (Q1 ++ Q2)  =
-  (fold_right and True Q1  /\ fold_right and True Q2).
-Proof.
-induction Q1; intros; simpl; auto.
-apply prop_ext; intuition.
-rewrite IHQ1.
-apply prop_ext; intuition.
-Qed.
-
-Lemma semax_SC_set1:
-  forall {Espec: OracleKind},
-    forall Delta id P Q R (e2: expr) t old v P' P'' Q',
-      typeof_temp Delta id = Some t ->
-      is_neutral_cast (implicit_deref (typeof e2)) t = true ->
-      isolate_temp_binding id Q old Q' P' ->
-      P'' = P' ++ P ->
-(*      Forall trivially_lifted R ->*)
-      ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) |-- local (`(eq v) (eval_expr e2)) ->
-      ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) |-- (tc_expr Delta e2) ->
-      semax Delta (|>PROPx P (LOCALx Q (SEPx R)))
-        (Sset id e2)
-        (normal_ret_assert
-            (PROPx P'' (LOCALx (temp id v :: Q') (SEPx R)))).
-Proof.
-intros.
-eapply semax_post'; [ | eapply semax_SC_set; try eassumption].
-apply exp_left; intro old'.
-subst P''.
-clear - H1 H4.
-go_lowerx.
-change (fold_right `and `True (map locald_denote (map (subst_localdef id old') Q)) rho) in H2.
-change (fold_right sepcon emp R |--
-   !! fold_right and True (P'++P) &&
-   (!! (locald_denote (temp id v) rho /\ fold_right `and `True (map locald_denote Q') rho) &&
-      fold_right sepcon emp R)).
-normalize.
-apply andp_right; auto.
-apply prop_right.
-rewrite fold_right_and_app_low.
-destruct (isolate_temp_binding_e _ _ _ _ _ _ _ H1 H2) as [? [? ?]].
- auto.
+  autorewrite with subst.
+  rewrite andp_comm, andp_assoc, andp_comm.
+  apply andp_derives; auto.
+  simpl; unfold local, lift1; unfold_lift; intro rho; simpl.
+  normalize.
 Qed.
 
 Lemma semax_SC_field_load:
@@ -282,8 +161,8 @@ Lemma semax_SC_field_load:
       readable_share sh ->
       LR_of_type t_root = lr ->
       type_is_volatile (typeof (nested_efield e1 efs tts)) = false ->
-      legal_nested_efield t_root e1 gfs tts lr = true ->
       gfs = gfs1 ++ gfs0 ->
+      legal_nested_efield t_root e1 gfs tts lr = true ->
       nth_error R n = Some (field_at sh t_root gfs0 v' p) ->
       ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) |-- local (`(eq p) (eval_LR e1 lr)) ->
       ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) |--
@@ -298,10 +177,9 @@ Lemma semax_SC_field_load:
       semax Delta (|>PROPx P (LOCALx Q (SEPx R))) 
         (Sset id (nested_efield e1 efs tts))
           (normal_ret_assert
-            (EX old : val,
-              PROPx P
-                (LOCALx (temp id v :: map (subst_localdef id old) Q)
-                  (SEPx R)))).
+            (PROPx P 
+              (LOCALx (temp id v :: remove_localdef id Q)
+                (SEPx R)))).
 Proof.
   intros until 7; pose proof I; intros.
   eapply semax_extract_later_prop'; [exact H12 | clear H12; intro H12].
@@ -322,11 +200,11 @@ Proof.
   2: rewrite (add_andp _ _ H9), (add_andp _ _ H11); solve_andp.
   eapply derives_trans; [apply nested_field_ramif' with (gfs3 := gfs1) |].
   + rewrite H10.
-    rewrite H5 in H14.
+    rewrite H4 in H14.
     symmetry; eauto.
-  + rewrite <- H5; auto.
+  + rewrite <- H4; auto.
   + apply sepcon_derives; [| auto].
-    rewrite <- H5.
+    rewrite <- H4.
     apply derives_refl.
 Qed.
 
@@ -354,59 +232,6 @@ Proof.
   auto.
 Qed.
 
-Lemma semax_SC_field_load1:
-  forall {Espec: OracleKind},
-    forall Delta sh n id P Q R Rn (e1: expr) old Q' P' P''
-      (t t_root: type) (efs: list efield) (gfs0 gfs1 gfs: list gfield) (tts: list type)
-      (p: val) (v : val) (v' : reptype (nested_field_type t_root gfs0)) lr,
-      typeof_temp Delta id = Some t ->
-      is_neutral_cast (typeof (nested_efield e1 efs tts)) t = true ->
-      isolate_temp_binding id Q old Q' P' ->
-      P'' = P' ++ P ->
-(*      Forall trivially_lifted R ->*)
-      gfs = gfs1 ++ gfs0 ->
-      legal_nested_efield t_root e1 gfs tts lr = true ->
-      nth_error R n = Some Rn ->
-      ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) |-- local (`(eq p) (eval_LR e1 lr)) ->
-      ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) |--
-        efield_denote efs gfs ->
-      ENTAIL Delta, PROPx P (LOCALx Q (SEP (Rn))) |--
-        `(field_at sh t_root gfs0 v' p) ->
-      readable_share sh ->
-      repinject _ (proj_reptype (nested_field_type t_root gfs0) gfs1 v') = v ->
-      ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) |--
-         (tc_LR Delta e1 lr) &&
-        local `(tc_val (typeof (nested_efield e1 efs tts)) v) &&
-         (tc_efield Delta efs) ->
-      ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) |--
-        (!! legal_nested_field t_root gfs) ->
-      semax Delta (|>PROPx P (LOCALx Q (SEPx R))) 
-        (Sset id (nested_efield e1 efs tts))
-          (normal_ret_assert
-            (PROPx P''
-                (LOCALx (temp id v :: Q')
-                  (SEPx R)))).
-Proof.
-(* TODO: The following script is based on semax_nested_efield_field_load_37',
-which is admitted and should be removed. *)
-  intros until 4; pose proof I; intros.
-  eapply semax_extract_later_prop'; [exact H13 | clear H13; intro H13].
-  eapply semax_post_flipped'.
-  eapply semax_nested_efield_field_load_37' with (gfs4 := gfs); eauto.
-  apply andp_right; [apply andp_right; [exact H12 | exact H8] |].
-  rewrite (add_andp _ _ H7).
-  eapply derives_trans; [apply andp_derives; [| apply derives_refl] |].
-  eapply nth_error_SEP_sepcon_TT'; eauto.
-  go_lowerx. subst. auto.
-  Intros old'.
-  go_lowerx.
-  destruct (isolate_temp_binding_e _ _ _ _ _ _ _ H1 H17) as [? [? ?]].
-  repeat apply andp_right; try apply prop_right; auto.
-  subst P''.
-  rewrite fold_right_and_app_low.
-  split; auto.
-Qed.
-
 Lemma semax_SC_field_cast_load:
   forall {Espec: OracleKind},
     forall Delta sh n id P Q R (e1: expr)
@@ -417,8 +242,8 @@ Lemma semax_SC_field_cast_load:
       readable_share sh ->
       LR_of_type t_root = lr ->
       type_is_volatile (typeof (nested_efield e1 efs tts)) = false ->
-      legal_nested_efield t_root e1 gfs tts lr = true ->
       gfs = gfs1 ++ gfs0 ->
+      legal_nested_efield t_root e1 gfs tts lr = true ->
       nth_error R n = Some (field_at sh t_root gfs0 v' p) ->
       ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) |--
         local (`(eq p) (eval_LR e1 lr)) ->
@@ -434,11 +259,9 @@ Lemma semax_SC_field_cast_load:
       semax Delta (|> PROPx P (LOCALx Q (SEPx R)))
         (Sset id (Ecast (nested_efield e1 efs tts) t))
           (normal_ret_assert
-            (EX old:val,
-              PROPx P
-                (LOCALx (temp id (eval_cast (typeof (nested_efield e1 efs tts)) t v)
-                        :: map (subst_localdef id old) Q)
-                  (SEPx R)))).
+            (PROPx P 
+              (LOCALx (temp id (eval_cast (typeof (nested_efield e1 efs tts)) t v) :: remove_localdef id Q)
+                (SEPx R)))).
 Proof.
   intros until 7; pose proof I; intros.
   eapply semax_extract_later_prop'; [exact H12 | clear H12; intro H12].
@@ -459,65 +282,12 @@ Proof.
   2: rewrite (add_andp _ _ H9), (add_andp _ _ H11); solve_andp.
   eapply derives_trans; [apply nested_field_ramif' with (gfs3 := gfs1) |].
   + rewrite H10.
-    rewrite H5 in H14.
+    rewrite H4 in H14.
     symmetry; eauto.
-  + rewrite <- H5; auto.
+  + rewrite <- H4; auto.
   + apply sepcon_derives; [| auto].
-    rewrite <- H5.
+    rewrite <- H4.
     apply derives_refl.
-Qed.
-
-Lemma semax_SC_field_cast_load1:
-  forall {Espec: OracleKind},
-    forall Delta sh n id P Q R Rn (e1: expr) P' P'' old Q'
-      (t t_root: type) (efs: list efield) (gfs0 gfs1 gfs: list gfield) (tts: list type)
-      (p: val) (v : val) (v' : reptype (nested_field_type t_root gfs0)) lr,
-      typeof_temp Delta id = Some t ->
-      type_is_by_value (typeof (nested_efield e1 efs tts)) = true ->
-      isolate_temp_binding id Q old Q' P' ->
-      P'' = P' ++ P ->
-(*      Forall trivially_lifted R ->*)
-      gfs = gfs1 ++ gfs0 ->
-      legal_nested_efield t_root e1 gfs tts lr = true ->
-      nth_error R n = Some Rn ->
-      ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) |-- local (`(eq p) (eval_LR e1 lr)) ->
-      ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) |--
-        efield_denote efs gfs ->
-      ENTAIL Delta, PROPx P (LOCALx Q (SEP (Rn))) |--
-        `(field_at sh t_root gfs0 v' p) ->
-      readable_share sh ->
-      repinject _ (proj_reptype (nested_field_type t_root gfs0) gfs1 v') = v ->
-      ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) |-- 
-         (tc_LR Delta e1 lr) &&
-        local (`(tc_val t (eval_cast (typeof (nested_efield e1 efs tts)) t v))) &&
-         (tc_efield Delta efs) ->
-      ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) |--
-        (!! legal_nested_field t_root gfs) ->
-      semax Delta (|> PROPx P (LOCALx Q (SEPx R)))
-        (Sset id (Ecast (nested_efield e1 efs tts) t))
-          (normal_ret_assert
-            (PROPx P''
-                (LOCALx (temp id (eval_cast (typeof (nested_efield e1 efs tts)) t v) :: Q')
-                  (SEPx R)))).
-Proof.
-(* TODO: The following script is based on semax_nested_efield_field_cast_load_37',
-which is admitted and should be removed. *)
-  intros until 4; pose proof I; intros.
-  eapply semax_extract_later_prop'; [exact H13 | clear H13; intro H13].
-  eapply semax_post_flipped'.
-  eapply semax_nested_efield_field_cast_load_37' with (gfs4 := gfs); eauto.
-  apply andp_right; [apply andp_right; [exact H12 | exact H8] |].
-  rewrite (add_andp _ _ H7).
-  eapply derives_trans; [apply andp_derives; [| apply derives_refl] |].
-  eapply nth_error_SEP_sepcon_TT'; eauto.
-  old_go_lower; entailer!.
-  Intro old'.
-  go_lowerx.
-  destruct (isolate_temp_binding_e _ _ _ _ _ _ _ H1 H17) as [? [? ?]].
-  repeat apply andp_right; try apply prop_right; auto.
-  subst P''.
-  rewrite fold_right_and_app_low.
-  split; auto.
 Qed.
 
 Lemma semax_SC_field_store:
@@ -603,6 +373,8 @@ The set, load, cast-load and store rules will be used in the future.
 
 Require Import floyd.local2ptree.
 
+(* TODO: This was broken because semax_SC_field_load's specification is changed. *)
+(*
 Lemma semax_PTree_set:
   forall {Espec: OracleKind},
     forall Delta id P T1 T2 R (e2: Clight.expr) t v,
@@ -629,8 +401,6 @@ Proof.
   apply SC_remove_subst.
 Qed.
 
-(* TODO: This was broken because semax_SC_field_load's specification is changed. *)
-(*
 Lemma semax_PTree_load:
   forall {Espec: OracleKind},
     forall Delta sh n id P T1 T2 R Rn (e1: expr)

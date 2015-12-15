@@ -112,16 +112,17 @@ Ltac solve_load_rule_evaluation :=
   | A := _ |- _ => clear A 
   end;
   match goal with
-  | |- @repinject _ _ (@proj_reptype _ _ ?name_of_gfs ?name_of_v) = _ =>
-    subst name_of_gfs name_of_v
+  | |- JMeq (@proj_reptype _ _ ?name_of_gfs ?name_of_v) _ =>
+    subst name_of_gfs;
+    try subst name_of_v
   end;
   match goal with
-  | |- @repinject _ _ (@proj_reptype _ _ ?gfs _) = _ =>
+  | |- JMeq (@proj_reptype _ _ ?gfs _) _ =>
     remember_indexes gfs
   end;
   match goal with
-  | |- @repinject ?cs ?t0 (@proj_reptype ?cs ?t ?gfs ?v) = _ =>
-    let s := simple_reify v in
+  | |- JMeq (@proj_reptype ?cs ?t ?gfs ?v) _ =>
+    let s := simple_reify.simple_reify v in
     let len_opaque := eval vm_compute in (length gfs - effective_len t gfs s)%nat in
     let gfs_opaque := (firstn_tac gfield len_opaque gfs) in
     let gfs_compute := (skipn_tac gfield len_opaque gfs) in
@@ -129,20 +130,15 @@ Ltac solve_load_rule_evaluation :=
     | nil =>
       let opaque_v := fresh "v" in
       pose (proj_reptype (nested_field_type t gfs_compute) gfs_opaque) as opaque_function;
-      change (@repinject cs t0 (@proj_reptype cs t gfs v)) with
-       (@proj_reptype cs t gfs_compute v);
       set (opaque_v := v);
       lazy beta zeta iota delta - [opaque_v sublist.Znth Int.repr];
-      subst opaque_v; subst; apply eq_refl
+      subst opaque_v; subst; apply JMeq_refl
     | @cons _ _ _ =>
       let opaque_function := fresh "opaque_function" in
       let opaque_v := fresh "v" in
       pose (proj_reptype (nested_field_type t gfs_compute) gfs_opaque) as opaque_function;
-      change (@repinject cs t0 (@proj_reptype cs t gfs v)) with
-       (opaque_function (@proj_reptype cs t gfs_compute v));
       set (opaque_v := v);    
       lazy beta zeta iota delta - [opaque_function opaque_v sublist.Znth Int.repr];
-      subst opaque_v opaque_function; subst; apply eq_refl
+      subst opaque_v opaque_function; subst; apply JMeq_refl
     end
   end.
-
