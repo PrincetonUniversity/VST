@@ -187,11 +187,11 @@ Definition believe_external (Hspec: OracleKind) (gx: genv) (v: val) (fsig: funsi
 Definition fn_funsig (f: function) : funsig := (fn_params f, fn_return f).
 
 Definition var_sizes_ok (cenv: composite_env) (vars: list (ident*type)) := 
-   Forall (fun var : ident * type => sizeof cenv (snd var) <= Int.max_unsigned)%Z vars.
+   Forall (fun var : ident * type => @sizeof cenv (snd var) <= Int.max_unsigned)%Z vars.
 
 Definition var_block' (sh: Share.t) (cenv: composite_env) (idt: ident * type) (rho: environ): mpred :=
-  !! (sizeof cenv (snd idt) <= Int.max_unsigned)%Z &&
-  (memory_block sh (sizeof cenv (snd idt))) (eval_lvar (fst idt) (snd idt) rho).
+  !! (sizeof (snd idt) <= Int.max_unsigned)%Z &&
+  (memory_block sh (sizeof (snd idt))) (eval_lvar (fst idt) (snd idt) rho).
 
 Definition stackframe_of' (cenv: composite_env) (f: Clight.function) : assert :=
   fold_right (fun P Q rho => P rho * Q rho) (fun rho => emp)

@@ -286,7 +286,7 @@ f_equal. f_equal. apply prop_ext. intuition.
 Qed.
 
 Lemma sizeof_tarray_tuchar:
- forall (n:Z), (n>=0)%Z -> (sizeof cenv_cs (tarray tuchar n) =  n)%Z.
+ forall (n:Z), (n>=0)%Z -> (sizeof (tarray tuchar n) =  n)%Z.
 Proof. intros.
  unfold sizeof,tarray; cbv beta iota.
   rewrite Z.max_r by omega.

@@ -785,9 +785,9 @@ Proof.
   + simpl; auto.
 Qed.
 
-Lemma mapsto_overlap: forall sh env t1 t2 p1 p2 v1 v2,
+Lemma mapsto_overlap: forall sh {cs: compspecs} t1 t2 p1 p2 v1 v2,
   nonunit sh ->
-  pointer_range_overlap p1 (sizeof env t1) p2 (sizeof env t2) ->
+  pointer_range_overlap p1 (sizeof t1) p2 (sizeof t2) ->
   mapsto sh t1 p1 v1 * mapsto sh t2 p2 v2 |-- FF.
 Proof.
   intros.
@@ -865,6 +865,13 @@ Proof.
     auto.
 Qed.
 
+Lemma distrib_orp_sepcon2:
+  forall P Q R: pred rmap,
+     R * (P || Q) = R * P || R * Q.
+Proof.
+intros. rewrite !(sepcon_comm R). apply distrib_orp_sepcon.
+Qed.
+
 Lemma mapsto_conflict:
   forall sh t v v2 v3,
   nonunit sh ->
@@ -876,12 +883,27 @@ Proof.
   rewrite andp_comm.
   rewrite sepcon_andp_prop.
   apply prop_andp_left; intros [[? ?] ?].
-  apply mapsto_overlap with (env := PTree.empty _); auto.
-  apply pointer_range_overlap_refl; auto.
-  + erewrite size_chunk_sizeof by eauto.
-    apply size_chunk_pos.
-  + erewrite size_chunk_sizeof by eauto.
-    apply size_chunk_pos.
+  unfold mapsto.
+  rewrite H0.
+  destruct (type_is_volatile t); try (rewrite FF_sepcon; auto).
+  destruct v; try (rewrite FF_sepcon; auto).
+  pose proof (size_chunk_pos x).
+  if_tac.
+*  
+  normalize.
+  rewrite distrib_orp_sepcon, !distrib_orp_sepcon2;
+  repeat apply orp_left;
+  rewrite ?sepcon_andp_prop1;  repeat (apply prop_andp_left; intro);
+  rewrite ?sepcon_andp_prop2;  repeat (apply prop_andp_left; intro);
+  rewrite ?exp_sepcon1;  repeat (apply exp_left; intro);
+  rewrite ?exp_sepcon2;  repeat (apply exp_left; intro);
+  apply address_mapsto_overlap;
+  exists (b, Int.unsigned i); repeat split; omega.
+*
+  rewrite ?sepcon_andp_prop1;  repeat (apply prop_andp_left; intro);
+  rewrite ?sepcon_andp_prop2;  repeat (apply prop_andp_left; intro).
+  apply nonlock_permission_bytes_overlap; auto.
+  exists (b, Int.unsigned i); repeat split; omega.
 Qed.
 
 Lemma memory_block_conflict: forall sh n m p,
@@ -917,8 +939,8 @@ Definition eval_lvar (id: ident) (ty: type) (rho: environ) :=
 end.
 
 Definition var_block (sh: Share.t) {cs: compspecs} (idt: ident * type) (rho: environ): mpred :=
-  !! (sizeof cenv_cs (snd idt) <= Int.max_unsigned) &&
-  (memory_block sh (sizeof cenv_cs (snd idt))) (eval_lvar (fst idt) (snd idt) rho).
+  !! (sizeof (snd idt) <= Int.max_unsigned) &&
+  (memory_block sh (sizeof (snd idt))) (eval_lvar (fst idt) (snd idt) rho).
 
 Fixpoint sepcon_list {A}{JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{AG: ageable A} {AgeA: Age_alg A}
    (p: list (pred A)) : pred A :=

@@ -10,6 +10,8 @@ Require Import veric.NullExtension.
 
 Local Open Scope logic.
 
+Arguments alignof_two_p {env} t.
+
 Hint Rewrite <- prop_and : gather_prop.
 
 Lemma gather_prop_left {A}{NA: NatDed A}:
@@ -165,18 +167,18 @@ Proof.
 Defined.
 
 Lemma sizeof_Tstruct: forall id a,
-  sizeof cenv_cs (Tstruct id a) = co_sizeof (get_co id).
+  sizeof (Tstruct id a) = co_sizeof (get_co id).
 Proof.
   intros.
-  simpl sizeof. unfold get_co.
+  simpl. unfold get_co.
   destruct (cenv_cs ! id); auto.
 Qed.
 
 Lemma sizeof_Tunion: forall id a,
-  sizeof cenv_cs (Tunion id a) = co_sizeof (get_co id).
+  sizeof (Tunion id a) = co_sizeof (get_co id).
 Proof.
   intros.
-  simpl sizeof. unfold get_co.
+  simpl. unfold get_co.
   destruct (cenv_cs ! id); auto.
 Qed.
 

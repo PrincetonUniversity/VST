@@ -39,7 +39,7 @@ Definition memcpy_spec_data_at :=
   DECLARE _memcpy
    WITH sh : share*share, p: val, q: val, T:TREP, n:Z
    PRE [ 1%positive OF tptr tvoid, 2%positive OF tptr tvoid, 3%positive OF tuint ]
-       PROP (writable_share (snd sh); n= sizeof (@cenv_cs CompSpecs)  (tp_of T);
+       PROP (writable_share (snd sh); n= sizeof (tp_of T);
              0 <= n <= Int.max_unsigned)
        LOCAL (temp 1%positive p; temp 2%positive q;
               temp 3%positive (Vint (Int.repr n)))
@@ -373,7 +373,7 @@ Definition HMAC_Cleanup_spec :=
           PROP (size_compatible t_struct_hmac_ctx_st c /\
                 align_compatible t_struct_hmac_ctx_st c) 
           LOCAL ()
-          SEP(`(data_block Tsh (list_repeat (Z.to_nat(sizeof (@cenv_cs CompSpecs) t_struct_hmac_ctx_st)) 0) c)).
+          SEP(`(data_block Tsh (list_repeat (Z.to_nat(sizeof t_struct_hmac_ctx_st)) 0) c)).
 
 (************************ Specification of oneshot HMAC *******************************************************)
 

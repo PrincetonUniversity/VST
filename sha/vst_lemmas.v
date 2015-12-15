@@ -14,7 +14,7 @@ Qed.
 Lemma data_at_triv {cs} sh t v v': v=v' -> @data_at cs sh t v |-- @data_at cs sh t v'.
 Proof. intros; subst. cancel. Qed.
 
-Lemma sizeof_Tarray {cs} k: Z.max 0 k = k -> sizeof cs (Tarray tuchar k noattr) = k.
+Lemma sizeof_Tarray {cs: composite_env} k: Z.max 0 k = k -> sizeof (Tarray tuchar k noattr) = k.
 Proof. intros K; simpl; rewrite K. destruct k; trivial. Qed.
 
 Require Import replace_refill_reptype_lemmas.

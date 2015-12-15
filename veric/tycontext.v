@@ -340,13 +340,25 @@ Definition composite_env_legal_fieldlist env :=
   forall (id : positive) (co : composite),
     env ! id = Some co -> composite_legal_fieldlist co.
 
-
 Class compspecs := mkcompspecs {
-  cenv_cs: composite_env;
+  cenv_cs : composite_env;
   cenv_consistent: composite_env_consistent cenv_cs;
   cenv_legal_alignas: composite_env_legal_alignas cenv_cs;
   cenv_legal_fieldlist: composite_env_legal_fieldlist cenv_cs
 }.
+
+Existing Class composite_env.
+Existing Instance cenv_cs.
+
+Arguments sizeof {env} !t / .
+Arguments alignof {env} !t / .
+
+Arguments sizeof_pos {env} t _.
+Arguments alignof_pos {env} t.
+
+Goal forall {cs: compspecs} t, sizeof t >= 0.
+Proof. intros. apply sizeof_pos.
+Abort. 
 
 (*
 Definition compspecs_program (p: program): compspecs.
@@ -1261,9 +1273,11 @@ Proof.
   intros.
   destruct b; unfold binop_stable in H |- *; auto.
   + destruct (Cop.classify_add (typeof e1) (typeof e2));
-    try eapply complete_type_stable; eauto.
+    try (eapply (complete_type_stable env env'); eauto).
+     auto.
   + destruct (Cop.classify_sub (typeof e1) (typeof e2));
-    try eapply complete_type_stable; eauto.
+    try (eapply (complete_type_stable env env'); eauto).
+     auto.
 Qed.
 
 Lemma Cop_sem_binary_operation_stable:

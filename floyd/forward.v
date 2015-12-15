@@ -61,7 +61,7 @@ Lemma var_block_lvar2:
    legal_alignas_type t = true ->
    legal_cosu_type t = true ->
    complete_type cenv_cs t = true ->
-   sizeof cenv_cs t < Int.modulus ->
+   sizeof t < Int.modulus ->
   (forall v,
    semax Delta ((PROPx P (LOCALx (lvar id t v :: Q) (SEPx (data_at_ Tsh t v :: R)))) 
                       * fold_right sepcon emp Vs)
@@ -71,7 +71,7 @@ Lemma var_block_lvar2:
                c Post.
 Proof.
 intros.
-assert (Int.unsigned Int.zero + sizeof cenv_cs t <= Int.modulus)
+assert (Int.unsigned Int.zero + sizeof t <= Int.modulus)
  by (rewrite Int.unsigned_zero; omega).
 eapply semax_pre_post; [ | intros; apply andp_left2; apply derives_refl | ].
 instantiate (1 := EX v:val, (PROPx P (LOCALx (lvar id t v :: Q) (SEPx (data_at_ Tsh t v :: R)))) 
@@ -115,14 +115,14 @@ Lemma var_block_lvar0
        legal_alignas_type t = true ->
        legal_cosu_type t = true ->
        complete_type cenv_cs t = true ->
-       sizeof cenv_cs t < Int.modulus ->
+       sizeof t < Int.modulus ->
        tc_environ Delta rho ->
        locald_denote (lvar id t v) rho ->
        data_at_ Tsh t v |-- var_block Tsh (id, t) rho.
 Proof.
 intros.
 hnf in H5.
-assert (Int.unsigned Int.zero + sizeof cenv_cs t <= Int.modulus)
+assert (Int.unsigned Int.zero + sizeof t <= Int.modulus)
  by (rewrite Int.unsigned_zero; omega).
 unfold var_block.
 simpl @fst; simpl @snd.
@@ -145,7 +145,7 @@ Lemma postcondition_var_block:
        legal_alignas_type t = true ->
        legal_cosu_type t = true ->
        complete_type cenv_cs t = true ->
-       sizeof cenv_cs t < Int.modulus ->
+       sizeof t < Int.modulus ->
    semax Delta Pre c (frame_ret_assert S1 
      (S2 *  (EX  v : val, local (locald_denote (lvar i t v)) && `(data_at_ Tsh t v))
       * fold_right sepcon emp vbs)) ->  
@@ -490,8 +490,24 @@ Inductive Actual_parameters_cannot_be_coerced_to_formal_parameter_types := .
 Ltac check_cast_params :=
    first [reflexivity | elimtype Actual_parameters_cannot_be_coerced_to_formal_parameter_types].
 
+Inductive Witness_type_of_forward_call_does_not_match_witness_type_of_funspec:
+    Type -> Type -> Prop := .
+     
+
 Ltac find_spec_in_globals :=
-   first [reflexivity | elimtype  Cannot_find_function_spec_in_Delta].
+ first [reflexivity | 
+   match goal with
+   | |- Some (mk_funspec _ ?t1 _ _) = Some (mk_funspec _ ?t2 _ _) =>
+      first [unify t1 t2
+     | elimtype False; elimtype (Witness_type_of_forward_call_does_not_match_witness_type_of_funspec
+      t2 t1)]
+   | |- _ => elimtype  Cannot_find_function_spec_in_Delta
+  end].
+
+Inductive Cannot_analyze_LOCAL_definitions : Prop := .
+
+Ltac check_prove_local2ptree :=
+   first [prove_local2ptree | elimtype Cannot_analyze_LOCAL_definitions].
 
 Inductive Funspec_precondition_is_not_in_PROP_LOCAL_SEP_form := .
 
@@ -508,14 +524,18 @@ Ltac lookup_spec_and_change_compspecs CS :=
 
 Inductive Function_arguments_include_a_memory_load_of_type (t:type) := .
 
+Ltac goal_has_evars :=
+ match goal with |- ?A => has_evar A end.
+
 Ltac check_typecheck :=
+ first [goal_has_evars; idtac |
  try apply local_True_right; 
  entailer!;
  match goal with
  | |- typecheck_error (deref_byvalue ?T) =>
        elimtype (Function_arguments_include_a_memory_load_of_type T)
  | |- _ => idtac
- end.
+ end].
 
 Ltac prove_delete_temp := match goal with |- ?A = _ =>
   let Q := fresh "Q" in set (Q:=A); hnf in Q; subst Q; reflexivity
@@ -532,10 +552,10 @@ let Frame := fresh "Frame" in
  | apply Coq.Init.Logic.I | apply Coq.Init.Logic.I | reflexivity 
  | (clear; let H := fresh in intro H; inversion H)
  | check_parameter_types
- | prove_local2ptree
+ | check_prove_local2ptree
  | check_typecheck
  | check_funspec_precondition
- | prove_local2ptree
+ | check_prove_local2ptree
  | check_cast_params | reflexivity
  | Forall_pTree_from_elements
  | Forall_pTree_from_elements
@@ -562,10 +582,10 @@ let Frame := fresh "Frame" in
  | apply Coq.Init.Logic.I | apply Coq.Init.Logic.I | reflexivity 
  | (clear; let H := fresh in intro H; inversion H)
  | check_parameter_types
- | prove_local2ptree
+ | check_prove_local2ptree
  | check_typecheck
  | check_funspec_precondition
- | prove_local2ptree
+ | check_prove_local2ptree
  | check_cast_params | reflexivity
  | Forall_pTree_from_elements
  | Forall_pTree_from_elements
@@ -590,10 +610,10 @@ let Frame := fresh "Frame" in
  [ check_function_name | lookup_spec_and_change_compspecs CS
  | find_spec_in_globals | check_result_type
  | apply Coq.Init.Logic.I | check_parameter_types
- | prove_local2ptree
+ | check_prove_local2ptree
  | check_typecheck
  | check_funspec_precondition
- | prove_local2ptree
+ | check_prove_local2ptree
  | check_cast_params | reflexivity
  | Forall_pTree_from_elements
  | Forall_pTree_from_elements
@@ -616,10 +636,10 @@ let Frame := fresh "Frame" in
  eapply (semax_call_id01_wow witness Frame);
  [ check_function_name | lookup_spec_and_change_compspecs CS
  | find_spec_in_globals | apply Coq.Init.Logic.I | reflexivity
- | prove_local2ptree
+ | check_prove_local2ptree
  | check_typecheck
  | check_funspec_precondition
- | prove_local2ptree
+ | check_prove_local2ptree
  | check_cast_params | reflexivity
  | Forall_pTree_from_elements
  | Forall_pTree_from_elements
@@ -641,10 +661,10 @@ let Frame := fresh "Frame" in
  eapply (semax_call_id00_wow witness Frame);
  [ check_function_name | lookup_spec_and_change_compspecs CS
  | find_spec_in_globals | check_result_type | check_parameter_types
- | prove_local2ptree
+ | check_prove_local2ptree
  | check_typecheck
  | check_funspec_precondition
- | prove_local2ptree
+ | check_prove_local2ptree
  | check_cast_params | reflexivity
  | Forall_pTree_from_elements
  | Forall_pTree_from_elements
@@ -1481,7 +1501,9 @@ Ltac sequential :=
  end.
 
 (* move these two elsewhere, perhaps entailer.v *)
-Hint Extern 1 (sizeof _ _ > 0) => (simpl sizeof; computable) : valid_pointer.
+Hint Extern 1 (@sizeof _ ?A > 0) =>  
+   (let a := fresh in set (a:= sizeof A); hnf in a; subst a; computable)
+  : valid_pointer.
 Hint Resolve denote_tc_comparable_split : valid_pointer.
 
 Ltac pre_entailer :=

@@ -44,10 +44,10 @@ Proof.
 intros until 1. pose proof I. intros.
 hnf in H|-*.
 destruct H as [? [? [? [? [? [? [? ?]]]]]]].
-simpl sizeof in *.
+unfold sizeof in *; fold (sizeof t) in *.
 rewrite Z.max_r in * by omega.
-assert (sizeof cenv_cs t * n <= sizeof cenv_cs t * n')
-  by (pose proof (sizeof_pos cenv_cs t); apply Z.mul_le_mono_nonneg_l; omega).
+assert (sizeof t * n <= sizeof t * n')
+  by (pose proof (sizeof_pos t); apply Z.mul_le_mono_nonneg_l; omega).
 repeat split; auto.
 *
 unfold legal_alignas_type in *.
@@ -62,7 +62,7 @@ omega.
 *
 hnf in H6|-*.
 destruct d; auto.
-simpl sizeof in *.
+unfold sizeof in *; fold (sizeof t) in *.
 rewrite Z.max_r in * by omega.
 omega.
 Qed.
@@ -77,10 +77,10 @@ Proof.
 intros until 1. pose proof I. intros.
 hnf in H|-*.
 destruct H as [? [? [? [? [? [? [? ?]]]]]]].
-simpl sizeof in *.
+unfold sizeof in *; fold (sizeof t) in *.
 rewrite Z.max_r in * by omega.
-assert (sizeof cenv_cs t * n <= sizeof cenv_cs t * n')
-  by (pose proof (sizeof_pos cenv_cs t); apply Z.mul_le_mono_nonneg_l; omega).
+assert (sizeof t * n <= sizeof t * n')
+  by (pose proof (sizeof_pos t); apply Z.mul_le_mono_nonneg_l; omega).
 repeat split; auto.
 *
 unfold legal_alignas_type in *.
@@ -95,7 +95,7 @@ omega.
 *
 hnf in H6|-*.
 destruct d; auto.
-simpl sizeof in *.
+unfold sizeof in *; fold (sizeof t) in *.
 rewrite Z.max_r in * by omega.
 omega.
 Qed.
@@ -123,9 +123,9 @@ Proof.
 intros until p. intros H0 H' H.
 move H0 after H.
 hnf in H0|-*.
- assert (SS: sizeof cenv_cs t * n2 <= sizeof cenv_cs t * n1).
+ assert (SS: sizeof t * n2 <= sizeof t * n1).
   apply Zmult_le_compat_l; auto.
-  pose proof (sizeof_pos cenv_cs t); omega.
+  pose proof (sizeof_pos t); omega.
 intuition.
  *
   unfold legal_alignas_type in H0|-*; simpl in H0|-*.
@@ -138,12 +138,12 @@ intuition.
   destruct (attr_alignas (attr_of_type t)); auto.
   eapply Zle_is_le_bool. omega.
  *  
-  simpl sizeof in H6|-*.
+  unfold sizeof in H6|-*; fold (sizeof t) in *.
   rewrite Z.max_r in * by omega.
   eapply Z.le_lt_trans; eassumption.
  *
   destruct p; try contradiction; red in H7|-*.
-  simpl sizeof in H7|-*.
+  unfold sizeof in H7|-*; fold (sizeof t) in *.
   rewrite Z.max_r in * by omega.
   omega.
  *
@@ -182,17 +182,17 @@ Proof.
 intros.
 unfold tarray in *.
 split; intros.
-assert (SP := sizeof_pos cenv_cs t).
-assert (SL: sizeof cenv_cs t * i <= sizeof cenv_cs t * n)
+assert (SP := sizeof_pos t).
+assert (SL: sizeof t * i <= sizeof t * n)
   by (apply Zmult_le_compat_l; omega).
-assert (SL': sizeof cenv_cs t * (n-i) <= sizeof cenv_cs t * n)
+assert (SL': sizeof t * (n-i) <= sizeof t * n)
   by (apply Zmult_le_compat_l; omega).
-assert (ST: 0*0 <= sizeof cenv_cs t * i).
+assert (ST: 0*0 <= sizeof t * i).
 apply Zmult_le_compat; omega.
 change (0*0)%Z with 0 in ST.
 assert (field_compatible (Tarray t i noattr) nil d /\
            field_compatible (Tarray t (n - i) noattr) nil
-               (offset_val (Int.repr (sizeof cenv_cs t * i)) d) /\
+               (offset_val (Int.repr (sizeof t * i)) d) /\
            field_compatible0 (Tarray t n noattr) (ArraySubsc i::nil) d). {
   unfold field_compatible, field_compatible0 in *.
 decompose [and] H0; clear H0.
@@ -241,13 +241,13 @@ rewrite add_repr.
 unfold sizeof in H6|-*. fold sizeof in H6 |-*.
 rewrite Z.max_r in H6|-* by omega.
 pose proof (Int.unsigned_range i0).
-destruct (zeq (Int.unsigned i0 + sizeof cenv_cs t * i) Int.modulus).
+destruct (zeq (Int.unsigned i0 + sizeof t * i) Int.modulus).
 rewrite e.
 change (Int.unsigned (Int.repr Int.modulus)) with 0.
 rewrite Z.add_0_l.
 omega.
 rewrite Int.unsigned_repr.
-assert (sizeof cenv_cs t * i + sizeof cenv_cs t * (n - i)  =  sizeof cenv_cs t * n)%Z.
+assert (sizeof t * i + sizeof t * (n - i)  =  sizeof t * n)%Z.
 rewrite <- Z.mul_add_distr_l.
 f_equal. omega.
 omega.
@@ -258,7 +258,7 @@ unfold align_compatible in H7|-*.
 unfold offset_val.
 rewrite <- (Int.repr_unsigned i0).
 rewrite add_repr.
-destruct (zeq (Int.unsigned i0 + sizeof cenv_cs t * i) Int.modulus).
+destruct (zeq (Int.unsigned i0 + sizeof t * i) Int.modulus).
 rewrite e.
 change (Int.unsigned (Int.repr Int.modulus)) with 0.
 apply Z.divide_0_r.
@@ -472,14 +472,14 @@ Lemma field_compatible0_Tarray_offset:
   0 <= i <= n ->
   n-i <= n'-i' ->
   i <= i' ->
-  p' = offset_val (Int.repr (sizeof cenv_cs t * (i'-i))) p ->
+  p' = offset_val (Int.repr (sizeof t * (i'-i))) p ->
   field_compatible0 (Tarray t n noattr) (ArraySubsc i :: nil) p'.
 Proof.
 intros until 1. intros NA ?H ?H Hni Hii Hp. subst p'.
-  assert (SP := sizeof_pos cenv_cs t).
-  assert (SS: sizeof cenv_cs t * n <= sizeof cenv_cs t * n').
+  assert (SP := sizeof_pos t).
+  assert (SS: sizeof t * n <= sizeof t * n').
   apply Zmult_le_compat_l. omega. omega.
-  assert (SS': (sizeof cenv_cs t * n + sizeof cenv_cs t * (n'-n) = sizeof cenv_cs t * n')%Z).
+  assert (SS': (sizeof t * n + sizeof t * (n'-n) = sizeof t * n')%Z).
   rewrite <- Z.mul_add_distr_l. f_equal. omega.
   hnf in H|-*.
   intuition.
@@ -493,7 +493,7 @@ intros until 1. intros NA ?H ?H Hni Hii Hp. subst p'.
   destruct (attr_alignas (attr_of_type t)); auto.
   eapply Zle_is_le_bool. omega.
   *  
-  simpl sizeof in H7|-*.
+  unfold sizeof in H7|-*; fold (sizeof t) in *.
   rewrite Z.max_r in * by omega. omega.
   *
   destruct p; try contradiction.
@@ -502,17 +502,17 @@ intros until 1. intros NA ?H ?H Hni Hii Hp. subst p'.
   simpl in H7,H8|-*. rewrite Z.max_r in H7,H8|-* by omega.
   rename i0 into j.
    pose proof (Int.unsigned_range j).
-   assert (0 <= sizeof cenv_cs t * (i'-i) <= sizeof cenv_cs t * n').
+   assert (0 <= sizeof t * (i'-i) <= sizeof t * n').
    split. apply Z.mul_nonneg_nonneg; omega.
    apply Zmult_le_compat_l. omega. omega.
-  assert (sizeof cenv_cs t * (i'-i+n) <= sizeof cenv_cs t * n').
+  assert (sizeof t * (i'-i+n) <= sizeof t * n').
    apply Zmult_le_compat_l. omega. omega.
   unfold Int.add. 
   rewrite (Int.unsigned_repr (_ * _))
     by (change Int.max_unsigned with (Int.modulus -1); omega).
    rewrite Int.unsigned_repr_eq.
   apply Z.le_trans with
-    ((Int.unsigned j + sizeof cenv_cs t * (i' - i))+ sizeof cenv_cs t * n ).
+    ((Int.unsigned j + sizeof t * (i' - i))+ sizeof t * n ).
    apply Zplus_le_compat_r.
    apply Zmod_le. computable.
    omega.
@@ -532,7 +532,7 @@ intros until 1. intros NA ?H ?H Hni Hii Hp. subst p'.
   apply arith_aux04.
   rename i0 into j.
    pose proof (Int.unsigned_range j).
-   assert (0 <= sizeof cenv_cs t * (i'-i) <= sizeof cenv_cs t * n').
+   assert (0 <= sizeof t * (i'-i) <= sizeof t * n').
    split. apply Z.mul_nonneg_nonneg; omega.
    apply Zmult_le_compat_l. omega. omega.
    omega.

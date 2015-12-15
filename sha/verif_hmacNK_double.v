@@ -153,8 +153,8 @@ rewrite <- HeqRND2 in *. simpl in *.
 Exists c dig2.
 unfold data_block at 1. simpl. entailer!.
 rewrite <- memory_block_data_at_ by auto.
-change (sizeof cenv_cs (Tstruct _hmac_ctx_st noattr))
-   with (sizeof cenv_cs (tarray tuchar (Zlength (list_repeat (Z.to_nat n324) 0)))).
+change (sizeof (Tstruct _hmac_ctx_st noattr))
+   with (sizeof (tarray tuchar (Zlength (list_repeat (Z.to_nat n324) 0)))).
 rewrite memory_block_data_at_ by auto.
 cancel.
 

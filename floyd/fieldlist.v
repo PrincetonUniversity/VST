@@ -25,8 +25,8 @@ Fixpoint field_offset_next_rec env i m ofs sz :=
     | nil => sz
     | (_, t1) :: _ =>
       if ident_eq i i0
-      then align (ofs + sizeof env t0) (alignof env t1)
-      else field_offset_next_rec env i m0 (align (ofs + sizeof env t0) (alignof env t1)) sz
+      then align (ofs + @sizeof env t0) (@alignof env t1)
+      else field_offset_next_rec env i m0 (align (ofs + @sizeof env t0) (@alignof env t1)) sz
     end
   end.
 
@@ -117,7 +117,7 @@ Proof.
 Qed.
 
 Lemma field_offset_aligned: forall i m,
-  (alignof cenv_cs (field_type i m) | field_offset cenv_cs i m).
+  (alignof (field_type i m) | field_offset cenv_cs i m).
 Proof.
   intros.
   unfold field_type, field_offset.
@@ -126,12 +126,12 @@ Proof.
   + apply Z.divide_0_r.
 Qed.
 
-Lemma alignof_composite_hd_divide: forall i t m, (alignof cenv_cs t | alignof_composite cenv_cs ((i, t) :: m)).
+Lemma alignof_composite_hd_divide: forall i t m, (alignof t | alignof_composite cenv_cs ((i, t) :: m)).
 Proof.
   intros.
-  destruct (alignof_two_p cenv_cs t) as [N ?].
+  destruct (alignof_two_p t) as [N ?].
   destruct (alignof_composite_two_p cenv_cs ((i, t) :: m)) as [M ?].
-  assert (alignof cenv_cs t <= alignof_composite cenv_cs ((i,t)::m)) by (apply Z.le_max_l).
+  assert (alignof t <= alignof_composite cenv_cs ((i,t)::m)) by (apply Z.le_max_l).
   rewrite H in *.
   rewrite H0 in *.
   exact (power_nat_divide N M H1).
@@ -150,7 +150,7 @@ Qed.
 
 Lemma alignof_field_type_divide_alignof: forall i m,
   in_members i m ->
-  (alignof cenv_cs (field_type i m) | alignof_composite cenv_cs m).
+  (alignof (field_type i m) | alignof_composite cenv_cs m).
 Proof.
   intros.
   unfold field_type.
@@ -169,7 +169,7 @@ Qed.
 (* if sizeof Tvoid = 0, this lemma can be nicer. *)
 Lemma field_offset_in_range: forall i m,
   in_members i m ->
-  0 <= field_offset cenv_cs i m /\ field_offset cenv_cs i m + sizeof cenv_cs (field_type i m) <= sizeof_struct cenv_cs 0 m.
+  0 <= field_offset cenv_cs i m /\ field_offset cenv_cs i m + sizeof (field_type i m) <= sizeof_struct cenv_cs 0 m.
 Proof.
   intros.
   unfold field_offset, field_type.
@@ -183,7 +183,7 @@ Qed.
 (* if sizeof Tvoid = 0, this lemma can be nicer. *)
 Lemma sizeof_union_in_members: forall i m,
   in_members i m ->
-  sizeof cenv_cs (field_type i m) <= sizeof_union cenv_cs m.
+  sizeof (field_type i m) <= sizeof_union cenv_cs m.
 (* field_offset2_in_range union's version *)
 Proof.
   intros.
@@ -196,7 +196,8 @@ Proof.
     - apply Z.le_max_l.
     - simpl in H; destruct H; [congruence |].
      specialize (IHm H).
-     pose proof Z.le_max_r (sizeof cenv_cs t0) (sizeof_union cenv_cs m).
+     fold (sizeof t0).
+     pose proof Z.le_max_r (sizeof t0) (sizeof_union cenv_cs m).
      omega.
 Qed.
 
@@ -206,8 +207,8 @@ Lemma field_offset_no_overlap:
   i1 <> i2 ->
   in_members i1 m ->
   in_members i2 m ->
-  field_offset cenv_cs i1 m + sizeof cenv_cs (field_type i1 m) <= field_offset cenv_cs i2 m \/
-  field_offset cenv_cs i2 m + sizeof cenv_cs (field_type i2 m) <= field_offset cenv_cs i1 m.
+  field_offset cenv_cs i1 m + sizeof (field_type i1 m) <= field_offset cenv_cs i2 m \/
+  field_offset cenv_cs i2 m + sizeof (field_type i2 m) <= field_offset cenv_cs i1 m.
 Proof.
   intros.
   unfold field_offset, field_type.
@@ -249,13 +250,13 @@ Qed.
 Lemma field_offset_next_in_range: forall i m sz,
   in_members i m ->
   sizeof_struct cenv_cs 0 m <= sz ->
-  field_offset cenv_cs i m + sizeof cenv_cs (field_type i m) <=
+  field_offset cenv_cs i m + sizeof (field_type i m) <=
   field_offset_next cenv_cs i m sz <= sz.
 Proof.
   intros.
   destruct m as [| [i0 t0] m]; [inversion H |].
   unfold field_offset, Ctypes.field_offset, field_offset_next, field_type.
-  pattern 0 at 3 4; replace 0 with (align 0 (alignof cenv_cs t0)) by (apply align_0, alignof_pos).
+  pattern 0 at 3 4; replace 0 with (align 0 (alignof t0)) by (apply align_0, alignof_pos).
   match goal with
   | |- ?A => assert (A /\
                      match field_offset_rec cenv_cs i ((i0, t0) :: m) 0 with
@@ -273,19 +274,20 @@ Proof.
     if_tac; [| congruence].
     split; [| split]; auto.
     simpl in H0.
+   fold (sizeof t0) in *.
     omega.
   + remember ((i1, t1) :: m) as m0. simpl in H0 |- *. subst m0.
     destruct (ident_eq i i0).
     - split; [| split]; auto.
       split.
       * apply align_le, alignof_pos.
-      * pose proof sizeof_struct_incr cenv_cs m (align (align z (alignof cenv_cs t0) + sizeof cenv_cs t0)
-            (alignof cenv_cs t1) + sizeof cenv_cs t1).
-        pose proof sizeof_pos cenv_cs t1.
+      * pose proof sizeof_struct_incr cenv_cs m (align (align z (alignof t0) + sizeof t0)
+            (alignof t1) + sizeof t1).
+        pose proof sizeof_pos t1.
         simpl in H0; omega.
     - destruct H as [H | H]; [simpl in H; congruence |].
-      specialize (IHm (align z (alignof cenv_cs t0) + sizeof cenv_cs t0) i1 t1 H H0).
-      destruct (field_offset_rec cenv_cs i ((i1, t1) :: m) (align z (alignof cenv_cs t0) + sizeof cenv_cs t0)),
+      specialize (IHm (align z (alignof t0) + sizeof t0) i1 t1 H H0).
+      destruct (field_offset_rec cenv_cs i ((i1, t1) :: m) (align z (alignof t0) + sizeof t0)),
                (field_type i ((i1, t1) :: m));
       try tauto.
 Qed.
@@ -379,7 +381,7 @@ Defined.
 Lemma neq_field_offset_rec_cons: forall env i i0 t0 m z,
   i <> i0 ->
   field_offset_rec env i ((i0, t0) :: m) z =
-  field_offset_rec env i m (align z (alignof env t0) + sizeof env t0).
+  field_offset_rec env i m (align z (alignof t0) + sizeof t0).
 Proof.
   intros.
   simpl.
@@ -390,7 +392,7 @@ Qed.
 Lemma neq_field_offset_next_rec_cons: forall env i i0 t0 i1 t1 m z sz,
   i <> i0 ->
   field_offset_next_rec env i ((i0, t0) :: (i1, t1) :: m) z sz =
-  field_offset_next_rec env i ((i1, t1) :: m) (align (z + sizeof env t0) (alignof env t1)) sz.
+  field_offset_next_rec env i ((i1, t1) :: m) (align (z +  sizeof t0) (alignof t1)) sz.
 Proof.
   intros.
   simpl.
@@ -401,39 +403,39 @@ Qed.
 Lemma sizeof_struct_0: forall env i m,
   sizeof_struct env 0 m = 0 ->
   in_members i m ->
-  sizeof env (field_type i m) = 0 /\
-  field_offset_next env i m 0 - (field_offset env i m + sizeof env (field_type i m)) = 0.
+  sizeof (field_type i m) = 0 /\
+  field_offset_next env i m 0 - (field_offset env i m + sizeof (field_type i m)) = 0.
 Proof.
   intros.
   unfold field_type, field_offset, Ctypes.field_offset, field_offset_next.
   induction m as [| (i0, t0) m].
   + inversion H0.
   + simpl in H.
-    pose proof sizeof_struct_incr env m (align 0 (alignof env t0) + sizeof env t0).
-    pose proof align_le 0 (alignof env t0) (alignof_pos _ _).
-    pose proof sizeof_pos env t0.
+    pose proof sizeof_struct_incr env m (align 0 (alignof t0) + sizeof t0).
+    pose proof align_le 0 (alignof t0) (alignof_pos _).
+    pose proof sizeof_pos t0.
     destruct (ident_eq i i0).
     - simpl in *.
       if_tac; [| congruence].
-      replace (sizeof env t0) with 0 by omega.
+      replace (sizeof t0) with 0 by omega.
       destruct m as [| (?, ?) m];
       rewrite !align_0 by apply alignof_pos;
       omega.
     - destruct H0; [simpl in H0; congruence |].
       simpl.
       if_tac; [congruence |].
-      replace (sizeof env t0) with 0 by omega.
+      replace (sizeof t0) with 0 by omega.
       destruct m as [| (?, ?) m]; [inversion H0 |].
       rewrite !align_0 by apply alignof_pos.
       apply IHm; [| auto].
-      replace (align 0 (alignof env t0) + sizeof env t0) with 0 in * by omega.
+      replace (align 0 (alignof t0) + sizeof t0) with 0 in * by omega.
       auto.
 Qed.
 
 Lemma sizeof_union_0: forall env i m,
   sizeof_union env m = 0 ->
   in_members i m ->
-  sizeof env (field_type i m) = 0.
+  sizeof (field_type i m) = 0.
 Proof.
   intros.
   unfold field_type.
@@ -443,15 +445,15 @@ Proof.
     destruct (ident_eq i i0).
     - simpl in *.
       if_tac; [| congruence].
-      pose proof sizeof_pos env t0.
-      pose proof Z.le_max_l (sizeof env t0) (sizeof_union env m).
+      pose proof sizeof_pos t0.
+      pose proof Z.le_max_l (sizeof t0) (sizeof_union env m).
       omega.
     - destruct H0; [simpl in H0; congruence |].
       simpl.
       if_tac; [congruence |].
       apply IHm; [| auto].
       pose proof sizeof_union_pos env m.
-      pose proof Z.le_max_r (sizeof env t0) (sizeof_union env m).
+      pose proof Z.le_max_r (sizeof t0) (sizeof_union env m).
       omega.
 Qed.
 
@@ -512,14 +514,14 @@ Definition field_offset_in_range:
   forall {cs: compspecs},
   forall i m,
   in_members i m ->
-  0 <= field_offset cenv_cs i m /\ field_offset cenv_cs i m + sizeof cenv_cs (field_type i m) <= sizeof_struct cenv_cs 0 m
+  0 <= field_offset cenv_cs i m /\ field_offset cenv_cs i m + sizeof (field_type i m) <= sizeof_struct cenv_cs 0 m
 := @field_offset2_in_range.
 
 Definition sizeof_union_in_members:
   forall {cs: compspecs},
   forall i m,
   in_members i m ->
-  sizeof cenv_cs (field_type i m) <= sizeof_union cenv_cs m
+  sizeof (field_type i m) <= sizeof_union cenv_cs m
 := @sizeof_union_in_members.
 (* field_offset_in_range union's version *)
 
@@ -529,8 +531,8 @@ Definition field_offset_no_overlap:
   i1 <> i2 ->
   in_members i1 m ->
   in_members i2 m ->
-  field_offset cenv_cs i1 m + sizeof cenv_cs (field_type i1 m) <= field_offset cenv_cs i2 m \/
-  field_offset cenv_cs i2 m + sizeof cenv_cs (field_type i2 m) <= field_offset cenv_cs i1 m
+  field_offset cenv_cs i1 m + sizeof (field_type i1 m) <= field_offset cenv_cs i2 m \/
+  field_offset cenv_cs i2 m + sizeof (field_type i2 m) <= field_offset cenv_cs i1 m
 := @field_offset2_no_overlap.
   
 Definition complete_type_field_type:
@@ -543,14 +545,14 @@ Definition complete_type_field_type:
 Definition field_offset_aligned:
   forall {cs: compspecs},
   forall i m,
-  (alignof cenv_cs (field_type i m) | field_offset cenv_cs i m)
+  (alignof (field_type i m) | field_offset cenv_cs i m)
 := @field_offset2_aligned.
 
 Definition alignof_field_type_divide_alignof:
   forall {cs: compspecs},
   forall i m,
   in_members i m ->
-  (alignof cenv_cs (field_type i m) | alignof_composite cenv_cs m)
+  (alignof (field_type i m) | alignof_composite cenv_cs m)
 := @alignof_field_type2_divide_alignof.
 
 Definition in_members_field_type:
@@ -577,7 +579,7 @@ Definition field_offset_next_in_range:
   forall i m sz,
   in_members i m ->
   sizeof_struct cenv_cs 0 m <= sz ->
-  field_offset cenv_cs i m + sizeof cenv_cs (field_type i m) <=
+  field_offset cenv_cs i m + sizeof (field_type i m) <=
   field_offset_next cenv_cs i m sz <= sz
 := @field_offset_next_in_range.
 

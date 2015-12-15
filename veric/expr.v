@@ -298,8 +298,8 @@ Fixpoint eval_expr {CS: compspecs} (e: expr) : environ -> val :=
  | Evar id ty => eval_var id ty (* typecheck ensure by-reference *)
  | Ederef a ty => eval_expr a (* typecheck ensure by-reference and isptr *)
  | Efield a i ty => `(eval_field (typeof a) i) (eval_lvalue a) (* typecheck ensure by-reference *)
- | Esizeof t ty => `(Vint (Int.repr (sizeof cenv_cs t)))
- | Ealignof t ty => `(Vint (Int.repr (alignof cenv_cs t)))
+ | Esizeof t ty => `(Vint (Int.repr (sizeof t)))
+ | Ealignof t ty => `(Vint (Int.repr (alignof t)))
  end
 
  with eval_lvalue {CS: compspecs} (e: expr) : environ -> val := 
@@ -560,7 +560,7 @@ match op with
                              (tc_isptr a1))
                               (tc_isptr a2))
                                (tc_bool (is_int32_type ty) reterr))
-			        (tc_bool (negb (Int.eq (Int.repr (sizeof cenv_cs t)) Int.zero)) 
+			        (tc_bool (negb (Int.eq (Int.repr (sizeof t)) Int.zero)) 
                                       (pp_compare_size_0 t)))
                                  (tc_bool (complete_type cenv_cs t) reterr))
                                   (tc_bool (is_pointer_type ty) reterr)

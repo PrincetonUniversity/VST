@@ -59,8 +59,8 @@ Fixpoint compute_r_value {cs: compspecs} (e: expr) : r_value :=
                      | By_value _ => R_load (L_field (compute_l_value a) (typeof a) i) ty
                      | _ => R_ilegal e
                      end
-  | Esizeof t ty => R_const (Vint (Int.repr (sizeof cenv_cs t)))
-  | Ealignof t ty => R_const (Vint (Int.repr (alignof cenv_cs t)))
+  | Esizeof t ty => R_const (Vint (Int.repr (sizeof t)))
+  | Ealignof t ty => R_const (Vint (Int.repr (alignof t)))
   end
 with compute_l_value {cs: compspecs} (e:expr) : l_value := 
   match e with
@@ -229,10 +229,10 @@ apply (rel_LR_value'_sch _ rho (m_phi jm)
  end;
  try solve [econstructor; eauto].
 * (* Esizeof *)
-  rewrite <- H.
+  unfold sizeof; rewrite <- H.
   eapply eval_Esizeof; eauto.
 * (* Ealignof *)
-  rewrite <- H.
+  unfold alignof; rewrite <- H.
   eapply eval_Ealignof; eauto.
 * (* Eaddrof *)
   specialize (H2 e' eq_refl).

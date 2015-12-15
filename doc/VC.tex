@@ -406,9 +406,100 @@ This is the way the \lstinline{size} variable is treated, for example.
 \chapter{Proof of the \textsf{sumarray} program}
 \label{refcard:sumarray-proof}
 
-\chapter{Integers: Z and int}
+\ychapter{Integers: \upshape\textsf{nat, Z, int}}
+{(\file{compcert/lib/Integers.v})}
+Coq's standard library has the natural numbers \lstinline{nat}
+and the integers \lstinline{Z}.  C-language integer values
+are represented by the type \lstinline{Int.int} (or just
+\lstinline{int} for short), which are 32-bit two's complement
+signed or unsigned integers with mod-$2^{32}$ arithmetic.
 
-\ychapter{Values: {\upshape Vint, Vptr,} etc.}{(\file{compcert/common/Values.v})}
+For most purposes, specifications and proofs of C programs
+should use \lstinline{Z} instead of
+\lstinline{nat}.  Subtraction doesn't work well on
+naturals, and that screws up many other kinds of arithmetic
+reasoning.  \emph{Only when you are doing direct
+  natural-number induction} is it natural to use \lstinline{nat},
+and so you might then convert using \lstinline{Z.to_nat}
+to do that induction.
+
+Conversions between \lstinline{Z} and \lstinline{int}
+are done as follows:
+
+\begin{lstlisting}
+Int.repr: Z -> int.    
+Int.unsigned: int -> Z.
+Int.signed: int -> Z.
+\end{lstlisting}
+
+with the following lemmas:
+\begin{mathpar}
+\inference[Int.repr\_unsigned]{}
+{\mathsf{Int.repr} (\mathsf{Int.unsigned}~z)~=~z}
+
+\inference[Int.unsigned\_repr]{0 \le z \le \mathsf{Int.max\_unsigned}}
+{\mathsf{Int.unsigned} (\mathsf{Int.repr}~z)~=~z}
+
+\inference[Int.repr\_signed]{}
+{\mathsf{Int.repr} (\mathsf{Int.signed}~z)~=~z}
+
+\inference[Int.signed\_repr]{\mathsf{Int.min\_signed} \le z \le \mathsf{Int.max\_signed}}
+{\mathsf{Int.signed} (\mathsf{Int.repr}~z)~=~z}
+\end{mathpar}
+\lstinline{Int.repr} truncates to a
+32-bit twos-complement representation (losing information
+if the input is out of range).  \lstinline{Int.signed}
+and \lstinline{Int.unsigned} are different injections back to \lstinline{Z}
+that never lose information.
+
+When doing proofs about integers, the recommended proof technique
+is to make sure your integers never overflow.  That is,
+if the C variable \lstinline{_x} contains the value
+\lstinline{Vint (Int.repr $x$)}, then make sure $x$ is in
+the appropriate range.  Let's assume that \lstinline{_x} 
+is a signed integer, i.e. declared in C as \lstinline{int x;}
+then the hypothesis is,
+\begin{lstlisting}
+H: Int.min_signed $\le$ $x$ $\le$ Int.max_signed
+\end{lstlisting}
+If you maintain this hypothesis ``above the line'',
+then Floyd's tactical proof automation
+can solve goals such as
+\lstinline{Int.signed (Int.repr $x$) = $x$}.
+Also, to solve goals such as,
+\begin{lstlisting}
+...
+H2 : 0 $\le$ n $\le$ Int.max_signed
+...
+------------------------
+Int.min_signed $\le$ 0 $\le$ n
+\end{lstlisting}
+you can use the \lstinline{repable_signed} tactic,
+which is basically just \lstinline{omega} with
+knowledge of the values of 
+\lstinline{Int.min_signed},
+\lstinline{Int.max_signed},
+and \lstinline{Int.max_unsigned}.
+
+To take advantage of this, put
+conjuncts into the PROP part of your function precondition
+such as $0\le i < n; ~n \le \mathsf{Int.max\_signed}$.
+Then the \lstinline{start_function} tactic will move them
+above the line, and the other tactics mentioned
+above will make use of them.
+
+To see an example in action,
+look at \lstinline{progs/verif_sumarray.v}.
+The array size and index
+(variables \lstinline{size} and \lstinline{i})
+are kept within bounds;
+but the \emph{contents} of the array might
+overflow when added up, which is why
+\lstinline{add_elem}
+uses \lstinline{Int.add} instead of 
+\lstinline{Z.add}.
+
+\ychapter{Values: {\upshape\textsf{Vint,Vptr}}}{(\file{compcert/common/Values.v})}
 
 \begin{lstlisting}
 Definition block : Type := positive.
@@ -429,10 +520,8 @@ where $i$ is a CompCert 32-bit integer.  These 32-bit integers
 can also
 represent short (16-bit) and char (8-bit) values.
 
-\lstinline{Vfloat($f$)} is an floating-point value,
-where $f$ is a Flocq 64-bit floating-point number.
-
-\lstinline{Vfloat($f$)} is a single-precision floating-point value.
+\lstinline{Vfloat($f$)} is a 64-bit floating-point value.\newline
+\lstinline{Vsingle($f$)} is a 32-bit floating-point value.
 
 \lstinline{Vptr $b$ $z$} is a pointer value,
 where $b$ is an abstract block number and $z$ is an offset
@@ -456,6 +545,55 @@ $\exists v, p\mapsto v$.  \lstinline{Vundef} could mean
 
 \chapter{CompSpecs}
 \label{refcard:compspecs}
+
+The C language has a namespace for struct- and union-identifiers,
+that is, \emph{composite types}.
+In this example,
+\lstinline|struct foo {int value; struct foo *tail}  a,b;|
+the ``global variables'' namespace contains 
+\lstinline{a,b}, and the ``struct and union'' namespace
+contains \lstinline{foo}.
+
+When you use CompCert clightgen to
+parse \lstinline{myprogram.c} into \lstinline{myprogram.v},
+the main definition it produces is
+\lstinline{prog}, the AST of the entire
+C program:
+\begin{lstlisting}
+Definition prog : Clight.program := {| prog_types := composites; ... |}.
+\end{lstlisting}
+To interpret the meaning of a type expression, we need
+to look up the names of its struct identifiers
+in a \emph{composite} environment.  This environment,
+along with various well-formedness theorems about it,
+is built from \lstinline{prog} as follows:
+
+\begin{lstlisting}
+Require Import floyd.proofauto.  (* Import Verifiable C library *)
+Require Import myprogram.        (* AST of my program *)
+Instance CompSpecs : compspecs. Proof. make_compspecs prog. Defined.
+\end{lstlisting}
+The \lstinline{make_compspecs} tactic automatically constructs
+the \emph{composite specifications} from the program.
+As a typeclass Instance, \lstinline{CompSpecs} is
+supplied automatically as an implicit
+argument to the functions and predicates that
+interpret the meaning of types:
+
+\begin{lstlisting}
+Definition sizeof {env: composite_env} (t: type) : Z := ...
+Definition data_at_ {cs: compspecs} (sh: share) (t: type) (v: val) := ...
+
+@sizeof (@cenv_cs CompSpecs) (Tint I32 Signed noattr) = 4.
+sizeof (Tint I32 Signed noattr) = 4.
+sizeof (Tstruct _foo noattr) = 8.
+@data_at_ CompSpecs sh t v |-- data_at sh t v
+\end{lstlisting}
+
+When you have two separately compiled .c files,
+each will have its own \lstinline{prog} and its own
+\lstinline{compspecs}.  See \autoref{refcard:sepcomp}.
+
 \chapter{\upshape data\_at}
 \label{refcard:data-at}
 
@@ -2870,85 +3008,6 @@ The third argument of \lstinline{field_at} represents
 the \emph{path} of structure-fields that leads to a given
 substructure.  The empty path \lstinline{(nil)} 
 works too; it ``leads'' to the entire structure.
-
-\ychapter{Signed and unsigned integers}{}
-
-Mathematical proofs use the mathematical integers (the \lstinline{Z}
-type in Coq); C progams use 32-bit signed or unsigned integers.
-They are related as follows:
-
-\begin{lstlisting}
-Int.repr: Z -> int.
-Int.unsigned: int -> Z.
-Int.signed: int -> Z.
-\end{lstlisting}
-
-with the following lemmas:
-\begin{mathpar}
-\inference[Int.repr\_unsigned]{}
-{\mathsf{Int.repr} (\mathsf{Int.unsigned}~z)~=~z}
-
-\inference[Int.unsigned\_repr]{0 \le z \le \mathsf{Int.max\_unsigned}}
-{\mathsf{Int.unsigned} (\mathsf{Int.repr}~z)~=~z}
-
-\inference[Int.repr\_signed]{}
-{\mathsf{Int.repr} (\mathsf{Int.signed}~z)~=~z}
-
-\inference[Int.signed\_repr]{\mathsf{Int.min\_signed} \le z \le \mathsf{Int.max\_signed}}
-{\mathsf{Int.signed} (\mathsf{Int.repr}~z)~=~z}
-\end{mathpar}
-\lstinline{Int.repr} truncates to a
-32-bit twos-complement representation (losing information
-if the input is out of range).  \lstinline{Int.signed}
-and \lstinline{Int.unsigned} are different injections back to \lstinline{Z}
-that never lose information.
-
-When doing proofs about integers, the recommended proof technique
-is to make sure your integers never overflow.  That is,
-if the C variable \lstinline{_x} contains the value
-\lstinline{Vint (Int.repr $x$)}, then make sure $x$ is in
-the appropriate range.  Let's assume that \lstinline{_x} 
-is a signed integer, i.e. declared in C as \lstinline{int x;}
-then the hypothesis is,
-\begin{lstlisting}
-H: Int.min_signed $\le$ $x$ $\le$ Int.max_signed
-\end{lstlisting}
-If you maintain this hypothesis ``above the line'',
-then the \lstinline{normalize} tactic
-can automatically rewrite with
-\lstinline{Int.signed (Int.repr $x$) = $x$}.
-Also, to solve goals such as,
-\begin{lstlisting}
-...
-H2 : 0 <= n <= Int.max_signed
-...
-------------------------
-Int.min_signed <= 0 <= n
-\end{lstlisting}
-you can use the \lstinline{repable_signed} tactic,
-which is basically just \lstinline{omega} with
-knowledge of the values of 
-\lstinline{Int.min_signed},
-\lstinline{Int.max_signed},
-and \lstinline{Int.max_unsigned}.
-
-To take advantage of this, put
-conjuncts into the PROP part of your function precondition
-such as $0\le i < n; ~n \le \mathsf{Int.max\_signed}$.
-Then the \lstinline{start_function} tactic will move them
-above the line, and the other tactics mentioned
-above will make use of them.
-
-To see an example in action,
-look at \lstinline{progs/verif_sumarray.v}.
-The array size and index
-(variables \lstinline{size} and \lstinline{i})
-are kept within bounds;
-but the \emph{contents} of the array might
-overflow when added up, which is why
-\lstinline{add_elem}
-uses \lstinline{Int.add} instead of 
-\lstinline{Z.add}.
 
 \ychapter{For loops}{}
 

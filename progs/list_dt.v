@@ -66,7 +66,7 @@ Fixpoint all_but_link (f: members) : members :=
  end.
 
 Lemma list_link_size_in_range (ls: listspec list_structid list_link):  
-  0 < sizeof cenv_cs (nested_field_type list_struct (StructField list_link :: nil)) < Int.modulus.
+  0 < sizeof (nested_field_type list_struct (StructField list_link :: nil)) < Int.modulus.
 Proof.
   rewrite list_link_type.
   cbv.
@@ -243,7 +243,7 @@ Definition list_cell (ls: listspec list_structid list_link) (sh: Share.t)
    !! field_compatible list_struct nil p &&
    struct_pred (all_but_link list_fields)
               (fun it v => withspacer sh
-                (field_offset cenv_cs (fst it) list_fields + sizeof cenv_cs (field_type (fst it) list_fields))
+                (field_offset cenv_cs (fst it) list_fields + sizeof (field_type (fst it) list_fields))
                 (field_offset_next cenv_cs (fst it) list_fields (co_sizeof (get_co list_structid)))
                 (at_offset (data_at' sh (field_type (fst it) list_fields) v) (field_offset cenv_cs (fst it) list_fields)))
      v p.
@@ -271,7 +271,7 @@ Lemma list_cell_link_join:
   forall (LS: listspec list_structid list_link) sh v p,
    list_cell LS sh v p 
    * spacer sh  (field_offset cenv_cs list_link list_fields +
-                        sizeof cenv_cs (field_type list_link list_fields))
+                        sizeof (field_type list_link list_fields))
                         (field_offset_next cenv_cs list_link list_fields
                         (co_sizeof (get_co list_structid)))
            (offset_val (Int.repr 0) p) 
@@ -310,7 +310,7 @@ assert (FT: field_type list_link list_fields = tptr list_struct).
 pose (P m := fun (it : ident * type) (v0 : reptype (field_type (fst it) m)) =>
    withspacer sh
      (field_offset cenv_cs (fst it) m +
-      sizeof cenv_cs (field_type (fst it) m))
+      sizeof (field_type (fst it) m))
      (field_offset_next cenv_cs (fst it) m sz)
      (at_offset (data_at' sh (field_type (fst it) m) v0)
         (field_offset cenv_cs (fst it) m))).
@@ -358,7 +358,7 @@ change (forall (H: m=m')
 struct_pred (all_but_link m) (P list_fields) v p  *
 spacer sh
   (field_offset cenv_cs list_link list_fields +
-   sizeof cenv_cs (field_type list_link list_fields))
+   sizeof (field_type list_link list_fields))
   (field_offset_next cenv_cs list_link list_fields sz)
   p*
 data_at' sh (tptr list_struct) Vundef
@@ -388,7 +388,7 @@ assert (In list_link (map fst m)). {
 change (struct_pred (all_but_link m) (P list_fields) v p  *
 spacer sh
   (field_offset cenv_cs list_link list_fields +
-   sizeof cenv_cs (field_type list_link list_fields))
+   sizeof (field_type list_link list_fields))
   (field_offset_next cenv_cs list_link list_fields sz)
   p*
 data_at' sh (tptr list_struct) Vundef (offset_val ofs p) =
@@ -461,7 +461,7 @@ change (fst (list_link, t)) with list_link.
 rewrite isptr_offset_val_zero by auto.
 pull_right (spacer sh
   (field_offset cenv_cs list_link list_fields +
-   sizeof cenv_cs (field_type list_link list_fields))
+   sizeof (field_type list_link list_fields))
   (field_offset_next cenv_cs list_link list_fields sz) p).
 f_equal.
 rewrite sepcon_comm.
@@ -654,7 +654,7 @@ Qed.
 Lemma list_cell_link_join_nospacer:
   forall (LS: listspec list_structid list_link) sh v p,
    field_offset cenv_cs list_link list_fields +
-                        sizeof cenv_cs (field_type list_link list_fields) =
+                        sizeof (field_type list_link list_fields) =
    field_offset_next cenv_cs list_link list_fields
                         (co_sizeof (get_co list_structid)) ->
    list_cell LS sh v p * field_at_ sh list_struct (StructField list_link :: nil) p 
@@ -1235,7 +1235,7 @@ Proof.
 Qed.
 
 Lemma sizeof_list_struct_pos (LS: listspec list_structid list_link) :
-   sizeof cenv_cs list_struct > 0.
+   sizeof list_struct > 0.
 Admitted.
 
 End LIST2.
@@ -1714,7 +1714,7 @@ Qed.
 Lemma list_cell_valid_pointer:
   forall (LS: listspec list_structid list_link) (sh: Share.t) v p,
    sepalg.nonidentity sh ->
-   field_offset cenv_cs list_link list_fields + sizeof cenv_cs (field_type list_link list_fields)
+   field_offset cenv_cs list_link list_fields + sizeof (field_type list_link list_fields)
    = field_offset_next cenv_cs list_link list_fields  (co_sizeof (get_co list_structid)) ->
    list_cell LS sh v p * field_at_ sh list_struct (StructField list_link::nil) p 
   |-- valid_pointer p.
@@ -1736,7 +1736,7 @@ Qed.
 Lemma lseg_valid_pointer:
   forall (ls : listspec list_structid list_link) sh contents p q R,
    sepalg.nonidentity sh ->
-   field_offset cenv_cs list_link list_fields + sizeof cenv_cs (field_type list_link list_fields)
+   field_offset cenv_cs list_link list_fields + sizeof (field_type list_link list_fields)
    = field_offset_next cenv_cs list_link list_fields  (co_sizeof (get_co list_structid)) ->
     R |-- valid_pointer q ->
     R * lseg ls sh contents p q |-- valid_pointer p.
@@ -2472,7 +2472,7 @@ Lemma list_cell_valid_pointer:
   forall (LS: listspec list_structid list_link) (dsh psh: Share.t) v p,
    sepalg.nonidentity dsh ->
    sepalg.join_sub dsh psh ->
-   field_offset cenv_cs list_link list_fields + sizeof cenv_cs (field_type list_link list_fields)
+   field_offset cenv_cs list_link list_fields + sizeof (field_type list_link list_fields)
    = field_offset_next cenv_cs list_link list_fields  (co_sizeof (get_co list_structid)) ->
    list_cell LS dsh v p * field_at_ psh list_struct (StructField list_link::nil) p 
   |-- valid_pointer p.
@@ -2510,7 +2510,7 @@ Lemma lseg_valid_pointer:
    sepalg.nonidentity dsh ->
    dsh <> Share.bot ->
    sepalg.join_sub dsh psh ->
-   field_offset cenv_cs list_link list_fields + sizeof cenv_cs (field_type list_link list_fields)
+   field_offset cenv_cs list_link list_fields + sizeof (field_type list_link list_fields)
    = field_offset_next cenv_cs list_link list_fields  (co_sizeof (get_co list_structid)) ->
     R |-- valid_pointer q ->
     R * lseg ls dsh psh contents p q |-- valid_pointer p.

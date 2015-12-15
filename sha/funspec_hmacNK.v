@@ -34,7 +34,7 @@ Parameter EMPTY: val -> mpred.
 
 (*We can turn a memory block of hmac_ctx size into an EMPTY abstract HMAC REP*)
 Parameter mkEmpty: forall v, field_compatible t_struct_hmac_ctx_st [] v -> 
-memory_block Tsh (sizeof (@cenv_cs CompSpecs) t_struct_hmac_ctx_st) v |-- EMPTY v.
+memory_block Tsh (sizeof t_struct_hmac_ctx_st) v |-- EMPTY v.
 
 (* We can prematurely terminate sequences of hmac-update by simply declaring
    an updateable ctx FULL*)
@@ -191,7 +191,7 @@ Definition FULL key c:mpred :=
 Definition EMPTY c : mpred := data_at_ Tsh t_struct_hmac_ctx_st c.
 
 Lemma mkEmpty v: field_compatible t_struct_hmac_ctx_st [] v -> 
-  memory_block Tsh (sizeof (@cenv_cs CompSpecs) t_struct_hmac_ctx_st) v |-- EMPTY v.
+  memory_block Tsh (sizeof t_struct_hmac_ctx_st) v |-- EMPTY v.
 Proof. intros. unfold EMPTY. rewrite data_at__memory_block. entailer!. Qed.
 
 Lemma REP_FULL key data c: REP (hABS key data) c |-- FULL key c.
@@ -377,7 +377,7 @@ Lemma cleanupbodyproof1 Espec c h :
          LOCAL ()
          SEP 
          (data_block Tsh
-            (list_repeat (Z.to_nat (sizeof cenv_cs t_struct_hmac_ctx_st)) 0)
+            (list_repeat (Z.to_nat (sizeof t_struct_hmac_ctx_st)) 0)
             c))) emp).
 Admitted. 
 

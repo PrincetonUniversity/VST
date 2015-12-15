@@ -504,19 +504,19 @@ Qed.
 
 Definition align_compatible {C: compspecs} t p :=
   match p with
-  | Vptr b i_ofs => (alignof cenv_cs t | Int.unsigned i_ofs)
+  | Vptr b i_ofs => (alignof t | Int.unsigned i_ofs)
   | _ => True
   end.
 
 Definition size_compatible {C: compspecs} t p :=
   match p with
-  | Vptr b i_ofs => Int.unsigned i_ofs + sizeof cenv_cs t <= Int.modulus
+  | Vptr b i_ofs => Int.unsigned i_ofs + sizeof t <= Int.modulus
   | _ => True
   end.
 
 Lemma mapsto_valid_pointer: forall {cs: compspecs} sh t p v i,
   size_compatible t p ->
-  0 <= i < sizeof cenv_cs t ->
+  0 <= i < sizeof t ->
   sepalg.nonidentity sh ->
   mapsto sh t p v |-- valid_pointer (offset_val (Int.repr i) p).
 Proof. exact @mapsto_valid_pointer. Qed.
@@ -534,8 +534,8 @@ Definition eval_lvar (id: ident) (ty: type) (rho: environ) :=
 end.
 
 Definition var_block (sh: Share.t) {cs: compspecs} (idt: ident * type) : environ -> mpred :=
-  !! (sizeof cenv_cs (snd idt) <= Int.max_unsigned) &&
-  `(memory_block sh (sizeof cenv_cs (snd idt)))
+  !! (sizeof (snd idt) <= Int.max_unsigned) &&
+  `(memory_block sh (sizeof (snd idt)))
              (eval_lvar (fst idt) (snd idt)).
 
 Definition stackframe_of {cs: compspecs} (f: Clight.function) : environ->mpred :=
@@ -787,7 +787,7 @@ Definition semax_body_params_ok f : bool :=
         (compute_list_norepet (map (@fst _ _) (fn_vars f))).
 
 Definition var_sizes_ok {cs: compspecs} (vars: list (ident*type)) := 
-   Forall (fun var : ident * type => sizeof cenv_cs (snd var) <= Int.max_unsigned)%Z vars.
+   Forall (fun var : ident * type => sizeof (snd var) <= Int.max_unsigned)%Z vars.
 
 Definition make_ext_rval  (gx: genviron) (v: option val):=
   match v with

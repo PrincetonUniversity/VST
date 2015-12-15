@@ -768,7 +768,7 @@ apply denote_tc_assert_tc_bool in H1.
 apply denote_tc_assert_tc_bool in H2.
 unfold eval_expr.
 unfold_lift; simpl.
-rewrite <- Hcenv.
+unfold alignof; rewrite <- Hcenv.
 constructor.
 Qed.
 

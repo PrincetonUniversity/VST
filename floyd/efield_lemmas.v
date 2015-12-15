@@ -199,7 +199,7 @@ Lemma offset_val_sem_add_pi: forall ofs t0 e rho i,
    offset_val (Int.repr ofs)
      (force_val (sem_add_pi t0 (eval_expr e rho) (Vint (Int.repr i)))) =
    offset_val (Int.repr ofs)
-     (offset_val (Int.mul (Int.repr (sizeof cenv_cs t0)) (Int.repr i)) (eval_expr e rho)).
+     (offset_val (Int.mul (Int.repr (sizeof t0)) (Int.repr i)) (eval_expr e rho)).
 Proof.
   intros.
   destruct (eval_expr e rho); try reflexivity.

@@ -92,8 +92,8 @@ Fixpoint subst_eval_expr  {cs: compspecs}  (j: ident) (v: environ -> val) (e: ex
  | Evar id ty => eval_var id ty
  | Ederef a ty => subst_eval_expr j v a
  | Efield a i ty => `(eval_field (typeof a) i) (subst_eval_lvalue j v a)
- | Esizeof t ty => `(Vint (Int.repr (sizeof cenv_cs t)))
- | Ealignof t ty => `(Vint (Int.repr (alignof cenv_cs t)))
+ | Esizeof t ty => `(Vint (Int.repr (sizeof t)))
+ | Ealignof t ty => `(Vint (Int.repr (alignof t)))
  end
 
  with subst_eval_lvalue {cs: compspecs} (j: ident) (v: environ -> val) (e: expr) : environ -> val := 

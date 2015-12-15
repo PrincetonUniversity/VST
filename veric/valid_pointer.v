@@ -12,7 +12,7 @@ Require Import veric.expr_lemmas.
 
 Definition size_compatible {C: compspecs} t p :=
   match p with
-  | Vptr b i_ofs => Int.unsigned i_ofs + sizeof cenv_cs t <= Int.modulus
+  | Vptr b i_ofs => Int.unsigned i_ofs + sizeof t <= Int.modulus
   | _ => True
   end.
 
@@ -74,7 +74,7 @@ Qed.
 
 Lemma mapsto_valid_pointer: forall {cs: compspecs} sh t p v i,
   size_compatible t p ->
-  0 <= i < sizeof cenv_cs t ->
+  0 <= i < sizeof t ->
   nonidentity sh ->
   mapsto sh t p v |-- valid_pointer (offset_val (Int.repr i) p).
 Proof.
