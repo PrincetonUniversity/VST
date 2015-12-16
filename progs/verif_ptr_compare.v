@@ -1,8 +1,8 @@
 Require Import floyd.proofauto.
 Require Import progs.ptr_compare.
 
-Instance CompSpecs : compspecs.
-Proof. make_compspecs prog. Defined.
+Instance CompSpecs : compspecs. make_compspecs prog. Defined.
+Definition Vprog : varspecs. mk_varspecs prog. Defined.
 
 Local Open Scope logic.
 
@@ -17,8 +17,6 @@ Definition f_spec :=
          PROP() 
          LOCAL (temp 1%positive (Vint (if eq_dec p q then Int.one else Int.zero)))
          SEP (data_at sh tint (Vint Int.zero) p; data_at sh tint (Vint Int.zero) q).
-
-Definition Vprog : varspecs := nil.
 
 Definition Gprog : funspecs := nil.
 

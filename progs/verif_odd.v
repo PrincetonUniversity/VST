@@ -1,8 +1,6 @@
 Require Import floyd.proofauto.
 Require Import progs.odd.
-Instance CompSpecs : compspecs.
-Proof. make_compspecs prog. Defined.
-Local Open Scope logic.
+Instance CompSpecs : compspecs. make_compspecs prog. Defined.
 
 Require Import progs.verif_even.
 

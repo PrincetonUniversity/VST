@@ -2,8 +2,8 @@ Require Import floyd.proofauto.
 Require Import progs.revarray.
 Require Import floyd.sublist.
 
-Instance CompSpecs : compspecs.
-Proof. make_compspecs prog. Defined.
+Instance CompSpecs : compspecs. make_compspecs prog. Defined.
+Definition Vprog : varspecs. mk_varspecs prog. Defined.
 
 Definition reverse_spec :=
  DECLARE _reverse
@@ -21,8 +21,6 @@ Definition main_spec :=
   WITH u : unit
   PRE  [] main_pre prog u
   POST [ tint ] main_post prog u.
-
-Definition Vprog : varspecs := (_four, Tarray tint 4 noattr)::nil.
 
 Definition Gprog : funspecs := 
     reverse_spec :: main_spec::nil.

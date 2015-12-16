@@ -29,6 +29,31 @@ Require Import floyd.simpl_reptype.
 Require Import floyd.nested_pred_lemmas.
 Import Cop.
 
+(* Done in this tail-recursive style so that "hnf" fully reduces it *)
+Fixpoint mk_varspecs' (dl: list (ident * globdef fundef type)) (el: list (ident * type)) : 
+     list (ident * type) :=
+ match dl with
+ | (i,Gvar v)::dl' => mk_varspecs' dl' ((i, gvar_info v) :: el)
+ | (i, _) :: dl' => mk_varspecs' dl' el
+ | nil => rev_append el nil
+end.
+
+Definition mk_varspecs prog := mk_varspecs' (prog_defs prog) nil.
+
+Ltac unfold_varspecs al := 
+ match al with
+ | context [gvar_info ?v] => 
+      let b := eval lazy beta zeta iota delta [gvar_info v] in al
+      in unfold_varspecs b
+ | _ => exact al
+ end.
+
+Ltac mk_varspecs prog :=
+  let a := constr:(mk_varspecs prog)
+   in let a := eval hnf in a
+   in unfold_varspecs a.
+
+
 Hint Resolve field_address_isptr : norm.
 
 Lemma field_address_eq_offset:

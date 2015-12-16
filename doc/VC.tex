@@ -271,14 +271,17 @@ corresponding to the function prototypes.
 \begin{lstlisting}
 Definition sumarray_spec :=
 DECLARE _sumarray
- WITH a: val, sh : share, contents : list int, size: Z
+ WITH a: val, sh : share, contents : list Z, size: Z
  PRE [ _a OF (tptr tint), _n OF tint ]
-      PROP  (readable_share sh; 0 <= size <= Int.max_signed)$\label{refcard:example-readable-share}$
-      LOCAL (temp _a a; temp _n (Vint (Int.repr size)))
-      SEP   (data_at sh (tarray tint size) (map Vint contents) a)
- POST [ tint ]
-      PROP () LOCAL(temp ret_temp  (Vint (sum_int contents)))
-      SEP (data_at sh (tarray tint size) (map Vint contents) a).
+    PROP  (readable_share sh;
+          0 $\le$ size $\le$ Int.max_signed;
+          Forall (fun x => Int.min_signed $\le$ x $\le$ Int.max_signed) contents)
+    LOCAL (temp _a a; temp _n (Vint (Int.repr size)))
+    SEP   (data_at sh (tarray tint size) (map Vint (map Int.repr contents)) a)
+  POST [ tint ]
+    PROP () 
+    LOCAL(temp ret_temp  (Vint (Int.repr (sum_Z contents))))
+    SEP (data_at sh (tarray tint size) (map Vint (map Int.repr contents)) a).
 \end{lstlisting}
 
 The funspec begins, \lstinline{Definition $f$_spec := DECLARE $\mathrm{id}_f$ ...}
@@ -307,7 +310,7 @@ In an assertion
 the propositions in the sequence $\vec{P}$ are all of Coq type
 \lstinline{Prop}.  They describe things that are forever true,
 independent of program state.  Of course, in the function precondition
-above, the statement \lstinline{0 <= size <= Int.max_signed} is
+above, the statement \lstinline{0 $\le$ size $\le$ Int.max_signed} is
 ``forever'' true \emph{just within the scope of the quantification of
   the variable \lstinline{size}}; it is bound by 
 \lstinline{WITH} and spans the \lstinline{PRE} and
@@ -400,11 +403,11 @@ Thus, a more idiomatic use of Verifiable C would have
 and then mention \lstinline{map Vint (map Int.repr s)}.
 This is the way the \lstinline{size} variable is treated, for example.
 
-
-
-
 \chapter{Proof of the \textsf{sumarray} program}
 \label{refcard:sumarray-proof}
+
+
+
 
 \ychapter{Integers: \upshape\textsf{nat, Z, int}}
 {(\file{compcert/lib/Integers.v})}
