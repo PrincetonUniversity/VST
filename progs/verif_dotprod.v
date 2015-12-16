@@ -3,6 +3,8 @@ Require Import progs.dotprod.
 
 Instance CompSpecs : compspecs.
 Proof. make_compspecs prog. Defined.
+Definition Vprog : varspecs. mk_varspecs prog. Defined.
+
 
 Local Open Scope logic.
 
@@ -45,7 +47,6 @@ Definition dotprod_spec :=
       SEP (`(data_at Tsh (tarray tdouble n) (map Vfloat fx) x);
              `(data_at Tsh (tarray tdouble n) (map Vfloat fy) y)).
 
-Definition Vprog : varspecs := nil.
 
 Definition Gprog : funspecs := 
      add_spec::dotprod_spec::nil.

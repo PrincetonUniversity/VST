@@ -2,6 +2,8 @@ Require Import floyd.proofauto.
 Require Import progs.even.
 Instance CompSpecs : compspecs.
 Proof. make_compspecs prog. Defined.
+Definition Vprog : varspecs. mk_varspecs prog. Defined.
+
 Local Open Scope assert.
 
 Definition odd_spec :=
@@ -27,7 +29,6 @@ Definition main_spec :=
   POST [ tint ] 
     PROP() LOCAL(temp ret_temp (Vint (if Z.even 42 then Int.one else Int.zero))) SEP().
 
-Definition Vprog : varspecs := nil.
 
 Definition Gprog : funspecs := odd_spec :: even_spec :: main_spec :: nil.
 

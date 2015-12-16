@@ -2,8 +2,8 @@ Require Import floyd.proofauto.
 Require Import progs.list_dt. Import Links.
 Require Import progs.queue.
 
-Instance CompSpecs : compspecs.
-Proof. make_compspecs prog. Defined.
+Instance CompSpecs : compspecs. make_compspecs prog. Defined.
+Definition Vprog : varspecs. mk_varspecs prog. Defined.
 
 Definition t_struct_elem := Tstruct _elem noattr.
 Definition t_struct_fifo := Tstruct _fifo noattr.
@@ -301,8 +301,6 @@ Definition main_spec :=
   WITH u : unit
   PRE  [] main_pre prog u
   POST [ tint ] main_post prog u.
-
-Definition Vprog : varspecs := nil.
 
 Definition Gprog : funspecs := 
     mallocN_spec :: freeN_spec :: fifo_new_spec :: fifo_put_spec 

@@ -29,10 +29,10 @@ Require Import progs.reverse.
 ** and union identifiers, e.g., "struct foo {...}".  Some type-based operators
 ** in the program logic need access to an interpretation of this namespace,
 ** i.e., the meaning of each struct-identifier such as "foo".  The next
-** two lines (which look identical for any program) build this 
+** line (which looks identical for any program) builds this 
 ** interpretation, called "CompSpecs" *)
-Instance CompSpecs : compspecs.
-Proof. make_compspecs prog. Defined.
+Instance CompSpecs : compspecs. make_compspecs prog. Defined.
+Definition Vprog : varspecs. mk_varspecs prog. Defined.
 
 (** The reverse.c program uses the linked list structure [struct list].
  ** This satisfies the linked-list pattern, in that it has one self-reference
@@ -84,12 +84,6 @@ Definition main_spec :=
   WITH u : unit
   PRE  [] main_pre prog u
   POST [ tint ] main_post prog u.
-
-(** Declare the types of all the global variables.  [Vprog] must list
- ** the globals in the same order as in reverse.c file (and as in reverse.v).
- **)
-Definition Vprog : varspecs := 
-          (_three, Tarray t_struct_list 3 noattr)::nil.
 
 (** Declare all the functions, in exactly the same order as they
  ** appear in reverse.c (and in reverse.v).

@@ -3,8 +3,8 @@ Import ListNotations.
 Require Import sha.sha.
 Require Import general_lemmas.
 Require Import sha.SHA256.
-Instance CompSpecs : compspecs.
-Proof. make_compspecs prog. Defined. 
+Instance CompSpecs : compspecs. make_compspecs prog. Defined. 
+Definition Vprog : varspecs. mk_varspecs prog. Defined.
 Open Scope logic.
 
 Definition s256state := (list val * (val * (val * (list val * val))))%type.
@@ -190,8 +190,6 @@ Definition SHA256_spec :=
          PROP () LOCAL ()
          SEP(K_vector kv;
                data_block dsh data d; data_block msh (SHA_256 data) md).
-
-Definition Vprog : varspecs := (_K256, tarray tuint 64)::nil.
 
 Definition Gprog : funspecs := 
   __builtin_read32_reversed_spec::

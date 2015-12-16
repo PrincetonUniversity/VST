@@ -2,8 +2,8 @@ Require Import floyd.proofauto.
 Require Import progs.merge.
 Require Import progs.list_dt. Import LsegSpecial.
 
-Instance CompSpecs : compspecs.
-Proof. make_compspecs prog. Defined.
+Instance CompSpecs : compspecs. make_compspecs prog. Defined.
+Definition Vprog : varspecs. mk_varspecs prog. Defined.
 
 Instance LS: listspec _list _tail.
 Proof. eapply mk_listspec; reflexivity. Defined.
@@ -42,8 +42,6 @@ Definition merge_spec :=
      PROP ()
      LOCAL (temp ret_temp pt) 
      SEP (lseg LS sh (map Vint (merge a b)) pt nullval).
-
-Definition Vprog : varspecs := nil.
 
 Definition Gprog : funspecs := merge_spec :: nil.
 

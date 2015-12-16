@@ -1,8 +1,8 @@
 Require Import floyd.proofauto.
 Require Import progs.field_loadstore.
 
-Instance CompSpecs : compspecs.
-Proof. make_compspecs prog. Defined.
+Instance CompSpecs : compspecs. make_compspecs prog. Defined.
+Definition Vprog : varspecs. mk_varspecs prog. Defined.
 
 Local Open Scope logic.
 
@@ -63,8 +63,6 @@ Lemma spec_coincide: sub_spec' = sub_spec.
 Proof.
 (*reflexivity.*)
 Abort.
-
-Definition Vprog : varspecs := (_p, t_struct_b)::nil.
 
 Definition Gprog : funspecs := 
   (sub_spec _sub1)::(sub_spec _sub2)::(sub_spec _sub3)::nil.

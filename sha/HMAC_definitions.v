@@ -96,8 +96,6 @@ Definition hmac_spec :=
           `(repr_text a tsh (TEXT A));
           `(repr_digest false (fst (RefinedHMAC a)) dsh (DIGEST A))).
 
-Definition Vprog : varspecs := (*(_K256, tarray tuint 64)::*) nil.
-
 Definition Gprog : funspecs := 
   memcpy_spec:: memset_spec::
   SHA256_spec:: hmac_spec::nil.

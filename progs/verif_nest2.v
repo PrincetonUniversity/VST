@@ -1,8 +1,8 @@
 Require Import floyd.proofauto.
 Require Import progs.nest2.
 
-Instance CompSpecs : compspecs.
-Proof. make_compspecs prog. Defined.
+Instance CompSpecs : compspecs. make_compspecs prog. Defined.
+Definition Vprog : varspecs. mk_varspecs prog. Defined.
 
 Local Open Scope logic.
 
@@ -46,8 +46,6 @@ Definition set_spec :=
   POST [ tvoid ]
          PROP() LOCAL()
         SEP(data_at Ews t_struct_b (repinj _ (update22 i v)) p).
-
-Definition Vprog : varspecs := (_p, t_struct_b)::nil.
 
 Definition Gprog : funspecs := 
     get_spec::set_spec::nil.
