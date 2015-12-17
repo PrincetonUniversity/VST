@@ -1,12 +1,12 @@
 Require Import floyd.proofauto. (* Import the Verifiable C system *)
 Require Import progs.sumarray. (* Import the AST of this C program *)
 (* The next line is "boilerplate", always required after importing an AST. *)
-Instance CompSpecs : compspecs. Proof. make_compspecs prog. Defined.
+Instance CompSpecs : compspecs. make_compspecs prog. Defined.
 Definition Vprog : varspecs.  mk_varspecs prog. Defined.
 
 
 (* Some definitions relating to the functional spec of this particular program.  *)
-Definition sum_Z := fold_right Z.add 0.
+Definition sum_Z : list Z -> Z := fold_right Z.add 0.
   
 Lemma sum_Z_app:
   forall a b, sum_Z (a++b) =  sum_Z a + sum_Z b.

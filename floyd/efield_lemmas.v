@@ -61,15 +61,15 @@ Fixpoint efield_denote {cs: compspecs} (efs: list efield) (gfs: list gfield) : e
   | _, _ => FF
   end.
 
-Fixpoint tc_efield {cs: compspecs} (Delta: tycontext) (efs: list efield) rho : mpred :=
+Fixpoint tc_efield {cs: compspecs} (Delta: tycontext) (efs: list efield) : environ -> mpred :=
   match efs with
   | nil => TT
   | eArraySubsc ei :: efs' => 
-    tc_expr Delta ei rho && tc_efield Delta efs' rho
+    tc_expr Delta ei && tc_efield Delta efs'
   | eStructField i :: efs' =>
-    tc_efield Delta efs' rho
+    tc_efield Delta efs'
   | eUnionField i :: efs' =>
-    tc_efield Delta efs' rho
+    tc_efield Delta efs'
   end.
 
 Lemma compute_nested_efield_aux: forall e t,

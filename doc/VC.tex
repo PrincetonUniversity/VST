@@ -233,6 +233,17 @@ and we abbreviate \lstinline{tint := Tint I32 Signed noattr}.
 \emph{A program without a specification cannot be \emph{incorrect},
 it can only be \emph{surprising}.  \hfill (Paraphrase of J. J. Horning, 1982)}
 
+The file \lstinline{progs/verif_sumarray.v} contains
+the specification of \lstinline{sumarray.c},
+and the proof of correctness of the C program with respect
+to that specification.  For larger programs, one would
+typically break this down into three or more files:
+\begin{enumerate}
+\item Functional specification
+\item API specification
+\item Function-body correctness proofs, one per file.
+\end{enumerate}
+
 To prove correctness of \lstinline{sumarray.c},
 we start by writing a \emph{functional spec} of adding-up-a-sequence,
 then an \emph{API spec} of adding-up-an-array-in-C.
@@ -243,7 +254,7 @@ of integers: $\sum_{i=0}^{n-1}x_i$.  It's conventional in Coq to use
 \textsf{list} to represent a sequence; we can represent the sum
 with a list-fold:
 \begin{lstlisting}
-Definition sum_Z := fold_right Z.add 0.
+Definition sum_Z : list Z -> Z := fold_right Z.add 0.
 \end{lstlisting}
 A functional spec contains not only definitions; it's also
 useful to include theorems about this mathematical domain:
@@ -258,16 +269,34 @@ at all, as long as we have a way to relate them to the integers,
 tuples, and sequences used in a C program.  But the mathematical integers
 \lstinline{Z} and the 32-bit modular integers
 \lstinline{Int.int} are often relevant.
+Notice that this functional spec does not depend
+on sumarray.v or even on anything in the Verifiable C libraries.
+This is typical, and desirable:
+the functional spec is about mathematics,
+not about C programming.
 
-\newthought{API spec.}
-The API, or \emph{application programmer interface}, of a C program
-is expressed in its header file: function prototypes and data-structure
+\newthought{The application programmer interface} of a C program is
+expressed in its header file: function prototypes and data-structure
 definitions that explain how to call upon the modules' functionality.
-In \emph{Verifiable C}, an \emph{API specification} is written
-as a series of \emph{function specifications} (\lstinline{funspec}s)
+In \emph{Verifiable C}, an \emph{API specification} is written as a
+series of \emph{function specifications} (\lstinline{funspec}s)
 corresponding to the function prototypes.
 
-\pagebreak
+We start \lstinline{verif_sumarray.v}
+with some standard boilerplate:
+\begin{lstlisting}
+Require Import floyd.proofauto.
+Require Import progs.sumarray.
+Instance CompSpecs : compspecs. make_compspecs prog. Defined.
+Definition Vprog : varspecs.  mk_varspecs prog. Defined.
+\end{lstlisting}
+The first line imports Verifiable C and its \emph{Floyd} proof-automation library.  The second line imports the AST of the program to be proved.  Lines 3 and 4 are identical in any verification:
+see \autoref{refcard:compspecs} and \autoref{refcard:global-vars}.
+
+After the boilerplace (and the functional spec),
+we have the function specifications for each function
+in the API spec:
+
 \begin{lstlisting}
 Definition sumarray_spec :=
 DECLARE _sumarray
@@ -327,13 +356,8 @@ the contents of a C scalar variable is always a \lstinline{val}; this
 type is defined by CompCert as,
 
 \begin{lstlisting}
-Inductive val: Type :=
-| Vundef: val
-| Vint: int -> val
-| Vlong: int64 -> val
-| Vfloat: float -> val
-| Vsingle: float32 -> val
-| Vptr: block -> int -> val.
+Inductive val: Type :=  Vundef: val  | Vint: int -> val | Vlong: int64 -> val
+     | Vfloat: float -> val | Vsingle: float32 -> val | Vptr: block -> int -> val.
 \end{lstlisting}
 
 The \lstinline{SEP} conjuncts $\vec{R}$ are
@@ -370,47 +394,483 @@ The function returns a value equal to \lstinline{sum_int($\mathit{contents}$)},
 and leaves the array unaltered.''
 
 \newthought{Integer overflow.}
-The C language specification says that a C compiler may treat
+The C language specification says that a C compiler \emph{may} treat
 signed integer overflow by wrapping around mod $2^n$, where n is the
 word size (e.g., 32).  In practice, almost all C compilers (including
 CompCert) do this wraparound, and it is part of the CompCert
-C light operational semantics. See \autoref{refcard:int-repr}.
+C light operational semantics. See \autoref{refcard:integers}.
 The function \lstinline{Int.repr: Z -> int} truncates mathematical
 integers into 32-bit integers by taking the (sign-extended) low-order
 32 bits.  \lstinline{Int.signed: int -> Z} injects back into the signed
 integers.
 
-In this program, \lstinline{sum_int contents} is the signed,
-mod-$2^{32}$ sum.  Suppose \lstinline{$s$: list Z} is a sequence of
-integers, and \lstinline{contents = map Int.repr $s$}.
-Is it true that \lstinline{sum_int contents = Int.repr ($\sum s$)}?
-Well, yes, but that is not necessarily what we want to know:
-the more important question is: \lstinline{Int.signed (sum_int contents) $\stackrel{?}{=}~\sum s$}.
-This will be true only if \lstinline{Int.min_signed $\le \sum s \le$ Int.max_signed}.
-Whoever calls this \lstinline{sumarray} function will likely
-need to prove this range fact about $s$ in order to make use
-of the specification of the function.\footnote{What if $s$
+The postcondition guarantees that the value return is
+\lstinline{Int.repr (sum_Z contents)}.  But what if
+$\sum s \ge 2^{31}$, so the sum doesn't fit in
+a 32-bit signed integer?  Then
+\lstinline{Int.signed(Int.repr (sum_Z contents)) $\not=$ (sum_Z contents)}.  In general, for a claim about \lstinline{Int.repr($x$)} to
+be \emph{useful}, one also needs
+a claim that $0\le x \le \mathsf{Int.max\_unsigned}$
+or $\mathsf{Int.min\_signed} \le x \le \mathsf{Int.max\_signed}$.
+The caller of this function will probably need
+to prove
+$\mathsf{Int.min\_signed} \le \mathsf{sum\_Z~contents} \le \mathsf{Int.max\_signed}$
+in order to make much use of the postcondition.
+
+What if $s$
   is the sequence \lstinline{[Int.max_signed; 5; 1-Int.max_signed]}?
   Then $\sum\,s=6$.  Does the program really work?  Answer: Yes,
-  by the miracle of modular arithmetic.}
-But it does not need to part of the specification itself.
-
-\newthought{In most cases,}
-the WITH clause of a function-spec should not mention
-values of type \lstinline{int}, but only values of type Z.
-Thus, a more idiomatic use of Verifiable C would have
-\lstinline{WITH$\ldots$s: list Z$\ldots$}
-and then mention \lstinline{map Vint (map Int.repr s)}.
-This is the way the \lstinline{size} variable is treated, for example.
+  by the miracle of modular arithmetic.
 
 \chapter{Proof of the \textsf{sumarray} program}
 \label{refcard:sumarray-proof}
+To prove correctness of a whole program,
+\begin{enumerate}
+\item Collect the function-API specs together into
+  \lstinline{Gprog: list funspec}.
+  \item Prove that each function satisfies its own API spec
+    (with a \lstinline{semax_body} proof).
+  \item Tie everything together with a \lstinline{semax_func} proof.
+\end{enumerate}
+
+In \file{progs/verif\_sumarray.v}, the first step is easy:
+\begin{lstlisting}
+Definition Gprog : funspecs := sumarray_spec :: main_spec::nil.
+\end{lstlisting}
+The function specs, built using \lstinline{DECLARE},
+are listed in the same order the functions appear in
+the program (in particular, the same order they appear
+in \lstinline{prog.(prog_defs)}, in \lstinline{sumarray.v}).
+
+In addition to \lstinline{Gprog},
+the API spec contains \lstinline{Vprog}, the list of
+global-variable type-specs.  This is computed automatically
+by the \lstinline{mk_varspecs} tactic, as shown at the
+beginning of \lstinline{verif_sumarray.v}.
+
+Each C function can call any of the other C functions
+in the API, so each \lstinline{semax_body} proof
+is a client of the entire API spec, that is,
+\lstinline{Vprog} and \lstinline{Gprog}.
+You can see that in the statement of the
+\lstinline{semax_body} lemma for the \lstinline{_sumarray}
+function:
+\begin{lstlisting}
+Lemma body_sumarray: semax_body Vprog Gprog f_sumarray sumarray_spec.
+\end{lstlisting}
+Here, \lstinline{f_sumarray} is the actual function body
+(AST of the C code) as parsed by \lstinline{clightgen};
+you can read it in \lstinline{sumarray.v}.
+You can read \lstinline{body_sumarray} as saying,
+\emph{In the context of \lstinline{Vprog} and \lstinline{Gprog},
+  the function body \lstinline{f_sumarray}
+  satisfies its specification \lstinline{sumarray_spec}.}
+We need the context in case the sumarray function
+refers to a global variable (\lstinline{Vprog} provides
+the variable's type)
+or calls a global function
+ (\lstinline{Gprog} provides
+the function's API spec).
+
+\chapter{\upshape\textsf{start\_function}}
+The predicate \lstinline{semax_body}
+states the Hoare triple of the function body,
+$\Delta\vdash \triple{\mathit{Pre}}{c}{\mathit{Post}}$.
+$\mathit{Pre}$ and $\mathit{Post}$ are taken from the \lstinline{funspec}
+for $f$, $c$ is the body of $F$,
+and the type-context $\Delta$ is calculated from the global type-context
+overlaid with the parameter- and local-types of the  \lstinline{function}.
+
+To prove this, we begin with the tactic \lstinline{start_function},
+which takes care of some simple bookkeeping and
+expresses the Hoare triple to be proved.
+
+\begin{lstlisting}
+Lemma body_sumarray: semax_body Vprog Gprog f_sumarray sumarray_spec.
+Proof.
+start_function.
+\end{lstlisting}
+The proof goal now looks like this:\label{refcard:body-sumarray1}
+\begin{lstlisting}
+Espec : OracleKind
+a : val
+sh : share
+contents : list Z
+size : Z
+Delta_specs := abbreviate : PTree.t funspec
+Delta := abbreviate : tycontext
+SH : readable_share sh
+H : 0 <= size <= Int.max_signed
+H0 : Forall (fun x : Z => Int.min_signed <= x <= Int.max_signed) contents
+POSTCONDITION := abbreviate : ret_assert
+MORE_COMMANDS := abbreviate : statement
+_____________________________________________________________________(1/1)
+semax Delta
+  (PROP  ()
+   LOCAL  (temp _a a; temp _n (Vint (Int.repr size)))
+   SEP  (data_at sh (tarray tint size) (map Vint (map Int.repr contents)) a))
+  (Ssequence (Sset _i (Econst_int (Int.repr 0) tint)) MORE_COMMANDS)
+  POSTCONDITION
+\end{lstlisting}
+First we have \emph{Espec}, which you can ignore for now (it
+characterizes the outside world, but sumarray.c does not
+do any I/O).  Then \lstinline{a,sh,contents,size}
+  are exactly the variables of the \lstinline{WITH} clause
+  of \lstinline{sumarray_spec}.
+
+  The two abbreviations \lstinline{Delta\_spec, Delta} are the
+  type-context in which Floyd's proof tactics will look up
+  information about the types of the program's variables and functions.
+  The hypotheses \lstinline{SH,H,H0} are exactly the
+  \lstinline{PROP} clause of \lstinline{sumarray_spec}'s precondition.
+  The \lstinline{POSTCONDITION} is exactly the
+  \lstinline{POST} part of \lstinline{sumarray_spec}.
+
+  To see the contents of an abbreviation, you can either (1) set your IDE to show implicit arguments, or (2) (e.g.,) \textsf{unfold abbreviate in POSTCONDITION}.
+
+  Below the line we have one proof goal: the Hoare triple
+  of the function body.  It's written,
+  \lstinline{semax $\Delta$ $P$ $c$ $Q$},
+  where $P$ is the precondition, $c$ is the command,
+  and $Q$ is the postcondition.  Because we do \emph{forward} Hoare-logic proof, we won't care about the postcondition until we get to the end of $c$, so here we hide it away in an abbreviation.
+  Here, the command $c$ is a long sequence starting with
+  \lstinline{i=0;$\ldots\mathit{more}$}, and we hide the \emph{more}
+  in an abbreviation \lstinline{MORE_COMMMANDS}.
+
+The precondition of this \lstinline{semax}
+has \lstinline{LOCAL} and \lstinline{SEP} parts
+taken directly from the funspec (the \lstinline{PROP}
+clauses have been moved above the line).
+The statement
+\lstinline{(Sset _i (Econst_int (Int.repr 0) tint))}
+is the AST generated by \lstinline{clightgen}
+from the C statement \lstinline{i=0;}.
+
+\chapter{\upshape\textsf{forward}}
+We do Hoare logic proof by forward symbolic execution.
+On \autopageref{refcard:body-sumarray1}
+we show the proof goal at the beginning of
+the \lstinline{sumarray} function body.
+In a forward Hoare logic proof
+of $\triple{P}{i=0;\mathit{more}}{R}$ we might first apply
+the sequence rule,
+\[
+\inference{\triple{P}{i=0}{Q}\quad
+  \triple{Q}{\mathit{more}}{R}}{\triple{P}{i=0;\mathit{more}}{R}}
+\]
+assuming we could derive some appropriate assertion $Q$.
+
+For many kinds of statements (assignments, return, break,
+continue) this is done automatically by the
+\lstinline{forward} tactic.  When we execute
+\lstinline{forward} here, the resulting proof goal is,
+
+\begin{lstlisting}
+Espec, a, sh, contents, size, Delta_spec, SH, H, H0 $\mathit{as~before}$
+Delta := abbreviate : tycontext
+POSTCONDITION := abbreviate : ret_assert
+MORE_COMMANDS := abbreviate : statement
+_____________________________________________________________________(1/1)
+semax Delta
+  (PROP  ()
+   LOCAL  (temp _i (Vint (Int.repr 0)); temp _a a;
+   temp _n (Vint (Int.repr size)))
+   SEP  (data_at sh (tarray tint size) (map Vint (map Int.repr contents)) a))
+  (Ssequence (Sset _s (Econst_int (Int.repr 0) tint)) MORE_COMMANDS)
+  POSTCONDITION
+\end{lstlisting}
+Notice that the precondition of this \lstinline{semax}
+is really the \emph{postcondition} of the
+\lstinline{i=0;} statement; it is the precondition
+of the \emph{next} statement, \lstinline{s=0;}.
+It's much like the precondition of
+\lstinline{i=0;} what has changed?
+\begin{itemize}
+\item The \lstinline{LOCAL} part contains
+  \lstinline{temp _i (Vint (Int.repr 0))} in addition
+  to what it had before; this says that the local variable
+  $i$ contains integer value zero.
+\item the command is now \lstinline{s=0;$\mathit{more}$},
+  where \lstinline{MORE_COMMANDS} no longer contains
+  \lstinline{s=0;}.
+\item \lstinline{Delta} has changed; it now records the
+  information that $i$ is initialized.
+\end{itemize}
+
+Another \lstinline{forward} goes through
+\lstinline{s=0;} to yield a proof goal
+with a \lstinline{LOCAL} binding for the \lstinline{_s}
+variable.
+
+\chapter{While loops}
+To prove a \emph{while} loop by forward symbolic execution,
+you use the tactic \lstinline{forward_while}, and you
+must supply a loop invariant.  Take the example
+of the \lstinline{forward_while} in
+\file{progs/verif\_sumarray.v}.  The proof goal is,
+\begin{lstlisting}
+Espec, Delta_specs, Delta
+a : val,  sh : share,  contents : list Z,  size : Z
+SH : readable_share sh
+H : 0 <= size <= Int.max_signed
+H0 : Forall (fun x : Z => Int.min_signed <= x <= Int.max_signed) contents
+POSTCONDITION := abbreviate : ret_assert
+MORE_COMMANDS, LOOP_BODY := abbreviate : statement
+________________________________________________________________(1/1)
+semax Delta
+  (PROP  ()
+   LOCAL  (temp _s (Vint (Int.repr 0)); temp _i (Vint (Int.repr 0));
+           temp _a a; temp _n (Vint (Int.repr size)))
+   SEP  (data_at sh (tarray tint size) (map Vint (map Int.repr contents)) a))
+  (Ssequence
+     (Swhile (Ebinop Olt (Etempvar _i tint) (Etempvar _n tint) tint)
+        LOOP_BODY)
+   MORE_COMMANDS)
+  POSTCONDITION  
+\end{lstlisting}
+
+A loop invariant is an assertion, almost always in the form
+of an existential \lstinline{EX...PROP()LOCAL()SEP()}.
+Each iteration of the loop has a state characterized by
+a different value of some iteration variable(s),
+the the \lstinline{EX} binds that value.
+For example, the invariant for this loop is,
+\begin{lstlisting}
+Definition sumarray_Inv a0 sh contents size := 
+EX $i$: Z,
+ PROP  (0 <= $i$ <= size)
+ LOCAL (temp _a a0; temp _i (Vint (Int.repr $i$)); temp _n (Vint (Int.repr size));
+        temp _s (Vint (Int.repr (sum_Z (sublist 0 $i$ contents)))))
+ SEP   (data_at sh (tarray tint size) (map Vint (map Int.repr contents)) a0).
+\end{lstlisting}
+The existential binds $i$, the iteration-dependent value
+of the local variable named \lstinline{_i}.
+
+To apply the tactic: \lstinline{forward_while (sumarray_Inv a sh contents size).}
+Four proof goals result:
+\begin{enumerate}
+\item the precondition (of the whole loop) implies the loop invariant;
+\item the loop-condition expression type-checks (i.e., guarantees to evaluate successfully);
+\item the postcondition of the loop body implies the loop invariant;
+\item the loop invariant (and \emph{not} loop condition) is a good
+  precondition for the proof of the \lstinline{MORE_COMMANDS} after the loop.
+\end{enumerate}
+Let's take a look at that first subgoal:
+\begin{lstlisting}
+$\mbox{\underline{~~~\emph{(above-the-line hypotheses elided)}~~~~~~~~~~~}}_\mathrm{1/4}$
+ENTAIL Delta,
+       PROP  ()
+       LOCAL  (temp _s (Vint (Int.repr 0)); temp _i (Vint (Int.repr 0));
+              temp _a a; temp _n (Vint (Int.repr size)))
+       SEP  (data_at sh (tarray tint size) (map Vint (map Int.repr contents)) a)
+|-- EX  $i$ : Z,
+       PROP  (0 <= $i$ <= size)
+       LOCAL  (temp _a a; temp _i (Vint (Int.repr $i$));
+              temp _n (Vint (Int.repr size)); 
+              temp _s (Vint (Int.repr (sum_Z (sublist 0 $i$ contents)))))
+       SEP  (data_at sh (tarray tint size) (map Vint (map Int.repr contents)) a)
+\end{lstlisting}
+This is an \emph{entailment} goal; \autoref{refcard:entailments}
+shows how to prove such goals.
+
+\chapter{Entailments}
+\label{refcard:entailments}
+An \emph{entailment} in separation logic,
+$P \vdash Q$, says that any state satisfying $P$ must also
+satisfy $Q$.  What's in a state?  Local-variable environment,
+heap (addressable memory), even the state of the outside world.
+VST's type \lstinline{mpred}, \emph{memory predicate},
+can be thought of as \lstinline{mem->Prop} (but is not quite
+the same, for quite technical semantic reasons).
+That is, an \lstinline{mpred} is a test on the heap only,
+and cannot ``see'' the local variables (\lstinline{tempvar}s)
+of the C program.
+
+Type \lstinline{environ} is a local/global
+variable environment, mapping identifiers \lstinline{(ident)}
+to the values of globals, addressable locals, and tempvars (nonaddressable
+locals).  A \emph{lifted predicate} of type
+\lstinline{environ->mpred} can ``see'' both the heap
+and the local/global variables.
+The Pre/Post arguments of Hoare triples \lstinline{(semax $\Delta$ Pre c Post)}
+are lifted predicates.
 
 
+At present, Verifiable C has a notion of external-world state,
+in the \lstinline{Espec: OracleKind}, but it is not well developed;
+enhancements will be needed for reasoning about input/output.
 
+Our language for lifted predicates uses \lstinline{PROP($\vec{P}$)LOCAL($\vec{Q}$)SEP($\vec{R}$)}, where $\vec{R}$ is a list of \lstinline{mpred}s.  Our language
+for \lstinline{mpreds} uses primitives such as \lstinline{data_at} and \lstinline{emp},
+along with connectives such as the \lstinline{*} and $\wand$
+of separation logic.  In both languages there is an \lstinline{EX} operator
+for existential quantification.
+
+Separation logic's rule of consequence is shown here
+\[
+\hspace{-1em}\inference{P\vdash P' \quad \triple{P'}{c}{Q'} \quad Q'\vdash Q}{\triple{P'}{c}{Q'}}
+\quad
+\inference{\Delta,P\vdash P' \quad
+  \mathsf{semax}~\Delta~P'~c~Q'
+  \quad\Delta,Q'\vdash Q}{\mathsf{semax}~\Delta~P~c~Q}
+\]
+at left in traditional notation, and at right as in Verifiable C.
+The type-context $\Delta$ constrains values of locals and globals.
+Using this axiom, called \lstinline{semax_pre_post} on a
+proof goal $\mathsf{semax}~\Delta~P~c~Q$ yields three subgoals:
+another \lstinline{semax} and two (lifted) entailments,
+$\Delta,P\vdash P'$ and $\Delta,Q\vdash Q'$.
+
+The standard form of a lifted entailment is
+\lstinline{ENTAIL $\Delta$, PQR |-- PQR'},
+where \lstinline{PQR} and \lstinline{PQR'} are typically in the form
+\lstinline{PROP($\vec{P}$)LOCAL($\vec{Q}$)SEP($\vec{R}$)},
+perhaps with some \lstinline{EX} quantifiers in the front.
+The turnstile $\vdash$ is written in Coq as \verb.|--..
+
+Let's consider the entailment arising from \lstinline{forward_while}
+in the \file{progs/verif\_sumarray.v} example:
+\begin{lstlisting}
+H : 0 <= size <= Int.max_signed
+$\mbox{\underline{~~~\emph{(other above-the-line hypotheses elided)}~~~~~~~~~~~}}_\mathrm{1/4}$
+ENTAIL Delta,
+       PROP  ()
+       LOCAL  (temp _s (Vint (Int.repr 0)); temp _i (Vint (Int.repr 0));
+              temp _a a; temp _n (Vint (Int.repr size)))
+       SEP  (data_at sh (tarray tint size) (map Vint (map Int.repr contents)) a)
+|-- EX  $i$ : Z,
+       PROP  (0 <= $i$ <= size)
+       LOCAL  (temp _a a; temp _i (Vint (Int.repr $i$));
+              temp _n (Vint (Int.repr size)); 
+              temp _s (Vint (Int.repr (sum_Z (sublist 0 $i$ contents)))))
+       SEP  (data_at sh (tarray tint size) (map Vint (map Int.repr contents)) a)
+\end{lstlisting}
+We instantiate the existential with the only value that works here, zero:
+\lstinline{Exists 0.}
+\autoref{refcard:EX} explains how to handle existentials with
+\lstinline{Intros} and \lstinline{Exists}.
+
+Now we use the \lstinline{entailer!} tactic to solve as much of this goal
+as possible (see \autoref{refcard:entailer}). In this case, the goal solves
+entirely automatically.
+In particular, $0\le i \le \mathsf{size}$ solves by \lstinline{omega};
+\lstinline{sublist 0 0 contents} rewrites to \lstinline{nil};
+and \lstinline{sum_Z nil} simplifies to 0.
+
+\newthought{The second subgoal} of \lstinline{forward_while}
+in \file{progs/verif\_sumarray.v} is a \emph{type-checking entailment},
+of the form
+\lstinline{ENTAIL $\Delta$, PQR |-- tc_expr $\Delta$ $e$}\newline
+where $e$ is (the abstract syntax of) a C expression;
+in the particular case of a \emph{while} loop, $e$
+is the negation of the loop-test expression.  The entailment guarantees
+that $e$ executes without crashing: all the variables it references
+exist, and are initialized; and it doesn't divide by zero, et cetera.
+
+In this case, the entailment concerns the expression
+$\neg(i<n)$,
+\begin{lstlisting}
+ENTAIL Delta, PROP  ($\ldots$) LOCAL  ($\ldots$) SEP  ($\ldots$)
+|-- tc_expr Delta
+      (Eunop Onotbool (Ebinop Olt (Etempvar _i tint) (Etempvar _n tint) tint)
+         tint)
+\end{lstlisting}
+This solves completely via the \lstinline{entailer!} tactic.
+To see why that is, instead of doing \lstinline{entailer!},
+do \lstinline{unfold tc_expr; simpl.}  You'll see that the
+right-hand side of the entailment simplifies down to \lstinline{!!True}.
+That's because the typechecker is \emph{calculational},
+as \autoref{ch:typecheck} of \emph{Program Logics for Certified Compilers} explains.
+
+\chapter{Array subscripts}
+\newthought{The third subgoal} of \lstinline{forward_while}
+in \file{progs/verif\_sumarray.v} is the \emph{body} of the while loop:
+\lstinline{$\{$x=a[i]; s+=x; i++;$\}$}.
+
+This can be handled by three \lstinline{forward} commands,
+but the first one of these leaves a subgoal---proving that
+the subscript $i$ in in range.  Let's examine the proof goal:
+\begin{lstlisting}
+SH : readable_share $sh$
+H : 0 <= size <= Int.max_signed
+H0 : Forall (fun x : Z => Int.min_signed <= x <= Int.max_signed) contents
+$i$ : Z
+HRE : $i$ < size
+H1 : 0 <= $i$ <= size
+________________________________________________________(1/1)
+semax Delta
+  (PROP  ()
+   LOCAL  (temp _a $a$; temp _i (Vint (Int.repr $i$));
+   temp _n (Vint (Int.repr size));
+   temp _s (Vint (Int.repr (sum_Z (sublist 0 $i$ contents)))))
+   SEP  (data_at $sh$ (tarray tint size) (map Vint (map Int.repr contents)) $a$))
+  (Ssequence
+     (Sset _x
+        (Ederef
+           (Ebinop Oadd (Etempvar _a (tptr tint)) (Etempvar _i tint)
+              (tptr tint)) tint)) MORE_COMMANDS) POSTCONDITION
+\end{lstlisting}
+The Coq variable $i$ was introduced automatically by
+\lstinline{forward_while} from the existential variable,
+the \lstinline{EX $i$:Z} of the loop invariant.
+
+The command \lstinline{x=a[i];}
+is a \emph{load} from data-struture \lstinline{$a$}.
+For this to succeed, there must be a \lstinline{data_at}
+(or \lstinline{field_at}) assertion about $a$ in the \lstinline{SEP}
+clauses of the precondition; the permission share in that 
+\lstinline{data_at} must grant read access; and
+the subscript must be in range.
+Indeed, the \lstinline{data_at} is there, and
+the share is taken care of automatically
+by the hypothesis \lstinline{SH} above the line.
+
+So, \lstinline{forward} succeeds; but it leaves an array-bounds subgoal:
+
+\begin{lstlisting}
+ENTAIL Delta, PROP  ($\ldots$) LOCAL  ($\ldots$) SEP  ($\ldots$)
+|-- tc_expr Delta (Etempvar _a (tptr tint)) &&
+    local `(tc_val tint (Znth i (map Vint (map Int.repr contents)) Vundef)) &&
+    (tc_expr Delta (Etempvar _i tint) && TT)
+\end{lstlisting}
+The two \lstinline{tc_expr} conjuncts are trivial
+(the are $\beta\eta$-equal to TT)
+but the middle conjunct is nontrivial.  To clean things up,
+we run \lstinline{entailer!}, which leaves this subgoal:
+
+\begin{lstlisting}
+HRE : $i$ < Zlength (map Vint (map Int.repr contents))
+H1 : 0 <= $i$ <= Zlength (map Vint (map Int.repr contents))
+$\mbox{\underline{~~~\emph{(other above-the-line hypotheses elided)}~~~~~~~~~~~}}$
+is_int I32 Signed (Znth $i$ (map Vint (map Int.repr contents)) Vundef)
+\end{lstlisting}
+For the load to succeed, the $i$ element of
+\lstinline{(map Vint (map Int.repr contents))}
+must actually be an integer, not an undefined value.
+To prove this, we use the \lstinline{Znth_map} lemma
+to move the \lstinline{Znth} inside the \lstinline{Vint},
+leaving the goal,
+\begin{lstlisting}
+is_int I32 Signed (Vint (Znth i (map Int.repr contents) Int.zero))
+\end{lstlisting}
+This is an instance of
+\lstinline{is_int I32 Signed (Vint $\ldots$)}
+which is $\beta\eta$-equal to True.
+However, rewriting by \lstinline{Znth_map} left a subgoal,
+\begin{lstlisting}
+HRE : $i$ < Zlength (map Vint (map Int.repr contents))
+H1 : 0 <= $i$ <= Zlength (map Vint (map Int.repr contents))
+$\mbox{\underline{~~~\emph{(other above-the-line hypotheses elided)}~~~~~~~~~~~}}$
+0 <= i < Zlength (map Int.repr contents)
+\end{lstlisting}
+This solves straightforwardly as shown in the proof script.
+
+\chapter{\upshape\textsf{EX, Intros, Exists}}  
+\label{refcard:EX}
 
 \ychapter{Integers: \upshape\textsf{nat, Z, int}}
 {(\file{compcert/lib/Integers.v})}
+\label{refcard:integers}
 Coq's standard library has the natural numbers \lstinline{nat}
 and the integers \lstinline{Z}.  C-language integer values
 are represented by the type \lstinline{Int.int} (or just
@@ -1937,8 +2397,9 @@ Proofs using the \lstinline{forward} tactic will typically
 generate proof obligations (for the user to solve)
 of the form,
 \[
+\mathrm{ENTAIL}~\Delta,
 \PROP(\vec{P})~
-\LOCAL(\mathsf{tc\_environ}\,\Delta; \vec{Q})~
+\LOCAL(\vec{Q})~
 \SEP(\vec{R})
 ~\vdash
 \PROP(\vec{P'})~
@@ -1946,7 +2407,7 @@ of the form,
 \SEP(\vec{R'})
 \]
 
-The conjunct (\lstinline{tc_environ $\Delta$})
+$\Delta$
 keeps track of which nonaddressable local variables are initialized;
 says that all references to local variables
 contain values of the right type;
@@ -2484,21 +2945,6 @@ Lemma body_$F$: semax_body $V$ $\Gamma$ f_$F$ $F$_spec.
 
 \ychapter{Proving a function}{(See PLCC \autoref{ch:clight-program})}
 
-The predicate \lstinline{semax_body} states that
-function $F$'s \emph{implementation} (function body)
-meets its \emph{specification} (\lstinline{funspec}).
-The definition of the predicate, written in \file{veric/SeparationLogic.v},
-basically states the Hoare triple of the function body,
-$\Delta\vdash \triple{\mathit{Pre}}{c}{\mathit{Post}}$, where
-$\mathit{Pre}$ and $\mathit{Post}$ are taken from the \lstinline{funspec}
-for $f$, $c$ is the \lstinline{fn_body} of the \lstinline{function} $F$,
-and the type-context $\Delta$ is calculated from the global type-context
-overlaid with the parameter- and local-types of the  \lstinline{function}.
-
-To prove this, we begin with the tactic \lstinline{start_function},
-which takes care of some simple bookkeeping---unfolding certain
-definitions, destructing certain tuples, and putting the precondition
-in canonical form.
 
 \begin{lstlisting}
 Lemma body_$F$: semax_body $V$ $\Gamma$ f_$F$ $F$_spec.

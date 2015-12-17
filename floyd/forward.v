@@ -1901,8 +1901,8 @@ Ltac load_tac :=   (* matches:  semax _ _ (Sset _ (Efield _ _ _)) _  *)
       subst e1 gfs0 gfs1 efs tts t_root v sh lr n;
       repeat match goal with H := _ |- _ => clear H end;
       try quick_typecheck3; 
-      unfold tc_efield; try solve [entailer!]; try (clear Heq HLE H_Denote H (*H_LEGAL*);
-      subst e1 gfs0 gfs1 efs tts t_root v sh lr n; simpl app; simpl typeof)
+      unfold tc_efield, tc_LR, tc_LR_strong; simpl typeof;
+      try solve [entailer!]
     | solve_legal_nested_field_in_entailment;
          try clear Heq HLE H_Denote H;
          subst e1 gfs0 gfs1 efs tts t_root v sh lr n
@@ -1973,8 +1973,8 @@ Ltac load_tac :=   (* matches:  semax _ _ (Sset _ (Efield _ _ _)) _  *)
       subst e1 gfs0 gfs1 efs tts t_root v sh lr n;
       repeat match goal with H := _ |- _ => clear H end;
       try quick_typecheck3; 
-      unfold tc_efield; try solve [entailer!]; try (clear Heq HLE H_Denote H (*H_LEGAL*);
-      subst e1 gfs0 gfs1 efs tts t_root v sh lr n; simpl app; simpl typeof)
+      unfold tc_efield, tc_LR, tc_LR_strong; simpl typeof;
+      try solve [entailer!]
     | solve_legal_nested_field_in_entailment; try clear Heq HLE H_Denote H (*H_LEGAL*);
       subst e1 gfs0 gfs1 efs tts t_root v sh lr n]
 end.
