@@ -24,5 +24,4 @@ Lemma body_f: semax_body Vprog Gprog f_f f_spec.
 Proof.
 start_function.
 forward.
-entailer!.
 Qed.

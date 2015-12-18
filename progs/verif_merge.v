@@ -155,17 +155,7 @@ Qed.
 
 Lemma body_merge: semax_body Vprog Gprog f_merge merge_spec.
 Proof.
-(*
-name a__ _a.
-name b__ _b.
-name va__ _va.
-name vb__ _vb.
-name x__ _x.
-*)
 name ret_ _ret.
-(*
-name cond__ _cond.
-*)
 start_function.
 forward.
 
@@ -308,7 +298,7 @@ rewrite <- app_assoc. simpl app.
 rewrite <- H1. clear H1.
 destruct (merged ++ [va]) eqn:?; [ now destruct merged; inv Heql | ].
 forget (i::l) as merged''; clear i l.
-Time entailer!.  (* 42.3 sec -> 13.9 sec  *)
+Time entailer!.  (* 42.3 sec -> 13.9 sec -> 11.4 sec *)
 rewrite butlast_snoc. rewrite last_snoc.
 rewrite (snoc merged) at 3 by auto.
 rewrite map_app. simpl map.
@@ -517,19 +507,18 @@ rewrite merge_nil_r in *.
 entailer!.
 unfold field_type; simpl.
 unfold_data_at 1%nat.
-(* @Andrew: same bug here, rewrite does not work directly but it does after
-a pose *)
+(* Coq bug: rewrite does not work directly but it does after a pose *)
 pose proof (field_at_data_at sh t_struct_list [StructField _tail] a_ c_) as R.
-fold _tail.
 rewrite R.
 entailer!.
 
 (* when a = [] *)
-assert_PROP (a = []).
+assert_PROP (a = []). {
   destruct a; [ apply prop_right; reflexivity | ].
   simpl map; rewrite lseg_unfold.
   subst a_; entailer!.
-  elim H2; clear; intuition.
+  elim H6; clear; intuition.
+}
 subst a.
 
 destruct merged as [|hmerge tmerge].

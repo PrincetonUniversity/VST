@@ -834,7 +834,7 @@ ENTAIL Delta, PROP  ($\ldots$) LOCAL  ($\ldots$) SEP  ($\ldots$)
     (tc_expr Delta (Etempvar _i tint) && TT)
 \end{lstlisting}
 The two \lstinline{tc_expr} conjuncts are trivial
-(the are $\beta\eta$-equal to TT)
+(they are $\beta\eta$-equal to TT)
 but the middle conjunct is nontrivial.  To clean things up,
 we run \lstinline{entailer!}, which leaves this subgoal:
 
@@ -847,7 +847,7 @@ is_int I32 Signed (Znth $i$ (map Vint (map Int.repr contents)) Vundef)
 For the load to succeed, the $i$ element of
 \lstinline{(map Vint (map Int.repr contents))}
 must actually be an integer, not an undefined value.
-To prove this, we use the \lstinline{Znth_map} lemma
+To prove this, we use the \lstinline{Znth_map} lemma\label{refcard:rewrite-znth-map}
 to move the \lstinline{Znth} inside the \lstinline{Vint},
 leaving the goal,
 \begin{lstlisting}
@@ -856,14 +856,150 @@ is_int I32 Signed (Vint (Znth i (map Int.repr contents) Int.zero))
 This is an instance of
 \lstinline{is_int I32 Signed (Vint $\ldots$)}
 which is $\beta\eta$-equal to True.
-However, rewriting by \lstinline{Znth_map} left a subgoal,
+However, when we rewrote by \lstinline{Znth_map}, that left a subgoal,
 \begin{lstlisting}
 HRE : $i$ < Zlength (map Vint (map Int.repr contents))
 H1 : 0 <= $i$ <= Zlength (map Vint (map Int.repr contents))
 $\mbox{\underline{~~~\emph{(other above-the-line hypotheses elided)}~~~~~~~~~~~}}$
-0 <= i < Zlength (map Int.repr contents)
+0 <= $i$ < Zlength (map Int.repr contents)
 \end{lstlisting}
 This solves straightforwardly as shown in the proof script.
+
+\chapter{Splitting sublists}
+In \file{progs/verif\_sumarray.v}, at the comment ``Now we have reached
+the end of the loop body,'' it is time to prove that the \emph{current}
+precondition (which is the postcondition of the loop body) entails
+the loop invariant.  This is the proof goal:
+\begin{lstlisting}
+H : 0 <= size <= Int.max_signed
+H0 : Forall (fun x : Z => Int.min_signed <= x <= Int.max_signed) contents
+HRE : $i$ < size
+H1 : 0 <= $i$ <= size
+$\mbox{\underline{~~~\emph{(other above-the-line hypotheses elided)}~~~~~~~~~~~}}$
+ENTAIL Delta,
+PROP  ()
+LOCAL  (temp _i (Vint (Int.add (Int.repr $i$) (Int.repr 1)));
+temp _s
+  (force_val
+     (sem_add_default tint tint
+        (Vint (Int.repr (sum_Z (sublist 0 $i$ contents))))
+        (Znth $i$ (map Vint (map Int.repr contents)) Vundef)));
+temp _x (Znth $i$ (map Vint (map Int.repr contents)) Vundef); temp _a a;
+temp _n (Vint (Int.repr size)))
+SEP  (data_at sh (tarray tint size) (map Vint (map Int.repr contents)) a)
+|-- EX  $a_0$ : Z,
+    PROP  (0 <= $a_0$ <= size)
+    LOCAL  (temp _a a; temp _i (Vint (Int.repr $a_0$));
+    temp _n (Vint (Int.repr size));
+    temp _s (Vint (Int.repr (sum_Z (sublist 0 $a_0$ contents)))))
+    SEP  (data_at sh (tarray tint size) (map Vint (map Int.repr contents)) a)
+\end{lstlisting}
+The right-hand side of this entailment is just the loop invariant.
+As usual at the end of a loop body, there is an existentially
+quantified variable that must be instantiated with an iteration-dependent value.
+In this case it's obvious: the quantified variable represents the
+contents of C local variable \lstinline{_i}, so we do,
+\lstinline{Exists (i+1).}
+
+The resulting entailmant has many trivial parts and a nontrivial residue.
+The usual way to get to the hard part is to run \lstinline{entailer!},
+which we do now.  After clearing away the irrelevant hypotheses, we have:
+
+\begin{lstlisting}
+H : 0 <= Zlength (map Vint (map Int.repr contents)) <= Int.max_signed
+HRE : i < Zlength (map Vint (map Int.repr contents))
+H1 : 0 <= i <= Zlength (map Vint (map Int.repr contents))
+______________________________________(1/1)
+Vint (Int.repr (sum_Z (sublist 0 (i + 1) contents))) =
+force_val
+  (sem_add_default tint tint (Vint (Int.repr (sum_Z (sublist 0 i contents))))
+     (Znth i (map Vint (map Int.repr contents)) Vundef))
+\end{lstlisting}
+The \lstinline{sem_add_default} comes from the semantics of C
+expression evaluation:  adding integers means one thing,
+but adding an integer to a Vundef is undefined, and so on.
+To clear that sludge out of the way, we
+move the \lstinline{Znth} inside the \lstinline{Vint} just
+as on \autopageref{refcard:rewrite-znth-map},
+then \lstinline{simpl}, yielding this goal:
+
+\begin{lstlisting}
+H : 0 <= Zlength contents <= Int.max_signed
+HRE : i < Zlength contents
+H1 : 0 <= i <= Zlength contents
+______________________________________(1/1)
+Vint (Int.repr (sum_Z (sublist 0 (i + 1) contents))) =
+Vint (Int.add (Int.repr (sum_Z (sublist 0 i contents)))
+       (Int.repr (Znth i contents 0)))
+\end{lstlisting}
+
+The lemma \lstinline{add_repr: $\forall i\,j,$ Int.add (Int.repr $i$) (Int.repr $j$) = Int.repr ($i+j$)} is useful here; followed by \lstinline{f_equal}, leaves:
+\begin{lstlisting}
+sum_Z (sublist 0 (i + 1) contents) =
+sum_Z (sublist 0 i contents) + Znth i contents 0
+\end{lstlisting}
+Now the lemma
+\lstinline{sublist_split: $\forall l\,m\,h\,\mathsf{al},~~ 0 \le l \le m \le h \le |\mathsf{al}|
+  $ ->}\newline
+\lstinline{sublist $l$ $h$ al = sublist $l$ $m$ al ++ sublist $m$ $h$ al}
+is helpful here: \newline
+\lstinline{rewrite (sublist_split 0 i (i+1)) by omega.}
+A bit more rewriting with the theory of
+\lstinline{sum_Z} and \lstinline{sublist} finishes the proof.
+
+\chapter{Returning from a function}
+In \file{progs/verif\_sumarray.v}, at the comment ``After the loop,'' we have reached the \lstinline{return} statement.
+The \lstinline{forward} tactic works here, leaving a proof goal
+that the precondition of the \lstinline{return}
+entails the postcondition of the function-spec.
+(When this automatically, it leaves no proof goal at all.)
+The goal is a \emph{lowered} entailment (on
+\lstinline{mpred} assertions).
+
+After doing \lstinline{simpl}
+to clear away some C-expression-evaluation sludge, we have
+\begin{lstlisting}
+H4 : Forall (value_fits tint) (map Vint (map Int.repr contents))
+H2 : field_compatible (Tarray tint (Zlength $\ldots$) noattr) [] a
+$\mbox{\underline{~~~\emph{(other above-the-line hypotheses elided)}~~~~~~~~~~~}}$
+data_at sh (tarray tint (Zlength $\ldots$)) (map Vint (map Int.repr contents)) a
+|-- !!(Vint (Int.repr (sum_Z contents)) =
+       Vint (Int.repr (sum_Z (sublist 0 i contents))))
+\end{lstlisting}
+
+The left-hand side of this entailment is a
+spatial predicate (\lstinline{data_at}).
+Purely nonspatial facts (H4 and H2) derivable from it
+have already been inferred and
+moved above the line by
+\lstinline{saturate_local} (see \autoref{refcard:saturate-local}).
+
+This entailment's right-hand side has no spatial
+predicates.  That's because the SEP clause of the
+funspec's postcondition had exactly the same
+\lstinline{data_at} clause as we see here in the
+entailment precondition, and the entailment-solver
+called by \lstinline{forward} has already cleared it away.
+
+In a situation like this---where
+\lstinline{saturate_local} has already been done
+\emph{and} the r.h.s. of the entailment is purely
+nonspatial---
+\emph{almost always} there's no more useful information
+in the left hand side that hasn't already been
+extracted by \lstinline{saturate_local}.
+We can throw away the l.h.s. with
+\lstinline{apply prop_right} (or by
+\lstinline{entailer!} but that's a bit slower).
+
+The remaining subgoal solves easily in the
+theory of sublists.  The proof of the function
+\lstinline{sumarray} is now complete.
+
+\chapter{The \textsf{main} function and global variables}
+
+       
+
 
 \chapter{\upshape\textsf{EX, Intros, Exists}}  
 \label{refcard:EX}

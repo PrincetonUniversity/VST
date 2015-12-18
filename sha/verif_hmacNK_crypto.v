@@ -129,7 +129,7 @@ forward_call (hmacInit key, c, d, dl, data, kv).
 
 (* Call to HMAC_Final*)
 assert_PROP (@field_compatible CompSpecs (Tstruct _hmac_ctx_st noattr) nil c).
-{ unfold hmacstate_; entailer. }
+{ unfold hmacstate_.  Intros r; entailer!. }
 rename H into FC_c.
 
 forward_call (hmacUpdate data (hmacInit key), c, md, shmd, kv).

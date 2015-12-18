@@ -93,16 +93,20 @@ forward. (* i++; *)
  entailer!.
  clear - H HRE H1.
  autorewrite with sublist in *.
- rewrite (sublist_split 0 i (i+1)) by omega.
- rewrite sum_Z_app. rewrite (sublist_one i) with (d:=0) by omega.
  rewrite Znth_map with (d':=Int.zero) by (autorewrite with sublist; omega).
  rewrite Znth_map with (d':=0) by  (autorewrite with sublist; omega).
- simpl. rewrite add_repr, Z.add_0_r. reflexivity.
+ simpl. 
+ rewrite add_repr.
+ f_equal. f_equal.
+ rewrite (sublist_split 0 i (i+1)) by omega.
+ rewrite sum_Z_app. rewrite (sublist_one i) with (d:=0) by omega.
+ simpl. rewrite Z.add_0_r. reflexivity.
 * (* After the loop *)
 forward.  (* return s; *)
  (* Here we prove that the postcondition of the function body
     entails the postcondition demanded by the function specification. *)
-entailer!.
+simpl.
+apply prop_right.
 autorewrite with sublist in *.
 autorewrite with sublist.
 simpl.

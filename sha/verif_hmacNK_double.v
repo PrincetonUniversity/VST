@@ -130,8 +130,7 @@ forward_call (hmacInit key, c, d, dl, data, kv).
   { rewrite H3_len512. assumption. }
 
 assert_PROP (field_compatible (Tstruct _hmac_ctx_st noattr) [] c)
-  as FC_c by (unfold hmacstate_; entailer).
-
+  as FC_c by (unfold hmacstate_; Intros r;  entailer!).
 forward_call (hmacUpdate data (hmacInit key), c, Vptr b (Int.repr (Int.unsigned i + 32)), shmd, kv).
 remember (hmacFinal (hmacUpdate data (hmacInit key))) as RND2.
 destruct RND2 as [h5 dig2]. 

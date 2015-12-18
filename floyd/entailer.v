@@ -383,15 +383,21 @@ end.
 Hint Rewrite (@TT_andp mpred _) : gather_prop.
 Hint Rewrite (@andp_TT mpred _) : gather_prop.
 
-Ltac ent_iter :=
+Ltac pull_out_props :=
     repeat (( simple apply derives_extract_prop 
                 || simple apply derives_extract_prop');
                 fancy_intros true);
     autorewrite with gather_prop;
     repeat (( simple apply derives_extract_prop 
                 || simple apply derives_extract_prop');
+                fancy_intros true).
+
+Ltac ent_iter :=
+    autorewrite with gather_prop;
+    repeat (( simple apply derives_extract_prop 
+                || simple apply derives_extract_prop');
                 fancy_intros true);
-   saturate_local;
+(*   saturate_local; *)
    repeat erewrite unfold_reptype_elim in * by reflexivity;
    simpl_compare;
    simpl_denote_tc;
@@ -444,10 +450,11 @@ Ltac entailer :=
  | |- ?P |-- _ => 
     match type of P with
     | ?T => unify T (environ->mpred); go_lower
-    | _ => idtac
+    | _ => pull_out_props
     end
  | |- _ => fail "The entailer tactic works only on entailments   _ |-- _ "
  end;
+ saturate_local;
  entailer'.
 
 
@@ -521,21 +528,6 @@ Ltac my_auto :=
  (eapply my_auto_lem; [intro; my_auto_reiter | ]);
  normalize.
 
-(*
-Ltac mysplit := 
- match goal with 
- | |- _ <= _ < _ => idtac
- | |- _ < _ <= _ => idtac
- | |- _ <= _ <= _ => idtac
- | |- _ < _ < _ => idtac
- | |- _ <-> _ => idtac
- | |- _ => try simple apply conj
- end.
-
-Ltac my_auto :=
- repeat mysplit; try computable; normalize; auto; try apply Coq.Init.Logic.I; try reflexivity; try omega.
-*)
-
 Lemma prop_and_same_derives' {A}{NA: NatDed A}:
   forall (P: Prop) Q,   P   ->   Q |-- !!P && Q.
 Proof.
@@ -543,12 +535,11 @@ intros. apply andp_right; auto. apply prop_right; auto.
 Qed.
 
 Ltac entailer_for_return :=
- go_lower; ent_iter;
+ go_lower; saturate_local; ent_iter;
  normalize;
  repeat erewrite elim_globals_only by (split3; [eassumption | reflexivity.. ]);
- prune_conjuncts;
- try rewrite (prop_true_andp True) by apply Coq.Init.Logic.I;
- try solve [cancel].
+ entailer';
+ try match goal with rho: environ |- _ => clear rho end.
 
 Ltac entbang := 
  intros;
@@ -556,10 +547,11 @@ Ltac entbang :=
  | |- local _ && ?P |-- _ => go_lower
  | |- ?P |-- _ =>
     match type of P with 
-    | ?T => unify T mpred; idtac
+    | ?T => unify T mpred; pull_out_props
     end
  | |- _ => fail "The entailer tactic works only on entailments  _ |-- _ "
  end;
+ saturate_local;
  ent_iter;
  first [ contradiction
         | simple apply prop_right; my_auto
@@ -581,14 +573,6 @@ Ltac elim_hyps :=  (* not in use anywhere? *)
 
 Ltac aggressive :=
   repeat split; auto; elim_hyps; simpl; (computable || auto).
-
-Ltac entailer1 := (* not in use anywhere? *)
-  entailer; 
-    first [simple apply andp_right; 
-               [apply prop_right; aggressive | cancel ]
-           | apply prop_right; aggressive
-           | cancel
-           | aggressive ].
 
 (**** try this out here, for now ****)
 

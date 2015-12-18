@@ -343,7 +343,7 @@ destruct (isnil contents).
 Exists prefix.
   assert_PROP (isptr hd).
     destruct prefix; entailer.
-    rewrite lseg_cons_eq by auto. 
+    rewrite lseg_cons_eq by auto. Intros y. subst v. 
     entailer.
  destruct hd; try contradiction.
  entailer!. entailer!.
