@@ -137,6 +137,7 @@ both $F$.v and the VST \emph{Floyd}\footnote{Named after Robert W. Floyd (1936--
 \end{itemize}
 
 \newthought{Load paths.}
+\label{loadpaths}
 Interactive development environments (CoqIDE or Proof General)
 will need their load paths properly initialized through 
 command-line arguments.  Running \textsf{make} in 
@@ -228,7 +229,24 @@ Inductive type : Type :=
 \end{lstlisting}
 and we abbreviate \lstinline{tint := Tint I32 Signed noattr}.
 
+\chapter{Use the IDE}
+\autoref{start-ide} through \autoref{end-ide}
+are meant to be read
+while you have the file \file{progs/verif\_sumarray.v}
+open in a window of your interactive development
+environment for Coq.  You can use Proof General,
+CoqIDE, or any other IDE that supports Coq.
+
+Reading these chapters will be much less
+informative if you cannot see the
+proof state as each chapter discusses it.
+
+Before starting the IDE, read about load paths,
+at the heading \textsc{using proof general and coqide}
+in the file \textsc{vst/build\_organization}.
+
 \chapter{Functional spec, API spec}
+\label{start-ide}
 
 \emph{A program without a specification cannot be \emph{incorrect},
 it can only be \emph{surprising}.  \hfill (Paraphrase of J. J. Horning, 1982)}
@@ -1090,6 +1108,54 @@ because \lstinline{main_post} is basically an
 abbreviation for True.
 
 \chapter{Tying all the functions together}
+\label{end-ide}
+
+We build a whole-program proof by composing together
+the proofs of all the function bodies.
+Consider \lstinline{Gprog}, the list of all
+the function-specifications:
+\begin{lstlisting}
+Definition Gprog : funspecs := sumarray_spec :: main_spec::nil.
+\end{lstlisting}
+
+Each \lstinline{semax\_body} proof says,
+assuming that \emph{all the functions I might call}
+behave as specified, then \emph{my own function-body}
+indeed behaves as specified:
+\begin{lstlisting}
+Lemma body_sumarray: semax_body Vprog Gprog f_sumarray sumarray_spec.
+\end{lstlisting}
+
+Note that \emph{all the functions I might call}
+might even include ``myself,'' in the case of a
+recursive or mutually recursive function.
+
+This might seem like circular reasoning, but
+it is actually sound---by the miracle of
+step-indexed semantic models, as explained in
+Chapters 18 and 39 of \emph{Program Logics for Certified Compilers.}
+
+The rule for tying the functions together is
+called \lstinline{semax\_func}, and its use is illustrated
+in this theorem, the main proof-of-correctness
+theorem for the program \lstinline{sumarray.c}:
+
+\begin{lstlisting}
+Lemma all_funcs_correct: semax_func Vprog Gprog (prog_funct prog) Gprog.
+Proof.
+unfold Gprog, prog, prog_funct; simpl.
+semax_func_skipn.
+semax_func_cons body_sumarray.
+semax_func_cons body_main.
+apply semax_func_nil.
+Qed.
+\end{lstlisting}  
+The calls to \lstinline{semax_func_cons}
+must appear in the same order as the functions
+are listed in \lstinline{Gprog} and the same order
+as they appear in
+\lstinline{prog.(prog_defs)}.
+
 
 
 \chapter{\upshape\textsf{EX, Intros, Exists}}  
