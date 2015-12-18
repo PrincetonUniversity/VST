@@ -31,10 +31,10 @@ forall (Delta: tycontext) sh id P Q R e1 t2 (v2: val),
          (`(mapsto sh (typeof e1)) (eval_lvalue e1) `v2 * TT) ->
     @semax cs Espec Delta (|> PROPx P (LOCALx Q (SEPx R)))
        (Sset id e1)
-       (normal_ret_assert (EX old:val, 
-             PROPx P 
-   (LOCALx (temp id v2 :: map (subst_localdef id old) Q)
-     (SEPx R)))).
+       (normal_ret_assert
+         (PROPx P 
+           (LOCALx (temp id v2 :: remove_localdef id Q)
+             (SEPx R)))).
 Proof.
   intros.
   rename H1 into H_READABLE; rename H2 into H1.
@@ -55,14 +55,19 @@ Proof.
     apply andp_left2. apply andp_left1; auto.
     apply andp_left1; auto.
   +
-     intros. apply andp_left2. apply normal_ret_assert_derives'.
-    apply exp_derives; intro old.
-    autorewrite with subst.
-    rewrite <- insert_local.
-    apply andp_derives; auto.
-    intro rho; unfold local, lift1; unfold_lift; simpl; auto.
-    unfold_lift.
-    apply prop_derives; intro; auto.
+    intros. apply andp_left2. apply normal_ret_assert_derives'.
+    eapply derives_trans.
+    - apply exp_derives; intro old.
+      apply andp_derives; [| apply derives_refl].
+      autorewrite with subst.
+      apply derives_refl.
+    - rewrite <- exp_andp2.
+      rewrite <- insert_local.
+      apply andp_derives; auto.
+      * simpl; unfold local, lift1; unfold_lift.
+        intros; apply prop_derives; congruence.
+      * apply derives_refl'.
+        apply remove_localdef_PROP.
   +
     eapply derives_trans; [apply H1 | clear H1].
     apply andp_left2. auto.
@@ -81,14 +86,14 @@ forall (Delta: tycontext) sh id P Q R e1 t1 (v2: val),
          (`(mapsto sh (typeof e1)) (eval_lvalue e1) `v2 * TT) ->
     @semax cs Espec Delta (|> PROPx P (LOCALx Q (SEPx R)))
        (Sset id (Ecast e1 t1))
-       (normal_ret_assert (EX old:val, 
-             PROPx P 
-   (LOCALx (temp id (eval_cast (typeof e1) t1 v2) :: map (subst_localdef id old) Q)
-     (SEPx R)))).
+       (normal_ret_assert
+         (PROPx P 
+           (LOCALx (temp id (eval_cast (typeof e1) t1 v2) :: remove_localdef id Q)
+             (SEPx R)))).
 Proof.
   intros. rename H0 into H_READABLE; pose proof I.
   eapply semax_pre_post; [ | | apply semax_cast_load with (sh0:=sh)(v3:= `v2); auto].
-  * instantiate (1:= PROPx P (LOCALx Q (SEPx R))).
+  + instantiate (1:= PROPx P (LOCALx Q (SEPx R))).
     apply later_left2.
     match goal with |- ?A |-- _ => rewrite <- (andp_dup A) end.
     eapply derives_trans.
@@ -102,17 +107,23 @@ Proof.
     apply andp_right.
     apply andp_left2. apply andp_left1; auto.
     apply andp_left1; auto.
-  *
-    intros. apply andp_left2; auto.
-    apply normal_ret_assert_derives'.
-    apply exp_derives; intro old.
-    autorewrite with subst.
-    rewrite <- insert_local.
-    apply andp_derives; auto.
-    intro rho; unfold local, lift1; unfold_lift; simpl; auto.
-    unfold_lift.
-    apply prop_derives; intro; auto.
-  * 
+  +
+    intros. apply andp_left2. apply normal_ret_assert_derives'.
+    eapply derives_trans.
+    - apply exp_derives; intro old.
+      apply andp_derives; [| apply derives_refl].
+      autorewrite with subst.
+      apply derives_refl.
+    - rewrite <- exp_andp2.
+      rewrite <- insert_local.
+      apply andp_derives; auto.
+      * simpl; unfold local, lift1; unfold_lift.
+        intros; apply prop_derives.
+        unfold force_val1.
+        congruence.
+      * apply derives_refl'.
+        apply remove_localdef_PROP.
+  + 
     eapply derives_trans; [apply H1 | clear H1].
     apply andp_left2. auto.
 Qed.
@@ -193,10 +204,10 @@ Lemma semax_load_nth_ram :
       (tc_lvalue Delta e1) && local (`(tc_val t1 v)) ->
     @semax cs Espec Delta (|> PROPx P (LOCALx Q (SEPx R)))
       (Sset id e1)
-      (normal_ret_assert (EX old: val,
-         PROPx P 
-          (LOCALx (temp id v :: map (subst_localdef id old) Q)
-            (SEPx R)))).
+      (normal_ret_assert
+         (PROPx P 
+           (LOCALx (temp id v :: remove_localdef id Q)
+             (SEPx R)))).
 Proof.
   intros.
   subst; eapply semax_load_37'; eauto.
@@ -228,10 +239,10 @@ Lemma semax_cast_load_nth_ram :
      (tc_lvalue Delta e1) && local (`(tc_val t2 (eval_cast t1 t2 v))) ->
     @semax cs Espec Delta (|> PROPx P (LOCALx Q (SEPx R)))
      (Sset id (Ecast e1 t2))
-     (normal_ret_assert (EX old:val, 
-        PROPx P 
-        (LOCALx (temp id (eval_cast t1 t2 v) :: map (subst_localdef id old) Q)
-          (SEPx R)))).
+     (normal_ret_assert
+         (PROPx P 
+           (LOCALx (temp id (eval_cast t1 t2 v) :: remove_localdef id Q)
+             (SEPx R)))).
 Proof.
   intros.
   subst; eapply semax_cast_load_37'; eauto.
@@ -249,5 +260,3 @@ Proof.
   + rewrite sepcon_assoc.
     apply sepcon_derives; auto.
 Qed.
-
-

@@ -1563,10 +1563,9 @@ Ltac forward_setx :=
      let v := fresh "v" in evar (v : val);
      let HRE := fresh "H" in
      do_compute_expr Delta P Q R e v HRE;
-     eapply semax_SC_set1;
-      [reflexivity | reflexivity 
-      | solve [repeat econstructor]
-      | unfold app at 1; reflexivity
+     eapply semax_SC_set;
+      [ reflexivity
+      | reflexivity 
       | exact HRE
       | first [quick_typecheck3
             | pre_entailer; clear HRE; subst v; try solve [entailer!]]
@@ -1889,13 +1888,17 @@ Ltac load_tac :=   (* matches:  semax _ _ (Sset _ (Efield _ _ _)) _  *)
     | (ENTAIL _, PROPx _ (LOCALx _ (SEPx (?R0 :: nil))) 
            |-- _) => assert (nth_error R n = Some R0) as Heq by reflexivity
     end;
-    eapply (semax_SC_field_cast_load1 Delta sh n) with (lr0 := lr) (t_root0 := t_root) (gfs2 := gfs0) (gfs3 := gfs1);
-    [reflexivity | reflexivity
-      | solve [repeat econstructor]
-      | unfold app at 1; reflexivity
+    eapply (semax_SC_field_cast_load Delta sh n) with (lr0 := lr) (t_root0 := t_root) (gfs2 := gfs0) (gfs3 := gfs1);
+    [ reflexivity
     | reflexivity
-    | reflexivity | exact Heq | exact HLE | exact H_Denote | exact H
     | auto (* readable share *)
+    | reflexivity
+    | reflexivity
+    | reflexivity
+    | reflexivity
+    | exact Heq
+    | exact HLE
+    | exact H_Denote
     | solve_load_rule_evaluation
     | clear Heq HLE H_Denote H;
       subst e1 gfs0 gfs1 efs tts t_root v sh lr n;
@@ -1904,8 +1907,8 @@ Ltac load_tac :=   (* matches:  semax _ _ (Sset _ (Efield _ _ _)) _  *)
       unfold tc_efield, tc_LR, tc_LR_strong; simpl typeof;
       try solve [entailer!]
     | solve_legal_nested_field_in_entailment;
-         try clear Heq HLE H_Denote H;
-         subst e1 gfs0 gfs1 efs tts t_root v sh lr n
+      try clear Heq HLE H_Denote H;
+      subst e1 gfs0 gfs1 efs tts t_root v sh lr n
     ]
 
 | |- semax ?Delta (|> (PROPx ?P (LOCALx ?Q (SEPx ?R)))) (Sset _ ?e) _ =>
@@ -1961,13 +1964,17 @@ Ltac load_tac :=   (* matches:  semax _ _ (Sset _ (Efield _ _ _)) _  *)
            |-- _) => assert (nth_error R n = Some R0) as Heq by reflexivity
     end;
 
-    eapply (semax_SC_field_load1 Delta sh n) with (lr0 := lr) (t_root0 := t_root) (gfs2 := gfs0) (gfs3 := gfs1);
-    [reflexivity | reflexivity
-      | solve [repeat econstructor]
-      | unfold app at 1; reflexivity
+    eapply (semax_SC_field_load Delta sh n) with (lr0 := lr) (t_root0 := t_root) (gfs2 := gfs0) (gfs3 := gfs1);
+    [ reflexivity
     | reflexivity
-    | reflexivity | exact Heq | exact HLE | exact H_Denote | exact H
     | auto (* readable share *)
+    | reflexivity
+    | reflexivity
+    | reflexivity
+    | reflexivity
+    | exact Heq
+    | exact HLE
+    | exact H_Denote
     | solve_load_rule_evaluation
     | clear Heq HLE H_Denote H;
       subst e1 gfs0 gfs1 efs tts t_root v sh lr n;
@@ -2206,8 +2213,20 @@ try match goal with
 end.
 
 Ltac fwd_result :=
-  unfold replace_nth, repinject; cbv beta;
-   repeat simpl_proj_reptype.
+  repeat
+   (let P := fresh "P" in
+    match goal with
+    | |- appcontext [remove_localdef ?A ?B] =>
+         set (P := remove_localdef A B);
+         hnf in P;
+         subst P
+    | |- appcontext [map_subst_localdef ?A ?B ?C] =>
+         set (P := map_subst_localdef A B C);
+         hnf in P;
+         subst P
+    end);
+  unfold replace_nth, repinject; cbv beta iota zeta;
+  repeat simpl_proj_reptype.
 
 Ltac fwd' :=
  match goal with

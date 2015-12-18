@@ -72,10 +72,9 @@ Lemma semax_max_path_field_load_nth_ram:
       semax Delta (|>PROPx P (LOCALx Q (SEPx R))) 
         (Sset id (nested_efield e1 efs tts))
           (normal_ret_assert
-            (EX old : val,
-              PROPx P
-                (LOCALx (temp id v :: map (subst_localdef id old) Q)
-                  (SEPx R)))).
+            (PROPx P 
+              (LOCALx (temp id v :: remove_localdef id Q)
+                (SEPx R)))).
 Proof.
   intros.
   pose proof is_neutral_cast_by_value _ _ H0.
@@ -138,11 +137,9 @@ Lemma semax_max_path_field_cast_load_nth_ram:
       semax Delta (|> PROPx P (LOCALx Q (SEPx R)))
         (Sset id (Ecast (nested_efield e1 efs tts) t))
           (normal_ret_assert
-            (EX old:val,
-              PROPx P
-                (LOCALx (temp id (eval_cast (typeof (nested_efield e1 efs tts)) t v)
-                                :: map (subst_localdef id old) Q)
-                  (SEPx R)))).
+            (PROPx P 
+              (LOCALx (temp id (eval_cast (typeof (nested_efield e1 efs tts)) t v) :: remove_localdef id Q)
+                (SEPx R)))).
 Proof.
   intros.
   assert_PROP (typeof (nested_efield e1 efs tts) = nested_field_type t_root gfs).
