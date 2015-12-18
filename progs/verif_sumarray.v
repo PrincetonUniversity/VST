@@ -120,6 +120,8 @@ Lemma body_main:  semax_body Vprog Gprog f_main main_spec.
 Proof.
 name four _four.
 start_function.
+fold_types. (* this should not be necessary; why does the "fold_types"
+   in process_one_globvar not do the job? *)
 forward_call (*  r = sumarray(four,4); *)
   (four,Ews,four_contents,4).
  split3; auto. computable.

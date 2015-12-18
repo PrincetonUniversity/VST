@@ -996,9 +996,100 @@ The remaining subgoal solves easily in the
 theory of sublists.  The proof of the function
 \lstinline{sumarray} is now complete.
 
-\chapter{The \textsf{main} function and global variables}
+\chapter{Global variables and \upshape\textsf{main()}}
+C programs may have ``extern'' global variables,
+either with explicit initializers or initialized by
+default.  Any function that accesses a global
+variable must have the appropriate spatial
+assertions in its funspec's precondition
+(and postcondition).  But the \lstinline{main}
+function is special: it has spatial
+assertions for \emph{all} the global variables.
+Then it may pass these on, piecemeal,
+to the functions it calls on an as-needed basis.
 
-       
+The function-spec for \lstinline{main} always looks
+the same:
+\begin{lstlisting}
+Definition main_spec :=
+ DECLARE _main  WITH u : unit
+       PRE  [] main_pre prog u
+       POST [ tint ] main_post prog u.
+\end{lstlisting}
+\lstinline{main_pre} calculates the precondition
+automatically from (the list of extern global variables
+and initializers of) the program.
+Then, when we prove that \lstinline{main} satisfies its
+funspec,
+\begin{lstlisting}
+Lemma body_main:  semax_body Vprog Gprog f_main main_spec.
+Proof.
+name four _four.
+start_function.
+\end{lstlisting}
+the \lstinline{start_function} tactic ``unpacks''
+\lstinline{main_pre} into an assertion:
+\begin{lstlisting}
+$\mathit{four}$ : val
+______________________________________(1/1)
+semax Delta
+ (PROP  ()  LOCAL  (gvar _four $\mathit{four}$)
+  SEP (data_at Ews (tarray tint 4)
+     (map Vint [Int.repr 1; Int.repr 2; Int.repr 3; Int.repr 4]) $\mathit{four}$))
+ $\mbox{\emph{(\ldots{}function body\ldots)}}$
+ POSTCONDITION
+\end{lstlisting}  
+The \lstinline{LOCAL} clause means that the C global
+variable \lstinline{_four} is at memory address
+$\mathit{four}$.  (If we had omitted the
+\lstinline{name} tactic in the proof script above,
+then \lstinline{start_functon} would have chosen
+some other name for this value.)  See \autoref{refcard:gvar}.
+
+The \lstinline{SEP} clause means that there's
+data of type ``array of 4 integers'' at
+address $\mathit{four}$, with access permission
+\lstinline{Ews} and contents [1;2;3;4].
+\lstinline{Ews} stands for ``external write share,''
+the standard access permission of extern global writable
+variables.  See \autoref{refcard:shares}.
+
+Now it's time to prove the function-call statement,
+\lstinline{s = sumarray(four,4)}.
+When proving a function call, one must supply
+a \emph{witness} for the \lstinline{WITH} clause
+of the function-spec.  The \lstinline{_sumarray}
+function's \lstinline{WITH} clause binds variables
+\textsf{a:val, sh:share, contents:list~Z, size:~Z},
+so the type of the witness will be
+\lstinline{(val*(share*(list Z * list Z)))}.
+To choose the witness, examine your actual parameter values
+(along with the precondition of the funspec) to see
+what witness would be consistent; here, we use
+\lstinline{(four,Ews,four_contents,4)}.
+\begin{lstlisting}
+forward_call (four,Ews,four_contents,4).
+\end{lstlisting}
+The \lstinline{forward_call} tactic (usually) leaves
+subgoals: you must prove that your current
+precondition implies the funspec's precondition.
+Here, these solve easily, as shown in the proof script.
+
+The postcondition of the call statement
+(which is the precondition of the next return statement)
+has an existential, \lstinline{EX vret:val}.  This comes
+directly from the existential in the funspec's
+postcondition.  To move \lstinline{vret} above the
+line, simply \lstinline{Intros vret.}
+
+Finally, we are at the \lstinline{return} statement.
+The \lstinline{forward} tactic is easily able to prove
+that the current assertion implies the
+postcondition of \lstinline{_main},
+because \lstinline{main_post} is basically an
+abbreviation for True.
+
+\chapter{Tying all the functions together}
 
 
 \chapter{\upshape\textsf{EX, Intros, Exists}}  
@@ -1213,6 +1304,7 @@ each will have its own \lstinline{prog} and its own
 \label{refcard:entailer}
 
 \ychapter{Shares}{(See PLCC Chapters~\ref{ch:shares},\ref{ch:share-model})}
+\label{refcard:shares}
 The \lstinline{mapsto} operator (and related operators) take a
 \emph{permission share}, expressing whether
 the \lstinline{mapsto} grants read permission, write permission,

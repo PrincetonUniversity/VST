@@ -1177,49 +1177,6 @@ Proof.
 intros. rewrite fold_right_sepcon'_eq; reflexivity.
 Qed.
 
-(*
-Definition expand_globvars (Delta: tycontext)  (R R': list (environ -> mpred)) :=
- forall rho, 
-    tc_environ Delta rho ->
-  SEPx R rho |-- SEPx R' rho.
-
-Lemma do_expand_globvars:
- forall R' Espec {cs: compspecs} Delta P Q R c Post,
- expand_globvars Delta R R' ->
- @semax cs Espec Delta (PROPx P (LOCALx Q (SEPx R'))) c Post ->
- @semax cs Espec Delta (PROPx P (LOCALx Q (SEPx R))) c Post.
-Proof.
-intros.
-eapply semax_pre; [ | apply H0].
-clear H0.
-go_lower.
-normalize.
-Qed.
-
-Lemma do_expand_globvars_cons: 
-   forall Delta A A' R R',
-  local (tc_environ Delta) && A |-- A' ->
-  expand_globvars Delta R R' ->
-  expand_globvars Delta (A::R) (A'::R').
-Proof.
-intros.
-hnf in H|-*.
-intros.
-apply sepcon_derives; auto.
-specialize (H rho).
-simpl in H. unfold local in H.
-eapply derives_trans; [ | apply H].
-apply andp_right; auto. apply prop_right; auto.
-Qed.
-
-Lemma do_expand_globvars_nil:
-  forall Delta, expand_globvars Delta nil nil.
-Proof.
-intros. hnf; intros.
-auto.
-Qed.
-*)
-
 Ltac expand_one_globvar :=
  (* given a proof goal of the form   local (tc_environ Delta) && globvar2pred (_,_) |-- ?33 *)
 first [
@@ -1240,44 +1197,6 @@ first [
     ]; apply derives_refl
  | apply andp_left2; apply derives_refl
  ].
-
-(*
-Lemma start_main_pre:
-  forall p u Q, main_pre p u * Q = PROP() LOCAL() (SEP (main_pre p u;Q)).
-Proof. intros. unfold_for_go_lower. simpl. extensionality rho; normalize.
-  autorewrite with subst norm1 norm2; normalize.
-Qed.
-*)
-
-Definition is_Tint sz t :=
-  match t with 
-  | Tint s _ _ => s = sz
-  | _ => False
-  end.
-
-
-(* FIXME
-Ltac simpl_main_pre' := 
-  repeat match goal with
-  | |- semax _ (PROPx _ (LOCALx _ (SEPx ?R))) _ _ =>
-        match R with
-        | context [ (EX s:val, local (gvar ?i s) && id2pred_star _ _ _ _ _ _) :: ?R'] =>
-            let n := length_of R in
-            let n' := length_of R' in
-            rewrite (grab_nth_SEP (n - S n')); simpl minus;
-             unfold nth, delete_nth; 
-             rewrite extract_exists_in_SEP; 
-             apply extract_exists_pre;
-             match goal with j: name i |- _ => clear j; intro j | _ => intro end; 
-             rewrite move_local_from_SEP';
-             simpl gvar_init; unfold id2pred_star at 1;
-             unfold init_data2pred';
-             simpl PTree.get; cbv beta iota;
-             simpl offset_val;
-             try rewrite sepcon_emp; repeat flatten_sepcon_in_SEP
-        end
-  end.
-*)
 
 Lemma main_pre_start:
  forall prog u,
@@ -1304,7 +1223,12 @@ Ltac process_one_globvar :=
        | simpl gvar_info; simpl gvar_readonly; simpl readonly2share;
          change (Share.splice extern_retainer Tsh) with Ews
          ]
-  ].
+  ];
+  change (Share.splice extern_retainer _) with Ews;
+  change (Share.splice extern_retainer _) with Ers;
+  change (Vint oo _) with (Vint oo id);
+  fold_types;
+  rewrite ?Combinators.compose_id_right.
   
 Lemma move_globfield_into_SEP:
  forall {cs: compspecs}{Espec: OracleKind} Delta P Q R 
