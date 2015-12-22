@@ -68,8 +68,8 @@ Proof.
   apply Arith_aux1. omega.
 Qed.
 
-Lemma sizeof_Zlength_nonneg {A ge} t (d:list A): 0 <= sizeof ge t * Zlength d.
-  specialize (Zlength_nonneg d). specialize (sizeof_pos ge t); intros.
+Lemma sizeof_Zlength_nonneg {A} {ge: composite_env} t (d:list A): 0 <= sizeof t * Zlength d.
+  specialize (Zlength_nonneg d). specialize (sizeof_pos t); intros.
   apply Z.mul_nonneg_nonneg; omega.
 Qed.
 (*

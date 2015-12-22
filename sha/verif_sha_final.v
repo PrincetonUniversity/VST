@@ -270,10 +270,8 @@ replace (memory_block Tsh (56 - Zlength dd'))
 cancel.
 }
  split; auto.  Omega1.
- 
-Intros vret. 
+
 normalize.
-clear vret H9.
 forward.  (* p += SHA_CBLOCK-8; *)
 change Delta with Delta_final_if1.
 subst POSTCONDITION; unfold abbreviate.

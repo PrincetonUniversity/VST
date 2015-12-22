@@ -97,7 +97,6 @@ Proof. intros. abbreviate_semax.
 
   Time forward_call (Int.add ValS1 ValS2, Int.repr Offset). (*2.4 versus 9*)
 
-  Intros v; subst v.
   thaw FR1.
   Time forward; rewrite HTgt. (*3.4 versus 12.8*) 
   Time solve[entailer!]. (*1 versus 4.7*)
@@ -181,7 +180,6 @@ Proof. intros. abbreviate_semax.
 
   Time forward_call (Int.add ValS1 ValS2, Int.repr Offset). (*2.5 versus 9*)
 
-  Intros v; subst v.
   thaw FR1.
   Time forward; rewrite HTgt. (*3.4 versus 12.8*) 
   Time solve[entailer!]. (*1 versus 4.7*)
@@ -266,7 +264,6 @@ Proof. intros. abbreviate_semax.
 
   Time forward_call (Int.add ValS1 ValS2, Int.repr Offset). (*2.5 versus 9*)
 
-  Intros v; subst v.
   thaw FR1.
   Time forward; rewrite HTgt. (*3.4 versus 12.8*) 
   Time solve[entailer!]. (*1 versus 4.7*)
@@ -351,7 +348,6 @@ Proof. intros. abbreviate_semax.
 
   Time forward_call (Int.add ValS1 ValS2, Int.repr Offset). (*2.6 versus 9*)
 
-  Intros v; subst v.
   thaw FR1.
   Time forward; rewrite HTgt. (*3.4 versus 12.8*) 
   Time solve[entailer!]. (*1 versus 4.7*)

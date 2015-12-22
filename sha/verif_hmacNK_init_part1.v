@@ -222,8 +222,7 @@ Proof. intros. abbreviate_semax.
       (* this proof should be automatic; perhaps eval_var needs
           to be expanded automatically by go_lower? *)
        rewrite (lvar_eval_var _ _ _ _ LV). split; hnf; trivial. }
-     { Intros vret; subst vret.
-       subst PostIf_j_Len.
+     { subst PostIf_j_Len.
        Time entailer!. (*10.2*)
        unfold data_block. simpl. Time normalize. (*1.4*) 
        unfold HMS.
@@ -356,7 +355,6 @@ Proof. intros.
            simpl. rewrite Z.max_r. rewrite Z.mul_1_l. trivial. omega.
        Time cancel. (*0.1 versus 2.4*) }
      { simpl. rewrite Z.max_r, Z.mul_1_l. intuition. specialize Int.max_signed_unsigned; omega. omega. }
-     Intros v; subst v; simpl.
      unfold tarray.
      remember (64 - l) as l64.
      remember (map Vint (map Int.repr key)) as KCONT.
@@ -378,7 +376,7 @@ Proof. intros.
        apply Z.max_r. omega. }
      { split; auto. repable_signed. }
 
-     Intros vret; subst PostIf_j_Len.
+     subst PostIf_j_Len.
      Time entailer!. (*3.5 versus 6.2*)
      thaw FR2. thaw FR1. Time cancel. (*1.2 penalty*)
      rewrite (split2_data_at_Tarray_tuchar Tsh 64 (Zlength key)); 

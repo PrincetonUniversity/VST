@@ -24,7 +24,6 @@ forward_call (Tsh, c, sizeof t_struct_hmac_ctx_st, Int.zero).
   { eapply derives_trans. apply data_at_data_at_.
     rewrite <- memory_block_data_at_; try reflexivity. cancel.
     trivial. }
-Intros rv; subst rv.
 subst POSTCONDITION; unfold abbreviate.
 pose proof (sizeof_pos t_struct_hmac_ctx_st).
 forget (sizeof t_struct_hmac_ctx_st) as NN.
@@ -50,7 +49,6 @@ forward_call (Tsh, c, sizeof t_struct_hmac_ctx_st, Int.zero).
   { eapply derives_trans. apply data_at_data_at_.
     rewrite <- memory_block_data_at_; try reflexivity. cancel.
     trivial. }
-Intros rv; subst rv.
 subst POSTCONDITION; unfold abbreviate.
 pose proof (sizeof_pos t_struct_hmac_ctx_st).
 forget (sizeof t_struct_hmac_ctx_st) as NN.

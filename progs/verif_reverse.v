@@ -277,7 +277,6 @@ Intros r'.
 rewrite <- map_rev. simpl rev.
 forward_call  (* s = sumlist(r); *)
    (Ews, Int.repr 3 :: Int.repr 2 :: Int.repr 1 :: nil, r').
-Intros s'.
 forward.  (* return s; *)
 Qed.
 

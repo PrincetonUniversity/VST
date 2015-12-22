@@ -164,13 +164,12 @@ forward_call (* l = __builtin_read32_reversed(_data) *)
  entailer!; make_Vptr data; reflexivity.
  rewrite H1; cancel.
  autorewrite with sublist; omega.
-Intros l.
 gather_SEP 3 0 4.
  match goal with |- context [SEPx (?A::_)] => 
   replace A with (data_block sh (intlist_to_Zlist b) data)
     by (rewrite H1,<- !sepcon_assoc; auto)
  end.
- clear H1. subst l.
+ clear H1.
 rewrite <- Znth_big_endian_integer by omega.
 forward. (* data := data + 4; *)
 forward. (* X[i]=l; *)

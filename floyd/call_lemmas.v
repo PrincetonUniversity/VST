@@ -1409,12 +1409,17 @@ apply andp_left2. apply andp_left1.
  rewrite fold_right_sepcon_app. auto.
 Qed.  
 
+Definition eq_no_post (x v: val) : Prop := x=v.
+(* The purpose of eq_no_post is to "mark" the proposition
+  in forward_call_idxxx lemmas so that the after-the-call
+  can treat this one specially *)
+
 Lemma no_post_exists:
  forall v P Q R,
    PROPx P (LOCALx (temp ret_temp v :: Q) (SEPx R)) =
-   EX x:val, PROPx ((x=v) :: P) (LOCALx (temp ret_temp x :: Q) (SEPx R)).
+   EX x:val, PROPx (eq_no_post x v :: P) (LOCALx (temp ret_temp x :: Q) (SEPx R)).
 Proof.
-intros.
+intros. unfold eq_no_post.
 apply pred_ext.
 apply exp_right with v.
 apply andp_derives; auto.

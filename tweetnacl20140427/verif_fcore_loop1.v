@@ -193,7 +193,6 @@ Time forward_for_simple_bound 4 (EX i:Z,
   Time forward_call (offset_val (Int.repr (4 * i)) (Vptr cb coff), Select16Q C i). (*3.4 versus 15.4*)
   (*{ goal automatically discharged versus 4.2 }*)
 
-  Intros pat; subst pat; simpl.
   thaw FR3.  
   apply semax_pre with (P':=
   (PROP  ()
@@ -257,7 +256,6 @@ Time forward_for_simple_bound 4 (EX i:Z,
 
   Time forward_call (offset_val (Int.repr (4 * i)) k, 
                  Select16Q Key1 i). (*8.9 versus 19.5; both were 3-4 secs faster befor tick elimination etc*)
-  Intros v; subst v; simpl.
 
   thaw  FR6.
   apply semax_pre with (P':=
@@ -305,7 +303,6 @@ Time forward_for_simple_bound 4 (EX i:Z,
   Time forward_call (offset_val (Int.repr (4 * i)) nonce, 
                  Select16Q Nonce i). (*11.7 versus 21*)
   
-  Intros v; subst v; simpl.
   thaw FR8.
   apply semax_pre with (P':=
   (PROP  ()
@@ -357,7 +354,6 @@ Time forward_for_simple_bound 4 (EX i:Z,
      apply prop_right; simpl. rewrite Z.mul_1_l.
      trivial. }
 
-  Intros v; subst v; simpl.
   thaw FR11.
   apply semax_pre with (P':=
   (PROP  ()

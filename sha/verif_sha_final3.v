@@ -133,7 +133,6 @@ Proof.
     rewrite memory_block_data_at_ by auto.
     Time cancel.
   }
- Intros vret.
  gather_SEP 0 1 3 4 5.
  replace_SEP 0 (data_at Tsh t_struct_SHA256state_st
        (map Vint (hash_blocks init_registers (generate_and_pad msg)),

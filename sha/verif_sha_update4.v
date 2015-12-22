@@ -256,11 +256,10 @@ assert (Zlength bl = LBLOCKz). {
  assert  (Zlength blocks' * 4 >= Zlength dd).
    rewrite <- (Zlength_intlist_to_Zlist blocks').
    rewrite H8. autorewrite with sublist. Omega1.
+ normalize in HRE.
  unfold sha_update_inv.
  clear dependent blocks.
  Time forward. (*0.2*)
  Exists blocks'.
  Time entailer!. (*2.9*)
- apply negb_false_iff in HRE. (* should not be necessary *)
- apply ltu_repr in HRE; Omega1.
 Time Qed. (*31.3 *)

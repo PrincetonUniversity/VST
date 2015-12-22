@@ -19,7 +19,6 @@ forward_if (PROP (z > 0) LOCAL (temp _n (Vint (Int.repr z))) SEP ()).
   normalize. 
   forward_call (z-1).
   omega.
-  Intros vret; subst vret.
   forward.
   entailer!.
   rewrite Z.even_sub; simpl. 

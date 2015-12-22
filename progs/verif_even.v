@@ -45,7 +45,6 @@ forward_if (PROP (z > 0) LOCAL (temp _n (Vint (Int.repr z))) SEP ()).
   (* Prove that PROP precondition is OK *)
   repable_signed.
   (* After the call *)
-  Intros vret.
   forward.
   entailer!.
   rewrite Z.odd_sub; simpl. 
@@ -57,7 +56,6 @@ Proof.
 start_function. 
 forward_call (42).
 repable_signed.
-Intros vret.
 forward.
 Qed.
 

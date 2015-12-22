@@ -112,7 +112,6 @@ freeze [0;2] FR3.
 Time forward_call ((Tsh, Tsh), Vptr b i, Vptr b (Int.add i (Int.repr 216)), 
               mkTrep t_struct_SHA256state_st oCTX, 108). (*5 versus 8.7*) 
 Time solve [simpl; cancel]. (*0.1 versus 1*)
-Intros rv; subst rv; simpl. 
 
 assert (SFL: Zlength (SHA256.SHA_256 ctx) = 32). 
   rewrite <- functional_prog.SHA_256'_eq, Zlength_correct, length_SHA256'; trivial.

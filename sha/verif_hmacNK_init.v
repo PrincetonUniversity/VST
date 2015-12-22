@@ -175,7 +175,6 @@ eapply semax_seq. instantiate (1:=PostResetBranch).
          apply isptr_offset_val_zero; trivial.
        Time cancel. (*0 versus 2*)
      }
-     Intros rv; subst rv. simpl.
 
      freeze [0; 1; 2] FR4. 
      Time forward. (*return*) (* 3 versus 13*) (*Issue : leaves a somewhat messy subgoal*)
@@ -232,7 +231,6 @@ eapply semax_seq. instantiate (1:=PostResetBranch).
           eapply derives_trans. apply data_at_memory_block. apply derives_refl.
           Time cancel. (*0 versus 2*) 
     }
-    Intros rv; subst rv; simpl.
     freeze [0; 1; 2] FR8. 
     Time forward. (*return*) (*3.4 versus 17*) (*Issue: leaves messy subgoal*) 
     Exists (Vptr ckb ckoff) pad. 

@@ -726,17 +726,12 @@ change (@app Prop)
   end);
 cbv beta iota.
 
-Lemma revert_unit: forall (P: Prop), (forall u: unit, P) -> P.
-Proof. intros. apply (H tt).
-Qed.
-
 Ltac fwd_skip :=
  match goal with |- semax _ _ Sskip _ =>
    normalize_postcondition;
    first [eapply semax_pre | eapply semax_pre_simple]; 
       [ | apply semax_skip]
  end.
-
 
 Definition BINDER_NAME := tt.
 Ltac find_postcond_binder_names :=
@@ -771,20 +766,41 @@ Ltac after_forward_call_binders :=
  | |- _ => apply extract_exists_pre; intros ?vret
  end.
 
+Ltac cleanup_no_post_exists :=
+ match goal with |-  appcontext [eq_no_post] =>
+  let vret := fresh "vret" in let H := fresh in 
+  apply extract_exists_pre; intro vret;
+  apply semax_extract_PROP; intro H;
+  change (eq_no_post vret) with (eq vret) in H;
+  subst vret
+ end
+ || unfold eq_no_post.
+
 Ltac after_forward_call := 
     cbv beta iota delta [delete_temp_from_locals]; 
     simpl ident_eq; cbv beta iota zeta;
+    repeat match goal with |- context [eq_rec_r ?A ?B ?C] => 
+              change (eq_rec_r A B C) with B; cbv beta iota zeta
+            end;
     unfold_app;
-    try (apply extract_exists_pre; intros _).
+    try (apply extract_exists_pre; intros _);
+    match goal with
+        | |- semax _ _ _ _ => idtac 
+        | |- unit -> semax _ _ _ _ => intros _ 
+    end;
+    repeat (apply semax_extract_PROP; intro);
+    cleanup_no_post_exists;
+    abbreviate_semax;
+    try fwd_skip.
 
-Ltac fwd_call' witness :=
+Ltac fwd_call witness :=
   (* find_postcond_binder_names; *)
  try match goal with
       | |- semax _ _ (Scall _ _ _) _ => rewrite -> semax_seq_skip
       end;
  first [
      revert witness; 
-     match goal with |- let _ := ?A in _ => intro; fwd_call' A 
+     match goal with |- let _ := ?A in _ => intro; fwd_call A 
      end
    | eapply semax_seq';
      [first [forward_call_id1_wow witness
@@ -795,46 +811,7 @@ Ltac fwd_call' witness :=
      ]
   |  eapply semax_seq'; [forward_call_id00_wow witness 
           | after_forward_call ]
-  | rewrite <- seq_assoc; fwd_call' witness
-  ].
-
-Definition In_the_previous_'forward'_use_an_intro_pattern_of_type (t: Type) := False.
-
-
-Definition In_the_previous_forward_call__use_intropatterns_to_intro_values_of_these_types := Stuck.
-
-Ltac complain_intros :=
- first [let x := fresh "x" in intro x; complain_intros; revert x
-         | stuckwith In_the_previous_forward_call__use_intropatterns_to_intro_values_of_these_types
-         ].
-
-
-Tactic Notation "uniform_intros" simple_intropattern_list(v) :=
- (((assert True by (intros v; apply Coq.Init.Logic.I);
-  assert (forall a: unit, True)
-   by (intros v; apply Coq.Init.Logic.I);
-  fail 1) || intros v) || idtac).
-
-Ltac fwd_call witness :=
-fwd_call' witness;
-  [ .. 
-  | first 
-      [ (* body of uniform_intros tactic *)
-         (((assert True by (intros v; apply Coq.Init.Logic.I);
-            assert (forall a: unit, True) by (intros v; apply Coq.Init.Logic.I);
-            fail 1)
-          || intros v) 
-        || idtac);
-        (* end body of uniform_intros tactic *)
-        match goal with
-        | |- semax _ _ _ _ => idtac 
-        | |- unit -> semax _ _ _ _ => intros _ 
-        end;
-        repeat (apply semax_extract_PROP; intro);
-       abbreviate_semax;
-       try fwd_skip
-     | complain_intros
-     ]  
+  | rewrite <- seq_assoc; fwd_call witness
   ].
 
 Tactic Notation "forward_call" constr(witness) :=
@@ -1298,7 +1275,8 @@ Tactic Notation "forward_while" constr(Inv) :=
                | apply typed_false_tint in HRE
                | apply typed_false_ptr in HRE
                | idtac ];
-         repeat (apply semax_extract_PROP; intro)
+         repeat (apply semax_extract_PROP; intro);
+         do_repr_inj HRE; normalize in HRE
        ]
     ]; abbreviate_semax; autorewrite with ret_assert.
 

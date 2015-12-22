@@ -510,7 +510,6 @@ simpl app.
 simpl app.
 forward_call  (*   p' = fifo_get(Q); p = p'; *)
     ((q,(p2 :: nil)),p').
-Intros vret; subst vret.
 Time forward. (*   i = p->a;  *) (* 28.8 sec -> 1.96 sec *)
 forward. (*   j = p->b; *)
 

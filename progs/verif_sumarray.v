@@ -109,7 +109,6 @@ simpl.
 apply prop_right.
 autorewrite with sublist in *.
 autorewrite with sublist.
-simpl.
 reflexivity.
 Qed.
 
@@ -122,11 +121,10 @@ name four _four.
 start_function.
 fold_types. (* this should not be necessary; why does the "fold_types"
    in process_one_globvar not do the job? *)
-forward_call (*  r = sumarray(four,4); *)
+forward_call (*  s = sumarray(four,4); *)
   (four,Ews,four_contents,4).
  split3; auto. computable.
  repeat constructor; computable.
-Intros vret.
 forward. (* return s; *)
 Qed.
 

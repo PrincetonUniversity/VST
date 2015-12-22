@@ -266,7 +266,6 @@ Proof. intros. abbreviate_semax.
     Time forward_call ((Vptr cb (Int.add coff (Int.repr (4 * i)))),
                       Select16Q C i). (*2.4 versus 10.3*)
  
-      Intros pat; subst pat.
       assert (PL2length: forall n, (0<=n<4)%nat -> Zlength (hPosLoop2 n intsums C Nonce) = 16).
         clear - SL.
         induction n; simpl; intros. trivial.
@@ -309,7 +308,6 @@ Proof. intros. abbreviate_semax.
       Time forward_call (Vptr nb (Int.add noff (Int.repr (4 * i))),
                      Select16Q Nonce i). (*3 versus 14.8*)
 
-     Intros pat; subst pat. simpl. 
      destruct (Znth_mapVint (hPosLoop2 (Z.to_nat i) intsums C Nonce) (6+i) Vundef) as [uj Uj].
       rewrite PL2Zlength; omega.  
      thaw FR4. thaw FR3. freeze [0;1;2;3;5] FR5.
