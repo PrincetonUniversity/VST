@@ -59,7 +59,7 @@ repable_signed.
 forward.
 Qed.
 
-Definition Espec := add_funspecs NullExtension.Espec Gprog.
+Definition Espec := add_funspecs NullExtension.Espec (ext_link_prog prog) Gprog.
 Existing Instance Espec.
 
 Lemma temp_make_ext_rval_e:

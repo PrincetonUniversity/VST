@@ -219,6 +219,19 @@ Opaque mpred Nveric Sveric Cveric Iveric Rveric Sveric SIveric CSLveric CIveric 
 
 (* END from expr2.v *)
 
+Fixpoint ext_link_prog' (dl: list (ident * globdef fundef type)) (s: String.string) : ident :=
+ match dl with
+ | (id, Gfun (External (EF_external s' _) _ _ _)) :: dl' => 
+      if String.string_dec s s' then id else ext_link_prog' dl' s
+ | (id, Gfun (External (EF_builtin s' _) _ _ _)) :: dl' => 
+      if String.string_dec s s' then id else ext_link_prog' dl' s
+ | _ :: dl' => 
+     ext_link_prog' dl' s
+ | nil => 1%positive
+ end.
+
+Definition ext_link_prog (p: program) (s: String.string) : ident :=
+  ext_link_prog' (prog_defs p) s.
 
 Definition closed_wrt_vars {B} (S: ident -> Prop) (F: environ -> B) : Prop := 
   forall rho te',  
@@ -830,8 +843,10 @@ Fixpoint funspecs_norepeat fs :=
 
 Require veric.semax_ext.
 
-Definition add_funspecs (Espec : OracleKind) (fs : funspecs) : OracleKind :=
-   veric.semax_ext.add_funspecs Espec fs.
+Definition add_funspecs (Espec : OracleKind) 
+         (ext_link: Strings.String.string -> ident)
+         (fs : funspecs) : OracleKind :=
+   veric.semax_ext.add_funspecs Espec ext_link fs.
 
 Definition funsig2signature (s : funsig) : signature :=
   mksignature (map typ_of_type (map snd (fst s))) (Some (typ_of_type (snd s))) cc_default.
@@ -1319,14 +1334,15 @@ Require veric.semax_ext.
 
 Axiom semax_ext: 
   forall  (Espec : OracleKind) 
-         (id : ident) (ids : list ident) (sig : funsig) (sig' : signature)
+         (ext_link: Strings.String.string -> ident)
+         (id : Strings.String.string) (ids : list ident) (sig : funsig) (sig' : signature)
          (A : Type) (P Q : A -> environ -> mpred) (fs : funspecs),
   let f := mk_funspec sig A P Q in
-  in_funspecs (id,f) fs -> 
+  in_funspecs (ext_link id,f) fs -> 
   funspecs_norepeat fs -> 
   ids = fst (split (fst sig)) -> 
   sig' = funsig2signature sig -> 
-  @semax_external (add_funspecs Espec fs) ids (EF_external id sig') _ P Q.
+  @semax_external (add_funspecs Espec ext_link fs) ids (EF_external id sig') _ P Q.
 
 End CLIGHT_SEPARATION_LOGIC.
 

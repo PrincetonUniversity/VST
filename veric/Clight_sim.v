@@ -158,7 +158,7 @@ Inductive step' ge : (corestate * mem) -> Events.trace -> (corestate * mem) -> P
  mk_step': forall q m q' m', cl_step ge q m q' m' -> step' ge (q,m) Events.E0 (q',m').
 
 (*Module SS := compcert.Smallstep.*)
-Definition ef_exit := EF_external exit_syscall_number (mksignature nil None cc_default).
+Definition ef_exit := EF_external "__exit" (mksignature nil None cc_default).
 
 Inductive initial_state (p: program): (corestate * mem) -> Prop :=
 (*

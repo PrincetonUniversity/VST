@@ -558,8 +558,10 @@ Definition sem_sub_pp {CS: compspecs} ty (v1 v2 : val) : option val :=
 match v1,v2 with
       | Vptr b1 ofs1, Vptr b2 ofs2 =>
           if eq_block b1 b2 then
-            if Int.eq (Int.repr (sizeof ty)) Int.zero then None
-            else Some (Vint (Int.divu (Int.sub ofs1 ofs2) (Int.repr (sizeof ty))))
+            let sz := sizeof ty in
+            if zlt 0 sz && zle sz Int.max_signed
+            then Some (Vint (Int.divs (Int.sub ofs1 ofs2) (Int.repr sz)))
+            else None
           else None
       | _, _ => None
       end.

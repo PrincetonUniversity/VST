@@ -536,7 +536,7 @@ Existing Instance NullExtension.Espec.
 Parameter body_mallocN:
  semax_external
   (1%positive ::nil)
-  (EF_external _mallocN
+  (EF_external "mallocN"
      {| sig_args := AST.Tint :: nil; sig_res := Some AST.Tint; sig_cc := cc_default |}) Z
   (fun n : Z =>
    PROP  (4 <= n <= Int.max_unsigned)  LOCAL  (temp 1%positive (Vint (Int.repr n)))  SEP())%assert
@@ -548,7 +548,7 @@ Parameter body_mallocN:
 Parameter body_freeN:
 semax_external
   (1%positive::2%positive ::nil)
-  (EF_external _freeN
+  (EF_external "freeN"
      {| sig_args := AST.Tint :: AST.Tint :: nil; sig_res := None; sig_cc := cc_default |}) (val*Z)
   (fun pn : val*Z => let (p,n) := pn in
       PROP() LOCAL (temp 1%positive p; temp 2%positive (Vint (Int.repr n)))

@@ -2097,9 +2097,9 @@ Proof. intros. intros ek v.
 Qed.
 
 Ltac forward_return :=
-     repeat match goal with |- semax _ _ _ ?D => unfold D, abbreviate; clear D end;
      match goal with |- @semax ?CS _ _ _ _ _ =>
        eapply semax_pre; [  | apply semax_return ]; 
+       match goal with Post := _ : ret_assert |- _ => subst Post; unfold abbreviate end;
        try change_compspecs CS;
        entailer_for_return
      end.

@@ -63,18 +63,19 @@ Qed.
 
 Require Import juicy_safety.
 
-Definition fun_id (ef: external_function) : option ident :=
-  match ef with EF_external id sig => Some id | _ => None end.
+Definition fun_id (ext_link: Strings.String.string -> ident) (ef: external_function) : option ident :=
+  match ef with EF_external id sig => Some (ext_link id) | _ => None end.
 
 Axiom module_sequential_safety : (*TODO*)
    forall {CS: compspecs} (prog: program) (V: varspecs) (G: funspecs) ora m f f_id f_b f_body args,
      let ge := Genv.globalenv prog in
-     let spec := add_funspecs NullExtension.Espec G in
+     let ext_link := ext_link_prog prog in
+     let spec := add_funspecs NullExtension.Espec ext_link G in
      let tys := sig_args (ef_sig f) in
      let rty := sig_res (ef_sig f) in
      let sem := juicy_core_sem cl_core_sem in
      @semax_prog spec CS prog V G ->
-     fun_id f = Some f_id ->
+     fun_id ext_link f = Some f_id ->
      Genv.find_symbol ge f_id = Some f_b -> 
      Genv.find_funct  ge (Vptr f_b Int.zero) = Some f_body -> 
      forall x : ext_spec_type (@OK_spec spec) f,

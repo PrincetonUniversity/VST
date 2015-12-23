@@ -26,6 +26,11 @@ forward_if (PROP (z > 0) LOCAL (temp _n (Vint (Int.repr z))) SEP ()).
    destruct (Z.even z); simpl; try (intros; congruence).
 Qed.
 
+(* The Espec for odd is different from the Espec for even;
+  the former has only "even" as an external function, and vice versa. *)
+Definition Espec := add_funspecs NullExtension.Espec (ext_link_prog odd.prog) Gprog.
+Existing Instance Espec.
+
 Lemma all_funcs_correct:
   semax_func Vprog Gprog (prog_funct prog) Gprog.
 Proof.

@@ -227,7 +227,7 @@ le' ->
 Definition vret2v (vret: list val) : val :=
   match vret with v::nil => v | _ => Vundef end.
 
-Definition exit_syscall_number : ident := 1%positive.
+(* Definition exit_syscall_number : ident := 1%positive. *)
 
 Definition cl_halted (c: corestate) : option val := None.
 
