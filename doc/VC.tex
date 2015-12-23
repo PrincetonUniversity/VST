@@ -1166,7 +1166,7 @@ The grammar of base-level separation-logic expressions is,
 R~::=&
 \mathsf{emp} & \mbox{empty} \\
 & R_1 * R_2 & \mbox{separating conjunction}\\
-& R_1 \mathsf{\&\&} R_2 & \mbox{ordinary conjunction}\\
+& R_1 ~\mathsf{\&\&}~ R_2 & \mbox{ordinary conjunction}\\
 & \mathsf{field\_at}~\pi~\tau~\vec{\mathit{fld}}~v~p&
      \mbox{``field maps-to''} \\
 & \mathsf{data\_at}~\pi~\tau~v~p& \mbox{``maps-to''} \\
@@ -1174,8 +1174,8 @@ R~::=&
 & \mathsf{!!}\,P & \mbox{pure proposition} \\
 & \mathsf{EX}~x:T,~R & \mbox{existential quantification} \\
 & \mathsf{ALL}~x:T,~R & \mbox{universal quantification (rare)} \\
-& R_1 \mathsf{\|\|} R_2 & \mbox{disjunction (rare)}\\
-& \mathsf{wand} R R' & \mbox{magic wand (rare)}~R \wand R'\\
+& R_1 \mathsf{\|} R_2 & \mbox{disjunction}\\
+& \mathsf{wand} ~R~ R' & \mbox{magic wand}~R \wand R'~\mbox{(rare)}\\
 & \ldots & \mbox{other operators, including user definitions}
 \end{array}\]
 
@@ -1183,12 +1183,108 @@ R~::=&
 
 \chapter{\upshape PROP( ) LOCAL( ) SEP( )}
 \label{refcard:prop-local-sep}
-The \emph{lifted} separation logic is built     
+The \emph{lifted} separation logic can ``see'' local and global variables
+of the C program, in addition to the contents of the
+heap (pointer dereferences) that the base level separation logic
+can see.  The \emph{canonical form} of a lifted assertion is
+\lstinline{PROP($\vec{P}$)LOCAL($\vec{Q}$)SEP($\vec{R}$)},
+where $\vec{P}$ is a list of propositions \lstinline{(Prop)},
+where $\vec{Q}$ is a list of local-variable definitions
+\lstinline{(localdef)},
+and $\vec{R}$ is a list of base-level assertions \lstinline{(mpred)}.
+Each list is semicolon-separated.
+
+Lifted assertions can occur in other forms than canonical form;
+in fact, anything of type \lstinline{environ->mpred} is a
+lifted assertion.  But canonical form is most convenient
+for forward symbolic execution (Hoare-logic rules).
+
+The existential quantifier \lstinline{EX} can also be used
+on canonical forms, e.g.,
+\lstinline{EX $x$:$T$, PROP($\vec{P}$)LOCAL($\vec{Q}$)SEP($\vec{R}$)}.
+
+Entailments in canonical form are normally of the form,\newline
+\lstinline{ENTAIL $\Delta$, $\mathit{PQR}$ |-- $~\mathit{PQR'}$},
+where $\mathit{PQR}$ is a lifted assertion
+in canonical form,
+$\mathit{PQR'}$ is a lifted assertion not necessarily
+in canonical form, and $\Delta$ is a type context.
+The \lstinline{|--} operator is written \lstinline{|$$-$$-} in Coq. 
+
+This notation is equivalent to
+\lstinline{(tc_environ $\Delta$ && $\mathit{PQR}$) |-- $\mathit{PQR'}$}.
+That is, $\Delta$ just provides extra assertions
+on the left-hand side of the entailment.
 
 
 
 \chapter{\upshape\textsf{EX, Intros, Exists}}  
 \label{refcard:EX}
+
+In a canonical-form lifted assertion, existentials can occur
+at the outside, or in one of the base-level conjuncts within the
+\lstinline{SEP} clause.  This assertion has both:
+
+\begin{lstlisting}
+ENTAIL $\Delta$, 
+   EX $x$:Z,
+    PROP(0<=$x$) LOCAL(temp _i (Vint (Int.repr $x$)))
+    SEP (EX $y$:Z, !!($x<y$) && data_at $\pi$ tint (Vint (Int.repr $y$)) p)
+|-- EX $u$: Z,   
+     PROP(0<$u$) LOCAL()
+     SEP (data_at $\pi$ tint (Vint (Int.repr $u$)) p)
+\end{lstlisting}
+To prove this entailment, one can first move $x$ and $y$ ``above
+the line'' by the tactic \lstinline{Intros a b}:
+\begin{lstlisting}
+  $a$: Z
+  $b$: Z
+  H: 0 <= $a$
+  H0: $a<b$
+_______________________________________________________________________________
+ENTAIL $\Delta$, 
+    PROP() LOCAL(temp _i (Vint (Int.repr $a$)))
+    SEP (data_at $\pi$ tint (Vint (Int.repr $b$)) p)
+|-- EX $u$: Z,   
+     PROP($0<u$) LOCAL()
+     SEP (data_at $\pi$ tint (Vint (Int.repr $u$)) p)
+\end{lstlisting}
+One might just as well say \lstinline{Intros x y}
+to use those names instead of \lstinline{a b}.
+Note that the propositions (previously hidden inside
+existential quantifiers) have been moved above the line
+by \lstinline{Intros}.  Also, if there had been any
+separating-conjunction operators $*$ within the \lstinline{SEP}
+clause, those will be ``flattened'' into semicolon-separated
+conjuncts within \lstinline{SEP}.
+
+Sometimes, even when there are no existentials to introduce,
+one wants to move \lstinline{PROP} propositions
+above the line and flatten the $*$ operators into semicolons.
+One can just say \lstinline{Intros} with no arguments to do that.
+
+If you want to Intro an existential \emph{without} gratuitous
+\lstinline{PROP}-introduction and $*$-flattening, you can
+just use \lstinline{Intro a}, instead of \lstinline{Intros a}.
+
+Then, instantiate $u$ by \lstinline{Exists b}.
+\begin{lstlisting}
+  $a$: Z
+  $b$: Z
+  H: 0 <= $a$
+  H0: $a<b$
+_______________________________________________________________________________
+ENTAIL $\Delta$, 
+    PROP() LOCAL(temp _i (Vint (Int.repr $a$)))
+    SEP (data_at $\pi$ tint (Vint (Int.repr $b$)) p)
+|-- PROP($0<b$) LOCAL()
+    SEP (data_at $\pi$ tint (Vint (Int.repr $b$)) p)
+\end{lstlisting}
+This entailment proves straightforwardly by
+\lstinline{entailer!}.
+
+
+
 
 \ychapter{Integers: \upshape\textsf{nat, Z, int}}
 {(\file{compcert/lib/Integers.v})}
