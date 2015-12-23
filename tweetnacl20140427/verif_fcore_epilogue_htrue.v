@@ -156,11 +156,11 @@ Lemma HTrue_loop2 Espec (FR:mpred) t y x w nonce out c k h intsums Nonce C K:
                  tint) (tptr tuchar)))
         (Ssequence
            (Ssequence
-              (Scall (Some 186%positive)
+              (Scall (Some 184%positive)
                  (Evar _ld32
                     (Tfunction (Tcons (tptr tuchar) Tnil) tuint cc_default))
                  [Etempvar _u8_aux (tptr tuchar)])
-              (Sset _aux (Etempvar 186%positive tuint)))
+              (Sset _aux (Etempvar 184%positive tuint)))
            (Ssequence
               (Sset _aux1
                  (Ederef
@@ -182,12 +182,12 @@ Lemma HTrue_loop2 Espec (FR:mpred) t y x w nonce out c k h intsums Nonce C K:
                              (Etempvar _i tint) tint) (tptr tuchar)))
                     (Ssequence
                        (Ssequence
-                          (Scall (Some 187%positive)
+                          (Scall (Some 185%positive)
                              (Evar _ld32
                                 (Tfunction (Tcons (tptr tuchar) Tnil) tuint
                                    cc_default))
                              [Etempvar _u8_aux (tptr tuchar)])
-                          (Sset _aux (Etempvar 187%positive tuint)))
+                          (Sset _aux (Etempvar 185%positive tuint)))
                        (Ssequence
                           (Sset _aux1
                              (Ederef
@@ -700,11 +700,11 @@ Lemma verif_fcore_epilogue_htrue Espec (FR:mpred) t y x w nonce out c k h OUT xs
                        (Etempvar _i tint) tint) (tptr tuchar)))
               (Ssequence
                  (Ssequence
-                    (Scall (Some 186%positive)
+                    (Scall (Some 184%positive)
                        (Evar _ld32
                           (Tfunction (Tcons (tptr tuchar) Tnil) tuint
                              cc_default)) [Etempvar _u8_aux (tptr tuchar)])
-                    (Sset _aux (Etempvar 186%positive tuint)))
+                    (Sset _aux (Etempvar 184%positive tuint)))
                  (Ssequence
                     (Sset _aux1
                        (Ederef
@@ -727,12 +727,12 @@ Lemma verif_fcore_epilogue_htrue Espec (FR:mpred) t y x w nonce out c k h OUT xs
                                    (Etempvar _i tint) tint) (tptr tuchar)))
                           (Ssequence
                              (Ssequence
-                                (Scall (Some 187%positive)
+                                (Scall (Some 185%positive)
                                    (Evar _ld32
                                       (Tfunction (Tcons (tptr tuchar) Tnil)
                                          tuint cc_default))
                                    [Etempvar _u8_aux (tptr tuchar)])
-                                (Sset _aux (Etempvar 187%positive tuint)))
+                                (Sset _aux (Etempvar 185%positive tuint)))
                              (Ssequence
                                 (Sset _aux1
                                    (Ederef

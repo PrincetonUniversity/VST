@@ -663,9 +663,8 @@ EX $i$: Z,
 \end{lstlisting}
 The existential binds $i$, the iteration-dependent value
 of the local variable named \lstinline{_i}.
+In general, there may be any number of EX quantifiers.
 
-To apply the tactic: \lstinline{forward_while (sumarray_Inv a sh contents size).}
-Four proof goals result:
 \begin{enumerate}
 \item the precondition (of the whole loop) implies the loop invariant;
 \item the loop-condition expression type-checks (i.e., guarantees to evaluate successfully);
@@ -1118,7 +1117,7 @@ the function-specifications:
 Definition Gprog : funspecs := sumarray_spec :: main_spec::nil.
 \end{lstlisting}
 
-Each \lstinline{semax\_body} proof says,
+Each \lstinline{semax_body} proof says,
 assuming that \emph{all the functions I might call}
 behave as specified, then \emph{my own function-body}
 indeed behaves as specified:
@@ -1136,7 +1135,7 @@ step-indexed semantic models, as explained in
 Chapters 18 and 39 of \emph{Program Logics for Certified Compilers.}
 
 The rule for tying the functions together is
-called \lstinline{semax\_func}, and its use is illustrated
+called \lstinline{semax_func}, and its use is illustrated
 in this theorem, the main proof-of-correctness
 theorem for the program \lstinline{sumarray.c}:
 
@@ -1155,6 +1154,36 @@ must appear in the same order as the functions
 are listed in \lstinline{Gprog} and the same order
 as they appear in
 \lstinline{prog.(prog_defs)}.
+
+
+\chapter{Separation logic: \upshape \textsf{EX}, $*$, \textsf{emp}, !!}
+\label{refcard:separation-logic}
+The \emph{base level} separation logic is built,
+like any separation logic,  from predicates on ``heaplets''.
+The grammar of base-level separation-logic expressions is,
+
+\[\begin{array}{lll}
+R~::=&
+\mathsf{emp} & \mbox{empty} \\
+& R_1 * R_2 & \mbox{separating conjunction}\\
+& R_1 \mathsf{\&\&} R_2 & \mbox{ordinary conjunction}\\
+& \mathsf{field\_at}~\pi~\tau~\vec{\mathit{fld}}~v~p&
+     \mbox{``field maps-to''} \\
+& \mathsf{data\_at}~\pi~\tau~v~p& \mbox{``maps-to''} \\
+& \mathsf{array\_at}~\tau~\pi~v~\mathit{lo}~\mathit{hi} & \mbox{array slice} \\
+& \mathsf{!!}\,P & \mbox{pure proposition} \\
+& \mathsf{EX}~x:T,~R & \mbox{existential quantification} \\
+& \mathsf{ALL}~x:T,~R & \mbox{universal quantification (rare)} \\
+& R_1 \mathsf{\|\|} R_2 & \mbox{disjunction (rare)}\\
+& \mathsf{wand} R R' & \mbox{magic wand (rare)}~R \wand R'\\
+& \ldots & \mbox{other operators, including user definitions}
+\end{array}\]
+
+
+
+\chapter{\upshape PROP( ) LOCAL( ) SEP( )}
+\label{refcard:prop-local-sep}
+The \emph{lifted} separation logic is built     
 
 
 
@@ -1355,16 +1384,18 @@ each will have its own \lstinline{prog} and its own
 
 
 
-\chapter{Separation logic: \upshape \textsf{EX}, $*$, \textsf{emp}, !!}
-\label{refcard:separation-logic}
 
-\chapter{\upshape PROP( ) LOCAL( ) SEP( )}
-\label{refcard:prop-local-sep}
 
 \chapter{Intros, Exists}
 \label{refcard:intros}
 \chapter{Localdefs: \upshape \sffamily temp, lvar, gvar}
 \label{refcard:localdefs}
+\label{refcard:gvar}
+
+\chapter{go\_lower}
+
+\chapter{saturate\_local}
+\label{refcard:saturate-local}
 
 \chapter{entailer!}
 \label{refcard:entailer}
@@ -1513,6 +1544,9 @@ transfer rules between $R$ and $H$. In either case, forward symbolic
 execution is reconciled with the frame rule, and the use of the
 mechanism is sound engineering practice as documentation of
 programmer's insight is combined with performance improvements.
+
+\chapter{Separate compilation, \upshape\textsf{semax\_ext}}
+\label{refcard:sepcomp}
 
 \chapter{Appendix: catalog of major tactics/commands}
 Below is an alphabetic catalog of the major floyd tactics. In addition

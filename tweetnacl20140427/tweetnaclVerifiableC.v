@@ -2,181 +2,179 @@ Require Import Clightdefs.
 
 Local Open Scope Z_scope.
 
-Definition _crypto_box_curve25519xsalsa20poly1305_tweet_open : ident := 136%positive.
-Definition _core : ident := 85%positive.
-Definition _scalarmult : ident := 154%positive.
-Definition _a : ident := 110%positive.
-Definition _add : ident := 148%positive.
-Definition _sigma1 : ident := 143%positive.
-Definition _Ch : ident := 138%positive.
-Definition _crypto_scalarmult_curve25519_tweet_base : ident := 130%positive.
-Definition _set25519 : ident := 111%positive.
-Definition ___i64_stod : ident := 22%positive.
-Definition _R : ident := 137%positive.
-Definition ___builtin_va_start : ident := 12%positive.
-Definition _f : ident := 128%positive.
-Definition _crypto_secretbox_xsalsa20poly1305_tweet : ident := 108%positive.
-Definition _ld32 : ident := 63%positive.
-Definition ___builtin_annot_intval : ident := 10%positive.
-Definition ___builtin_fnmsub : ident := 44%positive.
-Definition ___builtin_negl : ident := 3%positive.
-Definition ___builtin_write16_reversed : ident := 1%positive.
-Definition _S : ident := 124%positive.
-Definition _sigma : ident := 88%positive.
-Definition _par25519 : ident := 119%positive.
-Definition _t : ident := 79%positive.
-Definition _crypto_verify_16_tweet : ident := 72%positive.
-Definition _tx : ident := 150%positive.
-Definition _crypto_secretbox_xsalsa20poly1305_tweet_open : ident := 109%positive.
-Definition _w : ident := 78%positive.
-Definition _y : ident := 68%positive.
-Definition ___i64_smod : ident := 28%positive.
-Definition _sigma0 : ident := 142%positive.
-Definition _car25519 : ident := 113%positive.
-Definition _add1305 : ident := 102%positive.
-Definition ___builtin_fabs : ident := 7%positive.
-Definition _sk : ident := 157%positive.
-Definition _minusp : ident := 103%positive.
-Definition _crypto_box_curve25519xsalsa20poly1305_tweet : ident := 135%positive.
-Definition _Sigma1 : ident := 141%positive.
-Definition _crypto_stream_xsalsa20_tweet_xor : ident := 101%positive.
-Definition _b : ident := 89%positive.
-Definition ___builtin_read16_reversed : ident := 45%positive.
-Definition ___i64_udiv : ident := 27%positive.
-Definition _index : ident := 84%positive.
-Definition _aux1 : ident := 82%positive.
-Definition ___i64_utof : ident := 25%positive.
-Definition ___builtin_va_end : ident := 15%positive.
-Definition _L32 : ident := 60%positive.
-Definition _crypto_scalarmult_curve25519_tweet : ident := 129%positive.
-Definition _p : ident := 114%positive.
-Definition ___i64_sar : ident := 32%positive.
-Definition _pack25519 : ident := 117%positive.
-Definition _d : ident := 70%positive.
-Definition _main : ident := 175%positive.
-Definition _temp : ident := 96%positive.
-Definition ___compcert_va_int64 : ident := 17%positive.
-Definition ___builtin_memcpy_aligned : ident := 8%positive.
-Definition _e : ident := 127%positive.
-Definition ___builtin_fnmadd : ident := 43%positive.
-Definition _D : ident := 53%positive.
-Definition _randombytes : ident := 47%positive.
-Definition _cswap : ident := 149%positive.
-Definition _loop1aux : ident := 91%positive.
-Definition ___builtin_clz : ident := 36%positive.
-Definition _crypto_stream_salsa20_tweet : ident := 98%positive.
-Definition ___compcert_va_composite : ident := 19%positive.
-Definition _aux : ident := 61%positive.
-Definition _crypto_stream_salsa20_tweet_xor : ident := 97%positive.
-Definition _Z : ident := 122%positive.
-Definition ___builtin_ctz : ident := 37%positive.
-Definition _crypto_box_curve25519xsalsa20poly1305_tweet_afternm : ident := 133%positive.
-Definition _zi : ident := 152%positive.
-Definition ___builtin_fmsub : ident := 42%positive.
-Definition _den2 : ident := 169%positive.
-Definition _crypto_box_curve25519xsalsa20poly1305_tweet_beforenm : ident := 132%positive.
-Definition _vn : ident := 71%positive.
-Definition _modL : ident := 161%positive.
-Definition _L : ident := 159%positive.
-Definition _in : ident := 75%positive.
-Definition ___builtin_bswap32 : ident := 34%positive.
-Definition ___i64_umod : ident := 29%positive.
-Definition _loop3right : ident := 95%positive.
-Definition _X : ident := 55%positive.
-Definition _gf1 : ident := 51%positive.
-Definition __0 : ident := 48%positive.
-Definition _chk : ident := 166%positive.
-Definition _crypto_hash_sha512_tweet : ident := 147%positive.
-Definition _dl64 : ident := 65%positive.
-Definition ___builtin_fmin : ident := 40%positive.
-Definition _o : ident := 112%positive.
-Definition ___compcert_va_int32 : ident := 16%positive.
-Definition ___builtin_fsqrt : ident := 38%positive.
-Definition _num : ident := 167%positive.
-Definition ___builtin_read32_reversed : ident := 46%positive.
-Definition _n : ident := 69%positive.
-Definition _u : ident := 62%positive.
-Definition _D2 : ident := 54%positive.
-Definition _den4 : ident := 170%positive.
-Definition _den6 : ident := 171%positive.
-Definition _loop2left : ident := 92%positive.
-Definition _pack : ident := 153%positive.
-Definition _r : ident := 104%positive.
-Definition ___builtin_write32_reversed : ident := 2%positive.
-Definition _A : ident := 121%positive.
-Definition ___i64_shr : ident := 31%positive.
-Definition _reduce : ident := 162%positive.
-Definition __9 : ident := 49%positive.
-Definition _st32 : ident := 66%positive.
-Definition _c : ident := 59%positive.
-Definition ___builtin_addl : ident := 4%positive.
-Definition _smlen : ident := 164%positive.
-Definition _crypto_sign_ed25519_tweet : ident := 165%positive.
-Definition _loop3left : ident := 94%positive.
-Definition _x : ident := 58%positive.
-Definition _ty : ident := 151%positive.
-Definition _iv : ident := 146%positive.
-Definition _sm : ident := 163%positive.
-Definition _inv25519 : ident := 125%positive.
-Definition _s : ident := 99%positive.
-Definition ___i64_dtou : ident := 21%positive.
-Definition ___compcert_va_float64 : ident := 18%positive.
-Definition _crypto_onetimeauth_poly1305_tweet : ident := 106%positive.
-Definition _j : ident := 80%positive.
-Definition ___builtin_va_arg : ident := 13%positive.
-Definition ___builtin_bswap : ident := 33%positive.
-Definition _M : ident := 123%positive.
-Definition _Y : ident := 56%positive.
-Definition _Maj : ident := 139%positive.
-Definition _q : ident := 115%positive.
-Definition _crypto_stream_xsalsa20_tweet : ident := 100%positive.
-Definition ___i64_dtos : ident := 20%positive.
-Definition _mlen : ident := 173%positive.
-Definition _pk : ident := 156%positive.
-Definition _loop2right : ident := 93%positive.
-Definition _unpackneg : ident := 172%positive.
-Definition _g : ident := 105%positive.
-Definition _pow2523 : ident := 126%positive.
-Definition ___i64_stof : ident := 24%positive.
-Definition _ts64 : ident := 67%positive.
-Definition ___builtin_subl : ident := 5%positive.
-Definition _crypto_verify_32_tweet : ident := 73%positive.
-Definition _gf0 : ident := 50%positive.
-Definition _out : ident := 74%positive.
-Definition _den : ident := 168%positive.
-Definition _scalarbase : ident := 155%positive.
-Definition _crypto_onetimeauth_poly1305_tweet_verify : ident := 107%positive.
-Definition _I : ident := 57%positive.
-Definition ___builtin_va_copy : ident := 14%positive.
-Definition ___builtin_mull : ident := 6%positive.
-Definition _Sigma0 : ident := 140%positive.
-Definition _neq25519 : ident := 118%positive.
-Definition ___i64_sdiv : ident := 26%positive.
-Definition _crypto_sign_ed25519_tweet_keypair : ident := 158%positive.
-Definition _crypto_box_curve25519xsalsa20poly1305_tweet_open_afternm : ident := 134%positive.
-Definition ___builtin_fmax : ident := 39%positive.
-Definition _z : ident := 90%positive.
-Definition _u8_aux : ident := 83%positive.
-Definition ___builtin_membar : ident := 11%positive.
-Definition _sel25519 : ident := 116%positive.
-Definition _m : ident := 81%positive.
-Definition _k : ident := 76%positive.
-Definition _crypto_hashblocks_sha512_tweet : ident := 145%positive.
-Definition _carry : ident := 160%positive.
-Definition _K : ident := 144%positive.
-Definition _crypto_core_salsa20_tweet : ident := 86%positive.
-Definition ___builtin_annot : ident := 9%positive.
-Definition _crypto_box_curve25519xsalsa20poly1305_tweet_keypair : ident := 131%positive.
-Definition _i : ident := 64%positive.
-Definition __121665 : ident := 52%positive.
-Definition ___builtin_fmadd : ident := 41%positive.
-Definition _crypto_sign_ed25519_tweet_open : ident := 174%positive.
-Definition _crypto_core_hsalsa20_tweet : ident := 87%positive.
-Definition _h : ident := 77%positive.
-Definition _unpack25519 : ident := 120%positive.
-Definition ___builtin_bswap16 : ident := 35%positive.
-Definition ___i64_shl : ident := 30%positive.
-Definition ___i64_utod : ident := 23%positive.
+Definition _Ch : ident := 136%positive.
+Definition _crypto_core_hsalsa20_tweet : ident := 85%positive.
+Definition _pk : ident := 154%positive.
+Definition _o : ident := 110%positive.
+Definition _tx : ident := 148%positive.
+Definition _crypto_hashblocks_sha512_tweet : ident := 143%positive.
+Definition _Sigma0 : ident := 138%positive.
+Definition _crypto_box_curve25519xsalsa20poly1305_tweet_beforenm : ident := 130%positive.
+Definition _car25519 : ident := 111%positive.
+Definition ___i64_smod : ident := 22%positive.
+Definition _Maj : ident := 137%positive.
+Definition ___compcert_va_float64 : ident := 12%positive.
+Definition _crypto_scalarmult_curve25519_tweet_base : ident := 128%positive.
+Definition _a : ident := 108%positive.
+Definition _dl64 : ident := 63%positive.
+Definition ___compcert_va_int32 : ident := 10%positive.
+Definition ___builtin_debug : ident := 44%positive.
+Definition ___builtin_annot : ident := 3%positive.
+Definition ___builtin_fabs : ident := 1%positive.
+Definition _pow2523 : ident := 124%positive.
+Definition _z : ident := 88%positive.
+Definition _A : ident := 119%positive.
+Definition _m : ident := 79%positive.
+Definition _out : ident := 72%positive.
+Definition _zi : ident := 150%positive.
+Definition _set25519 : ident := 109%positive.
+Definition _j : ident := 78%positive.
+Definition _d : ident := 68%positive.
+Definition ___builtin_bswap32 : ident := 28%positive.
+Definition _K : ident := 142%positive.
+Definition _q : ident := 113%positive.
+Definition _r : ident := 102%positive.
+Definition ___builtin_va_arg : ident := 7%positive.
+Definition _L : ident := 157%positive.
+Definition _g : ident := 103%positive.
+Definition _R : ident := 135%positive.
+Definition _sigma1 : ident := 141%positive.
+Definition _minusp : ident := 101%positive.
+Definition _loop1aux : ident := 89%positive.
+Definition _randombytes : ident := 45%positive.
+Definition ___builtin_bswap : ident := 27%positive.
+Definition _crypto_core_salsa20_tweet : ident := 84%positive.
+Definition _index : ident := 82%positive.
+Definition ___i64_shr : ident := 25%positive.
+Definition ___i64_dtou : ident := 15%positive.
+Definition _u : ident := 60%positive.
+Definition _crypto_box_curve25519xsalsa20poly1305_tweet_keypair : ident := 129%positive.
+Definition _sel25519 : ident := 114%positive.
+Definition ___builtin_fsqrt : ident := 32%positive.
+Definition _par25519 : ident := 117%positive.
+Definition _crypto_verify_16_tweet : ident := 70%positive.
+Definition _crypto_stream_salsa20_tweet : ident := 96%positive.
+Definition ___i64_utod : ident := 17%positive.
+Definition ___builtin_va_copy : ident := 8%positive.
+Definition _crypto_scalarmult_curve25519_tweet : ident := 127%positive.
+Definition ___builtin_nop : ident := 43%positive.
+Definition _X : ident := 53%positive.
+Definition __9 : ident := 47%positive.
+Definition _ty : ident := 149%positive.
+Definition _loop2right : ident := 91%positive.
+Definition ___builtin_fmsub : ident := 36%positive.
+Definition _crypto_stream_xsalsa20_tweet : ident := 98%positive.
+Definition ___i64_utof : ident := 19%positive.
+Definition _ld32 : ident := 61%positive.
+Definition _s : ident := 97%positive.
+Definition _S : ident := 122%positive.
+Definition ___builtin_fnmadd : ident := 37%positive.
+Definition _crypto_box_curve25519xsalsa20poly1305_tweet : ident := 133%positive.
+Definition _scalarmult : ident := 152%positive.
+Definition ___builtin_write32_reversed : ident := 42%positive.
+Definition _den6 : ident := 169%positive.
+Definition _crypto_box_curve25519xsalsa20poly1305_tweet_open_afternm : ident := 132%positive.
+Definition _crypto_verify_32_tweet : ident := 71%positive.
+Definition _sm : ident := 161%positive.
+Definition _modL : ident := 159%positive.
+Definition _h : ident := 75%positive.
+Definition ___builtin_fmin : ident := 34%positive.
+Definition ___builtin_bswap16 : ident := 29%positive.
+Definition _crypto_stream_salsa20_tweet_xor : ident := 95%positive.
+Definition _I : ident := 55%positive.
+Definition _D : ident := 51%positive.
+Definition _gf0 : ident := 48%positive.
+Definition _den : ident := 166%positive.
+Definition _cswap : ident := 147%positive.
+Definition _ts64 : ident := 65%positive.
+Definition ___builtin_read32_reversed : ident := 40%positive.
+Definition _p : ident := 112%positive.
+Definition ___i64_stod : ident := 16%positive.
+Definition ___builtin_fnmsub : ident := 38%positive.
+Definition _den2 : ident := 167%positive.
+Definition __0 : ident := 46%positive.
+Definition _vn : ident := 69%positive.
+Definition _i : ident := 62%positive.
+Definition _Y : ident := 54%positive.
+Definition _unpackneg : ident := 170%positive.
+Definition _mlen : ident := 171%positive.
+Definition _loop3left : ident := 92%positive.
+Definition _scalarbase : ident := 153%positive.
+Definition _crypto_onetimeauth_poly1305_tweet : ident := 104%positive.
+Definition ___builtin_memcpy_aligned : ident := 2%positive.
+Definition _M : ident := 121%positive.
+Definition ___builtin_ctz : ident := 31%positive.
+Definition _smlen : ident := 162%positive.
+Definition _gf1 : ident := 49%positive.
+Definition _y : ident := 66%positive.
+Definition _aux : ident := 59%positive.
+Definition ___builtin_annot_intval : ident := 4%positive.
+Definition _chk : ident := 164%positive.
+Definition _num : ident := 165%positive.
+Definition _temp : ident := 94%positive.
+Definition _L32 : ident := 58%positive.
+Definition _pack : ident := 151%positive.
+Definition _add : ident := 146%positive.
+Definition _crypto_sign_ed25519_tweet : ident := 163%positive.
+Definition _e : ident := 125%positive.
+Definition _crypto_stream_xsalsa20_tweet_xor : ident := 99%positive.
+Definition ___i64_udiv : ident := 21%positive.
+Definition ___i64_stof : ident := 18%positive.
+Definition _crypto_secretbox_xsalsa20poly1305_tweet : ident := 106%positive.
+Definition _aux1 : ident := 80%positive.
+Definition ___compcert_va_composite : ident := 13%positive.
+Definition ___builtin_fmax : ident := 33%positive.
+Definition _inv25519 : ident := 123%positive.
+Definition _x : ident := 56%positive.
+Definition _Sigma1 : ident := 139%positive.
+Definition _pack25519 : ident := 115%positive.
+Definition _add1305 : ident := 100%positive.
+Definition ___i64_sdiv : ident := 20%positive.
+Definition _main : ident := 173%positive.
+Definition _crypto_sign_ed25519_tweet_keypair : ident := 156%positive.
+Definition _loop3right : ident := 93%positive.
+Definition _crypto_sign_ed25519_tweet_open : ident := 172%positive.
+Definition _crypto_onetimeauth_poly1305_tweet_verify : ident := 105%positive.
+Definition _f : ident := 126%positive.
+Definition ___i64_shl : ident := 24%positive.
+Definition _n : ident := 67%positive.
+Definition ___builtin_membar : ident := 5%positive.
+Definition _in : ident := 73%positive.
+Definition __121665 : ident := 50%positive.
+Definition _k : ident := 74%positive.
+Definition _den4 : ident := 168%positive.
+Definition _sk : ident := 155%positive.
+Definition _crypto_secretbox_xsalsa20poly1305_tweet_open : ident := 107%positive.
+Definition _c : ident := 57%positive.
+Definition ___i64_dtos : ident := 14%positive.
+Definition ___builtin_va_start : ident := 6%positive.
+Definition _sigma0 : ident := 140%positive.
+Definition _unpack25519 : ident := 118%positive.
+Definition ___i64_sar : ident := 26%positive.
+Definition _carry : ident := 158%positive.
+Definition _crypto_box_curve25519xsalsa20poly1305_tweet_open : ident := 134%positive.
+Definition ___builtin_read16_reversed : ident := 39%positive.
+Definition _loop2left : ident := 90%positive.
+Definition _core : ident := 83%positive.
+Definition ___compcert_va_int64 : ident := 11%positive.
+Definition _neq25519 : ident := 116%positive.
+Definition _u8_aux : ident := 81%positive.
+Definition _w : ident := 76%positive.
+Definition _crypto_hash_sha512_tweet : ident := 145%positive.
+Definition _reduce : ident := 160%positive.
+Definition _iv : ident := 144%positive.
+Definition _sigma : ident := 86%positive.
+Definition ___builtin_va_end : ident := 9%positive.
+Definition _crypto_box_curve25519xsalsa20poly1305_tweet_afternm : ident := 131%positive.
+Definition _st32 : ident := 64%positive.
+Definition _D2 : ident := 52%positive.
+Definition ___builtin_write16_reversed : ident := 41%positive.
+Definition _b : ident := 87%positive.
+Definition _t : ident := 77%positive.
+Definition _Z : ident := 120%positive.
+Definition ___builtin_fmadd : ident := 35%positive.
+Definition ___builtin_clz : ident := 30%positive.
+Definition ___i64_umod : ident := 23%positive.
 
 Definition v__0 := {|
   gvar_info := (tarray tuchar 16);
@@ -513,16 +511,16 @@ Definition f_crypto_verify_16_tweet := {|
   fn_callconv := cc_default;
   fn_params := ((_x, (tptr tuchar)) :: (_y, (tptr tuchar)) :: nil);
   fn_vars := nil;
-  fn_temps := ((176%positive, tint) :: nil);
+  fn_temps := ((174%positive, tint) :: nil);
   fn_body :=
 (Ssequence
-  (Scall (Some 176%positive)
+  (Scall (Some 174%positive)
     (Evar _vn (Tfunction
                 (Tcons (tptr tuchar) (Tcons (tptr tuchar) (Tcons tint Tnil)))
                 tint cc_default))
     ((Etempvar _x (tptr tuchar)) :: (Etempvar _y (tptr tuchar)) ::
      (Econst_int (Int.repr 16) tint) :: nil))
-  (Sreturn (Some (Etempvar 176%positive tint))))
+  (Sreturn (Some (Etempvar 174%positive tint))))
 |}.
 
 Definition f_crypto_verify_32_tweet := {|
@@ -530,16 +528,16 @@ Definition f_crypto_verify_32_tweet := {|
   fn_callconv := cc_default;
   fn_params := ((_x, (tptr tuchar)) :: (_y, (tptr tuchar)) :: nil);
   fn_vars := nil;
-  fn_temps := ((177%positive, tint) :: nil);
+  fn_temps := ((175%positive, tint) :: nil);
   fn_body :=
 (Ssequence
-  (Scall (Some 177%positive)
+  (Scall (Some 175%positive)
     (Evar _vn (Tfunction
                 (Tcons (tptr tuchar) (Tcons (tptr tuchar) (Tcons tint Tnil)))
                 tint cc_default))
     ((Etempvar _x (tptr tuchar)) :: (Etempvar _y (tptr tuchar)) ::
      (Econst_int (Int.repr 32) tint) :: nil))
-  (Sreturn (Some (Etempvar 177%positive tint))))
+  (Sreturn (Some (Etempvar 175%positive tint))))
 |}.
 
 Definition f_core := {|
@@ -552,12 +550,12 @@ Definition f_core := {|
               (_y, (tarray tuint 16)) :: (_t, (tarray tuint 4)) :: nil);
   fn_temps := ((_i, tint) :: (_j, tint) :: (_m, tint) :: (_aux, tuint) ::
                (_aux1, tuint) :: (_u8_aux, (tptr tuchar)) ::
-               (_index, tint) :: (187%positive, tuint) ::
-               (186%positive, tuint) :: (185%positive, tuint) ::
+               (_index, tint) :: (185%positive, tuint) ::
                (184%positive, tuint) :: (183%positive, tuint) ::
                (182%positive, tuint) :: (181%positive, tuint) ::
                (180%positive, tuint) :: (179%positive, tuint) ::
-               (178%positive, tuint) :: nil);
+               (178%positive, tuint) :: (177%positive, tuint) ::
+               (176%positive, tuint) :: nil);
   fn_body :=
 (Ssequence
   (Ssequence
@@ -570,13 +568,13 @@ Definition f_core := {|
           Sbreak)
         (Ssequence
           (Ssequence
-            (Scall (Some 178%positive)
+            (Scall (Some 176%positive)
               (Evar _ld32 (Tfunction (Tcons (tptr tuchar) Tnil) tuint
                             cc_default))
               ((Ebinop Oadd (Etempvar _c (tptr tuchar))
                  (Ebinop Omul (Econst_int (Int.repr 4) tint)
                    (Etempvar _i tint) tint) (tptr tuchar)) :: nil))
-            (Sset _aux (Etempvar 178%positive tuint)))
+            (Sset _aux (Etempvar 176%positive tuint)))
           (Ssequence
             (Sassign
               (Ederef
@@ -586,13 +584,13 @@ Definition f_core := {|
               (Etempvar _aux tuint))
             (Ssequence
               (Ssequence
-                (Scall (Some 179%positive)
+                (Scall (Some 177%positive)
                   (Evar _ld32 (Tfunction (Tcons (tptr tuchar) Tnil) tuint
                                 cc_default))
                   ((Ebinop Oadd (Etempvar _k (tptr tuchar))
                      (Ebinop Omul (Econst_int (Int.repr 4) tint)
                        (Etempvar _i tint) tint) (tptr tuchar)) :: nil))
-                (Sset _aux (Etempvar 179%positive tuint)))
+                (Sset _aux (Etempvar 177%positive tuint)))
               (Ssequence
                 (Sassign
                   (Ederef
@@ -602,13 +600,13 @@ Definition f_core := {|
                   (Etempvar _aux tuint))
                 (Ssequence
                   (Ssequence
-                    (Scall (Some 180%positive)
+                    (Scall (Some 178%positive)
                       (Evar _ld32 (Tfunction (Tcons (tptr tuchar) Tnil) tuint
                                     cc_default))
                       ((Ebinop Oadd (Etempvar _in (tptr tuchar))
                          (Ebinop Omul (Econst_int (Int.repr 4) tint)
                            (Etempvar _i tint) tint) (tptr tuchar)) :: nil))
-                    (Sset _aux (Etempvar 180%positive tuint)))
+                    (Sset _aux (Etempvar 178%positive tuint)))
                   (Ssequence
                     (Sassign
                       (Ederef
@@ -618,7 +616,7 @@ Definition f_core := {|
                       (Etempvar _aux tuint))
                     (Ssequence
                       (Ssequence
-                        (Scall (Some 181%positive)
+                        (Scall (Some 179%positive)
                           (Evar _ld32 (Tfunction (Tcons (tptr tuchar) Tnil)
                                         tuint cc_default))
                           ((Ebinop Oadd
@@ -627,7 +625,7 @@ Definition f_core := {|
                              (Ebinop Omul (Econst_int (Int.repr 4) tint)
                                (Etempvar _i tint) tint) (tptr tuchar)) ::
                            nil))
-                        (Sset _aux (Etempvar 181%positive tuint)))
+                        (Sset _aux (Etempvar 179%positive tuint)))
                       (Sassign
                         (Ederef
                           (Ebinop Oadd (Evar _x (tarray tuint 16))
@@ -729,14 +727,14 @@ Definition f_core := {|
                                   (Etempvar _aux1 tuint) tuint))
                               (Ssequence
                                 (Ssequence
-                                  (Scall (Some 182%positive)
+                                  (Scall (Some 180%positive)
                                     (Evar _L32 (Tfunction
                                                  (Tcons tuint
                                                    (Tcons tint Tnil)) tuint
                                                  cc_default))
                                     ((Etempvar _aux tuint) ::
                                      (Econst_int (Int.repr 7) tint) :: nil))
-                                  (Sset _aux (Etempvar 182%positive tuint)))
+                                  (Sset _aux (Etempvar 180%positive tuint)))
                                 (Ssequence
                                   (Sset _aux1
                                     (Ederef
@@ -773,14 +771,14 @@ Definition f_core := {|
                                     (Etempvar _aux1 tuint) tuint))
                                 (Ssequence
                                   (Ssequence
-                                    (Scall (Some 183%positive)
+                                    (Scall (Some 181%positive)
                                       (Evar _L32 (Tfunction
                                                    (Tcons tuint
                                                      (Tcons tint Tnil)) tuint
                                                    cc_default))
                                       ((Etempvar _aux tuint) ::
                                        (Econst_int (Int.repr 9) tint) :: nil))
-                                    (Sset _aux (Etempvar 183%positive tuint)))
+                                    (Sset _aux (Etempvar 181%positive tuint)))
                                   (Ssequence
                                     (Sset _aux1
                                       (Ederef
@@ -818,7 +816,7 @@ Definition f_core := {|
                                       (Etempvar _aux1 tuint) tuint))
                                   (Ssequence
                                     (Ssequence
-                                      (Scall (Some 184%positive)
+                                      (Scall (Some 182%positive)
                                         (Evar _L32 (Tfunction
                                                      (Tcons tuint
                                                        (Tcons tint Tnil))
@@ -827,7 +825,7 @@ Definition f_core := {|
                                          (Econst_int (Int.repr 13) tint) ::
                                          nil))
                                       (Sset _aux
-                                        (Etempvar 184%positive tuint)))
+                                        (Etempvar 182%positive tuint)))
                                     (Ssequence
                                       (Sset _aux1
                                         (Ederef
@@ -865,7 +863,7 @@ Definition f_core := {|
                                         (Etempvar _aux1 tuint) tuint))
                                     (Ssequence
                                       (Ssequence
-                                        (Scall (Some 185%positive)
+                                        (Scall (Some 183%positive)
                                           (Evar _L32 (Tfunction
                                                        (Tcons tuint
                                                          (Tcons tint Tnil))
@@ -874,7 +872,7 @@ Definition f_core := {|
                                            (Econst_int (Int.repr 18) tint) ::
                                            nil))
                                         (Sset _aux
-                                          (Etempvar 185%positive tuint)))
+                                          (Etempvar 183%positive tuint)))
                                       (Ssequence
                                         (Sset _aux1
                                           (Ederef
@@ -1004,11 +1002,11 @@ Definition f_core := {|
                           (Etempvar _i tint) tint) (tptr tuchar)))
                     (Ssequence
                       (Ssequence
-                        (Scall (Some 186%positive)
+                        (Scall (Some 184%positive)
                           (Evar _ld32 (Tfunction (Tcons (tptr tuchar) Tnil)
                                         tuint cc_default))
                           ((Etempvar _u8_aux (tptr tuchar)) :: nil))
-                        (Sset _aux (Etempvar 186%positive tuint)))
+                        (Sset _aux (Etempvar 184%positive tuint)))
                       (Ssequence
                         (Sset _aux1
                           (Ederef
@@ -1031,12 +1029,12 @@ Definition f_core := {|
                                   (Etempvar _i tint) tint) (tptr tuchar)))
                             (Ssequence
                               (Ssequence
-                                (Scall (Some 187%positive)
+                                (Scall (Some 185%positive)
                                   (Evar _ld32 (Tfunction
                                                 (Tcons (tptr tuchar) Tnil)
                                                 tuint cc_default))
                                   ((Etempvar _u8_aux (tptr tuchar)) :: nil))
-                                (Sset _aux (Etempvar 187%positive tuint)))
+                                (Sset _aux (Etempvar 185%positive tuint)))
                               (Ssequence
                                 (Sset _aux1
                                   (Ederef
@@ -1214,8 +1212,8 @@ Definition f_crypto_stream_salsa20_tweet_xor := {|
   fn_temps := ((_u, tuint) :: (_i, tuint) :: (_loop1aux, tuchar) ::
                (_loop2left, tuchar) :: (_loop2right, tuchar) ::
                (_loop3left, tuchar) :: (_loop3right, tuchar) ::
-               (_temp, tuchar) :: (189%positive, tint) ::
-               (188%positive, tint) :: nil);
+               (_temp, tuchar) :: (187%positive, tint) ::
+               (186%positive, tint) :: nil);
   fn_body :=
 (Ssequence
   (Sifthenelse (Eunop Onotbool (Etempvar _b tulong) tint)
@@ -1290,16 +1288,16 @@ Definition f_crypto_stream_salsa20_tweet_xor := {|
                         (Sifthenelse (Ebinop One (Etempvar _m (tptr tuchar))
                                        (Ecast (Econst_int (Int.repr 0) tint)
                                          (tptr tvoid)) tint)
-                          (Sset 188%positive
+                          (Sset 186%positive
                             (Ecast
                               (Ederef
                                 (Ebinop Oadd (Etempvar _m (tptr tuchar))
                                   (Etempvar _i tuint) (tptr tuchar)) tuchar)
                               tint))
-                          (Sset 188%positive
+                          (Sset 186%positive
                             (Ecast (Econst_int (Int.repr 0) tint) tint)))
                         (Sset _loop2left
-                          (Ecast (Etempvar 188%positive tint) tuchar)))
+                          (Ecast (Etempvar 186%positive tint) tuchar)))
                       (Ssequence
                         (Sset _loop2right
                           (Ecast
@@ -1391,16 +1389,16 @@ Definition f_crypto_stream_salsa20_tweet_xor := {|
                         (Sifthenelse (Ebinop One (Etempvar _m (tptr tuchar))
                                        (Ecast (Econst_int (Int.repr 0) tint)
                                          (tptr tvoid)) tint)
-                          (Sset 189%positive
+                          (Sset 187%positive
                             (Ecast
                               (Ederef
                                 (Ebinop Oadd (Etempvar _m (tptr tuchar))
                                   (Etempvar _i tuint) (tptr tuchar)) tuchar)
                               tint))
-                          (Sset 189%positive
+                          (Sset 187%positive
                             (Ecast (Econst_int (Int.repr 0) tint) tint)))
                         (Sset _loop3left
-                          (Ecast (Etempvar 189%positive tint) tuchar)))
+                          (Ecast (Etempvar 187%positive tint) tuchar)))
                       (Ssequence
                         (Sset _loop3right
                           (Ecast
@@ -1427,10 +1425,10 @@ Definition f_crypto_stream_salsa20_tweet := {|
   fn_params := ((_c, (tptr tuchar)) :: (_d, tulong) :: (_n, (tptr tuchar)) ::
                 (_k, (tptr tuchar)) :: nil);
   fn_vars := nil;
-  fn_temps := ((190%positive, tint) :: nil);
+  fn_temps := ((188%positive, tint) :: nil);
   fn_body :=
 (Ssequence
-  (Scall (Some 190%positive)
+  (Scall (Some 188%positive)
     (Evar _crypto_stream_salsa20_tweet_xor (Tfunction
                                              (Tcons (tptr tuchar)
                                                (Tcons (tptr tuchar)
@@ -1442,7 +1440,7 @@ Definition f_crypto_stream_salsa20_tweet := {|
     ((Etempvar _c (tptr tuchar)) :: (Econst_int (Int.repr 0) tint) ::
      (Etempvar _d tulong) :: (Etempvar _n (tptr tuchar)) ::
      (Etempvar _k (tptr tuchar)) :: nil))
-  (Sreturn (Some (Etempvar 190%positive tint))))
+  (Sreturn (Some (Etempvar 188%positive tint))))
 |}.
 
 Definition f_crypto_stream_xsalsa20_tweet := {|
@@ -1451,7 +1449,7 @@ Definition f_crypto_stream_xsalsa20_tweet := {|
   fn_params := ((_c, (tptr tuchar)) :: (_d, tulong) :: (_n, (tptr tuchar)) ::
                 (_k, (tptr tuchar)) :: nil);
   fn_vars := ((_s, (tarray tuchar 32)) :: nil);
-  fn_temps := ((191%positive, tint) :: nil);
+  fn_temps := ((189%positive, tint) :: nil);
   fn_body :=
 (Ssequence
   (Scall None
@@ -1464,7 +1462,7 @@ Definition f_crypto_stream_xsalsa20_tweet := {|
     ((Evar _s (tarray tuchar 32)) :: (Etempvar _n (tptr tuchar)) ::
      (Etempvar _k (tptr tuchar)) :: (Evar _sigma (tarray tuchar 16)) :: nil))
   (Ssequence
-    (Scall (Some 191%positive)
+    (Scall (Some 189%positive)
       (Evar _crypto_stream_salsa20_tweet (Tfunction
                                            (Tcons (tptr tuchar)
                                              (Tcons tulong
@@ -1475,7 +1473,7 @@ Definition f_crypto_stream_xsalsa20_tweet := {|
        (Ebinop Oadd (Etempvar _n (tptr tuchar))
          (Econst_int (Int.repr 16) tint) (tptr tuchar)) ::
        (Evar _s (tarray tuchar 32)) :: nil))
-    (Sreturn (Some (Etempvar 191%positive tint)))))
+    (Sreturn (Some (Etempvar 189%positive tint)))))
 |}.
 
 Definition f_crypto_stream_xsalsa20_tweet_xor := {|
@@ -1484,7 +1482,7 @@ Definition f_crypto_stream_xsalsa20_tweet_xor := {|
   fn_params := ((_c, (tptr tuchar)) :: (_m, (tptr tuchar)) :: (_d, tulong) ::
                 (_n, (tptr tuchar)) :: (_k, (tptr tuchar)) :: nil);
   fn_vars := ((_s, (tarray tuchar 32)) :: nil);
-  fn_temps := ((192%positive, tint) :: nil);
+  fn_temps := ((190%positive, tint) :: nil);
   fn_body :=
 (Ssequence
   (Scall None
@@ -1497,7 +1495,7 @@ Definition f_crypto_stream_xsalsa20_tweet_xor := {|
     ((Evar _s (tarray tuchar 32)) :: (Etempvar _n (tptr tuchar)) ::
      (Etempvar _k (tptr tuchar)) :: (Evar _sigma (tarray tuchar 16)) :: nil))
   (Ssequence
-    (Scall (Some 192%positive)
+    (Scall (Some 190%positive)
       (Evar _crypto_stream_salsa20_tweet_xor (Tfunction
                                                (Tcons (tptr tuchar)
                                                  (Tcons (tptr tuchar)
@@ -1511,7 +1509,7 @@ Definition f_crypto_stream_xsalsa20_tweet_xor := {|
        (Ebinop Oadd (Etempvar _n (tptr tuchar))
          (Econst_int (Int.repr 16) tint) (tptr tuchar)) ::
        (Evar _s (tarray tuchar 32)) :: nil))
-    (Sreturn (Some (Etempvar 192%positive tint)))))
+    (Sreturn (Some (Etempvar 190%positive tint)))))
 |}.
 
 Definition f_add1305 := {|
@@ -1580,8 +1578,8 @@ Definition f_crypto_onetimeauth_poly1305_tweet := {|
               (_h, (tarray tuint 17)) :: (_c, (tarray tuint 17)) ::
               (_g, (tarray tuint 17)) :: nil);
   fn_temps := ((_s, tuint) :: (_i, tuint) :: (_j, tuint) :: (_u, tuint) ::
-               (195%positive, tuint) :: (194%positive, tint) ::
-               (193%positive, tint) :: nil);
+               (193%positive, tuint) :: (192%positive, tint) ::
+               (191%positive, tint) :: nil);
   fn_body :=
 (Ssequence
   (Ssequence
@@ -1594,16 +1592,16 @@ Definition f_crypto_onetimeauth_poly1305_tweet := {|
           Sbreak)
         (Ssequence
           (Ssequence
-            (Sset 193%positive (Econst_int (Int.repr 0) tint))
+            (Sset 191%positive (Econst_int (Int.repr 0) tint))
             (Sassign
               (Ederef
                 (Ebinop Oadd (Evar _h (tarray tuint 17)) (Etempvar _j tuint)
-                  (tptr tuint)) tuint) (Etempvar 193%positive tint)))
+                  (tptr tuint)) tuint) (Etempvar 191%positive tint)))
           (Sassign
             (Ederef
               (Ebinop Oadd (Evar _r (tarray tuint 17)) (Etempvar _j tuint)
                 (tptr tuint)) tuint)
-            (Ecast (Etempvar 193%positive tint) tuint))))
+            (Ecast (Etempvar 191%positive tint) tuint))))
       (Sset _j
         (Ebinop Oadd (Etempvar _j tuint) (Econst_int (Int.repr 1) tint)
           tuint))))
@@ -1728,13 +1726,13 @@ Definition f_crypto_onetimeauth_poly1305_tweet := {|
                                                  (Etempvar _j tuint)
                                                  (Econst_int (Int.repr 16) tint)
                                                  tint)
-                                    (Sset 194%positive
+                                    (Sset 192%positive
                                       (Ecast
                                         (Ebinop Olt (Etempvar _j tuint)
                                           (Etempvar _n tulong) tint) tbool))
-                                    (Sset 194%positive
+                                    (Sset 192%positive
                                       (Econst_int (Int.repr 0) tint)))
-                                  (Sifthenelse (Etempvar 194%positive tint)
+                                  (Sifthenelse (Etempvar 192%positive tint)
                                     Sskip
                                     Sbreak))
                                 (Sassign
@@ -1808,7 +1806,7 @@ Definition f_crypto_onetimeauth_poly1305_tweet := {|
                                                                    (Etempvar _j tuint)
                                                                    (Etempvar _i tuint)
                                                                    tint)
-                                                      (Sset 195%positive
+                                                      (Sset 193%positive
                                                         (Ecast
                                                           (Ederef
                                                             (Ebinop Oadd
@@ -1819,7 +1817,7 @@ Definition f_crypto_onetimeauth_poly1305_tweet := {|
                                                                 tuint)
                                                               (tptr tuint))
                                                             tuint) tuint))
-                                                      (Sset 195%positive
+                                                      (Sset 193%positive
                                                         (Ecast
                                                           (Ebinop Omul
                                                             (Econst_int (Int.repr 320) tint)
@@ -1857,7 +1855,7 @@ Definition f_crypto_onetimeauth_poly1305_tweet := {|
                                                               (Etempvar _j tuint)
                                                               (tptr tuint))
                                                             tuint)
-                                                          (Etempvar 195%positive tuint)
+                                                          (Etempvar 193%positive tuint)
                                                           tuint) tuint))))
                                                 (Sset _j
                                                   (Ebinop Oadd
@@ -2188,7 +2186,7 @@ Definition f_crypto_onetimeauth_poly1305_tweet_verify := {|
   fn_params := ((_h, (tptr tuchar)) :: (_m, (tptr tuchar)) :: (_n, tulong) ::
                 (_k, (tptr tuchar)) :: nil);
   fn_vars := ((_x, (tarray tuchar 16)) :: nil);
-  fn_temps := ((196%positive, tint) :: nil);
+  fn_temps := ((194%positive, tint) :: nil);
   fn_body :=
 (Ssequence
   (Scall None
@@ -2202,13 +2200,13 @@ Definition f_crypto_onetimeauth_poly1305_tweet_verify := {|
     ((Evar _x (tarray tuchar 16)) :: (Etempvar _m (tptr tuchar)) ::
      (Etempvar _n tulong) :: (Etempvar _k (tptr tuchar)) :: nil))
   (Ssequence
-    (Scall (Some 196%positive)
+    (Scall (Some 194%positive)
       (Evar _crypto_verify_16_tweet (Tfunction
                                       (Tcons (tptr tuchar)
                                         (Tcons (tptr tuchar) Tnil)) tint
                                       cc_default))
       ((Etempvar _h (tptr tuchar)) :: (Evar _x (tarray tuchar 16)) :: nil))
-    (Sreturn (Some (Etempvar 196%positive tint)))))
+    (Sreturn (Some (Etempvar 194%positive tint)))))
 |}.
 
 Definition f_crypto_secretbox_xsalsa20poly1305_tweet := {|
@@ -2277,7 +2275,7 @@ Definition f_crypto_secretbox_xsalsa20poly1305_tweet_open := {|
   fn_params := ((_m, (tptr tuchar)) :: (_c, (tptr tuchar)) :: (_d, tulong) ::
                 (_n, (tptr tuchar)) :: (_k, (tptr tuchar)) :: nil);
   fn_vars := ((_x, (tarray tuchar 32)) :: nil);
-  fn_temps := ((_i, tint) :: (197%positive, tint) :: nil);
+  fn_temps := ((_i, tint) :: (195%positive, tint) :: nil);
   fn_body :=
 (Ssequence
   (Sifthenelse (Ebinop Olt (Etempvar _d tulong)
@@ -2296,7 +2294,7 @@ Definition f_crypto_secretbox_xsalsa20poly1305_tweet_open := {|
        (Etempvar _n (tptr tuchar)) :: (Etempvar _k (tptr tuchar)) :: nil))
     (Ssequence
       (Ssequence
-        (Scall (Some 197%positive)
+        (Scall (Some 195%positive)
           (Evar _crypto_onetimeauth_poly1305_tweet_verify (Tfunction
                                                             (Tcons
                                                               (tptr tuchar)
@@ -2313,7 +2311,7 @@ Definition f_crypto_secretbox_xsalsa20poly1305_tweet_open := {|
              (Econst_int (Int.repr 32) tint) (tptr tuchar)) ::
            (Ebinop Osub (Etempvar _d tulong) (Econst_int (Int.repr 32) tint)
              tulong) :: (Evar _x (tarray tuchar 32)) :: nil))
-        (Sifthenelse (Ebinop One (Etempvar 197%positive tint)
+        (Sifthenelse (Ebinop One (Etempvar 195%positive tint)
                        (Econst_int (Int.repr 0) tint) tint)
           (Sreturn (Some (Eunop Oneg (Econst_int (Int.repr 1) tint) tint)))
           Sskip))
@@ -2711,7 +2709,7 @@ Definition f_neq25519 := {|
   fn_callconv := cc_default;
   fn_params := ((_a, (tptr tlong)) :: (_b, (tptr tlong)) :: nil);
   fn_vars := ((_c, (tarray tuchar 32)) :: (_d, (tarray tuchar 32)) :: nil);
-  fn_temps := ((198%positive, tint) :: nil);
+  fn_temps := ((196%positive, tint) :: nil);
   fn_body :=
 (Ssequence
   (Scall None
@@ -2726,13 +2724,13 @@ Definition f_neq25519 := {|
                          tvoid cc_default))
       ((Evar _d (tarray tuchar 32)) :: (Etempvar _b (tptr tlong)) :: nil))
     (Ssequence
-      (Scall (Some 198%positive)
+      (Scall (Some 196%positive)
         (Evar _crypto_verify_32_tweet (Tfunction
                                         (Tcons (tptr tuchar)
                                           (Tcons (tptr tuchar) Tnil)) tint
                                         cc_default))
         ((Evar _c (tarray tuchar 32)) :: (Evar _d (tarray tuchar 32)) :: nil))
-      (Sreturn (Some (Etempvar 198%positive tint))))))
+      (Sreturn (Some (Etempvar 196%positive tint))))))
 |}.
 
 Definition f_par25519 := {|
@@ -3006,7 +3004,7 @@ Definition f_inv25519 := {|
   fn_callconv := cc_default;
   fn_params := ((_o, (tptr tlong)) :: (_i, (tptr tlong)) :: nil);
   fn_vars := ((_c, (tarray tlong 16)) :: nil);
-  fn_temps := ((_a, tint) :: (199%positive, tint) :: nil);
+  fn_temps := ((_a, tint) :: (197%positive, tint) :: nil);
   fn_body :=
 (Ssequence
   (Ssequence
@@ -3045,12 +3043,12 @@ Definition f_inv25519 := {|
             (Ssequence
               (Sifthenelse (Ebinop One (Etempvar _a tint)
                              (Econst_int (Int.repr 2) tint) tint)
-                (Sset 199%positive
+                (Sset 197%positive
                   (Ecast
                     (Ebinop One (Etempvar _a tint)
                       (Econst_int (Int.repr 4) tint) tint) tbool))
-                (Sset 199%positive (Econst_int (Int.repr 0) tint)))
-              (Sifthenelse (Etempvar 199%positive tint)
+                (Sset 197%positive (Econst_int (Int.repr 0) tint)))
+              (Sifthenelse (Etempvar 197%positive tint)
                 (Scall None
                   (Evar _M (Tfunction
                              (Tcons (tptr tlong)
@@ -3167,8 +3165,8 @@ Definition f_crypto_scalarmult_curve25519_tweet := {|
               (_a, (tarray tlong 16)) :: (_b, (tarray tlong 16)) ::
               (_c, (tarray tlong 16)) :: (_d, (tarray tlong 16)) ::
               (_e, (tarray tlong 16)) :: (_f, (tarray tlong 16)) :: nil);
-  fn_temps := ((_r, tlong) :: (_i, tlong) :: (202%positive, tint) ::
-               (201%positive, tlong) :: (200%positive, tint) :: nil);
+  fn_temps := ((_r, tlong) :: (_i, tlong) :: (200%positive, tint) ::
+               (199%positive, tlong) :: (198%positive, tint) :: nil);
   fn_body :=
 (Ssequence
   (Ssequence
@@ -3239,41 +3237,41 @@ Definition f_crypto_scalarmult_curve25519_tweet := {|
                     (Ssequence
                       (Ssequence
                         (Ssequence
-                          (Sset 200%positive (Econst_int (Int.repr 0) tint))
+                          (Sset 198%positive (Econst_int (Int.repr 0) tint))
                           (Sassign
                             (Ederef
                               (Ebinop Oadd (Evar _c (tarray tlong 16))
                                 (Etempvar _i tlong) (tptr tlong)) tlong)
-                            (Etempvar 200%positive tint)))
-                        (Sset 201%positive
-                          (Ecast (Etempvar 200%positive tint) tlong)))
+                            (Etempvar 198%positive tint)))
+                        (Sset 199%positive
+                          (Ecast (Etempvar 198%positive tint) tlong)))
                       (Sassign
                         (Ederef
                           (Ebinop Oadd (Evar _a (tarray tlong 16))
                             (Etempvar _i tlong) (tptr tlong)) tlong)
-                        (Etempvar 201%positive tlong)))
+                        (Etempvar 199%positive tlong)))
                     (Sassign
                       (Ederef
                         (Ebinop Oadd (Evar _d (tarray tlong 16))
                           (Etempvar _i tlong) (tptr tlong)) tlong)
-                      (Ecast (Etempvar 201%positive tlong) tlong)))))
+                      (Ecast (Etempvar 199%positive tlong) tlong)))))
               (Sset _i
                 (Ebinop Oadd (Etempvar _i tlong)
                   (Econst_int (Int.repr 1) tint) tlong))))
           (Ssequence
             (Ssequence
               (Ssequence
-                (Sset 202%positive (Econst_int (Int.repr 1) tint))
+                (Sset 200%positive (Econst_int (Int.repr 1) tint))
                 (Sassign
                   (Ederef
                     (Ebinop Oadd (Evar _d (tarray tlong 16))
                       (Econst_int (Int.repr 0) tint) (tptr tlong)) tlong)
-                  (Etempvar 202%positive tint)))
+                  (Etempvar 200%positive tint)))
               (Sassign
                 (Ederef
                   (Ebinop Oadd (Evar _a (tarray tlong 16))
                     (Econst_int (Int.repr 0) tint) (tptr tlong)) tlong)
-                (Ecast (Etempvar 202%positive tint) tlong)))
+                (Ecast (Etempvar 200%positive tint) tlong)))
             (Ssequence
               (Ssequence
                 (Sset _i (Ecast (Econst_int (Int.repr 254) tint) tlong))
@@ -3680,10 +3678,10 @@ Definition f_crypto_scalarmult_curve25519_tweet_base := {|
   fn_callconv := cc_default;
   fn_params := ((_q, (tptr tuchar)) :: (_n, (tptr tuchar)) :: nil);
   fn_vars := nil;
-  fn_temps := ((203%positive, tint) :: nil);
+  fn_temps := ((201%positive, tint) :: nil);
   fn_body :=
 (Ssequence
-  (Scall (Some 203%positive)
+  (Scall (Some 201%positive)
     (Evar _crypto_scalarmult_curve25519_tweet (Tfunction
                                                 (Tcons (tptr tuchar)
                                                   (Tcons (tptr tuchar)
@@ -3692,7 +3690,7 @@ Definition f_crypto_scalarmult_curve25519_tweet_base := {|
                                                 cc_default))
     ((Etempvar _q (tptr tuchar)) :: (Etempvar _n (tptr tuchar)) ::
      (Evar __9 (tarray tuchar 32)) :: nil))
-  (Sreturn (Some (Etempvar 203%positive tint))))
+  (Sreturn (Some (Etempvar 201%positive tint))))
 |}.
 
 Definition f_crypto_box_curve25519xsalsa20poly1305_tweet_keypair := {|
@@ -3700,7 +3698,7 @@ Definition f_crypto_box_curve25519xsalsa20poly1305_tweet_keypair := {|
   fn_callconv := cc_default;
   fn_params := ((_y, (tptr tuchar)) :: (_x, (tptr tuchar)) :: nil);
   fn_vars := nil;
-  fn_temps := ((204%positive, tint) :: nil);
+  fn_temps := ((202%positive, tint) :: nil);
   fn_body :=
 (Ssequence
   (Scall None
@@ -3708,14 +3706,14 @@ Definition f_crypto_box_curve25519xsalsa20poly1305_tweet_keypair := {|
                          tvoid cc_default))
     ((Etempvar _x (tptr tuchar)) :: (Econst_int (Int.repr 32) tint) :: nil))
   (Ssequence
-    (Scall (Some 204%positive)
+    (Scall (Some 202%positive)
       (Evar _crypto_scalarmult_curve25519_tweet_base (Tfunction
                                                        (Tcons (tptr tuchar)
                                                          (Tcons (tptr tuchar)
                                                            Tnil)) tint
                                                        cc_default))
       ((Etempvar _y (tptr tuchar)) :: (Etempvar _x (tptr tuchar)) :: nil))
-    (Sreturn (Some (Etempvar 204%positive tint)))))
+    (Sreturn (Some (Etempvar 202%positive tint)))))
 |}.
 
 Definition f_crypto_box_curve25519xsalsa20poly1305_tweet_beforenm := {|
@@ -3724,7 +3722,7 @@ Definition f_crypto_box_curve25519xsalsa20poly1305_tweet_beforenm := {|
   fn_params := ((_k, (tptr tuchar)) :: (_y, (tptr tuchar)) ::
                 (_x, (tptr tuchar)) :: nil);
   fn_vars := ((_s, (tarray tuchar 32)) :: nil);
-  fn_temps := ((205%positive, tint) :: nil);
+  fn_temps := ((203%positive, tint) :: nil);
   fn_body :=
 (Ssequence
   (Scall None
@@ -3737,7 +3735,7 @@ Definition f_crypto_box_curve25519xsalsa20poly1305_tweet_beforenm := {|
     ((Evar _s (tarray tuchar 32)) :: (Etempvar _x (tptr tuchar)) ::
      (Etempvar _y (tptr tuchar)) :: nil))
   (Ssequence
-    (Scall (Some 205%positive)
+    (Scall (Some 203%positive)
       (Evar _crypto_core_hsalsa20_tweet (Tfunction
                                           (Tcons (tptr tuchar)
                                             (Tcons (tptr tuchar)
@@ -3747,7 +3745,7 @@ Definition f_crypto_box_curve25519xsalsa20poly1305_tweet_beforenm := {|
       ((Etempvar _k (tptr tuchar)) :: (Evar __0 (tarray tuchar 16)) ::
        (Evar _s (tarray tuchar 32)) :: (Evar _sigma (tarray tuchar 16)) ::
        nil))
-    (Sreturn (Some (Etempvar 205%positive tint)))))
+    (Sreturn (Some (Etempvar 203%positive tint)))))
 |}.
 
 Definition f_crypto_box_curve25519xsalsa20poly1305_tweet_afternm := {|
@@ -3756,10 +3754,10 @@ Definition f_crypto_box_curve25519xsalsa20poly1305_tweet_afternm := {|
   fn_params := ((_c, (tptr tuchar)) :: (_m, (tptr tuchar)) :: (_d, tulong) ::
                 (_n, (tptr tuchar)) :: (_k, (tptr tuchar)) :: nil);
   fn_vars := nil;
-  fn_temps := ((206%positive, tint) :: nil);
+  fn_temps := ((204%positive, tint) :: nil);
   fn_body :=
 (Ssequence
-  (Scall (Some 206%positive)
+  (Scall (Some 204%positive)
     (Evar _crypto_secretbox_xsalsa20poly1305_tweet (Tfunction
                                                      (Tcons (tptr tuchar)
                                                        (Tcons (tptr tuchar)
@@ -3773,7 +3771,7 @@ Definition f_crypto_box_curve25519xsalsa20poly1305_tweet_afternm := {|
     ((Etempvar _c (tptr tuchar)) :: (Etempvar _m (tptr tuchar)) ::
      (Etempvar _d tulong) :: (Etempvar _n (tptr tuchar)) ::
      (Etempvar _k (tptr tuchar)) :: nil))
-  (Sreturn (Some (Etempvar 206%positive tint))))
+  (Sreturn (Some (Etempvar 204%positive tint))))
 |}.
 
 Definition f_crypto_box_curve25519xsalsa20poly1305_tweet_open_afternm := {|
@@ -3782,10 +3780,10 @@ Definition f_crypto_box_curve25519xsalsa20poly1305_tweet_open_afternm := {|
   fn_params := ((_m, (tptr tuchar)) :: (_c, (tptr tuchar)) :: (_d, tulong) ::
                 (_n, (tptr tuchar)) :: (_k, (tptr tuchar)) :: nil);
   fn_vars := nil;
-  fn_temps := ((207%positive, tint) :: nil);
+  fn_temps := ((205%positive, tint) :: nil);
   fn_body :=
 (Ssequence
-  (Scall (Some 207%positive)
+  (Scall (Some 205%positive)
     (Evar _crypto_secretbox_xsalsa20poly1305_tweet_open (Tfunction
                                                           (Tcons
                                                             (tptr tuchar)
@@ -3801,7 +3799,7 @@ Definition f_crypto_box_curve25519xsalsa20poly1305_tweet_open_afternm := {|
     ((Etempvar _m (tptr tuchar)) :: (Etempvar _c (tptr tuchar)) ::
      (Etempvar _d tulong) :: (Etempvar _n (tptr tuchar)) ::
      (Etempvar _k (tptr tuchar)) :: nil))
-  (Sreturn (Some (Etempvar 207%positive tint))))
+  (Sreturn (Some (Etempvar 205%positive tint))))
 |}.
 
 Definition f_crypto_box_curve25519xsalsa20poly1305_tweet := {|
@@ -3811,7 +3809,7 @@ Definition f_crypto_box_curve25519xsalsa20poly1305_tweet := {|
                 (_n, (tptr tuchar)) :: (_y, (tptr tuchar)) ::
                 (_x, (tptr tuchar)) :: nil);
   fn_vars := ((_k, (tarray tuchar 32)) :: nil);
-  fn_temps := ((208%positive, tint) :: nil);
+  fn_temps := ((206%positive, tint) :: nil);
   fn_body :=
 (Ssequence
   (Scall None
@@ -3828,7 +3826,7 @@ Definition f_crypto_box_curve25519xsalsa20poly1305_tweet := {|
     ((Evar _k (tarray tuchar 32)) :: (Etempvar _y (tptr tuchar)) ::
      (Etempvar _x (tptr tuchar)) :: nil))
   (Ssequence
-    (Scall (Some 208%positive)
+    (Scall (Some 206%positive)
       (Evar _crypto_box_curve25519xsalsa20poly1305_tweet_afternm (Tfunction
                                                                    (Tcons
                                                                     (tptr tuchar)
@@ -3846,7 +3844,7 @@ Definition f_crypto_box_curve25519xsalsa20poly1305_tweet := {|
       ((Etempvar _c (tptr tuchar)) :: (Etempvar _m (tptr tuchar)) ::
        (Etempvar _d tulong) :: (Etempvar _n (tptr tuchar)) ::
        (Evar _k (tarray tuchar 32)) :: nil))
-    (Sreturn (Some (Etempvar 208%positive tint)))))
+    (Sreturn (Some (Etempvar 206%positive tint)))))
 |}.
 
 Definition f_crypto_box_curve25519xsalsa20poly1305_tweet_open := {|
@@ -3856,7 +3854,7 @@ Definition f_crypto_box_curve25519xsalsa20poly1305_tweet_open := {|
                 (_n, (tptr tuchar)) :: (_y, (tptr tuchar)) ::
                 (_x, (tptr tuchar)) :: nil);
   fn_vars := ((_k, (tarray tuchar 32)) :: nil);
-  fn_temps := ((209%positive, tint) :: nil);
+  fn_temps := ((207%positive, tint) :: nil);
   fn_body :=
 (Ssequence
   (Scall None
@@ -3873,7 +3871,7 @@ Definition f_crypto_box_curve25519xsalsa20poly1305_tweet_open := {|
     ((Evar _k (tarray tuchar 32)) :: (Etempvar _y (tptr tuchar)) ::
      (Etempvar _x (tptr tuchar)) :: nil))
   (Ssequence
-    (Scall (Some 209%positive)
+    (Scall (Some 207%positive)
       (Evar _crypto_box_curve25519xsalsa20poly1305_tweet_open_afternm 
       (Tfunction
         (Tcons (tptr tuchar)
@@ -3883,7 +3881,7 @@ Definition f_crypto_box_curve25519xsalsa20poly1305_tweet_open := {|
       ((Etempvar _m (tptr tuchar)) :: (Etempvar _c (tptr tuchar)) ::
        (Etempvar _d tulong) :: (Etempvar _n (tptr tuchar)) ::
        (Evar _k (tarray tuchar 32)) :: nil))
-    (Sreturn (Some (Etempvar 209%positive tint)))))
+    (Sreturn (Some (Etempvar 207%positive tint)))))
 |}.
 
 Definition f_R := {|
@@ -3936,27 +3934,27 @@ Definition f_Sigma0 := {|
   fn_callconv := cc_default;
   fn_params := ((_x, tulong) :: nil);
   fn_vars := nil;
-  fn_temps := ((212%positive, tulong) :: (211%positive, tulong) ::
-               (210%positive, tulong) :: nil);
+  fn_temps := ((210%positive, tulong) :: (209%positive, tulong) ::
+               (208%positive, tulong) :: nil);
   fn_body :=
 (Ssequence
   (Ssequence
     (Ssequence
-      (Scall (Some 210%positive)
+      (Scall (Some 208%positive)
         (Evar _R (Tfunction (Tcons tulong (Tcons tint Tnil)) tulong
                    cc_default))
         ((Etempvar _x tulong) :: (Econst_int (Int.repr 28) tint) :: nil))
-      (Scall (Some 211%positive)
+      (Scall (Some 209%positive)
         (Evar _R (Tfunction (Tcons tulong (Tcons tint Tnil)) tulong
                    cc_default))
         ((Etempvar _x tulong) :: (Econst_int (Int.repr 34) tint) :: nil)))
-    (Scall (Some 212%positive)
+    (Scall (Some 210%positive)
       (Evar _R (Tfunction (Tcons tulong (Tcons tint Tnil)) tulong cc_default))
       ((Etempvar _x tulong) :: (Econst_int (Int.repr 39) tint) :: nil)))
   (Sreturn (Some (Ebinop Oxor
-                   (Ebinop Oxor (Etempvar 210%positive tulong)
-                     (Etempvar 211%positive tulong) tulong)
-                   (Etempvar 212%positive tulong) tulong))))
+                   (Ebinop Oxor (Etempvar 208%positive tulong)
+                     (Etempvar 209%positive tulong) tulong)
+                   (Etempvar 210%positive tulong) tulong))))
 |}.
 
 Definition f_Sigma1 := {|
@@ -3964,30 +3962,52 @@ Definition f_Sigma1 := {|
   fn_callconv := cc_default;
   fn_params := ((_x, tulong) :: nil);
   fn_vars := nil;
-  fn_temps := ((215%positive, tulong) :: (214%positive, tulong) ::
-               (213%positive, tulong) :: nil);
+  fn_temps := ((213%positive, tulong) :: (212%positive, tulong) ::
+               (211%positive, tulong) :: nil);
   fn_body :=
 (Ssequence
   (Ssequence
     (Ssequence
-      (Scall (Some 213%positive)
+      (Scall (Some 211%positive)
         (Evar _R (Tfunction (Tcons tulong (Tcons tint Tnil)) tulong
                    cc_default))
         ((Etempvar _x tulong) :: (Econst_int (Int.repr 14) tint) :: nil))
-      (Scall (Some 214%positive)
+      (Scall (Some 212%positive)
         (Evar _R (Tfunction (Tcons tulong (Tcons tint Tnil)) tulong
                    cc_default))
         ((Etempvar _x tulong) :: (Econst_int (Int.repr 18) tint) :: nil)))
-    (Scall (Some 215%positive)
+    (Scall (Some 213%positive)
       (Evar _R (Tfunction (Tcons tulong (Tcons tint Tnil)) tulong cc_default))
       ((Etempvar _x tulong) :: (Econst_int (Int.repr 41) tint) :: nil)))
   (Sreturn (Some (Ebinop Oxor
-                   (Ebinop Oxor (Etempvar 213%positive tulong)
-                     (Etempvar 214%positive tulong) tulong)
-                   (Etempvar 215%positive tulong) tulong))))
+                   (Ebinop Oxor (Etempvar 211%positive tulong)
+                     (Etempvar 212%positive tulong) tulong)
+                   (Etempvar 213%positive tulong) tulong))))
 |}.
 
 Definition f_sigma0 := {|
+  fn_return := tulong;
+  fn_callconv := cc_default;
+  fn_params := ((_x, tulong) :: nil);
+  fn_vars := nil;
+  fn_temps := ((215%positive, tulong) :: (214%positive, tulong) :: nil);
+  fn_body :=
+(Ssequence
+  (Ssequence
+    (Scall (Some 214%positive)
+      (Evar _R (Tfunction (Tcons tulong (Tcons tint Tnil)) tulong cc_default))
+      ((Etempvar _x tulong) :: (Econst_int (Int.repr 1) tint) :: nil))
+    (Scall (Some 215%positive)
+      (Evar _R (Tfunction (Tcons tulong (Tcons tint Tnil)) tulong cc_default))
+      ((Etempvar _x tulong) :: (Econst_int (Int.repr 8) tint) :: nil)))
+  (Sreturn (Some (Ebinop Oxor
+                   (Ebinop Oxor (Etempvar 214%positive tulong)
+                     (Etempvar 215%positive tulong) tulong)
+                   (Ebinop Oshr (Etempvar _x tulong)
+                     (Econst_int (Int.repr 7) tint) tulong) tulong))))
+|}.
+
+Definition f_sigma1 := {|
   fn_return := tulong;
   fn_callconv := cc_default;
   fn_params := ((_x, tulong) :: nil);
@@ -3998,35 +4018,13 @@ Definition f_sigma0 := {|
   (Ssequence
     (Scall (Some 216%positive)
       (Evar _R (Tfunction (Tcons tulong (Tcons tint Tnil)) tulong cc_default))
-      ((Etempvar _x tulong) :: (Econst_int (Int.repr 1) tint) :: nil))
-    (Scall (Some 217%positive)
-      (Evar _R (Tfunction (Tcons tulong (Tcons tint Tnil)) tulong cc_default))
-      ((Etempvar _x tulong) :: (Econst_int (Int.repr 8) tint) :: nil)))
-  (Sreturn (Some (Ebinop Oxor
-                   (Ebinop Oxor (Etempvar 216%positive tulong)
-                     (Etempvar 217%positive tulong) tulong)
-                   (Ebinop Oshr (Etempvar _x tulong)
-                     (Econst_int (Int.repr 7) tint) tulong) tulong))))
-|}.
-
-Definition f_sigma1 := {|
-  fn_return := tulong;
-  fn_callconv := cc_default;
-  fn_params := ((_x, tulong) :: nil);
-  fn_vars := nil;
-  fn_temps := ((219%positive, tulong) :: (218%positive, tulong) :: nil);
-  fn_body :=
-(Ssequence
-  (Ssequence
-    (Scall (Some 218%positive)
-      (Evar _R (Tfunction (Tcons tulong (Tcons tint Tnil)) tulong cc_default))
       ((Etempvar _x tulong) :: (Econst_int (Int.repr 19) tint) :: nil))
-    (Scall (Some 219%positive)
+    (Scall (Some 217%positive)
       (Evar _R (Tfunction (Tcons tulong (Tcons tint Tnil)) tulong cc_default))
       ((Etempvar _x tulong) :: (Econst_int (Int.repr 61) tint) :: nil)))
   (Sreturn (Some (Ebinop Oxor
-                   (Ebinop Oxor (Etempvar 218%positive tulong)
-                     (Etempvar 219%positive tulong) tulong)
+                   (Ebinop Oxor (Etempvar 216%positive tulong)
+                     (Etempvar 217%positive tulong) tulong)
                    (Ebinop Oshr (Etempvar _x tulong)
                      (Econst_int (Int.repr 6) tint) tulong) tulong))))
 |}.
@@ -4125,11 +4123,11 @@ Definition f_crypto_hashblocks_sha512_tweet := {|
   fn_vars := ((_z, (tarray tulong 8)) :: (_b, (tarray tulong 8)) ::
               (_a, (tarray tulong 8)) :: (_w, (tarray tulong 16)) :: nil);
   fn_temps := ((_t, tulong) :: (_i, tint) :: (_j, tint) ::
-               (228%positive, tulong) :: (227%positive, tulong) ::
                (226%positive, tulong) :: (225%positive, tulong) ::
                (224%positive, tulong) :: (223%positive, tulong) ::
                (222%positive, tulong) :: (221%positive, tulong) ::
-               (220%positive, tulong) :: nil);
+               (220%positive, tulong) :: (219%positive, tulong) ::
+               (218%positive, tulong) :: nil);
   fn_body :=
 (Ssequence
   (Ssequence
@@ -4143,22 +4141,22 @@ Definition f_crypto_hashblocks_sha512_tweet := {|
         (Ssequence
           (Ssequence
             (Ssequence
-              (Scall (Some 220%positive)
+              (Scall (Some 218%positive)
                 (Evar _dl64 (Tfunction (Tcons (tptr tuchar) Tnil) tulong
                               cc_default))
                 ((Ebinop Oadd (Etempvar _x (tptr tuchar))
                    (Ebinop Omul (Econst_int (Int.repr 8) tint)
                      (Etempvar _i tint) tint) (tptr tuchar)) :: nil))
-              (Sset 221%positive (Etempvar 220%positive tulong)))
+              (Sset 219%positive (Etempvar 218%positive tulong)))
             (Sassign
               (Ederef
                 (Ebinop Oadd (Evar _a (tarray tulong 8)) (Etempvar _i tint)
-                  (tptr tulong)) tulong) (Etempvar 221%positive tulong)))
+                  (tptr tulong)) tulong) (Etempvar 219%positive tulong)))
           (Sassign
             (Ederef
               (Ebinop Oadd (Evar _z (tarray tulong 8)) (Etempvar _i tint)
                 (tptr tulong)) tulong)
-            (Ecast (Etempvar 221%positive tulong) tulong))))
+            (Ecast (Etempvar 219%positive tulong) tulong))))
       (Sset _i
         (Ebinop Oadd (Etempvar _i tint) (Econst_int (Int.repr 1) tint) tint))))
   (Ssequence
@@ -4174,7 +4172,7 @@ Definition f_crypto_hashblocks_sha512_tweet := {|
                 Sskip
                 Sbreak)
               (Ssequence
-                (Scall (Some 222%positive)
+                (Scall (Some 220%positive)
                   (Evar _dl64 (Tfunction (Tcons (tptr tuchar) Tnil) tulong
                                 cc_default))
                   ((Ebinop Oadd (Etempvar _m (tptr tuchar))
@@ -4184,7 +4182,7 @@ Definition f_crypto_hashblocks_sha512_tweet := {|
                   (Ederef
                     (Ebinop Oadd (Evar _w (tarray tulong 16))
                       (Etempvar _i tint) (tptr tulong)) tulong)
-                  (Etempvar 222%positive tulong))))
+                  (Etempvar 220%positive tulong))))
             (Sset _i
               (Ebinop Oadd (Etempvar _i tint) (Econst_int (Int.repr 1) tint)
                 tint))))
@@ -4219,14 +4217,14 @@ Definition f_crypto_hashblocks_sha512_tweet := {|
                   (Ssequence
                     (Ssequence
                       (Ssequence
-                        (Scall (Some 223%positive)
+                        (Scall (Some 221%positive)
                           (Evar _Sigma1 (Tfunction (Tcons tulong Tnil) tulong
                                           cc_default))
                           ((Ederef
                              (Ebinop Oadd (Evar _a (tarray tulong 8))
                                (Econst_int (Int.repr 4) tint) (tptr tulong))
                              tulong) :: nil))
-                        (Scall (Some 224%positive)
+                        (Scall (Some 222%positive)
                           (Evar _Ch (Tfunction
                                       (Tcons tulong
                                         (Tcons tulong (Tcons tulong Tnil)))
@@ -4252,8 +4250,8 @@ Definition f_crypto_hashblocks_sha512_tweet := {|
                                   (Ebinop Oadd (Evar _a (tarray tulong 8))
                                     (Econst_int (Int.repr 7) tint)
                                     (tptr tulong)) tulong)
-                                (Etempvar 223%positive tulong) tulong)
-                              (Etempvar 224%positive tulong) tulong)
+                                (Etempvar 221%positive tulong) tulong)
+                              (Etempvar 222%positive tulong) tulong)
                             (Ederef
                               (Ebinop Oadd (Evar _K (tarray tulong 80))
                                 (Etempvar _i tint) (tptr tulong)) tulong)
@@ -4266,14 +4264,14 @@ Definition f_crypto_hashblocks_sha512_tweet := {|
                     (Ssequence
                       (Ssequence
                         (Ssequence
-                          (Scall (Some 225%positive)
+                          (Scall (Some 223%positive)
                             (Evar _Sigma0 (Tfunction (Tcons tulong Tnil)
                                             tulong cc_default))
                             ((Ederef
                                (Ebinop Oadd (Evar _a (tarray tulong 8))
                                  (Econst_int (Int.repr 0) tint)
                                  (tptr tulong)) tulong) :: nil))
-                          (Scall (Some 226%positive)
+                          (Scall (Some 224%positive)
                             (Evar _Maj (Tfunction
                                          (Tcons tulong
                                            (Tcons tulong (Tcons tulong Tnil)))
@@ -4297,8 +4295,8 @@ Definition f_crypto_hashblocks_sha512_tweet := {|
                             tulong)
                           (Ebinop Oadd
                             (Ebinop Oadd (Etempvar _t tulong)
-                              (Etempvar 225%positive tulong) tulong)
-                            (Etempvar 226%positive tulong) tulong)))
+                              (Etempvar 223%positive tulong) tulong)
+                            (Etempvar 224%positive tulong) tulong)))
                       (Ssequence
                         (Sassign
                           (Ederef
@@ -4353,7 +4351,7 @@ Definition f_crypto_hashblocks_sha512_tweet := {|
                                     Sbreak)
                                   (Ssequence
                                     (Ssequence
-                                      (Scall (Some 227%positive)
+                                      (Scall (Some 225%positive)
                                         (Evar _sigma0 (Tfunction
                                                         (Tcons tulong Tnil)
                                                         tulong cc_default))
@@ -4368,7 +4366,7 @@ Definition f_crypto_hashblocks_sha512_tweet := {|
                                                (Econst_int (Int.repr 16) tint)
                                                tint) (tptr tulong)) tulong) ::
                                          nil))
-                                      (Scall (Some 228%positive)
+                                      (Scall (Some 226%positive)
                                         (Evar _sigma1 (Tfunction
                                                         (Tcons tulong Tnil)
                                                         tulong cc_default))
@@ -4408,9 +4406,9 @@ Definition f_crypto_hashblocks_sha512_tweet := {|
                                                   (Econst_int (Int.repr 16) tint)
                                                   tint) (tptr tulong))
                                               tulong)
-                                            (Etempvar 227%positive tulong)
+                                            (Etempvar 225%positive tulong)
                                             tulong)
-                                          (Etempvar 228%positive tulong)
+                                          (Etempvar 226%positive tulong)
                                           tulong) tulong))))
                                 (Sset _j
                                   (Ebinop Oadd (Etempvar _j tint)
@@ -4962,7 +4960,7 @@ Definition f_pack := {|
   fn_params := ((_r, (tptr tuchar)) :: (_p, (tptr (tarray tlong 16))) :: nil);
   fn_vars := ((_tx, (tarray tlong 16)) :: (_ty, (tarray tlong 16)) ::
               (_zi, (tarray tlong 16)) :: nil);
-  fn_temps := ((229%positive, tuchar) :: nil);
+  fn_temps := ((227%positive, tuchar) :: nil);
   fn_body :=
 (Ssequence
   (Scall None
@@ -5003,7 +5001,7 @@ Definition f_pack := {|
           ((Etempvar _r (tptr tuchar)) :: (Evar _ty (tarray tlong 16)) ::
            nil))
         (Ssequence
-          (Scall (Some 229%positive)
+          (Scall (Some 227%positive)
             (Evar _par25519 (Tfunction (Tcons (tptr tlong) Tnil) tuchar
                               cc_default))
             ((Evar _tx (tarray tlong 16)) :: nil))
@@ -5015,7 +5013,7 @@ Definition f_pack := {|
               (Ederef
                 (Ebinop Oadd (Etempvar _r (tptr tuchar))
                   (Econst_int (Int.repr 31) tint) (tptr tuchar)) tuchar)
-              (Ebinop Oshl (Etempvar 229%positive tuchar)
+              (Ebinop Oshl (Etempvar 227%positive tuchar)
                 (Econst_int (Int.repr 7) tint) tint) tint)))))))
 |}.
 
@@ -5867,8 +5865,8 @@ Definition f_unpackneg := {|
               (_num, (tarray tlong 16)) :: (_den, (tarray tlong 16)) ::
               (_den2, (tarray tlong 16)) :: (_den4, (tarray tlong 16)) ::
               (_den6, (tarray tlong 16)) :: nil);
-  fn_temps := ((232%positive, tuchar) :: (231%positive, tint) ::
-               (230%positive, tint) :: nil);
+  fn_temps := ((230%positive, tuchar) :: (229%positive, tint) ::
+               (228%positive, tint) :: nil);
   fn_body :=
 (Ssequence
   (Scall None
@@ -6050,7 +6048,7 @@ Definition f_unpackneg := {|
                                        (Evar _den (tarray tlong 16)) :: nil))
                                     (Ssequence
                                       (Ssequence
-                                        (Scall (Some 230%positive)
+                                        (Scall (Some 228%positive)
                                           (Evar _neq25519 (Tfunction
                                                             (Tcons
                                                               (tptr tlong)
@@ -6061,7 +6059,7 @@ Definition f_unpackneg := {|
                                           ((Evar _chk (tarray tlong 16)) ::
                                            (Evar _num (tarray tlong 16)) ::
                                            nil))
-                                        (Sifthenelse (Etempvar 230%positive tint)
+                                        (Sifthenelse (Etempvar 228%positive tint)
                                           (Scall None
                                             (Evar _M (Tfunction
                                                        (Tcons (tptr tlong)
@@ -6114,7 +6112,7 @@ Definition f_unpackneg := {|
                                              nil))
                                           (Ssequence
                                             (Ssequence
-                                              (Scall (Some 231%positive)
+                                              (Scall (Some 229%positive)
                                                 (Evar _neq25519 (Tfunction
                                                                   (Tcons
                                                                     (tptr tlong)
@@ -6126,14 +6124,14 @@ Definition f_unpackneg := {|
                                                 ((Evar _chk (tarray tlong 16)) ::
                                                  (Evar _num (tarray tlong 16)) ::
                                                  nil))
-                                              (Sifthenelse (Etempvar 231%positive tint)
+                                              (Sifthenelse (Etempvar 229%positive tint)
                                                 (Sreturn (Some (Eunop Oneg
                                                                  (Econst_int (Int.repr 1) tint)
                                                                  tint)))
                                                 Sskip))
                                             (Ssequence
                                               (Ssequence
-                                                (Scall (Some 232%positive)
+                                                (Scall (Some 230%positive)
                                                   (Evar _par25519 (Tfunction
                                                                     (Tcons
                                                                     (tptr tlong)
@@ -6148,7 +6146,7 @@ Definition f_unpackneg := {|
                                                      (tarray tlong 16)) ::
                                                    nil))
                                                 (Sifthenelse (Ebinop Oeq
-                                                               (Etempvar 232%positive tuchar)
+                                                               (Etempvar 230%positive tuchar)
                                                                (Ebinop Oshr
                                                                  (Ederef
                                                                    (Ebinop Oadd
@@ -6227,7 +6225,7 @@ Definition f_crypto_sign_ed25519_tweet_open := {|
   fn_vars := ((_t, (tarray tuchar 32)) :: (_h, (tarray tuchar 64)) ::
               (_p, (tarray (tarray tlong 16) 4)) ::
               (_q, (tarray (tarray tlong 16) 4)) :: nil);
-  fn_temps := ((_i, tint) :: (234%positive, tint) :: (233%positive, tint) ::
+  fn_temps := ((_i, tint) :: (232%positive, tint) :: (231%positive, tint) ::
                nil);
   fn_body :=
 (Ssequence
@@ -6240,13 +6238,13 @@ Definition f_crypto_sign_ed25519_tweet_open := {|
       Sskip)
     (Ssequence
       (Ssequence
-        (Scall (Some 233%positive)
+        (Scall (Some 231%positive)
           (Evar _unpackneg (Tfunction
                              (Tcons (tptr (tarray tlong 16))
                                (Tcons (tptr tuchar) Tnil)) tint cc_default))
           ((Evar _q (tarray (tarray tlong 16) 4)) ::
            (Etempvar _pk (tptr tuchar)) :: nil))
-        (Sifthenelse (Etempvar 233%positive tint)
+        (Sifthenelse (Etempvar 231%positive tint)
           (Sreturn (Some (Eunop Oneg (Econst_int (Int.repr 1) tint) tint)))
           Sskip))
       (Ssequence
@@ -6344,7 +6342,7 @@ Definition f_crypto_sign_ed25519_tweet_open := {|
                             (Econst_int (Int.repr 64) tint) tulong))
                         (Ssequence
                           (Ssequence
-                            (Scall (Some 234%positive)
+                            (Scall (Some 232%positive)
                               (Evar _crypto_verify_32_tweet (Tfunction
                                                               (Tcons
                                                                 (tptr tuchar)
@@ -6354,7 +6352,7 @@ Definition f_crypto_sign_ed25519_tweet_open := {|
                                                               cc_default))
                               ((Etempvar _sm (tptr tuchar)) ::
                                (Evar _t (tarray tuchar 32)) :: nil))
-                            (Sifthenelse (Etempvar 234%positive tint)
+                            (Sifthenelse (Etempvar 232%positive tint)
                               (Ssequence
                                 (Ssequence
                                   (Sset _i (Econst_int (Int.repr 0) tint))
@@ -6417,11 +6415,11 @@ nil.
 Definition prog : Clight.program := {|
 prog_defs :=
 ((___builtin_fabs,
-   Gfun(External (EF_builtin ___builtin_fabs
+   Gfun(External (EF_builtin "__builtin_fabs"
                    (mksignature (AST.Tfloat :: nil) (Some AST.Tfloat)
                      cc_default)) (Tcons tdouble Tnil) tdouble cc_default)) ::
  (___builtin_memcpy_aligned,
-   Gfun(External (EF_builtin ___builtin_memcpy_aligned
+   Gfun(External (EF_builtin "__builtin_memcpy_aligned"
                    (mksignature
                      (AST.Tint :: AST.Tint :: AST.Tint :: AST.Tint :: nil)
                      None cc_default))
@@ -6429,197 +6427,206 @@ prog_defs :=
        (Tcons (tptr tvoid) (Tcons tuint (Tcons tuint Tnil)))) tvoid
      cc_default)) ::
  (___builtin_annot,
-   Gfun(External (EF_builtin ___builtin_annot
+   Gfun(External (EF_builtin "__builtin_annot"
                    (mksignature (AST.Tint :: nil) None
                      {|cc_vararg:=true; cc_unproto:=false; cc_structret:=false|}))
      (Tcons (tptr tschar) Tnil) tvoid
      {|cc_vararg:=true; cc_unproto:=false; cc_structret:=false|})) ::
  (___builtin_annot_intval,
-   Gfun(External (EF_builtin ___builtin_annot_intval
+   Gfun(External (EF_builtin "__builtin_annot_intval"
                    (mksignature (AST.Tint :: AST.Tint :: nil) (Some AST.Tint)
                      cc_default)) (Tcons (tptr tschar) (Tcons tint Tnil))
      tint cc_default)) ::
  (___builtin_membar,
-   Gfun(External (EF_builtin ___builtin_membar
+   Gfun(External (EF_builtin "__builtin_membar"
                    (mksignature nil None cc_default)) Tnil tvoid cc_default)) ::
  (___builtin_va_start,
-   Gfun(External (EF_builtin ___builtin_va_start
+   Gfun(External (EF_builtin "__builtin_va_start"
                    (mksignature (AST.Tint :: nil) None cc_default))
      (Tcons (tptr tvoid) Tnil) tvoid cc_default)) ::
  (___builtin_va_arg,
-   Gfun(External (EF_builtin ___builtin_va_arg
+   Gfun(External (EF_builtin "__builtin_va_arg"
                    (mksignature (AST.Tint :: AST.Tint :: nil) None
                      cc_default)) (Tcons (tptr tvoid) (Tcons tuint Tnil))
      tvoid cc_default)) ::
  (___builtin_va_copy,
-   Gfun(External (EF_builtin ___builtin_va_copy
+   Gfun(External (EF_builtin "__builtin_va_copy"
                    (mksignature (AST.Tint :: AST.Tint :: nil) None
                      cc_default))
      (Tcons (tptr tvoid) (Tcons (tptr tvoid) Tnil)) tvoid cc_default)) ::
  (___builtin_va_end,
-   Gfun(External (EF_builtin ___builtin_va_end
+   Gfun(External (EF_builtin "__builtin_va_end"
                    (mksignature (AST.Tint :: nil) None cc_default))
      (Tcons (tptr tvoid) Tnil) tvoid cc_default)) ::
  (___compcert_va_int32,
-   Gfun(External (EF_external ___compcert_va_int32
+   Gfun(External (EF_external "__compcert_va_int32"
                    (mksignature (AST.Tint :: nil) (Some AST.Tint) cc_default))
      (Tcons (tptr tvoid) Tnil) tuint cc_default)) ::
  (___compcert_va_int64,
-   Gfun(External (EF_external ___compcert_va_int64
+   Gfun(External (EF_external "__compcert_va_int64"
                    (mksignature (AST.Tint :: nil) (Some AST.Tlong)
                      cc_default)) (Tcons (tptr tvoid) Tnil) tulong
      cc_default)) ::
  (___compcert_va_float64,
-   Gfun(External (EF_external ___compcert_va_float64
+   Gfun(External (EF_external "__compcert_va_float64"
                    (mksignature (AST.Tint :: nil) (Some AST.Tfloat)
                      cc_default)) (Tcons (tptr tvoid) Tnil) tdouble
      cc_default)) ::
  (___compcert_va_composite,
-   Gfun(External (EF_external ___compcert_va_composite
+   Gfun(External (EF_external "__compcert_va_composite"
                    (mksignature (AST.Tint :: AST.Tint :: nil) (Some AST.Tint)
                      cc_default)) (Tcons (tptr tvoid) (Tcons tuint Tnil))
      (tptr tvoid) cc_default)) ::
  (___i64_dtos,
-   Gfun(External (EF_external ___i64_dtos
+   Gfun(External (EF_external "__i64_dtos"
                    (mksignature (AST.Tfloat :: nil) (Some AST.Tlong)
                      cc_default)) (Tcons tdouble Tnil) tlong cc_default)) ::
  (___i64_dtou,
-   Gfun(External (EF_external ___i64_dtou
+   Gfun(External (EF_external "__i64_dtou"
                    (mksignature (AST.Tfloat :: nil) (Some AST.Tlong)
                      cc_default)) (Tcons tdouble Tnil) tulong cc_default)) ::
  (___i64_stod,
-   Gfun(External (EF_external ___i64_stod
+   Gfun(External (EF_external "__i64_stod"
                    (mksignature (AST.Tlong :: nil) (Some AST.Tfloat)
                      cc_default)) (Tcons tlong Tnil) tdouble cc_default)) ::
  (___i64_utod,
-   Gfun(External (EF_external ___i64_utod
+   Gfun(External (EF_external "__i64_utod"
                    (mksignature (AST.Tlong :: nil) (Some AST.Tfloat)
                      cc_default)) (Tcons tulong Tnil) tdouble cc_default)) ::
  (___i64_stof,
-   Gfun(External (EF_external ___i64_stof
+   Gfun(External (EF_external "__i64_stof"
                    (mksignature (AST.Tlong :: nil) (Some AST.Tsingle)
                      cc_default)) (Tcons tlong Tnil) tfloat cc_default)) ::
  (___i64_utof,
-   Gfun(External (EF_external ___i64_utof
+   Gfun(External (EF_external "__i64_utof"
                    (mksignature (AST.Tlong :: nil) (Some AST.Tsingle)
                      cc_default)) (Tcons tulong Tnil) tfloat cc_default)) ::
  (___i64_sdiv,
-   Gfun(External (EF_external ___i64_sdiv
+   Gfun(External (EF_external "__i64_sdiv"
                    (mksignature (AST.Tlong :: AST.Tlong :: nil)
                      (Some AST.Tlong) cc_default))
      (Tcons tlong (Tcons tlong Tnil)) tlong cc_default)) ::
  (___i64_udiv,
-   Gfun(External (EF_external ___i64_udiv
+   Gfun(External (EF_external "__i64_udiv"
                    (mksignature (AST.Tlong :: AST.Tlong :: nil)
                      (Some AST.Tlong) cc_default))
      (Tcons tulong (Tcons tulong Tnil)) tulong cc_default)) ::
  (___i64_smod,
-   Gfun(External (EF_external ___i64_smod
+   Gfun(External (EF_external "__i64_smod"
                    (mksignature (AST.Tlong :: AST.Tlong :: nil)
                      (Some AST.Tlong) cc_default))
      (Tcons tlong (Tcons tlong Tnil)) tlong cc_default)) ::
  (___i64_umod,
-   Gfun(External (EF_external ___i64_umod
+   Gfun(External (EF_external "__i64_umod"
                    (mksignature (AST.Tlong :: AST.Tlong :: nil)
                      (Some AST.Tlong) cc_default))
      (Tcons tulong (Tcons tulong Tnil)) tulong cc_default)) ::
  (___i64_shl,
-   Gfun(External (EF_external ___i64_shl
+   Gfun(External (EF_external "__i64_shl"
                    (mksignature (AST.Tlong :: AST.Tint :: nil)
                      (Some AST.Tlong) cc_default))
      (Tcons tlong (Tcons tint Tnil)) tlong cc_default)) ::
  (___i64_shr,
-   Gfun(External (EF_external ___i64_shr
+   Gfun(External (EF_external "__i64_shr"
                    (mksignature (AST.Tlong :: AST.Tint :: nil)
                      (Some AST.Tlong) cc_default))
      (Tcons tulong (Tcons tint Tnil)) tulong cc_default)) ::
  (___i64_sar,
-   Gfun(External (EF_external ___i64_sar
+   Gfun(External (EF_external "__i64_sar"
                    (mksignature (AST.Tlong :: AST.Tint :: nil)
                      (Some AST.Tlong) cc_default))
      (Tcons tlong (Tcons tint Tnil)) tlong cc_default)) ::
  (___builtin_bswap,
-   Gfun(External (EF_builtin ___builtin_bswap
+   Gfun(External (EF_builtin "__builtin_bswap"
                    (mksignature (AST.Tint :: nil) (Some AST.Tint) cc_default))
      (Tcons tuint Tnil) tuint cc_default)) ::
  (___builtin_bswap32,
-   Gfun(External (EF_builtin ___builtin_bswap32
+   Gfun(External (EF_builtin "__builtin_bswap32"
                    (mksignature (AST.Tint :: nil) (Some AST.Tint) cc_default))
      (Tcons tuint Tnil) tuint cc_default)) ::
  (___builtin_bswap16,
-   Gfun(External (EF_builtin ___builtin_bswap16
+   Gfun(External (EF_builtin "__builtin_bswap16"
                    (mksignature (AST.Tint :: nil) (Some AST.Tint) cc_default))
      (Tcons tushort Tnil) tushort cc_default)) ::
  (___builtin_clz,
-   Gfun(External (EF_builtin ___builtin_clz
+   Gfun(External (EF_builtin "__builtin_clz"
                    (mksignature (AST.Tint :: nil) (Some AST.Tint) cc_default))
-     (Tcons tuint Tnil) tuint cc_default)) ::
+     (Tcons tuint Tnil) tint cc_default)) ::
  (___builtin_ctz,
-   Gfun(External (EF_builtin ___builtin_ctz
+   Gfun(External (EF_builtin "__builtin_ctz"
                    (mksignature (AST.Tint :: nil) (Some AST.Tint) cc_default))
-     (Tcons tuint Tnil) tuint cc_default)) ::
+     (Tcons tuint Tnil) tint cc_default)) ::
  (___builtin_fsqrt,
-   Gfun(External (EF_builtin ___builtin_fsqrt
+   Gfun(External (EF_builtin "__builtin_fsqrt"
                    (mksignature (AST.Tfloat :: nil) (Some AST.Tfloat)
                      cc_default)) (Tcons tdouble Tnil) tdouble cc_default)) ::
  (___builtin_fmax,
-   Gfun(External (EF_builtin ___builtin_fmax
+   Gfun(External (EF_builtin "__builtin_fmax"
                    (mksignature (AST.Tfloat :: AST.Tfloat :: nil)
                      (Some AST.Tfloat) cc_default))
      (Tcons tdouble (Tcons tdouble Tnil)) tdouble cc_default)) ::
  (___builtin_fmin,
-   Gfun(External (EF_builtin ___builtin_fmin
+   Gfun(External (EF_builtin "__builtin_fmin"
                    (mksignature (AST.Tfloat :: AST.Tfloat :: nil)
                      (Some AST.Tfloat) cc_default))
      (Tcons tdouble (Tcons tdouble Tnil)) tdouble cc_default)) ::
  (___builtin_fmadd,
-   Gfun(External (EF_builtin ___builtin_fmadd
+   Gfun(External (EF_builtin "__builtin_fmadd"
                    (mksignature
                      (AST.Tfloat :: AST.Tfloat :: AST.Tfloat :: nil)
                      (Some AST.Tfloat) cc_default))
      (Tcons tdouble (Tcons tdouble (Tcons tdouble Tnil))) tdouble
      cc_default)) ::
  (___builtin_fmsub,
-   Gfun(External (EF_builtin ___builtin_fmsub
+   Gfun(External (EF_builtin "__builtin_fmsub"
                    (mksignature
                      (AST.Tfloat :: AST.Tfloat :: AST.Tfloat :: nil)
                      (Some AST.Tfloat) cc_default))
      (Tcons tdouble (Tcons tdouble (Tcons tdouble Tnil))) tdouble
      cc_default)) ::
  (___builtin_fnmadd,
-   Gfun(External (EF_builtin ___builtin_fnmadd
+   Gfun(External (EF_builtin "__builtin_fnmadd"
                    (mksignature
                      (AST.Tfloat :: AST.Tfloat :: AST.Tfloat :: nil)
                      (Some AST.Tfloat) cc_default))
      (Tcons tdouble (Tcons tdouble (Tcons tdouble Tnil))) tdouble
      cc_default)) ::
  (___builtin_fnmsub,
-   Gfun(External (EF_builtin ___builtin_fnmsub
+   Gfun(External (EF_builtin "__builtin_fnmsub"
                    (mksignature
                      (AST.Tfloat :: AST.Tfloat :: AST.Tfloat :: nil)
                      (Some AST.Tfloat) cc_default))
      (Tcons tdouble (Tcons tdouble (Tcons tdouble Tnil))) tdouble
      cc_default)) ::
  (___builtin_read16_reversed,
-   Gfun(External (EF_builtin ___builtin_read16_reversed
+   Gfun(External (EF_builtin "__builtin_read16_reversed"
                    (mksignature (AST.Tint :: nil) (Some AST.Tint) cc_default))
      (Tcons (tptr tushort) Tnil) tushort cc_default)) ::
  (___builtin_read32_reversed,
-   Gfun(External (EF_builtin ___builtin_read32_reversed
+   Gfun(External (EF_builtin "__builtin_read32_reversed"
                    (mksignature (AST.Tint :: nil) (Some AST.Tint) cc_default))
      (Tcons (tptr tuint) Tnil) tuint cc_default)) ::
  (___builtin_write16_reversed,
-   Gfun(External (EF_builtin ___builtin_write16_reversed
+   Gfun(External (EF_builtin "__builtin_write16_reversed"
                    (mksignature (AST.Tint :: AST.Tint :: nil) None
                      cc_default)) (Tcons (tptr tushort) (Tcons tushort Tnil))
      tvoid cc_default)) ::
  (___builtin_write32_reversed,
-   Gfun(External (EF_builtin ___builtin_write32_reversed
+   Gfun(External (EF_builtin "__builtin_write32_reversed"
                    (mksignature (AST.Tint :: AST.Tint :: nil) None
                      cc_default)) (Tcons (tptr tuint) (Tcons tuint Tnil))
      tvoid cc_default)) ::
+ (___builtin_nop,
+   Gfun(External (EF_builtin "__builtin_nop"
+                   (mksignature nil None cc_default)) Tnil tvoid cc_default)) ::
+ (___builtin_debug,
+   Gfun(External (EF_external "__builtin_debug"
+                   (mksignature (AST.Tint :: nil) None
+                     {|cc_vararg:=true; cc_unproto:=false; cc_structret:=false|}))
+     (Tcons tint Tnil) tvoid
+     {|cc_vararg:=true; cc_unproto:=false; cc_structret:=false|})) ::
  (_randombytes,
-   Gfun(External (EF_external _randombytes
+   Gfun(External (EF_external "randombytes"
                    (mksignature (AST.Tint :: AST.Tlong :: nil) None
                      cc_default)) (Tcons (tptr tuchar) (Tcons tulong Tnil))
      tvoid cc_default)) :: (__0, Gvar v__0) :: (__9, Gvar v__9) ::
@@ -6699,7 +6706,8 @@ prog_public :=
  _crypto_stream_xsalsa20_tweet :: _crypto_stream_salsa20_tweet ::
  _crypto_stream_salsa20_tweet_xor :: _crypto_core_hsalsa20_tweet ::
  _crypto_core_salsa20_tweet :: _crypto_verify_32_tweet ::
- _crypto_verify_16_tweet :: _randombytes :: ___builtin_write32_reversed ::
+ _crypto_verify_16_tweet :: _randombytes :: ___builtin_debug ::
+ ___builtin_nop :: ___builtin_write32_reversed ::
  ___builtin_write16_reversed :: ___builtin_read32_reversed ::
  ___builtin_read16_reversed :: ___builtin_fnmsub :: ___builtin_fnmadd ::
  ___builtin_fmsub :: ___builtin_fmadd :: ___builtin_fmin ::

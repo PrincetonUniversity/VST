@@ -241,14 +241,14 @@ c k h nonce out w x y t (xI:list int),
                                 (Etempvar _aux1 tuint) tuint))
                           (Ssequence
                              (Ssequence
-                                (Scall (Some 182%positive)
+                                (Scall (Some 180%positive)
                                    (Evar _L32
                                       (Tfunction
                                          (Tcons tuint (Tcons tint Tnil))
                                          tuint cc_default))
                                    [Etempvar _aux tuint;
                                    Econst_int (Int.repr 7) tint])
-                                (Sset _aux (Etempvar 182%positive tuint)))
+                                (Sset _aux (Etempvar 180%positive tuint)))
                              (Ssequence
                                 (Sset _aux1
                                    (Ederef
@@ -285,14 +285,14 @@ c k h nonce out w x y t (xI:list int),
                                    (Etempvar _aux1 tuint) tuint))
                              (Ssequence
                                 (Ssequence
-                                   (Scall (Some 183%positive)
+                                   (Scall (Some 181%positive)
                                       (Evar _L32
                                          (Tfunction
                                             (Tcons tuint (Tcons tint Tnil))
                                             tuint cc_default))
                                       [Etempvar _aux tuint;
                                       Econst_int (Int.repr 9) tint])
-                                   (Sset _aux (Etempvar 183%positive tuint)))
+                                   (Sset _aux (Etempvar 181%positive tuint)))
                                 (Ssequence
                                    (Sset _aux1
                                       (Ederef
@@ -330,7 +330,7 @@ c k h nonce out w x y t (xI:list int),
                                       (Etempvar _aux1 tuint) tuint))
                                 (Ssequence
                                    (Ssequence
-                                      (Scall (Some 184%positive)
+                                      (Scall (Some 182%positive)
                                          (Evar _L32
                                             (Tfunction
                                                (Tcons tuint (Tcons tint Tnil))
@@ -338,7 +338,7 @@ c k h nonce out w x y t (xI:list int),
                                          [Etempvar _aux tuint;
                                          Econst_int (Int.repr 13) tint])
                                       (Sset _aux
-                                         (Etempvar 184%positive tuint)))
+                                         (Etempvar 182%positive tuint)))
                                    (Ssequence
                                       (Sset _aux1
                                          (Ederef
@@ -377,7 +377,7 @@ c k h nonce out w x y t (xI:list int),
                                          (Etempvar _aux1 tuint) tuint))
                                    (Ssequence
                                       (Ssequence
-                                         (Scall (Some 185%positive)
+                                         (Scall (Some 183%positive)
                                             (Evar _L32
                                                (Tfunction
                                                   (Tcons tuint
@@ -386,7 +386,7 @@ c k h nonce out w x y t (xI:list int),
                                             [Etempvar _aux tuint;
                                             Econst_int (Int.repr 18) tint])
                                          (Sset _aux
-                                            (Etempvar 185%positive tuint)))
+                                            (Etempvar 183%positive tuint)))
                                       (Ssequence
                                          (Sset _aux1
                                             (Ederef

@@ -68,13 +68,13 @@ Lemma f_core_loop1 (Espec : OracleKind) FR c k h nonce out w x y t
           Sbreak)
         (Ssequence
           (Ssequence
-            (Scall (Some 178%positive)
+            (Scall (Some 176%positive)
               (Evar _ld32 (Tfunction (Tcons (tptr tuchar) Tnil) tuint
                             cc_default))
               ((Ebinop Oadd (Etempvar _c (tptr tuchar))
                  (Ebinop Omul (Econst_int (Int.repr 4) tint)
                    (Etempvar _i tint) tint) (tptr tuchar)) :: nil))
-            (Sset _aux (Etempvar 178%positive tuint)))
+            (Sset _aux (Etempvar 176%positive tuint)))
           (Ssequence
             (Sassign
               (Ederef
@@ -84,13 +84,13 @@ Lemma f_core_loop1 (Espec : OracleKind) FR c k h nonce out w x y t
               (Etempvar _aux tuint))
             (Ssequence
               (Ssequence
-                (Scall (Some 179%positive)
+                (Scall (Some 177%positive)
                   (Evar _ld32 (Tfunction (Tcons (tptr tuchar) Tnil) tuint
                                 cc_default))
                   ((Ebinop Oadd (Etempvar _k (tptr tuchar))
                      (Ebinop Omul (Econst_int (Int.repr 4) tint)
                        (Etempvar _i tint) tint) (tptr tuchar)) :: nil))
-                (Sset _aux (Etempvar 179%positive tuint)))
+                (Sset _aux (Etempvar 177%positive tuint)))
               (Ssequence
                 (Sassign
                   (Ederef
@@ -100,13 +100,13 @@ Lemma f_core_loop1 (Espec : OracleKind) FR c k h nonce out w x y t
                   (Etempvar _aux tuint))
                 (Ssequence
                   (Ssequence
-                    (Scall (Some 180%positive)
+                    (Scall (Some 178%positive)
                       (Evar _ld32 (Tfunction (Tcons (tptr tuchar) Tnil) tuint
                                     cc_default))
                       ((Ebinop Oadd (Etempvar _in (tptr tuchar))
                          (Ebinop Omul (Econst_int (Int.repr 4) tint)
                            (Etempvar _i tint) tint) (tptr tuchar)) :: nil))
-                    (Sset _aux (Etempvar 180%positive tuint)))
+                    (Sset _aux (Etempvar 178%positive tuint)))
                   (Ssequence
                     (Sassign
                       (Ederef
@@ -116,7 +116,7 @@ Lemma f_core_loop1 (Espec : OracleKind) FR c k h nonce out w x y t
                       (Etempvar _aux tuint))
                     (Ssequence
                       (Ssequence
-                        (Scall (Some 181%positive)
+                        (Scall (Some 179%positive)
                           (Evar _ld32 (Tfunction (Tcons (tptr tuchar) Tnil)
                                         tuint cc_default))
                           ((Ebinop Oadd
@@ -125,7 +125,7 @@ Lemma f_core_loop1 (Espec : OracleKind) FR c k h nonce out w x y t
                              (Ebinop Omul (Econst_int (Int.repr 4) tint)
                                (Etempvar _i tint) tint) (tptr tuchar)) ::
                            nil))
-                        (Sset _aux (Etempvar 181%positive tuint)))
+                        (Sset _aux (Etempvar 179%positive tuint)))
                       (Sassign
                         (Ederef
                           (Ebinop Oadd (Evar _x (tarray tuint 16))

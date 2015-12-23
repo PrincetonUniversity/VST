@@ -2099,7 +2099,7 @@ Qed.
 Ltac forward_return :=
      match goal with |- @semax ?CS _ _ _ _ _ =>
        eapply semax_pre; [  | apply semax_return ]; 
-       match goal with Post := _ : ret_assert |- _ => subst Post; unfold abbreviate end;
+       try match goal with Post := _ : ret_assert |- _ => subst Post; unfold abbreviate end;
        try change_compspecs CS;
        entailer_for_return
      end.
