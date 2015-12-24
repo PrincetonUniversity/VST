@@ -1556,13 +1556,6 @@ reptype (Tstruct _three noattr) = (val*(val*val)).
 We use \lstinline{val} instead of \lstinline{int} for the reptype
 of an integer variable, because the variable might be uninitialized,
 in which case its value will be \lstinline{Vundef}.
-% For the same reason, we use \lstinline{val} instead of \lstinline{float}
-% for \lstinline{double} variables.  We do have a function
-% \begin{lstlisting}
-% reptype' {cs: compspecs}: type -> Type
-% \end{lstlisting}
-% for \emph{known initialized} values, which does use
-% \lstinline{int} and \lstinline{float}; this is sometimes useful.
 
 \chapter{Uninitialized data, \upshape\textsf{default\_val}}
 CompCert represents uninitialized atomic (integer, pointer, float) values
@@ -1640,7 +1633,133 @@ for the situation $p \mapsto \_$:
 Definition data_at_ {cs: compspecs} sh t p := data_at sh t (default_val t) p.
 \end{lstlisting}
 
+\chapter{\upshape\textsf{reptype', repinj}}
+\begin{shaded}
+\vspace{-2ex}
+\begin{lstlisting}
+struct a {double x1; int x2;};$~~~~~~~~~~~~~~\mbox{\large TL;DR}$
+struct b {int y1; struct a y2;} p;
+repinj: forall t: type, reptype' t -> reptype t
+reptype t_struct_b = (val*(val*val))
+reptype' t_struct_b = (int*(float*int))
+$\mathsf{repinj}~\mathsf{t\_struct\_b}~(i,(x,j))~=~(\mathsf{Vint}~i,\,(\mathsf{Vfloat}~x,\,\mathsf{Vint}~j))$
+\end{lstlisting}
+\vspace{-2ex}
+\end{shaded}
 
+The \lstinline{reptype} function maps C types to
+the the corresponding Coq types of (possibly uninitialized) values.
+When we know a variable is definitely initialized,
+it may be more natural to use \lstinline{int} instead of \lstinline{val}
+for integer variables, and \lstinline{float} instead of \lstinline{val}
+for \lstinline{double} variables.
+The \lstinline{reptype'} function maps C types
+to the Coq types of (definitely initialized) values.
+\begin{lstlisting}
+Definition reptype' {cs: compspecs} (t: type) : Type := $\ldots$  .
+
+Lemma reptype'_ind: forall (t: type),
+ reptype t =
+       match t with
+       | Tvoid => unit
+       | Tint _ $$ _ $$ _ $$ => int
+       | Tlong _ $$ _ $$ => Int64.int
+       | Tfloat _ $$ _ $$ => float
+       | Tpointer _ $$ _ $$ => pointer_val
+       | Tarray t0 _ $$ _ $$ => list (reptype' t0)
+       | Tfunction _ $$ _ $$ _ $$ => unit
+       | Tstruct id _ $$ => reptype'_structlist (co_members (get_co id))
+       | Tunion id _ $$ => reptype'_unionlist (co_members (get_co id))
+       end
+\end{lstlisting}
+The function \lstinline{repinj} maps an initialized value to
+the type of possibly uninitialized values:
+\begin{lstlisting}
+Definition repinj {cs: compspecs} (t: type) : reptype' t -> reptype t $~~~$:= $\ldots$
+\end{lstlisting}
+
+The program \file{progs/nest2.c} (verified in
+\file{progs/verif\_nest2.v})  illustrates the use of \lstinline{reptype'}
+and \lstinline{repinj}.
+\begin{lstlisting}
+struct a {double x1; int x2;};
+struct b {int y1; struct a y2;} p;
+
+int get(void) {  int i;  i = p.y2.x2;  return i; }
+void set(int i) {  p.y2.x2 = i; }
+\end{lstlisting}
+Our API spec for \lstinline{get} reads as,
+\begin{lstlisting}
+Definition get_spec :=
+ DECLARE _get
+  WITH v : reptype' t_struct_b, p : val
+  PRE  [] 
+    PROP () LOCAL(gvar _p p)
+    SEP(data_at Ews t_struct_b (repinj _ $$ v) p)
+  POST [ tint ]
+    PROP() LOCAL (temp ret_temp (Vint (snd (snd v))))
+    SEP (data_at Ews t_struct_b (repinj _ $$ v) p).
+\end{lstlisting}  
+In this program, \lstinline{reptype' t_struct_b = (int*(float*int))},
+and \newline
+$\mathsf{repinj}~\mathsf{t\_struct\_b}~(i,(x,j))~=~(\mathsf{Vint}~i,\,(\mathsf{Vfloat}~x,\,\mathsf{Vint}~j))$.
+
+One could also have specified \lstinline{get} without \lstinline{reptype'} at all:
+\begin{lstlisting}
+Definition get_spec :=
+ DECLARE _get
+  WITH i: Z, x: float, j: int, p : val
+  PRE  [] 
+    PROP () LOCAL(gvar _p p)
+    SEP(data_at Ews t_struct_b (Vint (Int.repr i), (Vfloat x, Vint j)) p)
+  POST [ tint ]
+    PROP() LOCAL (temp ret_temp (Vint j))
+    SEP(data_at Ews t_struct_b (Vint (Int.repr i), (Vfloat x, Vint j)) p).
+\end{lstlisting}  
+
+\chapter{\upshape field\_at}
+\label{refcard:field-at}
+
+Consider again the example in \file{progs/nest2.c}
+\begin{lstlisting}
+struct a {double x1; int x2;};
+struct b {int y1; struct a y2;};
+\end{lstlisting}
+The command  \lstinline{i = p.y2.x2;} does a nested field load.
+We call \lstinline{y2.x2} the \emph{field path}.
+The precondition for this command might include the assertion,
+\begin{lstlisting}
+LOCAL (gvar _pb pb) 
+SEP( data_at $\mathit{sh}$ t_struct_b (y1,(x1,x2)) pb)
+\end{lstlisting}
+The postcondition (after the load) would include the new \LOCAL fact,
+\lstinline{temp _i x2}.
+
+The tactic \lstinline{(unfold_data_at 1%nat)}
+changes the SEP part of the assertion as follows:
+\begin{lstlisting}
+SEP(field_at Ews t_struct_b (DOT _y1) (Vint y1) pb;
+    field_at Ews t_struct_b (DOT _y2) (Vfloat x1, Vint x2) pb)
+\end{lstlisting}
+and then doing \lstinline{(unfold_field_at 2%nat)}
+unfolds the second \lstinline{field_at},
+\begin{lstlisting}
+SEP(field_at Ews t_struct_b (DOT _y1) (Vint y1) pb;
+    field_at Ews t_struct_b (DOT _y2 DOT _x1) (Vfloat x1) pb;
+    field_at Ews t_struct_b (DOT _y2 DOT _x2) (Vint x2) pb)
+\end{lstlisting}
+The third argument of \lstinline{field_at} represents
+the \emph{path} of structure-fields that leads to a given
+substructure.  The empty path \lstinline{(nil)} 
+works too; it ``leads'' to the entire structure.
+In fact, 
+\lstinline{data_at $\pi$ $\tau$ $v$ $p$} is just short for
+\lstinline{field_at $\pi$ $\tau$ nil $v$ $p$}.
+
+Arrays and structs may be nested together,
+in which case the field path may also contain array subscripts
+at the appropriate places, using the notation \lstinline{SUB $i$}
+along with \lstinline{DOT $\mathit{field}$}.
 
 \chapter{Localdefs: \upshape \sffamily temp, lvar, gvar}
 \label{refcard:localdefs}
@@ -1721,14 +1840,16 @@ permission-share; see \autopageref{refcard:pointer-cmp}.
 
 \chapter{Proving larg(ish) programs}
 
-\subsection{Code preparation}
-In order to seprate the namespaces of multiple files compiled by CompCert's clightgen tool, it is necessary to apply
-
-python fix\_clightgen.py file1.v ...fileN.v
-
-The sript reads in the named files, concisely renames variables etc by
-making up new positives, and writes the modified files back to the
-given names.
+When your program is not all in one .c file,
+see also \autoref{refcard:sepcomp}.
+Whether or not your program is all in one .c file,
+you can prove the individual function bodies in separate .v files.
+This uses less memory, and (on a multicore computer with
+parallel \lstinline{make}) saves time.
+To do this, put your API spec (up to the construction
+of \lstinline{Gprog} in one file;
+then each \lstinline{semax_body} proof in a separate file
+that imports the API spec.
 
 \subsection{Extraction of subordinate semax-goals}
 To ease memory pressure and recompilation time, it is often advisable
@@ -1801,6 +1922,19 @@ programmer's insight is combined with performance improvements.
 
 \chapter{Separate compilation, \upshape\textsf{semax\_ext}}
 \label{refcard:sepcomp}
+
+What to do when your program is spread over multiple .c files.
+
+\subsection{Code preparation}
+In order to separate the namespaces of multiple files compiled by CompCert's clightgen tool, it is necessary to apply
+
+python fix\_clightgen.py file1.v ...fileN.v
+
+The script reads in the named files, concisely renames variables etc by
+making up new positives, and writes the modified files back to the
+given names.
+
+
 
 \chapter{Appendix: catalog of major tactics/commands}
 Below is an alphabetic catalog of the major floyd tactics. In addition
@@ -3866,46 +4000,6 @@ does not express the refinement.  One could imagine
 a version of \lstinline{reptype'} that uses a refinement type
 to accomplish this, but it might be unwieldy.
 
-\ychapter{Nested structs}{}
-Consider a nested \lstinline{struct}; shown here is exactly the
-example in \lstinline{progs/nest2.c}, so you can examine the proofs in
-\lstinline{progs/verif_nest2.c}.
-\begin{lstlisting}
-struct a {double x1; int x2;};
-struct b {int y1; struct a y2;};
-
-struct b pb;  struct a pa;  int i;
-\end{lstlisting}
-The command  \lstinline{i = p.y2.x2;} does a nested field load.
-We call \lstinline{y2.x2} the \emph{field path}.
-The precondition for this command might include the assertion,
-\begin{lstlisting}
-LOCAL (`(eq pb) (eval_var _pb)) 
-SEP( `(data_at $\mathit{sh}$ t_struct_b (y1,(x1,x2)) pb); Frame)
-\end{lstlisting}
-where \lstinline{Frame} has some unrelated spatial conjuncts.
-The postcondition (after the load) would include the new \LOCAL fact,
-\lstinline{`(eq x2) (eval_id i)}.
-
-The tactic \lstinline{(unfold_data_at 1%nat)}
-changes the SEP part of the assertion as follows:
-\begin{lstlisting}
-SEP(`(field_at Ews t_struct_b [_y1] (Vint y1) pb);
-    `(field_at Ews t_struct_b [_y2] (Vfloat x1, Vint x2) pb);
-    Frame)
-\end{lstlisting}
- and then doing \lstinline{(unfold_field_at 2%nat)}
-unfolds the second \lstinline{field_at} as follows,
-\begin{lstlisting}
-SEP(`(field_at Ews t_struct_b [_y1] (Vint y1) pb);
-    `(field_at Ews t_struct_b [_x1;_y2] (Vfloat x1) pb);
-    `(field_at Ews t_struct_b [_x2;_y2] (Vint x2) pb);
-    Frame)
-\end{lstlisting}
-The third argument of \lstinline{field_at} represents
-the \emph{path} of structure-fields that leads to a given
-substructure.  The empty path \lstinline{(nil)} 
-works too; it ``leads'' to the entire structure.
 
 \ychapter{For loops}{}
 
