@@ -406,7 +406,6 @@ Proof.
     forget (unfold_reptype v1) as v1'.
     clear v1.
     cbv iota beta in v1'.
-    unfold reptype_array in v1'.
     apply JMeq_eq in H2.
     apply array_pred_ext.
     - subst; auto.

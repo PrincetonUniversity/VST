@@ -1220,6 +1220,7 @@ on the left-hand side of the entailment.
 
 \chapter{\upshape\textsf{EX, Intros, Exists}}  
 \label{refcard:EX}
+\label{refcard:intros}
 
 In a canonical-form lifted assertion, existentials can occur
 at the outside, or in one of the base-level conjuncts within the
@@ -1424,6 +1425,47 @@ $\exists v, p\mapsto v$.  \lstinline{Vundef} could mean
 ``truly uninitialized'' or it could mean ``initialized but arbitrary.''
 
 
+\ychapter{C types}{(\file{compcert/cfrontend/Ctypes.v})}
+CompCert C describes C's type system with
+inductive data types.
+
+\begin{lstlisting}
+Inductive signedness := Signed | Unsigned.
+Inductive intsize := I8 | I16 | I32 | IBool.
+Inductive floatsize :=  F32 | F64.
+
+Record attr : Type := mk_attr {
+  attr_volatile: bool;  attr_alignas: option N
+}.
+Definition noattr := {| attr_volatile := false; attr_alignas := None |}.
+
+Inductive type : Type :=
+  | Tvoid: type                                
+  | Tint: intsize -> signedness -> attr -> type
+  | Tlong: signedness -> attr -> type
+  | Tfloat: floatsize -> attr -> type          
+  | Tpointer: type -> attr -> type             
+  | Tarray: type -> Z -> attr -> type          
+  | Tfunction: typelist -> type -> calling_convention -> type        
+  | Tstruct: ident -> attr -> type
+  | Tunion: ident -> attr -> type 
+
+with typelist : Type :=
+  | Tnil: typelist
+  | Tcons: type -> typelist -> typelist.
+\end{lstlisting}
+
+We have abbreviations for commonly used types:
+\begin{lstlisting}
+Definition tint = Tint I32 Signed noattr. 
+Definition tuint = Tint I32 Unsigned noattr. 
+Definition tschar = Tint I8 Signed noattr. 
+Definition tuchar = Tint I8 Unsigned noattr.
+Definition tarray (t: type) (n: Z) = Tarray t n noattr.
+Definition tptr (t: type) := Tpointer t noattr.
+\end{lstlisting}
+
+
 \chapter{CompSpecs}
 \label{refcard:compspecs}
 
@@ -1468,22 +1510,138 @@ Definition data_at_ {cs: compspecs} (sh: share) (t: type) (v: val) := ...
 @sizeof (@cenv_cs CompSpecs) (Tint I32 Signed noattr) = 4.
 sizeof (Tint I32 Signed noattr) = 4.
 sizeof (Tstruct _foo noattr) = 8.
-@data_at_ CompSpecs sh t v |-- data_at sh t v
+@data_at_ CompSpecs sh t v |-- data_at_ sh t v
 \end{lstlisting}
 
 When you have two separately compiled .c files,
 each will have its own \lstinline{prog} and its own
 \lstinline{compspecs}.  See \autoref{refcard:sepcomp}.
 
+
+
+\chapter{\upshape\textsf{reptype}}
+For each C-language data type, we define a
+\emph{representation type}, the Type of Coq values
+that represent the contents of a C variable of that type.
+\begin{lstlisting}
+Definition reptype {cs: compspecs} (t: type) : Type := $\ldots$  .
+
+Lemma reptype_ind: forall (t: type),
+ reptype t =
+       match t with
+       | Tvoid => unit
+       | Tint _ $$ _ $$ _ $$ => val
+       | Tlong _ $$ _ $$ => val
+       | Tfloat _ $$ _ $$ => val
+       | Tpointer _ $$ _ $$ => val
+       | Tarray t0 _ $$ _ $$ => list (reptype t0)
+       | Tfunction _ $$ _ $$ _ $$ => unit
+       | Tstruct id _ $$ => reptype_structlist (co_members (get_co id))
+       | Tunion id _ $$ => reptype_unionlist (co_members (get_co id))
+       end
+\end{lstlisting}
+
+\lstinline{reptype_structlist} is the right-associative cartesian product of
+all the (reptypes of) the fields of the struct.  For example,
+
+\begin{lstlisting}
+struct list {int hd; struct list *tl;};
+struct one {struct list *p};
+struct three {int a; struct list *p; double x;};
+
+reptype (Tstruct _list noattr) = (val*val).
+reptype (Tstruct _one noattr) = val.
+reptype (Tstruct _three noattr) = (val*(val*val)).
+\end{lstlisting}
+We use \lstinline{val} instead of \lstinline{int} for the reptype
+of an integer variable, because the variable might be uninitialized,
+in which case its value will be \lstinline{Vundef}.
+% For the same reason, we use \lstinline{val} instead of \lstinline{float}
+% for \lstinline{double} variables.  We do have a function
+% \begin{lstlisting}
+% reptype' {cs: compspecs}: type -> Type
+% \end{lstlisting}
+% for \emph{known initialized} values, which does use
+% \lstinline{int} and \lstinline{float}; this is sometimes useful.
+
+\chapter{Uninitialized data, \upshape\textsf{default\_val}}
+CompCert represents uninitialized atomic (integer, pointer, float) values
+as \lstinline{Vundef : val}.
+
+The dependently typed function \lstinline{default_val}
+calculates the undefined value for any C type:
+\begin{lstlisting}
+default_val: $\forall$ {cs: compspecs} (t: type), reptype t.
+\end{lstlisting}
+
+For any C type $t$, the default value for variables of type $t$
+will have Coq type (reptype~$t$).
+
+For example:
+
+\begin{lstlisting}
+struct list {int hd; struct list *tl;};
+
+default_val tint = Vundef
+default_val (tptr tint) = Vundef
+default_val (tarray tint 4) = [Vundef; Vundef; Vundef; Vundef]
+default_val (tarray $t$ $n$) = list_repeat (Z.to_nat $n$) (default_val $t$)
+default_val (Tstruct _list noattr) = (Vundef, Vundef)
+\end{lstlisting}
+
 \chapter{\upshape data\_at}
 \label{refcard:data-at}
+Consider a C program with these declarations:
+\begin{lstlisting}
+struct list {int hd; struct list *tl;} L;
+int f(struct list a[5], struct list *p) { ... }
+\end{lstlisting}
+Assume these definitions in Coq:
+\begin{lstlisting}
+Definition t_list := Tstruct _list noattr.
+Definition t_arr := Tarray t_list 5 noattr.
+\end{lstlisting}
+
+Somewhere inside \lstinline{f}, we might have the
+assertion,
+\begin{lstlisting}
+PROP() LOCAL(temp _a $a$, temp _p $p$, gvar _L $L$)
+SEP(data_at Ews t_list (Vint (Int.repr 0), nullval) $L$;
+     data_at $\pi$ t_arr (list_repeat (Z.to_nat 5) (Vint (Int.repr 1), $p$)) $a$;
+     data_at $\pi$ t_list (default_val t_list) $p$)
+\end{lstlisting}
+This assertion says, ``Local variable \lstinline{_a} contains
+address $a$, \lstinline{_p} contains address $p$, global variable
+\lstinline{_L} is at address $L$.
+There is a \lstinline{struct list} at $L$
+with permission-share \lstinline{Ews} (``extern writable share''),
+whose \lstinline{hd} field contains 0 and whose
+\lstinline{tl} contains a null pointer.
+At address $a$ there is an array of 5 list structs,
+each with \lstinline{hd=$1$} and \lstinline{tl=$p$},
+with permission $\pi$; and at address
+$p$ there is a single list cell that is
+uninitialized\footnote{Uninitialized, or initialized but
+  we don't know or don't care what its value is},
+with permission $\pi$.''
+
+In pencil-and-paper separation logic, we write
+$q \mapsto i$ to mean\newline
+\lstinline{data_at Tsh tint (Vint (Int.repr $i$)) $q$}.
+We write $L \mapsto (0,\mbox{\textsc{null}})$ to mean
+\lstinline{data_at Tsh t_list (Vint (Int.repr $0$), nullval) $L$}.
+We write $p \mapsto (\_,\_)$ to mean
+\lstinline{data_at $\pi$ t_list (default_val t_list) $p$}.
+
+In fact, the definition \lstinline{data_at_} is useful
+for the situation $p \mapsto \_$:
+
+\begin{lstlisting}
+Definition data_at_ {cs: compspecs} sh t p := data_at sh t (default_val t) p.
+\end{lstlisting}
 
 
 
-
-
-\chapter{Intros, Exists}
-\label{refcard:intros}
 \chapter{Localdefs: \upshape \sffamily temp, lvar, gvar}
 \label{refcard:localdefs}
 \label{refcard:gvar}
@@ -2183,139 +2341,6 @@ signed/unsigned division and mod operators.
 
 
 
-\ychapter{C types}{(\file{compcert/cfrontend/Ctypes.v})}
-\begin{lstlisting}
-Inductive signedness := Signed | Unsigned.
-Inductive intsize := I8 | I16 | I32 | IBool.
-Inductive floatsize :=  F32 | F64.
-
-Record attr : Type := mk_attr {
-  attr_volatile: bool
-}.
-Definition noattr := {| attr_volatile := false |}.
-
-Inductive type : Type :=
-  | Tvoid: type                                
-  | Tint: intsize -> signedness -> attr -> type
-  | Tlong: signedness -> attr -> type
-  | Tfloat: floatsize -> attr -> type          
-  | Tpointer: type -> attr -> type             
-  | Tarray: type -> Z -> attr -> type          
-  | Tfunction: typelist -> type -> type        
-  | Tstruct: ident -> fieldlist -> attr -> type
-  | Tunion: ident -> fieldlist -> attr -> type 
-  | Tcomp_ptr: ident -> attr -> type           
-
-with typelist : Type :=
-  | Tnil: typelist
-  | Tcons: type -> typelist -> typelist
-
-with fieldlist : Type :=
-  | Fnil: fieldlist
-  | Fcons: ident -> type -> fieldlist -> fieldlist.
-
-Definition typeconv (ty: type) : type :=
-  match ty with
-  | Tint (I8 | I16 | IBool) _ a => Tint I32 Signed a
-  | Tarray t sz a       => Tpointer t a
-  | Tfunction _ _       => Tpointer ty noattr
-  | _                   => ty
-  end.
-
-Fixpoint alignof (t: type) : Z :=
-  match t with
-  | Tint I8 _ _ => 1
-  | Tint I16 _ _ => 2
-  | Tint I32 _ _ => 4
-  | Tlong _ _ => 8
-  | Tfloat F32 _ => 4
-  | Tfloat F64 _ => 8
-  | Tpointer _ _ => 4
-  ... $et~cetera$
-  end.
-
-(** Size of a type, in bytes. *)
-
-Fixpoint sizeof (t: type) : Z :=
-  match t with
-  | Tint I8 _ _ => 1
-  | Tint I16 _ _ => 2
-  | Tint I32 _ _ => 4
-  | Tlong _ _ => 8
-  | Tfloat F32 _ => 4
-  | Tfloat F64 _ => 8
-  | Tpointer _ _ => 4
-  ... $et~cetera$
-  end.
-
-Lemma sizeof_pos:  forall t, sizeof t > 0.
-
-
-Definition field_offset (id: ident) (fld: fieldlist) : res Z.
-
-Fixpoint field_type (id: ident) (fld: fieldlist) {struct fld} : res type.
-
-Inductive mode: Type :=
-  | By_value: memory_chunk -> mode
-  | By_reference: mode
-  | By_copy: mode
-  | By_nothing: mode.
-
-Definition access_mode (ty: type) : mode :=
-  match ty with
-  | Tint I8 Signed _ => By_value Mint8signed
-  | Tint I8 Unsigned _ => By_value Mint8unsigned
-  | Tint I16 Signed _ => By_value Mint16signed
-  | Tint I16 Unsigned _ => By_value Mint16unsigned
-  | Tint I32 _ _ => By_value Mint32
-  | Tint IBool _ _ => By_value Mint8unsigned
-  | Tlong _ _ => By_value Mint64
-  | Tfloat F32 _ => By_value Mfloat32
-  | Tfloat F64 _ => By_value Mfloat64
-  | Tvoid => By_nothing
-  | Tpointer _ _ => By_value Mint32
-  | Tarray _ _ _ => By_reference
-  | Tfunction _ _ => By_reference
-  | Tstruct _ _ _ => By_copy
-  | Tunion _ _ _ => By_copy
-  | Tcomp_ptr _ _ => By_nothing
-end.
-\end{lstlisting}
-
-\clearpage
-\newthought{CompCert} handles self-referential structure types
-in the following way that deserves at least some explanation,
-not provided here:
-\begin{lstlisting}
-Fixpoint unroll_composite (cid: ident) (comp: type) (ty: type) : type :=
-  match ty with
-  | Tvoid => ty
-  | Tint _ _ _ => ty
-  | Tlong _ _ => ty
-  | Tfloat _ _ => ty
-  | Tpointer t1 a => Tpointer (unroll_composite t1) a
-  | Tarray t1 sz a => Tarray (unroll_composite t1) sz a
-  | Tfunction t1 t2 => 
-        Tfunction (unroll_composite_list t1) (unroll_composite t2)
-  | Tstruct id fld a => 
-        if ident_eq id cid then ty 
-        else Tstruct id (unroll_composite_fields fld) a
-  | Tunion id fld a => 
-        if ident_eq id cid then ty 
-        else Tunion id (unroll_composite_fields fld) a
-  | Tcomp_ptr id a => 
-        if ident_eq id cid then Tpointer comp a else ty
-  end
-
-with unroll_composite_list cid comp(tl: typelist) : typelist := ...
-with unroll_composite_fields cid comp (fld: fieldlist) : fieldlist := ...
-
-Lemma alignof_unroll_composite:
-  forall cid comp ty, alignof (unroll_composite cid comp ty) = alignof ty.
-
-Lemma sizeof_unroll_composite:
-  forall cid comp ty, sizeof (unroll_composite cid comp ty) = sizeof ty.
-\end{lstlisting}
 \ychapter{C expression syntax}{(\file{compcert/cfrontend/Clight.v})}
 
 \begin{lstlisting}
@@ -2349,18 +2374,18 @@ Function bool_val (v: val) (t: type) : option bool :=
   | bool_case_i =>
       match v with
       | Vint n => Some (negb (Int.eq n Int.zero))
-      | _ => None
+      | _ $$ => None
       end
   | bool_case_f =>
       match v with
       | Vfloat f => Some (negb (Float.cmp Ceq f Float.zero))
-      | _ => None
+      | _ $$ => None
       end
   | bool_case_p =>
       match v with
       | Vint n => Some (negb (Int.eq n Int.zero))
       | Vptr b ofs => Some true
-      | _ => None
+      | _ $$ => None
       end
   | bool_default => None
   end.
@@ -2370,12 +2395,12 @@ Function sem_neg (v: val) (ty: type) : option val :=
   | neg_case_i sg =>
       match v with
       | Vint n => Some (Vint (Int.neg n))
-      | _ => None
+      | _ $$ => None
       end
   | neg_case_f =>
       match v with
       | Vfloat f => Some (Vfloat (Float.neg f))
-      | _ => None
+      | _ $$ => None
       end
   | neg_default => None
   end.
@@ -2385,24 +2410,24 @@ Function sem_add (v1:val) (t1:type) (v2: val) (t2:type) : option val :=
   | add_case_ii sg =>                   (**r integer addition *)
       match v1, v2 with
       | Vint n1, Vint n2 => Some (Vint (Int.add n1 n2))
-      | _,  _ => None
+      | _,  _ $$ => None
       end
   | add_case_ff =>                      (**r float addition *)
       match v1, v2 with
       | Vfloat n1, Vfloat n2 => Some (Vfloat (Float.add n1 n2))
-      | _,  _ => None
+      | _,  _ $$ => None
       end
   | add_case_if sg =>                   (**r int plus float *)
       match v1, v2 with
       | Vint n1, Vfloat n2 => Some (Vfloat (Float.add (cast_int_float sg n1) n2))
-      | _, _ => None
+      | _, _ $$ => None
       end
   | ... $(cases~omitted)$
-  | add_case_ip ty _ =>                 (**r integer plus pointer *)
+  | add_case_ip ty _ $$ =>                 (**r integer plus pointer *)
       match v1,v2 with
       | Vint n1, Vptr b2 ofs2 => 
         Some (Vptr b2 (Int.add ofs2 (Int.mul (Int.repr (sizeof ty)) n1)))
-      | _,  _ => None
+      | _,  _ $$ => None
       end   
   | add_default => None
 end.
@@ -2420,7 +2445,7 @@ Function sem_cmp (c:comparison)
   | cmp_case_ii Signed =>
       match v1,v2 with
       | Vint n1, Vint n2 => Some (Val.of_bool (Int.cmp c n1 n2))
-      | _,  _ => None
+      | _,  _ $$ => None
       end
   | ... $(many~more~cases~)$
   end.
@@ -2465,7 +2490,7 @@ Definition eval_binop (op: Cop.binary_operation)
                (t1 t2 : type) (v1 v2: val) : val.
 
 Definition force_ptr (v: val) : val :=
-       match v with Vptr l ofs => v | _ => Vundef  end.
+       match v with Vptr l ofs => v | _ $$ => Vundef  end.
 
 Definition eval_struct_field (delta: Z) (v: val) : val.
    (* offset the pointer-value v by delta *)
@@ -2481,7 +2506,7 @@ Definition eval_var (id:ident) (ty: type) (rho: environ) : val.
 Definition deref_noload (ty: type) (v: val) : val.
    (* For By_reference types such as arrays that dereference
       without actually fetching *)
- match access_mode ty with By_reference => v | _ => Vundef end.
+ match access_mode ty with By_reference => v | _ $$ => Vundef end.
 \end{lstlisting}
 
 \clearpage
