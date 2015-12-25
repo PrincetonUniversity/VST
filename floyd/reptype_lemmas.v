@@ -188,7 +188,6 @@ Proof.
     reflexivity.
 Defined.
 
-Definition reptype_array (t: type) (lo hi: Z) := list (reptype t).
 Definition reptype_structlist (m: members) := compact_prod (map (fun it => reptype (field_type (fst it) m)) m).
 Definition reptype_unionlist (m: members) := compact_sum (map (fun it => reptype (field_type (fst it) m)) m).
 
@@ -200,7 +199,7 @@ Notation REPTYPE t :=
   | Tlong _ _
   | Tfloat _ _
   | Tpointer _ _ => val
-  | Tarray t0 n _ => reptype_array t0 0 n
+  | Tarray t0 _ _ => list (reptype t0)
   | Tstruct id _ => reptype_structlist (co_members (get_co id))
   | Tunion id _ => reptype_unionlist (co_members (get_co id))
   end.
@@ -212,7 +211,7 @@ Proof.
   unfold reptype.
   rewrite reptype_gen_ind.
   destruct t as [| | | | | | | id ? | id ?]; auto.
-  + unfold reptype_array, reptype, default_val.
+  + unfold reptype, default_val.
     destruct (reptype_gen t).
     reflexivity.
   + unfold compact_prod_sigT_type.
@@ -413,7 +412,7 @@ Proof.
   unfold reptype at 1.
   rewrite reptype_gen_ind.
   destruct t; auto.
-  + unfold reptype_array, reptype, default_val.
+  + unfold reptype, default_val.
     destruct (reptype_gen t).
     reflexivity.
   + unfold struct_default_val.
@@ -677,7 +676,7 @@ Global Notation REPTYPE t :=
   | Tlong _ _
   | Tfloat _ _
   | Tpointer _ _ => val
-  | Tarray t0 n _ => reptype_array t0 0 n
+  | Tarray t0 _ _ => list (reptype t0)
   | Tstruct id _ => reptype_structlist (co_members (get_co id))
   | Tunion id _ => reptype_unionlist (co_members (get_co id))
   end.

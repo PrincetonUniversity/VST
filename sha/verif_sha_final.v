@@ -48,7 +48,7 @@ revert v1 H.
 forget (nested_field_type t1 gfs) as tx.
 intros. subst. simpl.
 revert v1. rewrite reptype_ind.  simpl. 
-unfold reptype_array.  intros; eauto. 
+intros; eauto. 
 destruct H1 as [v1' H1].
 assert (exists v2': list (reptype (nested_field_type t1 (gfs SUB 0))), JMeq v2 v2').
 clear - H.
@@ -57,7 +57,7 @@ revert v2 H.
 forget (nested_field_type t1 gfs) as tx.
 intros. subst. simpl.
 revert v2. rewrite reptype_ind.  simpl. 
-unfold reptype_array.  intros; eauto. 
+intros; eauto. 
 destruct H2 as [v2' H2].
   pose proof (Zlength_nonneg al); 
   pose proof (Zlength_nonneg bl).

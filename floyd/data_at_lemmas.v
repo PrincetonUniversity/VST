@@ -700,7 +700,7 @@ Lemma value_fits_ind:
   value_fits t v = 
   match t as t0 return (reptype t0 -> Prop)  with
   | Tarray t' n a => fun v0 : reptype (Tarray t' n a) =>
-    (fun v1 : reptype_array t' 0 n =>
+    (fun v1 : list (reptype t') =>
      Zlength v1 = Z.max 0 n /\ Forall (value_fits t') v1)
       (unfold_reptype v0)
 | Tstruct i a =>
