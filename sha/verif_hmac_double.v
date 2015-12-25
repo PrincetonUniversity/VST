@@ -14,7 +14,7 @@ Require Import sha_lemmas.
 Require Import sha.HMAC_functional_prog.
 Require Import sha.HMAC256_functional_prog.
 
-Require Import sha.hmac091c.
+Require Import sha.hmac.
 
 Require Import sha.spec_hmac.
 Require Import vst_lemmas.
@@ -39,40 +39,18 @@ Definition HMAC_Double_spec :=
                 temp _d msgVal;
                 temp _n (Vint (Int.repr (LEN MSG)));
                 gvar sha._K256 kv)
-         SEP(`(data_block Tsh (CONT KEY) keyVal);
-             `(data_block Tsh (CONT MSG) msgVal);
-             `(K_vector kv);
-             `(memory_block shmd (Int.repr 64) md))
+         SEP(data_block Tsh (CONT KEY) keyVal;
+             data_block Tsh (CONT MSG) msgVal;
+             K_vector kv;
+             memory_block shmd 64 md)
   POST [ tvoid ] 
          EX digest:_, 
           PROP (digest = HMAC256 (CONT MSG) (CONT KEY))
           LOCAL ()
-          SEP(`(K_vector kv);
-              `(data_block shmd (digest++digest) md);
-              `(initPostKey keyVal (CONT KEY) );
-              `(data_block Tsh (CONT MSG) msgVal)).
-
-Lemma hmacstate_PostFinal_PreInitNull key h0 data h1 dig h2 v:
-      forall (HmacInit : hmacInit key h0)
-             (HmacUpdate : hmacUpdate data h0 h1)
-             (Round1Final : hmacFinal h1 dig h2),
-      hmacstate_PostFinal h2 v
-  |-- hmacstate_PreInitNull key h2 v.
-Proof. intros. 
-  unfold hmacstate_PostFinal, hmac_relate_PostFinal, hmacstate_PreInitNull; normalize.
-  unfold hmac_relate_PreInitNull; simpl.
-  apply exp_right with (x:=r).
-  apply exp_right with (x:=([], (Vundef, (Vundef, ([], Vundef))))).
-  apply andp_right. 
-    destruct h2. destruct h1. simpl in *.
-    destruct Round1Final as [oSA [UPDO [XX FinDig]]]. inversion XX; subst; clear XX.
-    destruct h0. simpl in *. destruct HmacUpdate as [ctx2 [UpdI XX]]. inversion XX; subst; clear XX.
-    unfold  hmacInit in HmacInit. simpl in *. 
-    destruct HmacInit as [IS [OS [ISHA [OSHA XX]]]].  inversion XX; subst; clear XX. 
-    apply prop_right; intuition.     
-    destruct H5 as [ii [I1 [I2 I3]]]. exists ii; intuition.
-  cancel.
-Qed.
+          SEP(K_vector kv;
+              data_block shmd (digest++digest) md;
+              initPostKey keyVal (CONT KEY);
+              data_block Tsh (CONT MSG) msgVal).
 
 Lemma body_hmac_double: semax_body HmacVarSpecs HmacFunSpecs 
       f_HMAC2 HMAC_Double_spec.
@@ -83,54 +61,42 @@ name keylen' _key_len.
 name d' _d.
 name n' _n.
 name md' _md.
-simpl_stackframe_of. fixup_local_var; intro c.
-
+rename lvar0 into c.
 rename keyVal into k. rename msgVal into d.
 destruct KEY as [kl key].
 destruct MSG as [dl data]. simpl in *.
-rename H into WrshMD. 
 rewrite memory_block_isptr. normalize.
-rename H into isPtrMD. rename H0 into KL. rename H1 into DL.
+rename H into KL. rename H0 into DL. 
 
 forward_if  (
   PROP  (isptr c)
    LOCAL  (lvar _c t_struct_hmac_ctx_st c; temp _md md; temp _key k;
    temp _key_len (Vint (Int.repr kl)); temp _d d;
    temp _n (Vint (Int.repr dl)); gvar sha._K256 kv)
-   SEP  (`(data_at_ Tsh t_struct_hmac_ctx_st c); `(data_block Tsh key k);
-   `(data_block Tsh data d); `(K_vector kv);
-   `(memory_block shmd (Int.repr 64) md))).
-  { (* Branch1 *) inv H. }
+   SEP  (data_at_ Tsh t_struct_hmac_ctx_st c; data_block Tsh key k;
+   data_block Tsh data d; K_vector kv;
+   memory_block shmd 64 md)).
+  { apply denote_tc_comparable_split. 
+       apply sepcon_valid_pointer2. apply memory_block_valid_ptr. auto. omega.
+       apply valid_pointer_zero. }
+  { (* Branch1 *) exfalso. subst md. contradiction.  }
   { (* Branch2 *) forward. entailer. } 
-normalize. rename H into isptrC.
-
-assert_PROP (isptr k). entailer. 
-rename H into isPtrK. 
-remember (HMACabs init_s256abs init_s256abs init_s256abs Z0 nil) as dummyHMA.
-forward_call' (c, k, kl, key, kv, dummyHMA) h0.
+normalize. 
+assert_PROP (isptr k).
+{ unfold data_block. normalize. rewrite data_at_isptr with (p:=k). entailer. } (*Issue: used to be solved just by entailer *) 
+rename H into Pk. 
+forward_call (c, k, kl, key, kv, HMACabs nil nil nil).
   { unfold initPre.
     destruct k; try contradiction.
-    cancel.
+    entailer!.
   }
-rename H into HmacInit. normalize.
 
-assert_PROP (s256a_len (absCtxt h0) = 512).
-  { unfold hmacstate_. entailer. apply prop_right. 
-    destruct h0; simpl in *.  
-    destruct H3 as [reprMD [reprI [reprO [iShaLen [oShaLen [K [ii [KL1 [KL2 KL3]]]]]]]]].
-    inversion HmacInit; clear HmacInit.
-    destruct H3 as [oS [InnSHA [OntSHA XX]]]. inversion XX; clear XX.
-    subst. assumption.
-  }
-rename H into H0_len512.
-forward_call' (h0, c, d, dl, data, kv) h1.
+assert_PROP (s256a_len (absCtxt (hmacInit key)) = 512) as H0_len512.
+  { unfold hmacstate_. Intros r. apply prop_right. apply H. }
+remember (hmacInit key) as h0.
+forward_call (h0, c, d, dl, data, kv).
   { rewrite H0_len512. assumption. } 
-rename H into HmacUpdate. 
-
-(*XXX: was: rewrite (split_memory_block 32). 2: omega. 2: trivial. simpl. 
-normalize. rename H into OIR_0_md. rename H0 into OIR_64_md.
-Look what we now need to do:*)
-destruct md; try contradiction; clear isPtrMD.
+apply isptrD in Pmd. destruct Pmd as [b [i Pmd]]. rewrite Pmd in *.
 assert (GTmod64: 64 < Int.modulus).
   rewrite <- initialize.max_unsigned_modulus, int_max_unsigned_eq. omega.
 specialize (memory_block_size_compatible shmd (tarray tuint 16)). simpl; intros.
@@ -139,87 +105,66 @@ normalize. unfold size_compatible in H. simpl in H; rename H into SizeCompat64.
 specialize (memory_block_split shmd b (Int.unsigned i) 32 32); intros XX.
   rewrite Int.repr_unsigned in XX. 
   assert (32 + 32 = 64) by omega. rewrite H in XX; clear H.
-  rewrite XX; clear XX.
-2: omega. 2: trivial. 2: trivial. 
-Focus 2. split; try omega. specialize (Int.unsigned_range i). omega.
-normalize. (*GTmad64 and SizeCompat play the roles of the earlier OIR_0_md and OIR_64_md*)
-
-forward_call' (h1, c, Vptr b i, shmd, kv) [dig h2].
-simpl in H; rename H into Round1Final.
+  rewrite XX; trivial; clear XX.
+2: destruct (Int.unsigned_range i); omega.
+clear GTmod64.
+flatten_sepcon_in_SEP.
+ 
+forward_call (hmacUpdate data h0, c, Vptr b i, shmd, kv).
+simpl.
 
 (**************Round 2*******************************)
+remember (hmacFinal (hmacUpdate data h0)) as RND1.
+destruct RND1 as [h2 dig]. 
+replace_SEP 1 (initPre c nullval h2 kl key). 
+  { entailer!. eapply hmacstate_PostFinal_PreInitNull. 
+    symmetry in HeqRND1. apply HeqRND1. }
+forward_call (c, nullval, kl, key, kv, h2).
+simpl; normalize.
 
-replace_SEP 1 (`(initPre c nullval h2 key)). 
-  { entailer. eapply hmacstate_PostFinal_PreInitNull; eassumption.
-  }
-
-forward_call' (c, nullval, kl, key, kv, h2) h3. rename H into h3_init.
-
-assert_PROP (s256a_len (absCtxt h3) = 512).
-  { unfold hmacstate_. entailer. apply prop_right. 
-    destruct h3; simpl in *.  
-    destruct H4 as [reprMD [reprI [reprO [iShaLen [oShaLen [K [ii [KL1 [KL2 KL3]]]]]]]]].
-    inversion h3_init; clear h3_init.
-    destruct H4 as [oS [InnSHA [OntSHA XX]]]. inversion XX; clear XX.
-    subst. assumption.
-  }
+assert_PROP (s256a_len (absCtxt (hmacInit key)) = 512).
+  { unfold hmacstate_. entailer!. }
 rename H into H3_len512.
-forward_call' (h3, c, d, dl, data, kv) h4.
+forward_call (hmacInit key, c, d, dl, data, kv).
   { rewrite H3_len512. assumption. }
-rename H into h4_update.
 
-forward_call' (h4, c, Vptr b (Int.repr (Int.unsigned i + 32)), shmd, kv) [dig2 h5].
-simpl in H; rename H into Round2Final. simpl.
+assert_PROP (field_compatible (Tstruct _hmac_ctx_st noattr) [] c)
+  as FC_c by (unfold hmacstate_; Intros r;  entailer!).
+forward_call (hmacUpdate data (hmacInit key), c, Vptr b (Int.repr (Int.unsigned i + 32)), shmd, kv).
+remember (hmacFinal (hmacUpdate data (hmacInit key))) as RND2.
+destruct RND2 as [h5 dig2]. 
+simpl.
 
-forward_call' (h5,c). destruct H as [SCc ACc].
+forward_call (h5,c).
+Definition n324 := 324%Z.
+Opaque n324.
+match goal with |- context [data_block  Tsh ?A c] =>
+  change A with (list_repeat (Z.to_nat n324) 0)
+end.
 
 forward.
-apply (exp_right dig).
-simpl_stackframe_of. normalize. clear H2. 
-assert (HS: hmacSimple key data dig).
-    exists h0, h1. 
-    split. assumption.
-    split; try assumption.
-    rewrite hmacFinal_hmacFinalSimple. exists h2; assumption.
-assert (Size: sizeof t_struct_hmac_ctx_st <= Int.max_unsigned).
-  rewrite int_max_unsigned_eq; simpl. omega.
-apply andp_right. apply prop_right. split; trivial.
-  rewrite hmac_hmacSimple in HS. destruct HS. eapply hmac_sound; eassumption.
-apply andp_right. apply prop_right. trivial. cancel.
-rewrite sepcon_assoc. rewrite sepcon_comm.
-apply sepcon_derives.
-  assert (D1: dig = HMAC256 data key).
-     apply hmac_sound with (h:=h2).
-     exists h0, h1. auto.
-  assert (D2: dig2 = HMAC256 data key).
-     eapply hmac_sound with (h:=h5).
-     exists h3, h4. auto.
+clear H2.
+pose proof (HMAC_Zlength data key).
+rewrite <- (hmac_sound key data) in *. unfold hmac in *.
+rewrite <- HeqRND2 in HeqRND1. inv HeqRND1.
+rewrite <- HeqRND2 in *. simpl in *.
+Exists c dig2.
+unfold data_block at 1. simpl. entailer!.
+rewrite <- memory_block_data_at_ by auto.
+change (sizeof (Tstruct _hmac_ctx_st noattr))
+   with (sizeof (tarray tuchar (Zlength (list_repeat (Z.to_nat n324) 0)))).
+rewrite memory_block_data_at_ by auto.
+cancel.
 
-  rewrite (split2_data_block 32 shmd (dig ++ dig)).
-  2: subst dig; rewrite app_length, HMAC_length; omega.
-  entailer.
-  rewrite initial_world.Zlength_app, HMAC_Zlength. 
-   apply andp_right. apply prop_right; simpl.
-    specialize (Int.unsigned_range i). omega. 
+assert (FC_b: field_compatible (Tarray tuchar 64 noattr) [] (Vptr b i)).
+  red. intuition. apply Z.divide_1_l.
 
-  rewrite firstn_app1. 2: rewrite HMAC_length; trivial.
-  rewrite firstn_precise.  2: rewrite HMAC_length; trivial.
-  cancel.
-
-  rewrite skipn_app2; rewrite HMAC_length. 2: omega. 
-  simpl. cancel.
-
-unfold data_block.
-  rewrite Zlength_correct; simpl.
-rewrite <- memory_block_data_at_; try reflexivity. 
-2: rewrite lvar_eval_lvar with (v:=c); trivial. 
-
-normalize. rewrite lvar_eval_lvar with (v:=c); trivial. 
-  rewrite (memory_block_data_at_ Tsh (tarray tuchar (sizeof t_struct_hmac_ctx_st))).
-  apply data_at_data_at_.
-  trivial.
-  trivial.
-  trivial. 
-  destruct c; trivial. unfold align_compatible. simpl. apply Z.divide_1_l. 
-  simpl. rewrite <- initialize.max_unsigned_modulus, int_max_unsigned_eq. omega.
+rewrite (split2_data_block 32 _ (dig2 ++ dig2))
+ by (autorewrite with sublist; omega).
+autorewrite with sublist.
+cancel.
+apply derives_refl'.
+  f_equal.
+  rewrite field_address0_offset  by auto with field_compatible.
+  reflexivity.
 Qed.

@@ -6,24 +6,10 @@ Require Import sha.spec_sha.
 Require Import sha_lemmas.
 Require Import sha.HMAC_functional_prog.
 Require Import sha.HMAC256_functional_prog.
+Require Import sha.hmac.
 
-(*when generating hmac091c.v using clightgen, manually modify the generated 
-file hmac091c.v by adding
-
-Require Import sha.sha.
-Definition t_struct_SHA256state_st := sha.t_struct_SHA256state_st.
-
-BEFORE the definition of all identifiers, and modifying
-
-Definition _key : ident := 41%positive. into
-Definition _key : ident := 1141%positive. etc
-
-to avoid a name clash between _key and sha._K256 *)
-
-Require Import sha.hmac091c.
-
-Instance CompSpecs : compspecs.
-Proof. make_compspecs prog. Defined.
+Instance CompSpecs : compspecs. make_compspecs prog. Defined. 
+Definition Vprog : varspecs.  mk_varspecs prog. Defined.
 
 Record TREP := mkTrep { t: type; v: reptype t}.
 
@@ -43,141 +29,134 @@ Definition memcpy_spec_data_at :=
              0 <= n <= Int.max_unsigned)
        LOCAL (temp 1%positive p; temp 2%positive q;
               temp 3%positive (Vint (Int.repr n)))
-       SEP (`(data_at (fst sh) (tp_of T) (v_of T) q);
-            `(memory_block (snd sh) n p))
+       SEP (data_at (fst sh) (tp_of T) (v_of T) q;
+            memory_block (snd sh) n p)
     POST [ tptr tvoid ]
        PROP ()
        LOCAL (temp ret_temp p)
-       SEP (`(data_at (snd sh) (tp_of T) (v_of T) p);
-            `(data_at (fst sh) (tp_of T) (v_of T) q)).
+       SEP (data_at (snd sh) (tp_of T) (v_of T) p;
+            data_at (fst sh) (tp_of T) (v_of T) q).
 
 (****** Coq-representation of hmac states, and predicates characterizing the incremental functions.
 
-If the corresponding predicates for SHA operations were urned into functions, the ones here could be, too *)
+If the corresponding predicates for SHA operations were modeled as functions, the ones here could be, too *)
 
 Inductive hmacabs :=  (* HMAC abstract state *)
- HMACabs: forall (ctx iSha oSha: s256abs) (*sha structures for md_ctx, i_ctx, o_ctx*)
-                 (keylen: Z) 
-                 (key: list Z), 
+ HMACabs: forall (ctx iSha oSha: s256abs) (*sha structures for md_ctx, i_ctx, o_ctx*), 
                  hmacabs.
 
 Definition absCtxt (h:hmacabs): s256abs :=
-  match h with HMACabs ctx _ _ _ _ => ctx end.
-
+  match h with HMACabs ctx _ _ => ctx end.
+(*
 Definition innerShaInit (k: list byte) (s:s256abs):Prop :=
   update_abs (HMAC_SHA256.mkArgZ k Ipad) init_s256abs s.
 Definition outerShaInit (k: list byte) (s:s256abs):Prop :=
   update_abs (HMAC_SHA256.mkArgZ k Opad) init_s256abs s.
+*)
+Definition innerShaInit (k: list byte):s256abs :=
+   HMAC_SHA256.mkArgZ k Ipad.
+Definition outerShaInit (k: list byte):s256abs :=
+   HMAC_SHA256.mkArgZ k Opad.
 
-Definition hmacInit (k:list Z) (h:hmacabs):Prop :=  
+Definition hmacInit (k:list Z):hmacabs :=  
   let key := HMAC_SHA256.mkKey k in
   let keyB := map Byte.repr key in
-  exists iS oS, innerShaInit keyB iS /\ outerShaInit keyB oS /\
-  h = HMACabs iS iS oS (if zlt 64 (Zlength k) then 32 else Zlength k) k.
+  let iS := innerShaInit keyB in 
+  let oS := outerShaInit keyB in
+  HMACabs iS iS oS.
 
-Definition hmacUpdate (data: list Z) (h1 h2:hmacabs):Prop :=
+Definition hmacUpdate (data: list Z) (h1:hmacabs): hmacabs :=
   match h1 with
-    HMACabs ctx1 iS oS klen k
-  => exists ctx2, update_abs data ctx1 ctx2
-     /\ h2 = HMACabs ctx2 iS oS klen k
+    HMACabs ctx1 iS oS
+  => let ctx2 := ctx1 ++ data in
+     HMACabs ctx2 iS oS
   end.
 
-Definition hmacFinalSimple h (digest: list Z) :=
+Definition hmacFinalSimple h : list Z :=
   match h with
-    HMACabs ctx iS oS klen k
-  => exists oS1, 
-       update_abs (sha_finish ctx) oS oS1 /\
-       sha_finish oS1 = digest
+    HMACabs ctx iS oS
+  => let inner := SHA256.SHA_256 ctx in 
+     SHA256.SHA_256 (oS ++ inner)
   end.
-(*copying oS to ctx is not modelled here*)
 
-Definition hmacFinal h (digest: list Z) h2 :=
+Definition hmacFinal h : (hmacabs * list Z) :=
   match h with
-    HMACabs ctx iS oS klen k
-  => let buf := sha_finish ctx in
-     exists oS1, update_abs buf oS oS1 /\
-       h2 = HMACabs oS1 iS oS klen k /\
-       sha_finish oS1 = digest
+    HMACabs ctx iS oS
+  => let inner := SHA256.SHA_256 ctx in 
+     let outerArg := oS ++ inner in
+     (HMACabs outerArg iS oS, SHA256.SHA_256 outerArg)
   end.
-(*copying oS to ctx is modelled here by h2, but it's slightly out of order:
-  it "follows" the update buf oS oS1 in order to capture the fact that
-   oCtx position is not overwritten.
-  Also, the effect of the final sha_final is not captured.*)
-
-Definition hmacFinal_hmacFinalSimple h digest:
-  hmacFinalSimple h digest = exists h', hmacFinal h digest h'.
-Proof. destruct h. simpl. apply prop_ext.
-  split; intros. 
-    destruct H as [oS1 [UPD FIN]].
-    eexists; exists oS1; eauto.
-  destruct H as [h' [oS1 [UPD [H' FIN]]]].
-    exists oS1; eauto.
-Qed.
 
 (*hmac cleanup not modelled*)
 
-Definition hmacSimple (k:list Z) (data:list Z) (dig:list Z) :=
-  exists hInit hUpd,
-  hmacInit k hInit /\
-  hmacUpdate data hInit hUpd /\
-  hmacFinalSimple hUpd dig.
+Definition hmacSimple (k:list Z) (data:list Z):list Z:=
+  hmacFinalSimple (hmacUpdate data (hmacInit k)).
 
-Lemma hmacSimple_sound k data dig: 
-      hmacSimple k data dig ->
-      dig = HMAC256 data k.
+Definition hmac (k:list Z) (data:list Z):(hmacabs * list Z) :=
+  hmacFinal (hmacUpdate data (hmacInit k)).
+
+Lemma hmacSimple_sound k data: 
+      hmacSimple k data = HMAC256 data k.
 Proof.
- unfold hmacSimple; intros [hInit [hUpd [HH1 [HH2 HH3]]]].
- unfold hmacInit in HH1. destruct HH1 as [iInit [oInit [HiInit [HoInit HINIT]]]]. subst.
- unfold innerShaInit in HiInit. inversion HiInit; clear HiInit.
-   rewrite Zlength_correct in *; simpl in *. subst.
- unfold outerShaInit in HoInit. inversion HoInit; clear HoInit.
-   rewrite Zlength_correct in *; simpl in *. subst.
- unfold HMAC_SHA256.mkArgZ in *.
- destruct HH2 as [ctx2 [Hupd HU]]. subst.
- inversion Hupd; clear Hupd. subst.
- unfold hmacFinalSimple in HH3. destruct HH3 as [oS [Upd FINISH]]. subst.
- inversion Upd; clear Upd. subst.
- unfold HMAC256, HMAC_SHA256.HMAC, HMAC_SHA256.HmacCore, HMAC_SHA256.KeyPreparation, HMAC_SHA256.OUTER, HMAC_SHA256.INNER.
- unfold sha_finish. unfold SHA256.Hash.
- rewrite functional_prog.SHA_256'_eq. f_equal.
- unfold HMAC_SHA256.innerArg, HMAC_SHA256.mkArgZ. rewrite H7. clear H7. 
- unfold HMAC_SHA256.outerArg, HMAC_SHA256.mkArgZ. rewrite H12. clear H12.
- unfold sha_finish in *. rewrite intlist_to_Zlist_app in *.
-rewrite <- app_assoc. rewrite <- H22; clear H22. 
-repeat rewrite <- app_assoc. rewrite H17. reflexivity. 
+  unfold hmacSimple, hmacFinalSimple, hmacUpdate, hmacInit.
+  unfold HMAC256, HMAC_SHA256.HMAC, HMAC_SHA256.HmacCore.
+  unfold HMAC_SHA256.KeyPreparation. 
+  forget (HMAC_SHA256.mkKey k) as q.
+  unfold HMAC_SHA256.OUTER, HMAC_SHA256.INNER, SHA256.Hash.
+  rewrite functional_prog.SHA_256'_eq. f_equal.
 Qed.
 
-Definition hmac (k:list Z) (data:list Z) (dig:list Z) h :=
-  exists hInit hUpd,
-  hmacInit k hInit /\
-  hmacUpdate data hInit hUpd /\
-  hmacFinal hUpd dig h.
-
-Lemma hmac_hmacSimple (k:list Z) (data:list Z) (dig:list Z) :
-  hmacSimple k data dig = exists h, hmac k data dig h .
-Proof. intros. unfold hmacSimple, hmac.
-  apply prop_ext. split; intros.
-    destruct H as [hInit [hUpd [HInit [HUpd HFinalSimple]]]].
-    rewrite hmacFinal_hmacFinalSimple in HFinalSimple.
-    destruct HFinalSimple as [h' H'].
-    exists h', hInit, hUpd; auto.
-  destruct H as [h' [hInit [hUpd [HInit [HUpd HFinal]]]]].
-    exists hInit, hUpd. split; trivial. split; trivial.
-    rewrite hmacFinal_hmacFinalSimple. exists h'; trivial.
-Qed.
-
-Lemma hmac_sound k data dig h: 
-      hmac k data dig h ->
-      dig = HMAC256 data k.
+Lemma hmac_sound k data: 
+      snd(hmac k data) = HMAC256 data k.
 Proof.
- intros.
- eapply hmacSimple_sound.
- rewrite hmac_hmacSimple. exists h; eassumption. 
+  rewrite <- (hmacSimple_sound k data).
+  unfold hmac, hmacFinal, hmacSimple, hmacFinalSimple.
+  destruct (hmacUpdate data (hmacInit k)). trivial.
+Qed. 
+
+(*Lemma update_abs_nil ctx x: s256_relate ctx x -> update_abs [] ctx ctx.
+Proof.
+  intros.
+  destruct ctx. simpl in H.
+  specialize (Update_abs nil hashed nil data data); simpl.
+  do 2 rewrite app_nil_r. intros U; apply U; trivial; clear U; intuition.
 Qed.
 
-(************Coq  ounterpart of HMAC_CTX, but for ComPCert values (val etc)***************************)
+Lemma update_abs_app ctx0 ctx1 ctx2 data data1:
+   update_abs data ctx0 ctx1 -> 
+   update_abs data1 ctx1 ctx2 ->
+   update_abs (data ++ data1) ctx0 ctx2.
+Proof. intros.
+  inv H. inv H0.
+  specialize (Update_abs (data ++ data1) hashed (blocks++blocks0) oldfrag newfrag0).
+    rewrite  <- app_assoc. intros ZZ; apply ZZ; clear ZZ; trivial.
+    rewrite Zlength_app. apply Z.divide_add_r; assumption.
+    rewrite app_assoc. rewrite H5; clear H5. rewrite <- app_assoc.
+    rewrite H13; clear H13. rewrite intlist_to_Zlist_app. rewrite app_assoc; trivial.
+Qed.
+
+Lemma hmacUpdate_app h0 h1 h2 data data1: 
+      hmacUpdate data h0 h1 ->
+      hmacUpdate data1 h1 h2 ->
+      hmacUpdate (data ++ data1) h0 h2.
+Proof.
+  intros.
+  destruct h0; simpl in *. destruct H as [? [UPD ?]]. subst h1. 
+  destruct H0 as [? [? ?]]. subst h2. exists x0; split; trivial.
+  eapply update_abs_app; eassumption.
+Qed.
+*)
+
+Lemma hmacUpdate_nil h: hmacUpdate [] h = h.
+Proof. destruct h. simpl. rewrite app_nil_r. trivial. Qed.  
+
+Lemma hmacUpdate_app data data' h: 
+      hmacUpdate data (hmacUpdate data' h) = hmacUpdate (data'++data) h.
+Proof. destruct h; simpl. rewrite app_assoc; trivial. Qed.
+
+(************Coq counterpart of HMAC_CTX, but for CompCert values (val etc)*********************)
 Definition hmacstate: Type := 
-  (s256state * (s256state * (s256state * (val * list val))))%type.
+  (s256state * (s256state * s256state))%type.
 
 Definition mdCtx (h: hmacstate): s256state.
 Proof. 
@@ -189,29 +168,18 @@ destruct h as [_ [ICTX _]]. apply ICTX.
 Defined.
 
 Definition oCtx (h: hmacstate): s256state.
-destruct h as [_ [_ [OCTX _]]]. apply OCTX. 
+destruct h as [_ [_ OCTX]]. apply OCTX. 
 Defined.
-
-Definition Keylen (h: hmacstate): val.
-destruct h as [_ [_ [_ [KL _]]]]. apply KL.
-Defined.
-
-Definition Key (h: hmacstate): list val.
-destruct h as [_ [_ [_ [_ K]]]]. apply K.
-Defined.
-
 
 (***************** The next two definitions link abstract states (hmacabs) with Coq
- representations of HMAC_CTX values (hmacstate), and lift the relationship to a separation logic predicates*)
+ representations of HMAC_CTX values (hmacstate), and lift
+ the relationship to a separation logic predicates*)
 Definition hmac_relate (h: hmacabs) (r: hmacstate) : Prop :=
-  match h with HMACabs ctx iS oS klen k =>
+  match h with HMACabs ctx iS oS =>
     s256_relate ctx (mdCtx r) /\
     s256_relate iS (iCtx r) /\
     s256_relate oS (oCtx r) /\
-    s256a_len iS = 512 /\ s256a_len oS = 512 /\ 
-    Key r = map Vint (map Int.repr (HMAC_SHA256.mkKey k)) /\ 
-    exists i, Keylen r = Vint i /\ klen=Int.unsigned i /\ 
-              (if zlt 64 (Zlength k) then 32 else Zlength k)=klen
+    s256a_len iS = 512 /\ s256a_len oS = 512
   end.
 
 Definition t_struct_hmac_ctx_st := Tstruct _hmac_ctx_st noattr.
@@ -220,39 +188,35 @@ Definition hmacstate_ (h: hmacabs) (c: val) : mpred :=
    EX r:hmacstate, 
     !!  hmac_relate h r && data_at Tsh t_struct_hmac_ctx_st r c.
 
-(************************ Specification of HMAC_init *******************************************************)
+(************************ Specification of HMAC_init ********************************************)
 
 Definition has_lengthK (l:Z) (key:list Z) :=
-  l = Zlength key /\ 0 <= l <= Int.max_signed /\
+  l = Zlength key /\ 0 < l <= Int.max_signed /\ (*requirement 0<l new in new_compcert - previously, it was 0<=l*)
   l * 8 < two_p 64.
 
 Definition hmac_relate_PreInitNull (key:list Z) (h:hmacabs ) (r: hmacstate) : Prop :=
-  match h with HMACabs ctx iS oS klen k =>
+  match h with HMACabs ctx iS oS =>
     (*no clause for ctx*)
-    k=key /\
     s256_relate iS (iCtx r) /\
     s256_relate oS (oCtx r) /\
     s256a_len iS = 512 /\ s256a_len oS = 512 /\ 
-    Key r = map Vint (map Int.repr (HMAC_SHA256.mkKey k)) /\ 
-    exists i, Keylen r = Vint i /\ klen=Int.unsigned i /\ 
-              (if zlt 64 (Zlength k) then 32 else Zlength k)=klen /\
     let keyB := map Byte.repr (HMAC_SHA256.mkKey key) in
-    innerShaInit keyB iS /\ outerShaInit keyB oS
+    innerShaInit keyB = iS /\ outerShaInit keyB = oS
   end.
 
 Definition hmacstate_PreInitNull key (h: hmacabs) (c: val) : mpred :=
    EX r:hmacstate, EX v:_,
-    !!  hmac_relate_PreInitNull key h r && 
+    !!hmac_relate_PreInitNull key h r && 
     data_at Tsh t_struct_hmac_ctx_st 
        (upd_reptype t_struct_hmac_ctx_st [StructField _md_ctx] r v) c.
 
-
-Definition initPre (c:val) (k: val) h key : mpred:=
+Definition initPre (c:val) (k: val) h l key : mpred:=
   match k with
     Vint z => if Int.eq z Int.zero
               then hmacstate_PreInitNull key h c
               else FF
-  | Vptr b ofs => ((data_at_ Tsh t_struct_hmac_ctx_st c) *
+  | Vptr b ofs => !!has_lengthK l key && 
+                  (data_at_ Tsh t_struct_hmac_ctx_st c *
                         (data_block Tsh key (Vptr b ofs)))
   | _ => FF
   end.
@@ -270,15 +234,14 @@ Definition HMAC_Init_spec :=
    PRE [ _ctx OF tptr t_struct_hmac_ctx_st,
          _key OF tptr tuchar,
          _len OF tint ]
-         PROP (has_lengthK l key)
+         PROP ((*has_lengthK l key*))
          LOCAL (temp _ctx c; temp _key k; temp _len (Vint (Int.repr l));
                 gvar sha._K256 kv)
-         SEP (`(K_vector kv); `(initPre c k h1 key))
+         SEP (K_vector kv; initPre c k h1 l key)
   POST [ tvoid ] 
-     EX h:hmacabs, PROP (hmacInit key h)
-                     LOCAL ()
-                      SEP (`(hmacstate_ h c);
-                           `(initPostKey k key); `(K_vector kv)).
+     PROP ()
+     LOCAL ()
+     SEP (hmacstate_ (hmacInit key) c; initPostKey k key; K_vector kv).
 
 (************************ Specification of HMAC_update *******************************************************)
 
@@ -295,26 +258,28 @@ Definition HMAC_Update_spec :=
          PROP (has_lengthD (s256a_len (absCtxt h1)) len data) 
          LOCAL (temp _ctx c; temp _data d; temp  _len (Vint (Int.repr len));
                 gvar sha._K256 kv)
-         SEP(`(K_vector kv);
-             `(hmacstate_ h1 c); `(data_block Tsh data d))
+         SEP(K_vector kv; hmacstate_ h1 c; data_block Tsh data d)
   POST [ tvoid ] 
-         EX h2:hmacabs, 
-          PROP (hmacUpdate data h1 h2) 
+          PROP () 
           LOCAL ()
-          SEP(`(K_vector kv);
-              `(hmacstate_ h2 c); `(data_block Tsh data d)).
-
+          SEP(K_vector kv; hmacstate_ (hmacUpdate data h1) c; data_block Tsh data d).
+(*
+Lemma hmacUpdate_nil h x: hmac_relate h x -> hmacUpdate [] h h.
+Proof.
+ intros.
+ destruct h. simpl. exists ctx; split; trivial.
+ simpl in H.
+ eapply update_abs_nil. apply H.
+Qed.
+*)
 (************************ Specification of HMAC_final *******************************************************)
 
 Definition hmac_relate_PostFinal (h:hmacabs ) (r: hmacstate) : Prop :=
-  match h with HMACabs ctx iS oS klen k =>
+  match h with HMACabs ctx iS oS =>
     (*no clause for ctx*)
     s256_relate iS (iCtx r) /\
     s256_relate oS (oCtx r) /\
-    s256a_len iS = 512 /\ s256a_len oS = 512 /\ 
-    Key r = map Vint (map Int.repr (HMAC_SHA256.mkKey k)) /\ 
-    exists i, Keylen r = Vint i /\ klen=Int.unsigned i /\ 
-              (if zlt 64 (Zlength k) then 32 else Zlength k)=klen
+    s256a_len iS = 512 /\ s256a_len oS = 512
   end.
 
 Definition hmacstate_PostFinal (h: hmacabs) (c: val) : mpred :=
@@ -323,7 +288,6 @@ Definition hmacstate_PostFinal (h: hmacabs) (c: val) : mpred :=
     data_at Tsh t_struct_hmac_ctx_st 
        (upd_reptype t_struct_hmac_ctx_st [StructField _md_ctx] r  (default_val t_struct_SHA256state_st)) c.
 
-(*Spec with a single EX in postcondition:*)
 Definition HMAC_Final_spec :=
   DECLARE _HMAC_Final
    WITH h1: hmacabs, c : val, md:val, shmd: share, kv:val
@@ -332,35 +296,30 @@ Definition HMAC_Final_spec :=
        PROP (writable_share shmd) 
        LOCAL (temp _md md; temp _ctx c;
               gvar sha._K256 kv)
-       SEP(`(hmacstate_ h1 c); `(K_vector kv);
-           `(memory_block shmd 32 md))
+       SEP(hmacstate_ h1 c; K_vector kv; memory_block shmd 32 md)
   POST [ tvoid ] 
-         EX digestH2:_, 
-          PROP (hmacFinal h1 (fst digestH2) (snd digestH2)) 
+          PROP () 
           LOCAL ()
-          SEP(`(K_vector kv);
-              `(hmacstate_PostFinal (snd digestH2) c);
-              `(data_block shmd (fst digestH2) md)).
-(*Spec with two EX's in postcondition:
-Definition HMAC_Final_spec :=
-  DECLARE _HMAC_Final
-   WITH h1: hmacabs, c : val, md:val, shmd: share, kv:val
-   PRE [ _ctx OF tptr t_struct_hmac_ctx_st,
-         _md OF tptr tuchar ]
-       PROP (writable_share shmd) 
-       LOCAL (temp _md md; temp _ctx c;
-              gvar sha._K256 kv)
-       SEP(`(hmacstate_ h1 c); `(K_vector kv);
-           `(memory_block shmd (Int.repr 32) md))
-  POST [ tvoid ] 
-         EX digest:_, EX h2:_, 
-          PROP (hmacFinal h1 digest h2) 
-          LOCAL ()
-          SEP(`(K_vector kv);
-              `(hmacstate_PostFinal h2 c);
-              `(data_block shmd digest md)).*)
+          SEP(K_vector kv; hmacstate_PostFinal (fst (hmacFinal h1)) c;
+              data_block shmd (snd (hmacFinal h1)) md).
 
-(************************ Specification of HMAC_cleanup *******************************************************)
+Lemma hmacstate_PostFinal_PreInitNull key data dig h2 v:
+      forall (Round1Final : hmacFinal (hmacUpdate data (hmacInit key)) = (h2,dig)),
+      hmacstate_PostFinal h2 v
+  |-- hmacstate_PreInitNull key h2 v.
+Proof. intros. 
+  unfold hmacstate_PostFinal, hmac_relate_PostFinal, hmacstate_PreInitNull; normalize.
+  Exists r.
+  Exists (default_val t_struct_SHA256state_st). 
+  apply andp_right. 2: apply derives_refl.
+  apply prop_right. 
+    destruct h2. red. unfold hmacFinal in Round1Final.
+    remember (hmacUpdate data (hmacInit key)) as h.
+    destruct h. inv Round1Final.
+    simpl in Heqh. inv Heqh. intuition.
+Qed.
+
+(************************ Specifications of HMAC_cleanup *******************************************************)
 
 Definition HMAC_Cleanup_spec :=
   DECLARE _HMAC_cleanup
@@ -368,12 +327,24 @@ Definition HMAC_Cleanup_spec :=
    PRE [ _ctx OF tptr t_struct_hmac_ctx_st ]
          PROP () 
          LOCAL (temp _ctx c)
-         SEP(`(hmacstate_PostFinal h c))
+         SEP(hmacstate_PostFinal h c)
   POST [ tvoid ]  
-          PROP (size_compatible t_struct_hmac_ctx_st c /\
-                align_compatible t_struct_hmac_ctx_st c) 
+          PROP () 
           LOCAL ()
-          SEP(`(data_block Tsh (list_repeat (Z.to_nat(sizeof t_struct_hmac_ctx_st)) 0) c)).
+          SEP(data_block Tsh (list_repeat (Z.to_nat(sizeof t_struct_hmac_ctx_st)) 0) c).
+
+Definition HMAC_Cleanup_spec1 :=
+  DECLARE _HMAC_cleanup
+   WITH h: hmacabs, c : val
+   PRE [ _ctx OF tptr t_struct_hmac_ctx_st ]
+         PROP () 
+         LOCAL (temp _ctx c)
+         SEP(EX key:_, hmacstate_PreInitNull key h c)
+  POST [ tvoid ]  
+          PROP () 
+          LOCAL ()
+          SEP(data_block Tsh (list_repeat (Z.to_nat(sizeof t_struct_hmac_ctx_st)) 0) c).
+
 
 (************************ Specification of oneshot HMAC *******************************************************)
 
@@ -397,22 +368,22 @@ Definition HMAC_spec :=
                 temp _d msgVal;
                 temp _n (Vint (Int.repr (LEN MSG)));
                 gvar sha._K256 kv)
-         SEP(`(data_block Tsh (CONT KEY) keyVal);
-             `(data_block Tsh (CONT MSG) msgVal);
-             `(K_vector kv);
-             `(memory_block shmd 32 md))
+         SEP(data_block Tsh (CONT KEY) keyVal;
+             data_block Tsh (CONT MSG) msgVal;
+             K_vector kv;
+             memory_block shmd 32 md)
   POST [ tvoid ] 
           PROP ()
           LOCAL ()
-          SEP(`(K_vector kv);
-              `(data_block shmd (HMAC256 (CONT MSG) (CONT KEY)) md);
-              `(initPostKey keyVal (CONT KEY) );
-              `(data_block Tsh (CONT MSG) msgVal)).
+          SEP(K_vector kv;
+              data_block shmd (HMAC256 (CONT MSG) (CONT KEY)) md;
+              initPostKey keyVal (CONT KEY);
+              data_block Tsh (CONT MSG) msgVal).
 
 (*A stronger spec of oneshot hmac that includes the cryptographic assertion in the postcondition 
   is given in the verif_hmac_crpyto.v. This avoids having to Import FCF, hmacfc, and the
   proof of equivalence between HMAC_functional_prog and the functional spec of the
-  cryptographic program in the rpresent file.*)
+  cryptographic program in the present file.*)
 
 (*Furthermore, verif_hmac_double.v contains the verification of an additional function
   an additional function, hmac2, that we added to the c file in order to exercise the reuse of
@@ -434,12 +405,17 @@ Definition HmacFunSpecs : funspecs :=
   memcpy_spec_data_at:: memset_spec::
   sha256init_spec::sha256update_spec::sha256final_spec::(*SHA256_spec::*)
   HMAC_Init_spec:: HMAC_Update_spec::HMAC_Cleanup_spec::
-  HMAC_Final_spec:: HMAC_spec::nil.
+  HMAC_Final_spec:: HMAC_spec ::nil.
 
-(**Finally, some auxiliary lemmas and constructions that are shared beween several downstream files ******)
-Definition emptySha:s256state := (nil, (Vundef, (Vundef, (nil, Vundef)))).
- 
-Definition keyedHMS key: hmacstate :=
-  (emptySha, (emptySha, (emptySha, 
-   (if zlt 64 (Zlength key) then Vint (Int.repr 32) else Vint (Int.repr (Zlength key)), 
-   map Vint (map Int.repr (HMAC_SHA256.mkKey key)))))).
+Definition HMS : hmacstate := default_val t_struct_hmac_ctx_st.
+
+Lemma change_compspecs_t_struct_SHA256state_st:
+  @data_at spec_sha.CompSpecs Tsh t_struct_SHA256state_st =
+  @data_at CompSpecs Tsh t_struct_SHA256state_st.
+Proof.
+extensionality gfs v.
+reflexivity.
+Qed.
+
+Hint Rewrite change_compspecs_t_struct_SHA256state_st : norm.
+

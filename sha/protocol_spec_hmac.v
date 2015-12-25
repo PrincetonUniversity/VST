@@ -8,8 +8,8 @@ Require Import sha.HMAC_functional_prog.
 Require Import sha.HMAC256_functional_prog.
 Require Import hmac_common_lemmas.
 
-Require Import sha.hmac_NK.
-Require Import spec_hmacNK.
+Require Import sha.hmac.
+Require Import spec_hmac.
 
 Module Type HMAC_ABSTRACT_SPEC.
 
@@ -305,89 +305,15 @@ Definition hmac_cleanup_spec :=
           LOCAL ()
           SEP(EMPTY c).
 
-(******** Statements about the "true" bodies of all functions, 
-         extracted from the proofs in verif_hmacNK_XXX.v ************)
-
-Lemma finalbodyproof Espec c md shmd kv buf (h1 : hmacabs)
-      (SH : writable_share shmd):
-@semax CompSpecs Espec (func_tycontext f_HMAC_Final HmacVarSpecs HmacFunSpecs)
-  (PROP  ()
-   LOCAL  (lvar _buf (tarray tuchar 32) buf; temp _md md;
-           temp _ctx c; gvar sha._K256 kv)
-   SEP  (data_at_ Tsh (tarray tuchar 32) buf; hmacstate_ h1 c; 
-         K_vector kv; memory_block shmd 32 md))
-  (Ssequence (fn_body f_HMAC_Final) (Sreturn None)) 
-  (frame_ret_assert
-     (function_body_ret_assert tvoid
-        (PROP  ()
-         LOCAL ()
-         SEP  (K_vector kv; hmacstate_PostFinal (fst (hmacFinal h1)) c;
-               data_block shmd (snd (hmacFinal h1)) md)))
-     (EX  v : val,
-      local (lvar _buf (tarray tuchar 32) v) &&
-      `(data_at_ Tsh (tarray tuchar 32) v))).
-Admitted. 
-
-Lemma updatebodyproof Espec c d len data kv (h1 : hmacabs)
-      (H : has_lengthD (s256a_len (absCtxt h1)) len data):
-@semax CompSpecs Espec (func_tycontext f_HMAC_Update HmacVarSpecs HmacFunSpecs)
-  (PROP  ()
-   LOCAL  (temp _ctx c; temp _data d;
-           temp _len (Vint (Int.repr len)); gvar sha._K256 kv)
-   SEP  (K_vector kv; hmacstate_ h1 c; data_block Tsh data d))
-  (Ssequence (fn_body f_HMAC_Update) (Sreturn None)) 
-  (frame_ret_assert
-     (function_body_ret_assert tvoid
-        (PROP  ()
-         LOCAL ()
-         SEP  (K_vector kv; hmacstate_ (hmacUpdate data h1) c;
-         data_block Tsh data d))) emp).
-Admitted.
-
-Lemma initbodyproof Espec c k l key kv h1 pad ctxkey:
-@semax CompSpecs Espec (func_tycontext f_HMAC_Init HmacVarSpecs HmacFunSpecs)
-  (PROP  ()
-   LOCAL  (lvar _ctx_key (tarray tuchar 64) ctxkey;
-           lvar _pad (tarray tuchar 64) pad; temp _ctx c; temp _key k;
-           temp _len (Vint (Int.repr l)); gvar sha._K256 kv)
-   SEP  (data_at_ Tsh (tarray tuchar 64) ctxkey;
-         data_at_ Tsh (tarray tuchar 64) pad;
-         K_vector kv; initPre c k h1 l key))
-  (Ssequence (fn_body f_HMAC_Init) (Sreturn None))
-  (frame_ret_assert
-     (function_body_ret_assert tvoid
-        (PROP  ()
-         LOCAL ()
-         SEP  (hmacstate_ (hmacInit key) c; initPostKey k key; K_vector kv)))
-         ((EX  v : val, local (lvar _pad (tarray tuchar 64) v) &&
-              `(data_at_ Tsh (tarray tuchar 64) v)) *
-          (EX  v : val, local (lvar _ctx_key (tarray tuchar 64) v) &&
-              `(data_at_ Tsh (tarray tuchar 64) v)))).
-Admitted. 
-
-Lemma cleanupbodyproof1 Espec c h :
-@semax CompSpecs Espec (func_tycontext f_HMAC_cleanup HmacVarSpecs HmacFunSpecs)
-  (PROP  ()
-   LOCAL  (temp _ctx c)
-   SEP  (EX  key : list Z, hmacstate_PreInitNull key h c))
-  (Ssequence (fn_body f_HMAC_cleanup) (Sreturn None)) 
-  (frame_ret_assert
-     (function_body_ret_assert tvoid
-        (PROP  ()
-         LOCAL ()
-         SEP 
-         (data_block Tsh
-            (list_repeat (Z.to_nat (sizeof t_struct_hmac_ctx_st)) 0)
-            c))) emp).
-Admitted. 
+Require Import verif_hmac_final.
+Require Import verif_hmac_update.
+Require Import verif_hmac_init.
+Require Import verif_hmac_cleanup.
 
 Lemma body_hmac_reset: semax_body HmacVarSpecs HmacFunSpecs 
        f_HMAC_Init hmac_reset_spec. 
 Proof.
 start_function.
-name ctx' _ctx.
-name key' _key.
-name len' _len.
 rename lvar0 into pad. rename lvar1 into ctxkey.
 abbreviate_semax.
 apply semax_pre with (P':=EX h1:hmacabs, 
@@ -404,6 +330,7 @@ eapply semax_post.
 2: apply (initbodyproof Espec c nullval l key kv h1 pad ctxkey).
   intros. apply andp_left2. apply frame_ret_assert_derives.
   apply function_body_ret_assert_derives.
+  old_go_lower.
   entailer!.
   unfold hmacstate_, REP. Intros r. Exists r. entailer!.
   red. rewrite hmacUpdate_nil. assumption. 
@@ -413,21 +340,19 @@ Lemma body_hmac_final: semax_body HmacVarSpecs HmacFunSpecs
        f_HMAC_Final hmac_final_spec. 
 Proof.
 start_function.
-name ctx' _ctx.
-name md' _md.
 rename lvar0 into buf.
 unfold REP, abs_relate. Intros r.
 destruct H as [mREL [iREL [oREL [iLEN oLEN]]]].
 eapply semax_pre_post.
   3: apply (finalbodyproof Espec c md shmd kv buf (hmacUpdate data (hmacInit key)) SH).
   
-  apply andp_left2. unfold hmacstate_. Exists r; entailer!.
+  apply andp_left2. unfold hmacstate_. Exists r. old_go_lower. entailer!.
 
   intros. apply andp_left2. apply frame_ret_assert_derives.
   apply function_body_ret_assert_derives.
   rewrite <- hmac_sound. unfold FULL.
   change (hmacFinal (hmacUpdate data (hmacInit key))) with (hmac key data).
-  Exists (fst (hmac key data)). entailer!.
+  Exists (fst (hmac key data)). old_go_lower. entailer!.
   eapply hmacstate_PostFinal_PreInitNull; reflexivity.
 Qed.
 
@@ -435,20 +360,17 @@ Lemma body_hmac_update: semax_body HmacVarSpecs HmacFunSpecs
        f_HMAC_Update hmac_update_spec. 
 Proof.
 start_function.
-name ctx' _ctx.
-name data' _data.
-name len' _len.
 destruct H as [Prop1 Prop2].
-(*unfold REP. Intros r.
-destruct H as [mREL [iREL [oREL [iLEN oLEN]]]].*)
 eapply semax_pre_post.
   3: apply (updatebodyproof Espec c d (Zlength data1) data1 kv (hmacUpdate data (hmacInit key))).
 
-  apply andp_left2. entailer. unfold REP, hmacstate_. Intros r. Exists r. entailer!.
+  apply andp_left2. old_go_lower. entailer!.
+  unfold REP, hmacstate_. Intros r. Exists r. entailer!.
 
   intros. apply andp_left2. apply frame_ret_assert_derives.
   apply function_body_ret_assert_derives. 
-  rewrite hmacUpdate_app. entailer!. unfold REP, hmacstate_.
+  rewrite hmacUpdate_app. old_go_lower. entailer!.
+  unfold REP, hmacstate_.
   Intros r. Exists r. entailer!.
 
   split; trivial. split; trivial. simpl.
@@ -464,17 +386,14 @@ Lemma body_hmac_starts: semax_body HmacVarSpecs HmacFunSpecs
        f_HMAC_Init hmac_starts_spec. 
 Proof.
 start_function.
-name ctx' _ctx.
-name key' _key.
-name len' _len.
 rename lvar0 into pad. rename lvar1 into ctxkey.
 unfold EMPTY. 
 remember (HMACabs (S256abs nil nil) (S256abs nil nil) (S256abs nil nil)) as hdummy.
 eapply semax_pre_post.
 Focus 3. apply (initbodyproof Espec c (Vptr b i) l key kv hdummy pad ctxkey).
-  apply andp_left2. entailer!.
+  apply andp_left2. old_go_lower. entailer!.
   intros. apply andp_left2. apply frame_ret_assert_derives.
-  apply function_body_ret_assert_derives. entailer!. 
+  apply function_body_ret_assert_derives. old_go_lower. entailer!. 
    unfold hmacstate_, REP. Intros r. Exists r. entailer!.
    red. rewrite hmacUpdate_nil. assumption.
 Qed.
@@ -483,7 +402,6 @@ Lemma body_hmac_cleanup: semax_body HmacVarSpecs HmacFunSpecs
        f_HMAC_cleanup hmac_cleanup_spec.
 Proof.
 start_function.
-name ctx' _ctx.
 unfold FULL. Intros h.
 assert_PROP (field_compatible t_struct_hmac_ctx_st [] c).
 { unfold hmacstate_PreInitNull. Intros r v. entailer!. }
@@ -492,7 +410,7 @@ eapply semax_pre_post.
   Exists key. apply andp_left2. apply derives_refl. 
 
   intros. apply andp_left2.  apply frame_ret_assert_derives.
-  apply function_body_ret_assert_derives. entailer!.
+  apply function_body_ret_assert_derives. old_go_lower. entailer!.
   unfold EMPTY. 
   rewrite <- memory_block_data_at_. simpl. unfold data_block.
   clear. simpl. apply andp_left2. apply data_at_memory_block. trivial.
