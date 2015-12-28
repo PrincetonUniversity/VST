@@ -1765,7 +1765,93 @@ along with \lstinline{DOT $\mathit{field}$}.
 \label{refcard:localdefs}
 \label{refcard:gvar}
 
+The \LOCAL part of a \lstinline{PROP()LOCAL()SEP()} assertion
+is a list of \lstinline{localdef}s that
+bind variables to their values or addresses.
+
+\begin{lstlisting}
+Inductive localdef : Type :=
+ | temp: ident -> val -> localdef
+ | lvar: ident -> type -> val -> localdef
+ | gvar: ident -> val -> localdef
+ | sgvar: ident -> val -> localdef
+ | localprop: Prop -> localdef.
+\end{lstlisting}
+\lstinline{temp $i$ $v$} binds a nonaddressable local
+variable $i$ to its value $v$.\newline
+\lstinline{lvar $i$ $t$ $v$} binds an \emph{addressable} local
+variable $i$ (of type $t$) to its \emph{address} $v$.\newline
+\lstinline{gvar $i$ $v$} binds a \emph{visible global}
+variable $i$ to its \emph{address} $v$.\newline
+\lstinline{sgvar $i$ $v$} binds a \emph{possibly shadowed global}
+variable $i$ to its \emph{address} $v$.
+
+The \emph{contents} of an addressable (local or global) variable
+is on the heap, and can be described in the \lstinline{SEP} clause.
+
+\begin{lstlisting}
+int g=2;
+int f(void) { int g; int *p = &g;  g=6; return g; }
+\end{lstlisting}  
+In this program, the global variable \lstinline{g}
+is shadowed by the local variable \lstinline{g}.
+In an assertion inside the
+function body, one could write
+\begin{lstlisting}
+PROP() LOCAL(temp _p $q$; lvar _g tint $q$; sgvar _g $p$}
+SEP(data_at Ews tint (Vint (Int.repr 2)) $p$; data_at Tsh tint (Vint (Int.repr 6)) $q$)
+\end{lstlisting}
+to describe a shadowed global variable \lstinline{_g} that
+is still there in memory but (temporarily) cannot be referred
+to by its name in the C program.
+
+
 \chapter{go\_lower}
+\textbf{Normally one does not use this tactic directly,
+  it is invoked as the first step of \textsf{entailer} or \textsf{entailer!}}
+
+Given a lifted entailment
+\lstinline{ENTAIL $\Delta$, PROP($\vec{P}$) LOCAL($\vec{Q}$) SEP($\vec{R}$) |-- $S$},
+one often wants to prove it at the base level: that is, with all
+of $\vec{P}$ moved above the line, with all of $\vec{Q}$ out of the way,
+just considering the base-level separation-logic conjuncts $\vec{R}$.
+
+When $\Delta,\vec{P},\vec{Q},\vec{R}$ are \emph{concrete},
+the \lstinline{go_lower} tactic does this.  Concrete means
+that the $\vec{P},\vec{Q}$ are nil-terminated lists
+(not Coq variables) 
+that every element of $\vec{Q}$ is manifestly a localdef
+(not hidden in Coq abstractions), the identifiers in $\vec{Q}$ be
+(computable to) ground terms, and the
+analogous (tree) property for $\Delta$.  It is not necessary
+that $\Delta,\vec{P},\vec{Q},\vec{R}$ be fully \emph{ground terms}:
+Coq variables (and other Coq abstractions) can appear
+anywhere in $\vec{P}$ and $\vec{R}$ and
+in the \emph{value} parts of $\Delta$ and $\vec{Q}$.
+When the entailment is not fully concrete,
+or when there existential quantifiers outside \lstinline{PROP},
+the tactic \lstinline{old_go_lower} can still be useful.
+
+\lstinline{go_lower}
+moves the propositions $\vec{P}$ above the line; when a proposition
+is an equality on a Coq variable, substitute the variable.
+
+For each localdef in $\vec{Q}$ (such as \lstinline{temp $i$ $v$}),
+\lstinline{go_lower} looks up $i$ in $\Delta$ to derive a type-checking fact
+(such as \lstinline{tc_val $t$ $v$}),
+then introduces it above the line and simplifies it.  For example, if $t$ is \lstinline{tptr tint}, then the typechecking fact simplifies to \lstinline{is_pointer_or_null $v$}.
+
+Then it proves the localdefs in $S$, if possible.  If there are still some
+  local-environment dependencies remaining in $S$, it introduces a variable
+  \lstinline{rho} to stand for the run-time environment.
+
+The remaining goal will be of the form
+$\vec{R} \vdash S'$, with the semicolons in $\vec{R}$
+replaced by the separating conjunction $*$.
+$S'$ is the residue of $S$ after
+lowering to the base separation logic and
+deleting its (provable) localdefs.
+
 
 \chapter{saturate\_local}
 \label{refcard:saturate-local}

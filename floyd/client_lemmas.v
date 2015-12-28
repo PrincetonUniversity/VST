@@ -1361,7 +1361,11 @@ repeat first
      [try reflexivity; eauto  | compute; apply finish_compute_le
      | fold_types4; fancy_intro true; intros ?GV ?SC ?AC]
  ];
-apply finish_lower;
+(simple apply finish_lower ||
+ match goal with
+ | |- (_ && PROPx nil _) _ |-- _ => fail 1 "LOCAL part of precondition is not a concrete list (or maybe Delta is not concrete)"
+ | |- _ => fail 1 "PROP part of precondition is not a concrete list"
+ end);
 unfold_for_go_lower;
 simpl; rewrite ?sepcon_emp;
 repeat match goal with H: eval_id ?i rho = _ |- _ =>
