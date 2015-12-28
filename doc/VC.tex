@@ -1855,6 +1855,216 @@ deleting its (provable) localdefs.
 
 \chapter{saturate\_local}
 \label{refcard:saturate-local}
+\textbf{Normally one does not use this tactic directly,
+  it is invoked by \textsf{entailer} or \textsf{entailer!}}
+
+To prove an entailment $R_1*R_2*\ldots*R_n \vdash
+!!(P'_1 \wedge \ldots P'_n) \&\& R_1'*\ldots*R'_m$,
+first extract all the \emph{local (nonspatial)} facts from 
+$R_1*R_2*\ldots*R_n$, use them (along with other propositions
+above the line) to prove $P'_1 \wedge \ldots P'_n$,
+and then work on the separation-logic (spatial) conjuncts
+$R_1*\ldots*R_n \vdash R_1'*\ldots*R'_m$.
+
+An example local fact:
+\lstinline{data_at Ews (tarray tint $n$) $v$ $p$ |-- !! (Zlength $v$ = $n$)}.
+That is, the value $v$ in an array ``fits'' the length of the array.
+
+The Hint database \lstinline{saturate_local} contains all the
+local facts that can be extracted from \emph{individual} spatial conjuncts:
+\begin{lstlisting}
+field_at_local_facts:
+    field_at $\pi$ $t$ $\mathit{path}$ $v$ $p$ |-- !!(field_compatible $t$ $\mathit{path}$ $p$
+                           $\wedge$ value_fits (nested_field_type $t$ $\mathit{path}$) $v$)
+    data_at $\pi$ $t$ $v$ $p$ |-- !!(field_compatible $t$ nil $p$ $\wedge$ value_fits $t$ $v$)
+memory_block_local_facts:
+    memory_block $\pi$ $n$ $p$ |-- !! isptr $p$
+\end{lstlisting}
+The assertion \lstinline{(Zlength $v$ = $n$)} is actually a consequence
+of \lstinline{value_fits} when $t$ is an array type.
+See \autoref{refcard:value-fits}.
+
+If you create user-defined spatial terms (perhaps using
+\lstinline{EX, data_at,} etc.), you can add hints to
+the \lstinline{saturate_local} database as well.
+
+The tactic \lstinline{saturate_local} takes a proof goal of the
+form $R_1*R_2*\ldots*R_n \vdash S$ and adds
+saturate-local facts for \emph{each} of the $R_i$,
+though it avoids adding duplicate hypotheses above the line.
+
+\chapter{field\_compatible, field\_address}
+CompCert C light comes with an ``address calculus.''
+Consider this example:
+\begin{lstlisting}
+struct a {double x1; int x2;};
+struct b {int y1; struct a y2;};
+struct a *pa; int *q = &(pa->y2.x2);
+\end{lstlisting}
+Suppose the value of \lstinline{_pa} is $p$.
+Then the value of \lstinline{_q} is $p+\delta$;
+how can we reason about $\delta$?
+
+Given type $t$ such as \lstinline{Tstruct _b noattr},
+and $\mathit{path}$ such as \lstinline{(DOT _y2 DOT _x2)},
+then
+\lstinline{(nested_field_type $t$ $\mathit{path}$)} is the
+type of the field accessed by that path, in this case \lstinline{tint};
+\lstinline{(nested_field_offset $t$ $\mathit{path}$)} is the
+distance (in bytes) from the base of $t$ to the address of the field,
+in this case (on a 32-bit machine) 12 or 16, depending on the
+field-alignment conventions of the target-machine.
+
+On the Intel x86 architecture, where doubles need not be 8-byte-aligned,
+we have,
+\begin{lstlisting}
+data_at $\pi$ t_struct_b $(i,(f,j))$ $p$ |-- 
+    data_at $\pi$ tint $i$ $p$ * data_at $\pi$ t_struct_a $(f,j)$ (offset_val $p$ 12)
+\end{lstlisting}
+\emph{\textbf{but don't write it that way!}}  For one thing,
+the converse is not valid:
+\begin{lstlisting}
+data_at $\pi$ tint $i$ $p$ * data_at $\pi$ t_struct_a $(f,j)$ (offset_val $p$ 12)
+      $\not\vdash$  data_at $\pi$ t_struct_b $(i,(f,j))$ $p$ 
+\end{lstlisting}
+The reasons: we don't know that $p+12$ satisfies the alignment requirements
+for \lstinline{struct b}; we don't know whether $p+12$ crosses the end-of-memory boundary.
+That entailment \emph{would} be valid in the presence of this
+hypothesis:
+\lstinline{field_compatible t_struct_b nil $p$ : Prop.}\newline
+which says that an entire \lstinline{struct b} value \emph{can}
+fit at address $p$.  Note that this is a \emph{nonspatial} assertion,
+a pure proposition, independent of the \emph{contents} of memory.
+
+In order to assist with reasoning about reassembly of data structures,
+\lstinline{saturate_local} (and therefore \lstinline{entailer})
+put \lstinline{field_compatible} assertions above the line;
+see \autoref{refcard:saturate-local}.
+
+Sometimes one needs to name the address of an internal field---for example,
+to pass just that field to a function.  In that case, one \emph{could} use
+\lstinline{field_offset}, but it better to use \lstinline{field_address}:
+\begin{lstlisting}
+Definition field_address ($t$: type) ($\mathit{path}$: list gfield) ($p$: val) : val :=
+  if field_compatible_dec $t$ $\mathit{path}$ $p$   
+  then offset_val (Int.repr (nested_field_offset $t$ $\mathit{path}$)) $p$
+  else Vundef
+\end{lstlisting}
+That is, \lstinline{field_address} has ``baked in'' the fact that
+the offset is ``compatible'' with the base address
+(is properly aligned, has not crossed the end-of-memory boundary).
+And therefore:
+
+\begin{lstlisting}
+data_at $\pi$ tint $i$ $p$
+ * data_at $\pi$ t_struct_a $(f,j)$ (field_address t_struct_b (DOT _y2 DOT _x2) $p$)
+|-- $$ data_at $\pi$ t_struct_b $(i,(f,j))$ $p$ 
+\end{lstlisting}
+
+
+\chapter{value\_fits}
+\label{refcard:value-fits}
+The spatial maps-to assertion,
+\lstinline{data_at $\pi$ $t$ $v$ $p$},
+says that there's a value $v$ in memory at address $p$,
+filling the data structure whose C type is $t$ (with
+permission $\pi$).  A corollary is
+\lstinline{value_fits $t$ $v$}: $~~v$ is a value
+that actually \emph{can} reside in such a C data structure.
+
+Value\_fits is a recursive, dependently typed relation
+that is easier described by its induction relation;
+here, we present a simplified version that assumes that
+all types $t$ are not volatile:
+\begin{lstlisting}
+value_fits $t$ $v$ = tc_val' $t$ $v$  $~~~\mbox{\emph{(when \(t\) is an integer, float, or pointer type)}}$
+value_fits (tarray $t'$ $n$) $v$ = (Zlength $v$ = Z.max 0 $n$) /\ Forall (value_fits $t'$) $v$
+value_fits (Tstruct $i$ noattr) $(v_1,(v_2,(\ldots,v_n)))$ =
+   value_fits (field_type $f_1$ $v_1$) /\ $\ldots$ /\ value_fits (field_type $f_n$ $v_n$)
+   $\mbox{\emph{(when the fields of struct \(i\) are \(f_1,\ldots,f_n\))}}$
+\end{lstlisting}
+The predicate \lstinline{tc_val'} says,
+\begin{lstlisting}
+Definition tc_val' ($t$: type) ($v$: val) :=  $~~v\not=$Vundef -> $$ tc_val $t$ $v$.
+  
+Definition tc_val ($t$: type) ($v$: val) := 
+  match $t$ with
+  | Tvoid => False
+  | Tint sz sg _ $$ => is_int sz sg
+  | Tlong _ $$ _ $$ => is_long
+  | Tfloat F32 _ $$ => is_single
+  | Tfloat F64 _ $$ => is_float
+  | Tpointer _ $$ _ $$ | Tarray _ $$ _ $$ _ $$ | Tfunction _ $$ _ $$ _ $$ => is_pointer_or_null
+  | Tstruct _ $$ _ $$  | Tunion _ $$ _ $$ => isptr
+end
+\end{lstlisting}
+So, an atomic value (int, float, pointer) fits \emph{either} when
+it is \lstinline{Vundef} or when it type-checks.
+We permit \lstinline{Vundef}  to ``fit,'' in order to accommodate
+partially initialized data structures in C.
+
+\ychapter{Cancel}{(PLCC Ch.~\ref{ch:clight-auto})}
+
+Given an entailment 
+$(A_1*A_2)*((A_3*A_4)*A_5)\vdash 
+A'_4*(A'_5*A'_1)*(A'_3*A'_2)$
+for any associative-commutative rearrangement
+of the $A_i$, and where (for each $i$), $A_i$ is $\beta\eta$
+equivalent to $A_i'$,
+then the \lstinline{cancel} tactic will solve the goal.
+When we say $A_i$ is $\beta\eta$
+equivalence to $A_i'$, that is equivalent to saying
+that \lstinline{(change ($A_i$) with ($A'_i$))} would succeed.
+
+If the goal has the form
+$(A_1*A_2)*((A_3*A_4)*A_5)\vdash 
+(A'_4*B_1*A'_1)*B_2$
+where there is only a partial match,
+then \lstinline{cancel} will remove the matching
+conjuncts and leave a subgoal such as
+$A_2*A_3*A_5\vdash B_1*B_2$.
+
+If the goal is
+$(A_1*A_2)*((A_3*A_4)*A_5)\vdash 
+A'_4*\TT*A'_1$,
+where some terms cancel and the rest
+can be absorbed into $\TT$, then
+cancel will solve the goal.
+
+\sbox{\mybox}{\lstinline{?224}}
+
+If the goal has the form
+\[\inference{F := \usebox{\mybox} : \mathsf{list}(\mathsf{environ}\rightarrow\mathsf{mpred})\hspace{2in}}{
+(A_1*A_2)*((A_3*A_4)*A_5)\vdash 
+A'_4*(\mathsf{fold\_right}~\mathsf{sepcon}~\mathsf{emp}~F)*A'_1}
+\]
+where $F$ is a \emph{frame}
+that is an abbreviation for an uninstantiated
+logical variable of type
+\lstinline{list(environ->mpred)},
+then the \lstinline{cancel} tactic
+will perform \emph{frame inference}:
+it will unfold the definition $F$,
+instantiate the variable (in this case,
+to $A_2::A_3::A_5::\mathsf{nil}$), and solve the goal.
+The frame may have been created by
+\lstinline{evar(F: list(environ->mpred))},
+as part of forward symbolic execution through
+a function call. 
+
+\newthought{Warning:} \lstinline{cancel} can turn a provable entailment
+into an unprovable entailment.  Consider this:
+\[\inference{A*C \vdash B*C}{A*D*C \vdash  C*B*D}\]
+This goal is provable by first rearranging to
+$(A*C)*D \vdash (B*C)*D$. But \lstinline{cancel}
+may aggressively cancel \lstinline{C} and \lstinline{D},
+leaving $A \vdash B$, which is not provable.
+You might wonder, what kind of crazy hypothesis is $A*C \vdash B*C$;
+but indeed such ``context-dependent'' cancellations do occur
+in the theory of linked lists; see 
+\autoref{refcard:lseg} and
+PLCC \autoref{ch:lseg}.
+
 
 \chapter{entailer!}
 \label{refcard:entailer}
@@ -3373,58 +3583,6 @@ the entailment may have been solved entirely.
 Or there may be some remaining $P'_i$ and/or $Q'_i$ proof goals
 on the right hand side.
 
-
-\ychapter{Cancel}{(PLCC Ch.~\ref{ch:clight-auto})}
-
-Given an entailment 
-$(A_1*A_2)*((A_3*A_4)*A_5)\vdash 
-A'_4*(A'_5*A'_1)*(A'_3*A'_2)$
-for any associative-commutative rearrangement
-of the $A_i$, and where (for each $i$), $A_i$ is $\beta\eta$
-equivalent to $A_i'$,
-then the \lstinline{cancel} tactic will solve the goal.
-
-When we say $A_i$ is $\beta\eta$
-equivalence to $A_i'$, that is equivalent to saying
-that \lstinline{(change ($A_i$) with ($A'_i$))} would succeed.
-
-If the goal has the form
-$(A_1*A_2)*((A_3*A_4)*A_5)\vdash 
-(A'_4*B_1*A'_1)*B_2$
-where there is only a partial match,
-then \lstinline{cancel} will remove the matching
-conjuncts and leave a subgoal such as
-$A_2*A_3*A_5\vdash B_1*B_2$.
-
-If the goal is
-$(A_1*A_2)*((A_3*A_4)*A_5)\vdash 
-A'_4*\TT*A'_1$,
-where some terms cancel and the rest
-can be absorbed into $\TT$, then
-cancel will solve the goal.
-
-\sbox{\mybox}{\lstinline{?224}}
-
-If the goal has the form
-\[\inference{F := \usebox{\mybox} : \mathsf{list}(\mathsf{environ}\rightarrow\mathsf{mpred})\hspace{2in}}{
-(A_1*A_2)*((A_3*A_4)*A_5)\vdash 
-A'_4*(\mathsf{fold\_right}~\mathsf{sepcon}~\mathsf{emp}~F)*A'_1}
-\]
-where $F$ is a \emph{frame}
-that is an abbreviation for an uninstantiated
-logical variable of type
-\lstinline{list(environ->mpred)},
-then the \lstinline{cancel} tactic
-will perform \emph{frame inference}:
-it will unfold the definition $F$,
-instantiate the variable (in this case,
-to $A_2::A_3::A_5::nil$), and solve the goal.
-
-The frame may have been created by
-\lstinline{evar(F: list(environ->mpred))}.
-This is typically done automatically,
-as part of forward symbolic execution through
-a function call. 
 
 
 \ychapter{The Hoare triple}{(See PLCC \autoref{ch:clight-logic})}
