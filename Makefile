@@ -48,7 +48,7 @@ endif
 
 
 #COQFLAGS= $(foreach d, $(DIRS), -R $(d) -as VST.$(d)) -R $(COMPCERT) -as compcert
-COQFLAGS= $(foreach d, $(DIRS), -R $(d) -as $(d)) -R $(COMPCERT) -as compcert 
+COQFLAGS= $(foreach d, $(DIRS), $(if $(wildcard $(d)), -I $(d) -as $(d))) -R $(COMPCERT) -as compcert 
 DEPFLAGS= $(INCLUDE)
 COQC=coqc
 COQTOP=coqtop
