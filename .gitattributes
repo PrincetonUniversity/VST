@@ -3,6 +3,7 @@
 
 make_version text eol=lf
 PACKAGE text eol=lf
+VERSION text eol=lf
 
 # Explicitly declare text files you want to always be normalized and converted
 # to native line endings on checkout.
