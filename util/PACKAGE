@@ -6,21 +6,22 @@
 #   sh  .../vst/util/PACKAGE
 # the result will be in vst.tgz
 
-
+set -e
 mkdir vst
 mkdir vst/doc
 git clone https://github.com/PrincetonUniversity/VST.git vst-temp
+echo DONE
 cd vst-temp
+sh util/make_version
 rm -r sepcomp/submit*
 mv _CoqProject BUILD_ORGANIZATION HISTORY LICENSE Makefile pg README.md VERSION ../vst
 mv compcert msl sepcomp veric floyd progs examples util sha ../vst
 mv doc/VC.pdf ../vst/doc
 cd ..
 rm -rf vst-temp
-(cd vst; sh util/make_version)
 echo "COMPRESSING: tar cfz vst"-`cat vst/VERSION`".tgz vst"
 tar cfz vst-`cat vst/VERSION`.tgz vst
-rm -rf vst
+# rm -rf vst
 
 
 
