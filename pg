@@ -28,10 +28,9 @@ pad () {
 COQPROGNAME="coqtop"
 COQPROGARGS=`for w in $LOADPATH; do pad $w; done`
 
-if [ $1 ]
-then cd $1
-fi
+# if [ $1 ]
+# then cd $1
+# fi
 
 emacs --eval "(setq coq-prog-name \"$COQPROGNAME\")" \
- --eval "(setq coq-prog-args '($COQPROGARGS))" $1 
-
+ --eval "(setq coq-prog-args '($COQPROGARGS))" $@ &
