@@ -1231,15 +1231,14 @@ Tactic Notation "forward_while" constr(Inv) :=
       [match goal with |- semax ?Delta ?Pre (Swhile ?e _) _ =>
         (* the following line was before: eapply semax_while_3g1; *)
         match goal with [ |- semax _ (@exp _ _ ?A _) _ _ ] => eapply (@semax_while_3g1 _ _ A) end;
-        (* check if we can revert back to the old one with coq 8.5. 
+        (* check if we can revert back to the old one with coq 8.5.
            The bug happens when we destruct the existential variable of the loop invariant:
            
-             (* .c program: *)
+             (* example.c program: *)
              int main(){int i=0; while(i);}
              
-             (* .v file *)
+             (* verif_example.v file (+you have to Require Import the example.v file produced by clightgen) *)
              Require Import floyd.proofauto.
-             Require Import c.
              Instance CompSpecs : compspecs. Proof. make_compspecs prog. Defined.
              Local Open Scope logic.
              
