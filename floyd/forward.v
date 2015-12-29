@@ -1231,7 +1231,8 @@ Tactic Notation "forward_while" constr(Inv) :=
       [match goal with |- semax ?Delta ?Pre (Swhile ?e _) _ =>
         (* the following line was before: eapply semax_while_3g1; *)
         match goal with [ |- semax _ (@exp _ _ ?A _) _ _ ] => eapply (@semax_while_3g1 _ _ A) end;
-        (* check if we can revert back to the old one with coq 8.5.
+        (* check if we can revert back to the previous version with coq 8.5.
+           (as of December 2015 with compcert 2.6 the above fix is still necessary)
            The bug happens when we destruct the existential variable of the loop invariant:
            
              (* example.c program: *)
@@ -1249,7 +1250,7 @@ Tactic Notation "forward_while" constr(Inv) :=
              start_function.
              forward.
              pose (Inv := (EX b : bool, PROP () LOCAL (temp _i (Vint (Int.repr (if b then 1 else 0)))) SEP ())).
-             forward_while Inv VAR. (** FAILS WITH THE FORMER VERSION OF forward_while **)
+             forward_while Inv. (** FAILS WITH THE FORMER VERSION OF forward_while **)
          *)
         simpl typeof;
        [ reflexivity
