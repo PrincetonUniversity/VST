@@ -10,9 +10,8 @@ set -e
 mkdir vst
 mkdir vst/doc
 git clone https://github.com/PrincetonUniversity/VST.git vst-temp
-echo DONE
 cd vst-temp
-sh util/make_version
+bash util/make_version
 rm -r sepcomp/submit*
 mv _CoqProject BUILD_ORGANIZATION HISTORY LICENSE Makefile pg README.md VERSION ../vst
 mv compcert msl sepcomp veric floyd progs examples util sha ../vst
