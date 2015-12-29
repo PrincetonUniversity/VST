@@ -23,5 +23,17 @@ Definition Gprog : funspecs := nil.
 Lemma body_f: semax_body Vprog Gprog f_f f_spec.
 Proof.
 start_function.
-forward.
+(* AT THIS POINT, "forward" will entirely solve the goal.  
+  The method shown here is
+  only to illustrate some of the steps that "forward" takes.
+*)
+eapply semax_pre; [ | apply semax_return].
+apply andp_right.
+go_lower.
+entailer!.
+subst POSTCONDITION; unfold abbreviate.
+entailer_for_return.
 Qed.
+
+(*TO DO:  Put some more examples in the .c file! *)
+
