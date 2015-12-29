@@ -141,6 +141,7 @@ entailer!.
 focus_SEP 1; apply semax_lseg_nonnull; [ | intros h' r y ? ?].
 entailer!.
 destruct cts2; inversion H0; clear H0; subst_any.
+simpl. (* this line not necessary, but makes things look nicer *)
 assert_PROP (field_compatible t_struct_list nil t) as FC by entailer!.
 rewrite list_cell_eq by auto.
 forward.  (* h = t->head; *)
@@ -177,7 +178,7 @@ forward.  (* w = NULL; *)
 forward.  (* v = p; *)
 forward_while (reverse_Inv sh contents).
 * (* precondition implies loop invariant *)
-Exists (@nil val) contents (Vint (Int.repr 0)) p.
+Exists (@nil val) contents nullval p.
 rewrite lseg_eq by (simpl; auto).
 entailer!.
 * (* loop invariant implies typechecking of loop condition *)
