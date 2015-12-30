@@ -13,10 +13,11 @@ git clone https://github.com/PrincetonUniversity/VST.git vst-temp
 cd vst-temp
 bash util/make_version
 rm -r sepcomp/submit*
-mv _CoqProject BUILD_ORGANIZATION HISTORY LICENSE Makefile pg README.md VERSION ../vst
+mv _CoqProject BUILD_ORGANIZATION HISTORY LICENSE Makefile pg README.md VERSION version.v ../vst
 mv compcert msl sepcomp veric floyd progs examples util sha ../vst
 mv doc/VC.pdf ../vst/doc
 cd ..
+touch vst/version.v # make it newest so "make" won't rebuild it
 rm -rf vst-temp
 echo "COMPRESSING: tar cfz vst"-`cat vst/VERSION`".tgz vst"
 tar cfz vst-`cat vst/VERSION`.tgz vst
