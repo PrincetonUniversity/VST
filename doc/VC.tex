@@ -36,7 +36,7 @@ Applying the Verified Software Toolchain\\
 to C programs}%
 
 \vskip50pt
-  \fontsize{14}{16}\selectfont\par\noindent{\itshape Version 1.5+ \\ \today}
+  \fontsize{14}{16}\selectfont\par\noindent{\itshape Version 1.6 \\ \today}
 \vskip100pt
 \par
 \vskip10pt
@@ -44,7 +44,7 @@ to C programs}%
 {\itshape Andrew W. Appel}}\par
 \vskip10pt
 {\fontsize{16}{19}\selectfont\par\noindent%\textcolor{darkgray}
-{\centering \itshape with Josiah Dodds and Qinxiang Cao\\}}
+{\centering \itshape with Lennart Beringer, Qinxiang Cao, Josiah Dodds \\}}
 }
 
 ~\vfill
@@ -193,6 +193,31 @@ the right arguments.  You can then do (for example),
 \textsc{using proof general and coqide}
 \emph{in the file} \textsc{build\_organization}
 \emph{for more information.}
+
+\ychapter{Verifiable C programming}{See PLCC Chapter \ref{ch:compcert-intro}}
+\label{refcard:verifiable-c}
+Verifiable C is a \emph{language} (subset of C)
+and a \emph{program logic} (higher-order impredicative concurrent separation logic).
+
+In writing Verifiable C programs you must:
+
+\begin{itemize}
+  \item Make each memory dereference into a top level expression (PLCC
+  \autopageref{verifiable-c})
+  \item Avoid casting between integers and pointers.
+  \item Avoid \lstinline{goto} and \lstinline{switch} statements.
+  \item[*] Avoid nesting function calls and assignments inside subexpressions.
+  \item[*] Factor \lstinline{&&} and \lstinline{||} operators
+      into \lstinline{if} statements (to capture
+  short circuiting behavior).
+\end{itemize}
+The items marked * are accomplished automatically by
+CompCert's \lstinline{clightgen} tool.  That is, if you have
+function calls or assignments inside expressions, \lstinline{clightgen}
+will factor the your program adding extra assignments to
+temporary variables.
+
+There's a special treatment of malloc/free; see \autoref{refcard:malloc}.
 
 \chapter{Clightgen and ASTs}
 
@@ -349,7 +374,7 @@ with some standard boilerplate:\label{refcard:boilerplate}
 Require Import floyd.proofauto.
 Require Import progs.sumarray.
 Instance CompSpecs : compspecs. make_compspecs prog. Defined.
-Definition Vprog : varspecs.  mk_varspecs prog. Defined.
+Definition Vprog : varspecs.  mk_varspecs prog. Defined.$\label{Vprog-page}$
 \end{lstlisting}
 The first line imports Verifiable C and its \emph{Floyd} proof-automation library.  The second line imports the AST of the program to be proved.  Lines 3 and 4 are identical in any verification:
 see \autoref{refcard:compspecs} and \autoref{refcard:global-vars}.
@@ -670,7 +695,91 @@ Another \lstinline{forward} goes through
 with a \lstinline{LOCAL} binding for the \lstinline{_s}
 variable.
 
+\newthought{\textbf{Forward} works on several kinds of C commands.}
+ In each of the following cases, the expression $E$ must not contain side effects or function calls.  The variable $x$ must be a nonaddressable local variable.
+\begin{description}
+\item[\textsf{$c_1$; $c_2$}] Sequencing of two commands. 
+The \lstinline{forward} tactic will work on $c_1$ first.
+
+\item[\textsf{($c_1$; $c_2$) $c_3$}] In this case,
+\lstinline{forward} will re-associate the commands
+using the \lstinline{seq_assoc} axiom, and work on
+\lstinline{$c_1$; ($c_2$; $c_3$)}.
+
+\item[\textsf{$x$=$E$;}]  Assignment statement.
+Expression $E$ must not contain memory dereferences (loads or stores
+using \lstinline{*}prefix, suffix\lstinline{[]}, 
+or \lstinline{-$$>} operators). 
+No restrictions on the form of the precondition (except that it must be in canonical form).  The expression \lstinline{&p->next} does not actually
+load or store (it just computes an address) and is permitted.
+
+\item[\textsf{$x$= *$E$;}] Memory load.
+\item[\textsf{$x$= a[$E$];}]  Array load. 
+\item[\textsf{$x$= $E\rtarrow \mathit{fld}$;}] Field load.
+\item[\textsf{$x$= $E\rtarrow f_1.f_2$;}] Nested field load.
+\item[\textsf{$x$= $E\rtarrow f_1[i].f_2$;}] Fields and subscripts \ldots
+  When the right-hand side is equivalent to a single memory-load
+  via some access \emph{path} (struct-fields and array-subscripts)
+  from pointer value $p$,
+the \SEP{} component of the precondition must contain
+an appropriately typed item of the form
+\lstinline{data_at $\pi$ $t$ $v$ $p$}
+such that the \emph{path} from $p$ in an object of type $t$
+leads to a field (or array slot) that can be loaded into \lstinline{_x}.
+Or, \lstinline{field_at $\pi$ $t$ $\mathit{path}'$ $v$ $p'$},
+such that where $\mathit{path}'$ is a suffix of $\mathit{path}$,
+and $p'$ is the address reached by starting at $p$ and following the prefix.
+Share $\pi$ must be a \lstinline{readable_share}.
+
+\item[\textsf{$E_1$ = $E_2$;}]  Memory store.
+  Expression $E_2$ must not dereference memory.
+  Expression $E_1$ must be equivalent to a single memory store
+  via some access \emph{path} (as described above for loads),
+  and there must be an appropriate storable \lstinline{data_at} or
+  \lstinline{field_at}. Or $E_1$ may be an addressable local variable.
+  Share $\pi$ must be a \lstinline{writable_share}.
+
+\item[\textsf{if ($E$) $C_1$ else $C_2$}]
+For an if-statement, use \lstinline{forward_if} and provide a postcondition.
+
+\item[\textsf{while} ($E$) $C$]
+For a while-loop, use the \lstinline{forward_while} tactic 
+(\autopageref{refcard:forward-while}) and provide a loop invariant.
+
+\item[\textsf{break};]
+The \lstinline{forward} tactic works.
+\item[\textsf{continue};]
+The \lstinline{forward} tactic works.
+
+\item[\textsf{return} $E$;]
+Expression $E$ must not dereference memory, and
+the presence/absence of $E$ must
+match the nonvoid/void return type of the function.
+The proof goal left by \lstinline{forward} is to
+show that the precondition (with appropriate substitution
+for the abstract variable \lstinline{ret_var}) entails
+the function's postcondition.
+
+\item[\textsf{$x$ = $f$($a_1, \ldots, a_n$);}]
+\label{forward-call}
+For a function call, use \lstinline|forward_call($W$)|,
+where $W$ is a witness, a tuple corresponding (componentwise)
+to the \textsc{with} clause of the function specification.
+(If you do just \lstinline|forward|, you'll get a message with
+advice about the \emph{type} of $W$.)
+
+This results a proof goal to show that
+the precondition implies the function precondition 
+and includes an uninstantiated variable:
+The \lstinline|Frame|
+represents the part of the spacial precondition that is unchanged by the function call.
+It will generally be instantiated by a call to \lstinline|cancel|.
+\end{description}
+
+
+
 \chapter{While loops}
+\label{refcard:forward-while}
 To prove a \emph{while} loop by forward symbolic execution,
 you use the tactic \lstinline{forward_while}, and you
 must supply a loop invariant.  Take the example
@@ -1085,7 +1194,7 @@ Definition main_spec :=
 \end{lstlisting}
 \lstinline{main_pre} calculates the precondition
 automatically from (the list of extern global variables
-and initializers of) the program.
+and initializers of) the program.\label{main-pre-page}
 Then, when we prove that \lstinline{main} satisfies its
 funspec,
 \begin{lstlisting}
@@ -1132,7 +1241,7 @@ so the type of the witness will be
 \lstinline{(val*(share*(list Z * list Z)))}.
 To choose the witness, examine your actual parameter values
 (along with the precondition of the funspec) to see
-what witness would be consistent; here, we use
+what witness would be consistent; here, we use\label{forward-call1}
 \lstinline{(four,Ews,four_contents,4)}.
 \begin{lstlisting}
 forward_call (four,Ews,four_contents,4).
@@ -1343,13 +1452,17 @@ This entailment proves straightforwardly by
 {(\file{compcert/lib/Integers.v})}
 \label{refcard:integers}
 Coq's standard library has the natural numbers \lstinline{nat}
-and the integers \lstinline{Z}.  C-language integer values
+and the integers \lstinline{Z}.
+
+C-language integer values
 are represented by the type \lstinline{Int.int} (or just
 \lstinline{int} for short), which are 32-bit two's complement
 signed or unsigned integers with mod-$2^{32}$ arithmetic.
+\autoref{refcard:32bit} describes the operations on
+the \lstinline{int} type.
 
 For most purposes, specifications and proofs of C programs
-should use \lstinline{Z} instead of
+should use \lstinline{Z} instead of \lstinline{int} or 
 \lstinline{nat}.  Subtraction doesn't work well on
 naturals, and that screws up many other kinds of arithmetic
 reasoning.  \emph{Only when you are doing direct
@@ -2085,6 +2198,7 @@ TC2: Byte.min_signed <= Int.signed c <= Byte.max_signed
 \end{lstlisting}
 
 \ychapter{Cancel}{(PLCC Ch.~\ref{ch:clight-auto})}
+\label{refcard:cancel}
 
 The \lstinline{cancel} tactic proves
 associative-commutative rearrangement goals such as 
@@ -2139,7 +2253,7 @@ in the theory of linked lists; see
 \autoref{refcard:lseg} and
 PLCC \autoref{ch:lseg}.
 
-\newthought{Cancel does \emph{not} use} $\beta\eta$ equality,
+\newthought{Cancel does \emph{not} use} $\beta\eta$ equality,\label{cancel-beta}
 as this can sometimes be very slow.  That means sometimes
 cancel leaves a residual subgoal $A\vdash A'$ where $A=_\beta A'$,
 sometimes the only differences are in (invisible) implicit arguments.
@@ -2176,6 +2290,188 @@ If the r.h.s. or its first conjunct is a ``valid\_pointer'' goal (or one of its 
 At this point, \lstinline{entailer} tries \lstinline{normalize} and (if progress) back to \textsc{Next;} \lstinline{entailer!} applies \lstinline{cancel} to the spatial terms and \lstinline{prove_it_now} to each propositional conjunct.
 
 The result is that either the goal is entirely solved, or a residual entailment or proposition is left for the user to prove.
+
+\chapter{Normalize}
+\label{refcard:normalize}
+The \lstinline{normalize} tactic performs
+\lstinline{autorewrite with norm} and several other transformations.
+\textbf{Normalize can be slow:}
+Many of these simplifications
+can be done more efficiently and systematically by
+\lstinline{entailer} or \lstinline{Intros}.
+
+The \lstinline{norm} rewrite-hint database uses several sets of rules.
+
+\textbf{Generic separation-logic simplifications.}
+\begin{mathpar}
+P*\mathsf{emp}=P \and 
+\mathsf{emp}*P=P \and 
+P \andp  \TT = P \and
+\TT \andp  P = P \and
+P \andp  \FF = \FF \and
+\FF \andp  P = \FF \and
+P *  \FF = \FF \and
+\FF *  P = \FF \and
+P \andp P = P \and
+(\mathsf{\EX} \_:\_,\ P)=P \and 
+\mathsf{local}~`\mathsf{True}=\TT 
+\end{mathpar}
+\textbf{Pull \EX and !! out of *-conjunctions.}
+\begin{mathpar}
+(\EX x:A,\ P)*Q = \EX x:A,\ P*Q\and
+(\EX x:A,\ P)\andp Q = \EX x:A,\ P\andp Q\and
+P*(\EX x:A,\ Q) = \EX x:A,\ P*Q\and
+P\andp (\EX x:A,\ Q) = \EX x:A,\ P\andp Q\and
+P*(!!Q\andp R)=!!Q\andp (P*R) \and 
+(!!Q\andp P)*R=!!Q\andp (P*R)
+\end{mathpar}
+\textbf{Delete auto-provable propositions.}
+\begin{mathpar}
+P \rightarrow (!!P \andp Q = Q) \and
+P \rightarrow (!!P = \TT)
+\end{mathpar}
+
+\textbf{Integer arithmetic.}
+\begin{mathpar}
+  n+0=n\and 0+n=n \and n*1=n \and 1*n=n \and
+  \mathsf{sizeof~tuchar}=1 \and
+  \mathsf{align}~n~1=n\and
+  (z>0)\rightarrow   (\mathsf{align}~0~z=0)\and
+  (z\ge 0)\rightarrow   (\mathsf{Z.max}~0~z=z)\and
+
+\end{mathpar}
+\textbf{Int32 arithmetic.}
+\begin{mathpar}
+\mathsf{Int.sub}~x~x~=~\mathsf{Int.zero} \and
+\mathsf{Int.sub}~x~\mathsf{Int.zero}~=~x \and
+\mathsf{Int.add}~x~(\mathsf{Int.neg}\,x)~=~\mathsf{Int.zero} \and
+\mathsf{Int.add}~x~\mathsf{Int.zero}~=~x \and
+\mathsf{Int.add}~\mathsf{Int.zero}~x~=~x \and
+x\not=y \rightarrow 
+\mathsf{offset\_val}(\mathsf{offset\_val}~v~i)~j=
+\mathsf{offset\_val}~v~(\mathsf{Int.add}~i~j)\and
+\mathsf{Int.add}(\mathsf{Int.repr}~i)(\mathsf{Int.repr}~j) =
+                            \mathsf{Int.repr}(i + j)\and
+\mathsf{Int.add}(\mathsf{Int.add}~z~(\mathsf{Int.repr}~i))~(\mathsf{Int.repr}~j)~=
+ \mathsf{Int.add}~z~ (\mathsf{Int.repr} (i + j)) \and
+z>0\rightarrow(\mathsf{align}~0~z~=~0) \and
+\mathsf{force\_int}(\mathsf{Vint}~i)=i \and
+(\mathsf{min\_signed}\le z \le \mathsf{max\_signed})\rightarrow
+\mathsf{Int.signed}(\mathsf{Int.repr}~z)=z \and
+(0\le z \le \mathsf{max\_unsigned})\rightarrow
+\mathsf{Int.unsigned}(\mathsf{Int.repr}~z)=z \and
+(\mathsf{Int.unsigned}~i < 2^n)\rightarrow \mathsf{Int.zero\_ext}~n~i=i \and
+(-2^{n-1}\le \mathsf{Int.signed}~i < 2^{n-1})\rightarrow \mathsf{Int.sign\_ext}~n~i=i 
+\end{mathpar}
+\textbf{map, fst, snd, \ldots}
+\begin{mathpar}
+  \mathsf{map}~f~(x::y) = f\, x :: \mathsf{map}~f~y \and
+  \mathsf{map~nil}=\mathsf{nil} \and
+  \mathsf{fst}(x,y)=x \and   \mathsf{snd}(x,y)=y  \and
+  (\mathsf{isptr}~v)\rightarrow \mathsf{force\_ptr}~v=v \and
+  \mathsf{isptr}~(\mathsf{force\_ptr}~v)=  \mathsf{isptr}~v \and
+  (\mathsf{is\_pointer\_or\_null}~v)\rightarrow \mathsf{ptr\_eq}~v~v~=~\mathrm{True}
+\end{mathpar}
+\textbf{Unlifting.}
+\begin{mathpar}
+`f~\rho~= f~\mbox{\small [when f has arity 0]}\and
+`f~a_1~\rho~= f~(a_1~\rho)~\mbox{\small [when f has arity 1]}\and
+`f~a_1~a_2~\rho~= f~(a_1~\rho)~(a_2~\rho)~\mbox{\small [when f has arity 2, etc.]}\and
+(P*Q)\rho = P\rho*Q\rho \and
+(P\andp Q)\rho = P\rho\andp Q\rho \and
+(!!P)\rho = !!P \and
+!!(P\wedge Q) = !!P \andp !!Q \and
+(\mathsf{EX}\,x:A,\,P\,x)\,\rho~=~\mathsf{EX}\,x:A,\,~P\,x\,\rho \and
+`(\mathsf{EX}~x:B,~P x)= \mathsf{EX}~x:B,~`(P x)) \and
+`(P*Q)=~`P\,*\,`Q \and
+`(P\andp Q)=~`P\,\andp\,`Q 
+\end{mathpar}
+
+\textbf{Type checking and miscellaneous.}
+\begin{mathpar}
+\mathsf{tc\_andp}~\mathsf{tc\_TT}~e~=~e \and
+\mathsf{tc\_andp}~e~\mathsf{tc\_TT}~=~e \and
+\mathsf{eval\_id}~x~(\mathsf{env\_set}~\rho~x~v) = v \and
+x\not=y \rightarrow 
+(\mathsf{eval\_id}~x~(\mathsf{env\_set}~\rho~y~v) = \mathsf{eval\_id}~x~v) \and
+\mathsf{isptr}~v~ \rightarrow~(\mathsf{eval\_cast\_neutral}~v~ =~ v) \and
+(\exists t.\,\mathsf{tc\_val}\,t\,v\,\wedge\,
+\mathsf{is\_pointer\_type}\,t)~ \rightarrow~(\mathsf{eval\_cast\_neutral}~v~ =~ v) \and
+\end{mathpar}
+
+
+\textbf{Expression evaluation.   (\lstinline{autorewrite with eval}, but in fact these are usually handled just by simpl or unfold.)}
+\begin{mathpar}
+\mathsf{deref\_noload}(\mathsf{tarray}~t~n)=(\mathsf{fun}~v\Rightarrow v)\and
+\mathsf{eval\_expr}(\mathsf{Etempvar}~i~t)=\mathsf{eval\_id~i}\and
+\mathsf{eval\_expr}(\mathsf{Econst\_int~i~t})= `(\mathsf{Vint}~i) 
+\\
+\mathsf{eval\_expr}(\mathsf{Ebinop}~\mathit{op}~a~b~t)=
+`(\mathsf{eval\_binop}~\mathit{op}~(\mathsf{typeof}\,a)~
+(\mathsf{typeof}\,b))~
+(\mathsf{eval\_expr}~a)~(\mathsf{eval\_expr}~b) \and
+\mathsf{eval\_expr}(\mathsf{Eunop}~\mathit{op}~a~t)=
+`(\mathsf{eval\_unop}~\mathit{op}~(\mathsf{typeof}\,a))~
+(\mathsf{eval\_expr}~a) \and
+\mathsf{eval\_expr}(\mathsf{Ecast}~e~t)=
+`(\mathsf{eval\_cast}(\mathsf{typeof}~e)~t)~(\mathsf{eval\_expr}~e) \and
+\mathsf{eval\_lvalue}(\mathsf{Ederef}~e~t)=
+`\mathsf{force\_ptr}~(\mathsf{eval\_expr}~e)
+\end{mathpar}
+
+\textbf{Function return values.}
+\begin{mathpar}
+\mathsf{get\_result}(\mathsf{Some}~x)=\mathsf{get\_result1}(x)\and
+\mathsf{retval}(\mathsf{get\_result1}~i~\rho)=\mathsf{eval\_id}~i~\rho \and
+\mathsf{retval}(\mathsf{env\_set}~\rho~\mathsf{ret\_temp}~v)~=~v \and
+\mathsf{retval}(\mathsf{make\_args}(\mathsf{ret\_temp}::\mathsf{nil})~(v::\mathsf{nil})~\rho)~=~v \and
+\mathsf{ret\_type}(\mathsf{initialized}~i~\Delta) = 
+\mathsf{ret\_type}(\Delta) 
+\end{mathpar}
+
+\textbf{Postconditions.} (\lstinline{autorewrite with ret_assert.})
+\begin{mathpar}
+\mathsf{normal\_ret\_assert}~\FF~\mathsf{ek}~\mathsf{vl}~=~\FF \and
+\mathsf{frame\_ret\_assert}
+(\mathsf{normal\_ret\_assert}~P)~Q = 
+\mathsf{normal\_ret\_assert}~(P*Q) \and
+\mathsf{frame\_ret\_assert}~P~\mathsf{emp}~=~P\and
+\mathsf{frame\_ret\_assert}~P~Q~\mathsf{EK\_return}~\mathit{vl}~=~
+P~\mathsf{EK\_return}~\mathit{vl}~*~Q\and
+\mathsf{frame\_ret\_assert}
+(\mathsf{loop1\_ret\_assert}~P~Q)~R = 
+\mathsf{loop1\_ret\_assert}~(P*R) (\mathsf{frame\_ret\_assert}~Q~R) \and
+\mathsf{frame\_ret\_assert}
+(\mathsf{loop2\_ret\_assert}~P~Q)~R = 
+\mathsf{loop2\_ret\_assert}~(P*R) (\mathsf{frame\_ret\_assert}~Q~R) \and
+\mathsf{overridePost}~P~(\mathsf{normal\_ret\_assert}~Q) = 
+\mathsf{normal\_ret\_assert}~P \and
+\mathsf{normal\_ret\_assert}~P~\mathit{ek}~\mathit{vl}~=
+(!!(\mathit{ek}=\mathsf{EK\_normal})\andp
+ (!!(\mathit{vl}=\mathsf{None})\andp P)) \and
+\mathsf{loop1\_ret\_assert}~P~Q~\mathsf{EK\_normal}~\mathsf{None}~=~P\and
+\mathsf{overridePost}~P~R~\mathsf{EK\_normal}~\mathsf{None}=P \and
+\mathsf{overridePost}~P~R~\mathsf{EK\_return}~=~R~\mathsf{EK\_return} 
+\end{mathpar}
+
+\newthought{In addition to rewriting},
+\lstinline{normalize} applies the following lemmas:
+\begin{mathpar}
+P \vdash \TT \and
+\FF \vdash P \and
+P \vdash P*\TT  \and
+(\forall x.~(P\vdash Q)) \rightarrow (EX x:A,~P \vdash Q) \and
+(P \rightarrow (\TT \vdash Q)) \rightarrow (!!P \vdash Q) \and
+(P \rightarrow (Q\vdash R)) \rightarrow (!!P \andp Q \vdash R)
+\end{mathpar}
+and does some rewriting and substitution
+when $P$ is an equality in the goal,
+$(P \rightarrow (Q\vdash R))$.
+
+Given the goal $x \rightarrow P$, where $x$ is not
+a \lstinline{Prop}, \lstinline{normalize} avoids
+doing an \lstinline{intro}.  This allows the user
+to choose an appropriate name for $x$.
 
 \ychapter{Welltypedness of variables}{}
 \label{refcard:tcval2}
@@ -2535,7 +2831,7 @@ assertion for $v$ is,
 \lstinline{lseg LS $\mathit{sh}$ $\mathit{cts}_2$ $v$ nullval}.
 A list-segment isn't necessarily loadable, i.e.,
 we cannot necessarily fetch \lstinline{v->tail};
-what we need to unfold the lseg, using this lemma:
+what we need to unfold the lseg, using this lemma:\label{unfold-the-lseg}
 \begin{lstlisting}
 Lemma lseg_nonnull: forall (LS : listspec _list _tail) ($\pi$ : share) ($l$ : list _) $v$,
      typed_true (tptr t_struct_list) $v$ ->
@@ -2650,448 +2946,262 @@ then put \emph{above the line}; really this is a use of the
 rule of consequence.  It's an easy way
 to get this \lstinline{field_compatible} fact above the line.
 
-\ychapter{Axioms of separation logic}{(see PLCC \autoref{ch:logic})}
-These axioms of separation logic are often useful,
-although generally it is the automation tactics
-(\textsf{entailer,cancel}) that apply them.
+\chapter{Global variables}
+\label{refcard:global-vars}
 
+In the C language, ``extern'' global variables
+live in the same namespace as local variables, but they
+are shadowed by any same-name local definition.
+In the C light operational semantics, global variables
+live in the same namespace as \emph{addressable} local variables
+(both referenced by the expression-abstract-syntax
+constructor \lstinline{Evar}),
+but in a different namespace from \emph{nonaddressable} locals
+(expression-abstract-syntax
+constructor \lstinline{Etempvar}).\footnote{This difference in namespace
+treatment cannot matter in a program translated by CompCert clightgen from C,
+because no as-translated expression will exercise the difference.}
+
+In the program-AST produced by clightgen, globals (and their initializers)
+are listed as \lstinline{Gvar}s in the \lstinline{prog_defs}.
+These are accessed (automatically) in two ways by the Verifiable C
+program logic.  First, their names and types are gathered into
+\lstinline{Vprog} as shown on \autopageref{Vprog-page}
+(try the Coq command \lstinline{Print Vprog} to see this list).
+Second, their initializers are translated into
+\lstinline{data_at} conjuncts of separation logic
+as part of the \lstinline{main_pre} definition
+(see \autopageref{main-pre-page}).
+
+When proving \lstinline{semax_body} for the main
+function, the \lstinline{start_function} tactic takes these definitions
+from \lstinline{main_pre} and puts them in the precondition
+of the function body.  In VST version 1.6,
+in some cases this is done using the more-primitive \lstinline{mapsto}
+operator\footnote{For example, examine the proof state in
+  \file{progs/verif\_reverse.v} immediately after \textsf{start\_function} in \textsf{Lemma body\_main}; and see the conversion to
+\textsf{data\_at} done by the \textsf{setup\_globals} lemma in that file.},
+in other cases it uses the higher-level (and more standard)
+\lstinline{data_at}\footnote{For example,
+   examine the proof state in
+  \file{progs/verif\_sumarray.v} immediately after \textsf{start\_function} in \textsf{Lemma body\_main}.}.  
+
+\ychapter{For loops}{}
+\label{refcard:for}
+The C-language \textsf{for} loop has the general form,
 \begin{lstlisting}
-pred_ext:    P|--Q $~$->$~$ Q|--P $~$->$~$ P=Q.
-derives_refl:  P |-- P.
-derives_trans: P |-- Q $~$->$~$ Q |-- R $~$->$~$ P|--R.
-andp_right:  X|--P $~$->$~$ X|--Q $~$->$~$  X|--(P&&Q).
-andp_left1:  P|--R $~$->$~$ P&&Q |-- R.
-andp_left2:  Q|--R $~$->$~$ P&&Q |-- R.
-orp_left:    P|--R $~$->$~$ Q|--R $~$->$~$ $~$ P||Q |--R.
-orp_right1:  P|--Q $~$->$~$ P|-- Q||R.
-orp_right2: P|--R $~$->$~$ P|-- Q||R.
-exp_right: forall {B: Type}(x:B)(P:mpred)(Q: B -> mpred),
-               P|--Q x $~$->$~$ P|-- EX x:B, Q.
-exp_left: forall{B: Type}(P:B -> mpred)(Q:mpred), 
-               (forall x, P x |-- Q) $~$->$~$ EX x:B,P |-- Q.
-allp_left: forall {B}(P: B -> mpred) x Q, P x|--Q $~$->$~$ ALL x:B,P|--Q.
-allp_right: forall{B}(P: mpred)(Q:B ->mpred), 
-               (forall v, P|-- Q v) $~$->$~$ P|-- ALL x:B,Q.
-prop_left: forall (P: Prop) Q, (P -> (TT|--Q)) $~$->$~$ !!P |-- Q.
-prop_right: forall (P: Prop) Q, P $~$->$~$ (Q|-- !!P).
-not_prop_right: forall(P:mpred)(Q:Prop), (Q -> (P|--FF))$~$->$~$ P|--!!(~Q).
-
-sepcon_assoc: (P*Q)*R = P*(Q*R).
-sepcon_comm:  P Q, P*Q = Q*P.
-sepcon_andp_prop: P*(!!Q && R) = !!Q && (P*R).
-derives_extract_prop:  (P -> Q |-- R) $~$ -> $~$ !!P && Q |-- R.
-sepcon_derives: P|--P' $~$->$~$ Q|--Q' $~$->$~$ P*Q |-- P'*Q'.
+ for ($\mathit{init}$; $\mathit{test}$; $\mathit{incr}$) $\mathit{body}$
 \end{lstlisting}
 
-\chapter{Obscure higher-order axioms}
+To solve a proof goal of this form (or when this is followed by other
+statements in sequence), use the tactic
 
 \begin{lstlisting}
-imp_andp_adjoint: P&&Q|--R $$ <-> $$ $$ P|--(Q-->R).
-wand_sepcon_adjoint: P*Q|--R $$ <-> P |-- Q$\wand$R.
-ewand_sepcon: (P*Q)$\ewand$ R = P $\ewand$ (Q $\ewand$ R).
-ewand_TT_sepcon: forall (P Q R: A),
-       (P*Q)&&(R$\ewand$TT) |-- (P &&(R$\ewand$TT))*(Q && (R$\ewand$TT)).
-exclude_elsewhere: P*Q |-- (P &&(Q$\ewand$  TT))*Q.
-ewand_conflict:  P*Q|--FF $$ -> $$ P&&(Q$\ewand$  R) |-- FF
-
-now_later:  P |-- |>P.
-later_K:  |>(P-->Q) |-- (|>P --> |>Q).
-later_allp: forall T (F: T->mpred),  |>(ALL x:T, F x) = ALL x:T, |>(F x).
-later_exp: forall T (F: T->mpred), EX x:T, |>(F x) |-- |>(EX x: F x).
-later_exp': forall T (any:T) F, |>(EX x: F x) $$ = $$ EX x:T, |>(F x).
-later_imp: |>(P-->Q) $$ $$ = $$ $$ (|>P --> |>Q).
-loeb: |>P |-- P ->  TT |-- P.
-later_sepcon:  |>(P * Q) = |>P * |>Q.
-later_wand: |>(P $\wand$ Q) = |>P $\wand$ |>Q.
-later_ewand: |>(P $\ewand$ Q) = (|>P) $\ewand$ (|>Q).
+ forward_for $~\mathit{Inv}~$ $~\mathit{PreIncr}~$ $~\mathit{PostCond}~$ 
 \end{lstlisting}
+where \textit{Inv, PreIncr, PostCond} are assertions
+(in $\PROP/ \LOCAL /\SEP$ form):
+\begin{trivlist}
+\item
+\textit{Inv} is the loop invariant,
+that holds immediately after the \textit{init} command is executed
+and before each time the \textit{test} is done;
+\textit{PreIncr}
+is the invarint that holds immediately after the loop \textit{body}
+and right before the \textit{incr};
+\item 
+\textit{PostCond}
+is the assertion that holds after the loop is complete
+(whether by a break statement, or the test evaluating to false).
+\end{trivlist}
 
+\textbf{In VST 1.6, forward\_for is slightly broken,
+  but you can use forward\_for\_simple\_bound (described below) or
+  forward\_while (since a for loop is often a special case of a while loop).}
 
-
-
-\chapter{Proving larg(ish) programs}
-
-When your program is not all in one .c file,
-see also \autoref{refcard:sepcomp}.
-Whether or not your program is all in one .c file,
-you can prove the individual function bodies in separate .v files.
-This uses less memory, and (on a multicore computer with
-parallel \lstinline{make}) saves time.
-To do this, put your API spec (up to the construction
-of \lstinline{Gprog} in one file;
-then each \lstinline{semax_body} proof in a separate file
-that imports the API spec.
-
-\newthought{Extraction of subordinate semax-goals.}
-To ease memory pressure and recompilation time, it is often advisable
-to partition the proof of a function into several lemmas. Any proof
-state whose goal is a semax-term can be extracted as a stand-alone
-statement by invoking tactic $\mathit{semax\_subcommand}\ V\ G\ F$.
-The three arguments are as in the statement of surrounding semax-body
-lemma, i.e.~are of type $\mathit{varspecs}$, $\mathit{funspecs}$, and
-$\mathit{function}$. 
-
-The subordinate tactic $\mathit{mkConciseDelta}\ V\ G\ F\ \Delta$ can
-also be invoked individually, to concisely display the type context $\Delta$
-as the application of a sequence of initializations
-to the host function's func\_tycontext.
-
-\newthought{The freezer.}
-A distinguishing feature of separation logic is the frame rule,
-i.e.~the ability to modularly verify a statement w.r.t.~its minimal
-resource footprint. Unfortunately, being phrased in terms of the
-syntatic program structure, the standard frame rule does not easily
-interact with forward symbolic execution as implemented by the Floyd
-tactics (and many other systems), as these continuously rearrange the
-associativity of statement sqeuencing to peel off the redex of the
-next \emph{forward}, and (purposely) hide the program continuation as
-the abbreviation \emph{MORE\_COMMANDS}. 
-
-Resolving this conflict, Floyd's \emph{freezer} abstraction provides a
-means for flexible framing, by implementing a veil that opaquely hides
-selected items of a SEP clause from non-symbolic treatment by
-non-freezer tactics.
-
-The freezer abstraction consists of two main tactics, $\mathit{freeze}\
-N\ F$ and $\mathit{thaw}\ F$, where $N:\mathit{list\ nat}$ and $F$ is
-a user-supplied (fresh) Coq name. The result of applying
-$\mathit{freeze}\ [i_1;\ldots;i_n]\ F$ to a semax goal is to remove
-items $i_1,\ldots,i_n$ from the precondition's SEP clause, inserting
-the item $\mathit{FRZL}\ F$ at the head of the SEP list, and adding a
-hypothesis $F := \mathit{abbreviate}$ to Coq's proof context.
-
-The term $\mathit{FRZL}\ F$ participates symbolically in all
-non-freezer tactics just like any other SEP item, so can in particular
-be canceled, and included in a function call's frame.  Unfolding a
-freezer is not tied to the associativity structure of program
-statements but can be achieved by invoking $\mathit{thaw}\ F$, which
-simply replaces $\mathit{FRZL}\ F$ by the the list of $F$'s
-constiuents.  As multiple freezers can coexists and freezers can be
-arbitrarily nested, SEP-clauses $R$ effectively contain forests of
-freezers, each constituent being thawable independently and
-freezer-level by freezer-level.
-
-Wrapping single \emph{forward} or \emph{forward\_call} commands in a
-freezer often speeds up the processing time noticably, as invocations
-of subordinate tactics \emph{entailer}, \emph{cancel}, etc.~are
-supplied with smaller and more symbolic proof goals. In our
-experience, applying the freezer throughout the proof of an entire
-function body typically yields a speedup of about 30\% on average with
-improvements of up to 55\% in some cases, while also easing the memory
-pressure and freeing up valuable real estate on the user's screen.
-
-
-A more invasive implementation of a freezer-like abstraction would
-refine the \lstinline{PROP($P$) LOCAL($Q$) SEP($R$)} structure to
-terms of the form \lstinline{PROP($P$) LOCAL($Q$) SEP($R$) FR($H$)}
-where $H: \emph{list\ mpred}$. Again, terms in $H$ would be treated
-opaquely by all tactics, and freezing/thawing would correspond to
-transfer rules between $R$ and $H$. In either case, forward symbolic
-execution is reconciled with the frame rule, and the use of the
-mechanism is sound engineering practice as documentation of
-programmer's insight is combined with performance improvements.
-
-\chapter{Separate compilation, \upshape\textsf{semax\_ext}}
-\label{refcard:sepcomp}
-
-What to do when your program is spread over multiple .c files.
-
-\newthought{Code preparation.}
-In order to separate the namespaces of multiple files compiled by CompCert's clightgen tool, it is necessary to apply
-
-python fix\_clightgen.py file1.v ...fileN.v
-
-The script reads in the named files, concisely renames variables etc by
-making up new positives, and writes the modified files back to the
-given names.
-
-
-
-\chapter{Appendix: catalog of major tactics/commands}
-Below is an alphabetic catalog of the major floyd tactics. In addition
-to short descriptions, the entries indicate whether a tactic (or
-tactic notation) is typically user-applied [u], primarily of
-internal use [i] or is expected to be used at development-time
-but unlikely to appear in a finished proof script [d]. We also
-mention major interdependencies between tactics, and their points of
-definition.
-
-\paragraph{[ui] andp\_left2}
-
-Used frequently in combination with \emph{derives\_refl} to clean up
-proofs states at the end of a loop or function, or after a \emph{forward\_seq}.\\
-Subordinate tactics: \ldots\\
-Superordinate tactics: \ldots\\
-Defined in XXX.v
-
-\paragraph{[u] cancel}
-Main vehicle for resolving entailments between mpred lists.  Performs
-symbolic cancellation, i.e.~performs little inspection of the
-internals of mpreds. May turn a provable goal into an unprovable goal,
-by cancelling too aggressively. Occasionally needs to be finished off
-with a \emph{derives\_refl}, in case of syntatically not mtaching
-compspecs\footnote{Do these cases still occur? Any other cases?}.
-
-Subordinate tactics: \ldots\\
-Superordinate tactics: \ldots\\
-Defined in XXX.v
-
-\paragraph{[u] derives\_refl'}
-(Actually, a lemma, not a tactic). Often followed by
-$\mathit{f_equal}$ to solve, say, an entailment between two almost
-identical $\mathit{data\_at}$ predicates.
-
-\paragraph{[u] entailer}
-
-Vehicle for proving entailments at the mpred level or the assertion
-level\ldots\\
-Say sth about (non-)inclusion of saturate\_locals, normalize, cancel?\\
-Subordinate tactics: \ldots\\
-Superordinate tactics: \ldots\\
-Defined in  XXX.v\\
-
-
-\paragraph{[ui] derives\_refl and derives\_refl'}
-
-Subordinate tactics: \ldots\\
-Superordinate tactics: \ldots\\
-Defined in XXX.v
-
-\paragraph{[u] drop\_LOCAL n}
-where $n:nat$. Removes the $n$th entry of a the LOCAL block of a
-semax\_statement's precondition\footnote{or of an assertion-level
-  entailment's LHS?}.
-
-Subordinate tactics: \ldots\\
-Superordinate tactics: \ldots\\
-Defined in XXX.v
-
-\paragraph{[u] entailer!}
-
-Vehicle for proving entailments at the mpred level or the assertion
-level\ldots
-In contrast to \emph{entailer}, \emph{entailer!} may turn a provable
-entailment into an unprovable one, but is usually more efficient.\\
-Say sth about (non-)inclusion of saturate\_locals, normalize, cancel?\\
-Subordinate tactics: \ldots\\
-Superordinate tactics: \ldots\\
-Defined in  XXX.v
-
-\paragraph{[u] forward}
-
-Subordinate tactics: \ldots\\
-Superordinate tactics: \ldots\\
-Defined in XXX.
-
-\paragraph{[u] forward\_call ARGS}
-Tactic for stepping through the call to a specified function, where
-\emph{ARGS} is the product of arguments, i.e.~an in-order
-instantiation of the function specification's WITH clause (Note:
-little type checking is applied to \emph{ARGS} and the tactic may
-behave erratically if incorrect/wrongly-typed arguments are supplied).
-
-Always leaves a \emph{semax}-subgoal for the program
-continuation.  Frequently, leaves an entailment subgoal for
-establishing the function procondition, and/or a subgoal for a typing
-side condition.
-
-Subordinate tactics: \ldots\\
-Superordinate tactics: None.\\
-Defined in XXX.v, with the underlying proof rules being defined in YYY.v
-
-\paragraph{[u] forward\_for}
-
-Including its variants for simple bounds etc
-
-Is expected to leave the following subgoals:\ldots
-
-Subordinate tactics: \ldots\\
-Superordinate tactics: \ldots\\
-Defined in XXX
-
-
-\paragraph{[u] forward\_seq}
-
-Subordinate tactics: \ldots\\
-Superordinate tactics: \ldots\\
-Defined in XXX.
-
-\paragraph{[i] mkConciseDelta\ V\ G\ F\ Delta}
-Applicable to a proof state with a semax goal. Simplies the $\Delta$
-component to the application of a sequence of initializations to the
-host function's func\_tycontext.
-
-Superordinate tactics:  $\mathit{semax\_subcommand}$\\
-Defined in semax\_tactics.v. 
-
-\paragraph{[u] semax\_subcommand\ V\ G\ F}
-Applicable to a proof state with a semax goal.
-Extracts the current proof state as a stand-alone
-statement that can be copy-and pasted to a separate file.
-The three arguments are as in the statement of surrounding semax-body
-lemma, i.e.~are of type $\mathit{varspecs}$, $\mathit{funspecs}$, and
-$\mathit{function}$. 
-
-Subordinate tactic: $\mathit{mkConciseDelta}$.
-Defined in semax\_tactics.v. 
-
-
-
-\chapter{BOUNDARY}
-Everything beyond here is junk, left over from the
-old Verifiable C manual, that needs to be rewritten and moved
-above the boundary.
-
-\ychapter{Mapsto and func\_ptr}{(see PLCC \autoref{clight-mapsto})}
-
-Aside from the standard operators and axioms of separation logic,
-we have exactly two primitive
-memory predicates:
-
+\newthought{Many for-loops have this special form},\newline
+\lstinline{ for ($\mathit{init}$; $\mathit{id}$ < $\mathit{hi}$; $\mathit{id}$++) $\mathit{body}$}~~~
+such that the expression \textit{hi} will evaluate to the same value
+every time around the loop.  This upper-bound expression need not
+be a literal constant, it just needs to be invariant.
+Then you can use the tactic,
 \begin{lstlisting}
-Parameter address_mapsto: 
-    memory_chunk -> val -> share -> share -> address -> mpred.
-Parameter func_ptr : funspec -> val ->mpred.
+ forward_for_simple_bound $n$ $~$     (EX $i$:Z, PROP($\vec{P}$) LOCAL($\vec{Q}$) SEP($\vec{R}$).
 \end{lstlisting}
-\lstinline{func_ptr $\phi$ v} $\qquad$ means that value $v$
-is a pointer to a function with specification $\phi$.
+where $n$ is the upper bound: a Coq value of type $Z$ 
+such that \textit{hi} will evaluate to $n$.
+The loop invariant is given by the expression
+\lstinline{(EX $i$:Z, PROP($\vec{P}$) LOCAL($\vec{Q}$) SEP($\vec{R}$)},
+where $i$ is the value (in each iteration) of the loop iteration variable $\mathit{id}$.
+This tactic generates simpler subgoals than the general \lstinline{forward_for} tactic.
 
-\lstinline{address_mapsto} expresses what is typically
-written $x\mapsto y$ in separation logic,
-that is, a singleton heap containing just value $y$ at address $x$.
-But we almost always use one of the following derived forms:
+When the loop has the form,~~~~
+\lstinline{ for ($\mathit{id}$=$\mathit{lo}$; $\mathit{id}$ < $\mathit{hi}$; $\mathit{id}$++) $\mathit{body}$}\newline
+where \textit{lo} is a literal constant, then
+the \lstinline{forward_for_simple_bound} tactic will
+generate slightly simpler subgoals.
 
-\noindent \lstinline{mapsto ($\mathit{sh}$:share) (t:type) (v w: val) : mpred}
-$\qquad$describes a singleton heap with
-just one value $w$ of (C-language) type $t$
-at address $v$, with permission-share $\mathit{sh}$.
+\chapter{Manipulating preconditions}
+In some cases you cannot go \lstinline{forward} until the precondition
+has a certain form.  For example, to go \lstinline{forward}
+through \lstinline{t=v->tail;} there must be a
+\lstinline{data_at} or \lstinline{field_at} in the \lstinline{SEP}
+clause of the precondition that gives a value for
+\lstinline{_tail} field of \lstinline{t}.
+\autopageref{unfold-the-lseg}
+describes a situation where a list segment had to be unfolded
+to expose such a \lstinline{SEP} conjunct.
 
-\noindent \lstinline{mapsto_ $$ ($\mathit{sh}$:share) (t:type) (v:val) : mpred}
-$\qquad$
-describes an \emph{uninitialized} singleton heap with
-space to hold a value of type $t$
-at address $v$, with permission-share $\mathit{sh}$.
+Faced with the proof goal,\hfill
+$\mathsf{semax}~~\Delta~~(\PROP(\vec{P}) \LOCAL(\vec{Q}) \SEP(\vec{R}))~~c~~\mathit{Post}$
+where $\PROP(\vec{P}) \LOCAL(\vec{Q}) \SEP(\vec{R})$ does not match
+the requirements for forward symbolic execution,
+you have several choices:
+\begin{itemize}
+\item Use the rule of consequence explicitly:\newline
+\lstinline|apply semax_pre with $\PROP(\vec{P'}) \LOCAL(\vec{Q'}) \SEP(\vec{R'})$|,\newline
+then prove $\mathsf{ENTAIL}~\Delta,~\vec{P};\vec{Q};\vec{R}\vdash\vec{P'};\vec{Q'};\vec{R'}$.
+\item Use the rule of consequence implicitly,
+by using tactics (\autopageref{refcard:manip}) that modify the precondition.
+\item Do rewriting in the precondition, either directly by the
+standard \lstinline{rewrite} and \lstinline{change} tactics,
+or by \lstinline{normalize} (\autopageref{refcard:normalize}).
+\item Extract propositions and existentials from the precondition,
+by using \lstinline{Intros} (\autopageref{refcard:intros})
+or \lstinline{normalize}.
+\item Flatten stars into semicolons, in the \lstinline{SEP} clause,
+ by \lstinline{Intros}.
+\item Use the freezer (\autopageref{freezer}) to temporarily ``frame away'' spatial conjuncts.
+\end{itemize}
 
-\noindent
-\lstinline{field_at ($\mathit{sh}$: share) (t: type) (f: list ident) (w: reptype (nested\_field\_type2 f) (v: val) : mpred}
-\newline  describes a heap
-that holds just field \lstinline{fld} 
-of \lstinline{struct}-value $v$,
-belonging to \lstinline{struct}-type $t$, 
-containing value $w$.
-If type $t$ describes a nested \lstinline{struct} type,
-then $f$ can actually be a path of field selections
-that descends into the nested structures.
-If $f$ is the empty path, then the field is equivalent to
-\lstinline{data_at}.
-The type of $w$ is a dependent type.
-\emph{Note: arguments $w,v$ are swapped compared to the PLCC book.}
+\newpage
+\label{refcard:manip}
+\newthought{Tactics for manipulating preconditions.}
+In many of these tactics we select specific conjucts from the
+\SEP{} items, that is, the semicolon-separated list of
+separating conjuncts.  These tactic refer to the list
+by zero-based position number, 0,1,2,\ldots.
 
-\lstinline{field_at_ ($\mathit{sh}$: share) (t: type) (fld: ident) (v: val) : mpred}
-\newline is the corresponding uninitialized structure-field.
+For example, suppose the goal is a \lstinline{semax}
+or entailment containing \lstinline|PROP($\vec{P}$)LOCAL($\vec{Q}$)SEP(a;b;c;d;e;f;g;h;i;j).|
+Then:
 
-
-\ychapter{CompCert C}{}
-
-The CompCert verified C compiler translates standard C source programs
-into an abstract syntax for \emph{CompCert C},
-and then translates that into abstract syntax
-for \emph{C light}.  
-Then VST Separation Logic is applied to the C light abstract syntax.
-C light programs proved correct using the VST separation logic
-can then be compiled (by CompCert) to assembly language.
-
-C light syntax is defined by these Coq files from CompCert:
-
-\begin{description}
-\item[Integers.]  32-bit (and 8-bit, 16-bit, 64-bit) signed/unsigned integers.
-\item[Floats.]  IEEE floating point numbers.
-\item[Values.]  The \lstinline|val| type: integer + float + pointer + undefined.
-\item[AST.]  Generic support for abstract syntax.
-\item[Ctypes.]  C-language types and structure-field-offset computations.
-\item[Cop.]  Semantics of C-language arithmetic operators.
-\item[Clight.]  Abstract syntax of C-light expressions, statements, and functions.
-\item[veric.expr.]  (from VST, not CompCert) Semantics of expression evaluation.
+\sbox{\mybox}{\emph{results in}}
+\begin{description}\setlength{\itemsep}{2ex}
+\item[$\mathsf{focus\_SEP}~i~j~k$.]
+Bring items \#$i,j,k$ to the front of the \SEP{} list.
+\begin{lstlisting}
+focus_SEP 5.  $~~~\usebox{\mybox}~$PROP($\vec{P}$)LOCAL($\vec{Q}$)SEP(f;a;b;c;d;e;g;h;i;j).
+focus_SEP 0.  $~~~\usebox{\mybox}~$PROP($\vec{P}$)LOCAL($\vec{Q}$)SEP(a;b;c;d;e;f;g;h;i;j).
+focus_SEP 1 3. $~\usebox{\mybox}~$PROP($\vec{P}$)LOCAL($\vec{Q}$)SEP(b;d;a;c;e;f;g;h;i;j)
+focus_SEP 3 1. $~\usebox{\mybox}~$PROP($\vec{P}$)LOCAL($\vec{Q}$)SEP(d;b;a;c;e;f;g;h;i;j)
+\end{lstlisting}
+\item[$\mathsf{gather\_SEP}~i~j~k$.]
+Bring items \#$i,j,k$ to the front of the \SEP{} list
+and conjoin them into a single element.
+\begin{lstlisting}
+gather_SEP 5.  $~~~\usebox{\mybox}~$PROP($\vec{P}$)LOCAL($\vec{Q}$)SEP(f;a;b;c;d;e;g;h;i;j).
+gather_SEP 1 3. $~\usebox{\mybox}~$PROP($\vec{P}$)LOCAL($\vec{Q}$)SEP(b*d;a;c;e;f;g;h;i;j)
+gather_SEP 3 1. $~\usebox{\mybox}~$PROP($\vec{P}$)LOCAL($\vec{Q}$)SEP(d*b;a;c;e;f;g;h;i;j)
+\end{lstlisting}
+\item[$\mathsf{replace\_SEP}~i~R$.]
+Replace the $i$th element the \SEP{} list
+with the assertion $R$, and leave a subgoal to prove.
+\begin{lstlisting}
+replace_SEP 3 R.  $~~~\usebox{\mybox}~$PROP($\vec{P}$)LOCAL($\vec{Q}$)SEP(a;b;c;$R$;e;f;g;h;i;j).
+\end{lstlisting}
+with subgoal~~~ $\PROP(\vec{P})\LOCAL(\vec{Q})\SEP(\textsf{d}) \vdash R$.
+\item[$\mathsf{replace\_in\_pre}~S~S'$.]
+Replace $S$ with $S'$ anywhere it occurs in the precondition
+then leave 
+$(\vec{P};\vec{Q};\vec{R}) \vdash (\vec{P};\vec{Q};\vec{R})[S'/S]$
+as a subgoal.
+\item[$\mathsf{frame\_SEP}~i~j~k.$]
+Apply the frame rule, keeping only
+elements $i,j,k$ of the \SEP{} list.  See \autoref{refcard:frame}.
 \end{description}
 
-Some of the important types and operators are described over the next 
-few pages.
+\ychapter{The Frame rule}{}
+\label{refcard:frame}
 
-\ychapter{Verifiable C programming}{See PLCC Chapter \ref{ch:compcert-intro}}
-\label{refcard:verifiable-c}
-In writing Verifiable C programs you must:
+Separation Logic supports the Frame rule,
+\[\inference[Frame]{\triple{P}{c}{Q}}{\triple{P*F}{c}{Q*F}}\]
 
-\begin{itemize}
-  \item Make each dereference into a top level expression (PLCC
-  \autopageref{verifiable-c})
-  \item Make most pointer comparisons into a top level expression (PLCC
-  \autopageref{pointercompare})
-  \item Remove casts between \lstinline|int| and pointer types (result in
-  values that crash if used)
-\end{itemize}
+To use this in a forward proof, suppose you have the
+proof goal,
+\begin{lstlisting}
+semax $\Delta$ $\PROP(\vec{P})\LOCAL(\vec{Q})\SEP(R_0;R_1;R_2)~$ $c_1;c_2;c_3$ $~\mathit{Post}$
+\end{lstlisting}
+and suppose you want to ``frame out'' $R_2$ for the duration of 
+$c_1;c_2$, and have it back again for $c_3$.
+First you rewrite by \lstinline{seq_assoc}
+to yield the goal
+\begin{lstlisting}
+semax $\Delta$ $\PROP(\vec{P})\LOCAL(\vec{Q})\SEP(R_0;R_1;R_2)~$ $(c_1;c_2);c_3$ $~\mathit{Post}$
+\end{lstlisting}
+Then \lstinline{eapply semax_seq'} to peel off the 
+first command $(c_1;c_2)$ in the new sequence:
+\begin{lstlisting}
+semax $\Delta$ $\PROP(\vec{P})\LOCAL(\vec{Q})\SEP(R_0;R_1;R_2)~$ $c_1;c_2$ $~\mathsf{?88}$
 
-The \lstinline{clightgen} tool automatically:
+semax $\Delta'$ $~\mathsf{?88}~$ $c_3$ $~\mathit{Post}$
+\end{lstlisting}
+Then \lstinline{frame_SEP$~$0 2} to retain only $R_0;R_2$.
+\begin{lstlisting}
+semax $\Delta$ $\PROP(\vec{P})\LOCAL(\vec{Q})\SEP(R_0;R_2)~$ $c_1;c_2$ $~\ldots$
+\end{lstlisting}
+Now you'll see that (in the precondition of the second subgoal)
+the unification variable $\mathsf{?88}$ has been
+instantiated in such a way that $R_2$ is added back in.
 
-\begin{itemize}
-  \item Factors function calls into top level expressions
-  \item Factors logical \lstinline{and}/\lstinline{or} operators into 
-\lstinline{if} statements (to capture
-  short circuiting behavior)
-\end{itemize}
-
-Proof automation detects these two transformations and processes them with a
-single tactic application.
+\chapter{malloc/free}
+\label{refcard:malloc}
 
 If your program uses \lstinline|malloc| or \lstinline|free|, you must declare
-and specify these as external functions. If you don't want to keep track of the
-size of each allocated object, you may want to change the interface of the
+and specify these as external functions.
+But even then, \lstinline{free} is difficult to specify:
+``\href{http://www.thecoffeeplace.com/jokes/aaaaaayc.html}{How do it know?}'' the size of the object being freed?
+
+The answer is that the malloc/free system maintains an implicit extra
+field (before the official ``beginning'' of the object) with the
+length.  One could indeed reason about this in separation logic,
+but for some applications it is overkill.
+
+For simpler-to-specify memory allocation,
+you may want to change the interface of the
 \lstinline|free| function. We do this in our example definitions of
 \lstinline|malloc| and \lstinline|free| in \file{progs/queue.c} and their
 specifications in \file{progs/verif\_queue.v}.
 
 \ychapter{32-bit Integers}{(\file{compcert/lib/Integers.v})}
+\label{refcard:32bit}
 
 The VST program logic uses CompCert's 32-bit integer type.
 
 \begin{lstlisting}
 Inductive comparison := Ceq | Cne | Clt | Cle | Cgt | Cge.
-Definition wordsize: nat := 32.  (* also instantiations for 8, 16, 64 *)
-Definition modulus : Z := two_power_nat wordsize.
-Definition half_modulus : Z := modulus / 2.
-Definition max_unsigned : Z := modulus - 1.
-Definition max_signed : Z := half_modulus - 1.
-Definition min_signed : Z := - half_modulus.
+Int.wordsize: nat = 32.
+Int.modulus : Z = $2^{32}$.
+Int.max_unsigned : Z = $2^{32}-1$.
+Int.max_signed : Z = $2^{31}-1$.
+Int.min_signed : Z = $-2^{31}$.
 
-Parameter int : Type.
-Parameter unsigned : int -> Z.
-Parameter signed : int -> Z.
-Parameter repr : Z -> int.
+Int.int : Type.
+Int.unsigned : int -> Z.
+Int.signed : int -> Z.
+Int.repr : Z -> int.
 
-Definition zero := repr 0.
+Int.zero := Int.repr 0.
 
-Definition eq (x y: int) : bool.
-Definition lt (x y: int) : bool.
-Definition ltu (x y: int) : bool.
-Definition neg (x: int): int := repr (- unsigned x).
-Definition add (x y: int): int :=  repr (unsigned x + unsigned y).
-Definition sub (x y: int): int :=  repr (unsigned x - unsigned y).
-Definition mul (x y: int): int :=  repr (unsigned x * unsigned y).
-Definition divs (x y: int) : int.
-Definition mods (x y: int) : int.
-Definition divu (x y: int) : int.
-Definition modu (x y: int) : int.
-Definition and (x y: int): int := bitwise_binop andb x y.
-Definition or (x y: int): int := bitwise_binop orb x y.
-Definition xor (x y: int) : int := bitwise_binop xorb x y.
-Definition not (x: int) : int := xor x mone.
-Definition shl (x y: int): int.
-Definition shru (x y: int): int.
-Definition shr (x y: int): int.
-Definition rol (x y: int) : int.
-Definition ror (x y: int) : int.
-Definition rolm (x a m: int): int.
-Definition cmp (c: comparison) (x y: int) : bool.
-Definition cmpu (c: comparison) (x y: int) : bool.
+$\mbox{\textbf{(* Operators of type int->int->bool *)}}$
+Int.eq $$ Int.lt $$ Int.ltu $$ Int.cmp(c:comparison) $$ Int.cmpu(c:comparison)
+
+$\mbox{\textbf{(* Operators of type int->int *)}}$
+Int.neg $$ Int.not 
+
+$\mbox{\textbf{(* Operators of type int->int->int *)}}$
+Int.add $$ Int.sub $$  Int.mul $$  Int.divs $$  Int.mods $$  Int.divu $$  Int.modu
+Int.and $$ Int.or $$ Int.xor $$ Int.shl $$ Int.shru $$ Int.shr $$ Int.rol $$ Int.ror $$  Int.rolm
 
 Lemma eq_dec: forall (x y: int), {x = y} + {x <> y}.
 Theorem unsigned_range: forall i, 0 <= unsigned i < modulus.
@@ -3146,9 +3256,30 @@ Theorem mul_signed: forall x y, mul x y = repr (signed x * signed y).
 and many more axioms for the bitwise operators, shift operators,
 signed/unsigned division and mod operators.
 
+\chapter{CompCert C abstract syntax}
 
+The CompCert verified C compiler translates standard C source programs
+into an abstract syntax for \emph{CompCert C},
+and then translates that into abstract syntax
+for \emph{C light}.  
+Then VST Separation Logic is applied to the C light abstract syntax.
+C light programs proved correct using the VST separation logic
+can then be compiled (by CompCert) to assembly language.
 
-\ychapter{C expression syntax}{(\file{compcert/cfrontend/Clight.v})}
+C light syntax is defined by these Coq files from CompCert:
+
+\begin{description}
+\item[Integers.]  32-bit (and 8-bit, 16-bit, 64-bit) signed/unsigned integers.
+\item[Floats.]  IEEE floating point numbers.
+\item[Values.]  The \lstinline|val| type: integer + float + pointer + undefined.
+\item[AST.]  Generic support for abstract syntax.
+\item[Ctypes.]  C-language types and structure-field-offset computations.
+\item[Clight.]  C-light expressions, statements, and functions.
+\end{description}
+
+You will see C light abstract syntax constructors
+in the Hoare triples (\lstinline{semax}) that you are verifying.
+We summarize the constructors here.
 
 \begin{lstlisting}
 Inductive expr : Type :=
@@ -3165,466 +3296,112 @@ Inductive expr : Type :=
 (* (int)e *) | Ecast: expr -> type -> expr  
 (* e.f *) $~~$ | Efield: expr -> ident -> type -> expr. 
 
-Definition typeof (e: expr) : type :=
-  match e with
-  | Econst_int _ ty => ty
-  | Econst_float _ ty => ty
-  | Evar _ ty => ty
-  | ... $et~cetera$.
+Inductive unary_operation := Onotbool | Onotint | Oneg | Oabsfloat.
+Inductive binary_operation := Oadd | Osub | Omul | Odiv | Omod
+ | Oand | Oor | Oxor | Oshl | Oeq | One | Olt | Ogt | Ole | Oge.
+
+Inductive statement : Type :=
+(* /**/;*)  $~~~~~~$ | Sskip : statement                 
+(* $E_1$=$E_2$; *)$~\,~$  | Sassign : expr -> expr -> statement (* memory store *)
+(* $x$=$E$; *)$~~~~~~$  | Sset : ident -> expr -> statement   (* tempvar assign *)
+(* $x$=$f$(...); *)$~\,$  | Scall: option ident -> expr -> list expr -> statement
+(* $x$=$b$(...); *)$~\,$ | Sbuiltin: option ident -> external_function -> typelist ->
+$\hspace{3in}$list expr -> statement
+(* $s_1$; $s_2$ *)$~~~~~~$ | Ssequence : statement -> statement -> statement
+(* if() else {} *) | Sifthenelse : expr  -> statement -> statement -> statement
+(* for (;;$s_2$) $s_1$ *) | Sloop: statement -> statement -> statement
+(* break; *)$~~~~~~$  | Sbreak : statement
+(* continue; *)$~~$ | Scontinue : statement         
+(* return $E$; *)$~~$ | Sreturn : option expr -> statement
+$~~~~~~~~~~~~~~~$  | Sswitch : expr -> labeled_statements -> statement
+$~~~~~~~~~~~~~~~$  | Slabel : label -> statement -> statement
+$~~~~~~~~~~~~~~~$  | Sgoto : label -> statement.
 \end{lstlisting}
 
-\ychapter{C operators}{(\file{compcert/cfrontend/Cop.v})}
+\chapter{C light semantics}
+
+The operational semantics of C light statements and expressions
+is given in \file{compcert/cfrontend/Clight.v}.  We do not expose
+these semantics \emph{directly} to the user of Verifiable C.
+Instead, the \emph{statement} semantics is reformulated
+as \lstinline{semax}, an axiomatic (Hoare-logic style) semantics.
+The \emph{expression} semantics is reformulated in
+\file{veric/expr.v} and \file{veric/Cop2.v} as
+a \emph{computational big-step evaluation semantics}.
+In each case, a soundness proof relates the Verifiable C semantics
+to the CompCert Clight semantics.
+
+Rules for \lstinline{semax} are given in
+\file{veric/SeparationLogic.v}---but the user rarely uses
+these rules directly.  Instead, derived lemmas regarding
+\lstinline{semax} are proved in \file{floyd/*.v} and
+Floyd's \lstinline{forward} tactic applies them (semi)automatically.
+
+The following functions (from \file{veric/expr.v}) define
+expression evaluation:
 \begin{lstlisting}
-
-Function bool_val (v: val) (t: type) : option bool :=
-  match classify_bool t with
-  | bool_case_i =>
-      match v with
-      | Vint n => Some (negb (Int.eq n Int.zero))
-      | _ $$ => None
-      end
-  | bool_case_f =>
-      match v with
-      | Vfloat f => Some (negb (Float.cmp Ceq f Float.zero))
-      | _ $$ => None
-      end
-  | bool_case_p =>
-      match v with
-      | Vint n => Some (negb (Int.eq n Int.zero))
-      | Vptr b ofs => Some true
-      | _ $$ => None
-      end
-  | bool_default => None
-  end.
-
-Function sem_neg (v: val) (ty: type) : option val :=
-  match classify_neg ty with
-  | neg_case_i sg =>
-      match v with
-      | Vint n => Some (Vint (Int.neg n))
-      | _ $$ => None
-      end
-  | neg_case_f =>
-      match v with
-      | Vfloat f => Some (Vfloat (Float.neg f))
-      | _ $$ => None
-      end
-  | neg_default => None
-  end.
-
-Function sem_add (v1:val) (t1:type) (v2: val) (t2:type) : option val :=
-  match classify_add t1 t2 with 
-  | add_case_ii sg =>                   (**r integer addition *)
-      match v1, v2 with
-      | Vint n1, Vint n2 => Some (Vint (Int.add n1 n2))
-      | _,  _ $$ => None
-      end
-  | add_case_ff =>                      (**r float addition *)
-      match v1, v2 with
-      | Vfloat n1, Vfloat n2 => Some (Vfloat (Float.add n1 n2))
-      | _,  _ $$ => None
-      end
-  | add_case_if sg =>                   (**r int plus float *)
-      match v1, v2 with
-      | Vint n1, Vfloat n2 => Some (Vfloat (Float.add (cast_int_float sg n1) n2))
-      | _, _ $$ => None
-      end
-  | ... $(cases~omitted)$
-  | add_case_ip ty _ $$ =>                 (**r integer plus pointer *)
-      match v1,v2 with
-      | Vint n1, Vptr b2 ofs2 => 
-        Some (Vptr b2 (Int.add ofs2 (Int.mul (Int.repr (sizeof ty)) n1)))
-      | _,  _ $$ => None
-      end   
-  | add_default => None
-end.
-
-Function sem_sub (v1:val) (t1:type) (v2: val) (t2:type) : option val.
-Function sem_mul (v1:val) (t1:type) (v2: val) (t2:type) : option val.
-Function sem_div (v1:val) (t1:type) (v2: val) (t2:type) : option val.
-Function sem_mod (v1:val) (t1:type) (v2: val) (t2:type) : option val.
-Function sem_and (v1:val) (t1:type) (v2: val) (t2:type) : option val.
-
-Function sem_cmp (c:comparison)
-                  (v1: val) (t1: type) (v2: val) (t2: type)
-                  (m: mem): option val :=
-  match classify_cmp t1 t2 with
-  | cmp_case_ii Signed =>
-      match v1,v2 with
-      | Vint n1, Vint n2 => Some (Val.of_bool (Int.cmp c n1 n2))
-      | _,  _ $$ => None
-      end
-  | ... $(many~more~cases~)$
-  end.
-
-Definition sem_binary_operation
-    (op: binary_operation)
-    (v1: val) (t1: type) (v2: val) (t2:type)
-    (m: mem): option val :=
-  match op with
-  | Oadd => sem_add v1 t1 v2 t2
-  | Osub => sem_sub v1 t1 v2 t2 
-  | Omul => sem_mul v1 t1 v2 t2
-  | Omod => sem_mod v1 t1 v2 t2
-  | Odiv => sem_div v1 t1 v2 t2 
-  | Oand => sem_and v1 t1 v2 t2
-  | Oor  => sem_or v1 t1 v2 t2
-  | Oxor  => sem_xor v1 t1 v2 t2
-  | Oshl => sem_shl v1 t1 v2 t2
-  | Oshr  => sem_shr v1 t1 v2 t2   
-  | Oeq => sem_cmp Ceq v1 t1 v2 t2 m
-  | One => sem_cmp Cne v1 t1 v2 t2 m
-  | Olt => sem_cmp Clt v1 t1 v2 t2 m
-  | Ogt => sem_cmp Cgt v1 t1 v2 t2 m
-  | Ole => sem_cmp Cle v1 t1 v2 t2 m
-  | Oge => sem_cmp Cge v1 t1 v2 t2 m
-  end.
+eval_id {CS: compspecs} (id: ident) : environ -> val.
+          (* evaluate a tempvar *)
+eval_var {CS: compspecs} (id: ident) (ty: type) : environ -> val.
+          (* evaluate an lvar or gvar, addressable local or global variable *)
+eval_cast (t t': type) (v: val) : val.
+      (* cast value v from type t to type t', but beware! There are
+        $\mathit{three}$ types involved, including native type of v. *)
+eval_unop (op: unary_operation) (t1 : type) (v1 : val) : val.
+eval_binop{CS:compspecs} (op:binary_operation) (t1 t2: type) (v1 v2: val): val.
+eval_lvalue {CS: compspecs} (e: expr) : environ -> val.
+     (* evalue an $l$-expression, one that denotes a loadable/storable place*)
+eval_expr {CS: compspecs} (e: expr) : environ -> val.
+     (* evalue an $r$-expression, one that is not storable *)
 \end{lstlisting}
 
-\ychapter{C expression evaluation}{(\file{vst/veric/expr.v})}
+The \emph{environ} argument is for looking up the values of
+local and global variables.  However, in most cases where
+Verifiable C users see \lstinline{eval_lvalue}
+or \lstinline{eval_expr}---in subgoals generated by the
+\lstinline{forward} tactic---all the variables have already been
+substituted by values.  Thus the environment is not needed.
+
+The expression-evaluation functions call upon several helper
+functions from \file{veric/Cop2.v}:
 
 \begin{lstlisting}
-Definition eval_id (id: ident) ($\rho$: environ).
-  (* look up the tempory variable ``id'' in $\rho$ *)
-
-Definition eval_cast (t t': type) (v: val) : val.
-  (* cast value v from type t to type t', but beware! There are
-     be $three$ types involved, if you include the native type of v. *)
-
-Definition eval_unop (op: Cop.unary_operation) (t1 : type) (v1 : val) : val.
-
-Definition eval_binop (op: Cop.binary_operation) 
-               (t1 t2 : type) (v1 v2: val) : val.
-
-Definition force_ptr (v: val) : val :=
-       match v with Vptr l ofs => v | _ $$ => Vundef  end.
-
-Definition eval_struct_field (delta: Z) (v: val) : val.
-   (* offset the pointer-value v by delta *)
-
-Definition eval_field (ty: type) (fld: ident) (v: val) : val.
-   (* calculate the lvalue of (but do not fetch/dereference!)
-      a structure/union field of value v *)
-
-Definition eval_var (id:ident) (ty: type) (rho: environ) : val.
-   (* Get the lvalue (address of) an addressable local variable
-     (if there is one of that name) or else a global variable *)
-
-Definition deref_noload (ty: type) (v: val) : val.
-   (* For By_reference types such as arrays that dereference
-      without actually fetching *)
- match access_mode ty with By_reference => v | _ $$ => Vundef end.
+sem_cast: type -> type -> val -> option val.
+sem_cast_* (* several helper functions for sem_cast *)
+bool_val: type -> val -> option bool.
+bool_val_*: (* helper functions *)
+sem_notbool: type -> val -> option val.
+sem_neg: type -> val -> option val.
+sem_sub {CS: compspecs}: type -> type -> val -> val -> option val.
+sem_sub_*: (* helper functions *)
+sem_add {CS: compspecs}: type -> type -> val -> val -> option val.
+sem_add_*: (* helper functions *)
+sem_mul: type -> type -> val -> val -> option val.
+sem_div: type -> type -> val -> val -> option val.
+sem_mod: type -> type -> val -> val -> option val.
+sem_and: type -> type -> val -> val -> option val.
+sem_or:  type -> type -> val -> val -> option val.
+sem_xor: type -> type -> val -> val -> option val.
+sem_shl: type -> type -> val -> val -> option val.
+sem_shr: type -> type -> val -> val -> option val.
+sem_cmp: comparison -> type -> type -> (...) -> val -> val -> option val.
+sem_unary_operation: unary_operation -> type -> val -> option val.
+sem_binary_operation {CS: compspecs}:
+   binary_operation -> type -> type -> mem -> val -> val -> option val.
 \end{lstlisting}
-
-\clearpage
-\begin{lstlisting}
-Fixpoint eval_expr (e: expr) : environ -> val :=
- match e with
- | Econst_int i ty => `(Vint i)
- | Econst_float f ty => `(Vfloat f)
- | Etempvar id ty => eval_id id 
- | Eaddrof a ty => eval_lvalue a 
- | Eunop op a ty =>  `(eval_unop op (typeof a)) (eval_expr a) 
- | Ebinop op a1 a2 ty =>  
-           `(eval_binop op (typeof a1) (typeof a2))
-              (eval_expr a1) (eval_expr a2)
- | Ecast a ty => `(eval_cast (typeof a) ty) (eval_expr a) 
- | Evar id ty => `(deref_noload ty) (eval_var id ty)
- | Ederef a ty => `(deref_noload ty) (`force_ptr (eval_expr a))
- | Efield a i ty => `(deref_noload ty) 
-                      (`(eval_field (typeof a) i) (eval_lvalue a))
- end
-
- with eval_lvalue (e: expr) : environ -> val := 
- match e with 
- | Evar id ty => eval_var id ty
- | Ederef a ty => `force_ptr (eval_expr a)
- | Efield a i ty => `(eval_field (typeof a) i) (eval_lvalue a)
- | _  => `Vundef
- end.
-\end{lstlisting}
+The details are not so important to remember.  The main point is
+that Coq expressions of the form \lstinline{sem_}\ldots
+\emph{should} simplify away, provided that their arguments
+are instantiated with concrete operators,
+concrete constructors \lstinline{Vint/Vptr/Vfloat},
+and concrete C types.  
+The \emph{int} values (etc.) carried inside
+\lstinline{Vint/Vptr/Vfloat}
+\emph{do not} need to be concrete: they can be Coq variables.
+This is the essence of proof by symbolic execution.
 
 
-\ychapter{Lifted separation logic}{(See PLCC \autoref{ch:lifted})}
-Assertions in our Hoare triple of separation 
-are presented as $\mathsf{env}\rightarrow
-\mathsf{mpred}$, that is, functions from environment
-to memory-predicate,
-using our natural deduction system 
-\lstinline{NatDed(mpred)} and separation logic
-\lstinline{SepLog(mpred)}.
 
-Given a separation logic over a type $B$ of formulas,
-and an arbitrary type $A$, 
-we can define a \emph{lifted} separation logic over functions $A \rightarrow B$.
-The operations are simply lifted pointwise over the
-elements of $A$.  Let $P,Q:~A\rightarrow B$,
-let $R:T\rightarrow A \rightarrow B$ then define,
-\[
-\begin{array}{rccl}
-(P \andp Q):& A\rightarrow B&:=& \mathrm{fun}~a~\Rightarrow~Pa \andp Qa\\
-(P \orp Q):& A\rightarrow B&:=& \mathrm{fun}~a~\Rightarrow~Pa \orp Qa\\
-(\exists x.R(x)):& A\rightarrow B&:=& \mathrm{fun}~a~\Rightarrow~\exists x.~Rxa\\
-(\forall x.R(x)):& A\rightarrow B&:=& \mathrm{fun}~a~\Rightarrow~\forall x.~Rxa\\
-(P \imp Q):& A\rightarrow B&:=& \mathrm{fun}~a~\Rightarrow~Pa \imp Qa\\
-(P \vdash Q):& A\rightarrow B&:=& \forall a.~Pa \vdash Qa\\
-(P * Q):& A\rightarrow B&:=& \mathrm{fun}~a~\Rightarrow~Pa * Qa\\
-(P \wand Q):& A\rightarrow B&:=& \mathrm{fun}~a~\Rightarrow~Pa \wand Qa\\
-\end{array}
-\]
-In Coq we formalize the typeclass instances
-\lstinline{LiftNatDed},
-\lstinline{LiftSepLog}, etc.,
-as shown below.
-For a type $B$, whenever \lstinline{NatDed B} and \lstinline{SepLog B} (and so on) have been defined, the lifted instances
-\lstinline{NatDed (A->B)} and \lstinline{SepLog (A->B)} (and so on)
-are automagically provided by the typeclass system.
-
-\begin{lstlisting}
-Instance LiftNatDed(A B: Type){ND: NatDed B}: NatDed (A->B):=
- mkNatDed (A -> B)
-    (*andp*) (fun P Q x => andp (P x) (Q x))
-    (*orp*) (fun P Q x => orp (P x) (Q x))
-    (*exp*) (fun {T} (F: T -> A -> B) (a: A) => exp (fun x => F x a))
-    (*allp*) (fun {T} (F: T -> A -> B) (a: A) => allp (fun x => F x a))
-    (*imp*) (fun P Q x => imp (P x) (Q x))
-    (*prop*) (fun P x => prop P)
-    (*derives*) (fun P Q => forall x, derives (P x) (Q x))
-     _ $$ _ $$ _ $$ _ $$ _ $$ _ $$ _ $$ _ $$ _ $$ _ $$ _ $$ _ $$ _ $$ _ $$ _ $$ _ $$ _ $$ _.
-
-Instance LiftSepLog (A B: Type) {NB: NatDed B}{SB: SepLog B} 
-      : SepLog (A -> B).
- apply (mkSepLog (A -> B) _ (fun $\rho$ => emp) 
-            (fun P Q $\rho$ => P $\rho$ * Q $\rho$) (fun P Q $\rho$ => P $\rho$ -* Q $\rho$)).
- (* fill in proofs here *)
-\end{lstlisting}
-
-In particular, if $P$ and $Q$ are functions of type \lstinline{environ->mpred}
-then we can write $P*Q$,  $P \andp Q$, and so on.
-
-Consider this assertion:
-\begin{lstlisting}
-fun $\rho$ => mapsto $\mathit{sh}$ tint (eval_id _x $\rho$) (eval_id _y $\rho$) 
-             * mapsto $\mathit{sh}$ tint (eval_id _u $\rho$) (Vint Int.zero)
-\end{lstlisting}
-which might appear as the precondition of a Hoare triple.
-It represents $(x\mapsto y) *(u\mapsto 0)$ written in informal
-separation logic, where $x,y,u$ are C-language variables
-of integer type.
-Because it can be inconvenient to manipulate explicit lambda expressions
-and explicit environment variables $\rho$, we may write it in lifted
-form,
-\begin{lstlisting}
- `(mapsto $\mathit{sh}$ tint) (eval_id _x) (eval_id _y) 
-* `(mapsto $\mathit{sh}$ tint) (eval_id _u) `(Vint Int.zero)
-\end{lstlisting}
-Each of the first two backquotes lifts a function
-from type \lstinline{val->val->mpred} to type
-\lstinline{(environ->val)->(environ->val)->(environ->mpred)},
-and the third one lifts from \lstinline{val} to 
-\lstinline{environ->val}.
-
-
-\chapter{Normalize}
-The \lstinline{normalize} tactic performs
-\lstinline{autorewrite with norm} and several other transformations.
-Many of the simplifications performed by \lstinline{normalize}
-on entailments (whether lifted or unlifted)
-can be done more efficiently and systematically by
-\lstinline{entailer}.  However, on Hoare triples, \lstinline{entailer}
-does not apply, and \lstinline{normalize} is quite appropriate.
-
-The \lstinline{norm} rewrite-hint database uses several sets of rules.
-
-\textbf{Generic separation-logic simplifications.}
-\begin{mathpar}
-P*\mathsf{emp}=P \and 
-\mathsf{emp}*P=P \and 
-P \andp  \TT = P \and
-\TT \andp  P = P \and
-(EX x:A,P)*Q = EX x:A,P*Q\and
-P*(EX x:A,Q) = EX x:A,P*Q\and
-(EX x:A,P)\andp Q = EX x:A,P\andp Q\and
-P\andp (EX x:A,Q) = EX x:A,P\andp Q\and
-P*(!!Q\andp R)=!!Q\andp (P*R) \and 
-(!!Q\andp P)*R=!!Q\andp (P*R) \and 
-P \andp  \FF = \FF \and
-\FF \andp  P = \FF \and
-P *  \FF = \FF \and
-\FF *  P = \FF \and
-P \rightarrow (!!P \andp Q = Q) \and
-P \rightarrow (!!P = \TT) \and
-P \andp P = P \and
-(\mathsf{EX} \_:\_,P)=P \and 
-\mathsf{local}~`\mathsf{True}=\TT 
-\end{mathpar}
-
-\textbf{Unlifting.}
-\begin{mathpar}
-`f~\rho~= f~\mbox{\small [when f has arity 0]}\and
-`f~a_1~\rho~= f~(a_1~\rho)~\mbox{\small [when f has arity 1]}\and
-`f~a_1~a_2~\rho~= f~(a_1~\rho)~(a_2~\rho)~\mbox{\small [when f has arity 2, etc.]}\and
-\mathsf{local}~P~\rho = !!(P~\rho) \and
-(P*Q)\rho = P\rho*Q\rho \and
-(P\andp Q)\rho = P\rho\andp Q\rho \and
-(!!P)\rho = !!P \and
-!!(P\wedge Q) = !!P \andp !!Q \and
-(\mathsf{EX}\,x:A,\,P\,x)\,\rho~=~\mathsf{EX}\,x:A,\,~P\,x\,\rho \and
-`(\mathsf{EX}~x:B,~P x)= \mathsf{EX}~x:B,~`(P x)) \and
-`(P*Q)=~`P\,*\,`Q \and
-`(P\andp Q)=~`P\,\andp\,`Q 
-\end{mathpar}
-
-\textbf{Pulling nonspatial propositions out of spatial ones.}
-\begin{mathpar}
-\mathsf{local}~P~\andp~!!Q =
-!!Q~\andp~\mathsf{local}~P \and
-\mathsf{local}~P~\andp~(!!Q\andp R) =
-!!Q\andp (\mathsf{local}~P~\andp~R) \and
-(\mathsf{local}~P~\andp~Q)* R =
-\mathsf{local}~P~\andp~(Q* R) \and
-Q*(\mathsf{local}~P~\andp~ R) =
-\mathsf{local}~P~\andp~(Q* R) 
-\end{mathpar}
-
-\textbf{Canonical forms.}
-\begin{mathpar}
-\mathsf{local}~Q_1\andp(\PROP(\vec{P} )\LOCAL(\vec{Q})\SEP(\vec{R}))=
-\PROP(\vec{P})\LOCAL(Q_1;\vec{Q}) \SEP (\vec{R})\and
-\PROP \vec{P} \LOCAL \vec{Q} \SEP (!!P_1; \vec{R})=
-\PROP (P_1;\vec{P}) \LOCAL (\vec{Q}) \SEP (\vec{R})\and
-\PROP( \vec{P}) \LOCAL (\vec{Q}) \SEP (\mathsf{local}Q_1; \vec{R})=
-\PROP (\vec{P}) \LOCAL (Q_1;\vec{Q}) \SEP (\vec{R})
-\end{mathpar}
-
-\textbf{Modular Integer arithmetic.}
-\begin{mathpar}
-\mathsf{Int.sub}~x~x~=~\mathsf{Int.zero} \and
-\mathsf{Int.sub}~x~\mathsf{Int.zero}~=~x \and
-\mathsf{Int.add}~x~(\mathsf{Int.neg}\,x)~=~\mathsf{Int.zero} \and
-\mathsf{Int.add}~x~\mathsf{Int.zero}~=~x \and
-\mathsf{Int.add}~\mathsf{Int.zero}~x~=~x \and
-x\not=y \rightarrow 
-\mathsf{offset\_val}(\mathsf{offset\_val}~v~i)~j=
-\mathsf{offset\_val}~v~(\mathsf{Int.add}~i~j)\and
-\mathsf{Int.add}(\mathsf{Int.repr}~i)(\mathsf{Int.repr}~j) =
-                            \mathsf{Int.repr}(i + j)\and
-\mathsf{Int.add}(\mathsf{Int.add}~z~(\mathsf{Int.repr}~i))~(\mathsf{Int.repr}~j)~=
- \mathsf{Int.add}~z~ (\mathsf{Int.repr} (i + j)) \and
-z>0\rightarrow(\mathsf{align}~0~z~=~0) \and
-\mathsf{force\_int}(\mathsf{Vint}~i)=i
-\end{mathpar}
-
-\textbf{Type checking and miscellaneous.}
-\begin{mathpar}
-\mathsf{tc\_formals}((i,t)::r)=`\mathsf{and}~(`(\mathsf{tc\_val}~t)~
-(\mathsf{eval\_id}~i)~(\mathsf{tc\_formals}~r) \and
-\mathsf{tc\_formals}~\mathsf{nil}= `\TT \and
-\mathsf{tc\_andp}~\mathsf{tc\_TT}~e~=~e \and
-\mathsf{tc\_andp}~e~\mathsf{tc\_TT}~=~e \and
-\mathsf{eval\_id}~x~(\mathsf{env\_set}~\rho~x~v) = v \and
-x\not=y \rightarrow 
-(\mathsf{eval\_id}~x~(\mathsf{env\_set}~\rho~y~v) = \mathsf{eval\_id}~x~v) \and
-\mathsf{isptr}~v~ \rightarrow~(\mathsf{eval\_cast\_neutral}~v~ =~ v) \and
-(\exists t.\,\mathsf{tc\_val}\,t\,v\,\wedge\,
-\mathsf{is\_pointer\_type}\,t)~ \rightarrow~(\mathsf{eval\_cast\_neutral}~v~ =~ v) \and
-\end{mathpar}
-
-
-\textbf{Expression evaluation.   (\lstinline{autorewrite with eval}, but in fact these are usually handled just by simpl or unfold.)}
-\begin{mathpar}
-\mathsf{deref\_noload}(\mathsf{tarray}~t~n)=(\mathsf{fun}~v\Rightarrow v)\and
-\mathsf{eval\_expr}(\mathsf{Etempvar}~i~t)=\mathsf{eval\_id~i}\and
-\mathsf{eval\_expr}(\mathsf{Econst\_int~i~t})= `(\mathsf{Vint}~i) 
-\\
-\mathsf{eval\_expr}(\mathsf{Ebinop}~\mathit{op}~a~b~t)=
-`(\mathsf{eval\_binop}~\mathit{op}~(\mathsf{typeof}\,a)~
-(\mathsf{typeof}\,b))~
-(\mathsf{eval\_expr}~a)~(\mathsf{eval\_expr}~b) \and
-\mathsf{eval\_expr}(\mathsf{Eunop}~\mathit{op}~a~t)=
-`(\mathsf{eval\_unop}~\mathit{op}~(\mathsf{typeof}\,a))~
-(\mathsf{eval\_expr}~a) \and
-\mathsf{eval\_expr}(\mathsf{Ecast}~e~t)=
-`(\mathsf{eval\_cast}(\mathsf{typeof}~e)~t)~(\mathsf{eval\_expr}~e) \and
-\mathsf{eval\_lvalue}(\mathsf{Ederef}~e~t)=
-`\mathsf{force\_ptr}~(\mathsf{eval\_expr}~e)
-\end{mathpar}
-
-
-\textbf{Structure fields.}
-\begin{mathpar}
-\mathsf{field\_mapsto}~\mathit{sh}~t~\mathit{fld}~(\mathsf{force\_ptr}~ v) =
-\mathsf{field\_mapsto}~\mathit{sh}~t~\mathit{fld}~v \and
-\mathsf{field\_mapsto\_}~\mathit{sh}~t~\mathit{fld}~(\mathsf{force\_ptr}~ v) =
-\mathsf{field\_mapsto\_}~\mathit{sh}~t~\mathit{fld}~v \and
-\mathsf{field\_mapsto}~\mathit{sh}~t~x~(\mathsf{offset\_val}~v~\mathsf{Int.zero}) =
-\mathsf{field\_mapsto}~\mathit{sh}~t~x~v \and
-\mathsf{field\_mapsto\_}~\mathit{sh}~t~x~(\mathsf{offset\_val}~v~\mathsf{Int.zero}) =
-\mathsf{field\_mapsto\_}~\mathit{sh}~t~x~v \and
-\mathsf{memory\_block}~\mathit{sh}~\mathsf{Int.zero}~(\mathsf{Vptr}~b~z)~=~\mathsf{emp} 
-\end{mathpar}
-
-\textbf{Postconditions.} (\lstinline{autorewrite with ret_assert.})
-\begin{mathpar}
-\mathsf{normal\_ret\_assert}~\FF~\mathsf{ek}~\mathsf{vl}~=~\FF \and
-\mathsf{frame\_ret\_assert}
-(\mathsf{normal\_ret\_assert}~P)~Q = 
-\mathsf{normal\_ret\_assert}~(P*Q) \and
-\mathsf{frame\_ret\_assert}~P~\mathsf{emp}~=~P\and
-\mathsf{frame\_ret\_assert}~P~Q~\mathsf{EK\_return}~\mathit{vl}~=~
-P~\mathsf{EK\_return}~\mathit{vl}~*~Q\and
-\mathsf{frame\_ret\_assert}
-(\mathsf{loop1\_ret\_assert}~P~Q)~R = 
-\mathsf{loop1\_ret\_assert}~(P*R) (\mathsf{frame\_ret\_assert}~Q~R) \and
-\mathsf{frame\_ret\_assert}
-(\mathsf{loop2\_ret\_assert}~P~Q)~R = 
-\mathsf{loop2\_ret\_assert}~(P*R) (\mathsf{frame\_ret\_assert}~Q~R) \and
-\mathsf{overridePost}~P~(\mathsf{normal\_ret\_assert}~Q) = 
-\mathsf{normal\_ret\_assert}~P \and
-\mathsf{normal\_ret\_assert}~P~\mathit{ek}~\mathit{vl}~=
-(!!(\mathit{ek}=\mathsf{EK\_normal})\andp
- (!!(\mathit{vl}=\mathsf{None})\andp P)) \and
-\mathsf{loop1\_ret\_assert}~P~Q~\mathsf{EK\_normal}~\mathsf{None}~=~P\and
-\mathsf{overridePost}~P~R~\mathsf{EK\_normal}~\mathsf{None}=P \and
-\mathsf{overridePost}~P~R~\mathsf{EK\_return}~=~R~\mathsf{EK\_return} \and
-\mathsf{function\_body\_ret\_assert}~t~P~\mathsf{EK\_return}~\mathit{vl}~=
-~\mathsf{bind\_ret}~\mathit{vl}~t~P
-\end{mathpar}
-\textbf{Function return values.}
-\begin{mathpar}
-\mathsf{bind\_ret}~(\mathsf{Some}~v)~t~Q=
-(!!\mathsf{tc\_val}~t~v \andp `Q(\mathsf{make\_args}(\mathsf{ret\_temp}::\mathsf{nil})~(v::\mathsf{nil}))) \and
-\mathsf{make\_args'}~\sigma~a~\rho~=
-\mathsf{make\_args}~(\mathsf{map~fst}~(\mathsf{fst}~\sigma))~(a~\rho)~\rho\and
-\mathsf{make\_args}(i::l)(v::r)\rho=
-\mathsf{env\_set}(\mathsf{make\_args}(l)(r)\rho)~i~v\and
-\mathsf{make\_args}~\mathsf{nil}~\mathsf{nil}~=~\mathsf{globals\_only}\and
-\mathsf{get\_result}(\mathsf{Some}~x)=\mathsf{get\_result1}(x)\and
-\mathsf{retval}(\mathsf{get\_result1}~i~\rho)=\mathsf{eval\_id}~i~\rho \and
-\mathsf{retval}(\mathsf{env\_set}~\rho~\mathsf{ret\_temp}~v)~=~v \and
-\mathsf{retval}(\mathsf{make\_args}(\mathsf{ret\_temp}::\mathsf{nil})~(v::\mathsf{nil})~\rho)~=~v \and
-\mathsf{ret\_type}(\mathsf{initialized}~i~\Delta) = 
-\mathsf{ret\_type}(\Delta) 
-\end{mathpar}
-
-\newthought{In addition to rewriting}, the
-\lstinline{normalize} tactic applies the following rules:
-\begin{mathpar}
-P \vdash \TT \and
-\FF \vdash P \and
-P \vdash P*\TT  \and
-(\forall x.~(P\vdash Q)) \rightarrow (EX x:A,~P \vdash Q) \and
-(P \rightarrow (\TT \vdash Q)) \rightarrow (!!P \vdash Q) \and
-(P \rightarrow (Q\vdash R)) \rightarrow (!!P \andp Q \vdash R)
-\end{mathpar}
-and does some rewriting and substitution
-when $P$ is an equality in the goal,
-$(P \rightarrow (Q\vdash R))$.
-
-Given the goal $x \rightarrow P$, where $x$ is not
-a \lstinline{Prop}, the \lstinline{normalize} avoids
-doing an \lstinline{intro}.  This allows the user
-to choose an appropriate name for $x$.
 
 \ychapter{Later}{(See PLCC \autoref{ch:stepindex})}
 Many of the Hoare rules, such as the one on \autopageref{refcard:later1},
@@ -3663,496 +3440,13 @@ A more sophisticated understanding of $\later$ is needed to
 build proof rules for recursive data types and for 
 some kinds of object-oriented programming; see PLCC \autoref{ch:lseg}.
 
-\chapter{Restrictions on forward}
-
-Each kind of C command has different requirements on the form of the precondition, for the \lstinline{forward} tactic to succeed.  In each of the following cases, the expression $E$ must not contain loads, stores, side effects, function calls, or pointer comparisons.  The variable $x$ must be a nonaddressable local variable.
-\begin{description}
-\item[\textsf{$c_1$; $c_2$}] Sequencing of two commands. 
-The \lstinline{forward} tactic will work on $c_1$ first.
-
-\item[\textsf{($c_1$; $c_2$) $c_3$}] In this case,
-\lstinline{forward} will re-associate the commands
-using the \lstinline{seq_assoc} axiom, and work on
-\lstinline{$c_1$; ($c_2$; $c_3$)}.
-
-\item[\textsf{$x$=$E$;}]  Assignment statement.
-Expression $E$ must not contain memory dereferences (loads or stores
-using \lstinline{*}prefix, suffix\lstinline{[]}, 
-or \lstinline{-$$>} operators).  Expression $E$ must
-not contain pointer-comparisons.
-No restrictions on the form of the precondition (except that it must be in canonical form).  The expression \lstinline{&p->next} does not actually
-load or store (it just computes an address) and is permitted.
-\item[\textsf{$x$= *$E$;}]  Memory load.
-The \SEP{} component of the precondition must contain
-an item of the form \lstinline{`(mapsto $\mathit{sh}$ t) $e$ $v$},
-where $e$ is equivalent to \lstinline{(eval_expr $E$)}.
-For example, if $E$ is just an identifer \lstinline{(Etempvar _y t)},
-then $e$ could be either \lstinline{(eval_expr (Etempvar _y t))}
-or \lstinline{(eval_id _y)}.
- 
-\item[\textsf{$x$= a[$E$];}]  Array load.  This is
-just a memory load, equivalent to 
-\textsf{$x$= *(a+$E$);}.
- 
-\item[\textsf{$x$= $E\rtarrow \mathit{fld}$;}] Field load.  This is
-  equivalent to \lstinline{$x$= *($E$.$\mathit{fld}$)} and can
-  actually be handled by the ``memory load'' case, but a special-purpose
-field-load rule is easier to use (and will be automatically
-applied by the \lstinline{forward} tactic).  In this case the \SEP{} component
-of the precondition must contain
-\lstinline{`(field_at $\mathit{sh}$ $t$ $\mathit{fld}$) $v$ $e$},
-where $t$ is the structure type to which the field $\mathit{fld}$
-belongs, and $e$ is equivalent to  \lstinline{(eval_expr $E$)}.
-
-\item[\textsf{*$E_1$ = $E_2$;}]  Memory store.
-The \SEP{} component of the precondition must contain
-an item of the form \lstinline{`(mapsto $\mathit{sh}$ t) $e_1$ $v$}
-or an item \lstinline{`(mapsto_ $\mathit{sh}$ t) $e_1$},
-where $e_1$ is equivalent to \lstinline{(eval_expr $E_1$)}.
-
-\item[\textsf{a[$E_1$]=$E_2$;}]  Array store.  This is
-equivalent to \textsf{*(a+$E_1$)=$E_2$;} and is handled
-by the previous case.
-
-\item[\textsf{$E_1\rightarrow \mathit{fld}$ = $E_2$;}] Field store.  This 
-can be handled by the general store case, but a special-purpose
-field-store rule is easier to use.  The \SEP{} component
-of the precondition must contain
-either \lstinline{`(field_at $\mathit{sh}$ $t$ $\mathit{fld}$) $v$ $e_1$}
-or \lstinline{`(field_mapsto_ $$ $\mathit{sh}$ $t$ $\mathit{fld}$) $e_1$},
-where $t$ is the structure type to which the field $\mathit{fld}$
-belongs, and $e_1$ is equivalent to  \lstinline{(eval_expr $E_1$)}.
-The share $\mathit{sh}$ must be strong enough to grant write permission, 
-that is, \lstinline{writable_share($\mathit{sh}$)}.
-
-\item[\textsf{$x$ = $E_1~\mathit{op}~E_2$};]
-If $E_1$ or $E_2$ evaluate to \emph{pointers},
-and ${op}$ is a comparison operator (\lstinline{=, !=, <, <=, >, >=}),
-then $E_1~\mathit{op}~E_2$ must not occur except in 
-this special-case assignment rule.
-When $E_1$ and $E_2$ both have numeric values, the ordinary
-\emph{assignment statement} rule applies.
-
-Pointer comparisons are tricky in CompCert C for reasons
-explained at PLCC \autopageref{lim-ptr-compare}; the
-program logic uses the \lstinline{semax_ptr_compare} rule
-(PLCC \autopageref{semax-ptr-compare}).  After applying
-the \lstinline{forward} tactic, the user will be left
-with some proof obligations:  Prove that both $E_1$ and
-$E_2$ evaluate to allocated locations (i.e., that
-the precondition implies $E_1\stackrel{\mathit{sh}_1}{\mapsto} \_ * TT$ and
-also implies $E_2\stackrel{\mathit{sh}_2}{\mapsto} \_ * TT$,
-for any $\mathit{sh}_1$ and $\mathit{sh}_2$).  If the comparison is
-any of \lstinline{>}, \lstinline{<}, \lstinline{>=}, \lstinline{<=},
-prove that $E_1$ and $E_2$ both point within the same allocated
-object.  These are preconditions for even being permitted
-to test the pointers for equality (or inequality).
-See also \autopageref{refcard:pointer-cmp}.
-
-\item[\textsf{if ($E$) $C_1$ else $C_2$}]
-No restrictions on the form of the precondition.
-\lstinline{forward} will create 3 subgoals:
-(1) prove that the precondition entails
-\lstinline{tc_expr $\Delta$ $E$}.  For many expressions $E$,
-the condition \lstinline{tc_expr $\Delta$ $E$} is simply \lstinline{TT}, 
-which is trivial to prove.
-(2) the \lstinline{then} clause...
-(3) the \lstinline{else} clause... .
-
-\item[\textsf{while} ($E$) $C$]
-For a while-loop, use the \lstinline{forward_while} tactic 
-(\autopageref{refcard:forward-while}).
-
-\item[\textsf{return} $E$;]
-No special precondition, except that the presence/absence of $E$ must
-match the nonvoid/void return type of the function.
-The proof goal left by \lstinline{forward} is to
-show that the precondition (with appropriate substitution
-for the abstract variable \lstinline{ret_var}) entails
-the function's postcondition.
-
-\item[\textsf{$x$ = $f$($a_1, \ldots, a_n$);}]
-\label{forward-call}
-For a function call, use \lstinline|forward_call($W$)|,
-where $W$ is a witness, a tuple corresponding (componentwise)
-to the \textsc{with} clause of the function specification.
-(If you do just \lstinline|forward|, you'll get a message with
-advice about the \emph{type} of $W$.)
-
-This results a proof goal to show that
-the precondition implies the function precondition 
-and includes an uninstantiated variable:
-The \lstinline|Frame|
-represents the part of the spacial precondition that is unchanged by the function call.
-It will generally be instantiated by a call to \lstinline|cancel|.
-\end{description}
-
-\chapter{Manipulating preconditions}
-In some cases you cannot go \lstinline{forward} until the precondition
-has a certain form.  For example, in ordinary separation logic
-we might have $\triple{p\not= q \,\wedge\, \lseg{p}{q}}{x:=p\rightarrow \mathit{tail}}{\mathit{Post}}$.
-In order to use the proof rule for load, we must use the rule of consequence,
-to prove,
-\[p\not= q \,\wedge\, \lseg{p}{q} ~\vdash~
- p\not= q \,\wedge\, \exists h,t.\, p\mapsto (h,t) * \lseg{t}{q} 
-\]
-then instantiate the existentials; this finally gives us
-\[\triple{ p\not= q \,\wedge\, p\mapsto (h,t) * \lseg{t}{q} }{x:=p\rightarrow \mathit{tail}}{\mathit{Post}}\]
-which is provable by the standard load rule of separation logic.
-
-Faced with the proof goal 
-$\mathsf{semax}~~\Delta~~(\PROP(\vec{P}) \LOCAL(\vec{Q}) \SEP(\vec{R}))~~c~~\mathit{Post}$
-where $\PROP(\vec{P}) \LOCAL(\vec{Q}) \SEP(\vec{R})$ does not match
-the requirements for forward symbolic execution,
-you have several choices:
-\begin{itemize}
-\item Use the rule of consequence explicitly:\newline
-\lstinline|apply semax_pre with $\PROP(\vec{P'}) \LOCAL(\vec{Q'}) \SEP(\vec{R'})$|,\newline
-then prove $\mathsf{ENTAIL}~\Delta,~\vec{P};\vec{Q};\vec{R}\vdash\vec{P'};\vec{Q'};\vec{R'}$.
-\item Use the rule of consequence implicitly,
-by using tactics that modify the precondition
-(and may leave entailments for you to prove).
-\item Do rewriting in the precondition, either directly by the
-standard \lstinline{rewrite} and \lstinline{change} tactics,
-or by \lstinline{normalize}.
-\item Extract propositions and existentials from the precondition,
-by using \lstinline{Intros} or \lstinline{normalize}.
-\end{itemize}
 
 
-
-\newthought{Tactics for manipulating preconditions.}
-In many of these tactics we select specific conjucts from the
-\SEP{} items, that is, the semicolon-separated list of
-separating conjuncts.  These tactic refer to the list
-by zero-based position number, 0,1,2,\ldots.
-\pagebreak
-For example, suppose the goal is a \lstinline{semax}
-or entailment containing \lstinline|PROP($\vec{P}$)LOCAL($\vec{Q}$)SEP(a;b;c;d;e;f;g;h;i;j).|
-Then:
-
-\sbox{\mybox}{\emph{results in}}
-\begin{description}\setlength{\itemsep}{2ex}
-\item[$\mathsf{focus\_SEP}~i~j~k$.]
-Bring items \#$i,j,k$ to the front of the \SEP{} list.
-\begin{lstlisting}
-focus_sep 5.  $~~~\usebox{\mybox}~$PROP($\vec{P}$)LOCAL($\vec{Q}$)SEP(f;a;b;c;d;e;g;h;i;j).
-focus_sep 0.  $~~~\usebox{\mybox}~$PROP($\vec{P}$)LOCAL($\vec{Q}$)SEP(a;b;c;d;e;f;g;h;i;j).
-focus_SEP 1 3. $~\usebox{\mybox}~$PROP($\vec{P}$)LOCAL($\vec{Q}$)SEP(b;d;a;c;e;f;g;h;i;j)
-focus_SEP 3 1. $~\usebox{\mybox}~$PROP($\vec{P}$)LOCAL($\vec{Q}$)SEP(d;b;a;c;e;f;g;h;i;j)
-\end{lstlisting}
-\item[$\mathsf{gather\_SEP}~i~j~k$.]
-Bring items \#$i,j,k$ to the front of the \SEP{} list
-and conjoin them into a single element.
-\begin{lstlisting}
-gather_sep 5.  $~~~\usebox{\mybox}~$PROP($\vec{P}$)LOCAL($\vec{Q}$)SEP(f;a;b;c;d;e;g;h;i;j).
-gather_SEP 1 3. $~\usebox{\mybox}~$PROP($\vec{P}$)LOCAL($\vec{Q}$)SEP(b*d;a;c;e;f;g;h;i;j)
-gather_SEP 3 1. $~\usebox{\mybox}~$PROP($\vec{P}$)LOCAL($\vec{Q}$)SEP(d*b;a;c;e;f;g;h;i;j)
-\end{lstlisting}
-\item[$\mathsf{replace\_SEP}~i~R$.]
-Replace the $i$th element the \SEP{} list
-with the assertion $R$, and leave a subgoal to prove.
-\begin{lstlisting}
-replace_sep 3 R.  $~~~\usebox{\mybox}~$PROP($\vec{P}$)LOCAL($\vec{Q}$)SEP(a;b;c;$R$;e;f;g;h;i;j).
-\end{lstlisting}
-with subgoal~~~ $\PROP(\vec{P})\LOCAL(\vec{Q})\SEP(\textsf{d}) \vdash R$.
-\item[$\mathsf{replace\_in\_pre}~S~S'$.]
-Replace $S$ with $S'$ anywhere it occurs in the precondition
-then leave 
-$(\vec{P};\vec{Q};\vec{R}) \vdash (\vec{P};\vec{Q};\vec{R})[S'/S]$
-as a subgoal.
-\item[$\mathsf{frame\_SEP}~i~j~k.$]
-Apply the frame rule, keeping only
-elements $i,j,k$ of the \SEP{} list.  See Chapter \ref{refcard:frame}.
-\end{description}
-
-\ychapter{The Frame rule}{}
-\label{refcard:frame}
-
-Separation Logic supports the Frame rule,
-\[\inference[Frame]{\triple{P}{c}{Q}}{\triple{P*F}{c}{Q*F}}\]
-
-To use this in a forward proof, suppose you have the
-proof goal,
-\begin{lstlisting}
-semax $\Delta$ $\PROP(\vec{P})\LOCAL(\vec{Q})\SEP(R_0;R_1;R_2)~$ $c_1;c_2;c_3$ $~\mathit{Post}$
-\end{lstlisting}
-and suppose you want to ``frame out'' $R_2$ for the duration of 
-$c_1;c_2$, and have it back again for $c_3$.
-First you rewrite by \lstinline{seq_assoc}
-to yield the goal
-\begin{lstlisting}
-semax $\Delta$ $\PROP(\vec{P})\LOCAL(\vec{Q})\SEP(R_0;R_1;R_2)~$ $(c_1;c_2);c_3$ $~\mathit{Post}$
-\end{lstlisting}
-Then \lstinline{eapply semax_seq'} to peel off the 
-first command $(c_1;c_2)$ in the new sequence:
-\begin{lstlisting}
-semax $\Delta$ $\PROP(\vec{P})\LOCAL(\vec{Q})\SEP(R_0;R_1;R_2)~$ $c_1;c_2$ $~\mathsf{?88}$
-
-semax $\Delta'$ $~\mathsf{?88}~$ $c_3$ $~\mathit{Post}$
-\end{lstlisting}
-Then \lstinline{frame_SEP$~$0 2} to retain only $R_0;R_2$.
-\begin{lstlisting}
-semax $\Delta$ $\PROP(\vec{P})\LOCAL(\vec{Q})\SEP(R_0;R_2)~$ $c_1;c_2$ $~\ldots$
-\end{lstlisting}
-Now you'll see that (in the precondition of the second subgoal)
-the unification variable $\mathsf{?88}$ has been
-instantiated in such a way that $R_2$ is added back in.
-
-\ychapter{Pointer comparisons}{See PLCC Chapter \ref{ch:typecheck}}
-Pointer comparisons can be split into two cases:
-\begin{enumerate}
-  \item Comparisons between two expressions that evaluate to be pointers. In
-  this case, both of the pointers must be to \emph{allocated} objects, or the
-  expression will not evaluate
-  \item Comparisons between an expression that evaluates to the null pointer and
-  any expression that evaluates to a value with a pointer type. This expression
-  will always evaluate
-\end{enumerate}
-
-If you are sure that your pointer comparison falls into the first case, you may
-treat it exactly like any other expression. The proof may eventually generate a
-side-condition asking you to prove that one of the expressions evaluates to the
-null pointer. If your pointer comparison might be between two pointers, however, 
-the expression should be factored into its own statement (PLCC
-\autopageref{pointercompare}). 
-
-When you use \lstinline|forward| on a pointer comparison you might get a side
-condition with a disjunction. The left and right sides of the disjunction
-correspond to the first and second type of comparison above. In simple cases,
-the tactic can solve the disjunction automatically.
-
-\ychapter{Structured data}{}
-\label{refcard:structured}
-The C programming language has \lstinline{struct} and array
-to represent structured data.  The \emph{Verifiable C} logic
-provides operators \lstinline{field_at},
-\lstinline{array_at}, and \lstinline{data_at} to describe
-assertions about structs and arrays.
-
-Given a struct definition,~~~~\lstinline|struct list {int head; struct list *tail;};|\newline
-the \lstinline{clightgen} utility produces the
-type \lstinline{t_struct_list} describing fields
-\lstinline{head} and \lstinline{tail}.
-Then these assertions are all equivalent:
-
-\begin{lstlisting}
-mapsto $\mathit{sh}$ tint p h * 
-    mapsto $\mathit{sh}$ (tptr t_struct_list) (offset_val p (Vint (Int.repr 4))) t
-
-field_at $\mathit{sh}$ t_struct_list [_head] h p * field_at $\mathit{sh}$ t_struct_list [_tail] t p
-
-data_at $\mathit{sh}$ t_struct_list (h,t) p
-
-field_at $\mathit{sh}$ t_struct_list nil (h,t) p
-\end{lstlisting}
-The version using \lstinline{mapsto} is correct (assuming a 32-bit 
-configuration of CompCert) but rather ugly;
-the second version is useful when
-you want to ``frame out'' a 
-particular field; the third version describes the contents
-of all structure-fields at once.
-
-The \lstinline{data_at} predicate is dependently typed;
-the \emph{type} of its third argument $(h,t)$
-depends on the \emph{value} of its second argument.
-The dependent type is expressed by the
-function,
-$\qquad$\lstinline{reptype: type -> Type}$\qquad$
-that converts C-language types into Coq Types.
-
-Here, \lstinline{reptype t_struct_list = val*val}, so
-the type of $(h,t)$ is \lstinline{(val*val)}.
-The value $h$ may be \lstinline{Vint(i)} or \lstinline{Vundef},
-and $t$ may be \lstinline{Vpointer b z},
-\lstinline{Vint Int.zero}, or \lstinline{Vundef}.
-The \lstinline{Vundef} values represent uninitialized
-data fields.
-
-When $\tau$ is a struct type and $n$ is a \lstinline{nat},
-the tactic \lstinline{unfold_data_at $n$}
-unfolds the $n$th occurrence of \lstinline{data_at $\mathit{sh}$ $\tau$}
-to a series of \lstinline{field_at $\mathit{sh}$ $\tau$ ($f$::nil)},
-where the $f$ are the various fields of the struct $\tau$.
-For example, it would unfold the third assertion above
-to look like the second one.
-
-The \lstinline{forward} tactic, when the next command is a load
-or store command, can operate directly on \lstinline{data_at}
-assertions; it is not necessary to unfold them to individual
-\lstinline{field_at} conjuncts.  This is a new feature
-of VST 1.5.
-
-\newthought{Why are the arguments backwards?}
-We write\newline \lstinline{field_at $\mathit{sh}$ t_struct_list [head] h p}
-\ \ \ where Reynolds would have written $p.\mathrm{head}\mapsto h$,
-and we write 
-\lstinline{data_at $\mathit{sh}$ t_struct_list (h,t) p}
-where Reynolds would have written $p\hookrightarrow(h,t)$.
-Putting the \emph{contents} argument before the \emph{pointer}
-argument makes it easier to express identities in our lifted
-separation logic.  That is, we commonly have formulas such as
-\begin{lstlisting}
-`(data_at $\mathit{sh}$ t_struct_list (h,t)) (eval_id _p )tptr t_struct_list))
-\end{lstlisting}
-\vspace{-\baselineskip}
-which simplify to 
-\begin{lstlisting}
-`(field_at $\mathit{sh}$ t_struct_list [head] h * field_at $\mathit{sh}$ t_struct_list [_tail] t)
-   (eval_id _p (tptr t_struct_list))
-\end{lstlisting}
-\vspace{-\baselineskip}
-Expressing these equivalences with the arguments in the other order
-would lead to extra lambdas, which are
-(ironically) no fun at all.
-
-\newthought{Partially initialized data structures.}
-Consider the program
-\begin{lstlisting}
-struct list *f(void) {
-  struct list *p = (struct list *)malloc(sizeof(struct list));
- /* 1 */ p->head= 3;
- /* 2 */ p->tail= NULL;
- /* 3 */  return p;
-}
-\end{lstlisting}
-We do not want to assume that malloc returns initialized memory,
-so at point 1 the contents of head and tail are \lstinline{Vundef}.
-We can write this as any of the following:
-\begin{lstlisting}
-field_at Tsh t_struct_list [head] Vundef p 
-        * field_at Tsh t_struct_list [_tail] Vundef p
-field_at_ Tsh t_struct_list [head] p * field_at_ Tsh t_struct_list [_tail] p
-data_at Tsh t_struct_list (Vundef,Vundef) p
-data_at_ Tsh t_struct_list p
-\end{lstlisting}
-If malloc returns fields that---operationally---contain defined
-values instead of Vundef, these assertions are still valid,
-as they ignore the contents of the fields.
-
-At point 2, all the assertions above are still true, but
-they are weaker than the ``appropriate'' assertion, which
-may be written as any of,
-\begin{lstlisting}
-field_at Tsh t_struct_list [head] (Vint(Int.repr 3)) p
-        * field_at Tsh t_struct_list [_tail] Vundef p
-field_at Tsh t_struct_list [head] (Vint(Int.repr 3)) 
-        * field_at_ Tsh t_struct_list [_tail] p
-data_at Tsh t_struct_list (Vint(Int.repr 3), Vundef) p
-\end{lstlisting}
-
-At point 3, we can write either of,
-\begin{lstlisting}
-field_at Tsh t_struct_list [head] (Vint(Int.repr 3)) p 
-        * field_at Tsh t_struct_list [_tail] (Vint Int.zero) p
-data_at Tsh t_struct_list (Vint(Int.repr 3), Vint Int.zero) p
-\end{lstlisting}
-
-
-\newthought{Fully initialized data structures.}
-In a function precondition it is sometimes convenient to write,
-\begin{lstlisting}
-WITH data: reptype t_struct_list
-PRE [_p OF tptr t_struct_list]    (**)  
-    `(data_at Tsh t_struct_list data) (eval_id _p (tptr t_struct_list))
-POST [ ... ] ...
-\end{lstlisting}
-If \lstinline{p->head} and 
-\lstinline{p->tail} may be uninitialized, this is fine.
-But if the structure is known to be initialized, the precondition
-as written does not express this fact.  One would need to
-add the conjunct \linebreak
-\lstinline{!!(is_int (fst data) /\ is_pointer_or_null (snd data))}\linebreak
-at the point marked \lstinline{(**)}.
-
-The function~~~\lstinline{reptype': type -> Type}\ \ \ expresses
-the type of \emph{initialized} data structures.  For example,
-\lstinline{reptype' t_struct_list} is \lstinline{(int*val)}.
-The function 
-\begin{lstlisting}
-repinj (t: type): reptype' t -> reptype t
-\end{lstlisting}
-expresses injections from (possibly) undefined to defined values.
-Suppose (h: int, t: val) is a value of type 
-\lstinline{reptype' t_struct_list}.  Then
-\begin{lstlisting}
-repinj t_struct_list (h,t) = (Vint h, t)
-\end{lstlisting}
-
-Using \lstinline{reptype'} one could write,
-\begin{lstlisting}
-WITH data: reptype' t_struct_list
-PRE [_p OF tptr t_struct_list]
-    !!(is_pointer_or_null (snd data) &&
-    `(data_at Tsh t_struct_list (repinj _ data)) (eval_id _p (tptr t_struct_list))
-POST [ ... ] ...
-\end{lstlisting}
-Notice that this only solves half the problem---for integers but not for
-pointers.  Since defined pointers can be either NULL or a Vpointer,
-we use \lstinline{val} to represent them, and the Coq type alone
-does not express the refinement.  One could imagine 
-a version of \lstinline{reptype'} that uses a refinement type
-to accomplish this, but it might be unwieldy.
-
-
-\ychapter{For loops}{}
-
-The C-language \textsf{for} loop has the general form,
-\begin{lstlisting}
- for ($\mathit{init}$; $\mathit{test}$; $\mathit{incr}$) $\mathit{body}$
-\end{lstlisting}
-
-To solve a proof goal of this form (or when this is followed by other
-statements in sequence), use the tactic
-
-\begin{lstlisting}
- forward_for $~\mathit{Inv}~$ $~\mathit{PreIncr}~$ $~\mathit{PostCond}~$ 
-\end{lstlisting}
-where \textit{Inv, PreIncr, PostCond} are assertions
-(in $\PROP/ \LOCAL /\SEP$ form):
-\begin{trivlist}
-\item
-\textit{Inv} is the loop invariant,
-that holds immediately after the \textit{init} command is executed
-and before each time the \textit{test} is done;
-\textit{PreIncr}
-is the invarint that holds immediately after the loop \textit{body}
-and right before the \textit{incr};
-\item 
-\textit{PostCond}
-is the assertion that holds after the loop is complete
-(whether by a break statement, or the test evaluating to false).
-\end{trivlist}
-
-\emph{The following feature will appear in VST version 1.5.}
-
-Many for-loops have this special form,~~~~
-\lstinline{ for ($\mathit{init}$; $\mathit{id}$ < $\mathit{hi}$; $\mathit{id}$++) $\mathit{body}$}
-\newline
-such that the expression \textit{hi} will evaluate to the same value
-every time around the loop.  This upper-bound expression need not
-be a literal constant, it just needs to be invariant.
-Then you can use the tactic,
-\begin{lstlisting}
- forward_for_simple_bound $n$ $~$     (EX $i$:Z, PROP($\vec{P}$) LOCAL($\vec{Q}$) SEP($\vec{R}$).
-\end{lstlisting}
-where $n$ is the upper bound: a Coq value of type $Z$ 
-such that \textit{hi} will evaluate to $n$.
-The loop invariant is given by the expression
-\lstinline{(EX $i$:Z, PROP($\vec{P}$) LOCAL($\vec{Q}$) SEP($\vec{R}$)},
-where $i$ is the value (in each iteration) of the loop iteration variable $\mathit{id}$.
-This tactic generates simpler subgoals than the general \lstinline{forward_for} tactic.
-
-When the loop has the form,~~~~
-\lstinline{ for ($\mathit{id}$=$\mathit{lo}$; $\mathit{id}$ < $\mathit{hi}$; $\mathit{id}$++) $\mathit{body}$}\newline
-where \textit{lo} is a literal constant, then
-the \lstinline{forward_for_simple_bound} tactic will
-generate slightly simpler subgoals.
 
 
 \ychapter{Nested Loads}{}
 
-\emph{This experimental feature will appear in VST release 1.5.}
+\emph{This experimental appeared in VST release 1.5, but is broken in VST 1.6.}
 
 To handle assignment statements with nested loads, such as
 \lstinline{x[i]=y[i]+z[i];}
@@ -4302,45 +3596,371 @@ semax Delta
   MORE_COMMANDS
   POSTCONDITION
 \end{lstlisting}
-\chapter{JUNK}
-\newcommand\islockshT{\mbox{\raisebox{4pt}{\makebox[0pt][l]{\hspace*{10pt}\small$\bullet$}}}\islock}
-\begin{figure}[htbp]\begin{shaded}\vspace{-1ex}
-\begin{mathpar}
-% \inference[makelock]
-% {R~\mathrm{positive}\quad
-% R~\mathrm{precise}\quad
-% \Delta\vdash\triple{l\islocksh\T R \,* P}{c}{Q}}
-% {\Delta\vdash\triple{l\mapsto 0 \,* P}{c}{Q}}
-% \and
-% \inference[freelock]
-% {\Delta\vdash\triple{l\mapsto 0 \,* P}{c}{Q}}
-% {\Delta\vdash\triple{l\islocksh\T R \,* P}{c}{Q}}
-\inference[makelock]
-{R~\mathrm{positive}\qquad R~\mathrm{precise}}
-{\Delta\vdash\triple{l\mapsto 0}{\mathsf{makelock}\,l}{l\islockshT R}}
-\and
-\inference[freelock]
-{}
-{\Delta\vdash\triple{R * l\islockshT R}{\mathsf{freelock}\,l}{R * l\mapsto 0}}
-\and
-\inference[splitlock]{\pi_1 \oplus \pi_2 = \pi}
-{l\islocksh{\pi_1}R ~*~l\islocksh{\pi_2}R~~\leftrightarrow~~
-l\islocksh{\pi}R}
-\and
-\inference[acq]{}{\Delta\vdash\triple{l \islocksh\pi R}{~\mathsf{acquire}\,l~}{R\,*\,l \islocksh\pi R}}\and
-\inference[rel]{}{\Delta\vdash\triple{R\,*\,l \islocksh\pi R}{~\mathsf{release}\,l~}{l \islocksh\pi R}}
-\and
-\inference[spawn]{}
-{\Delta\vdash \triple{(a:\{\vec{y}P\}\{\mathsf{emp}\})\,\wedge
-(Px)[\vec{b}/\vec{y}] * F}{\,\mathsf{spawn}~a(\vec{b})\,}{F}}
-\and
-\inference[exit]{}
-{\Delta\vdash \triple{\mathsf{emp}}{\,\mathsf{exit}()\,}{\FF}}
-\end{mathpar}
-\caption{CSL rules for threads and locks}
-\label{fig-csl}
-\vspace{-1ex}\end{shaded}\end{figure}
 
+\ychapter{Lifted separation logic}{(See PLCC \autoref{ch:lifted})}
+\textbf{This chapter is needed only by ``power users.''}\newline
+Assertions in our Hoare triple of separation 
+are presented as $\mathsf{env}\rightarrow
+\mathsf{mpred}$, that is, functions from environment
+to memory-predicate,
+using our natural deduction system 
+\lstinline{NatDed(mpred)} and separation logic
+\lstinline{SepLog(mpred)}.
+
+Given a separation logic over a type $B$ of formulas,
+and an arbitrary type $A$, 
+we can define a \emph{lifted} separation logic over functions $A \rightarrow B$.
+The operations are simply lifted pointwise over the
+elements of $A$.  Let $P,Q:~A\rightarrow B$,
+let $R:T\rightarrow A \rightarrow B$ then define,
+\[
+\begin{array}{rccl}
+(P \andp Q):& A\rightarrow B&:=& \mathrm{fun}~a~\Rightarrow~Pa \andp Qa\\
+(P \orp Q):& A\rightarrow B&:=& \mathrm{fun}~a~\Rightarrow~Pa \orp Qa\\
+(\exists x.R(x)):& A\rightarrow B&:=& \mathrm{fun}~a~\Rightarrow~\exists x.~Rxa\\
+(\forall x.R(x)):& A\rightarrow B&:=& \mathrm{fun}~a~\Rightarrow~\forall x.~Rxa\\
+(P \imp Q):& A\rightarrow B&:=& \mathrm{fun}~a~\Rightarrow~Pa \imp Qa\\
+(P \vdash Q):& A\rightarrow B&:=& \forall a.~Pa \vdash Qa\\
+(P * Q):& A\rightarrow B&:=& \mathrm{fun}~a~\Rightarrow~Pa * Qa\\
+(P \wand Q):& A\rightarrow B&:=& \mathrm{fun}~a~\Rightarrow~Pa \wand Qa\\
+\end{array}
+\]
+In Coq we formalize the typeclass instances
+\lstinline{LiftNatDed},
+\lstinline{LiftSepLog}, etc.,
+as shown below.
+For a type $B$, whenever \lstinline{NatDed B} and \lstinline{SepLog B} (and so on) have been defined, the lifted instances
+\lstinline{NatDed (A->B)} and \lstinline{SepLog (A->B)} (and so on)
+are automagically provided by the typeclass system.
+
+\begin{lstlisting}
+Instance LiftNatDed(A B: Type){ND: NatDed B}: NatDed (A->B):=
+ mkNatDed (A -> B)
+    (*andp*) (fun P Q x => andp (P x) (Q x))
+    (*orp*) (fun P Q x => orp (P x) (Q x))
+    (*exp*) (fun {T} (F: T -> A -> B) (a: A) => exp (fun x => F x a))
+    (*allp*) (fun {T} (F: T -> A -> B) (a: A) => allp (fun x => F x a))
+    (*imp*) (fun P Q x => imp (P x) (Q x))
+    (*prop*) (fun P x => prop P)
+    (*derives*) (fun P Q => forall x, derives (P x) (Q x))
+     _ $$ _ $$ _ $$ _ $$ _ $$ _ $$ _ $$ _ $$ _ $$ _ $$ _ $$ _ $$ _ $$ _ $$ _ $$ _ $$ _ $$ _.
+
+Instance LiftSepLog (A B: Type) {NB: NatDed B}{SB: SepLog B} 
+      : SepLog (A -> B).
+ apply (mkSepLog (A -> B) _ (fun $\rho$ => emp) 
+            (fun P Q $\rho$ => P $\rho$ * Q $\rho$) (fun P Q $\rho$ => P $\rho$ -* Q $\rho$)).
+ (* fill in proofs here *)
+\end{lstlisting}
+
+In particular, if $P$ and $Q$ are functions of type \lstinline{environ->mpred}
+then we can write $P*Q$,  $P \andp Q$, and so on.
+
+Consider this assertion:
+\begin{lstlisting}
+fun $\rho$ => mapsto $\mathit{sh}$ tint (eval_id _x $\rho$) (eval_id _y $\rho$) 
+             * mapsto $\mathit{sh}$ tint (eval_id _u $\rho$) (Vint Int.zero)
+\end{lstlisting}
+which might appear as the precondition of a Hoare triple.
+It represents $(x\mapsto y) *(u\mapsto 0)$ written in informal
+separation logic, where $x,y,u$ are C-language variables
+of integer type.
+Because it can be inconvenient to manipulate explicit lambda expressions
+and explicit environment variables $\rho$, we may write it in lifted
+form,
+\begin{lstlisting}
+ `(mapsto $\mathit{sh}$ tint) (eval_id _x) (eval_id _y) 
+* `(mapsto $\mathit{sh}$ tint) (eval_id _u) `(Vint Int.zero)
+\end{lstlisting}
+Each of the first two backquotes lifts a function
+from type \lstinline{val->val->mpred} to type
+\lstinline{(environ->val)->(environ->val)->(environ->mpred)},
+and the third one lifts from \lstinline{val} to 
+\lstinline{environ->val}.
+
+\ychapter{Mapsto and func\_ptr}{(see PLCC \autoref{clight-mapsto})}
+
+Aside from the standard operators and axioms of separation logic,
+the core separation logic has just two primitive
+spatial (memory) predicates:
+
+\begin{lstlisting}
+Parameter address_mapsto: 
+    memory_chunk -> val -> share -> share -> address -> mpred.
+Parameter func_ptr : funspec -> val ->mpred.
+\end{lstlisting}
+\lstinline{func_ptr $\phi$ v} $\qquad$ means that value $v$
+is a pointer to a function with specification $\phi$;
+see \autoref{refcard:funcptr}.
+
+\lstinline{address_mapsto} expresses what is typically
+written $x\mapsto y$ in separation logic,
+that is, a singleton heap containing just value $y$ at address $x$.
+
+From this, we construct two low-level derived forms:
+
+\noindent \lstinline{mapsto ($\mathit{sh}$:share) (t:type) (v w: val) : mpred}
+$\qquad$describes a singleton heap with
+just one value $w$ of (C-language) type $t$
+at address $v$, with permission-share $\mathit{sh}$.
+
+\noindent \lstinline{mapsto_ $$ ($\mathit{sh}$:share) (t:type) (v:val) : mpred}
+$\qquad$
+describes an \emph{uninitialized} singleton heap with
+space to hold a value of type $t$
+at address $v$, with permission-share $\mathit{sh}$.
+
+From these primitives, \lstinline{field_at} and \lstinline{data_at} are constructed.
+
+\chapter{Function pointers}
+\begin{lstlisting}
+Parameter func_ptr : funspec -> val ->mpred.
+Definition func_ptr' f v := func_ptr f v && emp.
+\end{lstlisting}
+\lstinline{func_ptr $\phi$ v} $\qquad$ means that value $v$
+is a pointer to a function with specification $\phi$.\newline
+\lstinline{func_ptr' $\phi$ v} is a form more suitable to
+be a conjunct of a \lstinline{SEP} clause.
+
+Verifiable C's program logic is powerful enough to reason expressively
+about function pointers (see PLCC Chapters 24 and 29).  However,
+the Floyd proof-automation system does not have much support
+for proving such programs at present.
+
+
+\ychapter{Axioms of separation logic}{(see PLCC \autoref{ch:logic})}
+These axioms of separation logic are often useful,
+although generally it is the automation tactics
+(\textsf{entailer,cancel}) that apply them.
+
+\begin{lstlisting}
+pred_ext:    P|--Q $~$->$~$ Q|--P $~$->$~$ P=Q.
+derives_refl:  P |-- P.
+derives_trans: P |-- Q $~$->$~$ Q |-- R $~$->$~$ P|--R.
+andp_right:  X|--P $~$->$~$ X|--Q $~$->$~$  X|--(P&&Q).
+andp_left1:  P|--R $~$->$~$ P&&Q |-- R.
+andp_left2:  Q|--R $~$->$~$ P&&Q |-- R.
+orp_left:    P|--R $~$->$~$ Q|--R $~$->$~$ $~$ P||Q |--R.
+orp_right1:  P|--Q $~$->$~$ P|-- Q||R.
+orp_right2: P|--R $~$->$~$ P|-- Q||R.
+exp_right: forall {B: Type}(x:B)(P:mpred)(Q: B -> mpred),
+               P|--Q x $~$->$~$ P|-- EX x:B, Q.
+exp_left: forall{B: Type}(P:B -> mpred)(Q:mpred), 
+               (forall x, P x |-- Q) $~$->$~$ EX x:B,P |-- Q.
+allp_left: forall {B}(P: B -> mpred) x Q, P x|--Q $~$->$~$ ALL x:B,P|--Q.
+allp_right: forall{B}(P: mpred)(Q:B ->mpred), 
+               (forall v, P|-- Q v) $~$->$~$ P|-- ALL x:B,Q.
+prop_left: forall (P: Prop) Q, (P -> (TT|--Q)) $~$->$~$ !!P |-- Q.
+prop_right: forall (P: Prop) Q, P $~$->$~$ (Q|-- !!P).
+not_prop_right: forall(P:mpred)(Q:Prop), (Q -> (P|--FF))$~$->$~$ P|--!!(~Q).
+
+sepcon_assoc: (P*Q)*R = P*(Q*R).
+sepcon_comm:  P Q, P*Q = Q*P.
+sepcon_andp_prop: P*(!!Q && R) = !!Q && (P*R).
+derives_extract_prop:  (P -> Q |-- R) $~$ -> $~$ !!P && Q |-- R.
+sepcon_derives: P|--P' $~$->$~$ Q|--Q' $~$->$~$ P*Q |-- P'*Q'.
+\end{lstlisting}
+
+\chapter{Obscure higher-order axioms}
+
+\begin{lstlisting}
+imp_andp_adjoint: P&&Q|--R $$ <-> $$ $$ P|--(Q-->R).
+wand_sepcon_adjoint: P*Q|--R $$ <-> P |-- Q$\wand$R.
+ewand_sepcon: (P*Q)$\ewand$ R = P $\ewand$ (Q $\ewand$ R).
+ewand_TT_sepcon: forall (P Q R: A),
+       (P*Q)&&(R$\ewand$TT) |-- (P &&(R$\ewand$TT))*(Q && (R$\ewand$TT)).
+exclude_elsewhere: P*Q |-- (P &&(Q$\ewand$  TT))*Q.
+ewand_conflict:  P*Q|--FF $$ -> $$ P&&(Q$\ewand$  R) |-- FF
+
+now_later:  P |-- |>P.
+later_K:  |>(P-->Q) |-- (|>P --> |>Q).
+later_allp: forall T (F: T->mpred),  |>(ALL x:T, F x) = ALL x:T, |>(F x).
+later_exp: forall T (F: T->mpred), EX x:T, |>(F x) |-- |>(EX x: F x).
+later_exp': forall T (any:T) F, |>(EX x: F x) $$ = $$ EX x:T, |>(F x).
+later_imp: |>(P-->Q) $$ $$ = $$ $$ (|>P --> |>Q).
+loeb: |>P |-- P ->  TT |-- P.
+later_sepcon:  |>(P * Q) = |>P * |>Q.
+later_wand: |>(P $\wand$ Q) = |>P $\wand$ |>Q.
+later_ewand: |>(P $\ewand$ Q) = (|>P) $\ewand$ (|>Q).
+\end{lstlisting}
+
+
+
+
+\chapter{Proving larg(ish) programs}
+
+When your program is not all in one .c file,
+see also \autoref{refcard:sepcomp}.
+Whether or not your program is all in one .c file,
+you can prove the individual function bodies in separate .v files.
+This uses less memory, and (on a multicore computer with
+parallel \lstinline{make}) saves time.
+To do this, put your API spec (up to the construction
+of \lstinline{Gprog} in one file;
+then each \lstinline{semax_body} proof in a separate file
+that imports the API spec.
+
+\newthought{Extraction of subordinate semax-goals.}
+To ease memory pressure and recompilation time, it is often advisable
+to partition the proof of a function into several lemmas. Any proof
+state whose goal is a semax-term can be extracted as a stand-alone
+statement by invoking tactic $\mathit{semax\_subcommand}\ V\ G\ F$.
+The three arguments are as in the statement of surrounding semax-body
+lemma, i.e.~are of type $\mathit{varspecs}$, $\mathit{funspecs}$, and
+$\mathit{function}$. 
+
+The subordinate tactic $\mathit{mkConciseDelta}\ V\ G\ F\ \Delta$ can
+also be invoked individually, to concisely display the type context $\Delta$
+as the application of a sequence of initializations
+to the host function's func\_tycontext.
+
+\newthought{The freezer.}\label{freezer}
+A distinguishing feature of separation logic is the frame rule,
+i.e.~the ability to modularly verify a statement w.r.t.~its minimal
+resource footprint. Unfortunately, being phrased in terms of the
+syntatic program structure, the standard frame rule does not easily
+interact with forward symbolic execution as implemented by the Floyd
+tactics (and many other systems), as these continuously rearrange the
+associativity of statement sqeuencing to peel off the redex of the
+next \emph{forward}, and (purposely) hide the program continuation as
+the abbreviation \emph{MORE\_COMMANDS}. 
+
+Resolving this conflict, Floyd's \emph{freezer} abstraction provides a
+means for flexible framing, by implementing a veil that opaquely hides
+selected items of a SEP clause from non-symbolic treatment by
+non-freezer tactics.
+
+The freezer abstraction consists of two main tactics, $\mathit{freeze}\
+N\ F$ and $\mathit{thaw}\ F$, where $N:\mathit{list\ nat}$ and $F$ is
+a user-supplied (fresh) Coq name. The result of applying
+$\mathit{freeze}\ [i_1;\ldots;i_n]\ F$ to a semax goal is to remove
+items $i_1,\ldots,i_n$ from the precondition's SEP clause, inserting
+the item $\mathit{FRZL}\ F$ at the head of the SEP list, and adding a
+hypothesis $F := \mathit{abbreviate}$ to Coq's proof context.
+
+The term $\mathit{FRZL}\ F$ participates symbolically in all
+non-freezer tactics just like any other SEP item, so can in particular
+be canceled, and included in a function call's frame.  Unfolding a
+freezer is not tied to the associativity structure of program
+statements but can be achieved by invoking $\mathit{thaw}\ F$, which
+simply replaces $\mathit{FRZL}\ F$ by the the list of $F$'s
+constiuents.  As multiple freezers can coexists and freezers can be
+arbitrarily nested, SEP-clauses $R$ effectively contain forests of
+freezers, each constituent being thawable independently and
+freezer-level by freezer-level.
+
+Wrapping single \emph{forward} or \emph{forward\_call} commands in a
+freezer often speeds up the processing time noticably, as invocations
+of subordinate tactics \emph{entailer}, \emph{cancel}, etc.~are
+supplied with smaller and more symbolic proof goals. In our
+experience, applying the freezer throughout the proof of an entire
+function body typically yields a speedup of about 30\% on average with
+improvements of up to 55\% in some cases, while also easing the memory
+pressure and freeing up valuable real estate on the user's screen.
+
+
+A more invasive implementation of a freezer-like abstraction would
+refine the \lstinline{PROP($P$) LOCAL($Q$) SEP($R$)} structure to
+terms of the form \lstinline{PROP($P$) LOCAL($Q$) SEP($R$) FR($H$)}
+where $H: \emph{list\ mpred}$. Again, terms in $H$ would be treated
+opaquely by all tactics, and freezing/thawing would correspond to
+transfer rules between $R$ and $H$. In either case, forward symbolic
+execution is reconciled with the frame rule, and the use of the
+mechanism is sound engineering practice as documentation of
+programmer's insight is combined with performance improvements.
+
+\chapter{Separate compilation, \upshape\textsf{semax\_ext}}
+\label{refcard:sepcomp}
+
+What to do when your program is spread over multiple .c files.
+
+\newthought{Code preparation.}
+In order to separate the namespaces of multiple files compiled by CompCert's clightgen tool, it is necessary to apply
+
+python fix\_clightgen.py file1.v ...fileN.v
+
+The script reads in the named files, concisely renames variables etc by
+making up new positives, and writes the modified files back to the
+given names.
+
+
+
+\chapter{Catalog of tactics/lemmas}
+Below is an alphabetic catalog of the major floyd tactics. In addition
+to short descriptions, the entries indicate whether a tactic (or
+tactic notation) is typically user-applied [u], primarily of
+internal use [i] or is expected to be used at development-time
+but unlikely to appear in a finished proof script [d]. We also
+mention major interdependencies between tactics, and their points of
+definition.
+
+\begin{description}
+\item[\textsf{cancel}]
+(tactic; \autopageref{refcard:cancel})
+Deletes identical spatial conjuncts
+from both sides of a base-level entailment.  
+
+\item[\textsf{derives\_refl}]
+(lemma)  $A\vdash A$.  Useful after \lstinline{cancel}
+  to handle $\beta\eta$-equality; see \autopageref{cancel-beta}.
+
+\item[\textsf{derives\_refl'}]
+(lemma)  $A=B ~\rightarrow~A\vdash B$.
+
+\item[\textsf{entailer}]
+(tactic; \autopageref{refcard:entailer}, \autopageref{refcard:entailments})
+Proves (lifted or base-level) entailments, possibly leaving a residue
+for the user to prove.  The more aggressive
+\lstinline{entailer!} should usually be used, but it
+sometimes turns a provable goal into an unprovable goal.
+
+
+\item[\textsf{drop\_LOCAL $n$}]
+(tactic, where $n:nat$). Removes the $n$th entry of a the LOCAL block of a
+\lstinline{semax} or \lstinline{ENTAIL} precondition.
+
+\item[\textsf{forward}]
+  (tactic; \autopageref{refcard:forward})
+  Do forward Hoare-logic proof through one C statement (assignment, break, continue, return).
+
+\item[\textsf{forward\_call} \textit{ARGS}]
+  (tactic; \autopageref{refcard:forward-call}, \autopageref{forward-call1})
+  Forward Hoare-logic proof through one C function-call,
+  where \emph{ARGS} is a witness for the \textsf{WITH} clause of the funspec.
+
+\item[\textsf{forward\_for}]
+  (tactic, \autopageref{refcard:for})  This tactic does not work well in VST 1.6.  Use
+  \lstinline{forward_for_simple_bound} when applicable, or else
+  \lstinline{forward_while}.
+
+\item[\textsf{forward\_for\_simple\_bound} $n$ \textit{Inv}]
+  (tactic, \autopageref{refcard:for})  When a for-loop has the form
+  \lstinline{for ($\mathit{init}$; $i<\mathit{hi}$; $i$++)} where
+the upper-bound $\mathit{hi}$ is a loop-invariant expression,
+then use this tactic:  $n$ is the \emph{value} of $\mathit{hi}$, and
+\textit{Inv} is the loop invariant, which must start with
+an \textsf{EX} that binds the iteration-dependent \emph{value}
+of variable $i$.
+
+\item[\textsf{forward\_seq}]
+(tactic)
+
+\item[\textsf{mkConciseDelta\ $V$\ $G$\ $F$\ $\Delta$}]
+(tactic)
+Applicable to a proof state with a semax goal. Simplies the $\Delta$
+component to the application of a sequence of initializations to the
+host function's func\_tycontext.  Used to prepare the current
+proof goal for abstracting/factoring out as a separate lemma.
+% Superordinate tactics:  $\mathit{semax\_subcommand}$\\
+
+\item[\textsf{semax\_subcommand\ $V$\ $G$\ $F$}]
+(tactic)
+Applicable to a proof state with a semax goal.
+Extracts the current proof state as a stand-alone
+statement that can be copy-and pasted to a separate file.
+The three arguments should be copied from the 
+statement of surrounding semax-body
+lemma: $V:\mathsf{varspecs}, G:\mathsf{funspecs}, F:\mathsf{function}$. 
+\end{description}
 
 
 \end{document}
