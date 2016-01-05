@@ -1,5 +1,3 @@
 #!/bin/sh
-awk 'BEGIN{print "  LINES   SECONDS  Sec/Lin  Name"}\
-     /v$/{NAME=$4; LINES=$1;}/before$/{B=$1}/after$/{A=$1; \
-     printf "%6d %9.2f %8.4f %s\n", LINES, A-B, (A-B)/LINES, NAME;}' \
-     <timings >timings.txt
+# NOTE: on cygwin, user time doesn't seem to to work, so using elapsed time
+awk 'BEGIN{print "  LINES   SECONDS  Sec/Lin  Name"}/v$/{printf "%6d %9.2f %8.4f %s\n", $7, $1, $1/$7, $10;}' TIMINGS >timings.txt

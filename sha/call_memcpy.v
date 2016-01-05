@@ -428,7 +428,6 @@ eapply semax_pre_post;
  rewrite map_sublist.
  rewrite LENvqx; cancel.
  clear witness Frame.
-(* hnf in H7. normalize in H7.*)
  normalize in H8.
  subst x.
  simpl.

@@ -181,7 +181,6 @@ forward_for_simple_bound 8
  repeat split; auto; try reflexivity.
  apply align_compatible_tarray_tuchar.
 *
-(*  drop_LOCAL 1%nat. (* shouldn't need this *)*)
   forward. (* ll=(c)->h[xn]; *)
   {
     entailer!.
@@ -683,7 +682,6 @@ Proof.
     clearbody hibytes lobytes.
     Time entailer!. (*3.3*)
   
-(*    rewrite <- H5.*)
     pose proof CBLOCKz_eq.
     rewrite !field_address_offset by auto with field_compatible.
     make_Vptr c.

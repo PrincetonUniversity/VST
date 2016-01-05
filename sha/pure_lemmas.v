@@ -168,17 +168,6 @@ destruct l as [|i3 l]; [ inv H |].
 simpl. f_equal. apply IHn. forget (Z.to_nat WORD * n)%nat as A. inv H; auto.
 Qed.
 
-(*
-Lemma big_endian_integer_ext:
- forall f f', (forall z, (0 <= z < WORD)%Z -> f z = f' z) ->
-    big_endian_integer f = big_endian_integer f'.
-Proof.
-unfold big_endian_integer;
-intros.
-repeat f_equal; intros; apply H; repeat split; compute; auto; congruence.
-Qed.
-*)
-
 Lemma big_endian_integer4:
  forall c0 c1 c2 c3,
   big_endian_integer (c0::c1::c2::c3::nil) =
@@ -276,7 +265,6 @@ apply divide_hashed in H0.
 destruct H0 as [n ?].
 rewrite Zlength_correct in H,H1.
 change 8 with (Z.of_nat 8) in H.
-(*change LBLOCK with 16%nat in H0.*)
 change LBLOCKz with (Z.of_nat LBLOCK) in H1.
 apply Nat2Z.inj in H. 
 apply Nat2Z.inj in H1.
@@ -320,12 +308,6 @@ apply plus_reg_l with LBLOCK.
 rewrite plus_comm. 
 rewrite NPeano.Nat.sub_add by Psatz.lia.
 omega.
-(*Psatz.lia.*)
-(*
-rewrite H0. assert (Hn: (n*LBLOCK >= 0)%nat).
-  remember ((n * LBLOCK)%nat). clear. omega.
-  omega. 
-*)
 Qed.
 
 Lemma length_hash_blocks: forall regs blocks,
@@ -354,5 +336,4 @@ apply length_hash_block; auto. (* fixme *) change 16%nat with LBLOCK.
 rewrite firstn_length. apply min_l. simpl in H0. Psatz.nia.
 rewrite skipn_length. rewrite H0; clear - POS.  simpl.
 rewrite plus_comm. rewrite NPeano.Nat.add_sub. auto.
-(*simpl in H0. rewrite H0; clear - POS. Psatz.lia.*)
 Qed.
