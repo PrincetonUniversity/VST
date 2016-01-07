@@ -88,7 +88,7 @@ simpl in X, Y, Q. symmetry in X, Y; inv X; inv Y. rewrite <- Q; clear Q.
 reflexivity.
 Qed.
 
-Lemma TP C1 C2 C3 C4 N1 N2 N3 N4 intsums OUT: Zlength intsums = 16 -> Zlength OUT = 64 ->
+Lemma TP C1 C2 C3 C4 N1 N2 N3 N4 intsums OUT: Zlength intsums = 16 -> Zlength OUT = 32 ->
   hPosLoop3 4 (hPosLoop2 4 intsums (C1, C2, C3, C4) (N1, N2, N3, N4)) OUT = 
  QuadByte2ValList (littleendian_invert (Int.sub (Znth 0 intsums Int.zero)  (littleendian C1))) ++
  QuadByte2ValList (littleendian_invert (Int.sub (Znth 5 intsums Int.zero)  (littleendian C2))) ++
@@ -97,8 +97,7 @@ Lemma TP C1 C2 C3 C4 N1 N2 N3 N4 intsums OUT: Zlength intsums = 16 -> Zlength OU
  QuadByte2ValList (littleendian_invert (Int.sub (Znth 6 intsums Int.zero)  (littleendian N1))) ++
  QuadByte2ValList (littleendian_invert (Int.sub (Znth 7 intsums Int.zero)  (littleendian N2))) ++
  QuadByte2ValList (littleendian_invert (Int.sub (Znth 8 intsums Int.zero)  (littleendian N3))) ++
- QuadByte2ValList (littleendian_invert (Int.sub (Znth 9 intsums Int.zero)  (littleendian N4))) ++
- skipn 32 OUT.
+ QuadByte2ValList (littleendian_invert (Int.sub (Znth 9 intsums Int.zero)  (littleendian N4))).
 Proof. intros. 
 rewrite Zlength_length in H, H0. simpl in H, H0.  
 destruct intsums; simpl in H. omega. rename i into v0. 
@@ -151,72 +150,9 @@ destruct OUT; simpl in H0. omega. rename v into u28.
 destruct OUT; simpl in H0. omega. rename v into u29. 
 destruct OUT; simpl in H0. omega. rename v into u30. 
 destruct OUT; simpl in H0. omega. rename v into u31. 
-destruct OUT; simpl in H0. omega. rename v into u32. 
-destruct OUT; simpl in H0. omega. rename v into u33. 
-destruct OUT; simpl in H0. omega. rename v into u34. 
-destruct OUT; simpl in H0. omega. rename v into u35. 
-destruct OUT; simpl in H0. omega. rename v into u36. 
-destruct OUT; simpl in H0. omega. rename v into u37. 
-destruct OUT; simpl in H0. omega. rename v into u38. 
-destruct OUT; simpl in H0. omega. rename v into u39. 
-destruct OUT; simpl in H0. omega. rename v into u40. 
-destruct OUT; simpl in H0. omega. rename v into u41. 
-destruct OUT; simpl in H0. omega. rename v into u42. 
-destruct OUT; simpl in H0. omega. rename v into u43. 
-destruct OUT; simpl in H0. omega. rename v into u44. 
-destruct OUT; simpl in H0. omega. rename v into u45. 
-destruct OUT; simpl in H0. omega. rename v into u46. 
-destruct OUT; simpl in H0. omega. rename v into u47. 
-destruct OUT; simpl in H0. omega. rename v into u48. 
-destruct OUT; simpl in H0. omega. rename v into u49. 
-destruct OUT; simpl in H0. omega. rename v into u50. 
-destruct OUT; simpl in H0. omega. rename v into u51. 
-destruct OUT; simpl in H0. omega. rename v into u52. 
-destruct OUT; simpl in H0. omega. rename v into u53. 
-destruct OUT; simpl in H0. omega. rename v into u54. 
-destruct OUT; simpl in H0. omega. rename v into u55. 
-destruct OUT; simpl in H0. omega. rename v into u56. 
-destruct OUT; simpl in H0. omega. rename v into u57. 
-destruct OUT; simpl in H0. omega. rename v into u58. 
-destruct OUT; simpl in H0. omega. rename v into u59. 
-destruct OUT; simpl in H0. omega. rename v into u60. 
-destruct OUT; simpl in H0. omega. rename v into u61. 
-destruct OUT; simpl in H0. omega. rename v into u62. 
-destruct OUT; simpl in H0. omega. rename v into u63. 
 destruct OUT; simpl in H0. 2: omega. clear H0. simpl. reflexivity. omega. omega.
 Qed.
-(*
-Opaque firstn.
-Lemma TP1 C1 C2 C3 C4 N1 N2 N3 N4 intsums OUT: Zlength intsums = 16 -> Zlength OUT = 64 ->
- firstn 32 (hPosLoop3 4 (hPosLoop2 4 intsums (C1, C2, C3, C4) (N1, N2, N3, N4)) OUT) = 
- QuadByte2ValList (littleendian_invert (Int.sub (Znth 0 intsums Int.zero)  (littleendian C1))) ++
- QuadByte2ValList (littleendian_invert (Int.sub (Znth 5 intsums Int.zero)  (littleendian C2))) ++
- QuadByte2ValList (littleendian_invert (Int.sub (Znth 10 intsums Int.zero) (littleendian C3))) ++
- QuadByte2ValList (littleendian_invert (Int.sub (Znth 15 intsums Int.zero) (littleendian C4))) ++
- QuadByte2ValList (littleendian_invert (Int.sub (Znth 6 intsums Int.zero)  (littleendian N1))) ++
- QuadByte2ValList (littleendian_invert (Int.sub (Znth 7 intsums Int.zero)  (littleendian N2))) ++
- QuadByte2ValList (littleendian_invert (Int.sub (Znth 8 intsums Int.zero)  (littleendian N3))) ++
- QuadByte2ValList (littleendian_invert (Int.sub (Znth 9 intsums Int.zero)  (littleendian N4))).
-Proof. intros.
-Proof. intros. 
- destruct (listGE16 OUT) as 
-  [v0 [v1 [v2 [v3 [v4 [v5 [v6 [v7 [v8 [v9 [v10 [v11 [v12 [v13 [v14 [v15 [t1 [T1 L1]]]]]]]]]]]]]]]]]]. omega.
- rewrite H0 in L1; simpl in L1.
- destruct (listGE16 t1) as 
-  [v16 [v17 [v18 [v19 [v20 [v21 [v22 [v23 [v24 [v25 [v26 [v27 [v28 [v29 [v30 [v31 [t2 [T2 L2]]]]]]]]]]]]]]]]]]. omega.
- rewrite L1 in L2; simpl in L2.
- destruct (listGE16 t2) as 
-  [v32 [v33 [v34 [v35 [v36 [v37 [v38 [v39 [v40 [v41 [v42 [v43 [v44 [v45 [v46 [v47 [t3 [T3 L3]]]]]]]]]]]]]]]]]]. omega.
- rewrite L2 in L3; simpl in L3.
- destruct (listGE16 t3) as 
-  [v48 [v49 [v50 [v51 [v52 [v53 [v54 [v55 [v56 [v57 [v58 [v59 [v60 [v61 [v62 [v63 [t4 [T4 L4]]]]]]]]]]]]]]]]]]. omega.
- rewrite L3 in L4; simpl in L4.
- destruct (listD16 _ H) as 
-  [x0 [x1 [x2 [x3 [x4 [x5 [x6 [x7 [x8 [x9 [x10 [x11 [x12 [x13 [x14 [x15 A1]]]]]]]]]]]]]]]].
- apply Zlength_nil_inv in L4. subst; reflexivity.
-Qed.
-Transparent firstn. 
-*)
+
 Definition HTrue_inv intsums xs ys:Prop:=
 Zlength intsums = 16 /\
         (forall j, 0 <= j < 16 -> 
@@ -288,12 +224,40 @@ LOCAL (lvar _t (tarray tuint 4) t;
           (data_at Tsh (tarray tuchar 64) l out *
            data_at Tsh (tarray tuint 16) (map Vint xs) x)
          else EX intsums:_, !!(HTrue_inv intsums xs ys) && 
-            (data_at Tsh (tarray tuchar 64)
+            (data_at Tsh (tarray tuchar 32)
+               (hPosLoop3 4 (hPosLoop2 4 intsums C Nonce) OUT) out
+             * data_at Tsh (tarray tuint 16)
+                 (map Vint (hPosLoop2 4 intsums C Nonce)) x))
+end. (*
+Definition fcore_EpiloguePOST2 t y x w nonce out c k h OUT 
+  (data : SixteenByte * SixteenByte * (SixteenByte * SixteenByte)) := 
+match data with ((Nonce, C), K) =>
+EX xs:_, EX ys:_,
+PROP (ys = prepare_data data /\ Snuffle 20 ys = Some xs) 
+LOCAL (lvar _t (tarray tuint 4) t;
+       lvar _y (tarray tuint 16) y; lvar _x (tarray tuint 16) x;
+       lvar _w (tarray tuint 16) w; temp _in nonce; temp _out out; temp _c c;
+       temp _k k; temp _h (Vint (Int.repr h)))
+  SEP (CoreInSEP data (nonce, c, k); 
+       data_at Tsh (tarray tuint 16) (map Vint ys) y;
+       data_at_ Tsh (tarray tuint 4) t; data_at_ Tsh (tarray tuint 16) w;
+       if Int.eq (Int.repr h) Int.zero 
+         then EX l:_, 
+          !!HFalse_inv l 16 xs ys && 
+          (data_at Tsh (tarray tuchar 64) l out *
+           data_at Tsh (tarray tuint 16) (map Vint xs) x)
+         else EX intsums:_, !!(HTrue_inv intsums xs ys) && 
+            (data_at Tsh (tarray tuchar 32)
                (hPosLoop3 4 (hPosLoop2 4 intsums C Nonce) OUT) out
              * data_at Tsh (tarray tuint 16)
                  (map Vint (hPosLoop2 4 intsums C Nonce)) x))
 end.
 
+Goal forall t y x w nonce out c k h OUT data,
+fcore_EpiloguePOST2 t y x w nonce out c k h OUT data = fcore_EpiloguePOST t y x w nonce out c k h OUT data.
+intros. unfold fcore_EpiloguePOST, fcore_EpiloguePOST2. 
+ destruct data as [[? ?] ?].  reflexivity.
+*)
 Opaque Snuffle. Opaque hPosLoop2. Opaque hPosLoop3. 
 
 Lemma HTruePOST F t y x w nonce out c k h snuffleRes l data OUT: 
@@ -340,8 +304,9 @@ rename lvar2 into y.
 rename lvar1 into x.
 rename lvar0 into w.
 freeze [0;1;2;3;4] FR1.
-Time assert_PROP (Zlength OUT = 64) as ZL_OUT by entailer!. (*0.9*) 
-(*freeze [0;1;3;5] FR1.*)
+Time assert_PROP (Zlength OUT = Z.max 0 (OutLen h)) as ZL_OUT by entailer!.
+rewrite Z.max_r in ZL_OUT. 
+Focus 2. unfold OutLen. if_tac; omega.
 apply semax_seq with (Q:=fcore_EpiloguePOST t y x w nonce out c k h OUT data).
   + thaw FR1. freeze [0;1;3;5] FR2. 
     forward_seq. 
@@ -383,26 +348,28 @@ apply semax_seq with (Q:=fcore_EpiloguePOST t y x w nonce out c k h OUT data).
     freeze [0;1;2;3] FR5.
     Time forward_if (fcore_EpiloguePOST t y x w nonce out c k h OUT 
                ((N1, N2, N3, N4), (C1, C2, C3, C4), ((K1, K2, K3, K4), (L1, L2, L3, L4)))). (*4.8*)
-    - thaw FR5. thaw FR4. freeze [3;4] FR6.
+    - apply typed_true_tint_Vint in H.
+      assert (HOUTLEN: OutLen h = 32). unfold OutLen. rewrite Int.eq_false; trivial.
+      thaw FR5. thaw FR4. rewrite HOUTLEN in *. freeze [3;4] FR6.
       eapply semax_post.
       2: eapply (verif_fcore_epilogue_htrue Espec (FRZL FR6) t y x w nonce out c k h 
                      OUT snuffleRes (map littleendian xInit)
                      (((N1, N2, N3, N4), (C1, C2, C3, C4)), (K1, K2, K3, K4, (L1, L2, L3, L4)))).
       intros ? ?. apply andp_left2.
-        unfold typed_true in H. simpl in H. inversion H. clear H. apply negb_true_iff in H1. 
         unfold POSTCONDITION, abbreviate.
         rewrite overridePost_overridePost, normal_ret_assert_eq. 
         Intros. subst ek vl. rewrite overridePost_normal'.
-        apply HTruePOST; trivial. subst xInit; reflexivity.
+        apply HTruePOST; trivial. rewrite Int.eq_false; trivial.
+        subst xInit; reflexivity.
         thaw FR6. cancel.
-
-    - thaw FR5. thaw FR4. freeze [1;3;4] FR6.
+    - unfold typed_false in H. simpl in H. inversion H. apply negb_false_iff in H1. clear H.
+      assert (HOUTLEN: OutLen h = 64). unfold OutLen. rewrite H1; trivial.
+      thaw FR5. thaw FR4. rewrite HOUTLEN in *. freeze [1;3;4] FR6.
       drop_LOCAL 0%nat.
       eapply semax_post.
       2: apply (verif_fcore_epilogue_hfalse Espec (FRZL FR6) 
             t y x w nonce out c k h OUT). 
       intros ? ?. apply andp_left2.
-        unfold typed_false in H. simpl in H. inversion H. apply negb_false_iff in H1. clear H. 
         unfold POSTCONDITION, abbreviate.
         rewrite overridePost_overridePost, normal_ret_assert_eq.
         Intros. subst ek vl. rewrite overridePost_normal'.      
@@ -418,28 +385,27 @@ apply semax_seq with (Q:=fcore_EpiloguePOST t y x w nonce out c k h OUT data).
     freeze [0;1;2;3;4] FR2. 
     Time forward. (*4 versus 18*)
     Exists t y x w. thaw FR2. Time entailer!. (*4.6 versus 8.4*)
-(*    unfold fcorePOST_SEP, CoreInSEP. 
-    (*destruct H as [YS SNUFF]. *)*)
-    rewrite Zlength_map in H2. (* apply Zlength_length in H6; try omega; simpl in H6.*)
-(*    rewrite H in *.*)
+    rewrite Zlength_map in H2. 
     specialize (Snuffle_length _ _ _  H0 (prepare_data_length _ )); intros L.
     unfold fcore_result.
     unfold Snuffle20, bind. rewrite H0; clear H0.
-    destruct (Int.eq (Int.repr h) Int.zero).
+    remember (Int.eq (Int.repr h) Int.zero) as hh.
+    destruct hh.
     - Intros l. Exists l.
         destruct (HFalse_inv16_char _ _ _ H) as [sums [SUMS1 SUMS2]].
           rewrite Zlength_correct, L; reflexivity. trivial.
         rewrite <- SUMS1, <- SUMS2.
-        unfold  fcorePOST_SEP. Time entailer!. (*1.7*)
+        unfold fcorePOST_SEP, OutLen. rewrite <- Heqhh.
+        Time entailer!. (*1.7*)
     - Intros intsums.
       Exists (hPosLoop3 4 (hPosLoop2 4 intsums C Nonce) OUT).
       apply HTrue_inv_char in H. rewrite <- H.
       destruct Nonce as [[[? ?] ?] ?]. destruct C as [[[? ?] ?] ?]. 
-      rewrite <- TP. (*rewrite TP1.*)
+      rewrite <- TP with (OUT:=OUT).
+      unfold fcorePOST_SEP, OutLen. rewrite <- Heqhh. 
       Time entailer!. (*4.3*)
-       apply derives_refl.
        rewrite Zlength_correct, (sumlist_length _ _ _ H), prepare_data_length; trivial.
-        trivial.
+        rewrite ZL_OUT. unfold OutLen; rewrite <- Heqhh. trivial.
         rewrite Zlength_correct, L; reflexivity.
         rewrite Zlength_correct, prepare_data_length; reflexivity.
 Time Qed. (*20 versus 58*)

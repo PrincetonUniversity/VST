@@ -51,14 +51,14 @@ Lemma pattern1_noStmt Espec Source1 Source2 Target Offset: forall FR
                                   (Etempvar _aux1 tuint) tuint))
                               (Ssequence
                                 (Ssequence
-                                  (Scall (Some 180%positive)
+                                  (Scall (Some 181%positive)
                                     (Evar _L32 (Tfunction
                                                  (Tcons tuint
                                                    (Tcons tint Tnil)) tuint
                                                  cc_default))
                                     ((Etempvar _aux tuint) ::
                                      (Econst_int (Int.repr Offset) tint) :: nil))
-                                  (Sset _aux (Etempvar 180%positive tuint)))
+                                  (Sset _aux (Etempvar 181%positive tuint)))
                                 (Ssequence
                                   (Sset _aux1
                                     (Ederef
@@ -115,7 +115,7 @@ Lemma pattern2_noStmt Espec Source1 Source2 Target Offset: forall FR
   (HS2: Znth Source2 tlist Vundef = Vint ValS2)
   (HTgt: Znth Target tlist Vundef = Vint ValTgt)
   c i j t y x w out nonce k h,
-@semax CompSpecs Espec (initialized_list [_i; _j; _m; _aux; _aux1; 180%positive]
+@semax CompSpecs Espec (initialized_list [_i; _j; _m; _aux; _aux1; 181%positive]
      (func_tycontext f_core SalsaVarSpecs SalsaFunSpecs))
   (PROP  ()
    LOCAL  (temp _i (Vint (Int.repr i)); temp _m (Vint (Int.repr 4));
@@ -139,12 +139,12 @@ Lemma pattern2_noStmt Espec Source1 Source2 Target Offset: forall FR
               (Ebinop Oadd (Etempvar _aux tuint) (Etempvar _aux1 tuint) tuint))
            (Ssequence
               (Ssequence
-                 (Scall (Some 181%positive)
+                 (Scall (Some 182%positive)
                     (Evar _L32
                        (Tfunction (Tcons tuint (Tcons tint Tnil)) tuint
                           cc_default))
                     [Etempvar _aux tuint; Econst_int (Int.repr Offset) tint])
-                 (Sset _aux (Etempvar 181%positive tuint)))
+                 (Sset _aux (Etempvar 182%positive tuint)))
               (Ssequence
                  (Sset _aux1
                     (Ederef
@@ -198,7 +198,7 @@ Lemma pattern3_noStmt Espec Source1 Source2 Target Offset: forall FR
   (HS2: Znth Source2 tlist Vundef = Vint ValS2)
   (HTgt: Znth Target tlist Vundef = Vint ValTgt)
   c i j t y x w out nonce k h,
-@semax CompSpecs Espec (initialized_list [_i; _j; _m; _aux; _aux1; 181%positive; 180%positive]
+@semax CompSpecs Espec (initialized_list [_i; _j; _m; _aux; _aux1; 182%positive; 181%positive]
      (func_tycontext f_core SalsaVarSpecs SalsaFunSpecs))
   (PROP  ()
    LOCAL  (temp _i (Vint (Int.repr i)); temp _m (Vint (Int.repr 4));
@@ -222,12 +222,12 @@ Lemma pattern3_noStmt Espec Source1 Source2 Target Offset: forall FR
               (Ebinop Oadd (Etempvar _aux tuint) (Etempvar _aux1 tuint) tuint))
            (Ssequence
               (Ssequence
-                 (Scall (Some 182%positive)
+                 (Scall (Some 183%positive)
                     (Evar _L32
                        (Tfunction (Tcons tuint (Tcons tint Tnil)) tuint
                           cc_default))
                     [Etempvar _aux tuint; Econst_int (Int.repr Offset) tint])
-                 (Sset _aux (Etempvar 182%positive tuint)))
+                 (Sset _aux (Etempvar 183%positive tuint)))
               (Ssequence
                  (Sset _aux1
                     (Ederef
@@ -282,7 +282,7 @@ Lemma pattern4_noStmt Espec Source1 Source2 Target Offset: forall FR
   (HS2: Znth Source2 tlist Vundef = Vint ValS2)
   (HTgt: Znth Target tlist Vundef = Vint ValTgt)
    c i j t y x w out nonce k h,
-@semax CompSpecs Espec (initialized_list [_i; _j; _m; _aux; _aux1; 182%positive; 181%positive; 180%positive]
+@semax CompSpecs Espec (initialized_list [_i; _j; _m; _aux; _aux1; 183%positive; 182%positive; 181%positive]
      (func_tycontext f_core SalsaVarSpecs SalsaFunSpecs))
   (PROP  ()
    LOCAL  (temp _i (Vint (Int.repr i)); temp _m (Vint (Int.repr 4));
@@ -306,12 +306,12 @@ Lemma pattern4_noStmt Espec Source1 Source2 Target Offset: forall FR
               (Ebinop Oadd (Etempvar _aux tuint) (Etempvar _aux1 tuint) tuint))
            (Ssequence
               (Ssequence
-                 (Scall (Some 183%positive)
+                 (Scall (Some 184%positive)
                     (Evar _L32
                        (Tfunction (Tcons tuint (Tcons tint Tnil)) tuint
                           cc_default))
                     [Etempvar _aux tuint; Econst_int (Int.repr Offset) tint])
-                 (Sset _aux (Etempvar 183%positive tuint)))
+                 (Sset _aux (Etempvar 184%positive tuint)))
               (Ssequence
                  (Sset _aux1
                     (Ederef
@@ -384,7 +384,7 @@ Qed.
 Lemma array_copy2 Espec FR i (wlist:list val) j t y x w nonce out c k h
        (t0 t1 t2 t3:int) (J:0<=j<4):
 @semax CompSpecs Espec
-  (initialized_list [_i; _j; _m; _aux; _aux1; 183%positive; 182%positive; 181%positive; 180%positive]
+  (initialized_list [_i; _j; _m; _aux; _aux1; 184%positive; 183%positive; 182%positive; 181%positive]
      (func_tycontext f_core SalsaVarSpecs SalsaFunSpecs))
   (PROP  ()
    LOCAL  (temp _i (Vint (Int.repr i)); temp _m (Vint (Int.repr 4));
@@ -737,12 +737,12 @@ Lemma Jbody (Espec : OracleKind) FR c k h nonce out w x y t i j xs
                        tuint))
                  (Ssequence
                     (Ssequence
-                       (Scall (Some 180%positive)
+                       (Scall (Some 181%positive)
                           (Evar _L32
                              (Tfunction (Tcons tuint (Tcons tint Tnil)) tuint
                                 cc_default))
                           [Etempvar _aux tuint; Econst_int (Int.repr 7) tint])
-                       (Sset _aux (Etempvar 180%positive tuint)))
+                       (Sset _aux (Etempvar 181%positive tuint)))
                     (Ssequence
                        (Sset _aux1
                           (Ederef
@@ -776,13 +776,13 @@ Lemma Jbody (Espec : OracleKind) FR c k h nonce out w x y t i j xs
                           (Etempvar _aux1 tuint) tuint))
                     (Ssequence
                        (Ssequence
-                          (Scall (Some 181%positive)
+                          (Scall (Some 182%positive)
                              (Evar _L32
                                 (Tfunction (Tcons tuint (Tcons tint Tnil))
                                    tuint cc_default))
                              [Etempvar _aux tuint;
                              Econst_int (Int.repr 9) tint])
-                          (Sset _aux (Etempvar 181%positive tuint)))
+                          (Sset _aux (Etempvar 182%positive tuint)))
                        (Ssequence
                           (Sset _aux1
                              (Ederef
@@ -817,13 +817,13 @@ Lemma Jbody (Espec : OracleKind) FR c k h nonce out w x y t i j xs
                              (Etempvar _aux1 tuint) tuint))
                        (Ssequence
                           (Ssequence
-                             (Scall (Some 182%positive)
+                             (Scall (Some 183%positive)
                                 (Evar _L32
                                    (Tfunction (Tcons tuint (Tcons tint Tnil))
                                       tuint cc_default))
                                 [Etempvar _aux tuint;
                                 Econst_int (Int.repr 13) tint])
-                             (Sset _aux (Etempvar 182%positive tuint)))
+                             (Sset _aux (Etempvar 183%positive tuint)))
                           (Ssequence
                              (Sset _aux1
                                 (Ederef
@@ -859,14 +859,14 @@ Lemma Jbody (Espec : OracleKind) FR c k h nonce out w x y t i j xs
                                 (Etempvar _aux1 tuint) tuint))
                           (Ssequence
                              (Ssequence
-                                (Scall (Some 183%positive)
+                                (Scall (Some 184%positive)
                                    (Evar _L32
                                       (Tfunction
                                          (Tcons tuint (Tcons tint Tnil))
                                          tuint cc_default))
                                    [Etempvar _aux tuint;
                                    Econst_int (Int.repr 18) tint])
-                                (Sset _aux (Etempvar 183%positive tuint)))
+                                (Sset _aux (Etempvar 184%positive tuint)))
                              (Ssequence
                                 (Sset _aux1
                                    (Ederef

@@ -203,7 +203,8 @@ TWEETNACL_FILES = \
   verif_ld_st.v verif_fcore_loop1.v verif_fcore_loop2.v \
   verif_fcore_jbody.v verif_fcore_loop3.v \
   verif_fcore_epilogue_hfalse.v verif_fcore_epilogue_htrue.v \
-  verif_fcore.v verif_crypto_core.v verif_crypto_stream_salsa20_xor.v
+  verif_fcore.v verif_crypto_core.v \
+  verif_crypto_stream_salsa20_xor.v verif_crypto_stream.v
 
 C_FILES = reverse.c queue.c sumarray.c message.c insertionsort.c float.c nest3.c nest2.c nest3.c dotprod.c string.c field_loadstore.c ptr_compare.c merge.c
 
