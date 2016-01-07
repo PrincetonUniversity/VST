@@ -110,7 +110,6 @@ eapply semax_post_flipped3.
  pose proof CBLOCKz_eq.
  unfold splice_into_list; autorewrite with sublist.
  unfold data_block.  rewrite prop_true_andp by auto.
-(* Exists (S256abs (hashed++blocks) dd'). *)
  unfold sha256state_.
  Exists    (map Vint (hash_blocks init_registers (hashed ++ blocks)),
                 (Vint (lo_part (bitlength hashed dd + len * 8)),

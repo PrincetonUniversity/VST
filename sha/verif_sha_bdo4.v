@@ -138,7 +138,6 @@ assert_PROP (data_block sh (intlist_to_Zlist b) data =
           (map Vint (map Int.repr (intlist_to_Zlist b)))) data). {
  entailer!.
  unfold data_block. rewrite prop_true_andp by auto.
-(* clear H5 H6.*)
  unfold data_at at 1. 
    erewrite field_at_Tarray; try reflexivity; auto; try omega.
   2: autorewrite with sublist; Omega1.

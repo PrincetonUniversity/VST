@@ -32,39 +32,6 @@ congruence.
 normalize.
 Qed.
 
-(*
-Lemma elim_globals_only'':
-  forall i t rho,  
-   (exists Delta, tc_env Delta rho /\
-       (var_types Delta) ! i = None /\ isSome ((glob_types Delta) ! i)) ->
-       (eval_var i t (globals_only rho)) = eval_var i t rho.
-Proof. 
-  intros.
-  unfold_lift.
- destruct H as [Delta [?[? ?]]].
-  destruct ((glob_types Delta) ! i) eqn:?; try contradiction.
-  erewrite elim_globals_only; eauto.
-Qed.
-
-Hint Rewrite elim_globals_only'' using (eexists; split3; [eassumption | reflexivity | apply I]) : norm.
-
-Lemma elim_make_args:
-  forall i t il vl rho,  
-   (exists Delta, tc_env Delta rho /\
-       (var_types Delta) ! i = None /\ isSome ((glob_types Delta) ! i)) ->
-       (eval_var i t (make_args il vl rho)) = eval_var i t rho.
-Proof. 
-  intros.
- revert vl; induction il; destruct vl; simpl; auto.
- apply elim_globals_only''; auto. 
- rewrite <- (IHil vl).
- clear.
- reflexivity.
-Qed.
-
-Hint Rewrite elim_make_args using (eexists; split3; [eassumption | reflexivity | apply I]) : norm.
-*)
-
 Fixpoint loops (s: statement) : list statement :=
  match s with 
   | Ssequence a b => loops a ++ loops b
@@ -213,24 +180,6 @@ Proof.
 intros.
 rewrite reptype_ind. simpl. reflexivity.
 Qed.
-
-(*
-Lemma firstn_map {A B} (f:A -> B): forall n l, 
-      firstn n (map f l) = map f (firstn n l).
-Proof. intros n.
-induction n; simpl; intros. trivial.
-  destruct l; simpl. trivial.
-  rewrite IHn. trivial.
-Qed.
-
-Lemma skipn_map {A B} (f:A -> B): forall n l, 
-      skipn n (map f l) = map f (skipn n l).
-Proof. intros n.
-induction n; simpl; intros. trivial.
-  destruct l; simpl. trivial.
-  rewrite IHn. trivial.
-Qed.
-*)
 
 Local Open Scope nat.
 
@@ -590,7 +539,6 @@ Qed.
 Lemma Zlist_to_intlist_app:
   forall a b, 
   (WORD | Zlength a) ->
-(*  (WORD | Zlength b) ->*)
    Zlist_to_intlist (a++b) = Zlist_to_intlist a ++ Zlist_to_intlist b.
 Proof.
 intros.

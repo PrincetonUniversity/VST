@@ -11,13 +11,19 @@ Proof.
 start_function.
 name c_ _c.
 unfold data_at_.
-do 8 (forward; unfold upd_Znth, sublist; simpl app).
-repeat forward.
+(* BEGIN: without these lines, the "do 8 forward" takes 40 times as long. *)
+unfold field_at_.
+unfold_field_at 1%nat.
+match goal with |- context [field_at _ _ _ ?D _] => 
+  set (d:=D); hnf in d; simpl in d; subst d
+end.
+(* END: without these lines *)
+Time do 8 (forward; unfold upd_Znth, sublist; simpl app). (* 21 sec *)
+Time repeat forward. (* 14 sec *)
 Exists (map Vint init_registers, 
       (Vint Int.zero, (Vint Int.zero, (list_repeat (Z.to_nat 64) Vundef, Vint Int.zero)))).
-(* BUG: entailer! is far too slow here,
- becuase [simple apply prop_and_same_derives'] takes forever. *)
-simple apply andp_right; [apply prop_right | ].
+unfold_data_at 1%nat.
+Time entailer!. (* 5.2 sec *)
 repeat split; auto.
 unfold s256_h, fst, s256a_regs.
 rewrite hash_blocks_equation. reflexivity.
@@ -25,4 +31,4 @@ unfold data_at. apply derives_refl'; f_equal.
 f_equal.
 simpl.
 repeat (apply f_equal2; [f_equal; apply int_eq_e; compute; reflexivity | ]); auto.
-Time Qed. (* 27 sec *)
+Time Qed. (* 33.6 sec *)

@@ -112,7 +112,6 @@ Ltac repable_signed :=
    pose proof int_min_signed_eq; 
    pose proof int_max_signed_eq; 
    pose proof int_max_unsigned_eq; 
-(*   unfold repable_signed in *; *)
    omega.
 
 Hint Rewrite Int.bits_or using omega : testbit.
