@@ -56,21 +56,13 @@ Ltac mk_varspecs prog :=
 
 Hint Resolve field_address_isptr : norm.
 
-Lemma field_address_eq_offset:
- forall {cs: compspecs} t path v,
-  field_compatible t path v ->
-  field_address t path v = offset_val (Int.repr (nested_field_offset t path)) v.
-Proof.
-intros. unfold field_address; rewrite if_true by auto; reflexivity.
-Qed.
-
 Lemma field_address_eq_offset':
  forall {cs: compspecs} t path v ofs,
     field_compatible t path v ->
-    ofs = Int.repr (nested_field_offset t path) ->
+    ofs = nested_field_offset t path ->
     field_address t path v = offset_val ofs v.
 Proof.
-intros. subst. apply field_address_eq_offset; auto.
+intros. subst. apply field_compatible_field_address; auto.
 Qed.
 
 Hint Resolve field_address_eq_offset' : prove_it_now.

@@ -41,7 +41,7 @@ Hint Extern 1 (isptr (offset_val _ _)) => apply isptr_offset_val'.
 Hint Resolve isptr_offset_val': norm.
 
 Lemma offset_val_force_ptr:
-  offset_val Int.zero = force_ptr.
+  offset_val 0 = force_ptr.
 Proof. extensionality v. destruct v; try reflexivity.
 simpl. rewrite Int.add_zero; auto.
 Qed.
@@ -50,8 +50,13 @@ Hint Rewrite <- offset_val_force_ptr : norm.
 Lemma sem_add_pi_ptr:
    forall {cs: compspecs}  t p i, 
     isptr p ->
-    sem_add_pi t p (Vint i) = Some (offset_val (Int.mul (Int.repr (sizeof t)) i) p).
-Proof. intros. destruct p; try contradiction. reflexivity. Qed.
+    sem_add_pi t p (Vint (Int.repr i)) = Some (offset_val (sizeof t * i) p).
+Proof.
+  intros. destruct p; try contradiction.
+  unfold offset_val.
+  rewrite <- mul_repr.
+  reflexivity.
+Qed.
 Hint Rewrite @sem_add_pi_ptr using (solve [auto with norm]) : norm.
 
 Lemma sem_cast_i2i_correct_range: forall sz s v,
@@ -611,9 +616,9 @@ Qed.
 Hint Rewrite globvars2pred_unfold : norm.
 
 Lemma offset_offset_val:
-  forall v i j, offset_val j (offset_val i v) = offset_val (Int.add i j) v.
+  forall v i j, offset_val j (offset_val i v) = offset_val (i + j) v.
 Proof. intros; unfold offset_val.
- destruct v; auto. rewrite Int.add_assoc; auto.
+ destruct v; auto. rewrite <- add_repr, Int.add_assoc; auto.
 Qed.
 Hint Rewrite offset_offset_val: norm.
 
@@ -1151,7 +1156,7 @@ Lemma add_ptr_int_offset:
   forall  {cs: compspecs}  t v n, 
   repable_signed (sizeof t) ->
   repable_signed n ->
-  add_ptr_int t v n = offset_val (Int.repr (sizeof t * n)) v.
+  add_ptr_int t v n = offset_val (sizeof t * n) v.
 Proof.
  unfold add_ptr_int; intros.
  unfold eval_binop, force_val2; destruct v; simpl; auto.
@@ -1164,7 +1169,7 @@ Qed.
 Lemma add_ptr_int'_offset:
   forall  {cs: compspecs}  t v n, 
   repable_signed (sizeof t * n) ->
-  add_ptr_int' t v n = offset_val (Int.repr (sizeof t * n)) v.
+  add_ptr_int' t v n = offset_val (sizeof t * n) v.
 Proof.
  intros.
  unfold add_ptr_int'. 
@@ -1284,7 +1289,7 @@ Qed.
 Hint Rewrite isptr_deref_noload using reflexivity : norm.
 
 Lemma isptr_offset_val_zero:
-  forall v, isptr v -> offset_val Int.zero v = v.
+  forall v, isptr v -> offset_val 0 v = v.
 Proof. intros. destruct v; inv H; subst; simpl.  rewrite Int.add_zero; reflexivity.
 Qed.
 

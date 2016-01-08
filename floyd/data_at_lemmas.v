@@ -351,7 +351,7 @@ Proof.
   destruct (Z.to_nat n); auto.
 Qed.
 
-Lemma offset_val_zero_Vptr: forall b i, offset_val (Int.repr 0) (Vptr b i) = Vptr b i.
+Lemma offset_val_zero_Vptr: forall b i, offset_val 0 (Vptr b i) = Vptr b i.
 Proof.
   intros.
   unfold offset_val, Int.add.
@@ -461,7 +461,7 @@ Proof.
     rewrite unfold_fold_reptype.
     rewrite array_pred_ext with
      (P1 := fun i _ p => memory_block sh (sizeof t)
-                          (offset_val (Int.repr (sizeof t * i)) p))
+                          (offset_val (sizeof t * i) p))
      (v1 := list_repeat (Z.to_nat z) (default_val t)); auto.
     pose proof (legal_alignas_array_size _ _ _ LEGAL_ALIGNAS).
     rewrite memory_block_array_pred; auto.
@@ -484,7 +484,7 @@ Proof.
               memory_block sh 
                (field_offset_next cenv_cs (fst it) (co_members (get_co id)) (co_sizeof (get_co id)) -
                   field_offset cenv_cs (fst it) (co_members (get_co id)))
-               (offset_val (Int.repr (field_offset cenv_cs (fst it) (co_members (get_co id)))) p))
+               (offset_val (field_offset cenv_cs (fst it) (co_members (get_co id))) p))
      (v1 := (struct_default_val (co_members (get_co id))));
     [| apply get_co_members_no_replicate |].
     - rewrite memory_block_struct_pred.

@@ -207,7 +207,7 @@ Fixpoint init_data_list2pred  (dl: list init_data)
   match dl with
   | d::dl' => 
       sepcon (init_data2pred d (Share.splice extern_retainer sh) v rho) 
-                  (init_data_list2pred dl' sh (offset_val (Int.repr (Genv.init_data_size d)) v) rho)
+                  (init_data_list2pred dl' sh (offset_val (Genv.init_data_size d) v) rho)
   | nil => emp
  end.
 

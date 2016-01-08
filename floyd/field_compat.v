@@ -15,7 +15,7 @@ Require Import floyd.field_at.
 Lemma field_address0_offset:
   forall {cs: compspecs} t gfs p,
     field_compatible0 t gfs p ->
-    field_address0 t gfs p = offset_val (Int.repr (nested_field_offset t gfs)) p.
+    field_address0 t gfs p = offset_val (nested_field_offset t gfs) p.
 Proof. intros. unfold field_address0; rewrite if_true by auto; reflexivity.
 Qed.
 
@@ -23,7 +23,7 @@ Qed.
 Lemma field_address_offset:
   forall {cs: compspecs} t gfs p,
     field_compatible t gfs p ->
-    field_address t gfs p = offset_val (Int.repr (nested_field_offset t gfs)) p.
+    field_address t gfs p = offset_val (nested_field_offset t gfs) p.
 Proof. intros. unfold field_address; rewrite if_true by auto; reflexivity.
 Qed.
 
@@ -192,7 +192,7 @@ apply Zmult_le_compat; omega.
 change (0*0)%Z with 0 in ST.
 assert (field_compatible (Tarray t i noattr) nil d /\
            field_compatible (Tarray t (n - i) noattr) nil
-               (offset_val (Int.repr (sizeof t * i)) d) /\
+               (offset_val (sizeof t * i) d) /\
            field_compatible0 (Tarray t n noattr) (ArraySubsc i::nil) d). {
   unfold field_compatible, field_compatible0 in *.
 decompose [and] H0; clear H0.
@@ -435,7 +435,7 @@ Proof. intros.
   rewrite !prop_true_andp by auto with field_compatible.
   unfold at_offset.
   apply derives_refl'.
-  rewrite offset_offset_val. rewrite add_repr.
+  rewrite offset_offset_val.
   rewrite !nested_field_offset_ind by (repeat split; auto; omega).
   rewrite !nested_field_type_ind. unfold gfield_offset.
   rewrite !Z.add_0_l. rewrite Z.mul_0_r, Z.add_0_r.
@@ -472,7 +472,7 @@ Lemma field_compatible0_Tarray_offset:
   0 <= i <= n ->
   n-i <= n'-i' ->
   i <= i' ->
-  p' = offset_val (Int.repr (sizeof t * (i'-i))) p ->
+  p' = offset_val (sizeof t * (i'-i)) p ->
   field_compatible0 (Tarray t n noattr) (ArraySubsc i :: nil) p'.
 Proof.
 intros until 1. intros NA ?H ?H Hni Hii Hp. subst p'.
@@ -586,7 +586,6 @@ Proof. intros until 1. rename H into NA; intros.
   rewrite (field_address0_offset (Tarray t n noattr) ) by auto with field_compatible.
   rewrite field_address0_offset.
   rewrite offset_offset_val. f_equal.
-  rewrite add_repr. f_equal.
   rewrite !nested_field_offset_ind by auto with field_compatible.
   rewrite !nested_field_type_ind;   unfold gfield_offset.
   rewrite Z.mul_sub_distr_l.

@@ -620,7 +620,7 @@ Lemma offset_val_sizeof_hack:
  forall cenv t i p,
    isptr p ->
    i=0 ->
-   (offset_val (Int.repr (@sizeof cenv t * i)) p = p) = True.
+   (offset_val (@sizeof cenv t * i) p = p) = True.
 Proof.
 intros.
 subst.
@@ -635,7 +635,7 @@ Lemma offset_val_sizeof_hack2:
  forall cenv t i j p,
    isptr p ->
    i=j ->
-   (offset_val (Int.repr (@sizeof cenv t * i)) p = offset_val (Int.repr (@sizeof cenv t * j)) p) = True.
+   (offset_val (@sizeof cenv t * i) p = offset_val (@sizeof cenv t * j) p) = True.
 Proof.
 intros.
 subst.
@@ -647,7 +647,7 @@ Lemma offset_val_sizeof_hack3:
  forall cenv t i p,
    isptr p ->
    i=1 ->
-   (offset_val (Int.repr (@sizeof cenv t * i)) p = offset_val (Int.repr (@sizeof cenv t)) p) = True.
+   (offset_val (@sizeof cenv t * i) p = offset_val (@sizeof cenv t) p) = True.
 Proof.
 intros.
 subst.

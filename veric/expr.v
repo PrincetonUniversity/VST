@@ -240,9 +240,9 @@ Definition force_ptr (v: val) : val :=
 
 Definition always {A B: Type} (b: B) (a: A) := b.
 
-Definition offset_val (ofs: int) (v: val) : val :=
+Definition offset_val (ofs: Z) (v: val) : val :=
   match v with
-  | Vptr b z => Vptr b (Int.add z ofs)
+  | Vptr b z => Vptr b (Int.add z (Int.repr ofs))
   | _ => Vundef
  end.
 
@@ -252,7 +252,7 @@ Definition eval_field {CS: compspecs} (ty: type) (fld: ident) : val -> val :=
                  match cenv_cs ! id with
                  | Some co =>
                          match field_offset cenv_cs fld (co_members co) with 
-                         | Errors.OK delta => offset_val (Int.repr delta)
+                         | Errors.OK delta => offset_val delta
                          | _ => always Vundef
                          end
                  | _ => always Vundef

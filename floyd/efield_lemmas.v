@@ -196,13 +196,15 @@ Proof.
 Qed.
 
 Lemma offset_val_sem_add_pi: forall ofs t0 e rho i,
-   offset_val (Int.repr ofs)
+   offset_val ofs
      (force_val (sem_add_pi t0 (eval_expr e rho) (Vint (Int.repr i)))) =
-   offset_val (Int.repr ofs)
-     (offset_val (Int.mul (Int.repr (sizeof t0)) (Int.repr i)) (eval_expr e rho)).
+   offset_val ofs
+     (offset_val (sizeof t0 * i) (eval_expr e rho)).
 Proof.
   intros.
   destruct (eval_expr e rho); try reflexivity.
+  rewrite sem_add_pi_ptr by (simpl; auto).
+  reflexivity.
 Qed.
 
 Lemma By_reference_eval_expr: forall Delta e rho,
@@ -346,7 +348,7 @@ Lemma struct_op_facts: forall Delta t_root e gfs efs tts i a i0 t rho,
   ((tc_lvalue Delta (nested_efield e efs tts) rho -->
    tc_lvalue Delta (nested_efield e (eStructField i0 :: efs) (t :: tts)) rho) &&
   !! (eval_field (typeof (nested_efield e efs tts)) i0 =
-      offset_val (Int.repr (field_offset cenv_cs i0 (co_members (get_co i)))))).
+      offset_val (field_offset cenv_cs i0 (co_members (get_co i))))).
 Proof.
   intros.
   apply add_andp.
@@ -378,7 +380,7 @@ Lemma union_op_facts: forall Delta t_root e gfs efs tts i a i0 t rho,
   efield_denote efs gfs rho &&
   ((tc_lvalue Delta (nested_efield e efs tts) rho -->
    tc_lvalue Delta (nested_efield e (eUnionField i0 :: efs) (t :: tts)) rho) &&
-  !! (eval_field (typeof (nested_efield e efs tts)) i0 = offset_val Int.zero)).
+  !! (eval_field (typeof (nested_efield e efs tts)) i0 = offset_val 0)).
 Proof.
   intros.
   apply add_andp.
@@ -470,7 +472,7 @@ Proof.
     rewrite !denote_tc_assert_andp, H10.
     unfold denote_tc_assert at 1 4, denote_tc_isptr; simpl.
     unfold local, lift1, force_val2; unfold_lift.
-    assert (offset_val (Int.repr (nested_field_offset t_root (gfs SUB i0)))
+    assert (offset_val (nested_field_offset t_root (gfs SUB i0))
             (eval_LR e (LR_of_type t_root) rho) =
             force_val
                (sem_add (typeof (nested_efield e efs tts)) 
@@ -483,8 +485,6 @@ Proof.
       rewrite H9.
       simpl in H11; rewrite <- H11, <- H7.
       unfold force_val; rewrite sem_add_pi_ptr by auto.
-      f_equal.
-      rewrite mul_repr.
       f_equal.
       rewrite H4.
       reflexivity.

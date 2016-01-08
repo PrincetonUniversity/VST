@@ -304,7 +304,7 @@ forward_if (sha_update_inv sh hashed len c d dd data kv false).
   rewrite field_address_offset by auto with field_compatible.
   rewrite field_address0_offset by 
    (subst k; auto with field_compatible).
-  rewrite offset_offset_val, add_repr; simpl. rewrite Z.mul_1_l; auto.
+  rewrite offset_offset_val; simpl. rewrite Z.mul_1_l; auto.
   unfold_data_at 1%nat. cancel.
   abbreviate_semax.
   autorewrite with sublist.

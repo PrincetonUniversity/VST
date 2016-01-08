@@ -102,7 +102,7 @@ forward_for_simple_bound 16
    (EX i:Z,
     PROP ()
     LOCAL  (temp _ctx ctx;
-                 temp _data  (offset_val (Int.repr (i*4)) data);
+                 temp _data  (offset_val (i*4) data);
                  temp _a (Vint (nthi (Round regs (nthi b) (i - 1)) 0));
                  temp _b (Vint (nthi (Round regs (nthi b) (i - 1)) 1));
                  temp _c (Vint (nthi (Round regs (nthi b) (i - 1)) 2));
@@ -131,7 +131,7 @@ assert_PROP (data_block sh (intlist_to_Zlist b) data =
        data *
    data_at sh (tarray tuchar 4)
         (map Vint (sublist (i * 4) ((i + 1) * 4) (map Int.repr (intlist_to_Zlist b))))
-        (offset_val (Int.repr (i * 4)) data) *
+        (offset_val (i * 4) data) *
    array_at sh (tarray tuchar (Zlength b * 4)) [] (i * 4 + 4)
        (Zlength b * 4)
        (sublist (4 + i * 4) (Zlength b * 4)
@@ -158,7 +158,7 @@ assert_PROP (data_block sh (intlist_to_Zlist b) data =
   f_equal. f_equal. simpl. omega.
  }
 forward_call (* l = __builtin_read32_reversed(_data) *)
-      (offset_val (Int.repr (i*4)) data, sh, 
+      (offset_val (i*4) data, sh, 
          sublist (i*4) ((i+1)*4) (map Int.repr (intlist_to_Zlist b))).
  entailer!; make_Vptr data; reflexivity.
  rewrite H1; cancel.

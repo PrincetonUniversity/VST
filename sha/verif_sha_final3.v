@@ -158,7 +158,7 @@ Proof.
 forward_for_simple_bound 8 
    (@exp (environ -> mpred) _ _ (fun i: Z =>
    PROP  ()
-   LOCAL  (temp _md (offset_val (Int.repr (i * 4)) md);
+   LOCAL  (temp _md (offset_val (i * 4) md);
                 temp _c c)
    SEP 
    (data_at Tsh t_struct_SHA256state_st
@@ -278,7 +278,7 @@ destruct H9; auto.
   change 64 with CBLOCKz.
   set (vbytes := map Vint bytes).
   entailer!.
-    f_equal. f_equal. omega.
+  f_equal. omega.
    unfold data_at.
    erewrite field_at_Tarray; try reflexivity; try omega.
    erewrite field_at_Tarray; try reflexivity; try omega.

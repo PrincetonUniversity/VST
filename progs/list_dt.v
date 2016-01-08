@@ -38,7 +38,7 @@ f_equal. extensionality x. rewrite andp_comm; auto.
 Qed.
 
 Lemma valid_pointer_offset_val_zero:
-  forall p, valid_pointer (offset_val (Int.repr 0) p) = valid_pointer p.
+  forall p, valid_pointer (offset_val 0 p) = valid_pointer p.
 Proof.
 Admitted.
 
@@ -274,7 +274,7 @@ Lemma list_cell_link_join:
                         sizeof (field_type list_link list_fields))
                         (field_offset_next cenv_cs list_link list_fields
                         (co_sizeof (get_co list_structid)))
-           (offset_val (Int.repr 0) p) 
+           (offset_val 0 p) 
    * field_at_ sh list_struct (StructField list_link :: nil) p 
      = data_at sh list_struct (list_data v) p.
 Proof.
@@ -1818,7 +1818,7 @@ unfold list_cell; intros.
  reflexivity.  
  destruct a as [i t].
  assert (field_compatible (field_type i list_fields) nil
-  (offset_val (Int.repr (field_offset cenv_cs i list_fields)) p))
+  (offset_val (field_offset cenv_cs i list_fields) p))
     by  admit.  (* need to adjust the induction hypothesis to prove this *)
  destruct m as [ | [i' t']].
  +
@@ -1851,7 +1851,7 @@ Proof.
  simpl. rewrite emp_sepcon; auto.
  destruct a as [i t].
  assert (field_compatible (field_type i list_fields) nil
-  (offset_val (Int.repr (field_offset cenv_cs i list_fields)) p))
+  (offset_val (field_offset cenv_cs i list_fields) p))
     by  admit.  (* need to adjust the induction hypothesis to prove this *)
  destruct m as [ | [i' t']].
  +

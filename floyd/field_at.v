@@ -285,7 +285,7 @@ Lemma field_at_isptr: forall sh t gfs v p,
 Proof. intros. apply local_facts_isptr. eapply derives_trans; [ apply field_at_local_facts | normalize]. Qed.
 
 Lemma field_at_offset_zero: forall sh t gfs v p,
-  field_at sh t gfs v p = field_at sh t gfs v (offset_val Int.zero p).
+  field_at sh t gfs v p = field_at sh t gfs v (offset_val 0 p).
 Proof. intros. apply local_facts_offset_zero.
  intros. rewrite field_at_isptr; normalize.
 Qed.
@@ -298,7 +298,7 @@ Proof. intros.
 Qed.
 
 Lemma field_at__offset_zero: forall sh t gfs p,
-  field_at_ sh t gfs p = field_at_ sh t gfs (offset_val Int.zero p).
+  field_at_ sh t gfs p = field_at_ sh t gfs (offset_val 0 p).
 Proof. intros. apply local_facts_offset_zero.
  intros. rewrite field_at__isptr; normalize.
 Qed.
@@ -310,7 +310,7 @@ Proof. intros. apply local_facts_isptr.
  normalize.
 Qed.
 
-Lemma data_at_offset_zero: forall sh t v p, data_at sh t v p = data_at sh t v (offset_val Int.zero p).
+Lemma data_at_offset_zero: forall sh t v p, data_at sh t v p = data_at sh t v (offset_val 0 p).
 Proof. intros. rewrite <- local_facts_offset_zero. reflexivity.
     intros; rewrite data_at_isptr; normalize.  
 Qed.
@@ -322,7 +322,7 @@ Proof. intros.  apply local_facts_isptr.
  normalize.
 Qed.
 
-Lemma data_at__offset_zero: forall sh t p, data_at_ sh t p = data_at_ sh t (offset_val Int.zero p).
+Lemma data_at__offset_zero: forall sh t p, data_at_ sh t p = data_at_ sh t (offset_val 0 p).
 Proof. intros. apply field_at__offset_zero. Qed.
 
 (************************************************
@@ -1287,7 +1287,7 @@ Proof.
   normalize.
   destruct p; try tauto.
   inv_int i.
-  replace (Vptr b (Int.repr ofs)) with (offset_val (Int.repr 0) (Vptr b (Int.repr ofs))) at 2.
+  replace (Vptr b (Int.repr ofs)) with (offset_val 0 (Vptr b (Int.repr ofs))) at 2.
   + apply memory_block_valid_pointer with (i := 0); auto; omega.
   + simpl.
     rewrite add_repr, Z.add_0_r.
@@ -2148,8 +2148,7 @@ Transparent field_offset. Transparent field_type.
     unfold at_offset.
     specialize (IHm HM).
     inv H0. simpl in H3.
-  forget (offset_val
-     (Int.repr (field_offset cenv_cs (fst (i, t)) ((i, t) :: p :: m))) q) as q'.
+  forget (offset_val (field_offset cenv_cs (fst (i, t)) ((i, t) :: p :: m)) q) as q'.
   simpl @fst.
   repeat rewrite <- sepcon_assoc.
   match goal with |- ?A * ?B * ?C * ?D = _ => pull_left C end.
