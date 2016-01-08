@@ -705,7 +705,47 @@ Lemma loop1 Espec F x z c mInit b nonce k m xbytes mbytes SV cLen
      (map Vint (map Int.repr (map Byte.unsigned xbytes))) x;
    data_at_ Tsh (Tarray tuchar cLen noattr) c;
    message_at mbytes mInit))
-  (Sfor (Sset _i (Econst_int (Int.repr 0) tint))
+  (
+              (Ssequence
+                (Sset _i (Econst_int (Int.repr 0) tint))
+                (Sloop
+                  (Ssequence
+                    (Sifthenelse (Ebinop Olt (Etempvar _i tuint)
+                                   (Econst_int (Int.repr 64) tint) tint)
+                      Sskip
+                      Sbreak)
+                    (Ssequence
+                      (Ssequence
+                        (Sifthenelse (Ebinop One (Etempvar _m (tptr tuchar))
+                                       (Ecast (Econst_int (Int.repr 0) tint)
+                                         (tptr tvoid)) tint)
+                          (Sset 187%positive
+                            (Ecast
+                              (Ederef
+                                (Ebinop Oadd (Etempvar _m (tptr tuchar))
+                                  (Etempvar _i tuint) (tptr tuchar)) tuchar)
+                              tint))
+                          (Sset 187%positive
+                            (Ecast (Econst_int (Int.repr 0) tint) tint)))
+                        (Sset _loop2left
+                          (Ecast (Etempvar 187%positive tint) tuchar)))
+                      (Ssequence
+                        (Sset _loop2right
+                          (Ecast
+                            (Ederef
+                              (Ebinop Oadd (Evar _x (tarray tuchar 64))
+                                (Etempvar _i tuint) (tptr tuchar)) tuchar)
+                            tuchar))
+                        (Sassign
+                          (Ederef
+                            (Ebinop Oadd (Etempvar _c (tptr tuchar))
+                              (Etempvar _i tuint) (tptr tuchar)) tuchar)
+                          (Ebinop Oxor (Etempvar _loop2left tuchar)
+                            (Etempvar _loop2right tuchar) tint)))))
+                  (Sset _i
+                    (Ebinop Oadd (Etempvar _i tuint)
+                      (Econst_int (Int.repr 1) tint) tuint)))))
+(*  (Sfor (Sset _i (Econst_int (Int.repr 0) tint))
      (Ebinop Olt (Etempvar _i tuint) (Econst_int (Int.repr 64) tint) tint)
      (Ssequence
         (Ssequence
@@ -732,7 +772,7 @@ Lemma loop1 Espec F x z c mInit b nonce k m xbytes mbytes SV cLen
               (Ebinop Oxor (Etempvar _loop2left tuchar)
                  (Etempvar _loop2right tuchar) tint))))
      (Sset _i
-        (Ebinop Oadd (Etempvar _i tuint) (Econst_int (Int.repr 1) tint) tuint)))
+        (Ebinop Oadd (Etempvar _i tuint) (Econst_int (Int.repr 1) tint) tuint)))*)
 (normal_ret_assert 
   ( PROP  ()
     LOCAL  (temp _i (Vint (Int.repr 64)); lvar _x (Tarray tuchar 64 noattr) x;
@@ -781,7 +821,7 @@ rename H into I.
    LOCAL  (temp _i (Vint (Int.repr i)); lvar _x (Tarray tuchar 64 noattr) x;
       lvar _z (Tarray tuchar 16 noattr) z; temp _c c; temp _m m;
       temp _b b; temp _n nonce; temp _k k; gvar _sigma SV;
-      temp 186%positive (Vint (Int.repr (Byte.unsigned (byte_at mInit (i+q) mbytes)))))
+      temp 187%positive (Vint (Int.repr (Byte.unsigned (byte_at mInit (i+q) mbytes)))))
    SEP  (FRZL FR1; message_at mbytes mInit)).
   { apply denote_tc_comparable_split.
     + clear H XOR. destruct mInit; simpl in M; try contradiction.
@@ -909,7 +949,46 @@ Lemma loop2 Espec F x z c mInit m b nonce k xbytes mbytes SV
               (map Vint (map Int.repr (map Byte.unsigned xbytes))) x;
          data_at_ Tsh (Tarray tuchar (Int64.unsigned b) noattr) c;
          message_at mbytes mInit))
-
+        (Ssequence
+                (Sset _i (Econst_int (Int.repr 0) tint))
+                (Sloop
+                  (Ssequence
+                    (Sifthenelse (Ebinop Olt (Etempvar _i tuint)
+                                   (Etempvar _b tulong) tint)
+                      Sskip
+                      Sbreak)
+                    (Ssequence
+                      (Ssequence
+                        (Sifthenelse (Ebinop One (Etempvar _m (tptr tuchar))
+                                       (Ecast (Econst_int (Int.repr 0) tint)
+                                         (tptr tvoid)) tint)
+                          (Sset 188%positive
+                            (Ecast
+                              (Ederef
+                                (Ebinop Oadd (Etempvar _m (tptr tuchar))
+                                  (Etempvar _i tuint) (tptr tuchar)) tuchar)
+                              tint))
+                          (Sset 188%positive
+                            (Ecast (Econst_int (Int.repr 0) tint) tint)))
+                        (Sset _loop3left
+                          (Ecast (Etempvar 188%positive tint) tuchar)))
+                      (Ssequence
+                        (Sset _loop3right
+                          (Ecast
+                            (Ederef
+                              (Ebinop Oadd (Evar _x (tarray tuchar 64))
+                                (Etempvar _i tuint) (tptr tuchar)) tuchar)
+                            tuchar))
+                        (Sassign
+                          (Ederef
+                            (Ebinop Oadd (Etempvar _c (tptr tuchar))
+                              (Etempvar _i tuint) (tptr tuchar)) tuchar)
+                          (Ebinop Oxor (Etempvar _loop3left tuchar)
+                            (Etempvar _loop3right tuchar) tint)))))
+                  (Sset _i
+                    (Ebinop Oadd (Etempvar _i tuint)
+                      (Econst_int (Int.repr 1) tint) tuint))))
+(*
   (Sfor (Sset _i (Econst_int (Int.repr 0) tint))
      (Ebinop Olt (Etempvar _i tuint) (Etempvar _b tulong) tint)
      (Ssequence
@@ -937,7 +1016,7 @@ Lemma loop2 Espec F x z c mInit m b nonce k xbytes mbytes SV
               (Ebinop Oxor (Etempvar _loop3left tuchar)
                  (Etempvar _loop3right tuchar) tint))))
      (Sset _i
-        (Ebinop Oadd (Etempvar _i tuint) (Econst_int (Int.repr 1) tint) tuint)))
+        (Ebinop Oadd (Etempvar _i tuint) (Econst_int (Int.repr 1) tint) tuint)))*)
 
 (normal_ret_assert 
   ( PROP  ()
@@ -988,7 +1067,7 @@ Focus 2.
    LOCAL  (temp _i (Vint (Int.repr i)); lvar _x (Tarray tuchar 64 noattr) x;
       lvar _z (Tarray tuchar 16 noattr) z; temp _c c; temp _m m;
       temp _b (Vlong b); temp _n nonce; temp _k k; gvar _sigma SV;
-      temp 187%positive (Vint (Int.repr (Byte.unsigned (byte_at mInit (i+q) mbytes)))))
+      temp 188%positive (Vint (Int.repr (Byte.unsigned (byte_at mInit (i+q) mbytes)))))
    SEP  (FRZL FR1; message_at mbytes mInit)).
   { apply denote_tc_comparable_split.
     + clear H XOR. destruct mInit; simpl in M; try contradiction.
@@ -1177,7 +1256,7 @@ Definition ContSpec bInit SIGMA K mInit mCont zbytes  srbytes :=
              (*zbytesR = (snd (ZZ zN (8:nat)))/\*) srbytes = (resN++lastbytes).
 
 (*TODO: refine non-zero-case of this spec, relating COUT to mCont and K and Nonce*)
-Definition crypto_stream_xor_postsep b (Nonce:SixteenByte) K mCont cLen nonce c k m :=
+Definition crypto_stream_xor_postsep b (Nonce:SixteenByte) K mCont cLen nonce c m :=
   (if Int64.eq b Int64.zero 
    then data_at_ Tsh (Tarray tuchar cLen noattr) c
    else (EX COUT:_, !!(exists zbytes, match Nonce with (Nnc0, Nnc1, _, _) =>
@@ -1187,7 +1266,7 @@ Definition crypto_stream_xor_postsep b (Nonce:SixteenByte) K mCont cLen nonce c 
                 map Vint (map Int.repr (map Byte.unsigned zbytes))
                 /\  ContSpec b SIGMA K m mCont zbytes COUT end)
            && data_at Tsh (Tarray tuchar cLen noattr) (Bl2VL COUT) c))
-                    * SByte Nonce nonce * ThirtyTwoByte K k
+                    * SByte Nonce nonce 
                     * message_at mCont m.
 
 (*Precondition length mCont = Int64.unsigned b comes from textual spec in
@@ -1214,8 +1293,8 @@ Definition crypto_stream_salsa20_xor_spec :=
   POST [ tint ] 
        PROP ()
        LOCAL (temp ret_temp (Vint (Int.repr 0)))
-       SEP (Sigma_vector SV; 
-            crypto_stream_xor_postsep b Nonce K mCont (Int64.unsigned b) nonce c k m). 
+       SEP (Sigma_vector SV; ThirtyTwoByte K k;
+            crypto_stream_xor_postsep b Nonce K mCont (Int64.unsigned b) nonce c m). 
 
 Lemma crypto_stream_salsa20_xor_ok: semax_body SalsaVarSpecs SalsaFunSpecs
       f_crypto_stream_salsa20_tweet_xor

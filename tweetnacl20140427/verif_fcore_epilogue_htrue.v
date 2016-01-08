@@ -156,11 +156,11 @@ Lemma HTrue_loop2 Espec (FR:mpred) t y x w nonce out c k h intsums Nonce C K:
                  tint) (tptr tuchar)))
         (Ssequence
            (Ssequence
-              (Scall (Some 184%positive)
+              (Scall (Some 185%positive)
                  (Evar _ld32
                     (Tfunction (Tcons (tptr tuchar) Tnil) tuint cc_default))
                  [Etempvar _u8_aux (tptr tuchar)])
-              (Sset _aux (Etempvar 184%positive tuint)))
+              (Sset _aux (Etempvar 185%positive tuint)))
            (Ssequence
               (Sset _aux1
                  (Ederef
@@ -182,12 +182,12 @@ Lemma HTrue_loop2 Espec (FR:mpred) t y x w nonce out c k h intsums Nonce C K:
                              (Etempvar _i tint) tint) (tptr tuchar)))
                     (Ssequence
                        (Ssequence
-                          (Scall (Some 185%positive)
+                          (Scall (Some 186%positive)
                              (Evar _ld32
                                 (Tfunction (Tcons (tptr tuchar) Tnil) tuint
                                    cc_default))
                              [Etempvar _u8_aux (tptr tuchar)])
-                          (Sset _aux (Etempvar 185%positive tuint)))
+                          (Sset _aux (Etempvar 186%positive tuint)))
                        (Ssequence
                           (Sset _aux1
                              (Ederef
@@ -459,7 +459,7 @@ Lemma HTrue_loop3 Espec (FR:mpred) t y x w nonce out c k h OUT xs (*ys Nonce C K
    lvar _y (tarray tuint 16) y; lvar _x (tarray tuint 16) x;
    lvar _w (tarray tuint 16) w; temp _in nonce; temp _out out; temp _c c;
    temp _k k; temp _h (Vint (Int.repr h)))
-   SEP  (FR; data_at Tsh (tarray tuchar 64) OUT out;
+   SEP  (FR; data_at Tsh (tarray tuchar 32) OUT out;
          data_at Tsh (tarray tuint 16) (map Vint xs) x))
 
   (Sfor (Sset _i (Econst_int (Int.repr 0) tint))
@@ -509,9 +509,9 @@ Lemma HTrue_loop3 Espec (FR:mpred) t y x w nonce out c k h OUT xs (*ys Nonce C K
           lvar _w (tarray tuint 16) w; temp _in nonce; temp _out out; temp _c c;
           temp _k k; temp _h (Vint (Int.repr h)))
   SEP (FR; data_at Tsh (tarray tuint 16) (map Vint xs) x;
-       data_at Tsh (tarray tuchar 64) (hPosLoop3 4 xs OUT) out))).
+       data_at Tsh (tarray tuchar 32) (hPosLoop3 4 xs OUT) out))).
 Proof. intros. abbreviate_semax.
- Time assert_PROP (Zlength (map Vint xs) = 16 /\ Zlength OUT = 64) as XX by entailer!. (*1.6 versus 3.5*)
+ Time assert_PROP (Zlength (map Vint xs) = 16 /\ Zlength OUT = 32) as XX by entailer!. (*1.6 versus 3.5*)
  rewrite Zlength_map in XX. destruct XX as [ZL_X OL].
  Time forward_for_simple_bound 4 (EX i:Z, 
   (PROP  ()
@@ -519,13 +519,13 @@ Proof. intros. abbreviate_semax.
    lvar _x (tarray tuint 16) x; lvar _w (tarray tuint 16) w; temp _in nonce;
    temp _out out; temp _c c; temp _k k; temp _h (Vint (Int.repr h)))
    SEP  (FR; data_at Tsh (tarray tuint 16) (map Vint xs) x;
-         data_at Tsh (tarray tuchar 64) (hPosLoop3 (Z.to_nat i) xs OUT) out))). (*1.6 versus 3.4*)
+         data_at Tsh (tarray tuchar 32) (hPosLoop3 (Z.to_nat i) xs OUT) out))). (*1.6 versus 3.4*)
     Time entailer!. (*2 versus 6*)
   { rename H into I. 
 
-    assert (P3_Zlength: Zlength (hPosLoop3 (Z.to_nat i) xs OUT) = 64).
+    assert (P3_Zlength: Zlength (hPosLoop3 (Z.to_nat i) xs OUT) = 32).
       rewrite hposLoop3_length. assumption. rewrite OL, Z2Nat.id; omega.
-    assert (P3_length: length (hPosLoop3 (Z.to_nat i) xs OUT) = 64%nat).
+    assert (P3_length: length (hPosLoop3 (Z.to_nat i) xs OUT) = 32%nat).
       rewrite <- ZtoNat_Zlength, P3_Zlength; reflexivity.
     remember (hPosLoop3 (Z.to_nat i) xs OUT) as ll. (*clear Heqll.*)
       
@@ -535,7 +535,7 @@ Proof. intros. abbreviate_semax.
     Time solve[entailer!]. (*0.9 versus 3.21*)
     thaw FR1.
     freeze [0;2] FR2.
-    Time assert_PROP (isptr out /\ field_compatible (Tarray tuchar 64 noattr) [] out)
+    Time assert_PROP (isptr out /\ field_compatible (Tarray tuchar 32 noattr) [] out)
           as Pout_FCO by entailer!. (*1.2 versus 3.6*)
     destruct Pout_FCO as [Pout FCO].
     apply isptrD in Pout; destruct Pout as [ob [ooff OC]]; rewrite OC in *.
@@ -556,7 +556,7 @@ Proof. intros. abbreviate_semax.
       autorewrite with sublist. Time entailer!. (*1.9 versus 9.3*)
       apply derives_refl. }
     simpl.
-    assert (Upd_ll_Zlength: Zlength (UpdateOut ll (4 * i) xi) = 64).
+    assert (Upd_ll_Zlength: Zlength (UpdateOut ll (4 * i) xi) = 32).
       rewrite UpdateOut_Zlength; trivial. omega. omega.
     apply semax_pre with (P':=
   (PROP  ()
@@ -567,7 +567,7 @@ Proof. intros. abbreviate_semax.
    temp _out (Vptr ob ooff); temp _c c; temp _k k;
    temp _h (Vint (Int.repr h)))
    SEP 
-   (FR; data_at Tsh (tarray tuchar 64) (UpdateOut ll (4*i) xi) (Vptr ob ooff);
+   (FR; data_at Tsh (tarray tuchar 32) (UpdateOut ll (4*i) xi) (Vptr ob ooff);
    data_at Tsh (tarray tuint 16) (map Vint xs) x))).
     { clear Heqll. Time entailer!. (*2.5 versus 7.5*)
       thaw FR3. thaw FR2. cancel.
@@ -590,7 +590,7 @@ Proof. intros. abbreviate_semax.
     Time solve[entailer!]. (*1.3 versus 3.2*)
     thaw FR4. freeze [0;2] FR5.
     Time forward. (*1.7 versus 4.5*) 
-    erewrite (split3_data_at_Tarray_tuchar Tsh 64 (16 + 4 *i) (4+16 + 4 *i)); trivial; try omega.
+    erewrite (split3_data_at_Tarray_tuchar Tsh 32 (16 + 4 *i) (4+16 + 4 *i)); trivial; try omega.
     rewrite field_address0_offset by auto with field_compatible.
     rewrite field_address0_offset by auto with field_compatible.
     unfold offset_val; simpl.
@@ -617,9 +617,9 @@ Proof. intros. abbreviate_semax.
     rewrite Z2Nat.id, <- XXi, <- ZZi; try omega; clear XXi ZZi.
     unfold QByte.
     remember (UpdateOut ll (4 * i) xi) as l.
-    assert (ZLU: Zlength(UpdateOut l (16 + 4 * i) zi) = 64).
+    assert (ZLU: Zlength(UpdateOut l (16 + 4 * i) zi) = 32).
       rewrite UpdateOut_Zlength; trivial. omega. omega.
-    rewrite (split3_data_at_Tarray_tuchar Tsh 64 (16 + 4 * i) (4+16 + 4 * i)); try omega.
+    rewrite (split3_data_at_Tarray_tuchar Tsh 32 (16 + 4 * i) (4+16 + 4 * i)); try omega.
       rewrite OC in *.
       rewrite field_address0_offset by auto with field_compatible.
       rewrite field_address0_offset by auto with field_compatible.
@@ -651,7 +651,7 @@ match data with ((Nonce, C), K) =>
        data_at Tsh (tarray tuint 16)
          (map Vint (hPosLoop2 4 intsums C Nonce)) x;
        data_at Tsh (tarray tuint 16) (map Vint ys) y;
-       data_at Tsh (tarray tuchar 64)
+       data_at Tsh (tarray tuchar 32)
           (hPosLoop3 4 (hPosLoop2 4 intsums C Nonce) OUT) out))
 end.
 
@@ -663,7 +663,7 @@ Lemma verif_fcore_epilogue_htrue Espec (FR:mpred) t y x w nonce out c k h OUT xs
    lvar _y (tarray tuint 16) y; lvar _x (tarray tuint 16) x;
    lvar _w (tarray tuint 16) w; temp _in nonce; temp _out out; temp _c c;
    temp _k k; temp _h (Vint (Int.repr h)))
-   SEP  (FR; data_at Tsh (tarray tuchar 64) OUT out;
+   SEP  (FR; data_at Tsh (tarray tuchar 32) OUT out;
          CoreInSEP data (nonce, c, k);
          data_at Tsh (tarray tuint 16) (map Vint ys) y;
          data_at Tsh (tarray tuint 16) (map Vint xs) x))
@@ -700,11 +700,11 @@ Lemma verif_fcore_epilogue_htrue Espec (FR:mpred) t y x w nonce out c k h OUT xs
                        (Etempvar _i tint) tint) (tptr tuchar)))
               (Ssequence
                  (Ssequence
-                    (Scall (Some 184%positive)
+                    (Scall (Some 185%positive)
                        (Evar _ld32
                           (Tfunction (Tcons (tptr tuchar) Tnil) tuint
                              cc_default)) [Etempvar _u8_aux (tptr tuchar)])
-                    (Sset _aux (Etempvar 184%positive tuint)))
+                    (Sset _aux (Etempvar 185%positive tuint)))
                  (Ssequence
                     (Sset _aux1
                        (Ederef
@@ -727,12 +727,12 @@ Lemma verif_fcore_epilogue_htrue Espec (FR:mpred) t y x w nonce out c k h OUT xs
                                    (Etempvar _i tint) tint) (tptr tuchar)))
                           (Ssequence
                              (Ssequence
-                                (Scall (Some 185%positive)
+                                (Scall (Some 186%positive)
                                    (Evar _ld32
                                       (Tfunction (Tcons (tptr tuchar) Tnil)
                                          tuint cc_default))
                                    [Etempvar _u8_aux (tptr tuchar)])
-                                (Sset _aux (Etempvar 185%positive tuint)))
+                                (Sset _aux (Etempvar 186%positive tuint)))
                              (Ssequence
                                 (Sset _aux1
                                    (Ederef
