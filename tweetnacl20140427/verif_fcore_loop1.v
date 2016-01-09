@@ -190,7 +190,7 @@ Time forward_for_simple_bound 4 (EX i:Z,
   (*Issue this is where the call fails if we use abbreviation Delta := ... in the statement of the lemma*)
 
 
-  Time forward_call (offset_val (Int.repr (4 * i)) (Vptr cb coff), Select16Q C i). (*3.4 versus 15.4*)
+  Time forward_call (offset_val (4 * i) (Vptr cb coff), Select16Q C i). (*3.4 versus 15.4*)
   (*{ goal automatically discharged versus 4.2 }*)
 
   thaw FR3.  
@@ -254,7 +254,7 @@ Time forward_for_simple_bound 4 (EX i:Z,
   rewrite  QuadChunk2ValList_ZLength.
   destruct (Select_SplitSelect16Q_Zlength _ _ _ _ HeqFB_K1 I) as [FLK _]; rewrite FLK.   
 
-  Time forward_call (offset_val (Int.repr (4 * i)) k, 
+  Time forward_call (offset_val (4 * i) k, 
                  Select16Q Key1 i). (*8.9 versus 19.5; both were 3-4 secs faster befor tick elimination etc*)
 
   thaw  FR6.
@@ -300,7 +300,7 @@ Time forward_for_simple_bound 4 (EX i:Z,
   destruct (Select_SplitSelect16Q_Zlength _ _ _ _ HeqFB_N I) as [FrontN _]; rewrite FrontN.    
   (*destruct (Select_SplitSelect16Q_Zlength _ _ _ _ HeqFB_N I) as [FrontN BackN].*)
 
-  Time forward_call (offset_val (Int.repr (4 * i)) nonce, 
+  Time forward_call (offset_val (4 * i) nonce, 
                  Select16Q Nonce i). (*11.7 versus 21*)
   
   thaw FR8.
@@ -334,12 +334,12 @@ Time forward_for_simple_bound 4 (EX i:Z,
   rewrite ThirtyTwoByte_split16; trivial. Time normalize. (*2.2 versus 4.1*)
   unfold SByte at 2.
   assert (K2_16:= SixteenByte2ValList_Zlength Key2).
-  Time assert_PROP (isptr k/\ field_compatible (Tarray tuchar 16 noattr) [] (offset_val (Int.repr 16) k))
+  Time assert_PROP (isptr k/\ field_compatible (Tarray tuchar 16 noattr) [] (offset_val 16 k))
      as Pk_FCK2 by entailer!. (*1.4 versus 6.6*)
   destruct Pk_FCK2 as [Pk FCK2]; apply isptrD in Pk; destruct Pk as [kb [koff Pk]]; rewrite Pk in *. 
   remember (SplitSelect16Q Key2 i) as FB_K2; destruct FB_K2 as (Front_K2, Back_K2).
   rewrite (Select_SplitSelect16Q _ i _ _ HeqFB_K2) in *. 
-  erewrite Select_Unselect_Tarray_at with (d:=offset_val (Int.repr 16) (Vptr kb koff)); try reflexivity; try assumption.
+  erewrite Select_Unselect_Tarray_at with (d:=offset_val 16 (Vptr kb koff)); try reflexivity; try assumption.
   2: rewrite <- K2_16; trivial. 2: rewrite <- K2_16; cbv; trivial.
   Time normalize. (*1.4 versus 6.6*)
   unfold Select_at. simpl. rewrite app_nil_r.

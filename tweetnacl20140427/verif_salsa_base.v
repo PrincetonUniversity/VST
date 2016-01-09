@@ -87,7 +87,7 @@ Definition SByte (q:SixteenByte) (v:val) : mpred :=
 Lemma ThirtyTwoByte_split16 q v:
   field_compatible (Tarray tuchar 32 noattr) [] v ->
   ThirtyTwoByte q v = 
-  (SByte (fst q) v * SByte (snd q) (offset_val (Int.repr 16) v))%logic.
+  (SByte (fst q) v * SByte (snd q) (offset_val 16 v))%logic.
 Proof. destruct q as [s1 s2]. simpl; intros. unfold SByte.
   rewrite split2_data_at_Tarray_tuchar with (n1:= Zlength (SixteenByte2ValList s1));
      try rewrite Zlength_app; repeat rewrite <- SixteenByte2ValList_Zlength; try omega. 

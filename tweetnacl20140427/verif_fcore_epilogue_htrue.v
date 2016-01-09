@@ -547,7 +547,7 @@ Proof. intros. abbreviate_semax.
     unfold offset_val; simpl.
     repeat flatten_sepcon_in_SEP.
     freeze [0;1;3] FR3.
-    Time forward_call (offset_val (Int.repr (4 * i)) (Vptr ob ooff), xi). (*2.6 versus 8.2*)
+    Time forward_call (offset_val (4 * i) (Vptr ob ooff), xi). (*2.6 versus 8.2*)
 
     { Exists (sublist (4 * i) (4 + 4 * i) ll).
       assert (F: Frame = [FRZL FR3]). subst Frame; reflexivity.

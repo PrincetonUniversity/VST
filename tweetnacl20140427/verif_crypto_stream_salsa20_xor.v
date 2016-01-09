@@ -644,7 +644,7 @@ Definition message_at (mCont: list byte) (m:val): mpred :=
 Definition null_or_offset x q y :=
 match x with 
   Vint i => i=Int.zero /\ y=nullval
-| Vptr _ _ => y=offset_val (Int.repr q) x
+| Vptr _ _ => y=offset_val q x
 | _ => False
 end.
 
@@ -1429,7 +1429,7 @@ rename c into cInit. rename m into mInit. rename b into bInit. thaw FR2.
 Definition Inv cInit mInit bInit k nonce x z Nonce K SV mcont zcont:=
 (EX rounds:nat, EX m:_, EX zbytesR:list byte, EX srbytes:list byte,
  let r64 := (Z.of_nat rounds * 64)%Z in
- let c := offset_val (Int.repr r64) cInit in
+ let c := offset_val r64 cInit in
  let b := Int64.sub bInit (Int64.repr r64) in
   (PROP  (0 <= r64 <= Int64.unsigned bInit /\ null_or_offset mInit r64 m
           /\ CONTENT SIGMA K mInit mcont zcont rounds zbytesR srbytes)
@@ -1499,7 +1499,7 @@ assert (Zlength sr_bytes = 64).
   apply prepare_data_length.
 rename H into SRL.
 freeze [0;2;3] FR3.
-remember (offset_val (Int.repr r64) cInit) as c.
+remember (offset_val r64 cInit) as c.
 
 assert(INT64SUB: Int64.sub bInit (Int64.repr (r64 + 64)) =
            Int64.sub (Int64.sub bInit (Int64.repr r64)) (Int64.repr 64)).
@@ -1540,7 +1540,7 @@ forward_if (EX m:_,
    LOCAL 
    (temp _c
       (force_val
-         (sem_add_pi tuchar (offset_val (Int.repr r64) cInit)
+         (sem_add_pi tuchar (offset_val r64 cInit)
             (Vint (Int.repr 64))));
    temp _b
      (Vlong
@@ -1673,7 +1673,7 @@ forward_if (IfPost z x bInit (N0, N1, N2, N3) K mCont (Int64.unsigned bInit) non
     apply prepare_data_length.
   rename H into SRL.
   freeze [0;2;3;6] FR1.
-  remember (offset_val (Int.repr r64) cInit) as c.
+  remember (offset_val r64 cInit) as c.
   assert (BB: Int64.unsigned (Int64.sub bInit (Int64.repr r64)) < Int.max_unsigned). 
      solve [rewrite int_max_unsigned_eq; omega].
 (*mkConciseDelta SalsaVarSpecs SalsaFunSpecs

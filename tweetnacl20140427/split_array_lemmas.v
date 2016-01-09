@@ -44,6 +44,29 @@ destruct d; simpl in *; trivial.
 split; try omega.
 apply Z.add_nonneg_nonneg. apply (Int.unsigned_range i). omega.
 Qed.
+(*
+Lemma offset_in_range_offset_val' n off v:
+      offset_in_range off v ->
+      offset_in_range (off+1) v ->
+      offset_in_range n (offset_val off v) =
+      offset_in_range (n+off) v.
+intros.
+  destruct v; trivial. unfold offset_in_range, offset_val in *.
+  rewrite  (Z.add_comm n), Z.add_assoc in *.
+  destruct (Int.unsigned_range i).
+  rewrite Int.add_unsigned. 
+  rewrite (Int.unsigned_repr off).
+  rewrite <- initialize.max_unsigned_modulus in H0.
+  rewrite Int.unsigned_repr; trivial. omega. 
+  split; try omega.
+  2: destruct (Int.unsigned_range i); try omega.
+  rewrite Int.unsigned_repr; trivial.
+  rewrite <- initialize.max_unsigned_modulus in H0. omega. 
+  rewrite (Int.unsigned_repr off); trivial.
+  2: destruct (Int.unsigned_range i); try omega.
+  rewrite Int.unsigned_repr; trivial.
+  rewrite <- initialize.max_unsigned_modulus in H0. omega. 
+Qed.
 
 Lemma offset_in_range_offset_val' n off v:
       offset_in_range (Int.unsigned off) v ->
@@ -57,11 +80,21 @@ intros.
   rewrite Int.unsigned_repr; trivial.
   rewrite <- initialize.max_unsigned_modulus in H0. omega. 
 Qed.
-
+*)(*
 Lemma offset_in_range_offset_val z1 z2 v
         (Z1: 0 <= z1) (Z2: 0 <= z2)
         (Off : offset_in_range (z1 + z2) v):
      offset_in_range z2 (offset_val (Int.repr z1) v).
+Proof.
+  unfold offset_val, offset_in_range in *. destruct v; trivial.
+  split. apply Z.add_nonneg_nonneg; trivial. apply Int.unsigned_range. 
+  apply Arith_aux1. omega.
+Qed.
+*)
+Lemma offset_in_range_offset_val z1 z2 v
+        (Z1: 0 <= z1) (Z2: 0 <= z2)
+        (Off : offset_in_range (z1 + z2) v):
+     offset_in_range z2 (offset_val z1 v).
 Proof.
   unfold offset_val, offset_in_range in *. destruct v; trivial.
   split. apply Z.add_nonneg_nonneg; trivial. apply Int.unsigned_range. 
@@ -532,12 +565,12 @@ Qed.
 
 Definition Select_at {cs} sh n data2 d :=
    @data_at cs sh (Tarray tuchar (Zlength data2) noattr) data2
-             (offset_val (Int.repr n) d).
+             (offset_val n d).
 
 Definition Unselect_at {cs} sh (data1 data2 data3: list val) d :=
   (@data_at cs sh (Tarray tuchar (Zlength data1) noattr) data1 d *
    @data_at cs sh (Tarray tuchar (Zlength data3) noattr) data3
-             (offset_val (Int.repr (Zlength data2 + Zlength data1)) d)).
+             (offset_val (Zlength data2 + Zlength data1) d)).
 
 Lemma Select_Unselect_Tarray_at {cs} l d sh data1 data2 data3 data
   (DATA: (data1 ++ data2 ++ data3) = data)
@@ -567,57 +600,3 @@ Proof.
   red; simpl. intuition; try omega.
   repeat rewrite Zlength_app in *. omega.
 Qed.
-(*
-
-Definition Select_at {cs} sh n data2 d :=
-   @data_at cs sh (Tarray tuchar (Zlength data2) noattr) data2 
-             (offset_val (Int.repr n) d).
-Definition Unselect_at {cs} sh data1 data2 data3 d :=
-   !! (Zlength (data1 ++ data2 ++ data3) < Int.modulus) &&
-   !! (field_compatible (Tarray tuchar (Zlength (data1 ++ data2 ++ data3)) noattr) [] d) &&
-  (@data_at cs sh (Tarray tuchar (Zlength data1) noattr) data1 d *
-   @data_at cs sh (Tarray tuchar (Zlength data3) noattr) data3
-             (offset_val (Int.repr (Zlength data2 + Zlength data1)) d)).
-
-Lemma Select_Unselect_Tarray_at {cs} l d sh data1 data2 data3 data
-  (DATA: (data1 ++ data2 ++ data3) = data)
-  (L: l = Zlength data)
-  (F: @field_compatible cs (Tarray tuchar (Zlength (data1 ++ data2 ++ data3)) noattr) [] d)
-  (ZL: Zlength (data1 ++ data2 ++ data3) < Int.modulus):
-  @data_at cs sh (Tarray tuchar l noattr) data d = 
-  @Select_at cs sh (Zlength data1) data2 d * @Unselect_at cs sh data1 data2 data3 d.
-Proof.
-  (*fold reptype in *. *) subst l. subst data.
-  erewrite split3_data_at_Tarray_tuchar.
-  rewrite field_address0_offset.
-  unfold Select_at, Unselect_at. simpl.
-  unfold offset_val, at_offset. apply pred_ext. subst; normalize.
-  unfold at_offset. apply pred_ext; cancel.
-  erewrite append_split3_data_at_Tarray_at_tuchar; trivial.
-  unfold Select_at, Unselect_at. subst; normalize.
-  unfold at_offset. apply pred_ext; cancel.
-Qed.
-*)
-(*
-Lemma Select_Unselect_tarray_at t (A: legal_alignas_type t = true) sh data1 data2 data3 data d
-  (DATA: (data1 ++ data2 ++ data3) = data):
-  data_at sh (tarray t (Zlength data)) data d = 
-  Select_at t sh (Zlength data1) data2 d * Unselect_at t sh data1 data2 data3 d.
-Proof. apply Select_Unselect_Tarray_at; trivial. Qed.
-
-Lemma Select_Unselect_tuchararray_at sh data1 data2 data3 data d
-  (DATA: (data1 ++ data2 ++ data3) = data):
-  data_at sh (tarray tuchar (Zlength data)) data d = 
-  Select_at tuchar sh (Zlength data1) data2 d * Unselect_at tuchar sh data1 data2 data3 d.
-Proof. apply Select_Unselect_tarray_at; trivial. Qed.
-
-Lemma Select_Unselect_tuchararray_at':
-  forall l (sh : Share.t) (data1 data2 data3 data : list val) (d : val),
-  data1 ++ data2 ++ data3 = data ->
-  l = Zlength data ->
-  data_at sh (tarray tuchar l) data d =
-  Select_at tuchar sh (Zlength data1) data2 d *
-  Unselect_at tuchar sh data1 data2 data3 d.
-   Proof. intros. subst. apply Select_Unselect_tuchararray_at. trivial. Qed.
-*)
-
