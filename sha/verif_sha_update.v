@@ -287,8 +287,8 @@ replace_SEP 0 (data_at Tsh t_struct_SHA256state_st
   unfold_data_at 1%nat; entailer!.
   assert (legal_nested_field t_struct_SHA256state_st [StructField _data]).
     apply compute_legal_nested_field_spec'; repeat constructor.
-  erewrite field_at_Tarray; try reflexivity; auto.
-  erewrite field_at_Tarray; try reflexivity; auto.
+  erewrite field_at_Tarray; try apply JMeq_refl; try reflexivity; auto.
+  erewrite field_at_Tarray; try apply JMeq_refl; try reflexivity; auto.
   rewrite <- H8.
   simplify_value_fits in H11. destruct H11.
   pose proof (s256a_data_Zlength_less a).
@@ -316,8 +316,7 @@ replace_SEP 0 (data_at Tsh t_struct_SHA256state_st
 forward. (* n = c->num; *)
 forward. (* p=c->data; *)
     (* TODO: should this produce field_address instead of (Int.repr 40) ? *)
-assert_PROP (field_address t_struct_SHA256state_st [StructField _data] c
-          = offset_val (Int.repr 40) c).
+assert_PROP (field_address t_struct_SHA256state_st [StructField _data] c = offset_val 40 c).
   unfold_data_at 1%nat.
  rewrite (field_at_compatible' _ _ [StructField _data]).
   entailer!.

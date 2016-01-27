@@ -204,12 +204,12 @@ Definition init_data2pred' {cs: compspecs}
   | Init_addrof symb ofs => 
       match (var_types Delta) ! symb, (glob_types Delta) ! symb with
       | None, Some (Tarray t n' att) =>
-         EX s:val, EX i: Z, !! (ofs = Int.repr i) && local (locald_denote (sgvar symb s)) && `(mapsto sh (Tpointer t noattr) v (offset_val i s))
+         EX s:val, local (locald_denote (sgvar symb s)) && `(mapsto sh (Tpointer t noattr) v (offset_val (Int.unsigned ofs) s))
       | None, Some Tvoid => TT
 (*
       | None, Some t => `(mapsto sh (Tpointer t noattr) v) (`(offset_val ofs) (eval_sgvar symb t))
 *)
-      | None, Some t => EX s:val, EX i: Z, !! (ofs = Int.repr i) && local (locald_denote (sgvar symb s)) && `((mapsto sh (Tpointer t noattr) v) (offset_val i s))
+      | None, Some t => EX s:val, local (locald_denote (sgvar symb s)) && `((mapsto sh (Tpointer t noattr) v) (offset_val (Int.unsigned ofs) s))
       | Some _, Some (Tarray t _ att) => `(memory_block sh 4 v)
       | Some _, Some Tvoid => TT
       | Some _, Some (Tpointer (Tfunction _ _ _) _) => `(memory_block sh 4 v) 
@@ -324,11 +324,9 @@ intros H1 HH H1' H6' H6 H7 H8 H1'' RS.
     }
 *)
     destruct t0; simpl; try apply TT_right; try rewrite H8; try rewrite H;
-    (apply exp_right with (Vptr b' Int.zero);
-     apply exp_right with (Int.unsigned i0); apply andp_right; [apply andp_right |];
-      [ apply prop_right; rewrite Int.repr_unsigned; auto
-      | unfold local, lift1; apply prop_right; auto 
-      | unfold offset_val; simpl; try rewrite Int.add_zero_l; rewrite Int.repr_unsigned; auto]).
+    (apply exp_right with (Vptr b' Int.zero); apply andp_right;
+      [unfold local, lift1; apply prop_right; auto 
+      |      unfold offset_val; simpl; try rewrite Int.repr_unsigned, Int.add_zero_l; auto]).
 Qed.
 
 Lemma unpack_globvar  {cs: compspecs}:
@@ -1296,6 +1294,16 @@ intros.
 rewrite sepcon_emp; auto.
 Qed.
 
+Lemma offset_val_unsigned_repr: forall i p,
+  offset_val (Int.unsigned (Int.repr i)) p = offset_val i p.
+Proof.
+  intros.
+  unfold offset_val.
+  unfold Int.add.
+  rewrite Int.repr_unsigned.
+  auto.
+Qed.
+
 Ltac process_idstar := 
   match goal with
   | |- semax _ (_ * globvars2pred ((?i,_)::_) * _) _ _ =>
@@ -1326,4 +1334,5 @@ Ltac expand_main_pre :=
  unfold prog_vars, prog_vars'; simpl globvars2pred;
  repeat  process_idstar;
  change (globvars2pred nil) with (@emp (environ->mpred) _ _);
- rewrite (sepcon_emp (PROPx _ _)).
+ rewrite (sepcon_emp (PROPx _ _));
+ rewrite ?offset_val_unsigned_repr.

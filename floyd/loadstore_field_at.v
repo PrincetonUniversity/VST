@@ -250,7 +250,7 @@ Proof.
   + rewrite <- H10; exact H8.
   + eapply RAMIF_PLAIN.trans; [exact H6 |].
     apply mapsto_field_at_ramify; [auto | rewrite <- H10; auto | | auto].
-    symmetry; apply by_value_default_val; auto.
+    apply JMeq_sym; apply by_value_default_val; auto.
   + rewrite (add_andp _ _ H7), (add_andp _ _ H9).
     eapply derives_trans; [| eapply tc_lvalue_nested_efield; eassumption].
     solve_andp.

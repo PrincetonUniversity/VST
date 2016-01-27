@@ -130,6 +130,7 @@ Lemma data_at'_type_changable: forall (sh: Share.t) (t1 t2: type) v1 v2,
 Proof.
   intros.
   subst t2.
+  apply JMeq_eq in H0.
   rewrite H0.
   reflexivity.
 Qed.
@@ -151,7 +152,7 @@ Lemma by_value_default_val: forall t:type,
   type_is_by_value t = true -> JMeq (default_val t) Vundef.
 Proof.
   intros.
-  destruct t; try inversion H; try tauto.
+  destruct t; try inversion H; try tauto; apply JMeq_refl.
 Qed.
 
 (************************************************
@@ -734,6 +735,7 @@ Lemma value_fits_type_changable: forall (t1 t2: type) v1 v2,
 Proof.
   intros.
   subst t2.
+  apply JMeq_eq in H0.
   rewrite H0.
   reflexivity.
 Qed.
@@ -941,6 +943,8 @@ f_equal.
 apply JMeq_eq in H1. auto.
 Qed.
 
+(* TODO: value_fits_Tunion *)
+
 Lemma value_fits_by_value_defined:
   forall {cs: compspecs} t t' v r,
    type_is_by_value t = true ->  
@@ -1002,7 +1006,7 @@ Qed.
 
 Ltac cleanup_unfold_reptype :=
     match goal with |- JMeq (unfold_reptype ?A) _ =>
-                 instantiate (1:=A); reflexivity
+                 instantiate (1:=A); apply JMeq_refl
     end.
 
 Ltac simplify_value_fits' :=

@@ -224,14 +224,14 @@ Lemma setup_globals:
   ENTAIL Delta, PROP  ()
    LOCAL  (gvar _three x)
    SEP 
-   (mapsto Ews tuint (offset_val (Int.repr 0) x) (Vint (Int.repr 1));
-    mapsto Ews (tptr t_struct_list) (offset_val (Int.repr 4) x)
-        (offset_val (Int.repr 8) x);
-   mapsto Ews tuint (offset_val (Int.repr 8) x) (Vint (Int.repr 2));
-   mapsto Ews (tptr t_struct_list) (offset_val (Int.repr 12) x)
-       (offset_val (Int.repr 16) x);
-   mapsto Ews tuint (offset_val (Int.repr 16) x) (Vint (Int.repr 3));
-   mapsto Ews tuint (offset_val (Int.repr 20) x) (Vint (Int.repr 0)))
+   (mapsto Ews tuint (offset_val 0 x) (Vint (Int.repr 1));
+    mapsto Ews (tptr t_struct_list) (offset_val 4 x)
+        (offset_val 8 x);
+   mapsto Ews tuint (offset_val 8 x) (Vint (Int.repr 2));
+   mapsto Ews (tptr t_struct_list) (offset_val 12 x)
+       (offset_val 16 x);
+   mapsto Ews tuint (offset_val 16 x) (Vint (Int.repr 3));
+   mapsto Ews tuint (offset_val 20 x) (Vint (Int.repr 0)))
   |-- PROP() LOCAL(gvar _three x) 
         SEP (lseg LS Ews (map Vint (Int.repr 1 :: Int.repr 2 :: Int.repr 3 :: nil))
                   x nullval).
@@ -239,14 +239,14 @@ Proof.
  intros.
   go_lower.
   rewrite !prop_true_andp by auto.
-  rewrite <- (sepcon_emp (mapsto _ _ (offset_val (Int.repr 20) _) _)).
+  rewrite <- (sepcon_emp (mapsto _ _ (offset_val 20 _) _)).
   assert (FC: field_compatible (tarray t_struct_list 3) [] x)
     by (hnf; repeat apply conj; auto; compute; auto).
   match goal with |- ?A |-- _ => set (a:=A) end.
-  replace x with (offset_val (Int.repr 0) x) by normalize.
+  replace x with (offset_val 0 x) by normalize.
   subst a.
-repeat match goal with |- _ * (mapsto _ _ _ ?q * _) |-- lseg _ _ _ (offset_val (Int.repr ?n) _) _ =>
-  assert (FC': field_compatible t_struct_list [] (offset_val (Int.repr n) x))
+repeat match goal with |- _ * (mapsto _ _ _ ?q * _) |-- lseg _ _ _ (offset_val ?n _) _ =>
+  assert (FC': field_compatible t_struct_list [] (offset_val n x))
     by (eapply (field_compatible_array_member (n/8)%Z); try eassumption; simpl; computable);
   apply @lseg_unroll_nonempty1 with q;
     [destruct x; try contradiction; intro Hx; inv Hx | normalize; reflexivity | ];

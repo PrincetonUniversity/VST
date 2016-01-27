@@ -72,15 +72,14 @@ rewrite (split2_array_at _ _ _ 0 (Zlength al) (Zlength (al++bl)))
 rewrite (split2_array_at _ _ _ 0 (Zlength al) (Zlength (al++bl))).
 2: rewrite Zlength_app; omega.
 Focus 2. {
-  rewrite H4 in H2.
+  apply (JMeq_trans (JMeq_sym H4)) in H2.
   erewrite <- list_func_JMeq with (f := Zlength); [| | exact H2].
   2: rewrite nested_field_type_ind; rewrite H; auto.
   rewrite !Zlength_app, Zlength_list_repeat by omega.
   omega.
 } Unfocus.
-rewrite H3 in H1.
-rewrite H4 in H2.
-clear H3 H4.
+apply (JMeq_trans (JMeq_sym H3)) in H1.
+apply (JMeq_trans (JMeq_sym H4)) in H2.
 apply sepcon_derives.
 apply derives_refl'.
 f_equal.
@@ -91,6 +90,7 @@ rewrite nested_field_type_ind.
 rewrite H.
 simpl.
 intros.
+apply JMeq_eq in H1; apply JMeq_eq in H2.
 rewrite <- H1. rewrite <- H2.
 autorewrite with sublist. auto.
 eapply derives_trans; [apply array_at_array_at_ | ].
@@ -103,7 +103,7 @@ revert v2' H2.
 rewrite nested_field_type_ind.
 rewrite H.
 simpl.
-intros. rewrite <- H2.
+intros. apply JMeq_eq in H2; rewrite <- H2.
 rewrite sublist_app2 by omega.
 rewrite Z.sub_diag.
 autorewrite with sublist.
@@ -182,7 +182,7 @@ forward_if   (invariant_after_if1 (s256a_hashed a) (s256a_data a) c md shmd kv).
  rewrite S256abs_recombine by auto.
  cancel.
  unfold data_at.
- eapply cancel_field_at_array_partial_undef; try reflexivity.
+ eapply cancel_field_at_array_partial_undef; try reflexivity; try apply JMeq_refl.
  autorewrite with sublist; Omega1.
  apply eq_JMeq. f_equal. f_equal. f_equal.
  autorewrite with sublist; Omega1. 
@@ -211,7 +211,7 @@ rewrite bitlength_eq.
  rewrite S256abs_recombine by auto.
 cancel.
 rewrite (field_at_data_at _ _ [_]).
-eapply cancel_field_at_array_partial_undef; try reflexivity.
+eapply cancel_field_at_array_partial_undef; try reflexivity; try apply JMeq_refl.
 autorewrite with sublist; Omega1.
 apply eq_JMeq. simpl. f_equal.
 rewrite !map_app. reflexivity.
@@ -223,7 +223,7 @@ rename H2 into PAD.
 unfold POSTCONDITION, abbreviate; clear POSTCONDITION.
 unfold SHA_256.
 unfold_data_at 1%nat.
-erewrite (field_at_Tarray Tsh _ [StructField _data]); try reflexivity; try omega.
+erewrite (field_at_Tarray Tsh _ [StructField _data]); try reflexivity; try apply JMeq_refl; try omega.
 rewrite (split2_array_at _ _ _ 0 (Zlength dd') 64); try Omega1.
 3: apply compute_legal_nested_field_spec'; repeat constructor.
 Focus 2. {
@@ -292,7 +292,7 @@ eapply semax_pre_post; [ | |
 change (Z.of_nat CBLOCK) with CBLOCKz.
 change (Z.to_nat 8) with (Z.to_nat (CBLOCKz-56)).
 entailer!.
-erewrite field_at_Tarray; try reflexivity; try omega.
+erewrite field_at_Tarray; try reflexivity; try apply JMeq_refl; try omega.
 2: compute; clear; intuition.
 rewrite (split3seg_array_at _ _ _ 0 (Zlength dd') 56 64); try Omega1.
 Focus 2. {
