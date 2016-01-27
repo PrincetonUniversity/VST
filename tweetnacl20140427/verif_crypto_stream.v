@@ -61,7 +61,7 @@ Definition f_crypto_stream_xsalsa20_tweet_spec :=
       PROP ()
       LOCAL (temp _c c; (*temp _m m;*) temp _d (Vlong d);
              temp _n nonce; temp _k k; gvar _sigma SV)
-      SEP ( SByte Nonce nonce; SByte Nonce2 (offset_val (Int.repr 16) nonce);
+      SEP ( SByte Nonce nonce; SByte Nonce2 (offset_val 16 nonce);
             data_at_ Tsh (Tarray tuchar (Int64.unsigned d) noattr) c;
             ThirtyTwoByte K k;
             Sigma_vector SV
@@ -72,7 +72,7 @@ Definition f_crypto_stream_xsalsa20_tweet_spec :=
        SEP (Sigma_vector SV; 
             EX HSalsaRes:_, crypto_stream_xor_postsep d Nonce2 HSalsaRes
               (list_repeat (Z.to_nat (Int64.unsigned d)) Byte.zero) (Int64.unsigned d)
-              (offset_val (Int.repr 16) nonce) c nullval;
+              (offset_val 16 nonce) c nullval;
             data_at Tsh (Tarray tuchar 16 noattr) (SixteenByte2ValList Nonce) nonce;
             ThirtyTwoByte K k).
 (*            crypto_stream_xor_postsep d Nonce K (list_repeat (Z.to_nat (Int64.unsigned d)) Byte.zero) (Int64.unsigned d) nonce c k nullval). *)
@@ -109,7 +109,7 @@ assert (exists HSalsaRes, hSalsaOut v =
            littleendian_invert (Znth 9 v Int.zero))).
   do 2 rewrite SixteenByte2ValList_char. repeat rewrite <- app_assoc. trivial. }
 destruct H0 as [HSalsaRes HS]. rewrite HS. 
-forward_call (c, s, offset_val (Int.repr 16) nonce, d, Nonce2, HSalsaRes, SV).
+forward_call (c, s, offset_val 16 nonce, d, Nonce2, HSalsaRes, SV).
 { unfold SByte, Sigma_vector, ThirtyTwoByte.
   destruct HSalsaRes as [q1 q2]. cancel.
   unfold data_at_. cancel. }
@@ -129,7 +129,7 @@ Definition f_crypto_stream_xsalsa20_tweet_xor_spec :=
       PROP (Zlength mCont = Int64.unsigned d)
       LOCAL (temp _c c; temp _m m; temp _d (Vlong d);
              temp _n nonce; temp _k k; gvar _sigma SV)
-      SEP ( SByte Nonce nonce; SByte Nonce2 (offset_val (Int.repr 16) nonce);
+      SEP ( SByte Nonce nonce; SByte Nonce2 (offset_val 16 nonce);
             data_at_ Tsh (Tarray tuchar (Int64.unsigned d) noattr) c;
             ThirtyTwoByte K k;
             message_at mCont m;
@@ -141,7 +141,7 @@ Definition f_crypto_stream_xsalsa20_tweet_xor_spec :=
        SEP (Sigma_vector SV; 
             EX HSalsaRes:_, crypto_stream_xor_postsep d Nonce2 HSalsaRes
               mCont (Int64.unsigned d)
-              (offset_val (Int.repr 16) nonce) c m;
+              (offset_val 16 nonce) c m;
             data_at Tsh (Tarray tuchar 16 noattr) (SixteenByte2ValList Nonce) nonce;
             ThirtyTwoByte K k).
 
@@ -176,7 +176,7 @@ assert (exists HSalsaRes, hSalsaOut v =
            littleendian_invert (Znth 9 v Int.zero))).
   do 2 rewrite SixteenByte2ValList_char. repeat rewrite <- app_assoc. trivial. }
 destruct H0 as [HSalsaRes HS]. rewrite HS. 
-forward_call (c, s, m, offset_val (Int.repr 16) nonce, d, Nonce2, HSalsaRes, mCont, SV).
+forward_call (c, s, m, offset_val 16 nonce, d, Nonce2, HSalsaRes, mCont, SV).
 { unfold SByte, Sigma_vector. unfold ThirtyTwoByte at 2. 
   destruct HSalsaRes as [q1 q2]. cancel.
   unfold data_at_. cancel. }
