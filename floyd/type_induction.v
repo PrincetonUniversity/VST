@@ -467,3 +467,160 @@ Ltac type_induction t :=
     destruct t as [| | | | | | | id a | id a]
   end.
 
+
+(*
+
+Require Import Coq.Logic.ProofIrrelevance.
+Require Import Coq.Sets.Ensembles.
+Require Import Coq.Sets.Finite_sets.
+Require Import Coq.Lists.List.
+Require Import VST.msl.Coqlib2.
+
+Definition is_double (x y: nat): Prop := (S x) * 2 = (S y) \/ (S x) * 2 + 1 = (S y).
+
+Lemma wf_double: well_founded is_double.
+Proof.
+  hnf; intros.
+  assert (forall b, b <= a -> Acc is_double b); [| apply (H a); omega].
+  induction a; intros.
+  + assert (b = 0) by omega; subst.
+    constructor.
+    intros.
+    unfold is_double in H0.
+    omega.
+  + constructor.
+    intros.
+    destruct H0.
+    - apply IHa.
+      omega.
+    - apply IHa.
+      omega.
+Defined.
+
+Definition is_double_exists: forall y, {x | is_double x (S y)}.
+Proof.
+  intros.
+  assert ({x | is_double x (S y)} *
+          {x | is_double x (S (S y))}); [| tauto].
+  induction y.
+  + split; [exists 0; left | exists 0; right]; auto.
+  + destruct IHy as [[x1 ?] [x2 ?]].
+    split; [exists x2 | exists (S x1)]; auto.
+    destruct i; [left | right]; omega.
+Defined.
+
+Definition bit_type_ind: forall y, (forall x, is_double x y -> Type) -> Type.
+Proof.
+  intros.
+  destruct y.
+  + exact bool.
+  + destruct (is_double_exists y) as [x H].
+    exact (prod bool (X x H)).
+Defined.
+
+Definition bit_type (a: nat): Type :=
+  Fix wf_double (fun _ => Type) bit_type_ind a.
+
+Goal bit_type 0 = bool.
+unfold bit_type.
+unfold Fix.
+unfold wf_double.
+simpl.
+Abort.
+
+(*
+Require Import Coq.Program.Wf.
+
+Program Fixpoint div2 (n : nat) {measure n} : Type :=
+match n with
+| S (S p) => prod bool (div2 p)
+| _ => bool
+end.
+
+Program Fixpoint true_div2 (n : nat) {measure n} : div2 n :=
+match n as n_PAT return div2 n_PAT with
+| S (S p) => (true, true_div2 p)
+| _ => true
+end.
+*)
+
+Definition proj1 {P Q: Prop}: P /\ Q -> P.
+intros.
+destruct H as [? _].
+exact H.
+Defined.
+
+Definition proj2 {P Q: Prop}: P /\ Q -> Q.
+intros.
+destruct H as [_ ?].
+exact H.
+Defined.
+
+
+Inductive div2R: nat -> nat -> Prop :=
+  | SS: forall x, div2R x (S (S x)).
+
+Definition wf_div2R: well_founded div2R.
+Proof.
+  hnf; intros.
+  assert (Acc div2R a /\ Acc div2R (S a)); [| exact (proj1 H)].
+  induction a.
+  + split; constructor; intros.
+    - inversion H.
+    - inversion H.
+  + split; [exact (proj2 IHa) |].
+    constructor.
+    intros.
+    inversion H; subst.
+    exact (proj1 IHa).
+Defined.
+
+Definition div2_ind: forall y, (forall x, div2R x y -> Type) -> Type.
+Proof.
+  intros.
+  destruct y as [| [| ]].
+  + exact bool.
+  + exact bool.
+  + specialize (X n).
+    refine (prod bool (X _)).
+    constructor.
+Defined.
+
+Definition div2 (n: nat) : Type :=
+  Fix wf_div2R (fun _ => Type) div2_ind n.
+
+Definition true_div2_ind: forall y, (forall x, div2R x y -> div2 x) -> div2 y.
+Proof.
+  intros.
+  destruct y as [| [| ]].
+  + exact true.
+  + exact true.
+  + specialize (X n).
+    refine (pair true (X _)).
+    constructor.
+Defined.
+
+Definition false_first (n: nat): div2 n -> div2 n :=
+  match n as n_PAT return div2 n_PAT -> div2 n_PAT with
+  | S (S p) => fun v => (false, snd v)
+  | _ => fun _ => false
+  end.
+Goal div2 5 = (bool * bool)%type.
+cbv.
+
+unfold proj1.
+Print div2.
+Print Fix_sub.
+SearchAbout Fix_sub.
+Locate Fix_eq.
+Print Fix_F_sub.
+Print F_sub.
+
+reflexivity.
+Eval compute in (bit_type 0).
+Definition all_true_ind: forall y, (forall x, is_double x y -> Type) -> Type.
+
+Definition all_true (a: nat): bit_type a :=
+  Fix wf_double (fun a => bit_type a) 
+Print Fix_F.
+*)

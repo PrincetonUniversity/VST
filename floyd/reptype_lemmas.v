@@ -244,13 +244,12 @@ Proof.
   apply JMeq_eq.
   match goal with
   | |- JMeq (@eq_rect_r ?A ?x ?F ?v ?y ?H) _ =>
-    rewrite (eq_rect_r_JMeq A x y F v H)
+    eapply @JMeq_trans; [apply (eq_rect_r_JMeq A x y F v H) |]
   end.
   match goal with
   | |- JMeq (@eq_rect ?A ?x ?F ?v ?y ?H) _ =>
-    rewrite (eq_rect_JMeq A x y F v H)
+    apply (eq_rect_JMeq A x y F v H)
   end.
-  reflexivity.
 Defined.
 
 Lemma unfold_fold_reptype: forall t (v: REPTYPE t),
@@ -261,13 +260,12 @@ Proof.
   apply JMeq_eq.
   match goal with
   | |- JMeq (@eq_rect ?A ?x ?F ?v ?y ?H) _ =>
-    rewrite (eq_rect_JMeq A x y F v H)
+    eapply @JMeq_trans; [apply (eq_rect_JMeq A x y F v H) |]
   end.
   match goal with
   | |- JMeq (@eq_rect_r ?A ?x ?F ?v ?y ?H) _ =>
-    rewrite (eq_rect_r_JMeq A x y F v H)
+    apply (eq_rect_r_JMeq A x y F v H)
   end.
-  reflexivity.
 Defined.
 
 Lemma unfold_reptype_JMeq: forall t (v: reptype t),
@@ -340,9 +338,9 @@ Proof.
   intros.
   assert (gen = fun b => existT P (genT b) (genV b)) by (extensionality; apply H).
   rewrite H0; clear H H0 gen.
-  destruct l; [reflexivity |].
+  destruct l; [apply JMeq_refl |].
   revert b; induction l; intros.
-  + reflexivity.
+  + apply JMeq_refl.
   + simpl map.
     change (compact_prod_gen genV (b :: a :: l)) with (genV b, compact_prod_gen genV (a :: l)).
     change (compact_prod_sigT_value
@@ -363,9 +361,9 @@ Proof.
   intros.
   assert (gen = fun b => existT P (genT b) (genV b)) by (extensionality; apply H).
   rewrite H1; clear H H1 gen.
-  destruct l; [reflexivity |].
+  destruct l; [apply JMeq_refl |].
   destruct l.
-  + reflexivity.
+  + apply JMeq_refl.
   + change (compact_sum_sigT_value
         (map (fun b1 : B => existT P (genT b1) (genV b1)) (b :: b0 :: l))) with
   (@inl (P (genT b)) (compact_sum (map (fun tv => match tv with existT t _ => P t end) (map (fun b1 : B => @existT A P (genT b1) (genV b1)) (b0 :: l)))) (genV b)).
@@ -406,7 +404,7 @@ Proof.
   apply JMeq_eq.
   match goal with
   | |- JMeq _ (@eq_rect_r ?A ?x ?F ?v ?y ?H) =>
-    rewrite (eq_rect_r_JMeq A x y F v H)
+    eapply JMeq_trans; [| apply @JMeq_sym; apply (@eq_rect_r_JMeq A x y F v H)]
   end.
   unfold default_val.
   unfold reptype at 1.
@@ -414,7 +412,7 @@ Proof.
   destruct t; auto.
   + unfold reptype, default_val.
     destruct (reptype_gen t).
-    reflexivity.
+    apply JMeq_refl.
   + unfold struct_default_val.
     rewrite map_map.
     apply (compact_prod_sigT_compact_prod_gen
@@ -515,13 +513,12 @@ Proof.
   apply JMeq_eq.
   match goal with
   | |- JMeq (@eq_rect_r ?A ?x ?F ?v ?y ?H) _ =>
-    rewrite (eq_rect_r_JMeq A x y F v H)
+    eapply JMeq_trans; [apply (eq_rect_r_JMeq A x y F v H) |]
   end.
   match goal with
   | |- JMeq (@eq_rect ?A ?x ?F ?v ?y ?H) _ =>
-    rewrite (eq_rect_JMeq A x y F v H)
+    apply (eq_rect_JMeq A x y F v H)
   end.
-  reflexivity.
 Defined.
 
 Lemma unfold_fold_reptype': forall t (v: REPTYPE' t),
@@ -532,13 +529,12 @@ Proof.
   apply JMeq_eq.
   match goal with
   | |- JMeq (@eq_rect ?A ?x ?F ?v ?y ?H) _ =>
-    rewrite (eq_rect_JMeq A x y F v H)
+    eapply JMeq_trans; [apply (eq_rect_JMeq A x y F v H) |]
   end.
   match goal with
   | |- JMeq (@eq_rect_r ?A ?x ?F ?v ?y ?H) _ =>
-    rewrite (eq_rect_r_JMeq A x y F v H)
+    apply (eq_rect_r_JMeq A x y F v H)
   end.
-  reflexivity.
 Defined.
 
 Definition repinj_bv (t: type): reptype' t -> reptype t :=
@@ -618,13 +614,13 @@ Definition valinject (t: type) : val -> reptype t :=
 Lemma valinject_JMeq: forall t v, type_is_by_value t = true -> JMeq (valinject t v) v.
 Proof.
   intros.
-  destruct t; simpl in *; try congruence; try tauto.
+  destruct t; simpl in *; try congruence; try tauto; apply JMeq_refl.
 Qed.
 
 Lemma repinject_JMeq: forall t v, type_is_by_value t = true -> JMeq (repinject t v) v.
 Proof.
   intros.
-  destruct t; simpl in *; try congruence; try tauto.
+  destruct t; simpl in *; try congruence; try tauto; apply JMeq_refl.
 Qed.
 
 Lemma repinject_unfold_reptype: forall t v,
@@ -943,7 +939,7 @@ unfold unfold_reptype.
 match type of v' with ?t => set (t' := t) in * end.
 pose proof (eq_rect_JMeq _ (reptype t) t' (fun x : Type => x) v (reptype_ind t)).
 apply JMeq_eq.
-apply JMeq_trans with (reptype t) v; auto.
+apply @JMeq_trans with (reptype t) v; auto.
 Qed.
 
 

@@ -199,9 +199,9 @@ Proof.
   2: eassumption.
   2: rewrite (add_andp _ _ H9), (add_andp _ _ H11); solve_andp.
   eapply derives_trans; [apply nested_field_ramif' with (gfs3 := gfs1) |].
-  + rewrite H10.
+  + eapply JMeq_trans; [apply H10 |].
     rewrite H4 in H14.
-    symmetry; eauto.
+    apply @JMeq_sym, H14.
   + rewrite <- H4; auto.
   + apply sepcon_derives; [| auto].
     rewrite <- H4.
@@ -281,9 +281,9 @@ Proof.
   2: eassumption.
   2: rewrite (add_andp _ _ H9), (add_andp _ _ H11); solve_andp.
   eapply derives_trans; [apply nested_field_ramif' with (gfs3 := gfs1) |].
-  + rewrite H10.
+  + eapply JMeq_trans; [apply H10 |].
     rewrite H4 in H14.
-    symmetry; eauto.
+    apply @JMeq_sym, H14.
   + rewrite <- H4; auto.
   + apply sepcon_derives; [| auto].
     rewrite <- H4.
@@ -338,7 +338,7 @@ Proof.
   1: eassumption.
   1: eassumption.
   1: eassumption.
-  1: symmetry.
+  1: apply @JMeq_sym.
      apply valinject_JMeq; rewrite H; auto.
   1: eassumption.
   2: eassumption.
@@ -358,11 +358,11 @@ Proof.
   clear v0' H11 H14.
   apply (allp_left _ (valinject (nested_field_type t_root (gfs1 ++ gfs0)) v0)).
   apply (allp_left _ (valinject (nested_field_type (nested_field_type t_root gfs0) gfs1) v0)).
-  rewrite prop_imp
-    by (rewrite !valinject_JMeq;
-        [reflexivity | rewrite nested_field_type_nested_field_type |];
-        rewrite <- H3, H; auto).
-  apply derives_refl.
+  rewrite prop_imp; [apply derives_refl |].
+  eapply JMeq_trans; [apply valinject_JMeq; rewrite <- H3, H; auto |].
+  apply @JMeq_sym, valinject_JMeq.
+  rewrite nested_field_type_nested_field_type.
+  rewrite <- H3, H; auto.
 Qed.
 
 (************************************************

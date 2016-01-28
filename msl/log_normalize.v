@@ -926,6 +926,12 @@ Proof.
     rewrite H0 by tauto; auto.
 Qed.
 
+Lemma prop_and_same_derives {A}{NA: NatDed A}:
+  forall P Q, Q |-- !! P   ->   Q |-- !!P && Q.
+Proof.
+intros. apply andp_right; auto.
+Qed.
+
 Ltac normalize1 := 
          match goal with
             | |- _ => contradiction

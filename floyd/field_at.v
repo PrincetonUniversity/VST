@@ -402,7 +402,7 @@ Proof.
     assert (0 <= 0 <= n) by omega.
     assert (0 <= n <= n) by omega.
     tauto.
-  + rewrite <- (unfold_reptype_JMeq _ v1) in H2.
+  + apply (JMeq_trans (unfold_reptype_JMeq _ v1)) in H2.
     forget (unfold_reptype v1) as v1'.
     clear v1.
     cbv iota beta in v1'.
@@ -663,7 +663,7 @@ Proof.
   revert v' H.
   rewrite nested_field_type_ArraySubsc with (i0 := i).
   intros.
-  rewrite H.
+  apply JMeq_eq in H; rewrite H.
   f_equal.
   apply ND_prop_ext.
   rewrite field_compatible_field_compatible0'.
@@ -733,7 +733,7 @@ Proof.
   replace (mid + 1 - lo) with (mid - lo + 1) by omega.
   rewrite sublist_len_1 with (d := default_val _) by omega.
   rewrite array_at_len_1 with (v' :=v0); [auto |].
-  symmetry; auto.
+  apply JMeq_sym; auto.
 Qed.
 
 (************************************************
@@ -1060,13 +1060,12 @@ Proof.
   1: rewrite Zlength_list_repeat by (rewrite Zlength_correct in H1; omega); omega.
   intros.
   destruct (field_compatible0_dec t (ArraySubsc i :: gfs) p).
-  + 
-    revert u1 H5; erewrite <- nested_field_type_ArraySubsc with (i0 := i); intros.
-    rewrite H5. unfold Znth. rewrite if_false by omega. 
+  + revert u1 H5; erewrite <- nested_field_type_ArraySubsc with (i0 := i); intros.
+    apply JMeq_eq in H5; rewrite H5. unfold Znth. rewrite if_false by omega. 
     rewrite nth_list_repeat.
-   apply field_at_field_at_; auto.
+    apply field_at_field_at_; auto.
   + unfold field_at.
-     normalize. 
+    normalize. 
     contradiction (field_compatible_field_compatible0 t (ArraySubsc i :: gfs) p H6).
 Qed.
 
@@ -2390,7 +2389,7 @@ Proof.
   intros.
   unfold field_at, at_offset.
   rewrite by_value_data_at' by auto.
-  rewrite <- (repinject_JMeq _ v' H) in H2.
+  apply (fun HH => JMeq_trans HH (JMeq_sym (repinject_JMeq _ v' H))) in H2.
   apply JMeq_eq in H2.
   rewrite prop_true_andp by auto.
   f_equal; auto.
@@ -2410,8 +2409,8 @@ Proof.
   intros.
   unfold field_at, at_offset.
   rewrite !by_value_data_at' by auto.
-  rewrite <- (repinject_JMeq _ v' H) in H1; apply JMeq_eq in H1.
-  rewrite <- (repinject_JMeq _ w' H) in H2; apply JMeq_eq in H2.
+  apply (fun HH => JMeq_trans HH (JMeq_sym (repinject_JMeq _ v' H))) in H1; apply JMeq_eq in H1.
+  apply (fun HH => JMeq_trans HH (JMeq_sym (repinject_JMeq _ w' H))) in H2; apply JMeq_eq in H2.
   normalize.
   rewrite field_compatible_field_address by auto.
   subst.
@@ -2439,8 +2438,7 @@ Proof.
   destruct p; inv H2.
   rewrite int_add_repr_0_r.
   rewrite by_value_data_at' by auto.
-  rewrite <- (repinject_JMeq _ v' H) in H10.
-  apply JMeq_eq in H10.
+  apply (fun HH => JMeq_trans HH (JMeq_sym (repinject_JMeq _ v' H))) in H10; apply JMeq_eq in H10.
   rewrite prop_true_andp; auto.
   f_equal. auto.
   repeat split; auto.

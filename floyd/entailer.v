@@ -398,7 +398,7 @@ Ltac ent_iter :=
                 || simple apply derives_extract_prop');
                 fancy_intros true);
 (*   saturate_local; *)
-   repeat erewrite unfold_reptype_elim in * by reflexivity;
+   repeat erewrite unfold_reptype_elim in * by (apply JMeq_refl; reflexivity);
    simpl_compare;
    simpl_denote_tc;
    subst_any;
