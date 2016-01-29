@@ -277,7 +277,7 @@ Lemma skipn_rev:
    skipn n (rev vl) = rev (firstn (length vl - n) vl).
 Proof.
 induction n; intros.
-simpl. rewrite NPeano.Nat.sub_0_r. rewrite firstn_exact_length. auto.
+simpl. rewrite Nat.sub_0_r. rewrite firstn_exact_length. auto.
 destruct (rev vl) eqn:?.
 pose proof (rev_length vl). rewrite Heql in H.
 destruct vl; inv H. reflexivity.
@@ -327,7 +327,7 @@ Lemma rev_skipn:
   rev (skipn n vl) = firstn (length vl -n) (rev vl).
 Proof.
 induction n; intros.
-simpl. rewrite NPeano.Nat.sub_0_r.
+simpl. rewrite Nat.sub_0_r.
 rewrite <- rev_length.
 rewrite firstn_exact_length.
 auto.
@@ -586,7 +586,7 @@ apply inj_minus2. apply Nat2Z.inj_gt. rewrite Z2Nat.id by omega.
 omega.
 if_tac.
 rewrite (Z2Nat_neg n) by omega.
-rewrite NPeano.Nat.sub_0_r.
+rewrite Nat.sub_0_r.
 omega.
 rewrite Nat2Z.inj_sub. 
 rewrite Z2Nat.id by omega. auto.
@@ -1063,7 +1063,7 @@ Proof.
   rewrite skipn_app2.
   repeat rewrite Z2Nat.inj_sub. repeat rewrite ZtoNat_Zlength.
   remember ((Z.to_nat i - length al)%nat) as k.
-  rewrite <- NPeano.Nat.sub_add_distr.
+  rewrite <- Nat.sub_add_distr.
   assert (K: (length al + k = Z.to_nat i)%nat).
     subst k. rewrite <- le_plus_minus. trivial.
     apply Nat2Z.inj_le. rewrite Z2Nat.id. rewrite Zlength_correct in H; apply H. omega.

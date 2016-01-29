@@ -1,11 +1,11 @@
-Require Import Events.
-Require Import Memory.
+Require Import compcert.common.Events.
+Require Import compcert.common.Memory.
 Require Import compcert.lib.Coqlib.
 Require Import compcert.common.Values.
-Require Import Maps.
-Require Import Integers.
-Require Import AST.
-Require Import Globalenvs.
+Require Import compcert.lib.Maps.
+Require Import compcert.lib.Integers.
+Require Import compcert.common.AST.
+Require Import compcert.common.Globalenvs.
 Require Import msl.Axioms.
 
 Require Import sepcomp.mem_lemmas. (*needed for definition of mem_forward etc*)

@@ -24,10 +24,10 @@ Module Type ISOMORPHIC_KNOTS.
   Parameter g : K2.knot -> K1.knot.
 
   Definition fF : F K1.predicate -> F K2.predicate :=
-    fmap (fun p => p oo map_pair g (@id other)).
+    fmap (fun p : K1.knot * other -> K1.TF.T => p oo map_pair g (@id other)).
 
   Definition gF : F K2.predicate -> F K1.predicate :=
-    fmap (fun p => p oo map_pair f (@id other)).
+    fmap (fun p : K2.knot * other -> K2.TF.T => p oo map_pair f (@id other)).
 
   Axiom iso1 : f oo g = id K2.knot.
   Axiom iso2 : g oo f = id K1.knot.

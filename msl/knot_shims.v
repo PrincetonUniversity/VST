@@ -7,8 +7,8 @@ Require Import msl.base.
 Require msl.knot.
 Require msl.knot_full.
 
-Require Import ageable.
-Require Import predicates_hered.
+Require Import msl.ageable.
+Require Import msl.predicates_hered.
 
 Module Type KNOT_INPUT__HERED_PROP_OTH_REL.
 

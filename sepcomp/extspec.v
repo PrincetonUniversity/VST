@@ -1,8 +1,8 @@
-Require Import AST.
-Require Import Values.
-Require Import Memory.
-Require Import Globalenvs.
-Require Import Maps.
+Require Import compcert.common.AST.
+Require Import compcert.common.Values.
+Require Import compcert.common.Memory.
+Require Import compcert.common.Globalenvs.
+Require Import compcert.lib.Maps.
 
 Require Import ListSet.
 

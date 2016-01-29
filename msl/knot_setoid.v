@@ -9,7 +9,7 @@ Require Import Peano_dec.
 Require Import Eqdep_dec.
 Require Import SetoidClass.
 Require Import Morphisms.
-Require Omega.
+Require Import Omega.
 
 Local Open Scope nat_scope.
 

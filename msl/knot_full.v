@@ -172,8 +172,8 @@ Module KnotFull (TF':TY_FUNCTOR_FULL) : KNOT_FULL with Module TF:=TF'.
 
   Definition age1_def (k:knot) : option knot :=
     match k with
-      | existT 0 f => None
-      | existT (S m) f => Some
+      | existT _ 0 f => None
+      | existT _ (S m) f => Some
           (existT F_sinv m (bimap (sinv_unage m) (sinv_age m) f))
     end.
 
@@ -240,7 +240,7 @@ Module KnotFull (TF':TY_FUNCTOR_FULL) : KNOT_FULL with Module TF:=TF'.
       exists tt; simpl; exact I.
       assert (HX:
         projT2 (guppy n)
-        (projT1 IHn, fun v : F_sinv n * other => Q (existT F_sinv n (fst v),snd v))).
+        (proj1_sig IHn, fun v : F_sinv n * other => Q (existT F_sinv n (fst v),snd v))).
       destruct n.
       simpl; intros.
       eapply HQ.
@@ -270,7 +270,7 @@ Module KnotFull (TF':TY_FUNCTOR_FULL) : KNOT_FULL with Module TF:=TF'.
       constructor; auto.
       auto.
 
-      exists ((exist (fun x => projT2 (guppy n) x) ( projT1 IHn, fun v:F_sinv n * other => Q (existT (F_sinv) n (fst v),snd v) ) HX)).
+      exists ((exist (fun x => projT2 (guppy n) x) ( proj1_sig IHn, fun v:F_sinv n * other => Q (existT (F_sinv) n (fst v),snd v) ) HX)).
       simpl; split; auto.
       destruct IHn; auto.
     Qed.
@@ -288,9 +288,9 @@ Module KnotFull (TF':TY_FUNCTOR_FULL) : KNOT_FULL with Module TF:=TF'.
   Qed.
 
   Definition unstratify (n:nat) (p:sinv n) : knot * other -> T := fun w =>
-    match w with (existT nw w',o) =>
+    match w with (existT _ nw w',o) =>
       match decompose_nat nw n with
-        | inleft (existT m Hm) => snd (proj1_sig (floor m (S nw) (eq_rect  n _ p (m + S nw) Hm))) (w',o)
+        | inleft (existT _ m Hm) => snd (proj1_sig (floor m (S nw) (eq_rect  n _ p (m + S nw) Hm))) (w',o)
         | inright H => T_bot
       end
     end.
@@ -494,7 +494,7 @@ Module KnotFull (TF':TY_FUNCTOR_FULL) : KNOT_FULL with Module TF:=TF'.
     match x with (n,f) => existT (F_sinv) n (bimap (unstrat n) (strat n) f) end.
 
   Definition unsquash (k:knot) : nat * F predicate predicate :=
-    match k with existT n f => (n, bimap (strat n) (unstrat n) f) end.
+    match k with existT _ n f => (n, bimap (strat n) (unstrat n) f) end.
 
   Definition knot_level_def (k:knot) : nat :=
     fst (unsquash k).

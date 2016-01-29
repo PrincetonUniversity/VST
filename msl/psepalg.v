@@ -105,7 +105,8 @@ Section PSA_LIFT.
     generalize (join_positivity (join_comm H4) (join_comm H5)); intro.
     rewrite <- H6 in *; clear dependent g.
     apply n0 in H5.  auto.
-    exists (existT _ f H3). simpl. split; auto.
+    unfold lifted.
+    exists (exist _ f H3). simpl. split; auto.
     
     do 2 red in H|-*. icase a; icase b; icase c; simpl in *; apply join_comm; auto.
 
@@ -165,7 +166,7 @@ Section PSA_LIFT.
     generalize (join_positivity H3 (join_comm H2)); intro.
     rewrite <- H5 in *; clear dependent f.
     apply Hb in H1; auto.
-    exists (existT _ x H0). trivial.
+    exists (exist _ x H0). trivial.
   Qed.
   
   Lemma lifted_psub : forall a b : lifted, 

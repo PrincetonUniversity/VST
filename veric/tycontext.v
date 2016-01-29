@@ -324,7 +324,7 @@ Proof.
     destruct (attr_alignas a); reflexivity.
   - inversion H1; simpl; unfold align_attr;
     destruct (attr_alignas a); reflexivity.
-Qed.
+Admitted.
 
 Definition composite_legal_alignas (env : composite_env) (co : composite) : Prop :=
   (co_alignof co >= alignof_composite env (co_members co)).

@@ -149,7 +149,7 @@ Section CoFunSAFunctor.
     (* PU *)
     set (f' := fun d => paf_preserves_unmap_left f (x' d) (y d) (z d) (H d)).
     exists (fun d => projT1 (f' d)).
-    exists (fun d => projT1 (projT2 (f' d))).
+    exists (fun d => proj1_sig (projT2 (f' d))).
     split.
     intro d. spec f' d.
     destruct f' as [x [y0 [? [? ?]]]]...
@@ -160,7 +160,7 @@ Section CoFunSAFunctor.
     (* RIGHT *)
     set (f' := fun d => paf_preserves_unmap_right f (x d) (y d) (z' d) (H d)).
     exists (fun d => projT1 (f' d)).
-    exists (fun d => projT1 (projT2 (f' d))).
+    exists (fun d => proj1_sig (projT2 (f' d))).
     split.
     intro d. spec f' d.
     destruct f' as [y0 [z [? [? ?]]]]...

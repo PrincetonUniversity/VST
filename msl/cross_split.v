@@ -125,9 +125,9 @@ clear X.
 exists (fun k => projT1 (J k)).
 exists (fun k => projT1 (projT2 (J k))).
 split; [split|].
-exists (fun k => projT1 (fst (fst (projT2 (projT2 (J k))))));
+exists (fun k => proj1_sig (fst (fst (projT2 (projT2 (J k))))));
 intro k; destruct (J k) as [ak' [bk' [[c c0] j]]];  simpl; destruct c; auto.
-exists (fun k => projT1 (snd (fst (projT2 (projT2 (J k))))));
+exists (fun k => proj1_sig (snd (fst (projT2 (projT2 (J k))))));
 intro k; destruct (J k) as [ak' [bk' [[c c0] j]]];  simpl; destruct c0; auto.
 intro k; destruct (J k) as [ak' [bk' [[c c0] j]]]; simpl; auto.
 Qed.
@@ -222,7 +222,7 @@ Qed.
 Lemma constructive_join_sub_smash {A} {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{CA: Canc_alg A}:
   (forall x:A, {identity x}+{~identity x}) ->
   forall a c : lifted JA,
-    constructive_join_sub (projT1 a) (projT1 c) ->
+    constructive_join_sub (proj1_sig a) (proj1_sig c) ->
     @constructive_join_sub (option (lifted JA)) _ (Some a) (Some c).
 Proof.
 intros.
