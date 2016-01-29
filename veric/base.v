@@ -1,16 +1,16 @@
 Require Export compcert.lib.Axioms.
-Require Export Coqlib.
-Require Export AST.
-Require Export Integers.
-Require Export Floats.
+Require Export compcert.lib.Coqlib.
+Require Export compcert.common.AST.
+Require Export compcert.lib.Integers.
+Require Export compcert.lib.Floats.
 Require Export compcert.common.Values.
-Require Export Maps.
-Require Export Memdata.
-Require Export Memtype.
-Require Export Memory.
-Require Export Globalenvs.
-Require Export Ctypes.
-Require Export Clight.
+Require Export compcert.lib.Maps.
+Require Export compcert.common.Memdata.
+Require Export compcert.common.Memtype.
+Require Export compcert.common.Memory.
+Require Export compcert.common.Globalenvs.
+Require Export compcert.cfrontend.Ctypes.
+Require Export compcert.cfrontend.Clight.
 
 Require Export EqNat.
 Require Export msl.Coqlib2.

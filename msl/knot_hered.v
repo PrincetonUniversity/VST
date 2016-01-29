@@ -93,8 +93,8 @@ Module KnotHered (TF':TY_FUNCTOR_PROP) : KNOT_HERED with Module TF:=TF'.
 
   Definition k_age1 (k:knot) : option (knot) :=
     match k with
-      | (existT 0 f) => None
-      | (existT (S m) f) => Some
+      | (existT _ 0 f) => None
+      | (existT _ (S m) f) => Some
           (existT (F oo sinv) m (fmap (@fst _ _ oo @proj1_sig _ _) f))
     end.
 
@@ -166,7 +166,7 @@ Module KnotHered (TF':TY_FUNCTOR_PROP) : KNOT_HERED with Module TF:=TF'.
       exists tt; simpl; exact I.
       assert (HX:
         projT2 (guppy n)
-        (projT1 IHn, fun v : F (sinv n) * other => Q (existT (F oo sinv) n (fst v),snd v))).
+        (proj1_sig IHn, fun v : F (sinv n) * other => Q (existT (F oo sinv) n (fst v),snd v))).
       destruct n.
       simpl; exact I.
       simpl; intros.
@@ -179,7 +179,7 @@ Module KnotHered (TF':TY_FUNCTOR_PROP) : KNOT_HERED with Module TF:=TF'.
       eapply HQ.
       2: apply H1.
       simpl; reflexivity.
-      exists ((exist (fun x => projT2 (guppy n) x) ( projT1 IHn, fun v:F (sinv n) * other => Q (existT (F oo sinv) n (fst v),snd v) ) HX)).
+      exists ((exist (fun x => projT2 (guppy n) x) ( proj1_sig IHn, fun v:F (sinv n) * other => Q (existT (F oo sinv) n (fst v),snd v) ) HX)).
       simpl; split.
       destruct IHn; auto.
       unfold app_sinv; simpl; intros.
@@ -199,9 +199,9 @@ Module KnotHered (TF':TY_FUNCTOR_PROP) : KNOT_HERED with Module TF:=TF'.
   Qed.
 
   Definition unstratify (n:nat) (p:sinv n) : knot * other -> Prop := fun w =>
-    match w with (existT nw w',o) =>
+    match w with (existT _ nw w',o) =>
       match decompose_nat nw n with
-        | inleft (existT m Hm) => snd (proj1_sig (floor m (S nw) (eq_rect  n _ p (m + S nw) Hm))) (w',o)
+        | inleft (existT _ m Hm) => snd (proj1_sig (floor m (S nw) (eq_rect  n _ p (m + S nw) Hm))) (w',o)
         | inright H => False
       end
     end.
@@ -405,7 +405,7 @@ Module KnotHered (TF':TY_FUNCTOR_PROP) : KNOT_HERED with Module TF:=TF'.
     match x with (n,f) => existT (F oo sinv) n (fmap (strat n) f) end.
 
   Definition unsquash (k:knot) : nat * F predicate :=
-    match k with existT n f => (n, fmap (unstrat n) f) end.
+    match k with existT _ n f => (n, fmap (unstrat n) f) end.
 
   Definition level (x:knot) : nat := fst (unsquash x).
   Program Definition approx (n:nat) (p:predicate) : predicate := 

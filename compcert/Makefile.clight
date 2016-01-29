@@ -8,14 +8,14 @@ FILES=$(LIB:%=lib/%) $(COMMON:%=common/%) \
      $(CFRONTEND:%=cfrontend/%) $(FLOCQ:%=flocq/%)  \
      exportclight/Clightdefs.v
 
-INCLUDES= $(foreach a,$(DIRS),-R $(a) -as compcert.$(a)) \
-  -I $(ARCH) -as compcert.$(ARCH)
+# INCLUDES= $(foreach a,$(DIRS),-R $(a) -as compcert.$(a)) \
+#   -I $(ARCH) -as compcert.$(ARCH)
 
-COQC=coqc -q $(INCLUDES)
-COQDEP= coqdep $(INCLUDES)
-COQDOC=coqdoc
-COQEXEC=coqtop $(INCLUDES) -batch -load-vernac-source
-COQCHK=coqchk $(INCLUDES)
+# COQC=coqc -q $(INCLUDES)
+# COQDEP= coqdep $(INCLUDES)
+# COQDOC=coqdoc
+# COQEXEC=coqtop $(INCLUDES) -batch -load-vernac-source
+# COQCHK=coqchk $(INCLUDES)
 
 clight-depend: $(FILES)
 	$(COQDEP) $^ \

@@ -2,7 +2,7 @@ Require Import ZArith.
 Require Import Znumtheory.
 Require Import List.
 Require Import Bool.
-Require Import Ctypes.
+Require Import compcert.cfrontend.Ctypes.
 
 Definition in_eq: forall {A: Type} (a:A) l, In a (a::l) :=
   fun A a l => or_introl eq_refl.
@@ -102,68 +102,78 @@ rewrite H. intro; discriminate.
 rewrite Zcompare_refl; intro; discriminate.
 Defined.
 
+SearchAbout Pos.compare_cont CompOpp.
+
 Definition Pos_compare_cont_antisym : 
   forall (p q : positive) (c : comparison),
-       eq (CompOpp (Pos.compare_cont p q c))
-         (Pos.compare_cont q p (CompOpp c)) := 
+       eq (CompOpp (Pos.compare_cont c p q))
+         (Pos.compare_cont (CompOpp c) q p ) := 
 fun (p q : positive) (c : comparison) =>
 positive_ind
   (fun p0 : positive =>
    forall (q0 : positive) (c0 : comparison),
-   eq (CompOpp (Pos.compare_cont p0 q0 c0))
-     (Pos.compare_cont q0 p0 (CompOpp c0)))
+   CompOpp (Pos.compare_cont c0 p0 q0) =
+   Pos.compare_cont (CompOpp c0) q0 p0)
   (fun (p0 : positive)
      (IHp : forall (q0 : positive) (c0 : comparison),
-            eq (CompOpp (Pos.compare_cont p0 q0 c0))
-              (Pos.compare_cont q0 p0 (CompOpp c0))) (q0 : positive) =>
+            CompOpp (Pos.compare_cont c0 p0 q0) =
+            Pos.compare_cont (CompOpp c0) q0 p0)
+     (q0 : positive) =>
    match
      q0 as p1
      return
        (forall c0 : comparison,
-        eq (CompOpp (Pos.compare_cont (xI p0) p1 c0))
-          (Pos.compare_cont p1 (xI p0) (CompOpp c0)))
+        CompOpp (Pos.compare_cont c0 p0~1 p1) =
+        Pos.compare_cont (CompOpp c0) p1 p0~1)
    with
-   | xI q1 => fun c0 : comparison => IHp q1 c0
-   | xO q1 => fun _ : comparison => IHp q1 Gt
-   | xH => fun _ : comparison => eq_refl
+   | (q1~1)%positive =>
+       fun c0 : comparison => IHp q1 c0
+   | (q1~0)%positive =>
+       fun c0 : comparison => IHp q1 Gt
+   | 1%positive => fun c0 : comparison => eq_refl
    end)
   (fun (p0 : positive)
      (IHp : forall (q0 : positive) (c0 : comparison),
-            eq (CompOpp (Pos.compare_cont p0 q0 c0))
-              (Pos.compare_cont q0 p0 (CompOpp c0))) (q0 : positive) =>
+            CompOpp (Pos.compare_cont c0 p0 q0) =
+            Pos.compare_cont (CompOpp c0) q0 p0)
+     (q0 : positive) =>
    match
      q0 as p1
      return
        (forall c0 : comparison,
-        eq (CompOpp (Pos.compare_cont (xO p0) p1 c0))
-          (Pos.compare_cont p1 (xO p0) (CompOpp c0)))
+        CompOpp (Pos.compare_cont c0 p0~0 p1) =
+        Pos.compare_cont (CompOpp c0) p1 p0~0)
    with
-   | xI q1 => fun _ : comparison => IHp q1 Lt
-   | xO q1 => fun c0 : comparison => IHp q1 c0
-   | xH => fun _ : comparison => eq_refl
+   | (q1~1)%positive =>
+       fun c0 : comparison => IHp q1 Lt
+   | (q1~0)%positive =>
+       fun c0 : comparison => IHp q1 c0
+   | 1%positive => fun c0 : comparison => eq_refl
    end)
   (fun q0 : positive =>
    match
      q0 as p0
      return
        (forall c0 : comparison,
-        eq (CompOpp (Pos.compare_cont xH p0 c0))
-          (Pos.compare_cont p0 xH (CompOpp c0)))
+        CompOpp (Pos.compare_cont c0 1 p0) =
+        Pos.compare_cont (CompOpp c0) p0 1)
    with
-   | xI _ => fun _ : comparison => eq_refl
-   | xO _ => fun _ : comparison => eq_refl
-   | xH => fun c0 : comparison => eq_refl
+   | (q1~1)%positive =>
+       fun c0 : comparison => eq_refl
+   | (q1~0)%positive =>
+       fun c0 : comparison => eq_refl
+   | 1%positive => fun c0 : comparison => eq_refl
    end) p q c.
 
 Definition Pos_compare_antisym: 
   forall p q : positive,
        eq (Pos.compare q p) (CompOpp (Pos.compare p q)) :=
   fun p q : positive =>
-eq_ind_r (fun c : comparison => eq (Pos.compare_cont q p Eq) c) eq_refl
+eq_ind_r (fun c : comparison => eq (Pos.compare_cont Eq q p) c) eq_refl
   (Pos_compare_cont_antisym p q Eq).
 
 Lemma Pos_compare_absurd:
-  forall x y c, (eq (Pos.compare_cont x y c) Eq) -> c=Eq.
+  forall x y c, (eq (Pos.compare_cont c x y) Eq) -> c=Eq.
 Proof.
 induction x; destruct y; simpl; intros; eauto; try discriminate.
 apply IHx in H; discriminate.
@@ -171,7 +181,7 @@ apply IHx in H; discriminate.
 Defined.
 
 Lemma Pos_compare_cont_eq: 
-  forall x y c, eq (Pos.compare_cont x y c) Eq -> eq x y.
+  forall x y c, eq (Pos.compare_cont c x y) Eq -> eq x y.
 Proof.
 induction x; destruct y; simpl; intros; auto; try discriminate.
 f_equal. eauto.

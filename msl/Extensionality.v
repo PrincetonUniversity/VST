@@ -15,8 +15,7 @@ Proof.
   intros.
   apply Streicher_K__eq_rect_eq.
   apply UIP_refl__Streicher_K.
-  unfold UIP_refl_.
-  intros.
+  hnf; intros; hnf; intros.
   apply proof_irr.
 Qed.
 End EqdepElim.

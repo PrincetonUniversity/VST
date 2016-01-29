@@ -1,11 +1,11 @@
-Require Import AST.
+Require Import compcert.common.AST.
 Require Import compcert.lib.Coqlib.
-Require Import Values.
+Require Import compcert.common.Values.
 Require Import compcert.lib.Maps.
 
-Require Import extspec.
-Require Import core_semantics.
-Require Import core_semantics_lemmas.
+Require Import sepcomp.extspec.
+Require Import sepcomp.core_semantics.
+Require Import sepcomp.core_semantics_lemmas.
 
 Section safety.
   Context {G C M Z:Type}.

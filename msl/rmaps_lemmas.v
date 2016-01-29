@@ -19,7 +19,7 @@ Hint Resolve (@subp_sepcon _ Join_rmap Perm_rmap Sep_rmap): contractive.
  Lemma approx_ge : forall p n w, ge (level w) n -> approx n p w -> False.
  Proof. unfold approx; intros. destruct H0; auto. omega. Qed.
 
-  Definition identity_rmap' : R.rmap' := existT valid (fun _: AV.address => R.NO) AV.valid_empty.
+  Definition identity_rmap' : R.rmap' := exist valid (fun _: AV.address => R.NO) AV.valid_empty.
   Definition identity_rmap (n:nat) : rmap := R.squash (n, identity_rmap').
 
   Lemma identity_level : forall n, level (identity_rmap n) = n.
@@ -126,11 +126,11 @@ Proof.
 Qed.
 
 Lemma make_rmap': forall f, AV.valid (fun l => res_option (f l)) -> 
-          exists phi: rmap', projT1 phi = f.
+          exists phi: rmap', proj1_sig phi = f.
 Proof.
   intros.
   unfold rmap'.
-  exists (existT valid f H).
+  exists (exist valid f H).
   auto.
 Qed.
 
@@ -276,7 +276,7 @@ Lemma allocate:
 Proof.
  intros. rename X into H1.
  generalize (make_rmap'' (level phi) f H); intros [phif [? Gf]].
- pose (g loc := projT1 (H1 loc)).
+ pose (g loc := proj1_sig (H1 loc)).
  assert (H3: forall l, join (phi @ l) (f l) (g l))
    by (unfold g; intro; destruct (H1 l); simpl in *; auto).
  clearbody g.
@@ -873,7 +873,7 @@ Lemma resource_at_constructive_joins2:
          constructive_joins phi1 phi2.
 Proof.
 intros ? ? ? H0.
-assert (AV.valid (res_option oo (fun loc => projT1 (H0 loc)))).
+assert (AV.valid (res_option oo (fun loc => proj1_sig (H0 loc)))).
 apply AV.valid_join with (res_option oo (resource_at phi1)) (res_option oo (resource_at phi2));
  try apply rmap_valid.
 intro l.

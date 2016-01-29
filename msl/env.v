@@ -717,7 +717,7 @@ apply bot_joins.
 rewrite joins_sym.
 apply bot_joins.
 destruct a1; destruct a2; destruct a3; destruct H2 as [? [? ?]]; simpl in *. subst. eauto.
-pose (h id := projT1 (share_joins_constructive _ _ (H0 id))).
+pose (h id := proj1_sig (share_joins_constructive _ _ (H0 id))).
 pose (g sh (v: A) := match dec_share_identity sh with
                          | left _ => None
                          | right p => Some (mk_lifted _ (nonidentity_nonunit p), v)
@@ -780,7 +780,7 @@ apply bot_correct'.
 apply join_sub_refl.
 destruct a1; destruct a2; destruct a3; destruct H3 as [? [? ?]]; simpl in *. subst.
 econstructor; eauto.
-pose (h id := projT1 (share_join_sub_constructive _ _ (H0 id))).
+pose (h id := proj1_sig (share_join_sub_constructive _ _ (H0 id))).
 pose (g sh (v: A) := match dec_share_identity sh with
                          | left _ => None
                          | right p => Some (mk_lifted _ (nonidentity_nonunit p), v)
@@ -1119,7 +1119,7 @@ Instance Trip_env {A} {EA: EqDec A} {B} {JB: Join B}: Trip_alg (env A B).
 Proof.
 intro; intros.
 pose (f id := Trip_pshareval _ _ _ _ _ _ (H id) (H0 id) (H1 id)).
-assert (finite_idfun (fun id => projT1 (f id))).
+assert (finite_idfun (fun id => proj1_sig (f id))).
 destruct (env_finite ab) as [l1 H3].
 destruct (env_finite c) as [l2 H4].
 exists (l1++l2).
@@ -1136,7 +1136,7 @@ destruct (f id).
 simpl.
 apply pshareval_join_e in j.
 rewrite H3 in j; rewrite H4 in j; inv j; auto.
-exists (mk_env (fun id => projT1 (f id)) H2).
+exists (mk_env (fun id => proj1_sig (f id)) H2).
 intro id.
 rewrite env_get_mk_env.
 destruct (f id); simpl.

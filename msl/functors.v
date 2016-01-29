@@ -150,7 +150,7 @@ Section SigmaFunctor.
 
   Definition fsigma_map (A B:Type) (f:A -> B) (x:fsig A) : fsig B :=
     match x with
-    | existT i x' => existT (fun i => F i B) i (fmap f x')
+    | existT _ i x' => existT (fun i => F i B) i (fmap f x')
     end.
 
   Definition ff_sigma : functorFacts fsig fsigma_map.
@@ -180,7 +180,7 @@ Section SubsetFunctor.
   
   Definition subset_fmap (A B:Type) (f:A->B) (x:subset A) : subset B :=
     match x with
-    | exist x' H => exist (fun x => P x) (fmap f x') (HPfmap1 f H)
+    | exist _ x' H => exist (fun x => P x) (fmap f x') (HPfmap1 f H)
     end.
 
   Lemma ff_subset : functorFacts subset subset_fmap.
