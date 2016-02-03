@@ -83,7 +83,7 @@ entailer!. (* This is an example of a typechecking condition
    says that the array-subscript index is in range;  not just in 
    the bounds of the array, but in the _initialized_ portion of the array.*)
    rewrite Znth_map with (d':=Int.zero). hnf; auto.
-  rewrite Zlength_map in HRE, H1; auto. omega.
+   rewrite Zlength_map in H1, HRE; auto. omega.
 forward. (* s += x; *)
 forward. (* i++; *)
  (* Now we have reached the end of the loop body, and it's

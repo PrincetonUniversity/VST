@@ -204,12 +204,12 @@ Definition init_data2pred' {cs: compspecs}
   | Init_addrof symb ofs => 
       match (var_types Delta) ! symb, (glob_types Delta) ! symb with
       | None, Some (Tarray t n' att) =>
-         EX s:val, local (locald_denote (sgvar symb s)) && `(mapsto sh (Tpointer t noattr) v (offset_val ofs s))
+         EX s:val, local (locald_denote (sgvar symb s)) && `(mapsto sh (Tpointer t noattr) v (offset_val (Int.unsigned ofs) s))
       | None, Some Tvoid => TT
 (*
       | None, Some t => `(mapsto sh (Tpointer t noattr) v) (`(offset_val ofs) (eval_sgvar symb t))
 *)
-      | None, Some t => EX s:val, local (locald_denote (sgvar symb s)) && `((mapsto sh (Tpointer t noattr) v) (offset_val ofs s))
+      | None, Some t => EX s:val, local (locald_denote (sgvar symb s)) && `((mapsto sh (Tpointer t noattr) v) (offset_val (Int.unsigned ofs) s))
       | Some _, Some (Tarray t _ att) => `(memory_block sh 4 v)
       | Some _, Some Tvoid => TT
       | Some _, Some (Tpointer (Tfunction _ _ _) _) => `(memory_block sh 4 v) 
@@ -273,14 +273,14 @@ Lemma init_data2pred_rejigger {cs: compspecs}:
   v = Vptr b (Int.repr 0) ->
   (alignof t | Int.unsigned (Int.repr ofs)) ->
   readable_share sh ->
-   init_data2pred idata sh (offset_val (Int.repr ofs) v) rho 
-    |-- init_data2pred' Delta idata sh t (offset_val (Int.repr ofs) v) rho.
+   init_data2pred idata sh (offset_val ofs v) rho 
+    |-- init_data2pred' Delta idata sh t (offset_val ofs v) rho.
 Proof.
 intros until v.
 intros H1 HH H1' H6' H6 H7 H8 H1'' RS.
  unfold init_data2pred', init_data2pred.
  rename H8 into H8'.
- assert (H8: offset_val (Int.repr ofs) v = Vptr b (Int.repr ofs)).
+ assert (H8: offset_val ofs v = Vptr b (Int.repr ofs)).
  rewrite H8'; simpl. rewrite Int.add_zero_l; auto.
  clear H8'.
  simpl.
@@ -326,7 +326,7 @@ intros H1 HH H1' H6' H6 H7 H8 H1'' RS.
     destruct t0; simpl; try apply TT_right; try rewrite H8; try rewrite H;
     (apply exp_right with (Vptr b' Int.zero); apply andp_right;
       [unfold local, lift1; apply prop_right; auto 
-      |      unfold offset_val; simpl; try rewrite Int.add_zero_l; auto]).
+      |      unfold offset_val; simpl; try rewrite Int.repr_unsigned, Int.add_zero_l; auto]).
 Qed.
 
 Lemma unpack_globvar  {cs: compspecs}:
@@ -363,7 +363,7 @@ unfold init_data_list2pred.
 simpl.
 rewrite sepcon_emp.
 destruct (tc_eval_gvar_zero _ _ _ _ H7 H H0) as [b ?].
-assert (x = offset_val Int.zero x).
+assert (x = offset_val 0 x).
 hnf in H8. destruct (Map.get (ve_of rho) i) as [[? ?] | ]; try contradiction.
 destruct (ge_of rho i); try contradiction. subst; reflexivity.
 rewrite H10.
@@ -372,7 +372,7 @@ rewrite H10.
  destruct (ge_of rho i); try contradiction. 
  apply derives_trans with
     (init_data2pred' Delta idata (Share.splice extern_retainer sh) t
-      (offset_val (Int.repr 0) x) rho).
+      (offset_val 0 x) rho).
  + eapply init_data2pred_rejigger; destruct H1; eauto.
    - clear H10 H8 x. inv H9.
       split; simpl; auto.
@@ -393,7 +393,7 @@ Qed.
 Fixpoint id2pred_star   {cs: compspecs}
    (Delta: tycontext) (sh: share) (t: type) (v: val) (ofs: Z) (dl: list init_data) : environ->mpred :=
  match dl with
- | d::dl' => init_data2pred' Delta d sh t (offset_val (Int.repr ofs) v)
+ | d::dl' => init_data2pred' Delta d sh t (offset_val ofs v)
                    * id2pred_star Delta sh t v (ofs + init_data_size d) dl'
  | nil => emp
  end.
@@ -452,7 +452,7 @@ set (ofs:=0%Z).
 assert (alignof t | Int.unsigned (Int.repr ofs)) by (subst ofs; simpl; apply Z.divide_0_r).
 hnf in H8.  destruct (Map.get (ve_of rho) i) as [[? ?]|]; try contradiction.
 destruct (ge_of rho i); try contradiction.
-assert (H10: x = offset_val (Int.repr ofs) x) by (subst; reflexivity).
+assert (H10: x = offset_val ofs x) by (subst; reflexivity).
 rewrite H10 at 1.
 (*replace (eval_var i t rho) with (offset_val (Int.repr ofs) (eval_var i t rho))
     by (rewrite H8; reflexivity). *)
@@ -473,7 +473,6 @@ apply sepcon_derives.
  pose proof (init_data_list_size_pos idata); omega.
 * specialize (IHidata (ofs + init_data_size a)).
 rewrite offset_offset_val.
-rewrite add_repr.
  pose proof (init_data_list_size_pos idata).
 pose proof (init_data_size_pos a).
  apply IHidata; try omega.
@@ -1295,6 +1294,16 @@ intros.
 rewrite sepcon_emp; auto.
 Qed.
 
+Lemma offset_val_unsigned_repr: forall i p,
+  offset_val (Int.unsigned (Int.repr i)) p = offset_val i p.
+Proof.
+  intros.
+  unfold offset_val.
+  unfold Int.add.
+  rewrite Int.repr_unsigned.
+  auto.
+Qed.
+
 Ltac process_idstar := 
   match goal with
   | |- semax _ (_ * globvars2pred ((?i,_)::_) * _) _ _ =>
@@ -1325,4 +1334,5 @@ Ltac expand_main_pre :=
  unfold prog_vars, prog_vars'; simpl globvars2pred;
  repeat  process_idstar;
  change (globvars2pred nil) with (@emp (environ->mpred) _ _);
- rewrite (sepcon_emp (PROPx _ _)).
+ rewrite (sepcon_emp (PROPx _ _));
+ rewrite ?offset_val_unsigned_repr.

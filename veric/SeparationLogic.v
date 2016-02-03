@@ -360,7 +360,7 @@ Fixpoint init_data_list2pred (dl: list init_data)
   match dl with
   | d::dl' => 
       sepcon (init_data2pred d (Share.splice extern_retainer sh) v rho) 
-                  (init_data_list2pred dl' sh (offset_val (Int.repr (init_data_size d)) v) rho)
+                  (init_data_list2pred dl' sh (offset_val (init_data_size d) v) rho)
   | nil => emp
  end.
 
@@ -531,13 +531,13 @@ Lemma mapsto_valid_pointer: forall {cs: compspecs} sh t p v i,
   size_compatible t p ->
   0 <= i < sizeof t ->
   sepalg.nonidentity sh ->
-  mapsto sh t p v |-- valid_pointer (offset_val (Int.repr i) p).
+  mapsto sh t p v |-- valid_pointer (offset_val i p).
 Proof. exact @mapsto_valid_pointer. Qed.
 
 Lemma memory_block_valid_pointer: forall {cs: compspecs} sh n p i,
   0 <= i < n ->
   sepalg.nonidentity sh ->
-  memory_block sh n p |-- valid_pointer (offset_val (Int.repr i) p).
+  memory_block sh n p |-- valid_pointer (offset_val i p).
 Proof. exact @memory_block_valid_pointer. Qed.
 
 Definition eval_lvar (id: ident) (ty: type) (rho: environ) :=

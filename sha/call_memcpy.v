@@ -3,7 +3,6 @@ Require Import sha.sha.
 Require Import sha.SHA256.
 Require Import sha.spec_sha.
 Require Import sha.sha_lemmas.
-Require Import JMeq.
 Local Open Scope nat.
 Local Open Scope logic.
 
@@ -311,7 +310,7 @@ assert_PROP (legal_nested_field tp pathp /\ legal_nested_field tq pathq). {
   eapply derives_trans; [apply Hpre | apply andp_left2]. 
 old_go_lower; entailer!.
 } destruct H6 as [LNFp LNFq].
-erewrite field_at_Tarray in Hpre; try eassumption; auto; try omega.
+erewrite field_at_Tarray in Hpre; try apply JMeq_refl; try eassumption; auto; try omega.
 
 assert (H98: reptype (nested_field_type tq (ArraySubsc 0 :: pathq)) = val).
  clear - H1. unfold nested_field_type in *; simpl in *.
@@ -321,7 +320,7 @@ assert (exists vqx : list (reptype (nested_field_type tq (ArraySubsc 0 :: pathq)
                     JMeq vq vqx).
  rewrite H98. exists (map Vint contents); auto.
 destruct H6 as [vqx Hvqx].
-assert (JMeq vqx (map Vint contents)) by (etransitivity; try eassumption; auto).
+assert (JMeq vqx (map Vint contents)) by (eapply JMeq_trans; try eassumption; auto).
 assert (LENvqx: Zlength vqx = nq). {
 clear - H98 H6 Hvq'.
 transitivity (Zlength (map Vint contents)).
@@ -332,12 +331,12 @@ rewrite Zlength_map; auto.
 }
 assert (LENvpx: Zlength vpx = np). {
 clear - H99 H5 H3 Hvp' Hvpx.
-assert (JMeq vp' vpx) by (rewrite <- H3; auto).
+assert (JMeq vp' vpx) by (eapply JMeq_trans; [apply @JMeq_sym |]; eassumption).
 clear Hvpx vp H3.
 forget val as t. subst t.
 apply JMeq_eq in H. subst; auto.
 }
-erewrite (field_at_Tarray shq) in Hpre|-*; try eassumption; auto; try omega.
+erewrite (field_at_Tarray shq) in Hpre|-*; try apply JMeq_refl; try eassumption; auto; try omega.
 rewrite (split3seg_array_at shp tp pathp 0 lop (lop+len)) in Hpre by omega.
 rewrite (split3seg_array_at shq tq pathq 0 loq (loq+len)) in Hpre|-* by omega.
 
@@ -410,7 +409,7 @@ eapply semax_pre_post;
  unfold nested_field_array_type.
  rewrite nested_field_type_ind. rewrite H1. simpl.
  unfold tarray; f_equal; clear; omega.
-   rewrite fold_reptype_JMeq.
+ eapply JMeq_trans; [apply fold_reptype_JMeq |].
    rewrite <- sublist_map.
    apply JMeq_sublist; auto.
  rewrite array_at_data_at' by (clear - FC; intuition).
@@ -438,8 +437,7 @@ assert (exists (vpy : list (reptype (nested_field_type tp (ArraySubsc 0 :: pathp
 destruct H7 as [vpy H8].
 assert (Zlength vpy = np). {
  assert (JMeq vpy  (splice_into_list lop (lop + len) np
-          (sublist loq (Zlength contents) (map Vint contents)) vp')).
- rewrite <- H8. apply H4.
+          (sublist loq (Zlength contents) (map Vint contents)) vp')) by (eapply JMeq_trans; [apply @JMeq_sym |]; eassumption).
  transitivity (Zlength  (splice_into_list lop (lop + len) np
           (sublist loq (Zlength contents) (map Vint contents)) vp')).
  clear - H7 H99 H5.
@@ -465,7 +463,9 @@ repeat apply sepcon_derives.
  replace u0 with u1; auto.
  forget  (default_val (nested_field_type tp (ArraySubsc 0 :: pathp))) as d.
  apply JMeq_eq.
- rewrite H10,H11. clear u0 u1 H10 H11.
+ eapply JMeq_trans; [exact H11 |].
+ eapply JMeq_trans; [| apply @JMeq_sym; exact H10].
+
  rewrite Z.sub_0_r.
  admit.  (* tedious *)
 +
@@ -475,7 +475,7 @@ repeat apply sepcon_derives.
    unfold nested_field_array_type.
    rewrite nested_field_type_ind, H0.
    unfold tarray; f_equal. clear; omega. 
-   rewrite fold_reptype_JMeq.
+   eapply JMeq_trans; [| apply @JMeq_sym, fold_reptype_JMeq].
   admit. (* tedious *)
 + 
  apply array_at_ext_derives.
@@ -484,7 +484,9 @@ repeat apply sepcon_derives.
  replace u0 with u1; auto.
  forget  (default_val (nested_field_type tp (ArraySubsc 0 :: pathp))) as d.
  apply JMeq_eq.
- rewrite H10,H11. clear u0 u1 H10 H11.
+ eapply JMeq_trans; [exact H11 |].
+ eapply JMeq_trans; [| apply @JMeq_sym; exact H10].
+ clear u0 u1 H10 H11.
  rewrite LENvpx.
  admit.  (* tedious *)
 +
@@ -494,10 +496,10 @@ repeat apply sepcon_derives.
    unfold nested_field_array_type.
    rewrite nested_field_type_ind, H1.
    unfold tarray; f_equal. clear; omega. 
-   rewrite fold_reptype_JMeq.
+   eapply JMeq_trans; [| apply @JMeq_sym, fold_reptype_JMeq].
    apply JMeq_sublist.
    rewrite nested_field_type_ind, H1. reflexivity.
-   symmetry; auto.
+   apply @JMeq_sym; auto.
 Qed.
 
 Lemma call_memset_tuchar:
@@ -571,7 +573,7 @@ assert_PROP (legal_nested_field tp pathp). {
   eapply derives_trans; [apply Hpre | apply andp_left2]. 
 old_go_lower; entailer!.
 } rename H1 into LNFp.
-rewrite Hvpx in H3.
+apply (fun H => JMeq_trans H Hvpx) in H3.
 assert (LENvpx: Zlength vpx = np). {
 clear - H99 Hvp' Hvpx.
 forget val as t. subst t.
@@ -652,7 +654,7 @@ eapply semax_pre_post;
  rewrite H99. eauto.
 destruct H2 as [vpy H8].
 erewrite field_at_Tarray; try eassumption; auto; try omega.
-rewrite H4 in H8.
+apply (JMeq_trans (JMeq_sym H4)) in H8.
 clear dependent vp''. clear dependent e_c. clear dependent e_p. clear dependent e_n.
 clear dependent Delta.
 assert (Zlength vpy = np). {
@@ -660,6 +662,7 @@ clear - H0 H8 Hvp' Hnp Hlop Hlen.
 generalize dependent vpy.
 rewrite nested_field_type_ind, H0. simpl. rewrite reptype_ind; simpl.
 intros.
+apply JMeq_eq in H8.
 subst.
 clear H0.
 rewrite Zlength_splice_into_list by omega.
@@ -695,7 +698,7 @@ cancel.
    unfold nested_field_array_type.
    rewrite nested_field_type_ind, H0.
    unfold tarray; f_equal. clear; omega. 
-   rewrite fold_reptype_JMeq.
+   eapply JMeq_trans; [| apply @JMeq_sym, fold_reptype_JMeq].
    eapply JMeq_trans; [ | apply JMeq_sublist; [ | apply H8]; now auto].
    apply eq_JMeq.
    unfold splice_into_list.

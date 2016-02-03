@@ -158,7 +158,7 @@ Proof.
 forward_for_simple_bound 8 
    (@exp (environ -> mpred) _ _ (fun i: Z =>
    PROP  ()
-   LOCAL  (temp _md (offset_val (Int.repr (i * 4)) md);
+   LOCAL  (temp _md (offset_val (i * 4) md);
                 temp _c c)
    SEP 
    (data_at Tsh t_struct_SHA256state_st
@@ -209,7 +209,7 @@ forward_for_simple_bound 8
  assert_PROP (field_compatible (tarray tuchar 32) [] md)
      as FCmd by entailer!.
  change WORD with 4.
- erewrite (field_at_Tarray _ (tarray tuchar 32)) by (try reflexivity; computable).
+ erewrite (field_at_Tarray _ (tarray tuchar 32)) by (try (apply JMeq_refl; reflexivity); try reflexivity; computable).
      rewrite (split2_array_at _ _ _ 0 (i*4)) by (autorewrite with sublist; omega).
      rewrite (split2_array_at _ _ _ (i*4) (i*4+4)) by (autorewrite with sublist; omega).
  autorewrite with sublist.
@@ -278,10 +278,10 @@ destruct H9; auto.
   change 64 with CBLOCKz.
   set (vbytes := map Vint bytes).
   entailer!.
-    f_equal. f_equal. omega.
+  f_equal. omega.
    unfold data_at.
-   erewrite field_at_Tarray; try reflexivity; try omega.
-   erewrite field_at_Tarray; try reflexivity; try omega.
+   erewrite field_at_Tarray; try (apply JMeq_refl); try reflexivity; try omega.
+   erewrite field_at_Tarray; try (apply JMeq_refl); try reflexivity; try omega.
   unfold N32; change WORD with 4.
      rewrite (split2_array_at _ _ _ 0 (i*4) 32) by (autorewrite with sublist; omega).
      rewrite (split2_array_at _ _ _ (i*4) (i*4+4) 32) by (autorewrite with sublist; omega).
@@ -570,7 +570,7 @@ Proof.
     pattern A;
     match goal with |- ?F A => set (GOAL := F) end
   end.
-  erewrite field_at_Tarray; try reflexivity;
+  erewrite field_at_Tarray; try apply JMeq_refl; try reflexivity;
    [ | apply compute_legal_nested_field_spec'; repeat constructor; auto; omega
    | omega].
   rewrite <- app_ass.
@@ -636,7 +636,7 @@ Proof.
     assert (LENhi: Zlength hibytes = 4) by reflexivity.
     clearbody hibytes. clearbody lobytes.
     Time entailer!. (*8.7*)
-  erewrite field_at_Tarray; try reflexivity;
+  erewrite field_at_Tarray; try apply JMeq_refl; try reflexivity;
    [ | apply compute_legal_nested_field_spec'; repeat constructor; auto; omega
    | omega].
    rewrite <- app_ass.

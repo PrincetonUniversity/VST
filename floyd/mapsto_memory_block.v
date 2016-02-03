@@ -22,7 +22,7 @@ Proof.
     cancel.
 Qed.
 
-Lemma local_facts_offset_zero: forall P, (forall p, P p |-- !! isptr p) -> (forall p, P p = P (offset_val Int.zero p)).
+Lemma local_facts_offset_zero: forall P, (forall p, P p |-- !! isptr p) -> (forall p, P p = P (offset_val 0 p)).
 Proof.
   intros.
   pose proof (H p).
@@ -63,10 +63,10 @@ Proof. intros. apply mapsto_local_facts. Qed.
 Hint Resolve mapsto_local_facts mapsto__local_facts : saturate_local.
 
 Lemma mapsto_offset_zero:
-  forall sh t v1 v2, mapsto sh t v1 v2 = mapsto sh t (offset_val Int.zero v1) v2.
+  forall sh t v1 v2, mapsto sh t v1 v2 = mapsto sh t (offset_val 0 v1) v2.
 Proof.
   intros.
-  change (mapsto sh t (offset_val Int.zero v1) v2) with ((fun v0 => mapsto sh t v0 v2) (offset_val Int.zero v1)).
+  change (mapsto sh t (offset_val 0 v1) v2) with ((fun v0 => mapsto sh t v0 v2) (offset_val 0 v1)).
   rewrite <- local_facts_offset_zero.
   reflexivity.
   intros.
@@ -75,7 +75,7 @@ Proof.
 Qed.
 
 Lemma mapsto__offset_zero:
-  forall sh t v1, mapsto_ sh t v1 = mapsto_ sh t (offset_val Int.zero v1).
+  forall sh t v1, mapsto_ sh t v1 = mapsto_ sh t (offset_val 0 v1).
 Proof.
   unfold mapsto_.
   intros.
@@ -123,7 +123,7 @@ Qed.
 Hint Resolve memory_block_local_facts : saturate_local.
 
 Lemma memory_block_offset_zero:
-  forall sh n v, memory_block sh n v = memory_block sh n (offset_val Int.zero v).
+  forall sh n v, memory_block sh n v = memory_block sh n (offset_val 0 v).
 Proof.
   intros.
   rewrite <- local_facts_offset_zero.
@@ -673,18 +673,18 @@ at_offset is the elementary definition. All useful lemmas about at_offset will b
 ******************************************)
 
 Definition at_offset (P: val -> mpred) (z: Z): val -> mpred :=
- fun v => P (offset_val (Int.repr z) v).
+ fun v => P (offset_val z v).
 
 Arguments at_offset P z v : simpl never.
 
 Lemma at_offset_eq: forall P z v,
-  at_offset P z v = P (offset_val (Int.repr z) v).
+  at_offset P z v = P (offset_val z v).
 Proof.
 intros; auto.
 Qed.
 
 Lemma lifted_at_offset_eq: forall (P: val -> mpred) z v,
-  `(at_offset P z) v = `P (`(offset_val (Int.repr z)) v).
+  `(at_offset P z) v = `P (`(offset_val z) v).
 Proof.
   intros.
   unfold liftx, lift in *. simpl in *.
@@ -693,7 +693,7 @@ Proof.
 Qed.
 
 Lemma at_offset_eq2: forall pos pos' P, 
-  forall p, at_offset P (pos + pos') p = at_offset P pos' (offset_val (Int.repr pos) p).
+  forall p, at_offset P (pos + pos') p = at_offset P pos' (offset_val pos p).
 Proof.
   intros.
   rewrite at_offset_eq.
@@ -766,7 +766,7 @@ Proof.
 Qed.
 
 Lemma spacer_offset_zero:
-  forall sh be ed v, spacer sh be ed v = spacer sh be ed (offset_val Int.zero v).
+  forall sh be ed v, spacer sh be ed v = spacer sh be ed (offset_val 0 v).
 Proof.
   intros;
   unfold spacer.
@@ -777,8 +777,8 @@ Qed.
 
 Lemma withspacer_add:
   forall sh pos be ed P p,
-  withspacer sh (pos + be) (pos + ed) (fun p0 => P (offset_val (Int.repr pos) p)) p = 
-  withspacer sh be ed P (offset_val (Int.repr pos) p).
+  withspacer sh (pos + be) (pos + ed) (fun p0 => P (offset_val pos p)) p = 
+  withspacer sh be ed P (offset_val pos p).
 Proof.
   intros.
   rewrite !withspacer_spacer.
@@ -787,8 +787,8 @@ Proof.
   replace (pos + ed - (pos + be)) with (ed - be) by omega.
   if_tac; [reflexivity|].
   rewrite !at_offset_eq.
-  replace (offset_val (Int.repr (pos + be)) p) with
-          (offset_val (Int.repr be) (offset_val (Int.repr pos) p)).
+  replace (offset_val (pos + be) p) with
+          (offset_val be (offset_val pos p)).
   reflexivity.
   destruct p; simpl; try reflexivity.
   rewrite int_add_assoc1.
@@ -805,7 +805,7 @@ Lemma at_offset_preserve_local_facts: forall P pos, (forall p, P p |-- !!(isptr 
 Proof.
   intros.
   rewrite at_offset_eq.
-  specialize (H (offset_val (Int.repr pos) p)).
+  specialize (H (offset_val pos p)).
   eapply derives_trans; [exact H |]. 
   apply offset_val_preserve_isptr.
 Qed.
@@ -823,7 +823,7 @@ Transparent memory_block.
 
 Lemma spacer_memory_block:
   forall sh be ed v, isptr v ->
- spacer sh be ed v = memory_block sh (ed - be) (offset_val (Int.repr be) v).
+ spacer sh be ed v = memory_block sh (ed - be) (offset_val be v).
 Proof.
   intros.
   destruct v; inv H.
@@ -839,7 +839,7 @@ Lemma spacer_sepcon_memory_block: forall sh ofs lo hi b i,
   0 <= ofs ->
   lo <= hi < Int.modulus ->
   Int.unsigned i + ofs + hi <= Int.modulus ->
-  spacer sh (ofs + lo) (ofs + hi) (Vptr b i) * memory_block sh lo (offset_val (Int.repr ofs) (Vptr b i)) = memory_block sh hi (offset_val (Int.repr ofs) (Vptr b i)).
+  spacer sh (ofs + lo) (ofs + hi) (Vptr b i) * memory_block sh lo (offset_val ofs (Vptr b i)) = memory_block sh hi (offset_val ofs (Vptr b i)).
 Proof.
   intros.
   rewrite spacer_memory_block by (simpl; auto).

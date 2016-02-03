@@ -1075,7 +1075,7 @@ Lemma memory_block_array_pred: forall  {A} (d:A) sh t lo hi v b ofs,
   sizeof t * (hi - lo) < Int.modulus ->
   Zlength v = hi - lo ->
   array_pred d lo hi
-    (fun i _ p => memory_block sh (sizeof t) (offset_val (Int.repr (sizeof t * i)) p)) v
+    (fun i _ p => memory_block sh (sizeof t) (offset_val (sizeof t * i) p)) v
     (Vptr b (Int.repr ofs)) =
    memory_block sh (sizeof t * (hi - lo)) (Vptr b (Int.repr (ofs + sizeof t * lo))).
 Proof.
@@ -1106,7 +1106,7 @@ Lemma memory_block_array_pred': forall {A} (d:A)  sh t z b ofs,
   sizeof t * z < Int.modulus ->
   array_pred d 0 z
      (fun i _ p =>
-      memory_block sh (sizeof t) (offset_val (Int.repr (sizeof t * i)) p))
+      memory_block sh (sizeof t) (offset_val (sizeof t * i) p))
              (list_repeat (Z.to_nat z) d)
      (Vptr b (Int.repr ofs))  =
   memory_block sh (sizeof t * z) (Vptr b (Int.repr ofs)).
@@ -1127,7 +1127,7 @@ Lemma memory_block_struct_pred: forall sh m sz {A} (v: compact_prod (map A m)) b
   struct_pred m
    (fun it _ p =>
      (memory_block sh (field_offset_next cenv_cs (fst it) m sz - field_offset cenv_cs (fst it) m))
-     (offset_val (Int.repr (field_offset cenv_cs (fst it) m)) p)) v (Vptr b (Int.repr ofs)) =
+     (offset_val (field_offset cenv_cs (fst it) m) p)) v (Vptr b (Int.repr ofs)) =
   memory_block sh sz (Vptr b (Int.repr ofs)).
 Proof.
   unfold field_offset, Ctypes.field_offset, field_offset_next.
@@ -1617,7 +1617,7 @@ Definition memory_block_array_pred:
   array_pred d 0 z
      (fun i _ p =>
       memory_block sh (sizeof t)
-        (offset_val (Int.repr (sizeof t * i)) p)) (list_repeat (Z.to_nat z) d)
+        (offset_val (sizeof t * i) p)) (list_repeat (Z.to_nat z) d)
      (Vptr b (Int.repr ofs))  =
   memory_block sh (sizeof t * z) (Vptr b (Int.repr ofs))
 := @memory_block_array_pred'.
@@ -1631,7 +1631,7 @@ Definition memory_block_struct_pred:
   struct_pred m
    (fun it _ p =>
      (memory_block sh (field_offset_next cenv_cs (fst it) m sz - field_offset cenv_cs (fst it) m))
-     (offset_val (Int.repr (field_offset cenv_cs (fst it) m)) p)) v (Vptr b (Int.repr ofs)) =
+     (offset_val (field_offset cenv_cs (fst it) m) p)) v (Vptr b (Int.repr ofs)) =
   memory_block sh sz (Vptr b (Int.repr ofs))
 := @memory_block_struct_pred.
 

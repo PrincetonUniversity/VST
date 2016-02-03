@@ -76,7 +76,7 @@ Lemma mapsto_valid_pointer: forall {cs: compspecs} sh t p v i,
   size_compatible t p ->
   0 <= i < sizeof t ->
   nonidentity sh ->
-  mapsto sh t p v |-- valid_pointer (offset_val (Int.repr i) p).
+  mapsto sh t p v |-- valid_pointer (offset_val i p).
 Proof.
   intros.
   unfold mapsto.
@@ -117,7 +117,7 @@ Qed.
 Lemma memory_block_valid_pointer: forall {cs: compspecs} sh n p i,
   0 <= i < n ->
   nonidentity sh ->
-  memory_block sh n p |-- valid_pointer (offset_val (Int.repr i) p).
+  memory_block sh n p |-- valid_pointer (offset_val i p).
 Proof.
   intros.
   unfold memory_block.

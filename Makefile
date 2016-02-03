@@ -22,7 +22,7 @@ COMPCERT=compcert
 
 CC_TARGET=compcert/cfrontend/Clight.vo
 CC_DIRS= lib common cfrontend exportclight
-DIRS= msl sepcomp veric floyd progs sha linking fcf hmacfcf tweetnacl20140427
+DIRS= msl sepcomp veric floyd progs sha linking fcf hmacfcf tweetnacl20140427 # verifiedDrbg
 INCLUDE= $(foreach a,$(DIRS),$(if $(wildcard $(a)), -I $(a) -as $(a))) -R $(COMPCERT) -as compcert 
 #Replace the INCLUDE above with the following in order to build the linking target:
 #INCLUDE= $(foreach a,$(DIRS),$(if $(wildcard $(a)), -I $(a) -as $(a))) -R $(COMPCERT) -as compcert -I $(SSREFLECT)/src -R $(SSREFLECT)/theories -as Ssreflect \
@@ -203,7 +203,15 @@ TWEETNACL_FILES = \
   verif_ld_st.v verif_fcore_loop1.v verif_fcore_loop2.v \
   verif_fcore_jbody.v verif_fcore_loop3.v \
   verif_fcore_epilogue_hfalse.v verif_fcore_epilogue_htrue.v \
-  verif_fcore.v verif_crypto_core.v verif_crypto_stream_salsa20_xor.v
+  verif_fcore.v verif_crypto_core.v \
+  verif_crypto_stream_salsa20_xor.v verif_crypto_stream.v
+
+# DRBG_Files = \
+#  hmac_drbg.v HMAC256_DRBG_functional_prog.v hmac_drbg_compspecs.v \
+#  entropy.v DRBG_functions.v HMAC_DRBG_algorithms.v spec_hmac_drbg.v \
+#  HMAC_DRBG_pure_lemmas.v HMAC_DRBG_common_lemmas.v verif_mocked_md.v \
+#  verif_hmac_drbg_update.v verif_hmac_drbg_reseed.v verif_hmac_drbg_generate.v
+
 
 C_FILES = reverse.c queue.c sumarray.c message.c insertionsort.c float.c nest3.c nest2.c nest3.c dotprod.c string.c field_loadstore.c ptr_compare.c merge.c
 
@@ -218,7 +226,8 @@ FILES = \
  $(FCF_FILES:%=fcf/%) \
  $(HMACFCF_FILES:%=hmacfcf/%) \
  $(HMACEQUIV_FILES:%=sha/%) \
- $(TWEETNACL_FILES:%=tweetnacl20140427/%)
+ $(TWEETNACL_FILES:%=tweetnacl20140427/%) # \
+# $(DRBG_FILES:%=verifiedDrbg/spec/%)
 
 %_stripped.v: %.v
 # e.g., 'make progs/verif_reverse_stripped.v will remove the tutorial comments
@@ -261,6 +270,7 @@ fcf:     .loadpath $(FCF_FILES:%.v=fcf/%.vo)
 hmacfcf: .loadpath $(HMACFCF_FILES:%.v=hmacfcf/%.vo)
 tweetnacl: .loadpath $(TWEETNACL_FILES:%.v=tweetnacl20140427/%.vo)
 hmac0: .loadpath sha/verif_hmac_init.vo sha/verif_hmac_cleanup.vo sha/verif_hmac_final.vo sha/verif_hmac_simple.vo  sha/verif_hmac_double.vo sha/verif_hmac_update.vo sha/verif_hmac_crypto.vo
+# drbg: .loadpath $(DRBG_FILES:%.v=verifiedDrbg/%.vo)
 
 CGFLAGS =  -DCOMPCERT
 

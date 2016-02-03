@@ -276,9 +276,13 @@ int crypto_stream_xor(u8 *c,const u8 *m,u64 d,const u8 *n,const u8 *k)
 
 sv add1305(u32 *h,const u32 *c)
 {
+  u32 aux1305;
   u32 j,u = 0;
   FOR(j,17) {
-    u += h[j] + c[j];
+    //u += h[j] + c[j];
+    aux1305 = h[j];
+    u += aux1305 + c[j];
+
     h[j] = u & 255;
     u >>= 8;
   }

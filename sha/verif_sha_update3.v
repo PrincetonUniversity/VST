@@ -214,7 +214,7 @@ forward_if (sha_update_inv sh hashed len c d dd data kv false).
    [
    | rewrite Forall_app; split; auto; apply Forall_sublist; auto
    | rewrite Zlength_app; rewrite Zlength_sublist; MyOmega
-   | reflexivity
+   | apply JMeq_refl
    ].
  assert (Zlength (dd ++ sublist 0 k data) = 64%Z)
    by (rewrite Zlength_app, Zlength_sublist; MyOmega).
@@ -243,7 +243,7 @@ forward_if (sha_update_inv sh hashed len c d dd data kv false).
    [
    | rewrite Forall_app; split; auto; apply Forall_sublist; auto
    | rewrite Zlength_app; rewrite Zlength_sublist; MyOmega
-   | reflexivity
+   | apply JMeq_refl
    ].
   rewrite Zlist_to_intlist_to_Zlist;
    [ | exists LBLOCKz; rewrite H5; reflexivity
@@ -304,7 +304,7 @@ forward_if (sha_update_inv sh hashed len c d dd data kv false).
   rewrite field_address_offset by auto with field_compatible.
   rewrite field_address0_offset by 
    (subst k; auto with field_compatible).
-  rewrite offset_offset_val, add_repr; simpl. rewrite Z.mul_1_l; auto.
+  rewrite offset_offset_val; simpl. rewrite Z.mul_1_l; auto.
   unfold_data_at 1%nat. cancel.
   abbreviate_semax.
   autorewrite with sublist.

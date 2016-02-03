@@ -241,8 +241,8 @@ assert (Zlength bl = LBLOCKz). {
   + assert (0 <= Zlength blocks * 4 + Zlength bl * 4 - Zlength frag <= Zlength data)
          by Omega1.
       rewrite !field_address0_offset by auto with field_compatible.
-      rewrite offset_offset_val, add_repr.
-      simpl. f_equal. f_equal. Omega1.
+      rewrite offset_offset_val.
+      simpl. f_equal. Omega1.
   + f_equal. f_equal. Omega1.
  }
  Time unfold_data_at 1%nat. (*0.8*)

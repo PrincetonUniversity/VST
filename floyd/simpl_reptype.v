@@ -128,6 +128,7 @@ Ltac solve_load_rule_evaluation :=
     let gfs_compute := (skipn_tac gfield len_opaque gfs) in
     match gfs_opaque with
     | nil =>
+      let opaque_function := fresh "opaque_function" in
       let opaque_v := fresh "v" in
       pose (proj_reptype (nested_field_type t gfs_compute) gfs_opaque) as opaque_function;
       set (opaque_v := v);

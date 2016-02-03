@@ -243,11 +243,11 @@ Qed.
 
 Lemma offset_val_nested_field_offset_ind: forall t gfs p,
   legal_nested_field0 t gfs ->
-  offset_val (Int.repr (nested_field_offset t gfs)) p =
+  offset_val (nested_field_offset t gfs) p =
   match gfs with
   | nil => force_ptr p
-  | gf :: gfs0 => offset_val (Int.repr (gfield_offset (nested_field_type t gfs0) gf))
-                    (offset_val (Int.repr (nested_field_offset t gfs0)) p)
+  | gf :: gfs0 => offset_val (gfield_offset (nested_field_type t gfs0) gf)
+                    (offset_val (nested_field_offset t gfs0) p)
   end.
 Proof.
   intros.
@@ -255,7 +255,6 @@ Proof.
   destruct gfs as [| gf gfs].
   + fold Int.zero. rewrite offset_val_force_ptr; auto.
   + rewrite offset_offset_val.
-    rewrite add_repr.
     auto.
 Qed.
 
@@ -574,12 +573,12 @@ Qed.
 
 Definition field_address t gfs p :=
   if (field_compatible_dec t gfs p)
-  then offset_val (Int.repr (nested_field_offset t gfs)) p
+  then offset_val (nested_field_offset t gfs) p
   else Vundef.
 
 Definition field_address0 t gfs p :=
   if (field_compatible0_dec t gfs p)
-  then offset_val (Int.repr (nested_field_offset t gfs)) p
+  then offset_val (nested_field_offset t gfs) p
   else Vundef.
 
 Lemma field_address_isptr:
@@ -601,7 +600,7 @@ Qed.
 Lemma field_address_clarify:
  forall t path c,
    is_pointer_or_null (field_address t path c) ->
-   field_address t path c = offset_val (Int.repr (nested_field_offset t path)) c.
+   field_address t path c = offset_val (nested_field_offset t path) c.
 Proof.
  intros. unfold field_address in *.
   if_tac; try contradiction.
@@ -611,7 +610,7 @@ Qed.
 Lemma field_address0_clarify:
  forall t path c,
    is_pointer_or_null (field_address0 t path c) ->
-   field_address0 t path c = offset_val (Int.repr (nested_field_offset t path)) c.
+   field_address0 t path c = offset_val (nested_field_offset t path) c.
 Proof.
  intros. unfold field_address0 in *.
   if_tac; try contradiction.
@@ -1189,7 +1188,7 @@ Lemma size_compatible_nested_field: forall t gfs p,
   legal_nested_field t gfs ->
   legal_cosu_type t = true ->
   size_compatible t p ->
-  size_compatible (nested_field_type t gfs) (offset_val (Int.repr (nested_field_offset t gfs)) p).
+  size_compatible (nested_field_type t gfs) (offset_val (nested_field_offset t gfs) p).
 Proof.
   intros.
   destruct p; simpl; try tauto.
@@ -1210,7 +1209,7 @@ Lemma size_compatible_nested_field_array: forall t gfs lo hi p,
   legal_cosu_type t = true ->
   size_compatible t p ->
   size_compatible (nested_field_array_type t gfs lo hi)
-   (offset_val (Int.repr (nested_field_offset t (ArraySubsc lo :: gfs))) p).
+   (offset_val (nested_field_offset t (ArraySubsc lo :: gfs)) p).
 Proof.
   intros.
   destruct p; simpl; try tauto.
@@ -1230,7 +1229,7 @@ Lemma align_compatible_nested_field: forall t gfs p,
   legal_nested_field t gfs ->
   legal_alignas_type t = true ->
   align_compatible t p ->
-  align_compatible (nested_field_type t gfs) (offset_val (Int.repr (nested_field_offset t gfs)) p).
+  align_compatible (nested_field_type t gfs) (offset_val (nested_field_offset t gfs) p).
 Proof.
   intros.
   destruct p; simpl in *; try tauto.
@@ -1260,7 +1259,7 @@ Lemma align_compatible_nested_field_array: forall t gfs lo hi p,
   legal_alignas_type t = true ->
   align_compatible t p ->
   align_compatible (nested_field_array_type t gfs lo hi)
-   (offset_val (Int.repr (nested_field_offset t (ArraySubsc lo :: gfs))) p).
+   (offset_val (nested_field_offset t (ArraySubsc lo :: gfs)) p).
 Proof.
   intros.
   destruct p; simpl in *; try tauto.
@@ -1279,7 +1278,7 @@ Qed.
 
 Lemma field_compatible_nested_field: forall t gfs p,
   field_compatible t gfs p ->
-  field_compatible (nested_field_type t gfs) nil (offset_val (Int.repr (nested_field_offset t gfs)) p).
+  field_compatible (nested_field_type t gfs) nil (offset_val (nested_field_offset t gfs) p).
 Proof.
   intros.
   unfold field_compatible in *.
@@ -1299,7 +1298,7 @@ Qed.
 Lemma field_compatible0_nested_field_array: forall t gfs lo hi p,
   field_compatible0 t (ArraySubsc lo :: gfs) p ->
   field_compatible0 t (ArraySubsc hi :: gfs) p ->
-  field_compatible (nested_field_array_type t gfs lo hi) nil (offset_val (Int.repr (nested_field_offset t (ArraySubsc lo :: gfs))) p).
+  field_compatible (nested_field_array_type t gfs lo hi) nil (offset_val (nested_field_offset t (ArraySubsc lo :: gfs)) p).
 Proof.
   intros.
   unfold field_compatible, field_compatible0 in *.
@@ -1361,7 +1360,7 @@ Proof.
   destruct H; tauto.
 Qed.
 
-Lemma field_compatible_field_address: forall t gfs p, field_compatible t gfs p -> field_address t gfs p = offset_val (Int.repr (nested_field_offset t gfs)) p.
+Lemma field_compatible_field_address: forall t gfs p, field_compatible t gfs p -> field_address t gfs p = offset_val (nested_field_offset t gfs) p.
 Proof.
   intros.
   unfold field_address.
@@ -1444,7 +1443,7 @@ Lemma field_compatible_array_member:
   field_compatible (tarray t n) nil p ->
   i = (sizeof t * k)%Z ->
   0 <= k < n ->
-  field_compatible t nil (offset_val (Int.repr i) p).
+  field_compatible t nil (offset_val i p).
 Proof.
 intros.
 hnf in H; decompose [and] H; clear H.

@@ -15,7 +15,7 @@ Require Import floyd.field_at.
 Lemma field_address0_offset:
   forall {cs: compspecs} t gfs p,
     field_compatible0 t gfs p ->
-    field_address0 t gfs p = offset_val (Int.repr (nested_field_offset t gfs)) p.
+    field_address0 t gfs p = offset_val (nested_field_offset t gfs) p.
 Proof. intros. unfold field_address0; rewrite if_true by auto; reflexivity.
 Qed.
 
@@ -23,7 +23,7 @@ Qed.
 Lemma field_address_offset:
   forall {cs: compspecs} t gfs p,
     field_compatible t gfs p ->
-    field_address t gfs p = offset_val (Int.repr (nested_field_offset t gfs)) p.
+    field_address t gfs p = offset_val (nested_field_offset t gfs) p.
 Proof. intros. unfold field_address; rewrite if_true by auto; reflexivity.
 Qed.
 
@@ -192,7 +192,7 @@ apply Zmult_le_compat; omega.
 change (0*0)%Z with 0 in ST.
 assert (field_compatible (Tarray t i noattr) nil d /\
            field_compatible (Tarray t (n - i) noattr) nil
-               (offset_val (Int.repr (sizeof t * i)) d) /\
+               (offset_val (sizeof t * i) d) /\
            field_compatible0 (Tarray t n noattr) (ArraySubsc i::nil) d). {
   unfold field_compatible, field_compatible0 in *.
 decompose [and] H0; clear H0.
@@ -319,8 +319,8 @@ Proof.
   assert_PROP (Zlength v' = n). {
     eapply derives_trans; [apply data_at_local_facts | apply prop_derives].
     intros [? ?]. destruct H4 as [? _]. rewrite Z.max_r in H4 by omega.
-    rewrite <- H4. f_equal. apply JMeq_eq. rewrite <- H0.
-    symmetry. rewrite <- unfold_reptype_JMeq. reflexivity. 
+    rewrite <- H4. f_equal. apply JMeq_eq. eapply JMeq_trans; [apply @JMeq_sym; exact H0 |].
+    apply @JMeq_sym. apply (unfold_reptype_JMeq _ v).
   }
   assert_PROP (field_compatible0 (Tarray t n noattr) (ArraySubsc n1::nil) p). {
      eapply derives_trans; [apply data_at_local_facts | apply prop_derives].
@@ -343,23 +343,17 @@ Proof.
             (nested_field_array_type (Tarray t n noattr) nil 0 n1)
             (Tarray t n1 noattr) _ v1). 
   2: unfold nested_field_array_type; simpl; rewrite Zminus_0_r; trivial.
- 2:  rewrite H1, fold_reptype_JMeq; reflexivity.
+  2: eapply JMeq_trans; [| apply @JMeq_sym, H1]; apply @fold_reptype_JMeq.
   erewrite (data_at_type_changable sh 
             (nested_field_array_type (Tarray t n noattr) nil n1 n)
             (Tarray t (n - n1) noattr) _  v2).
   2: unfold nested_field_array_type; simpl; trivial.
- 2:  rewrite H2, fold_reptype_JMeq; subst n; reflexivity.
+  2: eapply JMeq_trans; [| apply @JMeq_sym, H2]; subst n; apply @fold_reptype_JMeq.
   rewrite !nested_field_offset_ind by (repeat split; auto; omega).
   rewrite !nested_field_type_ind.
   unfold gfield_offset.
   rewrite !Z.add_0_l. rewrite Z.mul_0_r.
   rewrite isptr_offset_val_zero; trivial.
-Qed.
-
-Lemma prop_and_same_derives {A}{NA: NatDed A}:
-  forall P Q, Q |-- !! P   ->   Q |-- !!P && Q.
-Proof.
-intros. apply andp_right; auto.
 Qed.
 
 Lemma split2_data_at_Tarray_fold {cs: compspecs} sh t n n1 v (v': list (reptype t)) v1 v2 p:
@@ -372,9 +366,10 @@ Lemma split2_data_at_Tarray_fold {cs: compspecs} sh t n n1 v (v': list (reptype 
         (field_address0 (Tarray t n noattr) (ArraySubsc n1::nil) p)
    |-- 
    data_at sh (Tarray t n noattr) v p.
-Proof. intros.
+Proof.
+  intros.
   unfold field_address0.
- if_tac; [ |
+  if_tac; [ |
   eapply derives_trans; [apply sepcon_derives; 
            apply prop_and_same_derives; apply data_at_local_facts
     | normalize ];
@@ -394,8 +389,8 @@ Proof. intros.
     rewrite Z.max_r in * by omega.
     clear - H7 H5 H2 H1 H0 H H6.
     assert (Zlength (sublist 0 n1 v') = n1).
-       rewrite <- H5 at 2. f_equal. apply JMeq_eq. rewrite <- H1.
-       symmetry. rewrite <- unfold_reptype_JMeq. reflexivity.
+       rewrite <- H5 at 2. f_equal. apply JMeq_eq. eapply JMeq_trans; [apply @JMeq_sym; apply H1 |].
+       apply @JMeq_sym, (unfold_reptype_JMeq _ v1).
     clear - H H3. unfold sublist in *.
    rewrite Zlength_correct in *.
    rewrite firstn_length in *. rewrite skipn_length in H3. 
@@ -435,16 +430,18 @@ Proof. intros.
   rewrite !prop_true_andp by auto with field_compatible.
   unfold at_offset.
   apply derives_refl'.
-  rewrite offset_offset_val. rewrite add_repr.
+  rewrite offset_offset_val.
   rewrite !nested_field_offset_ind by (repeat split; auto; omega).
   rewrite !nested_field_type_ind. unfold gfield_offset.
   rewrite !Z.add_0_l. rewrite Z.mul_0_r, Z.add_0_r.
   apply equal_f.
   apply data_at_type_changable.
   unfold nested_field_array_type.
- rewrite !nested_field_type_ind.  unfold gfield_type. simpl. f_equal; omega.
+  rewrite !nested_field_type_ind.  unfold gfield_type. simpl. f_equal; omega.
   unfold nested_field_array_type. simpl.
-  rewrite !fold_reptype_JMeq. apply JMeq_refl.
+  eapply JMeq_trans; [apply fold_reptype_JMeq |].
+  eapply JMeq_trans; [| eapply @JMeq_sym; apply fold_reptype_JMeq].
+  apply JMeq_refl.
   admit.
 Qed.
 
@@ -472,7 +469,7 @@ Lemma field_compatible0_Tarray_offset:
   0 <= i <= n ->
   n-i <= n'-i' ->
   i <= i' ->
-  p' = offset_val (Int.repr (sizeof t * (i'-i))) p ->
+  p' = offset_val (sizeof t * (i'-i)) p ->
   field_compatible0 (Tarray t n noattr) (ArraySubsc i :: nil) p'.
 Proof.
 intros until 1. intros NA ?H ?H Hni Hii Hp. subst p'.
@@ -563,30 +560,31 @@ Lemma split3_data_at_Tarray {cs: compspecs} sh t n n1 n2 v (v': list (reptype t)
 Proof. intros until 1. rename H into NA; intros.
   destruct (field_compatible0_dec (tarray t n) (ArraySubsc n2::nil) p).
   erewrite (split2_data_at_Tarray sh t n n1); try eassumption; try omega.
- instantiate (1:= @fold_reptype cs (Tarray t (n - n1) noattr) (sublist n1 n v')).
- 2: rewrite fold_reptype_JMeq; reflexivity.
+  instantiate (1:= @fold_reptype cs (Tarray t (n - n1) noattr) (sublist n1 n v')).
+  2: apply @fold_reptype_JMeq.
   erewrite (split2_data_at_Tarray sh t (n-n1) (n2-n1)); try eassumption; try omega.
   2: instantiate (1:= sublist n1 n v'); autorewrite with sublist; 
-      rewrite fold_reptype_JMeq; reflexivity.
+     apply @fold_reptype_JMeq.
   2: autorewrite with sublist;
-      instantiate (1:= @fold_reptype cs (Tarray t (n2-n1) noattr) (sublist n1 n2 v'));
-      rewrite fold_reptype_JMeq; reflexivity.
+     instantiate (1:= @fold_reptype cs (Tarray t (n2-n1) noattr) (sublist n1 n2 v'));
+     apply @fold_reptype_JMeq.
   2: autorewrite with sublist;
-      instantiate (1:= @fold_reptype cs (Tarray t (n-n1-(n2-n1)) noattr) (sublist n2 n v'));
-      rewrite fold_reptype_JMeq; reflexivity.
+     instantiate (1:= @fold_reptype cs (Tarray t (n-n1-(n2-n1)) noattr) (sublist n2 n v'));
+     apply @fold_reptype_JMeq.
   rewrite sepcon_assoc.
-  f_equal. f_equal. f_equal. apply JMeq_eq. rewrite H3, fold_reptype_JMeq. reflexivity.
+  f_equal. f_equal. f_equal. apply JMeq_eq.
+  eapply JMeq_trans; [apply fold_reptype_JMeq | apply @JMeq_sym, H3].
   replace  (field_address0 (Tarray t (n - n1) noattr) (SUB (n2 - n1))
      (field_address0 (Tarray t n noattr) (SUB n1) p)) 
    with (field_address0 (Tarray t n noattr) (SUB n2) p).
   apply equal_f.
   apply data_at_type_changable.
-  f_equal. omega. rewrite fold_reptype_JMeq. symmetry; auto.
+  f_equal. omega.
+  eapply JMeq_trans; [apply @fold_reptype_JMeq |]; apply JMeq_sym; auto.
   rewrite field_address0_offset by auto with field_compatible.
   rewrite (field_address0_offset (Tarray t n noattr) ) by auto with field_compatible.
   rewrite field_address0_offset.
   rewrite offset_offset_val. f_equal.
-  rewrite add_repr. f_equal.
   rewrite !nested_field_offset_ind by auto with field_compatible.
   rewrite !nested_field_type_ind;   unfold gfield_offset.
   rewrite Z.mul_sub_distr_l.
