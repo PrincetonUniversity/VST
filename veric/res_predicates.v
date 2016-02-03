@@ -2501,17 +2501,215 @@ Qed.
 Lemma nonlock_permission_bytes_address_mapsto_join:
  forall (sh1 sh2 sh : share) ch v a,
    join sh1 sh2 sh ->
+   readable_share sh2 ->
    nonlock_permission_bytes sh1 a (Memdata.size_chunk ch)
      * address_mapsto ch v (Share.unrel Share.Lsh sh2) (Share.unrel Share.Rsh sh2) a 
     = address_mapsto ch v (Share.unrel Share.Lsh sh) (Share.unrel Share.Rsh sh) a.
 Proof.
-Admitted.
+intros.
+unfold nonlock_permission_bytes, address_mapsto.
+rewrite exp_sepcon2.
+f_equal. extensionality bl.
+rewrite sepcon_andp_prop.
+f_equal.
+apply pred_ext.
+*
+ clear H0.
+ intros z [x [y [? [? ?]]]] b.
+ specialize (H1 b); specialize (H2 b).
+ pose proof (resource_at_join _ _ _ b H0).
+ hnf in H1,H2|-*.
+ if_tac.
+ +
+  destruct H2 as [p ?].
+  hnf in H2. rewrite H2 in *. clear H2.
+  destruct H1 as [H1 H1'].
+  hnf in H1, H1'. unfold resource_share in H1.
+  assert (p8: nonunit (Share.unrel Share.Rsh sh)). {
+   clear - p H.
+   apply nonunit_nonidentity in p.
+   apply nonidentity_nonunit. red. contradict p.
+   assert  (H98 := join_unrel Share.Rsh H).
+   apply join_comm in H98. apply split_identity in H98; auto.
+  }
+  exists p8.
+  destruct (x @ b); inv H1.
+  -
+    inv H3.
+    assert  (H99 := join_unrel Share.Lsh H); 
+    rewrite Share.unrel_rel in H99 by apply Lsh_nonidentity.
+    pose proof (join_eq RJ H99); clear H99; subst rsh3.
+    hnf. rewrite <- H9; clear H9.
+    f_equal; [ | rewrite (proj2 (join_level _ _ _ H0)); reflexivity].
+    assert (Share.unrel Share.Rsh sh2 = Share.unrel Share.Rsh sh).
+    assert  (H98 := join_unrel Share.Rsh H).
+    assert (H97:=Share.unrel_splice_R t Share.bot); 
+      rewrite splice_bot2 in H97; rewrite H97 in H98; clear H97.
+   eapply join_unit1_e; try eassumption. apply bot_identity.
+   forget (Share.unrel Share.Rsh sh2) as s2; 
+   forget (Share.unrel Share.Rsh sh) as s. subst.
+   apply mk_lifted_refl1.
+  -
+   clear H1'.  inv H3. 
+   hnf. rewrite <- H12. clear H12. simpl.
+   assert  (H99 := join_unrel Share.Lsh H).
+   assert  (H98 := join_unrel Share.Rsh H).
+   rewrite (Share.unrel_splice_L t (pshare_sh p0)) in H99.
+   f_equal; [ | | rewrite (proj2 (join_level _ _ _ H0)); reflexivity].
+   eapply join_eq; eauto.
+   rewrite (Share.unrel_splice_R t (pshare_sh p0)) in H98.
+   clear - H2 H98.
+   eapply join_eq; eauto.
+ +
+   do 3 red in H1,H2|-*. 
+   apply join_unit1_e in H3; auto.
+   rewrite <- H3; auto.
+*
+  assert (NU2: nonunit (Share.unrel Share.Rsh sh2)). {
+    clear - H0.
+    unfold readable_share in H0.
+  apply nonidentity_nonunit. red in H0|-*. red in H0. contradict H0.
+  apply share_sub_Lsh in H0.
+  rewrite (@sub_glb_bot Share.Rsh _ _ H0).
+  apply bot_identity. rewrite Share.glb_commute.
+  apply Share.split_disjoint with Share.top.
+  unfold  Share.Rsh, Share.Lsh. destruct (Share.split Share.top); simpl; auto.
+ } clear H0.
+  intros w ?.
+  hnf in H0.
+  assert (p: nonunit (Share.unrel Share.Rsh sh)). {
+    specialize (H0 a). hnf in H0. rewrite if_true in H0.
+    destruct H0; auto. destruct a; split; auto. pose proof (size_chunk_pos ch); omega.
+  }
+  destruct (make_slice_rmap w _ (adr_range_dec a (size_chunk ch)) sh1)
+   as [w1 [? ?]].
+  intros. specialize (H0 l). simpl in H0. rewrite if_false in H0; auto. 
+  destruct (make_slice_rmap w _ (adr_range_dec a (size_chunk ch)) sh2)
+   as [w2 [? ?]].
+  intros. specialize (H0 l). simpl in H0. rewrite if_false in H0; auto. 
+  exists w1, w2.
+  split3.
+ +
+   eapply resource_at_join2; try omega.
+   change compcert_rmaps.R.resource_at with resource_at in *.
+  intro . rewrite H2,H4. clear dependent w1. clear dependent w2.
+  specialize (H0 loc). hnf in H0.  
+  if_tac in H0. destruct H0. rewrite H0.
+  unfold general_slice_resource.
+  destruct (dec_share_identity (Share.unrel Share.Rsh sh1)).
+    assert  (H98 := join_unrel Share.Rsh H).
+  apply join_unit1_e in H98; auto.
+  destruct (dec_share_identity (Share.unrel Share.Rsh sh2)).
+  rewrite H98 in i0. apply nonunit_nonidentity in p.
+  contradiction.
+  replace (mk_pshare (Share.unrel Share.Rsh sh2) (nonidentity_nonunit n))
+      with (mk_lifted (Share.unrel Share.Rsh sh) x).
+  constructor.
+  apply join_unrel; auto.
+  clear - H98.
+   forget (Share.unrel Share.Rsh sh2) as s2; 
+   forget (Share.unrel Share.Rsh sh) as s. subst.
+   apply mk_lifted_refl1.
+   proof_irr.
+  destruct (dec_share_identity (Share.unrel Share.Rsh sh2)).
+  replace (mk_pshare (Share.unrel Share.Rsh sh1) (nonidentity_nonunit n))
+      with (mk_lifted (Share.unrel Share.Rsh sh) x).
+  constructor.
+  apply join_unrel; auto.
+  assert  (H98 := join_unrel Share.Rsh H).
+   apply join_unit2_e in H98; auto.
+  forget (Share.unrel Share.Rsh sh1) as rsh1. subst.
+  apply mk_lifted_refl1.
+  constructor.
+  apply join_unrel; auto.
+  do 3 red. simpl. apply join_unrel; auto.
+  do 3 red in H0.
+  unfold general_slice_resource.
+  destruct (w @ loc). 
+  apply empty_NO in H0.
+  destruct H0 as [H0 | [? [? H0]]]; inv H0.
+  constructor. apply bot_unit.
+  contradiction (YES_not_identity _ _ _ _ H0).
+  constructor.
+ +
+   intro loc; hnf. simpl. rewrite H2.
+  clear dependent w1. clear dependent w2.
+  specialize (H0 loc). hnf in H0.  
+  if_tac in H0.
+  -
+   destruct H0. proof_irr. rewrite H0.
+   unfold general_slice_resource.
+   destruct (dec_share_identity (Share.unrel Share.Rsh sh1)).
+   simpl. split; auto. f_equal.
+   apply identity_share_bot in i.
+   pose proof (splice_unrel_unrel sh1). rewrite i in H2.
+   rewrite splice_bot2 in H2. auto.
+   simpl. split; auto. f_equal.
+   apply splice_unrel_unrel.
+  -
+   apply H0.
+ +
+   intro loc; hnf. simpl. rewrite H3,H4.  simpl.
+  clear dependent w1. clear dependent w2.
+  specialize (H0 loc). hnf in H0.  
+  if_tac in H0.
+  -
+   exists NU2.
+   destruct H0 as [p0 H0]. proof_irr. simpl in H0.
+   rewrite H0. clear H0. simpl.
+   destruct (dec_share_identity  (Share.unrel Share.Rsh sh2) ).
+   elimtype False; apply nonunit_nonidentity in NU2. contradiction.
+   rewrite (proof_irr  (nonidentity_nonunit n) NU2).
+   constructor.
+ - apply H0.
+Qed.
+
+Lemma nth_error_nth:
+  forall A (al: list A) (z: A) i, (i < length al)%nat -> nth_error al i = Some (nth i al z).
+Proof.
+intros. revert al H; induction i; destruct al; simpl; intros; auto; try omega.
+apply IHi. omega.
+Qed.
 
 Lemma address_mapsto_value_cohere:
   forall ch v1 v2 rsh1 sh1 rsh2 sh2 a,
  address_mapsto ch v1 rsh1 sh1 a * address_mapsto ch v2 rsh2 sh2 a |-- !! (v1=v2).
 Proof.
-Admitted. 
+ intros.
+ intros w [w1 [w2 [? [? ?]]]]. hnf.
+ destruct H0 as [b1 [[? [? ?]] ?]].
+ destruct H1 as [b2 [[? [? ?]] ?]].
+ assert (b1 = b2); [ | subst; auto].
+ clear - H H0 H4 H1 H7.
+ rewrite size_chunk_conv in *.
+ forget (size_chunk_nat ch) as n. clear ch.
+ assert (forall i, nth_error b1 i = nth_error b2 i).
+ intro.
+ destruct a as [b z].
+ specialize (H4 (b, (z+Z.of_nat i))).
+ specialize (H7 (b, (z+Z.of_nat i))).
+ hnf in H4,H7. if_tac in H4. destruct H2 as [_ [_ ?]].
+ destruct H4, H7. hnf in H3,H4.
+ apply (resource_at_join _ _ _ (b, z + Z.of_nat i)) in H.
+ rewrite H3,H4 in H. inv  H.
+ clear - H2 H12 H1.
+ replace (z + Z.of_nat i - z) with (Z.of_nat i) in H12 by omega.
+ rewrite Nat2Z.id in H12.
+ rewrite nth_error_nth with (z:=Undef) by omega.
+ rewrite nth_error_nth with (z:=Undef) by omega.
+ f_equal; auto.
+ assert (~(i<n)%nat).
+ contradict H2. split; auto. omega.
+ transitivity (@None memval); [ | symmetry];
+ apply nth_error_length; omega.
+ clear - H2 H0 H1.
+ revert b1 b2 H0 H1 H2.
+ induction n; destruct b1,b2; intros; auto; inv H0; inv H1.
+ f_equal. 
+ specialize (H2 O). simpl in H2. inv H2; auto.
+ apply IHn; auto. 
+ intro i; specialize (H2 (S i)); apply H2.
+Qed.
 
 (*
 (* not used *)

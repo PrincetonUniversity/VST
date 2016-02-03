@@ -189,6 +189,7 @@ Module Type SHARE_MODEL.
 
  Axiom contains_Rsh_e: forall sh, join_sub Rsh sh -> unrel Rsh sh = top.
  Axiom contains_Lsh_e: forall sh, join_sub Lsh sh -> unrel Lsh sh = top.
+ Axiom unrel_rel: forall (x sh: t),  nonidentity x -> unrel x (rel x sh) = sh.
 End SHARE_MODEL.
 
 
