@@ -120,6 +120,18 @@ intros. apply @derives_trans with (|> P * |> Q).
 apply sepcon_derives; auto. rewrite later_sepcon; auto.
 Qed.
  
+
+Lemma perm_order''_trans:
+  forall x y z, perm_order'' x y -> perm_order'' y z -> perm_order'' x z.
+Proof.
+intros.
+destruct x,y; inv H; auto.
+destruct z; constructor.
+destruct z; inv H0; constructor.
+destruct z; inv H0; constructor.
+destruct z; inv H0; constructor.
+Qed.
+
 Lemma mapsto_valid_pointer : forall b o sh t jm,
  nonidentity sh ->
 (mapsto_ sh (t) (Vptr b o) * TT)%pred (m_phi jm) ->
@@ -157,7 +169,8 @@ unfold access_at in *. simpl in JMA.
 unfold perm_of_res in *.
 rewrite H3 in JMA. simpl in JMA. 
 unfold perm_of_sh in *.
-rewrite JMA.  
+rewrite mem_lemmas.po_oo.
+eapply perm_order''_trans; [apply JMA | ].
 repeat if_tac; try constructor. subst. 
 simpl in H3.
 unfold nonunit in x5. 
@@ -1142,6 +1155,17 @@ split; [split3 | ].
    unfold loadv.
    rewrite (age_jm_dry H).
    apply core_load_load.
+   intros.
+   destruct H6 as [bl [_ ?]]. specialize (H6 (b,z)). hnf in H6.
+   rewrite if_true in H6 by (split; auto; omega).
+   destruct H6 as [? [? [? ?]]]. rewrite H6. simpl.
+   clear - x1.
+   destruct (eq_dec x0 Share.top).
+   subst. destruct (eq_dec x Share.top).
+   subst. change Share.top with fullshare at 2. rewrite perm_of_freeable. constructor. 
+   rewrite perm_of_writable by auto. constructor.
+   rewrite perm_of_readable; auto. constructor. intro.
+   subst. apply nonunit_nonidentity in x1; apply x1. apply bot_identity.
    apply H6.
 * apply age1_resource_decay; auto.
 * apply age_level; auto.
@@ -1288,6 +1312,17 @@ split; [split3 | ].
    unfold loadv.
    rewrite (age_jm_dry H).
    apply core_load_load.
+   intros.
+   destruct H6 as [bl [_ ?]]. specialize (H6 (b,z)). hnf in H6.
+   rewrite if_true in H6 by (split; auto; omega).
+   destruct H6 as [? [? [? ?]]]. rewrite H6. simpl.
+   clear - x1.
+   destruct (eq_dec x0 Share.top).
+   subst. destruct (eq_dec x Share.top).
+   subst. change Share.top with fullshare at 2. rewrite perm_of_freeable. constructor. 
+   rewrite perm_of_writable by auto. constructor.
+   rewrite perm_of_readable; auto. constructor. intro.
+   subst. apply nonunit_nonidentity in x1; apply x1. apply bot_identity.
    apply H6.
 * apply age1_resource_decay; auto.
 * apply age_level; auto.
@@ -1595,6 +1630,21 @@ rewrite (age_jm_dry Hage); xomega.
 apply (age1_resource_decay _ _ Hage).
 apply resource_nodecay_decay.
 apply juicy_store_nodecay.
+{intros.
+ clear - H11' H2.
+ destruct H11' as [phi1 [phi2 [? [? ?]]]].
+ destruct H0 as [bl [_ ?]]. specialize  (H0 (b0,z)).
+ hnf in H0. rewrite if_true in H0 by (split; auto; omega).
+ destruct H0. hnf in H0.
+ apply (resource_at_join _ _ _ (b0,z)) in H.
+ rewrite H0 in H.
+ apply join_YES_pfullshare1 in H.
+ destruct H as [? [? ?]]. inv H.
+ simpl.
+ destruct (eq_dec x1 Share.top). subst. 
+ rewrite perm_of_freeable; auto. constructor.
+ rewrite perm_of_writable; auto. constructor.
+}
 rewrite level_store_juicy_mem. apply age_level; auto.
 split.
 Focus 2.
@@ -1828,6 +1878,21 @@ rewrite (age_jm_dry Hage); xomega.
 apply (age1_resource_decay _ _ Hage).
 apply resource_nodecay_decay.
 apply juicy_store_nodecay.
+{intros.
+ clear - H11' H2.
+ destruct H11' as [phi1 [phi2 [? [? ?]]]].
+ destruct H0 as [bl [_ ?]]. specialize  (H0 (b0,z)).
+ hnf in H0. rewrite if_true in H0 by (split; auto; omega).
+ destruct H0. hnf in H0.
+ apply (resource_at_join _ _ _ (b0,z)) in H.
+ rewrite H0 in H.
+ apply join_YES_pfullshare1 in H.
+ destruct H as [? [? ?]]. inv H.
+ simpl.
+ destruct (eq_dec x1 Share.top). subst. 
+ rewrite perm_of_freeable; auto. constructor.
+ rewrite perm_of_writable; auto. constructor.
+}
 rewrite level_store_juicy_mem. apply age_level; auto.
 split.
 Focus 2.

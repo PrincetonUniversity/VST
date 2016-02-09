@@ -19,19 +19,22 @@ Parameter juicy_mem_storebytes
 Parameter juicy_mem_alloc
   : juicy_mem -> Z -> Z -> juicy_mem * block.
 
+(* See comment below, "this is fixable" 
+
 Parameter juicy_mem_free
   : juicy_mem -> block -> Z -> Z -> option juicy_mem.
+Axiom juicy_mem_free_succeeds: forall j j' b lo hi, 
+  juicy_mem_free j b lo hi = Some j' 
+  -> exists m', free (m_dry j) b lo hi = Some m' /\ m' = m_dry j'.
+
+*)
 
 Axiom juicy_mem_store_succeeds: forall j j' ch b ofs v,
   juicy_mem_store j ch b ofs v = Some j' 
   -> exists m', store ch (m_dry j) b ofs v = Some m' /\ m' = m_dry j'.
-
 Axiom juicy_mem_alloc_succeeds: forall j j' b lo hi,
   juicy_mem_alloc j lo hi = (j', b) -> (m_dry j', b) = alloc (m_dry j) lo hi.
 
-Axiom juicy_mem_free_succeeds: forall j j' b lo hi, 
-  juicy_mem_free j b lo hi = Some j' 
-  -> exists m', free (m_dry j) b lo hi = Some m' /\ m' = m_dry j'.
 End JUICY_MEM_OPS.
 
 Obligation Tactic := Tactics.program_simpl.
@@ -129,26 +132,28 @@ intros.
 unfold after_alloc; hnf; intros.
 rewrite resource_at_make_rmap in H0. unfold after_alloc' in H0.
 if_tac in H0.
+*
 inv H0; split; auto.
 destruct loc as [b' z]; destruct H1; subst b'.
 unfold contents_at. inv H; simpl. 
 destruct (alloc (m_dry jm) lo hi).
 rewrite PMap.gss.
 rewrite ZMap.gi; auto.
+*
+assert (H9 := juicy_mem_max_access jm loc).
+rewrite H0 in H9.
 destruct loc as [b' z].
 destruct (eq_dec b b').
++
 subst b'.
 elimtype False.
-generalize (juicy_mem_access jm (b,z)); intro.
-rewrite H0 in H2.
-apply alloc_result in H.
-unfold access_at in H2.
-rewrite nextblock_noaccess in H2.
-unfold perm_of_res, perm_of_sh in H2; simpl in H2.
-if_tac in H2. subst. if_tac in H2; inv H2.
-if_tac in H2; try congruence.
-eapply pshare_sh_bot; eauto.
-simpl. subst. xomega.
+clear H1.
+unfold max_access_at in H9. simpl in H9.
+apply alloc_result in H. subst b.
+rewrite nextblock_noaccess in H9.
+destruct (perm_of_sh_pshare rsh sh). rewrite H in *. inv H9.
+apply Plt_strict.
++
 assert (contents_at m' (b',z) = contents_at (m_dry jm) (b',z)).
 unfold contents_at. simpl.
 inv H. simpl. rewrite PMap.gso; auto.
@@ -165,6 +170,7 @@ intros; hnf; intros.
 unfold after_alloc. rewrite resource_at_make_rmap.
 unfold after_alloc'.
 if_tac.
+*
 unfold perm_of_res; simpl.   rewrite perm_of_freeable.
 inv H. unfold access_at; simpl. 
    destruct loc as [b' z]; destruct H0; simpl in *; subst b'.
@@ -173,7 +179,8 @@ destruct H0.
 destruct (zle lo z); try contradiction.
 simpl. 
 destruct (zlt z hi); try omegaContradiction.
-simpl. auto.
+simpl. constructor.
+*
 destruct loc as [b' z].
 destruct (eq_dec b b').
 subst b'.
@@ -185,8 +192,7 @@ inv H. simpl.
 rewrite PMap.gss.
 destruct (zle lo z); simpl; auto.
 destruct (zlt z hi); simpl; auto.
-contradict H0; split; auto. omega.
-apply alloc_result in H. subst; simpl; xomega.
+simpl. apply alloc_result in H. subst; simpl; xomega.
 replace (access_at m' (b',z)) with (access_at (m_dry jm) (b',z)).
 apply (juicy_mem_access jm (b',z)).
 unfold access_at.
@@ -315,9 +321,11 @@ simpl.
 simpl; auto.
 Qed.
 
+(* This is fixable, as long as we replace range_perm_dec
+  with something based on the PERM argument of free_juicy_mem ...
 Program Definition juicy_mem_free j b lo hi: option juicy_mem :=
   if range_perm_dec (m_dry j) b lo hi Cur Freeable
-    then Some (free_juicy_mem j _ b lo hi _)
+    then Some (free_juicy_mem j _ b lo hi _ _)
     else None.
 Next Obligation.
 apply (proj1_sig (range_perm_free (m_dry j) b lo hi H)).
@@ -325,6 +333,16 @@ Defined.
 Next Obligation.
 apply (proj2_sig (range_perm_free (m_dry j) b lo hi H)).
 Defined.
+Next Obligation.
+pose proof (juicy_mem_access j (b,ofs)).
+specialize (H ofs).
+spec H; [ omega | ].
+hnf in H. unfold access_at in H2.
+simpl in *.
+destruct ((mem_access (m_dry j)) !! b ofs Cur); try contradiction.
+destruct p; inv H.
+inv H.
+hnf in H.
 
 Lemma juicy_mem_free_succeeds: forall j j' b lo hi, 
   juicy_mem_free j b lo hi = Some j' 
@@ -343,6 +361,8 @@ destruct (range_perm_free (m_dry j) b lo hi H1).
 simpl in *; subst; auto.
 inversion H.
 Qed.
+*)
+
 End JuicyMemOps.
 
 (* Here we construct an instance of StratifiedSemanticsWithSeparation using
@@ -355,9 +375,10 @@ Inductive AbsPrimcom : relation juicy_mem -> Prop :=
   AbsPrimcom (fun j j' => Abs.juicy_mem_store j ch b ofs v = Some j')
 | AbsPrimcom_alloc : forall lo hi,
   AbsPrimcom (fun j j' => fst (Abs.juicy_mem_alloc j lo hi) = j')
+(*
 | AbsPrimcom_free : forall b ofs n,
   AbsPrimcom (fun j j' => Abs.juicy_mem_free j b ofs n = Some j').
-
+*).
 Inductive AbsPrimexpr : pfunc juicy_mem val -> Prop :=.
 
 Instance abstract : GenericSemantics juicy_mem AbsPrimcom AbsPrimexpr.
@@ -381,9 +402,9 @@ Inductive VU : relation juicy_mem -> relation mem -> Prop :=
 | VU_alloc : forall lo hi,
   VU (fun j j' => fst (Abs.juicy_mem_alloc j lo hi) = j')
      (fun m m' => fst (alloc m lo hi) = m')
-| VU_free : forall b ofs n,
+(*| VU_free : forall b ofs n,
   VU (fun j j' => Abs.juicy_mem_free j b ofs n = Some j')
-     (fun m m' => free m b ofs n = Some m').
+     (fun m m' => free m b ofs n = Some m')*).
   
 Inductive GF : pfunc juicy_mem val -> pfunc mem val -> Prop :=.
 
@@ -407,9 +428,10 @@ case_eq (JuicyMemOps.juicy_mem_alloc j lo hi); intros.
 rewrite H0 in *. spec H; auto. simpl in *.
 destruct (alloc (m_dry j) lo hi); simpl in *. inv H; auto.
 (* free *)
-apply JuicyMemOps.juicy_mem_free_succeeds in H1.
+(*apply JuicyMemOps.juicy_mem_free_succeeds in H1.
 destruct H1 as [? [? ?]].
 subst. rewrite H in H2; inv H2; auto.
+*)
 Qed.
 
 Lemma PrimcomSafety : forall v u j j' m,
@@ -429,9 +451,10 @@ rewrite H0 in *. spec H; auto. simpl in *.
 destruct (alloc (m_dry j) lo hi); simpl in *. inv H; auto.
 eexists; eauto.
 (* free *)
-apply JuicyMemOps.juicy_mem_free_succeeds in H1.
+(*apply JuicyMemOps.juicy_mem_free_succeeds in H1.
 destruct H1 as [? [? ?]].
 subst. eexists; eauto.
+*)
 Qed.
 
 Existing Instance abstract.
