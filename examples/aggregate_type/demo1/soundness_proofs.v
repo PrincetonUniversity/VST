@@ -163,13 +163,23 @@ Proof.
   rewrite H2 in H3; apply nested_pred_atom_pred in H3.
   rewrite (field_at_Tstruct' t nf id fs u p f) by auto.
   rewrite (field_at_Tstruct' t nf id fs (upd_gfield_reptype (nested_field_type t nf) f u v) p f); auto.
-Abort.
+  simpl proj_reptype.
+  rewrite proj_upd_gfield_reptype_hit by (rewrite H2; auto).
+  match goal with | |- _ * ?A |-- _ => apply RAMIF_PLAIN.solve with A end; auto.
+  rewrite sepcon_comm.
+  apply sepcon_derives; auto.
+  clear.
+  induction fs as [| [i0 t0] fs0]; auto.
+  apply sepcon_derives.
+  + destruct (ident_eq i0 f); auto.
+    rewrite proj_upd_gfield_reptype_miss by congruence.
+    auto.
+  + apply IHfs0.
+Qed.
 
-(*
-
-Check field_at_Tstruct.
-  rewrite field_at_Tstruct t nf id fs .
 Lemma RP_field: forall t nf u v p,
+  legal_nested_field t nf ->
+  legal_type t ->
   data_at t u p |-- field_at t nf (proj_reptype t nf u) p *
     (field_at t nf v p -* data_at t (upd_reptype t nf u v) p).
 Proof.
@@ -181,9 +191,49 @@ Proof.
     - unfold data_at; simpl.
       rewrite emp_sepcon; apply derives_refl.
   + simpl.
-    specialize (IHnf (upd_gfield_reptype _ a (proj_reptype t nf u) v)).
-    eapply RAMIF_PLAIN.trans; eauto.
-    clear.
-    set (u' := proj_reptype t nf u); clearbody u'; clear u.
+    destruct H.
+    specialize (IHnf (upd_gfield_reptype _ a (proj_reptype t nf u) v) H).
+        eapply RAMIF_PLAIN.trans; try eassumption.
+    apply RP_one_layer; simpl; auto.
+Qed.
 
-*)
+Lemma RP_mapsto: forall t nf u v p w0 w1,
+  legal_nested_field t nf ->
+  legal_type t ->
+  nested_field_type t nf = Tint ->
+  JMeq (proj_reptype t nf u) w0 ->
+  JMeq v w1 ->
+  data_at t u p |-- mapsto (field_address t nf p) w0 *
+    (mapsto (field_address t nf p) w1 -* data_at t (upd_reptype t nf u v) p).
+Proof.
+  intros.
+  pose proof RP_field t nf u v p H H0.
+  erewrite !(field_at_Tint t nf) in H4; eassumption.
+Qed.
+
+Lemma Lemma1: forall t nf u p w,
+  legal_nested_field t nf ->
+  legal_type t ->
+  nested_field_type t nf = Tint ->
+  JMeq (proj_reptype t nf u) w ->
+  data_at t u p |-- mapsto (field_address t nf p) w * TT.
+Proof.
+  intros.
+  assert (JMeq (default_val (nested_field_type t nf)) Vundef) by (rewrite H1; auto).
+  pose proof RP_mapsto t nf u (default_val _) p w Vundef H H0 H1 H2 H3.
+  eapply derives_trans; [exact H4 |].
+  apply sepcon_derives; auto.
+  apply TT_right.
+Qed.
+
+(* Reroot Equation *)
+Lemma field_at_data_at: forall t nf v p,
+  field_at t nf v p = data_at _ v (field_address t nf p).
+Proof.
+  intros.
+  unfold data_at, field_at, field_address, at_offset.
+  simpl.
+  rewrite offset_offset_val.
+  rewrite Z.add_0_r.
+  auto.
+Qed.

@@ -124,4 +124,34 @@ Proof.
   intros. apply nested_pred_nested_field_type; auto.
 Qed.
     
-     
+Lemma proj_upd_gfield_reptype_hit: forall t i v u,
+  legal_field t i ->
+  proj_gfield_reptype t i (upd_gfield_reptype t i u v) = v.
+Proof.
+  intros.
+  destruct t; [inversion H |].
+  simpl in *.
+  induction fs as [| [i0 t0] fs0]; [inversion H |].
+  simpl in *.
+  destruct (ident_eq i i0); auto.
+  apply IHfs0; tauto.
+Qed.
+
+Lemma proj_upd_gfield_reptype_miss: forall t i0 i1 v u,
+  i0 <> i1 ->
+  proj_gfield_reptype t i1 (upd_gfield_reptype t i0 u v) = proj_gfield_reptype t i1 u.
+Proof.
+  intros.
+  destruct t; [auto |].
+  simpl in *.
+  rename i1 into i2, i0 into i1.
+  induction fs as [| [i0 t0] fs0]; auto.
+  simpl in *.
+  destruct (ident_eq i2 i0), (ident_eq i1 i0).
+  + congruence.
+  + auto.
+  + auto.
+  + apply IHfs0; tauto.
+Qed.
+
+  

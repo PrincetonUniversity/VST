@@ -66,4 +66,3 @@ Definition legal_type: type -> Prop :=
              | Tint => True
              | Tstruct _ fs => members_no_replicate fs
              end).
-
