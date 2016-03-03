@@ -43,3 +43,27 @@ with data_at_rec_fieldlist (fs: fieldlist) (v: reptype_fieldlist fs) (full_fs: f
       data_at_rec_fieldlist fs_tl (snd v) full_fs
   end v.
 
+Fixpoint nested_pred (atom_pred: type -> Prop) (t: type): Prop :=
+  match t with
+  | Tint => atom_pred t
+  | Tstruct _ fs => atom_pred t /\ nested_pred_fieldlist atom_pred fs
+  end
+with nested_pred_fieldlist (atom_pred: type -> Prop) (fs: fieldlist): Prop :=
+  match fs with
+  | Fnil => True
+  | Fcons (i0, t0) fs0 => nested_pred atom_pred t0 /\ nested_pred_fieldlist atom_pred fs0
+  end.
+
+Lemma nested_pred_atom_pred: forall atom_pred t, nested_pred atom_pred t -> atom_pred t.
+Proof.
+  intros.
+  destruct t; simpl in H; tauto.
+Qed.
+
+Definition legal_type: type -> Prop :=
+  nested_pred
+   (fun t => match t with
+             | Tint => True
+             | Tstruct _ fs => members_no_replicate fs
+             end).
+

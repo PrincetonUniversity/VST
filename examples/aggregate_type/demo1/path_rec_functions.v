@@ -95,3 +95,33 @@ Fixpoint upd_reptype (t: type) (nf: list ident) (v: reptype t) (v0: reptype (nes
   | gf :: gfs0 => fun v0 => upd_reptype t gfs0 v (upd_gfield_reptype _ gf (proj_reptype t gfs0 v) v0)
   end v0.
 
+Lemma nested_pred_nested_field_type: forall t nf atom_pred,
+  nested_pred atom_pred t ->
+  legal_nested_field t nf ->
+  nested_pred atom_pred (nested_field_type t nf).
+Proof.
+  intros.
+  induction nf as [| i nf]; simpl in *; auto.
+  destruct H0.
+  specialize (IHnf H0).
+  clear H0 H.
+  destruct (nested_field_type t nf); [inversion H1 |].
+  simpl in *.
+  
+  destruct IHnf as [_ ?].
+  induction fs as [| [i0 t0] fs0]; [inversion H1 |].
+  simpl.
+  destruct (ident_eq i i0).
+  + destruct H; auto.
+  + simpl in H1; destruct H; tauto.
+Qed.
+
+Lemma legal_type_nested_field_type: forall t nf,
+  legal_type t ->
+  legal_nested_field t nf ->
+  legal_type (nested_field_type t nf).
+Proof.
+  intros. apply nested_pred_nested_field_type; auto.
+Qed.
+    
+     
