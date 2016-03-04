@@ -445,10 +445,10 @@ Qed.
 
 Lemma memory_block_data_at_rec_default_val: forall sh t b ofs
   (LEGAL_ALIGNAS: legal_alignas_type t = true)
-  (LEGAL_COSU: legal_cosu_type t = true) (* isn't this subsumed by complete_type ?*)
+  (LEGAL_COSU: legal_cosu_type t = true) (* TODO: isn't this subsumed by complete_type ?*)
   (COMPLETE: complete_type cenv_cs t = true),
   0 <= ofs /\ ofs + sizeof t <= Int.modulus ->
-  sizeof t < Int.modulus -> (* check why need this *)
+  sizeof t < Int.modulus -> (* TODO: check why need this *)
   (alignof t | ofs) ->
   data_at_rec sh t (default_val t) (Vptr b (Int.repr ofs)) =
     memory_block sh (sizeof t) (Vptr b (Int.repr ofs)).

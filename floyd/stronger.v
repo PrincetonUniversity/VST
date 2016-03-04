@@ -135,7 +135,7 @@ Admitted.
 (*
   destruct (zlt n 0).
   {
-    rewrite !data_at_data_at_rec.
+    rewrite !data_at_data_at_rec. (* do not use it. *)
     apply andp_derives. apply prop_derives; intros [? ?].
     split; auto.
     admit.

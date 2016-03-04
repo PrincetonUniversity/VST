@@ -282,7 +282,7 @@ Qed.
 
 Lemma field_at_isptr: forall sh t gfs v p,
   field_at sh t gfs v p = (!! isptr p) && field_at sh t gfs v p.
-Proof. intros. apply local_facts_isptr. eapply derives_trans; [ apply field_at_local_facts | normalize]. Qed.
+Proof. intros. eapply local_facts_isptr; [apply field_at_local_facts | intros [? ?]; auto]. Qed.
 
 Lemma field_at_offset_zero: forall sh t gfs v p,
   field_at sh t gfs v p = field_at sh t gfs v (offset_val 0 p).
@@ -293,8 +293,7 @@ Qed.
 Lemma field_at__isptr: forall sh t gfs p,
   field_at_ sh t gfs p = (!! isptr p) && field_at_ sh t gfs p.
 Proof. intros.
- intros. apply local_facts_isptr.
- eapply derives_trans; [ apply field_at__local_facts | normalize].
+ intros. eapply local_facts_isptr; [apply field_at__local_facts | intros [? ?]; auto].
 Qed.
 
 Lemma field_at__offset_zero: forall sh t gfs p,
@@ -304,10 +303,7 @@ Proof. intros. apply local_facts_offset_zero.
 Qed.
 
 Lemma data_at_isptr: forall sh t v p, data_at sh t v p = !!(isptr p) && data_at sh t v p.
-Proof. intros. apply local_facts_isptr.
- eapply derives_trans.
- apply data_at_local_facts.
- normalize.
+Proof. intros. eapply local_facts_isptr; [apply data_at_local_facts | intros [? ?]; auto].
 Qed.
 
 Lemma data_at_offset_zero: forall sh t v p, data_at sh t v p = data_at sh t v (offset_val 0 p).
@@ -316,10 +312,7 @@ Proof. intros. rewrite <- local_facts_offset_zero. reflexivity.
 Qed.
 
 Lemma data_at__isptr: forall sh t p, data_at_ sh t p = !!(isptr p) && data_at_ sh t p.
-Proof. intros.  apply local_facts_isptr.
- eapply derives_trans.
- apply data_at__local_facts.
- normalize.
+Proof. intros. eapply local_facts_isptr; [apply data_at__local_facts | intros [? ?]; auto].
 Qed.
 
 Lemma data_at__offset_zero: forall sh t p, data_at_ sh t p = data_at_ sh t (offset_val 0 p).
@@ -496,14 +489,6 @@ Ltac destruct_ptr p :=
        clear H;
        inv_int ofs
   end.
-
-(* TODO: In fact, we should not need this lemma. Remove this lemma some how from hmac proof. *)
-Lemma data_at_data_at_rec: forall sh t v p,
-  data_at sh t v p = !! (field_compatible t nil p /\  value_fits (nested_field_type t nil) v) && data_at_rec sh t v p.
-Proof.
-  intros.
-  unfold data_at, field_at.
-Admitted.
 
 Lemma field_at_Tstruct: forall sh t gfs id a v1 v2 p,
   nested_field_type t gfs = Tstruct id a ->

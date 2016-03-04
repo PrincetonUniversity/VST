@@ -11,15 +11,12 @@ Basic lemmas about local_facts, isptr, offset_zero
 
 ******************************************)
 
-Lemma local_facts_isptr: forall P (p: val), P p |-- !! isptr p -> P p = !! (isptr p) && P p.
+Lemma local_facts_isptr: forall P Q (p: val), P p |-- !! Q -> (Q -> isptr p) -> P p = !! (isptr p) && P p.
 Proof.
   intros.
-  apply pred_ext.
-  + apply andp_right.
-    exact H.
-    cancel.
-  + apply andp_left2.
-    cancel.
+  rewrite andp_comm; apply add_andp.
+  eapply derives_trans; [eassumption |].
+  apply prop_derives; auto.
 Qed.
 
 Lemma local_facts_offset_zero: forall P, (forall p, P p |-- !! isptr p) -> (forall p, P p = P (offset_val 0 p)).
@@ -45,21 +42,26 @@ Lemmas about mapsto and mapsto_.
 ******************************************)
 
 Lemma mapsto_local_facts:
-  forall sh t v1 v2,  mapsto sh t v1 v2 |-- !! isptr v1.
-  (* could make this slightly stronger by adding the fact
-     (tc_val t v2 \/ v2=Vundef)  *)
+  forall sh t v1 v2,  mapsto sh t v1 v2 |-- !! (isptr v1 /\ tc_val' t v2).
 Proof.
-intros.
-unfold mapsto.
-destruct (access_mode t); try apply FF_left.
-destruct (type_is_volatile t); try apply FF_left.
-destruct v1; try apply FF_left.
-apply prop_right; split; auto; apply Coq.Init.Logic.I.
+  intros.
+  rewrite prop_and.
+  apply andp_right.
+  + unfold mapsto.
+    destruct (access_mode t); try apply FF_left.
+    destruct (type_is_volatile t); try apply FF_left.
+    destruct v1; try apply FF_left.
+    apply prop_right; split; auto; apply Coq.Init.Logic.I.
+  + apply mapsto_tc_val'.
 Qed.
 
 Lemma mapsto__local_facts:
   forall sh t v1, mapsto_ sh t v1 |-- !! isptr v1.
-Proof. intros. apply mapsto_local_facts. Qed.
+Proof.
+  intros.
+  eapply derives_trans; [apply mapsto_local_facts |].
+  apply prop_derives; tauto.
+Qed.
 Hint Resolve mapsto_local_facts mapsto__local_facts : saturate_local.
 
 Lemma mapsto_offset_zero:
@@ -86,16 +88,17 @@ Lemma mapsto_isptr: forall sh t v1 v2, mapsto sh t v1 v2 = !! (isptr v1) && maps
 Proof.
   intros.
   change (mapsto sh t v1 v2) with ((fun v1 => mapsto sh t v1 v2) v1).
-  rewrite <- local_facts_isptr.
-  reflexivity.
-  eapply derives_trans; [apply mapsto_local_facts | normalize].
+  eapply local_facts_isptr.
+  + apply mapsto_local_facts.
+  + tauto.
 Qed.
 
 Lemma mapsto__isptr: forall sh t v1, mapsto_ sh t v1 = !! (isptr v1) && mapsto_ sh t v1.
 Proof.
   intros.
-  apply pred_ext; normalize. apply andp_right; auto.
-  eapply derives_trans; [apply mapsto__local_facts | normalize].
+  eapply local_facts_isptr.
+  + apply mapsto_local_facts.
+  + tauto.
 Qed.
 
 (******************************************
@@ -134,9 +137,9 @@ Qed.
 Lemma memory_block_isptr: forall sh n p, memory_block sh n p = !!(isptr p) && memory_block sh n p.
 Proof.
   intros.
-  rewrite <- local_facts_isptr.
-  reflexivity.
-  apply memory_block_local_facts.
+  eapply local_facts_isptr.
+  + apply memory_block_local_facts.
+  + auto.
 Qed.
 
 Lemma memory_block_zero: forall sh p, memory_block sh 0 p = !! isptr p && emp.

@@ -171,6 +171,7 @@ Definition local_legal_alignas_type (t: type): bool :=
                               | None => Z.leb 0 n
                               | _ => false 
                               end
+  | Tlong _ _ => Z.leb 8 (alignof t)
   | _ => true
   end.
 
@@ -499,7 +500,6 @@ Ltac pose_sizeof_pos :=
          change (@sizeof env t) with (sizeofp env t)
   end;
   unfold sizeofp in *.
-
 
 Ltac pose_sizeof_co t :=
   match t with
