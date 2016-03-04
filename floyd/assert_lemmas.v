@@ -656,25 +656,6 @@ rewrite Int.add_assoc. f_equal. apply add_repr.
 Qed.
 Hint Rewrite int_add_assoc1 : norm.
 
-Lemma power_nat_divide: forall n m, two_power_nat n <= two_power_nat m -> Z.divide (two_power_nat n) (two_power_nat m).
-Proof.
-  intros.
-  repeat rewrite two_power_nat_two_p in *.
-  unfold Zdivide.
-  exists (two_p (Z.of_nat m - Z.of_nat n)).
-  assert ((Z.of_nat m) = (Z.of_nat m - Z.of_nat n) + Z.of_nat n) by omega.
-  rewrite H0 at 1.
-  assert (Z.of_nat m >= 0) by omega.
-  assert (Z.of_nat n >= 0) by omega.
-  assert (Z.of_nat n <= Z.of_nat m).
-    destruct (Z_le_gt_dec (Z.of_nat n) (Z.of_nat m)).
-    exact l.
-    assert (Z.of_nat m < Z.of_nat n) by omega.
-    assert (two_p (Z.of_nat m) < two_p (Z.of_nat n)) by (apply two_p_monotone_strict; omega).
-    omega.  
-  apply (two_p_is_exp (Z.of_nat m - Z.of_nat n) (Z.of_nat n)); omega.
-Qed.
-
 Lemma divide_add_align: forall a b c, Z.divide b a -> a + (align c b) = align (a + c) b.
 Proof.
   intros.

@@ -164,47 +164,12 @@ typedef more_aligned_int more_aligned_int_array[5];
 
 *)
 
-Definition local_legal_alignas_type (t: type): bool :=
-  Z.leb (plain_alignof cenv_cs t) (alignof t) &&
-  match t with
-  | Tarray t' n a => match attr_alignas (attr_of_type t') with 
-                              | None => Z.leb 0 n
-                              | _ => false 
-                              end
-  | Tlong _ _ => Z.leb 8 (alignof t)
-  | _ => true
-  end.
-
-Definition legal_alignas_type := nested_pred local_legal_alignas_type.
+Definition legal_alignas_type := nested_pred (local_legal_alignas_type cenv_cs).
 
 Hint Extern 0 (legal_alignas_type _ = true) => reflexivity : cancel.
 
-Lemma power_nat_divide': forall n m: Z,
-  (exists N, n = two_power_nat N) ->
-  (exists M, m = two_power_nat M) ->
-  n >= m ->
-  (m | n).
-Proof.
-  intros.
-  destruct H, H0.
-  subst.
-  apply power_nat_divide.
-  omega.
-Qed.
-
-Lemma local_legal_alignas_type_spec: forall t,
-  local_legal_alignas_type t = true ->
-  (plain_alignof cenv_cs t | alignof t).
-Proof.
-  intros.
-  apply andb_true_iff in H.
-  destruct H as [? _].
-  apply Zle_is_le_bool in H.
-  apply power_nat_divide'; [apply alignof_two_p | apply plain_alignof_two_p | omega].
-Qed.
-  
 Lemma local_legal_alignas_type_Tarray: forall t z a,
-  local_legal_alignas_type (Tarray t z a) = true ->
+  local_legal_alignas_type cenv_cs (Tarray t z a) = true ->
   alignof t = plain_alignof cenv_cs t.
 Proof.
   intros.
@@ -218,7 +183,7 @@ Proof.
 Qed.
 
 Lemma local_legal_alignas_type_Tstruct: forall id a,
-  local_legal_alignas_type (Tstruct id a) = true ->
+  local_legal_alignas_type cenv_cs (Tstruct id a) = true ->
   (alignof_composite cenv_cs (co_members (get_co id)) | alignof (Tstruct id a)).
 Proof.
   intros.
@@ -232,7 +197,7 @@ Proof.
 Qed.
 
 Lemma local_legal_alignas_type_Tunion: forall id a,
-  local_legal_alignas_type (Tunion id a) = true ->
+  local_legal_alignas_type cenv_cs (Tunion id a) = true ->
   (alignof_composite cenv_cs (co_members (get_co id)) | alignof (Tunion id a)).
 Proof.
   intros.
@@ -292,7 +257,7 @@ Proof.
   intros.
   revert H.
   type_induction t; intros;
-  pose proof @nested_pred_atom_pred local_legal_alignas_type _ H as H0.
+  pose proof @nested_pred_atom_pred (local_legal_alignas_type cenv_cs) _ H as H0.
   - apply Z.divide_refl.
   - destruct i; apply Z.divide_refl.
   - unfold Z.divide. exists 2. reflexivity.
@@ -301,7 +266,8 @@ Proof.
   - apply Z.divide_refl.
   - simpl.
     fold (alignof t); erewrite legal_alignas_type_Tarray by eauto.
-    apply (nested_pred_Tarray local_legal_alignas_type) in H.
+    unfold legal_alignas_type in H.
+    apply (nested_pred_Tarray (local_legal_alignas_type cenv_cs)) in H.
     apply IH in H.
     apply Z.divide_mul_l.
     exact H.
