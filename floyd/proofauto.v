@@ -16,7 +16,7 @@ Require Export floyd.mapsto_memory_block.
 Require Export floyd.aggregate_type.
 Require floyd.aggregate_pred. Export floyd.aggregate_pred.aggregate_pred.
 Require Export floyd.reptype_lemmas.
-Require Export floyd.data_at_lemmas.
+Require Export floyd.data_at_rec_lemmas.
 Require Export floyd.field_at.
 Require Export floyd.field_compat.
 Require Export floyd.stronger.

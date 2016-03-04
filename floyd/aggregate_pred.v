@@ -1381,7 +1381,7 @@ Context {cs: compspecs}.
 
 Variable sh: share.
 
-Definition struct_data_at'_aux (m m0: members) (sz: Z) (P: ListType (map (fun it => reptype (field_type (fst it) m0) -> (val -> mpred)) m)) (v: compact_prod (map (fun it => reptype (field_type (fst it) m0)) m)) : (val -> mpred).
+Definition struct_data_at_rec_aux (m m0: members) (sz: Z) (P: ListType (map (fun it => reptype (field_type (fst it) m0) -> (val -> mpred)) m)) (v: compact_prod (map (fun it => reptype (field_type (fst it) m0)) m)) : (val -> mpred).
 Proof.
   destruct m as [| (i0, t0) m]; [exact (fun _ => emp) |].
   revert i0 t0 v P; induction m as [| (i0, t0) m]; intros ? ? v P.
@@ -1400,7 +1400,7 @@ Proof.
             (at_offset (a (fst v)) (field_offset cenv_cs i1 m0)) * IHm i0 t0 (snd v) b)%logic.
 Defined.
 
-Definition union_data_at'_aux (m m0: members) (sz: Z) (P: ListType (map (fun it => reptype (field_type (fst it) m0) -> (val -> mpred)) m)) (v: compact_sum (map (fun it => reptype (field_type (fst it) m0)) m)) : (val -> mpred).
+Definition union_data_at_rec_aux (m m0: members) (sz: Z) (P: ListType (map (fun it => reptype (field_type (fst it) m0) -> (val -> mpred)) m)) (v: compact_sum (map (fun it => reptype (field_type (fst it) m0)) m)) : (val -> mpred).
 Proof.
   destruct m as [| (i0, t0) m]; [exact (fun _ => emp) |].
   revert i0 t0 v P; induction m as [| (i0, t0) m]; intros ? ? v P.
@@ -1414,8 +1414,8 @@ Proof.
     - exact (IHm i0 t0 v b).
 Defined.
 
-Lemma struct_data_at'_aux_spec: forall m m0 sz v P,
-  struct_data_at'_aux m m0 sz
+Lemma struct_data_at_rec_aux_spec: forall m m0 sz v P,
+  struct_data_at_rec_aux m m0 sz
    (ListTypeGen
      (fun it => reptype (field_type (fst it) m0) -> val -> mpred)
      P m) v =
@@ -1431,14 +1431,14 @@ Proof.
   revert i0 t0 v; induction m as [| (i0, t0) m]; intros.
   + simpl; reflexivity.
   + replace
-     (struct_data_at'_aux ((i1, t1) :: (i0, t0) :: m) m0 sz
+     (struct_data_at_rec_aux ((i1, t1) :: (i0, t0) :: m) m0 sz
      (ListTypeGen (fun it : ident * type => reptype (field_type (fst it) m0) -> val -> mpred)
         P ((i1, t1) :: (i0, t0) :: m)) v) with
      (withspacer sh
        (field_offset cenv_cs i1 m0 + sizeof (field_type i1 m0))
          (field_offset_next cenv_cs i1 m0 sz)
            (at_offset (P (i1, t1) (fst v)) (field_offset cenv_cs i1 m0)) *
-      struct_data_at'_aux ((i0, t0) :: m) m0 sz
+      struct_data_at_rec_aux ((i0, t0) :: m) m0 sz
      (ListTypeGen (fun it : ident * type => reptype (field_type (fst it) m0) -> val -> mpred)
         P ((i0, t0) :: m)) (snd v))%logic.
     - rewrite IHm.
@@ -1448,8 +1448,8 @@ Proof.
       reflexivity.
 Qed.
 
-Lemma union_data_at'_aux_spec: forall m m0 sz v P,
-  union_data_at'_aux m m0 sz
+Lemma union_data_at_rec_aux_spec: forall m m0 sz v P,
+  union_data_at_rec_aux m m0 sz
    (ListTypeGen
      (fun it => reptype (field_type (fst it) m0) -> val -> mpred)
      P m) v =
@@ -1547,16 +1547,16 @@ Module auxiliary_pred.
 
 Import aggregate_pred.
 
-Definition struct_data_at'_aux:
+Definition struct_data_at_rec_aux:
    forall {cs: compspecs} (sh: share) (m m0: members) (sz: Z) (P: ListType (map (fun it => reptype (field_type (fst it) m0) -> (val -> mpred)) m)) (v: compact_prod (map (fun it => reptype (field_type (fst it) m0)) m)), (val -> mpred)
-:= @struct_data_at'_aux.
+:= @struct_data_at_rec_aux.
 
-Definition union_data_at'_aux:
+Definition union_data_at_rec_aux:
   forall {cs: compspecs} (sh: share) (m m0: members) (sz: Z) (P: ListType (map (fun it => reptype (field_type (fst it) m0) -> (val -> mpred)) m)) (v: compact_sum (map (fun it => reptype (field_type (fst it) m0)) m)), (val -> mpred)
-:= @union_data_at'_aux.
+:= @union_data_at_rec_aux.
 
-Definition struct_data_at'_aux_spec: forall {cs: compspecs} (sh: share) m m0 sz v P,
-  struct_data_at'_aux sh m m0 sz
+Definition struct_data_at_rec_aux_spec: forall {cs: compspecs} (sh: share) m m0 sz v P,
+  struct_data_at_rec_aux sh m m0 sz
    (ListTypeGen
      (fun it => reptype (field_type (fst it) m0) -> val -> mpred)
      P m) v =
@@ -1566,10 +1566,10 @@ Definition struct_data_at'_aux_spec: forall {cs: compspecs} (sh: share) m m0 sz 
        (field_offset cenv_cs (fst it) m0 + sizeof (field_type (fst it) m0))
        (field_offset_next cenv_cs (fst it) m0 sz)
        (at_offset (P it v) (field_offset cenv_cs (fst it) m0))) v
-:= @struct_data_at'_aux_spec.
+:= @struct_data_at_rec_aux_spec.
 
-Definition union_data_at'_aux_spec: forall {cs: compspecs} sh m m0 sz v P,
-  union_data_at'_aux sh m m0 sz
+Definition union_data_at_rec_aux_spec: forall {cs: compspecs} sh m m0 sz v P,
+  union_data_at_rec_aux sh m m0 sz
    (ListTypeGen
      (fun it => reptype (field_type (fst it) m0) -> val -> mpred)
      P m) v =
@@ -1579,7 +1579,7 @@ Definition union_data_at'_aux_spec: forall {cs: compspecs} sh m m0 sz v P,
        (sizeof (field_type (fst it) m0))
        sz
        (P it v)) v
-:= @union_data_at'_aux_spec.
+:= @union_data_at_rec_aux_spec.
 
 Definition struct_value_fits_aux:
   forall {cs: compspecs} (m m0: members)

@@ -4,7 +4,7 @@ Require Import floyd.assert_lemmas.
 Require Import floyd.closed_lemmas.
 Require Import floyd.forward_lemmas floyd.call_lemmas.
 Require Import floyd.nested_field_lemmas.
-Require Import floyd.data_at_lemmas.
+Require Import floyd.data_at_rec_lemmas.
 Require Import floyd.field_at.
 Require Import floyd.entailer.
 Require Import floyd.globals_lemmas.

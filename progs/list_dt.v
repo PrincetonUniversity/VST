@@ -14,7 +14,7 @@ Require Import floyd.efield_lemmas.
 Require Import floyd.mapsto_memory_block.
 Require Import floyd.reptype_lemmas.
 Require floyd.aggregate_pred. Import floyd.aggregate_pred.aggregate_pred.
-Require Import floyd.data_at_lemmas.
+Require Import floyd.data_at_rec_lemmas.
 Require Import floyd.field_at.
 Require Import floyd.nested_loadstore.
 (*Require Import floyd.unfold_data_at.*)
@@ -245,7 +245,7 @@ Definition list_cell (ls: listspec list_structid list_link) (sh: Share.t)
               (fun it v => withspacer sh
                 (field_offset cenv_cs (fst it) list_fields + sizeof (field_type (fst it) list_fields))
                 (field_offset_next cenv_cs (fst it) list_fields (co_sizeof (get_co list_structid)))
-                (at_offset (data_at' sh (field_type (fst it) list_fields) v) (field_offset cenv_cs (fst it) list_fields)))
+                (at_offset (data_at_rec sh (field_type (fst it) list_fields) v) (field_offset cenv_cs (fst it) list_fields)))
      v p.
 
 Lemma struct_pred_type_changable:
@@ -293,7 +293,7 @@ admit.
 intro HV.
 clear HV.
 change  (nested_field_type list_struct nil) with list_struct.
-rewrite (data_at'_ind sh list_struct 
+rewrite (data_at_rec_ind sh list_struct 
           (@fold_reptype cs (Tstruct list_structid noattr)
             (@eq_rect members
                (@list_fields cs list_structid list_link LS)
@@ -312,7 +312,7 @@ pose (P m := fun (it : ident * type) (v0 : reptype (field_type (fst it) m)) =>
      (field_offset cenv_cs (fst it) m +
       sizeof (field_type (fst it) m))
      (field_offset_next cenv_cs (fst it) m sz)
-     (at_offset (data_at' sh (field_type (fst it) m) v0)
+     (at_offset (data_at_rec sh (field_type (fst it) m) v0)
         (field_offset cenv_cs (fst it) m))).
 fold (P list_fields).
 fold (P (co_members (get_co list_structid))).
@@ -326,7 +326,7 @@ transitivity
               list_members_eq))) (nested_field_offset list_struct nil) p);
  [ | f_equal; f_equal; rewrite unfold_fold_reptype; reflexivity ].
 unfold at_offset.
-rewrite (data_at'_type_changable sh 
+rewrite (data_at_rec_type_changable sh 
                       (nested_field_type list_struct (StructField list_link :: nil))
                       (tptr list_struct)
                       (default_val _) Vundef
@@ -361,7 +361,7 @@ spacer sh
    sizeof (field_type list_link list_fields))
   (field_offset_next cenv_cs list_link list_fields sz)
   p*
-data_at' sh (tptr list_struct) Vundef
+data_at_rec sh (tptr list_struct) Vundef
   (offset_val ofs p) =
 struct_pred m'
   (P m')
@@ -391,7 +391,7 @@ spacer sh
    sizeof (field_type list_link list_fields))
   (field_offset_next cenv_cs list_link list_fields sz)
   p*
-data_at' sh (tptr list_struct) Vundef (offset_val ofs p) =
+data_at_rec sh (tptr list_struct) Vundef (offset_val ofs p) =
 struct_pred m (P list_fields)
   (add_link_back list_fields m v)
   (offset_val (Int.repr 0) p)).
@@ -444,7 +444,7 @@ auto.
 rewrite offset_offset_val, Int.add_zero_l.
 rewrite Hofs.
 apply equal_f.
-apply data_at'_type_changable; auto.
+apply data_at_rec_type_changable; auto.
 rewrite FT. reflexivity.
 assert (all_but_link ((list_link,t)::p0::m) = p0::m).
 simpl. rewrite if_true by auto; reflexivity.
@@ -467,7 +467,7 @@ f_equal.
 rewrite sepcon_comm.
 f_equal.
 apply equal_f.
-apply data_at'_type_changable; auto.
+apply data_at_rec_type_changable; auto.
 apply JMeq_trans with (B:= reptype (field_type list_link list_fields)) (y:= default_val (field_type list_link list_fields)).
 rewrite FT. reflexivity.
 match goal with |- JMeq ?A ?B => replace A with B end.
@@ -1825,13 +1825,13 @@ unfold list_cell; intros.
  clear IHm; simpl. rewrite !withspacer_spacer.
  f_equal. 
  unfold at_offset.
- apply nonreadable_data_at'_eq; auto.
+ apply nonreadable_data_at_rec_eq; auto.
  +
  rewrite !struct_pred_cons2. 
  rewrite !withspacer_spacer.
  f_equal. f_equal.
  unfold at_offset.
- apply nonreadable_data_at'_eq; auto.
+ apply nonreadable_data_at_rec_eq; auto.
  apply IHm.
 Qed.
 
@@ -1865,7 +1865,7 @@ Proof.
  unfold at_offset.
  apply memory_block_share_join; auto.
  unfold at_offset.
- apply data_at'_share_join; auto.
+ apply data_at_rec_share_join; auto.
  +
  rewrite !struct_pred_cons2. 
  rewrite !withspacer_spacer.
@@ -1879,7 +1879,7 @@ Proof.
  unfold at_offset.
  apply memory_block_share_join; auto.
  unfold at_offset.
- apply data_at'_share_join; auto.
+ apply data_at_rec_share_join; auto.
  apply IHm.
 Qed.
 

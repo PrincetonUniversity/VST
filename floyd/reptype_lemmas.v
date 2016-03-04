@@ -142,7 +142,7 @@ Section CENV.
 Context {cs: compspecs}.
 
 Definition reptype_gen: type -> (sigT (fun x => x)) :=
-  func_type (fun _ => (sigT (fun x => x)))
+  type_func (fun _ => (sigT (fun x => x)))
   (fun t =>
      if (type_is_by_value t)
      then existT (fun x => x) val Vundef
@@ -160,7 +160,7 @@ Definition default_val t: reptype t :=
     return match tv with existT t _ => t end
   with existT t v => v end.
 
-Lemma reptype_gen_ind: forall t,
+Lemma reptype_gen_eq: forall t,
   reptype_gen t =
   match t with
   | Tarray t0 n _ => match reptype_gen t0 
@@ -178,7 +178,7 @@ Lemma reptype_gen_ind: forall t,
 Proof.
   intros.
   unfold reptype_gen at 1.
-  rewrite func_type_ind.
+  rewrite type_func_eq.
   destruct t; auto.   
   +  unfold FTI_aux; rewrite decay_spec.
     rewrite map_map.
@@ -204,12 +204,12 @@ Notation REPTYPE t :=
   | Tunion id _ => reptype_unionlist (co_members (get_co id))
   end.
 
-Lemma reptype_ind: forall t,
+Lemma reptype_eq: forall t,
   reptype t = REPTYPE t.
 Proof.
   intros.
   unfold reptype.
-  rewrite reptype_gen_ind.
+  rewrite reptype_gen_eq.
   destruct t as [| | | | | | | id ? | id ?]; auto.
   + unfold reptype, default_val.
     destruct (reptype_gen t).
@@ -231,10 +231,10 @@ Proof.
 Defined.
 
 Definition unfold_reptype {t} (v: reptype t): REPTYPE t :=
-  @eq_rect Type (reptype t) (fun x: Type => x) v (REPTYPE t) (reptype_ind t).
+  @eq_rect Type (reptype t) (fun x: Type => x) v (REPTYPE t) (reptype_eq t).
 
 Definition fold_reptype {t} (v: REPTYPE t): reptype t :=
-  @eq_rect_r Type (REPTYPE t) (fun x: Type => x) v (reptype t) (reptype_ind t).
+  @eq_rect_r Type (REPTYPE t) (fun x: Type => x) v (reptype t) (reptype_eq t).
 
 Lemma fold_unfold_reptype: forall t (v: reptype t),
   fold_reptype (unfold_reptype v) = v.
@@ -383,7 +383,7 @@ Proof.
     rewrite map_map; reflexivity.
 Qed.
 
-Lemma default_val_ind: forall t,
+Lemma default_val_eq: forall t,
   default_val t =
   fold_reptype
   match t as t' return REPTYPE t'
@@ -408,7 +408,7 @@ Proof.
   end.
   unfold default_val.
   unfold reptype at 1.
-  rewrite reptype_gen_ind.
+  rewrite reptype_gen_eq.
   destruct t; auto.
   + unfold reptype, default_val.
     destruct (reptype_gen t).
@@ -455,7 +455,7 @@ Definition pointer_val_val (pv: pointer_val): val :=
   end.
 
 Definition reptype': type -> Type :=
-  func_type (fun _ => Type)
+  type_func (fun _ => Type)
   (fun t =>
      if (type_is_by_value t)
      then match t with
@@ -483,13 +483,13 @@ Notation REPTYPE' t :=
   | Tunion id _ => compact_sum (map (fun it => reptype' (field_type (fst it) (co_members (get_co id)))) (co_members (get_co id)))
   end.
 
-Lemma reptype'_ind: forall t, 
+Lemma reptype'_eq: forall t, 
   reptype' t = REPTYPE' t.
 Proof.
   intros.
  unfold reptype'.
  etransitivity.
- apply (func_type_ind (fun _ => Type) _ _ _ _ t) .
+ apply (type_func_eq (fun _ => Type) _ _ _ _ t) .
   destruct t; auto.
   + f_equal.
     unfold FTI_aux; rewrite decay_spec.
@@ -500,10 +500,10 @@ Proof.
 Defined.
 
 Definition unfold_reptype' {t} (v: reptype' t): REPTYPE' t :=
-  @eq_rect Type (reptype' t) (fun x: Type => x) v (REPTYPE' t) (reptype'_ind t).
+  @eq_rect Type (reptype' t) (fun x: Type => x) v (REPTYPE' t) (reptype'_eq t).
 
 Definition fold_reptype' {t} (v: REPTYPE' t): reptype' t :=
-  @eq_rect_r Type (REPTYPE' t) (fun x: Type => x) v (reptype' t) (reptype'_ind t).
+  @eq_rect_r Type (REPTYPE' t) (fun x: Type => x) v (reptype' t) (reptype'_eq t).
 
 Lemma fold_unfold_reptype': forall t (v: reptype' t),
   fold_reptype' (unfold_reptype' v) = v.
@@ -560,13 +560,13 @@ Definition repinj_aux_u (id: ident) (a: attr) (F: ListType (map (fun it => repty
   fun v => @fold_reptype (Tunion id a) (compact_sum_map _ F (unfold_reptype' v)).
 
 Definition repinj: forall t: type, reptype' t -> reptype t :=
-  func_type (fun t => reptype' t -> reptype t)
+  type_func (fun t => reptype' t -> reptype t)
   repinj_bv
   (fun t n a f v => @fold_reptype (Tarray t n a) (map f (unfold_reptype' v)))
   repinj_aux_s
   repinj_aux_u.
 
-Lemma repinj_ind: forall t v,
+Lemma repinj_eq: forall t v,
   repinj t v =
   fold_reptype
   (match t as t' return REPTYPE' t' -> REPTYPE t' with
@@ -583,7 +583,7 @@ Lemma repinj_ind: forall t v,
 Proof.
   intros.
   unfold repinj.
-  rewrite func_type_ind.
+  rewrite type_func_eq.
   destruct t; auto.
 Defined.
 
@@ -937,7 +937,7 @@ Proof.
 intros.
 unfold unfold_reptype.
 match type of v' with ?t => set (t' := t) in * end.
-pose proof (eq_rect_JMeq _ (reptype t) t' (fun x : Type => x) v (reptype_ind t)).
+pose proof (eq_rect_JMeq _ (reptype t) t' (fun x : Type => x) v (reptype_eq t)).
 apply JMeq_eq.
 apply @JMeq_trans with (reptype t) v; auto.
 Qed.

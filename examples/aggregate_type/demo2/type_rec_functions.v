@@ -8,7 +8,7 @@ Section TypeRecFunctions.
 Context {cs: compspecs}.
 
 Definition reptype_gen: type -> (sigT (fun x => x)) :=
-  func_type (fun _ => (sigT (fun x => x)))
+  type_func (fun _ => (sigT (fun x => x)))
   (fun t =>
      match t with
      | Tint => existT (fun x => x) val Vundef
@@ -34,7 +34,7 @@ Lemma reptype_gen_eq: forall t,
 Proof.
   intros.
   unfold reptype_gen at 1.
-  rewrite func_type_ind.
+  rewrite type_func_ind.
   destruct t; auto.   
   + unfold FTI_aux; rewrite decay_spec.
     rewrite map_map.
@@ -143,7 +143,7 @@ Proof.
 Qed.
 
 Definition data_at_rec: forall t, reptype t -> val -> Pred :=
-  func_type (fun t => reptype t -> val -> Pred)
+  type_func (fun t => reptype t -> val -> Pred)
     (fun t v p => mapsto p (repinject t v))
     (fun id P v => struct_data_at_rec_aux (co_members (get_co id)) (co_members (get_co id)) P (unfold_reptype v)).
 
@@ -157,7 +157,7 @@ Lemma data_at_rec_eq: forall t v,
 Proof.
   intros.
   unfold data_at_rec at 1.
-  rewrite func_type_ind.
+  rewrite type_func_ind.
   destruct t.
   + auto.
   + rewrite <- struct_data_at_rec_aux_spec; reflexivity.

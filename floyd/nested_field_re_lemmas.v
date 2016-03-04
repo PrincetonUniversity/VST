@@ -8,7 +8,7 @@ Require Import floyd.aggregate_type.
 
 (*
 Require Import floyd.mapsto_memory_block.
-Require Import floyd.data_at_lemmas.
+Require Import floyd.data_at_rec_lemmas.
 Require Import floyd.entailer.
 Require Import floyd.closed_lemmas.
 *)

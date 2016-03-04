@@ -75,7 +75,7 @@ forward_call (fst (hmacFinal (hmacUpdate data (hmacInit key))), c).
 freeze [0;1] FR6.
 Time forward. (*4.2*)
 (*assert_PROP (field_compatible (tarray tuchar (sizeof t_struct_hmac_ctx_st)) [] c).
-{ thaw FR6. unfold data_block at 1. unfold Zlength. simpl. rewrite data_at_data_at'. Time normalize. (*13.4 SLOW*) }*)
+{ thaw FR6. unfold data_block at 1. unfold Zlength. simpl. rewrite data_at_data_at_rec. Time normalize. (*13.4 SLOW*) }*)
 Exists c. entailer!.
 thaw FR6. thaw FR5. Time cancel. (*2.2*)
 thaw FR4. Time cancel. (*2.1*)
@@ -86,7 +86,7 @@ unfold data_block.
 rewrite <- memory_block_data_at_; trivial.
 normalize.
 assert_PROP (field_compatible (tarray tuchar (sizeof t_struct_hmac_ctx_st)) [] c).
-{ rewrite data_at_data_at'. Time normalize. (*8*) }
+{ rewrite data_at_data_at_rec. Time normalize. (*8*) }
 rewrite (memory_block_data_at_ Tsh (tarray tuchar (@sizeof (@cenv_cs CompSpecs) t_struct_hmac_ctx_st))).
   2: trivial.
   eapply derives_trans. apply data_at_data_at_. apply derives_refl.

@@ -31,9 +31,9 @@ Definition offset_strict_in_range ofs p :=
 
 (************************************************
 
-Definition of data_at'
+Definition of data_at_rec
 
-Always assume in arguments of data_at' has argument pos with alignment criterion.
+Always assume in arguments of data_at_rec has argument pos with alignment criterion.
 
 ************************************************)
 
@@ -72,18 +72,18 @@ Section WITH_SHARE.
 
 Variable sh: share.
 
-Definition data_at': forall t, reptype t -> val -> mpred :=
-  func_type (fun t => reptype t -> val -> mpred)
+Definition data_at_rec: forall t, reptype t -> val -> mpred :=
+  type_func (fun t => reptype t -> val -> mpred)
     (fun t v p =>
        if type_is_volatile t
        then memory_block sh (sizeof t) p
        else mapsto sh t p (repinject t v))
     (fun t n a P v => array_pred (default_val t) 0 n (fun i v => at_offset (P v) (sizeof t * i)) (unfold_reptype v))
-    (fun id a P v => struct_data_at'_aux sh (co_members (get_co id)) (co_members (get_co id)) (co_sizeof (get_co id)) P (unfold_reptype v))
-    (fun id a P v => union_data_at'_aux sh (co_members (get_co id)) (co_members (get_co id)) (co_sizeof (get_co id)) P (unfold_reptype v)).
+    (fun id a P v => struct_data_at_rec_aux sh (co_members (get_co id)) (co_members (get_co id)) (co_sizeof (get_co id)) P (unfold_reptype v))
+    (fun id a P v => union_data_at_rec_aux sh (co_members (get_co id)) (co_members (get_co id)) (co_sizeof (get_co id)) P (unfold_reptype v)).
 
-Lemma data_at'_ind: forall t v,
-  data_at' t v =
+Lemma data_at_rec_eq: forall t v,
+  data_at_rec t v =
   match t return REPTYPE t -> val -> mpred with
   | Tvoid
   | Tfunction _ _ _ => fun _ _ => FF
@@ -94,22 +94,22 @@ Lemma data_at'_ind: forall t v,
                       if type_is_volatile t
                       then memory_block sh (sizeof t) p
                       else mapsto sh t p v
-  | Tarray t0 n a => array_pred (default_val t0) 0 n (fun i v => at_offset (data_at' t0 v) (sizeof t0 * i))
+  | Tarray t0 n a => array_pred (default_val t0) 0 n (fun i v => at_offset (data_at_rec t0 v) (sizeof t0 * i))
   | Tstruct id a => struct_pred (co_members (get_co id))
                       (fun it v => withspacer sh
                         (field_offset cenv_cs (fst it) (co_members (get_co id)) + sizeof (field_type (fst it) (co_members (get_co id))))
                         (field_offset_next cenv_cs (fst it) (co_members (get_co id)) (co_sizeof (get_co id)))
-                        (at_offset (data_at' (field_type (fst it) (co_members (get_co id))) v) (field_offset cenv_cs (fst it) (co_members (get_co id)))))
+                        (at_offset (data_at_rec (field_type (fst it) (co_members (get_co id))) v) (field_offset cenv_cs (fst it) (co_members (get_co id)))))
   | Tunion id a => union_pred (co_members (get_co id))
                      (fun it v => withspacer sh
                       (sizeof (field_type (fst it) (co_members (get_co id))))
                       (co_sizeof (get_co id))
-                      (data_at' (field_type (fst it) (co_members (get_co id))) v))
+                      (data_at_rec (field_type (fst it) (co_members (get_co id))) v))
   end (unfold_reptype v).
 Proof.
   intros.
-  unfold data_at' at 1.
-  rewrite func_type_ind.
+  unfold data_at_rec at 1.
+  rewrite type_func_eq.
   destruct t; auto;
   try solve [destruct (readable_share_dec sh); reflexivity];
   try solve [
@@ -117,16 +117,16 @@ Proof.
   | |- appcontext [repinject ?tt] => 
     rewrite (repinject_unfold_reptype tt); auto
   end].
-  + rewrite <- struct_data_at'_aux_spec; reflexivity.
-  + rewrite <- union_data_at'_aux_spec; reflexivity.
+  + rewrite <- struct_data_at_rec_aux_spec; reflexivity.
+  + rewrite <- union_data_at_rec_aux_spec; reflexivity.
 Qed.
 
 End WITH_SHARE.
 
-Lemma data_at'_type_changable: forall (sh: Share.t) (t1 t2: type) v1 v2,
+Lemma data_at_rec_type_changable: forall (sh: Share.t) (t1 t2: type) v1 v2,
   t1 = t2 ->
   JMeq v1 v2 ->
-  data_at' sh t1 v1 = data_at' sh t2 v2.
+  data_at_rec sh t1 v1 = data_at_rec sh t2 v2.
 Proof.
   intros.
   subst t2.
@@ -143,7 +143,7 @@ Proof.
   intros.
   unfold data_at.
   simpl. extensionality.
-  erewrite data_at'_type_changable; [| exact H| exact H0].
+  erewrite data_at_rec_type_changable; [| exact H| exact H0].
   rewrite H.
   reflexivity.
 Qed.
@@ -167,49 +167,49 @@ Proof.
   destruct t; simpl in H; try inversion H; tauto.
 Qed.
 
-Lemma by_value_data_at': forall sh t v p,
+Lemma by_value_data_at_rec: forall sh t v p,
   type_is_by_value t = true ->
   type_is_volatile t = false ->
-  data_at' sh t v p = mapsto sh t p (repinject t v).
+  data_at_rec sh t v p = mapsto sh t p (repinject t v).
 Proof.
   intros.
-  rewrite data_at'_ind; destruct t; try solve [inversion H]; rewrite H0;
+  rewrite data_at_rec_eq; destruct t; try solve [inversion H]; rewrite H0;
   match goal with
   | |- appcontext [repinject ?tt] => 
     rewrite (repinject_unfold_reptype tt); auto
   end.
 Qed.
 
-Lemma by_value_data_at'_default_val: forall sh t p,
+Lemma by_value_data_at_rec_default_val: forall sh t p,
   type_is_by_value t = true ->
   legal_alignas_type t = true ->
   size_compatible t p ->
   align_compatible t p ->
-  data_at' sh t (default_val t) p = memory_block sh (sizeof t) p.
+  data_at_rec sh t (default_val t) p = memory_block sh (sizeof t) p.
 Proof.
   intros.
-  rewrite data_at'_ind; destruct t; try solve [inversion H];
+  rewrite data_at_rec_eq; destruct t; try solve [inversion H];
   match goal with
   | |- appcontext [type_is_volatile ?tt] => 
     destruct (type_is_volatile tt) eqn:HH; auto;
     rewrite <- (repinject_unfold_reptype tt); auto
   end;
   symmetry;
-  cbv [repinject default_val reptype_gen func_type func_type_rec rank_type type_is_by_value];
+  cbv [repinject default_val reptype_gen type_func type_func_rec rank_type type_is_by_value];
   rewrite memory_block_mapsto_ by auto; unfold mapsto_; 
     try rewrite if_true by auto; auto.
 Qed.
 
-Lemma by_value_data_at'_default_val2: forall sh t b ofs,
+Lemma by_value_data_at_rec_default_val2: forall sh t b ofs,
   type_is_by_value t = true ->
   legal_alignas_type t = true ->
   0 <= ofs /\ ofs + sizeof t <= Int.modulus ->
   (alignof t | ofs) ->
-  data_at' sh t (default_val t) (Vptr b (Int.repr ofs)) =
+  data_at_rec sh t (default_val t) (Vptr b (Int.repr ofs)) =
   memory_block sh (sizeof t) (Vptr b (Int.repr ofs)).
 Proof.
   intros.
-  apply by_value_data_at'_default_val; auto.
+  apply by_value_data_at_rec_default_val; auto.
   + unfold size_compatible.
     solve_mod_modulus.
     pose_mod_le ofs.
@@ -284,7 +284,7 @@ Qed.
 *)
 (************************************************
 
-Transformation between data_at and data_at'. This is used in transformation
+Transformation between data_at and data_at_rec. This is used in transformation
 between field_at and data_at.
 
 ************************************************)
@@ -443,22 +443,22 @@ Proof.
  apply IHi; auto. omega.
 Qed.
 
-Lemma memory_block_data_at'_default_val: forall sh t b ofs
+Lemma memory_block_data_at_rec_default_val: forall sh t b ofs
   (LEGAL_ALIGNAS: legal_alignas_type t = true)
   (LEGAL_COSU: legal_cosu_type t = true) (* isn't this subsumed by complete_type ?*)
   (COMPLETE: complete_type cenv_cs t = true),
   0 <= ofs /\ ofs + sizeof t <= Int.modulus ->
   sizeof t < Int.modulus -> (* check why need this *)
   (alignof t | ofs) ->
-  data_at' sh t (default_val t) (Vptr b (Int.repr ofs)) =
+  data_at_rec sh t (default_val t) (Vptr b (Int.repr ofs)) =
     memory_block sh (sizeof t) (Vptr b (Int.repr ofs)).
 Proof.
   intros sh t.
   type_induction t; intros;
   try solve [inversion COMPLETE];
-  try solve [apply by_value_data_at'_default_val2; auto];
-  rewrite data_at'_ind.
-  + rewrite (default_val_ind (Tarray t z a)).
+  try solve [apply by_value_data_at_rec_default_val2; auto];
+  rewrite data_at_rec_eq.
+  + rewrite (default_val_eq (Tarray t z a)).
     rewrite unfold_fold_reptype.
     rewrite array_pred_ext with
      (P1 := fun i _ p => memory_block sh (sizeof t)
@@ -478,7 +478,7 @@ Proof.
       rewrite Z.max_r in H, H0 by omega.
       apply IH; try AUTO_IND;
       pose_size_mult cenv_cs t (0 :: i :: i + 1 :: z :: nil); omega.
-  + rewrite default_val_ind.
+  + rewrite default_val_eq.
     rewrite unfold_fold_reptype.
     rewrite struct_pred_ext with
      (P1 := fun it _ p =>
@@ -527,7 +527,7 @@ Proof.
       simpl.
       rewrite memory_block_zero.
       normalize.
-    - rewrite default_val_ind.
+    - rewrite default_val_eq.
       rewrite unfold_fold_reptype.
       rewrite union_pred_ext with
        (P1 := fun it _ => memory_block sh (co_sizeof (get_co id)))
@@ -583,12 +583,12 @@ Qed.
 *)
 
 (*
-Lemma data_at'_readable:
-  forall sh t v p, data_at' sh t v p |-- !! readable_share sh.
+Lemma data_at_rec_readable:
+  forall sh t v p, data_at_rec sh t v p |-- !! readable_share sh.
 Proof.
 intros sh t.
 type_induction t; intros;
-rewrite data_at'_ind; try apply FF_left.
+rewrite data_at_rec_eq; try apply FF_left.
 if_tac.
 + simpl. destruct i; simpl.
 rewrite memory_block_eq.
@@ -596,33 +596,33 @@ saturate_local.
 simpl.
 *)
 
-Lemma data_at'_data_at'_ : forall sh t v b ofs
+Lemma data_at_rec_data_at_rec_ : forall sh t v b ofs
   (LEGAL_ALIGNAS: legal_alignas_type t = true)
   (LEGAL_COSU: legal_cosu_type t = true)
   (COMPLETE: complete_type cenv_cs t = true),
   0 <= ofs /\ ofs + sizeof t <= Int.modulus ->
   sizeof t < Int.modulus -> (* check why need this *)
   (alignof t | ofs) ->
-  data_at' sh t v (Vptr b (Int.repr ofs)) |-- data_at' sh t (default_val t) (Vptr b (Int.repr ofs)).
+  data_at_rec sh t v (Vptr b (Int.repr ofs)) |-- data_at_rec sh t (default_val t) (Vptr b (Int.repr ofs)).
 Proof.
   intros sh t.
   type_induction t; intros;
   try solve [inversion COMPLETE];
-  try solve [rewrite !data_at'_ind; try (if_tac; auto);
-  try solve [rewrite default_val_ind, unfold_fold_reptype; apply mapsto_mapsto_]].
-  + rewrite !data_at'_ind.
+  try solve [rewrite !data_at_rec_eq; try (if_tac; auto);
+  try solve [rewrite default_val_eq, unfold_fold_reptype; apply mapsto_mapsto_]].
+  + rewrite !data_at_rec_eq.
     apply array_pred_ext_derives.
     Focus 1. {
-      intros; rewrite default_val_ind.
+      intros; rewrite default_val_eq.
       rewrite unfold_fold_reptype.
       rewrite Zlength_correct in H2.
       rewrite Zlength_list_repeat by omega.
       omega.
     } Unfocus.
-    rewrite default_val_ind. simpl.
+    rewrite default_val_eq. simpl.
     intros.
     rewrite !at_offset_eq3.
-    rewrite default_val_ind with (t0 := (Tarray t z a)), unfold_fold_reptype.
+    rewrite default_val_eq with (t0 := (Tarray t z a)), unfold_fold_reptype.
     unfold sizeof in H, H0;
     rewrite Z.max_r in H, H0 by omega;
     fold (sizeof t) in H,H0.
@@ -632,8 +632,8 @@ Proof.
     apply derives_refl'. f_equal. unfold Znth. rewrite if_false by omega.
     rewrite nth_list_repeat'; auto.
     apply Nat2Z.inj_lt. rewrite !Z2Nat.id by omega. omega.
-  + rewrite !data_at'_ind.
-    rewrite default_val_ind, unfold_fold_reptype.
+  + rewrite !data_at_rec_eq.
+    rewrite default_val_eq, unfold_fold_reptype.
     assert (members_no_replicate (co_members (get_co id)) = true) as NO_REPLI
       by apply get_co_members_no_replicate.
     apply struct_pred_ext_derives; [auto |].
@@ -653,11 +653,11 @@ Proof.
   + assert (co_members (get_co id) = nil \/ co_members (get_co id) <> nil)
       by (destruct (co_members (get_co id)); [left | right]; congruence).
     destruct H2.
-    - rewrite !data_at'_ind.
+    - rewrite !data_at_rec_eq.
       generalize (unfold_reptype v) (unfold_reptype (default_val (Tunion id a))); rewrite H2; intros.
       auto.
-    - rewrite data_at'_ind.
-      rewrite memory_block_data_at'_default_val by auto.
+    - rewrite data_at_rec_eq.
+      rewrite memory_block_data_at_rec_default_val by auto.
       eapply derives_trans.
       * assert (members_no_replicate (co_members (get_co id)) = true) as NO_REPLI
           by apply get_co_members_no_replicate.
@@ -677,7 +677,7 @@ Proof.
         rewrite memory_block_split by (pose_field; omega).
         apply sepcon_derives; [| rewrite spacer_memory_block by (simpl; auto);
                                  unfold offset_val; solve_mod_modulus; auto ].
-        rewrite <- memory_block_data_at'_default_val; auto; try AUTO_IND; try (pose_field; omega).
+        rewrite <- memory_block_data_at_rec_default_val; auto; try AUTO_IND; try (pose_field; omega).
         rewrite Forall_forall in IH.
         specialize (IH (i, (field_type i (co_members (get_co id))))).
         spec IH; [apply in_members_field_type; auto |].
@@ -689,14 +689,14 @@ Proof.
 Qed.
 
 Definition value_fits: forall t, reptype t -> Prop :=
-  func_type (fun t => reptype t -> Prop)
+  type_func (fun t => reptype t -> Prop)
     (fun t v =>
        if type_is_volatile t then True else tc_val' t (repinject t v))
     (fun t n a P v => Zlength (unfold_reptype v) =  Z.max 0 n /\ Forall P (unfold_reptype v))
     (fun id a P v => struct_value_fits_aux (co_members (get_co id)) (co_members (get_co id)) P (unfold_reptype v))
     (fun id a P v => union_value_fits_aux (co_members (get_co id)) (co_members (get_co id)) P (unfold_reptype v)).
 
-Lemma value_fits_ind:
+Lemma value_fits_eq:
   forall t v, 
   value_fits t v = 
   match t as t0 return (reptype t0 -> Prop)  with
@@ -722,7 +722,7 @@ Lemma value_fits_ind:
 Proof.
 intros.
 unfold value_fits.
-rewrite func_type_ind.
+rewrite type_func_eq.
 destruct t; auto.
 apply struct_value_fits_aux_spec.
 apply union_value_fits_aux_spec.
@@ -744,9 +744,9 @@ Lemma default_value_fits:
   forall t, value_fits t (default_val t).
 Proof.
   intros.
-  type_induction t; try destruct f; rewrite value_fits_ind;
+  type_induction t; try destruct f; rewrite value_fits_eq;
   try solve [simpl; try (if_tac; auto); apply tc_val'_Vundef];
-  rewrite default_val_ind, unfold_fold_reptype.
+  rewrite default_val_eq, unfold_fold_reptype.
   + (* Tarray *)
     split.
     - rewrite Zlength_list_repeat', Z2Nat_id'; auto.
@@ -767,15 +767,15 @@ Proof.
       apply in_members_field_type; auto.
 Qed.    
 
-Lemma data_at'_value_fits: forall sh t v p
+Lemma data_at_rec_value_fits: forall sh t v p
 (*  (LEGAL_ALIGNAS: legal_alignas_type t = true)
   (LEGAL_COSU: legal_cosu_type t = true)
   (COMPLETE: complete_type cenv_cs t = true) *),
-  data_at' sh t v p |-- !! value_fits t v.
+  data_at_rec sh t v p |-- !! value_fits t v.
 Proof.
   intros until p.
   revert v p; type_induction t; intros;
-  rewrite value_fits_ind, data_at'_ind;
+  rewrite value_fits_eq, data_at_rec_eq;
   try solve [normalize];
   try solve [cbv zeta; if_tac; [normalize | apply mapsto_tc_val']].
   + (* Tarray *)
@@ -851,8 +851,8 @@ Proof.
     apply Z.divide_mul_l.
     apply legal_alignas_sizeof_alignof_compat, H5.
   } Unfocus.
-  rewrite !data_at'_at_offset with (pos := (sizeof t * i)%Z) by auto.
-  rewrite !at_offset_eq by (rewrite <- data_at'_offset_zero; reflexivity).
+  rewrite !data_at_rec_at_offset with (pos := (sizeof t * i)%Z) by auto.
+  rewrite !at_offset_eq by (rewrite <- data_at_rec_offset_zero; reflexivity).
   assert (legal_nested_field (Tarray t n a) (ArraySubsc i :: nil)) by solve_legal_nested_field.
   pose proof size_compatible_nested_field _ (ArraySubsc i :: nil) _ H7 H0.
   unfold nested_field_type2, nested_field_offset2 in H8; simpl in H8.
@@ -880,7 +880,7 @@ Lemma data_at_tint: forall sh v2 v1,
   data_at sh tint v2 v1 = mapsto sh tint v1 v2.
 Proof.
   intros.
-  unfold data_at, data_at'.
+  unfold data_at, data_at_rec.
   simpl.
   apply pred_ext; normalize.
   apply andp_right; [|normalize].
@@ -938,7 +938,7 @@ Lemma value_fits_Tstruct:
 Proof.
 intros.
 subst.
-rewrite value_fits_ind; simpl.
+rewrite value_fits_eq; simpl.
 f_equal.
 apply JMeq_eq in H1. auto.
 Qed.
@@ -955,7 +955,7 @@ Lemma value_fits_by_value_defined:
    value_fits t v = r. 
 Proof.
 intros. subst t' r.
-rewrite value_fits_ind.
+rewrite value_fits_eq.
 unfold tc_val'.
 destruct t; inv H;
  (if_tac; auto; apply prop_ext; intuition).
@@ -968,7 +968,7 @@ Lemma value_fits_by_value_Vundef:
    value_fits t v = True. 
 Proof.
 intros.
-rewrite value_fits_ind.
+rewrite value_fits_eq.
 unfold tc_val'.
 destruct t; inv H;
  (if_tac; auto; auto; apply prop_ext; intuition).
@@ -983,7 +983,7 @@ Lemma value_fits_by_value:
    value_fits t v = r. 
 Proof.
 intros. subst r t'.
-rewrite value_fits_ind.
+rewrite value_fits_eq.
 unfold tc_val'.
 destruct t; inv H;
  (if_tac; auto; apply prop_ext; intuition).
@@ -999,7 +999,7 @@ Lemma value_fits_Tarray:
   value_fits t v =r.
 Proof.
 intros.
-subst. rewrite value_fits_ind.
+subst. rewrite value_fits_eq.
 apply JMeq_eq in H0. rewrite H0.
 rewrite Z.max_r by omega. auto.
 Qed.

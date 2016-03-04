@@ -3,7 +3,6 @@ Require Import floyd.fieldlist.
 Require Import floyd.computable_theorems.
 Open Scope nat.
 
-
 Inductive ListType: list Type -> Type :=
   | Nil: ListType nil
   | Cons: forall {A B} (a: A) (b: ListType B), ListType (A :: B).
@@ -194,7 +193,7 @@ Variable F_Tarray: forall t n a, A t -> A (Tarray t n a).
 Variable F_Tstruct: forall id a, FT_aux id -> A (Tstruct id a).
 Variable F_Tunion: forall id a, FT_aux id -> A (Tunion id a).
 
-Fixpoint func_type_rec (n: nat) (t: type): A t :=
+Fixpoint type_func_rec (n: nat) (t: type): A t :=
   match n with
   | 0 =>
     match t as t0 return A t0 with
@@ -214,16 +213,16 @@ Fixpoint func_type_rec (n: nat) (t: type): A t :=
     end
   | S n' =>
     match t as t0 return A t0 with
-    | Tarray t0 n a => F_Tarray t0 n a (func_type_rec n' t0)
+    | Tarray t0 n a => F_Tarray t0 n a (type_func_rec n' t0)
     | Tstruct id a =>  let m := co_members (get_co id) in
-                            F_Tstruct id a (ListTypeGen (fun it => A (field_type (fst it) m)) (fun it => func_type_rec n' (field_type (fst it) m)) m)
+                            F_Tstruct id a (ListTypeGen (fun it => A (field_type (fst it) m)) (fun it => type_func_rec n' (field_type (fst it) m)) m)
     | Tunion id a =>  let m := co_members (get_co id) in
-                            F_Tunion id a (ListTypeGen (fun it => A (field_type (fst it) m)) (fun it => func_type_rec n' (field_type (fst it) m)) m)
+                            F_Tunion id a (ListTypeGen (fun it => A (field_type (fst it) m)) (fun it => type_func_rec n' (field_type (fst it) m)) m)
     | t' => F_ByValue t'
     end
   end.
 
-Definition func_type t := func_type_rec (rank_type cenv_cs t) t.
+Definition type_func t := type_func_rec (rank_type cenv_cs t) t.
 
 Lemma rank_type_Tstruct: forall id a co, cenv_cs ! id = Some co ->
   rank_type cenv_cs (Tstruct id a) = S (co_rank (get_co id)).
@@ -241,93 +240,10 @@ Proof.
   destruct (cenv_cs ! id); auto; congruence.
 Defined.
 
-(*
-Lemma func_type_rec_rank_irrelevent1: forall t n,
-  n >= rank_type cenv_cs t ->
-  func_type_rec (S n) t = func_type_rec n t.
-Proof.
-  intro t. type_induction t; simpl; intros;
-  try solve [destruct n; try solve [inv H]; reflexivity];
-  (destruct n; [inv H | ]).
-  simpl; rewrite <- (IH n) by (apply le_S_n; auto); reflexivity.
-  simpl.
-  clear - H1.
-  rewrite H1.
-  destruct (cenv_cs ! id) eqn:?; try solve [inv H1]; simpl. rewrite Heqo.
-  f_equal.
-  unfold get_co. rewrite Heqo.
-  simpl. reflexivity.
-  simpl.
-  f_equal.
-  unfold get_co in *.
-  destruct (cenv_cs ! id) eqn:?.
-    revert IH; induction (co_members c); simpl.
-  intros; auto.
-  simpl. intros.
-  f_equal.
-  rewrite <- IH.
-  unfold get_co in IH. rewrite Heqo in IH.
- try solve [inv H]; simpl. rewrite Heqo.
-  f_equal.
-  unfold get_co. rewrite Heqo.
-  simpl. reflexivity.
-  
-  
- simpl. rewrite H1.
-   clear F_ByValue.
- F_Tarray F_Tstruct F_Tunion.
-  revert 
-  destruct (co_members (get_co id)) eqn:?.
-  unfold get_co.
-  destruct (cenv_cs ! id) eqn:?; try solve [inv H1]; simpl. rewrite Heqo.
-unfold get_co. rewrite Heqo.
-
-  clear H1.
-  revert F_ByValue F_Tarray F_Tstruct IH.
-  revert IH; destruct  (co_members (get_co id)) eqn:?.
-  f_equal.
-  
-
- f_equal. rewrite <- 
-  simpl.
-  simpl.
-  simpl.
-  induction n; destruct t; intros; simpl; try solve [inv H]; try reflexivity;;
-  simpl in *.
-  destruct (cenv_cs ! i); try solve [inv H].
-  f_equal.
-  clear H.
-  destruct (co_members (get_co i)); simpl; auto.
-  f_equal.
-  f_equal.
-
-  try solve [  destruct n; reflexivity].
-  destruct n. inv H. simpl.
-  f_equal.
-  simpl in H.
-  induction n; simpl; auto.
-
-Focus 2.
-  apply IHn.
-  destruct t; try reflexivity; try solve [inv H].
-simpl in *. destruct (cenv_cs ! i); try reflexivity; try solve [inv H ];
-  simpl in H.
-  f_equal.
- simpl.
- unfold rank_type in H.
-simpl in *.
- inv H.
-simpl in H.
- simpl.
- simp
-  type_induction t; intros.
- unfold func_type_rec.
-*)
-
-Lemma func_type_rec_rank_irrelevent: forall t n n0,
+Lemma type_func_rec_rank_irrelevent: forall t n n0,
   n >= rank_type cenv_cs t ->
   n0 >= rank_type cenv_cs t ->
-  func_type_rec n t = func_type_rec n0 t.
+  type_func_rec n t = type_func_rec n0 t.
 Proof.
  (* DON'T USE omega IN THIS PROOF!  
    We want the proof to compute reasonably efficiently.
@@ -393,13 +309,13 @@ Defined.
 
 Definition FTI_aux id :=
     let m := co_members (get_co id) in
-    (ListTypeGen (fun it => A (field_type (fst it) m)) (fun it => func_type (field_type (fst it) m)) m).
+    (ListTypeGen (fun it => A (field_type (fst it) m)) (fun it => type_func (field_type (fst it) m)) m).
 
 
-Lemma func_type_ind: forall t, 
-  func_type t =
+Lemma type_func_eq: forall t, 
+  type_func t =
   match t as t0 return A t0 with
-  | Tarray t0 n a => F_Tarray t0 n a (func_type t0)
+  | Tarray t0 n a => F_Tarray t0 n a (type_func t0)
   | Tstruct id a => F_Tstruct id a (FTI_aux id)
   | Tunion id a => F_Tunion id a (FTI_aux id)
   | t' => F_ByValue t'
@@ -408,15 +324,15 @@ Proof.
   intros.
   type_induction t; try reflexivity.
   + (* Tstruct *)
-    unfold func_type in *.
-    simpl func_type_rec.
+    unfold type_func in *.
+    simpl type_func_rec.
     destruct (cenv_cs ! id) as [co |] eqn:CO; simpl.
     - f_equal.
       apply ListTypeGen_preserve; intros [i t].
       unfold get_co; rewrite CO.
       intro Hin.
       generalize (Forall_forall1 _ _ IH); clear IH; intro IH.
-      apply func_type_rec_rank_irrelevent.
+      apply type_func_rec_rank_irrelevent.
       * assert (H0 := get_co_members_no_replicate id).
         unfold get_co in H0; rewrite CO in H0.
         rewrite (In_field_type _ _ H0 Hin).
@@ -429,15 +345,15 @@ Proof.
       unfold FTI_aux, get_co; rewrite CO.
       reflexivity.
   + (* Tunion *)
-    unfold func_type in *.
-    simpl func_type_rec.
+    unfold type_func in *.
+    simpl type_func_rec.
     destruct (cenv_cs ! id) as [co |] eqn:CO; simpl.
     - f_equal.
       apply ListTypeGen_preserve; intros [i t].
       unfold get_co; rewrite CO.
       intro Hin.
       generalize (Forall_forall1 _ _ IH); clear IH; intro IH.
-      apply func_type_rec_rank_irrelevent.
+      apply type_func_rec_rank_irrelevent.
       * assert (H0 := get_co_members_no_replicate id).
         unfold get_co in H0; rewrite CO in H0.
         rewrite (In_field_type _ _ H0 Hin).
@@ -453,7 +369,7 @@ Defined.
 
 End COMPOSITE_ENV.
 
-Arguments func_type {cs} A F_ByValue F_Tarray F_Tstruct F_Tunion t / .
+Arguments type_func {cs} A F_ByValue F_Tarray F_Tstruct F_Tunion t / .
 
 Ltac type_induction t :=
   pattern t;
@@ -466,161 +382,3 @@ Ltac type_induction t :=
     let a := fresh "a" in
     destruct t as [| | | | | | | id a | id a]
   end.
-
-
-(*
-
-Require Import Coq.Logic.ProofIrrelevance.
-Require Import Coq.Sets.Ensembles.
-Require Import Coq.Sets.Finite_sets.
-Require Import Coq.Lists.List.
-Require Import VST.msl.Coqlib2.
-
-Definition is_double (x y: nat): Prop := (S x) * 2 = (S y) \/ (S x) * 2 + 1 = (S y).
-
-Lemma wf_double: well_founded is_double.
-Proof.
-  hnf; intros.
-  assert (forall b, b <= a -> Acc is_double b); [| apply (H a); omega].
-  induction a; intros.
-  + assert (b = 0) by omega; subst.
-    constructor.
-    intros.
-    unfold is_double in H0.
-    omega.
-  + constructor.
-    intros.
-    destruct H0.
-    - apply IHa.
-      omega.
-    - apply IHa.
-      omega.
-Defined.
-
-Definition is_double_exists: forall y, {x | is_double x (S y)}.
-Proof.
-  intros.
-  assert ({x | is_double x (S y)} *
-          {x | is_double x (S (S y))}); [| tauto].
-  induction y.
-  + split; [exists 0; left | exists 0; right]; auto.
-  + destruct IHy as [[x1 ?] [x2 ?]].
-    split; [exists x2 | exists (S x1)]; auto.
-    destruct i; [left | right]; omega.
-Defined.
-
-Definition bit_type_ind: forall y, (forall x, is_double x y -> Type) -> Type.
-Proof.
-  intros.
-  destruct y.
-  + exact bool.
-  + destruct (is_double_exists y) as [x H].
-    exact (prod bool (X x H)).
-Defined.
-
-Definition bit_type (a: nat): Type :=
-  Fix wf_double (fun _ => Type) bit_type_ind a.
-
-Goal bit_type 0 = bool.
-unfold bit_type.
-unfold Fix.
-unfold wf_double.
-simpl.
-Abort.
-
-(*
-Require Import Coq.Program.Wf.
-
-Program Fixpoint div2 (n : nat) {measure n} : Type :=
-match n with
-| S (S p) => prod bool (div2 p)
-| _ => bool
-end.
-
-Program Fixpoint true_div2 (n : nat) {measure n} : div2 n :=
-match n as n_PAT return div2 n_PAT with
-| S (S p) => (true, true_div2 p)
-| _ => true
-end.
-*)
-
-Definition proj1 {P Q: Prop}: P /\ Q -> P.
-intros.
-destruct H as [? _].
-exact H.
-Defined.
-
-Definition proj2 {P Q: Prop}: P /\ Q -> Q.
-intros.
-destruct H as [_ ?].
-exact H.
-Defined.
-
-
-Inductive div2R: nat -> nat -> Prop :=
-  | SS: forall x, div2R x (S (S x)).
-
-Definition wf_div2R: well_founded div2R.
-Proof.
-  hnf; intros.
-  assert (Acc div2R a /\ Acc div2R (S a)); [| exact (proj1 H)].
-  induction a.
-  + split; constructor; intros.
-    - inversion H.
-    - inversion H.
-  + split; [exact (proj2 IHa) |].
-    constructor.
-    intros.
-    inversion H; subst.
-    exact (proj1 IHa).
-Defined.
-
-Definition div2_ind: forall y, (forall x, div2R x y -> Type) -> Type.
-Proof.
-  intros.
-  destruct y as [| [| ]].
-  + exact bool.
-  + exact bool.
-  + specialize (X n).
-    refine (prod bool (X _)).
-    constructor.
-Defined.
-
-Definition div2 (n: nat) : Type :=
-  Fix wf_div2R (fun _ => Type) div2_ind n.
-
-Definition true_div2_ind: forall y, (forall x, div2R x y -> div2 x) -> div2 y.
-Proof.
-  intros.
-  destruct y as [| [| ]].
-  + exact true.
-  + exact true.
-  + specialize (X n).
-    refine (pair true (X _)).
-    constructor.
-Defined.
-
-Definition false_first (n: nat): div2 n -> div2 n :=
-  match n as n_PAT return div2 n_PAT -> div2 n_PAT with
-  | S (S p) => fun v => (false, snd v)
-  | _ => fun _ => false
-  end.
-Goal div2 5 = (bool * bool)%type.
-cbv.
-
-unfold proj1.
-Print div2.
-Print Fix_sub.
-SearchAbout Fix_sub.
-Locate Fix_eq.
-Print Fix_F_sub.
-Print F_sub.
-
-reflexivity.
-Eval compute in (bit_type 0).
-Definition all_true_ind: forall y, (forall x, is_double x y -> Type) -> Type.
-
-Definition all_true (a: nat): bit_type a :=
-  Fix wf_double (fun a => bit_type a) 
-Print Fix_F.
-*)

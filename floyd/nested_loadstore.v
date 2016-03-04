@@ -5,7 +5,7 @@ Require Import floyd.nested_field_lemmas.
 Require Import floyd.efield_lemmas.
 Require Import floyd.mapsto_memory_block.
 Require Import floyd.reptype_lemmas.
-Require Import floyd.data_at_lemmas.
+Require Import floyd.data_at_rec_lemmas.
 Require Import floyd.field_at.
 Require Import floyd.stronger.
 Require Import floyd.entailer.
@@ -31,7 +31,7 @@ Proof.
   apply JMeq_sigT.
   rewrite nested_field_type_ind with (gfs0 := cons _ _).
   rewrite !H0.
-  rewrite reptype_ind.
+  rewrite reptype_eq.
   auto.
 Qed.
        
@@ -406,9 +406,9 @@ Definition array_aux_field_except: forall sh t gfs t0 n a i,
   0 <= i < n ->
   sigT (fun P =>
     forall v v0,
-    data_at' sh type_id_env.empty_ti (Tarray t0 n a)
+    data_at_rec sh type_id_env.empty_ti (Tarray t0 n a)
       (nested_field_offset2 t gfs) (upd_reptype_array t0 i v v0) =
-    data_at' sh type_id_env.empty_ti t0
+    data_at_rec sh type_id_env.empty_ti t0
       (nested_field_offset2 t (ArraySubsc i ::gfs)) v0 *
     P (proj_except_reptype_array t0 n a i v)).
 Proof.
@@ -423,11 +423,11 @@ Proof.
              (Fcons 1003%positive (Tarray t0 (n - 1) a) Fnil)) 1002%positive)) with
        (reptype_structlist
          (Fcons 1003%positive (Tarray t0 (n - 1) a) Fnil)).
-    exists (array_at' sh t0 (0 + 1) n (data_at' sh type_id_env.empty_ti t0)
+    exists (array_at' sh t0 (0 + 1) n (data_at_rec sh type_id_env.empty_ti t0)
              (nested_field_offset2 t gfs)).
     intros.
     erewrite nested_field_offset2_Tarray by eauto.
-    simpl data_at'.
+    simpl data_at_rec.
     rewrite split_array_at'_hd by omega.
     reflexivity. (* Coq is crazy. It just got solved *)
   + rewrite Z.eqb_eq in H3.
@@ -438,11 +438,11 @@ Proof.
              (Fcons 1002%positive Tvoid Fnil)) 1002%positive)) with
        (reptype_structlist
          (Fcons 1001%positive (Tarray t0 (n - 1) a) Fnil)).
-    exists (array_at' sh t0 0 (n - 1) (data_at' sh type_id_env.empty_ti t0)
+    exists (array_at' sh t0 0 (n - 1) (data_at_rec sh type_id_env.empty_ti t0)
              (nested_field_offset2 t gfs)).
     intros.
     erewrite nested_field_offset2_Tarray by eauto.
-    simpl data_at'.
+    simpl data_at_rec.
     rewrite split_array_at'_tl by omega.
     f_equal.
     - f_equal.
@@ -473,15 +473,15 @@ Proof.
        (reptype_structlist
          (Fcons 1001%positive (Tarray t0 i a)
              (Fcons 1003%positive (Tarray t0 (n - i - 1) a) Fnil))).
-    exists (fun v => array_at' sh t0 0 i (data_at' sh type_id_env.empty_ti t0)
+    exists (fun v => array_at' sh t0 0 i (data_at_rec sh type_id_env.empty_ti t0)
              (nested_field_offset2 t gfs) (fst v) *
-               array_at' sh t0 (i + 1) n (data_at' sh type_id_env.empty_ti t0)
+               array_at' sh t0 (i + 1) n (data_at_rec sh type_id_env.empty_ti t0)
                 (nested_field_offset2 t gfs) (snd v)).
     intros.
-    simpl data_at'.
+    simpl data_at_rec.
     rewrite split3_array_at' with (mid := i) by omega.
     rewrite <- sepcon_assoc.
-    rewrite (sepcon_comm (data_at' _ _ _ _ _)).
+    rewrite (sepcon_comm (data_at_rec _ _ _ _ _)).
     f_equal; [f_equal |].
     - unfold upd_reptype_array, fst.
       unfold array_at', rangespec.
@@ -544,9 +544,9 @@ Definition struct_aux_field_except: forall sh t gfs i0 f a i,
   isOK (field_type i f) = true ->
   sigT (fun P =>
     forall v v0,
-    data_at' sh type_id_env.empty_ti (Tstruct i0 f a)
+    data_at_rec sh type_id_env.empty_ti (Tstruct i0 f a)
       (nested_field_offset2 t gfs) (upd_reptype_structlist f i 0 v v0) =
-    data_at' sh type_id_env.empty_ti _
+    data_at_rec sh type_id_env.empty_ti _
       (nested_field_offset2 t (StructField i ::gfs)) v0 *
     P (proj_except_reptype_structlist f i v)).
 Proof.
@@ -560,9 +560,9 @@ Definition union_aux_field_except: forall sh t gfs i0 f a i,
   isOK (field_type i f) = true ->
   sigT (fun P =>
     forall v0,
-    data_at' sh type_id_env.empty_ti (Tunion i0 f a)
+    data_at_rec sh type_id_env.empty_ti (Tunion i0 f a)
       (nested_field_offset2 t gfs) (upd_reptype_unionlist f i v0) =
-    data_at' sh type_id_env.empty_ti _
+    data_at_rec sh type_id_env.empty_ti _
       (nested_field_offset2 t (UnionField i ::gfs)) v0 *
     P (proj_except_reptype_unionlist)).
 Proof.
@@ -583,10 +583,10 @@ Proof.
   cut (legal_alignas_type t = true ->
        sigT (fun P => forall v v0 v0',
          JMeq v0 v0' ->
-         data_at' sh type_id_env.empty_ti (nested_field_type2 t gfs)
+         data_at_rec sh type_id_env.empty_ti (nested_field_type2 t gfs)
            (nested_field_offset2 t gfs)
            (upd_reptype (nested_field_type2 t gfs) (gf :: nil) v v0) =
-         data_at' sh type_id_env.empty_ti (nested_field_type2 t (gf :: gfs))
+         data_at_rec sh type_id_env.empty_ti (nested_field_type2 t (gf :: gfs))
            (nested_field_offset2 t (gf :: gfs)) v0' *
          P (proj_except_reptype (nested_field_type2 t gfs) gf nil v))).
   Focus 1. {
@@ -610,10 +610,10 @@ Proof.
   } Unfocus.
   intros.
   solve_legal_nested_field_cons H.
-Opaque data_at'.
+Opaque data_at_rec.
   + unfold upd_reptype, proj_except_reptype_array; simpl.
     unfold eq_rect_r, eq_rect, nested_field_type2_nil; simpl.
-Transparent data_at'.
+Transparent data_at_rec.
     rewrite (nested_field_type2_Tarray t0 z a gfs t i Heq0).
     destruct (array_aux_field_except sh t gfs t0 z a i) as [P ?H]; auto.
     exists P.

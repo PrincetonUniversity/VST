@@ -178,7 +178,7 @@ Lemma reptype_tarray {cs: compspecs}:
    forall t len, reptype (tarray t len) = list (reptype t).
 Proof.
 intros.
-rewrite reptype_ind. simpl. reflexivity.
+rewrite reptype_eq. simpl. reflexivity.
 Qed.
 
 Local Open Scope nat.

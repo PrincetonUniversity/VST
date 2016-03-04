@@ -7,7 +7,7 @@ Require Import floyd.nested_field_lemmas.
 Require Import floyd.mapsto_memory_block.
 Require Import floyd.reptype_lemmas.
 Require floyd.aggregate_pred. Import floyd.aggregate_pred.aggregate_pred.
-Require Import floyd.data_at_lemmas.
+Require Import floyd.data_at_rec_lemmas.
 Require Import floyd.jmeq_lemmas.
 Require Import floyd.sublist.
 
@@ -122,7 +122,7 @@ Qed.
 
 Definition field_at (sh: Share.t) (t: type) (gfs: list gfield) (v: reptype (nested_field_type t gfs)) (p: val): mpred :=
  !! (field_compatible t gfs p) &&
- at_offset (data_at' sh (nested_field_type t gfs) v) (nested_field_offset t gfs) p.
+ at_offset (data_at_rec sh (nested_field_type t gfs) v) (nested_field_offset t gfs) p.
 Arguments field_at sh t gfs v p : simpl never.
 
 Definition field_at_ (sh: Share.t) (t: type) (gfs: list gfield) (p: val): mpred :=
@@ -145,7 +145,7 @@ Lemma nested_reptype_structlist_lemma: forall t gfs id a,
   reptype (nested_field_type t gfs) = nested_reptype_structlist t gfs (co_members (get_co id)).
 Proof.
   intros.
-  rewrite H, reptype_ind.
+  rewrite H, reptype_eq.
   unfold reptype_structlist, nested_reptype_structlist.
   f_equal.
   apply map_members_ext; [apply get_co_members_no_replicate |].
@@ -160,7 +160,7 @@ Lemma nested_reptype_unionlist_lemma: forall t gfs id a,
   reptype (nested_field_type t gfs) = nested_reptype_unionlist t gfs (co_members (get_co id)).
 Proof.
   intros.
-  rewrite H, reptype_ind.
+  rewrite H, reptype_eq.
   unfold reptype_unionlist, nested_reptype_unionlist.
   f_equal.
   apply map_members_ext; [apply get_co_members_no_replicate |].
@@ -197,7 +197,7 @@ Definition array_at (sh: Share.t) (t: type) (gfs: list gfield) (lo hi: Z)
   !! (field_compatible0 t (ArraySubsc lo :: gfs) p /\
       field_compatible0 t (ArraySubsc hi :: gfs) p) &&
   array_pred (default_val _) lo hi
-    (fun i v => at_offset (data_at' sh (nested_field_type t (ArraySubsc 0 :: gfs)) v)
+    (fun i v => at_offset (data_at_rec sh (nested_field_type t (ArraySubsc 0 :: gfs)) v)
        (nested_field_offset t (ArraySubsc i :: gfs))) v p.
 
 Definition array_at_ (sh: Share.t) (t: type) (gfs: list gfield) (lo hi: Z) : val -> mpred :=
@@ -217,7 +217,7 @@ Proof.
   unfold field_at.
   rewrite prop_and; apply andp_derives; auto.
   unfold at_offset.
-  apply data_at'_value_fits.
+  apply data_at_rec_value_fits.
 Qed.
 
 Lemma field_at_compatible':
@@ -265,7 +265,7 @@ Proof.
   + intros.
     unfold at_offset.
     instantiate (1 := fun x => value_fits _ x).
-    apply data_at'_value_fits.
+    apply data_at_rec_value_fits.
  + normalize.
 Qed.
 
@@ -394,7 +394,7 @@ Proof.
   rewrite (nested_field_type_ind t (ArraySubsc 0 :: gfs)).
   rewrite H0; unfold gfield_type.
   intros.
-  rewrite data_at'_ind.
+  rewrite data_at_rec_eq.
   rewrite at_offset_array_pred.
   f_equal.
   + apply ND_prop_ext.
@@ -498,8 +498,8 @@ Ltac destruct_ptr p :=
   end.
 
 (* TODO: In fact, we should not need this lemma. Remove this lemma some how from hmac proof. *)
-Lemma data_at_data_at': forall sh t v p,
-  data_at sh t v p = !! (field_compatible t nil p /\  value_fits (nested_field_type t nil) v) && data_at' sh t v p.
+Lemma data_at_data_at_rec: forall sh t v p,
+  data_at sh t v p = !! (field_compatible t nil p /\  value_fits (nested_field_type t nil) v) && data_at_rec sh t v p.
 Proof.
   intros.
   unfold data_at, field_at.
@@ -513,7 +513,7 @@ Proof.
   intros.
   unfold field_at, nested_sfieldlist_at.
   revert v1 H0; rewrite H; intros.
-  rewrite data_at'_ind.
+  rewrite data_at_rec_eq.
   rewrite at_offset_struct_pred.
   rewrite andp_struct_pred by apply corable_prop.
   generalize (co_members (get_co id)) at 1 10; intro m; destruct m; [auto |].
@@ -545,7 +545,7 @@ Proof.
   + rewrite sizeof_Tstruct.
     f_equal; [| f_equal; f_equal]; omega.
   + rewrite Z.add_assoc.
-    erewrite data_at'_type_changable; [reflexivity | |].
+    erewrite data_at_rec_type_changable; [reflexivity | |].
     - simpl.
       rewrite nested_field_type_ind.
       simpl; rewrite H.
@@ -569,7 +569,7 @@ Proof.
   intros.
   unfold field_at, nested_ufieldlist_at.
   revert v1 H0; rewrite H; intros.
-  rewrite data_at'_ind.
+  rewrite data_at_rec_eq.
   rewrite at_offset_union_pred.
   rewrite andp_union_pred by apply corable_prop.
   generalize (eq_refl (co_members (get_co id))).
@@ -630,7 +630,7 @@ Proof.
   + rewrite sizeof_Tunion.
     f_equal; [| f_equal; f_equal]; omega.
   + rewrite Z.add_0_r.
-    erewrite data_at'_type_changable; [reflexivity | |].
+    erewrite data_at_rec_type_changable; [reflexivity | |].
     - simpl.
       rewrite nested_field_type_ind.
       simpl; rewrite H.
@@ -810,7 +810,7 @@ Proof.
   change (nested_field_type (nested_field_array_type t gfs lo hi) nil)
     with (Tarray (nested_field_type t (gfs SUB 0)) 
            (hi - lo) (attr_of_type (nested_field_type t gfs))).
-  rewrite data_at'_ind.
+  rewrite data_at_rec_eq.
   rewrite <- at_offset_eq.
   normalize.
   apply andp_prop_ext.  f_equal.
@@ -840,7 +840,7 @@ Proof.
     omega.
 Qed.
 
-Lemma array_at_data_at':   
+Lemma array_at_data_at_rec:   
 forall sh t gfs lo hi v p,
   field_compatible0 t (ArraySubsc lo :: gfs) p ->
   field_compatible0 t (ArraySubsc hi :: gfs) p ->
@@ -908,7 +908,7 @@ Proof.
     rewrite (Z.mod_small ofs) in * by omega.
     pose proof Zmod_le (ofs + nested_field_offset t gfs) Int.modulus.
     spec H2; [pose proof Int.modulus_pos; omega |].
-    apply data_at'_data_at'_; try tauto.
+    apply data_at_rec_data_at_rec_; try tauto.
     1: omega.
     apply Z.divide_add_r.
     - eapply Z.divide_trans; [| destruct f as [_ [_ [_ [_ [_ [_ [? _]]]]]]]; eauto].
@@ -951,7 +951,7 @@ Proof.
     rewrite (Z.mod_small ofs) in * by omega.
     pose proof Zmod_le (ofs + nested_field_offset t gfs) Int.modulus.
     spec H2; [pose proof Int.modulus_pos; omega |].
-    rewrite memory_block_data_at'_default_val; try tauto; try omega.
+    rewrite memory_block_data_at_rec_default_val; try tauto; try omega.
     apply Z.divide_add_r.
     - eapply Z.divide_trans; [| destruct f as [_ [_ [_ [_ [_ [_ [? _]]]]]]]; eauto].
       apply alignof_nested_field_type_divide_alignof; tauto.
@@ -1480,12 +1480,12 @@ Proof.
   intros.
   rewrite <- H0.
   clear H0 v'.
-  rewrite data_at'_at_offset'; 
-   [ rewrite at_offset'_eq; [| rewrite <- data_at'_offset_zero; reflexivity]
+  rewrite data_at_rec_at_offset'; 
+   [ rewrite at_offset'_eq; [| rewrite <- data_at_rec_offset_zero; reflexivity]
    | apply nested_field_type2_nest_pred; simpl; auto
    | apply nested_field_offset2_type2_divide; auto].
-  rewrite data_at'_at_offset' with (pos := (nested_field_offset2 (nested_field_type2 t gfs0) gfs1)); 
-   [ rewrite at_offset'_eq; [| rewrite <- data_at'_offset_zero; reflexivity]
+  rewrite data_at_rec_at_offset' with (pos := (nested_field_offset2 (nested_field_type2 t gfs0) gfs1)); 
+   [ rewrite at_offset'_eq; [| rewrite <- data_at_rec_offset_zero; reflexivity]
    | apply nested_field_type2_nest_pred; simpl; auto
    | rewrite <- nested_field_type2_nested_field_type2;
      apply nested_field_offset2_type2_divide; apply nested_field_type2_nest_pred; simpl; auto].
@@ -1671,7 +1671,7 @@ Lemma value_fits_by_value {cs: compspecs}:
    value_fits t v = tc_val' t (repinject t v).
 Proof.
 intros.
-rewrite value_fits_ind; destruct t; inv H; inv H0;
+rewrite value_fits_eq; destruct t; inv H; inv H0;
 simpl; rewrite H2; auto.
 Qed.
 
@@ -1807,7 +1807,7 @@ match goal with
    set (E := fst (@default_val cs t));
    set (D := @default_val cs t) in E;
    unfold compact_prod_sigT_type in E; simpl in E;
-   assert (H := @default_val_ind cs t);
+   assert (H := @default_val_eq cs t);
    simpl in H;
    match type of H with 
       @eq (@reptype cs t) _ (@fold_reptype _ _ (@pair ?A ?B ?x ?y)) =>
@@ -1820,7 +1820,7 @@ match goal with
    set (E := snd (@default_val cs t));
    set (D := @default_val cs t) in E;
    unfold compact_prod_sigT_type in E; simpl in E;
-   assert (H := @default_val_ind cs t);
+   assert (H := @default_val_eq cs t);
    simpl in H;
    match type of H with 
       @eq (@reptype cs t) _ (@fold_reptype _ _ (@pair ?A ?B ?x ?y)) =>
@@ -1968,11 +1968,11 @@ intros.
 destruct v. destruct it, it'. reflexivity.
 Qed.
 
-Lemma data_at'_void:
+Lemma data_at_rec_void:
   forall {cs: compspecs} 
-      sh t v q, t = Tvoid -> data_at' sh t v q = FF.
+      sh t v q, t = Tvoid -> data_at_rec sh t v q = FF.
 Proof.
- intros; subst. unfold data_at'; simpl. unfold mapsto.
+ intros; subst. unfold data_at_rec; simpl. unfold mapsto.
   if_tac; reflexivity.
 Qed.
 
@@ -2051,9 +2051,9 @@ Lemma field_at_share_join_aux {cs: compspecs}:
   (Forall  (fun it : ident * type =>
         forall (v : reptype (field_type (fst it) m))
           (q : val),
-        data_at' sh1 (field_type (fst it) m) v q *
-        data_at' sh2 (field_type (fst it) m) v q =
-        data_at' sh (field_type (fst it) m) v q)
+        data_at_rec sh1 (field_type (fst it) m) v q *
+        data_at_rec sh2 (field_type (fst it) m) v q =
+        data_at_rec sh (field_type (fst it) m) v q)
        m) ->
   forall (sz: Z) (v: reptype_structlist m) (q: val),
 struct_pred m
@@ -2065,7 +2065,7 @@ struct_pred m
      (field_offset_next cenv_cs (fst it) m
         sz)
      (at_offset
-        (data_at' sh1 (field_type (fst it) m) v0)
+        (data_at_rec sh1 (field_type (fst it) m) v0)
         (field_offset cenv_cs (fst it) m))) v q *
 struct_pred m
   (fun (it : ident * type)
@@ -2076,7 +2076,7 @@ struct_pred m
      (field_offset_next cenv_cs (fst it) m
         sz)
      (at_offset
-        (data_at' sh2 (field_type (fst it) m) v0)
+        (data_at_rec sh2 (field_type (fst it) m) v0)
         (field_offset cenv_cs (fst it) m))) v q =
 struct_pred m
   (fun (it : ident * type)
@@ -2087,7 +2087,7 @@ struct_pred m
      (field_offset_next cenv_cs (fst it) m
         sz)
      (at_offset
-        (data_at' sh (field_type (fst it) m) v0)
+        (data_at_rec sh (field_type (fst it) m) v0)
         (field_offset cenv_cs (fst it) m))) v q.
 Proof.
 intros until m; intros HM H H0 sz.
@@ -2121,7 +2121,7 @@ Transparent field_offset. Transparent field_type.
      (field_offset cenv_cs (fst it) mems +
       sizeof (field_type (fst it) mems))
      (field_offset_next cenv_cs (fst it) mems sz)
-     (at_offset (data_at' sh (field_type (fst it) mems) v0)
+     (at_offset (data_at_rec sh (field_type (fst it) mems) v0)
         (field_offset cenv_cs (fst it) mems)))).
    fold (Q sh1 ((i, t) :: p :: m)).
    fold (Q sh2 ((i, t) :: p :: m)).
@@ -2162,7 +2162,7 @@ Transparent field_offset. Transparent field_type.
    destruct (ident_eq (fst a) i).
     subst i.
    pose proof (fieldlist.not_in_members_field_type _ _ HM1).
-   repeat rewrite data_at'_void by auto. normalize.
+   repeat rewrite data_at_rec_void by auto. normalize.
    cbv beta in H.
    assert (field_type (fst a) (p::m) = field_type (fst a) ((i,t)::p::m) ). {
      unfold field_type.
@@ -2182,14 +2182,14 @@ Transparent field_offset. Transparent field_type.
 Qed.
 
 
-Lemma data_at'_share_join {cs: compspecs}:
+Lemma data_at_rec_share_join {cs: compspecs}:
   forall sh1 sh2 sh t v p,
     sepalg.join sh1 sh2 sh ->
-   data_at' sh1 t v p * data_at' sh2 t v p = data_at' sh t v p.
+   data_at_rec sh1 t v p * data_at_rec sh2 t v p = data_at_rec sh t v p.
 Proof.
 intros; rename p into q; 
  revert v q; pattern t;  type_induction.type_induction t; intros;
-rewrite !data_at'_ind;
+rewrite !data_at_rec_eq;
  try solve [if_tac;
      [ apply memory_block_share_join; auto
      | apply mapsto_share_join; auto]];
@@ -2204,24 +2204,24 @@ rewrite !data_at'_ind;
   unfold array_pred, aggregate_pred.array_pred.
   rewrite !Z.sub_0_r.
 replace (fun i : Z =>
-   at_offset (data_at' sh1 t0 (Znth (i - 0) vl (default_val t0)))
+   at_offset (data_at_rec sh1 t0 (Znth (i - 0) vl (default_val t0)))
      (sizeof t0 * i))
  with (fun i : Z =>
-   at_offset (data_at' sh1 t0 (Znth i vl (default_val t0)))
+   at_offset (data_at_rec sh1 t0 (Znth i vl (default_val t0)))
      (sizeof t0 * i))
   by (extensionality i; rewrite Z.sub_0_r; auto).
 replace (fun i : Z =>
-   at_offset (data_at' sh2 t0 (Znth (i - 0) vl (default_val t0)))
+   at_offset (data_at_rec sh2 t0 (Znth (i - 0) vl (default_val t0)))
      (sizeof t0 * i))
  with (fun i : Z =>
-   at_offset (data_at' sh2 t0 (Znth i vl (default_val t0)))
+   at_offset (data_at_rec sh2 t0 (Znth i vl (default_val t0)))
      (sizeof t0 * i))
   by (extensionality i; rewrite Z.sub_0_r; auto).
 replace (fun i : Z =>
-   at_offset (data_at' sh t0 (Znth (i - 0) vl (default_val t0)))
+   at_offset (data_at_rec sh t0 (Znth (i - 0) vl (default_val t0)))
      (sizeof t0 * i))
  with (fun i : Z =>
-   at_offset (data_at' sh t0 (Znth i vl (default_val t0)))
+   at_offset (data_at_rec sh t0 (Znth i vl (default_val t0)))
      (sizeof t0 * i))
   by (extensionality i; rewrite Z.sub_0_r; auto).
   forget 0 as lo.
@@ -2273,7 +2273,7 @@ apply ND_prop_ext.
 split. intros [? [? [? ?]]]; split; auto.
 tauto.
 unfold at_offset.
-apply data_at'_share_join; auto.
+apply data_at_rec_share_join; auto.
 Qed.
 
 Lemma field_at__share_join{cs: compspecs}:
@@ -2287,17 +2287,17 @@ apply field_at_share_join.
 auto.
 Qed.
 
-Lemma nonreadable_memory_block_data_at':
+Lemma nonreadable_memory_block_data_at_rec:
    forall {cs: compspecs} sh t v p,
    ~ readable_share sh ->
     field_compatible t nil p ->
-    memory_block sh (sizeof t) p = data_at' sh t v p.
+    memory_block sh (sizeof t) p = data_at_rec sh t v p.
 Proof.
 intros.
 hnf in H0.
 destruct H0 as [Hp [? [_ [Hcom [Hsz [Hsc [Hal Hlnf]]]]]]].
 revert H0 Hsz v p Hcom Hsc Hp Hal Hlnf; pattern t; type_induction.type_induction t; intros; inv H0;
- rewrite  data_at'_ind; auto; admit.
+ rewrite  data_at_rec_eq; auto; admit.
 Qed.
 
 Lemma nonreadable_memory_block_data_at:
@@ -2314,7 +2314,7 @@ rewrite prop_true_andp by auto.
 change (nested_field_offset t nil) with 0.
 unfold at_offset.
 normalize.
-apply nonreadable_memory_block_data_at'; auto.
+apply nonreadable_memory_block_data_at_rec; auto.
 Qed.
 
 Lemma nonreadable_field_at_eq {cs: compspecs} :
@@ -2350,14 +2350,14 @@ unfold data_at.
 erewrite field_at_share_join; eauto.
 Qed.
 
-Lemma nonreadable_data_at'_eq {cs: compspecs} : 
+Lemma nonreadable_data_at_rec_eq {cs: compspecs} : 
   forall sh t v v' p,
     ~readable_share sh ->
     field_compatible t nil p ->
-     data_at' sh t v p = data_at' sh t v' p.
+     data_at_rec sh t v p = data_at_rec sh t v' p.
 Proof.
 intros.
- rewrite <- !(nonreadable_memory_block_data_at'); auto.
+ rewrite <- !(nonreadable_memory_block_data_at_rec); auto.
 Qed.
 
 Lemma nonreadable_data_at_eq {cs: compspecs}: 
@@ -2374,7 +2374,7 @@ Lemma value_fits_Tint_trivial {cs: compspecs} :
   forall s a  i, value_fits (Tint I32 s a) (Vint i).
 Proof.
 intros.
-rewrite value_fits_ind; simpl.
+rewrite value_fits_eq; simpl.
 if_tac; auto.
 hnf. intro. apply Coq.Init.Logic.I.
 Qed.
@@ -2388,7 +2388,7 @@ Lemma mapsto_field_at {cs: compspecs} sh t gfs v v' p:
 Proof.
   intros.
   unfold field_at, at_offset.
-  rewrite by_value_data_at' by auto.
+  rewrite by_value_data_at_rec by auto.
   apply (fun HH => JMeq_trans HH (JMeq_sym (repinject_JMeq _ v' H))) in H2.
   apply JMeq_eq in H2.
   rewrite prop_true_andp by auto.
@@ -2408,7 +2408,7 @@ Lemma mapsto_field_at_ramify {cs: compspecs} sh t gfs v v' w w' p:
 Proof.
   intros.
   unfold field_at, at_offset.
-  rewrite !by_value_data_at' by auto.
+  rewrite !by_value_data_at_rec by auto.
   apply (fun HH => JMeq_trans HH (JMeq_sym (repinject_JMeq _ v' H))) in H1; apply JMeq_eq in H1.
   apply (fun HH => JMeq_trans HH (JMeq_sym (repinject_JMeq _ w' H))) in H2; apply JMeq_eq in H2.
   normalize.
@@ -2437,7 +2437,7 @@ Proof.
   simpl.
   destruct p; inv H2.
   rewrite int_add_repr_0_r.
-  rewrite by_value_data_at' by auto.
+  rewrite by_value_data_at_rec by auto.
   apply (fun HH => JMeq_trans HH (JMeq_sym (repinject_JMeq _ v' H))) in H10; apply JMeq_eq in H10.
   rewrite prop_true_andp; auto.
   f_equal. auto.

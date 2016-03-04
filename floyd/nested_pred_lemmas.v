@@ -30,7 +30,7 @@ Section NESTED_PRED.
 Context {cs: compspecs}.
 
 Definition nested_pred (atom_pred: type -> bool): type -> bool :=
-  func_type
+  type_func
     (fun _ => bool)
     (fun t => atom_pred t)
     (fun t n a b => (atom_pred (Tarray t n a) && b)%bool)
@@ -40,7 +40,7 @@ Definition nested_pred (atom_pred: type -> bool): type -> bool :=
 Definition nested_fields_pred (atom_pred: type -> bool) (m: members) : bool :=
   fold_right (fun it b => (nested_pred atom_pred (field_type (fst it) m) && b)%bool) true m.
 
-Lemma nested_pred_ind: forall atom_pred t,
+Lemma nested_pred_eq: forall atom_pred t,
   nested_pred atom_pred t = 
   match t with
   | Tarray t0 _ _ => (atom_pred t && nested_pred atom_pred t0)%bool
@@ -52,7 +52,7 @@ Proof.
   unfold nested_fields_pred.
   intros.
   unfold nested_pred.
-  rewrite func_type_ind with (t0 := t) (A := (fun _ => bool)) at 1 by auto.
+  rewrite type_func_eq with (t0 := t) (A := (fun _ => bool)) at 1 by auto.
   destruct t; auto.
   + f_equal. unfold FTI_aux.
     rewrite decay_spec.
@@ -68,7 +68,7 @@ Lemma nested_pred_atom_pred: forall (atom_pred: type -> bool) (t: type),
   nested_pred atom_pred t = true -> atom_pred t = true.
 Proof.
   intros.
-  rewrite nested_pred_ind in H by auto.
+  rewrite nested_pred_eq in H by auto.
   destruct t; simpl in *;
   try apply andb_true_iff in H; try tauto.
 Defined.
@@ -92,7 +92,7 @@ Lemma nested_pred_Tarray: forall (atom_pred: type -> bool) t n a,
   nested_pred atom_pred (Tarray t n a) = true -> nested_pred atom_pred t = true.
 Proof.
   intros.
-  rewrite nested_pred_ind in H by auto.
+  rewrite nested_pred_eq in H by auto.
   apply andb_true_iff in H.
   tauto.
 Defined.
@@ -101,7 +101,7 @@ Lemma nested_pred_Tstruct: forall (atom_pred: type -> bool) id a,
   nested_pred atom_pred (Tstruct id a) = true -> nested_fields_pred atom_pred (co_members (get_co id)) = true.
 Proof.
   intros.
-  rewrite nested_pred_ind in H by auto.
+  rewrite nested_pred_eq in H by auto.
   apply andb_true_iff in H; tauto.
 Defined.
 
@@ -119,7 +119,7 @@ Lemma nested_pred_Tunion: forall (atom_pred: type -> bool) id a,
   nested_pred atom_pred (Tunion id a) = true -> nested_fields_pred atom_pred (co_members (get_co id)) = true.
 Proof.
   intros.
-  rewrite nested_pred_ind in H by auto.
+  rewrite nested_pred_eq in H by auto.
   apply andb_true_iff in H; tauto.
 Defined.
 

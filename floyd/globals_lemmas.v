@@ -4,7 +4,7 @@ Require Import floyd.assert_lemmas.
 Require Import floyd.nested_field_lemmas.
 Require Import floyd.mapsto_memory_block.
 Require Import floyd.reptype_lemmas.
-Require Import floyd.data_at_lemmas.
+Require Import floyd.data_at_rec_lemmas.
 Require Import floyd.field_at.
 Require Import floyd.closed_lemmas.
 Require Import floyd.nested_pred_lemmas.
@@ -882,8 +882,8 @@ Proof.
   assert (((0 <=? n) && true)%bool = true).
   rewrite Zle_imp_le_bool; [reflexivity | ]; rewrite Zlength_correct in H4; omega.
 unfold legal_alignas_type.
-rewrite nested_pred_ind. simpl.
-rewrite nested_pred_ind.
+rewrite nested_pred_eq. simpl.
+rewrite nested_pred_eq.
 unfold local_legal_alignas_type.
 simpl.  destruct sz; auto.
 split. destruct sz; reflexivity.

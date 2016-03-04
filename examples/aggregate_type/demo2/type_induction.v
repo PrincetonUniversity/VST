@@ -158,7 +158,7 @@ Definition FT_aux id :=
 Variable F_Tint: forall t: type, A t.
 Variable F_Tstruct: forall id, FT_aux id -> A (Tstruct id).
 
-Fixpoint func_type_rec (n: nat) (t: type): A t :=
+Fixpoint type_func_rec (n: nat) (t: type): A t :=
   match n with
   | 0 =>
     match t as t0 return A t0 with
@@ -173,12 +173,12 @@ Fixpoint func_type_rec (n: nat) (t: type): A t :=
   | S n' =>
     match t as t0 return A t0 with
     | Tstruct id =>  let m := co_members (get_co id) in
-                            F_Tstruct id (ListTypeGen (fun it => A (field_type (fst it) m)) (fun it => func_type_rec n' (field_type (fst it) m)) m)
+                            F_Tstruct id (ListTypeGen (fun it => A (field_type (fst it) m)) (fun it => type_func_rec n' (field_type (fst it) m)) m)
     | t' => F_Tint t'
     end
   end.
 
-Definition func_type t := func_type_rec (rank_type cenv_cs t) t.
+Definition type_func t := type_func_rec (rank_type cenv_cs t) t.
 
 Lemma rank_type_Tstruct: forall id co, (Maps.PTree.get id cenv_cs) = Some co ->
   rank_type cenv_cs (Tstruct id) = S (co_rank (get_co id)).
@@ -188,10 +188,10 @@ Proof.
   destruct (Maps.PTree.get id cenv_cs); auto; congruence.
 Defined.
 
-Lemma func_type_rec_rank_irrelevent: forall t n n0,
+Lemma type_func_rec_rank_irrelevent: forall t n n0,
   n >= rank_type cenv_cs t ->
   n0 >= rank_type cenv_cs t ->
-  func_type_rec n t = func_type_rec n0 t.
+  type_func_rec n t = type_func_rec n0 t.
 Proof.
  (* DON'T USE omega IN THIS PROOF!  
    We want the proof to compute reasonably efficiently.
@@ -233,11 +233,11 @@ Defined.
 
 Definition FTI_aux id :=
     let m := co_members (get_co id) in
-    (ListTypeGen (fun it => A (field_type (fst it) m)) (fun it => func_type (field_type (fst it) m)) m).
+    (ListTypeGen (fun it => A (field_type (fst it) m)) (fun it => type_func (field_type (fst it) m)) m).
 
 
-Lemma func_type_ind: forall t, 
-  func_type t =
+Lemma type_func_ind: forall t, 
+  type_func t =
   match t as t0 return A t0 with
   | Tstruct id => F_Tstruct id (FTI_aux id)
   | t' => F_Tint t'
@@ -246,15 +246,15 @@ Proof.
   intros.
   type_induction t; try reflexivity.
   + (* Tstruct *)
-    unfold func_type in *.
-    simpl func_type_rec.
+    unfold type_func in *.
+    simpl type_func_rec.
     destruct (Maps.PTree.get id cenv_cs) as [co |] eqn:CO; simpl.
     - f_equal.
       apply ListTypeGen_preserve; intros [i t].
       unfold get_co; rewrite CO.
       intro Hin.
       generalize (Forall_forall1 _ _ IH); clear IH; intro IH.
-      apply func_type_rec_rank_irrelevent.
+      apply type_func_rec_rank_irrelevent.
       * simpl.
         erewrite co_consistent_rank; [eapply rank_type_field_type; eassumption |].
         exact (cenv_consistent id co CO).
@@ -267,7 +267,7 @@ Defined.
 
 End COMPOSITE_ENV.
 
-Arguments func_type {cs} A F_Tint F_Tstruct t / .
+Arguments type_func {cs} A F_Tint F_Tstruct t / .
 
 Ltac type_induction t :=
   pattern t;

@@ -748,7 +748,7 @@ Lemma gfield_type_nested_pred: forall {atom_pred: type -> bool}, atom_pred Tvoid
 Proof.
   intros.
   destruct t as [| | | | | | | id ? | id ?], gf; auto; 
-   unfold gfield_type in *; rewrite nested_pred_ind in H0.
+   unfold gfield_type in *; rewrite nested_pred_eq in H0.
   + rewrite andb_true_iff in H0.
     tauto.
   + rewrite andb_true_iff in H0.
@@ -769,7 +769,7 @@ Lemma gfield_array_type_nested_pred: forall {atom_pred: type -> bool},
 Proof.
   intros.
   destruct t as [| | | | | | | id ? | id ?]; auto.
-  simpl in H1 |- *; rewrite nested_pred_ind in H1 |- *.
+  simpl in H1 |- *; rewrite nested_pred_eq in H1 |- *.
   erewrite H.
   exact H1.
 Qed.
@@ -869,7 +869,7 @@ Proof.
   pose proof H.
   destruct t as [| | | | | | | id ? | id ?], gf; try solve [simpl; apply Z.divide_0_r];
   unfold legal_alignas_type in H;
-  rewrite nested_pred_ind in H;
+  rewrite nested_pred_eq in H;
   rewrite andb_true_iff in H;
   destruct H.
   + simpl.
@@ -1449,7 +1449,7 @@ intros.
 hnf in H; decompose [and] H; clear H.
 split3; auto.
 unfold legal_alignas_type in H4.
-rewrite nested_pred_ind in H4. simpl in H4. rewrite andb_true_iff in H4; destruct H4; auto.
+rewrite nested_pred_eq in H4. simpl in H4. rewrite andb_true_iff in H4; destruct H4; auto.
 split3; auto. unfold sizeof in *; simpl in *.
 split3.
 simpl in H6.

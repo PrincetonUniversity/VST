@@ -300,7 +300,7 @@ destruct H9; auto.
   fold vbytes.
   change (32 - i*4 - 4) with (N32 - i*4 - WORD).
   cancel.
-rewrite !array_at_data_at' by auto with field_compatible.
+rewrite !array_at_data_at_rec by auto with field_compatible.
 simpl.
 autorewrite with sublist.
 apply derives_refl'.
@@ -623,7 +623,7 @@ Proof.
   replace_SEP 0 (array_at Tsh t_struct_SHA256state_st [StructField _data] 60 64
                            (map Vint lobytes) c). {
   clearbody lobytes.
-  rewrite array_at_data_at' by auto with field_compatible.
+  rewrite array_at_data_at_rec by auto with field_compatible.
   Time entailer!. (*2.4 -> 2.0 *)
 }
   gather_SEP 0 1 2. 
@@ -656,7 +656,7 @@ Proof.
    replace (Zlength dd' + (64 - 8 - Zlength dd')) with 56 by (clear; omega).
    Time autorewrite with sublist. (*2*)
    Time cancel. (*0.2*)
-   rewrite array_at_data_at'; auto.
+   rewrite array_at_data_at_rec; auto.
  }
   Time forward. (* p += 4; *) (*5.1*)
     Time entailer!. (*4.6*)
