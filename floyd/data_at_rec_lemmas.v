@@ -813,6 +813,68 @@ Proof.
     rewrite sepcon_comm; apply derives_left_sepcon_right_corable; auto.
 Qed.
 
+Lemma data_at_rec_share_join:
+  forall sh1 sh2 sh t v b ofs,
+    sepalg.join sh1 sh2 sh ->
+   data_at_rec sh1 t v (Vptr b ofs) * data_at_rec sh2 t v (Vptr b ofs) = data_at_rec sh t v (Vptr b ofs).
+Proof.
+  intros.
+  revert v ofs; pattern t; type_induction t; intros;
+  rewrite !data_at_rec_eq;
+    try solve [if_tac;
+        [ apply memory_block_share_join; auto
+        | apply mapsto_share_join; auto]];
+    try solve [normalize].
+  * (* Tarray *)
+    rewrite array_pred_sepcon.
+    apply array_pred_ext; auto.
+    intros.
+    unfold at_offset; simpl.
+    apply IH.
+  * (* Tstruct *)
+    rewrite struct_pred_sepcon.
+    apply struct_pred_ext; [apply get_co_members_no_replicate |].
+    intros.
+Opaque field_type field_offset.
+    simpl.
+Transparent field_type field_offset.
+    rewrite !withspacer_spacer.
+    rewrite !spacer_memory_block by (simpl; auto).
+    rewrite !sepcon_assoc, (sepcon_comm (at_offset _ _ _)), <- !sepcon_assoc.
+    erewrite memory_block_share_join by eassumption.
+    rewrite sepcon_assoc; f_equal.
+    unfold at_offset.
+    cbv zeta in IH.
+    rewrite Forall_forall in IH.
+    pose proof H0.
+    apply in_members_field_type in H0.
+    rewrite sepcon_comm.
+    etransitivity; [apply (IH (i, field_type i (co_members (get_co id))) H0) |].
+    f_equal.
+    apply JMeq_eq.
+    apply (@proj_compact_prod_JMeq _ _ _ (fun it => reptype (field_type (fst it) (co_members (get_co id)))) (fun it => reptype (field_type (fst it) (co_members (get_co id))))); auto.
+  * rewrite union_pred_sepcon.
+    apply union_pred_ext; [apply get_co_members_no_replicate | reflexivity | ].
+    intros.
+Opaque field_type field_offset.
+    simpl.
+Transparent field_type field_offset.
+    rewrite !withspacer_spacer.
+    rewrite !spacer_memory_block by (simpl; auto).
+    rewrite !sepcon_assoc, (sepcon_comm (data_at_rec _ _ _ _)), <- !sepcon_assoc.
+    erewrite memory_block_share_join by eassumption.
+    rewrite sepcon_assoc; f_equal.
+    unfold at_offset.
+    cbv zeta in IH.
+    rewrite Forall_forall in IH.
+    apply compact_sum_inj_in in H1.
+    rewrite sepcon_comm.
+    etransitivity; [apply (IH (i, field_type i (co_members (get_co id))) H1) |].
+    f_equal.
+    apply JMeq_eq.
+    apply (@proj_compact_sum_JMeq _ _ _ (fun it => reptype (field_type (fst it) (co_members (get_co id)))) (fun it => reptype (field_type (fst it) (co_members (get_co id))))); auto.
+Qed.
+
 (*
 Lemma f_equal_Int_repr:
   forall i j, i=j -> Int.repr i = Int.repr j.

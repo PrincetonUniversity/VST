@@ -184,7 +184,7 @@ Qed.
 
 (******************************************
 
-Lemmas of size_compatible and align_compatible
+Lemmas from veric
 
 ******************************************)
 
@@ -209,6 +209,28 @@ Proof.
     unfold sizeof in *; erewrite size_chunk_sizeof in H2 |- * by eauto.
     rewrite seplog.mapsto__memory_block with (ch := ch); auto.
     eapply Z.divide_trans; [| apply H3].
+    apply align_chunk_alignof; auto.
+    apply nested_pred_atom_pred; auto.
+  + apply pred_ext; saturate_local; try contradiction.
+Qed.
+
+Lemma nonreadable_memory_block_mapsto: forall sh p t ch v, 
+  ~ readable_share sh ->
+  access_mode t = By_value ch ->
+  type_is_volatile t = false ->
+  legal_alignas_type t = true ->
+  size_compatible t p ->
+  align_compatible t p ->
+  tc_val' t v ->
+  memory_block sh (sizeof t) p = mapsto sh t p v.
+Proof.
+  intros.
+  assert (isptr p \/ ~isptr p) by (destruct p; simpl; auto).
+  destruct H6. destruct p; try contradiction.
+  + simpl in H3, H4.
+    erewrite size_chunk_sizeof in H3 |- * by eauto.
+    apply seplog.nonreadable_memory_block_mapsto; auto.
+    eapply Z.divide_trans; [| apply H4].
     apply align_chunk_alignof; auto.
     apply nested_pred_atom_pred; auto.
   + apply pred_ext; saturate_local; try contradiction.

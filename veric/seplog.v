@@ -653,6 +653,31 @@ Proof.
    auto.
 Qed.
 
+Lemma nonreadable_memory_block_mapsto: forall sh b ofs t ch v, 
+  ~ readable_share sh ->
+  access_mode t = By_value ch ->
+  type_is_volatile t = false ->
+  (align_chunk ch | Int.unsigned ofs) ->
+  Int.unsigned ofs + size_chunk ch <= Int.modulus ->
+  tc_val' t v ->
+  memory_block sh (size_chunk ch) (Vptr b ofs) = mapsto sh t (Vptr b ofs) v.
+Proof.
+  intros.
+  unfold memory_block.
+  rewrite memory_block'_eq.
+  2: pose proof Int.unsigned_range ofs; omega.
+  2: rewrite Coqlib.nat_of_Z_eq by (pose proof size_chunk_pos ch; omega); omega.
+  destruct (readable_share_dec sh).
+ * tauto.
+ * unfold mapsto_, mapsto, memory_block'_alt.
+   rewrite prop_true_andp by auto.
+   rewrite H0, H1.
+   rewrite !if_false by auto.
+   rewrite prop_true_andp by auto.
+   rewrite Z2Nat.id by (pose proof (size_chunk_pos ch); omega).
+   auto.
+Qed.
+
 Lemma mapsto_share_join:
  forall sh1 sh2 sh t p v,
    join sh1 sh2 sh ->

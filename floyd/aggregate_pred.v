@@ -88,6 +88,22 @@ Proof.
   intros; rewrite H; auto.
 Qed.
 
+Lemma rangespec_sepcon: forall lo len P Q p,
+  rangespec lo len P p * rangespec lo len Q p = rangespec lo len (P * Q) p.
+Proof.
+  intros.
+  revert lo; induction len; intros.
+  + simpl.
+    rewrite sepcon_emp; auto.
+  + simpl.
+    rewrite !sepcon_assoc.
+    f_equal.
+    rewrite <- sepcon_assoc, (sepcon_comm _ (Q lo p)), sepcon_assoc.
+    f_equal.
+    rewrite IHlen.
+    reflexivity.
+Qed.
+
 Lemma rangespec_elim: forall lo len P i,
   lo <= i < lo + Z_of_nat len -> rangespec lo len P |-- P i * TT.
 Proof.
@@ -321,6 +337,17 @@ Proof.
   intros.
   assert (i = i') by omega; subst i'; clear H0.
   rewrite at_offset_eq.
+  auto.
+Qed.
+
+Lemma array_pred_sepcon: forall  {A} (d:A) lo hi P Q v p,
+  array_pred d lo hi P v p * array_pred d lo hi Q v p = array_pred d lo hi (P * Q) v p.
+Proof.
+  intros.
+  unfold array_pred.
+  normalize.
+  apply andp_prop_ext; [omega | intros].
+  rewrite rangespec_sepcon.
   auto.
 Qed.
 
@@ -589,6 +616,26 @@ Proof.
     rewrite IHm.
     rewrite <- corable_andp_sepcon1 by auto.
     reflexivity.
+Qed.
+
+Lemma struct_pred_sepcon: forall m {A} (P Q: forall it, A it -> val -> mpred) v p,
+  struct_pred m P v p * struct_pred m Q v p = struct_pred m (fun it => P it * Q it) v p.
+Proof.
+  intros.
+  destruct m as [| (i0, t0) m]; [| revert i0 t0 v; induction m as [| (i1, t1) m]; intros].
+  + simpl.
+    rewrite emp_sepcon; auto.
+  + simpl.
+    auto.
+  + change (struct_pred ((i0, t0) :: (i1, t1) :: m) P v p)
+      with (P (i0, t0) (fst v) p * struct_pred ((i1, t1) :: m) P (snd v) p).
+    change (struct_pred ((i0, t0) :: (i1, t1) :: m) Q v p)
+      with (Q (i0, t0) (fst v) p * struct_pred ((i1, t1) :: m) Q (snd v) p).
+    change (struct_pred ((i0, t0) :: (i1, t1) :: m) (fun it => P it * Q it) v p)
+      with (P (i0, t0) (fst v) p * Q (i0, t0) (fst v) p * struct_pred ((i1, t1) :: m) (fun it => P it * Q it) (snd v) p).
+    rewrite !sepcon_assoc; f_equal.
+    rewrite <- sepcon_assoc, (sepcon_comm _ (Q _ _ _)), sepcon_assoc; f_equal.
+    apply IHm.
 Qed.
 
 Lemma compact_sum_inj_eq_spec: forall {A} a0 a1 (l: list A) F0 F1 (v0: compact_sum (map F0 (a0 :: a1 :: l))) (v1: compact_sum (map F1 (a0 :: a1 :: l))) H,
@@ -901,6 +948,20 @@ Proof.
       auto.
     - simpl.
       apply IHm.
+Qed.
+
+Lemma union_pred_sepcon: forall m {A} (P Q: forall it, A it -> val -> mpred) v p,
+  union_pred m P v p * union_pred m Q v p = union_pred m (fun it => P it * Q it) v p.
+Proof.
+  intros.
+  destruct m as [| (i0, t0) m]; [| revert i0 t0 v; induction m as [| (i1, t1) m]; intros].
+  + simpl.
+    rewrite sepcon_emp; auto.
+  + simpl.
+    auto.
+  + destruct v.
+    - simpl; auto.
+    - apply IHm.
 Qed.
 
 Lemma struct_Prop_compact_prod_gen: forall m (F: ident * type -> Type) (P: forall it, F it -> Prop) (f: forall it, F it),
@@ -1260,6 +1321,10 @@ Definition at_offset_array_pred: forall {A} (d:A) lo hi P v ofs p,
   at_offset (array_pred d lo hi P v) ofs p = array_pred d lo hi (fun i v => at_offset (P i v) ofs) v p
 := @at_offset_array_pred.
 
+Definition array_pred_sepcon: forall  {A} (d:A) lo hi P Q v p,
+  array_pred d lo hi P v p * array_pred d lo hi Q v p = array_pred d lo hi (P * Q) v p
+:= @array_pred_sepcon.
+
 Definition struct_pred_ramif: forall m {A} (P: forall it, A it -> val -> mpred) (i: ident) v p d,
   in_members i m ->
   members_no_replicate m = true ->
@@ -1296,6 +1361,10 @@ Definition andp_struct_pred: forall m {A} (P: forall it, A it -> val -> mpred) v
   | _ => struct_pred m (fun it v p => Q && P it v p) v p
   end
 := @corable_andp_struct_pred.
+
+Definition struct_pred_sepcon: forall m {A} (P Q: forall it, A it -> val -> mpred) v p,
+  struct_pred m P v p * struct_pred m Q v p = struct_pred m (fun it => P it * Q it) v p
+:= @struct_pred_sepcon.
 
 Definition union_pred_ramif: forall m {A} (P: forall it, A it -> val -> mpred) (i: ident) v p d,
   (forall i' (v': A (i', field_type i' m)), in_members i' m -> P _ v' p |-- P _ d p) ->
@@ -1335,6 +1404,10 @@ Definition andp_union_pred: forall m {A} (P: forall it, A it -> val -> mpred) v 
   | _ => union_pred m (fun it v p => Q && P it v p) v p
   end
 := @andp_union_pred.
+
+Definition union_pred_sepcon: forall m {A} (P Q: forall it, A it -> val -> mpred) v p,
+  union_pred m P v p * union_pred m Q v p = union_pred m (fun it => P it * Q it) v p
+:= @union_pred_sepcon.
 
 Definition struct_Prop_compact_prod_gen: forall m (F: ident * type -> Type) (P: forall it, F it -> Prop) (f: forall it, F it),
   members_no_replicate m = true ->
