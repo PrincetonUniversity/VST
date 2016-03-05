@@ -1437,40 +1437,6 @@ split; red; auto.
 exists 0. rewrite Int.unsigned_zero, Z.mul_0_l; auto.
 Qed.
 
-
-Lemma field_compatible_array_member:
- forall {cs: compspecs} (k i: Z) t n p,
-  field_compatible (tarray t n) nil p ->
-  i = (sizeof t * k)%Z ->
-  0 <= k < n ->
-  field_compatible t nil (offset_val i p).
-Proof.
-intros.
-hnf in H; decompose [and] H; clear H.
-split3; auto.
-unfold legal_alignas_type in H4.
-rewrite nested_pred_eq in H4. simpl in H4. rewrite andb_true_iff in H4; destruct H4; auto.
-split3; auto. unfold sizeof in *; simpl in *.
-split3.
-simpl in H6.
-rewrite Z.max_r in H6 by omega.
-clear - H6  H1. admit. (* easy *)
-admit. (* easy *)
-split; auto.
-hnf in H8|-*.
-destruct p; try contradiction. simpl.
-unfold Int.add.
-rewrite Int.unsigned_repr.
-apply Z.divide_add_r.
-eapply Z.divide_trans; [apply (alignof_divide_alignof_Tarray _ _ _ H4) | assumption].
-subst i.
-rewrite Int.unsigned_repr.
-apply Z.divide_mul_l.
-admit. (* should be fine *)
-admit. (* should be fine *)
-admit. (* should be fine *)
-Qed.
-
 Lemma compute_in_members_e:
  forall i al, compute_in_members i al = true -> in_members i al.
 Proof.

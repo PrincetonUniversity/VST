@@ -876,49 +876,6 @@ Proof.
   intros; rewrite H by auto; auto.
 Qed.
 
-Lemma data_at_tint: forall sh v2 v1,
-  data_at sh tint v2 v1 = mapsto sh tint v1 v2.
-Proof.
-  intros.
-  unfold data_at, data_at_rec.
-  simpl.
-  apply pred_ext; normalize.
-  apply andp_right; [|normalize].
-  rewrite mapsto_isptr.
-  unfold mapsto. simpl.
-  unfold address_mapsto, res_predicates.address_mapsto, size_compatible, align_compatible.
-  assert (legal_alignas_type tint = true) by reflexivity.
-  assert (nested_legal_fieldlist tint = true) by reflexivity.
-  destruct v1; normalize.
-  eapply derives_trans with (!!(Int.unsigned i + sizeof tint <= Int.modulus /\
-          (alignof tint | Int.unsigned i))); [| normalize].
-  change (@predicates_hered.exp compcert_rmaps.RML.R.rmap
-      compcert_rmaps.R.ag_rmap) with (@exp mpred Nveric).
-  change (@predicates_hered.andp compcert_rmaps.RML.R.rmap
-      compcert_rmaps.R.ag_rmap) with (@andp mpred Nveric).
-  change (@predicates_hered.prop compcert_rmaps.RML.R.rmap
-      compcert_rmaps.R.ag_rmap) with (@prop mpred Nveric).
-  change (sizeof tint) with 4.
-  change (alignof tint) with 4.
-  change (Memdata.align_chunk Mint32) with 4.
-  assert ((4 | Int.unsigned i) -> Int.unsigned i + 4 <= Int.modulus).
-  Focus 1. {
-    intros.
-    destruct H2.
-    pose proof Int.unsigned_range i.
-    rewrite H2 in *.
-    change Int.modulus with (1073741824 * 4)%Z in *.
-    destruct H3 as [_ ?].
-    rewrite Zmult_succ_l_reverse.
-    apply Zmult_le_compat_r; [| omega].
-    destruct (zle (Z.succ x) 1073741824); auto.
-    assert (1073741824 <= x) by omega.
-    apply Zmult_le_compat_r with (p := 4) in H4; [| omega].
-    omega.
-  } Unfocus.
-  eapply orp_left; normalize; apply prop_right.
-Qed.
-
 *)
 
 End CENV.

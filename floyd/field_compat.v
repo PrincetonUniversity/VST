@@ -12,6 +12,17 @@ Require Import floyd.jmeq_lemmas.
 Require Import floyd.sublist.
 Require Import floyd.field_at.
 
+Lemma field_compatible_offset_zero:
+  forall {cs: compspecs} t gfs p,
+    field_compatible t gfs p <-> field_compatible t gfs (offset_val 0 p).
+Proof.
+  intros.
+  unfold field_compatible.
+  destruct p; simpl; try tauto.
+  rewrite !int_add_repr_0_r.
+  tauto.
+Qed.
+
 Lemma field_address0_offset:
   forall {cs: compspecs} t gfs p,
     field_compatible0 t gfs p ->

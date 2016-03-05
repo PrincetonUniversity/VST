@@ -242,24 +242,34 @@ Proof.
   rewrite <- (sepcon_emp (mapsto _ _ (offset_val 20 _) _)).
   assert (FC: field_compatible (tarray t_struct_list 3) [] x)
     by (hnf; repeat apply conj; auto; compute; auto).
+  (* apply field_compatible_offset_zero in FC. *)
   match goal with |- ?A |-- _ => set (a:=A) end.
   replace x with (offset_val 0 x) by normalize.
   subst a.
-repeat match goal with |- _ * (mapsto _ _ _ ?q * _) |-- lseg _ _ _ (offset_val ?n _) _ =>
-  assert (FC': field_compatible t_struct_list [] (offset_val n x))
-    by (eapply (field_compatible_array_member (n/8)%Z); try eassumption; simpl; computable);
-  apply @lseg_unroll_nonempty1 with q;
-    [destruct x; try contradiction; intro Hx; inv Hx | normalize; reflexivity | ];
-  rewrite list_cell_eq by auto;
-  do 2 (apply sepcon_derives;
-    [ unfold field_at; rewrite prop_true_andp by auto with field_compatible;
-      unfold data_at_rec, at_offset; simpl; normalize | ]);
-  clear FC'
-end.
-rewrite mapsto_tuint_tptr_nullval; auto.
-rewrite @lseg_nil_eq.
-rewrite prop_true_andp; auto.
-split; reflexivity.
+
+  repeat
+    match goal with |- _ * (mapsto _ _ _ ?q * _) |-- lseg _ _ _ (offset_val ?n _) _ =>
+    assert (FC': field_compatible t_struct_list [] (offset_val n x));
+      [apply (@field_compatible_nested_field CompSpecs (tarray t_struct_list 3)
+         [ArraySubsc (n/8)] x);
+       simpl;
+       unfold field_compatible in FC |- *; simpl in FC |- *;
+       assert (0 <= n/8 < 3) by (cbv [Z.div]; simpl; omega);
+       tauto
+      |];
+    apply @lseg_unroll_nonempty1 with q;
+      [destruct x; try contradiction; intro Hx; inv Hx | normalize; reflexivity | ];
+    rewrite list_cell_eq by auto;
+    do 2 (apply sepcon_derives;
+      [ unfold field_at; rewrite prop_true_andp by auto with field_compatible;
+        unfold data_at_rec, at_offset; simpl; normalize | ]);
+    clear FC'
+    end.
+   
+  rewrite mapsto_tuint_tptr_nullval; auto.
+  rewrite @lseg_nil_eq.
+  rewrite prop_true_andp; auto.
+  split; reflexivity.
 Qed.
 
 Lemma body_main:  semax_body Vprog Gprog f_main main_spec.
