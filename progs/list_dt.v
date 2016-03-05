@@ -1865,6 +1865,8 @@ Proof.
  unfold at_offset.
  apply memory_block_share_join; auto.
  unfold at_offset.
+ assert (isptr p) by (auto with field_compatible).
+ destruct p; try inversion H1.
  apply data_at_rec_share_join; auto.
  +
  rewrite !struct_pred_cons2. 
@@ -1879,6 +1881,8 @@ Proof.
  unfold at_offset.
  apply memory_block_share_join; auto.
  unfold at_offset.
+ assert (isptr p) by (auto with field_compatible).
+ destruct p; try inversion H1.
  apply data_at_rec_share_join; auto.
  apply IHm.
 Qed.
