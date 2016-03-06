@@ -781,11 +781,12 @@ auto.
 Qed.
 
 Lemma array_at_data_at: forall sh t gfs lo hi v p,
+  lo <= hi ->
   array_at sh t gfs lo hi v p =
   (!! field_compatible0 t (ArraySubsc lo :: gfs) p) &&
   (!! field_compatible0 t (ArraySubsc hi :: gfs) p) &&
   at_offset (data_at sh (nested_field_array_type t gfs lo hi) 
-                (@fold_reptype _ (nested_field_array_type t gfs lo hi)  v))
+                (@fold_reptype _ (nested_field_array_type t gfs lo hi) v))
                (nested_field_offset t (ArraySubsc lo :: gfs)) p.
 Proof.
   intros.
@@ -794,11 +795,12 @@ Proof.
   unfold data_at, field_at.
   change (nested_field_type (nested_field_array_type t gfs lo hi) nil)
     with (Tarray (nested_field_type t (gfs SUB 0)) 
-           (hi - lo) (attr_of_type (nested_field_type t gfs))).
+           (hi - lo) (no_alignas_attr (attr_of_type (nested_field_type t gfs)))).
   rewrite data_at_rec_eq.
   rewrite <- at_offset_eq.
   normalize.
-  apply andp_prop_ext.  f_equal.
+  apply andp_prop_ext.
+  f_equal.
   + pose proof field_compatible0_nested_field_array t gfs lo hi p.
     tauto.
   + intros [? ?].
@@ -818,15 +820,17 @@ Proof.
     rewrite nested_field_offset_ind with (gfs0 := ArraySubsc i' :: _) by auto.
     rewrite nested_field_offset_ind with (gfs0 := ArraySubsc lo :: _) by auto.
     rewrite nested_field_type_ind with (gfs0 := ArraySubsc 0 :: _).
-    rewrite field_compatible0_cons in H3.
+    rewrite field_compatible0_cons in H4.
     destruct (nested_field_type t gfs); try tauto.
     unfold gfield_offset, gfield_type.
     assert (sizeof t0 * i' = sizeof t0 * lo + sizeof t0 * i)%Z by (rewrite Zred_factor4; f_equal; omega).
     omega.
 Qed.
 
+(* TODO: rename this lemma. *)
 Lemma array_at_data_at_rec:   
 forall sh t gfs lo hi v p,
+  lo <= hi ->
   field_compatible0 t (ArraySubsc lo :: gfs) p ->
   field_compatible0 t (ArraySubsc hi :: gfs) p ->
   array_at sh t gfs lo hi v p =
@@ -835,36 +839,12 @@ forall sh t gfs lo hi v p,
                (field_address0 t (ArraySubsc lo::gfs) p).
 Proof.
   intros.
-  rewrite array_at_data_at.
+  rewrite array_at_data_at by auto.
   rewrite !prop_true_andp by auto.
   unfold at_offset.
   f_equal.
   unfold field_address0.
   rewrite if_true; auto.
-Qed.
-
-(* TODO: this lemma is not useful. Delete it. *)
-Lemma array_at_data_at_with_tl: forall sh t gfs lo mid hi v v' p,
-  array_at sh t gfs lo mid v p * array_at sh t gfs mid hi v' p =
-  data_at sh (nested_field_array_type t gfs lo mid) (@fold_reptype _ (nested_field_array_type t gfs lo mid)  v) (field_address0 t (ArraySubsc lo :: gfs) p) *
-  array_at sh t gfs mid hi v' p.
-Proof.
-  intros.
-  rewrite (array_at_data_at sh t gfs lo mid).
-  unfold data_at, array_at.
-  rewrite at_offset_eq. normalize.
-  unfold field_address0.
-  destruct (field_compatible0_dec t (ArraySubsc lo :: gfs) p).
-  + normalize.
-    f_equal.
-    apply ND_prop_ext; tauto.
-  + rewrite prop_and. rewrite prop_and.
-      replace (!! field_compatible0 t (ArraySubsc lo :: gfs) p: mpred) with FF
-      by (apply ND_prop_ext; tauto).
-    rewrite field_at_isptr with (p := Vundef).
-    change (!!isptr Vundef: mpred) with FF.    
-    normalize.
-   apply pred_ext. normalize. apply FF_left.
 Qed.
 
 (************************************************
@@ -2233,7 +2213,9 @@ Lemma data_at_type_changable {cs}: forall (sh: Share.t) (t1 t2: type) v1 v2,
   @data_at cs sh t1 v1 = data_at sh t2 v2.
 Proof. intros. subst. apply JMeq_eq in H0. subst v2. reflexivity. Qed.
 
+(* TODO: rename and clean up all array_at_data_at lemmas. *)
 Lemma array_at_data_at1 {cs} : forall sh t gfs lo hi v p,
+   lo <= hi ->
    field_compatible0 t (gfs SUB lo) p ->
    field_compatible0 t (gfs SUB hi) p ->
   @array_at cs sh t gfs lo hi v p =
@@ -2241,7 +2223,7 @@ Lemma array_at_data_at1 {cs} : forall sh t gfs lo hi v p,
                 (@fold_reptype _ (nested_field_array_type t gfs lo hi)  v))
                (nested_field_offset t (ArraySubsc lo :: gfs)) p.
 Proof.
-  intros. rewrite array_at_data_at. unfold at_offset. apply pred_ext; normalize.
+  intros. rewrite array_at_data_at by auto. unfold at_offset. apply pred_ext; normalize.
 Qed.
 
 Lemma data_at_ext_derives {cs} sh t v v' p q: v=v' -> p=q -> @data_at cs sh t v p |-- @data_at cs sh t v' q.

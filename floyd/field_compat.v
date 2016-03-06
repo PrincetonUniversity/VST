@@ -347,7 +347,7 @@ Proof.
   2: omega. 2: eauto.
   rewrite (split2_array_at sh (Tarray t n noattr) nil 0 n1).
   2: auto. 2: rewrite Z.sub_0_r; auto.
-  do 2 rewrite array_at_data_at. normalize.
+  do 2 rewrite array_at_data_at by tauto.
   rewrite Zminus_0_r.
   unfold at_offset.
   erewrite (data_at_type_changable sh 
@@ -365,6 +365,7 @@ Proof.
   unfold gfield_offset.
   rewrite !Z.add_0_l. rewrite Z.mul_0_r.
   rewrite isptr_offset_val_zero; trivial.
+  normalize.
 Qed.
 
 Lemma split2_data_at_Tarray_fold {cs: compspecs} sh t n n1 v (v': list (reptype t)) v1 v2 p:
@@ -436,8 +437,8 @@ Proof.
      admit.  (* true, but tedious *)
   rewrite H6. clear H6.
   clear - H H3.
-  rewrite array_at_data_at. normalize.
-  rewrite array_at_data_at.
+  rewrite array_at_data_at by omega. normalize.
+  rewrite array_at_data_at by omega.
   rewrite !prop_true_andp by auto with field_compatible.
   unfold at_offset.
   apply derives_refl'.

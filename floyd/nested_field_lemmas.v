@@ -60,10 +60,20 @@ Definition gfield_offset t gf :=
   | _, _ => 0
   end.
 
+Definition no_alignas_attr (a: attr): attr := mk_attr (attr_volatile a) None.
+
+Lemma no_alignas_attr_spec: forall a d,
+  align_attr (no_alignas_attr a) d = d.
+Proof.
+  intros.
+  destruct a; simpl.
+  reflexivity.
+Qed.
+
 Definition gfield_array_type t lo hi :=
   match t with
-  | Tarray t0 _ a => Tarray t0 (hi - lo) a
-  | _ => Tarray Tvoid (hi - lo) (attr_of_type t)
+  | Tarray t0 _ a => Tarray t0 (hi - lo) (no_alignas_attr a)
+  | _ => Tarray Tvoid (hi - lo) (no_alignas_attr (attr_of_type t))
   end.
 
 Fixpoint nested_field_rec (t: type) (gfs: list gfield) : option (prod Z type) :=
@@ -131,7 +141,7 @@ Definition nested_field_type (t: type) (gfs: list gfield) : type :=
   end.
 
 Definition nested_field_array_type t gfs lo hi :=
-  Tarray (nested_field_type t (ArraySubsc 0 :: gfs)) (hi - lo) (attr_of_type (nested_field_type t gfs)).
+  Tarray (nested_field_type t (ArraySubsc 0 :: gfs)) (hi - lo) (no_alignas_attr (attr_of_type (nested_field_type t gfs))).
 
 Definition legal_field t gf :=
   match t, gf with
@@ -762,16 +772,22 @@ Proof.
 Qed.
 
 Lemma gfield_array_type_nested_pred: forall {atom_pred: type -> bool},
-  (forall t n m a, atom_pred (Tarray t n a) = atom_pred (Tarray t m a)) ->
+  (forall t n m a,
+    0 <= m ->
+    atom_pred (Tarray t n a) = true ->
+    atom_pred (Tarray t m (no_alignas_attr a)) = true) ->
   forall (t: type) lo hi,
+  lo <= hi ->
   legal_field0 t (ArraySubsc lo) ->
   nested_pred atom_pred t = true -> nested_pred atom_pred (gfield_array_type t lo hi) = true.
 Proof.
   intros.
   destruct t as [| | | | | | | id ? | id ?]; auto.
-  simpl in H1 |- *; rewrite nested_pred_eq in H1 |- *.
-  erewrite H.
-  exact H1.
+  simpl in H2 |- *; rewrite nested_pred_eq in H2 |- *.
+  rewrite andb_true_iff in H2 |- *.
+  destruct H2; split; auto.
+  eapply H; eauto.
+  omega.
 Qed.
 
 Lemma nested_field_type_nest_pred: forall {atom_pred: type -> bool}, atom_pred Tvoid = true -> forall (t: type) (gfs: list gfield),
@@ -785,16 +801,20 @@ Qed.
 
 Lemma nested_field_array_type_nest_pred: forall {atom_pred: type -> bool},
   atom_pred Tvoid = true ->
-  (forall t n m a, atom_pred (Tarray t n a) = atom_pred (Tarray t m a)) ->
+  (forall t n m a,
+     0 <= m ->
+     atom_pred (Tarray t n a) = true ->
+     atom_pred (Tarray t m (no_alignas_attr a)) = true) ->
   forall (t: type) gfs lo hi,
+  lo <= hi ->
   legal_nested_field0 t (ArraySubsc lo :: gfs) ->
   nested_pred atom_pred t = true ->
   nested_pred atom_pred (nested_field_array_type t gfs lo hi) = true.
 Proof.
   intros.
   rewrite nested_field_array_type_ind.
-  simpl in H1.
-  apply gfield_array_type_nested_pred; [auto | tauto |].
+  simpl in H2.
+  apply gfield_array_type_nested_pred; [auto | auto | tauto |].
   apply nested_field_type_nest_pred; auto.
 Qed.
 
@@ -821,18 +841,22 @@ Proof.
       apply Z.divide_1_l.
 Qed.
 
-Lemma alignof_gfield_array_type_divide_alignof: forall t lo hi,
+Lemma alignof_gfield_array_type_eq: forall t lo hi i,
   legal_alignas_type t = true ->
   legal_field0 t (ArraySubsc lo) ->
-  (alignof (gfield_array_type t lo hi) | alignof t).
+  alignof (gfield_array_type t lo hi) = alignof (gfield_type t (ArraySubsc i)).
 Proof.
   intros.
   destruct t as [| | | | | | | id ? | id ?]; try solve [inversion H0].
-  simpl.
-  apply Z.divide_refl.
+  apply legal_alignas_type_spec in H.
+Transparent alignof.
+  simpl (alignof (gfield_array_type (Tarray t z a) lo hi)).
+Opaque alignof.
+  unfold plain_alignof in H.
+  rewrite no_alignas_attr_spec.
+  auto.
 Qed.
 
-(* was called alignof_gfield_type_divide *)
 Lemma alignof_nested_field_type_divide_alignof: forall t gfs,
   legal_alignas_type t = true ->
   legal_nested_field t gfs ->
@@ -847,19 +871,43 @@ Proof.
     unfold legal_alignas_type; apply nested_field_type_nest_pred; auto.
 Qed.
 
+Lemma alignof_nested_field_type_divide_alignof': forall t gfs,
+  legal_alignas_type t = true ->
+  legal_nested_field0 t gfs ->
+  (alignof (nested_field_type t gfs) | alignof t).
+Proof.
+  intros.
+  destruct gfs; rewrite nested_field_type_ind.
+  + apply Z.divide_refl.
+  + simpl in H0.
+    pose proof alignof_nested_field_type_divide_alignof t gfs H (proj1 H0).
+    eapply Z.divide_trans; [| eauto].
+    apply alignof_gfield_type_divide_alignof.
+    unfold legal_alignas_type; apply nested_field_type_nest_pred; auto.
+Qed.
+
+Lemma alignof_nested_field_array_type_eq: forall t gfs lo hi i,
+  legal_alignas_type t = true ->
+  legal_nested_field0 t (ArraySubsc lo :: gfs) ->
+  alignof (nested_field_array_type t gfs lo hi) = alignof (nested_field_type t (ArraySubsc i :: gfs)).
+Proof.
+  intros.
+  rewrite nested_field_type_ind.
+  rewrite nested_field_array_type_ind.
+  simpl in H0.
+  apply alignof_gfield_array_type_eq.
+  + apply nested_field_type_nest_pred; auto.
+  + tauto.
+Qed.
+
 Lemma alignof_nested_field_array_type_divide_alignof: forall t gfs lo hi,
   legal_alignas_type t = true ->
   legal_nested_field0 t (ArraySubsc lo :: gfs) ->
   (alignof (nested_field_array_type t gfs lo hi) | alignof t).
 Proof.
   intros.
-  rewrite nested_field_array_type_ind.
-  simpl in H0.
-  eapply Z.divide_trans.
-  + apply alignof_gfield_array_type_divide_alignof; [| tauto].
-    apply nested_field_type_nest_pred; auto.
-  + apply alignof_nested_field_type_divide_alignof; auto.
-    tauto.
+  rewrite alignof_nested_field_array_type_eq with (i := lo) by auto.
+  apply alignof_nested_field_type_divide_alignof'; auto.
 Qed.
 
 Lemma gfield_offset_type_divide: forall gf t, legal_alignas_type t = true ->
@@ -904,6 +952,24 @@ Proof.
   induction gfs; rewrite nested_field_type_ind, nested_field_offset_ind by auto.
   + apply Z.divide_0_r.
   + simpl in H0; spec IHgfs; [tauto |].
+    assert (legal_alignas_type (nested_field_type t gfs) = true) by
+      (unfold legal_alignas_type; apply nested_field_type_nest_pred; auto).
+    apply Z.divide_add_r.
+    - eapply Z.divide_trans; [| eauto].
+      apply alignof_gfield_type_divide_alignof; auto.
+    - apply gfield_offset_type_divide; auto.
+Qed.
+
+Lemma nested_field_offset_type_divide0: forall gfs t,
+  legal_alignas_type t = true ->
+  legal_nested_field0 t gfs ->
+  (alignof (nested_field_type t gfs) | nested_field_offset t gfs).
+Proof.
+  intros.
+  destruct gfs; rewrite nested_field_type_ind, nested_field_offset_ind by auto.
+  + apply Z.divide_0_r.
+  + simpl in H0.
+    pose proof nested_field_offset_type_divide gfs t H (proj1 H0).
     assert (legal_alignas_type (nested_field_type t gfs) = true) by
       (unfold legal_alignas_type; apply nested_field_type_nest_pred; auto).
     apply Z.divide_add_r.
@@ -1225,8 +1291,8 @@ Proof.
   omega.
 Qed.
 
-Lemma align_compatible_nested_field: forall t gfs p,
-  legal_nested_field t gfs ->
+Lemma align_compatible_nested_field0: forall t gfs p,
+  legal_nested_field0 t gfs ->
   legal_alignas_type t = true ->
   align_compatible t p ->
   align_compatible (nested_field_type t gfs) (offset_val (nested_field_offset t gfs) p).
@@ -1240,8 +1306,8 @@ Proof.
   assert (alignof (nested_field_type t gfs) | Int.unsigned i + nested_field_offset t gfs).
   - apply Z.divide_add_r; auto.
     eapply Z.divide_trans; [| eauto].
-    apply alignof_nested_field_type_divide_alignof; auto.
-    apply nested_field_offset_type_divide; auto.
+    apply alignof_nested_field_type_divide_alignof'; auto.
+    apply nested_field_offset_type_divide0; auto.
   - unfold Int.modulus.
     destruct (alignof_two_p (nested_field_type t gfs)).
     rewrite H3 in *.
@@ -1253,6 +1319,16 @@ Proof.
     * rewrite <- !two_power_nat_two_p in *. apply power_nat_one_divede_other.
 Qed.
 
+Lemma align_compatible_nested_field: forall t gfs p,
+  legal_nested_field t gfs ->
+  legal_alignas_type t = true ->
+  align_compatible t p ->
+  align_compatible (nested_field_type t gfs) (offset_val (nested_field_offset t gfs) p).
+Proof.
+  intros.
+  apply align_compatible_nested_field0; auto.
+Qed.
+
 Lemma align_compatible_nested_field_array: forall t gfs lo hi p,
   legal_nested_field0 t (ArraySubsc lo :: gfs) ->
   legal_nested_field0 t (ArraySubsc hi :: gfs) ->
@@ -1262,18 +1338,9 @@ Lemma align_compatible_nested_field_array: forall t gfs lo hi p,
    (offset_val (nested_field_offset t (ArraySubsc lo :: gfs)) p).
 Proof.
   intros.
-  destruct p; simpl in *; try tauto.
-  inv_int i.
-  solve_mod_modulus.
-  apply arith_aux04.
-  + admit.
-  + apply Z.divide_add_r; auto.
-admit. admit.
-(*
-    eapply Z.divide_trans; [| eauto].
-    apply alignof_nested_field_type2_divide_alignof; auto.
-    apply nested_field_offset2_type2_divide; auto.
-*)
+  unfold align_compatible.
+  rewrite alignof_nested_field_array_type_eq with (i := lo) by auto.
+  apply align_compatible_nested_field0; auto.
 Qed.
 
 Lemma field_compatible_nested_field: forall t gfs p,
@@ -1298,6 +1365,7 @@ Qed.
 Lemma field_compatible0_nested_field_array: forall t gfs lo hi p,
   field_compatible0 t (ArraySubsc lo :: gfs) p ->
   field_compatible0 t (ArraySubsc hi :: gfs) p ->
+  lo <= hi ->
   field_compatible (nested_field_array_type t gfs lo hi) nil (offset_val (nested_field_offset t (ArraySubsc lo :: gfs)) p).
 Proof.
   intros.
@@ -1305,13 +1373,24 @@ Proof.
   repeat split.
   + rewrite isptr_offset_val; tauto.
   + apply nested_field_array_type_nest_pred; try  tauto.
-      admit.  (* Qinxiang  ? *)
+    unfold local_legal_alignas_type.
+    simpl; intros.
+    rewrite andb_true_iff in H3 |- *.
+    split.
+    - apply Z.leb_le.
+Transparent alignof.
+      simpl.
+Opaque alignof.
+      rewrite no_alignas_attr_spec.
+      omega.
+    - destruct (attr_alignas (attr_of_type t0)); [tauto |].
+      apply Z.leb_le; auto.
   + apply nested_field_array_type_nest_pred; tauto.
   + apply nested_field_array_type_complete_type; tauto.
   + pose proof nested_field_array_offset_in_range t gfs lo hi.
-    spec H1; [tauto |].
-    spec H1; [tauto |].
-    spec H1; [tauto |].
+    spec H2; [tauto |].
+    spec H2; [tauto |].
+    spec H2; [tauto |].
     omega.
   + apply size_compatible_nested_field_array; tauto.
   + apply align_compatible_nested_field_array; tauto.

@@ -897,34 +897,6 @@ destruct H0 as [[? ?] ?]; subst. subst. repeat split; auto.
 destruct H0; contradiction.
 Qed.
 
-Lemma LocalD_absorb:
-   forall Q T1 T2 Q', 
-  LOCALx (Q ++ LocalD T1 T2 Q') = LOCALx (LocalD T1 T2 (Q++Q')).
-Proof.
-intros. extensionality R rho.
-unfold LOCALx.
-simpl. f_equal.
-unfold local, lift1. f_equal.
-induction Q; simpl; intros.
-auto. unfold liftx at 1; simpl; unfold lift.
-rewrite IHQ. clear IHQ.
-unfold LocalD.
-rewrite !PTree.fold_spec.
-rewrite <- !fold_left_rev_right.
-forget (rev (PTree.elements T1)) as L1.
-forget (rev (PTree.elements T2)) as L2.
-induction L2.
-*
-simpl.
-induction L1.
-simpl. reflexivity.
-simpl. match goal with |- _ = ?B => set (x:=B); hnf in x; subst x end.
-rewrite <- IHL1; clear IHL1.
-match goal with |- (_ /\ ?B) = _ => set (x:=B); hnf in x; subst x end.
-simpl; apply prop_ext; intuition.
-*
-Admitted.  (* fill this in later *)  (*delete this lemma? *)
-
 Lemma insert_locals:
   forall P A B C, 
   local (fold_right `and `True (map locald_denote A)) && PROPx P (LOCALx B C) =

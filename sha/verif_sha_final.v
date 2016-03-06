@@ -301,7 +301,7 @@ Focus 2. {
 } Unfocus.
 progress (autorewrite with sublist).
 cancel.
-rewrite array_at_data_at_rec; auto.
+rewrite array_at_data_at_rec; auto; omega.
 +
 intros.
 autorewrite with ret_assert.

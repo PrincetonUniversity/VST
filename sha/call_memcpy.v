@@ -403,7 +403,7 @@ eapply semax_pre_post;
  rewrite LENvqx, LENvpx; cancel.
  rewrite sepcon_comm.
  apply sepcon_derives.
- rewrite array_at_data_at_rec by (clear - FC; intuition).
+ rewrite array_at_data_at_rec by (try solve [clear - FC; intuition]; omega).
  apply derives_refl'.
  apply equal_f. apply data_at_type_changable.
  unfold nested_field_array_type.
@@ -412,7 +412,7 @@ eapply semax_pre_post;
  eapply JMeq_trans; [apply fold_reptype_JMeq |].
    rewrite <- sublist_map.
    apply JMeq_sublist; auto.
- rewrite array_at_data_at_rec by (clear - FC; intuition).
+ rewrite array_at_data_at_rec by (try solve [clear - FC; intuition]; omega).
  replace (memory_block shp len) with
     (memory_block shp (sizeof (nested_field_array_type tp pathp lop (lop + len)))).
  eapply derives_trans; [ | apply data_at__memory_block_cancel]; cancel.
@@ -469,7 +469,7 @@ repeat apply sepcon_derives.
  rewrite Z.sub_0_r.
  admit.  (* tedious *)
 +
- rewrite array_at_data_at_rec by (clear - FC; intuition).
+ rewrite array_at_data_at_rec by (try solve [clear - FC; intuition]; omega).
    apply derives_refl'.
    apply equal_f. apply data_at_type_changable.
    unfold nested_field_array_type.
@@ -490,7 +490,7 @@ repeat apply sepcon_derives.
  rewrite LENvpx.
  admit.  (* tedious *)
 +
- rewrite array_at_data_at_rec by (clear - FC; intuition).
+ rewrite array_at_data_at_rec by (try solve [clear - FC; intuition]; omega).
    apply derives_refl'.
    apply equal_f. apply data_at_type_changable.
    unfold nested_field_array_type.
@@ -629,7 +629,7 @@ eapply semax_pre_post;
  rewrite <- H6; reflexivity.
  subst Frame.
  cancel.
- rewrite array_at_data_at_rec by (clear - FC; intuition).
+ rewrite array_at_data_at_rec by  (try solve [clear - FC; intuition]; omega).
  eapply derives_trans; [apply data_at_data_at_ | ].
  eapply derives_trans; [apply data_at__memory_block_cancel | ].
  apply derives_refl'; f_equal.
@@ -692,7 +692,7 @@ apply part3_splice_into_list; try omega.
 rewrite Zlength_list_repeat. rewrite Z.max_r by omega. omega.
 } Unfocus.
 cancel.
- rewrite array_at_data_at_rec by (clear - FC; intuition).
+ rewrite array_at_data_at_rec by  (try solve [clear - FC; intuition]; omega).
    apply derives_refl'.
    apply equal_f. apply data_at_type_changable.
    unfold nested_field_array_type.
