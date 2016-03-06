@@ -214,9 +214,9 @@ Proof.
   + apply pred_ext; saturate_local; try contradiction.
 Qed.
 
-Lemma nonreadable_memory_block_mapsto: forall sh p t ch v, 
+Lemma nonreadable_memory_block_mapsto: forall sh p t v, 
   ~ readable_share sh ->
-  access_mode t = By_value ch ->
+  type_is_by_value t = true ->
   type_is_volatile t = false ->
   legal_alignas_type t = true ->
   size_compatible t p ->
@@ -225,6 +225,7 @@ Lemma nonreadable_memory_block_mapsto: forall sh p t ch v,
   memory_block sh (sizeof t) p = mapsto sh t p v.
 Proof.
   intros.
+  apply access_mode_by_value in H0; destruct H0 as [ch ?].
   assert (isptr p \/ ~isptr p) by (destruct p; simpl; auto).
   destruct H6. destruct p; try contradiction.
   + simpl in H3, H4.

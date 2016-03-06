@@ -2045,34 +2045,59 @@ apply field_at_share_join.
 auto.
 Qed.
 
-Lemma nonreadable_memory_block_data_at_rec:
-   forall {cs: compspecs} sh t v p,
-   ~ readable_share sh ->
-    field_compatible t nil p ->
-    memory_block sh (sizeof t) p = data_at_rec sh t v p.
+Lemma nonreadable_memory_block_field_at:
+  forall  {cs: compspecs}
+      sh t gfs v p, 
+  ~ readable_share sh ->
+   value_fits _ v ->
+   memory_block sh (sizeof (nested_field_type t gfs)) (field_address t gfs p) = field_at sh t gfs v p.
 Proof.
-intros.
-hnf in H0.
-destruct H0 as [Hp [? [_ [Hcom [Hsz [Hsc [Hal Hlnf]]]]]]].
-revert H0 Hsz v p Hcom Hsc Hp Hal Hlnf; pattern t; type_induction.type_induction t; intros; inv H0;
- rewrite  data_at_rec_eq; auto; admit.
+  intros until p. intros NONREAD VF.
+  unfold field_address.
+  destruct (field_compatible_dec t gfs p).
+  + unfold field_at_, field_at.
+    rewrite prop_true_andp by auto.
+    assert (isptr p) by auto; destruct p; try contradiction; clear H.
+    inv_int i.
+    unfold at_offset, offset_val.
+    solve_mod_modulus.
+    pose proof field_compatible_nested_field _ _ _ f.
+    revert H f;
+    unfold field_compatible;
+    unfold size_compatible, align_compatible, offset_val;
+    solve_mod_modulus;
+    intros.
+    pose proof nested_field_offset_in_range t gfs.
+    spec H1; [tauto |].
+    spec H1; [tauto |].
+    rewrite (Z.mod_small ofs) in * by omega.
+    pose proof Zmod_le (ofs + nested_field_offset t gfs) Int.modulus.
+    spec H2; [pose proof Int.modulus_pos; omega |].
+    apply nonreadable_memory_block_data_at_rec; try tauto; try omega.
+    apply Z.divide_add_r.
+    - eapply Z.divide_trans; [| destruct f as [_ [_ [_ [_ [_ [_ [? _]]]]]]]; eauto].
+      apply alignof_nested_field_type_divide_alignof; tauto.
+    - apply nested_field_offset_type_divide; tauto.
+  + unfold field_at_, field_at.
+    rewrite memory_block_isptr.
+    apply pred_ext; normalize.
 Qed.
 
-Lemma nonreadable_memory_block_data_at:
-  forall  {cs: compspecs}
-      sh t v p, 
+Lemma nonreadable_memory_block_data_at: forall  {cs: compspecs} sh t v p, 
   ~ readable_share sh ->
-   field_compatible t nil p ->
-   value_fits t v ->
-   memory_block sh (sizeof t) p = data_at sh t v p.
+  field_compatible t nil p ->
+  value_fits t v ->
+  memory_block sh (sizeof t) p = data_at sh t v p.
 Proof.
-intros.
-unfold data_at, field_at.
-rewrite prop_true_andp by auto.
-change (nested_field_offset t nil) with 0.
-unfold at_offset.
-normalize.
-apply nonreadable_memory_block_data_at_rec; auto.
+  intros.
+  replace p with (field_address t nil p) at 1.
+  change t with (nested_field_type t nil) at 1.
+  apply nonreadable_memory_block_field_at; auto.
+  rewrite field_compatible_field_address by auto.
+  simpl.
+  change (nested_field_offset t nil) with 0.
+  apply isptr_offset_val_zero.
+  auto with field_compatible.
 Qed.
 
 Lemma nonreadable_field_at_eq {cs: compspecs} :
@@ -2107,17 +2132,17 @@ rewrite nonreadable_memory_block_data_at with (v0:=v); auto.
 unfold data_at.
 erewrite field_at_share_join; eauto.
 Qed.
-
+(*
 Lemma nonreadable_data_at_rec_eq {cs: compspecs} : 
   forall sh t v v' p,
     ~readable_share sh ->
     field_compatible t nil p ->
      data_at_rec sh t v p = data_at_rec sh t v' p.
 Proof.
-intros.
- rewrite <- !(nonreadable_memory_block_data_at_rec); auto.
+  intros.
+  rewrite <- !(nonreadable_memory_block_data_at_rec); auto.
 Qed.
-
+*)
 Lemma nonreadable_data_at_eq {cs: compspecs}: 
   forall sh t v v' p, ~readable_share sh ->
    (value_fits t v <-> value_fits t v') ->
@@ -2146,7 +2171,7 @@ Lemma mapsto_field_at {cs: compspecs} sh t gfs v v' p:
 Proof.
   intros.
   unfold field_at, at_offset.
-  rewrite by_value_data_at_rec by auto.
+  rewrite by_value_data_at_rec_nonvolatile by auto.
   apply (fun HH => JMeq_trans HH (JMeq_sym (repinject_JMeq _ v' H))) in H2.
   apply JMeq_eq in H2.
   rewrite prop_true_andp by auto.
@@ -2166,7 +2191,7 @@ Lemma mapsto_field_at_ramify {cs: compspecs} sh t gfs v v' w w' p:
 Proof.
   intros.
   unfold field_at, at_offset.
-  rewrite !by_value_data_at_rec by auto.
+  rewrite !by_value_data_at_rec_nonvolatile by auto.
   apply (fun HH => JMeq_trans HH (JMeq_sym (repinject_JMeq _ v' H))) in H1; apply JMeq_eq in H1.
   apply (fun HH => JMeq_trans HH (JMeq_sym (repinject_JMeq _ w' H))) in H2; apply JMeq_eq in H2.
   normalize.
@@ -2195,7 +2220,7 @@ Proof.
   simpl.
   destruct p; inv H2.
   rewrite int_add_repr_0_r.
-  rewrite by_value_data_at_rec by auto.
+  rewrite by_value_data_at_rec_nonvolatile by auto.
   apply (fun HH => JMeq_trans HH (JMeq_sym (repinject_JMeq _ v' H))) in H10; apply JMeq_eq in H10.
   rewrite prop_true_andp; auto.
   f_equal. auto.

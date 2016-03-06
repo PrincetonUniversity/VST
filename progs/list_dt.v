@@ -1821,18 +1821,18 @@ unfold list_cell; intros.
   (offset_val (field_offset cenv_cs i list_fields) p))
     by  admit.  (* need to adjust the induction hypothesis to prove this *)
  destruct m as [ | [i' t']].
- +
- clear IHm; simpl. rewrite !withspacer_spacer.
- f_equal. 
- unfold at_offset.
- apply nonreadable_data_at_rec_eq; auto.
+ + Opaque field_type field_offset.
+ clear IHm; simpl.
+ Transparent field_type field_offset.
+ rewrite !withspacer_spacer.
+ f_equal.
+ admit. (* apply nonreadable_data_at_rec_eq; auto. *) (* list_cell should be defined by field_at instead of data_at_rec. *)
  +
  rewrite !struct_pred_cons2. 
  rewrite !withspacer_spacer.
  f_equal. f_equal.
- unfold at_offset.
- apply nonreadable_data_at_rec_eq; auto.
- apply IHm.
+ - admit. (* apply nonreadable_data_at_rec_eq; auto. *) (* list_cell should be defined by field_at instead of data_at_rec. *)
+ - apply IHm.
 Qed.
 
 Lemma cell_share_join:

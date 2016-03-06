@@ -995,6 +995,42 @@ Proof.
       apply H0; right; auto.
 Qed.
 
+Lemma struct_Prop_proj: forall m (F: ident * type -> Type) (P: forall it, F it -> Prop) v i d,
+  in_members i m ->
+  struct_Prop m P v ->
+  P (i, field_type i m) (proj_struct i m v d).
+Proof.
+  intros.
+  destruct m as [| (i0, t0) m]; [inversion H |].
+  revert i0 t0 v d H H0; induction m as [| (i1, t1) m]; intros.
+  + inversion H; [simpl in H0; subst| tauto].
+    simpl in *.
+    destruct (ident_eq i0 i0); [| tauto].
+    destruct (member_dec (i0, t0) (i0, t0)); [| tauto].
+    unfold eq_rect_r; rewrite <- eq_rect_eq.
+    auto.
+  + destruct (ident_eq i i0).
+    - subst.
+      simpl in *.
+      destruct (ident_eq i0 i0); [| tauto].
+      destruct (member_dec (i0, t0) (i0, t0)); [| tauto].
+      unfold eq_rect_r; rewrite <- eq_rect_eq.
+      exact (proj1 H0).
+    - assert (in_members i ((i1, t1) :: m)) by (inversion H; [subst; tauto | auto]).
+      simpl in *.
+      destruct (ident_eq i i0); [tauto |].
+      destruct (member_dec
+         (i,
+         match
+           (if ident_eq i i1 then Errors.OK t1 else Ctypes.field_type i m)
+         with
+         | Errors.OK t => t
+         | Errors.Error _ => Tvoid
+         end) (i0, t0)); [inversion e; subst; tauto |].
+      apply IHm; auto.
+      exact (proj2 H0).
+Qed.
+      
 Lemma union_Prop_compact_sum_gen: forall m (F: ident * type -> Type) (P: forall it, F it -> Prop) (f: forall it, F it),
   members_no_replicate m = true ->
   (forall i, in_members i m -> P (i, field_type i m) (f (i, field_type i m))) ->
@@ -1013,6 +1049,45 @@ Proof.
     simpl in H0.
     rewrite if_true in H0 by auto.
     apply H0; left; auto.
+Qed.
+
+Lemma union_Prop_proj: forall m (F: ident * type -> Type) (P: forall it, F it -> Prop) v i d,
+  members_union_inj v (i, field_type i m) ->
+  union_Prop m P v ->
+  P (i, field_type i m) (proj_union i m v d).
+Proof.
+  intros.
+  destruct m as [| (i0, t0) m]; [inversion H |].
+  revert i0 t0 v d H H0; induction m as [| (i1, t1) m]; intros.
+  + simpl in H. if_tac in H; [| tauto].
+    inversion H1; subst i.
+    clear H1 H4.
+    simpl in *.
+    destruct (ident_eq i0 i0); [| tauto].
+    destruct (member_dec (i0, t0) (i0, t0)); [| tauto].
+    unfold eq_rect_r; rewrite <- eq_rect_eq.
+    auto.
+  + destruct (ident_eq i i0).
+    - subst.
+      simpl in *.
+      destruct (ident_eq i0 i0); [| tauto].
+      destruct (member_dec (i0, t0) (i0, t0)); [| tauto].
+      unfold eq_rect_r; rewrite <- eq_rect_eq.
+      destruct v; [| inversion H].
+      auto.
+    - assert (members_union_inj v (i, field_type i ((i1, t1) :: m))) by (simpl in H; destruct (ident_eq i i0); [tauto | auto]).
+      simpl in *.
+      destruct (ident_eq i i0); [tauto |].
+      destruct (member_dec
+         (i,
+         match
+           (if ident_eq i i1 then Errors.OK t1 else Ctypes.field_type i m)
+         with
+         | Errors.OK t => t
+         | Errors.Error _ => Tvoid
+         end) (i0, t0)); [inversion e; subst; tauto |].
+      destruct v; [tauto |].
+      apply IHm; auto.
 Qed.
 
 Lemma array_pred_local_facts: forall {A} (d: A) lo hi P v p Q,
@@ -1415,11 +1490,23 @@ Definition struct_Prop_compact_prod_gen: forall m (F: ident * type -> Type) (P: 
   struct_Prop m P (compact_prod_gen f m)
 := @struct_Prop_compact_prod_gen.
 
+Definition struct_Prop_proj: forall m (F: ident * type -> Type) (P: forall it, F it -> Prop) v i d,
+  in_members i m ->
+  struct_Prop m P v ->
+  P (i, field_type i m) (proj_struct i m v d)
+:= @struct_Prop_proj.
+
 Definition union_Prop_compact_sum_gen: forall m (F: ident * type -> Type) (P: forall it, F it -> Prop) (f: forall it, F it),
   members_no_replicate m = true ->
   (forall i, in_members i m -> P (i, field_type i m) (f (i, field_type i m))) ->
   union_Prop m P (compact_sum_gen (fun _ => true) f m)
 := @union_Prop_compact_sum_gen.
+
+Definition union_Prop_proj: forall m (F: ident * type -> Type) (P: forall it, F it -> Prop) v i d,
+  members_union_inj v (i, field_type i m) ->
+  union_Prop m P v ->
+  P (i, field_type i m) (proj_union i m v d)
+:= @union_Prop_proj.
 
 Definition array_pred_local_facts: forall {A} (d: A) lo hi P v p Q,
   (forall i x, lo <= i < hi -> P i x p |-- !! Q x) ->
