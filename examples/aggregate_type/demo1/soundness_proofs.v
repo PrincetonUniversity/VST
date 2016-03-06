@@ -2,7 +2,7 @@ Require Import AggregateType.demo1.expr.
 Require Import AggregateType.demo1.type_rec_functions.
 Require Import AggregateType.demo1.path_rec_functions.
 
-Definition field_at (t: type) (nf: list ident) (v: reptype (nested_field_type t nf)) (p: val) : Pred := at_offset (data_at_rec (nested_field_type t nf) v) (nested_field_offset t nf) p.
+Definition field_at (t: type) (nf: list ident) (v: reptype (nested_field_type t nf)) (p: val) : Pred := data_at_rec (nested_field_type t nf) v (offset_val (nested_field_offset t nf) p).
 
 Definition data_at (t: type) (v: reptype t) (p: val) : Pred := field_at t nil v p.
 
@@ -25,7 +25,6 @@ Proof.
   revert v1 H0.
   rewrite H; intros.
   apply JMeq_eq in H0. subst v1.
-  unfold at_offset.
   reflexivity.
 Qed.
 
@@ -42,7 +41,7 @@ Lemma field_at_Tstruct: forall t nf id fs v p,
       end) fs.
 Proof.
   intros.
-  unfold field_at, at_offset.
+  unfold field_at.
   simpl; revert v; rewrite H; simpl; clear H.
   set (ofs := nested_field_offset t nf); clearbody ofs; clear t.
   intros.
@@ -57,8 +56,7 @@ Proof.
   simpl.
   intros.
   f_equal.
-  + unfold at_offset.
-    rewrite offset_offset_val.
+  + rewrite offset_offset_val.
     clear IHfs0.
     specialize (H i0 (or_introl eq_refl)).
     specialize (H1 i0 (or_introl eq_refl)).
@@ -231,7 +229,7 @@ Lemma field_at_data_at: forall t nf v p,
   field_at t nf v p = data_at _ v (field_address t nf p).
 Proof.
   intros.
-  unfold data_at, field_at, field_address, at_offset.
+  unfold data_at, field_at, field_address.
   simpl.
   rewrite offset_offset_val.
   rewrite Z.add_0_r.
