@@ -99,8 +99,14 @@ about C semantics are all Coq Parameters and Coq Hypothesis in expr.v.
     - The definition of field_address, field_address0.
   floyd/field_at.v
     - The definition of field_at, data_at.
-    - The proof of unfolding equations.
-    - The proof of reroot equation.
+    - The proof of unfolding equations: field_at_Tarray, field_at_Tstruct,
+      field_at_Tunion
+    - The proof of reroot equation: field_at_data_at
+    - Other properties about field_at and data_at which is based on the
+      properties of data_at_rec in data_at_rec.v: data_at_data_at_,
+      memory_block_data_at_, data_at_share_join, etc
+    - Other properties about field_at and data_at which is based on their
+      definitions: data_at_local_facts, etc
   floyd/efield_lemmas.v
     - The proof of Field-lvalue.
   floyd/proj_reptype_lemmas.v
@@ -110,12 +116,13 @@ about C semantics are all Coq Parameters and Coq Hypothesis in expr.v.
     - The definition of upd_reptype.
     - Their properties.
   floyd/nested_loadstore.v
-    - The proof of ramification premises. (In fact, in a more stronger version.
-      This stronger form of ramification theory will be introduced in another
-      paper.)
+    - A more general version of single-layer-RP: gfield_ramif
+    - More general versions of RP-field: nested_field_ramif, nested_field_ramif'
+      (In fact, in a quantified version, which is more enhanced RP, This
+      stronger form of ramification theory will be introduced in another paper.)
   floyd/sc_set_load_store.v
-    - The proof of NestedLoadRule and NestedStoreRule. (In fact, in a more 
-      generalized version.)
+    - A more general version of NestedLoadRule and NestedStoreRule:
+      semax_SC_field_load, semax_SC_field_cast_load, semax_SC_field_store
   floyd/forward.v
     - The proof automations provided to users. Though the majority of this file
       belongs to original VST.

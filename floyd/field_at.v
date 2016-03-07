@@ -2018,12 +2018,19 @@ Lemma field_at__share_join{cs: compspecs}:
   forall sh1 sh2 sh t gfs p,
     sepalg.join sh1 sh2 sh ->
    field_at_ sh1 t gfs p * field_at_ sh2 t gfs p = field_at_ sh t gfs p.
-Proof.
-intros.
-unfold field_at_.
-apply field_at_share_join.
-auto.
-Qed.
+Proof. intros. apply field_at_share_join. auto. Qed.
+
+Lemma data_at_share_join{cs: compspecs}:
+  forall sh1 sh2 sh t v p,
+    sepalg.join sh1 sh2 sh ->
+   data_at sh1 t v p * data_at sh2 t v p = data_at sh t v p.
+Proof. intros. apply field_at_share_join; auto. Qed.
+  
+Lemma data_at__share_join{cs: compspecs}:
+  forall sh1 sh2 sh t p,
+    sepalg.join sh1 sh2 sh ->
+   data_at_ sh1 t p * data_at_ sh2 t p = data_at_ sh t p.
+Proof. intros. apply data_at_share_join; auto. Qed.
 
 Lemma nonreadable_memory_block_field_at:
   forall  {cs: compspecs}
