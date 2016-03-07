@@ -2145,7 +2145,7 @@ Transparent upd_reptype.
   reflexivity.
 Qed.
 *)
-
+(*
 Lemma semax_nested_efield_field_load_37':
   forall {Espec: OracleKind},
     forall Delta sh id P Q R (e1: expr)
@@ -2173,6 +2173,7 @@ Lemma semax_nested_efield_field_load_37':
                   (SEPx R)))).
 Proof.
 Admitted.
+*)
 (*
   intros.
   destruct gfs1 as [| gf gfs1]; (simpl in H1; subst gfs).
@@ -2229,6 +2230,7 @@ Admitted.
         exact H7.
 Qed.
 *)
+(*
 Lemma semax_nested_efield_field_cast_load_37':
   forall {Espec: OracleKind},
     forall Delta sh id P Q R (e1: expr)
@@ -2256,6 +2258,7 @@ Lemma semax_nested_efield_field_cast_load_37':
                                :: map (subst_localdef id old) Q)
                   (SEPx R)))).
 Admitted.
+*)
 (*
 Proof.
   intros.

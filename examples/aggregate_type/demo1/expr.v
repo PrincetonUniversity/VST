@@ -2,7 +2,7 @@ Require Export compcert.lib.Coqlib.
 Require Export msl.seplog.
 Require Export msl.log_normalize.
 Require Export msl.ramification_lemmas.
-Require Export floyd.jmeq_lemmas.
+Require Export Coq.Logic.JMeq.
 
 Parameter ident: Type.
 Parameter ident_eq: forall (a b: ident), {a = b} + {a <> b}.

@@ -1,3 +1,4 @@
+(* TODO: remove this file. Not useful at all. *)
 Require Import floyd.base.
 Require Import floyd.assert_lemmas.
 Require Import floyd.client_lemmas.

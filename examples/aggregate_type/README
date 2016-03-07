@@ -1,1 +1,121 @@
-   
+1. Dependency
+
+  We have built three systems: an industrial-strength system, and two demo
+systems.
+  The main system is embedded in VST and is depended on MSL(Mechanized Semantic
+Library), Verifiable C and some previous automation in VST.
+  Two demo systems are dependent on CompCert 2.6 and MSL in VST.
+
+2. How to install
+2.1. CompCert can be downloaded from http://compcert.inria.fr/.
+2.2. VST can be downloaded from https://github.com/PrincetonUniversity/VST/.
+2.3. Create a file CONFIGURE in the current folder with the following content.
+        COMPCERT_DIR = [Your CompCert Directory]
+        VST_DIR_DIR = [Your VST Directory]
+2.4. Build CompCert and VST.
+2.5. Run make.
+
+3. Organization
+
+3.1. Demo1
+
+  Demo1 shows the definition in Section 3 of the paper and corresponding
+soundness proofs.
+  To be as self-contained as possible, it is only dependent on MSL which is a 
+formalization of separation logic. (We only use the Coqlib in CompCert which 
+contains some lemmas about Coq standard library). The only assumptions we made 
+about C semantics are all Coq Parameters and Coq Hypothesis in expr.v.
+  The organization of main definitions and proofs are as follows.
+  type_rec_functions.v:
+    reptype, data_at_rec
+  path_rec_functions.v:
+    nested_field_type, nested_field_offset, legal_nested_field, proj_reptype,
+    upd_reptype
+  soundness_proof.v: field_at, data_at, field_address and all proofs
+
+3.2. Demo2
+
+  Demo2 shows the non-structure recursive definitions in Section 4 of the paper.
+It contains the proof of reptype_eq, data_at_rec_eq. But it does not contain a 
+soundness proof of the whole logic.
+  To be as self-contained as possible, it is only dependent on MSL which is a 
+formalization of separation logic. (We only use the Coqlib in CompCert which 
+contains some lemmas about Coq standard library). The only assumptions we made 
+about C semantics are all Coq Parameters and Coq Hypothesis in expr.v.
+  The organization of main definitions and proofs are as follows.
+  computable_theorems.v:
+    Some standard library theorem which is now proved Transparent in Coq.
+  type_induction.v:
+    The general induction principles and recursive function on C-type (type_ind,
+    type_func, type_func_eq).
+  type_rec_functions.v:
+    reptype, data_at_rec, default_val, reptype_eq, data_at_rec_eq,
+    default_val_eq
+  path_rec_functions.v:
+    nested_field_type, nested_field_offset, legal_nested_field, proj_reptype,
+    upd_reptype
+  field_at_data_at.v:
+    field_at, data_at, field_address
+  other_def.v:
+    other potential approaches to define nonstructural recursive functions
+    define reptype directly without defining it as type_func's instance
+
+3.3. Main system
+  Our work is mainly consist of the following files in VST.
+  floyd/type_induction.v:
+    - The general induction principles and recursive function on C-type
+      (type_ind, type_induction(tactic), type_func, type_func_eq).
+  floyd/compact_prod_sum.v:
+    - The definition of the product type without a unit and the sum type without
+      a void.
+    - The projection function and update function on them.
+    - Properties about the projection function and update function.
+  floyd/aggregate_pred.v:
+    - The definition of three general aggregate predicates: array_pred,
+      struct_pred, union_pred, i.e. predicate on lists, predicate on
+      compact_prod and predicate on compact_sum.
+    - Their properties.
+  floyd/reptype_lemmas.v:
+    - The definition of reptype. It is based on type_induction.v and
+      compact_prod_sum.v.
+    - The proof of reptype_eq.
+  floyd/data_at_rec.v:
+    - The definition of data_at_rec. It is based on type_induction.v and
+      aggregate_pred.v.
+    - The definition of default_val, i.e. (default_val t) is the default value
+      of C-type t.
+    - The definition of value_fits, i.e. (value_fits t v) iff v type checks
+       w.r.t. C-type t.
+    - The proof of data_at_rec_eq, default_val_eq and value_fits_eq.
+    - All properties about data_at_rec which requires inductive proofs on C-type
+  floyd/nested_pred_lemmas.v:
+    - The definition of nested_pred, a general function from C-type to bool.
+      (nested_pred f t = true) iff f is true on all sub-type of t.
+    - Instances of nested_pred, i.e. all legal properties of C-types.
+  floyd/nested_field_lemmas.v:
+    - The definition of nested_field_type, nested_field_offset,
+      legal_nested_field, legal_nested_field0.
+    - The definition of field_compatible, field_compatible0.
+    - The definition of field_address, field_address0.
+  floyd/field_at.v
+    - The definition of field_at, data_at.
+    - The proof of unfolding equations.
+    - The proof of reroot equation.
+  floyd/efield_lemmas.v
+    - The proof of Field-lvalue.
+  floyd/proj_reptype_lemmas.v
+  floyd/replace_refill_reptype_lemmas.v
+  floyd/stronger.v
+    - The definition of proj_reptype.
+    - The definition of upd_reptype.
+    - Their properties.
+  floyd/nested_loadstore.v
+    - The proof of ramification premises. (In fact, in a more stronger version.
+      This stronger form of ramification theory will be introduced in another
+      paper.)
+  floyd/sc_set_load_store.v
+    - The proof of NestedLoadRule and NestedStoreRule. (In fact, in a more 
+      generalized version.)
+  floyd/forward.v
+    - The proof automations provided to users. Though the majority of this file
+      belongs to original VST.

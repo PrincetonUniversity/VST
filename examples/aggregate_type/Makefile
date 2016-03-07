@@ -7,11 +7,11 @@ COQDEP=coqdep -slash
 
 DIRS = demo1 demo2
 INCLUDE_COMPCERT = -R $(COMPCERT_DIR) -as compcert
-INCLUDE_VST = -R $(VST_DIR)/msl -as VST.msl -R $(VST_DIR)/floyd -as VST.floyd
+INCLUDE_VST = -R $(VST_DIR)/msl -as msl
 INCLUDE_DEMO = $(foreach d, $(DIRS), -R $(CURRENT_DIR)/$(d) -as AggregateType.$(d))
 COQ_FLAG = $(INCLUDE_COMPCERT) $(INCLUDE_VST) $(INCLUDE_DEMO)
 DEP_COMPCERT = -R $(COMPCERT_DIR) -as compcert
-DEP_VST = -R $(VST_DIR)/msl -as msl -R $(VST_DIR)/floyd -as floyd
+DEP_VST = -R $(VST_DIR)/msl -as msl
 DEP_DEMO = -R $(CURRENT_DIR) -as AggregateType
 DEP_FLAG = $(DEP_COMPCERT) $(DEP_VST) $(DEP_DEMO) 
 
@@ -19,7 +19,7 @@ DEMO1_FILES = \
   expr.v type_rec_functions.v path_rec_functions.v soundness_proofs.v
 
 DEMO2_FILES = \
-  expr.v computable_theorems.v other_def.v type_induction.v prod_lemmas.v type_rec_functions.v path_rec_functions.v 
+  expr.v computable_theorems.v other_def.v type_induction.v prod_lemmas.v type_rec_functions.v path_rec_functions.v field_at_data_at.v
 
 FILES = \
   $(DEMO1_FILES:%.v=demo1/%.v) \
