@@ -821,9 +821,9 @@ Proof. intros.
 Qed.
 
 Lemma val_list_inject_sub_on j k: forall vals1 vals2
-        (V:  val_list_inject j vals1 vals2)
+        (V:  Val.inject_list j vals1 vals2)
         (HK: forall b, getBlocks vals1 b = true -> j b = k b),
-      val_list_inject k vals1 vals2.
+      Val.inject_list k vals1 vals2.
 Proof. intros.
   induction V; try econstructor.
   clear IHV. eapply val_inject_sub_on; try eassumption. 
@@ -836,10 +836,10 @@ Proof. intros.
     destruct H0. eexists; right. eassumption.
 Qed.
 Lemma val_list_inject_sub_on' j k: forall vals1 vals2
-        (V:  val_list_inject j vals1 vals2)
+        (V:  Val.inject_list j vals1 vals2)
         (HK: forall b b2 d, getBlocks vals1 b = true -> 
               j b = Some(b2,d) -> k b = Some(b2,d)),
-      val_list_inject k vals1 vals2.
+      Val.inject_list k vals1 vals2.
 Proof. intros.
   induction V; try econstructor.
   clear IHV. eapply val_inject_sub_on'; try eassumption.
@@ -1659,7 +1659,7 @@ Proof. intros.
 Qed.
 
 Lemma vals_def_inject_getBlock j b2: forall vals1 vals2
-    (INJ: val_list_inject j vals1 vals2)
+    (INJ: Val.inject_list j vals1 vals2)
     (DEF : vals_def vals1 = true)
     (GB: getBlocks vals2 b2 = true),
     exists b1 d, j b1 = Some(b2,d) /\ getBlocks vals1 b1 = true.
@@ -1696,7 +1696,7 @@ Lemma replace_locals_wd_AtExternal: forall mu vals1 vals2 m1 m2
 Proof. intros.
       apply replace_locals_wd. trivial.
         intros. apply andb_true_iff in H. destruct H. 
-                (*apply val_list_inject_forall_inject in AINJ.
+                (*apply Val.inject_list_forall_inject in AINJ.
                 apply forall_vals_inject_restrictD in AINJ.*)
                 exploit (REACH_local_REACH mu); try eassumption.
                 intros [b2 [d [LOC RCH2]]].
