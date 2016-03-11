@@ -38,6 +38,12 @@ Proof.
   omega.
 Qed.
 
+Lemma Z_of_nat_ge_O: forall n, Z.of_nat n >= 0.
+Proof. intros. 
+change 0 with (Z.of_nat O).
+apply inj_ge. clear; omega.
+Qed.
+
 Set Implicit Arguments.
 
 Definition Ensemble_join {A} (X Y Z: Ensemble A): Prop :=

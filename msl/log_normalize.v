@@ -419,6 +419,13 @@ Proof.
   apply sepcon_wand_CCC.
 Qed.
 
+Lemma distrib_orp_sepcon2 {A}{ND: NatDed A}{SL: SepLog A}:
+  forall P Q R: A,
+     R * (P || Q) = R * P || R * Q.
+Proof.
+intros. rewrite !(sepcon_comm R). apply distrib_orp_sepcon.
+Qed.
+
 Lemma exp_sepcon2 {A}{NA: NatDed A}{SA: SepLog A}: 
   forall T (P: A) (Q: T -> A),  P * exp Q = exp (fun x => P * Q x).
 Proof.

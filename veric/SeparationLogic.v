@@ -1,3 +1,4 @@
+Require Import veric.base.
 Require Export compcert.lib.Axioms.
 Require Import compcert.lib.Coqlib.
 Require Export AST.
@@ -56,35 +57,9 @@ Hint Resolve any_environ : typeclass_instances.
 
 Definition ret_assert := exitkind -> option val -> environ -> mpred.
 
-Definition address_mapsto: memory_chunk -> val -> Share.t -> Share.t -> address -> mpred := 
-       res_predicates.address_mapsto.
-
 Local Open Scope logic.
 
 Transparent mpred Nveric Sveric Cveric Iveric Rveric Sveric SIveric CSLveric CIveric SRveric.
-
-Lemma address_mapsto_readable:
-  forall m v rsh sh a, address_mapsto m v rsh sh a |-- 
-           !! readable_share (Share.splice rsh sh).
-Proof.
-intros.
-unfold address_mapsto, res_predicates.address_mapsto.
-unfold derives.
-simpl.
-intros ? ?.
-destruct H as [bl [[? [? ?]] ?]]. do 3 red.
-specialize (H2 a). hnf in H2.
-rewrite if_true in H2.
-destruct H2 as [p ?].
-clear - p.
-apply right_nonempty_readable.
-intros ?.
-apply identity_share_bot in H. subst.
-apply (p Share.bot).
-split. apply Share.glb_bot. apply Share.lub_bot.
-destruct a; split; auto.
-clear; pose proof (size_chunk_pos m); omega.
-Qed.
 
 (* BEGIN from expr2.v *)
 Definition denote_tc_iszero v : mpred :=
@@ -289,10 +264,10 @@ Definition mapsto (sh: Share.t) (t: type) (v1 v2 : val): mpred :=
      | Vptr b ofs => 
        if readable_share_dec sh
        then (!!tc_val t v2 &&
-             address_mapsto ch v2
+             res_predicates.address_mapsto ch v2
               (Share.unrel Share.Lsh sh) (Share.unrel Share.Rsh sh) (b, Int.unsigned ofs)) ||
             (!! (v2 = Vundef) &&
-             EX v2':val, address_mapsto ch v2'
+             EX v2':val, res_predicates.address_mapsto ch v2'
               (Share.unrel Share.Lsh sh) (Share.unrel Share.Rsh sh) (b, Int.unsigned ofs))
        else !! (tc_val' t v2 /\ (Memdata.align_chunk ch | Int.unsigned ofs)) && res_predicates.nonlock_permission_bytes sh (b, Int.unsigned ofs) (Memdata.size_chunk ch)
      | _ => FF
@@ -304,17 +279,9 @@ Definition mapsto (sh: Share.t) (t: type) (v1 v2 : val): mpred :=
 
 Definition mapsto_ sh t v1 := mapsto sh t v1 Vundef.
 
-Fixpoint address_mapsto_zeros (sh: share) (n: nat) (adr: address) : mpred :=
- match n with
- | O => emp
- | S n' => address_mapsto Mint8unsigned (Vint Int.zero)
-                (Share.unrel Share.Lsh sh) (Share.unrel Share.Rsh sh) adr 
-               * address_mapsto_zeros sh n' (fst adr, Zsucc (snd adr))
-end.
-
 Definition mapsto_zeros (n: Z) (sh: share) (a: val) : mpred :=
  match a with
-  | Vptr b z => address_mapsto_zeros sh (nat_of_Z n)
+  | Vptr b z => mapsto_memory_block.address_mapsto_zeros sh (nat_of_Z n)
                           (b, Int.unsigned z)
   | _ => TT
   end.
@@ -399,37 +366,33 @@ Fixpoint initializers_aligned (z: Z) (dl: list init_data) : bool :=
 
 Definition funsig := (list (ident*type) * type)%type. (* argument and result signature *)
 
-Fixpoint memory_block' (sh: share) (n: nat) (b: block) (i: Z) : mpred :=
-  match n with
-  | O => emp
-  | S n' => mapsto_ sh (Tint I8 Unsigned noattr) (Vptr b (Int.repr i))
-         * memory_block' sh n' b (i+1)
- end.
-
 Definition memory_block (sh: share) (n: Z) (v: val) : mpred :=
  match v with 
- | Vptr b ofs => (!! (Int.unsigned ofs + n <= Int.modulus)) && memory_block' sh (nat_of_Z n) b (Int.unsigned ofs)
+ | Vptr b ofs => (!! (Int.unsigned ofs + n <= Int.modulus)) && mapsto_memory_block.memory_block' sh (nat_of_Z n) b (Int.unsigned ofs)
  | _ => FF
  end.
 
+Lemma memory_block_zero_Vptr: forall sh b z, memory_block sh 0 (Vptr b z) = emp.
+Proof. exact mapsto_memory_block.memory_block_zero_Vptr. Qed.
+
 Lemma mapsto_mapsto_: forall sh t v v', mapsto sh t v v' |-- mapsto_ sh t v.
-Proof. exact seplog.mapsto_mapsto_. Qed.
+Proof. exact mapsto_memory_block.mapsto_mapsto_. Qed.
 
 Lemma mapsto_tc_val': forall sh t p v, mapsto sh t p v |-- !! tc_val' t v.
-Proof. exact seplog.mapsto_tc_val'. Qed.
+Proof. exact mapsto_memory_block.mapsto_tc_val'. Qed.
 
 Lemma memory_block'_split:
   forall sh b ofs i j,
    0 <= i <= j ->
     j <= j+ofs <= Int.modulus ->
-   memory_block' sh (nat_of_Z j) b ofs = 
-      memory_block' sh (nat_of_Z i) b ofs * memory_block' sh (nat_of_Z (j-i)) b (ofs+i).
+   mapsto_memory_block.memory_block' sh (nat_of_Z j) b ofs = 
+      mapsto_memory_block.memory_block' sh (nat_of_Z i) b ofs * mapsto_memory_block.memory_block' sh (nat_of_Z (j-i)) b (ofs+i).
 Proof.
 intros.
-rewrite seplog.memory_block'_eq; try rewrite nat_of_Z_eq; try omega.
-rewrite seplog.memory_block'_eq; try rewrite nat_of_Z_eq; try omega.
-rewrite seplog.memory_block'_eq; try rewrite nat_of_Z_eq; try omega.
-unfold seplog.memory_block'_alt.
+rewrite mapsto_memory_block.memory_block'_eq; try rewrite nat_of_Z_eq; try omega.
+rewrite mapsto_memory_block.memory_block'_eq; try rewrite nat_of_Z_eq; try omega.
+rewrite mapsto_memory_block.memory_block'_eq; try rewrite nat_of_Z_eq; try omega.
+unfold mapsto_memory_block.memory_block'_alt.
 repeat (rewrite nat_of_Z_eq; try omega).
 if_tac.
 etransitivity ; [ | eapply res_predicates.VALspec_range_split2].
@@ -458,8 +421,8 @@ Proof.
     omega.
   } Unfocus.
   replace (n + m - n) with m by omega.
-  replace (memory_block' sh (nat_of_Z m) b (Int.unsigned (Int.repr ofs) + n)) with
-    (memory_block' sh (nat_of_Z m) b (Int.unsigned (Int.repr (ofs + n)))).
+  replace (mapsto_memory_block.memory_block' sh (nat_of_Z m) b (Int.unsigned (Int.repr ofs) + n)) with
+    (mapsto_memory_block.memory_block' sh (nat_of_Z m) b (Int.unsigned (Int.repr (ofs + n)))).
   Focus 2. {
     destruct (zeq m 0).
     + subst. reflexivity.
@@ -487,7 +450,7 @@ Lemma mapsto_share_join:
    mapsto sh1 t p v * mapsto sh2 t p v = mapsto sh t p v.
 Proof.
 intros.
-apply seplog.mapsto_share_join; auto.
+apply  mapsto_memory_block.mapsto_share_join; auto.
 Qed.
 
 Lemma memory_block_share_join:
@@ -503,7 +466,7 @@ Lemma mapsto_conflict:
   mapsto sh t v v2 * mapsto sh t v v3 |-- FF.
 Proof.
 intros.
-apply seplog.mapsto_conflict; auto.
+apply mapsto_memory_block.mapsto_conflict; auto.
 Qed.
 
 Lemma memory_block_conflict: forall sh n m p,
@@ -512,7 +475,7 @@ Lemma memory_block_conflict: forall sh n m p,
   memory_block sh n p * memory_block sh m p |-- FF.
 Proof.
 intros.
-apply seplog.memory_block_conflict; auto.
+apply mapsto_memory_block.memory_block_conflict; auto.
 Qed.
 
 Definition align_compatible {C: compspecs} t p :=
@@ -539,6 +502,58 @@ Lemma memory_block_valid_pointer: forall {cs: compspecs} sh n p i,
   sepalg.nonidentity sh ->
   memory_block sh n p |-- valid_pointer (offset_val i p).
 Proof. exact @memory_block_valid_pointer. Qed.
+
+Lemma mapsto_zeros_memory_block: forall sh n b ofs,
+  0 <= n < Int.modulus ->
+  Int.unsigned ofs+n <= Int.modulus ->
+  readable_share sh ->
+  mapsto_zeros n sh (Vptr b ofs) |--
+  memory_block sh n (Vptr b ofs).
+Proof. exact mapsto_memory_block.mapsto_zeros_memory_block. Qed.
+
+Lemma mapsto_pointer_void:
+  forall sh t a, mapsto sh (Tpointer t a) = mapsto sh (Tpointer Tvoid a).
+Proof. exact mapsto_memory_block.mapsto_pointer_void. Qed.
+
+Lemma mapsto_unsigned_signed:
+ forall sign1 sign2 sh sz v i,
+  mapsto sh (Tint sz sign1 noattr) v (Vint (Cop.cast_int_int sz sign1 i)) =
+  mapsto sh (Tint sz sign2 noattr) v (Vint (Cop.cast_int_int sz sign2 i)).
+Proof. exact mapsto_memory_block.mapsto_unsigned_signed. Qed.
+
+Lemma mapsto_tuint_tint:
+  forall sh, mapsto sh tuint = mapsto sh tint.
+Proof. exact mapsto_memory_block.mapsto_tuint_tint. Qed.
+
+Lemma mapsto_tuint_tptr_nullval:
+  forall sh p t, mapsto sh (Tpointer t noattr) p nullval = mapsto sh tuint p nullval.
+Proof. exact mapsto_memory_block.mapsto_tuint_tptr_nullval. Qed.
+
+Definition is_int32_noattr_type t :=
+ match t with
+ | Tint I32 _ {| attr_volatile := false; attr_alignas := None |} => True
+ | _ => False
+ end.
+
+Lemma mapsto_mapsto_int32:
+  forall sh t1 t2 p v,
+   is_int32_noattr_type t1 ->
+   is_int32_noattr_type t2 ->
+   mapsto sh t1 p v |-- mapsto sh t2 p v.
+Proof. exact mapsto_memory_block.mapsto_mapsto_int32. Qed.
+
+Lemma mapsto_mapsto__int32:
+  forall sh t1 t2 p v,
+   is_int32_noattr_type t1 ->
+   is_int32_noattr_type t2 ->
+   mapsto sh t1 p v |-- mapsto_ sh t2 p.
+Proof. exact mapsto_memory_block.mapsto_mapsto__int32. Qed.
+
+Lemma mapsto_null_mapsto_pointer:
+  forall t sh v, 
+             mapsto sh tint v nullval = 
+             mapsto sh (tptr t) v nullval.
+Proof. exact mapsto_memory_block.mapsto_null_mapsto_pointer. Qed.
 
 Definition eval_lvar (id: ident) (ty: type) (rho: environ) :=
  match Map.get (ve_of rho) id with
@@ -792,7 +807,7 @@ Lemma mapsto_value_range:
    readable_share sh ->
    mapsto sh (Tint sz sgn noattr) v (Vint i) =
     !! int_range sz sgn i && mapsto sh (Tint sz sgn noattr) v (Vint i).
-Proof. exact seplog.mapsto_value_range. Qed.
+Proof. exact mapsto_memory_block.mapsto_value_range. Qed.
 
 Definition semax_body_params_ok f : bool :=
    andb 

@@ -1,3 +1,4 @@
+Require Export compcert.exportclight.Clightdefs.
 Require Export compcert.lib.Axioms.
 Require Export Coqlib.
 Require Export AST.
@@ -52,3 +53,4 @@ Proof. intros. destruct (zle a b). destruct (zlt b c). left; split; auto.
   right;  omega. right; omega.
 Qed.
 
+Open Scope Z.

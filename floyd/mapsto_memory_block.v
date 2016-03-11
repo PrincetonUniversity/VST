@@ -107,15 +107,6 @@ Lemmas about memory_block
 
 ******************************************)
 
-Lemma memory_block_zero_Vptr: forall sh b z, memory_block sh 0 (Vptr b z) = emp.
-Proof.
-  intros. unfold memory_block.
-  change (nat_of_Z 0) with (0%nat).
-  unfold memory_block'.
-  pose proof Int.unsigned_range z.
-  assert (Int.unsigned z <= Int.modulus) by omega.
-  apply pred_ext; normalize.
-Qed.
 Hint Rewrite memory_block_zero_Vptr: norm.
 
 Lemma memory_block_local_facts: forall sh n p, memory_block sh n p |-- !! (isptr p).
@@ -207,7 +198,7 @@ Proof.
   + simpl in H2, H3.
     destruct (access_mode_by_value _ H) as [ch ?].
     unfold sizeof in *; erewrite size_chunk_sizeof in H2 |- * by eauto.
-    rewrite seplog.mapsto__memory_block with (ch := ch); auto.
+    rewrite mapsto_memory_block.mapsto__memory_block with (ch := ch); auto.
     eapply Z.divide_trans; [| apply H3].
     apply align_chunk_alignof; auto.
     apply nested_pred_atom_pred; auto.
@@ -230,7 +221,7 @@ Proof.
   destruct H6. destruct p; try contradiction.
   + simpl in H3, H4.
     erewrite size_chunk_sizeof in H3 |- * by eauto.
-    apply seplog.nonreadable_memory_block_mapsto; auto.
+    apply mapsto_memory_block.nonreadable_memory_block_mapsto; auto.
     eapply Z.divide_trans; [| apply H4].
     apply align_chunk_alignof; auto.
     apply nested_pred_atom_pred; auto.
@@ -254,72 +245,10 @@ End COMPSPECS.
 
 (******************************************
 
-Other lemmas
+Lemmas about specific types
 
 ******************************************)
 
-Lemma mapsto_tuint_tint:
-  forall sh, mapsto sh tuint = mapsto sh tint.
-Proof.
-intros.
-extensionality v1 v2.
-reflexivity.
-Qed.
-
-Lemma mapsto_tuint_tptr_nullval:
-  forall sh p t, mapsto sh (Tpointer t noattr) p nullval = mapsto sh tuint p nullval.
-Proof.
-intros.
-unfold mapsto.
-simpl.
-destruct p; simpl; auto.
-if_tac; simpl; auto.
-rewrite !prop_true_andp by auto.
-rewrite (prop_true_andp True) by auto.
-reflexivity.
-f_equal. f_equal. f_equal.
-unfold tc_val'.
-apply prop_ext; intuition; hnf; auto.
-Qed.
-
-Definition is_int32_noattr_type t :=
- match t with
- | Tint I32 _ {| attr_volatile := false; attr_alignas := None |} => True
- | _ => False
- end.
-
-Lemma mapsto_mapsto_int32:
-  forall sh t1 t2 p v,
-   is_int32_noattr_type t1 ->
-   is_int32_noattr_type t2 ->
-   mapsto sh t1 p v |-- mapsto sh t2 p v.
-Proof.
-intros.
-destruct t1; try destruct i; try contradiction.
-destruct a as [ [ | ] [ | ] ]; try contradiction.
-destruct t2; try destruct i; try contradiction.
-destruct a as [ [ | ] [ | ] ]; try contradiction.
-apply derives_refl.
-Qed.
-
-Lemma mapsto_mapsto__int32:
-  forall sh t1 t2 p v,
-   is_int32_noattr_type t1 ->
-   is_int32_noattr_type t2 ->
-   mapsto sh t1 p v |-- mapsto_ sh t2 p.
-Proof.
-intros.
-destruct t1; try destruct i; try contradiction.
-destruct a as [ [ | ] [ | ] ]; try contradiction.
-destruct t2; try destruct i; try contradiction.
-destruct a as [ [ | ] [ | ] ]; try contradiction.
-fold noattr.
-unfold mapsto_.
-destruct s,s0; fold tuint; fold tint; 
-  repeat rewrite mapsto_tuint_tint;
-  try apply mapsto_mapsto_.
-Qed.
- 
 (* We do these as Hint Extern, instead of Hint Resolve,
   to limit their application and make them fail faster *)
 
@@ -337,24 +266,6 @@ Hint Extern 1 (mapsto _ _ _ _ |-- mapsto_ _ _ _) =>
 
 Hint Extern 1 (mapsto _ _ _ _ |-- mapsto _ _ _ _) =>
    (apply mapsto_mapsto_int32)  : cancel.
-
-Lemma mapsto_null_mapsto_pointer:
-  forall t sh v, 
-             mapsto sh tint v nullval = 
-             mapsto sh (tptr t) v nullval.
-Proof.
-  intros.
-  unfold mapsto.
-  simpl.
-  destruct v; auto. f_equal; auto.
-  if_tac.
-  + f_equal. f_equal. apply ND_prop_ext.
-    tauto.
-  + f_equal.
-    apply ND_prop_ext.
-    unfold tc_val', tc_val, tptr, tint, nullval; simpl.
-    tauto.
-Qed.
 
 Hint Extern 0 (legal_alignas_type _ = true) => reflexivity : cancel.
 

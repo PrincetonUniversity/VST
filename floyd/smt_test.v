@@ -345,7 +345,7 @@ Vint (sum_int (sublist 0 (Z.succ a1) contents)) = Vint s /\ True.
 Abort.
 
 
-Require Import floyd.assert_lemmas.  (* just for nullval? *)
+Require Import veric.Clight_lemmas.  (* just for nullval? *)
 
 Lemma verif_reverse_example1:
 forall (sum_int: list int -> int) (sh : share) (contents cts : list int) (t0 t_old t : val) (h : int),
