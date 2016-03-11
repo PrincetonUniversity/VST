@@ -41,7 +41,7 @@ Inductive val_casted: val -> type -> Prop :=
   | val_casted_ptr_int: forall b ofs si attr,
       val_casted (Vptr b ofs) (Tint I32 si attr)
   | val_casted_ptr_cptr: forall b ofs id attr,
-      val_casted (Vptr b ofs) (Tcomp_ptr id attr)
+      val_casted (Vptr b ofs) (Tcomp_ptr  id attr)
   | val_casted_int_cptr: forall n id attr,
       val_casted (Vint n) (Tcomp_ptr id attr)
   | val_casted_struct: forall id fld attr b ofs,

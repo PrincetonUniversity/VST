@@ -22,10 +22,8 @@ COMPCERT=compcert
 
 CC_TARGET=compcert/cfrontend/Clight.vo
 CC_DIRS= lib common cfrontend exportclight
-COMPCOMP= compcomp
-DIRS= msl sepcomp compcomp veric floyd progs sha linking fcf hmacfcf tweetnacl20140427 # verifiedDrbg
-INCLUDE= $(foreach a,$(DIRS),$(if $(wildcard $(a)), -I $(a) -as $(a))) \
-  -R $(COMPCERT) -as compcert
+DIRS= msl sepcomp veric floyd progs concurrent sha linking fcf hmacfcf tweetnacl20140427
+INCLUDE= $(foreach a,$(DIRS),$(if $(wildcard $(a)), -I $(a) -as $(a))) -R $(COMPCERT) -as compcert 
 #Replace the INCLUDE above with the following in order to build the linking target:
 #INCLUDE= $(foreach a,$(DIRS),$(if $(wildcard $(a)), -I $(a) -as $(a))) -R $(COMPCERT) -as compcert -I $(SSREFLECT)/src -R $(SSREFLECT)/theories -as Ssreflect \
 #  -R $(MATHCOMP)/theories -as MathComp
@@ -50,8 +48,7 @@ endif
 
 
 #COQFLAGS= $(foreach d, $(DIRS), -R $(d) -as VST.$(d)) -R $(COMPCERT) -as compcert
-COQFLAGS= $(foreach d, $(DIRS), $(if $(wildcard $(d)), -I $(d) -as $(d))) \
-  -R $(COMPCERT) -as compcert
+COQFLAGS= $(foreach d, $(DIRS), -R $(d) -as $(d)) -R $(COMPCERT) -as compcert 
 DEPFLAGS= $(INCLUDE)
 COQC=coqc
 COQTOP=coqtop
@@ -69,14 +66,14 @@ MSL_FILES = \
   knot_hered.v knot_hered_sa.v \
   knot_full.v knot_shims.v \
   knot_sa_trivial.v \
-  corable.v corable_direct.v \
+  corable.v corable_direct.v\
   predicates_hered.v predicates_sl.v subtypes.v subtypes_sl.v \
   contractive.v predicates_rec.v \
   msl_direct.v msl_standard.v msl_classical.v \
   predicates_sa.v \
   normalize.v \
   env.v corec.v Coqlib2.v sepalg_list.v rmaps.v rmaps_lemmas.v op_classes.v \
-  simple_CCC.v seplog.v alg_seplog.v alg_seplog_direct.v log_normalize.v ramification_lemmas.v
+  simple_CCC.v seplog.v alg_seplog.v log_normalize.v
 
 SEPCOMP_FILES= \
   Address.v \
@@ -103,27 +100,6 @@ SEPCOMP_FILES= \
   wholeprog_lemmas.v \
   barebones_simulations.v
 
-CONCURRENCY_FILES= \
-  cast.v collection.v pos.v stack.v \
-  sepcomp.v compcert_linking.v compcert_linking_lemmas.v \
-  scheduler.v concurrent_machine.v \
-  compcert_threads_lemmas.v \
-  compcert_threads.v \
-  machine_simulation.v \
-  permissions.v \
-  threads_lemmas.v
-
-CORE_FILES= \
-  structured_injections.v \
-
-LIB_FILES= \
-  ExtAxioms.v \
-
-COMPCOMP_FILES= \
- $(CONCURRENCY_FILES:%=%) \
- $(CORE_FILES:%=%) \
- $(LIB_FILES:%=%) 
-
 LINKING_FILES= \
   sepcomp.v \
   pos.v \
@@ -148,7 +124,7 @@ VERIC_FILES= \
   tycontext.v lift.v expr.v expr2.v environ_lemmas.v binop_lemmas.v binop_lemmas2.v \
   expr_lemmas.v expr_lemmas2.v expr_lemmas3.v expr_rel.v xexpr_rel.v extend_tc.v \
   Clight_lemmas.v Clight_new.v Clightnew_coop.v Clight_sim.v \
-  slice.v res_predicates.v seplog.v mapsto_memory_block.v assert_lemmas.v  ghost.v \
+  slice.v res_predicates.v seplog.v assert_lemmas.v  ghost.v \
   juicy_mem.v juicy_mem_lemmas.v local.v juicy_mem_ops.v juicy_safety.v juicy_extspec.v \
   semax.v semax_lemmas.v semax_call.v semax_straight.v semax_loop.v semax_congruence.v \
   initial_world.v initialize.v semax_prog.v semax_ext.v SeparationLogic.v SeparationLogicSoundness.v  \
@@ -161,15 +137,12 @@ FLOYD_FILES= \
    sublist.v smt_test.v extract_smt.v \
    client_lemmas.v canon.v canonicalize.v assert_lemmas.v closed_lemmas.v jmeq_lemmas.v \
    compare_lemmas.v sc_set_load_store.v \
-   loadstore_mapsto.v loadstore_field_at.v field_compat.v nested_loadstore.v \
+   loadstore_mapsto.v loadstore_field_at.v nested_loadstore.v \
    call_lemmas.v extcall_lemmas.v forward_lemmas.v forward.v \
    entailer.v globals_lemmas.v local2ptree.v fieldlist.v mapsto_memory_block.v\
    nested_field_lemmas.v efield_lemmas.v proj_reptype_lemmas.v replace_refill_reptype_lemmas.v \
-   data_at_rec_lemmas.v field_at.v stronger.v \
-   for_lemmas.v semax_tactics.v expr_lemmas.v diagnosis.v simple_reify.v simpl_reptype.v \
-   freezer.v 
-#real_forward.v
-
+   data_at_lemmas.v field_at.v stronger.v \
+   for_lemmas.v semax_tactics.v expr_lemmas.v real_forward.v diagnosis.v simple_reify.v simpl_reptype.v
 
 PROGS_FILES= \
   list_dt.v verif_reverse.v verif_queue.v verif_sumarray.v \
@@ -182,10 +155,13 @@ PROGS_FILES= \
   merge.v verif_merge.v
 # verif_message.v verif_dotprod.v verif_insertion_sort.v 
 
+CONCURRENT_FILES= \
+  threadlib.v PCM.v
+
 SHA_FILES= \
   general_lemmas.v SHA256.v common_lemmas.v pure_lemmas.v sha_lemmas.v functional_prog.v \
   sha.v spec_sha.v verif_sha_init.v \
-  verif_sha_update.v verif_sha_update3.v verif_sha_update4.v \
+  verif_sha_update.v verif_sha_update2.v verif_sha_update3.v verif_sha_update4.v \
   bdo_lemmas.v verif_sha_bdo.v  \
   verif_sha_bdo4.v verif_sha_bdo7.v verif_sha_bdo8.v \
   verif_sha_final2.v verif_sha_final3.v verif_sha_final.v \
@@ -194,10 +170,24 @@ SHA_FILES= \
 HMAC_FILES= \
   HMAC_functional_prog.v HMAC256_functional_prog.v \
   vst_lemmas.v hmac_pure_lemmas.v hmac_common_lemmas.v \
-  hmac.v spec_hmac.v verif_hmac_cleanup.v \
-  verif_hmac_init_part1.v verif_hmac_init_part2.v verif_hmac_init.v\
-  verif_hmac_update.v verif_hmac_final.v verif_hmac_simple.v \
-  verif_hmac_double.v verif_hmac_crypto.v protocol_spec_hmac.v
+#  hmac091c.v spec_hmac.v \
+# verif_hmac_cleanup.v verif_hmac_init_part1.v \
+# verif_hmac_init_part2.v verif_hmac_init.v \
+# verif_hmac_update.v verif_hmac_final.v verif_hmac_simple.v \
+#  verif_hmac_double.v verif_hmac_crypto.v \
+  hmac_NK.v spec_hmacNK.v verif_hmacNK_cleanup.v \
+  verif_hmacNK_init_part1.v verif_hmacNK_init_part2.v verif_hmacNK_init.v\
+  verif_hmacNK_update.v verif_hmacNK_final.v verif_hmacNK_simple.v \
+  verif_hmacNK_double.v verif_hmacNK_crypto.v 
+#  spec_hmacADT.v verif_hmacADT_cleanup.v \
+#  verif_hmacADT_init_part1.v \
+#  verif_hmacADT_update.v verif_hmacADT_final.v verif_hmacADT_simple.v \
+#  verif_hmacADT_double.v  verif_hmacADT_init_part1_5.v \
+#  verif_hmacADT_init_part1.v  verif_hmacADT_init_part2.v verif_hmacADT_init.v 
+#  HMAC_lemmas.v HMAC_refined_fp.v hmac_sha256.v HMAC_definitions.v \
+#  HMAC_part2GT.v HMAC_part2LE.v \
+#  HMAC_LoopBodyGT.v HMAC_LoopBodyLE.v \
+#  HMAC_proofLE.v HMAC_proof.v
 
 FCF_FILES= \
   Limit.v Blist.v StdNat.v Rat.v EqDec.v Fold.v Comp.v DetSem.v DistSem.v \
@@ -222,20 +212,12 @@ HMACEQUIV_FILES= \
   HMAC_isPRF.v HMAC256_isPRF.v
 
 TWEETNACL_FILES = \
-  split_array_lemmas.v Salsa20.v Snuffle.v tweetNaclBase.v \
-  verif_salsa_base.v tweetnaclVerifiableC.v spec_salsa.v \
-  verif_ld_st.v verif_fcore_loop1.v verif_fcore_loop2.v \
-  verif_fcore_jbody.v verif_fcore_loop3.v \
-  verif_fcore_epilogue_hfalse.v verif_fcore_epilogue_htrue.v \
-  verif_fcore.v verif_crypto_core.v \
-  verif_crypto_stream_salsa20_xor.v verif_crypto_stream.v
-
-# DRBG_Files = \
-#  hmac_drbg.v HMAC256_DRBG_functional_prog.v hmac_drbg_compspecs.v \
-#  entropy.v DRBG_functions.v HMAC_DRBG_algorithms.v spec_hmac_drbg.v \
-#  HMAC_DRBG_pure_lemmas.v HMAC_DRBG_common_lemmas.v verif_mocked_md.v \
-#  verif_hmac_drbg_update.v verif_hmac_drbg_reseed.v verif_hmac_drbg_generate.v
-
+  Salsa20.v Snuffle.v \
+  tweetNaclBase.v  verif_salsa_base.v tweetnaclVerifiableC.v spec_salsa.v \
+  verif_ld_st.v  verif_fcore_epilogue_htrue.v verif_fcore_epilogue_hfalse.v \
+  split_array_lemmas.v verif_fcore_loop1.v verif_fcore_loop2.v \
+  verif_fcore_jbody.v verif_fcore_loop3.v verif_fcore.v \
+  verif_crypto_core.v
 
 C_FILES = reverse.c queue.c sumarray.c message.c insertionsort.c float.c nest3.c nest2.c nest3.c dotprod.c string.c field_loadstore.c ptr_compare.c merge.c
 
@@ -245,14 +227,13 @@ FILES = \
  $(VERIC_FILES:%=veric/%) \
  $(FLOYD_FILES:%=floyd/%) \
  $(PROGS_FILES:%=progs/%) \
+ $(CONCURRENT_FILES:%=concurrent/%) \
  $(SHA_FILES:%=sha/%) \
  $(HMAC_FILES:%=sha/%) \
  $(FCF_FILES:%=fcf/%) \
  $(HMACFCF_FILES:%=hmacfcf/%) \
  $(HMACEQUIV_FILES:%=sha/%) \
- $(TWEETNACL_FILES:%=tweetnacl20140427/%) # \
-# $(COMPCOMP_FILES:%=compcomp/%) \
-# $(DRBG_FILES:%=verifiedDrbg/spec/%)
+ $(TWEETNACL_FILES:%=tweetnacl20140427/%)
 
 %_stripped.v: %.v
 # e.g., 'make progs/verif_reverse_stripped.v will remove the tutorial comments
@@ -263,13 +244,12 @@ FILES = \
 	@echo COQC $*.v
 ifeq ($(TIMINGS), true)
 #	bash -c "wc $*.v >>timings; date +'%s.%N before' >> timings; $(COQC) $(COQFLAGS) $*.v; date +'%s.%N after' >>timings" 2>>timings
-	@bash -c "/bin/time --output=TIMINGS -a -f '%e real, %U user, %S sys, '\"$(shell wc $*.v)\" $(COQC) $(COQFLAGS) $*.v"
-#	echo -n $*.v " " >>TIMINGS; bash -c "/usr/bin/time -o TIMINGS -a $(COQC) $(COQFLAGS) $*.v"
+	echo -n $*.v " " >>TIMINGS; bash -c "/usr/bin/time -o TIMINGS -a $(COQC) $(COQFLAGS) $*.v"
 else
 	@$(COQC) $(COQFLAGS) $*.v
 endif
 
-COQVERSION=8.4pl5 or-else 8.4pl6
+COQVERSION=8.4pl5 or-else 8.4pl6 or-else 8.4pl4
 COQV=$(shell $(COQC) -v)
 ifeq ("$(filter $(COQVERSION),$(COQV))","")
 $(error FAILURE: You need Coq $(COQVERSION) but you have this version: $(COQV))
@@ -278,17 +258,17 @@ endif
 #compcert/%.vo: compcert/%.v
 #	()
 
-default_target: msl veric floyd progs
+default_target: msl veric floyd progs concurrent
 
 all:     .loadpath version.vo $(FILES:.v=.vo)
 
 msl:     .loadpath version.vo $(MSL_FILES:%.v=msl/%.vo)
 sepcomp: .loadpath $(CC_TARGET) $(SEPCOMP_FILES:%.v=sepcomp/%.vo)
-compcomp: .loadpath $(COMPCOMP_FILES:%.v=compcomp/%.vo)
 linking: .loadpath $(LINKING_FILES:%.v=linking/%.vo) 
 veric:   .loadpath $(VERIC_FILES:%.v=veric/%.vo)
 floyd:   .loadpath $(FLOYD_FILES:%.v=floyd/%.vo)
 progs:   .loadpath $(PROGS_FILES:%.v=progs/%.vo)
+concurrent:   .loadpath $(CONCURRENT_FILES:%.v=concurrent/%.vo)
 sha:     .loadpath $(SHA_FILES:%.v=sha/%.vo)
 hmac:    .loadpath $(HMAC_FILES:%.v=sha/%.vo)
 hmacequiv:    .loadpath $(HMAC_FILES:%.v=sha/%.vo)
@@ -296,7 +276,6 @@ fcf:     .loadpath $(FCF_FILES:%.v=fcf/%.vo)
 hmacfcf: .loadpath $(HMACFCF_FILES:%.v=hmacfcf/%.vo)
 tweetnacl: .loadpath $(TWEETNACL_FILES:%.v=tweetnacl20140427/%.vo)
 hmac0: .loadpath sha/verif_hmac_init.vo sha/verif_hmac_cleanup.vo sha/verif_hmac_final.vo sha/verif_hmac_simple.vo  sha/verif_hmac_double.vo sha/verif_hmac_update.vo sha/verif_hmac_crypto.vo
-# drbg: .loadpath $(DRBG_FILES:%.v=verifiedDrbg/%.vo)
 
 CGFLAGS =  -DCOMPCERT
 
@@ -311,7 +290,9 @@ clean_cvfiles:
 	rm $(CVFILES)
 
 ifdef CLIGHTGEN
-sha/hmac.v: sha/hmac.c
+sha/hmac091c.v: sha/hmac091c.c
+	$(CLIGHTGEN) ${CGFLAGS} $<
+sha/hmac_NK.v: sha/hmac_NK.c
 	$(CLIGHTGEN) ${CGFLAGS} $<
 sha/sha.v: sha/sha.c
 	$(CLIGHTGEN) ${CGFLAGS} $<
@@ -352,7 +333,7 @@ progs/merge.v: progs/merge.c
 	$(CLIGHTGEN) ${CGFLAGS} $<
 endif
 
-version.v:  VERSION $(MSL_FILES:%=msl/%) $(SEPCOMP_FILES:%=sepcomp/%) $(VERIC_FILES:%=veric/%) $(FLOYD_FILES:%=floyd/%)
+version.v:  $(MSL_FILES:%=msl/%) $(SEPCOMP_FILES:%=sepcomp/%) $(VERIC_FILES:%=veric/%) $(FLOYD_FILES:%=floyd/%)
 	sh util/make_version
 
 .loadpath: Makefile
@@ -386,3 +367,4 @@ count-linking:
 #	(cd compcert; ./make)
 
 include .depend
+# DO NOT DELETE
