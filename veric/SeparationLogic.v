@@ -381,26 +381,6 @@ Proof. exact mapsto_memory_block.mapsto_mapsto_. Qed.
 Lemma mapsto_tc_val': forall sh t p v, mapsto sh t p v |-- !! tc_val' t v.
 Proof. exact mapsto_memory_block.mapsto_tc_val'. Qed.
 
-Lemma memory_block'_split:
-  forall sh b ofs i j,
-   0 <= i <= j ->
-    j <= j+ofs <= Int.modulus ->
-   mapsto_memory_block.memory_block' sh (nat_of_Z j) b ofs = 
-      mapsto_memory_block.memory_block' sh (nat_of_Z i) b ofs * mapsto_memory_block.memory_block' sh (nat_of_Z (j-i)) b (ofs+i).
-Proof.
-intros.
-rewrite mapsto_memory_block.memory_block'_eq; try rewrite nat_of_Z_eq; try omega.
-rewrite mapsto_memory_block.memory_block'_eq; try rewrite nat_of_Z_eq; try omega.
-rewrite mapsto_memory_block.memory_block'_eq; try rewrite nat_of_Z_eq; try omega.
-unfold mapsto_memory_block.memory_block'_alt.
-repeat (rewrite nat_of_Z_eq; try omega).
-if_tac.
-etransitivity ; [ | eapply res_predicates.VALspec_range_split2].
-reflexivity.
-omega. omega. omega.
-admit.  (* straightforward; see similar admit in memory_block'_eq lemma, seplog.v *)
-Qed.
-
 Lemma memory_block_split:
   forall (sh : share) (b : block) (ofs n m : Z),
   0 <= n ->
@@ -410,39 +390,7 @@ Lemma memory_block_split:
   memory_block sh (n + m) (Vptr b (Int.repr ofs)) =
   memory_block sh n (Vptr b (Int.repr ofs)) *
   memory_block sh m (Vptr b (Int.repr (ofs + n))).
-Proof.
-  intros.
-  unfold memory_block.
-  rewrite memory_block'_split with (i := n); [| omega |].
-  Focus 2. {
-    pose proof Int.unsigned_range (Int.repr ofs).
-    pose proof Int.unsigned_repr_eq ofs.
-    assert (ofs mod Int.modulus <= ofs) by (apply Z.mod_le; omega).
-    omega.
-  } Unfocus.
-  replace (n + m - n) with m by omega.
-  replace (mapsto_memory_block.memory_block' sh (nat_of_Z m) b (Int.unsigned (Int.repr ofs) + n)) with
-    (mapsto_memory_block.memory_block' sh (nat_of_Z m) b (Int.unsigned (Int.repr (ofs + n)))).
-  Focus 2. {
-    destruct (zeq m 0).
-    + subst. reflexivity.
-    + assert (ofs + n < Int.modulus) by omega.
-      rewrite !Int.unsigned_repr by (unfold Int.max_unsigned; omega).
-      reflexivity.
-  } Unfocus.
-  apply pred_ext.
-  + apply derives_extract_prop; intros.
-    apply sepcon_derives; (apply andp_right; [apply prop_right | apply derives_refl]).
-    - omega.
-    - rewrite Int.unsigned_repr_eq.
-      assert ((ofs + n) mod Int.modulus <= ofs + n) by (apply Z.mod_le; omega).
-      omega.
-  + apply andp_right; [apply prop_right |].
-    - rewrite Int.unsigned_repr_eq.
-      assert (ofs mod Int.modulus <= ofs) by (apply Z.mod_le; omega).
-      omega.
-    - apply sepcon_derives; apply andp_left2; apply derives_refl.
-Qed.
+Proof. exact mapsto_memory_block.memory_block_split. Qed.
 
 Lemma mapsto_share_join:
  forall sh1 sh2 sh t p v,
@@ -458,7 +406,9 @@ Lemma memory_block_share_join:
    sepalg.join sh1 sh2 sh ->
    memory_block sh1 n p * memory_block sh2 n p = memory_block sh n p.
 Proof.
-Admitted.
+intros.
+apply  mapsto_memory_block.memory_block_share_join; auto.
+Qed.
 
 Lemma mapsto_conflict:
   forall sh t v v2 v3,
