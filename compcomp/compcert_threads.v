@@ -1,14 +1,15 @@
 Require Import Axioms.
 
-(*Require Import sepcomp. Import SepComp.*)
+Require Import sepcomp. Import SepComp.
 Require Import core_semantics_lemmas.
 
 Add LoadPath "../compcomp" as compcomp.
 
 Require Import pos.
-Require Import stack. 
-Require Import cast.
-
+(* Require Import stack.  *)
+(* Require Import cast. *)
+Require Import concurrent_machine.
+Require Import pos.
 Require Import Program.
 Require Import ssreflect Ssreflect.seq ssrbool ssrnat ssrfun eqtype seq fintype finfun.
 Set Implicit Arguments.
@@ -24,31 +25,29 @@ Require Import Integers.
 Require Import ZArith.
 
 Notation EXIT := 
-  (EF_external 1%positive (mksignature (AST.Tint::nil) None)). 
+  (EF_external "EXIT" (mksignature (AST.Tint::nil) None)). 
 
-Notation CREATE_SIG := (mksignature (AST.Tint::AST.Tint::nil) (Some AST.Tint)).
-Notation CREATE := (EF_external 2%positive CREATE_SIG).
+Notation CREATE_SIG := (mksignature (AST.Tint::AST.Tint::nil) (Some AST.Tint) cc_default).
+Notation CREATE := (EF_external "CREATE" CREATE_SIG).
 
 Notation READ := 
-  (EF_external 3%positive 
-               (mksignature (AST.Tint::AST.Tint::AST.Tint::nil) (Some AST.Tint))).
+  (EF_external "READ"
+               (mksignature (AST.Tint::AST.Tint::AST.Tint::nil) (Some AST.Tint) cc_default)).
 Notation WRITE := 
-  (EF_external 4%positive 
-               (mksignature (AST.Tint::AST.Tint::AST.Tint::nil) (Some AST.Tint))).
+  (EF_external "WRITE"
+               (mksignature (AST.Tint::AST.Tint::AST.Tint::nil) (Some AST.Tint) cc_default)).
 
 Notation MKLOCK := 
-  (EF_external 5%positive (mksignature (AST.Tint::nil) (Some AST.Tint))).
+  (EF_external "MKLOCK" (mksignature (AST.Tint::nil) (Some AST.Tint) cc_default)).
 Notation FREE_LOCK := 
-  (EF_external 6%positive (mksignature (AST.Tint::nil) (Some AST.Tint))).
+  (EF_external "FREE_LOCK" (mksignature (AST.Tint::nil) (Some AST.Tint) cc_default)).
 
-Notation LOCK_SIG := (mksignature (AST.Tint::nil) (Some AST.Tint)).
-Notation LOCK := (EF_external 7%positive LOCK_SIG).
-Notation UNLOCK_SIG := (mksignature (AST.Tint::nil) (Some AST.Tint)).
-Notation UNLOCK := (EF_external 8%positive UNLOCK_SIG).
+Notation LOCK_SIG := (mksignature (AST.Tint::nil) (Some AST.Tint) cc_default).
+Notation LOCK := (EF_external "LOCK" LOCK_SIG).
+Notation UNLOCK_SIG := (mksignature (AST.Tint::nil) (Some AST.Tint) cc_default).
+Notation UNLOCK := (EF_external "UNLOCK" UNLOCK_SIG).
 
-Require Import (*compcert_linking*) threads_lemmas permissions.
-
-Require Import concurrent_machine.
+Require Import (*compcert_linking*) permissions.
 
 Module ThreadPool.
   Section ThreadPool.
@@ -413,7 +412,7 @@ Module Concur.
       fun ms tid0 => tid0 < (ThreadPool.num_threads ms).
 
     Variable the_ge : G.
-    Variable aggelos : nat -> perm_map.
+    Variable aggelos : nat -> delta_map.
     Variable lp_id : nat.
     
     Record invariant tp :=
@@ -436,6 +435,7 @@ Module Concur.
           let: tid := cont2ord cnt in
           forall (Hrestrict_pmap:
                restrPermMap (permMapsInv_lt (perm_comp Hcompatible) tid) = m1)
+            (Hinv : invariant tp)
             (Hthread: getThreadC tp tid = Krun c)
             (Hcorestep: corestep the_sem the_ge c m1 c' m')
             (Htp': tp' = @updThread cT' tp tid (Krun c') (getCurPerm m') n),
@@ -452,6 +452,7 @@ Module Concur.
           let: tid := cont2ord cnt0 in
           let: lp := cont2ord cnt_lp in
           forall
+            (Hinv : invariant tp)
             (Hthread: getThreadC tp tid = Kstop c)
             (Hat_external: at_external the_sem c =
                            Some (LOCK, ef_sig LOCK, Vptr b ofs::nil))
@@ -460,9 +461,8 @@ Module Concur.
             (Hload: Mem.load Mint32 m1 b (Int.intval ofs) = Some (Vint Int.one))
             (Hstore: Mem.store Mint32 m1 b (Int.intval ofs) (Vint Int.zero) = Some m')
             (Hat_external: after_external the_sem (Some (Vint Int.zero)) c = Some c')
-            (* (Hangel_wf: permMap_wf tp (aggelos n) tid0) *)
-            (* (Hangel_canonical: isCanonical (aggelos n)) *)
-            (Htp': tp' = updThread tp tid (Kresume c') (aggelos n) (n+1)),
+            (Htp': tp' = updThread tp tid (Kresume c')
+                                   (computeMap (getThreadPerm tp tid) (aggelos n)) (n+1)),
             ext_step cnt0 Hcompat tp' m' 
                      
     | step_unlock :
@@ -472,6 +472,7 @@ Module Concur.
           let: tid := cont2ord cnt0 in
           let: lp := cont2ord cnt_lp in
           forall
+            (Hinv : invariant tp)
             (Hthread: getThreadC tp tid = Kstop c)
             (Hat_external: at_external the_sem c =
                            Some (UNLOCK, ef_sig UNLOCK, Vptr b ofs::nil))
@@ -482,7 +483,8 @@ Module Concur.
             (Hat_external: after_external the_sem (Some (Vint Int.zero)) c = Some c')
             (* (Hangel_wf: permMap_wf tp (aggelos n) tid0) *)
             (* (Hangel_canonical: isCanonical (aggelos n)) *)
-            (Htp': tp' = updThread tp tid (Kresume c') (aggelos n) (n+1)),
+            (Htp': tp' = updThread tp tid (Kresume c')
+                                   (computeMap (getThreadPerm tp tid) (aggelos n)) (n+1)),
             ext_step cnt0 Hcompat tp' m' 
                      
     | step_create :
@@ -490,19 +492,22 @@ Module Concur.
           let: n := counter tp in
           let: tid := cont2ord cnt0 in
           forall
+            (Hinv : invariant tp)
             (Hthread: getThreadC tp tid = Kstop c)
             (Hat_external: at_external the_sem c =
                            Some (CREATE, ef_sig CREATE, vf::arg::nil))
             (Hinitial: initial_core the_sem the_ge vf (arg::nil) = Some c_new)
             (Hafter_external: after_external the_sem
                                                        (Some (Vint Int.zero)) c = Some c')
-            (Htp': tp_upd = updThread tp tid (Kresume c') (aggelos n) (n.+2))
+            (Htp': tp_upd = updThread tp tid (Kresume c')
+                                      (computeMap (getThreadPerm tp tid) (aggelos n)) (n.+2))
             (* (Hangel_wf: permMap_wf tp (aggelos n) tid0) *)
             (* (Hangel_canonical: isCanonical (aggelos n)) *)
             (* (Hangel_wf2: newPermMap_wf tp_upd (aggelos (n.+1))) *)
             (* (Hangel_canonical2: isCanonical (aggelos (n.+1))) *)
             (* NOTE: Something to be done with the new thread!!! *)
-            (Htp': tp' = addThread tp_upd (Kresume c_new) (aggelos n.+1)),
+            (Htp': tp' = addThread tp_upd (Kresume c_new)
+                                   (computeMap empty_map (aggelos n.+1))),
             ext_step cnt0 Hcompat tp' m
                      
     | step_mklock :
@@ -515,6 +520,7 @@ Module Concur.
           let: lp' := cont2ord cnt_lp' in
           let: pmap_tid := getThreadPerm tp tid in
           forall
+            (Hinv : invariant tp)
             (Hthread: getThreadC tp tid = Kstop c)
             (Hat_external: at_external the_sem c =
                            Some (MKLOCK, ef_sig MKLOCK, Vptr b ofs::nil))
@@ -541,6 +547,7 @@ Module Concur.
           let: lp' := cont2ord cnt_lp' in
           let: pmap_lp := getThreadPerm tp tid in
           forall
+            (Hinv : invariant tp)
             (Hthread: getThreadC tp tid = Kstop c)
             (Hat_external: at_external the_sem c =
                            Some (FREE_LOCK, ef_sig FREE_LOCK, Vptr b ofs::nil))
@@ -550,7 +557,8 @@ Module Concur.
             (*the angel must provide the permissions for the thread - freeable or writeable *)
             (* (Hangel_wf: permMap_wf tp (aggelos n) tid0) *)
             (* (Hangel_canonical: isCanonical (aggelos n)) *)
-            (Htp': tp' = updThread tp tid (Kresume c') (aggelos n) (n+1))       
+            (Htp': tp' = updThread tp tid (Kresume c')
+                                   (computeMap (getThreadPerm tp tid) (aggelos n)) (n+1))       
             (Htp'': tp'' = updThreadP tp' lp' pmap_lp'),
             ext_step cnt0 Hcompat  tp'' m 
                      
@@ -561,6 +569,7 @@ Module Concur.
           let: tid := cont2ord cnt0 in
           let: lp := cont2ord cnt_lp in
           forall
+            (Hinv : invariant tp)
             (Hthread: getThreadC tp tid = Kstop c)
             (Hat_external: at_external the_sem c =
                            Some (LOCK, ef_sig LOCK, Vptr b ofs::nil))
@@ -635,7 +644,7 @@ Module Concur.
     
     Definition conc_call (genv:G):
       forall {tid0 ms m},
-        (nat -> access_map) -> containsThread ms tid0 -> mem_compatible ms m ->
+        (nat -> delta_map) -> containsThread ms tid0 -> mem_compatible ms m ->
         machine_state -> mem -> Prop:=
       fun tid ms m aggelos => @ext_step cT G Sem genv aggelos lp_id tid ms m.
     
