@@ -161,9 +161,6 @@ unfold strict_bool_val, Val.of_bool; simpl.
 destruct x; simpl;  intuition congruence.
 Qed.
 
-Lemma Vint_inj: forall x y, Vint x = Vint y -> x=y.
-Proof. congruence. Qed.
-
 Lemma typed_false_tint:
  forall v, typed_false tint v -> v=nullval.
 Proof.
@@ -2253,22 +2250,6 @@ Proof.
 Qed.
 
 Hint Rewrite @resubst : subst.
-
-Definition type_is_by_value t : bool :=
-  match t with
-  | Tint _ _ _
-  | Tlong _ _
-  | Tfloat _ _
-  | Tpointer _ _ => true
-  | _ => false
-  end.
-
-Definition type_is_by_reference t : bool :=
-  match t with
-  | Tarray _ _ _
-  | Tfunction _ _ _ => true
-  | _ => false
-  end.
 
 Lemma unsigned_eq_eq: forall i j, Int.unsigned i = Int.unsigned j -> i = j.
 Proof.

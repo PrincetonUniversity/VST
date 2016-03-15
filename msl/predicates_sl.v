@@ -1018,6 +1018,14 @@ Proof.
   left; auto. right; auto.
 Qed.
 
+Lemma distrib_orp_sepcon2{A : Type}{JA : Join A}{PA : Perm_alg A}{agA : ageable A}
+    {AgeA : Age_alg A}:
+  forall (P Q R : pred A),
+     (R * (P || Q) = R * P || R * Q)%pred.
+Proof.
+intros. rewrite !(sepcon_comm R). apply distrib_orp_sepcon.
+Qed.
+
 Lemma ewand_conflict {T}{agT:ageable T}{JT: Join T}{PT: Perm_alg T}{ST: Sep_alg T}{AT: Age_alg T}:
        forall P Q R, sepcon P Q |-- FF -> andp P (ewand Q R) |-- FF.
 Proof.

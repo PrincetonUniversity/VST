@@ -494,10 +494,6 @@ Proof.
   simpl. unfold read_sh. simpl. f_equal; auto with extensionality.
 Qed.  
 
-Lemma rev_if_be_1: forall i, rev_if_be (i::nil) = (i::nil).
-Proof. unfold rev_if_be; intros. destruct Archi.big_endian; reflexivity. 
-Qed.
-
 Lemma zero_ext_inj: forall i,
    Int.zero_ext 8 (Int.repr (Byte.unsigned i)) = Int.zero -> 
    i = Byte.zero.

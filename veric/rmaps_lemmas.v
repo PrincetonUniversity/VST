@@ -1484,4 +1484,13 @@ rewrite H0.
 apply core_identity.
 Qed.
 
+Lemma resource_fmap_core:
+  forall w loc, resource_fmap (approx (level w)) (core (w @ loc)) = core (w @ loc).
+Proof.
+intros.
+case_eq (w @ loc); intros;
+ [rewrite core_NO | rewrite core_YES | rewrite core_PURE]; auto.
+rewrite <- H. apply resource_at_approx.
+Qed.
+
 End Rmaps_Lemmas.

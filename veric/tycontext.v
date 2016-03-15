@@ -6,6 +6,22 @@ Require Import veric.compcert_rmaps.
 Require Import veric.Clight_lemmas.
 Require Export veric.lift.
 
+Definition type_is_by_value t : bool :=
+  match t with
+  | Tint _ _ _
+  | Tlong _ _
+  | Tfloat _ _
+  | Tpointer _ _ => true
+  | _ => false
+  end.
+
+Definition type_is_by_reference t : bool :=
+  match t with
+  | Tarray _ _ _
+  | Tfunction _ _ _ => true
+  | _ => false
+  end.
+
 (** GENERAL KV-Maps **)
 
 Set Implicit Arguments.

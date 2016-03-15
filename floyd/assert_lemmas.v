@@ -96,8 +96,6 @@ Hint Rewrite @sizeof_tuchar: norm.
 
 Hint Rewrite Z.mul_1_l Z.mul_1_r Z.add_0_l Z.add_0_r : norm.
 
-Definition nullval : val := Vint Int.zero.
-
 Lemma subst_derives:
   forall id e P Q, P |-- Q -> subst id e P |-- subst id e Q.
 Proof.
