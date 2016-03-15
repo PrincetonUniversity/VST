@@ -1,22 +1,8 @@
-Require Import Axioms.
-
-Require Import sepcomp. Import SepComp.
-Require Import core_semantics_lemmas.
-
-Require Import pos.
-Require Import stack. 
-Require Import cast.
-
-Require Import Program.
 Require Import ssreflect Ssreflect.seq ssrbool ssrnat ssrfun eqtype seq fintype finfun.
 Set Implicit Arguments.
 
 (*NOTE: because of redefinition of [val], these imports must appear 
   after Ssreflect eqtype.*)
-Require Import AST.     (*for typ*)
-Require Import Values. (*for val*)
-Require Import Globalenvs. 
-Require Import Memory.
 Require Import Integers.
 
 Require Import ZArith.
