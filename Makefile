@@ -124,6 +124,8 @@ COMPCOMP_FILES= \
  $(LIB_FILES:%=%) \
  $(CORE_FILES:%=%)
 
+
+
 LINKING_FILES= \
   sepcomp.v \
   pos.v \
@@ -251,7 +253,7 @@ FILES = \
  $(HMACFCF_FILES:%=hmacfcf/%) \
  $(HMACEQUIV_FILES:%=sha/%) \
  $(TWEETNACL_FILES:%=tweetnacl20140427/%) #\
-# $(COMPCOMP_FILES:%=compcomp/%) \
+# $(COMPCOMP_FILES:%=compcomp/%) #\
 # $(DRBG_FILES:%=verifiedDrbg/spec/%)
 
 %_stripped.v: %.v
@@ -369,6 +371,9 @@ depend:
 
 depend-linking:
 	$(COQDEP) $(DEPFLAGS) $(FILES) $(LINKING_FILES:%.v=linking/%.v) > .depend
+
+depend-compcomp:
+	$(COQDEP) $(DEPFLAGS) $(FILES) $(COMPCOMP_FILES:%.v=compcomp/%.v) > .depend
 
 clean:
 	rm -f $(FILES:%.v=%.vo) $(FILES:%.v=%.glob) floyd/floyd.coq .loadpath .depend

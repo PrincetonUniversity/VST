@@ -57,7 +57,7 @@ Module Type ConcurrentMachineSig (TID: ThreadID).
   (*CODE*)
   Parameter cT: Type.
   Parameter G: Type.
-  Parameter Sem : CoreSemantics G cT richMem.
+  Parameter Sem : CoreSemantics G cT richMem. (* Not used, might remove. *)
 
   (*MACHINE VARIABLES*)
   Parameter machine_state: Type.
