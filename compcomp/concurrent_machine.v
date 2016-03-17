@@ -9,6 +9,9 @@ Load Scheduler.
 
 Require Import Program.
 Require Import ssreflect Ssreflect.seq.
+
+
+Add LoadPath "../compcomp" as compcomp.
 Require Import permissions.
 
 Notation EXIT := 
@@ -57,7 +60,7 @@ Module Type ConcurrentMachineSig (TID: ThreadID).
   (*CODE*)
   Parameter cT: Type.
   Parameter G: Type.
-  Parameter Sem : CoreSemantics G cT richMem. (* Not used, might remove. *)
+  Parameter Sem : CoreSemantics G cT mem. (* Not used, might remove. *)
 
   (*MACHINE VARIABLES*)
   Parameter machine_state: Type.

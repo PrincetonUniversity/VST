@@ -32,6 +32,7 @@ Require Import juicy_mem.
 Require Import juicy_extspec.
 Require Import jstep.
 
+
 Notation EXIT := 
   (EF_external "EXIT" (mksignature (AST.Tint::nil) None)). 
 
@@ -57,6 +58,12 @@ Notation UNLOCK := (EF_external "UNLOCK" UNLOCK_SIG).
 
 Require Import (*compcert_linking*) permissions.
 
+
+Module LockPool.
+  Definition LockPool:= address -> option rmap.
+End LockPool.
+Export LockPool.
+
 Module ThreadPool.
   Section ThreadPool.
     
@@ -65,14 +72,15 @@ Module ThreadPool.
     Record t := mk
                   { num_threads : pos
                     ; pool :> 'I_num_threads -> cT
-                    ; juice : 'I_num_threads -> rmap
-                    ; counter : nat
+                    ; juice : 'I_num_threads -> rmap;
+                    lpool : LockPool
+                                                
                   }.
     
   End ThreadPool.
 End ThreadPool.
 
-Notation pool := ThreadPool.t.
+Notation tpool := ThreadPool.t.
 
 Section poolDefs.
 
@@ -134,7 +142,7 @@ Section poolDefs.
              | None => pmap
              | Some n' => (juice tp) n'
            end)
-        ((counter tp).+1).
+        ((lpool tp)).
 
   Lemma addThread_racefree :
     forall c p (Hwf: newJuice_wf p) (Hrace: race_free tp),
@@ -183,31 +191,31 @@ Section poolDefs.
   Definition updThreadC (tid : 'I_num_threads) (c' : cT) : thread_pool :=
     @mk cT num_threads (fun (n : 'I_num_threads) =>
                           if n == tid then c' else tp n) (juice tp)
-        (counter tp).
+        (lpool tp).
 
   Definition updThreadP (tid : 'I_num_threads) (pmap' : rmap) : thread_pool :=
     @mk cT num_threads (pool tp) (fun (n : 'I_num_threads) =>
                                     if n == tid then pmap' else (juice tp) n)
-        (counter tp).
+        (lpool tp).
 
   Definition permMap_wf pmap tid :=
     forall tid0 (Htid0 : tid0 < num_threads) (Hneq: tid <> tid0),
       joins ((juice tp) (Ordinal Htid0)) pmap.
   
   Definition updThread (tid : 'I_num_threads) (c' : cT)
-             (pmap : rmap) (counter' : nat) : thread_pool :=
+             (pmap : rmap): thread_pool :=
     @mk cT num_threads
-        (fun (n : 'I_num_threads) =>
-           if n == tid then c' else tp n)
-        (fun (n : 'I_num_threads) =>
-           if n == tid then pmap else (juice tp) n) 
-        counter'.
+        (fun (tid' : 'I_num_threads) =>
+           if tid' == tid then c' else tp tid')
+        (fun (tid' : 'I_num_threads) =>
+           if tid' == tid then pmap else (juice tp) tid') 
+         (lpool tp).
 
   Lemma updThread_wf : forall tid (pf : tid < num_threads) pmap
                          (Hwf: permMap_wf pmap tid)
-                         c'  counter'
+                         c'
                          (Hrace_free: race_free tp),
-                         race_free (updThread (Ordinal pf) c' pmap counter').
+                         race_free (updThread (Ordinal pf) c' pmap).
   Proof.
     intros.
     unfold race_free. intros.
@@ -216,9 +224,9 @@ Section poolDefs.
                                                                                                      (Ordinal (n:=num_threads) (m:=tid0') Htid0' == Ordinal (n:=num_threads) (m:=tid) pf) eqn:Heq0'.
     - move/eqP:Heq0 => Heq0. subst.
       move/eqP:Heq0' => Heq0'. inversion Heq0'. inversion Heq0; subst. exfalso; auto.
-    - move/eqP:Heq0=>Heq0. inversion Heq0. subst. 
+    - move/eqP:Heq0=>Heq0; inversion Heq0; subst. 
       apply joins_comm.
-      eapply Hwf. simpl; auto.
+      eapply Hwf. simpl; auto.      
     - move/eqP:Heq0'=>Heq0'. inversion Heq0'. subst.
       eapply Hwf. simpl; auto.
     - simpl in *. eapply Hrace_free; eauto.
@@ -246,7 +254,7 @@ Section poolDefs.
 
 End poolDefs.
 
-Arguments updThread {_} tp tid c' pmap counter'.
+Arguments updThread {_} tp tid c' pmap.
 Arguments addThread {_} tp c pmap.
 
 Section poolLemmas.
@@ -255,20 +263,20 @@ Section poolLemmas.
 
   Import ThreadPool.
 
-  Lemma gssThreadCode (tid : 'I_(num_threads tp)) c' p' counter' : 
-    getThreadC (updThread tp tid c' p' counter') tid = c'.
+  Lemma gssThreadCode (tid : 'I_(num_threads tp)) c' p' : 
+    getThreadC (updThread tp tid c' p') tid = c'.
   Proof. by rewrite /getThreadC /updThread /= eq_refl. Defined.
 
-  Lemma gsoThread (tid tid' : 'I_(num_threads tp)) c' p' counter':
-    tid' != tid -> getThreadC (updThread tp tid c' p' counter') tid' = getThreadC tp tid'.
+  Lemma gsoThread (tid tid' : 'I_(num_threads tp)) c' p':
+    tid' != tid -> getThreadC (updThread tp tid c' p') tid' = getThreadC tp tid'.
   Proof. by rewrite /getThreadC /updThread /=; case Heq: (tid' == tid). Defined.
 
-  Lemma gssThreadPerm (tid : 'I_(num_threads tp)) c' p' counter' : 
-    getThreadPerm (updThread tp tid c' p' counter') tid = p'.
+  Lemma gssThreadPerm (tid : 'I_(num_threads tp)) c' p' : 
+    getThreadPerm (updThread tp tid c' p') tid = p'.
   Proof. by rewrite /getThreadC /updThread /= eq_refl. Defined.
 
-  Lemma gsoThreadPerm (tid tid' : 'I_(num_threads tp)) c' p' counter':
-    tid' != tid -> getThreadPerm (updThread tp tid c' p' counter') tid' = getThreadPerm tp tid'.
+  Lemma gsoThreadPerm (tid tid' : 'I_(num_threads tp)) c' p':
+    tid' != tid -> getThreadPerm (updThread tp tid c' p') tid' = getThreadPerm tp tid'.
   Proof. by rewrite /getThreadPerm /updThread /=; case Heq: (tid' == tid). Defined.
 
   Lemma getAddThread c pmap tid :
@@ -434,12 +442,13 @@ Module JMem.
       + admit.
     - exact None.
   Defined.
+End JMem.
 
 Module Concur.
   Section Concur.
     
     Import ThreadPool.
-    Context {cT G : Type} {the_sem : CoreSemantics G cT mem}.
+    Context {cT G : Type} {the_sem : CoreSemantics G cT mem}{LP:LockPool}.
     
     Notation cT' := (@ctl cT).
     Notation thread_pool := (t cT').
@@ -450,7 +459,6 @@ Module Concur.
 
     Variable the_ge : G.
     Variable aggelos : nat -> delta_map.
-    Variable lp_id : nat.
     
     Record invariant tp :=
       { (*canonical : forall tid, isCanonical (juice tp tid);*)
@@ -475,70 +483,69 @@ Module Concur.
     
     Inductive juicy_step {tid0 tp m} (cnt: containsThread tp tid0)
       (Hcompatible: mem_compatible tp m) : thread_pool -> mem  -> Prop :=
-    | step_dry :
+    | step_juicy :
         forall (tp':thread_pool) c jm jm' m' (c' : cT),
-          let: n := counter tp in
+          let: lp := lpool tp in
           let: tid := cont2ord cnt in
           forall (Hpersonal_perm:
                personal_mem cnt Hcompatible = jm)
             (Hinv : invariant tp)
             (Hthread: getThreadC tp tid = Krun c)
             (Hcorestep: corestep juicy_sem the_ge c jm c' jm')
-            (Htp': tp' = @updThread cT' tp tid (Krun c') (m_phi jm') n)
+            (Htp': tp' = @updThread cT' tp tid (Krun c') (m_phi jm'))
             (Hm': m_dry jm' = m' ),
             juicy_step cnt Hcompatible tp' m'.
     
     (*missing lock-ranges*)
-    Inductive ext_step {tid0 tp m}
+    Parameter get_fun_spec: juicy_mem -> address -> val -> option (pred rmap * pred rmap).
+    Parameter get_lock_inv: juicy_mem -> address -> option (pred rmap).
+    Parameter freelock: juicy_mem -> address -> option juicy_mem.
+    Parameter mklock: juicy_mem -> address -> pred rmap -> option juicy_mem.
+    Inductive conc_step {tid0 tp m}
               (cnt0:containsThread tp tid0)(Hcompat:mem_compatible tp m):
-      thread_pool -> juicy_mem -> Prop :=
+      thread_pool -> mem -> Prop :=
     | step_lock :
-        forall (tp':thread_pool) jm c c' m' b ofs
-          (cnt_lp: containsThread tp lp_id),
-          let: n := counter tp in
+        forall (tp':thread_pool) jm c c' jm' b ofs d_phi phi',
           let: tid := cont2ord cnt0 in
-          let: lp := cont2ord cnt_lp in
           forall
             (Hinv : invariant tp)
             (Hthread: getThreadC tp tid = Kstop c)
             (Hat_external: at_external the_sem c =
                            Some (LOCK, ef_sig LOCK, Vptr b ofs::nil))
             (Hcompatible: mem_compatible tp m)
-            (Hpersonal_perm:
+            (Hpersonal_perm: 
                personal_mem cnt0 Hcompatible = jm)
-            (Hpermission: 
-            (Hload: Mem.load Mint32 m b (Int.intval ofs) = Some (Vint Int.one))
-            (Hstore: Mem.store Mint32 m b (Int.intval ofs) (Vint Int.zero) = Some m')
+            (Hload: JMem.load Mint32 jm b (Int.intval ofs) = Some (Vint Int.one))
+            (Hstore: JMem.store Mint32 jm b (Int.intval ofs) (Vint Int.zero) = Some jm')
             (Hat_external: after_external the_sem (Some (Vint Int.zero)) c = Some c')
-            (Htp': tp' = updThread tp tid (Kresume c')
-                                   (computeMap (getThreadPerm tp tid) (aggelos n)) (n+1)),
-            ext_step cnt0 Hcompat tp' m' 
-                     
+            (His_unlocked:lpool tp (b, Int.intval ofs) = Some d_phi )
+            (Hadd_lock_res: join (m_phi jm) d_phi  phi')  
+            (Htp': tp' = updThread tp tid (Kresume c') phi'),
+            conc_step cnt0 Hcompat tp' (m_dry jm')                 
     | step_unlock :
-        forall  (tp':thread_pool) m1 c c' m' b ofs
-           (cnt_lp: containsThread tp lp_id),
-          let: n := counter tp in
+        forall  (tp':thread_pool) jm c c' jm' b ofs (d_phi phi':rmap) (R: pred rmap) ,
           let: tid := cont2ord cnt0 in
-          let: lp := cont2ord cnt_lp in
           forall
             (Hinv : invariant tp)
             (Hthread: getThreadC tp tid = Kstop c)
             (Hat_external: at_external the_sem c =
                            Some (UNLOCK, ef_sig UNLOCK, Vptr b ofs::nil))
-            (Hrestrict_pmap: restrPermMap (permMapsInv_lt (perm_comp Hcompat) lp) = m1)
-            (Hload: Mem.load Mint32 m1 b (Int.intval ofs) = Some (Vint Int.zero))
-            (Hstore: Mem.store Mint32 m1 b (Int.intval ofs) (Vint Int.one) = Some m')
+            (Hcompatible: mem_compatible tp m)
+            (Hpersonal_perm: 
+               personal_mem cnt0 Hcompatible = jm)
+            (Hload: JMem.load Mint32 jm b (Int.intval ofs) = Some (Vint Int.zero))
+            (Hstore: JMem.store Mint32 jm b (Int.intval ofs) (Vint Int.one) = Some jm')
             (* what does the return value denote?*)
             (Hat_external: after_external the_sem (Some (Vint Int.zero)) c = Some c')
-            (* (Hangel_wf: permMap_wf tp (aggelos n) tid0) *)
-            (* (Hangel_canonical: isCanonical (aggelos n)) *)
-            (Htp': tp' = updThread tp tid (Kresume c')
-                                   (computeMap (getThreadPerm tp tid) (aggelos n)) (n+1)),
-            ext_step cnt0 Hcompat tp' m' 
+            (Hget_lock_inv: get_lock_inv jm (b, Int.intval ofs) = Some R)
+            (Hsat_lock_inv: R d_phi)
+            (Hrem_lock_res: join d_phi phi' (m_phi jm))
+            (Htp': tp' = updThread tp tid (Kresume c') phi'),
+            conc_step cnt0 Hcompat tp' (m_dry jm') 
                      
     | step_create :
-        forall  (tp_upd tp':thread_pool) c c' c_new vf arg,
-          let: n := counter tp in
+        (* HAVE TO REVIEW THIS STEP LOOKING INTO THE ORACULAR SEMANTICS*)
+        forall  (tp_upd tp':thread_pool) c c' c_new vf arg jm (d_phi phi': rmap) b ofs P Q,
           let: tid := cont2ord cnt0 in
           forall
             (Hinv : invariant tp)
@@ -546,101 +553,84 @@ Module Concur.
             (Hat_external: at_external the_sem c =
                            Some (CREATE, ef_sig CREATE, vf::arg::nil))
             (Hinitial: initial_core the_sem the_ge vf (arg::nil) = Some c_new)
+            (Hfun_sepc: vf = Vptr b ofs)
             (Hafter_external: after_external the_sem
-                                                       (Some (Vint Int.zero)) c = Some c')
-            (Htp': tp_upd = updThread tp tid (Kresume c')
-                                      (computeMap (getThreadPerm tp tid) (aggelos n)) (n.+2))
-            (* (Hangel_wf: permMap_wf tp (aggelos n) tid0) *)
-            (* (Hangel_canonical: isCanonical (aggelos n)) *)
-            (* (Hangel_wf2: newJuice_wf tp_upd (aggelos (n.+1))) *)
-            (* (Hangel_canonical2: isCanonical (aggelos (n.+1))) *)
-            (* NOTE: Something to be done with the new thread!!! *)
-            (Htp': tp' = addThread tp_upd (Kresume c_new)
-                                   (computeMap empty_map (aggelos n.+1))),
-            ext_step cnt0 Hcompat tp' m
+                                             (Some (Vint Int.zero)) c = Some c')
+            (Hcompatible: mem_compatible tp m)
+            (Hpersonal_perm: 
+               personal_mem cnt0 Hcompatible = jm)
+            (Hget_fun_spec: get_fun_spec jm (b, Int.intval ofs) arg = Some (P,Q))
+            (Hsat_fun_spec: P d_phi)
+            (Hrem_fun_res: join d_phi phi' (m_phi jm))
+            (Htp': tp_upd = updThread tp tid (Kresume c') phi')
+            (Htp': tp' = addThread tp_upd (Kresume c_new) d_phi),
+            conc_step cnt0 Hcompat tp' m
                      
     | step_mklock :
-        forall  (tp' tp'': thread_pool) m1 c c' m' b ofs pmap_tid' pmap_lp
-           (cnt_lp': containsThread tp' lp_id)
-           (cnt_lp: containsThread tp lp_id),
-          let: n := counter tp in
+        forall  (tp' tp'': thread_pool) jm jm' jm_locked c c' b ofs R ,
           let: tid := cont2ord cnt0 in
-          let: lp := cont2ord cnt_lp in
-          let: lp' := cont2ord cnt_lp' in
-          let: pmap_tid := getThreadPerm tp tid in
           forall
             (Hinv : invariant tp)
             (Hthread: getThreadC tp tid = Kstop c)
             (Hat_external: at_external the_sem c =
                            Some (MKLOCK, ef_sig MKLOCK, Vptr b ofs::nil))
-            (Hrestrict_pmap: restrPermMap
-                               (permMapsInv_lt (perm_comp Hcompat) tid) = m1)
-            (Hstore: Mem.store Mint32 m1 b (Int.intval ofs) (Vint Int.zero) = Some m')
-            (Hdrop_perm:
-               setPerm (Some Nonempty) b (Int.intval ofs) pmap_tid = pmap_tid')
-            (Hlp_perm: setPerm (Some Writable)
-                               b (Int.intval ofs) (getThreadPerm tp lp) = pmap_lp)
+            (Hcompatible: mem_compatible tp m)
+            (Hpersonal_perm: 
+               personal_mem cnt0 Hcompatible = jm)
+            (Hstore: JMem.store Mint32 jm b (Int.intval ofs) (Vint Int.zero) = Some jm_locked)
+            (Hmklock: mklock jm_locked (b, Int.intval ofs) R = Some jm')
             (Hat_external: after_external
                              the_sem (Some (Vint Int.zero)) c = Some c')
-            (Htp': tp' = updThread tp tid (Kresume c') pmap_tid' (n+1))
-            (Htp'': tp'' = updThreadP tp' lp' pmap_lp),
-            ext_step cnt0 Hcompat tp'' m' 
+            (Htp': tp' = updThread tp tid (Kresume c') (m_phi jm')),
+            conc_step cnt0 Hcompat tp'' (m_dry jm') 
                      
     | step_freelock :
-        forall  (tp' tp'': thread_pool) c c' b ofs pmap_lp'
-           (cnt_lp': containsThread tp' lp_id)
-           (cnt_lp: containsThread tp lp_id),
-          let: n := counter tp in
+        forall  (tp' tp'': thread_pool) c c' b ofs jm jm',
           let: tid := cont2ord cnt0 in
-          let: lp := cont2ord cnt_lp in
-          let: lp' := cont2ord cnt_lp' in
           let: pmap_lp := getThreadPerm tp tid in
           forall
             (Hinv : invariant tp)
             (Hthread: getThreadC tp tid = Kstop c)
             (Hat_external: at_external the_sem c =
                            Some (FREE_LOCK, ef_sig FREE_LOCK, Vptr b ofs::nil))
-            (Hdrop_perm:
-               setPerm None b (Int.intval ofs) pmap_lp = pmap_lp')
+            (Hcompatible: mem_compatible tp m)
+            (Hpersonal_perm: 
+               personal_mem cnt0 Hcompatible = jm)
+            (Hload: JMem.load Mint32 jm b (Int.intval ofs) = Some (Vint Int.zero)) (*MAYBE IF I HOLD THE LOCK, it doesn't matter?? *)
+            (Hfreelock: freelock jm (b, Int.intval ofs) = Some jm') (*SHOULD CHECK I HOLD THE LOCK!!!*)
             (Hat_external: after_external the_sem (Some (Vint Int.zero)) c = Some c')
-            (*the angel must provide the permissions for the thread - freeable or writeable *)
-            (* (Hangel_wf: permMap_wf tp (aggelos n) tid0) *)
-            (* (Hangel_canonical: isCanonical (aggelos n)) *)
-            (Htp': tp' = updThread tp tid (Kresume c')
-                                   (computeMap (getThreadPerm tp tid) (aggelos n)) (n+1))       
-            (Htp'': tp'' = updThreadP tp' lp' pmap_lp'),
-            ext_step cnt0 Hcompat  tp'' m 
+            (Htp': tp' = updThread tp tid (Kresume c') (m_phi jm')),
+            conc_step cnt0 Hcompat  tp'' (m_dry jm')  (* m_dry jm' = m_dry jm = m *)
                      
     | step_lockfail :
-        forall  c b ofs m1
-           (cnt_lp: containsThread tp lp_id),
-          let: n := counter tp in
+        forall  c b ofs jm,
           let: tid := cont2ord cnt0 in
-          let: lp := cont2ord cnt_lp in
           forall
             (Hinv : invariant tp)
             (Hthread: getThreadC tp tid = Kstop c)
             (Hat_external: at_external the_sem c =
                            Some (LOCK, ef_sig LOCK, Vptr b ofs::nil))
-            (Hrestrict_pmap: restrPermMap
-                               (permMapsInv_lt (perm_comp Hcompat) lp) = m1)
-            (Hload: Mem.load Mint32 m1 b (Int.intval ofs) = Some (Vint Int.zero)),
-            ext_step cnt0 Hcompat tp m.
+            (Hcompatible: mem_compatible tp m)
+            (Hpersonal_perm: 
+               personal_mem cnt0 Hcompatible = jm)
+            (Hload: JMem.load Mint32 jm b (Int.intval ofs) = Some (Vint Int.zero)),
+            conc_step cnt0 Hcompat tp m.
   End Concur.
 
-  Module Type DrySemantics.
+  Module Type JuicySemantics.
     Parameter G: Type.
     Parameter C: Type.
     Definition M: Type:= mem.
     Parameter Sem: CoreSemantics G C M.
-  End DrySemantics.
+  End JuicySemantics.
   
-  Module DryMachineSig (Sem: DrySemantics) <: ConcurrentMachineSig NatTID.
+  Module JuicyMachineSig (Sem: JuicySemantics) <: ConcurrentMachineSig NatTID.
+                                                   
     (*TID = NAT*)
     Definition tid := nat.                                             
     (*Memories*)
-    Definition richMem: Type:= Sem.M.
-    Definition dryMem: richMem -> mem:= id.
+    Definition richMem: Type:= juicy_mem.
+    Definition dryMem: richMem -> mem:= m_dry.
     
     (*CODE*)
     Definition cT: Type:= Sem.C.
@@ -656,7 +646,7 @@ Module Concur.
     Definition machine_state: Type:= thread_pool.
     Definition containsThread: machine_state -> tid -> Prop:=
       fun ms tid0 => tid0 < (num_threads ms).
-    Definition lp_id : tid:= 0.
+    Definition lp_id : tid:= 0.                            (* Useless *)
     
     (*INVARIANTS*)
     (*The state respects the memory*)
@@ -667,7 +657,7 @@ Module Concur.
     Definition cstep (genv:G): forall {tid0 ms m},
                                  containsThread ms tid0 -> mem_compatible ms m ->
                                  machine_state -> mem -> Prop:=
-      @dry_step cT G Sem genv.
+      @juicy_step cT G Sem genv.
     
     Inductive resume_thread': forall {tid0} {ms:machine_state},
                                 containsThread ms tid0 -> machine_state -> Prop:=
@@ -692,10 +682,9 @@ Module Concur.
       @suspend_thread'.
     
     Definition conc_call (genv:G):
-      forall {tid0 ms m},
-        (nat -> delta_map) -> containsThread ms tid0 -> mem_compatible ms m ->
+      forall {tid0 ms m}, (nat -> delta_map) -> containsThread ms tid0 -> mem_compatible ms m ->
         machine_state -> mem -> Prop:=
-      fun tid ms m aggelos => @ext_step cT G Sem genv aggelos lp_id tid ms m.
+      fun tid ms m aggelos => @conc_step cT G Sem genv tid ms m.
     
     Inductive threadHalted': forall {tid0 ms},
                                containsThread ms tid0 -> Prop:=
@@ -711,20 +700,20 @@ Module Concur.
                                containsThread ms tid0 -> Prop:= @threadHalted'.
 
     Parameter init_core : G -> val -> list val -> option machine_state.
-  End DryMachineSig.
+  End JuicyMachineSig.
 
   (* Here I make the core semantics*)
   Variable example_G: Type.
   Variable example_C: Type.
   Variable example_sem: CoreSemantics example_G example_C mem.
-  Module Sem: DrySemantics.
+  Module Sem: JuicySemantics.
     Definition G:= example_G.
     Definition C:= example_C.
     Definition M:= mem.
     Definition Sem:=example_sem.
   End Sem.
   Module mySchedule := ListScheduler NatTID.
-  Module mySem := DryMachineSig Sem.
+  Module mySem := JuicyMachineSig Sem.
   Module myCoarseSemantics :=
     CoarseMachine NatTID mySchedule mySem.
   Module myFineSemantics :=
