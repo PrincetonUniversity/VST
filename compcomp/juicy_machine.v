@@ -412,6 +412,29 @@ Section poolLemmas.
 
 End poolLemmas.
 
+Module JMem.
+  
+  Definition load (chunk: memory_chunk)(phi: juicy_mem)(b:block)(ofs: Z) : option val:=
+    match perm_of_res( (m_phi phi) @(b,ofs) ) with
+    | None | Some Nonempty => None
+    | _ => Mem.load chunk (m_dry phi) b ofs
+    end.
+  Definition store' (chunk: memory_chunk)(phi: juicy_mem)(b:block)(ofs: Z)(v:val) : option mem :=
+    match perm_of_res( (m_phi phi) @(b,ofs) ) with
+    | None | Some Nonempty | Some Readable  => None
+    | _ =>  Mem.store chunk (m_dry phi) b ofs v     
+    end.
+  Definition store  (chunk: memory_chunk)(phi: juicy_mem)(b:block)(ofs: Z)(v:val) : option juicy_mem.
+    destruct (store' chunk phi b ofs v) eqn:STR'.
+    - pose (phi' := inflate_store m (m_phi phi)).
+      apply Some. apply (mkJuicyMem m phi').
+      + unfold contents_cohere; intros. admit.
+      + admit.
+      + admit.
+      + admit.
+    - exact None.
+  Defined.
+
 Module Concur.
   Section Concur.
     
