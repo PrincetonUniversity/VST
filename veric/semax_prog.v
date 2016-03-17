@@ -24,6 +24,7 @@ Require Import msl.normalize.
 Require Import veric.semax_call.
 Require Import veric.initial_world.
 Require Import veric.initialize.
+Require Import veric.coqlib4.
 
 Open Local Scope pred.
 
@@ -83,14 +84,29 @@ Definition Tint32s := Tint I32 Signed noattr.
 Definition main_post (prog: program) : unit -> assert := 
   (fun tt _ => TT).
 
+Definition is_Internal (prog : program) (f : ident) :=
+  match Genv.find_symbol (Genv.globalenv prog) (prog_main prog) with
+    None => false
+  | Some b =>
+    match Genv.find_funct_ptr (Genv.globalenv prog) b with
+    | None => false
+    | Some f =>
+      match f with
+      | External _ _ _ _ => false
+      | Internal _ => true
+      end
+    end
+  end.
+
 Definition semax_prog {C: compspecs}
-     (prog: program)  (V: varspecs) (G: funspecs) : Prop :=
+           (prog: program)  (V: varspecs) (G: funspecs) : Prop :=
   compute_list_norepet (prog_defs_names prog) = true  /\
   all_initializers_aligned prog /\
   cenv_cs = prog_comp_env prog /\
   @semax_func V G C (prog_funct prog) G /\
-   match_globvars (prog_vars prog) V = true /\
-    In (prog.(prog_main), mk_funspec (nil,Tvoid) unit (main_pre prog ) (main_post prog)) G.
+  match_globvars (prog_vars prog) V = true /\
+  In (prog.(prog_main), mk_funspec (nil,Tvoid) unit (main_pre prog ) (main_post prog)) G /\
+  is_Internal prog (prog_main prog) = true.
 
 Lemma semax_func_nil: 
    forall
@@ -990,48 +1006,82 @@ Lemma semax_prog_rule {CS: compspecs} :
        m_dry jm = m /\ level jm = n /\ 
        jsafeN (@OK_spec Espec) (globalenv prog) n z q jm.
 Proof.
- intros until m.
- pose proof I; intros.
- destruct H0 as [? [AL [HGG [[? ?] [GV ?]]]]].
- assert (exists f, In (prog_main prog, f) (prog_funct prog) ).
- forget (prog_main prog) as id.
- apply in_map_fst in H4.
- pose proof (match_fdecs_in _ _ _ H4 H2).
- apply in_map_iff in H5. destruct H5 as [[? ?] [? ?]]; subst.
- eauto.
- destruct H5 as [f ?].
- apply compute_list_norepet_e in H0.
-destruct (Genv.find_funct_ptr_exists prog (prog_main prog) f) as [b [? ?]]; auto.
-apply in_prog_funct_in_prog_defs; auto.
- exists b.
- unfold core_semantics.initial_core; simpl.
-econstructor.
- split3; auto.
- reflexivity.
- intro n.
- exists (initial_jm _ _ _ n H1 H0 H2).
- split3.
- simpl. auto.
- simpl.
- rewrite inflate_initial_mem_level.
- unfold initial_core. rewrite level_make_rmap; auto.
- specialize (H3 (globalenv prog) (prog_contains_prog_funct _ H0)).
- unfold temp_bindings. simpl length. simpl typed_params. simpl type_of_params.
-pattern n at 1; replace n with (level (m_phi (initial_jm prog m G n H1 H0 H2))).
-pose (rho := mkEnviron (filter_genv (globalenv prog)) (Map.empty (block * type)) 
-                      (Map.set 1 (Vptr b Int.zero) (Map.empty val))).
-eapply (semax_call_aux Espec (Delta1 V G) unit
-                    _ (fun _ => main_post prog tt) _ tt (fun _ => TT) (fun _ => TT)
-             None (nil,Tvoid) _ _ (normal_ret_assert (fun _ => TT)) _ _ _ _ 
-                 (construct_rho (filter_genv (globalenv prog)) empty_env
-  (PTree.set 1 (Vptr b Int.zero) (PTree.empty val)))
-               _ _ b (prog_main prog));
-  try apply H3; try eassumption; auto.
+  intros until m.
+  pose proof I; intros.
+  destruct H0 as [? [AL [HGG [[? ?] [GV [? HInt]]]]]].
+  assert (exists f, In (prog_main prog, f) (prog_funct prog) ).
+  forget (prog_main prog) as id.
+  apply in_map_fst in H4.
+  pose proof (match_fdecs_in _ _ _ H4 H2).
+  apply in_map_iff in H5. destruct H5 as [[? ?] [? ?]]; subst.
+  eauto.
+  destruct H5 as [f ?].
+  apply compute_list_norepet_e in H0.
+  assert (indefs: In (prog_main prog, Gfun f) (AST.prog_defs prog))
+    by (apply in_prog_funct_in_prog_defs; auto).
+  destruct (Genv.find_funct_ptr_exists prog (prog_main prog) f) as [b [? ?]]; auto.
+  exists b.
+  unfold core_semantics.initial_core; simpl.
+  rewrite H7.
+  if_tac;[|tauto]. clear H8.
+  unfold is_Internal in HInt.
+  rewrite H6 in HInt.
+  rewrite H7 in HInt.
+  destruct f as [func | ]; [ | exfalso; discriminate ].
+  set (func' := func) at 1; destruct func' eqn:Ef.
+  econstructor.
+  split3; auto.
+  intro n.
+  exists (initial_jm _ _ _ n H1 H0 H2).
+  split3.
+  simpl. auto.
+  simpl.
+  rewrite inflate_initial_mem_level.
+  unfold initial_core. rewrite level_make_rmap; auto.
+  specialize (H3 (globalenv prog) (prog_contains_prog_funct _ H0)).
+  
+  assert (fn_params = nil). {
+    destruct (match_fdecs_exists_Gfun
+                prog G (prog_main prog)
+                (mk_funspec (nil, Tvoid) unit (main_pre prog) (main_post prog)))
+      as (fd, (Ifd, sametypes)); auto.
+    {
+      apply find_id_i; auto.
+      eapply match_fdecs_norepet; eauto.
+      clear -H0; revert H0.
+      apply sublist_norepet.
+      unfold prog_funct, prog_funct', prog_defs_names.
+      replace (AST.prog_defs prog) with (prog_defs prog) by reflexivity.
+      generalize (prog_defs prog); intros l; induction l as [|(i,[g|]) l];
+        constructor; auto.
+    }
+    assert (fd = Internal func).
+    cut (Gfun fd = @Gfun _ type (Internal func)); [ intros E; injection E; auto | ].
+    apply (list_norepet_In_In (prog_main prog) _ _ (prog_defs prog)); auto.
+    subst fd.
+    simpl in sametypes.
+    subst func' func.
+    destruct fn_params. auto.
+    destruct p; discriminate.
+  }
+  
+  subst fn_params.
+  unfold temp_bindings. simpl length. simpl typed_params. simpl type_of_params.
+  pattern n at 1; replace n with (level (m_phi (initial_jm prog m G n H1 H0 H2))).
+  pose (rho := mkEnviron (filter_genv (globalenv prog)) (Map.empty (block * type)) 
+                         (Map.set 1 (Vptr b Int.zero) (Map.empty val))).
+  eapply (semax_call_aux Espec (Delta1 V G) unit
+                         _ (fun _ => main_post prog tt) _ tt (fun _ => TT) (fun _ => TT)
+                         None (nil,Tvoid) _ _ (normal_ret_assert (fun _ => TT)) _ _ _ _ 
+                         (construct_rho (filter_genv (globalenv prog)) empty_env
+                                        (PTree.set 1 (Vptr b Int.zero) (PTree.empty val)))
+                         _ _ b (prog_main prog));
+    try apply H3; try eassumption; auto.
 clear - GV H2 H0.
 split.
 eapply semax_prog_typecheck_aux; eauto.
 simpl.
- auto.
+auto.
 hnf; intros; intuition.
 hnf; intros; intuition.
 unfold normal_ret_assert; simpl.
@@ -1044,7 +1094,7 @@ simpl m_phi.
 rewrite core_inflate_initial_mem; auto.
 do 3 (pose proof I).
 replace (funassert (Delta1 V G)) with
-     (funassert (@nofunc_tycontext V G)).
+(funassert (@nofunc_tycontext V G)).
 unfold rho; apply funassert_initial_core; auto.
 apply same_glob_funassert.
 reflexivity.
@@ -1110,4 +1160,3 @@ apply level_make_rmap.
 Qed.
 
 End semax_prog.
-

@@ -2,6 +2,7 @@ Require Import sepcomp.core_semantics.
 Require Import sepcomp.forward_simulations.
 Require Import veric.base.
 Require Import veric.Clight_lemmas.
+Require compcert.common.Globalenvs.
 
 Inductive cont': Type :=
   | Kseq: statement -> cont'       (**r [Kseq s2 k] = after [s1] in [s1;s2] *)
@@ -249,12 +250,19 @@ Fixpoint typed_params (i: positive) (n: nat) : list (ident * type) :=
  end.
 
 Definition cl_initial_core (ge: genv) (v: val) (args: list val) : option corestate := 
-  let tl := typed_params 2%positive (length args)
-   in Some (State empty_env (temp_bindings 1%positive (v::args))
-                  (Kseq (Scall None 
-                                  (Etempvar 1%positive (Tfunction (type_of_params tl) Tvoid cc_default))
-                                  (map (fun x => Etempvar (fst x) (snd x)) tl)) :: 
-                     Kseq (Sloop Sskip Sskip) :: nil)).
+  match v with
+    Vptr b i =>
+    if Int.eq_dec i Int.zero then
+      match Genv.find_funct_ptr ge b with
+          Some (Internal {| fn_params := params |}) =>
+          Some (State empty_env (temp_bindings 1%positive (v::args))
+                      (Kseq (Scall None 
+                                   (Etempvar 1%positive (Tfunction (type_of_params params) Tvoid cc_default))
+                                   (map (fun x => Etempvar (fst x) (snd x)) params)) :: 
+                            Kseq (Sloop Sskip Sskip) :: nil))
+      | _ => None end
+    else  None
+  | _ => None end.
 
 Lemma cl_corestep_not_at_external:
   forall ge m q m' q', cl_step ge q m q' m' -> cl_at_external q = None.
