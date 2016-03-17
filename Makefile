@@ -105,7 +105,7 @@ SEPCOMP_FILES= \
 
 CONCURRENCY_FILES= \
   cast.v collection.v pos.v stack.v \
-  sepcomp.v compcert_linking.v compcert_linking_lemmas.v \
+  sepcomp.v \
   scheduler.v concurrent_machine.v \
   compcert_threads_lemmas.v \
   compcert_threads.v \
@@ -121,8 +121,8 @@ LIB_FILES= \
 
 COMPCOMP_FILES= \
  $(CONCURRENCY_FILES:%=%) \
- $(CORE_FILES:%=%) \
- $(LIB_FILES:%=%) 
+ $(LIB_FILES:%=%) \
+ $(CORE_FILES:%=%)
 
 LINKING_FILES= \
   sepcomp.v \
@@ -250,7 +250,7 @@ FILES = \
  $(FCF_FILES:%=fcf/%) \
  $(HMACFCF_FILES:%=hmacfcf/%) \
  $(HMACEQUIV_FILES:%=sha/%) \
- $(TWEETNACL_FILES:%=tweetnacl20140427/%) # \
+ $(TWEETNACL_FILES:%=tweetnacl20140427/%) #\
 # $(COMPCOMP_FILES:%=compcomp/%) \
 # $(DRBG_FILES:%=verifiedDrbg/spec/%)
 

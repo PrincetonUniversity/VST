@@ -7,36 +7,33 @@ Require Import ZArith.
 Require Import core_semantics.
 Load Scheduler.
 
-
 Require Import Program.
 Require Import ssreflect Ssreflect.seq.
-
+Require Import permissions.
 
 Notation EXIT := 
-  (EF_external 1%positive (mksignature (AST.Tint::nil) None)). 
+  (EF_external "EXIT" (mksignature (AST.Tint::nil) None)). 
 
-Notation CREATE_SIG := (mksignature (AST.Tint::AST.Tint::nil) (Some AST.Tint)).
-Notation CREATE := (EF_external 2%positive CREATE_SIG).
+Notation CREATE_SIG := (mksignature (AST.Tint::AST.Tint::nil) (Some AST.Tint) cc_default).
+Notation CREATE := (EF_external "CREATE" CREATE_SIG).
 
 Notation READ := 
-  (EF_external 3%positive 
-               (mksignature (AST.Tint::AST.Tint::AST.Tint::nil) (Some AST.Tint))).
+  (EF_external "READ"
+               (mksignature (AST.Tint::AST.Tint::AST.Tint::nil) (Some AST.Tint) cc_default)).
 Notation WRITE := 
-  (EF_external 4%positive 
-               (mksignature (AST.Tint::AST.Tint::AST.Tint::nil) (Some AST.Tint))).
+  (EF_external "WRITE"
+               (mksignature (AST.Tint::AST.Tint::AST.Tint::nil) (Some AST.Tint) cc_default)).
 
 Notation MKLOCK := 
-  (EF_external 5%positive (mksignature (AST.Tint::nil) (Some AST.Tint))).
+  (EF_external "MKLOCK" (mksignature (AST.Tint::nil) (Some AST.Tint) cc_default)).
 Notation FREE_LOCK := 
-  (EF_external 6%positive (mksignature (AST.Tint::nil) (Some AST.Tint))).
+  (EF_external "FREE_LOCK" (mksignature (AST.Tint::nil) (Some AST.Tint) cc_default)).
 
-Notation LOCK_SIG := (mksignature (AST.Tint::nil) (Some AST.Tint)).
-Notation LOCK := (EF_external 7%positive LOCK_SIG).
-Notation UNLOCK_SIG := (mksignature (AST.Tint::nil) (Some AST.Tint)).
-Notation UNLOCK := (EF_external 8%positive UNLOCK_SIG).
+Notation LOCK_SIG := (mksignature (AST.Tint::nil) (Some AST.Tint) cc_default).
+Notation LOCK := (EF_external "LOCK" LOCK_SIG).
+Notation UNLOCK_SIG := (mksignature (AST.Tint::nil) (Some AST.Tint) cc_default).
+Notation UNLOCK := (EF_external "UNLOCK" UNLOCK_SIG).
 
-
-Notation access_map := (Maps.PMap.t (Z -> option permission)).
 Notation block  := Values.block.
 Notation address:= (block * Z)%type.
 Definition b_ofs2address b ofs : address:=
@@ -80,7 +77,7 @@ Module Type ConcurrentMachineSig (TID: ThreadID).
   Parameter suspend_thread: forall {tid0 ms},
                               containsThread ms tid0 -> machine_state -> Prop.
   Parameter conc_call: G ->  forall {tid0 ms m},
-                              (nat -> access_map) -> (*ANGEL! *)
+                              (nat -> delta_map) -> (*ANGEL! *)
                               containsThread ms tid0 -> mem_compatible ms m -> machine_state -> mem -> Prop.
   
   Parameter threadHalted: forall {tid0 ms},
@@ -97,8 +94,8 @@ Module CoarseMachine (TID: ThreadID)(SCH:Scheduler TID)(SIG : ConcurrentMachineS
   Import SCH.
   
   Notation Sch:=schedule.
-  Variable aggelos: nat -> access_map.
-  Inductive machine_step {genv:G}: Sch -> machine_state -> mem -> Sch -> machine_state -> mem -> Prop :=
+  Inductive machine_step {aggelos: nat -> delta_map} {genv:G}:
+    Sch -> machine_state -> mem -> Sch -> machine_state -> mem -> Prop :=
   | resume_step:
       forall tid U ms ms' m
         (HschedN: schedPeek U = Some tid)
@@ -144,14 +141,16 @@ Module CoarseMachine (TID: ThreadID)(SCH:Scheduler TID)(SIG : ConcurrentMachineS
         machine_step U ms m U' ms m.
 
   Definition MachState: Type := (Sch * machine_state)%type.
-  Definition MachStep G (c:MachState) (m:mem)  (c' :MachState) (m':mem) :=
-    @machine_step G (fst c) (snd c) m (fst c') (snd c) m'.
 
-  Definition at_external (st : MachState)
-  : option (external_function * signature * list val) := None.
+  Definition MachStep (aggelos : nat -> delta_map) G (c:MachState) (m:mem) (c' :MachState) (m':mem) :=
+    @machine_step aggelos G (fst c) (snd c) m (fst c') (snd c) m'.
+    
+
+    Definition at_external (st : MachState)
+    : option (external_function * signature * list val) := None.
   
-  Definition after_external (ov : option val) (st : MachState) :
-    option (MachState) := None.
+    Definition after_external (ov : option val) (st : MachState) :
+      option (MachState) := None.
 
   (*not clear what the value of halted should be*)
   Definition halted (st : MachState) : option val := None.
@@ -163,18 +162,20 @@ Module CoarseMachine (TID: ThreadID)(SCH:Scheduler TID)(SIG : ConcurrentMachineS
       | Some c => Some (U, c)
     end.
   
-  Program Definition MachineSemantics: CoreSemantics G MachState mem.
+  Program Definition MachineSemantics (aggelos:nat -> delta_map) :
+    CoreSemantics G MachState mem.
+  intros.
   apply (@Build_CoreSemantics _ MachState _
                               init_machine 
                               at_external
                               after_external
                               halted
-                              MachStep
+                              (MachStep aggelos)
         );
     unfold at_external, halted; try reflexivity.
   auto.
   Defined.
-
+  
 End CoarseMachine.
 
 Module FineMachine (TID: ThreadID)(SCH:Scheduler TID)(SIG : ConcurrentMachineSig TID).
@@ -183,8 +184,8 @@ Module FineMachine (TID: ThreadID)(SCH:Scheduler TID)(SIG : ConcurrentMachineSig
   Import SCH.
   
   Notation Sch:=schedule.
-  Variable aggelos: nat -> access_map.
-  Inductive machine_step {genv:G}: Sch -> machine_state -> mem -> Sch -> machine_state -> mem -> Prop :=
+  Inductive machine_step {aggelos : nat -> delta_map} {genv:G}:
+    Sch -> machine_state -> mem -> Sch -> machine_state -> mem -> Prop :=
   | resume_step:
       forall tid U U' ms ms' m
         (HschedN: schedPeek U = Some tid)
@@ -192,7 +193,7 @@ Module FineMachine (TID: ThreadID)(SCH:Scheduler TID)(SIG : ConcurrentMachineSig
         (Htid: containsThread ms tid)
         (Hcmpt: mem_compatible ms m),
         resume_thread Htid ms' ->
-        machine_step U ms m U ms' m
+        machine_step U ms m U' ms' m
   | core_step:
       forall tid U U' ms ms' m m'
         (HschedN: schedPeek U = Some tid)
@@ -200,7 +201,7 @@ Module FineMachine (TID: ThreadID)(SCH:Scheduler TID)(SIG : ConcurrentMachineSig
         (Htid: containsThread ms tid)
         (Hcmpt: mem_compatible ms m),
         cstep genv Htid Hcmpt ms' m' ->
-        machine_step U ms m U ms' m'
+        machine_step U ms m U' ms' m'
   | suspend_step:
       forall tid U U' ms ms' m
         (HschedN: schedPeek U = Some tid)
@@ -228,39 +229,43 @@ Module FineMachine (TID: ThreadID)(SCH:Scheduler TID)(SIG : ConcurrentMachineSig
   | schedfail :
       forall tid U U' ms m
         (HschedN: schedPeek U = Some tid)
-        (HschedS: schedSkip U = U'),        (*Schedule Forward*)
+        (HschedS: schedSkip U = U')        (*Schedule Forward*)
+        (Htid: ~ containsThread ms tid),
         machine_step U ms m U' ms m.
 
   Definition MachState: Type := (Sch * machine_state)%type.
-  Definition MachStep G (c:MachState) (m:mem)  (c' :MachState) (m':mem) :=
-    @machine_step G (fst c) (snd c) m (fst c') (snd c) m'.
 
-  Definition at_external (st : MachState)
-  : option (external_function * signature * list val) := None.
-  
-  Definition after_external (ov : option val) (st : MachState) :
-    option (MachState) := None.
+    Definition MachStep aggelos G (c:MachState) (m:mem)  (c' :MachState) (m':mem) :=
+      @machine_step aggelos G (fst c) (snd c) m (fst c') (snd c) m'.
 
+    Definition at_external (st : MachState)
+    : option (external_function * signature * list val) := None.
+    
+    Definition after_external (ov : option val) (st : MachState) :
+      option (MachState) := None.
+    
   (*not clear what the value of halted should be*)
-  Definition halted (st : MachState) : option val := None.
-
-  Variable U: Sch.
-  Definition init_machine the_ge (f : val) (args : list val) : option MachState :=
-    match init_core the_ge f args with
-      |None => None
+    Definition halted (st : MachState) : option val := None.
+    
+    Variable U: Sch.
+    Definition init_machine the_ge (f : val) (args : list val) : option MachState :=
+      match init_core the_ge f args with
+      | None => None
       | Some c => Some (U, c)
-    end.
-  
-  Program Definition MachineSemantics: CoreSemantics G MachState mem.
-  apply (@Build_CoreSemantics _ MachState _
-                              init_machine 
+      end.
+    
+    Program Definition MachineSemantics (aggelos : nat -> delta_map):
+      CoreSemantics G MachState mem.
+    intros.
+    apply (@Build_CoreSemantics _ MachState _
+                                init_machine 
                               at_external
                               after_external
                               halted
-                              MachStep
-        );
-    unfold at_external, halted; try reflexivity.
-  auto.
-  Defined.
+                              (MachStep aggelos)
+          );
+      unfold at_external, halted; try reflexivity.
+    auto.
+    Defined.
 
 End FineMachine.

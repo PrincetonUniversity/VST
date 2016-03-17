@@ -1,12 +1,13 @@
 Require Import ssreflect Ssreflect.seq ssrbool ssrnat ssrfun eqtype seq fintype finfun.
 Set Implicit Arguments.
+Require Import threads_lemmas.
 Require Import Memory.
 Require Import Values. (*for val*)
 Require Import Integers.
 Require Import ZArith.
-Require Import threads_lemmas.
 
 Definition access_map := Maps.PMap.t (Z -> option permission).
+Definition delta_map := Maps.PMap.t (Z -> option (option permission)).
 
 Section permMapDefs.
  
@@ -213,6 +214,16 @@ Section permMapDefs.
                               else
                                 Maps.PMap.get b pmap ofs')
                   pmap.
+
+  Definition computeMap (pmap : access_map) (delta : delta_map) : access_map :=
+    (fun ofs => None,
+             Maps.PTree.map 
+               (fun b f => 
+                  fun ofs =>
+                    match (Maps.PMap.get b delta) ofs with
+                      | None => f ofs
+                      | Some p => p
+                    end) pmap.2).
 
   (*Inductive SetPerm b ofs : PermMap.t -> PermMap.t -> Prop :=
   | set: forall pmap1 pmap2 b' ofs' k,

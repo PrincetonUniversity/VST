@@ -2,6 +2,8 @@ Require Import ssreflect ssrbool ssrnat ssrfun seq eqtype fintype finfun tuple.
 Set Implicit Arguments.
 Unset Strict Implicit.
 
+Add LoadPath "../compcomp" as compcomp.
+
 Require Import cast.
 
 Require Import ExtAxioms Arith Omega.
