@@ -36,6 +36,19 @@ Proof.
   omega.
 Qed.
 
+Lemma Z_of_nat_ge_O: forall n, Z.of_nat n >= 0.
+Proof. intros. 
+change 0 with (Z.of_nat O).
+apply inj_ge. clear; omega.
+Qed.
+
+Lemma nth_error_nth:
+  forall A (al: list A) (z: A) i, (i < length al)%nat -> nth_error al i = Some (nth i al z).
+Proof.
+intros. revert al H; induction i; destruct al; simpl; intros; auto; try omega.
+apply IHi. omega.
+Qed.
+
 Lemma nat_of_Z_eq: forall i, nat_of_Z (Z_of_nat i) = i.
 Proof.
 intros.

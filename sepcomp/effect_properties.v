@@ -2100,8 +2100,9 @@ Lemma valid_init_is_global :
   b (VB: Mem.valid_block m b), 
   exists id, Genv.find_symbol (Genv.globalenv prog) id = Some b.
 Proof. intros.
-  unfold Genv.init_mem, Genv.globalenv in G. simpl in *.
-  destruct (add_globals_find_symbol _ R (@Genv.empty_genv _ _ ) _ _ G (eq_refl _) _ VB)
+       unfold Genv.init_mem, Genv.globalenv in G. simpl in *.
+       
+  destruct (add_globals_find_symbol _ R (@Genv.empty_genv _ _ _ ) _ _ G (eq_refl _) _ VB)
     as [VBEmpty | X]; trivial.
   exfalso. clear - VBEmpty. unfold Mem.valid_block in VBEmpty.
     rewrite Mem.nextblock_empty in VBEmpty. xomega.

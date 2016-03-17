@@ -1982,6 +1982,8 @@ destruct a0, H; auto.
 auto.
 Qed.
 
+(*
+(* TODO: remove this lemma? It is not used anywhere. *)
 Lemma readable_share_join:
   forall sh1 sh2 sh,
     sepalg.join sh1 sh2 sh ->
@@ -1995,7 +1997,7 @@ rewrite Share.distrib1.
 unfold nonempty_share, sepalg.nonidentity in *.
 contradict H0.
 apply identity_share_bot in H0.
-Admitted. (* should be easy *)
+*)
 
 Lemma field_at_share_join{cs: compspecs}:
   forall sh1 sh2 sh t gfs v p,

@@ -294,6 +294,12 @@ match v with
       | _ => None
       end.
 
+Definition bool_val_s (v : val) : option bool :=
+ match v with
+      | Vfloat f => Some (negb (Float.cmp Ceq f Float.zero))
+      | _ => None
+      end.
+
 Definition bool_val_f (v : val) : option bool :=
  match v with
       | Vfloat f => Some (negb (Float.cmp Ceq f Float.zero))
@@ -313,10 +319,10 @@ Definition bool_val_l (v : val) : option bool :=
       | _ => None
       end.
 
-
 Definition bool_val (t: type) : val -> option bool :=
   match Cop.classify_bool t with
   | Cop.bool_case_i => bool_val_i       
+  | Cop.bool_case_s => bool_val_s
   | Cop.bool_case_f => bool_val_f  
   | Cop.bool_case_p => bool_val_p 
   | Cop.bool_case_l => bool_val_l      

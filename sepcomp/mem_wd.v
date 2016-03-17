@@ -11,6 +11,7 @@ Require Import Globalenvs.
 
 Require Import mem_lemmas.
 
+Notation val_inject:=Val.inject.
 
 (*A value that is (if its a pointer) not dangling wrt m - a condition
  like this will probably be need to imposed on after-external return

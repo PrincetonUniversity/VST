@@ -2363,6 +2363,59 @@ Lemma VALspec_range_nonlock_permission_bytes_overlap: forall rsh sh sh' p1 p2 n1
   VALspec_range n1 rsh sh p1 * nonlock_permission_bytes sh' p2 n2 |-- FF.
 Abort.
 
+Lemma VALspec_range_share_join:
+ forall rsh1 rsh2 rsh sh1 sh2 sh n p,
+  nonunit sh1 ->
+  nonunit sh2 ->
+  join sh1 sh2 sh ->
+  join rsh1 rsh2 rsh ->
+  VALspec_range n rsh1 sh1 p *
+  VALspec_range n rsh2 sh2 p =
+  VALspec_range n rsh sh p.
+Proof.
+  intros.
+  symmetry.
+  apply allp_jam_share_split.
+  do 3 eexists.
+  exists (Share.splice rsh sh), (Share.splice rsh1 sh1), (Share.splice rsh2 sh2).
+  split; [| split; [| split; [| split; [| split]]]].
+  + apply is_resource_pred_YES_VAL.
+  + apply is_resource_pred_YES_VAL.
+  + apply is_resource_pred_YES_VAL.
+  + apply join_splice; auto.
+  + simpl; intros.
+    destruct H3 as [? [? ?]].
+    split; [subst; simpl; auto |].
+    split; [exists x, H | exists x, H0].
+    - subst. simpl.
+      rewrite Share.unrel_splice_R.
+      destruct (dec_share_identity sh1).
+      * exfalso; apply nonunit_nonidentity in H; tauto.
+      * rewrite Share.unrel_splice_L.
+        f_equal.
+        unfold mk_pshare, mk_lifted.
+        f_equal.
+        apply proof_irr.
+    - subst. simpl.
+      rewrite Share.unrel_splice_R.
+      destruct (dec_share_identity sh2).
+      * exfalso; apply nonunit_nonidentity in H0; tauto.
+      * rewrite Share.unrel_splice_L.
+        f_equal.
+        unfold mk_pshare, mk_lifted.
+        f_equal.
+        apply proof_irr.
+  + simpl; intros.
+    destruct H4 as [? [? ?]], H5 as [? [? ?]].
+    pose proof nonunit_join _ sh1 sh2 sh x0 H1.
+    subst.
+    inversion H3; subst.
+    exists x1, H6.
+    f_equal.
+    - eapply join_eq; eauto.
+    - eapply join_eq; eauto.
+Qed.
+
 Lemma nonlock_permission_bytes_share_join:
  forall sh1 sh2 sh a n,
   join sh1 sh2 sh ->
@@ -2664,11 +2717,76 @@ apply pred_ext.
  - apply H0.
 Qed.
 
-Lemma nth_error_nth:
-  forall A (al: list A) (z: A) i, (i < length al)%nat -> nth_error al i = Some (nth i al z).
+Lemma nonlock_permission_bytes_VALspec_range_join:
+ forall rsh sh1 sh2 sh p n,
+  join sh1 sh2 sh ->
+  nonlock_permission_bytes (Share.splice sh1 Share.bot) p n *
+  VALspec_range n sh2 rsh p =
+  VALspec_range n sh rsh p.
 Proof.
-intros. revert al H; induction i; destruct al; simpl; intros; auto; try omega.
-apply IHi. omega.
+  intros.
+  symmetry.
+  apply allp_jam_share_split.
+  do 3 eexists.
+  exists (Share.splice sh rsh), (Share.splice sh1 Share.bot), (Share.splice sh2 rsh).
+  split; [| split; [| split; [| split; [| split]]]].
+  + apply is_resource_pred_YES_VAL.
+  + apply is_resource_pred_nonlock_shareat.
+  + apply is_resource_pred_YES_VAL.
+  + apply join_splice; auto.
+  + simpl; intros.
+    destruct H0 as [? [? ?]]; subst; split; [| split; [split |]].
+    - simpl; auto.
+    - simpl.
+      rewrite Share.unrel_splice_R.
+      destruct (dec_share_identity Share.bot).
+      * simpl.
+        rewrite Share.unrel_splice_L.
+        rewrite splice_bot2.
+        auto.
+      * pose proof bot_identity. exfalso; auto.
+    - simpl.
+      rewrite Share.unrel_splice_R.
+      destruct (dec_share_identity Share.bot).
+      * simpl.
+        auto.
+      * pose proof bot_identity. exfalso; auto.
+    - simpl.
+      exists x, x0.
+      rewrite Share.unrel_splice_R.
+      destruct (dec_share_identity rsh).
+      * exfalso.
+        apply nonunit_nonidentity in x0.
+        auto.
+      * rewrite Share.unrel_splice_L.
+        f_equal.
+        unfold mk_pshare, mk_lifted.
+        f_equal.
+        apply proof_irr.
+  + simpl; intros.
+    destruct H2 as [? [? ?]].
+    subst.
+    exists x, x0.
+    destruct H1.
+    destruct q_res; simpl in H1.
+    - inversion H0; subst.
+      inversion H1; clear H1.
+      rewrite splice_bot2 in H4.
+      apply Share.rel_inj_l in H4; [| apply Lsh_bot_neq]; subst.
+      f_equal.
+      eapply join_eq; eauto.
+    - exfalso.
+      inversion H1.
+      pose proof Share.unrel_splice_R t (pshare_sh p0).
+      pose proof Share.unrel_splice_R sh1 Share.bot.
+      rewrite H4 in H3.
+      rewrite H3 in H5.
+      destruct p0; simpl in H5.
+      subst x1.
+      clear - n1.
+      apply nonunit_nonidentity in n1.
+      apply n1; auto.
+    - inversion H1.
 Qed.
 
 Lemma address_mapsto_value_cohere:

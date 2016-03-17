@@ -319,3 +319,52 @@ Proof.
   subst.
   auto.
 Qed.
+
+Lemma readable_share_join_left:
+  forall sh1 sh2 sh,
+    sepalg.join sh1 sh2 sh ->
+    readable_share sh1 -> readable_share sh.
+Proof.
+intros.
+unfold readable_share in *.
+Admitted. (* share hacking *)
+
+Lemma readable_share_join:
+  forall sh1 sh2 sh,
+    sepalg.join sh1 sh2 sh ->
+    readable_share sh1 \/ readable_share sh2 -> readable_share sh.
+Proof.
+  intros.
+  destruct H0.
+  + eapply readable_share_join_left; eauto.
+  + apply join_comm in H.
+    eapply readable_share_join_left; eauto.
+Qed.
+
+Lemma Lsh_bot_neq: Share.Lsh <> Share.bot.
+Proof.
+  pose proof Lsh_nonidentity.
+  pose proof bot_identity.
+  intro.
+  rewrite <- H1 in H0.
+  apply H; auto.
+Qed.
+
+Lemma readable_share_unrel_Rsh: forall sh, readable_share sh <-> nonunit (Share.unrel Share.Rsh sh).
+unfold readable_share in *.
+Admitted. (* share hacking *)
+
+Lemma not_nonunit_bot: forall sh, ~ nonunit sh <-> sh = Share.bot.
+Proof.
+  intros; split; intros.
+  + destruct (dec_share_identity sh).
+    - apply identity_share_bot; auto.
+    - exfalso; apply H.
+      apply nonidentity_nonunit.
+      auto.
+  + subst.
+    intro.
+    apply nonunit_nonidentity in H.
+    apply H.
+    apply bot_identity.
+Qed.
