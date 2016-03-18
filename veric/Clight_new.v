@@ -254,11 +254,11 @@ Definition cl_initial_core (ge: genv) (v: val) (args: list val) : option coresta
     Vptr b i =>
     if Int.eq_dec i Int.zero then
       match Genv.find_funct_ptr ge b with
-          Some (Internal {| fn_params := params |}) =>
+          Some (Internal func) =>
           Some (State empty_env (temp_bindings 1%positive (v::args))
                       (Kseq (Scall None 
-                                   (Etempvar 1%positive (Tfunction (type_of_params params) Tvoid cc_default))
-                                   (map (fun x => Etempvar (fst x) (snd x)) params)) :: 
+                                   (Etempvar 1%positive (Tfunction (type_of_params (fn_params func)) Tvoid cc_default))
+                                   (map (fun x => Etempvar (fst x) (snd x)) (fn_params func))) :: 
                             Kseq (Sloop Sskip Sskip) :: nil))
       | _ => None end
     else  None

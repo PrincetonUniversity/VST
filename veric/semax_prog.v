@@ -1028,7 +1028,7 @@ Proof.
   rewrite H6 in HInt.
   rewrite H7 in HInt.
   destruct f as [func | ]; [ | exfalso; discriminate ].
-  set (func' := func) at 1; destruct func' eqn:Ef.
+  (* set (func' := func) at 1; destruct func' eqn:Ef. *)
   econstructor.
   split3; auto.
   intro n.
@@ -1040,7 +1040,7 @@ Proof.
   unfold initial_core. rewrite level_make_rmap; auto.
   specialize (H3 (globalenv prog) (prog_contains_prog_funct _ H0)).
   
-  assert (fn_params = nil). {
+  assert (E: fn_params func = nil). {
     destruct (match_fdecs_exists_Gfun
                 prog G (prog_main prog)
                 (mk_funspec (nil, Tvoid) unit (main_pre prog) (main_post prog)))
@@ -1060,12 +1060,12 @@ Proof.
     apply (list_norepet_In_In (prog_main prog) _ _ (prog_defs prog)); auto.
     subst fd.
     simpl in sametypes.
-    subst func' func.
+    destruct func.
     destruct fn_params. auto.
     destruct p; discriminate.
   }
   
-  subst fn_params.
+  rewrite E in *.
   unfold temp_bindings. simpl length. simpl typed_params. simpl type_of_params.
   pattern n at 1; replace n with (level (m_phi (initial_jm prog m G n H1 H0 H2))).
   pose (rho := mkEnviron (filter_genv (globalenv prog)) (Map.empty (block * type)) 
@@ -1157,6 +1157,163 @@ simpl.
 rewrite inflate_initial_mem_level.
 unfold initial_core.
 apply level_make_rmap.
+Qed.
+
+Definition Delta2 V G {C: compspecs} : tycontext := 
+  make_tycontext
+    ((1%positive, (Tfunction (Tcons (Tpointer Tvoid noattr) Tnil) Tvoid cc_default)) ::
+       (2%positive, (Tpointer Tvoid noattr))::nil) nil nil Tvoid V G.
+
+Lemma semax_prog_typecheck_aux2:
+  forall vs G {C: compspecs} (prog: program) b v,
+   list_norepet (prog_defs_names prog) ->
+   match_globvars (prog_vars prog) vs = true ->
+   match_fdecs (prog_funct prog) G ->
+   typecheck_environ
+     (Delta2 vs G)
+     (construct_rho (filter_genv (globalenv prog)) empty_env
+                    (PTree.set 1 (Vptr b Int.zero) (PTree.set 2 v (PTree.empty val)))).
+Admitted.
+
+Lemma find_id_maketycontext_s G id : (make_tycontext_s G) ! id = find_id id G.
+Proof.
+  induction G as [|(i,t) G]; simpl.
+  - destruct id; reflexivity.
+  - rewrite PTree.gsspec.
+    do 2 if_tac; congruence.
+Qed.
+
+Lemma semax_prog_entry_point {CS: compspecs} :
+  forall z V G prog id arg A P Q,
+    @semax_prog CS prog V G ->
+    is_Internal prog id = true ->
+    find_id id G = Some (mk_funspec ((2%positive, Tpointer Tvoid noattr):: nil, Tvoid) A P Q) ->
+    (forall a rho, Q a rho |-- FF) ->
+    is_pointer_or_null arg ->
+    exists b : block,
+      Genv.find_symbol (globalenv prog) id = Some b /\
+      
+      (* initial environment *)
+      let rho0 : environ :=
+          construct_rho
+            (filter_genv (globalenv prog)) empty_env
+            (PTree.set 1 (Vptr b Int.zero)
+                       (PTree.set 2 arg (PTree.empty val))) in
+      
+      (* initial environment without the function => to check jm |= P a *)
+      let rho1 : environ :=
+          construct_rho
+            (filter_genv (globalenv prog)) empty_env
+            ((* PTree.set 1 (Vptr b Int.zero) *)
+                       (PTree.set 2 arg (PTree.empty val))) in
+      
+      exists q : corestate,
+        core_semantics.initial_core
+          (juicy_core_sem cl_core_sem)
+          (globalenv prog) (Vptr b Int.zero) (arg :: nil) = Some q /\
+        
+        forall (jm : juicy_mem) (a : A),
+          app_pred (P a rho1) (m_phi jm) ->
+          app_pred (funassert (Delta2 V G) rho0) (m_phi jm) ->
+          jsafeN (@OK_spec Espec) (globalenv prog) (level jm) z q jm.
+Proof.
+  intros z V G prog id arg A P Q SP INT id_in_G QFF arg_p.
+  unfold is_Internal in INT.
+  destruct (Genv.find_symbol (Genv.globalenv prog) id) as [b|] eqn:Fid; [ | discriminate].
+  destruct (Genv.find_funct_ptr (Genv.globalenv prog) b) as [[func|]|] eqn:Fb; try discriminate.
+  clear INT.
+  
+  assert (Eparams: fn_params func = (2%positive, Tpointer Tvoid noattr) :: nil). {
+    destruct (match_fdecs_exists_Gfun prog G id _ id_in_G) as (fd, (Ifd, sametypes)). apply SP.
+    assert (fd = Internal func).
+    cut (Gfun fd = @Gfun _ type (Internal func)); [ intros E; injection E; auto | ].
+    apply (list_norepet_In_In id _ _ (prog_defs prog)); auto.
+    apply compute_list_norepet_e, SP.
+    admit.
+    subst fd.
+    simpl in sametypes.
+    unfold type_of_function in sametypes.
+    injection sametypes; intros _ _ E.
+    destruct (fn_params func) as [|(i,t) [|[] ps]]; inv sametypes; inv E.
+    repeat f_equal.
+    (* we should not require that the argument is indeed two in the actual function definition *)
+    admit.
+  }
+  
+  exists b.
+  split;[apply Fid|].
+  intros rho0.
+  simpl (core_semantics.initial_core _).
+  unfold cl_initial_core.
+  if_tac;[|tauto]. match goal with H : ?a = ?a |- _ => clear H end.
+  replace (Genv.find_funct_ptr (globalenv prog)) with
+  (Genv.find_funct_ptr (Genv.globalenv prog))
+    by reflexivity.
+  rewrite Fb.
+  remember func as func' eqn:Efunc'; rewrite Efunc' in Fb.
+  econstructor.
+  split. reflexivity.
+  rewrite Eparams.
+  
+  intros jm a m_sat_Pa m_funassert.
+  
+  destruct SP as [H0 [AL [HGG [[H2 H3] [GV _]]]]].
+  apply compute_list_norepet_e in H0.
+  specialize (H3 (globalenv prog) (prog_contains_prog_funct _ H0)).
+  
+  pose proof I.
+  eapply
+    (semax_call_aux
+       Espec (Delta2 V G) A _
+       (fun _ => Q a) _ a (fun _ => emp) (fun _ => emp)
+       None ((2%positive, Tpointer Tvoid noattr)::nil, Tvoid) _ _
+       (normal_ret_assert (fun rho => EX _ : val, emp * Q a (globals_only rho)))
+       _ _ _ _ rho0
+       _ _ b id);
+    try apply H3; try eassumption; auto.
+  
+  (* guard_environ *)
+  split; auto.
+  eapply semax_prog_typecheck_aux2; eauto.
+  
+  (* closed_wrt_modvars *)
+  simpl.
+  hnf; intros; intuition.
+  hnf; intros; intuition.
+  unfold normal_ret_assert; simpl.
+  extensionality rho'.
+  now normalize.
+  
+  (* funassert: not a goal anymore (in the hypotheses) *)
+  
+  (* guard_environ: we conclude because Q=>False *)
+  repeat intro.
+  repeat match goal with H : context [ Q ] |- _ => destruct H end.
+  repeat match goal with H : context [ Q ] |- _ => apply QFF in H; inversion H end.
+  
+  (* globspecs *)
+  unfold Delta2; simpl.
+  rewrite find_id_maketycontext_s.
+  eassumption.
+
+  (* equivalence between Q and Q' *)
+  intros vl; split; apply derives_imp; apply derives_refl'; reflexivity.
+  
+  (* precondition *)
+  refine (derives_e _ _ _ _ m_sat_Pa).
+  normalize.
+  eapply derives_trans; [|apply now_later].
+  simpl.
+  apply derives_refl'; f_equal.
+  unfold globals_only, env_set, rho0, construct_rho.
+  simpl.
+  f_equal.
+  extensionality i; destruct i; reflexivity.
+  unfold make_tenv, force_val, sem_cast_neutral, eval_id.
+  extensionality i.
+  compute.
+  if_tac; subst.  destruct arg eqn:E; auto; inversion arg_p.
+  repeat (destruct i; auto). tauto.
 Qed.
 
 End semax_prog.
