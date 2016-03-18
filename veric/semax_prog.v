@@ -85,7 +85,7 @@ Definition main_post (prog: program) : unit -> assert :=
   (fun tt _ => TT).
 
 Definition is_Internal (prog : program) (f : ident) :=
-  match Genv.find_symbol (Genv.globalenv prog) (prog_main prog) with
+  match Genv.find_symbol (Genv.globalenv prog) f with
     None => false
   | Some b =>
     match Genv.find_funct_ptr (Genv.globalenv prog) b with
