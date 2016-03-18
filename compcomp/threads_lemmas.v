@@ -1,4 +1,3 @@
-Require Import ssreflect Ssreflect.seq ssrbool ssrnat ssrfun eqtype seq fintype finfun.
 Set Implicit Arguments.
 
 (*NOTE: because of redefinition of [val], these imports must appear 
@@ -6,33 +5,6 @@ Set Implicit Arguments.
 Require Import Integers.
 
 Require Import ZArith.
-
-(* tactics to support Omega for ssrnats*)
-Ltac arith_hypo_ssrnat2coqnat :=
-  match goal with
-    | H : context [andb _ _] |- _ => let H0 := fresh in case/andP: H => H H0
-    | H : context [orb _ _] |- _ => case/orP: H => H
-    | H : context [?L <= ?R] |- _ => move/leP: H => H
-    | H : context [?L < ?R] |- _ => move/ltP : H => H
-    | H : context [?L == ?R] |- _ => move/eqP : H => H
-    | H : context [addn ?L ?R] |- _ => rewrite -plusE in H
-    | H : context [muln ?L ?R] |- _ => rewrite -multE in H
-    | H : context [subn ?L ?R] |- _ => rewrite -minusE in H
-  end.
-
-Ltac arith_goal_ssrnat2coqnat :=
-  rewrite ?NatTrec.trecE -?plusE -?minusE -?multE -?leqNgt -?ltnNge;
-  repeat match goal with
-           | |- is_true (andb _ _) => apply/andP; split
-           | |- is_true (orb _ _) => try apply/orP
-           | |- is_true (_ <= _) => try apply/leP
-           | |- is_true (_ < _) => try apply/ltP
-         end.
-
-Ltac ssromega :=
-  repeat arith_hypo_ssrnat2coqnat;
-  arith_goal_ssrnat2coqnat; simpl;
-  omega.
 
 Class monad (mon : Type -> Type) :=
   {
@@ -42,11 +14,6 @@ Class monad (mon : Type -> Type) :=
 
 Notation "x >>= f" := (bind x f) (at level 40, left associativity).
 Notation "'do!' X <- A ; B" := (bind A (fun X => B)) (at level 40).
-
-Lemma leq_pf_irr : forall n m (H1 : n < m) (H2: n < m), H1 = H2.
-Proof.
-  intros. eapply Eqdep_dec.eq_proofs_unicity; intros x y; destruct x,y; auto.
-Defined.
 
 Lemma if_true : forall {A : Type} b (x y : A)
                   (Htrue: is_true b),
@@ -62,6 +29,7 @@ Proof.
   intros. rewrite <- Bool.if_negb. by rewrite Hfalse.
 Defined.
 
+(*
 Module SeqLemmas.
 
   Definition subSeq {T:eqType} (s1 s2 : seq T) :=
@@ -197,6 +165,6 @@ Module BlockList.
     auto. apply IHn in HIn. destruct HIn. auto.
   Qed.
 
-End BlockList.
+End BlockList. *)
 
 

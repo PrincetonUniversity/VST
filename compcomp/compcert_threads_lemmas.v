@@ -346,18 +346,18 @@ Module StepLemmas.
 End StepLemmas.
         
 Module MemoryObs.
-          
-  Record mem_obs_eq (f : block -> block) (m1 m2 : Mem.mem) :=
+
+  Record mem_obs_eq (α : block -> block) (m1 m2 : Mem.mem) :=
     { val_obs_eq :
-        forall b1 b2 ofs (Hrenaming: f b1 = b2)
+        forall b1 b2 ofs (Hrenaming: α b1 = b2)
           (Hperm: Mem.perm m1 b1 ofs Cur Readable),
           Maps.ZMap.get ofs (Maps.PMap.get b1 (Mem.mem_contents m1)) =
           Maps.ZMap.get ofs (Maps.PMap.get b2 (Mem.mem_contents m2));
       cur_obs_eq :
-        forall b1 b2 ofs (Hrenaming: f b1 = b2),
+        forall b1 b2 ofs (Hrenaming: α b1 = b2),
           Maps.PMap.get b1 (Mem.mem_access m1) ofs Cur =
           Maps.PMap.get b2 (Mem.mem_access m2) ofs Cur}.
-
+  
   (* Transparent Mem.loadbytes.  *)
   
   (* Goal forall m1 m2 b ofs, *)
@@ -393,10 +393,10 @@ Module MemoryObs.
   (*     admit. *)
             
   Lemma mem_obs_trans_comm :
-    forall m1j m1'j m2j R
-           (Hmem_1: mem_obs_eq R m1j m1'j)
+    forall m1j m1'j m2j α
+           (Hmem_1: mem_obs_eq α m1j m1'j)
            (Hmem_2: mem_obs_eq (fun b => b) m1j m2j),
-      mem_obs_eq R m2j m1'j.
+      mem_obs_eq α m2j m1'j.
   Proof.
     intros. destruct Hmem_1 as [val_obs_eq1 cur_obs_eq1],
                                Hmem_2 as [val_obs_eq2 cur_obs_eq2].
@@ -422,10 +422,10 @@ Module MemoryObs.
   Hint Resolve mem_obs_trans_comm : mem.
 
   Lemma mem_obs_trans :
-    forall m1j m1'j m2'j R
-      (Hmem_1: mem_obs_eq R m1j m1'j)
+    forall m1j m1'j m2'j α
+      (Hmem_1: mem_obs_eq α m1j m1'j)
       (Hmem_2: mem_obs_eq (fun b => b) m1'j m2'j),
-      mem_obs_eq R m1j m2'j.
+      mem_obs_eq α m1j m2'j.
   Proof.
     intros.
     destruct Hmem_1 as [val_obs_eq1 cur_obs_eq1],
@@ -470,44 +470,44 @@ Section SimDefs.
   Notation dry_step := (@dry_step cT G the_sem the_ge).
   
   Variable rename_code : (block -> block) -> cT -> cT.
-  Definition rename_core R (c : cT') :=
+  Definition rename_core α (c : cT') :=
     match c with
-      | Krun c' => Krun (rename_code R c')
-      | Kstop c' => Kstop (rename_code R c')
-      | Kresume c' => Kresume (rename_code R c')
+      | Krun c' => Krun (rename_code α c')
+      | Kstop c' => Kstop (rename_code α c')
+      | Kresume c' => Kresume (rename_code α c')
     end.
 
-  Inductive weak_tp_sim (tp tp' : thread_pool) (tid : nat) (R: block -> block) : Prop :=
+  Inductive weak_tp_sim (tp tp' : thread_pool) (tid : nat) (α: block -> block) : Prop :=
   | Tp_weak_sim : forall (pf: tid < num_threads tp)
                     (pf': tid < num_threads tp')
                     (Hcounter: counter tp = counter tp')
-                    (Hpool: rename_core R ((pool tp) (Ordinal pf)) = (pool tp') (Ordinal pf'))
+                    (Hpool: rename_core α ((pool tp) (Ordinal pf)) = (pool tp') (Ordinal pf'))
                     (Hinv: invariant tp)
                     (Hinv': invariant tp'),
-                    weak_tp_sim tp tp' tid R.
+                    weak_tp_sim tp tp' tid α.
 
-  Inductive tp_sim (tp tp' : thread_pool) (tid : nat) (R: block -> block) : Prop :=
-  | Tp_sim : forall (Hweak_sim: weak_tp_sim tp tp' tid R)
+  Inductive tp_sim (tp tp' : thread_pool) (tid : nat) (α: block -> block) : Prop :=
+  | Tp_sim : forall (Hweak_sim: weak_tp_sim tp tp' tid α)
                (Hnum: num_threads tp = num_threads tp'),
-               tp_sim tp tp' tid R.
+               tp_sim tp tp' tid α.
 
 
   Inductive mem_sim (tp tp' : thread_pool) (m m' : Mem.mem) (tid : nat)
-            (R : block -> block) : Prop :=
+            (α: block -> block) : Prop :=
   | Mem_sim : forall (pf : tid < num_threads tp)
                 (pf' : tid < num_threads tp')
                 (Hcomp: mem_compatible tp m)
                 (Hcomp': mem_compatible tp' m')
-                (Hobs: mem_obs_eq R (restrPermMap
+                (Hobs: mem_obs_eq α (restrPermMap
                                        (permMapsInv_lt (perm_comp Hcomp) (Ordinal pf)))
                                   (restrPermMap
                                      (permMapsInv_lt (perm_comp Hcomp') (Ordinal pf')))),
-                mem_sim tp tp' m m' tid R.
+                mem_sim tp tp' m m' tid α.
 End SimDefs.
 
-Arguments weak_tp_sim {cT G the_sem} {rename_code} tp tp' tid R.
-Arguments tp_sim {cT G the_sem} {rename_code} tp tp' tid R.
-Arguments mem_sim {cT} tp tp' m m' tid R.
+Arguments weak_tp_sim {cT G the_sem} {rename_code} tp tp' tid α.
+Arguments tp_sim {cT G the_sem} {rename_code} tp tp' tid α.
+Arguments mem_sim {cT} tp tp' m m' tid α.
 End SimDefs.
 
 Module FineStepLemmas.
@@ -556,9 +556,9 @@ Section FineStepLemmas.
 
 
   Hypothesis rename_code_at_ext :
-    forall R (c : cT),
-      semantics.at_external the_sem (rename_code R c) = None <->
-      semantics.at_external the_sem c = None.
+    forall α (c : cT),
+      at_external the_sem (rename_code α c) = None <->
+      at_external the_sem c = None.
 
   (* Can lift it from a modified readonly hopefully *)
   Hypothesis corestep_unchanged_on :
@@ -634,8 +634,8 @@ Section FineStepLemmas.
          | [H1: getThreadC ?Tp (Ordinal ?Pf) = _,
                 H2: getThreadC ?Tp (Ordinal ?Pf) = ?C2 |- _] =>   
            rewrite H2 in H1; inversion H1; try (subst C2; clear H1)
-          | [H1: semantics.at_external _ ?C1 = None,
-                 H2: semantics.at_external _ ?C1 = Some _ |- _] =>
+          | [H1: at_external _ ?C1 = None,
+                 H2: at_external _ ?C1 = Some _ |- _] =>
            congruence
          | [H1: is_true (leq (n (num_threads ?Tp)) ?I),
                 H2: is_true (leq (S ?I) (n (num_threads ?Tp))) |- _] =>
@@ -646,13 +646,13 @@ Section FineStepLemmas.
   Lemma dry_step_sim_invariant_l :
     forall (tp1 tp1' tp2 : thread_pool) (m1 m2 m1' : mem) (i j : nat)
       (pfi : containsThread tp1 i)
-      (R: block -> block) (Hneq: i <> j)
+      (α: block -> block) (Hneq: i <> j)
       (Hcompatible1: mem_compatible tp1 m1)
-      (Htp_sim: weak_tp_sim tp1 tp1' j R)
-      (Hmem_sim: mem_sim tp1 tp1' m1 m1' j R)
+      (Htp_sim: weak_tp_sim tp1 tp1' j α)
+      (Hmem_sim: mem_sim tp1 tp1' m1 m1' j α)
       (Hstep: dry_step pfi Hcompatible1 tp2 m2)
       (Hcompatible2: mem_compatible tp2 m2),
-      weak_tp_sim tp2 tp1' j R /\ mem_sim tp2 tp1' m2 m1' j R.
+      weak_tp_sim tp2 tp1' j α /\ mem_sim tp2 tp1' m2 m1' j α.
   Proof with (eauto 3 with mem).
     intros. inversion Hstep as [tp' c m1i m' c2 Hrestrict Hthread Hcorestep Htp2].
     subst tp' m'.
@@ -691,7 +691,7 @@ Section FineStepLemmas.
         - inversion Htp_sim. destruct Hinv; eauto.
         - eassumption.
       } 
-      assert (mem_obs_eq R (restrPermMap
+      assert (mem_obs_eq α (restrPermMap
                               (permMapsInv_lt (perm_comp Hcompatible1)
                                               (Ordinal (n:=num_threads tp1) (m:=j) pf1)))
                          (restrPermMap
@@ -702,13 +702,13 @@ Section FineStepLemmas.
 
   Lemma dry_step_sim_invariant_r :
     forall (tp1 tp1' tp2' : thread_pool) (m1 m1' m2' : mem) (i j : nat)
-      (R: block -> block) (Hneq: i <> j) (pfi': containsThread tp1' i)
+      (α: block -> block) (Hneq: i <> j) (pfi': containsThread tp1' i)
       (Hcompatible1': mem_compatible tp1' m1')
-      (Htp_sim: weak_tp_sim tp1 tp1' j R)
-      (Hmem_sim: mem_sim tp1 tp1' m1 m1' j R)
+      (Htp_sim: weak_tp_sim tp1 tp1' j α)
+      (Hmem_sim: mem_sim tp1 tp1' m1 m1' j α)
       (Hstep: dry_step pfi' Hcompatible1' tp2' m2')
       (Hcompatible2: mem_compatible tp2' m2'),
-      weak_tp_sim tp1 tp2' j R /\ mem_sim tp1 tp2' m1 m2' j R.
+      weak_tp_sim tp1 tp2' j α /\ mem_sim tp1 tp2' m1 m2' j α.
   Proof with (eauto 3 with mem).
     intros; inversion Hstep as [tp' c m1i' m' c2' Hrestrict Hthread Hcorestep Htp2].
     subst tp' m'.
@@ -756,32 +756,32 @@ Section FineStepLemmas.
    Qed.
 
   Hypothesis corestep_obs_eq :
-    forall c1 c2 m1 m1' m2 R
-      (Hsim: mem_obs_eq R m1 m1')
+    forall c1 c2 m1 m1' m2 α
+      (Hsim: mem_obs_eq α m1 m1')
       (Hstep: corestep the_sem the_ge c1 m1 c2 m2),
     exists m2',
-      corestep the_sem the_ge (rename_code R c1) m1' (rename_code R c2) m2'
-      /\ mem_obs_eq R m2 m2'.
+      corestep the_sem the_ge (rename_code α c1) m1' (rename_code α c2) m2'
+      /\ mem_obs_eq α m2 m2'.
 
   Lemma mem_obs_eq_restr:
-    forall (tp tp' : thread_pool) (m m' : mem) (R : block -> block) 
+    forall (tp tp' : thread_pool) (m m' : mem) (α : block -> block) 
       (i : nat) (pf : i < num_threads tp) (c' : cT)
       (pf' : i < num_threads tp')
       (Hinv: invariant (updThread tp (Ordinal pf) (Krun c') (getCurPerm m) (counter tp)))
-      (Hinv': invariant (updThread tp' (Ordinal pf') (rename_core R (Krun c'))
+      (Hinv': invariant (updThread tp' (Ordinal pf') (rename_core α (Krun c'))
                                    (getCurPerm m') (counter tp')))
       (Hcompatible' : mem_compatible (updThread tp'
                                                 (Ordinal pf')
-                                                (rename_core R (Krun c')) (getCurPerm m') 
+                                                (rename_core α (Krun c')) (getCurPerm m') 
                                                 (counter tp')) m')
       (pf2 : i < num_threads (updThread tp (Ordinal pf) (Krun c')
                                         (getCurPerm m) (counter tp)))
-      (pf2' : i < num_threads (updThread tp' (Ordinal pf') (rename_core R (Krun c'))
+      (pf2' : i < num_threads (updThread tp' (Ordinal pf') (rename_core α (Krun c'))
                                          (getCurPerm m') (counter tp')))
       (Hcompatible : mem_compatible
                        (updThread tp (Ordinal pf) (Krun c') (getCurPerm m) (counter tp)) m)
-      (Hobs : mem_obs_eq R m m'),
-      mem_obs_eq R
+      (Hobs : mem_obs_eq α m m'),
+      mem_obs_eq α
                  (restrPermMap (permMapsInv_lt (perm_comp Hcompatible) (Ordinal pf2)))
                  (restrPermMap (permMapsInv_lt (perm_comp Hcompatible') (Ordinal pf2'))).
   Proof.
@@ -816,23 +816,23 @@ Section FineStepLemmas.
   Qed.
 
   Lemma dry_step_sim_aux :
-    forall (tp1 tp2 tp1' : thread_pool) (m1 m2 m1' : mem) R (i : nat)
+    forall (tp1 tp2 tp1' : thread_pool) (m1 m2 m1' : mem) α (i : nat)
       (pfi : containsThread tp1 i)
       (pfi' : containsThread tp1' i)
       (Hcompatible1: mem_compatible tp1 m1)
       (Hcompatible1': mem_compatible tp1' m1')
-      (Htp_simi: weak_tp_sim tp1 tp1' i R)
-      (Hmem_simi: mem_sim tp1 tp1' m1 m1' i R)
+      (Htp_simi: weak_tp_sim tp1 tp1' i α)
+      (Hmem_simi: mem_sim tp1 tp1' m1 m1' i α)
       (Hstep1: dry_step pfi Hcompatible1 tp2 m2),
     exists tp2' m2', dry_step pfi' Hcompatible1' tp2' m2' /\
-                (forall tid, weak_tp_sim tp1 tp1' tid R -> weak_tp_sim tp2 tp2' tid R) /\
-                (forall tid, mem_sim tp1 tp1' m1 m1' tid R ->
-                        mem_sim tp2 tp2' m2 m2' tid R).
+                (forall tid, weak_tp_sim tp1 tp1' tid α -> weak_tp_sim tp2 tp2' tid α) /\
+                (forall tid, mem_sim tp1 tp1' m1 m1' tid α ->
+                        mem_sim tp2 tp2' m2 m2' tid α).
   Proof with (eauto 3 with mem).
     intros.
     assert (Hcompatible2: mem_compatible tp2 m2)
       by (inversion Htp_simi; eapply dry_step_compatible with (tp := tp1); eauto).
-    inversion Hstep1 as [tp' c m1i m' c2 Hrestrict_pmap Hthread Hcorestep Htp2].
+    inversion Hstep1 as [tp' c m1i m' c2 Hrestrict_pmap Hinv Hthread Hcorestep Htp2].
     subst tp' m'.
     inversion Hmem_simi as [pf_tid0 pf_tid0'
                                     Hmem_comp0 Hcompatible'];
@@ -843,9 +843,9 @@ Section FineStepLemmas.
     unfold getThreadC in Hthread.
     pf_cleanup.
     rewrite Hthread in Hpool.
-    assert (Hget': getThreadC tp1' (Ordinal pfi') = rename_core R (Krun c))
+    assert (Hget': getThreadC tp1' (Ordinal pfi') = rename_core α (Krun c))
            by (by unfold getThreadC).
-    remember (updThread tp1' (Ordinal pfi') (rename_core R (Krun c2))
+    remember (updThread tp1' (Ordinal pfi') (rename_core α (Krun c2))
                         (getCurPerm m2') (counter tp1')) as tp2' eqn:Htp2'.
     exists tp2'; exists m2'.
     assert (Hstep': dry_step pfi' Hcompatible1' tp2' m2')
@@ -862,7 +862,7 @@ Section FineStepLemmas.
           simpl in pf_tid; unfold is_true in *; congruence]. 
       destruct (tid < num_threads
                         ((updThread tp1' (Ordinal (n:=num_threads tp1') pfi')
-                                    (rename_core R (Krun c2)) (getCurPerm m2') 
+                                    (rename_core α (Krun c2)) (getCurPerm m2') 
                                     (counter tp1')))) eqn:pf_tid';
         [|inversion Htp_sim;
            simpl in pf_tid'; unfold is_true in *; congruence].
@@ -902,7 +902,7 @@ Section FineStepLemmas.
       assert (pf2_tid':
                 tid < num_threads
                         (updThread tp1' (Ordinal pfi')
-                                   (rename_core R (Krun c2)) (getCurPerm m2') 
+                                   (rename_core α (Krun c2)) (getCurPerm m2') 
                                    (counter tp1')))
         by (simpl in *; assumption).
       destruct (tid == i) eqn:Htid_eq; move/eqP:Htid_eq=>Htid_eq.
@@ -938,7 +938,7 @@ Section FineStepLemmas.
             apply/eqP; intro Hcontra; inversion Hcontra; auto.
           - apply (no_race Hinv'); auto.
         }
-        assert (Hobs_trans : mem_obs_eq R (restrPermMap (permMapsInv_lt (perm_comp Hcompatible2)
+        assert (Hobs_trans : mem_obs_eq α (restrPermMap (permMapsInv_lt (perm_comp Hcompatible2)
                                                                         (Ordinal pf2_tid)))
                                         (restrPermMap (permMapsInv_lt (perm_comp Hcompatible1')
                                                                       (Ordinal pf_tid'))))
@@ -948,16 +948,16 @@ Section FineStepLemmas.
         eapply mem_obs_trans; eauto.
     }
   Qed.
-        
+  
   Lemma dry_step_sim :
-    forall (tp1 tp2 tp3 tp1' : thread_pool) (m1 m2 m3 m1' : mem) R
+    forall (tp1 tp2 tp3 tp1' : thread_pool) (m1 m2 m3 m1' : mem) α
       (Hinvariant: invariant tp1)
       (Hinvariant': invariant tp1')
       (Hcompatible: mem_compatible tp1 m1)
       (Hcompatible': mem_compatible tp1' m1')
       (Hcompatible2: mem_compatible tp2 m2)
-      (Hsim: forall tid, tid < num_threads tp1 -> tp_sim tp1 tp1' tid R /\
-                                            mem_sim tp1 tp1' m1 m1' tid R)
+      (Hsim: forall tid, tid < num_threads tp1 -> tp_sim tp1 tp1' tid α /\
+                                            mem_sim tp1 tp1' m1 m1' tid α)
       (i j : nat) (Hneq: i <> j) (pfi : containsThread tp1 i) (pfj : containsThread tp2 j)
       (Hstep1: dry_step pfi Hcompatible tp2 m2)
       (Hstep2: dry_step pfj Hcompatible2 tp3 m3),
@@ -965,12 +965,12 @@ Section FineStepLemmas.
       (pfi': containsThread tp2' i) (Hcompatible2': mem_compatible tp2' m2'),
       dry_step pfj' Hcompatible' tp2' m2' /\
       dry_step pfi' Hcompatible2' tp3' m3' /\
-      (forall tid, tid < num_threads tp3 -> tp_sim tp3 tp3' tid R /\
-                                      mem_sim tp3 tp3' m3 m3' tid R).
+      (forall tid, tid < num_threads tp3 -> tp_sim tp3 tp3' tid α /\
+                                      mem_sim tp3 tp3' m3 m3' tid α).
   Proof. Admitted.
  (*   intros.
     (* j-simulation of tp2-tp1' *)
-    assert (Hsimj_21': tp_sim tp2 tp1' j R /\ mem_sim tp2 tp1' m2 m1' j R).
+    assert (Hsimj_21': tp_sim tp2 tp1' j α /\ mem_sim tp2 tp1' m2 m1' j R).
     { inversion Hstep1; step_absurd; subst;
       try (clear Hupd_mem; step_absurd).
       simpl in pfj. destruct (Hsim _ pfj).
@@ -982,9 +982,9 @@ Section FineStepLemmas.
     assert (Hsimj_32':
               exists tp2' m2',
                 fstep tp1' m1' tp2' m2' /\
-                (forall tid, tp_sim tp2 tp1' tid R -> tp_sim tp3 tp2' tid R) /\
+                (forall tid, tp_sim tp2 tp1' tid α -> tp_sim tp3 tp2' tid R) /\
                 (forall tid,
-                   mem_sim tp2 tp1' m2 m1' tid R -> mem_sim tp3 tp2' m3 m2' tid R)).
+                   mem_sim tp2 tp1' m2 m1' tid α -> mem_sim tp3 tp2' m3 m2' tid R)).
     { eapply corestep_sim_aux with (tp1 := tp2) (tp2 := tp3); eauto.
       - inversion Hstep1; step_absurd; subst; try (clear Hupd_mem; step_absurd).
         simpl. rewrite Hsched. reflexivity.
@@ -992,11 +992,11 @@ Section FineStepLemmas.
     }
     destruct Hsimj_32' as [tp2' [m2' [Hstep1' [Htp_sim32' Hmem_sim32']]]].
     (* i-simulation of tp1-tp2' *)
-    assert (Hsimi_12': tp_sim tp1 tp2' i R /\ mem_sim tp1 tp2' m1 m2' i R).
+    assert (Hsimi_12': tp_sim tp1 tp2' i α /\ mem_sim tp1 tp2' m1 m2' i R).
     { assert (pfj': j < num_threads tp1')
         by (inversion Htpsimj_21'; assumption).
       destruct (Hsim _ pfi).
-      eapply corestep_sim_invariant_r with (pfi' := pfj') (c := rename_code R c2);
+      eapply corestep_sim_invariant_r with (pfi' := pfj') (c := rename_code α c2);
         eauto.
       rewrite Hsched'. reflexivity.
       inversion Htpsimj_21'. unfold getThreadC in *. pf_cleanup. rewrite <- Hpool.
@@ -1008,14 +1008,14 @@ Section FineStepLemmas.
     assert (Hsimi_23':
               exists tp3' m3',
                 fstep tp2' m2' tp3' m3' /\
-                (forall tid, tp_sim tp1 tp2' tid R -> tp_sim tp2 tp3' tid R) /\
+                (forall tid, tp_sim tp1 tp2' tid α -> tp_sim tp2 tp3' tid R) /\
                 (forall tid,
-                   mem_sim tp1 tp2' m1 m2' tid R -> mem_sim tp2 tp3' m2 m3' tid R)).
+                   mem_sim tp1 tp2' m1 m2' tid α -> mem_sim tp2 tp3' m2 m3' tid R)).
     { assert (Hget1': forall pfj',
-                        getThreadC tp1' (Ordinal (m := j) pfj') = rename_core R (Krun c2)).
+                        getThreadC tp1' (Ordinal (m := j) pfj') = rename_core α (Krun c2)).
       { intros. inversion Htpsimj_21'. unfold getThreadC in *.
         rewrite <- Hget2. pf_cleanup. rewrite Hpool. reflexivity. }
-      assert (Hat_external1': semantics.at_external the_sem (rename_code R c2) = None)
+      assert (Hat_external1': semantics.at_external the_sem (rename_code α c2) = None)
         by (by apply rename_code_at_ext).
       simpl in Hget1'.
       inversion Hstep1';
@@ -1047,7 +1047,7 @@ Section FineStepLemmas.
     + eapply corestep_sim_invariant_l; eauto.
       inversion Hstep1; step_absurd; subst; try (clear Hupd_mem; step_absurd).
       simpl. rewrite Hsched. reflexivity.
-    + assert (Hsimtid_21': tp_sim tp2 tp1' tid R /\ mem_sim tp2 tp1' m2 m1' tid R).
+    + assert (Hsimtid_21': tp_sim tp2 tp1' tid α /\ mem_sim tp2 tp1' m2 m1' tid R).
       { inversion Hstep1; step_absurd; subst; try (clear Hupd_mem; step_absurd).
         simpl in pf3_tid.
         rewrite Hnum_eq in pf3_tid.
@@ -1057,10 +1057,10 @@ Section FineStepLemmas.
       }
       destruct Hsimtid_21' as [Htpsimtid_21' Hmemsimtid_21'].
       assert (Hget1': forall pfj',
-                        getThreadC tp1' (Ordinal (m := j) pfj') = rename_core R (Krun c2)).
+                        getThreadC tp1' (Ordinal (m := j) pfj') = rename_core α (Krun c2)).
       { intros. inversion Htpsimj_21'. unfold getThreadC in *.
         rewrite <- Hget2. pf_cleanup. rewrite Hpool. reflexivity. }
-      assert (Hat_external1': semantics.at_external the_sem (rename_code R c2) = None)
+      assert (Hat_external1': semantics.at_external the_sem (rename_code α c2) = None)
         by (by apply rename_code_at_ext).
       simpl in Hget1'.
       inversion Htpsimj_21'.
@@ -1075,7 +1075,7 @@ Section FineStepLemmas.
                end; step_absurd. subst m m' tp tp'.
       inversion  Htpsimi_12'. 
       eapply corestep_sim_invariant_r with
-      (j := tid) (tp1' := tp2') (c := rename_code R c1) (pfi' := pf'0);
+      (j := tid) (tp1' := tp2') (c := rename_code α c1) (pfi' := pf'0);
         eauto.
       subst tp2'.
       simpl. rewrite Hsched'. reflexivity.
@@ -1087,164 +1087,604 @@ Section FineStepLemmas.
 End FineStepLemmas.
 End FineStepLemmas.
 
-Module ExtStepLemmas.
-Section ExtStepLemmas.
+
+Module Traces.
 
   Import Concur ThreadPool MemoryObs SimDefs StepLemmas.
-  Context {cT G : Type} {the_sem : CoreSemantics G cT Mem.mem}.
- 
-  Notation cT' := (@ctl cT).
-  Notation thread_pool := (t cT').
-  Notation perm_map := access_map.
-  Notation invariant := (@invariant cT G the_sem).
+
+  Context {the_ge : mySem.G}.
+
+  Definition fstep A := (corestep (fine_semantics A) the_ge).
+  Definition trace := list (nat * mySem.thread_pool).
+
+  Lemma cat_inv :
+    forall {A} xs ys (x y : A),
+      xs ++ [:: x] = ys ++ [:: y] ->
+      x = y /\ xs = ys.
+  Proof.
+    intros A xs ys x y Heq. generalize dependent ys.
+    induction xs; intros.
+    simpl in Heq. destruct ys; simpl in *;
+                  [inversion Heq; subst; auto | destruct ys; simpl in *; inversion Heq].
+    destruct ys; [destruct xs; simpl in *|]; inversion Heq.
+    subst. eapply IHxs in H1. destruct H1; by subst.
+  Qed.
+
+  Lemma cat_inv2 :
+    forall {A} xs ys (x x' y y' : A),
+      xs ++ [:: x;x'] = ys ++ [:: y;y'] ->
+      x = y /\ x' = y' /\ xs = ys.
+  Proof.
+    intros A xs ys x x' y y' Heq. generalize dependent ys.
+    induction xs; intros.
+    - simpl in Heq. destruct ys; simpl in *;
+                    [inversion Heq; subst; auto | destruct ys; simpl in *; inversion Heq].
+      subst. destruct ys; simpl in *; congruence.
+    - destruct ys; [destruct xs; simpl in *|]; inversion Heq;
+      subst.
+      destruct xs; simpl in *; congruence.
+      eapply IHxs in H1. destruct H1 as [? [? ?]]; by subst.
+  Qed.
+
+  Inductive isTrace A : trace -> Prop :=
+  | init_tr : forall (st : nat * mySem.thread_pool),
+                  isTrace A [:: st]
+  | cons_tr : forall (st st' : nat * mySem.thread_pool) (tr : trace)
+                (Htrace: isTrace A (tr ++ [:: st]))
+                (Hstep: (exists m m', fstep A ([:: st.1], st.2) m ([::],st'.2) m')),
+                isTrace A (tr ++ [:: st;st']).
+
+  Lemma isTrace_forward :
+    forall A tr tid tp tid' tp' 
+      (Htrace: isTrace A ((tid', tp') :: tr))
+      (Hstep: exists m m', fstep A ([:: tid],tp) m ([::],tp') m'),
+      isTrace A ((tid, tp) :: (tid', tp') :: tr).
+  Proof.
+    intros A tr. induction tr as [|tr [tid' tp']] using last_ind.
+    - intros tid tp tid' tp' Htrace Hstep. rewrite <- cat0s. constructor.
+      rewrite cat0s. constructor.
+      simpl. assumption.
+    - intros tid tp tid'0 tp'0 Htrace Hstep. rewrite <- cats1 in *.
+      inversion Htrace as [[tid0 tp0] Heq|]; subst. destruct tr; simpl in *; congruence.
+      destruct tr0.
+      destruct tr.
+      simpl in *. inversion H0; subst.
+      replace ([:: (tid, tp); (tid'0, tp'0); (tid', tp')]) with
+      ([::(tid,tp)] ++ [::(tid'0,tp'0); (tid', tp')]) by reflexivity.
+      constructor. simpl.
+      rewrite <- cat0s. constructor. constructor. simpl. auto.
+      simpl. auto.
+      simpl in *.
+      destruct tr; simpl in *; subst; congruence.
+      destruct tr using last_ind. simpl in *.
+      destruct tr0; simpl in *;
+      [congruence| destruct tr0; simpl in *; congruence].
+      clear IHtr0.
+      rewrite <- cats1 in *. simpl in *.
+      rewrite <- catA in H0. simpl in H0.
+      inversion H0.
+      apply cat_inv2 in H2.
+      destruct H2 as [? [? ?]]. subst.
+      clear H0.
+      replace ([:: (tid, tp), (tid'0, tp'0) & tr ++ [:: x; (tid', tp')]]) with
+      (((tid, tp) :: (tid'0, tp'0) :: tr) ++ [:: x; (tid', tp')]) by reflexivity.
+      constructor. eapply IHtr; eauto.
+      simpl. auto.
+  Qed.
+      
+  Lemma corestepN_rcons:
+    forall A sched sched' tid tp m tp' m'
+      (HcorestepN: corestepN (fine_semantics A) the_ge (size (sched ++ [:: tid]))
+                             ((sched ++ [:: tid]) ++ sched', tp) m (sched', tp') m'),
+    exists tp'' m'',
+      corestepN (fine_semantics A) the_ge (size sched)
+                ((sched ++ [:: tid]) ++ sched', tp) m (tid :: sched', tp'') m'' /\
+      corestep (fine_semantics A) the_ge (tid :: sched', tp'') m'' (sched', tp') m'.
+  Proof.
+    intros A sched. induction sched as [|n sched]; intros; simpl in HcorestepN.
+    - destruct HcorestepN as [? [? [Hstep Heq]]]; inversion Heq; subst.
+      do 2 eexists; split; simpl; eauto. 
+    - destruct HcorestepN as [st0 [m0 [Hstep HcorestepN]]].
+      destruct st0 as [sched0 tp0].
+      assert (Hsched: sched0 = (sched ++ [:: tid]) ++ sched')
+        by (inversion Hstep; subst; simpl in *; auto).
+      rewrite Hsched in HcorestepN, Hstep.
+      clear Hsched.
+      eapply IHsched in HcorestepN.
+      destruct HcorestepN as [tp'' [m'' [HcorestepN Hstep']]].
+      exists tp'' m''. split.
+      simpl. do 2 eexists; eauto.
+      assumption.
+  Qed.
+
+  Notation mstate := myFineSemantics.MachState.
   
-  Variable the_ge : G.
-  Notation dry_step := (@dry_step cT G the_sem the_ge).
+  Inductive execution A : seq mstate -> Prop :=
+  | init_exec : forall st,
+                  execution A [:: st]
+  | cons_exec : forall (st st' : mstate) (exec : seq mstate)
+                (Hexec: execution A (exec ++ [:: st]))
+                (Hstep: (exists m m', fstep A st m st' m')),
+                  execution A (exec ++ [:: st;st']).
+
+  Lemma execution_red:
+    forall A exec st st' exec'
+      (Hexec: execution A (st :: exec ++ exec' ++ [::st'])),
+      execution A (exec ++ exec' ++ [::st']).
+  Proof.
+    intros.
+    generalize dependent st'. generalize dependent exec'.
+    induction exec using last_ind; intros.
+    - simpl in *.
+      generalize dependent st'. induction exec' using last_ind.
+      + intros. constructor.
+      + intros. rewrite <- cats1.
+        rewrite <- cats1 in Hexec.
+        rewrite <- catA in Hexec.
+        inversion Hexec; subst. destruct exec'; simpl in *; congruence.
+        destruct exec. simpl in H0.
+        destruct exec'; simpl in *; [congruence | destruct exec'; simpl in *; congruence].
+        simpl in H0. inversion H0; subst.
+        assert (Heq: exec = exec' /\ st0 = x /\ st'0 = st').
+        { clear - H2.
+          generalize dependent exec'.
+          induction exec; intros.
+          - destruct exec'. simpl in *. inversion H2; subst. auto.
+            destruct exec'; simpl in *; try congruence.
+            destruct exec'; simpl in *; try congruence.
+          - destruct exec'; simpl in *.
+            destruct exec; simpl in *; try congruence.
+            destruct exec; simpl in *; try congruence.
+            inversion H2; subst.
+            eapply IHexec in H1. by destruct H1 as [? [? ?]]; subst.
+        }
+        destruct Heq as [? [? ?]]; subst.
+        eapply IHexec' in Hexec0.
+        rewrite <- catA. constructor. assumption.
+        assumption.
+    - rewrite <- cats1 in Hexec. rewrite <- cats1.
+      rewrite <- catA in Hexec.
+      specialize (IHexec ([:: x] ++ exec') st').
+      rewrite <- catA in IHexec. apply IHexec in Hexec.
+      rewrite <- catA. auto.
+  Qed.
+                
+  Lemma corestepN_execution_strong :
+    forall tp m tp' m' tid sched sched' A
+      (HcorestepN: corestepN (fine_semantics A) the_ge (size (tid :: sched))
+                             ((tid :: sched) ++ sched', tp) m (sched', tp') m'),
+    exists (exec : seq mstate),
+      execution A (((tid :: sched) ++ sched', tp) :: exec ++ [:: (sched', tp')]).
+  Proof.
+    intros.
+    generalize dependent tp. generalize dependent m.
+    generalize dependent sched'. generalize dependent tp'. generalize dependent m'.
+    generalize dependent tid.
+    induction sched as [|sched x] using last_ind; intros.
+    - exists (nil : seq mstate).
+        rewrite <- cat0s.
+        simpl in HcorestepN. destruct HcorestepN as [? [? [Hstep Heq]]].
+        inversion Heq; subst.
+        constructor; [constructor | do 2 eexists; eauto].
+    - rewrite <- cats1 in HcorestepN.
+      eapply corestepN_rcons with (sched := tid :: sched) in HcorestepN.
+      destruct HcorestepN as [tp'' [m'' [HcorestepN Hstep]]].
+      rewrite <- catA in HcorestepN.
+      eapply IHsched in HcorestepN.
+      destruct HcorestepN as [exec Hexec].
+      exists (exec ++ [:: (x :: sched', tp'')]).
+      rewrite <- catA. simpl.
+      rewrite <- cat_cons.
+      constructor.
+      rewrite <- cats1. simpl.
+      rewrite <- catA. auto.
+      do 2 eexists. eauto.
+  Qed.
+
+  Inductive closed_execution A : seq mstate -> Prop :=
+  | closed_exec : forall exec st,
+                    execution A (exec ++ [:: st]) ->
+                    st.1 = nil ->
+                    closed_execution A (exec ++ [:: st]).
   
-  Variable rename_code : (block -> block) -> cT -> cT.
+  Corollary corestepN_execution :
+    forall tp m tp' m' tid sched A
+      (HcorestepN: corestepN (fine_semantics A) the_ge (size (tid :: sched))
+                             (tid :: sched, tp) m (nil, tp') m'),
+    exists (exec : seq mstate),
+     closed_execution A ((tid :: sched, tp) :: exec ++ [:: (nil, tp')]).
+  Proof.
+    intros.
+    replace (tid :: sched, tp) with ((tid :: sched) ++ nil, tp) in HcorestepN
+      by (by rewrite cats0).
+    eapply corestepN_execution_strong in HcorestepN.
+    destruct HcorestepN as [exec Hexec].
+    exists exec.
+    rewrite <- cat_cons. constructor.
+    rewrite cats0 in Hexec. auto.
+    reflexivity.
+  Qed.
+  
+  Inductive flatten_execution (i : nat): seq mstate -> seq (nat * mySem.thread_pool) -> Prop :=
+  | flat_single : forall tp,
+                    flatten_execution i [:: ([::],tp)] [:: (i,tp)]
+  | flat_cons : forall tp tr ftr sched tid
+                  (Hflat: flatten_execution i tr ftr),
+                  flatten_execution i ((tid :: sched, tp) :: tr) ((tid, tp) :: ftr).
 
-  Notation tp_sim := (@tp_sim cT G the_sem rename_code).
-  Notation weak_tp_sim := (@weak_tp_sim cT G the_sem rename_code).
+  Lemma flatten_single :
+    forall tr st st' i
+      (Hflat : flatten_execution i [:: st] (tr ++ [:: st'])),
+      i = st'.1 /\ tr = nil /\ st.2 = st'.2 /\ st.1 = nil.
+  Proof.
+    intros. inversion Hflat.
+    subst. destruct tr; simpl in *; subst. destruct st'; inversion H; subst; simpl.
+    auto.
+    destruct tr; simpl in *; congruence.
+    subst. inversion Hflat0.
+  Qed.
 
-  Variable aggelos : nat -> perm_map.
-  Notation ext_step := (@ext_step cT G the_sem the_ge aggelos).
-   
-  Lemma ext_step_sim :
-    forall (tp1 tp2 tp3 tp1' : thread_pool) (m1 m2 m3 m1' : mem) R
-      (Hcompatible: mem_compatible m1 tp1)
-      (Hcompatible': mem_compatible m1' tp1')
-      (Hsim: forall tid, containsThread tp1 tid -> tp_sim tp1 tp1' tid R /\
-                                             mem_sim tp1 tp1' m1 m1' tid R)
-      (i j : nat) (Hneq: i <> j) (pfi : containsThread tp1 i)
-      (pfj: containsThread tp2 j) (Hcompatible2: mem_compatible tp2 m2)
-      (Hstep1: ext_step pfi Hcompatible tp2 m2)
-      (Hstep2: dry_step pfj Hcompatible2 tp3 m3),
-    exists tp2' m2' tp3' m3' (pfj': containsThread tp1' j) (pfi': containsThread tp2' i)
-      (Hcompatible2': mem_compatible m2' tp2'),
-      dry_step pfj' Hcompatible' tp2' m2' /\
-      ext_step pfi' Hcompatible2' tp3' m3' /\
-      (forall tid, tid < num_threads tp3 -> tp_sim tp3 tp3' tid R /\
-                                      mem_sim tp3 tp3' m3 m3' tid R).
-  Proof. Admitted.
+  Lemma flatten_rcons :
+    forall i exec tr tp tp' j
+      (Hflatten: flatten_execution i (exec ++ [:: ([::], tp)]) (tr ++ [:: (i, tp)])),
+      flatten_execution j (exec ++ [:: ([:: i], tp); ([::], tp')])
+                        (tr ++ [:: (i,tp); (j, tp')]).
+  Proof.
+    intros i exec.
+    induction exec as [|st exec]; intros; simpl in *.
+    - apply flatten_single in Hflatten. destruct Hflatten as [? [? ?]]; simpl in *.
+      subst. constructor. constructor.
+    - destruct tr.
+      + simpl in *.
+        inversion Hflatten; subst;
+        [destruct exec; simpl in *; subst; congruence | inversion Hflat].
+      + inversion Hflatten; subst.
+        destruct exec; simpl in *; subst; congruence.
+        simpl. constructor.
+          by eapply IHexec.
+  Qed.
 
-End ExtStepLemmas.
-End ExtStepLemmas.
-    
+  Lemma flatten_rcons_inv :
+    forall exec tr st st' i
+      (Hflatten: flatten_execution i (exec ++ [:: st]) (tr ++ [:: st'])),
+      st.2 = st'.2 /\ st.1 = nil.
+  Proof.
+    intros exec. induction exec as [|st0 exec]; intros.
+    - simpl in *. apply flatten_single in Hflatten. by destruct Hflatten as [? [? ?]].
+    - inversion Hflatten. subst. destruct exec; simpl in *; congruence.
+      subst.
+      destruct tr; simpl in *. destruct ftr. inversion Hflat.
+      simpl in *; congruence.
+      inversion H; subst. eapply IHexec; eauto.
+  Qed.
+  
+  Lemma execution_steps :
+    forall exec st exec' st' A,
+      execution A (exec ++ [:: st;st'] ++ exec') ->
+      exists m m', fstep A st m st' m'.
+  Proof.
+    intros exec st exec'. generalize dependent st. generalize dependent exec.
+    induction exec' using last_ind; intros exec st st' A Hexec.
+    - rewrite cats0 in Hexec.
+      inversion Hexec. destruct exec; simpl in *;
+                       [congruence | destruct exec; simpl in *; congruence].
+      replace (exec0 ++ [:: st0; st'0]) with ((exec0 ++ [:: st0]) ++ [:: st'0]) in H0
+        by (rewrite <- catA; auto).
+      replace (exec ++ [:: st; st']) with ((exec ++ [:: st]) ++ [:: st']) in H0
+        by (rewrite <- catA; auto).
+      apply cat_inv in H0. destruct H0 as [Heq1 Heq2].
+      apply cat_inv in Heq2. destruct Heq2; subst.
+      eauto.
+    - rewrite <- cats1 in Hexec.
+      inversion Hexec.
+      destruct exec; simpl in *; [congruence| destruct exec; simpl in *; congruence].
+      destruct exec' using last_ind; simpl in *.
+      + assert (Heq: exec0 = exec ++ [:: st] /\ st0 = st' /\ st'0 = x) by admit.
+        destruct Heq as [? [? ?]]; subst.
+        rewrite <- catA in Hexec0. simpl in Hexec0.
+        eapply IHexec' in Hexec0. eauto.
+      + clear IHexec'0.
+        rewrite <- cats1 in H0. rewrite <- catA in H0.
+        simpl in H0. rewrite <- cats1 in IHexec', Hexec.
+        assert (Heq: exec0 = exec ++ [:: st, st' & exec'] /\ st0 = x0 /\ st0 = x).
+        admit.
+        destruct Heq as [? [? ?]]. subst.
+        rewrite <- catA in Hexec0. simpl in Hexec0.
+        eapply IHexec' in Hexec0. eauto.
+  Qed.
+      
+  Lemma execution_flatten_trace :
+    forall exec i A st,
+      closed_execution A (exec ++ [:: st]) ->
+      exists tr,
+        flatten_execution i (exec ++ [:: st]) tr /\
+        isTrace A tr.
+  Proof.
+    intros exec i. induction exec as [|st' exec]; intros A st Hexec.
+    - inversion Hexec.
+      destruct exec; destruct st0. simpl in *; subst.
+      exists [:: (i,m)]. split; constructor.
+      destruct exec; simpl in *; congruence.
+    - simpl in Hexec.
+      inversion Hexec. destruct exec0; simpl in *.
+      destruct exec; simpl in *; congruence.
+      inversion H.
+      apply cat_inv in H4. destruct H4; subst.
+      eapply execution_red with (exec' := nil) in H0.
+      rewrite cat0s in H0.
+      assert (Hclosed: closed_execution A (exec ++ [:: st]))
+        by (constructor; eauto).
+      eapply IHexec in Hclosed; clear IHexec.
+      destruct Hclosed as [tr [Hflat Htrace]].
+      destruct exec as [|st'' exec]; simpl in *.
+      + inversion Hexec as [exec st0 Hstep ? Heq].
+        replace ([:: st'; st]) with ([:: st'] ++ [:: st]) in Heq by (apply cat_inv).
+        apply cat_inv in Heq. destruct Heq; subst.
+        simpl in *. rewrite <- cat0s in Hstep. rewrite <- cats0 in Hstep.
+        apply execution_steps with (exec := nil) (exec' := nil) in Hstep.
+        destruct Hstep as [m [m' Hstep]].
+        assert (Htid: exists tid, mySchedule.schedPeek st'.1 = Some tid)
+          by (inversion Hstep; eexists; eauto).
+        destruct Htid as [tid Hsched].
+        exists ((tid, st'.2) :: tr).
+        destruct st' as [sched' tp'], st as [sched tp].
+        simpl in *.
+        unfold mySchedule.schedPeek in Hsched.
+        destruct sched'; simpl in *; inversion Hsched; subst.
+        split. by constructor.
+        destruct tr. constructor.
+        inversion Hflat. subst.
+        assert (Hstep_weak: fstep A ([:: tid], tp') m ([::], tp) m') by admit.
+        eapply isTrace_forward; eauto.
+      + inversion Hexec as [exec0 st0 Hstep ? Heq].
+        destruct exec0; simpl in *; [congruence | destruct exec0].
+        destruct exec; simpl in *; congruence.
+        inversion Heq; subst.
+        rewrite cat_cons in Hstep.
+        replace ([:: st', st'' & exec0 ++ [:: st0]])
+        with ([::] ++ [:: st';st''] ++ (exec0 ++ [:: st0])) in Hstep by reflexivity.
+        apply execution_steps with (exec' := exec0 ++ [:: st0]) in Hstep.
+        destruct Hstep as [m [m' Hstep]].
+        assert (Htid: exists tid, mySchedule.schedPeek st'.1 = Some tid)
+          by (inversion Hstep; eexists; eauto).
+        destruct Htid as [tid Hsched].
+        destruct st' as [sched' tp'], st'' as [sched'' tp''].
+        destruct sched'; simpl in *; inversion Hsched; subst.
+        inversion Heq. apply cat_inv in H4; destruct H4; subst.
+        clear Heq H.
+        exists ((tid,tp') :: tr).
+        split. constructor. assumption.
+        inversion Hflat; subst.
+        assert (Hstep_weak: fstep A ([:: tid], tp') m ([::], tp'') m') by admit.
+        eapply isTrace_forward; eauto.
+        eapply isTrace_forward; eauto.
+        assert (Hstep_weak: fstep A ([:: tid], tp') m ([::], tp'') m') by admit.
+        do 2 eexists; eauto.
+  Qed.
+
+  Lemma isTrace_cons :
+    forall A tr st st',
+      isTrace A (tr ++ [:: st; st']) ->
+      isTrace A (tr ++ [:: st]) /\ (exists m m', fstep A ([:: st.1], st.2) m ([::], st'.2) m').
+  Proof.
+    intros A tr st st' Htrace. inversion Htrace as [|? ? ? ? ? Heq].
+    destruct tr; simpl in *; [congruence| destruct tr; simpl in *; congruence].
+    apply cat_inv2 in Heq. destruct Heq as [? [? ?]]; subst.
+    auto.
+  Qed.
+
+  Lemma flatten_map:
+    forall j tp' exec tr tp i,
+      flatten_execution i (exec ++ [:: ([::], tp)])
+                        (tr ++ [:: (i, tp)]) ->
+      flatten_execution j
+                        ([seq (st.1 ++ [:: j], st.2) | st <- exec] ++ [:: ([::], tp')])
+                        (tr ++ [:: (j, tp')]).
+  Proof.
+    intros j tp' exec.
+    induction exec; intros.
+    - simpl in *.
+      destruct tr.
+      simpl. constructor.
+      inversion H. destruct tr; simpl in *; congruence.
+    - inversion H. destruct exec; simpl in *; congruence.
+      subst.
+      destruct ftr using last_ind. inversion Hflat.
+      clear IHftr.
+      rewrite <- cats1 in *.
+      rewrite <- cat_cons in H3.
+      apply cat_inv in H3. destruct H3 as [? Heq].
+      subst. eapply IHexec in Hflat.
+      simpl. constructor. assumption.
+  Qed.
+
+  Lemma execution_map:
+    forall A exec sched,
+      execution A exec ->
+      execution A (map (fun st => (st.1 ++ sched, st.2)) exec).
+  Proof.
+    intros A exec sched Hexec.
+    induction exec using last_ind.
+    inversion Hexec.
+    destruct exec; simpl in *; congruence.
+    rewrite <- cats1 in *.
+    inversion Hexec. destruct exec; simpl in *; inversion H0; subst.
+    constructor.
+    destruct exec; simpl in *; congruence.
+    destruct exec using last_ind.
+    destruct exec0; simpl in *; [congruence | destruct exec0; simpl in *; congruence].
+    clear IHexec0.
+    rewrite <- cats1 in *. rewrite <- catA in *. simpl in *.
+    apply cat_inv2 in H0. destruct H0 as [? [? ?]]; subst.
+    eapply IHexec in Hexec0.
+    rewrite map_cat. simpl.
+    constructor.
+    assert(Heq: [:: (x0.1 ++ sched, x0.2)] =
+                map (fun st => (st.1 ++ sched, st.2)) ([:: (x0.1, x0.2)])) by reflexivity.
+    rewrite Heq.
+    rewrite <- map_cat.
+    destruct x0; simpl. assumption.
+    admit.
+  Qed.
+  
+  Lemma flat_trace :
+    forall A tr st
+      (Htrace: isTrace A (tr ++ [:: st])),
+    exists exec, flatten_execution (st.1) exec (tr ++ [:: st]) /\
+            execution A exec.
+  Proof.
+    intros A tr. induction tr as [|tr st'] using last_ind; intros.
+    - exists ([:: (nil : list nat, st.2)]).
+        split.
+        simpl.
+        destruct st. constructor. constructor.
+    - rewrite <- cats1 in *.
+      rewrite <- catA in *. simpl in *.
+      apply isTrace_cons in Htrace.
+      destruct Htrace as [Htrace Hstep].
+      eapply IHtr in Htrace. destruct Htrace as [exec [Hflat Hexec]].
+      destruct exec as [|exec st0] using last_ind.
+      + inversion Hflat.
+      + rewrite <- cats1 in *.
+        clear IHexec.
+        assert (Heq: st0.2 = st'.2 /\ st0.1 = nil) by (eapply flatten_rcons_inv; eauto).
+        destruct Heq.
+        destruct st0 as [sched0 tp0], st' as [sched' tp'].
+        simpl in *. subst.
+        exists ((map (fun st => (st.1 ++ [:: sched'], st.2)) exec)
+             ++ [:: ([ :: sched'], tp'); ([:: ],st.2)]). split. 
+        destruct st as [i tp].
+        eapply flatten_rcons.
+        eapply flatten_map; eauto.
+        constructor; auto.
+        assert (Heq: [:: ([:: sched'], tp')] =
+                     map (fun st => (st.1 ++ [:: sched'], st.2)) [:: ([::], tp')]) by reflexivity.
+        rewrite Heq.
+        rewrite <- map_cat. 
+          by apply execution_map.
+  Qed.      
+            
+  Definition is_concurrent_step (st : nat * mySem.thread_pool) : bool :=
+    let pf := st.1 < num_threads st.2 in
+    match pf as pf0 return pf = pf0 -> bool with
+      | true => fun (Heq : pf = true) =>
+                 match getThreadC st.2 (Ordinal (m := st.1) Heq) with
+                   | Kstop c => match at_external mySem.Sem c with
+                                 | Some _ => true
+                                 | None => false
+                               end
+                   | _ => false
+                 end
+      | false => fun _ => false
+    end (Logic.eq_refl pf).      
+  
+  Fixpoint filter_trace (tid_last : nat) (tr : trace) :=
+    match tr with
+      | nil => nil
+      | st :: tr =>
+        if is_concurrent_step st then
+          st :: (filter_trace tid_last tr)
+        else
+          if (st.1 == tid_last) ||
+                                (List.existsb (fun st' =>
+                                                 (st'.1 == st.1) && is_concurrent_step st')) tr then
+            st :: (filter_trace tid_last tr)
+          else
+            filter_trace tid_last tr
+    end.
+
+      End Traces.
+  
 Module FineSafety.
 Section FineSafety.
 
-  Import Concur ThreadPool MemoryObs SimDefs StepLemmas.
+  Import Concur ThreadPool MemoryObs SimDefs StepLemmas mySem.
+  Require Import closed_safety.
 
-  Context {cT G : Type} {the_sem : CoreSemantics G cT Mem.mem}.
+  Context {the_ge : G}.
+  Notation invariant := (@invariant cT G Sem).
   
-  Notation thread_pool := (t cT).
-  Notation perm_map := access_map.
-  Notation invariant := (@invariant cT G the_sem).
-  
-  Variable the_ge : G.
   Variable rename_code : (block -> block) -> cT -> cT.
-
-  Context {Z : Type}.
-  (* Discuss how to instantiate these*)
-  Variable extSpec : external_specification Mem.mem external_function Z.
-  Variable compute_init_perm : G -> perm_map.
-  Variable lp_code : cT.
-  Variable z : Z.
-
-  Notation coarse_semantics := (@coarse_semantics cT G the_sem compute_init_perm lp_code).
-  Notation fine_semantics := (@fine_semantics cT G the_sem compute_init_perm lp_code).
-  Notation fstep := (corestep fine_semantics).
 
   Variable init_memory : thread_pool -> Mem.mem.
 
-  Definition coarse_safety (tp : thread_pool) m sched A :=
-    safeN (coarse_semantics sched A) extSpec the_ge (length sched) z (sched,tp) m.
+  Definition fstep A := (corestep (fine_semantics A) the_ge).
+  Definition coarse_safety (tp : thread_pool) m (sched : myFineSemantics.Sch) A :=
+    safeN (coarse_semantics A) the_ge (length sched) (sched,tp) m.
 
   Definition fine_safety (tp : thread_pool) m sched A :=
-    safeN (fine_semantics sched A) extSpec the_ge (length sched) z (sched,tp) m.
+    safeN (fine_semantics A) the_ge (length sched) (sched,tp) m.
+
+   Lemma safe_corestepN :
+    forall tp m sched A
+      (Hsafe: fine_safety tp m sched A),
+    exists tp' m',
+      corestepN (fine_semantics A) the_ge (size sched)
+                (sched,tp) m (nil,tp') m'.
+  Proof.
+    intros tp m sched A Hsafe.
+    generalize dependent tp. generalize dependent m.
+    induction sched as [|n sched]; intros.
+    - exists tp m. reflexivity.
+    - unfold fine_safety in *. simpl in Hsafe.
+      destruct Hsafe as [Hstep Hsafe].
+      destruct Hstep as [[sched' tp'] [m' Hstep]].
+      specialize (Hsafe _ _ Hstep).
+      assert (sched' = sched)
+        by (inversion Hstep; subst; simpl in *; auto); subst sched'.
+      destruct (IHsched _ _ Hsafe) as [tp'' [m'' HcorestepN]].
+      exists tp'' m''.
+      simpl in *.
+      do 2 eexists; eauto.
+  Qed.
+
+  Class InternalSteps :=
+    { 
   
-  Inductive fat : Type :=
-  | Internal : nat -> fat
-  | External : nat -> fat.
+   Class MachineSimulation :=
+     { weak_sim : thread_pool -> thread_pool -> mem -> mem -> NatTID.tid ->
+                  (block -> block) -> (block -> block) -> Prop;
+       sim : thread_pool -> thread_pool -> mem -> mem -> NatTID.tid ->
+             (block -> block) -> (block -> block) -> Prop;
+      
+      is_conc_step : NatTID.tid -> thread_pool -> bool;
+      is_fail_step : NatTID.tid -> thread_pool -> bool;
+      is_internal_step : NatTID.tid -> thread_pool -> bool;
+      
+      internal_inv : forall A tp1 tp2 m1 m2 i sched,
+          is_internal_step i tp1 ->
+          fstep A (i :: sched, tp1) m1 (sched, tp2) m2 ->
+          forall j tp1' m1' α1 α2,
+            i <> j ->
+             weak_sim tp1 tp1' m1 m1' j α1 α2 ->
+             weak_sim tp2 tp1' m2 m1' j α1 α2;
+      
+      internal_sim : forall A A' (tp1 tp2 tp1' : thread_pool) (m1 m2 m1' : mem) α1 α2
+                       i sched sched',
+          is_internal_step i tp1 ->
+          weak_sim tp1 tp1' m1 m1' i α1 α2 ->
+          fstep A (i :: sched, tp1) m1 (sched, tp2) m2 ->
+          exists tp2' m2',
+            fstep A' (i :: sched', tp1') m1' (sched', tp2') m2' /\
+            (forall tid, weak_sim tp1 tp1' m1 m1' tid α1 α2 ->
+                    weak_sim tp2 tp2' m2 m2' tid α1 α2);
 
-
-  Lemma fatten : forall sched tp m A
-  
-  (* Inductive isFat A : thread_pool -> Mem.mem -> list nat -> list nat -> Prop := *)
-  (* | fnil : forall tp m, fat_sched tp m [] [] *)
-  (* | fconsC : forall i sched fat_sched tp tp' m m' *)
-  (*              isFat tp' m' sched fat_sched -> *)
-  (*              fstep A (i :: sched) tp m sched tp' m' -> *)
-  (*              ~ semantics.at_external the_sem (getThreadC tp *)
-  (*              isFat (i :: sched) ((Internal i) :: sched) *)
-
-(* Move to another file*)
-Module In2.
-Section In2.
-
-Variable A : Type.
-
-Variable x y : A.
-
-Fixpoint In2 (l : seq A) {struct l} : Prop :=
-  match l with
-      | nil => False
-      | a :: l' =>
-        match l' with
-          | nil => False
-          | b :: l'' => (a = x /\ b = y) \/ (In2 l')
-        end
-  end.
-
-Lemma in2_strengthen :
-  forall zs ys (HIn2: In2 zs),
-    In2 (ys ++ zs).
-Proof.
-  intros.
-  destruct zs; [inversion HIn2 | induction ys].
-  auto.
-  destruct ys; simpl; auto. 
-Qed.
-
-Lemma in2_trivial : forall xs ys,
-  In2 (xs ++ x :: y :: ys).
-Proof.
-  intros. induction xs as [|? xs IHxs]; intros; simpl; auto.
-  destruct (xs ++ x :: y :: ys). inversion IHxs.
-  right; assumption.
-Qed.
-
-Lemma In2_inv xs xmid xs' (HIn2: In2 (xs ++ xmid :: xs')) :
-  In2 (xs ++ [:: xmid]) \/ In2 (xmid :: xs').
-Proof.
-  induction xs.
-  - rewrite cat0s in HIn2.
-    right; trivial.
-  - destruct xs.
-    + destruct HIn2 as [[E1 E2] | HIn2].
-      * subst.
-        left; simpl; auto.
-      * right; assumption.
-    + destruct HIn2 as [[E1 E2] | HIn2].
-      * subst. left; simpl; auto.
-      * apply IHxs in HIn2.
-        destruct HIn2; simpl; auto.
-Qed.
-
-End In2.
-
-Lemma In2_implies_In (A : eqType) (x y : A) xs (HIn2: In2 x y xs):
-  x \in xs.
-Proof.
-  induction xs.
-  - now destruct HIn2.
-  - destruct xs; [destruct HIn2 | destruct HIn2 as [[? ?] | HIn2]]; subst.
-      by rewrite inE eqxx.
-      rewrite inE; apply/orP; right; apply IHxs; assumption.
-Qed.
-
-End In2.
-
+      internal_swap:
+        forall A A' (tp1 tp2 tp3 tp1' : thread_pool) (m1 m2 m3 m1' : mem) α1 α2
+          (i j : nat) sched sched',
+          i <> j ->
+          sim tp1 tp1' m1 m1' i α1 α2 ->
+          sim tp1 tp1' m1 m1' j α1 α2 -> 
+          fstep A (i :: j :: sched, tp1) m1 (j :: sched, tp2) m2 ->
+          fstep A (j :: sched, tp2) m2 (sched,tp3) m3 ->
+          exists tp2' m2' tp3' m3',
+            fstep A' (j :: i :: sched', tp1') m1' (i :: sched', tp2') m2' /\
+            fstep A' (i :: sched', tp2') m2' (sched', tp3') m3' /\
+            forall tid,
+              sim tp1 tp1' m1 m1' tid α1 α2 -> sim tp3 tp3' m3 m3' tid α1 α2
+       }.
+       
+ 
 Module Similar.
 Section CoreSimilar.
 

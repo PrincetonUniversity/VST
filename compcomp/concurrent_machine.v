@@ -140,6 +140,7 @@ Module CoarseMachine (TID: ThreadID)(SCH:Scheduler TID)(SIG : ConcurrentMachineS
   | schedfail :
       forall tid U U' ms m
         (HschedN: schedPeek U = Some tid)
+        (Htid: ~ containsThread ms tid)
         (HschedS: schedSkip U = U'),        (*Schedule Forward*)
         machine_step U ms m U' ms m.
 
