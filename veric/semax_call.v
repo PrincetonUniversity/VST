@@ -2685,7 +2685,7 @@ hnf in H3.
 generalize H4; intros [_ H7].
 specialize (H7 (b) (mk_funspec (argsig,retsig) A P Q) _ (necR_refl _)).
 spec H7.
-apply func_at_func_at'; apply H6.
+1: apply func_at_func_at'; apply H6.
 destruct H7 as [id [H7 H9]].
 hnf in H9.
 destruct H2 as [TC1 TC2].
@@ -2740,14 +2740,16 @@ Focus 1. {
 apply (tc_exprlist_sub _ _ _ TS) in TC2; [| eauto].
 apply (tc_expr_sub _ _ _ TS) in TC1; [| eauto].
 assert (TC7': tc_fn_return Delta' ret retsig).
-clear - TC7 TS.
-hnf in TC7|-*. destruct ret; auto.
-destruct ((temp_types Delta) ! i) eqn:?; try contradiction.
-destruct TS.
-specialize (H i); rewrite Heqo in H. destruct p. subst t.
-destruct ((temp_types Delta') ! i ). destruct p.
-destruct H; auto.
-auto.
+Focus 1. {
+  clear - TC7 TS.
+  hnf in TC7|-*. destruct ret; auto.
+  destruct ((temp_types Delta) ! i) eqn:?; try contradiction.
+  destruct TS.
+  specialize (H i); rewrite Heqo in H. destruct p. subst t.
+  destruct ((temp_types Delta') ! i ). destruct p.
+  destruct H; auto.
+  auto.
+} Unfocus.
 clear TC7.
 eapply semax_call_aux; try eassumption; 
  try solve [simpl; assumption].
