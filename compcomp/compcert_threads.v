@@ -1,9 +1,9 @@
 Require Import Axioms.
 
+Add LoadPath "../compcomp" as compcomp.
+
 Require Import sepcomp. Import SepComp.
 Require Import core_semantics_lemmas.
-
-Add LoadPath "../compcomp" as compcomp.
 
 Require Import pos.
 (* Require Import stack.  *)
@@ -76,7 +76,7 @@ Section poolDefs.
 
   Notation num_threads := (ThreadPool.num_threads tp).
   Notation thread_pool := (t cT).
-
+  
   (* Per-thread disjointness definition*)
   Definition race_free tp :=
     forall tid0 tid0' (Htid0 : tid0 < (@ThreadPool.num_threads cT tp))
@@ -408,12 +408,12 @@ Module Concur.
     Notation thread_pool := (t cT').
     Notation perm_map := access_map.
 
-    Definition containsThread: ThreadPool.t cT' -> nat -> Prop:=
-      fun ms tid0 => tid0 < (ThreadPool.num_threads ms).
-
     Variable the_ge : G.
     Variable aggelos : nat -> delta_map.
     Variable lp_id : nat.
+
+    Definition containsThread: ThreadPool.t cT' -> nat -> Prop:=
+      fun ms tid0 => tid0 < (ThreadPool.num_threads ms).
     
     Record invariant tp :=
       { canonical : forall tid, isCanonical (perm_maps tp tid);
