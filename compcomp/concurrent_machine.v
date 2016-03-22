@@ -65,20 +65,23 @@ Module Type ConcurrentMachineSig (TID: ThreadID).
   (*MACHINE VARIABLES*)
   Parameter machine_state: Type.
   Parameter containsThread: machine_state -> tid -> Prop.
-  Parameter lp_id : tid. (*lock pool thread id*)
 
 
   (*INVARIANTS*)
   (*The state respects the memory*)
   Parameter mem_compatible: machine_state -> mem -> Prop.
+
+  (*CODE GETTER AND SETTER*)
+  Parameter getThreadC: forall {ms tid0}, containsThread ms tid0 -> @ctl cT.
+  Parameter updThreadC: forall {ms tid0}, containsThread ms tid0 -> @ctl cT -> machine_state.
   
   (*Steps*)
   Parameter cstep: G -> forall {tid0 ms m},
                          containsThread ms tid0 -> mem_compatible ms m -> machine_state -> mem  -> Prop.
-  Parameter resume_thread: forall {tid0 ms},
+  (*Parameter resume_thread: forall {tid0 ms},
                              containsThread ms tid0 -> machine_state -> Prop.
   Parameter suspend_thread: forall {tid0 ms},
-                              containsThread ms tid0 -> machine_state -> Prop.
+                              containsThread ms tid0 -> machine_state -> Prop.*)
   Parameter conc_call: G ->  forall {tid0 ms m},
                               (nat -> delta_map) -> (*ANGEL! *)
                               containsThread ms tid0 -> mem_compatible ms m -> machine_state -> mem -> Prop.
@@ -97,6 +100,33 @@ Module CoarseMachine (TID: ThreadID)(SCH:Scheduler TID)(SIG : ConcurrentMachineS
   Import SCH.
   
   Notation Sch:=schedule.
+
+  (* Resume and Suspend: threads running must be preceded by a Resume and followed by Suspend. 
+     This functions wrap the state to indicate it's ready to take a syncronisation step or 
+     resume running. (This keeps the invariant that at most one thread is not at_external) *)
+  
+  Inductive resume_thread': forall {tid0} {ms:machine_state},
+                                containsThread ms tid0 -> machine_state -> Prop:=
+    | ResumeThread: forall tid0 ms ms' c
+                      (ctn: containsThread ms tid0)
+                      (HC: getThreadC ctn = Kresume c)
+                      (Hms': updThreadC ctn (Krun c)  = ms'),
+                      resume_thread' ctn ms'.
+    Definition resume_thread: forall {tid0 ms},
+                                containsThread ms tid0 -> machine_state -> Prop:=
+      @resume_thread'.
+
+    Inductive suspend_thread': forall {tid0} {ms:machine_state},
+                                 containsThread ms tid0 -> machine_state -> Prop:=
+    | SuspendThread: forall tid0 ms ms' c
+                       (ctn: containsThread ms tid0)
+                       (HC: getThreadC ctn = Krun c)
+                       (Hms': updThreadC ctn (Kstop c)  = ms'),
+                       suspend_thread' ctn ms'.
+    Definition suspend_thread : forall {tid0 ms},
+                                  containsThread ms tid0 -> machine_state -> Prop:=
+      @suspend_thread'.
+  
   Inductive machine_step {aggelos: nat -> delta_map} {genv:G}:
     Sch -> machine_state -> mem -> Sch -> machine_state -> mem -> Prop :=
   | resume_step:
@@ -186,6 +216,28 @@ Module FineMachine (TID: ThreadID)(SCH:Scheduler TID)(SIG : ConcurrentMachineSig
   Import TID.
   Import SIG.
   Import SCH.
+
+   Inductive resume_thread': forall {tid0} {ms:machine_state},
+                                containsThread ms tid0 -> machine_state -> Prop:=
+    | ResumeThread: forall tid0 ms ms' c
+                      (ctn: containsThread ms tid0)
+                      (HC: getThreadC ctn = Kresume c)
+                      (Hms': updThreadC ctn (Krun c)  = ms'),
+                      resume_thread' ctn ms'.
+    Definition resume_thread: forall {tid0 ms},
+                                containsThread ms tid0 -> machine_state -> Prop:=
+      @resume_thread'.
+
+    Inductive suspend_thread': forall {tid0} {ms:machine_state},
+                                 containsThread ms tid0 -> machine_state -> Prop:=
+    | SuspendThread: forall tid0 ms ms' c
+                       (ctn: containsThread ms tid0)
+                       (HC: getThreadC ctn = Krun c)
+                       (Hms': updThreadC ctn (Kstop c)  = ms'),
+                       suspend_thread' ctn ms'.
+    Definition suspend_thread : forall {tid0 ms},
+                                  containsThread ms tid0 -> machine_state -> Prop:=
+      @suspend_thread'.
   
   Notation Sch:=schedule.
   Inductive machine_step {aggelos : nat -> delta_map} {genv:G}:
