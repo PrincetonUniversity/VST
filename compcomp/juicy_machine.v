@@ -256,7 +256,7 @@ Section poolDefs.
   
   
 
-  Definition getThreadC {tid0 ms} (cnt: containsThread ms tid0) : ctl :=
+  Definition getThreadC {ms tid0} (cnt: containsThread ms tid0) : ctl :=
     (pool ms) (cont2ord cnt).
   
   Definition getThreadPerm (tid : 'I_num_threads) : rmap := (juice tp) tid.
@@ -695,6 +695,10 @@ Module Concur.
     (*The state respects the memory*)
     Definition mem_compatible: machine_state -> mem -> Prop:=
       @mem_compatible cT.
+    
+    (*CODE GETTER AND SETTER*)
+    Definition getThreadC: forall {ms tid0}, containsThread ms tid0 -> @ctl cT:= @getThreadC cT.                  
+    Definition updThreadC: forall {ms tid0}, containsThread ms tid0 -> @ctl cT -> machine_state:= @updThreadC cT.
     
     (*Steps*)
     Definition cstep (genv:G): forall {tid0 ms m},
