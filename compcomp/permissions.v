@@ -28,7 +28,6 @@ Class Share :=
   }.
 
 Definition access_map := Maps.PMap.t (Z -> option permission).
-Definition delta_map := Maps.PMap.t (Z -> option (option permission)).
 
 Section permMapDefs.
   
@@ -235,16 +234,6 @@ Section permMapDefs.
                               else
                                 Maps.PMap.get b pmap ofs')
                   pmap.
-
-  Definition computeMap (pmap : access_map) (delta : delta_map) : access_map :=
-    (fun ofs => None,
-             Maps.PTree.map 
-               (fun b f => 
-                  fun ofs =>
-                    match (Maps.PMap.get b delta) ofs with
-                      | None => f ofs
-                      | Some p => p
-                    end) pmap.2).
 
   (*Inductive SetPerm b ofs : PermMap.t -> PermMap.t -> Prop :=
   | set: forall pmap1 pmap2 b' ofs' k,
@@ -536,8 +525,48 @@ Section ShareMaps.
         by  (unfold Mem.perm, Mem.perm_order' in H1; rewrite Hperm' in H1;
              inversion H1; auto); subst. auto.
   Qed.
-    
-    
+
+  Instance J : Join share := join.
+  Definition shareMapsJoin (smap1 smap2 : share_map) : Prop :=
+    forall b ofs,
+      joins ((Maps.PMap.get b smap1) ofs)
+            ((Maps.PMap.get b smap2) ofs).
+
+  Context {permAlg : Perm_alg share}.
+  
+  Lemma shareMapsJoin_comm : forall smap1 smap2,
+      shareMapsJoin smap1 smap2 ->
+      shareMapsJoin smap2 smap1.
+  Proof.
+    intros smap1 smap2 Hjoin. unfold shareMapsJoin in *. intros.
+    specialize (Hjoin b ofs).
+    now apply joins_comm in Hjoin.
+  Qed.
+
+  Definition transfer_map := Maps.PMap.t (Z -> option share).
+
+  Inductive transferShares (smap_from smap_to : share_map) (tmap : transfer_map)
+            (smap_from' smap_to' : share_map) : Prop :=
+  | TransSh : forall b ofs sh_t sh_from sh_from' sh_to sh_to',
+      (Maps.PMap.get b tmap) ofs = Some sh_t ->
+      (Maps.PMap.get b smap_from) ofs = sh_from ->
+      (Maps.PMap.get b smap_from') ofs = sh_from' ->
+      (Maps.PMap.get b smap_to) ofs = sh_to ->
+      (Maps.PMap.get b smap_to') ofs = sh_to' ->
+      join sh_from' sh_t sh_from ->
+      join sh_to sh_t sh_to' ->
+      transferShares smap_from smap_to tmap smap_from' smap_to'
+  | NoTrans : forall b ofs,
+      (Maps.PMap.get b tmap) ofs = None ->
+      (Maps.PMap.get b smap_from) ofs = (Maps.PMap.get b smap_from') ofs ->
+      (Maps.PMap.get b smap_to) ofs = (Maps.PMap.get b smap_to') ofs ->
+      transferShares smap_from smap_to tmap smap_from' smap_to'.
+
+  Definition transfer_shares smap_from smap_to (tmap : transfer_map) : share_map :=
+    fun ofs =>
+      
+  
+End ShareMaps. 
 
 (* Computation of a canonical form of permission maps where the
      default element is a function to the empty permission *)

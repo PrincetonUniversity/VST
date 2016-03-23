@@ -21,6 +21,7 @@ Require Import Values. (*for val*)
 Require Import Globalenvs. 
 Require Import Memory.
 Require Import Integers.
+Require Import msl.msl_standard.
 
 Require Import ZArith.
 
@@ -53,11 +54,12 @@ Module ThreadPool.
   Section ThreadPool.
     
     Variable cT : Type.
+    Context {shares : Share}.
     
     Record t := mk
                   { num_threads : pos
                     ; pool :> 'I_num_threads -> cT
-                    ; perm_maps : 'I_num_threads -> access_map
+                    ; share_maps : 'I_num_threads -> share_map
                     ; counter : nat
                   }.
     
@@ -70,23 +72,29 @@ Section poolDefs.
 
   Variable cT : Type.
 
+  Context {shares : Share}.
+  Instance J : Join share := join.
+  Context {permAlg : Perm_alg share}.
+
   Variable (tp : ThreadPool.t cT).
 
   Import ThreadPool.
 
   Notation num_threads := (ThreadPool.num_threads tp).
+  Notation "x <= y" := (x <= y)%nat. 
+  Notation "x < y" := (x < y)%nat.
   Notation thread_pool := (t cT).
   
   (* Per-thread disjointness definition*)
-  Definition race_free tp :=
-    forall tid0 tid0' (Htid0 : tid0 < (@ThreadPool.num_threads cT tp))
-      (Htid0' : tid0' < (@ThreadPool.num_threads cT tp)) (Htid: tid0 <> tid0'),
-      permMapsDisjoint (perm_maps tp (Ordinal Htid0))
-                       (perm_maps tp (Ordinal Htid0')).
+  Definition race_free (tp : thread_pool) :=
+    forall tid0 tid0' (Htid0 : tid0 < (ThreadPool.num_threads tp))
+      (Htid0' : tid0' < (ThreadPool.num_threads tp)) (Htid: tid0 <> tid0'),
+      shareMapsJoin (share_maps tp (Ordinal Htid0))
+                       (share_maps tp (Ordinal Htid0')).
 
-  Definition newPermMap_wf pmap :=
+  Definition newShareMap_wf smap :=
     forall tid0 (Htid0 : tid0 < num_threads),
-      permMapsDisjoint ((perm_maps tp) (Ordinal Htid0)) pmap.
+      shareMapsJoin ((share_maps tp) (Ordinal Htid0)) smap.
 
   Require Import fintype.
 
@@ -112,10 +120,10 @@ Section poolDefs.
     rewrite H. simpl. rewrite add0n. reflexivity.
   Defined.
   
-  Definition addThread (c : cT) (pmap : access_map) : thread_pool :=
+  Definition addThread (c : cT) (smap : share_map) : thread_pool :=
     let: new_num_threads := pos_incr num_threads in
     let: new_tid := ordinal_pos_incr num_threads in
-    @mk cT new_num_threads
+    mk new_num_threads
         (fun (n : 'I_new_num_threads) => 
            match unlift new_tid n with
              | None => c
@@ -123,13 +131,13 @@ Section poolDefs.
            end)
         (fun (n : 'I_new_num_threads) => 
            match unlift new_tid n with
-             | None => pmap
-             | Some n' => (perm_maps tp) n'
+             | None => smap
+             | Some n' => (share_maps tp) n'
            end)
         ((counter tp).+1).
 
   Lemma addThread_racefree :
-    forall c p (Hwf: newPermMap_wf p) (Hrace: race_free tp),
+    forall c p (Hwf: newShareMap_wf p) (Hrace: race_free tp),
       race_free (addThread c p).
   Proof.
     unfold race_free in *. intros.
@@ -147,11 +155,11 @@ Section poolDefs.
       destruct ord0 as [tid0 pf0], ord1 as [tid1 pf1]; simpl in Htid.
       eapply Hrace; eauto.
     - apply unlift_m_inv in Hget0.
-      subst. unfold newPermMap_wf in Hwf.
+      subst. unfold newShareMap_wf in Hwf.
       destruct ord0. eapply Hwf; eauto.
     - apply unlift_m_inv in Hget1.
-      subst. unfold newPermMap_wf in Hwf.
-      destruct ord1. apply permMapsDisjoint_comm. eapply Hwf; eauto.
+      subst. unfold newShareMap_wf in Hwf.
+      destruct ord1. apply shareMapsJoin_comm. eapply Hwf; eauto.
     - destruct (tid0 == num_threads) eqn:Heq0.
       + move/eqP:Heq0=>Heq0. subst.
         assert (Hcontra: (ordinal_pos_incr num_threads) !=
@@ -172,33 +180,33 @@ Section poolDefs.
   Defined.
   
   Definition updThreadC (tid : 'I_num_threads) (c' : cT) : thread_pool :=
-    @mk cT num_threads (fun (n : 'I_num_threads) =>
-                          if n == tid then c' else tp n) (perm_maps tp)
+    mk num_threads (fun (n : 'I_num_threads) =>
+                          if n == tid then c' else tp n) (share_maps tp)
         (counter tp).
 
-  Definition updThreadP (tid : 'I_num_threads) (pmap' : access_map) : thread_pool :=
-    @mk cT num_threads (pool tp) (fun (n : 'I_num_threads) =>
-                                    if n == tid then pmap' else (perm_maps tp) n)
-        (counter tp).
+  Definition updThreadP (tid : 'I_num_threads) (smap' : share_map) : thread_pool :=
+    mk num_threads (pool tp) (fun (n : 'I_num_threads) =>
+                                if n == tid then smap' else (share_maps tp) n)
+       (counter tp).
 
-  Definition permMap_wf pmap tid :=
+  Definition shareMap_wf smap tid :=
     forall tid0 (Htid0 : tid0 < num_threads) (Hneq: tid <> tid0),
-      permMapsDisjoint ((perm_maps tp) (Ordinal Htid0)) pmap.
+      shareMapsJoin ((share_maps tp) (Ordinal Htid0)) smap.
   
   Definition updThread (tid : 'I_num_threads) (c' : cT)
-             (pmap : access_map) (counter' : nat) : thread_pool :=
-    @mk cT num_threads
+             (smap : share_map) (counter' : nat) : thread_pool :=
+    mk num_threads
         (fun (n : 'I_num_threads) =>
            if n == tid then c' else tp n)
         (fun (n : 'I_num_threads) =>
-           if n == tid then pmap else (perm_maps tp) n) 
+           if n == tid then smap else (share_maps tp) n) 
         counter'.
 
-  Lemma updThread_wf : forall tid (pf : tid < num_threads) pmap
-                         (Hwf: permMap_wf pmap tid)
+  Lemma updThread_wf : forall tid (pf : tid < num_threads) smap
+                         (Hwf: shareMap_wf smap tid)
                          c'  counter'
                          (Hrace_free: race_free tp),
-                         race_free (updThread (Ordinal pf) c' pmap counter').
+                         race_free (updThread (Ordinal pf) c' smap counter').
   Proof.
     intros.
     unfold race_free. intros.
@@ -208,7 +216,7 @@ Section poolDefs.
     - move/eqP:Heq0 => Heq0. subst.
       move/eqP:Heq0' => Heq0'. inversion Heq0'. inversion Heq0; subst. exfalso; auto.
     - move/eqP:Heq0=>Heq0. inversion Heq0. subst. 
-      apply permMapsDisjoint_comm.
+      apply shareMapsJoin_comm.
       eapply Hwf. simpl; auto.
     - move/eqP:Heq0'=>Heq0'. inversion Heq0'. subst.
       eapply Hwf. simpl; auto.
@@ -217,14 +225,14 @@ Section poolDefs.
   
   Definition getThreadC (tid : 'I_num_threads) : cT := tp tid.
   
-  Definition getThreadPerm (tid : 'I_num_threads) : access_map := (perm_maps tp) tid.
+  Definition getThreadS (tid : 'I_num_threads) : share_map := (share_maps tp) tid.
 
   Import Maps.
 
   Definition perm_compatible p :=
     forall tid (b : positive) (ofs : Z) ,
       Mem.perm_order'' (Maps.PMap.get b p ofs)
-                       (Maps.PMap.get b (getThreadPerm tid) ofs).
+                       (share_to_perm (Maps.PMap.get b (getThreadS tid) ofs)).
 
   Record mem_compatible m :=
     { perm_comp: perm_compatible (getMaxPerm m);
@@ -233,41 +241,40 @@ Section poolDefs.
 
 End poolDefs.
 
-Arguments updThread {_} tp tid c' pmap counter'.
-Arguments addThread {_} tp c pmap.
-
 Section poolLemmas.
 
-  Context {cT : Type} (tp : ThreadPool.t cT).
+  Context {cT : Type} {shares : Share} (tp : ThreadPool.t cT).
 
   Import ThreadPool.
 
-  Lemma gssThreadCode (tid : 'I_(num_threads tp)) c' p' counter' : 
-    getThreadC (updThread tp tid c' p' counter') tid = c'.
+  Lemma gssThreadCode (tid : 'I_(num_threads tp)) c' s' counter' : 
+    getThreadC (updThread tp tid c' s' counter') tid = c'.
   Proof. by rewrite /getThreadC /updThread /= eq_refl. Defined.
 
-  Lemma gsoThread (tid tid' : 'I_(num_threads tp)) c' p' counter':
-    tid' != tid -> getThreadC (updThread tp tid c' p' counter') tid' = getThreadC tp tid'.
+  Lemma gsoThread (tid tid' : 'I_(num_threads tp)) c' s' counter':
+    tid' != tid -> getThreadC (updThread tp tid c' s' counter') tid' = getThreadC tp tid'.
   Proof. by rewrite /getThreadC /updThread /=; case Heq: (tid' == tid). Defined.
 
-  Lemma gssThreadPerm (tid : 'I_(num_threads tp)) c' p' counter' : 
-    getThreadPerm (updThread tp tid c' p' counter') tid = p'.
-  Proof. by rewrite /getThreadC /updThread /= eq_refl. Defined.
+  Lemma gssThreadS (tid : 'I_(num_threads tp)) c' s' counter' : 
+    getThreadS (updThread tp tid c' s' counter') tid = s'.
+  Proof. by rewrite /updThread /= eq_refl. Defined.
 
-  Lemma gsoThreadPerm (tid tid' : 'I_(num_threads tp)) c' p' counter':
-    tid' != tid -> getThreadPerm (updThread tp tid c' p' counter') tid' = getThreadPerm tp tid'.
-  Proof. by rewrite /getThreadPerm /updThread /=; case Heq: (tid' == tid). Defined.
+  Lemma gsoThreadS (tid tid' : 'I_(num_threads tp)) c' s' counter':
+    tid' != tid -> getThreadS (updThread tp tid c' s' counter') tid' = getThreadS tp tid'.
+  Proof. by rewrite /getThreadS /updThread /=; case Heq: (tid' == tid). Defined.
 
-  Lemma getAddThread c pmap tid :
+  Lemma getAddThread c smap tid :
     tid = ordinal_pos_incr (num_threads tp) ->
-    getThreadC (addThread tp c pmap) tid = c.
+    getThreadC (addThread tp c smap) tid = c.
   Proof. by rewrite /getThreadC /addThread /= => <-; rewrite unlift_none. Qed.
 
   Lemma permMapsInv_lt : forall p (Hinv: perm_compatible tp p) tid,
-                           permMapLt (getThreadPerm tp tid) p.
+                           permMapLt (share_to_access_map (getThreadS tp tid)) p.
   Proof.
     intros. 
     unfold permMapLt; auto.
+    unfold perm_compatible in Hinv. unfold share_to_access_map.
+    intros. rewrite Maps.PMap.gmap. auto.
   Qed.
 
   Definition restrPermMap p' m (Hlt: permMapLt p' (getMaxPerm m)) : mem.
@@ -391,9 +398,9 @@ Section poolLemmas.
   Qed.
   
   Lemma no_race_wf : forall tid (pf: tid < (num_threads tp)) (Hrace: race_free tp),
-                       permMap_wf tp (getThreadPerm tp (Ordinal pf)) tid.
+                       shareMap_wf tp (getThreadS tp (Ordinal pf)) tid.
   Proof.
-    intros. unfold permMap_wf; auto.
+    intros. unfold shareMap_wf; auto.
   Defined.
 
 End poolLemmas.
@@ -403,6 +410,7 @@ Module Concur.
     
     Import ThreadPool.
     Context {cT G : Type} {the_sem : CoreSemantics G cT Mem.mem}.
+    Context {shares : Share}.
     
     Notation cT' := (@ctl cT).
     Notation thread_pool := (t cT').
@@ -775,4 +783,5 @@ End Concur.
 (*                         _ _ _. *)
 
 (* End InitialCore. *)
+
 (* End Concur. *)

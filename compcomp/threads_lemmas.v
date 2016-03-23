@@ -1,8 +1,7 @@
 Set Implicit Arguments.
 
-(*NOTE: because of redefinition of [val], these imports must appear 
-  after Ssreflect eqtype.*)
 Require Import Integers.
+Require Import ssreflect ssrbool.
 
 Require Import ZArith.
 
@@ -19,7 +18,7 @@ Lemma if_true : forall {A : Type} b (x y : A)
                   (Htrue: is_true b),
                   (if b then x else y) = x.
 Proof.
-  intros.  by rewrite Htrue.
+  intros. now rewrite Htrue.
 Defined.
 
 Lemma if_false : forall {A : Type} b (x y : A)
