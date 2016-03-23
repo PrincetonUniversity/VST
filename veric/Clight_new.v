@@ -249,6 +249,12 @@ Fixpoint typed_params (i: positive) (n: nat) : list (ident * type) :=
  | S n' => (i, Tint32s) :: typed_params (i+1)%positive n'
  end.
 
+Fixpoint params_of_types (i: positive) (l : list type) : list (ident * type) :=
+ match l with
+ | nil => nil
+ | t :: l => (i, t) :: params_of_types (i+1)%positive l
+ end.
+
 Definition cl_initial_core (ge: genv) (v: val) (args: list val) : option corestate := 
   match v with
     Vptr b i =>
@@ -257,8 +263,9 @@ Definition cl_initial_core (ge: genv) (v: val) (args: list val) : option coresta
           Some (Internal func) =>
           Some (State empty_env (temp_bindings 1%positive (v::args))
                       (Kseq (Scall None 
-                                   (Etempvar 1%positive (Tfunction (type_of_params (fn_params func)) Tvoid cc_default))
-                                   (map (fun x => Etempvar (fst x) (snd x)) (fn_params func))) :: 
+                                   (Etempvar 1%positive (Tfunction (type_of_params func.(fn_params)) Tvoid cc_default))
+                                   (map (fun x => Etempvar (fst x) (snd x))
+                                        (params_of_types 2%positive (map snd func.(fn_params))))) ::
                             Kseq (Sloop Sskip Sskip) :: nil))
       | _ => None end
     else  None

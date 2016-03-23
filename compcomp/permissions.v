@@ -17,7 +17,7 @@ Class Share :=
 
     share_to_perm : share -> option permission;
     perm_to_share : option permission -> option share;
-    join : share -> share -> share -> Prop;
+    jn : Join share;
     Top : share;
     Bot : share;
 
@@ -828,3 +828,4 @@ Section CanonicalPMap.
     Defined.
 
 End CanonicalPMap. *)
+End ShareMaps.
