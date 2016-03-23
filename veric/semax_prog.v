@@ -1040,7 +1040,7 @@ Proof.
   unfold initial_core. rewrite level_make_rmap; auto.
   specialize (H3 (globalenv prog) (prog_contains_prog_funct _ H0)).
   
-  assert (E: fn_params func = nil). {
+  assert (E: func.(fn_params) = nil). {
     destruct (match_fdecs_exists_Gfun
                 prog G (prog_main prog)
                 (mk_funspec (nil, Tvoid) unit (main_pre prog) (main_post prog)))
@@ -1159,21 +1159,65 @@ unfold initial_core.
 apply level_make_rmap.
 Qed.
 
-Definition Delta2 V G {C: compspecs} : tycontext := 
+Definition Delta_types V G {C: compspecs} (tys : list type) : tycontext := 
   make_tycontext
-    ((1%positive, (Tfunction (Tcons (Tpointer Tvoid noattr) Tnil) Tvoid cc_default)) ::
-       (2%positive, (Tpointer Tvoid noattr))::nil) nil nil Tvoid V G.
+    (params_of_types
+       1 ((Tfunction (type_of_params (params_of_types 2 tys)) Tvoid cc_default) :: tys))
+    nil nil Tvoid V G.
 
-Lemma semax_prog_typecheck_aux2:
-  forall vs G {C: compspecs} (prog: program) b v,
+Lemma semax_prog_typecheck_aux_types:
+  forall vs G {C: compspecs} (prog: program) b (typed_args : list (val * type)),
    list_norepet (prog_defs_names prog) ->
    match_globvars (prog_vars prog) vs = true ->
    match_fdecs (prog_funct prog) G ->
+   forallb (fun x => typecheck_val (fst x) (snd x)) typed_args = true ->
    typecheck_environ
-     (Delta2 vs G)
-     (construct_rho (filter_genv (globalenv prog)) empty_env
-                    (PTree.set 1 (Vptr b Int.zero) (PTree.set 2 v (PTree.empty val)))).
-Admitted.
+     (Delta_types vs G (map snd typed_args))
+     (construct_rho
+        (filter_genv (globalenv prog)) empty_env
+        (PTree.set 1 (Vptr b Int.zero)
+                   (temp_bindings 2 (map fst typed_args)))).
+Proof.
+  intros vs G C prog b typed_args NR MG MF TYP.
+  repeat split.
+  - unfold te_of, construct_rho.
+    intros i b' ty.
+    unfold make_tycontext, temp_types.
+    intros Found.
+    assert (make_tycontext_t_cons1 : forall i i' t l1 l2, (make_tycontext_t ((i, t) :: l1) l2) ! i' =
+      if peq i' i then Some (t, true) else (make_tycontext_t l1 l2) ! i')
+    by (clear; intros i i' t l1 l2; simpl; rewrite PTree.gsspec; reflexivity).
+    unfold Delta_types, make_tycontext in Found.
+    simpl params_of_types in Found.
+    rewrite make_tycontext_t_cons1 in Found.
+    rewrite <-map_ptree_rel, Map.gsspec.
+    if_tac; if_tac in Found; subst; try tauto.
+    + injection Found as <- <- ; eauto.
+    + revert Found; generalize (2%positive).
+      induction typed_args; intros p Found.
+      * rewrite PTree.gempty in Found.
+        discriminate.
+      * simpl (params_of_types _ _ ) in Found.
+        rewrite make_tycontext_t_cons1 in Found.
+        simpl (map _ _).
+        change (exists v : val, Map.get (make_tenv (PTree.set p (fst a) (temp_bindings (p+1)
+          (map fst typed_args)))) i = Some v /\ (is_true (negb b') \/ typecheck_val v ty = true)).
+        rewrite <-map_ptree_rel, Map.gsspec.
+        simpl in TYP; rewrite andb_true_iff in TYP; destruct TYP as [Ta TYP].
+        { if_tac; if_tac in Found; subst; try tauto.
+          - injection Found as <- <- ; eauto.
+          - apply IHtyped_args; auto. }
+  - simpl.
+    rewrite PTree.gempty.
+    intro; discriminate.
+  - simpl.
+    unfold make_venv, Map.get, empty_env.
+    rewrite PTree.gempty.
+    intros [? ?]; discriminate.
+  - eapply tc_ge_denote_initial; eauto.
+  - left.
+    apply PTree.gempty.
+Qed.
 
 Lemma find_id_maketycontext_s G id : (make_tycontext_s G) ! id = find_id id G.
 Proof.
@@ -1183,29 +1227,47 @@ Proof.
     do 2 if_tac; congruence.
 Qed.
 
+Definition find_params (prog : program) (f : ident) :=
+  match Genv.find_symbol (Genv.globalenv prog) f with
+    None => None
+  | Some b =>
+    match Genv.find_funct_ptr (Genv.globalenv prog) b with
+    | None => None
+    | Some f =>
+      match f with
+      | External _ _ _ _ => None
+      | Internal func => Some func.(fn_params)
+      end
+    end
+  end.
+
 Lemma semax_prog_entry_point {CS: compspecs} :
-  forall z V G prog id arg A P Q,
+  forall z V G prog id_fun id_arg arg params A P Q,
     @semax_prog CS prog V G ->
-    is_Internal prog id = true ->
-    find_id id G = Some (mk_funspec ((2%positive, Tpointer Tvoid noattr):: nil, Tvoid) A P Q) ->
+    is_Internal prog id_fun = true ->
+    params = (id_arg, Tpointer Tvoid noattr) :: nil ->
+    find_params prog id_fun = Some params ->
+    find_id id_fun G = Some (mk_funspec (params, Tvoid) A P Q) ->
+    (* (* P is closed wrt all tempvars except 2 *) *)
+    (* (forall x, closed_wrt_vars (fun n => ~eq 2%positive n) (P x)) -> *)
     (forall a rho, Q a rho |-- FF) ->
     is_pointer_or_null arg ->
     exists b : block,
-      Genv.find_symbol (globalenv prog) id = Some b /\
+      Genv.find_symbol (globalenv prog) id_fun = Some b /\
       
       (* initial environment *)
       let rho0 : environ :=
           construct_rho
             (filter_genv (globalenv prog)) empty_env
             (PTree.set 1 (Vptr b Int.zero)
-                       (PTree.set 2 arg (PTree.empty val))) in
+                       (PTree.set id_arg arg (PTree.empty val))) in
       
       (* initial environment without the function => to check jm |= P a *)
       let rho1 : environ :=
           construct_rho
             (filter_genv (globalenv prog)) empty_env
             ((* PTree.set 1 (Vptr b Int.zero) *)
-                       (PTree.set 2 arg (PTree.empty val))) in
+                       (PTree.set id_arg arg (PTree.empty val))) in
       
       exists q : corestate,
         core_semantics.initial_core
@@ -1214,31 +1276,14 @@ Lemma semax_prog_entry_point {CS: compspecs} :
         
         forall (jm : juicy_mem) (a : A),
           app_pred (P a rho1) (m_phi jm) ->
-          app_pred (funassert (Delta2 V G) rho0) (m_phi jm) ->
+          app_pred (funassert (Delta_types V G (Tpointer Tvoid noattr::nil)) rho0) (m_phi jm) ->
           jsafeN (@OK_spec Espec) (globalenv prog) (level jm) z q jm.
 Proof.
-  intros z V G prog id arg A P Q SP INT id_in_G QFF arg_p.
-  unfold is_Internal in INT.
-  destruct (Genv.find_symbol (Genv.globalenv prog) id) as [b|] eqn:Fid; [ | discriminate].
+  intros z V G prog id_fun id_arg arg params A P Q SP INT Eparams Fparams id_in_G QFF arg_p.
+  unfold is_Internal in INT; unfold find_params in Fparams.
+  destruct (Genv.find_symbol (Genv.globalenv prog) id_fun) as [b|] eqn:Fid; [ | discriminate].
   destruct (Genv.find_funct_ptr (Genv.globalenv prog) b) as [[func|]|] eqn:Fb; try discriminate.
-  clear INT.
-  
-  assert (Eparams: fn_params func = (2%positive, Tpointer Tvoid noattr) :: nil). {
-    destruct (match_fdecs_exists_Gfun prog G id _ id_in_G) as (fd, (Ifd, sametypes)). apply SP.
-    assert (fd = Internal func).
-    cut (Gfun fd = @Gfun _ type (Internal func)); [ intros E; injection E; auto | ].
-    apply (list_norepet_In_In id _ _ (prog_defs prog)); auto.
-    apply compute_list_norepet_e, SP.
-    admit.
-    subst fd.
-    simpl in sametypes.
-    unfold type_of_function in sametypes.
-    injection sametypes; intros _ _ E.
-    destruct (fn_params func) as [|(i,t) [|[] ps]]; inv sametypes; inv E.
-    repeat f_equal.
-    (* we should not require that the argument is indeed two in the actual function definition *)
-    admit.
-  }
+  subst params; injection Fparams as Eparams; clear Fparams INT.
   
   exists b.
   split;[apply Fid|].
@@ -1250,7 +1295,6 @@ Proof.
   (Genv.find_funct_ptr (Genv.globalenv prog))
     by reflexivity.
   rewrite Fb.
-  remember func as func' eqn:Efunc'; rewrite Efunc' in Fb.
   econstructor.
   split. reflexivity.
   rewrite Eparams.
@@ -1260,21 +1304,28 @@ Proof.
   destruct SP as [H0 [AL [HGG [[H2 H3] [GV _]]]]].
   apply compute_list_norepet_e in H0.
   specialize (H3 (globalenv prog) (prog_contains_prog_funct _ H0)).
+
+  pose (rho3 := 
+          construct_rho
+            (filter_genv (globalenv prog)) empty_env
+            (PTree.set 1 (Vptr b Int.zero)
+                       (temp_bindings 2 (map fst ((arg, Tpointer Tvoid noattr) :: nil))))).
   
   pose proof I.
   eapply
     (semax_call_aux
-       Espec (Delta2 V G) A _
+       Espec (Delta_types V G (Tpointer Tvoid noattr::nil)) A _
        (fun _ => Q a) _ a (fun _ => emp) (fun _ => emp)
-       None ((2%positive, Tpointer Tvoid noattr)::nil, Tvoid) _ _
+       None ((id_arg, Tpointer Tvoid noattr)::nil, Tvoid) _ _
        (normal_ret_assert (fun rho => EX _ : val, emp * Q a (globals_only rho)))
-       _ _ _ _ rho0
-       _ _ b id);
+       _ _ _ _ rho3
+       _ _ b id_fun);
     try apply H3; try eassumption; auto.
   
   (* guard_environ *)
-  split; auto.
-  eapply semax_prog_typecheck_aux2; eauto.
+  split; try apply I.
+  eapply semax_prog_typecheck_aux_types; eauto.
+  now destruct arg; inversion arg_p; reflexivity.
   
   (* closed_wrt_modvars *)
   simpl.
@@ -1292,7 +1343,7 @@ Proof.
   repeat match goal with H : context [ Q ] |- _ => apply QFF in H; inversion H end.
   
   (* globspecs *)
-  unfold Delta2; simpl.
+  simpl.
   rewrite find_id_maketycontext_s.
   eassumption.
 
@@ -1302,6 +1353,7 @@ Proof.
   (* precondition *)
   refine (derives_e _ _ _ _ m_sat_Pa).
   normalize.
+  simpl.
   eapply derives_trans; [|apply now_later].
   simpl.
   apply derives_refl'; f_equal.
@@ -1311,9 +1363,12 @@ Proof.
   extensionality i; destruct i; reflexivity.
   unfold make_tenv, force_val, sem_cast_neutral, eval_id.
   extensionality i.
-  compute.
-  if_tac; subst.  destruct arg eqn:E; auto; inversion arg_p.
-  repeat (destruct i; auto). tauto.
+  rewrite PTree.gsspec.
+  unfold Map.set.
+  if_tac; if_tac; try congruence; subst.
+  unfold liftx, lift; simpl.
+  now destruct arg; inversion arg_p; auto.
+  now destruct i; reflexivity.
 Qed.
 
 End semax_prog.
