@@ -106,7 +106,8 @@ SEPCOMP_FILES= \
 CONCURRENCY_FILES= \
   cast.v collection.v pos.v stack.v \
   sepcomp.v \
-  simulations.v semantics.v \
+  mem_lemmas.v \
+  simulations.v semantics.v semantics_lemmas.v \
   scheduler.v concurrent_machine.v \
   juicy_machine.v \
   compcert_threads_lemmas.v \
