@@ -82,9 +82,7 @@ Module Type ConcurrentMachineSig (TID: ThreadID).
                              containsThread ms tid0 -> machine_state -> Prop.
   Parameter suspend_thread: forall {tid0 ms},
                               containsThread ms tid0 -> machine_state -> Prop.*)
-  Parameter angel_map : Type.
   Parameter conc_call: G ->  forall {tid0 ms m},
-                              (nat -> angel_map) -> (*ANGEL! *)
                               containsThread ms tid0 -> mem_compatible ms m -> machine_state -> mem -> Prop.
   
   Parameter threadHalted: forall {tid0 ms},
@@ -128,7 +126,7 @@ Module CoarseMachine (TID: ThreadID)(SCH:Scheduler TID)(SIG : ConcurrentMachineS
                                   containsThread ms tid0 -> machine_state -> Prop:=
       @suspend_thread'.
   
-  Inductive machine_step {aggelos: nat -> angel_map} {genv:G}:
+  Inductive machine_step {genv:G}:
     Sch -> machine_state -> mem -> Sch -> machine_state -> mem -> Prop :=
   | resume_step:
       forall tid U ms ms' m
@@ -158,7 +156,7 @@ Module CoarseMachine (TID: ThreadID)(SCH:Scheduler TID)(SIG : ConcurrentMachineS
         (HschedS: schedSkip U = U')        (*Schedule Forward*)
         (Htid: containsThread ms tid)
         (Hcmpt: mem_compatible ms m)
-        (Hconc: conc_call genv aggelos Htid Hcmpt ms' m'),
+        (Hconc: conc_call genv  Htid Hcmpt ms' m'),
         machine_step U ms m U' ms' m'           
   | step_halted:
       forall tid U U' ms m
@@ -177,8 +175,8 @@ Module CoarseMachine (TID: ThreadID)(SCH:Scheduler TID)(SIG : ConcurrentMachineS
 
   Definition MachState: Type := (Sch * machine_state)%type.
 
-  Definition MachStep (aggelos : nat -> angel_map) G (c:MachState) (m:mem) (c' :MachState) (m':mem) :=
-    @machine_step aggelos G (fst c) (snd c) m (fst c') (snd c) m'.
+  Definition MachStep G (c:MachState) (m:mem) (c' :MachState) (m':mem) :=
+    @machine_step  G (fst c) (snd c) m (fst c') (snd c) m'.
     
 
     Definition at_external (st : MachState)
@@ -197,7 +195,7 @@ Module CoarseMachine (TID: ThreadID)(SCH:Scheduler TID)(SIG : ConcurrentMachineS
       | Some c => Some (U, c)
     end.
   
-  Program Definition MachineSemantics (aggelos:nat -> angel_map) :
+  Program Definition MachineSemantics :
     CoreSemantics G MachState mem.
   intros.
   apply (@Build_CoreSemantics _ MachState _
@@ -205,7 +203,7 @@ Module CoarseMachine (TID: ThreadID)(SCH:Scheduler TID)(SIG : ConcurrentMachineS
                               at_external
                               after_external
                               halted
-                              (MachStep aggelos)
+                              MachStep
         );
     unfold at_external, halted; try reflexivity.
   auto.
@@ -241,7 +239,7 @@ Module FineMachine (TID: ThreadID)(SCH:Scheduler TID)(SIG : ConcurrentMachineSig
       @suspend_thread'.
   
   Notation Sch:=schedule.
-  Inductive machine_step {aggelos : nat -> angel_map} {genv:G}:
+  Inductive machine_step {genv:G}:
     Sch -> machine_state -> mem -> Sch -> machine_state -> mem -> Prop :=
   | resume_step:
       forall tid U U' ms ms' m
@@ -273,7 +271,7 @@ Module FineMachine (TID: ThreadID)(SCH:Scheduler TID)(SIG : ConcurrentMachineSig
         (HschedS: schedSkip U = U')        (*Schedule Forward*)
         (Htid: containsThread ms tid)
         (Hcmpt: mem_compatible ms m)
-        (Hconc: conc_call genv aggelos Htid Hcmpt ms' m'),
+        (Hconc: conc_call genv Htid Hcmpt ms' m'),
         machine_step U ms m U' ms' m'           
   | step_halted:
       forall tid U U' ms m
@@ -292,8 +290,8 @@ Module FineMachine (TID: ThreadID)(SCH:Scheduler TID)(SIG : ConcurrentMachineSig
 
   Definition MachState: Type := (Sch * machine_state)%type.
 
-    Definition MachStep aggelos G (c:MachState) (m:mem)  (c' :MachState) (m':mem) :=
-      @machine_step aggelos G (fst c) (snd c) m (fst c') (snd c) m'.
+    Definition MachStep G (c:MachState) (m:mem) (c' :MachState) (m':mem) :=
+      @machine_step G (fst c) (snd c) m (fst c') (snd c) m'.
 
     Definition at_external (st : MachState)
     : option (external_function * signature * list val) := None.
@@ -311,7 +309,7 @@ Module FineMachine (TID: ThreadID)(SCH:Scheduler TID)(SIG : ConcurrentMachineSig
       | Some c => Some (U, c)
       end.
     
-    Program Definition MachineSemantics (aggelos : nat -> angel_map):
+    Program Definition MachineSemantics :
       CoreSemantics G MachState mem.
     intros.
     apply (@Build_CoreSemantics _ MachState _
@@ -319,7 +317,7 @@ Module FineMachine (TID: ThreadID)(SCH:Scheduler TID)(SIG : ConcurrentMachineSig
                               at_external
                               after_external
                               halted
-                              (MachStep aggelos)
+                              MachStep
           );
       unfold at_external, halted; try reflexivity.
     auto.

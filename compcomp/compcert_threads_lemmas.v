@@ -58,7 +58,7 @@ Ltac pf_cleanup :=
              assert (H1 = H2) by (by eapply proof_irr);
                subst H2
            | [H1: is_true (leq ?X ?Y), H2: is_true (leq ?X ?Y) |- _] =>
-            assert (H1 = H2) by (erewrite leq_pf_irr; eauto 2); subst H2
+            assert (H1 = H2) by (by eapply proof_irr); subst H2
          end.
 
 Module StepLemmas.
@@ -68,7 +68,7 @@ Module StepLemmas.
     Context {cT G : Type} {the_sem : CoreSemantics G cT Mem.mem}.
 
     Notation cT' := (@ctl cT).
-    Notation thread_pool := (t cT').
+    Notation thread_pool := (t cT).
     Notation perm_map := access_map.
     Notation invariant := (@invariant cT G the_sem).
 

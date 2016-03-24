@@ -394,6 +394,13 @@ Section ShareMaps.
     (fun ofs => None, Maps.PTree.map1 (fun f => fun ofs =>
                                             share_to_perm (f ofs)) smap).
 
+  Definition setShare (sh : share) b ofs (smap : share_map) : share_map :=
+    Maps.PTree.set b (fun ofs' => if is_left (Coqlib.zeq ofs ofs') then sh else
+                                 match (Maps.PTree.get b smap) with
+                                 | Some f => f ofs'
+                                 | None => Share.bot
+                                 end) smap.
+
   Definition access_to_share_map (smap : share_map) (pmap : access_map): share_map :=
     Maps.PTree.combine
       (fun o1 o2 =>
@@ -535,10 +542,7 @@ Section ShareMaps.
     specialize (Hjoin b ofs).
     now apply joins_comm in Hjoin.
   Qed.
-
-  Variable sub_share : forall (sh sh' : share), {res : share | join res sh' sh}.
-  
-                         
+                       
   Inductive transferShares (smap_from smap_to : share_map) (tmap : share_map)
             (smap_from' smap_to' : share_map) : Prop :=
   | TransSh : forall b ofs sh_t sh_from sh_from' sh_to sh_to',
