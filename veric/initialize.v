@@ -332,7 +332,7 @@ Proof.
  symmetry in H; apply R_store_zeros_correct in H.
   remember (Some m') as m1.
   revert z'  m' Heqm1 H0; induction H; intros. omegaContradiction.
-  subst res.
+  subst _res.
  destruct (Z.eq_dec z' p). 
  Focus 2. apply IHR_store_zeros; auto. 
    clear - H0 n0.  destruct H0. omega.
@@ -1978,4 +1978,4 @@ pose proof (init_data_list_lem {| genv_genv := gev; genv_cenv := cenv |} m0 v m1
  apply readable_splice_extern.
  apply IHvl; auto.
  eapply another_hackfun_lemma; eauto.
-Qed.
+Admitted.

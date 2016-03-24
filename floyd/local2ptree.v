@@ -1391,7 +1391,7 @@ Proof.
   normalize; intros.
       autorewrite with subst norm1 norm2; normalize.
   destruct (msubst_eval_eq_aux _ _ _ _ H0).
-  apply eq_sym, msubst_eval_expr_eq_aux with (T1 := T1) (T2 := T2); auto.
+  apply eq_sym, (msubst_eval_expr_eq_aux T1 T2); auto.
 Qed.
 
 Lemma msubst_eval_lvalue_eq: forall P {cs: compspecs} T1 T2 Q R e v,
@@ -1407,7 +1407,7 @@ Proof.
   normalize; intros.
       autorewrite with subst norm1 norm2; normalize.
   destruct (msubst_eval_eq_aux _ _ _ _ H0).
-  apply eq_sym, msubst_eval_lvalue_eq_aux with (T1 := T1) (T2 := T2); auto.
+  apply eq_sym, (msubst_eval_lvalue_eq_aux T1 T2); auto.
 Qed.
 
 Definition localD (temps : PTree.t val) (locals : PTree.t vardesc) :=

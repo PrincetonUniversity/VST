@@ -115,7 +115,7 @@ split.
 + admit.
 + admit.
 + admit.
-Defined.
+Admitted.
 
 Lemma zl_nth_LZ: forall {A d} i lo hi (l: @zlist A d (list_zlist _ _) lo hi),
   lo <= i < hi ->
