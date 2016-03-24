@@ -1,4 +1,5 @@
-Require Import ssreflect Ssreflect.seq ssrbool ssrnat ssrfun eqtype seq fintype finfun.
+Require Import ssreflect seq ssrbool
+        ssrnat ssrfun eqtype seq fintype finfun.
 
 Add LoadPath "../compcomp" as compcomp.
 
@@ -11,21 +12,6 @@ Require Import ZArith.
 Require Import veric.shares juicy_mem.
 Require Import msl.msl_standard.
 Import cjoins.
-
-Class Share :=
-  { share : Type;
-
-    share_to_perm : share -> option permission;
-    perm_to_share : option permission -> option share;
-    jn : Join share;
-    Top : share;
-    Bot : share;
-
-    freeable_to_share : perm_to_share (Some Freeable) = Some Top;
-    empty_to_share : perm_to_share None = Some Bot;
-    perm_to_share_undef : forall p, p <> None -> p <> Some Freeable ->
-                               perm_to_share p = None
-  }.
 
 Definition access_map := Maps.PMap.t (Z -> option permission).
 
@@ -391,39 +377,49 @@ End permMapDefs.
 
 Section ShareMaps.
 
-  Context {shares : Share}.
-  Definition share_map := Maps.PMap.t (Z -> share).
+  Definition share_map := Maps.PTree.t (Z -> share).
+
+  Definition empty_share_map := Maps.PTree.empty (Z -> share).
+  
+  Definition mkShare_map sh_tree : Maps.PMap.t (Z -> share) :=
+    (fun ofs => Share.bot, sh_tree).
+
+  Definition share_split sh :=
+    (Share.unrel Share.Lsh sh, Share.unrel Share.Rsh sh).
+
+  Definition share_to_perm sh :=
+    perm_of_sh (share_split sh).1 (share_split sh).2.
 
   Definition share_to_access_map (smap : share_map) : access_map :=
-    Maps.PMap.map (fun f => fun ofs => share_to_perm (f ofs)) smap.
+    (fun ofs => None, Maps.PTree.map1 (fun f => fun ofs =>
+                                            share_to_perm (f ofs)) smap).
 
   Definition access_to_share_map (smap : share_map) (pmap : access_map): share_map :=
-    (fun ofs => Bot,
-             Maps.PTree.combine
-               (fun o1 o2 =>
-                  match o1 with
-                  | Some f1 =>
-                    Some(
-                        match o2 with
-                        | Some f2 =>
-                          fun ofs => match f2 ofs with
-                                  | Some Freeable => Top
-                                  | Some _ => f1 ofs
-                                  | None => Bot
-                                  end
-                        | None => fun ofs => Bot
-                        end)
-                  | None =>
-                    match o2 with
-                    | Some f2 => Some (fun ofs => match f2 ofs with
-                                        | Some Freeable => Top
-                                        | Some _ => Bot (* bogus value *)
-                                        | None => Bot
-                                              end)
-                    | None => None
-                    end
-                  end) smap.2 pmap.2).
-
+    Maps.PTree.combine
+      (fun o1 o2 =>
+         match o1 with
+         | Some f1 =>
+           Some(
+               match o2 with
+               | Some f2 =>
+                 fun ofs => match f2 ofs with
+                         | Some Freeable => Share.top
+                         | Some _ => f1 ofs
+                         | None => Share.bot
+                         end
+               | None => fun ofs => Share.bot
+               end)
+         | None =>
+           match o2 with
+           | Some f2 => Some (fun ofs => match f2 ofs with
+                                     | Some Freeable => Share.top
+                                     | Some _ => Share.bot (* bogus value *)
+                                     | None => Share.bot
+                                     end)
+           | None => None
+           end
+         end) smap pmap.2.
+     
   Definition decay m m' := forall b ofs, 
       (~Mem.valid_block m b ->
        forall p, Mem.perm m' b ofs Cur p -> Mem.perm m' b ofs Cur Freeable) /\
@@ -526,13 +522,10 @@ Section ShareMaps.
              inversion H1; auto); subst. auto.
   Qed.
 
-  Instance J : Join share := join.
   Definition shareMapsJoin (smap1 smap2 : share_map) : Prop :=
     forall b ofs,
-      joins ((Maps.PMap.get b smap1) ofs)
-            ((Maps.PMap.get b smap2) ofs).
-
-  Context {permAlg : Perm_alg share}.
+      joins ((Maps.PMap.get b (mkShare_map smap1)) ofs)
+            ((Maps.PMap.get b (mkShare_map smap2)) ofs).
   
   Lemma shareMapsJoin_comm : forall smap1 smap2,
       shareMapsJoin smap1 smap2 ->
@@ -543,29 +536,28 @@ Section ShareMaps.
     now apply joins_comm in Hjoin.
   Qed.
 
-  Definition transfer_map := Maps.PMap.t (Z -> option share).
-
-  Inductive transferShares (smap_from smap_to : share_map) (tmap : transfer_map)
+  Variable sub_share : forall (sh sh' : share), {res : share | join res sh' sh}.
+  
+                         
+  Inductive transferShares (smap_from smap_to : share_map) (tmap : share_map)
             (smap_from' smap_to' : share_map) : Prop :=
   | TransSh : forall b ofs sh_t sh_from sh_from' sh_to sh_to',
-      (Maps.PMap.get b tmap) ofs = Some sh_t ->
-      (Maps.PMap.get b smap_from) ofs = sh_from ->
-      (Maps.PMap.get b smap_from') ofs = sh_from' ->
-      (Maps.PMap.get b smap_to) ofs = sh_to ->
-      (Maps.PMap.get b smap_to') ofs = sh_to' ->
+      option_map (fun f => f ofs) (Maps.PTree.get b tmap) = Some sh_t ->
+      (Maps.PMap.get b (mkShare_map smap_from)) ofs = sh_from ->
+      (Maps.PMap.get b (mkShare_map smap_from')) ofs = sh_from' ->
+      (Maps.PMap.get b (mkShare_map smap_to)) ofs = sh_to ->
+      (Maps.PMap.get b (mkShare_map smap_to')) ofs = sh_to' ->
       join sh_from' sh_t sh_from ->
       join sh_to sh_t sh_to' ->
       transferShares smap_from smap_to tmap smap_from' smap_to'
   | NoTrans : forall b ofs,
-      (Maps.PMap.get b tmap) ofs = None ->
-      (Maps.PMap.get b smap_from) ofs = (Maps.PMap.get b smap_from') ofs ->
-      (Maps.PMap.get b smap_to) ofs = (Maps.PMap.get b smap_to') ofs ->
+      Maps.PTree.get b tmap = None ->
+      (Maps.PMap.get b (mkShare_map smap_from)) ofs =
+      (Maps.PMap.get b (mkShare_map smap_from')) ofs ->
+      (Maps.PMap.get b (mkShare_map smap_to)) ofs =
+      (Maps.PMap.get b (mkShare_map smap_to')) ofs ->
       transferShares smap_from smap_to tmap smap_from' smap_to'.
 
-  Definition transfer_shares smap_from smap_to (tmap : transfer_map) : share_map :=
-    fun ofs =>
-      
-  
 End ShareMaps. 
 
 (* Computation of a canonical form of permission maps where the
@@ -828,4 +820,3 @@ Section CanonicalPMap.
     Defined.
 
 End CanonicalPMap. *)
-End ShareMaps.
