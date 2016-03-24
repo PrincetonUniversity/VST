@@ -190,7 +190,7 @@ f_equal; apply H.
 Qed.
 
 Require Import ZArith.
-Require Import Fappli_IEEE Fcore_Zaux Fcore_generic_fmt.
+From compcert Require Import Fappli_IEEE Fcore_Zaux Fcore_generic_fmt.
 
 Lemma binary_normalize_inj: 
   forall s1 m1 e1 (h1 : bounded 24 128 m1 e1 = true),

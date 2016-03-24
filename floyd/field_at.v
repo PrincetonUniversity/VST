@@ -2029,11 +2029,7 @@ cut (map
           reptype (field_type (fst it) (p :: q :: m))) (q :: m) =
    map (fun it : ident * type => reptype (field_type (fst it) (q :: m)))
      (q :: m)).
-intro.
-forget (map
-       (fun it : ident * type => reptype (field_type (fst it) (p :: q :: m)))
-       (q :: m)) as T.
-subst T. apply c.
+intro; rewrite H0 in c; apply c.
 apply snd_reptype_structlist_aux; auto.
 Defined.
 
@@ -2179,7 +2175,7 @@ Transparent field_offset. Transparent field_type.
    rewrite !H0. auto.
    clear - Hv'. subst Q. intros.
    admit. (* for Qinxiang? *)
-Qed.
+Admitted.
 
 
 Lemma data_at'_share_join {cs: compspecs}:
@@ -2298,7 +2294,7 @@ hnf in H0.
 destruct H0 as [Hp [? [_ [Hcom [Hsz [Hsc [Hal Hlnf]]]]]]].
 revert H0 Hsz v p Hcom Hsc Hp Hal Hlnf; pattern t; type_induction.type_induction t; intros; inv H0;
  rewrite  data_at'_ind; auto; admit.
-Qed.
+Admitted.
 
 Lemma nonreadable_memory_block_data_at:
   forall  {cs: compspecs}

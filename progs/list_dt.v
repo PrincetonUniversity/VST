@@ -1833,7 +1833,7 @@ unfold list_cell; intros.
  unfold at_offset.
  apply nonreadable_data_at'_eq; auto.
  apply IHm.
-Qed.
+Admitted.
 
 Lemma cell_share_join:
   forall (ls: listspec list_structid list_link) ash bsh psh p v, 
@@ -1881,7 +1881,7 @@ Proof.
  unfold at_offset.
  apply data_at'_share_join; auto.
  apply IHm.
-Qed.
+Admitted.
 
 Lemma join_cell_link (ls: listspec list_structid list_link):
   forall v' ash bsh psh p v, 

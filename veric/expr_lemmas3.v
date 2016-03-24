@@ -234,16 +234,16 @@ rewrite <- Fcore_Raux.Z2R_Zpower by auto.
 simpl.
 auto.
 unfold Fcore_defs.F2R.
-simpl Rdefinitions.Rmult.
 eapply RIneq.Rle_lt_trans.
 instantiate (1:= (Fcore_Raux.Z2R (Z.pos m * 2 ^ e ))).
 rewrite Fcore_Raux.Z2R_mult.
+simpl.
 rewrite !Fcore_Raux.P2R_INR.
 rewrite <- Fcore_Raux.Z2R_Zpower by auto.
 simpl.
 match goal with |- _ ?A ?B => replace B with A; [apply RIneq.Rle_refl | ] end.
 f_equal.
-symmetry; apply Fcore_Raux.P2R_INR.
+(* symmetry; apply Fcore_Raux.P2R_INR. *)
 rewrite Fcore_Raux.Z2R_plus.
 rewrite Raxioms.Rplus_comm.
 rewrite <- RIneq.Rplus_0_r at 1.
@@ -265,7 +265,6 @@ apply RIneq.Rlt_le.
 apply Z2R_pow_0_lt; auto.
 * (* e < 0 *)
 assert (HH: (Fcore_Raux.Z2R (2 ^ (- e))) <> Rdefinitions.R0). {
-(*apply RIneq.Rinv_neq_0_compat. *)
 assert (Rdefinitions.R0 <> Fcore_Raux.Z2R (2 ^ (- e))); auto.
 apply RIneq.Rlt_not_eq.
 apply (Z2R_pow_0_lt (-e)).

@@ -1076,7 +1076,7 @@ induction t.
       auto.
 
       simpl in *. rewrite PTree.gsspec in *. destruct a0. simpl in *. 
-      if_tac. subst. clear - H. specialize (H p0 p0). intuition.  apply IHp. 
+      if_tac. subst. clear - H. specialize (H i i). intuition.  apply IHp. 
       unfold list_disjoint in *. intros. apply H; simpl in *; auto. 
       intros. apply IHt. unfold list_disjoint in *. intros; simpl in *; apply H;      auto.
       auto. auto. intuition.  

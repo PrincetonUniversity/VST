@@ -1,8 +1,8 @@
 Require Import msl.Axioms.
 
-Require Import Memory.
+From compcert Require Import Memory.
 
-Require Import core_semantics.
+Require Import sepcomp.core_semantics.
 
 Module FSem.
 Record t M TM := mk { 
@@ -30,8 +30,7 @@ destruct H; auto.
 Qed.
 End IdFSem.
 
-Require Import juicy_mem.
-Require Import juicy_extspec.
+From veric Require Import juicy_mem juicy_extspec.
 
 Module JuicyFSem.
 Program Definition t : FSem.t mem juicy_mem :=

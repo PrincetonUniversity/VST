@@ -133,7 +133,7 @@ apply (rel_r_value'_sch _ rho a (rel_r_value' rho a') (rel_l_value' rho a'));
   try solve [econstructor; eauto; auto].
   eapply rel_r_value'_load; eauto.
   eapply pred_hereditary; eassumption.
-  eapply rel_r_value'_global; eauto. auto.
+  assumption.
 Qed.
 
 Lemma rel_l_value'_hered: forall {CS} e v rho, hereditary age (fun phi => @rel_l_value' CS rho phi e v).
@@ -141,8 +141,7 @@ Proof.
 intros.
 intro; intros.
 induction H0; try solve [ econstructor; eauto].
- constructor 2; auto.
- constructor 3; auto.
+constructor.
 apply rel_r_value'_hered with a; auto.
 Qed.
 
@@ -276,11 +275,6 @@ apply (rel_LR_value'_sch _ rho (m_phi jm)
       simpl.
       destruct sh3 as [sh3 p3].  exists rsh3, sh3, p3; auto.
   + apply I.
-* (* Evar *)
-  simpl in *.
-  unfold Map.get, make_venv, filter_genv in H1,H2.
-  destruct (Genv.find_symbol ge id) eqn:?; try discriminate.
-  destruct (type_of_global ge b) eqn:?; inv H2;  apply Clight.eval_Evar_global; auto.
 * (* Efield *)
   econstructor; eauto. 
   + eapply Clight.eval_Elvalue; eauto.

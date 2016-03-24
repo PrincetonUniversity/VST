@@ -237,7 +237,7 @@ Proof.
  rewrite (memory_block_mapsto_ _ (Tpointer t noattr)); auto.
  unfold size_compatible; unfold Int.max_unsigned in H; omega.
  admit. (* align_compatible can be FOUND inside mapsto *)
-Qed.
+Admitted.
 
 Lemma sizeof_Tpointer {cs: compspecs} : forall t, sizeof (Tpointer t noattr) = 4.
 Proof.
@@ -377,7 +377,7 @@ rewrite H10.
    - clear H10 H8 x. inv H9.
       split; simpl; auto.
        change Int.max_unsigned with (Int.modulus-1) in H6.
-       destruct H11.
+       destruct a.
       split3; auto. split3; auto.
       omega. split3; auto. omega. apply Z.divide_0_r.
    - omega.
@@ -466,7 +466,7 @@ clear dependent gv. clear H H0 H6.
 induction idata; simpl; auto; intros.
 apply sepcon_derives.
 * eapply init_data2pred_rejigger; destruct H1; eauto; try tauto.
-  split3; simpl; auto. destruct H0; split3; auto.
+  split3; simpl; auto. destruct a0; split3; auto.
   change Int.max_unsigned with (Int.modulus-1) in H12.
  split3; auto. omega.
   admit. 
@@ -480,7 +480,7 @@ pose proof (init_data_size_pos a).
  rewrite Int.unsigned_repr in H9 by omega.
  apply Z.divide_add_r; auto.
  admit. (* alignment issue *)
-Qed.
+Admitted.
 
 Lemma tc_globalvar_sound_space {cs: compspecs} :
   forall Delta i t gv rho, 

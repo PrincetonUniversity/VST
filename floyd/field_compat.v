@@ -443,7 +443,7 @@ Proof.
   eapply JMeq_trans; [| eapply @JMeq_sym; apply fold_reptype_JMeq].
   apply JMeq_refl.
   admit.
-Qed.
+Admitted.
 
 Lemma split2_data_at_Tarray {cs: compspecs} sh t n n1 v (v': list (reptype t)) v1 v2 p:
    0 <= n1 <= n ->
