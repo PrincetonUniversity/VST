@@ -1,6 +1,5 @@
 Require Import Axioms.
 
-
 Add LoadPath "../compcomp" as compcomp.
 
 Require Import sepcomp. Import SepComp.
@@ -61,35 +60,35 @@ Ltac pf_cleanup :=
 
 Module MemoryObs.
 
-  Definition renaming := block -> option block.
+  Definition renaming := (block * Mem.mem) -> (block * Mem.mem) -> Prop.
   
   Record mem_obs_eq (α : renaming) (m1 m2 : Mem.mem) :=
     {
-      α_freeblocks:
-        forall b, ~(Mem.valid_block m1 b) -> α b = None;
-      α_mappedblocks:
-        forall b b', α b = Some b' -> Mem.valid_block m2 b';
-      α_injective: forall b1 b2 b', α b1 = Some b' ->
-                               α b2 = Some b' ->
-                               b1 = b2;
       val_obs_eq :
-        forall b1 b2 ofs (Hrenaming: α b1 = Some b2)
+        forall b1 b2 ofs (Hrenaming: α (b1,m1) (b2,m2))
           (Hperm: Mem.perm m1 b1 ofs Cur Readable),
           Maps.ZMap.get ofs (Maps.PMap.get b1 (Mem.mem_contents m1)) =
           Maps.ZMap.get ofs (Maps.PMap.get b2 (Mem.mem_contents m2));
       cur_obs_eq :
-        forall b1 b2 ofs (Hrenaming: α b1 = Some b2),
+        forall b1 b2 ofs (Hrenaming: α (b1,m1) (b2,m2)),
           Maps.PMap.get b1 (Mem.mem_access m1) ofs Cur =
           Maps.PMap.get b2 (Mem.mem_access m2) ofs Cur}.
 
   Lemma mem_obs_trans_inverse :
     forall α m1 m2
       (Hmem: mem_obs_eq α m1 m2),
-    exists γ, mem_obs_eq γ m2 m1.
+      mem_obs_eq (fun x y => α y x) m2 m1.
   Proof.
-    intros. inversion Hmem.
-    eapply Pos.peano_ind with (P := fun p => Mem.nextblock m1 = p ->
-                                          exists γ : renaming, mem_obs_eq γ m2 m1).
+    intros. destruct Hmem as [val_obs_eq cur_obs_eq].
+    constructor.
+    intros. 
+    exists (fun b => match α b with
+               | Some b' => 
+    remember (Mem.nextblock m1). generalize dependent m1.
+    generalize dependent m2.
+    eapply Pos.peano_ind with (p := b); intros.
+    -
+    
                                                                         
     
               
