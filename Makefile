@@ -105,7 +105,7 @@ SEPCOMP_FILES= \
 
 CONCURRENCY_FILES= \
   cast.v collection.v pos.v stack.v \
-  sepcomp.v \
+  sepcomp.v globalSep.v reach.v\
   scheduler.v concurrent_machine.v \
   juicy_machine.v \
   compcert_threads_lemmas.v \
@@ -378,6 +378,9 @@ depend-compcomp:
 
 clean:
 	rm -f $(FILES:%.v=%.vo) $(FILES:%.v=%.glob) floyd/floyd.coq .loadpath .depend
+
+clean-compcomp:
+	rm -f $(COMPCOMP_FILES:%.v=%.vo) $(COMPCOMP_FILES:%.v=%.glob)
 
 clean-linking:
 	rm -f $(LINKING_FILES:%.v=linking/%.vo) $(LINKING_FILES:%.v=linking/%.glob) 
