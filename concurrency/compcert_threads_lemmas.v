@@ -1,6 +1,6 @@
 Require Import Axioms.
 
-Add LoadPath "../compcomp" as compcomp.
+Add LoadPath "../sepcomp" as sepcomp.
 
 Require Import sepcomp. Import SepComp.
 Require Import semantics_lemmas.
@@ -60,17 +60,17 @@ Ltac pf_cleanup :=
 
 Module MemoryObs.
 
-  Definition renaming := (block * Mem.mem) -> (block * Mem.mem) -> Prop.
+  Definition renaming := block -> Mem.mem -> block -> Mem.mem -> Prop.
   
   Record mem_obs_eq (α : renaming) (m1 m2 : Mem.mem) :=
     {
       val_obs_eq :
-        forall b1 b2 ofs (Hrenaming: α (b1,m1) (b2,m2))
+        forall b1 b2 ofs (Hrenaming: α b1 m1 b2 m2)
           (Hperm: Mem.perm m1 b1 ofs Cur Readable),
           Maps.ZMap.get ofs (Maps.PMap.get b1 (Mem.mem_contents m1)) =
           Maps.ZMap.get ofs (Maps.PMap.get b2 (Mem.mem_contents m2));
       cur_obs_eq :
-        forall b1 b2 ofs (Hrenaming: α (b1,m1) (b2,m2)),
+        forall b1 b2 ofs (Hrenaming: α b1 b2 m1 m2),
           Maps.PMap.get b1 (Mem.mem_access m1) ofs Cur =
           Maps.PMap.get b2 (Mem.mem_access m2) ofs Cur}.
 
