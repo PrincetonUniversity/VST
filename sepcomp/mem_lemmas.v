@@ -2,14 +2,30 @@
 Require Import AST.
 Require Import Events.
 Require Import Memory.
-Require Import compcert.lib.Coqlib.
+Require Import Coqlib.
 Require Import Values.
 Require Import Maps.
 Require Import Integers.
-Require Import compcert.lib.Axioms.
+Require Import Axioms.
 Require Import Globalenvs.
 
 Require Import Extensionality.
+
+Notation val_inject:= Val.inject.
+
+Lemma valid_block_dec: forall m b, {Mem.valid_block m b} +  {~Mem.valid_block m b}.
+Proof. intros.
+unfold Mem.valid_block.
+remember (plt b (Mem.nextblock m)).
+destruct s. left; assumption.
+right. intros N. xomega.
+Qed.
+
+Lemma Forall2_length {A B} {f:A -> B -> Prop} {l1 l2} (F:Forall2 f l1 l2): length l1 = length l2.
+Proof. induction F; trivial. simpl; rewrite IHF. trivial. Qed.
+
+Lemma Forall2_Zlength {A B} {f:A -> B -> Prop} {l1 l2} (F:Forall2 f l1 l2): Zlength l1 = Zlength l2.
+Proof. do 2 rewrite Zlength_correct. rewrite (Forall2_length F). trivial. Qed.
 
 Lemma pos_succ_plus_assoc: forall n m,
     (Pos.succ n + m = n + Pos.succ m)%positive.
@@ -95,15 +111,14 @@ Proof. intros.
   destruct v. inv MV1. apply MV2.
   inv MV1. apply MV2.
   inv MV2. constructor.
-  inv MV1.
- * (* Fragment case *)
-  inv MV2.
-  constructor. inv H3; inv H2; try constructor.
-  inv H1; inv H7.
+  admit.
+ (* inv MV1. inv MV2. inv H3.
+  inv H4.
+  rewrite Int.add_zero. rewrite Int.add_zero.  
   econstructor. reflexivity. 
-  repeat rewrite Int.add_zero. auto. 
- * (* Undef case *)
-   inv MV2. constructor.
+  rewrite Int.add_zero. trivial.
+  inv MV2. inv H3. rewrite Int.add_zero. 
+  rewrite Int.add_zero in H5. econstructor.*)
 Qed.
 
 Lemma extends_trans: forall m1 m2 
@@ -114,10 +129,10 @@ Qed.
 
 Lemma memval_inject_id_refl: forall v, memval_inject inject_id v v. 
 Proof.  
-destruct v. constructor. constructor. econstructor.
-destruct v; try constructor.
-econstructor. reflexivity.
-rewrite Int.add_zero. trivial. 
+  destruct v. constructor. constructor. econstructor.
+  admit.
+(*  reflexivity. 
+rewrite Int.add_zero. trivial. *)
 Qed.
 
 Lemma extends_refl: forall m, Mem.extends m m.
@@ -177,22 +192,119 @@ Proof. intros.
 Qed.
 
 (* A minimal preservation property we sometimes require. *)
+(*
+Definition readonly {F V} (ge: Genv.t F V) m1 b m2 :=
+    forall gv, Genv.find_var_info ge b = Some gv ->
+       gvar_readonly gv && negb (gvar_volatile gv) = true ->
+    forall ch ofs, Mem.load ch m2 b ofs = Mem.load ch m1 b ofs.
+*)
+
+Definition readonlyLD m1 b m2 :=
+    forall chunk ofs
+    (NWR: forall ofs', ofs <= ofs' < ofs + size_chunk chunk ->
+                          ~(Mem.perm m1 b ofs' Cur Writable)),
+     Mem.load chunk m2 b ofs = Mem.load chunk m1 b ofs /\
+     (forall ofs', ofs <= ofs' < ofs + size_chunk chunk -> 
+        (forall k p, Mem.perm m1 b ofs' k p <-> Mem.perm m2 b ofs' k p)).
+
+Definition readonly m1 b m2 :=
+    forall n ofs
+    (NWR: forall i, 0 <= i < n ->
+                          ~(Mem.perm m1 b (ofs + i) Cur Writable)),
+     Mem.loadbytes m2 b ofs n = Mem.loadbytes m1 b ofs n /\
+     (forall i, 0 <= i < n -> 
+        (forall k p, Mem.perm m1 b (ofs+i) k p <-> Mem.perm m2 b (ofs+i) k p)).
+
+Definition max_readonlyLD m1 b m2 :=
+    forall chunk ofs
+    (NWR: forall ofs', ofs <= ofs' < ofs + size_chunk chunk ->
+                          ~(Mem.perm m1 b ofs' Max Writable)),
+     Mem.load chunk m2 b ofs = Mem.load chunk m1 b ofs /\
+     (forall ofs', ofs <= ofs' < ofs + size_chunk chunk -> 
+        (forall k p, Mem.perm m1 b ofs' k p <-> Mem.perm m2 b ofs' k p)).
+
+Definition max_readonly m1 b m2 :=
+    forall n ofs
+    (NWR: forall i, 0 <= i < n ->
+                          ~(Mem.perm m1 b (ofs + i) Max Writable)),
+     Mem.loadbytes m2 b ofs n = Mem.loadbytes m1 b ofs n /\
+     (forall i, 0 <= i < n -> 
+        (forall k p, Mem.perm m1 b (ofs+i) k p <-> Mem.perm m2 b (ofs+i) k p)).
+
+Lemma readonlyLD_max_readonlyLD m1 b m2: readonlyLD m1 b m2 -> max_readonlyLD m1 b m2.
+Proof. red; intros. destruct (H chunk ofs).
+  intros; intros N. apply Mem.perm_max in N. apply (NWR _ H0 N).
+  split; trivial.
+Qed. 
+
+Lemma readonly_max_readonly m1 b m2: readonly m1 b m2 -> max_readonly m1 b m2.
+Proof. red; intros. destruct (H n ofs).
+  intros; intros N. apply Mem.perm_max in N. apply (NWR _ H0 N).
+  split; trivial. 
+Qed.
+
+Lemma readonly_readonlyLD m1 b m2: readonly m1 b m2 -> readonlyLD m1 b m2.
+Proof.
+  red; intros. destruct (H (size_chunk chunk) ofs); clear H.
+    intros. apply NWR. omega.
+  split; intros.
+    remember (Mem.load chunk m2 b ofs) as d; symmetry in Heqd; symmetry.
+    destruct d.
+    { destruct (Mem.load_loadbytes _ _ _ _ _ Heqd) as [bytes [LDB V]]; subst v.
+      apply Mem.load_valid_access in Heqd; destruct Heqd.
+      rewrite H0 in LDB. apply Mem.loadbytes_load; trivial.
+    }
+    { remember (Mem.load chunk m1 b ofs) as q; symmetry in Heqq; symmetry. 
+      destruct q; trivial.
+      destruct (Mem.load_loadbytes _ _ _ _ _ Heqq) as [bytes [LDB V]]; subst v.
+      apply Mem.load_valid_access in Heqq; destruct Heqq.
+      rewrite <- Heqd.
+      rewrite <- H0 in LDB. apply Mem.loadbytes_load; trivial. }
+  specialize (H1 (ofs'-ofs)). rewrite Zplus_minus in H1. apply H1. omega.
+Qed.
+
+Lemma readonly_refl m b: readonly m b m.
+  Proof. red; intuition. Qed.
+
+Lemma readonlyLD_refl m b: readonlyLD m b m.
+  Proof. red; intuition. Qed.
+
+Lemma readonlyLD_trans m1 m2 m3 b: readonlyLD m1 b m2 -> readonlyLD m2 b m3 -> readonlyLD m1 b m3.
+  Proof. red; intros. destruct (H _ _ NWR); clear H. 
+    destruct (H0 chunk ofs); clear H0.
+      intros. intros N. apply (NWR _ H). apply (H2 _ H). assumption.
+    split. rewrite <- H1. assumption.
+    intros. destruct (H2 _ H0 k p); clear H2. destruct (H3 _ H0 k p); clear H3. 
+      split; eauto. 
+  Qed.
+
+Lemma readonly_trans m1 m2 m3 b: readonly m1 b m2 -> readonly m2 b m3 -> readonly m1 b m3.
+  Proof. red; intros. destruct (H _ _ NWR); clear H. 
+    destruct (H0 n ofs); clear H0.
+      intros. intros N. apply (NWR _ H). apply (H2 _ H). assumption.
+    split. rewrite <- H1. assumption.
+    intros. destruct (H2 _ H0 k p); clear H2. destruct (H3 _ H0 k p); clear H3. 
+      split; eauto. 
+  Qed.
 
 Definition mem_forward (m1 m2:mem) :=
-  (forall b, Mem.valid_block m1 b ->
-    Mem.valid_block m2 b /\ 
-    forall ofs p, Mem.perm m2 b ofs Max p -> Mem.perm m1 b ofs Max p).
+  forall b, Mem.valid_block m1 b ->
+    (Mem.valid_block m2 b 
+     /\ (forall ofs p, Mem.perm m2 b ofs Max p -> Mem.perm m1 b ofs Max p)
+     (*/\ readonly m1 b m2*)).
 
 Lemma mem_forward_refl: forall m, mem_forward m m.
-Proof. intros m b H. split; eauto. Qed. 
+Proof. intros m b H. split; trivial.
+(*  split; eauto. apply readonly_refl.*)
+Qed. 
 
 Lemma mem_forward_trans: forall m1 m2 m3, 
   mem_forward m1 m2 -> mem_forward m2 m3 -> mem_forward m1 m3.
 Proof. intros. intros  b Hb.
-  destruct (H _ Hb). 
-  destruct (H0 _ H1).
-  split; eauto. 
-Qed. 
+  destruct (H _ Hb) as [? ?]. 
+  destruct (H0 _ H1) as [? ?].
+  split; eauto.
+Qed.
 
 Lemma forward_unchanged_trans: forall P m1 m2 m3,
 Mem.unchanged_on P m1 m2 -> Mem.unchanged_on P m2 m3 ->
@@ -321,13 +433,13 @@ Proof.
   inv HTs. constructor. eapply  lessdef_hastype; eassumption. apply (IHV _ H4).
 Qed.
 
-Lemma valinject_hastype:  forall j (v v' : val)
-       (V: (Val.inject j) v v') T, 
+Lemma valinject_hastype:  forall j v v' 
+       (V: (val_inject j) v v') T, 
        Val.has_type v' T -> Val.has_type v T.
 Proof. intros. inv V; simpl; trivial. Qed.
 
 Lemma forall_valinject_hastype:  forall j vals vals'
-            (V:  Forall2 (Val.inject j) vals vals') 
+            (V:  Forall2 (val_inject j) vals vals') 
             Ts (HTs: Forall2 Val.has_type vals' Ts), 
             Forall2 Val.has_type vals Ts.
 Proof.
@@ -338,29 +450,29 @@ Proof.
 Qed.
 
 Definition val_inject_opt (j: meminj) (v1 v2: option val) :=
-  match v1, v2 with Some v1', Some v2' => Val.inject j v1' v2'
+  match v1, v2 with Some v1', Some v2' => val_inject j v1' v2'
   | None, None => True
   | _, _ => False
   end.
 
 Lemma val_inject_split: 
-  forall v1 v3 j12 j23 (V: Val.inject (compose_meminj j12 j23) v1 v3),
-    exists v2, Val.inject j12 v1 v2 /\ Val.inject j23 v2 v3. 
+  forall v1 v3 j12 j23 (V: val_inject (compose_meminj j12 j23) v1 v3),
+    exists v2, val_inject j12 v1 v2 /\ val_inject j23 v2 v3. 
 Proof. intros. 
    inv V. 
      exists (Vint i). split; constructor.
      exists (Vlong i); split; constructor.
-     exists (Vfloat f). split; constructor. 
-     exists (Vsingle f). split; constructor. 
-     apply compose_meminjD_Some in H. rename b2 into b3.
-       destruct H as [b2 [ofs2 [ofs3 [J12 [J23 DD]]]]]; subst. 
+     exists (Vfloat f). split; constructor.
+     admit. admit. admit.
+     (*apply compose_meminjD_Some in H. rename b2 into b3.
+       destruct H as [b2 [ofs2 [ofs3 [J12 [J23 DD]]]]]; subst.
        eexists. split. econstructor. apply J12. reflexivity. 
           econstructor. apply J23. rewrite Int.add_assoc.
           assert (H: Int.repr (ofs2 + ofs3) = Int.add (Int.repr ofs2) (Int.repr ofs3)). 
             clear - ofs2 ofs3. rewrite Int.add_unsigned.
             apply Int.eqm_samerepr. apply Int.eqm_add; apply Int.eqm_unsigned_repr.
           rewrite H. trivial. 
-     exists Vundef. split; constructor.
+     exists Vundef. split; constructor. *)
 Qed.     
 
 Lemma forall_lessdef_trans: 
@@ -393,8 +505,8 @@ Proof.
 Qed.
 
 Lemma valinject_lessdef: 
-  forall v1 v2 v3 j (V12:Val.inject j v1 v2) (V23 : Val.lessdef v2 v3),
-    Val.inject j v1 v3.
+  forall v1 v2 v3 j (V12:val_inject j v1 v2) (V23 : Val.lessdef v2 v3),
+    val_inject j v1 v3.
 Proof. 
   intros. 
   inv V12; inv V23; try constructor.
@@ -402,8 +514,8 @@ Proof.
 Qed.
 
 Lemma forall_valinject_lessdef: 
-  forall vals1 vals2 j (VInj12 : Forall2 (Val.inject j) vals1 vals2) vals3 
-    (LD23 : Forall2 Val.lessdef vals2 vals3), Forall2 (Val.inject j) vals1 vals3.
+  forall vals1 vals2 j (VInj12 : Forall2 (val_inject j) vals1 vals2) vals3 
+    (LD23 : Forall2 Val.lessdef vals2 vals3), Forall2 (val_inject j) vals1 vals3.
 Proof. intros vals1 vals2 j VInj12.
    induction VInj12; intros; inv LD23. constructor.
      econstructor. eapply valinject_lessdef; eassumption.
@@ -412,7 +524,7 @@ Qed.
 
 Lemma val_lessdef_inject_compose: 
   forall v1 v2 (LD12 : Val.lessdef v1 v2) j v3
-    (InjV23 : Val.inject j v2 v3), Val.inject j v1 v3.
+    (InjV23 : val_inject j v2 v3), val_inject j v1 v3.
 Proof. intros. 
   apply val_inject_id in LD12.
   apply (val_inject_compose _ _ _ _ _ LD12) in InjV23.
@@ -421,7 +533,7 @@ Qed.
 
 Lemma forall_val_lessdef_inject_compose: 
   forall v1 v2 (LD12 : Forall2 Val.lessdef v1 v2) j v3
-    (InjV23 : Forall2 (Val.inject j) v2 v3), Forall2 (Val.inject j) v1 v3.
+    (InjV23 : Forall2 (val_inject j) v2 v3), Forall2 (val_inject j) v1 v3.
 Proof. intros v1 v2 H.
   induction H; intros; inv InjV23; econstructor.
        eapply val_lessdef_inject_compose; eassumption.
@@ -429,9 +541,9 @@ Proof. intros v1 v2 H.
 Qed. 
 
 Lemma forall_val_inject_compose: 
-  forall vals1 vals2 j1 (ValsInj12 : Forall2 (Val.inject j1) vals1 vals2)
-     vals3 j2 (ValsInj23 : Forall2 (Val.inject j2) vals2 vals3),
-     Forall2 (Val.inject (compose_meminj j1 j2)) vals1 vals3.
+  forall vals1 vals2 j1 (ValsInj12 : Forall2 (val_inject j1) vals1 vals2)
+     vals3 j2 (ValsInj23 : Forall2 (val_inject j2) vals2 vals3),
+     Forall2 (val_inject (compose_meminj j1 j2)) vals1 vals3.
 Proof.
   intros vals1 vals2 j1 ValsInj12.
   induction ValsInj12; intros; inv ValsInj23; econstructor.
@@ -440,8 +552,8 @@ Proof.
 Qed.
 
 Lemma val_inject_flat: 
-  forall m1 m2 j (Inj: Mem.inject j m1 m2) v1 v2 (V: Val.inject j v1 v2),
-    Val.inject  (Mem.flat_inj (Mem.nextblock m1)) v1 v1.
+  forall m1 m2 j (Inj: Mem.inject j m1 m2) v1 v2 (V: val_inject j v1 v2),
+    val_inject  (Mem.flat_inj (Mem.nextblock m1)) v1 v1.
 Proof. intros.
   inv V; try constructor.
     apply Val.inject_ptr with (delta:=0).
@@ -454,8 +566,8 @@ Proof. intros.
 Qed.
 
 Lemma forall_val_inject_flat: forall m1 m2 j (Inj: Mem.inject j m1 m2) vals1 vals2
-                (V: Forall2 (Val.inject j) vals1 vals2),
-                Forall2 (Val.inject  (Mem.flat_inj (Mem.nextblock m1))) vals1 vals1.
+                (V: Forall2 (val_inject j) vals1 vals2),
+                Forall2 (val_inject  (Mem.flat_inj (Mem.nextblock m1))) vals1 vals1.
 Proof. intros.
   induction V; intros; try econstructor.
        eapply val_inject_flat; eassumption.
@@ -504,7 +616,7 @@ Lemma fwd_maxpermorder: forall m1 m2 (FWD: mem_forward m1 m2) (b:block)
   Mem.perm_order'' (PMap.get b (Mem.mem_access m1) ofs Max)
                    (PMap.get b (Mem.mem_access m2) ofs Max).
 Proof.
-  intros. destruct (FWD b); try assumption. 
+  intros. destruct (FWD b) as [? ?]; try assumption. 
   remember ((PMap.get b (Mem.mem_access m2) ofs Max)) as z.
   destruct z; apply eq_sym in Heqz; simpl  in *.
   remember ((PMap.get b (Mem.mem_access m1) ofs Max)) as zz.
@@ -629,44 +741,360 @@ Proof. intros.
 Qed.
 
 (******** Compatibility of memory operation with [mem_forward] ********)
-
-Lemma store_forward: forall m b ofs v ch m'
-      (M:Mem.store ch m b ofs v = Some m'),
-      mem_forward m m'.
+Lemma load_storebytes_nil m b ofs m': Mem.storebytes m b ofs nil = Some m' -> 
+  forall ch bb z, Mem.load ch m' bb z = Mem.load ch m bb z.
 Proof. intros.
-   split; intros.
-    eapply Mem.store_valid_block_1; eassumption.
-    eapply Mem.perm_store_2; eassumption.
+  remember (Mem.load ch m' bb z) as u'; symmetry in Hequ'; destruct u'.
+      symmetry.
+      eapply Mem.load_unchanged_on; try eassumption.
+      instantiate (1:= fun b ofs => True).
+      split; intros.
+        split; intros.
+          eapply Mem.perm_storebytes_2; eassumption.
+          eapply Mem.perm_storebytes_1; eassumption.
+      rewrite (Mem.storebytes_mem_contents _ _ _ _ _ H).
+      destruct (eq_block b0 b); subst. rewrite PMap.gss; trivial.
+      rewrite PMap.gso; trivial.
+    intros; simpl; trivial.
+
+    remember (Mem.load ch m bb z) as u; symmetry in Hequ; destruct u; trivial. 
+      rewrite <- Hequ'; clear Hequ'.
+      eapply Mem.load_unchanged_on; try eassumption.
+      instantiate (1:= fun b ofs => True).
+      split; intros.
+        split; intros.
+          eapply Mem.perm_storebytes_1; eassumption.
+          eapply Mem.perm_storebytes_2; eassumption.
+      rewrite (Mem.storebytes_mem_contents _ _ _ _ _ H). 
+      destruct (eq_block b0 b); subst. rewrite PMap.gss; trivial.
+      rewrite PMap.gso; trivial.
+    intros; simpl; trivial.
+Qed.
+
+Lemma loadbytes_storebytes_nil m b ofs m': Mem.storebytes m b ofs nil = Some m' -> 
+  forall n bb z, Mem.loadbytes m' bb z n = Mem.loadbytes m bb z n.
+Proof. intros.
+  remember (Mem.loadbytes m' bb z n) as u'; symmetry in Hequ'; destruct u'.
+      symmetry.
+      eapply Mem.loadbytes_unchanged_on; try eassumption.
+      instantiate (1:= fun b ofs => True).
+      split; intros.
+        split; intros.
+          eapply Mem.perm_storebytes_2; eassumption.
+          eapply Mem.perm_storebytes_1; eassumption.
+      rewrite (Mem.storebytes_mem_contents _ _ _ _ _ H).
+      destruct (eq_block b0 b); subst. rewrite PMap.gss; trivial.
+      rewrite PMap.gso; trivial.
+    intros; simpl; trivial.
+
+    remember (Mem.loadbytes m bb z n) as u; symmetry in Hequ; destruct u; trivial. 
+      rewrite <- Hequ'; clear Hequ'.
+      eapply Mem.loadbytes_unchanged_on; try eassumption.
+      instantiate (1:= fun b ofs => True).
+      split; intros.
+        split; intros.
+          eapply Mem.perm_storebytes_1; eassumption.
+          eapply Mem.perm_storebytes_2; eassumption.
+      rewrite (Mem.storebytes_mem_contents _ _ _ _ _ H). 
+      destruct (eq_block b0 b); subst. rewrite PMap.gss; trivial.
+      rewrite PMap.gso; trivial.
+    intros; simpl; trivial.
 Qed.
 
 Lemma storebytes_forward: forall m b ofs bytes m'
       (M: Mem.storebytes m b ofs bytes = Some m'),
       mem_forward m m'.
 Proof. intros.
-   split; intros.
+  split; intros.
     eapply Mem.storebytes_valid_block_1; eassumption.
     eapply Mem.perm_storebytes_2; eassumption.
 Qed.
+
+Lemma storebytes_readonlyLD: forall m b ofs bytes m'
+      (M: Mem.storebytes m b ofs bytes = Some m'),
+      forall b, Mem.valid_block m b -> readonlyLD m b m'.
+Proof.
+  red; intros.
+  split. 
+    destruct bytes.
+      eapply load_storebytes_nil; eassumption.
+    eapply Mem.load_storebytes_other; try eassumption.
+    destruct (eq_block b0 b); subst. 2: left; trivial. right.
+    apply Mem.storebytes_range_perm in M.
+    destruct (zle (ofs0 + size_chunk chunk) ofs). left; trivial. right.
+    destruct (zle (ofs + Z.of_nat (length (m0 :: bytes)))  ofs0); trivial.
+    exfalso.
+    destruct (zle ofs0 ofs).
+      apply (NWR ofs). omega.
+                      (*eapply Mem.perm_max.*) apply M. simpl. specialize (Zle_0_nat (length bytes)); intros; xomega.
+      elim (NWR ofs0). specialize (size_chunk_pos chunk); intros; omega.
+                      (*eapply Mem.perm_max.*) apply M. omega.
+  split; intros. eapply Mem.perm_storebytes_1; eassumption. eapply Mem.perm_storebytes_2; eassumption.
+Qed.
+
+Lemma storebytes_readonly: forall m b ofs bytes m'
+      (M: Mem.storebytes m b ofs bytes = Some m'),
+      forall b, Mem.valid_block m b -> readonly m b m'.
+Proof.
+  red; intros.
+  destruct (zle n 0).
+  { split; intros. repeat rewrite Mem.loadbytes_empty; trivial. omega. }
+  split. 
+    destruct bytes.
+      eapply loadbytes_storebytes_nil; eassumption.
+    eapply Mem.loadbytes_storebytes_other; try eassumption. omega.
+    destruct (eq_block b0 b); subst. 2: left; trivial. right.
+    apply Mem.storebytes_range_perm in M.
+    destruct (zle (ofs0 + n) ofs). left; trivial. right.
+    destruct (zle (ofs + Z.of_nat (length (m0 :: bytes)))  ofs0); trivial.
+    exfalso. remember (Z.of_nat (length (m0 :: bytes))) as l. assert (0 < l). simpl in Heql. xomega. clear Heql. 
+    destruct (zle ofs0 ofs).
+      apply (NWR (ofs-ofs0)). omega.
+                  (*eapply Mem.perm_max.*) apply M. rewrite Zplus_minus. omega.
+      elim (NWR 0). omega.
+                  (*eapply Mem.perm_max.*) apply M. omega.
+  split; intros. eapply Mem.perm_storebytes_1; eassumption. eapply Mem.perm_storebytes_2; eassumption.
+Qed.
+
+Lemma store_forward: forall m b ofs v ch m'
+      (M:Mem.store ch m b ofs v = Some m'),
+      mem_forward m m'.
+Proof. intros.
+  apply Mem.store_storebytes in M.
+  eapply storebytes_forward; eassumption.
+Qed.
+    
+Lemma store_readonly: forall m b ofs v ch m'
+      (M:Mem.store ch m b ofs v = Some m'),
+      forall b, Mem.valid_block m b -> readonly m b m'.
+Proof. intros.
+  apply Mem.store_storebytes in M.
+  eapply storebytes_readonly; eassumption.
+Qed.
+    
+     
+
+
+(*
+Lemma store_forward: forall m b ofs v ch m'
+      (M:Mem.store ch m b ofs v = Some m'),
+      mem_forward m m'.
+Proof. intros.
+  split; intros.
+    eapply Mem.store_valid_block_1; eassumption.
+  split; intros.
+    eapply Mem.perm_store_2; eassumption.
+  red; intros. 
+    eapply Mem.load_store_other; try eassumption.
+    destruct (eq_block b0 b); subst. 2: left; trivial.
+    elim (H0 ofs).
+    eapply Mem.perm_max. 
+    eapply Mem.store_valid_access_3; try eassumption.
+    specialize (size_chunk_pos ch); intros; omega.
+Qed.
+
+Lemma storebytes_forward: forall m b ofs bytes m'
+      (M: Mem.storebytes m b ofs bytes = Some m'),
+      mem_forward m m'.
+Proof. intros.
+  split; intros.
+    eapply Mem.storebytes_valid_block_1; eassumption.
+  split; intros.
+    eapply Mem.perm_storebytes_2; eassumption.
+  red; intros. 
+  destruct bytes.
+    eapply storebytes_nil; eassumption. 
+  eapply Mem.load_storebytes_other; try eassumption.
+    destruct (eq_block b0 b); subst. 2: left; trivial.
+    apply Mem.storebytes_range_perm in M.
+    elim (H0 ofs). eapply Mem.perm_max. eapply M. simpl; xomega.
+Qed.
+*)
 
 Lemma alloc_forward: 
       forall m lo hi m' b
       (A: Mem.alloc m lo hi = (m',b)),
       mem_forward m m'.
-Proof.
-intros.
-  split; intros.
+Proof. intros.
+split; intros.
   eapply Mem.valid_block_alloc; eassumption.
   eapply Mem.perm_alloc_4; try eassumption.
   intros N; subst. eapply (Mem.fresh_block_alloc _ _ _ _ _ A H).
 Qed.
 
+Lemma unchanged_on_sym P m m' b:
+  Mem.unchanged_on P m m' -> Mem.valid_block m b ->
+  Mem.unchanged_on (fun bb z => P bb z /\ bb=b) m' m.
+Proof. intros.
+  destruct H as [U1 U2].
+  split; intros; destruct H; subst b0.
+    split; intros; eapply U1; trivial.
+    rewrite U2; trivial. eapply U1; trivial.
+Qed.
+    
+Lemma loadbytes_unchanged_on (P : block -> Z -> Prop) m m' b ofs n:
+  Mem.unchanged_on P m m' -> Mem.valid_block m b ->
+  (forall i : Z, ofs <= i < ofs + n -> P b i) ->
+  Mem.loadbytes m b ofs n = Mem.loadbytes m' b ofs n.
+Proof. intros.
+  remember (Mem.loadbytes m b ofs n) as d; symmetry in Heqd.
+  destruct d. symmetry. eapply Mem.loadbytes_unchanged_on; eassumption.
+  remember (Mem.loadbytes m' b ofs n) as q; symmetry in Heqq.
+  destruct q; trivial.
+  erewrite Mem.loadbytes_unchanged_on in Heqd; try eapply Heqq. discriminate.
+    eapply unchanged_on_sym; eassumption.
+    simpl; intros. split; auto.
+Qed.
+
+Lemma loadbytes_alloc_unchanged m1 lo hi m2 b :
+  Mem.alloc m1 lo hi = (m2, b) ->
+  forall n (b' : block) (ofs : Z),
+  Mem.valid_block m1 b' ->
+  Mem.loadbytes m2 b' ofs n = Mem.loadbytes m1 b' ofs n.
+Proof. intros. symmetry.
+  eapply loadbytes_unchanged_on; try eassumption.
+  eapply (Mem.alloc_unchanged_on (fun bb z => True)). eassumption.
+  simpl. trivial.
+Qed.
+
+Lemma alloc_readonly: 
+      forall m lo hi m' b
+      (A: Mem.alloc m lo hi = (m',b)),
+      forall b, Mem.valid_block m b -> readonly m b m'.
+Proof. red; intros.
+  split. eapply loadbytes_alloc_unchanged; try eassumption.
+  intros; split. eapply Mem.perm_alloc_1; eassumption. 
+     intros. eapply Mem.perm_alloc_4; try eassumption.
+     apply Mem.fresh_block_alloc in A. 
+     destruct (eq_block b0 b); trivial. subst. elim (A H).
+Qed.
+
+Lemma alloc_readonlyLD: 
+      forall m lo hi m' b
+      (A: Mem.alloc m lo hi = (m',b)),
+      forall b, Mem.valid_block m b -> readonlyLD m b m'.
+Proof. red; intros.
+  split. eapply Mem.load_alloc_unchanged; try eassumption.
+  intros; split. eapply Mem.perm_alloc_1; eassumption. 
+     intros. eapply Mem.perm_alloc_4; try eassumption.
+     apply Mem.fresh_block_alloc in A. 
+     destruct (eq_block b0 b); trivial. subst. elim (A H).
+Qed.
+(*
 Lemma free_forward: forall b z0 z m m'
       (M: Mem.free m b z0 z = Some m'),
       mem_forward m m'.
 Proof. intros.
-  split; intros.
+split; intros.
+  eapply Mem.valid_block_free_1; eassumption.
+split; intros. 
+  eapply Mem.perm_free_3; eassumption.
+red; intros. eapply Mem.load_free; try eassumption.
+  destruct (zlt z0 z).
+    left; intros N; subst.
+    eapply (H0 z0).
+    eapply Mem.perm_max.
+    eapply Mem.perm_implies. 
+      eapply Mem.free_range_perm; try eassumption.
+      omega.
+    constructor.
+  right; left; trivial.
+Qed.
+*)
+Lemma free_forward: forall b z0 z m m'
+      (M: Mem.free m b z0 z = Some m'),
+      mem_forward m m'.
+Proof. intros.
+split; intros.
   eapply Mem.valid_block_free_1; eassumption. 
-  eapply Mem.perm_free_3; eassumption. 
+  eapply Mem.perm_free_3; eassumption.
+Qed.
+
+Lemma loadbytes_free m1 bf lo hi m2:
+  Mem.free m1 bf lo hi = Some m2 ->
+  forall n (b : block) (ofs : Z),
+  b <> bf \/ lo >= hi \/ ofs + n <= lo \/ hi <= ofs ->
+  Mem.loadbytes m2 b ofs n = Mem.loadbytes m1 b ofs n.
+Proof. intros.
+  remember (Mem.loadbytes m2 b ofs n) as d; symmetry in Heqd.
+  destruct d.
+  { apply loadbytes_D in Heqd; destruct Heqd. 
+    rewrite (Mem.free_result _ _ _ _ _ H) in H2. simpl in H2.
+    assert (F: Mem.range_perm m1 b ofs (ofs + n) Cur Readable).
+      red; intros. eapply Mem.perm_free_3. eassumption.
+        eapply H1. assumption.
+    apply Mem.range_perm_loadbytes in F. destruct F as [bytes F]; rewrite F.
+    apply loadbytes_D in F. destruct F. rewrite <- H2 in H4. subst; trivial.
+  }
+  { remember (Mem.loadbytes m1 b ofs n) as q; symmetry in Heqq.
+    destruct q; trivial.
+    apply loadbytes_D in Heqq. destruct Heqq as [F C].
+    assert (Mem.range_perm m2 b ofs (ofs + n) Cur Readable).
+    { red; intros. eapply Mem.perm_free_1. eassumption.
+        destruct H0. left; trivial. right. omega.
+      apply F. trivial.
+    }
+    apply Mem.range_perm_loadbytes in H1. rewrite Heqd in H1. destruct H1; discriminate.
+  }
+Qed. 
+
+Lemma free_readonlyLD: forall b lo hi m m'
+      (M: Mem.free m b lo hi = Some m'),
+      forall b, Mem.valid_block m b -> readonlyLD m b m'.
+Proof. red; intros. 
+split. 
+  eapply Mem.load_free; try eassumption.
+  destruct (eq_block b0 b); try subst b0. 2: left; trivial.
+  right; destruct (zle hi lo). left; omega. right.
+  destruct (zle (ofs + size_chunk chunk) lo). left; trivial. right.
+  destruct (zle hi ofs); trivial. exfalso.
+  destruct (zle ofs lo).
+    eapply (NWR lo); clear NWR. omega.
+    (*eapply Mem.perm_max.*)
+    eapply Mem.perm_implies. 
+      eapply Mem.free_range_perm; try eassumption. omega. constructor.
+  eapply (NWR ofs); clear NWR. specialize (size_chunk_pos chunk). intros; omega.
+    (*eapply Mem.perm_max.*)
+    eapply Mem.perm_implies. 
+      eapply Mem.free_range_perm; try eassumption. omega. constructor.
+intros. specialize (Mem.free_range_perm _ _ _ _ _ M); intros F. red in F.
+    split; intros. eapply Mem.perm_free_1; try eassumption.
+      destruct (eq_block b0 b); try subst b0. 2: left; trivial. right. 
+      destruct (zlt ofs' lo). left; trivial. right. destruct (zle hi ofs'). trivial.
+      elim (NWR _ H0). (* specialize (size_chunk_pos chunk). intros; omega.*)
+      (*eapply Mem.perm_max.*) eapply Mem.perm_implies. apply F. omega. constructor.
+    eapply Mem.perm_free_3; try eassumption.
+Qed.
+
+Lemma free_readonly: forall b lo hi m m'
+      (M: Mem.free m b lo hi = Some m'),
+      forall b, Mem.valid_block m b -> readonly m b m'.
+Proof. red; intros.
+destruct (zle n 0).
+  split. repeat rewrite Mem.loadbytes_empty; trivial.
+         intros; omega.
+split. 
+  eapply loadbytes_free; try eassumption.
+  destruct (eq_block b0 b); try subst b0. 2: left; trivial.
+  right; destruct (zle hi lo). left; omega. right.
+  destruct (zle (ofs + n) lo). left; trivial. right.
+  destruct (zle hi ofs); trivial. exfalso.
+  destruct (zle lo ofs).
+    eapply (NWR 0); clear NWR. omega.
+    (*eapply Mem.perm_max.*)
+    eapply Mem.perm_implies. 
+      eapply Mem.free_range_perm; try eassumption. omega. constructor.
+  eapply (NWR (lo - ofs)); clear NWR. omega. rewrite Zplus_minus.
+    (*eapply Mem.perm_max.*)
+    eapply Mem.perm_implies. 
+      eapply Mem.free_range_perm; try eassumption. omega. constructor.
+intros. specialize (Mem.free_range_perm _ _ _ _ _ M); intros F. red in F.
+    split; intros. eapply Mem.perm_free_1; try eassumption.
+      destruct (eq_block b0 b); try subst b0. 2: left; trivial. right. 
+      destruct (zlt (ofs + i) lo). left; trivial. right. destruct (zle hi (ofs+i)). trivial.
+      elim (NWR _ H0). (* specialize (size_chunk_pos chunk). intros; omega.*)
+      (*eapply Mem.perm_max.*) eapply Mem.perm_implies. apply F. omega. constructor.
+    eapply Mem.perm_free_3; try eassumption.
 Qed.
 
 Lemma freelist_forward: forall l m m'
@@ -681,6 +1109,36 @@ Proof. intros l.
   specialize (IHl _ _ H0).
   apply free_forward in Heqd.
   eapply mem_forward_trans; eassumption. 
+Qed.
+
+Lemma freelist_readonly: forall l m m'
+      (M: Mem.free_list m l = Some m'), 
+      forall b, Mem.valid_block m b -> readonly m b m'.
+Proof.
+  induction l; simpl; intros.
+    inv M. apply readonly_refl.
+  destruct a. destruct p.
+  remember (Mem.free m b0 z0 z) as d.
+  destruct d; inv M; apply eq_sym in Heqd.
+  specialize (IHl _ _ H1).
+  eapply readonly_trans. 
+    eapply (free_readonly _ _ _ _ _ Heqd _ H).
+  eapply IHl. eapply free_forward; eassumption.
+Qed.
+
+Lemma freelist_readonlyLD: forall l m m'
+      (M: Mem.free_list m l = Some m'), 
+      forall b, Mem.valid_block m b -> readonlyLD m b m'.
+Proof.
+  induction l; simpl; intros.
+    inv M. apply readonlyLD_refl.
+  destruct a. destruct p.
+  remember (Mem.free m b0 z0 z) as d.
+  destruct d; inv M; apply eq_sym in Heqd.
+  specialize (IHl _ _ H1).
+  eapply readonlyLD_trans. 
+    eapply (free_readonlyLD _ _ _ _ _ Heqd _ H).
+  eapply IHl. eapply free_forward; eassumption.
 Qed.
 
 Lemma forward_nextblock: forall m m',
@@ -743,7 +1201,7 @@ apply H22; auto.
 Qed.
 
 Lemma forall_inject_val_list_inject: 
-  forall j args args' (H:Forall2 (Val.inject j) args args' ), 
+  forall j args args' (H:Forall2 (val_inject j) args args' ), 
     Val.inject_list j args args'.
 Proof.
 intros j args.
@@ -752,7 +1210,7 @@ Qed.
 
 Lemma val_list_inject_forall_inject: 
   forall j args args' (H:Val.inject_list j args args'), 
-    Forall2 (Val.inject j) args args' .
+    Forall2 (val_inject j) args args' .
 Proof.
 intros j args.
 induction args; intros;  inv H; constructor; eauto.
@@ -785,14 +1243,6 @@ forall ch m addr v m',
 Mem.storev ch m addr v = Some m' -> 
 (forall b, Mem.valid_block m' b -> Mem.valid_block m b).
 Proof. intros. destruct addr; inv H. eapply Mem.store_valid_block_2; eauto. Qed.
-
-Lemma valid_block_dec: forall m b, {Mem.valid_block m b} +  {~Mem.valid_block m b}.
-Proof. intros.
-unfold Mem.valid_block.
-remember (plt b (Mem.nextblock m)).
-destruct s. left; assumption.
-right. intros N. xomega.
-Qed.
 
 (*This is an [F,V]-independent definition of meminj_preserves_globals*)
 Definition meminj_preserves_globals_ind (globals: (block->Prop)*(block->Prop)) f :=
@@ -1007,19 +1457,18 @@ Proof. intros.
 Qed.
 
 Lemma forward_unchanged_on: forall m m' (FWD: mem_forward m m')
-           b ofs (P: ~ Mem.perm m b ofs Max Nonempty),
+           b ofs (NP: ~ Mem.perm m b ofs Max Nonempty),
      Mem.unchanged_on (fun b' ofs' => b' = b /\ ofs' = ofs) m m'.
 Proof. intros.
 split; intros. 
   destruct H; subst. 
-  split; intros; elim P. 
-    eapply Mem.perm_max. 
-    eapply Mem.perm_implies; try eassumption. apply perm_any_N. 
-    eapply FWD. assumption. 
+  split; intros; elim NP. 
     eapply Mem.perm_max. 
     eapply Mem.perm_implies; try eassumption. apply perm_any_N.
+    destruct (FWD _ H0) as [VB' P]. eapply Mem.perm_implies. 
+       apply P. eapply Mem.perm_max; eassumption. apply perm_any_N.
 destruct H; subst. 
-  elim P. eapply Mem.perm_max. 
+  elim NP. eapply Mem.perm_max. 
   eapply Mem.perm_implies; try eassumption. apply perm_any_N.
 Qed.
 
@@ -1066,14 +1515,14 @@ Lemma unchanged_on_perm_intersection: forall m m' U (Fwd: mem_forward m m'),
     split; intros Hyp.
     split; intros; eapply Hyp; eauto. apply H. apply H.
     split; intros.
-      remember (Mem.perm_dec m b ofs Max Nonempty).
+    remember (Mem.perm_dec m b ofs Max Nonempty).
       destruct s; clear Heqs.
          eapply Hyp; eauto.
       split; intros. exfalso. apply n; clear Hyp n.
          eapply Mem.perm_implies. eapply Mem.perm_max; eassumption. 
                apply perm_any_N.
         exfalso. apply n; clear Hyp n.
-         eapply (Fwd _ H0).
+        destruct (Fwd _ H0) as [VB' P]. apply P.
            eapply Mem.perm_implies. eapply Mem.perm_max; eassumption. 
                apply perm_any_N.
      eapply Hyp; trivial.
@@ -1098,16 +1547,53 @@ destruct U1 as [P1 V1]; destruct U2 as [P2 V2].
     apply V1; trivial.
   apply P1; trivial. eapply Mem.perm_valid_block; eassumption.
 Qed.
+(*
+Axiom ec_readonly_perm:
+  forall (ef : external_function) (F V : Type) (ge : Genv.t F V)
+    (vargs : list val) (m1 : mem) (t : trace) (vres : val) (m2 : mem)
+    (chunk : memory_chunk) (b : block) (ofs : Z),
+  external_call ef ge vargs m1 t vres m2 ->
+  Mem.valid_block m1 b ->
+  (forall ofs' : Z,
+   ofs <= ofs' < ofs + size_chunk chunk -> ~ Mem.perm m1 b ofs' Max Writable) ->
+  forall ofs', ofs <= ofs' < ofs + size_chunk chunk ->
+    forall k p, Mem.perm m1 b ofs' k p <-> Mem.perm m2 b ofs' k p.
+*)
+
+Lemma ec_readonly_strong: forall
+  (ef : external_function) (F V : Type) (ge : Genv.t F V)
+    (vargs : list val) (m1 : mem) (t : trace) (vres : val) (m2 : mem)
+    (EC: external_call ef ge vargs m1 t vres m2)
+    b (VB: Mem.valid_block m1 b), readonly m1 b m2.
+Proof. intros.
+       admit. (*
+destruct ef; simpl in *; inv EC; try apply readonly_refl.
+{ inv H. apply readonly_refl. eapply store_readonly; eassumption. }
+{ inv H0. apply readonly_refl. eapply store_readonly; eassumption. }
+{ eapply readonly_trans. eapply alloc_readonly; eassumption. 
+  eapply store_readonly; try eassumption. eapply alloc_forward; eassumption. }
+{ eapply free_readonly; eassumption. }
+{ eapply storebytes_readonly; eassumption. }  *)
+Qed.
 
 Lemma external_call_mem_forward:
   forall (ef : external_function) (F V : Type) (ge : Genv.t F V)
     (vargs : list val) (m1 : mem) (t : trace) (vres : val) (m2 : mem),
     external_call ef ge vargs m1 t vres m2 -> mem_forward m1 m2.
 Proof.
-intros.
-intros b Hb.
+intros. intros b Hb.
 split; intros. eapply external_call_valid_block; eauto.
 eapply external_call_max_perm; eauto.
+Qed.
+
+Lemma external_call_readonlyLD:
+  forall (ef : external_function) (F V : Type) (ge : Genv.t F V)
+    (vargs : list val) (m1 : mem) (t : trace) (vres : val) (m2 : mem),
+    external_call ef ge vargs m1 t vres m2 -> 
+  forall b, Mem.valid_block m1 b -> readonlyLD m1 b m2. 
+Proof. intros.
+  eapply readonly_readonlyLD.
+  eapply ec_readonly_strong; eassumption.
 Qed.
 
 Definition val_has_type_opt' (v: option val) (ty: typ) :=
@@ -1127,3 +1613,189 @@ Definition is_vundef (v : val) : bool :=
 
 Definition vals_def (vs : list val) := 
   List.forallb (fun v => negb (is_vundef v)) vs.
+
+Definition genv2blocksBool {F V : Type} (ge : Genv.t F V):= 
+  (fun b =>
+      match Genv.invert_symbol ge b with
+        Some id => true
+      | None => false
+      end,
+   fun b => match Genv.find_var_info ge b with
+                  Some gv => true
+                | None => false
+            end).
+
+Definition isGlobalBlock {F V : Type} (ge : Genv.t F V) :=
+  fun b => (fst (genv2blocksBool ge)) b || (snd (genv2blocksBool ge)) b.
+
+Lemma invert_symbol_isGlobal: forall {V F} (ge : Genv.t F V) b x,
+      Genv.invert_symbol ge b = Some x -> isGlobalBlock ge b = true.
+Proof. intros.
+  unfold isGlobalBlock, genv2blocksBool. simpl.
+  rewrite H; simpl; trivial. 
+Qed.
+
+Lemma find_symbol_isGlobal: forall {V F} (ge : Genv.t F V) x b
+       (Find: Genv.find_symbol ge x = Some b), isGlobalBlock ge b = true.
+Proof. intros.
+  eapply invert_symbol_isGlobal.
+  rewrite (Genv.find_invert_symbol _ _ Find). reflexivity.
+Qed.
+
+Lemma find_var_info_isGlobal: forall {V F} (ge : Genv.t F V) b x,
+      Genv.find_var_info ge b = Some x -> isGlobalBlock ge b = true.
+Proof. intros.
+  unfold isGlobalBlock, genv2blocksBool. simpl.
+  rewrite H, orb_true_r; trivial. 
+Qed.
+
+Definition ReadOnlyBlocks {F V} (ge: Genv.t F V) (b:block): bool :=
+  match Genv.find_var_info ge b with 
+          None => false
+        | Some gv => gvar_readonly gv && negb (gvar_volatile gv)
+  end.
+
+Lemma ReadOnlyBlocks_global {F V} (g:Genv.t F V) b: 
+      ReadOnlyBlocks g b = true -> isGlobalBlock g b = true.
+Proof.
+   unfold ReadOnlyBlocks; intros.
+   remember (Genv.find_var_info g b) as d. destruct d; try discriminate.
+   eapply find_var_info_isGlobal. rewrite <- Heqd; reflexivity.
+Qed.
+
+Definition RDOnly_fwd (m1 m1':mem) B :=
+  forall b (Hb: B b = true), readonly m1 b m1'.
+
+Lemma RDOnly_fwd_trans m1 m2 m3 B:
+  RDOnly_fwd m1 m2 B -> RDOnly_fwd m2 m3 B -> RDOnly_fwd m1 m3 B.
+Proof. intros; red; intros.
+  eapply readonly_trans. apply H; eauto. apply H0; eauto.
+Qed.
+
+Definition mem_respects_readonly {F V} (ge : Genv.t F V) m :=
+    forall b gv, Genv.find_var_info ge b = Some gv ->
+                 gvar_readonly gv && negb (gvar_volatile gv) = true ->
+           Genv.load_store_init_data ge m b 0 (gvar_init gv) /\
+           Mem.valid_block m b /\ (forall ofs : Z, ~ Mem.perm m b ofs Max Writable).
+
+Lemma mem_respects_readonly_fwd {F V} (g : Genv.t F V) m m'
+         (MRR: mem_respects_readonly g m)
+         (FWD: mem_forward m m')
+         (RDO: forall b, Mem.valid_block m b -> readonly m b m'):
+         mem_respects_readonly g m'.
+Proof. red; intros. destruct (MRR _ _ H H0) as [LSI [VB NP]]; clear MRR.
+destruct (FWD _ VB) as [VB' Perm].
+split. eapply Genv.load_store_init_data_invariant; try eassumption.
+       intros. eapply readonly_readonlyLD. eapply RDO; try eassumption.
+       intros. intros N. apply (NP ofs'). eapply Mem.perm_max; eassumption. (* apply NP.*)
+split. trivial.
+intros z N. apply (NP z); eauto.
+Qed.
+
+Lemma mem_respects_readonly_forward {F V} (ge : Genv.t F V) m m'
+         (MRR: mem_respects_readonly ge m)
+         (FWD: mem_forward m m')
+         (RDO: forall b gv, Genv.find_var_info ge b = Some gv ->
+                 gvar_readonly gv && negb (gvar_volatile gv) = true -> readonly m b m'):
+         mem_respects_readonly ge m'.
+Proof. red; intros. destruct (MRR _ _ H H0) as [LSI [VB NP]]; clear MRR.
+destruct (FWD _ VB) as [VB' Perm].
+split. eapply Genv.load_store_init_data_invariant; try eassumption.
+       intros. eapply readonly_readonlyLD. eapply RDO; try eassumption.
+       intros. intros N. apply (NP ofs'). eapply Mem.perm_max; eassumption. (* apply NP.*)
+split. trivial.
+intros z N. apply (NP z); eauto.
+Qed.
+
+Lemma mem_respects_readonly_forward' {F V} (ge : Genv.t F V) m m'
+         (MRR: mem_respects_readonly ge m)
+         (FWD: mem_forward m m')
+         (RDO: RDOnly_fwd m m' (ReadOnlyBlocks ge)):
+         mem_respects_readonly ge m'.
+Proof. red; intros. destruct (MRR _ _ H H0) as [LSI [VB NP]]; clear MRR.
+destruct (FWD _ VB) as [VB' Perm].
+split. eapply Genv.load_store_init_data_invariant; try eassumption.
+       intros. eapply readonly_readonlyLD. eapply RDO; try eassumption. unfold ReadOnlyBlocks. rewrite H; trivial.
+       intros. intros N. apply (NP ofs'). eapply Mem.perm_max; eassumption. (* apply NP.*)
+split. trivial.
+intros z N. apply (NP z); eauto.
+Qed.
+
+Definition gvar_info_eq {V1 V2} (v1: option (globvar V1)) (v2: option (globvar V2)) :=
+  match v1, v2 with
+    None, None => True
+  | Some i1, Some i2 => gvar_init i1 = gvar_init i2 /\
+                        gvar_readonly i1 = gvar_readonly i2 /\ gvar_volatile i1 = gvar_volatile i2
+  | _, _ => False
+  end. 
+
+Definition gvar_infos_eq {F1 V1 F2 V2} 
+  (g1 : Genv.t F1 V1) (g2 : Genv.t F2 V2) :=
+  forall b, gvar_info_eq (Genv.find_var_info g1 b) (Genv.find_var_info g2 b).
+
+Lemma gvar_info_refl V v: @gvar_info_eq V V v v. 
+  destruct v; simpl; intuition. Qed.
+
+Lemma gvar_infos_eqD {F1 V1 F2 V2} (ge1 : Genv.t F1 V1) (ge2 : Genv.t F2 V2)
+         (G: gvar_infos_eq ge1 ge2) b v1 (Hb: Genv.find_var_info ge1 b = Some v1): 
+      exists v2, Genv.find_var_info ge2 b = Some v2 /\ gvar_init v1 = gvar_init v2 /\
+                 gvar_readonly v1 = gvar_readonly v2 /\ gvar_volatile v1 = gvar_volatile v2.
+Proof. specialize (G b); rewrite Hb in G. red in G.
+  destruct (Genv.find_var_info ge2 b); try contradiction.
+  exists g. intuition.
+Qed.
+
+Lemma gvar_infos_eqD2 {F1 V1 F2 V2} (ge1 : Genv.t F1 V1) (ge2 : Genv.t F2 V2)
+         (G: gvar_infos_eq ge1 ge2) b v2 (Hb: Genv.find_var_info ge2 b = Some v2): 
+      exists v1, Genv.find_var_info ge1 b = Some v1 /\ gvar_init v1 = gvar_init v2 /\
+                 gvar_readonly v1 = gvar_readonly v2 /\ gvar_volatile v1 = gvar_volatile v2.
+Proof. specialize (G b); rewrite Hb in G. red in G.
+  destruct (Genv.find_var_info ge1 b); try contradiction.
+  exists g. intuition.
+Qed.
+
+Lemma gvar_infos_eq_ReadOnlyBlocks {F1 V1 F2 V2} (g1: Genv.t F1 V1) (g2:Genv.t F2 V2):
+      gvar_infos_eq g1 g2 -> ReadOnlyBlocks g1 = ReadOnlyBlocks g2.
+Proof. intros.
+  unfold ReadOnlyBlocks. extensionality b.
+  remember (Genv.find_var_info g1 b) as d1.
+  destruct d1; symmetry in Heqd1. 
+    apply (gvar_infos_eqD _ _ H) in Heqd1. destruct Heqd1 as [gv2 [? [? [? ?]]]].
+       rewrite H0, H2, H3. trivial.
+  remember (Genv.find_var_info g2 b) as q.
+  destruct q; symmetry in Heqq. 
+    apply (gvar_infos_eqD2 _ _ H) in Heqq. destruct Heqq as [gv1 [? [? [? ?]]]].
+    rewrite H0 in Heqd1. discriminate.
+  trivial.
+Qed.
+
+(*****************The following variant is used in the linker***********)
+Definition gvars_included {V1 V2} (gv1:option (globvar V1)) (gv2: option (globvar V2)): Prop :=
+  match gv1, gv2 with
+   None, None => True
+ | None, Some x2 => True
+ | Some x1, None => False
+ | Some x1, Some x2 => gvar_init x1 = gvar_init x2 /\ 
+                       gvar_readonly x1 = gvar_readonly x2 /\
+                       gvar_volatile x1 = gvar_volatile x2
+ end.
+
+Lemma gvars_cohereD {F1 V1 F2 V2} (ge1:Genv.t F1 V1) (ge2:Genv.t F2 V2)
+    (HG: forall b, gvars_included (Genv.find_var_info ge1 b) 
+                   (Genv.find_var_info ge2 b))
+    b gv1 (GV: Genv.find_var_info ge1 b = Some gv1):
+     exists gv2, Genv.find_var_info ge2 b = Some gv2 /\
+                 gvar_init gv1 = gvar_init gv2 /\ 
+                 gvar_readonly gv1 = gvar_readonly gv2 /\
+                 gvar_volatile gv1 = gvar_volatile gv2.
+Proof.  
+ specialize (HG b); rewrite GV in HG. simpl in HG.
+ destruct (Genv.find_var_info ge2 b); try contradiction.
+ exists g; eauto.
+Qed.
+
+(****************************************************************************)
+
+Definition findsymbols_preserved {F1 V1 F2 V2} 
+           (g1 : Genv.t F1 V1) (g2 : Genv.t F2 V2) := 
+  forall i b, Genv.find_symbol g1 i = Some b -> Genv.find_symbol g2 i = Some b.

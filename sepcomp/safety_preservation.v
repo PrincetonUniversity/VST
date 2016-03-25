@@ -10,11 +10,11 @@ Require Import Globalenvs.
 
 Require Import msl.Axioms.
 Require Import sepcomp.mem_lemmas. (*needed for definition of mem_forward etc*)
-Require Import sepcomp.core_semantics.
-Require Import sepcomp.core_semantics_lemmas.
-Require Import sepcomp.forward_simulations.
+Require Import sepcomp.semantics.
+Require Import sepcomp.semantics_lemmas.
+Require Import sepcomp.simulations.
 
-Import Forward_simulation_inj_exposed.
+(*Import Forward_simulation_inj_exposed.*)
 Import Val.
 
 (** * Safety and semantics preservation *)

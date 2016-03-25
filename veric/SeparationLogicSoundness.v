@@ -1,4 +1,4 @@
-Require Import sepcomp.core_semantics.
+Require Import sepcomp.semantics.
 
 Require Import veric.base.
 Require Import msl.rmaps.
@@ -44,7 +44,7 @@ Axiom semax_prog_rule :
      Genv.init_mem prog = Some m ->
      exists b, exists q, 
        Genv.find_symbol (globalenv prog) (prog_main prog) = Some b /\
-       core_semantics.initial_core (juicy_core_sem cl_core_sem)
+       semantics.initial_core (juicy_core_sem cl_core_sem)
                     (globalenv prog) (Vptr b Int.zero) nil = Some q /\
        forall n, exists jm, 
        m_dry jm = m /\ level jm = n /\ 

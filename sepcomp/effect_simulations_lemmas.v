@@ -9,10 +9,10 @@ Require Import Globalenvs.
 Require Import msl.Axioms.
 
 Require Import mem_lemmas. (*needed for definition of mem_forward etc*)
-Require Import core_semantics.
-Require Import core_semantics_lemmas.
+Require Import semantics.
+Require Import semantics_lemmas.
 Require Import effect_semantics.
-Require Import StructuredInjections.
+Require Import structured_injections.
 Require Import reach.
 Require Import effect_simulations.
 

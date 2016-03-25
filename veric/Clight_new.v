@@ -1,5 +1,5 @@
-Require Import sepcomp.core_semantics.
-Require Import sepcomp.forward_simulations.
+Require Import sepcomp.semantics.
+Require Import sepcomp.simulations.
 Require Import veric.base.
 Require Import veric.Clight_lemmas.
 Require compcert.common.Globalenvs.

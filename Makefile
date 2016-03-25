@@ -23,7 +23,7 @@ COMPCERT=compcert
 CC_TARGET=compcert/cfrontend/Clight.vo
 CC_DIRS= lib common cfrontend exportclight
 COMPCOMP= compcomp
-DIRS= msl sepcomp compcomp veric floyd progs sha linking fcf hmacfcf tweetnacl20140427 # verifiedDrbg
+DIRS= msl sepcomp veric floyd progs sha linking fcf hmacfcf tweetnacl20140427 # verifiedDrbg
 INCLUDE= $(foreach a,$(DIRS),$(if $(wildcard $(a)), -I $(a) -as $(a))) \
   -R $(COMPCERT) -as compcert
 #Replace the INCLUDE above with the following in order to build the linking target:
@@ -78,6 +78,24 @@ MSL_FILES = \
   env.v corec.v Coqlib2.v sepalg_list.v rmaps.v rmaps_lemmas.v op_classes.v \
   simple_CCC.v seplog.v alg_seplog.v alg_seplog_direct.v log_normalize.v ramification_lemmas.v
 
+UPDATE_SEPCOMP_FILES = \
+  Address.v \
+  step_lemmas.v \
+  extspec.v \
+  FiniteMaps.v \
+  mem_lemmas.v mem_wd.v \
+  semantics.v semantics_lemmas.v \
+  globalSep.v simulations.v \
+  simulations_lemmas.v \
+  structured_injections.v \
+  effect_semantics.v effect_simulations.v effect_simulations_lemmas.v \
+  effect_properties.v \
+  closed_safety.v compcert.v \
+  val_casted.v \
+  reach.v \
+  wholeprog_simulations.v \
+  wholeprog_lemmas.v
+  
 SEPCOMP_FILES= \
   Address.v \
   step_lemmas.v \
@@ -86,10 +104,9 @@ SEPCOMP_FILES= \
   mem_lemmas.v mem_wd.v \
   compiler_correctness.v \
   core_semantics.v core_semantics_lemmas.v \
-  forward_simulations.v \
-  forward_simulations_lemmas.v \
-  safety_preservation.v \
-  StructuredInjections.v \
+  globalSep.v simulations.v \
+  simulations_lemmas.v \
+  structured_injections.v \
   effect_semantics.v effect_simulations.v effect_simulations_lemmas.v \
   rg_lemmas.v \
   effect_properties.v \
@@ -102,7 +119,8 @@ SEPCOMP_FILES= \
   wholeprog_simulations.v \
   wholeprog_lemmas.v \
   barebones_simulations.v
-
+  #safety_preservation.v \
+  
 CONCURRENCY_FILES= \
   cast.v collection.v pos.v stack.v \
   sepcomp.v globalSep.v reach.v\
@@ -244,7 +262,7 @@ C_FILES = reverse.c queue.c sumarray.c message.c insertionsort.c float.c nest3.c
 
 FILES = \
  $(MSL_FILES:%=msl/%) \
- $(SEPCOMP_FILES:%=sepcomp/%) \
+ $(UPDATE_SEPCOMP_FILES:%=sepcomp/%) \
  $(VERIC_FILES:%=veric/%) \
  $(FLOYD_FILES:%=floyd/%) \
  $(PROGS_FILES:%=progs/%) \
@@ -286,7 +304,7 @@ default_target: msl veric floyd progs
 all:     .loadpath version.vo $(FILES:.v=.vo)
 
 msl:     .loadpath version.vo $(MSL_FILES:%.v=msl/%.vo)
-sepcomp: .loadpath $(CC_TARGET) $(SEPCOMP_FILES:%.v=sepcomp/%.vo)
+sepcomp: .loadpath $(CC_TARGET) $(UPDATE_SEPCOMP_FILES:%.v=sepcomp/%.vo)
 compcomp: .loadpath $(COMPCOMP_FILES:%.v=compcomp/%.vo)
 linking: .loadpath $(LINKING_FILES:%.v=linking/%.vo) 
 veric:   .loadpath $(VERIC_FILES:%.v=veric/%.vo)
@@ -355,7 +373,7 @@ progs/merge.v: progs/merge.c
 	$(CLIGHTGEN) ${CGFLAGS} $<
 endif
 
-version.v:  VERSION $(MSL_FILES:%=msl/%) $(SEPCOMP_FILES:%=sepcomp/%) $(VERIC_FILES:%=veric/%) $(FLOYD_FILES:%=floyd/%)
+version.v:  VERSION $(MSL_FILES:%=msl/%) $(UPDATE_SEPCOMP_FILES:%=sepcomp/%) $(VERIC_FILES:%=veric/%) $(FLOYD_FILES:%=floyd/%)
 	sh util/make_version
 
 .loadpath: Makefile

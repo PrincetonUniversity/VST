@@ -1238,7 +1238,7 @@ Focus 1.
   destruct l0; simpl in *.
   hnf in CS0.
   specialize (CS0 ora ve te m0 (S n)).
-  assert (core_semantics.corestep (juicy_core_sem cl_core_sem) ge (State ve te ctl1) m0 st' m'0).
+  assert (semantics.corestep (juicy_core_sem cl_core_sem) ge (State ve te ctl1) m0 st' m'0).
   split3; auto.
   pose proof (safe_corestep_backward (juicy_core_sem cl_core_sem) OK_spec ge _ _ _ _ _ _ H5 H1).
   apply CS0 in H6; auto.
@@ -1256,7 +1256,7 @@ Focus 1.
   destruct l0; simpl in *.
   hnf in CS0.
   specialize (CS0 ora ve te m0 (S n)).
-  assert (core_semantics.corestep (juicy_core_sem cl_core_sem) ge (State ve te ctl1) m0 st' m'0).
+  assert (semantics.corestep (juicy_core_sem cl_core_sem) ge (State ve te ctl1) m0 st' m'0).
   split3; auto.
   pose proof (safe_corestep_backward (juicy_core_sem cl_core_sem) OK_spec ge _ _ _ _ _ _ H5 H1).
   apply CS0 in H6; auto.

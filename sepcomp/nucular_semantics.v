@@ -1,7 +1,7 @@
 Require Import compcert. Import CompcertAll.
 
-Require Import core_semantics.
-Require Import core_semantics_lemmas.
+Require Import semantics.
+Require Import semantics_lemmas.
 Require Import mem_wd.
 Require Import mem_lemmas.
 Require Import reach.

@@ -7,8 +7,8 @@ Require Import Memory.
 Require Import Globalenvs.
 Require Import Events.
 
-Require Import core_semantics.
-Require Import core_semantics_lemmas.
+Require Import semantics.
+Require Import semantics_lemmas.
 Require Import reach.
 Require Import effect_semantics.
 Require Import effect_simulations.
@@ -198,7 +198,7 @@ case_eq (at_external sem c).
 intros [[ef sig] args] AT.
 left. left. exists ef, sig, args. auto.
 intros NONE.
-case_eq (core_semantics.halted sem c).
+case_eq (semantics.halted sem c).
 intros v HALT.
 left. right. exists v. auto.
 intros NONE'.
@@ -222,7 +222,7 @@ rewrite STEP in HALT; congruence.
 Qed.
 
 Lemma nyielded_natext c :
-  ~yielded c -> core_semantics.at_external sem c = None.
+  ~yielded c -> semantics.at_external sem c = None.
 Proof.
 unfold yielded.
 case_eq (at_external sem c); auto.
@@ -233,14 +233,14 @@ intros CONTRA; elimtype False; apply CONTRA.
 left; exists ef, sig, args; auto.
 Qed.
 
-Lemma nyielded_nhalted c : ~yielded c -> core_semantics.halted sem c = None.
+Lemma nyielded_nhalted c : ~yielded c -> semantics.halted sem c = None.
 Proof.
 unfold yielded.
 case_eq (at_external sem c).
 intros [[ef sig] args] AT.
 generalize (@at_external_halted_excl _ _ _ sem c).
 rewrite AT. intros [|W]; try congruence; auto. intros AT.
-case_eq (core_semantics.halted sem c); auto.
+case_eq (semantics.halted sem c); auto.
 intros v HALT.
 intros CONTRA; elimtype False; apply CONTRA.
 right; exists v; auto.

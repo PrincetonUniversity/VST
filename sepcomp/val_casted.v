@@ -11,11 +11,11 @@ Require Import Cop.
 Require Import Events.
 
 Require Import mem_lemmas.
-Require Import core_semantics.
-Require Import core_semantics_lemmas.
+Require Import semantics.
+Require Import semantics_lemmas.
 Require Import reach.
 Require Import effect_semantics.
-Require Import StructuredInjections.
+Require Import structured_injections.
 Require Import effect_simulations.
 Require Import effect_properties.
 Require Import effect_simulations_lemmas.
@@ -40,14 +40,10 @@ Inductive val_casted: val -> type -> Prop :=
       val_casted (Vint n) (Tpointer ty attr)
   | val_casted_ptr_int: forall b ofs si attr,
       val_casted (Vptr b ofs) (Tint I32 si attr)
-  | val_casted_ptr_cptr: forall b ofs id attr,
-      val_casted (Vptr b ofs) (Tcomp_ptr  id attr)
-  | val_casted_int_cptr: forall n id attr,
-      val_casted (Vint n) (Tcomp_ptr id attr)
-  | val_casted_struct: forall id fld attr b ofs,
-      val_casted (Vptr b ofs) (Tstruct id fld attr)
-  | val_casted_union: forall id fld attr b ofs,
-      val_casted (Vptr b ofs) (Tunion id fld attr)
+  | val_casted_struct: forall id attr b ofs,
+      val_casted (Vptr b ofs) (Tstruct id attr)
+  | val_casted_union: forall id attr b ofs,
+      val_casted (Vptr b ofs) (Tunion id attr)
   | val_casted_void: forall v,
       val_casted v Tvoid.
 
@@ -62,10 +58,8 @@ Definition val_casted_func (v : val) (t : type) : bool :=
     | Vptr b ofs, Tpointer ty attr => true
     | Vint n, Tpointer ty attr => true
     | Vptr b ofs, Tint I32 si attr => true
-    | Vptr b ofs, Tcomp_ptr id attr => true
-    | Vint n, Tcomp_ptr id attr => true
-    | Vptr b ofs, Tstruct id flt attr => true
-    | Vptr b ofs, Tunion id flt attr => true
+    | Vptr b ofs, Tstruct id attr => true
+    | Vptr b ofs, Tunion id attr => true
     | _, Tvoid => true 
     | _, _ => false
   end.
@@ -123,7 +117,7 @@ Proof.
 * (* void *)
   constructor.
 * (* int *)
-  destruct i; destruct ty as [ | | | [ | ] | | | | | | ]; 
+  destruct i; destruct ty as [ | | | [ | ] | | | | | ]; 
    simpl in H; try discriminate; destruct v; inv H.
   constructor. apply (cast_int_int_idem I8 s).
   constructor. apply (cast_int_int_idem I8 s).
@@ -144,22 +138,15 @@ Proof.
   constructor.
   constructor; auto.
   constructor; auto.
-  constructor; auto.
-  constructor; auto.
   constructor. simpl. destruct (Int.eq i0 Int.zero); auto.
   constructor. simpl. destruct (Int64.eq i Int64.zero); auto.
   constructor. simpl. destruct (Float32.cmp Ceq f Float32.zero); auto.
   constructor. simpl. destruct (Float.cmp Ceq f Float.zero); auto.
   constructor. simpl. destruct (Int.eq i Int.zero); auto.
-  constructor; auto.
   constructor. simpl. destruct (Int.eq i Int.zero); auto.
-  constructor; auto.
   constructor. simpl. destruct (Int.eq i Int.zero); auto.
-  constructor; auto.
-  constructor. simpl. destruct (Int.eq i0 Int.zero); auto.
-  constructor; auto.
 * (* long *)
-  destruct ty as [ | | | [ | ] | | | | | | ]; try discriminate.
+  destruct ty as [ | | | [ | ] | | | | | ]; try discriminate.
   destruct v; inv H. constructor.
   destruct v; inv H. constructor.
   destruct v; try discriminate. destruct (cast_single_long s f); inv H. constructor.
@@ -167,12 +154,11 @@ Proof.
   destruct v; inv H. constructor.
   destruct v; inv H. constructor.
   destruct v; inv H. constructor.
-  destruct v; inv H. constructor.
 * (* float *)
   destruct f.
-  destruct ty as [ | | | [ | ] | | | | | | ]; simpl in H; try discriminate; destruct v; inv H;
+  destruct ty as [ | | | [ | ] | | | | | ]; simpl in H; try discriminate; destruct v; inv H;
    try solve [constructor].
-  destruct ty as [ | | | [ | ] | | | | | | ]; simpl in H; try discriminate; destruct v; inv H;
+  destruct ty as [ | | | [ | ] | | | | | ]; simpl in H; try discriminate; destruct v; inv H;
    try solve [constructor].
 * (* pointer *)
   destruct ty; simpl in H; try discriminate; destruct v; inv H; try constructor.
@@ -182,12 +168,10 @@ Proof.
   discriminate.
 * (* structs *)
   destruct ty; try discriminate; destruct v; try discriminate.
-  destruct (ident_eq i0 i && fieldlist_eq f0 f); inv H; constructor.
+  destruct (ident_eq i0 i ); inv H; constructor.
 * (* unions *)
   destruct ty; try discriminate; destruct v; try discriminate.
-  destruct (ident_eq i0 i && fieldlist_eq f0 f); inv H; constructor.
-* (* comp_ptr *)
-  destruct ty; simpl in H; try discriminate; destruct v; inv H; constructor.
+  destruct (ident_eq i0 i ); inv H; constructor.
 Qed.
 
 Lemma val_casted_load_result:
@@ -208,8 +192,6 @@ Proof.
   inv H0; auto.
   inv H0; auto.
   inv H0; auto.
-  discriminate.
-  discriminate.
   discriminate.
   discriminate.
   discriminate.
@@ -282,7 +264,7 @@ inversion 1; constructor.
 Qed.
 
 Lemma val_casted_list_inj (j : meminj) vs1 vs2 ts :
-  val_list_inject j vs1 vs2 ->
+  Val.inject_list j vs1 vs2 ->
   val_casted_list vs1 ts ->
   val_casted_list vs2 ts.
 Proof.
@@ -383,7 +365,7 @@ Fixpoint vals_defined (vl : list val) :=
   end.
 
 Lemma vals_inject_defined (vl1 vl2 : list val) (j : meminj) :
-  val_list_inject j vl1 vl2 -> 
+  Val.inject_list j vl1 vl2 -> 
   vals_defined vl1=true -> 
   vals_defined vl2=true.
 Proof.
@@ -408,7 +390,7 @@ Proof.
 Qed.
 
 Lemma val_list_inject_hastype j vl1 vl2 tys :
-  val_list_inject j vl1 vl2 -> 
+  Val.inject_list j vl1 vl2 -> 
   vals_defined vl1=true -> 
   val_has_type_list_func vl1 tys=true ->
   val_has_type_list_func vl2 tys=true.
@@ -429,7 +411,7 @@ inv H3. rewrite H0. rewrite andb_true_iff in H0.
 Qed.
 
 Lemma val_list_inject_defined j vl1 vl2 : 
-  val_list_inject j vl1 vl2 -> 
+  Val.inject_list j vl1 vl2 -> 
   vals_defined vl1=true -> 
   vals_defined vl2=true.
 Proof.
@@ -495,8 +477,8 @@ Qed.
 
 Lemma encode_longs_inject:
   forall (f : meminj) (tyl : list typ) (vl1 vl2 : list val),
-  val_list_inject f vl1 vl2 ->
-  val_list_inject f (encode_longs tyl vl1) (encode_longs tyl vl2).
+  Val.inject_list f vl1 vl2 ->
+  Val.inject_list f (encode_longs tyl vl1) (encode_longs tyl vl2).
 Proof.
 intros until vl2; intros H; revert tyl; induction H; simpl.
 destruct tyl; simpl; [solve[constructor]|]. solve[destruct t; auto].
