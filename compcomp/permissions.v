@@ -1,16 +1,22 @@
-Require Import ssreflect Ssreflect.seq ssrbool ssrnat ssrfun eqtype seq fintype finfun.
+Require Import ssreflect seq ssrbool
+        ssrnat ssrfun eqtype seq fintype finfun.
+
+Add LoadPath "../compcomp" as compcomp.
+
 Set Implicit Arguments.
 Require Import threads_lemmas.
 Require Import Memory.
 Require Import Values. (*for val*)
 Require Import Integers.
 Require Import ZArith.
+Require Import veric.shares juicy_mem.
+Require Import msl.msl_standard.
+Import cjoins.
 
 Definition access_map := Maps.PMap.t (Z -> option permission).
-Definition delta_map := Maps.PMap.t (Z -> option (option permission)).
 
 Section permMapDefs.
- 
+  
   Definition empty_map : access_map :=
     (fun z => None, Maps.PTree.empty (Z -> option permission)).
  
@@ -215,16 +221,6 @@ Section permMapDefs.
                                 Maps.PMap.get b pmap ofs')
                   pmap.
 
-  Definition computeMap (pmap : access_map) (delta : delta_map) : access_map :=
-    (fun ofs => None,
-             Maps.PTree.map 
-               (fun b f => 
-                  fun ofs =>
-                    match (Maps.PMap.get b delta) ofs with
-                      | None => f ofs
-                      | Some p => p
-                    end) pmap.2).
-
   (*Inductive SetPerm b ofs : PermMap.t -> PermMap.t -> Prop :=
   | set: forall pmap1 pmap2 b' ofs' k,
            b <> b' \/ (b = b' /\ ofs <> ofs') ->
@@ -378,6 +374,195 @@ Section permMapDefs.
   (* Qed. *)
         
 End permMapDefs.
+
+Section ShareMaps.
+
+  Definition share_map := Maps.PTree.t (Z -> share).
+
+  Definition empty_share_map := Maps.PTree.empty (Z -> share).
+  
+  Definition mkShare_map sh_tree : Maps.PMap.t (Z -> share) :=
+    (fun ofs => Share.bot, sh_tree).
+
+  Definition share_split sh :=
+    (Share.unrel Share.Lsh sh, Share.unrel Share.Rsh sh).
+
+  Definition share_to_perm sh :=
+    perm_of_sh (share_split sh).1 (share_split sh).2.
+
+  Definition share_to_access_map (smap : share_map) : access_map :=
+    (fun ofs => None, Maps.PTree.map1 (fun f => fun ofs =>
+                                            share_to_perm (f ofs)) smap).
+
+  Definition setShare (sh : share) b ofs (smap : share_map) : share_map :=
+    Maps.PTree.set b (fun ofs' => if is_left (Coqlib.zeq ofs ofs') then sh else
+                                 match (Maps.PTree.get b smap) with
+                                 | Some f => f ofs'
+                                 | None => Share.bot
+                                 end) smap.
+
+  Definition access_to_share_map (smap : share_map) (pmap : access_map): share_map :=
+    Maps.PTree.combine
+      (fun o1 o2 =>
+         match o1 with
+         | Some f1 =>
+           Some(
+               match o2 with
+               | Some f2 =>
+                 fun ofs => match f2 ofs with
+                         | Some Freeable => Share.top
+                         | Some _ => f1 ofs
+                         | None => Share.bot
+                         end
+               | None => fun ofs => Share.bot
+               end)
+         | None =>
+           match o2 with
+           | Some f2 => Some (fun ofs => match f2 ofs with
+                                     | Some Freeable => Share.top
+                                     | Some _ => Share.bot (* bogus value *)
+                                     | None => Share.bot
+                                     end)
+           | None => None
+           end
+         end) smap pmap.2.
+     
+  Definition decay m m' := forall b ofs, 
+      (~Mem.valid_block m b ->
+       forall p, Mem.perm m' b ofs Cur p -> Mem.perm m' b ofs Cur Freeable) /\
+      (Mem.perm m b ofs Cur Freeable ->
+       forall p, Mem.perm m' b ofs Cur p -> Mem.perm m' b ofs Cur Freeable) /\
+      (~Mem.perm m b ofs Cur Freeable ->
+       forall p, Mem.perm m b ofs Cur p -> Mem.perm m' b ofs Cur p) /\
+      (Mem.valid_block m b ->
+       forall p, Mem.perm m' b ofs Cur p -> Mem.perm m b ofs Cur p).
+  
+  Definition map_decay (pmap pmap' : access_map) :=
+    forall b ofs, (Maps.PMap.get b pmap) ofs = (Maps.PMap.get b pmap') ofs \/
+             ((Maps.PMap.get b pmap) ofs = Some Freeable /\
+              (Maps.PMap.get b pmap') ofs = None) \/
+             ((Maps.PMap.get b pmap) ofs = None /\
+              (Maps.PMap.get b pmap') ofs = Some Freeable).
+
+  Lemma mem_map_decay :
+    forall m m',
+      decay m m' ->
+      map_decay (getCurPerm m) (getCurPerm m').
+  Proof.
+    intros m m' Hdecay.
+    intros b ofs.
+    destruct (Hdecay b ofs) as [H1 [H2 [H3 H4]]].
+    unfold Mem.valid_block in *.
+    destruct (Coqlib.plt b (Mem.nextblock m)) as [Hlt | Hlt].
+    - specialize (H4 Hlt). clear H1.
+      destruct (Maps.PMap.get b (getCurPerm m') ofs) as [p'|] eqn:Hperm';
+        destruct (Maps.PMap.get b (getCurPerm m) ofs) as [p|] eqn:Hperm; auto;
+        rewrite getCurPerm_correct in Hperm;
+        rewrite getCurPerm_correct in Hperm'.
+      { destruct p eqn:Hp;
+        [ assert (Hperm_freeable: Mem.perm m b ofs Cur Freeable)
+            by (unfold Mem.perm, Mem.perm_order'; subst; rewrite Hperm; constructor);
+          assert (Hmem_perm': Mem.perm m' b ofs Cur p')
+            by (unfold Mem.perm, Mem.perm_order'; subst; rewrite Hperm'; constructor);
+          specialize (H2 Hperm_freeable _ Hmem_perm');
+          unfold Mem.perm in H2;
+          rewrite Hperm' in H2; simpl in H2; inversion H2; subst; auto| | |];
+          assert (Hnot_freeable: ~ Mem.perm m b ofs Cur Freeable)
+            by (unfold Mem.perm, Mem.perm_order';
+                 rewrite Hperm; intro Hcontra; inversion Hcontra);
+            specialize (H3 Hnot_freeable);
+            specialize (H3 p);
+            assert (Hmem_perm: Mem.perm m b ofs Cur p) by
+              (unfold Mem.perm, Mem.perm_order';
+                rewrite Hperm; subst; constructor);
+          specialize (H3 Hmem_perm);
+          unfold Mem.perm, Mem.perm_order' in H3; subst;
+          rewrite Hperm' in H3;
+          inversion H3; subst; auto;
+          try (assert (Hp'_ord: Mem.perm m' b ofs Cur Freeable) by
+              (unfold Mem.perm, Mem.perm_order'; rewrite Hperm'; constructor);
+                specialize (H4 Freeable Hp'_ord); tauto).
+        assert  (Hp'_ord: Mem.perm m' b ofs Cur Writable) by
+            (unfold Mem.perm, Mem.perm_order'; rewrite Hperm'; constructor).
+        specialize (H4 _ Hp'_ord).
+        unfold Mem.perm, Mem.perm_order' in H4.
+        rewrite Hperm in H4. inversion H4.
+        destruct p' eqn:Hp'; auto;
+        assert  (Hp'_ord: Mem.perm m' b ofs Cur p') by
+            (unfold Mem.perm, Mem.perm_order'; rewrite Hperm'; subst; constructor);
+        specialize (H4 _ Hp'_ord);
+        unfold Mem.perm, Mem.perm_order' in H4;
+        rewrite Hperm in H4; subst; inversion H4.
+      }
+      { exfalso.
+        assert (Hmem_perm': Mem.perm m' b ofs Cur p')
+          by (unfold Mem.perm, Mem.perm_order'; rewrite Hperm'; constructor).
+        specialize (H4 _ Hmem_perm').
+        unfold Mem.perm, Mem.perm_order' in H4;
+          now rewrite Hperm in H4.
+      }
+      { destruct p eqn:Hp; auto;
+        assert (Hnot_freeable: ~ Mem.perm m b ofs Cur Freeable)
+          by
+            (unfold Mem.perm, Mem.perm_order';
+             rewrite Hperm; intro Hcontra; inversion Hcontra);
+        specialize (H3 Hnot_freeable);
+        specialize (H3 p);
+        assert (Hmem_perm: Mem.perm m b ofs Cur p) by
+            (unfold Mem.perm, Mem.perm_order';
+             rewrite Hperm; subst; constructor);
+        specialize (H3 Hmem_perm);
+        unfold Mem.perm, Mem.perm_order' in *; subst;
+        rewrite Hperm' in H3; tauto. }
+    - specialize (H1 Hlt).
+      assert (Hperm: Maps.PMap.get b (Mem.mem_access m) ofs Cur = None)
+        by (now apply Mem.nextblock_noaccess).
+      do 2 rewrite getCurPerm_correct. rewrite Hperm.
+      clear H4.
+      destruct (Maps.PMap.get b (Mem.mem_access m') ofs Cur) as [p'|] eqn:Hperm';
+        auto.
+      assert (Hmem_perm': Mem.perm m' b ofs Cur p')
+        by (unfold Mem.perm, Mem.perm_order'; rewrite Hperm'; simpl; constructor).
+      specialize (H1 _ Hmem_perm').
+      assert (Hp': p' = Freeable)
+        by  (unfold Mem.perm, Mem.perm_order' in H1; rewrite Hperm' in H1;
+             inversion H1; auto); subst. auto.
+  Qed.
+
+  Definition shareMapsJoin (smap1 smap2 : share_map) : Prop :=
+    forall b ofs,
+      joins ((Maps.PMap.get b (mkShare_map smap1)) ofs)
+            ((Maps.PMap.get b (mkShare_map smap2)) ofs).
+  
+  Lemma shareMapsJoin_comm : forall smap1 smap2,
+      shareMapsJoin smap1 smap2 ->
+      shareMapsJoin smap2 smap1.
+  Proof.
+    intros smap1 smap2 Hjoin. unfold shareMapsJoin in *. intros.
+    specialize (Hjoin b ofs).
+    now apply joins_comm in Hjoin.
+  Qed.
+                       
+  Inductive transferShares (smap_from smap_to : share_map) (tmap : share_map)
+            (smap_from' smap_to' : share_map) : Prop :=
+  | TransSh : forall b ofs sh_t sh_from sh_from' sh_to sh_to',
+      option_map (fun f => f ofs) (Maps.PTree.get b tmap) = Some sh_t ->
+      (Maps.PMap.get b (mkShare_map smap_from)) ofs = sh_from ->
+      (Maps.PMap.get b (mkShare_map smap_from')) ofs = sh_from' ->
+      (Maps.PMap.get b (mkShare_map smap_to)) ofs = sh_to ->
+      (Maps.PMap.get b (mkShare_map smap_to')) ofs = sh_to' ->
+      join sh_from' sh_t sh_from ->
+      join sh_to sh_t sh_to' ->
+      transferShares smap_from smap_to tmap smap_from' smap_to'
+  | NoTrans : forall b ofs,
+      Maps.PTree.get b tmap = None ->
+      (Maps.PMap.get b (mkShare_map smap_from)) ofs =
+      (Maps.PMap.get b (mkShare_map smap_from')) ofs ->
+      (Maps.PMap.get b (mkShare_map smap_to)) ofs =
+      (Maps.PMap.get b (mkShare_map smap_to')) ofs ->
+      transferShares smap_from smap_to tmap smap_from' smap_to'.
+
+End ShareMaps. 
 
 (* Computation of a canonical form of permission maps where the
      default element is a function to the empty permission *)

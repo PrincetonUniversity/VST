@@ -1,5 +1,5 @@
 Require Import compcert_threads.
-Load ESOP_simulation.
+Require Import simulations.
 Import ssreflect fintype.
 Require Import ProofIrrelevance.
 

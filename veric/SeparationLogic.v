@@ -25,6 +25,7 @@ Require veric.assert_lemmas.
 Require Import msl.Coqlib2.
 Require Import veric.juicy_extspec.
 Require Import veric.valid_pointer.
+Require veric.semax_prog.
 
 Instance Nveric: NatDed mpred := algNatDed compcert_rmaps.RML.R.rmap.
 Instance Sveric: SepLog mpred := algSepLog compcert_rmaps.RML.R.rmap.
@@ -1005,8 +1006,9 @@ Definition semax_prog
   all_initializers_aligned prog /\
   cenv_cs = prog_comp_env prog /\
   @semax_func Espec V G C (prog_funct prog) G /\
-   match_globvars (prog_vars prog) V = true /\
-    In (prog.(prog_main), mk_funspec (nil,Tvoid) unit (main_pre prog ) (main_post prog)) G.
+  match_globvars (prog_vars prog) V = true /\
+  In (prog.(prog_main), mk_funspec (nil,Tvoid) unit (main_pre prog ) (main_post prog)) G /\
+  veric.semax_prog.is_Internal prog (prog_main prog) = true.
 
 Axiom semax_func_nil:   forall {Espec: OracleKind}, 
         forall V G C, @semax_func Espec V G C nil nil.

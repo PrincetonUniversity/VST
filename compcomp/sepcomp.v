@@ -1,10 +1,11 @@
 Add LoadPath "../compcomp" as compcomp.
+Add LoadPath "../sepcomp" as sepcomp.
 
 Module SepComp.
 Require Export core_semantics.
 Require Export mem_lemmas.
 Require Export structured_injections.
-Require Export sepcomp.effect_semantics.
+Require Export effect_semantics.
 Require Export reach. 
 (*Require Export simulations.*)
 (*Require Export closed_simulations.*)

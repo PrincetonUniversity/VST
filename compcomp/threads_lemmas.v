@@ -1,11 +1,8 @@
-Require Import ssreflect Ssreflect.seq ssrbool ssrnat ssrfun eqtype seq fintype finfun.
-Set Implicit Arguments.
-
-(*NOTE: because of redefinition of [val], these imports must appear 
-  after Ssreflect eqtype.*)
 Require Import Integers.
+Require Import ssreflect ssrbool ssrnat eqtype.
 
 Require Import ZArith.
+Set Implicit Arguments.
 
 (* tactics to support Omega for ssrnats*)
 Ltac arith_hypo_ssrnat2coqnat :=
@@ -43,16 +40,11 @@ Class monad (mon : Type -> Type) :=
 Notation "x >>= f" := (bind x f) (at level 40, left associativity).
 Notation "'do!' X <- A ; B" := (bind A (fun X => B)) (at level 40).
 
-Lemma leq_pf_irr : forall n m (H1 : n < m) (H2: n < m), H1 = H2.
-Proof.
-  intros. eapply Eqdep_dec.eq_proofs_unicity; intros x y; destruct x,y; auto.
-Defined.
-
 Lemma if_true : forall {A : Type} b (x y : A)
                   (Htrue: is_true b),
                   (if b then x else y) = x.
 Proof.
-  intros.  by rewrite Htrue.
+  intros. now rewrite Htrue.
 Defined.
 
 Lemma if_false : forall {A : Type} b (x y : A)
@@ -62,6 +54,7 @@ Proof.
   intros. rewrite <- Bool.if_negb. by rewrite Hfalse.
 Defined.
 
+(*
 Module SeqLemmas.
 
   Definition subSeq {T:eqType} (s1 s2 : seq T) :=
@@ -197,6 +190,6 @@ Module BlockList.
     auto. apply IHn in HIn. destruct HIn. auto.
   Qed.
 
-End BlockList.
+End BlockList. *)
 
 
