@@ -2,7 +2,7 @@ Require Import msl.Axioms.
 
 Require Import Memory.
 
-Require Import core_semantics.
+Require Import semantics.
 
 Module FSem.
 Record t M TM := mk { 

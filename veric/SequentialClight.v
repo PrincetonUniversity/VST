@@ -1,4 +1,4 @@
-Require Import sepcomp.core_semantics.
+Require Import sepcomp.semantics.
 
 Require Import veric.base.
 Require Import veric.Clight_new.

@@ -11,9 +11,9 @@ Require Import Globalenvs.
 Require Import compcert.lib.Axioms.
 
 Require Import mem_lemmas. (*needed for definition of mem_forward etc*)
-Require Import core_semantics.
-Require Import core_semantics_lemmas.
-Require Import StructuredInjections.
+Require Import semantics.
+Require Import semantics_lemmas.
+Require Import structured_injections.
 Require Import reach.
 Require Import mem_wd.
 

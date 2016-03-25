@@ -1,16 +1,16 @@
 (*CompCert imports*)
 Require Import Events.
 Require Import Memory.
-Require Import compcert.lib.Coqlib.
+Require Import Coqlib.
 Require Import Values.
 Require Import Maps.
 Require Import Integers.
 Require Import AST. 
 Require Import Globalenvs.
-Require Import compcert.lib.Axioms.
+Require Import Axioms.
 
 Require Import mem_lemmas.
-Require Import core_semantics.
+Require Import semantics.
 
 Definition corestep_fun {G C M : Type} (sem : CoreSemantics G C M) :=
   forall (m m' m'' : M) ge c c' c'',
@@ -162,6 +162,33 @@ Proof.
    intros. destruct CS.
    eapply corestepN_fwd.
    apply H.
+Qed.
+
+Lemma corestepN_rdonly: forall ge c m c' m' n,
+  corestepN coopsem ge n c m c' m' -> forall b
+  (VB: Mem.valid_block m b), readonly m b m'.
+Proof.
+intros until n; revert c m.
+induction n; simpl; auto.
+inversion 1; intros. apply readonly_refl.
+intros c m [c2 [m2 [? ?]]].
+intros. apply readonly_trans with (m2 := m2).
+eapply corestep_rdonly; eauto.
+eapply IHn; eauto. eapply corestep_fwd; eauto.
+Qed.
+
+Lemma corestep_plus_rdonly ge c m c' m'
+  (CS: corestep_plus coopsem ge c m c' m') b
+  (VB: Mem.valid_block m b): readonly m b m'.
+Proof.
+  destruct CS. eapply corestepN_rdonly; eauto. 
+Qed.
+
+Lemma corestep_star_rdonly ge c m c' m'
+  (CS: corestep_star coopsem ge c m c' m') b
+  (VB: Mem.valid_block m b): readonly m b m'.
+Proof.
+  destruct CS. eapply corestepN_rdonly; eauto. 
 Qed.
 
 End CoopCoreSemLemmas.

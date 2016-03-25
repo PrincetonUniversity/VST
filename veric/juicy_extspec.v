@@ -1,4 +1,4 @@
-Require Import sepcomp.core_semantics.
+Require Import sepcomp.semantics.
 Require Import sepcomp.extspec.
 Require Import sepcomp.step_lemmas.
 Require Import veric.juicy_safety.
@@ -76,7 +76,7 @@ Definition juicy_core_sem
   {G C} (csem: CoreSemantics G C mem) :
    CoreSemantics G C juicy_mem :=
   @Build_CoreSemantics _ _ _ 
-    (core_semantics.initial_core csem)
+    (semantics.initial_core csem)
     (at_external csem)
     (after_external csem)
     (j_halted csem)

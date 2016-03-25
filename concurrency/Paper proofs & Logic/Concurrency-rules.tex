@@ -1,0 +1,68 @@
+\documentclass[8pt]{article}
+\usepackage{listings, amssymb, amsmath, amsfonts }
+\usepackage{wasysym, xifthen, mathtools, xcolor, semantic}             % Include the listings-package
+\usepackage{multicol}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%                                  COMMANDS                                         %
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\newcommand{\arr}{\text{array}}
+%\newcommand{\lock}[2]{ \square \hspace{-1.5ex} {\scriptscriptstyle{ #1}} \hspace{-1ex} \xrightarrow{#2}}
+\newcommand{\lock}[2]{ \boxdot \hspace{-1ex} \xrightarrow[#2]{#1}}
+\newcommand{\thread}{\ocircle \hspace{-1ex} \rightarrow}
+%\newcommand{\Star}[2]{\displaystyle{\bigstar_{#1}^{#2}}}
+%\newcommand{\Star}[2]{\stackbin[\substack{#2}]{\mathclap{#1}}{\bigstar}}
+\newcommand{\Star}[2]{ \underset{#1}{\overset{#2}{\bigstar}} }
+\newcommand{\mts}[1]{ \overset{#1}{\mapsto} }
+\newcommand{\assert}[1]{\textcolor{blue}{ \{ #1 \}  } }
+\newcommand{\listpt}{\text{list }}
+\newcommand{\NULL}{\text{NULL }}
+\newcommand{\tree}[2]{#1 \rightarrowtail #2}
+\newcommand{\newlinespecial}{\newline \hphantom{100pt}}
+\newcommand{\newlineThree}{\newline \hphantom{100pt}\hphantom{100pt}}
+\newcommand{\dagt}{\text{dag}{}}
+\newcommand{\DAG}[2]{ \underset{#2}{\overset{#1}{\dag}} }
+\newcommand{\fullshr}{\bullet}
+\newcommand{\smallcircle}{\scriptscriptstyle{\CIRCLE}}
+%Open padlock
+\newcommand{\openLock}{ 
+\square \hspace{-12.4pt}
+\mathrel{\raisebox{6.8pt}{$\scriptstyle\Cap$}} \hspace{-4pt}
+{\mathrel{\raisebox{3pt}{$\scriptscriptstyle\bullet$}  \hspace{-6.7pt} \mathrel{\raisebox{1pt}{$\scriptscriptstyle\blacktriangle$}}} } \hspace{3pt}
+}
+%%The padlock
+\newcommand{\holdz}{ 
+\displaystyle
+{\square \hspace{-9.3pt}
+\mathrel{\raisebox{6.8pt}{$\scriptstyle\Cap$}} \hspace{-7.4pt}
+{\mathrel{\raisebox{3pt}{$\scriptscriptstyle\bullet$}  \hspace{-6.75pt} \mathrel{\raisebox{1pt}{$\scriptscriptstyle\blacktriangle$}}} } \hspace{3pt}
+}}
+\newcommand{\holda}{
+\overset{\mathrel{\raisebox{-5pt}{$\scriptscriptstyle{\Cap}$}} }{\square} \hspace{-6pt}
+{\mathrel{\raisebox{3pt}{$\scriptscriptstyle\bullet$}  \hspace{-6.7pt} \mathrel{\raisebox{1pt}{$\scriptscriptstyle\blacktriangle$}}} } \hspace{3pt}
+}
+\newcommand{\holdc}{
+\mathrel{\raisebox{2pt}{$\bullet$}  \hspace{-8pt} \mathrel{\raisebox{0pt}{$\scriptstyle\blacktriangle$}}} \hspace{1pt}
+}
+\newcommand{\holdb}{
+\square \hspace{-6pt}
+{\mathrel{\raisebox{3pt}{$\scriptscriptstyle\bullet$}  \hspace{-6.7pt} \mathrel{\raisebox{1pt}{$\scriptscriptstyle\blacktriangle$}}} } \hspace{3pt}
+}
+\newcommand{\holdd}{
+\overset{\mathrel{\raisebox{-5pt}{$\scriptscriptstyle{\Cap}$}} }{\square} \hspace{3pt}
+}
+\newcommand{\hold}{\displaystyle{\holdz}}
+%\newcommand{\hold}{\text{Hold }}
+\title{A new view of Concurrent Separation Logic with Abstract State}
+%\date{October 31, 2014}
+%\author{John Doe\\ Magic Department, Richard Miles University \and Richard Row, \LaTeX\ Academy}
+\begin{document}
+
+
+$$
+\text{select } x \ ls' = \left\{\begin{array}{cc}\text{select } j \ ls  & x = i \\\text{select } i \ ls  & x = j \\\text{select } x \ ls  & \text{otherwise}\end{array}\right.
+$$
+
+
+\end{document}
