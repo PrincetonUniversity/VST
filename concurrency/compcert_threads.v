@@ -1,9 +1,7 @@
 Require Import Axioms.
 
-Add LoadPath "../compcomp" as compcomp.
-
 Require Import sepcomp. Import SepComp.
-Require Import core_semantics_lemmas.
+Require Import semantics_lemmas.
 
 
 Require Import pos.

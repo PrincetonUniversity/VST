@@ -23,7 +23,7 @@ COMPCERT=compcert
 CC_TARGET=compcert/cfrontend/Clight.vo
 CC_DIRS= lib common cfrontend exportclight
 CONCUR = concurrency
-DIRS= msl sepcomp veric floyd progs sha linking fcf hmacfcf tweetnacl20140427 # verifiedDrbg
+DIRS= msl sepcomp veric concurrency floyd progs sha linking fcf hmacfcf tweetnacl20140427 # verifiedDrbg
 INCLUDE= $(foreach a,$(DIRS),$(if $(wildcard $(a)), -I $(a) -as $(a))) \
   -R $(COMPCERT) -as compcert
 #Replace the INCLUDE above with the following in order to build the linking target:
@@ -123,8 +123,9 @@ SEPCOMP_FILES= \
   
 
 CONCUR_FILES= \
+  sepcomp.v threads_lemmas.v permissions.v\
   pos.v scheduler.v \
-  concurrent_machine.v juicy_machine.v dry_machine.v \
+  concurrent_machine.v juicy_machine.v \
   compcert_threads.v compcert_threads_lemmas.v \
   erasure.v 
 
@@ -247,6 +248,7 @@ FILES = \
  $(MSL_FILES:%=msl/%) \
  $(UPDATE_SEPCOMP_FILES:%=sepcomp/%) \
  $(VERIC_FILES:%=veric/%) \
+ $(CONCUR_FILES:%=concurrency/%) \
  $(FLOYD_FILES:%=floyd/%) \
  $(PROGS_FILES:%=progs/%) \
  $(SHA_FILES:%=sha/%) \
@@ -254,8 +256,7 @@ FILES = \
  $(FCF_FILES:%=fcf/%) \
  $(HMACFCF_FILES:%=hmacfcf/%) \
  $(HMACEQUIV_FILES:%=sha/%) \
- $(TWEETNACL_FILES:%=tweetnacl20140427/%) \
- $(CONCUR_FILES:%=concurrency/%) #\
+ $(TWEETNACL_FILES:%=tweetnacl20140427/%)
 # $(DRBG_FILES:%=verifiedDrbg/spec/%)
 
 %_stripped.v: %.v
@@ -288,7 +289,7 @@ all:     .loadpath version.vo $(FILES:.v=.vo)
 
 msl:     .loadpath version.vo $(MSL_FILES:%.v=msl/%.vo)
 sepcomp: .loadpath $(CC_TARGET) $(UPDATE_SEPCOMP_FILES:%.v=sepcomp/%.vo)
-concurrency: .loadpath $(COMPCOMPCONCUR_FILES:%.v=concurrency/%.vo)
+concurrency: .loadpath $(CONCUR_FILES:%.v=concurrency/%.vo)
 linking: .loadpath $(LINKING_FILES:%.v=linking/%.vo) 
 veric:   .loadpath $(VERIC_FILES:%.v=veric/%.vo)
 floyd:   .loadpath $(FLOYD_FILES:%.v=floyd/%.vo)

@@ -1,9 +1,9 @@
 Require Import Axioms.
 
-Add LoadPath "../compcomp" as compcomp.
+Add LoadPath "../concurrency" as concurrency.
 
 Require Import sepcomp. Import SepComp.
-Require Import core_semantics_lemmas.
+Require Import semantics_lemmas.
 
 Require Import pos.
 (* Require Import stack.  *)
@@ -60,7 +60,7 @@ Notation UNLOCK := (EF_external "UNLOCK" UNLOCK_SIG).
 Definition LKCHUNK:= Mint32.
 Definition LKSIZE:= align_chunk LKCHUNK.
 
-Require Import (*compcert_linking*) permissions.
+(*Require Import (*compcert_linking*) permissions.*)
 
 
 Module LockPool.
@@ -273,8 +273,8 @@ Section poolDefs.
     forall tid, mem_cohere' m (getThreadPerm tid). 
       
   Record mem_compatible m :=
-    { perm_comp: mem_cohere m;
-      mem_canonical: isCanonical (getMaxPerm m)
+    { perm_comp: mem_cohere m
+      (* ; mem_canonical: isCanonical (getMaxPerm m) *)
     }.
 
 End poolDefs.

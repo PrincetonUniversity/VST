@@ -4,15 +4,13 @@ Require Import Values. (*for val*)
 Require Import Globalenvs. 
 Require Import Integers.
 Require Import ZArith.
-Require Import core_semantics.
+Require Import semantics.
 Load Scheduler.
 
 Require Import Program.
 Require Import ssreflect Ssreflect.seq.
 
-
-Add LoadPath "../compcomp" as compcomp.
-Require Import permissions.
+(*Require Import permissions.*)
 
 Notation EXIT := 
   (EF_external "EXIT" (mksignature (AST.Tint::nil) None)). 
