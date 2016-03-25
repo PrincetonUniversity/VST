@@ -7,8 +7,6 @@ Require Import sepcomp. Import SepComp.
 Require Import core_semantics_lemmas.
 
 Require Import pos.
-Require Import stack. 
-Require Import cast.
 
 Require Import Program.
 Require Import ssreflect Ssreflect.seq ssrbool ssrnat ssrfun eqtype seq fintype finfun.
@@ -61,6 +59,153 @@ Ltac pf_cleanup :=
             assert (H1 = H2) by (by eapply proof_irr); subst H2
          end.
 
+Module MemoryObs.
+
+  Definition renaming := block -> option block.
+  
+  Record mem_obs_eq (α : renaming) (m1 m2 : Mem.mem) :=
+    {
+      α_freeblocks:
+        forall b, ~(Mem.valid_block m1 b) -> α b = None;
+      α_mappedblocks:
+        forall b b', α b = Some b' -> Mem.valid_block m2 b';
+      α_injective: forall b1 b2 b', α b1 = Some b' ->
+                               α b2 = Some b' ->
+                               b1 = b2;
+      val_obs_eq :
+        forall b1 b2 ofs (Hrenaming: α b1 = Some b2)
+          (Hperm: Mem.perm m1 b1 ofs Cur Readable),
+          Maps.ZMap.get ofs (Maps.PMap.get b1 (Mem.mem_contents m1)) =
+          Maps.ZMap.get ofs (Maps.PMap.get b2 (Mem.mem_contents m2));
+      cur_obs_eq :
+        forall b1 b2 ofs (Hrenaming: α b1 = Some b2),
+          Maps.PMap.get b1 (Mem.mem_access m1) ofs Cur =
+          Maps.PMap.get b2 (Mem.mem_access m2) ofs Cur}.
+
+  Lemma mem_obs_trans_inverse :
+    forall α m1 m2
+      (Hmem: mem_obs_eq α m1 m2),
+    exists γ, mem_obs_eq γ m2 m1.
+  Proof.
+    intros. inversion Hmem.
+    eapply Pos.peano_ind with (P := fun p => Mem.nextblock m1 = p ->
+                                          exists γ : renaming, mem_obs_eq γ m2 m1).
+                                                                        
+    
+              
+  Lemma mem_obs_trans_comm :
+    forall m1j m1'j m2j α
+           (Hmem_1: mem_obs_eq α m1j m1'j)
+           (Hmem_2: mem_obs_eq (fun b => b) m1j m2j),
+      mem_obs_eq α m2j m1'j.
+  Proof.
+    intros. destruct Hmem_1 as [val_obs_eq1 cur_obs_eq1],
+                               Hmem_2 as [val_obs_eq2 cur_obs_eq2].
+    split.
+    { intros. 
+      specialize (val_obs_eq1 b1 b2 ofs Hrenaming); auto.
+      specialize (val_obs_eq2 b1 b1 ofs (Logic.eq_refl _)); auto.
+      specialize (cur_obs_eq2 b1 b1 ofs (Logic.eq_refl _)).     
+      assert (H: Mem.perm m1j b1 ofs Cur Readable).
+      { unfold Mem.perm in *. rewrite cur_obs_eq2.
+        assumption.
+      }
+      rewrite <- val_obs_eq2, <- val_obs_eq1; auto.
+    }
+    { intros.
+      specialize (cur_obs_eq1 b1 b2 ofs Hrenaming).
+      specialize (cur_obs_eq2 b1 b1 ofs (Logic.eq_refl _)).
+      subst.
+      rewrite <- cur_obs_eq2, <- cur_obs_eq1. reflexivity.
+    }
+  Qed.
+
+  Hint Resolve mem_obs_trans_comm : mem.
+
+  Lemma mem_obs_trans :
+    forall m1j m1'j m2'j α
+      (Hmem_1: mem_obs_eq α m1j m1'j)
+      (Hmem_2: mem_obs_eq (fun b => b) m1'j m2'j),
+      mem_obs_eq α m1j m2'j.
+  Proof.
+    intros.
+    destruct Hmem_1 as [val_obs_eq1 cur_obs_eq1],
+                       Hmem_2 as [val_obs_eq2 cur_obs_eq2].
+    split.
+    { intros.
+      specialize (val_obs_eq1 b1 b2 ofs Hrenaming);
+        specialize (cur_obs_eq1 b1 b2 ofs Hrenaming).
+      specialize (val_obs_eq2 b2 b2 ofs (Logic.eq_refl b2));
+        specialize (cur_obs_eq2 b2 b2 ofs (Logic.eq_refl b2)).
+      assert (Mem.perm m1'j b2 ofs Cur Readable).
+      { unfold Mem.perm in *. rewrite cur_obs_eq1 in Hperm.
+        auto. }
+      rewrite val_obs_eq1; auto.
+    }
+    { intros.
+      specialize (cur_obs_eq1 b1 b2 ofs Hrenaming).
+      specialize (cur_obs_eq2 b2 b2 ofs (Logic.eq_refl b2)).
+        by rewrite <- cur_obs_eq2.
+    }
+  Qed.
+
+  Hint Resolve mem_obs_trans : mem.
+  
+End MemoryObs.
+
+Module SimDefs.
+Section SimDefs.
+
+  Import Concur.
+  Import ThreadPool.
+  Import MemoryObs.
+  
+  Context {cT G : Type} {the_sem : CoreSemantics G cT Mem.mem}.
+  
+  Notation thread_pool := (t cT).
+  Notation invariant := (@invariant cT G the_sem).
+  
+  Variable the_ge : G.
+  Notation dry_step := (@dry_step cT G the_sem the_ge).
+  
+  Variable rename_code : (block -> block) -> cT -> cT.
+  Definition rename_core α (c : ctl) :=
+    match c with
+      | Krun c' => Krun (rename_code α c')
+      | Kstop c' => Kstop (rename_code α c')
+      | Kresume c' => Kresume (rename_code α c')
+    end.
+
+  Inductive weak_tp_sim tp tp' (tid : nat) (α1 α2: block -> block) : Prop :=
+  | Tp_weak_sim : forall (pf: containsThread tp tid)
+                    (pf': containsThread tp' tid)
+                    (Hthread: rename_core α1 (getThreadC pf) = getThreadC pf')
+                    (Hthread': rename_core α2 (getThreadC pf') = getThreadC pf),
+                    weak_tp_sim tp tp' tid α1 α2.
+
+  Inductive tp_sim (tp tp' : thread_pool) (tid : nat) (α1: block -> block) : Prop :=
+  | Tp_sim : forall (Hweak_sim: weak_tp_sim tp tp' tid α)
+               (Hnum: num_threads tp = num_threads tp'),
+               tp_sim tp tp' tid α.
+
+  Inductive mem_sim (tp tp' : thread_pool) (m m' : Mem.mem) (tid : nat)
+            (α1 α2: block -> block) : Prop :=
+  | Mem_sim : forall (pf : containsThread tp tid)
+                (pf' : containsThread tp' tid)
+                (Hcomp: mem_compatible tp m)
+                (Hcomp': mem_compatible tp' m')
+                (Hobs: mem_obs_eq α (restrPermMap
+                                       (permMapsInv_lt (perm_comp Hcomp) (Ordinal pf)))
+                                  (restrPermMap
+                                     (permMapsInv_lt (perm_comp Hcomp') (Ordinal pf')))),
+                mem_sim tp tp' m m' tid α.
+End SimDefs.
+
+Arguments weak_tp_sim {cT G the_sem} {rename_code} tp tp' tid α.
+Arguments tp_sim {cT G the_sem} {rename_code} tp tp' tid α.
+Arguments mem_sim {cT} tp tp' m m' tid α.
+End SimDefs.
+
 Module StepLemmas.
   Section StepLemmas.
 
@@ -74,16 +219,14 @@ Module StepLemmas.
 
     Variable the_ge : G.
     Notation dry_step := (@dry_step cT G the_sem the_ge).
-
-
+    
     Lemma restrPermMap_wf :
       forall (tp : thread_pool) (m m': mem) tid
-        (Hcanonical: isCanonical (perm_maps tp tid))
-        (Hlt: permMapLt (perm_maps tp tid) (getMaxPerm m))
+        (* (Hlt: permMapLt (share_maps tp tid) (getMaxPerm m)) *)
         (Hcompatible: mem_compatible tp m)
         (Hrestrict: restrPermMap (permMapsInv_lt (perm_comp Hcompatible) tid) = m')
         (Hrace : race_free tp),
-        permMap_wf tp (getCurPerm m') (nat_of_ord tid).
+        shareMap_wf tp (getCurPerm m') (nat_of_ord tid).
     Proof.
       intros. subst.
       unfold restrPermMap, getCurPerm. simpl.
@@ -345,171 +488,6 @@ Module StepLemmas.
   End StepLemmas.
 End StepLemmas.
         
-Module MemoryObs.
-
-  Record mem_obs_eq (α : block -> block) (m1 m2 : Mem.mem) :=
-    { val_obs_eq :
-        forall b1 b2 ofs (Hrenaming: α b1 = b2)
-          (Hperm: Mem.perm m1 b1 ofs Cur Readable),
-          Maps.ZMap.get ofs (Maps.PMap.get b1 (Mem.mem_contents m1)) =
-          Maps.ZMap.get ofs (Maps.PMap.get b2 (Mem.mem_contents m2));
-      cur_obs_eq :
-        forall b1 b2 ofs (Hrenaming: α b1 = b2),
-          Maps.PMap.get b1 (Mem.mem_access m1) ofs Cur =
-          Maps.PMap.get b2 (Mem.mem_access m2) ofs Cur}.
-  
-  (* Transparent Mem.loadbytes.  *)
-  
-  (* Goal forall m1 m2 b ofs, *)
-  (*         Maps.PMap.get b (Mem.mem_access m1) ofs Cur =  Maps.PMap.get b (Mem.mem_access m2) ofs Cur -> *)
-  (*         ((Mem.perm m1 b ofs Cur Readable -> *)
-  (*          Maps.ZMap.get ofs (Maps.PMap.get b (Mem.mem_contents m1)) = *)
-  (*          Maps.ZMap.get ofs (Maps.PMap.get b (Mem.mem_contents m2))) <-> *)
-  (*         Mem.loadbytes m1 b ofs 1 = Mem.loadbytes m2 b ofs 1). *)
-  (* Proof. *)
-  (*   intros. *)
-  (*   split. *)
-  (*   { intros. unfold Mem.loadbytes. *)
-  (*     simpl. *)
-  (*      destruct (Mem.range_perm_dec m1 b ofs (ofs+1) Cur Readable); *)
-  (*       destruct (Mem.range_perm_dec m2 b ofs (ofs+1) Cur Readable). *)
-  (*      rewrite H0. *)
-  (*      reflexivity. unfold Mem.range_perm in r. eapply r. *)
-  (*      admit. *)
-  (*      exfalso. *)
-  (*      unfold Mem.range_perm in *. *)
-  (*      apply n. intros. *)
-  (*      unfold Mem.perm in *. *)
-  (*      specialize (r ofs). *)
-  (*      admit. admit. *)
-  (*      reflexivity. *)
-  (*   } *)
-  (*   { intros. unfold Mem.loadbytes in H0. *)
-  (*     destruct (Mem.range_perm_dec m1 b ofs (ofs + 1) Cur Readable). *)
-  (*     Focus 2. admit. *)
-  (*     destruct (Mem.range_perm_dec m2 b ofs (ofs+1) Cur Readable). *)
-  (*     inversion H0. *)
-  (*     reflexivity. *)
-  (*     admit. *)
-            
-  Lemma mem_obs_trans_comm :
-    forall m1j m1'j m2j α
-           (Hmem_1: mem_obs_eq α m1j m1'j)
-           (Hmem_2: mem_obs_eq (fun b => b) m1j m2j),
-      mem_obs_eq α m2j m1'j.
-  Proof.
-    intros. destruct Hmem_1 as [val_obs_eq1 cur_obs_eq1],
-                               Hmem_2 as [val_obs_eq2 cur_obs_eq2].
-    split.
-    { intros. 
-      specialize (val_obs_eq1 b1 b2 ofs Hrenaming); auto.
-      specialize (val_obs_eq2 b1 b1 ofs (Logic.eq_refl _)); auto.
-      specialize (cur_obs_eq2 b1 b1 ofs (Logic.eq_refl _)).     
-      assert (H: Mem.perm m1j b1 ofs Cur Readable).
-      { unfold Mem.perm in *. rewrite cur_obs_eq2.
-        assumption.
-      }
-      rewrite <- val_obs_eq2, <- val_obs_eq1; auto.
-    }
-    { intros.
-      specialize (cur_obs_eq1 b1 b2 ofs Hrenaming).
-      specialize (cur_obs_eq2 b1 b1 ofs (Logic.eq_refl _)).
-      subst.
-      rewrite <- cur_obs_eq2, <- cur_obs_eq1. reflexivity.
-    }
-  Qed.
-
-  Hint Resolve mem_obs_trans_comm : mem.
-
-  Lemma mem_obs_trans :
-    forall m1j m1'j m2'j α
-      (Hmem_1: mem_obs_eq α m1j m1'j)
-      (Hmem_2: mem_obs_eq (fun b => b) m1'j m2'j),
-      mem_obs_eq α m1j m2'j.
-  Proof.
-    intros.
-    destruct Hmem_1 as [val_obs_eq1 cur_obs_eq1],
-                       Hmem_2 as [val_obs_eq2 cur_obs_eq2].
-    split.
-    { intros.
-      specialize (val_obs_eq1 b1 b2 ofs Hrenaming);
-        specialize (cur_obs_eq1 b1 b2 ofs Hrenaming).
-      specialize (val_obs_eq2 b2 b2 ofs (Logic.eq_refl b2));
-        specialize (cur_obs_eq2 b2 b2 ofs (Logic.eq_refl b2)).
-      assert (Mem.perm m1'j b2 ofs Cur Readable).
-      { unfold Mem.perm in *. rewrite cur_obs_eq1 in Hperm.
-        auto. }
-      rewrite val_obs_eq1; auto.
-    }
-    { intros.
-      specialize (cur_obs_eq1 b1 b2 ofs Hrenaming).
-      specialize (cur_obs_eq2 b2 b2 ofs (Logic.eq_refl b2)).
-        by rewrite <- cur_obs_eq2.
-    }
-  Qed.
-
-  Hint Resolve mem_obs_trans : mem.
-  
-End MemoryObs.
-
-Module SimDefs.
-Section SimDefs.
-
-  Import Concur.
-  Import ThreadPool.
-  Import MemoryObs.
-  
-  Context {cT G : Type} {the_sem : CoreSemantics G cT Mem.mem}.
-  
-  Notation cT' := (@ctl cT).
-  Notation thread_pool := (t cT').
-  Notation perm_map := access_map.
-  Notation invariant := (@invariant cT G the_sem).
-  
-  Variable the_ge : G.
-  Notation dry_step := (@dry_step cT G the_sem the_ge).
-  
-  Variable rename_code : (block -> block) -> cT -> cT.
-  Definition rename_core α (c : cT') :=
-    match c with
-      | Krun c' => Krun (rename_code α c')
-      | Kstop c' => Kstop (rename_code α c')
-      | Kresume c' => Kresume (rename_code α c')
-    end.
-
-  Inductive weak_tp_sim (tp tp' : thread_pool) (tid : nat) (α: block -> block) : Prop :=
-  | Tp_weak_sim : forall (pf: tid < num_threads tp)
-                    (pf': tid < num_threads tp')
-                    (Hcounter: counter tp = counter tp')
-                    (Hpool: rename_core α ((pool tp) (Ordinal pf)) = (pool tp') (Ordinal pf'))
-                    (Hinv: invariant tp)
-                    (Hinv': invariant tp'),
-                    weak_tp_sim tp tp' tid α.
-
-  Inductive tp_sim (tp tp' : thread_pool) (tid : nat) (α: block -> block) : Prop :=
-  | Tp_sim : forall (Hweak_sim: weak_tp_sim tp tp' tid α)
-               (Hnum: num_threads tp = num_threads tp'),
-               tp_sim tp tp' tid α.
-
-
-  Inductive mem_sim (tp tp' : thread_pool) (m m' : Mem.mem) (tid : nat)
-            (α: block -> block) : Prop :=
-  | Mem_sim : forall (pf : tid < num_threads tp)
-                (pf' : tid < num_threads tp')
-                (Hcomp: mem_compatible tp m)
-                (Hcomp': mem_compatible tp' m')
-                (Hobs: mem_obs_eq α (restrPermMap
-                                       (permMapsInv_lt (perm_comp Hcomp) (Ordinal pf)))
-                                  (restrPermMap
-                                     (permMapsInv_lt (perm_comp Hcomp') (Ordinal pf')))),
-                mem_sim tp tp' m m' tid α.
-End SimDefs.
-
-Arguments weak_tp_sim {cT G the_sem} {rename_code} tp tp' tid α.
-Arguments tp_sim {cT G the_sem} {rename_code} tp tp' tid α.
-Arguments mem_sim {cT} tp tp' m m' tid α.
-End SimDefs.
-
 Module FineStepLemmas.
 Section FineStepLemmas.
 

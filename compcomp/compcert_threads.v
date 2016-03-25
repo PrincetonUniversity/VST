@@ -5,11 +5,9 @@ Add LoadPath "../compcomp" as compcomp.
 Require Import sepcomp. Import SepComp.
 Require Import core_semantics_lemmas.
 
+
 Require Import pos.
-(* Require Import stack.  *)
-(* Require Import cast. *)
 Require Import concurrent_machine.
-Require Import pos.
 Require Import Program.
 Require Import ssreflect ssrbool ssrnat ssrfun eqtype seq fintype finfun.
 Set Implicit Arguments.
@@ -68,7 +66,6 @@ Module ThreadPool.
   End ThreadPool.
 End ThreadPool.
 
-
 Section poolDefs.
 
   Variable cT : Type.
@@ -84,14 +81,15 @@ Section poolDefs.
   
   (* Per-thread disjointness definition*)
   Definition race_free (tp : thread_pool) :=
-    forall tid0 tid0' (Htid0 : tid0 < (ThreadPool.num_threads tp))
-      (Htid0' : tid0' < (ThreadPool.num_threads tp)) (Htid: tid0 <> tid0'),
-      shareMapsJoin (share_maps tp (Ordinal Htid0))
+    forall tid0 tid0' (Htid0 : containsThread tp tid0)
+      (Htid0' : containsThread tp tid0')
+      (Htid: tid0 <> tid0'),
+      shareMapsJoins (share_maps tp (Ordinal Htid0))
                        (share_maps tp (Ordinal Htid0')).
 
   Definition newShareMap_wf smap :=
-    forall tid0 (Htid0 : tid0 < num_threads),
-      shareMapsJoin ((share_maps tp) (Ordinal Htid0)) smap.
+    forall tid0 (Htid0 : containsThread tp tid0),
+      shareMapsJoins ((share_maps tp) (Ordinal Htid0)) smap.
 
   Require Import fintype.
 
@@ -102,8 +100,9 @@ Section poolDefs.
                          nat_of_ord ord = tid.
   Proof.
     intros.
-    assert (Hcontra: unlift_spec (ordinal_pos_incr num_threads)
-                                 (Ordinal (n:=num_threads.+1) (m:=tid) Htid) (Some ord)).
+    assert (Hcontra:
+              unlift_spec (ordinal_pos_incr num_threads)
+                          (Ordinal (n:=num_threads.+1) (m:=tid) Htid) (Some ord)).
     rewrite <- Hunlift.
     apply/unliftP.
     inversion Hcontra; subst.
@@ -155,7 +154,7 @@ Section poolDefs.
       destruct ord0. eapply Hwf; eauto.
     - apply unlift_m_inv in Hget1.
       subst. unfold newShareMap_wf in Hwf.
-      destruct ord1. apply shareMapsJoin_comm. eapply Hwf; eauto.
+      destruct ord1. apply shareMapsJoins_comm. eapply Hwf; eauto.
     - destruct (tid0 == num_threads) eqn:Heq0.
       + move/eqP:Heq0=>Heq0. subst.
         assert (Hcontra: (ordinal_pos_incr num_threads) !=
@@ -187,7 +186,7 @@ Section poolDefs.
   
   Definition shareMap_wf smap tid :=
     forall tid0 (Htid0 : tid0 < num_threads) (Hneq: tid <> tid0),
-      shareMapsJoin ((share_maps tp) (Ordinal Htid0)) smap.
+      shareMapsJoins ((share_maps tp) (Ordinal Htid0)) smap.
 
   Definition updThread tid (cont : containsThread tp tid) (c' : ctl)
              (smap : share_map) : thread_pool :=
@@ -211,7 +210,7 @@ Section poolDefs.
     - move/eqP:Heq0 => Heq0. subst.
       move/eqP:Heq0' => Heq0'. inversion Heq0'. inversion Heq0; subst. exfalso; auto.
     - move/eqP:Heq0=>Heq0. inversion Heq0. subst. 
-      apply shareMapsJoin_comm.
+      apply shareMapsJoins_comm.
       eapply Hwf. simpl; auto.
     - move/eqP:Heq0'=>Heq0'. inversion Heq0'. subst.
       eapply Hwf. simpl; auto.
@@ -473,8 +472,8 @@ Module Concur.
             (Hload: Mem.load Mint32 m1 b (Int.intval ofs) = Some (Vint Int.one))
             (Hstore: Mem.store Mint32 m1 b (Int.intval ofs) (Vint Int.zero) = Some m')
             (Hat_external: after_external the_sem (Some (Vint Int.zero)) c = Some c')
-            (Htransfer:
-               transferShares smap_sp smap_tid tmap smap_sp' smap_tid')
+            (Hjoin1: shareMapsJoin smap_sp' tmap smap_sp)
+            (Hjoin2: shareMapsJoin smap_tid tmap smap_tid')
             (Htp': tp' = updThreadS cnt_sp smap_sp')
             (Htp'': tp'' = updThread (updThreadS_cnt Htp') (Kresume c')
                                      smap_tid'),
@@ -496,15 +495,15 @@ Module Concur.
             (Hload: Mem.load Mint32 m1 b (Int.intval ofs) = Some (Vint Int.zero))
             (Hstore: Mem.store Mint32 m1 b (Int.intval ofs) (Vint Int.one) = Some m')
             (Hat_external: after_external the_sem (Some (Vint Int.zero)) c = Some c')
-            (Htransfer:
-               transferShares smap_tid smap_sp tmap smap_tid' smap_sp')
+            (Hjoin1: shareMapsJoin smap_tid' tmap smap_tid)
+            (Hjoin2: shareMapsJoin smap_sp tmap smap_sp')
             (Htp': tp' = updThreadS cnt_sp smap_sp') 
             (Htp'': tp'' = updThread (updThreadS_cnt Htp') (Kresume c')
                                    smap_tid'),
             ext_step cnt0 Hcompat tp'' m' 
                      
     | step_create :
-        forall  (tp_upd tp':thread_pool) c c' c_new vf arg smap_tid' smap_new tmap
+        forall  (tp_upd tp':thread_pool) c c' c_new vf arg smap_tid' tmap
            (cnt_ls: containsThread tp ls_id)
            (cnt_sp: containsThread tp sp_id),
           let: smap_tid := getThreadS cnt0 in
@@ -516,10 +515,9 @@ Module Concur.
             (Hinitial: initial_core the_sem the_ge vf (arg::nil) = Some c_new)
             (Hafter_external: after_external the_sem
                                              (Some (Vint Int.zero)) c = Some c')
-            (Htransfer:
-               transferShares smap_tid empty_share_map tmap smap_tid' smap_new)
+            (Hjoin: shareMapsJoin smap_tid' tmap smap_tid)
             (Htp_upd: tp_upd = updThread cnt0 (Kresume c') smap_tid')
-            (Htp': tp' = addThread tp_upd c_new smap_new),
+            (Htp': tp' = addThread tp_upd c_new tmap),
             ext_step cnt0 Hcompat tp' m
                      
     | step_mklock :
