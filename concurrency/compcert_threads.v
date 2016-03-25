@@ -1,5 +1,7 @@
 Require Import Axioms.
 
+Add LoadPath "../concurrency" as concurrency.
+
 Require Import sepcomp. Import SepComp.
 Require Import semantics_lemmas.
 

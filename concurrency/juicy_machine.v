@@ -60,7 +60,7 @@ Notation UNLOCK := (EF_external "UNLOCK" UNLOCK_SIG).
 Definition LKCHUNK:= Mint32.
 Definition LKSIZE:= align_chunk LKCHUNK.
 
-(*Require Import (*compcert_linking*) permissions.*)
+Require Import (*compcert_linking*) permissions.
 
 
 Module LockPool.
@@ -384,7 +384,7 @@ Section poolLemmas.
       destruct (o0 ofs); tauto.
       destruct (p'.1 ofs); tauto.
       rewrite H; auto. destruct k; auto.
-  Defined.
+  Defined. 
   
   Lemma restrPermMap_nextblock :
     forall p' m (Hlt: permMapLt p' (getMaxPerm m)),
@@ -468,7 +468,6 @@ Module Concur.
       fun ms tid0 => tid0 < (ThreadPool.num_threads ms).
 
     Variable the_ge : G.
-    Variable aggelos : nat -> delta_map.
     
     Record invariant tp :=
       { (*canonical : forall tid, isCanonical (juice tp tid);*)
@@ -708,9 +707,9 @@ Module Concur.
     
     
     Definition conc_call (genv:G):
-      forall {tid0 ms m}, (nat -> delta_map) -> containsThread ms tid0 -> mem_compatible ms m ->
+      forall {tid0 ms m}, containsThread ms tid0 -> mem_compatible ms m ->
         machine_state -> mem -> Prop:=
-      fun tid ms m aggelos => @conc_step cT G Sem genv tid ms m.
+      fun tid ms m => @conc_step cT G Sem genv tid ms m.
     
     Inductive threadHalted': forall {tid0 ms},
                                containsThread ms tid0 -> Prop:=
