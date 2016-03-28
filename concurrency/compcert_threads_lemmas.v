@@ -2,7 +2,7 @@ Require Import Axioms.
 
 Add LoadPath "../concurrency" as concurrency.
 
-(* Require Import sepcomp. Import SepComp. *)
+Require Import sepcomp. Import SepComp.
 Require Import semantics_lemmas.
 
 Require Import pos.
@@ -60,42 +60,69 @@ Ltac pf_cleanup :=
 
 Module MemoryObs.
 
-  Definition renaming := block -> Mem.mem -> block -> Mem.mem -> Prop.
+  Record renaming := mkRen
+    {R : block -> block -> Prop;
+     bijection: forall b1 b2 b1' b2', R b1 b2 -> R b1' b2' ->
+                                 ((b1 = b1' -> b2 = b2') /\
+                                  (b2 = b2' -> b1 = b1'))}.
+
+  Definition inverseR (R : block -> block -> Prop) := fun x y => R y x.
+
+  Definition inverse (α : renaming) : renaming.
+  Proof.
+    refine ({|R := inverseR (R α); bijection := _|}).
+    intros b1 b2 b1' b2' HR1 HR2.
+    split; intros; subst;
+    destruct α as [R bijection]; simpl in *;
+    specialize (bijection _ _ _ _ HR1 HR2);
+    [apply (proj2 bijection) | apply (proj1 bijection)]; auto.
+  Defined.
+    
+  Lemma inverse_correct : forall (α : renaming) b1 b2,
+        (R α) b1 b2 <-> (R (inverse α)) b2 b1.
+  Proof.
+    intro α.
+    intros b1 b2.
+    subst; simpl; split; auto.
+  Qed.
+
+  Definition idR : renaming.
+  Proof.
+    refine (mkRen (fun b b' => b = b') _).
+    intros; subst; auto.
+  Defined.
   
+  (*the finite domain is not necessary maybe?*)
   Record mem_obs_eq (α : renaming) (m1 m2 : Mem.mem) :=
-    {
-      val_obs_eq :
-        forall b1 b2 ofs (Hrenaming: α b1 m1 b2 m2)
+    { val_obs_eq :
+        forall b1 b2 ofs (Hrenaming: (R α) b1 b2)
           (Hperm: Mem.perm m1 b1 ofs Cur Readable),
           Maps.ZMap.get ofs (Maps.PMap.get b1 (Mem.mem_contents m1)) =
           Maps.ZMap.get ofs (Maps.PMap.get b2 (Mem.mem_contents m2));
       cur_obs_eq :
-        forall b1 b2 ofs (Hrenaming: α b1 b2 m1 m2),
+        forall b1 b2 ofs (Hrenaming: (R α) b1 b2),
           Maps.PMap.get b1 (Mem.mem_access m1) ofs Cur =
           Maps.PMap.get b2 (Mem.mem_access m2) ofs Cur}.
 
   Lemma mem_obs_trans_inverse :
     forall α m1 m2
       (Hmem: mem_obs_eq α m1 m2),
-      mem_obs_eq (fun x y => α y x) m2 m1.
+      mem_obs_eq (inverse α) m2 m1.
   Proof.
     intros. destruct Hmem as [val_obs_eq cur_obs_eq].
-    constructor.
-    intros. 
-    exists (fun b => match α b with
-               | Some b' => 
-    remember (Mem.nextblock m1). generalize dependent m1.
-    generalize dependent m2.
-    eapply Pos.peano_ind with (p := b); intros.
-    -
-    
-                                                                        
-    
-              
+    constructor;
+    intros;
+    apply inverse_correct in Hrenaming;
+    specialize (cur_obs_eq _ _ ofs Hrenaming).
+    unfold Mem.perm, Mem.perm_order' in *; rewrite <- cur_obs_eq in Hperm.
+    specialize (val_obs_eq _ _ _ Hrenaming Hperm); auto.
+    auto.
+  Qed.
+                                                                                
   Lemma mem_obs_trans_comm :
     forall m1j m1'j m2j α
            (Hmem_1: mem_obs_eq α m1j m1'j)
-           (Hmem_2: mem_obs_eq (fun b => b) m1j m2j),
+           (Hmem_2: mem_obs_eq idR m1j m2j),
       mem_obs_eq α m2j m1'j.
   Proof.
     intros. destruct Hmem_1 as [val_obs_eq1 cur_obs_eq1],
@@ -119,12 +146,10 @@ Module MemoryObs.
     }
   Qed.
 
-  Hint Resolve mem_obs_trans_comm : mem.
-
   Lemma mem_obs_trans :
     forall m1j m1'j m2'j α
       (Hmem_1: mem_obs_eq α m1j m1'j)
-      (Hmem_2: mem_obs_eq (fun b => b) m1'j m2'j),
+      (Hmem_2: mem_obs_eq idR m1'j m2'j),
       mem_obs_eq α m1j m2'j.
   Proof.
     intros.
@@ -148,8 +173,8 @@ Module MemoryObs.
     }
   Qed.
 
-  Hint Resolve mem_obs_trans : mem.
-  
+  Hint Resolve mem_obs_trans mem_obs_trans_comm mem_obs_trans_inverse : mem.
+
 End MemoryObs.
 
 Module SimDefs.
@@ -167,43 +192,661 @@ Section SimDefs.
   Variable the_ge : G.
   Notation dry_step := (@dry_step cT G the_sem the_ge).
   
-  Variable rename_code : (block -> block) -> cT -> cT.
-  Definition rename_core α (c : ctl) :=
-    match c with
-      | Krun c' => Krun (rename_code α c')
-      | Kstop c' => Kstop (rename_code α c')
-      | Kresume c' => Kresume (rename_code α c')
-    end.
+  Class CodeRen :=
+    { rename_code : renaming -> cT -> cT -> Prop;
+      
+      inverse_code : forall α c c', rename_code α c c' ->
+                               rename_code (inverse α) c' c
+    }.
 
-  Inductive weak_tp_sim tp tp' (tid : nat) (α1 α2: block -> block) : Prop :=
+  Context { cR : CodeRen }.
+           
+  Inductive rename_core (α : renaming) : @ctl cT -> @ctl cT -> Prop :=
+  | Krun_ren :
+      forall c c',
+        rename_code α c c' ->
+        rename_core α (Krun c) (Krun c')
+  | Kstop_ren :
+      forall c c',
+        rename_code α c c' ->
+        rename_core α (Kstop c) (Kstop c')
+  | Kresume_ren :
+      forall c c',
+        rename_code α c c' ->
+        rename_core α (Kresume c) (Kresume c').
+  
+  Inductive weak_tp_sim tp tp' (tid : nat) (α : renaming) : Prop :=
   | Tp_weak_sim : forall (pf: containsThread tp tid)
                     (pf': containsThread tp' tid)
-                    (Hthread: rename_core α1 (getThreadC pf) = getThreadC pf')
-                    (Hthread': rename_core α2 (getThreadC pf') = getThreadC pf),
-                    weak_tp_sim tp tp' tid α1 α2.
+                    (Hthread: rename_core α (getThreadC pf) (getThreadC pf')),
+                    weak_tp_sim tp tp' tid α.
 
-  Inductive tp_sim (tp tp' : thread_pool) (tid : nat) (α1: block -> block) : Prop :=
+  Inductive tp_sim (tp tp' : thread_pool) (tid : nat) (α: renaming) : Prop :=
   | Tp_sim : forall (Hweak_sim: weak_tp_sim tp tp' tid α)
                (Hnum: num_threads tp = num_threads tp'),
                tp_sim tp tp' tid α.
 
   Inductive mem_sim (tp tp' : thread_pool) (m m' : Mem.mem) (tid : nat)
-            (α1 α2: block -> block) : Prop :=
+            (α: renaming) : Prop :=
   | Mem_sim : forall (pf : containsThread tp tid)
                 (pf' : containsThread tp' tid)
                 (Hcomp: mem_compatible tp m)
                 (Hcomp': mem_compatible tp' m')
                 (Hobs: mem_obs_eq α (restrPermMap
-                                       (permMapsInv_lt (perm_comp Hcomp) (Ordinal pf)))
+                                       (permMapsInv_lt (perm_comp Hcomp) pf))
                                   (restrPermMap
-                                     (permMapsInv_lt (perm_comp Hcomp') (Ordinal pf')))),
-                mem_sim tp tp' m m' tid α.
+                                     (permMapsInv_lt (perm_comp Hcomp') pf'))),
+      mem_sim tp tp' m m' tid α.
+
+  Inductive sim (tp tp' : thread_pool) (m m' : Mem.mem) (tid : nat)
+            (α: renaming) : Prop :=
+  | Sim : forall (pf : containsThread tp tid)
+            (pf' : containsThread tp' tid)
+            (Hthread: rename_core α (getThreadC pf) (getThreadC pf'))
+            (Hcomp: mem_compatible tp m)
+            (Hcomp': mem_compatible tp' m')
+            (Hobs: mem_obs_eq α (restrPermMap
+                                   (permMapsInv_lt (perm_comp Hcomp) pf))
+                              (restrPermMap
+                                 (permMapsInv_lt (perm_comp Hcomp') pf'))),
+      sim tp tp' m m' tid α.
+  
+End SimDefs.
 End SimDefs.
 
-Arguments weak_tp_sim {cT G the_sem} {rename_code} tp tp' tid α.
-Arguments tp_sim {cT G the_sem} {rename_code} tp tp' tid α.
-Arguments mem_sim {cT} tp tp' m m' tid α.
-End SimDefs.
+Module MachineSimulations.
+  Section MachineSimulations.
+
+    Import MemoryObs SimDefs ThreadPool Concur.
+    Context {the_sem : CoreSemantics mySem.G mySem.cT Mem.mem}.
+    
+    Notation thread_pool := (t mySem.cT).
+    Variable the_ge : mySem.G.
+    Notation fstep := ((corestep fine_semantics) the_ge).
+    
+    Context { cR : @CodeRen mySem.cT }.
+
+    Inductive StepType : Type :=
+    | Internal | Concurrent | Halted | Staging.
+            
+    Definition getStepType {i tp} (cnt : containsThread tp i) : option StepType :=
+      match getThreadC cnt with
+      | Krun c => match halted the_sem c with
+                 | Some _ => Some Halted
+                 | None => Some Internal
+                 end
+      | Kstop c => match at_external the_sem c with
+                  | Some _ => Some Concurrent
+                  | _ => None (* stuck *)
+                  end
+      | Kresume c => Some Halted
+      end.
+
+    Class MachineSimulation :=
+      { is_conc_step : NatTID.tid -> thread_pool -> bool;
+        is_fail_step : NatTID.tid -> thread_pool -> bool;
+        is_internal_step : NatTID.tid -> thread_pool -> bool;
+        is_halted_step : NatTID.tid -> thread_pool -> bool;
+      
+        internal_inv : forall tp1 tp2 m1 m2 i sched (α : renaming),
+            is_internal_step i tp1 ->
+            fstep (i :: sched, tp1) m1 (sched, tp2) m2 ->
+            forall j tp1' m1' α,
+              i <> j ->
+              sim tp1 tp1' m1 m1' j α ->
+              sim tp2 tp1' m2 m1' j α;
+      
+        internal_sim : forall (tp1 tp2 tp1' : thread_pool) (m1 m2 m1' : mem) α
+                         i sched sched',
+            is_internal_step i tp1 ->
+            sim tp1 tp1' m1 m1' i α ->
+            fstep (i :: sched, tp1) m1 (sched, tp2) m2 ->
+            exists tp2' m2' α',
+              fstep (i :: sched', tp1') m1' (sched', tp2') m2' /\
+              (forall tid, sim tp1 tp1' m1 m1' tid α ->
+                      sim tp2 tp2' m2 m2' tid α');        
+        
+        conc_sim : forall (tp1 tp2 tp1' : thread_pool) (m1 m2 m1' : mem) α
+                     i sched sched',
+            is_conc_step i tp1 ->
+            sim tp1 tp1' m1 m1' i α ->
+            sim tp1 tp1' m1 m1' ls_id α ->
+            sim tp1 tp1' m1 m1' sp_id α ->
+            fstep (i :: sched, tp1) m1 (sched, tp2) m2 ->
+            exists tp2' m2',
+              fstep (i :: sched', tp1') m1' (sched', tp2') m2' /\
+              (forall tid, sim tp1 tp1' m1 m1' tid α ->
+                      sim tp2 tp2' m2 m2' tid α);
+
+        swap:
+          forall (tp1 tp2 tp3 tp1' : thread_pool) (m1 m2 m3 m1' : mem) α
+            (i j : nat) sched sched',
+            i <> j ->
+            sim tp1 tp1' m1 m1' i α ->
+            sim tp1 tp1' m1 m1' j α ->
+            is_internal_step i tp1 ->
+            (is_internal_step j tp2 \/ (is_conc_step j tp2 /\
+                                       sim tp1 tp1' m1 m1' ls_id α /\
+                                       sim tp1 tp1' m1 m1' sp_id α)) ->
+            fstep (i :: j :: sched, tp1) m1 (j :: sched, tp2) m2 ->
+            fstep (j :: sched, tp2) m2 (sched,tp3) m3 ->
+            exists tp2' m2' tp3' m3' α',
+              fstep (j :: i :: sched', tp1') m1' (i :: sched', tp2') m2' /\
+              fstep (i :: sched', tp2') m2' (sched', tp3') m3' /\
+              forall tid,
+                sim tp1 tp1' m1 m1' tid α -> sim tp3 tp3' m3 m3' tid α'
+        
+      }.
+
+End MachineSimulations.
+End MachineSimulations.
+
+Module Traces.
+
+  Import Concur ThreadPool MemoryObs SimDefs.
+
+  Context {the_ge : mySem.G}.
+
+  Notation fstep := ((corestep fine_semantics) the_ge).
+  Definition trace := list (nat * mySem.thread_pool).
+
+  Lemma cat_inv :
+    forall {A} xs ys (x y : A),
+      xs ++ [:: x] = ys ++ [:: y] ->
+      x = y /\ xs = ys.
+  Proof.
+    intros A xs ys x y Heq. generalize dependent ys.
+    induction xs; intros.
+    simpl in Heq. destruct ys; simpl in *;
+                  [inversion Heq; subst; auto | destruct ys; simpl in *; inversion Heq].
+    destruct ys; [destruct xs; simpl in *|]; inversion Heq.
+    subst. eapply IHxs in H1. destruct H1; by subst.
+  Qed.
+
+  Lemma cat_inv2 :
+    forall {A} xs ys (x x' y y' : A),
+      xs ++ [:: x;x'] = ys ++ [:: y;y'] ->
+      x = y /\ x' = y' /\ xs = ys.
+  Proof.
+    intros A xs ys x x' y y' Heq. generalize dependent ys.
+    induction xs; intros.
+    - simpl in Heq. destruct ys; simpl in *;
+                    [inversion Heq; subst; auto | destruct ys; simpl in *; inversion Heq].
+      subst. destruct ys; simpl in *; congruence.
+    - destruct ys; [destruct xs; simpl in *|]; inversion Heq;
+      subst.
+      destruct xs; simpl in *; congruence.
+      eapply IHxs in H1. destruct H1 as [? [? ?]]; by subst.
+  Qed.
+
+  Inductive isTrace : trace -> Prop :=
+  | init_tr : forall (st : nat * mySem.thread_pool),
+                  isTrace [:: st]
+  | cons_tr : forall (st st' : nat * mySem.thread_pool) (tr : trace)
+                (Htrace: isTrace (tr ++ [:: st]))
+                (Hstep: (exists m m', fstep ([:: st.1], st.2) m ([::],st'.2) m')),
+                isTrace (tr ++ [:: st;st']).
+
+  Lemma isTrace_forward :
+    forall tr tid tp tid' tp' 
+      (Htrace: isTrace ((tid', tp') :: tr))
+      (Hstep: exists m m', fstep ([:: tid],tp) m ([::],tp') m'),
+      isTrace ((tid, tp) :: (tid', tp') :: tr).
+  Proof.
+    intros tr. induction tr as [|tr [tid' tp']] using last_ind.
+    - intros tid tp tid' tp' Htrace Hstep. rewrite <- cat0s. constructor.
+      rewrite cat0s. constructor.
+      simpl. assumption.
+    - intros tid tp tid'0 tp'0 Htrace Hstep. rewrite <- cats1 in *.
+      inversion Htrace as [[tid0 tp0] Heq|]; subst. destruct tr; simpl in *; congruence.
+      destruct tr0.
+      destruct tr.
+      simpl in *. inversion H0; subst.
+      replace ([:: (tid, tp); (tid'0, tp'0); (tid', tp')]) with
+      ([::(tid,tp)] ++ [::(tid'0,tp'0); (tid', tp')]) by reflexivity.
+      constructor. simpl.
+      rewrite <- cat0s. constructor. constructor. simpl. auto.
+      simpl. auto.
+      simpl in *.
+      destruct tr; simpl in *; subst; congruence.
+      destruct tr using last_ind. simpl in *.
+      destruct tr0; simpl in *;
+      [congruence| destruct tr0; simpl in *; congruence].
+      clear IHtr0.
+      rewrite <- cats1 in *. simpl in *.
+      rewrite <- catA in H0. simpl in H0.
+      inversion H0.
+      apply cat_inv2 in H2.
+      destruct H2 as [? [? ?]]. subst.
+      clear H0.
+      replace ([:: (tid, tp), (tid'0, tp'0) & tr ++ [:: x; (tid', tp')]]) with
+      (((tid, tp) :: (tid'0, tp'0) :: tr) ++ [:: x; (tid', tp')]) by reflexivity.
+      constructor. eapply IHtr; eauto.
+      simpl. auto.
+  Qed.
+      
+  Lemma corestepN_rcons:
+    forall sched sched' tid tp m tp' m'
+      (HcorestepN: corestepN fine_semantics the_ge (size (sched ++ [:: tid]))
+                             ((sched ++ [:: tid]) ++ sched', tp) m (sched', tp') m'),
+    exists tp'' m'',
+      corestepN fine_semantics the_ge (size sched)
+                ((sched ++ [:: tid]) ++ sched', tp) m (tid :: sched', tp'') m'' /\
+      corestep fine_semantics the_ge (tid :: sched', tp'') m'' (sched', tp') m'.
+  Proof.
+    intros sched. induction sched as [|n sched]; intros; simpl in HcorestepN.
+    - destruct HcorestepN as [? [? [Hstep Heq]]]; inversion Heq; subst.
+      do 2 eexists; split; simpl; eauto. 
+    - destruct HcorestepN as [st0 [m0 [Hstep HcorestepN]]].
+      destruct st0 as [sched0 tp0].
+      assert (Hsched: sched0 = (sched ++ [:: tid]) ++ sched')
+        by (inversion Hstep; subst; simpl in *; auto).
+      rewrite Hsched in HcorestepN, Hstep.
+      clear Hsched.
+      eapply IHsched in HcorestepN.
+      destruct HcorestepN as [tp'' [m'' [HcorestepN Hstep']]].
+      exists tp'' m''. split.
+      simpl. do 2 eexists; eauto.
+      assumption.
+  Qed.
+
+  Notation mstate := myFineSemantics.MachState.
+  
+  Inductive execution : seq mstate -> Prop :=
+  | init_exec : forall st,
+                  execution [:: st]
+  | cons_exec : forall (st st' : mstate) (exec : seq mstate)
+                (Hexec: execution (exec ++ [:: st]))
+                (Hstep: (exists m m', fstep st m st' m')),
+                  execution (exec ++ [:: st;st']).
+
+  Lemma execution_red:
+    forall exec st st' exec'
+      (Hexec: execution (st :: exec ++ exec' ++ [::st'])),
+      execution (exec ++ exec' ++ [::st']).
+  Proof.
+    intros.
+    generalize dependent st'. generalize dependent exec'.
+    induction exec using last_ind; intros.
+    - simpl in *.
+      generalize dependent st'. induction exec' using last_ind.
+      + intros. constructor.
+      + intros. rewrite <- cats1.
+        rewrite <- cats1 in Hexec.
+        rewrite <- catA in Hexec.
+        inversion Hexec; subst. destruct exec'; simpl in *; congruence.
+        destruct exec. simpl in H0.
+        destruct exec'; simpl in *; [congruence | destruct exec'; simpl in *; congruence].
+        simpl in H0. inversion H0; subst.
+        assert (Heq: exec = exec' /\ st0 = x /\ st'0 = st').
+        { clear - H2.
+          generalize dependent exec'.
+          induction exec; intros.
+          - destruct exec'. simpl in *. inversion H2; subst. auto.
+            destruct exec'; simpl in *; try congruence.
+            destruct exec'; simpl in *; try congruence.
+          - destruct exec'; simpl in *.
+            destruct exec; simpl in *; try congruence.
+            destruct exec; simpl in *; try congruence.
+            inversion H2; subst.
+            eapply IHexec in H1. by destruct H1 as [? [? ?]]; subst.
+        }
+        destruct Heq as [? [? ?]]; subst.
+        eapply IHexec' in Hexec0.
+        rewrite <- catA. constructor. assumption.
+        assumption.
+    - rewrite <- cats1 in Hexec. rewrite <- cats1.
+      rewrite <- catA in Hexec.
+      specialize (IHexec ([:: x] ++ exec') st').
+      rewrite <- catA in IHexec. apply IHexec in Hexec.
+      rewrite <- catA. auto.
+  Qed.
+                
+  Lemma corestepN_execution_strong :
+    forall tp m tp' m' tid sched sched'
+      (HcorestepN: corestepN fine_semantics the_ge (size (tid :: sched))
+                             ((tid :: sched) ++ sched', tp) m (sched', tp') m'),
+    exists (exec : seq mstate),
+      execution (((tid :: sched) ++ sched', tp) :: exec ++ [:: (sched', tp')]).
+  Proof.
+    intros.
+    generalize dependent tp. generalize dependent m.
+    generalize dependent sched'. generalize dependent tp'. generalize dependent m'.
+    generalize dependent tid.
+    induction sched as [|sched x] using last_ind; intros.
+    - exists (nil : seq mstate).
+        rewrite <- cat0s.
+        simpl in HcorestepN. destruct HcorestepN as [? [? [Hstep Heq]]].
+        inversion Heq; subst.
+        constructor; [constructor | do 2 eexists; eauto].
+    - rewrite <- cats1 in HcorestepN.
+      eapply corestepN_rcons with (sched := tid :: sched) in HcorestepN.
+      destruct HcorestepN as [tp'' [m'' [HcorestepN Hstep]]].
+      rewrite <- catA in HcorestepN.
+      eapply IHsched in HcorestepN.
+      destruct HcorestepN as [exec Hexec].
+      exists (exec ++ [:: (x :: sched', tp'')]).
+      rewrite <- catA. simpl.
+      rewrite <- cat_cons.
+      constructor.
+      rewrite <- cats1. simpl.
+      rewrite <- catA. auto.
+      do 2 eexists. eauto.
+  Qed.
+
+  Inductive closed_execution : seq mstate -> Prop :=
+  | closed_exec : forall exec st,
+                    execution (exec ++ [:: st]) ->
+                    st.1 = nil ->
+                    closed_execution (exec ++ [:: st]).
+  
+  Corollary corestepN_execution :
+    forall tp m tp' m' tid sched
+      (HcorestepN: corestepN fine_semantics the_ge (size (tid :: sched))
+                             (tid :: sched, tp) m (nil, tp') m'),
+    exists (exec : seq mstate),
+     closed_execution ((tid :: sched, tp) :: exec ++ [:: (nil, tp')]).
+  Proof.
+    intros.
+    replace (tid :: sched, tp) with ((tid :: sched) ++ nil, tp) in HcorestepN
+      by (by rewrite cats0).
+    eapply corestepN_execution_strong in HcorestepN.
+    destruct HcorestepN as [exec Hexec].
+    exists exec.
+    rewrite <- cat_cons. constructor.
+    rewrite cats0 in Hexec. auto.
+    reflexivity.
+  Qed.
+  
+  Inductive flatten_execution (i : nat): seq mstate -> seq (nat * mySem.thread_pool) -> Prop :=
+  | flat_single : forall tp,
+                    flatten_execution i [:: ([::],tp)] [:: (i,tp)]
+  | flat_cons : forall tp tr ftr sched tid
+                  (Hflat: flatten_execution i tr ftr),
+                  flatten_execution i ((tid :: sched, tp) :: tr) ((tid, tp) :: ftr).
+
+  Lemma flatten_single :
+    forall tr st st' i
+      (Hflat : flatten_execution i [:: st] (tr ++ [:: st'])),
+      i = st'.1 /\ tr = nil /\ st.2 = st'.2 /\ st.1 = nil.
+  Proof.
+    intros. inversion Hflat.
+    subst. destruct tr; simpl in *; subst. destruct st'; inversion H; subst; simpl.
+    auto.
+    destruct tr; simpl in *; congruence.
+    subst. inversion Hflat0.
+  Qed.
+
+  Lemma flatten_rcons :
+    forall i exec tr tp tp' j
+      (Hflatten: flatten_execution i (exec ++ [:: ([::], tp)]) (tr ++ [:: (i, tp)])),
+      flatten_execution j (exec ++ [:: ([:: i], tp); ([::], tp')])
+                        (tr ++ [:: (i,tp); (j, tp')]).
+  Proof.
+    intros i exec.
+    induction exec as [|st exec]; intros; simpl in *.
+    - apply flatten_single in Hflatten. destruct Hflatten as [? [? ?]]; simpl in *.
+      subst. constructor. constructor.
+    - destruct tr.
+      + simpl in *.
+        inversion Hflatten; subst;
+        [destruct exec; simpl in *; subst; congruence | inversion Hflat].
+      + inversion Hflatten; subst.
+        destruct exec; simpl in *; subst; congruence.
+        simpl. constructor.
+          by eapply IHexec.
+  Qed.
+
+  Lemma flatten_rcons_inv :
+    forall exec tr st st' i
+      (Hflatten: flatten_execution i (exec ++ [:: st]) (tr ++ [:: st'])),
+      st.2 = st'.2 /\ st.1 = nil.
+  Proof.
+    intros exec. induction exec as [|st0 exec]; intros.
+    - simpl in *. apply flatten_single in Hflatten. by destruct Hflatten as [? [? ?]].
+    - inversion Hflatten. subst. destruct exec; simpl in *; congruence.
+      subst.
+      destruct tr; simpl in *. destruct ftr. inversion Hflat.
+      simpl in *; congruence.
+      inversion H; subst. eapply IHexec; eauto.
+  Qed.
+  
+  Lemma execution_steps :
+    forall exec st exec' st',
+      execution (exec ++ [:: st;st'] ++ exec') ->
+      exists m m', fstep st m st' m'.
+  Proof.
+    intros exec st exec'. generalize dependent st. generalize dependent exec.
+    induction exec' using last_ind; intros exec st st' Hexec.
+    - rewrite cats0 in Hexec.
+      inversion Hexec. destruct exec; simpl in *;
+                       [congruence | destruct exec; simpl in *; congruence].
+      replace (exec0 ++ [:: st0; st'0]) with ((exec0 ++ [:: st0]) ++ [:: st'0]) in H0
+        by (rewrite <- catA; auto).
+      replace (exec ++ [:: st; st']) with ((exec ++ [:: st]) ++ [:: st']) in H0
+        by (rewrite <- catA; auto).
+      apply cat_inv in H0. destruct H0 as [Heq1 Heq2].
+      apply cat_inv in Heq2. destruct Heq2; subst.
+      eauto.
+    - rewrite <- cats1 in Hexec.
+      inversion Hexec.
+      destruct exec; simpl in *; [congruence| destruct exec; simpl in *; congruence].
+      destruct exec' using last_ind; simpl in *.
+      + assert (Heq: exec0 = exec ++ [:: st] /\ st0 = st' /\ st'0 = x) by admit.
+        destruct Heq as [? [? ?]]; subst.
+        rewrite <- catA in Hexec0. simpl in Hexec0.
+        eapply IHexec' in Hexec0. eauto.
+      + clear IHexec'0.
+        rewrite <- cats1 in H0. rewrite <- catA in H0.
+        simpl in H0. rewrite <- cats1 in IHexec', Hexec.
+        assert (Heq: exec0 = exec ++ [:: st, st' & exec'] /\ st0 = x0 /\ st0 = x).
+        admit.
+        destruct Heq as [? [? ?]]. subst.
+        rewrite <- catA in Hexec0. simpl in Hexec0.
+        eapply IHexec' in Hexec0. eauto.
+  Qed.
+      
+  Lemma execution_flatten_trace :
+    forall exec i st,
+      closed_execution (exec ++ [:: st]) ->
+      exists tr,
+        flatten_execution i (exec ++ [:: st]) tr /\
+        isTrace tr.
+  Proof.
+    intros exec i. induction exec as [|st' exec]; intros st Hexec.
+    - inversion Hexec.
+      destruct exec; destruct st0. simpl in *; subst.
+      exists [:: (i,m)]. split; constructor.
+      destruct exec; simpl in *; congruence.
+    - simpl in Hexec.
+      inversion Hexec. destruct exec0; simpl in *.
+      destruct exec; simpl in *; congruence.
+      inversion H.
+      apply cat_inv in H4. destruct H4; subst.
+      eapply execution_red with (exec' := nil) in H0.
+      rewrite cat0s in H0.
+      assert (Hclosed: closed_execution (exec ++ [:: st]))
+        by (constructor; eauto).
+      eapply IHexec in Hclosed; clear IHexec.
+      destruct Hclosed as [tr [Hflat Htrace]].
+      destruct exec as [|st'' exec]; simpl in *.
+      + inversion Hexec as [exec st0 Hstep ? Heq].
+        replace ([:: st'; st]) with ([:: st'] ++ [:: st]) in Heq by (apply cat_inv).
+        apply cat_inv in Heq. destruct Heq; subst.
+        simpl in *. rewrite <- cat0s in Hstep. rewrite <- cats0 in Hstep.
+        apply execution_steps with (exec := nil) (exec' := nil) in Hstep.
+        destruct Hstep as [m [m' Hstep]].
+        assert (Htid: exists tid, mySchedule.schedPeek st'.1 = Some tid)
+          by (inversion Hstep; eexists; eauto).
+        destruct Htid as [tid Hsched].
+        exists ((tid, st'.2) :: tr).
+        destruct st' as [sched' tp'], st as [sched tp].
+        simpl in *.
+        unfold mySchedule.schedPeek in Hsched.
+        destruct sched'; simpl in *; inversion Hsched; subst.
+        split. by constructor.
+        destruct tr. constructor.
+        inversion Hflat. subst.
+        assert (Hstep_weak: fstep ([:: tid], tp') m ([::], tp) m') by admit.
+        eapply isTrace_forward; eauto.
+      + inversion Hexec as [exec0 st0 Hstep ? Heq].
+        destruct exec0; simpl in *; [congruence | destruct exec0].
+        destruct exec; simpl in *; congruence.
+        inversion Heq; subst.
+        rewrite cat_cons in Hstep.
+        replace ([:: st', st'' & exec0 ++ [:: st0]])
+        with ([::] ++ [:: st';st''] ++ (exec0 ++ [:: st0])) in Hstep by reflexivity.
+        apply execution_steps with (exec' := exec0 ++ [:: st0]) in Hstep.
+        destruct Hstep as [m [m' Hstep]].
+        assert (Htid: exists tid, mySchedule.schedPeek st'.1 = Some tid)
+          by (inversion Hstep; eexists; eauto).
+        destruct Htid as [tid Hsched].
+        destruct st' as [sched' tp'], st'' as [sched'' tp''].
+        destruct sched'; simpl in *; inversion Hsched; subst.
+        inversion Heq. apply cat_inv in H4; destruct H4; subst.
+        clear Heq H.
+        exists ((tid,tp') :: tr).
+        split. constructor. assumption.
+        inversion Hflat; subst.
+        assert (Hstep_weak: fstep([:: tid], tp') m ([::], tp'') m') by admit.
+        eapply isTrace_forward; eauto.
+        eapply isTrace_forward; eauto.
+        assert (Hstep_weak: fstep ([:: tid], tp') m ([::], tp'') m') by admit.
+        do 2 eexists; eauto.
+  Qed.
+
+  Lemma isTrace_cons :
+    forall tr st st',
+      isTrace (tr ++ [:: st; st']) ->
+      isTrace (tr ++ [:: st]) /\ (exists m m', fstep ([:: st.1], st.2) m ([::], st'.2) m').
+  Proof.
+    intros tr st st' Htrace. inversion Htrace as [|? ? ? ? ? Heq].
+    destruct tr; simpl in *; [congruence| destruct tr; simpl in *; congruence].
+    apply cat_inv2 in Heq. destruct Heq as [? [? ?]]; subst.
+    auto.
+  Qed.
+
+  Lemma flatten_map:
+    forall j tp' exec tr tp i,
+      flatten_execution i (exec ++ [:: ([::], tp)])
+                        (tr ++ [:: (i, tp)]) ->
+      flatten_execution j
+                        ([seq (st.1 ++ [:: j], st.2) | st <- exec] ++ [:: ([::], tp')])
+                        (tr ++ [:: (j, tp')]).
+  Proof.
+    intros j tp' exec.
+    induction exec; intros.
+    - simpl in *.
+      destruct tr.
+      simpl. constructor.
+      inversion H. destruct tr; simpl in *; congruence.
+    - inversion H. destruct exec; simpl in *; congruence.
+      subst.
+      destruct ftr using last_ind. inversion Hflat.
+      clear IHftr.
+      rewrite <- cats1 in *.
+      rewrite <- cat_cons in H3.
+      apply cat_inv in H3. destruct H3 as [? Heq].
+      subst. eapply IHexec in Hflat.
+      simpl. constructor. assumption.
+  Qed.
+
+  Lemma execution_map:
+    forall exec sched,
+      execution exec ->
+      execution (map (fun st => (st.1 ++ sched, st.2)) exec).
+  Proof.
+    intros exec sched Hexec.
+    induction exec using last_ind.
+    inversion Hexec.
+    destruct exec; simpl in *; congruence.
+    rewrite <- cats1 in *.
+    inversion Hexec. destruct exec; simpl in *; inversion H0; subst.
+    constructor.
+    destruct exec; simpl in *; congruence.
+    destruct exec using last_ind.
+    destruct exec0; simpl in *; [congruence | destruct exec0; simpl in *; congruence].
+    clear IHexec0.
+    rewrite <- cats1 in *. rewrite <- catA in *. simpl in *.
+    apply cat_inv2 in H0. destruct H0 as [? [? ?]]; subst.
+    eapply IHexec in Hexec0.
+    rewrite map_cat. simpl.
+    constructor.
+    assert(Heq: [:: (x0.1 ++ sched, x0.2)] =
+                map (fun st => (st.1 ++ sched, st.2)) ([:: (x0.1, x0.2)])) by reflexivity.
+    rewrite Heq.
+    rewrite <- map_cat.
+    destruct x0; simpl. assumption.
+    admit.
+  Qed.
+  
+  Lemma flat_trace :
+    forall tr st
+      (Htrace: isTrace (tr ++ [:: st])),
+    exists exec, flatten_execution (st.1) exec (tr ++ [:: st]) /\
+            execution exec.
+  Proof.
+    intros tr. induction tr as [|tr st'] using last_ind; intros.
+    - exists ([:: (nil : list nat, st.2)]).
+        split.
+        simpl.
+        destruct st. constructor. constructor.
+    - rewrite <- cats1 in *.
+      rewrite <- catA in *. simpl in *.
+      apply isTrace_cons in Htrace.
+      destruct Htrace as [Htrace Hstep].
+      eapply IHtr in Htrace. destruct Htrace as [exec [Hflat Hexec]].
+      destruct exec as [|exec st0] using last_ind.
+      + inversion Hflat.
+      + rewrite <- cats1 in *.
+        clear IHexec.
+        assert (Heq: st0.2 = st'.2 /\ st0.1 = nil) by (eapply flatten_rcons_inv; eauto).
+        destruct Heq.
+        destruct st0 as [sched0 tp0], st' as [sched' tp'].
+        simpl in *. subst.
+        exists ((map (fun st => (st.1 ++ [:: sched'], st.2)) exec)
+             ++ [:: ([ :: sched'], tp'); ([:: ],st.2)]). split. 
+        destruct st as [i tp].
+        eapply flatten_rcons.
+        eapply flatten_map; eauto.
+        constructor; auto.
+        assert (Heq: [:: ([:: sched'], tp')] =
+                     map (fun st => (st.1 ++ [:: sched'], st.2)) [:: ([::], tp')]) by reflexivity.
+        rewrite Heq.
+        rewrite <- map_cat. 
+          by apply execution_map.
+  Qed.      
+            
+  Definition is_concurrent_step (st : nat * mySem.thread_pool) : bool :=
+    let pf := containsThread st.1 num_threads st.2 in
+    match pf as pf0 return pf = pf0 -> bool with
+      | true => fun (Heq : pf = true) =>
+                 match getThreadC st.2 (Ordinal (m := st.1) Heq) with
+                   | Kstop c => match at_external mySem.Sem c with
+                                 | Some _ => true
+                                 | None => false
+                               end
+                   | _ => false
+                 end
+      | false => fun _ => false
+    end (Logic.eq_refl pf).      
+  
+  Fixpoint filter_trace (tid_last : nat) (tr : trace) :=
+    match tr with
+      | nil => nil
+      | st :: tr =>
+        if is_concurrent_step st then
+          st :: (filter_trace tid_last tr)
+        else
+          if (st.1 == tid_last) ||
+                                (List.existsb (fun st' =>
+                                                 (st'.1 == st.1) && is_concurrent_step st')) tr then
+            st :: (filter_trace tid_last tr)
+          else
+            filter_trace tid_last tr
+    end.
+
+End Traces.
 
 Module StepLemmas.
   Section StepLemmas.
@@ -1065,512 +1708,7 @@ End FineStepLemmas.
 End FineStepLemmas.
 
 
-Module Traces.
 
-  Import Concur ThreadPool MemoryObs SimDefs StepLemmas.
-
-  Context {the_ge : mySem.G}.
-
-  Definition fstep A := (corestep (fine_semantics A) the_ge).
-  Definition trace := list (nat * mySem.thread_pool).
-
-  Lemma cat_inv :
-    forall {A} xs ys (x y : A),
-      xs ++ [:: x] = ys ++ [:: y] ->
-      x = y /\ xs = ys.
-  Proof.
-    intros A xs ys x y Heq. generalize dependent ys.
-    induction xs; intros.
-    simpl in Heq. destruct ys; simpl in *;
-                  [inversion Heq; subst; auto | destruct ys; simpl in *; inversion Heq].
-    destruct ys; [destruct xs; simpl in *|]; inversion Heq.
-    subst. eapply IHxs in H1. destruct H1; by subst.
-  Qed.
-
-  Lemma cat_inv2 :
-    forall {A} xs ys (x x' y y' : A),
-      xs ++ [:: x;x'] = ys ++ [:: y;y'] ->
-      x = y /\ x' = y' /\ xs = ys.
-  Proof.
-    intros A xs ys x x' y y' Heq. generalize dependent ys.
-    induction xs; intros.
-    - simpl in Heq. destruct ys; simpl in *;
-                    [inversion Heq; subst; auto | destruct ys; simpl in *; inversion Heq].
-      subst. destruct ys; simpl in *; congruence.
-    - destruct ys; [destruct xs; simpl in *|]; inversion Heq;
-      subst.
-      destruct xs; simpl in *; congruence.
-      eapply IHxs in H1. destruct H1 as [? [? ?]]; by subst.
-  Qed.
-
-  Inductive isTrace A : trace -> Prop :=
-  | init_tr : forall (st : nat * mySem.thread_pool),
-                  isTrace A [:: st]
-  | cons_tr : forall (st st' : nat * mySem.thread_pool) (tr : trace)
-                (Htrace: isTrace A (tr ++ [:: st]))
-                (Hstep: (exists m m', fstep A ([:: st.1], st.2) m ([::],st'.2) m')),
-                isTrace A (tr ++ [:: st;st']).
-
-  Lemma isTrace_forward :
-    forall A tr tid tp tid' tp' 
-      (Htrace: isTrace A ((tid', tp') :: tr))
-      (Hstep: exists m m', fstep A ([:: tid],tp) m ([::],tp') m'),
-      isTrace A ((tid, tp) :: (tid', tp') :: tr).
-  Proof.
-    intros A tr. induction tr as [|tr [tid' tp']] using last_ind.
-    - intros tid tp tid' tp' Htrace Hstep. rewrite <- cat0s. constructor.
-      rewrite cat0s. constructor.
-      simpl. assumption.
-    - intros tid tp tid'0 tp'0 Htrace Hstep. rewrite <- cats1 in *.
-      inversion Htrace as [[tid0 tp0] Heq|]; subst. destruct tr; simpl in *; congruence.
-      destruct tr0.
-      destruct tr.
-      simpl in *. inversion H0; subst.
-      replace ([:: (tid, tp); (tid'0, tp'0); (tid', tp')]) with
-      ([::(tid,tp)] ++ [::(tid'0,tp'0); (tid', tp')]) by reflexivity.
-      constructor. simpl.
-      rewrite <- cat0s. constructor. constructor. simpl. auto.
-      simpl. auto.
-      simpl in *.
-      destruct tr; simpl in *; subst; congruence.
-      destruct tr using last_ind. simpl in *.
-      destruct tr0; simpl in *;
-      [congruence| destruct tr0; simpl in *; congruence].
-      clear IHtr0.
-      rewrite <- cats1 in *. simpl in *.
-      rewrite <- catA in H0. simpl in H0.
-      inversion H0.
-      apply cat_inv2 in H2.
-      destruct H2 as [? [? ?]]. subst.
-      clear H0.
-      replace ([:: (tid, tp), (tid'0, tp'0) & tr ++ [:: x; (tid', tp')]]) with
-      (((tid, tp) :: (tid'0, tp'0) :: tr) ++ [:: x; (tid', tp')]) by reflexivity.
-      constructor. eapply IHtr; eauto.
-      simpl. auto.
-  Qed.
-      
-  Lemma corestepN_rcons:
-    forall A sched sched' tid tp m tp' m'
-      (HcorestepN: corestepN (fine_semantics A) the_ge (size (sched ++ [:: tid]))
-                             ((sched ++ [:: tid]) ++ sched', tp) m (sched', tp') m'),
-    exists tp'' m'',
-      corestepN (fine_semantics A) the_ge (size sched)
-                ((sched ++ [:: tid]) ++ sched', tp) m (tid :: sched', tp'') m'' /\
-      corestep (fine_semantics A) the_ge (tid :: sched', tp'') m'' (sched', tp') m'.
-  Proof.
-    intros A sched. induction sched as [|n sched]; intros; simpl in HcorestepN.
-    - destruct HcorestepN as [? [? [Hstep Heq]]]; inversion Heq; subst.
-      do 2 eexists; split; simpl; eauto. 
-    - destruct HcorestepN as [st0 [m0 [Hstep HcorestepN]]].
-      destruct st0 as [sched0 tp0].
-      assert (Hsched: sched0 = (sched ++ [:: tid]) ++ sched')
-        by (inversion Hstep; subst; simpl in *; auto).
-      rewrite Hsched in HcorestepN, Hstep.
-      clear Hsched.
-      eapply IHsched in HcorestepN.
-      destruct HcorestepN as [tp'' [m'' [HcorestepN Hstep']]].
-      exists tp'' m''. split.
-      simpl. do 2 eexists; eauto.
-      assumption.
-  Qed.
-
-  Notation mstate := myFineSemantics.MachState.
-  
-  Inductive execution A : seq mstate -> Prop :=
-  | init_exec : forall st,
-                  execution A [:: st]
-  | cons_exec : forall (st st' : mstate) (exec : seq mstate)
-                (Hexec: execution A (exec ++ [:: st]))
-                (Hstep: (exists m m', fstep A st m st' m')),
-                  execution A (exec ++ [:: st;st']).
-
-  Lemma execution_red:
-    forall A exec st st' exec'
-      (Hexec: execution A (st :: exec ++ exec' ++ [::st'])),
-      execution A (exec ++ exec' ++ [::st']).
-  Proof.
-    intros.
-    generalize dependent st'. generalize dependent exec'.
-    induction exec using last_ind; intros.
-    - simpl in *.
-      generalize dependent st'. induction exec' using last_ind.
-      + intros. constructor.
-      + intros. rewrite <- cats1.
-        rewrite <- cats1 in Hexec.
-        rewrite <- catA in Hexec.
-        inversion Hexec; subst. destruct exec'; simpl in *; congruence.
-        destruct exec. simpl in H0.
-        destruct exec'; simpl in *; [congruence | destruct exec'; simpl in *; congruence].
-        simpl in H0. inversion H0; subst.
-        assert (Heq: exec = exec' /\ st0 = x /\ st'0 = st').
-        { clear - H2.
-          generalize dependent exec'.
-          induction exec; intros.
-          - destruct exec'. simpl in *. inversion H2; subst. auto.
-            destruct exec'; simpl in *; try congruence.
-            destruct exec'; simpl in *; try congruence.
-          - destruct exec'; simpl in *.
-            destruct exec; simpl in *; try congruence.
-            destruct exec; simpl in *; try congruence.
-            inversion H2; subst.
-            eapply IHexec in H1. by destruct H1 as [? [? ?]]; subst.
-        }
-        destruct Heq as [? [? ?]]; subst.
-        eapply IHexec' in Hexec0.
-        rewrite <- catA. constructor. assumption.
-        assumption.
-    - rewrite <- cats1 in Hexec. rewrite <- cats1.
-      rewrite <- catA in Hexec.
-      specialize (IHexec ([:: x] ++ exec') st').
-      rewrite <- catA in IHexec. apply IHexec in Hexec.
-      rewrite <- catA. auto.
-  Qed.
-                
-  Lemma corestepN_execution_strong :
-    forall tp m tp' m' tid sched sched' A
-      (HcorestepN: corestepN (fine_semantics A) the_ge (size (tid :: sched))
-                             ((tid :: sched) ++ sched', tp) m (sched', tp') m'),
-    exists (exec : seq mstate),
-      execution A (((tid :: sched) ++ sched', tp) :: exec ++ [:: (sched', tp')]).
-  Proof.
-    intros.
-    generalize dependent tp. generalize dependent m.
-    generalize dependent sched'. generalize dependent tp'. generalize dependent m'.
-    generalize dependent tid.
-    induction sched as [|sched x] using last_ind; intros.
-    - exists (nil : seq mstate).
-        rewrite <- cat0s.
-        simpl in HcorestepN. destruct HcorestepN as [? [? [Hstep Heq]]].
-        inversion Heq; subst.
-        constructor; [constructor | do 2 eexists; eauto].
-    - rewrite <- cats1 in HcorestepN.
-      eapply corestepN_rcons with (sched := tid :: sched) in HcorestepN.
-      destruct HcorestepN as [tp'' [m'' [HcorestepN Hstep]]].
-      rewrite <- catA in HcorestepN.
-      eapply IHsched in HcorestepN.
-      destruct HcorestepN as [exec Hexec].
-      exists (exec ++ [:: (x :: sched', tp'')]).
-      rewrite <- catA. simpl.
-      rewrite <- cat_cons.
-      constructor.
-      rewrite <- cats1. simpl.
-      rewrite <- catA. auto.
-      do 2 eexists. eauto.
-  Qed.
-
-  Inductive closed_execution A : seq mstate -> Prop :=
-  | closed_exec : forall exec st,
-                    execution A (exec ++ [:: st]) ->
-                    st.1 = nil ->
-                    closed_execution A (exec ++ [:: st]).
-  
-  Corollary corestepN_execution :
-    forall tp m tp' m' tid sched A
-      (HcorestepN: corestepN (fine_semantics A) the_ge (size (tid :: sched))
-                             (tid :: sched, tp) m (nil, tp') m'),
-    exists (exec : seq mstate),
-     closed_execution A ((tid :: sched, tp) :: exec ++ [:: (nil, tp')]).
-  Proof.
-    intros.
-    replace (tid :: sched, tp) with ((tid :: sched) ++ nil, tp) in HcorestepN
-      by (by rewrite cats0).
-    eapply corestepN_execution_strong in HcorestepN.
-    destruct HcorestepN as [exec Hexec].
-    exists exec.
-    rewrite <- cat_cons. constructor.
-    rewrite cats0 in Hexec. auto.
-    reflexivity.
-  Qed.
-  
-  Inductive flatten_execution (i : nat): seq mstate -> seq (nat * mySem.thread_pool) -> Prop :=
-  | flat_single : forall tp,
-                    flatten_execution i [:: ([::],tp)] [:: (i,tp)]
-  | flat_cons : forall tp tr ftr sched tid
-                  (Hflat: flatten_execution i tr ftr),
-                  flatten_execution i ((tid :: sched, tp) :: tr) ((tid, tp) :: ftr).
-
-  Lemma flatten_single :
-    forall tr st st' i
-      (Hflat : flatten_execution i [:: st] (tr ++ [:: st'])),
-      i = st'.1 /\ tr = nil /\ st.2 = st'.2 /\ st.1 = nil.
-  Proof.
-    intros. inversion Hflat.
-    subst. destruct tr; simpl in *; subst. destruct st'; inversion H; subst; simpl.
-    auto.
-    destruct tr; simpl in *; congruence.
-    subst. inversion Hflat0.
-  Qed.
-
-  Lemma flatten_rcons :
-    forall i exec tr tp tp' j
-      (Hflatten: flatten_execution i (exec ++ [:: ([::], tp)]) (tr ++ [:: (i, tp)])),
-      flatten_execution j (exec ++ [:: ([:: i], tp); ([::], tp')])
-                        (tr ++ [:: (i,tp); (j, tp')]).
-  Proof.
-    intros i exec.
-    induction exec as [|st exec]; intros; simpl in *.
-    - apply flatten_single in Hflatten. destruct Hflatten as [? [? ?]]; simpl in *.
-      subst. constructor. constructor.
-    - destruct tr.
-      + simpl in *.
-        inversion Hflatten; subst;
-        [destruct exec; simpl in *; subst; congruence | inversion Hflat].
-      + inversion Hflatten; subst.
-        destruct exec; simpl in *; subst; congruence.
-        simpl. constructor.
-          by eapply IHexec.
-  Qed.
-
-  Lemma flatten_rcons_inv :
-    forall exec tr st st' i
-      (Hflatten: flatten_execution i (exec ++ [:: st]) (tr ++ [:: st'])),
-      st.2 = st'.2 /\ st.1 = nil.
-  Proof.
-    intros exec. induction exec as [|st0 exec]; intros.
-    - simpl in *. apply flatten_single in Hflatten. by destruct Hflatten as [? [? ?]].
-    - inversion Hflatten. subst. destruct exec; simpl in *; congruence.
-      subst.
-      destruct tr; simpl in *. destruct ftr. inversion Hflat.
-      simpl in *; congruence.
-      inversion H; subst. eapply IHexec; eauto.
-  Qed.
-  
-  Lemma execution_steps :
-    forall exec st exec' st' A,
-      execution A (exec ++ [:: st;st'] ++ exec') ->
-      exists m m', fstep A st m st' m'.
-  Proof.
-    intros exec st exec'. generalize dependent st. generalize dependent exec.
-    induction exec' using last_ind; intros exec st st' A Hexec.
-    - rewrite cats0 in Hexec.
-      inversion Hexec. destruct exec; simpl in *;
-                       [congruence | destruct exec; simpl in *; congruence].
-      replace (exec0 ++ [:: st0; st'0]) with ((exec0 ++ [:: st0]) ++ [:: st'0]) in H0
-        by (rewrite <- catA; auto).
-      replace (exec ++ [:: st; st']) with ((exec ++ [:: st]) ++ [:: st']) in H0
-        by (rewrite <- catA; auto).
-      apply cat_inv in H0. destruct H0 as [Heq1 Heq2].
-      apply cat_inv in Heq2. destruct Heq2; subst.
-      eauto.
-    - rewrite <- cats1 in Hexec.
-      inversion Hexec.
-      destruct exec; simpl in *; [congruence| destruct exec; simpl in *; congruence].
-      destruct exec' using last_ind; simpl in *.
-      + assert (Heq: exec0 = exec ++ [:: st] /\ st0 = st' /\ st'0 = x) by admit.
-        destruct Heq as [? [? ?]]; subst.
-        rewrite <- catA in Hexec0. simpl in Hexec0.
-        eapply IHexec' in Hexec0. eauto.
-      + clear IHexec'0.
-        rewrite <- cats1 in H0. rewrite <- catA in H0.
-        simpl in H0. rewrite <- cats1 in IHexec', Hexec.
-        assert (Heq: exec0 = exec ++ [:: st, st' & exec'] /\ st0 = x0 /\ st0 = x).
-        admit.
-        destruct Heq as [? [? ?]]. subst.
-        rewrite <- catA in Hexec0. simpl in Hexec0.
-        eapply IHexec' in Hexec0. eauto.
-  Qed.
-      
-  Lemma execution_flatten_trace :
-    forall exec i A st,
-      closed_execution A (exec ++ [:: st]) ->
-      exists tr,
-        flatten_execution i (exec ++ [:: st]) tr /\
-        isTrace A tr.
-  Proof.
-    intros exec i. induction exec as [|st' exec]; intros A st Hexec.
-    - inversion Hexec.
-      destruct exec; destruct st0. simpl in *; subst.
-      exists [:: (i,m)]. split; constructor.
-      destruct exec; simpl in *; congruence.
-    - simpl in Hexec.
-      inversion Hexec. destruct exec0; simpl in *.
-      destruct exec; simpl in *; congruence.
-      inversion H.
-      apply cat_inv in H4. destruct H4; subst.
-      eapply execution_red with (exec' := nil) in H0.
-      rewrite cat0s in H0.
-      assert (Hclosed: closed_execution A (exec ++ [:: st]))
-        by (constructor; eauto).
-      eapply IHexec in Hclosed; clear IHexec.
-      destruct Hclosed as [tr [Hflat Htrace]].
-      destruct exec as [|st'' exec]; simpl in *.
-      + inversion Hexec as [exec st0 Hstep ? Heq].
-        replace ([:: st'; st]) with ([:: st'] ++ [:: st]) in Heq by (apply cat_inv).
-        apply cat_inv in Heq. destruct Heq; subst.
-        simpl in *. rewrite <- cat0s in Hstep. rewrite <- cats0 in Hstep.
-        apply execution_steps with (exec := nil) (exec' := nil) in Hstep.
-        destruct Hstep as [m [m' Hstep]].
-        assert (Htid: exists tid, mySchedule.schedPeek st'.1 = Some tid)
-          by (inversion Hstep; eexists; eauto).
-        destruct Htid as [tid Hsched].
-        exists ((tid, st'.2) :: tr).
-        destruct st' as [sched' tp'], st as [sched tp].
-        simpl in *.
-        unfold mySchedule.schedPeek in Hsched.
-        destruct sched'; simpl in *; inversion Hsched; subst.
-        split. by constructor.
-        destruct tr. constructor.
-        inversion Hflat. subst.
-        assert (Hstep_weak: fstep A ([:: tid], tp') m ([::], tp) m') by admit.
-        eapply isTrace_forward; eauto.
-      + inversion Hexec as [exec0 st0 Hstep ? Heq].
-        destruct exec0; simpl in *; [congruence | destruct exec0].
-        destruct exec; simpl in *; congruence.
-        inversion Heq; subst.
-        rewrite cat_cons in Hstep.
-        replace ([:: st', st'' & exec0 ++ [:: st0]])
-        with ([::] ++ [:: st';st''] ++ (exec0 ++ [:: st0])) in Hstep by reflexivity.
-        apply execution_steps with (exec' := exec0 ++ [:: st0]) in Hstep.
-        destruct Hstep as [m [m' Hstep]].
-        assert (Htid: exists tid, mySchedule.schedPeek st'.1 = Some tid)
-          by (inversion Hstep; eexists; eauto).
-        destruct Htid as [tid Hsched].
-        destruct st' as [sched' tp'], st'' as [sched'' tp''].
-        destruct sched'; simpl in *; inversion Hsched; subst.
-        inversion Heq. apply cat_inv in H4; destruct H4; subst.
-        clear Heq H.
-        exists ((tid,tp') :: tr).
-        split. constructor. assumption.
-        inversion Hflat; subst.
-        assert (Hstep_weak: fstep A ([:: tid], tp') m ([::], tp'') m') by admit.
-        eapply isTrace_forward; eauto.
-        eapply isTrace_forward; eauto.
-        assert (Hstep_weak: fstep A ([:: tid], tp') m ([::], tp'') m') by admit.
-        do 2 eexists; eauto.
-  Qed.
-
-  Lemma isTrace_cons :
-    forall A tr st st',
-      isTrace A (tr ++ [:: st; st']) ->
-      isTrace A (tr ++ [:: st]) /\ (exists m m', fstep A ([:: st.1], st.2) m ([::], st'.2) m').
-  Proof.
-    intros A tr st st' Htrace. inversion Htrace as [|? ? ? ? ? Heq].
-    destruct tr; simpl in *; [congruence| destruct tr; simpl in *; congruence].
-    apply cat_inv2 in Heq. destruct Heq as [? [? ?]]; subst.
-    auto.
-  Qed.
-
-  Lemma flatten_map:
-    forall j tp' exec tr tp i,
-      flatten_execution i (exec ++ [:: ([::], tp)])
-                        (tr ++ [:: (i, tp)]) ->
-      flatten_execution j
-                        ([seq (st.1 ++ [:: j], st.2) | st <- exec] ++ [:: ([::], tp')])
-                        (tr ++ [:: (j, tp')]).
-  Proof.
-    intros j tp' exec.
-    induction exec; intros.
-    - simpl in *.
-      destruct tr.
-      simpl. constructor.
-      inversion H. destruct tr; simpl in *; congruence.
-    - inversion H. destruct exec; simpl in *; congruence.
-      subst.
-      destruct ftr using last_ind. inversion Hflat.
-      clear IHftr.
-      rewrite <- cats1 in *.
-      rewrite <- cat_cons in H3.
-      apply cat_inv in H3. destruct H3 as [? Heq].
-      subst. eapply IHexec in Hflat.
-      simpl. constructor. assumption.
-  Qed.
-
-  Lemma execution_map:
-    forall A exec sched,
-      execution A exec ->
-      execution A (map (fun st => (st.1 ++ sched, st.2)) exec).
-  Proof.
-    intros A exec sched Hexec.
-    induction exec using last_ind.
-    inversion Hexec.
-    destruct exec; simpl in *; congruence.
-    rewrite <- cats1 in *.
-    inversion Hexec. destruct exec; simpl in *; inversion H0; subst.
-    constructor.
-    destruct exec; simpl in *; congruence.
-    destruct exec using last_ind.
-    destruct exec0; simpl in *; [congruence | destruct exec0; simpl in *; congruence].
-    clear IHexec0.
-    rewrite <- cats1 in *. rewrite <- catA in *. simpl in *.
-    apply cat_inv2 in H0. destruct H0 as [? [? ?]]; subst.
-    eapply IHexec in Hexec0.
-    rewrite map_cat. simpl.
-    constructor.
-    assert(Heq: [:: (x0.1 ++ sched, x0.2)] =
-                map (fun st => (st.1 ++ sched, st.2)) ([:: (x0.1, x0.2)])) by reflexivity.
-    rewrite Heq.
-    rewrite <- map_cat.
-    destruct x0; simpl. assumption.
-    admit.
-  Qed.
-  
-  Lemma flat_trace :
-    forall A tr st
-      (Htrace: isTrace A (tr ++ [:: st])),
-    exists exec, flatten_execution (st.1) exec (tr ++ [:: st]) /\
-            execution A exec.
-  Proof.
-    intros A tr. induction tr as [|tr st'] using last_ind; intros.
-    - exists ([:: (nil : list nat, st.2)]).
-        split.
-        simpl.
-        destruct st. constructor. constructor.
-    - rewrite <- cats1 in *.
-      rewrite <- catA in *. simpl in *.
-      apply isTrace_cons in Htrace.
-      destruct Htrace as [Htrace Hstep].
-      eapply IHtr in Htrace. destruct Htrace as [exec [Hflat Hexec]].
-      destruct exec as [|exec st0] using last_ind.
-      + inversion Hflat.
-      + rewrite <- cats1 in *.
-        clear IHexec.
-        assert (Heq: st0.2 = st'.2 /\ st0.1 = nil) by (eapply flatten_rcons_inv; eauto).
-        destruct Heq.
-        destruct st0 as [sched0 tp0], st' as [sched' tp'].
-        simpl in *. subst.
-        exists ((map (fun st => (st.1 ++ [:: sched'], st.2)) exec)
-             ++ [:: ([ :: sched'], tp'); ([:: ],st.2)]). split. 
-        destruct st as [i tp].
-        eapply flatten_rcons.
-        eapply flatten_map; eauto.
-        constructor; auto.
-        assert (Heq: [:: ([:: sched'], tp')] =
-                     map (fun st => (st.1 ++ [:: sched'], st.2)) [:: ([::], tp')]) by reflexivity.
-        rewrite Heq.
-        rewrite <- map_cat. 
-          by apply execution_map.
-  Qed.      
-            
-  Definition is_concurrent_step (st : nat * mySem.thread_pool) : bool :=
-    let pf := st.1 < num_threads st.2 in
-    match pf as pf0 return pf = pf0 -> bool with
-      | true => fun (Heq : pf = true) =>
-                 match getThreadC st.2 (Ordinal (m := st.1) Heq) with
-                   | Kstop c => match at_external mySem.Sem c with
-                                 | Some _ => true
-                                 | None => false
-                               end
-                   | _ => false
-                 end
-      | false => fun _ => false
-    end (Logic.eq_refl pf).      
-  
-  Fixpoint filter_trace (tid_last : nat) (tr : trace) :=
-    match tr with
-      | nil => nil
-      | st :: tr =>
-        if is_concurrent_step st then
-          st :: (filter_trace tid_last tr)
-        else
-          if (st.1 == tid_last) ||
-                                (List.existsb (fun st' =>
-                                                 (st'.1 == st.1) && is_concurrent_step st')) tr then
-            st :: (filter_trace tid_last tr)
-          else
-            filter_trace tid_last tr
-    end.
-
-      End Traces.
   
 Module FineSafety.
 Section FineSafety.
@@ -1618,48 +1756,7 @@ Section FineSafety.
   Class InternalSteps :=
     { 
   
-   Class MachineSimulation :=
-     { weak_sim : thread_pool -> thread_pool -> mem -> mem -> NatTID.tid ->
-                  (block -> block) -> (block -> block) -> Prop;
-       sim : thread_pool -> thread_pool -> mem -> mem -> NatTID.tid ->
-             (block -> block) -> (block -> block) -> Prop;
-      
-      is_conc_step : NatTID.tid -> thread_pool -> bool;
-      is_fail_step : NatTID.tid -> thread_pool -> bool;
-      is_internal_step : NatTID.tid -> thread_pool -> bool;
-      
-      internal_inv : forall A tp1 tp2 m1 m2 i sched,
-          is_internal_step i tp1 ->
-          fstep A (i :: sched, tp1) m1 (sched, tp2) m2 ->
-          forall j tp1' m1' α1 α2,
-            i <> j ->
-             weak_sim tp1 tp1' m1 m1' j α1 α2 ->
-             weak_sim tp2 tp1' m2 m1' j α1 α2;
-      
-      internal_sim : forall A A' (tp1 tp2 tp1' : thread_pool) (m1 m2 m1' : mem) α1 α2
-                       i sched sched',
-          is_internal_step i tp1 ->
-          weak_sim tp1 tp1' m1 m1' i α1 α2 ->
-          fstep A (i :: sched, tp1) m1 (sched, tp2) m2 ->
-          exists tp2' m2',
-            fstep A' (i :: sched', tp1') m1' (sched', tp2') m2' /\
-            (forall tid, weak_sim tp1 tp1' m1 m1' tid α1 α2 ->
-                    weak_sim tp2 tp2' m2 m2' tid α1 α2);
-
-      internal_swap:
-        forall A A' (tp1 tp2 tp3 tp1' : thread_pool) (m1 m2 m3 m1' : mem) α1 α2
-          (i j : nat) sched sched',
-          i <> j ->
-          sim tp1 tp1' m1 m1' i α1 α2 ->
-          sim tp1 tp1' m1 m1' j α1 α2 -> 
-          fstep A (i :: j :: sched, tp1) m1 (j :: sched, tp2) m2 ->
-          fstep A (j :: sched, tp2) m2 (sched,tp3) m3 ->
-          exists tp2' m2' tp3' m3',
-            fstep A' (j :: i :: sched', tp1') m1' (i :: sched', tp2') m2' /\
-            fstep A' (i :: sched', tp2') m2' (sched', tp3') m3' /\
-            forall tid,
-              sim tp1 tp1' m1 m1' tid α1 α2 -> sim tp3 tp3' m3 m3' tid α1 α2
-       }.
+   
        
  
 Module Similar.

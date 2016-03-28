@@ -14,7 +14,7 @@ Require Export simulations.
 Require Export extspec.
 Require Export Address.
 (*Require Export relyguarantee_lemmas.*)
-Require Export arguments.
+(* Require Export arguments. *)
 End SepComp.
 
 Module SepCompExtras.
