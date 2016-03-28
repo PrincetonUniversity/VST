@@ -659,15 +659,8 @@ Module Concur.
             (Hload: Mem.load Mint32 m b (Int.intval ofs) = Some (Vint Int.zero)),
             conc_step cnt0 Hcompat tp m.
   End Concur.
-
-  Module Type JuicySemantics.
-    Parameter G: Type.
-    Parameter C: Type.
-    Definition M: Type:= mem.
-    Parameter Sem: CoreSemantics G C M.
-  End JuicySemantics.
   
-  Module JuicyMachineSig (Sem: JuicySemantics) <: ConcurrentMachineSig NatTID.
+  Module JuicyMachineSig (Sem: Semantics) <: ConcurrentMachineSig NatTID.
                                                    
     (*TID = NAT*)
     Definition tid := nat.                                             
@@ -731,7 +724,7 @@ Module Concur.
   Variable example_G: Type.
   Variable example_C: Type.
   Variable example_sem: CoreSemantics example_G example_C mem.
-  Module Sem: JuicySemantics.
+  Module Sem: Semantics.
     Definition G:= example_G.
     Definition C:= example_C.
     Definition M:= mem.
@@ -741,12 +734,7 @@ Module Concur.
   Module mySem := JuicyMachineSig Sem.
   Module myCoarseSemantics :=
     CoarseMachine NatTID mySchedule mySem.
-  Module myFineSemantics :=
-    FineMachine NatTID mySchedule mySem.
-
   Definition coarse_semantics:=
     myCoarseSemantics.MachineSemantics.
-  Definition fine_semantics:=
-    myFineSemantics.MachineSemantics.
   
 End Concur.

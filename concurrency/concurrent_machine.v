@@ -10,7 +10,16 @@ Load Scheduler.
 Require Import Program.
 Require Import ssreflect Ssreflect.seq.
 
-(*Require Import permissions.*)
+(* This module represents the arguments
+   to build a CoreSemantics with 
+   compcert mem. This is used by BOTH
+   Juicy machine and dry machine. *)
+Module Type Semantics.
+  Parameter G: Type.
+  Parameter C: Type.
+  Definition M: Type:= mem.
+  Parameter Sem: CoreSemantics G C M.
+End Semantics.
 
 Notation EXIT := 
   (EF_external "EXIT" (mksignature (AST.Tint::nil) None)). 

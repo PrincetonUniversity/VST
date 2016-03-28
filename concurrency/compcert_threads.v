@@ -576,15 +576,8 @@ Module Concur.
             (Hload: Mem.load Mint32 m1 b (Int.intval ofs) = Some (Vint Int.zero)),
             ext_step cnt0 Hcompat tp m.
   End Concur.
-
-  Module Type ShareSemantics.
-    Parameter G: Type.
-    Parameter C: Type.
-    Definition M: Type:= mem.
-    Parameter Sem: CoreSemantics G C M.
-  End ShareSemantics.
   
-  Module ShareMachineSig (Sem: ShareSemantics) <: ConcurrentMachineSig NatTID.
+  Module ShareMachineSig (Sem: Semantics) <: ConcurrentMachineSig NatTID.
     (*TID = NAT*)
     Definition tid := nat.                                             
     (*Memories*)
@@ -645,11 +638,12 @@ Module Concur.
     Parameter init_core : G -> val -> list val -> option machine_state.
   End ShareMachineSig.
 
+  
   (* Here I make the core semantics*)
   Variable example_G: Type.
   Variable example_C: Type.
   Variable example_sem: CoreSemantics example_G example_C mem.
-  Module Sem: ShareSemantics.
+  Module Sem: Semantics.
     Definition G:= example_G.
     Definition C:= example_C.
     Definition M:= mem.
