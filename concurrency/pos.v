@@ -1,7 +1,7 @@
 Require Import ssreflect ssrfun ssrbool ssrnat eqtype fintype.
 Set Implicit Arguments.
 
-Require Import Axioms.
+Require Import compcert.lib.Axioms.
 
 Record pos := mkPos { n :> nat ; N_pos : (0 < n)%coq_nat }.
 

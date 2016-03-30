@@ -1,4 +1,4 @@
-Require Import Axioms.
+Require Import compcert.lib.Axioms.
 
 Add LoadPath "../sepcomp" as sepcomp.
 
