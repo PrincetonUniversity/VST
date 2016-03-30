@@ -383,6 +383,12 @@ Proof.
   apply pred_ext; apply prop_derives; tauto.
 Qed.
 
+Lemma derives_refl' {A}{NA: NatDed A}: forall P Q: A, P=Q -> P |-- Q.
+Proof.  intros; subst; apply derives_refl. Qed.
+
+Lemma derives_refl'' {A}{NA: NatDed A}: forall P Q: A, Q=P -> P |-- Q.
+Proof.  intros; subst; apply derives_refl. Qed.
+
 Lemma wand_derives {A}{ND: NatDed A}{SL: SepLog A}:
     forall P P' Q Q': A , P' |-- P -> Q |-- Q' ->  P -* Q |-- P' -* Q'.
 Proof.

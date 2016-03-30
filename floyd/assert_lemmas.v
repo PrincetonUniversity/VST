@@ -1253,12 +1253,6 @@ Ltac intcompare H :=
    [ simpl in H | auto; unfold repable_signed, Int.min_signed, Int.max_signed in *; omega .. ].
 
 
-Lemma derives_refl' {A}{NA: NatDed A}: forall P Q: A, P=Q -> P |-- Q.
-Proof.  intros; subst; apply derives_refl. Qed.
-
-Lemma derives_refl'' {A}{NA: NatDed A}: forall P Q: A, Q=P -> P |-- Q.
-Proof.  intros; subst; apply derives_refl. Qed.
-
 Lemma isptr_deref_noload:
  forall t p, access_mode t = By_reference -> isptr (deref_noload t p) = isptr p.
 Proof.
