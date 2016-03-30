@@ -1,4 +1,4 @@
-Require Import Axioms.
+Require Import compcert.lib.Axioms.
 
 Add LoadPath "../compcomp" as compcomp.
 

@@ -5,10 +5,10 @@ Require Import Globalenvs.
 Require Import Integers.
 Require Import ZArith.
 Require Import semantics.
-Load Scheduler.
+Load scheduler.
 
 Require Import Program.
-Require Import ssreflect Ssreflect.seq.
+Require Import ssreflect seq.
 
 (* This module represents the arguments
    to build a CoreSemantics with 

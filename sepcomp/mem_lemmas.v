@@ -6,7 +6,7 @@ Require Import Coqlib.
 Require Import Values.
 Require Import Maps.
 Require Import Integers.
-Require Import Axioms.
+Require Import compcert.lib.Axioms.
 Require Import Globalenvs.
 
 Require Import Extensionality.

@@ -97,6 +97,6 @@ Module Erasure (SCH: Scheduler NatTID)(SEM: Semantics).
             ge_inv init_inv halt_inv
             core_data match_state core_ord core_ord_wf).
       - reflexivity.
-      - apply core_initial.                                                         -          
-
-  
+      - apply core_initial.                                                         -
+Admitted.
+End Erasure.

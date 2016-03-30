@@ -1,4 +1,4 @@
-Require Import Axioms.
+Require Import compcert.lib.Axioms.
 
 Add LoadPath "../concurrency" as concurrency.
 
@@ -8,7 +8,7 @@ Require Import semantics_lemmas.
 Require Import pos.
 
 Require Import Program.
-Require Import ssreflect Ssreflect.seq ssrbool ssrnat ssrfun eqtype seq fintype finfun.
+Require Import ssreflect ssrbool ssrnat ssrfun eqtype seq fintype finfun.
 Set Implicit Arguments.
 
 (*NOTE: because of redefinition of [val], these imports must appear 

@@ -1,4 +1,4 @@
-Require Import Axioms.
+Require Import compcert.lib.Axioms.
 
 Add LoadPath "../concurrency" as concurrency.
 
@@ -11,7 +11,7 @@ Require Import pos.
 Require Import concurrent_machine.
 Require Import pos.
 Require Import Program.
-Require Import ssreflect Ssreflect.seq ssrbool ssrnat ssrfun eqtype seq fintype finfun.
+Require Import ssreflect ssrbool ssrnat ssrfun eqtype seq fintype finfun.
 Set Implicit Arguments.
 
 (*NOTE: because of redefinition of [val], these imports must appear 
@@ -25,7 +25,7 @@ Require Import Integers.
 Require Import ZArith.
 
 (*From msl get the juice! *)
-Require Import rmaps.
+Require Import msl.rmaps.
 Require Import compcert_rmaps.
 Require Import juicy_mem.
 Require Import juicy_extspec.

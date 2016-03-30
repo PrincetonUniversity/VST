@@ -16,20 +16,14 @@ COMPCERT=compcert
 # are inactive.  To activate them, do something like
 #  make CLIGHTGEN=clightgen
 
-#Configure a custom Ssreflect installation (used to build the linking/ subdirectory):
-#SSREFLECT=""
-#MATHCOMP=""
+#Note3: for SSReflect, one solution is to install MathComp 1.6
+# somewhere add this line to a CONFIGURE file
+# MATHCOMP=/my/path/to/mathcomp
 
 CC_TARGET=compcert/cfrontend/Clight.vo
 CC_DIRS= lib common cfrontend exportclight
 CONCUR = concurrency
 DIRS= msl sepcomp veric concurrency floyd progs sha linking fcf hmacfcf tweetnacl20140427 # verifiedDrbg
-INCLUDE= $(foreach a,$(DIRS),$(if $(wildcard $(a)), -I $(a) -as $(a))) \
-  -R $(COMPCERT) -as compcert
-#Replace the INCLUDE above with the following in order to build the linking target:
-#INCLUDE= $(foreach a,$(DIRS),$(if $(wildcard $(a)), -I $(a) -as $(a))) -R $(COMPCERT) -as compcert -I $(SSREFLECT)/src -R $(SSREFLECT)/theories -as Ssreflect \
-#  -R $(MATHCOMP)/theories -as MathComp
-# $(foreach a,$(CC_DIRS), -R $(COMPCERT)/$(a) -as compcert.$(a)) -I $(COMPCERT)/flocq -as compcert.flocq
 
 CV1=$(shell cat compcert/VERSION)
 CV2=$(shell cat $(COMPCERT)/VERSION)
@@ -48,11 +42,13 @@ else
 endif
 endif
 
+COQFLAGS= $(foreach d, $(DIRS), $(if $(wildcard $(d)), -I $(d) -as $(d))) -R $(COMPCERT) -as compcert
 
-#COQFLAGS= $(foreach d, $(DIRS), -R $(d) -as VST.$(d)) -R $(COMPCERT) -as compcert
-COQFLAGS= $(foreach d, $(DIRS), $(if $(wildcard $(d)), -I $(d) -as $(d))) \
-  -R $(COMPCERT) -as compcert
-DEPFLAGS= $(INCLUDE)
+# for SSReflect
+ifdef MATHCOMP
+ COQFLAGS:=$(COQFLAGS) -R $(MATHCOMP) mathcomp
+endif
+
 COQC=coqc
 COQTOP=coqtop
 COQDEP=coqdep -slash
@@ -95,7 +91,7 @@ UPDATE_SEPCOMP_FILES = \
   reach.v \
   wholeprog_simulations.v \
   wholeprog_lemmas.v
-  
+
 SEPCOMP_FILES= \
   Address.v \
   step_lemmas.v \
@@ -248,7 +244,6 @@ FILES = \
  $(MSL_FILES:%=msl/%) \
  $(UPDATE_SEPCOMP_FILES:%=sepcomp/%) \
  $(VERIC_FILES:%=veric/%) \
- $(CONCUR_FILES:%=concurrency/%) \
  $(FLOYD_FILES:%=floyd/%) \
  $(PROGS_FILES:%=progs/%) \
  $(SHA_FILES:%=sha/%) \
@@ -257,6 +252,7 @@ FILES = \
  $(HMACFCF_FILES:%=hmacfcf/%) \
  $(HMACEQUIV_FILES:%=sha/%) \
  $(TWEETNACL_FILES:%=tweetnacl20140427/%)
+#$(CONCUR_FILES:%=concurrency/%)
 # $(DRBG_FILES:%=verifiedDrbg/spec/%)
 
 %_stripped.v: %.v
@@ -361,22 +357,22 @@ version.v:  VERSION $(MSL_FILES:%=msl/%) $(UPDATE_SEPCOMP_FILES:%=sepcomp/%) $(V
 	sh util/make_version
 
 .loadpath: Makefile
-	echo $(INCLUDE) >.loadpath
+	echo $(COQFLAGS) > .loadpath
 
 floyd/floyd.coq: floyd/proofauto.vo
 	coqtop $(COQFLAGS) -load-vernac-object floyd/proofauto -outputstate floyd/floyd -batch
 
 .depend:
-	$(COQDEP) $(DEPFLAGS) $(filter $(wildcard *.v */*.v */*/*.v),$(FILES))  > .depend
+	$(COQDEP) $(COQFLAGS) $(filter $(wildcard *.v */*.v */*/*.v),$(FILES))  > .depend
 
 depend:	
-	$(COQDEP) $(DEPFLAGS) $(filter $(wildcard *.v */*.v */*/*.v),$(FILES))  > .depend
+	$(COQDEP) $(COQFLAGS) $(filter $(wildcard *.v */*.v */*/*.v),$(FILES))  > .depend
 
 depend-linking:
-	$(COQDEP) $(DEPFLAGS) $(FILES) $(LINKING_FILES:%.v=linking/%.v) > .depend
+	$(COQDEP) $(COQFLAGS) $(FILES) $(LINKING_FILES:%.v=linking/%.v) > .depend
 
 depend-concur:
-	$(COQDEP) $(DEPFLAGS) $(FILES) $(CONCUR_FILES:%.v=concurrency/%.v) > .depend
+	$(COQDEP) $(COQFLAGS) $(FILES) $(CONCUR_FILES:%.v=concurrency/%.v) > .depend
 
 clean:
 	rm -f $(FILES:%.v=%.vo) $(FILES:%.v=%.glob) floyd/floyd.coq .loadpath .depend
