@@ -11,9 +11,9 @@ Require Import Globalenvs.
 Require Import msl.Axioms.
 
 Require Import mem_lemmas. (*needed for definition of mem_forward etc*)
-Require Import core_semantics.
+Require Import semantics.
 Require Import effect_semantics.
-Require Import StructuredInjections.
+Require Import structured_injections.
 Require Import reach.
 
 Module SM_simulation. Section SharedMemory_simulation_inject. 
@@ -212,7 +212,7 @@ Record SM_simulation_inject :=
           after_external Sem2 (Some ret2) st2 = Some st2' /\
           match_state cd' mu' st1' m1' st2' m2' }.
 
-Require Import core_semantics_lemmas.
+Require Import semantics_lemmas.
 
 Lemma core_diagram (SMI: SM_simulation_inject):
       forall st1 m1 st1' m1', 

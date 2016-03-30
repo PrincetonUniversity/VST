@@ -1,9 +1,9 @@
 Require Import sepcomp.mem_lemmas.
-Require Import sepcomp.core_semantics.
-Require Import sepcomp.core_semantics_lemmas.
-Require Import sepcomp.forward_simulations.
-Require Import sepcomp.compiler_correctness.
-Require Import sepcomp.forward_simulations_lemmas.
+Require Import sepcomp.semantics.
+Require Import sepcomp.semantics_lemmas.
+Require Import sepcomp.simulations.
+Require Import sepcomp.simulations_lemmas.
+(*Require Import sepcomp.compiler_correctness.*)
 
 Require Import veric.base.
 Require Import veric.Clight_lemmas.
@@ -1856,6 +1856,7 @@ Definition coresem_extract_cenv {M} {core} (CS: CoreSemantics genv core M)
             (fun ge => CS.(corestep_not_halted) (Build_genv ge cenv))
             CS.(at_external_halted_excl).
 
+(*
 Lemma Clightnew_Clight_sim_eq: forall cenv p ExternIdents entrypoints
                (ext_ok : CompilerCorrectness.entryPts_ok p p ExternIdents entrypoints)
 (*               (IniHyp : forall x : mem, Genv.init_mem p = Some x <->
@@ -1904,7 +1905,7 @@ Proof.
    (*2/2*) inv H.
   Qed.
 
-Require Import sepcomp.forward_simulations.
+Require Import sepcomp.simulations.
 
 Theorem Clightnew_Clight_sim: forall cenv p ExternIdents entrypoints
          (ext_ok: CompilerCorrectness.entryPts_ok p p ExternIdents entrypoints)
@@ -1926,6 +1927,7 @@ econstructor.
   trivial. (*apply IniHyp.*)
   trivial. (*apply IniHyp.*)
 Qed.
+*)
 
 (*Before elimination of initial_mem from coresem, the theorem was like this:
 

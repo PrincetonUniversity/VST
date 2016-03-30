@@ -529,39 +529,27 @@ Section ShareMaps.
              inversion H1; auto); subst. auto.
   Qed.
 
-  Definition shareMapsJoin (smap1 smap2 : share_map) : Prop :=
+  Definition shareMapsJoin (smap1 smap2 smap3 : share_map) : Prop :=
+    forall b ofs,
+      join ((Maps.PMap.get b (mkShare_map smap1)) ofs)
+            ((Maps.PMap.get b (mkShare_map smap2)) ofs)
+            ((Maps.PMap.get b (mkShare_map smap3)) ofs).
+  
+  
+  Definition shareMapsJoins (smap1 smap2 : share_map) : Prop :=
     forall b ofs,
       joins ((Maps.PMap.get b (mkShare_map smap1)) ofs)
             ((Maps.PMap.get b (mkShare_map smap2)) ofs).
   
-  Lemma shareMapsJoin_comm : forall smap1 smap2,
-      shareMapsJoin smap1 smap2 ->
-      shareMapsJoin smap2 smap1.
+  Lemma shareMapsJoins_comm : forall smap1 smap2,
+      shareMapsJoins smap1 smap2 ->
+      shareMapsJoins smap2 smap1.
   Proof.
-    intros smap1 smap2 Hjoin. unfold shareMapsJoin in *. intros.
+    intros smap1 smap2 Hjoin. unfold shareMapsJoins in *. intros.
     specialize (Hjoin b ofs).
     now apply joins_comm in Hjoin.
   Qed.
                        
-  Inductive transferShares (smap_from smap_to : share_map) (tmap : share_map)
-            (smap_from' smap_to' : share_map) : Prop :=
-  | TransSh : forall b ofs sh_t sh_from sh_from' sh_to sh_to',
-      option_map (fun f => f ofs) (Maps.PTree.get b tmap) = Some sh_t ->
-      (Maps.PMap.get b (mkShare_map smap_from)) ofs = sh_from ->
-      (Maps.PMap.get b (mkShare_map smap_from')) ofs = sh_from' ->
-      (Maps.PMap.get b (mkShare_map smap_to)) ofs = sh_to ->
-      (Maps.PMap.get b (mkShare_map smap_to')) ofs = sh_to' ->
-      join sh_from' sh_t sh_from ->
-      join sh_to sh_t sh_to' ->
-      transferShares smap_from smap_to tmap smap_from' smap_to'
-  | NoTrans : forall b ofs,
-      Maps.PTree.get b tmap = None ->
-      (Maps.PMap.get b (mkShare_map smap_from)) ofs =
-      (Maps.PMap.get b (mkShare_map smap_from')) ofs ->
-      (Maps.PMap.get b (mkShare_map smap_to)) ofs =
-      (Maps.PMap.get b (mkShare_map smap_to')) ofs ->
-      transferShares smap_from smap_to tmap smap_from' smap_to'.
-
 End ShareMaps. 
 
 (* Computation of a canonical form of permission maps where the

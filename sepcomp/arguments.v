@@ -1,5 +1,5 @@
-Require Import core_semantics.
-Require Import StructuredInjections.
+Require Import semantics.
+Require Import structured_injections.
 Require Import effect_simulations.
 Require Import mem_lemmas.
 

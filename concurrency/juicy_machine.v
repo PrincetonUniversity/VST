@@ -1,9 +1,9 @@
 Require Import Axioms.
 
-Add LoadPath "../compcomp" as compcomp.
+Add LoadPath "../concurrency" as concurrency.
 
 Require Import sepcomp. Import SepComp.
-Require Import core_semantics_lemmas.
+Require Import semantics_lemmas.
 
 Require Import pos.
 (* Require Import stack.  *)
@@ -273,8 +273,8 @@ Section poolDefs.
     forall tid, mem_cohere' m (getThreadPerm tid). 
       
   Record mem_compatible m :=
-    { perm_comp: mem_cohere m;
-      mem_canonical: isCanonical (getMaxPerm m)
+    { perm_comp: mem_cohere m
+      (* ; mem_canonical: isCanonical (getMaxPerm m) *)
     }.
 
 End poolDefs.
@@ -384,7 +384,7 @@ Section poolLemmas.
       destruct (o0 ofs); tauto.
       destruct (p'.1 ofs); tauto.
       rewrite H; auto. destruct k; auto.
-  Defined.
+  Defined. 
   
   Lemma restrPermMap_nextblock :
     forall p' m (Hlt: permMapLt p' (getMaxPerm m)),
@@ -468,7 +468,6 @@ Module Concur.
       fun ms tid0 => tid0 < (ThreadPool.num_threads ms).
 
     Variable the_ge : G.
-    Variable aggelos : nat -> delta_map.
     
     Record invariant tp :=
       { (*canonical : forall tid, isCanonical (juice tp tid);*)
@@ -660,15 +659,8 @@ Module Concur.
             (Hload: Mem.load Mint32 m b (Int.intval ofs) = Some (Vint Int.zero)),
             conc_step cnt0 Hcompat tp m.
   End Concur.
-
-  Module Type JuicySemantics.
-    Parameter G: Type.
-    Parameter C: Type.
-    Definition M: Type:= mem.
-    Parameter Sem: CoreSemantics G C M.
-  End JuicySemantics.
   
-  Module JuicyMachineSig (Sem: JuicySemantics) <: ConcurrentMachineSig NatTID.
+  Module JuicyMachineSig (Sem: Semantics) <: ConcurrentMachineSig NatTID.
                                                    
     (*TID = NAT*)
     Definition tid := nat.                                             
@@ -708,9 +700,9 @@ Module Concur.
     
     
     Definition conc_call (genv:G):
-      forall {tid0 ms m}, (nat -> delta_map) -> containsThread ms tid0 -> mem_compatible ms m ->
+      forall {tid0 ms m}, containsThread ms tid0 -> mem_compatible ms m ->
         machine_state -> mem -> Prop:=
-      fun tid ms m aggelos => @conc_step cT G Sem genv tid ms m.
+      fun tid ms m => @conc_step cT G Sem genv tid ms m.
     
     Inductive threadHalted': forall {tid0 ms},
                                containsThread ms tid0 -> Prop:=
@@ -732,7 +724,7 @@ Module Concur.
   Variable example_G: Type.
   Variable example_C: Type.
   Variable example_sem: CoreSemantics example_G example_C mem.
-  Module Sem: JuicySemantics.
+  Module Sem: Semantics.
     Definition G:= example_G.
     Definition C:= example_C.
     Definition M:= mem.
@@ -742,12 +734,7 @@ Module Concur.
   Module mySem := JuicyMachineSig Sem.
   Module myCoarseSemantics :=
     CoarseMachine NatTID mySchedule mySem.
-  Module myFineSemantics :=
-    FineMachine NatTID mySchedule mySem.
-
   Definition coarse_semantics:=
     myCoarseSemantics.MachineSemantics.
-  Definition fine_semantics:=
-    myFineSemantics.MachineSemantics.
   
 End Concur.

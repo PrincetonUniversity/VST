@@ -22,8 +22,8 @@ COMPCERT=compcert
 
 CC_TARGET=compcert/cfrontend/Clight.vo
 CC_DIRS= lib common cfrontend exportclight
-COMPCOMP= compcomp
-DIRS= msl sepcomp compcomp veric floyd progs sha linking fcf hmacfcf tweetnacl20140427 # verifiedDrbg
+CONCUR = concurrency
+DIRS= msl sepcomp veric concurrency floyd progs sha linking fcf hmacfcf tweetnacl20140427 # verifiedDrbg
 INCLUDE= $(foreach a,$(DIRS),$(if $(wildcard $(a)), -I $(a) -as $(a))) \
   -R $(COMPCERT) -as compcert
 #Replace the INCLUDE above with the following in order to build the linking target:
@@ -78,6 +78,24 @@ MSL_FILES = \
   env.v corec.v Coqlib2.v sepalg_list.v rmaps.v rmaps_lemmas.v op_classes.v \
   simple_CCC.v seplog.v alg_seplog.v alg_seplog_direct.v log_normalize.v ramification_lemmas.v
 
+UPDATE_SEPCOMP_FILES = \
+  Address.v \
+  step_lemmas.v \
+  extspec.v \
+  FiniteMaps.v \
+  mem_lemmas.v mem_wd.v \
+  semantics.v semantics_lemmas.v \
+  globalSep.v simulations.v \
+  simulations_lemmas.v \
+  structured_injections.v \
+  effect_semantics.v effect_simulations.v effect_simulations_lemmas.v \
+  effect_properties.v \
+  closed_safety.v compcert.v \
+  val_casted.v \
+  reach.v \
+  wholeprog_simulations.v \
+  wholeprog_lemmas.v
+  
 SEPCOMP_FILES= \
   Address.v \
   step_lemmas.v \
@@ -86,10 +104,9 @@ SEPCOMP_FILES= \
   mem_lemmas.v mem_wd.v \
   compiler_correctness.v \
   core_semantics.v core_semantics_lemmas.v \
-  forward_simulations.v \
-  forward_simulations_lemmas.v \
-  safety_preservation.v \
-  StructuredInjections.v \
+  globalSep.v simulations.v \
+  simulations_lemmas.v \
+  structured_injections.v \
   effect_semantics.v effect_simulations.v effect_simulations_lemmas.v \
   rg_lemmas.v \
   effect_properties.v \
@@ -102,30 +119,15 @@ SEPCOMP_FILES= \
   wholeprog_simulations.v \
   wholeprog_lemmas.v \
   barebones_simulations.v
+  #safety_preservation.v \
+  
 
-CONCURRENCY_FILES= \
-  cast.v collection.v pos.v stack.v \
-  sepcomp.v \
-  scheduler.v concurrent_machine.v \
-  juicy_machine.v \
-  compcert_threads_lemmas.v \
-  compcert_threads.v \
-  machine_simulation.v \
-  permissions.v \
-  threads_lemmas.v
-
-CORE_FILES= \
-  structured_injections.v \
-
-LIB_FILES= \
-  ExtAxioms.v \
-
-COMPCOMP_FILES= \
- $(CONCURRENCY_FILES:%=%) \
- $(LIB_FILES:%=%) \
- $(CORE_FILES:%=%)
-
-
+CONCUR_FILES= \
+  sepcomp.v threads_lemmas.v permissions.v\
+  pos.v scheduler.v \
+  concurrent_machine.v juicy_machine.v \
+  compcert_threads.v compcert_threads_lemmas.v \
+  erasure.v 
 
 LINKING_FILES= \
   sepcomp.v \
@@ -244,8 +246,9 @@ C_FILES = reverse.c queue.c sumarray.c message.c insertionsort.c float.c nest3.c
 
 FILES = \
  $(MSL_FILES:%=msl/%) \
- $(SEPCOMP_FILES:%=sepcomp/%) \
+ $(UPDATE_SEPCOMP_FILES:%=sepcomp/%) \
  $(VERIC_FILES:%=veric/%) \
+ $(CONCUR_FILES:%=concurrency/%) \
  $(FLOYD_FILES:%=floyd/%) \
  $(PROGS_FILES:%=progs/%) \
  $(SHA_FILES:%=sha/%) \
@@ -253,8 +256,7 @@ FILES = \
  $(FCF_FILES:%=fcf/%) \
  $(HMACFCF_FILES:%=hmacfcf/%) \
  $(HMACEQUIV_FILES:%=sha/%) \
- $(TWEETNACL_FILES:%=tweetnacl20140427/%) #\
-# $(COMPCOMP_FILES:%=compcomp/%) #\
+ $(TWEETNACL_FILES:%=tweetnacl20140427/%)
 # $(DRBG_FILES:%=verifiedDrbg/spec/%)
 
 %_stripped.v: %.v
@@ -286,8 +288,8 @@ default_target: msl veric floyd progs
 all:     .loadpath version.vo $(FILES:.v=.vo)
 
 msl:     .loadpath version.vo $(MSL_FILES:%.v=msl/%.vo)
-sepcomp: .loadpath $(CC_TARGET) $(SEPCOMP_FILES:%.v=sepcomp/%.vo)
-compcomp: .loadpath $(COMPCOMP_FILES:%.v=compcomp/%.vo)
+sepcomp: .loadpath $(CC_TARGET) $(UPDATE_SEPCOMP_FILES:%.v=sepcomp/%.vo)
+concurrency: .loadpath $(CC_TARGET) $(UPDATE_SEPCOMP_FILES:%.v=sepcomp/%.vo) $(CONCUR_FILES:%.v=concurrency/%.vo)
 linking: .loadpath $(LINKING_FILES:%.v=linking/%.vo) 
 veric:   .loadpath $(VERIC_FILES:%.v=veric/%.vo)
 floyd:   .loadpath $(FLOYD_FILES:%.v=floyd/%.vo)
@@ -355,7 +357,7 @@ progs/merge.v: progs/merge.c
 	$(CLIGHTGEN) ${CGFLAGS} $<
 endif
 
-version.v:  VERSION $(MSL_FILES:%=msl/%) $(SEPCOMP_FILES:%=sepcomp/%) $(VERIC_FILES:%=veric/%) $(FLOYD_FILES:%=floyd/%)
+version.v:  VERSION $(MSL_FILES:%=msl/%) $(UPDATE_SEPCOMP_FILES:%=sepcomp/%) $(VERIC_FILES:%=veric/%) $(FLOYD_FILES:%=floyd/%)
 	sh util/make_version
 
 .loadpath: Makefile
@@ -373,11 +375,14 @@ depend:
 depend-linking:
 	$(COQDEP) $(DEPFLAGS) $(FILES) $(LINKING_FILES:%.v=linking/%.v) > .depend
 
-depend-compcomp:
-	$(COQDEP) $(DEPFLAGS) $(FILES) $(COMPCOMP_FILES:%.v=compcomp/%.v) > .depend
+depend-concur:
+	$(COQDEP) $(DEPFLAGS) $(FILES) $(CONCUR_FILES:%.v=concurrency/%.v) > .depend
 
 clean:
 	rm -f $(FILES:%.v=%.vo) $(FILES:%.v=%.glob) floyd/floyd.coq .loadpath .depend
+
+clean-concur:
+	rm -f $(CONCUR_FILES:%.v=%.vo) $(CONCUR_FILES:%.v=%.glob)
 
 clean-linking:
 	rm -f $(LINKING_FILES:%.v=linking/%.vo) $(LINKING_FILES:%.v=linking/%.glob) 

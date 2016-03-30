@@ -1000,7 +1000,7 @@ Lemma semax_prog_rule {CS: compspecs} :
      Genv.init_mem prog = Some m ->
      exists b, exists q, 
        Genv.find_symbol (globalenv prog) (prog_main prog) = Some b /\
-       core_semantics.initial_core (juicy_core_sem cl_core_sem)
+       semantics.initial_core (juicy_core_sem cl_core_sem)
                     (globalenv prog) (Vptr b Int.zero) nil = Some q /\
        forall n, exists jm, 
        m_dry jm = m /\ level jm = n /\ 
@@ -1021,7 +1021,7 @@ Proof.
     by (apply in_prog_funct_in_prog_defs; auto).
   destruct (Genv.find_funct_ptr_exists prog (prog_main prog) f) as [b [? ?]]; auto.
   exists b.
-  unfold core_semantics.initial_core; simpl.
+  unfold semantics.initial_core; simpl.
   rewrite H7.
   if_tac;[|tauto]. clear H8.
   unfold is_Internal in HInt.
@@ -1270,7 +1270,7 @@ Lemma semax_prog_entry_point {CS: compspecs} :
                        (PTree.set id_arg arg (PTree.empty val))) in
       
       exists q : corestate,
-        core_semantics.initial_core
+        semantics.initial_core
           (juicy_core_sem cl_core_sem)
           (globalenv prog) (Vptr b Int.zero) (arg :: nil) = Some q /\
         
@@ -1288,7 +1288,7 @@ Proof.
   exists b.
   split;[apply Fid|].
   intros rho0.
-  simpl (core_semantics.initial_core _).
+  simpl (semantics.initial_core _).
   unfold cl_initial_core.
   if_tac;[|tauto]. match goal with H : ?a = ?a |- _ => clear H end.
   replace (Genv.find_funct_ptr (globalenv prog)) with

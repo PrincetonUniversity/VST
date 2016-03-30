@@ -4,15 +4,22 @@ Require Import Values. (*for val*)
 Require Import Globalenvs. 
 Require Import Integers.
 Require Import ZArith.
-Require Import core_semantics.
+Require Import semantics.
 Load Scheduler.
 
 Require Import Program.
 Require Import ssreflect Ssreflect.seq.
 
-
-Add LoadPath "../compcomp" as compcomp.
-Require Import permissions.
+(* This module represents the arguments
+   to build a CoreSemantics with 
+   compcert mem. This is used by BOTH
+   Juicy machine and dry machine. *)
+Module Type Semantics.
+  Parameter G: Type.
+  Parameter C: Type.
+  Definition M: Type:= mem.
+  Parameter Sem: CoreSemantics G C M.
+End Semantics.
 
 Notation EXIT := 
   (EF_external "EXIT" (mksignature (AST.Tint::nil) None)). 
@@ -60,7 +67,7 @@ Module Type ConcurrentMachineSig (TID: ThreadID).
   (*CODE*)
   Parameter cT: Type.
   Parameter G: Type.
-  Parameter Sem : CoreSemantics G cT mem. (* Not used, might remove. *)
+  Parameter Sem : CoreSemantics G cT mem. (* Not used, might remove. Nick: Used in thread suspend now *)
 
   (*MACHINE VARIABLES*)
   Parameter machine_state: Type.
@@ -117,10 +124,11 @@ Module CoarseMachine (TID: ThreadID)(SCH:Scheduler TID)(SIG : ConcurrentMachineS
 
     Inductive suspend_thread': forall {tid0} {ms:machine_state},
                                  containsThread ms tid0 -> machine_state -> Prop:=
-    | SuspendThread: forall tid0 ms ms' c
+    | SuspendThread: forall tid0 ms ms' c ef sig args
                        (ctn: containsThread ms tid0)
                        (HC: getThreadC ctn = Krun c)
-                       (Hms': updThreadC ctn (Kstop c)  = ms'),
+                       (Hat_external: at_external Sem c = Some (ef, sig, args))
+                       (Hms': updThreadC ctn (Kstop c) = ms'),
                        suspend_thread' ctn ms'.
     Definition suspend_thread : forall {tid0 ms},
                                   containsThread ms tid0 -> machine_state -> Prop:=
@@ -229,9 +237,10 @@ Module FineMachine (TID: ThreadID)(SCH:Scheduler TID)(SIG : ConcurrentMachineSig
 
     Inductive suspend_thread': forall {tid0} {ms:machine_state},
                                  containsThread ms tid0 -> machine_state -> Prop:=
-    | SuspendThread: forall tid0 ms ms' c
+    | SuspendThread: forall tid0 ms ms' c ef sig args
                        (ctn: containsThread ms tid0)
                        (HC: getThreadC ctn = Krun c)
+                       (Hat_external: at_external Sem c = Some (ef, sig, args))
                        (Hms': updThreadC ctn (Kstop c)  = ms'),
                        suspend_thread' ctn ms'.
     Definition suspend_thread : forall {tid0 ms},

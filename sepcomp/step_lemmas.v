@@ -4,8 +4,8 @@ Require Import Values.
 Require Import compcert.lib.Maps.
 
 Require Import extspec.
-Require Import core_semantics.
-Require Import core_semantics_lemmas.
+Require Import semantics.
+Require Import semantics_lemmas.
 
 Section safety.
   Context {G C M Z:Type}.

@@ -1,12 +1,12 @@
 Require Import Events.
 Require Import Memory.
-Require Import compcert.lib.Coqlib.
+Require Import Coqlib.
 Require Import Values.
 Require Import Maps.
 Require Import Integers.
 Require Import AST.
 Require Import Globalenvs.
-Require Import msl.Axioms.
+Require Import Axioms.
 
 Require Import mem_lemmas. (*needed for definition of mem_forward etc*)
 Require Import semantics.
@@ -14,7 +14,11 @@ Require Import semantics_lemmas.
 Require Import effect_semantics.
 Require Import structured_injections.
 Require Import reach.
-Require Import effect_simulations.
+Require Import simulations.
+
+(** * Simulations Lemmas *)
+
+(** This file specializes [simulations] in a number of useful ways. *)
 
 Section Eff_INJ_SIMU_DIAGRAMS.
   Context {F1 V1 C1 F2 V2 C2:Type}
@@ -23,32 +27,42 @@ Section Eff_INJ_SIMU_DIAGRAMS.
 
           {ge1: Genv.t F1 V1} 
           {ge2: Genv.t F2 V2}.
-
+(*  (CS1_RDO: forall c m c' m', corestep Sem1 ge1 c m c' m' ->
+                  (forall b, isGlobalBlock ge1 b = true -> Mem.valid_block m b) ->
+                  RDOnly_fwd m m' (ReadOnlyBlocks ge1))
+  (CS2_RDO: forall c m c' m', corestep Sem2 ge2 c m c' m' ->
+                  (forall b, isGlobalBlock ge2 b = true -> Mem.valid_block m b) ->
+                  RDOnly_fwd m m' (ReadOnlyBlocks ge2)).
+*)
   Let core_data := C1.
 
   Variable match_states: core_data -> SM_Injection -> C1 -> mem -> C2 -> mem -> Prop.
    
    Hypothesis genvs_dom_eq: genvs_domain_eq ge1 ge2.
 
+   Hypothesis ginfo_preserved : gvar_infos_eq ge1 ge2 /\ findsymbols_preserved ge1 ge2.
+
    Hypothesis match_sm_wd: forall d mu c1 m1 c2 m2, 
           match_states d mu c1 m1 c2 m2 ->
           SM_wd mu.
 
-    Hypothesis match_visible: forall d mu c1 m1 c2 m2, 
+   Hypothesis match_visible: forall d mu c1 m1 c2 m2, 
           match_states d mu c1 m1 c2 m2 -> 
           REACH_closed m1 (vis mu).
 
+(* Removed in Jan 2015
     Hypothesis match_restrict: forall d mu c1 m1 c2 m2 X, 
           match_states d mu c1 m1 c2 m2 -> 
           (forall b, vis mu b = true -> X b = true) ->
           REACH_closed m1 X ->
           match_states d (restrict_sm mu X) c1 m1 c2 m2.
+*)
 
    Hypothesis match_validblocks: forall d mu c1 m1 c2 m2, 
           match_states d mu c1 m1 c2 m2 ->
           sm_valid mu m1 m2.
 
-    Hypothesis match_genv: forall d mu c1 m1 c2 m2 (MC:match_states d mu c1 m1 c2 m2),
+   Hypothesis match_genv: forall d mu c1 m1 c2 m2 (MC:match_states d mu c1 m1 c2 m2),
           meminj_preserves_globals ge1 (extern_of mu) /\
           (forall b, isGlobalBlock ge1 b = true -> frgnBlocksSrc mu b = true).
 
@@ -57,11 +71,14 @@ Section Eff_INJ_SIMU_DIAGRAMS.
           Mem.inject j m1 m2 -> 
           Forall2 (val_inject j) vals1 vals2 ->
           meminj_preserves_globals ge1 j ->
+          globalfunction_ptr_inject ge1 j -> 
 
         (*the next two conditions are required to guarantee intialSM_wd*)
          (forall b1 b2 d, j b1 = Some (b2, d) -> 
                           DomS b1 = true /\ DomT b2 = true) ->
          (forall b, REACH m2 (fun b' => isGlobalBlock ge2 b' || getBlocks vals2 b') b = true -> DomT b = true) ->
+
+         mem_respects_readonly ge1 m1 -> mem_respects_readonly ge2 m2 ->
 
         (*the next two conditions ensure the initialSM satisfies sm_valid*)
          (forall b, DomS b = true -> Mem.valid_block m1 b) ->
@@ -81,6 +98,7 @@ Section Eff_INJ_SIMU_DIAGRAMS.
 
       exists v2, 
              Mem.inject (as_inj mu) m1 m2 /\
+             mem_respects_readonly ge1 m1 /\ mem_respects_readonly ge2 m2 /\
              val_inject (restrict (as_inj mu) (vis mu)) v1 v2 /\
              halted Sem2 c2 = Some v2.
 
@@ -88,8 +106,9 @@ Section Eff_INJ_SIMU_DIAGRAMS.
       forall mu c1 m1 c2 m2 e vals1 ef_sig,
         match_states c1 mu c1 m1 c2 m2 ->
         at_external Sem1 c1 = Some (e,ef_sig,vals1) ->
-        Mem.inject (as_inj mu) m1 m2 /\ 
-          exists vals2, 
+        Mem.inject (as_inj mu) m1 m2 
+        /\ mem_respects_readonly ge1 m1 /\ mem_respects_readonly ge2 m2
+        /\ exists vals2, 
             Forall2 (val_inject (restrict (as_inj mu) (vis mu))) vals1 vals2 /\ 
             at_external Sem2 c2 = Some (e,ef_sig,vals2)
     /\ forall
@@ -127,8 +146,8 @@ Hypothesis order_wf: well_founded order.
         nu (NuHyp: nu = replace_locals mu pubSrc' pubTgt'),
 
       forall nu' ret1 m1' ret2 m2'
-        (INC: extern_incr nu nu')  
-        (SEP: sm_inject_separated nu nu' m1 m2)
+        (INC: extern_incr nu nu') 
+        (GSep: globals_separate ge2 nu nu')
 
         (WDnu': SM_wd nu') (SMvalNu': sm_valid nu' m1' m2')
 
@@ -136,6 +155,8 @@ Hypothesis order_wf: well_founded order.
         (RValInjNu': val_inject (as_inj nu') ret1 ret2)
 
         (FwdSrc: mem_forward m1 m1') (FwdTgt: mem_forward m2 m2')
+        (RDO1: RDOnly_fwd m1 m1' (ReadOnlyBlocks ge1))
+        (RDO1: RDOnly_fwd m2 m2' (ReadOnlyBlocks ge2))
 
         frgnSrc' (frgnSrcHyp: frgnSrc' = fun b => andb (DomSrc nu' b)
                                                  (andb (negb (locBlocksSrc nu' b)) 
@@ -164,7 +185,7 @@ Hypothesis order_wf: well_founded order.
         match_states st1 mu st1 m1 st2 m2 ->
         exists st2', exists m2', exists mu',
           intern_incr mu mu' /\
-          sm_inject_separated mu mu' m1 m2 /\
+          globals_separate ge1 mu mu' /\
           sm_locally_allocated mu mu' m1 m2 m1' m2' /\ 
 
           match_states st1' mu' st1' m1' st2' m2' /\
@@ -174,14 +195,14 @@ Hypothesis order_wf: well_founded order.
               (effstep_star Sem2 ge2 U2 st2 m2 st2' m2' /\
                order st1' st1)) /\
 
-             forall 
+             (forall 
                (UHyp: forall b z, U1 b z = true -> vis mu b = true)
-               b ofs (Ub: U2 b ofs = true), 
-             visTgt mu b = true /\ 
+                b ofs (Ub: U2 b ofs = true), 
+               visTgt mu b = true /\ 
                 (locBlocksTgt mu b = false ->
                  exists b1 delta1, foreign_of mu b1 = Some(b,delta1) /\
                  U1 b1 (ofs-delta1) = true /\
-                 Mem.perm m1 b1 (ofs-delta1) Max Nonempty)).
+                 Mem.perm m1 b1 (ofs-delta1) Max Nonempty))).
 
 Lemma  inj_simulation_star_wf: 
   SM_simulation.SM_simulation_inject Sem1 Sem2 ge1 ge2.
@@ -192,23 +213,25 @@ Proof.
   apply order_wf.
 clear - match_sm_wd. intros. destruct H; subst. eauto.
 assumption.
+clear - ginfo_preserved. assumption.
 clear - match_genv. intros. destruct MC; subst. eauto.
 clear - match_visible. intros. destruct H; subst. eauto.
-clear - match_restrict. intros. destruct H; subst. eauto.
+(* RESTRICT : clear - match_restrict. intros. destruct H; subst. eauto.*)
 clear - match_validblocks. intros.
     destruct H; subst. eauto.
-clear - inj_initial_cores. intros.
+clear - inj_initial_cores . intros.
     destruct (inj_initial_cores _ _ _ _ _ _ _ _ _ H
-         H0 H1 H2 H3 H4 H5 H6)
+         H0 H1 H2 H3 H4 H5 H6 H7 H8 H9)
     as [c2 [INI MS]].
   exists c1, c2. intuition. 
-clear - inj_effcore_diagram. 
+clear - inj_effcore_diagram genvs_dom_eq.
   intros. destruct H0; subst.
   destruct (inj_effcore_diagram _ _ _ _ _ H _ _ _ H1) as 
-    [c2' [m2' [mu' [INC [SEP [LAC [MC' [U2 [STEP' PROP]]]]]]]]]. 
+
+    [c2' [m2' [mu' [INC [GSEP [LAC [MC' [U2 [STEP' PROP]]]]]]]]]. 
   exists c2'. exists m2'. exists st1'. exists mu'.
-  split; try assumption. 
-  split; try assumption. 
+  split; try assumption.
+  split. eapply gsep_domain_eq; try eassumption. 
   split; try assumption. 
   split. split; trivial. 
   exists U2. split; assumption. 
@@ -217,18 +240,18 @@ clear - inj_halted. intros. destruct H; subst.
   exists v2; intuition.
 clear - inj_at_external. intros. destruct H; subst.
   destruct (inj_at_external _ _ _ _ _ _ _ _ H1 H0)
-    as [INJ [vals2 [VALS [AtExt2 SH]]]].
-  split. trivial. exists vals2. split; trivial. split; trivial. 
+    as [INJ [MRR1 [MRR2 [vals2 [VALS [AtExt2 SH]]]]]].
+  intuition. exists vals2. split; trivial. split; trivial. 
     intros. split. split. trivial. eapply SH; eassumption. eapply SH; eassumption.
 clear - inj_after_external. intros. 
   destruct MatchMu as [ZZ matchMu]. subst cd.
   destruct (inj_after_external _ _ _ _ _ _ _ _ _ _ _
       MemInjMu matchMu AtExtSrc AtExtTgt ValInjMu _
-      pubSrcHyp _ pubTgtHyp _ NuHyp _ _ _ _ _ INC SEP
-      WDnu' SMvalNu' MemInjNu' RValInjNu' FwdSrc FwdTgt 
+      pubSrcHyp _ pubTgtHyp _ NuHyp _ _ _ _ _ INC GSep
+      WDnu' SMvalNu' MemInjNu' RValInjNu' FwdSrc FwdTgt RDO1 RDO2
       _ frgnSrcHyp _ frgnTgtHyp _ Mu'Hyp 
       UnchPrivSrc UnchLOOR)
-    as [st1' [st2' [AftExt1 [AftExt2 MS']]]].
+    as [st1' [st2' [AftExt1 [AftExt2 MS']]]]; try eassumption.
   exists st1', st1', st2'. intuition.
 Qed.
 
@@ -260,14 +283,15 @@ Hypothesis order_wf: well_founded order.
         (HasTy1: Val.has_type ret1 (proj_sig_res (AST.ef_sig e)))
         (HasTy2: Val.has_type ret2 (proj_sig_res (AST.ef_sig e')))
         (INC: extern_incr nu nu')  
-        (SEP: sm_inject_separated nu nu' m1 m2)
-
+        (GSep: globals_separate ge2 nu nu')
         (WDnu': SM_wd nu') (SMvalNu': sm_valid nu' m1' m2')
 
         (MemInjNu': Mem.inject (as_inj nu') m1' m2')
         (RValInjNu': val_inject (as_inj nu') ret1 ret2)
 
         (FwdSrc: mem_forward m1 m1') (FwdTgt: mem_forward m2 m2')
+        (RDO1: RDOnly_fwd m1 m1' (ReadOnlyBlocks ge1))
+        (RDO1: RDOnly_fwd m2 m2' (ReadOnlyBlocks ge2))
 
         frgnSrc' (frgnSrcHyp: frgnSrc' = fun b => andb (DomSrc nu' b)
                                                  (andb (negb (locBlocksSrc nu' b)) 
@@ -296,7 +320,7 @@ Hypothesis order_wf: well_founded order.
         match_states st1 mu st1 m1 st2 m2 ->
         exists st2', exists m2', exists mu',
           intern_incr mu mu' /\
-          sm_inject_separated mu mu' m1 m2 /\
+          globals_separate ge1 mu mu' /\
           sm_locally_allocated mu mu' m1 m2 m1' m2' /\ 
 
           match_states st1' mu' st1' m1' st2' m2' /\
@@ -306,14 +330,14 @@ Hypothesis order_wf: well_founded order.
               (effstep_star Sem2 ge2 U2 st2 m2 st2' m2' /\
                order st1' st1)) /\
 
-           forall
+            (forall
              (UHyp: forall b z, U1 b z = true -> vis mu b = true)
              b ofs(Ub: U2 b ofs = true),
              visTgt mu b = true /\
              (locBlocksTgt mu b = false ->
                 exists b1 delta1, foreign_of mu b1 = Some(b,delta1) /\
                 U1 b1 (ofs-delta1) = true /\
-                Mem.perm m1 b1 (ofs-delta1) Max Nonempty)).
+                Mem.perm m1 b1 (ofs-delta1) Max Nonempty))).
 
 Lemma  inj_simulation_star_wf_typed: 
   SM_simulation.SM_simulation_inject Sem1 Sem2 ge1 ge2.
@@ -324,22 +348,23 @@ Proof.
   apply order_wf.
 clear - match_sm_wd. intros. destruct H; subst. eauto.
 assumption.
+clear - ginfo_preserved. assumption.
 clear - match_genv. intros. destruct MC; subst. eauto.
 clear - match_visible. intros. destruct H; subst. eauto.
-clear - match_restrict. intros. destruct H; subst. eauto.
+(* RESTRICT: clear - match_restrict. intros. destruct H; subst. eauto.*)
 clear - match_validblocks. intros.
     destruct H; subst. eauto.
 clear - inj_initial_cores. intros.
-    destruct (inj_initial_cores _ _ _ _ _ _ _ _ _ H H0 H1 H2 H3 H4 H5 H6)
+    destruct (inj_initial_cores _ _ _ _ _ _ _ _ _ H H0 H1 H2 H3 H4 H5 H6 H7 H8 H9)
     as [c2 [INI MS]].
   exists c1, c2. intuition. 
-clear - inj_effcore_diagram. 
+clear - inj_effcore_diagram genvs_dom_eq. 
   intros. destruct H0; subst.
   destruct (inj_effcore_diagram _ _ _ _ _ H _ _ _ H1) as 
-    [c2' [m2' [mu' [INC [SEP [LAC [MC' [U2 [STEP' PROP]]]]]]]]]. 
+    [c2' [m2' [mu' [INC [GSEP [LAC [MC' [U2 [STEP' PROP]]]]]]]]]. 
   exists c2'. exists m2'. exists st1'. exists mu'. 
   split; try assumption.
-  split; try assumption.
+  split. eapply gsep_domain_eq; eassumption.
   split; try assumption.
   split. split; trivial. 
   exists U2. split; assumption.
@@ -348,18 +373,18 @@ clear - inj_halted. intros. destruct H; subst.
   exists v2; intuition.
 clear - inj_at_external. intros. destruct H; subst.
   destruct (inj_at_external _ _ _ _ _ _ _ _ H1 H0)
-    as [INJ [vals2 [VALS [AtExt2 SH]]]].
-  split. trivial. exists vals2. split; trivial. split; trivial. 
+    as [INJ [MRR1 [MRR2 [vals2 [VALS [AtExt2 SH]]]]]].
+  intuition. exists vals2. split; trivial. split; trivial. 
     intros. split. split. trivial. eapply SH; eassumption. eapply SH; eassumption.
 clear - inj_after_external. intros. 
   destruct MatchMu as [ZZ matchMu]. subst cd.
   destruct (inj_after_external _ _ _ _ _ _ _ _ _ _ _
       MemInjMu matchMu AtExtSrc AtExtTgt ValInjMu _
-      pubSrcHyp _ pubTgtHyp _ NuHyp _ _ _ _ _ HasTy1 HasTy2 INC SEP
-      WDnu' SMvalNu' MemInjNu' RValInjNu' FwdSrc FwdTgt 
+      pubSrcHyp _ pubTgtHyp _ NuHyp _ _ _ _ _ HasTy1 HasTy2 INC GSep
+      WDnu' SMvalNu' MemInjNu' RValInjNu' FwdSrc FwdTgt RDO1 RDO2
       _ frgnSrcHyp _ frgnTgtHyp _ Mu'Hyp 
       UnchPrivSrc UnchLOOR)
-    as [st1' [st2' [AftExt1 [AftExt2 MS']]]].
+    as [st1' [st2' [AftExt1 [AftExt2 MS']]]]; try assumption.
   exists st1', st1', st2'. intuition.
 Qed.
 
@@ -388,7 +413,7 @@ Section EFF_INJ_SIMULATION_STAR.
 
       forall nu' ret1 m1' ret2 m2'
         (INC: extern_incr nu nu')  
-        (SEP: sm_inject_separated nu nu' m1 m2)
+        (GSep: globals_separate ge2 nu nu')
 
         (WDnu': SM_wd nu') (SMvalNu': sm_valid nu' m1' m2')
 
@@ -396,6 +421,8 @@ Section EFF_INJ_SIMULATION_STAR.
         (RValInjNu': val_inject (as_inj nu') ret1 ret2)
 
         (FwdSrc: mem_forward m1 m1') (FwdTgt: mem_forward m2 m2')
+        (RDO1: RDOnly_fwd m1 m1' (ReadOnlyBlocks ge1))
+        (RDO1: RDOnly_fwd m2 m2' (ReadOnlyBlocks ge2))
 
         frgnSrc' (frgnSrcHyp: frgnSrc' = fun b => andb (DomSrc nu' b)
                                                  (andb (negb (locBlocksSrc nu' b)) 
@@ -424,7 +451,7 @@ Section EFF_INJ_SIMULATION_STAR.
         match_states st1 mu st1 m1 st2 m2 ->
         exists st2', exists m2', exists mu',
           intern_incr mu mu' /\
-          sm_inject_separated mu mu' m1 m2 /\
+          globals_separate ge1 mu mu' /\
           sm_locally_allocated mu mu' m1 m2 m1' m2' /\ 
 
           match_states st1' mu' st1' m1' st2' m2' /\
@@ -433,14 +460,14 @@ Section EFF_INJ_SIMULATION_STAR.
             (effstep_plus Sem2 ge2 U2 st2 m2 st2' m2' \/
              ((measure st1' < measure st1)%nat /\ effstep_star Sem2 ge2 U2 st2 m2 st2' m2'))
             /\
-             forall 
+             (forall 
                (UHyp: forall b ofs, U1 b ofs = true -> vis mu b = true)
                b ofs(Ub: U2 b ofs = true), 
              visTgt mu b = true /\
              (locBlocksTgt mu b = false ->
                  exists b1 delta1, foreign_of mu b1 = Some(b,delta1) /\
                  U1 b1 (ofs-delta1) = true /\
-                 Mem.perm m1 b1 (ofs-delta1) Max Nonempty).
+                 Mem.perm m1 b1 (ofs-delta1) Max Nonempty)).
 
 Lemma inj_simulation_star: 
   SM_simulation.SM_simulation_inject Sem1 Sem2 ge1 ge2.
@@ -448,12 +475,13 @@ Proof.
   eapply inj_simulation_star_wf.
   apply  (well_founded_ltof _ measure).
   apply inj_after_external.
-  clear - inj_effcore_diagram. intros.
+  clear - inj_effcore_diagram genvs_dom_eq.  intros.
   destruct (inj_effcore_diagram _ _ _ _ _ H _ _ _ H0) 
-    as [c2' [m2' [mu' [INC [SEP [LAC [MC' [U2 [STEP' PROP]]]]]]]]].
+    as [c2' [m2' [mu' [INC [GSEP [LAC [MC' [U2 [STEP' PROP]]]]]]]]].
   exists c2'. exists m2'. exists mu'. 
-  split; try assumption. 
   split; try assumption.
+  split; try assumption.
+  (*split. eapply globalsep_domain_eq. eassumption.*)
   split; try assumption. 
   split; try assumption.  
   exists U2. intuition.
@@ -486,14 +514,15 @@ Section EFF_INJ_SIMULATION_STAR_TYPED.
         (HasTy1: Val.has_type ret1 (proj_sig_res (AST.ef_sig e)))
         (HasTy2: Val.has_type ret2 (proj_sig_res (AST.ef_sig e')))
         (INC: extern_incr nu nu')  
-        (SEP: sm_inject_separated nu nu' m1 m2)
-
+        (GSep: globals_separate ge2 nu nu')
         (WDnu': SM_wd nu') (SMvalNu': sm_valid nu' m1' m2')
 
         (MemInjNu': Mem.inject (as_inj nu') m1' m2')
         (RValInjNu': val_inject (as_inj nu') ret1 ret2)
 
         (FwdSrc: mem_forward m1 m1') (FwdTgt: mem_forward m2 m2')
+        (RDO1: RDOnly_fwd m1 m1' (ReadOnlyBlocks ge1))
+        (RDO1: RDOnly_fwd m2 m2' (ReadOnlyBlocks ge2))
 
         frgnSrc' (frgnSrcHyp: frgnSrc' = fun b => andb (DomSrc nu' b)
                                                  (andb (negb (locBlocksSrc nu' b)) 
@@ -522,7 +551,7 @@ Section EFF_INJ_SIMULATION_STAR_TYPED.
         match_states st1 mu st1 m1 st2 m2 ->
         exists st2', exists m2', exists mu',
           intern_incr mu mu' /\
-          sm_inject_separated mu mu' m1 m2 /\
+          globals_separate ge1 mu mu' /\
           sm_locally_allocated mu mu' m1 m2 m1' m2' /\ 
 
           match_states st1' mu' st1' m1' st2' m2' /\
@@ -531,14 +560,14 @@ Section EFF_INJ_SIMULATION_STAR_TYPED.
             (effstep_plus Sem2 ge2 U2 st2 m2 st2' m2' \/
              ((measure st1' < measure st1)%nat /\ effstep_star Sem2 ge2 U2 st2 m2 st2' m2'))
             /\
-             forall 
+             (forall 
                (UHyp: forall b ofs, U1 b ofs = true -> vis mu b = true)
                b ofs(Ub: U2 b ofs = true),
               visTgt mu b = true /\ 
                 (locBlocksTgt mu b = false ->
                  exists b1 delta1, foreign_of mu b1 = Some(b,delta1) /\
                      U1 b1 (ofs-delta1) = true /\
-                     Mem.perm m1 b1 (ofs-delta1) Max Nonempty).
+                     Mem.perm m1 b1 (ofs-delta1) Max Nonempty)).
 
 Lemma inj_simulation_star_typed: 
   SM_simulation.SM_simulation_inject Sem1 Sem2 ge1 ge2.
@@ -548,12 +577,12 @@ Proof.
   intros. eapply inj_after_external with (mu := mu); eauto.
   clear - inj_effcore_diagram. intros.
   destruct (inj_effcore_diagram _ _ _ _ _ H _ _ _ H0) 
-    as [c2' [m2' [mu' [INC [SEP [LAC [MC' [U2 [STEP' PROP]]]]]]]]].
+    as [c2' [m2' [mu' [INC [GSEP [LAC [MC' [U2 [STEP' PROP]]]]]]]]].
   exists c2'. exists m2'. exists mu'. 
   split; try assumption. 
-  split; try assumption. 
   split; try assumption.
-  split; try assumption.  
+  split; try assumption.
+  split; try assumption.
   exists U2. intuition.
 Qed.
 
@@ -582,14 +611,15 @@ Section EFF_INJ_SIMULATION_PLUS.
 
       forall nu' ret1 m1' ret2 m2'
         (INC: extern_incr nu nu')  
-        (SEP: sm_inject_separated nu nu' m1 m2)
-
+        (GSep: globals_separate ge2 nu nu')
         (WDnu': SM_wd nu') (SMvalNu': sm_valid nu' m1' m2')
 
         (MemInjNu': Mem.inject (as_inj nu') m1' m2')
         (RValInjNu': val_inject (as_inj nu') ret1 ret2)
 
         (FwdSrc: mem_forward m1 m1') (FwdTgt: mem_forward m2 m2')
+        (RDO1: RDOnly_fwd m1 m1' (ReadOnlyBlocks ge1))
+        (RDO1: RDOnly_fwd m2 m2' (ReadOnlyBlocks ge2))
 
         frgnSrc' (frgnSrcHyp: frgnSrc' = fun b => andb (DomSrc nu' b)
                                                  (andb (negb (locBlocksSrc nu' b)) 
@@ -618,7 +648,7 @@ Section EFF_INJ_SIMULATION_PLUS.
         match_states st1 mu st1 m1 st2 m2 ->
         exists st2', exists m2', exists mu',
           intern_incr mu mu' /\
-          sm_inject_separated mu mu' m1 m2 /\
+          globals_separate ge1 mu mu' /\
           sm_locally_allocated mu mu' m1 m2 m1' m2' /\ 
 
           match_states st1' mu' st1' m1' st2' m2' /\
@@ -626,14 +656,15 @@ Section EFF_INJ_SIMULATION_PLUS.
           exists U2,              
             (effstep_plus Sem2 ge2 U2 st2 m2 st2' m2' \/
              ((measure st1' < measure st1)%nat /\ effstep_star Sem2 ge2 U2 st2 m2 st2' m2'))
-            /\ forall 
+            /\ 
+            ( forall 
                  (UHyp: forall b ofs, U1 b ofs = true -> vis mu b = true)
                  b ofs (Ub: U2 b ofs = true),
                  visTgt mu b = true /\ 
                  (locBlocksTgt mu b = false ->
                      exists b1 delta1, foreign_of mu b1 = Some(b,delta1) /\
                      U1 b1 (ofs-delta1) = true /\
-                     Mem.perm m1 b1 (ofs-delta1) Max Nonempty).
+                     Mem.perm m1 b1 (ofs-delta1) Max Nonempty)).
   
 Lemma inj_simulation_plus: 
   SM_simulation.SM_simulation_inject Sem1 Sem2 ge1 ge2.
@@ -668,14 +699,15 @@ Section EFF_INJ_SIMULATION_PLUS_TYPED.
         (HasTy1: Val.has_type ret1 (proj_sig_res (AST.ef_sig e)))
         (HasTy2: Val.has_type ret2 (proj_sig_res (AST.ef_sig e')))
         (INC: extern_incr nu nu')  
-        (SEP: sm_inject_separated nu nu' m1 m2)
-
+        (GSep: globals_separate ge2 nu nu')
         (WDnu': SM_wd nu') (SMvalNu': sm_valid nu' m1' m2')
 
         (MemInjNu': Mem.inject (as_inj nu') m1' m2')
         (RValInjNu': val_inject (as_inj nu') ret1 ret2)
 
         (FwdSrc: mem_forward m1 m1') (FwdTgt: mem_forward m2 m2')
+        (RDO1: RDOnly_fwd m1 m1' (ReadOnlyBlocks ge1))
+        (RDO1: RDOnly_fwd m2 m2' (ReadOnlyBlocks ge2))
 
         frgnSrc' (frgnSrcHyp: frgnSrc' = fun b => andb (DomSrc nu' b)
                                                  (andb (negb (locBlocksSrc nu' b)) 
@@ -704,7 +736,7 @@ Section EFF_INJ_SIMULATION_PLUS_TYPED.
         match_states st1 mu st1 m1 st2 m2 ->
         exists st2', exists m2', exists mu',
           intern_incr mu mu' /\
-          sm_inject_separated mu mu' m1 m2 /\
+          globals_separate ge1 mu mu' /\
           sm_locally_allocated mu mu' m1 m2 m1' m2' /\ 
 
           match_states st1' mu' st1' m1' st2' m2' /\
@@ -712,14 +744,14 @@ Section EFF_INJ_SIMULATION_PLUS_TYPED.
           exists U2,              
             (effstep_plus Sem2 ge2 U2 st2 m2 st2' m2' \/
              ((measure st1' < measure st1)%nat /\ effstep_star Sem2 ge2 U2 st2 m2 st2' m2'))
-            /\ forall 
+            /\ (forall 
                  (UHyp: forall b ofs, U1 b ofs = true -> vis mu b = true)
                   b ofs (Ub: U2 b ofs = true),
                 visTgt mu b = true /\ 
                 (locBlocksTgt mu b = false ->
                     exists b1 delta1, foreign_of mu b1 = Some(b,delta1) /\
                     U1 b1 (ofs-delta1) = true /\
-                    Mem.perm m1 b1 (ofs-delta1) Max Nonempty).
+                    Mem.perm m1 b1 (ofs-delta1) Max Nonempty)).
   
 Lemma inj_simulation_plus_typed: 
   SM_simulation.SM_simulation_inject Sem1 Sem2 ge1 ge2.
@@ -1061,8 +1093,56 @@ destruct (joinD_Some _ _ _ _ _ I); clear I.
            apply disjoint_extern_local; assumption. 
            assumption.
          assumption.
-Qed. 
+Qed.
 
+Lemma compose_sm_as_injD_None:
+  forall (mu1 mu2 : SM_Injection) b1,
+       SM_wd mu1 ->
+       SM_wd mu2 ->
+    (locBlocksTgt mu1 = locBlocksSrc mu2 /\
+         extBlocksTgt mu1 = extBlocksSrc mu2) ->
+       as_inj (compose_sm mu1 mu2) b1 = None ->
+         as_inj mu1 b1 = None  \/
+         exists b2 d, (as_inj mu1 b1 = Some (b2, d) /\ as_inj mu2 b2 = None).
+Proof.
+intros mu1 mu2 b1 SMWD1 SMWD2 [GLUEloc GLUEext].
+unfold as_inj, join, compose_sm; simpl.
+destruct (Values.compose_meminj (extern_of mu1) (extern_of mu2) b1) as [[b2 delta]| ] eqn:extmap.
+discriminate.
+destruct (Values.compose_meminj (local_of mu1) (local_of mu2) b1) as [[b2 delta]| ] eqn:locmap.
+discriminate.
+intros tautology.
+destruct (compose_meminjD_None _ _ _ extmap) as [extmap' | [b' [ofs' [extmap1 extmap2]]]];
+destruct (compose_meminjD_None _ _ _ locmap) as [locmap' | [b'' [ofs'' [locmap1 locmap2]]]].
+- rewrite extmap'; simpl.  rewrite locmap'; auto.
+- rewrite extmap'; simpl. right.
+  exists b'', ofs''. split.  
+  + auto.
+  + destruct (extern_of mu2 b'') as [[b0 d]| ] eqn:extmap0.
+    * apply SMWD2 in extmap0. apply SMWD1 in locmap1.
+      destruct locmap1; destruct extmap0.
+      rewrite GLUEloc in *.
+      destruct SMWD2 as [disj_src _].
+      destruct (disj_src b'') as [theFalse | theFalse]; rewrite theFalse in *; discriminate.
+    * assumption.
+- rewrite extmap1; simpl. right.
+  exists b', ofs'. split.
+  + reflexivity.
+  + rewrite extmap2; simpl.
+    destruct (local_of mu2 b') as [[b0 d]| ] eqn:locmap0.
+    * apply SMWD2 in locmap0. apply SMWD1 in extmap1.
+      destruct extmap1; destruct locmap0.
+      rewrite GLUEext in *.
+      destruct SMWD2 as [disj_src _].
+      destruct (disj_src b') as [theFalse | theFalse]; rewrite theFalse in *; discriminate.
+    * assumption.
+- apply SMWD1 in extmap1; apply SMWD1 in locmap1.
+  destruct locmap1; destruct extmap1.
+  destruct SMWD1 as [disj_src _].
+  destruct (disj_src b1) as [theFalse | theFalse]; rewrite theFalse in *; discriminate.
+Qed.  
+
+(*
 Lemma compose_sm_intern_separated:
       forall mu12 mu12' mu23 mu23' m1 m2 m3 
         (inc12: intern_incr mu12 mu12') 
@@ -1186,7 +1266,7 @@ split.
      eapply AsInj23. eassumption. eassumption.
 simpl.
   split. apply DomTgt12. apply Sep23.
-Qed.
+Qed.*)
 
 Lemma vis_compose_sm: forall mu nu, vis (compose_sm mu nu) = vis mu.
 Proof. intros. unfold vis. destruct mu; simpl. reflexivity. Qed.

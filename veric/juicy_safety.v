@@ -5,7 +5,7 @@ Require Import Globalenvs.
 
 Require Import msl.ageable.
 
-Require Import sepcomp.core_semantics.
+Require Import sepcomp.semantics.
 Require Import sepcomp.extspec.
 Require Import sepcomp.step_lemmas.
 
