@@ -6,7 +6,7 @@ Require Import Maps.
 Require Import Integers.
 Require Import AST.
 Require Import Globalenvs.
-Require Import Axioms.
+Require Import compcert.lib.Axioms.
 
 Require Import Extensionality.
 Require Import mem_lemmas. (*needed for definition of mem_forward etc*)

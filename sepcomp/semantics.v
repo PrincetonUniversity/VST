@@ -7,7 +7,7 @@ Require Import Maps.
 Require Import Integers.
 Require Import AST. 
 Require Import Globalenvs.
-Require Import Axioms.
+Require Import compcert.lib.Axioms.
 
 Require Import mem_lemmas.
 

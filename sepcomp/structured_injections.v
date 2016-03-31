@@ -2,7 +2,7 @@ Require Import Events.
 Require Import Memory.
 Require Import Coqlib.
 Require Import Values.
-Require Import Axioms.
+Require Import compcert.lib.Axioms.
 (*Require Import ExtAxioms.*)
 (*Will need : *)
 Require Export FunctionalExtensionality.
