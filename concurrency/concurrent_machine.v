@@ -95,7 +95,7 @@ Module Type ConcurrentMachineSig (TID: ThreadID).
   Parameter threadHalted: forall {tid0 ms},
                             containsThread ms tid0 -> Prop.
 
-  Parameter init_core : G -> val -> list val -> option machine_state.
+  Parameter init_mach : G -> val -> list val -> option machine_state.
   
 End ConcurrentMachineSig.
 
@@ -198,7 +198,7 @@ Module CoarseMachine (TID: ThreadID)(SCH:Scheduler TID)(SIG : ConcurrentMachineS
 
   Variable U: Sch.
   Definition init_machine the_ge (f : val) (args : list val) : option MachState :=
-    match init_core the_ge f args with
+    match init_mach the_ge f args with
       |None => None
       | Some c => Some (U, c)
     end.
@@ -313,7 +313,7 @@ Module FineMachine (TID: ThreadID)(SCH:Scheduler TID)(SIG : ConcurrentMachineSig
     
     Variable U: Sch.
     Definition init_machine the_ge (f : val) (args : list val) : option MachState :=
-      match init_core the_ge f args with
+      match init_mach the_ge f args with
       | None => None
       | Some c => Some (U, c)
       end.

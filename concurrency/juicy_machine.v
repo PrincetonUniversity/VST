@@ -208,7 +208,6 @@ Section poolDefs.
   
   Definition cont2ord {ms tid0} (cnt: containsThread ms tid0) :=
     Ordinal cnt.
-  Set Printing All.
   Definition updThreadC { tid0}(cnt: containsThread tp tid0) (c' : ctl) : tpool cT :=
     @mk cT num_threads
         (fun n => if n == (cont2ord cnt) then c' else (pool tp)  n)
@@ -665,6 +664,7 @@ Module Concur.
     (*TID = NAT*)
     Definition tid := nat.                                             
     (*Memories*)
+    Parameter level: nat.
     Definition richMem: Type:= juicy_mem.
     Definition dryMem: richMem -> mem:= m_dry.
     
@@ -717,7 +717,15 @@ Module Concur.
     Definition threadHalted: forall {tid0 ms},
                                containsThread ms tid0 -> Prop:= @threadHalted'.
 
-    Parameter init_core : G -> val -> list val -> option machine_state.
+    Lemma onePos: (0<1)%coq_nat. auto. Qed.
+    Definition initial_machine c:=
+      @mk cT (mkPos onePos) (fun _ => c) (fun _ => empty_rmap level) (fun _ => None).
+    Definition init_mach (genv:G)(v:val)(args:list val):option machine_state:=
+      match initial_core Sem genv v args with
+      | Some c => Some (initial_machine (Kresume c) )
+      | None => None
+      end.
+      
   End JuicyMachineSig.
 
   (* Here I make the core semantics*)

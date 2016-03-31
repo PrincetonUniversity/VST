@@ -1,6 +1,7 @@
 Require Import compcert.lib.Axioms.
 
 Add LoadPath "../sepcomp" as sepcomp.
+Add LoadPath "../concurrency" as concurrency.
 
 Require Import sepcomp. Import SepComp.
 Require Import semantics_lemmas.
@@ -635,7 +636,14 @@ Module Concur.
     Definition threadHalted: forall {tid0 ms},
                                containsThread ms tid0 -> Prop:= @threadHalted'.
 
-    Parameter init_core : G -> val -> list val -> option machine_state.
+    Lemma onePos: (0<1)%coq_nat. auto. Qed.
+    Definition initial_machine c:=
+      @mk cT (mkPos onePos) (fun _ => c) (fun _ => empty_share_map) .
+    Definition init_mach  (genv:G)(v:val)(args:list val):option machine_state:=
+      match initial_core Sem genv v args with
+      | Some c => Some (initial_machine (Kresume c) )
+      | None => None
+      end.
   End ShareMachineSig.
 
   

@@ -30,6 +30,11 @@ Module Type Parching (SCH: Scheduler NatTID)(SEM: Semantics).
   Axiom parch_match: forall (js: jstate) (ds: dstate),
       match_st js ds <-> ds = parch_state js.
 
+  (*Init diagram*)
+  Axiom parch_initi: forall genv main vals U jms,
+      initial_core JMachineSem genv main vals = Some (U, jms) ->
+      initial_core DMachineSem genv main vals = Some (U, parch_state jms).
+  
   (*Core Diagram*)
   Axiom parched_diagram: forall genv U U' m m' jst jst',  
       corestep JMachineSem genv (U, jst) m (U', jst') m' ->
@@ -114,8 +119,8 @@ Module Erasure (SCH: Scheduler NatTID)(SEM: Semantics)(PC: Parching SCH SEM).
     exists (parch_machine JS).
     split; [|split].
     - unfold mu; apply initial_SM_as_inj.
-    - unfold initial_core, DMachineSem,  DryMachine.MachineSemantics, DryMachine.init_machine.
-      admit.
+    - destruct JS as [U jms]. unfold parch_machine.
+      apply parch_initi; assumption.
     - destruct JS as [U js]; constructor.
       apply parch_match; reflexivity.
     Qed.
@@ -163,6 +168,7 @@ Module Erasure (SCH: Scheduler NatTID)(SEM: Semantics)(PC: Parching SCH SEM).
     - apply parch_match in H; subst ds.
       apply parched_halted; assumption.
   Qed.
+
   
   Theorem erasure:
     Wholeprog_sim.Wholeprog_sim
