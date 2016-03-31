@@ -42,16 +42,23 @@ else
 endif
 endif
 
-COQFLAGS= $(foreach d, $(DIRS), $(if $(wildcard $(d)), -I $(d) -as $(d))) -R $(COMPCERT) -as compcert
+EXTFLAGS= -R $(COMPCERT) -as compcert
 
 # for SSReflect
 ifdef MATHCOMP
- COQFLAGS:=$(COQFLAGS) -R $(MATHCOMP) mathcomp
+ EXTFLAGS:=$(EXTFLAGS) -R $(MATHCOMP) mathcomp
+endif
+
+COQFLAGS=$(foreach d, $(DIRS), $(if $(wildcard $(d)), -I $(d) -as $(d))) $(EXTFLAGS)
+DEPFLAGS:=$(COQFLAGS)
+
+ifdef LIBPREFIX
+ COQFLAGS=$(foreach d, $(DIRS), $(if $(wildcard $(d)), -I $(d) -as $(LIBPREFIX).$(d))) $(EXTFLAGS)
 endif
 
 COQC=coqc
 COQTOP=coqtop
-COQDEP=coqdep -slash
+COQDEP=coqdep -slash $(DEPFLAGS)
 COQDOC=coqdoc
 
 MSL_FILES = \
@@ -116,7 +123,6 @@ SEPCOMP_FILES= \
   wholeprog_lemmas.v \
   barebones_simulations.v
   #safety_preservation.v \
-  
 
 CONCUR_FILES= \
   sepcomp.v threads_lemmas.v permissions.v\
@@ -363,16 +369,16 @@ floyd/floyd.coq: floyd/proofauto.vo
 	coqtop $(COQFLAGS) -load-vernac-object floyd/proofauto -outputstate floyd/floyd -batch
 
 .depend:
-	$(COQDEP) $(COQFLAGS) $(filter $(wildcard *.v */*.v */*/*.v),$(FILES))  > .depend
+	$(COQDEP) $(filter $(wildcard *.v */*.v */*/*.v),$(FILES))  > .depend
 
 depend:	
-	$(COQDEP) $(COQFLAGS) $(filter $(wildcard *.v */*.v */*/*.v),$(FILES))  > .depend
+	$(COQDEP) $(filter $(wildcard *.v */*.v */*/*.v),$(FILES))  > .depend
 
 depend-linking:
-	$(COQDEP) $(COQFLAGS) $(FILES) $(LINKING_FILES:%.v=linking/%.v) > .depend
+	$(COQDEP) $(FILES) $(LINKING_FILES:%.v=linking/%.v) > .depend
 
 depend-concur:
-	$(COQDEP) $(COQFLAGS) $(FILES) $(CONCUR_FILES:%.v=concurrency/%.v) > .depend
+	$(COQDEP) $(FILES) $(CONCUR_FILES:%.v=concurrency/%.v) > .depend
 
 clean:
 	rm -f $(FILES:%.v=%.vo) $(FILES:%.v=%.glob) floyd/floyd.coq .loadpath .depend
