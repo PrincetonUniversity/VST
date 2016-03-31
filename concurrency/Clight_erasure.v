@@ -28,12 +28,33 @@ Module ClightErasure (SCH: Scheduler NatTID)(SEM: Semantics)<:Parching SCH SEM.
   Definition DMachineSem:= DryMachine.MachineSemantics.
   Notation dstate:= DSEM.machine_state.
 
-  Definition parch_state (js:jstate): dstate.
+  
+ Definition perm_of_res (r: compcert_rmaps.RML.R.resource): shares.share. (*This must exists somwehre*)
+ Admitted.
+  
+  Definition erase_state (js:jstate) (m:mem): dstate.
   Proof.
     destruct js.
     eapply (ThreadPool.mk num_threads).
     - exact pool.
-    - intros.
+    - intros. (*specialize (perm_comp X). inversion perm_comp. *)
+      unfold permissions.share_map.
+      pose (mp:= Mem.mem_access m).
+      destruct mp as [default TREE].
+      pose (f:= fun (p: BinNums.positive) (A: BinNums.Z -> perm_kind -> option permission) =>
+           fun (ofs: BinNums.Z) => perm_of_res (compcert_rmaps.RML.R.resource_at (juice X)  (p,ofs))).
+      eapply (Maps.PTree.map f TREE).
+  Defined.
+
+  {m: mem}(compat: juicy_machine.mem_compatible js m)
+      apply ()
+      pose (f:= fun p => eapply Maps.PTree.map).
+
+      
+   mem_access : Maps.PMap.t (BinNums.Z -> perm_kind -> option permission);
+                Maps.PTree.t (BinNums.Z -> shares.share)
+      
+      
   Admitted.
 
   Inductive match_st : jstate ->  dstate -> Prop:=

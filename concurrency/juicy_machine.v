@@ -717,16 +717,22 @@ Module Concur.
     Definition threadHalted: forall {tid0 ms},
                                containsThread ms tid0 -> Prop:= @threadHalted'.
 
+
+    (* The initial machine has to be redefined.
+       Right now its build by default with empty maps,
+       but it should be built with the correct juice,
+       corresponding to global variables, arguments
+       and function specs. *)
     Lemma onePos: (0<1)%coq_nat. auto. Qed.
     Definition initial_machine c:=
       @mk cT (mkPos onePos) (fun _ => c) (fun _ => empty_rmap level) (fun _ => None).
     Definition init_mach (genv:G)(v:val)(args:list val):option machine_state:=
       match initial_core Sem genv v args with
-      | Some c => Some (initial_machine (Kresume c) )
+      | Some c => Some (initial_machine (Kresume c))
       | None => None
       end.
       
-  End JuicyMachineSig.
+End JuicyMachineSig.
 
   (* Here I make the core semantics*)
   Variable example_G: Type.
