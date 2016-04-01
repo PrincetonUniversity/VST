@@ -62,6 +62,20 @@ Lemma inject_separated_same_meminj: forall j m m',
   Events.inject_separated j j m m'.
 Proof. intros j m m' b; intros. congruence. Qed.
 
+Lemma compose_meminj_idR: forall j, j = compose_meminj j inject_id.
+Proof. intros. unfold  compose_meminj, inject_id. 
+   apply extensionality. intro b. 
+   remember (j b). 
+   destruct o; trivial. destruct p. rewrite Zplus_0_r. trivial.
+Qed.
+
+Lemma compose_meminj_idL: forall j, j = compose_meminj inject_id j.
+Proof. intros. unfold  compose_meminj, inject_id.
+   apply extensionality. intro b.
+   remember (j b). 
+   destruct o; trivial. destruct p. rewrite Zplus_0_l. trivial.  
+Qed.
+
 Theorem drop_extends:
   forall m1 m2 lo hi b p m1',
   Mem.extends m1 m2 ->
@@ -111,15 +125,10 @@ Proof. intros.
   destruct v. inv MV1. apply MV2.
   inv MV1. apply MV2.
   inv MV2. constructor.
-  admit.
- (* inv MV1. inv MV2. inv H3.
-  inv H4.
-  rewrite Int.add_zero. rewrite Int.add_zero.  
-  econstructor. reflexivity. 
-  rewrite Int.add_zero. trivial.
-  inv MV2. inv H3. rewrite Int.add_zero. 
-  rewrite Int.add_zero in H5. econstructor.*)
-Qed.
+  inv MV1; try solve[constructor]. inv MV2; constructor. 
+    specialize (val_inject_compose _ _ _ _ _ H2 H3).
+    rewrite <- compose_meminj_idL; trivial. 
+  Qed.
 
 Lemma extends_trans: forall m1 m2 
   (Ext12: Mem.extends m1 m2) m3 (Ext23: Mem.extends m2 m3), Mem.extends m1 m3.
@@ -130,9 +139,7 @@ Qed.
 Lemma memval_inject_id_refl: forall v, memval_inject inject_id v v. 
 Proof.  
   destruct v. constructor. constructor. econstructor.
-  admit.
-(*  reflexivity. 
-rewrite Int.add_zero. trivial. *)
+  destruct v; try econstructor. reflexivity. rewrite Int.add_zero. trivial. 
 Qed.
 
 Lemma extends_refl: forall m, Mem.extends m m.
@@ -142,20 +149,6 @@ Proof. intros.
      inv H.  rewrite Zplus_0_r. assumption.
      inv H. apply Z.divide_0_r. (*rewrite Zplus_0_r. assumption.*)
      inv H.  rewrite Zplus_0_r. apply memval_inject_id_refl.
-Qed.
-
-Lemma compose_meminj_idR: forall j, j = compose_meminj j inject_id.
-Proof. intros. unfold  compose_meminj, inject_id. 
-   apply extensionality. intro b. 
-   remember (j b). 
-   destruct o; trivial. destruct p. rewrite Zplus_0_r. trivial.
-Qed.
-
-Lemma compose_meminj_idL: forall j, j = compose_meminj inject_id j.
-Proof. intros. unfold  compose_meminj, inject_id.
-   apply extensionality. intro b.
-   remember (j b). 
-   destruct o; trivial. destruct p. rewrite Zplus_0_l. trivial.  
 Qed.
 
 Lemma perm_decE: 
@@ -463,8 +456,8 @@ Proof. intros.
      exists (Vint i). split; constructor.
      exists (Vlong i); split; constructor.
      exists (Vfloat f). split; constructor.
-     admit. admit. admit.
-     (*apply compose_meminjD_Some in H. rename b2 into b3.
+     exists (Vsingle f). split; constructor.
+     apply compose_meminjD_Some in H. rename b2 into b3.
        destruct H as [b2 [ofs2 [ofs3 [J12 [J23 DD]]]]]; subst.
        eexists. split. econstructor. apply J12. reflexivity. 
           econstructor. apply J23. rewrite Int.add_assoc.
@@ -472,7 +465,7 @@ Proof. intros.
             clear - ofs2 ofs3. rewrite Int.add_unsigned.
             apply Int.eqm_samerepr. apply Int.eqm_add; apply Int.eqm_unsigned_repr.
           rewrite H. trivial. 
-     exists Vundef. split; constructor. *)
+     exists Vundef. split; constructor. 
 Qed.     
 
 Lemma forall_lessdef_trans: 
@@ -1547,34 +1540,35 @@ destruct U1 as [P1 V1]; destruct U2 as [P2 V2].
     apply V1; trivial.
   apply P1; trivial. eapply Mem.perm_valid_block; eassumption.
 Qed.
-(*
-Axiom ec_readonly_perm:
-  forall (ef : external_function) (F V : Type) (ge : Genv.t F V)
-    (vargs : list val) (m1 : mem) (t : trace) (vres : val) (m2 : mem)
-    (chunk : memory_chunk) (b : block) (ofs : Z),
-  external_call ef ge vargs m1 t vres m2 ->
-  Mem.valid_block m1 b ->
-  (forall ofs' : Z,
-   ofs <= ofs' < ofs + size_chunk chunk -> ~ Mem.perm m1 b ofs' Max Writable) ->
-  forall ofs', ofs <= ofs' < ofs + size_chunk chunk ->
-    forall k p, Mem.perm m1 b ofs' k p <-> Mem.perm m2 b ofs' k p.
-*)
 
+(* Does not hold, since readonly refers to Cur permissions
 Lemma ec_readonly_strong: forall
   (ef : external_function) (F V : Type) (ge : Genv.t F V)
     (vargs : list val) (m1 : mem) (t : trace) (vres : val) (m2 : mem)
     (EC: external_call ef ge vargs m1 t vres m2)
     b (VB: Mem.valid_block m1 b), readonly m1 b m2.
 Proof. intros.
-       admit. (*
-destruct ef; simpl in *; inv EC; try apply readonly_refl.
+destruct ef; simpl in *; try inv EC; try apply readonly_refl.
+(*functions are now by name*)
+(*functions are now by name*)
 { inv H. apply readonly_refl. eapply store_readonly; eassumption. }
-{ inv H0. apply readonly_refl. eapply store_readonly; eassumption. }
 { eapply readonly_trans. eapply alloc_readonly; eassumption. 
   eapply store_readonly; try eassumption. eapply alloc_forward; eassumption. }
 { eapply free_readonly; eassumption. }
-{ eapply storebytes_readonly; eassumption. }  *)
+{ eapply storebytes_readonly; eassumption. }
+{ apply (ec_readonly (inline_assembly_properties text sg)) in EC.
+  (*destruct EC.*) red; intros; split; intros. Locate readonly.
+  symmetry. eapply loadbytes_unchanged_on; try eassumption.
+     intros. red. intros N. eapply (NWR (i-ofs)). omega.
+     assert (ofs + (i - ofs) = i) by omega. rewrite H0.   Mem.perm_implies. eapply NWR.
+  
+ inv H0. apply readonly_refl. eapply store_readonly; eassumption. }
+{ eapply readonly_trans. eapply alloc_readonly; eassumption. 
+  eapply store_readonly; try eassumption. eapply alloc_forward; eassumption. }
+{ eapply free_readonly; eassumption. }
+{ eapply storebytes_readonly; eassumption. }
 Qed.
+*)
 
 Lemma external_call_mem_forward:
   forall (ef : external_function) (F V : Type) (ge : Genv.t F V)
@@ -1586,16 +1580,17 @@ split; intros. eapply external_call_valid_block; eauto.
 eapply external_call_max_perm; eauto.
 Qed.
 
+(* Does not hold, since readonlyLD refers to Cur permissions
 Lemma external_call_readonlyLD:
   forall (ef : external_function) (F V : Type) (ge : Genv.t F V)
     (vargs : list val) (m1 : mem) (t : trace) (vres : val) (m2 : mem),
     external_call ef ge vargs m1 t vres m2 -> 
   forall b, Mem.valid_block m1 b -> readonlyLD m1 b m2. 
-Proof. intros.
+Proof. intros. 
   eapply readonly_readonlyLD.
   eapply ec_readonly_strong; eassumption.
 Qed.
-
+*)
 Definition val_has_type_opt' (v: option val) (ty: typ) :=
  match v with
  | None => True
