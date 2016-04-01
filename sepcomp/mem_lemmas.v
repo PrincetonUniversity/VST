@@ -733,6 +733,149 @@ Proof. intros.
   destruct d; inv LD. auto.
 Qed.
 
+(*A new lemma, used in CompCert2.5 where CompComp-4-CompCert2.1 used decode_val_pointer_inv*)
+Lemma load_ptr_is_fragment ch m b ofs b0 i
+      (LD: Mem.load ch m b ofs = Some (Vptr b0 i)): 
+  exists q n, ZMap.get ofs (Mem.mem_contents m) !! b = Fragment (Vptr b0 i) q n.
+Proof.
+  apply Mem.load_result in LD. 
+  apply eq_sym in LD. 
+  unfold decode_val in LD.
+  remember (proj_bytes
+         (Mem.getN (size_chunk_nat ch) ofs (Mem.mem_contents m) !! b)) as v.
+  destruct v.
+  + destruct ch; inv LD.
+  + destruct ch; try solve [inv LD].
+    - unfold Val.load_result in LD. unfold proj_bytes in Heqv. simpl in *.
+      remember (ZMap.get ofs (Mem.mem_contents m) !! b) as w. 
+      destruct w; try discriminate. clear Heqv. 
+      destruct (Val.eq v v); try discriminate.
+      destruct q; try discriminate. simpl in *.
+      destruct (quantity_eq Q32 Q32); try discriminate. simpl in *.
+      destruct n; try discriminate.
+      destruct n; try discriminate.
+      destruct n; try discriminate.
+      destruct n; try discriminate. simpl in LD.
+      destruct (ZMap.get (ofs + 1) (Mem.mem_contents m) !! b); try discriminate.
+      destruct (Val.eq v v0); try discriminate.
+      destruct q; try discriminate.
+      destruct (quantity_eq Q32 Q32); try discriminate. simpl in *. subst v0. clear e e0 e2.
+      destruct n; try discriminate.
+      destruct n; try discriminate.
+      destruct n; try discriminate. simpl in LD.
+      destruct (ZMap.get (ofs + 1 + 1) (Mem.mem_contents m) !! b); try discriminate.
+      destruct (Val.eq v v0); try discriminate.
+      destruct q; try discriminate.
+      destruct (quantity_eq Q32 Q32); try discriminate. simpl in *. subst v0. clear e0.
+      destruct n; try discriminate.
+      destruct n; try discriminate. simpl in LD.
+      destruct (ZMap.get (ofs + 1 + 1 + 1) (Mem.mem_contents m) !! b); try discriminate.
+      destruct (Val.eq v v0); try discriminate.
+      destruct q; try discriminate.
+      destruct (quantity_eq Q32 Q32); try discriminate. simpl in *. subst v0. clear e0.
+      destruct n; try discriminate. simpl in LD.
+      destruct v; try discriminate. inv LD. eexists; eexists; reflexivity.
+    - unfold Val.load_result in LD. unfold proj_bytes in Heqv. simpl in *.
+      remember (ZMap.get ofs (Mem.mem_contents m) !! b) as w. 
+      destruct w; try discriminate. clear Heqv. 
+      destruct (Val.eq v v); try discriminate.
+      destruct q; try discriminate. simpl in *.
+      destruct (quantity_eq Q32 Q32); try discriminate. simpl in *.
+      destruct n; try discriminate.
+      destruct n; try discriminate.
+      destruct n; try discriminate.
+      destruct n; try discriminate. simpl in LD.
+      destruct (ZMap.get (ofs + 1) (Mem.mem_contents m) !! b); try discriminate.
+      destruct (Val.eq v v0); try discriminate.
+      destruct q; try discriminate.
+      destruct (quantity_eq Q32 Q32); try discriminate. simpl in *. subst v0. clear e e0 e2.
+      destruct n; try discriminate.
+      destruct n; try discriminate.
+      destruct n; try discriminate. simpl in LD.
+      destruct (ZMap.get (ofs + 1 + 1) (Mem.mem_contents m) !! b); try discriminate.
+      destruct (Val.eq v v0); try discriminate.
+      destruct q; try discriminate.
+      destruct (quantity_eq Q32 Q32); try discriminate. simpl in *. subst v0. clear e0.
+      destruct n; try discriminate.
+      destruct n; try discriminate. simpl in LD.
+      destruct (ZMap.get (ofs + 1 + 1 + 1) (Mem.mem_contents m) !! b); try discriminate.
+      destruct (Val.eq v v0); try discriminate.
+      destruct q; try discriminate.
+      destruct (quantity_eq Q32 Q32); try discriminate. simpl in *. subst v0. clear e0.
+      destruct n; try discriminate. simpl in LD.
+      destruct v; try discriminate. inv LD. eexists; eexists; reflexivity.
+    - unfold Val.load_result in LD. unfold proj_bytes in Heqv. simpl in *.
+      remember (ZMap.get ofs (Mem.mem_contents m) !! b) as w. 
+      destruct w; try discriminate. clear Heqv. 
+      destruct (Val.eq v v); try discriminate.
+      destruct q; try discriminate. simpl in *.
+      destruct (quantity_eq Q64 Q64); try discriminate. simpl in *.
+      destruct n; try discriminate.
+      destruct n; try discriminate.
+      destruct n; try discriminate.
+      destruct n; try discriminate. 
+      destruct n; try discriminate.
+      destruct n; try discriminate.
+      destruct n; try discriminate.
+      destruct n; try discriminate. simpl in LD.
+      destruct (ZMap.get (ofs + 1) (Mem.mem_contents m) !! b); try discriminate.
+      destruct (Val.eq v v0); try discriminate.
+      destruct q; try discriminate.
+      destruct (quantity_eq Q64 Q64); try discriminate. simpl in *. subst v0. clear e e0 e2.
+      destruct n; try discriminate.
+      destruct n; try discriminate.
+      destruct n; try discriminate.
+      destruct n; try discriminate.
+      destruct n; try discriminate.
+      destruct n; try discriminate.
+      destruct n; try discriminate.  simpl in LD.
+      destruct (ZMap.get (ofs + 1 + 1) (Mem.mem_contents m) !! b); try discriminate.
+      destruct (Val.eq v v0); try discriminate.
+      destruct q; try discriminate.
+      destruct (quantity_eq Q64 Q64); try discriminate. simpl in *. subst v0. clear e0.
+      destruct n; try discriminate.
+      destruct n; try discriminate.
+      destruct n; try discriminate.
+      destruct n; try discriminate.
+      destruct n; try discriminate.
+      destruct n; try discriminate.  simpl in LD.
+      destruct (ZMap.get (ofs + 1 + 1 + 1) (Mem.mem_contents m) !! b); try discriminate.
+      destruct (Val.eq v v0); try discriminate.
+      destruct q; try discriminate.
+      destruct (quantity_eq Q64 Q64); try discriminate. simpl in *. subst v0. clear e0.
+      destruct n; try discriminate.
+      destruct n; try discriminate.
+      destruct n; try discriminate.
+      destruct n; try discriminate.
+      destruct n; try discriminate.  simpl in LD.
+      destruct (ZMap.get (ofs + 1 + 1 + 1 + 1) (Mem.mem_contents m) !! b); try discriminate.
+      destruct (Val.eq v v0); try discriminate.
+      destruct q; try discriminate.
+      destruct (quantity_eq Q64 Q64); try discriminate. simpl in *. subst v0. clear e0.
+      destruct n; try discriminate.
+      destruct n; try discriminate.
+      destruct n; try discriminate.
+      destruct n; try discriminate. simpl in LD.
+      destruct (ZMap.get (ofs + 1 + 1 + 1+1+1) (Mem.mem_contents m) !! b); try discriminate.
+      destruct (Val.eq v v0); try discriminate.
+      destruct q; try discriminate.
+      destruct (quantity_eq Q64 Q64); try discriminate. simpl in *. subst v0. clear e0.
+      destruct n; try discriminate.
+      destruct n; try discriminate.
+      destruct n; try discriminate. simpl in LD.
+      destruct (ZMap.get (ofs + 1 + 1 +1 +1 +1 + 1) (Mem.mem_contents m) !! b); try discriminate.
+      destruct (Val.eq v v0); try discriminate.
+      destruct q; try discriminate.
+      destruct (quantity_eq Q64 Q64); try discriminate. simpl in *. subst v0. clear e0.
+      destruct n; try discriminate.
+      destruct n; try discriminate.  simpl in LD.
+      destruct (ZMap.get (ofs + 1 + 1 +1 +1 +1 + 1+1) (Mem.mem_contents m) !! b); try discriminate.
+      destruct (Val.eq v v0); try discriminate.
+      destruct q; try discriminate.
+      destruct (quantity_eq Q64 Q64); try discriminate. simpl in *. subst v0. clear e0.
+      destruct n; try discriminate. simpl in LD. subst v. eexists; eexists; reflexivity.
+Qed. 
+
 (******** Compatibility of memory operation with [mem_forward] ********)
 Lemma load_storebytes_nil m b ofs m': Mem.storebytes m b ofs nil = Some m' -> 
   forall ch bb z, Mem.load ch m' bb z = Mem.load ch m bb z.

@@ -1486,16 +1486,12 @@ Lemma REACH_load_vis: forall chunk m b i b1 ofs1
       REACH m (vis mu) b1 = true.
 Proof. 
   intros.
+  destruct (load_ptr_is_fragment _ _ _ _ _ _ LD) as [q [n FRAG]].
   eapply REACH_cons with(z:=Int.unsigned i)(off:=ofs1). 
-    apply REACH_nil. apply VIS.
-    eapply Mem.load_valid_access. apply LD. 
+  + apply REACH_nil. apply VIS.
+  + eapply Mem.load_valid_access. apply LD. 
     split. omega. destruct chunk; simpl; omega.
-    apply Mem.load_result in LD. 
-    apply eq_sym in LD. 
-Require Import sepcomp.mem_wd.
-    destruct (decode_val_pointer_inv _ _ _ _ LD); clear LD; subst.
-    simpl in *.
-    inv H0. eassumption. 
+  + eassumption.
 Qed.
 
 Section ALLOC.
