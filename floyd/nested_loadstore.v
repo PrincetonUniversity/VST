@@ -276,19 +276,7 @@ Lemma nested_field_ramif: forall sh t gfs0 gfs1 v v0 p,
 Proof.
   intros.
   rewrite allp_uncurry'.
-  change
-    (ALL st: _,
-      !!JMeq (fst st) (snd st) -->
-      (field_at sh t (gfs1 ++ gfs0) (fst st) p -*
-       field_at sh t gfs0
-         (upd_reptype (nested_field_type t gfs0) gfs1 v (snd st)) p))
-  with
-    (allp 
-      ((fun st => !!JMeq (fst st) (snd st)) -->
-        ((fun st => field_at sh t (gfs1 ++ gfs0) (fst st) p) -*
-         (fun st => field_at sh t gfs0
-                      (upd_reptype (nested_field_type t gfs0)
-                         gfs1 v (snd st)) p)))).
+  RAMIF_Q'.formalize.
   revert v0 H; induction gfs1 as [| gf gfs1]; intros.
   + simpl app in *.
     apply RAMIF_Q'.solve with emp.

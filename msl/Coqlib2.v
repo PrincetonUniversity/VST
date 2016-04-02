@@ -208,3 +208,40 @@ Proof.
   + right; tauto.
 Qed.
 
+Ltac super_pattern t x :=
+  let t0 := fresh "t" in
+  set (t0 := t);
+  pattern x in t0;
+  cbv beta in (type of t0);
+  subst t0.
+
+(* change (fun v => ?) into a form of (fun v => ? v x) *)
+Ltac super_pattern_in_func t x :=
+  let t0 := fresh "t" in
+  let a := fresh "a" in
+  match type of t with
+  | ?type_of_t =>
+    evar (t0 : type_of_t)
+  end;
+  assert (t = t0) as _;
+  [
+    extensionality a;
+    cbv beta;
+    match goal with
+    | |- ?left = _ =>
+      super_pattern left x
+    end;
+    match goal with
+    | |- ?left _ = _ =>
+      super_pattern left a
+    end;
+    match goal with
+    | |- ?left _ _ = _ =>
+      instantiate (1 := fun a => left a x) in (Value of t0)
+    end;
+    reflexivity
+  |
+    change t with t0;
+    subst t0
+  ].
+
