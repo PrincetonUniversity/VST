@@ -519,7 +519,7 @@ induction l; intros. inv H1.
 simpl in *. destruct a; simpl in *.
 destruct H1. subst. inv H0. inv H.  apply alloc_vars_lookup with (id := id) in H9; auto. 
 rewrite H9. rewrite PTree.gss. eauto. intros. 
-destruct (eq_dec i id). subst. intuition. rewrite PTree.gso; auto. 
+destruct (peq i id). subst. intuition. rewrite PTree.gso; auto. 
 rewrite PTree.gss; eauto. 
 
 inv H0. apply IHl in H10; auto. inv H; auto. 
@@ -634,7 +634,7 @@ eapply pass_params_ni with (id := id) in H21; auto.  rewrite PTree.gss in *. aut
 
 
 destruct a. 
-destruct (eq_dec id i). subst. 
+destruct (peq id i). subst. 
 apply pass_params_ni with (id := i) in H21. 
 rewrite PTree.gss in *. exists  Vundef. auto.
 intros. unfold list_disjoint in *. intuition. 
@@ -986,7 +986,7 @@ end.
  destruct (make_venv (PTree.remove id ve) id0) eqn:H5; auto.
  destruct p.
  unfold make_venv in H5.
- destruct (eq_dec id id0).
+ destruct (peq id id0).
  subst.  rewrite PTree.grs in H5. inv H5. 
  rewrite PTree.gro in H5 by auto.
  specialize (H7 id0). unfold make_venv in H7. rewrite H5 in H7.

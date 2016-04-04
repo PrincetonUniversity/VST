@@ -1639,10 +1639,10 @@ Section statement_rect.
   end.
 End statement_rect.
 
+Require Import msl.eq_dec.
+
 (* Equality is decidable on statements *)
 Section eq_dec.
-  Definition eq_dec A := forall a a' : A, {a = a'} + {a <> a'}.
-  
   Local Ltac t := hnf; decide equality; auto.
   
   Let eq_dec_type := type_eq.
@@ -1652,23 +1652,23 @@ Section eq_dec.
   Let eq_dec_int64 := Int64.eq_dec.
   Let eq_dec_ident := ident_eq.
   Let eq_dec_signature := signature_eq.
-  Let eq_dec_attr : eq_dec attr. repeat t. Qed.
-  Let eq_dec_signedness : eq_dec signedness. t. Qed.
-  Let eq_dec_intsize : eq_dec intsize. t. Qed.
-  Let eq_dec_floatsize : eq_dec floatsize. t. Qed.
-  Let eq_dec_Z : eq_dec Z. repeat t. Qed.
-  Let eq_dec_calling_convention : eq_dec calling_convention. repeat t. Qed.
-  Let eq_dec_external_function : eq_dec external_function. repeat t. Qed.
+  Let eq_dec_attr : EqDec attr. repeat t. Qed.
+  Let eq_dec_signedness : EqDec signedness. t. Qed.
+  Let eq_dec_intsize : EqDec intsize. t. Qed.
+  Let eq_dec_floatsize : EqDec floatsize. t. Qed.
+  Let eq_dec_Z : EqDec Z. repeat t. Qed.
+  Let eq_dec_calling_convention : EqDec calling_convention. repeat t. Qed.
+  Let eq_dec_external_function : EqDec external_function. repeat t. Qed.
   Let eq_dec_option_ident := option_eq (ident_eq).
-  Let eq_dec_option_Z : eq_dec (option Z). repeat t. Qed.
-  Let eq_dec_typelist : eq_dec typelist. repeat t. Qed.
+  Let eq_dec_option_Z : EqDec (option Z). repeat t. Qed.
+  Let eq_dec_typelist : EqDec typelist. repeat t. Qed.
   
-  Lemma eq_dec_expr : eq_dec expr.
+  Lemma eq_dec_expr : EqDec expr.
   Proof. repeat t. Qed.
   
   Let eq_dec_expr := eq_dec_expr.
-  Let eq_dec_option_expr : eq_dec (option expr). repeat t. Qed.
-  Let eq_dec_list_expr : eq_dec (list expr). repeat t. Qed.
+  Let eq_dec_option_expr : EqDec (option expr). repeat t. Qed.
+  Let eq_dec_list_expr : EqDec (list expr). repeat t. Qed.
   
   Local Ltac eq_dec a a' :=
     let H := fresh in
@@ -1680,7 +1680,7 @@ Section eq_dec.
     apply
       (statement_rect
          (fun s => forall s', { s = s' } + { s <> s' })
-         (fun l => forall l', {l = l'} + {l <> l'}));
+         (fun l => forall l', { l = l' } + { l <> l' }));
       try (intros until s'; destruct s'); intros;
       try (destruct l');
       try solve [right; congruence | left; reflexivity];

@@ -488,7 +488,7 @@ Proof.
         specialize (Hcl rho (Map.set id (eval_expr (Ebinop cmp e1 e2 ty) rho) (make_tenv tx))).
         rewrite <- Hcl; auto.
         intros.
-        destruct (eq_dec id i).
+        destruct (Pos.eq_dec id i).
         {
           subst.
           left. unfold modifiedvars. simpl.
@@ -622,7 +622,7 @@ Proof.
       specialize (Hcl rho (Map.set id (eval_expr e rho) (make_tenv tx))).
       rewrite <- Hcl; auto.
       intros.
-      destruct (eq_dec id i).
+      destruct (Pos.eq_dec id i).
       * subst.
         left. unfold modifiedvars. simpl.
         unfold insert_idset; rewrite PTree.gss; hnf; auto.
@@ -754,7 +754,7 @@ rewrite <- map_ptree_rel.
 specialize (Hcl rho (Map.set id (eval_expr e rho) (make_tenv tx))).
 rewrite <- Hcl; auto.
 intros.
-destruct (eq_dec id i).
+destruct (Pos.eq_dec id i).
 subst.
 left. unfold modifiedvars. simpl.
  unfold insert_idset; rewrite PTree.gss; hnf; auto.
@@ -878,7 +878,7 @@ rewrite <- map_ptree_rel.
 specialize (Hcl rho (Map.set id (eval_expr (Ecast e t) rho) (make_tenv tx))).
 rewrite <- Hcl; auto.
 intros.
-destruct (eq_dec id i).
+destruct (Pos.eq_dec id i).
 subst.
 left. unfold modifiedvars. simpl.
  unfold insert_idset; rewrite PTree.gss; hnf; auto.
@@ -993,7 +993,7 @@ specialize (Hcl rho  (Map.set id (eval_expr e rho) (make_tenv te))).
 rewrite <- map_ptree_rel.
 rewrite <- Hcl; auto.
 intros.
-destruct (eq_dec id i).
+destruct (Pos.eq_dec id i).
 subst.
 left. unfold modifiedvars. simpl.
  unfold insert_idset; rewrite PTree.gss; hnf; auto.
@@ -1196,7 +1196,7 @@ split; [split3 | ].
   apply andp_right; auto.
   intros ? ?; simpl.
   unfold eval_id, force_val. simpl. rewrite Map.gss. auto.
- +intro i; destruct (eq_dec id i); [left; auto | right; rewrite Map.gso; auto].
+ +intro i; destruct (Pos.eq_dec id i); [left; auto | right; rewrite Map.gso; auto].
    subst; unfold modifiedvars. simpl.
    unfold insert_idset; rewrite PTree.gss; hnf; auto.
    subst. auto.
@@ -1353,7 +1353,7 @@ split; [split3 | ].
   apply andp_right; auto.
   intros ? ?; simpl.
   unfold eval_id, force_val. simpl. rewrite Map.gss. auto.
- +intro i; destruct (eq_dec id i); [left; auto | right; rewrite Map.gso; auto].
+ +intro i; destruct (Pos.eq_dec id i); [left; auto | right; rewrite Map.gso; auto].
    subst; unfold modifiedvars. simpl.
    unfold insert_idset; rewrite PTree.gss; hnf; auto.
    subst. auto.
@@ -1751,7 +1751,7 @@ rewrite <- map_ptree_rel.
 specialize (Hcl rho (Map.set id v (make_tenv tx))).
 rewrite <- Hcl; auto.
 intros.
-destruct (eq_dec id i).
+destruct (Pos.eq_dec id i).
 subst.
 left. unfold modifiedvars. simpl.
  unfold insert_idset; rewrite PTree.gss; hnf; auto.
