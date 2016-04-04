@@ -112,3 +112,20 @@ Require Import Coq.Sets.Ensembles.
 
 Definition Ensemble_join {A} (X Y Z: Ensemble A): Prop :=
   (forall a, Z a <-> X a \/ Y a) /\ (forall a, X a -> Y a -> False).
+
+Require ConstructiveEpsilon.
+
+Lemma decidable_countable_ex_sig {A} (f : nat -> A)
+      (Hf : forall a, exists n, a = f n)
+      (P : A -> Prop)
+      (Pdec : forall x, {P x} + {~ P x}) :
+  (exists x : A, P x) -> {x : A | P x}.
+Proof.
+  intros E.
+  cut ({n | P (f n)}). intros [n Hn]; eauto.
+  apply ConstructiveEpsilon.constructive_indefinite_ground_description_nat.
+  intro; apply Pdec.
+  destruct E as [x Hx].
+  destruct (Hf x) as [n ->].
+  eauto.
+Qed.
