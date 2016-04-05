@@ -40,7 +40,7 @@ Definition dryspec : ext_spec unit :=
         @dry_safeN _ _ _ _ (@Genv.genv_symb _ _) (coresem_extract_cenv cl_core_sem (prog_comp_env prog)) dryspec (Build_genv (Genv.globalenv prog) (prog_comp_env prog)) n tt q m.
 Proof.
  intros.
- destruct (@semax_prog_rule NullExtension.Espec CS tt _ _ _ _ H H0) as [b [q [? [? ?]]]].
+ destruct (@semax_prog_rule NullExtension.Espec CS tt _ _ _ _ H H0) as [b [q [[H1 H2] H3]]].
  exists b, q.
  split3; auto.
  intro n.

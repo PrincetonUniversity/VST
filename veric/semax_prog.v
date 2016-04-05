@@ -466,7 +466,7 @@ split; auto.
 split; auto. split; auto.
 intros x ret phi Hlev Hx Hnec. apply Hretty.
 
-(***   Vptr b Int.zero <> v'  ********)
+(* **   Vptr b Int.zero <> v'  ********)
 apply (Hf n v' fsig' A' P' Q'); auto.
 destruct H1 as [id' [? ?]].
 simpl in H1.
@@ -994,32 +994,69 @@ simpl.
 left. unfold make_venv. unfold empty_env. apply PTree.gempty.
 Qed.
 
+Lemma in_map_sig {A B} (E:forall b b' : B, {b=b'}+{b<>b'}) y (f : A -> B) l : In y (map f l) -> {x : A | f x = y /\ In x l }.
+Proof.
+  induction l; intros HI.
+  - inversion HI.
+  - simpl in HI.
+    destruct (E (f a) y).
+    + exists a; intuition.
+    + destruct IHl. tauto. exists x; intuition.
+Qed.
+
 Lemma semax_prog_rule {CS: compspecs} :
   forall z V G prog m,
      @semax_prog CS prog V G ->
      Genv.init_mem prog = Some m ->
-     exists b, exists q, 
-       Genv.find_symbol (globalenv prog) (prog_main prog) = Some b /\
-       semantics.initial_core (juicy_core_sem cl_core_sem)
-                    (globalenv prog) (Vptr b Int.zero) nil = Some q /\
-       forall n, exists jm, 
+     { b : block & { q : corestate &
+       (Genv.find_symbol (globalenv prog) (prog_main prog) = Some b) *
+       (semantics.initial_core (juicy_core_sem cl_core_sem)
+                    (globalenv prog) (Vptr b Int.zero) nil = Some q) *
+       forall n, { jm |
        m_dry jm = m /\ level jm = n /\ 
-       jsafeN (@OK_spec Espec) (globalenv prog) n z q jm.
+       jsafeN (@OK_spec Espec) (globalenv prog) n z q jm } } }%type.
 Proof.
   intros until m.
   pose proof I; intros.
   destruct H0 as [? [AL [HGG [[? ?] [GV [? HInt]]]]]].
-  assert (exists f, In (prog_main prog, f) (prog_funct prog) ).
+  assert ({ f | In (prog_main prog, f) (prog_funct prog)}).
   forget (prog_main prog) as id.
   apply in_map_fst in H4.
   pose proof (match_fdecs_in _ _ _ H4 H2).
-  apply in_map_iff in H5. destruct H5 as [[? ?] [? ?]]; subst.
+  apply in_map_sig in H5. 2:decide equality.
+  destruct H5 as [[? ?] [? ?]]; subst.
   eauto.
   destruct H5 as [f ?].
   apply compute_list_norepet_e in H0.
   assert (indefs: In (prog_main prog, Gfun f) (AST.prog_defs prog))
     by (apply in_prog_funct_in_prog_defs; auto).
-  destruct (Genv.find_funct_ptr_exists prog (prog_main prog) f) as [b [? ?]]; auto.
+  pose proof (Genv.find_funct_ptr_exists prog (prog_main prog) f) as EXx.
+  (* Genv.find_funct_ptr_exists is a Prop existential, we use constructive epsilon and
+     decidability on a countable set to transform it to a Type existential *)
+  assert (dec: forall x : positive,
+             {Genv.find_symbol (Genv.globalenv prog) (prog_main prog) = Some x /\
+              Genv.find_funct_ptr (Genv.globalenv prog) x = Some f} +
+             {~ (Genv.find_symbol (Genv.globalenv prog) (prog_main prog) = Some x /\
+                 Genv.find_funct_ptr (Genv.globalenv prog) x = Some f)}).
+  {
+    intros p.
+    assert (group : forall {A} {B} (a a':A) (b b':B), (a = a' /\ b = b') <-> ((a, b) = (a', b')))
+      by (intros;split; [ intros [<- <-]; reflexivity | intros E; injection E; auto]).
+    assert (sumbool_iff_left : forall (A A' B : Prop), (A -> A') -> {A}+{B} -> {A'}+{B}) by tauto.
+    assert (sumbool_iff_right : forall (A B B' : Prop), (B -> B') -> {A}+{B} -> {A}+{B'}) by tauto.
+    eapply sumbool_iff_left. apply group.
+    eapply sumbool_iff_right. rewrite group. apply (fun x => x).
+    pose proof type_eq.
+    pose proof eq_dec_statement.
+    repeat (hnf; decide equality; auto).
+  }
+  
+  apply (decidable_countable_ex_sig Pos.of_nat) in EXx; auto. clear dec.
+  2: intro; eexists; symmetry; apply Pos2Nat.id.
+  
+  (* destruct (Genv.find_funct_ptr_exists prog (prog_main prog) f) as [b [? ?]]; auto. *)
+  pose proof I.
+  destruct EXx as [b [? ?]]; auto.
   exists b.
   unfold semantics.initial_core; simpl.
   rewrite H7.
@@ -1030,7 +1067,7 @@ Proof.
   destruct f as [func | ]; [ | exfalso; discriminate ].
   (* set (func' := func) at 1; destruct func' eqn:Ef. *)
   econstructor.
-  split3; auto.
+  split; [ split | ]. auto. auto.
   intro n.
   exists (initial_jm _ _ _ n H1 H0 H2).
   split3.
@@ -1252,9 +1289,7 @@ Lemma semax_prog_entry_point {CS: compspecs} :
     (* (forall x, closed_wrt_vars (fun n => ~eq 2%positive n) (P x)) -> *)
     (forall a rho, Q a rho |-- FF) ->
     is_pointer_or_null arg ->
-    exists b : block,
-      Genv.find_symbol (globalenv prog) id_fun = Some b /\
-      
+    { b : block &
       (* initial environment *)
       let rho0 : environ :=
           construct_rho
@@ -1269,7 +1304,8 @@ Lemma semax_prog_entry_point {CS: compspecs} :
             ((* PTree.set 1 (Vptr b Int.zero) *)
                        (PTree.set id_arg arg (PTree.empty val))) in
       
-      exists q : corestate,
+      { q : corestate |
+        Genv.find_symbol (globalenv prog) id_fun = Some b /\
         semantics.initial_core
           (juicy_core_sem cl_core_sem)
           (globalenv prog) (Vptr b Int.zero) (arg :: nil) = Some q /\
@@ -1277,7 +1313,7 @@ Lemma semax_prog_entry_point {CS: compspecs} :
         forall (jm : juicy_mem) (a : A),
           app_pred (P a rho1) (m_phi jm) ->
           app_pred (funassert (Delta_types V G (Tpointer Tvoid noattr::nil)) rho0) (m_phi jm) ->
-          jsafeN (@OK_spec Espec) (globalenv prog) (level jm) z q jm.
+          jsafeN (@OK_spec Espec) (globalenv prog) (level jm) z q jm } }.
 Proof.
   intros z V G prog id_fun id_arg arg params A P Q SP INT Eparams Fparams id_in_G QFF arg_p.
   unfold is_Internal in INT; unfold find_params in Fparams.
@@ -1286,8 +1322,7 @@ Proof.
   subst params; injection Fparams as Eparams; clear Fparams INT.
   
   exists b.
-  split;[apply Fid|].
-  intros rho0.
+  intros rho0 rho1.
   simpl (semantics.initial_core _).
   unfold cl_initial_core.
   if_tac;[|tauto]. match goal with H : ?a = ?a |- _ => clear H end.
@@ -1296,6 +1331,7 @@ Proof.
     by reflexivity.
   rewrite Fb.
   econstructor.
+  split. apply Fid.
   split. reflexivity.
   rewrite Eparams.
   
@@ -1355,6 +1391,7 @@ Proof.
   normalize.
   simpl.
   eapply derives_trans; [|apply now_later].
+  unfold rho1.
   simpl.
   apply derives_refl'; f_equal.
   unfold globals_only, env_set, rho0, construct_rho.
