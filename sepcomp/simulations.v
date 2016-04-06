@@ -1,21 +1,21 @@
-Require Import Bool.
+Require Import Coq.Bool.Bool.
 
-Require Import Events.
-Require Import Memory.
-Require Import Coqlib.
-Require Import Values.
-Require Import Maps.
-Require Import Integers.
-Require Import AST.
-Require Import Globalenvs.
+Require Import compcert.common.Values.
+Require Import compcert.common.Memory.
+Require Import compcert.lib.Coqlib.
+Require Import compcert.common.Events.
+Require Import compcert.lib.Maps.
+Require Import compcert.lib.Integers.
+Require Import compcert.common.AST.
+Require Import compcert.common.Globalenvs.
 Require Import compcert.lib.Axioms.
 
-Require Import mem_lemmas. (*needed for definition of mem_forward etc*)
-Require Import semantics.
-Require Import effect_semantics.
-Require Import structured_injections.
-Require Import reach.
-Require Export globalSep.
+Require Import sepcomp.mem_lemmas.
+Require Import sepcomp.semantics.
+Require Import sepcomp.effect_semantics.
+Require Import sepcomp.structured_injections.
+Require Import sepcomp.reach.
+Require Export sepcomp.globalSep.
 
 
 (** * Structured Simulations *)
@@ -43,7 +43,7 @@ Context
                   (forall b, isGlobalBlock ge2 b = true -> Mem.valid_block m b) ->
                   RDOnly_fwd m m' (ReadOnlyBlocks ge2)).
 
-Require Import semantics_lemmas.
+Require Import sepcomp.semantics_lemmas.
 Lemma CS1_RDO_N: forall n c m c' m', corestepN Sem1 ge1 n c m c' m' ->
                   (*mem_respects_readonly ge1 m ->*)
                   (forall b, isGlobalBlock ge1 b = true -> Mem.valid_block m b) ->
@@ -309,7 +309,7 @@ Record SM_simulation_inject := {
           after_external Sem2 (Some ret2) st2 = Some st2' /\
           match_state cd' mu' st1' m1' st2' m2' }.
 
-Require Import semantics_lemmas.
+Require Import sepcomp.semantics_lemmas.
 
 (** Derive an effectless internal step diagram clause from the effectful diagram
   above. *)

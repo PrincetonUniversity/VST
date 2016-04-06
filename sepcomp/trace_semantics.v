@@ -1,19 +1,20 @@
 Require Import compcert.lib.Axioms.
-Require Import Integers.
+Require Import compcert.lib.Integers.
 Require Import compcert.lib.Coqlib.
-Require Import AST.
-Require Import Values.
-Require Import Memory.
-Require Import Globalenvs.
-Require Import Events.
 
-Require Import semantics.
-Require Import semantics_lemmas.
-Require Import reach.
-Require Import effect_semantics.
-Require Import effect_simulations.
-Require Import extspec. 
-Require Import mem_lemmas.
+Require Import compcert.common.AST.
+Require Import compcert.common.Values.
+Require Import compcert.common.Memory.
+Require Import compcert.common.Globalenvs.
+Require Import compcert.common.Events.
+
+Require Import sepcomp.semantics.
+Require Import sepcomp.semantics_lemmas.
+Require Import sepcomp.reach.
+Require Import sepcomp.effect_semantics.
+Require Import sepcomp.effect_simulations.
+Require Import sepcomp.extspec. 
+Require Import sepcomp.mem_lemmas.
 
 Set Implicit Arguments.
 Unset Strict Implicit.

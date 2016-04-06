@@ -3,7 +3,7 @@ Require Import progs.list_dt.
 Require Import progs.insertionsort.
 Require Import Sorted.
 Require Import Omega.
-Require Import Permutation.
+Require Import Coq.Sorting.Permutation.
 
 Local Open Scope logic.
 

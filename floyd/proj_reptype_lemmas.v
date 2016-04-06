@@ -2,7 +2,7 @@ Require Import floyd.base.
 Require Import floyd.assert_lemmas.
 Require Import floyd.client_lemmas.
 Require Import floyd.nested_field_lemmas.
-Require Import type_induction.
+Require Import floyd.type_induction.
 Require Import floyd.reptype_lemmas.
 Require Import floyd.aggregate_type.
 Require Import floyd.sublist.

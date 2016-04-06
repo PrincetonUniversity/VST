@@ -1,16 +1,16 @@
-(*CompCert imports*)
-Require Import Events.
-Require Import Memory.
-Require Import Coqlib.
-Require Import Values.
-Require Import Maps.
-Require Import Integers.
-Require Import AST. 
-Require Import Globalenvs.
+Require Import compcert.lib.Coqlib.
+Require Import compcert.lib.Maps.
+Require Import compcert.lib.Integers.
 Require Import compcert.lib.Axioms.
 
-Require Import mem_lemmas.
-Require Import semantics.
+Require Import compcert.common.Values.
+Require Import compcert.common.Memory.
+Require Import compcert.common.Events.
+Require Import compcert.common.AST. 
+Require Import compcert.common.Globalenvs.
+
+Require Import sepcomp.mem_lemmas.
+Require Import sepcomp.semantics.
 
 Definition corestep_fun {G C M : Type} (sem : CoreSemantics G C M) :=
   forall (m m' m'' : M) ge c c' c'',

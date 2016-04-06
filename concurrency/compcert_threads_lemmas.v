@@ -3,23 +3,23 @@ Require Import compcert.lib.Axioms.
 Add LoadPath "../concurrency" as concurrency.
 
 Require Import sepcomp. Import SepComp.
-Require Import semantics_lemmas.
+Require Import sepcomp.semantics_lemmas.
 
-Require Import pos.
+Require Import concurrency.pos.
 
-Require Import Program.
+Require Import Coq.Program.Program.
 Require Import ssreflect ssrbool ssrnat ssrfun eqtype seq fintype finfun.
 Set Implicit Arguments.
 
 (*NOTE: because of redefinition of [val], these imports must appear 
   after Ssreflect eqtype.*)
-Require Import AST.     (*for typ*)
-Require Import Values. (*for val*)
-Require Import Globalenvs. 
-Require Import Memory.
-Require Import Integers.
+Require Import compcert.common.AST.     (*for typ*)
+Require Import compcert.common.Values. (*for val*)
+Require Import compcert.common.Globalenvs. 
+Require Import compcert.common.Memory.
+Require Import compcert.lib.Integers.
 
-Require Import ZArith.
+Require Import Coq.ZArith.ZArith.
 
 Notation EXIT := 
   (EF_external 1%positive (mksignature (AST.Tint::nil) None)). 
@@ -44,7 +44,10 @@ Notation LOCK := (EF_external 7%positive LOCK_SIG).
 Notation UNLOCK_SIG := (mksignature (AST.Tint::nil) (Some AST.Tint)).
 Notation UNLOCK := (EF_external 8%positive UNLOCK_SIG).
 
-Require Import compcert_threads threads_lemmas permissions concurrent_machine.
+Require Import concurrency.compcert_threads.
+Require Import concurrency.threads_lemmas.
+Require Import concurrency.permissions.
+Require Import concurrency.concurrent_machine.
 
 Ltac pf_cleanup :=
   repeat match goal with
@@ -1714,7 +1717,7 @@ Module FineSafety.
 Section FineSafety.
 
   Import Concur ThreadPool MemoryObs SimDefs StepLemmas mySem.
-  Require Import closed_safety.
+  Require Import sepcomp.closed_safety.
 
   Context {the_ge : G}.
   Notation invariant := (@invariant cT G Sem).

@@ -1,15 +1,15 @@
-(*CompCert imports*)
-Require Import AST.
-Require Import Events.
-Require Import Memory.
-Require Import Coqlib.
-Require Import Values.
-Require Import Maps.
-Require Import Integers.
+Require Import compcert.lib.Coqlib.
+Require Import compcert.lib.Maps.
+Require Import compcert.lib.Integers.
 Require Import compcert.lib.Axioms.
-Require Import Globalenvs.
 
-Require Import Extensionality.
+Require Import compcert.common.AST.
+Require Import compcert.common.Values.
+Require Import compcert.common.Memory.
+Require Import compcert.common.Events.
+Require Import compcert.common.Globalenvs.
+
+Require Import msl.Extensionality.
 
 Notation val_inject:= Val.inject.
 

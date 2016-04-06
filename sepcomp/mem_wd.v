@@ -1,15 +1,15 @@
-(*CompCert imports*)
-Require Import AST.
-Require Import Events.
-Require Import Memory.
 Require Import compcert.lib.Coqlib.
-Require Import Values.
-Require Import Maps.
-Require Import Integers.
+Require Import compcert.lib.Maps.
+Require Import compcert.lib.Integers.
 Require Import compcert.lib.Axioms.
-Require Import Globalenvs.
 
-Require Import mem_lemmas.
+Require Import compcert.common.AST.
+Require Import compcert.common.Values.
+Require Import compcert.common.Memory.
+Require Import compcert.common.Events.
+Require Import compcert.common.Globalenvs.
+
+Require Import sepcomp.mem_lemmas.
 
 Notation val_inject:=Val.inject.
 
@@ -222,7 +222,7 @@ Proof.
    rewrite Int.add_zero. reflexivity.
 Qed. 
 
-Require Import reach.
+Require Import sepcomp.reach.
 
 Inductive valid_genv {F V:Type} (ge:Genv.t F V) (m:mem) : Type := 
   mk_valid_genv : 

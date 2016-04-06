@@ -1,13 +1,13 @@
-Require Import Memory.
-Require Import AST.     (*for typ*)
-Require Import Values. (*for val*)
-Require Import Globalenvs. 
-Require Import Integers.
-Require Import ZArith.
-Require Import semantics.
+Require Import compcert.common.Memory.
+Require Import compcert.common.AST.     (*for typ*)
+Require Import compcert.common.Values. (*for val*)
+Require Import compcert.common.Globalenvs. 
+Require Import compcert.lib.Integers.
+Require Import Coq.ZArith.ZArith.
+Require Import sepcomp.semantics.
 Load scheduler.
 
-Require Import Program.
+Require Import Coq.Program.Program.
 Require Import ssreflect seq.
 
 (* This module represents the arguments

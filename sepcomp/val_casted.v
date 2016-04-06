@@ -1,26 +1,26 @@
 Require Import compcert.lib.Coqlib.
-Require Import AST.
-Require Import Maps.
-Require Import Integers.
-Require Import Floats.
-Require Import Values.
-Require Import Memory.
-Require Import Globalenvs.
-Require Import Ctypes.
-Require Import Cop.
-Require Import Events.
-
-Require Import mem_lemmas.
-Require Import semantics.
-Require Import semantics_lemmas.
-Require Import reach.
-Require Import effect_semantics.
-Require Import structured_injections.
-Require Import effect_simulations.
-Require Import effect_properties.
-Require Import effect_simulations_lemmas.
-
+Require Import compcert.lib.Maps.
+Require Import compcert.lib.Integers.
+Require Import compcert.lib.Floats.
 Require Export compcert.lib.Axioms.
+
+Require Import compcert.common.Events.
+Require Import compcert.common.Memory.
+Require Import compcert.common.Values.
+Require Import compcert.common.AST.
+Require Import compcert.common.Globalenvs.
+Require Import compcert.cfrontend.Ctypes.
+Require Import compcert.cfrontend.Cop.
+
+Require Import sepcomp.mem_lemmas.
+Require Import sepcomp.semantics.
+Require Import sepcomp.semantics_lemmas.
+Require Import sepcomp.reach.
+Require Import sepcomp.effect_semantics.
+Require Import sepcomp.structured_injections.
+Require Import sepcomp.effect_simulations.
+Require Import sepcomp.effect_properties.
+Require Import sepcomp.effect_simulations_lemmas.
 
 (** Properties of values obtained by casting to a given type. *)
 

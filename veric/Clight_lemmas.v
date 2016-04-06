@@ -1,5 +1,5 @@
 Require Import veric.base.
-Require Import Clight.
+Require Import compcert.cfrontend.Clight.
 
 Definition nullval : val := Vint Int.zero.
 

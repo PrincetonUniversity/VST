@@ -1,7 +1,16 @@
-Require Import msl.ageable msl.rmaps. 
-Require Import veric.base sepcomp.sim sepcomp.step_lemmas veric.juicy_extspec
-               sepcomp.extspec sepcomp.extensions veric.juicy_mem veric.compcert_rmaps 
-               veric.states veric.initial_world veric.res_predicates.
+Require Import msl.ageable.
+Require Import msl.rmaps. 
+Require Import veric.base.
+Require Import sepcomp.sim.
+Require Import sepcomp.step_lemmas.
+Require Import veric.juicy_extspec.
+Require Import sepcomp.extspec.
+Require Import sepcomp.extensions.
+Require Import veric.juicy_mem.
+Require Import veric.compcert_rmaps.
+Require Import veric.states.
+Require Import veric.initial_world.
+Require Import veric.res_predicates.
 Require Import veristar.tactics veristar.basic.
 Import juicy_mem.
 

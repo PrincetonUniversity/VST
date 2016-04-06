@@ -1,17 +1,17 @@
 Add LoadPath "../concurrency" as concurrency.
 
-Require Import Memory.
+Require Import compcert.common.Memory.
 
 (* The concurrent machinery*)
-Require Import concurrent_machine.
-Require Import juicy_machine. Import Concur.
-Require Import compcert_threads. Import Concur.
+Require Import concurrency.concurrent_machine.
+Require Import concurrency.juicy_machine. Import Concur.
+Require Import concurrency.compcert_threads. Import Concur.
 
 (*The simulations*)
-Require Import wholeprog_simulations.
+Require Import sepcomp.wholeprog_simulations.
 
 (*General erasure*)
-Require Import erasure.
+Require Import concurrency.erasure.
 
 Module ClightErasure (SCH: Scheduler NatTID)(SEM: Semantics)<:Parching SCH SEM.
   Import SEM.

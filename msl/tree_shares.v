@@ -7,8 +7,8 @@ Require Import msl.base.
 Require Import msl.eq_dec.
 Require Import msl.sepalg.
 Require Import msl.boolean_alg.
-Require Import Recdef.
-Require Import NPeano.
+Require Import Coq.funind.Recdef.
+Require Import Coq.Numbers.Natural.Peano.NPeano.
 Require Import Omega.
 Require Import Coq.Arith.Max.
 

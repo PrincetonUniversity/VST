@@ -15,7 +15,7 @@ Require Import sepcomp.extspec.
 Require Import sepcomp.step_lemmas.
 Require Import veric.juicy_safety.
 Require Import veric.juicy_extspec.
-Require Import tycontext.
+Require Import veric.tycontext.
 Require Import veric.expr2.
 Require Import veric.expr_lemmas.
 

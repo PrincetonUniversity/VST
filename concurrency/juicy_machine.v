@@ -3,36 +3,34 @@ Require Import compcert.lib.Axioms.
 Add LoadPath "../concurrency" as concurrency.
 
 Require Import sepcomp. Import SepComp.
-Require Import semantics_lemmas.
+Require Import sepcomp.semantics_lemmas.
 
-Require Import pos.
-(* Require Import stack.  *)
-(* Require Import cast. *)
-Require Import concurrent_machine.
-Require Import pos.
-Require Import Program.
+Require Import concurrency.pos.
+Require Import concurrency.concurrent_machine.
+Require Import concurrency.pos.
+Require Import Coq.Program.Program.
 Require Import ssreflect ssrbool ssrnat ssrfun eqtype seq fintype finfun.
 Set Implicit Arguments.
 
 (*NOTE: because of redefinition of [val], these imports must appear 
   after Ssreflect eqtype.*)
-Require Import AST.     (*for typ*)
-Require Import Values. (*for val*)
-Require Import Globalenvs. 
-Require Import Memory.
-Require Import Integers.
+Require Import compcert.common.AST.     (*for typ*)
+Require Import compcert.common.Values. (*for val*)
+Require Import compcert.common.Globalenvs. 
+Require Import compcert.common.Memory.
+Require Import compcert.lib.Integers.
 
-Require Import ZArith.
+Require Import Coq.ZArith.ZArith.
 
 (*From msl get the juice! *)
 Require Import msl.rmaps.
-Require Import compcert_rmaps.
-Require Import juicy_mem.
-Require Import juicy_extspec.
-Require Import jstep.
+Require Import veric.compcert_rmaps.
+Require Import veric.juicy_mem.
+Require Import veric.juicy_extspec.
+Require Import veric.jstep.
 
 (**)
-Require Import res_predicates. (*For the precondition of lock make and free*)
+Require Import veric.res_predicates. (*For the precondition of lock make and free*)
 
 Notation EXIT := 
   (EF_external "EXIT" (mksignature (AST.Tint::nil) None)). 
@@ -60,7 +58,7 @@ Notation UNLOCK := (EF_external "UNLOCK" UNLOCK_SIG).
 Definition LKCHUNK:= Mint32.
 Definition LKSIZE:= align_chunk LKCHUNK.
 
-Require Import (*compcert_linking*) permissions.
+Require Import (*compcert_linking*) concurrency.permissions.
 
 
 Module LockPool.

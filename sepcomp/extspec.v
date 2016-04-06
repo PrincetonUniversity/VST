@@ -1,10 +1,10 @@
-Require Import AST.
-Require Import Values.
-Require Import Memory.
-Require Import Globalenvs.
-Require Import Maps.
+Require Import Coq.Lists.ListSet.
 
-Require Import ListSet.
+Require Import compcert.common.AST.
+Require Import compcert.common.Values.
+Require Import compcert.common.Memory.
+Require Import compcert.common.Globalenvs.
+Require Import compcert.lib.Maps.
 
 (** External function specifications and linking *)
 
@@ -76,5 +76,3 @@ Record closed (Z : Type) (spec : ext_spec Z) :=
       ext_spec_exit spec otv z tm }.
 
 End ExtSpecProperties.
-
-

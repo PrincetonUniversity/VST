@@ -8,7 +8,7 @@ Require Import sepcomp.simulations_lemmas.
 Require Import veric.base.
 Require Import veric.Clight_lemmas.
 Require Import veric.Clight_new.
-Require Clight.
+Require compcert.cfrontend.Clight.
 Module CC := Clight.
 
 Definition CCstep ge := Clight.step ge (Clight.function_entry2 ge).

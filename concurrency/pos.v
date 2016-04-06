@@ -10,8 +10,9 @@ Proof. by case: p=> m pf; apply/ltP. Qed.
 
 Definition i0 (p : pos) : 'I_p := Ordinal (is_pos p).
 
+Require Import Omega.
 Lemma is_pos_incr (n : nat) : (0 < n.+1)%coq_nat.
-Proof. Require Import Omega. omega. Qed.
+Proof. omega. Qed.
 
 Definition pos_incr (p : pos) : pos := mkPos (is_pos_incr p).
 

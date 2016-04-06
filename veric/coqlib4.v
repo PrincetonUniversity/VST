@@ -1,9 +1,12 @@
+Require Import Coq.Arith.EqNat.
+Require Import Coq.Relations.Relations.
+
 Require Import compcert.lib.Coqlib.
-Require Import Integers.
-Require Import EqNat.
+Require Import compcert.lib.Integers.
+
 Require Import msl.Coqlib2.
-Require Import Relations.
 Require Export msl.eq_dec.
+
 Lemma power_nat_divide: forall n m, two_power_nat n <= two_power_nat m -> Z.divide (two_power_nat n) (two_power_nat m).
 Proof.
   intros.
@@ -113,7 +116,7 @@ Require Import Coq.Sets.Ensembles.
 Definition Ensemble_join {A} (X Y Z: Ensemble A): Prop :=
   (forall a, Z a <-> X a \/ Y a) /\ (forall a, X a -> Y a -> False).
 
-Require ConstructiveEpsilon.
+Require Coq.Logic.ConstructiveEpsilon.
 
 Lemma decidable_countable_ex_sig {A} (f : nat -> A)
       (Hf : forall a, exists n, a = f n)

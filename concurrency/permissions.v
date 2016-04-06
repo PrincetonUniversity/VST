@@ -4,11 +4,11 @@ Require Import ssreflect seq ssrbool
 Add LoadPath "../compcomp" as compcomp.
 
 Set Implicit Arguments.
-Require Import threads_lemmas.
-Require Import Memory.
-Require Import Values. (*for val*)
-Require Import Integers.
-Require Import ZArith.
+Require Import concurrency.threads_lemmas.
+Require Import compcert.common.Memory.
+Require Import compcert.common.Values. (*for val*)
+Require Import compcert.lib.Integers.
+Require Import Coq.ZArith.ZArith.
 Require Import veric.shares juicy_mem.
 Require Import msl.msl_standard.
 Import cjoins.

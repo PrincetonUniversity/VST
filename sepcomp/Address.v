@@ -1,8 +1,9 @@
 Require Import compcert.lib.Coqlib.
-Require Import Values.
-Require Import Integers.
-Require Import Floats.
-Require Import Memory.
+Require Import compcert.lib.Integers.
+Require Import compcert.lib.Floats.
+
+Require Import compcert.common.Values.
+Require Import compcert.common.Memory.
 
 Require Import msl.eq_dec.
 

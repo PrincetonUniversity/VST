@@ -1,23 +1,23 @@
-Require Import Bool.
+Require Import Coq.Bool.Bool.
 
-Require Import Events.
-Require Import Memory.
 Require Import compcert.lib.Coqlib.
-Require Import Values.
-Require Import Maps.
-Require Import Integers.
-Require Import AST.
-Require Import Globalenvs.
+Require Import compcert.lib.Maps.
+Require Import compcert.lib.Integers.
 Require Import compcert.lib.Axioms.
+Require Import compcert.common.Events.
+Require Import compcert.common.Memory.
+Require Import compcert.common.Values.
+Require Import compcert.common.AST.
+Require Import compcert.common.Globalenvs.
 
-Require Import mem_lemmas. (*needed for definition of mem_forward etc*)
-Require Import semantics.
-Require Import semantics_lemmas.
-Require Import structured_injections.
-Require Import reach.
-Require Import mem_wd.
+Require Import sepcomp.mem_lemmas.
+Require Import sepcomp.semantics.
+Require Import sepcomp.semantics_lemmas.
+Require Import sepcomp.structured_injections.
+Require Import sepcomp.reach.
+Require Import sepcomp.mem_wd.
 
-Require Import effect_semantics. (*for specialization below*)
+Require Import sepcomp.effect_semantics. (*for specialization below*)
 
 Module Wholeprog_sim. Section Wholeprog_sim.
 

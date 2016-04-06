@@ -3,26 +3,24 @@ Require Import compcert.lib.Axioms.
 Add LoadPath "../compcomp" as compcomp.
 
 Require Import sepcomp. Import SepComp.
-Require Import semantics_lemmas.
+Require Import sepcomp.semantics_lemmas.
 
-Require Import pos.
-(* Require Import stack.  *)
-(* Require Import cast. *)
-Require Import concurrent_machine.
-Require Import pos.
-Require Import Program.
-Require Import ssreflect Ssreflect.seq ssrbool ssrnat ssrfun eqtype seq fintype finfun.
+Require Import concurrency.pos.
+Require Import concurrency.concurrent_machine.
+Require Import concurrency.pos.
+Require Import Coq.Program.Program.
+Require Import ssreflect ssrbool ssrnat ssrfun eqtype seq fintype finfun.
 Set Implicit Arguments.
 
 (*NOTE: because of redefinition of [val], these imports must appear 
   after Ssreflect eqtype.*)
-Require Import AST.     (*for typ*)
-Require Import Values. (*for val*)
-Require Import Globalenvs. 
-Require Import Memory.
-Require Import Integers.
+Require Import compcert.common.AST.     (*for typ*)
+Require Import compcert.common.Values. (*for val*)
+Require Import compcert.common.Globalenvs. 
+Require Import compcert.common.Memory.
+Require Import compcert.lib.Integers.
 
-Require Import ZArith.
+Require Import Coq.ZArith.ZArith.
 
 Notation EXIT := 
   (EF_external "EXIT" (mksignature (AST.Tint::nil) None)). 
@@ -47,7 +45,7 @@ Notation LOCK := (EF_external "LOCK" LOCK_SIG).
 Notation UNLOCK_SIG := (mksignature (AST.Tint::nil) (Some AST.Tint) cc_default).
 Notation UNLOCK := (EF_external "UNLOCK" UNLOCK_SIG).
 
-Require Import (*compcert_linking*) permissions.
+Require Import (*compcert_linking*) concurrency.permissions.
 
 Module ThreadPool.
   Section ThreadPool.

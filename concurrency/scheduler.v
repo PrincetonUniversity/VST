@@ -1,4 +1,4 @@
-Require Import AST.
+Require Import compcert.common.AST.
 
 (*THREADS*)
 Module Type ThreadID.

@@ -1,6 +1,6 @@
 Require Import compcert.lib.Coqlib.
 Require Import msl.Coqlib2.
-Require Import List.
+Require Import Coq.Lists.List.
 Import ListNotations.
 
 Require Import floyd.sublist.
@@ -286,7 +286,7 @@ Qed.
 
 Require Import msl.shares.
 Require Import veric.shares.
-Require Import Integers.
+Require Import compcert.lib.Integers.
 Require Import compcert.common.Values.
 Require Import veric.expr.
 Require Import compcert.cfrontend.Ctypes.

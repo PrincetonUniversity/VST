@@ -1,5 +1,5 @@
-(* The spec and proof of the following rules are based on "The Ramifications  *)
-(* of Sharing in Data Structures" by Aquinas Hobor and Jules Villard.         *)
+(* The spec and proof of the following rules are based on `The Ramifications  *)
+(* of Sharing in Data Structures' by Aquinas Hobor and Jules Villard.         *)
 (*    RAMIF_PLAIN.frame                                                       *)
 (*    RAMIF_PLAIN.split                                                       *)
 (* The following lemmas are found useful by Shengyi Wang, Qinxiang Cao and    *)

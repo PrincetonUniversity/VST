@@ -3,7 +3,9 @@ Require Import msl.rmaps.
 Require Import veric.compcert_rmaps.
 Import Mem.
 Require Import msl.msl_standard.
-Require Import veric.juicy_mem veric.juicy_mem_lemmas veric.juicy_mem_ops.
+Require Import veric.juicy_mem.
+Require Import veric.juicy_mem_lemmas.
+Require Import veric.juicy_mem_ops.
 Require Import sepcomp.extspec.
 Require Import veric.juicy_extspec.
 Require Import veric.tycontext. 
@@ -66,7 +68,7 @@ Definition funspec2extspec (ext_link: Strings.String.string -> ident) (f : (iden
         (fun rv z m => False)
   end.
 
-Require Import res_predicates.
+Require Import veric.res_predicates.
 
 Local Open Scope pred.
 
@@ -177,7 +179,7 @@ Fixpoint add_funspecs_rec (ext_link: Strings.String.string -> ident) (Z : Type) 
     | cons (i,f) fs' => funspec2jspec Z (add_funspecs_rec ext_link Z Espec fs') ext_link (i,f)
   end.
 
-Require Import JMeq.
+Require Import Coq.Logic.JMeq.
 
 Lemma add_funspecs_pre  (ext_link: Strings.String.string -> ident)
               {Z fs id sig A P Q x args m} Espec tys ge_s phi0 phi1 :
