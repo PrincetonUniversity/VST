@@ -1333,11 +1333,27 @@ Definition initial_jm (prog: program) m (G: funspecs) (n: nat)
   initial_mem m (initial_core (Genv.globalenv prog) G n)
            (initial_core_ok _ _ _ m H1 H2 H).
 
-
-
 Fixpoint prog_vars' {F V} (l: list (ident * globdef F V)) : list (ident * globvar V) :=
  match l with nil => nil | (i,Gvar v)::r => (i,v):: prog_vars' r | _::r => prog_vars' r
  end.
 
 Definition prog_vars (p: program) := prog_vars' (prog_defs p).
 
+Definition islock_pred R r := exists sh sh' z, r = YES sh sh' (LK z) (SomeP ((unit:Type)::nil) (fun _ => R)).
+Definition islock r := exists R, islock_pred R r.
+
+Lemma initial_jm_without_locks prog m G n H H1 H2 R addr :
+  ~ islock_pred R (m_phi (initial_jm prog m G n H H1 H2) @ addr).
+Proof.
+  simpl.
+  unfold inflate_initial_mem; simpl.
+  match goal with |- context [ proj1_sig ?a ] => destruct a as (phi & lev & E) end; simpl.
+  unfold inflate_initial_mem' in E.
+  unfold compcert_rmaps.R.resource_at in E.
+  unfold "@".
+  rewrite E.
+  intros (sh & sh' & z & N).
+  destruct (access_at m addr); try congruence.
+  destruct p; try congruence.
+  destruct (proj1_sig (snd (unsquash (initial_core (Genv.globalenv prog) G n))) addr); try congruence.
+Qed.

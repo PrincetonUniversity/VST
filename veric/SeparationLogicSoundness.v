@@ -39,7 +39,7 @@ Import CSL.
 
 Axiom semax_prog_rule :
   forall {Espec: OracleKind}{CS: compspecs},
-  forall z V G prog m,
+  forall V G prog m,
      @semax_prog Espec CS prog V G ->
      Genv.init_mem prog = Some m ->
      { b : block & { q : corestate &
@@ -48,7 +48,9 @@ Axiom semax_prog_rule :
                     (globalenv prog) (Vptr b Int.zero) nil = Some q) *
        forall n, { jm |
        m_dry jm = m /\ level jm = n /\
-       jsafeN (@OK_spec Espec) (globalenv prog) n z q jm } } }%type.
+       (forall z, jsafeN (@OK_spec Espec) (globalenv prog) n z q jm) /\
+       (forall addr, ~ islock (m_phi jm @ addr))
+     } } }%type.
 
 End SEPARATION_LOGIC_SOUNDNESS.
 
