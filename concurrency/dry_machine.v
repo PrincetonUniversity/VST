@@ -1,6 +1,6 @@
 Require Import compcert.lib.Axioms.
 
-Add LoadPath "../compcomp" as compcomp.
+(*Add LoadPath "../compcomp" as compcomp.*)
 
 Require Import sepcomp. Import SepComp.
 Require Import sepcomp.semantics_lemmas.
@@ -56,8 +56,10 @@ Module ThreadPool.
                   { num_threads : pos
                     ; pool :> 'I_num_threads -> (@ctl cT)
                     ; perm_maps : 'I_num_threads -> access_map
-                    (*; counter : nat*) (* No need as the angel is removed*)
                   }.
+
+    Definition containsThread: t -> nat -> Prop:=
+      fun tp tid => tid < (num_threads tp).
     
   End ThreadPool.
 End ThreadPool.
@@ -72,47 +74,47 @@ Section poolDefs.
 
   Import ThreadPool.
 
-  Notation num_threads := (ThreadPool.num_threads tp).
+  Notation num_threads := (ThreadPool.num_threads).
   Notation thread_pool := (t cT).
   
   (* Per-thread disjointness definition*)
-  Definition race_free tp :=
-    forall tid0 tid0' (Htid0 : tid0 < (@ThreadPool.num_threads cT tp))
-      (Htid0' : tid0' < (@ThreadPool.num_threads cT tp)) (Htid: tid0 <> tid0'),
+  Definition race_free (tp : thread_pool) :=
+    forall tid0 tid0' (Htid0 : tid0 < (num_threads tp))
+      (Htid0' : tid0' < (num_threads tp)) (Htid: tid0 <> tid0'),
       permMapsDisjoint (perm_maps tp (Ordinal Htid0))
                        (perm_maps tp (Ordinal Htid0')).
 
   Definition newPermMap_wf pmap :=
-    forall tid0 (Htid0 : tid0 < num_threads),
+    forall tid0 (Htid0 : tid0 < num_threads tp),
       permMapsDisjoint ((perm_maps tp) (Ordinal Htid0)) pmap.
 
   Require Import fintype.
 
-  Lemma unlift_m_inv : forall tid (Htid : tid < num_threads.+1) ord
-                         (Hunlift: unlift (ordinal_pos_incr num_threads)
-                                          (Ordinal (n:=num_threads.+1) (m:=tid) Htid)
+  Lemma unlift_m_inv : forall tid (Htid : tid < (num_threads tp).+1) ord
+                         (Hunlift: unlift (ordinal_pos_incr (num_threads tp))
+                                          (Ordinal (n:=(num_threads tp).+1) (m:=tid) Htid)
                                    = Some ord),
                          nat_of_ord ord = tid.
   Proof.
     intros.
-    assert (Hcontra: unlift_spec (ordinal_pos_incr num_threads)
-                                 (Ordinal (n:=num_threads.+1) (m:=tid) Htid) (Some ord)).
+    assert (Hcontra: unlift_spec (ordinal_pos_incr (num_threads tp))
+                                 (Ordinal (n:=(num_threads tp).+1) (m:=tid) Htid) (Some ord)).
     rewrite <- Hunlift.
     apply/unliftP.
     inversion Hcontra; subst.
     inversion H0.
     unfold bump.
-    assert (pf: ord < num_threads)
+    assert (pf: ord < (num_threads tp))
       by (by rewrite ltn_ord).
-    assert (H: num_threads <= ord = false).
+    assert (H: (num_threads tp) <= ord = false).
     rewrite ltnNge in pf.
     rewrite <- Bool.negb_true_iff. auto.
     rewrite H. simpl. rewrite add0n. reflexivity.
   Defined.
   
   Definition addThread (c : cT) (pmap : access_map) : thread_pool :=
-    let: new_num_threads := pos_incr num_threads in
-    let: new_tid := ordinal_pos_incr num_threads in
+    let: new_num_threads := pos_incr (num_threads tp) in
+    let: new_tid := ordinal_pos_incr (num_threads tp) in
     @mk cT new_num_threads
         (fun (n : 'I_new_num_threads) => 
            match unlift new_tid n with
@@ -149,10 +151,10 @@ Section poolDefs.
     - apply unlift_m_inv in Hget1.
       subst. unfold newPermMap_wf in Hwf.
       destruct ord1. apply permMapsDisjoint_comm. eapply Hwf; eauto.
-    - destruct (tid0 == num_threads) eqn:Heq0.
+    - destruct (tid0 == (num_threads tp)) eqn:Heq0.
       + move/eqP:Heq0=>Heq0. subst.
-        assert (Hcontra: (ordinal_pos_incr num_threads) !=
-                                                        (Ordinal (n:=num_threads.+1) (m:=tid0') Htid0')).
+        assert (Hcontra: (ordinal_pos_incr (num_threads tp)) !=
+                                                        (Ordinal (n:=(num_threads tp).+1) (m:=tid0') Htid0')).
         { apply/eqP. intros Hcontra.
           unfold ordinal_pos_incr in Hcontra.
           inversion Hcontra; auto.
@@ -160,56 +162,47 @@ Section poolDefs.
         exfalso. apply unlift_some in Hcontra. rewrite Hget1 in Hcontra.
         destruct Hcontra. discriminate.
       + move/eqP:Heq0=>Heq0.
-        assert (Hcontra: (ordinal_pos_incr num_threads) !=
-                                                        (Ordinal (n:=num_threads.+1) (m:=tid0) Htid0)).
+        assert (Hcontra: (ordinal_pos_incr (num_threads tp)) !=
+                                                        (Ordinal (n:=(num_threads tp).+1) (m:=tid0) Htid0)).
         { apply/eqP. intros Hcontra.
           unfold ordinal_pos_incr in Hcontra. inversion Hcontra. subst. auto. }
         exfalso. apply unlift_some in Hcontra. rewrite Hget0 in Hcontra. destruct Hcontra.
         discriminate.
   Defined.
-  
-  Definition updThreadC tid (cont: containsThread tp tid) (c' : cT) : thread_pool :=
-    mk num_threads (fun (n : 'I_num_threads) =>
-                      if n == (Ordinal cont) then c' else tp n) (share_maps tp)
-       
-  Definition containsThread: ThreadPool.t cT -> nat -> Prop:=
-    fun ms tid0 => tid0 < (ThreadPool.num_threads ms).
-  
-  Definition cont2ord {ms tid0} (cnt: containsThread ms tid0) :=
-    Ordinal cnt.
-  Set Printing All.
-  Definition updThreadC { tid0}(cnt: containsThread tp tid0) (c' : ctl) : t cT :=
-    @mk cT num_threads
-        (fun n => if n == (cont2ord cnt) then c' else (pool tp)  n)
-        (perm_maps tp).
+         
+  Definition updThreadC tid (cnt: containsThread tp tid) (c' : ctl) : thread_pool :=
+    mk (num_threads tp)
+       (fun n => if n == (Ordinal cnt) then c' else (pool tp)  n)
+       (perm_maps tp).
 
-  Definition updThreadP (tid : 'I_num_threads) (pmap' : access_map) : thread_pool :=
-    @mk cT num_threads (pool tp) (fun (n : 'I_num_threads) =>
-                                    if n == tid then pmap' else (perm_maps tp) n).
+  Definition updThreadP tid (cnt: containsThread tp tid)
+             (pmap' : access_map) : thread_pool :=
+    mk (num_threads tp) (pool tp) (fun n =>
+                                     if n == (Ordinal cnt) then pmap' else (perm_maps tp) n).
 
   Definition permMap_wf pmap tid :=
-    forall tid0 (Htid0 : tid0 < num_threads) (Hneq: tid <> tid0),
+    forall tid0 (Htid0 : tid0 < num_threads tp) (Hneq: tid <> tid0),
       permMapsDisjoint ((perm_maps tp) (Ordinal Htid0)) pmap.
   
-  Definition updThread (tid : 'I_num_threads) (c' : ctl)
+  Definition updThread tid (cnt: containsThread tp tid) (c' : ctl)
              (pmap : access_map) : thread_pool :=
-    @mk cT num_threads
-        (fun (n : 'I_num_threads) =>
-           if n == tid then c' else tp n)
-        (fun (n : 'I_num_threads) =>
-           if n == tid then pmap else (perm_maps tp) n).
+    mk (num_threads tp)
+       (fun n =>
+          if n == (Ordinal cnt) then c' else tp n)
+        (fun n =>
+           if n == (Ordinal cnt) then pmap else (perm_maps tp) n).
 
-  Lemma updThread_wf : forall tid (pf : tid < num_threads) pmap
+  Lemma updThread_wf : forall tid (pf : containsThread tp tid) pmap
                          (Hwf: permMap_wf pmap tid)
                          c'
                          (Hrace_free: race_free tp),
-                         race_free (updThread (Ordinal pf) c' pmap).
+                         race_free (updThread pf c' pmap).
   Proof.
     intros.
     unfold race_free. intros.
     simpl.
-    destruct (Ordinal (n:=num_threads) (m:=tid0) Htid0 ==  Ordinal (n:=num_threads) (m:=tid) pf) eqn:Heq0,
-                                                                                                     (Ordinal (n:=num_threads) (m:=tid0') Htid0' == Ordinal (n:=num_threads) (m:=tid) pf) eqn:Heq0'.
+    destruct (Ordinal (n:=num_threads tp) (m:=tid0) Htid0 ==  Ordinal (n:=num_threads tp) (m:=tid) pf) eqn:Heq0,
+                                                                                                     (Ordinal (n:=num_threads tp) (m:=tid0') Htid0' == Ordinal (n:=num_threads tp) (m:=tid) pf) eqn:Heq0'.
     - move/eqP:Heq0 => Heq0. subst.
       move/eqP:Heq0' => Heq0'. inversion Heq0'. inversion Heq0; subst. exfalso; auto.
     - move/eqP:Heq0=>Heq0. inversion Heq0. subst. 
@@ -220,19 +213,17 @@ Section poolDefs.
     - simpl in *. eapply Hrace_free; eauto.
   Defined.
   
-  Definition getThreadC' (tid : 'I_num_threads) : ctl := tp tid.
+  Definition getThreadC tid (cnt: containsThread tp tid) : ctl := tp (Ordinal cnt).
   
-  Definition getThreadC {ms tid0} (cnt: containsThread ms tid0) : ctl :=
-    (pool ms) (cont2ord cnt).
-  
-  Definition getThreadPerm (tid : 'I_num_threads) : access_map := (perm_maps tp) tid.
+  Definition getThreadPerm tid (cnt: containsThread tp tid) : access_map :=
+    (perm_maps tp) (Ordinal cnt).
 
   Import Maps.
 
   Definition perm_compatible p :=
-    forall tid (b : positive) (ofs : Z) ,
+    forall tid (cnt: containsThread tp tid) (b : positive) (ofs : Z) ,
       Mem.perm_order'' (Maps.PMap.get b p ofs)
-                       (Maps.PMap.get b (getThreadPerm tid) ofs).
+                       (Maps.PMap.get b (getThreadPerm cnt) ofs).
 
   Record mem_compatible m :=
     { perm_comp: perm_compatible (getMaxPerm m);
@@ -240,9 +231,6 @@ Section poolDefs.
     }.
 
 End poolDefs.
-
-Arguments updThread {_} tp tid c' pmap.
-Arguments addThread {_} tp c pmap.
 
 Section poolLemmas.
 
@@ -275,8 +263,8 @@ Section poolLemmas.
     getThreadC (addThread tp c pmap) tid = c.
   Proof. by rewrite /getThreadC /addThread /= => <-; rewrite unlift_none. Qed. *)
 
-  Lemma permMapsInv_lt : forall p (Hinv: perm_compatible tp p) tid,
-                           permMapLt (getThreadPerm tp tid) p.
+  Lemma permMapsInv_lt : forall p (Hinv: perm_compatible tp p) tid (pf: containsThread tp tid),
+                           permMapLt (getThreadPerm pf) p.
   Proof.
     intros. 
     unfold permMapLt; auto.
@@ -402,10 +390,10 @@ Section poolLemmas.
              end; tauto.
   Qed.
   
-  Lemma no_race_wf : forall tid (pf: tid < (num_threads tp)) (Hrace: race_free tp),
-                       permMap_wf tp (getThreadPerm tp (Ordinal pf)) tid.
+  Lemma no_race_wf : forall tid (pf: containsThread tp tid) (Hrace: race_free tp),
+                       permMap_wf tp (getThreadPerm pf) tid.
   Proof.
-    intros. unfold permMap_wf; auto.
+    intros. unfold permMap_wf, getThreadPerm in *; auto.
   Defined.
 
 End poolLemmas.
@@ -421,35 +409,29 @@ Module Concur.
     Notation perm_map := access_map.
 
     Variable the_ge : G.
-    Variable aggelos : nat -> delta_map.
-    Variable lp_id : nat.
-
-    Definition containsThread: ThreadPool.t cT -> nat -> Prop:=
-      fun ms tid0 => tid0 < (ThreadPool.num_threads ms).
+    Definition lp_id := 0.
     
     Record invariant tp :=
-      { canonical : forall tid, isCanonical (perm_maps tp tid);
+      { canonical : forall tid (pf : containsThread tp tid),
+          isCanonical (getThreadPerm pf);
         no_race : race_free tp;
         lock_pool : forall (cnt : containsThread tp 0), exists c,
-                      getThreadC cnt  = Krun c /\ halted the_sem c
+              getThreadC cnt = Krun c /\
+              halted the_sem c
       }.
     
     (* Semantics of the coarse-grained concurrent machine*)
-    Definition cont2ord {ms tid0} (cnt: containsThread ms tid0) :=
-      Ordinal cnt.
-
     
     Inductive dry_step {tid0 tp m} (cnt: containsThread tp tid0)
       (Hcompatible: mem_compatible tp m) : thread_pool -> mem  -> Prop :=
     | step_dry :
         forall (tp':thread_pool) c m1 m' (c' : cT),
-          let: tid := cont2ord cnt in
           forall (Hrestrict_pmap:
-               restrPermMap (permMapsInv_lt (perm_comp Hcompatible) tid) = m1)
+               restrPermMap (permMapsInv_lt (perm_comp Hcompatible) cnt) = m1)
             (Hinv : invariant tp)
             (Hthread: getThreadC cnt = Krun c)
             (Hcorestep: corestep the_sem the_ge c m1 c' m')
-            (Htp': tp' = @updThread cT tp tid (Krun c') (getCurPerm m')),
+            (Htp': tp' = updThread cnt (Krun c') (getCurPerm m')),
             dry_step cnt Hcompatible tp' m'.
     
     (*missing lock-ranges*)
@@ -459,46 +441,39 @@ Module Concur.
     | step_lock :
         forall (tp':thread_pool) m1 c c' m' b ofs virtue
           (cnt_lp: containsThread tp lp_id),
-          let: tid := cont2ord cnt0 in
-          let: lp := cont2ord cnt_lp in
           forall
             (Hinv : invariant tp)
             (Hthread: getThreadC cnt0 = Kstop c)
             (Hat_external: at_external the_sem c =
                            Some (LOCK, ef_sig LOCK, Vptr b ofs::nil))
             (Hcompatible: mem_compatible tp m)
-            (Hrestrict_pmap: restrPermMap (permMapsInv_lt (perm_comp Hcompatible) lp) = m1)
+            (Hrestrict_pmap: restrPermMap (permMapsInv_lt (perm_comp Hcompatible) cnt_lp) = m1)
             (Hload: Mem.load Mint32 m1 b (Int.intval ofs) = Some (Vint Int.one))
             (Hstore: Mem.store Mint32 m1 b (Int.intval ofs) (Vint Int.zero) = Some m')
             (Hat_external: after_external the_sem (Some (Vint Int.zero)) c = Some c')
-            (Htp': tp' = updThread tp tid (Kresume c')
-                                   (computeMap (getThreadPerm tp tid) (virtue))),
+            (Htp': tp' = updThread cnt0 (Kresume c')
+                                   (computeMap (getThreadPerm cnt0) virtue)),
             ext_step cnt0 Hcompat tp' m' 
                      
     | step_unlock :
         forall  (tp':thread_pool) m1 c c' m' b ofs virtue
            (cnt_lp: containsThread tp lp_id),
-          let: tid := cont2ord cnt0 in
-          let: lp := cont2ord cnt_lp in
           forall
             (Hinv : invariant tp)
             (Hthread: getThreadC cnt0 = Kstop c)
             (Hat_external: at_external the_sem c =
                            Some (UNLOCK, ef_sig UNLOCK, Vptr b ofs::nil))
-            (Hrestrict_pmap: restrPermMap (permMapsInv_lt (perm_comp Hcompat) lp) = m1)
+            (Hrestrict_pmap: restrPermMap (permMapsInv_lt (perm_comp Hcompat) cnt_lp) = m1)
             (Hload: Mem.load Mint32 m1 b (Int.intval ofs) = Some (Vint Int.zero))
             (Hstore: Mem.store Mint32 m1 b (Int.intval ofs) (Vint Int.one) = Some m')
             (* what does the return value denote?*)
             (Hat_external: after_external the_sem (Some (Vint Int.zero)) c = Some c')
-            (* (Hangel_wf: permMap_wf tp (virtue) tid0) *)
-            (* (Hangel_canonical: isCanonical (virtue)) *)
-            (Htp': tp' = updThread tp tid (Kresume c')
-                                   (computeMap (getThreadPerm tp tid) (virtue))),
+            (Htp': tp' = updThread cnt0 (Kresume c')
+                                   (computeMap (getThreadPerm cnt0) virtue)),
             ext_step cnt0 Hcompat tp' m' 
                      
     | step_create :
-        forall  (tp_upd tp':thread_pool) c c' c_new vf arg virtue,
-          let: tid := cont2ord cnt0 in
+        forall  (tp_upd tp':thread_pool) c c' c_new vf arg virtue1 virtue2,
           forall
             (Hinv : invariant tp)
             (Hthread: getThreadC cnt0 = Kstop c)
@@ -507,51 +482,40 @@ Module Concur.
             (Hinitial: initial_core the_sem the_ge vf (arg::nil) = Some c_new)
             (Hafter_external: after_external the_sem
                                                        (Some (Vint Int.zero)) c = Some c')
-            (Htp_upd: tp_upd = updThread tp tid (Kresume c')
-                                      (computeMap (getThreadPerm tp tid) (virtue)))
-            (* (Hangel_wf: permMap_wf tp (virtue) tid0) *)
-            (* (Hangel_canonical: isCanonical (virtue)) *)
-            (* (Hangel_wf2: newPermMap_wf tp_upd (aggelos (n.+1))) *)
-            (* (Hangel_canonical2: isCanonical (aggelos (n.+1))) *)
-            (* NOTE: Something to be done with the new thread!!! *)
+            (Htp_upd: tp_upd = updThread cnt0 (Kresume c')
+                                      (computeMap (getThreadPerm cnt0) virtue1))
             (Htp': tp' = addThread tp_upd c_new
-                                   (computeMap empty_map (virtue))),
+                                   (computeMap empty_map virtue2)),
             ext_step cnt0 Hcompat tp' m
                      
     | step_mklock :
         forall  (tp' tp'': thread_pool) m1 c c' m' b ofs pmap_tid' pmap_lp
            (cnt_lp': containsThread tp' lp_id)
            (cnt_lp: containsThread tp lp_id),
-          let: tid := cont2ord cnt0 in
-          let: lp := cont2ord cnt_lp in
-          let: lp' := cont2ord cnt_lp' in
-          let: pmap_tid := getThreadPerm tp tid in
+          let: pmap_tid := getThreadPerm cnt0 in
           forall
             (Hinv : invariant tp)
             (Hthread: getThreadC cnt0 = Kstop c)
             (Hat_external: at_external the_sem c =
                            Some (MKLOCK, ef_sig MKLOCK, Vptr b ofs::nil))
             (Hrestrict_pmap: restrPermMap
-                               (permMapsInv_lt (perm_comp Hcompat) tid) = m1)
+                               (permMapsInv_lt (perm_comp Hcompat) cnt0) = m1)
             (Hstore: Mem.store Mint32 m1 b (Int.intval ofs) (Vint Int.zero) = Some m')
             (Hdrop_perm:
                setPerm (Some Nonempty) b (Int.intval ofs) pmap_tid = pmap_tid')
             (Hlp_perm: setPerm (Some Writable)
-                               b (Int.intval ofs) (getThreadPerm tp lp) = pmap_lp)
+                               b (Int.intval ofs) (getThreadPerm cnt_lp) = pmap_lp)
             (Hfter_external: after_external
                              the_sem (Some (Vint Int.zero)) c = Some c')
-            (Htp': tp' = updThread tp tid (Kresume c') pmap_tid')
-            (Htp'': tp'' = updThreadP tp' lp' pmap_lp),
+            (Htp': tp' = updThread cnt0 (Kresume c') pmap_tid')
+            (Htp'': tp'' = updThreadP cnt_lp' pmap_lp),
             ext_step cnt0 Hcompat tp'' m' 
                      
     | step_freelock :
         forall  (tp' tp'': thread_pool) c c' b ofs pmap_lp' virtue
            (cnt_lp': containsThread tp' lp_id)
            (cnt_lp: containsThread tp lp_id),
-          let: tid := cont2ord cnt0 in
-          let: lp := cont2ord cnt_lp in
-          let: lp' := cont2ord cnt_lp' in
-          let: pmap_lp := getThreadPerm tp tid in
+          let: pmap_lp := getThreadPerm cnt_lp in
           forall
             (Hinv : invariant tp)
             (Hthread: getThreadC cnt0 = Kstop c)
@@ -560,26 +524,21 @@ Module Concur.
             (Hdrop_perm:
                setPerm None b (Int.intval ofs) pmap_lp = pmap_lp')
             (Hat_external: after_external the_sem (Some (Vint Int.zero)) c = Some c')
-            (*the angel must provide the permissions for the thread - freeable or writeable *)
-            (* (Hangel_wf: permMap_wf tp (virtue) tid0) *)
-            (* (Hangel_canonical: isCanonical (virtue)) *)
-            (Htp': tp' = updThread tp tid (Kresume c')
-                                   (computeMap (getThreadPerm tp tid) (virtue)))       
-            (Htp'': tp'' = updThreadP tp' lp' pmap_lp'),
+            (Htp': tp' = updThread cnt0 (Kresume c')
+                                   (computeMap (getThreadPerm cnt0) virtue))       
+            (Htp'': tp'' = updThreadP cnt_lp' pmap_lp'),
             ext_step cnt0 Hcompat  tp'' m 
                      
     | step_lockfail :
         forall  c b ofs m1
            (cnt_lp: containsThread tp lp_id),
-          let: tid := cont2ord cnt0 in
-          let: lp := cont2ord cnt_lp in
           forall
             (Hinv : invariant tp)
             (Hthread: getThreadC cnt0 = Kstop c)
             (Hat_external: at_external the_sem c =
                            Some (LOCK, ef_sig LOCK, Vptr b ofs::nil))
             (Hrestrict_pmap: restrPermMap
-                               (permMapsInv_lt (perm_comp Hcompat) lp) = m1)
+                               (permMapsInv_lt (perm_comp Hcompat) cnt_lp) = m1)
             (Hload: Mem.load Mint32 m1 b (Int.intval ofs) = Some (Vint Int.zero)),
             ext_step cnt0 Hcompat tp m.
   End Concur.
@@ -629,40 +588,17 @@ Module Concur.
                                  machine_state -> mem -> Prop:=
       @dry_step cT G Sem genv.
     
-    (*Inductive resume_thread': forall {tid0} {ms:machine_state},
-                                containsThread ms tid0 -> machine_state -> Prop:=
-    | ResumeThread: forall tid0 ms ms' c
-                      (ctn: containsThread ms tid0)
-                      (HC: getThreadC ms (cont2ord ctn) = Kresume c)
-                      (Hms': updThreadC ms (cont2ord ctn) (Krun c)  = ms'),
-                      resume_thread' ctn ms'.
-    Definition resume_thread: forall {tid0 ms},
-                                containsThread ms tid0 -> machine_state -> Prop:=
-      @resume_thread'.
-
-    Inductive suspend_thread': forall {tid0} {ms:machine_state},
-                                 containsThread ms tid0 -> machine_state -> Prop:=
-    | SuspendThread: forall tid0 ms ms' c
-                       (ctn: containsThread ms tid0)
-                       (HC: getThreadC ms (cont2ord ctn) = Krun c)
-                       (Hms': updThreadC ms (cont2ord ctn) (Kstop c)  = ms'),
-                       suspend_thread' ctn ms'.
-    Definition suspend_thread : forall {tid0 ms},
-                                  containsThread ms tid0 -> machine_state -> Prop:=
-      @suspend_thread'.*)
-    
     Definition conc_call (genv:G):
       forall {tid0 ms m},
-        (nat -> delta_map) -> containsThread ms tid0 -> mem_compatible ms m ->
+        containsThread ms tid0 -> mem_compatible ms m ->
         machine_state -> mem -> Prop:=
-      fun tid ms m aggelos => @ext_step cT G Sem genv lp_id tid ms m.
-    
+      fun tid ms m => @ext_step cT G Sem genv tid ms m. 
+
     Inductive threadHalted': forall {tid0 ms},
                                containsThread ms tid0 -> Prop:=
     | thread_halted':
         forall tp c tid0
           (cnt: containsThread tp tid0),
-          let: tid := cont2ord cnt in
           forall
             (Hthread: getThreadC cnt = Krun c)
             (Hcant: halted Sem c),
@@ -671,6 +607,18 @@ Module Concur.
                                containsThread ms tid0 -> Prop:= @threadHalted'.
 
     Parameter init_core : G -> val -> list val -> option machine_state.
+
+    Lemma onePos: (0<1)%coq_nat. auto. Qed.
+    
+    Definition initial_machine c:=
+      @mk cT (mkPos onePos) (fun _ => c) (fun _ => empty_map).
+    
+    Definition init_mach  (genv:G)(v:val)(args:list val):option machine_state:=
+      match initial_core Sem genv v args with
+      | Some c => Some (initial_machine (Kresume c) )
+      | None => None
+      end.
+    
   End DryMachineSig.
 
   (* Here I make the core semantics*)
