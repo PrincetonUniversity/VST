@@ -270,38 +270,32 @@ Module MachineSimulations.
     Context { cR : @CodeRen mySem.cT }.
 
     Inductive StepType : Type :=
-    | Internal | Concurrent | Halted | Staging.
+    | Internal | Concurrent | Halted | Resume.
             
-    Definition getStepType {i tp} (cnt : containsThread tp i) : option StepType :=
+    Definition getStepType {i tp} (cnt : containsThread tp i) : StepType :=
       match getThreadC cnt with
       | Krun c => match halted the_sem c with
-                 | Some _ => Some Halted
-                 | None => Some Internal
+                 | Some _ => Halted
+                 | None => Internal
                  end
-      | Kstop c => match at_external the_sem c with
-                  | Some _ => Some Concurrent
-                  | _ => None (* stuck *)
-                  end
-      | Kresume c => Some Halted
+      | Kstop c => Concurrent (* at_external = None -> contradiction by safety?*)
+      | Kresume c => Resume
       end.
 
     Class MachineSimulation :=
-      { is_conc_step : NatTID.tid -> thread_pool -> bool;
-        is_fail_step : NatTID.tid -> thread_pool -> bool;
-        is_internal_step : NatTID.tid -> thread_pool -> bool;
-        is_halted_step : NatTID.tid -> thread_pool -> bool;
-      
-        internal_inv : forall tp1 tp2 m1 m2 i sched (α : renaming),
-            is_internal_step i tp1 ->
-            fstep (i :: sched, tp1) m1 (sched, tp2) m2 ->
-            forall j tp1' m1' α,
-              i <> j ->
-              sim tp1 tp1' m1 m1' j α ->
-              sim tp2 tp1' m2 m1' j α;
+      {      
+        internal_inv : forall tp1 tp2 m1 m2 i sched
+                         (cnt: containsThread tp1 i) (α : renaming),
+          getStepType cnt = Internal \/ getStepType cnt = Resume ->
+          fstep (i :: sched, tp1) m1 (sched, tp2) m2 ->
+          forall j tp1' m1' α,
+            i <> j ->
+            sim tp1 tp1' m1 m1' j α ->
+            sim tp2 tp1' m2 m1' j α;
       
         internal_sim : forall (tp1 tp2 tp1' : thread_pool) (m1 m2 m1' : mem) α
-                         i sched sched',
-            is_internal_step i tp1 ->
+                         i (cnt: containsThread tp1 i) sched sched',
+            getStepType cnt = Internal \/ getStepType cnt = Resume ->
             sim tp1 tp1' m1 m1' i α ->
             fstep (i :: sched, tp1) m1 (sched, tp2) m2 ->
             exists tp2' m2' α',
@@ -310,8 +304,8 @@ Module MachineSimulations.
                       sim tp2 tp2' m2 m2' tid α');        
         
         conc_sim : forall (tp1 tp2 tp1' : thread_pool) (m1 m2 m1' : mem) α
-                     i sched sched',
-            is_conc_step i tp1 ->
+                     i (cnt: containsThread tp1 i) sched sched',
+            getStepType cnt = Concurrent ->
             sim tp1 tp1' m1 m1' i α ->
             sim tp1 tp1' m1 m1' ls_id α ->
             sim tp1 tp1' m1 m1' sp_id α ->
@@ -323,14 +317,15 @@ Module MachineSimulations.
 
         swap:
           forall (tp1 tp2 tp3 tp1' : thread_pool) (m1 m2 m3 m1' : mem) α
-            (i j : nat) sched sched',
+            (i j : nat) (cnti: containsThread tp1 i) (cntj: containsThread tp2 j)
+            sched sched',
             i <> j ->
             sim tp1 tp1' m1 m1' i α ->
             sim tp1 tp1' m1 m1' j α ->
-            is_internal_step i tp1 ->
-            (is_internal_step j tp2 \/ (is_conc_step j tp2 /\
-                                       sim tp1 tp1' m1 m1' ls_id α /\
-                                       sim tp1 tp1' m1 m1' sp_id α)) ->
+            getStepType cnti = Internal ->
+            (getStepType cntj = Internal \/ (getStepType cntj = Concurrent /\
+                                            sim tp1 tp1' m1 m1' ls_id α /\
+                                            sim tp1 tp1' m1 m1' sp_id α)) ->
             fstep (i :: j :: sched, tp1) m1 (j :: sched, tp2) m2 ->
             fstep (j :: sched, tp2) m2 (sched,tp3) m3 ->
             exists tp2' m2' tp3' m3' α',
@@ -818,22 +813,44 @@ Module Traces.
         rewrite Heq.
         rewrite <- map_cat. 
           by apply execution_map.
-  Qed.      
-            
-  Definition is_concurrent_step (st : nat * mySem.thread_pool) : bool :=
-    let pf := containsThread st.1 num_threads st.2 in
-    match pf as pf0 return pf = pf0 -> bool with
-      | true => fun (Heq : pf = true) =>
-                 match getThreadC st.2 (Ordinal (m := st.1) Heq) with
-                   | Kstop c => match at_external mySem.Sem c with
-                                 | Some _ => true
-                                 | None => false
-                               end
-                   | _ => false
-                 end
-      | false => fun _ => false
-    end (Logic.eq_refl pf).      
+  Qed.
+
+  Variable thread_pool : Type.
+  Variable renaming : Type.
+  Variable sort : nat -> list nat -> list nat -> Prop.
+  Variable sim : renaming -> thread_pool -> thread_pool -> list nat -> Prop.
+
+  Goal  forall ren tp tp' xs ys tid ,
+      sort tid xs ys ->
+      sim ren tp tp' xs ->
+      exists ren', sim ren' tp tp' ys.
+  Proof.
+    intros ren tp tp' xs. induction xs using last_ind. intros. admit.
+    intros.
+
   
+  Inductive ObsEqTrace (tid_last : nat) : trace -> trace -> Prop :=
+  | ObsEqNil : ObsEqTrace tid_last nil nil
+  | ObsEqConsC : forall tr tr' (st : nat * mySem.thread_pool)
+                   (cnt: containsThread st.2 st.1)
+                  (HeqTrace: ObsEqTrace tid_last tr tr')
+                  (HStepType: getStepType cnt = Concurrent),
+      ObsEqTrace tid_last (st :: tr) (st :: tr')
+  | ObsEqConsI : forall tr tr' (st : nat * mySem.thread_pool)
+                   (cnt: containsThread st.2 st.1)
+                   (HeqTrace: ObsEqTrace tid_last tr tr')
+                   (HStepType: getStepType cnt = Internal \/ getStepType cnt = Resume)
+                   (Hobservable: st.1 = tid_last \/
+                                 exists st', In st' tr /\
+                                        st'1. = st.1 /\ getStepType cnt = Concurrent),
+      ObsEqTrace tid_last (st :: tr) (st :: tr')
+  | UnObsEqCons: forall tr tr' (st : nat * mySem.thread_pool)
+                 (cnt: containsThread st.2 st.1)
+                 (HeqTrace: ObsEqTrace tid_last tr tr')
+                 (HStepType: getStepType cnt = Internal \/ getStepType cnt = Resume)
+                 (Hunobs: st.1 <> tid_last /\
+                          ~ exists st', In st' tr /\
+                                   st'1. = st.1 /\ getStepType cnt = Concurrent),
   Fixpoint filter_trace (tid_last : nat) (tr : trace) :=
     match tr with
       | nil => nil
