@@ -184,16 +184,17 @@ Module CoarseMachine (TID: ThreadID)(SCH:Scheduler TID)(SIG : ConcurrentMachineS
   Definition MachState: Type := (Sch * machine_state)%type.
 
   Definition MachStep G (c:MachState) (m:mem) (c' :MachState) (m':mem) :=
-    @machine_step  G (fst c) (snd c) m (fst c') (snd c) m'.
+    @machine_step  G (fst c) (snd c) m (fst c') (snd c') m'.
     
-
-    Definition at_external (st : MachState)
+  Definition at_external (st : MachState)
     : option (external_function * signature * list val) := None.
   
-    Definition after_external (ov : option val) (st : MachState) :
-      option (MachState) := None.
+  Definition after_external (ov : option val) (st : MachState) :
+    option (MachState) := None.
 
-  (*not clear what the value of halted should be*)
+    (*not clear what the value of halted should be*)
+    (*Nick: IMO, the machine should be halted when the schedule is empty.
+            The value is probably unimportant? *)
   Definition halted (st : MachState) : option val := None.
 
   Variable U: Sch.
@@ -300,7 +301,7 @@ Module FineMachine (TID: ThreadID)(SCH:Scheduler TID)(SIG : ConcurrentMachineSig
   Definition MachState: Type := (Sch * machine_state)%type.
 
     Definition MachStep G (c:MachState) (m:mem) (c' :MachState) (m':mem) :=
-      @machine_step G (fst c) (snd c) m (fst c') (snd c) m'.
+      @machine_step G (fst c) (snd c) m (fst c') (snd c') m'.
 
     Definition at_external (st : MachState)
     : option (external_function * signature * list val) := None.

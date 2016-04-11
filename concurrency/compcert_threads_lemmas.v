@@ -1,8 +1,6 @@
 Require Import compcert.lib.Axioms.
 
-Add LoadPath "../concurrency" as concurrency.
-
-Require Import sepcomp. Import SepComp.
+Require Import concurrency.sepcomp. Import SepComp.
 Require Import sepcomp.semantics_lemmas.
 
 Require Import concurrency.pos.
@@ -44,7 +42,7 @@ Notation LOCK := (EF_external 7%positive LOCK_SIG).
 Notation UNLOCK_SIG := (mksignature (AST.Tint::nil) (Some AST.Tint)).
 Notation UNLOCK := (EF_external 8%positive UNLOCK_SIG).
 
-Require Import concurrency.compcert_threads.
+Require Import concurrency.dry_machine.
 Require Import concurrency.threads_lemmas.
 Require Import concurrency.permissions.
 Require Import concurrency.concurrent_machine.
@@ -63,121 +61,33 @@ Ltac pf_cleanup :=
 
 Module MemoryObs.
 
-  Record renaming := mkRen
-    {R : block -> block -> Prop;
-     bijection: forall b1 b2 b1' b2', R b1 b2 -> R b1' b2' ->
-                                 ((b1 = b1' -> b2 = b2') /\
-                                  (b2 = b2' -> b1 = b1'))}.
+  Local Notation "a # b" := (Maps.PMap.get b a) (at level 1).
+  (* A compcert injection would not work because it allows permissions to go up *)
 
-  Definition inverseR (R : block -> block -> Prop) := fun x y => R y x.
+  Record weak_mem_obs_eq (f : meminj) (mc mf : Mem.mem) :=
+    {
+      domain_invalid: forall b, ~(Mem.valid_block mc b) -> f b = None;
+      domain_valid: forall b, Mem.valid_block mc b -> exists b', f b = Some (b',0%Z);
+      perm_obs_weak :
+        forall b1 b2 ofs (Hrenaming: f b1 = Some (b2,0%Z)),
+          Mem.perm_order''
+            (mc.(Mem.mem_access)#b1 ofs Cur)
+            (mf.(Mem.mem_access)#b2 ofs Cur)}.
 
-  Definition inverse (α : renaming) : renaming.
-  Proof.
-    refine ({|R := inverseR (R α); bijection := _|}).
-    intros b1 b2 b1' b2' HR1 HR2.
-    split; intros; subst;
-    destruct α as [R bijection]; simpl in *;
-    specialize (bijection _ _ _ _ HR1 HR2);
-    [apply (proj2 bijection) | apply (proj1 bijection)]; auto.
-  Defined.
-    
-  Lemma inverse_correct : forall (α : renaming) b1 b2,
-        (R α) b1 b2 <-> (R (inverse α)) b2 b1.
-  Proof.
-    intro α.
-    intros b1 b2.
-    subst; simpl; split; auto.
-  Qed.
-
-  Definition idR : renaming.
-  Proof.
-    refine (mkRen (fun b b' => b = b') _).
-    intros; subst; auto.
-  Defined.
+  Record mem_obs_eq (f : meminj) (mc mf : Mem.mem) :=
+    {
+      weak_obs_eq : weak_mem_obs_eq f mc mf;
+      perm_obs_strong :
+        forall b1 b2 ofs (Hrenaming: f b1 = Some (b2,0%Z)),
+          Mem.perm_order''
+            (mf.(Mem.mem_access)#b2 ofs Cur)
+            (mc.(Mem.mem_access)#b1 ofs Cur);
+      val_obs_eq :
+        forall b1 b2 ofs (Hrenaming: f b1 = Some (b2,0%Z))
+          (Hperm: Mem.perm mc b1 ofs Cur Readable),
+          memval_inject f (Maps.ZMap.get ofs mc.(Mem.mem_contents)#b1)
+                          (Maps.ZMap.get ofs mf.(Mem.mem_contents)#b2)}.
   
-  (*the finite domain is not necessary maybe?*)
-  Record mem_obs_eq (α : renaming) (m1 m2 : Mem.mem) :=
-    { val_obs_eq :
-        forall b1 b2 ofs (Hrenaming: (R α) b1 b2)
-          (Hperm: Mem.perm m1 b1 ofs Cur Readable),
-          Maps.ZMap.get ofs (Maps.PMap.get b1 (Mem.mem_contents m1)) =
-          Maps.ZMap.get ofs (Maps.PMap.get b2 (Mem.mem_contents m2));
-      cur_obs_eq :
-        forall b1 b2 ofs (Hrenaming: (R α) b1 b2),
-          Maps.PMap.get b1 (Mem.mem_access m1) ofs Cur =
-          Maps.PMap.get b2 (Mem.mem_access m2) ofs Cur}.
-
-  Lemma mem_obs_trans_inverse :
-    forall α m1 m2
-      (Hmem: mem_obs_eq α m1 m2),
-      mem_obs_eq (inverse α) m2 m1.
-  Proof.
-    intros. destruct Hmem as [val_obs_eq cur_obs_eq].
-    constructor;
-    intros;
-    apply inverse_correct in Hrenaming;
-    specialize (cur_obs_eq _ _ ofs Hrenaming).
-    unfold Mem.perm, Mem.perm_order' in *; rewrite <- cur_obs_eq in Hperm.
-    specialize (val_obs_eq _ _ _ Hrenaming Hperm); auto.
-    auto.
-  Qed.
-                                                                                
-  Lemma mem_obs_trans_comm :
-    forall m1j m1'j m2j α
-           (Hmem_1: mem_obs_eq α m1j m1'j)
-           (Hmem_2: mem_obs_eq idR m1j m2j),
-      mem_obs_eq α m2j m1'j.
-  Proof.
-    intros. destruct Hmem_1 as [val_obs_eq1 cur_obs_eq1],
-                               Hmem_2 as [val_obs_eq2 cur_obs_eq2].
-    split.
-    { intros. 
-      specialize (val_obs_eq1 b1 b2 ofs Hrenaming); auto.
-      specialize (val_obs_eq2 b1 b1 ofs (Logic.eq_refl _)); auto.
-      specialize (cur_obs_eq2 b1 b1 ofs (Logic.eq_refl _)).     
-      assert (H: Mem.perm m1j b1 ofs Cur Readable).
-      { unfold Mem.perm in *. rewrite cur_obs_eq2.
-        assumption.
-      }
-      rewrite <- val_obs_eq2, <- val_obs_eq1; auto.
-    }
-    { intros.
-      specialize (cur_obs_eq1 b1 b2 ofs Hrenaming).
-      specialize (cur_obs_eq2 b1 b1 ofs (Logic.eq_refl _)).
-      subst.
-      rewrite <- cur_obs_eq2, <- cur_obs_eq1. reflexivity.
-    }
-  Qed.
-
-  Lemma mem_obs_trans :
-    forall m1j m1'j m2'j α
-      (Hmem_1: mem_obs_eq α m1j m1'j)
-      (Hmem_2: mem_obs_eq idR m1'j m2'j),
-      mem_obs_eq α m1j m2'j.
-  Proof.
-    intros.
-    destruct Hmem_1 as [val_obs_eq1 cur_obs_eq1],
-                       Hmem_2 as [val_obs_eq2 cur_obs_eq2].
-    split.
-    { intros.
-      specialize (val_obs_eq1 b1 b2 ofs Hrenaming);
-        specialize (cur_obs_eq1 b1 b2 ofs Hrenaming).
-      specialize (val_obs_eq2 b2 b2 ofs (Logic.eq_refl b2));
-        specialize (cur_obs_eq2 b2 b2 ofs (Logic.eq_refl b2)).
-      assert (Mem.perm m1'j b2 ofs Cur Readable).
-      { unfold Mem.perm in *. rewrite cur_obs_eq1 in Hperm.
-        auto. }
-      rewrite val_obs_eq1; auto.
-    }
-    { intros.
-      specialize (cur_obs_eq1 b1 b2 ofs Hrenaming).
-      specialize (cur_obs_eq2 b2 b2 ofs (Logic.eq_refl b2)).
-        by rewrite <- cur_obs_eq2.
-    }
-  Qed.
-
-  Hint Resolve mem_obs_trans mem_obs_trans_comm mem_obs_trans_inverse : mem.
-
 End MemoryObs.
 
 Module SimDefs.
@@ -186,74 +96,240 @@ Section SimDefs.
   Import Concur.
   Import ThreadPool.
   Import MemoryObs.
-  
-  Context {cT G : Type} {the_sem : CoreSemantics G cT Mem.mem}.
-  
-  Notation thread_pool := (t cT).
+  Import mySchedule.
+  Require Import sepcomp.closed_safety.
+
+  Notation thread_pool := mySem.machine_state.
+  Notation the_sem := mySem.Sem.
+  Notation cT := mySem.cT.
+  Notation G := mySem.G.
   Notation invariant := (@invariant cT G the_sem).
   
   Variable the_ge : G.
-  Notation dry_step := (@dry_step cT G the_sem the_ge).
+  Notation cstep := (mySem.cstep the_ge).
+  Notation Sch := schedule.
+  Notation machine_step := (@myCoarseSemantics.MachStep the_ge).
+  Hint Unfold myCoarseSemantics.MachStep.
+  (* Nick: There is some strange leak with the schedules. In particular,
+     the type of schedPeek is myFineSemantics.sched -> ..., why? It should be
+     schedule -> ... Look into that *)
   
-  Class CodeRen :=
-    { rename_code : renaming -> cT -> cT -> Prop;
-      
-      inverse_code : forall α c c', rename_code α c c' ->
-                               rename_code (inverse α) c' c
-    }.
+  (* Injections on programs*)
+  Variable code_inj : meminj -> cT -> cT -> Prop.
+  Definition ctl_inj f cc cf : Prop :=
+    match cc, cf with
+    | Krun c, Krun c' => code_inj f c c'
+    | Kstop c, Kstop c' => code_inj f c c'
+    | Kresume c, Kresume c' => code_inj f c c'
+    | _, _  => False
+    end.
 
-  Context { cR : CodeRen }.
-           
-  Inductive rename_core (α : renaming) : @ctl cT -> @ctl cT -> Prop :=
-  | Krun_ren :
-      forall c c',
-        rename_code α c c' ->
-        rename_core α (Krun c) (Krun c')
-  | Kstop_ren :
-      forall c c',
-        rename_code α c c' ->
-        rename_core α (Kstop c) (Kstop c')
-  | Kresume_ren :
-      forall c c',
-        rename_code α c c' ->
-        rename_core α (Kresume c) (Kresume c').
+  (* Simulations between individual threads.
+     Consider hiding thread_pool completely*)
+  Inductive weak_tsim {tpc tpf : thread_pool} (mc mf : Mem.mem) {tid : nat}
+            (pfc : containsThread tpc tid) (pff : containsThread tpf tid)
+            (f: meminj) : Prop :=
+  | Weak_tsim :
+      forall (Hcompc: mem_compatible tpc mc)
+        (Hcompf: mem_compatible tpf mf)
+        (Hobs: weak_mem_obs_eq f (restrPermMap
+                                    (permMapsInv_lt (perm_comp Hcompc) pfc))
+                               (restrPermMap
+                                  (permMapsInv_lt (perm_comp Hcompf) pff))),
+        weak_tsim mc mf pfc pff f.
   
-  Inductive weak_tp_sim tp tp' (tid : nat) (α : renaming) : Prop :=
-  | Tp_weak_sim : forall (pf: containsThread tp tid)
-                    (pf': containsThread tp' tid)
-                    (Hthread: rename_core α (getThreadC pf) (getThreadC pf')),
-                    weak_tp_sim tp tp' tid α.
-
-  Inductive tp_sim (tp tp' : thread_pool) (tid : nat) (α: renaming) : Prop :=
-  | Tp_sim : forall (Hweak_sim: weak_tp_sim tp tp' tid α)
-               (Hnum: num_threads tp = num_threads tp'),
-               tp_sim tp tp' tid α.
-
-  Inductive mem_sim (tp tp' : thread_pool) (m m' : Mem.mem) (tid : nat)
-            (α: renaming) : Prop :=
-  | Mem_sim : forall (pf : containsThread tp tid)
-                (pf' : containsThread tp' tid)
-                (Hcomp: mem_compatible tp m)
-                (Hcomp': mem_compatible tp' m')
-                (Hobs: mem_obs_eq α (restrPermMap
-                                       (permMapsInv_lt (perm_comp Hcomp) pf))
-                                  (restrPermMap
-                                     (permMapsInv_lt (perm_comp Hcomp') pf'))),
-      mem_sim tp tp' m m' tid α.
-
-  Inductive sim (tp tp' : thread_pool) (m m' : Mem.mem) (tid : nat)
-            (α: renaming) : Prop :=
-  | Sim : forall (pf : containsThread tp tid)
-            (pf' : containsThread tp' tid)
-            (Hthread: rename_core α (getThreadC pf) (getThreadC pf'))
-            (Hcomp: mem_compatible tp m)
-            (Hcomp': mem_compatible tp' m')
-            (Hobs: mem_obs_eq α (restrPermMap
-                                   (permMapsInv_lt (perm_comp Hcomp) pf))
-                              (restrPermMap
-                                 (permMapsInv_lt (perm_comp Hcomp') pf'))),
-      sim tp tp' m m' tid α.
+  Inductive strong_tsim {tpc tpf : thread_pool} (mc mf : Mem.mem) {tid : nat}
+            (pfc : containsThread tpc tid) (pff : containsThread tpf tid)
+            (f: meminj) : Prop :=
+  | Strong_tsim :
+      forall (Hcompc: mem_compatible tpc mc)
+        (Hcompf: mem_compatible tpf mf)
+        (Hthread: ctl_inj f (getThreadC pfc) (getThreadC pff))
+        (Hobs: mem_obs_eq f (restrPermMap
+                               (permMapsInv_lt (perm_comp Hcompc) pfc))
+                          (restrPermMap
+                             (permMapsInv_lt (perm_comp Hcompf) pff))),
+        strong_tsim mc mf pfc pff f.
   
+  Definition internal_step {tid} {tp} m (cnt: containsThread tp tid)
+             (Hcomp: mem_compatible tp m) tp' m' :=
+    cstep cnt Hcomp tp' m' \/ myCoarseSemantics.resume_thread cnt tp'.
+
+  Inductive internal_execution : Sch -> thread_pool -> mem ->
+                                 Sch -> thread_pool -> mem -> Prop :=
+  | refl_exec : forall tp m,
+      internal_execution empty tp m empty tp m
+  | step_exec : forall tid U U' U'' tp m tp' m' tp'' m''
+                  (cnt: containsThread tp tid)
+                  (HschedN: schedPeek U = Some tid)
+                  (HschedS: schedSkip U = U')
+                  (Hcomp: mem_compatible tp m)
+                  (Hstep: internal_step cnt Hcomp tp' m')
+                  (Htrans: internal_execution U' tp' m' U'' tp'' m''),
+      internal_execution U tp m U'' tp'' m''.
+
+  (* Simulation relation between a "coarse-grain" 
+     state and a "fine-grain" state *)
+  Record sim tpc mc tpf mf (xs : Sch) (f : meminj) : Prop :=
+    { numThreads : num_threads tpc = num_threads tpf;
+      safeCoarse: forall sched n, safeN coarse_semantics the_ge n (sched, tpc) mc;
+      simWeak:
+        forall tid
+          (pfc: containsThread tpc tid)
+          (pff: containsThread tpf tid),
+          weak_tsim mc mf pfc pff f;
+      simStrong:
+        forall tid (pfc: containsThread tpc tid) (pff: containsThread tpf tid),
+        exists f' tpc' mc', inject_incr f f' /\
+                       internal_execution ([seq x <- xs | x == tid])
+                                          tpc mc nil tpc' mc' /\
+                       forall (pfc': containsThread tpc' tid),
+                         strong_tsim mc' mf pfc' pff f';
+      invF: invariant tpf}.
+
+  (* Simulation diagrams *)
+
+  Inductive StepType : Type :=
+    Internal | Concurrent | Halted | Suspend.
+  
+  Definition getStepType {i tp} (cnt : containsThread tp i) : StepType :=
+    match getThreadC cnt with
+    | Krun c =>
+      match at_external the_sem c with
+      | None => 
+        match halted the_sem c with
+        | Some _ => Halted
+        | None => Internal
+        end
+      | Some _ => Suspend
+      end
+    | Kstop c => Concurrent
+    | Kresume c => Internal
+    end.
+
+  Notation "cnt '@'  'I'" := (getStepType cnt = Internal) (at level 80).
+  Notation "cnt '@'  'E'" := (getStepType cnt = Concurrent) (at level 80).
+  Notation "cnt '@'  'S'" := (getStepType cnt = Suspend) (at level 80).
+  Notation "cnt '@'  'H'" := (getStepType cnt = Halted) (at level 80).
+
+  Definition sim_internal_def :=
+    forall (tpc tpf : thread_pool) (mc mf : Mem.mem)
+      (xs : Sch) (f : meminj) (i : NatTID.tid)
+      (pff: containsThread tpf i)
+      (Hinternal: pff @ I)
+      (Hsim: sim tpc mc tpf mf xs f),
+      exists tpf' mf',
+        sim tpc mc tpf' mf' (i :: xs) f.
+
+  Lemma containsThread_eq :
+    forall (tp tp' : thread_pool) tid
+      (Hcnt: containsThread tp tid)
+      (Heq: num_threads tp' = num_threads tp),
+      containsThread tp' tid.
+  Proof.
+    intros; unfold containsThread in *; destruct tp, tp';
+    simpl in *; by subst.
+  Qed.
+
+  Lemma containsThread_internal_step :
+    forall tp m tp' m' tid0 tid
+      (Hcnt0: containsThread tp tid0)
+      (Hcomp: mem_compatible tp m)
+      (Hstep: internal_step Hcnt0 Hcomp tp' m') 
+      (Hcnt: containsThread tp tid),
+      containsThread tp' tid.
+  Proof.
+    intros. inversion Hstep as [Hdry | Hresume].
+    inversion Hdry; subst. inversion Hdry; subst.
+    unfold updThread; unfold containsThread; simpl; auto.
+    inversion Hresume; subst. unfold mySem.updThreadC, updThreadC.
+    unfold containsThread. simpl. auto.
+  Qed.
+  
+  Lemma containsThread_internal :
+    forall U U' tp m tp' m' tid
+      (Hexec: internal_execution U tp m U' tp' m')
+      (Hcnt: containsThread tp tid),
+      containsThread tp' tid.
+  Proof.
+    intros U. induction U. intros.
+    inversion Hexec; subst; simpl in *; auto; discriminate.
+    intros.
+    inversion Hexec as [|tid0 U0 U0' U'' ? ? tp0' m0' ? ?]; subst; simpl in *;
+    inversion HschedN;
+    subst; clear Hexec.
+    eapply IHU; eauto.
+    eapply containsThread_internal_step in Hstep; eauto.
+  Qed.
+    
+  Lemma sim_internal : sim_internal_def.
+  Proof.
+    unfold sim_internal_def.
+    intros.
+    destruct Hsim as [numThreads safeCoarse simWeak simStrong invF].
+    assert (pfc: containsThread tpc i)
+      by (eapply containsThread_eq; eauto).
+    destruct (simStrong i pfc pff)
+      as [fi [tpc' [mc' [Hincr [Hexec Htsim]]]]]; clear simStrong.
+    assert (pfc': containsThread tpc' i)
+      by (eapply containsThread_internal in pfc; eauto).
+    specialize (Htsim pfc').
+    specialize (safeCoarse (mySchedule.buildSched (i :: nil))
+                           ((size ([seq x <- xs | x == i])).+1)).
+
+    Lemma internal_step_machine_step :
+      forall (tid : NatTID.tid) (tp tp' : thread_pool) (m m' : mem)
+        (U : list NatTID.tid)
+        (Hcnt: containsThread tp tid)
+        (Hcomp: mem_compatible tp m) 
+        (Hstep_internal: internal_step Hcnt Hcomp tp' m'),
+        machine_step ((buildSched (tid :: U)), tp) m
+                     ((buildSched (tid :: U)), tp') m' /\
+        (forall tp'' m'' U',
+            machine_step ((buildSched (tid :: U)), tp) m
+                         ((buildSched U'), tp'') m'' ->
+            tp = tp'' /\ m = m'' /\ tid :: U = U').
+    Proof.
+      intros. split.
+      inversion Hstep_internal.
+      autounfold; simpl.
+      eapply myCoarseSemantics.core_step.
+        simpl; eauto.
+      Set Prinintg
+      unfold mySem.cstep
+        
+    Proof.
+      intros. 
+        
+    
+    Lemma safe_corestepN :
+      forall {C G M} (core: CoreSemantics G C M) (ge : G) n c m
+        (Hsafe: safeN core ge n c m),
+      exists c' m',
+        corestepN core ge n
+                  c m c' m'.
+    Proof.
+      intros.
+      generalize dependent c. generalize dependent m.
+      induction n as [|n ]; intros.
+      - do 2 eexists; reflexivity.
+      - unfold safeN in Hsafe; simpl in Hsafe.
+        destruct (halted core c) eqn:Hhalted.
+      - exists tp m. reflexivity.
+      - unfold fine_safety in *. simpl in Hsafe.
+        destruct Hsafe as [Hstep Hsafe].
+        destruct Hstep as [[sched' tp'] [m' Hstep]].
+        specialize (Hsafe _ _ Hstep).
+        assert (sched' = sched)
+          by (inversion Hstep; subst; simpl in *; auto); subst sched'.
+        destruct (IHsched _ _ Hsafe) as [tp'' [m'' HcorestepN]].
+        exists tp'' m''.
+        simpl in *.
+        do 2 eexists; eauto.
+    Qed.
+    
+    
+    
 End SimDefs.
 End SimDefs.
 
