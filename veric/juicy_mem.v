@@ -1,10 +1,5 @@
-Require Import veric.base.
-Require Import veric.rmaps.
-Require Import veric.rmaps_lemmas.
-Require Import veric.compcert_rmaps.
+Require Import veric.juicy_base.
 Require Import veric.shares.
-Import Mem.
-Require Import msl.msl_standard.
 Import cjoins.
 
 Definition perm_of_sh (rsh sh: Share.t): option permission :=

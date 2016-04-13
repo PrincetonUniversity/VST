@@ -1,7 +1,4 @@
-Require Import veric.base.
-Require Import veric.compcert_rmaps.
-Import Mem.
-Require Import msl.msl_standard.
+Require Import veric.juicy_base.
 Require Import veric.juicy_mem veric.juicy_mem_lemmas veric.juicy_mem_ops.
 Require Import veric.res_predicates.
 Require Import veric.extend_tc.
@@ -848,7 +845,8 @@ Focus 2. {
   rewrite map_length.
   rewrite Zlength_correct in H1.
   forget (Z.pos b-1) as i; forget (length vl) as n; clear - H1.
-  apply inj_lt_rev. rewrite nat_of_Z_max; auto. rewrite Zmax_spec. if_tac; omega.
+  apply inj_lt_rev. rewrite nat_of_Z_max; auto.
+  rewrite (Coqlib.Zmax_spec i 0). if_tac; omega.
 } Unfocus.
     rename H1 into Hb; revert H; induction vl; simpl rev; simpl map;
        simpl Genv.find_symbol; intros;

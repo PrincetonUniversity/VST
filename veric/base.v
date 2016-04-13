@@ -54,4 +54,4 @@ Proof. intros. destruct (zle a b). destruct (zlt b c). left; split; auto.
   right;  omega. right; omega.
 Qed.
 
-Open Scope Z.
+(*Open Scope Z.*)

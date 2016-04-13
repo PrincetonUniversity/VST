@@ -1,7 +1,4 @@
-Require Import veric.base.
-Require Import veric.compcert_rmaps.
-Import Mem.
-Require Import msl.msl_standard.
+Require Import veric.juicy_base.
 Require Import veric.juicy_mem veric.juicy_mem_lemmas veric.juicy_mem_ops.
 Require Import veric.res_predicates.
 Require Import veric.extend_tc.
@@ -61,13 +58,13 @@ Proof.
   intros.
   apply inj_le_rev.
   do 2 rewrite nat_of_Z_max.
-  rewrite Zmax_spec.
+  rewrite Coqlib.Zmax_spec.
   destruct (zlt 0 (z-a)).
-  rewrite Zmax_spec.
+  rewrite Coqlib.Zmax_spec.
   destruct (zlt 0 (z-b)).
   omega.
   omega.
-  rewrite Zmax_spec.
+  rewrite Coqlib.Zmax_spec.
   destruct (zlt 0 (z-b)); omega.
 Qed.
 
