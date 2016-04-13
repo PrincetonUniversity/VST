@@ -1,8 +1,6 @@
 Require Import sepcomp.semantics.
 
 Require Import veric.base.
-Require Import msl.rmaps.
-Require Import msl.rmaps_lemmas.
 Require Import veric.compcert_rmaps.
 Import Mem.
 Require Import msl.msl_standard.

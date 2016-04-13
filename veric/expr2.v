@@ -1,7 +1,5 @@
 Require Import msl.msl_standard.
 Require Import veric.base.
-Require Import msl.rmaps.
-Require Import msl.rmaps_lemmas.
 Require Import veric.compcert_rmaps.
 Require Import veric.tycontext.
 Require Import veric.Clight_lemmas.

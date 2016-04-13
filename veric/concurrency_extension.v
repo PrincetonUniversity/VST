@@ -1,5 +1,4 @@
 Require Import msl.ageable.
-Require Import msl.rmaps. 
 Require Import veric.base.
 Require Import sepcomp.sim.
 Require Import sepcomp.step_lemmas.

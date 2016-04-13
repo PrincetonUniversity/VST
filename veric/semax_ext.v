@@ -1,5 +1,4 @@
 Require Import veric.base.
-Require Import msl.rmaps.
 Require Import veric.compcert_rmaps.
 Import Mem.
 Require Import msl.msl_standard.
