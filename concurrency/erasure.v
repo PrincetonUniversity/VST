@@ -124,10 +124,125 @@ Module Erasure (SCH: Scheduler NatTID)(SEM: Semantics)(PC: Parching SCH SEM).
       unfold DSEM.init_mach.
       unfold DSEM.Sem.
       rewrite initc; reflexivity.
-    - assert (same_sch: JuicyMachine.U = DryMachine.U). admit. (* This should be proven asserted. The same SCHEDULE *)
+    - assert (same_sch: JuicyMachine.U = DryMachine.U). admit. (* This should be proven elswhere. The same SCHEDULE *)
       rewrite same_sch; constructor. 
       apply match_init.
   Qed.
+Lemma MTCH_ctn: forall {js tid ds},
+           match_st js ds ->
+           JSEM.containsThread js tid -> DSEM.containsThread ds tid.
+       Admitted.
+       Lemma MTCH_getThreadC: forall js ds tid c,
+           forall (ctn: JSEM.containsThread js tid)
+           (M: match_st js ds),
+           JSEM.getThreadC ctn =  c ->
+           DSEM.getThreadC (MTCH_ctn M ctn) =  c.
+       Admitted.
+       Lemma MTCH_compat: forall js ds m,
+           match_st js ds ->
+         JSEM.mem_compatible js m ->
+         DSEM.mem_compatible ds m.
+       Admitted.
+       Lemma MTCH_updt:
+           forall js ds tid c
+             (H0:match_st js ds)  (ctn: JSEM.containsThread js tid),
+             match_st (JSEM.updThreadC ctn c)
+                       (DSEM.updThreadC (MTCH_ctn H0 ctn) c).
+         Admitted.
+  Lemma core_step' :
+    forall (st1 : JuicyMachine.MachState) (m1 : mem)
+     (st1' : JuicyMachine.MachState) (m1' : mem),
+   corestep JMachineSem genv st1 m1 st1' m1' ->
+   forall (cd : core_data) (st2 : DryMachine.MachState)
+     (mu : SM_Injection) (m2 : mem),
+   match_state cd mu st1 m1 st2 m2 ->
+   exists  (m2' : mem) (cd' : core_data)  (mu' : SM_Injection)
+      (st2' : DryMachine.MachState),
+     match_state cd' mu' st1' m1' st2' m2' /\
+     (corestep DMachineSem genv st2 m2 st2' m2').
+       intros jmst m1 jmst' m1' STEP cd dmst mu m2 MATCH.
+       exists  m1', tt, mu.
+       unfold corestep, JMachineSem,
+       JuicyMachine.MachineSemantics, JuicyMachine.MachStep in STEP.
+       inversion STEP; subst.
+       (* resume_step *)
+       inversion MATCH0; subst.
+       inversion H3; subst.
+       
+       
+       eapply (MTCH_getThreadC _ ds tid _ ctn H0) in HC.
+       exists (U, DSEM.updThreadC (MTCH_ctn H0 ctn) (Krun c)).
+       split.
+       { destruct jmst'.
+         simpl in Hms'; rewrite <- Hms'.
+         simpl in H; rewrite <- H.
+         constructor.
+         apply MTCH_updt.
+       }
+       { econstructor 1.
+         - eassumption.
+         - simpl.
+         - simpl in Hcmpt.
+           eapply (MTCH_compat _ _ _ H0 Hcmpt).
+         - simpl.
+           econstructor; try eassumption; reflexivity. }
+         (* core_step *)
+         admit.
+       (* suspend_step *)
+       inversion MATCH0; subst.
+       inversion H; subst.
+       eapply (MTCH_getThreadC _ ds tid _ ctn H0) in HC.
+       exists (SCH.schedSkip U, DSEM.updThreadC (MTCH_ctn H0 ctn) (Kstop c)).
+       split.
+       { destruct jmst'.
+         simpl in Hms'; rewrite <- Hms'.
+         simpl in HschedS. rewrite <- HschedS.
+         constructor.
+         apply MTCH_updt.
+       }
+       { econstructor 3.
+         - eassumption.
+         - reflexivity.
+         - simpl in Hcmpt.
+           eapply (MTCH_compat _ _ _ H0 Hcmpt).
+         - simpl.
+           econstructor; try eassumption; reflexivity. }
+       (* conc_step *)
+       admit.
+       (* step_halted *)
+       exists (SCH.schedSkip (fst dmst), snd dmst).
+       split. 
+       {destruct jmst'.
+        simpl in H4; rewrite <- H4.
+        simpl in HschedS; rewrite <- HschedS.
+        inversion MATCH0; subst.
+        simpl; constructor.
+        assumption.
+       }
+       { destruct dmst.
+         unfold DryMachine.MachStep; simpl.
+         inversion MATCH0; subst.
+         inversion Hhalted; subst.
+         assert (HH: DSEM.threadHalted (MTCH_ctn H7 cnt)).
+         inversion Hhalted; subst.
+         econstructor.
+         - apply (MTCH_getThreadC). eapply Hthread. 
+         - 
+         eapply (DryMachine.step_halted tid _ _ _ _ _ _ _ _ (MTCH_ctn H7 cnt)).
+           econstructor 5.
+         - eassumption.
+         - reflexivity.
+         - simpl in Hcmpt.
+           eapply (MTCH_compat _ _ _ H7 Hcmpt).
+         - simpl.
+           econstructor.
+           instantiate(1:=MTCH_ctn H7 ctn).
+           apply (MTCH_getThreadC). eapply Hthread. eassumption.
+           reflexivity.
+         - 
+         }
+       (* schedfail *)
+       Admitted.
   
   Lemma core_step :
     forall (st1 : JuicyMachine.MachState) (m1 : mem)
@@ -144,6 +259,15 @@ Module Erasure (SCH: Scheduler NatTID)(SEM: Semantics)(PC: Parching SCH SEM).
       semantics_lemmas.corestep_star DMachineSem genv st2 m2 st2' m2' /\
       core_ord cd' cd).
        intros jmst m1 jmst' m1' STEP cd dmst mu m2 MATCH.
+       destruct (core_step' jmst m1 jmst' m1' STEP cd dmst mu m2 MATCH)
+         as [m2' [cd' [mu' [st2' [MATCH' STEP']]]]].
+       exists st2', m2', cd', mu'.
+       split; [ | left ; apply semantics_lemmas.corestep_plus_one]; assumption.
+  Qed.
+       
+
+       
+       intros STEP
 (*       exists (parch_machine jmst'), m1', tt, mu.
        destruct jmst' as [U' jst'].
        split; [|left].
