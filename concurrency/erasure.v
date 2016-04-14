@@ -25,25 +25,20 @@ Module Type Parching (SCH: Scheduler NatTID)(SEM: Semantics).
   Definition DMachineSem:= DryMachine.MachineSemantics.
   Notation dstate:= DSEM.machine_state.
 
-  Parameter parch_state : jstate ->  dstate.
+  (*Parameter parch_state : jstate ->  dstate.*)
   Parameter match_st : jstate ->  dstate -> Prop.
-  Axiom parch_match: forall (js: jstate) (ds: dstate),
-      match_st js ds <-> ds = parch_state js.
-
+  (*Axiom parch_match: forall (js: jstate) (ds: dstate),
+      match_st js ds <-> ds = parch_state js.*)
+  
   (*Init diagram*)
-  Axiom parch_initi: forall genv main vals U jms,
-      initial_core JMachineSem genv main vals = Some (U, jms) ->
-      initial_core DMachineSem genv main vals = Some (U, parch_state jms).
+  Axiom match_init: forall c, match_st (JSEM.initial_machine (Kresume c)) (DSEM.initial_machine (Kresume c)).
   
   (*Core Diagram*)
-  Axiom parched_diagram: forall genv U U' m m' jst jst',  
+  Axiom parched_diagram: forall genv U U' m m' jst jst' ds ds',  
       corestep JMachineSem genv (U, jst) m (U', jst') m' ->
-      corestep DMachineSem genv (U, parch_state jst) m (U', parch_state jst') m'.
+      match_st jst ds -> match_st jst ds -> 
+      corestep DMachineSem genv (U, ds)  m (U', ds') m'.
 
-  (*Halted diagram*)
-  Axiom parched_halted: forall U js v1,
-          halted JMachineSem (U, js) = Some v1 ->
-          halted DMachineSem (U, parch_state js) = Some v1.
 End Parching.
   
   
@@ -89,8 +84,8 @@ Module Erasure (SCH: Scheduler NatTID)(SEM: Semantics)(PC: Parching SCH SEM).
   Definition core_data:= unit.
   Inductive match_state :  core_data ->  SM_Injection -> jmachine_state ->  mem -> dmachine_state -> mem -> Prop:=
   MATCH: forall d j js ds U m, match_st js ds -> match_state d j  (U, js) m (U, ds) m.
-  Definition parch_machine (jms: jmachine_state): dmachine_state:=
-    match jms with (U, jm) => (U, parch_state jm) end.
+  (*Definition parch_machine (jms: jmachine_state): dmachine_state:=
+    match jms with (U, jm) => (U, parch_state jm) end.*)
   
   Definition core_ord: unit-> unit -> Prop := fun _ _ => False.
   Definition core_ord_wf:  well_founded core_ord.
@@ -116,15 +111,24 @@ Module Erasure (SCH: Scheduler NatTID)(SEM: Semantics)(PC: Parching SCH SEM).
          j)).
     
     exists mu, tt.
-    exists (parch_machine JS).
+    simpl in INIT_C; unfold JuicyMachine.init_machine in INIT_C.
+    simpl JSEM.init_mach in INIT_C.
+(*    unfold JSEM.init_mach, JSEM.Sem in INIT_C. *)
+    unfold JSEM.init_mach, JSEM.Sem in INIT_C.
+    destruct (@initial_core G C M Sem genv main vals2) eqn:initc; inversion INIT_C.
+    exists (DryMachine.U, DSEM.initial_machine (Kresume c)).
     split; [|split].
     - unfold mu; apply initial_SM_as_inj.
-    - destruct JS as [U jms]. unfold parch_machine.
-      apply parch_initi; assumption.
-    - destruct JS as [U js]; constructor.
-      apply parch_match; reflexivity.
-    Qed.
-
+    - simpl.
+      unfold DryMachine.init_machine.
+      unfold DSEM.init_mach.
+      unfold DSEM.Sem.
+      rewrite initc; reflexivity.
+    - assert (same_sch: JuicyMachine.U = DryMachine.U). admit. (* This should be proven asserted. The same SCHEDULE *)
+      rewrite same_sch; constructor. 
+      apply match_init.
+  Qed.
+  
   Lemma core_step :
     forall (st1 : JuicyMachine.MachState) (m1 : mem)
      (st1' : JuicyMachine.MachState) (m1' : mem),
@@ -140,7 +144,7 @@ Module Erasure (SCH: Scheduler NatTID)(SEM: Semantics)(PC: Parching SCH SEM).
       semantics_lemmas.corestep_star DMachineSem genv st2 m2 st2' m2' /\
       core_ord cd' cd).
        intros jmst m1 jmst' m1' STEP cd dmst mu m2 MATCH.
-       exists (parch_machine jmst'), m1', tt, mu.
+(*       exists (parch_machine jmst'), m1', tt, mu.
        destruct jmst' as [U' jst'].
        split; [|left].
        - constructor.
@@ -148,7 +152,8 @@ Module Erasure (SCH: Scheduler NatTID)(SEM: Semantics)(PC: Parching SCH SEM).
        - inversion MATCH; subst.
          apply semantics_lemmas.corestep_plus_one.
          apply parch_match in H; subst ds.
-         unfold parch_machine. apply parched_diagram; assumption.
+         unfold parch_machine. apply parched_diagram; assumption.*)
+       admit.
   Qed.
 
   Lemma core_halted:
@@ -165,8 +170,7 @@ Module Erasure (SCH: Scheduler NatTID)(SEM: Semantics)(PC: Parching SCH SEM).
     inversion MATCH; subst.
     split.
     - constructor; try reflexivity.
-    - apply parch_match in H; subst ds.
-      apply parched_halted; assumption.
+    - inversion HALT.
   Qed.
 
   

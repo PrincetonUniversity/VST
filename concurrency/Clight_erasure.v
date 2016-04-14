@@ -46,22 +46,16 @@ Module ClightErasure (SCH: Scheduler NatTID)(SEM: Semantics)<:Parching SCH SEM.
       eapply (Maps.PTree.map f TREE).
   Defined.
 
-  {m: mem}(compat: juicy_machine.mem_compatible js m)
-      apply ()
-      pose (f:= fun p => eapply Maps.PTree.map).
-
-      
-   mem_access : Maps.PMap.t (BinNums.Z -> perm_kind -> option permission);
-                Maps.PTree.t (BinNums.Z -> shares.share)
-      
-      
-  Admitted.
-
+  Definition pos_eq_nat_eq {p q: pos.pos} (pos_eq: p = q):(pos.n p = pos.n q).  rewrite pos_eq; reflexivity. Defined.
+  Definition size_change {cT js ds} (size_eq: juicy_machine.ThreadPool.num_threads(cT:=cT) js = compcert_threads.ThreadPool.num_threads(cT:=cT) ds) tid:=
+    fintype.cast_ord (pos_eq_nat_eq size_eq) tid.
+    
   Inductive match_st : jstate ->  dstate -> Prop:=
-    MATCH_ST: forall (js:jstate) ds,
-      juicy_machine.ThreadPool.num_threads js = compcert_threads.ThreadPool.num_threads ds ->
-      juicy_machine.ThreadPool.pool js tid = compcert_threads.ThreadPool.pool ds tid ->
-      match_st js ds.
+    MATCH_ST: forall (js:jstate) ds
+      (size_eq: juicy_machine.ThreadPool.num_threads js = compcert_threads.ThreadPool.num_threads ds),
+      forall tid, juicy_machine.ThreadPool.pool js tid = compcert_threads.ThreadPool.pool ds (size_change size_eq tid) ->
+             match_st js ds.
+  
   Axiom parch_match: forall (js: jstate) (ds: dstate),
       match_st js ds <-> ds = parch_state js.
 
