@@ -129,7 +129,8 @@ CONCUR_FILES= \
   pos.v scheduler.v \
   concurrent_machine.v juicy_machine.v dry_machine.v \
   compcert_threads.v compcert_threads_lemmas.v \
-  erasure.v 
+  erasure.v \
+  semax_conc.v semax_to_machine.v
 
 LINKING_FILES= \
   sepcomp.v \
