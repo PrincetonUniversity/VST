@@ -1,4 +1,3 @@
-
 Add LoadPath "../concurrency" as concurrency.
 
 Require Import compcert.common.Memory.
@@ -27,11 +26,40 @@ Module Type Parching (SCH: Scheduler NatTID)(SEM: Semantics).
 
   (*Parameter parch_state : jstate ->  dstate.*)
   Parameter match_st : jstate ->  dstate -> Prop.
+  
+  (*match axioms*)
+  Axiom MTCH_ctn: forall {js tid ds},
+           match_st js ds ->
+           JSEM.containsThread js tid -> DSEM.containsThread ds tid.
+  Axiom MTCH_ctn': forall {js tid ds},
+           match_st js ds ->
+           DSEM.containsThread ds tid -> JSEM.containsThread js tid.
+        
+       Axiom MTCH_getThreadC: forall js ds tid c,
+           forall (ctn: JSEM.containsThread js tid)
+           (M: match_st js ds),
+           JSEM.getThreadC ctn =  c ->
+           DSEM.getThreadC (MTCH_ctn M ctn) =  c.
+        
+       Axiom MTCH_compat: forall js ds m,
+           match_st js ds ->
+         JSEM.mem_compatible js m ->
+         DSEM.mem_compatible ds m.
+        
+       Axiom MTCH_updt:
+           forall js ds tid c
+             (H0:match_st js ds)  (ctn: JSEM.containsThread js tid),
+             match_st (JSEM.updThreadC ctn c)
+                       (DSEM.updThreadC (MTCH_ctn H0 ctn) c).
+          
+
   (*Axiom parch_match: forall (js: jstate) (ds: dstate),
       match_st js ds <-> ds = parch_state js.*)
   
   (*Init diagram*)
   Axiom match_init: forall c, match_st (JSEM.initial_machine (Kresume c)) (DSEM.initial_machine (Kresume c)).
+
+  
   
   (*Core Diagram*)
   Axiom parched_diagram: forall genv U U' m m' jst jst' ds ds',  
@@ -128,27 +156,7 @@ Module Erasure (SCH: Scheduler NatTID)(SEM: Semantics)(PC: Parching SCH SEM).
       rewrite same_sch; constructor. 
       apply match_init.
   Qed.
-Lemma MTCH_ctn: forall {js tid ds},
-           match_st js ds ->
-           JSEM.containsThread js tid -> DSEM.containsThread ds tid.
-       Admitted.
-       Lemma MTCH_getThreadC: forall js ds tid c,
-           forall (ctn: JSEM.containsThread js tid)
-           (M: match_st js ds),
-           JSEM.getThreadC ctn =  c ->
-           DSEM.getThreadC (MTCH_ctn M ctn) =  c.
-       Admitted.
-       Lemma MTCH_compat: forall js ds m,
-           match_st js ds ->
-         JSEM.mem_compatible js m ->
-         DSEM.mem_compatible ds m.
-       Admitted.
-       Lemma MTCH_updt:
-           forall js ds tid c
-             (H0:match_st js ds)  (ctn: JSEM.containsThread js tid),
-             match_st (JSEM.updThreadC ctn c)
-                       (DSEM.updThreadC (MTCH_ctn H0 ctn) c).
-         Admitted.
+
   Lemma core_step' :
     forall (st1 : JuicyMachine.MachState) (m1 : mem)
      (st1' : JuicyMachine.MachState) (m1' : mem),
@@ -165,6 +173,7 @@ Lemma MTCH_ctn: forall {js tid ds},
        unfold corestep, JMachineSem,
        JuicyMachine.MachineSemantics, JuicyMachine.MachStep in STEP.
        inversion STEP; subst.
+       
        (* resume_step *)
        inversion MATCH0; subst.
        inversion H3; subst.
@@ -212,37 +221,52 @@ Lemma MTCH_ctn: forall {js tid ds},
        (* step_halted *)
        exists (SCH.schedSkip (fst dmst), snd dmst).
        split. 
-       {destruct jmst'.
-        simpl in H4; rewrite <- H4.
-        simpl in HschedS; rewrite <- HschedS.
-        inversion MATCH0; subst.
-        simpl; constructor.
-        assumption.
+       { destruct jmst'.
+         simpl in H4; rewrite <- H4.
+         simpl in HschedS; rewrite <- HschedS.
+         inversion MATCH0; subst.
+         simpl; constructor.
+         assumption.
        }
        { destruct dmst.
          unfold DryMachine.MachStep; simpl.
          inversion MATCH0; subst.
          inversion Hhalted; subst.
-         assert (HH: DSEM.threadHalted (MTCH_ctn H7 cnt)).
-         inversion Hhalted; subst.
-         econstructor.
-         - apply (MTCH_getThreadC). eapply Hthread. 
-         - 
-         eapply (DryMachine.step_halted tid _ _ _ _ _ _ _ _ (MTCH_ctn H7 cnt)).
-           econstructor 5.
-         - eassumption.
-         - reflexivity.
-         - simpl in Hcmpt.
-           eapply (MTCH_compat _ _ _ H7 Hcmpt).
-         - simpl.
+         cut (DSEM.threadHalted (MTCH_ctn H7 cnt)).
+         { intros HH; eapply (DryMachine.step_halted tid _ _ _ _ _ _ _ _ HH). }
+         { inversion Hhalted; subst.
            econstructor.
-           instantiate(1:=MTCH_ctn H7 ctn).
-           apply (MTCH_getThreadC). eapply Hthread. eassumption.
-           reflexivity.
-         - 
+           - apply (MTCH_getThreadC). eapply Hthread. 
+           - cut (c = c0).
+             { intros; subst c;  assumption. }
+             { simpl in cnt0.
+               Lemma getTC_proof_indep:
+                 forall {js tid} (cnt1 cnt2: JSEM.containsThread js tid),
+                   JSEM.getThreadC cnt1 =JSEM.getThreadC cnt2.
+               Admitted.
+               rewrite (getTC_proof_indep cnt cnt0) in Hthread.
+               rewrite Hthread in Hthread0; inversion Hthread0; reflexivity. }
          }
+         }
+           
        (* schedfail *)
-       Admitted.
+       exists (fst jmst', snd dmst).
+       split.
+       - destruct jmst' as [U' jst'];  econstructor.
+         destruct jmst as [U jst]; simpl in H4. 
+         inversion MATCH0; subst; assumption.
+       -  inversion MATCH0; subst. econstructor 6. simpl. exact HschedN.
+          simpl.
+          unfold not; intros NOWAY; apply Htid.
+          eapply MTCH_ctn' in NOWAY;  eassumption.
+          simpl. exact HschedS. 
+
+          (* Fix this in place*)
+          Grab Existential Variables.
+          - simpl in Hcmpt. inversion MATCH0; subst. eapply MTCH_compat; eassumption.
+          - reflexivity.
+          - simpl. assumption.
+  Qed.
   
   Lemma core_step :
     forall (st1 : JuicyMachine.MachState) (m1 : mem)
@@ -263,21 +287,6 @@ Lemma MTCH_ctn: forall {js tid ds},
          as [m2' [cd' [mu' [st2' [MATCH' STEP']]]]].
        exists st2', m2', cd', mu'.
        split; [ | left ; apply semantics_lemmas.corestep_plus_one]; assumption.
-  Qed.
-       
-
-       
-       intros STEP
-(*       exists (parch_machine jmst'), m1', tt, mu.
-       destruct jmst' as [U' jst'].
-       split; [|left].
-       - constructor.
-         apply parch_match; reflexivity.
-       - inversion MATCH; subst.
-         apply semantics_lemmas.corestep_plus_one.
-         apply parch_match in H; subst ds.
-         unfold parch_machine. apply parched_diagram; assumption.*)
-       admit.
   Qed.
 
   Lemma core_halted:
