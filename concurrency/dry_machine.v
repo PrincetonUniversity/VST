@@ -1,6 +1,6 @@
 Require Import compcert.lib.Axioms.
 
-(*Add LoadPath "../compcomp" as compcomp.*)
+Add LoadPath "../concurrency" as concurrency.
 
 Require Import sepcomp. Import SepComp.
 Require Import sepcomp.semantics_lemmas.
@@ -221,9 +221,8 @@ Section poolDefs.
   Import Maps.
 
   Definition perm_compatible p :=
-    forall tid (cnt: containsThread tp tid) (b : positive) (ofs : Z) ,
-      Mem.perm_order'' (Maps.PMap.get b p ofs)
-                       (Maps.PMap.get b (getThreadPerm cnt) ofs).
+    forall {tid} (cnt: containsThread tp tid),
+      permMapLt (getThreadPerm cnt) p.
 
   Record mem_compatible m :=
     { perm_comp: perm_compatible (getMaxPerm m);
@@ -236,16 +235,54 @@ Section poolLemmas.
 
   Context {cT : Type} (tp : ThreadPool.t cT).
 
-  Import ThreadPool.
+  Import ThreadPool threads_lemmas.
 
   (*This broke owhen lifting getters and setters for ThreadC. Should be fixed. Nick
     suggested to abstract the machine_state for both machines and have only one set
     of proofs.*)
-  (*
-  Lemma gssThreadCode (tid : 'I_(num_threads tp)) c' p' : 
-    getThreadC (updThread tp tid c' p' ) tid = c'.
-  Proof. by rewrite /getThreadC /updThread /= eq_refl. Defined.
+ 
+  Lemma gssThreadCode tid (cnt: containsThread tp tid) c' p'
+        (cnt': containsThread (updThread cnt c' p') tid) :
+    getThreadC cnt' = c'.
+  Proof.
+    simpl. rewrite if_true; auto.
+    unfold updThread, containsThread in *. simpl in *.
+    apply/eqP. apply f_equal.
+    apply proof_irr.
+  Qed.
 
+  Lemma gssThreadPerm tid (cnt: containsThread tp tid) c' p'
+        (cnt': containsThread (updThread cnt c' p') tid) :
+    getThreadPerm cnt' = p'.
+  Proof.
+    simpl. rewrite if_true; auto.
+    unfold updThread, containsThread in *. simpl in *.
+    apply/eqP. apply f_equal.
+    apply proof_irr.
+  Qed.
+
+  Lemma gssThreadCC tid (cnt: containsThread tp tid) c'
+        (cnt': containsThread (updThreadC cnt c') tid) :
+    getThreadC cnt' = c'.
+  Proof.
+    simpl. rewrite if_true; auto.
+    unfold updThreadC, containsThread in *. simpl in *.
+    apply/eqP. apply f_equal.
+    apply proof_irr.
+  Qed.
+
+  Lemma gssThreadCP tid (cnt: containsThread tp tid) c'
+        (cnt': containsThread (updThreadC cnt c') tid) :
+    getThreadPerm cnt = getThreadPerm cnt'.
+  Proof.
+    simpl.
+    unfold getThreadPerm. 
+    unfold updThreadC, containsThread in *. simpl in *.
+    do 2 apply f_equal.
+    apply proof_irr.
+  Qed.
+  
+(*
   Lemma gsoThread (tid tid' : 'I_(num_threads tp)) c' p':
     tid' != tid -> getThreadC (updThread tp tid c' p') tid' = getThreadC tp tid'.
   Proof. by rewrite /getThreadC /updThread /=; case Heq: (tid' == tid). Defined.
@@ -262,13 +299,6 @@ Section poolLemmas.
     tid = ordinal_pos_incr (num_threads tp) ->
     getThreadC (addThread tp c pmap) tid = c.
   Proof. by rewrite /getThreadC /addThread /= => <-; rewrite unlift_none. Qed. *)
-
-  Lemma permMapsInv_lt : forall p (Hinv: perm_compatible tp p) tid (pf: containsThread tp tid),
-                           permMapLt (getThreadPerm pf) p.
-  Proof.
-    intros. 
-    unfold permMapLt; auto.
-  Qed.
 
   Definition restrPermMap p' m (Hlt: permMapLt p' (getMaxPerm m)) : mem.
   Proof.
@@ -427,7 +457,7 @@ Module Concur.
     | step_dry :
         forall (tp':thread_pool) c m1 m' (c' : cT),
           forall (Hrestrict_pmap:
-               restrPermMap (permMapsInv_lt (perm_comp Hcompatible) cnt) = m1)
+               restrPermMap ((perm_comp Hcompatible) tid0 cnt) = m1)
             (Hinv : invariant tp)
             (Hthread: getThreadC cnt = Krun c)
             (Hcorestep: corestep the_sem the_ge c m1 c' m')
@@ -447,10 +477,13 @@ Module Concur.
             (Hat_external: at_external the_sem c =
                            Some (LOCK, ef_sig LOCK, Vptr b ofs::nil))
             (Hcompatible: mem_compatible tp m)
-            (Hrestrict_pmap: restrPermMap (permMapsInv_lt (perm_comp Hcompatible) cnt_lp) = m1)
+            (Hrestrict_pmap:
+               restrPermMap ((perm_comp Hcompatible) lp_id cnt_lp) = m1)
             (Hload: Mem.load Mint32 m1 b (Int.intval ofs) = Some (Vint Int.one))
-            (Hstore: Mem.store Mint32 m1 b (Int.intval ofs) (Vint Int.zero) = Some m')
-            (Hat_external: after_external the_sem (Some (Vint Int.zero)) c = Some c')
+            (Hstore:
+               Mem.store Mint32 m1 b (Int.intval ofs) (Vint Int.zero) = Some m')
+            (Hat_external:
+               after_external the_sem (Some (Vint Int.zero)) c = Some c')
             (Htp': tp' = updThread cnt0 (Kresume c')
                                    (computeMap (getThreadPerm cnt0) virtue)),
             ext_step cnt0 Hcompat tp' m' 
@@ -463,9 +496,12 @@ Module Concur.
             (Hthread: getThreadC cnt0 = Kstop c)
             (Hat_external: at_external the_sem c =
                            Some (UNLOCK, ef_sig UNLOCK, Vptr b ofs::nil))
-            (Hrestrict_pmap: restrPermMap (permMapsInv_lt (perm_comp Hcompat) cnt_lp) = m1)
-            (Hload: Mem.load Mint32 m1 b (Int.intval ofs) = Some (Vint Int.zero))
-            (Hstore: Mem.store Mint32 m1 b (Int.intval ofs) (Vint Int.one) = Some m')
+            (Hrestrict_pmap:
+               restrPermMap ((perm_comp Hcompat) lp_id cnt_lp) = m1)
+            (Hload:
+               Mem.load Mint32 m1 b (Int.intval ofs) = Some (Vint Int.zero))
+            (Hstore:
+               Mem.store Mint32 m1 b (Int.intval ofs) (Vint Int.one) = Some m')
             (* what does the return value denote?*)
             (Hat_external: after_external the_sem (Some (Vint Int.zero)) c = Some c')
             (Htp': tp' = updThread cnt0 (Kresume c')
@@ -499,7 +535,7 @@ Module Concur.
             (Hat_external: at_external the_sem c =
                            Some (MKLOCK, ef_sig MKLOCK, Vptr b ofs::nil))
             (Hrestrict_pmap: restrPermMap
-                               (permMapsInv_lt (perm_comp Hcompat) cnt0) = m1)
+                               ((perm_comp Hcompat) tid0 cnt0) = m1)
             (Hstore: Mem.store Mint32 m1 b (Int.intval ofs) (Vint Int.zero) = Some m')
             (Hdrop_perm:
                setPerm (Some Nonempty) b (Int.intval ofs) pmap_tid = pmap_tid')
@@ -523,9 +559,10 @@ Module Concur.
                            Some (FREE_LOCK, ef_sig FREE_LOCK, Vptr b ofs::nil))
             (Hdrop_perm:
                setPerm None b (Int.intval ofs) pmap_lp = pmap_lp')
-            (Hat_external: after_external the_sem (Some (Vint Int.zero)) c = Some c')
+            (Hat_external:
+               after_external the_sem (Some (Vint Int.zero)) c = Some c')
             (Htp': tp' = updThread cnt0 (Kresume c')
-                                   (computeMap (getThreadPerm cnt0) virtue))       
+                                   (computeMap (getThreadPerm cnt0) virtue))
             (Htp'': tp'' = updThreadP cnt_lp' pmap_lp'),
             ext_step cnt0 Hcompat  tp'' m 
                      
@@ -538,7 +575,7 @@ Module Concur.
             (Hat_external: at_external the_sem c =
                            Some (LOCK, ef_sig LOCK, Vptr b ofs::nil))
             (Hrestrict_pmap: restrPermMap
-                               (permMapsInv_lt (perm_comp Hcompat) cnt_lp) = m1)
+                               ((perm_comp Hcompat) lp_id cnt_lp) = m1)
             (Hload: Mem.load Mint32 m1 b (Int.intval ofs) = Some (Vint Int.zero)),
             ext_step cnt0 Hcompat tp m.
   End Concur.
@@ -579,8 +616,10 @@ Module Concur.
       @mem_compatible cT.
     
     (*CODE GETTER AND SETTER*)
-    Definition getThreadC: forall {ms tid0}, containsThread ms tid0 -> @ctl cT:= @getThreadC cT.                  
-    Definition updThreadC: forall {ms tid0}, containsThread ms tid0 -> @ctl cT -> machine_state:= @updThreadC cT.
+    Definition getThreadC: forall {ms tid0},
+        containsThread ms tid0 -> @ctl cT:= @getThreadC cT.                  
+    Definition updThreadC: forall {ms tid0},
+        containsThread ms tid0 -> @ctl cT -> machine_state:= @updThreadC cT.
     
     (*Steps*)
     Definition cstep (genv:G): forall {tid0 ms m},

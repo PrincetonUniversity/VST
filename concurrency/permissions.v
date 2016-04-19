@@ -2,7 +2,8 @@ Require Import ssreflect seq ssrbool
         ssrnat ssrfun eqtype seq fintype finfun.
 
 Set Implicit Arguments.
-Require Import threads_lemmas.
+Add LoadPath "../concurrency" as concurrency.
+Require Import concurrency.threads_lemmas.
 Require Import compcert.common.Memory.
 Require Import compcert.common.Values. (*for val*)
 Require Import compcert.lib.Integers.
@@ -284,15 +285,15 @@ Section ShareMaps.
            end
          end) smap pmap.2.
      
-  Definition decay m m' := forall b ofs, 
-      (~Mem.valid_block m b ->
-       forall p, Mem.perm m' b ofs Cur p -> Mem.perm m' b ofs Cur Freeable) /\
-      (Mem.perm m b ofs Cur Freeable ->
-       forall p, Mem.perm m' b ofs Cur p -> Mem.perm m' b ofs Cur Freeable) /\
-      (~Mem.perm m b ofs Cur Freeable ->
-       forall p, Mem.perm m b ofs Cur p -> Mem.perm m' b ofs Cur p) /\
-      (Mem.valid_block m b ->
-       forall p, Mem.perm m' b ofs Cur p -> Mem.perm m b ofs Cur p).
+  Definition decay m_before m_after := forall b ofs, 
+      (~Mem.valid_block m_before b ->
+       forall k p, Mem.perm m_after b ofs k p -> Mem.perm m_after b ofs k Freeable) /\
+      (Mem.perm m_before b ofs Cur Freeable ->
+       forall k p, Mem.perm m_after b ofs k p -> Mem.perm m_after b ofs k Freeable) /\
+      (~Mem.perm m_before b ofs Cur Freeable ->
+       forall k p, Mem.perm m_before b ofs k p -> Mem.perm m_after b ofs k p) /\
+      (Mem.valid_block m_before b ->
+       forall k p, Mem.perm m_after b ofs k p -> Mem.perm m_before b ofs k p).
   
   Definition map_decay (pmap pmap' : access_map) :=
     forall b ofs, (Maps.PMap.get b pmap) ofs = (Maps.PMap.get b pmap') ofs \/
@@ -301,7 +302,25 @@ Section ShareMaps.
              ((Maps.PMap.get b pmap) ofs = None /\
               (Maps.PMap.get b pmap') ofs = Some Freeable).
 
-  Lemma mem_map_decay :
+  Definition decay' m_before m_after := forall b ofs, 
+      (~Mem.valid_block m_before b ->
+       Mem.valid_block m_after b ->
+       forall k,
+         Maps.PMap.get b (Mem.mem_access m_after) ofs k = Some Freeable) /\
+      (Mem.valid_block m_before b ->
+       (forall k, (Maps.PMap.get b (Mem.mem_access m_before) ofs k = Some Freeable /\
+              Maps.PMap.get b (Mem.mem_access m_after) ofs k = None)) \/
+       (forall k, Maps.PMap.get b (Mem.mem_access m_before) ofs k =
+             Maps.PMap.get b (Mem.mem_access m_after) ofs k)).
+
+  Lemma decay_decay' :
+    forall m m',
+      decay m m' ->
+      decay' m m'.
+  Admitted.
+       
+  
+  (*Lemma mem_map_decay :
     forall m m',
       decay m m' ->
       map_decay (getCurPerm m) (getCurPerm m').
@@ -384,7 +403,7 @@ Section ShareMaps.
       assert (Hp': p' = Freeable)
         by  (unfold Mem.perm, Mem.perm_order' in H1; rewrite Hperm' in H1;
              inversion H1; auto); subst. auto.
-  Qed.
+  Qed.*)
 
   Definition shareMapsJoin (smap1 smap2 smap3 : share_map) : Prop :=
     forall b ofs,

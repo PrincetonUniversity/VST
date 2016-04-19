@@ -140,23 +140,23 @@ Module CoarseMachine (TID: ThreadID)(SCH:Scheduler TID)(SIG : ConcurrentMachineS
       forall tid U ms ms' m
         (HschedN: schedPeek U = Some tid)
         (Htid: containsThread ms tid)
-        (Hcmpt: mem_compatible ms m),
-        resume_thread Htid ms' ->
+        (Hcmpt: mem_compatible ms m)
+        (Htstep: resume_thread Htid ms'),
         machine_step U ms m U ms' m
   | core_step:
       forall tid U ms ms' m m'
         (HschedN: schedPeek U = Some tid)
         (Htid: containsThread ms tid)
-        (Hcmpt: mem_compatible ms m),
-        cstep genv Htid Hcmpt ms' m' ->
+        (Hcmpt: mem_compatible ms m)
+        (Htstep: cstep genv Htid Hcmpt ms' m'),
         machine_step U ms m U ms' m'
   | suspend_step:
       forall tid U U' ms ms' m
         (HschedN: schedPeek U = Some tid)
         (HschedS: schedSkip U = U')        (*Schedule Forward*)
         (Htid: containsThread ms tid)
-        (Hcmpt: mem_compatible ms m),
-        suspend_thread Htid ms' ->
+        (Hcmpt: mem_compatible ms m)
+        (Htstep:suspend_thread Htid ms'),
         machine_step U ms m U' ms' m
   | conc_step:
       forall tid U U' ms ms' m m'
@@ -164,7 +164,7 @@ Module CoarseMachine (TID: ThreadID)(SCH:Scheduler TID)(SIG : ConcurrentMachineS
         (HschedS: schedSkip U = U')        (*Schedule Forward*)
         (Htid: containsThread ms tid)
         (Hcmpt: mem_compatible ms m)
-        (Hconc: conc_call genv  Htid Hcmpt ms' m'),
+        (Htstep: conc_call genv  Htid Hcmpt ms' m'),
         machine_step U ms m U' ms' m'           
   | step_halted:
       forall tid U U' ms m
@@ -195,7 +195,11 @@ Module CoarseMachine (TID: ThreadID)(SCH:Scheduler TID)(SIG : ConcurrentMachineS
     (*not clear what the value of halted should be*)
     (*Nick: IMO, the machine should be halted when the schedule is empty.
             The value is probably unimportant? *)
-  Definition halted (st : MachState) : option val := None.
+  Definition halted (st : MachState) : option val :=
+    match schedPeek (fst st) with
+    | Some _ => None
+    | _ => Some Vundef
+    end.
 
   Variable U: Sch.
   Definition init_machine the_ge (f : val) (args : list val) : option MachState :=
@@ -215,6 +219,7 @@ Module CoarseMachine (TID: ThreadID)(SCH:Scheduler TID)(SIG : ConcurrentMachineS
                               MachStep
         );
     unfold at_external, halted; try reflexivity.
+  intros. inversion H; subst; rewrite HschedN; reflexivity.
   auto.
   Defined.
   
@@ -256,24 +261,24 @@ Module FineMachine (TID: ThreadID)(SCH:Scheduler TID)(SIG : ConcurrentMachineSig
         (HschedN: schedPeek U = Some tid)
         (HschedS: schedSkip U = U')        (*Schedule Forward*)
         (Htid: containsThread ms tid)
-        (Hcmpt: mem_compatible ms m),
-        resume_thread Htid ms' ->
+        (Hcmpt: mem_compatible ms m)
+        (Htstep: resume_thread Htid ms'),
         machine_step U ms m U' ms' m
   | core_step:
       forall tid U U' ms ms' m m'
         (HschedN: schedPeek U = Some tid)
         (HschedS: schedSkip U = U')        (*Schedule Forward*)
         (Htid: containsThread ms tid)
-        (Hcmpt: mem_compatible ms m),
-        cstep genv Htid Hcmpt ms' m' ->
+        (Hcmpt: mem_compatible ms m)
+        (Htstep: cstep genv Htid Hcmpt ms' m'),
         machine_step U ms m U' ms' m'
   | suspend_step:
       forall tid U U' ms ms' m
         (HschedN: schedPeek U = Some tid)
         (HschedS: schedSkip U = U')        (*Schedule Forward*)
         (Htid: containsThread ms tid)
-        (Hcmpt: mem_compatible ms m),
-        suspend_thread Htid ms' ->
+        (Hcmpt: mem_compatible ms m)
+        (Htstep: suspend_thread Htid ms'),
         machine_step U ms m U' ms' m
   | conc_step:
       forall tid U U' ms ms' m m'
@@ -281,7 +286,7 @@ Module FineMachine (TID: ThreadID)(SCH:Scheduler TID)(SIG : ConcurrentMachineSig
         (HschedS: schedSkip U = U')        (*Schedule Forward*)
         (Htid: containsThread ms tid)
         (Hcmpt: mem_compatible ms m)
-        (Hconc: conc_call genv Htid Hcmpt ms' m'),
+        (Htstep: conc_call genv Htid Hcmpt ms' m'),
         machine_step U ms m U' ms' m'           
   | step_halted:
       forall tid U U' ms m
