@@ -195,8 +195,41 @@ Module Erasure (SCH: Scheduler NatTID)(SEM: Semantics)(PC: Parching SCH SEM).
            eapply (MTCH_compat _ _ _ H0 Hcmpt).
          - simpl.
            econstructor; try eassumption; reflexivity. }
-         (* core_step *)
-         admit.
+       (* core_step *)
+       {
+         inversion MATCH; subst.
+         inversion H3; subst.
+         inversion Hcorestep.
+         Search dstate.
+         Axiom get_permMap: mem -> permissions.share_map.
+         exists (U, updThread (MTCH_ctn H0 (Htid))
+                         (Krun c') (get_permMap (juicy_mem.m_dry jm'))).
+         split.
+         destruct jmst' as [U' js'].
+         simpl in *; subst.
+         constructor.
+         simpl.
+         - Axiom upd_MATCH: forall js ds tid (Htid: JSEM.containsThread js tid) c new_jm
+             (MATCH: match_st js ds),
+             match_st
+               (juicy_machine.updThread js (cont2ord Htid) c (juicy_mem.m_phi new_jm))
+               (updThread (MTCH_ctn MATCH Htid) c (get_permMap (juicy_mem.m_dry new_jm))).
+           apply upd_MATCH.
+         - 
+           assert (Hcompatible:mem_compatible ds m2) by (apply (@MTCH_compat js _ _ H0 Hcmpt)).
+           assert (Hcnt : ThreadPool.containsThread ds tid) by (apply (@MTCH_ctn js); auto).
+           econstructor 2; try eassumption.
+           unfold DSEM.cstep.
+           eapply (@step_dry _ _ Sem _ tid ds m2 (MTCH_ctn H0 Htid) _  _ c).
+           instantiate(1:=Hcompatible).
+                  (restrPermMap (permMapsInv_lt (perm_comp Hcompatible) (MTCH_ctn H0 Htid) ))).
+           
+           try eassumption. Focus 4. simpl in *. unfold JSEM.Sem in H1; unfold DSEM.Sem. eassumption; simpl.
+           Focus 3. apply MTCH_getThreadC; eassumption.
+           unfold personal_mem. destruct Hcmpt.
+           destruct (perm_comp (cont2ord Htid)) eqn:pcmpt.
+           simpl.
+         unfold match_state.
        (* suspend_step *)
        inversion MATCH0; subst.
        inversion H; subst.
