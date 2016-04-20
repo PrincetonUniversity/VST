@@ -59,19 +59,19 @@ Module MemoryObs.
       domain_invalid: forall b, ~(Mem.valid_block mc b) -> f b = None;
       domain_valid: forall b, Mem.valid_block mc b -> exists b', f b = Some (b',0%Z);
       perm_obs_weak :
-        forall b1 b2 ofs (Hrenaming: f b1 = Some (b2,0%Z)),
+        forall b1 b2 ofs (Hrenaming: f b1 = Some (b2,0%Z)) k,
           Mem.perm_order''
-            (mc.(Mem.mem_access)#b1 ofs Cur)
-            (mf.(Mem.mem_access)#b2 ofs Cur)}.
+            (mc.(Mem.mem_access)#b1 ofs k)
+            (mf.(Mem.mem_access)#b2 ofs k)}.
 
   Record mem_obs_eq (f : meminj) (mc mf : Mem.mem) :=
     {
       weak_obs_eq : weak_mem_obs_eq f mc mf;
       perm_obs_strong :
-        forall b1 b2 ofs (Hrenaming: f b1 = Some (b2,0%Z)),
+        forall b1 b2 ofs (Hrenaming: f b1 = Some (b2,0%Z)) k,
           Mem.perm_order''
-            (mf.(Mem.mem_access)#b2 ofs Cur)
-            (mc.(Mem.mem_access)#b1 ofs Cur);
+            (mf.(Mem.mem_access)#b2 ofs k)
+            (mc.(Mem.mem_access)#b1 ofs k);
       val_obs_eq :
         forall b1 b2 ofs (Hrenaming: f b1 = Some (b2,0%Z))
           (Hperm: Mem.perm mc b1 ofs Cur Readable),
@@ -193,14 +193,68 @@ Section SimDefs.
                                  Sch -> thread_pool -> mem -> Prop :=
   | refl_exec : forall tp m,
       internal_execution empty tp m empty tp m
-  | step_exec : forall tid U U' U'' tp m tp' m' tp'' m''
+  | step_exec : forall tid U U' tp m tp' m'
                   (cnt: containsThread tp tid)
                   (HschedN: schedPeek U = Some tid)
                   (HschedS: schedSkip U = U')
                   (Hcomp: mem_compatible tp m)
-                  (Hstep: internal_step cnt Hcomp tp' m')
-                  (Htrans: internal_execution U' tp' m' U'' tp'' m''),
+                  (Hstep: internal_step cnt Hcomp tp' m'),
+      internal_execution U tp m U' tp' m'
+  | step_trans : forall tid U U' U'' tp m tp' m' tp'' m''
+                   (cnt: containsThread tp tid)
+                   (HschedN: schedPeek U = Some tid)
+                   (HschedS: schedSkip U = U')
+                   (Hcomp: mem_compatible tp m)
+                   (Hstep: internal_step cnt Hcomp tp' m')
+                   (Htrans: internal_execution U' tp' m' U'' tp'' m''),
       internal_execution U tp m U'' tp'' m''.
+
+
+    Inductive internal_execution' : Sch -> thread_pool -> mem ->
+                                 Sch -> thread_pool -> mem -> Prop :=
+  | refl_exec' : forall tp m,
+      internal_execution' empty tp m empty tp m
+  | step_trans' : forall tid U U' U'' tp m tp' m' tp'' m''
+                   (cnt: containsThread tp tid)
+                   (HschedN: schedPeek U = Some tid)
+                   (HschedS: schedSkip U = U')
+                   (Hcomp: mem_compatible tp m)
+                   (Hstep: internal_step cnt Hcomp tp' m')
+                   (Htrans: internal_execution' U' tp' m' U'' tp'' m''),
+      internal_execution' U tp m U'' tp'' m''.
+    
+  Lemma internal_execution_sched :
+    forall U U' tp tp' m m'
+      (Hexec: internal_execution U tp m U' tp' m'),
+    exists U'', U = U'' ++ U'.
+  Proof.
+    intros U. induction U; intros.
+    inversion Hexec. subst. exists empty. reflexivity.
+    subst. simpl in HschedN. discriminate.
+    subst. simpl in HschedN. discriminate.
+    inversion Hexec; subst. simpl in *.
+    exists [:: a]. reflexivity.
+    simpl in *. eapply IHU in Htrans.
+    destruct Htrans as [U'' Heq].
+    subst U. exists (a :: U''). reflexivity.
+  Qed.
+
+        Lemma internal_execution_trans :
+        forall i U tp tp' tp'' m m' m'' (pf': containsThread tp' i)
+          (Hcomp: mem_compatible tp' m')
+          (Hstep: internal_step pf' Hcomp tp'' m'')
+          (Hexec: internal_execution' U tp m empty tp' m'),
+          internal_execution' (U ++ [:: i]) tp m empty tp'' m''.
+      Proof.
+        intros i U. induction U; intros.
+        simpl in *.
+        inversion Hexec; subst.
+        econstructor; simpl; eauto. constructor.
+        simpl in HschedN. discriminate.
+        inversion Hexec. subst. simpl in *.
+        econstructor; simpl; eauto.
+        Qed.
+        
 
   (** Simulation relation between a "coarse-grain" 
      state and a "fine-grain" state *)
@@ -281,7 +335,34 @@ Section SimDefs.
     exists tpf' mf',
       (forall U, fmachine_step (i :: U, tpf) mf (U, tpf') mf') /\
       sim tpc mc tpf' mf' (i :: xs) f.
-  
+
+  Lemma internal_execution_empty_inv:
+    forall U tp m tp' m'
+      (Hexec: internal_execution U tp m U tp' m'),
+      U = empty /\ tp = tp' /\ m = m'.
+  Proof.
+    intros. inversion Hexec. subst. auto.
+    subst U. subst U0. unfold schedSkip in HschedS.
+    destruct U'; simpl in *. discriminate.
+    clear - HschedS. exfalso. induction U'. discriminate. inversion HschedS.
+    subst a. auto.
+    subst. apply internal_execution_sched in Htrans.
+    destruct Htrans as [U'' Hcontra].
+    exfalso. clear - HschedN Hcontra.
+    generalize dependent U''.
+    generalize dependent tid0.
+    induction U. simpl in *. discriminate.
+    intros. simpl in *.
+    destruct U. simpl in *.
+    exfalso. destruct U''; simpl in Hcontra; discriminate.
+    destruct U''. simpl in *.
+    inversion Hcontra.
+    clear - H1. induction U. discriminate. inversion H1. auto.
+    inversion Hcontra. eapply IHU with (U'' := U'' ++ [:: a]). reflexivity.
+    simpl.
+    subst t1. simpl in *. rewrite <- catA.auto.
+  Qed.
+
   Lemma containsThread_eq :
     forall (tp tp' : thread_pool) tid
       (Hcnt: containsThread tp tid)
@@ -314,15 +395,33 @@ Section SimDefs.
       containsThread tp' i.
   Proof.
     intros U. induction U. intros.
-    inversion Hexec; subst; simpl in *; auto; discriminate.
+    inversion Hexec; subst; simpl in *; auto; try discriminate.
+    
     intros.
-    inversion Hexec as [|tid0 U0 U0' U'' ? ? tp0' m0' ? ?]; subst; simpl in *;
+    inversion Hexec as [|tid0 U0 U0' U'' ? ? tp0' m0' ? ?|];
+      subst. eapply containsThread_internal_step in Hstep; eauto.
+    simpl in *;
     inversion HschedN;
     subst; clear Hexec.
     eapply IHU; eauto.
     eapply containsThread_internal_step in Hstep; eauto.
   Qed.
 
+  Lemma containsThread_backward :
+    forall tp m tp' m' i j
+      (Hcnt0: containsThread tp j)
+      (Hcomp: mem_compatible tp m)
+      (Hstep: internal_step Hcnt0 Hcomp tp' m') 
+      (Hcnt: containsThread tp' i),
+      containsThread tp i.
+  Proof.
+    intros. inversion Hstep as [Hdry | [Hresume _]].
+    inversion Hdry; subst. inversion Hdry; subst.
+    unfold updThread; unfold containsThread; simpl; auto.
+    inversion Hresume; subst. unfold mySem.updThreadC, updThreadC.
+    unfold containsThread. simpl. auto.
+  Qed.
+  
   Hypothesis corestep_det : corestep_fun the_sem.
     
   Lemma internal_step_det :
@@ -412,6 +511,7 @@ Section SimDefs.
     { simpl in *. inversion Hexec; subst.
       auto.
       simpl in HschedN. discriminate.
+      simpl in HschedN; discriminate.
     }
     { simpl in *.
       destruct (x == i) eqn:Hx; move/eqP:Hx=>Hx; subst.
@@ -419,15 +519,24 @@ Section SimDefs.
         destruct Hsafe as [[st' [m' Hmach_step]] Hsafe].
         destruct st' as [stU' tp'].
         specialize (Hsafe _ _ Hmach_step).
-        inversion Hexec; subst. simpl in *; clear Hexec.
+        inversion Hexec; subst; simpl in *; clear Hexec;
         inversion HschedN; subst tid0.
-        assert (Hmach_step_det :=
-                  internal_step_machine_step [:: ] Hstep).
-        destruct Hmach_step_det as [Hmach_step' Hmach_det].
-        specialize (Hmach_det _ _ _ Hmach_step).
-        destruct Hmach_det as [? [? ?]]; subst.
-        destruct (IHxs _ _ _ _ _ _ Hsafe Htrans) as [HcorestepN Hsafe'].
-        eauto.
+        + rewrite HschedS in Hsafe. rewrite HschedS. simpl in *.
+          assert (Hmach_step_det :=
+                    internal_step_machine_step [:: ] Hstep).
+          destruct Hmach_step_det as [Hmach_step' Hmach_det].
+          specialize (Hmach_det _ _ _ Hmach_step).
+          destruct Hmach_det as [? [? ?]]; subst.
+          split.
+          do 2 eexists; eauto.  eauto.
+        + 
+          assert (Hmach_step_det :=
+                    internal_step_machine_step [:: ] Hstep).
+          destruct Hmach_step_det as [Hmach_step' Hmach_det].
+          specialize (Hmach_det _ _ _ Hmach_step).
+          destruct Hmach_det as [? [? ?]]; subst.
+          destruct (IHxs _ _ _ _ _ _ Hsafe Htrans) as [HcorestepN Hsafe'].
+          eauto.
       - eapply IHxs; eauto.
     }
   Qed.
@@ -652,11 +761,11 @@ Section SimDefs.
       mem_compatible tp' m'.
   Proof.
     intros. induction Hstep. auto. subst.
+    eapply internal_step_compatible; eauto.
     apply IHHstep. eapply internal_step_compatible; eauto.
     eapply internal_step_invariant; eauto.
   Qed.
 
-  
   Lemma weak_obs_eq_restr :
     forall (m m' : Mem.mem) (f : meminj)
       (weakObsEq: weak_mem_obs_eq f m m')
@@ -673,17 +782,18 @@ Section SimDefs.
     intros.
     assert (Hrestr := restrPermMap_correct
                         pf (proj1 Hcanonical) (proj2 Hcanonical) b1 ofs).
-    destruct Hrestr as [_ Hcur].
-    rewrite Hcur.
+    destruct Hrestr as [Hmax Hcur].
     assert (Hrestr' :=
               restrPermMap_correct
                 pf' (proj1 Hcanonical') (proj2 Hcanonical') b2 ofs).
-    destruct Hrestr' as [_ Hcur'].
-    rewrite Hcur'.
-    do 2 rewrite getCurPerm_correct. eauto.
+      destruct Hrestr' as [Hmax' Hcur'].
+    destruct k.
+    - rewrite Hmax; rewrite Hmax';
+      do 2 rewrite getMaxPerm_correct; eauto.
+    - rewrite Hcur; rewrite Hcur';
+      do 2 rewrite getCurPerm_correct; eauto.
   Qed.
 
-  
   Lemma mem_obs_eq_restr :
     forall (m m' : Mem.mem) (f : meminj)
       (memObsEq: mem_obs_eq f m m')
@@ -705,11 +815,13 @@ Section SimDefs.
     constructor.
     - eapply weak_obs_eq_restr; eauto.
     - intros;
-      destruct (Hrestr b1 ofs) as [_ Hcur];
-      rewrite Hcur;
-      destruct (Hrestr' b2 ofs) as [_ Hcur'];
-      rewrite Hcur';
-      do 2 rewrite getCurPerm_correct; auto.
+      destruct (Hrestr b1 ofs) as [Hmax Hcur];
+      destruct (Hrestr' b2 ofs) as [Hmax' Hcur'];
+      destruct k;
+      [rewrite Hmax Hmax';
+        do 2 rewrite getMaxPerm_correct; auto |
+       rewrite Hcur Hcur';
+         do 2 rewrite getCurPerm_correct; auto].
     - intros. unfold restrPermMap; simpl.
       eapply val_obs_eq0; eauto.
       unfold Mem.perm in *.
@@ -722,24 +834,25 @@ Section SimDefs.
   Proof.
     unfold sim_internal_def.
     intros.
-    destruct Hsim as
-        [numThreads memCompC memCompF safeCoarse simWeak simStrong invF].
+    inversion Hsim as
+        [HnumThreads HmemCompC HmemCompF HsafeC HsimWeak HsimStrong HinvF].
     assert (pfc: containsThread tpc i)
       by (eapply containsThread_eq; eauto).
-    destruct (simStrong i pfc pff)
-      as [fi [tpc' [mc' [Hincr [Hexec Htsim]]]]]; clear simStrong.
+    destruct (HsimStrong i pfc pff)
+      as [fi [tpc' [mc' [Hincr [Hexec Htsim]]]]];
+      clear HsimStrong.
     assert (pfc': containsThread tpc' i)
       by (eapply containsThread_internal in pfc; eauto).
     specialize (Htsim pfc').
-    specialize (safeCoarse (mySchedule.buildSched (i :: nil))
-                           ((size ([seq x <- xs | x == i])).+1)).
-    rewrite <- addn1 in safeCoarse.
-    assert (HcoreN := safeN_corestepN_internal xs _ 1 safeCoarse Hexec).
+    specialize (HsafeC (mySchedule.buildSched (i :: nil))
+                       ((size ([seq x <- xs | x == i])).+1)).
+    rewrite <- addn1 in HsafeC.
+    assert (HcoreN := safeN_corestepN_internal xs _ 1 HsafeC Hexec).
     destruct HcoreN as [HcorestepN HsafeN].
     unfold safeN in HsafeN; simpl in *.
     destruct HsafeN as [[[U tpc''] [mc'' Hstep']] _].
     assert (HinvC: invariant tpc) by admit.
-    assert (memCompC' := internal_execution_compatible memCompC HinvC Hexec).
+    assert (memCompC' := internal_execution_compatible HmemCompC HinvC Hexec).
     specialize (Htsim memCompC').
     assert (Hinternal_pfc': pfc' @ I).
     { assert (Hthreads := thread_inj Htsim).
@@ -828,8 +941,103 @@ Section SimDefs.
             by erewrite gssThreadCP with (c' := Krun c).
       }
     Qed.
-          
+    destruct (strong_tsim_internal HinvF Htsim Hstep')
+      as [tpf' [mf' [fi' [HstepF [Hincr' Htsim']]]]].
+    assert (pfc'': containsThread tpc'' i)
+      by (eapply containsThread_internal_step; eauto).
+    assert (pff': containsThread tpf' i)
+      by (eapply containsThread_internal_step; eauto).
+    assert (memCompC'': mem_compatible tpc'' mc'').
+    eapply internal_step_compatible with (Hcompatible := memCompC'); eauto.
+    admit.
+    assert (memCompF': mem_compatible tpf' mf')
+      by (eapply internal_step_compatible with (Hcompatible := HmemCompF);
+           eauto).
+    exists tpf' mf'.
+    split.
+    (** Proof that the fine-grained execution steps *)
+    intros U.
+    inversion HstepF as [HcstepF | [HresumeF ?]].
+    inversion HcstepF.
+    eapply myFineSemantics.core_step; simpl; eauto.
+    subst.
+    inversion HresumeF.
+    eapply myFineSemantics.resume_step; simpl; eauto.
+    econstructor; eauto.
+    (** Proof that the simulation is preserved*)
+    clear HsafeC HcorestepN Hinternal_pfc' Hinternal.
+    eapply Build_sim with (mem_compc := HmemCompC) (mem_compf := memCompF').
+    - admit.
+    - apply (safeCoarse Hsim).
+    - (** Proof of weak simulation between threads *)
 
+
+      Lemma weak_tsim_internal:
+      forall tpc tpf tpf' mc mf mf' i j f
+        (pffi: containsThread tpf i)
+        (pfcj: containsThread tpc j) (pffj: containsThread tpf j)
+        (pffj': containsThread tpf' j)
+        (Hcompc: mem_compatible tpc mc)
+        (Hcompf: mem_compatible tpf mf)
+        (Hcompf': mem_compatible tpf' mf')
+        (HinvF: invariant tpf)
+        (Hstep_internal: internal_step pffi Hcompf tpf' mf')
+        (HweakSim: weak_tsim f pfcj pffj Hcompc Hcompf),
+        weak_tsim f pfcj pffj' Hcompc Hcompf'.
+      Proof.
+      Admitted.
+      
+      intros j pfcj pffj'.
+      assert (pffj: containsThread tpf j)
+        by (eapply containsThread_backward; eauto).
+      eapply weak_tsim_internal with (pffi := pff); eauto.
+    - intros j pfcj pffj'.
+      destruct (i == j) eqn:Heq; move/eqP:Heq=>Heq; subst.
+      exists fi' tpc'' mc''. split.
+      eapply inject_incr_trans; eauto.
+      split.
+      simpl. rewrite if_true.
+
+      Lemma internal_execution_trans :
+        forall i U U' tp tp' tp'' m m' m'' (pf': containsThread tp' i)
+          (Hcomp: mem_compatible tp' m')
+          (Hstep: internal_step pf' Hcomp tp'' m'')
+          (Hexec: internal_execution (U ++ U') tp m U' tp' m'),
+          internal_execution (U ++ [:: i] ++ U') tp m U' tp'' m''.
+      Proof.
+        intros i U. induction U; intros.
+        simpl in *.
+        apply internal_execution_empty_inv in Hexec.
+        destruct Hexec as [? [? ?]]. subst.
+        eapply step_exec; simpl; eauto.
+        simpl in *.
+        inversion Hexec.
+        subst U' tp0 m0 tp'0 m'0.
+        simpl in *.
+        assert (U = empty).
+        { admit. }
+        subst U.
+        simpl in *.
+        inversion Hexec. subst tp0 m0 U' tp'0 m'0.
+        rewrite <- H in H0. subst U.
+        eapply step_trans; simpl; eauto.
+        eapply step_exec; simpl; eauto.
+        subst. simpl in *.
+        simpl in *. inversion HschedS.
+        eapply step_trans; simpl; eauto.
+        subst. simpl in *.
+        eapply step_trans; simpl; eauto.
+      Qed.
+      assert (Heq: j :: [seq x <- xs | x == j] = [seq x <- xs | x == j] ++ [:: j]).
+      { clear. induction xs. reflexivity.
+        simpl. destruct (a==j) eqn:Heq; move/eqP:Heq=>Heq.
+        subst. simpl. rewrite IHxs. reflexivity.
+        auto.
+      }
+      rewrite Heq.
+      eapply internal_execution_trans; eauto.
+      rewrite cats0. assumption.
+      apply eq_refl.
             
     (*required lemmas:
       1. strong_tsim tpc' mc' tpf' mf' fi /\ tpc',mc' --> tpc'',mc'' => 
