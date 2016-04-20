@@ -111,7 +111,10 @@ Module Erasure (SCH: Scheduler NatTID)(SEM: Semantics)(PC: Parching SCH SEM).
 
   Definition core_data:= unit.
   Inductive match_state :  core_data ->  SM_Injection -> jmachine_state ->  mem -> dmachine_state -> mem -> Prop:=
-  MATCH: forall d j js ds U m, match_st js ds -> match_state d j  (U, js) m (U, ds) m.
+    MATCH: forall d j js ds U m,
+      match_st js ds ->
+      invariant(the_sem:=Sem) ds -> (* this could be carried inside the state. But it will sufice to put it here*)
+      match_state d j  (U, js) m (U, ds) m.
   (*Definition parch_machine (jms: jmachine_state): dmachine_state:=
     match jms with (U, jm) => (U, parch_state jm) end.*)
   
@@ -155,6 +158,7 @@ Module Erasure (SCH: Scheduler NatTID)(SEM: Semantics)(PC: Parching SCH SEM).
     - assert (same_sch: JuicyMachine.U = DryMachine.U). admit. (* This should be proven elswhere. The same SCHEDULE *)
       rewrite same_sch; constructor. 
       apply match_init.
+      admit. (*init invariant*)
   Qed.
 
   Lemma core_step' :
@@ -169,16 +173,15 @@ Module Erasure (SCH: Scheduler NatTID)(SEM: Semantics)(PC: Parching SCH SEM).
      match_state cd' mu' st1' m1' st2' m2' /\
      (corestep DMachineSem genv st2 m2 st2' m2').
        intros jmst m1 jmst' m1' STEP cd dmst mu m2 MATCH.
-       exists  m1', tt, mu.
        unfold corestep, JMachineSem,
        JuicyMachine.MachineSemantics, JuicyMachine.MachStep in STEP.
        inversion STEP; subst.
+
        
        (* resume_step *)
+       exists  m1', tt, mu.
        inversion MATCH0; subst.
        inversion H3; subst.
-       
-       
        eapply (MTCH_getThreadC _ ds tid _ ctn H0) in HC.
        exists (U, DSEM.updThreadC (MTCH_ctn H0 ctn) (Krun c)).
        split.
@@ -187,6 +190,7 @@ Module Erasure (SCH: Scheduler NatTID)(SEM: Semantics)(PC: Parching SCH SEM).
          simpl in H; rewrite <- H.
          constructor.
          apply MTCH_updt.
+         admit. (*invariant on updateC*)
        }
        { econstructor 1.
          - eassumption.
@@ -200,28 +204,70 @@ Module Erasure (SCH: Scheduler NatTID)(SEM: Semantics)(PC: Parching SCH SEM).
          inversion MATCH; subst.
          inversion H3; subst.
          inversion Hcorestep.
-         Search dstate.
+         destruct H4 as [rdecay rageable].
          Axiom get_permMap: mem -> permissions.share_map.
-         exists (U, updThread (MTCH_ctn H0 (Htid))
-                         (Krun c') (get_permMap (juicy_mem.m_dry jm'))).
-         split.
-         destruct jmst' as [U' js'].
-         simpl in *; subst.
-         constructor.
-         simpl.
-         - Axiom upd_MATCH: forall js ds tid (Htid: JSEM.containsThread js tid) c new_jm
+         Parameter parch_perm:
+             juicy_mem.juicy_mem -> permissions.access_map  -> Prop.
+           Lemma parch_perm_lt: forall {jm p},
+               parch_perm jm p -> permissions.permMapLt p (permissions.getMaxPerm (juicy_mem.m_dry jm)).
+           Admitted.
+           Lemma erasureSingleThread:
+             forall jm jm' genv c c' p,
+               corestep Sem genv c (juicy_mem.m_dry jm) c' (juicy_mem.m_dry jm') ->
+               juicy_mem.resource_decay (Mem.nextblock (juicy_mem.m_dry jm)) (juicy_mem.m_phi jm) (juicy_mem.m_phi jm') ->
+               forall (pape: parch_perm jm p),
+               exists m',
+                 corestep Sem genv c (restrPermMap (parch_perm_lt pape)) c' m' /\
+                 parch_perm jm' (permissions.getCurPerm m').
+           Admitted.
+           eapply (erasureSingleThread _ _ _ _ _ ) in H2; try assumption. (*Have to prove parche_perm and choose the perm_map*)
+           destruct H2 as [m2' [DSTEP pape']].
+           exists  m2', tt, mu.  
+           exists (U, updThread (MTCH_ctn H0 (Htid))
+                         (Krun c') (get_permMap (m2'))).
+           split.
+           Focus 2.
+           
+           destruct jmst' as [U' js'].
+           simpl in *; subst.
+           
+         (* - 
+           Axiom upd_MATCH: forall js ds tid (Htid: JSEM.containsThread js tid) c new_jm
              (MATCH: match_st js ds),
              match_st
                (juicy_machine.updThread js (cont2ord Htid) c (juicy_mem.m_phi new_jm))
                (updThread (MTCH_ctn MATCH Htid) c (get_permMap (juicy_mem.m_dry new_jm))).
            apply upd_MATCH.
-         - 
+         - admit. (*invariant step*) *)
+         - simpl.
            assert (Hcompatible:mem_compatible ds m2) by (apply (@MTCH_compat js _ _ H0 Hcmpt)).
            assert (Hcnt : ThreadPool.containsThread ds tid) by (apply (@MTCH_ctn js); auto).
            econstructor 2; try eassumption.
            unfold DSEM.cstep.
-           eapply (@step_dry _ _ Sem _ tid ds m2 (MTCH_ctn H0 Htid) _  _ c).
-           instantiate(1:=Hcompatible).
+           econstructor.
+           - reflexivity.
+           - assumption.
+           - apply MTCH_getThreadC; eassumption.
+           - unfold DSEM.Sem.
+             Focus 2.
+             simpl.
+           eapply (@step_dry _ _ Sem _ tid ds m2 (MTCH_ctn H0 Htid) Hcompatible  _ c); try eassumption; simpl.
+           
+           
+               
+               
+                                        
+           + 
+             
+             Require Import veric.jstep.
+             assert (JSTEP:= (FSem.step _ _ JuicyFSem.t) _ _ JSEM.Sem). simpl in JSTEP.
+             simpl in H2.*)
+             unfold personal_mem. destruct Hcmpt. destruct (perm_comp (cont2ord Htid)); simpl.
+             
+             admit. (* This is wrong!!!*)
+             (* The cur permission on the on the memory is definetly not the same,
+              because the juicy machine doesn't update it! *)
+           
                   (restrPermMap (permMapsInv_lt (perm_comp Hcompatible) (MTCH_ctn H0 Htid) ))).
            
            try eassumption. Focus 4. simpl in *. unfold JSEM.Sem in H1; unfold DSEM.Sem. eassumption; simpl.
@@ -231,6 +277,7 @@ Module Erasure (SCH: Scheduler NatTID)(SEM: Semantics)(PC: Parching SCH SEM).
            simpl.
          unfold match_state.
        (* suspend_step *)
+       exists  m1', tt, mu.
        inversion MATCH0; subst.
        inversion H; subst.
        eapply (MTCH_getThreadC _ ds tid _ ctn H0) in HC.
@@ -250,8 +297,10 @@ Module Erasure (SCH: Scheduler NatTID)(SEM: Semantics)(PC: Parching SCH SEM).
          - simpl.
            econstructor; try eassumption; reflexivity. }
        (* conc_step *)
+       exists  m1', tt, mu. (* ? *)
        admit.
        (* step_halted *)
+       exists  m1', tt, mu.
        exists (SCH.schedSkip (fst dmst), snd dmst).
        split. 
        { destruct jmst'.
@@ -283,6 +332,7 @@ Module Erasure (SCH: Scheduler NatTID)(SEM: Semantics)(PC: Parching SCH SEM).
          }
            
        (* schedfail *)
+       exists  m1', tt, mu.
        exists (fst jmst', snd dmst).
        split.
        - destruct jmst' as [U' jst'];  econstructor.

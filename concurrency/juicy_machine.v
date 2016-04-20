@@ -485,6 +485,7 @@ Module Concur.
     Defined.
 
     Definition juicy_sem:= (FSem.F _ _ JuicyFSem.t) _ _ the_sem.
+    Definition juicy_step:= (FSem.step _ _ JuicyFSem.t) _ _ the_sem.
     
     Inductive juicy_step {tid0 tp m} (cnt: containsThread tp tid0)
       (Hcompatible: mem_compatible tp m) : thread_pool -> mem  -> Prop :=
