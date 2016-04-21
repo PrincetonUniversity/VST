@@ -42,7 +42,9 @@ Inductive meta_state {imp: Imperative} {sss: SmallStepSemantics}: Type :=
   | NonTerminating: meta_state
   | Terminating: state -> meta_state.
 
-Definition eval {imp: Imperative} {sss: SmallStepSemantics} (c: cmd) (src dst: meta_state): Prop :=
+Definition global_state {imp: Imperative} {sss: SmallStepSemantics} := meta_state.
+
+Definition eval {imp: Imperative} {sss: SmallStepSemantics} (c: cmd) (src dst: global_state): Prop :=
   match src, dst with
   | NonTerminating, NonTerminating => True
   | NonTerminating, Terminating _ => False
@@ -52,7 +54,7 @@ Definition eval {imp: Imperative} {sss: SmallStepSemantics} (c: cmd) (src dst: m
      forall k, access (Ssequence c k, s1) (k, s2)
   end.
 
-Definition triple {imp: Imperative} {sss: SmallStepSemantics} (P: meta_state -> Prop) (c: cmd)  (Q: meta_state -> Prop): Prop :=
+Definition triple {imp: Imperative} {sss: SmallStepSemantics} (P: global_state -> Prop) (c: cmd)  (Q: global_state -> Prop): Prop :=
   forall s1, P s1 -> forall s2, eval c s1 s2 -> Q s2.
 
 End Sequential.
@@ -68,34 +70,54 @@ Class SmallStepSemantics {imp: Imperative}: Type := {
 }.
 
 Global Existing Instance ora.
-(*
-Inductive global_step {imp: Imperative} {sss: SmallStepSemantics}: (RandomHistory -> option (cmd * state)) -> (RandomHistory -> option (cmd * state)) -> Prop :=
-  | normal_step: forall h0 s1 s2 cs1 cs2,
-     s1 h0 = Some cs1 ->
-     s2 h0 = Some cs2 ->
-     step cs1 (inl cs2) ->
-     (forall h, h0 <> h -> s1 h = s2 h) ->
-     global_step s1 s2
-  | random_step: forall h0 s1 s2 cs1 cs2,
-     s1 h0 = Some cs1 ->
-     s2 h0 = Some cs2 ->
-     step cs1 (inl cs2) ->
-     (forall h, h0 <> h -> s1 h = s2 h) ->
-     global_step s1 s2
+
+Record local_normal_step {imp: Imperative} {sss: SmallStepSemantics} (h: RandomHistory) (s1 s2: RandomVariable (cmd * state)): Prop := {
+  cs1: cmd * state;
+  cs2: cmd * state;
+  sound1: s1 h = Some cs1;
+  sound2: s2 h = Some cs2;
+  step_fact: step cs1 (inl cs2)
+}.
+
+Record local_random_step {imp: Imperative} {sss: SmallStepSemantics} (h: RandomHistory) (s1 s2: RandomVariable (cmd * state)): Prop := {
+  cs1: cmd * state;
+  q: ro_question;
+  cs2: ro_answer q -> cmd * state;
+  sound1: s1 h = Some cs1;
+  sound2: forall a h', history_cons h (existT ro_answer q a) h' -> s2 h' = Some (cs2 a);
+  step_fact: step cs1 (inr (existT (fun x => ro_answer x -> cmd * state) q cs2))
+}.
+
+Record global_step {imp: Imperative} {sss: SmallStepSemantics} (s1 s2: RandomVariable (cmd * state)): Prop := {
+  normal_domain: RandomHistory -> Prop;
+  random_domain: RandomHistory -> Prop;
+  domain_consi:
+    forall h, normal_domain h -> random_domain h -> False;
+  normal_step:
+    forall h, normal_domain h -> local_normal_step h s1 s2;
+  random_step:
+    forall h, random_domain h -> local_random_step h s1 s2;
+  stable_part:
+    forall h,
+      ~ normal_domain h ->
+      ~ random_domain h ->
+      (forall a h0, random_domain h0 -> ~ history_cons h0 a h) ->
+      s1 h = s2 h
+}.
 
 Inductive access {imp: Imperative} {sss: SmallStepSemantics}:
-  (RandomHistory -> option (cmd * state)) -> (RandomHistory -> option (cmd * state)) -> Prop :=
+  RandomVariable (cmd * state) -> RandomVariable (cmd * state) -> Prop :=
   | access_refl: forall cs, access cs cs
-  | access_normal_step: forall src h0 cs dst,
-       step (src h0) (inl (cs h0)) ->
-       (forall h, h <> h0 -> src h = cs h) ->
-       access cs dst -> access cs dst.
+  | access_step: forall src cs dst, global_step src cs -> access cs dst -> access cs dst.
 
 Inductive meta_state {imp: Imperative} {sss: SmallStepSemantics}: Type :=
   | NonTerminating: meta_state
   | Terminating: state -> meta_state.
 
+Definition global_state {imp: Imperative} {sss: SmallStepSemantics}: Type :=
+  {s: RandomVariable meta_state | forall h, infinite_history h -> s h = None \/ s h = Some NonTerminating}.
 
+(*
 
 
 
