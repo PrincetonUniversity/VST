@@ -1,6 +1,6 @@
 Require Import compcert.lib.Integers.
 Require Import ssreflect ssrbool ssrnat eqtype.
-
+Require Import Lists.List.
 Require Import Coq.ZArith.ZArith.
 Set Implicit Arguments.
 
@@ -53,6 +53,76 @@ Lemma if_false : forall {A : Type} b (x y : A)
 Proof.
   intros. rewrite <- Bool.if_negb. by rewrite Hfalse.
 Defined.
+
+Module BlockList.
+  Import ListNotations.
+
+  Fixpoint mkBlockList (n : nat) : list nat :=
+    match n with
+      | 0 => nil
+      | S 0 => nil
+      | S n =>  n :: (mkBlockList n)
+    end.
+
+  Lemma mkBlockList_unfold : forall n (Hn: n > 1),
+                               n :: (mkBlockList n) = mkBlockList (S n).
+  Proof.
+    intros; simpl; destruct n. exfalso; auto.
+    reflexivity.
+  Qed.
+
+  Lemma mkBlockList_unfold' : forall n,
+                                (S n) :: (mkBlockList (S n)) = mkBlockList (S (S n)).
+  Proof.
+    intros; reflexivity. 
+  Qed.
+  
+  Lemma mkBlockList_include : forall n k (Hk: k > 0) (Hineq: k < n) (Hn: n > 1),
+                                List.In k (mkBlockList n).
+  Proof.
+    intros n. 
+    induction n;
+      intros.
+    simpl. ssromega.
+    destruct n. ssromega.
+    rewrite <- mkBlockList_unfold'. simpl. simpl in IHn.
+    destruct (beq_nat k (S n)) eqn:?. apply beq_nat_true in Heqb. subst.
+    now left.
+    right. apply IHn; auto;  clear IHn.
+    apply beq_nat_false in Heqb. ssromega.
+    apply beq_nat_false in Heqb. ssromega.
+  Qed.
+
+  Lemma mkBlockList_not_in : forall n m
+                               (Hge: m >= n)
+                               (HIn: List.In m (mkBlockList n)),
+                               False.
+  Proof.
+    intros.
+    destruct n. auto.
+    destruct n. auto. generalize dependent m.
+    induction n; intros. simpl in HIn. destruct HIn; subst; auto.
+    rewrite <- mkBlockList_unfold' in HIn.
+    apply List.in_inv in HIn. destruct HIn as [? | HIn]; subst.
+    rewrite ltnn in Hge. auto.
+    eapply IHn. Focus 2. eauto.
+    eapply leq_ltn_trans; eauto.
+  Qed.
+
+  Lemma mkBlockList_range:
+    forall n k
+      (HIn: List.In k (mkBlockList (S (S n)))),
+      k < (S (S n)) /\ k > 0.
+  Proof.
+    intro n. induction n; intros. simpl in HIn.
+    destruct HIn; subst; auto.
+    rewrite <- mkBlockList_unfold' in HIn.
+    apply List.in_inv in HIn.
+    destruct HIn as [? | HIn]; subst.
+    auto. apply IHn in HIn. destruct HIn. auto.
+  Qed.
+
+End BlockList.
 
 (*
 Module SeqLemmas.
@@ -125,71 +195,6 @@ Module SeqLemmas.
   Defined.
   
 End SeqLemmas.
-
-Module BlockList.
-  
-  Fixpoint mkBlockList (n : nat) : list nat :=
-    match n with
-      | 0 => nil
-      | S 0 => nil
-      | S n => n :: (mkBlockList n)
-    end.
-
-  Lemma mkBlockList_unfold : forall n (Hn: n > 1),
-                               n :: (mkBlockList n) = mkBlockList (S n).
-  Proof.
-    intros; simpl; destruct n. exfalso; auto.
-    reflexivity.
-  Qed.
-
-  Lemma mkBlockList_unfold' : forall n,
-                                (S n) :: (mkBlockList (S n)) = mkBlockList (S (S n)).
-  Proof.
-    intros; reflexivity. 
-  Qed.
-  
-  Lemma mkBlockList_include : forall n k (Hk: k > 0) (Hineq: k < (S (S n))),
-                                List.In k (mkBlockList (S (S n))).
-  Proof.
-    intros n. 
-    induction n;
-      intros.
-    simpl. left. ssromega.
-    rewrite <- mkBlockList_unfold'. simpl. simpl in IHn.
-    destruct (beq_nat k (S (S n))) eqn:?. apply beq_nat_true in Heqb. subst.
-    now left. right. apply IHn; auto;  clear IHn.
-    apply beq_nat_false in Heqb. ssromega.
-  Qed.
-
-  Lemma mkBlockList_not_in : forall n m
-                               (Hge: m >= n)
-                               (HIn: List.In m (mkBlockList n)),
-                               False.
-  Proof.
-    intros.
-    destruct n. auto.
-    destruct n. auto. generalize dependent m.
-    induction n; intros. simpl in HIn. destruct HIn; subst; auto.
-    rewrite <- mkBlockList_unfold' in HIn.
-    apply List.in_inv in HIn. destruct HIn as [? | HIn]; subst.
-    rewrite ltnn in Hge. auto.
-    eapply IHn. Focus 2. eauto.
-    eapply leq_ltn_trans; eauto.
-  Qed.
-
-  Lemma mkBlockList_range:
-    forall n k
-      (HIn: List.In k (mkBlockList (S (S n)))),
-      k < (S (S n)) /\ k > 0.
-  Proof.
-    intro n. induction n; intros. simpl in HIn.
-    destruct HIn; subst; auto.
-    rewrite <- mkBlockList_unfold' in HIn.
-    apply List.in_inv in HIn.
-    destruct HIn as [? | HIn]; subst.
-    auto. apply IHn in HIn. destruct HIn. auto.
-  Qed.
-
-End BlockList. *)
+ *)
 
 

@@ -226,6 +226,8 @@ Section poolDefs.
 
   Record mem_compatible m :=
     { perm_comp: perm_compatible (getMaxPerm m);
+      perm_max: forall b ofs, Mem.valid_block m b ->
+                         permission_at m b ofs Max = Some Freeable;
       mem_canonical: isCanonical (getMaxPerm m)
     }.
 
@@ -455,14 +457,15 @@ Module Concur.
     Inductive dry_step {tid0 tp m} (cnt: containsThread tp tid0)
       (Hcompatible: mem_compatible tp m) : thread_pool -> mem  -> Prop :=
     | step_dry :
-        forall (tp':thread_pool) c m1 m' (c' : cT),
+        forall (tp':thread_pool) c m1 m' can_m' (c' : cT),
           forall (Hrestrict_pmap:
                restrPermMap ((perm_comp Hcompatible) tid0 cnt) = m1)
             (Hinv : invariant tp)
             (Hthread: getThreadC cnt = Krun c)
             (Hcorestep: corestep the_sem the_ge c m1 c' m')
-            (Htp': tp' = updThread cnt (Krun c') (getCurPerm m')),
-            dry_step cnt Hcompatible tp' m'.
+            (Hm': can_m' = setMaxPerm m')
+            (Htp': tp' = updThread cnt (Krun c') (getCurPerm can_m')),
+            dry_step cnt Hcompatible tp' can_m'.
     
     (*missing lock-ranges*)
     Inductive ext_step {tid0 tp m}
