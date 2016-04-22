@@ -30,6 +30,12 @@ Definition finite_history {ora: RandomOracle} (h: RandomHistory): Prop :=
 Definition infinite_history {ora: RandomOracle} (h: RandomHistory): Prop :=
   forall n, h n <> None.
 
+Definition prefix_history {ora: RandomOracle} (h1 h2: RandomHistory): Prop :=
+  forall n, h1 n = None \/ h1 n = h2 n.
+
+Definition n_bounded_prefix_history {ora: RandomOracle} (m: nat) (h1 h2: RandomHistory): Prop :=
+  forall n, (h1 n = None /\ h2 (n + m) = None) \/ h1 n = h2 n.
+
 Record RandomVariable {ora: RandomOracle} (A: Type): Type := {
   raw_var: RandomHistory -> option A;
   rand_consi1:
@@ -50,6 +56,70 @@ Record RandomVariable {ora: RandomOracle} (A: Type): Type := {
 Definition rand_var_get {ora: RandomOracle} {A: Type} (v: RandomVariable A) (h: RandomHistory): option A := raw_var A v h.
 
 Coercion rand_var_get: RandomVariable >-> Funclass.
+
+Definition join {ora: RandomOracle} {A: Type} (v1 v2 v: RandomVariable A): Prop :=
+  forall h, (v1 h = None /\ v2 h = v h) \/ (v2 h = None /\ v1 h = v h).
+
+Definition Forall_RandomHistory {ora: RandomOracle} {A: Type} (P: A -> Prop) (v: RandomVariable A): Prop :=
+  forall h,
+    match v h with
+    | None => True
+    | Some a => P a
+    end.
+
+Definition RandomVarMap {ora: RandomOracle} {A B: Type} (f: A -> B) (v: RandomVariable A): RandomVariable B.
+  refine (Build_RandomVariable _ _ (fun h => match v h with Some a => Some (f a) | None => None end) _ _).
+  + destruct v as [v ?H ?H]; simpl.
+    intros.
+    specialize (H h1 h2 n a H1 H2 H3).
+    clear - H.
+    destruct (v h1), (v h2); destruct H; inversion H; auto.
+  + destruct v as [v ?H ?H]; simpl.
+    intros.
+    specialize (H0 h1 h2 n a1 a2 H1 H2 H3 H4).
+    clear - H0.
+    destruct (v h1), (v h2); destruct H0; inversion H; auto.
+Defined.
+
+Lemma RandomVarMap_sound: forall {ora: RandomOracle} {A B: Type} (f: A -> B) (v: RandomVariable A) h,
+  RandomVarMap f v h =
+  match v h with
+  | Some a => Some (f a)
+  | None => None
+  end.
+Proof. intros. reflexivity. Qed.
+
+Definition RandomVarDomain {ora: RandomOracle}: Type := RandomVariable unit.
+
+Definition DomainOfVar {ora: RandomOracle} {A: Type} (v: RandomVariable A): RandomVarDomain :=
+  RandomVarMap (fun _ => tt) v.
+
+Definition in_domain {ora: RandomOracle} (v: RandomVarDomain) (h: RandomHistory): Prop :=
+  v h = Some tt.
+
+Coercion in_domain: RandomVarDomain >-> Funclass.
+
+Lemma DomainOfVar_sound: forall {ora: RandomOracle} {A: Type} (v: RandomVariable A),
+  forall h, match v h with Some _ => True | None => False end <-> DomainOfVar v h.
+Proof.
+  intros.
+  unfold DomainOfVar.
+  pose proof RandomVarMap_sound (fun _ => tt) v h.
+  unfold in_domain.
+  rewrite H; clear H.
+  destruct (v h); split; intros; try tauto; congruence.
+Qed.
+
+Definition future_domain {ora: RandomOracle} (present future: RandomVarDomain): Prop :=
+  forall h, future h ->
+  exists h', prefix_history h' h -> present h'.
+
+Definition n_bounded_future_domain {ora: RandomOracle} (n: nat) (present future: RandomVarDomain): Prop :=
+  forall h, future h ->
+  exists h', n_bounded_prefix_history n h' h -> present h'.
+
+Definition bounded_future_domain {ora: RandomOracle} (present future: RandomVarDomain): Prop :=
+  exists n, n_bounded_future_domain n present future.
 
 (*
 (* TODO: seems no use *)

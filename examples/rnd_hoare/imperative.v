@@ -88,11 +88,13 @@ Record local_random_step {imp: Imperative} {sss: SmallStepSemantics} (h: RandomH
   step_fact: step cs1 (inr (existT (fun x => ro_answer x -> cmd * state) q cs2))
 }.
 
-Record global_step {imp: Imperative} {sss: SmallStepSemantics} (s1 s2: RandomVariable (cmd * state)): Prop := {
-  normal_domain: RandomHistory -> Prop;
-  random_domain: RandomHistory -> Prop;
-  domain_consi:
+Record global_step {imp: Imperative} {sss: SmallStepSemantics} (P: RandomVarDomain) (s1 s2: RandomVariable (cmd * state)): Prop := {
+  normal_domain: RandomVarDomain;
+  random_domain: RandomVarDomain;
+  domain_consi1:
     forall h, normal_domain h -> random_domain h -> False;
+  domain_consi2:
+    forall h, P h <-> normal_domain h \/ random_domain h;
   normal_step:
     forall h, normal_domain h -> local_normal_step h s1 s2;
   random_step:
@@ -105,10 +107,34 @@ Record global_step {imp: Imperative} {sss: SmallStepSemantics} (s1 s2: RandomVar
       s1 h = s2 h
 }.
 
-Inductive access {imp: Imperative} {sss: SmallStepSemantics}:
-  RandomVariable (cmd * state) -> RandomVariable (cmd * state) -> Prop :=
-  | access_refl: forall cs, access cs cs
-  | access_step: forall src cs dst, global_step src cs -> access cs dst -> access cs dst.
+Record step_path {imp: Imperative} {sss: SmallStepSemantics}: Type := {
+  path_states: nat -> RandomVariable (cmd * state);
+  step_domains: nat -> RandomVarDomain;
+  step_sound: forall n, global_step (step_domains n) (path_states n) (path_states (S n));
+  domain_mono: forall n, future_domain (step_domains n) (step_domains (S n))
+}.
+
+Record is_limit {imp: Imperative} {sss: SmallStepSemantics} (l: step_path) (lim: RandomVariable (option (cmd * state))): Prop := {
+  finite_part_of_limit:
+    forall h cs, lim h = Some (Some cs) ->
+      exists n,
+        path_states l n h = Some cs /\
+        (forall h', prefix_history h' h -> ~ step_domains l n h');
+  infinite_part_of_limit:
+    forall h, lim h = Some None ->
+      forall n, exists h', prefix_history h' h /\ step_domains l n h';
+  invalid_part_of_limit:
+    forall h, lim h = None ->
+      exists n,
+        path_states l n h = None /\
+        (forall h', prefix_history h' h -> ~ step_domains l n h')
+}.
+  
+Definition access {imp: Imperative} {sss: SmallStepSemantics} (src dst: RandomVariable (cmd * state)): Prop :=
+  exists (l: step_path) (n: nat), path_states l 0 = src /\ path_states l n = dst.
+
+Definition omega_access {imp: Imperative} {sss: SmallStepSemantics} (src: RandomVariable (cmd * state)) (dst: RandomVariable (option (cmd * state))) : Prop :=
+  exists (l: step_path), path_states l 0 = src /\ is_limit l dst.
 
 Inductive meta_state {imp: Imperative} {sss: SmallStepSemantics}: Type :=
   | NonTerminating: meta_state
@@ -116,6 +142,31 @@ Inductive meta_state {imp: Imperative} {sss: SmallStepSemantics}: Type :=
 
 Definition global_state {imp: Imperative} {sss: SmallStepSemantics}: Type :=
   {s: RandomVariable meta_state | forall h, infinite_history h -> s h = None \/ s h = Some NonTerminating}.
+
+Definition global_state_random_variable {imp: Imperative} {sss: SmallStepSemantics}: global_state -> RandomVariable meta_state := @proj1_sig _ _.
+
+Coercion global_state_random_variable: global_state >-> RandomVariable.
+(*
+Record eval {imp: Imperative} {sss: SmallStepSemantics} (c: cmd) (src dst: global_state): Prop := {
+  frame: RandomVariable meta_state;
+  src': RandomVariable meta_state;
+  dst': RandomVariable meta_state;
+  join_src: join src' frame src;
+  join_dst: join dst' frame dst;
+  frame_non_terminating: Forall_RandomHistory (eq NonTerminating) frame;
+  src'_terminnating: Forall_RandomHistory (fun x => NonTerminating <> x) frame
+}.
+
+  match src, dst with
+  | NonTerminating, NonTerminating => True
+  | NonTerminating, Terminating _ => False
+  | Terminating s1, NonTerminating =>
+     forall s2 k, access (Ssequence c k, s1) (k, s2) -> steps (k, s2)
+  | Terminating s1, Terminating s2 =>
+     forall k, access (Ssequence c k, s1) (k, s2)
+  end.
+*)
+
 
 (*
 
