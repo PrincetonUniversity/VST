@@ -76,17 +76,6 @@ Section poolDefs.
 
   Notation num_threads := (ThreadPool.num_threads).
   Notation thread_pool := (t cT).
-  
-  (* Per-thread disjointness definition*)
-  Definition race_free (tp : thread_pool) :=
-    forall tid0 tid0' (Htid0 : tid0 < (num_threads tp))
-      (Htid0' : tid0' < (num_threads tp)) (Htid: tid0 <> tid0'),
-      permMapsDisjoint (perm_maps tp (Ordinal Htid0))
-                       (perm_maps tp (Ordinal Htid0')).
-
-  Definition newPermMap_wf pmap :=
-    forall tid0 (Htid0 : tid0 < num_threads tp),
-      permMapsDisjoint ((perm_maps tp) (Ordinal Htid0)) pmap.
 
   Require Import fintype.
 
@@ -111,7 +100,19 @@ Section poolDefs.
     rewrite <- Bool.negb_true_iff. auto.
     rewrite H. simpl. rewrite add0n. reflexivity.
   Defined.
+
+  (** ThreadPool getters *)
+  Definition getThreadC tid (cnt: containsThread tp tid) : ctl := tp (Ordinal cnt).
   
+  Definition getThreadPerm tid (cnt: containsThread tp tid) : access_map :=
+    (perm_maps tp) (Ordinal cnt).
+
+  (** Well-formed predicate on new permission map*)
+  Definition newPermMap_wf pmap :=
+    forall tid0 (Htid0 : tid0 < num_threads tp),
+      permMapsDisjoint ((perm_maps tp) (Ordinal Htid0)) pmap.
+
+  (** ThreadPool setters *)
   Definition addThread (c : cT) (pmap : access_map) : thread_pool :=
     let: new_num_threads := pos_incr (num_threads tp) in
     let: new_tid := ordinal_pos_incr (num_threads tp) in
@@ -126,49 +127,6 @@ Section poolDefs.
              | None => pmap
              | Some n' => (perm_maps tp) n'
            end).
-
-  Lemma addThread_racefree :
-    forall c p (Hwf: newPermMap_wf p) (Hrace: race_free tp),
-      race_free (addThread c p).
-  Proof.
-    unfold race_free in *. intros.
-    simpl.
-    match goal with
-      | [ |- context[ match ?Expr with _ => _ end]] =>
-        destruct Expr as [ord0|] eqn:Hget0
-    end;
-      match goal with
-        | [ |- context[ match ?Expr with _ => _ end]] =>
-          destruct Expr as [ord1|] eqn:Hget1
-      end; simpl in *.
-    - apply unlift_m_inv in Hget0.
-      apply unlift_m_inv in Hget1. subst.
-      destruct ord0 as [tid0 pf0], ord1 as [tid1 pf1]; simpl in Htid.
-      eapply Hrace; eauto.
-    - apply unlift_m_inv in Hget0.
-      subst. unfold newPermMap_wf in Hwf.
-      destruct ord0. eapply Hwf; eauto.
-    - apply unlift_m_inv in Hget1.
-      subst. unfold newPermMap_wf in Hwf.
-      destruct ord1. apply permMapsDisjoint_comm. eapply Hwf; eauto.
-    - destruct (tid0 == (num_threads tp)) eqn:Heq0.
-      + move/eqP:Heq0=>Heq0. subst.
-        assert (Hcontra: (ordinal_pos_incr (num_threads tp)) !=
-                                                        (Ordinal (n:=(num_threads tp).+1) (m:=tid0') Htid0')).
-        { apply/eqP. intros Hcontra.
-          unfold ordinal_pos_incr in Hcontra.
-          inversion Hcontra; auto.
-        }
-        exfalso. apply unlift_some in Hcontra. rewrite Hget1 in Hcontra.
-        destruct Hcontra. discriminate.
-      + move/eqP:Heq0=>Heq0.
-        assert (Hcontra: (ordinal_pos_incr (num_threads tp)) !=
-                                                        (Ordinal (n:=(num_threads tp).+1) (m:=tid0) Htid0)).
-        { apply/eqP. intros Hcontra.
-          unfold ordinal_pos_incr in Hcontra. inversion Hcontra. subst. auto. }
-        exfalso. apply unlift_some in Hcontra. rewrite Hget0 in Hcontra. destruct Hcontra.
-        discriminate.
-  Defined.
          
   Definition updThreadC tid (cnt: containsThread tp tid) (c' : ctl) : thread_pool :=
     mk (num_threads tp)
@@ -180,9 +138,9 @@ Section poolDefs.
     mk (num_threads tp) (pool tp) (fun n =>
                                      if n == (Ordinal cnt) then pmap' else (perm_maps tp) n).
 
-  Definition permMap_wf pmap tid :=
-    forall tid0 (Htid0 : tid0 < num_threads tp) (Hneq: tid <> tid0),
-      permMapsDisjoint ((perm_maps tp) (Ordinal Htid0)) pmap.
+  Definition permMap_wf pmap i :=
+    forall j (cntj : containsThread tp j) (Hneq: i <> j),
+      permMapsDisjoint (getThreadPerm cntj) pmap.
   
   Definition updThread tid (cnt: containsThread tp tid) (c' : ctl)
              (pmap : access_map) : thread_pool :=
@@ -191,47 +149,110 @@ Section poolDefs.
           if n == (Ordinal cnt) then c' else tp n)
         (fun n =>
            if n == (Ordinal cnt) then pmap else (perm_maps tp) n).
+End poolDefs.
 
-  Lemma updThread_wf : forall tid (pf : containsThread tp tid) pmap
-                         (Hwf: permMap_wf pmap tid)
+Section Invariants.
+
+  Variable cT : Type.
+  Import ThreadPool.
+
+  Notation num_threads := (ThreadPool.num_threads).
+  Notation thread_pool := (t cT).
+  
+  (** Per-thread disjointness definition*)
+  Definition race_free (tp : thread_pool) :=
+    forall i j (cnti : containsThread tp i)
+      (cntj : containsThread tp j) (Hneq: i <> j),
+      permMapsDisjoint (getThreadPerm cnti)
+                       (getThreadPerm cntj).
+
+  Opaque pos_incr.
+  Lemma addThread_racefree :
+    forall tp c p (Hwf: newPermMap_wf tp p) (Hrace: race_free tp),
+      race_free (addThread tp c p).
+  Proof.
+    unfold race_free in *. intros.
+    simpl.
+    match goal with
+    | [ |- context[ match ?Expr with _ => _ end]] =>
+      destruct Expr as [ordi|] eqn:Hgeti
+    end;
+      match goal with
+      | [ |- context[ match ?Expr with _ => _ end]] =>
+        destruct Expr as [ordj|] eqn:Hgetj
+      end.
+    unfold containsThread in *; simpl in *.
+    - unfold getThreadPerm in Hrace.
+      apply unlift_m_inv in Hgeti.
+      apply unlift_m_inv in Hgetj.
+      destruct ordi as [i' pfi], ordj as [j' pfj]; subst.
+      simpl in *.
+      eapply Hrace; eauto.
+    - apply unlift_m_inv in Hgeti.
+      subst. unfold newPermMap_wf in Hwf.
+      destruct ordi. eapply Hwf; eauto.
+    - apply unlift_m_inv in Hgetj.
+      subst. unfold newPermMap_wf in Hwf.
+      destruct ordj. apply permMapsDisjoint_comm. eapply Hwf; eauto.
+    - destruct (i == (num_threads tp)) eqn:Heqi.
+      + move/eqP:Heqi=>Heqi. subst.
+        assert (Hcontra: (ordinal_pos_incr (num_threads tp))
+                           != (Ordinal (n:=(num_threads tp).+1) (m:=j) cntj)).
+        { apply/eqP. intros Hcontra.
+          unfold ordinal_pos_incr in Hcontra.
+          inversion Hcontra; auto.
+        }
+        exfalso. apply unlift_some in Hcontra. rewrite Hgetj in Hcontra.
+        destruct Hcontra. discriminate.
+      + move/eqP:Heqi=>Heqi.
+        assert (
+            Hcontra: (ordinal_pos_incr (num_threads tp))
+                       !=
+                       (Ordinal (n:=(num_threads tp).+1) (m:=i) cnti)).
+        { apply/eqP. intros Hcontra.
+          unfold ordinal_pos_incr in Hcontra. inversion Hcontra. subst. auto. }
+        exfalso. apply unlift_some in Hcontra.
+        rewrite Hgeti in Hcontra. destruct Hcontra.
+        discriminate.
+  Defined.
+
+  Lemma updThread_wf : forall tp tid (pf : containsThread tp tid) pmap
+                         (Hwf: permMap_wf tp pmap tid)
                          c'
                          (Hrace_free: race_free tp),
-                         race_free (updThread pf c' pmap).
+      race_free (updThread pf c' pmap).
   Proof.
     intros.
     unfold race_free. intros.
     simpl.
-    destruct (Ordinal (n:=num_threads tp) (m:=tid0) Htid0 ==  Ordinal (n:=num_threads tp) (m:=tid) pf) eqn:Heq0,
-                                                                                                     (Ordinal (n:=num_threads tp) (m:=tid0') Htid0' == Ordinal (n:=num_threads tp) (m:=tid) pf) eqn:Heq0'.
-    - move/eqP:Heq0 => Heq0. subst.
-      move/eqP:Heq0' => Heq0'. inversion Heq0'. inversion Heq0; subst. exfalso; auto.
-    - move/eqP:Heq0=>Heq0. inversion Heq0. subst. 
+    destruct (Ordinal (n:=num_threads tp) (m:=i) cnti ==
+              Ordinal (n:=num_threads tp) (m:=tid) pf) eqn:Heqi;
+      destruct (Ordinal (n:=num_threads tp) (m:=j) cntj ==
+                Ordinal (n:=num_threads tp) (m:=tid) pf) eqn:Heqj.
+    - move/eqP:Heqi => Heqi. subst.
+      move/eqP:Heqj => Heqj. inversion Heqj. inversion Heqi; subst. exfalso; auto.
+    - move/eqP:Heqi=>Heqi. inversion Heqi. subst. 
       apply permMapsDisjoint_comm.
       eapply Hwf. simpl; auto.
-    - move/eqP:Heq0'=>Heq0'. inversion Heq0'. subst.
+    - move/eqP:Heqj=>Heqj. inversion Heqj. subst.
       eapply Hwf. simpl; auto.
     - simpl in *. eapply Hrace_free; eauto.
   Defined.
-  
-  Definition getThreadC tid (cnt: containsThread tp tid) : ctl := tp (Ordinal cnt).
-  
-  Definition getThreadPerm tid (cnt: containsThread tp tid) : access_map :=
-    (perm_maps tp) (Ordinal cnt).
 
   Import Maps.
 
-  Definition perm_compatible p :=
+  Definition perm_compatible (tp : thread_pool) p :=
     forall {tid} (cnt: containsThread tp tid),
       permMapLt (getThreadPerm cnt) p.
 
-  Record mem_compatible m :=
-    { perm_comp: perm_compatible (getMaxPerm m);
+  Record mem_compatible (tp : thread_pool) m :=
+    { perm_comp: perm_compatible tp (getMaxPerm m);
       perm_max: forall b ofs, Mem.valid_block m b ->
                          permission_at m b ofs Max = Some Freeable;
       mem_canonical: isCanonical (getMaxPerm m)
     }.
 
-End poolDefs.
+End Invariants.
 
 Section poolLemmas.
 
@@ -421,11 +442,102 @@ Section poolLemmas.
                | [H: match ?Expr with _ => _ end |- _] => destruct Expr
              end; tauto.
   Qed.
-  
+
+  Lemma restrPermMap_correct :
+    forall p' m (Hlt: permMapLt p' (getMaxPerm m))
+      (Hcan_p' : isCanonical p')
+      (Hcan_m : isCanonical (getMaxPerm m))
+      b ofs,
+      permission_at (restrPermMap Hlt) b ofs Max =
+      Maps.PMap.get b (getMaxPerm m) ofs /\
+      permission_at (restrPermMap Hlt) b ofs Cur =
+      Maps.PMap.get b p' ofs.
+  Proof.
+    intros. unfold restrPermMap, getMaxPerm, permission_at. simpl.
+    rewrite Maps.PMap.gmap. split;
+      unfold permMapLt in Hlt; specialize (Hlt b ofs);
+      unfold Maps.PMap.get; simpl; rewrite Maps.PTree.gmap;
+      unfold Coqlib.option_map; simpl;
+      destruct (Maps.PTree.get b (Mem.mem_access m).2) eqn:?; auto.
+    unfold Maps.PMap.get in Hlt.
+    unfold isCanonical in *. 
+    destruct (Maps.PTree.get b p'.2) eqn:?; [| by rewrite Hcan_p'].
+    rewrite Hcan_m in Hlt.
+    unfold getMaxPerm in Hlt. rewrite Maps.PTree.gmap1 in Hlt.
+    unfold Coqlib.option_map in Hlt.
+    rewrite Heqo in Hlt. simpl in Hlt.
+    destruct (o ofs); tauto.
+  Qed.
+
+  Lemma restrPermMap_can : forall (p : access_map) (m m': mem)
+                             (Hcanonical: isCanonical p)
+                             (Hlt: permMapLt p (getMaxPerm m))
+                             (Hrestrict: restrPermMap Hlt = m'),
+      isCanonical (getCurPerm m').
+  Proof.
+    intros. subst.
+    unfold restrPermMap, getCurPerm, isCanonical in *. simpl in *.
+    auto.
+  Defined.
+
+  Lemma restrPermMap_can_max : forall (p : access_map) (m m': mem)
+                                 (Hcanonical: isCanonical (getMaxPerm m))
+                                 (Hlt: permMapLt p (getMaxPerm m))
+                                 (Hrestrict: restrPermMap Hlt = m'),
+      isCanonical (getMaxPerm m').
+  Proof.
+    intros. subst.
+    unfold restrPermMap, getMaxPerm, isCanonical in *. simpl in *.
+    auto.
+  Defined.
+
+  Lemma restrPermMap_wf :
+    forall (m m': mem) tid (cnt: containsThread tp tid)
+      (Hcanonical: isCanonical (getThreadPerm cnt))
+      (Hcompatible: mem_compatible tp m)
+      (Hrestrict: restrPermMap ((perm_comp Hcompatible) tid cnt) = m')
+      (Hrace : race_free tp),
+      permMap_wf tp (getCurPerm m') tid.
+  Proof.
+    intros. subst.
+    unfold restrPermMap, getCurPerm. simpl.
+    unfold permMap_wf. intros tid' Htid' Hneq.
+    unfold permMapsDisjoint. simpl.
+    assert (Hneq' : tid' <> tid) by auto.
+    specialize (Hrace tid' tid Htid' cnt Hneq').
+    unfold permMapsDisjoint in Hrace.
+    destruct Hcompatible as [Hlt _ Hcan_mem].
+    unfold isCanonical in Hcan_mem.
+    unfold getMaxPerm in Hcan_mem. simpl in Hcan_mem.
+    intros b ofs. specialize (Hrace b ofs).
+    rewrite Maps.PMap.gmap. unfold getThreadPerm in *.
+    unfold Maps.PMap.get in *. simpl.
+    unfold isCanonical in Hcanonical. rewrite Hcanonical in Hrace.
+    rewrite Maps.PTree.gmap. unfold Coqlib.option_map.
+    destruct (Maps.PTree.get b (Mem.mem_access m).2) eqn:?;
+             destruct (Maps.PTree.get b
+                                      (perm_maps tp (Ordinal cnt)).2) eqn:?;
+             try rewrite Hcanonical; auto.
+    destruct (Maps.PTree.get b
+                             (perm_maps tp (Ordinal Htid')).2) eqn:?; auto.
+    unfold perm_compatible, permMapLt in Hlt.
+    unfold Maps.PMap.get in Hlt.
+    specialize (Hlt tid cnt b ofs).
+    rewrite Heqo0 in Hlt.
+    unfold getMaxPerm in Hlt. simpl in Hlt.
+    rewrite Maps.PTree.gmap1 in Hlt. unfold Coqlib.option_map in Hlt.
+    rewrite Heqo in Hlt.
+    apply equal_f with (x := ofs) in Hcan_mem.
+    rewrite Hcan_mem in Hlt.
+    unfold Mem.perm_order'' in Hlt. destruct (o ofs); auto.
+    exfalso. auto.
+    rewrite perm_union_comm. apply not_racy_union. constructor.
+  Defined.
+
   Lemma no_race_wf : forall tid (pf: containsThread tp tid) (Hrace: race_free tp),
                        permMap_wf tp (getThreadPerm pf) tid.
   Proof.
-    intros. unfold permMap_wf, getThreadPerm in *; auto.
+    intros. unfold race_free, permMap_wf, getThreadPerm in *; auto.
   Defined.
 
 End poolLemmas.

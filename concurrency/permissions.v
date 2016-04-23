@@ -602,13 +602,13 @@ Section ShareMaps.
      
   Definition decay m_before m_after := forall b ofs, 
       (~Mem.valid_block m_before b ->
-       forall k p, Mem.perm m_after b ofs k p -> Mem.perm m_after b ofs k Freeable) /\
+       forall p, Mem.perm m_after b ofs Cur p -> Mem.perm m_after b ofs Cur Freeable) /\
       (Mem.perm m_before b ofs Cur Freeable ->
-       forall k p, Mem.perm m_after b ofs k p -> Mem.perm m_after b ofs k Freeable) /\
+       forall p, Mem.perm m_after b ofs Cur p -> Mem.perm m_after b ofs Cur Freeable) /\
       (~Mem.perm m_before b ofs Cur Freeable ->
-       forall k p, Mem.perm m_before b ofs k p -> Mem.perm m_after b ofs k p) /\
+       forall p, Mem.perm m_before b ofs Cur p -> Mem.perm m_after b ofs Cur p) /\
       (Mem.valid_block m_before b ->
-       forall k p, Mem.perm m_after b ofs k p -> Mem.perm m_before b ofs k p).
+       forall p, Mem.perm m_after b ofs Cur p -> Mem.perm m_before b ofs Cur p).
   
   Definition map_decay (pmap pmap' : access_map) :=
     forall b ofs, (Maps.PMap.get b pmap) ofs = (Maps.PMap.get b pmap') ofs \/
@@ -620,13 +620,12 @@ Section ShareMaps.
   Definition decay' m_before m_after := forall b ofs, 
       (~Mem.valid_block m_before b ->
        Mem.valid_block m_after b ->
-       forall k,
-         Maps.PMap.get b (Mem.mem_access m_after) ofs k = Some Freeable) /\
+       Maps.PMap.get b (Mem.mem_access m_after) ofs Cur = Some Freeable) /\
       (Mem.valid_block m_before b ->
-       (forall k, (Maps.PMap.get b (Mem.mem_access m_before) ofs k = Some Freeable /\
-              Maps.PMap.get b (Mem.mem_access m_after) ofs k = None)) \/
-       (forall k, Maps.PMap.get b (Mem.mem_access m_before) ofs k =
-             Maps.PMap.get b (Mem.mem_access m_after) ofs k)).
+       ((Maps.PMap.get b (Mem.mem_access m_before) ofs Cur = Some Freeable /\
+         Maps.PMap.get b (Mem.mem_access m_after) ofs Cur = None)) \/
+       (Maps.PMap.get b (Mem.mem_access m_before) ofs Cur =
+             Maps.PMap.get b (Mem.mem_access m_after) ofs Cur)).
 
   Lemma decay_decay' :
     forall m m',

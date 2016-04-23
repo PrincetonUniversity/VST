@@ -67,7 +67,8 @@ Module Type ConcurrentMachineSig (TID: ThreadID).
   (*CODE*)
   Parameter cT: Type.
   Parameter G: Type.
-  Parameter Sem : CoreSemantics G cT mem. (* Not used, might remove. Nick: Used in thread suspend now *)
+  Parameter Sem : CoreSemantics G cT mem. (* Not used, might remove. 
+   Nick: Used in thread suspend now *)
 
   (*MACHINE VARIABLES*)
   Parameter machine_state: Type.
