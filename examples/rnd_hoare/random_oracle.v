@@ -17,12 +17,20 @@ Proof. intros ? [? ?]; auto. Qed.
 Definition history_coincide {ora: RandomOracle} (n: nat) (h1 h2: RandomHistory): Prop :=
   forall m, m < n -> h1 m = h2 m.
 
+(*
 Definition history_cons {ora: RandomOracle} (h1: RandomHistory) (a: RandomQA) (h2: RandomHistory): Prop :=
   exists n,
     history_coincide n h1 h2 /\
     h1 n = None /\
     h2 n = Some a /\
     h2 (S n) = None.
+*)
+
+Definition history_app {ora: RandomOracle} (h1 h2 h: RandomHistory): Prop :=
+  exists n,
+    h1 n = None /\
+    history_coincide n h1 h /\
+    (forall m, h (m + n) = h2 m).
 
 Definition finite_history {ora: RandomOracle} (h: RandomHistory): Prop :=
   exists n, h n = None.
