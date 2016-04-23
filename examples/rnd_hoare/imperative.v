@@ -79,6 +79,16 @@ Definition command_oaccess {imp: Imperative} {sss: SmallStepSemantics} (c: cmd) 
 Definition triple {imp: Imperative} {sss: SmallStepSemantics} (P: global_state -> Prop) (c: cmd)  (Q: global_state -> Prop): Prop :=
   forall s1, P s1 -> forall s2, command_oaccess c s1 s2 -> Q s2.
 
+Definition PartialAssertion {imp: Imperative} {sss: SmallStepSemantics}: Type :=
+  {P: global_state -> Prop | forall s, P (Terminating _ s) -> P (NonTerminating _)}.
+
+Definition TotalAssertion {imp: Imperative} {sss: SmallStepSemantics}: Type :=
+  {P: global_state -> Prop | forall s, P (NonTerminating _) -> P (Terminating _ s)}.
+
+Definition ptriple {imp: Imperative} {sss: SmallStepSemantics} (P: PartialAssertion) (c: cmd)  (Q: PartialAssertion): Prop := triple (proj1_sig P) c (proj1_sig Q).
+
+Definition ttriple {imp: Imperative} {sss: SmallStepSemantics} (P: TotalAssertion) (c: cmd)  (Q: TotalAssertion): Prop := triple (proj1_sig P) c (proj1_sig Q).
+
 End Sequential.
 
 Module Randomized.
@@ -148,7 +158,11 @@ Definition access {imp: Imperative} {sss: SmallStepSemantics} (src dst: ProbStat
 Definition omega_access {imp: Imperative} {sss: SmallStepSemantics} (src dst: ProbState (cmd * state)): Prop :=
   exists (l: step_path), path_states l 0 = src /\ is_limit l dst.
 
+Module HoareLogic.
+
 Definition global_state {imp: Imperative} {sss: SmallStepSemantics}: Type := ProbState state.
+
+Identity Coercion global_state_ProbState: global_state >-> ProbState.
 
 Definition global_state_command_state {imp: Imperative} {sss: SmallStepSemantics} (c: cmd) (s: global_state): ProbState (cmd * state).
   destruct s.
@@ -172,7 +186,82 @@ Definition command_oaccess {imp: Imperative} {sss: SmallStepSemantics} (c: cmd) 
 Definition triple {imp: Imperative} {sss: SmallStepSemantics} (P: global_state -> Prop) (c: cmd)  (Q: global_state -> Prop): Prop :=
   forall s1, P s1 -> forall s2, command_oaccess c s1 s2 -> Q s2.
 
+Definition PartialAssertion {imp: Imperative} {sss: SmallStepSemantics}: Type :=
+  {P: global_state -> Prop |
+     forall (s1 s2: global_state),
+       (forall h, match s1 h, s2 h with
+                  | Some (Terminating _), Some (Terminating _) => True
+                  | Some (Terminating _), Some NonTerminating => True
+                  | Some NonTerminating, Some NonTerminating => True
+                  | None, None => True
+                  | _, _ => False
+                  end) ->
+       (P s1 -> P s2)}.
 
+Definition TotalAssertion {imp: Imperative} {sss: SmallStepSemantics}: Type :=
+  {P: global_state -> Prop |
+     forall (s1 s2: global_state),
+       (forall h, match s1 h, s2 h with
+                  | Some (Terminating _), Some (Terminating _) => True
+                  | Some (Terminating _), Some NonTerminating => True
+                  | Some NonTerminating, Some NonTerminating => True
+                  | None, None => True
+                  | _, _ => False
+                  end) ->
+       (P s2 -> P s1)}.
+
+Definition ptriple {imp: Imperative} {sss: SmallStepSemantics} (P: PartialAssertion) (c: cmd)  (Q: PartialAssertion): Prop := triple (proj1_sig P) c (proj1_sig Q).
+
+Definition ttriple {imp: Imperative} {sss: SmallStepSemantics} (P: TotalAssertion) (c: cmd)  (Q: TotalAssertion): Prop := triple (proj1_sig P) c (proj1_sig Q).
+
+End HoareLogic.
+
+Module RelationalHoareLogic.
+
+Inductive LR: Type :=
+  | L (* If-then branch, In loop branch *)
+  | R (* If-else branch, exist loop branch *).
+
+Require Import Coq.Lists.List.
+
+Lemma branch_dec: forall sigma1 sigma2: list LR, {sigma1 = sigma2} + {sigma1 <> sigma2}.
+Proof.
+  apply list_eq_dec.
+  intros.
+  destruct x, y; try (left; congruence); try (right; congruence).
+Qed.
+
+Definition global_state {imp: Imperative} {sss: SmallStepSemantics}: Type := ProbState (list LR * state).
+
+Identity Coercion global_state_ProbState: global_state >-> ProbState.
+
+Definition global_state_command_state {imp: Imperative} {sss: SmallStepSemantics} (c: list LR -> cmd) (s: global_state): ProbState (cmd * state).
+  destruct s.
+  exists (RandomVarMap
+           (fun s =>
+              match s with
+              | NonTerminating => NonTerminating _
+              | Terminating (sigma, s0) => Terminating _ (c sigma, s0)
+              end)
+           x).
+  intros.
+  specialize (o h H).
+  destruct o; [left | right];
+  rewrite RandomVarMap_sound;
+  rewrite H0; auto.
+Defined.
+
+Definition seq_command {imp: Imperative} (sigma0: list LR) (c0: cmd) (c: list LR -> cmd): list LR -> cmd :=
+  fun sigma =>
+    if branch_dec sigma0 sigma then Ssequence c0 (c sigma0) else c sigma.
+
+Definition command_oaccess {imp: Imperative} {sss: SmallStepSemantics} (sigma: list LR) (c: cmd) (src dst: global_state): Prop :=
+  forall k, omega_access (global_state_command_state (seq_command sigma c k) src) (global_state_command_state k dst).
+
+Definition triple {imp: Imperative} {sss: SmallStepSemantics} (sigma: list LR) (P: global_state -> Prop) (c: cmd)  (Q: global_state -> Prop): Prop :=
+  forall s1, P s1 -> forall s2, command_oaccess sigma c s1 s2 -> Q s2.
+
+End RelationalHoareLogic.
 
 End Randomized.
 
