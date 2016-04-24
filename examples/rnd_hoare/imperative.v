@@ -1,25 +1,45 @@
 Require Import RndHoare.random_oracle.
+Require Import Coq.Classes.Equivalence.
+Require Import Coq.Classes.Morphisms.
 
 Class Imperative : Type := {
   cmd: Type;
   expr: Type;
-  Ssequence: cmd -> cmd -> cmd
+  Ssequence: cmd -> cmd -> cmd;
+  EqCmd: cmd -> cmd -> Prop;
+  EqE: Equivalence EqCmd;
+  seq_assoc: forall c1 c2 c3, EqCmd (Ssequence c1 (Ssequence c2 c3)) (Ssequence (Ssequence c1 c2) c3);
+  Ssequence_proper: Proper (EqCmd ==> EqCmd ==> EqCmd) Ssequence
 }.
+
+Global Existing Instances EqE Ssequence_proper.
+
+Notation "x ~=~ y" := (EqCmd x y) (at level 70, no associativity): Imperative.
+
+Open Scope Imperative.
 
 Inductive NormalImperativePatternMatchResult {imp: Imperative} : Type :=
   | PM_Ssequence: cmd -> cmd -> NormalImperativePatternMatchResult
   | PM_Sifthenelse: expr -> cmd -> cmd -> NormalImperativePatternMatchResult
   | PM_Swhile: expr -> cmd -> NormalImperativePatternMatchResult
-  | PM_Other: cmd -> NormalImperativePatternMatchResult
-  | PM_Invalid: cmd -> NormalImperativePatternMatchResult.
+  | PM_Other: NormalImperativePatternMatchResult
+  | PM_Invalid: NormalImperativePatternMatchResult.
+
+Definition is_PM_Ssequence {imp: Imperative} (pm: NormalImperativePatternMatchResult): Prop :=
+  match pm with
+  | PM_Ssequence _ _ => True
+  | _ => False
+  end.
 
 Class NormalImperative {imp: Imperative}: Type := {
   Sifthenelse: expr -> cmd -> cmd -> cmd;
   Swhile: expr -> cmd -> cmd;
   cmd_pattern_match: cmd -> NormalImperativePatternMatchResult;
-  Ssequence_pattern_match_iff: forall (c c1 c2: cmd), c = Ssequence c1 c2 <-> cmd_pattern_match c = PM_Ssequence c1 c2;
-  Sifthenelse_pattern_match_iff: forall (c: cmd) (e: expr) (c1 c2: cmd), c = Sifthenelse e c1 c2 <-> cmd_pattern_match c = PM_Sifthenelse e c1 c2;
-  Swhile_pattern_match_iff: forall (c: cmd) (e: expr) (c0: cmd), c = Swhile e c0 <-> cmd_pattern_match c = PM_Swhile e c0
+  pattern_match_proper: Proper (EqCmd ==> eq) cmd_pattern_match;
+  Ssequence_pattern_match_iff: forall (c c1 c2: cmd), c ~=~ Ssequence c1 c2 /\ ~ is_PM_Ssequence (cmd_pattern_match c1) <-> cmd_pattern_match c = PM_Ssequence c1 c2;
+  Ssequence_pattern_match: forall (c1 c2: cmd), is_PM_Ssequence (cmd_pattern_match (Ssequence c1 c2));
+  Sifthenelse_pattern_match_iff: forall (c: cmd) (e: expr) (c1 c2: cmd), c ~=~ Sifthenelse e c1 c2 <-> cmd_pattern_match c = PM_Sifthenelse e c1 c2;
+  Swhile_pattern_match_iff: forall (c: cmd) (e: expr) (c0: cmd), c ~=~ Swhile e c0 <-> cmd_pattern_match c = PM_Swhile e c0
 }.
 
 Inductive MetaState (state: Type): Type :=
@@ -99,6 +119,15 @@ Definition ProbState {ora: RandomOracle} (state: Type) :=
 Definition ProbState_RandomVariable {ora: RandomOracle} {state: Type}: ProbState state -> RandomVariable (MetaState state) := @proj1_sig _ _.
 
 Coercion ProbState_RandomVariable: ProbState >-> RandomVariable.
+
+Definition unique_state {ora: RandomOracle} {state: Type} (s: MetaState state): ProbState state.
+  refine (exist _ (unit_space_var s) _).
+  intros.
+  simpl.
+  specialize (H 0).
+  destruct (h 0); try congruence.
+  auto.
+Defined.
 
 Class SmallStepSemantics {imp: Imperative}: Type := {
   state: Type;
@@ -261,7 +290,47 @@ Definition command_oaccess {imp: Imperative} {sss: SmallStepSemantics} (sigma: l
 Definition triple {imp: Imperative} {sss: SmallStepSemantics} (sigma: list LR) (P: global_state -> Prop) (c: cmd)  (Q: global_state -> Prop): Prop :=
   forall s1, P s1 -> forall s2, command_oaccess sigma c s1 s2 -> Q s2.
 
+Definition PartialAssertion {imp: Imperative} {sss: SmallStepSemantics}: Type :=
+  {P: global_state -> Prop |
+     forall (s1 s2: global_state),
+       (forall h, match s1 h, s2 h with
+                  | Some (Terminating _), Some (Terminating _) => True
+                  | Some (Terminating _), Some NonTerminating => True
+                  | Some NonTerminating, Some NonTerminating => True
+                  | None, None => True
+                  | _, _ => False
+                  end) ->
+       (P s1 -> P s2)}.
+
+Definition TotalAssertion {imp: Imperative} {sss: SmallStepSemantics}: Type :=
+  {P: global_state -> Prop |
+     forall (s1 s2: global_state),
+       (forall h, match s1 h, s2 h with
+                  | Some (Terminating _), Some (Terminating _) => True
+                  | Some (Terminating _), Some NonTerminating => True
+                  | Some NonTerminating, Some NonTerminating => True
+                  | None, None => True
+                  | _, _ => False
+                  end) ->
+       (P s2 -> P s1)}.
+
+Definition ptriple {imp: Imperative} {sss: SmallStepSemantics} (sigma: list LR) (P: PartialAssertion) (c: cmd)  (Q: PartialAssertion): Prop := triple sigma (proj1_sig P) c (proj1_sig Q).
+
+Definition ttriple {imp: Imperative} {sss: SmallStepSemantics} (sigma: list LR) (P: TotalAssertion) (c: cmd)  (Q: TotalAssertion): Prop := triple sigma (proj1_sig P) c (proj1_sig Q).
+
 End RelationalHoareLogic.
+
+Class NormalSmallStepSemantics {imp: Imperative} {Nimp: NormalImperative} {sss: SmallStepSemantics} : Type := {
+  eval_bool: state -> expr -> option bool;
+  step_seq_assoc: forall c1 c2 c3 s cs, step (Ssequence c1 (Ssequence c2 c3), s) cs <-> step (Ssequence (Ssequence c1 c2) c3, s) cs;
+  step_if_true: forall e c1 c2 c3 s cs, eval_bool s e = Some true -> step (Ssequence (Sifthenelse e c1 c2) c3, s) cs <-> cs = unique_state (Terminating _ (Ssequence c1 c3, s));
+  step_if_false: forall e c1 c2 c3 s cs, eval_bool s e = Some false -> step (Ssequence (Sifthenelse e c1 c2) c3, s) cs <-> cs = unique_state (Terminating _ (Ssequence c2 c3, s));
+  step_while_true: forall e c1 c2 s cs, eval_bool s e = Some true -> step (Ssequence (Swhile e c1) c2, s) cs <-> cs = unique_state (Terminating _ (Ssequence c1 (Ssequence (Swhile e c1) c2), s));
+  step_while_false: forall e c1 c2 s cs, eval_bool s e = Some false -> step (Ssequence (Swhile e c1) c2, s) cs <-> cs = unique_state (Terminating _ (c2, s));
+  step_atomic: forall c1 c2 s cs h, cmd_pattern_match c1 = PM_Other -> step (Ssequence c1 c2, s) cs -> (exists s', cs h = Some (Terminating _ (c2, s'))) \/ cs h = Some (NonTerminating _) \/ cs h = None
+}. 
+
+
 
 End Randomized.
 

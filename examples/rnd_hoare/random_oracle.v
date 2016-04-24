@@ -1,3 +1,5 @@
+Require Import Omega.
+
 Class RandomOracle: Type := {
   ro_question: Type;
   ro_answer: ro_question -> Type
@@ -11,8 +13,17 @@ Definition history_get {ora: RandomOracle} (h: RandomHistory) (n: nat) := proj1_
 
 Coercion history_get: RandomHistory >-> Funclass.
 
-Lemma history_sound: forall {ora: RandomOracle} (h: RandomHistory) (x y: nat), x < y -> h x = None -> h y = None.
+Lemma history_sound1: forall {ora: RandomOracle} (h: RandomHistory) (x y: nat), x < y -> h x = None -> h y = None.
 Proof. intros ? [? ?]; auto. Qed.
+
+Lemma history_sound2: forall {ora: RandomOracle} (h: RandomHistory) (x y: nat), x < y -> (exists a, h y = Some a) -> (exists a, h x = Some a).
+Proof.
+  intros.
+  pose proof history_sound1 h x y H.
+  destruct (h x), (h y), H0; eauto.
+  specialize (H1 eq_refl).
+  congruence.
+Qed.
 
 Definition history_coincide {ora: RandomOracle} (n: nat) (h1 h2: RandomHistory): Prop :=
   forall m, m < n -> h1 m = h2 m.
@@ -74,6 +85,28 @@ Definition Forall_RandomHistory {ora: RandomOracle} {A: Type} (P: A -> Prop) (v:
     | None => True
     | Some a => P a
     end.
+
+Definition unit_space_var {ora: RandomOracle} {A: Type} (v: A): RandomVariable A.
+  refine (Build_RandomVariable _ _ (fun h => match h 0 with None => Some v | Some _ => None end) _ _).
+  + intros.
+    destruct n.
+    - rewrite H0, H1.
+      auto.
+    - pose proof history_sound2 h2 0 (S n).
+      specialize (H2 (le_n_S _ _ (le_0_n _))).
+      specialize (H2 (ex_intro _ a H1)).
+      destruct H2.
+      rewrite H2; auto.
+  + intros.
+    destruct n.
+    - rewrite H0, H1.
+      auto.
+    - pose proof history_sound2 h2 0 (S n).
+      specialize (H3 (le_n_S _ _ (le_0_n _))).
+      specialize (H3 (ex_intro _ a2 H1)).
+      destruct H3.
+      rewrite H3; auto.
+Defined.
 
 Definition RandomVarMap {ora: RandomOracle} {A B: Type} (f: A -> B) (v: RandomVariable A): RandomVariable B.
   refine (Build_RandomVariable _ _ (fun h => match v h with Some a => Some (f a) | None => None end) _ _).
