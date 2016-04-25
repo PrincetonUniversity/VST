@@ -110,11 +110,25 @@ Module Erasure (SCH: Scheduler NatTID)(SEM: Semantics)(PC: Parching SCH SEM).
       halt_inv j g1 args1 m1 g2 args2 m2.
 
   Definition core_data:= unit.
+  Import Mem.
+  Import Maps.PTree.
+  (*Record m_equiv (m1 m2: Mem.mem):=
+    {
+      contents_eq: Mem.mem_contents m1 = Mem.mem_contents m2 ;
+      mas_access_eq: forall b ofs, Maps.PMap.get b (Mem.mem_access m1) ofs Max =
+                              Maps.PMap.get b (Mem.mem_access m2) ofs Max ;
+      nextblock_eq: nextblock m1 = nextblock m2
+      
+    }.
+  Lemma m_eq_eqv: forall m1, m_equiv m1 m1.
+  Proof. constructor; reflexivity. Qed. *)
   Inductive match_state :  core_data ->  SM_Injection -> jmachine_state ->  mem -> dmachine_state -> mem -> Prop:=
-    MATCH: forall d j js ds U m,
+    MATCH: forall d j js ds U m1 m2,
       match_st js ds ->
+      
       invariant(the_sem:=Sem) ds -> (* this could be carried inside the state. But it will sufice to put it here*)
-      match_state d j  (U, js) m (U, ds) m.
+      m1 m2 ->
+      match_state d j  (U, js) m1 (U, ds) m2.
   (*Definition parch_machine (jms: jmachine_state): dmachine_state:=
     match jms with (U, jm) => (U, parch_state jm) end.*)
   
@@ -159,6 +173,7 @@ Module Erasure (SCH: Scheduler NatTID)(SEM: Semantics)(PC: Parching SCH SEM).
       rewrite same_sch; constructor. 
       apply match_init.
       admit. (*init invariant*)
+      apply m_eq_eqv.
   Qed.
 
   Lemma core_step' :
@@ -179,7 +194,7 @@ Module Erasure (SCH: Scheduler NatTID)(SEM: Semantics)(PC: Parching SCH SEM).
 
        
        (* resume_step *)
-       exists  m1', tt, mu.
+       exists  m2, tt, mu.
        inversion MATCH0; subst.
        inversion H3; subst.
        eapply (MTCH_getThreadC _ ds tid _ ctn H0) in HC.
@@ -191,12 +206,19 @@ Module Erasure (SCH: Scheduler NatTID)(SEM: Semantics)(PC: Parching SCH SEM).
          constructor.
          apply MTCH_updt.
          admit. (*invariant on updateC*)
+         assumption.
        }
        { econstructor 1.
          - eassumption.
          - simpl.
          - simpl in Hcmpt.
-           eapply (MTCH_compat _ _ _ H0 Hcmpt).
+           Lemma compat_equiv: forall ds m1 m2,
+               m_equiv m1 m2 ->
+               DSEM.mem_compatible ds m1 ->
+               DSEM.mem_compatible ds m2.
+           Admitted.
+           apply (compat_equiv _ m1' m2); try assumption.
+           apply (MTCH_compat _ _ _ H0 Hcmpt).
          - simpl.
            econstructor; try eassumption; reflexivity. }
        (* core_step *)
@@ -204,10 +226,9 @@ Module Erasure (SCH: Scheduler NatTID)(SEM: Semantics)(PC: Parching SCH SEM).
          inversion MATCH; subst.
          inversion H3; subst.
          inversion Hcorestep.
-         destruct H4 as [rdecay rageable].
+         destruct H5 as [rdecay rageable].
          Axiom get_permMap: mem -> permissions.share_map.
-         Parameter parch_perm:
-             juicy_mem.juicy_mem -> permissions.access_map  -> Prop.
+         Parameter parch_perm : juicy_mem.juicy_mem -> permissions.access_map -> Prop.
            Lemma parch_perm_lt: forall {jm p},
                parch_perm jm p -> permissions.permMapLt p (permissions.getMaxPerm (juicy_mem.m_dry jm)).
            Admitted.
@@ -220,27 +241,74 @@ Module Erasure (SCH: Scheduler NatTID)(SEM: Semantics)(PC: Parching SCH SEM).
                  corestep Sem genv c (restrPermMap (parch_perm_lt pape)) c' m' /\
                  parch_perm jm' (permissions.getCurPerm m').
            Admitted.
-           eapply (erasureSingleThread _ _ _ _ _ ) in H2; try assumption. (*Have to prove parche_perm and choose the perm_map*)
-           destruct H2 as [m2' [DSTEP pape']].
+           simpl in Hcmpt.
+           Definition p: permissions.access_map. Admitted.
+           assert (pape: parch_perm (personal_mem Htid Hcmpt) p). admit.
+           
+           eapply erasureSingleThread in H4; try assumption. (*Have to prove parche_perm and choose the perm_map*)
+           generalize H4. instantiate(1:=pape).
+           clear H4; intros H4.
+           destruct H4 as [m2' [DSTEP pape']].
            exists  m2', tt, mu.  
            exists (U, updThread (MTCH_ctn H0 (Htid))
                          (Krun c') (get_permMap (m2'))).
            split.
+           (*
+           { destruct jmst' as [U' jst']; simpl in *; subst.
+             simpl. econstructor.
+             
+           } *)
            Focus 2.
-           
-           destruct jmst' as [U' js'].
-           simpl in *; subst.
-           
-         (* - 
-           Axiom upd_MATCH: forall js ds tid (Htid: JSEM.containsThread js tid) c new_jm
-             (MATCH: match_st js ds),
-             match_st
-               (juicy_machine.updThread js (cont2ord Htid) c (juicy_mem.m_phi new_jm))
-               (updThread (MTCH_ctn MATCH Htid) c (get_permMap (juicy_mem.m_dry new_jm))).
-           apply upd_MATCH.
-         - admit. (*invariant step*) *)
+           simpl.
+           unfold DryMachine.MachStep; simpl.
+           assert (Htid0: DSEM.containsThread ds tid).
+           { eapply MTCH_ctn; eassumption. }
+           pose (Htid0':= (MTCH_ctn H0 Htid)).
+           assert (Hcmpt0: DSEM.mem_compatible ds m2). admit.
+           eapply (DryMachine.core_step tid U ds _ m2 m2' _ Htid0' Hcmpt0 ); try eassumption.
          - simpl.
-           assert (Hcompatible:mem_compatible ds m2) by (apply (@MTCH_compat js _ _ H0 Hcmpt)).
+           unfold DSEM.cstep.
+           eapply (@step_dry _ _ _ genv tid ds _ _ Hcmpt0  _ c
+                  (restrPermMap (permMapsInv_lt (perm_comp Hcmpt0) Htid0')) _ c').
+           + reflexivity.
+           + assumption.
+           + apply MTCH_getThreadC; eassumption.
+           + Set Printing All.
+             erewrite (restrPermMap_irr (permMapsInv_lt (perm_comp Hcmpt0) Htid0')
+                                        _ ); try reflexivity.
+             unfold DSEM.Sem.
+             erewrite restrPermMap_irr; try reflexivity.
+             exact DSTEP.
+
+             (* MISMACH IN MEMORIES! *)
+                     try reflexivity; try eassumption.
+             unfold DSEM.Sem.
+             instantiate(1:=(parch_perm_lt pape)).
+             apply DSTEP. (* Or a different memory*)
+             
+             unfold DSEM.Sem.
+             unfold JSEM.mem_compatible in Hcmpt.
+             unfold juicy_machine.mem_compatible in Hcmpt.
+             simpl in Hcmpt.
+             simpl in Hcmpt.
+             erewrite restrPermMap_irr .
+             
+             unfold DSEM.Sem.
+             
+             eapply DSTEP.
+             Lemma equiv_blah:
+               forall p m,
+               forall (P1 P2: permissions.permMapLt p (permissions.getMaxPerm m)),
+                 restrPermMap P1 = restrPermMap P2.
+                   intros. 
+                   unfold restrPermMap.
+                   
+                   
+               (restrPermMap
+                  (permMapsInv_lt (perm_comp a) (MTCH_ctn(ds:=ds) b Htid)))
+                 = (restrPermMap (parch_perm_lt c)).
+
+             assert (Hcompatible:mem_compatible ds m2) by (apply (@MTCH_compat js _ _ H0 Hcmpt)).
            assert (Hcnt : ThreadPool.containsThread ds tid) by (apply (@MTCH_ctn js); auto).
            econstructor 2; try eassumption.
            unfold DSEM.cstep.
