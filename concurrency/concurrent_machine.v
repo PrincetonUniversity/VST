@@ -150,7 +150,8 @@ Module CoarseMachine (TID: ThreadID)(SCH:Scheduler TID)
       containsThread ms tid0 -> machine_state -> Prop:=
   | ResumeThread: forall tid0 ms ms' c
                     (ctn: containsThread ms tid0)
-                    (HC: getThreadC ctn = Kresume c)
+                    (Hcode: getThreadC ctn = Kresume c)
+                    (Hinv: invariant ms)
                     (Hms': updThreadC ctn (Krun c)  = ms'),
       resume_thread' ctn ms'.
   Definition resume_thread: forall {tid0 ms},
@@ -161,8 +162,9 @@ Module CoarseMachine (TID: ThreadID)(SCH:Scheduler TID)
       containsThread ms tid0 -> machine_state -> Prop:=
   | SuspendThread: forall tid0 ms ms' c ef sig args
                      (ctn: containsThread ms tid0)
-                     (HC: getThreadC ctn = Krun c)
+                     (Hcode: getThreadC ctn = Krun c)
                      (Hat_external: at_external Sem c = Some (ef, sig, args))
+                     (Hinv: invariant ms)
                      (Hms': updThreadC ctn (Kstop c) = ms'),
       suspend_thread' ctn ms'.
   Definition suspend_thread : forall {tid0 ms},
@@ -213,6 +215,7 @@ Module CoarseMachine (TID: ThreadID)(SCH:Scheduler TID)
       forall tid U U' ms m
         (HschedN: schedPeek U = Some tid)
         (Htid: ~ containsThread ms tid)
+        (Hinv: invariant ms)
         (HschedS: schedSkip U = U'),        (*Schedule Forward*)
         machine_step U ms m U' ms m.
 

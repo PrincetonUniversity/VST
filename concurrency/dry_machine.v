@@ -226,7 +226,7 @@ Module Concur.
         forall (Hrestrict_pmap:
              restrPermMap ((perm_comp Hcompatible) tid0 cnt) = m1)
           (Hinv : invariant tp)
-          (Hthread: getThreadC cnt = Krun c)
+          (Hcode: getThreadC cnt = Krun c)
           (Hcorestep: corestep Sem genv c m1 c' m')
           (Hm': can_m' = setMaxPerm m')
           (Htp': tp' = updThread cnt (Krun c') (getCurPerm can_m')),
@@ -241,7 +241,7 @@ Module Concur.
           (cnt_lp: containsThread tp lp_id),
         forall
           (Hinv : invariant tp)
-          (Hthread: getThreadC cnt0 = Kstop c)
+          (Hcode: getThreadC cnt0 = Kstop c)
           (Hat_external: at_external Sem c =
                          Some (LOCK, ef_sig LOCK, Vptr b ofs::nil))
           (Hcompatible: mem_compatible tp m)
@@ -261,7 +261,7 @@ Module Concur.
            (cnt_lp: containsThread tp lp_id),
         forall
           (Hinv : invariant tp)
-          (Hthread: getThreadC cnt0 = Kstop c)
+          (Hcode: getThreadC cnt0 = Kstop c)
           (Hat_external: at_external Sem c =
                          Some (UNLOCK, ef_sig UNLOCK, Vptr b ofs::nil))
           (Hrestrict_pmap:
@@ -280,7 +280,7 @@ Module Concur.
         forall  (tp_upd tp':thread_pool) c c' c_new vf arg virtue1 virtue2,
         forall
           (Hinv : invariant tp)
-          (Hthread: getThreadC cnt0 = Kstop c)
+          (Hcode: getThreadC cnt0 = Kstop c)
           (Hat_external: at_external Sem c =
                          Some (CREATE, ef_sig CREATE, vf::arg::nil))
           (Hinitial: initial_core Sem genv vf (arg::nil) = Some c_new)
@@ -299,7 +299,7 @@ Module Concur.
           let: pmap_tid := getThreadR cnt0 in
           forall
             (Hinv : invariant tp)
-            (Hthread: getThreadC cnt0 = Kstop c)
+            (Hcode: getThreadC cnt0 = Kstop c)
             (Hat_external: at_external Sem c =
                            Some (MKLOCK, ef_sig MKLOCK, Vptr b ofs::nil))
             (Hrestrict_pmap: restrPermMap
@@ -322,7 +322,7 @@ Module Concur.
           let: pmap_lp := getThreadR cnt_lp in
           forall
             (Hinv : invariant tp)
-            (Hthread: getThreadC cnt0 = Kstop c)
+            (Hcode: getThreadC cnt0 = Kstop c)
             (Hat_external: at_external Sem c =
                            Some (FREE_LOCK, ef_sig FREE_LOCK, Vptr b ofs::nil))
             (Hdrop_perm:
@@ -339,7 +339,7 @@ Module Concur.
            (cnt_lp: containsThread tp lp_id),
         forall
           (Hinv : invariant tp)
-          (Hthread: getThreadC cnt0 = Kstop c)
+          (Hcode: getThreadC cnt0 = Kstop c)
           (Hat_external: at_external Sem c =
                          Some (LOCK, ef_sig LOCK, Vptr b ofs::nil))
           (Hrestrict_pmap: restrPermMap
@@ -362,11 +362,11 @@ Module Concur.
                                containsThread ms tid0 -> Prop:=
     | thread_halted':
         forall tp c tid0
-          (cnt: containsThread tp tid0),
-          forall
-            (Hthread: getThreadC cnt = Krun c)
-            (Hcant: halted Sem c),
-            threadHalted' cnt.
+          (cnt: containsThread tp tid0)
+          (Hinv: invariant tp)
+          (Hcode: getThreadC cnt = Krun c)
+          (Hcant: halted Sem c),
+          threadHalted' cnt.
     
     Definition threadHalted: forall {tid0 ms},
                                containsThread ms tid0 -> Prop:= @threadHalted'.
