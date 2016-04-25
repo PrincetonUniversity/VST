@@ -57,83 +57,117 @@ Inductive ctl {cT:Type} : Type :=
 Definition EqDec: Type -> Type := 
   fun A : Type => forall a a' : A, {a = a'} + {a <> a'}.
 
-Module Type ConcurrentMachineSig (TID: ThreadID).
+Module Type ThreadPoolSig (TID: ThreadID).
   Import TID.
+
+  Parameter code : Type.
+  Parameter res : Type.
+  Parameter LockPool : Type.
+  Parameter t : Type.
+
+  Parameter lpool : t -> LockPool.
+
+  Notation ctl := (@ctl code).
   
-  (*Memories*)
+  Parameter containsThread : t -> tid -> Prop.
+  Parameter getThreadC : forall {tid tp}, containsThread tp tid -> ctl.
+  Parameter getThreadR : forall {tid tp}, containsThread tp tid -> res.
+
+  Parameter addThread : t -> code -> res -> t.
+  Parameter updThreadC : forall {tid tp}, containsThread tp tid -> ctl -> t.
+  Parameter updThreadR : forall {tid tp}, containsThread tp tid -> res -> t.
+  Parameter updThread : forall {tid tp}, containsThread tp tid -> ctl -> res -> t.
+
+  Parameter gssThreadCode :
+    forall {tid tp} (cnt: containsThread tp tid) c' p'
+      (cnt': containsThread (updThread cnt c' p') tid), getThreadC cnt' = c'.
+
+  Parameter gssThreadRes:
+    forall {tid tp} (cnt: containsThread tp tid) c' p'
+      (cnt': containsThread (updThread cnt c' p') tid),
+      getThreadR cnt' = p'.
+
+  Parameter gssThreadCC:
+    forall {tid tp} (cnt: containsThread tp tid) c'
+      (cnt': containsThread (updThreadC cnt c') tid),
+      getThreadC cnt' = c'.
+
+  Parameter gssThreadCR:
+    forall {tid tp} (cnt: containsThread tp tid) c'
+      (cnt': containsThread (updThreadC cnt c') tid),
+      getThreadR cnt = getThreadR cnt'.
+End ThreadPoolSig.
+
+Module Type ConcurrentMachineSig (TID : ThreadID)
+       (ThreadPool: ThreadPoolSig TID).
+  Import ThreadPool.
+
+  Notation thread_pool := ThreadPool.t.
+  (** Memories*)
   Parameter richMem: Type.
   Parameter dryMem: richMem -> mem.
   
-  (*CODE*)
-  Parameter cT: Type.
+  (** Environment and Threadwise semantics *)
   Parameter G: Type.
-  Parameter Sem : CoreSemantics G cT mem. (* Not used, might remove. 
-   Nick: Used in thread suspend now *)
+  Parameter Sem : CoreSemantics G code mem. 
 
-  (*MACHINE VARIABLES*)
-  Parameter machine_state: Type.
-  Parameter containsThread: machine_state -> tid -> Prop.
+  (** The thread pool respects the memory*)
+  Parameter mem_compatible: thread_pool -> mem -> Prop.
+  Parameter invariant: thread_pool -> Prop.
 
+  (** Step relations *)
+  Parameter cstep:
+    G -> forall {tid0 ms m},
+      containsThread ms tid0 -> mem_compatible ms m -> thread_pool -> mem  -> Prop.
 
-  (*INVARIANTS*)
-  (*The state respects the memory*)
-  Parameter mem_compatible: machine_state -> mem -> Prop.
-
-  (*CODE GETTER AND SETTER*)
-  Parameter getThreadC: forall {ms tid0}, containsThread ms tid0 -> @ctl cT.
-  Parameter updThreadC: forall {ms tid0}, containsThread ms tid0 -> @ctl cT -> machine_state.
+  Parameter conc_call:
+    G -> forall {tid0 ms m},
+      containsThread ms tid0 -> mem_compatible ms m -> thread_pool -> mem -> Prop.
   
-  (*Steps*)
-  Parameter cstep: G -> forall {tid0 ms m},
-                         containsThread ms tid0 -> mem_compatible ms m -> machine_state -> mem  -> Prop.
-  (*Parameter resume_thread: forall {tid0 ms},
-                             containsThread ms tid0 -> machine_state -> Prop.
-  Parameter suspend_thread: forall {tid0 ms},
-                              containsThread ms tid0 -> machine_state -> Prop.*)
-  Parameter conc_call: G ->  forall {tid0 ms m},
-                              containsThread ms tid0 -> mem_compatible ms m -> machine_state -> mem -> Prop.
-  
-  Parameter threadHalted: forall {tid0 ms},
-                            containsThread ms tid0 -> Prop.
+  Parameter threadHalted:
+    forall {tid0 ms},
+      containsThread ms tid0 -> Prop.
 
-  Parameter init_mach : G -> val -> list val -> option machine_state.
+  Parameter init_mach : G -> val -> list val -> option thread_pool.
   
 End ConcurrentMachineSig.
 
 
-Module CoarseMachine (TID: ThreadID)(SCH:Scheduler TID)(SIG : ConcurrentMachineSig TID).
-  Import TID.
-  Import SIG.
-  Import SCH.
+Module CoarseMachine (TID: ThreadID)(SCH:Scheduler TID)
+       (TP: ThreadPoolSig TID) (SIG : ConcurrentMachineSig TID TP).
+  Import TID SCH TP SIG.
   
   Notation Sch:=schedule.
-
-  (* Resume and Suspend: threads running must be preceded by a Resume and followed by Suspend. 
-     This functions wrap the state to indicate it's ready to take a syncronisation step or 
-     resume running. (This keeps the invariant that at most one thread is not at_external) *)
+  Notation machine_state := TP.t.
+  
+  (** Resume and Suspend: threads running must be preceded by a Resume
+     and followed by Suspend.  This functions wrap the state to
+     indicate it's ready to take a syncronisation step or resume
+     running. (This keeps the invariant that at most one thread is not
+     at_external) *)
   
   Inductive resume_thread': forall {tid0} {ms:machine_state},
-                                containsThread ms tid0 -> machine_state -> Prop:=
-    | ResumeThread: forall tid0 ms ms' c
-                      (ctn: containsThread ms tid0)
-                      (HC: getThreadC ctn = Kresume c)
-                      (Hms': updThreadC ctn (Krun c)  = ms'),
-                      resume_thread' ctn ms'.
-    Definition resume_thread: forall {tid0 ms},
-                                containsThread ms tid0 -> machine_state -> Prop:=
-      @resume_thread'.
+      containsThread ms tid0 -> machine_state -> Prop:=
+  | ResumeThread: forall tid0 ms ms' c
+                    (ctn: containsThread ms tid0)
+                    (HC: getThreadC ctn = Kresume c)
+                    (Hms': updThreadC ctn (Krun c)  = ms'),
+      resume_thread' ctn ms'.
+  Definition resume_thread: forall {tid0 ms},
+      containsThread ms tid0 -> machine_state -> Prop:=
+    @resume_thread'.
 
-    Inductive suspend_thread': forall {tid0} {ms:machine_state},
-                                 containsThread ms tid0 -> machine_state -> Prop:=
-    | SuspendThread: forall tid0 ms ms' c ef sig args
-                       (ctn: containsThread ms tid0)
-                       (HC: getThreadC ctn = Krun c)
-                       (Hat_external: at_external Sem c = Some (ef, sig, args))
-                       (Hms': updThreadC ctn (Kstop c) = ms'),
-                       suspend_thread' ctn ms'.
-    Definition suspend_thread : forall {tid0 ms},
-                                  containsThread ms tid0 -> machine_state -> Prop:=
-      @suspend_thread'.
+  Inductive suspend_thread': forall {tid0} {ms:machine_state},
+      containsThread ms tid0 -> machine_state -> Prop:=
+  | SuspendThread: forall tid0 ms ms' c ef sig args
+                     (ctn: containsThread ms tid0)
+                     (HC: getThreadC ctn = Krun c)
+                     (Hat_external: at_external Sem c = Some (ef, sig, args))
+                     (Hms': updThreadC ctn (Kstop c) = ms'),
+      suspend_thread' ctn ms'.
+  Definition suspend_thread : forall {tid0 ms},
+      containsThread ms tid0 -> machine_state -> Prop:=
+    @suspend_thread'.
   
   Inductive machine_step {genv:G}:
     Sch -> machine_state -> mem -> Sch -> machine_state -> mem -> Prop :=
@@ -186,15 +220,15 @@ Module CoarseMachine (TID: ThreadID)(SCH:Scheduler TID)(SIG : ConcurrentMachineS
 
   Definition MachStep G (c:MachState) (m:mem) (c' :MachState) (m':mem) :=
     @machine_step  G (fst c) (snd c) m (fst c') (snd c') m'.
-    
+  
   Definition at_external (st : MachState)
     : option (external_function * signature * list val) := None.
   
   Definition after_external (ov : option val) (st : MachState) :
     option (MachState) := None.
 
-    (*not clear what the value of halted should be*)
-    (*Nick: IMO, the machine should be halted when the schedule is empty.
+  (*not clear what the value of halted should be*)
+  (*Nick: IMO, the machine should be halted when the schedule is empty.
             The value is probably unimportant? *)
   Definition halted (st : MachState) : option val :=
     match schedPeek (fst st) with
@@ -205,8 +239,8 @@ Module CoarseMachine (TID: ThreadID)(SCH:Scheduler TID)(SIG : ConcurrentMachineS
   Variable U: Sch.
   Definition init_machine the_ge (f : val) (args : list val) : option MachState :=
     match init_mach the_ge f args with
-      |None => None
-      | Some c => Some (U, c)
+    |None => None
+    | Some c => Some (U, c)
     end.
   
   Program Definition MachineSemantics :
@@ -226,35 +260,36 @@ Module CoarseMachine (TID: ThreadID)(SCH:Scheduler TID)(SIG : ConcurrentMachineS
   
 End CoarseMachine.
 
-Module FineMachine (TID: ThreadID)(SCH:Scheduler TID)(SIG : ConcurrentMachineSig TID).
-  Import TID.
-  Import SIG.
-  Import SCH.
-
-   Inductive resume_thread': forall {tid0} {ms:machine_state},
-                                containsThread ms tid0 -> machine_state -> Prop:=
-    | ResumeThread: forall tid0 ms ms' c
-                      (ctn: containsThread ms tid0)
-                      (HC: getThreadC ctn = Kresume c)
-                      (Hms': updThreadC ctn (Krun c)  = ms'),
-                      resume_thread' ctn ms'.
-    Definition resume_thread: forall {tid0 ms},
-                                containsThread ms tid0 -> machine_state -> Prop:=
-      @resume_thread'.
-
-    Inductive suspend_thread': forall {tid0} {ms:machine_state},
-                                 containsThread ms tid0 -> machine_state -> Prop:=
-    | SuspendThread: forall tid0 ms ms' c ef sig args
-                       (ctn: containsThread ms tid0)
-                       (HC: getThreadC ctn = Krun c)
-                       (Hat_external: at_external Sem c = Some (ef, sig, args))
-                       (Hms': updThreadC ctn (Kstop c)  = ms'),
-                       suspend_thread' ctn ms'.
-    Definition suspend_thread : forall {tid0 ms},
-                                  containsThread ms tid0 -> machine_state -> Prop:=
-      @suspend_thread'.
+Module FineMachine (TID: ThreadID)(SCH:Scheduler TID)
+       (TP: ThreadPoolSig TID) (SIG : ConcurrentMachineSig TID TP).
+  Import TID SCH TP SIG.
   
   Notation Sch:=schedule.
+  Notation machine_state := TP.t.
+
+  Inductive resume_thread': forall {tid0} {ms:machine_state},
+      containsThread ms tid0 -> machine_state -> Prop:=
+  | ResumeThread: forall tid0 ms ms' c
+                    (ctn: containsThread ms tid0)
+                    (HC: getThreadC ctn = Kresume c)
+                    (Hms': updThreadC ctn (Krun c)  = ms'),
+      resume_thread' ctn ms'.
+  Definition resume_thread: forall {tid0 ms},
+      containsThread ms tid0 -> machine_state -> Prop:=
+    @resume_thread'.
+
+  Inductive suspend_thread': forall {tid0} {ms:machine_state},
+      containsThread ms tid0 -> machine_state -> Prop:=
+  | SuspendThread: forall tid0 ms ms' c ef sig args
+                     (ctn: containsThread ms tid0)
+                     (HC: getThreadC ctn = Krun c)
+                     (Hat_external: at_external Sem c = Some (ef, sig, args))
+                     (Hms': updThreadC ctn (Kstop c)  = ms'),
+      suspend_thread' ctn ms'.
+  Definition suspend_thread : forall {tid0 ms},
+      containsThread ms tid0 -> machine_state -> Prop:=
+    @suspend_thread'.
+  
   Inductive machine_step {genv:G}:
     Sch -> machine_state -> mem -> Sch -> machine_state -> mem -> Prop :=
   | resume_step:
@@ -306,37 +341,37 @@ Module FineMachine (TID: ThreadID)(SCH:Scheduler TID)(SIG : ConcurrentMachineSig
 
   Definition MachState: Type := (Sch * machine_state)%type.
 
-    Definition MachStep G (c:MachState) (m:mem) (c' :MachState) (m':mem) :=
-      @machine_step G (fst c) (snd c) m (fst c') (snd c') m'.
+  Definition MachStep G (c:MachState) (m:mem) (c' :MachState) (m':mem) :=
+    @machine_step G (fst c) (snd c) m (fst c') (snd c') m'.
 
-    Definition at_external (st : MachState)
+  Definition at_external (st : MachState)
     : option (external_function * signature * list val) := None.
-    
-    Definition after_external (ov : option val) (st : MachState) :
-      option (MachState) := None.
-    
+  
+  Definition after_external (ov : option val) (st : MachState) :
+    option (MachState) := None.
+  
   (*not clear what the value of halted should be*)
-    Definition halted (st : MachState) : option val := None.
-    
-    Variable U: Sch.
-    Definition init_machine the_ge (f : val) (args : list val) : option MachState :=
-      match init_mach the_ge f args with
-      | None => None
-      | Some c => Some (U, c)
-      end.
-    
-    Program Definition MachineSemantics :
-      CoreSemantics G MachState mem.
-    intros.
-    apply (@Build_CoreSemantics _ MachState _
-                                init_machine 
+  Definition halted (st : MachState) : option val := None.
+  
+  Variable U: Sch.
+  Definition init_machine the_ge (f : val) (args : list val) : option MachState :=
+    match init_mach the_ge f args with
+    | None => None
+    | Some c => Some (U, c)
+    end.
+  
+  Program Definition MachineSemantics :
+    CoreSemantics G MachState mem.
+  intros.
+  apply (@Build_CoreSemantics _ MachState _
+                              init_machine 
                               at_external
                               after_external
                               halted
                               MachStep
-          );
-      unfold at_external, halted; try reflexivity.
-    auto.
-    Defined.
+        );
+    unfold at_external, halted; try reflexivity.
+  auto.
+  Defined.
 
 End FineMachine.
