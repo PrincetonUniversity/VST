@@ -128,7 +128,6 @@ CONCUR_FILES= \
   sepcomp.v threads_lemmas.v permissions.v\
   pos.v scheduler.v \
   concurrent_machine.v juicy_machine.v dry_machine.v \
-  compcert_threads.v compcert_threads_lemmas.v \
   erasure.v \
   semax_conc.v semax_to_machine.v
 
