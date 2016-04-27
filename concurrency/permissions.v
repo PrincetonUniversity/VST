@@ -211,6 +211,105 @@ Section permMapDefs.
   Qed.
 
   Definition isCanonical (pmap : access_map) := pmap.1 = fun _ => None.
+  Import Maps.
+  Definition TreeMaxIndex {A} (t:Maps.PTree.t A): positive:=
+    Coqlib.list_fold_left (fun a => [eta Pos.max a.1]) 1%positive (Maps.PTree.elements t) .
+  Lemma fold_max_monoton: forall  {A} (ls: seq.seq (positive * A)), forall i,
+        (Coqlib.list_fold_left (fun a => [eta Pos.max a.1]) i ls >= i)%positive.
+  Proof.
+    induction ls.
+    - simpl. intros; apply Pos.le_ge; apply Pos.le_refl.
+    - intros. simpl.
+      destruct (Pos.max_spec a.1 i) as [LT | GE].
+      + destruct LT as [LT MAX]; rewrite MAX.
+        apply IHls.
+      + destruct GE as [GE MAX]; rewrite MAX.
+        apply Pos.le_ge. apply (Pos.le_trans _ a.1); try assumption.
+        apply Pos.ge_le; apply IHls.
+  Qed.
+  Lemma fold_max_monoton': forall  {A} (ls: seq.seq (positive * A)), forall i j,
+        (i >= j)%positive ->
+        (Coqlib.list_fold_left (fun a => [eta Pos.max a.1]) i ls >= Coqlib.list_fold_left (fun a => [eta Pos.max a.1]) j ls)%positive.
+  Proof.
+    induction ls.
+    - auto. 
+    - intros. simpl.
+      destruct (Pos.max_spec a.1 i) as [LTi | GEi];
+      destruct (Pos.max_spec a.1 j) as [LTj | GEj];
+      try destruct LTi as [LTi MAXi]; try destruct LTj as [LTj MAXj];
+      try destruct GEi as [GEi MAXi]; try destruct GEj as [GEj MAXj];
+      try rewrite MAXi; try rewrite MAXj; simpl.
+      + apply IHls; assumption.
+      + apply IHls. apply Pos.le_ge. apply Pos.lt_le_incl; assumption.
+      + pose (contra:= Pos.le_lt_trans  _ _ _ GEi LTj).
+        apply Pos.ge_le in H. apply Pos.le_nlt in H. contradict H; assumption.
+      + apply Pos.le_ge. apply Pos.le_refl.
+  Qed.
+  Lemma TreeMaxIndex_help: forall {A} (ls: seq.seq (positive * A)), forall i v,
+        In (i, v) ls -> (Coqlib.list_fold_left (fun a => [eta Pos.max a.1]) 1%positive ls >= i)%positive.
+  Proof.
+    induction ls.
+    - intros. inversion H.
+    - intros. simpl in H.
+      destruct H as [eq | ineq].
+      + subst a. simpl.
+        rewrite Pos.max_1_r.
+        apply fold_max_monoton.
+      +  simpl. rewrite Pos.max_1_r.
+         pose (ineq':=ineq).
+         apply IHls in ineq'.
+         apply Pos.le_ge.
+         apply (Pos.le_trans _ (Coqlib.list_fold_left (fun a0 : positive * A => [eta Pos.max a0.1])
+                                                      1%positive ls)).
+         * apply Pos.ge_le. eapply IHls.
+           eassumption.
+         * apply Pos.ge_le. apply fold_max_monoton'.
+           apply Pos.le_ge; apply Pos.le_1_l.
+  Qed.
+  Lemma max_works: forall A (t:PTree.t A) m, (m > TreeMaxIndex t)%positive -> t ! m = None.
+  Proof.
+    intros. destruct (t ! m) eqn: GET; try reflexivity.
+    apply PTree.elements_correct in GET.
+    unfold TreeMaxIndex in H. simpl in H.
+    apply TreeMaxIndex_help in GET.
+    apply Pos.ge_le in GET. apply Pos.le_nlt in GET.
+    contradict GET. apply Pos.gt_lt; assumption.
+  Qed.
+      
+  Lemma Cur_isCanonical: forall m, isCanonical (getCurPerm m).
+        unfold isCanonical. intros.
+        pose (BigNumber:= Pos.max (Pos.succ( TreeMaxIndex (getCurPerm m).2) ) (Mem.nextblock m)).
+        assert (HH: (BigNumber >= (Pos.succ ( TreeMaxIndex (getCurPerm m).2)))%positive )
+          by (unfold BigNumber; apply Pos.le_ge; apply Pos.le_max_l).
+        apply Pos.ge_le in HH; apply Pos.le_succ_l in HH.
+        apply Pos.lt_gt in HH; eapply max_works in HH.
+        extensionality x.
+        pose (property:= Mem.nextblock_noaccess m BigNumber x Cur).
+        rewrite <- property.
+        - replace ((Mem.mem_access m) !! BigNumber x Cur) with (permission_at m BigNumber x Cur); try reflexivity.
+          rewrite <- getCurPerm_correct.
+          unfold PMap.get.
+          rewrite HH.
+          reflexivity.
+        - apply Pos.le_nlt. unfold BigNumber. apply Pos.le_max_r.
+  Qed.
+  Lemma Max_isCanonical: forall m, isCanonical (getMaxPerm m).
+        unfold isCanonical. intros.
+        pose (BigNumber:= Pos.max (Pos.succ( TreeMaxIndex (getMaxPerm m).2) ) (Mem.nextblock m)).
+        assert (HH: (BigNumber >= (Pos.succ ( TreeMaxIndex (getMaxPerm m).2)))%positive )
+          by (unfold BigNumber; apply Pos.le_ge; apply Pos.le_max_l).
+        apply Pos.ge_le in HH; apply Pos.le_succ_l in HH.
+        apply Pos.lt_gt in HH; eapply max_works in HH.
+        extensionality x.
+        pose (property:= Mem.nextblock_noaccess m BigNumber x Max).
+        rewrite <- property.
+        - replace ((Mem.mem_access m) !! BigNumber x Max) with (permission_at m BigNumber x Max); try reflexivity.
+          rewrite <- getMaxPerm_correct.
+          unfold PMap.get.
+          rewrite HH.
+          reflexivity.
+        - apply Pos.le_nlt. unfold BigNumber. apply Pos.le_max_r.
+  Qed.  
   
   Definition permMapLt (pmap1 pmap2 : access_map) : Prop :=
     forall b ofs,
