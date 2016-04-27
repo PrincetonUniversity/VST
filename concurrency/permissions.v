@@ -620,7 +620,25 @@ Section permMapDefs.
   Proof.
     intros. unfold restrPermMap. reflexivity.
   Qed.
-
+  Lemma restrPermMap_contents :
+    forall p' m (Hlt: permMapLt p' (getMaxPerm m)),
+      contents_at (restrPermMap Hlt) = contents_at m.
+  Proof.
+    intros. unfold restrPermMap. reflexivity.
+  Qed.
+  Lemma restrPermMap_max :
+    forall p' m (Hlt: permMapLt p' (getMaxPerm m)),
+      max_access_at (restrPermMap Hlt) = max_access_at m.
+  Proof.
+    intros.
+    unfold max_access_at; simpl.
+    extensionality loc; simpl.
+    unfold Maps.PMap.get at 1; simpl.
+    rewrite Maps.PTree.gmap.
+    unfold Maps.PMap.get at 2; simpl.
+    destruct (((Mem.mem_access m).2) ! (loc.1)) eqn:AA; reflexivity.
+  Qed.
+  
   Lemma restrPermMap_irr : forall p' p'' m
                              (Hlt : permMapLt p' (getMaxPerm m))
                              (Hlt': permMapLt p'' (getMaxPerm m))
@@ -691,7 +709,6 @@ Section permMapDefs.
     rewrite Heqo in Hlt. simpl in Hlt.
     destruct (o ofs); tauto.
   Qed.
-
   Lemma restrPermMap_can : forall (p : access_map) (m m': mem)
                              (Hcanonical: isCanonical p)
                              (Hlt: permMapLt p (getMaxPerm m))

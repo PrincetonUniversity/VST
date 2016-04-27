@@ -216,9 +216,12 @@ Module Concur.
     
     (** Invariants*)
     (** The state respects the memory*)
+    Definition access_cohere' m phi:= forall loc,
+      Mem.perm_order'' (max_access_at m loc) (perm_of_res (phi @ loc)).
     Record mem_cohere' m phi :=
       { cont_coh: contents_cohere m phi;
-        acc_coh: access_cohere m phi;
+        (*acc_coh: access_cohere m phi;*)
+        acc_coh: access_cohere' m phi;
         max_coh: max_access_cohere m phi;
         all_coh: alloc_cohere m phi
       }.
@@ -251,10 +254,103 @@ Module Concur.
     Definition invariant := invariant'.
     
     (** Steps*)
+    Definition mapmap {A B} (def:B) (f:positive -> A -> B) (m:PMap.t A): PMap.t B:=
+      (def, PTree.map f m#2).
+    (* You need the memory, to make a finite tree. *)
+    Definition juice2Perm (phi:rmap)(m:mem): access_map:=
+      mapmap (fun _ => None) (fun block _ => fun ofs => perm_of_res (phi @ (block, ofs)) ) (getCurPerm m).
+    Lemma juice2Perm_nogrow: forall phi m b ofs,
+        Mem.perm_order'' (perm_of_res (phi @ (b, ofs)))
+                         ((juice2Perm phi m) !! b ofs).
+    Proof.
+      intros. unfold juice2Perm, mapmap, PMap.get.
+      rewrite PTree.gmap.
+      destruct (((getCurPerm m)#2) ! b) eqn: inBounds; simpl.
+      - destruct ((perm_of_res (phi @ (b, ofs)))) eqn:AA; rewrite AA; simpl; try reflexivity.
+        apply perm_refl.
+      - unfold Mem.perm_order''.
+        destruct (perm_of_res (phi @ (b, ofs))); trivial.
+    Qed.
+    Lemma juice2Perm_cohere: forall phi m,
+        access_cohere' m phi ->
+        permMapLt (juice2Perm phi m) (getMaxPerm m).
+    Proof.
+      unfold permMapLt; intros.
+      rewrite getMaxPerm_correct; unfold permission_at.
+      eapply (po_trans _ (perm_of_res (phi @ (b, ofs))) _) .
+      - specialize (H (b, ofs)); simpl in H. apply H. unfold max_access_at in H.
+      - apply juice2Perm_nogrow.
+    Qed.
+    
+    Definition juicyRestrict {phi:rmap}{m:Mem.mem}(coh:access_cohere' m phi): Mem.mem:=
+      restrPermMap (juice2Perm_cohere coh).
+    Lemma juicyRestrictContents: forall phi m (coh:access_cohere' m phi),
+        forall loc, contents_at m loc = contents_at (juicyRestrict coh) loc.
+    Proof. unfold juicyRestrict.
+    Lemma juicyRestrictContentCoh: forall phi m (coh:access_cohere' m phi) (ccoh:contents_cohere m phi),
+        contents_cohere (juicyRestrict coh) phi.
+    Proof.
+      intros phi m coh. unfold contents_cohere; intros.
+      unfold 
+          
+      
+    Definition smartRestrict {m phi} (coh: access_cohere m phi): {m' | access_cohere m' phi}.
+    Proof.
+      
+      pose (p:= mapmap None (fun block _ => fun ofs => perm_of_res (phi @ (block, ofs)) ) (getCurPerm m)).
+      assert (pmlt: permMapLt p (getMaxPerm m)).
+      { unfold permMapLt. intros.
+        unfold p; simpl.
+        eapply po_trans.
+        unfold access_at in coh.
+        rewrite getMaxPerm_correct; unfold permission_at.
+        eapply (Mem.access_max m).
+        specialize (coh (b,ofs)).
+        unfold access_at in coh; simpl in coh.
+        unfold mapmap.
+        unfold PMap.get at 2; simpl.
+        rewrite PTree.gmap.
+        rewrite PTree.gmap1.
+        unfold PMap.get.
+        destruct (((Mem.mem_access m)#2) ! b) eqn:THING.
+        - simpl.
+          unfold PMap.get in coh. rewrite THING in coh. exact coh.
+        - simpl. admit.
+      }
+      pose (m':= restrPermMap pmlt).
+      assert (coh': access_cohere m' phi).
+      { 
+        unfold access_cohere; intros.
+        unfold access_at.
+        specialize (coh loc).
+        unfold access_at in coh; simpl in coh.
+        unfold PMap.get; simpl.
+        unfold p, mapmap; simpl.
+        rewrite PTree.gmap.
+        unfold PMap.get.
+        destruct (((Mem.mem_access m)#2) ! (loc#1)) eqn:THING.
+        - simpl.
+          unfold PMap.get in coh. rewrite THING in coh. exact coh.
+        - simpl. admit.
+          
+        specialize (coh loc).
+        unfold access_at in coh; simpl in coh.
+        unfold mapmap.
+        unfold PMap.get; simpl.
+        rewrite PTree.gmap.
+        destruct (((Mem.mem_access m)#2) ! (loc#1)) eqn:THING.
+        - simpl.
+          unfold PMap.get in coh. rewrite THING in coh. exact coh.
+        - simpl. admit.
+        
+    eapply (exist _  coh).
+    (* A personal_mem includes installing the Juice AND the equivalent CUR. *)
      Definition personal_mem {tid0 tp m} (cnt: containsThread tp tid0)
                (Hcompatible: mem_compatible tp m): juicy_mem.
     destruct Hcompatible as [perm_comp].
     destruct (perm_comp _ cnt).
+    
+    pose (m':= restrPermMap (perm_comp tid0 cnt) ).
     apply (mkJuicyMem m (getThreadR cnt)); auto.
     Defined.
 
