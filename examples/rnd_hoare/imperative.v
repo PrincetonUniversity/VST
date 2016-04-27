@@ -6,17 +6,10 @@ Class Imperative : Type := {
   cmd: Type;
   expr: Type;
   Ssequence: cmd -> cmd -> cmd;
-  EqCmd: cmd -> cmd -> Prop;
-  EqE: Equivalence EqCmd;
-  seq_assoc: forall c1 c2 c3, EqCmd (Ssequence c1 (Ssequence c2 c3)) (Ssequence (Ssequence c1 c2) c3);
-  Ssequence_proper: Proper (EqCmd ==> EqCmd ==> EqCmd) Ssequence
+  cmd_rank: cmd -> nat;
+  Ssequence_consi_left: forall c1 c2, cmd_rank c1 < cmd_rank (Ssequence c1 c2);
+  Ssequence_consi_right: forall c1 c2, cmd_rank c2 < cmd_rank (Ssequence c1 c2)
 }.
-
-Global Existing Instances EqE Ssequence_proper.
-
-Notation "x ~=~ y" := (EqCmd x y) (at level 70, no associativity): Imperative.
-
-Open Scope Imperative.
 
 Inductive NormalImperativePatternMatchResult {imp: Imperative} : Type :=
   | PM_Ssequence: cmd -> cmd -> NormalImperativePatternMatchResult
@@ -34,12 +27,14 @@ Definition is_PM_Ssequence {imp: Imperative} (pm: NormalImperativePatternMatchRe
 Class NormalImperative {imp: Imperative}: Type := {
   Sifthenelse: expr -> cmd -> cmd -> cmd;
   Swhile: expr -> cmd -> cmd;
+  Sifthenelse_consi_left: forall e c1 c2, cmd_rank c1 < cmd_rank (Sifthenelse e c1 c2);
+  Sifthenelse_consi_right: forall e c1 c2, cmd_rank c2 < cmd_rank (Sifthenelse e c1 c2);
+  Swhile_consi: forall e c, cmd_rank c < cmd_rank (Swhile e c);
   cmd_pattern_match: cmd -> NormalImperativePatternMatchResult;
-  pattern_match_proper: Proper (EqCmd ==> eq) cmd_pattern_match;
-  Ssequence_pattern_match_iff: forall (c c1 c2: cmd), c ~=~ Ssequence c1 c2 /\ ~ is_PM_Ssequence (cmd_pattern_match c1) <-> cmd_pattern_match c = PM_Ssequence c1 c2;
+  Ssequence_pattern_match_iff: forall (c c1 c2: cmd), c = Ssequence c1 c2 <-> cmd_pattern_match c = PM_Ssequence c1 c2;
   Ssequence_pattern_match: forall (c1 c2: cmd), is_PM_Ssequence (cmd_pattern_match (Ssequence c1 c2));
-  Sifthenelse_pattern_match_iff: forall (c: cmd) (e: expr) (c1 c2: cmd), c ~=~ Sifthenelse e c1 c2 <-> cmd_pattern_match c = PM_Sifthenelse e c1 c2;
-  Swhile_pattern_match_iff: forall (c: cmd) (e: expr) (c0: cmd), c ~=~ Swhile e c0 <-> cmd_pattern_match c = PM_Swhile e c0
+  Sifthenelse_pattern_match_iff: forall (c: cmd) (e: expr) (c1 c2: cmd), c = Sifthenelse e c1 c2 <-> cmd_pattern_match c = PM_Sifthenelse e c1 c2;
+  Swhile_pattern_match_iff: forall (c: cmd) (e: expr) (c0: cmd), c = Swhile e c0 <-> cmd_pattern_match c = PM_Swhile e c0
 }.
 
 Inductive MetaState (state: Type): Type :=
@@ -280,6 +275,14 @@ Definition global_state_command_state {imp: Imperative} {sss: SmallStepSemantics
   rewrite H0; auto.
 Defined.
 
+Definition is_legal_branch {imp: Imperative} {sss: SmallStepSemantics} (sigma: list LR) (s: global_state): Prop :=
+  forall h,
+    match s h with
+    | Some NonTerminating => True
+    | Some (Terminating (sigma', _)) => forall d, sigma <> sigma' ++ d /\ sigma' <> sigma ++ d
+    | None => True
+    end.
+
 Definition seq_command {imp: Imperative} (sigma0: list LR) (c0: cmd) (c: list LR -> cmd): list LR -> cmd :=
   fun sigma =>
     if branch_dec sigma0 sigma then Ssequence c0 (c sigma0) else c sigma.
@@ -288,7 +291,11 @@ Definition command_oaccess {imp: Imperative} {sss: SmallStepSemantics} (sigma: l
   forall k, omega_access (global_state_command_state (seq_command sigma c k) src) (global_state_command_state k dst).
 
 Definition triple {imp: Imperative} {sss: SmallStepSemantics} (sigma: list LR) (P: global_state -> Prop) (c: cmd)  (Q: global_state -> Prop): Prop :=
-  forall s1, P s1 -> forall s2, command_oaccess sigma c s1 s2 -> Q s2.
+  forall s1,
+    P s1 ->
+    is_legal_branch sigma s1 -> 
+    forall s2, command_oaccess sigma c s1 s2 ->
+    Q s2.
 
 Definition PartialAssertion {imp: Imperative} {sss: SmallStepSemantics}: Type :=
   {P: global_state -> Prop |
