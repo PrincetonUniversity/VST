@@ -316,6 +316,22 @@ Section permMapDefs.
       Mem.perm_order'' (Maps.PMap.get b pmap2 ofs)
                        (Maps.PMap.get b pmap1 ofs).
   
+  Lemma canonical_lt :
+    forall p' m (Hcanonical: isCanonical (getMaxPerm m))
+      (Hlt: permMapLt p' (getMaxPerm m)),
+      isCanonical p'.
+  Proof.
+    intros. unfold isCanonical in *.
+    unfold permMapLt in *.
+    apply extensionality. intros ofs.
+    specialize (Hlt (Mem.nextblock m) ofs).
+    rewrite getMaxPerm_correct in Hlt.
+    assert (permission_at m (Mem.nextblock m) ofs Max = None).
+    unfold permission_at. apply Mem.nextblock_noaccess. admit.
+    rewrite H in Hlt. simpl in Hlt. destruct (Maps.PMap.get (Mem.nextblock m) p' ofs) eqn:?.
+    by exfalso. unfold Maps.PMap.get in Heqo. 
+    remember (Maps.PTree.elements ((getMaxPerm m).2)).
+  
   Definition setPerm (p : option permission) (b : block)
              (ofs : Z) (pmap : access_map) : access_map :=
     Maps.PMap.set b (fun ofs' => if Coqlib.zeq ofs ofs' then
