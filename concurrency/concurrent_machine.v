@@ -5,6 +5,7 @@ Require Import compcert.common.Globalenvs.
 Require Import compcert.lib.Integers.
 Require Import Coq.ZArith.ZArith.
 Require Import sepcomp.semantics.
+
 Load scheduler.
 
 Require Import Coq.Program.Program.
@@ -57,23 +58,26 @@ Inductive ctl {cT:Type} : Type :=
 Definition EqDec: Type -> Type := 
   fun A : Type => forall a a' : A, {a = a'} + {a <> a'}.
 
-Module Type ThreadPoolSig (TID: ThreadID).
+Module Type ThreadPoolSig.
+  Declare Module TID: ThreadID.
+  Declare Module SEM: Semantics.
+  
   Import TID.
+  Import SEM.
 
-  Parameter code : Type.
   Parameter res : Type.
   Parameter LockPool : Type.
   Parameter t : Type.
 
   Parameter lpool : t -> LockPool.
 
-  Notation ctl := (@ctl code).
+  Notation ctl := (@ctl C).
   
   Parameter containsThread : t -> tid -> Prop.
   Parameter getThreadC : forall {tid tp}, containsThread tp tid -> ctl.
   Parameter getThreadR : forall {tid tp}, containsThread tp tid -> res.
 
-  Parameter addThread : t -> code -> res -> t.
+  Parameter addThread : t -> C -> res -> t.
   Parameter updThreadC : forall {tid tp}, containsThread tp tid -> ctl -> t.
   Parameter updThreadR : forall {tid tp}, containsThread tp tid -> res -> t.
   Parameter updThread : forall {tid tp}, containsThread tp tid -> ctl -> res -> t.
@@ -98,18 +102,20 @@ Module Type ThreadPoolSig (TID: ThreadID).
       getThreadR cnt = getThreadR cnt'.
 End ThreadPoolSig.
 
-Module Type ConcurrentMachineSig (TID : ThreadID)
-       (ThreadPool: ThreadPoolSig TID).
+Module Type ConcurrentMachineSig.
+  Declare Module ThreadPool: ThreadPoolSig.
   Import ThreadPool.
+  Import SEM.
 
   Notation thread_pool := ThreadPool.t.
   (** Memories*)
   Parameter richMem: Type.
-  Parameter dryMem: richMem -> mem.
+  Parameter dryMem: richMem -> M.
   
   (** Environment and Threadwise semantics *)
-  Parameter G: Type.
-  Parameter Sem : CoreSemantics G code mem. 
+  (** These values come from SEM *)
+  (*Parameter G: Type.
+  Parameter Sem : CoreSemantics G C mem. *)
 
   (** The thread pool respects the memory*)
   Parameter mem_compatible: thread_pool -> mem -> Prop.
@@ -133,12 +139,13 @@ Module Type ConcurrentMachineSig (TID : ThreadID)
 End ConcurrentMachineSig.
 
 
-Module CoarseMachine (TID: ThreadID)(SCH:Scheduler TID)
-       (TP: ThreadPoolSig TID) (SIG : ConcurrentMachineSig TID TP).
-  Import TID SCH TP SIG.
+Module CoarseMachine (SCH:Scheduler)(SIG : ConcurrentMachineSig with Module ThreadPool.TID:=SCH.TID).
+  Module SCH:=SCH.
+  Module SIG:=SIG.
+  Import SCH SIG TID ThreadPool ThreadPool.SEM.
   
   Notation Sch:=schedule.
-  Notation machine_state := TP.t.
+  Notation machine_state := ThreadPool.t.
   
   (** Resume and Suspend: threads running must be preceded by a Resume
      and followed by Suspend.  This functions wrap the state to
@@ -263,12 +270,13 @@ Module CoarseMachine (TID: ThreadID)(SCH:Scheduler TID)
   
 End CoarseMachine.
 
-Module FineMachine (TID: ThreadID)(SCH:Scheduler TID)
-       (TP: ThreadPoolSig TID) (SIG : ConcurrentMachineSig TID TP).
-  Import TID SCH TP SIG.
+Module FineMachine  (SCH:Scheduler)(SIG : ConcurrentMachineSig with Module ThreadPool.TID:=SCH.TID).
+  Module SCH:=SCH.
+  Module SIG:=SIG.
+  Import SCH SIG TID ThreadPool ThreadPool.SEM.
   
   Notation Sch:=schedule.
-  Notation machine_state := TP.t.
+  Notation machine_state := ThreadPool.t.
 
   Inductive resume_thread': forall {tid0} {ms:machine_state},
       containsThread ms tid0 -> machine_state -> Prop:=

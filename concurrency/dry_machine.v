@@ -51,9 +51,14 @@ Notation UNLOCK := (EF_external "UNLOCK" UNLOCK_SIG).
 
 Require Import concurrency.permissions.
 
-Module ThreadPool <: ThreadPoolSig NatTID.
+Module ThreadPool (SEM:Semantics) <: ThreadPoolSig
+                                        with Module TID:= NatTID with Module SEM:=SEM.
 
-  Variable code : Type.
+  Module TID:=NatTID.
+  Module SEM:=SEM.
+  Import TID SEM.
+  
+  Notation code:=C.
   Definition res := access_map.
   Definition LockPool := access_map.
   
@@ -168,18 +173,26 @@ Module Concur.
   (*   Definition M: Type:= mem. *)
   (*   Parameter Sem: CoreSemantics G C M. *)
   (* End DrySemantics. *)
-  
-  Module DryMachine <: ConcurrentMachineSig NatTID ThreadPool.
 
-    Notation tid := NatTID.tid.
+  
+  Module mySchedule := ListScheduler NatTID.
+  
+  Module DryMachine <: ConcurrentMachineSig with Module ThreadPool.TID:=mySchedule.TID.
+
+    Declare Module SEM:Semantics.
+    Module ThreadPool := ThreadPool SEM.
     Import ThreadPool.
+    Import ThreadPool.SEM.
+    Notation tid := NatTID.tid.
+    
     (** Memories*)
-    Definition richMem: Type:= mem.
-    Definition dryMem: richMem -> mem:= id.
+    Definition richMem: Type:= M.
+    Definition dryMem: richMem -> M:= id.
     
     (** Environment and Threadwise semantics *)
-    Parameter G: Type.
-    Parameter Sem : CoreSemantics G code richMem.
+    (* This is inherited from SEM*)
+    (*Parameter G: Type.
+    Parameter Sem : CoreSemantics G code richMem.*)
 
     Notation thread_pool := (ThreadPool.t).
     Notation perm_map := ThreadPool.res.
@@ -387,11 +400,10 @@ Module Concur.
   End DryMachine.
 
   (* Here I make the core semantics*)
-  Module mySchedule := ListScheduler NatTID.
   Module myCoarseSemantics :=
-    CoarseMachine NatTID mySchedule ThreadPool DryMachine.
+    CoarseMachine mySchedule DryMachine.
   Module myFineSemantics :=
-    FineMachine NatTID mySchedule ThreadPool DryMachine.
+    FineMachine mySchedule  DryMachine.
 
   Definition coarse_semantics:=
     myCoarseSemantics.MachineSemantics.

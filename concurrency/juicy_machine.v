@@ -75,10 +75,15 @@ Module LockPool.
 End LockPool.
 Export LockPool.
 
-Module ThreadPool <: ThreadPoolSig NatTID.
-
-  Variable code : Type.
+Module ThreadPool (SEM:Semantics) <: ThreadPoolSig
+                                        with Module TID:= NatTID with Module SEM:=SEM.
+  Module TID:=NatTID.
+  Module SEM:=SEM.
+  Import TID SEM.
+  
+  Notation code:=C.
   Definition res := rmap.
+  
   Definition LockPool := LockPool.
   
   Record t' := mk
@@ -187,24 +192,28 @@ Module JMem.
 End JMem.
 
 Module Concur.
-    (* Context {cT G : Type} {the_sem : CoreSemantics G cT mem}{LP:LockPool}. *)
-    
-    
-  (** Semantics of the coarse-grained juicy concurrent machine*)
-    
-  
-  Module JuicyMachineSig <: ConcurrentMachineSig NatTID ThreadPool.
 
+  
+  Module mySchedule := ListScheduler NatTID.
+  
+  (** Semantics of the coarse-grained juicy concurrent machine*)
+  Module JuicyMachineSig  <: ConcurrentMachineSig with Module ThreadPool.TID:=mySchedule.TID.
+
+    Declare Module SEM:Semantics.
+    Module ThreadPool := ThreadPool SEM.
     Import ThreadPool.
+    Import ThreadPool.SEM.
     Notation tid := NatTID.tid.                  
+
     (** Memories*)
     Parameter level: nat.
     Definition richMem: Type:= juicy_mem.
     Definition dryMem: richMem -> mem:= m_dry.
     
     (** Environment and Threadwise semantics *)
-    Parameter G : Type.
-    Parameter Sem : CoreSemantics G code mem.
+    (* This all comes from the SEM. *)
+    (*Parameter G : Type.
+    Parameter Sem : CoreSemantics G code mem.*)
     Notation the_sem := Sem.
     
     (*thread pool*)
@@ -582,9 +591,11 @@ Module Concur.
        but it should be built with the correct juice,
        corresponding to global variables, arguments
        and function specs. *)
+
     Lemma onePos: (0<1)%coq_nat. auto. Qed.
     Definition initial_machine c:=
       mk (mkPos onePos) (fun _ => c) (fun _ => empty_rmap level) (fun _ => None).
+    
     Definition init_mach (genv:G)(v:val)(args:list val) : option thread_pool:=
       match initial_core the_sem genv v args with
       | Some c => Some (initial_machine (Kresume c))
@@ -593,123 +604,9 @@ Module Concur.
       
 End JuicyMachineSig.
 
-  Module mySchedule := ListScheduler NatTID.
   Module myCoarseSemantics :=
-    CoarseMachine NatTID mySchedule ThreadPool JuicyMachineSig.
+    CoarseMachine mySchedule JuicyMachineSig.
   Definition coarse_semantics:=
     myCoarseSemantics.MachineSemantics.
   
 End Concur.
-
-
-  (* These are usefl lemmas/definitions to prove that the threadpool 
-     satisfies the invariant after a step. If we want to include them in the
-     module above, we need to require that a step maintains the invariant.
-     Otherwise just copy them in your proofs wherever/if you need them *)
-
-  (*    Require Import fintype.
-
-  Lemma unlift_m_inv : forall tid (Htid : tid < num_threads.+1) ord
-                         (Hunlift: unlift (ordinal_pos_incr num_threads)
-                                          (Ordinal (n:=num_threads.+1) (m:=tid) Htid)
-                                   = Some ord),
-                         nat_of_ord ord = tid.
-  Proof.
-    intros.
-    assert (Hcontra: unlift_spec (ordinal_pos_incr num_threads)
-                                 (Ordinal (n:=num_threads.+1) (m:=tid) Htid) (Some ord)).
-    rewrite <- Hunlift.
-    apply/unliftP.
-    inversion Hcontra; subst.
-    inversion H0.
-    unfold bump.
-    assert (pf: ord < num_threads)
-      by (by rewrite ltn_ord).
-    assert (H: num_threads <= ord = false).
-    rewrite ltnNge in pf.
-    rewrite <- Bool.negb_true_iff. auto.
-    rewrite H. simpl. rewrite add0n. reflexivity.
-  Defined.
-  
-  Definition newJuice_wf pmap :=
-    forall tid0 (Htid0 : tid0 < num_threads),
-      joins ((juice tp) (Ordinal Htid0)) pmap.
-  Lemma addThread_racefree :
-    forall c p (Hwf: newJuice_wf p) (Hrace: race_free tp),
-      race_free (addThread c p).
-  Proof.
-    unfold race_free in *. intros.
-    simpl.
-    match goal with
-      | [ |- context[ match ?Expr with _ => _ end]] =>
-        destruct Expr as [ord0|] eqn:Hget0
-    end;
-      match goal with
-        | [ |- context[ match ?Expr with _ => _ end]] =>
-          destruct Expr as [ord1|] eqn:Hget1
-      end; simpl in *.
-    - apply unlift_m_inv in Hget0.
-      apply unlift_m_inv in Hget1. subst.
-      destruct ord0 as [tid0 pf0], ord1 as [tid1 pf1]; simpl in Htid.
-      eapply Hrace; eauto.
-    - apply unlift_m_inv in Hget0.
-      subst. unfold newJuice_wf in Hwf.
-      destruct ord0. eapply Hwf; eauto.
-    - apply unlift_m_inv in Hget1.
-      subst. unfold newJuice_wf in Hwf.
-      destruct ord1.
-      apply joins_comm. eapply Hwf; eauto.
-    - destruct (tid0 == num_threads) eqn:Heq0.
-      + move/eqP:Heq0=>Heq0. subst.
-        assert (Hcontra: (ordinal_pos_incr num_threads) !=
-                                                        (Ordinal (n:=num_threads.+1) (m:=tid0') Htid0')).
-        { apply/eqP. intros Hcontra.
-          unfold ordinal_pos_incr in Hcontra.
-          inversion Hcontra; auto.
-        }
-        exfalso. apply unlift_some in Hcontra. rewrite Hget1 in Hcontra.
-        destruct Hcontra. discriminate.
-      + move/eqP:Heq0=>Heq0.
-        assert (Hcontra: (ordinal_pos_incr num_threads) !=
-                                                        (Ordinal (n:=num_threads.+1) (m:=tid0) Htid0)).
-        { apply/eqP. intros Hcontra.
-          unfold ordinal_pos_incr in Hcontra. inversion Hcontra. subst. auto. }
-        exfalso. apply unlift_some in Hcontra. rewrite Hget0 in Hcontra. destruct Hcontra.
-        discriminate.
-  Defined.
-  
-  
-  Definition permMap_wf pmap tid :=
-    forall tid0 (Htid0 : tid0 < num_threads) (Hneq: tid <> tid0),
-      joins ((juice tp) (Ordinal Htid0)) pmap.
-  
-  Lemma updThread_wf : forall tid (pf : tid < num_threads) pmap
-                         (Hwf: permMap_wf pmap tid)
-                         c'
-                         (Hrace_free: race_free tp),
-                         race_free (updThread (Ordinal pf) c' pmap).
-  Proof.
-    intros.
-    unfold race_free. intros.
-    simpl.
-    destruct (Ordinal (n:=num_threads) (m:=tid0) Htid0 ==  Ordinal (n:=num_threads) (m:=tid) pf) eqn:Heq0,
-                                                                                                     (Ordinal (n:=num_threads) (m:=tid0') Htid0' == Ordinal (n:=num_threads) (m:=tid) pf) eqn:Heq0'.
-    - move/eqP:Heq0 => Heq0. subst.
-      move/eqP:Heq0' => Heq0'. inversion Heq0'. inversion Heq0; subst. exfalso; auto.
-    - move/eqP:Heq0=>Heq0; inversion Heq0; subst. 
-      apply joins_comm.
-      eapply Hwf. simpl; auto.      
-    - move/eqP:Heq0'=>Heq0'. inversion Heq0'. subst.
-      eapply Hwf. simpl; auto.
-    - simpl in *. eapply Hrace_free; eauto.
-  Defined.
-
-  
-
-  
-  Lemma no_race_wf : forall tid (pf: tid < (num_threads tp)) (Hrace: race_free tp),
-                       permMap_wf tp (getThreadPerm tp (Ordinal pf)) tid.
-  Proof.
-    intros. unfold permMap_wf; auto.
-  Defined.
-*)

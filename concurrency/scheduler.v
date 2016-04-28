@@ -10,7 +10,8 @@ Module NatTID <: ThreadID.
 End NatTID.
 
 (*SCHEDULERS*)
-Module Type Scheduler (TID:ThreadID).
+Module Type Scheduler.
+  Declare Module TID: ThreadID.
   Import TID.
   Parameter schedule : Type.
   Parameter empty : schedule.
@@ -19,7 +20,8 @@ Module Type Scheduler (TID:ThreadID).
   Parameter buildSched: list tid -> schedule.
 End Scheduler.
 
-Module ListScheduler (TID:ThreadID) <: Scheduler TID .
+Module ListScheduler (TID:ThreadID) <: Scheduler with Module TID:= TID.
+  Module TID:= TID.
   Import TID.
   Definition schedule:= list tid.
   Definition empty : schedule := nil.
