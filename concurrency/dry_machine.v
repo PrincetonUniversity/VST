@@ -52,7 +52,7 @@ Notation UNLOCK := (EF_external "UNLOCK" UNLOCK_SIG).
 Require Import concurrency.permissions.
 
 Module ThreadPool (SEM:Semantics) <: ThreadPoolSig
-                                        with Module TID:= NatTID with Module SEM:=SEM.
+    with Module TID:= NatTID with Module SEM:=SEM.
 
   Module TID:=NatTID.
   Module SEM:=SEM.
@@ -190,7 +190,8 @@ Module Concur.
   
   Module mySchedule := ListScheduler NatTID.
   
-  Module DryMachine <: ConcurrentMachineSig with Module ThreadPool.TID:=mySchedule.TID.
+  Module DryMachine <: ConcurrentMachineSig with
+                       Module ThreadPool.TID:=mySchedule.TID.
 
     Declare Module SEM:Semantics.
     Module ThreadPool := ThreadPool SEM.
@@ -201,30 +202,17 @@ Module Concur.
     (** Memories*)
     Definition richMem: Type:= M.
     Definition dryMem: richMem -> M:= id.
+    Definition diluteMem: M -> M := setMaxPerm.
     
-    (** Environment and Threadwise semantics *)
-    (* This is inherited from SEM*)
-    (*Parameter G: Type.
-    Parameter Sem : CoreSemantics G code richMem.*)
-
     Notation thread_pool := (ThreadPool.t).
     Notation perm_map := ThreadPool.res.
     
     Definition lp_id := 0.
     
     (** The state respects the memory*)
-    Definition perm_compatible (tp : thread_pool) p :=
+    Definition mem_compatible tp m : Prop :=
       forall {tid} (cnt: containsThread tp tid),
-        permMapLt (getThreadR cnt) p.
-
-    Record mem_compatible' (tp : thread_pool) m :=
-      { perm_comp: perm_compatible tp (getMaxPerm m);
-        perm_max: forall b ofs, Mem.valid_block m b ->
-                           permission_at m b ofs Max = Some Freeable;
-        mem_canonical: isCanonical (getMaxPerm m)
-      }.
-    Definition mem_compatible : thread_pool -> mem -> Prop:=
-      mem_compatible'.
+        permMapLt (getThreadR cnt) (getMaxPerm m).
 
     (** Per-thread disjointness definition*)
     Definition race_free (tp : thread_pool) :=
@@ -234,9 +222,7 @@ Module Concur.
                          (getThreadR cntj).
 
     Record invariant' tp :=
-      { canonical : forall tid (pf : containsThread tp tid),
-          isCanonical (getThreadR pf);
-        no_race : race_free tp;
+      { no_race : race_free tp;
         lock_pool : forall (cnt : containsThread tp 0), exists c,
               getThreadC cnt = Krun c /\
               halted Sem c
@@ -248,15 +234,14 @@ Module Concur.
     Inductive dry_step genv {tid0 tp m} (cnt: containsThread tp tid0)
               (Hcompatible: mem_compatible tp m) : thread_pool -> mem  -> Prop :=
     | step_dry :
-        forall (tp':thread_pool) c m1 m' can_m' (c' : code),
+        forall (tp':thread_pool) c m1 m' (c' : code),
         forall (Hrestrict_pmap:
-             restrPermMap ((perm_comp Hcompatible) tid0 cnt) = m1)
+             restrPermMap (Hcompatible tid0 cnt) = m1)
           (Hinv : invariant tp)
           (Hcode: getThreadC cnt = Krun c)
           (Hcorestep: corestep Sem genv c m1 c' m')
-          (Hm': can_m' = setMaxPerm m')
-          (Htp': tp' = updThread cnt (Krun c') (getCurPerm can_m')),
-          dry_step genv cnt Hcompatible tp' can_m'.
+          (Htp': tp' = updThread cnt (Krun c') (getCurPerm m')),
+          dry_step genv cnt Hcompatible tp' m'.
 
     (*missing lock-ranges*)
     Inductive ext_step genv {tid0 tp m}
@@ -272,7 +257,7 @@ Module Concur.
                          Some (LOCK, ef_sig LOCK, Vptr b ofs::nil))
           (Hcompatible: mem_compatible tp m)
           (Hrestrict_pmap:
-             restrPermMap ((perm_comp Hcompatible) lp_id cnt_lp) = m1)
+             restrPermMap (Hcompat lp_id cnt_lp) = m1)
           (Hload: Mem.load Mint32 m1 b (Int.intval ofs) = Some (Vint Int.one))
           (Hstore:
              Mem.store Mint32 m1 b (Int.intval ofs) (Vint Int.zero) = Some m')
@@ -291,7 +276,7 @@ Module Concur.
           (Hat_external: at_external Sem c =
                          Some (UNLOCK, ef_sig UNLOCK, Vptr b ofs::nil))
           (Hrestrict_pmap:
-             restrPermMap ((perm_comp Hcompat) lp_id cnt_lp) = m1)
+             restrPermMap (Hcompat lp_id cnt_lp) = m1)
           (Hload:
              Mem.load Mint32 m1 b (Int.intval ofs) = Some (Vint Int.zero))
           (Hstore:
@@ -329,8 +314,9 @@ Module Concur.
             (Hat_external: at_external Sem c =
                            Some (MKLOCK, ef_sig MKLOCK, Vptr b ofs::nil))
             (Hrestrict_pmap: restrPermMap
-                               ((perm_comp Hcompat) tid0 cnt0) = m1)
-            (Hstore: Mem.store Mint32 m1 b (Int.intval ofs) (Vint Int.zero) = Some m')
+                               (Hcompat tid0 cnt0) = m1)
+            (Hstore:
+               Mem.store Mint32 m1 b (Int.intval ofs) (Vint Int.zero) = Some m')
             (Hdrop_perm:
                setPerm (Some Nonempty) b (Int.intval ofs) pmap_tid = pmap_tid')
             (Hlp_perm: setPerm (Some Writable)
@@ -369,7 +355,7 @@ Module Concur.
           (Hat_external: at_external Sem c =
                          Some (LOCK, ef_sig LOCK, Vptr b ofs::nil))
           (Hrestrict_pmap: restrPermMap
-                             ((perm_comp Hcompat) lp_id cnt_lp) = m1)
+                             (Hcompat lp_id cnt_lp) = m1)
           (Hload: Mem.load Mint32 m1 b (Int.intval ofs) = Some (Vint Int.zero)),
           ext_step genv cnt0 Hcompat tp m.
     

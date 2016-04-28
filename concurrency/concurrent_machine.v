@@ -25,7 +25,8 @@ End Semantics.
 Notation EXIT := 
   (EF_external "EXIT" (mksignature (AST.Tint::nil) None)). 
 
-Notation CREATE_SIG := (mksignature (AST.Tint::AST.Tint::nil) (Some AST.Tint) cc_default).
+Notation CREATE_SIG :=
+  (mksignature (AST.Tint::AST.Tint::nil) (Some AST.Tint) cc_default).
 Notation CREATE := (EF_external "CREATE" CREATE_SIG).
 
 Notation READ := 
@@ -119,6 +120,7 @@ Module Type ConcurrentMachineSig.
   (** Memories*)
   Parameter richMem: Type.
   Parameter dryMem: richMem -> M.
+  Parameter diluteMem : M -> M.
   
   (** Environment and Threadwise semantics *)
   (** These values come from SEM *)
@@ -147,7 +149,8 @@ Module Type ConcurrentMachineSig.
 End ConcurrentMachineSig.
 
 
-Module CoarseMachine (SCH:Scheduler)(SIG : ConcurrentMachineSig with Module ThreadPool.TID:=SCH.TID).
+Module CoarseMachine (SCH:Scheduler)(SIG : ConcurrentMachineSig
+                                        with Module ThreadPool.TID:=SCH.TID).
   Module SCH:=SCH.
   Module SIG:=SIG.
   Import SCH SIG TID ThreadPool ThreadPool.SEM.
@@ -216,8 +219,8 @@ Module CoarseMachine (SCH:Scheduler)(SIG : ConcurrentMachineSig with Module Thre
         (HschedS: schedSkip U = U')        (*Schedule Forward*)
         (Htid: containsThread ms tid)
         (Hcmpt: mem_compatible ms m)
-        (Htstep: conc_call genv  Htid Hcmpt ms' m'),
-        machine_step U ms m U' ms' m'           
+        (Htstep: conc_call genv Htid Hcmpt ms' m'),
+        machine_step U ms m U' ms' m'          
   | step_halted:
       forall tid U U' ms m
         (HschedN: schedPeek U = Some tid)
@@ -278,7 +281,8 @@ Module CoarseMachine (SCH:Scheduler)(SIG : ConcurrentMachineSig with Module Thre
   
 End CoarseMachine.
 
-Module FineMachine  (SCH:Scheduler)(SIG : ConcurrentMachineSig with Module ThreadPool.TID:=SCH.TID).
+Module FineMachine  (SCH:Scheduler)(SIG : ConcurrentMachineSig
+                                       with Module ThreadPool.TID:=SCH.TID).
   Module SCH:=SCH.
   Module SIG:=SIG.
   Import SCH SIG TID ThreadPool ThreadPool.SEM.
@@ -326,7 +330,7 @@ Module FineMachine  (SCH:Scheduler)(SIG : ConcurrentMachineSig with Module Threa
         (Htid: containsThread ms tid)
         (Hcmpt: mem_compatible ms m)
         (Htstep: cstep genv Htid Hcmpt ms' m'),
-        machine_step U ms m U' ms' m'
+        machine_step U ms m U' ms' (diluteMem m')
   | suspend_step:
       forall tid U U' ms ms' m
         (HschedN: schedPeek U = Some tid)
@@ -342,7 +346,7 @@ Module FineMachine  (SCH:Scheduler)(SIG : ConcurrentMachineSig with Module Threa
         (Htid: containsThread ms tid)
         (Hcmpt: mem_compatible ms m)
         (Htstep: conc_call genv Htid Hcmpt ms' m'),
-        machine_step U ms m U' ms' m'           
+        machine_step U ms m U' ms' m'          
   | step_halted:
       forall tid U U' ms m
         (HschedN: schedPeek U = Some tid)

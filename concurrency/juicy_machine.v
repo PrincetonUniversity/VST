@@ -139,12 +139,11 @@ Module ThreadPool (SEM:Semantics) <: ThreadPoolSig
        (fun n =>
           if n == (Ordinal cnt) then pmap else (perm_maps tp) n) (lpool tp).
 
-  Lemma gssThreadCode {tid tp} (cnt: containsThread tp tid) c' p'
+    Lemma gssThreadCode {tid tp} (cnt: containsThread tp tid) c' p'
         (cnt': containsThread (updThread cnt c' p') tid) :
     getThreadC cnt' = c'.
   Proof.
-    simpl.
-    rewrite threads_lemmas.if_true; auto.
+    simpl. rewrite threads_lemmas.if_true; auto.
     unfold updThread, containsThread in *. simpl in *.
     apply/eqP. apply f_equal.
     apply proof_irr.
@@ -160,6 +159,18 @@ Module ThreadPool (SEM:Semantics) <: ThreadPoolSig
     apply proof_irr.
   Qed.
 
+  Lemma gsoThreadRes {i j tp} (cnti: containsThread tp i)
+        (cntj: containsThread tp j) (Hneq: i <> j) c' p'
+        (cntj': containsThread (updThread cnti c' p') j) :
+    getThreadR cntj' = getThreadR cntj.
+  Proof.
+    simpl.
+    erewrite threads_lemmas.if_false
+      by (apply/eqP; intros Hcontra; inversion Hcontra; by auto).
+    unfold updThread in cntj'. unfold containsThread in *. simpl in *.
+    unfold getThreadR. do 2 apply f_equal. apply proof_irr.
+  Qed.
+
   Lemma gssThreadCC {tid tp} (cnt: containsThread tp tid) c'
         (cnt': containsThread (updThreadC cnt c') tid) :
     getThreadC cnt' = c'.
@@ -170,9 +181,10 @@ Module ThreadPool (SEM:Semantics) <: ThreadPoolSig
     apply proof_irr.
   Qed.
 
-  Lemma gssThreadCR {tid tp} (cnt: containsThread tp tid) c'
-        (cnt': containsThread (updThreadC cnt c') tid) :
-    getThreadR cnt = getThreadR cnt'.
+  Lemma gThreadCR {i j tp} (cnti: containsThread tp i)
+        (cntj: containsThread tp j) c'
+        (cntj': containsThread (updThreadC cnti c') j) :
+    getThreadR cntj' = getThreadR cntj.
   Proof.
     simpl.
     unfold getThreadR. 
@@ -209,6 +221,7 @@ Module Concur.
     Parameter level: nat.
     Definition richMem: Type:= juicy_mem.
     Definition dryMem: richMem -> mem:= m_dry.
+    Definition diluteMem: mem -> mem := fun x => x.
     
     (** Environment and Threadwise semantics *)
     (* This all comes from the SEM. *)
