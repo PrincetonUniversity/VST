@@ -5,7 +5,8 @@ Require Import compcert.common.Memory.
 (* The concurrent machinery*)
 Require Import concurrency.concurrent_machine.
 Require Import concurrency.juicy_machine. Import Concur.
-Require Import concurrency.compcert_threads. Import Concur.
+Require Import concurrency.dry_machine. Import Concur.
+
 
 (*The simulations*)
 Require Import sepcomp.wholeprog_simulations. 
@@ -13,13 +14,15 @@ Require Import sepcomp.wholeprog_simulations.
 Module Type Parching (SCH: Scheduler NatTID)(SEM: Semantics).
   
   Import SEM.
-    
-  Module JSEM:= JuicyMachineSig SEM.
+
+  (* HERE April 27: ADD the Semantics as a parameter of the functor.
+     This ensures the two machines are instantiated with the same semantics! *)
+  Module JSEM:= JuicyMachineSig.
   Module JuicyMachine:= CoarseMachine NatTID SCH JSEM.
   Definition JMachineSem:= JuicyMachine.MachineSemantics.
   Notation jstate:= JSEM.machine_state.
   
-  Module DSEM:= ShareMachineSig SEM.
+  Module DSEM:= ShareMachineSig.
   Module DryMachine:= CoarseMachine NatTID SCH DSEM.
   Definition DMachineSem:= DryMachine.MachineSemantics.
   Notation dstate:= DSEM.machine_state.
