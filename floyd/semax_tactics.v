@@ -149,9 +149,12 @@ Ltac simplify_func_tycontext :=
     change D1 with (@abbreviate tycontext D1) in Delta;
     unfold func_tycontext, make_tycontext in D1;
     let S1 := fresh "S1" in let DS := fresh "Delta_specs" in
+    revert Delta;
     set (DS := make_tycontext_s G) in D1;
+    revert D1;
     set (S1 := make_tycontext_s G) in DS;
     change S1 with (@abbreviate (PTree.t funspec) S1) in DS;
+    intros D1 Delta;
     lazy beta iota zeta delta - [DS] in D1; subst D1;
     unfold make_tycontext_s, fold_right in S1; red in S1;
     revert S1 DS Delta;

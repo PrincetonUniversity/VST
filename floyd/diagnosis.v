@@ -72,8 +72,8 @@ Ltac ccf2 id0 argsig retsig A Pre Post :=
  intro F;
  let x := fresh "x" in 
  assert (x:A) by (elimtype False; apply F);
- pose (xPre := Pre x);
- pose (xPost := Post x);
+ pose (xPre := Pre x); cbv beta in xPre;
+ pose (xPost := Post x); cbv beta in xPost;
  repeat (match type of x with (_*_)%type => 
                let y := fresh "x" in destruct x as [x y]
              end);
