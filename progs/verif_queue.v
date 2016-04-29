@@ -197,7 +197,8 @@ unfold field_at_.
 change (default_val (nested_field_type t_struct_elem [StructField _next])) with Vundef.
 rewrite sepcon_comm.
 symmetry.
-apply (field_at_share_join _ _ _ t_struct_elem [StructField _next] Vundef p Qsh_Qsh').
+apply (field_at_share_join _ _ _ t_struct_elem [StructField _next] 
+   _ p Qsh_Qsh').
 Qed.
 
 Definition mallocN_spec :=
@@ -351,8 +352,7 @@ Qed.
 
 Lemma body_fifo_new: semax_body Vprog Gprog f_fifo_new fifo_new_spec.
 Proof.
-  start_function.
- 
+  start_function. 
   forward_call (* Q = mallocN(sizeof ( *Q)); *)
      8.
     computable.
@@ -424,8 +424,9 @@ forward_if
      | |- _ |-- _ * _ * ?AA => remember AA as A
      end.     (* prevent it from canceling! *)
      cancel. subst A.
+(* XXX: eapply derives_trans. Focus 2. apply lseg_cons_right_neq. *)
      eapply derives_trans; [ |
-       apply (lseg_cons_right_neq _ _ _ _ _ (Vundef,Vundef));
+       apply (lseg_cons_right_neq _ _ _ _ _ ((Vundef,Vundef) : elemtype QS));
         auto ].
      cancel.
 * (* after the if *)
@@ -448,7 +449,7 @@ destruct prefix; inversion H; clear H.
    forward. (*  n=h->next; *)
    forward. (* Q->head=n; *)
    forward. (* return p; *)
-   unfold fifo. Exists (nullval, p).
+   unfold fifo. Exists (nullval, tl).
    rewrite if_true by congruence.
    entailer!.
 + rewrite lseg_cons_eq by auto.
@@ -584,6 +585,6 @@ semax_func_cons body_fifo_get.
 semax_func_cons body_make_elem.
 semax_func_cons body_main.
 apply semax_func_nil.
-Qed.
+Admitted.
 
 
