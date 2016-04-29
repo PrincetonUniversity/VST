@@ -1,11 +1,6 @@
-Require Import sepcomp.core_semantics.
+Require Import sepcomp.semantics.
 
-Require Import veric.base.
-Require Import msl.rmaps.
-Require Import msl.rmaps_lemmas.
-Require Import veric.compcert_rmaps.
-Import Mem.
-Require Import msl.msl_standard.
+Require Import veric.juicy_base.
 Require Import veric.juicy_mem veric.juicy_mem_lemmas veric.juicy_mem_ops.
 Require Import veric.res_predicates.
 Require Import veric.extend_tc.
@@ -39,16 +34,18 @@ Import CSL.
 
 Axiom semax_prog_rule :
   forall {Espec: OracleKind}{CS: compspecs},
-  forall z V G prog m,
+  forall V G prog m,
      @semax_prog Espec CS prog V G ->
      Genv.init_mem prog = Some m ->
-     exists b, exists q, 
-       Genv.find_symbol (globalenv prog) (prog_main prog) = Some b /\
-       core_semantics.initial_core (juicy_core_sem cl_core_sem)
-                    (globalenv prog) (Vptr b Int.zero) nil = Some q /\
-       forall n, exists jm, 
-       m_dry jm = m /\ level jm = n /\ 
-       jsafeN (@OK_spec Espec) (globalenv prog) n z q jm.
+     { b : block & { q : corestate &
+       (Genv.find_symbol (globalenv prog) (prog_main prog) = Some b) *
+       (semantics.initial_core (juicy_core_sem cl_core_sem)
+                    (globalenv prog) (Vptr b Int.zero) nil = Some q) *
+       forall n, { jm |
+       m_dry jm = m /\ level jm = n /\
+       (forall z, jsafeN (@OK_spec Espec) (globalenv prog) n z q jm) /\
+       (forall addr, ~ islock (m_phi jm @ addr))
+     } } }%type.
 
 End SEPARATION_LOGIC_SOUNDNESS.
 

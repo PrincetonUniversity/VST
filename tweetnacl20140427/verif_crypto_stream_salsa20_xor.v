@@ -425,13 +425,13 @@ Proof. intros H; symmetry in H.
 Qed. 
 
 Lemma Tarray_0_emp sh v c: data_at sh (Tarray tuchar 0 noattr) v c |--  emp.
-  unfold data_at. unfold field_at, data_at', at_offset; simpl.
+  unfold data_at. unfold field_at, data_at_rec, at_offset; simpl.
   unfold array_pred, unfold_reptype, aggregate_pred.array_pred. entailer.
 Qed. 
 Lemma Tarray_0_emp' sh c: field_compatible (Tarray tuchar 0 noattr) nil c ->
   emp |-- data_at sh (Tarray tuchar 0 noattr) nil c.
 Proof. intros.
-  unfold data_at. unfold field_at, data_at', at_offset; simpl.
+  unfold data_at. unfold field_at, data_at_rec, at_offset; simpl.
   unfold array_pred, unfold_reptype, aggregate_pred.array_pred. simpl.
   entailer.
 Qed. 
@@ -441,13 +441,13 @@ Proof. intros. apply pred_ext. apply Tarray_0_emp. apply Tarray_0_emp'; trivial.
 Qed.
 
 Lemma Tarray_0_emp_ sh c: data_at_ sh (Tarray tuchar 0 noattr) c |--  emp.
-  unfold data_at_. unfold field_at_, field_at, data_at', at_offset; simpl.
+  unfold data_at_. unfold field_at_, field_at, data_at_rec, at_offset; simpl.
   unfold array_pred, unfold_reptype, aggregate_pred.array_pred. entailer.
 Qed. 
 Lemma Tarray_0_emp'_ sh c: field_compatible (Tarray tuchar 0 noattr) nil c ->
   emp |-- data_at_ sh (Tarray tuchar 0 noattr) c.
 Proof. intros.
-  unfold data_at_, field_at_, field_at, data_at', at_offset; simpl.
+  unfold data_at_, field_at_, field_at, data_at_rec, at_offset; simpl.
   unfold array_pred, unfold_reptype, aggregate_pred.array_pred. simpl.
   entailer.
 Qed. 

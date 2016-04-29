@@ -25,4 +25,3 @@ Definition upd_struct (i : ident) (m : members) {A: ident * type -> Type} (v: co
 
 Definition upd_union (i : ident) (m : members) {A: ident * type -> Type} (v: compact_sum (map A m)) (v0: A (i, field_type i m)): compact_sum (map A m) :=
   upd_compact_sum _ v (i, field_type i m) v0 member_dec.
-

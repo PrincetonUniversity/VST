@@ -939,6 +939,16 @@ unfold derives; intros ? [? ?]; auto.
 unfold derives; intros; split; auto.
 Qed.
 
+Lemma prop_false_andp:
+  forall (P: Prop) A `{ageable A} (Q: pred A),
+   ~P -> !! P && Q = FF.
+Proof.
+intros.
+apply pred_ext.
+unfold derives; intros ? [? ?]; tauto.
+unfold derives. intros ? [].
+Qed.
+
 Lemma prop_andp_e {A} `{ageable A}:  forall P Q (w:A), (!! P && Q) w -> P /\ Q w.
 Proof.
 intuition; destruct H0; auto.

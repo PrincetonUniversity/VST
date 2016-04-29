@@ -1,14 +1,8 @@
-Require Import sepcomp.core_semantics.
+Require Import veric.juicy_base.
+Require Import sepcomp.semantics.
 Require Import sepcomp.extspec.
 Require Import sepcomp.step_lemmas.
 Require Import veric.juicy_safety.
-
-Require Import veric.base.
-Require Import msl.rmaps.
-Require Import msl.rmaps_lemmas.
-Require Import veric.compcert_rmaps.
-Import Mem.
-Require Import msl.msl_standard.
 Require Import veric.juicy_mem veric.juicy_mem_lemmas veric.juicy_mem_ops.
 Require Import veric.initial_world.
 
@@ -76,7 +70,7 @@ Definition juicy_core_sem
   {G C} (csem: CoreSemantics G C mem) :
    CoreSemantics G C juicy_mem :=
   @Build_CoreSemantics _ _ _ 
-    (core_semantics.initial_core csem)
+    (semantics.initial_core csem)
     (at_external csem)
     (after_external csem)
     (j_halted csem)

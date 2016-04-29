@@ -1,10 +1,24 @@
 Require Import msl.msl_standard.
 Require Import veric.base.
-Require Import msl.rmaps.
-Require Import msl.rmaps_lemmas.
 Require Import veric.compcert_rmaps.
 Require Import veric.Clight_lemmas.
 Require Export veric.lift.
+
+Definition type_is_by_value t : bool :=
+  match t with
+  | Tint _ _ _
+  | Tlong _ _
+  | Tfloat _ _
+  | Tpointer _ _ => true
+  | _ => false
+  end.
+
+Definition type_is_by_reference t : bool :=
+  match t with
+  | Tarray _ _ _
+  | Tfunction _ _ _ => true
+  | _ => false
+  end.
 
 (** GENERAL KV-Maps **)
 
@@ -312,17 +326,47 @@ Proof.
   - inversion H1; reflexivity.
 Qed.
 
-Lemma align_chunk_alignof: forall env t ch, access_mode t = By_value ch -> plain_alignof env t = Memdata.align_chunk ch.
+Definition local_legal_alignas_type env (t: type): bool :=
+  Z.leb (plain_alignof env t) (alignof env t) &&
+  match t with
+  | Tarray t' n a => match attr_alignas (attr_of_type t') with 
+                              | None => Z.leb 0 n
+                              | _ => false 
+                              end
+  | Tlong _ _ => Z.leb 8 (alignof env t)
+  | _ => true
+  end.
+
+Lemma local_legal_alignas_type_spec: forall env t,
+  local_legal_alignas_type env t = true ->
+  (plain_alignof env t | alignof env t).
 Proof.
   intros.
-  destruct t; inversion H.
-  - destruct i, s; inversion H1; simpl; unfold align_attr;
+  apply andb_true_iff in H.
+  destruct H as [? _].
+  apply Zle_is_le_bool in H.
+  apply power_nat_divide'; [apply alignof_two_p | apply plain_alignof_two_p | omega].
+Qed.
+  
+Lemma align_chunk_alignof: forall env t ch, local_legal_alignas_type env t = true -> access_mode t = By_value ch -> (Memdata.align_chunk ch | alignof env t).
+Proof.
+  intros.
+  destruct t; inversion H0.
+  - eapply Z.divide_trans; [| apply local_legal_alignas_type_spec; auto].
+    destruct i, s; inversion H2; simpl; unfold align_attr;
     destruct (attr_alignas a); reflexivity.
-  - destruct s; inversion H1; simpl; unfold align_attr;
-    destruct (attr_alignas a); admit. (* Tlong uncompatible problem *)
-  - destruct f; inversion H1; simpl; unfold align_attr;
+  - unfold local_legal_alignas_type in H.
+    rewrite andb_true_iff in H; destruct H as [_ ?].
+    apply Zge_is_le_bool in H.
+    apply power_nat_divide' in H.
+    * auto.
+    * apply alignof_two_p.
+    * exists 3%nat; auto.
+  - eapply Z.divide_trans; [| apply local_legal_alignas_type_spec; auto].
+    destruct f; inversion H2; simpl; unfold align_attr;
     destruct (attr_alignas a); reflexivity.
-  - inversion H1; simpl; unfold align_attr;
+  - eapply Z.divide_trans; [| apply local_legal_alignas_type_spec; auto].
+    inversion H2; simpl; unfold align_attr;
     destruct (attr_alignas a); reflexivity.
 Admitted.
 

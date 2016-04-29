@@ -2,7 +2,7 @@ Require Import floyd.base.
 Require Import floyd.assert_lemmas.
 Require Import floyd.client_lemmas.
 Require Import floyd.reptype_lemmas.
-Require Import floyd.data_at_lemmas.
+Require Import floyd.data_at_rec_lemmas.
 
 Local Open Scope logic.
 

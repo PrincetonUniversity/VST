@@ -1,20 +1,20 @@
-(*CompCert imports*)
-Require Import Events.
-Require Import Memory.
 Require Import compcert.lib.Coqlib.
-Require Import Values.
-Require Import Maps.
-Require Import Integers.
-Require Import AST.
-Require Import Globalenvs.
+Require Import compcert.lib.Maps.
+Require Import compcert.lib.Integers.
 Require Import compcert.lib.Axioms.
 
-Require Import mem_lemmas. (*needed for definition of mem_forward etc*)
-Require Import core_semantics.
-Require Import core_semantics_lemmas.
-Require Import wholeprog_simulations.
-Require Import closed_safety.
-Require Import effect_semantics.
+Require Import compcert.common.Events.
+Require Import compcert.common.Memory.
+Require Import compcert.common.Values.
+Require Import compcert.common.AST.
+Require Import compcert.common.Globalenvs.
+
+Require Import sepcomp.mem_lemmas.
+Require Import sepcomp.semantics.
+Require Import sepcomp.semantics_lemmas.
+Require Import sepcomp.wholeprog_simulations.
+Require Import sepcomp.closed_safety.
+Require Import sepcomp.effect_semantics.
 
 Import Wholeprog_sim.
 
@@ -35,7 +35,7 @@ Context  {G TG C D M TM Z data : Type}
          {geT : TG}
          {ge_inv : G -> TG -> Prop}
          {init_inv : meminj -> G -> list val -> M -> TG -> list val -> TM -> Prop}
-         {halt_inv : StructuredInjections.SM_Injection ->
+         {halt_inv : structured_injections.SM_Injection ->
                      G -> val -> M -> TG -> val -> TM -> Prop}
          (main : val)
 
@@ -262,7 +262,7 @@ Context  {G TG C D M TM Z data : Type}
          {geT : TG}
          {ge_inv : G -> TG -> Prop}
          {init_inv : meminj -> G -> list val -> M -> TG -> list val -> TM -> Prop}
-         {halt_inv : StructuredInjections.SM_Injection ->
+         {halt_inv : structured_injections.SM_Injection ->
                      G -> val -> M -> TG -> val -> TM -> Prop}
          (main : val)
 
@@ -321,7 +321,7 @@ Context  {G TG C D M TM Z data : Type}
          {geT : TG}
          {ge_inv : G -> TG -> Prop}
          {init_inv : meminj -> G -> list val -> M -> TG -> list val -> TM -> Prop}
-         {halt_inv : StructuredInjections.SM_Injection ->
+         {halt_inv : structured_injections.SM_Injection ->
                      G -> val -> M -> TG -> val -> TM -> Prop}
          (main : val)
 
@@ -338,7 +338,7 @@ Lemma termination_reflection:
 Proof.
 set (my_P := fun (n : nat) => 
    forall (c : C) (m : M) (d : D) (tm : TM) 
-     (cd : core_data sim) (j : StructuredInjections.SM_Injection) 
+     (cd : core_data sim) (j : structured_injections.SM_Injection) 
      (d' : D) (tm' : TM) (hv' : val),
    (forall n0 : nat, safeN source geS n0 c m) ->
    match_state sim cd j c m d tm ->

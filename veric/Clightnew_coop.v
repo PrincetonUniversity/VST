@@ -1,4 +1,4 @@
-Require Import sepcomp.core_semantics.
+Require Import sepcomp.semantics.
 Require Import sepcomp.mem_lemmas.
 Require Import veric.base.
 Require Import veric.Clight_new.
@@ -38,6 +38,7 @@ Qed.
 
 Program Definition CLN_coop_sem : 
   CoopCoreSem Clight.genv (*(Genv.t fundef type)*) corestate.
- apply Build_CoopCoreSem with (coopsem := cl_core_sem).
-  apply cln_forward. 
-Defined.
+apply Build_CoopCoreSem with (coopsem := cl_core_sem).
+apply cln_forward.
+admit. (*This is the new readonly condition which should be easy to prove.*)
+Admitted.

@@ -1,7 +1,7 @@
-From compcert Require Export Clightdefs Coqlib.
+From compcert Require Export Clightdefs.
 Require Export veric.SeparationLogic.
 Require Export msl.Extensionality.
-Require Export msl.Coqlib2 veric.coqlib4 floyd.coqlib3.
+Require Export compcert.lib.Coqlib msl.Coqlib2 veric.coqlib4 floyd.coqlib3.
 Require Export floyd.jmeq_lemmas.
 Require Export veric.juicy_extspec.
 Require veric.SeparationLogicSoundness.

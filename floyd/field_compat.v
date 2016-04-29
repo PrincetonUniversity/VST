@@ -7,10 +7,21 @@ Require Import floyd.nested_field_lemmas.
 Require Import floyd.mapsto_memory_block.
 Require Import floyd.reptype_lemmas.
 Require floyd.aggregate_pred. Import floyd.aggregate_pred.aggregate_pred.
-Require Import floyd.data_at_lemmas.
+Require Import floyd.data_at_rec_lemmas.
 Require Import floyd.jmeq_lemmas.
 Require Import floyd.sublist.
 Require Import floyd.field_at.
+
+Lemma field_compatible_offset_zero:
+  forall {cs: compspecs} t gfs p,
+    field_compatible t gfs p <-> field_compatible t gfs (offset_val 0 p).
+Proof.
+  intros.
+  unfold field_compatible.
+  destruct p; simpl; try tauto.
+  rewrite !int_add_repr_0_r.
+  tauto.
+Qed.
 
 Lemma field_address0_offset:
   forall {cs: compspecs} t gfs p,
@@ -51,7 +62,7 @@ assert (sizeof t * n <= sizeof t * n')
 repeat split; auto.
 *
 unfold legal_alignas_type in *.
-rewrite nested_pred_ind in H2|-*.
+rewrite nested_pred_eq in H2|-*.
 rewrite andb_true_iff in *; destruct H2; split; auto.
 unfold local_legal_alignas_type in H2|-*.
 rewrite andb_true_iff in *; destruct H2; split; auto.
@@ -84,7 +95,7 @@ assert (sizeof t * n <= sizeof t * n')
 repeat split; auto.
 *
 unfold legal_alignas_type in *.
-rewrite nested_pred_ind in H2|-*.
+rewrite nested_pred_eq in H2|-*.
 rewrite andb_true_iff in *; destruct H2; split; auto.
 unfold local_legal_alignas_type in H2|-*.
 rewrite andb_true_iff in *; destruct H2; split; auto.
@@ -129,8 +140,8 @@ hnf in H0|-*.
 intuition.
  *
   unfold legal_alignas_type in H0|-*; simpl in H0|-*.
-  rewrite nested_pred_ind in H0.
-  rewrite nested_pred_ind.
+  rewrite nested_pred_eq in H0.
+  rewrite nested_pred_eq.
   rewrite andb_true_iff in *. destruct H0; split; auto.
   clear - H1 H2 H0.
   unfold local_legal_alignas_type in *.
@@ -200,7 +211,7 @@ destruct d; try contradiction.
 intuition.
 *
 unfold legal_alignas_type in H3|-*.
-rewrite nested_pred_ind, andb_true_iff in H3|-*.
+rewrite nested_pred_eq, andb_true_iff in H3|-*.
 destruct H3; split; auto.
 unfold local_legal_alignas_type in H|-*.
 rewrite andb_true_iff in H|-*; destruct H.
@@ -220,7 +231,7 @@ rewrite Z.max_r in H6|-* by omega.
 omega.
 *
 unfold legal_alignas_type in H3|-*.
-rewrite nested_pred_ind, andb_true_iff in H3|-*.
+rewrite nested_pred_eq, andb_true_iff in H3|-*.
 destruct H3; split; auto.
 unfold local_legal_alignas_type in H|-*.
 rewrite andb_true_iff in H|-*; destruct H.
@@ -271,7 +282,7 @@ clear - H3.
 rewrite (legal_alignas_type_Tarray _ _ _ H3).
 apply legal_alignas_sizeof_alignof_compat.
 unfold legal_alignas_type in H3.
-rewrite nested_pred_ind in H3.
+rewrite nested_pred_eq in H3.
 unfold legal_alignas_type.
 rewrite andb_true_iff in H3; destruct H3; auto.
 pose proof (Int.unsigned_range i0).
@@ -336,7 +347,7 @@ Proof.
   2: omega. 2: eauto.
   rewrite (split2_array_at sh (Tarray t n noattr) nil 0 n1).
   2: auto. 2: rewrite Z.sub_0_r; auto.
-  do 2 rewrite array_at_data_at. normalize.
+  do 2 rewrite array_at_data_at by tauto.
   rewrite Zminus_0_r.
   unfold at_offset.
   erewrite (data_at_type_changable sh 
@@ -354,6 +365,7 @@ Proof.
   unfold gfield_offset.
   rewrite !Z.add_0_l. rewrite Z.mul_0_r.
   rewrite isptr_offset_val_zero; trivial.
+  normalize.
 Qed.
 
 Lemma split2_data_at_Tarray_fold {cs: compspecs} sh t n n1 v (v': list (reptype t)) v1 v2 p:
@@ -425,8 +437,8 @@ Proof.
      admit.  (* true, but tedious *)
   rewrite H6. clear H6.
   clear - H H3.
-  rewrite array_at_data_at. normalize.
-  rewrite array_at_data_at.
+  rewrite array_at_data_at by omega. normalize.
+  rewrite array_at_data_at by omega.
   rewrite !prop_true_andp by auto with field_compatible.
   unfold at_offset.
   apply derives_refl'.
@@ -482,8 +494,8 @@ intros until 1. intros NA ?H ?H Hni Hii Hp. subst p'.
   intuition.
   *
   unfold legal_alignas_type in H1|-*; simpl in H1|-*.
-  rewrite nested_pred_ind in H1.
-  rewrite nested_pred_ind.
+  rewrite nested_pred_eq in H1.
+  rewrite nested_pred_eq.
   rewrite andb_true_iff in *. destruct H1; split; auto.
   unfold local_legal_alignas_type in *.
   rewrite andb_true_iff in *. destruct H1; split; auto.

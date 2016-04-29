@@ -5,7 +5,7 @@ Require Import floyd.nested_field_lemmas.
 Require Import floyd.mapsto_memory_block.
 Require Import floyd.reptype_lemmas.
 Require Import floyd.proj_reptype_lemmas.
-Require Import floyd.data_at_lemmas.
+Require Import floyd.data_at_rec_lemmas.
 Require Import floyd.field_at.
 Require Import floyd.entailer.
 Require Import floyd.closed_lemmas.
@@ -58,13 +58,13 @@ Proof.
   auto.
 Qed.
 (*
-Lemma stronger_data_at'_derives: forall sh t v0 v1 pos p,
+Lemma stronger_data_at_rec_derives: forall sh t v0 v1 pos p,
   legal_alignas_type t = true ->
   (alignof t | pos) ->
   v0 >>> v1 ->
   field_compatible t nil (offset_val (Int.repr pos) p) ->
-  data_at' sh type_id_env.empty_ti t pos v0 p |--
-    data_at' sh type_id_env.empty_ti t pos v1 p.
+  data_at_rec sh type_id_env.empty_ti t pos v0 p |--
+    data_at_rec sh type_id_env.empty_ti t pos v1 p.
 Proof.
   intros.
   specialize (H1 sh (offset_val (Int.repr pos) p)).
@@ -73,24 +73,24 @@ Proof.
   unfold field_compatible in H2.
   destruct H2 as [? [? [? [? [? ?]]]]].
   normalize in H1.
-  rewrite !data_at'_at_offset' with (pos := pos) by auto.
-  rewrite !at_offset'_eq by (rewrite <- data_at'_offset_zero; reflexivity).
+  rewrite !data_at_rec_at_offset' with (pos := pos) by auto.
+  rewrite !at_offset'_eq by (rewrite <- data_at_rec_offset_zero; reflexivity).
   exact H1.
 Qed.
 *)
 (*
-Lemma stronger_data_at'_nested_field_derives: forall sh t gfs t0 v0 v1 p,
+Lemma stronger_data_at_rec_nested_field_derives: forall sh t gfs t0 v0 v1 p,
   legal_alignas_type t = true ->
   nested_field_type2 t gfs = t0 ->
   legal_nested_field t gfs ->
   v0 >>> v1 ->
   size_compatible t p ->
   align_compatible t p ->
-  data_at' sh type_id_env.empty_ti t0 (nested_field_offset2 t gfs) v0 p |--
-    data_at' sh type_id_env.empty_ti t0 (nested_field_offset2 t gfs) v1 p.
+  data_at_rec sh type_id_env.empty_ti t0 (nested_field_offset2 t gfs) v0 p |--
+    data_at_rec sh type_id_env.empty_ti t0 (nested_field_offset2 t gfs) v1 p.
 Proof.
   intros.
-  apply stronger_data_at'_derives; auto.
+  apply stronger_data_at_rec_derives; auto.
   + rewrite <- H0.
     apply nested_field_type2_nest_pred; auto.
   + rewrite <- H0.
@@ -135,11 +135,11 @@ Admitted.
 (*
   destruct (zlt n 0).
   {
-    rewrite !data_at_data_at'.
+    rewrite !data_at_data_at_rec. (* do not use it. *)
     apply andp_derives. apply prop_derives; intros [? ?].
     split; auto.
     admit.
-    rewrite !data_at_lemmas.data_at'_ind.
+    rewrite !data_at_lemmas.data_at_rec_ind.
     rewrite !aggregate_pred.aggregate_pred.array_pred_len_0 by omega.
     auto.
   }

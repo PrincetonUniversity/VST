@@ -2,7 +2,7 @@ Require Import floyd.base.
 Require Import floyd.assert_lemmas.
 Require Import floyd.client_lemmas.
 Require Import floyd.nested_field_lemmas.
-Require Import floyd.data_at_lemmas.
+Require Import floyd.data_at_rec_lemmas.
 Require Import floyd.field_at.
 Require Import floyd.array_lemmas.
 Require Import Coq.Logic.JMeq.
@@ -199,8 +199,8 @@ The following part is for simpl_data_at tactic
 
 ********************************************)
 (*
-Ltac simpl_data_at' H := 
-  unfold data_at_, data_at, data_at', withspacer, at_offset', at_offset2, align, Z.max in H.
+Ltac simpl_data_at_rec H := 
+  unfold data_at_, data_at, data_at_rec, withspacer, at_offset', at_offset2, align, Z.max in H.
 
 Ltac simpl_data_at :=
   repeat (
@@ -210,24 +210,24 @@ Ltac simpl_data_at :=
     | |- appcontext [`(field_at ?SH ?T ?IDS ?v) ?p] =>
            remember (`(field_at SH T IDS v) p) as MA eqn:H in |-*; 
            rewrite field_at_data_at in H;
-           floyd_simpl T H MA simpl_data_at'
+           floyd_simpl T H MA simpl_data_at_rec
     | |- appcontext [(field_at ?SH ?T ?IDS ?v) ?p] =>
            remember ((field_at SH T IDS v) p) as MA eqn:H in |-*; 
            rewrite field_at_data_at in H;
-           floyd_simpl T H MA simpl_data_at'
+           floyd_simpl T H MA simpl_data_at_rec
     | |- appcontext [field_at ?SH ?T ?IDS] =>
            remember (field_at SH T IDS) as MA eqn:H in |-*; 
            rewrite field_at_data_at in H;
-           floyd_simpl T H MA simpl_data_at'
+           floyd_simpl T H MA simpl_data_at_rec
     | |- appcontext [`(data_at ?SH ?T ?v) ?p] =>
            remember (`(data_at SH T v) p) as MA eqn:H in |-*; 
-           floyd_simpl T H MA simpl_data_at'
+           floyd_simpl T H MA simpl_data_at_rec
     | |- appcontext [(data_at ?SH ?T ?v) ?p] =>
            remember ((data_at SH T v) p) as MA eqn:H in |-*; 
-           floyd_simpl T H MA simpl_data_at'
+           floyd_simpl T H MA simpl_data_at_rec
     | |- appcontext [data_at ?SH ?T] =>
            remember (data_at SH T) as MA eqn:H in |-*; 
-           floyd_simpl T H MA simpl_data_at'
+           floyd_simpl T H MA simpl_data_at_rec
     end).
 
 *)

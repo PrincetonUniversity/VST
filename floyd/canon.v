@@ -1481,7 +1481,7 @@ apply pred_ext; apply andp_derives; auto;
 Qed.
 Hint Rewrite split_first_PROP using not_conj_notation : norm1.
 
-Require Import Permutation.
+Require Import Coq.Sorting.Permutation.
 
 Lemma perm_derives:
   forall Delta P Q R P' Q' R',

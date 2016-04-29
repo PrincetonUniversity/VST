@@ -1,20 +1,22 @@
-(*CompCert imports*)
-Require Import Events.
-Require Import Memory.
 Require Import compcert.lib.Coqlib.
+Require Import compcert.lib.Maps.
+Require Import compcert.lib.Integers.
+
 Require Import compcert.common.Values.
-Require Import Maps.
-Require Import Integers.
-Require Import AST.
-Require Import Globalenvs.
+Require Import compcert.common.Memory.
+Require Import compcert.common.Events.
+Require Import compcert.common.AST.
+Require Import compcert.common.Globalenvs.
 
 Require Import msl.Axioms.
-Require Import sepcomp.mem_lemmas. (*needed for definition of mem_forward etc*)
-Require Import sepcomp.core_semantics.
-Require Import sepcomp.core_semantics_lemmas.
-Require Import sepcomp.forward_simulations.
 
-Import Forward_simulation_inj_exposed.
+Require Import sepcomp.mem_lemmas.
+Require Import sepcomp.semantics.
+Require Import sepcomp.semantics_lemmas.
+Require Import sepcomp.simulations.
+
+(*Import Forward_simulation_inj_exposed.*)
+Import Val.
 
 (** * Safety and semantics preservation *)
 
@@ -164,7 +166,7 @@ Context  {F V TF TV C D Z data : Type}
 
   (P : val -> mem -> Prop)
   (P_good : forall j v tv m tm, meminj_preserves_globals geS j -> 
-                                val_inject j v tv -> Mem.inject j m tm -> P v m -> P tv tm)
+                                inject j v tv -> Mem.inject j m tm -> P v m -> P tv tm)
 
   (SRC_DET : corestep_fun source)
 
@@ -372,7 +374,7 @@ Context  {F V TF TV C D Z data : Type}
 
   (P : val -> mem -> Prop)
   (P_good : forall j v tv m tm, meminj_preserves_globals geS j -> 
-                                val_inject j v tv -> Mem.inject j m tm -> P v m -> P tv tm)
+                                inject j v tv -> Mem.inject j m tm -> P v m -> P tv tm)
 
   (SRC_DET : corestep_fun source)
 
@@ -459,7 +461,7 @@ Lemma safety_preservation:
 
   (P : val -> mem -> Prop)
   (P_good : forall j v tv m tm, meminj_preserves_globals geS j -> 
-                                val_inject j v tv -> Mem.inject j m tm -> P v m -> P tv tm)
+                                inject j v tv -> Mem.inject j m tm -> P v m -> P tv tm)
   (MATCH : exists (cd: data) (j: meminj), match_state cd j c m d tm)
   (source_safe : forall n, safeN source geS P n c m),
 
@@ -566,7 +568,7 @@ Lemma semantics_preservation:
   forall c m d tm c' m' rv (P: val -> mem -> Prop) cd j,
   Forward_simulation_inject source target geS geT entry_points data match_state ord -> 
   (forall j v tv m tm, meminj_preserves_globals geS j -> 
-                       val_inject j v tv -> Mem.inject j m tm -> P v m -> P tv tm) -> 
+                       inject j v tv -> Mem.inject j m tm -> P v m -> P tv tm) -> 
   corestep_star source geS c m c' m' -> 
   halted source c' = Some rv -> 
   P rv m' -> 

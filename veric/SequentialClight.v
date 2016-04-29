@@ -1,4 +1,4 @@
-Require Import sepcomp.core_semantics.
+Require Import sepcomp.semantics.
 
 Require Import veric.base.
 Require Import veric.Clight_new.
@@ -40,25 +40,26 @@ Definition dryspec : ext_spec unit :=
         @dry_safeN _ _ _ _ (@Genv.genv_symb _ _) (coresem_extract_cenv cl_core_sem (prog_comp_env prog)) dryspec (Build_genv (Genv.globalenv prog) (prog_comp_env prog)) n tt q m.
 Proof.
  intros.
- destruct (@semax_prog_rule NullExtension.Espec CS tt _ _ _ _ H H0) as [b [q [? [? ?]]]].
+ destruct (@semax_prog_rule NullExtension.Espec CS _ _ _ _ H H0) as [b [q [[H1 H2] H3]]].
  exists b, q.
  split3; auto.
  intro n.
  specialize (H3 n).
- destruct H3 as [jm [? [? ?]]].
+ destruct H3 as [jm [? [? [? _]]]].
+ specialize (H5 tt).
  unfold semax.jsafeN in H5.
  subst m.
  clear - H4 H5.
  revert jm q H4 H5; induction n; simpl; intros. constructor.
  inv H5.
- destruct H0 as (?&?&?).
- econstructor.
- red. red. fold (globalenv prog). eassumption.
- apply IHn; auto. 
- change (level (m_phi jm)) with (level jm) in H4. 
-   rewrite H4 in H2; inv H2; auto.
- exfalso; auto.
- eapply safeN_halted; eauto.
+ - destruct H0 as (?&?&?).
+   econstructor.
+   + red. red. fold (globalenv prog). eassumption.
+   + apply IHn; auto.
+     change (level (m_phi jm)) with (level jm) in H4. 
+     rewrite H4 in H2; inv H2; auto.
+ - exfalso; auto.
+ - eapply safeN_halted; eauto.
 Qed.
 
 Require Import veric.juicy_safety.

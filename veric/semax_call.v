@@ -1,10 +1,5 @@
-Require Import veric.base.
+Require Import veric.juicy_base.
 Require Import msl.normalize.
-Require Import msl.rmaps.
-Require Import msl.rmaps_lemmas.
-Require Import veric.compcert_rmaps.
-Import Mem.
-Require Import msl.msl_standard.
 Require Import veric.juicy_mem veric.juicy_mem_lemmas veric.juicy_mem_ops.
 Require Import veric.res_predicates.
 Require Import veric.extend_tc.
@@ -519,7 +514,7 @@ induction l; intros. inv H1.
 simpl in *. destruct a; simpl in *.
 destruct H1. subst. inv H0. inv H.  apply alloc_vars_lookup with (id := id) in H9; auto. 
 rewrite H9. rewrite PTree.gss. eauto. intros. 
-destruct (eq_dec i id). subst. intuition. rewrite PTree.gso; auto. 
+destruct (peq i id). subst. intuition. rewrite PTree.gso; auto. 
 rewrite PTree.gss; eauto. 
 
 inv H0. apply IHl in H10; auto. inv H; auto. 
@@ -634,7 +629,7 @@ eapply pass_params_ni with (id := id) in H21; auto.  rewrite PTree.gss in *. aut
 
 
 destruct a. 
-destruct (eq_dec id i). subst. 
+destruct (peq id i). subst. 
 apply pass_params_ni with (id := i) in H21. 
 rewrite PTree.gss in *. exists  Vundef. auto.
 intros. unfold list_disjoint in *. intuition. 
@@ -726,7 +721,7 @@ inv H17'. auto. rewrite PTree.gso; auto.
 Qed. 
 
 Lemma free_juicy_mem_level:
-  forall jm m b lo hi H, level (free_juicy_mem jm m b lo hi H) = level jm.
+  forall jm m b lo hi H H0, level (free_juicy_mem jm m b lo hi H H0) = level jm.
 Proof.
  intros;  simpl;  unfold inflate_free; simpl.
  rewrite level_make_rmap. auto.
@@ -741,18 +736,30 @@ simpl; intros.
  destruct (free m b lo hi). eauto. inv H.
 Qed.
 
+Definition freeable_blocks: list (block * BinInt.Z * BinInt.Z) -> mpred :=
+  fold_right (fun (bb: block*BinInt.Z * BinInt.Z) a => 
+                        match bb with (b,lo,hi) => 
+                                          sepcon (VALspec_range (hi-lo) Share.top Share.top (b,lo)) a
+                        end)
+                    emp.
+
 Inductive free_list_juicy_mem: 
       forall  (jm: juicy_mem) (bl: list (block * BinInt.Z * BinInt.Z))
                                          (jm': juicy_mem), Prop :=
 | FLJM_nil: forall jm, free_list_juicy_mem jm nil jm
 | FLJM_cons: forall jm b lo hi bl jm2 jm' 
-                          (H: free (m_dry jm) b lo hi = Some (m_dry jm2)), 
-                          free_juicy_mem jm (m_dry jm2) b lo hi H = jm2 ->
+                          (H: free (m_dry jm) b lo hi = Some (m_dry jm2))
+                          (H0 : forall ofs : Z,
+                        lo <= ofs < hi ->
+                        perm_of_res (m_phi jm @ (b, ofs)) = Some Freeable), 
+                          free_juicy_mem jm (m_dry jm2) b lo hi H H0 = jm2 ->
                           free_list_juicy_mem jm2 bl jm' ->
                           free_list_juicy_mem jm ((b,lo,hi)::bl) jm'.
 
 Lemma free_list_juicy_mem_i:
-  forall jm bl m', free_list (m_dry jm) bl = Some m' ->
+  forall jm bl m' F, 
+   free_list (m_dry jm) bl = Some m' ->
+   app_pred (freeable_blocks bl * F) (m_phi jm) ->
    exists jm', free_list_juicy_mem jm bl jm'
                   /\ m_dry jm' = m'
                   /\ level jm = level jm'.
@@ -761,31 +768,35 @@ intros jm bl; revert jm; induction bl; intros.
 *
  inv H; exists jm; split3; auto. constructor.
 *
- destruct a as [[b lo] hi].
+ simpl freeable_blocks in H0. destruct a as [[b lo] hi].
+ rewrite sepcon_assoc in H0.
  destruct (free_list_free _ _ _ _ _ _ H) as [m2 [? ?]].
- pose (jm2 := (free_juicy_mem jm m2 b lo hi H0)).
- specialize (IHbl  jm2 m' H1).
+ generalize H0; intro H0'.
+ destruct H0 as [phi1 [phi2 [? [? H6]]]]. 
+ assert (H10:= @juicy_free_lemma jm b lo hi m2 phi1 _ H1 H0' H3).
+ spec H10. apply join_core in H0; auto.
+ spec H10. intros. apply (resource_at_join _ _ _ l) in H0.
+     rewrite H4 in H0. inv H0. exists rsh3,sh,pp; split3; auto. eexists; eauto. eexists; eauto.
+     exists rsh3, sh3, pp; split3; auto. eexists; eauto. eexists; eauto.
+ match type of H10 with join _ (m_phi ?A) _ => set (jm2:=A) in H10 end.
+ pose proof (join_canc (join_comm H0) (join_comm H10)). subst phi2.  clear H10. 
+ specialize (IHbl  jm2 m' F H2 H6).
  destruct IHbl as [jm' [? [? ?]]].
  exists jm'; split3; auto.
- apply (FLJM_cons jm b lo hi bl jm2 jm' H0 (eq_refl _) H2).
- rewrite <- H4.
+ apply (FLJM_cons jm b lo hi bl jm2 jm' H1
+   (juicy_free_aux_lemma (m_phi jm) b lo hi (freeable_blocks bl * F) H0') (eq_refl _) H4).
+ rewrite <- H7.
  unfold jm2.
  symmetry; apply free_juicy_mem_level.
 Qed.
 
-Definition freeable_blocks: list (block * BinInt.Z * BinInt.Z) -> mpred :=
-  fold_right (fun (bb: block*BinInt.Z * BinInt.Z) a => 
-                        match bb with (b,lo,hi) => 
-                                          sepcon (VALspec_range (hi-lo) Share.top Share.top (b,lo)) a
-                        end)
-                    emp.
-
 
 Lemma free_juicy_mem_ext:
-  forall jm1 jm2 b lo hi m1 m2 H1 H2,
-      jm1=jm2 -> m1=m2 -> free_juicy_mem jm1 m1 b lo hi H1 = free_juicy_mem jm2 m2 b lo hi H2.
+  forall jm1 jm2 b lo hi m1 m2 H1 H2 H3 H4,
+      jm1=jm2 -> m1=m2 -> 
+     free_juicy_mem jm1 m1 b lo hi H1 H3 = free_juicy_mem jm2 m2 b lo hi H2 H4.
 Proof.
-intros. subst. proof_irr. auto.
+intros. subst. proof_irr. proof_irr. auto.
 Qed.
 
 
@@ -796,29 +807,39 @@ Lemma free_list_juicy_mem_lem:
      app_pred P (m_phi jm').
 Proof.
  intros.
- revert H0; induction H; simpl freeable_blocks; intros.
- rewrite emp_sepcon in H0; auto.
+ revert H0; induction H; simpl freeable_blocks.
+ intros.  rewrite emp_sepcon in H0; auto.
+ rename H0 into H99. rename H1 into H0; rename H2 into H1.
+ intro.
  rewrite sepcon_assoc in H2.
+ generalize H2; intro H2'.
  destruct H2 as [phi1 [phi2 [? [? ?]]]].
- pose proof  (@juicy_free_lemma jm b lo hi _ phi1 H H3).
+ apply IHfree_list_juicy_mem.
+ replace (m_phi jm2) with phi2; auto.
+ pose proof  (@juicy_free_lemma jm b lo hi _ phi1 _ H H2').
+ specialize (H5 H3).
  spec H5. apply (join_core H2).
- spec H5.
- intros. specialize (H3 l). hnf in H3.  if_tac in H3. destruct H3 as [v ?]. destruct H3. hnf in H3.
- exists Share.top; exists pfullshare; exists NoneP.
- split3; auto. apply top_correct'. apply top_correct'.
- rewrite H3 in H6; inversion H6; clear H6. subst k pp sh rsh.
+ spec H5. {
+  intros. specialize (H3 l). hnf in H3.  if_tac in H3. destruct H3 as [v ?]. destruct H3. hnf in H3.
+  exists Share.top; exists pfullshare; exists NoneP.
+  split3; auto. apply top_correct'. apply top_correct'.
+  rewrite H3 in H6; inversion H6; clear H6. subst k pp sh rsh.
   clear - H2 H3.  
   apply (resource_at_join _ _ _ l) in H2. rewrite H3 in H2.
   replace (mk_lifted Share.top x) with pfullshare in H2
     by (unfold pfullshare; f_equal; apply proof_irr).
- rewrite preds_fmap_NoneP in H2. inv H2.
- rewrite (join_sub_share_top rsh3) by (econstructor; apply RJ).
+  rewrite preds_fmap_NoneP in H2. inv H2.
+  rewrite (join_sub_share_top rsh3) by (econstructor; apply RJ).
   reflexivity.
- pfullshare_join.
- do 3 red in H3. rewrite H6 in H3. apply YES_not_identity in H3; contradiction.
- apply IHfree_list_juicy_mem.
+  pfullshare_join.
+  do 3 red in H3. rewrite H6 in H3. apply YES_not_identity in H3; contradiction.
+ }
+ match type of H5 with join _ (m_phi ?A) _ => set (jm3 := A) in H5 end.
  pose proof (join_canc (join_comm H5) (join_comm H2)).
- rewrite H0 in *. subst phi2; auto.
+ subst phi2. clear H5.
+ rewrite <- H0. subst jm3.
+ f_equal.
+ apply free_juicy_mem_ext;  auto.
 Qed.
 
 Lemma xelements_app:
@@ -960,7 +981,7 @@ end.
  destruct (make_venv (PTree.remove id ve) id0) eqn:H5; auto.
  destruct p.
  unfold make_venv in H5.
- destruct (eq_dec id id0).
+ destruct (peq id id0).
  subst.  rewrite PTree.grs in H5. inv H5. 
  rewrite PTree.gro in H5 by auto.
  specialize (H7 id0). unfold make_venv in H7. rewrite H5 in H7.
@@ -988,7 +1009,7 @@ apply range_perm_free.
 destruct H0 as [phi2 H0].
 hnf; intros.
 pose proof (juicy_mem_access jm (b,ofs)).
-hnf. unfold access_at in H2. simpl in H2. rewrite H2. clear H2.
+hnf. unfold access_at in H2. simpl in H2.
 specialize (H (b,ofs)).
 hnf in H.
 rewrite if_true in H by (split; auto; omega).
@@ -1002,9 +1023,9 @@ inv H0; try pfullshare_join.
 inv RJ.
 rewrite Share.glb_commute, Share.glb_top in H0.
 subst rsh2.
-rewrite Share.lub_bot.
-unfold perm_of_res; simpl.
-rewrite perm_of_sh_fullshare. constructor.
+rewrite Share.lub_bot in H9.
+rewrite <- H9 in H2. simpl in H2. rewrite perm_of_sh_fullshare in H2.
+destruct ((mem_access (m_dry jm)) !! b ofs Cur); inv H2; constructor.
 symmetry; apply top_pfullshare; reflexivity.
 Qed.
 
@@ -1142,14 +1163,17 @@ Proof.
    by ( apply join_sub_trans with phi; auto; eexists; eauto).
   destruct (VALspec_range_free _ _ _ _ H3 H7)
    as [m3 ?H].
-  pose (jm3 := free_juicy_mem _ _ _ _ _ H8).
+  assert (VR: app_pred (VALspec_range (sizeof t-0) Share.top Share.top (b, 0) * TT) (m_phi jm)).
+    clear - H3 H7. destruct H7.
+  rewrite Z.sub_0_r; exists phi1; exists x; split3; auto.
+  pose (jm3 := free_juicy_mem _ _ _ _ _ H8 (juicy_free_aux_lemma _ _ _ _ _ VR)).
   destruct H7 as [phi3 H7].
   assert (phi3 = m_phi jm3).
   Focus 1. {
     apply join_comm in H7.
     eapply join_canc. apply H7.
     apply join_comm.
-    apply (@juicy_free_lemma _ _ _ _ _ phi1 H8).
+    apply (@juicy_free_lemma _ _ _ _ _ phi1 _ H8).
     rewrite Z.sub_0_r; auto.
     apply join_comm in H7. apply join_core in H7; auto.
     intros.
@@ -1265,8 +1289,9 @@ Qed.
 
 Lemma free_juicy_mem_resource_decay:
   forall jm b lo hi m' jm'
-     (H : free (m_dry jm) b lo hi = Some m'), 
-    free_juicy_mem jm m' b lo hi H = jm' ->
+     (H : free (m_dry jm) b lo hi = Some m')
+    H0, 
+    free_juicy_mem jm m' b lo hi H H0 = jm' ->
     resource_decay (nextblock (m_dry jm)) (m_phi jm) (m_phi jm').
 Proof.
 intros.
@@ -1300,8 +1325,8 @@ Lemma derives_refl' {A: Type}  `{ageable A}:
 Proof.  intros; subst; apply derives_refl. Qed.
 
  Lemma free_juicy_mem_core:
-  forall jm m b lo hi H,
-   core (m_phi (free_juicy_mem jm m b lo hi H)) = core (m_phi jm).
+  forall jm m b lo hi H H0,
+   core (m_phi (free_juicy_mem jm m b lo hi H H0)) = core (m_phi jm).
 Proof.
  intros.
  apply rmap_ext.
@@ -1311,10 +1336,11 @@ Proof.
  repeat rewrite <- core_resource_at.
  simpl. unfold inflate_free; simpl;  rewrite resource_at_make_rmap.
  destruct (m_phi jm @ l) eqn:?; auto.
- destruct k; simpl; repeat rewrite core_YES; auto.
- destruct (access_at m l) eqn:?; simpl.
- rewrite core_YES; auto.
- rewrite core_NO; auto.
+ if_tac; rewrite !core_NO; auto.
+ if_tac. rewrite core_YES, core_NO; auto. rewrite !core_YES; auto.
+ if_tac; auto.
+ destruct l; destruct H1; subst. specialize (H0 z).
+ spec H0; [omega | ]. rewrite Heqr in H0. inv H0.
 Qed.
 
 Lemma same_glob_funassert':
@@ -2221,8 +2247,18 @@ spec H19 ; [clear H19 |]. {
  rewrite <- HGG. auto.
 }
 destruct FL as [m2 FL2].
-destruct (free_list_juicy_mem_i _ _ _ FL2)
- as [jm2 [FL [? FL3]]]. subst m2.
+ rewrite HGG in COMPLETE.
+ assert (ve_of rho' = make_venv ve) by (subst rho'; reflexivity).
+ assert (SFFB := stackframe_of_freeable_blocks Delta _ rho' _ ve HGG COMPLETE H17' H21 H15).
+ clear H21.
+ destruct (free_list_juicy_mem_i _ _ _ (F0 rho * F rho * bind_ret vl (fn_return f) (Q x) rho') FL2)
+ as [jm2 [FL [? FL3]]].
+ eapply sepcon_derives. apply SFFB. apply derives_refl.
+ forget (F0 rho * F rho) as F0F.
+ rewrite <- sepcon_assoc.
+ rewrite (sepcon_comm (stackframe_of _ _)). rewrite sepcon_assoc.
+ destruct H22; auto.
+ subst m2.
 pose (rval := match vl with Some v => v | None => Vundef end). 
 pose (te2 := match ret with
             | None => tx
@@ -2323,9 +2359,6 @@ apply sepcon_derives.
  apply H1; clear H1.
  eapply free_list_juicy_mem_lem; eauto.
  eapply sepcon_derives; try apply H22a; auto.
- rewrite HGG in COMPLETE.
- apply (stackframe_of_freeable_blocks (func_tycontext' f Delta) _ _ _ _ HGG COMPLETE H17'); auto.
- subst rho'; reflexivity.
 }
 {
  destruct H22 as [H22a H22b].
@@ -2339,7 +2372,7 @@ apply sepcon_derives.
  clear - FL.
  induction FL; auto.
  rewrite <-IHFL.
- rewrite <- H0.
+ rewrite <- H1.
  rewrite free_juicy_mem_core; auto.
  intros. unfold exit_tycon; simpl.
  destruct ret; simpl; auto.
@@ -2648,7 +2681,7 @@ hnf in H3.
 generalize H4; intros [_ H7].
 specialize (H7 (b) (mk_funspec (argsig,retsig) A P Q) _ (necR_refl _)).
 spec H7.
-apply func_at_func_at'; apply H6.
+1: apply func_at_func_at'; apply H6.
 destruct H7 as [id [H7 H9]].
 hnf in H9.
 destruct H2 as [TC1 TC2].
@@ -2703,14 +2736,16 @@ Focus 1. {
 apply (tc_exprlist_sub _ _ _ TS) in TC2; [| eauto].
 apply (tc_expr_sub _ _ _ TS) in TC1; [| eauto].
 assert (TC7': tc_fn_return Delta' ret retsig).
-clear - TC7 TS.
-hnf in TC7|-*. destruct ret; auto.
-destruct ((temp_types Delta) ! i) eqn:?; try contradiction.
-destruct TS.
-specialize (H i); rewrite Heqo in H. destruct p. subst t.
-destruct ((temp_types Delta') ! i ). destruct p.
-destruct H; auto.
-auto.
+Focus 1. {
+  clear - TC7 TS.
+  hnf in TC7|-*. destruct ret; auto.
+  destruct ((temp_types Delta) ! i) eqn:?; try contradiction.
+  destruct TS.
+  specialize (H i); rewrite Heqo in H. destruct p. subst t.
+  destruct ((temp_types Delta') ! i ). destruct p.
+  destruct H; auto.
+  auto.
+} Unfocus.
 clear TC7.
 eapply semax_call_aux; try eassumption; 
  try solve [simpl; assumption].

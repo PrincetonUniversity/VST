@@ -1,10 +1,14 @@
+Require Export Coq.Arith.EqNat.
+Require Export Coq.Relations.Relations.
+
+Require Export compcert.exportclight.Clightdefs.
 Require Export compcert.lib.Axioms.
 Require Export compcert.lib.Coqlib.
-Require Export compcert.common.AST.
 Require Export compcert.lib.Integers.
 Require Export compcert.lib.Floats.
-Require Export compcert.common.Values.
 Require Export compcert.lib.Maps.
+Require Export compcert.common.AST.
+Require Export compcert.common.Values.
 Require Export compcert.common.Memdata.
 Require Export compcert.common.Memtype.
 Require Export compcert.common.Memory.
@@ -12,11 +16,10 @@ Require Export compcert.common.Globalenvs.
 Require Export compcert.cfrontend.Ctypes.
 Require Export compcert.cfrontend.Clight.
 
-Require Export EqNat.
+Require Export EqNat.  (* do we need this? *)
 Require Export msl.Coqlib2.
 Require Export veric.coqlib4.
 Require Export sepcomp.Address.
-Require Export Relations.
 
 Set Implicit Arguments.
 
@@ -52,3 +55,4 @@ Proof. intros. destruct (zle a b). destruct (zlt b c). left; split; auto.
   right;  omega. right; omega.
 Qed.
 
+(*Open Scope Z.*)

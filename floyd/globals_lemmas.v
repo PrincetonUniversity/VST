@@ -4,7 +4,7 @@ Require Import floyd.assert_lemmas.
 Require Import floyd.nested_field_lemmas.
 Require Import floyd.mapsto_memory_block.
 Require Import floyd.reptype_lemmas.
-Require Import floyd.data_at_lemmas.
+Require Import floyd.data_at_rec_lemmas.
 Require Import floyd.field_at.
 Require Import floyd.closed_lemmas.
 Require Import floyd.nested_pred_lemmas.
@@ -44,60 +44,6 @@ Proof.
   pose proof Z.mod_bound_pos i Int.modulus H.
   spec H1; [change Int.modulus with 4294967296; omega |].
   omega.
-Qed.
-
-Lemma mapsto_zeros_memory_block: forall sh n b ofs,
-  0 <= n < Int.modulus ->
-  Int.unsigned ofs+n <= Int.modulus ->
-  readable_share sh ->
-  mapsto_zeros n sh (Vptr b ofs) |--
-  memory_block sh n (Vptr b ofs).
-Proof.
-  unfold mapsto_zeros.
-  intros.
-  rename H0 into H'. rename H1 into RS.
-Transparent memory_block.
-  unfold memory_block.
-Opaque memory_block.
-  repeat rewrite Int.unsigned_repr by omega.
-  apply andp_right.
-  + apply prop_right; auto.
-  + rewrite <- (Z2Nat.id n) in H' by omega.
-    rewrite <- (Z2Nat.id n) in H by omega.
-    change nat_of_Z with Z.to_nat.
-    forget (Z.to_nat n) as n'.
-    clear n.
-    remember (Int.unsigned ofs) as ofs'.
-    assert (Int.unsigned (Int.repr ofs') = ofs')
-      by (subst; rewrite Int.repr_unsigned; reflexivity).
-    assert (0 <= ofs' /\ ofs' + Z.of_nat n' <= Int.modulus).
-    Focus 1. {
-      pose proof Int.unsigned_range ofs.
-      omega.
-    } Unfocus.
-    clear Heqofs' H'.
-    assert (Int.unsigned (Int.repr ofs') = ofs' \/ n' = 0%nat) by tauto.
-    clear H0; rename H2 into H0.
-    revert ofs' H H1 H0; induction n'; intros.
-    - simpl; auto.
-    - destruct H1.
-      rewrite inj_S in H2. unfold Z.succ in H2.
-      apply sepcon_derives; auto.
-      * unfold mapsto_, mapsto. simpl.
-        rewrite if_true by auto.
-        apply orp_right2.
-        rewrite prop_true_andp by auto.
-        apply exp_right with (Vint Int.zero).
-        destruct H0; [| omega].
-        rewrite H0.
-        auto.
-      * fold address_mapsto_zeros. fold memory_block'.
-        apply IHn'. omega. omega.
-        destruct (zlt (ofs' + 1) Int.modulus).
-        1: rewrite Int.unsigned_repr; [left; reflexivity | unfold Int.max_unsigned; omega].
-        1: right.
-           destruct H0; [| inversion H0].
-           omega.
 Qed.
 
 Lemma tc_globalvar_sound:
@@ -249,15 +195,6 @@ Lemma init_data_size_space {cs: compspecs}:
 Proof. intros.
  pose proof (sizeof_pos t).
  unfold init_data_size. rewrite Z.max_l; auto. omega.
-Qed.
-
-Lemma mapsto_pointer_void:
-  forall sh t a, mapsto sh (Tpointer t a) = mapsto sh (Tpointer Tvoid a).
-Proof.
-intros.
-unfold mapsto.
-extensionality v1 v2.
-simpl. auto.
 Qed.
 
 Lemma init_data2pred_rejigger {cs: compspecs}:
@@ -506,11 +443,9 @@ rewrite data_at__memory_block; try tauto;
   try (unfold Int.max_unsigned in H5; omega).
 destruct (tc_eval_gvar_zero _ _ _ _ H6 H H0) as [b ?].
 rewrite H8 in H7 |- *.
-unfold mapsto_zeros. rewrite sepcon_emp.
-rewrite Int.unsigned_zero.
+rewrite sepcon_emp.
 pose proof (mapsto_zeros_memory_block
   (Share.splice extern_retainer (readonly2share (gvar_readonly gv))) (sizeof t) b Int.zero).
-unfold mapsto_zeros in H9. change (Int.repr 0) with Int.zero in H9.
 rewrite Int.unsigned_zero in H9.
 apply andp_right.
 + normalize.
@@ -539,181 +474,6 @@ Definition inttype2init_data (sz: intsize) : (int -> init_data) :=
 
 Definition notboolsize (sz: intsize) : Prop :=
   match sz with IBool => False | _ => True end.
-
-Lemma mapsto_unsigned_signed:
- forall sign1 sign2 sh sz v i,
-  mapsto sh (Tint sz sign1 noattr) v (Vint (cast_int_int sz sign1 i)) =
-  mapsto sh (Tint sz sign2 noattr) v (Vint (cast_int_int sz sign2 i)).
-Proof.
- intros.
- unfold mapsto.
- unfold address_mapsto, res_predicates.address_mapsto.
- simpl.
- destruct sz; auto;
- destruct sign1, sign2; auto;
- destruct v; auto; simpl cast_int_int;
- repeat rewrite (prop_true_andp (_ <= _ <= _)) by
-  first [ apply (expr_lemmas3.sign_ext_range' 8 i); compute; split; congruence
-          | apply (expr_lemmas3.sign_ext_range' 16 i); compute; split; congruence
-          ];
- repeat rewrite (prop_true_andp (_ <= _)) by
-  first [ apply (expr_lemmas3.zero_ext_range' 8 i); compute; split; congruence
-          | apply (expr_lemmas3.zero_ext_range' 16 i); compute; split; congruence
-          ];
- simpl;
- repeat rewrite (prop_true_andp True) by auto;
- repeat rewrite (prop_false_andp  (Vint _ = Vundef) ) by (intro; discriminate);
- cbv beta;
- repeat first [rewrite @FF_orp | rewrite @orp_FF].
-*
- f_equal. if_tac; clear H.
- Focus 2. {
-   f_equal.
-   apply ND_prop_ext.
-   split; intros; (split; [| tauto]).
-   + intros _.
-     simpl.
-     destruct (expr_lemmas3.zero_ext_range' 8 i); [split; cbv; intros; congruence |].
-     exact H1.
-   + intros _.
-     simpl.
-     destruct (expr_lemmas3.sign_ext_range' 8 i); [split; cbv; intros; congruence |].
-     exact (conj H0 H1).
- } Unfocus.
- f_equal; extensionality bl.
- f_equal. f_equal.
- simpl;  apply prop_ext; intuition.
- destruct bl; inv H0. destruct bl; inv H.
- unfold Memdata.decode_val in *. simpl in *.
- destruct m; try congruence.
- unfold Memdata.decode_int in *.
- rewrite initialize.rev_if_be_1 in *. simpl in *.
- apply Vint_inj in H1. f_equal.
- rewrite <- (Int.zero_ext_sign_ext _ (Int.repr _)) by omega.
-  rewrite <- (Int.zero_ext_sign_ext _ i) by omega.
- f_equal; auto.
- inv H3.
- destruct bl; inv H0. destruct bl; inv H3.
- unfold Memdata.decode_val in *. simpl in *.
- destruct m; try congruence.
- unfold Memdata.decode_int in *.
- rewrite initialize.rev_if_be_1 in *. simpl in *.
- apply Vint_inj in H. f_equal.
- rewrite <- (Int.sign_ext_zero_ext _ (Int.repr _)) by omega.
- rewrite <- (Int.sign_ext_zero_ext _ i) by omega.
- f_equal; auto.
-*
- f_equal.
- if_tac; clear H.
- Focus 2. {
-   f_equal.
-   apply ND_prop_ext.
-   split; intros; (split; [| tauto]).
-   + intros _.
-     simpl.
-     destruct (expr_lemmas3.sign_ext_range' 8 i); [split; cbv; intros; congruence |].
-     exact (conj H0 H1).
-   + intros _.
-     simpl.
-     destruct (expr_lemmas3.zero_ext_range' 8 i); [split; cbv; intros; congruence |].
-     exact H1.
- } Unfocus.
- f_equal; extensionality bl.
- f_equal. f_equal.
- simpl;  apply prop_ext; intuition.
- destruct bl; inv H0. destruct bl; inv H3.
- unfold Memdata.decode_val in *. simpl in *.
- destruct m; try congruence.
- unfold Memdata.decode_int in *.
- rewrite initialize.rev_if_be_1 in *. simpl in *.
- apply Vint_inj in H. f_equal.
- rewrite <- (Int.sign_ext_zero_ext _ (Int.repr _)) by omega.
- rewrite <- (Int.sign_ext_zero_ext _ i) by omega.
- f_equal; auto.
- destruct bl; inv H0. destruct bl; inv H3.
- unfold Memdata.decode_val in *. simpl in *.
- destruct m; try congruence.
- unfold Memdata.decode_int in *.
- rewrite initialize.rev_if_be_1 in *. simpl in *.
- apply Vint_inj in H. f_equal.
- rewrite <- (Int.zero_ext_sign_ext _ (Int.repr _)) by omega.
-  rewrite <- (Int.zero_ext_sign_ext _ i) by omega.
- f_equal; auto.
-*
- f_equal.
-  if_tac; [| auto]; clear H.
- Focus 2. {
-   f_equal.
-   apply ND_prop_ext.
-   split; intros; (split; [| tauto]).
-   + intros _.
-     simpl.
-     destruct (expr_lemmas3.zero_ext_range' 16 i); [split; cbv; intros; congruence |].
-     exact H1.
-   + intros _.
-     simpl.
-     destruct (expr_lemmas3.sign_ext_range' 16 i); [split; cbv; intros; congruence |].
-     exact (conj H0 H1).
- } Unfocus.
-  f_equal; extensionality bl.
- f_equal. f_equal.
- simpl;  apply prop_ext; intuition.
- destruct bl; inv H0. destruct bl; inv H3. destruct bl; inv H1.
- unfold Memdata.decode_val in *. simpl in *.
- destruct m; try congruence.
- destruct m0; try congruence.
- unfold Memdata.decode_int in *.
- apply Vint_inj in H. f_equal.
- rewrite <- (Int.zero_ext_sign_ext _ (Int.repr _)) by omega.
-  rewrite <- (Int.zero_ext_sign_ext _ i) by omega.
- f_equal; auto.
- destruct bl; inv H0. destruct bl; inv H3. destruct bl; inv H1.
- unfold Memdata.decode_val in *. simpl in *.
- destruct m; try congruence.
- destruct m0; try congruence.
- unfold Memdata.decode_int in *.
- apply Vint_inj in H. f_equal.
- rewrite <- (Int.sign_ext_zero_ext _ (Int.repr _)) by omega.
- rewrite <- (Int.sign_ext_zero_ext _ i) by omega.
- f_equal; auto.
-*
- f_equal.
-  if_tac; [| auto]; clear H.
- Focus 2. {
-   f_equal.
-   apply ND_prop_ext.
-   split; intros; (split; [| tauto]).
-   + intros _.
-     simpl.
-     destruct (expr_lemmas3.sign_ext_range' 16 i); [split; cbv; intros; congruence |].
-     exact (conj H0 H1).
-   + intros _.
-     simpl.
-     destruct (expr_lemmas3.zero_ext_range' 16 i); [split; cbv; intros; congruence |].
-     exact H1.
- } Unfocus.
- f_equal; extensionality bl.
- f_equal. f_equal.
- simpl;  apply prop_ext; intuition.
- destruct bl; inv H0. destruct bl; inv H3. destruct bl; inv H1.
- unfold Memdata.decode_val in *. simpl in *.
- destruct m; try congruence.
- destruct m0; try congruence.
- unfold Memdata.decode_int in *.
- apply Vint_inj in H. f_equal.
- rewrite <- (Int.sign_ext_zero_ext _ (Int.repr _)) by omega.
- rewrite <- (Int.sign_ext_zero_ext _ i) by omega.
- f_equal; auto.
- destruct bl; inv H0. destruct bl; inv H3. destruct bl; inv H1.
- unfold Memdata.decode_val in *. simpl in *.
- destruct m; try congruence.
- destruct m0; try congruence.
- unfold Memdata.decode_int in *.
- apply Vint_inj in H. f_equal.
- rewrite <- (Int.zero_ext_sign_ext _ (Int.repr _)) by omega.
-  rewrite <- (Int.zero_ext_sign_ext _ i) by omega.
- f_equal; auto.
-Qed.
 
 Lemma id2pred_star_ZnthV_Tint  {cs: compspecs} :
  forall Delta sh n (v: val) (data: list int) sz sign mdata
@@ -882,8 +642,8 @@ Proof.
   assert (((0 <=? n) && true)%bool = true).
   rewrite Zle_imp_le_bool; [reflexivity | ]; rewrite Zlength_correct in H4; omega.
 unfold legal_alignas_type.
-rewrite nested_pred_ind. simpl.
-rewrite nested_pred_ind.
+rewrite nested_pred_eq. simpl.
+rewrite nested_pred_eq.
 unfold local_legal_alignas_type.
 simpl.  destruct sz; auto.
 split. destruct sz; reflexivity.

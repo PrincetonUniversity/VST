@@ -1,0 +1,837 @@
+\documentclass[8pt]{article}
+\usepackage{listings, amssymb, amsmath, amsfonts }
+\usepackage{wasysym, xifthen, mathtools, xcolor, semantic}             % Include the listings-package
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%                                  COMMANDS                                         %
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\newcommand{\arr}{\text{array}}
+%\newcommand{\lock}[2]{ \square \hspace{-1.5ex} {\scriptscriptstyle{ #1}} \hspace{-1ex} \xrightarrow{#2}}
+\newcommand{\lock}[2]{ \square \hspace{-1ex} \xrightarrow[#1]{#2}}
+\newcommand{\thread}{\ocircle \hspace{-1ex} \rightarrow}
+\newcommand{\hold}{\text{Hold }}
+%\newcommand{\Star}[2]{\displaystyle{\bigstar_{#1}^{#2}}}
+%\newcommand{\Star}[2]{\stackbin[\substack{#2}]{\mathclap{#1}}{\bigstar}}
+\newcommand{\Star}[2]{ \underset{#1}{\overset{#2}{\bigstar}} }
+\newcommand{\mts}[1]{ \overset{#1}{\mapsto} }
+\newcommand{\assert}[1]{\textcolor{blue}{ \{ #1 \}  } }
+\newcommand{\listpt}{\text{list }}
+\newcommand{\NULL}{\text{NULL }}
+\newcommand{\tree}[2]{#1 \rightarrowtail #2}
+\newcommand{\newlinespecial}{\newline \hphantom{100pt}}
+\newcommand{\newlineThree}{\newline \hphantom{100pt}\hphantom{100pt}}
+\newcommand{\dagt}{\text{dag}{}}
+\newcommand{\DAG}[2]{ \underset{#2}{\overset{#1}{\dag}} }
+
+\begin{document}
+
+\section{General Info}
+$$ \arr (a, [x_1, x_2, \dots x_n]) \triangleq a \mapsto x_1 \ast (a + 4) a \mapsto x_2 \ast \dots \ast (a +4n) \mapsto x_n$$
+\begin{itemize}
+\item For stacks:
+\begin{align*}
+ a \leadsto nil & \triangleq a \mapsto \NULL \\
+ a \leadsto [x_1 \dots, x_{n}] &\triangleq a \mapsto (x_1, a_1) \ast \dots a_{n-1} \mapsto (x_n, a_n)\ast a_n\mapsto \NULL
+ \end{align*}
+\item For queues:
+
+\begin{align*} 
+(hd, tl) \leadsto nil  &\triangleq hd \mapsto \NULL tl \mapsto \NULL \\
+ (hd, tl) \leadsto [x_n \dots, x_{1}] &\triangleq hd \mapsto (x_1, a_1) \ast \dots a_{n-1} \mapsto tl=(\NULL,x_n) 
+\end{align*}
+
+\end{itemize}
+
+$$l \thread R  \triangleq l \lock{0}{} R \text{ and R is constant (i.e. doesn't depend on its variable)} $$
+
+\subsection{Join Spawn rules}
+
+$$ \inference {\{P\} f \{Q\}  \quad \text{$l$ fresh in $F$}   }{\{F \ast P\} \text{Spawn f } \{F \ast l  \thread Q \}}[spwn]$$
+
+$$ \inference { }{\{ l  \thread Q \} \text{Join(l) } \{ Q \}}[join]$$
+
+\subsection{Histories}
+$$Hist \triangleq \mathbb{N} \nrightarrow \listpt * \listpt$$
+$$t \hookrightarrow_h (l_1, l_2) \triangleq h[t] = (l_1, l_2)$$
+\begin{itemize}
+\item $\text{bounded } h  \triangleq \exists t. \forall t' > t, t' \not \in h$
+\item $\text{last } h \triangleq \min \{ t | \forall t' > t, t' \not \in h \}$
+\item $\text{listof } h \triangleq \pi_2 (h[\text{last } h])$  \ \ (i.e. $(\text{last } h) \hookrightarrow (\_, \text{listof }h )$)
+\item $\text{continuous } h  \triangleq \forall t. t\in h \wedge (t+1) \in h \rightarrow \exists l. t \hookrightarrow ( \_ , l) \wedge (t+1) \hookrightarrow (l, \_) $
+\item $\text{gapless } h  \triangleq \forall t \in h \rightarrow \forall t' < t, t' \in h $
+\item $\text{init } h  \triangleq 0 \hookrightarrow (\epsilon, \_) $
+\item $\text{stacklike } h  \triangleq \forall t\in h \rightarrow \exists l, x, t \hookrightarrow ( x::l , l) \vee t \hookrightarrow (l, x::l) $
+\item $\text{queuelike } h  \triangleq \forall t\in h \rightarrow \exists l, x, t \hookrightarrow ( l , x::l) \vee t \hookrightarrow (l::x, l) $
+\item  $\text{stack\_history } h \triangleq \text{continuous } h \wedge \text{gapless } h \wedge \text{bounded } v \wedge \text{init } h\wedge  \text{stacklike } h $
+\item  $\text{queue\_history } h \triangleq \text{continuous } h \wedge \text{gapless } h \wedge \text{bounded } v \wedge \text{init } h\wedge  \text{queuelike } h $
+\end{itemize}
+
+
+\newpage
+
+\section{Multiple-thread counter.}
+\lstset{language=C}          % Set your language (you can change the language for each code-block optionally)
+
+%Main
+\begin{lstlisting}[language=C,basicstyle=\small,frame=none, tabsize=2, escapeinside={(*}{*)}]  % Start your code-block
+
+int main() {
+	(*\textcolor{blue}{ \{ emp\} }*)
+	a = malloc (n);	
+	(*\textcolor{blue}{ \{ $ \arr (a, [\_, \_, \dots, \_{]}_{n} $\} }*)
+	(l, c)  = malloc (LOCK_SIZE);
+	(*\textcolor{blue}{ \{ $ l \mapsto \_ \ast c \mapsto \_ \ast \arr (a, [\_, \_, \dots, \_{]}_{n} $\} }*)
+	c = 0;
+	(*\textcolor{blue}{ \{ $ l \mapsto \_ \ast c \mapsto 0 \ast \arr (a, [\_, \_, \dots, \_{]}_{n} $\} }*)
+	MakeLock(l);
+	(*\textcolor{blue}{ \{ $ l  \lock{0}{1 } R \ast c \mapsto 0 \ast \hold l, R, 0 \ast \arr (a, [\_, \_, \dots, \_{]}_{n} $\} }*) //(*$ R = \lambda v. c \mapsto v  $*)
+	Release(l);
+	(*\textcolor{blue}{ \{ $ l  \lock{0}{1 } R \ast \arr (a, [\_, \_, \dots, \_{]}_{n} $\} }*) 
+	(*\textcolor{blue}{ \{ $ \Star{j = 0}{n-1} l  \lock{0}{\frac{1}{n}} R \ast \arr (a, [\_, \_, \dots, \_{]}_{n} $\} }*)
+	for (i = 0; i < n; i ++) {
+	(*\textcolor{blue}{ \{ $ \Star{j = 0}{i} l_j  \thread R_j \ast \Star{j = i+1}{n-1} l  \lock{0}{\frac{1}{n}} R \ast \arr (a, [l_1, \dots, l_i, \_, \dots \_{]}_{n} $\} }*)
+		a[i] = Spawn(incr, (l,c));
+	(*\textcolor{blue}{ \{ $ \Star{j = 0}{i+1} l_j  \thread R_j \ast \Star{j = i+2}{n-1} l  \lock{0}{\frac{1}{n}} R \ast \arr (a, [l_1, \dots, l_i, l_{i+1}, \_, \dots \_{]}_{n} $\} }*)
+	}
+	(*\textcolor{blue}{ \{ $ \Star{j = 0}{n} l_j  \thread R_j \ast \arr (a, [l_1, \dots,  l_n ] $\} }*)
+	for (i = 0; i < n; i ++)
+	{
+	(*\textcolor{blue}{ \{ $  \Star{j = 0}{i} R_j  \ast \Star{j = i}{n} l_j  \thread R_j \ast \arr (a, [l_1, \dots,  l_n ] $\} }*)
+		Join(a[i]);
+	(*\textcolor{blue}{ \{ $  \Star{j = 0}{i+1} R_j  \ast \Star{j = i+1}{n} l_j  \thread R_j \ast \arr (a, [l_1, \dots,  l_n ] $\} }*)
+	}
+	(*\textcolor{blue}{ \{ $  \bigstar_{j = 0}^{n} R_j  \ast \arr (a, [l_1, \dots,  l_n ] $\} }*) //(*$ R_j =  l  \lock{1}{\frac{1}{n}} R$*)
+	(*\textcolor{blue}{ \{ $  l \lock{n}{}R \ast \arr (a, [l_1, \dots,  l_n ] $\} }*)
+	free(a);
+	(*\textcolor{blue}{ \{ $  l \lock{n}{}R $\} }*)
+	Acquire(l);
+	(*\textcolor{blue}{ \{ $  l \lock{n}{}R \ast \exists v_o, c \mapsto (n + v_o) \ast \hold l, R, (n + v_o) $\} }*)
+	(*\textcolor{blue}{ \{ $  l \lock{n}{}R \ast c \mapsto n \ast \hold l, R, n $\} }*)
+	ret = c;
+	(*\textcolor{blue}{ \{ $  \text{ret} \mapsto n \ast l \lock{n}{}R \ast c \mapsto n \ast \hold l, R, n $\} }*)
+	FreeLock (l);
+	(*\textcolor{blue}{ \{ $  \text{ret} \mapsto n \ast l \mapsto 0 \ast c \mapsto n $\} }*)
+	free(l,c); 
+	(*\textcolor{blue}{ \{ $  \text{ret} \mapsto n$\} }*)
+	return ret }
+\end{lstlisting}
+
+\
+
+\begin{lstlisting}[basicstyle=\small,frame=none, tabsize=2, escapeinside={(*}{*)}]  % Start your code-block
+
+void incr(l,c) {
+	(*\textcolor{blue}{ \{ $ l  \lock{0}{\frac{1}{n}} R $ \}  }*)
+	Acquire(l);
+	(*\textcolor{blue}{ \{ $ \exists v_o,  c \mapsto v_o \ast \hold l, R, v_o  \ast l  \lock{0}{\frac{1}{n}} R $\} }*)
+	( *c)++;
+	(*\textcolor{blue}{ \{ $ \exists v_o,  c \mapsto (v_o  + 1) \ast \hold l, R, v_o   \ast l  \lock{0}{\frac{1}{n}} R  $\} }*)
+	Release(l);
+	(*\textcolor{blue}{ \{ $ l  \lock{1}{\frac{1}{n}} R \} $ }*)
+}
+\end{lstlisting}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%                 Initialize / concurrent read                                   %     
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\newpage
+\section{Single Initialize / concurrent read  }
+%Main
+\begin{lstlisting}[basicstyle=\normalsize,frame=none, tabsize=2, escapeinside={(*}{*)}]  % Start your code-block
+
+(*\textcolor{blue}{ \{ $ l  \lock{\bot}{\pi} R $ \}  }*)  \\ (* $R = \lambda v. init \mapsto 0 \wedge v = \bot \vee  init \mapsto 1 \ast d \mts{\top - v} \text{data} \wedge [\top > v] $ *)
+data *first_access(l) {
+	(*\textcolor{blue}{ \{ $ l  \lock{\bot}{\pi} R $ \}  }*)  
+	Acquire(l);
+	(*\textcolor{blue}{ \{ $ \exists v_o,  init \mapsto 0 \wedge v_o = \bot \vee  init \mapsto 1 \ast d \mts{s_o} \text{data} \ast \hold l, R, v_o \ast l  \lock{\bot}{\pi} R $ \}  }*) \\ (*where $s_o = \top -v_o$ *)
+	if(init) {
+		(*\textcolor{blue}{ \{ $ init \mapsto 1 \ast d \mts{s_o} \text{data} \ast \hold l, R, v_o \ast l  \lock{\bot}{\pi} R $ \}  }*) 
+		(*\textcolor{blue}{ \{ $ d \mts{\frac{s_o}{2}} \text{data} \ast \big (init \mapsto 1 \ast d \mts{\scriptscriptstyle{\top - (v_o + \frac{s_o}{2})}} \text{data} \big ) \ast \hold l, R, v_o \ast l  \lock{\bot}{\pi} R $ \}  }*) 
+		Release(l);
+		(*\textcolor{blue}{ \{ $ d \mts{\frac{s_o}{2}} \text{data} \ast l  \lock{\scriptstyle{\frac{s_o}{2}}}{\pi} R $ \}  }*) 
+		return d;
+		(*\textcolor{blue}{ \{ $ d \mts{\frac{s_o}{2}} \text{data} \ast l  \lock{\scriptstyle{\frac{s_o}{2}}}{\pi} R \wedge ret = d $ \}  }*) 
+	}	
+	else {
+		(*\textcolor{blue}{ \{ $ init \mapsto 0 \ast \hold l, R, \bot \ast l  \lock{\bot}{\pi} R $ \}  }*) 
+		InitializeData (d);
+		(*\textcolor{blue}{ \{ $ d \mapsto \text{data} \ast init \mapsto 0 \ast \hold l, R, \bot \ast l  \lock{\bot}{\pi} R $ \}  }*) 
+		init = 1;
+		(*\textcolor{blue}{ \{ $ d \mapsto \text{data} \ast init \mapsto 1 \ast \hold l, R, \bot \ast l  \lock{\bot}{\pi} R $ \}  }*) 
+		(*\textcolor{blue}{ \{ $ d \mts{\frac{1}{2}} \text{data} \ast \big( d \mts{\frac{1}{2}} \text{data} \ast init \mapsto 1 \big) \ast \hold l, R, \bot \ast l  \lock{\bot}{\pi} R $ \}  }*) 
+		Release(l)
+		(*\textcolor{blue}{ \{ $ d \mts{\frac{1}{2}} \text{data} \ast l  \lock{\bot}{\pi} R $ \}  }*) 
+		return d;
+		(*\textcolor{blue}{ \{ $ d \mts{\frac{1}{2}} \text{data} \ast l  \lock{\bot}{\pi} R \wedge ret = d $ \}  }*) 
+	}
+}
+(*\textcolor{blue}{ \{ $\exists \pi_s, d \mts{\pi_s} \text{data} \ast l  \lock{\bot}{\pi} R \wedge ret = d $ \}  }*) 
+
+\end{lstlisting}
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%                                          Stack                                          %     
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+%struct node
+%{
+%    struct node *ptr;
+%}*hd;
+
+
+\newpage
+\section{Stack Producer/consumer}
+%Main
+\begin{lstlisting}[basicstyle=\small,frame=none, tabsize=2, escapeinside={(*}{*)}]  % Start your code-block
+
+(*\assert{emp}*)
+void create();
+(*\assert{$ \text{ hd} \leadsto \epsilon $}*)
+
+
+(*\assert{$ \text{ hd} \leadsto \epsilon $}*)
+void delete();
+(*\assert{emp}*)
+
+(*\assert{$ \text{ hd} \leadsto ls $}*)
+void isemp();
+(*\assert{$ \text{ hd} \leadsto ls  \wedge \newlinespecial
+ls = \epsilon \wedge ret = \text{true} \vee \newlinespecial
+\exists x, l'. l = x::l \wedge ret = \text{false}
+$}*)
+
+(*\assert{$ \text{ hd} \leadsto ls $}*)
+void enq(int x);
+(*\assert{$ \text{ hd} \leadsto x::ls $}*)
+
+(*\assert{$ \text{ hd} \leadsto x::ls  $}*)
+void deq();
+(*\assert{$ \text{ hd} \leadsto ls \wedge ret = x $}*)
+
+/* Producer */
+(*\assert{$ l \lock{\bot}{\pi} R $}*) \\ (* $R = \lambda h. \text{ hd} \leadsto (\text{listof}(h)) \wedge \text{history\_stack } h $*)
+void produce(x, l){
+	(*\assert{$ l \lock{\bot}{\pi} R $}*)
+	Acquire(l);
+	(*\assert{$ \exists h_o, \text{ hd} \leadsto l  \wedge \text{history\_stack } h \ast \hold l, R, h_o \ast l \lock{\bot}{\pi} R $}*) \\ (* $ l = \text{listof}(h_o)$*)
+	enq(x);
+	(*\assert{$ \text{ hd} \leadsto x::l  \wedge \text{history\_stack } h \ast \hold l, R, h_o \ast l \lock{\bot}{\pi} R $}*)
+	(*\assert{$ \big( \text{ hd} \leadsto (\text{listof}( h_o + t \hookrightarrow ( l , x::l)))\wedge \text{history\_stack } (h_o + t \hookrightarrow ( l , x::l)) \big)
+	  \newlinespecial  \ast \hold l, R, h_o \ast l \lock{\bot}{\pi} R $}*) \\ (* $t = \text{last } h_o + 1$*)
+	Release(l);
+	(*\assert{$ l \lock{t \hookrightarrow ( l , x::l)}{\pi} R $}*)
+} (*\assert{$ l \lock{t \hookrightarrow ( l , x::l)}{\pi} R $}*)
+	
+/* Consumer */
+(*\assert{$ l \lock{\bot}{\pi} R $}*) \\ (* $R = \lambda h. \text{ hd} \leadsto (\text{listof}(h))  \wedge \text{history\_stack } h $*)
+void consume(l){
+	(*\assert{$ l \lock{\bot}{\pi} R $}*)
+	bool cont = true;
+	(*\assert{$ cont = true \wedge l \lock{\bot}{\pi} R  $}*)
+	while (cont) {
+		Acquire(l);
+		(*\assert{$ cont = true \wedge \exists h_o, \text{ hd} \leadsto l  \wedge \text{history\_stack } h \newlinespecial
+		\ast \hold l, R, h_o \ast l \lock{\bot}{\pi} R$}*)\\(*$l = \text{listof}(h_o)$*)
+		if (isemp() ) {
+			Release(l);
+			(*\assert{$ cont = true \wedge l \lock{\bot}{\pi} R  $}*)	
+		} else {
+			(*\assert{$ \exists x, l'. l = x::l \wedge cont = true \wedge \newlinespecial
+					 \text{ hd} \leadsto l \wedge \text{history\_stack } h \ast \hold l, R, h_o \ast l \lock{\bot}{\pi} R $}*)
+			ret = deq();
+			(*\assert{$ ret = x \wedge cont = true \wedge \newlinespecial
+					 \text{ hd} \leadsto l'  \wedge \text{history\_stack } h \ast \hold l, R, h_o \ast l \lock{\bot}{\pi} R $}*)
+			(*\assert{$ ret = x \wedge cont = true \wedge \newlinespecial
+					 \big( \text{ hd} \leadsto (\text{listof}( h_o + t \hookrightarrow ( l, l')))  \wedge \text{history\_stack } h \big) \newlinespecial
+					  \ast \hold l, R, h_o \ast l \lock{\bot}{\pi} R $}*)  \\ (* $t = \text{last } h_o + 1$*)
+			Release(l);
+			(*\assert{$ ret = x \wedge cont = true \wedge l \lock{t \hookrightarrow ( l, l')}{\pi} R $}*)
+			cont = false;
+			(*\assert{$ ret = x \wedge cont = false \wedge l \lock{t \hookrightarrow ( l, l')}{\pi} R $}*)
+		}
+		(*\assert{$ cont = true \wedge l \lock{\bot}{\pi} R \vee  cont = false \wedge ret = x \wedge l \lock{t \hookrightarrow ( l, l')}{\pi} R $}*)	
+	}
+	(*\assert{$ cont = false \wedge ret = x \wedge l \lock{t \hookrightarrow ( l, l')}{\pi} R $}*)		
+	return ret;
+}
+(*\assert{$ ret = x \wedge l \lock{t \hookrightarrow ( x::l', l')}{\pi} R $}*)
+ 
+ (*\newpage*)
+/* Organizer */
+(*\assert{$ l \lock{\bot}{\pi} R \ast a \mapsto \_ \ast b \mapsto \_$}*) \\ (* $R = \lambda h. \text{ hd} \leadsto (\text{listof}(h))  \wedge \text{history\_stack } h $*)
+void organize1(l, a, b){
+	(*\assert{$ l \lock{\bot}{\pi} R \ast a \mapsto \_ \ast b \mapsto \_ $}*)
+	(t1, v1) = consume(l);
+	(*\assert{$ (t1 , v1) = x \wedge l \lock{t1 \hookrightarrow ( x::l, l)}{\pi} R \ast a \mapsto \_ \ast b \mapsto \_ $}*)
+	if (t1) {
+		(*\assert{$ t1 \mapsto 1 \ast (t , v1) = x \wedge l \lock{t \hookrightarrow ( x::l, l)}{\pi} R \ast a \mapsto \_ \ast b \mapsto \_ $}*)
+		a = v1;
+		(*\assert{$ t1 \mapsto 1 \ast (t , v1) = x \wedge l \lock{t \hookrightarrow ( x::l, l)}{\pi} R \ast a \mapsto v1 \ast b \mapsto \_ $}*)
+	} else {
+		(*\assert{$ t1  \mapsto 0 \ast (t , v1) = x \wedge l \lock{t \hookrightarrow ( x::l, l)}{\pi} R \ast a \mapsto \_ \ast b \mapsto \_ $}*)
+		b = v1;
+		(*\assert{$ t1 \mapsto 0 \ast (t , v1) = x \wedge l \lock{t \hookrightarrow ( x::l, l)}{\pi} R \ast a \mapsto \_ \ast b \mapsto v1 $}*)
+	}
+}
+(*\assert{$  (t1 , v1) = x \wedge l \lock{t \hookrightarrow ( x::l, l)}{\pi} R \ast \newlinespecial
+t1 \mapsto 1 \ast a \mapsto v1 \ast b \mapsto \_ \vee \newlinespecial
+t1 \mapsto 0  \ast a \mapsto \_ \ast b \mapsto v1$}*)
+
+(*\assert{$ l \lock{\bot}{\pi} R \ast a \mapsto \_ \ast b \mapsto \_$}*)
+void organize2(l,a,b){
+	(*\assert{$ l \lock{\bot}{\pi} R \ast a \mapsto \_ \ast b \mapsto \_$}*)
+	organize1(l,a,b);
+	(*\assert{$  (t1 , v1) = x \wedge l \lock{t \hookrightarrow ( x::l, l)}{\pi} R \ast \newlinespecial
+	t1 \mapsto 1 \ast a \mapsto v1 \ast b \mapsto \_ \vee \newlinespecial
+	t1 \mapsto 0  \ast a \mapsto \_ \ast b \mapsto v1$}*)
+	organize1(l,a,b);
+}
+(*\assert{$  (t2 , v2) = x' \wedge  (t1 , v1) = x \wedge l \lock{t \hookrightarrow ( x::l, l)\ast t' \hookrightarrow ( x'::l', l')}{\pi} R \ast \newlinespecial
+t1 \mapsto 1 \ast t2 \mapsto 1 \ast a \mapsto v2 \ast b \mapsto \_ \vee \newlinespecial
+t1 \mapsto 1 \ast t2 \mapsto 0 \ast a \mapsto v1 \ast b \mapsto v2 \vee \newlinespecial
+t1 \mapsto 0 \ast t2 \mapsto 1 \ast a \mapsto v2 \ast b \mapsto v1 \vee \newlinespecial
+t1 \mapsto 0 \ast t2 \mapsto 0 \ast a \mapsto \_ \ast b \mapsto \_ $}*)
+		
+		
+(*\newpage *)		
+void main(){
+	(*\assert{$emp$}*)
+	l, x, y,z,a,b, = malloc (LOCK, LOCK, LOCK, LOCK, int, int, );
+	hd = create();
+	(* \assert{$ \text{ hd} \leadsto \epsilon \ast l \mapsto \_ \ast a \mapsto \_ \ast b \mapsto \_$} *)
+	MakeLock(l); \\ (* $R = \lambda h. \text{ hd} \leadsto (\text{listof}(h))  \wedge \text{history\_stack } h $*)
+	(*\assert{$ \text{ hd} \leadsto \epsilon \ast l \lock{emp}{\top} R \ast \hold l, R, emp \ast a \mapsto \_ \ast b \mapsto \_$}*) 	
+	Release(l);
+	(*\assert{$ l \lock{emp}{\top} R \ast a \mapsto \_ \ast b \mapsto \_$}*)
+	x = Spawn(produce, ((0,0), l);
+	(*\assert{$ x \thread R_x \ast l \lock{emp}{\frac{2}{3}} R \ast a \mapsto \_ \ast b \mapsto \_$}*) \\ (*$R_x = l \lock{t \hookrightarrow ( l , (0,0))::l)}{\frac{1}{3}} R   $*)
+	y = Spawn(produce, ((1,1), l);
+	(*\assert{$ y \thread R_y \ast x \thread R_x \ast l \lock{emp}{\frac{1}{3}} R \ast a \mapsto \_ \ast b \mapsto \_$}*) \\ (*$R_y = l \lock{t \hookrightarrow ( l , (1,1)::l)}{\frac{1}{3}} R   $*)
+	z = Spawn(organize2, (l, a, b));
+	(*\assert{$ z \thread R_z \ast y \thread R_y \ast x \thread R_x $}*) 
+	Join(x);
+	(*\assert{$ h_1 =t_x \hookrightarrow ( l_x , (0,0)::l_x ) \wedge  z \thread R_z \ast y \thread R_y \ast l \lock{h_1}{\frac{1}{3}} R $}*) 
+	Join(y);
+	(*\assert{$ h_2 =t_x \hookrightarrow ( l_x , (0,0)::l_x) \ast t_y \hookrightarrow ( l_y , (1,1)::l_y) \wedge z \thread R_z \ast l \lock{h_2}{\frac{2}{3}} R $}*) 
+	Join(z);
+	(*\assert{$ h_3 = h_2 \ast t_z1 \hookrightarrow ( x::l_z1, l_z1)\ast t_z2 \hookrightarrow ( y::l_z2, l_z2)) \wedge (k1, v1) = x \wedge (k2, v2) =y \wedge \newlinespecial
+	 l \lock{h_3}{\top} R  \ast \newlinespecial
+	k1 \mapsto 1 \ast k2 \mapsto 1 \ast a \mapsto v2 \ast b \mapsto \_ \vee \newlinespecial
+	k1 \mapsto 1 \ast k2 \mapsto 0 \ast a \mapsto v1 \ast b \mapsto v2 \vee \newlinespecial
+	k1 \mapsto 0 \ast k2 \mapsto 1 \ast a \mapsto v2 \ast b \mapsto v1 \vee \newlinespecial
+	k1 \mapsto 0 \ast k2 \mapsto 0 \ast a \mapsto \_ \ast b \mapsto \_
+	  $}*) 
+	Acquire(l);
+	(*\assert{$  (k1, v1) = x \wedge (k2, v2) =y \wedge \newlinespecial
+	 l \lock{h_3}{\top} R \ast  \hold l, R, h_o \ast  \text{ hd} \leadsto (\text{listof}(h_3))  \wedge \text{history\_stack } (h_3) \ast \newlinespecial
+	k1 \mapsto 1 \ast k2 \mapsto 1 \ast a \mapsto v2 \ast b \mapsto \_ \vee \newlinespecial
+	k1 \mapsto 1 \ast k2 \mapsto 0 \ast a \mapsto v1 \ast b \mapsto v2 \vee \newlinespecial
+	k1 \mapsto 0 \ast k2 \mapsto 1 \ast a \mapsto v2 \ast b \mapsto v1 \vee \newlinespecial
+	k1 \mapsto 0 \ast k2 \mapsto 0 \ast a \mapsto \_ \ast b \mapsto \_
+	  $}*)  \\ (*Case analysis on h3*)
+	(*\assert{$   l \lock{h_3}{\top} R \ast  \hold l, R, h_o \ast  \text{ hd} \leadsto (\epsilon) \ast \newlinespecial
+	(1, 1) = x \wedge (0, 0) =y \wedge k1 \mapsto 1 \ast k2 \mapsto 0 \ast a \mapsto 1 \ast b \mapsto 0 \vee \newlinespecial
+	(0, 0) = x \wedge (1, 1) =y \wedge k1 \mapsto 0 \ast k2 \mapsto 1 \ast a \mapsto 1 \ast b \mapsto 0
+	  $}*) 
+	Free(l); free(k1,k2);
+	(*\assert{$   \text{ hd} \leadsto \epsilon \ast a \mapsto 1 \ast b \mapsto 0 $}*)
+	delete();
+}
+(*\assert{$  a \mapsto 1 \ast b \mapsto 0 $}*)
+	 
+\end{lstlisting}
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%                                          Queue                                          %     
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+%struct node
+%{
+%    struct node *ptr;
+%}*hd;
+
+
+\newpage
+\section{Queue Producer/consumer}
+%Main
+\begin{lstlisting}[language=C,
+			literate=
+               				{->}{$\rightarrow{}$}{2},
+			basicstyle=\small,frame=none, tabsize=2, escapeinside={(*}{*)}]  % Start your code-block
+
+struct elem {
+  struct elem *next;
+  struct elem *data;
+};
+
+struct fifo {
+  struct elem *hd;
+  struct elem *tl;
+};
+
+(*\assert{emp}*)
+fifo *create(){
+	Q = malloc(sizeof(fifo));
+	(*\assert{$Q.hd \mapsto \_ \ast Q.hd \mapsto \_$}*)
+	hd, tl = NULL;
+	(*\assert{$Q \leadsto \epsilon$}*)
+	return Q;
+}
+(*\assert{$ \text{ Q} \leadsto \epsilon $}*)
+
+
+(*\assert{$ \text{Q} \leadsto \epsilon $}*)
+void delete(Q){
+	free(Q);
+}
+(*\assert{emp}*)
+
+(*\assert{$ \text{Q} \leadsto ls $}*)
+void isemp(){
+	return (Q.hd == NULL)
+	(*\assert{$ \text{Q} \leadsto ls \wedge ret = (Q.hd == NULL) $}*)
+}
+(*\assert{$ \text{ Q} \leadsto ls  \wedge \newlinespecial
+ls = \epsilon \wedge ret = \text{true} \vee \newlinespecial
+\exists x, l'. l = l::x \wedge ret = \text{false}
+$}*)
+
+(*\assert{$ \text{Q} \leadsto ls $}*)
+void enq(fifo Q, type x){
+	(*\assert{$ \text{Q} \leadsto ls$}*)
+	if (hd==NULL) {
+		(*\assert{$ \text{Q} \leadsto \epsilon  \wedge hd = NULL$}*)
+		Q->hd=(NULL, x);
+		Q->tl=(NULL, x);
+		(*\assert{$ \text{Q} \leadsto x::\epsilon $}*)
+	}
+  	else {
+		(*\assert{$ \text{Q} \leadsto [x_1,\dots, x_n]  \wedge hd \not = \NULL$}*)
+		tl->next = (NULL, x);
+		(*\assert{$ Q.hd \mapsto (x_1, a_1) \ast \dots a_{n-1} \mapsto tl=(a_n,x_n) \ast a_n \mapsto (\NULL, x) $}*)
+		Q->tl=(\NULL, x);
+		(*\assert{$ Q.hd \mapsto (x_1, a_1) \ast \dots a_{n-1} \mapsto (a_n,x_n) \ast a_n \mapsto tl=(\NULL, x) $}*)
+		(*\assert{$ \text{Q} \leadsto [x, x_n,\dots, x_1] $}*)
+	}
+ }
+(*\assert{$ \text{Q} \leadsto x::ls $}*)
+
+(*\assert{$ \text{Q} \leadsto ls::x  $}*)
+void deq(fifo Q){
+	h=Q->hd->data;
+	(*\assert{$ h = x \wedge \text{Q} \leadsto ls::x $}*)
+	n=Q->hd->next;
+	(*\assert{$ h = x \wedge n = a_1 \wedge Q.hd \mapsto (x, a_1) \ast a_1 \mapsto (x_2, a_2) \ast \dots a_{n-1} \mapsto tl=(\NULL,x_n) $}*)
+	Q->head=n;
+	(*\assert{$ h = x \wedge n = a_1 \wedge Q.hd\mapsto (x_2, a_2) \ast \dots a_{n-1} \mapsto tl=(\NULL,x_n) $}*)
+	return h;
+}(*\assert{$ \text{ Q} \leadsto ls \wedge ret = x $}*)
+
+/* Producer */
+(*\assert{$ l \lock{\bot}{\pi} R $}*) \\ (* $R = \lambda h. \text{ Q} \leadsto (\text{listof}(h)) \wedge \text{history\_queue } h $*)
+void produce(fifo Q, type x, lock l){
+	(*\assert{$ l \lock{\bot}{\pi} R $}*)
+	Acquire(l);
+	(*\assert{$ \exists h_o, \text{ Q} \leadsto l  \wedge \text{history\_queue } h \ast \hold l, R, h_o \ast l \lock{\bot}{\pi} R $}*) \\ (* $ l = \text{listof}(h_o)$*)
+	enq(x);
+	(*\assert{$ \text{ Q} \leadsto x::l  \wedge \text{history\_queue } h_o \ast \hold l, R, h_o \ast l \lock{\bot}{\pi} R $}*)
+	(*\assert{$ \big( \text{ Q} \leadsto (\text{listof}( h_o \oplus t \hookrightarrow ( l , x::l)))\wedge \text{history\_queue } (h_o \oplus t \hookrightarrow ( l , x::l)) \big)
+	  \newlinespecial  \ast \hold l, R, h_o \ast l \lock{\bot}{\pi} R $}*) \\ (* $t = \text{last } h_o + 1$*)
+	Release(l);
+	(*\assert{$ l \lock{t \hookrightarrow ( l , x::l)}{\pi} R $}*)
+} (*\assert{$ l \lock{t \hookrightarrow ( l , x::l)}{\pi} R $}*)
+	
+/* Consumer */
+(*\assert{$ l \lock{\epsilon}{\pi} R $}*) \\ (* $R = \lambda h. \text{ Q} \leadsto (\text{listof}(h_o))  \wedge \text{history\_queue } h $*)
+void consume(l){
+	(*\assert{$ l \lock{\epsilon}{\pi} R $}*)
+	bool cont = true;
+	(*\assert{$ cont = true \wedge l \lock{\epsilon}{\pi} R  $}*)
+	while (cont) {
+		Acquire(l);
+		(*\assert{$ cont = true \wedge \exists h_o, \text{ Q} \leadsto l  \wedge \text{history\_queue } h_o \newlinespecial
+		\ast \hold l, R, h_o \ast l \lock{\epsilon}{\pi} R$}*)\\(*$l = \text{listof}(h_o)$*)
+		if (isemp() ) {
+			Release(l);
+			(*\assert{$ cont = true \wedge l \lock{\epsilon}{\pi} R  $}*)	
+		} else {
+			(*\assert{$ \exists x, l'. l = l::x \wedge cont = true \wedge \newlinespecial
+					 \text{ Q} \leadsto l \wedge \text{history\_queue } h_o\ast \hold l, R, h_o \ast l \lock{\epsilon}{\pi} R $}*)
+			ret = deq();
+			(*\assert{$ ret = x \wedge cont = true \wedge \newlinespecial
+					 \text{ Q} \leadsto l'  \wedge \text{history\_queue } h_o\ast \hold l, R, h_o \ast l \lock{\epsilon}{\pi} R $}*)
+			(*\assert{$ ret = x \wedge cont = true \wedge \newlinespecial
+					 \big( \text{ Q} \leadsto (\text{listof}( h_o \oplus t \hookrightarrow ( l, l')))  \wedge \text{history\_queue } h_o\big) \newlinespecial
+					  \ast \hold l, R, h_o \ast l \lock{\epsilon}{\pi} R $}*)  \\ (* $t = \text{last } h_o + 1$*)
+			Release(l);
+			(*\assert{$ ret = x \wedge cont = true \wedge l \lock{t \hookrightarrow ( l, l')}{\pi} R $}*)
+			cont = false;
+			(*\assert{$ ret = x \wedge cont = false \wedge l \lock{t \hookrightarrow ( l, l')}{\pi} R $}*)
+		}
+		(*\assert{$ cont = true \wedge l \lock{\epsilon}{\pi} R \vee  cont = false \wedge ret = x \wedge l \lock{t \hookrightarrow ( l, l')}{\pi} R $}*)	
+	}
+	(*\assert{$ cont = false \wedge ret = x \wedge l \lock{t \hookrightarrow ( l, l')}{\pi} R $}*)		
+	return ret;
+}
+(*\assert{$ ret = x \wedge l \lock{t \hookrightarrow ( l'::x, l')}{\pi} R $}*)
+ 
+ (*\newpage*)
+/* Organizer */
+(*\assert{$ l \lock{\epsilon}{\pi} R \ast a \mapsto \_ \ast b \mapsto \_$}*) \\ (* $R = \lambda h. \text{ Q} \leadsto (\text{listof}(h))  \wedge \text{history\_queue } h_o$*)
+void organize1(l, a, b){
+	(*\assert{$ l \lock{\epsilon}{\pi} R \ast a \mapsto \_ \ast b \mapsto \_ $}*)
+	(t1, v1) = consume(l);
+	(*\assert{$ (t1 , v1) = x \wedge l \lock{t1 \hookrightarrow ( l::x, l)}{\pi} R \ast a \mapsto \_ \ast b \mapsto \_ $}*)
+	if (t1) {
+		(*\assert{$ t1 \mapsto 1 \ast (t , v1) = x \wedge l \lock{t \hookrightarrow ( l::x, l)}{\pi} R \ast a \mapsto \_ \ast b \mapsto \_ $}*)
+		a = v1;
+		(*\assert{$ t1 \mapsto 1 \ast (t , v1) = x \wedge l \lock{t \hookrightarrow ( l::x, l)}{\pi} R \ast a \mapsto v1 \ast b \mapsto \_ $}*)
+	} else {
+		(*\assert{$ t1  \mapsto 0 \ast (t , v1) = x \wedge l \lock{t \hookrightarrow ( l::x, l)}{\pi} R \ast a \mapsto \_ \ast b \mapsto \_ $}*)
+		b = v1;
+		(*\assert{$ t1 \mapsto 0 \ast (t , v1) = x \wedge l \lock{t \hookrightarrow ( l::x, l)}{\pi} R \ast a \mapsto \_ \ast b \mapsto v1 $}*)
+	}
+}
+(*\assert{$  (t1 , v1) = x \wedge l \lock{t \hookrightarrow ( l::x, l)}{\pi} R \ast \newlinespecial
+t1 \mapsto 1 \ast a \mapsto v1 \ast b \mapsto \_ \vee \newlinespecial
+t1 \mapsto 0  \ast a \mapsto \_ \ast b \mapsto v1$}*)
+
+(*\assert{$ l \lock{\epsilon}{\pi} R \ast a \mapsto \_ \ast b \mapsto \_$}*)
+void organize2(l,a,b){
+	(*\assert{$ l \lock{\epsilon}{\pi} R \ast a \mapsto \_ \ast b \mapsto \_$}*)
+	organize1(l,a,b);
+	(*\assert{$  (t1 , v1) = x \wedge l \lock{t \hookrightarrow ( l::x, l)}{\pi} R \ast \newlinespecial
+	t1 \mapsto 1 \ast a \mapsto v1 \ast b \mapsto \_ \vee \newlinespecial
+	t1 \mapsto 0  \ast a \mapsto \_ \ast b \mapsto v1$}*)
+	organize1(l,a,b);
+}
+(* \assert{$ R_z =   (t2 , v2) = x' \wedge  (t1 , v1) = x \wedge l \lock{t \hookrightarrow ( l::x, l)\oplus t' \hookrightarrow ( l'::x', l')}{\pi} R \ast \newlinespecial
+t1 \mapsto 1 \ast t2 \mapsto 1 \ast a \mapsto v2 \ast b \mapsto \_ \vee \newlinespecial
+t1 \mapsto 1 \ast t2 \mapsto 0 \ast a \mapsto v1 \ast b \mapsto v2 \vee \newlinespecial
+t1 \mapsto 0 \ast t2 \mapsto 1 \ast a \mapsto v2 \ast b \mapsto v1 \vee \newlinespecial
+t1 \mapsto 0 \ast t2 \mapsto 0 \ast a \mapsto \_ \ast b \mapsto \_ $}*)
+		
+		
+(*\newpage *)		
+void main(){
+	(*\assert{$emp$}*)
+	l, x, y,z,a,b, = malloc (LOCK, LOCK, LOCK, LOCK, int, int, );
+	hd = create();
+	(* \assert{$ \text{ Q} \leadsto \epsilon \ast l \mapsto \_ \ast a \mapsto \_ \ast b \mapsto \_$} *)
+	MakeLock(l); \\ (* $R = \lambda h. \text{ Q} \leadsto (\text{listof}(h))  \wedge \text{history\_queue } h $*)
+	(*\assert{$ \text{ Q} \leadsto \epsilon \ast l \lock{emp}{\top} R \ast \hold l, R, emp \ast a \mapsto \_ \ast b \mapsto \_$}*) 	
+	Release(l);
+	(*\assert{$ l \lock{emp}{\top} R \ast a \mapsto \_ \ast b \mapsto \_$}*)
+	x = Spawn(produce, ((0,0), l);
+	(*\assert{$ x \thread R_x \ast l \lock{emp}{\frac{2}{3}} R \ast a \mapsto \_ \ast b \mapsto \_$}*) \\ (*$R_x = l \lock{t \hookrightarrow ( l , (0,0))::l)}{\frac{1}{3}} R   $*)
+	y = Spawn(produce, ((1,1), l);
+	(*\assert{$ y \thread R_y \ast x \thread R_x \ast l \lock{emp}{\frac{1}{3}} R \ast a \mapsto \_ \ast b \mapsto \_$}*) \\ (*$R_y = l \lock{t \hookrightarrow ( l , (1,1)::l)}{\frac{1}{3}} R   $*)
+	z = Spawn(organize2, (l, a, b));
+	(*\assert{$ z \thread R_z \ast y \thread R_y \ast x \thread R_x $}*) 
+	Join(x);
+	(*\assert{$ h_1 =t_x \hookrightarrow ( l_x , (0,0)::l_x ) \wedge  z \thread R_z \ast y \thread R_y \ast l \lock{h_1}{\frac{1}{3}} R $}*) 
+	Join(y);
+	(*\assert{$ h_2 =t_x \hookrightarrow ( l_x , (0,0)::l_x) \oplus t_y \hookrightarrow ( l_y , (1,1)::l_y) \wedge z \thread R_z \ast l \lock{h_2}{\frac{2}{3}} R $}*) 
+	Join(z);
+	(*\assert{$ h_3 = h_2 \oplus t_z1 \hookrightarrow ( l_z1::x, l_z1)\oplus t_z2 \hookrightarrow ( l_z2::x', l_z2)) \wedge (k1, v1) = x \wedge (k2, v2) =x' \wedge \newlinespecial
+	 l \lock{h_3}{\top} R  \ast \newlinespecial
+	k1 \mapsto 1 \ast k2 \mapsto 1 \ast a \mapsto v2 \ast b \mapsto \_ \vee \newlinespecial
+	k1 \mapsto 1 \ast k2 \mapsto 0 \ast a \mapsto v1 \ast b \mapsto v2 \vee \newlinespecial
+	k1 \mapsto 0 \ast k2 \mapsto 1 \ast a \mapsto v2 \ast b \mapsto v1 \vee \newlinespecial
+	k1 \mapsto 0 \ast k2 \mapsto 0 \ast a \mapsto \_ \ast b \mapsto \_
+	  $}*) 
+	Acquire(l);
+	(*\assert{$  (k1, v1) = x \wedge (k2, v2) =y \wedge \newlinespecial
+	 l \lock{h_3}{\top} R \ast  \hold l, R, h_o \ast  \text{ Q} \leadsto (\text{listof}(h_3))  \wedge \text{history\_queue } (h_3) \ast \newlinespecial
+	k1 \mapsto 1 \ast k2 \mapsto 1 \ast a \mapsto v2 \ast b \mapsto \_ \vee \newlinespecial
+	k1 \mapsto 1 \ast k2 \mapsto 0 \ast a \mapsto v1 \ast b \mapsto v2 \vee \newlinespecial
+	k1 \mapsto 0 \ast k2 \mapsto 1 \ast a \mapsto v2 \ast b \mapsto v1 \vee \newlinespecial
+	k1 \mapsto 0 \ast k2 \mapsto 0 \ast a \mapsto \_ \ast b \mapsto \_
+	  $}*)  \\ (*Case analysis on h3*)
+	(*\assert{$   l \lock{h_3}{\top} R \ast  \hold l, R, h_o \ast  \text{ Q} \leadsto (\epsilon) \ast \newlinespecial
+	(1, 1) = x \wedge (0, 0) =y \wedge k1 \mapsto 1 \ast k2 \mapsto 0 \ast a \mapsto 1 \ast b \mapsto 0 \vee \newlinespecial
+	(0, 0) = x \wedge (1, 1) =y \wedge k1 \mapsto 0 \ast k2 \mapsto 1 \ast a \mapsto 1 \ast b \mapsto 0
+	  $}*) 
+	Free(l); free(k1,k2);
+	(*\assert{$   \text{ Q} \leadsto \epsilon \ast a \mapsto 1 \ast b \mapsto 0 $}*)
+	delete();
+}
+(*\assert{$  a \mapsto 1 \ast b \mapsto 0 $}*)
+	 
+\end{lstlisting}
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%                                    Tree Add                                           %     
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+%struct node
+%{
+%    struct node *ptr;
+%}*hd;
+
+
+\newpage
+\section{Tree add}
+%Main
+\begin{lstlisting}[language=C,
+			literate=
+               				{->}{$\rightarrow{}$}{2},
+			basicstyle=\small,frame=none, tabsize=2, escapeinside={(*}{*)}]  % Start your code-block
+
+struct node
+{
+  int k;					//key_value
+  struct node *l; //left subtree
+  struct node *r; //right subtree
+};
+
+void AddTree(struct node * t, int *res){
+	(*\assert{$ \tree{t}{tree} \ast res \mapsto \_$}*)
+	if (empty(t)){
+		(*\assert{$ \tree{t}{\epsilon} \ast res \mapsto \_$}*)
+		res = 0;
+		(*\assert{$ \tree{t}{\epsilon} \ast res \mapsto 0$}*)
+	} else {
+		(*\assert{$ \tree{t}{(k, ltree, rtree)} \ast res \mapsto \_$}*)
+		int *lres, rres;
+		thread lth, rth;
+		(*\assert{$  \tree{t}{(k, ltree, rtree)} \ast (res, lres, rres, lth, rth) \mapsto \_ $}*)
+		(*\assert{$ t \mapsto (k, l, r) \ast \tree{l}{ltree} \ast \tree{r}{rtree} \ast (res, lres, rres, lth, rth) \mapsto \_$}*)
+		lthread = spawn (AddTree, (left, t->l, lies));
+		(*\assert{$ lth \thread R_l \ast t \mapsto (k, l, r) \ast \tree{r}{rtree} \ast (res, rres, rth) \mapsto \_$}*)
+		rthread = spawn (AddTree, (right, t->r));
+		(*\assert{$ rth \thread R_r \ast lth \thread R_l \ast t \mapsto (k, l, r) \ast res \mapsto \_$}*)
+		join (lth);
+		(*\assert{$ (\text{add\_tree}(ltree) = k_l) \wedge \tree{l}{ltree} \ast lres \mapsto k_l) \ast \newlinespecial rth \thread R_r \ast t \mapsto (k, l, r) \ast res \mapsto \_$}*)
+		join (rth);
+		(*\assert{$ (\text{add\_tree}(ltree) = k_l) \wedge \tree{l}{ltree} \ast lres \mapsto k_l) \ast \newlinespecial
+		(\text{add\_tree}(rtree) = k_r) \wedge \tree{r}{rtree} \ast rres \mapsto k_r) \ast  \newlinespecial 
+		t \mapsto (k, l, r) \ast (res) \mapsto \_$}*)
+		res = lres + rres + t.k;
+		(*\assert{$ (\text{add\_tree}(ltree) = k_l) \wedge lres \mapsto k_l) \ast \newlinespecial
+		(\text{add\_tree}(rtree) = k_r) \wedge rres \mapsto k_r) \ast  \newlinespecial 
+		\tree{t}{(k,ltree,rtree)} \ast (res) \mapsto (k_l + k_r + k)$}*)
+	} 	
+	(*\assert{$ (\text{add\_tree}(tree))= k' \wedge \tree{t}{tree} \ast (res) \mapsto (k')$}*)
+}		
+
+\end{lstlisting}
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%                         Tree Add reporting                                       %     
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+%struct node
+%{
+%    struct node *ptr;
+%}*hd;
+
+
+\newpage
+\section{Tree add with reporting}
+%Main
+\begin{lstlisting}[language=C,
+			literate=
+               				{->}{$\rightarrow{}$}{2},
+			basicstyle=\small,frame=none, tabsize=2, escapeinside={(*}{*)}]  % Start your code-block
+
+struct node
+{
+	lock l;
+	int *k;					//sum_value
+	int k;					//key_value
+	struct node *l; //left subtree
+	struct node *r; //right subtree
+};
+
+
+(*\assert{$  node.l \lock{\bot}{\pi} R $}*) // (* $R =\lambda v.  STUFF$ *)
+void AddTreeRep(struct node * t, int *RL){
+	(*\assert{$ \tree{t}{tree} \ast RL \lock{0}{\pi}R $}*)
+	if (empty(t)){
+		\\This branch is useless in practice.
+		(*\assert{$ \text{add\_tree}(\epsilon) = 0 \wedge \tree{t}{\epsilon} \ast RL \lock{0}{\pi}R $}*)
+	} else {
+		(*\assert{$ \tree{t}{(k, ltree, rtree)} \ast RL \lock{0}{\pi}R $}*)
+		(*\assert{$ t \mapsto (k, l, r) \ast \tree{l}{ltree} \ast \tree{r}{rtree} \ast RL \lock{0}{\pi}R $}*)
+		lthread = spawn (AddTreeRep, (left, t->l, lies));
+		(*\assert{$  lth \thread R_l \ast t \mapsto (k, l, r) \ast \tree{r}{rtree} \ast RL \lock{0}{\frac{2\pi}{3}}R $}*)
+		rthread = spawn (AddTreeRep, (right, t->r));
+		(*\assert{$ rth \thread R_r \ast lth \thread R_l \ast t \mapsto (k, l, r) \ast RL \lock{0}{\frac{\pi}{3}}R $}*)
+		Acquire(RL);
+		(*\assert{$ \exists v_o. result \mapsto (v_o + 0) \ast \hold RL, R, v_o \ast \newlinespecial 
+		 rth \thread R_r \ast lth \thread R_l \ast t \mapsto (k, l, r) \ast RL \lock{0}{\frac{\pi}{3}}R $}*)
+		result = result + (t->k);
+		(*\assert{$ \exists v_o. result \mapsto (v_o + k) \ast \hold RL, R, v_o \ast \newlinespecial 
+		rth \thread R_r \ast lth \thread R_l \ast t \mapsto (k, l, r) \ast RL \lock{0}{\frac{\pi}{3}}R $}*)
+		Release(RL);
+		(*\assert{$ rth \thread R_r \ast lth \thread R_l \ast t \mapsto (k, l, r) \ast RL \lock{k}{\frac{\pi}{3}}R $}*)
+		join (lth);
+		(*\assert{$(\text{add\_tree}(ltree) = k_l \wedge \tree{l}{ltree} \ast RL \lock{k_l}{\frac{\pi}{3}}R ) \ast \newlinespecial 
+		rth \thread R_r \ast t \mapsto (k, l, r) \ast RL \lock{k}{\frac{\pi}{3}}R $}*)
+		join (rth);
+		(*\assert{$(\text{add\_tree}(rtree) = k_r \wedge \tree{r}{rtree} \ast RL \lock{k_r}{\frac{\pi}{3}}R ) \ast \newlinespecial 
+		(\text{add\_tree}(ltree) = k_l \wedge \tree{l}{ltree} \ast RL \lock{k_l}{\frac{\pi}{3}}R ) \ast \newlinespecial 
+		t \mapsto (k, l, r) \ast RL \lock{k}{\frac{\pi}{3}}R $}*)
+		(*\assert{$\text{add\_tree}(rtree) = k_r \wedge \text{add\_tree}(ltree) = k_l \wedge  \newlinespecial 
+				\tree{r}{rtree} \ast \tree{l}{ltree} \ast t \mapsto (k, l, r) \ast RL \lock{k + k_l + k_r}{\pi}R $}*)
+	} 
+	(*\assert{$\text{add\_tree}(tree) = k' \wedge \tree{t}{tree} \ast RL \lock{k'}{\pi}R $}*)
+}	
+(*\assert{$\text{add\_tree}(tree) = k' \wedge \tree{t}{tree} \ast RL \lock{k'}{\pi}R $}*)	
+
+\end{lstlisting}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%                     Adding a DAG with Repetitions                       %     
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+%struct node
+%{
+%    struct node *ptr;
+%}*hd;
+
+
+\newpage
+\section{Adding a Directed Acyclic Graph with repetitions}
+%Main
+\begin{align*}
+\dagt :=& \epsilon \\
+	  &|\forall sum, k, (l, r : \dagt)(\pi_l, \pi_r: \text{shares}) (sum,k, \pi_l, l, \pi_r, r)  
+\end{align*}
+
+$$
+\begin{array}{lcll}
+g \DAG{\pi}{\bot} \epsilon &\triangleq&  g =\NULL &\\
+g \DAG{\pi}{0} \epsilon &\triangleq&  g =\NULL &\\
+g \DAG{\pi}{sum} (sum,k, \pi_l, d_l, \pi_r, d_r)  &\triangleq& g.lock \lock{(sum,k, \pi_l, l, \pi_r, r)}{\pi} R& \\
+&\text{ WHERE }&& \\
+\\
+R &\triangleq& \lambda (sum,k, \pi_l, d_l, \pi_r, d_r).  \exists l, r, k, sum_l, sum_r\\ 
+			 & & g.k \rightarrow k \ast \\
+			 &  & g.l \rightarrow l  \ast \\
+			&  & g.r \rightarrow r  \ast \\
+			 & & \text{if } g.sum = \NULL \text{ then }\\
+			 & & \ \ \ sum = sum_l = sum_r = \bot\\
+			 & & \ \ \  g.sum = \NULL \ast \\ 
+			 &  & \ \ \ l \DAG{\pi_l}{\bot} d_l \ast
+			             r \DAG{\pi_r}{\bot} d_r  \\
+			 & & \text{else}\\
+			 & & \ \ \ sum = k + sum_l + sum_r \wedge \\
+			 & & \ \ \  g.sum \rightarrow sum \ast \\ 
+			 &  & \ \ \ l \DAG{\pi_l}{sum_l} d_l \ast  
+			            r \DAG{\pi_r}{sum_r} d_r 
+\end{array}
+$$
+
+\begin{align*}
+\epsilon \oplus \epsilon & \triangleq \epsilon \\
+(sum_1,k, \pi_{l}, l_1, \pi_{r}, r_1)   \oplus (sum_2,k, \pi_{l}, l_2, \pi_{r}, r_2)   & \triangleq  (sum_1\oplus sum_2 ,k, \pi_{l}, l_1 \oplus l_2, \pi_{r}, r_1 \oplus r_2)   \\
+\end{align*}
+
+\begin{lstlisting}[language=C,
+			literate= {->}{$\rightarrow{}$}{2},
+			basicstyle=\small,frame=none, tabsize=2, escapeinside={(*}{*)}]  % Start your code-block
+
+struct node
+{
+  lock l;					//lock          
+  int * sum;				//Partial sum
+  int k;					//key_value
+  struct node *l; //left subtree
+  struct node *r; //right subtree
+};
+
+\
+
+(*\assert{$ g \DAG{\pi}{\bot} d$}*)
+void AddDag(struct node * g, int *ret){
+	if (g = NULL){
+		(*\assert{$ g \DAG{\pi}{\bot} \epsilon \ast ret \mapsto \_$}*)
+		ret = 0;
+		(*\assert{$ g \DAG{\pi}{0} \epsilon  \ast ret \mapsto 0$}*)
+		return;
+	} else {
+		(*\assert{$ g \DAG{\pi}{\bot} (\bot,k, \pi_l, l_s, \pi_r, r_s) \ast ret \mapsto \_$}*)
+		Acquire(g);
+		(*\assert{$ \exists d_o, R(\bot,k, \pi_l, d_l, \pi_r, d_r)\oplus d_o \ast \hold g,R,d_o \ast g \DAG{\pi}{\bot} (\bot,k, \pi_l, d_l, \pi_r, d_r) \ast ret \mapsto $}*)
+		(*\assert{$ \exists v_o, d_l, d_r, R(\bot \oplus v_o,k, \pi_l, l_s\oplus d_l, \pi_r, r_s\oplus d_r) \ast \newlinespecial
+		  \hold g,R,d_o \ast g \DAG{\pi}{\bot} (\bot,k, \pi_l, d_l, \pi_r, d_r) \ast ret \mapsto \_$}*)
+		if (g.sum != NULL) {
+			(*\assert{$ R( v_o,k, \pi_l, d_l, \pi_r, d_r) \ast \hold g,R,d_o \ast g \DAG{\pi}{\bot} (\bot,k, \pi_l, d_l, \pi_r, d_r) \ast ret \mapsto \_$}*)
+			ret = g.sum;
+			(*\assert{$ R( v_o,k, \pi_l, d_l, \pi_r, d_r) \ast \hold g,R,d_o \ast g \DAG{\pi}{\bot} (\bot,k, \pi_l, d_l, \pi_r, d_r)\ast ret \mapsto g.sum$}*)
+			Release (g)
+			(*\assert{$ g \DAG{\pi}{v_o} (v_o,k, \pi_l, d_l, \pi_r, d_r)  \ast ret \mapsto g.sum$}*)
+		} else {
+			(*\assert{$ R( \bot,k, \pi_l, d_l, \pi_r, d_r) \ast \hold g,R,d_o \ast g \DAG{\pi}{\bot} (\bot,k, \pi_l, d_l, \pi_r, d_r) \ast ret \mapsto \_$}*)
+			(*\assert{$ \exists l, r, k, sum_l, sum_r,
+			g.k \mapsto k \ast
+			g.l \mapsto l  \ast
+			g.r \mapsto r  \ast
+			g.sum = \NULL \ast \newlineThree
+			sum = sum_l = sum_r = \bot \ast \newlineThree
+			l \DAG{\pi_l}{\bot} d_l \ast r \DAG{\pi_r}{\bot} d_r \ast \newlineThree
+			\hold g,R,d_o \ast g \DAG{\pi}{\bot} (\bot,k, \pi_l, d_l, \pi_r, d_r) \ast ret \mapsto \_$}*)
+			int *lret, rret;
+			thr = Spawn (AddDag, (g.r, rret));
+			(*\assert{$ thr \thread R_r \ast
+			g.k \mapsto k \ast
+			g.l \mapsto l  \ast
+			g.r \mapsto r  \ast
+			g.sum = \NULL \ast  \newlineThree
+			sum = sum_l = \bot \ast 
+			l \DAG{\pi_l}{\bot} d_l \ast \newlineThree
+			\hold g,R,d_o \ast g \DAG{\pi}{\bot} (\bot,k, \pi_l, d_l, \pi_r, d_r) \ast ret \mapsto \_$}*)
+			AddDag (g.l, lret);
+			(*\assert{$ thr \thread R_r \ast
+			g.k \mapsto k \ast
+			g.l \mapsto l  \ast
+			g.r \mapsto r  \ast
+			g.sum = \NULL \ast  \newlineThree
+			l \DAG{\pi_l}{sum_l} d_l \ast lret \mapsto sum_l  \ast \newlineThree
+			\hold g,R,d_o \ast g \DAG{\pi}{\bot} (\bot,k, \pi_l, d_l, \pi_r, d_r) \ast ret \mapsto \_$}*)
+			Join(the);
+			(*\assert{$ 
+			g.k \mapsto k \ast
+			g.l \mapsto l  \ast
+			g.r \mapsto r  \ast
+			g.sum = \NULL \ast  \newlineThree
+			l \DAG{\pi_l}{sum_l} d_l \ast lret \mapsto sum_l  \ast \newlineThree
+			l \DAG{\pi_r}{sum_r} d_r \ast rret \mapsto sum_r  \ast \newlineThree
+			\hold g,R,d_o \ast g \DAG{\pi}{\bot} (\bot,k, \pi_l, d_l, \pi_r, d_r) \ast ret \mapsto \_$}*)
+			ret = (g.sum = k + sum_l + sum_r);
+			(*\assert{$ 
+			g.k \mapsto k \ast
+			g.l \mapsto l  \ast
+			g.r \mapsto r  \ast   \newlineThree
+			g.sum \mapsto k + sum_l + sum_r \ast  \newlineThree
+			l \DAG{\pi_l}{sum_l} d_l \ast lret \mapsto sum_l  \ast \newlineThree
+			l \DAG{\pi_r}{sum_r} d_r \ast rret \mapsto sum_r  \ast \newlineThree
+			\hold g,R,d_o \ast g \DAG{\pi}{\bot} (\bot,k, \pi_l, d_l, \pi_r, d_r) \ast ret \mapsto k + sum_l + sum_r$}*)
+			(*\assert{$  R(k + sum_l + sum_r,k, \pi_l, d_l, \pi_r, d_r)   \ast \newlineThree
+			\hold g,R,d_o \ast g \DAG{\pi}{\bot} (\bot,k, \pi_l, d_l, \pi_r, d_r) \ast ret \mapsto sum'$}*) \\ (*$ \scriptscriptstyle{sum' = k + sum_l + sum_r }$*)
+			Release (g);
+			(*\assert{$  g \DAG{\pi}{sum'} (sum',k, \pi_l, d_l, \pi_r, d_r) \ast ret \mapsto sum'$}*)
+		}
+	}
+}		
+(*\assert{$ \exists sum', d, g \DAG{\pi}{sum'} d \ast ret \mapsto sum'$}*)
+
+\end{lstlisting}
+
+	
+\end{document}

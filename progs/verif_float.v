@@ -39,7 +39,7 @@ unfold data_at.
  unfold_field_at 1%nat.
 entailer!.
 simpl.
-unfold field_at, data_at', at_offset. simpl.
+unfold field_at, data_at_rec, at_offset. simpl.
 repeat rewrite prop_true_andp by
  ((split3; [ | | split3; [ | | split3; [ | | split]]]; auto; try reflexivity; try apply I;
    try (eapply gvar_size_compatible; eauto; simpl; computable);

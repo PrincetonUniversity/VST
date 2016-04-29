@@ -1,5 +1,5 @@
-(* The spec and proof of the following rules are based on "The Ramifications  *)
-(* of Sharing in Data Structures" by Aquinas Hobor and Jules Villard.         *)
+(* The spec and proof of the following rules are based on `The Ramifications  *)
+(* of Sharing in Data Structures' by Aquinas Hobor and Jules Villard.         *)
 (*    RAMIF_PLAIN.frame                                                       *)
 (*    RAMIF_PLAIN.split                                                       *)
 (* The following lemmas are found useful by Shengyi Wang, Qinxiang Cao and    *)
@@ -61,16 +61,6 @@ Proof.
     apply modus_ponens_wand.
 Qed.
 
-Lemma frame: forall g l g' l' F, g |-- l * (l' -* g') -> g * F |-- l * (l' -* g' * F).
-Proof.
-  intros.
-  apply solve with ((l' -* g') * F).
-  + rewrite <- sepcon_assoc.
-    apply sepcon_derives; auto.
-  + rewrite (sepcon_comm _ l'), <- sepcon_assoc.
-    apply sepcon_derives; [apply modus_ponens_wand | auto].
-Qed.
-
 Lemma split: forall g1 g2 l1 l2 g1' g2' l1' l2',
   g1 |-- l1 * (l1' -* g1') ->
   g2 |-- l2 * (l2' -* g2') ->
@@ -82,6 +72,36 @@ Proof.
     apply sepcon_derives; auto.
   + eapply derives_trans; [apply sepcon_derives; [apply wand_sepcon_wand | apply derives_refl] |].
     rewrite sepcon_comm; apply modus_ponens_wand.
+Qed.
+
+(* Using split to prove frame will lead to a simpler proof. *)
+(* But it requires a unitary separation logic.              *)
+Lemma frame: forall g l g' l' F, g |-- l * (l' -* g') -> g * F |-- l * (l' -* g' * F).
+Proof.
+  intros.
+  apply solve with ((l' -* g') * F).
+  + rewrite <- sepcon_assoc.
+    apply sepcon_derives; auto.
+  + rewrite (sepcon_comm _ l'), <- sepcon_assoc.
+    apply sepcon_derives; [apply modus_ponens_wand | auto].
+Qed.
+
+Lemma frame_post: forall g l g' l' F, g |-- l * (l' -* g') -> g |-- l * (l' * F -* g' * F).
+Proof.
+  intros.
+  apply solve with (l' -* g').
+  + auto.
+  + rewrite <- sepcon_assoc.
+    apply sepcon_derives; [rewrite sepcon_comm; apply modus_ponens_wand | auto].
+Qed.
+
+Lemma frame_pre: forall g l g' l' F, g |-- l * (l' -* g') -> g * F |-- (l * F) * (l' -* g').
+Proof.
+  intros.
+  apply solve with (l' -* g').
+  + rewrite (sepcon_comm l F), sepcon_assoc, (sepcon_comm F).
+    apply sepcon_derives; auto.
+  + rewrite sepcon_comm; apply modus_ponens_wand.
 Qed.
 
 End RAMIF_PLAIN.
@@ -179,21 +199,6 @@ Proof.
   eapply trans with (mL' := m') (mG' := m') (fL := id B) (fG := id B); eauto.
 Qed.
 
-Lemma frame: forall {B} g l (g' l': B -> A) F,
-  g |-- l * allp (l' -* g') ->
-  g * F |-- l * allp (l' -* g' * Basics.const F).
-Proof.
-  intros.
-  apply solve with (allp (l' -* g') * F).
-  + rewrite <- sepcon_assoc.
-    apply sepcon_derives; auto.
-  + intros x; unfold Basics.const; simpl.
-    rewrite (sepcon_comm _ (l' x)), <- sepcon_assoc.
-    apply sepcon_derives; [| auto].
-    rewrite sepcon_comm; apply wand_sepcon_adjoint.
-    apply (allp_left _ x); auto.
-Qed.
-
 Lemma split: forall {B} g1 g2 l1 l2 (g1' g2' l1' l2': B -> A),
   g1 |-- l1 * allp (l1' -* g1') ->
   g2 |-- l2 * allp (l2' -* g2') ->
@@ -212,6 +217,50 @@ Proof.
     - apply wand_sepcon_adjoint.
       apply (allp_left _ x).
       auto.
+Qed.
+
+(* Using split to prove frame will lead to a simpler proof. *)
+(* But it requires a unitary separation logic.              *)
+Lemma frame: forall {B} g l (g' l': B -> A) F,
+  g |-- l * allp (l' -* g') ->
+  g * F |-- l * allp (l' -* g' * Basics.const F).
+Proof.
+  intros.
+  apply solve with (allp (l' -* g') * F).
+  + rewrite <- sepcon_assoc.
+    apply sepcon_derives; auto.
+  + intros x; unfold Basics.const; simpl.
+    rewrite (sepcon_comm _ (l' x)), <- sepcon_assoc.
+    apply sepcon_derives; [| auto].
+    rewrite sepcon_comm; apply wand_sepcon_adjoint.
+    apply (allp_left _ x); auto.
+Qed.
+
+Lemma frame_post: forall {B} g l (g' l' F: B -> A),
+  g |-- l * allp (l' -* g') ->
+  g |-- l * allp (l' * F -* g' * F).
+Proof.
+  intros.
+  apply solve with (allp (l' -* g')).
+  + auto.
+  + intros x; simpl.
+    rewrite <- sepcon_assoc.
+    apply sepcon_derives; [rewrite sepcon_comm | auto].
+    rewrite sepcon_comm; apply wand_sepcon_adjoint.
+    apply (allp_left _ x); auto.
+Qed.
+
+Lemma frame_pre: forall {B} g l (g' l': B -> A) F,
+  g |-- l * allp (l' -* g') ->
+  g * F |-- (l * F) * allp (l' -* g').
+Proof.
+  intros.
+  apply solve with (allp (l' -* g')).
+  + rewrite (sepcon_comm l F), sepcon_assoc, (sepcon_comm F).
+    apply sepcon_derives; auto.
+  + intros x.
+    apply wand_sepcon_adjoint.
+    apply (allp_left _ x); auto.
 Qed.
 
 End RAMIF_Q.
@@ -335,25 +384,6 @@ Proof.
       apply modus_ponens.
 Qed.
 
-Lemma frame: forall {B} g l p g' l' F,
-  (forall x: B, corable (p x)) ->
-  g |-- l * allp (p --> (l' -* g')) ->
-  g * F |-- l * allp (p --> (l' -* g' * Basics.const F)).
-Proof.
-  intros.
-  apply solve with (allp (p --> (l' -* g')) * F).
-  + auto.
-  + rewrite <- sepcon_assoc.
-    apply sepcon_derives; auto.
-  + intros x; unfold Basics.const; simpl.
-    rewrite <- !corable_andp_sepcon1 by auto.
-    rewrite (sepcon_comm _ (l' x)), <- sepcon_assoc.
-    apply sepcon_derives; [| auto].
-    rewrite sepcon_comm; apply wand_sepcon_adjoint.
-    rewrite andp_comm; apply imp_andp_adjoint; apply (allp_left _ x); apply imp_andp_adjoint.
-    rewrite andp_comm; apply modus_ponens.
-Qed.
-
 Lemma split: forall {B} g1 g2 l1 l2 (p g1' g2' l1' l2': B -> A),
   (forall x: B, corable (p x)) ->
   g1 |-- l1 * allp (p --> (l1' -* g1')) ->
@@ -384,6 +414,62 @@ Proof.
       rewrite corable_sepcon_andp1, <- corable_andp_sepcon1 by auto.
       (eapply derives_trans; [apply sepcon_derives; [simpl; intros; apply modus_ponens | apply derives_refl] |]).
       apply wand_sepcon_adjoint; apply derives_refl.
+Qed.
+
+(* Using split to prove frame will lead to a simpler proof. *)
+(* But it requires a unitary separation logic.              *)
+Lemma frame: forall {B} g l p g' l' F,
+  (forall x: B, corable (p x)) ->
+  g |-- l * allp (p --> (l' -* g')) ->
+  g * F |-- l * allp (p --> (l' -* g' * Basics.const F)).
+Proof.
+  intros.
+  apply solve with (allp (p --> (l' -* g')) * F).
+  + auto.
+  + rewrite <- sepcon_assoc.
+    apply sepcon_derives; auto.
+  + intros x; unfold Basics.const; simpl.
+    rewrite <- !corable_andp_sepcon1 by auto.
+    rewrite (sepcon_comm _ (l' x)), <- sepcon_assoc.
+    apply sepcon_derives; [| auto].
+    rewrite sepcon_comm; apply wand_sepcon_adjoint.
+    rewrite andp_comm; apply imp_andp_adjoint; apply (allp_left _ x); apply imp_andp_adjoint.
+    rewrite andp_comm; apply modus_ponens.
+Qed.
+
+Lemma frame_post: forall {B} g l (p g' l' F: B -> A),
+  (forall x: B, corable (p x)) ->
+  g |-- l * allp (p --> (l' -* g')) ->
+  g |-- l * allp (p --> (l' * F -* g' * F)).
+Proof.
+  intros.
+  apply solve with (allp (p --> (l' -* g'))).
+  + auto.
+  + auto.
+  + intros x; simpl.
+    rewrite <- !corable_andp_sepcon1 by auto.
+    rewrite <- sepcon_assoc.
+    apply sepcon_derives; [rewrite sepcon_comm | auto].
+    rewrite sepcon_comm; apply wand_sepcon_adjoint.
+    rewrite andp_comm; apply imp_andp_adjoint; apply (allp_left _ x); apply imp_andp_adjoint.
+    rewrite andp_comm; apply modus_ponens.
+Qed.
+
+Lemma frame_pre: forall {B} g l (p g' l': B -> A) F,
+  (forall x: B, corable (p x)) ->
+  g |-- l * allp (p --> (l' -* g')) ->
+  g * F |-- (l * F) * allp (p --> (l' -* g')).
+Proof.
+  intros.
+  apply solve with (allp (p --> (l' -* g'))).
+  + auto.
+  + rewrite (sepcon_comm l F), sepcon_assoc, (sepcon_comm F).
+    apply sepcon_derives; auto.
+  + intros x; simpl.
+    rewrite <- !corable_andp_sepcon1 by auto.
+    apply wand_sepcon_adjoint.
+    rewrite andp_comm; apply imp_andp_adjoint; apply (allp_left _ x); apply imp_andp_adjoint.
+    rewrite andp_comm; apply modus_ponens.
 Qed.
 
 End RAMIF_Q'.

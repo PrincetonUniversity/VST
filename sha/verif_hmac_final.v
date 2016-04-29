@@ -4,7 +4,7 @@ Import ListNotations.
 Require sha.sha.
 Require sha.SHA256.
 Local Open Scope logic.
-Require Import sublist.
+(*Require Import sublist.*)
 
 Require Import sha.spec_sha.
 Require Import sha_lemmas.
@@ -186,8 +186,5 @@ Lemma body_hmac_final: semax_body HmacVarSpecs HmacFunSpecs
        f_HMAC_Final HMAC_Final_spec.
 Proof.
 start_function.
-name ctx' _ctx.
-name md' _md.
-rename lvar0 into buf.
 apply finalbodyproof; trivial.
 Qed.

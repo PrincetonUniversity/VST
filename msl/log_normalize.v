@@ -383,6 +383,12 @@ Proof.
   apply pred_ext; apply prop_derives; tauto.
 Qed.
 
+Lemma derives_refl' {A}{NA: NatDed A}: forall P Q: A, P=Q -> P |-- Q.
+Proof.  intros; subst; apply derives_refl. Qed.
+
+Lemma derives_refl'' {A}{NA: NatDed A}: forall P Q: A, Q=P -> P |-- Q.
+Proof.  intros; subst; apply derives_refl. Qed.
+
 Lemma wand_derives {A}{ND: NatDed A}{SL: SepLog A}:
     forall P P' Q Q': A , P' |-- P -> Q |-- Q' ->  P -* Q |-- P' -* Q'.
 Proof.
@@ -417,6 +423,13 @@ Proof.
   intros.
   eapply CCC_distrib_orp_prod.
   apply sepcon_wand_CCC.
+Qed.
+
+Lemma distrib_orp_sepcon2 {A}{ND: NatDed A}{SL: SepLog A}:
+  forall P Q R: A,
+     R * (P || Q) = R * P || R * Q.
+Proof.
+intros. rewrite !(sepcon_comm R). apply distrib_orp_sepcon.
 Qed.
 
 Lemma exp_sepcon2 {A}{NA: NatDed A}{SA: SepLog A}: 

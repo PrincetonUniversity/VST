@@ -11,15 +11,12 @@ Basic lemmas about local_facts, isptr, offset_zero
 
 ******************************************)
 
-Lemma local_facts_isptr: forall P (p: val), P p |-- !! isptr p -> P p = !! (isptr p) && P p.
+Lemma local_facts_isptr: forall P Q (p: val), P p |-- !! Q -> (Q -> isptr p) -> P p = !! (isptr p) && P p.
 Proof.
   intros.
-  apply pred_ext.
-  + apply andp_right.
-    exact H.
-    cancel.
-  + apply andp_left2.
-    cancel.
+  rewrite andp_comm; apply add_andp.
+  eapply derives_trans; [eassumption |].
+  apply prop_derives; auto.
 Qed.
 
 Lemma local_facts_offset_zero: forall P, (forall p, P p |-- !! isptr p) -> (forall p, P p = P (offset_val 0 p)).
@@ -45,21 +42,26 @@ Lemmas about mapsto and mapsto_.
 ******************************************)
 
 Lemma mapsto_local_facts:
-  forall sh t v1 v2,  mapsto sh t v1 v2 |-- !! isptr v1.
-  (* could make this slightly stronger by adding the fact
-     (tc_val t v2 \/ v2=Vundef)  *)
+  forall sh t v1 v2,  mapsto sh t v1 v2 |-- !! (isptr v1 /\ tc_val' t v2).
 Proof.
-intros.
-unfold mapsto.
-destruct (access_mode t); try apply FF_left.
-destruct (type_is_volatile t); try apply FF_left.
-destruct v1; try apply FF_left.
-apply prop_right; split; auto; apply Coq.Init.Logic.I.
+  intros.
+  rewrite prop_and.
+  apply andp_right.
+  + unfold mapsto.
+    destruct (access_mode t); try apply FF_left.
+    destruct (type_is_volatile t); try apply FF_left.
+    destruct v1; try apply FF_left.
+    apply prop_right; split; auto; apply Coq.Init.Logic.I.
+  + apply mapsto_tc_val'.
 Qed.
 
 Lemma mapsto__local_facts:
   forall sh t v1, mapsto_ sh t v1 |-- !! isptr v1.
-Proof. intros. apply mapsto_local_facts. Qed.
+Proof.
+  intros.
+  eapply derives_trans; [apply mapsto_local_facts |].
+  apply prop_derives; tauto.
+Qed.
 Hint Resolve mapsto_local_facts mapsto__local_facts : saturate_local.
 
 Lemma mapsto_offset_zero:
@@ -86,16 +88,17 @@ Lemma mapsto_isptr: forall sh t v1 v2, mapsto sh t v1 v2 = !! (isptr v1) && maps
 Proof.
   intros.
   change (mapsto sh t v1 v2) with ((fun v1 => mapsto sh t v1 v2) v1).
-  rewrite <- local_facts_isptr.
-  reflexivity.
-  eapply derives_trans; [apply mapsto_local_facts | normalize].
+  eapply local_facts_isptr.
+  + apply mapsto_local_facts.
+  + tauto.
 Qed.
 
 Lemma mapsto__isptr: forall sh t v1, mapsto_ sh t v1 = !! (isptr v1) && mapsto_ sh t v1.
 Proof.
   intros.
-  apply pred_ext; normalize. apply andp_right; auto.
-  eapply derives_trans; [apply mapsto__local_facts | normalize].
+  eapply local_facts_isptr.
+  + apply mapsto_local_facts.
+  + tauto.
 Qed.
 
 (******************************************
@@ -104,15 +107,6 @@ Lemmas about memory_block
 
 ******************************************)
 
-Lemma memory_block_zero_Vptr: forall sh b z, memory_block sh 0 (Vptr b z) = emp.
-Proof.
-  intros. unfold memory_block.
-  change (nat_of_Z 0) with (0%nat).
-  unfold memory_block'.
-  pose proof Int.unsigned_range z.
-  assert (Int.unsigned z <= Int.modulus) by omega.
-  apply pred_ext; normalize.
-Qed.
 Hint Rewrite memory_block_zero_Vptr: norm.
 
 Lemma memory_block_local_facts: forall sh n p, memory_block sh n p |-- !! (isptr p).
@@ -134,9 +128,9 @@ Qed.
 Lemma memory_block_isptr: forall sh n p, memory_block sh n p = !!(isptr p) && memory_block sh n p.
 Proof.
   intros.
-  rewrite <- local_facts_isptr.
-  reflexivity.
-  apply memory_block_local_facts.
+  eapply local_facts_isptr.
+  + apply memory_block_local_facts.
+  + auto.
 Qed.
 
 Lemma memory_block_zero: forall sh p, memory_block sh 0 p = !! isptr p && emp.
@@ -181,7 +175,7 @@ Qed.
 
 (******************************************
 
-Lemmas of size_compatible and align_compatible
+Lemmas from veric
 
 ******************************************)
 
@@ -201,14 +195,37 @@ Proof.
   intros.
   assert (isptr p \/ ~isptr p) by (destruct p; simpl; auto).
   destruct H4. destruct p; try contradiction.
-    simpl in H2, H3.
+  + simpl in H2, H3.
     destruct (access_mode_by_value _ H) as [ch ?].
-    apply legal_alignas_type_spec in H1.
     unfold sizeof in *; erewrite size_chunk_sizeof in H2 |- * by eauto.
-    pose proof Z.divide_trans _ _ _ H1 H3.
-    erewrite align_chunk_alignof in H6 by eauto.
-    rewrite seplog.mapsto__memory_block with (ch := ch); auto.
-  apply pred_ext; saturate_local; try contradiction.
+    rewrite mapsto_memory_block.mapsto__memory_block with (ch := ch); auto.
+    eapply Z.divide_trans; [| apply H3].
+    apply align_chunk_alignof; auto.
+    apply nested_pred_atom_pred; auto.
+  + apply pred_ext; saturate_local; try contradiction.
+Qed.
+
+Lemma nonreadable_memory_block_mapsto: forall sh p t v, 
+  ~ readable_share sh ->
+  type_is_by_value t = true ->
+  type_is_volatile t = false ->
+  legal_alignas_type t = true ->
+  size_compatible t p ->
+  align_compatible t p ->
+  tc_val' t v ->
+  memory_block sh (sizeof t) p = mapsto sh t p v.
+Proof.
+  intros.
+  apply access_mode_by_value in H0; destruct H0 as [ch ?].
+  assert (isptr p \/ ~isptr p) by (destruct p; simpl; auto).
+  destruct H6. destruct p; try contradiction.
+  + simpl in H3, H4.
+    erewrite size_chunk_sizeof in H3 |- * by eauto.
+    apply mapsto_memory_block.nonreadable_memory_block_mapsto; auto.
+    eapply Z.divide_trans; [| apply H4].
+    apply align_chunk_alignof; auto.
+    apply nested_pred_atom_pred; auto.
+  + apply pred_ext; saturate_local; try contradiction.
 Qed.
 
 Lemma memory_block_size_compatible:
@@ -222,171 +239,16 @@ Proof.
   apply pred_ext; destruct p; normalize.
 Qed.
 
-(*
-Lemma mapsto_align_compatible:
-  forall sh t p v, legal_alignas_type t = true ->
-  mapsto sh t p v = !!( align_compatible t p) && mapsto sh t p v.
-Proof.
-  intros.
-  unfold mapsto, align_compatible.
-  destruct (access_mode t) eqn:?, (type_is_volatile t), p;
-  apply pred_ext; normalize.
-  unfold address_mapsto, res_predicates.address_mapsto.
-  apply andp_right; [|cancel].
-  erewrite align_chunk_alignof; [| eassumption | eapply legal_alignas_access_by_value; eauto].
-  apply orp_left.
-  + change (@predicates_hered.exp compcert_rmaps.RML.R.rmap
-        compcert_rmaps.R.ag_rmap (list Memdata.memval)) with (@exp mpred _ (list Memdata.memval)).
-    normalize.
-    change (@predicates_hered.andp compcert_rmaps.RML.R.rmap
-        compcert_rmaps.R.ag_rmap) with (@andp mpred _ ).
-    change (@predicates_hered.prop compcert_rmaps.RML.R.rmap
-        compcert_rmaps.R.ag_rmap) with (@prop mpred _ ).
-    normalize.
-  + change (@predicates_hered.exp compcert_rmaps.RML.R.rmap
-        compcert_rmaps.R.ag_rmap (list Memdata.memval)) with (@exp mpred _ (list Memdata.memval)).
-    normalize.
-    change (@predicates_hered.andp compcert_rmaps.RML.R.rmap
-        compcert_rmaps.R.ag_rmap) with (@andp mpred _ ).
-    change (@predicates_hered.prop compcert_rmaps.RML.R.rmap
-        compcert_rmaps.R.ag_rmap) with (@prop mpred _ ).
-    normalize.
-Qed.
-
-Lemma mapsto_size_compatible_aux: forall t, type_is_by_value t = true -> legal_alignas_type t = true -> alignof t < Int.modulus.
-Proof.
-  unfold legal_alignas_type.
-  intros. 
-  destruct t; inversion H.
-Transparent alignof.
-  + destruct i, s; unfold alignof; simpl in *;
-    rewrite nested_pred_ind in H0; simpl in H0; unfold align_attr;
-    destruct (attr_alignas a); try inversion H0; try reflexivity.
-  + destruct s; unfold alignof; simpl in *;
-    rewrite nested_pred_ind in H0; simpl in H0; unfold align_attr;
-    destruct (attr_alignas a); try inversion H0; try reflexivity.
-  + destruct f; unfold alignof; simpl in *;
-    rewrite nested_pred_ind in H0; simpl in H0; unfold align_attr;
-    destruct (attr_alignas a); try inversion H0; try reflexivity.
-  + unfold alignof; simpl in *;
-    rewrite nested_pred_ind in H0; simpl in H0; unfold align_attr;
-    destruct (attr_alignas a); try inversion H0; try reflexivity.
-Opaque alignof.
-Qed.
-
-Lemma mapsto_size_compatible:
-  forall sh t p v, legal_alignas_type t = true ->
-  sizeof t = alignof t ->
-  mapsto sh t p v = !!(size_compatible t p) && mapsto sh t p v.
-Proof.
-  intros.
-  apply pred_ext; normalize.
-  apply andp_right; [|cancel].
-  rewrite mapsto_align_compatible by assumption.
-  unfold size_compatible, align_compatible.
-  pose proof alignof_pos cenv_cs t.
-  rewrite mapsto_by_value.
-  normalize; apply prop_right.
-  destruct p; auto.
-  destruct (alignof_two_p cenv_cs t).
-  rewrite H0.
-  pose proof mapsto_size_compatible_aux t H3 H.
-  rewrite H4 in *.
-  clear t H H0 H3 H4.
-  pose proof Int.unsigned_range i.
-  unfold Int.modulus in *.
-  destruct H2 as [K ?].
-  rewrite H0 in *; clear H0.
-  rewrite !two_power_nat_two_p in *.
-  pose proof Zle_0_nat x.
-  pose proof Zle_0_nat Int.wordsize.
-  forget (Z.of_nat x) as X.
-  forget (Z.of_nat Int.wordsize) as Y.
-  destruct (zle Y X).
-  + pose proof two_p_monotone Y X (conj H2 l).
-    omega.
-  + replace Y with ((Y-X) + X) in H by omega.
-    rewrite two_p_is_exp in H by omega.
-    destruct H.
-    apply Z.mul_lt_mono_pos_r in H3; [|omega].
-    replace Y with ((Y-X) + X) by omega.
-    rewrite two_p_is_exp by omega.
-    rewrite Zmult_succ_l_reverse.
-    apply Z.mul_le_mono_pos_r; omega.
-Qed.
-*)
 Global Opaque memory_block.
 
 End COMPSPECS.
 
 (******************************************
 
-Other lemmas
+Lemmas about specific types
 
 ******************************************)
 
-Lemma mapsto_tuint_tint:
-  forall sh, mapsto sh tuint = mapsto sh tint.
-Proof.
-intros.
-extensionality v1 v2.
-reflexivity.
-Qed.
-
-Lemma mapsto_tuint_tptr_nullval:
-  forall sh p t, mapsto sh (Tpointer t noattr) p nullval = mapsto sh tuint p nullval.
-Proof.
-intros.
-unfold mapsto.
-simpl.
-destruct p; simpl; auto.
-if_tac; simpl; auto.
-rewrite !prop_true_andp by auto.
-rewrite (prop_true_andp True) by auto.
-reflexivity.
-f_equal. f_equal. f_equal.
-unfold tc_val'.
-apply prop_ext; intuition; hnf; auto.
-Qed.
-
-Definition is_int32_noattr_type t :=
- match t with
- | Tint I32 _ {| attr_volatile := false; attr_alignas := None |} => True
- | _ => False
- end.
-
-Lemma mapsto_mapsto_int32:
-  forall sh t1 t2 p v,
-   is_int32_noattr_type t1 ->
-   is_int32_noattr_type t2 ->
-   mapsto sh t1 p v |-- mapsto sh t2 p v.
-Proof.
-intros.
-destruct t1; try destruct i; try contradiction.
-destruct a as [ [ | ] [ | ] ]; try contradiction.
-destruct t2; try destruct i; try contradiction.
-destruct a as [ [ | ] [ | ] ]; try contradiction.
-apply derives_refl.
-Qed.
-
-Lemma mapsto_mapsto__int32:
-  forall sh t1 t2 p v,
-   is_int32_noattr_type t1 ->
-   is_int32_noattr_type t2 ->
-   mapsto sh t1 p v |-- mapsto_ sh t2 p.
-Proof.
-intros.
-destruct t1; try destruct i; try contradiction.
-destruct a as [ [ | ] [ | ] ]; try contradiction.
-destruct t2; try destruct i; try contradiction.
-destruct a as [ [ | ] [ | ] ]; try contradiction.
-fold noattr.
-unfold mapsto_.
-destruct s,s0; fold tuint; fold tint; 
-  repeat rewrite mapsto_tuint_tint;
-  try apply mapsto_mapsto_.
-Qed.
- 
 (* We do these as Hint Extern, instead of Hint Resolve,
   to limit their application and make them fail faster *)
 
@@ -404,24 +266,6 @@ Hint Extern 1 (mapsto _ _ _ _ |-- mapsto_ _ _ _) =>
 
 Hint Extern 1 (mapsto _ _ _ _ |-- mapsto _ _ _ _) =>
    (apply mapsto_mapsto_int32)  : cancel.
-
-Lemma mapsto_null_mapsto_pointer:
-  forall t sh v, 
-             mapsto sh tint v nullval = 
-             mapsto sh (tptr t) v nullval.
-Proof.
-  intros.
-  unfold mapsto.
-  simpl.
-  destruct v; auto. f_equal; auto.
-  if_tac.
-  + f_equal. f_equal. apply ND_prop_ext.
-    tauto.
-  + f_equal.
-    apply ND_prop_ext.
-    unfold tc_val', tc_val, tptr, tint, nullval; simpl.
-    tauto.
-Qed.
 
 Hint Extern 0 (legal_alignas_type _ = true) => reflexivity : cancel.
 

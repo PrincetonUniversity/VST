@@ -1,5 +1,6 @@
 Require Import veric.base.
 Require Import compcert.cfrontend.Clight.
+Definition nullval : val := Vint Int.zero.
 
 Definition val_to_bool (v: val) : option bool :=
   match v with 
@@ -343,4 +344,38 @@ Proof.
     simpl.
     omega.
 Qed.
+
+Definition int_range (sz: intsize) (sgn: signedness) (i: int) :=
+ match sz, sgn with
+ | I8, Signed => -128 <= Int.signed i < 128
+ | I8, Unsigned => 0 <= Int.unsigned i < 256
+ | I16, Signed => -32768 <= Int.signed i < 32768
+ | I16, Unsigned => 0 <= Int.unsigned i < 65536
+ | I32, Signed => -2147483648 <= Int.signed i < 2147483648
+ | I32, Unsigned => 0 <= Int.unsigned i < 4294967296
+ | IBool, _ => 0 <= Int.unsigned i < 256
+end.
+
+Lemma rev_if_be_singleton:
+  forall x, rev_if_be (x::nil) = (x::nil).
+Proof. intro. unfold rev_if_be; destruct Archi.big_endian; auto. Qed.
+
+Lemma rev_if_be_1: forall i, rev_if_be (i::nil) = (i::nil).
+Proof. unfold rev_if_be; intros. destruct Archi.big_endian; reflexivity. 
+Qed.
+
+Lemma decode_byte_val:
+  forall m, decode_val Mint8unsigned (Byte m :: nil) =
+              Vint (Int.zero_ext 8 (Int.repr (Byte.unsigned m))).
+Proof.
+intros.
+unfold decode_val. simpl.
+f_equal.
+unfold decode_int.
+rewrite rev_if_be_singleton.
+unfold int_of_bytes. f_equal. f_equal. apply Z.add_0_r.
+Qed.
+
+Lemma Vint_inj: forall x y, Vint x = Vint y -> x=y.
+Proof. congruence. Qed.
 

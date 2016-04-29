@@ -16,18 +16,19 @@ COMPCERT=compcert
 # are inactive.  To activate them, do something like
 #  make CLIGHTGEN=clightgen
 
-#Configure a custom Ssreflect installation (used to build the linking/ subdirectory):
-#SSREFLECT=""
-#MATHCOMP=""
+#Note3: for SSReflect, one solution is to install MathComp 1.6
+# somewhere add this line to a CONFIGURE file
+# MATHCOMP=/my/path/to/mathcomp
 
 CC_TARGET=compcert/cfrontend/Clight.vo
 CC_DIRS= lib common cfrontend exportclight
-DIRS= msl sepcomp veric floyd progs sha linking fcf hmacfcf tweetnacl20140427
+DIRS= msl sepcomp veric concurrency floyd progs sha linking fcf hmacfcf tweetnacl20140427
 INCLUDE= $(foreach a,$(DIRS),$(if $(wildcard $(a)), -Q $(a) $(a))) -Q $(COMPCERT) compcert 
 #Replace the INCLUDE above with the following in order to build the linking target:
 #INCLUDE= $(foreach a,$(DIRS),$(if $(wildcard $(a)), -I $(a) -as $(a))) -R $(COMPCERT) -as compcert -I $(SSREFLECT)/src -R $(SSREFLECT)/theories -as Ssreflect \
 #  -R $(MATHCOMP)/theories -as MathComp
 # $(foreach a,$(CC_DIRS), -R $(COMPCERT)/$(a) -as compcert.$(a)) -I $(COMPCERT)/flocq -as compcert.flocq
+CONCUR = concurrency
 
 CV1=$(shell cat compcert/VERSION)
 CV2=$(shell cat $(COMPCERT)/VERSION)
@@ -46,12 +47,25 @@ else
 endif
 endif
 
+EXTFLAGS= -R $(COMPCERT) -as compcert
+
+# for SSReflect
+ifdef MATHCOMP
+ EXTFLAGS:=$(EXTFLAGS) -R $(MATHCOMP) mathcomp
+endif
+
+COQFLAGS=$(foreach d, $(DIRS), $(if $(wildcard $(d)), -I $(d) -as $(d))) $(EXTFLAGS)
+DEPFLAGS:=$(COQFLAGS)
+
+ifdef LIBPREFIX
+ COQFLAGS=$(foreach d, $(DIRS), $(if $(wildcard $(d)), -I $(d) -as $(LIBPREFIX).$(d))) $(EXTFLAGS)
+endif
 
 COQFLAGS= $(INCLUDE)
 DEPFLAGS= $(INCLUDE)
 COQC=coqc
 COQTOP=coqtop
-COQDEP=coqdep -slash
+COQDEP=coqdep -slash $(DEPFLAGS)
 COQDOC=coqdoc
 
 MSL_FILES = \
@@ -74,6 +88,24 @@ MSL_FILES = \
   env.v corec.v Coqlib2.v sepalg_list.v rmaps.v rmaps_lemmas.v op_classes.v \
   simple_CCC.v seplog.v alg_seplog.v alg_seplog_direct.v log_normalize.v ramification_lemmas.v
 
+UPDATE_SEPCOMP_FILES = \
+  Address.v \
+  step_lemmas.v \
+  extspec.v \
+  FiniteMaps.v \
+  mem_lemmas.v mem_wd.v \
+  semantics.v semantics_lemmas.v \
+  globalSep.v simulations.v \
+  simulations_lemmas.v \
+  structured_injections.v \
+  effect_semantics.v effect_simulations.v effect_simulations_lemmas.v \
+  effect_properties.v \
+  closed_safety.v compcert.v \
+  val_casted.v \
+  reach.v \
+  wholeprog_simulations.v \
+  wholeprog_lemmas.v
+
 SEPCOMP_FILES= \
   Address.v \
   step_lemmas.v \
@@ -82,10 +114,9 @@ SEPCOMP_FILES= \
   mem_lemmas.v mem_wd.v \
   compiler_correctness.v \
   core_semantics.v core_semantics_lemmas.v \
-  forward_simulations.v \
-  forward_simulations_lemmas.v \
-  safety_preservation.v \
-  StructuredInjections.v \
+  globalSep.v simulations.v \
+  simulations_lemmas.v \
+  structured_injections.v \
   effect_semantics.v effect_simulations.v effect_simulations_lemmas.v \
   rg_lemmas.v \
   effect_properties.v \
@@ -98,6 +129,14 @@ SEPCOMP_FILES= \
   wholeprog_simulations.v \
   wholeprog_lemmas.v \
   barebones_simulations.v
+  #safety_preservation.v \
+
+CONCUR_FILES= \
+  sepcomp.v threads_lemmas.v permissions.v\
+  pos.v scheduler.v \
+  concurrent_machine.v juicy_machine.v dry_machine.v \
+  erasure.v \
+  semax_conc.v semax_to_machine.v
 
 LINKING_FILES= \
   sepcomp.v \
@@ -119,11 +158,11 @@ LINKING_FILES= \
   finfun.v
 
 VERIC_FILES= \
-  base.v shares.v rmaps.v rmaps_lemmas.v compcert_rmaps.v Cop2.v\
+  base.v shares.v rmaps.v rmaps_lemmas.v compcert_rmaps.v Cop2.v juicy_base.v \
   tycontext.v lift.v expr.v expr2.v environ_lemmas.v binop_lemmas.v binop_lemmas2.v \
   expr_lemmas.v expr_lemmas2.v expr_lemmas3.v expr_rel.v xexpr_rel.v extend_tc.v \
   Clight_lemmas.v Clight_new.v Clightnew_coop.v Clight_sim.v \
-  slice.v res_predicates.v seplog.v assert_lemmas.v  ghost.v \
+  slice.v res_predicates.v seplog.v mapsto_memory_block.v assert_lemmas.v  ghost.v \
   juicy_mem.v juicy_mem_lemmas.v local.v juicy_mem_ops.v juicy_safety.v juicy_extspec.v \
   semax.v semax_lemmas.v semax_call.v semax_straight.v semax_loop.v semax_congruence.v \
   initial_world.v initialize.v semax_prog.v semax_ext.v SeparationLogic.v SeparationLogicSoundness.v  \
@@ -140,7 +179,7 @@ FLOYD_FILES= \
    call_lemmas.v extcall_lemmas.v forward_lemmas.v forward.v \
    entailer.v globals_lemmas.v local2ptree.v fieldlist.v mapsto_memory_block.v\
    nested_field_lemmas.v efield_lemmas.v proj_reptype_lemmas.v replace_refill_reptype_lemmas.v \
-   data_at_lemmas.v field_at.v stronger.v \
+   data_at_rec_lemmas.v field_at.v stronger.v \
    for_lemmas.v semax_tactics.v expr_lemmas.v diagnosis.v simple_reify.v simpl_reptype.v \
    freezer.v 
 #real_forward.v
@@ -205,11 +244,18 @@ TWEETNACL_FILES = \
   verif_fcore.v verif_crypto_core.v \
   verif_crypto_stream_salsa20_xor.v verif_crypto_stream.v
 
+# DRBG_Files = \
+#  hmac_drbg.v HMAC256_DRBG_functional_prog.v hmac_drbg_compspecs.v \
+#  entropy.v DRBG_functions.v HMAC_DRBG_algorithms.v spec_hmac_drbg.v \
+#  HMAC_DRBG_pure_lemmas.v HMAC_DRBG_common_lemmas.v verif_mocked_md.v \
+#  verif_hmac_drbg_update.v verif_hmac_drbg_reseed.v verif_hmac_drbg_generate.v
+
+
 C_FILES = reverse.c queue.c sumarray.c message.c insertionsort.c float.c nest3.c nest2.c nest3.c dotprod.c string.c field_loadstore.c ptr_compare.c merge.c
 
 FILES = \
  $(MSL_FILES:%=msl/%) \
- $(SEPCOMP_FILES:%=sepcomp/%) \
+ $(UPDATE_SEPCOMP_FILES:%=sepcomp/%) \
  $(VERIC_FILES:%=veric/%) \
  $(FLOYD_FILES:%=floyd/%) \
  $(PROGS_FILES:%=progs/%) \
@@ -219,6 +265,8 @@ FILES = \
  $(HMACFCF_FILES:%=hmacfcf/%) \
  $(HMACEQUIV_FILES:%=sha/%) \
  $(TWEETNACL_FILES:%=tweetnacl20140427/%)
+#$(CONCUR_FILES:%=concurrency/%)
+# $(DRBG_FILES:%=verifiedDrbg/spec/%)
 
 %_stripped.v: %.v
 # e.g., 'make progs/verif_reverse_stripped.v will remove the tutorial comments
@@ -249,7 +297,8 @@ default_target: msl veric floyd progs
 all:     .loadpath version.vo $(FILES:.v=.vo)
 
 msl:     .loadpath version.vo $(MSL_FILES:%.v=msl/%.vo)
-sepcomp: .loadpath $(CC_TARGET) $(SEPCOMP_FILES:%.v=sepcomp/%.vo)
+sepcomp: .loadpath $(CC_TARGET) $(UPDATE_SEPCOMP_FILES:%.v=sepcomp/%.vo)
+concurrency: .loadpath $(CC_TARGET) $(UPDATE_SEPCOMP_FILES:%.v=sepcomp/%.vo) $(CONCUR_FILES:%.v=concurrency/%.vo)
 linking: .loadpath $(LINKING_FILES:%.v=linking/%.vo) 
 veric:   .loadpath $(VERIC_FILES:%.v=veric/%.vo)
 floyd:   .loadpath $(FLOYD_FILES:%.v=floyd/%.vo)
@@ -261,6 +310,7 @@ fcf:     .loadpath $(FCF_FILES:%.v=fcf/%.vo)
 hmacfcf: .loadpath $(HMACFCF_FILES:%.v=hmacfcf/%.vo)
 tweetnacl: .loadpath $(TWEETNACL_FILES:%.v=tweetnacl20140427/%.vo)
 hmac0: .loadpath sha/verif_hmac_init.vo sha/verif_hmac_cleanup.vo sha/verif_hmac_final.vo sha/verif_hmac_simple.vo  sha/verif_hmac_double.vo sha/verif_hmac_update.vo sha/verif_hmac_crypto.vo
+# drbg: .loadpath $(DRBG_FILES:%.v=verifiedDrbg/%.vo)
 
 CGFLAGS =  -DCOMPCERT
 
@@ -316,26 +366,32 @@ progs/merge.v: progs/merge.c
 	$(CLIGHTGEN) ${CGFLAGS} $<
 endif
 
-version.v:  VERSION $(MSL_FILES:%=msl/%) $(SEPCOMP_FILES:%=sepcomp/%) $(VERIC_FILES:%=veric/%) $(FLOYD_FILES:%=floyd/%)
+version.v:  VERSION $(MSL_FILES:%=msl/%) $(UPDATE_SEPCOMP_FILES:%=sepcomp/%) $(VERIC_FILES:%=veric/%) $(FLOYD_FILES:%=floyd/%)
 	sh util/make_version
 
 .loadpath: Makefile
-	echo $(INCLUDE) >.loadpath
+	echo $(COQFLAGS) > .loadpath
 
 floyd/floyd.coq: floyd/proofauto.vo
 	coqtop $(COQFLAGS) -load-vernac-object floyd/proofauto -outputstate floyd/floyd -batch
 
 .depend:
-	$(COQDEP) $(DEPFLAGS) $(filter $(wildcard *.v */*.v */*/*.v),$(FILES))  > .depend
+	$(COQDEP) $(filter $(wildcard *.v */*.v */*/*.v),$(FILES))  > .depend
 
 depend:	
-	$(COQDEP) $(DEPFLAGS) $(filter $(wildcard *.v */*.v */*/*.v),$(FILES))  > .depend
+	$(COQDEP) $(filter $(wildcard *.v */*.v */*/*.v),$(FILES))  > .depend
 
 depend-linking:
-	$(COQDEP) $(DEPFLAGS) $(FILES) $(LINKING_FILES:%.v=linking/%.v) > .depend
+	$(COQDEP) $(FILES) $(LINKING_FILES:%.v=linking/%.v) > .depend
+
+depend-concur:
+	$(COQDEP) $(FILES) $(CONCUR_FILES:%.v=concurrency/%.v) > .depend
 
 clean:
 	rm -f $(FILES:%.v=%.vo) $(FILES:%.v=%.glob) floyd/floyd.coq .loadpath .depend
+
+clean-concur:
+	rm -f $(CONCUR_FILES:%.v=%.vo) $(CONCUR_FILES:%.v=%.glob)
 
 clean-linking:
 	rm -f $(LINKING_FILES:%.v=linking/%.vo) $(LINKING_FILES:%.v=linking/%.glob) 

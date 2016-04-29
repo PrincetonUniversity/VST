@@ -3,13 +3,13 @@
  *
  *)
 
-Require Import Relations.
-Require Import Compare_dec.
-Require Import Peano_dec.
-Require Import Eqdep_dec.
-Require Import SetoidClass.
-Require Import Morphisms.
-Require Import Omega.
+Require Import Coq.Relations.Relations.
+Require Import Coq.Arith.Compare_dec.
+Require Import Coq.Arith.Peano_dec.
+Require Import Coq.Logic.Eqdep_dec.
+Require Import Coq.Classes.SetoidClass.
+Require Import Coq.Classes.Morphisms.
+Require Omega.
 
 Local Open Scope nat_scope.
 

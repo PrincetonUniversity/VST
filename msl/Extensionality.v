@@ -1,8 +1,8 @@
 Require Export msl.Axioms.
 
-(*** NO AXIOMS AFTER THIS POINT ******************)
+(* NO AXIOMS AFTER THIS POINT *)
 
-Require Import EqdepFacts.
+Require Import Coq.Logic.EqdepFacts.
 
 (* From EqdepTh we obtain inj_pair and inj_pairT2 without
    use of excluded middle:

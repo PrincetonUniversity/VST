@@ -1,4 +1,4 @@
-Require tree_shares.
+Require msl.tree_shares.
 
 Extraction Language Ocaml.
 

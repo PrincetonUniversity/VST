@@ -144,7 +144,41 @@ Definition hmac_cleanup_spec :=
           LOCAL ()
           SEP(EMPTY c).
 
-(* Finally, we have prrofs that the openssl implementations satisfy these specs*)
+
+Require Import ByteBitRelations.
+Require Import verif_hmac_crypto.
+Definition hmac_crypto_spec :=
+  DECLARE _HMAC
+   WITH md: val, KEY:DATA,
+        msg: val, MSG:DATA,
+        kv:val, shmd: share, b:block, i:int
+   PRE [ _key OF tptr tuchar,
+         _key_len OF tint,
+         _d OF tptr tuchar,
+         _n OF tint,
+         _md OF tptr tuchar ]
+         PROP (writable_share shmd; 
+               has_lengthK (LEN KEY) (CONT KEY);
+               has_lengthD 512 (LEN MSG) (CONT MSG))
+         LOCAL (temp _md md; temp _key (Vptr b i);
+                temp _key_len (Vint (Int.repr (LEN KEY)));
+                temp _d msg; temp _n (Vint (Int.repr (LEN MSG)));
+                gvar sha._K256 kv)
+         SEP(data_block Tsh (CONT KEY) (Vptr b i); 
+             data_block Tsh (CONT MSG) msg; 
+             memory_block shmd 32 md;
+             K_vector kv)
+  POST [ tvoid ] 
+         EX digest:_,
+          PROP (ByteBitRelations.bytesToBits digest = 
+                verif_hmac_crypto.bitspec KEY MSG /\ 
+                forall A Awf, CRYPTO A Awf)
+          LOCAL ()
+          SEP(K_vector kv;
+              data_block shmd digest md;
+              data_block Tsh (CONT MSG) msg; data_block Tsh (CONT KEY) (Vptr b i)).
+
+(* Finally, we have proofs that the openssl implementations satisfy these specs*)
 
 Parameter body_hmac_final: semax_body HmacVarSpecs HmacFunSpecs 
                            f_HMAC_Final hmac_final_spec. 
@@ -160,6 +194,9 @@ Parameter body_hmac_reset: semax_body HmacVarSpecs HmacFunSpecs
 
 Parameter body_hmac_cleanup: semax_body HmacVarSpecs HmacFunSpecs 
                              f_HMAC_cleanup hmac_cleanup_spec.
+
+Parameter body_hmac_crypto: semax_body HmacVarSpecs HmacFunSpecs 
+                             f_HMAC hmac_crypto_spec.
 
 End HMAC_ABSTRACT_SPEC.
 
@@ -305,10 +342,59 @@ Definition hmac_cleanup_spec :=
           LOCAL ()
           SEP(EMPTY c).
 
+Import ByteBitRelations.
+Import verif_hmac_crypto.
+
+Definition hmac_crypto_spec :=
+  DECLARE _HMAC
+   WITH md: val, KEY:DATA,
+        msg: val, MSG:DATA,
+        kv:val, shmd: share, b:block, i:int
+   PRE [ _key OF tptr tuchar,
+         _key_len OF tint,
+         _d OF tptr tuchar,
+         _n OF tint,
+         _md OF tptr tuchar ]
+         PROP (writable_share shmd; 
+               has_lengthK (LEN KEY) (CONT KEY);
+               has_lengthD 512 (LEN MSG) (CONT MSG))
+         LOCAL (temp _md md; temp _key (Vptr b i);
+                temp _key_len (Vint (Int.repr (LEN KEY)));
+                temp _d msg; temp _n (Vint (Int.repr (LEN MSG)));
+                gvar sha._K256 kv)
+         SEP(data_block Tsh (CONT KEY) (Vptr b i); 
+             data_block Tsh (CONT MSG) msg; 
+             memory_block shmd 32 md;
+             K_vector kv)
+  POST [ tvoid ] 
+         EX digest:_,
+          PROP (ByteBitRelations.bytesToBits digest = 
+                verif_hmac_crypto.bitspec KEY MSG /\ 
+                forall A Awf, CRYPTO A Awf)
+          LOCAL ()
+          SEP(K_vector kv;
+              data_block shmd digest md;
+              data_block Tsh (CONT MSG) msg; data_block Tsh (CONT KEY) (Vptr b i)).
+
 Require Import verif_hmac_final.
 Require Import verif_hmac_update.
 Require Import verif_hmac_init.
 Require Import verif_hmac_cleanup.
+
+Lemma body_hmac_crypto: semax_body HmacVarSpecs HmacFunSpecs 
+      f_HMAC hmac_crypto_spec.
+Proof.
+start_function.
+rename lvar0 into c. rename H into KL. rename H0 into DL.
+eapply semax_pre_post.
+Focus 3.
+eapply (hmacbodycryptoproof Espec (Vptr b i) KEY msg MSG kv shmd md c); eassumption.
+entailer!.
+intros ? ?. apply andp_left2. apply frame_ret_assert_derives.
+  apply function_body_ret_assert_derives. normalize. Exists digest.
+  old_go_lower.
+  entailer!.
+Qed.
 
 Lemma body_hmac_reset: semax_body HmacVarSpecs HmacFunSpecs 
        f_HMAC_Init hmac_reset_spec. 

@@ -1,10 +1,5 @@
-Require Import veric.base.
+Require Import veric.juicy_base.
 Require Import msl.normalize.
-Require Import msl.rmaps.
-Require Import msl.rmaps_lemmas.
-Require Import veric.compcert_rmaps.
-Import Mem.
-Require Import msl.msl_standard.
 Require Import veric.juicy_mem veric.juicy_mem_lemmas veric.juicy_mem_ops.
 Require Import veric.res_predicates.
 Require Import veric.extend_tc.
@@ -319,9 +314,9 @@ Qed.
 Ltac inv_safe H := 
   inv H;
   try solve[match goal with 
-    | H : core_semantics.at_external _ _ = _ |- _ => 
+    | H : semantics.at_external _ _ = _ |- _ => 
       simpl in H; congruence
-    | H : core_semantics.halted _ _ = _ |- _ => 
+    | H : semantics.halted _ _ = _ |- _ => 
       simpl in H; unfold cl_halted in H; congruence
   end].
 (*

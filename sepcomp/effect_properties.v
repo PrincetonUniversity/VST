@@ -1,19 +1,21 @@
-Require Import Events.
-Require Import Memory.
 Require Import compcert.lib.Coqlib.
-Require Import Values.
-Require Import Maps.
-Require Import Integers.
-Require Import AST.
-Require Import Globalenvs.
+Require Import compcert.lib.Maps.
+Require Import compcert.lib.Integers.
+
+Require Import compcert.common.Values.
+Require Import compcert.common.Memory.
+Require Import compcert.common.Events.
+Require Import compcert.common.AST.
+Require Import compcert.common.Globalenvs.
+
 Require Import msl.Axioms.
 
-Require Import mem_lemmas. (*needed for definition of mem_forward etc*)
-Require Import core_semantics.
-Require Import effect_semantics.
-Require Import StructuredInjections.
-Require Import reach.
-Require Import effect_simulations.
+Require Import sepcomp.mem_lemmas.
+Require Import sepcomp.semantics.
+Require Import sepcomp.effect_semantics.
+Require Import sepcomp.structured_injections.
+Require Import sepcomp.reach.
+Require Import sepcomp.effect_simulations.
 
 Goal forall mu Etgt Esrc m2 m2' (WD: SM_wd mu) m1
             (TgtHyp: forall b ofs, Etgt b ofs = true -> 
@@ -1486,16 +1488,12 @@ Lemma REACH_load_vis: forall chunk m b i b1 ofs1
       REACH m (vis mu) b1 = true.
 Proof. 
   intros.
+  destruct (load_ptr_is_fragment _ _ _ _ _ _ LD) as [q [n FRAG]].
   eapply REACH_cons with(z:=Int.unsigned i)(off:=ofs1). 
-    apply REACH_nil. apply VIS.
-    eapply Mem.load_valid_access. apply LD. 
+  + apply REACH_nil. apply VIS.
+  + eapply Mem.load_valid_access. apply LD. 
     split. omega. destruct chunk; simpl; omega.
-    apply Mem.load_result in LD. 
-    apply eq_sym in LD. 
-Require Import sepcomp.mem_wd.
-    destruct (decode_val_pointer_inv _ _ _ _ LD); clear LD; subst.
-    simpl in *.
-    inv H0. eassumption. 
+  + eassumption.
 Qed.
 
 Section ALLOC.
@@ -2100,8 +2098,9 @@ Lemma valid_init_is_global :
   b (VB: Mem.valid_block m b), 
   exists id, Genv.find_symbol (Genv.globalenv prog) id = Some b.
 Proof. intros.
-  unfold Genv.init_mem, Genv.globalenv in G. simpl in *.
-  destruct (add_globals_find_symbol _ R (@Genv.empty_genv _ _ ) _ _ G (eq_refl _) _ VB)
+       unfold Genv.init_mem, Genv.globalenv in G. simpl in *.
+       
+  destruct (add_globals_find_symbol _ R (@Genv.empty_genv _ _ _ ) _ _ G (eq_refl _) _ VB)
     as [VBEmpty | X]; trivial.
   exfalso. clear - VBEmpty. unfold Mem.valid_block in VBEmpty.
     rewrite Mem.nextblock_empty in VBEmpty. xomega.

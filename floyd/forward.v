@@ -8,7 +8,7 @@ Require Import floyd.nested_field_lemmas.
 Require Import floyd.efield_lemmas.
 Require Import floyd.type_induction.
 Require Import floyd.mapsto_memory_block.
-Require Import floyd.data_at_lemmas.
+Require Import floyd.data_at_rec_lemmas.
 Require Import floyd.field_at.
 Require Import floyd.loadstore_mapsto.
 Require Import floyd.loadstore_field_at.
@@ -1861,7 +1861,7 @@ Ltac load_tac :=   (* matches:  semax _ _ (Sset _ (Efield _ _ _)) _  *)
     eapply (semax_SC_field_cast_load Delta sh n) with (lr0 := lr) (t_root0 := t_root) (gfs2 := gfs0) (gfs3 := gfs1);
     [ reflexivity
     | reflexivity
-    | auto (* readable share *)
+    | solve [subst sh; auto] (* readable share *)
     | reflexivity
     | reflexivity
     | reflexivity
@@ -1937,7 +1937,7 @@ Ltac load_tac :=   (* matches:  semax _ _ (Sset _ (Efield _ _ _)) _  *)
     eapply (semax_SC_field_load Delta sh n) with (lr0 := lr) (t_root0 := t_root) (gfs2 := gfs0) (gfs3 := gfs1);
     [ reflexivity
     | reflexivity
-    | auto (* readable share *)
+    | solve [subst sh; auto] (* readable share *)
     | reflexivity
     | reflexivity
     | reflexivity
@@ -2033,7 +2033,9 @@ match goal with
       [ reflexivity | reflexivity | reflexivity
       | reflexivity | reflexivity | reflexivity
       | reflexivity | exact HLE 
-      | exact HRE | exact H_Denote | solve [auto]
+      | exact HRE
+      | exact H_Denote
+      | solve [subst sh; auto] (* writable share *)
       | solve_store_rule_evaluation
       | subst e1 gfs0 gfs1 efs tts t_root sh v0 lr n;
         pre_entailer;

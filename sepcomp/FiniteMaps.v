@@ -1,5 +1,5 @@
 Require Import compcert.lib.Coqlib.
-Require Import Maps.
+Require Import compcert.lib.Maps.
 
 Section FINITE.
 
@@ -66,7 +66,7 @@ Proof.
   unfold ZIndexed.index. destruct n; zify; omega. 
 Qed.
 
-Require Import Zwf.
+Require Import Coq.ZArith.Zwf.
 
 Lemma zmap_construct:
   forall (f: Z -> A) lo hi dfl,

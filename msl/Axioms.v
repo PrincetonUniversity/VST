@@ -4,7 +4,7 @@
   the axioms used by MSL and by the CompCert project.
  *)
 
-Require ClassicalFacts.
+Require Coq.Logic.ClassicalFacts.
 
 (** * Extensionality axioms *)
 
@@ -20,7 +20,7 @@ Lemma functional_extensionality {A B} (f g : A -> B) :
   (forall x, f x = g x) -> f = g.
 >>
 *)
-Require Export FunctionalExtensionality.
+Require Export Coq.Logic.FunctionalExtensionality.
 
 (** For compatibility with earlier developments, [extensionality]
   is an alias for [functional_extensionality]. *)

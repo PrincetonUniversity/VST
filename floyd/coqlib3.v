@@ -1,4 +1,4 @@
-Require Recdef.
+Require Coq.funind.Recdef.
 Require Import compcert.lib.Coqlib.
 Require Import compcert.lib.Integers.
 Require Import Coq.Strings.String.

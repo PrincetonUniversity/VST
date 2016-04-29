@@ -1,9 +1,4 @@
-Require Import veric.base.
-Require Import msl.rmaps.
-Require Import msl.rmaps_lemmas.
-Require Import veric.compcert_rmaps.
-Import Mem.
-Require Import msl.msl_standard.
+Require Import veric.juicy_base.
 Require Import veric.juicy_mem veric.juicy_mem_lemmas veric.juicy_mem_ops.
 Require Import veric.res_predicates.
 Require Import veric.extend_tc.
@@ -493,10 +488,6 @@ Lemma read_sh_readonly:
 Proof.
   simpl. unfold read_sh. simpl. f_equal; auto with extensionality.
 Qed.  
-
-Lemma rev_if_be_1: forall i, rev_if_be (i::nil) = (i::nil).
-Proof. unfold rev_if_be; intros. destruct Archi.big_endian; reflexivity. 
-Qed.
 
 Lemma zero_ext_inj: forall i,
    Int.zero_ext 8 (Int.repr (Byte.unsigned i)) = Int.zero -> 
@@ -1742,6 +1733,106 @@ Lemma Pos_to_nat_eq_S:
 Proof. intros. simpl; pose proof (Pos2Nat.is_pos b); omega.
 Qed.
 
+
+Lemma alloc_global_inflate_initial_eq:
+  forall gev m0 i f m G n loc,
+      Genv.alloc_global gev m0 (i, Gfun f) = Some m ->
+   ~ identity (inflate_initial_mem m0 (initial_core gev G n) @ loc) ->
+     inflate_initial_mem m0 (initial_core gev G n) @ loc =
+      inflate_initial_mem m (initial_core gev G n) @ loc.
+Proof.
+intros. rename H0 into H9.
+unfold inflate_initial_mem. simpl. rewrite !resource_at_make_rmap.
+unfold inflate_initial_mem'.
+destruct loc.
+destruct (plt b (nextblock m0)).
+*
+destruct (alloc_global_old gev _ _ _ H (b,z) p) as [? [? ?]].
+rewrite H0,H2. auto.
+*
+contradiction H9; clear H9.
+unfold inflate_initial_mem. simpl. rewrite !resource_at_make_rmap.
+unfold inflate_initial_mem'.
+unfold access_at; rewrite nextblock_noaccess.
+apply NO_identity.
+apply n0.
+Qed.
+
+ Lemma alloc_global_inflate_identity_iff:
+  forall gev m0 i f m G n loc,
+      Genv.alloc_global gev m0 (i, Gfun f) = Some m ->
+     (identity (inflate_initial_mem m0 (initial_core gev G n) @ loc) <->
+      identity (inflate_initial_mem m (initial_core gev G n) @ loc)).
+Proof.
+intros.
+unfold inflate_initial_mem. simpl. rewrite !resource_at_make_rmap.
+unfold inflate_initial_mem'.
+destruct loc.
+destruct (plt b (nextblock m0)).
+*
+destruct (alloc_global_old gev _ _ _ H (b,z) p) as [? [? ?]].
+rewrite H0,H2. intuition.
+*
+unfold access_at at 1. rewrite nextblock_noaccess by auto.
+split; [ intros _ | intro; apply NO_identity].
+unfold Genv.alloc_global in H.
+destruct (alloc m0 0 1) eqn:?.
+destruct (peq b (nextblock m0)).
++
+subst b. clear n0.
+unfold drop_perm in H.
+destruct (range_perm_dec m1 b0 0 1 Cur Freeable); inv H.
+unfold access_at; simpl.
+pose proof (alloc_result _ _ _ _ _ Heqp). subst b0.
+rewrite PMap.gss.
+destruct (zeq z 0). subst z.
+destruct (zle 0 0); try omega. destruct (zlt 0 1); try omega.
+simpl.
+destruct (initial_core gev G n @ (nextblock m0, 0)); try apply NO_identity.
+apply PURE_identity.
+replace (if zle 0 z && zlt z 1
+     then Some Nonempty
+     else (mem_access m1) !! (nextblock m0) z Cur)
+with ((mem_access m1) !! (nextblock m0) z Cur)
+  by (destruct (zle 0 z); destruct (zlt z 1); try omega; auto).
+destruct ((mem_access m1) !! (nextblock m0) z Cur) eqn:?; try apply NO_identity.
+elimtype False.
+pose proof (perm_alloc_3 _ _ _ _ _ Heqp z Cur) p.
+spec H; [ | omega].
+unfold perm.
+rewrite Heqo. constructor.
++
+unfold access_at.
+simpl.
+rewrite nextblock_noaccess.  apply NO_identity.
+apply nextblock_drop in H. rewrite H in *. clear H.
+apply nextblock_alloc in Heqp. rewrite Heqp in *; clear Heqp.
+contradict n0.
+apply Plt_succ_inv in n0; destruct n0; auto.
+subst. contradiction n1; auto.
+Qed.
+
+ Lemma alloc_global_identity_lemma3:
+   forall gev m0 i f m G n loc,
+    Genv.alloc_global gev m0 (i, Gfun f) = Some m ->
+    identity (inflate_initial_mem m (initial_core gev G n) @ loc) ->
+    identity (inflate_initial_mem m0 (initial_core gev G n) @ loc).
+Proof.
+intros until 1.
+unfold inflate_initial_mem. simpl. rewrite !resource_at_make_rmap.
+unfold inflate_initial_mem'.
+ intros.
+  destruct (adr_range_dec (nextblock m0, 0) 1 loc).
+  destruct loc; destruct a. subst b. assert (z=0) by omega. subst z.
+  unfold access_at; rewrite nextblock_noaccess. apply NO_identity.
+  simpl. apply Plt_strict.
+  destruct (plt (fst loc) (nextblock m0)).
+  destruct (alloc_global_old _ _ _ _ H _ p) as [? [? ?]].
+  rewrite H1,H3. auto.
+  unfold access_at. rewrite nextblock_noaccess by auto.
+  apply NO_identity.
+Qed.
+
 Lemma global_initializers:
   forall (prog: program) G m n rho,
      list_norepet (prog_defs_names prog) ->
@@ -1891,14 +1982,14 @@ rewrite Pos_to_nat_eq_S.
   intro; specialize (H0 loc).
  destruct H0. split; auto.
  rewrite <- H0.
-  clear - H3.
-(* FIXME: don't need alloc_Gfun_inflate? *)
-  admit.  (* seems easy enough *)
+  clear - H3. 
+  eapply alloc_global_inflate_identity_iff; eauto.
   intro.
   rewrite <- H1.
-  admit.  (* seems probable enough *)
+  eapply alloc_global_inflate_initial_eq; eauto.
+  clear - H3 H2.
   contradict H2.
-  admit.  (* seems probable enough *)
+  eapply alloc_global_identity_lemma3; eauto.
 * (* Gvar case *)
   specialize (IHvl m0 G0 G). 
   spec IHvl. { clear - H2. apply list_norepet_app.  apply list_norepet_app in H2.

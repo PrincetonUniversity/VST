@@ -1,7 +1,5 @@
-Require Import msl.msl_standard.
 Require Import veric.base.
-Require Import msl.rmaps.
-Require Import msl.rmaps_lemmas.
+Require Import msl.msl_standard.
 Require Import veric.compcert_rmaps.
 Require Import veric.Clight_lemmas.
 Require Import veric.tycontext.
@@ -206,7 +204,11 @@ simpl in H1. clear H0.
 rewrite if_false in H1.
 unfold Mem.valid_pointer.
 unfold Mem.perm_dec.
-eapply perm_order'_dec_fiddle; eauto.
+assert (exists x, (Mem.mem_access (m_dry m)) !! b (Int.unsigned ofs + d) Cur = Some x).
+destruct ((Mem.mem_access (m_dry m)) !! b (Int.unsigned ofs + d) Cur); inv H1; eauto.
+destruct H0.
+apply perm_order'_dec_fiddle with x.
+auto.
 intro; subst t. unfold nonidentity in H. contradiction H.
 apply bot_identity.
 *
@@ -222,22 +224,29 @@ destruct (perm_of_sh_pshare t p).
 rewrite H in H1; clear H.
 unfold Mem.valid_pointer.
 unfold Mem.perm_dec.
-eapply perm_order'_dec_fiddle; eauto.
+assert (exists x, (Mem.mem_access (m_dry m)) !! b (Int.unsigned ofs + d) Cur = Some x).
+destruct ((Mem.mem_access (m_dry m)) !! b (Int.unsigned ofs + d) Cur); inv H1; eauto.
+destruct H.
+apply perm_order'_dec_fiddle with x0.
+auto.
 +
 unfold Mem.valid_pointer, Mem.perm_dec.
-eapply perm_order'_dec_fiddle.
-rewrite H1.
-reflexivity.
+assert (exists x, (Mem.mem_access (m_dry m)) !! b (Int.unsigned ofs + d) Cur = Some x).
+destruct ((Mem.mem_access (m_dry m)) !! b (Int.unsigned ofs + d) Cur); inv H1; eauto.
+destruct H.
+apply perm_order'_dec_fiddle with x. auto.
 +
 unfold Mem.valid_pointer, Mem.perm_dec.
-eapply perm_order'_dec_fiddle.
-rewrite H1.
-reflexivity.
+assert (exists x, (Mem.mem_access (m_dry m)) !! b (Int.unsigned ofs + d) Cur = Some x).
+destruct ((Mem.mem_access (m_dry m)) !! b (Int.unsigned ofs + d) Cur); inv H1; eauto.
+destruct H.
+apply perm_order'_dec_fiddle with x. auto.
 +
 unfold Mem.valid_pointer, Mem.perm_dec.
-eapply perm_order'_dec_fiddle.
-rewrite H1.
-reflexivity.
+assert (exists x, (Mem.mem_access (m_dry m)) !! b (Int.unsigned ofs + d) Cur = Some x).
+destruct ((Mem.mem_access (m_dry m)) !! b (Int.unsigned ofs + d) Cur); inv H1; eauto.
+destruct H.
+apply perm_order'_dec_fiddle with x. auto.
 Qed.
 
 Lemma weak_valid_pointer_dry:

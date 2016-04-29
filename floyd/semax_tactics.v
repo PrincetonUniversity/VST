@@ -1,7 +1,5 @@
 Require Import floyd.base.
 Require Import floyd.client_lemmas.
-(*Require Import floyd.data_at_lemmas.*)
-(*Require Import floyd.type_id_env.*)
 
 (* Bug: abbreviate replaces _ALL_ instances, when sometimes
   we only want just one. *)

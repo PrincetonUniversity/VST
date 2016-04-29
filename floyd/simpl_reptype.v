@@ -130,11 +130,13 @@ Ltac solve_load_rule_evaluation :=
     | nil =>
       let opaque_function := fresh "opaque_function" in
       let opaque_v := fresh "v" in
+      (* TODO: the next line seems unuseful *)
       pose (proj_reptype (nested_field_type t gfs_compute) gfs_opaque) as opaque_function;
       set (opaque_v := v);
       lazy beta zeta iota delta - [opaque_v sublist.Znth Int.repr];
       subst opaque_v; subst; apply JMeq_refl
     | @cons _ _ _ =>
+      (* TODO: this part needs debug *)
       let opaque_function := fresh "opaque_function" in
       let opaque_v := fresh "v" in
       pose (proj_reptype (nested_field_type t gfs_compute) gfs_opaque) as opaque_function;

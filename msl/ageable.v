@@ -83,8 +83,9 @@ Section level'.
   Variable A:Type.
   Variable ag:ageable A.
 
-  Require Recdef.
+  Require Coq.funind.Recdef.
   Function level' (x:A) { wf (fun x y => @age A ag y x)  x } : nat :=
+(*  Function level' (x:A) { wf (transp _ (@age A ag)) x } : nat := *)
     match age1 x with
     | None => 0
     | Some x' => S (level' x')
@@ -189,7 +190,7 @@ Hint Resolve rt_refl.
 Definition laterR {A} `{ageable A} : relation A := clos_trans A age.
 Definition necR   {A} `{ageable A} : relation A := clos_refl_trans A age.
 
-Require Wellfounded.
+Require Coq.Wellfounded.Wellfounded.
 Lemma laterR_wf {A} `{ageable A} :
   well_founded (transp _ laterR).
 Proof.

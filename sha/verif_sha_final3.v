@@ -244,28 +244,30 @@ assert (forall m,
  [ | cancel].
 intro.
 clear Frame.
-rewrite array_at_data_at.
+rewrite array_at_data_at by omega.
 simpl.
 Intros.
 unfold at_offset.
 autorewrite with sublist.
 eapply derives_trans; [apply data_at_data_at_ | ].
 rewrite <- memory_block_data_at_.
-rewrite field_address0_offset by auto with field_compatible.
-apply derives_refl.
+Focus 1. {
+  rewrite field_address0_offset by auto with field_compatible.
+  apply derives_refl.
+} Unfocus.
 clear - COMPAT FCmd H1.
 hnf in COMPAT |- *.
 intuition.
-hnf in H6|-*. unfold offset_val. destruct md; auto.
-rewrite <- (Int.repr_unsigned i0).
-rewrite add_repr.
-simpl in H6|-*.
- rewrite Int.unsigned_repr; try omega.
-rewrite Z.mul_1_l.
-change (Int.max_unsigned) with (Int.modulus-1). 
-pose proof (Int.unsigned_range i0); omega.
-apply align_compatible_tarray_tuchar.
-destruct H9; auto.
+- hnf in H6|-*. unfold offset_val. destruct md; auto.
+  rewrite <- (Int.repr_unsigned i0).
+  rewrite add_repr.
+  simpl in H6|-*.
+  rewrite Int.unsigned_repr; try omega.
+  rewrite Z.mul_1_l.
+  change (Int.max_unsigned) with (Int.modulus-1). 
+  pose proof (Int.unsigned_range i0); omega.
+- apply align_compatible_tarray_tuchar.
+- destruct H9; auto.
 +
      split; auto.
       rewrite Zlength_correct; subst bytes.
@@ -300,7 +302,7 @@ destruct H9; auto.
   fold vbytes.
   change (32 - i*4 - 4) with (N32 - i*4 - WORD).
   cancel.
-rewrite !array_at_data_at' by auto with field_compatible.
+rewrite !array_at_data_at_rec by (auto with field_compatible; omega).
 simpl.
 autorewrite with sublist.
 apply derives_refl'.
@@ -321,11 +323,12 @@ Time Qed. (* 64 sec *)
 Lemma array_at_memory_block:
  forall {cs: compspecs} sh t gfs lo hi v p n,
   sizeof (nested_field_array_type t gfs lo hi) = n ->
+  lo <= hi ->
   array_at sh t gfs lo hi v p |-- 
   memory_block sh n (field_address0 t (ArraySubsc lo :: gfs) p).
 Proof.
 intros.
-rewrite  array_at_data_at.
+rewrite  array_at_data_at by auto.
 normalize.
 unfold at_offset.
 rewrite field_address0_offset by auto.
@@ -334,7 +337,7 @@ apply data_at_memory_block.
 Qed.
 
 Hint Extern 2 (array_at _ _ _ _ _ _ _ |-- memory_block _ _ _) =>
-   (apply array_at_memory_block; reflexivity) : cancel.
+   (apply array_at_memory_block; try reflexivity; try omega) : cancel.
 
 Lemma generate_and_pad_lemma1:
   forall hashed dd hashed' dd' pad bitlen
@@ -623,7 +626,7 @@ Proof.
   replace_SEP 0 (array_at Tsh t_struct_SHA256state_st [StructField _data] 60 64
                            (map Vint lobytes) c). {
   clearbody lobytes.
-  rewrite array_at_data_at' by auto with field_compatible.
+  rewrite array_at_data_at_rec by auto with field_compatible.
   Time entailer!. (*2.4 -> 2.0 *)
 }
   gather_SEP 0 1 2. 
@@ -656,7 +659,7 @@ Proof.
    replace (Zlength dd' + (64 - 8 - Zlength dd')) with 56 by (clear; omega).
    Time autorewrite with sublist. (*2*)
    Time cancel. (*0.2*)
-   rewrite array_at_data_at'; auto.
+   rewrite array_at_data_at_rec; auto.
  }
   Time forward. (* p += 4; *) (*5.1*)
     Time entailer!. (*4.6*)

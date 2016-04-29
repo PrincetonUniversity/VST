@@ -1,9 +1,4 @@
-Require Import veric.base.
-Require Import msl.rmaps.
-Require Import msl.rmaps_lemmas.
-Require Import veric.compcert_rmaps.
-Import Mem.
-Require Import msl.msl_standard.
+Require Import veric.juicy_base.
 Require Import veric.juicy_mem veric.juicy_mem_lemmas veric.juicy_mem_ops.
 Require Import veric.res_predicates.
 Require Import veric.extend_tc.
@@ -850,7 +845,8 @@ Focus 2. {
   rewrite map_length.
   rewrite Zlength_correct in H1.
   forget (Z.pos b-1) as i; forget (length vl) as n; clear - H1.
-  apply inj_lt_rev. rewrite nat_of_Z_max; auto. rewrite Zmax_spec. if_tac; omega.
+  apply inj_lt_rev. rewrite nat_of_Z_max; auto.
+  rewrite (Coqlib.Zmax_spec i 0). if_tac; omega.
 } Unfocus.
     rename H1 into Hb; revert H; induction vl; simpl rev; simpl map;
        simpl Genv.find_symbol; intros;
@@ -1335,11 +1331,27 @@ Definition initial_jm (prog: program) m (G: funspecs) (n: nat)
   initial_mem m (initial_core (Genv.globalenv prog) G n)
            (initial_core_ok _ _ _ m H1 H2 H).
 
-
-
 Fixpoint prog_vars' {F V} (l: list (ident * globdef F V)) : list (ident * globvar V) :=
  match l with nil => nil | (i,Gvar v)::r => (i,v):: prog_vars' r | _::r => prog_vars' r
  end.
 
 Definition prog_vars (p: program) := prog_vars' (prog_defs p).
 
+Definition islock_pred R r := exists sh sh' z, r = YES sh sh' (LK z) (SomeP ((unit:Type)::nil) (fun _ => R)).
+Definition islock r := exists R, islock_pred R r.
+
+Lemma initial_jm_without_locks prog m G n H H1 H2 R addr :
+  ~ islock_pred R (m_phi (initial_jm prog m G n H H1 H2) @ addr).
+Proof.
+  simpl.
+  unfold inflate_initial_mem; simpl.
+  match goal with |- context [ proj1_sig ?a ] => destruct a as (phi & lev & E) end; simpl.
+  unfold inflate_initial_mem' in E.
+  unfold compcert_rmaps.R.resource_at in E.
+  unfold "@".
+  rewrite E.
+  intros (sh & sh' & z & N).
+  destruct (access_at m addr); try congruence.
+  destruct p; try congruence.
+  destruct (proj1_sig (snd (unsquash (initial_core (Genv.globalenv prog) G n))) addr); try congruence.
+Qed.
