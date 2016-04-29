@@ -1,6 +1,6 @@
-Require Import Coqlib.
+Require Import compcert.lib.Coqlib.
 Require Import List. Import ListNotations.
-Require Import Integers.
+Require Import compcert.lib.Integers.
 Require Import msl.Coqlib2.
 Require Import floyd.coqlib3.
 Require Import floyd.sublist.
