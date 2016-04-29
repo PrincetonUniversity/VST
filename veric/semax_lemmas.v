@@ -370,7 +370,7 @@ destruct (age1 w4) eqn:?H.
   split; auto.
   split; auto.
 + simpl.
-  apply af_level1 in H11; [| apply compcert_rmaps.R.ag_rmap].
+  eapply af_level1 in H11; [| apply compcert_rmaps.R.ag_rmap].
   rewrite H11.
   constructor.
 Qed.

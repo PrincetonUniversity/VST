@@ -556,7 +556,7 @@ Lemma find_symbol_add_globals_nil:
 Proof. intros. simpl.
        unfold Genv.find_symbol, Genv.add_global in *; simpl.
       destruct (eq_dec i id); subst.
-        rewrite PTree.gss. intuition. congruence. congruence.
+        rewrite PTree.gss. intuition. congruence.
         rewrite PTree.gso by auto. split; intro Hx.
         rewrite PTree.gempty in Hx; inv Hx.
          inv Hx. congruence.
@@ -981,7 +981,9 @@ assert (RANGE: 0 <= Z.pos b - 1 < Zlength (rev (prog_defs prog))).
  match goal with |- _ <= Z.pos ?A - _ => pose proof (Zgt_pos_0  A); omega end.
  rewrite Zlength_cons.
  induction l. simpl. omega.
- rewrite Zlength_cons. simpl Z.pos. rewrite Genv.add_globals_app.
+ rewrite Zlength_cons.
+ Opaque Z.sub. simpl. Transparent Z.sub.
+ rewrite Genv.add_globals_app.
    simpl Genv.genv_next.
  forget (Genv.genv_next
            (Genv.add_globals (Genv.empty_genv fundef type (prog_public prog)) (rev l))) as j.

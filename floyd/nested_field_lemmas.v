@@ -1274,7 +1274,7 @@ admit. admit.
     apply alignof_nested_field_type2_divide_alignof; auto.
     apply nested_field_offset2_type2_divide; auto.
 *)
-Qed.
+Admitted.
 
 Lemma field_compatible_nested_field: forall t gfs p,
   field_compatible t gfs p ->
@@ -1315,7 +1315,7 @@ Proof.
     omega.
   + apply size_compatible_nested_field_array; tauto.
   + apply align_compatible_nested_field_array; tauto.
-Qed.
+Admitted.
 
 Lemma field_compatible_isptr :
   forall t path p, field_compatible t path p -> isptr p.
@@ -1469,7 +1469,7 @@ apply Z.divide_mul_l.
 admit. (* should be fine *)
 admit. (* should be fine *)
 admit. (* should be fine *)
-Qed.
+Admitted.
 
 Lemma compute_in_members_e:
  forall i al, compute_in_members i al = true -> in_members i al.

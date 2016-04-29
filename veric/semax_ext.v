@@ -66,7 +66,7 @@ Definition funspec2extspec (ext_link: Strings.String.string -> ident) (f : (iden
         (fun rv z m => False)
   end.
 
-Require Import res_predicates.
+Require Import veric.res_predicates.
 
 Local Open Scope pred.
 

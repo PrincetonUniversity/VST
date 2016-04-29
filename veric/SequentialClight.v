@@ -61,7 +61,7 @@ Proof.
  eapply safeN_halted; eauto.
 Qed.
 
-Require Import juicy_safety.
+Require Import veric.juicy_safety.
 
 Definition fun_id (ext_link: Strings.String.string -> ident) (ef: external_function) : option ident :=
   match ef with EF_external id sig => Some (ext_link id) | _ => None end.

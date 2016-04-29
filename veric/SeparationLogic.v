@@ -1,12 +1,5 @@
-Require Export compcert.lib.Axioms.
 Require Import compcert.lib.Coqlib.
-Require Export AST.
-Require Export Integers.
-Require Export Floats.
-Require Export compcert.common.Values.
-Require Export compcert.lib.Maps.
-Require Export Ctypes.
-Require Export Clight.
+From compcert Require Export Axioms AST Integers Floats Values Maps Ctypes Clight.
 Require Export sepcomp.Address.
 Require Export msl.eq_dec.
 Require Export msl.shares.
@@ -436,7 +429,7 @@ etransitivity ; [ | eapply res_predicates.VALspec_range_split2].
 reflexivity.
 omega. omega. omega.
 admit.  (* straightforward; see similar admit in memory_block'_eq lemma, seplog.v *)
-Qed.
+Admitted.
 
 Lemma memory_block_split:
   forall (sh : share) (b : block) (ofs n m : Z),
