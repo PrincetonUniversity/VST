@@ -12,6 +12,20 @@ Require Import veric.shares juicy_mem.
 Require Import msl.msl_standard.
 Import cjoins.
 
+Lemma perm_order_antisym :
+  forall p p'
+    (Hlt: Mem.perm_order'' p p')
+    (Hgt: Mem.perm_order'' p' p),
+    p = p'.
+Proof.
+  intros.
+  unfold Mem.perm_order'' in *.
+  destruct p as [p|], p' as [p'|];
+    try destruct p; try destruct p';
+    auto;
+    try (by inversion Hgt); try (by inversion Hlt).
+Qed.
+
 Definition access_map := Maps.PMap.t (Z -> option permission).
 Definition delta_map := Maps.PMap.t (Z -> option (option permission)).
 
