@@ -791,12 +791,22 @@ Section permMapDefs.
   Proof.
     intros. unfold restrPermMap. reflexivity.
   Qed.
+
+  Lemma restrPermMap_valid :
+    forall p' m (Hlt: permMapLt p' (getMaxPerm m)) b,
+      Mem.valid_block (restrPermMap Hlt) b <-> Mem.valid_block m b.
+  Proof.
+    intros. unfold Mem.valid_block. rewrite restrPermMap_nextblock.
+      by split.
+  Qed.
+  
   Lemma restrPermMap_contents :
     forall p' m (Hlt: permMapLt p' (getMaxPerm m)),
       contents_at (restrPermMap Hlt) = contents_at m.
   Proof.
     intros. unfold restrPermMap. reflexivity.
   Qed.
+  
   Lemma restrPermMap_max :
     forall p' m (Hlt: permMapLt p' (getMaxPerm m)),
       max_access_at (restrPermMap Hlt) = max_access_at m.
