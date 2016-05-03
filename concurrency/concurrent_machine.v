@@ -71,7 +71,7 @@ Module Type ThreadPoolSig.
 
   Parameter lpool : t -> LockPool.
 
-  Notation ctl := (@ctl C).
+  Local Notation ctl := (@ctl C).
   
   Parameter containsThread : t -> tid -> Prop.
   Parameter getThreadC : forall {tid tp}, containsThread tp tid -> ctl.
@@ -134,12 +134,26 @@ Module Type ConcurrentMachineSig.
     forall {tid0 ms},
       containsThread ms tid0 -> Prop.
 
+  Parameter initial_machine: C -> thread_pool.
+  
   Parameter init_mach : G -> val -> list val -> option thread_pool.
   
 End ConcurrentMachineSig.
 
 
-Module CoarseMachine (SCH:Scheduler)(SIG : ConcurrentMachineSig with Module ThreadPool.TID:=SCH.TID).
+Module Type ConcurrentMachine.
+  Declare Module SCH: Scheduler.
+  Declare Module SIG: ConcurrentMachineSig.
+
+  Import SCH.
+  Import SIG.ThreadPool.
+
+  Definition MachState : Type:= (schedule * t)%type.
+
+  Parameter MachineSemantics : CoreSemantics SIG.ThreadPool.SEM.G MachState SEM.M.
+End ConcurrentMachine.
+  
+Module CoarseMachine (SCH:Scheduler)(SIG : ConcurrentMachineSig with Module ThreadPool.TID:=SCH.TID) <: ConcurrentMachine with Module SCH:= SCH with Module SIG:= SIG.
   Module SCH:=SCH.
   Module SIG:=SIG.
   Import SCH SIG TID ThreadPool ThreadPool.SEM.
@@ -253,7 +267,7 @@ Module CoarseMachine (SCH:Scheduler)(SIG : ConcurrentMachineSig with Module Thre
     | Some c => Some (U, c)
     end.
   
-  Program Definition MachineSemantics :
+  Program Definition MachineSemantics:
     CoreSemantics G MachState mem.
   intros.
   apply (@Build_CoreSemantics _ MachState _
@@ -267,10 +281,12 @@ Module CoarseMachine (SCH:Scheduler)(SIG : ConcurrentMachineSig with Module Thre
   intros. inversion H; subst; rewrite HschedN; reflexivity.
   auto.
   Defined.
+(*
+  Definition MachineSemantics:= MachineSemantics'.*)
   
 End CoarseMachine.
 
-Module FineMachine  (SCH:Scheduler)(SIG : ConcurrentMachineSig with Module ThreadPool.TID:=SCH.TID).
+Module FineMachine  (SCH:Scheduler)(SIG : ConcurrentMachineSig with Module ThreadPool.TID:=SCH.TID) <: ConcurrentMachine with Module SCH:= SCH with Module SIG:= SIG.
   Module SCH:=SCH.
   Module SIG:=SIG.
   Import SCH SIG TID ThreadPool ThreadPool.SEM.

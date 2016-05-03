@@ -177,9 +177,10 @@ Module Concur.
   
   Module mySchedule := ListScheduler NatTID.
   
-  Module DryMachine <: ConcurrentMachineSig with Module ThreadPool.TID:=mySchedule.TID.
+  Module DryMachineShell (SEM:Semantics)   <: ConcurrentMachineSig
+      with Module ThreadPool.TID:=mySchedule.TID
+      with Module ThreadPool.SEM:= SEM.
 
-    Declare Module SEM:Semantics.
     Module ThreadPool := ThreadPool SEM.
     Import ThreadPool.
     Import ThreadPool.SEM.
@@ -389,17 +390,19 @@ Module Concur.
     Lemma onePos: (0<1)%coq_nat. auto. Qed.
     
     Definition initial_machine c:=
-      mk (mkPos onePos) (fun _ => c) (fun _ => empty_map).
+      mk (mkPos onePos) (fun _ => Kresume c) (fun _ => empty_map).
     
     Definition init_mach (genv:G)(v:val)(args:list val):option thread_pool :=
       match initial_core Sem genv v args with
-      | Some c => Some (initial_machine (Kresume c))
+      | Some c => Some (initial_machine  c)
       | None => None
       end.
     
-  End DryMachine.
+  End DryMachineShell.
 
   (* Here I make the core semantics*)
+  (*Declare Module SEM:Semantics.
+  Module DryMachine:= DryMachineShell SEM.
   Module myCoarseSemantics :=
     CoarseMachine mySchedule DryMachine.
   Module myFineSemantics :=
@@ -408,7 +411,7 @@ Module Concur.
   Definition coarse_semantics:=
     myCoarseSemantics.MachineSemantics.
   Definition fine_semantics:=
-    myFineSemantics.MachineSemantics.
+    myFineSemantics.MachineSemantics.*)
   
 End Concur.
 

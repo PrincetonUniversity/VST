@@ -197,9 +197,10 @@ Module Concur.
   Module mySchedule := ListScheduler NatTID.
   
   (** Semantics of the coarse-grained juicy concurrent machine*)
-  Module JuicyMachineSig  <: ConcurrentMachineSig with Module ThreadPool.TID:=mySchedule.TID.
+  Module JuicyMachineShell (SEM:Semantics)  <: ConcurrentMachineSig
+      with Module ThreadPool.TID:=mySchedule.TID
+      with Module ThreadPool.SEM:= SEM.
 
-    Declare Module SEM:Semantics.
     Module ThreadPool := ThreadPool SEM.
     Import ThreadPool.
     Import ThreadPool.SEM.
@@ -594,19 +595,25 @@ Module Concur.
 
     Lemma onePos: (0<1)%coq_nat. auto. Qed.
     Definition initial_machine c:=
-      mk (mkPos onePos) (fun _ => c) (fun _ => empty_rmap level) (fun _ => None).
+      mk (mkPos onePos) (fun _ => (Kresume c)) (fun _ => empty_rmap level) (fun _ => None).
     
     Definition init_mach (genv:G)(v:val)(args:list val) : option thread_pool:=
       match initial_core the_sem genv v args with
-      | Some c => Some (initial_machine (Kresume c))
+      | Some c => Some (initial_machine  c)
+
       | None => None
       end.
       
-End JuicyMachineSig.
+  End JuicyMachineShell.
+  
+  (*
+This is how you would instantiate a module (though it might be out of date
 
+Declare Module SEM:Semantics.
+  Module JuicyMachine:= JuicyMachineShell SEM.
   Module myCoarseSemantics :=
-    CoarseMachine mySchedule JuicyMachineSig.
+    CoarseMachine mySchedule JuicyMachine.
   Definition coarse_semantics:=
-    myCoarseSemantics.MachineSemantics.
+    myCoarseSemantics.MachineSemantics.*)
   
 End Concur.

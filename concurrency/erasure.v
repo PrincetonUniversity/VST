@@ -7,25 +7,34 @@ Require Import concurrency.concurrent_machine.
 Require Import concurrency.juicy_machine. Import Concur.
 Require Import concurrency.dry_machine. Import Concur.
 
-
 (*The simulations*)
 Require Import sepcomp.wholeprog_simulations. 
 
-Module Type Parching (SCH: Scheduler NatTID)(SEM: Semantics).
-  
-  Import SEM.
+Module Type ErasureSig.
 
-  (* HERE April 27: ADD the Semantics as a parameter of the functor.
-     This ensures the two machines are instantiated with the same semantics! *)
-  Module JSEM:= JuicyMachineSig.
-  Module JuicyMachine:= CoarseMachine NatTID SCH JSEM.
-  Definition JMachineSem:= JuicyMachine.MachineSemantics.
-  Notation jstate:= JSEM.machine_state.
+  Declare Module SCH: Scheduler with Module TID:=NatTID.
+  Declare Module SEM: Semantics.
+  Import SCH SEM.
+    
+  Declare Module JSEM: ConcurrentMachineSig
+      with Module ThreadPool.TID:= NatTID
+      with Module ThreadPool.SEM:= SEM.
+  Declare Module JuicyMachine: ConcurrentMachine
+      with Module SCH:=SCH
+      with Module SIG:= JSEM.
+  Notation JMachineSem:= JuicyMachine.MachineSemantics.
+  Notation jstate:= JSEM.ThreadPool.t.
+  Notation jmachine_state:= JuicyMachine.MachState.
   
-  Module DSEM:= ShareMachineSig.
-  Module DryMachine:= CoarseMachine NatTID SCH DSEM.
-  Definition DMachineSem:= DryMachine.MachineSemantics.
-  Notation dstate:= DSEM.machine_state.
+  Declare Module DSEM: ConcurrentMachineSig
+      with Module ThreadPool.TID:= NatTID
+      with Module ThreadPool.SEM:= SEM.
+  Declare Module DryMachine: ConcurrentMachine
+      with Module SCH:=SCH
+      with Module SIG:= DSEM.
+  Notation DMachineSem:= DryMachine.MachineSemantics. 
+  Notation dstate:= DSEM.ThreadPool.t.
+  Notation dmachine_state:= DryMachine.MachState.
 
   (*Parameter parch_state : jstate ->  dstate.*)
   Parameter match_st : jstate ->  dstate -> Prop.
@@ -33,16 +42,16 @@ Module Type Parching (SCH: Scheduler NatTID)(SEM: Semantics).
   (*match axioms*)
   Axiom MTCH_ctn: forall {js tid ds},
            match_st js ds ->
-           JSEM.containsThread js tid -> DSEM.containsThread ds tid.
+           JSEM.ThreadPool.containsThread js tid -> DSEM.ThreadPool.containsThread ds tid.
   Axiom MTCH_ctn': forall {js tid ds},
            match_st js ds ->
-           DSEM.containsThread ds tid -> JSEM.containsThread js tid.
+           DSEM.ThreadPool.containsThread ds tid -> JSEM.ThreadPool.containsThread js tid.
         
        Axiom MTCH_getThreadC: forall js ds tid c,
-           forall (ctn: JSEM.containsThread js tid)
+           forall (ctn: JSEM.ThreadPool.containsThread js tid)
            (M: match_st js ds),
-           JSEM.getThreadC ctn =  c ->
-           DSEM.getThreadC (MTCH_ctn M ctn) =  c.
+           JSEM.ThreadPool.getThreadC ctn =  c ->
+           DSEM.ThreadPool.getThreadC (MTCH_ctn M ctn) =  c.
         
        Axiom MTCH_compat: forall js ds m,
            match_st js ds ->
@@ -51,29 +60,214 @@ Module Type Parching (SCH: Scheduler NatTID)(SEM: Semantics).
         
        Axiom MTCH_updt:
            forall js ds tid c
-             (H0:match_st js ds)  (ctn: JSEM.containsThread js tid),
-             match_st (JSEM.updThreadC ctn c)
-                       (DSEM.updThreadC (MTCH_ctn H0 ctn) c).
+             (H0:match_st js ds)  (ctn: JSEM.ThreadPool.containsThread js tid),
+             match_st (JSEM.ThreadPool.updThreadC ctn c)
+                       (DSEM.ThreadPool.updThreadC (MTCH_ctn H0 ctn) c).
           
 
   (*Axiom parch_match: forall (js: jstate) (ds: dstate),
       match_st js ds <-> ds = parch_state js.*)
-  
-  (*Init diagram*)
-  Axiom match_init: forall c, match_st (JSEM.initial_machine (Kresume c)) (DSEM.initial_machine (Kresume c)).
 
-  
-  
+       (*
+  (*Init diagram*)
+  Axiom match_init: forall c, match_st (JSEM.initial_machine c) (DSEM.initial_machine c).
+
   (*Core Diagram*)
   Axiom parched_diagram: forall genv U U' m m' jst jst' ds ds',  
       corestep JMachineSem genv (U, jst) m (U', jst') m' ->
       match_st jst ds -> match_st jst ds -> 
       corestep DMachineSem genv (U, ds)  m (U', ds') m'.
+        *)
+
+       
+  Variable genv: G.
+  Variable main: Values.val.
+  Axiom init_diagram:
+    forall (j : Values.Val.meminj) (U:schedule) (js : jstate)
+     (vals : list Values.val) (m : M),
+   initial_core JMachineSem genv main vals = Some (U, js) ->
+   exists (mu : SM_Injection) (ds : dstate),
+     as_inj mu = j /\
+     initial_core DMachineSem genv main vals = Some (U, ds) /\
+     DSEM.invariant ds /\
+     match_st js ds.
+
+  Axiom core_diagram:
+    forall (m : M)  (U U': schedule) 
+     (ds : dstate) (js js': jstate) 
+     (m' : M),
+   corestep JMachineSem genv (U, js) m (U', js') m' ->
+   match_st js ds ->
+   DSEM.invariant ds ->
+   exists (ds' : dstate) (mu' : SM_Injection),
+     DSEM.invariant ds' /\
+     match_st js' ds' /\
+     corestep DMachineSem genv (U, ds) m (U', ds') m'.
+
+  Axiom halted_diagram:
+    forall c, halted JMachineSem c = None.
+  
+
+End ErasureSig.
+
+Module ErasureFnctr (PC:ErasureSig).
+  Module SEM:=PC.SEM.
+  Import PC SEM DryMachine.SCH.
+
+  (*Parameter halt_inv: SM_Injection ->
+                      G -> Values.val -> M ->
+                      G -> Values.val -> M -> Prop.
+  Parameter init_inv: Values.Val.meminj ->
+                      G ->  list Values.val -> M ->
+                      G ->  list Values.val -> M ->  Prop.*)
+  (*Erasure is about drying memory. So the invariants are trivial. *)
+    Inductive init_inv:  Values.Val.meminj ->
+                       G -> list Values.val -> mem ->
+                       G -> list Values.val -> mem -> Prop:=
+    |InitEq: forall j g1 args1 m1 g2 args2 m2,
+        g1 = g2 ->
+        args1 = args2 ->
+        m1 = m2 ->
+        init_inv j g1 args1 m1 g2 args2 m2.
+
+    Inductive halt_inv:  SM_Injection ->
+                         G -> Values.val -> mem ->
+                         G -> Values.val -> mem -> Prop:=
+    |HaltEq: forall j g1 args1 m1 g2 args2 m2,
+        g1 = g2 ->
+        args1 = args2 ->
+        m1 = m2 ->
+        halt_inv j g1 args1 m1 g2 args2 m2.
+  
+  Definition ge_inv: G -> G -> Prop:= @eq G.
+  Definition core_data:= unit.
+  Definition core_ord: unit-> unit -> Prop := fun _ _ => False.
+
+  (*States match if the dry part satisfies the invariant and the substates match.*)
+  Inductive match_state :
+    core_data ->  SM_Injection -> jmachine_state ->  mem -> dmachine_state -> mem -> Prop:=
+    MATCH: forall d j js ds U m,
+      DSEM.invariant ds -> (*This could better go inside the state... but it's fine here. *)
+      match_st js ds ->
+      match_state d j  (U, js) m (U, ds) m.
+  
+  
+  
+  Lemma core_ord_wf:  well_founded core_ord.
+      Proof. constructor; intros y H; inversion H. Qed.
+  Theorem erasure:
+    Wholeprog_sim.Wholeprog_sim
+      JMachineSem DMachineSem
+      genv genv
+      main
+      ge_inv init_inv halt_inv.
+  Proof.
+    apply (Wholeprog_sim.Build_Wholeprog_sim
+             JMachineSem DMachineSem
+             genv genv
+             main
+             ge_inv init_inv halt_inv
+             core_data match_state core_ord core_ord_wf).
+    - reflexivity.
+    - intros until m2; intros H H0.
+      inversion H0; subst; clear - H.
+      destruct c1 as [U js].
+      destruct (init_diagram j U js vals2 m2 H) as [mu [dms [injeq [IC [DINV MS] ]]]].
+      exists mu, tt, (U,dms); intuition.
+      constructor; assumption.
+    - intros until m2; intros MTCH.
+      inversion MTCH; subst; clear MTCH.
+      destruct st1' as [U' js'].
+      destruct (core_diagram m2 U U' ds js js' m1' H H1 H0) as
+          [ds' [mu' [DINV [MTCH CORE]]]].
+      exists (U', ds'), m1', tt, mu'. split.
+      + constructor; assumption.
+      + left; apply semantics_lemmas.corestep_plus_one; assumption.
+    - intros until v1; intros MTCH.
+      rewrite halted_diagram. intros HLTD; inversion HLTD.
+  Qed.
+      
+End ErasureFnctr.
+
+(*
+Module ParchingFnctr (PA:ParchingAbstract) <: ErasureSig.
+
+ Module SCH:=mySchedule.
+ Import SCH.
+ Module SEM:= PA.SEM.
+ Import SEM.
+ Module JSEM:= JuicyMachineShell SEM.
+ Module JuicyMachine:= CoarseMachine SCH JSEM.
+ Notation JMachineSem:= JuicyMachine.MachineSemantics.
+ Notation jstate:= JSEM.ThreadPool.t.
+ Notation jmachine_state:= JuicyMachine.MachState.
+ 
+ Module DSEM:= DryMachineShell SEM.
+ Module DryMachine:= CoarseMachine SCH DSEM.
+ Notation DMachineSem:= DryMachine.MachineSemantics. 
+ Notation dstate:= DSEM.ThreadPool.t.
+ Notation dmachine_state:= DryMachine.MachState.
+ 
+ (*Parameter parch_state : jstate ->  dstate.*)
+ Definition match_st : jstate ->  dstate -> Prop.
+                         admit. Defined.
+                              
+      (*match axioms*)
+      Lemma MTCH_ctn: forall {js tid ds},
+          match_st js ds ->
+          JSEM.ThreadPool.containsThread js tid -> DSEM.ThreadPool.containsThread ds tid.
+            intros.
+      Admitted.
+      
+      Lemma MTCH_ctn': forall {js tid ds},
+          match_st js ds ->
+          DSEM.ThreadPool.containsThread ds tid -> JSEM.ThreadPool.containsThread js tid.
+      Admitted.
+        
+       Lemma MTCH_getThreadC: forall js ds tid (c:ctl),
+           forall (ctn: JSEM.ThreadPool.containsThread js tid)
+           (M: match_st js ds),
+           JSEM.ThreadPool.getThreadC ctn =  c ->
+           DSEM.ThreadPool.getThreadC (MTCH_ctn M ctn) = c.
+      Admitted.
+        
+       Lemma MTCH_compat: forall js ds m,
+           match_st js ds ->
+         JSEM.mem_compatible js m ->
+         DSEM.mem_compatible ds m.
+           Admitted.
+        
+       Lemma MTCH_updt:
+           forall js ds tid c
+             (H0:match_st js ds)  (ctn: JSEM.ThreadPool.containsThread js tid),
+             match_st (JSEM.ThreadPool.updThreadC ctn c)
+                       (DSEM.ThreadPool.updThreadC (MTCH_ctn H0 ctn) c).
+               Admitted.
+
+  (*Axiom parch_match: forall (js: jstate) (ds: dstate),
+      match_st js ds <-> ds = parch_state js.*)
+  
+  (*Init diagram*)
+  Lemma match_init: forall c, match_st (JSEM.initial_machine c) (DSEM.initial_machine c).
+             Admitted.
+  (*Core Diagram*)
+  Lemma parched_diagram: forall genv U U' m m' jst jst' ds ds',  
+      corestep JMachineSem genv (U, jst) m (U', jst') m' ->
+      match_st jst ds -> match_st jst ds -> 
+      corestep DMachineSem genv (U, ds)  m (U', ds') m'.
+        Admitted.
 
 End Parching.
+
+    
+                                                  
+                                                  
+Module Erasure (PC: Parching).
+  Module SCH:=PC.SCH.
+  Module SEM:=PC.SEM.
+  Module JSEM:=PC.JSEM.
+  Module DSEM:=PC.DSEM.
   
-  
-Module Erasure (SCH: Scheduler NatTID)(SEM: Semantics)(PC: Parching SCH SEM).
   Import SEM.
   Import PC.
   Parameter genv: G.
@@ -113,12 +307,11 @@ Module Erasure (SCH: Scheduler NatTID)(SEM: Semantics)(PC: Parching SCH SEM).
       halt_inv j g1 args1 m1 g2 args2 m2.
 
   Definition core_data:= unit.
-  Inductive match_state :  core_data ->  SM_Injection -> jmachine_state ->  mem -> dmachine_state -> mem -> Prop:=
+  Inductive match_state :
+    core_data ->  SM_Injection -> jmachine_state ->  mem -> dmachine_state -> mem -> Prop:=
     MATCH: forall d j js ds U m,
-      invariant(the_sem:=Sem) ds -> (*This could better go inside the state... but it's fine here. *)
+      DSEM.invariant ds -> (*This could better go inside the state... but it's fine here. *)
       match_st js ds -> match_state d j  (U, js) m (U, ds) m.
-  (*Definition parch_machine (jms: jmachine_state): dmachine_state:=
-    match jms with (U, jm) => (U, parch_state jm) end.*)
   
   Definition core_ord: unit-> unit -> Prop := fun _ _ => False.
   Definition core_ord_wf:  well_founded core_ord.
@@ -144,7 +337,7 @@ Module Erasure (SCH: Scheduler NatTID)(SEM: Semantics)(PC: Parching SCH SEM).
          j)).
     
     exists mu, tt.
-    simpl in INIT_C; unfold JuicyMachine.init_machine in INIT_C.
+    simpl in INIT_C. unfold JuicyMachine.init_machine in INIT_C. unfold JMachineSem.
     simpl JSEM.init_mach in INIT_C.
 (*    unfold JSEM.init_mach, JSEM.Sem in INIT_C. *)
     unfold JSEM.init_mach, JSEM.Sem in INIT_C.
@@ -412,3 +605,4 @@ Module Erasure (SCH: Scheduler NatTID)(SEM: Semantics)(PC: Parching SCH SEM).
 End Erasure.
 
   
+*)
