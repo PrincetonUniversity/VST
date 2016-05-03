@@ -32,28 +32,6 @@ Proof.
  intros. eapply mem_step_storebytes. eapply Mem.store_storebytes; eassumption. 
 Qed.
 
-Axiom external_functions_mem_step: forall name sg ge vargs m1 t vres m2,
-  external_functions_sem name sg ge vargs m1 t vres m2 -> mem_step m1 m2.
-
-Axiom inline_assembly_mem_step: forall text sg ge vargs m1 t vres m2,
-  inline_assembly_sem text sg ge vargs m1 t vres m2 -> mem_step m1 m2.
- 
-Lemma extcall_mem_step ef ge vargs m1 t vres m2:
-  external_call ef ge vargs m1 t vres m2 -> mem_step m1 m2.
-Proof. 
-intros. destruct ef; simpl in *;
-  try (eapply external_functions_mem_step; eassumption);
-  try inv H; try apply mem_step_refl.
-  + inv H0. try apply mem_step_refl.
-      eapply mem_step_store; eassumption.
-  + eapply mem_step_trans.
-      eapply mem_step_alloc; eassumption.
-      eapply mem_step_store; eassumption.
-  + eapply mem_step_free; eassumption. 
-  + eapply mem_step_storebytes; eassumption.
-  + eapply inline_assembly_mem_step; eassumption.
-Qed.
-
 Record memstep_preserve (P:mem -> mem -> Prop) :=
   { 
     preserve_trans: forall m1 m2 m3, P m1 m2 -> P m2 m3 -> P m1 m3;
