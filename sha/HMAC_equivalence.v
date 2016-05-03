@@ -1,9 +1,9 @@
-Require Import Coqlib.
+Require Import compcert.lib.Coqlib.
 Require Import Bvector.
 Require Import List.
-Require Import Integers.
+Require Import compcert.lib.Integers.
 Require Import BinNums.
-Require Import general_lemmas.
+Require Import sha.general_lemmas.
 Require Import ByteBitRelations.
 Require Import hmac_pure_lemmas.
 Require Import HMAC_common_defs.

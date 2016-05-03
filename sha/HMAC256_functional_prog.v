@@ -1,9 +1,9 @@
-Require Import Integers.
-Require Import Coqlib.
+Require Import compcert.lib.Integers.
+Require Import compcert.lib.Coqlib.
 Require Import Coq.Strings.String.
 Require Import Coq.Strings.Ascii.
 Require Import List. Import ListNotations.
-Require Import general_lemmas.
+Require Import sha.general_lemmas.
 Require Import SHA256.
 Require Import functional_prog.
 Require Import HMAC_functional_prog.

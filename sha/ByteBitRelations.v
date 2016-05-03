@@ -1,4 +1,4 @@
-Require Import Coqlib.
+Require Import compcert.lib.Coqlib.
 Require Import List. Import ListNotations.
 Require Import Coq.ZArith.BinInt. (* Z *)
 Require Import Coq.ZArith.Zcomplements. (* Zlength *)
@@ -9,7 +9,7 @@ Require Import Coq.Strings.Ascii.
 Require Import Coq.Program.Tactics.
 Require Import XorCorrespondence. (* Blist *)
 Require Import Bruteforce.
-Require Import general_lemmas.
+Require Import sha.general_lemmas.
 Require Import hmac_pure_lemmas.
 
 Definition Blist := list bool.

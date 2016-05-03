@@ -1,7 +1,7 @@
-Require Import Coqlib.
-Require Import Integers.
+Require Import compcert.lib.Coqlib.
+Require Import compcert.lib.Integers.
 Require Import List. Import ListNotations.
-Require Import general_lemmas.
+Require Import sha.general_lemmas.
 Require Import hmac_pure_lemmas.
 Require Import SHA256.
 Require Import pure_lemmas.
@@ -43,7 +43,7 @@ Proof.
 Qed.  
 
 Lemma InWords_len4 : forall (l : list Z),
-                       NPeano.divide (Z.to_nat WORD) (length l) -> InWords l.
+                       Nat.divide (Z.to_nat WORD) (length l) -> InWords l.
 Proof.
   intros l [x H].
   revert l H.
@@ -192,7 +192,7 @@ Proof.
   apply InWords_len4.
   pose proof total_pad_len_Zlist.
   specialize (H msg).
-  unfold NPeano.divide.
+  unfold Nat.divide.
   apply H.
 Qed.  
 

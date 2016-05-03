@@ -1,10 +1,10 @@
 (* Lemmas that DO NOT depend on CompCert or Verifiable C *)
 
-Require Import Integers.
-Require Import Coqlib.
+Require Import compcert.lib.Integers.
+Require Import compcert.lib.Coqlib.
 Require Import Vector.  
 Require Import List. Import ListNotations.
-Require Import general_lemmas.
+Require Import sha.general_lemmas.
 
 Definition Vector_0_is_nil (T : Type) (v : Vector.t T 0) : v = Vector.nil T := 
   match v with Vector.nil => eq_refl end.

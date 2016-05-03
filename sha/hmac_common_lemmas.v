@@ -1,9 +1,9 @@
 (* Lemmas used by the hmac proofs that are independent of C/CompCert/VST*)
 
-Require Import Integers.
-Require Import Coqlib.
+Require Import compcert.lib.Integers.
+Require Import compcert.lib.Coqlib.
 Require Import List. Import ListNotations.
-Require Import general_lemmas.
+Require Import sha.general_lemmas.
 Require Import hmac_pure_lemmas.
 Require Import SHA256.
 Require Import pure_lemmas.     (* sha *)

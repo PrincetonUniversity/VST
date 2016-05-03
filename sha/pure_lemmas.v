@@ -4,10 +4,10 @@
    used in the proof of functional_prog.v.
 *)
 
-Require Import Coqlib.
-Require Import Integers. 
+Require Import compcert.lib.Coqlib.
+Require Import compcert.lib.Integers. 
 Require Import List. Import ListNotations. 
-Require Import general_lemmas.
+Require Import sha.general_lemmas.
 Require Import sha.SHA256.
 Require Import msl.Coqlib2. 
 Require Import floyd.coqlib3. 
@@ -103,7 +103,7 @@ Qed.
 
 Lemma Zlist_to_intlist_to_Zlist':
   forall nl: list Z, 
-  NPeano.divide (Z.to_nat WORD) (length nl) ->
+  Nat.divide (Z.to_nat WORD) (length nl) ->
   Forall isbyteZ nl ->
   intlist_to_Zlist (Zlist_to_intlist nl) = nl.
 Proof.
@@ -121,7 +121,7 @@ Qed.
 Lemma Ndivide_Zdivide_length:
   forall {A} n (al: list A),
    0 <= n ->
-   (NPeano.divide (Z.to_nat n) (length al) <->
+   (Nat.divide (Z.to_nat n) (length al) <->
     (n | Zlength al)).
 Proof.
 intros; split; intros [i ?].
@@ -230,7 +230,7 @@ Local Open Scope Z.
 
 Lemma divide_hashed:
  forall (bb: list int), 
-    NPeano.divide LBLOCK (length bb) <->
+    Nat.divide LBLOCK (length bb) <->
     (LBLOCKz | Zlength bb).
 Proof.
 intros.
@@ -306,7 +306,7 @@ Psatz.nia.
 rewrite skipn_length.
 apply plus_reg_l with LBLOCK.
 rewrite plus_comm. 
-rewrite NPeano.Nat.sub_add by Psatz.lia.
+rewrite Nat.sub_add by Psatz.lia.
 omega.
 Qed.
 
@@ -335,5 +335,5 @@ apply IHn0; auto.
 apply length_hash_block; auto. (* fixme *) change 16%nat with LBLOCK.
 rewrite firstn_length. apply min_l. simpl in H0. Psatz.nia.
 rewrite skipn_length. rewrite H0; clear - POS.  simpl.
-rewrite plus_comm. rewrite NPeano.Nat.add_sub. auto.
+rewrite plus_comm. rewrite Nat.add_sub. auto.
 Qed.

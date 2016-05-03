@@ -759,7 +759,7 @@ Ltac gather_SEP' L :=
       unfold firstn at 1; unfold skipn at 1;
       rewrite gather_SEP;
    unfold fold_right at 1; try  rewrite sepcon_emp;
-   intro r; unfold r; clear r
+   try (intro r; unfold r; clear r)
  end.
 
 Tactic Notation "gather_SEP" constr(a) :=

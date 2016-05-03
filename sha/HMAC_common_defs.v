@@ -1,10 +1,10 @@
-Require Import Integers.
+Require Import compcert.lib.Integers.
 Require Import Recdef.
 Require Import Bvector. 
 Require Import List. Import ListNotations. 
 Require Import Arith. 
-Require Import Coqlib. 
-Require Import general_lemmas. 
+Require Import compcert.lib.Coqlib. 
+Require Import sha.general_lemmas. 
 Require Import hmac_pure_lemmas.
 Require Import XorCorrespondence.
 Require Import ByteBitRelations.

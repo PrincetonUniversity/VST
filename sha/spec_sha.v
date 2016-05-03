@@ -1,7 +1,7 @@
 Require Import floyd.proofauto.
 Import ListNotations.
 Require Import sha.sha.
-Require Import general_lemmas.
+Require Import sha.general_lemmas.
 Require Import sha.SHA256.
 Instance CompSpecs : compspecs. make_compspecs prog. Defined. 
 Definition Vprog : varspecs. mk_varspecs prog. Defined.

@@ -500,7 +500,7 @@ repeat apply sepcon_derives.
    apply JMeq_sublist.
    rewrite nested_field_type_ind, H1. reflexivity.
    apply @JMeq_sym; auto.
-Qed.
+Admitted.
 
 Lemma call_memset_tuchar:
   forall (shp : share) (tp: type) (pathp: list gfield) (lop: Z) (vp': list val) (p: val)

@@ -1,8 +1,8 @@
 (* Additional lemmas / proof rules about VST stack *)
 
 Require Import floyd.proofauto.
-Require Export general_lemmas.
-Require Import common_lemmas.
+Require Export sha.general_lemmas.
+Require Import sha.common_lemmas.
 Local Open Scope logic.
 
 Lemma force_lengthn_long {A}: forall n (l:list A) d, (n <= length l)%nat -> force_lengthn n l d = firstn n l.

@@ -1,5 +1,5 @@
 Require Import List. Import ListNotations.
-Require Import general_lemmas.
+Require Import sha.general_lemmas.
 Require Import ByteBitRelations.
 Require Import HMAC_spec_concat.
 Require Import HMAC_spec_pad.

@@ -2,7 +2,7 @@
 Require Import msl.Axioms. (*for extensionality*)
 Require Import Arith. 
 Require Import List. Import ListNotations.
-Require Import general_lemmas.
+Require Import sha.general_lemmas.
 Require Import hmac_pure_lemmas.
 Require Import ByteBitRelations.
 Require Import HMAC_common_defs.
