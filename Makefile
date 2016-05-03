@@ -106,7 +106,7 @@ SEPCOMP_FILES= \
   FiniteMaps.v \
   mem_lemmas.v mem_wd.v \
   compiler_correctness.v \
-  core_semantics.v core_semantics_lemmas.v \
+  core_semantics.v core_semantics_lemmas.v CoopCoreSem.v \
   globalSep.v simulations.v \
   simulations_lemmas.v \
   structured_injections.v \

@@ -1,31 +1,26 @@
-Require Import compcert.lib.Coqlib.
+Require Import compcert.lib.Coqlib. 
 Require Import compcert.lib.Maps.
-Require Import compcert.lib.Integers.
-Require Import compcert.lib.Axioms.
-
+Require Import compcert.lib.Integers. 
 Require Import compcert.common.Values.
 Require Import compcert.common.Memory.
 Require Import compcert.common.Events.
 Require Import compcert.common.AST.
 Require Import compcert.common.Globalenvs.
 
+Require Import msl.Extensionality. 
 Require Import sepcomp.mem_lemmas.
 Require Import sepcomp.semantics.
 Require Import sepcomp.semantics_lemmas.
-Require Import sepcomp.structured_injections.
 
 (** * Effect Semantics *)
 
-(** Effect semantics augment interaction semantics with effects, in the form 
+(** Effect semantics augment memory semantics with effects, in the form 
     of a set of locations [block -> Z -> bool] associated with each internal 
     step of the semantics. *)
-
-(** Unlike general interaction semantics, which are paremetric in the type of
-    memory, effect semantics are specialized to CompCert memories. *)
  
 Record EffectSem {G C} :=
-  { (** [sem] is a cooperating interaaction semantics. *)
-    sem :> CoopCoreSem G C
+  { (** [sem] is a memory semantics. *)
+    sem :> MemSem G C
 
     (** The step relation of the new semantics. *)
   ; effstep: G -> (block -> Z -> bool) -> C -> mem -> C -> mem -> Prop
@@ -44,6 +39,8 @@ Record EffectSem {G C} :=
        forall b z, M b z = true -> Mem.valid_block m b
   }.
 
+Implicit Arguments EffectSem [].
+
 (** * Lemmas and auxiliary definitions *)
 
 Section effsemlemmas.
@@ -58,10 +55,14 @@ Section effsemlemmas.
         Mem.unchanged_on (fun b ofs => M b ofs = false) m m'.
   Proof. intros. apply effax1 in H. apply H. Qed.
 
-  Lemma effstep_fwd: forall U c m c' m',
-    effstep Sem g U c m c' m' -> mem_forward m m'.
-  Proof. intros. destruct Sem.
-         eapply corestep_fwd. eapply effax1. apply H.
+  Lemma effstep_mem U c m c' m' (EF: effstep Sem g U c m c' m'): mem_step m m'.
+  Proof. intros. apply effax1 in EF. destruct EF as [EF _].
+         eapply corestep_mem. apply EF. 
+  Qed.
+
+  Lemma effstep_fwd U c m c' m' (EF: effstep Sem g U c m c' m'): mem_forward m m'.
+  Proof. apply preserve_mem. apply mem_forward_preserve.
+         eapply effstep_mem. apply EF. 
   Qed.
 
   Fixpoint effstepN (n:nat) : (block -> Z -> bool) -> C -> mem -> C -> mem -> Prop :=
@@ -73,29 +74,32 @@ Section effsemlemmas.
         U = (fun b z => U1 b z || (U2 b z && valid_block_dec m1 b))
     end.
 
-
-Lemma effstepN_valid: forall n U c1 m1 c2 m2, effstepN n U c1 m1 c2 m2 ->
+  Lemma effstepN_valid: forall n U c1 m1 c2 m2, effstepN n U c1 m1 c2 m2 ->
        forall b z, U b z = true -> Mem.valid_block m1 b.
-Proof. intros n.
-  induction n; simpl; intros. destruct H; subst. discriminate.
-  destruct H as [c [m [U1 [U2 [Step [StepN UU]]]]]]; subst; simpl.
-  specialize (IHn _ _ _ _ _ StepN). 
-  specialize (effstep_valid _ _ _ _ _ _ _ Step b z). intros.
-  remember (U1 b z) as d.
-  destruct d; simpl in *. apply H; trivial.
-  destruct (valid_block_dec m1 b). trivial. simpl in *.
-  rewrite andb_false_r in H0. inv H0.
-Qed.
-
-  Lemma effstepN_fwd: forall n U c m c' m',
-    effstepN n U c m c' m' -> mem_forward m m'.
   Proof. intros n.
-         induction n; intros; simpl in *. destruct H.
-           inv H. eapply mem_forward_refl.
-         destruct H as [c1 [c2 [Eff1 [Eff2 [Step1 [Step2 HU]]]]]].
-         eapply mem_forward_trans.
-           eapply effstep_fwd; eassumption.
-           eapply IHn; eassumption. 
+    induction n; simpl; intros. destruct H; subst. discriminate.
+    destruct H as [c [m [U1 [U2 [Step [StepN UU]]]]]]; subst; simpl.
+    specialize (IHn _ _ _ _ _ StepN). 
+    specialize (effstep_valid _ _ _ _ _ _ _ Step b z). intros.
+    remember (U1 b z) as d.
+    destruct d; simpl in *. apply H; trivial.
+    destruct (valid_block_dec m1 b). trivial. simpl in *.
+    rewrite andb_false_r in H0. inv H0.
+  Qed.
+
+  Lemma effstepN_mem: forall n U c m c' m' (EF: effstepN n U c m c' m'), mem_step m m'.
+  Proof. 
+    induction n; simpl; intros.
+    + destruct EF as [EF _]; inv EF. apply mem_step_refl.
+    + destruct EF as [c1 [m2 [U1 [U2 [EF1 [EF2 _]]]]]].
+      apply IHn in EF2. clear IHn.
+      apply effstep_mem in EF1.
+      eapply mem_step_trans; eassumption. 
+  Qed.
+
+  Lemma effstepN_fwd n U c m c' m' (EF:effstepN n U c m c' m'): mem_forward m m'.
+  Proof. apply preserve_mem. apply mem_forward_preserve.
+         eapply effstepN_mem. apply EF.
   Qed.
 
   Lemma effstepN_corestepN: forall n E c m c' m',
@@ -306,16 +310,23 @@ Proof. intros; subst. eapply effstepN_trans; eassumption. Qed.
     exists n. assumption. 
   Qed.
 
-  Lemma effstep_star_fwd: forall U c m c' m',
-    effstep_star U c m c' m' -> mem_forward m m'.
-  Proof. intros. destruct H as [n H]. 
-      eapply effstepN_fwd; eassumption.
+  Lemma effstep_star_mem U c m c' m' (EF: effstep_star U c m c' m'): mem_step m m'.
+  Proof. destruct EF as [n H]. 
+      eapply effstepN_mem; eassumption.
   Qed.
 
-  Lemma effstep_plus_fwd: forall U c m c' m',
-    effstep_plus U c m c' m' -> mem_forward m m'.
-  Proof. intros. destruct H as [n H]. 
-      eapply effstepN_fwd; eassumption.
+  Lemma effstep_plus_mem U c m c' m' (EF: effstep_plus U c m c' m'): mem_step m m'.
+  Proof. destruct EF as [n H]. 
+      eapply effstepN_mem; eassumption.
+  Qed.
+
+  Lemma effstep_plus_fwd U c m c' m' (EF: effstep_plus U c m c' m'): mem_forward m m'.
+  Proof. apply preserve_mem. apply mem_forward_preserve.
+         eapply effstep_plus_mem. apply EF.
+  Qed.
+  Lemma effstep_star_fwd U c m c' m' (EF: effstep_star U c m c' m'): mem_forward m m'.
+  Proof. apply preserve_mem. apply mem_forward_preserve.
+         eapply effstep_star_mem. apply EF.
   Qed.
 
 End effsemlemmas.
