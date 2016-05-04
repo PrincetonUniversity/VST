@@ -82,28 +82,60 @@ Module Type ThreadPoolSig.
   Parameter updThreadC : forall {tid tp}, containsThread tp tid -> ctl -> t.
   Parameter updThreadR : forall {tid tp}, containsThread tp tid -> res -> t.
   Parameter updThread : forall {tid tp}, containsThread tp tid -> ctl -> res -> t.
+  
+  (*Proof Irrelevance of contains*)
+  Axiom cnt_irr: forall t tid
+                   (cnt1 cnt2: containsThread t tid),
+      cnt1 = cnt2.
+      
+  (* Update properties*)
+  Axiom cntUpdateC:
+    forall {tid tid0 tp} c
+      (cnt: containsThread tp tid),
+      containsThread tp tid0->
+      containsThread (updThreadC cnt c) tid0.
+  Axiom cntUpdateC':
+    forall {tid tid0 tp} c
+      (cnt: containsThread tp tid),
+      containsThread (updThreadC cnt c) tid0 -> 
+      containsThread tp tid0. 
 
-  Parameter gssThreadCode :
+  Axiom getThreadUpdateC1:
+    forall {tid tp} c
+      (cnt: containsThread tp tid)
+      (cnt': containsThread (updThreadC cnt c) tid),
+      getThreadC cnt' = c.
+  
+  Axiom getThreadUpdateC2:
+    forall {tid tid0 tp} c
+      (cnt1: containsThread tp tid)
+      (cnt2: containsThread tp tid0)
+      (cnt3: containsThread (updThreadC cnt1 c) tid0),
+      tid <> tid0 ->
+      getThreadC cnt2 = getThreadC cnt3.
+
+  (*Get thread Properties*)
+  Axiom gssThreadCode :
     forall {tid tp} (cnt: containsThread tp tid) c' p'
       (cnt': containsThread (updThread cnt c' p') tid), getThreadC cnt' = c'.
 
-  Parameter gssThreadRes:
+  Axiom gssThreadRes:
     forall {tid tp} (cnt: containsThread tp tid) c' p'
       (cnt': containsThread (updThread cnt c' p') tid),
       getThreadR cnt' = p'.
 
-  Parameter gsoThreadRes:
+  Axiom gsoThreadRes:
     forall {i j tp} (cnti: containsThread tp i)
             (cntj: containsThread tp j) (Hneq: i <> j) c' p'
             (cntj': containsThread (updThread cnti c' p') j),
     getThreadR cntj' = getThreadR cntj.
   
-  Parameter gssThreadCC:
+  Axiom gssThreadCC:
     forall {tid tp} (cnt: containsThread tp tid) c'
       (cnt': containsThread (updThreadC cnt c') tid),
       getThreadC cnt' = c'.
 
-  Parameter gThreadCR:
+  Axiom gThreadCR:
     forall {i j tp} (cnti: containsThread tp i)
       (cntj: containsThread tp j) c'
       (cntj': containsThread (updThreadC cnti c') j),

@@ -122,6 +122,69 @@ Module ThreadPool (SEM:Semantics) <: ThreadPoolSig
        (fun n =>
           if n == (Ordinal cnt) then pmap else (perm_maps tp) n).
 
+  (*Proof Irrelevance of contains*)
+  Lemma cnt_irr: forall t tid
+                   (cnt1 cnt2: containsThread t tid),
+      cnt1 = cnt2.
+  Proof. intros. apply proof_irrelevance. Qed.
+  
+  (* Update properties*)
+  Lemma numUpdateC :
+    forall {tid tp} (cnt: containsThread tp tid) c,
+      num_threads tp =  num_threads (updThreadC cnt c). 
+  Proof.
+    intros tid tp cnt c.
+    destruct tp; simpl; reflexivity.
+  Qed.
+  
+  Lemma cntUpdateC :
+    forall {tid tid0 tp} c
+      (cnt: containsThread tp tid),
+      containsThread tp tid0 ->
+      containsThread (updThreadC cnt c) tid0. 
+  Proof.
+    intros tid tp.
+    unfold containsThread; intros.
+    rewrite <- numUpdateC; assumption.
+  Qed.
+  Lemma cntUpdateC':
+    forall {tid tid0 tp} c
+      (cnt: containsThread tp tid),
+      containsThread (updThreadC cnt c) tid0 ->
+      containsThread tp tid0. 
+  Proof.
+    intros tid tp.
+    unfold containsThread; intros.
+    rewrite <- numUpdateC in H; assumption.
+  Qed.
+
+  Lemma getThreadUpdateC1:
+    forall {tid tp} c
+      (cnt: containsThread tp tid)
+      (cnt': containsThread (updThreadC cnt c) tid),
+      getThreadC cnt' = c.
+  Proof.
+    intros. destruct tp. simpl.
+    rewrite (cnt_irr cnt cnt') eq_refl; reflexivity.
+  Qed.
+  
+  Lemma getThreadUpdateC2:
+    forall {tid tid0 tp} c
+      (cnt1: containsThread tp tid)
+      (cnt2: containsThread tp tid0)
+      (cnt3: containsThread (updThreadC cnt1 c) tid0),
+      tid <> tid0 ->
+      getThreadC cnt2 = getThreadC cnt3.
+  Proof.
+    intros. destruct tp. simpl.
+    (*Could use ssreflect better here: *)
+    destruct (@eqP _ (Ordinal (n:=num_threads0) (m:=tid1) cnt3) (Ordinal (n:=num_threads0) (m:=tid0) cnt1)).
+    inversion e. exfalso; apply H; symmetry; eassumption.
+    rewrite (cnt_irr cnt2 cnt3); reflexivity.
+  Qed.
+        
+
+  (*GetThread Properties*)  
   Lemma gssThreadCode {tid tp} (cnt: containsThread tp tid) c' p'
         (cnt': containsThread (updThread cnt c' p') tid) :
     getThreadC cnt' = c'.
