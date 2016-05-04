@@ -58,6 +58,7 @@ Inductive ctl {cT:Type} : Type :=
 Definition EqDec: Type -> Type := 
   fun A : Type => forall a a' : A, {a = a'} + {a <> a'}.
 
+
 Module Type ThreadPoolSig.
   Declare Module TID: ThreadID.
   Declare Module SEM: Semantics.
@@ -91,15 +92,23 @@ Module Type ThreadPoolSig.
       (cnt': containsThread (updThread cnt c' p') tid),
       getThreadR cnt' = p'.
 
+  Parameter gsoThreadRes:
+    forall {i j tp} (cnti: containsThread tp i)
+            (cntj: containsThread tp j) (Hneq: i <> j) c' p'
+            (cntj': containsThread (updThread cnti c' p') j),
+    getThreadR cntj' = getThreadR cntj.
+  
   Parameter gssThreadCC:
     forall {tid tp} (cnt: containsThread tp tid) c'
       (cnt': containsThread (updThreadC cnt c') tid),
       getThreadC cnt' = c'.
 
-  Parameter gssThreadCR:
-    forall {tid tp} (cnt: containsThread tp tid) c'
-      (cnt': containsThread (updThreadC cnt c') tid),
-      getThreadR cnt = getThreadR cnt'.
+  Parameter gThreadCR:
+    forall {i j tp} (cnti: containsThread tp i)
+      (cntj: containsThread tp j) c'
+      (cntj': containsThread (updThreadC cnti c') j),
+      getThreadR cntj' = getThreadR cntj.
+  
 End ThreadPoolSig.
 
 Module Type ConcurrentMachineSig.
