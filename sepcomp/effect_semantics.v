@@ -34,9 +34,9 @@ Record EffectSem {G C} :=
   ; effax2: forall g c m c' m',
        corestep sem g c m c' m' ->
        exists M, effstep g M c m c' m'
-  ; effstep_valid: forall M g c m c' m',
+  ; effstep_perm: forall M g c m c' m',
        effstep g M c m c' m' ->
-       forall b z, M b z = true -> Mem.valid_block m b
+       forall b z, M b z = true -> Mem.perm m b z Cur Writable
   }.
 
 Implicit Arguments EffectSem [].
@@ -45,6 +45,11 @@ Implicit Arguments EffectSem [].
 
 Section effsemlemmas.
   Context {G C:Type} (Sem: @EffectSem G C) (g:G).
+
+  Lemma effstep_valid: forall M c m c' m',
+       effstep Sem g M c m c' m' ->
+       forall b z, M b z = true -> Mem.valid_block m b.
+  Proof. intros. eapply Mem.perm_valid_block. eapply effstep_perm; eassumption. Qed.
 
   Lemma effstep_corestep: forall M g c m c' m',
       effstep Sem g M c m c' m' -> corestep Sem g c m c' m'. 
@@ -74,18 +79,27 @@ Section effsemlemmas.
         U = (fun b z => U1 b z || (U2 b z && valid_block_dec m1 b))
     end.
 
-  Lemma effstepN_valid: forall n U c1 m1 c2 m2, effstepN n U c1 m1 c2 m2 ->
-       forall b z, U b z = true -> Mem.valid_block m1 b.
+  Lemma effstepN_perm: forall n U c1 m1 c2 m2, effstepN n U c1 m1 c2 m2 ->
+       forall b z, U b z = true -> Mem.perm m1 b z Cur Writable.
   Proof. intros n.
     induction n; simpl; intros. destruct H; subst. discriminate.
     destruct H as [c [m [U1 [U2 [Step [StepN UU]]]]]]; subst; simpl.
     specialize (IHn _ _ _ _ _ StepN). 
-    specialize (effstep_valid _ _ _ _ _ _ _ Step b z). intros.
+    specialize (effstep_perm _ _ _ _ _ _ _ Step b z). intros.
     remember (U1 b z) as d.
-    destruct d; simpl in *. apply H; trivial.
-    destruct (valid_block_dec m1 b). trivial. simpl in *.
-    rewrite andb_false_r in H0. inv H0.
+    destruct d; simpl in *.
+    + apply H; trivial.
+    + (* destruct (Mem.perm_dec m1 b z Cur Writable). trivial. simpl in *.*)
+      clear H Heqd StepN.
+      rewrite andb_true_iff in H0. destruct H0. 
+      specialize (IHn _ _ H). destruct (valid_block_dec m1 b); inv H0.
+      apply effstep_corestep in Step. apply corestep_mem in Step.
+      apply perm_preserve in Step. apply Step; trivial. 
+      eapply Mem.perm_implies. eapply Mem.perm_max. eassumption. constructor.
   Qed.
+  Lemma effstepN_valid n U c1 m1 c2 m2  (Step:effstepN n U c1 m1 c2 m2)
+        b z (EFF:U b z = true): Mem.valid_block m1 b.
+  Proof. eapply Mem.perm_valid_block. eapply effstepN_perm; eassumption. Qed.
 
   Lemma effstepN_mem: forall n U c m c' m' (EF: effstepN n U c m c' m'), mem_step m m'.
   Proof. 
@@ -310,6 +324,22 @@ Proof. intros; subst. eapply effstepN_trans; eassumption. Qed.
     exists n. assumption. 
   Qed.
 
+  Lemma effstep_plus_perm U c1 m1 c2 m2 (Step: effstep_plus U c1 m1 c2 m2):
+       forall b z, U b z = true -> Mem.perm m1 b z Cur Writable.
+  Proof. destruct Step. eapply effstepN_perm; eassumption. Qed.
+
+  Lemma effstep_star_perm U c1 m1 c2 m2 (Step: effstep_star U c1 m1 c2 m2):
+       forall b z, U b z = true -> Mem.perm m1 b z Cur Writable.
+  Proof. destruct Step. eapply effstepN_perm; eassumption. Qed.
+
+  Lemma effstep_plus_valid U c1 m1 c2 m2 (Step: effstep_plus U c1 m1 c2 m2):
+       forall b z, U b z = true -> Mem.valid_block m1 b.
+  Proof. destruct Step. eapply effstepN_valid; eassumption. Qed.
+
+  Lemma effstep_star_valid U c1 m1 c2 m2 (Step: effstep_star U c1 m1 c2 m2):
+       forall b z, U b z = true -> Mem.valid_block m1 b.
+  Proof. destruct Step. eapply effstepN_valid; eassumption. Qed.
+
   Lemma effstep_star_mem U c m c' m' (EF: effstep_star U c m c' m'): mem_step m m'.
   Proof. destruct EF as [n H]. 
       eapply effstepN_mem; eassumption.
@@ -514,3 +544,44 @@ Proof. intros.
   intuition.
 Qed.
        
+Lemma free_curWR m sp lo hi m' (FR: Mem.free m sp lo hi = Some m')
+      b z (EFF: FreeEffect m lo hi sp b z = true):
+      Mem.perm m b z Cur Writable.
+Proof. 
+  apply FreeEffectD in EFF. destruct EFF as [? [? ?]]; subst.
+  eapply Mem.perm_implies. 
+  eapply Mem.free_range_perm; eauto. constructor.
+Qed.
+
+Lemma storev_curWR ch m vaddr v m' (ST:Mem.storev ch m vaddr v = Some m')
+      b z (EFF : StoreEffect vaddr (encode_val ch v) b z = true):
+      Mem.perm m b z Cur Writable.
+Proof.
+  apply StoreEffectD in EFF. destruct EFF as [? [? [? ?]]]; subst.
+  apply Mem.store_valid_access_3 in ST. apply ST. 
+  rewrite encode_val_length, <- size_chunk_conv in H1. omega.
+Qed.
+
+Lemma freelist_curWR l: forall m m' (FR: Mem.free_list m l = Some m')
+      b z (EFF : FreelistEffect m l b z = true),
+      Mem.perm m b z Cur Writable.
+Proof. clear.
+induction l; intros. 
++ inv EFF.
++ destruct a as [[? ?] ?].
+  simpl in FR.
+  remember (Mem.free m b0 z0 z1) as f.
+  destruct f; inv FR. symmetry in Heqf. simpl in EFF.
+  remember (FreelistEffect m l b z) as q.
+  destruct q; symmetry in Heqq; simpl in *.
+  - clear EFF. specialize (IHl _ _ H0).
+    remember (FreelistEffect m0 l b z) as w.
+    destruct w; symmetry in Heqw.
+    * eapply Mem.perm_free_3; eauto. 
+    * apply (FreelistEffect_same _ _ _ _ _ _ Heqf) in Heqw.
+      rewrite Heqw in Heqq; discriminate.
+      apply FreelistEffect_validblock in Heqq. 
+      eapply Mem.valid_block_free_1; eassumption.
+  - eapply free_curWR; eassumption.
+Qed.
+
