@@ -189,13 +189,16 @@ Module Concur.
 
   
   Module mySchedule := ListScheduler NatTID.
-  
-  Module DryMachine <: ConcurrentMachineSig with
-                       Module ThreadPool.TID:=mySchedule.TID.
+
+  Module DryMachineShell (SEM:Semantics)  <: ConcurrentMachineSig
+      with Module ThreadPool.TID:=mySchedule.TID
+      with Module ThreadPool.SEM:= SEM.
+                                    
     Module ThreadPool := ThreadPool SEM.
     Import ThreadPool.
     Import ThreadPool.SEM.
-    Notation tid := NatTID.tid.
+    Notation tid := NatTID.tid.  
+
     
     (** Memories*)
     Definition richMem: Type:= M.

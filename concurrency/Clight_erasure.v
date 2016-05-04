@@ -55,9 +55,10 @@ Module ClightParching <: ErasureSig.
     MATCH_ST: forall (js:jstate) ds
                 (mtch_cnt: forall {tid},  JTP.containsThread js tid -> DTP.containsThread ds tid )
                 (mtch_cnt': forall {tid}, DTP.containsThread ds tid -> JTP.containsThread js tid )
-                (mtch_gtc: forall {tid} (Htid:JTP.containsThread js tid), JTP.getThreadC Htid = DTP.getThreadC (mtch_cnt Htid) )
-                (mtch_perm: forall b ofs {tid} (Htid:JTP.containsThread js tid),
-                    juicy_mem.perm_of_res (resource_at (JTP.getThreadR Htid) (b, ofs)) = ((DTP.getThreadR (mtch_cnt Htid)) !! b) ofs ),
+                (mtch_gtc: forall {tid} (Htid:JTP.containsThread js tid)(Htid':DTP.containsThread ds tid),
+                    JTP.getThreadC Htid = DTP.getThreadC Htid' )
+                (mtch_perm: forall b ofs {tid} (Htid:JTP.containsThread js tid)(Htid':DTP.containsThread ds tid),
+                    juicy_mem.perm_of_res (resource_at (JTP.getThreadR Htid) (b, ofs)) = ((DTP.getThreadR Htid') !! b) ofs ),
       match_st js ds.
   
   (*match axioms*)
@@ -88,8 +89,8 @@ Module ClightParching <: ErasureSig.
         DTP.getThreadC (MTCH_ctn M ctn) =  c.
   Proof. intros ? ? ? ? ? MTCH; inversion MTCH; subst.
          intros HH; rewrite <- HH.
-         rewrite mtch_gtc.
-         apply ctn_irr.
+         symmetry.
+         apply mtch_gtc.
   Qed.
        
   Lemma MTCH_compat: forall js ds m,
@@ -99,20 +100,19 @@ Module ClightParching <: ErasureSig.
   Proof. 
     intros ? ? ? MTCH mc;
     inversion MTCH; inversion mc; subst.
-    constructor.
-    - unfold DSEM.perm_compatible. intros tid cnt.
-      unfold permissions.permMapLt; intros b ofs.
-      eapply po_trans.
-      specialize (perm_comp tid (mtch_cnt' _ cnt)).
-      inversion perm_comp.
-      specialize (acc_coh (b, ofs)).
-      rewrite permissions.getMaxPerm_correct.
-      apply acc_coh.
+    unfold DSEM.mem_compatible. intros tid cnt.
+    unfold permissions.permMapLt; intros b ofs.
+    eapply po_trans.
+    specialize (perm_comp tid (mtch_cnt' _ cnt)).
+    inversion perm_comp.
+    specialize (acc_coh (b, ofs)).
+    rewrite permissions.getMaxPerm_correct.
+    apply acc_coh.
 
-      
-      
-      rewrite <- permissions.restrPermMap_max.
-      specialize (acc_coh b).
+    rewrite (mtch_perm _ _ _ (mtch_cnt' tid cnt) cnt).
+    unfold DTP.getThreadR.
+    rewrite <- permissions.restrPermMap_max.
+    specialize (acc_coh b).
       
       unfold max_accDess_cohere in max_coh.
       

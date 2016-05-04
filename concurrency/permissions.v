@@ -12,6 +12,11 @@ Require Import veric.shares juicy_mem.
 Require Import msl.msl_standard.
 Import cjoins.
 
+Lemma po_refl: forall p, Mem.perm_order'' p p.
+Proof.
+  destruct p; [apply perm_refl| simpl]; auto.
+Qed.
+
 Lemma perm_order_antisym :
   forall p p'
     (Hlt: Mem.perm_order'' p p')
