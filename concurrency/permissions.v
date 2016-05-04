@@ -1011,17 +1011,11 @@ Section ShareMaps.
       (Mem.valid_block m_before b ->
        forall p, Mem.perm m_after b ofs Cur p -> Mem.perm m_before b ofs Cur p).
   
-  Definition map_decay (pmap pmap' : access_map) :=
-    forall b ofs, (Maps.PMap.get b pmap) ofs = (Maps.PMap.get b pmap') ofs \/
-             ((Maps.PMap.get b pmap) ofs = Some Freeable /\
-              (Maps.PMap.get b pmap') ofs = None) \/
-             ((Maps.PMap.get b pmap) ofs = None /\
-              (Maps.PMap.get b pmap') ofs = Some Freeable).
-
   Definition decay' m_before m_after := forall b ofs, 
       (~Mem.valid_block m_before b ->
        Mem.valid_block m_after b ->
-       Maps.PMap.get b (Mem.mem_access m_after) ofs Cur = Some Freeable) /\
+       Maps.PMap.get b (Mem.mem_access m_after) ofs Cur = Some Freeable
+      \/ Maps.PMap.get b (Mem.mem_access m_after) ofs Cur = None) /\
       (Mem.valid_block m_before b ->
        ((Maps.PMap.get b (Mem.mem_access m_before) ofs Cur = Some Freeable /\
          Maps.PMap.get b (Mem.mem_access m_after) ofs Cur = None)) \/
@@ -1032,94 +1026,9 @@ Section ShareMaps.
     forall m m',
       decay m m' ->
       decay' m m'.
-  Admitted.
-       
-  
-  (*Lemma mem_map_decay :
-    forall m m',
-      decay m m' ->
-      map_decay (getCurPerm m) (getCurPerm m').
   Proof.
-    intros m m' Hdecay.
-    intros b ofs.
-    destruct (Hdecay b ofs) as [H1 [H2 [H3 H4]]].
-    unfold Mem.valid_block in *.
-    destruct (Coqlib.plt b (Mem.nextblock m)) as [Hlt | Hlt].
-    - specialize (H4 Hlt). clear H1.
-      destruct (Maps.PMap.get b (getCurPerm m') ofs) as [p'|] eqn:Hperm';
-        destruct (Maps.PMap.get b (getCurPerm m) ofs) as [p|] eqn:Hperm; auto;
-        rewrite getCurPerm_correct in Hperm;
-        rewrite getCurPerm_correct in Hperm'.
-      { destruct p eqn:Hp;
-        [ assert (Hperm_freeable: Mem.perm m b ofs Cur Freeable)
-            by (unfold Mem.perm, Mem.perm_order'; subst; rewrite Hperm; constructor);
-          assert (Hmem_perm': Mem.perm m' b ofs Cur p')
-            by (unfold Mem.perm, Mem.perm_order'; subst; rewrite Hperm'; constructor);
-          specialize (H2 Hperm_freeable _ Hmem_perm');
-          unfold Mem.perm in H2;
-          rewrite Hperm' in H2; simpl in H2; inversion H2; subst; auto| | |];
-          assert (Hnot_freeable: ~ Mem.perm m b ofs Cur Freeable)
-            by (unfold Mem.perm, Mem.perm_order';
-                 rewrite Hperm; intro Hcontra; inversion Hcontra);
-            specialize (H3 Hnot_freeable);
-            specialize (H3 p);
-            assert (Hmem_perm: Mem.perm m b ofs Cur p) by
-              (unfold Mem.perm, Mem.perm_order';
-                rewrite Hperm; subst; constructor);
-          specialize (H3 Hmem_perm);
-          unfold Mem.perm, Mem.perm_order' in H3; subst;
-          rewrite Hperm' in H3;
-          inversion H3; subst; auto;
-          try (assert (Hp'_ord: Mem.perm m' b ofs Cur Freeable) by
-              (unfold Mem.perm, Mem.perm_order'; rewrite Hperm'; constructor);
-                specialize (H4 Freeable Hp'_ord); tauto).
-        assert  (Hp'_ord: Mem.perm m' b ofs Cur Writable) by
-            (unfold Mem.perm, Mem.perm_order'; rewrite Hperm'; constructor).
-        specialize (H4 _ Hp'_ord).
-        unfold Mem.perm, Mem.perm_order' in H4.
-        rewrite Hperm in H4. inversion H4.
-        destruct p' eqn:Hp'; auto;
-        assert  (Hp'_ord: Mem.perm m' b ofs Cur p') by
-            (unfold Mem.perm, Mem.perm_order'; rewrite Hperm'; subst; constructor);
-        specialize (H4 _ Hp'_ord);
-        unfold Mem.perm, Mem.perm_order' in H4;
-        rewrite Hperm in H4; subst; inversion H4.
-      }
-      { exfalso.
-        assert (Hmem_perm': Mem.perm m' b ofs Cur p')
-          by (unfold Mem.perm, Mem.perm_order'; rewrite Hperm'; constructor).
-        specialize (H4 _ Hmem_perm').
-        unfold Mem.perm, Mem.perm_order' in H4;
-          now rewrite Hperm in H4.
-      }
-      { destruct p eqn:Hp; auto;
-        assert (Hnot_freeable: ~ Mem.perm m b ofs Cur Freeable)
-          by
-            (unfold Mem.perm, Mem.perm_order';
-             rewrite Hperm; intro Hcontra; inversion Hcontra);
-        specialize (H3 Hnot_freeable);
-        specialize (H3 p);
-        assert (Hmem_perm: Mem.perm m b ofs Cur p) by
-            (unfold Mem.perm, Mem.perm_order';
-             rewrite Hperm; subst; constructor);
-        specialize (H3 Hmem_perm);
-        unfold Mem.perm, Mem.perm_order' in *; subst;
-        rewrite Hperm' in H3; tauto. }
-    - specialize (H1 Hlt).
-      assert (Hperm: Maps.PMap.get b (Mem.mem_access m) ofs Cur = None)
-        by (now apply Mem.nextblock_noaccess).
-      do 2 rewrite getCurPerm_correct. rewrite Hperm.
-      clear H4.
-      destruct (Maps.PMap.get b (Mem.mem_access m') ofs Cur) as [p'|] eqn:Hperm';
-        auto.
-      assert (Hmem_perm': Mem.perm m' b ofs Cur p')
-        by (unfold Mem.perm, Mem.perm_order'; rewrite Hperm'; simpl; constructor).
-      specialize (H1 _ Hmem_perm').
-      assert (Hp': p' = Freeable)
-        by  (unfold Mem.perm, Mem.perm_order' in H1; rewrite Hperm' in H1;
-             inversion H1; auto); subst. auto.
-  Qed.*)
-
+  Admitted.
+  
   Definition shareMapsJoin (smap1 smap2 smap3 : share_map) : Prop :=
     forall b ofs,
       join ((Maps.PMap.get b (mkShare_map smap1)) ofs)
