@@ -149,17 +149,59 @@ Module ClightParching <: ErasureSig.
   Variable main: Values.val.
   Lemma init_diagram:
     forall (j : Values.Val.meminj) (U:schedule) (js : jstate)
-     (vals : list Values.val) (m : M),
-   initial_core JMachineSem genv main vals = Some (U, js) ->
+      (vals : list Values.val) (m : M),
+   init_inj_ok j m ->
+   initial_core (JMachineSem U) genv main vals = Some (U, js) ->
    exists (mu : SM_Injection) (ds : dstate),
      as_inj mu = j /\
-     initial_core DMachineSem genv main vals = Some (U, ds) /\
+     initial_core (DMachineSem U) genv main vals = Some (U, ds) /\
      DSEM.invariant ds /\
      match_st js ds.
   Proof.
     intros.
-    exists 
-       
+
+    (* Build the structured injection*)
+    exists (initial_SM (valid_block_dec m) (valid_block_dec m) (fun _ => false) (fun _ => false) j).
+
+    (* Build the dry state *)
+    simpl in H0.
+    unfold JuicyMachine.init_machine in H0.
+    unfold JSEM.init_mach in H0. simpl in H0.
+    destruct ( initial_core JSEM.ThreadPool.SEM.Sem genv main vals) eqn:C; try solve[inversion H0].
+    inversion H0.
+    exists (DSEM.initial_machine genv c).
+
+    split; [|split;[|split]].
+    
+    (*Proofs*)
+    - apply initial_SM_as_inj.
+    - simpl.
+      unfold DryMachine.init_machine.
+      unfold DSEM.init_mach.
+      rewrite C.
+      f_equal.
+    - unfold  DSEM.invariant.
+      constructor.
+      + unfold DSEM.race_free, DSEM.initial_machine; simpl.
+        unfold DSEM.ThreadPool.containsThread; simpl.
+        intros.
+        admit. (*This will change once [compute_init_perm] is well defined. *)
+        (*apply permissions.empty_disjoint.*)
+      + intros.
+        unfold DSEM.ThreadPool.getThreadC.
+        unfold DSEM.initial_machine; simpl.
+        exists DSEM.lp_code. 
+        split.
+        * reflexivity.
+        * apply DSEM.lp_code_halted.
+    - constructor.
+      + intros.
+        
+        
+      unfold DSEM.race_free.
+
+
+      
   Lemma core_diagram:
     forall (m : M)  (U U': schedule) 
      (ds : dstate) (js js': jstate) 

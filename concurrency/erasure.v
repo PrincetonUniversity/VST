@@ -10,6 +10,11 @@ Require Import concurrency.dry_machine. Import Concur.
 (*The simulations*)
 Require Import sepcomp.wholeprog_simulations. 
 
+Definition init_inj_ok (j: Values.Val.meminj) m:=
+  forall b b' ofs, j b = Some (b', ofs) ->
+              b = b' /\
+              Mem.valid_block m b.
+
 Module Type ErasureSig.
 
   Declare Module SCH: Scheduler with Module TID:=NatTID.
@@ -63,49 +68,34 @@ Module Type ErasureSig.
              (H0:match_st js ds)  (cnt: JSEM.ThreadPool.containsThread js tid),
              match_st (JSEM.ThreadPool.updThreadC cnt c)
                        (DSEM.ThreadPool.updThreadC (MTCH_cnt H0 cnt) c).
-          
-
-  (*Axiom parch_match: forall (js: jstate) (ds: dstate),
-      match_st js ds <-> ds = parch_state js.*)
-
-       (*
-  (*Init diagram*)
-  Axiom match_init: forall c, match_st (JSEM.initial_machine c) (DSEM.initial_machine c).
-
-  (*Core Diagram*)
-  Axiom parched_diagram: forall genv U U' m m' jst jst' ds ds',  
-      corestep JMachineSem genv (U, jst) m (U', jst') m' ->
-      match_st jst ds -> match_st jst ds -> 
-      corestep DMachineSem genv (U, ds)  m (U', ds') m'.
-        *)
-
        
   Variable genv: G.
   Variable main: Values.val.
   Axiom init_diagram:
     forall (j : Values.Val.meminj) (U:schedule) (js : jstate)
-     (vals : list Values.val) (m : M),
-   initial_core JMachineSem genv main vals = Some (U, js) ->
+      (vals : list Values.val) (m : M),
+   init_inj_ok j m ->
+   initial_core (JMachineSem U) genv main vals = Some (U, js) ->
    exists (mu : SM_Injection) (ds : dstate),
      as_inj mu = j /\
-     initial_core DMachineSem genv main vals = Some (U, ds) /\
+     initial_core (DMachineSem U) genv main vals = Some (U, ds) /\
      DSEM.invariant ds /\
      match_st js ds.
 
   Axiom core_diagram:
-    forall (m : M)  (U U': schedule) 
+    forall (m : M)  (U0 U U': schedule) 
      (ds : dstate) (js js': jstate) 
      (m' : M),
-   corestep JMachineSem genv (U, js) m (U', js') m' ->
+   corestep (JMachineSem U0) genv (U, js) m (U', js') m' ->
    match_st js ds ->
    DSEM.invariant ds ->
    exists (ds' : dstate) (mu' : SM_Injection),
      DSEM.invariant ds' /\
      match_st js' ds' /\
-     corestep DMachineSem genv (U, ds) m (U', ds') m'.
+     corestep (DMachineSem U0) genv (U, ds) m (U', ds') m'.
 
   Axiom halted_diagram:
-    forall c, halted JMachineSem c = None.
+    forall U c, halted (JMachineSem U) c = None.
   
 
 End ErasureSig.
@@ -128,6 +118,7 @@ Module ErasureFnctr (PC:ErasureSig).
         g1 = g2 ->
         args1 = args2 ->
         m1 = m2 ->
+        init_inj_ok j m1 ->
         init_inv j g1 args1 m1 g2 args2 m2.
 
     Inductive halt_inv:  SM_Injection ->
@@ -155,30 +146,31 @@ Module ErasureFnctr (PC:ErasureSig).
   
   Lemma core_ord_wf:  well_founded core_ord.
       Proof. constructor; intros y H; inversion H. Qed.
-  Theorem erasure:
+  Theorem erasure: forall U,
     Wholeprog_sim.Wholeprog_sim
-      JMachineSem DMachineSem
+      (JMachineSem U) (DMachineSem U)
       genv genv
       main
       ge_inv init_inv halt_inv.
-  Proof.
+  Proof. intros U.
     apply (Wholeprog_sim.Build_Wholeprog_sim
-             JMachineSem DMachineSem
+             (JMachineSem U) (DMachineSem U)
              genv genv
              main
              ge_inv init_inv halt_inv
              core_data match_state core_ord core_ord_wf).
     - reflexivity.
     - intros until m2; intros H H0.
-      inversion H0; subst; clear - H.
-      destruct c1 as [U js].
-      destruct (init_diagram j U js vals2 m2 H) as [mu [dms [injeq [IC [DINV MS] ]]]].
+      inversion H0; subst. clear - H4 H.
+      destruct c1 as [U0 js].
+      assert (HH:=JuicyMachine.initial_schedule _ _ _ _ _ _ H); subst U0.
+      destruct (init_diagram j U js vals2 m2 H4 H) as [mu [dms [injeq [IC [DINV MS] ]]]].
       exists mu, tt, (U,dms); intuition.
       constructor; assumption.
     - intros until m2; intros MTCH.
       inversion MTCH; subst; clear MTCH.
       destruct st1' as [U' js'].
-      destruct (core_diagram m2 U U' ds js js' m1' H H1 H0) as
+      destruct (core_diagram m2 U U0 U' ds js js' m1' H H1 H0) as
           [ds' [mu' [DINV [MTCH CORE]]]].
       exists (U', ds'), m1', tt, mu'. split.
       + constructor; assumption.
@@ -198,7 +190,7 @@ Module ParchingFnctr (PA:ParchingAbstract) <: ErasureSig.
  Import SEM.
  Module JSEM:= JuicyMachineShell SEM.
  Module JuicyMachine:= CoarseMachine SCH JSEM.
- Notation JMachineSem:= JuicyMachine.MachineSemantics.
+ Notation (JMachineSem U):= JuicyMachine.MachineSemantics.
  Notation jstate:= JSEM.ThreadPool.t.
  Notation jmachine_state:= JuicyMachine.MachState.
  
@@ -252,7 +244,7 @@ Module ParchingFnctr (PA:ParchingAbstract) <: ErasureSig.
              Admitted.
   (*Core Diagram*)
   Lemma parched_diagram: forall genv U U' m m' jst jst' ds ds',  
-      corestep JMachineSem genv (U, jst) m (U', jst') m' ->
+      corestep (JMachineSem U) genv (U, jst) m (U', jst') m' ->
       match_st jst ds -> match_st jst ds -> 
       corestep DMachineSem genv (U, ds)  m (U', ds') m'.
         Admitted.
@@ -275,7 +267,7 @@ Module Erasure (PC: Parching).
     
   (*Module JSEM:= JuicyMachineSig SEM.
   Module JuicyMachine:= CoarseMachine NatTID SCH JSEM.
-  Definition JMachineSem:= JuicyMachine.MachineSemantics.*)
+  Definition (JMachineSem U):= JuicyMachine.MachineSemantics.*)
   Notation jmachine_state:= JuicyMachine.MachState.
   
   (*Module DSEM:= ShareMachineSig SEM.
@@ -320,7 +312,7 @@ Module Erasure (PC: Parching).
   Lemma core_initial (j: Values.Val.meminj)
              (JS: JuicyMachine.MachState)(vals1:list Values.val)(m1: mem)
              (vals2:list Values.val)(m2: mem)
-             : initial_core JMachineSem genv main vals1 = Some JS ->
+             : initial_core (JMachineSem U) genv main vals1 = Some JS ->
                    init_inv j genv vals1 m1 genv vals2 m2 ->
                    exists (mu : SM_Injection) (cd : core_data) 
                    (DS : DryMachine.MachState),
@@ -337,7 +329,7 @@ Module Erasure (PC: Parching).
          j)).
     
     exists mu, tt.
-    simpl in INIT_C. unfold JuicyMachine.init_machine in INIT_C. unfold JMachineSem.
+    simpl in INIT_C. unfold JuicyMachine.init_machine in INIT_C. unfold (JMachineSem U).
     simpl JSEM.init_mach in INIT_C.
 (*    unfold JSEM.init_mach, JSEM.Sem in INIT_C. *)
     unfold JSEM.init_mach, JSEM.Sem in INIT_C.
@@ -359,7 +351,7 @@ Module Erasure (PC: Parching).
   Lemma core_step' :
     forall (st1 : JuicyMachine.MachState) (m1 : mem)
      (st1' : JuicyMachine.MachState) (m1' : mem),
-   corestep JMachineSem genv st1 m1 st1' m1' ->
+   corestep (JMachineSem U) genv st1 m1 st1' m1' ->
    forall (cd : core_data) (st2 : DryMachine.MachState)
      (mu : SM_Injection) (m2 : mem),
    match_state cd mu st1 m1 st2 m2 ->
@@ -369,7 +361,7 @@ Module Erasure (PC: Parching).
      (corestep DMachineSem genv st2 m2 st2' m2').
        intros jmst m1 jmst' m1' STEP cd dmst mu m2 MATCH.
        exists  m1', tt, mu.
-       unfold corestep, JMachineSem,
+       unfold corestep, (JMachineSem U),
        JuicyMachine.MachineSemantics, JuicyMachine.MachStep in STEP.
        inversion STEP; subst.
        
@@ -547,7 +539,7 @@ Module Erasure (PC: Parching).
   Lemma core_step :
     forall (st1 : JuicyMachine.MachState) (m1 : mem)
      (st1' : JuicyMachine.MachState) (m1' : mem),
-   corestep JMachineSem genv st1 m1 st1' m1' ->
+   corestep (JMachineSem U) genv st1 m1 st1' m1' ->
    forall (cd : core_data) (st2 : DryMachine.MachState)
      (mu : SM_Injection) (m2 : mem),
    match_state cd mu st1 m1 st2 m2 ->
@@ -570,7 +562,7 @@ Module Erasure (PC: Parching).
      (c1 : JuicyMachine.MachState) (m1 : mem) (c2 : DryMachine.MachState)
      (m2 : mem) (v1 : Values.val),
    match_state cd mu c1 m1 c2 m2 ->
-   halted JMachineSem c1 = Some v1 ->
+   halted (JMachineSem U) c1 = Some v1 ->
    exists (j : SM_Injection) (v2 : Values.val),
      halt_inv j genv v1 m1 genv v2 m2 /\ halted DMachineSem c2 = Some v2.
   Proof.
@@ -585,13 +577,13 @@ Module Erasure (PC: Parching).
   
   Theorem erasure:
     Wholeprog_sim.Wholeprog_sim
-      JMachineSem DMachineSem
+      (JMachineSem U) DMachineSem
       genv genv
       main
       ge_inv init_inv halt_inv.
   Proof.
     apply (Wholeprog_sim.Build_Wholeprog_sim
-             JMachineSem DMachineSem
+             (JMachineSem U) DMachineSem
              genv genv
              main
              ge_inv init_inv halt_inv

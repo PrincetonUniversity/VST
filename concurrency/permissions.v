@@ -196,7 +196,15 @@ Section permMapDefs.
     forall b ofs, exists pu,
       perm_union ((Maps.PMap.get b pmap1) ofs)
                  ((Maps.PMap.get b pmap2) ofs) = Some pu.
-  
+  Lemma empty_disjoint:
+    permMapsDisjoint empty_map
+                     empty_map.
+      unfold permMapsDisjoint.
+      unfold empty_map; intros; simpl.
+      unfold Maps.PMap.get; simpl.
+      rewrite Maps.PTree.gempty; simpl.
+      exists None; reflexivity.
+  Qed.
   Lemma permMapsDisjoint_comm :
     forall pmap1 pmap2
       (Hdis: permMapsDisjoint pmap1 pmap2),

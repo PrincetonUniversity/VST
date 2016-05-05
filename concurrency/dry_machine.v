@@ -450,17 +450,26 @@ Module Concur.
     Parameter init_core : G -> val -> list val -> option thread_pool.
 
     Lemma onePos: (0<1)%coq_nat. auto. Qed.
+    Definition two_pos : pos := mkPos NPeano.Nat.lt_0_2.
+
+    Definition compute_init_perm : G -> access_map := fun _ => empty_map. (*Needst to be filled*)
     
-    Definition initial_machine c:=
-      mk (mkPos onePos) (fun _ => Kresume c) (fun _ => empty_map).
+    Variable lp_code : code. (*Parameter should be a halted, empty state. *)
+    Axiom lp_code_halted: ssrbool.isSome (halted Sem lp_code).
+    
+    Definition initial_machine genv c  :=
+      ThreadPool.mk
+        two_pos (*Two threads: a lock pool and the initial thread. *)
+        (fun tid => if tid == ord0 then (Krun lp_code) else Kresume c)
+        (fun tid => if tid == ord0 then empty_map else compute_init_perm genv).
     
     Definition init_mach (genv:G)(v:val)(args:list val):option thread_pool :=
       match initial_core Sem genv v args with
-      | Some c => Some (initial_machine  c)
+      | Some c => Some (initial_machine genv c)
       | None => None
       end.
     
-  End DryMachineShell.
+End DryMachineShell.
 
   (* Here I make the core semantics*)
   (*Declare Module SEM:Semantics.

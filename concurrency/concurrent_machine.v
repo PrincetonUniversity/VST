@@ -175,7 +175,7 @@ Module Type ConcurrentMachineSig.
     forall {tid0 ms},
       containsThread ms tid0 -> Prop.
 
-  Parameter initial_machine: C -> thread_pool.
+  (*Parameter initial_machine: C -> thread_pool.*)
   
   Parameter init_mach : G -> val -> list val -> option thread_pool.
   
@@ -191,7 +191,11 @@ Module Type ConcurrentMachine.
 
   Definition MachState : Type:= (schedule * t)%type.
 
-  Parameter MachineSemantics : CoreSemantics SIG.ThreadPool.SEM.G MachState SEM.M.
+  Parameter MachineSemantics: schedule -> CoreSemantics SIG.ThreadPool.SEM.G MachState SEM.M.
+
+  Axiom initial_schedule: forall genv main vals U U' c,
+      initial_core (MachineSemantics U) genv main vals = Some (U',c) ->
+      U' = U.
 End ConcurrentMachine.
   
 Module CoarseMachine (SCH:Scheduler)(SIG : ConcurrentMachineSig with Module ThreadPool.TID:=SCH.TID) <: ConcurrentMachine with Module SCH:= SCH with Module SIG:= SIG.
@@ -301,18 +305,17 @@ Module CoarseMachine (SCH:Scheduler)(SIG : ConcurrentMachineSig with Module Thre
     | _ => Some Vundef
     end.
 
-  Variable U: Sch.
-  Definition init_machine the_ge (f : val) (args : list val) : option MachState :=
+  Definition init_machine (U:schedule) the_ge (f : val) (args : list val) : option MachState :=
     match init_mach the_ge f args with
     |None => None
     | Some c => Some (U, c)
     end.
   
-  Program Definition MachineSemantics:
+  Program Definition MachineSemantics (U:schedule):
     CoreSemantics G MachState mem.
   intros.
   apply (@Build_CoreSemantics _ MachState _
-                              init_machine 
+                              (init_machine U)
                               at_external
                               after_external
                               halted
@@ -324,7 +327,13 @@ Module CoarseMachine (SCH:Scheduler)(SIG : ConcurrentMachineSig with Module Thre
   Defined.
 (*
   Definition MachineSemantics:= MachineSemantics'.*)
-  
+  Lemma initial_schedule: forall genv main vals U U' c,
+      initial_core (MachineSemantics U) genv main vals = Some (U',c) ->
+      U' = U.
+        simpl. unfold init_machine. intros.
+        destruct (init_mach genv main vals); try solve[inversion H].
+        inversion H; reflexivity.
+  Qed.
 End CoarseMachine.
 
 Module FineMachine  (SCH:Scheduler)(SIG : ConcurrentMachineSig with Module ThreadPool.TID:=SCH.TID) <: ConcurrentMachine with Module SCH:= SCH with Module SIG:= SIG.
@@ -421,18 +430,17 @@ Module FineMachine  (SCH:Scheduler)(SIG : ConcurrentMachineSig with Module Threa
   (*not clear what the value of halted should be*)
   Definition halted (st : MachState) : option val := None.
   
-  Variable U: Sch.
-  Definition init_machine the_ge (f : val) (args : list val) : option MachState :=
+  Definition init_machine (U:schedule) the_ge (f : val) (args : list val) : option MachState :=
     match init_mach the_ge f args with
     | None => None
     | Some c => Some (U, c)
     end.
   
-  Program Definition MachineSemantics :
+  Program Definition MachineSemantics (U:schedule):
     CoreSemantics G MachState mem.
   intros.
   apply (@Build_CoreSemantics _ MachState _
-                              init_machine 
+                              (init_machine U)
                               at_external
                               after_external
                               halted
@@ -442,4 +450,12 @@ Module FineMachine  (SCH:Scheduler)(SIG : ConcurrentMachineSig with Module Threa
   auto.
   Defined.
 
+
+  Lemma initial_schedule: forall genv main vals U U' c,
+      initial_core (MachineSemantics U) genv main vals = Some (U',c) ->
+      U' = U.
+        simpl. unfold init_machine. intros.
+        destruct (init_mach genv main vals); try solve[inversion H].
+        inversion H; reflexivity.
+  Qed.
 End FineMachine.

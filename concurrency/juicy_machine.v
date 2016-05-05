@@ -678,7 +678,6 @@ Module Concur.
     Definition init_mach (genv:G)(v:val)(args:list val) : option thread_pool:=
       match initial_core the_sem genv v args with
       | Some c => Some (initial_machine  c)
-
       | None => None
       end.
       
