@@ -3324,13 +3324,9 @@ Module SimProofs.
       }
     Qed.
                       
-                      
-                    
-                    
-                      
             
 
-            End SimDefs.
+End SimDefs.
 End SimDefs.
 
 Module MachineSimulations.
