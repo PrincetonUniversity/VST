@@ -62,17 +62,17 @@ Module ClightParching <: ErasureSig.
       match_st js ds.
   
   (*match axioms*)
-  Lemma MTCH_ctn: forall {js tid ds},
+  Lemma MTCH_cnt: forall {js tid ds},
            match_st js ds ->
            JTP.containsThread js tid -> DTP.containsThread ds tid.
   Proof. intros ? ? ? MTCH. inversion MTCH. apply mtch_cnt. Qed.
-  Lemma MTCH_ctn': forall {js tid ds},
+  Lemma MTCH_cnt': forall {js tid ds},
            match_st js ds ->
            DTP.containsThread ds tid -> JTP.containsThread js tid.
   Proof. intros ? ? ? MTCH. inversion MTCH. apply mtch_cnt'. Qed.
 
 
-  Lemma ctn_irr: forall tid ds (cnt1 cnt2: DTP.containsThread ds tid),
+  Lemma cnt_irr: forall tid ds (cnt1 cnt2: DTP.containsThread ds tid),
       DTP.getThreadC cnt1 = DTP.getThreadC cnt2.
   Proof. intros.
          
@@ -83,10 +83,10 @@ Module ClightParching <: ErasureSig.
   Qed.
 
   Lemma MTCH_getThreadC: forall js ds tid c,
-      forall (ctn: JTP.containsThread js tid)
+      forall (cnt: JTP.containsThread js tid)
         (M: match_st js ds),
-        JTP.getThreadC ctn =  c ->
-        DTP.getThreadC (MTCH_ctn M ctn) =  c.
+        JTP.getThreadC cnt =  c ->
+        DTP.getThreadC (MTCH_cnt M cnt) =  c.
   Proof. intros ? ? ? ? ? MTCH; inversion MTCH; subst.
          intros HH; rewrite <- HH.
          symmetry.
@@ -111,34 +111,40 @@ Module ClightParching <: ErasureSig.
 
     rewrite (mtch_perm _ _ _ (mtch_cnt' tid cnt) cnt).
     unfold DTP.getThreadR.
-    rewrite <- permissions.restrPermMap_max.
-    specialize (acc_coh b).
-      
-      unfold max_accDess_cohere in max_coh.
-      
+    apply permissions.po_refl.
+  Qed.
       
     Lemma MTCH_updt:
       forall js ds tid c
-        (H0:match_st js ds)  (ctn: JTP.containsThread js tid),
-        match_st (JTP.updThreadC ctn c)
-                 (DTP.updThreadC (MTCH_ctn H0 ctn) c).
-          
+        (H0:match_st js ds)  (cnt: JTP.containsThread js tid),
+        match_st (JTP.updThreadC cnt c)
+                 (DTP.updThreadC (MTCH_cnt H0 cnt) c).
+    Proof.
+      intros. constructor; intros.
+      - apply DTP.cntUpdateC.
+        inversion H0; subst.
+        apply mtch_cnt.
+        eapply JTP.cntUpdateC'; apply H.
+      - apply JTP.cntUpdateC.
+        inversion H0; subst.
+        apply mtch_cnt'.
+        eapply DTP.cntUpdateC'; apply H.
+      - destruct (NatTID.eq_tid_dec tid tid0) as [e|ine].
+        + subst.
+          rewrite JTP.getThreadUpdateC1;
+            rewrite DTP.getThreadUpdateC1.
+          reflexivity.
+        + assert (cnt2:= JTP.cntUpdateC' _ cnt Htid).
+          rewrite <- (JTP.getThreadUpdateC2 c cnt cnt2 Htid) by assumption.
+          inversion H0; subst.
+          pose (cnt':=(@MTCH_cnt js tid ds H0 cnt)).
+          assert (cnt2':= DTP.cntUpdateC' _ cnt' Htid').
+          fold cnt'; rewrite <- (DTP.getThreadUpdateC2 c cnt' cnt2' Htid') by assumption.
+          apply mtch_gtc; assumption.
+      - inversion H0; apply mtch_perm.
+    Qed.
 
-  (*Lemma parch_match: forall (js: jstate) (ds: dstate),
-      match_st js ds <-> ds = parch_state js.*)
-
-       (*
-  (*Init diagram*)
-  Lemma match_init: forall c, match_st (JSEM.initial_machine c) (DSEM.initial_machine c).
-
-  (*Core Diagram*)
-  Lemma parched_diagram: forall genv U U' m m' jst jst' ds ds',  
-      corestep JMachineSem genv (U, jst) m (U', jst') m' ->
-      match_st jst ds -> match_st jst ds -> 
-      corestep DMachineSem genv (U, ds)  m (U', ds') m'.
-        *)
-
-       
+        
   Variable genv: G.
   Variable main: Values.val.
   Lemma init_diagram:
@@ -150,7 +156,10 @@ Module ClightParching <: ErasureSig.
      initial_core DMachineSem genv main vals = Some (U, ds) /\
      DSEM.invariant ds /\
      match_st js ds.
-
+  Proof.
+    intros.
+    exists 
+       
   Lemma core_diagram:
     forall (m : M)  (U U': schedule) 
      (ds : dstate) (js js': jstate) 

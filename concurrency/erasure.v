@@ -40,18 +40,18 @@ Module Type ErasureSig.
   Parameter match_st : jstate ->  dstate -> Prop.
   
   (*match axioms*)
-  Axiom MTCH_ctn: forall {js tid ds},
+  Axiom MTCH_cnt: forall {js tid ds},
            match_st js ds ->
            JSEM.ThreadPool.containsThread js tid -> DSEM.ThreadPool.containsThread ds tid.
-  Axiom MTCH_ctn': forall {js tid ds},
+  Axiom MTCH_cnt': forall {js tid ds},
            match_st js ds ->
            DSEM.ThreadPool.containsThread ds tid -> JSEM.ThreadPool.containsThread js tid.
         
        Axiom MTCH_getThreadC: forall js ds tid c,
-           forall (ctn: JSEM.ThreadPool.containsThread js tid)
+           forall (cnt: JSEM.ThreadPool.containsThread js tid)
            (M: match_st js ds),
-           JSEM.ThreadPool.getThreadC ctn =  c ->
-           DSEM.ThreadPool.getThreadC (MTCH_ctn M ctn) =  c.
+           JSEM.ThreadPool.getThreadC cnt =  c ->
+           DSEM.ThreadPool.getThreadC (MTCH_cnt M cnt) =  c.
         
        Axiom MTCH_compat: forall js ds m,
            match_st js ds ->
@@ -60,9 +60,9 @@ Module Type ErasureSig.
         
        Axiom MTCH_updt:
            forall js ds tid c
-             (H0:match_st js ds)  (ctn: JSEM.ThreadPool.containsThread js tid),
-             match_st (JSEM.ThreadPool.updThreadC ctn c)
-                       (DSEM.ThreadPool.updThreadC (MTCH_ctn H0 ctn) c).
+             (H0:match_st js ds)  (cnt: JSEM.ThreadPool.containsThread js tid),
+             match_st (JSEM.ThreadPool.updThreadC cnt c)
+                       (DSEM.ThreadPool.updThreadC (MTCH_cnt H0 cnt) c).
           
 
   (*Axiom parch_match: forall (js: jstate) (ds: dstate),
@@ -213,22 +213,22 @@ Module ParchingFnctr (PA:ParchingAbstract) <: ErasureSig.
                          admit. Defined.
                               
       (*match axioms*)
-      Lemma MTCH_ctn: forall {js tid ds},
+      Lemma MTCH_cnt: forall {js tid ds},
           match_st js ds ->
           JSEM.ThreadPool.containsThread js tid -> DSEM.ThreadPool.containsThread ds tid.
             intros.
       Admitted.
       
-      Lemma MTCH_ctn': forall {js tid ds},
+      Lemma MTCH_cnt': forall {js tid ds},
           match_st js ds ->
           DSEM.ThreadPool.containsThread ds tid -> JSEM.ThreadPool.containsThread js tid.
       Admitted.
         
        Lemma MTCH_getThreadC: forall js ds tid (c:ctl),
-           forall (ctn: JSEM.ThreadPool.containsThread js tid)
+           forall (cnt: JSEM.ThreadPool.containsThread js tid)
            (M: match_st js ds),
-           JSEM.ThreadPool.getThreadC ctn =  c ->
-           DSEM.ThreadPool.getThreadC (MTCH_ctn M ctn) = c.
+           JSEM.ThreadPool.getThreadC cnt =  c ->
+           DSEM.ThreadPool.getThreadC (MTCH_cnt M cnt) = c.
       Admitted.
         
        Lemma MTCH_compat: forall js ds m,
@@ -239,9 +239,9 @@ Module ParchingFnctr (PA:ParchingAbstract) <: ErasureSig.
         
        Lemma MTCH_updt:
            forall js ds tid c
-             (H0:match_st js ds)  (ctn: JSEM.ThreadPool.containsThread js tid),
-             match_st (JSEM.ThreadPool.updThreadC ctn c)
-                       (DSEM.ThreadPool.updThreadC (MTCH_ctn H0 ctn) c).
+             (H0:match_st js ds)  (cnt: JSEM.ThreadPool.containsThread js tid),
+             match_st (JSEM.ThreadPool.updThreadC cnt c)
+                       (DSEM.ThreadPool.updThreadC (MTCH_cnt H0 cnt) c).
                Admitted.
 
   (*Axiom parch_match: forall (js: jstate) (ds: dstate),
@@ -378,8 +378,8 @@ Module Erasure (PC: Parching).
        inversion H3; subst.
        
        
-       eapply (MTCH_getThreadC _ ds tid _ ctn H1) in HC.
-       exists (U, DSEM.updThreadC (MTCH_ctn H1 ctn) (Krun c)).
+       eapply (MTCH_getThreadC _ ds tid _ cnt H1) in HC.
+       exists (U, DSEM.updThreadC (MTCH_cnt H1 cnt) (Krun c)).
        split.
        { destruct jmst'.
          simpl in Hms'; rewrite <- Hms'.
@@ -402,7 +402,7 @@ Module Erasure (PC: Parching).
          inversion Hcorestep.
          Search dstate.
          Axiom get_permMap: mem -> permissions.share_map.
-         exists (U, updThread (MTCH_ctn H1 (Htid))
+         exists (U, updThread (MTCH_cnt H1 (Htid))
                          (Krun c') (get_permMap (juicy_mem.m_dry jm'))).
          split.
          - destruct jmst' as [U' js'].
@@ -413,14 +413,14 @@ Module Erasure (PC: Parching).
                             (MATCH: match_st js ds),
              match_st
                (juicy_machine.updThread js (cont2ord Htid) c (juicy_mem.m_phi new_jm))
-               (updThread (MTCH_ctn MATCH Htid) c (get_permMap (juicy_mem.m_dry new_jm))).
+               (updThread (MTCH_cnt MATCH Htid) c (get_permMap (juicy_mem.m_dry new_jm))).
          admit. (*invariant step *)
          - apply upd_MATCH.
          - pose (Hcompatible:= @MTCH_compat js _ _ H1 Hcmpt).
-           assert (Hcnt : ThreadPool.containsThread ds tid) by (apply (@MTCH_ctn js); auto).
+           assert (Hcnt : ThreadPool.containsThread ds tid) by (apply (@MTCH_cnt js); auto).
            econstructor 2; try eassumption.
            unfold DSEM.cstep.
-           eapply (@step_dry _ _ Sem _ tid ds m2 (MTCH_ctn H1 Htid) _  _ c).
+           eapply (@step_dry _ _ Sem _ tid ds m2 (MTCH_cnt H1 Htid) _  _ c).
            reflexivity.
            inversion MATCH0; try eassumption.
            apply MTCH_getThreadC; eassumption.
@@ -433,7 +433,7 @@ Module Erasure (PC: Parching).
                (Hcmpt: JSEM.mem_compatible js m),
                (juicy_mem.m_dry (personal_mem Htid Hcmpt)) = 
                (restrPermMap
-                  (permMapsInv_lt (perm_comp (MTCH_compat _ _ _ MTCH Hcmpt)) (MTCH_ctn MTCH Htid))).
+                  (permMapsInv_lt (perm_comp (MTCH_compat _ _ _ MTCH Hcmpt)) (MTCH_cnt MTCH Htid))).
            Admitted.
            unfold Hcompatible.
            rewrite <- MTCH_personal_mem.
@@ -445,8 +445,8 @@ Module Erasure (PC: Parching).
        (* suspend_step *)
        inversion MATCH0; subst.
        inversion H; subst.
-       eapply (MTCH_getThreadC _ ds tid _ ctn H1) in HC.
-       exists (SCH.schedSkip U, DSEM.updThreadC (MTCH_ctn H1 ctn) (Kstop c)).
+       eapply (MTCH_getThreadC _ ds tid _ cnt H1) in HC.
+       exists (SCH.schedSkip U, DSEM.updThreadC (MTCH_cnt H1 cnt) (Kstop c)).
        split.
        { destruct jmst'.
          simpl in Hms'; rewrite <- Hms'.
@@ -468,7 +468,7 @@ Module Erasure (PC: Parching).
          inversion MATCH.
          inversion Hconc; subst.
          - (*Lock*)
-           exists (fst jmst',updThread (MTCH_ctn H0 (Htid))
+           exists (fst jmst',updThread (MTCH_cnt H0 (Htid))
                          (Krun c') (get_permMap (juicy_mem.m_dry jm'))).
            simpl; split.
            + destruct jmst' as [U' jm''].
@@ -508,7 +508,7 @@ Module Erasure (PC: Parching).
          unfold DryMachine.MachStep; simpl.
          inversion MATCH0; subst.
          inversion Hhalted; subst.
-         cut (DSEM.threadHalted (MTCH_ctn H7 cnt)).
+         cut (DSEM.threadHalted (MTCH_cnt H7 cnt)).
          { intros HH; eapply (DryMachine.step_halted tid _ _ _ _ _ _ _ _ HH). }
          { inversion Hhalted; subst.
            econstructor.
@@ -534,7 +534,7 @@ Module Erasure (PC: Parching).
        -  inversion MATCH0; subst. econstructor 6. simpl. exact HschedN.
           simpl.
           unfold not; intros NOWAY; apply Htid.
-          eapply MTCH_ctn' in NOWAY;  eassumption.
+          eapply MTCH_cnt' in NOWAY;  eassumption.
           simpl. exact HschedS. 
 
           (* Fix this in place*)

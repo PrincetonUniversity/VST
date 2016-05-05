@@ -3,10 +3,13 @@ Require Import compcert.common.AST.
 (*THREADS*)
 Module Type ThreadID.
   Parameter tid: Set.
+  Axiom eq_tid_dec: forall (i j: tid), {i=j} + {i<>j}.
 End ThreadID.
 
 Module NatTID <: ThreadID.
   Definition tid:= nat.
+  Lemma eq_tid_dec: forall (i j: tid), {i=j} + {i<>j}.
+  Proof. intros; apply Peano_dec.eq_nat_dec. Qed.
 End NatTID.
 
 (*SCHEDULERS*)
