@@ -162,6 +162,28 @@ Module ThreadPool (SEM:Semantics) <: ThreadPoolSig
     rewrite <- numUpdateC in H; assumption.
   Qed.
 
+  Lemma cntUpdateR:
+    forall {i j tp} r
+      (cnti: containsThread tp i),
+      containsThread tp j->
+      containsThread (updThreadR cnti r) j.
+  Proof.
+    intros tid tp.
+    unfold containsThread; intros.
+      by simpl.
+  Qed.
+      
+  Lemma cntUpdateR':
+    forall {i j tp} r
+      (cnti: containsThread tp i),
+      containsThread (updThreadR cnti r) j -> 
+      containsThread tp j.
+  Proof.
+    intros tid tp.
+    unfold containsThread; intros.
+      by simpl.
+  Qed.
+  
   Lemma cntUpdate :
     forall {i j tp} c p
       (cnti: containsThread tp i),
@@ -172,6 +194,7 @@ Module ThreadPool (SEM:Semantics) <: ThreadPoolSig
     unfold containsThread; intros.
     by simpl.
   Qed.
+  
   Lemma cntUpdate':
     forall {i j tp} c p
       (cnti: containsThread tp i),
@@ -182,33 +205,19 @@ Module ThreadPool (SEM:Semantics) <: ThreadPoolSig
     unfold containsThread in *; intros.
       by simpl in *.
   Qed.
-  
-  Lemma getThreadUpdateC1:
-    forall {tid tp} c
-      (cnt: containsThread tp tid)
-      (cnt': containsThread (updThreadC cnt c) tid),
-      getThreadC cnt' = c.
-  Proof.
-    intros. destruct tp. simpl.
-    rewrite (cnt_irr cnt cnt') eq_refl; reflexivity.
-  Qed.
-  
-  Lemma getThreadUpdateC2:
-    forall {tid tid0 tp} c
-      (cnt1: containsThread tp tid)
-      (cnt2: containsThread tp tid0)
-      (cnt3: containsThread (updThreadC cnt1 c) tid0),
-      tid <> tid0 ->
-      getThreadC cnt2 = getThreadC cnt3.
-  Proof.
-    intros. destruct tp. simpl.
-    (*Could use ssreflect better here: *)
-    destruct (@eqP _ (Ordinal (n:=num_threads0) (m:=tid1) cnt3) (Ordinal (n:=num_threads0) (m:=tid0) cnt1)).
-    inversion e. exfalso; apply H; symmetry; eassumption.
-    rewrite (cnt_irr cnt2 cnt3); reflexivity.
-  Qed.
-        
 
+  Lemma cntAdd:
+    forall {j tp} c p,
+      containsThread tp j ->
+      containsThread (addThread tp c p) j.
+  Proof.
+    intros;
+    unfold addThread, containsThread in *;
+    simpl;
+      by auto.
+  Qed.
+  
+  (* TODO: most of these proofs are similar, automate them*)
   (*GetThread Properties*)  
   Lemma gssThreadCode {tid tp} (cnt: containsThread tp tid) c' p'
         (cnt': containsThread (updThread cnt c' p') tid) :
@@ -220,6 +229,20 @@ Module ThreadPool (SEM:Semantics) <: ThreadPoolSig
     apply proof_irr.
   Qed.
 
+  Lemma gsoThreadCode:
+    forall {i j tp} (Hneq: i <> j) (cnti: containsThread tp i)
+      (cntj: containsThread tp j) c' p'
+      (cntj': containsThread (updThread cnti c' p') j),
+      getThreadC cntj' = getThreadC cntj.
+  Proof.
+    intros.
+    simpl.
+    erewrite if_false
+      by (apply/eqP; intros Hcontra; inversion Hcontra; by auto).
+    unfold updThread in cntj'. unfold containsThread in *. simpl in *.
+    unfold getThreadC. do 2 apply f_equal. apply proof_irr.
+  Qed.
+  
   Lemma gssThreadRes {tid tp} (cnt: containsThread tp tid) c' p'
         (cnt': containsThread (updThread cnt c' p') tid) :
     getThreadR cnt' = p'.
@@ -274,6 +297,71 @@ Module ThreadPool (SEM:Semantics) <: ThreadPoolSig
     unfold updThreadC, containsThread in *. simpl in *.
     do 2 apply f_equal.
     apply proof_irr.
+  Qed.
+
+  Lemma gThreadRC {i j tp} (cnti: containsThread tp i)
+        (cntj: containsThread tp j) p
+        (cntj': containsThread (updThreadR cnti p) j) :
+    getThreadC cntj' = getThreadC cntj.
+  Proof.
+    simpl.
+    unfold getThreadC.
+    unfold updThreadR, containsThread in *. simpl in *.
+    do 2 apply f_equal.
+    apply proof_irr.
+  Qed.
+
+  Lemma unlift_m_inv :
+    forall tp i (Htid : i < (num_threads tp).+1) ord
+      (Hunlift: unlift (ordinal_pos_incr (num_threads tp))
+                       (Ordinal (n:=(num_threads tp).+1)
+                                (m:=i) Htid)=Some ord),
+      nat_of_ord ord = i.
+  Proof.
+    intros.
+    assert (Hcontra: unlift_spec (ordinal_pos_incr (num_threads tp))
+                                 (Ordinal (n:=(num_threads tp).+1)
+                                          (m:=i) Htid) (Some ord)).
+    rewrite <- Hunlift.
+    apply/unliftP.
+    inversion Hcontra; subst.
+    inversion H0.
+    unfold bump.
+    assert (pf: ord < (num_threads tp))
+      by (by rewrite ltn_ord).
+    assert (H: (num_threads tp) <= ord = false).
+    rewrite ltnNge in pf.
+    rewrite <- Bool.negb_true_iff. auto.
+    rewrite H. simpl. rewrite add0n. reflexivity.
+  Defined.
+  
+  Lemma goaThreadC {i tp}
+        (cnti: containsThread tp i) c p
+        (cnti': containsThread (addThread tp c p) i) :
+    getThreadC cnti' = getThreadC cnti.
+  Proof.
+    simpl.
+    unfold getThreadC.
+    unfold addThread, containsThread in *. simpl in *.
+    destruct (unlift (ordinal_pos_incr (num_threads tp))
+                     (Ordinal (n:=(num_threads tp).+1) (m:=i) cnti')) eqn:H.
+    rewrite H. apply unlift_m_inv in H. subst i.
+    destruct o.
+    do 2 apply f_equal;
+      by apply proof_irr.
+    destruct (i == num_threads tp) eqn:Heqi; move/eqP:Heqi=>Heqi.
+    subst i.
+    exfalso;
+      by ssromega.
+    assert (Hcontra: (ordinal_pos_incr (num_threads tp))
+                       != (Ordinal (n:=(num_threads tp).+1) (m:=i) cnti')).
+    { apply/eqP. intros Hcontra.
+            unfold ordinal_pos_incr in Hcontra.
+            inversion Hcontra; auto.
+    }
+    apply unlift_some in Hcontra. rewrite H in Hcontra.
+    destruct Hcontra;
+      by discriminate.
   Qed.
   
 End ThreadPool.
