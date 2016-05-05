@@ -176,6 +176,27 @@ Module ThreadPool (SEM:Semantics) <: ThreadPoolSig
     unfold containsThread; intros.
     rewrite <- numUpdateC in H; assumption.
   Qed.
+
+  Lemma cntUpdate :
+    forall {i j tp} c p
+      (cnti: containsThread tp i),
+      containsThread tp j ->
+      containsThread (updThread cnti c p) j. 
+  Proof.
+    intros tid tp.
+    unfold containsThread; intros.
+      by simpl.
+  Qed.
+  Lemma cntUpdate':
+    forall {i j tp} c p
+      (cnti: containsThread tp i),
+      containsThread (updThread cnti c p) j ->
+      containsThread tp j.
+  Proof.
+    intros.
+    unfold containsThread in *; intros.
+      by simpl in *.
+  Qed.
   
   Lemma getThreadUpdateC1:
     forall {tid tp} c
@@ -246,6 +267,19 @@ Module ThreadPool (SEM:Semantics) <: ThreadPoolSig
     apply proof_irr.
   Qed.
 
+  Lemma gsoThreadCC {i j tp} (Hneq: i <> j) (cnti: containsThread tp i)
+        (cntj: containsThread tp j) c'
+        (cntj': containsThread (updThreadC cnti c') j) :
+    getThreadC cntj = getThreadC cntj'.
+  Proof.
+    simpl.
+    erewrite threads_lemmas.if_false
+      by (apply/eqP; intros Hcontra; inversion Hcontra; auto).
+    unfold updThreadC in cntj'. unfold containsThread in *.
+    simpl in cntj'. unfold getThreadC.
+    do 2 apply f_equal. by apply proof_irr.
+  Qed.
+  
   Lemma gThreadCR {i j tp} (cnti: containsThread tp i)
         (cntj: containsThread tp j) c'
         (cntj': containsThread (updThreadC cnti c') j) :

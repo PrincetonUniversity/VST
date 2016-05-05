@@ -98,8 +98,18 @@ Module Type ThreadPoolSig.
     forall {tid tid0 tp} c
       (cnt: containsThread tp tid),
       containsThread (updThreadC cnt c) tid0 -> 
-      containsThread tp tid0. 
-
+      containsThread tp tid0.
+  Axiom cntUpdate:
+    forall {i j tp} c p
+      (cnti: containsThread tp i),
+      containsThread tp j ->
+      containsThread (updThread cnti c p) j.
+  Axiom cntUpdate':
+    forall {i j tp} c p
+      (cnti: containsThread tp i),
+      containsThread (updThread cnti c p) j ->
+      containsThread tp j.
+  
   Axiom getThreadUpdateC1:
     forall {tid tp} c
       (cnt: containsThread tp tid)
@@ -135,6 +145,12 @@ Module Type ThreadPoolSig.
       (cnt': containsThread (updThreadC cnt c') tid),
       getThreadC cnt' = c'.
 
+  Axiom gsoThreadCC:
+    forall {i j tp} (Hneq: i <> j) (cnti: containsThread tp i)
+      (cntj: containsThread tp j) c'
+      (cntj': containsThread (updThreadC cnti c') j),
+      getThreadC cntj = getThreadC cntj'.
+
   Axiom gThreadCR:
     forall {i j tp} (cnti: containsThread tp i)
       (cntj: containsThread tp j) c'
@@ -152,6 +168,8 @@ Module Type ConcurrentMachineSig.
   (** Memories*)
   Parameter richMem: Type.
   Parameter dryMem: richMem -> M.
+  Parameter diluteMem : M -> M.
+
   
   (** Environment and Threadwise semantics *)
   (** These values come from SEM *)
@@ -349,6 +367,7 @@ Module FineMachine  (SCH:Scheduler)(SIG : ConcurrentMachineSig with Module Threa
   | ResumeThread: forall tid0 ms ms' c
                     (ctn: containsThread ms tid0)
                     (HC: getThreadC ctn = Kresume c)
+                    (Hinv: invariant ms)
                     (Hms': updThreadC ctn (Krun c)  = ms'),
       resume_thread' ctn ms'.
   Definition resume_thread: forall {tid0 ms},
@@ -361,6 +380,7 @@ Module FineMachine  (SCH:Scheduler)(SIG : ConcurrentMachineSig with Module Threa
                      (ctn: containsThread ms tid0)
                      (HC: getThreadC ctn = Krun c)
                      (Hat_external: at_external Sem c = Some (ef, sig, args))
+                     (Hinv: invariant ms)
                      (Hms': updThreadC ctn (Kstop c)  = ms'),
       suspend_thread' ctn ms'.
   Definition suspend_thread : forall {tid0 ms},
@@ -384,7 +404,7 @@ Module FineMachine  (SCH:Scheduler)(SIG : ConcurrentMachineSig with Module Threa
         (Htid: containsThread ms tid)
         (Hcmpt: mem_compatible ms m)
         (Htstep: cstep genv Htid Hcmpt ms' m'),
-        machine_step U ms m U' ms' m'
+        machine_step U ms m U' ms' (diluteMem m')
   | suspend_step:
       forall tid U U' ms ms' m
         (HschedN: schedPeek U = Some tid)
