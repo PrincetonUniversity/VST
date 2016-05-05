@@ -17,6 +17,7 @@ Require Import compcert.common.AST.     (*for typ*)
 Require Import compcert.common.Values. (*for val*)
 Require Import compcert.common.Globalenvs. 
 Require Import compcert.common.Memory.
+Require Import compcert.common.Events.
 Require Import compcert.lib.Integers.
 
 Require Import Coq.ZArith.ZArith.
@@ -296,23 +297,14 @@ Module CoreLanguage.
             (Hstep: corestep Sem the_ge cc mc cc' mc'),
           exists mf' f',
             corestep Sem the_ge cc mf cc' mf'
-            /\ mem_obs_eq f' mc' mf' /\ inject_incr f f'
+            /\ mem_obs_eq f' mc' mf'
+            /\ inject_incr f f'
+            /\ inject_separated f f' mc mf
             /\ (exists g, forall b2, Mem.valid_block mf' b2 ->
                           ~ Mem.valid_block mf b2 ->
                           exists b1, g b2 = Some (b1,0%Z)
                                 /\ f' b1 = Some (b2,0%Z)
                                 /\ f b1 = None);
-        (*possible strengthening:
-               (forall b1 b2, f b1 = None -> f' b1 = Some b2 ->
-                   ~ Mem.valid_block mf b2 /\ Mem.valid_block mf' b2) *)
-        corestep_owned:
-          forall c c' m m',
-            corestep Sem the_ge c m c' m' ->
-            forall b,
-              ~ Mem.valid_block m b ->
-              Mem.valid_block m' b ->
-              forall ofs,
-                permission_at m' b ofs Cur = Some Freeable;
         corestep_decay:
           forall c c' m m',
             corestep Sem the_ge c m c' m' ->
@@ -474,14 +466,16 @@ Module InternalSteps.
       unfold containsThread. simpl. auto.
     Qed.
 
-    Lemma dry_step_compatible :
-      forall (tp tp' : thread_pool) m m' (i : nat) (pf : containsThread tp i)
-        (Hcompatible: mem_compatible tp m)
-        (Hdry: dry_step the_ge pf Hcompatible tp' m'),
-        mem_compatible tp' m'.
+    Lemma corestep_compatible:
+      forall (tp : thread_pool) (m m' : mem) (i : nat)
+        (pf : containsThread tp i) (c c': code)
+        (Hinv: invariant tp)
+        (Hcode: getThreadC pf = Krun c)
+        (Hcompatible : mem_compatible tp m)
+        (Hcorestep: corestep SEM.Sem the_ge c (restrPermMap (Hcompatible i pf)) c' m'),
+        mem_compatible (updThread pf (Krun c') (getCurPerm m')) m'.
     Proof.
       intros.
-      inversion Hdry. subst tp'0 tp' m'0.
       unfold mem_compatible, updThread, permMapLt. simpl.
       intros tid cnt b ofs. 
       match goal with
@@ -496,7 +490,7 @@ Module InternalSteps.
       unfold getThreadR in Hlt.
       eapply corestep_decay in Hcorestep.
       apply decay_decay' in Hcorestep.
-      destruct (valid_block_dec m1 b)
+      destruct (valid_block_dec (restrPermMap (Hcompatible i pf)) b)
         as [Hvalid|Hinvalid].
       - unfold decay' in Hcorestep.
         destruct (Hcorestep b ofs) as [ _ Hdecay].
@@ -504,8 +498,7 @@ Module InternalSteps.
         + destruct Hfreed as [HFree Hdrop].
           assert (Hempty: (perm_maps tp (Ordinal (n:=num_threads tp) (m:=tid) cnt))
                             # b ofs = None).
-          { rewrite <- Hrestrict_pmap in HFree.
-            assert (Hp := restrPermMap_Cur (Hcompatible i pf) b ofs).
+          { assert (Hp := restrPermMap_Cur (Hcompatible i pf) b ofs).
             unfold permission_at in Hp. rewrite Hp in HFree.
             assert (Hno_race := no_race Hinv).
             unfold race_free in Hno_race.
@@ -525,7 +518,6 @@ Module InternalSteps.
         + rewrite getMaxPerm_correct. unfold permission_at.
           admit. (*need lennart's new lemma *)
       - apply Mem.nextblock_noaccess with (ofs := ofs) (k := Max) in Hinvalid.
-        rewrite <- Hrestrict_pmap in Hinvalid.
         assert (Hp := restrPermMap_Max (Hcompatible i pf) b ofs).
         unfold permission_at in Hp. rewrite Hp in Hinvalid.
         rewrite Hinvalid in Hlt.
@@ -533,7 +525,18 @@ Module InternalSteps.
         destruct ((perm_maps tp (Ordinal (n:=num_threads tp) (m:=tid) cnt)) # b ofs);
           [by exfalso| destruct ((getMaxPerm m') # b ofs); simpl; by auto].
     Qed.
-
+      
+    Lemma dry_step_compatible :
+      forall (tp tp' : thread_pool) m m' (i : nat) (pf : containsThread tp i)
+        (Hcompatible: mem_compatible tp m)
+        (Hdry: dry_step the_ge pf Hcompatible tp' m'),
+        mem_compatible tp' m'.
+    Proof.
+      intros.
+      inversion Hdry; subst; eapply corestep_compatible;
+        by eauto.
+    Qed.
+     
     Lemma resume_step_compatible :
       forall (tp tp' : thread_pool) m (i : nat) (pf : containsThread tp i)
         (Hcompatible: mem_compatible tp m)
@@ -1538,7 +1541,7 @@ Module SimProofs.
         assert (H' := Hcorestep).
         eapply corestep_obs_eq in Hcorestep; eauto.
         destruct Hcorestep
-          as [mf' [fi' [HcorestepF [Hobs_eq' [Hincr Hinverse]]]]].
+          as [mf' [fi' [HcorestepF [Hobs_eq' [Hincr [Hseparated Hinverse]]]]]].
         remember (restrPermMap (Hcompf _ pff)) as mf1 eqn:Hrestrict.
         symmetry in Hrestrict.
         remember (updThread pff (Krun c') (getCurPerm mf'))
@@ -1581,42 +1584,24 @@ Module SimProofs.
             by (subst tpf'; rewrite gssThreadRes; eauto);
            by eapply mem_obs_eq_restr.
          (* block ownership*)
-         (*sketch: the invariant is maintanted by coresteps hence it will hold
-           for tpf'. Moreover we know that the new blocks in mc'|i 
-           will be freeable and by the strong obs eq this is also the case for
-           mf'|i. Hence by the invariant new blocks in mf'|j will have None. *)
+         (*sketch: the invariant is maintanted by coresteps hence it
+           will hold for tpf'. Moreover we know that the new blocks in
+           mc'|i will be mapped to new blocks in mf' by inject separated,
+           where the permissions are empty for other threads. *)
          intros j pffj Hij b1 b2 Hfi' Hfi ofs.
-         assert (HinvF': invariant tpf')
-           by (subst tpf'; eapply corestep_invariant; eauto).
-         assert (pffi': containsThread tpf' i)
-           by (subst; auto).
-         assert (pffj': containsThread tpf' j)
-           by (subst; auto).
-         assert (Hno_race := no_race HinvF').
-         specialize (Hno_race i j pffi' pffj' Hij b2 ofs).
-         apply corestep_owned with (b := b1) (ofs := ofs) in H'.
-         assert (Hpermi: (getThreadR pffi') # b2 ofs = Some Freeable).
-         { assert (Hlt := (perm_obs_weak (weak_obs_eq Hobs_eq'))).
-           specialize (Hlt _ _ ofs Hfi').
-           assert (Hgt := (perm_obs_strong Hobs_eq') _ _ ofs Hfi').
-           subst tpf'. rewrite gssThreadRes.
-           rewrite getCurPerm_correct.
-           rewrite <- H'.
-           eapply perm_order_antisym; eauto.
+         specialize (Hseparated _ _ _ Hfi Hfi').
+         destruct Hseparated as [Hinvalidmc1 Hinvalidmf1].
+         apply Mem.nextblock_noaccess with (k := Max) (ofs := ofs) in Hinvalidmf1.
+         assert (Hlt := Hcompf _ pffj b2 ofs).
+         rewrite getMaxPerm_correct in Hlt.
+         assert (Hperm_b2: permission_at mf b2 ofs Max = None).
+         { subst mf1.
+           assert (H:= restrPermMap_Max (Hcompf i pff) b2 ofs).
+           unfold permission_at in H. rewrite Hinvalidmf1 in H.
+           rewrite getMaxPerm_correct in H. by auto.
          }
-         subst. erewrite <- gsoThreadRes with (cntj' := pffj') by auto.
-         rewrite Hpermi in Hno_race.
-         assert (Hpermj' : not_racy ((getThreadR pffj') # b2 ofs))
-           by (eapply no_race_racy; eauto; constructor).
-         inversion Hpermj'; by auto.
-         intros Hcontra.
-         apply (domain_valid (weak_obs_eq memObsEq)) in Hcontra.
-         destruct Hcontra as [? Hcontra];
-           by congruence.
-         destruct (valid_block_dec mc' b1) as [? | Hcontra];
-           first by assumption.
-         apply (domain_invalid (weak_obs_eq Hobs_eq')) in Hcontra;
-           by congruence.
+         rewrite Hperm_b2 in Hlt.
+         simpl in Hlt. destruct ((getThreadR pffj) # b2 ofs); by tauto.
         }
       }
       { destruct Hresume as [Hresume Heq]; subst.
@@ -2143,7 +2128,6 @@ Module SimProofs.
       rewrite Hnothalted in Hhalted; eauto.
     Qed.
 
-
     Lemma strong_tsim_step:
       forall tp1 tp2 tp1' m1 m2 m1' j f
         (pf1j: containsThread tp1 j)
@@ -2156,6 +2140,7 @@ Module SimProofs.
       exists tp2' m2' f',
         internal_step pf1j' Hcomp1' tp2' m2' /\
         inject_incr f f' /\
+        (* inject_separated f f' m1 m1' *)
         (exists g, forall b2, Mem.valid_block m2' b2 ->
                     ~ Mem.valid_block m1' b2 ->
                     exists b1, g b2 = Some (b1, 0%Z) /\
@@ -2176,7 +2161,7 @@ Module SimProofs.
         rewrite Hcode in Hcode_eq.
         assert (H := corestep_obs_eq c c' m2 Hmem_obs_eq Hcorestep).
         destruct H
-          as [m2' [f' [Hcorestep' [Hobs_eq [Hincr Hinverse]]]]].
+          as [m2' [f' [Hcorestep' [Hobs_eq [Hincr [Hseparated Hinverse]]]]]].
         exists (updThread pf1j' (Krun c') (getCurPerm m2')) m2' f'.
         assert (Hinternal':
                   internal_step pf1j' Hcomp1'
@@ -2468,14 +2453,23 @@ Module SimProofs.
           }
           { (* Permissions of the coarse-state are higher than the fine-state *)
             (* Proof idea: for thread i, we have a strong simulation
-            on internal steps and then a suspend step so it should
-            be straightforward. For thread j: For blocks before
-            (nextblock mc) from weak-si* and for blocks after
-            (nextblock mc) this should be freeable on i and thus
-            empty on j. Morever, we have a strong simulation on thread
-            i and a non-interference invariant, hence we can infer
-            that the new locations will have empty permission on the
-            fine-grained machine. *)
+            on internal steps and then a suspend step so it should be
+            straightforward. For thread j: For blocks before
+            (nextblock mc) from weak-sim and for blocks after
+            (nextblock mc) this should be freeable on i and thus empty
+            on j. Correction: This doesn't hold, because the new
+            blocks may have been freed by some internal step. Hence we
+            need some other way to capture that they belong to thread
+            i and the other threads should have empty permission (a
+            new invariant). In fact, this invariant should talk about
+            the permissions at the fine-grained level as we no longer
+            can use the non-interference invariant because the
+            permissions of thread i are not necessary freeable.
+
+            Deprecated and wrong: Morever, we have a strong simulation
+            on thread i and a non-interference invariant, hence we can
+            infer that the new locations will have empty permission on
+            the fine-grained machine.  *)
             intros b1 b2 ofs Hfi.
             (* The permissions will be same as before taking the suspend step*)
             assert (pffj: containsThread tpf j) by admit.
@@ -2493,6 +2487,8 @@ Module SimProofs.
                 by pf_cleanup.
             }
             rewrite Hperm_eqF.
+            (* Likewise for the coarse-grained machine*)
+            (* TODO: factor these two into gThreadR_suspend lemmas*)
             assert (pfcj': containsThread tpc' j) by admit.
             assert (Hperm_eqC: permission_at (restrPermMap (memCompC'' _ pfcj''))
                                              b1 ofs Cur =
@@ -2514,13 +2510,14 @@ Module SimProofs.
               subst.
               clear - Htsim Hfi.
               destruct Htsim as [_ Hstrong]; destruct Hstrong as [Hweak _ _];
-              destruct Hweak as [_ _ _ Hperm_weak].
-              specialize (Hperm_weak b1 b2 ofs Hfi). by pf_cleanup.
+              destruct Hweak as [_ _ _ _ Hperm_weak].
+              specialize (Hperm_weak b1 b2 ofs Hfi).
+                by pf_cleanup.
             }
             { (* Case j <> i *)
-              assert (pfcj: containsThread tpc j) by admit.
+              assert (pfcj: containsThread tpc j) by admit.  (*TODO: containsThread backward for execution*)
               specialize (HsimWeak _ pfcj pffj). 
-              inversion HsimWeak as [Hinvdomain Hdomain Hinj Hobs_weak].
+              inversion HsimWeak as [Hinvdomain Hdomain Hcodomain Hinj Hobs_weak].
               destruct (valid_block_dec mc b1) as [Hvalid_mc | Hinvalid_mc].
               - (* b1 is a block that's valid in mc, i.e. not allocated by i *)
                 assert (Hvalid: Mem.valid_block (restrPermMap (HmemCompC _ pfcj)) b1)
@@ -2534,42 +2531,14 @@ Module SimProofs.
                 erewrite <- permission_at_execution with (xs := xs) (tp := tpc);
                   eauto.
               - (* b1 is a block that's not valid in mc, i.e. allocated by i *)
-                eapply internal_execution_decay
-                with (Hcomp := HmemCompC) (Hcomp' := memCompC') (cnt := pfc) (cnt' := pfc') in Hexec.
-                apply decay_decay' in Hexec.
-                destruct (Hexec b1 ofs) as [Halloc _].
-                assert (Hvalid' : Mem.valid_block (restrPermMap (memCompC' i pfc')) b1).
-                { destruct (valid_block_dec (restrPermMap (memCompC' i pfc')) b1) as [? | Hcontra].
-                  assumption.
-                  apply (domain_invalid (weak_obs_eq (strong_obs Htsim))) in Hcontra.
-                  rewrite Hfi in Hcontra. by discriminate.
-                }
-                unfold Mem.valid_block in *.
-                rewrite restrPermMap_nextblock in Halloc.
-                specialize (Halloc Hinvalid_mc Hvalid').
-                assert (Hperm_eq := perm_obs_strong (strong_obs Htsim)).
-                specialize (Hperm_eq b1 b2 ofs Hfi).
-                unfold permission_at in Hperm_eq. rewrite Halloc in Hperm_eq.
-                destruct (((Mem.mem_access (restrPermMap (HmemCompF i pff))) # b2 ofs
-                                                                             Cur)) eqn:HgetiF.
-                + simpl in Hperm_eq.
-                  assert (H : p = Freeable)
-                    by (destruct p; auto; inversion Hperm_eq); subst.
-                  clear Hperm_eq.
-                  assert (HgetjF: permission_at (restrPermMap (HmemCompF j pffj)) b2 ofs Cur = None).
-                  { assert (Hno_race := (no_race HinvF) _ _ pff pffj Hij b2 ofs).
-                    assert (H := restrPermMap_Cur (HmemCompF i pff) b2 ofs).
-                    unfold permission_at in *. rewrite H in HgetiF.
-                    rewrite HgetiF in Hno_race.
-                    eapply no_race_racy in Hno_race. inversion Hno_race.
-                    assert (Heq := restrPermMap_Cur (HmemCompF j pffj) b2 ofs).
-                    unfold permission_at in Heq. rewrite Heq. auto.
-                    constructor.
-                  }
-                  rewrite HgetjF.
-                  destruct (permission_at (restrPermMap (memCompC' j pfcj')) b1 ofs Cur);
-                    simpl; auto.
-                + by inversion Hperm_eq.
+                (* NOTE: here is the place where we use the invariant
+                about blocks owned by i. The proof became much smaller
+                (but the burden was moved elsewhere)*)
+                apply Hinvdomain in Hinvalid_mc.
+                specialize (Hownedi j pffj Hij _ _ ofs Hfi Hinvalid_mc).
+                do 2 rewrite restrPermMap_Cur. rewrite Hownedi.
+                destruct ((getThreadR pfcj') # b1 ofs); simpl;
+                  by auto.
             }
           }
         }
@@ -2582,34 +2551,42 @@ Module SimProofs.
            * Take as fj' = | b < nb mc => id | nb mc =< b < nb mci => fi 
            *               | nb mci =< b < nb mcj' => fj (g b)) where g is the inverse of
            * the f that storngly injects mcj to mcj'.
-           * Note that: mc strongly injects in mci|j with id. *)
+           * Note that: mc strongly injects in mci|j with id, hence mcj strongly injects
+              into mcj' with an extension of the id injection (fij). *)
+
           intros j pfcj'' pffj'.
           case (i == j) eqn:Hij; move/eqP:Hij=>Hij.
           { subst j. exists fi tpc'' mc''.
             split; auto. split; auto. split; auto.
             assert (Hempty: [seq x <- [seq x <- xs | x != i] | x == i] = nil).
-            { clear. induction xs. reflexivity.
-              simpl. destruct (a == i) eqn:Heq.
-              simpl. by assumption.
-              simpl. rewrite if_false. by assumption.
-              apply/eqP. intro Hcontra. subst.
-                by move/eqP:Heq=>Heq.
+            { clear. induction xs as [|x xs]; first by reflexivity.
+              simpl; destruct (x == i) eqn:Heq;
+              simpl; first by assumption.
+              erewrite if_false
+                by (apply/eqP; intro Hcontra; subst;
+                      by move/eqP:Heq=>Heq).
+                by assumption.
             }
             rewrite Hempty. by constructor.
-            split; auto.
+            split; first by auto.
             by congruence.
           }
           { (*case j <> i *)
-            assert (pfci'': containsThread tpc'' i) by admit.
+            (* TODO: containsThread for suspend step and transitivity*)
+            assert (pfci'': containsThread tpc'' i) by admit. 
             assert (pffi': containsThread tpf' i) by admit.
             specialize (Htsim' memCompC'' memCompF' pfci'' pffi').
             assert (pfcj: containsThread tpc j) by admit.
             (* The original <tpc, mc> strongly injects into <tpc'',mc''> where
                <tpc, mc> -->i <tpc', mc'> -->iS <tpc'',mc'>  with the id map*)
+            (*TODO: This is the strong simulation with id function. Factor it out
+                   as a separate lemma.*)
+
             assert (Hsim_c_ci: strong_tsim (fun b => if valid_block_dec mc b then
                                                     Some (b,0%Z) else None)
                                            pfcj pfcj'' HmemCompC memCompC'').
             { assert (pfcj': containsThread tpc' j) by admit.
+              (*TODO: containsThread backward for suspend step*)
               constructor.
               - (* codes are equal*)
                 assert (Hcode := gsoThreadC_suspendC pfcj' pfcj'' Hij HsuspendC).
@@ -2708,7 +2685,7 @@ Module SimProofs.
              * for blocks smaller than nb mc we follow the fj injection to mf
              * for blocks between nb mc and nb mc'' we follow the fi injection
              * and for blocks after that we follow the fj one after taking
-             * the inverse. (a picture explains this better) *)
+             * the inverse. (TODO: point to a diagram) *)
  
             remember (fun b1 => match valid_block_dec mc b1 with
                             | in_left => fj b1
@@ -2799,16 +2776,16 @@ Module SimProofs.
             { (* tpc'' can step in a fine grained way for thread j *)
                 by rewrite filter_neq_eq.
             } split.
-            { intros pfcj' Hcompcj'. pf_cleanup.
+            { (*strong simulation between mcj' and mf' *)
+              intros pfcj' Hcompcj'. pf_cleanup.
               constructor.
               - assert (Hctlij := code_eq Hsimij).
                 assert (Hctljj := code_eq Htsimj).
                 subst.
                 rewrite Hctlij in Hctljj.
                 erewrite <- gsoThreadC_suspendF with (cntj := pffj) (cntj' := pffj');
-                  eauto.
-              - (*mem_obs_eq between thread-j on mij and on mff'*)
-                (*TODO: pull out some of these assertions*)
+                  by eauto.
+              - (*mem_obs_eq between thread-j on mij=mcj' and on mff'*)
 
                 (* Before going into the actual proof, some assertions about
                    how the permissions in the various proofs relate.
@@ -2842,37 +2819,13 @@ Module SimProofs.
 
                 (* also j-permissions of mcj are lower than mf*)
                 assert (Hpermmcj_F := perm_obs_strong (strong_obs Htsimj)).
-
-                (* For a block that's valid in mc'' and invalid in mc
-                 * (an i-block) the permission at an i-block is Freeable for i *)
-                (*TODO: 4/5, fix this proof *)
-                assert (Hpermi_mc'': forall b1 ofs,
-                           ~ Mem.valid_block mc b1 ->
-                           Mem.valid_block mc'' b1 ->
-                           permission_at (restrPermMap (memCompC'' _ pfci''))
-                                         b1 ofs Cur = Some Freeable).
-                { intros b1 ofs Hinvalidmc Hvalidmc''.
-                  assert (Hdecay := internal_execution_decay
-                                      xs pfc pfc' HmemCompC memCompC' Hexec).
-                  apply decay_decay' in Hdecay.
-                  specialize (Hdecay b1 ofs).
-                  destruct Hdecay as [Halloced _].
-                  do 2 erewrite restrPermMap_valid in Halloced.
-                  specialize (Halloced Hinvalidmc Hvalidmc'').
-                  assert (Hinv: invariant tpc')
-                    by (eapply internal_execution_invariant with (tp := tpc);
-                         eauto).
-                  assert (pfcj': containsThread tpc' j) by admit.
-                  unfold permission_at.
-                  assert (H1 := restrPermMap_Cur (memCompC'' i pfci'') b1 ofs).
-                  assert (H2 := restrPermMap_Cur (memCompC' i pfc') b1 ofs).
-                  unfold permission_at in H1, H2.
-                  rewrite H1. rewrite Halloced in H2.
-                  erewrite <- gsoThreadR_suspendC with (cntj := pfc');
-                    by eauto.
-                }
-                (* The permission of j at an i-block in mci is empty,
-                 * as mandated by our no-interference invariant *)
+   
+                (* The permission of j at an i-block in mci is
+                   empty. We can deduce that by the fact that mc steps
+                   to mc'' with i-steps hence the permissions of
+                   thread-j will remain empty and then mc'' steps to
+                   mcj' and the permissions will remain empty by
+                   decay*)
                 assert (Hpermj_mc'':
                           forall b1 ofs,
                             ~ Mem.valid_block mc b1 ->
@@ -2880,67 +2833,64 @@ Module SimProofs.
                           permission_at (restrPermMap (memCompC'' _ pfcj''))
                                         b1 ofs Cur = None).
                 { intros b1 ofs Hinvalidmc Hvalidmc''.
-                  assert (Hinv: invariant tpc')
-                    by (eapply internal_execution_invariant with (tp := tpc);
-                         eauto).
-                  assert (pfcj': containsThread tpc' j) by admit.
-                  assert (Hno_race :=no_race Hinv pfc' pfcj' Hij b1 ofs).
-                  specialize (Hpermi_mc'' b1 ofs).
-                  rewrite restrPermMap_Cur in Hpermi_mc''.
-                  eapply no_race_racy in Hno_race; eauto.
-                  inversion Hno_race.
+                  (* Proof that the permission at b1 in mc|j is empty *)
+                  assert (Hinitp:
+                            permission_at (restrPermMap (HmemCompC _ pfcj)) b1 ofs Cur = None).
+                  { apply Mem.nextblock_noaccess with (k := Max) (ofs := ofs) in Hinvalidmc.
+                    assert (Hlt := HmemCompC _ pfcj b1 ofs).
+                    rewrite getMaxPerm_correct in Hlt.
+                    unfold permission_at in Hlt. rewrite Hinvalidmc in Hlt.
+                    simpl in Hlt.
+                    rewrite restrPermMap_Cur.
+                    destruct ((getThreadR pfcj) # b1 ofs); by tauto.
+                  }
+                  (* Proof that internal execution on thread i
+                  preserves these empty permissions*)
+                  assert (pfcj': containsThread tpc' j)
+                    by (eapply containsThread_internal; eauto).
+                  assert (Hp': permission_at (restrPermMap (memCompC' _ pfcj'))
+                                             b1 ofs Cur = None).
+                  { rewrite restrPermMap_Cur.
+                    erewrite <- gsoThreadR_execution with (pfj := pfcj); eauto.
+                    rewrite restrPermMap_Cur in Hinitp. by assumption.
+                  }
                   rewrite restrPermMap_Cur.
-                  erewrite <- gsoThreadR_suspendC; eauto.
-                  erewrite gsoThreadR_suspendC with (cntj' := pfci'');
-                    eauto.
-                  rewrite Hpermi_mc''; eauto.
-                    by constructor.
+                  erewrite <- gsoThreadR_suspendC with (cntj:= pfcj'); eauto.
+                  rewrite restrPermMap_Cur in Hp'.
+                    by assumption.
                 }
 
                 (* The permission of j at an i-block in mcij/mcj' is empty*)
                 assert (Hpermj_mcj': forall b1 ofs,
                            ~ Mem.valid_block mc b1 ->
                            Mem.valid_block mc'' b1 ->
-                          permission_at
-                            (restrPermMap (Hcompij j pfij)) b1 ofs Cur = None).
-                { intros b1 ofs Hinvalidmc Hvalidmc''.
-                  assert (Hdecay := internal_execution_decay
-                                      xs pfcj'' pfij memCompC'' Hcompij Hexecij).
+                           permission_at
+                             (restrPermMap (Hcompij j pfij)) b1 ofs Cur = None).
+                { (* Proof: By the fact that this block is allocated
+                           by i, we know that the permission of thread
+                           j on memory mc'' will be empty. Moreover by
+                           the decay predicate, mcj' will have the
+                           same permission as mc'' on this block
+                           (since valid blocks cannot increase their
+                           permissions) *)
+                  intros b1 ofs Hinvalidmc Hvalidmc''.
+                  specialize (Hpermj_mc'' b1 ofs Hinvalidmc Hvalidmc'').
+                  unfold permission_at in Hpermj_mc''.
+                  erewrite restrPermMap_Cur.
+                  assert (Hdecay := internal_execution_decay).
+                  specialize (Hdecay _ _ _ _ _ _ pfcj'' pfij memCompC'' Hcompij Hexecij).
+                  unfold decay in Hdecay.
                   apply decay_decay' in Hdecay.
                   specialize (Hdecay b1 ofs).
-                  destruct Hdecay as [_ Hdecay_valid].
-                  erewrite restrPermMap_valid in Hdecay_valid.
-                  specialize (Hdecay_valid Hvalidmc'').
-                  specialize (Hpermj_mc'' b1 ofs Hinvalidmc Hvalidmc'').
-                  destruct Hdecay_valid as [[Hcontra _] | Heq];
-                    first by (unfold permission_at in Hpermj_mc'';
-                               congruence).
-                  unfold permission_at in *. rewrite Hpermj_mc'' in Heq.
-                    by auto.
+                  destruct Hdecay as [_ Hold].
+                  erewrite restrPermMap_valid in Hold.
+                  specialize (Hold Hvalidmc'').
+                  destruct Hold as [[Hcontra _] | Heq]; first by congruence.
+                  rewrite Hpermj_mc'' in Heq.
+                  assert (Hperm_at := restrPermMap_Cur (Hcompij j pfij) b1 ofs).
+                  unfold permission_at in Hperm_at. by rewrite Hperm_at in Heq.
                 }
-                (* The permission of i at an i-block in mf is Freeable*)
-                assert (Hpermi_mf: forall b1 b2 ofs,
-                           ~ Mem.valid_block mc b1 ->
-                           Mem.valid_block mc'' b1 ->
-                           fi b1 = Some (b2, 0%Z) ->
-                           permission_at (restrPermMap (memCompF' i pffi'))
-                                         b2 ofs Cur = Some Freeable).
-                { intros b1 b2 ofs Hinvalidmc Hvalidmc'' Hfi.
-                  assert (HpermF_lt :=
-                             (perm_obs_weak (weak_obs_eq (strong_obs Htsim)))
-                               b1 b2 ofs Hfi).
-                   assert (HpermF_gt := (perm_obs_strong (strong_obs Htsim))
-                                          b1 b2 ofs Hfi).
-                   specialize (Hpermi_mc'' b1 ofs Hinvalidmc Hvalidmc'').
-                   rewrite restrPermMap_Cur in Hpermi_mc''.
-                   rewrite restrPermMap_Cur.
-                   do 2 rewrite restrPermMap_Cur in HpermF_lt, HpermF_gt.
-                   erewrite <- gsoThreadR_suspendC with (cntj:= pfc') in Hpermi_mc'';
-                     eauto.
-                   erewrite <- gsoThreadR_suspendF with (cntj := pff); eauto.
-                   rewrite Hpermi_mc'' in HpermF_lt, HpermF_gt.
-                   eapply perm_order_antisym; eauto.
-                }
+
                 (* The permission of j at an i-block in mf is empty *)
                 assert (Hpermj_eqF: forall b1 b2 ofs,
                            ~ Mem.valid_block mc b1 ->
@@ -2948,20 +2898,16 @@ Module SimProofs.
                            fi b1 = Some (b2, 0%Z) ->
                           permission_at (restrPermMap (memCompF' j pffj'))
                                         b2 ofs Cur = None).
-                { intros b1 b2 ofs Hinvalidmc Hvalidmc'' Hfi.
-                  assert (HinvF': invariant tpf')
-                    by (eapply suspend_step_invariantF with (pff:=pff);
-                         eauto).
-                  assert (Hno_race := no_race HinvF').
-                  specialize (Hno_race _ _ pffi' pffj' Hij b2 ofs).
-                  specialize (Hpermi_mf _ _  ofs Hinvalidmc Hvalidmc'' Hfi).
-                  rewrite restrPermMap_Cur in Hpermi_mf.
-                  eapply no_race_racy in Hno_race.
-                  inversion Hno_race.
-                  rewrite restrPermMap_Cur. auto.
-                  rewrite Hpermi_mf. by constructor.
+                { (* Proof is straightforward by the blocks owned by i invariant*)
+                  intros b1 b2 ofs Hinvalidmc Hvalidmc'' Hfi.
+                  rewrite restrPermMap_Cur.
+                  erewrite <- gsoThreadR_suspendF with (cntj := pffj) by eauto.
+                  assert (Hf := (domain_invalid HsimWeak)).
+                  specialize (Hf b1).
+                  erewrite restrPermMap_valid in Hf. 
+                  eapply Hownedi; by eauto.
                 }
-
+                          
                 (* The j-permission of a j-block at mcj is equal to the 
                    permission at mcj'*)
                 assert (Hpermmcj_mcj': forall b1' b1 ofs,
@@ -3033,6 +2979,28 @@ Module SimProofs.
                           exfalso.
                           specialize (Hdomainij Hinvalidmcj).
                             by congruence.
+                  - (* valid codomain of f'*)
+                    intros b1 b2 Hf'.
+                    assert (Hfj_codomain := codomain_valid (weak_obs_eq (strong_obs Htsimj))).
+                    assert (Hfi_codomain := codomain_valid (weak_obs_eq (strong_obs Htsim))).
+                    erewrite restrPermMap_valid in *.
+                    repeat match goal with
+                           | [H: context[match valid_block_dec ?M ?B with
+                                         | _ => _ end] |- _] =>
+                             destruct (valid_block_dec M B)
+                           end; try discriminate.
+                    specialize (Hfj_codomain b1 b2);
+                      erewrite restrPermMap_valid in *.
+                    eauto.
+                    specialize (Hfi_codomain b1 b2);
+                      erewrite restrPermMap_valid in *.
+                    eauto.
+                    specialize (Hinverse _ v n0).
+                    destruct Hinverse as [? [Hg [Hfij ?]]].
+                    rewrite Hg in Hf'.
+                    specialize (Hfj_codomain _ _ Hf').
+                    erewrite restrPermMap_valid in *.
+                      by eauto.
                   - (* f' is injective *)
                     intros b1 b1' b2 Hb1 Hb1'.
                     repeat match goal with
@@ -3068,15 +3036,16 @@ Module SimProofs.
                       apply Hincr in Hfb1.
                       eapply (injective (weak_obs_eq (strong_obs Htsim))); eauto.
                     + eapply (injective (weak_obs_eq (strong_obs Htsim))); eauto.
-                    + destruct (Hinverse b1 v0 n1) as [b0 [Hg [Hfij Hf]]].
-                      rewrite Hg in Hb1.
-                      assert (b1' = b0)
-                        by (eapply (injective (weak_obs_eq (strong_obs Htsimj)));
-                             eauto); subst b0.
-                      destruct (valid_block_dec mc b1'); try congruence.
+                    + Focus 2.
+                      destruct (Hinverse b1' v n0) as [b0 [Hg [Hfij Hf]]].
+                      rewrite Hg in Hb1'.
+                      assert (b1 = b0)
+                       by (eapply (injective (weak_obs_eq (strong_obs Htsimj)));
+                            eauto); subst b0.
+                      destruct (valid_block_dec mc b1); try congruence.
                       simpl in Hf. discriminate.
-                    destruct (valid_block_dec mc'' b1').
-                  - (* permissions of mcj are higher than mf *)
+                      admit. admit. admit. 
+                  - (* permissions of mcj' are higher than mf *)
                     intros b1 b2 ofs Hf'.
                     destruct (valid_block_dec mc b1) as [Hvalidmc | Hinvalidmc].
                     { (*case it's a block that's valid in mc*)
@@ -3100,7 +3069,7 @@ Module SimProofs.
                       destruct (valid_block_dec mcj')
                         as [Hvalidmcj' | Hinvalidmcj']; try discriminate.
                       specialize (Hinverse b1 Hvalidmcj' Hinvalidmc'').
-                      destruct Hinverse as [b1' [Hg Hfij]].
+                      destruct Hinverse as [b1' [Hg [Hfij Hfid]]].
                       rewrite Hg in Hf'.
                       specialize (HpermF_mcj b1' b2 ofs Hf').
                       specialize (Hpermmcj_F b1' b2 ofs Hf').
@@ -3146,7 +3115,7 @@ Module SimProofs.
                     + destruct (valid_block_dec mcj' b1) as [Hvalidmcj'|?];
                       try discriminate.
                       specialize (Hinverse b1 Hvalidmcj' Hinvalidmc'').
-                      destruct Hinverse as [b1' [Hg Hfij]].
+                      destruct Hinverse as [b1' [Hg [Hfij _]]].
                       rewrite Hg in Hf'.
                       specialize (Hpermmcj_mcj' _ _ ofs Hfij).
                       rewrite <- Hpermmcj_mcj'.
@@ -3164,55 +3133,194 @@ Module SimProofs.
                   - (* Value of a block that is valid in mc *)
                     (* Idea: this block is mapped between mcj and mcj' by id
                        and from mcj to mf by fj. Hence we can reuse fj *)
-                    unfold inject_incr in Hincr'.
-                    specialize (Hincr' b1 b1 0%Z).
-                    rewrite Hvalidmcdec in Hincr'. simpl in Hincr'.
-                    specialize (Hincr' (Logic.eq_refl _)).
-                    assert (Hvalmcj_mcj'_b1 := Hvalmcj_mcj' _ _ ofs Hincr').
+                    assert (Hincr'_b1 := Hincr' b1 b1 0%Z).
+                    rewrite Hvalidmcdec in Hincr'_b1. simpl in Hincr'_b1.
+                    specialize (Hincr'_b1 (Logic.eq_refl _)).
+                    assert (Hvalmcj_mcj'_b1 := Hvalmcj_mcj' _ _ ofs Hincr'_b1).
                     assert (Hvalmcj_mf_b1 := Hvalmcj_mf _ _ ofs Hf').
                     unfold Mem.perm in Hreadable, Hvalmcj_mcj'_b1, Hvalmcj_mf_b1.
-                    assert (Hreadable' := Hpermmcj_mcj' _ _ ofs Hincr').
+                    assert (Hreadable' := Hpermmcj_mcj' _ _ ofs Hincr'_b1).
                     unfold permission_at in Hreadable'.
                     rewrite <- Hreadable' in Hreadable.
                     specialize (Hvalmcj_mf_b1 Hreadable).
                     specialize (Hvalmcj_mcj'_b1 Hreadable).
                     inversion Hvalmcj_mcj'_b1 as
-                        [n Hn_mcj Hn_mcj' | | mv Hundef_mcj Hmv_mcj'].
-                    rewrite <- Hn_mcj in Hvalmcj_mf_b1.
-                    inversion Hvalmcj_mf_b1 as [n0 Heq Hn_mf| |].
-                      by constructor. Focus 2.
-                      rewrite <- Hundef_mcj in Hvalmcj_mf_b1.
-                      
-                      
-                    
-
-                    simpl in Hvalmcj_mcj'_b1, Hvalmcj_mf.
-                    inversion Hvalmcj_mcj'_b1 as [n H1 H2 | |];
-                      simpl in Hvalmcj_mf.
-                    + rewrite <- H1 in Hvalmcj_mf.
-                      inversion Hvalmcj_mf; subst.
-                        by constructor.
-                    + rewrite <- H in Hvalmcj_mf.
-                      inversion Hvalmcj_mf; subst.
+                        [n Hn_mcj Hn_mcj' | vj vj' q1 n Hval_obsjj' Hvj Hvj'| Hundef_mcj Hmv_mcj'].
+                    + rewrite <- Hn_mcj in Hvalmcj_mf_b1.
+                      inversion Hvalmcj_mf_b1 as [n0 Heq Hn_mf| |];
+                        first by constructor.
+                    + (* Fragments case *)
+                      rewrite <- Hvj in Hvalmcj_mf_b1.
+                      inversion Hvalmcj_mf_b1 as [| vj0 vf q n0 Hval_obsjf Hvj0 Hvf |];
+                        subst vj0 q1 n0.
                       constructor.
-                      inversion H1; subst;
-                      inversion H3; subst;
-                      try by constructor.
-                      (* pointers case*)
-                      econstructor.
-                      destruct (valid_block_dec mc b3)
-                        as [Hvalidmcb3 | Hinvalidmcb3].
-                      
-                    
-                }
+                      inversion Hval_obsjj' as [| | | | bpj1 bpj'2 ofsp Hfijp|]; subst;
+                      inversion Hval_obsjf as [| | | | bpj0 bpf2 ofspf Hf'p|];
+                      try subst bpj0; subst; try by constructor.
+                      clear Hval_obsjf Hval_obsjj' Hvf Hvj.
+                      constructor.
+                      destruct (valid_block_dec mc bpj1) as [Hvalidmcbpj1 | Hinvalidmcbpj1]
+                                                              eqn:Hdecbpj1.
+                      { assert (Hincr'_bpj1 := Hincr' bpj1 bpj1 0%Z).
+                        rewrite Hdecbpj1 in Hincr'_bpj1. simpl in Hincr'_bpj1.
+                        specialize (Hincr'_bpj1 (Logic.eq_refl _)).
+                        rewrite Hincr'_bpj1 in Hfijp; inversion Hfijp; subst bpj'2.
+                        clear Hfijp.
+                        rewrite Hdecbpj1. by assumption.
+                      }
+                      { (* here it is usefulto have inject seperation for fij*)
+                        assert (Hsep: inject_separated
+                                        (fun b : block =>
+                                           if is_left (valid_block_dec mc b)
+                                           then Some (b, 0%Z)
+                                           else None) fij mc mc'') by admit.
+                        unfold inject_separated in Hsep.
+                        specialize (Hsep bpj1 bpj'2 0%Z).
+                        rewrite Hdecbpj1 in Hsep.
+                        simpl in Hsep. specialize (Hsep (Logic.eq_refl _) Hfijp).
+                        destruct Hsep as [_ Hinvalidmc''bpj'2].
+                        assert (Hinvalidbmcpj'2: ~ Mem.valid_block mc bpj'2).
+                        { intros Hcontra.
+                          eapply internal_execution_valid with
+                          (b := bpj'2) (m' := mc'') in Hcontra;
+                            by eauto.
+                        }
+                        destruct (valid_block_dec mc bpj'2) as
+                            [Hvalidmcbpj'2 | Hinvalidmcbpj'2];
+                          first (by exfalso; auto).
+                        destruct (valid_block_dec mc'' bpj'2) as [? | _];
+                          first by (exfalso; auto).
+                        destruct (valid_block_dec mcj' bpj'2) as [Hvalidmcj'bpj'2 | Hcontra].
+                        specialize (Hinverse _ Hvalidmcj'bpj'2 Hinvalidmc''bpj'2).
+                        destruct Hinverse as [b0 [Hg [Hfij0 Hfid0]]].
+                        rewrite Hg.
+                        clear HpermC_mc_block HpermF_mcj Hpermmcj_F Hpermj_mc'' Hreadable'
+                              Hreadable   Hpermmcj_mcj'   Hpermj_eqF    Hvj'.
+                        (* NOTE: i need injectivity for the newly
+                           (Separated) blocks. So fij bpj1 and fij
+                           imply b0 = bpj1. I can have that *)
+                        admit.
+                        apply (codomain_valid (weak_obs_eq (strong_obs Hsimij))) in Hfijp.
+                        erewrite restrPermMap_valid in Hfijp. by exfalso.
+                      }
+                      rewrite <- Hundef_mcj in Hvalmcj_mf_b1.
+                      inversion Hvalmcj_mf_b1.
+                        by constructor.
+                  - destruct (valid_block_dec mc'' b1) as [Hvalidmc'' | Hinvalidmc''].
+                    specialize (Hpermj_mcj' _ ofs Hinvalidmc Hvalidmc'').
+                    unfold Mem.perm in Hreadable.
+                    unfold permission_at in Hpermj_mcj'.
+                    rewrite Hpermj_mcj' in Hreadable.
+                    simpl in Hreadable;
+                      by exfalso.
+                    destruct (valid_block_dec mcj' b1) as [Hvalidmcj' | ?];
+                      try discriminate.
+                    destruct (Hinverse _ Hvalidmcj' Hinvalidmc'') as [b0 [Hg [Hfij _]]].
+                    rewrite Hg in Hf'.
+                    assert (Hpermeq := Hpermmcj_mcj' _ _ ofs Hfij).
+                    assert (Hreadable': Mem.perm (restrPermMap (Hcompjj j pfcjj))
+                                                 b0 ofs Cur Readable)
+                      by (unfold Mem.perm in *; unfold permission_at in Hpermeq;
+                            by rewrite Hpermeq).
+                    specialize (Hvalmcj_mcj' _ _ ofs Hfij Hreadable').
+                    specialize (Hvalmcj_mf _ _ ofs Hf' Hreadable').
+                    clear Hreadable Hreadable' Hpermeq Hpermmcj_mcj' Hpermj_eqF Hpermj_mcj'
+                          Hpermj_mc'' Hpermmcj_F HpermF_mcj HpermC_mc_block.
+                    inversion Hvalmcj_mcj' as
+                        [n Hn_mcj Hn_mcj' | vj vj' q1 n Hval_obsjj' Hvj Hvj'| Hundef_mcj Hmv_mcj'].
+                    + rewrite <- Hn_mcj in Hvalmcj_mf.
+                      inversion Hvalmcj_mf as [n0 Heq Hn_mf| |];
+                        first by constructor.
+                    + (* Fragments case *)
+                      rewrite <- Hvj in Hvalmcj_mf.
+                      inversion Hvalmcj_mf as [| vj0 vf q n0 Hval_obsjf Hvj0 Hvf |];
+                        subst vj0 q1 n0.
+                      constructor.
+                      inversion Hval_obsjj' as [| | | | bpj1 bpj'2 ofsp Hfijp|]; subst;
+                      inversion Hval_obsjf as [| | | | bpj0 bpf2 ofspf Hf'p|];
+                      try subst bpj0; subst; try by constructor.
+                      clear Hval_obsjf Hval_obsjj' Hvf Hvj.
+                      constructor.
+                      destruct (valid_block_dec mc bpj1) as [Hvalidmcbpj1 | Hinvalidmcbpj1]
+                                                              eqn:Hdecbpj1.
+                      { assert (Hincr'_bpj1 := Hincr' bpj1 bpj1 0%Z).
+                        rewrite Hdecbpj1 in Hincr'_bpj1. simpl in Hincr'_bpj1.
+                        specialize (Hincr'_bpj1 (Logic.eq_refl _)).
+                        rewrite Hincr'_bpj1 in Hfijp; inversion Hfijp; subst bpj'2.
+                        clear Hfijp.
+                        rewrite Hdecbpj1. by assumption.
+                      }
+                      { (* here it is usefulto have inject seperation for fij*)
+                        assert (Hsep: inject_separated
+                                        (fun b : block =>
+                                           if is_left (valid_block_dec mc b)
+                                           then Some (b, 0%Z)
+                                           else None) fij mc mc'') by admit.
+                        unfold inject_separated in Hsep.
+                        specialize (Hsep bpj1 bpj'2 0%Z).
+                        rewrite Hdecbpj1 in Hsep.
+                        simpl in Hsep. specialize (Hsep (Logic.eq_refl _) Hfijp).
+                        destruct Hsep as [_ Hinvalidmc''bpj'2].
+                        assert (Hinvalidbmcpj'2: ~ Mem.valid_block mc bpj'2).
+                        { intros Hcontra.
+                          eapply internal_execution_valid with
+                          (b := bpj'2) (m' := mc'') in Hcontra;
+                            by eauto.
+                        }
+                        destruct (valid_block_dec mc bpj'2) as
+                            [Hvalidmcbpj'2 | Hinvalidmcbpj'2];
+                          first (by exfalso; auto).
+                        destruct (valid_block_dec mc'' bpj'2) as [? | _];
+                          first by (exfalso; auto).
+                        destruct (valid_block_dec mcj' bpj'2) as [Hvalidmcj'bpj'2 | Hcontra].
+                        specialize (Hinverse _ Hvalidmcj'bpj'2 Hinvalidmc''bpj'2).
+                        destruct Hinverse as [b0' [Hg' [Hfij0' _]]].
+                        rewrite Hg'.
+                        (* NOTE: i need injectivity for the newly
+                           (Separated) blocks. So fij bpj1 and fij
+                           imply b0 = bpj1. I can have that *)
+                        admit.
+                        apply (codomain_valid (weak_obs_eq (strong_obs Hsimij))) in Hfijp.
+                        erewrite restrPermMap_valid in Hfijp. by exfalso.
+                      }
+                      rewrite <- Hundef_mcj in Hvalmcj_mf.
+                      inversion Hvalmcj_mf.
+                        by constructor.
+                } 
             }
-        } }
+            { (* Proof that block ownership is preserved*)
+              subst f'.
+              intros k pffk' Hjk b1 b2 ofs Hf' Hfi.
+              destruct (valid_block_dec mc b1) as [Hvalidmc | Hinvalidmc].
+              admit. (*Contradiction *)
+              destruct (valid_block_dec mc'' b1) as [Hvalidmc'' | Hinvalidmc''].
+              admit. (*contradiction*)
+              destruct (valid_block_dec mcj' b1) as [Hvalidmcj' | Hinvalidmcj'].
+              destruct (Hinverse _ Hvalidmcj' Hinvalidmc'') as [b0 [Hg [Hfij ?]]].
+              rewrite Hg in Hf'.
+              assert (Hsep: inject_separated
+                              (fun b : block =>
+                                 if is_left (valid_block_dec mc b)
+                                 then Some (b, 0%Z)
+                                 else None) fij mc mc'') by admit.
+              unfold inject_separated in Hsep.
+              specialize (Hsep _ _ _ H Hfij).
+              destruct Hsep as [Hinvalidb0 _].
+              apply (domain_invalid HsimWeak) in Hinvalidb0.
+              assert (pffk: containsThread tpf k) by admit.
+              (*TODO: backward containsThread for susp*)
+              specialize (Hownedj _ pffk Hjk _ _ ofs Hf' Hinvalidb0).
+              erewrite <- gsoThreadR_suspendF with (cntj := pffk); eauto.
+              by discriminate.
+            }
+          }
+          }
         { (* Proof that the fine grained invariant is preserved *)
             by eapply suspend_step_invariantF with (pff := pff); eauto.
         }
         { (* Proof the max_inv is preserved *)
             by auto.
-        }
+        } Grab Existential Variables. auto. auto. auto. auto. auto.
       }
     Qed.
                       
@@ -3220,67 +3328,6 @@ Module SimProofs.
                     
                     
                       
-
-                                  b1' b2 ofs Hf'k).
-
-                        
-                          rewrite Hpermj_eqF Hperm_eq. simpl; constructor.
-                        }
-                      }
-                      { (*case it's a block that's invalid in mc'' *)
-                        destruct (valid_block_dec mcj')
-                          as [Hvalidmcj' | Hinvalidmcj'].
-                        specialize (Hinverse b1 Hvalidmcj' Hinvalidmc'').
-                        destruct Hinverse as [b1' [Hg Hfij]].
-                        rewrite Hg in Hf'.
-                        (* The permission at mcj is equal to the permission at mf*)
-                        assert (Hperm_b1':
-                                  permission_at (restrPermMap (Hcompjj j pfcjj))
-                                                b1' ofs Cur =
-                                  permission_at (restrPermMap (memCompF' j pffj'))
-                                                b2 ofs Cur).
-                        { assert (Hperm_lt :=
-                                    (perm_obs_weak (weak_obs_eq (strong_obs Htsimj)))
-                                      b1' b2 ofs Hf').
-                          assert (Hperm_gt :=
-                                    (perm_obs_strong (strong_obs Htsimj))
-                                      b1' b2 ofs Hf').
-                          do 2 rewrite restrPermMap_Cur.
-                          erewrite <- gsoThreadR_suspendF
-                          with (cntj := pffj) (cntj' := pffj'); eauto.
-                          assert (H: (permission_at (restrPermMap (mem_compf Hsim pffj))
-                                                    b2 ofs Cur) =
-                                     (permission_at (restrPermMap (Hcompjj j pfcjj))
-                                                    b1' ofs Cur))
-                            by (eapply perm_order_antisym; eauto).
-                          do 2 rewrite restrPermMap_Cur in H.
-                          auto.
-                        }
-                        (* The permission at mcj is equal to the permission at mcj'*)
-                        assert (Hperm_b1: permission_at (restrPermMap (Hcompjj j pfcjj))
-                                                        b1' ofs Cur =
-                                          permission_at (restrPermMap (Hcompij j pfij))
-                                                        b1 ofs Cur).
-                        { assert (Hperm_lt :=
-                                    (perm_obs_weak (weak_obs_eq (strong_obs Hsimij)))
-                                      b1' b1 ofs Hfij).
-                          assert (Hperm_gt :=
-                                    (perm_obs_strong ((strong_obs Hsimij)))
-                                      b1' b1 ofs Hfij).
-                          eapply perm_order_antisym; eauto.
-                        }
-                        rewrite Hperm_b1 in Hperm_b1'.
-                        rewrite Hperm_b1'.
-                        admit. (*mem.perm_order'' reflexive*)
-                        (*case it's a block that is invalid in mcj'*)
-                        discriminate.
-                      }
-                    }
-                }
-                          
-        
-              
-      
             
 
             End SimDefs.
