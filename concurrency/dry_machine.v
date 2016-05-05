@@ -66,6 +66,7 @@ Module ThreadPool (SEM:Semantics) <: ThreadPoolSig
                  { num_threads : pos
                    ; pool :> 'I_num_threads -> @ctl code
                    ; perm_maps : 'I_num_threads -> res
+                   ; lock_res : res
                  }.
   
   Definition t := t'.
@@ -101,18 +102,27 @@ Module ThreadPool (SEM:Semantics) <: ThreadPoolSig
            match unlift new_tid n with
            | None => pmap
            | Some n' => (perm_maps tp) n'
-           end).
+           end)
+        (lock_res tp).
+
+  Definition updThreadLR tp (new_lock_res : res) : t :=
+    mk (num_threads tp)
+       (pool tp)
+       (perm_maps tp)
+       (new_lock_res).
   
   Definition updThreadC {tid tp} (cnt: containsThread tp tid) (c' : ctl) : t :=
     mk (num_threads tp)
        (fun n => if n == (Ordinal cnt) then c' else (pool tp)  n)
-       (perm_maps tp).
+       (perm_maps tp)
+        (lock_res tp).
 
   Definition updThreadR {tid tp} (cnt: containsThread tp tid)
              (pmap' : res) : t :=
     mk (num_threads tp) (pool tp)
        (fun n =>
-          if n == (Ordinal cnt) then pmap' else (perm_maps tp) n).
+          if n == (Ordinal cnt) then pmap' else (perm_maps tp) n)
+        (lock_res tp).
 
   Definition updThread {tid tp} (cnt: containsThread tp tid) (c' : ctl)
              (pmap : res) : t :=
@@ -120,7 +130,8 @@ Module ThreadPool (SEM:Semantics) <: ThreadPoolSig
        (fun n =>
           if n == (Ordinal cnt) then c' else tp n)
        (fun n =>
-          if n == (Ordinal cnt) then pmap else (perm_maps tp) n).
+          if n == (Ordinal cnt) then pmap else (perm_maps tp) n)
+        (lock_res tp).
 
   (*Proof Irrelevance of contains*)
   Lemma cnt_irr: forall t tid
@@ -304,12 +315,12 @@ Module Concur.
     Notation thread_pool := (ThreadPool.t).
     Notation perm_map := ThreadPool.res.
     
-    Definition lp_id := 0.
-    
     (** The state respects the memory*)
-    Definition mem_compatible tp m : Prop :=
-      forall {tid} (cnt: containsThread tp tid),
-        permMapLt (getThreadR cnt) (getMaxPerm m).
+    Record mem_compatible' tp m : Prop :=
+      { compat_th :> forall {tid} (cnt: containsThread tp tid),
+          permMapLt (getThreadR cnt) (getMaxPerm m) ;
+        compat_rp : permMapLt (lock_res tp) (getMaxPerm m ) }.
+    Definition mem_compatible tp m : Prop := mem_compatible' tp m.
 
     (** Per-thread disjointness definition*)
     Definition race_free (tp : thread_pool) :=
@@ -320,9 +331,8 @@ Module Concur.
 
     Record invariant' tp :=
       { no_race : race_free tp;
-        lock_pool : forall (cnt : containsThread tp 0), exists c,
-              getThreadC cnt = Krun c /\
-              halted Sem c
+        lock_pool : forall i (cnt : containsThread tp i),
+            permMapsDisjoint (lock_res tp) (getThreadR cnt)
       }.
 
     Definition invariant := invariant'.
@@ -345,8 +355,7 @@ Module Concur.
               (cnt0:containsThread tp tid0)(Hcompat:mem_compatible tp m):
       thread_pool -> mem -> Prop :=
     | step_lock :
-        forall (tp':thread_pool) m1 c c' m' b ofs virtue
-          (cnt_lp: containsThread tp lp_id),
+        forall (tp':thread_pool) m1 c c' m' b ofs virtue,
         forall
           (Hinv : invariant tp)
           (Hcode: getThreadC cnt0 = Kstop c)
@@ -354,7 +363,7 @@ Module Concur.
                          Some (LOCK, ef_sig LOCK, Vptr b ofs::nil))
           (Hcompatible: mem_compatible tp m)
           (Hrestrict_pmap:
-             restrPermMap (Hcompat lp_id cnt_lp) = m1)
+             restrPermMap (compat_rp Hcompat) = m1)
           (Hload: Mem.load Mint32 m1 b (Int.intval ofs) = Some (Vint Int.one))
           (Hstore:
              Mem.store Mint32 m1 b (Int.intval ofs) (Vint Int.zero) = Some m')
@@ -365,15 +374,14 @@ Module Concur.
           ext_step genv cnt0 Hcompat tp' m' 
                    
     | step_unlock :
-        forall  (tp':thread_pool) m1 c c' m' b ofs virtue
-           (cnt_lp: containsThread tp lp_id),
+        forall  (tp':thread_pool) m1 c c' m' b ofs virtue,
         forall
           (Hinv : invariant tp)
           (Hcode: getThreadC cnt0 = Kstop c)
           (Hat_external: at_external Sem c =
                          Some (UNLOCK, ef_sig UNLOCK, Vptr b ofs::nil))
           (Hrestrict_pmap:
-             restrPermMap (Hcompat lp_id cnt_lp) = m1)
+             restrPermMap (compat_rp Hcompat) = m1)
           (Hload:
              Mem.load Mint32 m1 b (Int.intval ofs) = Some (Vint Int.zero))
           (Hstore:
@@ -401,9 +409,7 @@ Module Concur.
           ext_step genv cnt0 Hcompat tp' m
                    
     | step_mklock :
-        forall  (tp' tp'': thread_pool) m1 c c' m' b ofs pmap_tid' pmap_lp
-           (cnt_lp': containsThread tp' lp_id)
-           (cnt_lp: containsThread tp lp_id),
+        forall  (tp' tp'': thread_pool) m1 c c' m' b ofs pmap_tid' pmap_lp,
           let: pmap_tid := getThreadR cnt0 in
           forall
             (Hinv : invariant tp)
@@ -417,42 +423,37 @@ Module Concur.
             (Hdrop_perm:
                setPerm (Some Nonempty) b (Int.intval ofs) pmap_tid = pmap_tid')
             (Hlp_perm: setPerm (Some Writable)
-                               b (Int.intval ofs) (getThreadR cnt_lp) = pmap_lp)
+                               b (Int.intval ofs) (lock_res tp) = pmap_lp)
             (Hfter_external: after_external
                                Sem (Some (Vint Int.zero)) c = Some c')
             (Htp': tp' = updThread cnt0 (Kresume c') pmap_tid')
-            (Htp'': tp'' = updThreadR cnt_lp' pmap_lp),
+            (Htp'': tp'' = updThreadLR tp' pmap_lp),
             ext_step genv cnt0 Hcompat tp'' m' 
                      
     | step_freelock :
-        forall  (tp' tp'': thread_pool) c c' b ofs pmap_lp' virtue
-           (cnt_lp': containsThread tp' lp_id)
-           (cnt_lp: containsThread tp lp_id),
-          let: pmap_lp := getThreadR cnt_lp in
+        forall  (tp' tp'': thread_pool) c c' b ofs pmap_lp' virtue,
           forall
             (Hinv : invariant tp)
             (Hcode: getThreadC cnt0 = Kstop c)
             (Hat_external: at_external Sem c =
                            Some (FREE_LOCK, ef_sig FREE_LOCK, Vptr b ofs::nil))
             (Hdrop_perm:
-               setPerm None b (Int.intval ofs) pmap_lp = pmap_lp')
+               setPerm None b (Int.intval ofs) (lock_res tp) = pmap_lp')
             (Hat_external:
                after_external Sem (Some (Vint Int.zero)) c = Some c')
             (Htp': tp' = updThread cnt0 (Kresume c')
                                    (computeMap (getThreadR cnt0) virtue))
-            (Htp'': tp'' = updThreadR cnt_lp' pmap_lp'),
+            (Htp'': tp'' = updThreadLR tp' pmap_lp'),
             ext_step genv cnt0 Hcompat  tp'' m 
                      
     | step_lockfail :
-        forall  c b ofs m1
-           (cnt_lp: containsThread tp lp_id),
+        forall  c b ofs m1,
         forall
           (Hinv : invariant tp)
           (Hcode: getThreadC cnt0 = Kstop c)
           (Hat_external: at_external Sem c =
                          Some (LOCK, ef_sig LOCK, Vptr b ofs::nil))
-          (Hrestrict_pmap: restrPermMap
-                             (Hcompat lp_id cnt_lp) = m1)
+          (Hrestrict_pmap: restrPermMap (compat_rp Hcompat) = m1)
           (Hload: Mem.load Mint32 m1 b (Int.intval ofs) = Some (Vint Int.zero)),
           ext_step genv cnt0 Hcompat tp m.
     
@@ -482,19 +483,17 @@ Module Concur.
 
     Parameter init_core : G -> val -> list val -> option thread_pool.
 
-    Lemma onePos: (0<1)%coq_nat. auto. Qed.
+    Definition one_pos : pos := mkPos NPeano.Nat.lt_0_2.
     Definition two_pos : pos := mkPos NPeano.Nat.lt_0_2.
 
     Definition compute_init_perm : G -> access_map := fun _ => empty_map. (*Needst to be filled*)
     
-    Variable lp_code : code. (*Parameter should be a halted, empty state. *)
-    Axiom lp_code_halted: ssrbool.isSome (halted Sem lp_code).
-    
     Definition initial_machine genv c  :=
       ThreadPool.mk
-        two_pos (*Two threads: a lock pool and the initial thread. *)
-        (fun tid => if tid == ord0 then (Krun lp_code) else Kresume c)
-        (fun tid => if tid == ord0 then empty_map else compute_init_perm genv).
+        one_pos
+        (fun _ =>  Kresume c)
+        (fun _ =>  compute_init_perm genv)
+        empty_map.
     
     Definition init_mach (genv:G)(v:val)(args:list val):option thread_pool :=
       match initial_core Sem genv v args with
@@ -599,7 +598,7 @@ End Concur.
 (*     CoreSemantics G (list nat * thread_pool) mem := *)
 (*     Build_CoreSemantics _ _ _ *)
 (*                         initial_core *)
-(*                         at_external *)
+(*                         at_external *)                                          
 (*                         after_external *)
 (*                         halted *)
 (*                         fstep *)
