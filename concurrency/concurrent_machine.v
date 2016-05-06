@@ -232,9 +232,12 @@ Module CoarseMachine (SCH:Scheduler)(SIG : ConcurrentMachineSig with Module Thre
   
   Inductive resume_thread': forall {tid0} {ms:machine_state},
       containsThread ms tid0 -> machine_state -> Prop:=
-  | ResumeThread: forall tid0 ms ms' c
+  | ResumeThread: forall tid0 ms ms' c c' X
                     (ctn: containsThread ms tid0)
-                    (Hcode: getThreadC ctn = Kresume c)
+                    (Hat_external: at_external Sem c = Some X)
+                    (Hafter_external: after_external Sem
+                                             (Some (Vint Int.zero)) c = Some c')
+                    (Hcode: getThreadC ctn = Kresume c')
                     (Hinv: invariant ms)
                     (Hms': updThreadC ctn (Krun c)  = ms'),
       resume_thread' ctn ms'.
@@ -244,10 +247,10 @@ Module CoarseMachine (SCH:Scheduler)(SIG : ConcurrentMachineSig with Module Thre
 
   Inductive suspend_thread': forall {tid0} {ms:machine_state},
       containsThread ms tid0 -> machine_state -> Prop:=
-  | SuspendThread: forall tid0 ms ms' c ef sig args
+  | SuspendThread: forall tid0 ms ms' c X
                      (ctn: containsThread ms tid0)
                      (Hcode: getThreadC ctn = Krun c)
-                     (Hat_external: at_external Sem c = Some (ef, sig, args))
+                     (Hat_external: at_external Sem c = Some X)
                      (Hinv: invariant ms)
                      (Hms': updThreadC ctn (Kstop c) = ms'),
       suspend_thread' ctn ms'.
