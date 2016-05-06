@@ -81,6 +81,7 @@ Module LockPool.
      and the second for the lock being locked/unlocked *)
   Definition LockPool:= address -> option (option rmap).
   Notation SSome x:= (Some (Some x)).
+  Notation SNone:= (Some None).
 End LockPool.
 Export LockPool.
 
@@ -151,7 +152,7 @@ Module ThreadPool (SEM:Semantics) <: ThreadPoolSig
 
   (** The Lock Resources Set *)
   
-  Definition lock_set t: LockPool:= fun (loc:address) => AMap.find loc (lset t).
+  Definition lock_set t: LockPool:= (AMap.find (elt:=option rmap))^~ (lset t).
 
   Definition is_lock t:= fun loc => AMap.mem loc (lset t).
 
@@ -380,33 +381,98 @@ Module Concur.
         max_coh: max_access_cohere m phi;
         all_coh: alloc_cohere m phi
       }.
-    Definition mem_cohere tp m :=
+    Definition mem_thcohere tp m :=
       forall {tid} (cnt: containsThread tp tid), mem_cohere' m (getThreadR cnt). 
+    Definition mem_lock_cohere (ls:LockPool) m:=
+      forall loc rm, ls loc = SSome rm -> mem_cohere' m rm.
+
+    (*Join juice from all threads *)
+    Definition getThreadsR tp:=
+      map (perm_maps tp) (enum ('I_(num_threads tp))).
+    Fixpoint join_list (ls: seq.seq res) r:=
+      if ls is phi::ls' then exists r', join phi r' r /\ join_list ls' r' else
+        app_pred emp r.  (*Or is is just [amp r]?*)
+    Definition join_threads tp r:= join_list (getThreadsR tp) r.
+
+    (*Join juice from all locks*)
+    Fixpoint join_list' (ls: seq.seq (option res)) (r:option res):=
+      if ls is phi::ls' then exists (r':option res),
+          @join _ (@Join_lower res _) phi r' r /\ join_list' ls' r' else r=None.
+    Definition join_locks tp r:= join_list' (map snd (AMap.elements (lset tp))) r.
+
+    (*Join all the juices*)
+    Inductive join_all: t -> res -> Prop:=
+      AllJuice tp r0 r1 r:
+        join_threads tp r0 ->
+        join_locks tp r1 ->
+        join (Some r0) r1 (Some r) ->
+        join_all tp r.
     
-    Record mem_compatible' tp m :=
-      { perm_comp: mem_cohere tp m
-                              (* ; mem_canonical: isCanonical (getMaxPerm m) *)
+    (*This is not enoug!!! We need the ENTIRE join of juice to be compatible.*)
+    (*BUT, these two properties should follow (proved)*)
+    Record mem_compatible' tp m: Prop :=
+      {   all_juice  : res
+        ; juice_join : join_all tp all_juice
+        ; all_cohere : mem_cohere' m all_juice
       }.
-    
+
     Definition mem_compatible: thread_pool -> mem -> Prop:=
       mem_compatible'.
 
+    Lemma thread_mem_compatible: forall tp m,
+        mem_compatible tp m ->
+        mem_thcohere tp m.
+    Admitted.
+
+    Lemma lock_mem_compatible: forall tp m,
+        mem_compatible tp m ->
+        mem_lock_cohere (lock_set tp) m.
+    Admitted.
+
     (** There is no inteference in the thread pool *)
     (* Per-thread disjointness definition*)
-    Definition race_free tp :=
+    Definition disjoint_threads tp :=
       forall i j (cnti : containsThread tp i)
         (cntj: containsThread tp j) (Hneq: i <> j),
         joins (getThreadR cnti)
               (getThreadR cntj).
-
-    Record invariant' tp :=
-      { (*canonical : forall tid, isCanonical (juice tp tid);*)
-        no_race : race_free tp;
-        lock_pool : forall (cnt : containsThread tp 0%nat), exists c,
-              getThreadC cnt  = Krun c /\ halted the_sem c
-      }.
+    (* Per-lock disjointness definition*)
+    Definition disjoint_locks tp :=
+      forall loc1 loc2 r1 r2,
+        lock_set tp loc1 = SSome r1 ->
+        lock_set tp loc2 = SSome r2 ->
+        joins r1 r2.
+    (* lock-thread disjointness definition*)
+    Definition disjoint_lock_thread tp :=
+      forall i loc r (cnti : containsThread tp i),
+        lock_set tp loc = SSome r ->
+        joins (getThreadR cnti)r.
+    
+    Record invariant' (tp:t) := True. (* The invariant has been absorbed my mem_compat*)
+     (* { no_race : disjoint_threads tp
+      }.*)
 
     Definition invariant := invariant'.
+
+    (*Lemmas to retrive the ex-invariant properties from the mem-compat*)
+    Lemma disjoint_threads_compat': forall tp all_juice,
+        join_all tp all_juice ->
+        disjoint_threads tp.
+    Admitted.
+    Lemma disjoint_threads_compat: forall tp m
+        (mc: mem_compatible tp m),
+        disjoint_threads tp.
+    Proof. intros ? ? mc ; inversion mc.
+           eapply disjoint_threads_compat'; eassumption.
+    Qed.
+    Lemma disjoint_locks_compat:  forall tp m
+        (mc: mem_compatible tp m),
+        disjoint_locks tp.
+    Admitted.
+    Lemma disjoint_locks_t_hread_compat:  forall tp m
+        (mc: mem_compatible tp m),
+        disjoint_lock_thread tp.
+    Admitted.
     
     (** Steps*)
 
@@ -538,7 +604,7 @@ Module Concur.
                    (juicyRestrictAllocCoh acoh alcoh).
 
     Definition personal_mem {tid js m}(cnt: containsThread js tid)(Hcompatible: mem_compatible js m): juicy_mem:=
-      let cohere:= (perm_comp Hcompatible cnt) in
+      let cohere:= (thread_mem_compatible Hcompatible cnt) in
       personal_mem' (acc_coh cohere) (cont_coh cohere) (max_coh cohere) (all_coh cohere).
     
     Definition juicy_sem := (FSem.F _ _ JuicyFSem.t) _ _ the_sem.
