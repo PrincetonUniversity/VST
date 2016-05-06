@@ -125,6 +125,7 @@ SEPCOMP_FILES= \
   #safety_preservation.v \
 
 CONCUR_FILES= \
+  addressFiniteMap.v\
   sepcomp.v threads_lemmas.v permissions.v\
   pos.v scheduler.v \
   concurrent_machine.v juicy_machine.v dry_machine.v \

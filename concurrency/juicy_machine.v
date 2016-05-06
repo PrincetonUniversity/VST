@@ -29,6 +29,10 @@ Require Import veric.juicy_mem.
 Require Import veric.juicy_extspec.
 Require Import veric.jstep.
 
+(*The finite maps*)
+Require Import addressFiniteMap.
+
+
 (**)
 Require Import veric.res_predicates. (*For the precondition of lock make and free*)
 
@@ -71,7 +75,10 @@ Notation "x < y" := (x < y)%nat.
 
 
 Module LockPool.
-  Definition LockPool:= address -> option rmap.
+  (* The lock set is a Finite Map:
+     Address -> option rmap
+     Where the option stands for locked/unlocked *)
+  Definition LockPool:= AMap.t (option rmap).
 End LockPool.
 Export LockPool.
 
@@ -84,7 +91,8 @@ Module ThreadPool (SEM:Semantics) <: ThreadPoolSig
   Notation code:=C.
   Definition res := rmap.
   
-  Definition LockPool := LockPool.
+            
+    Definition LockPool := LockPool.
   
   Record t' := mk
                  { num_threads : pos
