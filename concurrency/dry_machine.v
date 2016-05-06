@@ -71,14 +71,7 @@ Module ThreadPool (SEM:Semantics) <: ThreadPoolSig
   
   Definition t := t'.
 
-  Lemma contains0 :
-    forall (n : pos), 0 < n.
-  Proof.
-    intros; destruct n; simpl; by apply/ltP.
-  Qed.
-  
-  Definition lpool (tp : t) :=
-    (perm_maps tp) (Ordinal (contains0 (num_threads tp))).
+  Definition lock_set := lock_res.
 
   Definition containsThread (tp : t) (i : NatTID.tid) : Prop:=
     i < num_threads tp.
@@ -484,7 +477,6 @@ Module Concur.
     Parameter init_core : G -> val -> list val -> option thread_pool.
 
     Definition one_pos : pos := mkPos NPeano.Nat.lt_0_2.
-    Definition two_pos : pos := mkPos NPeano.Nat.lt_0_2.
 
     Definition compute_init_perm : G -> access_map := fun _ => empty_map. (*Needst to be filled*)
     

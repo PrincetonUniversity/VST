@@ -70,7 +70,7 @@ Module Type ThreadPoolSig.
   Parameter LockPool : Type.
   Parameter t : Type.
 
-  Parameter lpool : t -> LockPool.
+  Parameter lock_set : t -> LockPool.
 
   Local Notation ctl := (@ctl C).
   
