@@ -108,6 +108,8 @@ End Sequential.
 
 Module Randomized.
 
+(* Begin [ProbState Lemmas] *)
+
 Definition ProbState {ora: RandomOracle} (state: Type) :=
   {s: RandomVariable (MetaState state) | forall h, infinite_history h -> s h = Some (NonTerminating _) \/ s h = None}.
 
@@ -123,6 +125,31 @@ Definition unique_state {ora: RandomOracle} {state: Type} (s: MetaState state): 
   destruct (h 0); try congruence.
   auto.
 Defined.
+
+Definition ProbStateStream {ora: RandomOracle} (state: Type) : Type := nat -> ProbState state.
+
+Definition ProbConvDir {ora: RandomOracle} : Type := nat -> RandomVarDomain.
+
+Definition is_limit {ora: RandomOracle} {state: Type} (l: ProbStateStream state) (dir: ProbConvDir) (lim: RandomVariable (MetaState state)) : Prop :=
+ (forall n h, ~ dir n h -> l n h = l (S n) h) /\
+ (forall h,
+    match lim h with
+    | Some (Terminating s) => (* finite_part_of_limit *)
+        exists n,
+          l n h = Some (Terminating _ s) /\
+          (forall n' h', n' >= n -> prefix_history h' h -> ~ dir n h')
+    | Some NonTerminating => (* infinite_part_of_limit *)
+       (forall n h_low, finite_history h_low -> prefix_history h_low h ->
+          exists n' h', n' > n /\ prefix_history h_low h' /\
+                       prefix_history h' h /\ dir n' h') \/
+       (exists n,
+          l n h = Some (NonTerminating _) /\
+          (forall n' h', n' >= n -> prefix_history h' h -> ~ dir n h'))
+    | None => (* invalid_part_of_limit *)
+        exists n, forall n', n' >= n ->
+          l n' h = None
+    end).
+(* End [ProbState Lemmas] *)
 
 Class SmallStepSemantics {imp: Imperative}: Type := {
   state: Type;
@@ -156,33 +183,11 @@ Record step_path {imp: Imperative} {sss: SmallStepSemantics}: Type := {
   domain_mono: forall n, future_domain (step_domains n) (step_domains (S n))
 }.
 
-Definition is_limit {imp: Imperative} {sss: SmallStepSemantics} (l: step_path) (lim: ProbState (cmd * state)): Prop :=
-  forall h,
-    match lim h with
-    | Some (Terminating cs) => (* finite_part_of_limit *)
-        exists n,
-          path_states l n h = Some (Terminating _ cs) /\
-          (forall h', prefix_history h' h -> ~ step_domains l n h')
-    | Some NonTerminating => (* infinite_part_of_limit *)
-       (forall N h'', finite_history h'' -> prefix_history h'' h ->
-          exists n h', n > N /\ prefix_history h'' h' /\
-                       prefix_history h' h /\ step_domains l n h') \/
-       (exists n,
-          path_states l n h = Some (NonTerminating _) /\
-          (forall h', prefix_history h' h -> ~ step_domains l n h'))
-    | None => (* invalid_part_of_limit *)
-        exists n,
-          path_states l n h = None /\
-          (forall h', prefix_history h' h -> ~ step_domains l n h')
-    end.
-  
 Definition access {imp: Imperative} {sss: SmallStepSemantics} (src dst: ProbState (cmd * state)): Prop :=
   exists (l: step_path) (n: nat), path_states l 0 = src /\ path_states l n = dst.
 
 Definition omega_access {imp: Imperative} {sss: SmallStepSemantics} (src dst: ProbState (cmd * state)): Prop :=
-  exists (l: step_path), path_states l 0 = src /\ is_limit l dst.
-
-Module HoareLogic.
+  exists (l: step_path), path_states l 0 = src /\ is_limit (path_states l) (step_domains l) dst.
 
 Definition global_state {imp: Imperative} {sss: SmallStepSemantics}: Type := ProbState state.
 
@@ -209,123 +214,6 @@ Definition command_oaccess {imp: Imperative} {sss: SmallStepSemantics} (c: cmd) 
 
 Definition triple {imp: Imperative} {sss: SmallStepSemantics} (P: global_state -> Prop) (c: cmd)  (Q: global_state -> Prop): Prop :=
   forall s1, P s1 -> forall s2, command_oaccess c s1 s2 -> Q s2.
-
-Definition PartialAssertion {imp: Imperative} {sss: SmallStepSemantics}: Type :=
-  {P: global_state -> Prop |
-     forall (s1 s2: global_state),
-       (forall h, match s1 h, s2 h with
-                  | Some (Terminating _), Some (Terminating _) => True
-                  | Some (Terminating _), Some NonTerminating => True
-                  | Some NonTerminating, Some NonTerminating => True
-                  | None, None => True
-                  | _, _ => False
-                  end) ->
-       (P s1 -> P s2)}.
-
-Definition TotalAssertion {imp: Imperative} {sss: SmallStepSemantics}: Type :=
-  {P: global_state -> Prop |
-     forall (s1 s2: global_state),
-       (forall h, match s1 h, s2 h with
-                  | Some (Terminating _), Some (Terminating _) => True
-                  | Some (Terminating _), Some NonTerminating => True
-                  | Some NonTerminating, Some NonTerminating => True
-                  | None, None => True
-                  | _, _ => False
-                  end) ->
-       (P s2 -> P s1)}.
-
-Definition ptriple {imp: Imperative} {sss: SmallStepSemantics} (P: PartialAssertion) (c: cmd)  (Q: PartialAssertion): Prop := triple (proj1_sig P) c (proj1_sig Q).
-
-Definition ttriple {imp: Imperative} {sss: SmallStepSemantics} (P: TotalAssertion) (c: cmd)  (Q: TotalAssertion): Prop := triple (proj1_sig P) c (proj1_sig Q).
-
-End HoareLogic.
-
-Module RelationalHoareLogic.
-
-Inductive LR: Type :=
-  | L (* If-then branch, In loop branch *)
-  | R (* If-else branch, exist loop branch *).
-
-Require Import Coq.Lists.List.
-
-Lemma branch_dec: forall sigma1 sigma2: list LR, {sigma1 = sigma2} + {sigma1 <> sigma2}.
-Proof.
-  apply list_eq_dec.
-  intros.
-  destruct x, y; try (left; congruence); try (right; congruence).
-Qed.
-
-Definition global_state {imp: Imperative} {sss: SmallStepSemantics}: Type := ProbState (list LR * state).
-
-Identity Coercion global_state_ProbState: global_state >-> ProbState.
-
-Definition global_state_command_state {imp: Imperative} {sss: SmallStepSemantics} (c: list LR -> cmd) (s: global_state): ProbState (cmd * state).
-  destruct s.
-  exists (RandomVarMap
-           (fun s =>
-              match s with
-              | NonTerminating => NonTerminating _
-              | Terminating (sigma, s0) => Terminating _ (c sigma, s0)
-              end)
-           x).
-  intros.
-  specialize (o h H).
-  destruct o; [left | right];
-  rewrite RandomVarMap_sound;
-  rewrite H0; auto.
-Defined.
-
-Definition is_legal_branch {imp: Imperative} {sss: SmallStepSemantics} (sigma: list LR) (s: global_state): Prop :=
-  forall h,
-    match s h with
-    | Some NonTerminating => True
-    | Some (Terminating (sigma', _)) => forall d, sigma <> sigma' ++ d /\ sigma' <> sigma ++ d
-    | None => True
-    end.
-
-Definition seq_command {imp: Imperative} (sigma0: list LR) (c0: cmd) (c: list LR -> cmd): list LR -> cmd :=
-  fun sigma =>
-    if branch_dec sigma0 sigma then Ssequence c0 (c sigma0) else c sigma.
-
-Definition command_oaccess {imp: Imperative} {sss: SmallStepSemantics} (sigma: list LR) (c: cmd) (src dst: global_state): Prop :=
-  forall k, omega_access (global_state_command_state (seq_command sigma c k) src) (global_state_command_state k dst).
-
-Definition triple {imp: Imperative} {sss: SmallStepSemantics} (sigma: list LR) (P: global_state -> Prop) (c: cmd)  (Q: global_state -> Prop): Prop :=
-  forall s1,
-    P s1 ->
-    is_legal_branch sigma s1 -> 
-    forall s2, command_oaccess sigma c s1 s2 ->
-    Q s2.
-
-Definition PartialAssertion {imp: Imperative} {sss: SmallStepSemantics}: Type :=
-  {P: global_state -> Prop |
-     forall (s1 s2: global_state),
-       (forall h, match s1 h, s2 h with
-                  | Some (Terminating _), Some (Terminating _) => True
-                  | Some (Terminating _), Some NonTerminating => True
-                  | Some NonTerminating, Some NonTerminating => True
-                  | None, None => True
-                  | _, _ => False
-                  end) ->
-       (P s1 -> P s2)}.
-
-Definition TotalAssertion {imp: Imperative} {sss: SmallStepSemantics}: Type :=
-  {P: global_state -> Prop |
-     forall (s1 s2: global_state),
-       (forall h, match s1 h, s2 h with
-                  | Some (Terminating _), Some (Terminating _) => True
-                  | Some (Terminating _), Some NonTerminating => True
-                  | Some NonTerminating, Some NonTerminating => True
-                  | None, None => True
-                  | _, _ => False
-                  end) ->
-       (P s2 -> P s1)}.
-
-Definition ptriple {imp: Imperative} {sss: SmallStepSemantics} (sigma: list LR) (P: PartialAssertion) (c: cmd)  (Q: PartialAssertion): Prop := triple sigma (proj1_sig P) c (proj1_sig Q).
-
-Definition ttriple {imp: Imperative} {sss: SmallStepSemantics} (sigma: list LR) (P: TotalAssertion) (c: cmd)  (Q: TotalAssertion): Prop := triple sigma (proj1_sig P) c (proj1_sig Q).
-
-End RelationalHoareLogic.
 
 Class NormalSmallStepSemantics {imp: Imperative} {Nimp: NormalImperative} {sss: SmallStepSemantics} : Type := {
   eval_bool: state -> expr -> option bool;
