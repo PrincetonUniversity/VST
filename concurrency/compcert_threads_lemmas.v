@@ -1701,28 +1701,6 @@ Module SimProofs.
         by auto.
     Qed.
 
-    (*TODO: This looks kind of ugly*)
-    Lemma fmachine_decay :
-      forall tp m tp' m' i U (cnt: containsThread tp i)
-        (Hinternal: cnt @ I)
-        (Hcomp: mem_compatible tp m)
-        (Hstep : fmachine_step (i :: U, tp) m (U, tp') m'),
-        (forall j (cntj: containsThread tp j) (cntj': containsThread tp' j),
-            getThreadR cntj = getThreadR cntj')
-           \/ decay (restrPermMap (Hcomp _ cnt)) m'.
-    Proof.
-      intros.
-      absurd_internal Hstep.
-      left.
-      intros.
-      erewrite @gThreadCR with (cntj := cntj);
-        by reflexivity.
-      right.
-      eapply corestep_decay in Hcorestep.
-      eapply diluteMem_decay.
-        by assumption.
-    Qed.
-      
     (** Profs about [mem_obs_eq] and [weak_mem_obs_eq] *)
     
     Lemma weak_obs_eq_restr :
@@ -2198,22 +2176,21 @@ Module SimProofs.
               specialize (Hcodomain _ _ Hfj).
               erewrite restrPermMap_valid in Hcodomain.
               specialize (HstepF empty).
-              assert (Hdecay := fmachine_decay pff Hinternal HmemCompF HstepF).
-              destruct Hdecay as [Htpf_eq | Hdecay].
-              + specialize (Htpf_eq _ pffk pffk').
-                rewrite <- Htpf_eq. by assumption.
-              + apply decay_decay' in Hdecay.
-                destruct (Hdecay b2 ofs) as [_ Hdecay_valid].
-                assert (Hp := restrPermMap_Cur (HmemCompF i pff) b2 ofs).
-                unfold permission_at in Hp.
-                destruct (Hdecay_valid Hcodomain) as [[Hcontra _]| Hstable].
-                * rewrite Hp in Hcontra.
-                  pf_cleanup. by congruence.
-                * rewrite Hp in Hstable. pf_cleanup.
-                  rewrite Hownedj in Hstable.
-                  (* NEED to know that pff' got the new permission map from fstep*)
-                (*TODO: THIS IS WRONG. FIX IT *)
-                erewrite <- gssThreadR_fstep with (pfi := pff); eauto.
+              clear - Hownedj Hcodomain Hjk HstepF Hinternal HmemCompF.
+              absurd_internal HstepF;
+                first by erewrite gThreadCR with (cntj := Htid).
+              apply corestep_decay in Hcorestep.
+              apply decay_decay' in Hcorestep.
+              destruct (Hcorestep b2 ofs) as [_ Hdecay_valid].
+              assert (Hp := restrPermMap_Cur (HmemCompF _ Htid ) b2 ofs).
+              unfold permission_at in Hp.
+              destruct (Hdecay_valid Hcodomain) as [[Hcontra _]| Hstable].
+              * rewrite Hp in Hcontra;
+                  by congruence.
+              * rewrite Hp in Hstable.
+                rewrite Hownedj in Hstable.
+                erewrite gssThreadRes.
+                rewrite getCurPerm_correct. auto.
             - erewrite <- gsoThreadR_fstep with (pfi := pff) (pfj := pffk); eauto.
         }
         { (*invariant tpf' *)
@@ -2765,13 +2742,13 @@ Module SimProofs.
       exists (updThreadC pff (Kstop c)).
       split.
       econstructor; eauto.
-      intros. pf_cleanup.
+      intros.
       constructor;
         first by do 2 rewrite gssThreadCC.
-      erewrite restrPermMap_irr with (Hlt := Hcompc' tid Htid) (Hlt' := Hcmpt tid Htid)
-        by reflexivity.
-      erewrite restrPermMap_irr with (Hlt := Hcompf' tid pff) (Hlt' := Hcompf tid pff)
-        by reflexivity.
+      erewrite restrPermMap_irr with (Hlt := Hcompc' tid pfc') (Hlt' := Hcmpt tid Htid)
+        by (erewrite gThreadCR with (cntj := Htid); reflexivity).
+      erewrite restrPermMap_irr with (Hlt := Hcompf' tid pff') (Hlt' := Hcompf tid pff)
+        by (erewrite gThreadCR with (cntj := pff); reflexivity).
       assumption.
     Qed.
 
@@ -3681,5 +3658,5 @@ Module SimProofs.
     Qed.
                       
             
-End SimDefs.
-End SimDefs.
+End SimProofs.
+
