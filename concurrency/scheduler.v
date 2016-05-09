@@ -18,6 +18,7 @@ Module Type Scheduler.
   Import TID.
   Parameter schedule : Type.
   Parameter empty : schedule.
+  Parameter Empty : schedule -> bool.
   Parameter schedPeek: schedule -> option tid.
   Parameter schedSkip: schedule -> schedule.
   Parameter buildSched: list tid -> schedule.
@@ -29,6 +30,7 @@ Module ListScheduler (TID:ThreadID) <: Scheduler with Module TID:= TID.
   Definition schedule:= list tid.
   Definition empty : schedule := nil.
   Definition schedPeek (sc:schedule):= @List.hd_error tid sc.
+  Definition Empty : schedule -> bool := fun sch => if schedPeek sch then false else true.
   Definition schedSkip (sc:schedule): schedule:= @List.tl tid sc.
   Definition buildSched (ls : list tid) : schedule := ls.
 End ListScheduler.

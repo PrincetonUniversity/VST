@@ -89,14 +89,15 @@ Module Type ErasureSig.
    corestep (JMachineSem U0) genv (U, js) m (U', js') m' ->
    match_st js ds ->
    DSEM.invariant ds ->
-   exists (ds' : dstate) (mu' : SM_Injection),
+   exists (ds' : dstate),
      DSEM.invariant ds' /\
      match_st js' ds' /\
      corestep (DMachineSem U0) genv (U, ds) m (U', ds') m'.
 
   Axiom halted_diagram:
-    forall U c, halted (JMachineSem U) c = None.
-  
+    forall U ds js,
+      fst js = fst ds ->
+      halted (JMachineSem U) js = halted (DMachineSem U) ds.
 
 End ErasureSig.
 
@@ -171,15 +172,22 @@ Module ErasureFnctr (PC:ErasureSig).
       inversion MTCH; subst; clear MTCH.
       destruct st1' as [U' js'].
       destruct (core_diagram m2 U U0 U' ds js js' m1' H H1 H0) as
-          [ds' [mu' [DINV [MTCH CORE]]]].
-      exists (U', ds'), m1', tt, mu'. split.
+          [ds' [DINV [MTCH CORE]]].
+      exists (U', ds'), m1', tt, mu. split.
       + constructor; assumption.
       + left; apply semantics_lemmas.corestep_plus_one; assumption.
     - intros until v1; intros MTCH.
-      rewrite halted_diagram. intros HLTD; inversion HLTD.
+      inversion MTCH; subst.
+      intros. exists mu, v1.
+      split; auto.
+      constructor; reflexivity.
+      rewrite <- H1; symmetry. (apply halted_diagram); reflexivity.
   Qed.
       
 End ErasureFnctr.
+
+
+
 
 (*
 Module ParchingFnctr (PA:ParchingAbstract) <: ErasureSig.
