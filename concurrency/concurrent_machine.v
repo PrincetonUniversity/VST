@@ -260,9 +260,9 @@ Module CoarseMachine (SCH:Scheduler)(SIG : ConcurrentMachineSig with Module Thre
                     (Hat_external: at_external Sem c = Some X)
                     (Hafter_external: after_external Sem
                                              (Some (Vint Int.zero)) c = Some c')
-                    (Hcode: getThreadC ctn = Kresume c')
+                    (Hcode: getThreadC ctn = Kresume c)
                     (Hinv: invariant ms)
-                    (Hms': updThreadC ctn (Krun c)  = ms'),
+                    (Hms': updThreadC ctn (Krun c')  = ms'),
       resume_thread' ctn ms'.
   Definition resume_thread: forall {tid0 ms},
       containsThread ms tid0 -> machine_state -> Prop:=

@@ -231,6 +231,39 @@ Module ThreadPool (SEM:Semantics) <: ThreadPoolSig
     unfold containsThread in *; intros.
       by simpl in *.
   Qed.
+
+  Lemma cntUpdateR:
+    forall {i j tp} r
+      (cnti: containsThread tp i),
+      containsThread tp j->
+      containsThread (updThreadR cnti r) j.
+  Proof.
+    intros tid tp.
+    unfold containsThread; intros.
+      by simpl.
+  Qed.
+      
+  Lemma cntUpdateR':
+    forall {i j tp} r
+      (cnti: containsThread tp i),
+      containsThread (updThreadR cnti r) j -> 
+      containsThread tp j.
+  Proof.
+    intros tid tp.
+    unfold containsThread; intros.
+      by simpl.
+  Qed.
+  
+  Lemma cntAdd:
+    forall {j tp} c p,
+      containsThread tp j ->
+      containsThread (addThread tp c p) j.
+  Proof.
+    intros;
+    unfold addThread, containsThread in *;
+    simpl;
+      by auto.
+  Qed.
   
   Lemma getThreadUpdateC1:
     forall {tid tp} c
@@ -269,6 +302,20 @@ Module ThreadPool (SEM:Semantics) <: ThreadPoolSig
     apply proof_irr.
   Qed.
 
+    Lemma gsoThreadCode:
+    forall {i j tp} (Hneq: i <> j) (cnti: containsThread tp i)
+      (cntj: containsThread tp j) c' p'
+      (cntj': containsThread (updThread cnti c' p') j),
+      getThreadC cntj' = getThreadC cntj.
+  Proof.
+    intros.
+    simpl.
+    erewrite threads_lemmas.if_false
+      by (apply/eqP; intros Hcontra; inversion Hcontra; by auto).
+    unfold updThread in cntj'. unfold containsThread in *. simpl in *.
+    unfold getThreadC. do 2 apply f_equal. apply proof_irr.
+  Qed.
+  
   Lemma gssThreadRes {tid tp} (cnt: containsThread tp tid) c' p'
         (cnt': containsThread (updThread cnt c' p') tid) :
     getThreadR cnt' = p'.
@@ -324,6 +371,71 @@ Module ThreadPool (SEM:Semantics) <: ThreadPoolSig
     unfold updThreadC, containsThread in *. simpl in *.
     do 2 apply f_equal.
     apply proof_irr.
+  Qed.
+
+    Lemma gThreadRC {i j tp} (cnti: containsThread tp i)
+        (cntj: containsThread tp j) p
+        (cntj': containsThread (updThreadR cnti p) j) :
+    getThreadC cntj' = getThreadC cntj.
+  Proof.
+    simpl.
+    unfold getThreadC.
+    unfold updThreadR, containsThread in *. simpl in *.
+    do 2 apply f_equal.
+    apply proof_irr.
+  Qed.
+
+   Lemma unlift_m_inv :
+    forall tp i (Htid : i < (num_threads tp).+1) ord
+      (Hunlift: unlift (ordinal_pos_incr (num_threads tp))
+                       (Ordinal (n:=(num_threads tp).+1)
+                                (m:=i) Htid)=Some ord),
+      nat_of_ord ord = i.
+  Proof.
+    intros.
+    assert (Hcontra: unlift_spec (ordinal_pos_incr (num_threads tp))
+                                 (Ordinal (n:=(num_threads tp).+1)
+                                          (m:=i) Htid) (Some ord)).
+    rewrite <- Hunlift.
+    apply/unliftP.
+    inversion Hcontra; subst.
+    inversion H0.
+    unfold bump.
+    assert (pf: ord < (num_threads tp))
+      by (by rewrite ltn_ord).
+    assert (H: (num_threads tp) <= ord = false).
+    rewrite ltnNge in pf.
+    rewrite <- Bool.negb_true_iff. auto.
+    rewrite H. simpl. rewrite add0n. reflexivity.
+  Defined.
+  
+  Lemma goaThreadC {i tp}
+        (cnti: containsThread tp i) c p
+        (cnti': containsThread (addThread tp c p) i) :
+    getThreadC cnti' = getThreadC cnti.
+  Proof.
+    simpl.
+    unfold getThreadC.
+    unfold addThread, containsThread in *. simpl in *.
+    destruct (unlift (ordinal_pos_incr (num_threads tp))
+                     (Ordinal (n:=(num_threads tp).+1) (m:=i) cnti')) eqn:H.
+    rewrite H. apply unlift_m_inv in H. subst i.
+    destruct o.
+    do 2 apply f_equal;
+      by apply proof_irr.
+    destruct (i == num_threads tp) eqn:Heqi; move/eqP:Heqi=>Heqi.
+    subst i.
+    exfalso;
+      by ssromega.
+    assert (Hcontra: (ordinal_pos_incr (num_threads tp))
+                       != (Ordinal (n:=(num_threads tp).+1) (m:=i) cnti')).
+    { apply/eqP. intros Hcontra.
+            unfold ordinal_pos_incr in Hcontra.
+            inversion Hcontra; auto.
+    }
+    apply unlift_some in Hcontra. rewrite H in Hcontra.
+    destruct Hcontra;
+      by discriminate.
   Qed.
   
 End ThreadPool.
