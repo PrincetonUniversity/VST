@@ -117,7 +117,7 @@ Module ClightParching <: ErasureSig.
      unfold DTP.getThreadR.
      apply permissions.po_refl.
 
-    - 
+    - inversion mc.
       admit.
   Qed.
       
@@ -259,14 +259,34 @@ Module ClightParching <: ErasureSig.
 
        
        (* core_step *)
-       { admit. (*
+       {
          inversion MATCH; subst.
-         inversion H3; subst.
-         inversion Hcorestep.
-         Search dstate.
-         Axiom get_permMap: mem -> permissions.share_map.
-         exists (U, updThread (MTCH_cnt H1 (Htid))
-                         (Krun c') (get_permMap (juicy_mem.m_dry jm'))).
+         inversion Htstep; subst.
+         assert (Htid':=mtch_cnt _ Htid).
+         exists (DTP.updThread Htid' (Krun c') (permissions.getCurPerm (m_dry jm'))).
+         split ; [|split].
+         { constructor.
+           - admit. (* race free after update *)
+           - admit. (* lock_pool separated after update. *)
+         }
+         { constructor.
+           - simpl; intros.
+             apply DTP.cntUpdate. apply mtch_cnt.
+             eapply JTP.cntUpdate'; eassumption.
+           - simpl; intros.
+             apply JTP.cntUpdate. apply mtch_cnt'.
+             eapply DTP.cntUpdate'; eassumption.
+           - intros. destruct (NatTID.eq_tid_dec tid0 tid).
+             + subst. rewrite JTP.gssThreadCode, DTP.gssThreadCode; reflexivity.
+             + assert (jcnt2:= JTP.cntUpdateC' (Krun c') Htid Htid0).
+               assert (dcnt2:= DTP.cntUpdateC' (Krun c') Htid' Htid'0).
+               assert (Hn: tid <> tid0) by auto.
+             rewrite <- (JTP.gsoThreadRes jcnt2 Htid n _  _ Htid0) by auto.
+             rewrite <- (DTP.getThreadUpdateC2 _ _   dcnt2  Htid') by auto.
+             apply mtch_gtc.
+
+               DTP.gsoThreadRes. reflexivity.
+             
          split.
          - destruct jmst' as [U' js'].
          simpl in *; subst.

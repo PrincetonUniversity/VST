@@ -320,6 +320,7 @@ Module CoarseMachine (SCH:Scheduler)(SIG : ConcurrentMachineSig with Module Thre
   (*not clear what the value of halted should be*)
   (*Nick: IMO, the machine should be halted when the schedule is empty.
             The value is probably unimportant? *)
+  (*Santiago: I belive empty schedule should "diverge". After all that's *)
   Definition halted (st : MachState) : option val :=
     match schedPeek (fst st) with
     | Some _ => None
