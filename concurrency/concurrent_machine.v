@@ -140,14 +140,6 @@ Module Type ThreadPoolSig.
       (cntj': containsThread (updThread cnti c' p') j),
       getThreadC cntj' = getThreadC cntj.
 
-    Axiom gsoThreadCode:
-    forall {tid tid0 tp} c' p'
-      (cnt1: containsThread tp tid)
-      (cnt2: containsThread tp tid0)
-      (cnt3: containsThread (updThread cnt1 c' p') tid0),
-      tid <> tid0 ->
-      getThreadC cnt2 = getThreadC cnt3.
-
   Axiom gssThreadRes:
     forall {tid tp} (cnt: containsThread tp tid) c' p'
       (cnt': containsThread (updThread cnt c' p') tid),
