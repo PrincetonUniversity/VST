@@ -269,6 +269,15 @@ Module ThreadPool (SEM:Semantics) <: ThreadPoolSig
     apply proof_irr.
   Qed.
 
+   Lemma gsoThreadCode:
+    forall {tid tid0 tp} c' p'
+      (cnt1: containsThread tp tid)
+      (cnt2: containsThread tp tid0)
+      (cnt3: containsThread (updThread cnt1 c' p') tid0),
+      tid <> tid0 ->
+      getThreadC cnt2 = getThreadC cnt3.
+   Admitted.
+
   Lemma gssThreadRes {tid tp} (cnt: containsThread tp tid) c' p'
         (cnt': containsThread (updThread cnt c' p') tid) :
     getThreadR cnt' = p'.
@@ -447,7 +456,8 @@ Module Concur.
       forall i loc r (cnti : containsThread tp i),
         lock_set tp loc = SSome r ->
         joins (getThreadR cnti)r.
-    
+
+    (*Have to add here: if lock ina thread -> lock in resource_set *)
     Record invariant' (tp:t) := True. (* The invariant has been absorbed my mem_compat*)
      (* { no_race : disjoint_threads tp
       }.*)
