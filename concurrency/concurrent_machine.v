@@ -87,7 +87,13 @@ Module Type ThreadPoolSig.
   Axiom cnt_irr: forall t tid
                    (cnt1 cnt2: containsThread t tid),
       cnt1 = cnt2.
-      
+
+  (* Add Thread properties*)
+  Axiom cntAdd:
+    forall {j tp} c p,
+      containsThread tp j ->
+      containsThread (addThread tp c p) j.
+  
   (* Update properties*)
   Axiom cntUpdateC:
     forall {tid tid0 tp} c
@@ -99,6 +105,18 @@ Module Type ThreadPoolSig.
       (cnt: containsThread tp tid),
       containsThread (updThreadC cnt c) tid0 -> 
       containsThread tp tid0.
+
+  Axiom cntUpdateR:
+    forall {i j tp} r
+      (cnti: containsThread tp i),
+      containsThread tp j->
+      containsThread (updThreadR cnti r) j.
+  Axiom cntUpdateR':
+    forall {i j tp} r
+      (cnti: containsThread tp i),
+      containsThread (updThreadR cnti r) j -> 
+      containsThread tp j.
+  
   Axiom cntUpdate:
     forall {i j tp} c p
       (cnti: containsThread tp i),
@@ -109,25 +127,18 @@ Module Type ThreadPoolSig.
       (cnti: containsThread tp i),
       containsThread (updThread cnti c p) j ->
       containsThread tp j.
-  
-  Axiom getThreadUpdateC1:
-    forall {tid tp} c
-      (cnt: containsThread tp tid)
-      (cnt': containsThread (updThreadC cnt c) tid),
-      getThreadC cnt' = c.
-  
-  Axiom getThreadUpdateC2:
-    forall {tid tid0 tp} c
-      (cnt1: containsThread tp tid)
-      (cnt2: containsThread tp tid0)
-      (cnt3: containsThread (updThreadC cnt1 c) tid0),
-      tid <> tid0 ->
-      getThreadC cnt2 = getThreadC cnt3.
-
+   
   (*Get thread Properties*)
   Axiom gssThreadCode :
     forall {tid tp} (cnt: containsThread tp tid) c' p'
-      (cnt': containsThread (updThread cnt c' p') tid), getThreadC cnt' = c'.
+      (cnt': containsThread (updThread cnt c' p') tid),
+      getThreadC cnt' = c'.
+
+  Axiom gsoThreadCode :
+    forall {i j tp} (Hneq: i <> j) (cnti: containsThread tp i)
+      (cntj: containsThread tp j) c' p'
+      (cntj': containsThread (updThread cnti c' p') j),
+      getThreadC cntj' = getThreadC cntj.
 
     Axiom gsoThreadCode:
     forall {tid tid0 tp} c' p'
@@ -164,6 +175,18 @@ Module Type ThreadPoolSig.
       (cntj: containsThread tp j) c'
       (cntj': containsThread (updThreadC cnti c') j),
       getThreadR cntj' = getThreadR cntj.
+
+  Axiom gThreadRC:
+    forall {i j tp} (cnti: containsThread tp i)
+      (cntj: containsThread tp j) p
+      (cntj': containsThread (updThreadR cnti p) j),
+      getThreadC cntj' = getThreadC cntj.
+
+  Axiom goaThreadC:
+    forall {i tp}
+        (cnti: containsThread tp i) c p
+        (cnti': containsThread (addThread tp c p) i),
+      getThreadC cnti' = getThreadC cnti.
   
 End ThreadPoolSig.
 
@@ -245,9 +268,9 @@ Module CoarseMachine (SCH:Scheduler)(SIG : ConcurrentMachineSig with Module Thre
                     (Hat_external: at_external Sem c = Some X)
                     (Hafter_external: after_external Sem
                                              (Some (Vint Int.zero)) c = Some c')
-                    (Hcode: getThreadC ctn = Kresume c')
+                    (Hcode: getThreadC ctn = Kresume c)
                     (Hinv: invariant ms)
-                    (Hms': updThreadC ctn (Krun c)  = ms'),
+                    (Hms': updThreadC ctn (Krun c')  = ms'),
       resume_thread' ctn ms'.
   Definition resume_thread: forall {tid0 ms},
       containsThread ms tid0 -> machine_state -> Prop:=
