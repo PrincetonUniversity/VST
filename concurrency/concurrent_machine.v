@@ -58,30 +58,34 @@ Inductive ctl {cT:Type} : Type :=
 Definition EqDec: Type -> Type := 
   fun A : Type => forall a a' : A, {a = a'} + {a <> a'}.
 
+Module Type Resources.
+  Parameter res : Type.
+  Parameter LockPool : Type.
+End Resources.
 
 Module Type ThreadPoolSig.
   Declare Module TID: ThreadID.
   Declare Module SEM: Semantics.
+  Declare Module RES : Resources.
   
   Import TID.
   Import SEM.
+  Import RES.
 
-  Parameter res : Type.
-  Parameter LockPool : Type.
   Parameter t : Type.
-
-  Parameter lock_set : t -> LockPool.
 
   Local Notation ctl := (@ctl C).
   
   Parameter containsThread : t -> tid -> Prop.
   Parameter getThreadC : forall {tid tp}, containsThread tp tid -> ctl.
   Parameter getThreadR : forall {tid tp}, containsThread tp tid -> res.
+  Parameter lockSet : t -> LockPool.
 
   Parameter addThread : t -> C -> res -> t.
   Parameter updThreadC : forall {tid tp}, containsThread tp tid -> ctl -> t.
   Parameter updThreadR : forall {tid tp}, containsThread tp tid -> res -> t.
   Parameter updThread : forall {tid tp}, containsThread tp tid -> ctl -> res -> t.
+  Parameter updLockSet : t -> LockPool -> t.
   
   (*Proof Irrelevance of contains*)
   Axiom cnt_irr: forall t tid
@@ -127,6 +131,36 @@ Module Type ThreadPoolSig.
       (cnti: containsThread tp i),
       containsThread (updThread cnti c p) j ->
       containsThread tp j.
+
+  Axiom cntUpdateL:
+    forall {j tp} lp,
+      containsThread tp j ->
+      containsThread (updLockSet tp lp) j.
+
+  Axiom cntUpdateL':
+    forall {j tp} lp,
+      containsThread (updLockSet tp lp) j ->
+      containsThread tp j.
+
+  Axiom gssLockPool:
+    forall tp ls,
+      lockSet (updLockSet tp ls) = ls.
+
+  Axiom gsoThreadLock:
+    forall {i tp} c p (cnti: containsThread tp i),
+      lockSet (updThread cnti c p) = lockSet tp.
+
+  Axiom gsoThreadCLock:
+    forall {i tp} c (cnti: containsThread tp i),
+      lockSet (updThreadC cnti c) = lockSet tp.
+
+  Axiom gsoThreadRLock:
+    forall {i tp} p (cnti: containsThread tp i),
+      lockSet (updThreadR cnti p) = lockSet tp.
+
+  Axiom gsoAddLock:
+    forall tp c p,
+      lockSet (addThread tp c p) = lockSet tp.
    
   (*Get thread Properties*)
   Axiom gssThreadCode :

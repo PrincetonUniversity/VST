@@ -65,7 +65,7 @@ Notation UNLOCK := (EF_external "UNLOCK" UNLOCK_SIG).
 Definition LKCHUNK:= Mint32.
 Definition LKSIZE:= align_chunk LKCHUNK.
 
-Require Import (*compcert_linking*) concurrency.permissions.
+Require Import (*compcert_linking*) concurrency.permissions concurrency.threadPool.
 
 (* There are some overlaping definition conflicting. 
    Here we fix that. But this is obviously ugly and
@@ -85,80 +85,25 @@ Module LockPool.
 End LockPool.
 Export LockPool.
 
-Module ThreadPool (SEM:Semantics) <: ThreadPoolSig
-                                        with Module TID:= NatTID with Module SEM:=SEM.
-  Module TID:=NatTID.
-  Module SEM:=SEM.
-  Import TID SEM.
-  
-  Notation code:=C.
+Module Res.
   Definition res := rmap.
-  
-            
-  Definition LockPool := LockPool.
-  
-  Record t' := mk
-                 { num_threads : pos
-                   ; pool :> 'I_num_threads -> @ctl code
-                   ; perm_maps : 'I_num_threads -> res
-                   ; lset : AMap.t (option rmap)
-                 }.
-  
-  Definition t := t'.
-  
-  Definition containsThread (tp : t) (i : NatTID.tid) : Prop:=
-    i < num_threads tp.
+  Definition LockPool := AMap.t (option rmap).
+End Res.
 
-  Definition getThreadC {i tp} (cnt: containsThread tp i) : ctl :=
-    tp (Ordinal cnt).
+Module ThreadPool (SEM:Semantics) <: ThreadPoolSig
+    with Module TID:= NatTID with Module SEM:=SEM
+    with Module RES:= Res.
+  Include (OrdinalPool SEM Res).
   
-  Definition getThreadR {i tp} (cnt: containsThread tp i) : res :=
-    (perm_maps tp) (Ordinal cnt).
-
-  Definition addThread (tp : t) (c : code) (pmap : res) : t :=
-    let: new_num_threads := pos_incr (num_threads tp) in
-    let: new_tid := ordinal_pos_incr (num_threads tp) in
-    mk new_num_threads
-        (fun (n : 'I_new_num_threads) => 
-           match unlift new_tid n with
-           | None => Kresume c (*Could be a new state Kinit?? *)
-           | Some n' => tp n'
-           end)
-        (fun (n : 'I_new_num_threads) => 
-           match unlift new_tid n with
-           | None => pmap
-           | Some n' => (perm_maps tp) n'
-           end)
-        ((lset tp)).
-  
-  Definition updThreadC {tid tp} (cnt: containsThread tp tid) (c' : ctl) : t :=
-    mk (num_threads tp)
-       (fun n => if n == (Ordinal cnt) then c' else (pool tp)  n)
-       (perm_maps tp) (lset tp).
-
-  Definition updThreadR {tid tp} (cnt: containsThread tp tid)
-             (pmap' : res) : t :=
-    mk (num_threads tp) (pool tp)
-       (fun n =>
-          if n == (Ordinal cnt) then pmap' else (perm_maps tp) n) (lset tp).
-
-  Definition updThread {tid tp} (cnt: containsThread tp tid) (c' : ctl)
-             (pmap : res) : t :=
-    mk (num_threads tp)
-       (fun n =>
-          if n == (Ordinal cnt) then c' else tp n)
-       (fun n =>
-          if n == (Ordinal cnt) then pmap else (perm_maps tp) n) (lset tp).
-
   (** The Lock Resources Set *)
   
-  Definition lock_set t: LockPool:= (AMap.find (elt:=option rmap))^~ (lset t).
+  Definition lock_set t: LockPool:= (AMap.find (elt:=option rmap))^~ (lockSet t).
 
   Definition is_lock t:= fun loc => AMap.mem loc (lset t).
 
   (*Add/Update lock: Notice that adding and updating are the same, depending wether then
     lock was already there. *)
-  Definition addLock tp loc (res: option res):=
+  Definition addLock tp loc (res: option Res.res):=
   mk (num_threads tp)
      (pool tp)
      (perm_maps tp)
@@ -169,277 +114,8 @@ Module ThreadPool (SEM:Semantics) <: ThreadPoolSig
      (pool tp)
      (perm_maps tp)
      (AMap.remove loc (lset tp)).
-  (***********)
-  (** Proofs *)
-  (***********)
-  
-  
-  (*Proof Irrelevance of contains*)
-  Lemma cnt_irr: forall t tid
-                   (cnt1 cnt2: containsThread t tid),
-      cnt1 = cnt2.
-  Proof. intros. apply proof_irrelevance. Qed.
-  
-  (* Update properties*)
-  Lemma numUpdateC :
-    forall {tid tp} (cnt: containsThread tp tid) c,
-      num_threads tp =  num_threads (updThreadC cnt c). 
-  Proof.
-    intros tid tp cnt c.
-    destruct tp; simpl; reflexivity.
-  Qed.
-  
-  Lemma cntUpdateC :
-    forall {tid tid0 tp} c
-      (cnt: containsThread tp tid),
-      containsThread tp tid0 ->
-      containsThread (updThreadC cnt c) tid0. 
-  Proof.
-    intros tid tp.
-    unfold containsThread; intros.
-    rewrite <- numUpdateC; assumption.
-  Qed.
-  
-  Lemma cntUpdateC':
-    forall {tid tid0 tp} c
-      (cnt: containsThread tp tid),
-      containsThread (updThreadC cnt c) tid0 ->
-      containsThread tp tid0. 
-  Proof.
-    intros tid tp.
-    unfold containsThread; intros.
-    rewrite <- numUpdateC in H; assumption.
-  Qed.
-
-  Lemma cntUpdate :
-    forall {i j tp} c p
-      (cnti: containsThread tp i),
-      containsThread tp j ->
-      containsThread (updThread cnti c p) j. 
-  Proof.
-    intros tid tp.
-    unfold containsThread; intros.
-      by simpl.
-  Qed.
-  Lemma cntUpdate':
-    forall {i j tp} c p
-      (cnti: containsThread tp i),
-      containsThread (updThread cnti c p) j ->
-      containsThread tp j.
-  Proof.
-    intros.
-    unfold containsThread in *; intros.
-      by simpl in *.
-  Qed.
-
-  Lemma cntUpdateR:
-    forall {i j tp} r
-      (cnti: containsThread tp i),
-      containsThread tp j->
-      containsThread (updThreadR cnti r) j.
-  Proof.
-    intros tid tp.
-    unfold containsThread; intros.
-      by simpl.
-  Qed.
-      
-  Lemma cntUpdateR':
-    forall {i j tp} r
-      (cnti: containsThread tp i),
-      containsThread (updThreadR cnti r) j -> 
-      containsThread tp j.
-  Proof.
-    intros tid tp.
-    unfold containsThread; intros.
-      by simpl.
-  Qed.
-  
-  Lemma cntAdd:
-    forall {j tp} c p,
-      containsThread tp j ->
-      containsThread (addThread tp c p) j.
-  Proof.
-    intros;
-    unfold addThread, containsThread in *;
-    simpl;
-      by auto.
-  Qed.
-  
-  Lemma getThreadUpdateC1:
-    forall {tid tp} c
-      (cnt: containsThread tp tid)
-      (cnt': containsThread (updThreadC cnt c) tid),
-      getThreadC cnt' = c.
-  Proof.
-    intros. destruct tp. simpl.
-    rewrite (cnt_irr cnt cnt') eq_refl; reflexivity.
-  Qed.
-    
-  
-  Lemma getThreadUpdateC2:
-    forall {tid tid0 tp} c
-      (cnt1: containsThread tp tid)
-      (cnt2: containsThread tp tid0)
-      (cnt3: containsThread (updThreadC cnt1 c) tid0),
-      tid <> tid0 ->
-      getThreadC cnt2 = getThreadC cnt3.
-  Proof.
-    intros. destruct tp. simpl.
-    (*Could use ssreflect better here: *)
-    destruct (@eqP _ (Ordinal (n:=num_threads0) (m:=tid1) cnt3) (Ordinal (n:=num_threads0) (m:=tid0) cnt1)).
-    inversion e. exfalso; apply H; symmetry; eassumption.
-    rewrite (cnt_irr cnt2 cnt3); reflexivity.
-  Qed.
-  
-  (*getThread Properties*)
-    Lemma gssThreadCode {tid tp} (cnt: containsThread tp tid) c' p'
-        (cnt': containsThread (updThread cnt c' p') tid) :
-    getThreadC cnt' = c'.
-  Proof.
-    simpl. rewrite threads_lemmas.if_true; auto.
-    unfold updThread, containsThread in *. simpl in *.
-    apply/eqP. apply f_equal.
-    apply proof_irr.
-  Qed.
-
-    Lemma gsoThreadCode:
-    forall {i j tp} (Hneq: i <> j) (cnti: containsThread tp i)
-      (cntj: containsThread tp j) c' p'
-      (cntj': containsThread (updThread cnti c' p') j),
-      getThreadC cntj' = getThreadC cntj.
-  Proof.
-    intros.
-    simpl.
-    erewrite threads_lemmas.if_false
-      by (apply/eqP; intros Hcontra; inversion Hcontra; by auto).
-    unfold updThread in cntj'. unfold containsThread in *. simpl in *.
-    unfold getThreadC. do 2 apply f_equal. apply proof_irr.
-  Qed.
-  
-  Lemma gssThreadRes {tid tp} (cnt: containsThread tp tid) c' p'
-        (cnt': containsThread (updThread cnt c' p') tid) :
-    getThreadR cnt' = p'.
-  Proof.
-    simpl. rewrite threads_lemmas.if_true; auto.
-    unfold updThread, containsThread in *. simpl in *.
-    apply/eqP. apply f_equal.
-    apply proof_irr.
-  Qed.
-
-  Lemma gsoThreadRes {i j tp} (cnti: containsThread tp i)
-        (cntj: containsThread tp j) (Hneq: i <> j) c' p'
-        (cntj': containsThread (updThread cnti c' p') j) :
-    getThreadR cntj' = getThreadR cntj.
-  Proof.
-    simpl.
-    erewrite threads_lemmas.if_false
-      by (apply/eqP; intros Hcontra; inversion Hcontra; by auto).
-    unfold updThread in cntj'. unfold containsThread in *. simpl in *.
-    unfold getThreadR. do 2 apply f_equal. apply proof_irr.
-  Qed.
-
-  Lemma gssThreadCC {tid tp} (cnt: containsThread tp tid) c'
-        (cnt': containsThread (updThreadC cnt c') tid) :
-    getThreadC cnt' = c'.
-  Proof.
-    simpl. rewrite threads_lemmas.if_true; auto.
-    unfold updThreadC, containsThread in *. simpl in *.
-    apply/eqP. apply f_equal.
-    apply proof_irr.
-  Qed.
-
-  Lemma gsoThreadCC {i j tp} (Hneq: i <> j) (cnti: containsThread tp i)
-        (cntj: containsThread tp j) c'
-        (cntj': containsThread (updThreadC cnti c') j) :
-    getThreadC cntj = getThreadC cntj'.
-  Proof.
-    simpl.
-    erewrite threads_lemmas.if_false
-      by (apply/eqP; intros Hcontra; inversion Hcontra; auto).
-    unfold updThreadC in cntj'. unfold containsThread in *.
-    simpl in cntj'. unfold getThreadC.
-    do 2 apply f_equal. by apply proof_irr.
-  Qed.
-  
-  Lemma gThreadCR {i j tp} (cnti: containsThread tp i)
-        (cntj: containsThread tp j) c'
-        (cntj': containsThread (updThreadC cnti c') j) :
-    getThreadR cntj' = getThreadR cntj.
-  Proof.
-    simpl.
-    unfold getThreadR. 
-    unfold updThreadC, containsThread in *. simpl in *.
-    do 2 apply f_equal.
-    apply proof_irr.
-  Qed.
-
-    Lemma gThreadRC {i j tp} (cnti: containsThread tp i)
-        (cntj: containsThread tp j) p
-        (cntj': containsThread (updThreadR cnti p) j) :
-    getThreadC cntj' = getThreadC cntj.
-  Proof.
-    simpl.
-    unfold getThreadC.
-    unfold updThreadR, containsThread in *. simpl in *.
-    do 2 apply f_equal.
-    apply proof_irr.
-  Qed.
-
-   Lemma unlift_m_inv :
-    forall tp i (Htid : i < (num_threads tp).+1) ord
-      (Hunlift: unlift (ordinal_pos_incr (num_threads tp))
-                       (Ordinal (n:=(num_threads tp).+1)
-                                (m:=i) Htid)=Some ord),
-      nat_of_ord ord = i.
-  Proof.
-    intros.
-    assert (Hcontra: unlift_spec (ordinal_pos_incr (num_threads tp))
-                                 (Ordinal (n:=(num_threads tp).+1)
-                                          (m:=i) Htid) (Some ord)).
-    rewrite <- Hunlift.
-    apply/unliftP.
-    inversion Hcontra; subst.
-    inversion H0.
-    unfold bump.
-    assert (pf: ord < (num_threads tp))
-      by (by rewrite ltn_ord).
-    assert (H: (num_threads tp) <= ord = false).
-    rewrite ltnNge in pf.
-    rewrite <- Bool.negb_true_iff. auto.
-    rewrite H. simpl. rewrite add0n. reflexivity.
-  Defined.
-  
-  Lemma goaThreadC {i tp}
-        (cnti: containsThread tp i) c p
-        (cnti': containsThread (addThread tp c p) i) :
-    getThreadC cnti' = getThreadC cnti.
-  Proof.
-    simpl.
-    unfold getThreadC.
-    unfold addThread, containsThread in *. simpl in *.
-    destruct (unlift (ordinal_pos_incr (num_threads tp))
-                     (Ordinal (n:=(num_threads tp).+1) (m:=i) cnti')) eqn:H.
-    rewrite H. apply unlift_m_inv in H. subst i.
-    destruct o.
-    do 2 apply f_equal;
-      by apply proof_irr.
-    destruct (i == num_threads tp) eqn:Heqi; move/eqP:Heqi=>Heqi.
-    subst i.
-    exfalso;
-      by ssromega.
-    assert (Hcontra: (ordinal_pos_incr (num_threads tp))
-                       != (Ordinal (n:=(num_threads tp).+1) (m:=i) cnti')).
-    { apply/eqP. intros Hcontra.
-            unfold ordinal_pos_incr in Hcontra.
-            inversion Hcontra; auto.
-    }
-    apply unlift_some in Hcontra. rewrite H in Hcontra.
-    destruct Hcontra;
-      by discriminate.
-  Qed.
-  
+   
 End ThreadPool.
-
 
 Module JMem.
   
@@ -456,7 +132,8 @@ Module Concur.
   (** Semantics of the coarse-grained juicy concurrent machine*)
   Module JuicyMachineShell (SEM:Semantics)  <: ConcurrentMachineSig
       with Module ThreadPool.TID:=mySchedule.TID
-      with Module ThreadPool.SEM:= SEM.
+      with Module ThreadPool.SEM:= SEM
+      with Module ThreadPool.RES := Res.
 
     Module ThreadPool := ThreadPool SEM.
     Import ThreadPool.
@@ -501,19 +178,19 @@ Module Concur.
     (*Join juice from all threads *)
     Definition getThreadsR tp:=
       map (perm_maps tp) (enum ('I_(num_threads tp))).
-    Fixpoint join_list (ls: seq.seq res) r:=
+    Fixpoint join_list (ls: seq.seq Res.res) r:=
       if ls is phi::ls' then exists r', join phi r' r /\ join_list ls' r' else
         app_pred emp r.  (*Or is is just [amp r]?*)
     Definition join_threads tp r:= join_list (getThreadsR tp) r.
 
     (*Join juice from all locks*)
-    Fixpoint join_list' (ls: seq.seq (option res)) (r:option res):=
-      if ls is phi::ls' then exists (r':option res),
-          @join _ (@Join_lower res _) phi r' r /\ join_list' ls' r' else r=None.
+    Fixpoint join_list' (ls: seq.seq (option Res.res)) (r:option Res.res):=
+      if ls is phi::ls' then exists (r':option Res.res),
+          @join _ (@Join_lower Res.res _) phi r' r /\ join_list' ls' r' else r=None.
     Definition join_locks tp r:= join_list' (map snd (AMap.elements (lset tp))) r.
 
     (*Join all the juices*)
-    Inductive join_all: t -> res -> Prop:=
+    Inductive join_all: t -> Res.res -> Prop:=
       AllJuice tp r0 r1 r:
         join_threads tp r0 ->
         join_locks tp r1 ->
@@ -523,7 +200,7 @@ Module Concur.
     (*This is not enoug!!! We need the ENTIRE join of juice to be compatible.*)
     (*BUT, these two properties should follow (proved)*)
     Record mem_compatible' tp m: Prop :=
-      {   all_juice  : res
+      {   all_juice  : Res.res
         ; juice_join : join_all tp all_juice
         ; all_cohere : mem_cohere' m all_juice
       }.
@@ -914,7 +591,7 @@ Module Concur.
 
     Lemma onePos: (0<1)%coq_nat. auto. Qed.
     Definition initial_machine c:=
-      mk (mkPos onePos) (fun _ => (Kresume c)) (fun _ => empty_rmap level) (AMap.empty (option res)).
+      mk (mkPos onePos) (fun _ => (Kresume c)) (fun _ => empty_rmap level) (AMap.empty (option Res.res)).
     
     Definition init_mach (genv:G)(v:val)(args:list val) : option thread_pool:=
       match initial_core the_sem genv v args with

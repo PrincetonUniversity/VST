@@ -127,7 +127,7 @@ SEPCOMP_FILES= \
 CONCUR_FILES= \
   addressFiniteMap.v\
   sepcomp.v threads_lemmas.v permissions.v\
-  pos.v scheduler.v \
+  pos.v scheduler.v threadPool.v \
   concurrent_machine.v juicy_machine.v dry_machine.v \
   erasure.v \
   semax_conc.v semax_to_machine.v
