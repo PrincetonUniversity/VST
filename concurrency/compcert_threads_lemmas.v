@@ -471,8 +471,9 @@ Module CoreLanguage.
           destruct ((getThreadR cnt0) # b ofs);
             [by exfalso| destruct ((getMaxPerm m') # b ofs); simpl; by auto].
       }
-      { (*TODO: add functions to manipulate lockset in the threadpool*)
-        admit.
+      { intros b ofs.
+        rewrite gsoThreadLock. destruct Hcompatible.
+        
       }
     Qed.
 
