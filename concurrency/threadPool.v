@@ -18,7 +18,7 @@ Module OrdinalPool (SEM:Semantics) (RES:Resources) <: ThreadPoolSig
   Import SEM.
   Import RES.
   
-  Notation code:=C.
+  Global Notation code:=C.
   
   Record t' := mk
                  { num_threads : pos

@@ -953,7 +953,8 @@ Section permMapDefs.
     assert (Heq := restrPermMap_correct Hlt b ofs).
       by destruct Heq.
   Qed.
-  
+
+    
   Lemma restrPermMap_can : forall (p : access_map) (m m': mem)
                              (Hlt: permMapLt p (getMaxPerm m))
                              (Hrestrict: restrPermMap Hlt = m'),
