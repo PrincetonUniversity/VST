@@ -32,7 +32,7 @@ Proof.
 Qed.
 
 Definition access_map := Maps.PMap.t (Z -> option permission).
-Definition delta_map := Maps.PMap.t (Z -> option (option permission)).
+Definition delta_map := Maps.PTree.t (Z -> option (option permission)).
 
 Section permMapDefs.
   
@@ -402,7 +402,7 @@ Section permMapDefs.
                               else
                                 Maps.PMap.get b pmap ofs')
                   pmap.
-  
+  (* THIS OLD VERSION IS WRONG
   Definition computeMap (pmap : access_map) (delta : delta_map) : access_map :=
     (fun ofs => None,
              Maps.PTree.map 
@@ -411,8 +411,23 @@ Section permMapDefs.
                     match (Maps.PMap.get b delta) ofs with
                     | None => f ofs
                     | Some p => p
-                    end) pmap.2).
-
+                    end) pmap.2). *)
+  Definition computeMap (pmap : access_map) (delta : delta_map) : access_map :=
+    (pmap.1,
+     @Maps.PTree.combine (Z -> option permission) (Z -> option (option permission)) (Z -> option permission)
+                         (fun p1 pd => match pd, p1 with
+                                    | Some pd', Some p1' => Some (fun z => match pd' z with
+                                                                           Some pd'' => pd''
+                                                                         | _ => p1' z
+                                                                         end)
+                                    | Some pd', None => Some (fun z => match pd' z with
+                                                                       Some pd'' => pd''
+                                                                       | _ => None
+                                                                     end)
+                                    | None, _ => p1
+                                    end)
+                         pmap.2 delta).
+      
   Import Maps BlockList.
   
   Definition maxF (f : Z -> perm_kind -> option permission) :=

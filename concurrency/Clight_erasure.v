@@ -21,6 +21,8 @@ Require Import sepcomp.wholeprog_simulations.
 (*General erasure*)
 Require Import concurrency.erasure.
 
+Require Import ssreflect seq.
+
 (* I will import this from CLight once we port it*)
 (*Module ClightSEM<: Semantics.
   Definition G:= nat.
@@ -36,8 +38,8 @@ Module ClightParching <: ErasureSig.
   Module SEM:= ClightSEM.
   Import SCH SEM.
 
-  Module JSEM:= JuicyMachineShell SEM .
-  Module JuicyMachine:= CoarseMachine SCH JSEM.
+  Module JSEM:= JuicyMachineShell SEM. (* JuicyMachineShell : Semantics -> ConcurrentSemanticsSig *)
+  Module JuicyMachine:= CoarseMachine SCH JSEM. (* CoarseMachine : Schedule -> ConcurrentSemanticsSig -> ConcurrentSemantics *)
   Notation JMachineSem:= JuicyMachine.MachineSemantics.
   Notation jstate:= JuicyMachine.SIG.ThreadPool.t.
   Notation jmachine_state:= JuicyMachine.MachState.
@@ -138,15 +140,16 @@ Module ClightParching <: ErasureSig.
         eapply DTP.cntUpdateC'; apply H.
       - destruct (NatTID.eq_tid_dec tid tid0) as [e|ine].
         + subst.
-          rewrite JTP.getThreadUpdateC1;
-            rewrite DTP.getThreadUpdateC1.
+          rewrite JTP.gssThreadCC;
+            rewrite DTP.gssThreadCC.
           reflexivity.
         + assert (cnt2:= JTP.cntUpdateC' _ cnt Htid).
-          rewrite <- (JTP.getThreadUpdateC2 c cnt cnt2 Htid) by assumption.
+          rewrite <- (JTP.gsoThreadCC ine cnt cnt2 c Htid) by assumption.
           inversion H0; subst.
           pose (cnt':=(@MTCH_cnt js tid ds H0 cnt)).
           assert (cnt2':= DTP.cntUpdateC' _ cnt' Htid').
-          fold cnt'; rewrite <- (DTP.getThreadUpdateC2 c cnt' cnt2' Htid') by assumption.
+          fold cnt';
+          rewrite <- (DTP.gsoThreadCC ine cnt' cnt2' c Htid') by assumption.
           apply mtch_gtc; assumption.
       - inversion H0; apply mtch_perm.
     Qed.
@@ -337,7 +340,7 @@ Module ClightParching <: ErasureSig.
        (* resume_step *)
        inversion MATCH; subst.
        inversion Htstep; subst.
-       exists (DTP.updThreadC (mtch_cnt _ ctn) (Krun c)).
+       exists (DTP.updThreadC (mtch_cnt _ ctn) (Krun c')).
        split;[|split].
        (*Invariant*)
        { apply updCinvariant; assumption. }
@@ -346,11 +349,11 @@ Module ClightParching <: ErasureSig.
          - intros. apply DTP.cntUpdateC. apply mtch_cnt. eapply JTP.cntUpdateC'. eassumption.
          - intros. apply JTP.cntUpdateC. apply mtch_cnt'. eapply DTP.cntUpdateC'. eassumption.
          - intros. destruct (NatTID.eq_tid_dec tid0 tid).
-           + subst. rewrite JTP.getThreadUpdateC1, DTP.getThreadUpdateC1; reflexivity.
-           + assert (jcnt2:= JTP.cntUpdateC' _ _ Htid0).
-             assert (dcnt2:= DTP.cntUpdateC' _ _ Htid').
-             rewrite <- (JTP.getThreadUpdateC2 _ ctn jcnt2  Htid0) by auto.
-             rewrite <- (DTP.getThreadUpdateC2 _ _   dcnt2  Htid') by auto.
+           + subst. rewrite JTP.gssThreadCC DTP.gssThreadCC. reflexivity.
+           +  assert (jcnt2:= JTP.cntUpdateC' _ _ Htid0).
+              assert (dcnt2:= DTP.cntUpdateC' _ _ Htid').
+             rewrite <- (JTP.gsoThreadCC (not_eq_sym n) ctn jcnt2 _  Htid0) by auto.
+             rewrite <- (DTP.gsoThreadCC (not_eq_sym n) _   dcnt2 _  Htid') by auto.
              apply mtch_gtc.
          - intros.
            assert (jcnt2:= JTP.cntUpdateC' _ _ Htid0).
@@ -387,16 +390,16 @@ Module ClightParching <: ErasureSig.
              apply JTP.cntUpdate. apply mtch_cnt'.
              eapply DTP.cntUpdate'; eassumption.
            - intros. destruct (NatTID.eq_tid_dec tid0 tid).
-             + subst. rewrite JTP.gssThreadCode, DTP.gssThreadCode; reflexivity.
+             + subst. rewrite JTP.gssThreadCode DTP.gssThreadCode; reflexivity.
              + assert (jcnt2:= JTP.cntUpdateC' (Krun c') Htid Htid0).
                assert (dcnt2:= DTP.cntUpdateC' (Krun c') Htid' Htid'0).
                assert (Hn: tid <> tid0) by auto.
-             rewrite <- (JTP.gsoThreadCode _ _ Htid jcnt2 Htid0) by auto.
-             rewrite <- (DTP.gsoThreadCode _ _ Htid' dcnt2 Htid'0) by auto.
-             apply mtch_gtc.
+             rewrite (JTP.gsoThreadCode Hn Htid jcnt2 _ _ Htid0); auto.
+             rewrite (DTP.gsoThreadCode Hn Htid' dcnt2 _ _ Htid'0); auto.
+             (*apply mtch_gtc.*)
 
            -  intros. destruct (NatTID.eq_tid_dec tid0 tid).
-              + subst. rewrite JTP.gssThreadRes, DTP.gssThreadRes.
+              + subst. rewrite JTP.gssThreadRes DTP.gssThreadRes.
                 simpl. rewrite permissions.getCurPerm_correct.
                 unfold perm_of_res.
                 inversion Hcorestep.
@@ -405,9 +408,9 @@ Module ClightParching <: ErasureSig.
               + assert (jcnt2:= JTP.cntUpdateC' (Krun c') Htid Htid0).
                 assert (dcnt2:= DTP.cntUpdateC' (Krun c') Htid' Htid'0).
                 assert (Hn: tid <> tid0) by auto.
-                rewrite (JTP.gsoThreadRes Htid jcnt2 Hn _ _ Htid0) by auto.
-                rewrite (DTP.gsoThreadRes Htid' dcnt2 Hn _ _ Htid'0) by auto.
-                apply mtch_perm.
+                rewrite (JTP.gsoThreadRes Htid jcnt2 Hn _ _ Htid0); auto.
+                rewrite (DTP.gsoThreadRes Htid' dcnt2 Hn _ _ Htid'0); auto.
+                (*apply mtch_perm.*)
          }
          {  assert (Hcmpt': DSEM.mem_compatible ds m) by
                (eapply MTCH_compat; eassumption).
@@ -438,11 +441,12 @@ Module ClightParching <: ErasureSig.
          - intros. apply DTP.cntUpdateC. apply mtch_cnt. eapply JTP.cntUpdateC'. eassumption.
          - intros. apply JTP.cntUpdateC. apply mtch_cnt'. eapply DTP.cntUpdateC'. eassumption.
          - intros. destruct (NatTID.eq_tid_dec tid0 tid).
-           + subst. rewrite JTP.getThreadUpdateC1, DTP.getThreadUpdateC1; reflexivity.
+           + subst.
+             rewrite JTP.gssThreadCC DTP.gssThreadCC; reflexivity.
            + assert (jcnt2:= JTP.cntUpdateC' _ _ Htid0).
              assert (dcnt2:= DTP.cntUpdateC' _ _ Htid').
-             rewrite <- (JTP.getThreadUpdateC2 _ ctn jcnt2  Htid0) by auto.
-             rewrite <- (DTP.getThreadUpdateC2 _ _   dcnt2  Htid') by auto.
+             rewrite <- (JTP.gsoThreadCC (not_eq_sym n) ctn jcnt2 _  Htid0) by auto.
+             rewrite <- (DTP.gsoThreadCC (not_eq_sym n) (mtch_cnt tid ctn) dcnt2 _ Htid') by auto.
              apply mtch_gtc.
          - intros.
            assert (jcnt2:= JTP.cntUpdateC' _ _ Htid0).
@@ -466,6 +470,14 @@ Module ClightParching <: ErasureSig.
 
          (* step_lock  *)
          assert (Htid':= MTCH_cnt MATCH Htid).
+         pose (inflated_delta:=
+                 fun loc => match (d_phi @ loc ) with
+                           NO s => if Share.EqDec_share s Share.bot then NO Share.bot else (m_phi jm') @ loc
+                         | _ => (m_phi jm') @ loc
+                         end).
+         assert (virtue:= JSEM.mapmap (fun _ : Z => None)
+                                      (fun (block : positive) (_ : Z -> option permission) (ofs : Z) =>
+                                         perm_of_res ( inflated_delta (block, ofs))) (permissions.getCurPerm m)).
          assert (virtue: permissions.delta_map). admit.
          exists (DSEM.ThreadPool.updThread Htid' (Kresume c)
                   (permissions.computeMap
@@ -473,7 +485,38 @@ Module ClightParching <: ErasureSig.
          split; [|split].
          
          - admit. (*Nick has this proof somewhere. *)
-         - Search match_st. 
+         - Lemma MTCH_addLock:
+             forall js ds k r, 
+               match_st js ds ->
+               match_st (JSEM.ThreadPool.addLock js k r) ds.
+                 intros. inversion H; subst.
+                 constructor; auto.
+           Qed.
+           apply MTCH_addLock.
+           Lemma MTCH_update:
+             forall js ds Kc phi p i
+               (Hi : JTP.containsThread js i)
+               (Hi': DTP.containsThread ds i),
+               match_st js ds ->
+               ( forall b ofs,
+                 perm_of_res (phi @ (b, ofs)) = p !! b ofs) -> 
+               match_st (JSEM.ThreadPool.updThread Hi  Kc phi)
+                        (DSEM.ThreadPool.updThread Hi' Kc p).
+           Proof.
+             intros. inversion H; subst.
+             constructor; intros.
+             - apply DTP.cntUpdate. apply mtch_cnt.
+               eapply JTP.cntUpdate'; eassumption.
+             - apply JTP.cntUpdate. apply mtch_cnt'.
+               eapply DTP.cntUpdate'; eassumption.
+             - admit.
+             - admit.
+           Qed.
+           apply MTCH_update; auto.
+           admit.
+
+           assert (m_dry jm' = m).
+           econstructor 1.
            
        admit.
        }
