@@ -7,7 +7,7 @@ COQ_FLAG = -R $(CURRENT_DIR) -as RndHoare
 DEP_FLAG = -R $(CURRENT_DIR) -as RndHoare
 
 FILES = \
-  random_oracle.v imperative.v
+  random_oracle.v imperative.v measure.v probabilistic_pred.v
 
 $(FILES:%.v=%.vo): %.vo: %.v
 	@echo COQC $*.v
