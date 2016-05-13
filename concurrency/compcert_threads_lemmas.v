@@ -80,6 +80,7 @@ Module MemObsEq.
       domain_invalid: forall b, ~(Mem.valid_block mc b) -> f b = None;
       domain_valid: forall b, Mem.valid_block mc b -> exists b', f b = Some (b',0%Z);
       codomain_valid: forall b1 b2, f b1 = Some (b2,0%Z) -> Mem.valid_block mf b2;
+      injective: forall b1 b1', f b1 = f b1' -> b1 = b1';
       perm_obs_weak :
         forall b1 b2 ofs (Hrenaming: f b1 = Some (b2,0%Z)),
           Mem.perm_order''
@@ -703,8 +704,11 @@ Module SimDefs.
      1. some location may be allocated and then freed in this multistep
       execution and 2. our relation only strongly relates the final state
       of the execution not in-between states. *)
-  
-  Record sim tpc mc tpf mf (xs : Sch) (f : meminj) : Prop :=
+
+  Definition fpool tpc : Type :=
+    forall i (cnti: containsThread tpc i), meminj.
+      
+  Record sim tpc mc tpf mf (xs : Sch) (f : meminj) (fp: fpool tpc) : Prop :=
     { numThreads : forall i, containsThread tpc i <-> containsThread tpf i;
       mem_compc: mem_compatible tpc mc;
       mem_compf: mem_compatible tpf mf;
@@ -714,10 +718,11 @@ Module SimDefs.
           (pfc: containsThread tpc tid)
           (pff: containsThread tpf tid),
           weak_tsim f pfc pff mem_compc mem_compf;
+      
       simStrong:
         forall tid (pfc: containsThread tpc tid) (pff: containsThread tpf tid),
-        exists f' tpc' mc', inject_incr f f' /\
-                       ([seq x <- xs | x == tid] = nil -> f = f') /\
+        exists tpc' mc', inject_incr f (fp pfc) /\
+                       ([seq x <- xs | x == tid] = nil -> f = (fp pfc)) /\
                        internal_execution ([seq x <- xs | x == tid])
                                           tpc mc tpc' mc' /\
                        (forall (pfc': containsThread tpc' tid)
@@ -3051,6 +3056,115 @@ Module SimProofs.
         auto.
         by exfalso.
     Qed.
+
+    (** Function that projects the angel through a memory injection to
+    compute a new angel *)
+    Definition projectAngelStrong (f : meminj)
+               (deltaMap : delta_map) (init : delta_map): delta_map :=
+      Maps.PTree.fold (fun acc b bperm =>
+                         match f b with
+                         | Some (b',_) =>
+                           Maps.PTree.set b' bperm acc
+                         | None =>
+                           acc end)
+                      deltaMap init.
+
+    Definition projectAngel (f : meminj) (deltaMap : delta_map) : delta_map :=
+      projectAngelStrong f deltaMap (Maps.PTree.empty _).
+
+    Definition isProjection (f : meminj) (deltaMap deltaMap' : delta_map) : Prop :=
+      forall b b' ofs,
+        f b = Some (b', ofs) ->
+        Maps.PTree.get b deltaMap = Maps.PTree.get b' deltaMap'.
+
+    Definition isProjectionStrong (init : delta_map) (f : meminj) (deltaMap deltaMap' : delta_map) : Prop :=
+      forall b b' ofs fd,
+        f b = Some (b', ofs) ->
+        (Maps.PTree.get b deltaMap = Some fd ->
+        Maps.PTree.get b' deltaMap' = Some fd) /\
+        (Maps.PTree.get b deltaMap = None ->
+        Maps.PTree.get b' deltaMap' = Maps.PTree.get b' init).
+
+    Lemma projectAngel_correct:
+      forall f deltaMap,
+        isProjection f deltaMap (projectAngel f deltaMap).
+    Proof.
+      intros.
+      eapply Maps.PTree_Properties.fold_rec with (P := isProjection f).
+      { intros dmap dmap' a Heq Hprojection. intros b b' ofs Hf.
+        specialize (Heq b). rewrite <- Heq.
+        unfold isProjection in Hprojection. eauto.
+      }
+      { unfold isProjection.
+        intros;
+          by do 2 rewrite Maps.PTree.gempty.
+      }
+      { intros dmap a bnew fnew Hget_dmap Hget_delta Hprojection.
+        intros b b' ofs Hf.
+        
+        destruct (Pos.eq_dec b bnew) as [Heq | Hneq].
+        - subst bnew. rewrite Maps.PTree.gss.
+          rewrite Hf.
+            by rewrite Maps.PTree.gss.
+        - rewrite Maps.PTree.gso; auto.
+          unfold isProjection in Hprojection.
+          destruct (f bnew) eqn:Hfnew.
+          destruct p.
+          
+          Focus 2.
+          eauto.
+          destruct (Pos.eq_dec b' b0).
+          subst b0. rewrite Maps.PTree.gss.
+          specialize (
+      
+    Lemma projectAngelStrong_correct:
+      forall f deltaMap deltaMap' init
+        (Hproject: projectAngelStrong f deltaMap init = deltaMap'),
+        isProjectionStrong init f deltaMap deltaMap'.
+    Proof.
+      intros.
+      rewrite <- Hproject. clear Hproject.
+      eapply Maps.PTree_Properties.fold_rec with (P := isProjectionStrong init f).
+      { intros. intros b b' ofs fd Hf.
+        specialize (H0 b b' ofs fd Hf). destruct H0.
+        split. rewrite <- H. eauto.
+        rewrite <- H; auto. }
+      { intros b b' ofs fd Hf.
+        split. rewrite Maps.PTree.gempty. by discriminate.
+        auto.
+      }
+      { intros dmap dmap' b1 fd1 Hget_dmap Hget_deltaMap Hproject_dmap.
+        rewrite Hget_deltaMap.
+        intros b b' ofs fd Hf. split.
+        - intros Hget_dmap'.
+          destruct (Pos.eq_dec b b1) as [Heq | Hneq].
+          + subst b1. rewrite Maps.PTree.gss in Hget_dmap'. inversion Hget_dmap'; subst.
+            rewrite Hf. by rewrite Maps.PTree.gss.
+          + rewrite Maps.PTree.gso in Hget_dmap'; auto.
+            destruct (f b1) as [[b1' ofs']|] eqn:Hfb1.
+            
+            destruct (Hproject_dmap b1 b1' ofs' fd1 Hfb1) as [_ IH].
+            specialize (IH Hget_dmap).
+            rewrite Hget_deltaMap.
+            destruct (f b1). destruct p.
+            
+            
+      unfold projectAngelStrong in Hproject.
+      rewrite  Maps.PTree.fold_spec in Hproject.
+      unfold Maps.PTree.elements in Hproject.    
+      generalize dependent deltaMap'.
+      generalize dependent init.
+      induction deltaMap as [|deltaMap1 IH1 o deltaMap2 IH2]; intros.
+      - rewrite <- Hproject.
+        intros b b' ofs Hf. split.
+        intros Hcontra.
+        rewrite Maps.PTree.gleaf in Hcontra;
+          by discriminate.
+        auto.
+      - rewrite Maps.PTree.xelements_node in Hproject. 
+        do 2 rewrite List.fold_left_app in Hproject.
+        
+        
     
     Lemma sim_external: sim_external_def.
     Proof.
@@ -3084,13 +3198,16 @@ Module SimProofs.
       assert (HexternalC: pfc @ E)
         by (assert (Hcodes := code_eq Htsim);
              unfold getStepType; by rewrite Hcodes).
-
-      
-        
-      (* A suspend step pops the schedule and does not touch the memory *)
+       
+      (* An external step pops the schedule and executes a concurrent call *)
       assert (Heq : empty = U /\ conc_call the_ge pfc HmemCompC tpc' mc')
         by (eapply external_step_inverse; eauto).
-      destruct Heq as [? HconcC]; subst U.
+      destruct Heq as [? HconcC]; subst U; clear HstepC.
+      exists tpc' mc'.
+      (* We proceed by case analysis on the concurrent call *)
+      destruct HconcC.
+      { (* Lock Acquire *)
+
       assert (memCompC'': mem_compatible tpc'' mc'')
         by (eapply suspendC_compatible; eauto).
       assert (HstepF := strong_tsim_stop HinvF Htsim Hstep' Hstop_pfc').
