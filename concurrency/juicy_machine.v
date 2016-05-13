@@ -414,7 +414,7 @@ Module Concur.
     Definition pack_res_inv R:= SomeP ([unit:Type])  (fun _ => R) .
 
     Notation Kstop := (concurrent_machine.Kstop).
-    Inductive conc_step genv {tid0 tp m}
+    Inductive syncStep' genv {tid0 tp m}
               (cnt0:containsThread tp tid0)(Hcompat:mem_compatible tp m):
       thread_pool -> mem -> Prop :=
     | step_lock :
@@ -438,7 +438,7 @@ Module Concur.
             (Hadd_lock_res: join (m_phi jm) d_phi  phi')  
             (Htp': tp' = updThread cnt0 (Kresume c) phi')
             (Htp'': tp'' = addLock tp' (b, Int.intval ofs) None),
-            conc_step genv cnt0 Hcompat tp'' m'                 
+            syncStep' genv cnt0 Hcompat tp'' m'                 
     | step_unlock :
         forall  (tp' tp'':thread_pool) jm c jm' b ofs psh (d_phi phi':rmap) (R: pred rmap) ,
           let: phi := m_phi jm in
@@ -462,7 +462,7 @@ Module Concur.
             (Hrem_lock_res: join d_phi phi' (m_phi jm))
             (Htp': tp' = updThread cnt0 (Kresume c) phi')
             (Htp'': tp'' = addLock tp' (b, Int.intval ofs) (Some d_phi) ),
-            conc_step genv cnt0 Hcompat tp'' m'          
+            syncStep' genv cnt0 Hcompat tp'' m'          
     | step_create :
         (* HAVE TO REVIEW THIS STEP LOOKING INTO THE ORACULAR SEMANTICS*)
         forall  (tp_upd tp':thread_pool) c c_new vf arg jm (d_phi phi': rmap) b ofs P Q,
@@ -481,7 +481,7 @@ Module Concur.
             (Hrem_fun_res: join d_phi phi' (m_phi jm))
             (Htp': tp_upd = updThread cnt0 (Kresume c) phi')
             (Htp'': tp' = addThread tp_upd c_new d_phi),
-            conc_step genv cnt0 Hcompat tp' m
+            syncStep' genv cnt0 Hcompat tp' m
                      
     | step_mklock :
         forall  (tp' tp'': thread_pool) jm jm' c b ofs R ,
@@ -511,7 +511,7 @@ Module Concur.
             (Hm_forward: m = m')
             (Htp': tp' = updThread cnt0 (Kresume c) phi')
             (Htp'': tp'' = addLock tp' (b, Int.intval ofs) None),
-            conc_step genv cnt0 Hcompat tp'' m' 
+            syncStep' genv cnt0 Hcompat tp'' m' 
     | step_freelock :
         forall  (tp' tp'': thread_pool) c b ofs jm jm' R,
           let: phi := m_phi jm in
@@ -540,7 +540,7 @@ Module Concur.
             (Hm_forward: m = m')
             (Htp': tp' = updThread cnt0 (Kresume c) (m_phi jm'))
             (Htp': tp'' = remLock tp' (b, Int.intval ofs)),
-            conc_step genv cnt0 Hcompat  tp'' (m_dry jm')  (* m_dry jm' = m_dry jm = m *)
+            syncStep' genv cnt0 Hcompat  tp'' (m_dry jm')  (* m_dry jm' = m_dry jm = m *)
                      
     | step_lockfail :
         forall  c b ofs jm psh,
@@ -556,18 +556,18 @@ Module Concur.
             (sh:Share.t)(R:pred rmap)
             (HJcanwrite: phi@(b, Int.intval ofs) = YES sh psh (LK LKSIZE) (pack_res_inv R))
             (Hload: Mem.load Mint32 m b (Int.intval ofs) = Some (Vint Int.zero)),
-            conc_step genv cnt0 Hcompat tp m.
+            syncStep' genv cnt0 Hcompat tp m.
     
-    Definition cstep (genv:G): forall {tid0 ms m},
+    Definition threadStep (genv:G): forall {tid0 ms m},
                                  containsThread ms tid0 -> mem_compatible ms m ->
                                  thread_pool -> mem -> Prop:=
       @juicy_step genv.
     
     
-    Definition conc_call (genv:G):
+    Definition syncStep (genv:G):
       forall {tid0 ms m}, containsThread ms tid0 -> mem_compatible ms m ->
         thread_pool -> mem -> Prop:=
-      @conc_step genv.
+      @syncStep' genv.
     
     Inductive threadHalted': forall {tid0 ms},
                                containsThread ms tid0 -> Prop:=

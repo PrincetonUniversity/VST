@@ -412,7 +412,7 @@ Section permMapDefs.
                     | None => f ofs
                     | Some p => p
                     end) pmap.2). *)
-  Definition computeMaps (pmap : access_map) (delta : delta_map) : access_map :=
+  Definition computeMap (pmap : access_map) (delta : delta_map) : access_map :=
     (pmap.1,
      @Maps.PTree.combine (Z -> option permission) (Z -> option (option permission)) (Z -> option permission)
                          (fun p1 pd => match pd, p1 with

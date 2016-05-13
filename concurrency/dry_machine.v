@@ -228,12 +228,12 @@ Module Concur.
           (Hload: Mem.load Mint32 m1 b (Int.intval ofs) = Some (Vint Int.zero)),
           ext_step genv cnt0 Hcompat tp m.
     
-    Definition cstep (genv : G): forall {tid0 ms m},
+    Definition threadStep (genv : G): forall {tid0 ms m},
         containsThread ms tid0 -> mem_compatible ms m ->
         thread_pool -> mem -> Prop:=
       @dry_step genv.
     
-    Definition conc_call (genv :G) :
+    Definition syncStep (genv :G) :
       forall {tid0 ms m},
         containsThread ms tid0 -> mem_compatible ms m ->
         thread_pool -> mem -> Prop:=
