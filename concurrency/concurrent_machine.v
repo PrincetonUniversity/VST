@@ -52,7 +52,7 @@ Definition b_ofs2address b ofs : address:=
 
 Inductive ctl {cT:Type} : Type :=
 | Krun : cT -> ctl
-| Kstop : cT -> ctl
+| Kstop : cT -> ctl (* Want to remove *)
 | Kresume : cT -> ctl.
 
 Definition EqDec: Type -> Type := 
@@ -316,6 +316,7 @@ Module CoarseMachine (SCH:Scheduler)(SIG : ConcurrentMachineSig with Module Thre
     @suspend_thread'.
   
   Inductive machine_step {genv:G}:
+
     Sch -> machine_state -> mem -> Sch -> machine_state -> mem -> Prop :=
   | resume_step:
       forall tid U ms ms' m
@@ -331,7 +332,7 @@ Module CoarseMachine (SCH:Scheduler)(SIG : ConcurrentMachineSig with Module Thre
         (Hcmpt: mem_compatible ms m)
         (Htstep: cstep genv Htid Hcmpt ms' m'),
         machine_step U ms m U ms' m'
-  | suspend_step:
+  | suspend_step: (*Want to remove*)
       forall tid U U' ms ms' m
         (HschedN: schedPeek U = Some tid)
         (HschedS: schedSkip U = U')        (*Schedule Forward*)

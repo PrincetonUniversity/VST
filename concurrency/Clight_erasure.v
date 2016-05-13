@@ -249,57 +249,97 @@ Module ClightParching <: ErasureSig.
         JSEM.threadHalted cnt ->
         DSEM.threadHalted cnt'.
     Admitted.
+
+    Lemma MTCH_addLock:
+      forall js ds k r, 
+        match_st js ds ->
+        match_st (JSEM.ThreadPool.addLock js k r) ds.
+          intros. inversion H; subst.
+          constructor; auto.
+    Qed.
+    Lemma MTCH_update:
+      forall js ds Kc phi p i
+        (Hi : JTP.containsThread js i)
+        (Hi': DTP.containsThread ds i),
+        match_st js ds ->
+        ( forall b ofs,
+            perm_of_res (phi @ (b, ofs)) = p !! b ofs) -> 
+        match_st (JSEM.ThreadPool.updThread Hi  Kc phi)
+                 (DSEM.ThreadPool.updThread Hi' Kc p).
+    Proof.
+      intros. inversion H; subst.
+      constructor; intros.
+      - apply DTP.cntUpdate. apply mtch_cnt.
+        eapply JTP.cntUpdate'; eassumption.
+      - apply JTP.cntUpdate. apply mtch_cnt'.
+        eapply DTP.cntUpdate'; eassumption.
+      - destruct (NatTID.eq_tid_dec i tid).
+        + subst.
+          rewrite JTP.gssThreadCode DTP.gssThreadCode; reflexivity.
+        + assert (jcnt2:= JTP.cntUpdateC' Kc Hi Htid).
+          assert (dcnt2:= DTP.cntUpdateC' Kc Hi' Htid').
+          rewrite (JTP.gsoThreadCode n Hi  jcnt2 _ _ Htid); auto.
+          rewrite (DTP.gsoThreadCode n Hi' dcnt2 _ _  Htid'); auto.
+      - destruct (NatTID.eq_tid_dec i tid).
+        + subst.
+          rewrite (JTP.gssThreadRes Hi _ _ Htid); auto.
+          rewrite (DTP.gssThreadRes Hi'  _ _  Htid'); auto.
+        + assert (jcnt2:= JTP.cntUpdateC' Kc Hi Htid).
+          assert (dcnt2:= DTP.cntUpdateC' Kc Hi' Htid').
+          rewrite (JTP.gsoThreadRes Hi jcnt2 n _ _ Htid); auto.
+          rewrite (DTP.gsoThreadRes Hi' dcnt2 n _ _  Htid'); auto.
+    Qed.
     
-        
-  Variable genv: G.
-  Variable main: Values.val.
-  Lemma init_diagram:
-    forall (j : Values.Val.meminj) (U:schedule) (js : jstate)
-      (vals : list Values.val) (m : M),
-   init_inj_ok j m ->
-   initial_core (JMachineSem U) genv main vals = Some (U, js) ->
-   exists (mu : SM_Injection) (ds : dstate),
-     as_inj mu = j /\
-     initial_core (DMachineSem U) genv main vals = Some (U, ds) /\
-     DSEM.invariant ds /\
-     match_st js ds.
-  Proof.
-    intros.
-
-    (* Build the structured injection*)
-    exists (initial_SM (valid_block_dec m) (valid_block_dec m) (fun _ => false) (fun _ => false) j).
-
-    (* Build the dry state *)
-    simpl in H0.
-    unfold JuicyMachine.init_machine in H0.
-    unfold JSEM.init_mach in H0. simpl in H0.
-    destruct ( initial_core JSEM.ThreadPool.SEM.Sem genv main vals) eqn:C; try solve[inversion H0].
-    inversion H0.
-    exists (DSEM.initial_machine genv c).
-
-    split; [|split;[|split]].
     
-    (*Proofs*)
-    - apply initial_SM_as_inj.
-    - simpl.
-      unfold DryMachine.init_machine.
-      unfold DSEM.init_mach.
-      rewrite C.
-      f_equal.
-    - unfold  DSEM.invariant.
-      constructor.
-      + unfold DSEM.race_free, DSEM.initial_machine; simpl.
-        unfold DSEM.ThreadPool.containsThread; simpl.
-        intros.
-        admit. (*This will change once [compute_init_perm] is well defined. *)
+    Variable genv: G.
+    Variable main: Values.val.
+    Lemma init_diagram:
+      forall (j : Values.Val.meminj) (U:schedule) (js : jstate)
+        (vals : list Values.val) (m : M),
+        init_inj_ok j m ->
+        initial_core (JMachineSem U) genv main vals = Some (U, js) ->
+        exists (mu : SM_Injection) (ds : dstate),
+          as_inj mu = j /\
+          initial_core (DMachineSem U) genv main vals = Some (U, ds) /\
+          DSEM.invariant ds /\
+          match_st js ds.
+    Proof.
+      intros.
+
+      (* Build the structured injection*)
+      exists (initial_SM (valid_block_dec m) (valid_block_dec m) (fun _ => false) (fun _ => false) j).
+
+      (* Build the dry state *)
+      simpl in H0.
+      unfold JuicyMachine.init_machine in H0.
+      unfold JSEM.init_mach in H0. simpl in H0.
+      destruct ( initial_core JSEM.ThreadPool.SEM.Sem genv main vals) eqn:C; try solve[inversion H0].
+      inversion H0.
+      exists (DSEM.initial_machine genv c).
+
+      split; [|split;[|split]].
+      
+      (*Proofs*)
+      - apply initial_SM_as_inj.
+      - simpl.
+        unfold DryMachine.init_machine.
+        unfold DSEM.init_mach.
+        rewrite C.
+        f_equal.
+      - unfold  DSEM.invariant.
+        constructor.
+        + unfold DSEM.race_free, DSEM.initial_machine; simpl.
+          unfold DSEM.ThreadPool.containsThread; simpl.
+          intros.
+          admit. (*This will change once [compute_init_perm] is well defined. *)
         (*apply permissions.empty_disjoint.*)
-      + (*Again, this might change*)
-        intros.
-        unfold DSEM.initial_machine; simpl.
-        unfold permissions.permMapsDisjoint; intros.
-        exists ((DSEM.compute_init_perm genv) !! b ofs).
-        unfold permissions.empty_map.
-        unfold PMap.get at 1; simpl. rewrite PTree.gempty.
+        + (*Again, this might change*)
+          intros.
+          unfold DSEM.initial_machine; simpl.
+          unfold permissions.permMapsDisjoint; intros.
+          exists ((DSEM.compute_init_perm genv) !! b ofs).
+          unfold permissions.empty_map.
+          unfold PMap.get at 1; simpl. rewrite PTree.gempty.
         reflexivity.
     - (*This should be easy, but it will slightly change once we fix MATCH and initial*)
       admit.
@@ -317,6 +357,57 @@ Module ClightParching <: ErasureSig.
   Qed.
   
 
+  Lemma conc_step_diagram:
+    forall m m' U js js' ds i genv
+      (MATCH: match_st js ds)
+      (dinv: DSEM.invariant ds)
+      (Hi: JSEM.ThreadPool.containsThread js i)
+      (Hcmpt: JSEM.mem_compatible js m)
+      (HschedN: schedPeek U = Some i)
+      (Htstep:  JSEM.conc_call genv Hi Hcmpt js' m'),
+      exists ds' : dstate,
+        DSEM.invariant ds' /\
+        match_st js' ds' /\
+        DSEM.conc_call genv (MTCH_cnt MATCH Hi) (MTCH_compat _ _ _ MATCH Hcmpt) ds' m'.
+  Proof.
+
+    intros.
+    inversion Htstep; subst.
+    
+    (* step_lock  *)
+    {
+    assert (Htid':= MTCH_cnt MATCH Hi).
+    pose (inflated_delta:=
+            fun loc => match (d_phi @ loc ) with
+                      NO s => if Share.EqDec_share s Share.bot then None else Some ( perm_of_res ((m_phi jm') @ loc))
+                    | _ => Some (perm_of_res ((m_phi jm') @ loc))
+                    end).
+         pose (virtue:= PTree.map
+                                      (fun (block : positive) (_ : Z -> option permission) (ofs : Z) =>
+                                          (inflated_delta (block, ofs))) (snd (permissions.getCurPerm m)) ).
+         exists (DSEM.ThreadPool.updThread Htid' (Kresume c)
+                  (permissions.computeMap
+                     (DSEM.ThreadPool.getThreadR Htid') virtue)).
+         split; [|split].
+         
+         - admit. (*Nick has this proof somewhere. *)
+         - apply MTCH_addLock.
+           apply MTCH_update; auto.
+           intros.
+           (*This is going to take some work. If its false the definitions can easily change. *)
+           admit.
+         - econstructor 1.
+           + assumption.
+           + eapply MTCH_getThreadC; eassumption.
+           + eassumption.
+           + eapply MTCH_compat; eassumption.
+           + instantiate(1:=m).
+             Search permissions.restrPermMap.
+             erewrite MTCH_restrict_personal.
+             instantiate(1:=c); rewrite <- Hthread.
+             
+
+  
 
   
   Lemma core_diagram':
@@ -466,59 +557,11 @@ Module ClightParching <: ErasureSig.
 
        (*Conc step*)
        {
-         inversion Htstep; subst.
-
-         (* step_lock  *)
-         assert (Htid':= MTCH_cnt MATCH Htid).
-         pose (inflated_delta:=
-                 fun loc => match (d_phi @ loc ) with
-                           NO s => if Share.EqDec_share s Share.bot then NO Share.bot else (m_phi jm') @ loc
-                         | _ => (m_phi jm') @ loc
-                         end).
-         assert (virtue:= JSEM.mapmap (fun _ : Z => None)
-                                      (fun (block : positive) (_ : Z -> option permission) (ofs : Z) =>
-                                         perm_of_res ( inflated_delta (block, ofs))) (permissions.getCurPerm m)).
-         assert (virtue: permissions.delta_map). admit.
-         exists (DSEM.ThreadPool.updThread Htid' (Kresume c)
-                  (permissions.computeMap
-                     (DSEM.ThreadPool.getThreadR Htid') virtue)).
-         split; [|split].
-         
-         - admit. (*Nick has this proof somewhere. *)
-         - Lemma MTCH_addLock:
-             forall js ds k r, 
-               match_st js ds ->
-               match_st (JSEM.ThreadPool.addLock js k r) ds.
-                 intros. inversion H; subst.
-                 constructor; auto.
-           Qed.
-           apply MTCH_addLock.
-           Lemma MTCH_update:
-             forall js ds Kc phi p i
-               (Hi : JTP.containsThread js i)
-               (Hi': DTP.containsThread ds i),
-               match_st js ds ->
-               ( forall b ofs,
-                 perm_of_res (phi @ (b, ofs)) = p !! b ofs) -> 
-               match_st (JSEM.ThreadPool.updThread Hi  Kc phi)
-                        (DSEM.ThreadPool.updThread Hi' Kc p).
-           Proof.
-             intros. inversion H; subst.
-             constructor; intros.
-             - apply DTP.cntUpdate. apply mtch_cnt.
-               eapply JTP.cntUpdate'; eassumption.
-             - apply JTP.cntUpdate. apply mtch_cnt'.
-               eapply DTP.cntUpdate'; eassumption.
-             - admit.
-             - admit.
-           Qed.
-           apply MTCH_update; auto.
-           admit.
-
-           assert (m_dry jm' = m).
-           econstructor 1.
-           
-       admit.
+         destruct (conc_step_diagram m m' U js js' ds tid genv MATCH dinv Htid Hcmpt HschedN Htstep)
+           as [ds' [dinv' [MTCH' step']]]; eauto.
+         exists ds'; split; [| split]; try assumption.
+         econstructor 4; simpl; try eassumption.
+         reflexivity.
        }
        
        (* step_halted *)

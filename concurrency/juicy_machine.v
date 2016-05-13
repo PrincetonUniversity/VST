@@ -217,7 +217,6 @@ Module Concur.
         mem_compatible tp m ->
         mem_lock_cohere (lock_set tp) m.
     Admitted.
-
     (** There is no inteference in the thread pool *)
     (* Per-thread disjointness definition*)
     Definition disjoint_threads tp :=
@@ -419,7 +418,7 @@ Module Concur.
               (cnt0:containsThread tp tid0)(Hcompat:mem_compatible tp m):
       thread_pool -> mem -> Prop :=
     | step_lock :
-        forall (tp' tp'':thread_pool) jm c jm' b ofs d_phi,
+        forall (tp' tp'':thread_pool) jm c jm' b ofs d_phi psh,
           let: phi := m_phi jm in
           let: phi' := m_phi jm' in
           let: m' := m_dry jm' in
@@ -432,7 +431,7 @@ Module Concur.
             (Hpersonal_perm: 
                personal_mem cnt0 Hcompatible = jm)
             (sh:Share.t)(R:pred rmap)
-            (HJcanwrite: phi@(b, Int.intval ofs) = YES sh pfullshare (LK LKSIZE) (pack_res_inv R))
+            (HJcanwrite: phi@(b, Int.intval ofs) = YES sh psh (LK LKSIZE) (pack_res_inv R))
             (Hload: Mem.load Mint32 m b (Int.intval ofs) = Some (Vint Int.one))
             (Hstore: Mem.store Mint32 m b (Int.intval ofs) (Vint Int.zero) = Some m')
             (His_unlocked:lock_set tp (b, Int.intval ofs) = SSome d_phi )
@@ -441,7 +440,7 @@ Module Concur.
             (Htp'': tp'' = addLock tp' (b, Int.intval ofs) None),
             conc_step genv cnt0 Hcompat tp'' m'                 
     | step_unlock :
-        forall  (tp' tp'':thread_pool) jm c jm' b ofs (d_phi phi':rmap) (R: pred rmap) ,
+        forall  (tp' tp'':thread_pool) jm c jm' b ofs psh (d_phi phi':rmap) (R: pred rmap) ,
           let: phi := m_phi jm in
           let: phi' := m_phi jm' in
           let: m' := m_dry jm' in
@@ -454,7 +453,7 @@ Module Concur.
             (Hpersonal_perm: 
                personal_mem cnt0 Hcompatible = jm)
             (sh:Share.t)(R:pred rmap)
-            (HJcanwrite: phi@(b, Int.intval ofs) = YES sh pfullshare (LK LKSIZE) (pack_res_inv R))
+            (HJcanwrite: phi@(b, Int.intval ofs) = YES sh psh (LK LKSIZE) (pack_res_inv R))
             (Hload: Mem.load Mint32 m b (Int.intval ofs) = Some (Vint Int.zero))
             (Hstore: Mem.store Mint32 m b (Int.intval ofs) (Vint Int.one) = Some m')
             (* what does the return value denote?*)
@@ -544,7 +543,7 @@ Module Concur.
             conc_step genv cnt0 Hcompat  tp'' (m_dry jm')  (* m_dry jm' = m_dry jm = m *)
                      
     | step_lockfail :
-        forall  c b ofs jm,
+        forall  c b ofs jm psh,
           let: phi := m_phi jm in
           forall
             (Hinv : invariant tp)
@@ -555,7 +554,7 @@ Module Concur.
             (Hpersonal_perm: 
                personal_mem cnt0 Hcompatible = jm)
             (sh:Share.t)(R:pred rmap)
-            (HJcanwrite: phi@(b, Int.intval ofs) = YES sh pfullshare (LK LKSIZE) (pack_res_inv R))
+            (HJcanwrite: phi@(b, Int.intval ofs) = YES sh psh (LK LKSIZE) (pack_res_inv R))
             (Hload: Mem.load Mint32 m b (Int.intval ofs) = Some (Vint Int.zero)),
             conc_step genv cnt0 Hcompat tp m.
     
