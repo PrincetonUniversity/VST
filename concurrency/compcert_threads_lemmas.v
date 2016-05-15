@@ -2418,6 +2418,7 @@ Module SimProofs.
                  match valid_block_dec mc'' b1 with
                  | in_left => (fp i pfc) b1
                  | in_right =>
+                   
                    let bz :=
                        (Z.pos b1 - (Z.pos (Mem.nextblock mc'') - Z.pos (Mem.nextblock mc)))%Z in
                    (fp j cntj) (Z.to_pos bz)
@@ -3087,6 +3088,11 @@ Module SimProofs.
                         + apply Hincr in Hfb1.
                           eapply (injective (weak_obs_eq (strong_obs Htsim))); eauto.
                         + (* case b1' is in mcj' or invalid *)
+                          (* we can derive a contradiction by the fact
+                          that the inverse of b1' will be a block that
+                          is invalid in mc, and that fpj maps it to
+                          the same block as b1 which is valid in mc,
+                          using injectivity of fpj*)
                           clear - Hfb1' Hfb1 Hincrj Htsimj Hvalidmc Hexec
                                         Hinvalidmc''' Hinvalidmc'.
                           erewrite proof_irr
@@ -3119,12 +3125,126 @@ Module SimProofs.
                             subst b1;
                               by exfalso.
                     }
-                      
+                    { (* case b1 is a block that is invalid in mc *)
+                      destruct (valid_block_dec mc b1') as [Hvalidmc' | Hinvalidmc'].
+                      - (* case b1' is a block is that valid in mc*)
+                      (*this is orthogonal to the above case, maybe factor it out?*)
+                        admit.
+                      - (* case b1' is invalid in mc*)
+                        destruct (valid_block_dec mc'' b1) as [Hvalidmci | Hinvalidmci].
+                        + destruct (valid_block_dec mc'' b1') as [Hvalidmci' | Hinvalidmci'];
+                          first by (eapply (injective (weak_obs_eq (strong_obs Htsim))); eauto).
+                          (* the inverse of b1' will be in invalid in
+                          mc (fresh in mcj). Hence by seperation
+                          between fpj and fpi it must be that b2 <>
+                          b2, contradiction. *)
+                          clear - Hfb1' Hfb1 Htsimj Hfpsep Hinvalidmc Hexec
+                                        Hinvalidmc' Hinvalidmci' HsimWeak Hij.
+                          exfalso.
+                          apply (domain_invalid HsimWeak) in Hinvalidmc.
+                          erewrite proof_irr
+                          with (a1 := (containsThread_internal_execution'
+                                         Hexec (proj2 (suspendC_containsThread j HsuspendC)
+                                                      pfcj'')))
+                                 (a2 := pfcj) in Hfb1'.
+                          assert (Hnb: (Mem.nextblock mc <= Mem.nextblock mc'')%positive)
+                            by admit.
+                          apply Pos.le_lteq in Hnb.
+                          destruct Hnb as [Hlt | Hnbeq].
+                          * rewrite Z.pos_sub_gt in Hfb1'; auto. simpl in Hfb1'.
+                            apply Pos.le_nlt in Hinvalidmci'.
+                            assert (Hinvalid: (Mem.nextblock mc
+                                               <=
+                                               Z.to_pos (Z.pos_sub b1' (Mem.nextblock mc''
+                                                                        - Mem.nextblock mc)))%positive)
+                              by (eapply le_sub; eauto).
+                            apply Pos.le_nlt in Hinvalid.
+                            apply (domain_invalid HsimWeak) in Hinvalid.
+                            eapply Hfpsep with (b := b1) (i := i) (j := j); eauto.
+                          * rewrite Hnbeq in Hfb1'.
+                            rewrite Z.pos_sub_diag in Hfb1'.
+                            simpl in Hfb1'.
+                            apply (domain_invalid HsimWeak) in Hinvalidmc'.
+                            eapply Hfpsep with (b := b1) (i:=i) (j:=j); eauto.
+                        + (*case b1 is invalid in mc''*)
+                          destruct (valid_block_dec mc'' b1') as [Hvalidmci' | Hinvalidmci'].
+                          { (*again orthogonal to the above case*)
+                            clear - Hfb1' Hfb1 Htsimj Hfpsep Hexec Hinvalidmc
+                                          Hinvalidmc' Hinvalidmci Hvalidmci' HsimWeak Hij.
+                            exfalso.
+                            apply (domain_invalid HsimWeak) in Hinvalidmc'.
+                            erewrite proof_irr
+                            with (a1 := (containsThread_internal_execution'
+                                           Hexec (proj2 (suspendC_containsThread j HsuspendC)
+                                                        pfcj'')))
+                                   (a2 := pfcj) in Hfb1.
+                            assert (Hnb: (Mem.nextblock mc <= Mem.nextblock mc'')%positive)
+                              by admit.
+                            apply Pos.le_lteq in Hnb.
+                            destruct Hnb as [Hlt | Hnbeq].
+                            * rewrite Z.pos_sub_gt in Hfb1; auto. simpl in Hfb1.
+                              apply Pos.le_nlt in Hinvalidmci.
+                              assert (Hinvalid: (Mem.nextblock mc
+                                                 <=
+                                                 Z.to_pos (Z.pos_sub b1 (Mem.nextblock mc''
+                                                                          - Mem.nextblock mc)))%positive)
+                                by (eapply le_sub; eauto).
+                              apply Pos.le_nlt in Hinvalid.
+                              apply (domain_invalid HsimWeak) in Hinvalid.
+                              eapply Hfpsep with (b := b1') (i := i) (j := j); eauto.
+                            * rewrite Hnbeq in Hfb1.
+                              rewrite Z.pos_sub_diag in Hfb1.
+                              simpl in Hfb1.
+                              apply (domain_invalid HsimWeak) in Hinvalidmc.
+                              eapply Hfpsep with (b := b1') (b' := b1) (i:=i) (j:=j);
+                                by eauto.
+                          }
+                          { (* case where they are both valid in mcj',
+                              by injectivity of fpj for the inverses of b1 and b1'*)
+                            apply (domain_invalid HsimWeak) in Hinvalidmc.
+                            apply (domain_invalid HsimWeak) in Hinvalidmc'.
+                            erewrite proof_irr
+                            with (a1 := (containsThread_internal_execution'
+                                           Hexec (proj2 (suspendC_containsThread j HsuspendC)
+                                                        pfcj'')))
+                                   (a2 := pfcj) in Hfb1, Hfb1'.
+                            assert (Heq := (injective (weak_obs_eq (strong_obs Htsimj)))
+                                               _ _ _ Hfb1 Hfb1').
+                            assert (Hnb: (Mem.nextblock mc <= Mem.nextblock mc'')%positive)
+                              by admit.
+                            apply Pos.le_lteq in Hnb.
+                            destruct Hnb as [Hlt | Hnbeq].
+                            * rewrite Z.pos_sub_gt in Heq; auto.
+                              simpl in Heq.
+                              apply Z2Pos.inj in Heq.
+                              rewrite Z.pos_sub_gt in Heq.
+                              rewrite Z.pos_sub_gt in Heq.
+                              inversion Heq as [Heq2].
+                              apply Pos.compare_eq_iff in Heq2.
+                              rewrite Pos.sub_compare_mono_r in Heq2.
+                            by apply Pos.compare_eq_iff.
+                            admit.
+                            admit.
+                            admit. admit.
+                            rewrite Z.pos_sub_gt; auto.
+                            apply Pos2Z.is_pos.
+                            admit.
+                            rewrite Z.pos_sub_gt; auto.
+                            apply Pos2Z.is_pos.
+                            admit.
+                            * rewrite Hnbeq in Heq.
+                              rewrite Z.pos_sub_diag in Heq.
+                              simpl in Heq;
+                                by assumption.
+                          }
+                    }
                   - (* permissions of mcj' are higher than mf *)
                     intros b1 b2 ofs Hf'.
+                    simpl in Hf'.
                     destruct (valid_block_dec mc b1) as [Hvalidmc | Hinvalidmc].
                     { (*case it's a block that's valid in mc*)
                       specialize (HpermC_mc_block b1 ofs Hvalidmc).
+                      apply Hincrj in Hf'.
                       specialize (HpermF_mcj b1 b2 ofs Hf').
                       rewrite <- HpermC_mc_block in HpermF_mcj.
                       do 2 erewrite restrPermMap_Cur in *.
