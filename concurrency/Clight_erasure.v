@@ -23,6 +23,8 @@ Require Import concurrency.erasure.
 
 Require Import ssreflect seq.
 
+Import addressFiniteMap.
+
 (* I will import this from CLight once we port it*)
 (*Module ClightSEM<: Semantics.
   Definition G:= nat.
@@ -60,8 +62,10 @@ Module ClightParching <: ErasureSig.
                 (mtch_gtc: forall {tid} (Htid:JTP.containsThread js tid)(Htid':DTP.containsThread ds tid),
                     JTP.getThreadC Htid = DTP.getThreadC Htid' )
                 (mtch_perm: forall b ofs {tid} (Htid:JTP.containsThread js tid)(Htid':DTP.containsThread ds tid),
-                    juicy_mem.perm_of_res (resource_at (JTP.getThreadR Htid) (b, ofs)) = ((DTP.getThreadR Htid') !! b) ofs ),
+                    juicy_mem.perm_of_res (resource_at (JTP.getThreadR Htid) (b, ofs)) = ((DTP.getThreadR Htid') !! b) ofs )
+                (mtch_locks: forall b ofs, ssrbool.isSome (AMap.find (b,ofs) (JTP.lockSet js) ) = ssrbool.isSome ((DTP.lockSet ds) !! b ofs ) ),
       match_st' js ds. (*Missing match locked/unlockde locks. Do we need?*)
+  
   Definition match_st:= match_st'.
 
   
@@ -152,6 +156,7 @@ Module ClightParching <: ErasureSig.
           rewrite <- (DTP.gsoThreadCC ine cnt' cnt2' c Htid') by assumption.
           apply mtch_gtc; assumption.
       - inversion H0; apply mtch_perm.
+      - inversion H0; apply mtch_locks.
     Qed.
 
     Lemma restrPermMap_irr:
@@ -251,12 +256,33 @@ Module ClightParching <: ErasureSig.
     Admitted.
 
     Lemma MTCH_addLock:
-      forall js ds k r, 
+      forall js ds loc r, 
         match_st js ds ->
-        match_st (JSEM.ThreadPool.addLock js k r) ds.
+        (AMap.In loc (JTP.lockSet js)) ->
+        match_st (JSEM.ThreadPool.addLock js loc r) ds.
           intros. inversion H; subst.
           constructor; auto.
-    Qed.
+          - intros.
+            simpl.
+            Lemma mem_find_add: forall elt (t: AMap.t elt) k x,
+                AMap.In k t ->
+                ssrbool.isSome
+                  (AMap.find k (AMap.add k x t))=
+                ssrbool.isSome
+                  (AMap.find k t).
+            Proof.
+              intros. destruct (AMap.find (elt:=elt) k t) eqn:XX.
+              apply AMap.find_2 in XX.
+              assert (Hx: k = k); auto.
+              pose (HH:=@AMap.add_1 _ t k k x Hx).
+              apply AMap.find_1 in HH.
+              rewrite HH. reflexivity.
+              Import AMap.
+              unfold AMap.In in H.
+              unfold Raw.PX.In in H.
+
+            eapply mtch_locks.
+    Qed.*)
     Lemma MTCH_update:
       forall js ds Kc phi p i
         (Hi : JTP.containsThread js i)
@@ -288,6 +314,7 @@ Module ClightParching <: ErasureSig.
           assert (dcnt2:= DTP.cntUpdateC' Kc Hi' Htid').
           rewrite (JTP.gsoThreadRes Hi jcnt2 n _ _ Htid); auto.
           rewrite (DTP.gsoThreadRes Hi' dcnt2 n _ _  Htid'); auto.
+      - simpl; apply mtch_locks.
     Qed.
     
     
@@ -364,11 +391,11 @@ Module ClightParching <: ErasureSig.
       (Hi: JSEM.ThreadPool.containsThread js i)
       (Hcmpt: JSEM.mem_compatible js m)
       (HschedN: schedPeek U = Some i)
-      (Htstep:  JSEM.conc_call genv Hi Hcmpt js' m'),
+      (Htstep:  JSEM.syncStep genv Hi Hcmpt js' m'),
       exists ds' : dstate,
         DSEM.invariant ds' /\
         match_st js' ds' /\
-        DSEM.conc_call genv (MTCH_cnt MATCH Hi) (MTCH_compat _ _ _ MATCH Hcmpt) ds' m'.
+        DSEM.syncStep genv (MTCH_cnt MATCH Hi) (MTCH_compat _ _ _ MATCH Hcmpt) ds' m'.
   Proof.
 
     intros.
@@ -390,7 +417,8 @@ Module ClightParching <: ErasureSig.
                      (DSEM.ThreadPool.getThreadR Htid') virtue)).
          split; [|split].
          
-         - admit. (*Nick has this proof somewhere. *)
+         - admit. (*Nick has this proof somewh
+ere. *)
          - apply MTCH_addLock.
            apply MTCH_update; auto.
            intros.

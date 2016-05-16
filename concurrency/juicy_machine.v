@@ -196,13 +196,15 @@ Module Concur.
         join_locks tp r1 ->
         join (Some r0) r1 (Some r) ->
         join_all tp r.
+
+    Definition locks_correct (lset : Res.LockPool) (juice: rmap):=
+      forall loc sh psh P z, juice @ loc = YES sh psh (LK z) P  ->  AMap.find loc lset. 
     
-    (*This is not enoug!!! We need the ENTIRE join of juice to be compatible.*)
-    (*BUT, these two properties should follow (proved)*)
     Record mem_compatible' tp m: Prop :=
       {   all_juice  : Res.res
         ; juice_join : join_all tp all_juice
         ; all_cohere : mem_cohere' m all_juice
+        ; loc_set_ok : locks_correct (lockSet tp) all_juice
       }.
 
     Definition mem_compatible: thread_pool -> mem -> Prop:=
@@ -418,8 +420,8 @@ Module Concur.
               (cnt0:containsThread tp tid0)(Hcompat:mem_compatible tp m):
       thread_pool -> mem -> Prop :=
     | step_acquire :
-        forall (tp' tp'':thread_pool) jm c m1 jm' b ofs d_phi psh,
-          let: phi := m_phi jm in
+        forall (tp' tp'':thread_pool) jm c m1 jm' b ofs d_phi psh phi,
+          (*let: phi := m_phi jm in*)
           let: phi' := m_phi jm' in
           let: m' := m_dry jm' in
           forall
@@ -428,8 +430,9 @@ Module Concur.
             (Hat_external: at_external the_sem c =
                            Some (LOCK, ef_sig LOCK, Vptr b ofs::nil))
             (Hcompatible: mem_compatible tp m)
-            (Hpersonal_perm: 
-               personal_mem cnt0 Hcompatible = jm)
+            (*Hpersonal_perm: 
+               personal_mem cnt0 Hcompatible = jm*)
+            (Hpersonal_juice: getThreadR cnt0 = phi)
             (sh:Share.t)(R:pred rmap)
             (HJcanwrite: phi@(b, Int.intval ofs) = YES sh psh (LK LKSIZE) (pack_res_inv R))
             (Hrestrict_pmap:
