@@ -469,7 +469,7 @@ Module FineMachine  (SCH:Scheduler)(SIG : ConcurrentMachineSig with Module Threa
         (HschedS: schedSkip U = U')        (*Schedule Forward*)
         (Htid: containsThread ms tid)
         (Hcmpt: mem_compatible ms m)
-        (Htstep: syncStep genv Htid Hcmpt ms' m'),
+        (Htstep: threadStep genv Htid Hcmpt ms' m'),
         machine_step U ms m U' ms' (diluteMem m')
   | suspend_step:
       forall tid U U' ms ms' m

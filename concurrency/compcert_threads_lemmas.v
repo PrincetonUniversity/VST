@@ -133,7 +133,7 @@ Module InternalSteps.
 
   Section InternalSteps.
     
-    Notation cstep := (cstep the_ge).
+    Notation threadStep := (threadStep the_ge).
     Notation Sch := schedule.
     Context {cSpec : corestepSpec}.
 
@@ -145,7 +145,7 @@ Module InternalSteps.
   mimic fine-grained internal steps *)
   Definition internal_step {tid} {tp} m (cnt: containsThread tp tid)
              (Hcomp: mem_compatible tp m) tp' m' :=
-    cstep cnt Hcomp tp' m' \/
+    threadStep cnt Hcomp tp' m' \/
     (myCoarseSemantics.resume_thread cnt tp' /\ m = m').
 
   Inductive internal_execution : Sch -> thread_pool -> mem ->
@@ -666,7 +666,7 @@ Module SimDefs.
   Require Import sepcomp.closed_safety.
   Import dry_context mySchedule DryMachine DryMachine.ThreadPool SEM.
   
-  Notation cstep := (cstep the_ge).
+  Notation threadStep := (threadStep the_ge).
   Notation Sch := schedule.
   Notation cmachine_step := ((corestep coarse_semantics) the_ge).
   Notation fmachine_step := ((corestep fine_semantics) the_ge).
@@ -3659,34 +3659,31 @@ Module SimProofs.
 
     (** Function that projects the angel through a memory injection to
     compute a new angel *)
-    Definition projectAngelStrong (f : meminj)
-               (deltaMap : delta_map) (init : delta_map): delta_map :=
+
+    Definition projectAngel (f : meminj) (deltaMap : delta_map) : delta_map :=
       Maps.PTree.fold (fun acc b bperm =>
                          match f b with
                          | Some (b',_) =>
                            Maps.PTree.set b' bperm acc
                          | None =>
                            acc end)
-                      deltaMap init.
+                      deltaMap (Maps.PTree.empty _).
 
-    Definition projectAngel (f : meminj) (deltaMap : delta_map) : delta_map :=
-      projectAngelStrong f deltaMap (Maps.PTree.empty _).
-
+  
     Definition isProjection (f : meminj) (deltaMap deltaMap' : delta_map) : Prop :=
       forall b b' ofs,
         f b = Some (b', ofs) ->
         Maps.PTree.get b deltaMap = Maps.PTree.get b' deltaMap'.
 
-    Definition isProjectionStrong (init : delta_map) (f : meminj) (deltaMap deltaMap' : delta_map) : Prop :=
-      forall b b' ofs fd,
-        f b = Some (b', ofs) ->
-        (Maps.PTree.get b deltaMap = Some fd ->
-        Maps.PTree.get b' deltaMap' = Some fd) /\
-        (Maps.PTree.get b deltaMap = None ->
-        Maps.PTree.get b' deltaMap' = Maps.PTree.get b' init).
-
+    (** It's proof of correctness under the assumption that f is injective *)
     Lemma projectAngel_correct:
-      forall f deltaMap,
+      forall (f:meminj) deltaMap
+        (Hf_codomain: forall b1 b2 ofs,
+            f b1 = Some (b2,ofs) -> ofs=0%Z)
+        (Hf_injective: forall b1 b1' b2,
+            f b1 = Some (b2,0%Z) ->
+            f b1' = Some(b2,0%Z) ->
+            b1 = b1'),
         isProjection f deltaMap (projectAngel f deltaMap).
     Proof.
       intros.
@@ -3701,100 +3698,56 @@ Module SimProofs.
       }
       { intros dmap a bnew fnew Hget_dmap Hget_delta Hprojection.
         intros b b' ofs Hf.
-        
         destruct (Pos.eq_dec b bnew) as [Heq | Hneq].
         - subst bnew. rewrite Maps.PTree.gss.
           rewrite Hf.
             by rewrite Maps.PTree.gss.
         - rewrite Maps.PTree.gso; auto.
           unfold isProjection in Hprojection.
-          destruct (f bnew) eqn:Hfnew.
-          destruct p.
-          
-          Focus 2.
-          eauto.
-          destruct (Pos.eq_dec b' b0).
-          subst b0. rewrite Maps.PTree.gss.
-          specialize (
-      
-    Lemma projectAngelStrong_correct:
-      forall f deltaMap deltaMap' init
-        (Hproject: projectAngelStrong f deltaMap init = deltaMap'),
-        isProjectionStrong init f deltaMap deltaMap'.
-    Proof.
-      intros.
-      rewrite <- Hproject. clear Hproject.
-      eapply Maps.PTree_Properties.fold_rec with (P := isProjectionStrong init f).
-      { intros. intros b b' ofs fd Hf.
-        specialize (H0 b b' ofs fd Hf). destruct H0.
-        split. rewrite <- H. eauto.
-        rewrite <- H; auto. }
-      { intros b b' ofs fd Hf.
-        split. rewrite Maps.PTree.gempty. by discriminate.
-        auto.
+          destruct (f bnew) as [[b'0 ofs'0]|] eqn:Hfnew;
+            try eauto.
+          rewrite Maps.PTree.gso.
+          eapply Hprojection; eauto.
+          intros Hcontra. subst b'0.
+          assert (Heq := (Hf_codomain _ _ _ Hf));
+            assert (Heq2 := (Hf_codomain _ _ _ Hfnew));
+            subst.
+            by eauto.
       }
-      { intros dmap dmap' b1 fd1 Hget_dmap Hget_deltaMap Hproject_dmap.
-        rewrite Hget_deltaMap.
-        intros b b' ofs fd Hf. split.
-        - intros Hget_dmap'.
-          destruct (Pos.eq_dec b b1) as [Heq | Hneq].
-          + subst b1. rewrite Maps.PTree.gss in Hget_dmap'. inversion Hget_dmap'; subst.
-            rewrite Hf. by rewrite Maps.PTree.gss.
-          + rewrite Maps.PTree.gso in Hget_dmap'; auto.
-            destruct (f b1) as [[b1' ofs']|] eqn:Hfb1.
-            
-            destruct (Hproject_dmap b1 b1' ofs' fd1 Hfb1) as [_ IH].
-            specialize (IH Hget_dmap).
-            rewrite Hget_deltaMap.
-            destruct (f b1). destruct p.
-            
-            
-      unfold projectAngelStrong in Hproject.
-      rewrite  Maps.PTree.fold_spec in Hproject.
-      unfold Maps.PTree.elements in Hproject.    
-      generalize dependent deltaMap'.
-      generalize dependent init.
-      induction deltaMap as [|deltaMap1 IH1 o deltaMap2 IH2]; intros.
-      - rewrite <- Hproject.
-        intros b b' ofs Hf. split.
-        intros Hcontra.
-        rewrite Maps.PTree.gleaf in Hcontra;
-          by discriminate.
-        auto.
-      - rewrite Maps.PTree.xelements_node in Hproject. 
-        do 2 rewrite List.fold_left_app in Hproject.
-        
-        
+    Qed.
     
     Lemma sim_external: sim_external_def.
     Proof.
       unfold sim_external_def.
       intros.
       inversion Hsim as
-          [HnumThreads HmemCompC HmemCompF HsafeC HsimWeak HsimStrong HinvF HmaxF].
+          [HnumThreads HmemCompC HmemCompF HsafeC HsimWeak HfpSep HsimStrong HinvF HmaxF].
       (* Thread i is in the coarse-grained machine*)
       assert (pfc: containsThread tpc i)
         by (eapply HnumThreads; eauto).
       (* Since thread i is synced, the coarse machine doesn't need to take any steps*)
       apply @not_in_filter with (xs := xs) in Hsynced.
       destruct (HsimStrong i pfc pff)
-        as [fi [tpc' [mc' [Hincr [Hsyncf [Hexec [Htsim Hownedi]]]]]]];
+        as [tpc' [mc' [Hincr [Hsyncf [Hexec [Htsim Hownedi]]]]]];
         clear HsimStrong.
       (* Hence tpc = tpc' and mc = mc' *)
       rewrite Hsynced in Hexec.
-      assert (Heq: tpc = tpc' /\ mc = mc')
-        by (inversion Hexec; subst; auto; simpl in HschedN; discriminate).
+      assert (Heq: tpc = tpc' /\ mc = mc').
+        by (clear -Hexec; inversion Hexec; subst; auto; simpl in HschedN; discriminate).
       destruct Heq; subst tpc' mc'; clear Hexec.
       (* And also f won't change, i.e. f = fi *)
-      specialize (Hsyncf Hsynced); subst fi.
+      specialize (Hsyncf Hsynced); subst f.
       clear Hincr.
       (* By safety, the coarse-grained machine can step for all schedules *)
       specialize (HsafeC (mySchedule.buildSched (i :: nil)) 1).
       simpl in HsafeC. destruct HsafeC as [[[U tpc'] [mc' HstepC]] _].
       (* We know there is a strong simulation for thread i*)
       specialize (Htsim pfc HmemCompC).
+      (*TODO: coarse machine step implies the invariant*)
       assert (HinvC: invariant tpc)
-             by admit.
+        by admit.
+      (* Since the fine grained machine is at an external step so is
+      the coarse-grained machine*)
       assert (HexternalC: pfc @ E)
         by (assert (Hcodes := code_eq Htsim);
              unfold getStepType; by rewrite Hcodes).
@@ -3807,8 +3760,7 @@ Module SimProofs.
       (* We proceed by case analysis on the concurrent call *)
       destruct HconcC.
       { (* Lock Acquire *)
-
-      assert (memCompC'': mem_compatible tpc'' mc'')
+        assert (memCompC'': mem_compatible tpc'' mc'')
         by (eapply suspendC_compatible; eauto).
       assert (HstepF := strong_tsim_stop HinvF Htsim Hstep' Hstop_pfc').
       destruct HstepF as [tpf' [HstepF Htsim']].
