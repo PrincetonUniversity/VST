@@ -29,6 +29,10 @@ Require Import veric.juicy_mem.
 Require Import veric.juicy_extspec.
 Require Import veric.jstep.
 
+(*The finite maps*)
+Require Import addressFiniteMap.
+
+
 (**)
 Require Import veric.res_predicates. (*For the precondition of lock make and free*)
 
@@ -61,7 +65,7 @@ Notation UNLOCK := (EF_external "UNLOCK" UNLOCK_SIG).
 Definition LKCHUNK:= Mint32.
 Definition LKSIZE:= align_chunk LKCHUNK.
 
-Require Import (*compcert_linking*) concurrency.permissions.
+Require Import (*compcert_linking*) concurrency.permissions concurrency.threadPool.
 
 (* There are some overlaping definition conflicting. 
    Here we fix that. But this is obviously ugly and
@@ -71,118 +75,47 @@ Notation "x < y" := (x < y)%nat.
 
 
 Module LockPool.
-  Definition LockPool:= address -> option rmap.
+  (* The lock set is a Finite Map:
+     Address -> option option rmap
+     Where the first option stands for the address being a lock
+     and the second for the lock being locked/unlocked *)
+  Definition LockPool:= address -> option (option rmap).
+  Notation SSome x:= (Some (Some x)).
+  Notation SNone:= (Some None).
 End LockPool.
 Export LockPool.
 
-Module ThreadPool (SEM:Semantics) <: ThreadPoolSig
-                                        with Module TID:= NatTID with Module SEM:=SEM.
-  Module TID:=NatTID.
-  Module SEM:=SEM.
-  Import TID SEM.
-  
-  Notation code:=C.
+Module Res.
   Definition res := rmap.
+  Definition LockPool := AMap.t (option rmap).
+End Res.
+
+Module ThreadPool (SEM:Semantics) <: ThreadPoolSig
+    with Module TID:= NatTID with Module SEM:=SEM
+    with Module RES:= Res.
+  Include (OrdinalPool SEM Res).
   
-  Definition LockPool := LockPool.
+  (** The Lock Resources Set *)
   
-  Record t' := mk
-                 { num_threads : pos
-                   ; pool :> 'I_num_threads -> @ctl code
-                   ; perm_maps : 'I_num_threads -> res
-                   ; lpool : LockPool
-                 }.
-  
-  Definition t := t'.
-  
-  Definition containsThread (tp : t) (i : NatTID.tid) : Prop:=
-    i < num_threads tp.
+  Definition lock_set t: LockPool:= (AMap.find (elt:=option rmap))^~ (lockSet t).
 
-  Definition getThreadC {i tp} (cnt: containsThread tp i) : ctl :=
-    tp (Ordinal cnt).
-  
-  Definition getThreadR {i tp} (cnt: containsThread tp i) : res :=
-    (perm_maps tp) (Ordinal cnt).
+  Definition is_lock t:= fun loc => AMap.mem loc (lset t).
 
-  Definition addThread (tp : t) (c : code) (pmap : res) : t :=
-    let: new_num_threads := pos_incr (num_threads tp) in
-    let: new_tid := ordinal_pos_incr (num_threads tp) in
-    mk new_num_threads
-        (fun (n : 'I_new_num_threads) => 
-           match unlift new_tid n with
-           | None => Kresume c (*Could be a new state Kinit?? *)
-           | Some n' => tp n'
-           end)
-        (fun (n : 'I_new_num_threads) => 
-           match unlift new_tid n with
-           | None => pmap
-           | Some n' => (perm_maps tp) n'
-           end)
-        ((lpool tp)).
-  
-  Definition updThreadC {tid tp} (cnt: containsThread tp tid) (c' : ctl) : t :=
-    mk (num_threads tp)
-       (fun n => if n == (Ordinal cnt) then c' else (pool tp)  n)
-       (perm_maps tp) (lpool tp).
-
-  Definition updThreadR {tid tp} (cnt: containsThread tp tid)
-             (pmap' : res) : t :=
-    mk (num_threads tp) (pool tp)
-       (fun n =>
-          if n == (Ordinal cnt) then pmap' else (perm_maps tp) n) (lpool tp).
-
-  Definition updThread {tid tp} (cnt: containsThread tp tid) (c' : ctl)
-             (pmap : res) : t :=
-    mk (num_threads tp)
-       (fun n =>
-          if n == (Ordinal cnt) then c' else tp n)
-       (fun n =>
-          if n == (Ordinal cnt) then pmap else (perm_maps tp) n) (lpool tp).
-
-  Lemma gssThreadCode {tid tp} (cnt: containsThread tp tid) c' p'
-        (cnt': containsThread (updThread cnt c' p') tid) :
-    getThreadC cnt' = c'.
-  Proof.
-    simpl.
-    rewrite threads_lemmas.if_true; auto.
-    unfold updThread, containsThread in *. simpl in *.
-    apply/eqP. apply f_equal.
-    apply proof_irr.
-  Qed.
-
-  Lemma gssThreadRes {tid tp} (cnt: containsThread tp tid) c' p'
-        (cnt': containsThread (updThread cnt c' p') tid) :
-    getThreadR cnt' = p'.
-  Proof.
-    simpl. rewrite threads_lemmas.if_true; auto.
-    unfold updThread, containsThread in *. simpl in *.
-    apply/eqP. apply f_equal.
-    apply proof_irr.
-  Qed.
-
-  Lemma gssThreadCC {tid tp} (cnt: containsThread tp tid) c'
-        (cnt': containsThread (updThreadC cnt c') tid) :
-    getThreadC cnt' = c'.
-  Proof.
-    simpl. rewrite threads_lemmas.if_true; auto.
-    unfold updThreadC, containsThread in *. simpl in *.
-    apply/eqP. apply f_equal.
-    apply proof_irr.
-  Qed.
-
-  Lemma gssThreadCR {tid tp} (cnt: containsThread tp tid) c'
-        (cnt': containsThread (updThreadC cnt c') tid) :
-    getThreadR cnt = getThreadR cnt'.
-  Proof.
-    simpl.
-    unfold getThreadR. 
-    unfold updThreadC, containsThread in *. simpl in *.
-    do 2 apply f_equal.
-    apply proof_irr.
-  Qed.
-  
+  (*Add/Update lock: Notice that adding and updating are the same, depending wether then
+    lock was already there. *)
+  (*Definition addLock tp loc (res: option Res.res):=
+  mk (num_threads tp)
+     (pool tp)
+     (perm_maps tp)
+     (AMap.add loc res (lset tp)).
+  (*Remove Lock*)
+  Definition remLock tp loc:=
+  mk (num_threads tp)
+     (pool tp)
+     (perm_maps tp)
+     (AMap.remove loc (lset tp)). *)
+   
 End ThreadPool.
-
 
 Module JMem.
   
@@ -197,9 +130,11 @@ Module Concur.
   Module mySchedule := ListScheduler NatTID.
   
   (** Semantics of the coarse-grained juicy concurrent machine*)
-  Module JuicyMachineSig  <: ConcurrentMachineSig with Module ThreadPool.TID:=mySchedule.TID.
+  Module JuicyMachineShell (SEM:Semantics)  <: ConcurrentMachineSig
+      with Module ThreadPool.TID:=mySchedule.TID
+      with Module ThreadPool.SEM:= SEM
+      with Module ThreadPool.RES := Res.
 
-    Declare Module SEM:Semantics.
     Module ThreadPool := ThreadPool SEM.
     Import ThreadPool.
     Import ThreadPool.SEM.
@@ -209,6 +144,7 @@ Module Concur.
     Parameter level: nat.
     Definition richMem: Type:= juicy_mem.
     Definition dryMem: richMem -> mem:= m_dry.
+    Definition diluteMem: mem -> mem := fun x => x.
     
     (** Environment and Threadwise semantics *)
     (* This all comes from the SEM. *)
@@ -234,33 +170,107 @@ Module Concur.
         max_coh: max_access_cohere m phi;
         all_coh: alloc_cohere m phi
       }.
-    Definition mem_cohere tp m :=
+    Definition mem_thcohere tp m :=
       forall {tid} (cnt: containsThread tp tid), mem_cohere' m (getThreadR cnt). 
+    Definition mem_lock_cohere (ls:LockPool) m:=
+      forall loc rm, ls loc = SSome rm -> mem_cohere' m rm.
+
+    (*Join juice from all threads *)
+    Definition getThreadsR tp:=
+      map (perm_maps tp) (enum ('I_(num_threads tp))).
+    Fixpoint join_list (ls: seq.seq Res.res) r:=
+      if ls is phi::ls' then exists r', join phi r' r /\ join_list ls' r' else
+        app_pred emp r.  (*Or is is just [amp r]?*)
+    Definition join_threads tp r:= join_list (getThreadsR tp) r.
+
+    (*Join juice from all locks*)
+    Fixpoint join_list' (ls: seq.seq (option Res.res)) (r:option Res.res):=
+      if ls is phi::ls' then exists (r':option Res.res),
+          @join _ (@Join_lower Res.res _) phi r' r /\ join_list' ls' r' else r=None.
+    Definition join_locks tp r:= join_list' (map snd (AMap.elements (lset tp))) r.
+
+    (*Join all the juices*)
+    Inductive join_all: t -> Res.res -> Prop:=
+      AllJuice tp r0 r1 r:
+        join_threads tp r0 ->
+        join_locks tp r1 ->
+        join (Some r0) r1 (Some r) ->
+        join_all tp r.
+
+    Lemma join_geq:
+      forall {tid} js res all_juice loc
+        (cnt: containsThread js tid),
+        (getThreadR cnt) @ loc = res ->
+        join_all js all_juice ->
+        all_juice @ loc = res.
+    Admitted.
     
-    Record mem_compatible' tp m :=
-      { perm_comp: mem_cohere tp m
-                              (* ; mem_canonical: isCanonical (getMaxPerm m) *)
+    Definition locks_correct (lset : Res.LockPool) (juice: rmap):=
+      forall loc sh psh P z, juice @ loc = YES sh psh (LK z) P  ->  AMap.find loc lset. 
+    
+    Record mem_compatible' tp m: Prop :=
+      {   all_juice  : Res.res
+        ; juice_join : join_all tp all_juice
+        ; all_cohere : mem_cohere' m all_juice
+        ; loc_set_ok : locks_correct (lockSet tp) all_juice
       }.
-    
+
     Definition mem_compatible: thread_pool -> mem -> Prop:=
       mem_compatible'.
 
+    Lemma thread_mem_compatible: forall tp m,
+        mem_compatible tp m ->
+        mem_thcohere tp m.
+    Admitted.
+
+    Lemma lock_mem_compatible: forall tp m,
+        mem_compatible tp m ->
+        mem_lock_cohere (lock_set tp) m.
+    Admitted.
     (** There is no inteference in the thread pool *)
     (* Per-thread disjointness definition*)
-    Definition race_free tp :=
+    Definition disjoint_threads tp :=
       forall i j (cnti : containsThread tp i)
         (cntj: containsThread tp j) (Hneq: i <> j),
         joins (getThreadR cnti)
               (getThreadR cntj).
-
-    Record invariant' tp :=
-      { (*canonical : forall tid, isCanonical (juice tp tid);*)
-        no_race : race_free tp;
-        lock_pool : forall (cnt : containsThread tp 0%nat), exists c,
-              getThreadC cnt  = Krun c /\ halted the_sem c
-      }.
+    (* Per-lock disjointness definition*)
+    Definition disjoint_locks tp :=
+      forall loc1 loc2 r1 r2,
+        lock_set tp loc1 = SSome r1 ->
+        lock_set tp loc2 = SSome r2 ->
+        joins r1 r2.
+    (* lock-thread disjointness definition*)
+    Definition disjoint_lock_thread tp :=
+      forall i loc r (cnti : containsThread tp i),
+        lock_set tp loc = SSome r ->
+        joins (getThreadR cnti)r.
+    
+    Record invariant' (tp:t) := True. (* The invariant has been absorbed my mem_compat*)
+     (* { no_race : disjoint_threads tp
+      }.*)
 
     Definition invariant := invariant'.
+
+    (*Lemmas to retrive the ex-invariant properties from the mem-compat*)
+    Lemma disjoint_threads_compat': forall tp all_juice,
+        join_all tp all_juice ->
+        disjoint_threads tp.
+    Admitted.
+    Lemma disjoint_threads_compat: forall tp m
+        (mc: mem_compatible tp m),
+        disjoint_threads tp.
+    Proof. intros ? ? mc ; inversion mc.
+           eapply disjoint_threads_compat'; eassumption.
+    Qed.
+    Lemma disjoint_locks_compat:  forall tp m
+        (mc: mem_compatible tp m),
+        disjoint_locks tp.
+    Admitted.
+    Lemma disjoint_locks_t_hread_compat:  forall tp m
+        (mc: mem_compatible tp m),
+        disjoint_lock_thread tp.
+    Admitted.
     
     (** Steps*)
 
@@ -392,7 +402,7 @@ Module Concur.
                    (juicyRestrictAllocCoh acoh alcoh).
 
     Definition personal_mem {tid js m}(cnt: containsThread js tid)(Hcompatible: mem_compatible js m): juicy_mem:=
-      let cohere:= (perm_comp Hcompatible cnt) in
+      let cohere:= (thread_mem_compatible Hcompatible cnt) in
       personal_mem' (acc_coh cohere) (cont_coh cohere) (max_coh cohere) (all_coh cohere).
     
     Definition juicy_sem := (FSem.F _ _ JuicyFSem.t) _ _ the_sem.
@@ -402,7 +412,6 @@ Module Concur.
       (Hcompatible: mem_compatible tp m) : thread_pool -> mem  -> Prop :=
     | step_juicy :
         forall (tp':thread_pool) c jm jm' m' (c' : code),
-          let: lp := lpool tp in
           forall (Hpersonal_perm:
                personal_mem cnt Hcompatible = jm)
             (Hinv : invariant tp)
@@ -415,12 +424,12 @@ Module Concur.
     Definition pack_res_inv R:= SomeP ([unit:Type])  (fun _ => R) .
 
     Notation Kstop := (concurrent_machine.Kstop).
-    Inductive conc_step genv {tid0 tp m}
+    Inductive syncStep' genv {tid0 tp m}
               (cnt0:containsThread tp tid0)(Hcompat:mem_compatible tp m):
       thread_pool -> mem -> Prop :=
-    | step_lock :
-        forall (tp':thread_pool) jm c c' jm' b ofs d_phi,
-          let: phi := m_phi jm in
+    | step_acquire :
+        forall (tp' tp'':thread_pool) c m1 jm' b ofs d_phi psh phi,
+          (*let: phi := m_phi jm in*)
           let: phi' := m_phi jm' in
           let: m' := m_dry jm' in
           forall
@@ -429,20 +438,23 @@ Module Concur.
             (Hat_external: at_external the_sem c =
                            Some (LOCK, ef_sig LOCK, Vptr b ofs::nil))
             (Hcompatible: mem_compatible tp m)
-            (Hpersonal_perm: 
-               personal_mem cnt0 Hcompatible = jm)
+            (*Hpersonal_perm: 
+               personal_mem cnt0 Hcompatible = jm*)
+            (Hpersonal_juice: getThreadR cnt0 = phi)
             (sh:Share.t)(R:pred rmap)
-            (HJcanwrite: phi@(b, Int.intval ofs) = YES sh pfullshare (LK LKSIZE) (pack_res_inv R))
-            (Hload: Mem.load Mint32 m b (Int.intval ofs) = Some (Vint Int.one))
-            (Hstore: Mem.store Mint32 m b (Int.intval ofs) (Vint Int.zero) = Some m')
-            (Hat_external: after_external the_sem (Some (Vint Int.zero)) c = Some c')
-            (His_unlocked:lpool tp (b, Int.intval ofs) = Some d_phi )
-            (Hadd_lock_res: join (m_phi jm) d_phi  phi')  
-            (Htp': tp' = updThread cnt0 (Kresume c') phi'),
-            conc_step genv cnt0 Hcompat tp' m'                 
-    | step_unlock :
-        forall  (tp':thread_pool) jm c c' jm' b ofs (d_phi phi':rmap) (R: pred rmap) ,
-          let: phi := m_phi jm in
+            (HJcanwrite: phi@(b, Int.intval ofs) = YES sh psh (LK LKSIZE) (pack_res_inv R))
+            (Hrestrict_pmap:
+               makeCurMax m = m1)
+            (Hload: Mem.load Mint32 m1 b (Int.intval ofs) = Some (Vint Int.one))
+            (Hstore: Mem.store Mint32 m1 b (Int.intval ofs) (Vint Int.zero) = Some m')
+            (His_unlocked:lock_set tp (b, Int.intval ofs) = SSome d_phi )
+            (Hadd_lock_res: join phi d_phi  phi')  
+            (Htp': tp' = updThread cnt0 (Kresume c) phi')
+            (Htp'': tp'' = updLockSet tp' (AMap.add (b, Int.intval ofs) None (lset tp'))),
+            syncStep' genv cnt0 Hcompat tp'' m'                 
+    | step_release :
+        forall  (tp' tp'':thread_pool) c m1 jm' b ofs psh (phi d_phi :rmap) (R: pred rmap) ,
+          (* let: phi := m_phi jm in *)
           let: phi' := m_phi jm' in
           let: m' := m_dry jm' in
           forall
@@ -451,22 +463,26 @@ Module Concur.
             (Hat_external: at_external the_sem c =
                            Some (UNLOCK, ef_sig UNLOCK, Vptr b ofs::nil))
             (Hcompatible: mem_compatible tp m)
-            (Hpersonal_perm: 
-               personal_mem cnt0 Hcompatible = jm)
+            (* Hpersonal_perm: 
+               personal_mem cnt0 Hcompatible = jm *)
+            (Hpersonal_juice: getThreadR cnt0 = phi)
             (sh:Share.t)(R:pred rmap)
-            (HJcanwrite: phi@(b, Int.intval ofs) = YES sh pfullshare (LK LKSIZE) (pack_res_inv R))
-            (Hload: Mem.load Mint32 m b (Int.intval ofs) = Some (Vint Int.zero))
-            (Hstore: Mem.store Mint32 m b (Int.intval ofs) (Vint Int.one) = Some m')
+            (HJcanwrite: phi@(b, Int.intval ofs) = YES sh psh (LK LKSIZE) (pack_res_inv R))
+            (Hrestrict_pmap:
+               makeCurMax m = m1)
+            (Hload: Mem.load Mint32 m1 b (Int.intval ofs) = Some (Vint Int.zero))
+            (Hstore: Mem.store Mint32 m1 b (Int.intval ofs) (Vint Int.one) = Some m')
             (* what does the return value denote?*)
-            (Hat_external: after_external the_sem (Some (Vint Int.zero)) c = Some c')
-            (Hget_lock_inv: JMem.get_lock_inv jm (b, Int.intval ofs) = Some R)
+            (*Hget_lock_inv: JMem.get_lock_inv jm (b, Int.intval ofs) = Some R*)
             (Hsat_lock_inv: R d_phi)
-            (Hrem_lock_res: join d_phi phi' (m_phi jm))
-            (Htp': tp' = updThread cnt0 (Kresume c') phi'),
-            conc_step genv cnt0 Hcompat tp' m'          
+            (Hrem_lock_res: join d_phi phi' phi)
+            (Htp': tp' = updThread cnt0 (Kresume c) phi')
+            (Htp'': tp'' =
+                    updLockSet tp' (AMap.add (b, Int.intval ofs) (Some d_phi) (lset tp'))),
+            syncStep' genv cnt0 Hcompat tp'' m'          
     | step_create :
         (* HAVE TO REVIEW THIS STEP LOOKING INTO THE ORACULAR SEMANTICS*)
-        forall  (tp_upd tp':thread_pool) c c' c_new vf arg jm (d_phi phi': rmap) b ofs P Q,
+        forall  (tp_upd tp':thread_pool) c c_new vf arg jm (d_phi phi': rmap) b ofs P Q,
           forall
             (Hinv : invariant tp)
             (Hthread: getThreadC cnt0 = Kstop c)
@@ -474,20 +490,18 @@ Module Concur.
                            Some (CREATE, ef_sig CREATE, vf::arg::nil))
             (Hinitial: initial_core the_sem genv vf (arg::nil) = Some c_new)
             (Hfun_sepc: vf = Vptr b ofs)
-            (Hafter_external: after_external the_sem
-                                             (Some (Vint Int.zero)) c = Some c')
             (Hcompatible: mem_compatible tp m)
             (Hpersonal_perm: 
                personal_mem cnt0 Hcompatible = jm)
             (Hget_fun_spec: JMem.get_fun_spec jm (b, Int.intval ofs) arg = Some (P,Q))
             (Hsat_fun_spec: P d_phi)
             (Hrem_fun_res: join d_phi phi' (m_phi jm))
-            (Htp': tp_upd = updThread cnt0 (Kresume c') phi')
-            (Htp': tp' = addThread tp_upd c_new d_phi),
-            conc_step genv cnt0 Hcompat tp' m
+            (Htp': tp_upd = updThread cnt0 (Kresume c) phi')
+            (Htp'': tp' = addThread tp_upd c_new d_phi),
+            syncStep' genv cnt0 Hcompat tp' m
                      
     | step_mklock :
-        forall  (tp' tp'': thread_pool) jm jm' c c' b ofs R ,
+        forall  (tp' tp'': thread_pool) jm jm' c b ofs R ,
           let: phi := m_phi jm in
           let: phi' := m_phi jm' in
           let: m' := m_dry jm' in
@@ -512,12 +526,12 @@ Module Concur.
             (Hj_forward: forall loc, loc#1 <> b \/ ~0<loc#2-(Int.size ofs)<LKSIZE  -> phi@loc = phi'@loc)
             (*Check the memories are equal!*)
             (Hm_forward: m = m')
-            (Hat_external: after_external
-                             the_sem (Some (Vint Int.zero)) c = Some c')
-            (Htp': tp' = updThread cnt0 (Kresume c') phi'),
-            conc_step genv cnt0 Hcompat tp'' m' 
+            (Htp': tp' = updThread cnt0 (Kresume c) phi')
+            (Htp'': tp'' =
+                    updLockSet tp' (AMap.add (b, Int.intval ofs) None (lset tp'))),
+            syncStep' genv cnt0 Hcompat tp'' m' 
     | step_freelock :
-        forall  (tp' tp'': thread_pool) c c' b ofs jm jm' R,
+        forall  (tp' tp'': thread_pool) c b ofs jm jm' m1 R,
           let: phi := m_phi jm in
           let: phi' := m_phi jm' in
           let: m' := m_dry jm' in
@@ -541,13 +555,15 @@ Module Concur.
             (*Check the two memories coincide in everything else *)
             (Hj_forward: forall loc, loc#1 <> b \/ ~0<loc#2-(Int.size ofs)<LKSIZE  -> phi@loc = phi'@loc)
             (*Check the memories are equal!*)
-            (Hm_forward: m = m')
-            (Hat_external: after_external the_sem (Some (Vint Int.zero)) c = Some c')
-            (Htp': tp' = updThread cnt0 (Kresume c') (m_phi jm')),
-            conc_step genv cnt0 Hcompat  tp'' (m_dry jm')  (* m_dry jm' = m_dry jm = m *)
+            (Hm_forward:
+               makeCurMax m = m1)
+            (Htp': tp' = updThread cnt0 (Kresume c) (m_phi jm'))
+            (Htp'': tp'' =
+                    updLockSet tp' (AMap.remove (b, Int.intval ofs) (lset tp'))),
+            syncStep' genv cnt0 Hcompat  tp'' (m_dry jm')  (* m_dry jm' = m_dry jm = m *)
                      
-    | step_lockfail :
-        forall  c b ofs jm,
+    | step_acqfail :
+        forall  c b ofs jm psh,
           let: phi := m_phi jm in
           forall
             (Hinv : invariant tp)
@@ -558,20 +574,20 @@ Module Concur.
             (Hpersonal_perm: 
                personal_mem cnt0 Hcompatible = jm)
             (sh:Share.t)(R:pred rmap)
-            (HJcanwrite: phi@(b, Int.intval ofs) = YES sh pfullshare (LK LKSIZE) (pack_res_inv R))
+            (HJcanwrite: phi@(b, Int.intval ofs) = YES sh psh (LK LKSIZE) (pack_res_inv R))
             (Hload: Mem.load Mint32 m b (Int.intval ofs) = Some (Vint Int.zero)),
-            conc_step genv cnt0 Hcompat tp m.
+            syncStep' genv cnt0 Hcompat tp m.
     
-    Definition cstep (genv:G): forall {tid0 ms m},
+    Definition threadStep (genv:G): forall {tid0 ms m},
                                  containsThread ms tid0 -> mem_compatible ms m ->
                                  thread_pool -> mem -> Prop:=
       @juicy_step genv.
     
     
-    Definition conc_call (genv:G):
+    Definition syncStep (genv:G):
       forall {tid0 ms m}, containsThread ms tid0 -> mem_compatible ms m ->
         thread_pool -> mem -> Prop:=
-      @conc_step genv.
+      @syncStep' genv.
     
     Inductive threadHalted': forall {tid0 ms},
                                containsThread ms tid0 -> Prop:=
@@ -594,19 +610,24 @@ Module Concur.
 
     Lemma onePos: (0<1)%coq_nat. auto. Qed.
     Definition initial_machine c:=
-      mk (mkPos onePos) (fun _ => c) (fun _ => empty_rmap level) (fun _ => None).
+      mk (mkPos onePos) (fun _ => (Kresume c)) (fun _ => empty_rmap level) (AMap.empty (option Res.res)).
     
     Definition init_mach (genv:G)(v:val)(args:list val) : option thread_pool:=
       match initial_core the_sem genv v args with
-      | Some c => Some (initial_machine (Kresume c))
+      | Some c => Some (initial_machine  c)
       | None => None
       end.
       
-End JuicyMachineSig.
+  End JuicyMachineShell.
+  
+  (*
+This is how you would instantiate a module (though it might be out of date
 
+Declare Module SEM:Semantics.
+  Module JuicyMachine:= JuicyMachineShell SEM.
   Module myCoarseSemantics :=
-    CoarseMachine mySchedule JuicyMachineSig.
+    CoarseMachine mySchedule JuicyMachine.
   Definition coarse_semantics:=
-    myCoarseSemantics.MachineSemantics.
+    myCoarseSemantics.MachineSemantics.*)
   
 End Concur.

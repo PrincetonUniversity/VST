@@ -12,8 +12,27 @@ Require Import veric.shares juicy_mem.
 Require Import msl.msl_standard.
 Import cjoins.
 
+Lemma po_refl: forall p, Mem.perm_order'' p p.
+Proof.
+  destruct p; [apply perm_refl| simpl]; auto.
+Qed.
+
+Lemma perm_order_antisym :
+  forall p p'
+    (Hlt: Mem.perm_order'' p p')
+    (Hgt: Mem.perm_order'' p' p),
+    p = p'.
+Proof.
+  intros.
+  unfold Mem.perm_order'' in *.
+  destruct p as [p|], p' as [p'|];
+    try destruct p; try destruct p';
+    auto;
+    try (by inversion Hgt); try (by inversion Hlt).
+Qed.
+
 Definition access_map := Maps.PMap.t (Z -> option permission).
-Definition delta_map := Maps.PMap.t (Z -> option (option permission)).
+Definition delta_map := Maps.PTree.t (Z -> option (option permission)).
 
 Section permMapDefs.
   
@@ -177,7 +196,15 @@ Section permMapDefs.
     forall b ofs, exists pu,
       perm_union ((Maps.PMap.get b pmap1) ofs)
                  ((Maps.PMap.get b pmap2) ofs) = Some pu.
-  
+  Lemma empty_disjoint:
+    permMapsDisjoint empty_map
+                     empty_map.
+      unfold permMapsDisjoint.
+      unfold empty_map; intros; simpl.
+      unfold Maps.PMap.get; simpl.
+      rewrite Maps.PTree.gempty; simpl.
+      exists None; reflexivity.
+  Qed.
   Lemma permMapsDisjoint_comm :
     forall pmap1 pmap2
       (Hdis: permMapsDisjoint pmap1 pmap2),
@@ -229,7 +256,8 @@ Section permMapDefs.
   Qed.
   Lemma fold_max_monoton': forall  {A} (ls: seq.seq (positive * A)), forall i j,
         (i >= j)%positive ->
-        (Coqlib.list_fold_left (fun a => [eta Pos.max a.1]) i ls >= Coqlib.list_fold_left (fun a => [eta Pos.max a.1]) j ls)%positive.
+        (Coqlib.list_fold_left (fun a => [eta Pos.max a.1]) i ls >=
+         Coqlib.list_fold_left (fun a => [eta Pos.max a.1]) j ls)%positive.
   Proof.
     induction ls.
     - auto. 
@@ -246,7 +274,8 @@ Section permMapDefs.
       + apply Pos.le_ge. apply Pos.le_refl.
   Qed.
   Lemma TreeMaxIndex_help: forall {A} (ls: seq.seq (positive * A)), forall i v,
-        In (i, v) ls -> (Coqlib.list_fold_left (fun a => [eta Pos.max a.1]) 1%positive ls >= i)%positive.
+        In (i, v) ls -> (Coqlib.list_fold_left (fun a => [eta Pos.max a.1])
+                                              1%positive ls >= i)%positive.
   Proof.
     induction ls.
     - intros. inversion H.
@@ -259,14 +288,17 @@ Section permMapDefs.
          pose (ineq':=ineq).
          apply IHls in ineq'.
          apply Pos.le_ge.
-         apply (Pos.le_trans _ (Coqlib.list_fold_left (fun a0 : positive * A => [eta Pos.max a0.1])
-                                                      1%positive ls)).
+         apply (Pos.le_trans _ (Coqlib.list_fold_left
+                                  (fun a0 : positive * A => [eta Pos.max a0.1])
+                                  1%positive ls)).
          * apply Pos.ge_le. eapply IHls.
            eassumption.
          * apply Pos.ge_le. apply fold_max_monoton'.
            apply Pos.le_ge; apply Pos.le_1_l.
   Qed.
-  Lemma max_works: forall A (t:PTree.t A) m, (m > TreeMaxIndex t)%positive -> t ! m = None.
+  
+  Lemma max_works: forall A (t:PTree.t A) m, (m > TreeMaxIndex t)%positive ->
+                                        t ! m = None.
   Proof.
     intros. destruct (t ! m) eqn: GET; try reflexivity.
     apply PTree.elements_correct in GET.
@@ -286,13 +318,15 @@ Section permMapDefs.
         extensionality x.
         pose (property:= Mem.nextblock_noaccess m BigNumber x Cur).
         rewrite <- property.
-        - replace ((Mem.mem_access m) !! BigNumber x Cur) with (permission_at m BigNumber x Cur); try reflexivity.
+        - replace ((Mem.mem_access m) !! BigNumber x Cur) with
+          (permission_at m BigNumber x Cur); try reflexivity.
           rewrite <- getCurPerm_correct.
           unfold PMap.get.
           rewrite HH.
           reflexivity.
         - apply Pos.le_nlt. unfold BigNumber. apply Pos.le_max_r.
   Qed.
+  
   Lemma Max_isCanonical: forall m, isCanonical (getMaxPerm m).
         unfold isCanonical. intros.
         pose (BigNumber:= Pos.max (Pos.succ( TreeMaxIndex (getMaxPerm m).2) ) (Mem.nextblock m)).
@@ -303,7 +337,8 @@ Section permMapDefs.
         extensionality x.
         pose (property:= Mem.nextblock_noaccess m BigNumber x Max).
         rewrite <- property.
-        - replace ((Mem.mem_access m) !! BigNumber x Max) with (permission_at m BigNumber x Max); try reflexivity.
+        - replace ((Mem.mem_access m) !! BigNumber x Max) with
+          (permission_at m BigNumber x Max); try reflexivity.
           rewrite <- getMaxPerm_correct.
           unfold PMap.get.
           rewrite HH.
@@ -316,6 +351,50 @@ Section permMapDefs.
       Mem.perm_order'' (Maps.PMap.get b pmap2 ofs)
                        (Maps.PMap.get b pmap1 ofs).
   
+  Lemma canonical_lt :
+    forall p' m
+      (Hlt: permMapLt p' (getMaxPerm m)),
+      isCanonical p'.
+  Proof.
+    intros.
+    assert (Hcan:= Max_isCanonical m).
+    unfold isCanonical in *.
+    unfold permMapLt in *.
+    remember (Pos.max (Pos.succ(TreeMaxIndex
+                                  (getMaxPerm m).2) ) (Mem.nextblock m)) as b.
+    remember (Pos.max (Pos.succ(TreeMaxIndex p'.2)) b) as b'.
+    assert (Hb: ((Pos.succ ( TreeMaxIndex (getMaxPerm m).2)) <= b)%positive )
+      by (subst; apply Pos.le_max_l).
+    assert (Hm: (b' >= (Pos.succ ( TreeMaxIndex (getMaxPerm m).2)))%positive).
+    { subst b'. apply Pos.le_ge. eapply Pos.le_trans; eauto.
+      apply Pos.le_max_r.
+    }
+    assert (Hp': (b' >= (Pos.succ ( TreeMaxIndex p'.2)))%positive).
+    { subst b'. apply Pos.le_ge. apply Pos.le_max_l. 
+    }
+    apply Pos.ge_le in Hm; apply Pos.le_succ_l in Hm.
+    apply Pos.lt_gt in Hm; eapply max_works in Hm.
+    apply Pos.ge_le in Hp'; apply Pos.le_succ_l in Hp'.
+    apply Pos.lt_gt in Hp'; eapply max_works in Hp'.
+    extensionality ofs.
+    assert (H:= Mem.nextblock_noaccess m b' ofs Max).
+    assert (Hinvalid: ~ Coqlib.Plt b' (Mem.nextblock m)).
+    { clear - Heqb Heqb'.
+      subst. intros Hcontra.
+      unfold Coqlib.Plt in Hcontra.
+      apply Pos.max_lub_lt_iff in Hcontra. destruct Hcontra as [? Hcontra].
+      apply Pos.max_lub_lt_iff in Hcontra. destruct Hcontra as [? Hcontra].
+        by apply Pos.lt_irrefl in Hcontra.
+    }
+    specialize (H Hinvalid).
+    specialize (Hlt b' ofs).
+    rewrite getMaxPerm_correct in Hlt Hm.
+    unfold permission_at in *. rewrite H in Hlt. simpl in Hlt.
+    unfold Maps.PMap.get in Hlt.
+    rewrite Hp' in Hlt.
+    destruct (p'.1 ofs); tauto.
+  Qed.  
+    
   Definition setPerm (p : option permission) (b : block)
              (ofs : Z) (pmap : access_map) : access_map :=
     Maps.PMap.set b (fun ofs' => if Coqlib.zeq ofs ofs' then
@@ -323,7 +402,7 @@ Section permMapDefs.
                               else
                                 Maps.PMap.get b pmap ofs')
                   pmap.
-  
+  (* THIS OLD VERSION IS WRONG
   Definition computeMap (pmap : access_map) (delta : delta_map) : access_map :=
     (fun ofs => None,
              Maps.PTree.map 
@@ -332,8 +411,23 @@ Section permMapDefs.
                     match (Maps.PMap.get b delta) ofs with
                     | None => f ofs
                     | Some p => p
-                    end) pmap.2).
-
+                    end) pmap.2). *)
+  Definition computeMap (pmap : access_map) (delta : delta_map) : access_map :=
+    (pmap.1,
+     @Maps.PTree.combine (Z -> option permission) (Z -> option (option permission)) (Z -> option permission)
+                         (fun p1 pd => match pd, p1 with
+                                    | Some pd', Some p1' => Some (fun z => match pd' z with
+                                                                           Some pd'' => pd''
+                                                                         | _ => p1' z
+                                                                         end)
+                                    | Some pd', None => Some (fun z => match pd' z with
+                                                                       Some pd'' => pd''
+                                                                       | _ => None
+                                                                     end)
+                                    | None, _ => p1
+                                    end)
+                         pmap.2 delta).
+      
   Import Maps BlockList.
   
   Definition maxF (f : Z -> perm_kind -> option permission) :=
@@ -625,6 +719,26 @@ Section permMapDefs.
     }
   Qed.
 
+   Lemma setMaxPerm_MaxV :
+    forall m b ofs,
+      Mem.valid_block m b ->
+       permission_at (setMaxPerm m) b ofs Max = Some Freeable.
+  Proof.
+    intros;
+    assert (Hmax := setMaxPerm_Max m b ofs);
+    destruct Hmax; auto.
+  Qed.
+
+  Lemma setMaxPerm_MaxI :
+    forall m b ofs,
+      ~ Mem.valid_block m b ->
+      permission_at (setMaxPerm m) b ofs Max = None.
+  Proof.
+    intros;
+    assert (Hmax := setMaxPerm_Max m b ofs);
+    destruct Hmax; auto.
+  Qed.
+  
   Lemma setMaxPerm_Cur :
     forall m b ofs,
       permission_at (setMaxPerm m) b ofs Cur = permission_at m b ofs Cur.
@@ -645,6 +759,41 @@ Section permMapDefs.
     apply Pos2Nat.inj_le in Hinvalid. ssromega.
   Qed.
 
+  Definition makeCurMax_map (mem_access:PMap.t (Z -> perm_kind -> option permission)):
+    PMap.t (Z -> perm_kind -> option permission):=
+    PMap.map (fun f => fun z k => f z Max) mem_access.
+    
+  
+  Definition makeCurMax (m:mem): mem.
+  apply (Mem.mkmem (Mem.mem_contents m) 
+                   (makeCurMax_map (Mem.mem_access m))
+                   (Mem.nextblock m)).
+  - intros. unfold makeCurMax_map; simpl. rewrite PMap.gmap.
+    apply po_refl.
+  - intros. unfold makeCurMax_map; simpl. rewrite PMap.gmap.
+    apply Mem.nextblock_noaccess; assumption.
+  - intros; apply Mem.contents_default.
+  Defined.
+
+  Lemma makeCurMax_correct :
+    forall m b ofs k,
+      permission_at m b ofs Max = permission_at (makeCurMax m) b ofs k.
+  Proof.
+    intros. 
+    unfold permission_at, makeCurMax, makeCurMax_map.
+    simpl;
+      by rewrite Maps.PMap.gmap.
+  Qed.
+
+  Lemma makeCurMax_valid :
+    forall m b,
+      Mem.valid_block m b <-> Mem.valid_block (makeCurMax m) b.
+  Proof.
+    intros;
+    unfold Mem.valid_block, makeCurMax; simpl;
+      by auto.
+  Qed.
+  
   Definition restrPermMap p' m (Hlt: permMapLt p' (getMaxPerm m)) : mem.
   Proof.
     refine ({|
@@ -719,12 +868,22 @@ Section permMapDefs.
   Proof.
     intros. unfold restrPermMap. reflexivity.
   Qed.
+
+  Lemma restrPermMap_valid :
+    forall p' m (Hlt: permMapLt p' (getMaxPerm m)) b,
+      Mem.valid_block (restrPermMap Hlt) b <-> Mem.valid_block m b.
+  Proof.
+    intros. unfold Mem.valid_block. rewrite restrPermMap_nextblock.
+      by split.
+  Qed.
+  
   Lemma restrPermMap_contents :
     forall p' m (Hlt: permMapLt p' (getMaxPerm m)),
       contents_at (restrPermMap Hlt) = contents_at m.
   Proof.
     intros. unfold restrPermMap. reflexivity.
   Qed.
+  
   Lemma restrPermMap_max :
     forall p' m (Hlt: permMapLt p' (getMaxPerm m)),
       max_access_at (restrPermMap Hlt) = max_access_at m.
@@ -750,7 +909,6 @@ Section permMapDefs.
 
   Lemma restrPermMap_disjoint_inv:
     forall (mi mj m : mem) (pi pj : access_map)
-      (Hcan_m: isCanonical (getMaxPerm m))
       (Hltj: permMapLt pj (getMaxPerm m))
       (Hlti: permMapLt pi (getMaxPerm m))
       (Hdisjoint: permMapsDisjoint pi pj)
@@ -771,7 +929,8 @@ Section permMapDefs.
     do 2 rewrite Maps.PTree.gmap. unfold Coqlib.option_map.
     specialize (Hdisjoint b ofs).
     assert (Hnone: (Mem.mem_access m).1 ofs Max = None)
-      by (unfold isCanonical in Hcan_m; simpl in Hcan_m;
+      by (assert (Hcan_m := Max_isCanonical m);
+           unfold isCanonical in Hcan_m; simpl in Hcan_m;
             by apply equal_f with (x:=ofs) in Hcan_m).
     destruct (Maps.PTree.get b (Mem.mem_access m).2) eqn:?; auto.
     rewrite Hnone in Hlti, Hltj;
@@ -785,15 +944,16 @@ Section permMapDefs.
 
   Lemma restrPermMap_correct :
     forall p' m (Hlt: permMapLt p' (getMaxPerm m))
-      (Hcan_p' : isCanonical p')
-      (Hcan_m : isCanonical (getMaxPerm m))
       b ofs,
       permission_at (restrPermMap Hlt) b ofs Max =
       Maps.PMap.get b (getMaxPerm m) ofs /\
       permission_at (restrPermMap Hlt) b ofs Cur =
       Maps.PMap.get b p' ofs.
   Proof.
-    intros. unfold restrPermMap, getMaxPerm, permission_at. simpl.
+    intros.
+    assert (Hcan_p' := canonical_lt Hlt).
+    assert (Hcan_m := Max_isCanonical m).
+    unfold restrPermMap, getMaxPerm, permission_at. simpl.
     rewrite Maps.PMap.gmap. split;
       unfold permMapLt in Hlt; specialize (Hlt b ofs);
       unfold Maps.PMap.get; simpl; rewrite Maps.PTree.gmap;
@@ -808,8 +968,29 @@ Section permMapDefs.
     rewrite Heqo in Hlt. simpl in Hlt.
     destruct (o ofs); tauto.
   Qed.
+
+  Corollary restrPermMap_Cur :
+    forall p' m (Hlt: permMapLt p' (getMaxPerm m)) b ofs,
+      permission_at (restrPermMap Hlt) b ofs Cur =
+      Maps.PMap.get b p' ofs.
+  Proof.
+    intros.
+    assert (Heq := restrPermMap_correct Hlt b ofs).
+    by destruct Heq.
+  Qed.
+
+  Corollary restrPermMap_Max :
+    forall p' m (Hlt: permMapLt p' (getMaxPerm m)) b ofs,
+      permission_at (restrPermMap Hlt) b ofs Max =
+      Maps.PMap.get b (getMaxPerm m) ofs.
+  Proof.
+    intros.
+    assert (Heq := restrPermMap_correct Hlt b ofs).
+      by destruct Heq.
+  Qed.
+
+    
   Lemma restrPermMap_can : forall (p : access_map) (m m': mem)
-                             (Hcanonical: isCanonical p)
                              (Hlt: permMapLt p (getMaxPerm m))
                              (Hrestrict: restrPermMap Hlt = m'),
       isCanonical (getCurPerm m').
@@ -820,12 +1001,12 @@ Section permMapDefs.
   Defined.
 
   Lemma restrPermMap_can_max : forall (p : access_map) (m m': mem)
-                                 (Hcanonical: isCanonical (getMaxPerm m))
                                  (Hlt: permMapLt p (getMaxPerm m))
                                  (Hrestrict: restrPermMap Hlt = m'),
       isCanonical (getMaxPerm m').
   Proof.
     intros. subst.
+    assert (Hcanonical := Max_isCanonical m).
     unfold restrPermMap, getMaxPerm, isCanonical in *. simpl in *.
     auto.
   Defined.
@@ -894,17 +1075,11 @@ Section ShareMaps.
       (Mem.valid_block m_before b ->
        forall p, Mem.perm m_after b ofs Cur p -> Mem.perm m_before b ofs Cur p).
   
-  Definition map_decay (pmap pmap' : access_map) :=
-    forall b ofs, (Maps.PMap.get b pmap) ofs = (Maps.PMap.get b pmap') ofs \/
-             ((Maps.PMap.get b pmap) ofs = Some Freeable /\
-              (Maps.PMap.get b pmap') ofs = None) \/
-             ((Maps.PMap.get b pmap) ofs = None /\
-              (Maps.PMap.get b pmap') ofs = Some Freeable).
-
   Definition decay' m_before m_after := forall b ofs, 
       (~Mem.valid_block m_before b ->
        Mem.valid_block m_after b ->
-       Maps.PMap.get b (Mem.mem_access m_after) ofs Cur = Some Freeable) /\
+       Maps.PMap.get b (Mem.mem_access m_after) ofs Cur = Some Freeable
+      \/ Maps.PMap.get b (Mem.mem_access m_after) ofs Cur = None) /\
       (Mem.valid_block m_before b ->
        ((Maps.PMap.get b (Mem.mem_access m_before) ofs Cur = Some Freeable /\
          Maps.PMap.get b (Mem.mem_access m_after) ofs Cur = None)) \/
@@ -915,94 +1090,9 @@ Section ShareMaps.
     forall m m',
       decay m m' ->
       decay' m m'.
-  Admitted.
-       
-  
-  (*Lemma mem_map_decay :
-    forall m m',
-      decay m m' ->
-      map_decay (getCurPerm m) (getCurPerm m').
   Proof.
-    intros m m' Hdecay.
-    intros b ofs.
-    destruct (Hdecay b ofs) as [H1 [H2 [H3 H4]]].
-    unfold Mem.valid_block in *.
-    destruct (Coqlib.plt b (Mem.nextblock m)) as [Hlt | Hlt].
-    - specialize (H4 Hlt). clear H1.
-      destruct (Maps.PMap.get b (getCurPerm m') ofs) as [p'|] eqn:Hperm';
-        destruct (Maps.PMap.get b (getCurPerm m) ofs) as [p|] eqn:Hperm; auto;
-        rewrite getCurPerm_correct in Hperm;
-        rewrite getCurPerm_correct in Hperm'.
-      { destruct p eqn:Hp;
-        [ assert (Hperm_freeable: Mem.perm m b ofs Cur Freeable)
-            by (unfold Mem.perm, Mem.perm_order'; subst; rewrite Hperm; constructor);
-          assert (Hmem_perm': Mem.perm m' b ofs Cur p')
-            by (unfold Mem.perm, Mem.perm_order'; subst; rewrite Hperm'; constructor);
-          specialize (H2 Hperm_freeable _ Hmem_perm');
-          unfold Mem.perm in H2;
-          rewrite Hperm' in H2; simpl in H2; inversion H2; subst; auto| | |];
-          assert (Hnot_freeable: ~ Mem.perm m b ofs Cur Freeable)
-            by (unfold Mem.perm, Mem.perm_order';
-                 rewrite Hperm; intro Hcontra; inversion Hcontra);
-            specialize (H3 Hnot_freeable);
-            specialize (H3 p);
-            assert (Hmem_perm: Mem.perm m b ofs Cur p) by
-              (unfold Mem.perm, Mem.perm_order';
-                rewrite Hperm; subst; constructor);
-          specialize (H3 Hmem_perm);
-          unfold Mem.perm, Mem.perm_order' in H3; subst;
-          rewrite Hperm' in H3;
-          inversion H3; subst; auto;
-          try (assert (Hp'_ord: Mem.perm m' b ofs Cur Freeable) by
-              (unfold Mem.perm, Mem.perm_order'; rewrite Hperm'; constructor);
-                specialize (H4 Freeable Hp'_ord); tauto).
-        assert  (Hp'_ord: Mem.perm m' b ofs Cur Writable) by
-            (unfold Mem.perm, Mem.perm_order'; rewrite Hperm'; constructor).
-        specialize (H4 _ Hp'_ord).
-        unfold Mem.perm, Mem.perm_order' in H4.
-        rewrite Hperm in H4. inversion H4.
-        destruct p' eqn:Hp'; auto;
-        assert  (Hp'_ord: Mem.perm m' b ofs Cur p') by
-            (unfold Mem.perm, Mem.perm_order'; rewrite Hperm'; subst; constructor);
-        specialize (H4 _ Hp'_ord);
-        unfold Mem.perm, Mem.perm_order' in H4;
-        rewrite Hperm in H4; subst; inversion H4.
-      }
-      { exfalso.
-        assert (Hmem_perm': Mem.perm m' b ofs Cur p')
-          by (unfold Mem.perm, Mem.perm_order'; rewrite Hperm'; constructor).
-        specialize (H4 _ Hmem_perm').
-        unfold Mem.perm, Mem.perm_order' in H4;
-          now rewrite Hperm in H4.
-      }
-      { destruct p eqn:Hp; auto;
-        assert (Hnot_freeable: ~ Mem.perm m b ofs Cur Freeable)
-          by
-            (unfold Mem.perm, Mem.perm_order';
-             rewrite Hperm; intro Hcontra; inversion Hcontra);
-        specialize (H3 Hnot_freeable);
-        specialize (H3 p);
-        assert (Hmem_perm: Mem.perm m b ofs Cur p) by
-            (unfold Mem.perm, Mem.perm_order';
-             rewrite Hperm; subst; constructor);
-        specialize (H3 Hmem_perm);
-        unfold Mem.perm, Mem.perm_order' in *; subst;
-        rewrite Hperm' in H3; tauto. }
-    - specialize (H1 Hlt).
-      assert (Hperm: Maps.PMap.get b (Mem.mem_access m) ofs Cur = None)
-        by (now apply Mem.nextblock_noaccess).
-      do 2 rewrite getCurPerm_correct. rewrite Hperm.
-      clear H4.
-      destruct (Maps.PMap.get b (Mem.mem_access m') ofs Cur) as [p'|] eqn:Hperm';
-        auto.
-      assert (Hmem_perm': Mem.perm m' b ofs Cur p')
-        by (unfold Mem.perm, Mem.perm_order'; rewrite Hperm'; simpl; constructor).
-      specialize (H1 _ Hmem_perm').
-      assert (Hp': p' = Freeable)
-        by  (unfold Mem.perm, Mem.perm_order' in H1; rewrite Hperm' in H1;
-             inversion H1; auto); subst. auto.
-  Qed.*)
-
+  Admitted.
+  
   Definition shareMapsJoin (smap1 smap2 smap3 : share_map) : Prop :=
     forall b ofs,
       join ((Maps.PMap.get b (mkShare_map smap1)) ofs)
