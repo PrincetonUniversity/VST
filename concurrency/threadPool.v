@@ -7,6 +7,8 @@ Require Import compcert.lib.Axioms.
 
 Set Implicit Arguments.
 
+(*TODO: Enrich Resources interface to enable access of resources*)
+
 Module OrdinalPool (SEM:Semantics) (RES:Resources) <: ThreadPoolSig
     with Module TID:= NatTID with Module SEM:=SEM
     with Module RES:=RES.

@@ -438,7 +438,42 @@ Module InternalSteps.
           erewrite gsoThreadR_step; eauto.
         + eauto.
     Qed.
-          
+
+    Lemma gsoLockSet_step:
+      forall tp tp' m m' i (pfi: containsThread tp i)
+        (Hcomp: mem_compatible tp m)
+        (Hstep: internal_step pfi Hcomp tp' m'),
+        lockSet tp = lockSet tp'.
+    Proof.
+      intros;
+      destruct Hstep as [Htstep | [Htstep ?]];
+      inversion Htstep;
+      subst;
+      [erewrite gsoThreadLock | inversion Htstep;
+         erewrite gsoThreadCLock];
+        by reflexivity.
+    Qed.
+
+    Lemma gsoLockSet_execution:
+      forall tp m tp' m' i xs
+        (Hstep: internal_execution [seq x <- xs | x == i] tp m tp' m'),
+        lockSet tp = lockSet tp'.
+    Proof.
+      intros. generalize dependent tp. generalize dependent m.
+      induction xs; intros.
+      - simpl in Hstep. inversion Hstep; subst. by pf_cleanup.
+        simpl in HschedN. by discriminate.
+      - simpl in Hstep.
+        destruct (a == i) eqn:Heq; move/eqP:Heq=>Heq; try eauto.
+        subst a. inversion Hstep; subst.
+        simpl in Htrans.
+        simpl in HschedN; inversion HschedN; subst tid.
+        pf_cleanup.
+        specialize (IHxs _ _  Htrans).
+        rewrite <- IHxs.
+        erewrite gsoLockSet_step; eauto.
+    Qed.
+    
     Lemma permission_at_execution:
       forall tp m tp' m' i j xs
         (pfi: containsThread tp i)
@@ -676,6 +711,15 @@ Module SimDefs.
   (** Simulations between individual threads. *)
   
   (* Consider hiding thread_pool completely *)
+  (* The weak simulation is required to prove the correctness of
+  concurrent calls. In particular, suppose that a thread executes an
+  external call, this thread will be "synchronized" meaning that its
+  permissions will be equal between the two machines. When the angel
+  provides a new permission map for this thread we still need to show
+  that it is compatible with the other threads, hence we need to know
+  something about those threads as well. The fact that the permissions
+  of the coarse grained machine are above the ones on the fine is
+  enough to establish non-interference for the fine grained machine *)
   Definition weak_tsim {tpc tpf : thread_pool} (mc mf : Mem.mem)
              {i} (f: meminj) (pfc : containsThread tpc i)
              (pff : containsThread tpf i) (compc: mem_compatible tpc mc)
@@ -692,7 +736,12 @@ Module SimDefs.
                              (restrPermMap (compf i pff))
     }.
 
-  
+  (** Simulation between locksets*)
+  Definition lockset_sim (f: meminj) tpc tpf : Prop :=
+    forall b1 b2 ofs
+      (Hf: f b1 = Some (b2,0%Z)),
+      ((lockSet tpc) # b1 ofs = (lockSet tpf) # b2 ofs).
+      
   (** Simulation relation between a "coarse-grain" 
      state and a "fine-grain" state *)
   
@@ -742,14 +791,17 @@ Module SimDefs.
                           (Hneq: tid <> tid2) b1 b2 ofs,
                            (fp _ pfc) b1 = Some (b2,0%Z) ->
                            f b1 = None ->
-                           (getThreadR pff2) # b2 ofs = None);
-                           
+                           (getThreadR pff2) # b2 ofs = None) /\
+                       (forall b1 b2 ofs,
+                           (fp _ pfc) b1 = Some (b2,0%Z) ->
+                           f b1 = None ->
+                           (lockSet tpf) # b2 ofs = None);
+      simLocks: lockset_sim f tpc tpf;
       invF: invariant tpf;
       maxF: max_inv mf
     }.
 
   Arguments sim : clear implicits.
-
 
   (** Distinguishing the various step types of the concurrent machine *)
 
@@ -1013,12 +1065,12 @@ Module SimProofs.
 
     (** Proofs about [fmachine_step]*)
     Lemma fstep_containsThread :
-      forall tp tp' m m' i j
+      forall tp tp' m m' i j U
         (cntj: containsThread tp j)
-        (Hstep: forall U, fmachine_step (i :: U, tp) m (U, tp') m'),
+        (Hstep: fmachine_step (i :: U, tp) m (U, tp') m'),
         containsThread tp' j.
     Proof.
-      intros. specialize (Hstep empty).
+      intros.
       inversion Hstep; subst; try inversion Htstep;
       simpl in *; try inversion HschedN;
       subst; auto;
@@ -1037,15 +1089,14 @@ Module SimProofs.
     Qed.
 
     Lemma fstep_containsThread' :
-      forall tp tp' m m' i j
+      forall tp tp' m m' i j U
         (cnti: containsThread tp i)
         (cntj: containsThread tp' j)
         (Hinternal: cnti @ I)
-        (Hstep: forall U, fmachine_step (i :: U, tp) m (U, tp') m'),
+        (Hstep: fmachine_step (i :: U, tp) m (U, tp') m'),
         containsThread tp j.
     Proof.
       intros.
-      specialize (Hstep empty).
       absurd_internal Hstep;
         by eauto.
     Qed.
@@ -1171,9 +1222,24 @@ Module SimProofs.
         by eauto.
       erewrite gsoThreadCode with (cntj' := pfj'); eauto.
     Qed.
+
+    Lemma gsoLockSet_fstepI:
+      forall tp tp' m m' i U
+        (pfi: containsThread tp i)
+        (Hinternal: pfi @ I)
+        (Hstep: fmachine_step (i :: U, tp) m (U, tp') m'),
+        lockSet tp = lockSet tp'.
+    Proof.
+      intros.
+      absurd_internal Hstep.
+      erewrite gsoThreadCLock;
+        by eauto.
+      erewrite gsoThreadLock;
+        by eauto.
+    Qed.
     
     Hint Resolve fmachine_step_compatible fmachine_step_invariant
-         fstep_containsThread fstep_containsThread' : fstep.
+         fstep_containsThread fstep_containsThread' gsoLockSet_fstepI : fstep.
 
     Hint Rewrite gsoThreadR_fstep permission_at_fstep : fstep.
     
@@ -1290,6 +1356,7 @@ Module SimProofs.
         (forall U, fmachine_step (i :: U, tpf) mf (U, tpf') mf') /\
         max_inv mf' /\
         inject_incr fi fi' /\
+        inject_separated fi fi' mc mf /\
         (forall (pfc': containsThread tpc' i) (pff': containsThread tpf' i)
           (Hcompc': mem_compatible tpc' mc') (Hcompf': mem_compatible tpf' mf'),
             strong_tsim fi' pfc' pff' Hcompc' Hcompf') /\
@@ -1299,7 +1366,10 @@ Module SimProofs.
             forall (b1 b2 : block),
               fi' b1 = Some (b2, 0%Z) ->
               fi b1 = None ->
-              forall ofs, (getThreadR pffj) # b2 ofs = None).
+              forall ofs, (getThreadR pffj) # b2 ofs = None) /\
+        (forall (b1 b2 : block) (ofs : Z),
+            fi' b1 = Some (b2, 0%Z) ->
+            fi b1 = None -> (lockSet tpf) # b2 ofs = None).
     Proof.
       intros.
       assert (HinvC': invariant tpc')
@@ -1319,7 +1389,7 @@ Module SimProofs.
         exists tpf' (setMaxPerm mf') fi'.
         split.
         { (* fine machine steps *)
-          intros U. eapply myFineSemantics.core_step; simpl; eauto.
+          intros U. eapply myFineSemantics.thread_step; simpl; eauto.
           econstructor; eauto.
         }
         {
@@ -1330,6 +1400,16 @@ Module SimProofs.
             by auto.
           split; first by assumption.
           split.
+          (* Proof of seperation*)
+          clear - Hupd Hseparated Hrestrict HmaxF.
+          subst mf1.
+          unfold inject_separated in *.
+          intros b1 b2 delta Hfi Hfi'.
+          specialize (Hseparated _ _ _ Hfi Hfi').
+          do 2 erewrite restrPermMap_valid in Hseparated;
+            by assumption.
+          split.
+          (* Proof of strong simulation*)
           intros. econstructor;
             first by (subst tpf'; by do 2 erewrite gssThreadCode).
           assert (Hlt_mc' : permMapLt (getCurPerm mc')
@@ -1358,6 +1438,7 @@ Module SimProofs.
            will hold for tpf'. Moreover we know that the new blocks in
            mc'|i will be mapped to new blocks in mf' by inject separated,
            where the permissions are empty for other threads. *)
+         split.
          intros j pffj Hij b1 b2 Hfi' Hfi ofs.
          specialize (Hseparated _ _ _ Hfi Hfi').
          destruct Hseparated as [Hinvalidmc1 Hinvalidmf1].
@@ -1371,7 +1452,25 @@ Module SimProofs.
            rewrite getMaxPerm_correct in H. by auto.
          }
          rewrite Hperm_b2 in Hlt.
-         simpl in Hlt. destruct ((getThreadR pffj) # b2 ofs); by tauto.
+         simpl in Hlt.
+         destruct ((getThreadR pffj) # b2 ofs);
+           by tauto.
+         intros b1 b2 ofs Hfi' Hfi.
+         specialize (Hseparated _ _ _ Hfi Hfi').
+         destruct Hseparated as [Hinvalidmc1 Hinvalidmf1].
+         apply Mem.nextblock_noaccess with (k := Max) (ofs := ofs) in Hinvalidmf1.
+         assert (Hlt := (compat_rp Hcompf) b2 ofs).
+         rewrite getMaxPerm_correct in Hlt.
+         assert (Hperm_b2: permission_at mf b2 ofs Max = None).
+         { subst mf1.
+           assert (H:= restrPermMap_Max (Hcompf i pff) b2 ofs).
+           unfold permission_at in H. rewrite Hinvalidmf1 in H.
+           rewrite getMaxPerm_correct in H. by auto.
+         }
+         rewrite Hperm_b2 in Hlt.
+         simpl in Hlt.
+         destruct ((lockSet tpf) # b2 ofs);
+           by tauto.
         }
       }
       { destruct Hresume as [Hresume Heq]; subst.
@@ -1387,17 +1486,17 @@ Module SimProofs.
         }
         { split; first by auto.
           split; first by auto.
+          split; first by congruence.
           split.
-          - intros.
-            constructor;
-              first by (subst tpf';
-                          by do 2 rewrite gssThreadCC).
-            erewrite restrPermMap_irr with
-            (Hlt' := Hcompf _ pff) by (subst; by erewrite @gThreadCR with (cntj := pff)).
-            erewrite restrPermMap_irr; eauto.
-              by rewrite gThreadCR.
-          - intros j pffj Hij b1 b2 Hfi Hfi'.
-            by congruence.
+          intros.
+          constructor;
+            first by (subst tpf';
+                        by do 2 rewrite gssThreadCC).
+          erewrite restrPermMap_irr with
+          (Hlt' := Hcompf _ pff) by (subst; by erewrite @gThreadCR with (cntj := pff)).
+          erewrite restrPermMap_irr; eauto;
+            by rewrite gThreadCR.
+          split; intros; by congruence.
         }
       }
     Qed.
@@ -1523,12 +1622,12 @@ Module SimProofs.
       intros.
       inversion Hsim as
           [HnumThreads HmemCompC HmemCompF HsafeC
-                       HsimWeak Hfpsep HsimStrong HinvF HmaxF].
+                       HsimWeak Hfpsep HsimStrong HsimLocks HinvF HmaxF].
       assert (pfc: containsThread tpc i)
         by (eapply HnumThreads; eauto).
       (* Strong simulation for thread i*)
       destruct (HsimStrong i pfc pff)
-        as [tpc' [mc' [Hincr [Hsynced [Hexec [Htsim Hownedi]]]]]];
+        as [tpc' [mc' [Hincr [Hsynced [Hexec [Htsim [Hownedi Hownedi_ls]]]]]]];
         clear HsimStrong.
       assert (pfc': containsThread tpc' i)
         by (clear - Hexec pfc;
@@ -1553,7 +1652,8 @@ Module SimProofs.
       destruct Hstep' as [Hcomp [Hstep' Heq]]. subst U; pf_cleanup.
       (* And from this we derive safety for 1 step for fine-grained*)
       destruct (tsim_fstep_safe HmaxF HinvF Htsim Hstep')
-        as [tpf' [mf' [fi' [HstepF [HmaxF' [Hincr' [Htsim' Howned']]]]]]].
+        as [tpf' [mf' [fi' [HstepF [HmaxF' [Hincr' [Hsepi [Htsim' [Howned' Hownedls']]]]]]]]].
+      assert (HstepF_empty := HstepF empty).
       assert (pfc'': containsThread tpc'' i)
         by (eapply containsThread_internal_step; eauto).
       assert (pff': containsThread tpf' i)
@@ -1581,8 +1681,6 @@ Module SimProofs.
           by (eauto with fstep).
         eapply weak_tsim_fstep with (pffi := pff); eauto.
       - (** Proof of seperation of injection pool*)
-        assert (Hsepi: inject_separated (fp i pfc) fi' mc' mf) by admit.
-        (*TODO: Lift this admit*)
         (*TODO: comment this proof*)
         intros k j cntk cntj Hkj.
         destruct (i == k) eqn:Hik;
@@ -1629,7 +1727,8 @@ Module SimProofs.
           unfold inject_separated in Hsepi.
           specialize (Hsepi _ _ _ Hfj Hfj').
           destruct Hsepi as [HinvalidC' HinvalidF'].
-          assert (pffk: containsThread tpf k) by admit.
+          assert (pffk: containsThread tpf k)
+            by (by eapply HnumThreads).
           assert (Hsimk := (simStrong Hsim) k cntk pffk).
           destruct Hsimk as [tpck' [mck' [_ [_ [Hexeck [Htsimk _]]]]]].
           assert (pfck': containsThread tpck' k)
@@ -1651,39 +1750,57 @@ Module SimProofs.
           split;
             first by (eapply inject_incr_trans; eauto).
           split.
-          - intros Hnostep.
-            simpl in Hnostep. rewrite if_true in Hnostep.
-            discriminate. apply eq_refl.
-          - split.
-            simpl. rewrite if_true.
-            assert (Heq: i :: [seq x <- xs | x == i] =
-                         [seq x <- xs | x == i] ++ [:: i]).
-            { clear. induction xs. reflexivity.
-              simpl. destruct (a==i) eqn:Heq; move/eqP:Heq=>Heq.
-              subst. simpl. rewrite IHxs. reflexivity.
-              auto.
-            }
-            rewrite Heq.
-            eapply internal_execution_trans; by eauto.
-              by apply eq_refl.
-          - split; first by (intros; eapply Htsim').
-            intros k pffk' Hik b1 b2 ofs Hfi' Hf.
-            assert (pffk: containsThread tpf k)
-              by (eauto with fstep).
-            erewrite <- gsoThreadR_fstep with (pfj := pffk); eauto.
-            destruct (valid_block_dec mc' b1) as [Hvalidmc'b1 | Hinvalidmc'b1].
-            - assert (Hfb1 := (domain_valid (weak_obs_eq (strong_obs Htsim))) b1).
-              erewrite restrPermMap_valid in Hfb1.
-              destruct (Hfb1 Hvalidmc'b1) as [b2' Hfi].
-              assert (b2' = b2)
-                by (apply Hincr' in Hfi; rewrite Hfi in Hfi';
-                    inversion Hfi'; by subst); subst.
-                by eauto.
-            - assert (Hfb1 := (domain_invalid
-                                 (weak_obs_eq (strong_obs Htsim))) b1).
-              erewrite restrPermMap_valid in Hfb1.
-              specialize (Hfb1 Hinvalidmc'b1).
-              by eauto.
+          intros Hnostep.
+          simpl in Hnostep.
+          erewrite if_true in Hnostep by (apply eq_refl);
+            by discriminate.
+          split.
+          simpl. erewrite if_true by (apply eq_refl).
+          assert (Heq: i :: [seq x <- xs | x == i] =
+                       [seq x <- xs | x == i] ++ [:: i]).
+          { clear. induction xs. reflexivity.
+            simpl. destruct (a==i) eqn:Heq; move/eqP:Heq=>Heq.
+            subst. simpl. rewrite IHxs. reflexivity.
+            auto.
+          }
+          rewrite Heq.
+          eapply internal_execution_trans;
+            by eauto.
+          split;
+            first by (intros; eapply Htsim').
+          split.
+          intros k pffk' Hik b1 b2 ofs Hfi' Hf.
+          assert (pffk: containsThread tpf k)
+            by (eauto with fstep).
+          erewrite <- gsoThreadR_fstep with (pfj := pffk); eauto.
+          destruct (valid_block_dec mc' b1) as [Hvalidmc'b1 | Hinvalidmc'b1].
+          assert (Hfb1 := (domain_valid (weak_obs_eq (strong_obs Htsim))) b1).
+          erewrite restrPermMap_valid in Hfb1.
+          destruct (Hfb1 Hvalidmc'b1) as [b2' Hfi].
+          assert (b2' = b2)
+            by (apply Hincr' in Hfi; rewrite Hfi in Hfi';
+                inversion Hfi'; by subst); subst;
+            by eauto.
+          assert (Hfb1 := (domain_invalid
+                             (weak_obs_eq (strong_obs Htsim))) b1).
+          erewrite restrPermMap_valid in Hfb1.
+          specialize (Hfb1 Hinvalidmc'b1);
+            by eauto.
+          intros b1 b2 ofs Hfi' Hf.
+          erewrite <- gsoLockSet_fstepI with (tp := tpf); eauto.
+          destruct (valid_block_dec mc' b1) as [Hvalidmc'b1 | Hinvalidmc'b1].
+          assert (Hfb1 := (domain_valid (weak_obs_eq (strong_obs Htsim))) b1).
+          erewrite restrPermMap_valid in Hfb1.
+          destruct (Hfb1 Hvalidmc'b1) as [b2' Hfi].
+          assert (b2' = b2)
+            by (apply Hincr' in Hfi; rewrite Hfi in Hfi';
+                inversion Hfi'; by subst); subst;
+            by eauto.
+          assert (Hfb1 := (domain_invalid
+                             (weak_obs_eq (strong_obs Htsim))) b1).
+          erewrite restrPermMap_valid in Hfb1.
+          specialize (Hfb1 Hinvalidmc'b1).
+            by eauto.
         }
         { simpl.
           rewrite gsoFP; auto.
@@ -1693,7 +1810,7 @@ Module SimProofs.
           assert (pffj: containsThread tpf j)
             by eauto with fstep.
           destruct (HsimStrong j pfcj pffj)
-            as [tpcj' [mcj' [Hincrj [Hsyncedj [Hexecj [Htsimj Hownedj]]]]]].
+            as [tpcj' [mcj' [Hincrj [Hsyncedj [Hexecj [Htsimj [Hownedj Hownedj_ls]]]]]]].
           exists tpcj' mcj'. split; auto. split; [ by auto | split; auto].
           split.
           (* difficult part: simulation between tpf' and tpcj' *)
@@ -1765,46 +1882,56 @@ Module SimProofs.
               by eauto. 
           }
           (* block ownership *)
+          split.
           intros k pffk' Hjk b1 b2 ofs Hfj Hf.
           assert (pffk: containsThread tpf k)
             by (eapply fstep_containsThread'; eauto).
-            specialize (Hownedj _ pffk Hjk b1 b2 ofs Hfj Hf).
-            destruct (i == k) eqn:Hik; move/eqP:Hik=>Hik.
-            - subst k.
-              assert (pfcj': containsThread tpcj' j)
-                by (eapply containsThread_internal_execution; eauto).
-              assert (Hcompcj': mem_compatible tpcj' mcj')
-                by (eapply internal_execution_compatible with (tp := tpc) (m := mc);
-                     eauto).
-              specialize (Htsimj pfcj' Hcompcj').
-              assert (Hcodomain := (codomain_valid (weak_obs_eq
-                                                      (strong_obs Htsimj)))).
-              specialize (Hcodomain _ _ Hfj).
-              erewrite restrPermMap_valid in Hcodomain.
-              specialize (HstepF empty).
-              clear - Hownedj Hcodomain Hjk HstepF Hinternal HmemCompF.
-              absurd_internal HstepF;
-                first by erewrite gThreadCR with (cntj := Htid).
-              apply corestep_decay in Hcorestep.
-              apply decay_decay' in Hcorestep.
-              destruct (Hcorestep b2 ofs) as [_ Hdecay_valid].
-              assert (Hp := restrPermMap_Cur (HmemCompF _ Htid ) b2 ofs).
-              unfold permission_at in Hp.
-              destruct (Hdecay_valid Hcodomain) as [[Hcontra _]| Hstable].
-              * rewrite Hp in Hcontra;
-                  by congruence.
-              * rewrite Hp in Hstable.
-                rewrite Hownedj in Hstable.
-                erewrite gssThreadRes.
-                rewrite getCurPerm_correct. auto.
-            - erewrite <- gsoThreadR_fstep with (pfi := pff) (pfj := pffk); eauto.
+          specialize (Hownedj _ pffk Hjk b1 b2 ofs Hfj Hf).
+          destruct (i == k) eqn:Hik; move/eqP:Hik=>Hik.
+          subst k.
+          assert (pfcj': containsThread tpcj' j)
+            by (eapply containsThread_internal_execution; eauto).
+          assert (Hcompcj': mem_compatible tpcj' mcj')
+            by (eapply internal_execution_compatible with (tp := tpc) (m := mc);
+                 eauto).
+          specialize (Htsimj pfcj' Hcompcj').
+          assert (Hcodomain := (codomain_valid (weak_obs_eq
+                                                  (strong_obs Htsimj)))).
+          specialize (Hcodomain _ _ Hfj).
+          erewrite restrPermMap_valid in Hcodomain.
+          clear - Hownedj Hcodomain Hjk HstepF_empty Hinternal HmemCompF.
+          absurd_internal HstepF_empty;
+            first by erewrite gThreadCR with (cntj := Htid).
+          apply corestep_decay in Hcorestep.
+          apply decay_decay' in Hcorestep.
+          destruct (Hcorestep b2 ofs) as [_ Hdecay_valid].
+          assert (Hp := restrPermMap_Cur (HmemCompF _ Htid ) b2 ofs).
+          unfold permission_at in Hp.
+          destruct (Hdecay_valid Hcodomain) as [[Hcontra _]| Hstable].
+          rewrite Hp in Hcontra;
+            by congruence.
+          rewrite Hp in Hstable.
+          rewrite Hownedj in Hstable.
+          erewrite gssThreadRes.
+          rewrite getCurPerm_correct. auto.
+          erewrite <- gsoThreadR_fstep with (pfi := pff) (pfj := pffk);
+            by eauto.
+          intros b1 b2 ofs Hfj Hf.
+          specialize (Hownedj_ls b1 b2 ofs Hfj Hf).
+          erewrite <- gsoLockSet_fstepI with (tp := tpf);
+            by eauto.   
+        }
+        { (*lockset sim *)
+          clear - HsimLocks HstepF_empty Hinternal.
+          unfold lockset_sim in *.
+          erewrite <- gsoLockSet_fstepI with (tp := tpf) (tp' := tpf'); eauto.
         }
         { (*invariant tpf' *)
           eapply fmachine_step_invariant with (tp := tpf); eauto.
         }
         { assumption.  }
-        Grab Existential Variables. assumption. assumption. assumption.
-        auto. auto. auto. auto. (*TODO: find out where these existentials come from*)
+        Grab Existential Variables. assumption.
+        (*TODO: find out where the existential came from*)
     Qed.
 
     (** ** Proof of simulation for stop steps *)
@@ -2364,11 +2491,11 @@ Module SimProofs.
       unfold sim_suspend_def.
       intros.
       inversion Hsim as
-          [HnumThreads HmemCompC HmemCompF HsafeC HsimWeak Hfpsep HsimStrong HinvF HmaxF].
+          [HnumThreads HmemCompC HmemCompF HsafeC HsimWeak Hfpsep HsimStrong HsimLocks HinvF HmaxF].
       assert (pfc: containsThread tpc i)
         by (eapply HnumThreads; eauto).
       destruct (HsimStrong i pfc pff)
-        as [tpc' [mc' [Hincr [Hsynced [Hexec [Htsim Hownedi]]]]]];
+        as [tpc' [mc' [Hincr [Hsynced [Hexec [Htsim [Hownedi Hownedi_ls]]]]]]];
         clear HsimStrong.
       assert (pfc': containsThread tpc' i)
         by (clear - Hexec pfc; eapply containsThread_internal_execution in pfc; eauto).
@@ -2633,6 +2760,7 @@ Module SimProofs.
             }
             rewrite Hempty. by constructor.
             split; first by auto.
+            split;
               by congruence.
           }
           { (*case j <> i *)
@@ -2663,7 +2791,7 @@ Module SimProofs.
             (* executing the internal steps for thread j gives us a strong 
              * simulation between the coarse and fine-grained states. *)
             destruct Htsimj as
-                [tpcj [mcj [Hincrj [Hsyncedj [Hexecj [Htsimj Hownedj]]]]]].
+                [tpcj [mcj [Hincrj [Hsyncedj [Hexecj [Htsimj [Hownedj Hownedj_ls]]]]]]].
             (* by the strong simulation on mc and mc'' (via id) we can
               obtain a strong simulation between mcj and mcj', where
               mcj' mc -->i --> mci -->j mcj' *)
@@ -3572,7 +3700,7 @@ Module SimProofs.
                       inversion Hvalmcj_mf.
                         by constructor.
                 } 
-            }
+            } split.
             { (* Proof that block ownership is preserved*)
               intros k pffk' Hjk b1 b2 ofs Hf' Hfi.
               destruct (valid_block_dec mc b1) as [Hvalidmc | Hinvalidmc].
@@ -3596,8 +3724,62 @@ Module SimProofs.
                 erewrite <- gsoThreadR_suspendF with (cntj := pffk);
                   by eauto.
             }
+            { (*Block ownership with lockset*)
+              intros b1 b2 ofs Hf' Hfi.
+              destruct (valid_block_dec mc b1) as [Hvalidmc | Hinvalidmc].
+              - (* If b1 is valid in mc then it should be in f and
+                since fi is an extension of f it should be in fi as
+                well *)
+                apply (domain_valid HsimWeak) in Hvalidmc.
+                destruct Hvalidmc as [? Hf].
+                apply Hincr in Hf. by congruence.
+              - destruct (valid_block_dec mc'' b1) as [Hvalidmc'' | Hinvalidmc''];
+                first by congruence.
+                specialize (Hvalidmcj' _ _ _ Hinvalidmc Hinvalidmc'' Hf').
+                destruct (Hinverse _ Hvalidmcj' Hinvalidmc'') as [Hfij Hfinv].
+                unfold inject_separated in Hsep.
+                specialize (Hsep _ _ _ Hfinv Hfij).
+                destruct Hsep as [Hinvalidb0 _].
+                apply (domain_invalid HsimWeak) in Hinvalidb0.
+                specialize (Hownedj_ls _ _ ofs Hf' Hinvalidb0).
+                erewrite <- suspendF_lockSet with (tp := tpf);
+                  by eauto.
           }
           }
+        }
+        { (* Proof that lockset simulation is preserved *)
+          clear - HstepF Hexec HsuspendC HsimLocks Hincr Htsim HsimWeak Hownedi_ls.
+          unfold lockset_sim in *.
+          erewrite <- suspendC_lockSet; eauto.
+          erewrite <- gsoLockSet_execution with (tp' := tpc') (tp := tpc); eauto.
+          erewrite <- suspendF_lockSet with (tp' := tpf'); eauto.
+          intros b1 b2 ofs Hfi.
+          specialize (HsimWeak _ pfc pff).
+          destruct (valid_block_dec mc b1) as [Hvalidmc | Hinvalidmc].
+          - apply (domain_valid HsimWeak) in Hvalidmc.
+            destruct Hvalidmc as [b2' Hf].
+            assert (b2 = b2')
+              by (apply Hincr in Hf; rewrite Hfi in Hf; by inversion Hf);
+              subst b2'.
+            by eauto.
+          - (* Proof sketch: the permissions of lockset tpc at b1 will be empty
+             because by mem_compatible they used to be empty (invalid
+             block on mc). By block ownership from strong simulation
+             we get that the permissions on the lockset tpf are also
+             empty. *)
+            assert (Hb1_Maxperm := Mem.nextblock_noaccess _ _ ofs Max Hinvalidmc).
+            assert (Hb1_lpperm := (compat_rp HmemCompC)).
+            unfold permMapLt in Hb1_lpperm.
+            specialize (Hb1_lpperm b1 ofs).
+            rewrite getMaxPerm_correct in Hb1_lpperm.
+            unfold permission_at in Hb1_lpperm.
+            rewrite Hb1_Maxperm in Hb1_lpperm. simpl in Hb1_lpperm.
+            destruct ((lockSet tpc) # b1 ofs);
+              first by exfalso.
+            apply (domain_invalid HsimWeak) in Hinvalidmc.
+            erewrite <- Hownedi_ls;
+              by eauto.
+        }      
         { (* Proof that the fine grained invariant is preserved *)
             by eapply suspendF_invariant with (pff := pff); eauto.
         }
@@ -3605,7 +3787,6 @@ Module SimProofs.
             by auto.
         }
       }
-      
     Qed.
 
     (** ** Proofs about external steps*)
@@ -3629,7 +3810,7 @@ Module SimProofs.
         (Hcomp: mem_compatible tp m)
         (Hexternal: cnti @ E)
         (Hstep: myCoarseSemantics.MachStep the_ge (i :: U,tp) m (U', tp') m'),
-        U = U' /\ conc_call the_ge cnti Hcomp tp' m'.
+        U = U' /\ syncStep the_ge cnti Hcomp tp' m'.
     Proof.
       intros.
       inversion Hstep;
@@ -3715,20 +3896,55 @@ Module SimProofs.
             by eauto.
       }
     Qed.
-    
+
+    Lemma sim_valid_access:
+      forall (tpc : thread_pool) (mf m1f : mem) 
+        (i : tid) (pfc : containsThread tpc i)
+        (b1 b2 : block) (ofs : int)
+        (Hm1f: m1f = makeCurMax mf)
+        (HmaxF: max_inv mf)
+        (Hvalidb2: Mem.valid_block mf b2)
+        (Halign: (4 | Int.intval ofs)%Z),
+        Mem.valid_access m1f Mint32 b2 (Int.intval ofs) Freeable.
+    Proof.          
+      unfold Mem.valid_access. simpl. split; try assumption.
+      unfold Mem.range_perm. intros ofs0 Hbounds. subst m1f.
+      specialize (HmaxF _ ofs0 Hvalidb2).
+      unfold Mem.perm.
+      assert (Hperm := makeCurMax_correct mf b2 ofs0 Cur).
+      rewrite HmaxF in Hperm.
+      unfold permission_at in Hperm.
+      unfold Mem.perm.
+      rewrite <- Hperm.
+      simpl;
+        by constructor.
+    Qed.
+
+    Lemma load_valid_block:
+      forall (m : mem) (b : block) (ofs : int),
+        Mem.load Mint32 m b (Int.intval ofs) = Some (Vint Int.one) ->
+        Mem.valid_block m b.
+    Proof.
+      intros m b ofs Hload.
+      apply Mem.load_valid_access in Hload.
+      apply Mem.valid_access_valid_block with (chunk:=Mint32) (ofs:= Int.intval ofs).
+      eapply Mem.valid_access_implies; eauto.
+      constructor.
+    Qed.
+
     Lemma sim_external: sim_external_def.
     Proof.
       unfold sim_external_def.
       intros.
       inversion Hsim as
-          [HnumThreads HmemCompC HmemCompF HsafeC HsimWeak HfpSep HsimStrong HinvF HmaxF].
+          [HnumThreads HmemCompC HmemCompF HsafeC HsimWeak HfpSep HsimStrong HsimLocks HinvF HmaxF].
       (* Thread i is in the coarse-grained machine*)
       assert (pfc: containsThread tpc i)
         by (eapply HnumThreads; eauto).
       (* Since thread i is synced, the coarse machine doesn't need to take any steps*)
       apply @not_in_filter with (xs := xs) in Hsynced.
       destruct (HsimStrong i pfc pff)
-        as [tpc' [mc' [Hincr [Hsyncf [Hexec [Htsim Hownedi]]]]]];
+        as [tpc' [mc' [Hincr [Hsyncf [Hexec [Htsim [Hownedi Hownedi_ls]]]]]]];
         clear HsimStrong.
       (* Hence tpc = tpc' and mc = mc' *)
       rewrite Hsynced in Hexec.
@@ -3753,32 +3969,44 @@ Module SimProofs.
              unfold getStepType; by rewrite Hcodes).
        
       (* An external step pops the schedule and executes a concurrent call *)
-      assert (Heq : empty = U /\ conc_call the_ge pfc HmemCompC tpc' mc')
+      assert (Heq : empty = U /\ syncStep the_ge pfc HmemCompC tpc' mc')
         by (eapply external_step_inverse; eauto).
       destruct Heq as [? HconcC]; subst U; clear HstepC.
       exists tpc' mc'.
       (* We proceed by case analysis on the concurrent call *)
-      destruct HconcC.
+      inversion HconcC; try subst tp'; try subst m'.
       { (* Lock Acquire *)
-        assert (memCompC'': mem_compatible tpc'' mc'')
-        by (eapply suspendC_compatible; eauto).
-      assert (HstepF := strong_tsim_stop HinvF Htsim Hstep' Hstop_pfc').
-      destruct HstepF as [tpf' [HstepF Htsim']].
-      assert (memCompF': mem_compatible tpf' mf)
-        by (eapply suspendF_compatible; eauto).
-      exists tpc'' mc'' tpf' mf.
-      (* since thread i commits, the new global renaming will be fi *)
-      exists fi.
-      split.
-      { (* the fine-grained machine takes a suspend step *)
-        intros U; eapply myFineSemantics.suspend_step; simpl; eauto.
+        assert (HmemCompC': mem_compatible tpc' mc')
+          by admit. (*TODO: we must deduce that fact from safety of coarse-grained machine*)
+        (* To compute the new fine grained state, we apply the
+        renaming to the resources the angel provided us*)
+        remember (projectAngel (fp i pfc) virtue) as virtueF eqn:HvirtueF.
+        remember (updThread pff (Kresume c') (computeMap (getThreadR pff) virtueF))
+          as tpf' eqn:Htpf'.
+        (* In order to construct the new memory we have to perform the
+        load and store of the lock, after setting the correct permissions*)
+        remember (makeCurMax mf) as m1f eqn:Hrestrict_pmapF.
+        (*We prove that b is valid in m1 (and mc)*)
+        assert (Hvalidb: Mem.valid_block m1 b)
+          by (eapply load_valid_block; eauto).
+        rewrite <- Hrestrict_pmap in Hvalidb.
+        apply makeCurMax_valid in Hvalidb.
+        (*  and compute the corresponding block in mf *)
+        destruct ((domain_valid (weak_obs_eq (strong_obs Htsim))) _ Hvalidb)
+          as [b2 Hfb].
+        assert (Hvalidb2 := (codomain_valid (weak_obs_eq (strong_obs Htsim))) _ _ Hfb).
+        erewrite restrPermMap_valid in Hvalidb2.
+        assert (Hvalid_access := Mem.load_valid_access _ _ _ _ _ Hload).
+        destruct Hvalid_access as [_ Halign].
+        assert (Haccess_b2: Mem.valid_access m1f Mint32 b2 (Int.intval ofs) Freeable)
+          by (eapply sim_valid_access; eauto).
+        assert (Mem.load Mint32 m1f b2 (Int.intval ofs) = Some (Vint Int.one)).
+        { apply Mem.load_result in Hload.
+          admit. }
+        admit.
       }
-      { (* The simulation between tpc'' and tpf' is retained. *)
-        eapply Build_sim with (mem_compc := memCompC'') (mem_compf := memCompF').
-        { (* number of threads *)
-          clear - HnumThreads Hexec HsuspendC HstepF.
-          intros j. assert (Hpffj := suspendF_containsThread j HstepF).
-          assert (Hpfcj' := suspendC_containsThread j HsuspendC).
+      admit. admit. admit. admit. admit.
+      Qed.
  
             
 End SimProofs.
