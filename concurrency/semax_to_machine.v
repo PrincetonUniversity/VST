@@ -1,3 +1,7 @@
+(* comment on design choices:
+- schedule rather than lts: we want to run the same thread for internal steps
+*)
+
 Require Import Coq.Strings.String.
 
 Require Import compcert.lib.Integers.
@@ -31,7 +35,7 @@ Require Import concurrency.semax_conc.
 
 Record concurrent_machine := build_cm
   { cm_env : genv;
-    cm_mem : juicy_mem;
+    cm_mem : Mem.mem;
     cm_res : list (Address.address * (mpred * option rmap));
     cm_thd : list (corestate * rmap) }.
 
@@ -96,19 +100,24 @@ Fixpoint update_nth {A} (n : nat) (a : A) (l : list A) : list A :=
 
 Definition cm_joins
            (res : list (Address.address * (mpred * option rmap)))
-           (thd : list (corestate * rmap)) jm
-  := join_to (filter_option_list (map snd (map snd res)) ++ map snd thd) (m_phi jm).
+           (thd : list (corestate * rmap)) phi
+  := join_to (map snd thd ++ filter_option_list (map snd (map snd res))) phi.
 
 Definition invariant Jspec (n : nat) (cm : concurrent_machine) : Prop :=
   match cm with
-  | build_cm env jm res thd =>
-    cm_joins res thd jm /\
+  | build_cm env m res thd =>
+    exists phi_all,
+    cm_joins res thd phi_all /\
     (forall lock : Address.address,
         cohere_res_lock
           (alist_get lock res)
-          (m_phi jm @ lock)
-          (contents_at (m_dry jm) lock)) /\
-    (forall i q m, forall ora : unit, nth_error thd i = Some (q, m) -> semax.jsafeN Jspec env n ora q jm)
+          (phi_all @ lock)
+          (contents_at m lock)) /\
+    (forall i q phi jmi, forall ora : unit,
+          nth_error thd i = Some (q, phi) ->
+          m = m_dry jmi ->
+          m_phi jmi = phi ->
+          semax.jsafeN Jspec env n ora q jmi)
   end.
 
 Open Scope string_scope.
@@ -123,7 +132,7 @@ Definition initial_cm {CS V G ext_link}
   let spr := semax_prog_rule (CEspec CS ext_link) V G prog m SP Hmem in
   let q : corestate := projT1 (projT2 spr) in
   let jm : juicy_mem := projT1 (snd (projT2 (projT2 spr)) n) in
-  {| cm_mem := jm; cm_env := globalenv prog; cm_res := nil; cm_thd := (q, m_phi jm) :: nil |}.
+  {| cm_mem := m_dry jm; cm_env := globalenv prog; cm_res := nil; cm_thd := (q, m_phi jm) :: nil |}.
 
 Lemma invariant_initial_cm {CS V G ext_link}
         (prog : program) (m : Memory.mem)
@@ -135,6 +144,7 @@ Proof.
   set (spr := semax_prog_rule (CEspec CS ext_link) V G prog m SP Hmem).
   set (q := projT1 (projT2 spr)).
   set (jm := projT1 (snd (projT2 (projT2 spr)) n)).
+  exists (m_phi jm).
   split;[|split].
   - (* joining condition *)
     exists (core (m_phi jm)); simpl.
@@ -152,18 +162,30 @@ Proof.
   - (* cohere_res_lock (there are no locks at first) *)
     constructor.
     intros.
+    unfold jm.
     match goal with |- context [projT1 ?x] => destruct x as (jm' & jmm & lev & S & notlock) end.
     intro.
     eapply notlock; eexists; eauto.
     
   - (* safety of the only thread *)
-    intros i q0 m0 oracle E.
+    intros i c phi jmi oracle E Edry Ejuice.
     destruct i as [ | [ | i ]]; simpl in E; inversion E; subst.
     destruct spr as (b' & q' & Hb & JS); simpl projT1 in *; simpl projT2 in *.
     destruct (JS n) as (jm' & jmm & lev & S & notlock); simpl projT1 in *; simpl projT2 in *.
     subst.
-    apply (S oracle).
-Admitted. (* faster *)
+    specialize (S oracle).
+    Lemma jsafeN_proof_irrelevance Z OK_spec prog oracle c jm jm' :
+      m_dry jm = m_dry jm' ->
+      m_phi jm = m_phi jm' ->
+      @jsafeN Z OK_spec (globalenv prog) (level jm) oracle c jm ->
+      @jsafeN Z OK_spec (globalenv prog) (level jm') oracle c jm'.
+    Admitted.
+    replace (level jm') with (level jmi).
+    eapply jsafeN_proof_irrelevance; eauto.
+    destruct jmi eqn:Ei, jm' eqn:E'.
+    simpl; simpl in E.
+    injection E; congruence.
+Admitted.
 (*
 Qed.  (* 1'40 --- Definition + Lemma faster than Program Definition *)
  *)
@@ -193,6 +215,20 @@ Definition thd_update (thd thd' : list (corestate * rmap)) i x x' :=
        nth_error thd' j = Some (c, phi) /\
        nth_error thd' j = Some (c, phi')).
 
+Lemma nth_error_app_Some {T} al bl j (a : T) :
+  nth_error al j = Some a ->
+  nth_error (al ++ bl) j = Some a.
+Proof.
+  intros H.
+  rewrite nth_error_app1; auto.
+  revert j H.
+  induction al as [ | a' al IHal ]; intros [ | j ] Hj.
+  - inversion Hj.
+  - inversion Hj.
+  - simpl; omega.
+  - apply lt_n_S, IHal, Hj.
+Qed.
+
 Import Mem.
 
 Definition jm_rel_rmap (phi : rmap) (jm jm' : juicy_mem) :=
@@ -211,9 +247,8 @@ Definition update_dry jm jm' b ofs v v' :=
 
 Require Import veric.res_predicates.
 
-Definition isfunsig A PRE r := exists sh sh' sig Q, r = YES sh sh' (FUN sig) (SomeP (A :: boolT :: environ :: nil) (packPQ PRE Q)).
+Definition isfunsig A PRE r := exists callingc sh sh' sig Q, r = YES sh sh' (FUN sig callingc) (SomeP (A :: boolT :: environ :: nil) (packPQ PRE Q)).
 
-(* todo move this comment away: schedule rather than lts: we want to run the same thread for internal steps *)
 Inductive cm_step : list nat -> concurrent_machine -> list nat -> concurrent_machine -> Prop :=
 | cm_step_nil_sched cm :
     cm_step nil cm nil cm
@@ -225,13 +260,13 @@ Inductive cm_step : list nat -> concurrent_machine -> list nat -> concurrent_mac
 | cm_step_internal i sch env res thd thd' c c' jm jm' jmi jmi' :
     same_dry jm jmi ->
     same_dry jm' jmi' ->
-    cm_joins res thd jm ->
-    cm_joins res thd' jm' ->
+    cm_joins res thd (m_phi jm) ->
+    cm_joins res thd' (m_phi jm') ->
     thd_update thd thd' i (c, m_phi jmi) (c', m_phi jmi') ->
     corestep (juicy_core_sem cl_core_sem) env c jmi c' jmi' ->
     cm_step
-      (i :: sch) (build_cm env jm res thd)
-      (i :: sch) (build_cm env jm' res thd')
+      (i :: sch) (build_cm env (m_dry jm) res thd)
+      (i :: sch) (build_cm env (m_dry jm') res thd')
 
 | cm_step_acquire_failure i sch mem env res thd c cont phi b o R ce te:
     nth_error thd i = Some (c, phi) ->
@@ -256,8 +291,8 @@ Inductive cm_step : list nat -> concurrent_machine -> list nat -> concurrent_mac
     thd_update thd thd' i (c, phi) (State ce te cont, phi') ->
     update_dry jm jm' b o (Values.Vint Int.one) (Values.Vint Int.zero) ->
     cm_step
-      (i :: sch) (build_cm env jm res thd)
-      sch        (build_cm env jm' res' thd')
+      (i :: sch) (build_cm env (m_dry jm) res thd)
+      sch        (build_cm env (m_dry jm') res' thd')
 
 | cm_step_release i sch jm jm' env res res' thd thd' c cont b o R ce te phi phi' phi_rel :
     nth_error thd i = Some (c, phi) ->
@@ -272,8 +307,8 @@ Inductive cm_step : list nat -> concurrent_machine -> list nat -> concurrent_mac
     thd_update thd thd' i (c, phi) (State ce te cont, phi') ->
     update_dry jm jm' b o (Values.Vint Int.zero) (Values.Vint Int.one) ->
     cm_step
-      (i :: sch) (build_cm env jm res thd)
-      sch        (build_cm env jm' res' thd')
+      (i :: sch) (build_cm env (m_dry jm) res thd)
+      sch        (build_cm env (m_dry jm') res' thd')
 
 | cm_step_spawn i sch jm jm' env res thd thd' c cont f_b f_o arg_b arg_o A a PRE ce te phi phi' phi_spawned genv venv tenv :
     nth_error thd i = Some (c, phi) ->
@@ -298,9 +333,33 @@ Inductive cm_step : list nat -> concurrent_machine -> list nat -> concurrent_mac
 
 Require Import sepcomp.step_lemmas.
 
+(* Definition crossrel_jm jm jmi phis phi := *)
+(*   m_dry jm = m_dry jmi /\ *)
+(*   m_phi jm = phis /\ *)
+(*   m_phi jmi = phi. *)
+
+Lemma jm_slice phis i phi_i jm :
+  join_to phis (m_phi jm) ->
+  nth_error phis i = Some phi_i ->
+  exists jm_i,
+    m_phi jm_i = phi_i /\
+    m_dry jm_i = m_dry jm.
+Admitted.
+
+Lemma jm_unslice_decay phis i jm jm_i jm_i' :
+  join_to phis (m_phi jm) ->
+  nth_error phis i = Some (m_phi jm_i) ->
+  resource_decay (nextblock (m_dry jm_i)) (m_phi jm_i) (m_phi jm_i') ->
+  exists jm' phis' phis'',
+    map age1 phis = map Some phis' /\
+    update_nth i (m_phi jm_i') phis' = phis'' /\
+    join_to phis'' (m_phi jm').
+Admitted.
+
 Lemma cm_step_invariant js n cm sch :
   invariant js (S n) cm -> exists cm' sch', cm_step sch cm sch' cm'/\ invariant js n cm'.
 Proof.
+(*
   destruct cm as [env jm res thd] eqn:Heqcm.
   intros (Hj & lockcoh & safe).
   destruct sch as [ | i sch ].
@@ -325,11 +384,19 @@ Proof.
   
   { (* thread#i is in some internal step *)
     (* get next state through "jsafeN" with an arbitrary oracle *)
-    (* but it should not be jm! *)
-    assert (X: exists c' jm', corestep (juicy_core_sem cl_core_sem) env (State ve te k) jm c' jm'). {
+    set (phis := (map snd thd ++ filter_option_list (map snd (map snd res)))%list).
+    destruct (jm_slice phis i phi jm Hj) as (jmi & phi_jmi & dry_jmi).
+    { apply nth_error_app_Some.
+      rewrite list_map_nth, Heqthd_i.
+      reflexivity. }
+    assert (X: exists c' jmi', corestep (juicy_core_sem cl_core_sem) env (State ve te k) jmi c' jmi'). {
       specialize (safe _ _ _ tt Heqthd_i).
       inversion safe; subst.
-      - eauto.
+      - (* we should state safety of each thread in this jmi, hence
+        write the relationship between jm/jmi/phis/phi should have a
+        external definition *)
+        
+        replace jmi with 
       - inversion H0.
       - inversion H.
     }
@@ -337,8 +404,11 @@ Proof.
     
     (* todo: make thd' the aged version of all rmaps *)
     pose (thd' := map (fun x : _ * rmap => let (c, phi) := x in (c, age1 phi)) thd).
-    clear thd'.
-    pose (thd' := thd).
+    pose (res' := map (fun x : _ * (_ * option rmap) => match x with (a, (R, phi)) => (a, R, option_map age1 phi) end) res).
+
+    (* ah, to build phi' we need to project m_phi jm' on phi -- where
+    is the piece of information that says "an action from c is an
+    action at phi" ?  ...............*)
     
     (* building the jm2 out of the jm and phi2 : state a lemma *)
     
@@ -385,6 +455,7 @@ Lemma safeN_step_jsem_spec: forall gx vx tx n k jm,
                       _ _ _ _ (fun x => Genv.genv_symb (genv_genv x)) juicy_safety.Hrel
                       (juicy_core_sem cl_core_sem) OK_spec gx n ora c' m').
  *)
+*)
 Admitted.
 
 (* eventually, move the following *)

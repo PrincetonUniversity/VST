@@ -1,8 +1,9 @@
--R msl msl 
--R sepcomp sepcomp 
--R veric veric 
--R floyd floyd 
--R progs progs 
+-R msl msl
+-R sepcomp sepcomp
+-R veric veric
+-R floyd floyd
+-R progs progs
 -R compcert compcert
+-R concurrency concurrency
 -R ../mirror-shard/src MirrorShard
 -R ../mirror-shard/coq-ext-lib/theories ExtLib
