@@ -52,7 +52,7 @@ Definition b_ofs2address b ofs : address:=
 
 Inductive ctl {cT:Type} : Type :=
 | Krun : cT -> ctl
-| Kstop : cT -> ctl
+| Kstop : cT -> ctl (* Want to remove *)
 | Kresume : cT -> ctl.
 
 Definition EqDec: Type -> Type := 
@@ -238,11 +238,11 @@ Module Type ConcurrentMachineSig.
   Parameter invariant: thread_pool -> Prop.
 
   (** Step relations *)
-  Parameter cstep:
+  Parameter threadStep:
     G -> forall {tid0 ms m},
       containsThread ms tid0 -> mem_compatible ms m -> thread_pool -> mem  -> Prop.
 
-  Parameter conc_call:
+  Parameter syncStep:
     G -> forall {tid0 ms m},
       containsThread ms tid0 -> mem_compatible ms m -> thread_pool -> mem -> Prop.
   
@@ -316,6 +316,7 @@ Module CoarseMachine (SCH:Scheduler)(SIG : ConcurrentMachineSig with Module Thre
     @suspend_thread'.
   
   Inductive machine_step {genv:G}:
+
     Sch -> machine_state -> mem -> Sch -> machine_state -> mem -> Prop :=
   | resume_step:
       forall tid U ms ms' m
@@ -324,14 +325,14 @@ Module CoarseMachine (SCH:Scheduler)(SIG : ConcurrentMachineSig with Module Thre
         (Hcmpt: mem_compatible ms m)
         (Htstep: resume_thread Htid ms'),
         machine_step U ms m U ms' m
-  | core_step:
+  | thread_step:
       forall tid U ms ms' m m'
         (HschedN: schedPeek U = Some tid)
         (Htid: containsThread ms tid)
         (Hcmpt: mem_compatible ms m)
-        (Htstep: cstep genv Htid Hcmpt ms' m'),
+        (Htstep: threadStep genv Htid Hcmpt ms' m'),
         machine_step U ms m U ms' m'
-  | suspend_step:
+  | suspend_step: (*Want to remove*)
       forall tid U U' ms ms' m
         (HschedN: schedPeek U = Some tid)
         (HschedS: schedSkip U = U')        (*Schedule Forward*)
@@ -339,15 +340,15 @@ Module CoarseMachine (SCH:Scheduler)(SIG : ConcurrentMachineSig with Module Thre
         (Hcmpt: mem_compatible ms m)
         (Htstep:suspend_thread Htid ms'),
         machine_step U ms m U' ms' m
-  | conc_step:
+  | sync_step:
       forall tid U U' ms ms' m m'
         (HschedN: schedPeek U = Some tid)
         (HschedS: schedSkip U = U')        (*Schedule Forward*)
         (Htid: containsThread ms tid)
         (Hcmpt: mem_compatible ms m)
-        (Htstep: conc_call genv  Htid Hcmpt ms' m'),
+        (Htstep: syncStep genv  Htid Hcmpt ms' m'),
         machine_step U ms m U' ms' m'           
-  | step_halted:
+  | halted_step:
       forall tid U U' ms m
         (HschedN: schedPeek U = Some tid)
         (HschedS: schedSkip U = U')        (*Schedule Forward*)
@@ -462,13 +463,13 @@ Module FineMachine  (SCH:Scheduler)(SIG : ConcurrentMachineSig with Module Threa
         (Hcmpt: mem_compatible ms m)
         (Htstep: resume_thread Htid ms'),
         machine_step U ms m U' ms' m
-  | core_step:
+  | thread_step:
       forall tid U U' ms ms' m m'
         (HschedN: schedPeek U = Some tid)
         (HschedS: schedSkip U = U')        (*Schedule Forward*)
         (Htid: containsThread ms tid)
         (Hcmpt: mem_compatible ms m)
-        (Htstep: cstep genv Htid Hcmpt ms' m'),
+        (Htstep: threadStep genv Htid Hcmpt ms' m'),
         machine_step U ms m U' ms' (diluteMem m')
   | suspend_step:
       forall tid U U' ms ms' m
@@ -478,15 +479,15 @@ Module FineMachine  (SCH:Scheduler)(SIG : ConcurrentMachineSig with Module Threa
         (Hcmpt: mem_compatible ms m)
         (Htstep: suspend_thread Htid ms'),
         machine_step U ms m U' ms' m
-  | conc_step:
+  | sync_step:
       forall tid U U' ms ms' m m'
         (HschedN: schedPeek U = Some tid)
         (HschedS: schedSkip U = U')        (*Schedule Forward*)
         (Htid: containsThread ms tid)
         (Hcmpt: mem_compatible ms m)
-        (Htstep: conc_call genv Htid Hcmpt ms' m'),
+        (Htstep: syncStep genv Htid Hcmpt ms' m'),
         machine_step U ms m U' ms' m'           
-  | step_halted:
+  | halted_step:
       forall tid U U' ms m
         (HschedN: schedPeek U = Some tid)
         (HschedS: schedSkip U = U')        (*Schedule Forward*)

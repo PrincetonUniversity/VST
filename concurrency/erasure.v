@@ -52,11 +52,12 @@ Module Type ErasureSig.
            match_st js ds ->
            DSEM.ThreadPool.containsThread ds tid -> JSEM.ThreadPool.containsThread js tid.
         
-       Axiom MTCH_getThreadC: forall js ds tid c,
+       Axiom  MTCH_getThreadC: forall js ds tid c,
            forall (cnt: JSEM.ThreadPool.containsThread js tid)
-           (M: match_st js ds),
-           JSEM.ThreadPool.getThreadC cnt =  c ->
-           DSEM.ThreadPool.getThreadC (MTCH_cnt M cnt) =  c.
+             (cnt': DSEM.ThreadPool.containsThread ds tid)
+             (M: match_st js ds),
+             JSEM.ThreadPool.getThreadC cnt =  c ->
+             DSEM.ThreadPool.getThreadC cnt'  =  c.
         
        Axiom MTCH_compat: forall js ds m,
            match_st js ds ->
@@ -65,9 +66,11 @@ Module Type ErasureSig.
         
        Axiom MTCH_updt:
            forall js ds tid c
-             (H0:match_st js ds)  (cnt: JSEM.ThreadPool.containsThread js tid),
+             (H0:match_st js ds)
+             (cnt: JSEM.ThreadPool.containsThread js tid)
+             (cnt': DSEM.ThreadPool.containsThread ds tid),
              match_st (JSEM.ThreadPool.updThreadC cnt c)
-                       (DSEM.ThreadPool.updThreadC (MTCH_cnt H0 cnt) c).
+                       (DSEM.ThreadPool.updThreadC cnt' c).
        
   Variable genv: G.
   Variable main: Values.val.
@@ -190,6 +193,12 @@ End ErasureFnctr.
 
 
 (*
+ALL OF THE FOLLOWING WILL SLOWLY MIGRATE TO FILE Clight_erasure.
+WILL EVENTUALLY DELETE.
+
+
+
+
 Module ParchingFnctr (PA:ParchingAbstract) <: ErasureSig.
 
  Module SCH:=mySchedule.

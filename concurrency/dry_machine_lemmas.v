@@ -621,7 +621,7 @@ Module StepLemmas.
       intros. inversion Hsuspend. subst.
         by erewrite @gThreadCR with (cntj := cntj).
     Qed.
-     
+    
     Lemma suspendC_invariant:
       forall tp tp' i
         (pff: containsThread tp i)
@@ -646,4 +646,26 @@ Module StepLemmas.
         by apply updThreadC_invariant.
     Qed.
 
+    Lemma suspendF_lockSet:
+      forall tp tp' i
+        (pff: containsThread tp i)
+        (Hsuspend: myFineSemantics.suspend_thread pff tp'),
+        lockSet tp = lockSet tp'.
+    Proof.
+      intros.
+      inversion Hsuspend; subst.
+        by erewrite gsoThreadCLock.
+    Qed.
+
+    Lemma suspendC_lockSet:
+      forall tp tp' i
+        (pff: containsThread tp i)
+        (Hsuspend: myCoarseSemantics.suspend_thread pff tp'),
+        lockSet tp = lockSet tp'.
+    Proof.
+      intros.
+      inversion Hsuspend; subst.
+        by erewrite gsoThreadCLock.
+    Qed.
+    
 End StepLemmas.

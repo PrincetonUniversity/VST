@@ -759,6 +759,41 @@ Section permMapDefs.
     apply Pos2Nat.inj_le in Hinvalid. ssromega.
   Qed.
 
+  Definition makeCurMax_map (mem_access:PMap.t (Z -> perm_kind -> option permission)):
+    PMap.t (Z -> perm_kind -> option permission):=
+    PMap.map (fun f => fun z k => f z Max) mem_access.
+    
+  
+  Definition makeCurMax (m:mem): mem.
+  apply (Mem.mkmem (Mem.mem_contents m) 
+                   (makeCurMax_map (Mem.mem_access m))
+                   (Mem.nextblock m)).
+  - intros. unfold makeCurMax_map; simpl. rewrite PMap.gmap.
+    apply po_refl.
+  - intros. unfold makeCurMax_map; simpl. rewrite PMap.gmap.
+    apply Mem.nextblock_noaccess; assumption.
+  - intros; apply Mem.contents_default.
+  Defined.
+
+  Lemma makeCurMax_correct :
+    forall m b ofs k,
+      permission_at m b ofs Max = permission_at (makeCurMax m) b ofs k.
+  Proof.
+    intros. 
+    unfold permission_at, makeCurMax, makeCurMax_map.
+    simpl;
+      by rewrite Maps.PMap.gmap.
+  Qed.
+
+  Lemma makeCurMax_valid :
+    forall m b,
+      Mem.valid_block m b <-> Mem.valid_block (makeCurMax m) b.
+  Proof.
+    intros;
+    unfold Mem.valid_block, makeCurMax; simpl;
+      by auto.
+  Qed.
+  
   Definition restrPermMap p' m (Hlt: permMapLt p' (getMaxPerm m)) : mem.
   Proof.
     refine ({|
