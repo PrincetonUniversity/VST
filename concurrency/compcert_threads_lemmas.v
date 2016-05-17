@@ -3920,6 +3920,237 @@ Module SimProofs.
         by constructor.
     Qed.
 
+    Lemma mf_align :
+      forall (m : mem) (f : meminj) (b1 b2 : block) (delta : Z) (chunk : memory_chunk)
+                 (ofs : Z) (p : permission),
+               f b1 = Some (b2, 0%Z) ->
+               Mem.range_perm m b1 ofs (ofs + size_chunk chunk) Max p ->
+               (align_chunk chunk | 0%Z)%Z.
+    Proof.
+      intros.
+        by apply mem_wd.align_chunk_0.
+    Qed.
+
+    Lemma weak_mem_obs_eq_f :
+      forall mc mf f b1 b2 delta,
+        weak_mem_obs_eq f mc mf ->
+        f b1 = Some (b2,delta) ->
+        delta = 0%Z.
+    Proof.
+      intros mc mf f b1 b2 delta Hweak Hf.
+      destruct (valid_block_dec mc b1) as [Hvalid | Hinvalid].
+      apply (domain_valid Hweak) in Hvalid.
+      destruct Hvalid as [? Hf'].
+      rewrite Hf' in Hf.
+      inversion Hf;
+        by subst.
+      apply (domain_invalid Hweak) in Hinvalid.
+        by congruence.
+    Qed.
+
+    Lemma val_obs_eq_inj :
+      forall f v1 v2,
+        val_obs f v1 v2 ->
+        val_inject f v1 v2 /\
+        (v1 = Vundef -> v2 = Vundef).
+    Proof.
+      intros f v1 v2 Hobs_eq.
+      inversion Hobs_eq;
+        try (split; [constructor | auto]).
+      subst.
+      split; try congruence.
+      eapply Val.inject_ptr with (delta := 0%Z); eauto.
+        by rewrite Int.add_zero.
+    Qed.
+    
+    Lemma memval_obs_eq_inj :
+      forall f mv1 mv2,
+        memval_obs_eq f mv1 mv2 ->
+        memval_inject f mv1 mv2
+        /\ (mv1 = Undef -> mv2 = Undef).
+    Proof.
+      intros f mv1 mv2 Hobs_eq.
+      inversion Hobs_eq;
+        split; try constructor; try auto.
+      inversion Hval_obs; subst; try constructor.
+        by eapply val_obs_eq_inj.
+        by congruence.
+    Qed.
+    
+    Theorem mem_obs_eq_mem_inj:
+      forall mc mf f,
+        mem_obs_eq f mc mf ->
+        max_inv mf ->
+        Mem.mem_inj f mc mf.
+    Proof.
+      intros mc mf f Hobs_eq HmaxF.
+      destruct Hobs_eq as [Hweak HpermStrong Hval].
+      constructor.
+      - intros b1 b2 delta ofs k p Hf Hperm.
+        assert (delta = 0%Z)
+          by (eapply (weak_mem_obs_eq_f _ Hweak Hf); eauto); subst.
+        rewrite Zplus_0_r.
+        specialize (HpermStrong _ _ ofs Hf).
+        unfold Mem.perm in *.
+        unfold permission_at in HpermStrong.
+        rewrite po_oo in Hperm. rewrite po_oo.
+        destruct k.
+        apply (codomain_valid Hweak) in Hf.
+        specialize (HmaxF _ ofs Hf). unfold permission_at in HmaxF.
+        rewrite HmaxF.
+        simpl;
+          by constructor.
+        eapply po_trans;
+          by eauto.
+      - intros b1 b2 delta chunk ofs p Hf _.
+        assert (delta = 0%Z)
+          by (eapply (weak_mem_obs_eq_f _ Hweak Hf); eauto);
+          subst;
+            by apply mem_wd.align_chunk_0.
+      - intros b1 ofs b2 delta Hf Hreadable.
+        assert (delta = 0%Z)
+          by (eapply (weak_mem_obs_eq_f _ Hweak Hf); eauto);
+          subst.
+        specialize (Hval _ _ _ Hf Hreadable).
+        rewrite Zplus_0_r.
+        eapply memval_obs_eq_inj; eauto.
+        
+    Qed.
+
+    Lemma mem_inj_dillute:
+      forall mc mf f,
+        Mem.mem_inj f mc mf ->
+        Mem.mem_inj f mc (makeCurMax mf).
+    Admitted.
+
+
+    (* Proof as in compcert*)
+    Lemma proj_bytes_obs:
+      forall (f : meminj) (vl vl' : seq memval),
+        Coqlib.list_forall2 (memval_obs_eq f) vl vl' ->
+        forall bl : seq byte,
+          proj_bytes vl = Some bl -> proj_bytes vl' = Some bl.
+    Proof.
+      induction 1; simpl. intros. congruence.
+      inversion H; subst; try congruence.
+      destruct (proj_bytes al); intros.
+      inversion H; subst; rewrite (IHlist_forall2 l); auto.
+      congruence.
+    Qed.
+
+    Lemma proj_bytes_obs_none:
+      forall (f : meminj) (vl vl' : seq memval),
+        Coqlib.list_forall2 (memval_obs_eq f) vl vl' ->
+        proj_bytes vl = None -> proj_bytes vl' = None.
+    Proof.
+      induction 1; simpl. intros.  congruence.
+      inversion H; subst; try congruence.
+      destruct (proj_bytes al); intros.
+      discriminate.
+        by rewrite (IHlist_forall2 (Logic.eq_refl _)).
+    Qed.
+    
+    Lemma check_value_obs:
+      forall f vl vl',
+        Coqlib.list_forall2 (memval_obs_eq f) vl vl' ->
+        forall v v' q n,
+          check_value n v q vl = true ->
+          val_obs f v v' -> v <> Vundef ->
+          check_value n v' q vl' = true.
+    Proof.
+      induction 1; intros; destruct n; simpl in *; auto.
+      inversion H; subst; auto.
+      apply Bool.andb_true_iff in H1.
+      destruct H1.
+      apply Bool.andb_true_iff in H1.
+      destruct H1.
+      apply Bool.andb_true_iff in H1.
+      destruct H1.
+      apply Coqlib.proj_sumbool_true in H1.
+      apply Coqlib.proj_sumbool_true in H6.
+      assert (n = n0) by (apply beq_nat_true; auto). subst v1 q0 n0.
+      replace v2 with v'.
+      unfold Coqlib.proj_sumbool; rewrite ! Coqlib.dec_eq_true.
+      rewrite <- beq_nat_refl. simpl; eauto.
+      inversion H2; subst; try discriminate; inversion Hval_obs; subst; congruence.
+    Qed.
+
+    Lemma proj_value_obs:
+      forall f q vl1 vl2,
+        Coqlib.list_forall2 (memval_obs_eq f) vl1 vl2 ->
+        val_obs f (proj_value q vl1) (proj_value q vl2).
+    Proof.
+      intros f q vl1 v2 Hlst. unfold proj_value.
+      inversion Hlst; subst. constructor.
+      inversion H; subst; try constructor.
+      
+      destruct (check_value (size_quantity_nat q) v1 q (Fragment v1 q0 n :: al)) eqn:B.
+      destruct (Val.eq v1 Vundef).
+      subst v1.
+      inversion Hval_obs.
+      subst v2.
+      destruct (check_value (size_quantity_nat q) Vundef q
+                            (Fragment Vundef q0 n :: bl));
+        by auto.
+      erewrite check_value_obs; eauto.
+      (*TODO: need a lemma about check_value being false, and obs_eq*)
+      admit.
+    Admitted.
+    
+    Lemma load_result_obs:
+      forall f chunk v1 v2,
+        val_obs f v1 v2 ->
+        val_obs f (Val.load_result chunk v1) (Val.load_result chunk v2).
+    Proof.
+      intros. inversion H; destruct chunk; simpl; econstructor; eauto.
+    Qed.
+    
+    Lemma decode_val_inject:
+      forall f vl1 vl2 chunk,
+        Coqlib.list_forall2 (memval_obs_eq f) vl1 vl2 ->
+        val_obs f (decode_val chunk vl1) (decode_val chunk vl2).
+    Proof.
+      intros f vl1 vl2 chunk Hobs_eq.
+      unfold decode_val.
+      destruct (proj_bytes vl1) as [bl1|] eqn:PB1.
+      eapply proj_bytes_obs with (vl' := vl2) in PB1; eauto.
+      rewrite PB1.
+      destruct chunk; constructor.
+      destruct (proj_bytes vl2) eqn:PB2.
+      exfalso.
+      eapply proj_bytes_obs_none with (f := f) (vl := vl1) in PB1;
+        eauto.
+      by congruence.
+      destruct chunk; try constructor;
+      apply load_result_obs;
+      apply proj_value_obs; auto.
+    Qed.
+       
+    Lemma sim_load_val:
+      forall (mc mf : mem) (f:meminj)
+        (b1 b2 : block) chunk (ofs : Z) v1
+        (Hload: Mem.load chunk mc b1 ofs = Some v1)
+        (Hf: f b1 = Some (b2, 0%Z))
+        (HmaxF: max_inv mf)
+        (Hinj: mem_obs_eq f mc mf),
+        exists v2,
+          Mem.load chunk mf b2 ofs = Some v2 /\
+          val_obs f v1 v2.
+    Proof.
+      intros.
+      assert (Hval := val_obs_eq Hinj).
+      apply mem_obs_eq_mem_inj in Hinj; auto.
+      destruct (Mem.load_inj _ _ _ _ _ _ _ _ _ Hinj Hload Hf) as [v2 HloadF].
+      destruct HloadF as [HloadF _].
+      rewrite Zplus_0_r in HloadF.
+      exists v2; split; auto.
+      apply Mem.load_result in HloadF.
+      assert (Hvalid_access := Mem.load_valid_access _ _ _ _ _ Hload).
+      destruct Hvalid_access as [Hperm _].
+      unfold Mem.range_perm in Hperm.
+      
+      
+      
     Lemma load_valid_block:
       forall (m : mem) (b : block) (ofs : int),
         Mem.load Mint32 m b (Int.intval ofs) = Some (Vint Int.one) ->
@@ -3981,7 +4212,7 @@ Module SimProofs.
         (* To compute the new fine grained state, we apply the
         renaming to the resources the angel provided us*)
         remember (projectAngel (fp i pfc) virtue) as virtueF eqn:HvirtueF.
-        remember (updThread pff (Kresume c') (computeMap (getThreadR pff) virtueF))
+        remember (updThread pff (Kresume c) (computeMap (getThreadR pff) virtueF))
           as tpf' eqn:Htpf'.
         (* In order to construct the new memory we have to perform the
         load and store of the lock, after setting the correct permissions*)
@@ -3997,12 +4228,19 @@ Module SimProofs.
         assert (Hvalidb2 := (codomain_valid (weak_obs_eq (strong_obs Htsim))) _ _ Hfb).
         erewrite restrPermMap_valid in Hvalidb2.
         assert (Hvalid_access := Mem.load_valid_access _ _ _ _ _ Hload).
-        destruct Hvalid_access as [_ Halign].
+        destruct Hvalid_access as [Hperm Halign].
         assert (Haccess_b2: Mem.valid_access m1f Mint32 b2 (Int.intval ofs) Freeable)
           by (eapply sim_valid_access; eauto).
+        
         assert (Mem.load Mint32 m1f b2 (Int.intval ofs) = Some (Vint Int.one)).
-        { apply Mem.load_result in Hload.
-          admit. }
+        { apply Mem.valid_access_freeable_any with (p:= Readable) in Haccess_b2.
+          apply Mem.valid_access_load in Haccess_b2.
+          destruct Haccess_b2 as [v HloadF].
+          apply Mem.load_result in HloadF.
+          assert (Hcontents := val_obs_eq (strong_obs Htsim)).
+          
+          
+          
         admit.
       }
       admit. admit. admit. admit. admit.
