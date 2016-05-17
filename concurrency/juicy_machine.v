@@ -386,7 +386,7 @@ Module Concur.
     Proof.
       unfold access_cohere; intros.
       rewrite juicyRestrictCurEq.
-      destruct ((perm_of_res (phi @ loc))) eqn:HH; try rewrite HH; simpl; [apply perm_refl | trivial].
+      destruct ((perm_of_res (phi @ loc))) eqn:HH; try rewrite HH; simpl; reflexivity.
     Qed.
 
     (* PERSONAL MEM: Is the contents of the global memory, 
