@@ -103,7 +103,7 @@ Module ThreadPool (SEM:Semantics) <: ThreadPoolSig
 
   (*Add/Update lock: Notice that adding and updating are the same, depending wether then
     lock was already there. *)
-  Definition addLock tp loc (res: option Res.res):=
+  (*Definition addLock tp loc (res: option Res.res):=
   mk (num_threads tp)
      (pool tp)
      (perm_maps tp)
@@ -113,7 +113,7 @@ Module ThreadPool (SEM:Semantics) <: ThreadPoolSig
   mk (num_threads tp)
      (pool tp)
      (perm_maps tp)
-     (AMap.remove loc (lset tp)).
+     (AMap.remove loc (lset tp)). *)
    
 End ThreadPool.
 
@@ -197,6 +197,14 @@ Module Concur.
         join (Some r0) r1 (Some r) ->
         join_all tp r.
 
+    Lemma join_geq:
+      forall {tid} js res all_juice loc
+        (cnt: containsThread js tid),
+        (getThreadR cnt) @ loc = res ->
+        join_all js all_juice ->
+        all_juice @ loc = res.
+    Admitted.
+    
     Definition locks_correct (lset : Res.LockPool) (juice: rmap):=
       forall loc sh psh P z, juice @ loc = YES sh psh (LK z) P  ->  AMap.find loc lset. 
     
@@ -420,7 +428,7 @@ Module Concur.
               (cnt0:containsThread tp tid0)(Hcompat:mem_compatible tp m):
       thread_pool -> mem -> Prop :=
     | step_acquire :
-        forall (tp' tp'':thread_pool) jm c m1 jm' b ofs d_phi psh phi,
+        forall (tp' tp'':thread_pool) c m1 jm' b ofs d_phi psh phi,
           (*let: phi := m_phi jm in*)
           let: phi' := m_phi jm' in
           let: m' := m_dry jm' in
@@ -440,13 +448,13 @@ Module Concur.
             (Hload: Mem.load Mint32 m1 b (Int.intval ofs) = Some (Vint Int.one))
             (Hstore: Mem.store Mint32 m1 b (Int.intval ofs) (Vint Int.zero) = Some m')
             (His_unlocked:lock_set tp (b, Int.intval ofs) = SSome d_phi )
-            (Hadd_lock_res: join (m_phi jm) d_phi  phi')  
+            (Hadd_lock_res: join phi d_phi  phi')  
             (Htp': tp' = updThread cnt0 (Kresume c) phi')
-            (Htp'': tp'' = addLock tp' (b, Int.intval ofs) None),
+            (Htp'': tp'' = updLockSet tp' (AMap.add (b, Int.intval ofs) None (lset tp'))),
             syncStep' genv cnt0 Hcompat tp'' m'                 
     | step_release :
-        forall  (tp' tp'':thread_pool) jm c m1 jm' b ofs psh (d_phi phi':rmap) (R: pred rmap) ,
-          let: phi := m_phi jm in
+        forall  (tp' tp'':thread_pool) c m1 jm' b ofs psh (phi d_phi :rmap) (R: pred rmap) ,
+          (* let: phi := m_phi jm in *)
           let: phi' := m_phi jm' in
           let: m' := m_dry jm' in
           forall
@@ -455,8 +463,9 @@ Module Concur.
             (Hat_external: at_external the_sem c =
                            Some (UNLOCK, ef_sig UNLOCK, Vptr b ofs::nil))
             (Hcompatible: mem_compatible tp m)
-            (Hpersonal_perm: 
-               personal_mem cnt0 Hcompatible = jm)
+            (* Hpersonal_perm: 
+               personal_mem cnt0 Hcompatible = jm *)
+            (Hpersonal_juice: getThreadR cnt0 = phi)
             (sh:Share.t)(R:pred rmap)
             (HJcanwrite: phi@(b, Int.intval ofs) = YES sh psh (LK LKSIZE) (pack_res_inv R))
             (Hrestrict_pmap:
@@ -464,11 +473,12 @@ Module Concur.
             (Hload: Mem.load Mint32 m1 b (Int.intval ofs) = Some (Vint Int.zero))
             (Hstore: Mem.store Mint32 m1 b (Int.intval ofs) (Vint Int.one) = Some m')
             (* what does the return value denote?*)
-            (Hget_lock_inv: JMem.get_lock_inv jm (b, Int.intval ofs) = Some R)
+            (*Hget_lock_inv: JMem.get_lock_inv jm (b, Int.intval ofs) = Some R*)
             (Hsat_lock_inv: R d_phi)
-            (Hrem_lock_res: join d_phi phi' (m_phi jm))
+            (Hrem_lock_res: join d_phi phi' phi)
             (Htp': tp' = updThread cnt0 (Kresume c) phi')
-            (Htp'': tp'' = addLock tp' (b, Int.intval ofs) (Some d_phi) ),
+            (Htp'': tp'' =
+                    updLockSet tp' (AMap.add (b, Int.intval ofs) (Some d_phi) (lset tp'))),
             syncStep' genv cnt0 Hcompat tp'' m'          
     | step_create :
         (* HAVE TO REVIEW THIS STEP LOOKING INTO THE ORACULAR SEMANTICS*)
@@ -517,7 +527,8 @@ Module Concur.
             (*Check the memories are equal!*)
             (Hm_forward: m = m')
             (Htp': tp' = updThread cnt0 (Kresume c) phi')
-            (Htp'': tp'' = addLock tp' (b, Int.intval ofs) None),
+            (Htp'': tp'' =
+                    updLockSet tp' (AMap.add (b, Int.intval ofs) None (lset tp'))),
             syncStep' genv cnt0 Hcompat tp'' m' 
     | step_freelock :
         forall  (tp' tp'': thread_pool) c b ofs jm jm' m1 R,
@@ -547,7 +558,8 @@ Module Concur.
             (Hm_forward:
                makeCurMax m = m1)
             (Htp': tp' = updThread cnt0 (Kresume c) (m_phi jm'))
-            (Htp': tp'' = remLock tp' (b, Int.intval ofs)),
+            (Htp'': tp'' =
+                    updLockSet tp' (AMap.remove (b, Int.intval ofs) (lset tp'))),
             syncStep' genv cnt0 Hcompat  tp'' (m_dry jm')  (* m_dry jm' = m_dry jm = m *)
                      
     | step_acqfail :
