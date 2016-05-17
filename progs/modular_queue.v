@@ -252,10 +252,10 @@ Definition main_spec :=
 
 Definition Vprog : varspecs := nil.
 
-Definition Gprog : funspecs := 
+Definition Gprog : funspecs := augment_funspecs prog ( 
     mallocN_spec :: freeN_spec ::
     (map (fun f => f module_fifo.(mf_rep)) module_fifo.(mf_Gexport))
-   ++ make_elem_spec :: main_spec::nil.
+   ++ make_elem_spec :: main_spec::nil).
 
 Definition Gtot := do_builtins (prog_defs prog) ++ Gprog.
 

@@ -88,8 +88,8 @@ Definition main_spec :=
 (** Declare all the functions, in exactly the same order as they
  ** appear in reverse.c (and in reverse.v).
  **)
-Definition Gprog : funspecs := 
-    sumlist_spec :: reverse_spec :: main_spec::nil.
+Definition Gprog : funspecs := augment_funspecs prog [ 
+    sumlist_spec; reverse_spec; main_spec].
 
 (** A little equation about the list_cell predicate *)
 Lemma list_cell_eq: forall sh i p ,
@@ -295,10 +295,8 @@ Lemma all_funcs_correct:
   semax_func Vprog Gprog (prog_funct prog) Gprog.
 Proof.
 unfold Gprog, prog, prog_funct; simpl.
-semax_func_skipn.
 semax_func_cons body_sumlist.
 semax_func_cons body_reverse.
 semax_func_cons body_main.
-apply semax_func_nil.
 Qed.
 

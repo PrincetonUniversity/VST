@@ -44,10 +44,10 @@ Definition rspec_post (r: ident) : unit -> environ -> mpred :=
   fun tt rho => EX x: A, rep r x R rho && !!p.(Qspec) x rho (retval rho).
 
 Definition init_rspec (r: ident) (init: A) : funspec :=
-  mk_funspec (argsig,Tvoid) unit TT (rspec_init r init * TT).
+  mk_funspec (argsig,Tvoid) cc_default unit TT (rspec_init r init * TT).
 
 Definition rspec (r: ident) : funspec := 
-  mk_funspec (argsig,retty) unit (rspec_pre r) (rspec_post r).
+  mk_funspec (argsig,retty) cc_default unit (rspec_pre r) (rspec_post r).
 
 End rspec.
 

@@ -22,8 +22,7 @@ Definition main_spec :=
   PRE  [] main_pre prog u
   POST [ tint ] main_post prog u.
 
-Definition Gprog : funspecs := 
-    reverse_spec :: main_spec::nil.
+Definition Gprog : funspecs := augment_funspecs prog [reverse_spec; main_spec].
 
 Definition flip_ends {A} lo hi (contents: list A) :=
   sublist 0 lo (rev contents)
@@ -217,9 +216,7 @@ Lemma all_funcs_correct:
   semax_func Vprog Gprog (prog_funct prog) Gprog.
 Proof.
 unfold Gprog, prog, prog_funct; simpl.
-semax_func_skipn.
 semax_func_cons body_reverse.
 semax_func_cons body_main.
-apply semax_func_nil.
 Qed.
 

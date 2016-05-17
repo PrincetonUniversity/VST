@@ -513,7 +513,7 @@ Lemma empty_program_ok {CS: compspecs}: forall Delta ge w,
 Proof.
 intros Delta ge w ?. 
 intro b.
-intros fsig A P Q.
+intros fsig cc A P Q.
 intros ?n ? ?.
 destruct H1 as [id [? [b0 [? ?]]]].
 rewrite H in H1. rewrite PTree.gempty in H1.

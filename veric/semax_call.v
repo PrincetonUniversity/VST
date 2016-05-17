@@ -128,13 +128,13 @@ Qed.
 
 
 Lemma semax_fun_id {CS: compspecs}:
-      forall id fsig (A : Type) (P' Q' : A -> assert)
+      forall id fsig cc (A : Type) (P' Q' : A -> assert)
               Delta P Q c
       (GLBL: (var_types Delta) ! id = None),
-    (glob_specs Delta) ! id = Some (mk_funspec fsig A P' Q') ->
-    (glob_types Delta) ! id = Some (type_of_funspec (mk_funspec fsig A P' Q')) ->
+    (glob_specs Delta) ! id = Some (mk_funspec fsig cc A P' Q') ->
+    (glob_types Delta) ! id = Some (type_of_funspec (mk_funspec fsig cc A P' Q')) ->
        semax Espec Delta (fun rho => P rho 
-                                && fun_assert  fsig A P' Q' (eval_lvalue (Evar id (Tfunction (type_of_params (fst fsig)) (snd fsig) cc_default)) rho))
+                                && fun_assert  fsig cc A P' Q' (eval_lvalue (Evar id (Tfunction (type_of_params (fst fsig)) (snd fsig) cc)) rho))
                               c Q ->
        semax Espec Delta P c Q.
 Proof.
@@ -145,12 +145,12 @@ intros.
 specialize (H1 psi Delta' w TS HGG Prog_OK k F H2 H3).
 replace ((var_types Delta) ! id) with ((var_types Delta')!id) in GLBL 
   by (destruct TS as [_ [? _]]; symmetry; auto).
-assert (H': (glob_specs Delta') ! id = Some (mk_funspec fsig A P' Q')). {
+assert (H': (glob_specs Delta') ! id = Some (mk_funspec fsig cc A P' Q')). {
 clear - H HT TS.
 destruct TS as [_ [_ [_ [SUB SUBsp]]]].
 specialize (SUBsp id); hnf in SUBsp.  rewrite HT in SUBsp; auto.
 }
-assert (H'': (glob_types Delta') ! id = Some (type_of_funspec (mk_funspec fsig A P' Q'))). {
+assert (H'': (glob_types Delta') ! id = Some (type_of_funspec (mk_funspec fsig cc A P' Q'))). {
 clear - H HT TS.
 destruct TS as [_ [_ [_ [SUB SUBsp]]]]. specialize (SUB id).
  hnf in SUB; rewrite H in SUB; auto.
@@ -174,7 +174,7 @@ specialize (H1 _ _ H).
 specialize (SAME _ _ H).
 destruct SAME as [SAME | [t SAME]]; [ | congruence].
 destruct H1 as [b [? ?]].
-specialize (H8 (Vptr b Int.zero) fsig A P' Q' _ (necR_refl _)).
+specialize (H8 (Vptr b Int.zero) fsig cc A P' Q' _ (necR_refl _)).
 spec H8.
 exists id. split; auto. exists b; auto.
 exists b. split.
@@ -194,7 +194,7 @@ apply H11.
 Qed.
 
 Definition func_ptr (f: funspec) : val -> mpred := 
- match f with mk_funspec fsig A P Q => fun_assert fsig A P Q end.
+ match f with mk_funspec fsig cc A P Q => fun_assert fsig cc A P Q end.
 
 Lemma semax_fun_id_alt {CS: compspecs}:
       forall id f    Delta (P: assert) Q c
@@ -206,7 +206,7 @@ Lemma semax_fun_id_alt {CS: compspecs}:
                   c Q ->
        semax Espec Delta P c Q.
 Proof. 
-intros id [fsig A P' Q']. apply semax_fun_id.
+intros id [fsig cc A P' Q']. apply semax_fun_id. 
 Qed.
 
 Import JuicyMemOps.
@@ -265,12 +265,12 @@ specialize (H0 id fs). cbv beta in H0.
 specialize (H0 _ (necR_refl _) H3).
 destruct H0 as [loc [? ?]].
 exists loc; split; auto.
-destruct fs as [f A a a0].
+destruct fs as [f cc A a a0].
 simpl in H2|-*.
 pose proof (necR_resource_at (core w) (core w') (loc,0)
-         (PURE (FUN f) (SomeP (A :: boolT :: environ :: nil) (packPQ a a0))) CORE).
+         (PURE (FUN f cc) (SomeP (A :: boolT :: environ :: nil) (packPQ a a0))) CORE).
 pose proof (necR_resource_at _ _ (loc,0)
-         (PURE (FUN f) (SomeP (A :: boolT :: environ :: nil) (packPQ a a0))) Hw2).
+         (PURE (FUN f cc) (SomeP (A :: boolT :: environ :: nil) (packPQ a a0))) Hw2).
 apply H5.
 clear - H4 H2.
 repeat rewrite <- core_resource_at in *.
@@ -1366,12 +1366,12 @@ Qed.
 Lemma semax_call_external {CS: compspecs}: 
 forall (Delta : tycontext) (A : Type)
   (P Q Q' : A -> assert) (x : A) (F : environ -> pred rmap) (F0 : assert)
-  (ret : option ident) (params : list (ident * type)) (retty : type)
+  (ret : option ident) (params : list (ident * type)) (retty : type) cc
   (a : expr) (bl : list expr) (R : ret_assert) (psi : genv) (vx : env)
   (tx : temp_env) (k : cont) (rho : environ) (ora : OK_ty) (jm : juicy_mem)
   (b : block)
  (TC0 : Cop.classify_fun (typeof a) =
-      Cop.fun_case_f (type_of_params params) retty cc_default)
+      Cop.fun_case_f (type_of_params params) retty cc)
  (TCret : tc_fn_return Delta ret retty)
  (TC1 : (tc_expr Delta a rho) (m_phi jm))
  (TC2 : (tc_exprlist Delta (map snd params) bl rho) (m_phi jm))
@@ -1395,7 +1395,7 @@ forall (Delta : tycontext) (A : Type)
                (eval_exprlist (map snd params) bl rho) rho))) (m_phi jm))
  (n : nat)
  (H2 : level (m_phi jm) = S n)
- (H15 : (believe_external Espec psi (Vptr b Int.zero) (params, retty) A P Q')
+ (H15 : (believe_external Espec psi (Vptr b Int.zero) (params, retty) cc A P Q')
         (level (m_phi jm))),
  exists (c' : corestate) (m' : juicy_mem),
   jstep cl_core_sem psi (State vx tx (Kseq (Scall ret a bl) :: k)) jm c' m' /\
@@ -1406,7 +1406,7 @@ destruct TC3 as [TC3 TC3'].
 rewrite <- snd_split in TC2.
 assert (H21 := eval_exprlist_relate Delta (params,retty) bl psi vx tx _ 
       jm TC2 TC3 HGG H0
-      (mkfunction retty cc_default params nil nil Sskip)
+      (mkfunction retty cc params nil nil Sskip)
       (eq_refl _)). simpl in H21.
 rewrite snd_split in TC2.
 
@@ -2121,11 +2121,11 @@ Qed.
 Lemma semax_call_aux:
  forall {CS: compspecs} (Delta : tycontext) (A : Type)
   (P Q Q' : A -> assert) (x : A) (F : environ -> pred rmap)
-  (F0 : assert) (ret : option ident) (fsig : funsig) (a : expr)
+  (F0 : assert) (ret : option ident) (fsig : funsig) cc (a : expr)
   (bl : list expr) (R : ret_assert) (psi : genv) (vx:env) (tx:Clight.temp_env) (k : cont) (rho : environ)
   (ora : OK_ty) (jm : juicy_mem) (b : block) (id : ident),
    Cop.classify_fun (typeof a) =
-   Cop.fun_case_f (type_of_params (fst fsig)) (snd fsig) cc_default ->
+   Cop.fun_case_f (type_of_params (fst fsig)) (snd fsig) cc ->
    tc_fn_return Delta ret (snd fsig) ->
    tc_expr Delta a rho (m_phi jm) ->
    tc_exprlist Delta (snd (split (fst fsig))) bl rho (m_phi jm) ->
@@ -2142,7 +2142,7 @@ Lemma semax_call_aux:
     (funassert Delta rho) (m_phi jm) ->
     (rguard Espec psi (exit_tycon (Scall ret a bl) Delta) (frame_ret_assert R F0) k) (level (m_phi jm)) ->
     (believe Espec Delta psi Delta) (level (m_phi jm)) ->
-    (glob_specs Delta)!id = Some (mk_funspec fsig A P Q') ->
+    (glob_specs Delta)!id = Some (mk_funspec fsig cc A P Q') ->
     Genv.find_symbol psi id = Some b ->
     (forall vl : environ, (!|>(Q' x vl <=> Q x vl)) (m_phi jm)) ->
     (|>(F0 rho * F rho *
@@ -2152,13 +2152,13 @@ Lemma semax_call_aux:
    jsafeN (@OK_spec Espec) psi (level (m_phi jm)) ora
      (State (vx) (tx) (Kseq (Scall ret a bl) :: k)) jm.
 Proof.
-intros CS Delta A P Q Q' x F F0 ret fsig a bl R psi vx tx k rho ora jm b id.
+intros CS Delta A P Q Q' x F F0 ret fsig cc a bl R psi vx tx k rho ora jm b id.
 intros TC0 TCret TC1 TC2 TC3 TC5 H HR HGG H0 H3 H4 H1 Prog_OK H8 H7 H11 H14.
 pose (H6:=True); pose (H9 := True); pose (H16:=True);
 pose (H12:=True); pose (H10 := True); pose (H5:=True).
 (*************************************************)
 assert (Prog_OK' := Prog_OK).
-specialize (Prog_OK' (Vptr b Int.zero) fsig A P Q' _ (necR_refl _)).
+specialize (Prog_OK' (Vptr b Int.zero) fsig cc A P Q' _ (necR_refl _)).
 (*************************************************)
 case_eq (level (m_phi jm)); [solve [simpl; constructor] | intros n H2].
 simpl.
@@ -2642,21 +2642,21 @@ eexists; eauto.
 Qed.
 
 Lemma semax_call {CS: compspecs}: 
-    forall Delta A (P Q: A -> assert) x F ret argsig retsig a bl,
+    forall Delta A (P Q: A -> assert) x F ret argsig retsig cc a bl,
            Cop.classify_fun (typeof a) =
-           Cop.fun_case_f (type_of_params argsig) retsig cc_default -> 
+           Cop.fun_case_f (type_of_params argsig) retsig cc -> 
             (retsig = Tvoid -> ret = None) ->
           tc_fn_return Delta ret retsig ->
   semax Espec Delta
        (fun rho =>  tc_expr Delta a rho && tc_exprlist Delta (snd (split argsig)) bl rho  && 
-           (fun_assert  (argsig,retsig) A P Q (eval_expr a rho) && 
+           (fun_assert  (argsig,retsig) cc A P Q (eval_expr a rho) && 
           (F rho * P x (make_args (map (@fst  _ _) argsig)
                 (eval_exprlist (snd (split argsig)) bl rho) rho ))))
          (Scall ret a bl)
          (normal_ret_assert 
           (fun rho => (EX old:val, substopt ret old F rho * maybe_retval (Q x) retsig ret rho))).
 Proof.
-rewrite semax_unfold. intros ? ? ? ? ? ? ? ? ? ? ? TCF TC5 TC7.
+rewrite semax_unfold. intros ? ? ? ? ? ? ? ? ? ? ? ? TCF TC5 TC7.
 intros.
 rename H0 into H1.
 intros tx vx.
@@ -2678,7 +2678,7 @@ specialize (H6 (b, 0)).
 rewrite jam_true in H6 by auto.
 hnf in H3.
 generalize H4; intros [_ H7].
-specialize (H7 (b) (mk_funspec (argsig,retsig) A P Q) _ (necR_refl _)).
+specialize (H7 (b) (mk_funspec (argsig,retsig) cc A P Q) _ (necR_refl _)).
 spec H7.
 1: apply func_at_func_at'; apply H6.
 destruct H7 as [id [H7 H9]].
@@ -2692,11 +2692,11 @@ assert (H11: filter_genv psi = ge_of (construct_rho (filter_genv psi) vx tx)) by
 simpl in H10. simpl in H7. inversion2 H7 H10.
 unfold func_at in H13.
 (* rewrite H12 in H13.*)
-destruct fs as [fsig' A' P' Q'].
-assert (fsig' = (argsig,retsig)).
+destruct fs as [fsig' cc' A' P' Q'].
+assert (fsig' = (argsig,retsig) /\ cc' = cc).
  clear - H6 H13.
  unfold pureat in *. simpl in *. inversion2 H6 H13. auto.
-subst fsig'.
+destruct H0; subst fsig' cc'.
 hnf in H6,H13.
 rewrite H6  in H13.
 inversion H13; clear H13.
@@ -2756,14 +2756,14 @@ auto.
 Qed.
 
 Lemma semax_call_alt {CS: compspecs}: 
-    forall Delta A (P Q: A -> assert) x F ret argsig retsig a bl,
+    forall Delta A (P Q: A -> assert) x F ret argsig retsig cc a bl,
            Cop.classify_fun (typeof a) =
-           Cop.fun_case_f (type_of_params argsig) retsig cc_default -> 
+           Cop.fun_case_f (type_of_params argsig) retsig cc -> 
             (retsig = Tvoid -> ret = None) ->
           tc_fn_return Delta ret retsig ->
   semax Espec Delta
        (fun rho =>  tc_expr Delta a rho && tc_exprlist Delta (snd (split argsig)) bl rho  && 
-           (func_ptr (mk_funspec (argsig,retsig) A P Q) (eval_expr a rho) && 
+           (func_ptr (mk_funspec (argsig,retsig) cc A P Q) (eval_expr a rho) && 
           (F rho * P x (make_args (map (@fst  _ _) argsig)
                 (eval_exprlist (snd (split argsig)) bl rho) rho ))))
          (Scall ret a bl)

@@ -210,14 +210,11 @@ contradiction.
 destruct H as [H1 H2]. destruct k; inv H2.
 unfold access_at in Hacc.
 simpl in Hacc.
-destruct ((mem_access (m_dry jm)) !! b i Cur); simpl in Hacc.
-unfold perm_of_sh in Hacc.
-rewrite if_true in Hacc by reflexivity.
-if_tac in Hacc; auto.
-inv Hacc; constructor.
-unfold perm_of_sh in Hacc.
-rewrite if_true in Hacc by reflexivity.
-destruct (eq_dec t Share.top); auto.
+rewrite Hacc.
+destruct (eq_dec t Share.top).
+rewrite e.
+unfold perm_of_res; simpl; rewrite perm_of_freeable; constructor.
+unfold perm_of_res; simpl; rewrite perm_of_writable; auto; constructor.
 contradiction.
 Qed.
 
@@ -716,7 +713,7 @@ unfold perm_order'' in H7.
 if_tac in H7; inv H7; constructor.
 if_tac in H7; inv H7.
 rewrite if_false in H7.
-apply H7.
+subst p1. constructor.
 clear - sh'.
 intro.
 destruct sh'; simpl in *; subst.
@@ -1108,8 +1105,10 @@ destruct loc as (b',ofs').
  destruct (access_at m1 (b', ofs')); try contradiction.
  rewrite <- H2. rewrite H3 by congruence.
  reflexivity.
-rewrite H1 in *.
-simpl in H0. contradiction.
+ inv Ha.
+ simpl in H0.
+ unfold initial_mem in H1. simpl in H1.
+ rewrite H1 in H0. contradiction.
 Qed.
 
 

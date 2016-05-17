@@ -48,8 +48,7 @@ Definition dotprod_spec :=
              `(data_at Tsh (tarray tdouble n) (map Vfloat fy) y)).
 
 
-Definition Gprog : funspecs := 
-     add_spec::dotprod_spec::nil.
+Definition Gprog : funspecs := augment_funspecs prog [add_spec; dotprod_spec].
 
 (*
 Lemma dotprod_one_more:

@@ -47,8 +47,7 @@ Definition set_spec :=
          PROP() LOCAL()
         SEP(data_at Ews t_struct_b (repinj _ (update22 i v)) p).
 
-Definition Gprog : funspecs := 
-    get_spec::set_spec::nil.
+Definition Gprog : funspecs := augment_funspecs prog [get_spec; set_spec].
 
 Lemma body_get:  semax_body Vprog Gprog f_get get_spec.
 Proof.

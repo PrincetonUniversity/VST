@@ -293,7 +293,7 @@ apply H.
 apply H0.
 Qed.
 
-Lemma corable_fun_assert: forall v fsig A P Q, corable (fun_assert v fsig A P Q).
+Lemma corable_fun_assert: forall v fsig cc A P Q, corable (fun_assert v fsig cc A P Q).
 Proof.
 intros.
 unfold fun_assert, res_predicates.fun_assert.
