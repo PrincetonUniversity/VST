@@ -501,8 +501,8 @@ Module Concur.
             syncStep' genv cnt0 Hcompat tp' m
                      
     | step_mklock :
-        forall  (tp' tp'': thread_pool) jm jm' c b ofs R ,
-          let: phi := m_phi jm in
+        forall  (tp' tp'': thread_pool) phi jm' c b ofs R ,
+          (*let: phi := m_phi jm in*)
           let: phi' := m_phi jm' in
           let: m' := m_dry jm' in
           forall
@@ -511,8 +511,9 @@ Module Concur.
             (Hat_external: at_external the_sem c =
                            Some (MKLOCK, ef_sig MKLOCK, Vptr b ofs::nil))
             (Hcompatible: mem_compatible tp m)
-            (Hpersonal_perm: 
-               personal_mem cnt0 Hcompatible = jm)
+            (*Hpersonal_perm: 
+               personal_mem cnt0 Hcompatible = jm*)
+            (Hpersonal_juice: getThreadR cnt0 = phi)
             (*This the first share of the lock, 
               can/should this be different for each location? *)
             (sh:Share.t)
@@ -531,8 +532,8 @@ Module Concur.
                     updLockSet tp' (AMap.add (b, Int.intval ofs) None (lset tp'))),
             syncStep' genv cnt0 Hcompat tp'' m' 
     | step_freelock :
-        forall  (tp' tp'': thread_pool) c b ofs jm jm' m1 R,
-          let: phi := m_phi jm in
+        forall  (tp' tp'': thread_pool) c b ofs phi jm' m1 R,
+          (*let: phi := m_phi jm in*)
           let: phi' := m_phi jm' in
           let: m' := m_dry jm' in
           forall
@@ -541,8 +542,9 @@ Module Concur.
             (Hat_external: at_external the_sem c =
                            Some (FREE_LOCK, ef_sig FREE_LOCK, Vptr b ofs::nil))
             (Hcompatible: mem_compatible tp m)
-            (Hpersonal_perm: 
-               personal_mem cnt0 Hcompatible = jm)
+            (*Hpersonal_perm: 
+               personal_mem cnt0 Hcompatible = jm*)
+            (Hpersonal_juice: getThreadR cnt0 = phi)
             (*This the first share of the lock, 
               can/should this be different for each location? *)
             (sh:Share.t)
