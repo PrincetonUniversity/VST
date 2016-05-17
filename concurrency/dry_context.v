@@ -1,5 +1,3 @@
-Add LoadPath "../concurrency" as concurrency.
-
 Require Import concurrency.dry_machine.
 Require Import concurrency.threads_lemmas.
 Require Import concurrency.permissions.

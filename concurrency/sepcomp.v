@@ -1,5 +1,3 @@
-(*Add LoadPath "../sepcomp" as sepcomp.*)
-
 Module SepComp.
 Require Export sepcomp.semantics.
 Require Export sepcomp.mem_lemmas.

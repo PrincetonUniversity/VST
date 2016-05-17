@@ -9,7 +9,7 @@ Require Import sepcomp.semantics.
 Load scheduler.
 
 Require Import Coq.Program.Program.
-Require Import ssreflect seq.
+From mathcomp.ssreflect Require Import ssreflect seq.
 
 (* This module represents the arguments
    to build a CoreSemantics with 

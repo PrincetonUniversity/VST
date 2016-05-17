@@ -1,13 +1,11 @@
 Require Import compcert.lib.Axioms.
 
-Add LoadPath "../concurrency" as concurrency.
-
-Require Import sepcomp. Import SepComp.
+Require Import concurrency.sepcomp. Import SepComp.
 Require Import sepcomp.semantics_lemmas.
 
 Require Import concurrency.pos.
 
-Require Import ssreflect ssrbool ssrnat ssrfun eqtype seq fintype finfun.
+From mathcomp.ssreflect Require Import ssreflect ssrbool ssrnat ssrfun eqtype seq fintype finfun.
 Set Implicit Arguments.
 
 (*NOTE: because of redefinition of [val], these imports must appear 
@@ -330,7 +328,7 @@ Module CoreLanguage.
         assert (Hlt := compat_rp Hcompatible b ofs).
         admit. (* TODO: need lennart's new lemma about max perm*)
       }
-    Qed.
+    Admitted.
 
     Lemma decay_disjoint:
       forall m m' p

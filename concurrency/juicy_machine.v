@@ -1,15 +1,13 @@
 Require Import compcert.lib.Axioms.
 
-Add LoadPath "../concurrency" as concurrency.
-
-Require Import sepcomp. Import SepComp.
+Require Import concurrency.sepcomp. Import SepComp.
 Require Import sepcomp.semantics_lemmas.
 
 Require Import concurrency.pos.
 Require Import concurrency.concurrent_machine.
 Require Import concurrency.threads_lemmas.
 Require Import Coq.Program.Program.
-Require Import ssreflect ssrbool ssrnat ssrfun eqtype seq fintype finfun.
+From mathcomp.ssreflect Require Import ssreflect ssrbool ssrnat ssrfun eqtype seq fintype finfun.
 Set Implicit Arguments.
 
 (*NOTE: because of redefinition of [val], these imports must appear 
@@ -30,7 +28,7 @@ Require Import veric.juicy_extspec.
 Require Import veric.jstep.
 
 (*The finite maps*)
-Require Import addressFiniteMap.
+Require Import concurrency.addressFiniteMap.
 
 
 (**)
@@ -246,7 +244,7 @@ Module Concur.
         lock_set tp loc = SSome r ->
         joins (getThreadR cnti)r.
     
-    Record invariant' (tp:t) := True. (* The invariant has been absorbed my mem_compat*)
+    Variant invariant' (tp:t) := True. (* The invariant has been absorbed my mem_compat*)
      (* { no_race : disjoint_threads tp
       }.*)
 
@@ -347,7 +345,7 @@ Module Concur.
       Maps.PMap.get b (getMaxPerm m) ofs /\
       permission_at (restrPermMap Hlt) b ofs Cur =
       Maps.PMap.get b p' ofs.
-    Proof. admit. Qed.
+    Proof. admit. Admitted.
 
     Lemma juicyRestrictCurEq:
       forall (phi : rmap) (m : mem) (coh : access_cohere' m phi)

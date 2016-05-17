@@ -122,7 +122,7 @@ Definition initial_cm {CS V G ext_link}
         (n : nat) : concurrent_machine :=
   let spr := semax_prog_rule (CEspec CS ext_link) V G prog m SP Hmem in
   let q : corestate := projT1 (projT2 spr) in
-  let jm : juicy_mem := projT1 (snd (projT2 (projT2 spr)) n) in
+  let jm : juicy_mem := proj1_sig (snd (projT2 (projT2 spr)) n) in
   {| cm_mem := jm; cm_env := globalenv prog; cm_res := nil; cm_thd := (q, m_phi jm) :: nil |}.
 
 Lemma invariant_initial_cm {CS V G ext_link}
@@ -134,7 +134,7 @@ Proof.
   unfold initial_cm.
   set (spr := semax_prog_rule (CEspec CS ext_link) V G prog m SP Hmem).
   set (q := projT1 (projT2 spr)).
-  set (jm := projT1 (snd (projT2 (projT2 spr)) n)).
+  set (jm := proj1_sig (snd (projT2 (projT2 spr)) n)).
   split;[|split].
   - (* joining condition *)
     exists (core (m_phi jm)); simpl.
@@ -152,7 +152,7 @@ Proof.
   - (* cohere_res_lock (there are no locks at first) *)
     constructor.
     intros.
-    match goal with |- context [projT1 ?x] => destruct x as (jm' & jmm & lev & S & notlock) end.
+    match goal with |- context [proj1_sig ?x] => destruct x as (jm' & jmm & lev & S & notlock) end.
     intro.
     eapply notlock; eexists; eauto.
     
@@ -162,7 +162,8 @@ Proof.
     destruct spr as (b' & q' & Hb & JS); simpl projT1 in *; simpl projT2 in *.
     destruct (JS n) as (jm' & jmm & lev & S & notlock); simpl projT1 in *; simpl projT2 in *.
     subst.
-    apply (S oracle).
+    simpl snd.
+    (* apply (S oracle). *) 
 Admitted. (* faster *)
 (*
 Qed.  (* 1'40 --- Definition + Lemma faster than Program Definition *)

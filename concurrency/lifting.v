@@ -1,6 +1,4 @@
-Require Import ssreflect fintype.
-
-Add LoadPath "../concurrency" as concurrency.
+From mathcomp.ssreflect Require Import ssreflect fintype.
 
 Require Import compcert.common.Memory.
 Require Import Globalenvs.

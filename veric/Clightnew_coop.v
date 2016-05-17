@@ -1,5 +1,5 @@
 Require Import sepcomp.semantics.
-Require Import semantics_lemmas.
+Require Import sepcomp.semantics_lemmas.
 Require Import sepcomp.mem_lemmas.
 Require Import veric.base.
 Require Import veric.Clight_new.

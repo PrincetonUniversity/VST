@@ -1,5 +1,3 @@
-Add LoadPath "../concurrency" as concurrency.
-
 Require Import compcert.common.Memory.
 
 
@@ -21,7 +19,7 @@ Require Import sepcomp.wholeprog_simulations.
 (*General erasure*)
 Require Import concurrency.erasure.
 
-Require Import ssreflect seq.
+From mathcomp.ssreflect Require Import ssreflect seq.
 
 Import addressFiniteMap.
 
@@ -125,7 +123,7 @@ Module ClightParching <: ErasureSig.
 
     - inversion mc.
       admit.
-  Qed.
+  Admitted.
       
     Lemma MTCH_updt:
       forall js ds tid c
@@ -190,9 +188,7 @@ Module ClightParching <: ErasureSig.
       assert (Mem.mem_access M1 = Mem.mem_access M2).
       {
         subst. simpl.
-        f_equal.
-        apply Logic.eq_refl.
-        f_equal.
+        f_equal. f_equal.
         simpl.
         do 4 (apply functional_extensionality; intro).
         destruct x2; try rewrite H; reflexivity. 
@@ -320,7 +316,7 @@ Module ClightParching <: ErasureSig.
     - intros.
       simpl.
       admit.
-    Qed.
+    Admitted.
     Lemma MTCH_remLock:
       forall js ds b ofs, 
         match_st js ds ->
@@ -331,7 +327,7 @@ Module ClightParching <: ErasureSig.
     - intros.
       simpl.
       admit.
-    Qed.
+    Admitted.
             
     Lemma MTCH_update:
       forall js ds Kc phi p i
@@ -419,7 +415,7 @@ Module ClightParching <: ErasureSig.
         reflexivity.
       - (*This should be easy, but it will slightly change once we fix MATCH and initial*)
       admit.
-  Qed.
+  Admitted.
 
   Lemma updCinvariant: forall {tid} ds c (cnt: DTP.containsThread ds tid),
       DSEM.invariant ds ->
@@ -589,7 +585,7 @@ ere. *)
 
     (* step_acqfail *)
     { admit. }
-  Qed.
+  Admitted.
 
     
 
@@ -778,7 +774,7 @@ ere. *)
        Grab Existential Variables.
        - simpl. apply mtch_cnt. assumption.
        - assumption.
-  Qed.
+  Admitted.
 
   Lemma core_diagram:
     forall (m : M)  (U0 U U': schedule) 
@@ -818,7 +814,7 @@ Module ClightErasure:= ErasureFnctr ClightParching.
 Theorem clight_erasure:
   forall U : DryMachine.Sch,
        Wholeprog_sim.Wholeprog_sim (JMachineSem U) 
-         (DMachineSem U) genv genv main ClightErasure.ge_inv
+         (DMachineSem U) ClightParching.genv ClightParching.genv ClightParching.main ClightErasure.ge_inv
          ClightErasure.init_inv ClightErasure.halt_inv.
 Proof.
   Proof. apply ClightErasure.erasure. Qed.

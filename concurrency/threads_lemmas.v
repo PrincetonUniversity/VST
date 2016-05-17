@@ -1,5 +1,5 @@
 Require Import compcert.lib.Integers.
-Require Import ssreflect ssrbool ssrnat eqtype.
+From mathcomp.ssreflect Require Import ssreflect ssrbool ssrnat eqtype.
 Require Import Lists.List.
 Require Import Coq.ZArith.ZArith.
 Set Implicit Arguments.

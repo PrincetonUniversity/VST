@@ -1,8 +1,7 @@
-Add LoadPath "../concurrency" as concurrency.
-Require Import ssreflect ssrbool ssrnat ssrfun eqtype seq fintype finfun.
+From mathcomp.ssreflect Require Import ssreflect ssrbool ssrnat ssrfun eqtype seq fintype finfun.
 Require Import concurrency.concurrent_machine.
 Require Import concurrency.pos.
-Require Import threads_lemmas.
+Require Import concurrency.threads_lemmas.
 Require Import compcert.lib.Axioms.
 
 Set Implicit Arguments.

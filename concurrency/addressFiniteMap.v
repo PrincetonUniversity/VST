@@ -1,9 +1,7 @@
 
 Require Import compcert.lib.Axioms.
 
-Add LoadPath "../concurrency" as concurrency.
-
-Require Import sepcomp. Import SepComp.
+Require Import concurrency.sepcomp. Import SepComp.
 Require Import sepcomp.semantics_lemmas.
 
 Require Import Coq.ZArith.ZArith.

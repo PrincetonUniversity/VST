@@ -1,4 +1,4 @@
-Require Import ssreflect ssrfun ssrbool ssrnat eqtype fintype.
+From mathcomp.ssreflect Require Import ssreflect ssrfun ssrbool ssrnat eqtype fintype.
 Set Implicit Arguments.
 
 Require Import compcert.lib.Axioms.

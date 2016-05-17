@@ -1,14 +1,13 @@
-Require Import ssreflect seq ssrbool
+From mathcomp.ssreflect Require Import ssreflect seq ssrbool
         ssrnat ssrfun eqtype seq fintype finfun.
 
 Set Implicit Arguments.
-Add LoadPath "../concurrency" as concurrency.
 Require Import concurrency.threads_lemmas.
 Require Import compcert.common.Memory.
 Require Import compcert.common.Values. (*for val*)
 Require Import compcert.lib.Integers.
 Require Import Coq.ZArith.ZArith.
-Require Import veric.shares juicy_mem.
+From veric Require Import shares juicy_mem.
 Require Import msl.msl_standard.
 Import cjoins.
 

@@ -1,5 +1,3 @@
-Add LoadPath "../concurrency" as concurrency.
-
 Require Import compcert.common.Memory.
 
 (* The concurrent machinery*)
@@ -153,14 +151,14 @@ Module ErasureFnctr (PC:ErasureSig).
   Theorem erasure: forall U,
     Wholeprog_sim.Wholeprog_sim
       (JMachineSem U) (DMachineSem U)
-      genv genv
-      main
+      PC.genv PC.genv
+      PC.main
       ge_inv init_inv halt_inv.
   Proof. intros U.
     apply (Wholeprog_sim.Build_Wholeprog_sim
              (JMachineSem U) (DMachineSem U)
-             genv genv
-             main
+             PC.genv PC.genv
+             PC.main
              ge_inv init_inv halt_inv
              core_data match_state core_ord core_ord_wf).
     - reflexivity.

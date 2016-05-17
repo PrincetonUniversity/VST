@@ -1,15 +1,13 @@
 Require Import compcert.lib.Axioms.
 
-Add LoadPath "../concurrency" as concurrency.
-
-Require Import sepcomp. Import SepComp.
+Require Import concurrency.sepcomp. Import SepComp.
 Require Import sepcomp.semantics_lemmas.
 
 Require Import concurrency.pos.
 Require Import concurrency.concurrent_machine.
 Require Import concurrency.pos.
 Require Import Coq.Program.Program.
-Require Import ssreflect ssrbool ssrnat ssrfun eqtype seq fintype finfun.
+From mathcomp.ssreflect Require Import ssreflect ssrbool ssrnat ssrfun eqtype seq fintype finfun.
 Set Implicit Arguments.
 
 (*NOTE: because of redefinition of [val], these imports must appear 
@@ -19,7 +17,7 @@ Require Import compcert.common.Values. (*for val*)
 Require Import compcert.common.Globalenvs. 
 Require Import compcert.common.Memory.
 Require Import compcert.lib.Integers.
-Require Import threads_lemmas.
+Require Import concurrency.threads_lemmas.
 
 Require Import Coq.ZArith.ZArith.
 
