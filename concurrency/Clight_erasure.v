@@ -129,9 +129,11 @@ Module ClightParching <: ErasureSig.
       
     Lemma MTCH_updt:
       forall js ds tid c
-        (H0:match_st js ds)  (cnt: JTP.containsThread js tid),
+        (H0:match_st js ds)
+        (cnt: JTP.containsThread js tid)
+        (cnt': DTP.containsThread ds tid),
         match_st (JTP.updThreadC cnt c)
-                 (DTP.updThreadC (MTCH_cnt H0 cnt) c).
+                 (DTP.updThreadC cnt' c).
     Proof.
       intros. constructor; intros.
       - apply DTP.cntUpdateC.
@@ -150,9 +152,9 @@ Module ClightParching <: ErasureSig.
         + assert (cnt2:= JTP.cntUpdateC' _ cnt Htid).
           rewrite <- (JTP.gsoThreadCC ine cnt cnt2 c Htid) by assumption.
           inversion H0; subst.
-          pose (cnt':=(@MTCH_cnt js tid ds H0 cnt)).
+          (* pose (cnt':=(@MTCH_cnt js tid ds H0 cnt)). *)
           assert (cnt2':= DTP.cntUpdateC' _ cnt' Htid').
-          fold cnt';
+          (*fold cnt';*)
           rewrite <- (DTP.gsoThreadCC ine cnt' cnt2' c Htid') by assumption.
           apply mtch_gtc; assumption.
       - inversion H0; apply mtch_perm.
@@ -808,7 +810,11 @@ Export ClightParching.
 
 Module ClightErasure:= ErasureFnctr ClightParching.
 
+
+(** BEHOLD THE THEOREM :) *)
 (*Just to be explicit*)
+
+
 Theorem clight_erasure:
   forall U : DryMachine.Sch,
        Wholeprog_sim.Wholeprog_sim (JMachineSem U) 
@@ -819,6 +825,18 @@ Proof.
 
 
 
+
+
+
+
+
+
+(** STOP HERE *)
+
+  
+(*
+THIS PART COMES FROM THE erasure.v FILE.
+WILL EVENTUALLY BE INCLUDE FULLY ABOVE
 
  (* HERE ENDS THE NEW PART *)
   
@@ -898,4 +916,7 @@ Proof.
     pool : fintype.ordinal (pos.n num_threads) -> ctl;
     juice : fintype.ordinal (pos.n num_threads) ->
             compcert_rmaps.RML.R.rmap;
-    lpool : LockPool }
+    lpool : LockPool } 
+
+
+*)
