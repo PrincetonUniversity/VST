@@ -3909,8 +3909,9 @@ Module SimProofs.
           
         admit.
       }
-      admit. admit. admit. admit. admit.
-      Qed.
+
+        admit.
+    Admitted.
  
             
 End SimProofs.
