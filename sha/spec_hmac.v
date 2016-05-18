@@ -3,7 +3,7 @@ Import ListNotations.
 Local Open Scope logic.
 
 Require Import sha.spec_sha.
-Require Import sha_lemmas.
+Require Import sha.sha_lemmas.
 Require Import sha.HMAC_functional_prog.
 Require Import sha.HMAC256_functional_prog.
 Require Import sha.hmac.

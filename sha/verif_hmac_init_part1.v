@@ -165,10 +165,12 @@ Proof. intros. abbreviate_semax.
 
       freeze [0;2;3] FR3.
       Time forward_call (Vptr cb cofs). (* 4.3 versus 18 *)
+(*superfluous in 8.5pl1, but now the forward_call takes 15secs...
       { change (Tstruct _SHA256state_st noattr) with  t_struct_SHA256state_st.
-        rewrite change_compspecs_t_struct_SHA256state_st'.
+        (*rewrite change_compspecs_t_struct_SHA256state_st'.*)
         Time cancel. (*0.1 versus 5.8*)
       }
+*)
 
       (*call to SHA256_Update*) 
       thaw FR3.
@@ -176,8 +178,9 @@ Proof. intros. abbreviate_semax.
       thaw FR1.
       freeze [2;3;5;6] FR4.
       Time forward_call (@nil Z, key, Vptr cb cofs, Vptr kb kofs, Tsh, l, kv). (*4.5*)
-      { unfold data_block. rewrite prop_true_andp by auto.      
-        change_compspecs CompSpecs.  (* this should not be needed *)
+      { unfold data_block. rewrite prop_true_andp by auto.
+(*Indeed, superfluous in 8.5pl1, but again, the preceding
+ forward_call now takes much longer: 18secs        change_compspecs CompSpecs.  (* this should not be needed *)*)
         Time cancel. (*0.1*)
       }
       { clear Frame HeqPostIf_j_Len (*HeqPostKeyNull*).
@@ -261,7 +264,7 @@ Proof. intros. abbreviate_semax.
        change (64 - 32) with 32.
        rewrite !map_list_repeat. fold Int.zero.
        rewrite field_address0_offset by auto with field_compatible. simpl. 
-       change_compspecs CompSpecs.
+(*       change_compspecs CompSpecs.*)
        change (Int.repr (Int.unsigned ckoff + 32))
              with (Int.add ckoff (Int.repr 32)). (*rewrite Z.add_0_l.*)
        Time cancel. (*0.6*)
@@ -271,7 +274,7 @@ Proof. intros. abbreviate_semax.
        thaw FR5.
        unfold data_at_, field_at_, tarray, data_block.  
        unfold_data_at 2%nat. simpl. Time cancel. (*0.7*)
-       change_compspecs CompSpecs. Time (normalize; cancel). (*0.6*)
+(*       change_compspecs CompSpecs.*) Time (normalize; cancel). (*0.6*)
        rewrite field_at_data_at, field_address_offset by auto with field_compatible.
        rewrite field_at_data_at, field_address_offset by auto with field_compatible.
        Time cancel. (*0.1*)
@@ -390,15 +393,15 @@ Proof. intros.
      autorewrite with sublist. 
      assert (XX: (SHA256.BlockSize - length key = Z.to_nat SF)%nat).
           subst SF. rewrite Zlength_correct, Z2Nat.inj_sub, Nat2Z.id. reflexivity. omega.
-     rewrite XX, HeqKCONT.
+     rewrite XX(*, HeqKCONT*).
      repeat rewrite map_list_repeat. 
-     rewrite sublist_same; trivial. subst l64 l.
+     rewrite sublist_same; trivial. (*subst l64 l.*)
      change (@data_at spec_sha.CompSpecs Tsh (tarray tuchar SF))
      with (@data_at CompSpecs Tsh (tarray tuchar SF)).
      change (Tarray tuchar 64 noattr) with (tarray tuchar 64). 
      rewrite field_address0_offset by auto with field_compatible. simpl. rewrite Z.mul_1_l. 
      change (0 + Zlength key) with (Zlength key).
-     Time cancel. rewrite sepcon_comm, <- HeqSF. apply derives_refl. 
+     Time cancel. (*rewrite sepcon_comm, <- HeqSF.*) apply derives_refl. 
      rewrite Zlength_list_repeat', Z2Nat.id; omega.
 Time Qed. (*10 secs versus 18*)
 

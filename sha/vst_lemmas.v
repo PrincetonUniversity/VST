@@ -17,7 +17,7 @@ Proof. intros; subst. cancel. Qed.
 Lemma sizeof_Tarray {cs: composite_env} k: Z.max 0 k = k -> sizeof (Tarray tuchar k noattr) = k.
 Proof. intros K; simpl; rewrite K. destruct k; trivial. Qed.
 
-Require Import replace_refill_reptype_lemmas.
+(*Require Import replace_refill_reptype_lemmas.*)
 (*
 Lemma data_at_Tarray_split3a {cs}: forall sh t n a i v,
   0 <= i <= n ->

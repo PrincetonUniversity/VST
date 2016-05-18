@@ -16,8 +16,6 @@ Require Import sha.spec_hmac.
 Require Import sha.HMAC_functional_prog.
 Require Import sha.HMAC256_functional_prog.
 
-Require Import sublist.
-
 Lemma body_hmac_simple: semax_body HmacVarSpecs HmacFunSpecs 
       f_HMAC HMAC_spec.
 Proof.

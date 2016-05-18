@@ -5,14 +5,14 @@ Require Import sha.SHA256.
 Local Open Scope logic.
 
 Require Import sha.spec_sha.
-Require Import sha_lemmas.
+Require Import sha.sha_lemmas.
 Require Import sha.HMAC_functional_prog.
 Require Import sha.HMAC256_functional_prog.
 Require Import sha.hmac.
 Require Import sha.spec_hmac.
-Require Import vst_lemmas.
-Require Import hmac_pure_lemmas.
-Require Import hmac_common_lemmas.
+Require Import sha.vst_lemmas.
+Require Import sha.hmac_pure_lemmas.
+Require Import sha.hmac_common_lemmas.
 
 Require Import sha.verif_hmac_init_part1. 
 Require Import sha.verif_hmac_init_part2.
