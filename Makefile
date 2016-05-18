@@ -23,7 +23,7 @@ COMPCERT=compcert
 CC_TARGET=compcert/cfrontend/Clight.vo
 CC_DIRS= lib common cfrontend exportclight
 DIRS= msl sepcomp veric concurrency floyd progs sha linking fcf hmacfcf tweetnacl20140427
-INCLUDE= $(foreach a,$(DIRS),$(if $(wildcard $(a)), -Q $(a) $(a))) -Q $(COMPCERT) compcert -Q mathcomp $(MATHCOMP)
+INCLUDE= $(foreach a,$(DIRS),$(if $(wildcard $(a)), -Q $(a) $(a))) -Q $(COMPCERT) compcert $(if $(MATHCOMP), -Q mathcomp $(MATHCOMP))
 #Replace the INCLUDE above with the following in order to build the linking target:
 #INCLUDE= $(foreach a,$(DIRS),$(if $(wildcard $(a)), -I $(a) -as $(a))) -R $(COMPCERT) -as compcert -I $(SSREFLECT)/src -R $(SSREFLECT)/theories -as Ssreflect \
 #  -R $(MATHCOMP)/theories -as MathComp
@@ -282,7 +282,7 @@ ifeq ($(TIMINGS), true)
 	@bash -c "/bin/time --output=TIMINGS -a -f '%e real, %U user, %S sys, '\"$(shell wc $*.v)\" $(COQC) $(COQFLAGS) $*.v"
 #	echo -n $*.v " " >>TIMINGS; bash -c "/usr/bin/time -o TIMINGS -a $(COQC) $(COQFLAGS) $*.v"
 else
-	@$(COQC) $(COQFLAGS) $*.v
+	$(COQC) $(COQFLAGS) $*.v
 endif
 
 COQVERSION=8.5 or-else 8.5pl1
