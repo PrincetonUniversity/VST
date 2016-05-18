@@ -282,7 +282,7 @@ ifeq ($(TIMINGS), true)
 	@bash -c "/bin/time --output=TIMINGS -a -f '%e real, %U user, %S sys, '\"$(shell wc $*.v)\" $(COQC) $(COQFLAGS) $*.v"
 #	echo -n $*.v " " >>TIMINGS; bash -c "/usr/bin/time -o TIMINGS -a $(COQC) $(COQFLAGS) $*.v"
 else
-	$(COQC) $(COQFLAGS) $*.v
+	@$(COQC) $(COQFLAGS) $*.v
 endif
 
 COQVERSION=8.5 or-else 8.5pl1
