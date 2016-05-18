@@ -6,47 +6,172 @@ Require Import floyd.closed_lemmas.
 Import Cop.
 Local Open Scope logic.
 
-Lemma semax_func_skip1: 
-   forall {Espec: OracleKind} 
-        V (G: funspecs) (cs: compspecs) fs i f j f' G',
-      i <> j ->
-      semax_func V G fs ((j,f')::G') ->
-      semax_func V G ((i,f)::fs) ((j,f')::G').
+Definition funsig_of_fundef (fd: fundef) : funsig :=
+ match fd with
+ | Internal {| fn_return := fn_return; fn_params := fn_params |} =>
+    (fn_params, fn_return)
+ | External _ t t0 _ => (arglist 1 t, t0)
+ end.
+
+Definition cc_of_fundef (fd: fundef) : calling_convention :=
+ match fd with
+ | Internal f => fn_callconv f
+ | External _ _ _ c => c
+ end.
+
+Definition vacuous_funspec (fd: fundef) := 
+   mk_funspec (funsig_of_fundef fd) (cc_of_fundef fd) unit (fun _ _ => FF) (fun _ _ => FF).
+
+Lemma semax_func_cons_ext_vacuous:
+     forall {Espec: OracleKind} (V : varspecs) (G : funspecs) (C : compspecs)
+         (fs : list (ident * fundef)) (id : ident) (ef : external_function)
+         (argsig : typelist) (retsig : type)
+         (G' : funspecs) cc,
+       (id_in_list id (map fst fs)) = false ->
+       semax_func V G fs G' ->
+       semax_func V G ((id, External ef argsig retsig cc) :: fs)
+         ((id, vacuous_funspec (External ef argsig retsig cc)) :: G').
 Proof.
 intros.
-apply semax_func_skip; auto.
+eapply semax_func_cons_ext; try reflexivity; auto.
+*
+ clear.
+ forget 1%positive as i.
+ revert i; induction argsig; simpl; intros; auto.
+ f_equal; auto.
+* 
+  forget 1%positive as i.
+  clear.
+  revert i; induction argsig; simpl; intros; auto.
+*
+  intros. apply FF_left.
+*
+  apply semax_external_FF.
 Qed.
 
-Lemma semax_func_nil': 
-   forall {Espec: OracleKind} 
-        V (G: funspecs)  (cs: compspecs) fs,
-      semax_func V G fs nil.
-Proof.
-intros.
-induction fs. 
-apply semax_func_nil.
-apply semax_func_skip; auto.
-Qed.
+Fixpoint delete_id {A: Type} i (al: list (ident*A)) : option (A * list (ident*A)) :=
+ match al with
+ | (j,x)::bl => if ident_eq i j then Some (x,bl)
+                else match delete_id i bl with
+                        | None => None 
+                        | Some (y,cl) => Some (y, (j,x)::cl)
+                        end
+  | nil => None
+ end.
+
+Fixpoint augment_funspecs' (fds: list (ident * fundef)) (G:funspecs) : option funspecs :=
+ match fds with
+ | (i,fd)::fds' => match delete_id i G with
+                       | Some (f, G') => 
+                              match augment_funspecs' fds' G' with
+                               | Some G2 => Some ((i,f)::G2)
+                               | None => None
+                              end
+                       | None =>
+                              match augment_funspecs' fds' G with
+                               | Some G2 => Some ((i, vacuous_funspec fd)::G2)
+                               | None => None
+                              end
+                        end
+ | nil => match G with nil => Some nil | _::_ => None end
+ end.
+
+Definition augment_funspecs prog G : funspecs :=
+ match augment_funspecs' (prog_funct prog) G with
+ | Some G' => G'
+ | None => nil
+ end.
 
 (*
-Lemma semax_ifthenelse_PQR : 
-   forall Espec {cs: compspecs} Delta P Q R (b: expr) c d Post,
-      bool_type (typeof b) = true ->
-     PROPx P (LOCALx (tc_env Delta :: Q) (SEPx R)) |--  (tc_expr Delta (Eunop Cop.Onotbool b tint)) ->
-     @semax cs Espec Delta (PROPx P (LOCALx (`(typed_true (typeof b)) (eval_expr b) :: Q) (SEPx R)))
-                        c Post -> 
-     @semax cs Espec Delta (PROPx P (LOCALx (`(typed_false (typeof b)) (eval_expr b) :: Q) (SEPx R)))
-                        d Post -> 
-     @semax cs Espec Delta (PROPx P (LOCALx Q (SEPx R)))
-                         (Sifthenelse b c d) Post.
+Definition semax_func' (V: varspecs) (G: funspecs) {CS: compspecs} 
+      (funcs: list (ident * fundef)) (G1: funspecs) : Prop :=
+ match augment_funspecs funcs G with
+ | Some augG => semax_func V augG funcs augG
+ | None => False
+ end.
+
+Inductive funspecs_sub: funspecs -> funspecs -> Prop :=
+| funspecs_sub1: 
+  forall ifs G1' G2',
+     funspecs_sub G1' G2' ->
+     funspecs_sub (ifs::G1') (ifs::G2')
+| funspecs_sub2:
+  forall ifs G1' G2',
+     funspecs_sub G1' G2' ->
+     funspecs_sub G1' (ifs::G2')
+| funspecs_sub0:
+   funspecs_sub nil nil.
+
+Lemma funspecs_sub_tycontext_sub:
+  forall V f G G',
+ list_norepet (map fst G' ++ map fst V) ->
+ funspecs_sub G G' ->
+ tycontext_sub (func_tycontext f V G)
+      (func_tycontext f V G').
 Proof.
- intros.
- eapply semax_pre;  [ | apply semax_ifthenelse]; auto.
- instantiate (1:=(PROPx P (LOCALx Q (SEPx R)))).
- apply andp_right; auto. rewrite <- insert_local; apply andp_left2; auto.
- rewrite andp_comm. rewrite insert_local. auto.
- rewrite andp_comm. rewrite insert_local. auto.
+intros ? ? ? ? NR H.
+revert NR; induction H; intros.
+*
+simpl in NR.
+inv NR. specialize (IHfunspecs_sub H3). clear H2. rename H3 into NR.
+destruct IHfunspecs_sub as [? [? [? [? ?]]]].
+split3; [ | | split3]; try reflexivity.
+intro id; apply (H0 id).
+intro id; specialize (H3 id); clear - H H3.
+simpl in *.
+destruct ifs; simpl.
+destruct (ident_eq id i).
+subst.
+rewrite !PTree.gss. apply sub_option_refl.
+rewrite !PTree.gso by auto. auto.
+intro id; specialize (H4 id); clear - H H4.
+simpl in *.
+destruct ifs; simpl.
+destruct (ident_eq id i).
+subst.
+rewrite !PTree.gss. apply sub_option_refl.
+rewrite !PTree.gso by auto. auto.
+*
+Admitted.
+
+Lemma funspecs_sub_semax_body:
+  forall V G G' fd fs,
+ semax_body V G fd fs ->
+ list_norepet (map fst G' ++ map fst V) ->
+ funspecs_sub G G' ->
+ semax_body V G' fd fs.
+Proof.
+intros.
+destruct fs.
+destruct f.
+intros Espec x.
+eapply semax_extensionality_Delta;  [ | eapply H].
+apply funspecs_sub_tycontext_sub; auto.
 Qed.
+
+Ltac semax_func_cons L :=
+ repeat (apply semax_func_cons_ext_vacuous; [reflexivity | ]);
+ first [apply semax_func_cons; 
+           [ reflexivity 
+           | repeat apply Forall_cons; try apply Forall_nil; computable
+           | unfold var_sizes_ok; repeat constructor 
+           | reflexivity 
+           | precondition_closed 
+           | eapply funspecs_sub_semax_body; 
+             [ apply L
+             | apply compute_list_norepet_e; reflexivity
+             | now repeat constructor
+             ]
+           |
+           ]
+        | eapply semax_func_cons_ext;
+             [reflexivity | reflexivity | reflexivity | reflexivity 
+             | semax_func_cons_ext_tc | apply L |
+             ]
+        ];
+ repeat (apply semax_func_cons_ext_vacuous; [reflexivity | ]);
+ try apply semax_func_nil.
+
 *)
 
 Lemma int_eq_false_e:

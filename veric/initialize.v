@@ -1298,7 +1298,7 @@ Proof.
  inv H0.
  destruct H. inv H. simpl; auto.
  right. apply (IHvl G0); auto.
- right; apply (IHvl G); auto.
+(* EXPERIMENT right; apply (IHvl G); auto. *)
 Qed.
 
 Lemma match_fdecs_norepet:
@@ -1313,7 +1313,7 @@ Proof.
  simpl.
  constructor; auto.
  contradict H2. eapply match_fdecs_in; eauto.
- inv H; eauto.
+(* EXPERIMENT  inv H; eauto. *)
 Qed.
 
 Lemma list_norepet_prog_funct':
@@ -1331,10 +1331,12 @@ Proof.
  apply IHvl; auto.
 Qed.
 
+(* EXPERIMENT 
 Lemma match_fdecs_nil:
   forall vl, match_fdecs vl nil.
 Proof. induction vl; try constructor 3; auto; constructor.
 Qed.
+*)
 
 Lemma match_fdecs_rev':
   forall vl G vl' G', 
@@ -1379,7 +1381,7 @@ left; auto.
 auto.
 auto.
 constructor 2; auto.
-simpl. rewrite app_ass.
+(* EXPERIMENT simpl. rewrite app_ass.
 apply IHvl; auto.
 clear - H.
 rewrite map_app in H.
@@ -1392,6 +1394,7 @@ auto.
 simpl.
 constructor 3.
 auto.
+*)
 Qed.
 
 Lemma match_fdecs_rev:
@@ -1758,6 +1761,7 @@ apply NO_identity.
 apply n0.
 Qed.
 
+(*
  Lemma alloc_global_inflate_identity_iff:
   forall gev m0 i f m G n loc,
       Genv.alloc_global gev m0 (i, Gfun f) = Some m ->
@@ -1811,6 +1815,7 @@ contradict n0.
 apply Plt_succ_inv in n0; destruct n0; auto.
 subst. contradiction n1; auto.
 Qed.
+*)
 
  Lemma alloc_global_identity_lemma3:
    forall gev m0 i f m G n loc,
@@ -1832,6 +1837,15 @@ unfold inflate_initial_mem'.
   unfold access_at. rewrite nextblock_noaccess by auto.
   apply NO_identity.
 Qed.
+
+Lemma identity_inflate_at_Gfun:
+  forall n i f gev m G0 G loc m0,
+ Genv.alloc_global gev m0 (i, Gfun f) = Some m ->
+ In i (map fst G) ->
+ (identity (inflate_initial_mem m0 (initial_core gev (G0 ++ G) n) @ loc) <->
+ identity (inflate_initial_mem m (initial_core gev (G0 ++ G) n) @ loc)).
+Proof.
+Admitted. (* True because the initial_core will have a PURE at the address of the Gfun *)
 
 Lemma global_initializers:
   forall (prog: program) G m n rho,
@@ -1872,10 +1886,9 @@ Proof.
   rewrite initial_core_rev with (vl:=vl) by auto.
   rewrite map_rev in H. rewrite list_norepet_rev in H.
   forget (rev G) as G'; clear G; rename G' into G.
-
-  pose proof (add_globals_hack _ _ prog_pub H Heqgev).
-  rename H into H2. rename H1 into H.
-  assert (forall j, In j (map (@fst _ _) G) -> ~ In j (map (@fst _ _) (prog_vars' vl))). {
+  rename H into H2.
+  assert (H :=add_globals_hack _ _ prog_pub H2 Heqgev).
+  assert (H1: forall j, In j (map (@fst _ _) G) -> ~ In j (map (@fst _ _) (prog_vars' vl))). {
     intros.
     pose proof (match_fdecs_in j _ _ H1 SAME_IDS).
     clear - H3 H2.
@@ -1897,13 +1910,18 @@ Proof.
     right; auto.
     apply IHvl; auto.
   }
+  assert (H1': forall j, In j (map fst (prog_funct' vl)) -> In j (map fst G)). {
+   clear - SAME_IDS.
+   forget (prog_funct' vl) as fs. intro.
+   induction SAME_IDS. auto. simpl. intuition.
+  }
   clear SAME_IDS Heqgev.
   change (map fst vl) with (map fst (@nil (ident*funspec)) ++ map fst vl) in H2.
   change G with (nil++G).
   forget (@nil (ident*funspec)) as G0.
   move H2 after H. move H1 after H.
 
-  assert (forall phi, hackfun (inflate_initial_mem m (initial_core gev (G0++G) n)) phi ->
+  assert (H3: forall phi, hackfun (inflate_initial_mem m (initial_core gev (G0++G) n)) phi ->
            (globvars2pred (prog_vars' vl) rho) phi).
   Focus 2. {
     apply H3. clear.
@@ -1912,7 +1930,7 @@ Proof.
   } Unfocus.
   intros. rename H3 into HACK; revert phi HACK.
                      (* The purpose of going through hackfun is doing this induction. *)
-  revert H m G0 G H2 H0 H1; induction vl; intros.
+  revert H m G0 G H2 H0 H1 H1'; induction vl; intros.
   + apply resource_at_empty2.
     intro l. apply proj2 in HACK; specialize (HACK l).
     unfold inflate_initial_mem in HACK|-*.
@@ -1966,29 +1984,31 @@ rewrite Pos_to_nat_eq_S.
   destruct g.
 * (* Gfun case *)
   simpl.
-(*   destruct G; inv H1. *)
   specialize (IHvl m0 (G0(*++(p::nil)*)) G).
-  spec IHvl. {
-    clear - H2; simpl in *. rewrite list_norepet_app in *.
-    destruct H2 as [? [? ?]]. inv H0.
-    repeat split; auto. intros ? ? ? ?. apply H1; simpl; auto.
-  }
-  specialize (IHvl H0 H1).
-  apply IHvl.
-  clear - HACK H3.
+  apply IHvl; auto.
+ - clear - H2. apply list_norepet_app in H2. destruct H2 as [? [? ?]].
+    inv H0.
+    apply list_norepet_app; split3; auto.
+    apply list_disjoint_cons_right in H1; auto.
+ - clear - H1'; intros; apply H1'. right; auto.
+ -
+  clear - HACK H3 H1'.
+  specialize (H1' i). simpl in H1'. spec H1'; [auto | ].
   destruct HACK as [? ? ].
   split. rewrite <- H.
   unfold inflate_initial_mem. repeat rewrite level_make_rmap. auto.
   intro; specialize (H0 loc).
- destruct H0. split; auto.
- rewrite <- H0.
-  clear - H3. 
-  eapply alloc_global_inflate_identity_iff; eauto.
+  destruct H0.
+  clear - H0 H1 H3 H1'.
+  split.
+  rewrite <- H0.
+  clear - H3 H1'.
+  apply (identity_inflate_at_Gfun n i f); auto.
   intro.
   rewrite <- H1.
   eapply alloc_global_inflate_initial_eq; eauto.
-  clear - H3 H2.
-  contradict H2.
+  clear - H3 H.
+  contradict H.
   eapply alloc_global_identity_lemma3; eauto.
 * (* Gvar case *)
   specialize (IHvl m0 G0 G). 

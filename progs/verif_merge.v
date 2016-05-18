@@ -43,7 +43,7 @@ Definition merge_spec :=
      LOCAL (temp ret_temp pt) 
      SEP (lseg LS sh (map Vint (merge a b)) pt nullval).
 
-Definition Gprog : funspecs := merge_spec :: nil.
+Definition Gprog : funspecs := augment_funspecs prog [ merge_spec ].
 
 Fixpoint last (l : list int) :=
   match l with

@@ -6,8 +6,8 @@ Require Import msl.msl_standard.
 Require Import veric.juicy_mem veric.juicy_mem_lemmas veric.juicy_mem_ops.
 Require Import sepcomp.extspec.
 Require Import veric.juicy_extspec.
-Require Import veric.tycontext. 
-Require Import veric.expr2. 
+Require Import veric.tycontext.
+Require Import veric.expr2.
 Require Import veric.semax.
 Require Import veric.semax_call.
 
@@ -113,8 +113,8 @@ Definition freelock_spec cs :=
 (* See discussion about spawn in threadlib.v *)
 
 Definition spawn_spec :=
-  WITH f : val, 
-       b : val, 
+  WITH f : val,
+       b : val,
        PrePost : { ty : Type &
                         (ty *                     (* WITH we call spawn with *)
                         (ty -> val -> Pred) *       (* precondition *)
@@ -159,7 +159,7 @@ Require veric.NullExtension.
 (*
 Variables _acquire _release _makelock _freelock _spawn : ident.
 
-Definition threadspecs cs := 
+Definition threadspecs cs :=
   (_acquire, acquire_spec) ::
   (_release, release_spec) ::
   (_makelock, makelock_spec cs) ::
@@ -183,7 +183,7 @@ Definition CEspec cs :=
 *)
 (* or this? *)
 
-Definition threadspecs (cs : compspecs) (ext_link : string -> ident) := 
+Definition threadspecs (cs : compspecs) (ext_link : string -> ident) :=
   (ext_link "acquire"%string, acquire_spec) ::
   (ext_link "release"%string, release_spec) ::
   (ext_link "makelock"%string, makelock_spec cs) ::
@@ -203,27 +203,27 @@ Definition CEspec (cs : compspecs) (ext_link : string -> ident) :=
 
 (** * question: Pred? *)
 
-Lemma semax_conc' cs (ext_link: Strings.String.string -> ident) id sig A P Q :
+Lemma semax_conc' cs (ext_link: Strings.String.string -> ident) id sig callingc A P Q :
   let fs := threadspecs cs ext_link in
-  let f := mk_funspec sig A P Q in
-  in_funspecs (ext_link id, f) fs -> 
+  let f := mk_funspec sig callingc A P Q in
+  in_funspecs (ext_link id, f) fs ->
   funspecs_norepeat fs ->
   (forall n, semax.semax_external
         (* veric.SeparationLogicSoundness.SoundSeparationLogic.CSL.semax_external *)
           (** * it seems the Espec is already instanciated *)
-          (CEspec cs ext_link) (fst (split (fst sig))) 
-          (EF_external id (funsig2signature sig)) _ P Q n).
+          (CEspec cs ext_link) (fst (split (fst sig)))
+          (EF_external id (funsig2signature sig callingc)) _ P Q n).
 Proof.
   apply semax_ext'.
 Qed.
 
-Lemma semax_conc cs (ext_link: Strings.String.string -> ident) id ids sig sig' A P Q : 
+Lemma semax_conc cs (ext_link: Strings.String.string -> ident) id ids sig sig' callingc A P Q :
   let fs := threadspecs cs ext_link in
-  let f := mk_funspec sig A P Q in
-  in_funspecs (ext_link id,f) fs -> 
-  funspecs_norepeat fs -> 
-  ids = fst (split (fst sig)) -> 
-  sig' = funsig2signature sig -> 
+  let f := mk_funspec sig  callingc A P Q in
+  in_funspecs (ext_link id,f) fs ->
+  funspecs_norepeat fs ->
+  ids = fst (split (fst sig)) ->
+  sig' = funsig2signature sig callingc ->
   (forall n, semax.semax_external (CEspec cs ext_link) ids (EF_external id sig') _ P Q n).
 Proof.
   apply semax_ext.

@@ -15,12 +15,12 @@ Open Local Scope pred.
 
 Definition func_at (f: funspec): address -> pred rmap :=
   match f with
-   | mk_funspec fsig A P Q => pureat (SomeP (A::boolT::environ::nil) (packPQ P Q)) (FUN fsig)
+   | mk_funspec fsig cc A P Q => pureat (SomeP (A::boolT::environ::nil) (packPQ P Q)) (FUN fsig cc)
   end.
 
 Definition func_at' (f: funspec) (loc: address) : pred rmap :=
   match f with
-   | mk_funspec fsig _ _ _ => EX pp:_, pureat pp (FUN fsig) loc
+   | mk_funspec fsig cc _ _ _ => EX pp:_, pureat pp (FUN fsig cc) loc
   end.
 
 (* Definition assert: Type := environ -> pred rmap. *)
@@ -66,7 +66,7 @@ Definition subst {A} (x: ident) (v: val) (P: environ -> A) : environ -> A :=
    fun s => P (env_set s x v).
 
 Definition fun_assert: 
-  forall (fml: funsig) (A: Type) (P Q: A -> environ -> pred rmap)  (v: val) , pred rmap :=
+  forall (fml: funsig) cc (A: Type) (P Q: A -> environ -> pred rmap)  (v: val) , pred rmap :=
   res_predicates.fun_assert.
 
 Definition eval_lvar (id: ident) (ty: type) (rho: environ) :=

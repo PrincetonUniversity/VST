@@ -164,8 +164,7 @@ unfold access_at in *. simpl in JMA.
 unfold perm_of_res in *.
 rewrite H3 in JMA. simpl in JMA. 
 unfold perm_of_sh in *.
-rewrite mem_lemmas.po_oo.
-eapply perm_order''_trans; [apply JMA | ].
+rewrite JMA.
 repeat if_tac; try constructor. subst. 
 simpl in H3.
 unfold nonunit in x5. 

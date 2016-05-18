@@ -191,7 +191,7 @@ Module Concur.
             (Hcode: getThreadC cnt0 = Kstop c)
             (Hat_external: at_external Sem c =
                            Some (MKLOCK, ef_sig MKLOCK, Vptr b ofs::nil))
-          (His_lock: (Maps.PMap.get b (lockSet tp)) (Int.intval ofs))
+          (*His_lock: (Maps.PMap.get b (lockSet tp)) (Int.intval ofs)*)
           (*Hrestrict_pmap:
              restrPermMap (compat_rp Hcompat) = m1*)
           (Hrestrict_pmap:

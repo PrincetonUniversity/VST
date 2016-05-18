@@ -4,7 +4,7 @@ Instance CompSpecs : compspecs. make_compspecs prog. Defined.
 
 Require Import progs.verif_even.
 
-Definition Gprog : funspecs := even_spec :: odd_spec :: nil.
+Definition Gprog : funspecs := augment_funspecs prog [even_spec; odd_spec].
 
 Lemma body_odd : semax_body Vprog Gprog f_odd odd_spec.
 Proof.
@@ -35,10 +35,9 @@ Lemma all_funcs_correct:
   semax_func Vprog Gprog (prog_funct prog) Gprog.
 Proof.
 unfold Gprog, prog, prog_funct; simpl.
-semax_func_skipn.
+repeat (apply semax_func_cons_ext_vacuous; [reflexivity | ]).
 semax_func_cons_ext. renormalize.
   apply (temp_make_ext_rval_e gx (Vint (if Z.even x then Int.one else Int.zero)) ret) in H; try congruence.
   subst; simpl; entailer.
 semax_func_cons body_odd.
-apply semax_func_nil.
 Qed.

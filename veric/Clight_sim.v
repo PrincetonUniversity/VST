@@ -512,11 +512,11 @@ Inductive match_states: forall (qm: corestate) (st: CC_core), Prop :=
       (CUR: current_function k = Some f),
       match_cont (strip_skip k) (strip_skip' (CC.Kseq s k')) ->
       match_states (State ve te k) (CC_core_State f s k' ve te)
- | match_states_ext: forall k f ef tyargs tyres args lid ve te k'
+ | match_states_ext: forall k f ef tyargs tyres cc args lid ve te k'
       (CUR: current_function k = Some f),
       match_cont (strip_skip k) (strip_skip' k') ->
-      match_states (ExtCall ef (signature_of_type tyargs tyres cc_default) args lid ve te k) 
-           (CC_core_Callstate (External ef tyargs tyres cc_default) args (CC.Kcall lid f ve te k')).
+      match_states (ExtCall ef (signature_of_type tyargs tyres cc) args lid ve te k) 
+           (CC_core_Callstate (External ef tyargs tyres cc) args (CC.Kcall lid f ve te k')).
 
 Lemma Clightnew_Clight_sim_eq_noOrder_SSplusConclusion:
 forall (cenv: composite_env) 
@@ -535,7 +535,7 @@ simpl in H.
 rename H1 into H.*)
 revert c2 H0. induction H; intros.
 
-Focus 1. (* step_assign *)
+* (* step_assign *)
 inv H4.
 simpl strip_skip in H9. 
 destruct (exec_skips H9 (Build_genv ge cenv) f ve te m) as [k2 [? ?]]; simpl; auto.
@@ -544,14 +544,14 @@ exists (CC_core_State f Sskip k2 ve te); split.
           apply Smallstep.plus_one. econstructor; eauto. reflexivity.
     constructor. apply CUR.  rewrite  H4 in H9.  inv H9.  simpl in *. apply H7.
 
-Focus 1. (* step_set *)
+*  (* step_set *)
 inv H0.
 destruct (exec_skips H5 (Build_genv ge cenv) f ve te m) as [k2 [? ?]]; simpl; auto.
 exists (CC_core_State f Sskip k2 ve (PTree.set id v te)); split. 
   eapply Smallstep.star_plus_trans. eassumption. apply Smallstep.plus_one. econstructor; eauto. auto.
   rewrite H0 in H5. inv H5; constructor; auto.
 
-Focus 1. (* step_call_internal *)
+* (* step_call_internal *)
 inv H7. 
  destruct (exec_skips H12 (Build_genv ge cenv) f0 ve te m) as [k2 [? ?]]; simpl; auto.
  rewrite H7 in *. inv H12. simpl in CUR.
@@ -560,7 +560,7 @@ inv H7.
   exists (CC_core_State f (fn_body f) (CC.Kcall optid f0 ve te k2) ve' le').
   split.
   (*a*) eapply star_plus_trans. apply H8. 
-               eapply Smallstep.plus_two. econstructor; eauto. 
+               eapply Smallstep.plus_two. econstructor; eauto.
               econstructor; eauto. 
                apply list_norepet_app in H4. destruct H4 as [? [? ?]].
                econstructor; auto. reflexivity.
@@ -568,17 +568,17 @@ inv H7.
               auto.
              apply match_cont_strip. simpl. constructor; auto.
 
-Focus 1. (* step_call_external *)
+* (* step_call_external *)
 inv H3. 
  destruct (exec_skips H8 (Build_genv ge cenv) f ve te m) as [k2 [? ?]]; simpl; auto.
  rewrite H3 in *. inv H8. simpl in CUR. 
  (*econstructor; split.  -- again, we need to instantiate manually*)
-  exists (CC_core_Callstate (External ef tyargs tyres cc_default) vargs (CC.Kcall optid f ve te k2)).
+  exists (CC_core_Callstate (External ef tyargs tyres cc) vargs (CC.Kcall optid f ve te k2)).
   split.
    (*a*) eapply star_plus_trans. eassumption. eapply Smallstep.plus_one. econstructor; eauto.
    (*b*) econstructor; eauto.
 
-Focus 1. (* step_seq *)
+* (* step_seq *)
  inv H0.
  destruct (exec_skips H5 (Build_genv ge cenv) f ve te m) as [k2 [? ?]]; simpl; auto.
  rewrite H0 in *. inv H5.
@@ -590,7 +590,7 @@ Focus 1. (* step_seq *)
  eapply star_plus_trans; [ eassumption | ].
  eapply plus_trans. apply Smallstep.plus_one. constructor. eassumption.
 
- Focus 1. (* step_skip *)
+* (* step_skip *)
  inv H0.
  simpl strip_skip in H5.
  remember (strip_skip k) as k0.
@@ -652,7 +652,7 @@ Focus 1. (* step_seq *)
  eapply star_plus_trans; [eapply strip_skip'_call; eauto | ].
  apply Smallstep.plus_one. constructor; auto.
 
- Focus 1. (* step_continue *)
+* (* step_continue *)
  inv H0.
  simpl strip_skip in H5.
  inv H5.
@@ -754,8 +754,7 @@ Focus 1. (* case x of y *)
  exists st2; split; auto.
  eapply plus_trans; eauto.
 
- (* step_break *)
- Focus 1.
+* (* step_break *)
  inv H0. simpl strip_skip in H5.
  destruct (dec_skip s).
  (*s=skip*)
@@ -829,7 +828,7 @@ Focus 1. (* case x of y *)
  
  admit. (*probably similar to the previous case -- means similar so s=skip*)
 
- Focus 1.  (* step_ifthenelse *)
+* (* step_ifthenelse *)
  inv H1. simpl strip_skip in H6.
  inv H6. 
  change (CC.Kseq (Sifthenelse a s1 s2) k'0 = strip_skip' (CC.Kseq s k')) in H4.
@@ -849,7 +848,7 @@ Focus 1. (* case x of y *)
  apply Smallstep.plus_one. econstructor; eauto. auto. constructor; auto.
  apply match_cont_strip; auto.
 
- Focus 1. (* step_loop *)
+* (* step_loop *)
  inv H0. inv H4.
  change (CC.Kseq (Sloop s1 s2) k'0 = strip_skip' (CC.Kseq s k')) in H2.
  generalize (exec_skips' (Build_genv ge cenv) f _ _ _ _ ve te m (@eq_sym _ _ _ H2)); intro.
@@ -858,20 +857,19 @@ Focus 1. (* case x of y *)
  apply Smallstep.plus_one. eapply CC.step_loop; eauto.
  constructor; auto. apply match_cont_strip; constructor; auto.
 
- Focus 1. (* step_loop2 *) {
+* (* step_loop2 *) 
   inv H0. inv H4.
  destruct s0; inv H3.
  generalize (strip_skip'_loop2 (Build_genv ge cenv) f ve te m _ _ _ _ H1); intro.
  exists (CC_core_State f s (CC.Kloop1 s a3 k'0) ve te); split.
- * eapply star_plus_trans; try apply H.
+ + eapply star_plus_trans; try apply H.
                econstructor.
                             eapply CC.step_skip_loop2; eauto.
                             apply Smallstep.star_one. eapply CC.step_loop; eauto.
                             auto.
- * constructor; auto. apply match_cont_strip. constructor. auto.
-} Unfocus.
+ + constructor; auto. apply match_cont_strip. constructor. auto.
 
- Focus 1. (* step_return *) {
+* (* step_return *) {
  inv H3.
   remember (strip_skip' (CC.Kseq s k'0)) as k3. simpl in CUR, H8.
  inv H8.
@@ -961,9 +959,9 @@ Focus 1. (* case x of y *)
        apply X.
     auto.
     econstructor; eauto.
-} Unfocus.
+} 
  
- Focus 1. (* step_switch *)
+* (* step_switch *)
  inv H1. simpl strip_skip in H6.
  remember (CC.Kseq s k') as k0'.
  inv H6.
@@ -975,7 +973,7 @@ Focus 1. (* case x of y *)
         eapply star_plus_trans; try apply H99.
         unfold c2'. apply Smallstep.plus_one. simpl. econstructor; eauto.
 
- Focus 1. (* step_label *)
+* (* step_label *)
  inv H0.  remember (CC.Kseq s0 k') as k0'. inv H5.
  destruct (IHcl_step (CC_core_State f s k'0 ve te)) as [st2 [? ?]]; clear IHcl_step.
  constructor; auto. apply match_cont_strip. auto.
@@ -985,7 +983,7 @@ Focus 1. (* case x of y *)
      eapply star_trans; try apply H99.
      apply Smallstep.star_one. constructor.
  
- Focus 1. (* step_goto *)
+* (* step_goto *)
  inv H0. remember (CC.Kseq s k'0) as k0'. inv H5.
   generalize (match_cont_call_strip k k'1); intro.
  spec H0.
@@ -1390,7 +1388,7 @@ inv H3.
  destruct (exec_skips_CC H8 ge f ve te m) as [k2 [? ?]]; simpl; auto.
  rewrite H3 in *. inv H8. simpl in CUR. 
  (*econstructor; split.  -- again, we need to instantiate manually*)
-  exists (CC_core_Callstate (External ef tyargs tyres cc_default) vargs (CC.Kcall optid f ve te k2)).
+  exists (CC_core_Callstate (External ef tyargs tyres cc) vargs (CC.Kcall optid f ve te k2)).
   split.
    (*a*) eapply corestep_star_plus_trans. eassumption. eapply corestep_plus_one. econstructor; eauto.
    (*b*) econstructor; eauto.

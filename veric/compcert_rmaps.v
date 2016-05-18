@@ -6,10 +6,10 @@ Require Import veric.rmaps_lemmas.
 Inductive kind : Type := VAL : memval -> kind 
                                    | LK : Z -> kind 
                                    | CT: Z -> kind 
-                                   | FUN: funsig -> kind.
+                                   | FUN: funsig -> calling_convention -> kind.
 
 Definition isVAL (k: kind) := match k with | VAL _ => True | _ => False end.
-Definition isFUN (k: kind) := match k with | FUN _ => True | _ => False end.
+Definition isFUN (k: kind) := match k with | FUN _ _ => True | _ => False end.
 
 Lemma isVAL_i: forall v, isVAL (VAL v).
 Proof. intros; simpl; auto. Qed.
@@ -216,9 +216,17 @@ inv H4.
 inv H3.
 Qed.
 
+Instance EqDec_calling_convention: EqDec calling_convention.
+Proof.
+  hnf. decide equality.
+  destruct cc_structret, cc_structret0; intuition.
+  destruct cc_unproto, cc_unproto0; intuition.
+  destruct cc_vararg, cc_vararg0; intuition.
+Qed.
+
 Instance EqDec_kind: EqDec kind.
 Proof.
-  hnf. decide equality; try apply eq_dec; try apply zeq.
+  hnf. decide equality; try apply eq_dec; try apply zeq.  
 Qed.
 
 Module R := Rmaps (CompCert_AV).
@@ -472,7 +480,7 @@ Focus 2.
   destruct (a x); [  | simpl in n; contradiction n; auto].
   destruct p0. simpl in *.
   destruct p0; simpl in *. 
-  assert (k = FUN f). inv H1; auto. inv H6; auto. destruct H2; simpl in *; subst; auto.
+  assert (k = FUN f c). inv H1; auto. inv H6; auto. destruct H2; simpl in *; subst; auto.
   subst. f_equal. f_equal. unfold mk_pshare. f_equal. 
   apply proof_irr.
   destruct (dec_share_identity (ad x)); auto.
@@ -483,14 +491,14 @@ Focus 2.
   destruct (a x); [  | simpl in n; contradiction n; auto].
   destruct p0. simpl in *.
   destruct p0; simpl in *.  
-  assert (k = FUN f). inv H1; auto. inv H6; auto. destruct H2; simpl in *; subst; auto.
+  assert (k = FUN f c). inv H1; auto. inv H6; auto. destruct H2; simpl in *; subst; auto.
   subst. f_equal. f_equal. apply exist_ext. auto.
   specialize (H1 x); specialize (H2 x).
   destruct (a x).
   constructor. destruct p0. destruct p0.
   simpl in H2. 
   rewrite H3 in H1.
-  assert (k = FUN f). inv H1; auto. inv H4; auto. destruct H7; simpl in *; subst; auto.
+  assert (k = FUN f c). inv H1; auto. inv H4; auto. destruct H7; simpl in *; subst; auto.
   destruct H4; subst; auto. subst k.  
  constructor; auto.
  simpl in H2. apply split_identity in H2; auto. contradiction.

@@ -54,7 +54,8 @@ Definition main_spec :=
 
 Definition Vprog : varspecs := nil.
 
-Definition Gprog : funspecs := odd_spec :: even_spec :: main_spec :: nil.
+Definition Gprog : funspecs :=
+   augment_funspecs prog [ odd_spec; even_spec; main_spec].
 
 Lemma body_odd : semax_body Vprog Gprog f_odd odd_spec.
 Proof.
@@ -109,10 +110,8 @@ Lemma all_funcs_correct:
   semax_func Vprog Gprog (prog_funct prog) Gprog.
 Proof.
 unfold Gprog, prog, prog_funct; simpl.
-semax_func_skipn.
 semax_func_cons body_odd.
 semax_func_cons body_even.
 semax_func_cons body_main.
-apply semax_func_nil.
 Qed.
 

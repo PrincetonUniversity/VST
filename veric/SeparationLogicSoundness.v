@@ -53,7 +53,7 @@ Module SoundSeparationLogic : SEPARATION_LOGIC_SOUNDNESS.
 
 Module CSL <: CLIGHT_SEPARATION_LOGIC.
 Definition func_ptr (f: funspec) : val -> mpred := 
- match f with mk_funspec fsig A P Q => res_predicates.fun_assert fsig A P Q end.
+ match f with mk_funspec fsig cc A P Q => res_predicates.fun_assert fsig cc A P Q end.
 
 Transparent mpred Nveric Sveric Cveric Iveric Rveric Sveric SIveric SRveric.
 Lemma corable_func_ptr: forall f v, corable (func_ptr f v).
@@ -84,7 +84,7 @@ Definition semax_func := @semax_func.
 Definition semax_prog := @semax_prog.
 Definition semax_func_nil := @semax_func_nil.
 Definition semax_func_cons := @semax_func_cons.
-Definition semax_func_skip := @semax_func_skip.
+(* Definition semax_func_skip := @semax_func_skip. *)
 Definition make_ext_rval := veric.semax.make_ext_rval.
 Definition tc_option_val := veric.semax.tc_option_val.
 Definition semax_func_cons_ext := @semax_func_cons_ext.
@@ -117,6 +117,7 @@ Definition semax_ptr_compare := @semax_ptr_compare.
 Definition semax_unfold_Ssequence := @semax_unfold_Ssequence.
 Definition semax_external {Espec: OracleKind} ids ef A P Q := 
   forall n, semax_external Espec ids ef A P Q n.
+Definition semax_external_FF := @semax_external_FF.
 
 Definition juicy_ext_spec := juicy_ext_spec.
 

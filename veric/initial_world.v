@@ -429,8 +429,8 @@ Definition initial_core' (ge: Genv.t fundef type) (G: funspecs) (n: nat) (loc: a
    then match Genv.invert_symbol ge (fst loc) with
            | Some id => 
                   match find_id id G with
-                  | Some (mk_funspec fsig A P Q) => 
-                           PURE (FUN fsig) (SomeP (A::boolT::environ::nil) (approx n oo packPQ P Q))
+                  | Some (mk_funspec fsig cc A P Q) => 
+                           PURE (FUN fsig cc) (SomeP (A::boolT::environ::nil) (approx n oo packPQ P Q))
                   | None => NO Share.bot
                   end
            | None => NO Share.bot
@@ -500,9 +500,11 @@ Inductive match_fdecs: list  (ident * fundef) -> funspecs -> Prop :=
                   type_of_fundef fd = type_of_funspec fspec ->
                   match_fdecs fs G ->
                   match_fdecs ((i,fd)::fs) ((i,fspec)::G)
+(* EXPERIMENT
 | match_fdecs_skip: forall ifd fs G,
                  match_fdecs fs G ->
-                 match_fdecs (ifd::fs) G.
+                 match_fdecs (ifd::fs) G*)
+.
 (*
 Fixpoint match_fdecs (fdecs: list (ident * fundef)) (G: funspecs) :=
  match fdecs, G with
@@ -539,8 +541,10 @@ destruct (IHdl G0) as [fd [? ?]]; auto.
 exists fd; split; auto.
 destruct (IHdl G) as [fd [? ?]]; auto.
 exists fd; split; auto.
+(* EXPERIMENT
 destruct (IHdl G) as [fd [? ?]]; auto.
 exists fd; split; auto.
+*)
 Qed.
 
 Lemma find_symbol_add_globals_nil:
