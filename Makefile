@@ -138,6 +138,7 @@ CONCUR_FILES= \
   concurrent_machine.v juicy_machine.v dry_machine.v \
   erasure.v Clight_erasure.v \
   dry_machine_lemmas.v dry_context.v \
+  compcert_threads_lemmas.v mem_obs_eq.v \
   semax_conc.v semax_to_machine.v
 
 LINKING_FILES= \

@@ -54,6 +54,22 @@ Proof.
   intros. rewrite <- Bool.if_negb. by rewrite Hfalse.
 Defined.
 
+
+Lemma le_sub:
+  forall x y z,
+    (x < z)%positive ->
+    (z <= y)%positive ->
+    (x <= Z.to_pos (Z.pos_sub y (z - x)))%positive.
+Admitted.
+
+Lemma lt_lt_sub:
+  forall a b c,
+    (a < b)%positive ->
+    (b <= c)%positive ->
+    (b - a < c)%positive.
+Proof.
+Admitted.
+
 Module BlockList.
   Import ListNotations.
 
