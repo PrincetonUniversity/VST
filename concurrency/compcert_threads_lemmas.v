@@ -1,5 +1,7 @@
 Require Import compcert.lib.Axioms.
 
+Add LoadPath "../concurrency" as concurrency.
+
 Require Import concurrency.sepcomp. Import SepComp.
 Require Import sepcomp.semantics_lemmas.
 
@@ -45,7 +47,8 @@ Notation UNLOCK := (EF_external 8%positive UNLOCK_SIG).
 
 Require Import concurrency.threads_lemmas concurrency.mem_obs_eq.
 Require Import concurrency.permissions.
-Require Import concurrency.concurrent_machine dry_machine_lemmas dry_context.
+Require Import concurrency.concurrent_machine.
+Require Import concurrency.dry_machine_lemmas concurrency.dry_context.
 
 
 (* TODO: - Partial injectiveness (for fresh blocks) - Done
