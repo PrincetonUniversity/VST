@@ -242,7 +242,7 @@ Module CoreLanguage.
     (* TODO: These proofs break the opaquness of the modules, they
     should be redone in an opaque way *)
 
-    Set Printing All.
+
     (** Lemmas about containsThread and coresteps *)
     Lemma corestep_containsThread:
       forall (tp : thread_pool) c c' m m' p (i j : tid)
@@ -475,6 +475,44 @@ Module CoreLanguage.
           try (exfalso; assumption);
           inversion Hcontra; subst; simpl in Hunion;
           destruct ((getThreadR pfj) # b ofs);
+          try match goal with
+              | [H: Some _ = Some _ |- _] => inversion H; subst
+              | [H: match ?Expr with _ => _ end = _ |- _] => destruct Expr
+              end; try discriminate; inversion Hreadable.
+      }
+      apply corestep_unchanged_on with (b := b) (ofs := ofs) in Hcorestep; auto.
+    Qed.
+
+    Lemma corestep_disjoint_val_lockset:
+      forall (tp : thread_pool) (m m' : mem) (i : tid)
+        (c c' : C) 
+        (pfi : containsThread tp i)
+        (Hcomp : mem_compatible tp m) (b : block) (ofs : Z) 
+        (Hreadable: Mem.perm (restrPermMap (compat_rp Hcomp)) b ofs Cur Readable)
+        (Hcorestep: corestep Sem the_ge c (restrPermMap (Hcomp i pfi)) c' m')
+        (Hinv: invariant tp),
+        Maps.ZMap.get ofs (Mem.mem_contents m) # b =
+        Maps.ZMap.get ofs (Mem.mem_contents m') # b.
+    Proof.
+      intros.
+      assert (Hstable: ~ Mem.perm (restrPermMap (Hcomp _ pfi))
+                         b ofs Cur Writable).
+      { intros Hcontra.
+        assert (Hdisjoint := lock_pool Hinv pfi).
+        assert (Hpermi := restrPermMap_correct (Hcomp _ pfi) b ofs).
+        destruct Hpermi as [_ Hpermi].
+        assert (Hpermls := restrPermMap_correct ((compat_rp Hcomp)) b ofs).
+        destruct Hpermls as [_ Hpermls].
+        unfold permission_at, Mem.perm in *.
+        rewrite Hpermi in Hcontra.
+        rewrite Hpermls in Hreadable.
+        unfold Mem.perm_order' in *.
+        clear - Hcontra Hreadable Hdisjoint.
+        specialize (Hdisjoint b ofs). destruct Hdisjoint as [pu Hunion].
+        destruct ((getThreadR pfi) # b ofs);
+          try (exfalso; assumption);
+          inversion Hcontra; subst; simpl in *;
+          destruct ((lockSet tp) # b ofs); simpl in *;
           try match goal with
               | [H: Some _ = Some _ |- _] => inversion H; subst
               | [H: match ?Expr with _ => _ end = _ |- _] => destruct Expr
