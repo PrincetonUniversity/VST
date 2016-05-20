@@ -515,7 +515,7 @@ Module Concur.
             (*This the first share of the lock, 
               can/should this be different for each location? *)
             (sh:Share.t)
-            (*Check I have the right permission to mklock and the riht value (i.e. 0) *)
+            (*Check I have the right permission to mklock and the right value (i.e. 0) *)
             (Haccess: address_mapsto LKCHUNK (Vint Int.zero) sh Share.top (b, Int.intval ofs) phi)
             (*Check the new memory has the lock*)
             (Hlock: phi'@ (b, Int.intval ofs) = YES sh pfullshare (LK LKSIZE) (pack_res_inv R))
