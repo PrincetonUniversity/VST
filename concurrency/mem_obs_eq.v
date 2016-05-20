@@ -363,4 +363,17 @@ Module MemObsEq.
   Proof.
   Admitted.
 
+  Lemma store_val_obs:
+    forall (mc mc' mf : mem) (f:meminj)
+      (b1 b2 : block) chunk (ofs : Z) v1 v2
+      (Hload: Mem.store chunk mc b1 ofs v1 = Some mc')
+      (Hf: f b1 = Some (b2, 0%Z))
+      (Hval_obs_eq: val_obs f v1 v2)
+      (Hobs_eq: strong_mem_obs_eq f mc mf),
+    exists mf',
+      Mem.store chunk mf' b2 ofs v2 = Some mf' /\
+      strong_mem_obs_eq f mc' mf'.
+  Proof.
+    Admitted.
+  
 End MemObsEq.

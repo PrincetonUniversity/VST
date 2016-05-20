@@ -101,7 +101,10 @@ Module Concur.
     Record invariant' tp :=
       { no_race : race_free tp;
         lock_pool : forall i (cnt : containsThread tp i),
-            permMapsDisjoint (lockSet tp) (getThreadR cnt)
+            permMapsDisjoint (lockSet tp) (getThreadR cnt);
+        lock_perm: forall b ofs,
+            Maps.PMap.get b (lockSet tp) ofs = None \/
+            Maps.PMap.get b (lockSet tp) ofs = Some Writable
       }.
 
     Definition invariant := invariant'.
@@ -134,8 +137,6 @@ Module Concur.
           (Hload: Mem.load Mint32 m1 b (Int.intval ofs) = Some (Vint Int.one))
           (Hstore:
              Mem.store Mint32 m1 b (Int.intval ofs) (Vint Int.zero) = Some m')
-          (*Hat_external:
-             after_external Sem (Some (Vint Int.zero)) c = Some c' *)
           (Htp': tp' = updThread cnt0 (Kresume c)
                                  (computeMap (getThreadR cnt0) virtue)),
           ext_step genv cnt0 Hcompat tp' m' 
@@ -187,7 +188,7 @@ Module Concur.
                Mem.store Mint32 m1 b (Int.intval ofs) (Vint Int.zero) = Some m')
             (Hdrop_perm:
                setPerm (Some Nonempty) b (Int.intval ofs) pmap_tid = pmap_tid')
-            (Hlp_perm: setPerm (Maps.PMap.get b pmap_tid (Int.intval ofs))
+            (Hlp_perm: setPerm (Some Writable)
                                b (Int.intval ofs) (lockSet tp) = pmap_lp)
             (Htp': tp' = updThread cnt0 (Kresume c) pmap_tid')
             (Htp'': tp'' = updLockSet tp' pmap_lp),

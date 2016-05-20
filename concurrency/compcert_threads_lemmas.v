@@ -1115,8 +1115,10 @@ Module SimProofs.
           by auto.
         intros i cnti'.
         assert (cnti := @cntUpdateC' tid i tp (Krun c) Htid cnti').
-        erewrite gsoThreadCLock.
+        erewrite gsoThreadCLock;
           by erewrite gThreadCR with (cntj := cnti).
+        intros b ofs;
+          by erewrite gsoThreadCLock.
       - by eapply corestep_invariant; eauto.
     Qed.
     
@@ -3974,32 +3976,68 @@ Module SimProofs.
       { (* Lock Acquire *)
         assert (HmemCompC': mem_compatible tpc' mc')
           by admit. (*TODO: we must deduce that fact from safety of coarse-grained machine*)
-        (* To compute the new fine grained state, we apply the
-        renaming to the resources the angel provided us*)
-        remember (projectAngel (fp i pfc) virtue) as virtueF eqn:HvirtueF.
-        remember (updThread pff (Kresume c) (computeMap (getThreadR pff) virtueF))
-          as tpf' eqn:Htpf'.
         (* In order to construct the new memory we have to perform the
         load and store of the lock, after setting the correct permissions*)
-        remember (makeCurMax mf) as m1f eqn:Hrestrict_pmapF.
         (*We prove that b is valid in m1 (and mc)*)
         assert (Hvalidb: Mem.valid_block m1 b)
           by (eapply load_valid_block; eauto).
         rewrite <- Hrestrict_pmap in Hvalidb.
-        apply makeCurMax_valid in Hvalidb.
         (*  and compute the corresponding block in mf *)
         destruct ((domain_valid (weak_obs_eq (obs_eq Htsim))) _ Hvalidb)
           as [b2 Hfb].
         assert (Hvalidb2 := (codomain_valid (weak_obs_eq (obs_eq Htsim))) _ _ Hfb).
         erewrite restrPermMap_valid in Hvalidb2.
+        remember (restrPermMap (compat_rp HmemCompF)) as mf1 eqn:Hrestrict_pmapF.
+        subst m1.
+        (* and prove that loading from that block in mf gives us the
+        same value as in mc, i.e. unlocked*)
+        assert (HloadF: Mem.load Mint32 mf1 b2 (Int.intval ofs) = Some (Vint Int.one)).
+        {
+          destruct (load_val_obs _ _ _ Hload Hfb HsimLocks) as [v2 [Hloadf Hobs_eq]].
+          inversion Hobs_eq; subst.
+            by auto.
+        }
+        Lemma store_val_obs:
+          forall (mc mc' mf : mem) (f:meminj)
+            (b1 b2 : block) chunk (ofs : Z) v1 v2
+            (Hload: Mem.store chunk mc b1 ofs v1 = Some mc')
+            (Hf: f b1 = Some (b2, 0%Z))
+            (Hval_obs_eq: val_obs f v1 v2)
+            (Hobs_eq: strong_mem_obs_eq f mc mf),
+          exists mf',
+            Mem.store chunk mf' b2 ofs v2 = Some mf' /\
+            strong_mem_obs_eq f mc' mf'.
+        Proof.
+        Admitted.
+
+        assert (Hval_obs: val_obs (fp i pfc) (Vint Int.zero) (Vint Int.zero))
+          by constructor.
+        (* and then storing gives us related memories*)
+        assert (HstoreF := store_val_obs _ _ _ Hstore Hfb Hval_obs HsimLocks).
+        destruct HstoreF as [mf' [HstoreF HsimLocks']].
+        (* finally we have that the code of the fine grained execution
+        is equal to the one of the coarse-grained*)
+        assert (HcodeF:= code_eq Htsim). rewrite Hcode in HcodeF.
+        (* To compute the new fine grained state, we apply the
+        renaming to the resources the angel provided us*)
+        remember (projectAngel (fp i pfc) virtue) as virtueF eqn:HvirtueF.
+        remember (updThread pff (Kresume c) (computeMap (getThreadR pff) virtueF))
+          as tpf' eqn:Htpf'.
+        subst tpc'.
+        exists tpf', mf', (fp i pfc), fp.
+        split.
+        { (* proof that the fine grained machine can step*)
+          intros U.
+          assert (syncStep genv pfci
+          eapply sync_step
+
+                  
         assert (Hvalid_access := Mem.load_valid_access _ _ _ _ _ Hload).
         destruct Hvalid_access as [Hperm Halign].
         assert (Haccess_b2: Mem.valid_access m1f Mint32 b2 (Int.intval ofs) Freeable)
           by (eapply sim_valid_access; eauto).
 
-        
-        assert (Mem.load Mint32 m1f b2 (Int.intval ofs) = Some (Vint Int.one)).
-                  
+
         admit.
       }
 

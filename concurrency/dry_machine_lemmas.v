@@ -25,7 +25,6 @@ Require Import concurrency.concurrent_machine concurrency.dry_context.
 
 Import DryMachine ThreadPool.
 
-
 Global Notation "a # b" := (Maps.PMap.get b a) (at level 1).
 Global Ltac pf_cleanup :=
   repeat match goal with
@@ -443,6 +442,7 @@ Module CoreLanguage.
         - erewrite @gsoThreadRes with (cntj := cntUpdate' _ _ _ cntj);
             by eauto.
       }
+      { by erewrite gsoThreadLock. }
     Qed.
 
     Lemma corestep_disjoint_val:
