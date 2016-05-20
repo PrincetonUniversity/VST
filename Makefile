@@ -139,7 +139,8 @@ CONCUR_FILES= \
   erasure.v Clight_erasure.v \
   dry_machine_lemmas.v dry_context.v \
   compcert_threads_lemmas.v mem_obs_eq.v \
-  semax_conc.v semax_to_machine.v
+  semax_conc.v semax_to_machine.v \
+  lifting.v
 
 LINKING_FILES= \
   sepcomp.v \
