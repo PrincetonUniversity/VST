@@ -68,21 +68,24 @@ Module MemObsEq.
                         (Hval_obs: val_obs f v1 v2),
       memval_obs_eq f (Fragment v1 q n) (Fragment v2 q n)
   | memval_obs_undef : memval_obs_eq f Undef Undef.
-  
+
   (** Strong injection between memories *)
-  Record mem_obs_eq (f : meminj) (mc mf : M) :=
-    {
-      weak_obs_eq : weak_mem_obs_eq f mc mf;
-      perm_obs_strong :
+  Record strong_mem_obs_eq (f : meminj) (mc mf : M) :=
+    { perm_obs_strong :
         forall b1 b2 ofs (Hrenaming: f b1 = Some (b2,0%Z)),
-          Mem.perm_order''
-            (permission_at mf b2 ofs Cur)
+            permission_at mf b2 ofs Cur =
             (permission_at mc b1 ofs Cur);
       val_obs_eq :
         forall b1 b2 ofs (Hrenaming: f b1 = Some (b2,0%Z))
           (Hperm: Mem.perm mc b1 ofs Cur Readable),
           memval_obs_eq f (Maps.ZMap.get ofs mc.(Mem.mem_contents)#b1)
                         (Maps.ZMap.get ofs mf.(Mem.mem_contents)#b2)}.
+
+  
+  (** Strong injection between memories *)
+  Record mem_obs_eq (f : meminj) (mc mf : M) :=
+    { weak_obs_eq : weak_mem_obs_eq f mc mf;
+      strong_obs_eq : strong_mem_obs_eq f mc mf }.
 
   Definition max_inv mf := forall b ofs, Mem.valid_block mf b ->
                                     permission_at mf b ofs Max = Some Freeable.
@@ -173,7 +176,7 @@ Module MemObsEq.
       Mem.mem_inj f mc mf.
   Proof.
     intros mc mf f Hobs_eq HmaxF.
-    destruct Hobs_eq as [Hweak HpermStrong Hval].
+    destruct Hobs_eq as [Hweak [HpermStrong Hval]].
     constructor.
     - intros b1 b2 delta ofs k p Hf Hperm.
       assert (delta = 0%Z)
@@ -189,8 +192,7 @@ Module MemObsEq.
       rewrite HmaxF.
       simpl;
         by constructor.
-      eapply po_trans;
-        by eauto.
+      rewrite HpermStrong. eauto.
     - intros b1 b2 delta chunk ofs p Hf _.
       assert (delta = 0%Z)
         by (eapply (weak_mem_obs_eq_f _ Hweak Hf); eauto);
@@ -204,6 +206,24 @@ Module MemObsEq.
       rewrite Zplus_0_r.
       eapply memval_obs_eq_inj; eauto.
       
+  Qed.
+
+  Lemma memval_obs_eq_incr:
+    forall (mc mf : mem) (f f': meminj) 
+      (b1 b2 : block) (ofs : Z)
+      (Hf': f' b1 = Some (b2, 0%Z))
+      (Hincr: inject_incr f f')
+      (Hobs_eq: memval_obs_eq f (Maps.ZMap.get ofs (Mem.mem_contents mc) # b1)
+                              (Maps.ZMap.get ofs (Mem.mem_contents mf) # b2)),
+      memval_obs_eq f' (Maps.ZMap.get ofs (Mem.mem_contents mc) # b1)
+                    (Maps.ZMap.get ofs (Mem.mem_contents mf) # b2).
+  Proof.
+    intros.
+    inversion Hobs_eq;
+      constructor.
+    inversion Hval_obs; subst; constructor.
+    apply Hincr in H1.
+      by auto.
   Qed.
 
   (* Don't really care about this right now*)
@@ -336,8 +356,7 @@ Module MemObsEq.
       (b1 b2 : block) chunk (ofs : Z) v1
       (Hload: Mem.load chunk mc b1 ofs = Some v1)
       (Hf: f b1 = Some (b2, 0%Z))
-      (* (HmaxF: max_inv mf) *)
-      (Hinj: mem_obs_eq f mc mf),
+      (Hobs_eq: strong_mem_obs_eq f mc mf),
     exists v2,
       Mem.load chunk mf b2 ofs = Some v2 /\
       val_obs f v1 v2.

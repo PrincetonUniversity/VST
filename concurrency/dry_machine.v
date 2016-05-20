@@ -124,18 +124,13 @@ Module Concur.
               (cnt0:containsThread tp tid0)(Hcompat:mem_compatible tp m):
       thread_pool -> mem -> Prop :=
     | step_acquire :
-        forall (tp':thread_pool) m1 c m' b ofs virtue,
-        forall
+        forall (tp':thread_pool) m1 c m' b ofs virtue
           (Hinv : invariant tp)
           (Hcode: getThreadC cnt0 = Kstop c)
           (Hat_external: at_external Sem c =
                          Some (LOCK, ef_sig LOCK, Vptr b ofs::nil))
           (Hcompatible: mem_compatible tp m)
-          (His_lock: (Maps.PMap.get b (lockSet tp)) (Int.intval ofs))
-          (*Hrestrict_pmap:
-             restrPermMap (compat_rp Hcompat) = m1*)
-          (Hrestrict_pmap:
-             makeCurMax m = m1)
+          (Hrestrict_pmap: restrPermMap (compat_rp Hcompat) = m1)
           (Hload: Mem.load Mint32 m1 b (Int.intval ofs) = Some (Vint Int.one))
           (Hstore:
              Mem.store Mint32 m1 b (Int.intval ofs) (Vint Int.zero) = Some m')
@@ -146,17 +141,13 @@ Module Concur.
           ext_step genv cnt0 Hcompat tp' m' 
                    
     | step_release :
-        forall  (tp':thread_pool) m1 c m' b ofs virtue,
-        forall
+        forall  (tp':thread_pool) m1 c m' b ofs virtue
           (Hinv : invariant tp)
           (Hcode: getThreadC cnt0 = Kstop c)
           (Hat_external: at_external Sem c =
                          Some (UNLOCK, ef_sig UNLOCK, Vptr b ofs::nil))
-          (His_lock: (Maps.PMap.get b (lockSet tp)) (Int.intval ofs))
-          (*Hrestrict_pmap:
-             restrPermMap (compat_rp Hcompat) = m1*)
           (Hrestrict_pmap:
-             makeCurMax m = m1)
+             restrPermMap (compat_rp Hcompat) = m1)
           (Hload:
              Mem.load Mint32 m1 b (Int.intval ofs) = Some (Vint Int.zero))
           (Hstore:
@@ -191,19 +182,13 @@ Module Concur.
             (Hcode: getThreadC cnt0 = Kstop c)
             (Hat_external: at_external Sem c =
                            Some (MKLOCK, ef_sig MKLOCK, Vptr b ofs::nil))
-          (*His_lock: (Maps.PMap.get b (lockSet tp)) (Int.intval ofs)*)
-          (*Hrestrict_pmap:
-             restrPermMap (compat_rp Hcompat) = m1*)
-          (Hrestrict_pmap:
-             makeCurMax m = m1)
+            (Hrestrict_pmap: restrPermMap (Hcompat tid0 cnt0) = m1)
             (Hstore:
                Mem.store Mint32 m1 b (Int.intval ofs) (Vint Int.zero) = Some m')
             (Hdrop_perm:
                setPerm (Some Nonempty) b (Int.intval ofs) pmap_tid = pmap_tid')
-            (Hlp_perm: setPerm (Some Writable)
+            (Hlp_perm: setPerm (Maps.PMap.get b pmap_tid (Int.intval ofs))
                                b (Int.intval ofs) (lockSet tp) = pmap_lp)
-            (*Hfter_external: after_external
-                               Sem (Some (Vint Int.zero)) c = Some c'*)
             (Htp': tp' = updThread cnt0 (Kresume c) pmap_tid')
             (Htp'': tp'' = updLockSet tp' pmap_lp),
             ext_step genv cnt0 Hcompat tp'' m' 
@@ -215,7 +200,6 @@ Module Concur.
             (Hcode: getThreadC cnt0 = Kstop c)
             (Hat_external: at_external Sem c =
                            Some (FREE_LOCK, ef_sig FREE_LOCK, Vptr b ofs::nil))
-            (His_lock: (Maps.PMap.get b (lockSet tp)) (Int.intval ofs))
             (Hdrop_perm:
                setPerm None b (Int.intval ofs) (lockSet tp) = pmap_lp')
             (Htp': tp' = updThread cnt0 (Kresume c)
@@ -231,10 +215,7 @@ Module Concur.
           (Hat_external: at_external Sem c =
                          Some (LOCK, ef_sig LOCK, Vptr b ofs::nil))
           (His_lock: (Maps.PMap.get b (lockSet tp)) (Int.intval ofs))
-          (*Hrestrict_pmap:
-             restrPermMap (compat_rp Hcompat) = m1*)
-          (Hrestrict_pmap:
-             makeCurMax m = m1)
+          (Hrestrict_pmap: restrPermMap (compat_rp Hcompat) = m1)
           (Hload: Mem.load Mint32 m1 b (Int.intval ofs) = Some (Vint Int.zero)),
           ext_step genv cnt0 Hcompat tp m.
     
