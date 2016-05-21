@@ -4028,7 +4028,9 @@ Module SimProofs.
         split.
         { (* proof that the fine grained machine can step*)
           intros U.
-          assert (syncStep genv pfci
+          assert (HsyncStepF: syncStep the_ge pff HmemCompF tpf' mf').
+          { subst mf1.
+            eapply step_acquire with (b:=b2); eauto.
           eapply sync_step
 
                   
