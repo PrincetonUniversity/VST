@@ -111,7 +111,7 @@ Module Randomized.
 (* Begin [ProbState Lemmas] *)
 
 Definition ProbState {ora: RandomOracle} (state: Type) :=
-  {s: RandomVariable (MetaState state) | forall h, infinite_history h -> s h = Some (NonTerminating _) \/ s h = None}.
+  {s: RandomVariable (MetaState state) | forall h, is_inf_history h -> s h = Some (NonTerminating _) \/ s h = None}.
 
 Definition ProbState_RandomVariable {ora: RandomOracle} {state: Type}: ProbState state -> RandomVariable (MetaState state) := @proj1_sig _ _.
 
@@ -139,7 +139,7 @@ Definition is_limit {ora: RandomOracle} {state: Type} (l: ProbStateStream state)
           l n h = Some (Terminating _ s) /\
           (forall n' h', n' >= n -> prefix_history h' h -> ~ dir n h')
     | Some NonTerminating => (* infinite_part_of_limit *)
-       (forall n h_low, finite_history h_low -> prefix_history h_low h ->
+       (forall n h_low, is_fin_history h_low -> prefix_history h_low h ->
           exists n' h', n' > n /\ prefix_history h_low h' /\
                        prefix_history h' h /\ dir n' h') \/
        (exists n,
@@ -212,8 +212,9 @@ Defined.
 Definition command_oaccess {imp: Imperative} {sss: SmallStepSemantics} (c: cmd) (src dst: global_state): Prop :=
   forall k, omega_access (global_state_command_state (Ssequence c k) src) (global_state_command_state k dst).
 
-Definition triple {imp: Imperative} {sss: SmallStepSemantics} (P: global_state -> Prop) (c: cmd)  (Q: global_state -> Prop): Prop :=
-  forall s1, P s1 -> forall s2, command_oaccess c s1 s2 -> Q s2.
+Definition triple {imp: Imperative} {sss: SmallStepSemantics} (P: global_state -> Prop) (c: cmd) (Q: global_state -> Prop): Prop :=
+  forall s1, P s1 -> forall s2, command_oaccess c s1 s2 ->
+    same_covered_domain (DomainOfVar s1) (DomainOfVar s2) /\ Q s2.
 
 Class NormalSmallStepSemantics {imp: Imperative} {Nimp: NormalImperative} {sss: SmallStepSemantics} : Type := {
   eval_bool: state -> expr -> option bool;
@@ -223,9 +224,7 @@ Class NormalSmallStepSemantics {imp: Imperative} {Nimp: NormalImperative} {sss: 
   step_while_true: forall e c1 c2 s cs, eval_bool s e = Some true -> step (Ssequence (Swhile e c1) c2, s) cs <-> cs = unique_state (Terminating _ (Ssequence c1 (Ssequence (Swhile e c1) c2), s));
   step_while_false: forall e c1 c2 s cs, eval_bool s e = Some false -> step (Ssequence (Swhile e c1) c2, s) cs <-> cs = unique_state (Terminating _ (c2, s));
   step_atomic: forall c1 c2 s cs h, cmd_pattern_match c1 = PM_Other -> step (Ssequence c1 c2, s) cs -> (exists s', cs h = Some (Terminating _ (c2, s'))) \/ cs h = Some (NonTerminating _) \/ cs h = None
-}. 
-
-
+}.
 
 End Randomized.
 

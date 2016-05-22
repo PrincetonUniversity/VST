@@ -3,38 +3,32 @@ Require Import RndHoare.random_oracle.
 Require Import RndHoare.imperative.
 Import RndHoare.imperative.Randomized.
 Require Import RndHoare.measure.
+Require Import Classical.
 
 Local Open Scope R.
 
-Class RandomDistribution (ora: RandomOracle): Type := {
-  raw_ms: Measure (RandomHistory);
-  pr_universe:
-    measure_function _ raw_ms (Full_MSet _) = 1;
-  ms_consi1:
-    forall (P: Ensemble RandomHistory) h1 h2 n a,
-      history_coincide n h1 h2 ->
-      h1 n = None ->
-      h2 n = Some a ->
-      P h1 ->
-      P h2 ->
-      ~ measurable _ raw_ms P;
-  ms_consi2:
-    forall (P: Ensemble RandomHistory) h1 h2 n a1 a2,
-      history_coincide n h1 h2 ->
-      h1 n = Some a1 ->
-      h2 n = Some a2 ->
-      projT1 a1 <> projT1 a2 ->
-      P h1 ->
-      P h2 ->
-      ~ measurable _ raw_ms P;
-  pr_consi:
-    forall (P1 P2: measurable_set raw_ms),
-      (forall h1 h_inf,
-        P1 h1 ->
-        infinite_history h_inf ->
-        prefix_history h1 h_inf ->
-        exists h2, prefix_history h1 h2 /\ prefix_history h2 h_inf /\ P2 h2) ->
-      measure_function _ raw_ms P1 = measure_function _ raw_ms P2
+Definition is_measurable_subspace {ora: RandomOracle} {PRPS: PartialRegularProbabilitySpace RandomHistory} (P: RandomVarDomain): Prop := measurable_subspace P.
+
+Definition is_measurable_domain {ora: RandomOracle} {PRPS: PartialRegularProbabilitySpace RandomHistory} (P: RandomVarDomain | is_measurable_subspace P) (Q: RandomVarDomain): Prop :=
+  Included _ Q (proj1_sig P) /\ measurable _ (sub_measure (exist _ (proj1_sig P: Ensemble _) (proj2_sig P))) (sig_Set Q (proj1_sig P)).
+
+Definition measure_of {ora: RandomOracle} {PRPS: PartialRegularProbabilitySpace RandomHistory} (P: RandomVarDomain | is_measurable_subspace P) (Q: RandomVarDomain | is_measurable_domain P Q): R :=
+  measure_function _
+   (sub_measure (exist _ (proj1_sig P: Ensemble _) (proj2_sig P)))
+   (exist _ (sig_Set (proj1_sig Q) (proj1_sig P)) (proj2 (proj2_sig Q))).
+
+Class RandomHistoryDistribution (ora: RandomOracle): Type := {
+  RHD_PRPS :> PartialRegularProbabilitySpace RandomHistory;
+  RHD_MSS_consi: forall P Q, same_covered_domain P Q ->
+                   (is_measurable_subspace P <-> is_measurable_subspace Q);
+  RHD_MD_consi: forall P Q MP MQ S R, same_covered_domain P Q -> same_covered_domain S R ->
+                   Included _ S P ->
+                   Included _ R Q ->
+                   (is_measurable_domain (exist _ P MP) S <-> 
+                    is_measurable_domain (exist _ Q MQ) R);
+  RHD_M_consi: forall P Q MP MQ S R MS MR, same_covered_domain P Q -> same_covered_domain S R ->
+                   measure_of (exist _ P MP) (exist _ S MS) =
+                   measure_of (exist _ Q MQ) (exist _ R MR)
 }.
 
 Definition is_measurable {ora: RandomOracle} {psi: RandomDistribution ora} (P: Ensemble RandomHistory): Prop := measurable _ raw_ms P.
@@ -66,11 +60,15 @@ Definition tm_set {imp: Imperative} {sss: SmallStepSemantics} {psi: RandomDistri
 
 Lemma tm_set_measurable: forall {imp: Imperative} {sss: SmallStepSemantics} {psi: RandomDistribution ora} (P: state -> Prop) (sigma: global_state),
   is_measurable (tm_set P sigma).
+(* This is true given that there are only finite oracle questions and any oracle questions has finite answers. *)
 Admitted.
 
 Lemma valid_set_measurable: forall {imp: Imperative} {sss: SmallStepSemantics} {psi: RandomDistribution ora} (P: MetaState state -> Prop) (sigma: global_state),
   is_measurable (valid_set (fun _ => True) sigma) ->
   is_measurable (valid_set P sigma).
+Proof.
+  intros.
+  destruct (classic (P (NonTerminating _))).
 Admitted.
 
 End PreSubsets.
