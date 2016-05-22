@@ -3,14 +3,14 @@ Require Import floyd.proofauto.
 Local Open Scope logic.
 Require Import List. Import ListNotations.
 
-Require Import split_array_lemmas.
+Require Import tweetnacl20140427.split_array_lemmas.
 Require Import ZArith. 
-Require Import tweetNaclBase.
-Require Import Salsa20.
-Require Import tweetnaclVerifiableC.
-Require Import verif_salsa_base.
+Require Import tweetnacl20140427.tweetNaclBase.
+Require Import tweetnacl20140427.Salsa20.
+Require Import tweetnacl20140427.tweetnaclVerifiableC.
+Require Import tweetnacl20140427.verif_salsa_base.
 
-Require Import spec_salsa. Opaque Snuffle.Snuffle. Opaque fcore_result.
+Require Import tweetnacl20140427.spec_salsa. Opaque Snuffle.Snuffle. Opaque fcore_result.
 
 Definition X_content (x: SixteenByte * SixteenByte * (SixteenByte * SixteenByte))
                      (i:Z) (l:list val) : Prop :=
@@ -271,12 +271,15 @@ Time forward_for_simple_bound 4 (EX i:Z,
     Time entailer!. (*4.4 versus 6.6*)
     unfold SByte. rewrite (Select_SplitSelect16Q _ _ _ _ HeqFB_K1) in *.
     erewrite Select_Unselect_Tarray_at with (data:= QuadChunks2ValList Front_K1 ++
-       QuadChunks2ValList [Select16Q Key1 i] ++ QuadChunks2ValList Back_K1); try rewrite <- K1_16; try reflexivity; try assumption.
-    unfold QByte, Select_at. simpl. repeat rewrite app_nil_r.
-    unfold Unselect_at. 
-    rewrite  QuadChunk2ValList_ZLength.
-    rewrite <- QuadByteValList_ZLength, FLK. cancel.
-    rewrite <- K1_16; trivial. rewrite <- K1_16; cbv; trivial. }
+       QuadChunks2ValList [Select16Q Key1 (Zlength Front)(*i*)] ++ QuadChunks2ValList Back_K1); try reflexivity.
+    + unfold QByte, Select_at. simpl. repeat rewrite app_nil_r.
+      unfold Unselect_at.  
+      rewrite  QuadChunk2ValList_ZLength.
+      rewrite <- QuadByteValList_ZLength, FLK. cancel.
+    + assumption.
+    + rewrite <- K1_16; assumption. 
+    + rewrite <- K1_16. cbv; trivial.
+  }
 
   (*Store into x[...]*)
   thaw FR5.
@@ -291,8 +294,9 @@ Time forward_for_simple_bound 4 (EX i:Z,
     rewrite (Select_SplitSelect16Q _ i _ _ HeqFB_N) in *. 
   Time assert_PROP (field_compatible (Tarray tuchar 16 noattr) [] nonce) as FCN by entailer!. (*1.2 versus 6.8*)
   erewrite Select_Unselect_Tarray_at with (d:=nonce); try reflexivity; try assumption.
+  2: solve [rewrite <- N16; trivial].
+  2: solve [rewrite <- N16; cbv; trivial].
   Time normalize. (*2.4 versus 5.2*)
-  2: rewrite <- N16; trivial. 2: rewrite <- N16; cbv; trivial.
   freeze [1;2] FR8.
   unfold Select_at. simpl. rewrite app_nil_r.
   rewrite <- QuadByteValList_ZLength. (*rewrite Z.mul_1_l.  simpl.*)
@@ -318,12 +322,13 @@ Time forward_for_simple_bound 4 (EX i:Z,
     (*Apart from the unfold QByte, the next 9 lines are exactly as above, inside the function call*)
     unfold SByte. rewrite (Select_SplitSelect16Q _ _ _ _ HeqFB_N) in *.
     erewrite Select_Unselect_Tarray_at; try reflexivity; try assumption. 
-    unfold QByte, Select_at. simpl. rewrite app_nil_r. cancel.
-    rewrite <- QuadByteValList_ZLength. (*rewrite Z.mul_1_l. simpl.*)
-    rewrite  QuadChunk2ValList_ZLength.
-    (*destruct (Select_SplitSelect16Q_Zlength _ _ _ _ HeqFB_N I) as [FrontN _]; rewrite FrontN; cancel.*) 
-    rewrite FrontN; cancel.
-    rewrite <- N16; trivial. rewrite <- N16; cbv; trivial. }
+    + unfold QByte, Select_at. simpl. rewrite app_nil_r. cancel.
+      rewrite <- QuadByteValList_ZLength. (*rewrite Z.mul_1_l. simpl.*)
+      rewrite  QuadChunk2ValList_ZLength.
+      (*destruct (Select_SplitSelect16Q_Zlength _ _ _ _ HeqFB_N I) as [FrontN _]; rewrite FrontN; cancel.*) 
+      rewrite FrontN; cancel.
+    + rewrite <- N16; trivial.
+    + rewrite <- N16; cbv; trivial. }
 
   (*Store into x[...]*)
   thaw FR7. freeze [0;1;2;4] FR9.
@@ -340,7 +345,7 @@ Time forward_for_simple_bound 4 (EX i:Z,
   remember (SplitSelect16Q Key2 i) as FB_K2; destruct FB_K2 as (Front_K2, Back_K2).
   rewrite (Select_SplitSelect16Q _ i _ _ HeqFB_K2) in *. 
   erewrite Select_Unselect_Tarray_at with (d:=offset_val 16 (Vptr kb koff)); try reflexivity; try assumption.
-  2: rewrite <- K2_16; trivial. 2: rewrite <- K2_16; cbv; trivial.
+  2: solve [rewrite <- K2_16; trivial]. 2: solve [rewrite <- K2_16; cbv; trivial].
   Time normalize. (*1.4 versus 6.6*)
   unfold Select_at. simpl. rewrite app_nil_r.
   repeat rewrite <- QuadByteValList_ZLength.
@@ -370,18 +375,17 @@ Time forward_for_simple_bound 4 (EX i:Z,
     (*Apart from the unfold QByte, the next 9 lines are exactly as above, inside the function call*)
     unfold SByte. rewrite (Select_SplitSelect16Q _ _ _ _ HeqFB_K2) in *.
     erewrite Select_Unselect_Tarray_at; try reflexivity; try assumption. 
-    unfold QByte, Select_at. simpl. repeat rewrite app_nil_r. cancel.
-    rewrite <- QuadByteValList_ZLength. (*rewrite Z.mul_1_l. simpl.*)
-    rewrite  QuadChunk2ValList_ZLength. rewrite Int.add_assoc. rewrite add_repr. cancel.
-
-    rewrite <- K2_16. assumption.
-    rewrite <- K2_16. cbv; trivial. }
+    + unfold QByte, Select_at. simpl. repeat rewrite app_nil_r. cancel.
+      rewrite <- QuadByteValList_ZLength. (*rewrite Z.mul_1_l. simpl.*)
+      rewrite  QuadChunk2ValList_ZLength. rewrite Int.add_assoc. rewrite add_repr. cancel.
+    + rewrite <- K2_16; assumption.
+    + rewrite <- K2_16; cbv; trivial. }
 
   (*Store into x[...]*)
   thaw FR10. freeze [0;1;2;4] FR11.
   Time forward. (*4.3 versus 14.7*) clear FL.
 
-  Time entailer!. (*4.9 versus 16.1*) 
+  Time entailer!. (*4.9 versus 16.1*)  remember (Zlength Front_K1) as i.
   Exists (upd_Znth (11 + i)
      (upd_Znth (6 + i)
         (upd_Znth (1 + i)

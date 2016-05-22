@@ -1,17 +1,17 @@
 Require Import floyd.proofauto.
 Local Open Scope logic.
 Require Import Coq.Lists.List. Import ListNotations.
-Require Import general_lemmas.
+Require Import sha.general_lemmas.
 
-Require Import split_array_lemmas.
+Require Import tweetnacl20140427.split_array_lemmas.
 Require Import ZArith. 
-Require Import tweetNaclBase.
-Require Import Salsa20.
-Require Import verif_salsa_base.
-Require Import tweetnaclVerifiableC.
-Require Import Snuffle. 
-Require Import spec_salsa. Opaque Snuffle.Snuffle.
-Require Import verif_crypto_stream_salsa20_xor.
+Require Import tweetnacl20140427.tweetNaclBase.
+Require Import tweetnacl20140427.Salsa20.
+Require Import tweetnacl20140427.verif_salsa_base.
+Require Import tweetnacl20140427.tweetnaclVerifiableC.
+Require Import tweetnacl20140427.Snuffle. 
+Require Import tweetnacl20140427.spec_salsa. Opaque Snuffle.Snuffle.
+Require Import tweetnacl20140427.verif_crypto_stream_salsa20_xor.
 
 (*TODO: support the following part of the tetxual spec:
       m and c can point to the same address (in-place encryption/decryption). 

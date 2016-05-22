@@ -2,9 +2,9 @@ Require Import Recdef.
 Require Import floyd.proofauto.
 Local Open Scope logic.
 Require Import List. Import ListNotations.
-Require Import general_lemmas.
+Require Import sha.general_lemmas.
 
-Require Import split_array_lemmas.
+Require Import tweetnacl20140427.split_array_lemmas.
 Require Import ZArith. 
 
 Lemma Zlength_list_repeat' {A} n (v:A): Zlength (list_repeat n v) = Z.of_nat n.
@@ -276,8 +276,8 @@ Lemma shift_two_8 z:
  | Z.neg y' => Z.neg y'~0~0~0~0~0~0~0~0
  end = (z * two_p 8)%Z.
  destruct z; simpl; trivial. f_equal.
-  rewrite shift_pos_equiv. simpl; xomega. 
-  rewrite shift_pos_equiv. simpl; xomega.
+  (*rewrite shift_pos_equiv.*) simpl; xomega. 
+  (*rewrite shift_pos_equiv.*) simpl; xomega.
 Qed.
 Lemma shift_two_8_2 z:
   match z with
@@ -286,8 +286,8 @@ Lemma shift_two_8_2 z:
   | Z.neg y' => Z.neg y'~0~0~0~0~0~0~0~0~0~0~0~0~0~0~0~0
   end = (z * two_p 8 * two_p 8)%Z.
  destruct z; simpl; trivial. f_equal.
-  rewrite shift_pos_equiv. simpl; xomega. 
-  rewrite shift_pos_equiv. simpl; xomega.
+  (*rewrite shift_pos_equiv.*) simpl; xomega. 
+  (*rewrite shift_pos_equiv.*) simpl; xomega.
 Qed.
 Lemma shift_two_8_3 z:
   match z with
@@ -296,8 +296,8 @@ Lemma shift_two_8_3 z:
   | Z.neg y' => Z.neg y'~0~0~0~0~0~0~0~0~0~0~0~0~0~0~0~0~0~0~0~0~0~0~0~0
   end = (z * two_p 8 * two_p 8 * two_p 8)%Z.
  destruct z; simpl; trivial. f_equal.
-  rewrite shift_pos_equiv. simpl; xomega. 
-  rewrite shift_pos_equiv. simpl; xomega.
+  (*rewrite shift_pos_equiv.*) simpl; xomega. 
+  (*rewrite shift_pos_equiv.*) simpl; xomega.
 Qed.
 
 Fixpoint iterShr8 u n :=

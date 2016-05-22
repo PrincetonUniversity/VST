@@ -1,4 +1,4 @@
-Require Import Clightdefs.
+Require Import compcert.exportclight.Clightdefs.
 
 Local Open Scope Z_scope.
 

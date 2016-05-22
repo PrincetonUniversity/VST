@@ -3,16 +3,16 @@
 (*This is a formalization in Gallina of Dan Bernstein's document
 "Salsa20 specification" (version 2005.04.27), Sections 1 - 9.*)
 
-Require Import Coqlib.
+Require Import compcert.lib.Coqlib.
 Require Import Coq.Strings.String.
-Require Import Extensionality.
+Require Import msl.Extensionality.
 Require Import List. Import ListNotations.
 
-Require Import Integers.
-Require Import functional_prog.
+Require Import compcert.lib.Integers.
+Require Import sha.functional_prog.
 
-Require Import pure_lemmas. 
-Require Import general_lemmas.
+Require Import sha.pure_lemmas.
+Require Import sha.general_lemmas.
 
 Definition map4 {A B} (f:A -> B) a := 
   match a with (a0, a1, a2, a3) => (f a0, f a1, f a2, f a3) end.
