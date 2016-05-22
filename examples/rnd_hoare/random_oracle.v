@@ -116,15 +116,16 @@ Definition strict_prefix_history {ora: RandomOracle} (h1 h2: RandomHistory): Pro
 Definition n_bounded_prefix_history {ora: RandomOracle} (m: nat) (h1 h2: RandomHistory): Prop :=
   forall n, (h1 n = None /\ h2 (n + m) = None) \/ h1 n = h2 n.
 
+Definition n_conflict_history {ora: RandomOracle} (n: nat) (h1 h2: RandomHistory): Prop :=
+  match h1 n, h2 n with
+  | Some a1, Some a2 => projT1 a1 <> projT1 a2
+  | Some _, None => True
+  | None, Some _ => True
+  | None, None => False
+  end.
+
 Definition conflict_history {ora: RandomOracle} (h1 h2: RandomHistory): Prop :=
-  exists n,
-    history_coincide n h1 h2 /\
-    match h1 n, h2 n with
-    | Some a1, Some a2 => projT1 a1 <> projT1 a2
-    | Some _, None => True
-    | None, Some _ => True
-    | None, None => False
-    end.
+  exists n, history_coincide n h1 h2 /\ n_conflict_history n h1 h2.
 
 Definition strict_conflict_history {ora: RandomOracle} (h1 h2: RandomHistory): Prop :=
   exists n,
@@ -151,7 +152,18 @@ Proof.
   destruct H as [n [? ?]].
   exists n; split.
   + apply history_coincide_sym; auto.
-  + destruct (h1 n), (h2 n); auto.
+  + hnf in H0 |- *; destruct (h1 n), (h2 n); auto.
+Qed.
+
+Lemma history_coincide_trans {ora: RandomOracle}: forall h1 h2 h3 n,
+  history_coincide n h1 h2 ->
+  history_coincide n h2 h3 ->
+  history_coincide n h1 h3.
+Proof.
+  intros.
+  hnf; intros.
+  specialize (H m H1);
+  specialize (H0 m H1); congruence.
 Qed.
 
 Lemma is_0_history_non_conflict {ora: RandomOracle}: forall h1 h2,
@@ -163,6 +175,7 @@ Proof.
   intros.
   destruct H1 as [n [? ?]].
   destruct H as [? _], H0 as [? _].
+  hnf in H2.
   rewrite (history_sound1 h1 0 n) in H2 by (auto; omega).
   rewrite (history_sound1 h2 0 n) in H2 by (auto; omega).
   auto.
@@ -210,6 +223,15 @@ Proof.
   + intros.
     rewrite fstn_history_Some by omega.
     apply H1; omega.
+Qed.
+
+Lemma fstn_history_coincide {ora: RandomOracle}: forall n h,
+  history_coincide n h (fstn_history n h).
+Proof.
+  intros.
+  intros m ?.
+  rewrite fstn_history_Some by omega.
+  auto.
 Qed.
 
 (* TODO: put this in lib *)
@@ -260,6 +282,7 @@ Definition unit_space_var {ora: RandomOracle} {A: Type} (v: A): RandomVariable A
   constructor; hnf; intros.
   unfold Basics.compose in *.
   destruct H as [n [? ?]].
+  hnf in H2.
   destruct n.
   + destruct (h1 0), (h2 0); try solve [inversion H0 | inversion H1].
     auto.

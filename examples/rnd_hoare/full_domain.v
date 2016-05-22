@@ -46,89 +46,87 @@ Definition finite_layers_pre_extension {ora: RandomOracle} (d: RandomHistory -> 
   fun h => exists n, n_layers_pre_extension n d h.
 
 Definition max_pre_extension {ora: RandomOracle} (d: RandomHistory -> Prop): RandomHistory -> Prop :=
-  fun h => finite_layers_pre_extension d h \/ contextual_consi (finite_layers_pre_extension d) h.
+  fun h => finite_layers_pre_extension d h \/ (is_inf_history h /\ contextual_consi (finite_layers_pre_extension d) h).
+
+Definition guarded_covered {ora: RandomOracle} (P: RandomHistory -> Prop) (d: RandomHistory -> Prop): Prop :=
+  forall h, P h -> contextual_consi d h -> d h.
 
 Definition nth_layer_covered {ora: RandomOracle} (n: nat) (d: RandomHistory -> Prop): Prop :=
-  forall h, is_n_history n h -> contextual_consi d h -> d h.
+  guarded_covered (is_n_history n) d.
 
-Lemma fstn_history_coincide {ora: RandomOracle}: forall n h,
-  history_coincide n h (fstn_history n h).
-Proof.
-  intros.
-  intros m ?.
-  rewrite fstn_history_Some by omega.
-  auto.
-Qed.
-
-Lemma AUX_contextual_consi_Sn_n {ora: RandomOracle}: forall n h h1 h2 a1 a2,
-  is_n_history (S n) h ->
-  is_n_history (S n) h1 ->
-  history_coincide n h1 h2 ->
-  h1 n = Some a1 ->
-  h2 n = Some a2 ->
-  projT1 a1 = projT1 a2 ->
-  conflict_history h h1 ->
-  conflict_history h h2.
-Proof.
-  intros.
-  destruct H5 as [m [? ?]].
-  exists m.
-  destruct (lt_eq_lt_dec m n) as [[?H | ?H] | ?H].
-  + split.
-    - apply (history_coincide_weaken m n h1 h2) in H1; [| omega].
-      intros m0 HH; specialize (H1 m0 HH); specialize (H5 m0 HH); congruence.
-    - rewrite <- (H1 m) by auto.
-      auto.
-  + subst m.
-    split.
-    - intros m0 HH; specialize (H1 m0 HH); specialize (H5 m0 HH); congruence.
-    - rewrite H2 in H6; rewrite H3.
-      rewrite <- H4; auto.
-  + exfalso.
-    rewrite (is_n_history_None (S n) m h) in H6 by (auto; omega).
-    rewrite (is_n_history_None (S n) m h1) in H6 by (auto; omega).
-    auto.
-Qed.
-
-Lemma contextual_consi_Sn_n {ora: RandomOracle}: forall (n: nat) (d: RandomHistory -> Prop) (h h0: RandomHistory),
-  is_n_history (S n) h ->
-  is_n_history (S n) h0 ->
+Lemma contextual_consi_shorten {ora: RandomOracle}: forall (n: nat) (d: RandomHistory -> Prop) (h h0: RandomHistory),
+  h n <> None ->
+  h0 n <> None ->
   contextual_consi d h ->
   contextual_consi d h0 ->
-  conflict_history h h0 ->
+  history_coincide n h h0 ->
+  n_conflict_history n h h0 ->
   contextual_consi d (fstn_history n h).
 Proof.
   intros.
   hnf; intros.
-  apply (H1 h' H4).
-  destruct H5 as [m [? ?]].
+  apply (H1 h' H5).
+  destruct H6 as [m [? ?]].
   exists m.
   destruct (lt_eq_lt_dec n m) as [[?H | ?H] | ?H].
   + exfalso.
-    specialize (H5 n H7).
-    rewrite fstn_history_None in H5 by omega.
-    symmetry in H5.
+    specialize (H6 n H8).
     rewrite fstn_history_None in H6 by omega.
-    rewrite (history_sound1 h' n m) in H6 by (auto; omega).
+    symmetry in H6.
+    hnf in H7.
+    rewrite fstn_history_None in H7 by omega.
+    rewrite (history_sound1 h' n m) in H7 by (auto; omega).
     auto.
   + subst m.
-    rewrite fstn_history_None in H6 by omega.
-    destruct (h' n) eqn: ?H; try inversion H6; clear H6.
+    unfold n_conflict_history in H7 |- *.
+    rewrite fstn_history_None in H7 by omega.
+    destruct (h' n) eqn: ?H; try inversion H7; clear H7.
     assert (history_coincide n h h'); [| split; auto].
-    - intros m ?H; specialize (H5 m H6).
-      rewrite fstn_history_Some in H5 by omega; auto.
+    - intros m ?H; specialize (H6 m H7).
+      rewrite fstn_history_Some in H6 by omega; auto.
     - destruct (h n) eqn: ?H; auto.
-      specialize (H2 h' H4).
+      specialize (H2 h' H5).
       intro; apply H2; clear H2.
-      apply conflict_history_sym in H3.
-      apply (AUX_contextual_consi_Sn_n n h0 h h' r0 r); auto.
+      exists n.
+      apply history_coincide_sym in H3.
+      split; [apply history_coincide_trans with h; auto |].
+      clear - H8 H9 H10 H4.
+      hnf in H4 |- *.
+      rewrite H8. rewrite H9 in H4.
+      rewrite <- H10; auto.
+      destruct (h0 n); congruence.
   + split.
-    - intros m0 ?H; specialize (H5 m0 H8).
-      rewrite fstn_history_Some in H5 by omega; auto.
-    - rewrite fstn_history_Some in H6 by omega; auto.
+    - intros m0 ?H; specialize (H6 m0 H9).
+      rewrite fstn_history_Some in H6 by omega; auto.
+    - hnf in H7.
+      rewrite fstn_history_Some in H7 by omega; auto.
 Qed.
 
-Lemma pre_extension_spec {ora: RandomOracle}: forall (n: nat) (d: RandomHistory -> Prop),
+Lemma is_n_history_conflict {ora: RandomOracle}: forall n m h1 h2,
+  is_n_history n h1 ->
+  is_n_history n h2 ->
+  n_conflict_history m h1 h2 ->
+  m < n.
+Proof.
+  intros.
+  destruct H as [? _], H0 as [? _].
+  destruct (le_lt_dec n m); auto.
+  exfalso.
+  hnf in H1.
+  rewrite (history_sound1 h1 n m l) in H1 by auto.
+  rewrite (history_sound1 h2 n m l) in H1 by auto.
+  auto.
+Qed.
+
+Lemma is_n_history_Some {ora: RandomOracle}: forall n m h, m < n -> is_n_history n h -> h m <> None.
+Proof.
+  intros.
+  destruct H0.
+  intro.
+  apply (H1 m); auto.
+Qed.
+
+Lemma nth_layer_pre_extension_spec {ora: RandomOracle}: forall (n: nat) (d: RandomHistory -> Prop),
   (history_set_consi d /\ forall n', n' < n -> nth_layer_covered n' d) ->
   (history_set_consi (nth_layer_pre_extension n d) /\
    forall n', n' < S n -> nth_layer_covered n' (nth_layer_pre_extension n d)).
@@ -142,24 +140,24 @@ Proof.
     - apply (H4 h1); auto.
       apply conflict_history_sym; auto.
     - apply (H4 h2); auto.
-    - destruct n.
-      * apply (is_0_history_non_conflict h1 h2); auto.
-      * assert (d (fstn_history n h1)).
-        Focus 1. {
-          apply (H0 n).
-          + omega.
-          + apply fstn_history_is_n_history with (S n); auto.
-          + apply (contextual_consi_Sn_n n d h1 h2); auto.
-        } Unfocus.
-        apply (H4 _ H6).
-        exists n.
-        split; [apply fstn_history_coincide |].
-        clear - H2.
-        destruct H2.
-        specialize (H0 n (le_n _)).
-        destruct (h1 n); [| congruence].
-        rewrite fstn_history_None by omega.
-        auto.
+    - destruct H1 as [m [? ?]].
+      pose proof is_n_history_conflict n m h1 h2 H2 H3 H6.
+      assert (d (fstn_history m h1)).
+      Focus 1. {
+        apply (H0 m).
+        + auto.
+        + apply fstn_history_is_n_history with n; auto; omega.
+        + apply (contextual_consi_shorten m d h1 h2); auto;
+          apply is_n_history_Some with n; auto.
+      } Unfocus.
+      apply (H4 _ H8).
+      exists m.
+      split; [apply fstn_history_coincide |].
+      clear - H2 H7.
+      apply is_n_history_Some with (m0 := m) in H2; auto.
+      hnf.
+      rewrite fstn_history_None by omega.
+      destruct (h1 m); auto; congruence.
   + intros.
     destruct (eq_nat_dec n' n).
     - subst n'.
@@ -175,3 +173,144 @@ Proof.
       left; auto.
 Qed.
 
+Lemma n_layers_pre_extension_spec {ora: RandomOracle}: forall (n: nat) (d: RandomHistory -> Prop),
+  history_set_consi d ->
+  history_set_consi (n_layers_pre_extension n d) /\
+  forall n', n' < n -> nth_layer_covered n' (n_layers_pre_extension n d).
+Proof.
+  intros.
+  induction n; simpl.
+  + split; auto.
+    intros.
+    omega.
+  + apply nth_layer_pre_extension_spec; auto.
+Qed.
+
+Lemma fin_history_n_history {ora: RandomOracle}: forall h,
+  is_fin_history h ->
+  exists n, is_n_history n h.
+Proof.
+  intros.
+  destruct H.
+  pose proof dec_inh_nat_subset_has_unique_least_element (fun x => h x = None).
+  simpl in H0.
+  destruct H0.
+  + clear.
+    intros n; destruct (h n); [right | left]; congruence.
+  + exists x; auto.
+  + clear - H0.
+    destruct H0 as [[? ?] _].
+    exists x0; split; auto.
+    intros x; specialize (H0 x).
+    intros ? ?.
+    apply H0 in H2; omega.
+Qed.
+
+Lemma n_layers_pre_extension_mono {ora: RandomOracle}: forall (n1 n2: nat) (d: RandomHistory -> Prop) h,
+  n1 <= n2 ->
+  (n_layers_pre_extension n1 d) h ->
+  (n_layers_pre_extension n2 d) h.
+Proof.
+  intros.
+  remember (n2 - n1) as del.
+  assert (n2 = del + n1) by omega.
+  subst n2.
+  clear Heqdel H.
+  revert n1 H0; induction del; intros.
+  + auto.
+  + simpl.
+    left.
+    apply IHdel; auto.
+Qed.
+
+Lemma n_layers_pre_extension_consi_mono {ora: RandomOracle}: forall (n1 n2: nat) (d: RandomHistory -> Prop) h,
+  n1 <= n2 ->
+  contextual_consi (n_layers_pre_extension n2 d) h ->
+  contextual_consi (n_layers_pre_extension n1 d) h.
+Proof.
+  intros.
+  hnf; intros.
+  apply (H0 h'); auto.
+  eapply n_layers_pre_extension_mono; eauto.
+Qed.
+
+Lemma finite_layers_pre_extension_spec {ora: RandomOracle}: forall (d: RandomHistory -> Prop),
+  history_set_consi d ->
+  history_set_consi (finite_layers_pre_extension d) /\
+  guarded_covered is_fin_history (finite_layers_pre_extension d).
+Proof.
+  intros.
+  split.
+  + hnf; intros.
+    destruct H1 as [n1 ?].
+    destruct H2 as [n2 ?].
+    apply (n_layers_pre_extension_mono n1 (max n1 n2) _ _ (Max.le_max_l _ _)) in H1.
+    apply (n_layers_pre_extension_mono n2 (max n1 n2) _ _ (Max.le_max_r _ _)) in H2.
+    apply n_layers_pre_extension_spec with (n := max n1 n2) in H.
+    destruct H as [? _].
+    apply (H h1 h2); auto.
+  + hnf; intros.
+    destruct (fin_history_n_history _ H0) as [n ?]; clear H0.
+    apply n_layers_pre_extension_spec with (n0 := S n) in H.
+    destruct H as [_ ?].
+    exists (S n).
+    apply (H n (le_n _ ) h); auto.
+
+    clear - H1.
+    hnf; intros.
+    apply (H1 h'); auto.
+    exists (S n); auto.
+Qed.
+
+Lemma max_pre_extension_spec {ora: RandomOracle}: forall (d: RandomHistory -> Prop),
+  history_set_consi d ->
+  history_set_consi (max_pre_extension d) /\
+  guarded_covered is_fin_history (max_pre_extension d).
+Proof.
+  intros.
+  apply finite_layers_pre_extension_spec in H.
+  destruct H.
+  split.
+  + hnf; intros.
+    destruct H2 as [? | [? ?]], H3 as [? | [? ?]].
+    - apply (H h1 h2); auto.
+    - apply (H4 h1); auto.
+      apply conflict_history_sym; auto.
+    - apply (H4 h2); auto.
+    - destruct H1 as [n [? ?]].
+      assert (finite_layers_pre_extension d (fstn_history n h1)).
+      Focus 1. {
+        apply H0.
+        + exists n.
+          apply fstn_history_None; omega.
+        + apply (contextual_consi_shorten n _ h1 h2); auto;
+          apply is_n_history_Some with n; auto.
+      } Unfocus.
+      apply (H4 _ H7).
+      exists n.
+      split; [apply fstn_history_coincide |].
+      clear - H2.
+      hnf.
+      rewrite fstn_history_None by auto.
+      specialize (H2 n).
+      destruct (h1 n); auto; congruence.
+  + hnf; intros.
+    left.
+    apply (H0 h H1).
+    hnf; intros.
+    apply (H2 h'); auto.
+    left; auto.
+Qed.
+
+Definition max_extension {ora: RandomOracle} (d: RandomVarDomain): RandomVarDomain.
+  exists (max_pre_extension d).
+  constructor.
+  destruct d as [d H]; simpl.
+  exact (proj1 (max_pre_extension_spec _ rand_consi)).
+Defined.
+
+Lemma max_extension_full {ora: RandomOracle}: forall d, is_full_domain (max_extension d).
+Proof.
+  intros.
+  hnf; intros.
+Abort.
