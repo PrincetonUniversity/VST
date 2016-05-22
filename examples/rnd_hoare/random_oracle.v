@@ -234,6 +234,37 @@ Proof.
   auto.
 Qed.
 
+Lemma prefix_history_refl {ora: RandomOracle}: forall h, prefix_history h h.
+Proof.
+  intros.
+  hnf; intros.
+  right; auto.
+Qed.
+
+Lemma conflict_history_strict_conflict {ora: RandomOracle}: forall h h',
+  is_inf_history h ->
+  conflict_history h' h ->
+  prefix_history h' h \/ strict_conflict_history h' h.
+Proof.
+  intros.
+  destruct H0 as [n [? ?]].
+  hnf in H1.
+  specialize (H n).
+  destruct (h n) eqn:?H; [| congruence].
+  destruct (h' n) eqn:?H.
+  + right.
+    exists n.
+    split; auto.
+    rewrite H2, H3; auto.
+  + left.
+    hnf; intros.
+    destruct (le_lt_dec n n0).
+    - left.
+      apply (history_sound1 h' n n0); auto.
+    - right.
+      apply H0; auto.
+Qed.
+
 (* TODO: put this in lib *)
 Definition isSome {A} (o: option A) := match o with Some _ => True | None => False end.
 

@@ -265,7 +265,7 @@ Qed.
 Lemma max_pre_extension_spec {ora: RandomOracle}: forall (d: RandomHistory -> Prop),
   history_set_consi d ->
   history_set_consi (max_pre_extension d) /\
-  guarded_covered is_fin_history (max_pre_extension d).
+  guarded_covered is_inf_history (max_pre_extension d).
 Proof.
   intros.
   apply finite_layers_pre_extension_spec in H.
@@ -295,8 +295,8 @@ Proof.
       specialize (H2 n).
       destruct (h1 n); auto; congruence.
   + hnf; intros.
-    left.
-    apply (H0 h H1).
+    right.
+    split; auto.
     hnf; intros.
     apply (H2 h'); auto.
     left; auto.
@@ -309,8 +309,26 @@ Definition max_extension {ora: RandomOracle} (d: RandomVarDomain): RandomVarDoma
   exact (proj1 (max_pre_extension_spec _ rand_consi)).
 Defined.
 
+Require Import Coq.Logic.Classical.
+
 Lemma max_extension_full {ora: RandomOracle}: forall d, is_full_domain (max_extension d).
 Proof.
   intros.
   hnf; intros.
-Abort.
+  destruct (classic (exists h', (max_extension d) h' /\ conflict_history h h')).
+  + destruct H0 as [h' [? ?]].
+    exists h'.
+    split; auto.
+    apply conflict_history_strict_conflict; auto.
+    apply conflict_history_sym; auto.
+  + exists h.
+    pose proof max_pre_extension_spec d (@rand_consi _ _ (raw_domain_legal d)).
+    destruct H1 as [_ ?].
+    specialize (H1 h H).
+    split; [left; apply prefix_history_refl |].
+    apply H1.
+    hnf; intros.
+    apply H0.
+    exists h'.
+    split; auto.
+Qed.
