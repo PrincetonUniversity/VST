@@ -1,4 +1,6 @@
 From mathcomp.ssreflect Require Import ssreflect ssrbool ssrnat ssrfun eqtype seq fintype finfun.
+
+Require Import compcert.common.Values. (*for val*)
 Require Import concurrency.concurrent_machine.
 Require Import concurrency.pos.
 Require Import concurrency.threads_lemmas.
@@ -41,13 +43,13 @@ Module OrdinalPool (SEM:Semantics) (RES:Resources) <: ThreadPoolSig
   Definition getThreadR {i tp} (cnt: containsThread tp i) : res :=
     (perm_maps tp) (Ordinal cnt).
 
-  Definition addThread (tp : t) (c : code) (pmap : res) : t :=
+  Definition addThread (tp : t) (vf arg : val) (pmap : res) : t :=
     let: new_num_threads := pos_incr (num_threads tp) in
     let: new_tid := ordinal_pos_incr (num_threads tp) in
     mk new_num_threads
         (fun (n : 'I_new_num_threads) => 
            match unlift new_tid n with
-           | None => Kresume c (*Could be a new state Kinit?? *)
+           | None => Kinit vf arg  (*Could be a new state Kinit?? *)
            | Some n' => tp n'
            end)
         (fun (n : 'I_new_num_threads) => 
@@ -186,9 +188,9 @@ Module OrdinalPool (SEM:Semantics) (RES:Resources) <: ThreadPoolSig
   Qed.
 
   Lemma cntAdd:
-    forall {j tp} c p,
+    forall {j tp} vf arg p,
       containsThread tp j ->
-      containsThread (addThread tp c p) j.
+      containsThread (addThread tp vf arg p) j.
   Proof.
     intros;
     unfold addThread, containsThread in *;
@@ -228,8 +230,8 @@ Module OrdinalPool (SEM:Semantics) (RES:Resources) <: ThreadPoolSig
   Qed.
 
   Lemma gsoAddLock:
-    forall tp c p,
-      lockSet (addThread tp c p) = lockSet tp.
+    forall tp vf arg p,
+      lockSet (addThread tp vf arg p) = lockSet tp.
   Proof.
     auto.
   Qed.
@@ -351,8 +353,8 @@ Module OrdinalPool (SEM:Semantics) (RES:Resources) <: ThreadPoolSig
   Defined.
   
   Lemma goaThreadC {i tp}
-        (cnti: containsThread tp i) c p
-        (cnti': containsThread (addThread tp c p) i) :
+        (cnti: containsThread tp i)  vf arg p
+        (cnti': containsThread (addThread tp vf arg p) i) :
     getThreadC cnti' = getThreadC cnti.
   Proof.
     simpl.

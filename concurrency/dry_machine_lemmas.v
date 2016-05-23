@@ -85,8 +85,8 @@ Module ThreadPoolWF.
     
     Opaque pos_incr.
     Lemma addThread_racefree :
-      forall tp c p (Hwf: newPermMap_wf tp p) (Hrace: race_free tp),
-        race_free (addThread tp c p).
+      forall tp vf arg p (Hwf: newPermMap_wf tp p) (Hrace: race_free tp),
+        race_free (addThread tp vf arg p).
     Proof.
       unfold race_free in *. intros.
       simpl.
@@ -612,7 +612,7 @@ Module StepLemmas.
     Lemma gsoThreadC_suspend:
       forall (tp : thread_pool) (i j : tid) (cntj : containsThread tp j)
         (c : code) (Hneq: i <> j) (cnti : containsThread tp i)
-        (cntj' : containsThread (updThreadC cnti (Kstop c)) j),
+        (cntj' : containsThread (updThreadC cnti (Kblocked c)) j),
         getThreadC cntj = getThreadC cntj'.
     Proof.
       intros; erewrite gsoThreadCC; eauto.

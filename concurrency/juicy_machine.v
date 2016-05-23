@@ -421,7 +421,7 @@ Module Concur.
 
     Definition pack_res_inv R:= SomeP ([unit:Type])  (fun _ => R) .
 
-    Notation Kstop := (concurrent_machine.Kstop).
+    Notation Kblocked := (concurrent_machine.Kblocked).
     Inductive syncStep' genv {tid0 tp m}
               (cnt0:containsThread tp tid0)(Hcompat:mem_compatible tp m):
       thread_pool -> mem -> Prop :=
@@ -432,7 +432,7 @@ Module Concur.
           let: m' := m_dry jm' in
           forall
             (Hinv : invariant tp)
-            (Hthread: getThreadC cnt0 = Kstop c)
+            (Hthread: getThreadC cnt0 = Kblocked c)
             (Hat_external: at_external the_sem c =
                            Some (LOCK, ef_sig LOCK, Vptr b ofs::nil))
             (Hcompatible: mem_compatible tp m)
@@ -447,7 +447,7 @@ Module Concur.
             (Hstore: Mem.store Mint32 m1 b (Int.intval ofs) (Vint Int.zero) = Some m')
             (His_unlocked:lock_set tp (b, Int.intval ofs) = SSome d_phi )
             (Hadd_lock_res: join phi d_phi  phi')  
-            (Htp': tp' = updThread cnt0 (Kresume c) phi')
+            (Htp': tp' = updThread cnt0 (Kresume c Vundef) phi')
             (Htp'': tp'' = updLockSet tp' (AMap.add (b, Int.intval ofs) None (lset tp'))),
             syncStep' genv cnt0 Hcompat tp'' m'                 
     | step_release :
@@ -457,7 +457,7 @@ Module Concur.
           let: m' := m_dry jm' in
           forall
             (Hinv : invariant tp)
-            (Hthread: getThreadC cnt0 = Kstop c)
+            (Hthread: getThreadC cnt0 = Kblocked c)
             (Hat_external: at_external the_sem c =
                            Some (UNLOCK, ef_sig UNLOCK, Vptr b ofs::nil))
             (Hcompatible: mem_compatible tp m)
@@ -474,7 +474,7 @@ Module Concur.
             (*Hget_lock_inv: JMem.get_lock_inv jm (b, Int.intval ofs) = Some R*)
             (Hsat_lock_inv: R d_phi)
             (Hrem_lock_res: join d_phi phi' phi)
-            (Htp': tp' = updThread cnt0 (Kresume c) phi')
+            (Htp': tp' = updThread cnt0 (Kresume c Vundef) phi')
             (Htp'': tp'' =
                     updLockSet tp' (AMap.add (b, Int.intval ofs) (Some d_phi) (lset tp'))),
             syncStep' genv cnt0 Hcompat tp'' m'          
@@ -483,7 +483,7 @@ Module Concur.
         forall  (tp_upd tp':thread_pool) c c_new vf arg jm (d_phi phi': rmap) b ofs P Q,
           forall
             (Hinv : invariant tp)
-            (Hthread: getThreadC cnt0 = Kstop c)
+            (Hthread: getThreadC cnt0 = Kblocked c)
             (Hat_external: at_external the_sem c =
                            Some (CREATE, ef_sig CREATE, vf::arg::nil))
             (Hinitial: initial_core the_sem genv vf (arg::nil) = Some c_new)
@@ -494,22 +494,22 @@ Module Concur.
             (Hget_fun_spec: JMem.get_fun_spec jm (b, Int.intval ofs) arg = Some (P,Q))
             (Hsat_fun_spec: P d_phi)
             (Hrem_fun_res: join d_phi phi' (m_phi jm))
-            (Htp': tp_upd = updThread cnt0 (Kresume c) phi')
-            (Htp'': tp' = addThread tp_upd c_new d_phi),
+            (Htp': tp_upd = updThread cnt0 (Kresume c Vundef) phi')
+            (Htp'': tp' = addThread tp_upd vf arg d_phi),
             syncStep' genv cnt0 Hcompat tp' m
                      
     | step_mklock :
         forall  (tp' tp'': thread_pool)  jm jm' c b ofs R ,
           let: phi := m_phi jm in
-          let: m := m_dry jm in
           let: phi' := m_phi jm' in
           let: m' := m_dry jm' in
           forall
             (Hinv : invariant tp)
-            (Hthread: getThreadC cnt0 = Kstop c)
+            (Hthread: getThreadC cnt0 = Kblocked c)
             (Hat_external: at_external the_sem c =
                            Some (MKLOCK, ef_sig MKLOCK, Vptr b ofs::nil))
             (Hcompatible: mem_compatible tp m)
+            (Hright_juice:  m = m_dry jm)
             (Hpersonal_perm: 
                personal_mem cnt0 Hcompatible = jm)
             (*Hpersonal_juice: getThreadR cnt0 = phi*)
@@ -527,7 +527,7 @@ Module Concur.
             (*Check the two memories coincide in everything else *)
             (Hj_forward: forall loc, loc#1 <> b \/ ~0<loc#2-(Int.size ofs)<LKSIZE  -> phi@loc = phi'@loc)
             (*Check the memories are equal!*)
-            (Htp': tp' = updThread cnt0 (Kresume c) phi')
+            (Htp': tp' = updThread cnt0 (Kresume c Vundef) phi')
             (Htp'': tp'' =
                     updLockSet tp' (AMap.add (b, Int.intval ofs) None (lset tp'))),
             syncStep' genv cnt0 Hcompat tp'' m' 
@@ -538,7 +538,7 @@ Module Concur.
           let: m' := m_dry jm' in
           forall
             (Hinv : invariant tp)
-            (Hthread: getThreadC cnt0 = Kstop c)
+            (Hthread: getThreadC cnt0 = Kblocked c)
             (Hat_external: at_external the_sem c =
                            Some (FREE_LOCK, ef_sig FREE_LOCK, Vptr b ofs::nil))
             (Hcompatible: mem_compatible tp m)
@@ -559,7 +559,7 @@ Module Concur.
             (*Check the memories are equal!*)
             (Hm_forward:
                makeCurMax m = m1)
-            (Htp': tp' = updThread cnt0 (Kresume c) (m_phi jm'))
+            (Htp': tp' = updThread cnt0 (Kresume c Vundef) (m_phi jm'))
             (Htp'': tp'' =
                     updLockSet tp' (AMap.remove (b, Int.intval ofs) (lset tp'))),
             syncStep' genv cnt0 Hcompat  tp'' (m_dry jm')  (* m_dry jm' = m_dry jm = m *)
@@ -569,7 +569,7 @@ Module Concur.
           let: phi := m_phi jm in
           forall
             (Hinv : invariant tp)
-            (Hthread: getThreadC cnt0 = Kstop c)
+            (Hthread: getThreadC cnt0 = Kblocked c)
             (Hat_external: at_external the_sem c =
                            Some (LOCK, ef_sig LOCK, Vptr b ofs::nil))
             (Hcompatible: mem_compatible tp m)
@@ -612,7 +612,7 @@ Module Concur.
 
     Lemma onePos: (0<1)%coq_nat. auto. Qed.
     Definition initial_machine c:=
-      mk (mkPos onePos) (fun _ => (Kresume c)) (fun _ => empty_rmap level) (AMap.empty (option Res.res)).
+      mk (mkPos onePos) (fun _ => (Kresume c Vundef)) (fun _ => empty_rmap level) (AMap.empty (option Res.res)).
     
     Definition init_mach (genv:G)(v:val)(args:list val) : option thread_pool:=
       match initial_core the_sem genv v args with

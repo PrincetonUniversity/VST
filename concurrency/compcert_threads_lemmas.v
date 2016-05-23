@@ -757,9 +757,10 @@ Module SimDefs.
   Context {ci : CodeInj}.
   Definition ctl_inj f cc cf : Prop :=
     match cc, cf with
+    | Kinit vf arg, Kinit vf' arg' => Val.inject_list f (vf::arg::nil) (vf'::arg'::nil)
     | Krun c, Krun c' => code_inj f c c'
-    | Kstop c, Kstop c' => code_inj f c c'
-    | Kresume c, Kresume c' => code_inj f c c'
+    | Kblocked c, Kblocked c' => code_inj f c c'
+    | Kresume c arg, Kresume c' arg' => code_inj f c c' /\ val_inject f arg arg'
     | _, _  => False
     end.
 
@@ -777,7 +778,13 @@ Module SimDefs.
     intros.
     destruct c, c', c''; simpl in *; try (by exfalso);
     try (eapply code_inj_trans; eauto).
-  Qed.
+    - destruct Hcode_inj, Hcode_inj'.
+      split.
+      (eapply code_inj_trans; eauto).
+      admit. (*val_inject transitivity. *)
+    - admit. (* Val.inject_list transitivity. *)
+  Admitted.
+  
   
   (** Simulations between individual threads. *)
   
@@ -876,6 +883,7 @@ Module SimDefs.
 
   Definition ctlType (code : ctl) : StepType :=
     match code with
+    | Kinit _ _ => Internal
     | Krun c =>
       match at_external Sem c with
       | None => 
@@ -885,8 +893,8 @@ Module SimDefs.
         end
       | Some _ => Suspend
       end
-    | Kstop c => Concurrent
-    | Kresume c => Internal
+    | Kblocked c => Concurrent
+    | Kresume c _ => Internal
     end.
   
   Definition getStepType {i tp} (cnt : containsThread tp i) : StepType :=
@@ -900,8 +908,8 @@ Module SimDefs.
     intros. unfold ctl_inj in Hinj.
     destruct c; destruct c'; try (by exfalso);
     unfold ctlType in *;
-    assert (Hat_ext := code_inj_ext _ _ _ Hinj);
-    assert (Hhalted := code_inj_halted _ _ _ Hinj); auto.
+    try assert (Hat_ext := code_inj_ext _ _ _ Hinj);
+    try assert (Hhalted := code_inj_halted _ _ _ Hinj); auto.
     destruct (at_external Sem c) as [[[? ?] ?]|]; simpl in *;
     destruct (at_external Sem c0) as [[[? ?] ?]|]; simpl in *; auto;
     try (by exfalso).
@@ -1059,14 +1067,17 @@ Module SimProofs.
     Proof.
       intros. split.
       destruct Hstep_internal as [Hcore | [Hresume Hmem]]; subst;
-      autounfold;
+      autounfold.
       econstructor; simpl; eauto.
+      econstructor 2; simpl; eauto.
       intros tp'' m'' U' Hstep.
+      admit.
+      (*
       assert (Hstep_internal': internal_step Hcnt Hcomp tp'' m'' /\ i :: U = U').
       { inversion Hstep; subst; clear Hstep;
         simpl in *; inversion HschedN; subst; pf_cleanup;
         unfold internal_step; try (by auto);
-        apply internal_step_type in Hstep_internal; exfalso;
+        apply internal_step_type in Hstep_internal. exfalso;
         unfold getStepType, ctlType in Hstep_internal;
         try inversion Htstep; 
         try (inversion Hhalted); subst;
@@ -1076,16 +1087,18 @@ Module SimProofs.
                       H2: ?Expr = _ |- _] =>
                  rewrite H2 in H1
                end; try discriminate.
-        destruct (at_external_halted_excl Sem c) as [Hnot_ext | Hcontra].
+        destruct (initial_core Sem the_ge vf).
+        inversion Hinitial; subst. 
+        destruct (at_external_halted_excl Sem c_new) as [Hnot_ext | Hcontra].
         rewrite Hnot_ext in Hstep_internal.
         destruct (halted Sem c); discriminate.
         rewrite Hcontra in Hcant. auto.
       }
       destruct Hstep_internal' as [Hstep_internal' Heq]; subst.
       destruct (internal_step_det Hstep_internal Hstep_internal'); subst.
-      auto.
-    Qed.
-
+      auto.*) 
+    Admitted.
+    
     Lemma safeN_corestepN_internal:
       forall xs i U tpc mc tpc' mc' n
         (Hsafe : safeN coarse_semantics the_ge
@@ -2527,7 +2540,7 @@ Module SimProofs.
       destruct (at_external Sem c') as [[[? ?] ?]|] eqn:Hat_external';
         try by exfalso.
       destruct Hat_external_spec as [? [? ?]]; subst.
-      exists (updThreadC pff (Kstop c')).
+      exists (updThreadC pff (Kblocked c')).
       split; first by (econstructor; eauto).
       intros.
       constructor;
