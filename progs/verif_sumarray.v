@@ -39,7 +39,8 @@ Definition main_spec :=
   POST [ tint ] main_post prog u.
 
 (* Packaging the API spec all together. *)
-Definition Gprog : funspecs := sumarray_spec :: main_spec::nil.
+Definition Gprog : funspecs := 
+      augment_funspecs prog [sumarray_spec; main_spec].
 
 (* Loop invariant, for use in body_sumarray.  *)
 Definition sumarray_Inv a0 sh contents size := 
@@ -134,9 +135,7 @@ Lemma all_funcs_correct:
   semax_func Vprog Gprog (prog_funct prog) Gprog.
 Proof.
 unfold Gprog, prog, prog_funct; simpl.
-semax_func_skipn.
 semax_func_cons body_sumarray.
 semax_func_cons body_main.
-apply semax_func_nil.
 Qed.
 

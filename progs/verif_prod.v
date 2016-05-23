@@ -39,7 +39,7 @@ Definition product_spec :=
 Local Open Scope logic.
  
 Definition Vprog : varspecs := nil.
-Definition Gprog : funspecs :=  product_spec :: nil.
+Definition Gprog : funspecs := augment_funspecs prog [product_spec].
 
 Lemma cast_l2i : forall (x : val), is_long x -> is_int I32 Signed (force_val (sem_cast_l2i I32 Signed x)).
 Proof.

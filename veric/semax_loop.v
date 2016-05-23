@@ -394,7 +394,7 @@ spec H0. {
 clear - Prog_OK.
 unfold believe in *.
 unfold believe_internal in *.
-intros v fsig A P Q; specialize (Prog_OK v fsig A P Q).
+intros v fsig cc A P Q; specialize (Prog_OK v fsig cc A P Q).
 intros ? ? ?. specialize (Prog_OK a' H).
 spec Prog_OK.
 destruct H0 as [id [? ?]]. exists id; split; auto.

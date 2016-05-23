@@ -148,12 +148,12 @@ Inductive cl_step (ge: Clight.genv): forall (q: corestate) (m: mem) (q': coresta
       Clight.eval_expr ge ve te m a v ->
       cl_step ge (State ve te (Kseq (Sset id a) :: k)) m (State ve (PTree.set id v te) k) m
 
-  | step_call_internal:   forall ve te k m optid a al tyargs tyres vf vargs f m1 ve' le',
-      Cop.classify_fun (typeof a) = Cop.fun_case_f tyargs tyres cc_default ->
+  | step_call_internal:   forall ve te k m optid a al tyargs tyres cc vf vargs f m1 ve' le',
+      Cop.classify_fun (typeof a) = Cop.fun_case_f tyargs tyres cc ->
       Clight.eval_expr ge ve te m a vf ->
       Clight.eval_exprlist ge ve te m al tyargs vargs ->
       Genv.find_funct ge vf = Some (Internal f) ->
-      type_of_function f = Tfunction tyargs tyres cc_default ->
+      type_of_function f = Tfunction tyargs tyres cc ->
       list_norepet (var_names f.(fn_params) ++ var_names f.(fn_temps)) ->
       forall (NRV: list_norepet (var_names f.(fn_vars))),
       Clight.alloc_variables ge empty_env m (f.(fn_vars)) ve' m1 ->
@@ -162,12 +162,12 @@ le' ->
       cl_step ge (State ve te (Kseq (Scall optid a al) :: k)) m
                    (State ve' le' (Kseq f.(fn_body) :: Kseq (Sreturn None) :: Kcall optid f ve te :: k)) m1
 
-  | step_call_external:   forall ve te k m optid a al tyargs tyres vf vargs ef,
-      Cop.classify_fun (typeof a) = Cop.fun_case_f tyargs tyres cc_default ->
+  | step_call_external:   forall ve te k m optid a al tyargs tyres cc vf vargs ef,
+      Cop.classify_fun (typeof a) = Cop.fun_case_f tyargs tyres cc ->
       Clight.eval_expr ge ve te m a vf ->
       Clight.eval_exprlist ge ve te m al tyargs vargs ->
-      Genv.find_funct ge vf = Some (External ef tyargs tyres cc_default) ->
-      cl_step ge (State ve te (Kseq (Scall optid a al) :: k)) m (ExtCall ef (signature_of_type tyargs tyres cc_default) vargs optid ve te k) m
+      Genv.find_funct ge vf = Some (External ef tyargs tyres cc) ->
+      cl_step ge (State ve te (Kseq (Scall optid a al) :: k)) m (ExtCall ef (signature_of_type tyargs tyres cc) vargs optid ve te k) m
 
   | step_seq: forall ve te k m s1 s2 st' m',
           cl_step ge (State ve te (Kseq s1 :: Kseq s2 :: k)) m st' m' ->

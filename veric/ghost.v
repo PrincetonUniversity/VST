@@ -8,7 +8,7 @@ Definition GHOSTspec (A: Type) (x: A) : spec :=
   fun rsh sh loc =>
    allp (jam (eq_dec loc) (fun loc' => 
     yesat (SomeP (A::nil) (fun y: (A*unit) => prop(fst y = x))) 
-             (FUN (nil,Tvoid)) rsh sh loc') noat).
+             (FUN (nil,Tvoid) cc_default) rsh sh loc') noat).
 
 Definition ghostp {A: Type} (sh: share) (loc: address) (x: A) : mpred :=
   GHOSTspec A x (Share.unrel Share.Lsh sh) (Share.unrel Share.Rsh sh) loc.
@@ -105,7 +105,7 @@ Proof.
  intros.
  assert (AV.valid (res_option oo 
   (fun l => if eq_dec l loc 
-   then YES rsh sh  (FUN(nil,Tvoid))
+   then YES rsh sh  (FUN(nil,Tvoid) cc_default)
              (SomeP (A::nil) (approx lev oo (fun y: (A*unit) => prop(fst y = x))))
    else NO Share.bot))).
  intros b ofs.

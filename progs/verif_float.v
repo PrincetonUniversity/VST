@@ -16,8 +16,7 @@ Definition t_struct_foo := Tstruct _foo noattr.
 
 Definition Vprog : varspecs := (_s, t_struct_foo)::nil.
 
-Definition Gprog : funspecs := 
-     main_spec::nil.
+Definition Gprog : funspecs := augment_funspecs prog [main_spec].
 
 Lemma body_main:  semax_body Vprog Gprog f_main main_spec.
 Proof.
