@@ -499,8 +499,9 @@ Module Concur.
             syncStep' genv cnt0 Hcompat tp' m
                      
     | step_mklock :
-        forall  (tp' tp'': thread_pool) phi jm' c b ofs R ,
-          (*let: phi := m_phi jm in*)
+        forall  (tp' tp'': thread_pool)  jm jm' c b ofs R ,
+          let: phi := m_phi jm in
+          let: m := m_dry jm in
           let: phi' := m_phi jm' in
           let: m' := m_dry jm' in
           forall
@@ -509,14 +510,16 @@ Module Concur.
             (Hat_external: at_external the_sem c =
                            Some (MKLOCK, ef_sig MKLOCK, Vptr b ofs::nil))
             (Hcompatible: mem_compatible tp m)
-            (*Hpersonal_perm: 
-               personal_mem cnt0 Hcompatible = jm*)
-            (Hpersonal_juice: getThreadR cnt0 = phi)
+            (Hpersonal_perm: 
+               personal_mem cnt0 Hcompatible = jm)
+            (*Hpersonal_juice: getThreadR cnt0 = phi*)
             (*This the first share of the lock, 
               can/should this be different for each location? *)
             (sh:Share.t)
             (*Check I have the right permission to mklock and the right value (i.e. 0) *)
-            (Haccess: address_mapsto LKCHUNK (Vint Int.zero) sh Share.top (b, Int.intval ofs) phi)
+            (*Haccess: address_mapsto LKCHUNK (Vint Int.zero) sh Share.top (b, Int.intval ofs) phi*)
+            (Hstore:
+               Mem.store Mint32 m b (Int.intval ofs) (Vint Int.zero) = Some m')
             (*Check the new memory has the lock*)
             (Hlock: phi'@ (b, Int.intval ofs) = YES sh pfullshare (LK LKSIZE) (pack_res_inv R))
             (*Check the new memory has the right continuations THIS IS REDUNDANT! *)
@@ -524,7 +527,6 @@ Module Concur.
             (*Check the two memories coincide in everything else *)
             (Hj_forward: forall loc, loc#1 <> b \/ ~0<loc#2-(Int.size ofs)<LKSIZE  -> phi@loc = phi'@loc)
             (*Check the memories are equal!*)
-            (Hm_forward: m = m')
             (Htp': tp' = updThread cnt0 (Kresume c) phi')
             (Htp'': tp'' =
                     updLockSet tp' (AMap.add (b, Int.intval ofs) None (lset tp'))),
