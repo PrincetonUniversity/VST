@@ -371,7 +371,7 @@ Module MemObsEq.
       (Hval_obs_eq: val_obs f v1 v2)
       (Hobs_eq: strong_mem_obs_eq f mc mf),
     exists mf',
-      Mem.store chunk mf' b2 ofs v2 = Some mf' /\
+      Mem.store chunk mf b2 ofs v2 = Some mf' /\
       strong_mem_obs_eq f mc' mf'.
   Proof.
     Admitted.

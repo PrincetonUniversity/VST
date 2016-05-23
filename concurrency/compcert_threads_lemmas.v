@@ -4159,19 +4159,18 @@ Module SimProofs.
       (* Since the fine grained machine is at an external step so is
       the coarse-grained machine*)
       assert (HexternalC: pfc @ E)
-        by (assert (Hcodes := code_eq Htsim);
-             unfold getStepType; by rewrite Hcodes).
-       
+        by (by erewrite (stepType_inj _ _ _ (code_eq Htsim))).
       (* An external step pops the schedule and executes a concurrent call *)
       assert (Heq : empty = U /\ syncStep the_ge pfc HmemCompC tpc' mc')
         by (eapply external_step_inverse; eauto).
-      destruct Heq as [? HconcC]; subst U; clear HstepC.
+      destruct Heq as [? HconcC]; subst U.
       exists tpc', mc'.
       (* We proceed by case analysis on the concurrent call *)
       inversion HconcC; try subst tp'; try subst m'.
       { (* Lock Acquire *)
         assert (HmemCompC': mem_compatible tpc' mc')
-          by admit. (*TODO: we must deduce that fact from safety of coarse-grained machine*)
+          by admit.
+        (*TODO: we must deduce that fact from safety of coarse-grained machine*)
         (* In order to construct the new memory we have to perform the
         load and store of the lock, after setting the correct permissions*)
         (*We prove that b is valid in m1 (and mc)*)
@@ -4193,48 +4192,118 @@ Module SimProofs.
           inversion Hobs_eq; subst.
             by auto.
         }
-        Lemma store_val_obs:
-          forall (mc mc' mf : mem) (f:meminj)
-            (b1 b2 : block) chunk (ofs : Z) v1 v2
-            (Hload: Mem.store chunk mc b1 ofs v1 = Some mc')
-            (Hf: f b1 = Some (b2, 0%Z))
-            (Hval_obs_eq: val_obs f v1 v2)
-            (Hobs_eq: strong_mem_obs_eq f mc mf),
-          exists mf',
-            Mem.store chunk mf' b2 ofs v2 = Some mf' /\
-            strong_mem_obs_eq f mc' mf'.
-        Proof.
-        Admitted.
-
         assert (Hval_obs: val_obs (fp i pfc) (Vint Int.zero) (Vint Int.zero))
           by constructor.
         (* and then storing gives us related memories*)
         assert (HstoreF := store_val_obs _ _ _ Hstore Hfb Hval_obs HsimLocks).
         destruct HstoreF as [mf' [HstoreF HsimLocks']].
-        (* finally we have that the code of the fine grained execution
-        is equal to the one of the coarse-grained*)
-        assert (HcodeF:= code_eq Htsim). rewrite Hcode in HcodeF.
+        (* We have that the code of the fine grained execution
+        is related to the one of the coarse-grained*)
+        assert (Hcode_inj:= code_eq Htsim).
+        rewrite Hcode in Hcode_inj.
+        simpl in Hcode_inj.
+        destruct (getThreadC pff) as [? | cf |?] eqn:HcodeF;
+          try by exfalso.
+        (* And now we can prove that cf is also at external *)
+        assert (Hat_external_spec := code_inj_ext _ _ _ Hcode_inj).
+        rewrite Hat_external in Hat_external_spec.
+        destruct (at_external Sem cf) as [[[? ?] vsf]|] eqn:Hat_externalF;
+          try by exfalso.
+        (* and moreover that it's the same external and their
+        arguments are related by the injection*)
+        destruct Hat_external_spec as [? [? Harg_obs]]; subst.
+        inversion Harg_obs as [|? ? lock_ptr ? Hptr_obs Hl]; subst.
+        inversion Hl; subst.
+        inversion Hptr_obs as [| | | |b1 bf ofs0 Hf|];
+          subst b1 ofs0 lock_ptr.
+        assert (bf = b2)
+          by (rewrite Hf in Hfb; by inversion Hfb);
+          subst bf.
         (* To compute the new fine grained state, we apply the
         renaming to the resources the angel provided us*)
         remember (projectAngel (fp i pfc) virtue) as virtueF eqn:HvirtueF.
-        remember (updThread pff (Kresume c) (computeMap (getThreadR pff) virtueF))
+        remember (updThread pff (Kresume cf) (computeMap (getThreadR pff) virtueF))
           as tpf' eqn:Htpf'.
-        subst tpc'.
         exists tpf', mf', (fp i pfc), fp.
         split.
-        { (* proof that the fine grained machine can step*)
-          intros U.
-          assert (HsyncStepF: syncStep the_ge pff HmemCompF tpf' mf').
-          { subst mf1.
-            eapply step_acquire with (b:=b2); eauto.
-          eapply sync_step
-
-                  
-        assert (Hvalid_access := Mem.load_valid_access _ _ _ _ _ Hload).
-        destruct Hvalid_access as [Hperm Halign].
-        assert (Haccess_b2: Mem.valid_access m1f Mint32 b2 (Int.intval ofs) Freeable)
-          by (eapply sim_valid_access; eauto).
-
+        (* proof that the fine grained machine can step*)
+        intros U.
+        assert (HsyncStepF: syncStep the_ge pff HmemCompF tpf' mf')
+          by (eapply step_acquire with (b:=b2); eauto).
+        econstructor; simpl;
+          by eauto.
+        (* Proof that the new coarse and fine state are in simulation*)
+        assert (HmaxF': max_inv mf') by admit.
+        assert (HmemCompF' : mem_compatible tpf' mf')
+          by admit.
+        subst.
+        eapply Build_sim with (mem_compc := HmemCompC') (mem_compf := HmemCompF').
+        (* containsThread *)
+        admit.
+        (*safety of coarse machine*)
+        clear - Hsim HstepC.
+        assert (Hsafe := safeCoarse Hsim).
+        intros U n.
+        specialize (Hsafe (i :: U) (n.+1)).
+        simpl in Hsafe.
+        destruct Hsafe as [_ Hsafe'].
+        assert (HstepC':
+                  myCoarseSemantics.MachStep
+                    the_ge (i :: U, tpc) mc
+                    (U,
+                     updThread pfc (Kresume c) (computeMap (getThreadR pfc) virtue))
+                    mc') by admit.
+        specialize (Hsafe' _ _ HstepC');
+          by assumption.
+        (* weak simulation between the two machines*)
+        (*TODO: factor this out as a lemma*)
+        intros j pfcj' pffj'.
+        assert (pfcj: containsThread tpc j)
+          by (eapply cntUpdateC'; eauto).
+        assert (pffj: containsThread tpf j)
+          by (eapply cntUpdateC'; eauto).
+        specialize (HsimWeak _ pfcj pffj).
+        assert (Hvb: forall b, Mem.valid_block mc b <-> Mem.valid_block mc' b)
+          by (
+              intros;
+              erewrite <- restrPermMap_valid with (Hlt := compat_rp HmemCompC);
+              split;
+              [eapply Mem.store_valid_block_1 | eapply Mem.store_valid_block_2];
+              eauto).
+        assert (Hvb': forall b, ~ Mem.valid_block mc b <-> ~ Mem.valid_block mc' b)
+          by (intros; split; intros Hinvalid Hcontra;
+                by apply Hvb in Hcontra).
+        assert (HvbF: forall b, Mem.valid_block mf b <-> Mem.valid_block mf' b)
+          by (
+              intros;
+              erewrite <- restrPermMap_valid with (Hlt := compat_rp HmemCompF);
+              split;
+              [eapply Mem.store_valid_block_1 | eapply Mem.store_valid_block_2];
+              eauto).
+        clear - Hvb Hvb' HvbF HstoreF Hstore HsimWeak Hsim.
+        destruct HsimWeak.
+        constructor; intros;
+        repeat
+          (match goal with
+           | [H: context[Mem.valid_block (restrPermMap _) _] |- _] =>
+             erewrite restrPermMap_valid in H
+           | [H: ~ Mem.valid_block _ _ |- _] =>
+             apply Hvb' in H; clear Hvb'
+           | [H: Mem.valid_block _ _ |- _] =>
+             apply Hvb in H; clear Hvb
+           | [|- Mem.valid_block (restrPermMap _) _] =>
+             erewrite restrPermMap_valid
+           | [|- Mem.valid_block _ _] =>
+             eapply HvbF; clear HvbF
+           end); eauto;
+        try by specialize (codomain_valid0 _ _ H).
+        (* Permissions on coarse machine are higher than permissions on fine*)
+        destruct (i == j) eqn:Hij; move/eqP:Hij=>Hij.
+        - subst j. (*this is the case where the angel has replaced some permissions*)
+          do 2 rewrite restrPermMap_Cur.
+          do 2 rewrite gssThreadRes.
+          
+          
 
         admit.
       }

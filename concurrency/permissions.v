@@ -401,32 +401,70 @@ Section permMapDefs.
                               else
                                 Maps.PMap.get b pmap ofs')
                   pmap.
-  (* THIS OLD VERSION IS WRONG
-  Definition computeMap (pmap : access_map) (delta : delta_map) : access_map :=
-    (fun ofs => None,
-             Maps.PTree.map 
-               (fun b f => 
-                  fun ofs =>
-                    match (Maps.PMap.get b delta) ofs with
-                    | None => f ofs
-                    | Some p => p
-                    end) pmap.2). *)
+
+  (** Apply a [delta_map] to an [access_map]*)
   Definition computeMap (pmap : access_map) (delta : delta_map) : access_map :=
     (pmap.1,
-     @Maps.PTree.combine (Z -> option permission) (Z -> option (option permission)) (Z -> option permission)
+     @Maps.PTree.combine (Z -> option permission) (Z -> option (option permission))
+                         (Z -> option permission)
                          (fun p1 pd => match pd, p1 with
-                                    | Some pd', Some p1' => Some (fun z => match pd' z with
-                                                                           Some pd'' => pd''
-                                                                         | _ => p1' z
-                                                                         end)
-                                    | Some pd', None => Some (fun z => match pd' z with
-                                                                       Some pd'' => pd''
-                                                                       | _ => None
-                                                                     end)
+                                    | Some pd', Some p1' =>
+                                      Some (fun z => match pd' z with
+                                                    Some pd'' => pd''
+                                                  | _ => p1' z
+                                                  end)
+                                    | Some pd', None =>
+                                      Some (fun z => match pd' z with
+                                                    Some pd'' => pd''
+                                                  | _ => pmap.1 z
+                                                  end)
                                     | None, _ => p1
                                     end)
                          pmap.2 delta).
-      
+
+  (** If the [delta_map] changes the [access_map] at a specific [address] *)
+  Lemma computeMap_1 :
+    forall (pmap : access_map) (dmap : delta_map) b ofs df (p : option permission),
+      Maps.PTree.get b dmap = Some df ->
+      df ofs = Some p ->
+      Maps.PMap.get b (computeMap pmap dmap) ofs = p.
+  Proof.
+    intros pmap dmap b ofs df p Hdmap Hdf.
+    unfold computeMap, Maps.PMap.get. simpl.
+    rewrite Maps.PTree.gcombine; try reflexivity.
+    rewrite Hdmap.
+    destruct ((pmap.2) ! b);
+      by rewrite Hdf.
+  Qed.
+
+  (** If the [delta_map] changes the [access_map] at this [block] but not at this [offset] *)
+  Lemma computeMap_2 :
+    forall (pmap : access_map) (dmap : delta_map) b ofs df (p : option permission),
+      Maps.PTree.get b dmap = Some df ->
+      df ofs = None ->
+      Maps.PMap.get b (computeMap pmap dmap) ofs = Maps.PMap.get b pmap ofs.
+  Proof.
+    intros pmap dmap b ofs df p Hdmap Hdf.
+    unfold computeMap, Maps.PMap.get. simpl.
+    rewrite Maps.PTree.gcombine; try reflexivity.
+    rewrite Hdmap.
+    destruct ((pmap.2) ! b);
+      by rewrite Hdf.
+  Qed.
+
+  (** If the [delta_map] does not change the [access_map] at this [block] *)
+  Lemma computeMap_3 :
+    forall (pmap : access_map) (dmap : delta_map) b ofs,
+      Maps.PTree.get b dmap = None ->
+      Maps.PMap.get b (computeMap pmap dmap) ofs = Maps.PMap.get b pmap ofs.
+  Proof.
+    intros pmap dmap b ofs Hdmap.
+    unfold computeMap, Maps.PMap.get. simpl.
+    rewrite Maps.PTree.gcombine; try reflexivity.
+    rewrite Hdmap.
+      by reflexivity.
+  Qed.
+  
   Import Maps BlockList.
   
   Definition maxF (f : Z -> perm_kind -> option permission) :=
