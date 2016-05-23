@@ -1,16 +1,16 @@
 Require Import floyd.proofauto.
 Local Open Scope logic.
 Require Import Coq.Lists.List. Import ListNotations.
-Require Import general_lemmas.
+Require Import sha.general_lemmas.
 
-Require Import split_array_lemmas.
+Require Import tweetnacl20140427.split_array_lemmas.
 Require Import ZArith. 
-Require Import tweetNaclBase.
-Require Import Salsa20.
-Require Import verif_salsa_base.
-Require Import tweetnaclVerifiableC.
-Require Import Snuffle. 
-Require Import spec_salsa. Opaque Snuffle.Snuffle.
+Require Import tweetnacl20140427.tweetNaclBase.
+Require Import tweetnacl20140427.Salsa20.
+Require Import tweetnacl20140427.verif_salsa_base.
+Require Import tweetnacl20140427.tweetnaclVerifiableC.
+Require Import tweetnacl20140427.Snuffle. 
+Require Import tweetnacl20140427.spec_salsa. Opaque Snuffle.Snuffle.
 
 Lemma int_max_unsigned_int64_max_unsigned: Int.max_unsigned < Int64.max_unsigned.
 Proof. cbv; trivial. Qed.
@@ -1464,11 +1464,12 @@ forward_while (Inv cInit mInit bInit k nonce x z (N0, N1,N2,N3) K SV mCont zbyte
   Exists O mInit. Exists zbytes (@nil byte).
   destruct (Int64.unsigned_range bInit). 
   specialize (Zlength_nonneg mCont); intros. unfold Bl2VL.
-  old_go_lower. entailer.
-  apply andp_right. apply prop_right. rewrite Int64.sub_zero_l; split; trivial. 
-  destruct _id0; simpl in TC; try contradiction. subst i; split; simpl; trivial.
-  simpl; rewrite Int.add_zero; trivial. split; trivial.
-  constructor.
+  old_go_lower. Time entailer!.
+  (*apply andp_right. apply prop_right. *)rewrite Int64.sub_zero_l; split; trivial. 
+  destruct _id0; simpl in TC; try contradiction.
+  split. simpl. solve [subst i; split; simpl; trivial].
+  constructor. split. simpl. rewrite Int.add_zero; trivial. 
+  constructor. 
   rewrite Zminus_0_r. unfold tarray.
   autorewrite with sublist. cancel.
   rewrite Tarray_0_emp_iff; auto with field_compatible.
@@ -1590,7 +1591,7 @@ thaw FR5. thaw FR4.
 
   assert (Zlength xorlist = 64).
      unfold bxorlist in XOR; destruct (combinelist_Zlength _ _ _ _ _ XOR).
-     autorewrite with sublist in H5. rewrite H4. unfold bytes_at. destruct mInit; autorewrite with sublist; trivial.
+     autorewrite with sublist in H5. rewrite H20. unfold bytes_at. destruct mInit; autorewrite with sublist; trivial.
   assert (Zlength (Bl2VL xorlist) = 64). rewrite Zlength_Bl2VL; omega.
   remember (Z.of_nat rounds * 64)%Z as r64.
   apply CONT_Zlength in CONT.
@@ -1600,7 +1601,7 @@ thaw FR5. thaw FR4.
 
   erewrite (split2_data_at_Tarray_tuchar _ (Int64.unsigned bInit - r64) (Zlength (Bl2VL xorlist))).
   2: omega. 2: rewrite Zlength_app; autorewrite with sublist; omega.
-  autorewrite with sublist. rewrite H5.
+  autorewrite with sublist. rewrite H21.
   rewrite field_address0_clarify; simpl.
   Focus 2. unfold field_address0; simpl. rewrite if_true; trivial.
            auto with field_compatible.
@@ -1686,10 +1687,10 @@ forward_if (IfPost z x bInit (N0, N1, N2, N3) K mCont (Int64.unsigned bInit) non
   rewrite normal_ret_assert_eq. unfold overridePost, IfPost. 
   normalize. rewrite if_true; trivial. old_go_lower.
   entailer!.
-  unfold typed_true in BR. inversion BR; clear BR. rewrite RR in *. eapply negb_true_iff in H10. 
-  unfold Int64.eq in H10. rewrite RR in H10. unfold Int64.zero in H10.
-  rewrite Int64.unsigned_repr in H10. 2: omega.
-  if_tac in H10. inv H10. clear H10. thaw FR1.
+  unfold typed_true in BR. inversion BR; clear BR. rewrite RR in *. eapply negb_true_iff in H8. 
+  unfold Int64.eq in H8. rewrite RR in H8. unfold Int64.zero in H8.
+  rewrite Int64.unsigned_repr in H8. 2: omega.
+  if_tac in H8. inv H8. clear H8. thaw FR1.
   unfold CoreInSEP.
   rewrite Int64.eq_false. 2: assumption.
   Intros l.
@@ -1698,9 +1699,9 @@ forward_if (IfPost z x bInit (N0, N1, N2, N3) K mCont (Int64.unsigned bInit) non
   entailer!. 
   + red.
     assert (R: rounds = Z.to_nat (Int64.unsigned bInit / 64)).
-    { clear H17 Heqc H21 H20 H10 H2 M. clear H22 H23 H19 H18 H16 H15 H13 H12 H24 H25.
+    { (*clear H17 Heqc H21 H20 H10 H2 M. clear H22 H23 H19 H18 H16 H15 H13 H12 H24 H25.
       clear H H0 H5 H6 H8 H7 ZBytes H11 H14. clear SNR SRBL D Snuff.
-      clear RR. clear SRL CZ HRE BB POSTCONDITION MLEN Lzbytes CONT.
+      clear RR. clear SRL CZ HRE BB POSTCONDITION MLEN Lzbytes CONT.*)
       remember (Int64.unsigned bInit) as p.
       erewrite <- Z.div_unique with (q:= Z.of_nat rounds).
        rewrite Nat2Z.id. trivial.
@@ -1724,10 +1725,10 @@ forward_if (IfPost z x bInit (N0, N1, N2, N3) K mCont (Int64.unsigned bInit) non
     repeat rewrite map_app. autorewrite with sublist.
     cancel. unfold Sigma_vector. cancel. 
     rewrite field_address0_clarify; simpl.
-    rewrite Heqc, Zplus_0_l, Z.mul_1_l; trivial.
+    rewrite (*Heqc, *)Zplus_0_l, Z.mul_1_l; trivial.
     unfold field_address0; simpl.
     rewrite Zplus_0_l, Z.mul_1_l, if_true; trivial. 
-    apply field_compatible_isptr in H20. 
+    apply field_compatible_isptr in H18. 
     destruct cInit; simpl in *; try contradiction; trivial.
     auto with field_compatible.
 }
@@ -1740,8 +1741,7 @@ forward_if (IfPost z x bInit (N0, N1, N2, N3) K mCont (Int64.unsigned bInit) non
   rewrite XX in *. clear H RR.
   unfold IfPost, CoreInSEP.
   entailer!.
-  rewrite Zminus_diag in *; rewrite Tarray_0_emp_iff_. 
-  Focus 2. rewrite <- H7. assumption.
+  rewrite Zminus_diag in *; rewrite Tarray_0_emp_iff_; try assumption.
   rewrite Int64.eq_false. 2: assumption.
   unfold (*liftx, lift, *) SByte. simpl. cancel.
   Exists srbytes. apply andp_right; trivial.

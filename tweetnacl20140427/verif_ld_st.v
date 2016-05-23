@@ -1,16 +1,16 @@
 Require Import floyd.proofauto.
 Local Open Scope logic.
 Require Import List. Import ListNotations.
-Require Import general_lemmas.
+Require Import sha.general_lemmas.
 
-Require Import split_array_lemmas.
+Require Import tweetnacl20140427.split_array_lemmas.
 Require Import ZArith. 
-Require Import tweetNaclBase.
-Require Import Salsa20.
-Require Import tweetnaclVerifiableC.
-Require Import verif_salsa_base.
+Require Import tweetnacl20140427.tweetNaclBase.
+Require Import tweetnacl20140427.Salsa20.
+Require Import tweetnacl20140427.tweetnaclVerifiableC.
+Require Import tweetnacl20140427.verif_salsa_base.
 
-Require Import spec_salsa.
+Require Import tweetnacl20140427.spec_salsa.
 
 Opaque Snuffle20. Opaque Snuffle.Snuffle. Opaque prepare_data. 
 Opaque fcore_result.

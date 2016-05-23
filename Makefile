@@ -23,7 +23,7 @@ COMPCERT=compcert
 CC_TARGET=compcert/cfrontend/Clight.vo
 CC_DIRS= lib common cfrontend exportclight
 DIRS= msl sepcomp veric concurrency floyd progs sha linking fcf hmacfcf tweetnacl20140427
-INCLUDE= $(foreach a,$(DIRS),$(if $(wildcard $(a)), -Q $(a) $(a))) -Q $(COMPCERT) compcert -Q mathcomp $(MATHCOMP)
+INCLUDE= $(foreach a,$(DIRS),$(if $(wildcard $(a)), -Q $(a) $(a))) -Q $(COMPCERT) compcert $(if $(MATHCOMP), -Q mathcomp $(MATHCOMP))
 #Replace the INCLUDE above with the following in order to build the linking target:
 #INCLUDE= $(foreach a,$(DIRS),$(if $(wildcard $(a)), -I $(a) -as $(a))) -R $(COMPCERT) -as compcert -I $(SSREFLECT)/src -R $(SSREFLECT)/theories -as Ssreflect \
 #  -R $(MATHCOMP)/theories -as MathComp
@@ -138,7 +138,9 @@ CONCUR_FILES= \
   concurrent_machine.v juicy_machine.v dry_machine.v \
   erasure.v Clight_erasure.v \
   dry_machine_lemmas.v dry_context.v \
-  semax_conc.v semax_to_machine.v
+  compcert_threads_lemmas.v mem_obs_eq.v \
+  semax_conc.v semax_to_machine.v \
+  lifting.v
 
 LINKING_FILES= \
   sepcomp.v \

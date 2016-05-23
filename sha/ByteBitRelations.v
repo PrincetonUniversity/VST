@@ -2,15 +2,15 @@ Require Import compcert.lib.Coqlib.
 Require Import List. Import ListNotations.
 Require Import Coq.ZArith.BinInt. (* Z *)
 Require Import Coq.ZArith.Zcomplements. (* Zlength *)
-Require Import Integers.          (* byte *)
+Require Import compcert.lib.Integers.          (* byte *)
 Require Import Coq.Numbers.Natural.Peano.NPeano.
 
 Require Import Coq.Strings.Ascii.
 Require Import Coq.Program.Tactics.
-Require Import XorCorrespondence. (* Blist *)
-Require Import Bruteforce.
+Require Import sha.XorCorrespondence. (* Blist *)
+Require Import sha.Bruteforce.
 Require Import sha.general_lemmas.
-Require Import hmac_pure_lemmas.
+Require Import sha.hmac_pure_lemmas.
 
 Definition Blist := list bool.
 Open Scope Z_scope.
@@ -24,7 +24,7 @@ Inductive InBlocks {A : Type} (n : nat) : list A -> Prop :=
                    InBlocks n full. 
 
 Lemma InBlocks_len : forall {A : Type} (l : list A) (n : nat),
-                       NPeano.divide (n) (length l) -> InBlocks n l.
+                       PeanoNat.Nat.divide (n) (length l) -> InBlocks n l.
 Proof. 
   intros A l n div.
   destruct div.
@@ -322,7 +322,7 @@ Proof.
       apply len.
       -
         apply InBlocks_len.
-        rewrite -> H. unfold NPeano.divide.
+        rewrite -> H. unfold PeanoNat.Nat.divide.
         exists 1%nat. reflexivity.
 Qed.
 
@@ -412,8 +412,8 @@ Proof. induction b1.
 Qed.
 
 Lemma bitsToBytes_injective8 b1 b2 (B: bitsToBytes b1 = bitsToBytes b2)
-       (L1: NPeano.divide 8 (length b1))
-       (L2: NPeano.divide 8 (length b2)): b1 = b2.
+       (L1: PeanoNat.Nat.divide 8 (length b1))
+       (L2: PeanoNat.Nat.divide 8 (length b2)): b1 = b2.
 Proof. intros.
   assert (bytesToBits (bitsToBytes b1) = bytesToBits (bitsToBytes b2)).
     rewrite B; trivial.
@@ -443,10 +443,10 @@ Proof. intros.
   split; reflexivity.
 Qed.
 
-Definition intsToBits (l : list int) : list bool :=
+Definition intsToBits (l : list Int.int) : list bool :=
   bytesToBits (intlist_to_Zlist l).
 
-Definition bitsToInts (l : Blist) : list int :=
+Definition bitsToInts (l : Blist) : list Int.int :=
   Zlist_to_intlist (bitsToBytes l).
 
 Lemma bitsToBytes_isbyteZ: forall bytes bits,

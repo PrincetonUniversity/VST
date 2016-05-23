@@ -11,19 +11,19 @@ Require Import List. Import ListNotations.
 
 Require Import split_array_lemmas.*)
 Require Import ZArith. 
-Require Import tweetNaclBase.
-Require Import Salsa20.
-Require Import verif_salsa_base.
-Require Import tweetnaclVerifiableC.
-Require Import Snuffle. 
-Require Import spec_salsa.
+Require Import tweetnacl20140427.tweetNaclBase.
+Require Import tweetnacl20140427.Salsa20.
+Require Import tweetnacl20140427.verif_salsa_base.
+Require Import tweetnacl20140427.tweetnaclVerifiableC.
+Require Import tweetnacl20140427.Snuffle. 
+Require Import tweetnacl20140427.spec_salsa.
 
-Require Import verif_fcore_loop1.
-Require Import verif_fcore_loop2.
-Require Import verif_fcore_loop3.
+Require Import tweetnacl20140427.verif_fcore_loop1.
+Require Import tweetnacl20140427.verif_fcore_loop2.
+Require Import tweetnacl20140427.verif_fcore_loop3.
 
-Require Import verif_fcore_epilogue_htrue.
-Require Import verif_fcore_epilogue_hfalse.
+Require Import tweetnacl20140427.verif_fcore_epilogue_htrue.
+Require Import tweetnacl20140427.verif_fcore_epilogue_hfalse.
 
 Opaque littleendian_invert. Opaque Snuffle.Snuffle.
 
@@ -385,26 +385,26 @@ apply semax_seq with (Q:=fcore_EpiloguePOST t y x w nonce out c k h OUT data).
     freeze [0;1;2;3;4] FR2. 
     Time forward. (*4 versus 18*)
     Exists t y x w. thaw FR2. Time entailer!. (*4.6 versus 8.4*)
-    rewrite Zlength_map in H2. 
+    rewrite Zlength_map in H1. 
     specialize (Snuffle_length _ _ _  H0 (prepare_data_length _ )); intros L.
     unfold fcore_result.
     unfold Snuffle20, bind. rewrite H0; clear H0.
     remember (Int.eq (Int.repr h) Int.zero) as hh.
     destruct hh.
     - Intros l. Exists l.
-        destruct (HFalse_inv16_char _ _ _ H) as [sums [SUMS1 SUMS2]].
+        destruct (HFalse_inv16_char _ _ _ H0) as [sums [SUMS1 SUMS2]].
           rewrite Zlength_correct, L; reflexivity. trivial.
         rewrite <- SUMS1, <- SUMS2.
         unfold fcorePOST_SEP, OutLen. rewrite <- Heqhh.
         Time entailer!. (*1.7*)
     - Intros intsums.
       Exists (hPosLoop3 4 (hPosLoop2 4 intsums C Nonce) OUT).
-      apply HTrue_inv_char in H. rewrite <- H.
+      apply HTrue_inv_char in H0. rewrite <- H0.
       destruct Nonce as [[[? ?] ?] ?]. destruct C as [[[? ?] ?] ?]. 
       rewrite <- TP with (OUT:=OUT).
       unfold fcorePOST_SEP, OutLen. rewrite <- Heqhh. 
       Time entailer!. (*4.3*)
-       rewrite Zlength_correct, (sumlist_length _ _ _ H), prepare_data_length; trivial.
+       rewrite Zlength_correct, (sumlist_length _ _ _ H0), prepare_data_length; trivial.
         rewrite ZL_OUT. unfold OutLen; rewrite <- Heqhh. trivial.
         rewrite Zlength_correct, L; reflexivity.
         rewrite Zlength_correct, prepare_data_length; reflexivity.

@@ -5,7 +5,7 @@ Set Implicit Arguments.
 Require Import Arith.
 Require Import Omega.
 Require Import List.
-Require Import StdNat.
+Require Import fcf.StdNat.
 
 Inductive Rat :=
     RatIntro : nat -> posnat -> Rat.

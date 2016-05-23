@@ -4,18 +4,17 @@ Import ListNotations.
 Require sha.sha.
 Require sha.SHA256.
 Local Open Scope logic.
-(*Require Import sublist.*)
 
 Require Import sha.spec_sha.
-Require Import sha_lemmas.
+Require Import sha.sha_lemmas.
 Require Import sha.HMAC_functional_prog.
 Require Import sha.HMAC256_functional_prog.
 
 Require Import sha.hmac.
 Require Import sha.spec_hmac.
 Require Import sha.vst_lemmas.
-Require Import hmac_pure_lemmas.
-Require Import hmac_common_lemmas.
+Require Import sha.hmac_pure_lemmas.
+Require Import sha.hmac_common_lemmas.
 
 Lemma withspacer_refl: forall sh a P, withspacer sh a a P = P.
 Proof. intros. unfold withspacer. 
@@ -157,11 +156,11 @@ freeze [0;1;2;3] FR6.
 Time forward. (*Sreturn None; 2.7 versus 10.2*)
 Exists buf.
 thaw FR6.
-    change (@data_block spec_sha.CompSpecs shmd (SHA256.SHA_256 updSha) md)
-     with (@data_block CompSpecs shmd (SHA256.SHA_256 updSha) md).
-     Time cancel. (*0.5*)
+(*    change (@data_block spec_sha.CompSpecs shmd (SHA256.SHA_256 updShaST) md)
+     with (@data_block CompSpecs shmd (SHA256.SHA_256 updShaST) md).
+     Time cancel. (*0.5*)*)
 thaw FR5.
-change_compspecs CompSpecs.
+(*change_compspecs CompSpecs.*)
 unfold data_block. simpl. rewrite SFL.
 Time (normalize; cancel). (*5.5*)
 
@@ -179,7 +178,7 @@ rewrite field_address_offset by auto with field_compatible. Time cancel. (*0.2*)
 rewrite (field_at_data_at _ _ [StructField _md_ctx]).
 rewrite field_address_offset by auto with field_compatible. simpl.
 rewrite field_at_data_at.
-rewrite field_address_offset by auto with field_compatible. simpl. trivial. 
+rewrite field_address_offset by auto with field_compatible. simpl. trivial.
 Time Qed. (*25 versus 38*)
 
 Lemma body_hmac_final: semax_body HmacVarSpecs HmacFunSpecs 
@@ -187,4 +186,4 @@ Lemma body_hmac_final: semax_body HmacVarSpecs HmacFunSpecs
 Proof.
 start_function.
 apply finalbodyproof; trivial.
-Qed.
+Time Qed.

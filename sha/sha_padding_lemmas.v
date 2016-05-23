@@ -2,10 +2,10 @@ Require Import compcert.lib.Coqlib.
 Require Import compcert.lib.Integers.
 Require Import List. Import ListNotations.
 Require Import sha.general_lemmas.
-Require Import hmac_pure_lemmas.
-Require Import SHA256.
-Require Import pure_lemmas.
-Require Import functional_prog.
+Require Import sha.hmac_pure_lemmas.
+Require Import sha.SHA256.
+Require Import sha.pure_lemmas.
+Require Import sha.functional_prog.
 
 (* Lemma 1: M = Prefix(Pad(M)) *)
 

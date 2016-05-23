@@ -1,6 +1,6 @@
 Require Import floyd.proofauto.
 Import ListNotations.
-Require Import Blist.
+Require Import fcf.Blist.
 
 Require Import sha.vst_lemmas.
 Require Import sha.hmac_pure_lemmas.
@@ -16,7 +16,7 @@ Require Import sha_lemmas.
 Require Import sha.HMAC_functional_prog.
 Require Import sha.HMAC256_functional_prog.
 Require Import sha.hmac_common_lemmas.
-Require Import ShaInstantiation.
+Require Import sha.ShaInstantiation.
 Require Import HMAC256_equivalence.
 Require Import HMAC256_isPRF.
 

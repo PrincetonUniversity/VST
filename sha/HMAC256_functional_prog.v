@@ -4,9 +4,9 @@ Require Import Coq.Strings.String.
 Require Import Coq.Strings.Ascii.
 Require Import List. Import ListNotations.
 Require Import sha.general_lemmas.
-Require Import SHA256.
-Require Import functional_prog.
-Require Import HMAC_functional_prog.
+Require Import sha.SHA256.
+Require Import sha.functional_prog.
+Require Import sha.HMAC_functional_prog.
 
 Module SHA256 <: HP.HASH_FUNCTION.
   Definition BlockSize:= 64%nat.

@@ -2,6 +2,7 @@ Require Import compcert.lib.Integers.
 From mathcomp.ssreflect Require Import ssreflect ssrbool ssrnat eqtype.
 Require Import Lists.List.
 Require Import Coq.ZArith.ZArith.
+Require Import PreOmega.
 Set Implicit Arguments.
 
 (* tactics to support Omega for ssrnats*)
@@ -53,6 +54,30 @@ Lemma if_false : forall {A : Type} b (x y : A)
 Proof.
   intros. rewrite <- Bool.if_negb. by rewrite Hfalse.
 Defined.
+
+Lemma le_sub:
+  forall x y z,
+    (x < z)%positive ->
+    (z <= y)%positive ->
+    (x <= Z.to_pos (Z.pos_sub y (z - x)))%positive.
+Proof.
+  intros x y z H H0.
+  zify.
+  rewrite <-Pos2Z.add_pos_neg.
+  assert (x < z)%positive by auto.
+  rewrite Z2Pos.id; zify; rewrite Pos2Z.inj_sub; auto; omega.
+Qed.
+
+Lemma lt_lt_sub:
+  forall a b c,
+    (a < b)%positive ->
+    (b <= c)%positive ->
+    (b - a < c)%positive.
+Proof.
+  intros a b c H H0.
+  zify.
+  rewrite Pos2Z.inj_sub; auto; omega.
+Qed.
 
 Module BlockList.
   Import ListNotations.

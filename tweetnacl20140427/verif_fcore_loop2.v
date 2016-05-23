@@ -3,11 +3,11 @@ Require Import floyd.proofauto.
 Local Open Scope logic.
 Require Import List. Import ListNotations.
 Require Import ZArith. 
-Require Import tweetNaclBase.
-Require Import Salsa20.
-Require Import verif_salsa_base.
-Require Import tweetnaclVerifiableC.
-Require Import spec_salsa.
+Require Import tweetnacl20140427.tweetNaclBase.
+Require Import tweetnacl20140427.Salsa20.
+Require Import tweetnacl20140427.verif_salsa_base.
+Require Import tweetnacl20140427.tweetnaclVerifiableC.
+Require Import tweetnacl20140427.spec_salsa.
 
 Definition Y_content (y: list val)
                      (i:Z) (l X:list val) : Prop :=
@@ -104,7 +104,7 @@ Proof. intros. abbreviate_semax.
           split. 
             rewrite upd_Znth_char; trivial.
             rewrite Zlength_cons', Zlength_nil, Zplus_0_r. solve [auto].
-        + rewrite <- APP1. thaw FR2. Time cancel. (*0.1*)  }
+        + (*rewrite <- APP1.*) thaw FR2. Time cancel. (*0.1*)  }
   }
   apply andp_left2; apply derives_refl.
 Time Qed. (*13*) 

@@ -467,7 +467,7 @@ ere. *)
          - apply MTCH_updLock.
            apply MTCH_update; auto.
            intros.
-           (*This is going tot ake some work. If its false the definitions can easily change. *)
+           (*This is going to take some work. If its false the definitions can easily change. *)
            admit.
            destruct Hcmpt.
            unfold JSEM.locks_correct in loc_set_ok.
@@ -575,9 +575,30 @@ ere. *)
       split ; [|split].
       - admit. (*Nick has this proof somewhere. *)
       - unfold pmap_lp.
-        (*apply MTCH_addLock.*)
+        erewrite <- DTP.gsoThreadLock.
+        apply MTCH_addLock. 
+        apply MTCH_update; auto.
+        intros.
+        
+        (*This is going tot ake some work. If its false the definitions can easily change. *)
         admit.
-      - admit. (*The step *)
+      - econstructor 4. (*The step *)
+        + assumption.
+        + eapply MTCH_getThreadC; eassumption.
+        + eassumption.
+        (*      + eapply MTCH_compat; eassumption. *)
+        + inversion MATCH; subst.
+          rewrite <- mtch_locks.
+          destruct Hcmpt.
+          unfold JSEM.locks_correct in loc_set_ok.
+          eapply loc_set_ok.
+          eapply JSEM.join_geq; eassumption.
+        + reflexivity.
+        + assumption.
+        + assumption.
+        + instantiate(1:=virtue).
+          replace (MTCH_cnt MATCH Hi) with Htid' by apply proof_irrelevance.
+          reflexivity.
     }
 
     (* step_freelock *)

@@ -304,8 +304,9 @@ Definition main_spec :=
   POST [ tint ] main_post prog u.
 
 Definition Gprog : funspecs := 
-  augment_funspecs prog [mallocN_spec; freeN_spec; fifo_new_spec;
-     fifo_put_spec; fifo_empty_spec; fifo_get_spec; make_elem_spec; main_spec].
+  augment_funspecs prog [
+    mallocN_spec; freeN_spec; fifo_new_spec; fifo_put_spec;
+    fifo_empty_spec; fifo_get_spec; make_elem_spec; main_spec].
 
 Lemma memory_block_fifo:
  forall p, 
@@ -582,11 +583,6 @@ semax_func_cons body_fifo_empty.
 semax_func_cons body_fifo_get.
 semax_func_cons body_make_elem.
 semax_func_cons body_main.
-<<<<<<< HEAD
-apply semax_func_nil.
 Admitted.
-=======
-Qed.
->>>>>>> master
 
 
