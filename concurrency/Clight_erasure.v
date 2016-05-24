@@ -425,7 +425,8 @@ Module ClightParching <: ErasureSig.
         - generalize no_race; unfold DSEM.race_free.
           simpl. intros.
           apply no_race0; auto.
-        - intros; simpl. apply lock_pool.
+        - simpl; assumption. 
+        - simpl; assumption.
   Qed.
   
 
@@ -444,7 +445,7 @@ Module ClightParching <: ErasureSig.
   Proof.
 
     intros.
-    inversion Htstep; subst.
+    inversion Htstep; try subst.
     
     (* step_acquire  *)
     {
@@ -457,13 +458,11 @@ Module ClightParching <: ErasureSig.
          pose (virtue:= PTree.map
                                       (fun (block : positive) (_ : Z -> option permission) (ofs : Z) =>
                                           (inflated_delta (block, ofs))) (snd (permissions.getCurPerm m)) ).
-         exists (DSEM.ThreadPool.updThread Htid' (Kresume c)
+         exists (DSEM.ThreadPool.updThread Htid' (Kresume c Vundef)
                   (permissions.computeMap
                      (DSEM.ThreadPool.getThreadR Htid') virtue)).
          split; [|split].
-         
-         - admit. (*Nick has this proof somewh
-ere. *)
+         - admit. (*Invariant after update. Nick has this proof somewhere. *)
          - apply MTCH_updLock.
            apply MTCH_update; auto.
            intros.
