@@ -14,13 +14,13 @@ Definition unsig_Set {U: Type} {P: U -> Prop} (A: Ensemble {x: U | P x}): Ensemb
 Definition sig_Set {U: Type} (Q P: Ensemble U): Ensemble {x: U | P x} := fun x => Q (proj1_sig x).
 
 Record SigmaAlgebra (Omega: Type): Type := {
-  measurable: Ensemble Omega -> Prop;
-  universal_set_measurable: measurable (Full_set _);
-  complement_measurable: forall P, measurable P -> measurable (Complement _ P);
-  countable_union_measurable: forall P: nat -> Ensemble Omega, (forall i, measurable (P i)) -> measurable (Countable_Union _ P)
+  is_measurable_set: Ensemble Omega -> Prop;
+  universal_set_measurable: is_measurable_set (Full_set _);
+  complement_measurable: forall P, is_measurable_set P -> is_measurable_set (Complement _ P);
+  countable_union_measurable: forall P: nat -> Ensemble Omega, (forall i, is_measurable_set (P i)) -> is_measurable_set (Countable_Union _ P)
 }.
 
-Definition measurable_set {Omega: Type} (sa: SigmaAlgebra Omega): Type := {x: Ensemble Omega | measurable Omega sa x}.
+Definition measurable_set {Omega: Type} (sa: SigmaAlgebra Omega): Type := {x: Ensemble Omega | is_measurable_set Omega sa x}.
 
 Definition MSet_Ensemble {Omega: Type} {sa: SigmaAlgebra Omega} (P: measurable_set sa): Ensemble Omega := proj1_sig P.
 Global Coercion MSet_Ensemble: measurable_set >-> Ensemble.
@@ -54,22 +54,27 @@ Record ProbabilitySpace (Omega: Type): Type := {
 
 (* This does not require measures to be complete, i.e. 0-measure set's subset can be unmeasurable. *)
 Class PartialRegularProbabilitySpace (Omega: Type): Type := {
-  measurable_subspace: (Ensemble Omega) -> Prop;
-  sub_measure: forall (P: Ensemble Omega | measurable_subspace P), ProbabilitySpace {o: Omega | proj1_sig P o};
-  pos_measurable_subspace: forall (LP: Ensemble Omega | measurable_subspace LP) Q (QP: measurable_set (sub_measure LP)),
+  is_measurable_subspace: (Ensemble Omega) -> Prop;
+  sub_measure: forall (P: Ensemble Omega | is_measurable_subspace P), ProbabilitySpace {o: Omega | proj1_sig P o};
+  pos_measurable_subspace: forall (LP: Ensemble Omega | is_measurable_subspace LP) Q (QP: measurable_set (sub_measure LP)),
     let P := proj1_sig LP in
     Included _ Q P ->
     Same_set _ QP (sig_Set Q P) ->
     measure_function _ (sub_measure LP) QP > 0 ->
-    measurable_subspace Q;
+    is_measurable_subspace Q;
+  measurable_subset_measurable: forall (LP: Ensemble Omega | is_measurable_subspace LP) (LQ: Ensemble Omega | is_measurable_subspace LQ),
+    let P := proj1_sig LP in
+    let Q := proj1_sig LQ in
+    Included _ Q P ->
+    is_measurable_set _ (sub_measure LP) (sig_Set Q P);
   measurable_trans: forall LP LQ R,
     let P := proj1_sig LP in
     let Q := proj1_sig LQ in
     Included _ Q P ->
     Included _ R Q ->
-    measurable _ (sub_measure LP) (sig_Set Q P) ->
-    (measurable _ (sub_measure LQ) (sig_Set R Q) <->
-     measurable _ (sub_measure LP) (sig_Set R P));
+    is_measurable_set _ (sub_measure LP) (sig_Set Q P) ->
+    (is_measurable_set _ (sub_measure LQ) (sig_Set R Q) <->
+     is_measurable_set _ (sub_measure LP) (sig_Set R P));
   measure_trans: forall LP LQ R (QP: measurable_set (sub_measure LP)) (RP: measurable_set (sub_measure LP)) (RQ: measurable_set (sub_measure LQ)),
     let P := proj1_sig LP in
     let Q := proj1_sig LQ in

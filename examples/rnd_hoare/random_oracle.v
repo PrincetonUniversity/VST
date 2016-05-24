@@ -349,7 +349,35 @@ Proof. intros. reflexivity. Qed.
 Definition DomainOfVar {ora: RandomOracle} {A: Type} (v: RandomVariable A): RandomVarDomain :=
   Build_RandomVarDomain _ (Basics.compose isSome (raw_var _ v)) (raw_var_legal _ v).
 
+Definition singleton_history_domain {ora: RandomOracle} (h: RandomHistory): RandomVarDomain.
+  exists (fun h' => forall n, h n = h' n).
+  constructor.
+  hnf; intros; simpl in *.
+  destruct H as [n [? ?]].
+  specialize (H0 n).
+  specialize (H1 n).
+  hnf in H2.
+  destruct (h n); rewrite <- H0, <- H1 in H2; auto.
+Defined.
+
 Definition unit_space_domain {ora: RandomOracle}: RandomVarDomain := DomainOfVar (unit_space_var tt).
+
+Lemma unit_domain_singleton_domain {ora: RandomOracle}: forall h, unit_space_domain h <-> singleton_history_domain (fin_history nil) h.
+Proof.
+  intros.
+  simpl.
+  unfold Basics.compose; simpl.
+  destruct (h 0) eqn:?H.
+  + split; [intros [] |].
+    intros; exfalso.
+    specialize (H0 0).
+    rewrite H in H0; inversion H0.
+  + split; [| intros; simpl; auto].
+    intros _.
+    intros; symmetry.
+    rewrite (history_sound1 h 0 n) by (auto; omega).
+    destruct n; auto.
+Qed.
 
 Definition future_domain {ora: RandomOracle} (present future: RandomVarDomain): Prop :=
   forall h, future h ->
