@@ -111,7 +111,7 @@ Module Randomized.
 (* Begin [ProbState Lemmas] *)
 
 Definition ProbState {ora: RandomOracle} (state: Type) :=
-  {s: RandomVariable (MetaState state) | forall h, is_inf_history h -> s h = Some (NonTerminating _) \/ s h = None}.
+  {s: RandomVariable (MetaState state) | forall h, is_inf_history h -> rv_domain _ s h -> s h = NonTerminating _}.
 
 Definition ProbState_RandomVariable {ora: RandomOracle} {state: Type}: ProbState state -> RandomVariable (MetaState state) := @proj1_sig _ _.
 
@@ -120,10 +120,11 @@ Coercion ProbState_RandomVariable: ProbState >-> RandomVariable.
 Definition unique_state {ora: RandomOracle} {state: Type} (s: MetaState state): ProbState state.
   refine (exist _ (unit_space_var s) _).
   intros.
-  simpl.
+  simpl in H0.
   specialize (H 0).
-  destruct (h 0); try congruence.
-  auto.
+  specialize (H0 0).
+  destruct (h 0); simpl in *; try congruence.
+  inversion H0.
 Defined.
 
 Definition ProbStateStream {ora: RandomOracle} (state: Type) : Type := nat -> ProbState state.
@@ -132,23 +133,22 @@ Definition ProbConvDir {ora: RandomOracle} : Type := nat -> RandomVarDomain.
 
 Definition is_limit {ora: RandomOracle} {state: Type} (l: ProbStateStream state) (dir: ProbConvDir) (lim: RandomVariable (MetaState state)) : Prop :=
  (forall n h, ~ dir n h -> l n h = l (S n) h) /\
- (forall h,
+ (forall h, rv_domain _ lim h ->
     match lim h with
-    | Some (Terminating s) => (* finite_part_of_limit *)
+    | Terminating s => (* finite_part_of_limit *)
         exists n,
-          l n h = Some (Terminating _ s) /\
+          rv_domain _ (l n) h /\ l n h = Terminating _ s /\
           (forall n' h', n' >= n -> prefix_history h' h -> ~ dir n h')
-    | Some NonTerminating => (* infinite_part_of_limit *)
+    | NonTerminating => (* infinite_part_of_limit *)
        (forall n h_low, is_fin_history h_low -> prefix_history h_low h ->
           exists n' h', n' > n /\ prefix_history h_low h' /\
                        prefix_history h' h /\ dir n' h') \/
        (exists n,
-          l n h = Some (NonTerminating _) /\
+          rv_domain _ (l n) h /\ l n h = NonTerminating _ /\
           (forall n' h', n' >= n -> prefix_history h' h -> ~ dir n h'))
-    | None => (* invalid_part_of_limit *)
-        exists n, forall n', n' >= n ->
-          l n' h = None
-    end).
+    end) /\
+ (forall h, ~ rv_domain _ lim h -> (* invalid_part_of_limit *)
+        exists n, forall n', n' >= n -> ~ rv_domain _ (l n') h).
 (* End [ProbState Lemmas] *)
 
 Class SmallStepSemantics {imp: Imperative}: Type := {
@@ -162,8 +162,8 @@ Global Existing Instance ora.
 Record local_step {imp: Imperative} {sss: SmallStepSemantics} (h: RandomHistory) (s1 s2: ProbState (cmd * state)): Prop := {
   cs1: cmd * state;
   cs2: ProbState (cmd * state);
-  sound1: s1 h = Some (Terminating _ cs1);
-  sound2: forall h' h'', history_app h h' h'' -> s2 h'' = cs2 h';
+  sound1: rv_domain _ s1 h /\ s1 h = Terminating _ cs1;
+  sound2: forall h' h'', history_app h h' h'' -> rv_domain _ s2 h'' = rv_domain _ cs2 h' /\ s2 h'' = cs2 h';
   step_fact: step cs1 cs2
 }.
 
@@ -203,10 +203,10 @@ Definition global_state_command_state {imp: Imperative} {sss: SmallStepSemantics
               end)
            x).
   intros.
-  specialize (o h H).
-  destruct o; [left | right];
-  rewrite RandomVarMap_sound;
-  rewrite H0; auto.
+  simpl in H0.
+  specialize (e _ H H0).
+  rewrite RandomVarMap_sound.
+  rewrite e; auto.
 Defined.
 
 Definition command_oaccess {imp: Imperative} {sss: SmallStepSemantics} (c: cmd) (src dst: global_state): Prop :=
@@ -214,8 +214,9 @@ Definition command_oaccess {imp: Imperative} {sss: SmallStepSemantics} (c: cmd) 
 
 Definition triple {imp: Imperative} {sss: SmallStepSemantics} (P: global_state -> Prop) (c: cmd) (Q: global_state -> Prop): Prop :=
   forall s1, P s1 -> forall s2, command_oaccess c s1 s2 ->
-    same_covered_domain (DomainOfVar s1) (DomainOfVar s2) /\ Q s2.
+    same_covered_domain (rv_domain _ s1) (rv_domain _ s2) /\ Q s2.
 
+(*
 Class NormalSmallStepSemantics {imp: Imperative} {Nimp: NormalImperative} {sss: SmallStepSemantics} : Type := {
   eval_bool: state -> expr -> option bool;
   step_seq_assoc: forall c1 c2 c3 s cs, step (Ssequence c1 (Ssequence c2 c3), s) cs <-> step (Ssequence (Ssequence c1 c2) c3, s) cs;
@@ -225,33 +226,34 @@ Class NormalSmallStepSemantics {imp: Imperative} {Nimp: NormalImperative} {sss: 
   step_while_false: forall e c1 c2 s cs, eval_bool s e = Some false -> step (Ssequence (Swhile e c1) c2, s) cs <-> cs = unique_state (Terminating _ (c2, s));
   step_atomic: forall c1 c2 s cs h, cmd_pattern_match c1 = PM_Other -> step (Ssequence c1 c2, s) cs -> (exists s', cs h = Some (Terminating _ (c2, s'))) \/ cs h = Some (NonTerminating _) \/ cs h = None
 }.
+*)
+
+Require Import Coq.Sets.Ensembles.
+
+Section PrePreds.
+
+Context {imp: Imperative} {sss: SmallStepSemantics}.
+
+Definition tm_meta_pred (P: state -> Prop): MetaState state -> Prop :=
+  fun s => match s with Terminating s' => P s' | _ => False end.
+
+Definition ntm_domain (sigma: global_state): RandomVarDomain :=
+  element_pred_domain (eq (NonTerminating _)) sigma.
+
+Definition tm_domain (P: state -> Prop) (sigma: global_state): RandomVarDomain :=
+  element_pred_domain (tm_meta_pred P) sigma.
+
+Definition filter_global_state (filter: RandomHistory -> Prop) (sigma: global_state): global_state.
+  exists (Build_RandomVariable _ _ (raw_var _ sigma) (filter_domain filter (rv_domain _ sigma))).
+  destruct sigma as [sigma H].
+  simpl; intros.
+  apply H; tauto.
+Defined.
+
+Definition element_pred_filter_global_state (P: MetaState state -> Prop) (sigma: global_state): global_state :=
+  filter_global_state (fun h => P (sigma h)) sigma.
+
+End PrePreds.
 
 End Randomized.
 
-(*
-
-
-
-
-
-Definition is_non_random {cmd state ora} (step: rSmallStepSemantics cmd state ora): Prop :=
-  forall src dst, ~ step src (inr dst).
-
-Definition sequentialize {cmd state ora} (step: rSmallStepSemantics cmd state ora): sSmallStepSemantics cmd state :=
-  fun src dst => step src (inl dst).
-
-
-*)
-
-
-(*
-Lemma sequentialize_sound {cmd state ora}: forall step,
-  is_non_random step ->
-  ???
-*)
-
-(* TODO: what is normal definition of external call? *)
-(*
-Inductive sAcc {cmd state: Type} (step: sSmallStepSemantics cmd state): cmd * state -> cmd * state -> Prop :=
-  | 
-*)

@@ -285,11 +285,11 @@ Record RandomVarDomain {ora: RandomOracle}: Type := {
 }.
 
 Record RandomVariable {ora: RandomOracle} (A: Type): Type := {
-  raw_var: RandomHistory -> option A;
-  raw_var_legal: LegalRandomVarDomain (Basics.compose isSome raw_var)
+  raw_var: RandomHistory -> A;
+  rv_domain: RandomVarDomain
 }.
 
-Definition rand_var_get {ora: RandomOracle} {A: Type} (v: RandomVariable A) (h: RandomHistory): option A := raw_var A v h.
+Definition rand_var_get {ora: RandomOracle} {A: Type} (v: RandomVariable A) (h: RandomHistory): A := raw_var A v h.
 
 Definition in_domain {ora: RandomOracle} (d: RandomVarDomain) (h: RandomHistory): Prop := raw_domain d h.
 
@@ -297,9 +297,10 @@ Coercion rand_var_get: RandomVariable >-> Funclass.
 
 Coercion in_domain: RandomVarDomain >-> Funclass.
 
+(*
 Definition join {ora: RandomOracle} {A: Type} (v1 v2 v: RandomVariable A): Prop :=
   forall h, (v1 h = None /\ v2 h = v h) \/ (v2 h = None /\ v1 h = v h).
-(*
+
 Definition Forall_RandomHistory {ora: RandomOracle} {A: Type} (P: A -> Prop) (v: RandomVariable A): Prop :=
   forall h,
     match v h with
@@ -307,47 +308,6 @@ Definition Forall_RandomHistory {ora: RandomOracle} {A: Type} (P: A -> Prop) (v:
     | Some a => P a
     end.
 *)
-
-Definition unit_space_var {ora: RandomOracle} {A: Type} (v: A): RandomVariable A.
-  refine (Build_RandomVariable _ _ (fun h => match h 0 with None => Some v | Some _ => None end) _).
-  constructor; hnf; intros.
-  unfold Basics.compose in *.
-  destruct H as [n [? ?]].
-  hnf in H2.
-  destruct n.
-  + destruct (h1 0), (h2 0); try solve [inversion H0 | inversion H1].
-    auto.
-  + pose proof (H 0 (le_n_S _ _ (le_0_n _))).
-    destruct (h1 0) eqn:?H, (h2 0) eqn:?H; try solve [inversion H0 | inversion H1].
-    destruct (h1 (S n)) eqn:?H; [| destruct (h2 (S n)) eqn:?H].
-    - pose proof history_sound2 h1 0 (S n) (le_0_n _).
-      specialize (H7 (ex_intro _ r H6)).
-      destruct H7; rewrite H4 in H7; congruence.
-    - pose proof history_sound2 h2 0 (S n) (le_0_n _).
-      specialize (H8 (ex_intro _ r H7)).
-      destruct H8; rewrite H5 in H8; congruence.
-    - auto.
-Defined.
-
-Definition RandomVarMap {ora: RandomOracle} {A B: Type} (f: A -> B) (v: RandomVariable A): RandomVariable B.
-  refine (Build_RandomVariable _ _ (fun h => match v h with Some a => Some (f a) | None => None end) _).
-  constructor.
-  destruct v as [v [consi]]; simpl in *.
-  hnf; intros; unfold Basics.compose in *.
-  specialize (consi h1 h2 H); simpl in consi.
-  destruct (v h1), (v h2); auto.
-Defined.
-
-Lemma RandomVarMap_sound: forall {ora: RandomOracle} {A B: Type} (f: A -> B) (v: RandomVariable A) h,
-  RandomVarMap f v h =
-  match v h with
-  | Some a => Some (f a)
-  | None => None
-  end.
-Proof. intros. reflexivity. Qed.
-
-Definition DomainOfVar {ora: RandomOracle} {A: Type} (v: RandomVariable A): RandomVarDomain :=
-  Build_RandomVarDomain _ (Basics.compose isSome (raw_var _ v)) (raw_var_legal _ v).
 
 Definition singleton_history_domain {ora: RandomOracle} (h: RandomHistory): RandomVarDomain.
   exists (fun h' => forall n, h n = h' n).
@@ -360,24 +320,36 @@ Definition singleton_history_domain {ora: RandomOracle} (h: RandomHistory): Rand
   destruct (h n); rewrite <- H0, <- H1 in H2; auto.
 Defined.
 
-Definition unit_space_domain {ora: RandomOracle}: RandomVarDomain := DomainOfVar (unit_space_var tt).
+Definition unit_space_domain {ora: RandomOracle}: RandomVarDomain := singleton_history_domain (fin_history nil).
 
-Lemma unit_domain_singleton_domain {ora: RandomOracle}: forall h, unit_space_domain h <-> singleton_history_domain (fin_history nil) h.
+Definition unit_space_var {ora: RandomOracle} {A: Type} (v: A): RandomVariable A :=
+  Build_RandomVariable _ _ (fun h => v) unit_space_domain.
+
+Definition filter_domain {ora: RandomOracle} (filter: RandomHistory -> Prop) (d: RandomVarDomain): RandomVarDomain.
+  exists (fun h => d h /\ filter h).
+  constructor.
+  destruct d as [d [H]].
+  hnf; simpl; intros.
+  apply (H h1 h2 H0); tauto.
+Defined.
+
+Definition element_pred_domain {ora: RandomOracle} {A: Type} (P: A -> Prop) (v: RandomVariable A): RandomVarDomain :=
+  filter_domain (fun h => P (v h)) (rv_domain _ v).
+
+Lemma element_pred_domain_Dom: forall {ora: RandomOracle} {A: Type} (P: A -> Prop) (v: RandomVariable A),
+  (forall h, (element_pred_domain P v) h -> (rv_domain _ v) h).
 Proof.
   intros.
-  simpl.
-  unfold Basics.compose; simpl.
-  destruct (h 0) eqn:?H.
-  + split; [intros [] |].
-    intros; exfalso.
-    specialize (H0 0).
-    rewrite H in H0; inversion H0.
-  + split; [| intros; simpl; auto].
-    intros _.
-    intros; symmetry.
-    rewrite (history_sound1 h 0 n) by (auto; omega).
-    destruct n; auto.
+  unfold element_pred_domain, filter_domain in H; simpl in H.
+  tauto.
 Qed.
+
+Definition RandomVarMap {ora: RandomOracle} {A B: Type} (f: A -> B) (v: RandomVariable A): RandomVariable B :=
+  Build_RandomVariable _ _ (fun h => f (v h)) (rv_domain _ v).
+
+Lemma RandomVarMap_sound: forall {ora: RandomOracle} {A B: Type} (f: A -> B) (v: RandomVariable A) h,
+  RandomVarMap f v h = f (v h).
+Proof. intros. reflexivity. Qed.
 
 Definition future_domain {ora: RandomOracle} (present future: RandomVarDomain): Prop :=
   forall h, future h ->
