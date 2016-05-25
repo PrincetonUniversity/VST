@@ -212,7 +212,7 @@ Definition update_dry jm jm' b ofs v v' :=
 
 Require Import veric.res_predicates.
 
-Definition isfunsig A PRE r := exists sh sh' sig Q, r = YES sh sh' (FUN sig) (SomeP (A :: boolT :: environ :: nil) (packPQ PRE Q)).
+Definition isfunsig A PRE r := exists callingc sh sh' sig Q, r = YES sh sh' (FUN sig callingc) (SomeP (A :: boolT :: environ :: nil) (packPQ PRE Q)).
 
 (* todo move this comment away: schedule rather than lts: we want to run the same thread for internal steps *)
 Inductive cm_step : list nat -> concurrent_machine -> list nat -> concurrent_machine -> Prop :=
