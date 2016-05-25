@@ -11,6 +11,11 @@ COMPCERT=compcert
 # if there is a compcert build at that pathname, but in cygwin
 # at least, coqdep is confused by the absolute pathname while
 # it works fine with the relative pathname
+#
+# One can also add in CONFIGURE the line
+#   COQBIN=/path/to/bin/
+# to a directory containing the coqc/coqdep/... you wish to use, if it
+# is not your path.
 
 #Note2:  By default, the rules for converting .c files to .v files
 # are inactive.  To activate them, do something like
@@ -63,10 +68,10 @@ endif
 
 COQFLAGS= $(INCLUDE)
 DEPFLAGS= $(INCLUDE)
-COQC=coqc
-COQTOP=coqtop
-COQDEP=coqdep -slash $(DEPFLAGS)
-COQDOC=coqdoc
+COQC=$(COQBIN)coqc
+COQTOP=$(COQBIN)coqtop
+COQDEP=$(COQBIN)coqdep -slash $(DEPFLAGS)
+COQDOC=$(COQBIN)coqdoc
 
 MSL_FILES = \
   Axioms.v Extensionality.v base.v eq_dec.v \
