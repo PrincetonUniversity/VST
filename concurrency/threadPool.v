@@ -1,6 +1,7 @@
 From mathcomp.ssreflect Require Import ssreflect ssrbool ssrnat ssrfun eqtype seq fintype finfun.
 
 Require Import compcert.common.Values. (*for val*)
+Require Import concurrency.scheduler.
 Require Import concurrency.concurrent_machine.
 Require Import concurrency.pos.
 Require Import concurrency.threads_lemmas.
@@ -12,6 +13,9 @@ Require Import compcert.lib.Maps.
 Set Implicit Arguments.
 
 (*TODO: Enrich Resources interface to enable access of resources*)
+
+Definition empty_lset {lock_info}:AMap.t lock_info:=
+  AMap.empty lock_info.
 
 Module OrdinalPool (SEM:Semantics) (RES:Resources) <: ThreadPoolSig
     with Module TID:= NatTID with Module SEM:=SEM
@@ -30,13 +34,13 @@ Module OrdinalPool (SEM:Semantics) (RES:Resources) <: ThreadPoolSig
                  { num_threads : pos
                    ; pool :> 'I_num_threads -> @ctl code
                    ; perm_maps : 'I_num_threads -> res
-                   ; lset : unit (* AMap.t lock_info*)
+                   ; lset : AMap.t lock_info
                  }.
   
   Definition t := t'.
 
   Definition lockGuts := lset.
-  Definition lockSet (tp:t) := @PMap.init (BinNums.Z -> option Memtype.permission) (fun _=> None). (* A2PMap (lset tp). *)
+  Definition lockSet (tp:t) := A2PMap (lset tp).
 
   Definition containsThread (tp : t) (i : NatTID.tid) : Prop:=
     i < num_threads tp.
@@ -63,17 +67,17 @@ Module OrdinalPool (SEM:Semantics) (RES:Resources) <: ThreadPoolSig
            end)
         (lset tp).
 
-  Definition updLockSet tp (add:address) (lf:unit)(*lf:lock_info*) : t := tp. (*
+  Definition updLockSet tp (add:address) (lf:lock_info) : t :=
     mk (num_threads tp)
        (pool tp)
        (perm_maps tp)
-       (AMap.add add lf (lockGuts tp)).*)
+       (AMap.add add lf (lockGuts tp)).
 
-  Definition remLockSet tp  (add:address) : t := tp. (*
+  Definition remLockSet tp  (add:address) : t :=
     mk (num_threads tp)
        (pool tp)
        (perm_maps tp)
-       (AMap.remove add (lockGuts tp)). *)
+       (AMap.remove add (lockGuts tp)).
   
   Definition updThreadC {tid tp} (cnt: containsThread tp tid) (c' : ctl) : t :=
     mk (num_threads tp)
@@ -406,19 +410,7 @@ Module OrdinalPool (SEM:Semantics) (RES:Resources) <: ThreadPoolSig
     destruct Hcontra;
       by discriminate.
   Qed.
-  
+
 End OrdinalPool.
 
-(*Try building a thread pool*)
-Module LocksAndResources.
-  Definition res := unit.
-  Definition lock_info := unit. (* dry machine doesn't carry extra info in the locks *)
-End LocksAndResources.
-
-Module BLAH (SEM:Semantics)<: ThreadPoolSig:=OrdinalPool SEM LocksAndResources. 
-
-Module ThreadPool (SEM:Semantics)  <: ThreadPoolSig
-    with Module TID:= NatTID with Module SEM:=SEM 
-    with Module RES := LocksAndResources.
-    Include (OrdinalPool SEM LocksAndResources).
-End ThreadPool.
+  

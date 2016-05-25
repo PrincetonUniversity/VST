@@ -9,7 +9,7 @@ Require Import sepcomp.semantics.
 Require Import concurrency.permissions.
 Require Import concurrency.addressFiniteMap.
 
-Load scheduler.
+Require Import concurrency.scheduler.
 
 Require Import Coq.Program.Program.
 From mathcomp.ssreflect Require Import ssreflect seq.
@@ -49,7 +49,6 @@ Notation UNLOCK_SIG := (mksignature (AST.Tint::nil) (Some AST.Tint) cc_default).
 Notation UNLOCK := (EF_external "UNLOCK" UNLOCK_SIG).
 
 Notation block  := Values.block.
-Notation address:= (block * Z)%type.
 Definition b_ofs2address b ofs : address:=
   (b, Int.intval ofs).
 
@@ -83,14 +82,14 @@ Module Type ThreadPoolSig.
   Parameter containsThread : t -> tid -> Prop.
   Parameter getThreadC : forall {tid tp}, containsThread tp tid -> ctl.
   Parameter getThreadR : forall {tid tp}, containsThread tp tid -> res.
-  Parameter lockGuts : t -> unit. (* AMap.t lock_info. *) (* Gets the set of locks + their info    *)
+  Parameter lockGuts : t -> AMap.t lock_info.  (* Gets the set of locks + their info    *)
   Parameter lockSet : t -> access_map.         (* Gets the permissions for the lock set *)
 
   Parameter addThread : t -> val -> val -> res -> t. (*vals are function pointer and argument respectively. *)
   Parameter updThreadC : forall {tid tp}, containsThread tp tid -> ctl -> t.
   Parameter updThreadR : forall {tid tp}, containsThread tp tid -> res -> t.
   Parameter updThread : forall {tid tp}, containsThread tp tid -> ctl -> res -> t.
-  Parameter updLockSet : t -> address -> unit (*lock_info*) -> t.
+  Parameter updLockSet : t -> address -> lock_info -> t.
   Parameter remLockSet : t -> address -> t.
   
   (*Proof Irrelevance of contains*)

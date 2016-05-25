@@ -47,6 +47,7 @@ Notation UNLOCK := (EF_external 8%positive UNLOCK_SIG).
 
 Require Import concurrency.threads_lemmas concurrency.mem_obs_eq.
 Require Import concurrency.permissions.
+Require Import concurrency.scheduler.
 Require Import concurrency.concurrent_machine.
 Require Import concurrency.dry_machine_lemmas concurrency.dry_context.
 
