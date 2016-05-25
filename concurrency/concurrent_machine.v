@@ -6,6 +6,9 @@ Require Import compcert.lib.Integers.
 Require Import Coq.ZArith.ZArith.
 Require Import sepcomp.semantics.
 
+Require Import concurrency.permissions.
+Require Import concurrency.addressFiniteMap.
+
 Load scheduler.
 
 Require Import Coq.Program.Program.
@@ -61,7 +64,7 @@ Definition EqDec: Type -> Type :=
 
 Module Type Resources.
   Parameter res : Type.
-  Parameter LockPool : Type.
+  Parameter lock_info : Type. (*For juicy machine, the permissions of the guarded resources. Unit for dry machine. *)
 End Resources.
 
 Module Type ThreadPoolSig.
@@ -80,13 +83,15 @@ Module Type ThreadPoolSig.
   Parameter containsThread : t -> tid -> Prop.
   Parameter getThreadC : forall {tid tp}, containsThread tp tid -> ctl.
   Parameter getThreadR : forall {tid tp}, containsThread tp tid -> res.
-  Parameter lockSet : t -> LockPool.
+  Parameter lockGuts : t -> unit. (* AMap.t lock_info. *) (* Gets the set of locks + their info    *)
+  Parameter lockSet : t -> access_map.         (* Gets the permissions for the lock set *)
 
   Parameter addThread : t -> val -> val -> res -> t. (*vals are function pointer and argument respectively. *)
   Parameter updThreadC : forall {tid tp}, containsThread tp tid -> ctl -> t.
   Parameter updThreadR : forall {tid tp}, containsThread tp tid -> res -> t.
   Parameter updThread : forall {tid tp}, containsThread tp tid -> ctl -> res -> t.
-  Parameter updLockSet : t -> LockPool -> t.
+  Parameter updLockSet : t -> address -> unit (*lock_info*) -> t.
+  Parameter remLockSet : t -> address -> t.
   
   (*Proof Irrelevance of contains*)
   Axiom cnt_irr: forall t tid
@@ -134,18 +139,26 @@ Module Type ThreadPoolSig.
       containsThread tp j.
 
   Axiom cntUpdateL:
-    forall {j tp} lp,
+    forall {j tp} add lf,
       containsThread tp j ->
-      containsThread (updLockSet tp lp) j.
+      containsThread (updLockSet tp add lf) j.
+  Axiom cntRemoveL:
+    forall {j tp} add,
+      containsThread tp j ->
+      containsThread (remLockSet tp add) j.
 
   Axiom cntUpdateL':
-    forall {j tp} lp,
-      containsThread (updLockSet tp lp) j ->
+    forall {j tp} add lf,
+      containsThread (updLockSet tp add lf) j ->
+      containsThread tp j.
+  Axiom cntRemoveL':
+    forall {j tp} add,
+      containsThread (remLockSet tp add) j ->
       containsThread tp j.
 
-  Axiom gssLockPool:
+  (*Axiom gssLockPool:
     forall tp ls,
-      lockSet (updLockSet tp ls) = ls.
+      lockSet (updLockSet tp ls) = ls.*) (*Will change*)
 
   Axiom gsoThreadLock:
     forall {i tp} c p (cnti: containsThread tp i),

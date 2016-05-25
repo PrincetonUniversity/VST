@@ -50,15 +50,18 @@ Notation UNLOCK := (EF_external "UNLOCK" UNLOCK_SIG).
 Require Import concurrency.permissions.
 Require Import concurrency.threadPool.
 
-Module LockPool.
+Module LocksAndResources.
   Definition res := access_map.
-  Definition LockPool := access_map.
-End LockPool.
+  Definition lock_info := unit. (* dry machine doesn't carry extra info in the locks *)
+End LocksAndResources.
+
+Module BLAH (SEM:Semantics)<: ThreadPoolSig:=OrdinalPool SEM LocksAndResources. 
 
 Module ThreadPool (SEM:Semantics)  <: ThreadPoolSig
     with Module TID:= NatTID with Module SEM:=SEM
-    with Module RES := LockPool.        
-    Include (OrdinalPool SEM LockPool).
+    with Module RES := LocksAndResources
+                         
+    Include (OrdinalPool SEM LocksAndResources).
 End ThreadPool.
 
 

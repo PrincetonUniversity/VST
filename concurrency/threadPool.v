@@ -6,6 +6,9 @@ Require Import concurrency.pos.
 Require Import concurrency.threads_lemmas.
 Require Import compcert.lib.Axioms.
 
+Require Import concurrency.addressFiniteMap.
+Require Import compcert.lib.Maps.
+
 Set Implicit Arguments.
 
 (*TODO: Enrich Resources interface to enable access of resources*)
@@ -27,12 +30,13 @@ Module OrdinalPool (SEM:Semantics) (RES:Resources) <: ThreadPoolSig
                  { num_threads : pos
                    ; pool :> 'I_num_threads -> @ctl code
                    ; perm_maps : 'I_num_threads -> res
-                   ; lset : LockPool
+                   ; lset : unit (* AMap.t lock_info*)
                  }.
   
   Definition t := t'.
 
-  Definition lockSet := lset.
+  Definition lockGuts (tp:t) := tt.(* AMap.empty lock_info.*) (* lset. *)
+  Definition lockSet (tp:t) := @PMap.init (BinNums.Z -> option Memtype.permission) (fun _=> None). (* A2PMap (lset tp). *)
 
   Definition containsThread (tp : t) (i : NatTID.tid) : Prop:=
     i < num_threads tp.
@@ -59,11 +63,17 @@ Module OrdinalPool (SEM:Semantics) (RES:Resources) <: ThreadPoolSig
            end)
         (lset tp).
 
-  Definition updLockSet tp (lp : LockPool) : t :=
+  Definition updLockSet tp (add:address) (lf:unit)(*lf:lock_info*) : t := tp. (*
     mk (num_threads tp)
        (pool tp)
        (perm_maps tp)
-       lp.
+       (AMap.add add lf (lockGuts tp)).*)
+
+  Definition remLockSet tp  (add:address) : t := tp. (*
+    mk (num_threads tp)
+       (pool tp)
+       (perm_maps tp)
+       (AMap.remove add (lockGuts tp)). *)
   
   Definition updThreadC {tid tp} (cnt: containsThread tp tid) (c' : ctl) : t :=
     mk (num_threads tp)
@@ -170,17 +180,33 @@ Module OrdinalPool (SEM:Semantics) (RES:Resources) <: ThreadPoolSig
   Qed.
 
   Lemma cntUpdateL:
-    forall {j tp} lp,
+    forall {j tp} add lf,
       containsThread tp j ->
-      containsThread (updLockSet tp lp) j.
+      containsThread (updLockSet tp add lf) j.
   Proof.
     intros; unfold containsThread, updLockSet in *;
     simpl; by assumption.
   Qed.
-
+  Lemma cntRemoveL:
+    forall {j tp} add,
+      containsThread tp j ->
+      containsThread (remLockSet tp add) j.
+  Proof.
+    intros; unfold containsThread, updLockSet in *;
+    simpl; by assumption.
+  Qed.
+  
   Lemma cntUpdateL':
-    forall {j tp} lp,
-      containsThread (updLockSet tp lp) j ->
+    forall {j tp} add lf,
+      containsThread (updLockSet tp add lf) j ->
+      containsThread tp j.
+  Proof.
+    intros. unfold containsThread, updLockSet in *;
+      simpl in *; by assumption.
+  Qed.
+   Lemma cntRemoveL':
+    forall {j tp} add,
+      containsThread (remLockSet tp add) j ->
       containsThread tp j.
   Proof.
     intros. unfold containsThread, updLockSet in *;
@@ -201,12 +227,12 @@ Module OrdinalPool (SEM:Semantics) (RES:Resources) <: ThreadPoolSig
   (* TODO: most of these proofs are similar, automate them*)
   (** Getters and Setters Properties*)  
 
-  Lemma gssLockPool:
+  (*Lemma gssLockPool:
     forall tp ls,
       lockSet (updLockSet tp ls) = ls.
   Proof.
       by auto.
-  Qed.
+  Qed.*)
 
   Lemma gsoThreadLock:
     forall {i tp} c p (cnti: containsThread tp i),
@@ -382,3 +408,17 @@ Module OrdinalPool (SEM:Semantics) (RES:Resources) <: ThreadPoolSig
   Qed.
   
 End OrdinalPool.
+
+(*Try building a thread pool*)
+Module LocksAndResources.
+  Definition res := unit.
+  Definition lock_info := unit. (* dry machine doesn't carry extra info in the locks *)
+End LocksAndResources.
+
+Module BLAH (SEM:Semantics)<: ThreadPoolSig:=OrdinalPool SEM LocksAndResources. 
+
+Module ThreadPool (SEM:Semantics)  <: ThreadPoolSig
+    with Module TID:= NatTID with Module SEM:=SEM 
+    with Module RES := LocksAndResources.
+    Include (OrdinalPool SEM LocksAndResources).
+End ThreadPool.
