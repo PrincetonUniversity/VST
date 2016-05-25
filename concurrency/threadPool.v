@@ -35,7 +35,7 @@ Module OrdinalPool (SEM:Semantics) (RES:Resources) <: ThreadPoolSig
   
   Definition t := t'.
 
-  Definition lockGuts (tp:t) := tt.(* AMap.empty lock_info.*) (* lset. *)
+  Definition lockGuts := lset.
   Definition lockSet (tp:t) := @PMap.init (BinNums.Z -> option Memtype.permission) (fun _=> None). (* A2PMap (lset tp). *)
 
   Definition containsThread (tp : t) (i : NatTID.tid) : Prop:=
