@@ -252,6 +252,8 @@ Module ClightParching <: ErasureSig.
         match_st js ds->
         JSEM.threadHalted cnt ->
         DSEM.threadHalted cnt'.
+    Proof.
+      
     Admitted.
 
     Lemma MTCH_updLock:
@@ -261,75 +263,85 @@ Module ClightParching <: ErasureSig.
         match_st (JTP.updLockSet js loc r) ds.
           intros. inversion H; subst.
           constructor; auto.
-          - intros.
+          - rewrite <- mtch_locks.
             simpl.
-            Lemma mem_find_add: forall elt (t: AMap.t elt) k x,
-                AMap.In k t ->
-                ssrbool.isSome
-                  (AMap.find k (AMap.add k x t))=
-                ssrbool.isSome
-                  (AMap.find k t).
-            Proof.
-              intros. destruct (AMap.find (elt:=elt) k t) eqn:XX.
-              apply AMap.find_2 in XX.
-              assert (Hx: k = k); auto.
-              pose (HH:=@AMap.add_1 _ t k k x Hx).
-              apply AMap.find_1 in HH.
-              rewrite HH. reflexivity.
-              Import AMap.
-              unfold AMap.In in H.
-              unfold Raw.PX.In in H.
-              destruct H as [e MT].
-              rewrite (AMap.find_1 MT) in XX. inversion XX.
+            (*NOTE: move the next three lemmas to addressFiniteMap *)
+            Lemma HackingTheDependentType: forall A (l1 l2: AMap.slist A),
+                AMap.this l1 = AMap.this l2 ->
+                l1 = l2.
+            Proof. destruct l1, l2; simpl; intros.
+                   generalize sorted, sorted0.
+                   dependent rewrite H.
+                   intros.
+                   assert (sorted1 = sorted2).
+                   apply proof_irrelevance; auto.
+                   dependent rewrite H0.
+                   reflexivity.
             Qed.
-            Lemma mem_find_add': forall elt (t: AMap.t elt) k1 k2 x,
-                k1 <> k2 ->
-                AMap.In k1 t ->
-                ssrbool.isSome
-                  (AMap.find k2 (AMap.add k1 x t))=
-                ssrbool.isSome
-                  (AMap.find k2 t).
-            Proof.
-              intros ? t ? ?  ? ? ?.
-              destruct (AMap.find (elt:=elt) k2 t) eqn:XX.
-              apply AMap.find_2 in XX.
-              pose (HH:=@AMap.add_2 _ t k1 k2 e x H).
-              apply AMap.find_1 in HH.
-              rewrite HH. reflexivity.
-              auto.
-
-              destruct (find k2 (add k1 x t)) eqn:B; try reflexivity.
-              apply find_2 in B. apply add_3 in B; auto.
-              apply find_1 in B; rewrite B in XX.
-              inversion XX.
+            Lemma ltNotEq: forall a,
+                AddressOrdered.lt a a -> False.
+                  intros a l; contradict l; clear.
+                  unfold not; intros H. apply MiniAddressOrdered.lt_not_eq in H.
+                  apply H. reflexivity.
             Qed.
-            destruct (EqDec_address loc (b,ofs)).
-          - subst. rewrite mem_find_add; auto.
-          - rewrite mem_find_add'; auto.
+            Lemma map_erased_add: forall A (t:AMap.t A)  r loc ,
+                AMap.In loc t ->
+                AMap.map (fun _ => tt)
+                         (AMap.add loc r t) =
+                AMap.map (fun _  => tt) t.
+            Proof.
+              intros.
+              apply HackingTheDependentType.
+              {
+                induction t; simpl.
+                induction this.
+                - destruct H; inversion H.
+                - simpl in *. destruct a as [add  whatever].
+                  inversion sorted; subst.
+                  specialize (IHthis H2).
+                  destruct (AddressOrdered.compare loc add).
+                  + (*LT*)
+                           Lemma ltNotIn: forall {A l a a' b b'},
+                               Sorted.Sorted (AMap.Raw.PX.ltk (elt:=A)) ((a,a')::l) ->
+                               AddressOrdered.lt b a ->
+                               SetoidList.InA (AMap.Raw.PX.eqke (elt:=A)) 
+                                              (b,b') ((a,a') :: l) ->
+                               False.
+                                 induction l.
+                                 - intros. inversion H1.
+                                   + inversion H3; simpl in *; subst. apply (ltNotEq a); assumption.
+                                   + subst. inversion H3.
+                                 - intros.
+                                   destruct a as [c c'].
+                                   eapply (IHl c c' b b').
+                                   + inversion H; subst. assumption.
+                                     inversion H; subst.
+                                   + inversion H5; subst.
+                                     inversion H3; subst.
+                                     eapply AddressOrdered.lt_trans; eassumption.
+                                   + inversion H1; subst.
+                                     * inversion H3; simpl in *; subst.
+                                       exfalso; apply (ltNotEq a0); assumption.
+                                     * assumption.
+                           Qed.
+                           destruct H as [loc' H].
+                           simpl in H. unfold AMap.Raw.PX.MapsTo in H.
+                           exfalso.
+                           apply (ltNotIn sorted l H).
+                           
+                  + (*EQ*) simpl. inversion e. reflexivity.
+                  + (*GT*) simpl. f_equal. apply IHthis. inversion H; subst.
+                           simpl in *.
+                           unfold  AMap.Raw.PX.MapsTo in H0.
+                           inversion H0; subst.
+                           * inversion H4; simpl in *; subst. contradict l; clear.
+                             unfold not; intros H. apply MiniAddressOrdered.lt_not_eq in H.
+                             apply H. reflexivity.
+                           * exists x. apply H4.
+              }
+            Qed.
+            apply map_erased_add. assumption.
     Qed.
-    Lemma MTCH_addLock:
-      forall js ds b ofs r, 
-        match_st js ds ->
-        match_st (JTP.updLockSet js (AMap.add (b, ofs) r (JTP.lockSet js)))
-         (DTP.updLockSet ds (permissions.setPerm (Some Writable) b ofs (DTP.lockSet ds))).
-    intros. inversion H; subst.
-    constructor; auto.
-    - intros.
-      simpl.
-      admit.
-    Admitted.
-    Lemma MTCH_remLock:
-      forall js ds b ofs, 
-        match_st js ds ->
-        match_st (JTP.updLockSet js (AMap.remove (b, ofs) (JTP.lockSet js)))
-         (DTP.updLockSet ds (permissions.setPerm None b ofs (DTP.lockSet ds))).
-    intros. inversion H; subst.
-    constructor; auto.
-    - intros.
-      simpl.
-      admit.
-    Admitted.
-            
     Lemma MTCH_update:
       forall js ds Kc phi p i
         (Hi : JTP.containsThread js i)
@@ -467,6 +479,25 @@ Module ClightParching <: ErasureSig.
          - apply MTCH_updLock.
            apply MTCH_update; auto.
            intros.
+           { (* Showing virtue is correct *)
+             unfold permissions.computeMap.
+             unfold PMap.get; simpl.
+             rewrite PTree.gcombine; auto.
+             unfold virtue, inflated_delta; simpl.
+             rewrite PTree.gmap.
+             rewrite PTree.gmap1.
+             unfold option_map at 2.
+             destruct ((snd (Mem.mem_access m)) ! b0) eqn:valb0MEM; simpl.
+             - (*Some 1*)
+               destruct ((snd (DSEM.ThreadPool.getThreadR Htid')) ! b0) eqn:valb0D; simpl.
+               + (*Some 2*)
+                 destruct (d_phi @ (b0, ofs0)) eqn:valb0ofs0; rewrite valb0ofs0; simpl.
+                 * 
+                 
+             - (*Some *) 
+             pose (P1:= m_phi jm' @ (b0, ofs0)); fold P1
+             pose (P2:= d_phi @ (b, ofs0).
+           }
            (*This is going to take some work. If its false the definitions can easily change. *)
            admit.
            destruct Hcmpt.
