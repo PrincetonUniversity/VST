@@ -61,6 +61,10 @@ Fixpoint Interp (p : Pred) : mpred :=
   | Pred_list l => fold_right sepcon emp (map Interp l)
   end.
 
+(*+ Type of the oracle *)
+
+Definition Oracle := list rmap.
+
 (*+ Specification of each concurrent primitive *)
 
 (*
@@ -78,13 +82,14 @@ Definition acquire_spec :=
 
 Definition acquire_spec :=
   mk_funspecOracle
+    Oracle
     (* ARGS *)
     ([(_lock, tptr tlock)], tvoid)
     cc_default
     (* WITH *)
-    (Z * val * share * Pred)
+    (Oracle * val * share * Pred)
     (* PRE *)
-    (fun (x : Z * val * share * Pred) (oracle : Z) =>
+    (fun (x : Oracle * val * share * Pred) (oracle : Oracle) =>
        match x with
          (z, v, sh, R) =>
          !!(exists m : rmap, oracle = m :: z /\ app_pred (Interp R) m) &&
@@ -93,7 +98,7 @@ Definition acquire_spec :=
          SEP (lock_inv sh v (Interp R))
        end)
     (* POST *)
-    (fun (x : Z * val * share * Pred) (oracle : Z) =>
+    (fun (x : Oracle * val * share * Pred) (oracle : Oracle) =>
        match x with
          (z, v, sh, R) =>
          !!(oracle = z) &&
@@ -117,13 +122,14 @@ Definition release_spec :=
 
 Definition release_spec :=
   mk_funspecOracle
+    Oracle
     (* ARGS *)
     ([(_lock, tptr tlock)], tvoid)
     cc_default
     (* WITH *)
-    (Z * val * share * Pred)
+    (Oracle * val * share * Pred)
     (* PRE *)
-    (fun (x : Z * val * share * Pred) (oracle : Z) =>
+    (fun (x : Oracle * val * share * Pred) (oracle : Oracle) =>
        match x with
          (z, v, sh, R) =>
          !!(oracle = z) &&
@@ -132,7 +138,7 @@ Definition release_spec :=
          SEP (lock_inv sh v (Interp R); lock_hold Share.top v; Interp R)
        end)
     (* POST *)
-    (fun (x : Z * val * share * Pred) (oracle : Z) =>
+    (fun (x : Oracle * val * share * Pred) (oracle : Oracle) =>
        match x with
          (z, v, sh, R) =>
          !!(oracle = z) &&
@@ -246,7 +252,7 @@ Proof.
   simpl; intros; intros ? ? ? ?; contradiction.
 Defined.
 
-Definition threadspecs (* cs *) (ext_link : string -> ident) := 
+Definition threadspecs (cs : compspecs) (ext_link : string -> ident) := 
   (ext_link "acquire"%string, acquire_spec) ::
   nil.
 
@@ -260,33 +266,37 @@ Definition threadspecs (cs : compspecs) (ext_link : string -> ident) :=
   nil.
 *)
 
-Definition CEspec (cs : compspecs) (ext_link : string -> ident) :=
+Definition conc_ext_spec (cs : compspecs) (ext_link : string -> ident) :=
   add_funspecsOracle_rec
     ext_link
+    ok_void_spec.(@OK_ty)
     ok_void_spec.(@OK_spec)
-    (threadspecs ext_link).
+    (threadspecs cs ext_link).
 
-Lemma semax_conc' cs (ext_link: Strings.String.string -> ident) id sig cc A P Q :
-  let fs := threadspecs ext_link in
-  let f := mk_funspecOracle sig cc A P Q in
+Definition Concurrent_Espec cs ext_link := Build_OracleKind _ (conc_ext_spec cs ext_link).
+
+Lemma semax_conc' cs (ext_link: string -> ident) id sig cc A P Q :
+  let fs := threadspecs cs ext_link in
+  let f := mk_funspecOracle Oracle sig cc A P Q in
   In (ext_link id, f) fs ->
   list_norepet (map fst fs) ->
   (forall n,
       semax_external_oracle
-        (CEspec cs ext_link) (fst (split (fst sig)))
+        (Concurrent_Espec cs ext_link) (fst (split (fst sig)))
         (EF_external id (funsig2signature sig cc)) _ P Q n).
 Proof.
-  apply semax_ext'.
+  intros.
+  apply semax_ext'; auto.
 Qed.
 
-Lemma semax_conc cs (ext_link: Strings.String.string -> ident) id ids sig sig' cc A P Q :
-  let fs := threadspecs ext_link in
-  let f := mk_funspecOracle sig  cc A P Q in
+Lemma semax_conc cs (ext_link: string -> ident) id ids sig sig' cc A P Q :
+  let fs := threadspecs cs ext_link in
+  let f := mk_funspecOracle Oracle sig  cc A P Q in
   In (ext_link id,f) fs ->
   list_norepet (map fst fs) ->
   ids = fst (split (fst sig)) ->
   sig' = funsig2signature sig cc ->
-  (forall n, semax_external_oracle (CEspec cs ext_link) ids (EF_external id sig') _ P Q n).
+  (forall n, semax_external_oracle (Concurrent_Espec cs ext_link) ids (EF_external id sig') _ P Q n).
 Proof.
   intros.
   subst.

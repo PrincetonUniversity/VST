@@ -108,7 +108,7 @@ Definition invariant Jspec (n : nat) (cm : concurrent_machine) : Prop :=
           (alist_get lock res)
           (m_phi jm @ lock)
           (contents_at (m_dry jm) lock)) /\
-    (forall i q m, forall ora : unit, nth_error thd i = Some (q, m) -> semax.jsafeN Jspec env n ora q jm)
+    (forall i q m, forall ora : Oracle, nth_error thd i = Some (q, m) -> semax.jsafeN Jspec env n ora q jm)
   end.
 
 Open Scope string_scope.
@@ -117,22 +117,22 @@ Open Scope string_scope.
 
 Definition initial_cm {CS V G ext_link}
         (prog : program) (m : Memory.mem)
-        (SP : @semax_prog (CEspec CS ext_link) CS prog V G)
+        (SP : @semax_prog (Concurrent_Espec CS ext_link) CS prog V G)
         (Hmem : Genv.init_mem prog = Some m)
         (n : nat) : concurrent_machine :=
-  let spr := semax_prog_rule (CEspec CS ext_link) V G prog m SP Hmem in
+  let spr := semax_prog_rule (Concurrent_Espec CS ext_link) V G prog m SP Hmem in
   let q : corestate := projT1 (projT2 spr) in
   let jm : juicy_mem := proj1_sig (snd (projT2 (projT2 spr)) n) in
   {| cm_mem := jm; cm_env := globalenv prog; cm_res := nil; cm_thd := (q, m_phi jm) :: nil |}.
 
 Lemma invariant_initial_cm {CS V G ext_link}
         (prog : program) (m : Memory.mem)
-        (SP : @semax_prog (CEspec CS ext_link) CS prog V G)
+        (SP : @semax_prog (Concurrent_Espec CS ext_link) CS prog V G)
         (Hmem : Genv.init_mem prog = Some m)
-        (n : nat) : invariant (@OK_spec (CEspec CS ext_link)) n (initial_cm prog m SP Hmem n).
+        (n : nat) : invariant (conc_ext_spec CS ext_link) n (initial_cm prog m SP Hmem n).
 Proof.
   unfold initial_cm.
-  set (spr := semax_prog_rule (CEspec CS ext_link) V G prog m SP Hmem).
+  set (spr := semax_prog_rule (Concurrent_Espec CS ext_link) V G prog m SP Hmem).
   set (q := projT1 (projT2 spr)).
   set (jm := proj1_sig (snd (projT2 (projT2 spr)) n)).
   split;[|split].
@@ -328,7 +328,7 @@ Proof.
     (* get next state through "jsafeN" with an arbitrary oracle *)
     (* but it should not be jm! *)
     assert (X: exists c' jm', corestep (juicy_core_sem cl_core_sem) env (State ve te k) jm c' jm'). {
-      specialize (safe _ _ _ tt Heqthd_i).
+      specialize (safe _ _ _ nil Heqthd_i).
       inversion safe; subst.
       - eauto.
       - inversion H0.

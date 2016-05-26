@@ -1,6 +1,5 @@
 (* this file is a version of veric/semax_ext.v that let external
-specifications reason about the oracle.  The type of the oracle is
-instantiated with [list rmap] *)
+specifications reason about the oracle. *)
 
 Require Import veric.juicy_base.
 Require Import veric.juicy_mem.
@@ -28,8 +27,7 @@ Definition ef_id (ext_link: Strings.String.string -> ident) ef :=
 
 Section funspecsOracle2jspec.
 
-Definition Z := list rmap.
-
+Variable Z : Type.
 Variable Espec : juicy_ext_spec Z.
 
 Parameter symb2genv : forall (ge_s : PTree.t block), genv. (*TODO*)
@@ -147,24 +145,24 @@ Qed.
 
 End funspecsOracle2jspec.
 
-Fixpoint add_funspecsOracle_rec (ext_link: Strings.String.string -> ident) (Espec : juicy_ext_spec Z) (fs : list (ident * funspecOracle)) :=
+Fixpoint add_funspecsOracle_rec (ext_link: string -> ident) Z (Espec : juicy_ext_spec Z) (fs : list (ident * funspecOracle Z)) :=
   match fs with
     | nil => Espec
-    | cons (i,f) fs' => funspecOracle2jspec (add_funspecsOracle_rec ext_link Espec fs') ext_link (i,f)
+    | cons (i,f) fs' => funspecOracle2jspec Z (add_funspecsOracle_rec ext_link Z Espec fs') ext_link (i,f)
   end.
 
 Require Import Coq.Logic.JMeq.
 
 Lemma add_funspecs_pre  (ext_link: Strings.String.string -> ident)
-              {fs id sig cc A P Q x args m} Espec tys ge_s phi0 phi1 z :
+              {Z fs id sig cc A P Q x args m} Espec tys ge_s phi0 phi1 z :
   let ef := EF_external id (funsig2signature sig cc) in
   list_norepet (map fst fs) ->
-  In (ext_link id, (mk_funspecOracle sig cc A P Q)) fs ->
+  In (ext_link id, (mk_funspecOracle Z sig cc A P Q)) fs ->
   join phi0 phi1 (m_phi m) ->
   P x z (make_ext_args (filter_genv (symb2genv ge_s)) (fst (split (fst sig))) args) phi0 ->
-  exists x' : ext_spec_type (JE_spec _ (add_funspecsOracle_rec ext_link Espec fs)) ef,
+  exists x' : ext_spec_type (JE_spec _ (add_funspecsOracle_rec ext_link Z Espec fs)) ef,
     JMeq (phi1, x) x'
-    /\ ext_spec_pre (add_funspecsOracle_rec ext_link Espec fs) ef x' ge_s tys args z m.
+    /\ ext_spec_pre (add_funspecsOracle_rec ext_link Z Espec fs) ef x' ge_s tys args z m.
 Proof.
 induction fs; [intros; elimtype False; auto|]; intros ef H H1 H2 Hpre.
 destruct H1 as [H1|H1].
@@ -195,13 +193,13 @@ destruct (ident_eq i (ext_link id)).
 Qed.
 
 Lemma add_funspecs_post (ext_link: Strings.String.string -> ident)
-      {Espec tret fs id sig cc A}
+      {Z Espec tret fs id sig cc A}
       {P Q : A -> Z -> environ -> mpred} {x ret z m ge_s} :
   let ef := EF_external id (funsig2signature sig cc) in
   list_norepet (map fst fs) ->
-  In (ext_link id, (mk_funspecOracle sig cc A P Q)) fs ->
+  In (ext_link id, (mk_funspecOracle Z sig cc A P Q)) fs ->
   In (ext_link id) (map fst fs) ->
-  ext_spec_post (add_funspecsOracle_rec ext_link Espec fs) ef x ge_s tret ret z m ->
+  ext_spec_post (add_funspecsOracle_rec ext_link Z Espec fs) ef x ge_s tret ret z m ->
   exists (phi0 phi1 phi1' : rmap) (x' : A),
        join phi0 phi1 (m_phi m)
     /\ necR phi1' phi1
@@ -237,30 +235,45 @@ destruct (ident_eq i (ext_link id)).
 }
 Qed.
 
-(* Definition add_funspecs (spec : juicy_ext_spec Z) (ext_link: Strings.String.string -> ident) (fs : list (ident * funspecOracle)) : juicy_ext_spec Z := add_funspecsOracle_rec ext_link spec fs. *)
+(* for now, giving up on the previously convenient add_funspecs because it is too much dependent now
+Definition add_funspecs (Espec : OracleKind) (ext_link: string -> ident) (fs : list (ident * funspecOracle Espec.(@OK_ty))) : OracleKind :=
+  match Espec
+        as e
+        return
+        match e with
+          Build_OracleKind ty _ => list (ident * funspecOracle ty) -> OracleKind
+        end
+  with
+  | Build_OracleKind ty spec =>
+    fun fs => Build_OracleKind ty (add_funspecsOracle_rec ext_link ty spec fs)
+  end fs.
+*)
+
+(*! Adapting semax_external to a judgment mentioning oracles *)
+
+Definition semax_external_oracle (Espec: OracleKind) (ids: list ident) ef (A: Type) (P Q: A -> Espec.(@OK_ty) -> environ -> pred rmap): 
+        pred nat := 
+ ALL gx: genv, ALL x: A, 
+ |>  ALL F: pred rmap, ALL ts: list typ, ALL args: list val, ALL z : Espec.(@OK_ty),
+   juicy_mem_op (P x z (make_ext_args (filter_genv gx) ids args) * F) >=> 
+   EX x': ext_spec_type OK_spec ef,
+    ext_spec_pre' Espec ef x' (Genv.genv_symb gx) ts args z &&
+     ! ALL tret: option typ, ALL ret: option val, ALL z': OK_ty, 
+      ext_spec_post' Espec ef x' (Genv.genv_symb gx) tret ret z' >=>
+          juicy_mem_op (Q x z' (make_ext_rval (filter_genv gx) ret) * F).
 
 Section semax_ext.
 
-(* Adapting semax_external to a judgment mentioning oracles *)
+Variable Espec : OracleKind.
+Local Notation ty := Espec.(@OK_ty).
+Local Notation spec := Espec.(@OK_spec).
 
-Definition semax_external_oracle
-  (spec: juicy_ext_spec Z) (ids: list ident) ef (A: Type) (P Q: A -> Z -> environ -> pred rmap): 
-        pred nat := 
- ALL gx: genv, ALL x: A, 
- |>  ALL F: pred rmap, ALL ts: list typ, ALL args: list val, ALL z : Z,
-   juicy_mem_op (P x z (make_ext_args (filter_genv gx) ids args) * F) >=> 
-   EX x': ext_spec_type OK_spec ef,
-    ext_spec_pre' (Build_OracleKind _ spec) ef x' (Genv.genv_symb gx) ts args z &&
-     ! ALL tret: option typ, ALL ret: option val, ALL z': OK_ty, 
-      ext_spec_post' (Build_OracleKind _ spec) ef x' (Genv.genv_symb gx) tret ret z' >=>
-          juicy_mem_op (Q x z' (make_ext_rval (filter_genv gx) ret) * F).
-
-Lemma semax_ext' (ext_link: Strings.String.string -> ident) id sig cc A P Q spec (fs : list (ident * funspecOracle)) :
-  let f := mk_funspecOracle sig cc A P Q in
-  In (ext_link id,f) fs ->
+Lemma semax_ext' (ext_link: Strings.String.string -> ident) id sig cc A P Q (fs : list (ident * funspecOracle ty)) :
+  let f := mk_funspecOracle ty sig cc A P Q in
+  In (ext_link id, f) fs ->
   list_norepet (map fst fs) ->
   (forall n, semax_external_oracle
-          (add_funspecsOracle_rec ext_link spec fs)
+          (Build_OracleKind _ (add_funspecsOracle_rec ext_link ty spec fs))
           (fst (split (fst sig)))
           (EF_external id (funsig2signature sig cc))
           _ P Q n).
@@ -272,14 +285,14 @@ destruct H3 as [s [t [Hjoin [Hp Hf]]]].
 
 assert (Hp'': P x z (make_ext_args (filter_genv (symb2genv (Genv.genv_symb ge)))
                                  (fst (split (fst sig))) args) s).
-{ generalize (all_funspecsOracle_wf f) as Hwf2; intro.
+{ generalize (all_funspecsOracle_wf ty f) as Hwf2; intro.
   unfold wf_funspecOracle in Hwf2.
   spec Hwf2 x ge (symb2genv (Genv.genv_symb ge)) (fst (split (fst sig))) args z.
   spec Hwf2.
   rewrite symb2genv_ax; auto.
   apply Hwf2; auto. }
-destruct (@add_funspecs_pre ext_link _ _ _ cc _ _ _ _ _ _
-                            spec ts (Genv.genv_symb ge) s t z Hnorepeat Hin Hjoin Hp'')
+destruct (@add_funspecs_pre
+            ext_link ty _ _ _ cc _ _ _ _ _ _ OK_spec ts (Genv.genv_symb ge) s t z Hnorepeat Hin Hjoin Hp'')
   as [x' [Heq Hpre]].
 simpl.
 exists x'.
@@ -297,14 +310,14 @@ rewrite symb2genv_ax in Hq'; auto.
 eapply pred_nec_hereditary; eauto.
 Qed.
 
-Lemma semax_ext (ext_link: Strings.String.string -> ident) id ids sig sig' cc A P Q spec (fs : list (ident * funspecOracle)) :
-  let f := mk_funspecOracle sig cc A P Q in
+Lemma semax_ext (ext_link: Strings.String.string -> ident) id ids sig sig' cc A P Q (fs : list (ident * funspecOracle ty)) :
+  let f := mk_funspecOracle ty sig cc A P Q in
   In (ext_link id,f) fs ->
   list_norepet (map fst fs) ->
   ids = fst (split (fst sig)) ->
   sig' = funsig2signature sig cc ->
   (forall n, semax_external_oracle
-          (add_funspecsOracle_rec ext_link spec fs)
+          (Build_OracleKind _ (add_funspecsOracle_rec ext_link ty spec fs))
           ids
           (EF_external id sig')
           _ P Q n).
