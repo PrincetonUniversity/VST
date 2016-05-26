@@ -48,7 +48,7 @@ Definition funspec2post (ext_link: Strings.String.string -> ident)(A : Type) (Q 
   return ((if s then (rmap*A)%type else ext_spec_type Espec ef) -> Prop)
   with
     | left _ => fun x' => exists phi0 phi1, join phi0 phi1 (m_phi m)
-                       /\ Q (snd x') (make_ext_rval (filter_genv (symb2genv ge_s))  ret) phi0
+                       /\ Q (snd x') (make_ext_rval (filter_genv (symb2genv ge_s)) ret) phi0
                        /\ necR (fst x') phi1
     | right n => fun x' => ext_spec_post Espec ef x' ge_s tret ret z m
   end x.
