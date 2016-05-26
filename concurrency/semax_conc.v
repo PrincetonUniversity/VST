@@ -11,6 +11,7 @@ Require Import veric.tycontext.
 Require Import veric.expr2.
 Require Import veric.semax.
 Require Import veric.semax_call.
+Require Import veric.semax_ext_oracle.
 Require Import sepcomp.extspec.
 Require Import floyd.proofauto.
 
@@ -62,6 +63,7 @@ Fixpoint Interp (p : Pred) : mpred :=
 
 (*+ Specification of each concurrent primitive *)
 
+(*
 Definition acquire_spec :=
    WITH v : val, sh : share, R : Pred
    PRE [ _lock OF tptr tlock ]
@@ -72,7 +74,35 @@ Definition acquire_spec :=
      PROP ()
      LOCAL ()
      SEP (lock_inv sh v (Interp R); lock_hold Share.top v; Interp R).
+ *)
 
+Definition acquire_spec :=
+  mk_funspecOracle
+    (* ARGS *)
+    ([(_lock, tptr tlock)], tvoid)
+    cc_default
+    (* WITH *)
+    (Z * val * share * Pred)
+    (* PRE *)
+    (fun (x : Z * val * share * Pred) (oracle : Z) =>
+       match x with
+         (z, v, sh, R) =>
+         !!(exists m : rmap, oracle = m :: z /\ app_pred (Interp R) m) &&
+         PROP (readable_share sh)
+         LOCAL (temp _lock v)
+         SEP (lock_inv sh v (Interp R))
+       end)
+    (* POST *)
+    (fun (x : Z * val * share * Pred) (oracle : Z) =>
+       match x with
+         (z, v, sh, R) =>
+         !!(oracle = z) &&
+         PROP ()
+         LOCAL ()
+         SEP (lock_inv sh v (Interp R); lock_hold Share.top v; Interp R)
+       end).
+
+(*
 Definition release_spec :=
    WITH v : val, sh : share, R : Pred
    PRE [ _lock OF tptr tlock ]
@@ -83,6 +113,33 @@ Definition release_spec :=
      PROP ()
      LOCAL ()
      SEP (lock_inv sh v (Interp R)).
+*)
+
+Definition release_spec :=
+  mk_funspecOracle
+    (* ARGS *)
+    ([(_lock, tptr tlock)], tvoid)
+    cc_default
+    (* WITH *)
+    (Z * val * share * Pred)
+    (* PRE *)
+    (fun (x : Z * val * share * Pred) (oracle : Z) =>
+       match x with
+         (z, v, sh, R) =>
+         !!(oracle = z) &&
+         PROP (readable_share sh)
+         LOCAL (temp _lock v)
+         SEP (lock_inv sh v (Interp R); lock_hold Share.top v; Interp R)
+       end)
+    (* POST *)
+    (fun (x : Z * val * share * Pred) (oracle : Z) =>
+       match x with
+         (z, v, sh, R) =>
+         !!(oracle = z) &&
+         PROP ()
+         LOCAL ()
+         SEP (lock_inv sh v (Interp R))
+       end).
 
 Definition makelock_spec cs :=
    WITH v : val, sh : share, R : Pred
@@ -169,10 +226,31 @@ Definition spawn_spec :=
      LOCAL ()
      SEP   (emp).
 
-(*+ Adding the specifications to an ext_spec *)
+(*+ Adding the specifications to a void ext_spec *)
 
-Require Import veric.semax_ext.
 
+(*! The void ext_spec *)
+Definition void_spec : external_specification juicy_mem external_function (list rmap) :=
+    Build_external_specification
+      juicy_mem external_function (list rmap)
+      (fun ef => False)
+      (fun ef Hef ge tys vl m z => False) 
+      (fun ef Hef ge ty vl m z => False)
+      (fun rv m z => False).
+
+Definition ok_void_spec : OracleKind.
+ refine (Build_OracleKind (list rmap) (Build_juicy_ext_spec _ void_spec _ _ _)).
+Proof.
+  simpl; intros; contradiction.
+  simpl; intros; contradiction.
+  simpl; intros; intros ? ? ? ?; contradiction.
+Defined.
+
+Definition threadspecs (* cs *) (ext_link : string -> ident) := 
+  (ext_link "acquire"%string, acquire_spec) ::
+  nil.
+
+(*
 Definition threadspecs (cs : compspecs) (ext_link : string -> ident) :=
   (ext_link "acquire"%string, acquire_spec) ::
   (ext_link "release"%string, release_spec) ::
@@ -180,35 +258,37 @@ Definition threadspecs (cs : compspecs) (ext_link : string -> ident) :=
   (ext_link "freelock"%string, freelock_spec cs) ::
   (ext_link "spawn"%string, spawn_spec) ::
   nil.
+*)
 
 Definition CEspec (cs : compspecs) (ext_link : string -> ident) :=
-  add_funspecs
-    veric.NullExtension.Espec
+  add_funspecsOracle_rec
     ext_link
-    (threadspecs cs ext_link).
+    ok_void_spec.(@OK_spec)
+    (threadspecs ext_link).
 
-Lemma semax_conc' cs (ext_link: Strings.String.string -> ident) id sig callingc A P Q :
-  let fs := threadspecs cs ext_link in
-  let f := mk_funspec sig callingc A P Q in
-  in_funspecs (ext_link id, f) fs ->
-  funspecs_norepeat fs ->
+Lemma semax_conc' cs (ext_link: Strings.String.string -> ident) id sig cc A P Q :
+  let fs := threadspecs ext_link in
+  let f := mk_funspecOracle sig cc A P Q in
+  In (ext_link id, f) fs ->
+  list_norepet (map fst fs) ->
   (forall n,
-      semax.semax_external
-        (** * it seems the Espec is already instanciated *)
+      semax_external_oracle
         (CEspec cs ext_link) (fst (split (fst sig)))
-        (EF_external id (funsig2signature sig callingc)) _ P Q n).
+        (EF_external id (funsig2signature sig cc)) _ P Q n).
 Proof.
   apply semax_ext'.
 Qed.
 
-Lemma semax_conc cs (ext_link: Strings.String.string -> ident) id ids sig sig' callingc A P Q :
-  let fs := threadspecs cs ext_link in
-  let f := mk_funspec sig  callingc A P Q in
-  in_funspecs (ext_link id,f) fs ->
-  funspecs_norepeat fs ->
+Lemma semax_conc cs (ext_link: Strings.String.string -> ident) id ids sig sig' cc A P Q :
+  let fs := threadspecs ext_link in
+  let f := mk_funspecOracle sig  cc A P Q in
+  In (ext_link id,f) fs ->
+  list_norepet (map fst fs) ->
   ids = fst (split (fst sig)) ->
-  sig' = funsig2signature sig callingc ->
-  (forall n, semax.semax_external (CEspec cs ext_link) ids (EF_external id sig') _ P Q n).
+  sig' = funsig2signature sig cc ->
+  (forall n, semax_external_oracle (CEspec cs ext_link) ids (EF_external id sig') _ P Q n).
 Proof.
-  apply semax_ext.
+  intros.
+  subst.
+  apply semax_conc'; hnf; auto.
 Qed.
