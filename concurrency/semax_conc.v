@@ -32,6 +32,8 @@ Axiom lock_inv_share_join : forall sh1 sh2 sh v R, sepalg.join sh1 sh2 sh ->
 
 Axiom lock_inv_isptr : forall sh v R, (`(lock_inv sh v R) |-- !!(isptr v))%logic.
 
+Axiom lock_hold : share -> val -> mpred.
+
 (*+ Deep embedding of [mpred]s *)
 
 Inductive Pred :=
@@ -39,6 +41,7 @@ Inductive Pred :=
   | Mapsto_ :  Share.t -> type -> val -> Pred
   | Data_at : forall cs : compspecs, Share.t -> forall t : type, reptype t -> val -> Pred
   | Data_at_ : forall cs : compspecs, Share.t -> type -> val -> Pred
+  | Lock_hold : Share.t -> val -> Pred
   | Lock_inv : Share.t -> val -> Pred -> Pred
   | Pred_prop : Prop -> Pred
   | Exp : forall A : Type, (A -> Pred) -> Pred
@@ -51,6 +54,7 @@ Fixpoint Interp (p : Pred) : mpred :=
   | Data_at a b c d e => @data_at a b c d e
   | Data_at_ a b c d => @data_at_ a b c d
   | Lock_inv a b c => lock_inv a b (Interp c)
+  | Lock_hold a b => lock_hold a b
   | Pred_prop a => prop a
   | Exp a b => exp (fun x => Interp (b x))
   | Pred_list l => fold_right sepcon emp (map Interp l)
@@ -67,14 +71,14 @@ Definition acquire_spec :=
    POST [ tvoid ]
      PROP ()
      LOCAL ()
-     SEP (lock_inv sh v (Interp R); Interp R).
+     SEP (lock_inv sh v (Interp R); lock_hold Share.top v; Interp R).
 
 Definition release_spec :=
    WITH v : val, sh : share, R : Pred
    PRE [ _lock OF tptr tlock ]
      PROP (readable_share sh)
      LOCAL (temp _lock v)
-     SEP (lock_inv sh v (Interp R); Interp R)
+     SEP (lock_inv sh v (Interp R); lock_hold Share.top v; Interp R)
    POST [ tvoid ]
      PROP ()
      LOCAL ()
@@ -89,18 +93,18 @@ Definition makelock_spec cs :=
    POST [ tvoid ]
      PROP ()
      LOCAL ()
-     SEP (lock_inv sh v (Interp R)).
+     SEP (lock_inv sh v (Interp R); lock_hold Share.top v).
 
 Definition freelock_spec cs :=
    WITH v : val, sh : share, R : Pred
    PRE [ _lock OF tptr tlock ]
      PROP (writable_share sh)
      LOCAL (temp _lock v)
-     SEP (Interp R ; lock_inv sh v (Interp R))
+     SEP (lock_inv sh v (Interp R); lock_hold Share.top v)
    POST [ tvoid ]
      PROP ()
      LOCAL ()
-     SEP (Interp R ; @data_at_ cs sh tlock v).
+     SEP (@data_at_ cs sh tlock v).
 
 (* Notes about spawn_thread:
 
