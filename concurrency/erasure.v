@@ -1,6 +1,7 @@
 Require Import compcert.common.Memory.
 
 (* The concurrent machinery*)
+Require Import concurrency.scheduler.
 Require Import concurrency.concurrent_machine.
 Require Import concurrency.juicy_machine. Import Concur.
 Require Import concurrency.dry_machine. Import Concur.

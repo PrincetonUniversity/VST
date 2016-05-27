@@ -1,7 +1,7 @@
 From mathcomp.ssreflect Require Import ssreflect fintype.
 
 Require Import compcert.common.Memory.
-Require Import Globalenvs.
+Require Import compcert.common.Globalenvs.
 
 (* The concurrent machinery*)
 Require Import concurrency.concurrent_machine.

@@ -9,6 +9,7 @@ Require Import veric.res_predicates.
 Require Import ProofIrrelevance.
 
 (* The concurrent machinery*)
+Require Import concurrency.scheduler.
 Require Import concurrency.concurrent_machine.
 Require Import concurrency.juicy_machine. Import Concur.
 Require Import concurrency.dry_machine. Import Concur.
@@ -61,8 +62,8 @@ Module ClightParching <: ErasureSig.
                     JTP.getThreadC Htid = DTP.getThreadC Htid' )
                 (mtch_perm: forall b ofs {tid} (Htid:JTP.containsThread js tid)(Htid':DTP.containsThread ds tid),
                     juicy_mem.perm_of_res (resource_at (JTP.getThreadR Htid) (b, ofs)) = ((DTP.getThreadR Htid') !! b) ofs )
-                (mtch_locks: forall b ofs, ssrbool.isSome (AMap.find (b,ofs) (JTP.lockSet js) ) = ssrbool.isSome ((DTP.lockSet ds) !! b ofs ) ),
-      match_st' js ds. (*Missing match locked/unlockde locks. Do we need?*)
+                (mtch_locks: AMap.map (fun _ => tt) (JTP.lockGuts js) = DTP.lockGuts ds),
+      match_st' js ds.
   
   Definition match_st:= match_st'.
 
@@ -256,8 +257,8 @@ Module ClightParching <: ErasureSig.
     Lemma MTCH_updLock:
       forall js ds loc r, 
         match_st js ds ->
-        (AMap.In loc (JTP.lockSet js)) ->
-        match_st (JTP.updLockSet js (AMap.add loc r (JTP.lockSet js))) ds.
+        (AMap.In loc (JTP.lockGuts js)) ->
+        match_st (JTP.updLockSet js loc r) ds.
           intros. inversion H; subst.
           constructor; auto.
           - intros.
@@ -425,7 +426,8 @@ Module ClightParching <: ErasureSig.
         - generalize no_race; unfold DSEM.race_free.
           simpl. intros.
           apply no_race0; auto.
-        - intros; simpl. apply lock_pool.
+        - simpl; assumption. 
+        - simpl; assumption.
   Qed.
   
 
@@ -444,7 +446,7 @@ Module ClightParching <: ErasureSig.
   Proof.
 
     intros.
-    inversion Htstep; subst.
+    inversion Htstep; try subst.
     
     (* step_acquire  *)
     {
@@ -457,13 +459,11 @@ Module ClightParching <: ErasureSig.
          pose (virtue:= PTree.map
                                       (fun (block : positive) (_ : Z -> option permission) (ofs : Z) =>
                                           (inflated_delta (block, ofs))) (snd (permissions.getCurPerm m)) ).
-         exists (DSEM.ThreadPool.updThread Htid' (Kresume c)
+         exists (DSEM.ThreadPool.updThread Htid' (Kresume c Vundef)
                   (permissions.computeMap
                      (DSEM.ThreadPool.getThreadR Htid') virtue)).
          split; [|split].
-         
-         - admit. (*Nick has this proof somewh
-ere. *)
+         - admit. (*Invariant after update. Nick has this proof somewhere. *)
          - apply MTCH_updLock.
            apply MTCH_update; auto.
            intros.

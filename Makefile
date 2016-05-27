@@ -11,6 +11,11 @@ COMPCERT=compcert
 # if there is a compcert build at that pathname, but in cygwin
 # at least, coqdep is confused by the absolute pathname while
 # it works fine with the relative pathname
+#
+# One can also add in CONFIGURE the line
+#   COQBIN=/path/to/bin/
+# to a directory containing the coqc/coqdep/... you wish to use, if it
+# is not your path.
 
 #Note2:  By default, the rules for converting .c files to .v files
 # are inactive.  To activate them, do something like
@@ -63,10 +68,10 @@ endif
 
 COQFLAGS= $(INCLUDE)
 DEPFLAGS= $(INCLUDE)
-COQC=coqc
-COQTOP=coqtop
-COQDEP=coqdep -slash $(DEPFLAGS)
-COQDOC=coqdoc
+COQC=$(COQBIN)coqc
+COQTOP=$(COQBIN)coqtop
+COQDEP=$(COQBIN)coqdep -slash $(DEPFLAGS)
+COQDOC=$(COQBIN)coqdoc
 
 MSL_FILES = \
   Axioms.v Extensionality.v base.v eq_dec.v \
@@ -177,7 +182,8 @@ VERIC_FILES= \
   juicy_mem.v juicy_mem_lemmas.v local.v juicy_mem_ops.v juicy_safety.v juicy_extspec.v \
   semax.v semax_lemmas.v semax_call.v semax_straight.v semax_loop.v semax_congruence.v \
   initial_world.v initialize.v semax_prog.v semax_ext.v SeparationLogic.v SeparationLogicSoundness.v  \
-  NullExtension.v SequentialClight.v superprecise.v jstep.v address_conflict.v valid_pointer.v coqlib4.v
+  NullExtension.v SequentialClight.v superprecise.v jstep.v address_conflict.v valid_pointer.v coqlib4.v \
+  semax_ext_oracle.v
 
 FLOYD_FILES= \
    coqlib3.v base.v proofauto.v computable_theorems.v \

@@ -789,23 +789,7 @@ Fixpoint zip_with_tl {A : Type} (l1 : list A) (l2 : typelist) : list (A*type) :=
     | _, _ => nil
   end.
 
-Fixpoint in_funspecs (f : (ident*funspec)) (fs : funspecs) :=
-  match fs with
-    | nil => False
-    | cons f' fs' => f=f' \/ in_funspecs f fs'
-  end.
-
-Fixpoint in_funspecs_by_id (f : (ident*funspec)) (fs : funspecs) :=
-  match fs with
-    | nil => False
-    | cons f' fs' => fst f=fst f' \/ in_funspecs_by_id f fs'
-  end.
-
-Fixpoint funspecs_norepeat fs :=
-  match fs with
-    | nil => True
-    | cons f fs' => ~in_funspecs_by_id f fs' /\ funspecs_norepeat fs'
-  end.
+Definition  funspecs_norepeat (fs : funspecs) := list_norepet (map fst fs).
 
 Require veric.semax_ext.
 
@@ -1306,7 +1290,7 @@ Axiom semax_ext:
          (id : Strings.String.string) (ids : list ident) (sig : funsig) (sig' : signature)
          cc (A : Type) (P Q : A -> environ -> mpred) (fs : funspecs),
   let f := mk_funspec sig cc A P Q in
-  in_funspecs (ext_link id,f) fs -> 
+  In (ext_link id,f) fs -> 
   funspecs_norepeat fs -> 
   ids = fst (split (fst sig)) -> 
   sig' = funsig2signature sig cc -> 
