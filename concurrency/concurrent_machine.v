@@ -304,7 +304,7 @@ Module CoarseMachine (SCH:Scheduler)(SIG : ConcurrentMachineSig with Module Thre
       containsThread ms tid0 -> machine_state -> Prop:=
   | StartThread: forall tid0 ms ms' c_new vf arg
                     (ctn: containsThread ms tid0)
-                    (Hstate: getThreadC ctn = Kinit vf arg)
+                    (Hcode: getThreadC ctn = Kinit vf arg)
                     (Hinitial: initial_core Sem genv vf (arg::nil) = Some c_new)
                     (Hinv: invariant ms)
                     (Hms': updThreadC ctn (Krun c_new)  = ms'),
@@ -455,6 +455,19 @@ Module FineMachine  (SCH:Scheduler)(SIG : ConcurrentMachineSig with Module Threa
   Notation Sch:=schedule.
   Notation machine_state := ThreadPool.t.
 
+  Inductive start_thread' genv: forall {tid0} {ms:machine_state},
+      containsThread ms tid0 -> machine_state -> Prop:=
+  | StartThread: forall tid0 ms ms' c_new vf arg
+                   (ctn: containsThread ms tid0)
+                   (Hcode: getThreadC ctn = Kinit vf arg)
+                   (Hinitial: initial_core Sem genv vf (arg::nil) = Some c_new)
+                   (Hinv: invariant ms)
+                   (Hms': updThreadC ctn (Krun c_new)  = ms'),
+      start_thread' genv ctn ms'.
+  Definition start_thread genv: forall {tid0 ms},
+      containsThread ms tid0 -> machine_state -> Prop:=
+    @start_thread' genv.
+  
   Inductive resume_thread': forall {tid0} {ms:machine_state},
       containsThread ms tid0 -> machine_state -> Prop:=
   | ResumeThread: forall tid0 ms ms' c c' X
@@ -486,6 +499,14 @@ Module FineMachine  (SCH:Scheduler)(SIG : ConcurrentMachineSig with Module Threa
   
   Inductive machine_step {genv:G}:
     Sch -> machine_state -> mem -> Sch -> machine_state -> mem -> Prop :=
+  | start_step:
+      forall tid U U' ms ms' m
+        (HschedN: schedPeek U = Some tid)
+        (HschedS: schedSkip U = U')        (*Schedule Forward*)
+        (Htid: containsThread ms tid)
+        (Hcmpt: mem_compatible ms m)
+        (Htstep: start_thread genv Htid ms'),
+        machine_step U ms m U' ms' m
   | resume_step:
       forall tid U U' ms ms' m
         (HschedN: schedPeek U = Some tid)

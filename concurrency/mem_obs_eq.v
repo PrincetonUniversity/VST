@@ -93,7 +93,41 @@ Module MemObsEq.
                        val_obs mi v v' ->
                        valobs_list mi vl vl' ->
                        valobs_list mi (v :: vl) (v' :: vl').
+    
+    
+  Lemma val_obs_trans:
+    forall (v v' v'' : val) (f f' f'' : meminj),
+      val_obs f v v'' ->
+      val_obs f' v v' ->
+      (forall b b' b'' : block,
+          f b = Some (b'', 0%Z) ->
+          f' b = Some (b', 0%Z) ->
+          f'' b' = Some (b'', 0%Z)) -> 
+      val_obs f'' v' v''.
+  Proof.
+    intros v v' v'' f f' f'' Hval'' Hval' Hf.
+    inversion Hval'; subst; inversion Hval''; subst;
+      by (constructor; eauto).
+  Qed.
 
+  Lemma valobs_list_trans:
+    forall (vs vs' vs'' : seq val) (f f' f'' : meminj),
+      valobs_list f vs vs'' ->
+      valobs_list f' vs vs' ->
+      (forall b b' b'' : block,
+          f b = Some (b'', 0%Z) ->
+          f' b = Some (b', 0%Z) ->
+          f'' b' = Some (b'', 0%Z)) ->
+      valobs_list f'' vs' vs''.
+  Proof.
+    intros vs vs' vs'' f f' f'' Hobs Hobs' Hf.
+    generalize dependent vs''.
+    induction Hobs'; subst; intros;
+    inversion Hobs; subst. constructor.
+    constructor; auto.
+      by eapply val_obs_trans; eauto.
+  Qed.
+  
   Definition max_inv mf := forall b ofs, Mem.valid_block mf b ->
                                     permission_at mf b ofs Max = Some Freeable.
   
