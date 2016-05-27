@@ -175,7 +175,8 @@ Module Concur.
         all_coh: alloc_cohere m phi
       }.
     Definition mem_thcohere tp m :=
-      forall {tid} (cnt: containsThread tp tid), mem_cohere' m (getThreadR cnt). 
+      forall {tid} (cnt: containsThread tp tid), mem_cohere' m (getThreadR cnt).
+    
     Definition mem_lock_cohere (ls:lockMap) m:=
       forall loc rm, AMap.find loc ls = SSome rm -> mem_cohere' m rm.
 

@@ -491,16 +491,93 @@ Module ClightParching <: ErasureSig.
              - (*Some 1*)
                destruct ((snd (DSEM.ThreadPool.getThreadR Htid')) ! b0) eqn:valb0D; simpl.
                + (*Some 2*)
-                 destruct (d_phi @ (b0, ofs0)) eqn:valb0ofs0; rewrite valb0ofs0; simpl.
-                 * 
-                 
-             - (*Some *) 
-             pose (P1:= m_phi jm' @ (b0, ofs0)); fold P1
-             pose (P2:= d_phi @ (b, ofs0).
+                 destruct (d_phi @ (b0, ofs0)) eqn:valb0ofs0; rewrite valb0ofs0; simpl; try solve[reflexivity].
+                 destruct ((Share.EqDec_share t Share.bot)) eqn:isBot; simpl; try solve [reflexivity].
+                   { subst. (*bottom share*)
+                     simpl. inversion MATCH; subst.
+                     unfold PMap.get in mtch_perm.
+                     specialize (mtch_perm b0 ofs0 i Hi Htid'); rewrite valb0D in mtch_perm.
+                     rewrite <- mtch_perm. f_equal.
+                     clear - Hadd_lock_res valb0ofs0.
+                     (*unfold sepalg.join, Join_rmap in Hadd_lock_res.*)
+                     apply (resource_at_join _ _ _ (b0, ofs0)) in Hadd_lock_res.
+                     rewrite valb0ofs0 in Hadd_lock_res.
+                     inversion Hadd_lock_res; subst.
+                     - inversion RJ. rewrite Share.lub_bot in H1. subst rsh1; reflexivity.
+                     - inversion RJ. rewrite Share.lub_bot in H1. subst rsh1; reflexivity.
+                   }
+
+               +(* None 2*)
+                 destruct (d_phi @ (b0, ofs0)) eqn:valb0ofs0; rewrite valb0ofs0; simpl; try solve[reflexivity].
+                 destruct ((Share.EqDec_share t Share.bot)) eqn:isBot; simpl; try solve [reflexivity].
+                  { subst. (*bottom share*)
+                     simpl. inversion MATCH; subst.
+                     unfold PMap.get in mtch_perm.
+                     specialize (mtch_perm b0 ofs0 i Hi Htid'); rewrite valb0D in mtch_perm.
+                     rewrite <- mtch_perm. f_equal.
+                     clear - Hadd_lock_res valb0ofs0.
+                     (*unfold sepalg.join, Join_rmap in Hadd_lock_res.*)
+                     apply (resource_at_join _ _ _ (b0, ofs0)) in Hadd_lock_res.
+                     rewrite valb0ofs0 in Hadd_lock_res.
+                     inversion Hadd_lock_res; subst.
+                     - inversion RJ. rewrite Share.lub_bot in H1. subst rsh1; reflexivity.
+                     - inversion RJ. rewrite Share.lub_bot in H1. subst rsh1; reflexivity.
+                  }
+             - (*None 1*)
+               destruct ((snd (DSEM.ThreadPool.getThreadR Htid')) ! b0) eqn:valb0D; simpl.
+               inversion MATCH; subst.
+               unfold PMap.get in mtch_perm.
+               specialize (mtch_perm b0 ofs0 i Hi Htid'); rewrite valb0D in mtch_perm.
+               apply JSEM.thread_mem_compatible in Hcompatible.
+               move Hcompatible at bottom. specialize (Hcompatible i Hi).
+               inversion Hcompatible.
+               specialize (acc_coh (b0, ofs0)).
+               unfold max_access_at, PMap.get  in acc_coh; simpl in acc_coh.
+               rewrite valb0MEM in acc_coh.
+               simpl in acc_coh.
+               rewrite mtch_perm in acc_coh.
+               rewrite JSEM.Mem_canonical_useful in acc_coh. destruct (o ofs0); try solve[inversion acc_coh].
+               + (*Some 1.1*)
+                 Lemma blah: forall r, perm_of_res r = None ->
+                                  r = NO Share.bot.
+                 Proof.  intros. destruct r; try solve[reflexivity]; inversion H.
+                         destruct (eq_dec t Share.bot); subst; try solve[reflexivity]; try solve[inversion H1].
+                         destruct k; inversion H1.
+                         apply perm_of_empty_inv in H1; destruct H1 as [A B] . subst t.
+                         exfalso; eapply (juicy_mem_ops.Abs.pshare_sh_bot _ B).
+                 Qed.
+                 apply blah in mtch_perm.
+                 apply (resource_at_join _ _ _ (b0, ofs0)) in Hadd_lock_res.
+                 move Hadd_lock_res at bottom. rewrite mtch_perm in Hadd_lock_res.
+                 apply join_unit1_e in Hadd_lock_res; try solve[ exact NO_identity].
+                 rewrite <- Hadd_lock_res.
+                 assert (Hcmpt':= Hcmpt).
+                 apply JSEM.lock_mem_compatible in Hcmpt'.
+                 apply Hcmpt' in His_unlocked.
+                 inversion His_unlocked.
+                 specialize (acc_coh0 (b0, ofs0)).
+                 unfold max_access_at, PMap.get  in acc_coh0; simpl in acc_coh0.
+                 rewrite valb0MEM in acc_coh0.
+                 rewrite JSEM.Mem_canonical_useful in acc_coh0.
+                 destruct (perm_of_res (d_phi @ (b0, ofs0))); try solve[inversion acc_coh0].
+                 reflexivity.
+
+               + (*None 1.2*)
+                 admit. (*We know both sides are None, because of mem_compatible, the join and because 
+                         mem is None at that point, so it tricles down. *)
            }
-           (*This is going to take some work. If its false the definitions can easily change. *)
-           admit.
-           destruct Hcmpt.
+
+           (*Proving (b,ofs) is a lock*)
+           { 
+             clear - His_unlocked.
+             unfold JSEM.ThreadPool.lock_set in His_unlocked.
+             apply AMap.find_2 in His_unlocked.
+             unfold AMap.In.
+             unfold AMap.Raw.PX.In.
+             simpl. exists (Some d_phi). assumption.
+           }
+           
+           (*destruct Hcmpt.
            unfold JSEM.locks_correct in loc_set_ok.
            apply (JSEM.join_geq(all_juice:=all_juice)) in HJcanwrite; auto.
            apply loc_set_ok in HJcanwrite.
@@ -509,20 +586,20 @@ Module ClightParching <: ErasureSig.
                           (JSEM.ThreadPool.lockSet js)) eqn:B.
            + apply (find_2 ) in B.
              exists o; auto.
-           + inversion HJcanwrite.
+           + inversion HJcanwrite. *)
          - econstructor 1.
            + assumption.
            + eapply MTCH_getThreadC; eassumption.
            + eassumption.
            + eapply MTCH_compat; eassumption.
-           + inversion MATCH; subst.
+          (* + inversion MATCH; subst.
              rewrite <- mtch_locks.
              destruct Hcmpt.
              unfold JSEM.locks_correct in loc_set_ok.
              eapply loc_set_ok.
-             eapply JSEM.join_geq; eassumption.
+             eapply JSEM.join_geq; eassumption.*)
            + reflexivity.
-           + assumption.
+           + move Hload at bottom. assumption.
            + assumption.
            + instantiate(1:=virtue).
              replace (MTCH_cnt MATCH Hi) with Htid' by apply proof_irrelevance.
