@@ -4316,6 +4316,34 @@ Module SimProofs.
         - subst j. (*this is the case where the angel has replaced some permissions*)
           do 2 rewrite restrPermMap_Cur.
           do 2 rewrite gssThreadRes.
+          (*by case analysis on whether the angel changed the permission at this address*)
+          assert (Hproject: Maps.PTree.get b0 (projectAngel (fp i pfc) virtue) =
+                            Maps.PTree.get b1 virtue).
+          { symmetry. eapply projectAngel_correct; eauto.
+            intros b3 b4 ofs1 Hf3.
+            destruct (valid_block_dec mc b3) as [Hvalid | Hinvalid].
+            apply (domain_valid0) in Hvalid.
+            destruct Hvalid as [b4' Hf3'].
+            rewrite Hf3 in Hf3';
+              by inversion Hf3'.
+            apply (domain_invalid0) in Hinvalid;
+              by congruence.
+          }
+          pf_cleanup.
+          specialize (perm_obs_weak0 _ _ ofs0 Hrenaming).
+          destruct (Maps.PTree.get b1 virtue) as [df|] eqn:Hdelta.
+          + destruct (df ofs0) as [pnew |] eqn:Hdf.
+            rewrite (computeMap_1 _ _ _ _ Hdelta Hdf).
+            rewrite (computeMap_1 _ _ _ _ Hproject Hdf);
+              by eapply po_refl.
+            rewrite (computeMap_2 _ _ _ _ Hdelta Hdf).
+            rewrite (computeMap_2 _ _ _ _ Hproject Hdf);
+              by do 2 rewrite restrPermMap_Cur in perm_obs_weak0.
+          + rewrite (computeMap_3 _ _ _ _ Hdelta).
+            rewrite (computeMap_3 _ _ _ _ Hproject);
+              by do 2 rewrite restrPermMap_Cur in perm_obs_weak0.
+        - erewrite restrPermMap.
+            
           
           
 
