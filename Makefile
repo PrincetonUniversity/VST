@@ -22,7 +22,7 @@ COMPCERT=compcert
 
 CC_TARGET=compcert/cfrontend/Clight.vo
 CC_DIRS= lib common cfrontend exportclight
-DIRS= msl sepcomp veric concurrency floyd progs sha linking fcf hmacfcf tweetnacl20140427
+DIRS= msl sepcomp veric concurrency floyd progs sha linking fcf hmacfcf tweetnacl20140427 ccc26x86
 INCLUDE= $(foreach a,$(DIRS),$(if $(wildcard $(a)), -Q $(a) $(a))) -Q $(COMPCERT) compcert $(if $(MATHCOMP), -Q mathcomp $(MATHCOMP))
 #Replace the INCLUDE above with the following in order to build the linking target:
 #INCLUDE= $(foreach a,$(DIRS),$(if $(wildcard $(a)), -I $(a) -as $(a))) -R $(COMPCERT) -as compcert -I $(SSREFLECT)/src -R $(SSREFLECT)/theories -as Ssreflect \
@@ -141,6 +141,13 @@ CONCUR_FILES= \
   compcert_threads_lemmas.v mem_obs_eq.v \
   semax_conc.v semax_to_machine.v \
   lifting.v
+
+CCC26x86_FILES = \
+  Archi.v Bounds.v Conventions1.v Conventions.v Ctypes.v \
+  Locations.v Op.v Ordered.v Stacklayout.v Linear.v LTL.v \
+  Machregs.v Asm.v \
+  Switch.v Cminor.v \
+  I64Helpers.v BuiltinEffects.v load_frame.v Asm_coop.v Asm_eff.v 
 
 LINKING_FILES= \
   sepcomp.v \
@@ -268,6 +275,7 @@ FILES = \
  $(FCF_FILES:%=fcf/%) \
  $(HMACFCF_FILES:%=hmacfcf/%) \
  $(HMACEQUIV_FILES:%=sha/%) \
+ $(CCC26x86_FILES:%=ccc26x86/%) \
  $(TWEETNACL_FILES:%=tweetnacl20140427/%)
 #$(CONCUR_FILES:%=concurrency/%)
 # $(DRBG_FILES:%=verifiedDrbg/spec/%)
@@ -302,6 +310,7 @@ all:     .loadpath version.vo $(FILES:.v=.vo)
 
 msl:     .loadpath version.vo $(MSL_FILES:%.v=msl/%.vo)
 sepcomp: .loadpath $(CC_TARGET) $(UPDATE_SEPCOMP_FILES:%.v=sepcomp/%.vo)
+ccc26x86:   .loadpath $(CCC26x86_FILES:%.v=ccc26x86/%.vo)
 concurrency: .loadpath $(CC_TARGET) $(UPDATE_SEPCOMP_FILES:%.v=sepcomp/%.vo) $(CONCUR_FILES:%.v=concurrency/%.vo)
 linking: .loadpath $(LINKING_FILES:%.v=linking/%.vo) 
 veric:   .loadpath $(VERIC_FILES:%.v=veric/%.vo)
