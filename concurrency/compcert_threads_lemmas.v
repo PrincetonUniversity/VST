@@ -52,7 +52,7 @@ Require Import concurrency.concurrent_machine.
 Require Import concurrency.dry_machine_lemmas concurrency.dry_context.
 
 
-(* TODO: - Partial injectiveness (for fresh blocks) - Done
+(* TODO: - Injectivity - done
 
          - Well-defined memories
 
@@ -758,14 +758,47 @@ Module SimDefs.
   Context {ci : CodeInj}.
   Definition ctl_inj f cc cf : Prop :=
     match cc, cf with
-    | Kinit vf arg, Kinit vf' arg' => Val.inject_list f (vf::arg::nil) (vf'::arg'::nil)
+    | Kinit vf arg, Kinit vf' arg' => valobs_list f (vf::arg::nil) (vf'::arg'::nil)
     | Krun c, Krun c' => code_inj f c c'
     | Kblocked c, Kblocked c' => code_inj f c c'
-    | Kresume c arg, Kresume c' arg' => code_inj f c c' /\ val_inject f arg arg'
+    | Kresume c arg, Kresume c' arg' => code_inj f c c' /\ val_obs f arg arg'
     | _, _  => False
     end.
 
 
+  Lemma val_obs_trans:
+    forall (v v' v'' : val) (f f' f'' : meminj),
+      val_obs f v v'' ->
+      val_obs f' v v' ->
+      (forall b b' b'' : block,
+          f b = Some (b'', 0%Z) ->
+          f' b = Some (b', 0%Z) ->
+          f'' b' = Some (b'', 0%Z)) -> 
+      val_obs f'' v' v''.
+  Proof.
+    intros v v' v'' f f' f'' Hval'' Hval' Hf.
+    inversion Hval'; subst; inversion Hval''; subst;
+      by (constructor; eauto).
+  Qed.
+
+  Lemma valobs_list_trans:
+    forall (vs vs' vs'' : seq val) (f f' f'' : meminj),
+      valobs_list f vs vs'' ->
+      valobs_list f' vs vs' ->
+      (forall b b' b'' : block,
+          f b = Some (b'', 0%Z) ->
+          f' b = Some (b', 0%Z) ->
+          f'' b' = Some (b'', 0%Z)) ->
+      valobs_list f'' vs' vs''.
+  Proof.
+    intros vs vs' vs'' f f' f'' Hobs Hobs' Hf.
+    generalize dependent vs''.
+    induction Hobs'; subst; intros;
+    inversion Hobs; subst. constructor.
+    constructor; auto.
+      by eapply val_obs_trans; eauto.
+  Qed.
+  
   Lemma ctl_inj_trans:
     forall c c' c'' (f f' f'' : meminj)
       (Hcode_inj: ctl_inj f c c'')
@@ -778,14 +811,14 @@ Module SimDefs.
   Proof.
     intros.
     destruct c, c', c''; simpl in *; try (by exfalso);
+    try (destruct Hcode_inj, Hcode_inj'; split);
     try (eapply code_inj_trans; eauto).
-    - destruct Hcode_inj, Hcode_inj'.
-      split.
-      (eapply code_inj_trans; eauto).
-      admit. (*val_inject transitivity. *)
-    - admit. (* Val.inject_list transitivity. *)
-  Admitted.
-  
+    eapply val_obs_trans;
+      by eauto.
+    eapply valobs_list_trans;
+      by eauto.
+  Qed.
+
   
   (** Simulations between individual threads. *)
   

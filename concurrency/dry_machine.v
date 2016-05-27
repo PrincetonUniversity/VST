@@ -105,10 +105,10 @@ Module Concur.
     Record invariant' tp :=
       { no_race : race_free tp;
         lock_pool : forall i (cnt : containsThread tp i),
-            permMapsDisjoint (lockSet tp) (getThreadR cnt);
-        lock_perm: forall b ofs,
-            Maps.PMap.get b (lockSet tp) ofs = None \/
-            Maps.PMap.get b (lockSet tp) ofs = Some Writable
+            permMapsDisjoint (lockSet tp) (getThreadR cnt)
+        (* lock_perm: forall b ofs, *)
+        (*     Maps.PMap.get b (lockSet tp) ofs = None \/ *)
+        (*     Maps.PMap.get b (lockSet tp) ofs = Some Writable *)
       }.
 
     Definition invariant := invariant'.

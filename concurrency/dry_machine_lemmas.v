@@ -442,7 +442,6 @@ Module CoreLanguage.
         - erewrite @gsoThreadRes with (cntj := cntUpdate' _ _ _ cntj);
             by eauto.
       }
-      { by erewrite gsoThreadLock. }
     Qed.
 
     Lemma corestep_disjoint_val:

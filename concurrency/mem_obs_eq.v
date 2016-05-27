@@ -87,6 +87,13 @@ Module MemObsEq.
     { weak_obs_eq : weak_mem_obs_eq f mc mf;
       strong_obs_eq : strong_mem_obs_eq f mc mf }.
 
+  Inductive valobs_list (mi : meminj) : seq val -> seq val -> Prop :=
+    valobs_list_nil : valobs_list mi [::] [::]
+  | valobs_list_cons : forall (v v' : val) (vl vl' : seq val),
+                       val_obs mi v v' ->
+                       valobs_list mi vl vl' ->
+                       valobs_list mi (v :: vl) (v' :: vl').
+
   Definition max_inv mf := forall b ofs, Mem.valid_block mf b ->
                                     permission_at mf b ofs Max = Some Freeable.
   
