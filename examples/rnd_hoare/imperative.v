@@ -111,7 +111,7 @@ Module Randomized.
 (* Begin [ProbState Lemmas] *)
 
 Definition ProbState {ora: RandomOracle} (state: Type) :=
-  {s: RandomVariable (MetaState state) | forall h, is_inf_history h -> rv_domain _ s h -> s h = NonTerminating _}.
+  {s: RandomVariable (MetaState state) | forall h: rv_domain _ s, is_inf_history h -> s h = NonTerminating _}.
 
 Definition ProbState_RandomVariable {ora: RandomOracle} {state: Type}: ProbState state -> RandomVariable (MetaState state) := @proj1_sig _ _.
 
@@ -120,7 +120,8 @@ Coercion ProbState_RandomVariable: ProbState >-> RandomVariable.
 Definition unique_state {ora: RandomOracle} {state: Type} (s: MetaState state): ProbState state.
   refine (exist _ (unit_space_var s) _).
   intros.
-  simpl in H0.
+  exfalso.
+  destruct h as [h ?H]; simpl in *.
   specialize (H 0).
   specialize (H0 0).
   destruct (h 0); simpl in *; try congruence.
@@ -131,24 +132,28 @@ Definition ProbStateStream {ora: RandomOracle} (state: Type) : Type := nat -> Pr
 
 Definition ProbConvDir {ora: RandomOracle} : Type := nat -> RandomVarDomain.
 
-Definition is_limit {ora: RandomOracle} {state: Type} (l: ProbStateStream state) (dir: ProbConvDir) (lim: RandomVariable (MetaState state)) : Prop :=
- (forall n h, ~ dir n h -> l n h = l (S n) h) /\
- (forall h, rv_domain _ lim h ->
-    match lim h with
+Record is_limit {ora: RandomOracle} {state: Type} (l: ProbStateStream state) (dir: ProbConvDir) (lim: RandomVariable (MetaState state)) : Prop := {
+  dir_consi1: forall n h, ~ dir n h -> rv_domain _ (l n) h -> rv_domain _ (l (S n)) h;
+  dir_consi2: forall n h H1 H2, (l n) (exist _ h H2) = (l (S n)) (exist _ h (dir_consi1 n h H1 H2));
+  dir_consi3: forall n h, dir n h -> rv_domain _ (l n) h;
+  in_domain_is_limit: forall h H,
+    match lim (exist _ h H) with
     | Terminating s => (* finite_part_of_limit *)
-        exists n,
-          rv_domain _ (l n) h /\ l n h = Terminating _ s /\
-          (forall n' h', n' >= n -> prefix_history h' h -> ~ dir n h')
+        exists n Hn,
+          l n (exist _ h Hn) = Terminating _ s /\
+          (forall n', n' >= n -> ~ dir n h)
     | NonTerminating => (* infinite_part_of_limit *)
        (forall n h_low, is_fin_history h_low -> prefix_history h_low h ->
           exists n' h', n' > n /\ prefix_history h_low h' /\
                        prefix_history h' h /\ dir n' h') \/
-       (exists n,
-          rv_domain _ (l n) h /\ l n h = NonTerminating _ /\
-          (forall n' h', n' >= n -> prefix_history h' h -> ~ dir n h'))
-    end) /\
- (forall h, ~ rv_domain _ lim h -> (* invalid_part_of_limit *)
-        exists n, forall n', n' >= n -> ~ rv_domain _ (l n') h).
+       (exists n Hn,
+          l n (exist _ h Hn) = NonTerminating _ /\
+          (forall n', n' >= n -> ~ dir n h))
+    end;
+  out_domain_is_limit: forall h, ~ rv_domain _ lim h -> (* invalid_part_of_limit *)
+        exists n, forall n', n' >= n -> ~ rv_domain _ (l n') h
+}.
+
 (* End [ProbState Lemmas] *)
 
 Class SmallStepSemantics {imp: Imperative}: Type := {
@@ -162,8 +167,9 @@ Global Existing Instance ora.
 Record local_step {imp: Imperative} {sss: SmallStepSemantics} (h: RandomHistory) (s1 s2: ProbState (cmd * state)): Prop := {
   cs1: cmd * state;
   cs2: ProbState (cmd * state);
-  sound1: rv_domain _ s1 h /\ s1 h = Terminating _ cs1;
-  sound2: forall h' h'', history_app h h' h'' -> rv_domain _ s2 h'' = rv_domain _ cs2 h' /\ s2 h'' = cs2 h';
+  sound0: rv_domain _ s1 h;
+  sound1: s1 (exist _ h sound0) = Terminating _ cs1;
+  sound2: forall h' h'', history_app h h' h'' -> RandomVar_local_equiv s2 cs2 h'' h';
   step_fact: step cs1 cs2
 }.
 
@@ -173,7 +179,7 @@ Record global_step {imp: Imperative} {sss: SmallStepSemantics} (P: RandomVarDoma
   stable_part:
     forall h,
       (forall h' h'', P h' -> ~ history_app h' h'' h) ->
-      s1 h = s2 h
+      RandomVar_local_equiv s1 s2 h h
 }.
 
 Record step_path {imp: Imperative} {sss: SmallStepSemantics}: Type := {
@@ -203,8 +209,7 @@ Definition global_state_command_state {imp: Imperative} {sss: SmallStepSemantics
               end)
            x).
   intros.
-  simpl in H0.
-  specialize (e _ H H0).
+  specialize (e _ H).
   rewrite RandomVarMap_sound.
   rewrite e; auto.
 Defined.
@@ -236,22 +241,6 @@ Context {imp: Imperative} {sss: SmallStepSemantics}.
 
 Definition tm_meta_pred (P: state -> Prop): MetaState state -> Prop :=
   fun s => match s with Terminating s' => P s' | _ => False end.
-
-Definition ntm_domain (sigma: global_state): RandomVarDomain :=
-  element_pred_domain (eq (NonTerminating _)) sigma.
-
-Definition tm_domain (P: state -> Prop) (sigma: global_state): RandomVarDomain :=
-  element_pred_domain (tm_meta_pred P) sigma.
-
-Definition filter_global_state (filter: RandomHistory -> Prop) (sigma: global_state): global_state.
-  exists (Build_RandomVariable _ _ (raw_var _ sigma) (filter_domain filter (rv_domain _ sigma))).
-  destruct sigma as [sigma H].
-  simpl; intros.
-  apply H; tauto.
-Defined.
-
-Definition element_pred_filter_global_state (P: MetaState state -> Prop) (sigma: global_state): global_state :=
-  filter_global_state (fun h => P (sigma h)) sigma.
 
 End PrePreds.
 

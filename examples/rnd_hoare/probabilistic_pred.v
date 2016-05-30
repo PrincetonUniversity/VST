@@ -69,24 +69,27 @@ Definition state_pred_domain_MS (P: MetaState state -> Prop) (sigma: global_stat
   + apply (state_pred_domain_measurable P (proj1_sig sigma)).
 Defined.
 
+(*
 Definition ntm_pred_MS (sigma: global_state): measurable_set (global_state_MSS sigma) :=
   state_pred_domain_MS (eq (NonTerminating _)) sigma.
 
 Definition tm_pred_MS (P: state -> Prop) (sigma: global_state): measurable_set (global_state_MSS sigma) :=
   state_pred_domain_MS (tm_meta_pred P) sigma.
-
+*)
 Definition Pr (P: state -> Prop) (sigma: global_state): R := measure_of _ (tm_pred_MS P sigma).
 
 Definition nPr (sigma: global_state): R := measure_of _ (ntm_pred_MS sigma).
 
-Definition RCPPred (P: global_state -> Prop) (filter: state -> Prop) (sigma: global_state): Prop :=
+Definition RCPPred (P: global_state -> Prop) (filter: RandomHistory -> Prop) (sigma: global_state): Prop :=
   ~ is_measurable_subspace (tm_domain filter (proj1_sig sigma)) /\
   exists M: is_measurable_subspace (tm_domain filter (proj1_sig sigma)),
   P (exist _ (element_pred_filter_global_state (tm_meta_pred filter) (proj1_sig sigma)) M).
 
 Definition ExPred {A: Type} (P: A -> global_state -> Prop) (sigma: global_state): Prop := exists a: A, P a sigma.
 
-Definition ExrPred {A: Type} (P: A -> global_state -> Prop) (sigma: global_state): Prop := exists a: A, P a sigma.
+Definition QRandVar (A: Type): forall d: RandomVarDomain, {v: RandomVariable A | rv_domain _ v = d}.
+
+Definition ExrPred {A: Type} (P: QRandVar A -> global_state -> Prop) (sigma: global_state): Prop := exists a: A, P a sigma.
 
 
 Definition PTriple (P: global_state -> Prop) (c: cmd) (Q: global_state -> Prop): Prop :=

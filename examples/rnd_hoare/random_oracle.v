@@ -284,18 +284,35 @@ Record RandomVarDomain {ora: RandomOracle}: Type := {
   raw_domain_legal: LegalRandomVarDomain raw_domain
 }.
 
+(* We choose to define random var in this INCOVENIENT way is to enable the    *)
+(* following two construction.                                                *)
+(* 1. Filter domain and filter variable which throw away some valid part.     *)
+(* 2. Heriditary consistent family of variables from a single var.            *)
 Record RandomVariable {ora: RandomOracle} (A: Type): Type := {
-  raw_var: RandomHistory -> A;
-  rv_domain: RandomVarDomain
+  rv_domain: RandomVarDomain;
+  raw_var: forall h: RandomHistory, raw_domain rv_domain h -> A
 }.
-
-Definition rand_var_get {ora: RandomOracle} {A: Type} (v: RandomVariable A) (h: RandomHistory): A := raw_var A v h.
 
 Definition in_domain {ora: RandomOracle} (d: RandomVarDomain) (h: RandomHistory): Prop := raw_domain d h.
 
+Coercion in_domain: RandomVarDomain >-> Funclass.
+
+Definition history_in_domain {ora: RandomOracle} (d: RandomVarDomain) : Type := {h: RandomHistory | d h}.
+
+Coercion history_in_domain: RandomVarDomain >-> Sortclass.
+
+Definition history_in_domain_history {ora: RandomOracle} (d: RandomVarDomain) : history_in_domain d -> RandomHistory := @proj1_sig _ _.
+
+Coercion history_in_domain_history: history_in_domain >-> RandomHistory.
+
+Definition rand_var_get {ora: RandomOracle} {A: Type} (v: RandomVariable A) (h: rv_domain _ v): A := raw_var A v h (proj2_sig h).
+
 Coercion rand_var_get: RandomVariable >-> Funclass.
 
-Coercion in_domain: RandomVarDomain >-> Funclass.
+Record RandomVar_local_equiv {ora: RandomOracle} {A: Type} (v1 v2: RandomVariable A) (h1 h2: RandomHistory): Prop := {
+  in_domain_equiv: rv_domain _ v1 h1 <-> rv_domain _ v2 h2;
+  value_equiv: forall H1 H2, raw_var _ v1 h1 H1 = raw_var _ v2 h2 H2
+}.
 
 (*
 Definition join {ora: RandomOracle} {A: Type} (v1 v2 v: RandomVariable A): Prop :=
@@ -323,7 +340,7 @@ Defined.
 Definition unit_space_domain {ora: RandomOracle}: RandomVarDomain := singleton_history_domain (fin_history nil).
 
 Definition unit_space_var {ora: RandomOracle} {A: Type} (v: A): RandomVariable A :=
-  Build_RandomVariable _ _ (fun h => v) unit_space_domain.
+  Build_RandomVariable _ _ unit_space_domain (fun _ _ => v) .
 
 Definition filter_domain {ora: RandomOracle} (filter: RandomHistory -> Prop) (d: RandomVarDomain): RandomVarDomain.
   exists (fun h => d h /\ filter h).
@@ -333,19 +350,13 @@ Definition filter_domain {ora: RandomOracle} (filter: RandomHistory -> Prop) (d:
   apply (H h1 h2 H0); tauto.
 Defined.
 
-Definition element_pred_domain {ora: RandomOracle} {A: Type} (P: A -> Prop) (v: RandomVariable A): RandomVarDomain :=
-  filter_domain (fun h => P (v h)) (rv_domain _ v).
-
-Lemma element_pred_domain_Dom: forall {ora: RandomOracle} {A: Type} (P: A -> Prop) (v: RandomVariable A),
-  (forall h, (element_pred_domain P v) h -> (rv_domain _ v) h).
-Proof.
-  intros.
-  unfold element_pred_domain, filter_domain in H; simpl in H.
-  tauto.
-Qed.
+Definition filter_var {ora: RandomOracle} {A: Type} (filter: RandomHistory -> Prop) (v: RandomVariable A): RandomVariable A :=
+  Build_RandomVariable _ _
+   (filter_domain filter (rv_domain _ v))
+   (fun h H => raw_var _ v h (proj1 H)).
 
 Definition RandomVarMap {ora: RandomOracle} {A B: Type} (f: A -> B) (v: RandomVariable A): RandomVariable B :=
-  Build_RandomVariable _ _ (fun h => f (v h)) (rv_domain _ v).
+  Build_RandomVariable _ _ (rv_domain _ v) (fun h H => f (raw_var _ v h H)).
 
 Lemma RandomVarMap_sound: forall {ora: RandomOracle} {A B: Type} (f: A -> B) (v: RandomVariable A) h,
   RandomVarMap f v h = f (v h).
@@ -367,21 +378,3 @@ Definition same_covered_domain {ora: RandomOracle} (d1 d2: RandomVarDomain): Pro
     ((exists h', (prefix_history h' h \/ strict_conflict_history h' h) /\ d1 h') <->
      (exists h', (prefix_history h' h \/ strict_conflict_history h' h) /\ d2 h')).
 
-(*
-(* TODO: seems no use *)
-Definition single_update {ora: RandomOracle} {A: Type} (h0: RandomHistory) (a1 a2: A) (v1 v2: RandomVariable A): Prop :=
-  v1 h0 = Some a1 /\
-  v2 h0 = Some a2 /\
-  forall h, h0 <> h -> v1 h = v2 h.
-
-Definition single_expand {ora: RandomOracle} {A: Type} (h0: RandomHistory) (a1: A) (a2: {q: ro_question & ro_answer q -> A}) (v1 v2: RandomVariable A): Prop :=
-  v1 h0 = Some a1 /\
-  v2 h0 = None /\
-  (forall (a: ro_answer (projT1 a2)) h,
-     history_cons h0 (existT ro_answer (projT1 a2) a) h ->
-     v1 h = None /\ v2 h = Some (projT2 a2 a)) /\
-  (forall h,
-     h0 <> h ->
-     (forall (a: ro_answer (projT1 a2)), ~ history_cons h0 (existT ro_answer (projT1 a2) a) h) ->
-     v2 h = v1 h).
-*)
