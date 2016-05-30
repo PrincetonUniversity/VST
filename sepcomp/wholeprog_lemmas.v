@@ -1,20 +1,20 @@
-(*CompCert imports*)
-Require Import Events.
-Require Import Memory.
 Require Import compcert.lib.Coqlib.
-Require Import Values.
-Require Import Maps.
-Require Import Integers.
-Require Import AST.
-Require Import Globalenvs.
+Require Import compcert.lib.Maps.
+Require Import compcert.lib.Integers.
 Require Import compcert.lib.Axioms.
 
-Require Import mem_lemmas. (*needed for definition of mem_forward etc*)
-Require Import semantics.
-Require Import semantics_lemmas.
-Require Import wholeprog_simulations.
-Require Import closed_safety.
-Require Import effect_semantics.
+Require Import compcert.common.Events.
+Require Import compcert.common.Memory.
+Require Import compcert.common.Values.
+Require Import compcert.common.AST.
+Require Import compcert.common.Globalenvs.
+
+Require Import sepcomp.mem_lemmas.
+Require Import sepcomp.semantics.
+Require Import sepcomp.semantics_lemmas.
+Require Import sepcomp.wholeprog_simulations.
+Require Import sepcomp.closed_safety.
+Require Import sepcomp.effect_semantics.
 
 Import Wholeprog_sim.
 

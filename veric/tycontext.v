@@ -1,7 +1,5 @@
 Require Import msl.msl_standard.
 Require Import veric.base.
-Require Import msl.rmaps.
-Require Import msl.rmaps_lemmas.
 Require Import veric.compcert_rmaps.
 Require Import veric.Clight_lemmas.
 Require Export veric.lift.
@@ -220,7 +218,7 @@ Defined.
 Definition mpred := pred rmap.
 
 Inductive funspec :=
-   mk_funspec: funsig -> forall A: Type, (A -> environ->mpred) -> (A -> environ->mpred) -> funspec.
+   mk_funspec: funsig -> calling_convention -> forall A: Type, (A -> environ->mpred) -> (A -> environ->mpred) -> funspec.
 
 (* Causes a universe inconsistency in seplog.v! 
 Definition example_f_spec :=
@@ -415,7 +413,7 @@ Defined.
 *)
 
 Definition type_of_funspec (fs: funspec) : type :=  
-  match fs with mk_funspec fsig _ _ _ => Tfunction (type_of_params (fst fsig)) (snd fsig) cc_default end.
+  match fs with mk_funspec fsig cc _ _ _ => Tfunction (type_of_params (fst fsig)) (snd fsig) cc end.
 
 (** Declaration of type context for typechecking **)
 Inductive tycontext : Type := 

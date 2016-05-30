@@ -5,7 +5,7 @@
 
 Require Import msl.base.
 Require Import msl.ageable.
-Require Import Eqdep_dec.
+Require Import Coq.Logic.Eqdep_dec.
 Require Import msl.functors.
 
 Open Local Scope nat_scope.

@@ -1,9 +1,4 @@
-Require Import veric.base.
-Require Import msl.rmaps.
-Require Import msl.rmaps_lemmas.
-Require Import veric.compcert_rmaps.
-Import Mem.
-Require Import msl.msl_standard.
+Require Import veric.juicy_base.
 Require Import veric.juicy_mem veric.juicy_mem_lemmas veric.juicy_mem_ops.
 Require Import veric.res_predicates.
 Require Import veric.extend_tc.
@@ -15,7 +10,7 @@ Require Import sepcomp.extspec.
 Require Import sepcomp.step_lemmas.
 Require Import veric.juicy_safety.
 Require Import veric.juicy_extspec.
-Require Import tycontext.
+Require Import veric.tycontext.
 Require Import veric.expr2.
 Require Import veric.expr_lemmas.
 
@@ -171,12 +166,12 @@ Fixpoint zip_with_tl {A : Type} (l1 : list A) (l2 : typelist) : list (A*type) :=
     | _, _ => nil
   end.
 
-Definition believe_external (Hspec: OracleKind) (gx: genv) (v: val) (fsig: funsig)
+Definition believe_external (Hspec: OracleKind) (gx: genv) (v: val) (fsig: funsig) cc
            (A: Type) (P Q: A -> environ -> pred rmap) : pred nat :=
   match Genv.find_funct gx v with 
-  | Some (External ef sigargs sigret cc) => 
+  | Some (External ef sigargs sigret cc') => 
       let ids := fst (split (fst fsig)) in
-        !! (fsig = (zip_with_tl ids sigargs, sigret) /\ cc=cc_default 
+        !! (fsig = (zip_with_tl ids sigargs, sigret) /\ cc'=cc 
             /\ length (typelist2list sigargs)=length ids) 
         && semax_external Hspec ids ef A P Q 
         && ! (ALL x:A, ALL ret:option val, 
@@ -200,13 +195,13 @@ Definition stackframe_of' (cenv: composite_env) (f: Clight.function) : assert :=
 
 Definition believe_internal_ 
   (semax:semaxArg -> pred nat)
-  (gx: genv) (Delta: tycontext) v (fsig: funsig) A (P Q: A -> assert) : pred nat :=
+  (gx: genv) (Delta: tycontext) v (fsig: funsig) cc A (P Q: A -> assert) : pred nat :=
   (EX b: block, EX f: function,  
    prop (v = Vptr b Int.zero /\ Genv.find_funct_ptr gx b = Some (Internal f)
                  /\ Forall (fun it => complete_type (genv_cenv gx) (snd it) = true) (fn_vars f)
                  /\ list_norepet (map (@fst _ _) f.(fn_params) ++ map (@fst _ _) f.(fn_temps))
                  /\ list_norepet (map (@fst _ _) f.(fn_vars)) /\ var_sizes_ok (genv_cenv gx) (f.(fn_vars))
-                 /\ fsig = fn_funsig f /\ f.(fn_callconv) = cc_default)
+                 /\ fsig = fn_funsig f /\ f.(fn_callconv) = cc)
   && ALL x : A, |> semax (SemaxArg  (func_tycontext' f Delta)
                                 (fun rho => (bind_args f.(fn_params) f.(fn_vars) (P x) rho * stackframe_of' (genv_cenv gx) f rho)
                                              && funassert (func_tycontext' f Delta) rho)
@@ -215,17 +210,17 @@ Definition believe_internal_
 
 Definition empty_environ (ge: genv) := mkEnviron (filter_genv ge) (Map.empty _) (Map.empty _).
 
-Definition claims (ge: genv) (Delta: tycontext) v fsig A P Q : Prop :=
-  exists id, (glob_specs Delta)!id = Some (mk_funspec fsig A P Q) /\
+Definition claims (ge: genv) (Delta: tycontext) v fsig cc A P Q : Prop :=
+  exists id, (glob_specs Delta)!id = Some (mk_funspec fsig cc A P Q) /\
     exists b, Genv.find_symbol ge id = Some b /\ v = Vptr b Int.zero.
 
 Definition believepred (Espec: OracleKind) (semax: semaxArg -> pred nat)
               (Delta: tycontext) (gx: genv)  (Delta': tycontext) : pred nat :=
-  ALL v:val, ALL fsig: funsig,
+  ALL v:val, ALL fsig: funsig, ALL cc: calling_convention,
          ALL A: Type, ALL P: A -> assert, ALL Q: A -> assert,
-       !! claims gx Delta' v fsig A P Q  -->
-      (believe_external Espec gx v fsig A P Q
-        || believe_internal_ semax gx Delta v fsig A P Q).
+       !! claims gx Delta' v fsig cc A P Q  -->
+      (believe_external Espec gx v fsig cc A P Q
+        || believe_internal_ semax gx Delta v fsig cc A P Q).
 
 Definition semax_  {CS: compspecs}  (Espec: OracleKind)
        (semax: semaxArg -> pred nat) (a: semaxArg) : pred nat :=
@@ -243,13 +238,13 @@ Definition semax'  {CS: compspecs} (Espec: OracleKind) Delta P c R : pred nat :=
      HORec (semax_  Espec) (SemaxArg Delta P c R).
 
 Definition believe_internal {CS: compspecs} (Espec:  OracleKind)
-  (gx: genv) (Delta: tycontext) v (fsig: funsig) A (P Q: A -> assert) : pred nat :=
+  (gx: genv) (Delta: tycontext) v (fsig: funsig) cc A (P Q: A -> assert) : pred nat :=
   (EX b: block, EX f: function,  
    prop (v = Vptr b Int.zero /\ Genv.find_funct_ptr gx b = Some (Internal f)
                  /\ Forall (fun it => complete_type (genv_cenv gx) (snd it) = true) (fn_vars f)
                  /\ list_norepet (map (@fst _ _) f.(fn_params) ++ map (@fst _ _) f.(fn_temps))
                  /\ list_norepet (map (@fst _ _) f.(fn_vars)) /\ var_sizes_ok (genv_cenv gx) (f.(fn_vars))
-                 /\ fsig = fn_funsig f /\ f.(fn_callconv) = cc_default)
+                 /\ fsig = fn_funsig f /\ f.(fn_callconv) = cc)
   && ALL x : A, |> semax' Espec (func_tycontext' f Delta)
                                 (fun rho => (bind_args f.(fn_params) f.(fn_vars) (P x) rho * stackframe_of' (genv_cenv gx)  f rho)
                                              && funassert (func_tycontext' f Delta) rho)
@@ -258,11 +253,11 @@ Definition believe_internal {CS: compspecs} (Espec:  OracleKind)
 
 Definition believe {CS: compspecs} (Espec:OracleKind)
               (Delta: tycontext) (gx: genv) (Delta': tycontext): pred nat :=
-  ALL v:val, ALL fsig: funsig,
+  ALL v:val, ALL fsig: funsig, ALL cc: calling_convention,
          ALL A: Type, ALL P: A -> assert, ALL Q: A -> assert,
-       !! claims gx Delta' v fsig A P Q  -->
-      (believe_external Espec gx v fsig A P Q
-        || believe_internal Espec gx Delta v fsig A P Q).
+       !! claims gx Delta' v fsig cc A P Q  -->
+      (believe_external Espec gx v fsig cc A P Q
+        || believe_internal Espec gx Delta v fsig cc A P Q).
 
 Lemma semax_fold_unfold : forall {CS: compspecs} (Espec : OracleKind),
   semax' Espec = fun Delta P c R =>
@@ -286,6 +281,7 @@ sub_unfold.
 do 2 (apply subp_allp; intros).
 apply subp_imp; [auto with contractive | ].
 apply subp_imp; [ | auto 50 with contractive].
+apply subp_allp; intros.
 apply subp_allp; intros.
 apply subp_allp; intros.
 apply subp_allp; intros.

@@ -3,7 +3,7 @@ Require Import progs.list_dt.
 Require Import progs.insertionsort.
 Require Import Sorted.
 Require Import Omega.
-Require Import Permutation.
+Require Import Coq.Sorting.Permutation.
 
 Local Open Scope logic.
 
@@ -52,7 +52,8 @@ Definition main_spec :=
         
 Definition Vprog : varspecs := nil.
 
-Definition Gprog : funspecs := insert_spec :: insertionsort_spec ::  nil.
+Definition Gprog : funspecs := augment_funspecs prog
+     [insert_spec; insertionsort_spec].
 
 Lemma list_cell_eq: forall sh,
    list_cell LS sh = field_at sh t_struct_list [StructField _head].

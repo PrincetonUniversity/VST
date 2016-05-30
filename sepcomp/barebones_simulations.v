@@ -1,8 +1,13 @@
-Require Import compcert. Import CompcertCommon.
-Require Import semantics.
-Require Import semantics_lemmas.
+Require Import compcert.common.Events.
+Require Import compcert.common.Memory.
+Require Import compcert.common.Values.
+Require Import compcert.common.AST.
+Require Import compcert.common.Globalenvs.
 
-Require Import mem_lemmas.
+Require Import sepcomp.semantics.
+Require Import sepcomp.semantics_lemmas.
+
+Require Import sepcomp.mem_lemmas.
 
 (* Minimal whole program simulations *)
 

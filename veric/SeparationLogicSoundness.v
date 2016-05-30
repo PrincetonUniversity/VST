@@ -1,11 +1,6 @@
 Require Import sepcomp.semantics.
 
-Require Import veric.base.
-Require Import msl.rmaps.
-Require Import msl.rmaps_lemmas.
-Require Import veric.compcert_rmaps.
-Import Mem.
-Require Import msl.msl_standard.
+Require Import veric.juicy_base.
 Require Import veric.juicy_mem veric.juicy_mem_lemmas veric.juicy_mem_ops.
 Require Import veric.res_predicates.
 Require Import veric.extend_tc.
@@ -39,16 +34,18 @@ Import CSL.
 
 Axiom semax_prog_rule :
   forall {Espec: OracleKind}{CS: compspecs},
-  forall z V G prog m,
+  forall V G prog m,
      @semax_prog Espec CS prog V G ->
      Genv.init_mem prog = Some m ->
-     exists b, exists q, 
-       Genv.find_symbol (globalenv prog) (prog_main prog) = Some b /\
-       semantics.initial_core (juicy_core_sem cl_core_sem)
-                    (globalenv prog) (Vptr b Int.zero) nil = Some q /\
-       forall n, exists jm, 
-       m_dry jm = m /\ level jm = n /\ 
-       jsafeN (@OK_spec Espec) (globalenv prog) n z q jm.
+     { b : block & { q : corestate &
+       (Genv.find_symbol (globalenv prog) (prog_main prog) = Some b) *
+       (semantics.initial_core (juicy_core_sem cl_core_sem)
+                    (globalenv prog) (Vptr b Int.zero) nil = Some q) *
+       forall n, { jm |
+       m_dry jm = m /\ level jm = n /\
+       (forall z, jsafeN (@OK_spec Espec) (globalenv prog) n z q jm) /\
+       (forall addr, ~ islock (m_phi jm @ addr))
+     } } }%type.
 
 End SEPARATION_LOGIC_SOUNDNESS.
 
@@ -56,7 +53,7 @@ Module SoundSeparationLogic : SEPARATION_LOGIC_SOUNDNESS.
 
 Module CSL <: CLIGHT_SEPARATION_LOGIC.
 Definition func_ptr (f: funspec) : val -> mpred := 
- match f with mk_funspec fsig A P Q => res_predicates.fun_assert fsig A P Q end.
+ match f with mk_funspec fsig cc A P Q => res_predicates.fun_assert fsig cc A P Q end.
 
 Transparent mpred Nveric Sveric Cveric Iveric Rveric Sveric SIveric SRveric.
 Lemma corable_func_ptr: forall f v, corable (func_ptr f v).
@@ -87,7 +84,7 @@ Definition semax_func := @semax_func.
 Definition semax_prog := @semax_prog.
 Definition semax_func_nil := @semax_func_nil.
 Definition semax_func_cons := @semax_func_cons.
-Definition semax_func_skip := @semax_func_skip.
+(* Definition semax_func_skip := @semax_func_skip. *)
 Definition make_ext_rval := veric.semax.make_ext_rval.
 Definition tc_option_val := veric.semax.tc_option_val.
 Definition semax_func_cons_ext := @semax_func_cons_ext.
@@ -120,6 +117,7 @@ Definition semax_ptr_compare := @semax_ptr_compare.
 Definition semax_unfold_Ssequence := @semax_unfold_Ssequence.
 Definition semax_external {Espec: OracleKind} ids ef A P Q := 
   forall n, semax_external Espec ids ef A P Q n.
+Definition semax_external_FF := @semax_external_FF.
 
 Definition juicy_ext_spec := juicy_ext_spec.
 

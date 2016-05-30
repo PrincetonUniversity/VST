@@ -1,9 +1,7 @@
-Require Import veric.base.
-Require Import msl.rmaps.
-Require Import veric.compcert_rmaps.
-Import Mem.
-Require Import msl.msl_standard.
-Require Import veric.juicy_mem veric.juicy_mem_lemmas veric.juicy_mem_ops.
+Require Import veric.juicy_base.
+Require Import veric.juicy_mem.
+Require Import veric.juicy_mem_lemmas.
+Require Import veric.juicy_mem_ops.
 Require Import sepcomp.extspec.
 Require Import veric.juicy_extspec.
 Require Import veric.tycontext. 
@@ -11,8 +9,8 @@ Require Import veric.expr2.
 Require Import veric.semax.
 Require Import veric.semax_call.
 
-Definition funsig2signature (s : funsig) : signature :=
-  mksignature (map typ_of_type (map snd (fst s))) (Some (typ_of_type (snd s))) cc_default.
+Definition funsig2signature (s : funsig) cc : signature :=
+  mksignature (map typ_of_type (map snd (fst s))) (Some (typ_of_type (snd s))) cc.
 
 (* NOTE.   ext_link: Strings.String.string -> ident
    represents the mapping from the _name_ of an external function
@@ -58,7 +56,7 @@ Definition funspec2post (ext_link: Strings.String.string -> ident)(A : Type) (Q 
 Definition funspec2extspec (ext_link: Strings.String.string -> ident) (f : (ident*funspec)) 
   : external_specification juicy_mem external_function Z :=
   match f with 
-    | (id, mk_funspec (params, sigret) A P Q) =>
+    | (id, mk_funspec (params, sigret) _ A P Q) =>
       Build_external_specification juicy_mem external_function Z
         (fun ef => if ident_eq id (ef_id ext_link ef) then (rmap*A)%type else ext_spec_type Espec ef)
         (funspec2pre ext_link A P (fst (split params)) id)
@@ -66,13 +64,13 @@ Definition funspec2extspec (ext_link: Strings.String.string -> ident) (f : (iden
         (fun rv z m => False)
   end.
 
-Require Import res_predicates.
+Require Import veric.res_predicates.
 
 Local Open Scope pred.
 
 Definition wf_funspec (f : funspec) :=
   match f with
-    | mk_funspec sig A P Q => 
+    | mk_funspec sig cc A P Q => 
         forall a (ge ge': genv) n args, 
           Genv.genv_symb ge = Genv.genv_symb ge' ->
           P a (make_ext_args (filter_genv ge) n args) |-- P a (make_ext_args (filter_genv ge') n args)
@@ -177,13 +175,13 @@ Fixpoint add_funspecs_rec (ext_link: Strings.String.string -> ident) (Z : Type) 
     | cons (i,f) fs' => funspec2jspec Z (add_funspecs_rec ext_link Z Espec fs') ext_link (i,f)
   end.
 
-Require Import JMeq.
+Require Import Coq.Logic.JMeq.
 
 Lemma add_funspecs_pre  (ext_link: Strings.String.string -> ident)
-              {Z fs id sig A P Q x args m} Espec tys ge_s phi0 phi1 :
-  let ef := EF_external id (funsig2signature sig) in
+              {Z fs id sig cc A P Q x args m} Espec tys ge_s phi0 phi1 :
+  let ef := EF_external id (funsig2signature sig cc) in
   funspecs_norepeat fs -> 
-  in_funspecs (ext_link id, (mk_funspec sig A P Q)) fs -> 
+  in_funspecs (ext_link id, (mk_funspec sig cc A P Q)) fs -> 
   join phi0 phi1 (m_phi m) ->
   P x (make_ext_args (filter_genv (symb2genv ge_s)) (fst (split (fst sig))) args) phi0 ->
   exists x' : ext_spec_type (JE_spec _ (add_funspecs_rec ext_link Z Espec fs)) ef, 
@@ -204,7 +202,7 @@ elimtype False; auto.
 }
 
 { 
-assert (Hin: in_funspecs_by_id (ext_link id, mk_funspec sig A P Q) fs). 
+assert (Hin: in_funspecs_by_id (ext_link id, mk_funspec sig cc A P Q) fs). 
 { clear -H1; apply in_funspecs_in_by_id in H1; auto. }
 destruct H as [Ha Hb]. 
 destruct (IHfs Hb H1 H2 Hpre) as [x' H3].
@@ -213,16 +211,16 @@ destruct a; simpl; destruct f; simpl; destruct f; simpl; unfold funspec2pre; sim
 destruct (ident_eq i (ext_link id)).
 * subst i; destruct fs; [solve[simpl; intros; elimtype False; auto]|].
   intros x' Ha Hb; simpl in Ha, Hb.
-  rewrite in_funspecs_by_id_lem with (f' := mk_funspec (l,t) A0 m0 m1) in Hb.
+  rewrite in_funspecs_by_id_lem with (f' := mk_funspec (l,t) c A0 m0 m1) in Hb.
   elimtype False; auto.
 * intros; eexists; eauto.
 }
 Qed.
 
-Lemma add_funspecs_post (ext_link: Strings.String.string -> ident){Z Espec tret fs id sig A P Q x ret m z ge_s} :
-  let ef := EF_external id (funsig2signature sig) in
+Lemma add_funspecs_post (ext_link: Strings.String.string -> ident){Z Espec tret fs id sig cc A P Q x ret m z ge_s} :
+  let ef := EF_external id (funsig2signature sig cc) in
   funspecs_norepeat fs -> 
-  in_funspecs (ext_link id, (mk_funspec sig A P Q)) fs -> 
+  in_funspecs (ext_link id, (mk_funspec sig cc A P Q)) fs -> 
   ext_spec_post (add_funspecs_rec ext_link Z Espec fs) ef x ge_s tret ret z m -> 
   exists (phi0 phi1 phi1' : rmap) (x' : A), 
        join phi0 phi1 (m_phi m) 
@@ -245,7 +243,7 @@ elimtype False; auto.
 }
 
 { 
-assert (Hin: in_funspecs_by_id (ext_link id, mk_funspec sig A P Q) fs). 
+assert (Hin: in_funspecs_by_id (ext_link id, mk_funspec sig cc A P Q) fs). 
 { clear -H1; apply in_funspecs_in_by_id in H1; auto. }
 destruct H as [Ha Hb]. 
 clear -Ha Hin H1 Hb Hpost IHfs; revert x Ha Hin H1 Hb Hpost IHfs.
@@ -254,7 +252,7 @@ destruct f; simpl.
 destruct (ident_eq i (ext_link id)).
 * subst i; destruct fs; [solve[simpl; intros; elimtype False; auto]|].
   intros x' Ha Hb; simpl in Ha, Hb.
-  rewrite in_funspecs_by_id_lem with (f' := mk_funspec (l,t) A0 m0 m1) in Hb.
+  rewrite in_funspecs_by_id_lem with (f' := mk_funspec (l,t) c A0 m0 m1) in Hb.
   elimtype False; auto.
 * intros. apply IHfs; auto.
 }
@@ -270,12 +268,12 @@ Section semax_ext.
 
 Variable Espec : OracleKind.
 
-Lemma semax_ext' (ext_link: Strings.String.string -> ident) id sig A P Q (fs : funspecs) : 
-  let f := mk_funspec sig A P Q in
+Lemma semax_ext' (ext_link: Strings.String.string -> ident) id sig cc A P Q (fs : funspecs) : 
+  let f := mk_funspec sig cc A P Q in
   in_funspecs (ext_link  id,f) fs -> 
   funspecs_norepeat fs -> 
   (forall n, semax_external (add_funspecs Espec ext_link fs) (fst (split (fst sig))) 
-               (EF_external id (funsig2signature sig)) _ P Q n).
+               (EF_external id (funsig2signature sig cc)) _ P Q n).
 Proof.
 intros f Hin Hnorepeat.
 unfold semax_external.
@@ -309,12 +307,12 @@ rewrite symb2genv_ax in Hq'; auto.
 eapply pred_nec_hereditary; eauto.
 Qed.
 
-Lemma semax_ext (ext_link: Strings.String.string -> ident) id ids sig sig' A P Q (fs : funspecs) : 
-  let f := mk_funspec sig A P Q in
+Lemma semax_ext (ext_link: Strings.String.string -> ident) id ids sig sig' cc A P Q (fs : funspecs) : 
+  let f := mk_funspec sig cc A P Q in
   in_funspecs (ext_link id,f) fs -> 
   funspecs_norepeat fs -> 
   ids = fst (split (fst sig)) -> 
-  sig' = funsig2signature sig -> 
+  sig' = funsig2signature sig cc -> 
   (forall n, semax_external (add_funspecs Espec ext_link fs) ids (EF_external id sig') _ P Q n).
 Proof.
 intros; subst.

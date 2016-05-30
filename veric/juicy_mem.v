@@ -1,10 +1,5 @@
-Require Import veric.base.
-Require Import veric.rmaps.
-Require Import veric.rmaps_lemmas.
-Require Import veric.compcert_rmaps.
+Require Import veric.juicy_base.
 Require Import veric.shares.
-Import Mem.
-Require Import msl.msl_standard.
 Import cjoins.
 
 Definition perm_of_sh (rsh sh: Share.t): option permission :=
@@ -54,7 +49,7 @@ Definition perm_of_res (r: resource) :=
  end.
 
 Definition access_cohere (m: mem)  (phi: rmap) :=
-  forall loc,  perm_order'' (access_at m loc) (perm_of_res (phi @ loc)).
+  forall loc,  access_at m loc = perm_of_res (phi @ loc).
 
 Definition max_access_cohere (m: mem) (phi: rmap)  :=
  forall loc,
@@ -516,7 +511,7 @@ Definition inflate_initial_mem' (w: rmap) (loc: address) :=
            | Some Writable => YES extern_retainer pfullshare (VAL (contents_at m loc)) NoneP
            | Some Readable => YES extern_retainer read_sh (VAL (contents_at m loc)) NoneP
            | Some Nonempty => 
-                         match w @ loc with PURE _ _ => w @ loc | _ => NO Share.bot end
+                         match w @ loc with PURE _ _ => w @ loc | _ => NO extern_retainer end
            | None =>  NO Share.bot 
          end.
 
@@ -782,17 +777,20 @@ revert H; case_eq (access_at m loc); intros.
  revert H2; case_eq (lev @ loc); intros; congruence.
  destruct (max_access_at m loc); try destruct p; try congruence.
 * (* access_cohere *)
-case_eq (access_at m loc); intros; try destruct p; auto; simpl;
-  unfold perm_of_sh; simpl.
-rewrite !if_true by auto. constructor.
-rewrite !if_true by auto.
-rewrite !if_false by apply extern_retainer_neq_top. constructor.
-rewrite !if_false by apply extern_retainer_neq_top.
-rewrite !if_false by apply extern_retainer_neq_bot. constructor.
-destruct (lev @ loc) eqn:?; simpl.
-rewrite !if_true by auto. auto.
-rewrite !if_true by auto. auto. constructor.
-rewrite !if_true by auto. auto.
+ symmetry.
+ destruct (access_at m loc) _eqn:?; try destruct p; auto; simpl.
+ apply perm_of_freeable.
+ apply perm_of_writable.
+ apply extern_retainer_neq_top.
+ apply perm_of_readable.
+ apply extern_retainer_neq_bot.
+ apply extern_retainer_neq_top.
+ destruct (IOK loc).
+ destruct (lev @ loc).
+ simpl; rewrite if_false by apply extern_retainer_neq_bot; auto.
+ simpl; rewrite if_false by apply extern_retainer_neq_bot; auto.
+ reflexivity.
+ rewrite !if_true; auto.
 * (* max_access_cohere *)
 generalize (perm_cur_max m (fst loc) (snd loc)); unfold perm; intros.
 case_eq (access_at m loc); try destruct p; intros.
@@ -816,8 +814,16 @@ apply fst_split_fullshare_not_bot.
 apply fst_split_fullshare_not_top.
 destruct (IOK loc).
 destruct (lev @ loc).
-rewrite perm_of_empty. destruct (max_access_at m loc); constructor.
-rewrite perm_of_empty. destruct (max_access_at m loc); constructor.
+ rewrite perm_of_nonempty by apply extern_retainer_neq_bot.
+ unfold max_access_at, access_at in *.
+ rewrite H0 in H.
+ specialize (H Nonempty). spec H. constructor.
+ apply H.
+ rewrite perm_of_nonempty by apply extern_retainer_neq_bot.
+ unfold max_access_at, access_at in *.
+ rewrite H0 in H.
+ specialize (H Nonempty). spec H. constructor.
+ apply H.
 destruct H2; auto.
 rewrite perm_of_empty. destruct (max_access_at m loc); try constructor.
 * (* alloc_cohere *)

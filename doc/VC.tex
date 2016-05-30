@@ -824,6 +824,9 @@ The existential binds $i$, the iteration-dependent value
 of the local variable named \lstinline{_i}.
 In general, there may be any number of EX quantifiers.
 
+The \lstinline{forward_while} tactic will generate four subgoals to be proven:
+
+\vspace{-\topsep}
 \begin{enumerate}
 \item the precondition (of the whole loop) implies the loop invariant;
 \item the loop-condition expression type-checks (i.e., guarantees to evaluate successfully);
@@ -884,7 +887,7 @@ for existential quantification.
 
 Separation logic's rule of consequence is shown here
 \[
-\hspace{-1em}\inference{P\vdash P' \quad \triple{P'}{c}{Q'} \quad Q'\vdash Q}{\triple{P'}{c}{Q'}}
+\hspace{-1em}\inference{P\vdash P' \quad \triple{P'}{c}{Q'} \quad Q'\vdash Q}{\triple{P}{c}{Q}}
 \quad
 \inference{\Delta,P\vdash P' \quad
   \mathsf{semax}~\Delta~P'~c~Q'
@@ -965,7 +968,7 @@ in \file{progs/verif\_sumarray.v} is the \emph{body} of the while loop:
 
 This can be handled by three \lstinline{forward} commands,
 but the first one of these leaves a subgoal---proving that
-the subscript $i$ in in range.  Let's examine the proof goal:
+the subscript $i$ is in range.  Let's examine the proof goal:
 \begin{lstlisting}
 SH : readable_share $sh$
 H : 0 <= size <= Int.max_signed

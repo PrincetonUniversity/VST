@@ -1,20 +1,22 @@
-Require Import Bool.
+Require Import Coq.Bool.Bool.
 
-Require Import Events.
-Require Import Memory.
 Require Import compcert.lib.Coqlib.
-Require Import Values.
-Require Import Maps.
-Require Import Integers.
-Require Import AST.
-Require Import Globalenvs.
+Require Import compcert.lib.Maps.
+Require Import compcert.lib.Integers.
+
+Require Import compcert.common.Values.
+Require Import compcert.common.Memory.
+Require Import compcert.common.Events.
+Require Import compcert.common.AST.
+Require Import compcert.common.Globalenvs.
+
 Require Import msl.Axioms.
 
-Require Import mem_lemmas. (*needed for definition of mem_forward etc*)
-Require Import semantics.
-Require Import effect_semantics.
-Require Import structured_injections.
-Require Import reach.
+Require Import sepcomp.mem_lemmas.
+Require Import sepcomp.semantics.
+Require Import sepcomp.effect_semantics.
+Require Import sepcomp.structured_injections.
+Require Import sepcomp.reach.
 
 Module SM_simulation. Section SharedMemory_simulation_inject. 
 
@@ -212,7 +214,7 @@ Record SM_simulation_inject :=
           after_external Sem2 (Some ret2) st2 = Some st2' /\
           match_state cd' mu' st1' m1' st2' m2' }.
 
-Require Import semantics_lemmas.
+Require Import sepcomp.semantics_lemmas.
 
 Lemma core_diagram (SMI: SM_simulation_inject):
       forall st1 m1 st1' m1', 

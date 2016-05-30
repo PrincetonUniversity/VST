@@ -1,6 +1,4 @@
 Require Export veric.base.
-Require Import msl.rmaps.
-Require Import msl.rmaps_lemmas.
 Require Import veric.compcert_rmaps.
 Require Import veric.slice.
 Require Import veric.res_predicates.
@@ -189,8 +187,10 @@ rewrite <- (Fappli_IEEE_bits.bits_of_binary_float_of_bits 52 11 (refl_equal _) (
 f_equal; apply H.
 Qed.
 
-Require Import ZArith.
-Require Import Fappli_IEEE Fcore_Zaux Fcore_generic_fmt.
+Require Import Coq.ZArith.ZArith.
+Require Import compcert.flocq.Appli.Fappli_IEEE.
+Require Import compcert.flocq.Core.Fcore_Zaux.
+Require Import compcert.flocq.Core.Fcore_generic_fmt.
 
 Lemma binary_normalize_inj: 
   forall s1 m1 e1 (h1 : bounded 24 128 m1 e1 = true),

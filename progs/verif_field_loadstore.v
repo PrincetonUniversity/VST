@@ -64,8 +64,8 @@ Proof.
 (*reflexivity.*)
 Abort.
 
-Definition Gprog : funspecs := 
-  (sub_spec _sub1)::(sub_spec _sub2)::(sub_spec _sub3)::nil.
+Definition Gprog : funspecs := augment_funspecs prog [ 
+    sub_spec _sub1; sub_spec _sub2; sub_spec _sub3].
 
 Lemma body_sub1:  semax_body Vprog Gprog f_sub1 (sub_spec _sub1).
 Proof.

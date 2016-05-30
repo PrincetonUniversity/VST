@@ -1,10 +1,18 @@
-Require Import compcert. Import CompcertAll.
+Require Import compcert.lib.Coqlib.
+Require Import compcert.lib.Maps.
+Require Import compcert.lib.Integers.
 
-Require Import semantics.
-Require Import semantics_lemmas.
-Require Import mem_wd.
-Require Import mem_lemmas.
-Require Import reach.
+Require Import compcert.common.Events.
+Require Import compcert.common.Memory.
+Require Import compcert.common.Values.
+Require Import compcert.common.AST.
+Require Import compcert.common.Globalenvs.
+
+Require Import sepcomp.semantics.
+Require Import sepcomp.semantics_lemmas.
+Require Import sepcomp.mem_wd.
+Require Import sepcomp.mem_lemmas.
+Require Import sepcomp.reach.
 
 Set Implicit Arguments.
 Unset Strict Implicit.

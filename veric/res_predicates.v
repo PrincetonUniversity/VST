@@ -1,7 +1,5 @@
 Require Import msl.log_normalize.
 Require Export veric.base.
-Require Import msl.rmaps.
-Require Import msl.rmaps_lemmas.
 Require Import veric.compcert_rmaps.
 Require Import veric.slice.
 Require Import veric.Clight_lemmas.
@@ -1193,8 +1191,8 @@ Definition packPQ {A: Type} (P Q: A -> environ -> pred rmap) :=
 
 Definition TTat (l: address) : pred rmap := TT.
 
-Definition FUNspec (fml: funsig) (A: Type) (P Q: A -> environ -> pred rmap)(l: address): pred rmap :=
-          allp (jam (eq_dec l) (pureat (SomeP (A::boolT::environ::nil) (packPQ P Q)) (FUN fml)) TTat).
+Definition FUNspec (fml: funsig) cc (A: Type) (P Q: A -> environ -> pred rmap)(l: address): pred rmap :=
+          allp (jam (eq_dec l) (pureat (SomeP (A::boolT::environ::nil) (packPQ P Q)) (FUN fml cc)) TTat).
 
 (***********)
 
@@ -1283,12 +1281,12 @@ simpl in *.
 subst; auto.
 Qed.
 
-Lemma FUNspec_parametric: forall fml A P Q, 
-   spec_parametric (fun l sh => yesat (SomeP (A::boolT::environ::nil) (packPQ P Q)) (FUN fml) sh).
+Lemma FUNspec_parametric: forall fml cc A P Q, 
+   spec_parametric (fun l sh => yesat (SomeP (A::boolT::environ::nil) (packPQ P Q)) (FUN fml cc) sh).
 Proof.
 intros.
 exists (SomeP (A::boolT::environ::nil) (packPQ P Q)).
-exists (fun k => k=FUN fml).
+exists (fun k => k=FUN fml cc).
 intros.
 simpl.
 apply exists_ext; intro p.
@@ -1407,8 +1405,8 @@ Qed.
 Definition val2address (v: val) : option AV.address := 
   match v with Vptr b ofs => Some (b, Int.signed ofs) | _ => None end.
 
-Definition fun_assert (fml: funsig) (A: Type) (P Q: A -> environ -> pred rmap) (v: val)  : pred rmap :=
- (EX b : block, !! (v = Vptr b Int.zero) && FUNspec fml A P Q (b, 0))%pred.
+Definition fun_assert (fml: funsig) cc (A: Type) (P Q: A -> environ -> pred rmap) (v: val)  : pred rmap :=
+ (EX b : block, !! (v = Vptr b Int.zero) && FUNspec fml cc A P Q (b, 0))%pred.
 
 Definition LK_at l w := exists n, kind_at (LK n) l w.
 
@@ -1864,10 +1862,10 @@ Qed.
 
 
 Lemma fun_assert_contractive:
-   forall fml A (P Q: pred rmap -> A -> environ -> pred rmap) v, 
+   forall fml cc A (P Q: pred rmap -> A -> environ -> pred rmap) v, 
        (forall x vl, nonexpansive (fun R => P R x vl)) ->
       (forall x vl, nonexpansive (fun R => Q R x vl)) ->
-      contractive (fun R : pred rmap => fun_assert fml A (P R) (Q R) v).
+      contractive (fun R : pred rmap => fun_assert fml cc A (P R) (Q R) v).
 Proof.
 intros.
 assert (H': forall xvl: A * environ, nonexpansive (fun R => P R (fst xvl) (snd xvl)))

@@ -1,6 +1,6 @@
 Require Import veric.base.
 Require Import msl.msl_standard.
-Require Import Relations.
+Require Import Coq.Relations.Relations.
 
 Definition deterministic_rel {T} (R: relation T) := 
   forall s s' s'', R s s' /\ R s s'' -> s'=s''.

@@ -231,12 +231,15 @@ Ltac semax_func_cons_ext_tc :=
   end; 
   normalize; simpl tc_option_val' .
 
+(*
 Ltac semax_func_skipn :=
   repeat first [apply semax_func_nil'
                      | apply semax_func_skip1;
                        [clear; solve [auto with closed] | ]].
+*)
 
-Ltac semax_func_cons L :=
+Ltac semax_func_cons L := 
+ repeat (apply semax_func_cons_ext_vacuous; [reflexivity | ]);
  first [apply semax_func_cons; 
            [ reflexivity 
            | repeat apply Forall_cons; try apply Forall_nil; computable
@@ -246,7 +249,9 @@ Ltac semax_func_cons L :=
              [reflexivity | reflexivity | reflexivity | reflexivity 
              | semax_func_cons_ext_tc | apply L |
              ]
-        ].
+        ];
+ repeat (apply semax_func_cons_ext_vacuous; [reflexivity | ]);
+ try apply semax_func_nil.
 
 Ltac semax_func_cons_ext :=
   eapply semax_func_cons_ext;
@@ -514,7 +519,7 @@ Inductive Witness_type_of_forward_call_does_not_match_witness_type_of_funspec:
 Ltac find_spec_in_globals :=
  first [reflexivity | 
    match goal with
-   | |- Some (mk_funspec _ ?t1 _ _) = Some (mk_funspec _ ?t2 _ _) =>
+   | |- Some (mk_funspec _ _ ?t1 _ _) = Some (mk_funspec _ _ ?t2 _ _) =>
       first [unify t1 t2
      | elimtype False; elimtype (Witness_type_of_forward_call_does_not_match_witness_type_of_funspec
       t2 t1)]
@@ -732,19 +737,19 @@ Ltac find_postcond_binder_names :=
      let x := constr:((glob_specs Delta) ! id) in
      let x' := eval hnf in x in 
      match x' with 
-     | Some (mk_funspec _ _ _ (fun _ => exp (fun y1 => exp (fun y2 => exp (fun y3 => exp (fun y4 => _)))))) =>
+     | Some (mk_funspec _ _ _ _ (fun _ => exp (fun y1 => exp (fun y2 => exp (fun y3 => exp (fun y4 => _)))))) =>
          let y4' := fresh y4 in  pose (y4' := BINDER_NAME);
          let y3' := fresh y3 in  pose (y3' := BINDER_NAME);
          let y2' := fresh y2 in  pose (y2' := BINDER_NAME);
          let y1' := fresh y1 in  pose (y1' := BINDER_NAME)
-     | Some (mk_funspec _ _ _ (fun _ => exp (fun y1 => exp (fun y2 => exp (fun y3 => _))))) =>
+     | Some (mk_funspec _ _ _ _ (fun _ => exp (fun y1 => exp (fun y2 => exp (fun y3 => _))))) =>
          let y3' := fresh y3 in  pose (y3' := BINDER_NAME);
          let y2' := fresh y2 in  pose (y2' := BINDER_NAME);
          let y1' := fresh y1 in  pose (y1' := BINDER_NAME)
-     | Some (mk_funspec _ _ _ (fun _ => exp (fun y1 => exp (fun y2 => _)))) =>
+     | Some (mk_funspec _ _ _ _ (fun _ => exp (fun y1 => exp (fun y2 => _)))) =>
          let y2' := fresh y2 in  pose (y2' := BINDER_NAME);
          let y1' := fresh y1 in  pose (y1' := BINDER_NAME)
-     | Some (mk_funspec _ _ _ (fun _ => exp (fun y1 => _))) =>
+     | Some (mk_funspec _ _ _ _ (fun _ => exp (fun y1 => _))) =>
          let y1' := fresh y1 in  pose (y1' := BINDER_NAME)
      | _ => idtac
      end
@@ -1416,11 +1421,11 @@ Ltac ensure_open_normal_ret_assert :=
  | |- semax _ _ _ (normal_ret_assert ?X) => is_evar X
  end.
 
-Ltac get_global_fun_def Delta f fsig A Pre Post :=
+Ltac get_global_fun_def Delta f fsig cc A Pre Post :=
     let VT := fresh "VT" in let GT := fresh "GT" in
       assert (VT: (var_types Delta) ! f = None) by 
                (reflexivity || fail 1 "Variable " f " is not a function, it is an addressable local variable");
-      assert (GT: (glob_specs Delta) ! f = Some (mk_funspec fsig A Pre Post))
+      assert (GT: (glob_specs Delta) ! f = Some (mk_funspec fsig cc A Pre Post))
                     by ((unfold fsig, Pre, Post; try unfold A; simpl; reflexivity) || 
                           fail 1 "Function " f " has no specification in the type context");
      clear VT GT.
@@ -2140,10 +2145,10 @@ try eapply semax_seq';
  [match goal with 
   | |- @semax _ ?Espec ?Delta (PROPx ?P (LOCALx ?Q (SEPx ?R))) (Scall (Some ?id) (Evar ?f _) ?bl) _ =>
 
-      let fsig:=fresh "fsig" in let A := fresh "Witness_Type" in let Pre := fresh "Pre" in let Post := fresh"Post" in
-      evar (fsig: funsig); evar (A: Type); evar (Pre: A -> environ->mpred); evar (Post: A -> environ->mpred);
-      get_global_fun_def Delta f fsig A Pre Post;
-     clear fsig Pre Post;
+      let fsig:=fresh "fsig" in let cc := fresh "cc" in let A := fresh "Witness_Type" in let Pre := fresh "Pre" in let Post := fresh"Post" in
+      evar (fsig: funsig); evar (cc: calling_convention); evar (A: Type); evar (Pre: A -> environ->mpred); evar (Post: A -> environ->mpred);
+      get_global_fun_def Delta f fsig cc A Pre Post;
+     clear fsig cc Pre Post;
       assert Undo__Then_do__forward_call_W__where_W_is_a_witness_whose_type_is_given_above_the_line_now
  end
  | .. ].
@@ -2318,7 +2323,7 @@ destruct ek; normalize.
 Qed.
 
 Ltac start_function' :=
- match goal with |- semax_body _ _ _ (pair _ (mk_funspec _ _ ?Pre _)) =>
+ match goal with |- semax_body _ _ _ (pair _ (mk_funspec _ _ _ ?Pre _)) =>
    match Pre with 
    | (fun x => match x with (a,b) => _ end) => intros Espec [a b] 
    | (fun i => _) => intros Espec i

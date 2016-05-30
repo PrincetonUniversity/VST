@@ -1,10 +1,5 @@
-Require Import veric.base.
+Require Import veric.juicy_base.
 Require Import msl.normalize.
-Require Import msl.rmaps.
-Require Import msl.rmaps_lemmas.
-Require Import veric.compcert_rmaps.
-Import Mem.
-Require Import msl.msl_standard.
 Require Import veric.juicy_mem veric.juicy_mem_lemmas veric.juicy_mem_ops.
 Require Import veric.res_predicates.
 Require Import veric.extend_tc.
@@ -399,7 +394,7 @@ spec H0. {
 clear - Prog_OK.
 unfold believe in *.
 unfold believe_internal in *.
-intros v fsig A P Q; specialize (Prog_OK v fsig A P Q).
+intros v fsig cc A P Q; specialize (Prog_OK v fsig cc A P Q).
 intros ? ? ?. specialize (Prog_OK a' H).
 spec Prog_OK.
 destruct H0 as [id [? ?]]. exists id; split; auto.

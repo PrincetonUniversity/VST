@@ -1,9 +1,4 @@
-Require Import veric.base.
-Require Import msl.rmaps.
-Require Import msl.rmaps_lemmas.
-Require Import veric.compcert_rmaps.
-Import Mem.
-Require Import msl.msl_standard.
+Require Import veric.juicy_base.
 Import cjoins.
 Require Import veric.juicy_mem.
 Require Import veric.juicy_mem_lemmas.
@@ -140,19 +135,24 @@ destruct (alloc (m_dry jm) lo hi).
 rewrite PMap.gss.
 rewrite ZMap.gi; auto.
 *
-assert (H9 := juicy_mem_max_access jm loc).
+(*assert (H9 := juicy_mem_max_access jm loc).
 rewrite H0 in H9.
+*)
 destruct loc as [b' z].
 destruct (eq_dec b b').
 +
 subst b'.
 elimtype False.
-clear H1.
-unfold max_access_at in H9. simpl in H9.
-apply alloc_result in H. subst b.
-rewrite nextblock_noaccess in H9.
-destruct (perm_of_sh_pshare rsh sh). rewrite H in *. inv H9.
-apply Plt_strict.
+generalize (juicy_mem_access jm (b,z)); intro.
+rewrite H0 in H2.
+apply alloc_result in H.
+unfold access_at in H2.
+rewrite nextblock_noaccess in H2.
+unfold perm_of_res, perm_of_sh in H2; simpl in H2.
+if_tac in H2. subst. if_tac in H2; inv H2.
+if_tac in H2; try congruence.
+eapply pshare_sh_bot; eauto.
+simpl. subst. xomega.
 +
 assert (contents_at m' (b',z) = contents_at (m_dry jm) (b',z)).
 unfold contents_at. simpl.
@@ -192,7 +192,8 @@ inv H. simpl.
 rewrite PMap.gss.
 destruct (zle lo z); simpl; auto.
 destruct (zlt z hi); simpl; auto.
-simpl. apply alloc_result in H. subst; simpl; xomega.
+contradict H0; split; auto. omega.
+apply alloc_result in H. subst; simpl; xomega.
 replace (access_at m' (b',z)) with (access_at (m_dry jm) (b',z)).
 apply (juicy_mem_access jm (b',z)).
 unfold access_at.

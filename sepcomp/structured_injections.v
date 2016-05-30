@@ -1,13 +1,14 @@
-Require Import Events.
-Require Import Memory.
-Require Import Coqlib.
-Require Import Values.
+Require Import compcert.lib.Coqlib.
 Require Import compcert.lib.Axioms.
+
+Require Import compcert.common.Values.
+Require Import compcert.common.Memory.
+Require Import compcert.common.Events.
 (*Require Import ExtAxioms.*)
 (*Will need : *)
-Require Export FunctionalExtensionality.
+Require Export Coq.Logic.FunctionalExtensionality.
 
-Require Import mem_lemmas.
+Require Import sepcomp.mem_lemmas.
 
 Notation val_inject:= Val.inject.
 (** * Structured Injections *)

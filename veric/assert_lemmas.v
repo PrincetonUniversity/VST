@@ -1,6 +1,4 @@
 Require Export veric.base.
-Require Import msl.rmaps.
-Require Import msl.rmaps_lemmas.
 Require Import veric.compcert_rmaps.
 Require Import veric.slice.
 Require Import veric.res_predicates.
@@ -295,7 +293,7 @@ apply H.
 apply H0.
 Qed.
 
-Lemma corable_fun_assert: forall v fsig A P Q, corable (fun_assert v fsig A P Q).
+Lemma corable_fun_assert: forall v fsig cc A P Q, corable (fun_assert v fsig cc A P Q).
 Proof.
 intros.
 unfold fun_assert, res_predicates.fun_assert.

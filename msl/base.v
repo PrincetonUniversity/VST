@@ -7,11 +7,10 @@
     throughtout the proof.  It also defines some convenience tactics.
  *)
 Require Export msl.Extensionality.
-Require Export List.
-Require Export Bool.
+Require Export Coq.Lists.List.
+Require Export Coq.Bool.Bool.
+Require Export Coq.Relations.Relations.
 Require Export Omega.
-Require Export Relations.
-
 
 Definition compose (A B C:Type) (g:B -> C) (f:A -> B) := fun x => g (f x).
 Implicit Arguments compose [A B C].

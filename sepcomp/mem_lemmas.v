@@ -1,15 +1,15 @@
-(*CompCert imports*)
-Require Import AST.
-Require Import Events.
-Require Import Memory.
-Require Import Coqlib.
-Require Import Values.
-Require Import Maps.
-Require Import Integers.
+Require Import compcert.lib.Coqlib.
+Require Import compcert.lib.Maps.
+Require Import compcert.lib.Integers.
 Require Import compcert.lib.Axioms.
-Require Import Globalenvs.
 
-Require Import Extensionality.
+Require Import compcert.common.AST.
+Require Import compcert.common.Values.
+Require Import compcert.common.Memory.
+Require Import compcert.common.Events.
+Require Import compcert.common.Globalenvs.
+
+Require Import msl.Extensionality.
 
 Notation val_inject:= Val.inject.
 
@@ -62,6 +62,20 @@ Lemma inject_separated_same_meminj: forall j m m',
   Events.inject_separated j j m m'.
 Proof. intros j m m' b; intros. congruence. Qed.
 
+Lemma compose_meminj_idR: forall j, j = compose_meminj j inject_id.
+Proof. intros. unfold  compose_meminj, inject_id. 
+   apply extensionality. intro b. 
+   remember (j b). 
+   destruct o; trivial. destruct p. rewrite Zplus_0_r. trivial.
+Qed.
+
+Lemma compose_meminj_idL: forall j, j = compose_meminj inject_id j.
+Proof. intros. unfold  compose_meminj, inject_id.
+   apply extensionality. intro b.
+   remember (j b). 
+   destruct o; trivial. destruct p. rewrite Zplus_0_l. trivial.  
+Qed.
+
 Theorem drop_extends:
   forall m1 m2 lo hi b p m1',
   Mem.extends m1 m2 ->
@@ -111,15 +125,10 @@ Proof. intros.
   destruct v. inv MV1. apply MV2.
   inv MV1. apply MV2.
   inv MV2. constructor.
-  admit.
- (* inv MV1. inv MV2. inv H3.
-  inv H4.
-  rewrite Int.add_zero. rewrite Int.add_zero.  
-  econstructor. reflexivity. 
-  rewrite Int.add_zero. trivial.
-  inv MV2. inv H3. rewrite Int.add_zero. 
-  rewrite Int.add_zero in H5. econstructor.*)
-Qed.
+  inv MV1; try solve[constructor]. inv MV2; constructor. 
+    specialize (val_inject_compose _ _ _ _ _ H2 H3).
+    rewrite <- compose_meminj_idL; trivial. 
+  Qed.
 
 Lemma extends_trans: forall m1 m2 
   (Ext12: Mem.extends m1 m2) m3 (Ext23: Mem.extends m2 m3), Mem.extends m1 m3.
@@ -130,9 +139,7 @@ Qed.
 Lemma memval_inject_id_refl: forall v, memval_inject inject_id v v. 
 Proof.  
   destruct v. constructor. constructor. econstructor.
-  admit.
-(*  reflexivity. 
-rewrite Int.add_zero. trivial. *)
+  destruct v; try econstructor. reflexivity. rewrite Int.add_zero. trivial. 
 Qed.
 
 Lemma extends_refl: forall m, Mem.extends m m.
@@ -142,20 +149,6 @@ Proof. intros.
      inv H.  rewrite Zplus_0_r. assumption.
      inv H. apply Z.divide_0_r. (*rewrite Zplus_0_r. assumption.*)
      inv H.  rewrite Zplus_0_r. apply memval_inject_id_refl.
-Qed.
-
-Lemma compose_meminj_idR: forall j, j = compose_meminj j inject_id.
-Proof. intros. unfold  compose_meminj, inject_id. 
-   apply extensionality. intro b. 
-   remember (j b). 
-   destruct o; trivial. destruct p. rewrite Zplus_0_r. trivial.
-Qed.
-
-Lemma compose_meminj_idL: forall j, j = compose_meminj inject_id j.
-Proof. intros. unfold  compose_meminj, inject_id.
-   apply extensionality. intro b.
-   remember (j b). 
-   destruct o; trivial. destruct p. rewrite Zplus_0_l. trivial.  
 Qed.
 
 Lemma perm_decE: 
@@ -463,8 +456,8 @@ Proof. intros.
      exists (Vint i). split; constructor.
      exists (Vlong i); split; constructor.
      exists (Vfloat f). split; constructor.
-     admit. admit. admit.
-     (*apply compose_meminjD_Some in H. rename b2 into b3.
+     exists (Vsingle f). split; constructor.
+     apply compose_meminjD_Some in H. rename b2 into b3.
        destruct H as [b2 [ofs2 [ofs3 [J12 [J23 DD]]]]]; subst.
        eexists. split. econstructor. apply J12. reflexivity. 
           econstructor. apply J23. rewrite Int.add_assoc.
@@ -472,7 +465,7 @@ Proof. intros.
             clear - ofs2 ofs3. rewrite Int.add_unsigned.
             apply Int.eqm_samerepr. apply Int.eqm_add; apply Int.eqm_unsigned_repr.
           rewrite H. trivial. 
-     exists Vundef. split; constructor. *)
+     exists Vundef. split; constructor. 
 Qed.     
 
 Lemma forall_lessdef_trans: 
@@ -739,6 +732,149 @@ Proof. intros.
   remember (Mem.range_perm_dec m b ofs (ofs + n) Cur Readable) as d.
   destruct d; inv LD. auto.
 Qed.
+
+(*A new lemma, used in CompCert2.5 where CompComp-4-CompCert2.1 used decode_val_pointer_inv*)
+Lemma load_ptr_is_fragment ch m b ofs b0 i
+      (LD: Mem.load ch m b ofs = Some (Vptr b0 i)): 
+  exists q n, ZMap.get ofs (Mem.mem_contents m) !! b = Fragment (Vptr b0 i) q n.
+Proof.
+  apply Mem.load_result in LD. 
+  apply eq_sym in LD. 
+  unfold decode_val in LD.
+  remember (proj_bytes
+         (Mem.getN (size_chunk_nat ch) ofs (Mem.mem_contents m) !! b)) as v.
+  destruct v.
+  + destruct ch; inv LD.
+  + destruct ch; try solve [inv LD].
+    - unfold Val.load_result in LD. unfold proj_bytes in Heqv. simpl in *.
+      remember (ZMap.get ofs (Mem.mem_contents m) !! b) as w. 
+      destruct w; try discriminate. clear Heqv. 
+      destruct (Val.eq v v); try discriminate.
+      destruct q; try discriminate. simpl in *.
+      destruct (quantity_eq Q32 Q32); try discriminate. simpl in *.
+      destruct n; try discriminate.
+      destruct n; try discriminate.
+      destruct n; try discriminate.
+      destruct n; try discriminate. simpl in LD.
+      destruct (ZMap.get (ofs + 1) (Mem.mem_contents m) !! b); try discriminate.
+      destruct (Val.eq v v0); try discriminate.
+      destruct q; try discriminate.
+      destruct (quantity_eq Q32 Q32); try discriminate. simpl in *. subst v0. clear e e0 e2.
+      destruct n; try discriminate.
+      destruct n; try discriminate.
+      destruct n; try discriminate. simpl in LD.
+      destruct (ZMap.get (ofs + 1 + 1) (Mem.mem_contents m) !! b); try discriminate.
+      destruct (Val.eq v v0); try discriminate.
+      destruct q; try discriminate.
+      destruct (quantity_eq Q32 Q32); try discriminate. simpl in *. subst v0. clear e0.
+      destruct n; try discriminate.
+      destruct n; try discriminate. simpl in LD.
+      destruct (ZMap.get (ofs + 1 + 1 + 1) (Mem.mem_contents m) !! b); try discriminate.
+      destruct (Val.eq v v0); try discriminate.
+      destruct q; try discriminate.
+      destruct (quantity_eq Q32 Q32); try discriminate. simpl in *. subst v0. clear e0.
+      destruct n; try discriminate. simpl in LD.
+      destruct v; try discriminate. inv LD. eexists; eexists; reflexivity.
+    - unfold Val.load_result in LD. unfold proj_bytes in Heqv. simpl in *.
+      remember (ZMap.get ofs (Mem.mem_contents m) !! b) as w. 
+      destruct w; try discriminate. clear Heqv. 
+      destruct (Val.eq v v); try discriminate.
+      destruct q; try discriminate. simpl in *.
+      destruct (quantity_eq Q32 Q32); try discriminate. simpl in *.
+      destruct n; try discriminate.
+      destruct n; try discriminate.
+      destruct n; try discriminate.
+      destruct n; try discriminate. simpl in LD.
+      destruct (ZMap.get (ofs + 1) (Mem.mem_contents m) !! b); try discriminate.
+      destruct (Val.eq v v0); try discriminate.
+      destruct q; try discriminate.
+      destruct (quantity_eq Q32 Q32); try discriminate. simpl in *. subst v0. clear e e0 e2.
+      destruct n; try discriminate.
+      destruct n; try discriminate.
+      destruct n; try discriminate. simpl in LD.
+      destruct (ZMap.get (ofs + 1 + 1) (Mem.mem_contents m) !! b); try discriminate.
+      destruct (Val.eq v v0); try discriminate.
+      destruct q; try discriminate.
+      destruct (quantity_eq Q32 Q32); try discriminate. simpl in *. subst v0. clear e0.
+      destruct n; try discriminate.
+      destruct n; try discriminate. simpl in LD.
+      destruct (ZMap.get (ofs + 1 + 1 + 1) (Mem.mem_contents m) !! b); try discriminate.
+      destruct (Val.eq v v0); try discriminate.
+      destruct q; try discriminate.
+      destruct (quantity_eq Q32 Q32); try discriminate. simpl in *. subst v0. clear e0.
+      destruct n; try discriminate. simpl in LD.
+      destruct v; try discriminate. inv LD. eexists; eexists; reflexivity.
+    - unfold Val.load_result in LD. unfold proj_bytes in Heqv. simpl in *.
+      remember (ZMap.get ofs (Mem.mem_contents m) !! b) as w. 
+      destruct w; try discriminate. clear Heqv. 
+      destruct (Val.eq v v); try discriminate.
+      destruct q; try discriminate. simpl in *.
+      destruct (quantity_eq Q64 Q64); try discriminate. simpl in *.
+      destruct n; try discriminate.
+      destruct n; try discriminate.
+      destruct n; try discriminate.
+      destruct n; try discriminate. 
+      destruct n; try discriminate.
+      destruct n; try discriminate.
+      destruct n; try discriminate.
+      destruct n; try discriminate. simpl in LD.
+      destruct (ZMap.get (ofs + 1) (Mem.mem_contents m) !! b); try discriminate.
+      destruct (Val.eq v v0); try discriminate.
+      destruct q; try discriminate.
+      destruct (quantity_eq Q64 Q64); try discriminate. simpl in *. subst v0. clear e e0 e2.
+      destruct n; try discriminate.
+      destruct n; try discriminate.
+      destruct n; try discriminate.
+      destruct n; try discriminate.
+      destruct n; try discriminate.
+      destruct n; try discriminate.
+      destruct n; try discriminate.  simpl in LD.
+      destruct (ZMap.get (ofs + 1 + 1) (Mem.mem_contents m) !! b); try discriminate.
+      destruct (Val.eq v v0); try discriminate.
+      destruct q; try discriminate.
+      destruct (quantity_eq Q64 Q64); try discriminate. simpl in *. subst v0. clear e0.
+      destruct n; try discriminate.
+      destruct n; try discriminate.
+      destruct n; try discriminate.
+      destruct n; try discriminate.
+      destruct n; try discriminate.
+      destruct n; try discriminate.  simpl in LD.
+      destruct (ZMap.get (ofs + 1 + 1 + 1) (Mem.mem_contents m) !! b); try discriminate.
+      destruct (Val.eq v v0); try discriminate.
+      destruct q; try discriminate.
+      destruct (quantity_eq Q64 Q64); try discriminate. simpl in *. subst v0. clear e0.
+      destruct n; try discriminate.
+      destruct n; try discriminate.
+      destruct n; try discriminate.
+      destruct n; try discriminate.
+      destruct n; try discriminate.  simpl in LD.
+      destruct (ZMap.get (ofs + 1 + 1 + 1 + 1) (Mem.mem_contents m) !! b); try discriminate.
+      destruct (Val.eq v v0); try discriminate.
+      destruct q; try discriminate.
+      destruct (quantity_eq Q64 Q64); try discriminate. simpl in *. subst v0. clear e0.
+      destruct n; try discriminate.
+      destruct n; try discriminate.
+      destruct n; try discriminate.
+      destruct n; try discriminate. simpl in LD.
+      destruct (ZMap.get (ofs + 1 + 1 + 1+1+1) (Mem.mem_contents m) !! b); try discriminate.
+      destruct (Val.eq v v0); try discriminate.
+      destruct q; try discriminate.
+      destruct (quantity_eq Q64 Q64); try discriminate. simpl in *. subst v0. clear e0.
+      destruct n; try discriminate.
+      destruct n; try discriminate.
+      destruct n; try discriminate. simpl in LD.
+      destruct (ZMap.get (ofs + 1 + 1 +1 +1 +1 + 1) (Mem.mem_contents m) !! b); try discriminate.
+      destruct (Val.eq v v0); try discriminate.
+      destruct q; try discriminate.
+      destruct (quantity_eq Q64 Q64); try discriminate. simpl in *. subst v0. clear e0.
+      destruct n; try discriminate.
+      destruct n; try discriminate.  simpl in LD.
+      destruct (ZMap.get (ofs + 1 + 1 +1 +1 +1 + 1+1) (Mem.mem_contents m) !! b); try discriminate.
+      destruct (Val.eq v v0); try discriminate.
+      destruct q; try discriminate.
+      destruct (quantity_eq Q64 Q64); try discriminate. simpl in *. subst v0. clear e0.
+      destruct n; try discriminate. simpl in LD. subst v. eexists; eexists; reflexivity.
+Qed. 
 
 (******** Compatibility of memory operation with [mem_forward] ********)
 Lemma load_storebytes_nil m b ofs m': Mem.storebytes m b ofs nil = Some m' -> 
@@ -1547,34 +1683,35 @@ destruct U1 as [P1 V1]; destruct U2 as [P2 V2].
     apply V1; trivial.
   apply P1; trivial. eapply Mem.perm_valid_block; eassumption.
 Qed.
-(*
-Axiom ec_readonly_perm:
-  forall (ef : external_function) (F V : Type) (ge : Genv.t F V)
-    (vargs : list val) (m1 : mem) (t : trace) (vres : val) (m2 : mem)
-    (chunk : memory_chunk) (b : block) (ofs : Z),
-  external_call ef ge vargs m1 t vres m2 ->
-  Mem.valid_block m1 b ->
-  (forall ofs' : Z,
-   ofs <= ofs' < ofs + size_chunk chunk -> ~ Mem.perm m1 b ofs' Max Writable) ->
-  forall ofs', ofs <= ofs' < ofs + size_chunk chunk ->
-    forall k p, Mem.perm m1 b ofs' k p <-> Mem.perm m2 b ofs' k p.
-*)
 
+(* Does not hold, since readonly refers to Cur permissions
 Lemma ec_readonly_strong: forall
   (ef : external_function) (F V : Type) (ge : Genv.t F V)
     (vargs : list val) (m1 : mem) (t : trace) (vres : val) (m2 : mem)
     (EC: external_call ef ge vargs m1 t vres m2)
     b (VB: Mem.valid_block m1 b), readonly m1 b m2.
 Proof. intros.
-       admit. (*
-destruct ef; simpl in *; inv EC; try apply readonly_refl.
+destruct ef; simpl in *; try inv EC; try apply readonly_refl.
+(*functions are now by name*)
+(*functions are now by name*)
 { inv H. apply readonly_refl. eapply store_readonly; eassumption. }
-{ inv H0. apply readonly_refl. eapply store_readonly; eassumption. }
 { eapply readonly_trans. eapply alloc_readonly; eassumption. 
   eapply store_readonly; try eassumption. eapply alloc_forward; eassumption. }
 { eapply free_readonly; eassumption. }
-{ eapply storebytes_readonly; eassumption. }  *)
+{ eapply storebytes_readonly; eassumption. }
+{ apply (ec_readonly (inline_assembly_properties text sg)) in EC.
+  (*destruct EC.*) red; intros; split; intros. Locate readonly.
+  symmetry. eapply loadbytes_unchanged_on; try eassumption.
+     intros. red. intros N. eapply (NWR (i-ofs)). omega.
+     assert (ofs + (i - ofs) = i) by omega. rewrite H0.   Mem.perm_implies. eapply NWR.
+  
+ inv H0. apply readonly_refl. eapply store_readonly; eassumption. }
+{ eapply readonly_trans. eapply alloc_readonly; eassumption. 
+  eapply store_readonly; try eassumption. eapply alloc_forward; eassumption. }
+{ eapply free_readonly; eassumption. }
+{ eapply storebytes_readonly; eassumption. }
 Qed.
+*)
 
 Lemma external_call_mem_forward:
   forall (ef : external_function) (F V : Type) (ge : Genv.t F V)
@@ -1586,16 +1723,17 @@ split; intros. eapply external_call_valid_block; eauto.
 eapply external_call_max_perm; eauto.
 Qed.
 
+(* Does not hold, since readonlyLD refers to Cur permissions
 Lemma external_call_readonlyLD:
   forall (ef : external_function) (F V : Type) (ge : Genv.t F V)
     (vargs : list val) (m1 : mem) (t : trace) (vres : val) (m2 : mem),
     external_call ef ge vargs m1 t vres m2 -> 
   forall b, Mem.valid_block m1 b -> readonlyLD m1 b m2. 
-Proof. intros.
+Proof. intros. 
   eapply readonly_readonlyLD.
   eapply ec_readonly_strong; eassumption.
 Qed.
-
+*)
 Definition val_has_type_opt' (v: option val) (ty: typ) :=
  match v with
  | None => True

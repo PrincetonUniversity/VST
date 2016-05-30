@@ -1,9 +1,8 @@
-Require Recdef.
+Require Coq.funind.Recdef.
 Require Import compcert.lib.Coqlib.
-Require Import Integers.
+Require Import compcert.lib.Integers.
 Require Import Coq.Strings.String.
 Require Import Coq.Strings.Ascii.
-Require Import Integers.
 Require Import Coq.Lists.List.
 Require Import msl.Coqlib2.
 

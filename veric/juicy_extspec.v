@@ -1,14 +1,8 @@
+Require Import veric.juicy_base.
 Require Import sepcomp.semantics.
 Require Import sepcomp.extspec.
 Require Import sepcomp.step_lemmas.
 Require Import veric.juicy_safety.
-
-Require Import veric.base.
-Require Import msl.rmaps.
-Require Import msl.rmaps_lemmas.
-Require Import veric.compcert_rmaps.
-Import Mem.
-Require Import msl.msl_standard.
 Require Import veric.juicy_mem veric.juicy_mem_lemmas veric.juicy_mem_ops.
 Require Import veric.initial_world.
 

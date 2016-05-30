@@ -8,8 +8,8 @@ Require Import msl.ageable.
 Require Import msl.predicates_hered.
 Require Import msl.subtypes.
 
-Require Import Wellfounded.
-Require Import Recdef.
+Require Import Coq.Wellfounded.Wellfounded.
+Require Import Coq.funind.Recdef.
 
 Delimit Scope pred with pred.
 Local Open Scope pred.

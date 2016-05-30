@@ -1,15 +1,15 @@
-(*CompCert imports*)
-Require Import Events.
-Require Import Memory.
-Require Import Coqlib.
-Require Import Values.
-Require Import Maps.
-Require Import Integers.
-Require Import AST. 
-Require Import Globalenvs.
+Require Import compcert.lib.Coqlib.
+Require Import compcert.lib.Maps.
+Require Import compcert.lib.Integers.
 Require Import compcert.lib.Axioms.
 
-Require Import mem_lemmas.
+Require Import compcert.common.Values.
+Require Import compcert.common.Memory.
+Require Import compcert.common.Events.
+Require Import compcert.common.AST. 
+Require Import compcert.common.Globalenvs.
+
+Require Import sepcomp.mem_lemmas.
 
 (** * Interaction Semantics *)
 
@@ -59,20 +59,24 @@ Record CoreSemantics {G C M : Type} : Type :=
 
 Implicit Arguments CoreSemantics [].
 
-(** * Cooperating Interaction Semantics *)
+Inductive mem_step m m' : Prop :=
+    mem_step_storebytes: forall b ofs bytes,
+       Mem.storebytes m b ofs bytes = Some m' -> mem_step m m'
+  | mem_step_alloc: forall lo hi b',
+       Mem.alloc m lo hi = (m',b') -> mem_step m m'
+  | mem_step_freelist: forall l,
+       Mem.free_list m l = Some m' -> mem_step m m'
+  (*Some non-observable external calls are not a single alloc/free/store-step*)
+  | mem_step_trans: forall m'',
+       mem_step m m'' -> mem_step m'' m' -> mem_step m m'.
 
-(** Cooperating semantics impose additional constraints; in particular, they
-   specialize interaction semantics to CompCert memories and require that the
-   memories produced by coresteps are [forward] wrt. the initial memory. See
-   [core/mem_lemmas.v] for the defn. of [mem_forward]. *)
+(* Memory semantics are CoreSemantics that are specialized to CompCert memories
+   and evolve memory according to mem_step. Previous notion CoopCoreSem is deprecated,
+   but for now retained in file CoopCoreSem.v *)
+Record MemSem {G C} :=
+  { csem :> @CoreSemantics G C mem
 
-Record CoopCoreSem {G C} :=
-  { coopsem :> CoreSemantics G C mem
-  ; corestep_fwd : 
-      forall g c m c' m' (CS: corestep coopsem g c m c' m'), 
-      mem_forward m m'
-  ; corestep_rdonly: 
-      forall g c m c' m' (CS: corestep coopsem g c m c' m') b, 
-      Mem.valid_block m b -> readonly m b m'}.
+  ; corestep_mem : forall g c m c' m' (CS: corestep csem g c m c' m'), mem_step m m'
+  }.
 
-Implicit Arguments CoopCoreSem [].
+Implicit Arguments MemSem [].

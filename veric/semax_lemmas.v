@@ -1,9 +1,4 @@
-Require Import veric.base.
-Require Import msl.rmaps.
-Require Import msl.rmaps_lemmas.
-Require Import veric.compcert_rmaps.
-Import Mem.
-Require Import msl.msl_standard.
+Require Import veric.juicy_base.
 Require Import veric.juicy_mem veric.juicy_mem_lemmas veric.juicy_mem_ops.
 Require Import veric.res_predicates.
 Require Import veric.extend_tc.
@@ -63,13 +58,13 @@ Proof.
   intros.
   apply inj_le_rev.
   do 2 rewrite nat_of_Z_max.
-  rewrite Zmax_spec.
+  rewrite Coqlib.Zmax_spec.
   destruct (zlt 0 (z-a)).
-  rewrite Zmax_spec.
+  rewrite Coqlib.Zmax_spec.
   destruct (zlt 0 (z-b)).
   omega.
   omega.
-  rewrite Zmax_spec.
+  rewrite Coqlib.Zmax_spec.
   destruct (zlt 0 (z-b)); omega.
 Qed.
 
@@ -518,7 +513,7 @@ Lemma empty_program_ok {CS: compspecs}: forall Delta ge w,
 Proof.
 intros Delta ge w ?. 
 intro b.
-intros fsig A P Q.
+intros fsig cc A P Q.
 intros ?n ? ?.
 destruct H1 as [id [? [b0 [? ?]]]].
 rewrite H in H1. rewrite PTree.gempty in H1.
@@ -1593,3 +1588,115 @@ destruct ((temp_types Delta) ! id) as [[? ?]|]; try discriminate.
 destruct ((temp_types Delta') ! id) as [[? ?]|]; try contradiction.
 destruct H; subst; auto.
 Qed.
+
+(* Mutually recursive induction scheme for [statement] and [labeled_statements] *)
+Section statement_rect.
+  Variable P : statement -> Type.
+  Variable Q : labeled_statements -> Type.
+  Variable f : P Sskip.
+  Variable f0 : forall e e0 : expr, P (Sassign e e0).
+  Variable f1 : forall (i : ident) (e : expr), P (Sset i e).
+  Variable f2 : forall (o : option ident) (e : expr) (l : list expr), P (Scall o e l).
+  Variable f3 : forall (o : option ident) (e : external_function) (t : typelist) (l : list expr), P (Sbuiltin o e t l).
+  Variable f4 : forall s : statement, P s -> forall s0 : statement, P s0 -> P (Ssequence s s0).
+  Variable f5 : forall (e : expr) (s : statement), P s -> forall s0 : statement, P s0 -> P (Sifthenelse e s s0).
+  Variable f6 : forall s : statement, P s -> forall s0 : statement, P s0 -> P (Sloop s s0).
+  Variable f7 : P Sbreak.
+  Variable f8 : P Scontinue.
+  Variable f9 : forall o : option expr, P (Sreturn o).
+  Variable f10 : forall (e : expr) (l : labeled_statements), Q l -> P (Sswitch e l).
+  Variable f11 : forall (l : label) (s : statement), P s -> P (Slabel l s).
+  Variable f12 : forall l : label, P (Sgoto l).
+  Variable f13 : Q LSnil.
+  Variable f14 : forall (o : option Z) (s : statement) (l : labeled_statements), P s -> Q l -> Q (LScons o s l).
+  
+  Fixpoint statement_rect (s : statement) : P s :=
+  match s as s0 return (P s0) with
+  | Sskip => f
+  | Sassign e e0 => f0 e e0
+  | Sset i e => f1 i e
+  | Scall o e l => f2 o e l
+  | Sbuiltin o e t l => f3 o e t l
+  | Ssequence s0 s1 => f4 s0 (statement_rect s0) s1 (statement_rect s1)
+  | Sifthenelse e s0 s1 => f5 e s0 (statement_rect s0) s1 (statement_rect s1)
+  | Sloop s0 s1 => f6 s0 (statement_rect s0) s1 (statement_rect s1)
+  | Sbreak => f7
+  | Scontinue => f8
+  | Sreturn o => f9 o
+  | Sswitch e l => f10 e l (labeled_statements_rect l)
+  | Slabel l s0 => f11 l s0 (statement_rect s0)
+  | Sgoto l => f12 l
+  end
+  with labeled_statements_rect (l : labeled_statements) : Q l :=
+  match l as l0 return (Q l0) with
+  | LSnil => f13
+  | LScons o s l0 => f14 o s l0 (statement_rect s) (labeled_statements_rect l0)
+  end.
+End statement_rect.
+
+Require Import msl.eq_dec.
+
+(* Equality is decidable on statements *)
+Section eq_dec.
+  Local Ltac t := hnf; decide equality; auto.
+  
+  Let eq_dec_type := type_eq.
+  Let eq_dec_float := Float.eq_dec.
+  Let eq_dec_float32 := Float32.eq_dec.
+  Let eq_dec_int := Int.eq_dec.
+  Let eq_dec_int64 := Int64.eq_dec.
+  Let eq_dec_ident := ident_eq.
+  Let eq_dec_signature := signature_eq.
+  Let eq_dec_attr : EqDec attr. repeat t. Qed.
+  Let eq_dec_signedness : EqDec signedness. t. Qed.
+  Let eq_dec_intsize : EqDec intsize. t. Qed.
+  Let eq_dec_floatsize : EqDec floatsize. t. Qed.
+  Let eq_dec_Z : EqDec Z. repeat t. Qed.
+  Let eq_dec_calling_convention : EqDec calling_convention. repeat t. Qed.
+  Let eq_dec_external_function : EqDec external_function. repeat t. Qed.
+  Let eq_dec_option_ident := option_eq (ident_eq).
+  Let eq_dec_option_Z : EqDec (option Z). repeat t. Qed.
+  Let eq_dec_typelist : EqDec typelist. repeat t. Qed.
+  
+  Lemma eq_dec_expr : EqDec expr.
+  Proof. repeat t. Qed.
+  
+  Let eq_dec_expr := eq_dec_expr.
+  Let eq_dec_option_expr : EqDec (option expr). repeat t. Qed.
+  Let eq_dec_list_expr : EqDec (list expr). repeat t. Qed.
+  
+  Local Ltac eq_dec a a' :=
+    let H := fresh in
+    assert (H : {a = a'} + {a <> a'}) by (auto; repeat (decide equality ; auto));
+    destruct H; [subst; auto | try (right; congruence)].
+  
+  Lemma eq_dec_statement : forall s s' : statement, { s = s' } + { s <> s' }.
+  Proof.
+    apply
+      (statement_rect
+         (fun s => forall s', { s = s' } + { s <> s' })
+         (fun l => forall l', { l = l' } + { l <> l' }));
+      try (intros until s'; destruct s'); intros;
+      try (destruct l');
+      try solve [right; congruence | left; reflexivity];
+      repeat
+        match goal with
+        | |- context [ ?x ?a          = ?x ?b          ] => eq_dec a b
+        | |- context [ ?x ?y ?a       = ?x ?y ?b       ] => eq_dec a b
+        | |- context [ ?x ?a _        = ?x ?b _        ] => eq_dec a b
+        | |- context [ ?x ?y ?z ?a    = ?x ?y ?z ?b    ] => eq_dec a b
+        | |- context [ ?x ?y ?a _     = ?x ?y ?b _     ] => eq_dec a b
+        | |- context [ ?x ?a _  _     = ?x ?b _  _     ] => eq_dec a b
+        | |- context [ ?x ?y ?z ?t ?a = ?x ?y ?z ?t ?b ] => eq_dec a b
+        | |- context [ ?x ?y ?z ?a _  = ?x ?y ?z ?b _  ] => eq_dec a b
+        | |- context [ ?x ?y ?a _  _  = ?x ?y ?b _  _  ] => eq_dec a b
+        | |- context [ ?x ?a _  _  _  = ?x ?b _  _  _  ] => eq_dec a b
+        end.
+  Qed.
+  
+  Lemma eq_dec_labeled_statements : forall l l' : labeled_statements, { l = l' } + { l <> l' }.
+  Proof.
+    decide equality.
+    apply eq_dec_statement.
+  Qed.
+End eq_dec.

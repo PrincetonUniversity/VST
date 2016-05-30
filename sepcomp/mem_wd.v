@@ -1,15 +1,15 @@
-(*CompCert imports*)
-Require Import AST.
-Require Import Events.
-Require Import Memory.
 Require Import compcert.lib.Coqlib.
-Require Import Values.
-Require Import Maps.
-Require Import Integers.
+Require Import compcert.lib.Maps.
+Require Import compcert.lib.Integers.
 Require Import compcert.lib.Axioms.
-Require Import Globalenvs.
 
-Require Import mem_lemmas.
+Require Import compcert.common.AST.
+Require Import compcert.common.Values.
+Require Import compcert.common.Memory.
+Require Import compcert.common.Events.
+Require Import compcert.common.Globalenvs.
+
+Require Import sepcomp.mem_lemmas.
 
 Notation val_inject:=Val.inject.
 
@@ -222,7 +222,7 @@ Proof.
    rewrite Int.add_zero. reflexivity.
 Qed. 
 
-Require Import reach.
+Require Import sepcomp.reach.
 
 Inductive valid_genv {F V:Type} (ge:Genv.t F V) (m:mem) : Type := 
   mk_valid_genv : 
@@ -432,47 +432,36 @@ eapply (IHl  _ _  H2).
     apply (valid_genv_alloc_global _ _ _ _ Heqd H0).
 Qed.
 
-
+(*POPL-compcomp used the following lemma to prove mem_wd_load:
 Lemma decode_val_pointer_inv:
   forall chunk mvl b ofs,
   decode_val chunk mvl = Vptr b ofs ->
   chunk = Mint32 /\ mvl = inj_value Q32 (Vptr b ofs).
-Admitted. (* A version of this lemma is in 
+ A version of this lemma is in 
   CompCert 2.3, Memdata.v,
  but missing from CompCert 2.4.  I'm not even sure
- it's true in CompCert 2.4.  -A.W.A. *)
+ it's true in CompCert 2.4.  -A.W.A.
 
+In CompCert2.5, the proof of mem_wd_load uses the new load_ptr_is_fragment, recently added to mem_lemmas*)
 Lemma mem_wd_load: forall m ch b ofs v
   (LD: Mem.load ch m b ofs = Some v)
   (WD : mem_wd m), val_valid v m.
 Proof. intros.
   destruct v; simpl; trivial.
+  destruct (load_ptr_is_fragment _ _ _ _ _ _ LD) as [q [n FRAG]].
   destruct (Mem.load_valid_access _ _ _ _ _ LD) as [Perms Align].
   apply Mem.load_result in LD.
-  apply eq_sym in LD.
-  apply decode_val_pointer_inv in LD.
-  destruct LD.
-  destruct ch; inv H; simpl in *.
-  unfold mem_wd in WD. unfold Mem.inject_neutral in WD.
   destruct WD.
-  assert (Arith: ofs <= ofs < ofs + 4). omega.
+  assert (Arith: ofs <= ofs < ofs + (size_chunk ch)). specialize (size_chunk_pos ch); omega.
   specialize (Perms _ Arith).
   assert (VB:= Mem.perm_valid_block _ _ _ _ _ Perms).
   assert (Z:= flatinj_I (Mem.nextblock m) b VB).
   specialize (mi_memval _ _ _ _ Z Perms).
-  inv H0. rewrite Zplus_0_r in mi_memval. rewrite H1 in mi_memval.
-  inversion mi_memval. clear H6. subst.
+  rewrite Zplus_0_r in mi_memval. rewrite FRAG in mi_memval.
+  inversion mi_memval. subst.
   inversion H0.
-  apply flatinj_E in H7. apply H7.
+  apply flatinj_E in H3. apply H3.
 Qed.
-
-Lemma setN_property:
-  forall (P: memval -> Prop) vl p q c,
-  (forall v, In v vl -> P v) ->
-  p <= q < p + Z_of_nat (length vl) ->
-  P(ZMap.get q (Mem.setN vl p c)).
-Admitted.  (* This Lemma is in CompCert 2.3, Memory.v,
-  not sure if it's true in CompCert 2.4.  - A.W.A. *)
 
 Lemma mem_wd_storebytes: forall m b ofs bytes m' (WDm: mem_wd m)
   (ST: Mem.storebytes m b ofs bytes = Some m')
@@ -504,9 +493,8 @@ Proof. intros. apply mem_wdI. intros.
       remember (zlt ofs0 (ofs + (Z.of_nat (length bytes)))) as d.
       destruct d; clear Heqd.
       (*case <*) 
-        eapply setN_property. 
-          apply BytesValid.
-          split. omega. apply l. 
+        apply BytesValid; clear BytesValid.
+        apply Mem.setN_in. omega. 
       (*case >= *)
          rewrite Mem.setN_outside; try (right; assumption).
       assumption.

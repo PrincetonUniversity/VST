@@ -108,7 +108,7 @@ Definition main_spec :=
 Definition Vprog : varspecs := nil.
 
 Definition Gprog : funspecs := 
-    do_or_spec :: do_and_spec :: main_spec::nil.
+    augment_funspecs prog [do_or_spec; do_and_spec; main_spec].
 
 Ltac do_semax_shortcut_logical := 
  eapply semax_shortcut_logical; 
@@ -145,10 +145,8 @@ Lemma all_funcs_correct:
   semax_func Vprog Gprog (prog_funct prog) Gprog.
 Proof.
 unfold Gprog, prog, prog_funct; simpl.
-semax_func_skipn.
 semax_func_cons body_do_or.
 semax_func_cons body_do_and.
 semax_func_cons body_main.
-apply semax_func_nil.
 Qed.
 

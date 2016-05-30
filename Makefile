@@ -106,7 +106,7 @@ SEPCOMP_FILES= \
   FiniteMaps.v \
   mem_lemmas.v mem_wd.v \
   compiler_correctness.v \
-  core_semantics.v core_semantics_lemmas.v \
+  core_semantics.v core_semantics_lemmas.v CoopCoreSem.v \
   globalSep.v simulations.v \
   simulations_lemmas.v \
   structured_injections.v \
@@ -125,11 +125,13 @@ SEPCOMP_FILES= \
   #safety_preservation.v \
 
 CONCUR_FILES= \
+  addressFiniteMap.v\
   sepcomp.v threads_lemmas.v permissions.v\
-  pos.v scheduler.v \
-  concurrent_machine.v juicy_machine.v \
-  compcert_threads.v compcert_threads_lemmas.v \
-  erasure.v 
+  pos.v scheduler.v threadPool.v \
+  concurrent_machine.v juicy_machine.v dry_machine.v \
+  erasure.v Clight_erasure.v \
+  dry_machine_lemmas.v dry_context.v \
+  semax_conc.v semax_to_machine.v
 
 LINKING_FILES= \
   sepcomp.v \
@@ -151,7 +153,7 @@ LINKING_FILES= \
   finfun.v
 
 VERIC_FILES= \
-  base.v shares.v rmaps.v rmaps_lemmas.v compcert_rmaps.v Cop2.v\
+  base.v shares.v rmaps.v rmaps_lemmas.v compcert_rmaps.v Cop2.v juicy_base.v \
   tycontext.v lift.v expr.v expr2.v environ_lemmas.v binop_lemmas.v binop_lemmas2.v \
   expr_lemmas.v expr_lemmas2.v expr_lemmas3.v expr_rel.v xexpr_rel.v extend_tc.v \
   Clight_lemmas.v Clight_new.v Clightnew_coop.v Clight_sim.v \
@@ -276,7 +278,7 @@ else
 	@$(COQC) $(COQFLAGS) $*.v
 endif
 
-COQVERSION=8.4pl5 or-else 8.4pl6
+COQVERSION= 8.5pl1
 COQV=$(shell $(COQC) -v)
 ifeq ("$(filter $(COQVERSION),$(COQV))","")
 $(error FAILURE: You need Coq $(COQVERSION) but you have this version: $(COQV))

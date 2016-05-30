@@ -1,28 +1,29 @@
 Require Import compcert.lib.Axioms.
 
 Add LoadPath "../sepcomp" as sepcomp.
+Add LoadPath "../concurrency" as concurrency.
 
 Require Import sepcomp. Import SepComp.
-Require Import semantics_lemmas.
+Require Import sepcomp.semantics_lemmas.
 
 
-Require Import pos.
-Require Import concurrent_machine.
-Require Import Program.
+Require Import concurrency.pos.
+Require Import concurrency.concurrent_machine.
+Require Import Coq.Program.Program.
 Require Import ssreflect ssrbool ssrnat ssrfun eqtype seq fintype finfun.
 Set Implicit Arguments.
 
 (*NOTE: because of redefinition of [val], these imports must appear 
   after Ssreflect eqtype.*)
-Require Import AST.     (*for typ*)
-Require Import Values. (*for val*)
-Require Import Globalenvs. 
-Require Import Memory.
-Require Import Integers.
+Require Import compcert.common.AST.     (*for typ*)
+Require Import compcert.common.Values. (*for val*)
+Require Import compcert.common.Globalenvs. 
+Require Import compcert.common.Memory.
+Require Import compcert.lib.Integers.
 Require Import veric.shares msl.msl_standard.
-Require Import threads_lemmas.
+Require Import concurrency.threads_lemmas.
 
-Require Import ZArith.
+Require Import Coq.ZArith.ZArith.
 
 Notation EXIT := 
   (EF_external "EXIT" (mksignature (AST.Tint::nil) None)). 
@@ -47,7 +48,7 @@ Notation LOCK := (EF_external "LOCK" LOCK_SIG).
 Notation UNLOCK_SIG := (mksignature (AST.Tint::nil) (Some AST.Tint) cc_default).
 Notation UNLOCK := (EF_external "UNLOCK" UNLOCK_SIG).
 
-Require Import (*compcert_linking*) permissions.
+Require Import (*compcert_linking*) concurrency.permissions.
 
 Module ThreadPool.
   Section ThreadPool.
@@ -635,7 +636,14 @@ Module Concur.
     Definition threadHalted: forall {tid0 ms},
                                containsThread ms tid0 -> Prop:= @threadHalted'.
 
-    Parameter init_core : G -> val -> list val -> option machine_state.
+    Lemma onePos: (0<1)%coq_nat. auto. Qed.
+    Definition initial_machine c:=
+      @mk cT (mkPos onePos) (fun _ => c) (fun _ => empty_share_map) .
+    Definition init_mach  (genv:G)(v:val)(args:list val):option machine_state:=
+      match initial_core Sem genv v args with
+      | Some c => Some (initial_machine (Kresume c) )
+      | None => None
+      end.
   End ShareMachineSig.
 
   

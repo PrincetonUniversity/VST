@@ -1,7 +1,7 @@
-Require Import AST.
-Require Import Values.
 Require Import compcert.lib.Maps.
-Require Import Globalenvs.
+Require Import compcert.common.AST.
+Require Import compcert.common.Values.
+Require Import compcert.common.Globalenvs.
 
 Require Import msl.ageable.
 

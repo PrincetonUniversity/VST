@@ -32,8 +32,8 @@ Definition substopt_localdef (ret: option ident) (v: val) (P: localdef)  : local
    end.
 
 
-Lemma semax_call': forall Espec {cs: compspecs} Delta A (Pre Post: A -> environ->mpred) (x: A) ret argsig retsig a bl P Q R,
-   Cop.classify_fun (typeof a) = Cop.fun_case_f (type_of_params argsig) retsig cc_default ->
+Lemma semax_call': forall Espec {cs: compspecs} Delta A (Pre Post: A -> environ->mpred) (x: A) ret argsig retsig cc a bl P Q R,
+   Cop.classify_fun (typeof a) = Cop.fun_case_f (type_of_params argsig) retsig cc ->
    match retsig, ret with
    | Tvoid, None => True
    | Tvoid, Some _ => False
@@ -44,7 +44,7 @@ Lemma semax_call': forall Espec {cs: compspecs} Delta A (Pre Post: A -> environ-
           (tc_expr Delta a && tc_exprlist Delta (argtypes argsig) bl 
            && 
    (`(Pre x) ( (make_args' (argsig,retsig) (eval_exprlist (argtypes argsig) bl))) *
-                      `(func_ptr' (mk_funspec (argsig,retsig) A Pre Post)) (eval_expr a) 
+                      `(func_ptr' (mk_funspec (argsig,retsig) cc A Pre Post)) (eval_expr a) 
      * PROPx P (LOCALx Q (SEPx R))))
           (Scall ret a bl)
           (normal_ret_assert 
@@ -55,7 +55,7 @@ Proof.
  intros. rename H1 into Hret.
  rewrite argtypes_eq.
 eapply semax_pre_post ; [ | | 
-   apply (semax_call Delta A Pre Post x (PROPx P (LOCALx Q (SEPx R))) ret argsig retsig a bl H); auto].
+   apply (semax_call Delta A Pre Post x (PROPx P (LOCALx Q (SEPx R))) ret argsig retsig cc a bl H); auto].
  Focus 3. {
  clear - H0.
  destruct retsig; destruct ret; simpl in *; try contradiction; 
@@ -88,8 +88,8 @@ normalize.
 autorewrite with norm1 norm2; normalize.
 Qed.
 
-Lemma semax_call1: forall Espec {cs: compspecs} Delta A (Pre Post: A -> environ->mpred) (x: A) id argsig retsig a bl P Q R,
-   Cop.classify_fun (typeof a) = Cop.fun_case_f (type_of_params argsig) retsig cc_default ->
+Lemma semax_call1: forall Espec {cs: compspecs} Delta A (Pre Post: A -> environ->mpred) (x: A) id argsig retsig cc a bl P Q R,
+   Cop.classify_fun (typeof a) = Cop.fun_case_f (type_of_params argsig) retsig cc ->
    match retsig with
    | Tvoid => False
    | _ => True
@@ -98,7 +98,7 @@ Lemma semax_call1: forall Espec {cs: compspecs} Delta A (Pre Post: A -> environ-
   @semax cs Espec Delta
          (tc_expr Delta a && tc_exprlist Delta (argtypes argsig) bl 
            && (`(Pre x) ( (make_args' (argsig,retsig) (eval_exprlist (argtypes argsig) bl))) *
-                 `(func_ptr' (mk_funspec (argsig,retsig) A Pre Post)) (eval_expr a) *
+                 `(func_ptr' (mk_funspec (argsig,retsig) cc A Pre Post)) (eval_expr a) *
                   PROPx P (LOCALx Q (SEPx R))))
           (Scall (Some id) a bl)
           (normal_ret_assert 
@@ -114,12 +114,12 @@ Definition ifvoid {T} t (A B: T) :=
  match t with Tvoid => A | _ => B end.
 
 Lemma semax_call0: forall Espec {cs: compspecs} Delta A (Pre Post: A -> environ->mpred) (x: A) 
-      argsig retty a bl P Q R,
-   Cop.classify_fun (typeof a) = Cop.fun_case_f (type_of_params argsig) retty cc_default ->
+      argsig retty cc a bl P Q R,
+   Cop.classify_fun (typeof a) = Cop.fun_case_f (type_of_params argsig) retty cc ->
   @semax cs Espec Delta
          (tc_expr Delta a && tc_exprlist Delta (argtypes argsig) bl 
            && (`(Pre x) ( (make_args' (argsig,retty) (eval_exprlist (argtypes argsig) bl)))
-                 * `(func_ptr' (mk_funspec (argsig,retty) A Pre Post)) (eval_expr a)
+                 * `(func_ptr' (mk_funspec (argsig,retty) cc A Pre Post)) (eval_expr a)
                  * PROPx P (LOCALx Q (SEPx R))))
           (Scall None a bl)
           (normal_ret_assert 
@@ -130,7 +130,7 @@ Proof.
 intros.
 rewrite argtypes_eq.
 eapply semax_pre_post ; [ | | 
-   apply (semax_call Delta A Pre Post x (PROPx P (LOCALx Q (SEPx R))) None argsig retty a bl H)].
+   apply (semax_call Delta A Pre Post x (PROPx P (LOCALx Q (SEPx R))) None argsig retty cc a bl H)].
  Focus 3.
  split; intros; congruence.
  intro rho; normalize.
@@ -191,29 +191,38 @@ split; auto.
 apply eqb_type_refl.
 Qed.
 
+Lemma eqb_calling_convention_refl:
+  forall cc, eqb_calling_convention cc cc = true.
+Proof.
+intros.
+unfold eqb_calling_convention.
+destruct cc; simpl.
+destruct cc_vararg, cc_unproto, cc_structret; reflexivity.
+Qed.
+
 Lemma semax_call_id0:
- forall Espec {cs: compspecs} Delta P Q R id bl argsig retty A x Pre Post
+ forall Espec {cs: compspecs} Delta P Q R id bl argsig retty cc A x Pre Post
    (GLBL: (var_types Delta) ! id = None),
-       (glob_specs Delta) ! id = Some (mk_funspec (argsig, retty) A Pre Post) ->
-       (glob_types Delta) ! id = Some (type_of_funspec (mk_funspec (argsig, retty) A Pre Post)) ->
+       (glob_specs Delta) ! id = Some (mk_funspec (argsig, retty) cc A Pre Post) ->
+       (glob_types Delta) ! id = Some (type_of_funspec (mk_funspec (argsig, retty) cc A Pre Post)) ->
   @semax cs Espec Delta (tc_exprlist Delta (argtypes argsig) bl
                   && (`(Pre x) (make_args' (argsig,retty) (eval_exprlist (argtypes argsig) bl)) 
                          * PROPx P (LOCALx Q (SEPx R))))
-    (Scall None (Evar id (Tfunction (type_of_params argsig) retty cc_default)) bl)
+    (Scall None (Evar id (Tfunction (type_of_params argsig) retty cc)) bl)
     (normal_ret_assert 
        ((ifvoid retty (`(Post x) (make_args nil nil))
                                                    (EX v:val, `(Post x) (make_args (ret_temp::nil) (v::nil))))
          * PROPx P (LOCALx Q (SEPx R)))).
 Proof.
 intros.
-assert (Cop.classify_fun (typeof (Evar id (Tfunction (type_of_params argsig) retty cc_default)))=
-               Cop.fun_case_f (type_of_params argsig) retty cc_default).
+assert (Cop.classify_fun (typeof (Evar id (Tfunction (type_of_params argsig) retty cc)))=
+               Cop.fun_case_f (type_of_params argsig) retty cc).
 simpl. subst. reflexivity.
-apply (semax_fun_id' id (mk_funspec (argsig,retty) A Pre Post)  
+apply (semax_fun_id' id (mk_funspec (argsig,retty) cc A Pre Post)  
   (tc_exprlist Delta (argtypes argsig) bl)); auto.
 subst. 
 
-eapply semax_pre_simple; [ | apply (@semax_call0 Espec cs Delta A Pre Post x argsig _ _ bl P Q R)].
+eapply semax_pre_simple; [ | apply (@semax_call0 Espec cs Delta A Pre Post x argsig _ cc _ bl P Q R)].
 apply andp_right.
 apply andp_right.
 apply andp_left1.
@@ -227,7 +236,7 @@ rewrite eqb_typelist_refl.
 simpl. auto.
 unfold_lift; auto.
 rewrite eqb_type_refl. simpl.
-reflexivity.
+apply eqb_calling_convention_refl.
 apply andp_left2; apply andp_left1; auto.
 apply andp_left2; apply andp_left2; auto.
 apply andp_left2. 
@@ -239,10 +248,10 @@ auto.
 Qed.
 
 Lemma semax_call_id1:
- forall Espec {cs: compspecs} Delta P Q R ret id retty bl argsig A x Pre Post
+ forall Espec {cs: compspecs} Delta P Q R ret id retty cc bl argsig A x Pre Post
    (GLBL: (var_types Delta) ! id = None),
-       (glob_specs Delta) ! id = Some (mk_funspec (argsig, retty) A Pre Post) ->
-       (glob_types Delta) ! id = Some (type_of_funspec (mk_funspec (argsig, retty) A Pre Post)) ->
+       (glob_specs Delta) ! id = Some (mk_funspec (argsig, retty) cc A Pre Post) ->
+       (glob_types Delta) ! id = Some (type_of_funspec (mk_funspec (argsig, retty) cc A Pre Post)) ->
    match retty with
    | Tvoid => False
    | _ => True
@@ -252,7 +261,7 @@ Lemma semax_call_id1:
                 (`(Pre x) (make_args' (argsig,Tvoid) (eval_exprlist (argtypes argsig) bl)) 
                   * PROPx P (LOCALx Q (SEPx R))))
     (Scall (Some ret)
-             (Evar id (Tfunction (type_of_params argsig) retty cc_default))
+             (Evar id (Tfunction (type_of_params argsig) retty cc))
              bl)
     (normal_ret_assert 
        (EX old:val, 
@@ -261,12 +270,12 @@ Lemma semax_call_id1:
 Proof.
 intros. rename H0 into Ht. rename H1 into H0.
  rename H2 into Hret.
-assert (Cop.classify_fun (typeof (Evar id (Tfunction (type_of_params argsig) retty cc_default)))=
-               Cop.fun_case_f (type_of_params argsig) retty cc_default).
+assert (Cop.classify_fun (typeof (Evar id (Tfunction (type_of_params argsig) retty cc)))=
+               Cop.fun_case_f (type_of_params argsig) retty cc).
 subst; reflexivity.
-apply (semax_fun_id' id (mk_funspec (argsig,retty)  A Pre Post)); auto.
+apply (semax_fun_id' id (mk_funspec (argsig,retty) cc A Pre Post)); auto.
 subst. 
-eapply semax_pre_simple; [ | apply (semax_call1 Espec Delta A Pre Post x ret argsig retty _ bl P Q R H1 H0); auto].
+eapply semax_pre_simple; [ | apply (semax_call1 Espec Delta A Pre Post x ret argsig retty cc _ bl P Q R H1 H0); auto].
 apply andp_right.
 apply andp_right.
 apply andp_left1.
@@ -278,7 +287,7 @@ rewrite denote_tc_assert_bool.
 simpl.
 rewrite eqb_typelist_refl.
 rewrite eqb_type_refl.
-simpl. apply prop_right; reflexivity.
+simpl. apply prop_right; apply eqb_calling_convention_refl.
 apply andp_left2.
 apply andp_left1.
 auto.
@@ -688,7 +697,7 @@ Hint Rewrite PROP_LOCAL_SEP_f: norm2.
 
 Lemma semax_call_id1_wow:
  forall  {A} (witness: A) (Frame: list mpred) 
-           Espec {cs: compspecs} Delta P Q R ret id (paramty: typelist) (retty: type) (bl: list expr)
+           Espec {cs: compspecs} Delta P Q R ret id (paramty: typelist) (retty: type) cc (bl: list expr)
                   (argsig: list (ident * type)) (Pre Post: A -> environ -> mpred)
              (Post2: environ -> mpred)
              (Ppre: list Prop)
@@ -702,8 +711,8 @@ Lemma semax_call_id1_wow:
              (Rpost: B -> list mpred)
              (vl : list val)
    (GLBL: (var_types Delta) ! id = None)
-   (GLOBS: (glob_specs Delta) ! id = Some (mk_funspec (argsig,retty) A Pre Post))
-   (GLOBT: (glob_types Delta) ! id = Some (type_of_funspec (mk_funspec (argsig,retty) A Pre Post)))
+   (GLOBS: (glob_specs Delta) ! id = Some (mk_funspec (argsig,retty) cc A Pre Post))
+   (GLOBT: (glob_types Delta) ! id = Some (type_of_funspec (mk_funspec (argsig,retty) cc A Pre Post)))
    (TYret: typeof_temp Delta ret = Some retty)
    (OKretty: check_retty retty)
    (H: paramty = type_of_params argsig)
@@ -730,7 +739,7 @@ Lemma semax_call_id1_wow:
    (PPRE: fold_right_and True Ppre),
    @semax cs Espec Delta (PROPx P (LOCALx Q (SEPx R)))
     (Scall (Some ret)
-             (Evar id (Tfunction paramty retty cc_default))
+             (Evar id (Tfunction paramty retty cc))
              bl)
     (normal_ret_assert Post2).
 Proof.
@@ -862,7 +871,7 @@ Qed.
 Lemma semax_call_id1_x_wow:
  forall  {A} (witness: A) (Frame: list mpred) 
            Espec {cs: compspecs} Delta P Q R ret ret' id (paramty: typelist) (retty retty': type) (bl: list expr)
-                  (argsig: list (ident * type)) (Pre Post: A -> environ -> mpred)
+                  (argsig: list (ident * type)) cc (Pre Post: A -> environ -> mpred)
              (Post2: environ -> mpred)
              (Ppre: list Prop)
              (Qpre Qnew: list localdef)
@@ -875,8 +884,8 @@ Lemma semax_call_id1_x_wow:
              (Rpost: B -> list mpred)
              (vl : list val)
    (GLBL: (var_types Delta) ! id = None)
-   (GLOBS: (glob_specs Delta) ! id = Some (mk_funspec (argsig,retty') A Pre Post))
-   (GLOBT: (glob_types Delta) ! id = Some (type_of_funspec (mk_funspec (argsig,retty') A Pre Post)))
+   (GLOBS: (glob_specs Delta) ! id = Some (mk_funspec (argsig,retty') cc A Pre Post))
+   (GLOBT: (glob_types Delta) ! id = Some (type_of_funspec (mk_funspec (argsig,retty') cc A Pre Post)))
    (TYret: typeof_temp Delta ret = Some retty) 
    (RETinit: (temp_types Delta) ! ret' = Some (retty', false))
    (OKretty: check_retty retty)
@@ -908,7 +917,7 @@ Lemma semax_call_id1_x_wow:
    (PPRE: fold_right_and True Ppre),
    @semax cs Espec Delta (PROPx P (LOCALx Q (SEPx R)))
    (Ssequence (Scall (Some ret')
-             (Evar id (Tfunction paramty retty' cc_default))
+             (Evar id (Tfunction paramty retty' cc))
              bl)
       (Sset ret (Ecast (Etempvar ret' retty') retty)))
     (normal_ret_assert Post2).     
@@ -995,7 +1004,7 @@ Qed.
 Lemma semax_call_id1_y_wow:
  forall  {A} (witness: A) (Frame: list mpred) 
            Espec {cs: compspecs} Delta P Q R ret ret' id (paramty: typelist) (retty retty': type) (bl: list expr)
-                  (argsig: list (ident * type)) (Pre Post: A -> environ -> mpred)
+                  (argsig: list (ident * type)) cc (Pre Post: A -> environ -> mpred)
              (Post2: environ -> mpred)
              (Ppre: list Prop)
              (Qpre Qnew: list localdef)
@@ -1008,8 +1017,8 @@ Lemma semax_call_id1_y_wow:
              (Rpost: B -> list mpred)
              (vl : list val)
    (GLBL: (var_types Delta) ! id = None)
-   (GLOBS: (glob_specs Delta) ! id = Some (mk_funspec (argsig,retty') A Pre Post))
-   (GLOBT: (glob_types Delta) ! id = Some (type_of_funspec (mk_funspec (argsig,retty') A Pre Post)))
+   (GLOBS: (glob_specs Delta) ! id = Some (mk_funspec (argsig,retty') cc A Pre Post))
+   (GLOBT: (glob_types Delta) ! id = Some (type_of_funspec (mk_funspec (argsig,retty') cc A Pre Post)))
    (TYret: typeof_temp Delta ret = Some retty) 
    (RETinit: (temp_types Delta) ! ret' = Some (retty', false))
    (OKretty: check_retty retty)
@@ -1041,7 +1050,7 @@ Lemma semax_call_id1_y_wow:
    (PPRE: fold_right_and True Ppre),
    @semax cs Espec Delta (PROPx P (LOCALx Q (SEPx R)))
    (Ssequence (Scall (Some ret')
-             (Evar id (Tfunction paramty retty' cc_default))
+             (Evar id (Tfunction paramty retty' cc))
              bl)
       (Sset ret (Etempvar ret' retty')))
     (normal_ret_assert Post2).  
@@ -1121,7 +1130,7 @@ Qed.
 Lemma semax_call_id01_wow:
  forall  {A} (witness: A) (Frame: list mpred) 
            Espec {cs: compspecs} Delta P Q R id (paramty: typelist) (retty: type) (bl: list expr)
-                  (argsig: list (ident * type)) (Pre Post: A -> environ -> mpred)
+                  (argsig: list (ident * type)) cc (Pre Post: A -> environ -> mpred)
              (Post2: environ -> mpred)
              (Ppre: list Prop)
              (Qpre: list localdef)
@@ -1134,8 +1143,8 @@ Lemma semax_call_id01_wow:
              (Rpost: B -> list mpred)
              (vl : list val)
    (GLBL: (var_types Delta) ! id = None)
-   (GLOBS: (glob_specs Delta) ! id = Some (mk_funspec (argsig,retty) A Pre Post))
-   (GLOBT: (glob_types Delta) ! id = Some (type_of_funspec (mk_funspec (argsig,retty) A Pre Post)))
+   (GLOBS: (glob_specs Delta) ! id = Some (mk_funspec (argsig,retty) cc A Pre Post))
+   (GLOBT: (glob_types Delta) ! id = Some (type_of_funspec (mk_funspec (argsig,retty) cc A Pre Post)))
    (_: check_retty retty)
          (* this hypothesis is not needed for soundness, just for selectivity *)
    (H: paramty = type_of_params argsig)
@@ -1161,7 +1170,7 @@ Lemma semax_call_id01_wow:
    (PPRE: fold_right_and True Ppre),
    @semax cs Espec Delta (PROPx P (LOCALx Q (SEPx R)))
     (Scall None
-             (Evar id (Tfunction paramty retty cc_default))
+             (Evar id (Tfunction paramty retty cc))
              bl)
     (normal_ret_assert Post2).
 Proof.
@@ -1268,7 +1277,7 @@ Qed.
 Lemma semax_call_id00_wow:
  forall  {A} (witness: A) (Frame: list mpred) 
            Espec {cs: compspecs} Delta P Q R id (paramty: typelist) (bl: list expr)
-                  (argsig: list (ident * type)) (retty: type) (Pre Post: A -> environ -> mpred)
+                  (argsig: list (ident * type)) (retty: type) cc (Pre Post: A -> environ -> mpred)
              (Post2: environ -> mpred)
              (Ppre: list Prop)
              (Qpre: list localdef)
@@ -1280,8 +1289,8 @@ Lemma semax_call_id00_wow:
              (Rpost: B -> list mpred)
              (vl : list val)
    (GLBL: (var_types Delta) ! id = None)
-   (GLOBS: (glob_specs Delta) ! id = Some (mk_funspec (argsig,Tvoid) A Pre Post))
-   (GLOBT: (glob_types Delta) ! id = Some (type_of_funspec (mk_funspec (argsig,retty) A Pre Post)))
+   (GLOBS: (glob_specs Delta) ! id = Some (mk_funspec (argsig,Tvoid) cc A Pre Post))
+   (GLOBT: (glob_types Delta) ! id = Some (type_of_funspec (mk_funspec (argsig,retty) cc A Pre Post)))
    (RETTY: retty = Tvoid)
    (H: paramty = type_of_params argsig)
    (PTREE: local2ptree Q = (Qtemp, Qvar, nil, nil))
@@ -1304,7 +1313,7 @@ Lemma semax_call_id00_wow:
    (PPRE: fold_right_and True Ppre),
    @semax cs Espec Delta (PROPx P (LOCALx Q (SEPx R)))
     (Scall None
-             (Evar id (Tfunction paramty Tvoid cc_default))
+             (Evar id (Tfunction paramty Tvoid cc))
              bl)
     (normal_ret_assert Post2).
 Proof.
