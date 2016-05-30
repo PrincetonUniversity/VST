@@ -51,8 +51,6 @@ Notation UNLOCK := (EF_external "UNLOCK" UNLOCK_SIG).
 Require Import concurrency.permissions.
 Require Import concurrency.threadPool.
 
-Definition no_info: Type:= unit. (* Make unit into a type-- otherwise get univ. inconc. *)
-
 Module LocksAndResources.
   Definition res := access_map.
   Definition lock_info := no_info. (* dry machine doesn't carry extra info in the locks *)

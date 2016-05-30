@@ -4867,9 +4867,10 @@ Module SimProofs.
         to establish the machine invariant and the fact that the new
         memory and threadpool are compatible hence we prove it here*)
         assert (HsafeC': forall sched n,
-                   safeN CoarseSem the_ge n (sched,
-                                             updThread pfc (Kresume c Vundef)
-                                                       (computeMap (getThreadR pfc) virtue)) mc').
+                   safeN CoarseSem the_ge n
+                         (sched,
+                          updThread pfc (Kresume c Vundef)
+                                    (computeMap (getThreadR pfc) virtue)) mc').
         { clear - Hsim HstepC.
           assert (Hsafe := safeCoarse Hsim).
           intros U n.
@@ -4994,26 +4995,97 @@ Module SimProofs.
           eapply (HfpSep _ _ cntk cntj Hkj b0 b0');
             by eauto.
           (* Proof of strong simulations after executing some thread*)
-          admit.
+
+          Lemma lock_strong_tsim:
+            forall (tpc tpf : thread_pool) (mc mf mc' mf' : mem) (xs : Sch)
+              (fp : fpool tpc) (i : tid) (pff : containsThread tpf i)
+              (HmemCompC : mem_compatible tpc mc)
+              (HmemCompF : mem_compatible tpf mf)
+              (pfc : containsThread tpc i) (c cf : code) (b b2 : block) 
+              (ofs v: int) (virtue : delta_map) ext sig
+              (HmemCompF' : mem_compatible
+                              (updThread pff (Kresume cf Vundef)
+                                         (computeMap (getThreadR pff)
+                                                     (projectAngel (fp i pfc) virtue))) mf')
+              (Hstore: Mem.store Mint32 (restrPermMap (compat_rp HmemCompC)) b
+                                 (Int.intval ofs) (Vint v) = Some mc')
+              (HstoreF: Mem.store Mint32 (restrPermMap (compat_rp HmemCompF)) b2
+                                 (Int.intval ofs) (Vint v) = Some mf')
+              (Hsim: sim tpc mc tpf mf xs (fp i pfc) fp)
+              (Hat_external: at_external Sem c = Some (ext, ef_sig sig, [:: Vptr b ofs]))
+              (Hcode: getThreadC pfc = Kblocked c)
+              (Hat_externalF: at_external Sem cf = Some (ext, ef_sig sig, [:: Vptr b2 ofs]))
+              (HcodeF: getThreadC pff = Kblocked cf)
+              (Hf: fp i pfc b = Some (b2, 0%Z)),
+              forall (tid : tid)
+                (pfc0 : containsThread
+                          (updThread pfc (Kresume c Vundef)
+                                     (computeMap (getThreadR pfc) virtue)) tid)
+                (pff0 : containsThread
+                          (updThread pff (Kresume cf Vundef)
+                                     (computeMap (getThreadR pff)
+                                                 (projectAngel (fp i pfc) virtue))) tid),
+              exists (tpc' : thread_pool) (mc'0 : mem),
+                inject_incr (fp i pfc) (fp tid pfc0) /\
+                ([seq x <- xs | x == tid] = [::] -> fp i pfc = fp tid pfc0) /\
+                internal_execution [seq x <- xs | x == tid]
+                                   (updThread pfc (Kresume c Vundef)
+                                              (computeMap (getThreadR pfc) virtue)) mc' tpc' mc'0 /\
+                (forall (pfc' : containsThread tpc' tid)
+                   (mem_compc' : mem_compatible tpc' mc'0),
+                    strong_tsim (fp tid pfc0) pfc' pff0 mem_compc' HmemCompF') /\
+                (forall (tid2 : DryMachine.tid)
+                   (pff2 : containsThread
+                             (updThread pff (Kresume cf Vundef)
+                                        (computeMap (getThreadR pff)
+                                                    (projectAngel (fp i pfc) virtue))) tid2),
+                    tid <> tid2 ->
+                    forall (b1 b0 : block) (ofs0 : Z),
+                      fp tid pfc0 b1 = Some (b0, 0%Z) ->
+                      fp i pfc b1 = None -> (getThreadR pff2) # b0 ofs0 = None) /\
+                (forall (b1 b0 : block) (ofs0 : Z),
+                    fp tid pfc0 b1 = Some (b0, 0%Z) ->
+                    fp i pfc b1 = None ->
+                    (lockSet
+                       (updThread pff (Kresume cf Vundef)
+                                  (computeMap (getThreadR pff) (projectAngel (fp i pfc) virtue))))
+                      # b0 ofs0 = None).
+          Proof.
+            intros.
+            
+            
+            
+            Lemma mem_obs_eq_storeLP:
+              forall tpc tpf mc mf mc' mf' i b1 b2 ofs v
+                (pfci: containsThread tpc i)
+                (pffi: containsThread tpf i)
+                (HmemCompC: mem_compatible tpc mc)
+                (HmemCompF: mem_compatible tpf mf)
+                (HinvC: invariant tpc)
+                (HinvF: invariant tpf)
+                (Hobs_eq: mem_obs_eq f (restrPermMap (compc i pfc))
+                                     (restrPermMap (compf i pff)))
+                (HstoreC: Mem.store Mint32 (restrPermMap (compat_rp HmemCompC)) b1
+                                    ofs (Vint v) = Some mc')
+                (HstoreF: Mem.store Mint32 (restrPermMap (compat_rp HmemCompF)) b2
+                                    ofs (Vint v) = Some mf')
+                (HmemCompC': mem_compatible tpc
+                
+                (Hobs_eq: mem_obs_eq f (restrPermMap (compc i pfc))
+                                     (restrPermMap (compf i pff)))
+            
+
+          
           (* Proof of [strong_mem_obs_eq] for lock pool*)
           eapply sync_strong_mem_obs_eq; eauto.
           specialize (HsimWeak _ pfc pff);
             by apply (injective HsimWeak).
           (* Proof of invariant preservation for fine-grained machine*)
-
-          assert ((forall b1, ~ (fp i pfc) b1 = Some (b2, 0%Z)) ->
-                  (computeMap (getThreadR pff) (projectAngel (fp i pfc) virtue))
-                    # b2 ofs = (getThreadR pff) # b2 ofs).
-          { clear - Hangel.
-            intros HnotMapped.
-            unfold projectAngel.
-            rewrite Maps.PTree.fold_spec.
-            assert (forall b1, ~ Mem.valid_block mc b1 ->
-                          computeMap
-                            
-                            
-                            
-
+          destruct Htsim.
+          eapply invariant_project;
+            by eauto.
+          (* Max permission invariant*)
+            by assumption.
                             
                             
                             
@@ -5021,8 +5093,7 @@ Module SimProofs.
                             
                             
 
-                            admit.
-                    Admitted.
+                                                Admitted.
                     
                     
                     End SimProofs.
