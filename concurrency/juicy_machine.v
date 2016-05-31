@@ -83,11 +83,9 @@ Notation "x < y" := (x < y)%nat.
 End LockPool.
 Export LockPool.*)
 
-Definition lock_information: Type:= option rmap.
-
 Module LocksAndResources.
   Definition res := rmap.
-  Definition lock_info := lock_information.
+  Definition lock_info: Type := option rmap.
 End LocksAndResources.
 
 Module ThreadPool (SEM:Semantics) <: ThreadPoolSig

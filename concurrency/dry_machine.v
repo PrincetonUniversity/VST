@@ -148,7 +148,7 @@ Module Concur.
               (cnt0:containsThread tp tid0)(Hcompat:mem_compatible tp m):
       thread_pool -> mem -> Prop :=
     | step_acquire :
-        forall (tp' tp'':thread_pool) m1 c m' b ofs pmap virtueThread virtueLP
+        forall (tp' tp'':thread_pool) m1 c m' b ofs pmap virtueThread
           (Hinv : invariant tp)
           (Hcode: getThreadC cnt0 = Kblocked c)
           (Hat_external: at_external Sem c =
@@ -159,17 +159,18 @@ Module Concur.
           (Hstore: Mem.store Mint32 m1 b (Int.intval ofs) (Vint Int.zero) = Some m')
           (HisLock: lockRes tp (b, Int.intval ofs) = Some pmap)
           (Hangel: angelSpec pmap (getThreadR cnt0)
-                             (computeMap pmap virtueLP)
+                             empty_map
                              (computeMap (getThreadR cnt0) virtueThread))
           (Htp': tp' = updThread cnt0 (Kresume c Vundef)
                                  (computeMap (getThreadR cnt0) virtueThread))
-          (Htp'': tp'' = updLockSet tp' (b, Int.intval ofs) (computeMap pmap virtueLP)),
+          (Htp'': tp'' = updLockSet tp' (b, Int.intval ofs) empty_map),
           ext_step genv cnt0 Hcompat tp'' m' 
                    
     | step_release :
         forall (tp' tp'':thread_pool) m1 c m' b ofs pmap virtueThread virtueLP
           (Hinv : invariant tp)
           (Hcode: getThreadC cnt0 = Kblocked c)
+          (*His_empty: pmap = empty_map *) (*Maybe we need this? *)
           (Hat_external: at_external Sem c =
                          Some (UNLOCK, ef_sig UNLOCK, Vptr b ofs::nil))
           (Hrestrict_pmap: restrPermMap (compat_ls Hcompat) = m1)
