@@ -414,6 +414,20 @@ Module OrdinalPool (SEM:Semantics) (RES:Resources) <: ThreadPoolSig
       by discriminate.
   Qed.
 
-End OrdinalPool.
+  Lemma gsoThreadCLPool:
+    forall {i tp} c (cnti: containsThread tp i) addr,
+      lockRes (updThreadC cnti c) addr = lockRes tp addr.
+  Proof.
+    by auto.
+  Qed.
 
+  Lemma gsoThreadLPool:
+    forall {i tp} c p (cnti: containsThread tp i) addr,
+      lockRes (updThread cnti c p) addr = lockRes tp addr.
+  Proof.
+      by auto.
+  Qed.
+      
+  
+End OrdinalPool.
   

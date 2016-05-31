@@ -21,8 +21,8 @@ From mathcomp.ssreflect Require Import ssreflect seq.
 Module Type Semantics.
   Parameter G: Type.
   Parameter C: Type.
-  Definition M: Type:= mem.
-  Parameter Sem: CoreSemantics G C M.
+  (* Definition M: Type:= mem. *) (*well we might as well drop that right?*)
+  Parameter Sem: MemSem G C.
 End Semantics.
 
 Notation EXIT := 
@@ -226,6 +226,14 @@ Module Type ThreadPoolSig.
         (cnti: containsThread tp i) vf arg p
         (cnti': containsThread (addThread tp vf arg p) i),
       getThreadC cnti' = getThreadC cnti.
+
+  Axiom gsoThreadCLPool:
+    forall {i tp} c (cnti: containsThread tp i) addr,
+      lockRes (updThreadC cnti c) addr = lockRes tp addr.
+
+  Axiom gsoThreadLPool:
+    forall {i tp} c p (cnti: containsThread tp i) addr,
+      lockRes (updThread cnti c p) addr = lockRes tp addr.
   
 End ThreadPoolSig.
 
@@ -237,8 +245,8 @@ Module Type ConcurrentMachineSig.
   Notation thread_pool := ThreadPool.t.
   (** Memories*)
   Parameter richMem: Type.
-  Parameter dryMem: richMem -> M.
-  Parameter diluteMem : M -> M.
+  Parameter dryMem: richMem -> mem.
+  Parameter diluteMem : mem -> mem.
 
   
   (** Environment and Threadwise semantics *)
@@ -279,7 +287,7 @@ Module Type ConcurrentMachine.
 
   Definition MachState : Type:= (schedule * t)%type.
 
-  Parameter MachineSemantics: schedule -> CoreSemantics SIG.ThreadPool.SEM.G MachState SEM.M.
+  Parameter MachineSemantics: schedule -> CoreSemantics SIG.ThreadPool.SEM.G MachState mem.
 
   Axiom initial_schedule: forall genv main vals U U' c,
       initial_core (MachineSemantics U) genv main vals = Some (U',c) ->

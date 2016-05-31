@@ -34,7 +34,7 @@ Module MemObsEq.
      unlike compcert injections *)
   
   (** Weak injection between memories *)
-  Record weak_mem_obs_eq (f : meminj) (mc mf : M) :=
+  Record weak_mem_obs_eq (f : meminj) (mc mf : mem) :=
     {
       domain_invalid: forall b, ~(Mem.valid_block mc b) -> f b = None;
       domain_valid: forall b, Mem.valid_block mc b -> exists b', f b = Some (b',0%Z);
@@ -70,7 +70,7 @@ Module MemObsEq.
   | memval_obs_undef : memval_obs_eq f Undef Undef.
 
   (** Strong injection between memories *)
-  Record strong_mem_obs_eq (f : meminj) (mc mf : M) :=
+  Record strong_mem_obs_eq (f : meminj) (mc mf : mem) :=
     { perm_obs_strong :
         forall b1 b2 ofs (Hrenaming: f b1 = Some (b2,0%Z)),
             permission_at mf b2 ofs Cur =
@@ -83,7 +83,7 @@ Module MemObsEq.
 
   
   (** Strong injection between memories *)
-  Record mem_obs_eq (f : meminj) (mc mf : M) :=
+  Record mem_obs_eq (f : meminj) (mc mf : mem) :=
     { weak_obs_eq : weak_mem_obs_eq f mc mf;
       strong_obs_eq : strong_mem_obs_eq f mc mf }.
 
