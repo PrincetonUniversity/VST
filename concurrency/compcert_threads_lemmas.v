@@ -18,6 +18,7 @@ Require Import compcert.common.Values. (*for val*)
 Require Import compcert.common.Globalenvs. 
 Require Import compcert.common.Memory.
 Require Import compcert.common.Events.
+Require Import concurrency.addressFiniteMap.
 Require Import compcert.lib.Integers.
 
 Require Import Coq.ZArith.ZArith.
@@ -523,7 +524,7 @@ Module InternalSteps.
         (Hcomp': mem_compatible tp' m')
         (Hstep: internal_step pfi Hcomp tp' m') b ofs
         (Hreadable: 
-           Mem.perm (restrPermMap (compat_rp Hcomp)) b ofs Cur Readable),
+           Mem.perm (restrPermMap (compat_ls Hcomp)) b ofs Cur Readable),
         Maps.ZMap.get ofs (Mem.mem_contents m) # b =
         Maps.ZMap.get ofs (Mem.mem_contents m') # b.
     Proof.
@@ -539,7 +540,7 @@ Module InternalSteps.
         (Hcomp: mem_compatible tp m)
         (Hstep: internal_execution [seq x <- xs | x == i] tp m tp' m') b ofs
         (Hreadable: 
-           Mem.perm (restrPermMap (compat_rp Hcomp)) b ofs Cur Readable),
+           Mem.perm (restrPermMap (compat_ls Hcomp)) b ofs Cur Readable),
         Maps.ZMap.get ofs (Mem.mem_contents m) # b =
         Maps.ZMap.get ofs (Mem.mem_contents m') # b.
     Proof.
@@ -562,16 +563,16 @@ Module InternalSteps.
           assert(Hcomp0': mem_compatible tp'0 m'0) by
               (eapply internal_step_compatible; eauto).
           assert (Hreadable0':
-                    Mem.perm (restrPermMap (compat_rp Hcomp0')) b ofs Cur Readable).
+                    Mem.perm (restrPermMap (compat_ls Hcomp0')) b ofs Cur Readable).
           { clear IHxs Htrans HschedN Hstep.
             assert (Hperm_eq :=
                       gsoLockSet_step Hstep0).
             unfold Mem.perm in *.
-            assert (H1:= restrPermMap_Cur (compat_rp Hcomp0') b ofs).
+            assert (H1:= restrPermMap_Cur (compat_ls Hcomp0') b ofs).
             unfold permission_at in H1.
             rewrite H1.
             rewrite <- Hperm_eq.
-            assert (H2:= restrPermMap_Cur (compat_rp Hcomp) b ofs).
+            assert (H2:= restrPermMap_Cur (compat_ls Hcomp) b ofs).
             unfold permission_at in H2.
               by rewrite H2 in Hreadable.
           }
@@ -947,8 +948,15 @@ here*)
                         (fp _ pfc) b1 = Some (b2,0%Z) ->
                         f b1 = None ->
                         (lockSet tpf) # b2 ofs = None);
-      simLocks: strong_mem_obs_eq f (restrPermMap (compat_rp mem_compc))
-                                  (restrPermMap (compat_rp mem_compf));
+      simLocks: strong_mem_obs_eq f (restrPermMap (compat_ls mem_compc))
+                                  (restrPermMap (compat_ls mem_compf));
+      simLockRes: forall bl1 bl2 ofs rmap1 rmap2
+                    (Hf: f bl1 = Some (bl2,0%Z))
+                    (Hl1: lockRes tpc (bl1,ofs) = Some rmap1)
+                    (Hl2: lockRes tpf (bl2,ofs) = Some rmap2),
+          strong_mem_obs_eq f (restrPermMap ((compat_lp mem_compc) _ _ Hl1))
+                            (restrPermMap ((compat_lp mem_compf) _ _ Hl2));
+          
       invF: invariant tpf;
       maxF: max_inv mf
     }.
@@ -1291,6 +1299,7 @@ Module SimProofs.
       assert (cnti := @cntUpdateC' tid i tp (Krun c_new) Htid cnti').
       erewrite gsoThreadCLock;
         by erewrite gThreadCR with (cntj := cnti).
+      admit. admit.
     - constructor.
       intros i j cnti' cntj' Hneq.
       assert (cnti := @cntUpdateC' tid i tp (Krun c) Htid cnti').
@@ -1302,8 +1311,9 @@ Module SimProofs.
       assert (cnti := @cntUpdateC' tid i tp (Krun c) Htid cnti').
       erewrite gsoThreadCLock;
         by erewrite gThreadCR with (cntj := cnti).
+      admit. admit.
     - by eapply corestep_invariant; eauto.
-  Qed.
+  Admitted.
   
   Lemma mem_compatible_setMaxPerm :
     forall tp m
@@ -1311,8 +1321,8 @@ Module SimProofs.
       mem_compatible tp (setMaxPerm m).
   Proof.
     intros tp m Hcomp.
-    constructor;
-      [intros i cnti b ofs | intros b ofs];
+    constructor; [idtac | admit | idtac];
+      [intros i cnti b ofs |intros b ofs];
       rewrite getMaxPerm_correct;
       destruct (valid_block_dec m b) as [Hvalid | Hinvalid];
       try (
@@ -1324,14 +1334,14 @@ Module SimProofs.
       try (
           erewrite setMaxPerm_MaxI by assumption;
           apply Mem.nextblock_noaccess with (ofs := ofs) (k := Max) in Hinvalid;
-          destruct Hcomp as [Hltth Hltls]);
+          destruct Hcomp as [Hltth ? Hltls]);
       [specialize (Hltth _ cnti b ofs)
       | specialize (Hltls b ofs)];
       rewrite getMaxPerm_correct in Hltth Hltls;
       unfold permission_at in *;
       rewrite Hinvalid in Hltth Hltls; simpl in *;
         by auto.
-  Qed.
+  Admitted.
   
   Lemma fmachine_step_compatible:
     forall (tp tp' : thread_pool) m m' (i : nat) (pf : containsThread tp i) U
@@ -1649,7 +1659,7 @@ Module SimProofs.
         specialize (Hseparated _ _ _ Hfi Hfi').
         destruct Hseparated as [Hinvalidmc1 Hinvalidmf1].
         apply Mem.nextblock_noaccess with (k := Max) (ofs := ofs) in Hinvalidmf1.
-        assert (Hlt := (compat_rp Hcompf) b2 ofs).
+        assert (Hlt := (compat_ls Hcompf) b2 ofs).
         rewrite getMaxPerm_correct in Hlt.
         assert (Hperm_b2: permission_at mf b2 ofs Max = None).
         { subst mf1.

@@ -42,6 +42,9 @@ Module OrdinalPool (SEM:Semantics) (RES:Resources) <: ThreadPoolSig
   Definition lockGuts := lset.
   Definition lockSet (tp:t) := A2PMap (lset tp).
 
+  Definition lockRes t : address -> option lock_info:=
+    AMap.find (elt:=lock_info)^~ (lockGuts t).
+
   Definition containsThread (tp : t) (i : NatTID.tid) : Prop:=
     i < num_threads tp.
 

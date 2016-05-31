@@ -95,8 +95,6 @@ Module ThreadPool (SEM:Semantics) <: ThreadPoolSig
     with Module RES:= LocksAndResources.
   Include (OrdinalPool SEM LocksAndResources).
   (** The Lock Resources Set *)
-  Definition lock_set t:address -> option (option rmap):=
-    (AMap.find (elt:=option rmap))^~ (lockGuts t).
 
   Definition is_lock t:= fun loc => AMap.mem loc (lset t).
 
@@ -242,13 +240,13 @@ Module Concur.
     (* Per-lock disjointness definition*)
     Definition disjoint_locks tp :=
       forall loc1 loc2 r1 r2,
-        lock_set tp loc1 = SSome r1 ->
-        lock_set tp loc2 = SSome r2 ->
+        lockRes tp loc1 = SSome r1 ->
+        lockRes tp loc2 = SSome r2 ->
         joins r1 r2.
     (* lock-thread disjointness definition*)
     Definition disjoint_lock_thread tp :=
       forall i loc r (cnti : containsThread tp i),
-        lock_set tp loc = SSome r ->
+        lockRes tp loc = SSome r ->
         joins (getThreadR cnti)r.
     
     Variant invariant' (tp:t) := True. (* The invariant has been absorbed my mem_compat*)
@@ -452,7 +450,7 @@ Module Concur.
                makeCurMax m = m1)
             (Hload: Mem.load Mint32 m1 b (Int.intval ofs) = Some (Vint Int.one))
             (Hstore: Mem.store Mint32 m1 b (Int.intval ofs) (Vint Int.zero) = Some m')
-            (His_unlocked: lock_set tp (b, Int.intval ofs) = SSome d_phi )
+            (His_unlocked: lockRes tp (b, Int.intval ofs) = SSome d_phi )
             (Hadd_lock_res: join phi d_phi  phi')  
             (Htp': tp' = updThread cnt0 (Kresume c Vundef) phi')
             (Htp'': tp'' = updLockSet tp' (b, Int.intval ofs) None ),

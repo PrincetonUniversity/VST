@@ -84,7 +84,7 @@ Module Type ThreadPoolSig.
   Parameter getThreadR : forall {tid tp}, containsThread tp tid -> res.
   Parameter lockGuts : t -> AMap.t lock_info.  (* Gets the set of locks + their info    *)
   Parameter lockSet : t -> access_map.         (* Gets the permissions for the lock set *)
-
+  Parameter lockRes : t -> address -> option lock_info.
   Parameter addThread : t -> val -> val -> res -> t. (*vals are function pointer and argument respectively. *)
   Parameter updThreadC : forall {tid tp}, containsThread tp tid -> ctl -> t.
   Parameter updThreadR : forall {tid tp}, containsThread tp tid -> res -> t.
