@@ -62,7 +62,9 @@ Module ClightParching <: ErasureSig.
                     JTP.getThreadC Htid = DTP.getThreadC Htid' )
                 (mtch_perm: forall b ofs {tid} (Htid:JTP.containsThread js tid)(Htid':DTP.containsThread ds tid),
                     juicy_mem.perm_of_res (resource_at (JTP.getThreadR Htid) (b, ofs)) = ((DTP.getThreadR Htid') !! b) ofs )
-                (mtch_locks: AMap.map (fun _ => tt) (JTP.lockGuts js) = DTP.lockGuts ds),
+                (mtch_locks:
+                     (JSEM.ThreadPool.lockSet js) = (DSEM.ThreadPool.lockSet ds))
+                (*mtch_locks: AMap.map (fun _ => tt) (JTP.lockGuts js) = DTP.lockGuts ds*),
       match_st' js ds.
   
   Definition match_st:= match_st'.
@@ -284,11 +286,11 @@ Module ClightParching <: ErasureSig.
                   unfold not; intros H. apply MiniAddressOrdered.lt_not_eq in H.
                   apply H. reflexivity.
             Qed.
-            Lemma map_erased_add: forall A (t:AMap.t A)  r loc ,
+            Lemma map_erased_add: forall  A B (t:AMap.t A) (any:B)  r loc ,
                 AMap.In loc t ->
-                AMap.map (fun _ => tt)
+                AMap.map (fun _ => any)
                          (AMap.add loc r t) =
-                AMap.map (fun _  => tt) t.
+                AMap.map (fun _  => any) t.
             Proof.
               intros.
               apply HackingTheDependentType.
@@ -340,8 +342,14 @@ Module ClightParching <: ErasureSig.
                            * exists x. apply H4.
               }
             Qed.
-            apply map_erased_add. assumption.
-    Qed.
+            unfold JSEM.ThreadPool.lockSet.
+            unfold A2PMap.
+            unfold JSEM.ThreadPool.lset, JTP.updLockSet, JSEM.ThreadPool.lockGuts; simpl.
+            f_equal.
+            unfold AMap.elements, AMap.Raw.elements.
+            replace (let (num_threads, _, _, lset) := js in lset) with (JSEM.ThreadPool.lset js); try solve[reflexivity].
+            admit. (*adding something that is already in it... *)
+    Admitted.
     Lemma MTCH_update:
       forall js ds Kc phi p i
         (Hi : JTP.containsThread js i)
@@ -438,11 +446,10 @@ Module ClightParching <: ErasureSig.
         - generalize no_race; unfold DSEM.race_free.
           simpl. intros.
           apply no_race0; auto.
-        - simpl; assumption. 
         - simpl; assumption.
+        (* - simpl; assumption. *)
   Qed.
   
-
   Lemma conc_step_diagram:
     forall m m' U js js' ds i genv
       (MATCH: match_st js ds)
@@ -528,9 +535,10 @@ Module ClightParching <: ErasureSig.
                inversion MATCH; subst.
                unfold PMap.get in mtch_perm.
                specialize (mtch_perm b0 ofs0 i Hi Htid'); rewrite valb0D in mtch_perm.
-               apply JSEM.thread_mem_compatible in Hcompatible.
-               move Hcompatible at bottom. specialize (Hcompatible i Hi).
-               inversion Hcompatible.
+               pose (Hcompatible':= Hcompatible).
+               apply JSEM.thread_mem_compatible in Hcompatible'.
+               move Hcompatible at bottom. specialize (Hcompatible' i Hi).
+               inversion Hcompatible'.
                specialize (acc_coh (b0, ofs0)).
                unfold max_access_at, PMap.get  in acc_coh; simpl in acc_coh.
                rewrite valb0MEM in acc_coh.
@@ -566,7 +574,7 @@ Module ClightParching <: ErasureSig.
                  admit. (*We know both sides are None, because of mem_compatible, the join and because 
                          mem is None at that point, so it tricles down. *)
            }
-
+           
            (*Proving (b,ofs) is a lock*)
            { 
              clear - His_unlocked.
@@ -598,8 +606,14 @@ Module ClightParching <: ErasureSig.
              unfold JSEM.locks_correct in loc_set_ok.
              eapply loc_set_ok.
              eapply JSEM.join_geq; eassumption.*)
-           + reflexivity.
-           + move Hload at bottom. assumption.
+           + instantiate(1:=(permissions.restrPermMap
+               (JSEM.mem_compatible_locks_ltwritable Hcompatible))). 
+             apply restrPermMap_ext.
+             intros b0.
+             inversion MATCH; subst.
+             rewrite mtch_locks.
+             reflexivity.
+           + assumption.
            + assumption.
            + instantiate(1:=virtue).
              replace (MTCH_cnt MATCH Hi) with Htid' by apply proof_irrelevance.
@@ -618,7 +632,7 @@ Module ClightParching <: ErasureSig.
          pose (virtue:= PTree.map
                                       (fun (block : positive) (_ : Z -> option permission) (ofs : Z) =>
                                           (inflated_delta (block, ofs))) (snd (permissions.getCurPerm m)) ).
-         exists (DSEM.ThreadPool.updThread Htid' (Kresume c)
+         exists (DSEM.ThreadPool.updThread Htid' (Kresume c Vundef)
                   (permissions.computeMap
                      (DSEM.ThreadPool.getThreadR Htid') virtue)).
          split; [|split].
@@ -631,15 +645,12 @@ Module ClightParching <: ErasureSig.
 
       destruct Hcmpt.
       unfold JSEM.locks_correct in loc_set_ok.
-      
-      
-      (*HERE *)
       apply (JSEM.join_geq(all_juice:=all_juice)) in HJcanwrite; auto.
       apply loc_set_ok in HJcanwrite.
       clear -HJcanwrite.
-      destruct (find (b, Int.intval ofs)
-                     (JSEM.ThreadPool.lockSet js)) eqn:B.
-      + apply (find_2 ) in B.
+      destruct ((AMap.find (elt:=option rmap) 
+                       (b, Int.intval ofs) (JSEM.ThreadPool.lockGuts js))) eqn:B.
+      + apply (AMap.find_2 ) in B.
         exists o; auto.
       + inversion HJcanwrite.
     - econstructor 2.
@@ -647,13 +658,13 @@ Module ClightParching <: ErasureSig.
       + eapply MTCH_getThreadC; eassumption.
       + eassumption.
 (*      + eapply MTCH_compat; eassumption. *)
-      + inversion MATCH; subst.
-        rewrite <- mtch_locks.
-        destruct Hcmpt.
-        unfold JSEM.locks_correct in loc_set_ok.
-        eapply loc_set_ok.
-        eapply JSEM.join_geq; eassumption.
-      + reflexivity.
+      + instantiate(1:=(permissions.restrPermMap
+               (JSEM.mem_compatible_locks_ltwritable Hcompatible))). 
+             apply restrPermMap_ext.
+             intros b0.
+             inversion MATCH; subst.
+             rewrite mtch_locks.
+             reflexivity.
       + assumption.
       + assumption.
       + instantiate(1:=virtue).
@@ -662,7 +673,9 @@ Module ClightParching <: ErasureSig.
     }
 
     (* step_create *)
-    { (* This step needs a complete overhaul!*)
+    { 
+
+      (* This step needs a complete overhaul!*)
       (* Will work on this once all other steps are 'reliably' proven. *)
       admit.
     }
@@ -679,28 +692,21 @@ Module ClightParching <: ErasureSig.
                                                (DTP.lockSet ds)).
       
       
-      exists (DTP.updLockSet (DTP.updThread Htid' (Kresume c) pmap_tid' ) pmap_lp).
+      exists (DTP.updLockSet (DTP.updThread Htid' (Kresume c Vundef) pmap_tid' )
+                        (b, Int.intval ofs) tt).
       split ; [|split].
       - admit. (*Nick has this proof somewhere. *)
-      - unfold pmap_lp.
-        erewrite <- DTP.gsoThreadLock.
-        apply MTCH_addLock. 
-        apply MTCH_update; auto.
-        intros.
-        
-        (*This is going tot ake some work. If its false the definitions can easily change. *)
-        admit.
+      - rewrite Htp'' Htp'. 
+        admit. (*Easy to prove lemma*)
       - econstructor 4. (*The step *)
         + assumption.
         + eapply MTCH_getThreadC; eassumption.
         + eassumption.
         (*      + eapply MTCH_compat; eassumption. *)
-        + inversion MATCH; subst.
-          rewrite <- mtch_locks.
-          destruct Hcmpt.
-          unfold JSEM.locks_correct in loc_set_ok.
-          eapply loc_set_ok.
-          eapply JSEM.join_geq; eassumption.
+        + instantiate(1:= m).
+          subst tp''. 
+          reflexivity.
+          move Hstore at bottom.
         + reflexivity.
         + assumption.
         + assumption.

@@ -211,16 +211,36 @@ Module Concur.
     Definition locks_correct (lset : lockMap) (juice: rmap):=
       forall loc sh psh P z, juice @ loc = YES sh psh (LK z) P  ->  AMap.find loc lset. 
     
+    Definition locks_writable (juice: rmap):=
+      forall loc sh psh P z, juice @ loc = YES sh psh (LK z) P  ->
+                    Mem.perm_order'' (perm_of_res (juice @ loc)) (Some Writable).
+    
     Record mem_compatible' tp m: Prop :=
       {   all_juice  : res
         ; juice_join : join_all tp all_juice
         ; all_cohere : mem_cohere' m all_juice
+        ; loc_writable : locks_writable all_juice
         ; loc_set_ok : locks_correct (lockGuts tp) all_juice
       }.
 
     Definition mem_compatible: thread_pool -> mem -> Prop:=
       mem_compatible'.
 
+    Lemma mem_compatible_locks_ltwritable':
+      forall lset juice m, locks_writable juice ->
+                      locks_correct lset juice ->
+                      access_cohere' m juice ->
+                      permMapLt (A2PMap lset) (getMaxPerm m ).
+    Admitted.
+    Lemma mem_compatible_locks_ltwritable:
+      forall tp m, mem_compatible tp m ->
+              permMapLt (lockSet tp) (getMaxPerm m ).
+    Proof. intros. inversion H. inversion all_cohere.
+           destruct tp.
+           unfold lockSet; simpl in *.
+           eapply mem_compatible_locks_ltwritable'; eassumption.
+    Qed.
+                    
     Lemma thread_mem_compatible: forall tp m,
         mem_compatible tp m ->
         mem_thcohere tp m.
@@ -447,7 +467,9 @@ Module Concur.
             (sh:Share.t)(R:pred rmap)
             (HJcanwrite: phi@(b, Int.intval ofs) = YES sh psh (LK LKSIZE) (pack_res_inv R))
             (Hrestrict_pmap:
-               makeCurMax m = m1)
+               permissions.restrPermMap
+                 (mem_compatible_locks_ltwritable Hcompatible)
+                  = m1)
             (Hload: Mem.load Mint32 m1 b (Int.intval ofs) = Some (Vint Int.one))
             (Hstore: Mem.store Mint32 m1 b (Int.intval ofs) (Vint Int.zero) = Some m')
             (His_unlocked: lockRes tp (b, Int.intval ofs) = SSome d_phi )
@@ -472,7 +494,9 @@ Module Concur.
             (sh:Share.t)(R:pred rmap)
             (HJcanwrite: phi@(b, Int.intval ofs) = YES sh psh (LK LKSIZE) (pack_res_inv R))
             (Hrestrict_pmap:
-               makeCurMax m = m1)
+               permissions.restrPermMap
+                 (mem_compatible_locks_ltwritable Hcompatible)
+                  = m1)
             (Hload: Mem.load Mint32 m1 b (Int.intval ofs) = Some (Vint Int.zero))
             (Hstore: Mem.store Mint32 m1 b (Int.intval ofs) (Vint Int.one) = Some m')
             (* what does the return value denote?*)
