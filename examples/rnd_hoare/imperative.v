@@ -111,7 +111,7 @@ Module Randomized.
 (* Begin [ProbState Lemmas] *)
 
 Definition ProbState {ora: RandomOracle} (state: Type) :=
-  {s: RandomVariable (MetaState state) | forall h: rv_domain _ s, is_inf_history h -> s h = NonTerminating _}.
+  {s: RandomVariable (MetaState state) | forall h: rv_domain _ s, is_inf_history h -> raw_var _ s h (NonTerminating _)}.
 
 Definition ProbState_RandomVariable {ora: RandomOracle} {state: Type}: ProbState state -> RandomVariable (MetaState state) := @proj1_sig _ _.
 
@@ -133,25 +133,15 @@ Definition ProbStateStream {ora: RandomOracle} (state: Type) : Type := nat -> Pr
 Definition ProbConvDir {ora: RandomOracle} : Type := nat -> RandomVarDomain.
 
 Record is_limit {ora: RandomOracle} {state: Type} (l: ProbStateStream state) (dir: ProbConvDir) (lim: RandomVariable (MetaState state)) : Prop := {
-  dir_consi1: forall n h, ~ dir n h -> rv_domain _ (l n) h -> rv_domain _ (l (S n)) h;
-  dir_consi2: forall n h H1 H2, (l n) (exist _ h H2) = (l (S n)) (exist _ h (dir_consi1 n h H1 H2));
-  dir_consi3: forall n h, dir n h -> rv_domain _ (l n) h;
-  in_domain_is_limit: forall h H,
-    match lim (exist _ h H) with
-    | Terminating s => (* finite_part_of_limit *)
-        exists n Hn,
-          l n (exist _ h Hn) = Terminating _ s /\
-          (forall n', n' >= n -> ~ dir n h)
-    | NonTerminating => (* infinite_part_of_limit *)
-       (forall n h_low, is_fin_history h_low -> prefix_history h_low h ->
-          exists n' h', n' > n /\ prefix_history h_low h' /\
-                       prefix_history h' h /\ dir n' h') \/
-       (exists n Hn,
-          l n (exist _ h Hn) = NonTerminating _ /\
-          (forall n', n' >= n -> ~ dir n h))
-    end;
-  out_domain_is_limit: forall h, ~ rv_domain _ lim h -> (* invalid_part_of_limit *)
-        exists n, forall n', n' >= n -> ~ rv_domain _ (l n') h
+  dir_mono: forall n, future_domain (dir n) (dir (S n));
+  dir_consi_uncovered: forall n h, ~ covered_by h (dir n) -> RandomVar_local_equiv (l n) (l (S n)) h h;
+  dir_in_domain: forall n h, dir n h -> rv_domain _ (l n) h;
+  pointwise_limit: forall h s,
+    raw_var _ lim h s <->
+      (exists n, raw_var _ (l n) h s /\ forall n', n' >= n -> ~ dir n h) \/
+      (s = NonTerminating _ /\
+       forall n h_low, is_fin_history h_low -> prefix_history h_low h ->
+         exists n' h', n' > n /\ prefix_history h_low h' /\ prefix_history h' h /\ dir n' h')
 }.
 
 (* End [ProbState Lemmas] *)
@@ -167,8 +157,7 @@ Global Existing Instance ora.
 Record local_step {imp: Imperative} {sss: SmallStepSemantics} (h: RandomHistory) (s1 s2: ProbState (cmd * state)): Prop := {
   cs1: cmd * state;
   cs2: ProbState (cmd * state);
-  sound0: rv_domain _ s1 h;
-  sound1: s1 (exist _ h sound0) = Terminating _ cs1;
+  sound1: raw_var _ s1 h (Terminating _ cs1);
   sound2: forall h' h'', history_app h h' h'' -> RandomVar_local_equiv s2 cs2 h'' h';
   step_fact: step cs1 cs2
 }.
@@ -177,8 +166,7 @@ Record global_step {imp: Imperative} {sss: SmallStepSemantics} (P: RandomVarDoma
   action_part:
     forall h, P h -> local_step h s1 s2;
   stable_part:
-    forall h,
-      (forall h' h'', P h' -> ~ history_app h' h'' h) ->
+    forall h, ~ covered_by h P ->
       RandomVar_local_equiv s1 s2 h h
 }.
 
@@ -209,9 +197,10 @@ Definition global_state_command_state {imp: Imperative} {sss: SmallStepSemantics
               end)
            x).
   intros.
-  specialize (e _ H).
-  rewrite RandomVarMap_sound.
-  rewrite e; auto.
+  specialize (r _ H).
+  simpl.
+  exists (NonTerminating state).
+  split; auto.
 Defined.
 
 Definition command_oaccess {imp: Imperative} {sss: SmallStepSemantics} (c: cmd) (src dst: global_state): Prop :=
@@ -232,6 +221,19 @@ Class NormalSmallStepSemantics {imp: Imperative} {Nimp: NormalImperative} {sss: 
   step_atomic: forall c1 c2 s cs h, cmd_pattern_match c1 = PM_Other -> step (Ssequence c1 c2, s) cs -> (exists s', cs h = Some (Terminating _ (c2, s'))) \/ cs h = Some (NonTerminating _) \/ cs h = None
 }.
 *)
+
+Definition filter_global_state {imp: Imperative} {sss: SmallStepSemantics} (filter: RandomHistory -> Prop) (s: global_state): global_state.
+  exists (filter_var filter (proj1_sig s)).
+  destruct s as [s ?H]; simpl.
+  intros.
+  destruct h as [h [?H ?H]].
+  simpl in *.
+  split; auto.
+  apply (H (exist _ h H1)).
+  auto.
+Defined.
+  
+  
 
 Require Import Coq.Sets.Ensembles.
 

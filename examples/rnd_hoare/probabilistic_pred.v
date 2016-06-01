@@ -48,20 +48,36 @@ Section Predicates.
 
 Context {imp: Imperative} {sss: SmallStepSemantics} {rhd: RandomHistoryDistribution ora} {drhd: DiscreteRandomHistoryDistribution ora}.
 
-Lemma state_pred_domain_measurable: forall (P: MetaState state -> Prop) (sigma: global_state)
-  (H: is_measurable_subspace (rv_domain _ sigma)),
-  is_measurable_set (exist _ _ H) (element_pred_domain P sigma).
-Admitted.
-
 (***************************)
 (* overload global state   *)
 (***************************)
 
-Definition global_state: Type := {sigma: global_state | is_measurable_subspace (rv_domain _ sigma)}.
+Record global_state: Type := {
+  raw_gstate: Randomized.global_state;
+  gs_MSS: is_measurable_subspace (rv_domain _ raw_gstate);
+  gs_MF: forall (P: MetaState state -> Prop), is_measurable_set (exist is_measurable_subspace _ gs_MSS) (preimage_domain P raw_gstate)
+  (* Discrete/Continuous: P should be any measurable subset of MetaState when continuous. *)
+}.
 
 Definition global_state_MSS (sigma: global_state): {P: RandomHistory -> Prop | is_measurable_subspace P} :=
-  exist is_measurable_subspace (rv_domain _ (proj1_sig sigma)) (proj2_sig sigma).
+  exist is_measurable_subspace _ (gs_MSS sigma).
 
+Record HereditaryRandVariable (A: Type): Type := {
+  well_defined_dom: RandomVarDomain -> Prop;
+  well_defined_mono: forall d1 d2, future_domain d1 d2 -> well_defined_dom d1 -> well_defined_dom d2;
+  well_defined_MSS: forall d, well_defined_dom d -> is_measurable_subspace d;
+  ex_value: forall d: RandomVarDomain, well_defined_dom d -> RandomVariable A;
+  ex_value_consi: forall d (H: well_defined_dom d), rv_domain _ (ex_value d H) = d;
+  ex_value_hered: forall d1 d2 (H1: well_defined_dom d1) (H2: well_defined_dom d2) (h1: d1) (h2: d2),
+    future_domain d1 d2 ->
+    prefix_history h1 h2 ->
+    RandomVar_local_equiv (ex_value d1 H1) (ex_value d2 H2) h1 h2;
+  ex_value_MF: forall d (H: well_defined_dom d) (P: A -> Prop),
+    is_measurable_set (exist is_measurable_subspace d (well_defined_MSS d H)) (preimage_domain P (ex_value d H))
+}.
+
+
+(*
 Definition state_pred_domain_MS (P: MetaState state -> Prop) (sigma: global_state): measurable_set (global_state_MSS sigma).
   exists (element_pred_domain P (proj1_sig sigma)).
   split.
@@ -76,21 +92,19 @@ Definition ntm_pred_MS (sigma: global_state): measurable_set (global_state_MSS s
 Definition tm_pred_MS (P: state -> Prop) (sigma: global_state): measurable_set (global_state_MSS sigma) :=
   state_pred_domain_MS (tm_meta_pred P) sigma.
 *)
-Definition Pr (P: state -> Prop) (sigma: global_state): R := measure_of _ (tm_pred_MS P sigma).
 
-Definition nPr (sigma: global_state): R := measure_of _ (ntm_pred_MS sigma).
+*)
+
+Definition Prob (P: RandomHistory -> Prop) (sigma: global_state): R := measure_of _ (tm_pred_MS P sigma).
 
 Definition RCPPred (P: global_state -> Prop) (filter: RandomHistory -> Prop) (sigma: global_state): Prop :=
-  ~ is_measurable_subspace (tm_domain filter (proj1_sig sigma)) /\
-  exists M: is_measurable_subspace (tm_domain filter (proj1_sig sigma)),
-  P (exist _ (element_pred_filter_global_state (tm_meta_pred filter) (proj1_sig sigma)) M).
+  ~ is_measurable_subspace (filter_domain filter (rv_domain _ (proj1_sig sigma))) /\
+  exists M: is_measurable_subspace (filter_domain filter (rv_domain _ (proj1_sig sigma))),
+  P (exist _ (filter_global_state filter (proj1_sig sigma)) M).
 
 Definition ExPred {A: Type} (P: A -> global_state -> Prop) (sigma: global_state): Prop := exists a: A, P a sigma.
 
-Definition QRandVar (A: Type): forall d: RandomVarDomain, {v: RandomVariable A | rv_domain _ v = d}.
-
-Definition ExrPred {A: Type} (P: QRandVar A -> global_state -> Prop) (sigma: global_state): Prop := exists a: A, P a sigma.
-
+Definition ExrPred {A: Type} (P: RandomVariable A -> global_state -> Prop) (sigma: global_state): Prop := exists a: QRandVar A, exists H: well_defined_dom _ a (rv_domain _ (proj1_sig sigma)), P (proj1_sig (ex_value _ a _ H)) sigma.
 
 Definition PTriple (P: global_state -> Prop) (c: cmd) (Q: global_state -> Prop): Prop :=
   forall (s1: global_state),

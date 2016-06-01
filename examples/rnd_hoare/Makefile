@@ -7,7 +7,8 @@ COQ_FLAG = -R $(CURRENT_DIR) -as RndHoare
 DEP_FLAG = -R $(CURRENT_DIR) -as RndHoare
 
 FILES = \
-  random_oracle.v imperative.v measure.v probabilistic_pred.v full_domain.v
+  sigma_algebra.v measurable_function.v rcpd.v\
+  random_oracle.v imperative.v probabilistic_pred.v full_domain.v
 
 $(FILES:%.v=%.vo): %.vo: %.v
 	@echo COQC $*.v
