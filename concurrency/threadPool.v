@@ -427,7 +427,28 @@ Module OrdinalPool (SEM:Semantics) (RES:Resources) <: ThreadPoolSig
   Proof.
       by auto.
   Qed.
-      
-  
+
+  Lemma gLockSetRes:
+    forall {i tp} addr (res : lock_info) (cnti: containsThread tp i)
+      (cnti': containsThread (updLockSet tp addr res) i),
+      getThreadR cnti' = getThreadR cnti.
+  Proof.
+    intros.
+    unfold getThreadR, containsThread. simpl in *.
+    do 2 apply f_equal.
+      by apply cnt_irr.
+  Qed.
+
+  Lemma gLockSetCode:
+    forall {i tp} addr (res : lock_info) (cnti: containsThread tp i)
+      (cnti': containsThread (updLockSet tp addr res) i),
+      getThreadC cnti' = getThreadC cnti.
+  Proof.
+    intros.
+    unfold getThreadC, containsThread. simpl in *.
+    do 2 apply f_equal.
+      by apply cnt_irr.
+  Qed.
+    
 End OrdinalPool.
   

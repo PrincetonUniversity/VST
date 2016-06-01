@@ -133,13 +133,21 @@ Module ThreadPoolWF.
           discriminate.
     Defined.
     
-    Lemma lockSetGuts:
+    Lemma lockSetGuts_1:
       forall tp b ofs rmap,
-        lockRes tp (b,ofs) = Some rmap <->
+        lockRes tp (b,ofs) = Some rmap ->
         Maps.PMap.get b (lockSet tp) ofs = Some Writable.
     Proof.
     Admitted.
 
+    Lemma lockSetGuts_2:
+      forall tp b ofs,
+        Maps.PMap.get b (lockSet tp) ofs = Some Writable ->
+        exists rmap,
+          lockRes tp (b,ofs) = Some rmap.
+    Proof.
+    Admitted.
+    
     Lemma lock_valid_block:
       forall (tpc : thread_pool) (mc : mem) (bl1 : block) 
         (ofs : Z) rmap1
@@ -148,7 +156,7 @@ Module ThreadPoolWF.
         Mem.valid_block mc bl1.
     Proof.
       intros.
-      assert (HlockSet := proj1 (lockSetGuts _ _ _ _) Hl1).
+      assert (HlockSet := lockSetGuts_1 _ _ _ Hl1).
       destruct (valid_block_dec mc bl1) as [? | Hinvalid]; auto.
       exfalso.
       apply (Mem.nextblock_noaccess) with (k:= Max) (ofs := ofs) in Hinvalid.

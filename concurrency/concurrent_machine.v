@@ -234,6 +234,17 @@ Module Type ThreadPoolSig.
   Axiom gsoThreadLPool:
     forall {i tp} c p (cnti: containsThread tp i) addr,
       lockRes (updThread cnti c p) addr = lockRes tp addr.
+
+  Axiom gLockSetRes:
+    forall {i tp} addr (res : lock_info) (cnti: containsThread tp i)
+      (cnti': containsThread (updLockSet tp addr res) i),
+      getThreadR cnti' = getThreadR cnti.
+
+  Axiom gLockSetCode:
+    forall {i tp} addr (res : lock_info) (cnti: containsThread tp i)
+      (cnti': containsThread (updLockSet tp addr res) i),
+      getThreadC cnti' = getThreadC cnti.
+  
   
 End ThreadPoolSig.
 
