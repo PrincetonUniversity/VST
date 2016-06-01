@@ -388,7 +388,7 @@ Module ClightParching <: ErasureSig.
     Variable main: Values.val.
     Lemma init_diagram:
       forall (j : Values.Val.meminj) (U:schedule) (js : jstate)
-        (vals : list Values.val) (m : M),
+        (vals : list Values.val) (m : mem),
         init_inj_ok j m ->
         initial_core (JMachineSem U) genv main vals = Some (U, js) ->
         exists (mu : SM_Injection) (ds : dstate),
@@ -448,7 +448,7 @@ Module ClightParching <: ErasureSig.
           apply no_race0; auto.
         - simpl; assumption.
         (* - simpl; assumption. *)
-  Qed.
+  Admitted.
   
   Lemma conc_step_diagram:
     forall m m' U js js' ds i genv
@@ -578,7 +578,7 @@ Module ClightParching <: ErasureSig.
            (*Proving (b,ofs) is a lock*)
            { 
              clear - His_unlocked.
-             unfold JSEM.ThreadPool.lock_set in His_unlocked.
+             unfold JSEM.ThreadPool.lockRes in His_unlocked.
              apply AMap.find_2 in His_unlocked.
              unfold AMap.In.
              unfold AMap.Raw.PX.In.
