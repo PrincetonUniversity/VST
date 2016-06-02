@@ -327,6 +327,33 @@ Module Concur.
       - specialize (H (b, ofs)); simpl in H. apply H. unfold max_access_at in H.
       - apply juice2Perm_nogrow.
     Qed.
+
+    Lemma Mem_canonical_useful: forall m loc k, (Mem.mem_access m)#1 loc k = None.
+    Admitted.
+    
+      Lemma juic2Perm_correct:
+        forall r m b ofs,
+          access_cohere' m r ->
+          perm_of_res (r @ (b,ofs)) = (juice2Perm r m) !! b ofs.
+      Proof.
+        intros.
+        unfold juice2Perm, mapmap.
+        unfold PMap.get; simpl.
+        rewrite PTree.gmap. 
+        rewrite PTree.gmap1; simpl.
+        destruct ((snd (Mem.mem_access m)) ! b) eqn:search; simpl.
+        - auto.
+        - generalize (H (b, ofs)).
+          unfold max_access_at, PMap.get; simpl.
+          rewrite search. rewrite Mem_canonical_useful.
+          unfold perm_of_res. destruct ( r @ (b, ofs)).
+          destruct (eq_dec t0 Share.bot); auto; simpl.
+          intros HH. contradiction HH.
+          destruct k;  try solve [intros HH;inversion HH].
+          destruct (perm_of_sh t0 (pshare_sh p)); auto.
+          intros HH;inversion HH.
+          intros HH;inversion HH.
+      Qed.
     
     Definition juicyRestrict {phi:rmap}{m:Mem.mem}(coh:access_cohere' m phi): Mem.mem:=
       restrPermMap (juice2Perm_cohere coh).
@@ -395,8 +422,7 @@ Module Concur.
         unfold max_access_at in coh. unfold PMap.get in coh.
         generalize (coh loc).
         rewrite HHH; simpl.
-        Lemma Mem_canonical_useful: forall m loc k, (Mem.mem_access m)#1 loc k = None.
-        Admitted.
+        
         rewrite Mem_canonical_useful.
         destruct (perm_of_res (phi @ loc)); auto.
         intro H; inversion H.
@@ -497,6 +523,7 @@ Module Concur.
                   = m1)
             (Hload: Mem.load Mint32 m1 b (Int.intval ofs) = Some (Vint Int.zero))
             (Hstore: Mem.store Mint32 m1 b (Int.intval ofs) (Vint Int.one) = Some m')
+            (His_locked: lockRes tp (b, Int.intval ofs) = SNone )
             (* what does the return value denote?*)
             (*Hget_lock_inv: JMem.get_lock_inv jm (b, Int.intval ofs) = Some R*)
             (Hsat_lock_inv: R d_phi)
@@ -539,7 +566,7 @@ Module Concur.
             (Hright_juice:  m = m_dry jm)
             (Hpersonal_perm: 
                personal_mem cnt0 Hcompatible = jm)
-            (*Hpersonal_juice: getThreadR cnt0 = phi*)
+            (Hpersonal_juice: getThreadR cnt0 = phi)
             (*This the first share of the lock, 
               can/should this be different for each location? *)
             (sh:Share.t)
@@ -549,6 +576,8 @@ Module Concur.
                Mem.store Mint32 m b (Int.intval ofs) (Vint Int.zero) = Some m')
             (*Check the new memory has the lock*)
             (Hlock: phi'@ (b, Int.intval ofs) = YES sh pfullshare (LK LKSIZE) (pack_res_inv R))
+            (Hct: forall ofs', 0<ofs'-(Int.intval ofs)<LKSIZE ->
+                phi'@ (b, ofs') = YES sh pfullshare (CT LKSIZE) (pack_res_inv R))
             (*Check the new memory has the right continuations THIS IS REDUNDANT! *)
             (*Hcont: forall i, 0<i<LKSIZE ->   phi'@ (b, Int.intval ofs + i) = YES sh pfullshare (CT i) NoneP*)
             (*Check the two memories coincide in everything else *)

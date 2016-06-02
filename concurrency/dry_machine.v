@@ -179,11 +179,11 @@ Module Concur.
           (HisLock: lockRes tp (b, Int.intval ofs) = Some pmap)
           (Hangel: angelSpec (getThreadR cnt0) pmap
                              (computeMap (getThreadR cnt0) virtueThread)
-                             (computeMap pmap virtueLP))
+                             virtueLP)
           (Htp': tp' = updThread cnt0 (Kresume c Vundef)
                                  (computeMap (getThreadR cnt0) virtueThread))
-          (Htp'': tp'' = updLockSet tp' (b, Int.intval ofs) (computeMap pmap virtueLP)),
-          ext_step genv cnt0 Hcompat tp' m' 
+          (Htp'': tp'' = updLockSet tp' (b, Int.intval ofs) virtueLP),
+          ext_step genv cnt0 Hcompat tp'' m' 
                    
     | step_create :
         forall  (tp_upd tp':thread_pool) c vf arg virtue1 virtue2,
