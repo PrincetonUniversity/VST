@@ -14,19 +14,20 @@ Require Import veric.juicy_mem.
 Require Import veric.semax_prog.
 Require Import veric.compcert_rmaps.
 Require Import veric.Clight_new.
+Require Import veric.Clightnew_coop.
 Require Import veric.semax.
 Require Import veric.semax_ext.
 Require Import veric.juicy_extspec.
 Require Import veric.initial_world.
 Require Import veric.juicy_extspec.
 Require Import veric.tycontext.
+Require Import veric.semax_ext_oracle.
 Require Import sepcomp.semantics.
 Require Import sepcomp.step_lemmas.
 Require Import concurrency.semax_conc.
 Require Import concurrency.juicy_machine.
 Require Import concurrency.concurrent_machine.
 Require Import concurrency.scheduler.
-Require Import semax_ext_oracle.
 
 Ltac eassert :=
   let mp := fresh "mp" in
@@ -37,8 +38,7 @@ Ltac eassert :=
 Module ClightSEM <: Semantics.
   Definition G := genv.
   Definition C := corestate.
-  Definition M := Mem.mem.
-  Definition Sem := cl_core_sem.
+  Definition Sem := CLN_memsem.
 End ClightSEM.
 
 Module JuicyMachineShell_ClightSEM := Concur.JuicyMachineShell ClightSEM.
@@ -337,12 +337,8 @@ Section Simulation.
     {
       assert (Hjmi : exists jmi, m_dry jmi = m /\ m_phi jmi = phi_i).
       { admit (* "slice" lemma for juicy memory *). }
-      
-      (* get next state through "jsafeN" with: an arbitrary oracle and the next state *)
+
       destruct Hjmi as [jm_i [jm_i_m jm_i_phi_i]].
-      pose proof (safe i pr_i phi_i jm_i (* oracle= *)nil ltac:(assumption)) as safe_i.
-      rewrite Ec_i in safe_i.
-      specialize (safe_i ltac:(assumption) ltac:(assumption)).
       
       destruct c_i as [ve te k | ef sig args lid ve te k] eqn:Heqc.
       
@@ -376,63 +372,118 @@ Section Simulation.
         - split;[|split].
           + admit (* get phi_all from the mem_compat, too? *).
           + intros i0 pr_i0 q phi jmi ora.
-            (* safety for all oracle : use the fact the oracle does not change after one step *)
+            (* safety for all oracle : use the fact the oracle does
+            not change after one step *)
             admit.
           + intros H i0 pr_i0 q ora H0.
             exists sch.
-            (* use the fact that there is at most one Krun on the previous step and this step did not add any *)
+            (* use the fact that there is at most one Krun on the
+            previous step and this step did not add any *)
             admit.
       }
       (* end of internal step *)
       
       (* thread[i] is running and about to call an external *)
       {
-        unfold jsafeN, juicy_safety.safeN in safe_i.
-        inversion safe_i.
-        (* impossible case of the corestep from an ExtCall *)
+
+        (* paragraph below: ef has to be an EF_external *)
+        assert (Hef : match ef with EF_external _ _ => True | _ => False end).
         {
-          subst.
-          inversion H0.
-          now inversion H.
+          pose proof (safe i pr_i phi_i jm_i nil ltac:(assumption)) as safe_i.
+          rewrite Ec_i in safe_i.
+          specialize (safe_i ltac:(assumption) ltac:(assumption)).
+          unfold jsafeN, juicy_safety.safeN in safe_i.
+          inversion safe_i; subst; [ now inversion H0; inversion H | | now inversion H ].
+          inversion H0; subst; [].
+          match goal with x : ext_spec_type _ _  |- _ => clear -x end.
+          now destruct e eqn:Ee; [ apply I | .. ];
+            simpl in x;
+            repeat match goal with
+                     _ : context [ o_ident_eq ?x ?y ] |- _ =>
+                     destruct (o_ident_eq x y); try discriminate; try tauto
+                   end.
+        }
+        assert (Ex : exists name sig, ef = EF_external name sig) by (destruct ef; eauto; tauto).
+        destruct Ex as (name & sg & ->); clear Hef.
+        
+        (* paragraph below: ef has to be an EF_external with one of those 5 names *)
+        assert (which_primitive :
+                  ext_link "acquire" = (ef_id ext_link (EF_external name sg)) \/
+                  ext_link "release" = (ef_id ext_link (EF_external name sg)) \/
+                  ext_link "makelock" = (ef_id ext_link (EF_external name sg)) \/
+                  ext_link "freelock" = (ef_id ext_link (EF_external name sg)) \/
+                  ext_link "spawn" = (ef_id ext_link (EF_external name sg))).
+        {
+          pose proof (safe i pr_i phi_i jm_i (* oracle=*)nil ltac:(assumption)) as safe_i.
+          rewrite Ec_i in safe_i.
+          specialize (safe_i ltac:(assumption) ltac:(assumption)).
+          unfold jsafeN, juicy_safety.safeN in safe_i.
+          inversion safe_i; subst; [ now inversion H0; inversion H | | now inversion H ].
+          inversion H0; subst; [].
+          match goal with H : ext_spec_type _ _  |- _ => clear -H end.
+          simpl in *.
+          repeat match goal with
+                   _ : context [ o_ident_eq ?x ?y ] |- _ =>
+                   destruct (o_ident_eq x y); try injection e; auto
+                 end.
+          tauto.
+        
+          (* match goal with H : ext_spec_pre _ _ _ _ _ _ _ _  |- _ => clear -H; revert H end. 
+          hnf in x.
+          simpl (ext_spec_pre _). simpl (ext_spec_post _).
+          unfold funspecOracle2pre. unfold funspecOracle2post.
+          match goal with
+            _ : context [ o_ident_eq ?x ?y ] |- _ =>
+            destruct (o_ident_eq x y)
+          end. *)
         }
         
-        (* interesting case of the at_external *)
-        {
+        (* Before going any further, one needs to provide the first
+        rmap of the oracle.  Unfortunately, for that, we need to know
+        whether we're in an "acquire" external call or not. In
+        addition, in the case of an "acquire" we need to know the
+        arguments of the function (address+mpred) so that we can
+        provide the right rmap from the lock set.
+        |
+        Two solutions: either we use a dummy oracle to know those things (but
+        ... we need the oracle before that (FIX the spec OR [A]), or we write
+        it as a P\/~P and then we derive a contradiction (not sure we can do
+        that). *)
+        
+        destruct which_primitive as
+            [ H_acquire | [ H_release | [ H_makelock | [ H_freelock | H_spawn ] ] ] ].
+
+        { (* the case of acquire *)
+          
+          pose proof (safe i pr_i phi_i jm_i (* oracle=*)nil ltac:(assumption)) as safe_i.
+          rewrite Ec_i in safe_i.
+          specialize (safe_i ltac:(assumption) ltac:(assumption)).
+          
+          unfold jsafeN, juicy_safety.safeN in safe_i.
+          inversion safe_i; [ now inversion H0; inversion H | | now inversion H ].
           subst.
-          simpl in H0.
-          simpl in x.
+          simpl in H0. injection H0 as <- <- <- .
+          hnf in x.
           revert x H1 H2.
           
-          assert (ext_link_not_1 :
-                    ext_link "acquire" <> 1%positive /\
-                    ext_link "release" <> 1%positive /\
-                    ext_link "makelock" <> 1%positive /\
-                    ext_link "freelock" <> 1%positive /\
-                    ext_link "spawn" <> 1%positive).
-            by admit.
-            
-            destruct e;
-              try solve [
-                    intros x; exfalso; revert x;
-                    repeat (match goal with
-                            | |- context [ ident_eq ?a ?b ] => destruct (ident_eq a b)
-                            end; try tauto) ].
-            simpl ef_id.
-            simpl (ext_spec_pre _).
-            simpl (ext_spec_post _).
-            unfold semax_ext_oracle.funspecOracle2pre.
-            unfold semax_ext_oracle.funspecOracle2post.
-            unfold ext_spec_pre, ext_spec_post.
-            destruct (ident_eq (ext_link "acquire") (semax_ext_oracle.ef_id ext_link (EF_external name sg))).
-
-            (* the case of acquire *)
-            {
-              intros (phi, (ora, p, sh, R)).
-              admit.
-              
-              (* First:
-                - integrate the oracle in the semax_conc definitions
-                - sort out this dependent type problem
+          simpl (ext_spec_pre _).
+          simpl (ext_spec_post _).
+          unfold funspecOracle2pre.
+          unfold funspecOracle2post.
+          unfold ext_spec_pre, ext_spec_post.
+          Local Notation "{| 'JE_spec ... |}" := {| JE_spec := _; JE_pre_hered := _; JE_post_hered := _; JE_exit_hered := _ |}.
+          destruct (o_ident_eq (Some (ext_link "acquire")) (o_ef_id ext_link (EF_external name sg)))
+            as [E | E];
+            [ | now clear -E H_acquire; simpl in *; congruence ].
+          
+          intros (phix, (((orax, vx), shx), Rx)) Pre. simpl in Pre.
+          destruct Pre as (phi0 & phi1 & Join & Precond & HnecR).
+          (* ((phi_acq & Heq_ora & R_phi) & REST_OF_HYPS) *)
+          admit.
+          
+          (* First:
+                - PROTOTYPED: integrate the oracle in the semax_conc definitions
+                - DONE: sort out this dependent type problem
                 Then hopefully we will be able to exploit the jsafeN_.
                 
                 Then, the proof should go as follows (it is not clear
@@ -452,25 +503,20 @@ Section Simulation.
                  
                 - release: this time, the jsafeN_ will explain how to
                   split the current rmap.
-               *)
-            }
-            
-            (* other cases (release, spawn, ...) ignored for now *)
-            
-            (* end of case analysis over [acquire; release; ...] *)
-            {
-              now intros [].
-            }
-        } (* end of:  at_external *)
+           *)
+          }
         
-        { (* case of halted *)
-          match goal with
-            [ H : halted _ _ = Some _ |- _ ] => inversion H
-          end.
-        } (* end of:  halted *)
-      } (* thread[i] is running and at external *)
-    } (* thread[i] is Krun *)
-
+        { (* the case of release *) admit. }
+        
+        { (* the case of makelock *) admit. }
+        
+        { (* the case of freelock *) admit. }
+        
+        { (* the case of spawn *) admit. }
+        
+      } (* end of: thread[i] is running and at external *)
+    } (* end of: thread[i] is Krun *)
+    
     (* thread[i] is in Kblocked *)
     {
       (* goes to Kres c_i' according to the rules of conc_step  *)

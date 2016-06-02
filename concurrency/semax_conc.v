@@ -87,20 +87,20 @@ Definition acquire_spec :=
     ([(_lock, tptr tlock)], tvoid)
     cc_default
     (* WITH *)
-    (Oracle * val * share * Pred)
+    (bool * Oracle * val * share * Pred)
     (* PRE *)
-    (fun (x : Oracle * val * share * Pred) (oracle : Oracle) =>
+    (fun (x : bool * Oracle * val * share * Pred) (oracle : Oracle) =>
        match x with
-         (z, v, sh, R) =>
-         !!(exists m : rmap, oracle = m :: z /\ app_pred (Interp R) m) &&
+         (ok, z, v, sh, R) =>
+         !!(exists m : rmap, oracle = m :: z /\ app_pred (Interp R) m) -->
          PROP (readable_share sh)
          LOCAL (temp _lock v)
          SEP (lock_inv sh v (Interp R))
        end)
     (* POST *)
-    (fun (x : Oracle * val * share * Pred) (oracle : Oracle) =>
+    (fun (x : bool * Oracle * val * share * Pred) (oracle : Oracle) =>
        match x with
-         (z, v, sh, R) =>
+         (ok, z, v, sh, R) =>
          !!(oracle = z) &&
          PROP ()
          LOCAL ()
@@ -132,7 +132,7 @@ Definition release_spec :=
     (fun (x : Oracle * val * share * Pred) (oracle : Oracle) =>
        match x with
          (z, v, sh, R) =>
-         !!(oracle = z) &&
+         !!(oracle = z) -->
          PROP (readable_share sh)
          LOCAL (temp _lock v)
          SEP (lock_inv sh v (Interp R); lock_hold Share.top v; Interp R)
@@ -254,6 +254,7 @@ Defined.
 
 Definition threadspecs (cs : compspecs) (ext_link : string -> ident) := 
   (ext_link "acquire"%string, acquire_spec) ::
+  (ext_link "release"%string, release_spec) ::
   nil.
 
 (*
@@ -286,7 +287,7 @@ Lemma semax_conc' cs (ext_link: string -> ident) id sig cc A P Q :
         (EF_external id (funsig2signature sig cc)) _ P Q n).
 Proof.
   intros.
-  apply semax_ext'; auto.
+  apply semax_ext'_oracle; auto.
 Qed.
 
 Lemma semax_conc cs (ext_link: string -> ident) id ids sig sig' cc A P Q :
