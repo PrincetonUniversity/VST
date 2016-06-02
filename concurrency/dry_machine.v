@@ -8,6 +8,7 @@ Require Import concurrency.scheduler.
 Require Import concurrency.concurrent_machine.
 Require Import concurrency.addressFiniteMap. (*The finite maps*)
 Require Import concurrency.pos.
+Require Import concurrency.lksize.
 Require Import Coq.Program.Program.
 From mathcomp.ssreflect Require Import ssreflect ssrbool ssrnat ssrfun eqtype seq fintype finfun.
 Set Implicit Arguments.
@@ -213,7 +214,7 @@ Module Concur.
             (Hstore:
                Mem.store Mint32 m1 b (Int.intval ofs) (Vint Int.zero) = Some m')
             (Hdrop_perm:
-               setPerm (Some Nonempty) b (Int.intval ofs) pmap_tid = pmap_tid')
+               setPermBlock (Some Nonempty) b (Int.intval ofs) pmap_tid LKSIZE_nat = pmap_tid')
             (*Hlp_perm: setPerm (Some Writable)
                                b (Int.intval ofs) (lockSet tp) = pmap_lp*)
             (Htp': tp' = updThread cnt0 (Kresume c Vundef) pmap_tid')
@@ -227,9 +228,10 @@ Module Concur.
             (Hcode: getThreadC cnt0 = Kblocked c)
             (Hat_external: at_external Sem c =
                            Some (FREE_LOCK, ef_sig FREE_LOCK, Vptr b ofs::nil))
-            (Hset_perm: setPerm virtue b (Int.intval ofs) (getThreadR cnt0) = pmap')
+            (Hset_perm: setPermBlock virtue b (Int.intval ofs) (getThreadR cnt0) LKSIZE_nat = pmap')
             (Htp': tp' = updThread cnt0 (Kresume c Vundef) pmap')
             (Htp'': tp'' = remLockSet tp' (b,(Int.intval ofs))),
+
             ext_step genv cnt0 Hcompat  tp'' m 
                      
     | step_acqfail :

@@ -402,6 +402,14 @@ Section permMapDefs.
                                 Maps.PMap.get b pmap ofs')
                   pmap.
 
+  Fixpoint setPermBlock  (p : option permission) (b : block)
+           (ofs : Z) (pmap : access_map) (length: nat): access_map :=
+    match length with
+      0 => setPerm p b ofs pmap
+    | S len => setPermBlock p b ofs (setPerm p b (ofs + (Z_of_nat length))%Z pmap) len
+    end.
+  
+
   (** Apply a [delta_map] to an [access_map]*)
   Definition computeMap (pmap : access_map) (delta : delta_map) : access_map :=
     (pmap.1,
