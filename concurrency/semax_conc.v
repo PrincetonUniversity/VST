@@ -87,22 +87,24 @@ Definition acquire_spec :=
     ([(_lock, tptr tlock)], tvoid)
     cc_default
     (* WITH *)
-    (bool * Oracle * val * share * Pred)
+    (Prop * Oracle * val * share * Pred)
     (* PRE *)
-    (fun (x : bool * Oracle * val * share * Pred) (oracle : Oracle) =>
+    (fun (x : Prop * Oracle * val * share * Pred) (oracle : Oracle) =>
        match x with
-         (ok, z, v, sh, R) =>
-         !!(exists m : rmap, oracle = m :: z /\ app_pred (Interp R) m) -->
-         PROP (readable_share sh)
+       | (ok, oracle_x, v, sh, R) =>
+         PROP (readable_share sh;
+                 (match oracle with
+                  | nil => ~ok
+                  | cons mlock oracle' => oracle' = oracle_x /\ (app_pred (Interp R) mlock <-> ok)
+                  end))
          LOCAL (temp _lock v)
          SEP (lock_inv sh v (Interp R))
        end)
     (* POST *)
-    (fun (x : bool * Oracle * val * share * Pred) (oracle : Oracle) =>
+    (fun (x : Prop * Oracle * val * share * Pred) (oracle : Oracle) =>
        match x with
-         (ok, z, v, sh, R) =>
-         !!(oracle = z) &&
-         PROP ()
+         (ok, oracle_x, v, sh, R) =>
+         PROP (oracle = oracle_x; ok)
          LOCAL ()
          SEP (lock_inv sh v (Interp R); lock_hold Share.top v; Interp R)
        end).
@@ -131,18 +133,16 @@ Definition release_spec :=
     (* PRE *)
     (fun (x : Oracle * val * share * Pred) (oracle : Oracle) =>
        match x with
-         (z, v, sh, R) =>
-         !!(oracle = z) -->
-         PROP (readable_share sh)
+         (oracle_x, v, sh, R) =>
+         PROP (oracle = oracle_x; readable_share sh)
          LOCAL (temp _lock v)
          SEP (lock_inv sh v (Interp R); lock_hold Share.top v; Interp R)
        end)
     (* POST *)
     (fun (x : Oracle * val * share * Pred) (oracle : Oracle) =>
        match x with
-         (z, v, sh, R) =>
-         !!(oracle = z) &&
-         PROP ()
+         (oracle_x, v, sh, R) =>
+         PROP (oracle = oracle_x; readable_share sh)
          LOCAL ()
          SEP (lock_inv sh v (Interp R))
        end).

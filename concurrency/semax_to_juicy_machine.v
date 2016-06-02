@@ -476,13 +476,18 @@ Section Simulation.
             as [E | E];
             [ | now clear -E H_acquire; simpl in *; congruence ].
           
-          intros (phix, (((orax, vx), shx), Rx)) Pre. simpl in Pre.
+          intros (phix, ((((ok, oracle_x), vx), shx), Rx)) Pre. simpl in Pre.
           destruct Pre as (phi0 & phi1 & Join & Precond & HnecR).
+          simpl (and _).
+          unfold cl_after_external.
+          (* build the memory from the machine from scratch.  Do we
+          really need the dummy oracle, then? *)
+          
           (* ((phi_acq & Heq_ora & R_phi) & REST_OF_HYPS) *)
           admit.
           
           (* First:
-                - PROTOTYPED: integrate the oracle in the semax_conc definitions
+                - DONE: integrate the oracle in the semax_conc definitions
                 - DONE: sort out this dependent type problem
                 Then hopefully we will be able to exploit the jsafeN_.
                 
