@@ -81,9 +81,9 @@ Module Concur.
     Notation tid := NatTID.tid.
 
     (** Memories*)
-    Definition richMem: Type:= M.
-    Definition dryMem: richMem -> M:= id.
-    Definition diluteMem: M -> M := setMaxPerm.
+    Definition richMem: Type:= mem.
+    Definition dryMem: richMem -> mem:= id.
+    Definition diluteMem: mem -> mem := setMaxPerm.
     
     Notation thread_pool := (ThreadPool.t).
     Notation perm_map := ThreadPool.RES.res.
@@ -92,7 +92,7 @@ Module Concur.
     Record mem_compatible' tp m : Prop :=
       { compat_th :> forall {tid} (cnt: containsThread tp tid),
             permMapLt (getThreadR cnt) (getMaxPerm m);
-        compat_lp : forall l pmap, AMap.find l (lockGuts tp) = Some pmap ->
+        compat_lp : forall l pmap, lockRes tp l = Some pmap ->
                               permMapLt pmap (getMaxPerm m);
         compat_ls : permMapLt (lockSet tp) (getMaxPerm m)}.
     
@@ -112,10 +112,10 @@ Module Concur.
         lock_set_threads : forall i (cnt : containsThread tp i),
             permMapsDisjoint (lockSet tp) (getThreadR cnt);
         lock_res_threads : forall l pmap i (cnt : containsThread tp i),
-            AMap.find l (lockGuts tp) = Some pmap ->
+            lockRes tp l = Some pmap ->
             permMapsDisjoint pmap (getThreadR cnt);
         lock_res_set : forall l pmap,
-            AMap.find l (lockGuts tp) = Some pmap ->
+            lockRes tp l = Some pmap ->
             permMapsDisjoint pmap (lockSet tp)
       }.
 
