@@ -25,3 +25,42 @@ Lemma PreImage_Disjoint: forall {A B: Type} {sA: SigmaAlgebra A} {sB: SigmaAlgeb
   Disjoint B PB1 PB2 ->
   Disjoint A (PreImage_MSet f PB1) (PreImage_MSet f PB2).
 Admitted.
+
+Lemma PreImage_Full: forall  {A B: Type} {sA: SigmaAlgebra A} {sB: SigmaAlgebra B} (f: MeasurableFunction A B),
+  Same_MSet (PreImage_MSet f (Full_MSet B)) (Full_MSet A).
+Admitted.
+
+Require Import Coq.Logic.Classical.
+Require Import Coq.Reals.Rdefinitions.
+
+Local Open Scope R.
+
+Definition Indicator {A B: Type} {sA: SigmaAlgebra A} {sB: SigmaAlgebra B} (P: measurable_set A) (b0 b1: B): MeasurableFunction A B.
+  apply (Build_MeasurableFunction _ _ _ _ (fun a b => P a /\ b = b1 \/ ~ P a /\ b = b0)).
+  + intros.
+    destruct H as [[? ?] | [? ?]], H0 as [[? ?] | [? ?]]; try tauto; subst; auto.
+  + intros.
+    destruct (classic (P a)).
+    - exists b1; left.
+      auto.
+    - exists b0; right.
+      auto.
+  + intros.
+    eapply is_measurable_set_proper.
+    instantiate (1 := fun a => P a /\ P0 b1 \/ ~ P a /\ P0 b0).
+    - split; hnf; unfold In; simpl; intros.
+      * pose proof (H b0).
+        pose proof (H b1).
+        tauto.
+      * destruct H0 as [[? ?] | [? ?]]; subst; tauto.
+    - admit.
+Defined.
+
+Definition IndicatorR {A: Type} {sA: SigmaAlgebra A} (P: measurable_set A): MeasurableFunction A R := Indicator P 0 1.
+
+Lemma Indicator_True: forall {A B: Type} {sA: SigmaAlgebra A} {sB: SigmaAlgebra B} (P: measurable_set A) (b0 b1: B) (a: A), P a -> Indicator P b0 b1 a b1.
+Proof. intros; simpl; auto. Qed.
+
+Lemma Indicator_False: forall {A B: Type} {sA: SigmaAlgebra A} {sB: SigmaAlgebra B} (P: measurable_set A) (b0 b1: B) (a: A), ~ P a -> Indicator P b0 b1 a b0.
+Proof. intros; simpl; auto. Qed.
+

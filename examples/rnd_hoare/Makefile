@@ -7,7 +7,7 @@ COQ_FLAG = -R $(CURRENT_DIR) -as RndHoare
 DEP_FLAG = -R $(CURRENT_DIR) -as RndHoare
 
 FILES = \
-  sigma_algebra.v measurable_function.v rcpd.v\
+  sigma_algebra.v measurable_function.v probability_measure.v regular_conditional_prob.v\
   random_oracle.v imperative.v probabilistic_pred.v full_domain.v
 
 $(FILES:%.v=%.vo): %.vo: %.v

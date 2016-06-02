@@ -4,12 +4,13 @@ Require Import RndHoare.random_oracle.
 Require Import RndHoare.imperative.
 Import RndHoare.imperative.Randomized.
 Require Import RndHoare.full_domain.
-Require Import RndHoare.measure.
+Require Import RndHoare.sigma_algebra.
+Require Import RndHoare.measurable_function.
+Require Import RndHoare.rcpd.
 
 Local Open Scope R.
 (*
 Definition is_measurable_subspace {ora: RandomOracle} {PRPS: PartialRegularProbabilitySpace RandomHistory} (P: RandomVarDomain): Prop := measurable_subspace P.
-*)
 
 Definition is_measurable_set {ora: RandomOracle} {PRPS: PartialRegularProbabilitySpace RandomHistory} (P: RandomHistory -> Prop | is_measurable_subspace P) (Q: RandomHistory -> Prop): Prop :=
   Included _ Q (proj1_sig P) /\ is_measurable_set _ (sub_measure P) (sig_Set Q (proj1_sig P)).
@@ -21,9 +22,10 @@ Definition measure_of {ora: RandomOracle} {PRPS: PartialRegularProbabilitySpace 
   measure_function _
    (sub_measure P)
    (exist _ (sig_Set (proj1_sig Q) (proj1_sig P)) (proj2 (proj2_sig Q))).
+*)
 
 Class RandomHistoryDistribution (ora: RandomOracle): Type := {
-  RHD_PRPS :> PartialRegularProbabilitySpace RandomHistory;
+  RHD_UD :> UniformDisintegration RandomHistory;
   RHD_MSS_legal: forall P, is_measurable_subspace P -> LegalRandomVarDomain P;
   RHD_MSS_consi: forall P Q, same_covered_domain P Q ->
                    (is_measurable_subspace P <-> is_measurable_subspace Q);

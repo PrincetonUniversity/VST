@@ -1,5 +1,6 @@
 Require Export Coq.Sets.Ensembles.
 Require Export Coq.Classes.Equivalence.
+Require Export Coq.Classes.Morphisms.
 
 Definition Countable_Union (A: Type) (P: nat -> Ensemble A) : Ensemble A :=
   fun x => exists i, P i x.
@@ -12,6 +13,7 @@ Definition sig_Set {U: Type} (Q P: Ensemble U): Ensemble {x: U | P x} := fun x =
 
 Class SigmaAlgebra (Omega: Type): Type := {
   is_measurable_set: Ensemble Omega -> Prop;
+  is_measurable_set_proper: Proper (Same_set _ ==> iff) is_measurable_set;
   universal_set_measurable: is_measurable_set (Full_set _);
   complement_measurable: forall P, is_measurable_set P -> is_measurable_set (Complement _ P);
   countable_union_measurable: forall P: nat -> Ensemble Omega, (forall i, is_measurable_set (P i)) -> is_measurable_set (Countable_Union _ P)
@@ -33,10 +35,19 @@ Definition Countable_Union_MSet {Omega: Type} {sa: SigmaAlgebra Omega} (x: nat -
 Definition Full_MSet (Omega: Type) {sa: SigmaAlgebra Omega}: measurable_set Omega :=
   exist _ (Full_set _) universal_set_measurable.
 
-Definition max_sigma_alg (Omega: Type): SigmaAlgebra Omega :=
-  Build_SigmaAlgebra _ (fun _ => True) I (fun _ _ => I) (fun _ _ => I).
-
-Definition Same_MSet {Omega: Type} {sa: SigmaAlgebra Omega}: measurable_set Omega -> measurable_set Omega -> Prop := fun P Q => forall x, P x <-> Q x.
+Definition Same_MSet {Omega: Type} {sa: SigmaAlgebra Omega}: measurable_set Omega -> measurable_set Omega -> Prop := fun P Q => Same_set _ P Q.
 
 Instance Same_MSet_Equiv {Omega: Type} {sa: SigmaAlgebra Omega}: Equivalence (@Same_MSet Omega sa).
 Admitted.
+
+Definition max_sigma_alg (Omega: Type): SigmaAlgebra Omega :=
+  Build_SigmaAlgebra _ (fun _ => True) (fun _ _ _ => conj (fun _ => I) (fun _ => I)) I (fun _ _ => I) (fun _ _ => I).
+
+Require Import Coq.Reals.Rdefinitions.
+Require Import Coq.Reals.Rfunctions.
+
+Local Open Scope R.
+
+Parameter Lebegue_sigma_algebra: SigmaAlgebra R.
+
+Axiom open_set_measurable: forall a: R, is_measurable_set (fun x: R => x < a).
