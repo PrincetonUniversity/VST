@@ -222,7 +222,7 @@ Module Concur.
             ext_step genv cnt0 Hcompat tp'' m' 
                      
     | step_freelock :
-        forall  (tp' tp'': thread_pool) c b ofs virtue pmap',
+        forall  (tp' tp'': thread_pool) c b ofs virtue pmap' m',
           forall
             (Hinv : invariant tp)
             (Hcode: getThreadC cnt0 = Kblocked c)
@@ -230,9 +230,9 @@ Module Concur.
                            Some (FREE_LOCK, ef_sig FREE_LOCK, Vptr b ofs::nil))
             (Hset_perm: setPermBlock virtue b (Int.intval ofs) (getThreadR cnt0) LKSIZE_nat = pmap')
             (Htp': tp' = updThread cnt0 (Kresume c Vundef) pmap')
-            (Htp'': tp'' = remLockSet tp' (b,(Int.intval ofs))),
-
-            ext_step genv cnt0 Hcompat  tp'' m 
+            (Htp'': tp'' = remLockSet tp' (b,(Int.intval ofs)))
+            (Hmem_no_change: m = m'),
+            ext_step genv cnt0 Hcompat  tp'' m'
                      
     | step_acqfail :
         forall  c b ofs m1,
@@ -241,7 +241,7 @@ Module Concur.
           (Hcode: getThreadC cnt0 = Kblocked c)
           (Hat_external: at_external Sem c =
                          Some (LOCK, ef_sig LOCK, Vptr b ofs::nil))
-          (His_lock: (Maps.PMap.get b (lockSet tp)) (Int.intval ofs))
+          (*His_lock: (Maps.PMap.get b (lockSet tp)) (Int.intval ofs)*)
           (Hrestrict_pmap: restrPermMap (compat_ls Hcompat) = m1)
           (Hload: Mem.load Mint32 m1 b (Int.intval ofs) = Some (Vint Int.zero)),
           ext_step genv cnt0 Hcompat tp m.

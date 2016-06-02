@@ -575,6 +575,9 @@ Module Concur.
             (Hstore:
                Mem.store Mint32 m b (Int.intval ofs) (Vint Int.zero) = Some m')
             (*Check the new memory has the lock*)
+            (Hct: forall ofs', 0<ofs'-(Int.intval ofs)<LKSIZE ->
+                          exists val,
+                phi@ (b, ofs') = YES sh pfullshare (VAL val) (pack_res_inv R))
             (Hlock: phi'@ (b, Int.intval ofs) = YES sh pfullshare (LK LKSIZE) (pack_res_inv R))
             (Hct: forall ofs', 0<ofs'-(Int.intval ofs)<LKSIZE ->
                 phi'@ (b, ofs') = YES sh pfullshare (CT LKSIZE) (pack_res_inv R))
@@ -588,10 +591,9 @@ Module Concur.
                     updLockSet tp' (b, Int.intval ofs) None ),
             syncStep' genv cnt0 Hcompat tp'' m' 
     | step_freelock :
-        forall  (tp' tp'': thread_pool) c b ofs phi jm' m1 R,
+        forall  (tp' tp'': thread_pool) c b ofs phi jm' R,
           (*let: phi := m_phi jm in*)
           let: phi' := m_phi jm' in
-          let: m' := m_dry jm' in
           forall
             (Hinv : invariant tp)
             (Hthread: getThreadC cnt0 = Kblocked c)
@@ -608,20 +610,24 @@ Module Concur.
             (Haccess: address_mapsto LKCHUNK (Vint Int.zero) sh Share.top (b, Int.intval ofs) phi')
             (*Check the old memory has the lock*)
             (Hlock: phi@ (b, Int.intval ofs) = YES sh pfullshare (LK LKSIZE) (pack_res_inv R))
+            (Hct: forall ofs', 0<= ofs'-(Int.intval ofs)<LKSIZE ->
+                          exists val, (*I*)
+                          phi'@ (b, ofs') = YES sh pfullshare (VAL val) (pack_res_inv R))
             (*Check the old memory has the right continuations  THIS IS REDUNDANT!*)
             (*Hcont: forall i, 0<i<LKSIZE ->   phi@ (b, Int.intval ofs + i) = YES sh pfullshare (CT i) NoneP *)
             (*Check the two memories coincide in everything else *)
             (Hj_forward: forall loc, loc#1 <> b \/ ~0<loc#2-(Int.size ofs)<LKSIZE  -> phi@loc = phi'@loc)
             (*Check the memories are equal!*)
-            (Hm_forward:
-               makeCurMax m = m1)
+            (*Hm_forward:
+               makeCurMax m = m1 *)
+            (Hdry_mem_no_change: m_dry jm' = m )
             (Htp': tp' = updThread cnt0 (Kresume c Vundef) (m_phi jm'))
             (Htp'': tp'' =
                     remLockSet tp' (b, Int.intval ofs) ),
-            syncStep' genv cnt0 Hcompat  tp'' (m_dry jm')  (* m_dry jm' = m_dry jm = m *)
+            syncStep' genv cnt0 Hcompat  tp'' m  (* m_dry jm' = m_dry jm = m *)
                      
     | step_acqfail :
-        forall  c b ofs jm psh,
+        forall  c b ofs jm psh m1,
           let: phi := m_phi jm in
           forall
             (Hinv : invariant tp)
@@ -631,9 +637,13 @@ Module Concur.
             (Hcompatible: mem_compatible tp m)
             (Hpersonal_perm: 
                personal_mem cnt0 Hcompatible = jm)
+            (Hrestrict_pmap:
+               permissions.restrPermMap
+                 (mem_compatible_locks_ltwritable Hcompatible)
+                  = m1)
             (sh:Share.t)(R:pred rmap)
             (HJcanwrite: phi@(b, Int.intval ofs) = YES sh psh (LK LKSIZE) (pack_res_inv R))
-            (Hload: Mem.load Mint32 m b (Int.intval ofs) = Some (Vint Int.zero)),
+            (Hload: Mem.load Mint32 m1 b (Int.intval ofs) = Some (Vint Int.zero)),
             syncStep' genv cnt0 Hcompat tp m.
     
     Definition threadStep (genv:G): forall {tid0 ms m},

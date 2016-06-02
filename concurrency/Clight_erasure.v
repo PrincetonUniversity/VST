@@ -258,6 +258,13 @@ Module ClightParching <: ErasureSig.
           (JSEM.ThreadPool.updLockSet js loc None)
           (DSEM.ThreadPool.updLockSet ds loc empty_map).
     Admitted.
+    Lemma MTCH_remLockN:
+      forall js ds loc,
+        match_st js ds ->
+        match_st
+          (JSEM.ThreadPool.remLockSet js loc)
+          (DSEM.ThreadPool.remLockSet ds loc).
+    Admitted.
     
     (*Not true anymore.*)
     (*Lemma MTCH_updLock:
@@ -765,90 +772,75 @@ Module ClightParching <: ErasureSig.
     { assert (Htid':= MTCH_cnt MATCH Hi).
      (* (Htp': tp' = updThread cnt0 (Kresume c) pmap_tid')
             (Htp'': tp'' = updLockSet tp' pmap_lp), *)
+      Definition WorF (sh: share): permission:=
+         if eq_dec sh Share.top then Freeable else Writable.
       pose (pmap_tid  := DTP.getThreadR Htid').
-      pose (pmap_tid' := setPermBlock (Some Nonempty) b (Int.intval ofs) pmap_tid LKSIZE_nat).
-      pose (pmap_lp   := setPerm (Some Writable) b (Int.intval ofs)  
-                                               (DTP.lockSet ds)).
-
+       pose (pmap_tid' := setPermBlock (Some (WorF sh)) b (Int.intval ofs) pmap_tid LKSIZE_nat).
+(*      pose (pmap_tid' := (setPermBlock (Some (WorF sh)) b (Int.intval ofs)
+           (DSEM.ThreadPool.getThreadR Htid') LKSIZE_nat)))*)
       
-      pose (ds':= DTP.updThread Htid' (Kresume c Vundef) pmap').
-      pose (ds'':= DTP.remLockSet tp' (b,(Int.intval ofs))).
+      
+      pose (ds':= DTP.updThread Htid' (Kresume c Vundef) pmap_tid').
+      pose (ds'':= DTP.remLockSet ds' (b,(Int.intval ofs))).
 
       exists ds''.
       split ; [|split].
       - admit. (*Nick has this proof somewhere. *)
-      - rewrite Htp''; unfold ds''.
-        apply MTCH_updLockN.
-        rewrite Htp'; unfold ds'.
+      - unfold ds''.
+        apply MTCH_remLockN.
+        unfold ds'.
         apply MTCH_update.
         assumption.
 
         (* Now I prove the map construction is correct*)
         {
-          inversion MATCH; subst js0 ds0.
-          unfold pmap_tid', pmap_tid.
-          intros.
-          (*unfold setPerm.*)
-          destruct (ident_eq b0 b). rewrite e.
-          + (*I consider three cases:
-             * ofs = ofs0 
-             * 0 < ofs0 - ofs < LOCKSIZE 
-             * ~ 0 < ofs0 - ofs <= LOCKSIZE
-             *)
-            admit. (*This should come from the specification of setPermBlock. *)
-            (* destruct (Intv.In_dec (ofs0 - (Int.intval ofs))%Z (0, LKSIZE));
-              [ destruct (zeq (Int.intval ofs) ofs0)| ].
-            * (* ofs = ofs0 *)
-              rewrite e0 in Hlock. 
-              rewrite Hlock; reflexivity.
-            * (* n0 < ofs0 - ofs < LOCKSIZE *)
-              move Hct at bottom. 
-              rewrite Hct.
-              simpl.
-              { 
-                destruct i0 as [lineq rineq]; simpl in lineq, rineq.
-                split; try assumption.
-                apply Z.le_neq; split; [assumption  |].
-                unfold not; intros HH; apply n; symmetry.
-                apply Zminus_eq; symmetry.
-                exact HH. }
-            
-          * erewrite <- Hj_forward. *)
-          + admit. (*again this comes from the specification of setPermBlock with b<>b0*)
+          admit.
         }
         
-      - econstructor 4. (*The step *)
+      - econstructor 5. (*The step *)
+        
         + assumption.
         + eapply MTCH_getThreadC; eassumption.
         + eassumption.
         (*      + eapply MTCH_compat; eassumption. *)
-        + instantiate(1:= m_dry jm).
-          subst tp''.
-          rewrite <- Hpersonal_perm.
-          erewrite <- (MTCH_restrict_personal ).
-          reflexivity.
-          assumption.
-        + rewrite <- Hright_juice; assumption.
+        + instantiate(2:= Some (WorF sh) ). reflexivity.
         + reflexivity.
-        + reflexivity.
+        + unfold ds'',  ds'.
         + replace (MTCH_cnt MATCH Hi) with Htid'.
-          reflexivity.
+          reflexivity. 
           apply proof_irrelevance.
-      
-
+          assumption.
     }
 
     (* step_acqfail *)
-    { admit. } *)
+    {
+      exists ds.
+      split ; [|split].
+      + assumption.
+      + assumption.
+      + { econstructor 6.
+          + assumption.
+          + inversion MATCH; subst.
+            rewrite <- (mtch_gtc i Hi).
+            eassumption.
+          + eassumption.
+          + reflexivity.
+          + erewrite restrPermMap_ext.
+            eassumption.
+            intros b0.
+            inversion MATCH; subst.
+            admit. (*This should follow from mtch_locks. Just like in release*)
+        }
+    }
   Admitted.
 
     
 
   
   Lemma core_diagram':
-    forall (m : M)  (U0 U U': schedule) 
+    forall (m : mem)  (U0 U U': schedule) 
      (ds : dstate) (js js': jstate) 
-     (m' : M),
+     (m' : mem),
    match_st js ds ->
    DSEM.invariant ds ->
    corestep (JMachineSem U0) genv (U, js) m (U', js') m' ->
@@ -864,6 +856,7 @@ Module ClightParching <: ErasureSig.
       
        (* start_step *)
        admit.
+       
        (* resume_step *)
        inversion MATCH; subst.
        inversion Htstep; subst.
@@ -872,7 +865,8 @@ Module ClightParching <: ErasureSig.
        (*Invariant*)
        { apply updCinvariant; assumption. }
        (*Match *)
-       { constructor.
+       { (*This should be a lemma *)
+         constructor.
          - intros. apply DTP.cntUpdateC. apply mtch_cnt. eapply JTP.cntUpdateC'. eassumption.
          - intros. apply JTP.cntUpdateC. apply mtch_cnt'. eapply DTP.cntUpdateC'. eassumption.
          - intros. destruct (NatTID.eq_tid_dec tid0 tid).
@@ -888,8 +882,10 @@ Module ClightParching <: ErasureSig.
            rewrite (JTP.gThreadCR _ jcnt2).
            rewrite (DTP.gThreadCR _ dcnt2).
            apply mtch_perm.
-         -  admit. (*Locks cohere*) 
+         -  admit. (*Locks 1*)
+         -  admit. (*Locks 1*) 
        }
+       
        (*Step*)
        { econstructor 2; try eassumption.
          - simpl. eapply MTCH_compat; eassumption.
@@ -910,36 +906,13 @@ Module ClightParching <: ErasureSig.
            (*Nick has this proof somewhere. *)
            admit.
          }
-         { constructor.
-           - simpl; intros.
-             apply DTP.cntUpdate. apply mtch_cnt.
-             eapply JTP.cntUpdate'; eassumption.
-           - simpl; intros.
-             apply JTP.cntUpdate. apply mtch_cnt'.
-             eapply DTP.cntUpdate'; eassumption.
-           - intros. destruct (NatTID.eq_tid_dec tid0 tid).
-             + subst. rewrite JTP.gssThreadCode DTP.gssThreadCode; reflexivity.
-             + assert (jcnt2:= JTP.cntUpdateC' (Krun c') Htid Htid0).
-               assert (dcnt2:= DTP.cntUpdateC' (Krun c') Htid' Htid'0).
-               assert (Hn: tid <> tid0) by auto.
-             rewrite (JTP.gsoThreadCode Hn Htid jcnt2 _ _ Htid0); auto.
-             rewrite (DTP.gsoThreadCode Hn Htid' dcnt2 _ _ Htid'0); auto.
-             (*apply mtch_gtc.*)
-
-           -  intros. destruct (NatTID.eq_tid_dec tid0 tid).
-              + subst. rewrite JTP.gssThreadRes DTP.gssThreadRes.
-                simpl. rewrite permissions.getCurPerm_correct.
-                unfold perm_of_res.
-                inversion Hcorestep.
-                (*m_phi = cur *)
-                admit.
-              + assert (jcnt2:= JTP.cntUpdateC' (Krun c') Htid Htid0).
-                assert (dcnt2:= DTP.cntUpdateC' (Krun c') Htid' Htid'0).
-                assert (Hn: tid <> tid0) by auto.
-                rewrite (JTP.gsoThreadRes Htid jcnt2 Hn _ _ Htid0); auto.
-                rewrite (DTP.gsoThreadRes Htid' dcnt2 Hn _ _ Htid'0); auto.
-                (*apply mtch_perm.*)
-           - admit. (* Locks cohere *)
+         { apply MTCH_update.
+           assumption.
+           intros.
+           assert (HH:= juicy_mem_access jm').
+           rewrite <- HH.
+           rewrite getCurPerm_correct.
+           reflexivity.
          }
          {  assert (Hcmpt': DSEM.mem_compatible ds m) by
                (eapply MTCH_compat; eassumption).
@@ -961,7 +934,7 @@ Module ClightParching <: ErasureSig.
        (* suspend_step *)
        inversion MATCH; subst.
        inversion Htstep; subst.
-       exists (DTP.updThreadC (mtch_cnt _ ctn) (Kstop c)).
+       exists (DTP.updThreadC (mtch_cnt _ ctn) (Kblocked c)).
        split;[|split].
        (*Invariant*)
        { apply updCinvariant; assumption. }
@@ -983,10 +956,11 @@ Module ClightParching <: ErasureSig.
            rewrite (JTP.gThreadCR _ jcnt2).
            rewrite (DTP.gThreadCR _ dcnt2).
            apply mtch_perm.
-         - admit. (* Locks cohere *)
+         - admit. (* Locks1*)
+         - admit. (* Locks2*)
        }
        (*Step*)
-       { econstructor 3; try eassumption.
+       { econstructor 4; try eassumption.
          - simpl. reflexivity.
          - eapply MTCH_compat; eassumption.
          - simpl. econstructor; try eassumption.
@@ -999,7 +973,7 @@ Module ClightParching <: ErasureSig.
          destruct (conc_step_diagram m m' U js js' ds tid genv MATCH dinv Htid Hcmpt HschedN Htstep)
            as [ds' [dinv' [MTCH' step']]]; eauto.
          exists ds'; split; [| split]; try assumption.
-         econstructor 4; simpl; try eassumption.
+         econstructor 5; simpl; try eassumption.
          reflexivity.
        }
        
@@ -1010,7 +984,7 @@ Module ClightParching <: ErasureSig.
        { assumption. }
        { inversion MATCH; subst. 
          assert (Htid':=Htid); apply mtch_cnt in Htid'.
-         econstructor 5; try eassumption.
+         econstructor 6; try eassumption.
          simpl; reflexivity.
          simpl. eapply MTCH_compat; eassumption; instantiate(1:=Htid').
 
@@ -1019,23 +993,21 @@ Module ClightParching <: ErasureSig.
        
            
        (* schedfail *)
-       exists ds.
+       { exists ds.
        split;[|split]; try eassumption.
-       econstructor 6; try eassumption.
-       inversion MATCH; subst.
+       econstructor 7; try eassumption; try reflexivity.
        unfold not; simpl; intros.
-       apply Htid. apply mtch_cnt'; assumption.
-       reflexivity.
-
+       apply Htid. inversion MATCH; apply mtch_cnt'; assumption. }
+       
        Grab Existential Variables.
        - simpl. apply mtch_cnt. assumption.
        - assumption.
   Admitted.
 
   Lemma core_diagram:
-    forall (m : M)  (U0 U U': schedule) 
+    forall (m : mem)  (U0 U U': schedule) 
      (ds : dstate) (js js': jstate) 
-     (m' : M),
+     (m' : mem),
    corestep (JMachineSem U0) genv (U, js) m (U', js') m' ->
    match_st js ds ->
    DSEM.invariant ds ->
@@ -1074,101 +1046,3 @@ Theorem clight_erasure:
          ClightErasure.init_inv ClightErasure.halt_inv.
 Proof.
   Proof. apply ClightErasure.erasure. Qed.
-
-
-
-
-
-
-
-
-
-(** STOP HERE *)
-
-  
-(*
-THIS PART COMES FROM THE erasure.v FILE.
-WILL EVENTUALLY BE INCLUDE FULLY ABOVE
-
- (* HERE ENDS THE NEW PART *)
-  
- Definition perm_of_res (r: compcert_rmaps.RML.R.resource): shares.share. (*This must exists somwehre*)
- Admitted.
-  
-  Definition erase_state (js:jstate) (m:mem): dstate.
-  Proof.
-    destruct js.
-    eapply (ThreadPool.mk num_threads).
-    - exact pool.
-    - intros. (*specialize (perm_comp X). inversion perm_comp. *)
-      unfold permissions.share_map.
-      pose (mp:= Mem.mem_access m).
-      destruct mp as [default TREE].
-      pose (f:= fun (p: BinNums.positive) (A: BinNums.Z -> perm_kind -> option permission) =>
-           fun (ofs: BinNums.Z) => perm_of_res (compcert_rmaps.RML.R.resource_at (juice X)  (p,ofs))).
-      eapply (Maps.PTree.map f TREE).
-  Defined.
-
-  
-    
-  Inductive match_st : jstate ->  dstate -> Prop:=
-    MATCH_ST: forall (js:jstate) ds
-      (size_eq: juicy_machine.ThreadPool.num_threads js = compcert_threads.ThreadPool.num_threads ds),
-      forall tid, juicy_machine.ThreadPool.pool js tid = compcert_threads.ThreadPool.pool ds (size_change size_eq tid) ->
-             match_st js ds.
-  
-  Axiom parch_match: forall (js: jstate) (ds: dstate),
-      match_st js ds <-> ds = parch_state js.
-
-  (*Init diagram*)
-  Axiom parch_initi: forall genv main vals U jms,
-      initial_core JMachineSem genv main vals = Some (U, jms) ->
-      initial_core DMachineSem genv main vals = Some (U, parch_state jms).
-  
-  (*Core Diagram*)
-  Axiom parched_diagram: forall genv U U' m m' jst jst',  
-      corestep JMachineSem genv (U, jst) m (U', jst') m' ->
-      corestep DMachineSem genv (U, parch_state jst) m (U', parch_state jst') m'.
-
-  (*Halted diagram*)
-  Axiom parched_halted: forall U js v1,
-          halted JMachineSem (U, js) = Some v1 ->
-          halted DMachineSem (U, parch_state js) = Some v1.
-
-  Module JSEM:= JuicyMachineSig SEM.
-  Module JuicyMachine:= CoarseMachine NatTID SCH JSEM.
-  Definition JMachineSem:= JuicyMachine.MachineSemantics.
-  Notation jstate:= JSEM.machine_state.
-  
-  Module DSEM:= ShareMachineSig SEM.
-  Module DryMachine:= CoarseMachine NatTID SCH DSEM.
-  Definition DMachineSem:= DryMachine.MachineSemantics.
-  Notation dstate:= DSEM.machine_state.
-
-  Definition parch_perm (juice: compcert_rmaps.RML.R.rmap): permissions.share_map.
-  Admitted.
-
-  Definition parch_perms (n: pos.pos)(Juice: fintype.ordinal (pos.n n) -> compcert_rmaps.RML.R.rmap):  fintype.ordinal (pos.n n) -> permissions.share_map.
-  Proof.                                                                                      
-    intros X.
-    eapply parch_perm; apply Juice; apply X.
-  Defined.
-  
-  Definition parch_state (js: jstate) : dstate :=
-    let n:= juicy_machine.ThreadPool.num_threads js in
-    ThreadPool.mk
-      n
-      (juicy_machine.ThreadPool.pool js)
-      (parch_perms n (juicy_machine.ThreadPool.juice js))
-  .
-  
-
-  Record t (cT : Type) : Type := mk
-  { num_threads : pos.pos;
-    pool : fintype.ordinal (pos.n num_threads) -> ctl;
-    juice : fintype.ordinal (pos.n num_threads) ->
-            compcert_rmaps.RML.R.rmap;
-    lpool : LockPool } 
-
-
-*)
