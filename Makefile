@@ -52,25 +52,23 @@ else
 endif
 endif
 
-EXTFLAGS= -R $(COMPCERT) -as compcert
+EXTFLAGS= -R $(COMPCERT) compcert
 
 # for SSReflect
 ifdef MATHCOMP
  EXTFLAGS:=$(EXTFLAGS) -R $(MATHCOMP) mathcomp
 endif
 
-COQFLAGS=$(foreach d, $(DIRS), $(if $(wildcard $(d)), -I $(d) -as $(d))) $(EXTFLAGS)
+COQFLAGS=$(foreach d, $(DIRS), $(if $(wildcard $(d)), -Q $(d) $(d))) $(EXTFLAGS)
 DEPFLAGS:=$(COQFLAGS)
 
 ifdef LIBPREFIX
- COQFLAGS=$(foreach d, $(DIRS), $(if $(wildcard $(d)), -I $(d) -as $(LIBPREFIX).$(d))) $(EXTFLAGS)
+ COQFLAGS=$(foreach d, $(DIRS), $(if $(wildcard $(d)), -Q $(d) $(LIBPREFIX).$(d))) $(EXTFLAGS)
 endif
 
-COQFLAGS= $(INCLUDE)
-DEPFLAGS= $(INCLUDE)
 COQC=$(COQBIN)coqc
 COQTOP=$(COQBIN)coqtop
-COQDEP=$(COQBIN)coqdep -slash $(DEPFLAGS)
+COQDEP=$(COQBIN)coqdep $(DEPFLAGS)
 COQDOC=$(COQBIN)coqdoc
 
 MSL_FILES = \
@@ -141,11 +139,13 @@ CONCUR_FILES= \
   sepcomp.v threads_lemmas.v permissions.v\
   pos.v scheduler.v threadPool.v \
   concurrent_machine.v juicy_machine.v dry_machine.v \
-  erasure.v Clight_erasure.v \
-  dry_machine_lemmas.v dry_context.v \
-  compcert_threads_lemmas.v mem_obs_eq.v \
-  semax_conc.v semax_to_machine.v \
-  lifting.v
+  erasure.v  \
+  semax_conc.v semax_to_machine.v semax_to_juicy_machine.v
+  # mem_obs_eq.v
+  # dry_machine_lemmas.v
+  # Clight_erasure.v dry_context.v
+  # compcert_threads_lemmas.v
+  # lifting.v
 
 CCC26x86_FILES = \
   Archi.v Bounds.v Conventions1.v Conventions.v Ctypes.v \
