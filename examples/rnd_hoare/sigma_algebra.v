@@ -43,6 +43,23 @@ Admitted.
 Definition max_sigma_alg (Omega: Type): SigmaAlgebra Omega :=
   Build_SigmaAlgebra _ (fun _ => True) (fun _ _ _ => conj (fun _ => I) (fun _ => I)) I (fun _ _ => I) (fun _ _ => I).
 
+Definition left_discreste_prod_sigma_alg (O1 O2: Type) {sa2: SigmaAlgebra O2}: SigmaAlgebra (O1 * O2).
+  apply (Build_SigmaAlgebra _ (fun P => forall x1, is_measurable_set (fun x2 => P (x1, x2)))).
+  + intros P1 P2 ?; simpl.
+    split; intros; specialize (H0 x1).
+    - eapply is_measurable_set_proper; [| eassumption].
+      split; hnf; unfold In; intros; apply H; auto.
+    - eapply is_measurable_set_proper; [| eassumption].
+      split; hnf; unfold In; intros; apply H; auto.
+  + intros; eapply is_measurable_set_proper; [| apply universal_set_measurable].
+    split; hnf; unfold In; intros; constructor.
+  + intros.
+    intros; eapply is_measurable_set_proper; [| apply complement_measurable, (H x1)].
+    split; hnf; unfold Complement, In; intros; auto.
+  + admit.
+Defined.
+
+    
 Require Import Coq.Reals.Rdefinitions.
 Require Import Coq.Reals.Rfunctions.
 

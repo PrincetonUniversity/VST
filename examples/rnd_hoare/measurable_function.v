@@ -31,9 +31,24 @@ Lemma PreImage_Full: forall  {A B: Type} {sA: SigmaAlgebra A} {sB: SigmaAlgebra 
 Admitted.
 
 Require Import Coq.Logic.Classical.
-Require Import Coq.Reals.Rdefinitions.
 
-Local Open Scope R.
+Definition ConstantFunction {A B: Type} {sA: SigmaAlgebra A} {sB: SigmaAlgebra B} (b0: B): MeasurableFunction A B.
+  apply (Build_MeasurableFunction _ _ _ _ (fun a b => b = b0)).
+  + intros.
+    congruence.
+  + intros.
+    exists b0; auto.
+  + intros.
+    destruct (classic (P b0)).
+    - eapply is_measurable_set_proper; [| apply universal_set_measurable].
+      split; hnf; unfold In; simpl; intros.
+      * constructor.
+      * subst; auto.
+    - eapply is_measurable_set_proper; [| apply complement_measurable; apply universal_set_measurable].
+      split; hnf; unfold Complement, In; simpl; intros.
+      * specialize (H0 b0); exfalso; auto.
+      * exfalso; apply H0; constructor.
+Defined.
 
 Definition Indicator {A B: Type} {sA: SigmaAlgebra A} {sB: SigmaAlgebra B} (P: measurable_set A) (b0 b1: B): MeasurableFunction A B.
   apply (Build_MeasurableFunction _ _ _ _ (fun a b => P a /\ b = b1 \/ ~ P a /\ b = b0)).
@@ -46,21 +61,59 @@ Definition Indicator {A B: Type} {sA: SigmaAlgebra A} {sB: SigmaAlgebra B} (P: m
     - exists b0; right.
       auto.
   + intros.
-    eapply is_measurable_set_proper.
-    instantiate (1 := fun a => P a /\ P0 b1 \/ ~ P a /\ P0 b0).
-    - split; hnf; unfold In; simpl; intros.
-      * pose proof (H b0).
-        pose proof (H b1).
+    destruct (classic (P0 b1)), (classic (P0 b0)).
+    - eapply is_measurable_set_proper; [| apply universal_set_measurable].
+      split; hnf; unfold In; simpl; intros.
+      * constructor.
+      * destruct H2 as [[? ?] | [? ?]]; subst; auto.
+    - eapply is_measurable_set_proper; [| apply (proj2_sig P)].
+      split; hnf; unfold In; simpl; intros.
+      * specialize (H1 b0).
+        assert (b0 <> b1) by (intro; subst; auto).
+        destruct (classic (P x)); tauto.
+      * destruct H2 as [[? ?] | [? ?]]; subst; tauto.
+    - eapply is_measurable_set_proper; [| apply complement_measurable; apply (proj2_sig P)].
+      split; hnf; unfold Complement, In; simpl; intros.
+      * specialize (H1 b1).
+        assert (b1 <> b0) by (intro; subst; auto).
         tauto.
-      * destruct H0 as [[? ?] | [? ?]]; subst; tauto.
-    - admit.
+      * destruct H2 as [[? ?] | [? ?]]; subst; tauto.
+    - eapply is_measurable_set_proper; [| apply complement_measurable; apply universal_set_measurable].
+      split; hnf; unfold Complement, In; simpl; intros.
+      * pose proof (H1 b0).
+        pose proof (H1 b1).
+        tauto.
+      * exfalso; apply H1; constructor.
 Defined.
-
-Definition IndicatorR {A: Type} {sA: SigmaAlgebra A} (P: measurable_set A): MeasurableFunction A R := Indicator P 0 1.
 
 Lemma Indicator_True: forall {A B: Type} {sA: SigmaAlgebra A} {sB: SigmaAlgebra B} (P: measurable_set A) (b0 b1: B) (a: A), P a -> Indicator P b0 b1 a b1.
 Proof. intros; simpl; auto. Qed.
 
 Lemma Indicator_False: forall {A B: Type} {sA: SigmaAlgebra A} {sB: SigmaAlgebra B} (P: measurable_set A) (b0 b1: B) (a: A), ~ P a -> Indicator P b0 b1 a b0.
 Proof. intros; simpl; auto. Qed.
+
+Definition Compose {A B C: Type} {sA: SigmaAlgebra A} {sB: SigmaAlgebra B} {sC: SigmaAlgebra C} (g: MeasurableFunction B C) (f: MeasurableFunction A B): MeasurableFunction A C.
+  apply (Build_MeasurableFunction _ _ _ _ (fun a c => exists b, f a b /\ g b c)).
+  + intros ? ? ? [? [? ?]] [? [? ?]].
+    pose proof (rf_functionality _ _ f _ _ _ H H1); subst x0.
+    pose proof (rf_functionality _ _ g _ _ _ H0 H2); auto.
+  + intros.
+    destruct (rf_complete _ _ f a) as [b ?].
+    destruct (rf_complete _ _ g b) as [c ?].
+    exists c, b; auto.
+  + intros.
+    pose proof rf_preserve _ _ g P.
+    pose proof rf_preserve _ _ f (exist _ _ H).
+    eapply is_measurable_set_proper; [| eassumption].
+    split; hnf; unfold In; simpl; intros.
+    - apply H1; exists b; auto.
+    - destruct H2 as [? [? ?]].
+      apply (H1 x0); auto.
+Defined.
+
+Require Import Coq.Reals.Rdefinitions.
+
+Local Open Scope R.
+
+Definition IndicatorR {A: Type} {sA: SigmaAlgebra A} (P: measurable_set A): MeasurableFunction A R := Indicator P 0 1.
 
