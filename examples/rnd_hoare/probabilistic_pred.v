@@ -1,83 +1,99 @@
 Require Import Coq.Sets.Ensembles.
 Require Import Coq.Logic.Classical.
-Require Import RndHoare.random_oracle.
-Require Import RndHoare.imperative.
-Import RndHoare.imperative.Randomized.
-Require Import RndHoare.full_domain.
 Require Import RndHoare.sigma_algebra.
 Require Import RndHoare.measurable_function.
-Require Import RndHoare.rcpd.
-
-Local Open Scope R.
-(*
-Definition is_measurable_subspace {ora: RandomOracle} {PRPS: PartialRegularProbabilitySpace RandomHistory} (P: RandomVarDomain): Prop := measurable_subspace P.
-
-Definition is_measurable_set {ora: RandomOracle} {PRPS: PartialRegularProbabilitySpace RandomHistory} (P: RandomHistory -> Prop | is_measurable_subspace P) (Q: RandomHistory -> Prop): Prop :=
-  Included _ Q (proj1_sig P) /\ is_measurable_set _ (sub_measure P) (sig_Set Q (proj1_sig P)).
-
-Definition measurable_set {ora: RandomOracle} {PRPS: PartialRegularProbabilitySpace RandomHistory} (P: RandomHistory -> Prop | is_measurable_subspace P): Type :=
-  {Q: RandomHistory -> Prop | is_measurable_set P Q}.
-
-Definition measure_of {ora: RandomOracle} {PRPS: PartialRegularProbabilitySpace RandomHistory} (P: RandomHistory -> Prop | is_measurable_subspace P) (Q: measurable_set P): R :=
-  measure_function _
-   (sub_measure P)
-   (exist _ (sig_Set (proj1_sig Q) (proj1_sig P)) (proj2 (proj2_sig Q))).
-*)
-
-Class RandomHistoryDistribution (ora: RandomOracle): Type := {
-  RHD_UD :> UniformDisintegration RandomHistory;
-  RHD_MSS_legal: forall P, is_measurable_subspace P -> LegalRandomVarDomain P;
-  RHD_MSS_consi: forall P Q, same_covered_domain P Q ->
-                   (is_measurable_subspace P <-> is_measurable_subspace Q);
-  RHD_MD_consi: forall (P Q: RandomVarDomain) (MP: is_measurable_subspace P) (MQ: is_measurable_subspace Q) S R, same_covered_domain P Q -> same_covered_domain S R ->
-                   Included _ S P ->
-                   Included _ R Q ->
-                   (is_measurable_set (exist is_measurable_subspace P MP) S <-> 
-                    is_measurable_set (exist is_measurable_subspace Q MQ) R);
-  RHD_M_consi: forall (P Q: RandomVarDomain) (MP: is_measurable_subspace P) (MQ: is_measurable_subspace Q) S R MS MR, same_covered_domain P Q -> same_covered_domain S R ->
-                   measure_of (exist is_measurable_subspace P MP) (exist (is_measurable_set (exist is_measurable_subspace P MP)) S MS) =
-                   measure_of (exist is_measurable_subspace Q MQ) (exist (is_measurable_set (exist is_measurable_subspace Q MQ)) R MR);
-  RHD_full_measurable: forall P, is_full_domain P -> is_measurable_subspace P
-}.
-
-Class DiscreteRandomHistoryDistribution (ora: RandomOracle) {RHD: RandomHistoryDistribution ora}: Type := {
-  singleton_history_measurable: forall (h: RandomHistory), is_measurable_subspace (singleton_history_domain h)
-}.
-
-Module Predicates.
+Require Import RndHoare.regular_conditional_prob.
+Require Import RndHoare.random_oracle.
+Require Import RndHoare.random_variable.
+Require Import RndHoare.meta_state.
 
 Section Predicates.
 
-Context {imp: Imperative} {sss: SmallStepSemantics} {rhd: RandomHistoryDistribution ora} {drhd: DiscreteRandomHistoryDistribution ora}.
+Context {ora: RandomOracle} {SFo: SigmaAlgebraFamily RandomHistory} {HBSFo: HistoryBasedSigF ora}.
 
-(***************************)
-(* overload global state   *)
-(***************************)
+Fixpoint _SigmaAlgebras (As: list Type): Type :=
+  match As with 
+  | nil => unit
+  | cons A As0 => (SigmaAlgebra A * _SigmaAlgebras As0)%type
+  end.
 
-Record global_state: Type := {
-  raw_gstate: Randomized.global_state;
-  gs_MSS: is_measurable_subspace (rv_domain _ raw_gstate);
-  gs_MF: forall (P: MetaState state -> Prop), is_measurable_set (exist is_measurable_subspace _ gs_MSS) (preimage_domain P raw_gstate)
-  (* Discrete/Continuous: P should be any measurable subset of MetaState when continuous. *)
-}.
+Class SigmaAlgebras (As: list Type): Type := sigma_algebras: _SigmaAlgebras As.
 
-Definition global_state_MSS (sigma: global_state): {P: RandomHistory -> Prop | is_measurable_subspace P} :=
-  exist is_measurable_subspace _ (gs_MSS sigma).
+Instance nil_SigmaAlgebras: SigmaAlgebras nil := tt.
+  
+Instance cons_SigmaAlgebras (A: Type) (As0: list Type) {sA: SigmaAlgebra A} {sAs: SigmaAlgebras As0}: SigmaAlgebras (cons A As0) := (sA, @sigma_algebras _ sAs).
 
-Record HereditaryRandVariable (A: Type): Type := {
-  well_defined_dom: RandomVarDomain -> Prop;
-  well_defined_mono: forall d1 d2, future_domain d1 d2 -> well_defined_dom d1 -> well_defined_dom d2;
-  well_defined_MSS: forall d, well_defined_dom d -> is_measurable_subspace d;
-  ex_value: forall d: RandomVarDomain, well_defined_dom d -> RandomVariable A;
-  ex_value_consi: forall d (H: well_defined_dom d), rv_domain _ (ex_value d H) = d;
-  ex_value_hered: forall d1 d2 (H1: well_defined_dom d1) (H2: well_defined_dom d2) (h1: d1) (h2: d2),
-    future_domain d1 d2 ->
-    prefix_history h1 h2 ->
-    RandomVar_local_equiv (ex_value d1 H1) (ex_value d2 H2) h1 h2;
-  ex_value_MF: forall d (H: well_defined_dom d) (P: A -> Prop),
-    is_measurable_set (exist is_measurable_subspace d (well_defined_MSS d H)) (preimage_domain P (ex_value d H))
-}.
+Definition head_SigmaAlgebra (A: Type) (As0: list Type) {sAs: SigmaAlgebras (cons A As0)}: SigmaAlgebra A := fst sigma_algebras.
 
+Definition tail_SigmaAlgebra (A: Type) (As0: list Type) {sAs: SigmaAlgebras (cons A As0)}: SigmaAlgebras As0 := snd sigma_algebras.
+
+Definition _RandomPred (Omega: RandomVarDomain): forall (As: list Type) {sAs: SigmaAlgebras As}, Type :=
+  fix RandomPred (As: list Type): SigmaAlgebras As -> Type :=
+    match As as As_PAT return SigmaAlgebras As_PAT -> Type with
+    | nil => fun _ => Prop
+    | cons A As0 => fun sAs => @RandomVariable _ _ Omega A (head_SigmaAlgebra A As0) -> RandomPred As0 (tail_SigmaAlgebra A As0)
+    end.
+
+Definition RandomPred (As: list Type) {sAs: SigmaAlgebras As}: Type := forall (Omega: RandomVarDomain), _RandomPred Omega As.
+
+Definition _prop (Omega: RandomVarDomain): forall (As: list Type) {sAs: SigmaAlgebras As} (P: Prop), _RandomPred Omega As :=
+  fix prop (As: list Type): forall (sAs: SigmaAlgebras As) (P: Prop), _RandomPred Omega As :=
+  match As as As_PAT return (forall (sAs: SigmaAlgebras As_PAT) (P: Prop), _RandomPred Omega As_PAT) with
+  | nil => fun sAs P => P
+  | cons A As0 => fun sAs P => fun _ => prop As0 (tail_SigmaAlgebra A As0) P
+  end.
+
+Definition _andp (Omega: RandomVarDomain): forall (As: list Type) {sAs: SigmaAlgebras As}, _RandomPred Omega As -> _RandomPred Omega As -> _RandomPred Omega As :=
+  fix andp (As: list Type): forall sAs: SigmaAlgebras As, _RandomPred Omega As -> _RandomPred Omega As -> _RandomPred Omega As :=
+  match As as As_PAT return (forall sAs: SigmaAlgebras As_PAT, _RandomPred Omega As_PAT -> _RandomPred Omega As_PAT -> _RandomPred Omega As_PAT) with
+  | nil => fun sAs P Q => P /\ Q
+  | cons A As0 => fun sAs P Q => fun rho => andp As0 (tail_SigmaAlgebra A As0) (P rho) (Q rho)
+  end.
+
+Definition _orp (Omega: RandomVarDomain): forall (As: list Type) {sAs: SigmaAlgebras As}, _RandomPred Omega As -> _RandomPred Omega As -> _RandomPred Omega As :=
+  fix orp (As: list Type): forall sAs: SigmaAlgebras As, _RandomPred Omega As -> _RandomPred Omega As -> _RandomPred Omega As :=
+  match As as As_PAT return (forall sAs: SigmaAlgebras As_PAT, _RandomPred Omega As_PAT -> _RandomPred Omega As_PAT -> _RandomPred Omega As_PAT) with
+  | nil => fun sAs P Q => P \/ Q
+  | cons A As0 => fun sAs P Q => fun rho => orp As0 (tail_SigmaAlgebra A As0) (P rho) (Q rho)
+  end.
+
+Definition _imp (Omega: RandomVarDomain): forall (As: list Type) {sAs: SigmaAlgebras As}, _RandomPred Omega As -> _RandomPred Omega As -> _RandomPred Omega As :=
+  fix imp (As: list Type): forall sAs: SigmaAlgebras As, _RandomPred Omega As -> _RandomPred Omega As -> _RandomPred Omega As :=
+  match As as As_PAT return (forall sAs: SigmaAlgebras As_PAT, _RandomPred Omega As_PAT -> _RandomPred Omega As_PAT -> _RandomPred Omega As_PAT) with
+  | nil => fun sAs P Q => P \/ Q
+  | cons A As0 => fun sAs P Q => fun rho => imp As0 (tail_SigmaAlgebra A As0) (P rho) (Q rho)
+  end.
+
+Definition _exp (Omega: RandomVarDomain): forall (As: list Type) {sAs: SigmaAlgebras As} {B: Type}, (B -> _RandomPred Omega As) -> _RandomPred Omega As :=
+  fix exp (As: list Type): forall (sAs: SigmaAlgebras As) (B: Type), (B -> _RandomPred Omega As) -> _RandomPred Omega As :=
+  match As as As_PAT return (forall (sAs: SigmaAlgebras As_PAT) (B: Type), (B -> _RandomPred Omega As_PAT) -> _RandomPred Omega As_PAT) with
+  | nil => fun sAs B (P: B -> Prop) => ex P
+  | cons A As0 => fun sAs B P => fun rho => exp As0 (tail_SigmaAlgebra A As0) B (fun b => P b rho)
+  end.
+
+Definition _expR (Omega: RandomVarDomain): forall (As: list Type) {sAs: SigmaAlgebras As} (B: Type) {sB: SigmaAlgebra B}, (RandomVariable Omega B -> _RandomPred Omega As) -> _RandomPred Omega As :=
+  fix expR (As: list Type): forall (sAs: SigmaAlgebras As) (B: Type) (sB: SigmaAlgebra B), (RandomVariable Omega B -> _RandomPred Omega As) -> _RandomPred Omega As :=
+  match As as As_PAT return (forall (sAs: SigmaAlgebras As_PAT) (B: Type) (sB: SigmaAlgebra B), (RandomVariable Omega B -> _RandomPred Omega As_PAT) -> _RandomPred Omega As_PAT) with
+  | nil => fun sAs B sB (P: RandomVariable Omega B -> Prop) =>
+              exists (b: HeredRandomVariable B) (H: well_defined_dom _ b Omega), P (ex_value _ b Omega H)
+  | cons A As0 => fun sAs B sB P => fun rho => expR As0 (tail_SigmaAlgebra A As0) B sB (fun b => P b rho)
+  end.
+
+Definition prop {As: list Type} {sAs: SigmaAlgebras As} (P: Prop): RandomPred As := fun Omega: RandomVarDomain => _prop Omega As P.
+
+Definition andp {As: list Type} {sAs: SigmaAlgebras As} (P Q: RandomPred As): RandomPred As := fun Omega: RandomVarDomain => _andp Omega As (P Omega) (Q Omega).
+
+Definition orp {As: list Type} {sAs: SigmaAlgebras As} (P Q: RandomPred As): RandomPred As := fun Omega: RandomVarDomain => _orp Omega As (P Omega) (Q Omega).
+
+Definition imp {As: list Type} {sAs: SigmaAlgebras As} (P Q: RandomPred As): RandomPred As := fun Omega: RandomVarDomain => _imp Omega As (P Omega) (Q Omega).
+
+Definition exp {As: list Type} {sAs: SigmaAlgebras As} {B: Type} (P: B -> RandomPred As): RandomPred As := fun Omega: RandomVarDomain => _exp Omega As (fun b => P b Omega).
+
+Definition expR {As: list Type} {sAs: SigmaAlgebras As} {B: Type} {sB: SigmaAlgebra B} (P: RandomPred (B :: As)): RandomPred As := fun Omega: RandomVarDomain => _expR Omega As B (fun b => P Omega b).
+
+End Predicates.
+
+(*
 
 (*
 Definition state_pred_domain_MS (P: MetaState state -> Prop) (sigma: global_state): measurable_set (global_state_MSS sigma).
@@ -128,3 +144,4 @@ Definition TTriple (P: global_state -> Prop) (c: cmd) (Q: global_state -> Prop):
       Q s2.
 
 Require Import Morphisms.
+*)

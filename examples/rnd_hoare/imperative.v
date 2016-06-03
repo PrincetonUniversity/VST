@@ -3,6 +3,7 @@ Require Import RndHoare.measurable_function.
 Require Import RndHoare.regular_conditional_prob.
 Require Import RndHoare.random_oracle.
 Require Import RndHoare.random_variable.
+Require Import RndHoare.meta_state.
 Require Import Coq.Classes.Equivalence.
 Require Import Coq.Classes.Morphisms.
 
@@ -40,66 +41,6 @@ Class NormalImperative {imp: Imperative}: Type := {
   Sifthenelse_pattern_match_iff: forall (c: cmd) (e: expr) (c1 c2: cmd), c = Sifthenelse e c1 c2 <-> cmd_pattern_match c = PM_Sifthenelse e c1 c2;
   Swhile_pattern_match_iff: forall (c: cmd) (e: expr) (c0: cmd), c = Swhile e c0 <-> cmd_pattern_match c = PM_Swhile e c0
 }.
-
-Inductive MetaState (state: Type): Type :=
-  | NonTerminating: MetaState state
-  | Terminating: state -> MetaState state.
-
-Instance MetaState_SigmaAlgebra (state: Type) {state_sig: SigmaAlgebra state}: SigmaAlgebra (MetaState state).
-  apply (Build_SigmaAlgebra _ (fun P => is_measurable_set (fun s => P (Terminating _ s)))).
-  + hnf; intros; simpl.
-    apply is_measurable_set_proper.
-    destruct H; split; unfold Included, In in *; hnf; intros; auto.
-  + eapply is_measurable_set_proper; [| apply universal_set_measurable].
-    split; hnf; unfold In; intros; constructor.
-  + intros. admit.
-  + intros. admit.
-Defined.
-
-Inductive raw_MetaState_pair_left (cmd state: Type) (c: cmd): MetaState state -> MetaState (cmd * state) -> Prop :=
-  | Terminating_pair_left: forall s, raw_MetaState_pair_left cmd state c (Terminating _ s) (Terminating _ (c, s))
-  | NonTerminating_pair_left: raw_MetaState_pair_left cmd state c (NonTerminating _) (NonTerminating _).
-
-Definition MetaState_pair_left {cmd state: Type} {state_sig: SigmaAlgebra state} (c: cmd): @MeasurableFunction (MetaState state) (MetaState (cmd * state)) _ (@MetaState_SigmaAlgebra _ (left_discreste_prod_sigma_alg cmd state)).
-  apply (Build_MeasurableFunction _ _ _ _ (raw_MetaState_pair_left cmd state c)).
-  + intros.
-    inversion H; inversion H0; try congruence.
-  + intros.
-    destruct a.
-    - exists (NonTerminating _); constructor.
-    - exists (Terminating _ (c, s)); constructor.
-  + simpl.
-    intros.
-    destruct P as [P ?H].
-    simpl in *.
-    eapply is_measurable_set_proper; [| exact (H c)].
-    simpl.
-    split; hnf; unfold In; intros.
-    - apply H0; constructor.
-    - inversion H1; auto.
-Defined.
-
-Inductive raw_MetaState_snd (cmd state: Type): MetaState (cmd * state) -> MetaState state -> Prop :=
-  | Terminating_snd: forall c s, raw_MetaState_snd cmd state (Terminating _ (c, s)) (Terminating _ s)
-  | NonTerminating_snd: raw_MetaState_snd cmd state (NonTerminating _) (NonTerminating _).
-
-Definition MetaState_snd {cmd state: Type} {state_sig: SigmaAlgebra state}: @MeasurableFunction (MetaState (cmd * state)) (MetaState state) (@MetaState_SigmaAlgebra _ (left_discreste_prod_sigma_alg cmd state)) _.
-  apply (Build_MeasurableFunction _ _ _ _ (raw_MetaState_snd cmd state)).
-  + intros.
-    inversion H; inversion H0; try congruence.
-  + intros.
-    destruct a as [ | [? ?]].
-    - exists (NonTerminating _); constructor.
-    - exists (Terminating _ s); constructor.
-  + simpl.
-    intros.
-    destruct P as [P ?H].
-    eapply is_measurable_set_proper; [| exact H].
-    simpl.
-    split; hnf; unfold In; intros.
-    - apply H0; constructor.
-    - inversion H1; auto.
-Defined.
 
 Module Sequential.
 
@@ -168,54 +109,6 @@ End Sequential.
 
 Module Randomized.
 
-Section ProbState.
-
-Context {ora: RandomOracle} {SFo: SigmaAlgebraFamily RandomHistory} {HBSFo: HistoryBasedSigF ora}.
-
-Record ProbState (state: Type) {state_sigma: SigmaAlgebra state} : Type := {
-  Omega: RandomVarDomain;
-  raw_state: RandomVariable Omega (MetaState state);
-  inf_history_sound: forall (h: RandomHistory) (ms: MetaState state), is_inf_history h -> raw_state h ms -> ms = NonTerminating _
-}.
-
-Definition ProbState_fun (state: Type) {state_sigma: SigmaAlgebra state}: ProbState state -> RandomHistory -> MetaState state -> Prop := @raw_state state _.
-
-Global Coercion ProbState_fun: ProbState >-> Funclass.
-
-Definition ProbState_RandomVariable (state: Type) {state_sigma: SigmaAlgebra state} (s: ProbState state): RandomVariable (Omega _ s) (MetaState state) := @raw_state state _ s.
-
-Global Coercion ProbState_RandomVariable: ProbState >-> RandomVariable.
-(*
-Definition unique_state {ora: RandomOracle} {state: Type} (s: MetaState state): ProbState state.
-  refine (exist _ (unit_space_var s) _).
-  intros.
-  exfalso.
-  destruct h as [h ?H]; simpl in *.
-  specialize (H 0).
-  specialize (H0 0).
-  destruct (h 0); simpl in *; try congruence.
-  inversion H0.
-Defined.
-*)
-
-Definition ProbStateStream {ora: RandomOracle} (state: Type) {state_sigma: SigmaAlgebra state}: Type := nat -> ProbState state.
-
-Definition ProbConvDir {ora: RandomOracle} : Type := nat -> RandomVarDomain.
-
-Record is_limit {ora: RandomOracle} {state: Type} {state_sigma: SigmaAlgebra state} (l: ProbStateStream state) (dir: ProbConvDir) (lim: ProbState state) : Prop := {
-  dir_mono: forall n, future_domain (RandomVarDomain_RandomVarDomain (dir n)) (RandomVarDomain_RandomVarDomain (dir (S n)));
-  dir_consi_uncovered: forall n h, ~ covered_by h (RandomVarDomain_RandomVarDomain (dir n)) -> RandomVar_local_equiv (l n) (l (S n)) h h;
-  dir_in_domain: forall n h, RandomVarDomain_RandomVarDomain (dir n) h -> RandomVarDomain_RandomVarDomain (Omega _ (l n)) h;
-  pointwise_limit: forall h s,
-    lim h s <->
-      (exists n, (l n) h s /\ forall n', n' >= n -> ~ RandomVarDomain_RandomVarDomain (dir n) h) \/
-      (s = NonTerminating _ /\
-       forall n h_low, is_fin_history h_low -> prefix_history h_low h ->
-         exists n' h', n' > n /\ prefix_history h_low h' /\ prefix_history h' h /\ RandomVarDomain_RandomVarDomain (dir n') h')
-}.
-
-End ProbState.
-
 Class SmallStepSemantics {imp: Imperative} : Type := {
   state: Type;
   state_sig: SigmaAlgebra state;
@@ -223,7 +116,7 @@ Class SmallStepSemantics {imp: Imperative} : Type := {
   ora: RandomOracle;
   SFo: SigmaAlgebraFamily RandomHistory;
   HBSFo: HistoryBasedSigF ora;
-  step: cmd * state -> ProbState (cmd * state) -> Prop
+  step: cmd * state -> forall {Omega: RandomVarDomain}, ProgState Omega (cmd * state)%type -> Prop
 }.
 
 Global Existing Instances state_sig cmd_state_sig ora SFo HBSFo.
@@ -232,15 +125,16 @@ Section Randomize.
 
 Context {imp: Imperative} {sss: SmallStepSemantics}.
 
-Record local_step (h: RandomHistory) (s1 s2: ProbState (cmd * state)): Prop := {
+Record local_step (h: RandomHistory) {O1 O2: RandomVarDomain} (s1: ProgState O1 (cmd * state)) (s2: ProgState O2 (cmd * state)): Prop := {
   cs1: cmd * state;
-  cs2: ProbState (cmd * state);
+  Omega: RandomVarDomain;
+  cs2: ProgState Omega (cmd * state);
   sound1: s1 h (Terminating _ cs1);
   sound2: forall h' h'', history_app h h' h'' -> (forall x, s2 h'' x <-> cs2 h' x);
   step_fact: step cs1 cs2
 }.
 
-Record global_step (P: RandomVarDomain) (s1 s2: ProbState (cmd * state)): Prop := {
+Record global_step (P: RandomVarDomain) {O1 O2: RandomVarDomain} (s1: ProgState O1 (cmd * state)) (s2: ProgState O2 (cmd * state)): Prop := {
   action_part:
     forall h, RandomVarDomain_RandomVarDomain P h -> local_step h s1 s2;
   stable_part:
@@ -248,24 +142,29 @@ Record global_step (P: RandomVarDomain) (s1 s2: ProbState (cmd * state)): Prop :
 }.
 
 Record step_path: Type := {
-  path_states: nat -> ProbState (cmd * state);
-  step_domains: nat -> RandomVarDomain;
+  path_domain: RandomVarDomainStream;
+  path_states: ProgStateStream path_domain (cmd * state);
+  step_domains: RandomVarDomainStream;
   step_sound: forall n, global_step (step_domains n) (path_states n) (path_states (S n));
   domain_mono: forall n, future_domain (RandomVarDomain_RandomVarDomain (step_domains n)) (RandomVarDomain_RandomVarDomain (step_domains (S n)))
 }.
 
-Definition access (src dst: ProbState (cmd * state)): Prop :=
-  exists (l: step_path) (n: nat), path_states l 0 = src /\ path_states l n = dst.
+Definition access {O1 O2: RandomVarDomain} (src: ProgState O1 (cmd * state)) (dst: ProgState O2 (cmd * state)): Prop :=
+  exists (l: step_path) (n: nat),
+    RandomVar_global_equiv (path_states l 0) src /\
+    RandomVar_global_equiv (path_states l n) dst.
 
-Definition omega_access (src dst: ProbState (cmd * state)): Prop :=
-  exists (l: step_path), path_states l 0 = src /\ is_limit (path_states l) (step_domains l) dst.
+Definition omega_access {O1 O2: RandomVarDomain} (src: ProgState O1 (cmd * state)) (dst: ProgState O2 (cmd * state)): Prop :=
+  exists (l: step_path),
+    RandomVar_global_equiv (path_states l 0) src /\
+    is_limit (path_states l) (step_domains l) dst.
 
-Definition global_state: Type := ProbState state.
+Definition global_state: Type := ProgState state.
 
-Global Identity Coercion global_state_ProbState: global_state >-> ProbState.
+Global Identity Coercion global_state_ProgState: global_state >-> ProgState.
 
-Definition global_state_command_state (c: cmd) (s: global_state): ProbState (cmd * state).
-  refine (Build_ProbState _ _ (Omega _ s) (RandomVarMap (MetaState_pair_left c) (raw_state _ s)) _).
+Definition global_state_command_state (c: cmd) (s: global_state): ProgState (cmd * state).
+  refine (Build_ProgState _ _ (Omega _ s) (RandomVarMap (MetaState_pair_left c) (raw_state _ s)) _).
   intros.
   rewrite RandomVarMap_sound in H0.
   destruct H0 as [? [? ?]].
