@@ -118,124 +118,97 @@ Fixpoint find_in_list {A B} (D:forall x y : A, {x = y} + {x <> y})
 
 Definition find_in_threadlib_specs id := find_in_list peq id threadlib_specs.
 
-(* Same lemma as [semax_call_id00_wow] but it concerns only the
-   functions listed in [threadlib_specs], which, in addition to being
-   external, need an additional parameter [witness'] of type, for
-   example, [mpred], on which quantifying directly in the WITH clause
-   would result in a universe inconsistency. *)
-
-Lemma semax_call_id00_wow_threads:
-  forall  {A} {A'} (witness: A) (witness' : A')
-     (ext_link : string -> ident)
-     (Frame: list mpred) 
-     (* Espec *) {cs: compspecs} Delta P Q R id (paramty: typelist) (bl: list expr)
-     (argsig: list (ident * type)) (retty: type) cc (Pre Post: A -> environ -> mpred)
-     ffunspec
-             (Post2: environ -> mpred)
-             (Ppre: list Prop)
-             (Qpre: list localdef)
-             (Qtemp Qactuals Qpre_temp : PTree.t _)
-             (Qvar Qpre_var: PTree.t vardesc)
-             (B: Type)
-             (Ppost: B -> list Prop)
-             (Rpre: list mpred)
-             (Rpost: B -> list mpred)
-             (vl : list val)
-   (GLBL: (var_types Delta) ! id = None)
-   (NAME: find_in_threadlib_specs id = Some (existT (fun x => x -> funspec) A' ffunspec))
-   (FUNSPEC: ffunspec witness' = mk_funspec (argsig, Tvoid) cc A Pre Post)
-   (* (GLOBS: (glob_specs Delta) ! id = Some (mk_funspec (argsig,Tvoid) cc A Pre Post)) *)
-   (* (GLOBT: (glob_types Delta) ! id = Some (type_of_funspec (mk_funspec (argsig,retty) cc A Pre Post))) *)
-   (RETTY: retty = Tvoid)
-   (H: paramty = type_of_params argsig)
-   (PTREE: local2ptree Q = (Qtemp, Qvar, nil, nil))
-   (TC1: ENTAIL Delta, PROPx P (LOCALx Q (SEPx R))
-          |-- (tc_exprlist Delta (argtypes argsig) bl))
-   (PRE1: Pre witness = PROPx Ppre (LOCALx Qpre (SEPx Rpre)))
-   (PTREE': local2ptree Qpre = (Qpre_temp, Qpre_var, nil, nil))
-   (MSUBST: force_list (map (msubst_eval_expr Qtemp Qvar) 
-                    (explicit_cast_exprlist (argtypes argsig) bl))
-                = Some vl)
-   (PTREE'': pTree_from_elements (List.combine (var_names argsig) vl) = Qactuals)
-   (CHECKTEMP: ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) 
-           |-- !! Forall (check_one_temp_spec Qactuals) (PTree.elements Qpre_temp))
-   (CHECKVAR: ENTAIL Delta, PROPx P (LOCALx Q (SEPx R))
-           |-- !! Forall (check_one_var_spec Qvar) (PTree.elements Qpre_var))
-   (FRAME: fold_right sepcon emp R |-- fold_right sepcon emp Rpre * fold_right sepcon emp Frame)
-   (POST1: Post witness = (EX vret:B, PROPx (Ppost vret) (LOCALx nil (SEPx (Rpost vret)))))
-   (POST2: Post2 = EX vret:B, PROPx (P++ Ppost vret ) (LOCALx Q
-             (SEPx (Rpost vret ++ Frame))))
-   (PPRE: fold_right_and True Ppre),
-   @semax cs (Concurrent_Espec cs ext_link) Delta (PROPx P (LOCALx Q (SEPx R)))
-    (Scall None
-             (Evar id (Tfunction paramty Tvoid cc))
-             bl)
-    (normal_ret_assert Post2).
+Lemma semax_acquire:
+   forall {cs: compspecs} (Frame : list mpred) (Delta : tycontext)
+       (P : list Prop) (Q : list localdef) (bl : list expr) (ResInv : mpred)
+       (witness: val*share) argsig
+     (Pre Post: val*share -> environ -> mpred) ,
+ argsig = [(_lock, tptr tlock)] ->
+ Pre witness = (let (v,sh) := witness in
+          (PROP (readable_share sh)
+       LOCAL (temp _lock v)  SEP (lock_inv sh v ResInv)))  ->
+ Post witness = (let (v,sh) := witness in
+          (PROP ( )  LOCAL ()  SEP (lock_inv sh v ResInv; ResInv))) ->
+@semax cs (Concurrent_Espec cs ext_link) Delta
+  (tc_exprlist Delta (argtypes [(_lock, tptr tlock)]) bl &&
+   (` (Pre witness)  (make_args' (argsig, Tvoid)
+                          (eval_exprlist (argtypes argsig) bl)) *
+    PROPx P (LOCALx Q (SEPx Frame))))
+  (Scall None
+     (Evar (ext_link "acquire")
+        (Tfunction (type_of_params [(_lock, tptr tlock)]) Tvoid
+           cc_default)) bl)
+  (normal_ret_assert
+     (` (Post witness)
+        (make_args [] []) * PROPx P (LOCALx Q (SEPx Frame)))).
 Proof.
-
 intros.
-subst.
-unfold find_in_threadlib_specs, threadlib_specs in NAME.
-simpl in NAME.
-repeat if_tac in NAME.
+rewrite H0,H1; clear H0 H1. subst argsig. clear.
+destruct witness as [v sh].
+rewrite semax.semax_fold_unfold.
+Admitted.
 
-* (* acquire *)
-  subst id.
-  injection NAME.
-  intros.
-  revert FUNSPEC.
-  subst A'.
-  apply inj_pair2 in H; subst ffunspec. clear NAME.
-  intros.
-  unfold acquire_spec in FUNSPEC.
-  revert PRE1 POST1.
-  inv FUNSPEC.
-  intros.
-  apply inj_pair2 in H3.
-  apply inj_pair2 in H4.
-  subst Pre Post.
-  destruct witness as [v sh].
 
-  apply msubst_eval_exprlist_eq with (P:=P)(R:=R)(Q:=nil) in MSUBST.
-  apply (local2ptree_soundness P _ R) in PTREE; simpl app in PTREE.
-  apply (local2ptree_soundness nil _ (TT :: nil)) in PTREE'; simpl app in PTREE'.
-  rewrite <- PTREE in MSUBST.
-  rewrite !isolate_LOCAL_lem1 in PTREE'.
-  (* clear Qtemp Qvar PTREE. *)
-  
-  apply semax_pre_post with
-  (PROP (readable_share sh)  LOCAL (temp _lock v) (SEPx (lock_inv sh v witness' :: Frame)))
-    (normal_ret_assert
-       ( PROP ( )  LOCAL ()  (SEPx (lock_inv sh v witness' :: witness' :: Frame)))).
-  admit.
+Lemma semax_call_00_helper:  (* This lemma's proof almost identical to semax_call_id00_wow *)
+forall (Frame : list mpred) (cs : compspecs) (Delta : tycontext)
+  (P : list Prop) (Q : list localdef) (R : list mpred) (bl : list expr)
+  (Ppre : list Prop) (Qpre : list localdef) (Qtemp Qpre_temp : PTree.t val)
+  (Qvar Qpre_var : PTree.t vardesc) 
+  (B : Type) (Ppost : B -> list Prop) (Rpre : list mpred)
+  (Rpost : B -> list mpred)
+  (vl : list val)
+  (witness' : mpred)
+  (argsig: list (ident * type))
+  (A: Type)
+  (witness : A)
+  (Pre Post : A -> environ -> mpred)
+  (PTREE : local2ptree Q = (Qtemp, Qvar, [], []))
+  (PTREE' : local2ptree Qpre = (Qpre_temp, Qpre_var, [], []))
+  (CHECKVAR : ENTAIL Delta, PROPx P (LOCALx Q (SEPx R))
+           |-- !! Forall (check_one_var_spec Qvar)
+                    (PTree.elements Qpre_var))
+  (FRAME : fold_right sepcon emp R
+        |-- fold_right sepcon emp Rpre * fold_right sepcon emp Frame)
+  (PPRE : fold_right_and True Ppre)
+  (GLBL : (var_types Delta) ! (ext_link "acquire") = None)
+  (TC1 : ENTAIL Delta, PROPx P (LOCALx Q (SEPx R))
+      |-- tc_exprlist Delta (argtypes argsig) bl)
+  (MSUBST : force_list
+           (map (msubst_eval_expr Qtemp Qvar)
+              (explicit_cast_exprlist (argtypes argsig) bl)) = 
+         Some vl)
+  (CHECKTEMP : ENTAIL Delta, PROPx P (LOCALx Q (SEPx R))
+            |-- !! Forall
+                     (check_one_temp_spec
+                        (pTree_from_elements
+                           (combine (var_names argsig) vl)))
+                     (PTree.elements Qpre_temp))
+  (PRE1 : Pre witness = PROPx Ppre (LOCALx Qpre (SEPx Rpre)))
+  (POST1 : Post witness =
+        (EX vret : B, PROPx (Ppost vret) LOCAL ()  (SEPx (Rpost vret)))%assert),
 
-  intros ek vl0.
-  apply ENTAIL_normal_ret_assert.
-  intros -> -> .
-  change (lock_inv sh v witness' :: witness' :: Frame) with ([lock_inv sh v witness'; witness'] ++ Frame).
-  replace 
-    (PROP ( )  LOCAL ()  (SEPx ([lock_inv sh v witness'; witness'] ++ Frame)))
-  with
-  (PROP ( )  LOCAL ()  (SEPx ([lock_inv sh v witness'; witness'])) * `(fold_right sepcon emp Frame)).
-  rewrite POST1.
-  normalize.
-  Exists vret.
-
-  simpl.
-  intros.
-
-  admit (* easy *).
-
-  admit (* easy *).
-
-  rename witness' into Res_inv.
-  clear -GLBL TC1 MSUBST CHECKTEMP PTREE.
-
-eapply semax_pre_post; 
-   [ | 
-   | apply semax_call_id0 with (x:=witness) (P:=P)(Q:=Q) (R := Frame)
-   ];
-   try eassumption.
+@semax cs (Concurrent_Espec cs ext_link) Delta
+  (tc_exprlist Delta (argtypes argsig) bl &&
+   (` (Pre witness)  (make_args' (argsig, Tvoid)
+                          (eval_exprlist (argtypes argsig) bl)) *
+    PROPx P (LOCALx Q (SEPx Frame))))
+  (Scall None
+     (Evar (ext_link "acquire")
+        (Tfunction (type_of_params argsig) Tvoid
+           cc_default)) bl)
+  (normal_ret_assert
+     (` (Post witness)
+        (make_args [] []) * PROPx P (LOCALx Q (SEPx Frame)))) ->
+ @semax  cs (Concurrent_Espec cs ext_link)  Delta (PROPx P (LOCALx Q (SEPx R)))
+  (Scall None
+     (Evar (ext_link "acquire")
+        (Tfunction (type_of_params argsig) Tvoid cc_default)) bl)
+  (normal_ret_assert
+     (EX vret : B,
+      PROPx (P ++ Ppost vret) (LOCALx Q (SEPx (Rpost vret ++ Frame))))%assert).
+Proof.
+intros.
+eapply semax_pre_post; [ | | apply H].
 *
  apply andp_right; auto.
  rewrite PRE1.
@@ -321,15 +294,96 @@ apply andp_left2. apply andp_left1.
  unfold ifvoid.
  go_lowerx. normalize.
  apply exp_right with x.
+ normalize.
  apply andp_right.
  apply prop_right.
- split; auto.
- normalize.
  rewrite fold_right_and_app_low.
- rewrite prop_true_andp by (split; auto).
+ split; auto.
  rewrite fold_right_sepcon_app. auto.
-Qed.  
+Qed.
 
+(* Same lemma as [semax_call_id00_wow] but it concerns only the
+   functions listed in [threadlib_specs], which, in addition to being
+   external, need an additional parameter [witness'] of type, for
+   example, [mpred], on which quantifying directly in the WITH clause
+   would result in a universe inconsistency. *)
+
+
+
+Lemma semax_call_id00_wow_threads:
+  forall  {A} {A'} (witness: A) (witness' : A')
+     (Frame: list mpred) 
+     (* Espec *) {cs: compspecs} Delta P Q R id (paramty: typelist) (bl: list expr)
+     (argsig: list (ident * type)) (retty: type) cc (Pre Post: A -> environ -> mpred)
+     ffunspec
+             (Post2: environ -> mpred)
+             (Ppre: list Prop)
+             (Qpre: list localdef)
+             (Qtemp Qactuals Qpre_temp : PTree.t _)
+             (Qvar Qpre_var: PTree.t vardesc)
+             (B: Type)
+             (Ppost: B -> list Prop)
+             (Rpre: list mpred)
+             (Rpost: B -> list mpred)
+             (vl : list val)
+   (GLBL: (var_types Delta) ! id = None)
+   (NAME: find_in_threadlib_specs id = Some (existT (fun x => x -> funspec) A' ffunspec))
+   (FUNSPEC: ffunspec witness' = mk_funspec (argsig, Tvoid) cc A Pre Post)
+   (* (GLOBS: (glob_specs Delta) ! id = Some (mk_funspec (argsig,Tvoid) cc A Pre Post)) *)
+   (* (GLOBT: (glob_types Delta) ! id = Some (type_of_funspec (mk_funspec (argsig,retty) cc A Pre Post))) *)
+   (RETTY: retty = Tvoid)
+   (H: paramty = type_of_params argsig)
+   (PTREE: local2ptree Q = (Qtemp, Qvar, nil, nil))
+   (TC1: ENTAIL Delta, PROPx P (LOCALx Q (SEPx R))
+          |-- (tc_exprlist Delta (argtypes argsig) bl))
+   (PRE1: Pre witness = PROPx Ppre (LOCALx Qpre (SEPx Rpre)))
+   (PTREE': local2ptree Qpre = (Qpre_temp, Qpre_var, nil, nil))
+   (MSUBST: force_list (map (msubst_eval_expr Qtemp Qvar) 
+                    (explicit_cast_exprlist (argtypes argsig) bl))
+                = Some vl)
+   (PTREE'': pTree_from_elements (List.combine (var_names argsig) vl) = Qactuals)
+   (CHECKTEMP: ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) 
+           |-- !! Forall (check_one_temp_spec Qactuals) (PTree.elements Qpre_temp))
+   (CHECKVAR: ENTAIL Delta, PROPx P (LOCALx Q (SEPx R))
+           |-- !! Forall (check_one_var_spec Qvar) (PTree.elements Qpre_var))
+   (FRAME: fold_right sepcon emp R |-- fold_right sepcon emp Rpre * fold_right sepcon emp Frame)
+   (POST1: Post witness = (EX vret:B, PROPx (Ppost vret) (LOCALx nil (SEPx (Rpost vret)))))
+   (POST2: Post2 = EX vret:B, PROPx (P++ Ppost vret ) (LOCALx Q
+             (SEPx (Rpost vret ++ Frame))))
+   (PPRE: fold_right_and True Ppre),
+   @semax cs (Concurrent_Espec cs ext_link) Delta (PROPx P (LOCALx Q (SEPx R)))
+    (Scall None
+             (Evar id (Tfunction paramty Tvoid cc))
+             bl)
+    (normal_ret_assert Post2).
+Proof.
+
+intros.
+subst.
+unfold find_in_threadlib_specs, threadlib_specs in NAME.
+simpl in NAME.
+repeat if_tac in NAME.
+
+* (* acquire *)
+  subst id.
+  injection NAME.
+  intros.
+  revert FUNSPEC.
+  subst A'.
+  apply inj_pair2 in H; subst ffunspec. clear NAME.
+  intros.
+  unfold acquire_spec in FUNSPEC.
+  revert PRE1 POST1.
+  inv FUNSPEC.
+  intros.
+  apply inj_pair2 in H3.
+  apply inj_pair2 in H4.
+  eapply semax_call_00_helper; try eassumption.
+  eapply semax_acquire; auto; try assumption.
+  rewrite <- H3; reflexivity.
+ rewrite <- H4; reflexivity.
+*
+Admitted.
 (* We need different tactics for them, if only because we have an
    additional witness, which would conflict with the intropattern
    notation. *)
