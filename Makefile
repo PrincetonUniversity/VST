@@ -11,6 +11,11 @@ COMPCERT=compcert
 # if there is a compcert build at that pathname, but in cygwin
 # at least, coqdep is confused by the absolute pathname while
 # it works fine with the relative pathname
+#
+# One can also add in CONFIGURE the line
+#   COQBIN=/path/to/bin/
+# to a directory containing the coqc/coqdep/... you wish to use, if it
+# is not your path.
 
 #Note2:  By default, the rules for converting .c files to .v files
 # are inactive.  To activate them, do something like
@@ -22,7 +27,7 @@ COMPCERT=compcert
 
 CC_TARGET=compcert/cfrontend/Clight.vo
 CC_DIRS= lib common cfrontend exportclight
-DIRS= msl sepcomp veric concurrency floyd progs sha linking fcf hmacfcf tweetnacl20140427
+DIRS= msl sepcomp veric concurrency floyd progs sha linking fcf hmacfcf tweetnacl20140427 ccc26x86
 INCLUDE= $(foreach a,$(DIRS),$(if $(wildcard $(a)), -Q $(a) $(a))) -Q $(COMPCERT) compcert $(if $(MATHCOMP), -Q mathcomp $(MATHCOMP))
 #Replace the INCLUDE above with the following in order to build the linking target:
 #INCLUDE= $(foreach a,$(DIRS),$(if $(wildcard $(a)), -I $(a) -as $(a))) -R $(COMPCERT) -as compcert -I $(SSREFLECT)/src -R $(SSREFLECT)/theories -as Ssreflect \
@@ -47,26 +52,24 @@ else
 endif
 endif
 
-EXTFLAGS= -R $(COMPCERT) -as compcert
+EXTFLAGS= -R $(COMPCERT) compcert
 
 # for SSReflect
 ifdef MATHCOMP
  EXTFLAGS:=$(EXTFLAGS) -R $(MATHCOMP) mathcomp
 endif
 
-COQFLAGS=$(foreach d, $(DIRS), $(if $(wildcard $(d)), -I $(d) -as $(d))) $(EXTFLAGS)
+COQFLAGS=$(foreach d, $(DIRS), $(if $(wildcard $(d)), -Q $(d) $(d))) $(EXTFLAGS)
 DEPFLAGS:=$(COQFLAGS)
 
 ifdef LIBPREFIX
- COQFLAGS=$(foreach d, $(DIRS), $(if $(wildcard $(d)), -I $(d) -as $(LIBPREFIX).$(d))) $(EXTFLAGS)
+ COQFLAGS=$(foreach d, $(DIRS), $(if $(wildcard $(d)), -Q $(d) $(LIBPREFIX).$(d))) $(EXTFLAGS)
 endif
 
-COQFLAGS= $(INCLUDE)
-DEPFLAGS= $(INCLUDE)
-COQC=coqc
-COQTOP=coqtop
-COQDEP=coqdep -slash $(DEPFLAGS)
-COQDOC=coqdoc
+COQC=$(COQBIN)coqc
+COQTOP=$(COQBIN)coqtop
+COQDEP=$(COQBIN)coqdep $(DEPFLAGS)
+COQDOC=$(COQBIN)coqdoc
 
 MSL_FILES = \
   Axioms.v Extensionality.v base.v eq_dec.v \
@@ -136,11 +139,20 @@ CONCUR_FILES= \
   sepcomp.v threads_lemmas.v permissions.v\
   pos.v scheduler.v threadPool.v \
   concurrent_machine.v juicy_machine.v dry_machine.v \
-  erasure.v Clight_erasure.v \
-  dry_machine_lemmas.v dry_context.v \
-  compcert_threads_lemmas.v mem_obs_eq.v \
-  semax_conc.v semax_to_machine.v \
-  lifting.v
+  erasure.v  \
+  semax_conc.v semax_to_machine.v semax_to_juicy_machine.v
+  # mem_obs_eq.v
+  # dry_machine_lemmas.v
+  # Clight_erasure.v dry_context.v
+  # compcert_threads_lemmas.v
+  # lifting.v
+
+CCC26x86_FILES = \
+  Archi.v Bounds.v Conventions1.v Conventions.v Ctypes.v \
+  Locations.v Op.v Ordered.v Stacklayout.v Linear.v LTL.v \
+  Machregs.v Asm.v \
+  Switch.v Cminor.v \
+  I64Helpers.v BuiltinEffects.v load_frame.v Asm_coop.v Asm_eff.v 
 
 LINKING_FILES= \
   sepcomp.v \
@@ -170,7 +182,8 @@ VERIC_FILES= \
   juicy_mem.v juicy_mem_lemmas.v local.v juicy_mem_ops.v juicy_safety.v juicy_extspec.v \
   semax.v semax_lemmas.v semax_call.v semax_straight.v semax_loop.v semax_congruence.v \
   initial_world.v initialize.v semax_prog.v semax_ext.v SeparationLogic.v SeparationLogicSoundness.v  \
-  NullExtension.v SequentialClight.v superprecise.v jstep.v address_conflict.v valid_pointer.v coqlib4.v
+  NullExtension.v SequentialClight.v superprecise.v jstep.v address_conflict.v valid_pointer.v coqlib4.v \
+  semax_ext_oracle.v
 
 FLOYD_FILES= \
    coqlib3.v base.v proofauto.v computable_theorems.v \
@@ -268,6 +281,7 @@ FILES = \
  $(FCF_FILES:%=fcf/%) \
  $(HMACFCF_FILES:%=hmacfcf/%) \
  $(HMACEQUIV_FILES:%=sha/%) \
+ $(CCC26x86_FILES:%=ccc26x86/%) \
  $(TWEETNACL_FILES:%=tweetnacl20140427/%)
 #$(CONCUR_FILES:%=concurrency/%)
 # $(DRBG_FILES:%=verifiedDrbg/spec/%)
@@ -302,6 +316,7 @@ all:     .loadpath version.vo $(FILES:.v=.vo)
 
 msl:     .loadpath version.vo $(MSL_FILES:%.v=msl/%.vo)
 sepcomp: .loadpath $(CC_TARGET) $(UPDATE_SEPCOMP_FILES:%.v=sepcomp/%.vo)
+ccc26x86:   .loadpath $(CCC26x86_FILES:%.v=ccc26x86/%.vo)
 concurrency: .loadpath $(CC_TARGET) $(UPDATE_SEPCOMP_FILES:%.v=sepcomp/%.vo) $(CONCUR_FILES:%.v=concurrency/%.vo)
 linking: .loadpath $(LINKING_FILES:%.v=linking/%.vo) 
 veric:   .loadpath $(VERIC_FILES:%.v=veric/%.vo)

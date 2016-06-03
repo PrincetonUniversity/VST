@@ -6,7 +6,10 @@ Require Import compcert.lib.Integers.
 Require Import Coq.ZArith.ZArith.
 Require Import sepcomp.semantics.
 
-Load scheduler.
+Require Import concurrency.permissions.
+Require Import concurrency.addressFiniteMap.
+
+Require Import concurrency.scheduler.
 
 Require Import Coq.Program.Program.
 From mathcomp.ssreflect Require Import ssreflect seq.
@@ -18,8 +21,8 @@ From mathcomp.ssreflect Require Import ssreflect seq.
 Module Type Semantics.
   Parameter G: Type.
   Parameter C: Type.
-  Definition M: Type:= mem.
-  Parameter Sem: CoreSemantics G C M.
+  (* Definition M: Type:= mem. *) (*well we might as well drop that right?*)
+  Parameter Sem: MemSem G C.
 End Semantics.
 
 Notation EXIT := 
@@ -46,21 +49,21 @@ Notation UNLOCK_SIG := (mksignature (AST.Tint::nil) (Some AST.Tint) cc_default).
 Notation UNLOCK := (EF_external "UNLOCK" UNLOCK_SIG).
 
 Notation block  := Values.block.
-Notation address:= (block * Z)%type.
 Definition b_ofs2address b ofs : address:=
   (b, Int.intval ofs).
 
 Inductive ctl {cT:Type} : Type :=
 | Krun : cT -> ctl
-| Kstop : cT -> ctl (* Want to remove *)
-| Kresume : cT -> ctl.
+| Kblocked : cT -> ctl
+| Kresume : cT -> val -> ctl (* Carries the return value. Probably a unit.*)
+| Kinit : val -> val -> ctl. (* vals correspond to vf and arg respectively. *)
 
 Definition EqDec: Type -> Type := 
   fun A : Type => forall a a' : A, {a = a'} + {a <> a'}.
 
 Module Type Resources.
   Parameter res : Type.
-  Parameter LockPool : Type.
+  Parameter lock_info : Type. (*For juicy machine, the permissions of the guarded resources. Unit for dry machine. *)
 End Resources.
 
 Module Type ThreadPoolSig.
@@ -79,13 +82,15 @@ Module Type ThreadPoolSig.
   Parameter containsThread : t -> tid -> Prop.
   Parameter getThreadC : forall {tid tp}, containsThread tp tid -> ctl.
   Parameter getThreadR : forall {tid tp}, containsThread tp tid -> res.
-  Parameter lockSet : t -> LockPool.
-
-  Parameter addThread : t -> C -> res -> t.
+  Parameter lockGuts : t -> AMap.t lock_info.  (* Gets the set of locks + their info    *)
+  Parameter lockSet : t -> access_map.         (* Gets the permissions for the lock set *)
+  Parameter lockRes : t -> address -> option lock_info.
+  Parameter addThread : t -> val -> val -> res -> t. (*vals are function pointer and argument respectively. *)
   Parameter updThreadC : forall {tid tp}, containsThread tp tid -> ctl -> t.
   Parameter updThreadR : forall {tid tp}, containsThread tp tid -> res -> t.
   Parameter updThread : forall {tid tp}, containsThread tp tid -> ctl -> res -> t.
-  Parameter updLockSet : t -> LockPool -> t.
+  Parameter updLockSet : t -> address -> lock_info -> t.
+  Parameter remLockSet : t -> address -> t.
   
   (*Proof Irrelevance of contains*)
   Axiom cnt_irr: forall t tid
@@ -94,9 +99,9 @@ Module Type ThreadPoolSig.
 
   (* Add Thread properties*)
   Axiom cntAdd:
-    forall {j tp} c p,
+    forall {j tp} vf arg p,
       containsThread tp j ->
-      containsThread (addThread tp c p) j.
+      containsThread (addThread tp vf arg p) j.
   
   (* Update properties*)
   Axiom cntUpdateC:
@@ -133,18 +138,26 @@ Module Type ThreadPoolSig.
       containsThread tp j.
 
   Axiom cntUpdateL:
-    forall {j tp} lp,
+    forall {j tp} add lf,
       containsThread tp j ->
-      containsThread (updLockSet tp lp) j.
+      containsThread (updLockSet tp add lf) j.
+  Axiom cntRemoveL:
+    forall {j tp} add,
+      containsThread tp j ->
+      containsThread (remLockSet tp add) j.
 
   Axiom cntUpdateL':
-    forall {j tp} lp,
-      containsThread (updLockSet tp lp) j ->
+    forall {j tp} add lf,
+      containsThread (updLockSet tp add lf) j ->
+      containsThread tp j.
+  Axiom cntRemoveL':
+    forall {j tp} add,
+      containsThread (remLockSet tp add) j ->
       containsThread tp j.
 
-  Axiom gssLockPool:
+  (*Axiom gssLockPool:
     forall tp ls,
-      lockSet (updLockSet tp ls) = ls.
+      lockSet (updLockSet tp ls) = ls.*) (*Will change*)
 
   Axiom gsoThreadLock:
     forall {i tp} c p (cnti: containsThread tp i),
@@ -159,8 +172,8 @@ Module Type ThreadPoolSig.
       lockSet (updThreadR cnti p) = lockSet tp.
 
   Axiom gsoAddLock:
-    forall tp c p,
-      lockSet (addThread tp c p) = lockSet tp.
+    forall tp vf arg p,
+      lockSet (addThread tp vf arg p) = lockSet tp.
    
   (*Get thread Properties*)
   Axiom gssThreadCode :
@@ -210,9 +223,28 @@ Module Type ThreadPoolSig.
 
   Axiom goaThreadC:
     forall {i tp}
-        (cnti: containsThread tp i) c p
-        (cnti': containsThread (addThread tp c p) i),
+        (cnti: containsThread tp i) vf arg p
+        (cnti': containsThread (addThread tp vf arg p) i),
       getThreadC cnti' = getThreadC cnti.
+
+  Axiom gsoThreadCLPool:
+    forall {i tp} c (cnti: containsThread tp i) addr,
+      lockRes (updThreadC cnti c) addr = lockRes tp addr.
+
+  Axiom gsoThreadLPool:
+    forall {i tp} c p (cnti: containsThread tp i) addr,
+      lockRes (updThread cnti c p) addr = lockRes tp addr.
+
+  Axiom gLockSetRes:
+    forall {i tp} addr (res : lock_info) (cnti: containsThread tp i)
+      (cnti': containsThread (updLockSet tp addr res) i),
+      getThreadR cnti' = getThreadR cnti.
+
+  Axiom gLockSetCode:
+    forall {i tp} addr (res : lock_info) (cnti: containsThread tp i)
+      (cnti': containsThread (updLockSet tp addr res) i),
+      getThreadC cnti' = getThreadC cnti.
+  
   
 End ThreadPoolSig.
 
@@ -224,8 +256,8 @@ Module Type ConcurrentMachineSig.
   Notation thread_pool := ThreadPool.t.
   (** Memories*)
   Parameter richMem: Type.
-  Parameter dryMem: richMem -> M.
-  Parameter diluteMem : M -> M.
+  Parameter dryMem: richMem -> mem.
+  Parameter diluteMem : mem -> mem.
 
   
   (** Environment and Threadwise semantics *)
@@ -266,7 +298,7 @@ Module Type ConcurrentMachine.
 
   Definition MachState : Type:= (schedule * t)%type.
 
-  Parameter MachineSemantics: schedule -> CoreSemantics SIG.ThreadPool.SEM.G MachState SEM.M.
+  Parameter MachineSemantics: schedule -> CoreSemantics SIG.ThreadPool.SEM.G MachState mem.
 
   Axiom initial_schedule: forall genv main vals U U' c,
       initial_core (MachineSemantics U) genv main vals = Some (U',c) ->
@@ -286,7 +318,19 @@ Module CoarseMachine (SCH:Scheduler)(SIG : ConcurrentMachineSig with Module Thre
      indicate it's ready to take a syncronisation step or resume
      running. (This keeps the invariant that at most one thread is not
      at_external) *)
-  
+
+  Inductive start_thread' genv: forall {tid0} {ms:machine_state},
+      containsThread ms tid0 -> machine_state -> Prop:=
+  | StartThread: forall tid0 ms ms' c_new vf arg
+                    (ctn: containsThread ms tid0)
+                    (Hcode: getThreadC ctn = Kinit vf arg)
+                    (Hinitial: initial_core Sem genv vf (arg::nil) = Some c_new)
+                    (Hinv: invariant ms)
+                    (Hms': updThreadC ctn (Krun c_new)  = ms'),
+      start_thread' genv ctn ms'.
+  Definition start_thread genv: forall {tid0 ms},
+      containsThread ms tid0 -> machine_state -> Prop:=
+    @start_thread' genv.
   Inductive resume_thread': forall {tid0} {ms:machine_state},
       containsThread ms tid0 -> machine_state -> Prop:=
   | ResumeThread: forall tid0 ms ms' c c' X
@@ -294,7 +338,7 @@ Module CoarseMachine (SCH:Scheduler)(SIG : ConcurrentMachineSig with Module Thre
                     (Hat_external: at_external Sem c = Some X)
                     (Hafter_external: after_external Sem
                                              (Some (Vint Int.zero)) c = Some c')
-                    (Hcode: getThreadC ctn = Kresume c)
+                    (Hcode: getThreadC ctn = Kresume c Vundef)
                     (Hinv: invariant ms)
                     (Hms': updThreadC ctn (Krun c')  = ms'),
       resume_thread' ctn ms'.
@@ -309,15 +353,21 @@ Module CoarseMachine (SCH:Scheduler)(SIG : ConcurrentMachineSig with Module Thre
                      (Hcode: getThreadC ctn = Krun c)
                      (Hat_external: at_external Sem c = Some X)
                      (Hinv: invariant ms)
-                     (Hms': updThreadC ctn (Kstop c) = ms'),
+                     (Hms': updThreadC ctn (Kblocked c) = ms'),
       suspend_thread' ctn ms'.
   Definition suspend_thread : forall {tid0 ms},
       containsThread ms tid0 -> machine_state -> Prop:=
     @suspend_thread'.
   
   Inductive machine_step {genv:G}:
-
     Sch -> machine_state -> mem -> Sch -> machine_state -> mem -> Prop :=
+  | start_step:
+      forall tid U ms ms' m
+        (HschedN: schedPeek U = Some tid)
+        (Htid: containsThread ms tid)
+        (Hcmpt: mem_compatible ms m)
+        (Htstep: start_thread genv Htid ms'),
+        machine_step U ms m U ms' m
   | resume_step:
       forall tid U ms ms' m
         (HschedN: schedPeek U = Some tid)
@@ -424,6 +474,19 @@ Module FineMachine  (SCH:Scheduler)(SIG : ConcurrentMachineSig with Module Threa
   Notation Sch:=schedule.
   Notation machine_state := ThreadPool.t.
 
+  Inductive start_thread' genv: forall {tid0} {ms:machine_state},
+      containsThread ms tid0 -> machine_state -> Prop:=
+  | StartThread: forall tid0 ms ms' c_new vf arg
+                   (ctn: containsThread ms tid0)
+                   (Hcode: getThreadC ctn = Kinit vf arg)
+                   (Hinitial: initial_core Sem genv vf (arg::nil) = Some c_new)
+                   (Hinv: invariant ms)
+                   (Hms': updThreadC ctn (Krun c_new)  = ms'),
+      start_thread' genv ctn ms'.
+  Definition start_thread genv: forall {tid0 ms},
+      containsThread ms tid0 -> machine_state -> Prop:=
+    @start_thread' genv.
+  
   Inductive resume_thread': forall {tid0} {ms:machine_state},
       containsThread ms tid0 -> machine_state -> Prop:=
   | ResumeThread: forall tid0 ms ms' c c' X
@@ -432,7 +495,7 @@ Module FineMachine  (SCH:Scheduler)(SIG : ConcurrentMachineSig with Module Threa
                     (Hafter_external:
                        after_external Sem
                                       (Some (Vint Int.zero)) c = Some c')
-                    (Hcode: getThreadC ctn = Kresume c)
+                    (Hcode: getThreadC ctn = Kresume c Vundef)
                     (Hinv: invariant ms)
                     (Hms': updThreadC ctn (Krun c')  = ms'),
       resume_thread' ctn ms'.
@@ -447,7 +510,7 @@ Module FineMachine  (SCH:Scheduler)(SIG : ConcurrentMachineSig with Module Threa
                      (Hcode: getThreadC ctn = Krun c)
                      (Hat_external: at_external Sem c = Some X)
                      (Hinv: invariant ms)
-                     (Hms': updThreadC ctn (Kstop c) = ms'),
+                     (Hms': updThreadC ctn (Kblocked c) = ms'),
       suspend_thread' ctn ms'.
   Definition suspend_thread : forall {tid0 ms},
       containsThread ms tid0 -> machine_state -> Prop:=
@@ -455,6 +518,14 @@ Module FineMachine  (SCH:Scheduler)(SIG : ConcurrentMachineSig with Module Threa
   
   Inductive machine_step {genv:G}:
     Sch -> machine_state -> mem -> Sch -> machine_state -> mem -> Prop :=
+  | start_step:
+      forall tid U U' ms ms' m
+        (HschedN: schedPeek U = Some tid)
+        (HschedS: schedSkip U = U')        (*Schedule Forward*)
+        (Htid: containsThread ms tid)
+        (Hcmpt: mem_compatible ms m)
+        (Htstep: start_thread genv Htid ms'),
+        machine_step U ms m U' ms' m
   | resume_step:
       forall tid U U' ms ms' m
         (HschedN: schedPeek U = Some tid)

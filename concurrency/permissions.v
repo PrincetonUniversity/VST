@@ -402,6 +402,14 @@ Section permMapDefs.
                                 Maps.PMap.get b pmap ofs')
                   pmap.
 
+  Fixpoint setPermBlock  (p : option permission) (b : block)
+           (ofs : Z) (pmap : access_map) (length: nat): access_map :=
+    match length with
+      0 => setPerm p b ofs pmap
+    | S len => setPermBlock p b ofs (setPerm p b (ofs + (Z_of_nat length))%Z pmap) len
+    end.
+  
+
   (** Apply a [delta_map] to an [access_map]*)
   Definition computeMap (pmap : access_map) (delta : delta_map) : access_map :=
     (pmap.1,
@@ -439,12 +447,12 @@ Section permMapDefs.
 
   (** If the [delta_map] changes the [access_map] at this [block] but not at this [offset] *)
   Lemma computeMap_2 :
-    forall (pmap : access_map) (dmap : delta_map) b ofs df (p : option permission),
+    forall (pmap : access_map) (dmap : delta_map) b ofs df,
       Maps.PTree.get b dmap = Some df ->
       df ofs = None ->
       Maps.PMap.get b (computeMap pmap dmap) ofs = Maps.PMap.get b pmap ofs.
   Proof.
-    intros pmap dmap b ofs df p Hdmap Hdf.
+    intros pmap dmap b ofs df Hdmap Hdf.
     unfold computeMap, Maps.PMap.get. simpl.
     rewrite Maps.PTree.gcombine; try reflexivity.
     rewrite Hdmap.

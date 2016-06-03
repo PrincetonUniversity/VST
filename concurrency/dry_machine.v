@@ -4,8 +4,11 @@ Require Import concurrency.sepcomp. Import SepComp.
 Require Import sepcomp.semantics_lemmas.
 
 Require Import concurrency.pos.
+Require Import concurrency.scheduler.
 Require Import concurrency.concurrent_machine.
+Require Import concurrency.addressFiniteMap. (*The finite maps*)
 Require Import concurrency.pos.
+Require Import concurrency.lksize.
 Require Import Coq.Program.Program.
 From mathcomp.ssreflect Require Import ssreflect ssrbool ssrnat ssrfun eqtype seq fintype finfun.
 Set Implicit Arguments.
@@ -50,15 +53,16 @@ Notation UNLOCK := (EF_external "UNLOCK" UNLOCK_SIG).
 Require Import concurrency.permissions.
 Require Import concurrency.threadPool.
 
-Module LockPool.
+Module LocksAndResources.
   Definition res := access_map.
-  Definition LockPool := access_map.
-End LockPool.
+  Definition lock_info := access_map.
+End LocksAndResources.
+
 
 Module ThreadPool (SEM:Semantics)  <: ThreadPoolSig
     with Module TID:= NatTID with Module SEM:=SEM
-    with Module RES := LockPool.        
-    Include (OrdinalPool SEM LockPool).
+    with Module RES := LocksAndResources.
+    Include (OrdinalPool SEM LocksAndResources).
 End ThreadPool.
 
 
@@ -69,17 +73,18 @@ Module Concur.
   Module DryMachineShell (SEM:Semantics)  <: ConcurrentMachineSig
       with Module ThreadPool.TID:=mySchedule.TID
       with Module ThreadPool.SEM:= SEM
-      with Module ThreadPool.RES:= LockPool.
+      with Module ThreadPool.RES:= LocksAndResources.
                                     
     Module ThreadPool := ThreadPool SEM.
     Import ThreadPool.
     Import ThreadPool.SEM ThreadPool.RES.
+
     Notation tid := NatTID.tid.
 
     (** Memories*)
-    Definition richMem: Type:= M.
-    Definition dryMem: richMem -> M:= id.
-    Definition diluteMem: M -> M := setMaxPerm.
+    Definition richMem: Type:= mem.
+    Definition dryMem: richMem -> mem:= id.
+    Definition diluteMem: mem -> mem := setMaxPerm.
     
     Notation thread_pool := (ThreadPool.t).
     Notation perm_map := ThreadPool.RES.res.
@@ -87,8 +92,11 @@ Module Concur.
     (** The state respects the memory*)
     Record mem_compatible' tp m : Prop :=
       { compat_th :> forall {tid} (cnt: containsThread tp tid),
-          permMapLt (getThreadR cnt) (getMaxPerm m) ;
-        compat_rp : permMapLt (lockSet tp) (getMaxPerm m )}.
+            permMapLt (getThreadR cnt) (getMaxPerm m);
+        compat_lp : forall l pmap, lockRes tp l = Some pmap ->
+                              permMapLt pmap (getMaxPerm m);
+        compat_ls : permMapLt (lockSet tp) (getMaxPerm m)}.
+    
     Definition mem_compatible tp m : Prop := mem_compatible' tp m.
 
     (** Per-thread disjointness definition*)
@@ -97,18 +105,32 @@ Module Concur.
         (cntj : containsThread tp j) (Hneq: i <> j),
         permMapsDisjoint (getThreadR cnti)
                          (getThreadR cntj).
-
+      
+    (*argh this invariant is such a pain, tried collecting everything
+    first, still a pain *)
     Record invariant' tp :=
       { no_race : race_free tp;
-        lock_pool : forall i (cnt : containsThread tp i),
+        lock_set_threads : forall i (cnt : containsThread tp i),
             permMapsDisjoint (lockSet tp) (getThreadR cnt);
-        lock_perm: forall b ofs,
-            Maps.PMap.get b (lockSet tp) ofs = None \/
-            Maps.PMap.get b (lockSet tp) ofs = Some Writable
+        lock_res_threads : forall l pmap i (cnt : containsThread tp i),
+            lockRes tp l = Some pmap ->
+            permMapsDisjoint pmap (getThreadR cnt);
+        lock_res_set : forall l pmap,
+            lockRes tp l = Some pmap ->
+            permMapsDisjoint pmap (lockSet tp)
       }.
 
     Definition invariant := invariant'.
-  
+
+    Record angelSpec (src tgt src' tgt' : access_map) : Prop :=
+      { angelIncr: forall b ofs,
+          Mem.perm_order' (Maps.PMap.get b tgt' ofs) Readable ->
+          Mem.perm_order' (Maps.PMap.get b tgt ofs) Readable \/
+          Mem.perm_order' (Maps.PMap.get b src ofs) Readable;
+        angelDecr: forall b ofs,
+            Mem.perm_order'' (Maps.PMap.get b src ofs)
+                             (Maps.PMap.get b src' ofs)}.
+                             
     (** Steps*)
     Inductive dry_step genv {tid0 tp m} (cnt: containsThread tp tid0)
               (Hcompatible: mem_compatible tp m) : thread_pool -> mem  -> Prop :=
@@ -123,100 +145,104 @@ Module Concur.
           dry_step genv cnt Hcompatible tp' m'.
 
     (*missing lock-ranges*)
-    Inductive ext_step genv {tid0 tp m}
+    Inductive ext_step (genv:G) {tid0 tp m} (*Can we remove genv from here?*)
               (cnt0:containsThread tp tid0)(Hcompat:mem_compatible tp m):
       thread_pool -> mem -> Prop :=
     | step_acquire :
-        forall (tp':thread_pool) m1 c m' b ofs virtue
+        forall (tp' tp'':thread_pool) m1 c m' b ofs pmap virtueThread
           (Hinv : invariant tp)
-          (Hcode: getThreadC cnt0 = Kstop c)
+          (Hcode: getThreadC cnt0 = Kblocked c)
           (Hat_external: at_external Sem c =
                          Some (LOCK, ef_sig LOCK, Vptr b ofs::nil))
           (Hcompatible: mem_compatible tp m)
-          (Hrestrict_pmap: restrPermMap (compat_rp Hcompat) = m1)
+          (Hrestrict_pmap: restrPermMap (compat_ls Hcompat) = m1)
           (Hload: Mem.load Mint32 m1 b (Int.intval ofs) = Some (Vint Int.one))
-          (Hstore:
-             Mem.store Mint32 m1 b (Int.intval ofs) (Vint Int.zero) = Some m')
-          (Htp': tp' = updThread cnt0 (Kresume c)
-                                 (computeMap (getThreadR cnt0) virtue)),
-          ext_step genv cnt0 Hcompat tp' m' 
+          (Hstore: Mem.store Mint32 m1 b (Int.intval ofs) (Vint Int.zero) = Some m')
+          (HisLock: lockRes tp (b, Int.intval ofs) = Some pmap)
+          (Hangel: angelSpec pmap (getThreadR cnt0)
+                             empty_map
+                             (computeMap (getThreadR cnt0) virtueThread))
+          (Htp': tp' = updThread cnt0 (Kresume c Vundef)
+                                 (computeMap (getThreadR cnt0) virtueThread))
+          (Htp'': tp'' = updLockSet tp' (b, Int.intval ofs) empty_map),
+          ext_step genv cnt0 Hcompat tp'' m' 
                    
     | step_release :
-        forall  (tp':thread_pool) m1 c m' b ofs virtue
+        forall (tp' tp'':thread_pool) m1 c m' b ofs pmap virtueThread virtueLP
           (Hinv : invariant tp)
-          (Hcode: getThreadC cnt0 = Kstop c)
+          (Hcode: getThreadC cnt0 = Kblocked c)
+          (*His_empty: pmap = empty_map *) (*Maybe we need this? *)
           (Hat_external: at_external Sem c =
                          Some (UNLOCK, ef_sig UNLOCK, Vptr b ofs::nil))
-          (Hrestrict_pmap:
-             restrPermMap (compat_rp Hcompat) = m1)
-          (Hload:
-             Mem.load Mint32 m1 b (Int.intval ofs) = Some (Vint Int.zero))
-          (Hstore:
-             Mem.store Mint32 m1 b (Int.intval ofs) (Vint Int.one) = Some m')
-          (* what does the return value denote?*)
-          (*Hat_external: after_external Sem (Some (Vint Int.zero)) c =Some c'*)
-          (Htp': tp' = updThread cnt0 (Kresume c)
-                                 (computeMap (getThreadR cnt0) virtue)),
-          ext_step genv cnt0 Hcompat tp' m' 
+          (Hrestrict_pmap: restrPermMap (compat_ls Hcompat) = m1)
+          (Hload: Mem.load Mint32 m1 b (Int.intval ofs) = Some (Vint Int.zero))
+          (Hstore: Mem.store Mint32 m1 b (Int.intval ofs) (Vint Int.one) = Some m')
+          (HisLock: lockRes tp (b, Int.intval ofs) = Some pmap)
+          (Hangel: angelSpec (getThreadR cnt0) pmap
+                             (computeMap (getThreadR cnt0) virtueThread)
+                             virtueLP)
+          (Htp': tp' = updThread cnt0 (Kresume c Vundef)
+                                 (computeMap (getThreadR cnt0) virtueThread))
+          (Htp'': tp'' = updLockSet tp' (b, Int.intval ofs) virtueLP),
+          ext_step genv cnt0 Hcompat tp'' m' 
                    
     | step_create :
-        forall  (tp_upd tp':thread_pool) c c_new vf arg virtue1 virtue2,
+        forall  (tp_upd tp':thread_pool) c vf arg virtue1 virtue2,
         forall
           (Hinv : invariant tp)
-          (Hcode: getThreadC cnt0 = Kstop c)
+          (Hcode: getThreadC cnt0 = Kblocked c)
           (Hat_external: at_external Sem c =
                          Some (CREATE, ef_sig CREATE, vf::arg::nil))
-          (Hinitial: initial_core Sem genv vf (arg::nil) = Some c_new)
-          (*Hafter_external: after_external Sem
-                                           (Some (Vint Int.zero)) c =Some c'*)
-          (Htp_upd: tp_upd = updThread cnt0 (Kresume c)
+          (Hangel: angelSpec (getThreadR cnt0) empty_map
+                             (computeMap (getThreadR cnt0) virtue1)
+                             (computeMap empty_map virtue2))
+          (Htp_upd: tp_upd = updThread cnt0 (Kresume c Vundef)
                                        (computeMap (getThreadR cnt0) virtue1))
-          (Htp': tp' = addThread tp_upd c_new
+          (Htp': tp' = addThread tp_upd vf arg
                                  (computeMap empty_map virtue2)),
           ext_step genv cnt0 Hcompat tp' m
                    
     | step_mklock :
-        forall  (tp' tp'': thread_pool) m1 c m' b ofs pmap_tid' pmap_lp,
+        forall  (tp' tp'': thread_pool) m1 c m' b ofs pmap_tid',
           let: pmap_tid := getThreadR cnt0 in
           forall
             (Hinv : invariant tp)
-            (Hcode: getThreadC cnt0 = Kstop c)
+            (Hcode: getThreadC cnt0 = Kblocked c)
             (Hat_external: at_external Sem c =
                            Some (MKLOCK, ef_sig MKLOCK, Vptr b ofs::nil))
             (Hrestrict_pmap: restrPermMap (Hcompat tid0 cnt0) = m1)
             (Hstore:
                Mem.store Mint32 m1 b (Int.intval ofs) (Vint Int.zero) = Some m')
             (Hdrop_perm:
-               setPerm (Some Nonempty) b (Int.intval ofs) pmap_tid = pmap_tid')
-            (Hlp_perm: setPerm (Some Writable)
-                               b (Int.intval ofs) (lockSet tp) = pmap_lp)
-            (Htp': tp' = updThread cnt0 (Kresume c) pmap_tid')
-            (Htp'': tp'' = updLockSet tp' pmap_lp),
+               setPermBlock (Some Nonempty) b (Int.intval ofs) pmap_tid LKSIZE_nat = pmap_tid')
+            (*Hlp_perm: setPerm (Some Writable)
+                               b (Int.intval ofs) (lockSet tp) = pmap_lp*)
+            (Htp': tp' = updThread cnt0 (Kresume c Vundef) pmap_tid')
+            (Htp'': tp'' = updLockSet tp' (b,(Int.intval ofs)) empty_map),
             ext_step genv cnt0 Hcompat tp'' m' 
                      
     | step_freelock :
-        forall  (tp' tp'': thread_pool) c b ofs pmap_lp' virtue,
+        forall  (tp' tp'': thread_pool) c b ofs virtue pmap' m',
           forall
             (Hinv : invariant tp)
-            (Hcode: getThreadC cnt0 = Kstop c)
+            (Hcode: getThreadC cnt0 = Kblocked c)
             (Hat_external: at_external Sem c =
                            Some (FREE_LOCK, ef_sig FREE_LOCK, Vptr b ofs::nil))
-            (Hdrop_perm:
-               setPerm None b (Int.intval ofs) (lockSet tp) = pmap_lp')
-            (Htp': tp' = updThread cnt0 (Kresume c)
-                                   (computeMap (getThreadR cnt0) virtue))
-            (Htp'': tp'' = updLockSet tp' pmap_lp'),
-            ext_step genv cnt0 Hcompat  tp'' m 
+            (Hset_perm: setPermBlock virtue b (Int.intval ofs) (getThreadR cnt0) LKSIZE_nat = pmap')
+            (Htp': tp' = updThread cnt0 (Kresume c Vundef) pmap')
+            (Htp'': tp'' = remLockSet tp' (b,(Int.intval ofs)))
+            (Hmem_no_change: m = m'),
+            ext_step genv cnt0 Hcompat  tp'' m'
                      
     | step_acqfail :
         forall  c b ofs m1,
         forall
           (Hinv : invariant tp)
-          (Hcode: getThreadC cnt0 = Kstop c)
+          (Hcode: getThreadC cnt0 = Kblocked c)
           (Hat_external: at_external Sem c =
                          Some (LOCK, ef_sig LOCK, Vptr b ofs::nil))
-          (His_lock: (Maps.PMap.get b (lockSet tp)) (Int.intval ofs))
-          (Hrestrict_pmap: restrPermMap (compat_rp Hcompat) = m1)
+          (*His_lock: (Maps.PMap.get b (lockSet tp)) (Int.intval ofs)*)
+          (Hrestrict_pmap: restrPermMap (compat_ls Hcompat) = m1)
           (Hload: Mem.load Mint32 m1 b (Int.intval ofs) = Some (Vint Int.zero)),
           ext_step genv cnt0 Hcompat tp m.
     
@@ -242,10 +268,8 @@ Module Concur.
           threadHalted' cnt.
     
     Definition threadHalted: forall {tid0 ms},
-                               containsThread ms tid0 -> Prop:= @threadHalted'.
-
-    Parameter init_core : G -> val -> list val -> option thread_pool.
-
+        containsThread ms tid0 -> Prop:= @threadHalted'.
+    
     Definition one_pos : pos := mkPos NPeano.Nat.lt_0_2.
 
     Definition compute_init_perm : G -> access_map := fun _ => empty_map. (*Needst to be filled*)
@@ -253,9 +277,9 @@ Module Concur.
     Definition initial_machine genv c  :=
       ThreadPool.mk
         one_pos
-        (fun _ =>  Kresume c)
+        (fun _ =>  Kresume c Vundef)
         (fun _ =>  compute_init_perm genv)
-        empty_map.
+        empty_lset.
     
     Definition init_mach (genv:G)(v:val)(args:list val):option thread_pool :=
       match initial_core Sem genv v args with

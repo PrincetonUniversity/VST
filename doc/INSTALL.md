@@ -103,15 +103,17 @@ Build time is 120 minutes, 50 minutes with many cores.
 
 ### Open proofgeneral/coqide
 
-If you use proofgeneral you can now go to the directory "VST" inside your main VST directory, and run:
+Both CoqIDE and Emacs (with proofgeneral) automatically recognize _CoqProject files.  This means that when you open a .v file that is located inside the VST repository, you should have the correct, up-to-date loadpath.
+
+If it does not work for CoqIDE, go to Edit > Preferences > Project and select the option "appended to arguments" instead of "ignored".  If it still does not work, try using something a command of the form:
+
+    coqide -I msl -as msl -I sepcomp -as sepcomp -I veric -as veric -I floyd -as floyd -I progs -as progs -I sha -as sha -I concurrency -as concurrency -R compcert -as compcert YOURFILE.v
+
+If it does not work for emacs, try updating proofgeneral and/or emacs and try again.  If it still does not work, try to open a terminal in the directory "VST" inside your main VST directory, and run:
 
     ./pg
 
 Then open your files from inside emacs.  Start with 'progs/verif_reverse.v' for an introduction.
-
-For coqide, try using the _CoqProject file.  If it does not work, try using something of the form and give feedback:
-
-    coqide -I msl -as msl -I sepcomp -as sepcomp -I veric -as veric -I floyd -as floyd -I progs -as progs -I sha -as sha -R compcert -as compcert YOURFILE.v
 
 
 ## Instructions for OS X
@@ -191,19 +193,31 @@ Go to your main VST directory where there is already CompCert.  This will create
 
 ### Set the coqpath
 
-Add the following lines to your .emacs file:
+Both CoqIDE and Emacs (with proofgeneral) automatically recognize _CoqProject files.  This means that when you open a .v file that is located inside the VST repository, you should have the correct, up-to-date loadpath.
 
-`;VST coqpaths
-(custom-set-variables '(coq-prog-args '(
-"-R" "/Users/scuellar/Projects/compcert-2.5" "-as" "compcert" 
-"-R" "/Users/scuellar/Projects/VST/msl" "-as" "msl"
-"-R" "/Users/scuellar/Projects/VST/veric" "-as" "veric"
-"-R" "/Users/scuellar/Projects/VST/floyd" "-as" "floyd"
-"-R" "/Users/scuellar/Projects/VST/progs" "-as" "progs"
-"-R" "/Users/scuellar/Projects/VST/sepcomp" "-as" "sepcomp"
-))) `
+If it does not work for CoqIDE, go to Edit > Preferences > Project and select the option "appended to arguments" instead of "ignored".  If it still does not work, try using something a command of the form:
 
-`(setq coq-load-path '(("/Users/scuellar/Projects/compcert-2.5" "compcert")
+    coqide -I msl -as msl -I sepcomp -as sepcomp -I veric -as veric -I floyd -as floyd -I progs -as progs -I sha -as sha -I concurrency -as concurrency -R compcert -as compcert YOURFILE.v
+
+If it does not work for emacs, try updating proofgeneral and/or emacs and try again.  If it still does not work, try to open a terminal in the directory "VST" inside your main VST directory, and run:
+
+    ./pg
+
+Then open your files from inside emacs.
+
+If it still does not work, add the following lines to your .emacs file:
+
+    ;VST coqpaths
+    (custom-set-variables '(coq-prog-args '(
+    "-R" "/Users/scuellar/Projects/compcert-2.5" "-as" "compcert" 
+    "-R" "/Users/scuellar/Projects/VST/msl" "-as" "msl"
+    "-R" "/Users/scuellar/Projects/VST/veric" "-as" "veric"
+    "-R" "/Users/scuellar/Projects/VST/floyd" "-as" "floyd"
+    "-R" "/Users/scuellar/Projects/VST/progs" "-as" "progs"
+    "-R" "/Users/scuellar/Projects/VST/sepcomp" "-as" "sepcomp"
+    )))
+
+    (setq coq-load-path '(("/Users/scuellar/Projects/compcert-2.5" "compcert")
                       ("/Users/scuellar/Projects/VST/msl" "msl")
                       ("/Users/scuellar/Projects/VST/veric" "veric")
                       ("/Users/scuellar/Projects/VST/floyd" "floyd")
@@ -263,5 +277,7 @@ make -j
 To run a file inside Coqide, for example VST/progs/verif_reverse.v,
 do this:
 
-cd VST
-coqide `cat .loadpath` verif_reverse.v &
+    cd VST
+    coqide `cat .loadpath` progs/verif_reverse.v &
+
+However, both CoqIDE and Emacs (with proofgeneral) should automatically recognize _CoqProject files. If it does not work for CoqIDE, go to Edit > Preferences > Project and select the option "appended to arguments" instead of "ignored".  You might have to `cd` to VST before opening your file.
