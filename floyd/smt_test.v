@@ -286,7 +286,9 @@ Qed.
 
 Require Import msl.shares.
 Require Import veric.shares.
-From compcert Require Import Integers Values Ctypes.
+Require Import compcert.lib.Integers.
+Require Import compcert.common.Values.
+Require Import compcert.cfrontend.Ctypes.
 Require Import veric.expr.
 
 Lemma verif_sumarray_example1:

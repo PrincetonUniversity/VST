@@ -1,4 +1,4 @@
-Require Import msl.rmaps.
+(*Require Import msl.rmaps. *)
 Require Import msl.msl_standard.
 Require Import msl.seplog.
 Require Import veric.base.
@@ -87,22 +87,24 @@ Definition acquire_spec :=
     ([(_lock, tptr tlock)], tvoid)
     cc_default
     (* WITH *)
-    (Oracle * val * share * Pred)
+    (Prop * Oracle * val * share * Pred)
     (* PRE *)
-    (fun (x : Oracle * val * share * Pred) (oracle : Oracle) =>
+    (fun (x : Prop * Oracle * val * share * Pred) (oracle : Oracle) =>
        match x with
-         (z, v, sh, R) =>
-         !!(exists m : rmap, oracle = m :: z /\ app_pred (Interp R) m) &&
-         PROP (readable_share sh)
+       | (ok, oracle_x, v, sh, R) =>
+         PROP (readable_share sh;
+                 (match oracle with
+                  | nil => ~ok
+                  | cons mlock oracle' => oracle' = oracle_x /\ (app_pred (Interp R) mlock <-> ok)
+                  end))
          LOCAL (temp _lock v)
          SEP (lock_inv sh v (Interp R))
        end)
     (* POST *)
-    (fun (x : Oracle * val * share * Pred) (oracle : Oracle) =>
+    (fun (x : Prop * Oracle * val * share * Pred) (oracle : Oracle) =>
        match x with
-         (z, v, sh, R) =>
-         !!(oracle = z) &&
-         PROP ()
+         (ok, oracle_x, v, sh, R) =>
+         PROP (oracle = oracle_x; ok)
          LOCAL ()
          SEP (lock_inv sh v (Interp R); lock_hold Share.top v; Interp R)
        end).
@@ -131,18 +133,16 @@ Definition release_spec :=
     (* PRE *)
     (fun (x : Oracle * val * share * Pred) (oracle : Oracle) =>
        match x with
-         (z, v, sh, R) =>
-         !!(oracle = z) &&
-         PROP (readable_share sh)
+         (oracle_x, v, sh, R) =>
+         PROP (oracle = oracle_x; readable_share sh)
          LOCAL (temp _lock v)
          SEP (lock_inv sh v (Interp R); lock_hold Share.top v; Interp R)
        end)
     (* POST *)
     (fun (x : Oracle * val * share * Pred) (oracle : Oracle) =>
        match x with
-         (z, v, sh, R) =>
-         !!(oracle = z) &&
-         PROP ()
+         (oracle_x, v, sh, R) =>
+         PROP (oracle = oracle_x; readable_share sh)
          LOCAL ()
          SEP (lock_inv sh v (Interp R))
        end).
@@ -254,6 +254,7 @@ Defined.
 
 Definition threadspecs (cs : compspecs) (ext_link : string -> ident) := 
   (ext_link "acquire"%string, acquire_spec) ::
+  (ext_link "release"%string, release_spec) ::
   nil.
 
 (*
@@ -286,7 +287,7 @@ Lemma semax_conc' cs (ext_link: string -> ident) id sig cc A P Q :
         (EF_external id (funsig2signature sig cc)) _ P Q n).
 Proof.
   intros.
-  apply semax_ext'; auto.
+  apply semax_ext'_oracle; auto.
 Qed.
 
 Lemma semax_conc cs (ext_link: string -> ident) id ids sig sig' cc A P Q :

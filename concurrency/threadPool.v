@@ -42,6 +42,9 @@ Module OrdinalPool (SEM:Semantics) (RES:Resources) <: ThreadPoolSig
   Definition lockGuts := lset.
   Definition lockSet (tp:t) := A2PMap (lset tp).
 
+  Definition lockRes t : address -> option lock_info:=
+    AMap.find (elt:=lock_info)^~ (lockGuts t).
+
   Definition containsThread (tp : t) (i : NatTID.tid) : Prop:=
     i < num_threads tp.
 
@@ -411,6 +414,41 @@ Module OrdinalPool (SEM:Semantics) (RES:Resources) <: ThreadPoolSig
       by discriminate.
   Qed.
 
-End OrdinalPool.
+  Lemma gsoThreadCLPool:
+    forall {i tp} c (cnti: containsThread tp i) addr,
+      lockRes (updThreadC cnti c) addr = lockRes tp addr.
+  Proof.
+    by auto.
+  Qed.
 
+  Lemma gsoThreadLPool:
+    forall {i tp} c p (cnti: containsThread tp i) addr,
+      lockRes (updThread cnti c p) addr = lockRes tp addr.
+  Proof.
+      by auto.
+  Qed.
+
+  Lemma gLockSetRes:
+    forall {i tp} addr (res : lock_info) (cnti: containsThread tp i)
+      (cnti': containsThread (updLockSet tp addr res) i),
+      getThreadR cnti' = getThreadR cnti.
+  Proof.
+    intros.
+    unfold getThreadR, containsThread. simpl in *.
+    do 2 apply f_equal.
+      by apply cnt_irr.
+  Qed.
+
+  Lemma gLockSetCode:
+    forall {i tp} addr (res : lock_info) (cnti: containsThread tp i)
+      (cnti': containsThread (updLockSet tp addr res) i),
+      getThreadC cnti' = getThreadC cnti.
+  Proof.
+    intros.
+    unfold getThreadC, containsThread. simpl in *.
+    do 2 apply f_equal.
+      by apply cnt_irr.
+  Qed.
+    
+End OrdinalPool.
   

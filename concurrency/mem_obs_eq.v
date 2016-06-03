@@ -34,7 +34,7 @@ Module MemObsEq.
      unlike compcert injections *)
   
   (** Weak injection between memories *)
-  Record weak_mem_obs_eq (f : meminj) (mc mf : M) :=
+  Record weak_mem_obs_eq (f : meminj) (mc mf : mem) :=
     {
       domain_invalid: forall b, ~(Mem.valid_block mc b) -> f b = None;
       domain_valid: forall b, Mem.valid_block mc b -> exists b', f b = Some (b',0%Z);
@@ -70,7 +70,7 @@ Module MemObsEq.
   | memval_obs_undef : memval_obs_eq f Undef Undef.
 
   (** Strong injection between memories *)
-  Record strong_mem_obs_eq (f : meminj) (mc mf : M) :=
+  Record strong_mem_obs_eq (f : meminj) (mc mf : mem) :=
     { perm_obs_strong :
         forall b1 b2 ofs (Hrenaming: f b1 = Some (b2,0%Z)),
             permission_at mf b2 ofs Cur =
@@ -83,10 +83,51 @@ Module MemObsEq.
 
   
   (** Strong injection between memories *)
-  Record mem_obs_eq (f : meminj) (mc mf : M) :=
+  Record mem_obs_eq (f : meminj) (mc mf : mem) :=
     { weak_obs_eq : weak_mem_obs_eq f mc mf;
       strong_obs_eq : strong_mem_obs_eq f mc mf }.
 
+  Inductive valobs_list (mi : meminj) : seq val -> seq val -> Prop :=
+    valobs_list_nil : valobs_list mi [::] [::]
+  | valobs_list_cons : forall (v v' : val) (vl vl' : seq val),
+                       val_obs mi v v' ->
+                       valobs_list mi vl vl' ->
+                       valobs_list mi (v :: vl) (v' :: vl').
+    
+    
+  Lemma val_obs_trans:
+    forall (v v' v'' : val) (f f' f'' : meminj),
+      val_obs f v v'' ->
+      val_obs f' v v' ->
+      (forall b b' b'' : block,
+          f b = Some (b'', 0%Z) ->
+          f' b = Some (b', 0%Z) ->
+          f'' b' = Some (b'', 0%Z)) -> 
+      val_obs f'' v' v''.
+  Proof.
+    intros v v' v'' f f' f'' Hval'' Hval' Hf.
+    inversion Hval'; subst; inversion Hval''; subst;
+      by (constructor; eauto).
+  Qed.
+
+  Lemma valobs_list_trans:
+    forall (vs vs' vs'' : seq val) (f f' f'' : meminj),
+      valobs_list f vs vs'' ->
+      valobs_list f' vs vs' ->
+      (forall b b' b'' : block,
+          f b = Some (b'', 0%Z) ->
+          f' b = Some (b', 0%Z) ->
+          f'' b' = Some (b'', 0%Z)) ->
+      valobs_list f'' vs' vs''.
+  Proof.
+    intros vs vs' vs'' f f' f'' Hobs Hobs' Hf.
+    generalize dependent vs''.
+    induction Hobs'; subst; intros;
+    inversion Hobs; subst. constructor.
+    constructor; auto.
+      by eapply val_obs_trans; eauto.
+  Qed.
+  
   Definition max_inv mf := forall b ofs, Mem.valid_block mf b ->
                                     permission_at mf b ofs Max = Some Freeable.
   
