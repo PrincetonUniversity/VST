@@ -336,10 +336,6 @@ Proof. intros. unfold Val.sub_overflow.
   destruct u; destruct v; simpl; trivial.
 Qed.
 
-Lemma symbol_address_isGLobalBlock (ge : Genv.t fundef unit) i1 i2 b i3: 
-  Genv.symbol_address ge i1 i2 = Vptr b i3 -> isGlobalBlock ge b=true.
-Admitted. (*TODO 2.6*)
-
 Lemma eval_addrmode_valid ge m a rs b ofs: forall
      (GENV: valid_genv ge m)
      (REGS : regmap_valid m rs)
@@ -456,7 +452,7 @@ Proof. unfold store_args. intros tys.
 induction tys; destruct args; intros; inv H.
   apply mem_forward_refl. 
 destruct a.
-  remember (store_stack m (Vptr stk Int.zero) Tint
++ remember (store_stack m (Vptr stk Int.zero) Tint
            (Int.repr
               match n with
               | 0 => 0
@@ -468,7 +464,7 @@ destruct a.
     unfold store_stack in Heqq; simpl in *.
     apply store_forward in Heqq.
     eapply mem_forward_trans; eassumption.
-  remember (store_stack m (Vptr stk Int.zero) Tfloat
++ remember (store_stack m (Vptr stk Int.zero) Tfloat
            (Int.repr
               match n with
               | 0 => 0
@@ -480,7 +476,7 @@ destruct a.
     unfold store_stack in Heqq; simpl in *.
     apply store_forward in Heqq.
     eapply mem_forward_trans; eassumption.
-  destruct v; try discriminate.
++ destruct v; try discriminate.
   remember (store_stack m (Vptr stk Int.zero) Tint
            (Int.repr
               match n + 1 with
@@ -503,13 +499,37 @@ destruct a.
     apply store_forward in Heqw.
     eapply mem_forward_trans. eassumption.
     eapply mem_forward_trans; eassumption.
-  remember (store_stack m (Vptr stk Int.zero) Tsingle
++ remember (store_stack m (Vptr stk Int.zero) Tsingle
            (Int.repr
               match n with
               | 0 => 0
               | Z.pos y' => Z.pos y'~0~0
               | Z.neg y' => Z.neg y'~0~0
               end) v)
+    as q; destruct q; inv H1; apply eq_sym in Heqq. 
+    apply IHtys in H0; clear IHtys.
+    unfold store_stack in Heqq; simpl in *.
+    apply store_forward in Heqq.
+    eapply mem_forward_trans; eassumption.
++ remember (store_stack m (Vptr stk Int.zero) Tany32
+         (Int.repr
+            match n with
+            | 0 => 0
+            | Z.pos y' => Z.pos y'~0~0
+            | Z.neg y' => Z.neg y'~0~0
+            end) v)
+    as q; destruct q; inv H1; apply eq_sym in Heqq. 
+    apply IHtys in H0; clear IHtys.
+    unfold store_stack in Heqq; simpl in *.
+    apply store_forward in Heqq.
+    eapply mem_forward_trans; eassumption.
++ remember (store_stack m (Vptr stk Int.zero) Tany64
+         (Int.repr
+            match n with
+            | 0 => 0
+            | Z.pos y' => Z.pos y'~0~0
+            | Z.neg y' => Z.neg y'~0~0
+            end) v)
     as q; destruct q; inv H1; apply eq_sym in Heqq. 
     apply IHtys in H0; clear IHtys.
     unfold store_stack in Heqq; simpl in *.
@@ -530,7 +550,7 @@ Lemma store_args_rec_wd: forall tys args m stk mm n (WD: mem_wd m)
 Proof. unfold store_args. intros tys.
 induction tys; destruct args; intros; inv H; trivial.
 destruct a.
-  remember (store_stack m (Vptr stk Int.zero) Tint
++ remember (store_stack m (Vptr stk Int.zero) Tint
            (Int.repr
               match n with
               | 0 => 0
@@ -544,7 +564,7 @@ destruct a.
       eapply mem_wd_store; eauto. 
       apply store_forward in Heqq.
         eapply vals_valid_fwd; eassumption.
-  remember (store_stack m (Vptr stk Int.zero) Tfloat
++ remember (store_stack m (Vptr stk Int.zero) Tfloat
            (Int.repr
               match n with
               | 0 => 0
@@ -558,7 +578,7 @@ destruct a.
       eapply mem_wd_store; eauto. 
       apply store_forward in Heqq.
         eapply vals_valid_fwd; eassumption.
-  destruct v; try discriminate.
++ destruct v; try discriminate.
   remember (store_stack m (Vptr stk Int.zero) Tint
            (Int.repr
               match n + 1 with
@@ -575,7 +595,7 @@ destruct a.
               | Z.neg y' => Z.neg y'~0~0
               end) (Vint (Int64.loword i)))
     as w; destruct w; inv H0; apply eq_sym in Heqw. 
-    inv ARGS. 
+  inv ARGS. 
     unfold store_stack in *; simpl in *.
     apply IHtys in H1; clear IHtys; trivial.
       eapply mem_wd_store; try eapply Heqw. 
@@ -585,7 +605,35 @@ destruct a.
       apply store_forward in Heqw. 
       eapply vals_valid_fwd; try eapply Heqw.
       eapply vals_valid_fwd; eassumption.
-  remember (store_stack m (Vptr stk Int.zero) Tsingle
++ remember (store_stack m (Vptr stk Int.zero) Tsingle
+           (Int.repr
+              match n with
+              | 0 => 0
+              | Z.pos y' => Z.pos y'~0~0
+              | Z.neg y' => Z.neg y'~0~0
+              end) v)
+    as q; destruct q; inv H1; apply eq_sym in Heqq. 
+    inv ARGS.
+    unfold store_stack in Heqq; simpl in *.
+    apply IHtys in H0; clear IHtys; trivial.
+      eapply mem_wd_store; eauto. 
+      apply store_forward in Heqq.
+        eapply vals_valid_fwd; eassumption.
++ remember (store_stack m (Vptr stk Int.zero) Tany32
+           (Int.repr
+              match n with
+              | 0 => 0
+              | Z.pos y' => Z.pos y'~0~0
+              | Z.neg y' => Z.neg y'~0~0
+              end) v)
+    as q; destruct q; inv H1; apply eq_sym in Heqq. 
+    inv ARGS.
+    unfold store_stack in Heqq; simpl in *.
+    apply IHtys in H0; clear IHtys; trivial.
+      eapply mem_wd_store; eauto. 
+      apply store_forward in Heqq.
+        eapply vals_valid_fwd; eassumption.
++ remember (store_stack m (Vptr stk Int.zero) Tany64
            (Int.repr
               match n with
               | 0 => 0
@@ -612,9 +660,9 @@ Lemma mem_wd_nonobservables: forall {F V: Type} (ge:Genv.t F V)
       (*hf*) m m' ef t args v (OBS: ~ observableEF (*hf*) ef)
       (EC: external_call ef ge args m t v m') (WD: mem_wd m),
       mem_wd m'.
-Admitted. (*TODO 2.6
+Admitted. (*
 Proof. intros.
-       destruct ef; simpl in OBS; try solve [elim OBS; trivial];
+       destruct ef; simpl in OBS; try solve [elim OBS; trivial].
         inv EC; trivial.
        eapply mem_wd_store; try eapply H0. 
                 eapply mem_wd_alloc; eassumption.
@@ -677,15 +725,18 @@ Proof. intros.
    unfold Val.hiword, Val.loword. 
      destruct v; constructor; constructor; simpl; trivial.
 Qed.
-
+*)
 Lemma vals_valid_nonobservables {F V: Type} (ge: Genv.t F V)
-      hf m ef vals t v m': forall    
-      (OBS: ~ observableEF hf ef)
+      (*hf*) m ef vals t v m': forall    
+      (OBS: ~ observableEF (*hf*) ef)
       (EC: external_call ef ge vals m t v m'),
       vals_valid m' (encode_long (sig_res (ef_sig ef)) v).
+Admitted. (*TODO 2.6
 Proof. intros. 
 destruct ef; simpl in *; try solve [elim OBS; trivial].
-destruct (I64Helpers.is_I64_helper_dec hf name sg);
+(*destruct (I64Helpers.is_I64_helper_dec hf name sg);
+    try solve [elim (OBS n)]; clear OBS.*)
+destruct (I64Helpers.is_I64_helperS_dec (*hf*) name sg);
     try solve [elim (OBS n)]; clear OBS.
   eapply vals_valid_i64helpers; eassumption.
 destruct (I64Helpers.is_I64_helper_dec hf name sg);
@@ -747,38 +798,32 @@ econstructor. instantiate (1:= Inv).
    apply H. }
 { intros ? ? ? ? ? CS GENV INV.
   inv CS; simpl in *.
-    destruct INV as [MEM [REGS LF]]. 
+  + destruct INV as [MEM [REGS LF]]. 
     destruct i; simpl in *; inv H2.
 
-    split; trivial. 
+    - split; trivial. 
     split; trivial.
     apply regmap_valid_nextinstr. 
       apply regmap_valid_assign_reg; trivial.
 
-    split; trivial. 
+    -split; trivial. 
     split; trivial.
     apply regmap_valid_nextinstr. 
       apply regmap_valid_undef_regs. 
       apply regmap_valid_assign; trivial. simpl; trivial.
 
-    split; trivial.  
+    -split; trivial.  
     split; trivial.
     apply regmap_valid_nextinstr. 
       apply regmap_valid_undef_regs; trivial.
       apply regmap_valid_assign; trivial.
-(*      unfold symbol_offset. 
-      remember (Genv.find_symbol ge id) as v. 
-      destruct v; simpl in *; trivial. 
-      apply eq_sym in Heqv. destruct GENV as [GE _].
-        apply GE. unfold isGlobalBlock, genv2blocksBool; simpl. 
-        solve[apply Genv.find_invert_symbol in Heqv; rewrite Heqv; auto].*)
       remember (Genv.symbol_address ge id Int.zero) as v.
       destruct v; simpl in *; trivial. apply eq_sym in Heqv.
          apply symbol_address_isGLobalBlock in Heqv.
          destruct GENV as [GE _].
          apply (GE _ Heqv). 
 
-   unfold exec_load in H4.
+   -unfold exec_load in H4.
    remember (Mem.loadv Mint32 m (eval_addrmode ge a rs)) as q.
    destruct q; inv H4; apply eq_sym in Heqq.
    remember (eval_addrmode ge a rs) as u.
@@ -790,7 +835,7 @@ econstructor. instantiate (1:= Inv).
       apply regmap_valid_undef_regs; trivial.
       apply regmap_valid_assign; trivial.
 
-   unfold exec_store in H4.
+   - unfold exec_store in H4.
    remember (Mem.storev Mint32 m (eval_addrmode ge a rs) (rs rs0)) as q.
    destruct q; inv H4; apply eq_sym in Heqq.
    remember (eval_addrmode ge a rs) as u.
@@ -805,17 +850,17 @@ econstructor. instantiate (1:= Inv).
       eapply  Nuke_sem.val_valid_fwd; eassumption.
     eapply loader_valid_forward; eassumption.
 
-    split; trivial. 
+    -split; trivial. 
     split; trivial.
     apply regmap_valid_nextinstr.  
       apply regmap_valid_assign; trivial.
 
-    split; trivial. 
+    -split; trivial. 
     split; trivial.
     apply regmap_valid_nextinstr.  
       apply regmap_valid_assign; trivial. simpl; trivial.
 
-   unfold exec_load in H4.
+   - unfold exec_load in H4.
    remember (Mem.loadv Mfloat64 m (eval_addrmode ge a rs)) as q.
    destruct q; inv H4; apply eq_sym in Heqq.
    remember (eval_addrmode ge a rs) as u.
@@ -827,7 +872,7 @@ econstructor. instantiate (1:= Inv).
       apply regmap_valid_undef_regs; trivial.
       apply regmap_valid_assign; trivial.
 
-   unfold exec_store in H4.
+   - unfold exec_store in H4.
    remember ( Mem.storev Mfloat64 m (eval_addrmode ge a rs) (rs r1)) as q.
    destruct q; inv H4; apply eq_sym in Heqq.
    remember (eval_addrmode ge a rs) as u.
@@ -842,12 +887,12 @@ econstructor. instantiate (1:= Inv).
       eapply  Nuke_sem.val_valid_fwd; eassumption.
     eapply loader_valid_forward; eassumption.
 
-    split; trivial. 
+    - split; trivial. 
     split; trivial.
     apply regmap_valid_nextinstr.  
       apply regmap_valid_assign; trivial. simpl; trivial.
 
-   unfold exec_load in H4.
+   - unfold exec_load in H4.
    remember (Mem.loadv Mfloat32 m (eval_addrmode ge a rs)) as q.
    destruct q; inv H4; apply eq_sym in Heqq.
    remember (eval_addrmode ge a rs) as u.
@@ -859,7 +904,7 @@ econstructor. instantiate (1:= Inv).
       apply regmap_valid_undef_regs; trivial.
       apply regmap_valid_assign; trivial.
 
-   unfold exec_store in H4.
+   - unfold exec_store in H4.
    remember (Mem.storev Mfloat32 m (eval_addrmode ge a rs) (rs r1)) as q.
    destruct q; inv H4; apply eq_sym in Heqq.
    remember (eval_addrmode ge a rs) as u.
@@ -873,7 +918,7 @@ econstructor. instantiate (1:= Inv).
       eapply regmap_valid_forward; eassumption.
     eapply loader_valid_forward; eassumption.
 
-   unfold exec_load in H4.
+   - unfold exec_load in H4.
    remember (Mem.loadv Mfloat64 m (eval_addrmode ge a rs)) as q.
    destruct q; inv H4; apply eq_sym in Heqq.
    remember (eval_addrmode ge a rs) as u.
@@ -885,7 +930,7 @@ econstructor. instantiate (1:= Inv).
       apply regmap_valid_undef_regs; trivial.
       apply regmap_valid_assign; trivial.
 
-   unfold exec_store in H4.
+   - unfold exec_store in H4.
    remember (Mem.storev Mfloat64 m (eval_addrmode ge a rs) (rs ST0)) as q.
    destruct q; inv H4; apply eq_sym in Heqq.
    remember (eval_addrmode ge a rs) as u.
@@ -900,7 +945,7 @@ econstructor. instantiate (1:= Inv).
       eapply regmap_valid_forward; eassumption.
     eapply loader_valid_forward; eassumption.
 
-   unfold exec_load in H4.
+   - unfold exec_load in H4.
    remember (Mem.loadv Mfloat32 m (eval_addrmode ge a rs)) as q.
    destruct q; inv H4; apply eq_sym in Heqq.
    remember (eval_addrmode ge a rs) as u.
@@ -912,7 +957,7 @@ econstructor. instantiate (1:= Inv).
       apply regmap_valid_undef_regs; trivial.
       apply regmap_valid_assign; trivial.
 
-   unfold exec_store in H4.
+   - unfold exec_store in H4.
    remember (Mem.storev Mfloat32 m (eval_addrmode ge a rs) (rs ST0)) as q.
    destruct q; inv H4; apply eq_sym in Heqq.
    remember (eval_addrmode ge a rs) as u.
@@ -927,13 +972,13 @@ econstructor. instantiate (1:= Inv).
       eapply regmap_valid_forward; eassumption.
     eapply loader_valid_forward; eassumption.
 
-    split; trivial. 
+   - split; trivial. 
     split; trivial.
     apply regmap_valid_nextinstr.  
       apply regmap_valid_assign; simpl; trivial.
       apply regmap_valid_assign; simpl; trivial.
 
-   unfold exec_store in H4.
+   - unfold exec_store in H4.
    remember ( Mem.storev Mint8unsigned m (eval_addrmode ge a rs) (rs rs0)) as q.
    destruct q; inv H4; apply eq_sym in Heqq.
    remember (eval_addrmode ge a rs) as u.
@@ -947,7 +992,7 @@ econstructor. instantiate (1:= Inv).
       eapply regmap_valid_forward; eassumption.
     eapply loader_valid_forward; eassumption.
 
-   unfold exec_store in H4.
+   - unfold exec_store in H4.
    remember (Mem.storev Mint16unsigned m (eval_addrmode ge a rs) (rs rs0)) as q.
    destruct q; inv H4; apply eq_sym in Heqq.
    remember (eval_addrmode ge a rs) as u.
@@ -961,14 +1006,14 @@ econstructor. instantiate (1:= Inv).
       eapply regmap_valid_forward; eassumption.
     eapply loader_valid_forward; eassumption.
 
-    split; trivial. 
+   - split; trivial. 
     split; trivial.
     apply regmap_valid_nextinstr.  
       apply regmap_valid_assign; simpl; trivial.
       unfold Val.zero_ext.
       destruct (rs rs0) in *; simpl; trivial.
 
-   unfold exec_load in H4.
+   - unfold exec_load in H4.
    remember (Mem.loadv Mint8unsigned m (eval_addrmode ge a rs)) as q.
    destruct q; inv H4; apply eq_sym in Heqq.
    remember (eval_addrmode ge a rs) as u.
@@ -980,14 +1025,14 @@ econstructor. instantiate (1:= Inv).
       apply regmap_valid_undef_regs; trivial.
       apply regmap_valid_assign; trivial.
 
-    split; trivial. 
+   - split; trivial. 
     split; trivial.
     apply regmap_valid_nextinstr.  
       apply regmap_valid_assign; simpl; trivial.
       unfold Val.zero_ext.
       destruct (rs rs0) in *; simpl; trivial.
 
-   unfold exec_load in H4.
+   - unfold exec_load in H4.
    remember (Mem.loadv Mint8signed m (eval_addrmode ge a rs)) as q.
    destruct q; inv H4; apply eq_sym in Heqq.
    remember (eval_addrmode ge a rs) as u.
@@ -999,14 +1044,14 @@ econstructor. instantiate (1:= Inv).
       apply regmap_valid_undef_regs; trivial.
       apply regmap_valid_assign; trivial.
 
-    split; trivial. 
+   - split; trivial. 
     split; trivial.
     apply regmap_valid_nextinstr.  
       apply regmap_valid_assign; simpl; trivial.
       unfold Val.zero_ext.
       destruct (rs rs0) in *; simpl; trivial.
 
-   unfold exec_load in H4.
+   - unfold exec_load in H4.
    remember (Mem.loadv Mint16unsigned m (eval_addrmode ge a rs)) as q.
    destruct q; inv H4; apply eq_sym in Heqq.
    remember (eval_addrmode ge a rs) as u.
@@ -1018,14 +1063,14 @@ econstructor. instantiate (1:= Inv).
       apply regmap_valid_undef_regs; trivial.
       apply regmap_valid_assign; trivial.
 
-    split; trivial. 
+   - split; trivial. 
     split; trivial.
     apply regmap_valid_nextinstr.  
       apply regmap_valid_assign; simpl; trivial.
       unfold Val.sign_ext.
       destruct (rs rs0) in *; simpl; trivial.
 
-   unfold exec_load in H4.
+   - unfold exec_load in H4.
    remember (Mem.loadv Mint16signed m (eval_addrmode ge a rs)) as q.
    destruct q; inv H4; apply eq_sym in Heqq.
    remember (eval_addrmode ge a rs) as u.
@@ -1049,14 +1094,14 @@ econstructor. instantiate (1:= Inv).
       apply regmap_valid_undef_regs; trivial.
       apply regmap_valid_assign; trivial.*)
 
-    split; trivial. 
+   - split; trivial. 
     split; trivial.
     apply regmap_valid_nextinstr.  
       apply regmap_valid_assign; simpl; trivial.
       unfold Val.singleoffloat.
       destruct (rs r1) in *; simpl; trivial.
 
-    split; trivial. 
+   - split; trivial. 
     split; trivial.
     apply regmap_valid_nextinstr.  
       apply regmap_valid_assign; simpl; trivial.
@@ -1079,7 +1124,7 @@ econstructor. instantiate (1:= Inv).
       eapply regmap_valid_forward; eassumption.
     eapply loader_valid_forward; eassumption.
  *)
-    split; trivial.  
+    - split; trivial.  
     split; trivial.
     apply regmap_valid_nextinstr. 
       apply regmap_valid_assign; simpl; trivial.
@@ -1087,14 +1132,14 @@ econstructor. instantiate (1:= Inv).
       destruct (rs r1); simpl; trivial.
       unfold option_map. destruct (Float.to_int f0); simpl; trivial.
 
-    split; trivial.  
+    - split; trivial.  
     split; trivial.
     apply regmap_valid_nextinstr. 
       apply regmap_valid_assign; simpl; trivial.
       unfold Val.maketotal, Val.floatofint.
       destruct (rs r1); simpl; trivial.
 
-    split; trivial.  
+    - split; trivial.  
     split; trivial.
     apply regmap_valid_nextinstr. 
       apply regmap_valid_assign; simpl; trivial.
@@ -1102,14 +1147,14 @@ econstructor. instantiate (1:= Inv).
       destruct (rs r1); simpl; trivial.
       unfold option_map. destruct (Float32.to_int f0); simpl; trivial.
 
-    split; trivial.  
+    - split; trivial.  
     split; trivial.
     apply regmap_valid_nextinstr. 
       apply regmap_valid_assign; simpl; trivial.
       unfold Val.maketotal, Val.singleofint.
       destruct (rs r1); simpl; trivial.
 
-    split; trivial.  
+    - split; trivial.  
     split; trivial.
     apply regmap_valid_nextinstr. 
       apply regmap_valid_assign; simpl; trivial.
@@ -1117,7 +1162,7 @@ econstructor. instantiate (1:= Inv).
       destruct q; simpl; trivial; apply eq_sym in Heqq.
       eapply eval_addrmode_valid; eassumption.
 
-    split; trivial.  
+    - split; trivial.  
     split; trivial.
     apply regmap_valid_nextinstr. 
       apply regmap_valid_undef_regs; trivial.
@@ -1125,21 +1170,21 @@ econstructor. instantiate (1:= Inv).
       unfold Val.neg.
       destruct (rs rd); simpl; trivial. 
 
-    split; trivial.  
+    - split; trivial.  
     split; trivial.
     apply regmap_valid_nextinstr. 
       apply regmap_valid_undef_regs; trivial.
       apply regmap_valid_assign; simpl; trivial.
       eapply val_valid_sub; eauto.
 
-    split; trivial.  
+    - split; trivial.  
     split; trivial.
     apply regmap_valid_nextinstr. 
       apply regmap_valid_undef_regs; trivial.
       apply regmap_valid_assign; simpl; trivial.
       eapply val_valid_mul; eauto.
 
-    split; trivial.  
+    - split; trivial.  
     split; trivial.
     apply regmap_valid_nextinstr. 
       apply regmap_valid_undef_regs; trivial.
@@ -1147,7 +1192,7 @@ econstructor. instantiate (1:= Inv).
       eapply val_valid_mul; eauto.
       simpl; trivial.
 
-    split; trivial.  
+    - split; trivial.  
     split; trivial.
     apply regmap_valid_nextinstr. 
       apply regmap_valid_undef_regs; trivial.
@@ -1156,7 +1201,7 @@ econstructor. instantiate (1:= Inv).
       eapply val_valid_mul; eauto.
       eapply val_valid_mulhs; eauto.
 
-    split; trivial.  
+    - split; trivial.  
     split; trivial.
     apply regmap_valid_nextinstr. 
       apply regmap_valid_undef_regs; trivial.
@@ -1165,7 +1210,7 @@ econstructor. instantiate (1:= Inv).
       eapply val_valid_mul; eauto.
       eapply val_valid_mulhu; eauto.
 
-    remember (Val.divu (rs EAX) (rs # EDX <- Vundef r1)) as q.
+    - remember (Val.divu (rs EAX) (rs # EDX <- Vundef r1)) as q.
       destruct q; inv H4. 
     remember (Val.modu (rs EAX) (rs # EDX <- Vundef r1)) as w.
       destruct w; inv H3. 
@@ -1189,7 +1234,7 @@ econstructor. instantiate (1:= Inv).
       destruct (rs r1); inv H4. 
       destruct (Int.eq i0 Int.zero); inv H3; simpl; trivial. 
 
-    remember (Val.divs (rs EAX) (rs # EDX <- Vundef r1)) as q.
+    - remember (Val.divs (rs EAX) (rs # EDX <- Vundef r1)) as q.
       destruct q; inv H4. 
     remember (Val.mods (rs EAX) (rs # EDX <- Vundef r1)) as w.
       destruct w; inv H3. 
@@ -1217,104 +1262,104 @@ econstructor. instantiate (1:= Inv).
            || Int.eq i (Int.repr Int.min_signed) && Int.eq i0 Int.mone);
        inv H3; simpl; trivial. 
 
-    split; trivial.  
+    - split; trivial.  
     split; trivial.
     apply regmap_valid_nextinstr. 
       apply regmap_valid_undef_regs; trivial.
       apply regmap_valid_assign; simpl; trivial.
       eapply val_valid_and; eauto.
 
-    split; trivial.  
+    - split; trivial.  
     split; trivial.
     apply regmap_valid_nextinstr. 
       apply regmap_valid_undef_regs; trivial.
       apply regmap_valid_assign; simpl; trivial.
       eapply val_valid_and; eauto. simpl; trivial.
 
-    split; trivial.  
+    - split; trivial.  
     split; trivial.
     apply regmap_valid_nextinstr. 
       apply regmap_valid_undef_regs; trivial.
       apply regmap_valid_assign; simpl; trivial.
       eapply val_valid_or; eauto.
 
-    split; trivial.  
+    - split; trivial.  
     split; trivial.
     apply regmap_valid_nextinstr. 
       apply regmap_valid_undef_regs; trivial.
       apply regmap_valid_assign; simpl; trivial.
       eapply val_valid_or; eauto. simpl; trivial.
 
-    split; trivial.  
+    - split; trivial.  
     split; trivial.
     apply regmap_valid_nextinstr. 
       apply regmap_valid_undef_regs; trivial.
       apply regmap_valid_assign; simpl; trivial.
 
-    split; trivial.  
+    - split; trivial.  
     split; trivial.
     apply regmap_valid_nextinstr. 
       apply regmap_valid_undef_regs; trivial.
       apply regmap_valid_assign; simpl; trivial.
       eapply val_valid_xor; eauto.
 
-    split; trivial.  
+    - split; trivial.  
     split; trivial.
     apply regmap_valid_nextinstr. 
       apply regmap_valid_undef_regs; trivial.
       apply regmap_valid_assign; simpl; trivial.
       eapply val_valid_xor; eauto. simpl; trivial.
 
-    split; trivial.  
+    - split; trivial.  
     split; trivial. 
     apply regmap_valid_nextinstr. 
       apply regmap_valid_undef_regs; trivial.
       apply regmap_valid_assign; simpl; trivial.
       unfold Val.notint. destruct (rs rd); simpl; trivial.
 
-    split; trivial.  
+    - split; trivial.  
     split; trivial.
     apply regmap_valid_nextinstr. 
       apply regmap_valid_undef_regs; trivial.
       apply regmap_valid_assign; simpl; trivial.
       eapply val_valid_shl; eauto.
 
-    split; trivial.  
+    - split; trivial.  
     split; trivial.
     apply regmap_valid_nextinstr. 
       apply regmap_valid_undef_regs; trivial.
       apply regmap_valid_assign; simpl; trivial.
       eapply val_valid_shl; eauto. simpl; trivial.
 
-    split; trivial.  
+    - split; trivial.  
     split; trivial.
     apply regmap_valid_nextinstr. 
       apply regmap_valid_undef_regs; trivial.
       apply regmap_valid_assign; simpl; trivial.
       eapply val_valid_shru; eauto.
 
-    split; trivial.  
+    - split; trivial.  
     split; trivial.
     apply regmap_valid_nextinstr. 
       apply regmap_valid_undef_regs; trivial.
       apply regmap_valid_assign; simpl; trivial.
       eapply val_valid_shru; eauto. simpl; trivial.
 
-    split; trivial.  
+    - split; trivial.  
     split; trivial.
     apply regmap_valid_nextinstr. 
       apply regmap_valid_undef_regs; trivial.
       apply regmap_valid_assign; simpl; trivial.
       eapply val_valid_shr; eauto.
 
-    split; trivial.  
+    - split; trivial.  
     split; trivial.
     apply regmap_valid_nextinstr. 
       apply regmap_valid_undef_regs; trivial.
       apply regmap_valid_assign; simpl; trivial.
       eapply val_valid_shr; eauto. simpl; trivial.
 
-    split; trivial.  
+    - split; trivial.  
     split; trivial.
     apply regmap_valid_nextinstr. 
       apply regmap_valid_undef_regs; trivial.
@@ -1323,14 +1368,14 @@ econstructor. instantiate (1:= Inv).
       eapply val_valid_shl; eauto. simpl; trivial.
       eapply val_valid_shru; eauto. simpl; trivial.
 
-    split; trivial.  
+    - split; trivial.  
     split; trivial.
     apply regmap_valid_nextinstr. 
       apply regmap_valid_undef_regs; trivial.
       apply regmap_valid_assign; simpl; trivial.
       eapply val_valid_ror; eauto. simpl; trivial.
 
-    split; trivial.  
+    - split; trivial.  
     split; trivial.
     apply regmap_valid_nextinstr. 
       apply regmap_valid_assign; simpl; trivial.
@@ -1343,7 +1388,7 @@ econstructor. instantiate (1:= Inv).
       eapply val_valid_negative; eauto.
       eapply val_valid_sub_overflow; eauto. 
   
-    split; trivial.  
+    - split; trivial.  
     split; trivial.
     apply regmap_valid_nextinstr. 
       apply regmap_valid_assign; simpl; trivial.
@@ -1356,7 +1401,7 @@ econstructor. instantiate (1:= Inv).
       eapply val_valid_negative; eauto.
       eapply val_valid_sub_overflow; eauto.   
 
-    split; trivial.  
+    - split; trivial.  
     split; trivial.
     apply regmap_valid_nextinstr. 
       apply regmap_valid_assign; simpl; trivial.
@@ -1370,7 +1415,7 @@ econstructor. instantiate (1:= Inv).
       eapply val_valid_sub_overflow; eauto.   
  
 
-    split; trivial.  
+    - split; trivial.  
     split; trivial.
     apply regmap_valid_nextinstr. 
       apply regmap_valid_assign; simpl; trivial.
@@ -1383,7 +1428,7 @@ econstructor. instantiate (1:= Inv).
       eapply val_valid_negative; eauto.
       eapply val_valid_sub_overflow; eauto.   
  
-   destruct (eval_testcond c rs). 
+   - destruct (eval_testcond c rs). 
     destruct b0; inv H4.
       split; trivial.  
       split; trivial.
@@ -1397,7 +1442,8 @@ econstructor. instantiate (1:= Inv).
       split; trivial.
       apply regmap_valid_nextinstr.
       apply regmap_valid_assign; simpl; trivial.
-      split; trivial.  
+
+    - split; trivial.  
       split; trivial.
       apply regmap_valid_nextinstr.
       apply regmap_valid_assign; simpl; trivial.
@@ -1406,43 +1452,43 @@ econstructor. instantiate (1:= Inv).
       destruct w; simpl; trivial.
       destruct b0; simpl; trivial.
 
-    split; trivial.  
+    - split; trivial.  
       split; trivial.
       apply regmap_valid_nextinstr.
       apply regmap_valid_assign; simpl; trivial.
       apply val_valid_addf; eauto.
 
-    split; trivial.  
+    - split; trivial.  
       split; trivial.
       apply regmap_valid_nextinstr.
       apply regmap_valid_assign; simpl; trivial.
       apply val_valid_subf; eauto.
 
-    split; trivial.  
+    - split; trivial.  
       split; trivial.
       apply regmap_valid_nextinstr.
       apply regmap_valid_assign; simpl; trivial.
       apply val_valid_mulf; eauto.
 
-    split; trivial.  
+    - split; trivial.  
       split; trivial.
       apply regmap_valid_nextinstr.
       apply regmap_valid_assign; simpl; trivial.
       apply val_valid_divf; eauto.
 
-    split; trivial.  
+    - split; trivial.  
       split; trivial.
       apply regmap_valid_nextinstr.
       apply regmap_valid_assign; simpl; trivial.
       apply val_valid_negf; eauto.
 
-    split; trivial.  
+    - split; trivial.  
       split; trivial.
       apply regmap_valid_nextinstr.
       apply regmap_valid_assign; simpl; trivial.
       apply val_valid_absf; eauto.
 
-    split; trivial.  
+    - split; trivial.  
       split; trivial.
       apply regmap_valid_nextinstr.
       unfold compare_floats.
@@ -1463,49 +1509,49 @@ econstructor. instantiate (1:= Inv).
         destruct (negb
            (Float.cmp Ceq f0 f1 || Float.cmp Clt f0 f1 || Float.cmp Cgt f0 f1)); simpl; trivial. 
 
-    split; trivial.  
+    - split; trivial.  
       split; trivial.
       apply regmap_valid_nextinstr.
       apply regmap_valid_undef_regs; trivial.
       apply regmap_valid_assign; simpl; trivial.
 
-    split; trivial.  
+    - split; trivial.  
       split; trivial.
       apply regmap_valid_nextinstr.
       apply regmap_valid_assign; simpl; trivial.
       unfold Val.addfs. destruct (rs rd); simpl; trivial. destruct (rs r1); simpl; trivial. 
 
-    split; trivial.  
+    - split; trivial.  
       split; trivial.
       apply regmap_valid_nextinstr.
       apply regmap_valid_assign; simpl; trivial.
       unfold Val.subfs. destruct (rs rd); simpl; trivial. destruct (rs r1); simpl; trivial. 
 
-    split; trivial.  
+    - split; trivial.  
       split; trivial.
       apply regmap_valid_nextinstr.
       apply regmap_valid_assign; simpl; trivial.
       unfold Val.mulfs. destruct (rs rd); simpl; trivial. destruct (rs r1); simpl; trivial. 
 
-    split; trivial.  
+    - split; trivial.  
       split; trivial.
       apply regmap_valid_nextinstr.
       apply regmap_valid_assign; simpl; trivial.
       unfold Val.divfs. destruct (rs rd); simpl; trivial. destruct (rs r1); simpl; trivial. 
 
-    split; trivial.  
+    - split; trivial.  
       split; trivial.
       apply regmap_valid_nextinstr.
       apply regmap_valid_assign; simpl; trivial.
       unfold Val.negfs. destruct (rs rd); simpl; trivial. 
 
-    split; trivial.  
+    - split; trivial.  
       split; trivial.
       apply regmap_valid_nextinstr.
       apply regmap_valid_assign; simpl; trivial.
       unfold Val.absfs. destruct (rs rd); simpl; trivial. 
 
-    split; trivial.  
+    - split; trivial.  
       split; trivial.
       apply regmap_valid_nextinstr.
       unfold compare_floats32.
@@ -1526,7 +1572,7 @@ econstructor. instantiate (1:= Inv).
         destruct (negb
            (Float32.cmp Ceq f0 f1 || Float32.cmp Clt f0 f1 || Float32.cmp Cgt f0 f1)); simpl; trivial. 
 
-    split; trivial.  
+    - split; trivial.  
       split; trivial.
       apply regmap_valid_nextinstr.
       apply regmap_valid_assign; simpl; trivial.
@@ -1536,7 +1582,7 @@ econstructor. instantiate (1:= Inv).
       apply regmap_valid_assign; simpl; trivial.
       apply regmap_valid_assign; simpl; trivial.
  
-    unfold goto_label in H4. 
+    - unfold goto_label in H4. 
       destruct (label_pos l 0 (fn_code f)); inv H4.
       remember (rs PC) as q;
       destruct q; inv H3. inv H.
@@ -1545,7 +1591,7 @@ econstructor. instantiate (1:= Inv).
       apply regmap_valid_assign; simpl; trivial.
       specialize (REGS PC). rewrite<- Heqq in REGS; apply REGS.
 
-    split; trivial.
+    - split; trivial.
       split; trivial.
       apply regmap_valid_assign; simpl; trivial.
       remember (Genv.symbol_address ge symb Int.zero) as q.
@@ -1553,11 +1599,11 @@ econstructor. instantiate (1:= Inv).
       destruct GENV as [GE _].
       apply symbol_address_isGLobalBlock in Heqq. apply GE in Heqq; trivial.
 
-    split; trivial.
+    - split; trivial.
       split; trivial.
       apply regmap_valid_assign; simpl; trivial.
 
-    remember (eval_testcond c rs) as q.
+    - remember (eval_testcond c rs) as q.
       destruct q; inv H4. 
       destruct b0; inv H3. 
      
@@ -1573,30 +1619,31 @@ econstructor. instantiate (1:= Inv).
       split; trivial.
       apply regmap_valid_nextinstr. trivial.
 
-    remember (eval_testcond c1 rs) as q.
+    - remember (eval_testcond c1 rs) as q.
       destruct q; inv H4. 
       remember (eval_testcond c2 rs) as u.
       destruct u; inv H3. 
-      destruct b0; inv H4. 
-      destruct b1; inv H3. 
+      * destruct b0; inv H4. 
+        { destruct b1; inv H3. 
      
-      unfold goto_label in H4.
-      destruct (label_pos l 0 (fn_code f)); inv H4. 
-      remember (rs PC) as w; destruct w; inv H3. 
-      split; trivial.
-      split; trivial.
-      apply regmap_valid_assign; simpl; trivial. inv H. 
-      specialize (REGS PC). rewrite <- Heqw in REGS; apply REGS.
+          { unfold goto_label in H4.
+            destruct (label_pos l 0 (fn_code f)); inv H4. 
+            remember (rs PC) as w; destruct w; inv H3. 
+            split; trivial.
+            split; trivial.
+            apply regmap_valid_assign; simpl; trivial. inv H. 
+            specialize (REGS PC). rewrite <- Heqw in REGS; apply REGS. }
 
-      split; trivial.
-      split; trivial.
-      apply regmap_valid_nextinstr. trivial.
-      split; trivial.
-      split; trivial.
-      apply regmap_valid_nextinstr. trivial.
-      destruct b0; inv H4.
+          { split; trivial.
+            split; trivial.
+            apply regmap_valid_nextinstr. trivial. } } 
+      
+        { split; trivial.
+          split; trivial.
+          apply regmap_valid_nextinstr. trivial. }
+      *  destruct b0; inv H4.
 
-    remember (rs r) as q; destruct q; inv H4.
+    - remember (rs r) as q; destruct q; inv H4.
       destruct (list_nth_z tbl (Int.unsigned i)); inv H3.
       unfold goto_label in H4.
       destruct (label_pos l 0 (fn_code f)); inv H4. 
@@ -1606,7 +1653,7 @@ econstructor. instantiate (1:= Inv).
       apply regmap_valid_assign; simpl; trivial. inv H. 
       specialize (REGS PC). rewrite <- Heqw in REGS; apply REGS.
 
-    split; trivial.
+    - split; trivial.
       split; trivial.
       apply regmap_valid_assign; simpl; trivial.
       apply regmap_valid_assign; simpl; trivial.
@@ -1616,43 +1663,43 @@ econstructor. instantiate (1:= Inv).
       destruct GENV as [GE _].
       apply symbol_address_isGLobalBlock in Heqw. apply GE in Heqw; trivial.
 
-    split; trivial.
+    - split; trivial.
       split; trivial.
       apply regmap_valid_assign; simpl; trivial.
       apply regmap_valid_assign; simpl; trivial.
       specialize (REGS PC). rewrite H in *; simpl in *. trivial. 
 
-    split; trivial.
+    - split; trivial.
       split; trivial.
       apply regmap_valid_assign; simpl; trivial.
 
-   unfold exec_load in H4.
-   remember (Mem.loadv Many32 m (eval_addrmode ge a rs)) as q.
-   destruct q; inv H4; apply eq_sym in Heqq.
-   remember (eval_addrmode ge a rs) as u.
-   destruct u; inv Heqq.
-   split; trivial.  
-    split; trivial.
-    apply regmap_valid_nextinstr. 
+    - unfold exec_load in H4.
+      remember (Mem.loadv Many32 m (eval_addrmode ge a rs)) as q.
+      destruct q; inv H4; apply eq_sym in Heqq.
+      remember (eval_addrmode ge a rs) as u.
+      destruct u; inv Heqq.
+      split; trivial.  
+      split; trivial.
+      apply regmap_valid_nextinstr. 
       apply mem_wd_load in H3; trivial.
       apply regmap_valid_undef_regs; trivial.
       apply regmap_valid_assign; trivial.
 
-   unfold exec_store in H4.
-   remember (Mem.storev Many32 m (eval_addrmode ge a rs) (rs rs0)) as q.
-   destruct q; inv H4; apply eq_sym in Heqq.
-   remember (eval_addrmode ge a rs) as u.
-   destruct u; inv Heqq.
-   split. eapply mem_wd_store; try eassumption.
+    - unfold exec_store in H4.
+      remember (Mem.storev Many32 m (eval_addrmode ge a rs) (rs rs0)) as q.
+      destruct q; inv H4; apply eq_sym in Heqq.
+      remember (eval_addrmode ge a rs) as u.
+      destruct u; inv Heqq.
+      split. eapply mem_wd_store; try eassumption.
           eapply REGS.
-   apply store_forward in H3.
-   split.
-    apply regmap_valid_nextinstr. 
-      apply regmap_valid_undef_regs; trivial.
-      eapply regmap_valid_forward; eassumption.
-    eapply loader_valid_forward; eassumption.
+      apply store_forward in H3.
+      split.
+       apply regmap_valid_nextinstr. 
+       apply regmap_valid_undef_regs; trivial.
+       eapply regmap_valid_forward; eassumption.
+      eapply loader_valid_forward; eassumption.
 
-   unfold exec_load in H4.
+   - unfold exec_load in H4.
    remember (Mem.loadv Many64 m (eval_addrmode ge a rs)) as q.
    destruct q; inv H4; apply eq_sym in Heqq.
    remember (eval_addrmode ge a rs) as u.
@@ -1664,7 +1711,7 @@ econstructor. instantiate (1:= Inv).
       apply regmap_valid_undef_regs; trivial.
       apply regmap_valid_assign; trivial.
 
-   unfold exec_store in H4.
+   - unfold exec_store in H4.
    remember (Mem.storev Many64 m (eval_addrmode ge a rs) (rs r1)) as q.
    destruct q; inv H4; apply eq_sym in Heqq.
    remember (eval_addrmode ge a rs) as u.
@@ -1678,13 +1725,12 @@ econstructor. instantiate (1:= Inv).
       eapply regmap_valid_forward; eassumption.
     eapply loader_valid_forward; eassumption.
 
-
-    split; trivial.
+   - split; trivial.
       split; trivial.
       apply regmap_valid_assign; simpl; trivial.
       specialize (REGS PC). rewrite H in *; simpl in *. trivial. 
 
-    remember (Mem.alloc m 0 sz) as dd. 
+   - remember (Mem.alloc m 0 sz) as dd. 
       destruct dd; apply eq_sym in Heqdd.
       remember (Mem.store Mint32 m0 b0 
                  (Int.unsigned (Int.add Int.zero ofs_link))
@@ -1724,7 +1770,7 @@ econstructor. instantiate (1:= Inv).
           eapply loader_valid_forward; try eapply Heqq.
           eapply loader_valid_forward; try apply Heqdd. assumption.
 
-      remember (Mem.loadv Mint32 m (Val.add (rs ESP) (Vint ofs_ra)))
+    - remember (Mem.loadv Mint32 m (Val.add (rs ESP) (Vint ofs_ra)))
           as d; destruct d; inv H4; apply eq_sym in Heqd. 
       remember (Mem.loadv Mint32 m (Val.add (rs ESP) (Vint ofs_link)))
           as q; destruct q; inv H3; apply eq_sym in Heqq. 
@@ -1746,22 +1792,40 @@ econstructor. instantiate (1:= Inv).
             rewrite H in *; simpl in *; assumption.
            congruence. congruence.
           eapply loader_valid_forward; eassumption.
-   destruct INV as [? [? ?]]. inv H2.
-     split; simpl. eapply mem_wd_nonobservables; eassumption.
-     split. 
-       apply regmap_valid_nextinstr.
-       apply regmap_valid_undef_regs; trivial. admit. (* TODO
+  + destruct INV as [? [? ?]]. inv H2.
+    - split; simpl. eapply mem_wd_nonobservables; eassumption.
+      split. 
+      * apply regmap_valid_nextinstr.
+        apply regmap_valid_undef_regs; trivial.
+        destruct res; simpl.
+        { apply regmap_valid_assign; simpl; trivial.
+          apply regmap_valid_undef_regs; trivial.
+          apply external_call_mem_forward in H3.
+          eapply regmap_valid_forward; eassumption.  admit. (* TODO
 (*       eapply regmap_valid_set_regs.*)
          apply regmap_valid_undef_regs; trivial.
          apply external_call_mem_forward in H7.
          eapply regmap_valid_forward; eassumption.
-       eapply vals_valid_nonobservables; eassumption.*)
-     apply external_call_mem_forward in H3.
-      eapply loader_valid_forward; eassumption. 
-admit. (*TODO*)
- 
-admit. (*??   destruct INV as [? [? ?]]. inv H2.*)
-   destruct INV as [? [? [? ?]]]. inv H1.
+        eapply vals_valid_nonobservables; eassumption.*) }
+        { apply regmap_valid_undef_regs; trivial.
+          apply external_call_mem_forward in H3.
+          eapply regmap_valid_forward; eassumption. }
+        { (* destruct res2; destruct res1; simpl. unfold set_res; simpl.  apply regmap_valid_assign; simpl; trivial.
+           apply regmap_valid_undef_regs; trivial.
+           apply external_call_mem_forward in H3.
+           eapply regmap_valid_forward; eassumption.*)  admit. (* TODO *) }
+      * eapply loader_valid_forward. eassumption. eapply external_call_mem_forward. apply H3.
+    - split. eapply mem_wd_nonobservables; eassumption.
+      split. apply regmap_valid_nextinstr.   
+        apply regmap_valid_undef_regs; trivial.
+        admit. (*set_res*)
+      eapply loader_valid_forward; try eassumption. eapply external_call_mem_forward. apply H3.
+  + destruct INV as [? [? ?]].
+    split; simpl; trivial.
+    split; trivial.
+    split; trivial. 
+    eapply extcall_arguments_valid; eassumption.
+  + destruct INV as [? [? [? ?]]]. inv H1.
      apply EFhelpers in OBS. 
      split; simpl. eapply mem_wd_nonobservables; eassumption.
      split. 
@@ -1769,14 +1833,14 @@ admit. (*??   destruct INV as [? [? ?]]. inv H2.*)
        eapply regmap_valid_set_regs.
          apply external_call_mem_forward in H6.
          eapply regmap_valid_forward; eassumption.
-       admit. (*eapply vals_valid_nonobservables; eassumption.*)
+         eapply vals_valid_nonobservables; eassumption.
        specialize (H3 RA).
        apply external_call_mem_forward in H6.
        eapply Nuke_sem.val_valid_fwd; eassumption.
      apply external_call_mem_forward in H6.
       eapply loader_valid_forward; eassumption. 
 
-   destruct INV as [? [? ?]].
+  + destruct INV as [? [? ?]].
      specialize (mem_wd_alloc _ _ _ _ _ H0 H2). intros WD1.
      split; simpl. eapply store_args_wd. eassumption.  eassumption. 
        apply alloc_forward in H0. eapply vals_valid_fwd; eassumption.
@@ -1871,6 +1935,6 @@ admit. (*??   destruct INV as [? [? ?]]. inv H2.*)
     destruct (rs EDX); simpl; trivial. 
     destruct (rs EAX); simpl; trivial. 
   inv H1. apply REGS. }
-Admitted.
+Admitted. (*end of proof containing some 2.6 admits.*)
 
 End ASM_NUC.

@@ -24,7 +24,7 @@ Require Import ccc26x86.I64Helpers.
 
 Definition memcpy_Effect sz vargs m:=
        match vargs with 
-          Vptr b1 ofs1 :: Vptr b2 ofs2 :: nil =>
+          Vptr b1 ofs1 :: Vptr b2 ofs2 :: _ => (*CompCert2.1 had pattern Vptr b1 ofs1 :: Vptr b2 ofs2 :: nil here*)
           fun b z => eq_block b b1 && zle (Int.unsigned ofs1) z && zle 0 sz &&
                      zlt z (Int.unsigned ofs1 + sz) && valid_block_dec m b
        | _ => fun b z => false
@@ -76,14 +76,13 @@ Proof. intros.
   destruct v; try discriminate.
   destruct vargs; try discriminate.
   destruct v; try discriminate.
-  destruct vargs; try discriminate.
-  destruct (valid_block_dec m b); simpl in *. trivial. 
-  rewrite andb_false_r in H. inv H. 
+  rewrite andb_true_iff in H. destruct H. 
+  destruct (valid_block_dec m b); try discriminate. trivial. 
 Qed.
   
 Definition free_Effect vargs m:=
        match vargs with 
-          Vptr b1 lo :: nil =>
+          Vptr b1 lo :: _ =>  (*LENB: For CompCert2.1, had pattern Vptr b1 lo :: nil => here*)
           match Mem.load Mint32 m b1 (Int.unsigned lo - 4)
           with Some (Vint sz) =>
             fun b z => eq_block b b1 && zlt 0 (Int.unsigned sz) &&
@@ -116,7 +115,7 @@ Proof. intros.
   destruct vargs; inv FR.
   destruct v; inv H0.
   destruct vargs; inv H1.
-  remember (Mem.load Mint32 m b0 (Int.unsigned i - 4)) as d.
+  + remember (Mem.load Mint32 m b0 (Int.unsigned i - 4)) as d.
   destruct d; apply eq_sym in Heqd.
     destruct v; inv H0.
     destruct (eq_block b b0); subst; simpl in *.
@@ -125,6 +124,14 @@ Proof. intros.
       eapply Mem.valid_access_implies; try eassumption. constructor.
     inv H1.
   inv H0.
+  + remember (Mem.load Mint32 m b0 (Int.unsigned i - 4)) as d.
+  destruct d; apply eq_sym in Heqd; try discriminate.
+    destruct v0; inv H0.
+    destruct (eq_block b b0); subst; simpl in *.
+      apply Mem.load_valid_access in Heqd.
+      eapply Mem.valid_access_valid_block.
+      eapply Mem.valid_access_implies; try eassumption. constructor.
+    inv H1.
 Qed.
 
 Definition BuiltinEffect  {F V: Type} (ge: Genv.t F V) (ef: external_function)
@@ -1325,34 +1332,49 @@ Proof.
       Focus 2. elim n; trivial. 
       clear e.
       rewrite !andb_true_iff in H0.
-      destruct H0 as [[[? ?] ?] ?].
-      destruct (zlt 0 (Int.unsigned sz)); simpl in *; try inv H1.
-      destruct (zle (Int.unsigned lo + delta - 4) ofs); simpl in *; try inv H2.
-      destruct (zlt ofs (Int.unsigned lo + delta + Int.unsigned sz)); simpl in *; try inv H3.
+      destruct H0 as [[HH1 HH2] HH3]. 
+      destruct (zlt 0 (Int.unsigned sz)); simpl in *; try discriminate.
+      destruct (zle (Int.unsigned lo + delta - 4) ofs); simpl in *; try discriminate.
+      destruct (zlt ofs (Int.unsigned lo + delta + Int.unsigned sz)); simpl in *; try discriminate.
       destruct (zle (Int.unsigned lo - 4) (ofs - delta)); simpl in *; try omega.
       split. destruct (zlt (ofs - delta) (Int.unsigned lo + Int.unsigned sz)); trivial.
       omega. 
       eapply Mem.perm_implies. 
       eapply Mem.perm_max. eapply RP. split; trivial. omega.
       constructor. 
-      congruence. }
-    { (*b<>b2*)
+(*      congruence.*)
+      destruct (eq_block b0 b0); simpl in *.
+      Focus 2. elim n; trivial. 
+      clear e.
+      rewrite !andb_true_iff in H0.
+      destruct H0 as [[HH1 HH2] HH3]. 
+      destruct (zlt 0 (Int.unsigned sz)); simpl in *; try discriminate.
+      destruct (zle (Int.unsigned lo + delta - 4) ofs); simpl in *; try discriminate.
+      destruct (zlt ofs (Int.unsigned lo + delta + Int.unsigned sz)); simpl in *; try discriminate.
+      destruct (zle (Int.unsigned lo - 4) (ofs - delta)); simpl in *; try omega.
+      split. destruct (zlt (ofs - delta) (Int.unsigned lo + Int.unsigned sz)); trivial.
+      omega.
+      eapply Mem.perm_implies. 
+      eapply Mem.perm_max. eapply RP. split; trivial. omega.
+      constructor.   } }
+(*    { (*b<>b2*)
       destruct vl'; try congruence.
       rewrite !andb_true_iff in H0.
       destruct H0 as [[[? ?] ?] ?].
-      destruct (eq_block b b2). subst. congruence. simpl in H. congruence. }}
+      destruct (eq_block b b2). subst. congruence. simpl in H. congruence. }}*)
+
   { (*memcpy*)
     simpl in EC. inv EC.
     inv ArgsInj. inv H. inv H2. inv H. 
     rewrite H1. unfold memcpy_Effect in H1. inv H.
     inv H0; try congruence. 
-    inv H3; try congruence.
-    inv H4; try congruence.
-    destruct (eq_block b b2); subst; simpl in *; try inv H1.
-    destruct (zle (Int.unsigned (Int.add odst (Int.repr delta))) ofs); simpl in *; try inv H4. 
+    inv H3; try congruence. simpl.
+(*    inv H4; try congruence.*)
+    destruct (eq_block b b2); subst; simpl in *; try discriminate.
+    destruct (zle (Int.unsigned (Int.add odst (Int.repr delta))) ofs); simpl in *; try discriminate. 
     destruct (zle 0 sz); simpl in *; try discriminate.
-    destruct (zlt ofs (Int.unsigned (Int.add odst (Int.repr delta)) + sz)); simpl in *; try inv H3.
-    destruct (valid_block_dec m2 b2); simpl in *; try inv H4.
+    destruct (zlt ofs (Int.unsigned (Int.add odst (Int.repr delta)) + sz)); simpl in *; try discriminate.
+    destruct (valid_block_dec m2 b2); simpl in *; try discriminate.
     split. eapply visPropagateR; eassumption.
     intros. exists bdst, delta.
     destruct (restrictD_Some _ _ _ _ _ H5).
@@ -1382,12 +1404,12 @@ Proof.
     omega.
     omega.
     elim n; trivial.
-    destruct (local_DomRng _ WD _ _ _ LOC).
-    rewrite H5 in H. discriminate.
-  inv H8.
+    destruct (local_DomRng _ WD _ _ _ LOC) as [ZZ YY].
+    rewrite YY in *; discriminate.
+ (* inv H8.
   congruence.
   congruence.
-  congruence. }
+  congruence.*) }
 Qed.
 (*
 Lemma helpers_EmptyEffect: forall {F V:Type} (ge: Genv.t F V) 

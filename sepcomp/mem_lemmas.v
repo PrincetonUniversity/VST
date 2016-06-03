@@ -1780,6 +1780,15 @@ Proof. intros.
   rewrite (Genv.find_invert_symbol _ _ Find). reflexivity.
 Qed.
 
+Lemma symbol_address_isGLobalBlock {V F} (ge : Genv.t F V) i1 i2 b i3: 
+  Genv.symbol_address ge i1 i2 = Vptr b i3 -> isGlobalBlock ge b=true.
+Proof.
+unfold Genv.symbol_address.
+remember (Genv.find_symbol ge i1) as q.
+destruct q; symmetry in Heqq; intros HH; inv HH.
+apply find_symbol_isGlobal in Heqq; trivial.
+Qed.
+
 Lemma find_var_info_isGlobal: forall {V F} (ge : Genv.t F V) b x,
       Genv.find_var_info ge b = Some x -> isGlobalBlock ge b = true.
 Proof. intros.
