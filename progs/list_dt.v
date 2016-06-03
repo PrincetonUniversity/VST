@@ -1234,6 +1234,22 @@ Proof.
   cancel.
 Qed.
 
+Lemma list_append_null:
+  forall 
+   (ls: listspec list_structid list_link)
+   (dsh psh: share)
+   (hd mid: val) ct1 ct2,
+   lseg ls dsh psh ct1 hd mid * lseg ls dsh psh ct2 mid nullval |--
+   lseg ls dsh psh (ct1++ct2) hd nullval.
+Proof.
+intros.
+ rewrite <- sepcon_emp.
+ eapply derives_trans; [ | apply (list_append hd mid nullval ct1 ct2 (fun _ => emp))].
+ normalize.
+ intros. 
+  unfold lseg_cell. simpl. saturate_local. destruct H. contradiction H.
+Qed.
+
 Lemma sizeof_list_struct_pos (LS: listspec list_structid list_link) :
    sizeof list_struct > 0.
 Admitted.
@@ -1709,6 +1725,22 @@ Proof.
  apply exp_right with (x++al).
  rewrite prop_true_andp; auto.
  rewrite map_app; reflexivity.
+Qed.
+
+Lemma list_append_null:
+  forall 
+   (ls: listspec list_structid list_link)
+   (sh: share)
+   (hd mid: val) ct1 ct2,
+   lseg ls sh ct1 hd mid * lseg ls sh ct2 mid nullval |--
+   lseg ls sh (ct1++ct2) hd nullval.
+Proof.
+intros.
+ rewrite <- sepcon_emp.
+ eapply derives_trans; [ | apply (list_append hd mid nullval ct1 ct2 (fun _ => emp))].
+ normalize.
+ intros. 
+  unfold lseg_cell. simpl. saturate_local. destruct H. contradiction H.
 Qed.
 
 Lemma list_cell_valid_pointer:
@@ -2471,7 +2503,21 @@ Proof.
   cancel.
 Qed.
 
-
+Lemma list_append_null:
+  forall 
+   (ls: listspec list_structid list_link)
+   (dsh psh: share)
+   (hd mid: val) ct1 ct2,
+   lseg ls dsh psh ct1 hd mid * lseg ls dsh psh ct2 mid nullval |--
+   lseg ls dsh psh (ct1++ct2) hd nullval.
+Proof.
+intros.
+ rewrite <- sepcon_emp.
+ eapply derives_trans; [ | apply (list_append hd mid nullval ct1 ct2 (fun _ => emp))].
+ normalize.
+ intros. 
+  unfold lseg_cell. simpl. saturate_local. destruct H. contradiction H.
+Qed.
 
 Lemma list_cell_valid_pointer:
   forall (LS: listspec list_structid list_link) (dsh psh: Share.t) v p,

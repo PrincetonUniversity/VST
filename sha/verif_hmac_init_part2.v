@@ -661,8 +661,7 @@ Lemma init_part2: forall MYPOST
 Proof. intros. abbreviate_semax.
 forward_if PostResetBranch. 
   { (* THEN*)
-    rename H into r_true. 
-    apply typed_true_tint_Vint in r_true. (* why didn't this happen automatically? *)
+    rename H into r_true.
     destruct R as [R | R]; [subst r; contradiction r_true; reflexivity | ].  
     subst r; clear r_true.
     remember (map Vint (map Int.repr 
