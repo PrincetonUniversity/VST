@@ -274,7 +274,7 @@ Definition conc_ext_spec (cs : compspecs) (ext_link : string -> ident) :=
     ok_void_spec.(@OK_spec)
     (threadspecs cs ext_link).
 
-Definition Concurrent_Espec cs ext_link := Build_OracleKind _ (conc_ext_spec cs ext_link).
+Definition Concurrent_Espec cs ext_link := Build_OracleKind (list rmap) (conc_ext_spec cs ext_link).
 
 Lemma semax_conc' cs (ext_link: string -> ident) id sig cc A P Q :
   let fs := threadspecs cs ext_link in

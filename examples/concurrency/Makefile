@@ -2,7 +2,7 @@ COQC=coqc
 COQDEP=coqdep
 COQDOC=coqdoc
 
-FILES = small_concurrent_stack.v
+FILES = small_concurrent_stack.v oracular_safety.v
 
 .PHONY : clean all lib docs
 
