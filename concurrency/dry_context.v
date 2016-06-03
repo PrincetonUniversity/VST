@@ -14,6 +14,8 @@ Module mySchedule := mySchedule.
 
 Parameter initU: mySchedule.schedule.
 Parameter the_ge : SEM.G.
+
+
 Definition coarse_semantics:=
   myCoarseSemantics.MachineSemantics initU.
 
