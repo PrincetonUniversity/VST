@@ -56,6 +56,30 @@ Definition valid_memval (f: meminj) (mv : memval) : Prop :=
 Definition domain_meminj (f: meminj) m :=
   forall b, Mem.valid_block m b <-> isSome (f b).
 
+Lemma valid_val_incr:
+  forall f f' v
+    (Hvalid: valid_val f v)
+    (Hincr: inject_incr f f'),
+    valid_val f' v.
+Proof.
+  intros.
+  unfold valid_val in *.
+  destruct v; auto.
+  destruct Hvalid as [? Hf].
+  specialize (Hincr _ _ _ Hf).
+    by eexists; eauto.
+Qed.
+
+Lemma restrPermMap_domain:
+  forall f m p (Hlt: permMapLt p (getMaxPerm m)),
+    domain_meminj f m <-> domain_meminj f (restrPermMap Hlt).
+Proof.
+  intros.
+  unfold domain_meminj.
+  split; intros; specialize (H b);
+  erewrite restrPermMap_valid in *;
+    by auto.
+Qed.
 
 Lemma restrPermMap_val_valid:
   forall m p (Hlt: permMapLt p (getMaxPerm m)) v,
@@ -442,11 +466,11 @@ Module MemObsEq.
   Qed.
 
   (* Don't really care about this right now*)
-  Lemma mem_inj_dillute:
-    forall mc mf f,
-      Mem.mem_inj f mc mf ->
-      Mem.mem_inj f mc (makeCurMax mf).
-  Admitted.
+  (* Lemma mem_inj_dillute: *)
+  (*   forall mc mf f, *)
+  (*     Mem.mem_inj f mc mf -> *)
+  (*     Mem.mem_inj f mc (makeCurMax mf). *)
+  (* Admitted. *)
 
 
   (* Proof as in compcert*)
@@ -601,6 +625,10 @@ Module CoreInjections.
   Class CodeInj :=
     { core_inj: meminj -> C -> C -> Prop;
       core_wd : meminj -> C -> Prop;
+      core_wd_incr : forall f f' c,
+          core_wd f c ->
+          inject_incr f f' ->
+          core_wd f' c;
       core_inj_ext: 
         forall c c' f (Hinj: core_inj f c c'),
           match at_external Sem c, at_external Sem c' with

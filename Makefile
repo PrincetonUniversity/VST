@@ -139,13 +139,11 @@ CONCUR_FILES= \
   sepcomp.v threads_lemmas.v permissions.v\
   pos.v scheduler.v threadPool.v \
   concurrent_machine.v juicy_machine.v dry_machine.v \
-  erasure.v  \
-  semax_conc.v semax_to_machine.v semax_to_juicy_machine.v
-  # mem_obs_eq.v
-  # dry_machine_lemmas.v
-  # Clight_erasure.v dry_context.v
-  # compcert_threads_lemmas.v
-  # lifting.v
+  erasure.v Clight_erasure.v \
+  semax_conc.v semax_to_machine.v semax_to_juicy_machine.v \
+  mem_obs_eq.v dry_machine_lemmas.v dry_context.v \
+  compcert_threads_lemmas.v \
+  lifting.v
 
 CCC26x86_FILES = \
   Archi.v Bounds.v Conventions1.v Conventions.v Ctypes.v \

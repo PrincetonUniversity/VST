@@ -834,6 +834,17 @@ here*)
     | Kresume c v => core_wd f c /\ valid_val f v
     | Kinit _ v => valid_val f v
     end.
+
+  Lemma ctl_wd_incr : forall f f' c,
+      ctl_wd f c ->
+      inject_incr f f' ->
+      ctl_wd f' c.
+  Proof.
+    intros f f' c Hwd Hincr.
+    destruct c; simpl in *; try split.
+    try (eapply core_wd_incr; eauto).
+
+    
   
   Lemma ctl_inj_trans:
     forall c c' c'' (f f' f'' : meminj)
@@ -1089,7 +1100,7 @@ Module SimProofs.
   Require Import sepcomp.closed_safety.
   Import dry_context mySchedule DryMachine DryMachine.ThreadPool SEM.
   Import ThreadPoolWF StepLemmas.
-  Import MemObsEq ValObsEq MemoryLemmas CoreInjections.
+  Import MemoryWD MemObsEq ValObsEq MemoryLemmas CoreInjections.
   
   Import SimDefs.
   
@@ -1258,20 +1269,53 @@ Module SimProofs.
   retains the well-definedeness for any injection that corresponds to
   the domain of the new memory. *)
 
+
+  Hypothesis corestep_wd:
+    forall c m c' m' f
+      (Hwd: core_wd f c)
+      (Hmem_wd: valid_mem m)
+      (Hdomain: domain_meminj f m)
+      (Hcorestep: corestep Sem the_ge c m c' m'),
+      valid_mem m' /\
+      forall f', domain_meminj f' m' ->
+            core_wd f' c'.
+  
   Lemma internal_step_wd:
     forall tp m tp' m' i (cnti: containsThread tp i) f f'
       (Hcomp: mem_compatible tp m)
-      (Hmem_d: valid_mem m)
+      (Hmem_wd: valid_mem m)
       (Htp_wd: tp_wd f tp)
       (Hstep: internal_step cnti Hcomp tp' m')
-      (Hdomain': domain_meminj f' m'),
+      (Hdomain': domain_meminj f' m')
+      (Hincr: inject_incr f f'),
       valid_mem m' /\ tp_wd f' tp'.
   Proof.
     intros.
     destruct Hstep as [Htstep | [[Htstep ?] | [Htstep ?]]].
     - inversion Htstep; subst.
-      (*TODO: RETURN HERE*)
+      erewrite restrPermMap_mem_valid with (Hlt := Hcomp i cnti) in Hmem_wd.
+      apply corestep_wd with (f := f) in Hcorestep; eauto.
+      destruct Hcorestep as [Hmem_wd' Hcore_wd'].
+      specialize (Hcore_wd' _ Hdomain').
+      split; auto.
+      intros j cntj.
+      destruct (i == j) eqn:Hij; move/eqP:Hij=>Hij; subst.
+      rewrite gssThreadCode.
+      simpl;
+        by auto.
+      erewrite gsoThreadCode by auto.
+      specialize (Htp_wd _ cntj).
+      admit.
+      specialize (Htp_wd _ cnti).
+      rewrite Hcode in Htp_wd;
+        by simpl in Htp_wd.
+      admit.
+    - subst. split; auto.
+      admit.
+    - subst. split; auto.
+      admit.
       
+
     
   
   Lemma internal_execution_wd:
