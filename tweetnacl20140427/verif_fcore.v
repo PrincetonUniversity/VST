@@ -348,7 +348,7 @@ apply semax_seq with (Q:=fcore_EpiloguePOST t y x w nonce out c k h OUT data).
     freeze [0;1;2;3] FR5.
     Time forward_if (fcore_EpiloguePOST t y x w nonce out c k h OUT 
                ((N1, N2, N3, N4), (C1, C2, C3, C4), ((K1, K2, K3, K4), (L1, L2, L3, L4)))). (*4.8*)
-    - apply typed_true_tint_Vint in H.
+    - (*apply typed_true_tint_Vint in H.*)
       assert (HOUTLEN: OutLen h = 32). unfold OutLen. rewrite Int.eq_false; trivial.
       thaw FR5. thaw FR4. rewrite HOUTLEN in *. freeze [3;4] FR6.
       eapply semax_post.
@@ -362,8 +362,8 @@ apply semax_seq with (Q:=fcore_EpiloguePOST t y x w nonce out c k h OUT data).
         apply HTruePOST; trivial. rewrite Int.eq_false; trivial.
         subst xInit; reflexivity.
         thaw FR6. cancel.
-    - unfold typed_false in H. simpl in H. inversion H. apply negb_false_iff in H1. clear H.
-      assert (HOUTLEN: OutLen h = 64). unfold OutLen. rewrite H1; trivial.
+    - (*unfold typed_false in H. simpl in H. inversion H. apply negb_false_iff in H1. clear H.*)
+      assert (HOUTLEN: OutLen h = 64). unfold OutLen; rewrite H; trivial.
       thaw FR5. thaw FR4. rewrite HOUTLEN in *. freeze [1;3;4] FR6.
       drop_LOCAL 0%nat.
       eapply semax_post.
@@ -373,7 +373,7 @@ apply semax_seq with (Q:=fcore_EpiloguePOST t y x w nonce out c k h OUT data).
         unfold POSTCONDITION, abbreviate.
         rewrite overridePost_overridePost, normal_ret_assert_eq.
         Intros. subst ek vl. rewrite overridePost_normal'.      
-        apply HFalsePOST; trivial. subst; trivial. 
+        apply HFalsePOST; trivial. rewrite H. trivial. subst; trivial.
         thaw FR6. cancel. apply derives_refl. 
     - intros ? ?. apply andp_left2.
       unfold POSTCONDITION, abbreviate. 

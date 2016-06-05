@@ -656,21 +656,43 @@ Proof. unfold store_args; simpl; intros.
 eapply store_args_rec_wd; eauto.
 Qed.
 
-Lemma mem_wd_nonobservables: forall {F V: Type} (ge:Genv.t F V) 
+Lemma mem_wd_nonobservables: forall {F V: Type} (ge:Genv.t (AST.fundef F) V) hf
+      (HFD: helper_functions_declared ge hf)
       (*hf*) m m' ef t args v (OBS: ~ observableEF (*hf*) ef)
       (EC: external_call ef ge args m t v m') (WD: mem_wd m),
       mem_wd m'.
-Admitted. (*
 Proof. intros.
-       destruct ef; simpl in OBS; try solve [elim OBS; trivial].
-        inv EC; trivial.
-       eapply mem_wd_store; try eapply H0. 
-                eapply mem_wd_alloc; eassumption.
-                simpl; trivial.
-       eapply mem_wd_free; eassumption.
-       eapply mem_wd_storebytes; try eassumption.
-                eapply loadbytes_valid; eassumption. 
-Qed.*)
+  destruct HFD as [HFD1 [HFD2 [HFD3 [HFD4 [HFD5 [HFD6 [HFD7 [HFD8 [HFD9
+                  [HFD10 [HFD11 [HFD12 [HFD13 [HFD14 [HFD15 [HFD16 HFD17]]]]]]]]]]]]]]]].
+  destruct ef; simpl in OBS; try solve [elim OBS; trivial].
++ destruct (I64Helpers.is_I64_helperS_dec name sg). 2: elim OBS; trivial.
+  clear OBS. inv i.
+  - destruct HFD1 as [? [? [? HFD]]]; apply HFD in EC; subst; trivial.  
+  - destruct HFD2 as [? [? [? HFD]]]; apply HFD in EC; subst; trivial.  
+  - destruct HFD3 as [? [? [? HFD]]]; apply HFD in EC; subst; trivial.  
+  - destruct HFD4 as [? [? [? HFD]]]; apply HFD in EC; subst; trivial.  
+  - destruct HFD5 as [? [? [? HFD]]]; apply HFD in EC; subst; trivial.  
+  - destruct HFD6 as [? [? [? HFD]]]; apply HFD in EC; subst; trivial.  
+  - destruct HFD7 as [? [? [? HFD]]]; apply HFD in EC; subst; trivial.  
+  - destruct HFD8 as [? [? [? HFD]]]; apply HFD in EC; subst; trivial.
+  - destruct HFD9 as [? [? [? HFD]]]; apply HFD in EC; subst; trivial.  
+  - destruct HFD10 as [? [? [? HFD]]]; apply HFD in EC; subst; trivial.  
+  - destruct HFD11 as [? [? [? HFD]]]; apply HFD in EC; subst; trivial.  
+  - destruct HFD12 as [? [? [? HFD]]]; apply HFD in EC; subst; trivial.  
+  - destruct HFD13 as [? [? [? HFD]]]; apply HFD in EC; subst; trivial.
++ destruct (is_I64_builtinS_dec name sg). 2: elim OBS; trivial.
+  clear OBS. inv i.
+  - apply HFD14 in EC; subst; trivial.  
+  - apply HFD15 in EC; subst; trivial.  
+  - apply HFD16 in EC; subst; trivial.
+  - apply HFD17 in EC; subst; trivial.
++ inv EC. eapply mem_wd_store. 2: eassumption.
+    eapply mem_wd_alloc; eassumption.
+    simpl; trivial.
++ inv EC. eapply mem_wd_free; eassumption.
++ inv EC. eapply mem_wd_storebytes; try eassumption. 
+  eapply loadbytes_valid; eassumption.
+Qed.
 
 Lemma regmap_valid_set_regs m: forall res L rs,
    regmap_valid m rs -> vals_valid m L ->
@@ -682,7 +704,7 @@ destruct L; simpl; trivial.
   eapply IHres; trivial.
   apply regmap_valid_assign; trivial. 
 Qed. 
-(*TODO: 2.6 correct lemma statements 
+(*
 Lemma vals_valid_i64helpers {F V: Type} (ge: Genv.t F V)
       hf m vals t v m' name sg: forall   
       ( EC : extcall_io_sem name sg ge vals m t v m')
@@ -726,13 +748,58 @@ Proof. intros.
      destruct v; constructor; constructor; simpl; trivial.
 Qed.
 *)
-Lemma vals_valid_nonobservables {F V: Type} (ge: Genv.t F V)
+(*
+Lemma vals_valid_nonobservables {F V: Type} (ge: Genv.t (AST.fundef F) V) hf
+      (HFD: helper_functions_declared ge hf)
       (*hf*) m ef vals t v m': forall    
       (OBS: ~ observableEF (*hf*) ef)
       (EC: external_call ef ge vals m t v m'),
       vals_valid m' (encode_long (sig_res (ef_sig ef)) v).
-Admitted. (*TODO 2.6
-Proof. intros. 
+Proof. intros.
+  destruct HFD as [HFD1 [HFD2 [HFD3 [HFD4 [HFD5 [HFD6 [HFD7 [HFD8 [HFD9
+                  [HFD10 [HFD11 [HFD12 [HFD13 [HFD14 [HFD15 [HFD16 HFD17]]]]]]]]]]]]]]]].
+  destruct ef; simpl in OBS; try solve [elim OBS; trivial].
++ destruct (I64Helpers.is_I64_helperS_dec name sg). 2: elim OBS; trivial.
+  clear OBS. inv i.
+  - destruct HFD1 as [? [? [? HFD]]]. apply HFD in EC; subst; trivial.  
+  - destruct HFD2 as [? [? [? HFD]]]; apply HFD in EC; subst; trivial.  
+  - destruct HFD3 as [? [? [? HFD]]]; apply HFD in EC; subst; trivial.  
+  - destruct HFD4 as [? [? [? HFD]]]; apply HFD in EC; subst; trivial.  
+  - destruct HFD5 as [? [? [? HFD]]]; apply HFD in EC; subst; trivial.  
+  - destruct HFD6 as [? [? [? HFD]]]; apply HFD in EC; subst; trivial.  
+  - destruct HFD7 as [? [? [? HFD]]]; apply HFD in EC; subst; trivial.  
+  - destruct HFD8 as [? [? [? HFD]]]; apply HFD in EC; subst; trivial.
+  - destruct HFD9 as [? [? [? HFD]]]; apply HFD in EC; subst; trivial.  
+  - destruct HFD10 as [? [? [? HFD]]]; apply HFD in EC; subst; trivial.  
+  - destruct HFD11 as [? [? [? HFD]]]; apply HFD in EC; subst; trivial.  
+  - destruct HFD12 as [? [? [? HFD]]]; apply HFD in EC; subst; trivial.  
+  - destruct HFD13 as [? [? [? HFD]]]; apply HFD in EC; subst; trivial.
++ destruct (is_I64_builtinS_dec name sg). 2: elim OBS; trivial.
+  clear OBS. inv i.
+  - apply HFD14 in EC; subst; trivial.  
+  - apply HFD15 in EC; subst; trivial.  
+  - apply HFD16 in EC; subst; trivial.
+  - apply HFD17 in EC; subst; trivial.
++ inv EC. eapply mem_wd_store. 2: eassumption.
+    eapply mem_wd_alloc; eassumption.
+    simpl; trivial.
++ inv EC. eapply mem_wd_free; eassumption.
++ inv EC. eapply mem_wd_storebytes; try eassumption. 
+  eapply loadbytes_valid; eassumption.
+Qed.
+
+Lemma regmap_valid_set_regs m: forall res L rs,
+   regmap_valid m rs -> vals_valid m L ->
+   regmap_valid m (set_regs res L rs).
+Proof. intros res.
+induction res; simpl; intros. trivial.
+destruct L; simpl; trivial. 
+  inv H0. simpl.
+  eapply IHres; trivial.
+  apply regmap_valid_assign; trivial. 
+Qed. 
+      (HFD: helper_functions_declared ge hf)
+ 
 destruct ef; simpl in *; try solve [elim OBS; trivial].
 (*destruct (I64Helpers.is_I64_helper_dec hf name sg);
     try solve [elim (OBS n)]; clear OBS.*)
@@ -1833,7 +1900,7 @@ econstructor. instantiate (1:= Inv).
        eapply regmap_valid_set_regs.
          apply external_call_mem_forward in H6.
          eapply regmap_valid_forward; eassumption.
-         eapply vals_valid_nonobservables; eassumption.
+         admit. (*eapply vals_valid_nonobservables; eassumption.*)
        specialize (H3 RA).
        apply external_call_mem_forward in H6.
        eapply Nuke_sem.val_valid_fwd; eassumption.
