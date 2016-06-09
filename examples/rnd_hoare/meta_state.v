@@ -78,18 +78,25 @@ Record ProgState (Omega: RandomVarDomain) (state: Type) {state_sigma: SigmaAlgeb
 Definition ProgState_RandomVariable (Omega: RandomVarDomain) (state: Type) {state_sigma: SigmaAlgebra state} (s: ProgState Omega state): RandomVariable Omega (MetaState state) := @raw_state Omega state _ s.
 
 Global Coercion ProgState_RandomVariable: ProgState >-> RandomVariable.
-(*
-Definition unique_state {ora: RandomOracle} {state: Type} (s: MetaState state): ProgState state.
-  refine (exist _ (unit_space_var s) _).
+
+Definition ProgState_pair_left {cmd state: Type} {state_sigma: SigmaAlgebra state} (c: cmd) {Omega: RandomVarDomain} (s: ProgState Omega state): @ProgState Omega (cmd * state) (left_discreste_prod_sigma_alg cmd state).
+  refine (Build_ProgState Omega _ _ (RandomVarMap (MetaState_pair_left c) (raw_state _ _ s)) _).
+  intros.
+  rewrite RandomVarMap_sound in H0.
+  destruct H0 as [? [? ?]].
+  pose proof inf_history_sound _ _ s h x H H0.
+  inversion H1; subst; congruence.
+Defined.
+
+Definition non_branch_tstate {state: Type} {state_sigma: SigmaAlgebra state} (s: state): ProgState unit_space_domain state.
+  refine (Build_ProgState _ _ _ (unit_space_var (Terminating _ s)) _).
   intros.
   exfalso.
-  destruct h as [h ?H]; simpl in *.
+  apply PrFamily.rf_sound in H0.
+  specialize (H0 0); simpl in H0.
   specialize (H 0).
-  specialize (H0 0).
-  destruct (h 0); simpl in *; try congruence.
-  inversion H0.
+  rewrite <- H0 in H; apply H; auto.
 Defined.
-*)
 
 Definition RandomVarDomainStream : Type := nat -> RandomVarDomain.
 
@@ -99,6 +106,7 @@ Record is_limit {Omegas: RandomVarDomainStream} {lim_Omega: RandomVarDomain} {st
   dir_mono: forall n, future_domain (RandomVarDomain_RandomVarDomain (dir n)) (RandomVarDomain_RandomVarDomain (dir (S n)));
   dir_consi_uncovered: forall n h, ~ covered_by h (RandomVarDomain_RandomVarDomain (dir n)) -> RandomVar_local_equiv (l n) (l (S n)) h h;
   dir_in_domain: forall n h, RandomVarDomain_RandomVarDomain (dir n) h -> RandomVarDomain_RandomVarDomain (Omegas n) h;
+  domain_forward: forall n, future_domain (RandomVarDomain_RandomVarDomain (Omegas n)) (RandomVarDomain_RandomVarDomain (Omegas n));
   pointwise_limit: forall h s,
     lim h s <->
       (exists n, (l n) h s /\ forall n', n' >= n -> ~ RandomVarDomain_RandomVarDomain (dir n) h) \/

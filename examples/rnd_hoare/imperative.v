@@ -4,42 +4,13 @@ Require Import RndHoare.regular_conditional_prob.
 Require Import RndHoare.random_oracle.
 Require Import RndHoare.random_variable.
 Require Import RndHoare.meta_state.
-Require Import Coq.Classes.Equivalence.
-Require Import Coq.Classes.Morphisms.
+Require Import RndHoare.probabilistic_pred.
 
 Class Imperative : Type := {
   cmd: Type;
   expr: Type;
-  Ssequence: cmd -> cmd -> cmd;
-  cmd_rank: cmd -> nat;
-  Ssequence_consi_left: forall c1 c2, cmd_rank c1 < cmd_rank (Ssequence c1 c2);
-  Ssequence_consi_right: forall c1 c2, cmd_rank c2 < cmd_rank (Ssequence c1 c2)
-}.
-
-Inductive NormalImperativePatternMatchResult {imp: Imperative} : Type :=
-  | PM_Ssequence: cmd -> cmd -> NormalImperativePatternMatchResult
-  | PM_Sifthenelse: expr -> cmd -> cmd -> NormalImperativePatternMatchResult
-  | PM_Swhile: expr -> cmd -> NormalImperativePatternMatchResult
-  | PM_Other: NormalImperativePatternMatchResult
-  | PM_Invalid: NormalImperativePatternMatchResult.
-
-Definition is_PM_Ssequence {imp: Imperative} (pm: NormalImperativePatternMatchResult): Prop :=
-  match pm with
-  | PM_Ssequence _ _ => True
-  | _ => False
-  end.
-
-Class NormalImperative {imp: Imperative}: Type := {
-  Sifthenelse: expr -> cmd -> cmd -> cmd;
-  Swhile: expr -> cmd -> cmd;
-  Sifthenelse_consi_left: forall e c1 c2, cmd_rank c1 < cmd_rank (Sifthenelse e c1 c2);
-  Sifthenelse_consi_right: forall e c1 c2, cmd_rank c2 < cmd_rank (Sifthenelse e c1 c2);
-  Swhile_consi: forall e c, cmd_rank c < cmd_rank (Swhile e c);
-  cmd_pattern_match: cmd -> NormalImperativePatternMatchResult;
-  Ssequence_pattern_match_iff: forall (c c1 c2: cmd), c = Ssequence c1 c2 <-> cmd_pattern_match c = PM_Ssequence c1 c2;
-  Ssequence_pattern_match: forall (c1 c2: cmd), is_PM_Ssequence (cmd_pattern_match (Ssequence c1 c2));
-  Sifthenelse_pattern_match_iff: forall (c: cmd) (e: expr) (c1 c2: cmd), c = Sifthenelse e c1 c2 <-> cmd_pattern_match c = PM_Sifthenelse e c1 c2;
-  Swhile_pattern_match_iff: forall (c: cmd) (e: expr) (c0: cmd), c = Swhile e c0 <-> cmd_pattern_match c = PM_Swhile e c0
+  Sskip: cmd;
+  Ssequence: cmd -> cmd -> cmd
 }.
 
 Module Sequential.
@@ -159,37 +130,21 @@ Definition omega_access {O1 O2: RandomVarDomain} (src: ProgState O1 (cmd * state
     RandomVar_global_equiv (path_states l 0) src /\
     is_limit (path_states l) (step_domains l) dst.
 
-Definition global_state: Type := ProgState state.
+Definition global_state (Omega: RandomVarDomain) : Type := ProgState Omega state.
 
 Global Identity Coercion global_state_ProgState: global_state >-> ProgState.
 
-Definition global_state_command_state (c: cmd) (s: global_state): ProgState (cmd * state).
-  refine (Build_ProgState _ _ (Omega _ s) (RandomVarMap (MetaState_pair_left c) (raw_state _ s)) _).
-  intros.
-  rewrite RandomVarMap_sound in H0.
-  destruct H0 as [? [? ?]].
-  pose proof inf_history_sound _ s h x H H0.
-  inversion H1; subst; congruence.
-Defined.
+Definition command_oaccess (c: cmd) {O1 O2: RandomVarDomain} (src: global_state O1) (dst: global_state O2): Prop :=
+  omega_access (ProgState_pair_left c src) (ProgState_pair_left Sskip dst).
 
-Definition command_oaccess (c: cmd) (src dst: global_state): Prop :=
-  forall k, omega_access (global_state_command_state (Ssequence c k) src) (global_state_command_state k dst).
+Definition assertion: Type := RandomPred (MetaState (@state imp sss) :: nil).
 
-Definition triple (P: global_state -> Prop) (c: cmd) (Q: global_state -> Prop): Prop :=
-  forall s1, P s1 -> forall s2, command_oaccess c s1 s2 ->
-    same_covered_domain (RandomVarDomain_RandomVarDomain (Omega _ s1)) (RandomVarDomain_RandomVarDomain (Omega _ s2)) /\ Q s2.
-
-(*
-Class NormalSmallStepSemantics {imp: Imperative} {Nimp: NormalImperative} {sss: SmallStepSemantics} : Type := {
-  eval_bool: state -> expr -> option bool;
-  step_seq_assoc: forall c1 c2 c3 s cs, step (Ssequence c1 (Ssequence c2 c3), s) cs <-> step (Ssequence (Ssequence c1 c2) c3, s) cs;
-  step_if_true: forall e c1 c2 c3 s cs, eval_bool s e = Some true -> step (Ssequence (Sifthenelse e c1 c2) c3, s) cs <-> cs = unique_state (Terminating _ (Ssequence c1 c3, s));
-  step_if_false: forall e c1 c2 c3 s cs, eval_bool s e = Some false -> step (Ssequence (Sifthenelse e c1 c2) c3, s) cs <-> cs = unique_state (Terminating _ (Ssequence c2 c3, s));
-  step_while_true: forall e c1 c2 s cs, eval_bool s e = Some true -> step (Ssequence (Swhile e c1) c2, s) cs <-> cs = unique_state (Terminating _ (Ssequence c1 (Ssequence (Swhile e c1) c2), s));
-  step_while_false: forall e c1 c2 s cs, eval_bool s e = Some false -> step (Ssequence (Swhile e c1) c2, s) cs <-> cs = unique_state (Terminating _ (c2, s));
-  step_atomic: forall c1 c2 s cs h, cmd_pattern_match c1 = PM_Other -> step (Ssequence c1 c2, s) cs -> (exists s', cs h = Some (Terminating _ (c2, s'))) \/ cs h = Some (NonTerminating _) \/ cs h = None
-}.
-*)
+Global Identity Coercion assertion_RandomPred: assertion >-> RandomPred.
+ 
+Definition triple (P: assertion) (c: cmd) (Q: assertion): Prop :=
+  forall o1 (s1: global_state o1), P o1 s1 ->
+    forall o2 (s2: global_state o2), command_oaccess c s1 s2 ->
+      same_covered_domain (RandomVarDomain_RandomVarDomain o1) (RandomVarDomain_RandomVarDomain o2) /\ Q o2 s2.
 
 (*
 Definition filter_global_state {imp: Imperative} {sss: SmallStepSemantics} (filter: RandomHistory -> Prop) (s: global_state): global_state.

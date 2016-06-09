@@ -8,7 +8,8 @@ DEP_FLAG = -R $(CURRENT_DIR) -as RndHoare
 
 FILES = \
   sigma_algebra.v measurable_function.v probability_measure.v regular_conditional_prob.v\
-  random_oracle.v random_variable.v meta_state.v imperative.v probabilistic_pred.v full_domain.v
+  random_oracle.v random_variable.v meta_state.v imperative.v probabilistic_pred.v full_domain.v\
+  normal_imperative.v
 
 $(FILES:%.v=%.vo): %.vo: %.v
 	@echo COQC $*.v

@@ -1,3 +1,4 @@
+Require Import Coq.Sets.Ensembles.
 Require Import RndHoare.random_oracle.
 Require Import RndHoare.full_domain.
 Require Import RndHoare.measurable_function.
@@ -23,11 +24,20 @@ Definition RandomVariable (Omega: RandomVarDomain) (A: Type) {SA: sigma_algebra.
 
 Global Identity Coercion RandomVariable_MeasurableFunction: RandomVariable >-> PrFamily.MeasurableFunction.
 
+Definition undistinguishable_sub_domain (O1 O2: RandomVarDomain): Prop :=
+  Included _ O1 O2 /\
+  ~ is_measurable_subspace (Intersection _ O2 (Complement _ O1)).
+
 Definition RandomVar_local_equiv {O1} {O2} {A: Type} {SA: sigma_algebra.SigmaAlgebra A} (v1: RandomVariable O1 A) (v2: RandomVariable O2 A) (h1 h2: RandomHistory): Prop := forall a, v1 h1 a <-> v2 h2 a.
 
 Definition RandomVar_global_equiv {O1} {O2} {A: Type} {SA: sigma_algebra.SigmaAlgebra A} (v1: RandomVariable O1 A) (v2: RandomVariable O2 A): Prop := forall h, RandomVar_local_equiv v1 v2 h h.
 
+Definition unit_space_domain: RandomVarDomain :=
+  exist is_measurable_subspace unit_space_domain (full_measurable _ unit_domain_full).
+  
 Definition constant_var (Omega: RandomVarDomain) {A: Type} (v: A) {SA: sigma_algebra.SigmaAlgebra A}: RandomVariable Omega A := PrFamily.MeasurableFunction_inv (ConstantFunction v).
+
+Definition unit_space_var {A: Type} (v: A) {SA: sigma_algebra.SigmaAlgebra A}: RandomVariable unit_space_domain A := constant_var _ v.
 
 Definition RandomVarMap {Omega: RandomVarDomain} {A B: Type} {SA: sigma_algebra.SigmaAlgebra A} {SB: sigma_algebra.SigmaAlgebra B} (f: MeasurableFunction A B) (v: RandomVariable Omega A): RandomVariable Omega B := PrFamily.Compose f v.
 
@@ -59,21 +69,6 @@ Record HeredRandomVariable (A: Type) {SA: sigma_algebra.SigmaAlgebra A}: Type :=
 End RandomVariable.
 
 (*
-Definition unit_space_var {ora: RandomOracle} {A: Type} (v: A): RandomVariable A.
-  refine (Build_RandomVariable _ _ unit_space_domain (fun h a => h 0 = None /\ a = v) _ _ _).
-  + intros ?  ? ? [? ?] [? ?]; congruence.
-  + intros ? ? [? ?]; subst.
-    simpl; intros.
-    rewrite (history_sound1 h 0 n) by (auto; omega).
-    destruct n; auto.
-  + intros.
-    exists v.
-    simpl in *.
-    split; auto.
-    rewrite <- (H 0).
-    auto.
-Defined.
-
 Definition filter_var {ora: RandomOracle} {A: Type} (filter: RandomHistory -> Prop) (v: RandomVariable A): RandomVariable A.
   refine (Build_RandomVariable _ _
            (filter_domain filter (rv_domain _ v))
