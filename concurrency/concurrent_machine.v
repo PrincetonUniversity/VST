@@ -244,7 +244,16 @@ Module Type ThreadPoolSig.
     forall {i tp} addr (res : lock_info) (cnti: containsThread tp i)
       (cnti': containsThread (updLockSet tp addr res) i),
       getThreadC cnti' = getThreadC cnti.
-  
+
+  Axiom gssLockRes:
+    forall tp addr pmap,
+      lockRes (updLockSet tp addr pmap) addr = Some pmap.
+
+  Axiom gsoLockRes:
+    forall tp addr addr' pmap
+      (Hneq: addr <> addr'),
+      lockRes (updLockSet tp addr pmap) addr' =
+      lockRes tp addr'.
   
 End ThreadPoolSig.
 

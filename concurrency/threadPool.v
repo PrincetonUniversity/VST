@@ -6,7 +6,7 @@ Require Import concurrency.concurrent_machine.
 Require Import concurrency.pos.
 Require Import concurrency.threads_lemmas.
 Require Import compcert.lib.Axioms.
-
+Require Import compcert.lib.Axioms.
 Require Import concurrency.addressFiniteMap.
 Require Import compcert.lib.Maps.
 
@@ -449,6 +449,20 @@ Module OrdinalPool (SEM:Semantics) (RES:Resources) <: ThreadPoolSig
     do 2 apply f_equal.
       by apply cnt_irr.
   Qed.
+
+  Lemma gssLockRes:
+    forall tp addr pmap,
+      lockRes (updLockSet tp addr pmap) addr = Some pmap.
+  Proof.
+  Admitted.
+
+  Lemma gsoLockRes:
+    forall tp addr addr' pmap
+      (Hneq: addr <> addr'),
+      lockRes (updLockSet tp addr pmap) addr' =
+      lockRes tp addr'.
+  Proof.
+  Admitted.
     
 End OrdinalPool.
   
