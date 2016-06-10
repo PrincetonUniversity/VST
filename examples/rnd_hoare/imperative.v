@@ -24,6 +24,7 @@ Definition global_step {imp: Imperative} {sss: SmallStepSemantics} (flag: option
   match flag with
   | Some tt =>
     match s1 with
+    | Error => False
     | NonTerminating => False
     | Terminating cs => step cs s2
     end

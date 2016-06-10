@@ -296,6 +296,16 @@ Definition history_in_domain_history {ora: RandomOracle} (d: RandomVarDomain) : 
 
 Coercion history_in_domain_history: history_in_domain >-> RandomHistory.
 
+Lemma LegalRandomVarDomain_Included {ora: RandomOracle}: forall (d1 d2: RandomHistory -> Prop), (forall h, d1 h -> d2 h) -> LegalRandomVarDomain d2 -> LegalRandomVarDomain d1.
+Proof.
+  intros.
+  destruct H0 as [?H].
+  constructor.
+  hnf; intros.
+  specialize (H0 h1 h2).
+  auto.
+Qed.
+
 (*
 Definition join {ora: RandomOracle} {A: Type} (v1 v2 v: RandomVariable A): Prop :=
   forall h, (v1 h = None /\ v2 h = v h) \/ (v2 h = None /\ v1 h = v h).

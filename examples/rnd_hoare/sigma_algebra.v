@@ -35,6 +35,22 @@ Definition Countable_Union_MSet {Omega: Type} {sa: SigmaAlgebra Omega} (x: nat -
 Definition Full_MSet (Omega: Type) {sa: SigmaAlgebra Omega}: measurable_set Omega :=
   exist _ (Full_set _) universal_set_measurable.
 
+Definition Union_MSet (Omega: Type) {sa: SigmaAlgebra Omega} (A B: measurable_set Omega): measurable_set Omega.
+  exists (Union _ A B).
+  admit.
+Defined.
+
+Definition Intersection_MSet (Omega: Type) {sa: SigmaAlgebra Omega} (A B: measurable_set Omega): measurable_set Omega.
+  exists (Intersection _ A B).
+  admit.
+Defined.
+
+Definition Complement_MSet (Omega: Type) {sa: SigmaAlgebra Omega} (A: measurable_set Omega): measurable_set Omega.
+  exists (Complement _ A).
+  apply complement_measurable.
+  apply (proj2_sig A).
+Defined.
+
 Definition Same_MSet {Omega: Type} {sa: SigmaAlgebra Omega}: measurable_set Omega -> measurable_set Omega -> Prop := fun P Q => Same_set _ P Q.
 
 Instance Same_MSet_Equiv {Omega: Type} {sa: SigmaAlgebra Omega}: Equivalence (@Same_MSet Omega sa).

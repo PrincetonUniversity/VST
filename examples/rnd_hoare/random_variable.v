@@ -6,6 +6,8 @@ Require Import RndHoare.regular_conditional_prob.
 
 Class HistoryBasedSigF (ora: RandomOracle) {SFo: SigmaAlgebraFamily RandomHistory} := {
   measurable_subspace_legal: forall P, is_measurable_subspace P -> LegalRandomVarDomain P;
+  is_measurable_subspace_same_covered: forall P Q: RandomVarDomain, same_covered_domain P Q -> is_measurable_subspace P -> is_measurable_subspace Q;
+  is_measurable_set_same_covered: forall (O1 O2 P1 P2: RandomVarDomain) H1 H2, Included _ P1 O1 -> Included _ P2 O2 -> same_covered_domain O1 O2 -> same_covered_domain P1 P2 -> PrFamily.is_measurable_set P1 (exist is_measurable_subspace O1 H1) -> PrFamily.is_measurable_set P2 (exist is_measurable_subspace O2 H2);
   full_measurable: forall P, is_full_domain P -> is_measurable_subspace P
 }.
 
@@ -24,6 +26,21 @@ Definition RandomVariable (Omega: RandomVarDomain) (A: Type) {SA: sigma_algebra.
 
 Global Identity Coercion RandomVariable_MeasurableFunction: RandomVariable >-> PrFamily.MeasurableFunction.
 
+Definition MeasurableSubset (Omega: RandomVarDomain): Type := PrFamily.measurable_set Omega.
+
+Definition MeasurableSubset_RandomVarDomain {Omega: RandomVarDomain} (P: MeasurableSubset Omega): random_oracle.RandomVarDomain.
+  exists (PrFamily.measurable_set_Ensemble Omega P).
+  assert (Included _ (PrFamily.measurable_set_Ensemble Omega P) Omega).
+  + unfold PrFamily.measurable_set_Ensemble.
+    intros ? [? ?].
+    auto.
+  + eapply LegalRandomVarDomain_Included; eauto.
+    apply measurable_subspace_legal.
+    destruct Omega; auto.
+Defined.
+Global Coercion MeasurableSubset_RandomVarDomain: MeasurableSubset >-> random_oracle.RandomVarDomain.
+
+(* TODO: check whether this is necessary. *)
 Definition undistinguishable_sub_domain (O1 O2: RandomVarDomain): Prop :=
   Included _ O1 O2 /\
   ~ is_measurable_subspace (Intersection _ O2 (Complement _ O1)).

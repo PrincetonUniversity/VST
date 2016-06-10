@@ -7,6 +7,7 @@ Require Import Coq.Classes.Equivalence.
 Require Import Coq.Classes.Morphisms.
 
 Inductive MetaState (state: Type): Type :=
+  | Error: MetaState state
   | NonTerminating: MetaState state
   | Terminating: state -> MetaState state.
 
@@ -22,8 +23,9 @@ Instance MetaState_SigmaAlgebra (state: Type) {state_sig: SigmaAlgebra state}: S
 Defined.
 
 Inductive raw_MetaState_pair_left (cmd state: Type) (c: cmd): MetaState state -> MetaState (cmd * state) -> Prop :=
-  | Terminating_pair_left: forall s, raw_MetaState_pair_left cmd state c (Terminating _ s) (Terminating _ (c, s))
-  | NonTerminating_pair_left: raw_MetaState_pair_left cmd state c (NonTerminating _) (NonTerminating _).
+  | Error_pair_left: raw_MetaState_pair_left cmd state c (Error _) (Error _)
+  | NonTerminating_pair_left: raw_MetaState_pair_left cmd state c (NonTerminating _) (NonTerminating _)
+  | Terminating_pair_left: forall s, raw_MetaState_pair_left cmd state c (Terminating _ s) (Terminating _ (c, s)).
 
 Definition MetaState_pair_left {cmd state: Type} {state_sig: SigmaAlgebra state} (c: cmd): @MeasurableFunction (MetaState state) (MetaState (cmd * state)) _ (@MetaState_SigmaAlgebra _ (left_discreste_prod_sigma_alg cmd state)).
   apply (Build_MeasurableFunction _ _ _ _ (raw_MetaState_pair_left cmd state c)).
@@ -31,6 +33,7 @@ Definition MetaState_pair_left {cmd state: Type} {state_sig: SigmaAlgebra state}
     inversion H; inversion H0; try congruence.
   + intros.
     destruct a.
+    - exists (Error _); constructor.
     - exists (NonTerminating _); constructor.
     - exists (Terminating _ (c, s)); constructor.
   + simpl.
@@ -45,15 +48,17 @@ Definition MetaState_pair_left {cmd state: Type} {state_sig: SigmaAlgebra state}
 Defined.
 
 Inductive raw_MetaState_snd (cmd state: Type): MetaState (cmd * state) -> MetaState state -> Prop :=
-  | Terminating_snd: forall c s, raw_MetaState_snd cmd state (Terminating _ (c, s)) (Terminating _ s)
-  | NonTerminating_snd: raw_MetaState_snd cmd state (NonTerminating _) (NonTerminating _).
+  | Error_snd: raw_MetaState_snd cmd state (Error _) (Error _)
+  | NonTerminating_snd: raw_MetaState_snd cmd state (NonTerminating _) (NonTerminating _)
+  | Terminating_snd: forall c s, raw_MetaState_snd cmd state (Terminating _ (c, s)) (Terminating _ s).
 
 Definition MetaState_snd {cmd state: Type} {state_sig: SigmaAlgebra state}: @MeasurableFunction (MetaState (cmd * state)) (MetaState state) (@MetaState_SigmaAlgebra _ (left_discreste_prod_sigma_alg cmd state)) _.
   apply (Build_MeasurableFunction _ _ _ _ (raw_MetaState_snd cmd state)).
   + intros.
     inversion H; inversion H0; try congruence.
   + intros.
-    destruct a as [ | [? ?]].
+    destruct a as [ | | [? ?]].
+    - exists (Error _); constructor.
     - exists (NonTerminating _); constructor.
     - exists (Terminating _ s); constructor.
   + simpl.
@@ -98,22 +103,55 @@ Definition non_branch_tstate {state: Type} {state_sigma: SigmaAlgebra state} (s:
   rewrite <- H0 in H; apply H; auto.
 Defined.
 
-Definition RandomVarDomainStream : Type := nat -> RandomVarDomain.
+Record RandomVarDomainStream : Type := {
+  raw_domains: nat -> RandomVarDomain;
+  rdom_same_covered: forall n, same_covered_domain (RandomVarDomain_RandomVarDomain (raw_domains n)) (RandomVarDomain_RandomVarDomain (raw_domains (S n)));
+  rdom_forward: forall n, future_domain (RandomVarDomain_RandomVarDomain (raw_domains n)) (RandomVarDomain_RandomVarDomain (raw_domains (S n)))
+}.
+
+Global Coercion raw_domains: RandomVarDomainStream >-> Funclass.
+
+Record ConvergeDir (Omegas: RandomVarDomainStream): Type := {
+  raw_direction: forall n, MeasurableSubset (Omegas n);
+  rdir_forward: forall n, future_domain (MeasurableSubset_RandomVarDomain (raw_direction n)) (MeasurableSubset_RandomVarDomain (raw_direction (S n)));
+  rdir_slow: forall n h, RandomVarDomain_RandomVarDomain (Omegas n) h -> ~ RandomVarDomain_RandomVarDomain (Omegas (S n)) h -> MeasurableSubset_RandomVarDomain (raw_direction n) h
+}.
+
+Global Coercion raw_direction: ConvergeDir >-> Funclass.
 
 Definition ProgStateStream (Omegas: RandomVarDomainStream) (state: Type) {state_sigma: SigmaAlgebra state}: Type := forall n: nat, ProgState (Omegas n) state.
 
-Record is_limit {Omegas: RandomVarDomainStream} {lim_Omega: RandomVarDomain} {state: Type} {state_sigma: SigmaAlgebra state} (l: ProgStateStream Omegas state) (dir: RandomVarDomainStream) (lim: ProgState lim_Omega state) : Prop := {
-  dir_mono: forall n, future_domain (RandomVarDomain_RandomVarDomain (dir n)) (RandomVarDomain_RandomVarDomain (dir (S n)));
-  dir_consi_uncovered: forall n h, ~ covered_by h (RandomVarDomain_RandomVarDomain (dir n)) -> RandomVar_local_equiv (l n) (l (S n)) h h;
-  dir_in_domain: forall n h, RandomVarDomain_RandomVarDomain (dir n) h -> RandomVarDomain_RandomVarDomain (Omegas n) h;
-  domain_forward: forall n, future_domain (RandomVarDomain_RandomVarDomain (Omegas n)) (RandomVarDomain_RandomVarDomain (Omegas n));
-  pointwise_limit: forall h s,
+Definition is_limit_domain (Omegas: RandomVarDomainStream) (dir: ConvergeDir Omegas) (lim_Omega: RandomVarDomain) : Prop :=
+  forall h,
+    RandomVarDomain_RandomVarDomain lim_Omega h <->
+      (exists n, RandomVarDomain_RandomVarDomain (Omegas n) h /\ forall n', n' >= n -> ~ MeasurableSubset_RandomVarDomain (dir n) h) \/
+      (forall n h_low, is_fin_history h_low -> prefix_history h_low h ->
+         exists n' h', n' > n /\ prefix_history h_low h' /\ prefix_history h' h /\ MeasurableSubset_RandomVarDomain (dir n') h').
+
+Definition is_limit {Omegas: RandomVarDomainStream} {lim_Omega: RandomVarDomain} {state: Type} {state_sigma: SigmaAlgebra state} (l: ProgStateStream Omegas state) (dir: ConvergeDir Omegas) (lim: ProgState lim_Omega state) : Prop :=
+  forall h s,
     lim h s <->
-      (exists n, (l n) h s /\ forall n', n' >= n -> ~ RandomVarDomain_RandomVarDomain (dir n) h) \/
+      (exists n, (l n) h s /\ forall n', n' >= n -> ~ MeasurableSubset_RandomVarDomain (dir n) h) \/
       (s = NonTerminating _ /\
        forall n h_low, is_fin_history h_low -> prefix_history h_low h ->
-         exists n' h', n' > n /\ prefix_history h_low h' /\ prefix_history h' h /\ RandomVarDomain_RandomVarDomain (dir n') h')
-}.
+         exists n' h', n' > n /\ prefix_history h_low h' /\ prefix_history h' h /\ MeasurableSubset_RandomVarDomain (dir n') h').
+
+Definition limit_domain (Omegas: RandomVarDomainStream) (dir: ConvergeDir Omegas): RandomVarDomain.
+  exists (fun h =>
+   (exists n, RandomVarDomain_RandomVarDomain (Omegas n) h /\ forall n', n' >= n -> ~ MeasurableSubset_RandomVarDomain (dir n) h) \/
+   (forall n h_low, is_fin_history h_low -> prefix_history h_low h ->
+      exists n' h', n' > n /\ prefix_history h_low h' /\ prefix_history h' h /\ MeasurableSubset_RandomVarDomain (dir n') h')).
+  admit.
+Defined.
+
+Definition limit {Omegas: RandomVarDomainStream} {state: Type} {state_sigma: SigmaAlgebra state} (l: ProgStateStream Omegas state) (dir: ConvergeDir Omegas): ProgState (limit_domain Omegas dir) state.
+  refine (Build_ProgState _ _ _
+           (PrFamily.Build_MeasurableFunction _ _ _ (fun h s =>
+   (exists n, (l n) h s /\ forall n', n' >= n -> ~ MeasurableSubset_RandomVarDomain (dir n) h) \/
+      (s = NonTerminating _ /\
+       forall n h_low, is_fin_history h_low -> prefix_history h_low h ->
+         exists n' h', n' > n /\ prefix_history h_low h' /\ prefix_history h' h /\ MeasurableSubset_RandomVarDomain (dir n') h')) _ _ _ _ ) _).
+  Admitted.
 
 Definition Terminating_raw_domain {Omega: RandomVarDomain} {state: Type} {state_sigma: SigmaAlgebra state} (s: ProgState Omega state): RandomHistory -> Prop := fun h => exists a, s h (Terminating _ a).
 
@@ -131,3 +169,35 @@ Defined.
 
 End ProgState.
 
+Section CutLimit.
+
+Context {ora: RandomOracle} {SFo: SigmaAlgebraFamily RandomHistory} {HBSFo: HistoryBasedSigF ora} {state: Type} {state_sigma: SigmaAlgebra state}.
+
+Variable (filter: measurable_set (MetaState state)).
+
+Variables (Omegas: RandomVarDomainStream) (l: ProgStateStream Omegas state) (dir: ConvergeDir Omegas).
+
+Fixpoint left_raw_dir (n: nat): random_oracle.RandomVarDomain :=
+  match n with
+  | 0 => MeasurableSubset_RandomVarDomain (PrFamily.Intersection_MSet (dir 0) (PrFamily.PreImage_MSet (l 0) filter))
+  | S n0 => filter_domain (fun h => covered_by h (left_raw_dir n0)) (MeasurableSubset_RandomVarDomain (PrFamily.Intersection_MSet (dir n) (PrFamily.PreImage_MSet (l n) filter)))
+  end.
+
+Fixpoint left_raw_domain (n: nat): RandomHistory -> Prop :=
+  match n with
+  | 0 => RandomVarDomain_RandomVarDomain (Omegas 0)
+  | S n0 => Union _ (filter_domain (left_raw_domain n0) (left_raw_dir n0)) (filter_domain (fun h => covered_by h (left_raw_dir n0)) (RandomVarDomain_RandomVarDomain (Omegas n)))
+  end.
+
+Fixpoint left_raw_state (n: nat): RandomHistory -> MetaState state -> Prop :=
+  match n with
+  | 0 => fun h s => l 0 h s
+  | S n0 => fun h s => 
+              (filter_domain (left_raw_domain n0) (left_raw_dir n0)) h /\ left_raw_state n0 h s \/
+              covered_by h (left_raw_dir n0) /\ l n h s
+  end.
+
+Definition right_raw_dir (n: nat): RandomHistory -> Prop :=
+  fun h => exists m, covered_by h (left_raw_dir m) /\ ~ covered_by h (left_raw_dir (S m)) /\ MeasurableSubset_RandomVarDomain (dir (n + S m)) h.
+
+End CutLimit.

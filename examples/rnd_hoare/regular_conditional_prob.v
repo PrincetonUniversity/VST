@@ -44,6 +44,14 @@ Qed.
 
 Definition measurable_set (Omega: measurable_subspace): Type := {P: Ensemble U | is_measurable_set P Omega}.
 
+Definition measurable_set_Ensemble (Omega: measurable_subspace): measurable_set Omega -> Ensemble U := fun P => Intersection _ (@proj1_sig _ _ P) Omega.
+
+Global Coercion measurable_set_Ensemble: measurable_set >-> Ensemble.
+
+Definition measurable_set_Prop (Omega: measurable_subspace): measurable_set Omega -> U -> Prop := fun P => Intersection _ (@proj1_sig _ _ P) Omega.
+
+Global Coercion measurable_set_Prop: measurable_set >-> Funclass.
+
 Definition measurable_set_inj {Omega: measurable_subspace} (P: measurable_set Omega): @sigma_algebra.measurable_set _ (sub_sigma_algebra Omega).
   destruct Omega as [Omega ?H], P as [P ?H].
   unfold is_measurable_set in H0.
@@ -116,6 +124,14 @@ Definition MeasurableFunction_inv {Omega: measurable_subspace} {B: Type} {SB: Si
 Defined.
 
 Definition Compose {Omega: measurable_subspace} {B C: Type} {SB: SigmaAlgebra B} {SC: SigmaAlgebra C} (g: measurable_function.MeasurableFunction B C) (f: MeasurableFunction Omega B): MeasurableFunction Omega C := MeasurableFunction_inv (measurable_function.Compose g (MeasurableFunction_inj f)).
+
+Definition PreImage_MSet {Omega: measurable_subspace} {B: Type} {SB: SigmaAlgebra B} (f: MeasurableFunction Omega B) (P: sigma_algebra.measurable_set B): measurable_set Omega := measurable_set_inv (PreImage_MSet (MeasurableFunction_inj f) P).
+
+Definition Intersection_MSet {Omega: measurable_subspace} (A B: measurable_set Omega): measurable_set Omega :=
+  measurable_set_inv (sigma_algebra.Intersection_MSet _ (measurable_set_inj A) (measurable_set_inj B)).
+
+Definition Union_MSet {Omega: measurable_subspace} (A B: measurable_set Omega): measurable_set Omega :=
+  measurable_set_inv (sigma_algebra.Union_MSet _ (measurable_set_inj A) (measurable_set_inj B)).
 
 Context {PrF: ProbabilityMeasureFamily U}.
 
