@@ -2,11 +2,11 @@ Require Import Coq.omega.Omega.
 Require Import Coq.Lists.List.
 Require Import RndHoare.random_oracle.
 
-Definition is_full_domain {ora: RandomOracle} (d: RandomVarDomain): Prop :=
+Definition is_max_anti_chain {ora: RandomOracle} (d: HistoryAntiChain): Prop :=
   forall h, is_inf_history h ->
     exists h', (prefix_history h' h \/ strict_conflict_history h' h) /\ d h'.
 
-Lemma unit_domain_full {ora: RandomOracle}: is_full_domain unit_space_domain.
+Lemma unit_anti_chain_max {ora: RandomOracle}: is_max_anti_chain unit_space_anti_chain.
 Proof.
   hnf; intros.
   exists (fin_history nil).
@@ -21,12 +21,12 @@ Proof.
     simpl; auto.
 Qed.
 
-Definition full_domain_same_covered {ora: RandomOracle}: forall (d1 d2: RandomVarDomain),
-  is_full_domain d1 ->
-  is_full_domain d2 ->
-  same_covered_domain d1 d2.
+Definition max_anti_chain_same_covered {ora: RandomOracle}: forall (d1 d2: HistoryAntiChain),
+  is_max_anti_chain d1 ->
+  is_max_anti_chain d2 ->
+  same_covered_anti_chain d1 d2.
 Proof.
-  unfold is_full_domain, same_covered_domain.
+  unfold is_max_anti_chain, same_covered_anti_chain.
   firstorder.
 Qed.
 
@@ -302,7 +302,7 @@ Proof.
     left; auto.
 Qed.
 
-Definition max_extension {ora: RandomOracle} (d: RandomVarDomain): RandomVarDomain.
+Definition max_extension {ora: RandomOracle} (d: HistoryAntiChain): HistoryAntiChain.
   exists (max_pre_extension d).
   constructor.
   destruct d as [d H]; simpl.
@@ -311,7 +311,7 @@ Defined.
 
 Require Import Coq.Logic.Classical.
 
-Lemma max_extension_full {ora: RandomOracle}: forall d, is_full_domain (max_extension d).
+Lemma max_extension_full {ora: RandomOracle}: forall d, is_max_anti_chain (max_extension d).
 Proof.
   intros.
   hnf; intros.
@@ -322,7 +322,7 @@ Proof.
     apply conflict_history_strict_conflict; auto.
     apply conflict_history_sym; auto.
   + exists h.
-    pose proof max_pre_extension_spec d (@rand_consi _ _ (raw_domain_legal d)).
+    pose proof max_pre_extension_spec d (@rand_consi _ _ (raw_anti_chain_legal d)).
     destruct H1 as [_ ?].
     specialize (H1 h H).
     split; [left; apply prefix_history_refl |].

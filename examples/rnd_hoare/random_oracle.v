@@ -275,28 +275,28 @@ Definition history_set_consi {ora: RandomOracle} (P: RandomHistory -> Prop) : Pr
     P h2 ->
     False.
 
-Class LegalRandomVarDomain {ora: RandomOracle} (d: RandomHistory -> Prop) : Prop := {
+Class LegalHistoryAntiChain {ora: RandomOracle} (d: RandomHistory -> Prop) : Prop := {
   rand_consi: history_set_consi d
 }.
 
-Record RandomVarDomain {ora: RandomOracle}: Type := {
-  raw_domain: RandomHistory -> Prop;
-  raw_domain_legal: LegalRandomVarDomain raw_domain
+Record HistoryAntiChain {ora: RandomOracle}: Type := {
+  raw_anti_chain: RandomHistory -> Prop;
+  raw_anti_chain_legal: LegalHistoryAntiChain raw_anti_chain
 }.
 
-Definition in_domain {ora: RandomOracle} (d: RandomVarDomain) (h: RandomHistory): Prop := raw_domain d h.
+Definition in_anti_chain {ora: RandomOracle} (d: HistoryAntiChain) (h: RandomHistory): Prop := raw_anti_chain d h.
 
-Coercion in_domain: RandomVarDomain >-> Funclass.
+Coercion in_anti_chain: HistoryAntiChain >-> Funclass.
 
-Definition history_in_domain {ora: RandomOracle} (d: RandomVarDomain) : Type := {h: RandomHistory | d h}.
+Definition history_in_anti_chain{ora: RandomOracle} (d: HistoryAntiChain) : Type := {h: RandomHistory | d h}.
 
-Coercion history_in_domain: RandomVarDomain >-> Sortclass.
+Coercion history_in_anti_chain: HistoryAntiChain >-> Sortclass.
 
-Definition history_in_domain_history {ora: RandomOracle} (d: RandomVarDomain) : history_in_domain d -> RandomHistory := @proj1_sig _ _.
+Definition history_in_anti_chain_history {ora: RandomOracle} (d: HistoryAntiChain) : history_in_anti_chain d -> RandomHistory := @proj1_sig _ _.
 
-Coercion history_in_domain_history: history_in_domain >-> RandomHistory.
+Coercion history_in_anti_chain_history: history_in_anti_chain >-> RandomHistory.
 
-Lemma LegalRandomVarDomain_Included {ora: RandomOracle}: forall (d1 d2: RandomHistory -> Prop), (forall h, d1 h -> d2 h) -> LegalRandomVarDomain d2 -> LegalRandomVarDomain d1.
+Lemma LegalHistoryAntiChain_Included {ora: RandomOracle}: forall (d1 d2: RandomHistory -> Prop), (forall h, d1 h -> d2 h) -> LegalHistoryAntiChain d2 -> LegalHistoryAntiChain d1.
 Proof.
   intros.
   destruct H0 as [?H].
@@ -318,7 +318,7 @@ Definition Forall_RandomHistory {ora: RandomOracle} {A: Type} (P: A -> Prop) (v:
     end.
 *)
 
-Definition singleton_history_domain {ora: RandomOracle} (h: RandomHistory): RandomVarDomain.
+Definition singleton_history_anti_chain {ora: RandomOracle} (h: RandomHistory): HistoryAntiChain.
   exists (fun h' => forall n, h n = h' n).
   constructor.
   hnf; intros; simpl in *.
@@ -329,9 +329,9 @@ Definition singleton_history_domain {ora: RandomOracle} (h: RandomHistory): Rand
   destruct (h n); rewrite <- H0, <- H1 in H2; auto.
 Defined.
 
-Definition unit_space_domain {ora: RandomOracle}: RandomVarDomain := singleton_history_domain (fin_history nil).
+Definition unit_space_anti_chain {ora: RandomOracle}: HistoryAntiChain := singleton_history_anti_chain (fin_history nil).
 
-Definition filter_domain {ora: RandomOracle} (filter: RandomHistory -> Prop) (d: RandomVarDomain): RandomVarDomain.
+Definition filter_anti_chain {ora: RandomOracle} (filter: RandomHistory -> Prop) (d: HistoryAntiChain): HistoryAntiChain.
   exists (fun h => d h /\ filter h).
   constructor.
   destruct d as [d [H]].
@@ -339,22 +339,22 @@ Definition filter_domain {ora: RandomOracle} (filter: RandomHistory -> Prop) (d:
   apply (H h1 h2 H0); tauto.
 Defined.
 
-Definition covered_by {ora: RandomOracle} (h: RandomHistory) (d: RandomVarDomain): Prop :=
+Definition covered_by {ora: RandomOracle} (h: RandomHistory) (d: HistoryAntiChain): Prop :=
   exists h', prefix_history h' h /\ d h'.
 
-Definition n_bounded_covered_by {ora: RandomOracle} (n: nat) (h: RandomHistory) (d: RandomVarDomain): Prop :=
+Definition n_bounded_covered_by {ora: RandomOracle} (n: nat) (h: RandomHistory) (d: HistoryAntiChain): Prop :=
   exists h', n_bounded_prefix_history n h' h -> d h'.
 
-Definition future_domain {ora: RandomOracle} (present future: RandomVarDomain): Prop :=
+Definition future_anti_chain {ora: RandomOracle} (present future: HistoryAntiChain): Prop :=
   forall h, future h -> covered_by h present.
 
-Definition n_bounded_future_domain {ora: RandomOracle} (n: nat) (present future: RandomVarDomain): Prop :=
+Definition n_bounded_future_anti_chain {ora: RandomOracle} (n: nat) (present future: HistoryAntiChain): Prop :=
   forall h, future h -> n_bounded_covered_by n h present.
 
-Definition bounded_future_domain {ora: RandomOracle} (present future: RandomVarDomain): Prop :=
-  exists n, n_bounded_future_domain n present future.
+Definition bounded_future_anti_chain {ora: RandomOracle} (present future: HistoryAntiChain): Prop :=
+  exists n, n_bounded_future_anti_chain n present future.
 
-Definition same_covered_domain {ora: RandomOracle} (d1 d2: RandomVarDomain): Prop :=
+Definition same_covered_anti_chain {ora: RandomOracle} (d1 d2: HistoryAntiChain): Prop :=
   forall h, is_inf_history h ->
     ((exists h', (prefix_history h' h \/ strict_conflict_history h' h) /\ d1 h') <->
      (exists h', (prefix_history h' h \/ strict_conflict_history h' h) /\ d2 h')).

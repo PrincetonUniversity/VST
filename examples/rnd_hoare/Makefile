@@ -1,14 +1,15 @@
 CURRENT_DIR = $(shell pwd)
+RAMIFY_COQLIB = "/Users/Qinxiang/Documents/NUS-project"
 
 COQC=coqc
 COQDEP=coqdep -slash
 
-COQ_FLAG = -R $(CURRENT_DIR) -as RndHoare
-DEP_FLAG = -R $(CURRENT_DIR) -as RndHoare
+COQ_FLAG = -R $(CURRENT_DIR) -as RndHoare -R $(RAMIFY_COQLIB) -as RamifyCoq
+DEP_FLAG = -R $(CURRENT_DIR) -as RndHoare -R $(RAMIFY_COQLIB) -as RamifyCoq
 
 FILES = \
   sigma_algebra.v measurable_function.v probability_measure.v regular_conditional_prob.v\
-  random_oracle.v random_variable.v meta_state.v imperative.v probabilistic_pred.v full_domain.v\
+  random_oracle.v random_variable.v meta_state.v imperative.v probabilistic_pred.v max_anti_chain.v\
   normal_imperative.v
 
 $(FILES:%.v=%.vo): %.vo: %.v

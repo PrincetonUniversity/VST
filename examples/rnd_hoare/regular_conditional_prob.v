@@ -9,9 +9,9 @@ Local Open Scope R.
 
 Class SigmaAlgebraFamily (Omega: Type): Type := {
   is_measurable_subspace: (Ensemble Omega) -> Prop;
-  is_measurable_subspace_proper: Proper (Same_set _ ==> iff) is_measurable_subspace;
+  is_measurable_subspace_proper: Proper (Same_set ==> iff) is_measurable_subspace;
   sub_sigma_algebra: forall (P: Ensemble Omega | is_measurable_subspace P), SigmaAlgebra {o: Omega | proj1_sig P o};
-  is_measurable_subspace_consi: forall (P: Ensemble Omega | is_measurable_subspace P) (Q: Ensemble Omega | is_measurable_subspace Q), Included _ (proj1_sig Q) (proj1_sig P) -> @is_measurable_set {x: Omega | proj1_sig P x} (sub_sigma_algebra P) (sig_Set (proj1_sig Q) (proj1_sig P))
+  is_measurable_subspace_consi: forall (P: Ensemble Omega | is_measurable_subspace P) (Q: Ensemble Omega | is_measurable_subspace Q), Included (proj1_sig Q) (proj1_sig P) -> @is_measurable_set {x: Omega | proj1_sig P x} (sub_sigma_algebra P) (sig_Set (proj1_sig Q) (proj1_sig P))
 }.
 
 Class ProbabilityMeasureFamily (Omega: Type) {SigFamily : SigmaAlgebraFamily Omega}: Type := {
@@ -36,7 +36,7 @@ Global Coercion measurable_subspace_Prop: measurable_subspace >-> Funclass.
 
 Definition is_measurable_set (P: Ensemble U) (Omega: measurable_subspace) := @is_measurable_set {x: U | Omega x} (sub_sigma_algebra Omega) (sig_Set P Omega).
 
-Lemma is_measurable_subspace_consi: forall (Omega Omega': measurable_subspace), Included _ Omega' Omega -> is_measurable_set Omega' Omega.
+Lemma is_measurable_subspace_consi: forall (Omega Omega': measurable_subspace), Included Omega' Omega -> is_measurable_set Omega' Omega.
 Proof.
   intros.
   apply is_measurable_subspace_consi; auto.

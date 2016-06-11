@@ -1,4 +1,3 @@
-Require Export Coq.Classes.Morphisms.
 Require Import RndHoare.sigma_algebra.
 
 Record MeasurableFunction (A B: Type) {sA: SigmaAlgebra A} {sB: SigmaAlgebra B} : Type := {
@@ -30,8 +29,6 @@ Lemma PreImage_Full: forall  {A B: Type} {sA: SigmaAlgebra A} {sB: SigmaAlgebra 
   Same_MSet (PreImage_MSet f (Full_MSet B)) (Full_MSet A).
 Admitted.
 
-Require Import Coq.Logic.Classical.
-
 Definition ConstantFunction {A B: Type} {sA: SigmaAlgebra A} {sB: SigmaAlgebra B} (b0: B): MeasurableFunction A B.
   apply (Build_MeasurableFunction _ _ _ _ (fun a b => b = b0)).
   + intros.
@@ -40,11 +37,11 @@ Definition ConstantFunction {A B: Type} {sA: SigmaAlgebra A} {sB: SigmaAlgebra B
     exists b0; auto.
   + intros.
     destruct (classic (P b0)).
-    - eapply is_measurable_set_proper; [| apply universal_set_measurable].
+    - eapply is_measurable_set_proper; [| apply full_measurable].
       split; hnf; unfold In; simpl; intros.
       * constructor.
       * subst; auto.
-    - eapply is_measurable_set_proper; [| apply complement_measurable; apply universal_set_measurable].
+    - eapply is_measurable_set_proper; [| apply complement_measurable; apply full_measurable].
       split; hnf; unfold Complement, In; simpl; intros.
       * specialize (H0 b0); exfalso; auto.
       * exfalso; apply H0; constructor.
@@ -62,7 +59,7 @@ Definition Indicator {A B: Type} {sA: SigmaAlgebra A} {sB: SigmaAlgebra B} (P: m
       auto.
   + intros.
     destruct (classic (P0 b1)), (classic (P0 b0)).
-    - eapply is_measurable_set_proper; [| apply universal_set_measurable].
+    - eapply is_measurable_set_proper; [| apply full_measurable].
       split; hnf; unfold In; simpl; intros.
       * constructor.
       * destruct H2 as [[? ?] | [? ?]]; subst; auto.
@@ -78,7 +75,7 @@ Definition Indicator {A B: Type} {sA: SigmaAlgebra A} {sB: SigmaAlgebra B} (P: m
         assert (b1 <> b0) by (intro; subst; auto).
         tauto.
       * destruct H2 as [[? ?] | [? ?]]; subst; tauto.
-    - eapply is_measurable_set_proper; [| apply complement_measurable; apply universal_set_measurable].
+    - eapply is_measurable_set_proper; [| apply complement_measurable; apply full_measurable].
       split; hnf; unfold Complement, In; simpl; intros.
       * pose proof (H1 b0).
         pose proof (H1 b1).

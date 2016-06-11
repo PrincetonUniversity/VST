@@ -38,14 +38,11 @@ Record step_path {imp: Imperative} {sss: SmallStepSemantics}: Type := {
   domain_mono: forall n, step_domains n = None -> step_domains (S n) = None
 }.
 
-Definition is_limit {imp: Imperative} {sss: SmallStepSemantics} (l: step_path) (lim: MetaState (cmd * state)): Prop := 
-  match lim with
-  | NonTerminating =>
-      (forall N, exists n, n > N /\ step_domains l n = Some tt) \/
-      (exists n, path_states l n = NonTerminating _ /\ step_domains l n = None)
-  | Terminating cs =>
-      (exists n, path_states l n = Terminating _ cs /\ step_domains l n = None)
-  end.
+Definition is_limit {imp: Imperative} {sss: SmallStepSemantics} (l: step_path) (lim: MetaState (cmd * state)): Prop :=
+  forall s,
+  lim = s <->
+    (exists n, path_states l n = s /\ step_domains l n = None) \/
+    (s = NonTerminating _ /\ forall n, step_domains l n = Some tt).
 
 Definition access {imp: Imperative} {sss: SmallStepSemantics} (src dst: MetaState (cmd * state)): Prop :=
   exists (l: step_path) (n: nat), path_states l 0 = src /\ path_states l n = dst.
@@ -57,6 +54,7 @@ Definition global_state {imp: Imperative} {sss: SmallStepSemantics} := MetaState
 
 Definition global_state_command_state {imp: Imperative} {sss: SmallStepSemantics} (c: cmd) (s: global_state): MetaState (cmd * state) :=
   match s with
+  | Error => Error _
   | NonTerminating => NonTerminating _
   | Terminating s0 => Terminating _ (c, s0)
   end.
@@ -106,19 +104,19 @@ Record local_step (h: RandomHistory) {O1 O2: RandomVarDomain} (s1: ProgState O1 
   step_fact: step cs1 cs2
 }.
 
-Record global_step (P: RandomVarDomain) {O1 O2: RandomVarDomain} (s1: ProgState O1 (cmd * state)) (s2: ProgState O2 (cmd * state)): Prop := {
+Record global_step {O1 O2: RandomVarDomain} (P: MeasurableSubset O1) (s1: ProgState O1 (cmd * state)) (s2: ProgState O2 (cmd * state)): Prop := {
   action_part:
-    forall h, RandomVarDomain_RandomVarDomain P h -> local_step h s1 s2;
+    forall h, P h -> local_step h s1 s2;
   stable_part:
-    forall h, ~ covered_by h (RandomVarDomain_RandomVarDomain P) -> (forall x, s1 h x <-> s2 h x)
+    forall h, ~ covered_by h P -> (forall x, s1 h x <-> s2 h x)
 }.
 
 Record step_path: Type := {
   path_domain: RandomVarDomainStream;
   path_states: ProgStateStream path_domain (cmd * state);
-  step_domains: RandomVarDomainStream;
+  step_domains: ConvergeDir path_domain;
   step_sound: forall n, global_step (step_domains n) (path_states n) (path_states (S n));
-  domain_mono: forall n, future_domain (RandomVarDomain_RandomVarDomain (step_domains n)) (RandomVarDomain_RandomVarDomain (step_domains (S n)))
+  domain_mono: forall n, future_anti_chain (step_domains n) (step_domains (S n))
 }.
 
 Definition access {O1 O2: RandomVarDomain} (src: ProgState O1 (cmd * state)) (dst: ProgState O2 (cmd * state)): Prop :=
@@ -145,7 +143,7 @@ Global Identity Coercion assertion_RandomPred: assertion >-> RandomPred.
 Definition triple (P: assertion) (c: cmd) (Q: assertion): Prop :=
   forall o1 (s1: global_state o1), P o1 s1 ->
     forall o2 (s2: global_state o2), command_oaccess c s1 s2 ->
-      same_covered_domain (RandomVarDomain_RandomVarDomain o1) (RandomVarDomain_RandomVarDomain o2) /\ Q o2 s2.
+      same_covered_anti_chain o1 o2 /\ Q o2 s2.
 
 (*
 Definition filter_global_state {imp: Imperative} {sss: SmallStepSemantics} (filter: RandomHistory -> Prop) (s: global_state): global_state.

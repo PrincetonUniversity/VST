@@ -70,3 +70,6 @@ Proof.
   intros ? ? ? ? ? TRIPLE1 TRIPLE2.
   unfold triple in *; intros.
   destruct H0 as [path [? ?]].
+Abort.
+
+End HoareSound.

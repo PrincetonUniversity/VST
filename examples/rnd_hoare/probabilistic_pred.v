@@ -32,7 +32,7 @@ Definition _RandomPred (Omega: RandomVarDomain): forall (As: list Type) {sAs: Si
   fix RandomPred (As: list Type): SigmaAlgebras As -> Type :=
     match As as As_PAT return SigmaAlgebras As_PAT -> Type with
     | nil => fun _ => Prop
-    | cons A As0 => fun sAs => @RandomVariable _ _ Omega A (head_SigmaAlgebra A As0) -> RandomPred As0 (tail_SigmaAlgebra A As0)
+    | cons A As0 => fun sAs => @RandomVariable _ _ _ Omega A (head_SigmaAlgebra A As0) -> RandomPred As0 (tail_SigmaAlgebra A As0)
     end.
 
 Definition _RandomPred_consi (Omega1 Omega2: RandomVarDomain): forall (As: list Type) {sAs: SigmaAlgebras As}, _RandomPred Omega1 As -> _RandomPred Omega2 As -> Prop :=
@@ -40,7 +40,7 @@ Definition _RandomPred_consi (Omega1 Omega2: RandomVarDomain): forall (As: list 
     match As as As_PAT return forall (sAs_PAT: SigmaAlgebras As_PAT), @_RandomPred Omega1 As_PAT sAs_PAT -> @_RandomPred Omega2 As_PAT sAs_PAT -> Prop
     with
     | nil => fun _ P1 P2 => P1 <-> P2
-    | cons A As0 => fun sAs P1 P2 => forall a1 a2, (forall h, (RandomVarDomain_RandomVarDomain Omega1) h -> (RandomVarDomain_RandomVarDomain Omega2) h -> RandomVar_local_equiv a1 a2 h h) -> RandomPred_consi As0 (tail_SigmaAlgebra A As0) (P1 a1) (P2 a2)
+    | cons A As0 => fun sAs P1 P2 => forall a1 a2, (forall h, Omega1 h -> Omega2 h -> RandomVar_local_equiv a1 a2 h h) -> RandomPred_consi As0 (tail_SigmaAlgebra A As0) (P1 a1) (P2 a2)
     end.
 
 Definition RandomPred (As: list Type) {sAs: SigmaAlgebras As}: Type := {P: forall (Omega: RandomVarDomain), _RandomPred Omega As | forall O1 O2, undistinguishable_sub_domain O1 O2 -> _RandomPred_consi O1 O2 As (P O1) (P O2)}.
@@ -183,10 +183,11 @@ Defined.
 
 Definition expR {As: list Type} {sAs: SigmaAlgebras As} {B: Type} {sB: SigmaAlgebra B} (P: RandomPred (B :: As)): RandomPred As := fun Omega: RandomVarDomain => _expR Omega As B (fun b => P Omega b).
 
-Definition derives {As: list Type} {sAs: SigmaAlgebras As} (P Q: RandomPred As): Prop := forall Omega: RandomVarDomain, _derives Omega As (P Omega) (Q Omega).
-
 Definition appp {As: list Type} {sAs: SigmaAlgebras As} {B: Type} {sB: SigmaAlgebra B} (P: RandomPred (B :: As)) (b: HeredRandomVariable B): RandomPred As := fun Omega: RandomVarDomain => _appp Omega As B b (P Omega).
 *)
+
+Definition derives {As: list Type} {sAs: SigmaAlgebras As} (P Q: RandomPred As): Prop := forall Omega: RandomVarDomain, _derives Omega As (P Omega) (Q Omega).
+
 End Predicates.
 
 (*
