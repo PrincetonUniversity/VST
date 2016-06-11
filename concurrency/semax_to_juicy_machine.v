@@ -29,6 +29,8 @@ Require Import concurrency.juicy_machine.
 Require Import concurrency.concurrent_machine.
 Require Import concurrency.scheduler.
 
+Set Bullet Behavior "Strict Subproofs".
+
 Ltac eassert :=
   let mp := fresh "mp" in
   pose (mp := fun {goal Q : Type} (x : goal) (y : goal -> Q) => y x);
@@ -134,10 +136,10 @@ Section Initial_State.
   Variables
     (CS : compspecs) (V : varspecs) (G : funspecs)
     (ext_link : string -> ident) (prog : program) 
-    (all_safe : semax_prog (Concurrent_Espec CS ext_link) prog V G)
+    (all_safe : semax_prog (Concurrent_Oracular_Espec CS ext_link) prog V G)
     (init_mem_not_none : Genv.init_mem prog <> None).
 
-  Definition Jspec := @OK_spec (Concurrent_Espec CS ext_link).
+  Definition Jspec := @OK_spec (Concurrent_Oracular_Espec CS ext_link).
   
   Definition init_m : { m | Genv.init_mem prog = Some m } :=
     match Genv.init_mem prog as y return (y <> None -> {m : mem | y = Some m}) with
@@ -150,7 +152,7 @@ Section Initial_State.
      globalenv prog,
      (sch,
       let spr := semax_prog_rule
-                   (Concurrent_Espec CS ext_link) V G prog
+                   (Concurrent_Oracular_Espec CS ext_link) V G prog
                    (proj1_sig init_m) all_safe (proj2_sig init_m) in
       let q : corestate := projT1 (projT2 spr) in
       let jm : juicy_mem := proj1_sig (snd (projT2 (projT2 spr)) n) in
@@ -166,7 +168,7 @@ Section Initial_State.
   Proof.
     unfold initial_state.
     destruct init_m as [m Hm]; simpl proj1_sig; simpl proj2_sig.
-    set (spr := semax_prog_rule (Concurrent_Espec CS ext_link) V G prog m all_safe Hm).
+    set (spr := semax_prog_rule (Concurrent_Oracular_Espec CS ext_link) V G prog m all_safe Hm).
     set (q := projT1 (projT2 spr)).
     set (jm := proj1_sig (snd (projT2 (projT2 spr)) n)).
     
@@ -228,7 +230,7 @@ Section Simulation.
     (* (init_mem_not_none : Genv.init_mem prog <> None) *)
   .
 
-  Definition Jspec' := (@OK_spec (Concurrent_Espec CS ext_link)).
+  Definition Jspec' := (@OK_spec (Concurrent_Oracular_Espec CS ext_link)).
 
   Inductive state_step : cm_state -> cm_state -> Prop :=
   | state_step_empty_sched ge m jstate :
@@ -452,7 +454,7 @@ Section Simulation.
         
         destruct which_primitive as
             [ H_acquire | [ H_release | [ H_makelock | [ H_freelock | H_spawn ] ] ] ].
-
+        
         { (* the case of acquire *)
           
           pose proof (safe i pr_i phi_i jm_i (* oracle=*)nil ltac:(assumption)) as safe_i.

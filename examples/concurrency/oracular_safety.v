@@ -269,6 +269,8 @@ Lemma clean_safeN_implies_safeN_ n Ω c m :
   safeN_ n Ω c m.
 Proof.
   revert n Ω c m; induction n as [n SIH] using strong_nat_ind; intros Ω c m Safe.
+
+  (* we reason by induction on clean safety *)
   induction Safe as [ | | n Ω c m e x E PRE SPOST ];
     try solve [econstructor; eauto].
   destruct c as [ lock k | lock k | c ].
