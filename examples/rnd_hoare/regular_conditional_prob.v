@@ -123,6 +123,13 @@ Definition MeasurableFunction_inv {Omega: measurable_subspace} {B: Type} {SB: Si
       subst; auto.
 Defined.
 
+Lemma measurable_set_measurable_subspace: forall (Omega: measurable_subspace) (A: measurable_set Omega) x, A x -> Omega x.
+Proof.
+  intros.
+  unfold measurable_set_Prop in H.
+  rewrite Intersection_spec in H; tauto.
+Qed.
+
 Definition Compose {Omega: measurable_subspace} {B C: Type} {SB: SigmaAlgebra B} {SC: SigmaAlgebra C} (g: measurable_function.MeasurableFunction B C) (f: MeasurableFunction Omega B): MeasurableFunction Omega C := MeasurableFunction_inv (measurable_function.Compose g (MeasurableFunction_inj f)).
 
 Definition PreImage_MSet {Omega: measurable_subspace} {B: Type} {SB: SigmaAlgebra B} (f: MeasurableFunction Omega B) (P: sigma_algebra.measurable_set B): measurable_set Omega := measurable_set_inv (PreImage_MSet (MeasurableFunction_inj f) P).

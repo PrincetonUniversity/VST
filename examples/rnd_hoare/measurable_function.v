@@ -14,11 +14,35 @@ Coercion MeasurableFunction_raw_function: MeasurableFunction >-> Funclass.
 Definition PreImage_MSet {A B: Type} {sA: SigmaAlgebra A} {sB: SigmaAlgebra B} (f: MeasurableFunction A B) (PB: measurable_set B): measurable_set A := exist _ _ (rf_preserve A B f PB).
 
 Instance PreImage_MSet_Proper {A B: Type} {sA: SigmaAlgebra A} {sB: SigmaAlgebra B} (f: MeasurableFunction A B): Proper (Same_MSet ==> Same_MSet) (PreImage_MSet f).
-Admitted.
+Proof.
+  hnf; intros.
+  unfold Same_MSet in *; simpl in *.
+  rewrite Same_set_spec in *.
+  intros a.
+  hnf in H.
+  firstorder.
+  + apply H.
+    apply H0; auto.
+  + apply H.
+    apply H0; auto.
+Qed.
 
 Lemma PreImage_Countable_Union_comm: forall {A B: Type} {sA: SigmaAlgebra A} {sB: SigmaAlgebra B} (f: MeasurableFunction A B) (PB: nat -> measurable_set B),
   Same_MSet (PreImage_MSet f (Countable_Union_MSet PB)) (Countable_Union_MSet (fun n => PreImage_MSet f (PB n))).
-Admitted.
+Proof.
+  intros.
+  unfold Same_MSet; simpl.
+  rewrite Same_set_spec; intros a.
+  split; intros.
+  + destruct (rf_complete _ _ f a) as [b ?].
+    specialize (H b H0).
+    destruct H as [i ?].
+    exists i; intros.
+    pose proof (rf_functionality _ _ f a b b0 H0 H1).
+    subst; auto.
+  + destruct H as [i ?]; exists i.
+    apply (H b); auto.
+Qed.
 
 Lemma PreImage_Disjoint: forall {A B: Type} {sA: SigmaAlgebra A} {sB: SigmaAlgebra B} (f: MeasurableFunction A B) (PB1 PB2: measurable_set B),
   Disjoint B PB1 PB2 ->

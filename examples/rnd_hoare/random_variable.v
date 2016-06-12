@@ -43,6 +43,15 @@ Global Coercion MeasurableSubset_HistoryAntiChain: MeasurableSubset >-> HistoryA
 
 Context {HBSFo: HistoryBasedSigF ora}.
 
+Lemma MeasurableSubset_in_domain: forall (Omega: RandomVarDomain) (P: MeasurableSubset Omega) h,
+  P h ->
+  Omega h.
+Proof.
+  intros.
+  eapply PrFamily.measurable_set_measurable_subspace.
+  exact H.
+Qed.
+
 (* TODO: check whether this is necessary. *)
 Definition undistinguishable_sub_domain (O1 O2: RandomVarDomain): Prop :=
   Included O1 O2 /\

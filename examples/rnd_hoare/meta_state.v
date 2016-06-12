@@ -18,8 +18,15 @@ Instance MetaState_SigmaAlgebra (state: Type) {state_sig: SigmaAlgebra state}: S
     destruct H; split; unfold Included, In in *; hnf; intros; auto.
   + eapply is_measurable_set_proper; [| apply full_measurable].
     split; hnf; unfold In; intros; constructor.
-  + intros. admit.
-  + intros. admit.
+  + intros.
+    change (fun s : state => Complement (MetaState state) P (Terminating state s))
+      with (Complement _ (fun s : state => P (Terminating state s))).
+    apply complement_measurable; auto.
+  + intros.
+    change (fun s : state => Countable_Union (MetaState state) P (Terminating state s))
+      with (Countable_Union _ (fun i s => P i (Terminating state s))).
+    apply countable_union_measurable.
+    auto.
 Defined.
 
 Inductive raw_MetaState_pair_left (cmd state: Type) (c: cmd): MetaState state -> MetaState (cmd * state) -> Prop :=
@@ -71,6 +78,12 @@ Definition MetaState_snd {cmd state: Type} {state_sig: SigmaAlgebra state}: @Mea
     - inversion H1; auto.
 Defined.
 
+Definition meta_state_measurable_set {state: Type} {state_sig: SigmaAlgebra state} (P: measurable_set state) (error non_terminating: Prop): measurable_set (MetaState state).
+  exists (fun x => match x with | Error => error | NonTerminating => non_terminating | Terminating s => P s end).
+  simpl.
+  apply (proj2_sig P).
+Defined.
+
 Section ProgState.
 
 Context {ora: RandomOracle} {SFo: SigmaAlgebraFamily RandomHistory} {HBSFo: HistoryBasedSigF ora}.
@@ -103,6 +116,15 @@ Definition non_branch_tstate {state: Type} {state_sigma: SigmaAlgebra state} (s:
   rewrite <- H0 in H; apply H; auto.
 Defined.
 
+Definition Terminating_raw_domain {Omega: RandomVarDomain} {state: Type} {state_sigma: SigmaAlgebra state} (s: ProgState Omega state): MeasurableSubset Omega :=
+  PrFamily.PreImage_MSet s (meta_state_measurable_set (Full_MSet _) False False).
+
+End ProgState.
+
+Section Limit.
+
+Context {ora: RandomOracle} {SFo: SigmaAlgebraFamily RandomHistory} {HBSFo: HistoryBasedSigF ora}.
+
 Record RandomVarDomainStream : Type := {
   raw_domains: nat -> RandomVarDomain;
   rdom_same_covered: forall n, same_covered_anti_chain (raw_domains n) (raw_domains (S n));
@@ -124,48 +146,152 @@ Definition ProgStateStream (Omegas: RandomVarDomainStream) (state: Type) {state_
 Definition is_limit_domain (Omegas: RandomVarDomainStream) (dir: ConvergeDir Omegas) (lim_Omega: RandomVarDomain) : Prop :=
   forall h,
     lim_Omega h <->
-      (exists n, Omegas n h /\ forall n', n' >= n -> ~ dir n h) \/
       (forall n h_low, is_fin_history h_low -> prefix_history h_low h ->
-         exists n' h', n' > n /\ prefix_history h_low h' /\ prefix_history h' h /\ dir n' h').
+         exists n' h', n' > n /\ prefix_history h_low h' /\ prefix_history h' h /\ Omegas n' h').
 
 Definition is_limit {Omegas: RandomVarDomainStream} {lim_Omega: RandomVarDomain} {state: Type} {state_sigma: SigmaAlgebra state} (l: ProgStateStream Omegas state) (dir: ConvergeDir Omegas) (lim: ProgState lim_Omega state) : Prop :=
   forall h s,
     lim h s <->
-      (exists n, (l n) h s /\ forall n', n' >= n -> ~ dir n h) \/
+      (exists n, (l n) h s /\ forall n', n' >= n -> ~ dir n' h) \/
       (s = NonTerminating _ /\
        forall n h_low, is_fin_history h_low -> prefix_history h_low h ->
          exists n' h', n' > n /\ prefix_history h_low h' /\ prefix_history h' h /\ dir n' h').
 
+Definition limit_raw_domain (Omegas: RandomVarDomainStream) (dir: ConvergeDir Omegas): RandomHistory -> Prop :=
+  fun h =>
+    forall n h_low, is_fin_history h_low -> prefix_history h_low h ->
+      exists n' h', n' > n /\ prefix_history h_low h' /\ prefix_history h' h /\ Omegas n' h'.
+
+Lemma RandomVarDomainStream_stable: forall (Omegas: RandomVarDomainStream) (dir: ConvergeDir Omegas) (n: nat) h,
+  Omegas n h ->
+  (forall m, m >= n -> ~ dir m h) ->
+  (forall m, m >= n -> Omegas m h).
+Proof.
+  intros.
+  remember (m - n) as Delta eqn:?H.
+  assert (m = Delta + n) by omega.
+  clear H1 H2; subst m.
+  induction Delta; auto.
+
+  pose proof rdir_slow _ dir (Delta + n) h IHDelta.
+  assert (Delta + n >= n) as HH by omega; specialize (H0 (Delta + n) HH); clear HH.
+  destruct (classic ((Omegas (S Delta + n)) h)); tauto.
+Qed.
+
+Lemma RandomVarDomainStream_same_covered: forall (Omegas: RandomVarDomainStream) (n1 n2: nat),
+  same_covered_anti_chain (Omegas n1) (Omegas n2).
+Proof.
+  intros Omegas.
+  assert (forall n1 n2, n1 <= n2 -> same_covered_anti_chain (Omegas n1) (Omegas n2)).
+  + intros.
+    remember (n2 - n1) as Delta.
+    assert (n2 = Delta + n1) by omega.
+    subst n2; clear HeqDelta H.
+    induction Delta.
+    - reflexivity.
+    - transitivity (Omegas (Delta + n1)); auto.
+      apply rdom_same_covered.
+  + intros.
+    destruct (le_dec n1 n2).
+    - apply H; auto.
+    - symmetry; apply H; omega.
+Qed.
+
+Lemma RandomVarDomainStream_mono: forall (Omegas: RandomVarDomainStream) (n1 n2: nat),
+  n1 <= n2 ->
+  future_anti_chain (Omegas n1) (Omegas n2).
+Proof.
+  intros.
+  remember (n2 - n1) as Delta.
+  assert (n2 = Delta + n1) by omega.
+  subst n2; clear HeqDelta H.
+  induction Delta.
+  + apply future_anti_chain_refl.
+  + apply future_anti_chain_trans with (Omegas (Delta + n1)); auto.
+    apply rdom_forward.
+Qed.
+
+Lemma RandomVarDomainStream_hered: forall (Omegas: RandomVarDomainStream) (n1 n2: nat) h1,
+  n1 <= n2 ->
+  Omegas n1 h1 ->
+  exists h2,
+  prefix_history h1 h2 /\ Omegas n2 h2.
+Proof.
+  intros.
+  apply same_covered_future_anti_chain_spec with (Omegas n1); auto.
+  + apply RandomVarDomainStream_same_covered.
+  + apply RandomVarDomainStream_mono; auto.
+Qed.
+
+Lemma limit_raw_domain_covered: forall (Omegas: RandomVarDomainStream) (dir: ConvergeDir Omegas) h n, limit_raw_domain Omegas dir h -> covered_by h (Omegas n).
+Proof.
+  intros.
+  rename h into h_limit.
+  assert (prefix_history (fin_history nil) h_limit) by (hnf; intros [|]; left; auto).
+  specialize (H n (fin_history nil) (fin_history_fin _) H0); clear H0.
+  destruct H as [n0 [h0 [? [? [? ?]]]]].
+  
+  destruct (fun HH => RandomVarDomainStream_mono Omegas n n0 HH h0 H2) as [h [? ?]]; [omega |].
+  exists h.
+  split; auto.
+  apply prefix_history_trans with h0; auto.
+Qed.
+
+Lemma limit_raw_domain_measurable: forall (Omegas: RandomVarDomainStream) (dir: ConvergeDir Omegas), LegalHistoryAntiChain (limit_raw_domain Omegas dir).
+Proof.
+  intros.
+  constructor.
+  hnf; intros.
+  destruct H as [n [? ?]].
+  destruct (H0 0 (fstn_history (S n) h1) (fstn_history_finite _ _) (fstn_history_prefix _ _)) as [m1 [h1' [? [? [? ?]]]]].
+  destruct (H1 0 (fstn_history (S n) h2) (fstn_history_finite _ _) (fstn_history_prefix _ _)) as [m2 [h2' [? [? [? ?]]]]].
+  
+  destruct (raw_anti_chain_legal (Omegas (max m1 m2))) as [?H].
+  destruct (limit_raw_domain_covered Omegas dir h1 (max m1 m2) H0) as [h1'' [? ?]].
+  destruct (limit_raw_domain_covered Omegas dir h2 (max m1 m2) H1) as [h2'' [? ?]].
+
+  assert (prefix_history (fstn_history (S n) h1) h1'').
+  Focus 1. {
+    apply prefix_history_trans with h1'; auto.
+    apply (proj_in_anti_chain_unique (Omegas m1) h1' h1'' h1); auto.
+    apply (RandomVarDomainStream_mono Omegas m1 (max m1 m2)); auto.
+    apply Max.le_max_l.
+  } Unfocus.
+
+  assert (prefix_history (fstn_history (S n) h2) h2'').
+  Focus 1. {
+    apply prefix_history_trans with h2'; auto.
+    apply (proj_in_anti_chain_unique (Omegas m2) h2' h2'' h2); auto.
+    apply (RandomVarDomainStream_mono Omegas m2 (max m1 m2)); auto.
+    apply Max.le_max_r.
+  } Unfocus.
+
+  clear h1' h2' H4 H5 H6 H8 H9 H10.
+  
+  apply (H11 h1'' h2''); auto.
+  exists n.
+  rewrite <- (n_conflict_proper_aux n h1 h1'' h2 h2''); auto.
+  + apply squeeze_history_coincide; auto.
+  + apply squeeze_history_coincide; auto.
+Qed.
+
+Definition limit_domain_anti_chain (Omegas: RandomVarDomainStream) (dir: ConvergeDir Omegas): HistoryAntiChain := Build_HistoryAntiChain _ (limit_raw_domain Omegas dir) (limit_raw_domain_measurable Omegas dir).
+
 Definition limit_domain (Omegas: RandomVarDomainStream) (dir: ConvergeDir Omegas): RandomVarDomain.
-  exists (fun h =>
-   (exists n, Omegas n h /\ forall n', n' >= n -> ~ dir n h) \/
-   (forall n h_low, is_fin_history h_low -> prefix_history h_low h ->
-      exists n' h', n' > n /\ prefix_history h_low h' /\ prefix_history h' h /\ dir n' h')).
+  exists (limit_domain_anti_chain Omegas dir).
+  eapply is_measurable_subspace_same_covered.
+
   admit.
 Defined.
 
 Definition limit {Omegas: RandomVarDomainStream} {state: Type} {state_sigma: SigmaAlgebra state} (l: ProgStateStream Omegas state) (dir: ConvergeDir Omegas): ProgState (limit_domain Omegas dir) state.
   refine (Build_ProgState _ _ _
            (PrFamily.Build_MeasurableFunction _ _ _ (fun h s =>
-   (exists n, (l n) h s /\ forall n', n' >= n -> ~ dir n h) \/
+   (exists n, (l n) h s /\ forall n', n' >= n -> ~ dir n' h) \/
       (s = NonTerminating _ /\
        forall n h_low, is_fin_history h_low -> prefix_history h_low h ->
          exists n' h', n' > n /\ prefix_history h_low h' /\ prefix_history h' h /\ dir n' h')) _ _ _ _ ) _).
   Admitted.
-
-Definition Terminating_raw_domain {Omega: RandomVarDomain} {state: Type} {state_sigma: SigmaAlgebra state} (s: ProgState Omega state): RandomHistory -> Prop := fun h => exists a, s h (Terminating _ a).
-
-Definition Terminating_proj {Omega: RandomVarDomain} {state: Type} {state_sigma: SigmaAlgebra state} (s: ProgState Omega state) H: RandomVariable (exist _ (Terminating_raw_domain s) H) state.
-  apply (PrFamily.Build_MeasurableFunction _ _ _ (fun h a => s h (Terminating _ a))).
-  + intros.
-    pose proof (PrFamily.rf_partial_functionality _ _ s a _ _ H0 H1).
-    inversion H2; auto.
-  + intros h ?.
-    auto.
-  + intros h a ?.
-    simpl; exists a; auto.
-  + admit.
-Defined.
 
 End ProgState.
 
