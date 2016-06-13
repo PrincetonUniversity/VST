@@ -224,6 +224,14 @@ Module Concur.
     Definition mem_compatible: thread_pool -> mem -> Prop:=
       mem_compatible'.
 
+    Lemma compat_lockLT: forall js m,
+             mem_compatible js m ->
+             forall l r,
+             ThreadPool.lockRes js l = Some (Some r) ->
+             forall b ofs,
+               Mem.perm_order'' ((getMaxPerm m) !! b ofs) (perm_of_res (r @ (b, ofs))).
+    Admitted.
+    
     Lemma mem_compatible_locks_ltwritable':
       forall lset juice m, locks_writable juice ->
                       locks_correct lset juice ->
@@ -678,7 +686,11 @@ Module Concur.
 
     Lemma onePos: (0<1)%coq_nat. auto. Qed.
     Definition initial_machine c:=
-      mk (mkPos onePos) (fun _ => (Kresume c Vundef)) (fun _ => empty_rmap level) (AMap.empty (option res)).
+      mk
+        (mkPos onePos)
+        (fun _ => (Kresume c Vundef))
+        (fun _ => empty_rmap level)
+        (AMap.empty (option res)).
     
     Definition init_mach (genv:G)(v:val)(args:list val) : option thread_pool:=
       match initial_core the_sem genv v args with

@@ -138,7 +138,7 @@ CONCUR_FILES= \
   addressFiniteMap.v\
   sepcomp.v threads_lemmas.v permissions.v\
   pos.v scheduler.v threadPool.v \
-  concurrent_machine.v juicy_machine.v dry_machine.v \
+  concurrent_machine.v juicy_machine.v dry_machine.v dry_machine_lemmas.v \
   erasure.v  \
   semax_conc.v semax_to_machine.v semax_to_juicy_machine.v
   # mem_obs_eq.v
