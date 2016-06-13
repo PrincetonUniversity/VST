@@ -29,6 +29,8 @@ Require Import concurrency.juicy_machine.
 Require Import concurrency.concurrent_machine.
 Require Import concurrency.scheduler.
 
+Set Bullet Behavior "Strict Subproofs".
+
 Ltac eassert :=
   let mp := fresh "mp" in
   pose (mp := fun {goal Q : Type} (x : goal) (y : goal -> Q) => y x);
@@ -134,10 +136,10 @@ Section Initial_State.
   Variables
     (CS : compspecs) (V : varspecs) (G : funspecs)
     (ext_link : string -> ident) (prog : program) 
-    (all_safe : semax_prog (Concurrent_Espec CS ext_link) prog V G)
+    (all_safe : semax_prog (Concurrent_Oracular_Espec CS ext_link) prog V G)
     (init_mem_not_none : Genv.init_mem prog <> None).
 
-  Definition Jspec := @OK_spec (Concurrent_Espec CS ext_link).
+  Definition Jspec := @OK_spec (Concurrent_Oracular_Espec CS ext_link).
   
   Definition init_m : { m | Genv.init_mem prog = Some m } :=
     match Genv.init_mem prog as y return (y <> None -> {m : mem | y = Some m}) with
@@ -150,7 +152,7 @@ Section Initial_State.
      globalenv prog,
      (sch,
       let spr := semax_prog_rule
-                   (Concurrent_Espec CS ext_link) V G prog
+                   (Concurrent_Oracular_Espec CS ext_link) V G prog
                    (proj1_sig init_m) all_safe (proj2_sig init_m) in
       let q : corestate := projT1 (projT2 spr) in
       let jm : juicy_mem := proj1_sig (snd (projT2 (projT2 spr)) n) in
@@ -166,7 +168,7 @@ Section Initial_State.
   Proof.
     unfold initial_state.
     destruct init_m as [m Hm]; simpl proj1_sig; simpl proj2_sig.
-    set (spr := semax_prog_rule (Concurrent_Espec CS ext_link) V G prog m all_safe Hm).
+    set (spr := semax_prog_rule (Concurrent_Oracular_Espec CS ext_link) V G prog m all_safe Hm).
     set (q := projT1 (projT2 spr)).
     set (jm := proj1_sig (snd (projT2 (projT2 spr)) n)).
     
@@ -228,7 +230,7 @@ Section Simulation.
     (* (init_mem_not_none : Genv.init_mem prog <> None) *)
   .
 
-  Definition Jspec' := (@OK_spec (Concurrent_Espec CS ext_link)).
+  Definition Jspec' := (@OK_spec (Concurrent_Oracular_Espec CS ext_link)).
 
   Inductive state_step : cm_state -> cm_state -> Prop :=
   | state_step_empty_sched ge m jstate :
@@ -399,8 +401,8 @@ Section Simulation.
           now destruct e eqn:Ee; [ apply I | .. ];
             simpl in x;
             repeat match goal with
-                     _ : context [ o_ident_eq ?x ?y ] |- _ =>
-                     destruct (o_ident_eq x y); try discriminate; try tauto
+                     _ : context [ oi_eq_dec ?x ?y ] |- _ =>
+                     destruct (oi_eq_dec x y); try discriminate; try tauto
                    end.
         }
         assert (Ex : exists name sig, ef = EF_external name sig) by (destruct ef; eauto; tauto).
@@ -408,11 +410,11 @@ Section Simulation.
         
         (* paragraph below: ef has to be an EF_external with one of those 5 names *)
         assert (which_primitive :
-                  ext_link "acquire" = (ef_id ext_link (EF_external name sg)) \/
-                  ext_link "release" = (ef_id ext_link (EF_external name sg)) \/
-                  ext_link "makelock" = (ef_id ext_link (EF_external name sg)) \/
-                  ext_link "freelock" = (ef_id ext_link (EF_external name sg)) \/
-                  ext_link "spawn" = (ef_id ext_link (EF_external name sg))).
+                  Some (ext_link "acquire") = (ef_id ext_link (EF_external name sg)) \/
+                  Some (ext_link "release") = (ef_id ext_link (EF_external name sg)) \/
+                  Some (ext_link "makelock") = (ef_id ext_link (EF_external name sg)) \/
+                  Some (ext_link "freelock") = (ef_id ext_link (EF_external name sg)) \/
+                  Some (ext_link "spawn") = (ef_id ext_link (EF_external name sg))).
         {
           pose proof (safe i pr_i phi_i jm_i (* oracle=*)nil ltac:(assumption)) as safe_i.
           rewrite Ec_i in safe_i.
@@ -423,8 +425,8 @@ Section Simulation.
           match goal with H : ext_spec_type _ _  |- _ => clear -H end.
           simpl in *.
           repeat match goal with
-                   _ : context [ o_ident_eq ?x ?y ] |- _ =>
-                   destruct (o_ident_eq x y); try injection e; auto
+                   _ : context [ oi_eq_dec ?x ?y ] |- _ =>
+                   destruct (oi_eq_dec x y); try injection e; auto
                  end.
           tauto.
         
@@ -452,7 +454,7 @@ Section Simulation.
         
         destruct which_primitive as
             [ H_acquire | [ H_release | [ H_makelock | [ H_freelock | H_spawn ] ] ] ].
-
+        
         { (* the case of acquire *)
           
           pose proof (safe i pr_i phi_i jm_i (* oracle=*)nil ltac:(assumption)) as safe_i.
@@ -472,7 +474,7 @@ Section Simulation.
           unfold funspecOracle2post.
           unfold ext_spec_pre, ext_spec_post.
           Local Notation "{| 'JE_spec ... |}" := {| JE_spec := _; JE_pre_hered := _; JE_post_hered := _; JE_exit_hered := _ |}.
-          destruct (o_ident_eq (Some (ext_link "acquire")) (o_ef_id ext_link (EF_external name sg)))
+          destruct (oi_eq_dec (Some (ext_link "acquire")) (ef_id ext_link (EF_external name sg)))
             as [E | E];
             [ | now clear -E H_acquire; simpl in *; congruence ].
           

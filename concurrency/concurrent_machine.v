@@ -254,6 +254,18 @@ Module Type ThreadPoolSig.
       (Hneq: addr <> addr'),
       lockRes (updLockSet tp addr pmap) addr' =
       lockRes tp addr'.
+
+  Axiom gsoLockSet :
+    forall tp b b' ofs ofs'
+      pmap,
+      (b,ofs) <> (b', ofs') ->
+      (Maps.PMap.get b' (lockSet (updLockSet tp (b,ofs) pmap))) ofs' =
+      (Maps.PMap.get b' (lockSet tp)) ofs'.
+
+  Axiom lockSet_updLockSet:
+    forall tp i (pf: containsThread tp i) c pmap addr rmap,
+      lockSet (updLockSet tp addr rmap) =
+      lockSet (updLockSet (updThread pf c pmap) addr rmap).
   
 End ThreadPoolSig.
 

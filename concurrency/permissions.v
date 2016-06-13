@@ -38,6 +38,12 @@ Section permMapDefs.
   Definition empty_map : access_map :=
     (fun z => None, Maps.PTree.empty (Z -> option permission)).
 
+  Lemma empty_map_spec: forall b ofs,
+      Maps.PMap.get b empty_map ofs = None.
+        intros. unfold empty_map, Maps.PMap.get.
+        rewrite Maps.PTree.gempty; reflexivity.
+  Qed.
+
   Definition permission_at (m : mem) (b : block) (ofs : Z) (k : perm_kind) :=
     Maps.PMap.get b (Mem.mem_access m) ofs k.
  
@@ -366,6 +372,13 @@ Section permMapDefs.
     forall b ofs,
       Mem.perm_order'' (Maps.PMap.get b pmap2 ofs)
                        (Maps.PMap.get b pmap1 ofs).
+
+  Lemma empty_LT: forall pmap,
+             permMapLt empty_map pmap.
+               intros pmap b ofs.
+               rewrite empty_map_spec.
+               destruct (pmap !! b ofs); simpl; exact I.
+  Qed.
   
   Lemma canonical_lt :
     forall p' m

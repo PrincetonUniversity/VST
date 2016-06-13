@@ -25,20 +25,9 @@ Section funspecsOracle2jspec.
 Variable Z : Type.
 Variable Espec : juicy_ext_spec Z.
 
-Parameter symb2genv : forall (ge_s : PTree.t block), genv. (*TODO*)
-Axiom symb2genv_ax : forall (ge_s : PTree.t block), Genv.genv_symb (symb2genv ge_s) = ge_s.
-
-Definition o_ef_id (ext_link : string -> ident) (ef : external_function) : option ident :=
-  match ef with
-  | EF_external id _ => Some (ext_link id)
-  | _ => None
-  end.
-
-Definition o_ident_eq : EqDec (option ident). hnf. repeat decide equality. Qed.
-
 Definition funspecOracle2pre (ext_link: Strings.String.string -> ident) (A : Type) (P : A -> Z -> environ -> mpred) (ids: list ident) (id: ident) (ef: external_function) x ge_s
            (tys : list typ) args z m : Prop :=
-  match o_ident_eq (Some id) (o_ef_id ext_link ef) as s
+  match oi_eq_dec (Some id) (ef_id ext_link ef) as s
   return ((if s then (rmap * A)%type else ext_spec_type Espec ef) -> Prop)
   with
   | left _ =>
@@ -50,7 +39,7 @@ Definition funspecOracle2pre (ext_link: Strings.String.string -> ident) (A : Typ
 
 Definition funspecOracle2post (ext_link: Strings.String.string -> ident) (A : Type) (Q : A -> Z -> environ -> mpred)
                         id ef x ge_s (tret : option typ) ret z m : Prop :=
-  match o_ident_eq (Some id) (o_ef_id ext_link ef) as s
+  match oi_eq_dec (Some id) (ef_id ext_link ef) as s
   return ((if s then (rmap * A)%type else ext_spec_type Espec ef) -> Prop)
   with
   | left _ =>
@@ -70,7 +59,7 @@ Definition funspecOracle2extspec (ext_link: Strings.String.string -> ident) (f :
   match f with
     | (id, mk_funspecOracle (params, sigret) _ A P Q) =>
       Build_external_specification juicy_mem external_function Z
-        (fun ef => if o_ident_eq (Some id) (o_ef_id ext_link ef) then (rmap * A)%type else ext_spec_type Espec ef)
+        (fun ef => if oi_eq_dec (Some id) (ef_id ext_link ef) then (rmap * A)%type else ext_spec_type Espec ef)
         (funspecOracle2pre ext_link A P (fst (split params)) id)
         (funspecOracle2post ext_link A Q id)
         (fun rv z m => False)
@@ -111,7 +100,7 @@ Next Obligation.
 destruct f; simpl; unfold funspecOracle2pre, pureat; simpl; destruct f; simpl;
   destruct f; simpl; intros e t0 ge_s typs args z.
 simpl in t; revert t.
-destruct (o_ident_eq (Some i) (o_ef_id ext_link e)).
+destruct (oi_eq_dec (Some i) (ef_id ext_link e)).
 * destruct e; try discriminate; injection e0 as E; subst i; intros t a a' Hage.
 intros [phi0 [phi1 [Hjoin [Hx Hy]]]].
 apply age1_juicy_mem_unpack in Hage.
@@ -128,7 +117,7 @@ Next Obligation.
 destruct f; simpl; unfold funspecOracle2post, pureat; simpl; destruct f; simpl;
   destruct f; simpl. intros e t0 ge_s tret rv z.
 simpl in t; revert t.
-destruct (o_ident_eq (Some i) (o_ef_id ext_link e)).
+destruct (oi_eq_dec (Some i) (ef_id ext_link e)).
 * destruct e; try discriminate; injection e0 as E; subst i; intros t a a' Hage; destruct m0; simpl.
 intros [phi0 [phi1 [Hjoin [Hx Hy]]]].
 apply age1_juicy_mem_unpack in Hage.
@@ -174,7 +163,7 @@ destruct H1 as [H1|H1].
 subst a; simpl in *.
 clear IHfs H; revert x H2 Hpre; unfold funspecOracle2pre; simpl.
 destruct sig; simpl.
-destruct (o_ident_eq (Some (ext_link id)) (Some (ext_link id))); simpl.
+destruct (oi_eq_dec (Some (ext_link id)) (Some (ext_link id))); simpl.
 rewrite fst_split.
 intros x Hjoin Hp. exists (phi1,x). split; eauto.
 elimtype False; auto.
@@ -187,7 +176,7 @@ inversion H as [|? ? Ha Hb]; subst.
 destruct (IHfs Hb H1 H2 Hpre) as [x' H3].
 clear -Ha Hin H1 H3; revert x' Ha Hin H1 H3.
 destruct a; simpl; destruct f; simpl; destruct f; simpl; unfold funspecOracle2pre; simpl.
-destruct (o_ident_eq (Some i) (Some (ext_link id))).
+destruct (oi_eq_dec (Some i) (Some (ext_link id))).
 * injection e as E; subst i; destruct fs; [solve[simpl; intros; elimtype False; auto]|].
   intros x' Ha Hb; simpl in Ha, Hb.
   elimtype False; auto.
@@ -216,7 +205,7 @@ destruct H1 as [H1|H1].
 subst a; simpl in *.
 clear IHfs H; revert x Hpost; unfold funspecOracle2post; simpl.
 destruct sig; simpl.
-destruct (o_ident_eq (Some (ext_link id)) (Some (ext_link id))); simpl.
+destruct (oi_eq_dec (Some (ext_link id)) (Some (ext_link id))); simpl.
 intros x [phi0 [phi1 [Hjoin [Hq Hnec]]]].
 exists phi0, phi1, (fst x), (snd x).
 split; auto. split; auto. destruct x; simpl in *. split; auto.
@@ -230,7 +219,7 @@ inversion H as [|? ? Ha Hb]; subst.
 clear -Ha Hin H1 Hb Hpost IHfs; revert x Ha Hin H1 Hb Hpost IHfs.
 destruct a; simpl; destruct f; simpl; unfold funspecOracle2post; simpl.
 destruct f; simpl.
-destruct (o_ident_eq (Some i) (Some (ext_link id))).
+destruct (oi_eq_dec (Some i) (Some (ext_link id))).
 * injection e as E; subst i; destruct fs; [solve[simpl; intros; elimtype False; auto]|].
   intros x' Ha Hb; simpl in Ha, Hb.
   elimtype False; auto.

@@ -117,22 +117,22 @@ Open Scope string_scope.
 
 Definition initial_cm {CS V G ext_link}
         (prog : program) (m : Memory.mem)
-        (SP : @semax_prog (Concurrent_Espec CS ext_link) CS prog V G)
+        (SP : @semax_prog (Concurrent_Oracular_Espec CS ext_link) CS prog V G)
         (Hmem : Genv.init_mem prog = Some m)
         (n : nat) : concurrent_machine :=
-  let spr := semax_prog_rule (Concurrent_Espec CS ext_link) V G prog m SP Hmem in
+  let spr := semax_prog_rule (Concurrent_Oracular_Espec CS ext_link) V G prog m SP Hmem in
   let q : corestate := projT1 (projT2 spr) in
   let jm : juicy_mem := proj1_sig (snd (projT2 (projT2 spr)) n) in
   {| cm_mem := jm; cm_env := globalenv prog; cm_res := nil; cm_thd := (q, m_phi jm) :: nil |}.
 
 Lemma invariant_initial_cm {CS V G ext_link}
         (prog : program) (m : Memory.mem)
-        (SP : @semax_prog (Concurrent_Espec CS ext_link) CS prog V G)
+        (SP : @semax_prog (Concurrent_Oracular_Espec CS ext_link) CS prog V G)
         (Hmem : Genv.init_mem prog = Some m)
-        (n : nat) : invariant (conc_ext_spec CS ext_link) n (initial_cm prog m SP Hmem n).
+        (n : nat) : invariant (concurrent_oracular_ext_spec CS ext_link) n (initial_cm prog m SP Hmem n).
 Proof.
   unfold initial_cm.
-  set (spr := semax_prog_rule (Concurrent_Espec CS ext_link) V G prog m SP Hmem).
+  set (spr := semax_prog_rule (Concurrent_Oracular_Espec CS ext_link) V G prog m SP Hmem).
   set (q := projT1 (projT2 spr)).
   set (jm := proj1_sig (snd (projT2 (projT2 spr)) n)).
   split;[|split].

@@ -6,6 +6,7 @@ Require Import compcert.common.Globalenvs.
 (* The concurrent machinery*)
 Require Import concurrency.concurrent_machine.
 Require Import concurrency.dry_machine. Import Concur.
+Require Import scheduler.
 
 (* We assume, on each thread, a structured simulation *)
 Require Import sepcomp.simulations. Import SM_simulation.
@@ -24,16 +25,16 @@ Module Semantics_of_EFFSEM (e : EFFSEM) <: Semantics.
   Definition C := e.C.
   Definition M := Mem.mem.
   Definition richMem := Mem.mem.
-  Definition Sem := csem (sem e.sem).
+  Definition Sem := sem e.sem.
 End Semantics_of_EFFSEM.  
   
 Module lifting (eS eT : EFFSEM).
-  Module mySchedule := ListScheduler NatTID.
-
   Module mySemS <: Semantics := Semantics_of_EFFSEM eS.
   Module MySemS := DryMachineShell mySemS.
   Module mySemT <: Semantics := Semantics_of_EFFSEM eT.
   Module MySemT := DryMachineShell mySemT.
+
+  Module myScheduler := ListScheduler NatTID.
   
   Module myCoarseSemanticsS := CoarseMachine mySchedule MySemS.
   Module myCoarseSemanticsT := CoarseMachine mySchedule MySemT.
@@ -52,7 +53,10 @@ Module lifting (eS eT : EFFSEM).
   Notation GT := (eT.G).    
 
   Notation semS := (eS.sem).
-  Notation semT := (eT.sem).  
+  Notation semT := (eT.sem).
+
+  Notation CS := (mySemS.C).
+  Notation CT := (mySemT.C).  
 
   Variables (gS : GS) (gT : GT).
   
@@ -69,6 +73,14 @@ Module lifting (eS eT : EFFSEM).
   Definition halt_inv mu (geS : GS) rv1 mS (geT : GT) rv2 mT :=
     Mem.mem_inj (as_inj mu) mS mT /\
     val_inject (as_inj mu) rv1 rv2.
+
+  Inductive thread_match : SM_Injection -> CS -> mem -> CT -> mem -> Prop :=
+    mkThreadMatch :
+      forall m1 m2 m1' m2' cS cT,
+        mem_forward m1 m1' ->
+        mem_forward m2 m2' ->
+        RDOnly_fwd m1 m1' ->
+        RDOnly_fwd m2 m2' ->
   
   Lemma concur_sim main (sch : mySchedule.schedule) :
     Wholeprog_sim
