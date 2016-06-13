@@ -25,8 +25,183 @@ Require Import concurrency.dry_context.
 
 Global Notation "a # b" := (Maps.PMap.get b a) (at level 1).
 
+Module Renamings.
+Definition memren := block -> option block.
+
+Definition ren_incr f1 f2 :=
+forall (b b' : block),
+  f1 b = Some b' -> f2 b = Some b'.
+
+Definition ren_separated (f f' : memren) m1 m2 :=
+forall (b1 b2 : block),
+f b1 = None ->
+f' b1 = Some b2 ->
+~ Mem.valid_block m1 b1 /\ ~ Mem.valid_block m2 b2.
+
+Definition ren_domain_incr (f1 f2: memren) :=
+  forall b,
+    f1 b -> f2 b.
+
+(** Defining the domain of a renaming with respect to a memory*)
+Definition domain_memren (f: memren) m :=
+  forall b, Mem.valid_block m b <-> isSome (f b).
+
+Lemma restrPermMap_domain:
+  forall f m p (Hlt: permMapLt p (getMaxPerm m)),
+    domain_memren f m <-> domain_memren f (restrPermMap Hlt).
+Proof.
+  intros.
+  unfold domain_memren.
+  split; intros; specialize (H b);
+  erewrite restrPermMap_valid in *;
+    by auto.
+Qed.
+
+Lemma domain_memren_incr:
+  forall f f' f'' m,
+    domain_memren f' m ->
+    domain_memren f'' m ->
+    ren_domain_incr f f' <-> ren_domain_incr f f''.
+Proof.
+  intros.
+  unfold domain_memren in *;
+  split; intros Hincr b Hf;
+  apply Hincr in Hf;
+  destruct (H b), (H0 b);
+    by eauto.
+Qed.
+
+Lemma ren_incr_domain_incr:
+  forall f f',
+    ren_incr f f' ->
+    ren_domain_incr f f'.
+Proof.
+  intros f f' Hincr b Hf.
+  destruct (f b) as [b'|] eqn:Hfb; try by exfalso.
+  specialize (Hincr b b' Hfb);
+    by rewrite Hincr.
+Qed.
+
+Lemma ren_domain_incr_refl:
+  forall f,
+    ren_domain_incr f f.
+Proof.
+  intros.
+  unfold ren_domain_incr;
+    by auto.
+Qed.
+
+Lemma ren_domain_incr_trans:
+  forall f f' f'',
+    ren_domain_incr f f' ->
+    ren_domain_incr f' f'' ->
+    ren_domain_incr f f''.
+Proof.
+  intros.
+  unfold ren_domain_incr;
+    by auto.
+Qed.
+
+Lemma ren_incr_trans:
+  forall f f' f'',
+    ren_incr f f' ->
+    ren_incr f' f'' ->
+    ren_incr f f''.
+Proof.
+  intros.
+  unfold ren_incr;
+    by auto.
+Qed.
+
+Lemma ren_incr_refl:
+  forall f,
+    ren_incr f f.
+Proof.
+  unfold ren_incr; auto.
+Qed.
+
+
+ (** ** Results about id injections*)
+  Definition id_ren m :=
+    fun b => if is_left (valid_block_dec m b) then Some b else None.
+
+  Hint Unfold id_ren.
+
+  Lemma id_ren_correct:
+    forall m (b1 b2 : block), (id_ren m) b1 = Some b2 -> b1 = b2.
+  Proof.
+    intros. unfold id_ren in *.
+    destruct (valid_block_dec m b1); simpl in *;
+      by inversion H.
+  Qed.
+
+  Lemma id_ren_domain:
+    forall m, domain_memren (id_ren m) m.
+  Proof.
+    unfold id_ren, domain_memren.
+    intros.
+    destruct (valid_block_dec m b); simpl;
+    split; intuition.
+  Qed.
+
+  Lemma id_ren_validblock:
+    forall m b
+      (Hvalid: Mem.valid_block m b),
+      id_ren m b = Some b.
+  Proof.
+    intros.
+    eapply id_ren_domain in Hvalid.
+    destruct (id_ren m b) eqn:Hid.
+    apply id_ren_correct in Hid;
+      by subst.
+      by exfalso.
+  Qed.
+
+  Lemma id_ren_invalidblock:
+    forall m b
+      (Hinvalid: ~ Mem.valid_block m b),
+      id_ren m b = None.
+  Proof.
+    intros.
+    assert (Hnot:= iffLRn (id_ren_domain m b) Hinvalid).
+    destruct (id_ren m b) eqn:Hid;
+      first by exfalso.
+      by reflexivity.
+  Qed.
+
+  Lemma is_id_ren :
+    forall f m
+      (Hdomain: domain_memren f m)
+      (Hf_id: forall b1 b2, f b1 = Some b2 -> b1 = b2),
+      f = id_ren m.
+  Proof.
+    intros. extensionality b.
+    assert (Hdomain_id := id_ren_domain m).
+    destruct (f b) eqn:Hf, (id_ren m b) eqn:Hid;
+      try (assert (H:= id_ren_correct _ _ Hid));
+      try (specialize (Hf_id b _ Hf));
+      subst; auto.
+    assert (Hid': ~ id_ren m b0)
+      by (rewrite Hid; auto).
+    assert (Hf': f b0)
+      by (rewrite Hf; auto).
+    apply (proj2 (Hdomain b0)) in Hf'.
+    apply (iffRLn (Hdomain_id b0)) in Hid';
+      by exfalso.
+    assert (Hid': id_ren m b0)
+      by (rewrite Hid; auto).
+    assert (Hf': ~ f b0)
+      by (rewrite Hf; auto).
+    apply (proj2 (Hdomain_id b0)) in Hid'.
+    apply (iffRLn (Hdomain b0)) in Hf';
+      by exfalso.
+  Qed.
+
+End Renamings.
+
 Module MemoryWD.
-  
+
+  Import Renamings.
 (** Valid memories are the ones that do not contain any dangling pointers*)
 Definition valid_mem m :=
   forall b,
@@ -39,24 +214,79 @@ Definition valid_mem m :=
       | _ => True
       end.
 
-Definition valid_val (f: meminj) (v : val) : Prop :=
+Definition valid_val (f: memren) (v : val) : Prop :=
   match v with
   | Vptr b _ =>
-    exists b', f b = Some (b',0%Z)
+    exists b', f b = Some b'
   | _ => True
   end.
 
-Definition valid_memval (f: meminj) (mv : memval) : Prop :=
+Inductive valid_val_list (f: memren) : seq val -> Prop :=
+  | vs_nil: valid_val_list f [::]
+  | vs_cons: forall v vs,
+      valid_val f v ->
+      valid_val_list f vs ->
+      valid_val_list f (v :: vs).
+
+Definition valid_memval (f: memren) (mv : memval) : Prop :=
   match mv with
   | Fragment v _ _ =>
     valid_val f v
   | _ => True
   end.
 
-Definition domain_meminj (f: meminj) m :=
-  forall b, Mem.valid_block m b <-> isSome (f b).
 
+Lemma wd_val_valid:
+  forall v m f
+    (Hdomain: domain_memren f m),
+    mem_wd.val_valid v m <-> valid_val f v.
+Proof.
+  intros.
+  unfold mem_wd.val_valid, valid_val.
+  destruct v; try tauto.
+  split.
+  intro H.
+  apply Hdomain in H.
+  destruct (f b) as [b0|];
+    by [exists b0; eauto | intuition].
+  intros (b' & H).
+  assert (H': f b)
+    by (rewrite H; auto);
+    by apply Hdomain in H'.
+Qed.
+  
+Lemma valid_val_incr:
+  forall f f' v
+    (Hvalid: valid_val f v)
+    (Hincr: ren_domain_incr f f'),
+    valid_val f' v.
+Proof.
+  intros.
+  unfold valid_val in *.
+  destruct v; auto.
+  destruct Hvalid as [? Hf].
+  assert (Hfb: f b)
+    by (rewrite Hf; auto).
+  specialize (Hincr b Hfb).
+  destruct (f' b) eqn:Hf'; try by exfalso.
+    by eexists; eauto.
+Qed.
 
+Lemma valid_val_list_incr:
+  forall f f' vs
+    (Hvalid: valid_val_list f vs)
+    (Hincr: ren_domain_incr f f'),
+    valid_val_list f' vs.
+Proof.
+  intros.
+  induction vs;
+    first by constructor.
+  inversion Hvalid; subst.
+  constructor; eauto.
+  eapply valid_val_incr;
+    by eauto.
+Qed.
+  
 Lemma restrPermMap_val_valid:
   forall m p (Hlt: permMapLt p (getMaxPerm m)) v,
     mem_wd.val_valid v m <-> mem_wd.val_valid v (restrPermMap Hlt).
@@ -77,6 +307,74 @@ Proof.
   destruct mv; auto.
 Qed.
 
+Lemma valid_val_domain:
+  forall f f' m v,
+    valid_val f v ->
+    domain_memren f m ->
+    domain_memren f' m ->
+    valid_val f' v.
+Proof.
+  intros.
+  destruct v; auto.
+  destruct H as [b' Hf].
+  unfold domain_memren in *.
+  destruct (H0 b).
+  destruct (H1 b).
+  rewrite Hf in H2.
+  specialize (H2 ltac:(auto)).
+  specialize (H3 H2).
+  destruct (f' b) eqn:Hf'; try by exfalso.
+  econstructor; eauto.
+Qed.
+
+(** Well-definedeness is preserved through storing a well-defined value *)
+Lemma store_wd:
+  forall m m' chunk b ofs v
+    (Hstore: Mem.store chunk m b ofs v = Some m')
+    (Hval_wd: mem_wd.val_valid v m)
+    (Hmem_wd: valid_mem m),
+    valid_mem m'.
+Proof.
+Admitted.
+(*intros.
+            intros b' Hvalid' ofs' mv' Hget.
+            assert (Hvalid := Mem.store_valid_access_3 _ _ _ _ _ _ Hstore).
+            eapply Mem.valid_access_implies with (p2 := Nonempty) in Hvalid;
+              try constructor.
+            eapply Mem.valid_access_valid_block in Hvalid.
+            destruct mv'; auto.
+            assert (Hcontents := Mem.store_mem_contents _ _ _ _ _ _ Hstore).
+            rewrite Hcontents in Hget. clear Hcontents.
+            destruct (Pos.eq_dec b b') as [Heq | Hneq].
+            (*case it's the same block*)
+            subst.
+            rewrite Maps.PMap.gss in Hget.
+            destruct v, chunk; simpl in *. Focus 3.
+            try match goal with
+                | [H: Maps.ZMap.get ?Ofs (Maps.ZMap.set ?Ofs' _ _) = _ |- _] =>
+                  destruct (Z.eq_dec Ofs Ofs'); subst
+                end;
+            try match goal with
+                | [H: Maps.ZMap.get ?Ofs (Maps.ZMap.set ?Ofs _ _) = _ |- _] =>
+                  rewrite Maps.ZMap.gss in H
+                | [H: Maps.ZMap.get ?Ofs (Maps.ZMap.set ?Ofs' _ _) = _,
+                      H1: ?Ofs <> ?Ofs' |- _] =>
+                  rewrite Maps.ZMap.gso in H; auto
+                end;
+            try discriminate;
+            unfold mem_wd.val_valid;
+            destruct v0; auto;
+            try (specialize (Hmem_wd b' Hvalid ofs' _ Hget);
+                  simpl in Hmem_wd);
+            try (by (eapply Mem.store_valid_block_1; eauto)).
+            try match goal with
+                | [H: Maps.ZMap.get ?ofS (Maps.ZMap.set ?Ofs _ _) = _ |- _] =>
+                  destruct (Z.eq_dec ofs' Ofs); subst
+                end.
+            
+            try rewrite Maps.ZMap.gss in Hget;
+            try discriminate. *)
+  
 End MemoryWD.
 
 Module MemoryLemmas.
@@ -118,10 +416,10 @@ End MemoryLemmas.
 
 (** ** Injections on values*)
 Module ValObsEq.
-  Import MemoryWD.
+  Import MemoryWD Renamings.
   
   (** Strong injections on values *)
-  Inductive val_obs (mi : meminj) : val -> val -> Prop :=
+  Inductive val_obs (mi : memren) : val -> val -> Prop :=
     obs_int : forall i : int, val_obs mi (Vint i) (Vint i)
   | obs_long : forall i : int64, val_obs mi (Vlong i) (Vlong i)
   | obs_float : forall f : Floats.float,
@@ -129,12 +427,12 @@ Module ValObsEq.
   | obs_single : forall f : Floats.float32,
       val_obs mi (Vsingle f) (Vsingle f)
   | obs_ptr : forall (b1 b2 : block) (ofs : int),
-      mi b1 = Some (b2,0%Z) ->
+      mi b1 = Some b2 ->
       val_obs mi (Vptr b1 ofs) (Vptr b2 ofs)
   | obs_undef : val_obs mi Vundef Vundef.
 
   (** Strong injections on memory values*)
-  Inductive memval_obs_eq (f : meminj) : memval -> memval -> Prop :=
+  Inductive memval_obs_eq (f : memren) : memval -> memval -> Prop :=
   | memval_obs_byte : forall n : byte,
       memval_obs_eq f (Byte n) (Byte n)
   | memval_obs_frag : forall (v1 v2 : val) (q : quantity) (n : nat)
@@ -143,7 +441,7 @@ Module ValObsEq.
   | memval_obs_undef : memval_obs_eq f Undef Undef.
 
   
-  Inductive val_obs_list (mi : meminj) : seq val -> seq val -> Prop :=
+  Inductive val_obs_list (mi : memren) : seq val -> seq val -> Prop :=
     val_obs_list_nil : val_obs_list mi [::] [::]
   | val_obs_list_cons : forall (v v' : val) (vl vl' : seq val),
                        val_obs mi v v' ->
@@ -151,13 +449,13 @@ Module ValObsEq.
                        val_obs_list mi (v :: vl) (v' :: vl').
 
   Lemma val_obs_trans:
-    forall (v v' v'' : val) (f f' f'' : meminj),
+    forall (v v' v'' : val) (f f' f'' : memren),
       val_obs f v v'' ->
       val_obs f' v v' ->
       (forall b b' b'' : block,
-          f b = Some (b'', 0%Z) ->
-          f' b = Some (b', 0%Z) ->
-          f'' b' = Some (b'', 0%Z)) -> 
+          f b = Some b'' ->
+          f' b = Some b' ->
+          f'' b' = Some b'') -> 
       val_obs f'' v' v''.
   Proof.
     intros v v' v'' f f' f'' Hval'' Hval' Hf.
@@ -166,13 +464,13 @@ Module ValObsEq.
   Qed.
 
   Lemma memval_obs_trans:
-    forall (v v' v'' : memval) (f f' f'' : meminj),
+    forall (v v' v'' : memval) (f f' f'' : memren),
       memval_obs_eq f v v'' ->
       memval_obs_eq f' v v' ->
       (forall b b' b'' : block,
-          f b = Some (b'', 0%Z) ->
-          f' b = Some (b', 0%Z) ->
-          f'' b' = Some (b'', 0%Z)) -> 
+          f b = Some b'' ->
+          f' b = Some b' ->
+          f'' b' = Some b'') -> 
       memval_obs_eq f'' v' v''.
   Proof.
     intros v v' v'' f f' f'' Hval'' Hval' Hf.
@@ -183,13 +481,13 @@ Module ValObsEq.
   Qed.
  
   Lemma val_obs_list_trans:
-    forall (vs vs' vs'' : seq val) (f f' f'' : meminj),
+    forall (vs vs' vs'' : seq val) (f f' f'' : memren),
       val_obs_list f vs vs'' ->
       val_obs_list f' vs vs' ->
       (forall b b' b'' : block,
-          f b = Some (b'', 0%Z) ->
-          f' b = Some (b', 0%Z) ->
-          f'' b' = Some (b'', 0%Z)) ->
+          f b = Some b'' ->
+          f' b = Some b' ->
+          f'' b' = Some b'') ->
       val_obs_list f'' vs' vs''.
   Proof.
     intros vs vs' vs'' f f' f'' Hobs Hobs' Hf.
@@ -204,7 +502,7 @@ Module ValObsEq.
   Lemma val_obs_id:
     forall f v
       (Hvalid: valid_val f v)
-      (Hid: forall b b', f b = Some (b',0%Z) -> b = b'),
+      (Hid: forall b b', f b = Some b' -> b = b'),
       val_obs f v v.
   Proof.
     intros.
@@ -217,7 +515,7 @@ Module ValObsEq.
   Lemma memval_obs_eq_id:
     forall f mv
       (Hvalid: valid_memval f mv)
-      (Hid: forall b b', f b = Some (b',0%Z) -> b = b'),
+      (Hid: forall b b', f b = Some b' -> b = b'),
                     memval_obs_eq f mv mv.
   Proof.
     intros.
@@ -232,23 +530,23 @@ End ValObsEq.
 (** ** Injections between memories *)
 Module MemObsEq.
 
-  Import ValObsEq SEM MemoryWD.
+  Import ValObsEq SEM MemoryWD Renamings.
 
   (* A compcert injection would not work because it allows permissions to go up *)
   (* Moreover, we require that undefined values are matched by the target memory,
      unlike compcert injections *)
   
   (** Weak injection between memories *)
-  Record weak_mem_obs_eq (f : meminj) (mc mf : mem) :=
+  Record weak_mem_obs_eq (f : memren) (mc mf : mem) :=
     {
       domain_invalid: forall b, ~(Mem.valid_block mc b) -> f b = None;
-      domain_valid: forall b, Mem.valid_block mc b -> exists b', f b = Some (b',0%Z);
-      codomain_valid: forall b1 b2, f b1 = Some (b2,0%Z) -> Mem.valid_block mf b2;
-      injective: forall b1 b1' b2, f b1 = Some (b2,0%Z) ->
-                              f b1' = Some(b2,0%Z) ->
+      domain_valid: forall b, Mem.valid_block mc b -> exists b', f b = Some b';
+      codomain_valid: forall b1 b2, f b1 = Some b2 -> Mem.valid_block mf b2;
+      injective: forall b1 b1' b2, f b1 = Some b2 ->
+                              f b1' = Some b2 ->
                               b1 = b1';
       perm_obs_weak :
-        forall b1 b2 ofs (Hrenaming: f b1 = Some (b2,0%Z)),
+        forall b1 b2 ofs (Hrenaming: f b1 = Some b2),
           Mem.perm_order''
             (permission_at mc b1 ofs Cur)
             (permission_at mf b2 ofs Cur)}.
@@ -256,49 +554,49 @@ Module MemObsEq.
  
 
   (** Strong injection between memories *)
-  Record strong_mem_obs_eq (f : meminj) (mc mf : mem) :=
+  Record strong_mem_obs_eq (f : memren) (mc mf : mem) :=
     { perm_obs_strong :
-        forall b1 b2 ofs (Hrenaming: f b1 = Some (b2,0%Z)),
+        forall b1 b2 ofs (Hrenaming: f b1 = Some b2),
             permission_at mf b2 ofs Cur =
             (permission_at mc b1 ofs Cur);
       val_obs_eq :
-        forall b1 b2 ofs (Hrenaming: f b1 = Some (b2,0%Z))
+        forall b1 b2 ofs (Hrenaming: f b1 = Some b2)
           (Hperm: Mem.perm mc b1 ofs Cur Readable),
           memval_obs_eq f (Maps.ZMap.get ofs mc.(Mem.mem_contents)#b1)
                         (Maps.ZMap.get ofs mf.(Mem.mem_contents)#b2)}.
 
   
   (** Strong injection between memories *)
-  Record mem_obs_eq (f : meminj) (mc mf : mem) :=
+  Record mem_obs_eq (f : memren) (mc mf : mem) :=
     { weak_obs_eq : weak_mem_obs_eq f mc mf;
       strong_obs_eq : strong_mem_obs_eq f mc mf }.
 
-  Lemma weak_obs_eq_domain_inj:
+  Lemma weak_obs_eq_domain_ren:
     forall f m m',
       weak_mem_obs_eq f m m' ->
-      domain_meminj f m.
+      domain_memren f m.
   Proof.
     intros f m m' Hobs_eq.
     destruct Hobs_eq.
-    intros b.
-    split; intros Hb.
+    intros b. split;
+    intros Hb.
     specialize (domain_valid0 _ Hb).
     destruct (domain_valid0) as [? H].
     rewrite H;
       by auto.
     destruct (valid_block_dec m b); auto.
-    apply domain_invalid0 in n.
-    rewrite n in Hb;
+    specialize (domain_invalid0 _ n).
+    rewrite domain_invalid0 in Hb;
       by exfalso.
   Qed.
 
-  Corollary mem_obs_eq_domain_inj:
+  Corollary mem_obs_eq_domain_ren:
     forall f m m',
       mem_obs_eq f m m' ->
-      domain_meminj f m.
+      domain_memren f m.
   Proof.
     intros f m m' H; destruct H;
-    eapply weak_obs_eq_domain_inj;
+    eapply weak_obs_eq_domain_ren;
       by eauto.
   Qed.
   
@@ -328,9 +626,9 @@ Module MemObsEq.
   Qed.
 
   Lemma mf_align :
-    forall (m : mem) (f : meminj) (b1 b2 : block) (delta : Z) (chunk : memory_chunk)
+    forall (m : mem) (f : memren) (b1 b2 : block) (delta : Z) (chunk : memory_chunk)
       (ofs : Z) (p : permission),
-      f b1 = Some (b2, 0%Z) ->
+      f b1 = Some b2 ->
       Mem.range_perm m b1 ofs (ofs + size_chunk chunk) Max p ->
       (align_chunk chunk | 0%Z)%Z.
   Proof.
@@ -338,23 +636,7 @@ Module MemObsEq.
       by apply mem_wd.align_chunk_0.
   Qed.
 
-  Lemma weak_mem_obs_eq_f :
-    forall mc mf f b1 b2 delta,
-      weak_mem_obs_eq f mc mf ->
-      f b1 = Some (b2,delta) ->
-      delta = 0%Z.
-  Proof.
-    intros mc mf f b1 b2 delta Hweak Hf.
-    destruct (valid_block_dec mc b1) as [Hvalid | Hinvalid].
-    apply (domain_valid Hweak) in Hvalid.
-    destruct Hvalid as [? Hf'].
-    rewrite Hf' in Hf.
-    inversion Hf;
-      by subst.
-    apply (domain_invalid Hweak) in Hinvalid.
-      by congruence.
-  Qed.
-
+  (*
   Lemma val_obs_eq_inj :
     forall f v1 v2,
       val_obs f v1 v2 ->
@@ -421,13 +703,13 @@ Module MemObsEq.
       rewrite Zplus_0_r.
       eapply memval_obs_eq_inj; eauto.
       
-  Qed.
+  Qed. *)
 
   Lemma memval_obs_eq_incr:
-    forall (mc mf : mem) (f f': meminj) 
+    forall (mc mf : mem) (f f': memren) 
       (b1 b2 : block) (ofs : Z)
-      (Hf': f' b1 = Some (b2, 0%Z))
-      (Hincr: inject_incr f f')
+      (Hf': f' b1 = Some b2)
+      (Hincr: ren_incr f f')
       (Hobs_eq: memval_obs_eq f (Maps.ZMap.get ofs (Mem.mem_contents mc) # b1)
                               (Maps.ZMap.get ofs (Mem.mem_contents mf) # b2)),
       memval_obs_eq f' (Maps.ZMap.get ofs (Mem.mem_contents mc) # b1)
@@ -442,16 +724,16 @@ Module MemObsEq.
   Qed.
 
   (* Don't really care about this right now*)
-  Lemma mem_inj_dillute:
-    forall mc mf f,
-      Mem.mem_inj f mc mf ->
-      Mem.mem_inj f mc (makeCurMax mf).
-  Admitted.
+  (* Lemma mem_inj_dillute: *)
+  (*   forall mc mf f, *)
+  (*     Mem.mem_inj f mc mf -> *)
+  (*     Mem.mem_inj f mc (makeCurMax mf). *)
+  (* Admitted. *)
 
 
   (* Proof as in compcert*)
   Lemma proj_bytes_obs:
-    forall (f : meminj) (vl vl' : seq memval),
+    forall (f : memren) (vl vl' : seq memval),
       Coqlib.list_forall2 (memval_obs_eq f) vl vl' ->
       forall bl : seq byte,
         proj_bytes vl = Some bl -> proj_bytes vl' = Some bl.
@@ -464,7 +746,7 @@ Module MemObsEq.
   Qed.
 
   Lemma proj_bytes_obs_none:
-    forall (f : meminj) (vl vl' : seq memval),
+    forall (f : memren) (vl vl' : seq memval),
       Coqlib.list_forall2 (memval_obs_eq f) vl vl' ->
       proj_bytes vl = None -> proj_bytes vl' = None.
   Proof.
@@ -567,10 +849,10 @@ Module MemObsEq.
 
   (*TODO: prove this, should be easy once we have the lemmas above*)
   Lemma load_val_obs:
-    forall (mc mf : mem) (f:meminj)
+    forall (mc mf : mem) (f:memren)
       (b1 b2 : block) chunk (ofs : Z) v1
       (Hload: Mem.load chunk mc b1 ofs = Some v1)
-      (Hf: f b1 = Some (b2, 0%Z))
+      (Hf: f b1 = Some b2)
       (Hobs_eq: strong_mem_obs_eq f mc mf),
     exists v2,
       Mem.load chunk mf b2 ofs = Some v2 /\
@@ -581,10 +863,10 @@ Module MemObsEq.
   (** ** Lemmas about [Mem.store] and [mem_obs_eq]*)
   
   Lemma store_val_obs:
-    forall (mc mc' mf : mem) (f:meminj)
+    forall (mc mc' mf : mem) (f:memren)
       (b1 b2 : block) chunk (ofs : Z) v1 v2
       (Hload: Mem.store chunk mc b1 ofs v1 = Some mc')
-      (Hf: f b1 = Some (b2, 0%Z))
+      (Hf: f b1 = Some b2)
       (Hval_obs_eq: val_obs f v1 v2)
       (Hobs_eq: strong_mem_obs_eq f mc mf),
     exists mf',
@@ -597,10 +879,47 @@ End MemObsEq.
 
 Module CoreInjections.
 
-  Import SEM ValObsEq.
-  Class CodeInj :=
-    { core_inj: meminj -> C -> C -> Prop;
-      core_wd : meminj -> C -> Prop;
+  Import SEM ValObsEq MemoryWD Renamings.
+  Class CoreInj :=
+    { core_inj: memren -> C -> C -> Prop;
+      core_wd : memren -> C -> Prop;
+      ge_wd : memren -> G -> Prop;
+      ge_wd_incr: forall f f' (g : G),
+          ge_wd f g ->
+          ren_domain_incr f f' ->
+          ge_wd f' g;
+      ge_wd_domain : forall f f' m (g : G),
+          ge_wd f g ->
+          domain_memren f m ->
+          domain_memren f' m ->
+          ge_wd f' g;
+      core_wd_incr : forall f f' c,
+          core_wd f c ->
+          ren_domain_incr f f' ->
+          core_wd f' c;
+      core_wd_domain : forall f f' m c,
+          core_wd f c ->
+          domain_memren f m ->
+          domain_memren f' m ->
+          core_wd f' c;
+      at_external_wd:
+        forall f c ef sig args,
+          core_wd f c ->
+          at_external Sem c = Some (ef, sig, args) ->
+          valid_val_list f args;
+      after_external_wd:
+        forall c c' f ef sig args ov,
+          at_external Sem c = Some (ef, sig, args) ->
+          core_wd f c ->
+          valid_val_list f args ->
+          after_external Sem ov c = Some c' ->
+          core_wd f c';
+      initial_core_wd:
+        forall f vf arg c_new,
+          initial_core Sem the_ge vf [:: arg] = Some c_new ->
+          valid_val f arg ->
+          ge_wd f the_ge ->
+          core_wd f c_new;
       core_inj_ext: 
         forall c c' f (Hinj: core_inj f c c'),
           match at_external Sem c, at_external Sem c' with
@@ -641,17 +960,171 @@ Module CoreInjections.
           core_inj f c_new c_new';
       core_inj_id: forall c f,
           core_wd f c -> 
-          (forall b1 b2, f b1 = Some (b2,0%Z) -> b1 = b2) ->
+          (forall b1 b2, f b1 = Some b2 -> b1 = b2) ->
           core_inj f c c;
       core_inj_trans:
-        forall c c' c'' (f f' f'' : meminj)
+        forall c c' c'' (f f' f'' : memren)
           (Hcore_inj: core_inj f c c'')
           (Hcore_inj': core_inj f' c c')
           (Hf: forall b b' b'',
-              f b = Some (b'',0%Z) ->
-              f' b = Some (b',0%Z) ->
-              f'' b' = Some (b'',0%Z)),
+              f b = Some b'' ->
+              f' b = Some b' ->
+              f'' b' = Some b''),
           core_inj f'' c' c''
     }.
 
 End CoreInjections.
+
+Module ThreadPoolInjections.
+
+  Import dry_context mySchedule DryMachine DryMachine.ThreadPool.
+  Import SEM ValObsEq MemoryWD Renamings CoreInjections concurrent_machine.
+  (** Injections on programs *)
+  Context {ci : CoreInj}.
+
+  (*not clear what should happen with vf. Normally it should be in the
+genv and hence should be mapped to itself, but let's not expose this
+here*)
+  Definition ctl_inj f cc cf : Prop :=
+    match cc, cf with
+    | Kinit vf arg, Kinit vf' arg' =>
+      vf = vf' /\ val_obs f arg arg'
+    | Krun c, Krun c' => core_inj f c c'
+    | Kblocked c, Kblocked c' => core_inj f c c'
+    | Kresume c arg, Kresume c' arg' => core_inj f c c' /\ val_obs f arg arg'
+    | _, _  => False
+    end.
+
+  (*Again we do not require that the first argument to Kinit is valid
+  as we never map it, although maybe we should*)
+  Definition ctl_wd f t : Prop :=
+    match t with
+    | Krun c => core_wd f c
+    | Kblocked c => core_wd f c
+    | Kresume c v => core_wd f c /\ valid_val f v
+    | Kinit _ v => valid_val f v
+    end.
+
+  Lemma ctl_wd_incr : forall f f' c,
+      ctl_wd f c ->
+      ren_domain_incr f f' ->
+      ctl_wd f' c.
+  Proof.
+    intros f f' c Hwd Hincr.
+    destruct c; simpl in *;
+    repeat match goal with
+           | [H: _ /\ _ |- _] =>
+             destruct H
+           | [ |- _] => split
+           end;     
+    try (eapply core_wd_incr; eauto);
+    try (eapply valid_val_incr; eauto).
+  Qed.
+  
+  Lemma ctl_inj_trans:
+    forall c c' c'' (f f' f'' : memren)
+      (Hcore_inj: ctl_inj f c c'')
+      (Hcore_inj': ctl_inj f' c c')
+      (Hf: forall b b' b'',
+          f b = Some b'' ->
+          f' b = Some b' ->
+          f'' b' = Some b''),
+      ctl_inj f'' c' c''.
+  Proof.
+    intros.
+    destruct c, c', c''; simpl in *; try (by exfalso);
+    try (destruct Hcore_inj, Hcore_inj'; split);
+    try (eapply core_inj_trans; eauto).
+    eapply val_obs_trans;
+      by eauto.
+      by subst.
+      eapply val_obs_trans;
+        by eauto.
+  Qed.
+
+  Definition tp_wd (f: memren) (tp : thread_pool) : Prop :=
+    forall i (cnti: containsThread tp i),
+      ctl_wd f (getThreadC cnti).
+
+  Lemma tp_wd_incr : forall f f' tp,
+      tp_wd f tp ->
+      ren_domain_incr f f' ->
+      tp_wd f' tp.
+  Proof.
+    intros.
+    intros i cnti.
+    specialize (H i cnti).
+    eapply ctl_wd_incr;
+      by eauto.
+  Qed.
+
+  Lemma ctl_wd_domain:
+    forall f f' m (c : ctl),
+      ctl_wd f c ->
+      domain_memren f m ->
+      domain_memren f' m ->
+      ctl_wd f' c.
+  Proof.
+    intros f f' m c Hwd Hf Hf'.
+    destruct c; simpl in *;
+    repeat match goal with
+           | [H: _ /\ _ |- _] => destruct H
+           | [|- _ /\ _] => split
+           | [|- core_wd _ _] => eapply core_wd_domain; eauto
+           | [|- valid_val _ _] => eapply valid_val_domain; eauto
+           end.
+  Qed.
+
+  Lemma tp_wd_domain:
+    forall f f' m (tp : thread_pool),
+      tp_wd f tp ->
+      domain_memren f m ->
+      domain_memren f' m ->
+      tp_wd f' tp.
+  Proof.
+    intros.
+    intros i cnti.
+    specialize (H i cnti).
+    destruct (getThreadC cnti); simpl in *;
+    repeat match goal with
+           | [H: _ /\ _ |- _] => destruct H
+           | [|- _ /\ _] => split
+           | [|- core_wd _ _] => eapply core_wd_domain; eauto
+           | [|- valid_val _ _] => eapply valid_val_domain; eauto
+           end.
+  Qed.
+
+  Lemma tp_wd_lockSet:
+    forall tp f addr rmap
+      (Htp_wd: tp_wd f tp),
+      tp_wd f (updLockSet tp addr rmap).
+  Proof.
+    intros.
+    intros i cnti'.
+    assert (cnti := cntUpdateL' _ _ cnti').
+    specialize (Htp_wd _ cnti).
+      by rewrite gLockSetCode.
+  Qed.
+
+  Lemma ctl_inj_id:
+    forall f c,
+      ctl_wd f c ->
+      (forall b1 b2, f b1 = Some b2 -> b1 = b2) ->
+      ctl_inj f c c.
+  Proof.
+    intros.
+    destruct c; simpl in *;
+    repeat match goal with
+           |[H: _ /\ _ |- _] =>
+            destruct H
+           |[|- _ /\ _] => split; auto
+           |[|- core_inj _ _ _] =>
+            eapply core_inj_id; eauto
+           |[|- val_obs _ _ _] =>
+            eapply val_obs_id; eauto
+           end.
+  Qed.
+  
+End ThreadPoolInjections.
+
+  

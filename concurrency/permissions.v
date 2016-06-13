@@ -91,6 +91,23 @@ Section permMapDefs.
             try inversion Hunion; subst; unfold Mem.perm_order''; split; constructor.
   Defined.
 
+  Lemma perm_union_lower:
+    forall p1 p2 p3
+      (Hpu: exists pu, perm_union p1 p2 = Some pu)
+      (Hperm: Mem.perm_order'' p2 p3),
+    exists pu, perm_union p1 p3 = Some pu.
+  Proof.
+    intros.
+    destruct p2 as [p|].
+    destruct p; simpl in Hperm;
+    destruct Hpu as [pu Hpu];
+    destruct p1 as [p|]; try destruct p; simpl in Hpu;
+    try congruence;
+    destruct p3; inversion Hperm; simpl; eexists; eauto.
+    simpl in Hperm.
+    destruct p3; simpl in *; tauto.
+  Qed.
+  
   Inductive not_racy : option permission -> Prop :=
   | empty : not_racy None.
 

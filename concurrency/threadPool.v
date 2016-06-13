@@ -6,7 +6,7 @@ Require Import concurrency.concurrent_machine.
 Require Import concurrency.pos.
 Require Import concurrency.threads_lemmas.
 Require Import compcert.lib.Axioms.
-
+Require Import compcert.lib.Axioms.
 Require Import concurrency.addressFiniteMap.
 Require Import compcert.lib.Maps.
 
@@ -496,6 +496,38 @@ Module OrdinalPool (SEM:Semantics) (RES:Resources) <: ThreadPoolSig
     unfold getThreadR, containsThread. simpl in *.
     do 2 apply f_equal.
       by apply cnt_irr.
+  Lemma gssLockRes:
+    forall tp addr pmap,
+      lockRes (updLockSet tp addr pmap) addr = Some pmap.
+  Proof.
+  Admitted.
+
+  Lemma gsoLockRes:
+    forall tp addr addr' pmap
+      (Hneq: addr <> addr'),
+      lockRes (updLockSet tp addr pmap) addr' =
+      lockRes tp addr'.
+  Proof.
+  Admitted.
+  
+  Lemma gsoLockSet :
+    forall tp b b' ofs ofs'
+      pmap,
+      (b,ofs) <> (b', ofs') ->
+      (Maps.PMap.get b' (lockSet (updLockSet tp (b,ofs) pmap))) ofs' =
+      (Maps.PMap.get b' (lockSet tp)) ofs'.
+  Proof.
+    Admitted.
+
+  Lemma lockSet_updLockSet:
+    forall tp i (pf: containsThread tp i) c pmap addr rmap,
+      lockSet (updLockSet tp addr rmap) =
+      lockSet (updLockSet (updThread pf c pmap) addr rmap).
+  Proof.
+    intros.
+    unfold lockSet, updLockSet, updThread.
+    simpl;
+      by reflexivity.
   Qed.
     
 End OrdinalPool.
