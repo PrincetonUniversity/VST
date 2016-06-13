@@ -496,6 +496,8 @@ Module OrdinalPool (SEM:Semantics) (RES:Resources) <: ThreadPoolSig
     unfold getThreadR, containsThread. simpl in *.
     do 2 apply f_equal.
       by apply cnt_irr.
+  Qed.
+  
   Lemma gssLockRes:
     forall tp addr pmap,
       lockRes (updLockSet tp addr pmap) addr = Some pmap.
