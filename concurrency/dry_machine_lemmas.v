@@ -721,6 +721,18 @@ Module StepLemmas.
         by erewrite gsoThreadCLock.
     Qed.
 
+    Lemma suspendF_lockRes:
+      forall tp tp' i
+        (pff: containsThread tp i)
+        (Hsuspend: myFineSemantics.suspend_thread pff tp'),
+        lockRes tp = lockRes tp'.
+    Proof.
+      intros.
+      inversion Hsuspend; subst.
+      extensionality addr.
+        by erewrite gsoThreadCLPool.
+    Qed.
+
     Lemma suspendC_lockSet:
       forall tp tp' i
         (pff: containsThread tp i)

@@ -463,6 +463,26 @@ Module OrdinalPool (SEM:Semantics) (RES:Resources) <: ThreadPoolSig
       lockRes tp addr'.
   Proof.
   Admitted.
+  
+  Lemma gsoLockSet :
+    forall tp b b' ofs ofs'
+      pmap,
+      (b,ofs) <> (b', ofs') ->
+      (Maps.PMap.get b' (lockSet (updLockSet tp (b,ofs) pmap))) ofs' =
+      (Maps.PMap.get b' (lockSet tp)) ofs'.
+  Proof.
+    Admitted.
+
+  Lemma lockSet_updLockSet:
+    forall tp i (pf: containsThread tp i) c pmap addr rmap,
+      lockSet (updLockSet tp addr rmap) =
+      lockSet (updLockSet (updThread pf c pmap) addr rmap).
+  Proof.
+    intros.
+    unfold lockSet, updLockSet, updThread.
+    simpl;
+      by reflexivity.
+  Qed.
     
 End OrdinalPool.
   
