@@ -1520,6 +1520,303 @@ Module InternalSteps.
         by eauto.
     Qed.
     
-    
   End InternalSteps.
 End InternalSteps.
+
+Module StepType.
+
+  Import SEM InternalSteps CoreLanguage StepLemmas.
+   (** Distinguishing the various step types of the concurrent machine *)
+
+  Inductive StepType : Type :=
+    Internal | Concurrent | Halted | Suspend.
+
+  Definition ctlType (code : ctl) : StepType :=
+    match code with
+    | Kinit _ _ => Internal
+    | Krun c =>
+      match at_external Sem c with
+      | None => 
+        match halted Sem c with
+        | Some _ => Halted
+        | None => Internal
+        end
+      | Some _ => Suspend
+      end
+    | Kblocked c => Concurrent
+    | Kresume c _ => Internal
+    end.
+  
+  Definition getStepType {i tp} (cnt : containsThread tp i) : StepType :=
+    ctlType (getThreadC cnt).
+
+  Lemma internal_step_type :
+    forall i tp tp' m m' (cnt : containsThread tp i)
+      (Hcomp: mem_compatible tp m)
+      (Hstep_internal: internal_step cnt Hcomp tp' m'),
+      getStepType cnt = Internal.
+  Proof.
+    intros.
+    unfold getStepType, ctlType.
+    destruct Hstep_internal as [Hcstep | [[Hresume Heq] | [Hstart Heq]]].
+    inversion Hcstep. subst. rewrite Hcode.
+    assert (H1:= corestep_not_at_external Sem _ _ _ _ _ Hcorestep).
+    rewrite H1.
+    assert (H2:= corestep_not_halted Sem _ _ _ _ _ Hcorestep);
+      by rewrite H2.
+    inversion Hresume; subst.
+    pf_cleanup;
+      by rewrite Hcode.
+    inversion Hstart; subst.
+    pf_cleanup;
+      by rewrite Hcode.
+    
+  Qed.
+
+  Global Notation "cnt '@'  'I'" := (getStepType cnt = Internal) (at level 80).
+  Global Notation "cnt '@'  'E'" := (getStepType cnt = Concurrent) (at level 80).
+  Global Notation "cnt '@'  'S'" := (getStepType cnt = Suspend) (at level 80).
+  Global Notation "cnt '@'  'H'" := (getStepType cnt = Halted) (at level 80).
+
+  (** Proofs about [fmachine_step]*)
+  Notation fmachine_step := ((corestep fine_semantics) the_ge).
+
+  (** Solves absurd cases from fine-grained internal steps *)
+  Ltac absurd_internal Hstep :=
+    inversion Hstep; try inversion Htstep; subst; simpl in *;
+    try match goal with
+        | [H: Some _ = Some _ |- _] => inversion H; subst
+        end; pf_cleanup;
+    repeat match goal with
+           | [H: getThreadC ?Pf = _, Hint: ?Pf @ I |- _] =>
+             unfold getStepType in Hint;
+               rewrite H in Hint; simpl in Hint
+           | [H1: match ?Expr with _ => _ end = _,
+                  H2: ?Expr = _ |- _] => rewrite H2 in H1
+           | [H: threadHalted _ |- _] =>
+             inversion H; clear H; subst; pf_cleanup
+           | [H1: is_true (isSome (halted ?Sem ?C)),
+                  H2: match at_external _ _ with _ => _ end = _ |- _] =>
+             destruct (at_external_halted_excl Sem C) as [Hext | Hcontra];
+               [rewrite Hext in H2;
+                 destruct (halted Sem C); discriminate |
+                rewrite Hcontra in H1; exfalso; by auto]
+           end; try discriminate; try (exfalso; by auto).
+  
+  Lemma fstep_containsThread :
+    forall tp tp' m m' i j U
+      (cntj: containsThread tp j)
+      (Hstep: fmachine_step (i :: U, tp) m (U, tp') m'),
+      containsThread tp' j.
+  Proof.
+    intros.
+    inversion Hstep; subst; try inversion Htstep;
+    simpl in *; try inversion HschedN;
+    subst; auto;
+    repeat match goal with
+           | [ |- containsThread (updThreadC _ _) _] =>
+             apply cntUpdateC; auto
+           | [ |- containsThread (updThread _ _ _) _] =>
+             apply cntUpdate; auto
+           | [ |- containsThread (updThreadR _ _) _] =>
+             apply cntUpdateR; auto
+           | [ |- containsThread (addThread _ _ _ _) _] =>
+             apply cntAdd; auto
+           end.
+  Qed.
+
+  Lemma fstep_containsThread' :
+    forall tp tp' m m' i j U
+      (cnti: containsThread tp i)
+      (cntj: containsThread tp' j)
+      (Hinternal: cnti @ I)
+      (Hstep: fmachine_step (i :: U, tp) m (U, tp') m'),
+      containsThread tp j.
+  Proof.
+    intros.
+    absurd_internal Hstep;
+      by eauto.
+  Qed.
+
+  Context {cspec : corestepSpec}.
+  Lemma fmachine_step_invariant:
+    forall (tp tp' : thread_pool) m m' (i : nat) (pf : containsThread tp i) U
+      (Hcompatible: mem_compatible tp m)
+      (Hinternal: pf @ I)
+      (Hstep: fmachine_step (i :: U, tp) m (U, tp') m'),
+      invariant tp'.
+  Proof.
+    intros.
+    absurd_internal Hstep;
+      destruct Hinv as [Hno_race Hlock_pool].
+    - constructor;
+      try rewrite gsoThreadCLock;
+      try rewrite gsoThreadCLPool.
+      intros i j cnti' cntj' Hneq.
+      assert (cnti := @cntUpdateC' tid i tp (Krun c_new) Htid cnti').
+      assert (cntj := @cntUpdateC' tid j tp (Krun c_new) Htid cntj').
+      erewrite @gThreadCR with (cntj := cntj).
+      erewrite @gThreadCR with (cntj := cnti);
+        by auto.
+      intros i cnti'.
+      assert (cnti := @cntUpdateC' tid i tp (Krun c_new) Htid cnti');
+        by erewrite gThreadCR with (cntj := cnti).
+      intros.
+      assert (cnt0 := @cntUpdateC' tid i tp (Krun c_new) Htid cnt).
+      rewrite gThreadCR;
+        by eauto.
+      intros.
+      rewrite gsoThreadCLPool in H;
+        by eauto.
+    - constructor.
+      intros i j cnti' cntj' Hneq.
+      assert (cnti := @cntUpdateC' tid i tp (Krun c) Htid cnti').
+      assert (cntj := @cntUpdateC' tid j tp (Krun c) Htid cntj').
+      erewrite @gThreadCR with (cntj := cntj).
+      erewrite @gThreadCR with (cntj := cnti);
+        by auto.
+      intros i cnti'.
+      assert (cnti := @cntUpdateC' tid i tp (Krun c) Htid cnti').
+      erewrite gsoThreadCLock;
+        by erewrite gThreadCR with (cntj := cnti).
+      intros.
+      assert (cnt0 := @cntUpdateC' tid i tp (Krun c) Htid cnt).
+      rewrite gThreadCR.
+      rewrite gsoThreadCLPool in H;
+        by eauto.
+      intros.
+      rewrite gsoThreadCLPool in H.
+      rewrite gsoThreadCLock;
+        by eauto.
+      eapply corestep_invariant;
+        by eauto.
+  Qed.
+
+  Lemma fmachine_step_compatible:
+    forall (tp tp' : thread_pool) m m' (i : nat) (pf : containsThread tp i) U
+      (Hcompatible: mem_compatible tp m)
+      (Hinternal: pf @ I)
+      (Hstep: fmachine_step (i :: U, tp) m (U, tp') m'),
+      mem_compatible tp' m'.
+  Proof.
+    intros.
+    absurd_internal Hstep;
+      try (eapply updThreadC_compatible;
+             by eauto).
+    eapply mem_compatible_setMaxPerm. 
+    eapply corestep_compatible;
+      by eauto.
+    (* this holds trivially, we don't need to use corestep_compatible*)
+  Qed.
+
+  Lemma gsoThreadR_fstep:
+    forall tp tp' m m' i j U
+      (Hneq: i <> j)
+      (pfi: containsThread tp i)
+      (pfj: containsThread tp j)
+      (pfj': containsThread tp' j)
+      (Hinternal: pfi @ I)
+      (Hstep: fmachine_step (i :: U, tp) m (U, tp') m'),
+      getThreadR pfj = getThreadR pfj'.
+  Proof.
+    intros.
+    absurd_internal Hstep;
+      try (by rewrite <- gThreadCR with (cntj' := pfj'));
+      erewrite <- @gsoThreadRes with (cntj' := pfj');
+        by eauto.
+  Qed.
+
+  Lemma permission_at_fstep:
+    forall tp tp' m m' i j U
+      (Hneq: i <> j)
+      (pfi: containsThread tp i)
+      (pfj: containsThread tp j)
+      (pfj': containsThread tp' j)
+      (Hcomp: mem_compatible tp m)
+      (Hcomp': mem_compatible tp' m')
+      (Hinv: pfi @ I)
+      (Hstep: fmachine_step (i :: U, tp) m (U,tp') m') b ofs,
+      permission_at (restrPermMap (Hcomp _ pfj)) b ofs Cur =
+      permission_at (restrPermMap (Hcomp' _ pfj')) b ofs Cur.
+  Proof.
+    intros.
+    do 2 rewrite restrPermMap_Cur;
+      erewrite gsoThreadR_fstep;
+        by eauto.
+  Qed.
+
+  Lemma gsoThreadC_fstepI:
+    forall tp tp' m m' i j U
+      (pfj: containsThread tp j)
+      (pfj': containsThread tp' j)
+      (pfi: containsThread tp i)
+      (Hinternal: pfi @ I)
+      (Hstep: fmachine_step (i :: U, tp) m (U, tp') m')
+      (Hneq: i <> j),
+      getThreadC pfj = getThreadC pfj'.
+  Proof.
+    intros.
+    absurd_internal Hstep;
+      try (erewrite gsoThreadCC with (cntj' := pfj');
+             by eauto);
+      erewrite gsoThreadCode with (cntj' := pfj');
+        by eauto.
+  Qed.
+
+  Lemma gsoLockSet_fstepI:
+    forall tp tp' m m' i U
+      (pfi: containsThread tp i)
+      (Hinternal: pfi @ I)
+      (Hstep: fmachine_step (i :: U, tp) m (U, tp') m'),
+      lockSet tp = lockSet tp'.
+  Proof.
+    intros.
+    absurd_internal Hstep;
+      try (erewrite gsoThreadCLock;
+             by eauto);
+      erewrite gsoThreadLock;
+        by eauto.
+  Qed.
+
+  Lemma gsoLockRes_fstepI :
+    forall (tp tp' : thread_pool) (m m' : mem) (i : tid) 
+      (U : seq tid) (pfi : containsThread tp i)
+      (Hinternal: pfi @ I)
+      (Hstep: fmachine_step (i :: U, tp) m (U, tp') m'),
+      lockRes tp' = lockRes tp.
+  Proof.
+    intros.
+    absurd_internal Hstep;
+      extensionality addr;
+      try (by rewrite gsoThreadCLPool);
+      try (by rewrite gsoThreadLPool).
+  Qed.
+  
+  Hint Resolve fmachine_step_compatible fmachine_step_invariant
+       fstep_containsThread fstep_containsThread' gsoLockSet_fstepI : fstep.
+
+  Hint Rewrite gsoThreadR_fstep permission_at_fstep : fstep.
+  
+  Lemma fmachine_step_disjoint_val :
+    forall tp tp' m m' i j U
+      (Hneq: i <> j)
+      (pfi: containsThread tp i)
+      (pfj: containsThread tp j)
+      (pfj': containsThread tp' j)
+      (Hcomp: mem_compatible tp m)
+      (Hcomp': mem_compatible tp' m')
+      (Hinv: pfi @ I)
+      (Hstep: fmachine_step (i :: U, tp) m (U,tp') m') b ofs
+      (Hreadable: 
+         Mem.perm (restrPermMap (Hcomp _ pfj)) b ofs Cur Readable),
+      Maps.ZMap.get ofs (Mem.mem_contents m) # b =
+      Maps.ZMap.get ofs (Mem.mem_contents m') # b.
+  Proof.
+    intros.
+    absurd_internal Hstep;
+      try reflexivity;
+      eapply corestep_disjoint_val;
+        by eauto.
+  Qed.
+
+End StepType.

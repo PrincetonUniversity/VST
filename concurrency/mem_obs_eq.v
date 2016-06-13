@@ -120,6 +120,83 @@ Proof.
   unfold ren_incr; auto.
 Qed.
 
+
+ (** ** Results about id injections*)
+  Definition id_ren m :=
+    fun b => if is_left (valid_block_dec m b) then Some b else None.
+
+  Hint Unfold id_ren.
+
+  Lemma id_ren_correct:
+    forall m (b1 b2 : block), (id_ren m) b1 = Some b2 -> b1 = b2.
+  Proof.
+    intros. unfold id_ren in *.
+    destruct (valid_block_dec m b1); simpl in *;
+      by inversion H.
+  Qed.
+
+  Lemma id_ren_domain:
+    forall m, domain_memren (id_ren m) m.
+  Proof.
+    unfold id_ren, domain_memren.
+    intros.
+    destruct (valid_block_dec m b); simpl;
+    split; intuition.
+  Qed.
+
+  Lemma id_ren_validblock:
+    forall m b
+      (Hvalid: Mem.valid_block m b),
+      id_ren m b = Some b.
+  Proof.
+    intros.
+    eapply id_ren_domain in Hvalid.
+    destruct (id_ren m b) eqn:Hid.
+    apply id_ren_correct in Hid;
+      by subst.
+      by exfalso.
+  Qed.
+
+  Lemma id_ren_invalidblock:
+    forall m b
+      (Hinvalid: ~ Mem.valid_block m b),
+      id_ren m b = None.
+  Proof.
+    intros.
+    assert (Hnot:= iffLRn (id_ren_domain m b) Hinvalid).
+    destruct (id_ren m b) eqn:Hid;
+      first by exfalso.
+      by reflexivity.
+  Qed.
+
+  Lemma is_id_ren :
+    forall f m
+      (Hdomain: domain_memren f m)
+      (Hf_id: forall b1 b2, f b1 = Some b2 -> b1 = b2),
+      f = id_ren m.
+  Proof.
+    intros. extensionality b.
+    assert (Hdomain_id := id_ren_domain m).
+    destruct (f b) eqn:Hf, (id_ren m b) eqn:Hid;
+      try (assert (H:= id_ren_correct _ _ Hid));
+      try (specialize (Hf_id b _ Hf));
+      subst; auto.
+    assert (Hid': ~ id_ren m b0)
+      by (rewrite Hid; auto).
+    assert (Hf': f b0)
+      by (rewrite Hf; auto).
+    apply (proj2 (Hdomain b0)) in Hf'.
+    apply (iffRLn (Hdomain_id b0)) in Hid';
+      by exfalso.
+    assert (Hid': id_ren m b0)
+      by (rewrite Hid; auto).
+    assert (Hf': ~ f b0)
+      by (rewrite Hf; auto).
+    apply (proj2 (Hdomain_id b0)) in Hid'.
+    apply (iffRLn (Hdomain b0)) in Hf';
+      by exfalso.
+  Qed.
+
 End Renamings.
 
 Module MemoryWD.
@@ -803,7 +880,7 @@ End MemObsEq.
 Module CoreInjections.
 
   Import SEM ValObsEq MemoryWD Renamings.
-  Class CodeInj :=
+  Class CoreInj :=
     { core_inj: memren -> C -> C -> Prop;
       core_wd : memren -> C -> Prop;
       ge_wd : memren -> G -> Prop;
@@ -897,3 +974,157 @@ Module CoreInjections.
     }.
 
 End CoreInjections.
+
+Module ThreadPoolInjections.
+
+  Import dry_context mySchedule DryMachine DryMachine.ThreadPool.
+  Import SEM ValObsEq MemoryWD Renamings CoreInjections concurrent_machine.
+  (** Injections on programs *)
+  Context {ci : CoreInj}.
+
+  (*not clear what should happen with vf. Normally it should be in the
+genv and hence should be mapped to itself, but let's not expose this
+here*)
+  Definition ctl_inj f cc cf : Prop :=
+    match cc, cf with
+    | Kinit vf arg, Kinit vf' arg' =>
+      vf = vf' /\ val_obs f arg arg'
+    | Krun c, Krun c' => core_inj f c c'
+    | Kblocked c, Kblocked c' => core_inj f c c'
+    | Kresume c arg, Kresume c' arg' => core_inj f c c' /\ val_obs f arg arg'
+    | _, _  => False
+    end.
+
+  (*Again we do not require that the first argument to Kinit is valid
+  as we never map it, although maybe we should*)
+  Definition ctl_wd f t : Prop :=
+    match t with
+    | Krun c => core_wd f c
+    | Kblocked c => core_wd f c
+    | Kresume c v => core_wd f c /\ valid_val f v
+    | Kinit _ v => valid_val f v
+    end.
+
+  Lemma ctl_wd_incr : forall f f' c,
+      ctl_wd f c ->
+      ren_domain_incr f f' ->
+      ctl_wd f' c.
+  Proof.
+    intros f f' c Hwd Hincr.
+    destruct c; simpl in *;
+    repeat match goal with
+           | [H: _ /\ _ |- _] =>
+             destruct H
+           | [ |- _] => split
+           end;     
+    try (eapply core_wd_incr; eauto);
+    try (eapply valid_val_incr; eauto).
+  Qed.
+  
+  Lemma ctl_inj_trans:
+    forall c c' c'' (f f' f'' : memren)
+      (Hcore_inj: ctl_inj f c c'')
+      (Hcore_inj': ctl_inj f' c c')
+      (Hf: forall b b' b'',
+          f b = Some b'' ->
+          f' b = Some b' ->
+          f'' b' = Some b''),
+      ctl_inj f'' c' c''.
+  Proof.
+    intros.
+    destruct c, c', c''; simpl in *; try (by exfalso);
+    try (destruct Hcore_inj, Hcore_inj'; split);
+    try (eapply core_inj_trans; eauto).
+    eapply val_obs_trans;
+      by eauto.
+      by subst.
+      eapply val_obs_trans;
+        by eauto.
+  Qed.
+
+  Definition tp_wd (f: memren) (tp : thread_pool) : Prop :=
+    forall i (cnti: containsThread tp i),
+      ctl_wd f (getThreadC cnti).
+
+  Lemma tp_wd_incr : forall f f' tp,
+      tp_wd f tp ->
+      ren_domain_incr f f' ->
+      tp_wd f' tp.
+  Proof.
+    intros.
+    intros i cnti.
+    specialize (H i cnti).
+    eapply ctl_wd_incr;
+      by eauto.
+  Qed.
+
+  Lemma ctl_wd_domain:
+    forall f f' m (c : ctl),
+      ctl_wd f c ->
+      domain_memren f m ->
+      domain_memren f' m ->
+      ctl_wd f' c.
+  Proof.
+    intros f f' m c Hwd Hf Hf'.
+    destruct c; simpl in *;
+    repeat match goal with
+           | [H: _ /\ _ |- _] => destruct H
+           | [|- _ /\ _] => split
+           | [|- core_wd _ _] => eapply core_wd_domain; eauto
+           | [|- valid_val _ _] => eapply valid_val_domain; eauto
+           end.
+  Qed.
+
+  Lemma tp_wd_domain:
+    forall f f' m (tp : thread_pool),
+      tp_wd f tp ->
+      domain_memren f m ->
+      domain_memren f' m ->
+      tp_wd f' tp.
+  Proof.
+    intros.
+    intros i cnti.
+    specialize (H i cnti).
+    destruct (getThreadC cnti); simpl in *;
+    repeat match goal with
+           | [H: _ /\ _ |- _] => destruct H
+           | [|- _ /\ _] => split
+           | [|- core_wd _ _] => eapply core_wd_domain; eauto
+           | [|- valid_val _ _] => eapply valid_val_domain; eauto
+           end.
+  Qed.
+
+  Lemma tp_wd_lockSet:
+    forall tp f addr rmap
+      (Htp_wd: tp_wd f tp),
+      tp_wd f (updLockSet tp addr rmap).
+  Proof.
+    intros.
+    intros i cnti'.
+    assert (cnti := cntUpdateL' _ _ cnti').
+    specialize (Htp_wd _ cnti).
+      by rewrite gLockSetCode.
+  Qed.
+
+  Lemma ctl_inj_id:
+    forall f c,
+      ctl_wd f c ->
+      (forall b1 b2, f b1 = Some b2 -> b1 = b2) ->
+      ctl_inj f c c.
+  Proof.
+    intros.
+    destruct c; simpl in *;
+    repeat match goal with
+           |[H: _ /\ _ |- _] =>
+            destruct H
+           |[|- _ /\ _] => split; auto
+           |[|- core_inj _ _ _] =>
+            eapply core_inj_id; eauto
+           |[|- val_obs _ _ _] =>
+            eapply val_obs_id; eauto
+           end.
+  Qed.
+  
+End ThreadPoolInjections.
+
+  
