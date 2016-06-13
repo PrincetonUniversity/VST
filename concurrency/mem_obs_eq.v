@@ -24,6 +24,8 @@ Require Import concurrency.permissions.
 Require Import concurrency.dry_context.
 
 Global Notation "a # b" := (Maps.PMap.get b a) (at level 1).
+
+Module Renamings.
 Definition memren := block -> option block.
 
 Definition ren_incr f1 f2 :=
@@ -40,95 +42,9 @@ Definition ren_domain_incr (f1 f2: memren) :=
   forall b,
     f1 b -> f2 b.
 
-Module MemoryWD.
-  
-(** Valid memories are the ones that do not contain any dangling pointers*)
-Definition valid_mem m :=
-  forall b,
-    Mem.valid_block m b ->
-    forall ofs mv,
-      Maps.ZMap.get ofs (Mem.mem_contents m) # b = mv ->
-      match mv with
-      | Fragment v q n =>
-        mem_wd.val_valid v m
-      | _ => True
-      end.
-
-Definition valid_val (f: memren) (v : val) : Prop :=
-  match v with
-  | Vptr b _ =>
-    exists b', f b = Some b'
-  | _ => True
-  end.
-
-Inductive valid_val_list (f: memren) : seq val -> Prop :=
-  | vs_nil: valid_val_list f [::]
-  | vs_cons: forall v vs,
-      valid_val f v ->
-      valid_val_list f vs ->
-      valid_val_list f (v :: vs).
-
-Definition valid_memval (f: memren) (mv : memval) : Prop :=
-  match mv with
-  | Fragment v _ _ =>
-    valid_val f v
-  | _ => True
-  end.
-
+(** Defining the domain of a renaming with respect to a memory*)
 Definition domain_memren (f: memren) m :=
   forall b, Mem.valid_block m b <-> isSome (f b).
-
-Lemma wd_val_valid:
-  forall v m f
-    (Hdomain: domain_memren f m),
-    mem_wd.val_valid v m <-> valid_val f v.
-Proof.
-  intros.
-  unfold mem_wd.val_valid, valid_val.
-  destruct v; try tauto.
-  split.
-  intro H.
-  apply Hdomain in H.
-  destruct (f b) as [b0|];
-    by [exists b0; eauto | intuition].
-  intros (b' & H).
-  assert (H': f b)
-    by (rewrite H; auto);
-    by apply Hdomain in H'.
-Qed.
-  
-Lemma valid_val_incr:
-  forall f f' v
-    (Hvalid: valid_val f v)
-    (Hincr: ren_domain_incr f f'),
-    valid_val f' v.
-Proof.
-  intros.
-  unfold valid_val in *.
-  destruct v; auto.
-  destruct Hvalid as [? Hf].
-  assert (Hfb: f b)
-    by (rewrite Hf; auto).
-  specialize (Hincr b Hfb).
-  destruct (f' b) eqn:Hf'; try by exfalso.
-    by eexists; eauto.
-Qed.
-
-Lemma valid_val_list_incr:
-  forall f f' vs
-    (Hvalid: valid_val_list f vs)
-    (Hincr: ren_domain_incr f f'),
-    valid_val_list f' vs.
-Proof.
-  intros.
-  induction vs;
-    first by constructor.
-  inversion Hvalid; subst.
-  constructor; eauto.
-  eapply valid_val_incr;
-    by eauto.
-Qed.
-  
 
 Lemma restrPermMap_domain:
   forall f m p (Hlt: permMapLt p (getMaxPerm m)),
@@ -139,46 +55,6 @@ Proof.
   split; intros; specialize (H b);
   erewrite restrPermMap_valid in *;
     by auto.
-Qed.
-
-Lemma restrPermMap_val_valid:
-  forall m p (Hlt: permMapLt p (getMaxPerm m)) v,
-    mem_wd.val_valid v m <-> mem_wd.val_valid v (restrPermMap Hlt).
-Proof.
-  intros; split; unfold mem_wd.val_valid;
-    by destruct v.
-Qed.
-
-Lemma restrPermMap_mem_valid :
-  forall m p (Hlt: permMapLt p (getMaxPerm m)),
-    valid_mem m <-> valid_mem (restrPermMap Hlt).
-Proof.
-  intros.
-  split; intros Hvalid b;
-  specialize (Hvalid b);
-  erewrite restrPermMap_valid in *; simpl; intros Hb ofs mv Hmv;
-  specialize (Hvalid Hb ofs mv Hmv);
-  destruct mv; auto.
-Qed.
-
-Lemma valid_val_domain:
-  forall f f' m v,
-    valid_val f v ->
-    domain_memren f m ->
-    domain_memren f' m ->
-    valid_val f' v.
-Proof.
-  intros.
-  destruct v; auto.
-  destruct H as [b' Hf].
-  unfold domain_memren in *.
-  destruct (H0 b).
-  destruct (H1 b).
-  rewrite Hf in H2.
-  specialize (H2 ltac:(auto)).
-  specialize (H3 H2).
-  destruct (f' b) eqn:Hf'; try by exfalso.
-  econstructor; eauto.
 Qed.
 
 Lemma domain_memren_incr:
@@ -243,6 +119,184 @@ Lemma ren_incr_refl:
 Proof.
   unfold ren_incr; auto.
 Qed.
+
+End Renamings.
+
+Module MemoryWD.
+
+  Import Renamings.
+(** Valid memories are the ones that do not contain any dangling pointers*)
+Definition valid_mem m :=
+  forall b,
+    Mem.valid_block m b ->
+    forall ofs mv,
+      Maps.ZMap.get ofs (Mem.mem_contents m) # b = mv ->
+      match mv with
+      | Fragment v q n =>
+        mem_wd.val_valid v m
+      | _ => True
+      end.
+
+Definition valid_val (f: memren) (v : val) : Prop :=
+  match v with
+  | Vptr b _ =>
+    exists b', f b = Some b'
+  | _ => True
+  end.
+
+Inductive valid_val_list (f: memren) : seq val -> Prop :=
+  | vs_nil: valid_val_list f [::]
+  | vs_cons: forall v vs,
+      valid_val f v ->
+      valid_val_list f vs ->
+      valid_val_list f (v :: vs).
+
+Definition valid_memval (f: memren) (mv : memval) : Prop :=
+  match mv with
+  | Fragment v _ _ =>
+    valid_val f v
+  | _ => True
+  end.
+
+
+Lemma wd_val_valid:
+  forall v m f
+    (Hdomain: domain_memren f m),
+    mem_wd.val_valid v m <-> valid_val f v.
+Proof.
+  intros.
+  unfold mem_wd.val_valid, valid_val.
+  destruct v; try tauto.
+  split.
+  intro H.
+  apply Hdomain in H.
+  destruct (f b) as [b0|];
+    by [exists b0; eauto | intuition].
+  intros (b' & H).
+  assert (H': f b)
+    by (rewrite H; auto);
+    by apply Hdomain in H'.
+Qed.
+  
+Lemma valid_val_incr:
+  forall f f' v
+    (Hvalid: valid_val f v)
+    (Hincr: ren_domain_incr f f'),
+    valid_val f' v.
+Proof.
+  intros.
+  unfold valid_val in *.
+  destruct v; auto.
+  destruct Hvalid as [? Hf].
+  assert (Hfb: f b)
+    by (rewrite Hf; auto).
+  specialize (Hincr b Hfb).
+  destruct (f' b) eqn:Hf'; try by exfalso.
+    by eexists; eauto.
+Qed.
+
+Lemma valid_val_list_incr:
+  forall f f' vs
+    (Hvalid: valid_val_list f vs)
+    (Hincr: ren_domain_incr f f'),
+    valid_val_list f' vs.
+Proof.
+  intros.
+  induction vs;
+    first by constructor.
+  inversion Hvalid; subst.
+  constructor; eauto.
+  eapply valid_val_incr;
+    by eauto.
+Qed.
+  
+Lemma restrPermMap_val_valid:
+  forall m p (Hlt: permMapLt p (getMaxPerm m)) v,
+    mem_wd.val_valid v m <-> mem_wd.val_valid v (restrPermMap Hlt).
+Proof.
+  intros; split; unfold mem_wd.val_valid;
+    by destruct v.
+Qed.
+
+Lemma restrPermMap_mem_valid :
+  forall m p (Hlt: permMapLt p (getMaxPerm m)),
+    valid_mem m <-> valid_mem (restrPermMap Hlt).
+Proof.
+  intros.
+  split; intros Hvalid b;
+  specialize (Hvalid b);
+  erewrite restrPermMap_valid in *; simpl; intros Hb ofs mv Hmv;
+  specialize (Hvalid Hb ofs mv Hmv);
+  destruct mv; auto.
+Qed.
+
+Lemma valid_val_domain:
+  forall f f' m v,
+    valid_val f v ->
+    domain_memren f m ->
+    domain_memren f' m ->
+    valid_val f' v.
+Proof.
+  intros.
+  destruct v; auto.
+  destruct H as [b' Hf].
+  unfold domain_memren in *.
+  destruct (H0 b).
+  destruct (H1 b).
+  rewrite Hf in H2.
+  specialize (H2 ltac:(auto)).
+  specialize (H3 H2).
+  destruct (f' b) eqn:Hf'; try by exfalso.
+  econstructor; eauto.
+Qed.
+
+(** Well-definedeness is preserved through storing a well-defined value *)
+Lemma store_wd:
+  forall m m' chunk b ofs v
+    (Hstore: Mem.store chunk m b ofs v = Some m')
+    (Hval_wd: mem_wd.val_valid v m)
+    (Hmem_wd: valid_mem m),
+    valid_mem m'.
+Proof.
+Admitted.
+(*intros.
+            intros b' Hvalid' ofs' mv' Hget.
+            assert (Hvalid := Mem.store_valid_access_3 _ _ _ _ _ _ Hstore).
+            eapply Mem.valid_access_implies with (p2 := Nonempty) in Hvalid;
+              try constructor.
+            eapply Mem.valid_access_valid_block in Hvalid.
+            destruct mv'; auto.
+            assert (Hcontents := Mem.store_mem_contents _ _ _ _ _ _ Hstore).
+            rewrite Hcontents in Hget. clear Hcontents.
+            destruct (Pos.eq_dec b b') as [Heq | Hneq].
+            (*case it's the same block*)
+            subst.
+            rewrite Maps.PMap.gss in Hget.
+            destruct v, chunk; simpl in *. Focus 3.
+            try match goal with
+                | [H: Maps.ZMap.get ?Ofs (Maps.ZMap.set ?Ofs' _ _) = _ |- _] =>
+                  destruct (Z.eq_dec Ofs Ofs'); subst
+                end;
+            try match goal with
+                | [H: Maps.ZMap.get ?Ofs (Maps.ZMap.set ?Ofs _ _) = _ |- _] =>
+                  rewrite Maps.ZMap.gss in H
+                | [H: Maps.ZMap.get ?Ofs (Maps.ZMap.set ?Ofs' _ _) = _,
+                      H1: ?Ofs <> ?Ofs' |- _] =>
+                  rewrite Maps.ZMap.gso in H; auto
+                end;
+            try discriminate;
+            unfold mem_wd.val_valid;
+            destruct v0; auto;
+            try (specialize (Hmem_wd b' Hvalid ofs' _ Hget);
+                  simpl in Hmem_wd);
+            try (by (eapply Mem.store_valid_block_1; eauto)).
+            try match goal with
+                | [H: Maps.ZMap.get ?ofS (Maps.ZMap.set ?Ofs _ _) = _ |- _] =>
+                  destruct (Z.eq_dec ofs' Ofs); subst
+                end.
+            
+            try rewrite Maps.ZMap.gss in Hget;
+            try discriminate. *)
   
 End MemoryWD.
 
@@ -285,7 +339,7 @@ End MemoryLemmas.
 
 (** ** Injections on values*)
 Module ValObsEq.
-  Import MemoryWD.
+  Import MemoryWD Renamings.
   
   (** Strong injections on values *)
   Inductive val_obs (mi : memren) : val -> val -> Prop :=
@@ -399,7 +453,7 @@ End ValObsEq.
 (** ** Injections between memories *)
 Module MemObsEq.
 
-  Import ValObsEq SEM MemoryWD.
+  Import ValObsEq SEM MemoryWD Renamings.
 
   (* A compcert injection would not work because it allows permissions to go up *)
   (* Moreover, we require that undefined values are matched by the target memory,
@@ -748,7 +802,7 @@ End MemObsEq.
 
 Module CoreInjections.
 
-  Import SEM ValObsEq MemoryWD.
+  Import SEM ValObsEq MemoryWD Renamings.
   Class CodeInj :=
     { core_inj: memren -> C -> C -> Prop;
       core_wd : memren -> C -> Prop;
