@@ -131,7 +131,8 @@ SEPCOMP_FILES= \
   nucular_semantics.v \
   wholeprog_simulations.v \
   wholeprog_lemmas.v \
-  barebones_simulations.v
+  barebones_simulations.v \
+  drf_semantics.v
   #safety_preservation.v \
 
 CONCUR_FILES= \
@@ -154,7 +155,7 @@ CCC26x86_FILES = \
   Machregs.v Asm.v \
   Switch.v Cminor.v \
   I64Helpers.v BuiltinEffects.v load_frame.v Asm_coop.v Asm_eff.v \
-  Asm_nucular.v 
+  Asm_nucular.v Asm_drf.v
 
 LINKING_FILES= \
   sepcomp.v \
