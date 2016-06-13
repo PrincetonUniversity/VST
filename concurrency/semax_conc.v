@@ -306,15 +306,15 @@ Theorem oracular_refinement cs ext_link ge n oracle c m :
   jsafeN (Concurrent_Espec unit cs ext_link).(@OK_spec) ge n tt c m ->
   jsafeN (Concurrent_Oracular_Espec cs ext_link).(@OK_spec) ge n oracle c m.
 Proof.
-  revert oracle c m; induction n as [n IH] using strong_nat_ind; intros oracle c m.
-  intros Safe; induction Safe as [ | | n Ω c m e sig args x E Pre Post | ].
+  revert oracle c m; induction n as [n InductionHypothesis] using strong_nat_ind; intros oracle c m.
+  intros Safe; induction Safe as [ | | n z_unit c m e sig args x E Pre Post | ].
   all: swap 3 4.
   - (* safeN_0 *)
     now eapply safeN_0; eauto.
   
   - (* safeN_step *)
     eapply safeN_step; eauto.
-    now apply IH; auto.
+    now apply InductionHypothesis; auto.
   
   - (* safeN_halted *)
     now eapply safeN_halted; eauto.
@@ -328,13 +328,12 @@ Proof.
     assert (Hef : match e with EF_external _ _ => True | _ => False end).
     {
       match goal with x : ext_spec_type _ _  |- _ => clear -x end.
-      destruct e eqn:Ee; [ apply I | .. ];
-        simpl in x;
+      destruct e eqn:Ee; [ apply I | .. ]; simpl in x;
         repeat match goal with
-                 _ : context [ (* o_ *)ident_eq ?x ?y ] |- _ =>
-                 destruct ((* o_ *)ident_eq x y); try discriminate; try tauto
+                 _ : context [ oi_eq_dec ?x ?y ] |- _ =>
+                 destruct (oi_eq_dec x y); try discriminate; try tauto
                end.
-      all: match goal with E : _ = 1%positive |- _ => admit end.
+      (* all: match goal with E : _ = 1%positive |- _ => admit end. *)
     }
     
     assert (Ex : exists name sig, e = EF_external name sig) by (destruct e; eauto; tauto).
@@ -345,12 +344,14 @@ Proof.
     revert x Pre Post.
     simpl (ext_spec_pre _); simpl (ext_spec_post _); simpl (ext_spec_type _).
     unfold funspec2pre, funspec2post, ext_spec_type, ext_spec_pre, ext_spec_post.
-    destruct (ident_eq (ext_link "acquire"%string) (ef_id ext_link (EF_external name sg)))
+    destruct (oi_eq_dec (Some (ext_link "acquire"%string)) (ef_id ext_link (EF_external name sg)))
+    (* destruct (ident_eq (ext_link "acquire"%string) (ef_id ext_link (EF_external name sg))) *)
       as [ H_acquire | notacquire ].
     
     { (* case 1 : acquire *)
       intros [phi_x [[vx shx] Rx]] Pre Post.
       destruct oracle as [ | phi_oracle oracle ].
+      
       - simpl.
         
         (* this is the x parameter for the WITH clause, but it has the wrong type. *)
@@ -362,7 +363,7 @@ Proof.
                )%type as EqT.
         { simpl. rewrite H_acquire. simpl. if_tac;[ reflexivity | congruence ]. }
         
-        (* getting a JM copy of x of the correct type *)
+        (* getting a JMeq-copy of x of the correct type *)
         remember xwith as x2.
         assert (JMeq xwith x2). subst. apply JMeq_refl.
         clear Heqx2.
@@ -385,33 +386,117 @@ Proof.
         intros x2 E2.
         
         Set Printing All.
-        (* the following is strange, it fails to typecheck even though
-        it is provided as a quote from one of the types *)
+        (* The following is strange, it fails to typecheck even though
+        it is provided as a quote from one of the types. *)
+        Fail apply safeN_external with
+          (e := EF_external name sg)
+          (x := x2).
         Fail 
           set (qwdq := @ext_spec_type juicy_mem external_function (list rmap)
                                       (JE_spec (list rmap) (concurrent_oracular_ext_spec cs ext_link))
                                       acquire_oracular_spec).
+        Unset Printing All.
         
-        Fail apply safeN_external with
-        (e := acquire_oracular_spec)
-          (x := x2).
-        
-        (* solve this with JM_eq + ident_eq (or ) *)
-        
-        Set Printing Implicit.
-        eapply (@safeN_external
-                  genv Clight_new.corestate juicy_mem Oracle (@Genv.genv_symb _ _) Hrel
-                  (juicy_core_sem cl_core_sem)
-                  (@OK_spec (Concurrent_Oracular_Espec cs ext_link))
-                  ge n
-               )
-        .
+        eapply safeN_external with
+          (e := EF_external name sg)
+            (x := x2).
         + reflexivity.
-        + admit.
-        + admit.
+        + simpl.
+          
+          revert x2 E2.
+          simpl (ext_spec_pre _); simpl (ext_spec_post _); simpl (ext_spec_type _).
+          unfold funspecOracle2pre, funspecOracle2post, ext_spec_type, ext_spec_pre, ext_spec_post.
+          destruct (oi_eq_dec (Some (ext_link "acquire"%string)) (ef_id ext_link (EF_external name sg))).
+          2:congruence. clear e.
+          intros x2 E2. apply JMeq_eq in E2. subst x2.
+          unfold xwith; simpl in Pre |- *. (* done with JMeq.. for this +bullet. *)
+          
+          destruct Pre as [phi0 [phi1 [Hj [[[? ?] [[? ?] ?]] ?]]]].
+          exists phi0, phi1; repeat split; auto.
+          
+        + intros ret m' z' n' Hn Hr.
+          specialize (Post ret m' tt n' Hn Hr).
+          
+          revert x2 E2.
+          simpl (ext_spec_pre _); simpl (ext_spec_post _); simpl (ext_spec_type _).
+          unfold funspecOracle2pre, funspecOracle2post, ext_spec_type, ext_spec_pre, ext_spec_post.
+          destruct (oi_eq_dec (Some (ext_link "acquire"%string)) (ef_id ext_link (EF_external name sg))).
+          2:congruence. clear e.
+          intros x2 E2. apply JMeq_eq in E2. subst x2.
+          
+          intros [phi0 [phi1 [Hj PLS]]].
+          destruct PLS as [[[? [FALSE ?]] ?] ?].
+          exfalso; tauto.
       
-      - (* oracle not empty... *)
-        admit.
+      - simpl.
+        
+        (* this is the x parameter for the WITH clause, but it has the wrong type. *)
+        pose (xwith := (phi_x, (app_pred (Interp Rx) phi_oracle, oracle, vx, shx, Rx))).
+        assert ((rmap * (Prop * list rmap * val * share * Pred) =
+                 @ext_spec_type
+                   juicy_mem external_function (@OK_ty (Concurrent_Oracular_Espec cs ext_link))
+                   (@OK_spec (Concurrent_Oracular_Espec cs ext_link)) (EF_external name sg))
+               )%type as EqT.
+        { simpl. rewrite H_acquire. simpl. if_tac;[ reflexivity | congruence ]. }
+        
+        (* getting a JMeq-copy of x of the correct type *)
+        remember xwith as x2.
+        assert (JMeq xwith x2). subst. apply JMeq_refl.
+        clear Heqx2.
+        revert x2 H.
+        pattern (rmap * (Prop * list rmap * val * share * Pred))%type at 1 3.
+        cut (
+            (fun T : Type =>
+               forall x2 : T,
+                 @JMeq (rmap * (Prop * list rmap * val * share * Pred)) xwith T x2 ->
+                 @jsafeN (list rmap) (concurrent_oracular_ext_spec cs ext_link) ge (S n) (phi_oracle :: oracle)
+                         (Clight_new.ExtCall (EF_external name sg) sig args lid ve te k) m)
+              (@ext_spec_type juicy_mem external_function (@OK_ty (Concurrent_Oracular_Espec cs ext_link))
+                              (@OK_spec (Concurrent_Oracular_Espec cs ext_link)) (EF_external name sg))).
+        {
+          assert (APP : forall P Q  : Prop, P = Q -> P -> Q) by (intros ? ? -> ; auto).
+          apply APP.
+          rewrite <- EqT.
+          reflexivity.
+        }
+        intros x2 E2.
+        
+        eapply safeN_external with
+          (e := EF_external name sg)
+            (x := x2).
+        + reflexivity.
+        + simpl.
+          
+          revert x2 E2.
+          simpl (ext_spec_pre _); simpl (ext_spec_post _); simpl (ext_spec_type _).
+          unfold funspecOracle2pre, funspecOracle2post, ext_spec_type, ext_spec_pre, ext_spec_post.
+          destruct (oi_eq_dec (Some (ext_link "acquire"%string)) (ef_id ext_link (EF_external name sg))).
+          2:congruence. clear e.
+          intros x2 E2. apply JMeq_eq in E2. subst x2.
+          
+          unfold xwith; simpl in Pre |- *.
+          
+          destruct Pre as [phi0 [phi1 [Hj [[[? ?] [[? ?] ?]] ?]]]].
+          exists phi0, phi1; repeat split; auto.
+          
+        + intros ret m' z' n' Hn Hr.
+          specialize (Post ret m' tt n' Hn Hr).
+          
+          revert x2 E2.
+          simpl (ext_spec_pre _); simpl (ext_spec_post _); simpl (ext_spec_type _).
+          unfold funspecOracle2pre, funspecOracle2post, ext_spec_type, ext_spec_pre, ext_spec_post.
+          destruct (oi_eq_dec (Some (ext_link "acquire"%string)) (ef_id ext_link (EF_external name sg))).
+          2:congruence. clear e.
+          intros x2 E2. apply JMeq_eq in E2. subst x2.
+          
+          intros [phi0 [phi1 [Hj [[? [? Sep]] NC]]]].
+          destruct Post as [c' [Ae Post]].
+          { exists phi0, phi1; repeat split; auto. }
+          exists c'; split; [ now auto | ].
+          apply InductionHypothesis. omega.
+          hnf.
+          destruct z_unit. (* only unit (can be replaced with a universal quantification) *)
+          apply Post.
     }
     
     unfold JE_spec.
@@ -419,16 +504,97 @@ Proof.
     simpl (ext_spec_pre _); simpl (ext_spec_post _); simpl (ext_spec_type _).
     unfold funspec2pre, funspec2post, ext_spec_type, ext_spec_pre, ext_spec_post, release_spec.
     
-    destruct (ident_eq (ext_link "release"%string) (ef_id ext_link (EF_external name sg)))
+    destruct (oi_eq_dec (Some (ext_link "release"%string)) (ef_id ext_link (EF_external name sg)))
       as [ H_release | notrelease ].
     { (* case 2: release *)
-      admit.
+      intros [phi_x [[vx shx] Rx]] Pre Post.
+      simpl.
+      
+      (* this is the x parameter for the WITH clause, but it has the wrong type. *)
+      pose (xwith := (phi_x, (oracle, vx, shx, Rx))).
+      assert ((rmap * (list rmap * val * share * Pred) =
+               @ext_spec_type
+                 juicy_mem external_function (@OK_ty (Concurrent_Oracular_Espec cs ext_link))
+                 (@OK_spec (Concurrent_Oracular_Espec cs ext_link)) (EF_external name sg))
+             )%type as EqT.
+      simpl in *.
+      { rewrite H_release. simpl. if_tac. congruence. if_tac. reflexivity. congruence. }
+      
+      (* getting a JMeq-copy of x of the correct type *)
+      remember xwith as x2.
+      assert (JMeq xwith x2). subst. apply JMeq_refl.
+      clear Heqx2.
+      revert x2 H.
+      simpl OK_ty.
+      pattern (rmap * (list rmap * val * share * Pred))%type at 1 3.
+      cut (
+          (fun T : Type =>
+             forall x2 : T,
+               @JMeq (rmap * (list rmap * val * share * Pred)) xwith T x2 ->
+               @jsafeN (list rmap) (concurrent_oracular_ext_spec cs ext_link) ge (S n) oracle
+                       (Clight_new.ExtCall (EF_external name sg) sig args lid ve te k) m)
+            (@ext_spec_type juicy_mem external_function (@OK_ty (Concurrent_Oracular_Espec cs ext_link))
+                            (@OK_spec (Concurrent_Oracular_Espec cs ext_link)) (EF_external name sg))).
+      {
+        assert (APP : forall P Q  : Prop, P = Q -> P -> Q) by (intros ? ? -> ; auto).
+        apply APP.
+        rewrite <- EqT.
+        reflexivity.
+      }
+      intros x2 E2.
+      
+      eapply safeN_external with
+      (e := EF_external name sg)
+        (x := x2).
+      + reflexivity.
+      + simpl.
+        revert x2 E2.
+        
+        simpl (ext_spec_pre _); simpl (ext_spec_post _); simpl (ext_spec_type _).
+        unfold funspecOracle2pre, funspecOracle2post, ext_spec_type, ext_spec_pre, ext_spec_post.
+        destruct (oi_eq_dec (Some (ext_link "acquire"%string)) (ef_id ext_link (EF_external name sg))).
+        now congruence.
+        simpl (JE_spec _ _).
+        simpl (ext_spec_pre _); simpl (ext_spec_post _); simpl (ext_spec_type _).
+        unfold funspecOracle2pre, funspecOracle2post, ext_spec_type, ext_spec_pre, ext_spec_post.
+        destruct (oi_eq_dec (Some (ext_link "release"%string)) (ef_id ext_link (EF_external name sg))).
+        2:congruence. clear e.
+        intros x2 E2. apply JMeq_eq in E2. subst x2.
+        
+        unfold xwith; simpl in Pre |- *.
+        
+        destruct Pre as [phi0 [phi1 [Hj [[[? ?] [[? ?] ?]] ?]]]].
+        exists phi0, phi1; repeat split; auto.
+        
+      + intros ret m' z' n' Hn Hr.
+        specialize (Post ret m' tt n' Hn Hr).
+        
+        revert x2 E2.
+        simpl (ext_spec_pre _); simpl (ext_spec_post _); simpl (ext_spec_type _).
+        unfold funspecOracle2pre, funspecOracle2post, ext_spec_type, ext_spec_pre, ext_spec_post.
+        destruct (oi_eq_dec (Some (ext_link "acquire"%string)) (ef_id ext_link (EF_external name sg))).
+        now congruence.
+        simpl (JE_spec _ _).
+        simpl (ext_spec_pre _); simpl (ext_spec_post _); simpl (ext_spec_type _).
+        unfold funspecOracle2pre, funspecOracle2post, ext_spec_type, ext_spec_pre, ext_spec_post.
+        destruct (oi_eq_dec (Some (ext_link "release"%string)) (ef_id ext_link (EF_external name sg))).
+        2:congruence. clear e.
+        intros x2 E2. apply JMeq_eq in E2. subst x2.
+        
+        intros [phi0 [phi1 [Hj [[? [? Sep]] NC]]]].
+        destruct Post as [c' [Ae Post]].
+        { exists phi0, phi1; repeat split; auto. }
+        exists c'; split; [ now auto | ].
+        apply InductionHypothesis. omega.
+        hnf.
+        destruct z_unit.
+        apply Post.
     }
     
     { (* remaining of cases *)
       intros x; exfalso; tauto.
     }
-Admitted.
+Qed.
 
 (*
 Lemma semax_conc' cs (ext_link: string -> ident) id sig cc A P Q :

@@ -401,8 +401,8 @@ Section Simulation.
           now destruct e eqn:Ee; [ apply I | .. ];
             simpl in x;
             repeat match goal with
-                     _ : context [ o_ident_eq ?x ?y ] |- _ =>
-                     destruct (o_ident_eq x y); try discriminate; try tauto
+                     _ : context [ oi_eq_dec ?x ?y ] |- _ =>
+                     destruct (oi_eq_dec x y); try discriminate; try tauto
                    end.
         }
         assert (Ex : exists name sig, ef = EF_external name sig) by (destruct ef; eauto; tauto).
@@ -410,11 +410,11 @@ Section Simulation.
         
         (* paragraph below: ef has to be an EF_external with one of those 5 names *)
         assert (which_primitive :
-                  ext_link "acquire" = (ef_id ext_link (EF_external name sg)) \/
-                  ext_link "release" = (ef_id ext_link (EF_external name sg)) \/
-                  ext_link "makelock" = (ef_id ext_link (EF_external name sg)) \/
-                  ext_link "freelock" = (ef_id ext_link (EF_external name sg)) \/
-                  ext_link "spawn" = (ef_id ext_link (EF_external name sg))).
+                  Some (ext_link "acquire") = (ef_id ext_link (EF_external name sg)) \/
+                  Some (ext_link "release") = (ef_id ext_link (EF_external name sg)) \/
+                  Some (ext_link "makelock") = (ef_id ext_link (EF_external name sg)) \/
+                  Some (ext_link "freelock") = (ef_id ext_link (EF_external name sg)) \/
+                  Some (ext_link "spawn") = (ef_id ext_link (EF_external name sg))).
         {
           pose proof (safe i pr_i phi_i jm_i (* oracle=*)nil ltac:(assumption)) as safe_i.
           rewrite Ec_i in safe_i.
@@ -425,8 +425,8 @@ Section Simulation.
           match goal with H : ext_spec_type _ _  |- _ => clear -H end.
           simpl in *.
           repeat match goal with
-                   _ : context [ o_ident_eq ?x ?y ] |- _ =>
-                   destruct (o_ident_eq x y); try injection e; auto
+                   _ : context [ oi_eq_dec ?x ?y ] |- _ =>
+                   destruct (oi_eq_dec x y); try injection e; auto
                  end.
           tauto.
         
@@ -474,7 +474,7 @@ Section Simulation.
           unfold funspecOracle2post.
           unfold ext_spec_pre, ext_spec_post.
           Local Notation "{| 'JE_spec ... |}" := {| JE_spec := _; JE_pre_hered := _; JE_post_hered := _; JE_exit_hered := _ |}.
-          destruct (o_ident_eq (Some (ext_link "acquire")) (o_ef_id ext_link (EF_external name sg)))
+          destruct (oi_eq_dec (Some (ext_link "acquire")) (ef_id ext_link (EF_external name sg)))
             as [E | E];
             [ | now clear -E H_acquire; simpl in *; congruence ].
           
