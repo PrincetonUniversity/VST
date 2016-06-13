@@ -1,9 +1,9 @@
-Require Import ssreflect ssrbool ssrfun seq eqtype fintype.
-Set Implicit Arguments.
-Unset Strict Implicit.
-Unset Printing Implicit Defensive.
+(* ssreflect *)
 
-Require Import sepcomp. Import SepComp.
+From mathcomp.ssreflect Require Import ssreflect ssrbool ssrnat ssrfun eqtype seq fintype finfun.
+Set Implicit Arguments.
+
+Require Import concurrency.sepcomp. Import SepComp.
 
 Lemma reestablish_locBlocksSrc mu0 mu : 
   locBlocksSrc (reestablish mu0 mu) = locBlocksSrc mu0.

@@ -1,15 +1,17 @@
-Require Import Coqlib.
-Require Import Coqlib2.
+Require Import compcert.lib.Coqlib.
+Require Import msl.Coqlib2.
 
 (* deliberately imported here *)
 Require Import Coq.Wellfounded.Inclusion.
 Require Import Coq.Wellfounded.Inverse_Image.
 
-Require Import ssreflect ssrbool ssrnat ssrfun fintype.
+(* ssreflect *)
+
+From mathcomp.ssreflect Require Import ssreflect ssrbool ssrnat ssrfun eqtype seq fintype finfun.
 Set Implicit Arguments.
 
-Require Import pos.
-Require Import cast.
+Require Import concurrency.pos.
+Require Import concurrency.cast.
 
 (** * Well-Founded Orders *)
 

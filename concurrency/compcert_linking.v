@@ -848,6 +848,15 @@ apply semantics_lemmas.corestep_fwd in STEP.
 auto.
 Qed.
 
+Lemma effstep0_mem U l m l' m' : 
+  effstep0 U l m l' m' -> mem_step m m'.
+Proof. 
+move/effstep0_corestep0; rewrite/LinkerSem.corestep0. 
+move=> []c' []STEP H1.
+apply corestep_mem in STEP.
+auto.
+Qed.
+
 Lemma effstep0_rdonly U l m l' m' : 
   effstep0 U l m l' m' -> 
   forall b, Mem.valid_block m b -> readonly m b m'.
@@ -908,15 +917,9 @@ Qed.
 Program Definition coopsem := Build_MemSem _ _ csem _.
 
 Next Obligation. 
-  move: CS; case; move=>[H1|[<- [H0 H1]]].
-  (* HERE:::::  GORDON: TODO! EASY!!!!! *)
-by move/(_ H1)=>{H1} [U EFF]; apply (effstep0_forward EFF).
-by move=> ?; apply mem_forward_refl.
-Qed.
-Next Obligation. 
-move: CS; case; move=>[H1|[<- [H0 H1]]]. 
- move/(_ H1)=>{H1} [U EFF]. apply (effstep0_rdonly EFF); auto.
-by [].
+move: CS; case; move=>[H1|[<- [H0 H1]]].
+by move/(_ H1)=>{H1} [U EFF]; apply: (effstep0_mem EFF).
+by move=> ?; apply: semantics_lemmas.mem_step_refl.
 Qed.
 
 Program Definition effsem := Build_EffectSem _ _ coopsem effstep _ _ _.
@@ -938,7 +941,7 @@ Qed.
 Next Obligation.
 move: H; rewrite/effstep=> [][]; case.
 move=> H; move/(_ H); rewrite/effstep0. 
-by move=> []? []H2 _ _; apply: (effstep_valid _ _ _ _ _ _ _ H2 _ _ H0).
+by move=> []? []H2 _ _; apply: (effstep_perm _ _ _ _ _ _ _ H2 _ _ H0).
 by move=> []_ []nstep _ _; move/(_ nstep b z); rewrite H0.
 Qed.
 
