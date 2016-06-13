@@ -530,7 +530,7 @@ End ValObsEq.
 (** ** Injections between memories *)
 Module MemObsEq.
 
-  Import ValObsEq SEM MemoryWD Renamings.
+  Import ValObsEq SEM MemoryWD Renamings MemoryLemmas.
 
   (* A compcert injection would not work because it allows permissions to go up *)
   (* Moreover, we require that undefined values are matched by the target memory,
@@ -836,11 +836,11 @@ Module MemObsEq.
   
   
   Lemma load_valid_block:
-    forall (m : mem) (b : block) (ofs : int),
-      Mem.load Mint32 m b (Int.intval ofs) = Some (Vint Int.one) ->
+    forall (m : mem) (b : block) (ofs : int) v,
+      Mem.load Mint32 m b (Int.intval ofs) = Some v ->
       Mem.valid_block m b.
   Proof.
-    intros m b ofs Hload.
+    intros m b ofs v Hload.
     apply Mem.load_valid_access in Hload.
     apply Mem.valid_access_valid_block with (chunk:=Mint32) (ofs:= Int.intval ofs).
     eapply Mem.valid_access_implies; eauto.
@@ -874,7 +874,59 @@ Module MemObsEq.
       strong_mem_obs_eq f mc' mf'.
   Proof.
     Admitted.
- 
+
+  Lemma mem_obs_eq_storeF:
+    forall f mc mf mf' chunk b ofs v pmap pmap2
+      (Hlt: permMapLt pmap (getMaxPerm mf))
+      (Hlt': permMapLt pmap (getMaxPerm mf'))
+      (Hlt2: permMapLt pmap2 (getMaxPerm mf))
+      (Hstore: Mem.store chunk (restrPermMap Hlt2) b ofs v = Some mf')
+      (Hdisjoint: permMapsDisjoint pmap pmap2)
+      (Hobs_eq: mem_obs_eq f mc (restrPermMap Hlt)),
+      mem_obs_eq f mc (restrPermMap Hlt').
+  Proof.
+    intros.
+    destruct Hobs_eq as [Hweak_obs_eq Hstrong_obs_eq].
+    destruct Hweak_obs_eq.
+    constructor.
+    (* weak_obs_eq *)
+    constructor; auto.
+    intros b1 b2 Hf.
+    erewrite restrPermMap_valid.
+    specialize (codomain_valid0 _ _ Hf).
+    erewrite restrPermMap_valid in codomain_valid0.
+    eapply Mem.store_valid_block_1;
+      by eauto.
+    intros b1 b2 ofs0 Hf.
+    specialize (perm_obs_weak0 _ _ ofs0 Hf).
+    rewrite restrPermMap_Cur in perm_obs_weak0;
+      by rewrite restrPermMap_Cur.
+    destruct Hstrong_obs_eq.
+    constructor.
+    intros b1 b2 ofs0 Hf.
+    specialize (perm_obs_strong0 _ _ ofs0 Hf).
+    rewrite restrPermMap_Cur in perm_obs_strong0;
+      by rewrite restrPermMap_Cur.
+    intros b1 b2 ofs0 Hf Hperm.
+    simpl.
+    specialize (perm_obs_strong0 _ _ ofs0 Hf).
+    rewrite restrPermMap_Cur in perm_obs_strong0.
+    assert (Hstable: ~ Mem.perm (restrPermMap Hlt2) b2 ofs0 Cur Writable).
+    { intros Hcontra.
+      assert (Hcur := restrPermMap_Cur Hlt2 b2 ofs0).     
+      unfold Mem.perm in *.
+      unfold permission_at in *.
+      rewrite <- perm_obs_strong0 in Hperm.
+      rewrite Hcur in Hcontra.
+      specialize (Hdisjoint b2 ofs0).
+      eapply perm_order_clash; eauto.
+    }
+    erewrite store_contents_other with (m := restrPermMap Hlt2) (m' := mf')
+      by eauto.
+    simpl;
+      by auto.
+  Qed.
+  
 End MemObsEq.
 
 Module CoreInjections.

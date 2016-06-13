@@ -1520,6 +1520,72 @@ Module InternalSteps.
         by (eapply internal_step_valid; eauto).
         by eauto.
     Qed.
+
+    Lemma internal_step_disjoint_val_lockPool :
+      forall tp tp' m m' i bl ofsl pmap
+        (pfi: containsThread tp i)
+        (Hcomp: mem_compatible tp m)
+        (Hcomp': mem_compatible tp' m')
+        (Hstep: internal_step pfi Hcomp tp' m') b ofs
+        (Hl: lockRes tp (bl,ofsl) = Some pmap)
+        (Hreadable: Mem.perm (restrPermMap (compat_lp Hcomp _ Hl))
+                             b ofs Cur Readable),
+        Maps.ZMap.get ofs (Mem.mem_contents m) # b =
+        Maps.ZMap.get ofs (Mem.mem_contents m') # b.
+    Proof.
+      intros.
+      inversion Hstep as [Hcstep | [[Hrstep Heq] | [Hsstep Heq]]]; subst; auto.
+      inversion Hcstep; subst; eapply corestep_disjoint_val_lockpool;
+        by eauto.
+    Qed.
+    
+    Lemma internal_exec_disjoint_val_lockPool:
+      forall (tp tp' : thread_pool) (m m' : mem) (i : tid) xs bl ofsl pmap
+        (Hcomp : mem_compatible tp m)
+        (Hexec: internal_execution [seq x <- xs | x == i] tp m tp' m')
+        (Hl: lockRes tp (bl,ofsl) = Some pmap)
+        b ofs
+        (Hreadable: Mem.perm (restrPermMap (compat_lp Hcomp _ Hl)) b ofs Cur Readable),
+        Maps.ZMap.get ofs (Mem.mem_contents m) # b =
+        Maps.ZMap.get ofs (Mem.mem_contents m') # b.
+    Proof.
+      intros.
+      generalize dependent tp.  generalize dependent m.
+      induction xs as [|x xs]; intros.
+      - simpl in Hexec; inversion Hexec; subst.
+        reflexivity.
+        simpl in HschedN. by discriminate.
+      - simpl in Hexec.
+        destruct (x == i) eqn:Heq; move/eqP:Heq=>Heq.
+        + subst x.
+          inversion Hexec; subst.
+          simpl in Htrans.
+          simpl in HschedN.
+          inversion HschedN; subst tid.
+          pf_cleanup.
+          assert (pfi0': containsThread tp'0 i) by
+              (eapply containsThread_internal_step; eauto).
+          assert(Hcomp0': mem_compatible tp'0 m'0) by
+              (eapply internal_step_compatible; eauto).
+          assert (Hl0': lockRes tp'0 (bl, ofsl) = Some pmap)
+            by (erewrite <- gsoLockPool_step; eauto).
+          assert (Hreadable0':
+                    Mem.perm (restrPermMap (compat_lp Hcomp0' _ Hl0'))
+                             b ofs Cur Readable).
+          { clear IHxs Htrans HschedN.
+            unfold Mem.perm in *.
+            assert (H1:= restrPermMap_Cur (compat_lp Hcomp0' _ Hl0') b ofs).
+            unfold permission_at in H1.
+            rewrite H1.
+            assert (H2:= restrPermMap_Cur (compat_lp Hcomp _ Hl) b ofs).
+            unfold permission_at in H2.
+              by rewrite H2 in Hreadable.
+          }
+          specialize (IHxs _ _  Hcomp0' Htrans Hl0' Hreadable0').
+          rewrite <- IHxs.
+          eapply internal_step_disjoint_val_lockPool; eauto.
+        + by eauto.
+    Qed.
     
   End InternalSteps.
 End InternalSteps.
