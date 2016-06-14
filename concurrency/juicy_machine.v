@@ -178,7 +178,8 @@ Module Concur.
 
     (*Join juice from all threads *)
     Definition getThreadsR tp:=
-      map (perm_maps tp) (enum ('I_(num_threads tp))).
+      map (perm_maps tp) ( ord_enum (num_threads tp)).
+        
     Fixpoint join_list (ls: seq.seq res) r:=
       if ls is phi::ls' then exists r', join phi r' r /\ join_list ls' r' else
         app_pred emp r.  (*Or is is just [amp r]?*)
@@ -720,3 +721,4 @@ Declare Module SEM:Semantics.
     myCoarseSemantics.MachineSemantics.*)
   
 End Concur.
+

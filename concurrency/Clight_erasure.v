@@ -566,7 +566,7 @@ Module ClightParching <: ErasureSig.
                       (b, Int.intval ofs) empty_map).
          exists ds''.
          split; [|split].
-    - Require Import concurrency.dry_machine_lemmas.
+    - Require Import dry_machine_lemmas.
       unfold ds''.
       Definition permDisjoint p1 p2:=
         exists pu : option permission,
@@ -729,64 +729,29 @@ Module ClightParching <: ErasureSig.
         - assumption.
         - intros. admit. (*virtue is disjoint from other threads. *)
         - intros. admit. (*virtue is disjoint from lockSet. *)
-        - intros. admit. (* *)
-          
-
-          
-        -
-        -
-          
+        - intros. admit. (*virtue disjoint from other lock resources.*)
       }
-        
-      
-            
-      -
-        
-              
-              
-              
-          destruct (AMap.E.eq_dec a l).
-          + subst.
-            rewrite DTP.gssLockRes in H2; inversion H2; subst.
-            
-            
-
-            
-            
-            rewrite DTP.gLockSetRes.
-            inversion H. eapply lock_res_threads.
-            
-            
-          eapply restrPermMap_disjoint_inv.
-          rewrite DTP.gLockSetRes.
-            apply H; assumption.
-          Qed.
-          apply updLock_raceFree. inversion H; assumption.
-
-            unfold perm_maps.
-      admit. (*Invariant after update. Nick has this proof somewhere. *)
-      updCinvariant
-         - unfold ds''.
-           apply MTCH_updLockN.
-           unfold ds'.
-           apply MTCH_update; auto.
-           intros.
-           {
-             (*Can turn this into a mini-lemma to show virtue is "correct" *)
-             clear - MATCH Hi Hadd_lock_res Hcompatible Hcmpt His_unlocked.
-             (* Showing virtue is correct *)
-             unfold computeMap.
-             unfold PMap.get; simpl.
-             rewrite PTree.gcombine; auto.
-             unfold virtue, inflated_delta; simpl.
-             rewrite PTree.gmap.
-             rewrite PTree.gmap1.
-             unfold option_map at 2.
-             destruct ((snd (Mem.mem_access m)) ! b0) eqn:valb0MEM; simpl.
-             - (*Some 1*)
-               destruct ((snd (DSEM.ThreadPool.getThreadR Htid')) ! b0) eqn:valb0D; simpl.
-               + (*Some 2*)
-                 destruct (d_phi @ (b0, ofs0)) eqn:valb0ofs0; rewrite valb0ofs0; simpl; try solve[reflexivity].
+      - unfold ds''.
+        apply MTCH_updLockN.
+        unfold ds'.
+        apply MTCH_update; auto.
+        intros.
+        {
+          (*Can turn this into a mini-lemma to show virtue is "correct" *)
+          clear - MATCH Hi Hadd_lock_res Hcompatible Hcmpt His_unlocked.
+          (* Showing virtue is correct *)
+          unfold computeMap.
+          unfold PMap.get; simpl.
+          rewrite PTree.gcombine; auto.
+          unfold virtue, inflated_delta; simpl.
+          rewrite PTree.gmap.
+          rewrite PTree.gmap1.
+          unfold option_map at 2.
+          destruct ((snd (Mem.mem_access m)) ! b0) eqn:valb0MEM; simpl.
+          - (*Some 1*)
+            destruct ((snd (DSEM.ThreadPool.getThreadR Htid')) ! b0) eqn:valb0D; simpl.
+            + (*Some 2*)
+              destruct (d_phi @ (b0, ofs0)) eqn:valb0ofs0; rewrite valb0ofs0; simpl; try solve[reflexivity].
                  destruct ((Share.EqDec_share t Share.bot)) eqn:isBot; simpl; try solve [reflexivity].
                    { subst. (*bottom share*)
                      simpl. inversion MATCH; subst.
@@ -859,6 +824,48 @@ Module ClightParching <: ErasureSig.
                  reflexivity.
 
                + (*None 1.2*)
+                 Lemma threads_canonical:
+                   forall ds m i (cnt:DSEM.ThreadPool.containsThread ds i),
+                     DSEM.mem_compatible ds m ->  
+                     isCanonical (DSEM.ThreadPool.getThreadR cnt).
+                       intros.
+                       inversion H; clear compat_lp compat_ls.
+                       specialize (compat_th i cnt); apply canonical_lt in compat_th.
+                       assumption.
+                 Qed.
+                 apply (MTCH_compat _ _ _ MATCH) in Hcompatible.
+                 rewrite (threads_canonical _ m _ Htid'); [|eapply MTCH_compat; eassumption].
+                 replace (m_phi jm' @ (b0, ofs0)) with (NO Share.bot).
+                 simpl.
+                 rewrite if_true; reflexivity.
+                 apply (resource_at_join _ _ _ (b0, ofs0)) in Hadd_lock_res.
+                 replace (JSEM.ThreadPool.getThreadR Hi @ (b0, ofs0)) with (NO Share.bot) in Hadd_lock_res.
+                 replace (d_phi @ (b0, ofs0)) with (NO Share.bot) in Hadd_lock_res.
+                 - apply join_unit1_e in Hadd_lock_res.
+                 assumption.
+                 apply NO_identity.
+                 - clear Hadd_lock_res.
+                   symmetry.
+                   Lemma compatible_lockRes_cohere: forall js m l phi,
+                       JSEM.ThreadPool.lockRes js l = Some (Some phi) ->
+                       JSEM.mem_compatible js m ->
+                       JSEM.mem_cohere' m phi .
+                   Proof.
+                     Lemma compatible_lockRes_sub: forall js m l phi,
+                       JSEM.ThreadPool.lockRes js l = Some (Some phi) ->
+                       forall compat:JSEM.mem_compatible js m,
+                       join_sub phi 
+                   
+                   unfold d_phi.
+                 unfold sepalg.join in Hadd_lock_res.
+                 ShareMap.join_lifted.
+                 res_option_join
+
+                   Focus 2. reflexivity.
+                         
+                 
+                 unfold sepalg.join, Join_rmap in Hadd_lock_res. 
+                       
                  admit. (*We know both sides are None, because of mem_compatible, the join and because 
                          mem is None at that point, so it tricles down. *)
            }
