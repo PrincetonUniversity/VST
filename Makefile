@@ -136,16 +136,9 @@ SEPCOMP_FILES= \
   #safety_preservation.v \
 
 CONCUR_FILES= \
-  addressFiniteMap.v\
-  sepcomp.v threads_lemmas.v permissions.v\
-  pos.v scheduler.v threadPool.v \
-  concurrent_machine.v juicy_machine.v dry_machine.v \
-  dry_context.v dry_machine_lemmas.v \
-  erasure.v  \
-  semax_conc.v semax_to_machine.v semax_to_juicy_machine.v \
-  mem_obs_eq.v dry_machine_lemmas.v dry_context.v \
-  Clight_erasure.v compcert_threads_lemmas.v \
-  lifting.v
+  addressFiniteMap.v sepcomp.v threads_lemmas.v permissions.v pos.v scheduler.v threadPool.v \
+  concurrent_machine.v juicy_machine.v dry_machine.v dry_context.v dry_machine_lemmas.v erasure.v semax_conc.v semax_to_machine.v semax_to_juicy_machine.v \
+  mem_obs_eq.v dry_machine_lemmas.v dry_context.v compcert_threads_lemmas.v lifting.v Clight_erasure.v 
 
 CCC26x86_FILES = \
   Archi.v Bounds.v Conventions1.v Conventions.v Ctypes.v \
@@ -405,7 +398,7 @@ depend-linking:
 	$(COQDEP) $(FILES) $(LINKING_FILES:%.v=linking/%.v) > .depend
 
 depend-concur:
-	$(COQDEP) $(FILES) $(CONCUR_FILES:%.v=concurrency/%.v) > .depend
+	$(COQDEP) > .depend-concur $(CONCUR_FILES:%.v=concurrency/%.v) 
 
 clean:
 	rm -f $(FILES:%.v=%.vo) $(FILES:%.v=%.glob) floyd/floyd.coq .loadpath .depend
@@ -425,4 +418,10 @@ count-linking:
 # $(CC_TARGET): compcert/make
 #	(cd compcert; ./make)
 
+# The .depend file is divided into two parts, .depend and .depend-concur,
+# in order to work around a limitation in Cygwin about how long one
+# command line can be.  (Or at least, it seems to be a solution to some
+# such problem, not sure exactly.  -- Andrew)
 include .depend
+-include .depend-concur
+

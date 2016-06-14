@@ -364,7 +364,7 @@ Proof.
       inversion step.
       + rewrite Heqthd_i, Heqc.
         inversion H.
-        Require Import semax_congruence.
+        Require Import veric.semax_congruence.
         unfold jsafeN, juicy_safety.safeN in Hsafe.
         pose proof (proj1 (safeN_step_jsem_spec _ _ _ _ _ _ _ _) Hsafe).
         apply (proj1 (safeN_step_jsem_spec _ _ _ _ _ _ _ _)) in Hsafe.

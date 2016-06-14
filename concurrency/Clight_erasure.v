@@ -566,7 +566,7 @@ Module ClightParching <: ErasureSig.
                       (b, Int.intval ofs) empty_map).
          exists ds''.
          split; [|split].
-    - Require Import dry_machine_lemmas.
+    - Require Import concurrency.dry_machine_lemmas.
       unfold ds''.
       Definition permDisjoint p1 p2:=
         exists pu : option permission,

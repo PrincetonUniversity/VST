@@ -6,7 +6,7 @@ Require Import compcert.common.Globalenvs.
 (* The concurrent machinery*)
 Require Import concurrency.concurrent_machine.
 Require Import concurrency.dry_machine. Import Concur.
-Require Import scheduler.
+Require Import concurrency.scheduler.
 
 (* We assume, on each thread, a structured simulation *)
 Require Import sepcomp.simulations. Import SM_simulation.
