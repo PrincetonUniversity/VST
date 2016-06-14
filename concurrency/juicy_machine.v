@@ -256,6 +256,15 @@ Module Concur.
         mem_compatible tp m ->
         mem_lock_cohere (lockGuts tp) m.
     Admitted.
+
+    Lemma compat_lt_m: forall m js,
+        mem_compatible js m ->
+        forall b ofs,
+          Mem.perm_order'' ((getMaxPerm m) !! b ofs)
+                           ((lockSet js) !! b ofs).
+    Admitted.
+
+    
     (** There is no inteference in the thread pool *)
     (* Per-thread disjointness definition*)
     Definition disjoint_threads tp :=
