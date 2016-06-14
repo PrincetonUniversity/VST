@@ -270,7 +270,7 @@ Module Concur.
     Definition threadHalted: forall {tid0 ms},
         containsThread ms tid0 -> Prop:= @threadHalted'.
     
-    Definition one_pos : pos := mkPos NPeano.Nat.lt_0_2.
+    Definition one_pos : pos := mkPos NPeano.Nat.lt_0_1.
 
     Definition compute_init_perm : G -> access_map := fun _ => empty_map. (*Needst to be filled*)
     

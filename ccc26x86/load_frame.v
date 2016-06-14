@@ -562,7 +562,7 @@ intros tys. induction tys.
  apply args_len_recD in ALR. 
  destruct ALR as [sizeA [sz' [SZ [AL SzA]]]].
  assert (sizeA = typesize a).
- { clear - SzA H. destruct a; try solve[trivial]. simpl. admit. (*TODO 2.6*) }
+ { clear - SzA H. destruct a; try solve[trivial]. simpl. admit. (*TODO (Gordon?): In CompCert 2.6, this assert is not true any longer*) }
  clear SzA.
  subst sz sizeA.
  assert (STARG: exists mm zz, store_arg m sp z a v = Some(mm,zz)).
@@ -682,7 +682,7 @@ intros tys. induction tys.
  clear STARG. eapply RP; clear RP. 
  specialize (typesize_pos a); intros. omega.
 (*FIXME: *) Grab Existential Variables. refine (0).
-Admitted. (*TODO: Coq2.6*)
+Admitted. (*TODO: (End of proof containing the now incorrect typesize assertion)*)
 
 Lemma store_args_rec_succeeds sz m sp args tys 
       (VALSDEF: val_casted.vals_defined args=true)

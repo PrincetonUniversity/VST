@@ -6,7 +6,7 @@ Require Import concurrency.concurrent_machine.
 Require Import concurrency.pos.
 Require Import concurrency.threads_lemmas.
 Require Import compcert.lib.Axioms.
-
+Require Import compcert.lib.Axioms.
 Require Import concurrency.addressFiniteMap.
 Require Import compcert.lib.Maps.
 
@@ -16,6 +16,13 @@ Set Implicit Arguments.
 
 Definition empty_lset {lock_info}:AMap.t lock_info:=
   AMap.empty lock_info.
+
+Lemma find_empty:
+  forall a l,
+    @AMap.find a l empty_lset = None.
+      unfold empty_lset.
+      unfold AMap.empty, AMap.find; reflexivity.
+Qed.
 
 Module OrdinalPool (SEM:Semantics) (RES:Resources) <: ThreadPoolSig
     with Module TID:= NatTID with Module SEM:=SEM
@@ -45,6 +52,11 @@ Module OrdinalPool (SEM:Semantics) (RES:Resources) <: ThreadPoolSig
   Definition lockRes t : address -> option lock_info:=
     AMap.find (elt:=lock_info)^~ (lockGuts t).
 
+  Lemma lockSet_spec: forall js b ofs,
+      (lockSet js) !! b ofs =
+      if ssrbool.isSome (lockRes js (b,ofs)) then Some Memtype.Writable else None.
+  Admitted.
+
   Definition containsThread (tp : t) (i : NatTID.tid) : Prop:=
     i < num_threads tp.
 
@@ -53,6 +65,8 @@ Module OrdinalPool (SEM:Semantics) (RES:Resources) <: ThreadPoolSig
   
   Definition getThreadR {i tp} (cnt: containsThread tp i) : res :=
     (perm_maps tp) (Ordinal cnt).
+
+  Definition latestThread tp := n (num_threads tp).
 
   Definition addThread (tp : t) (vf arg : val) (pmap : res) : t :=
     let: new_num_threads := pos_incr (num_threads tp) in
@@ -230,17 +244,52 @@ Module OrdinalPool (SEM:Semantics) (RES:Resources) <: ThreadPoolSig
     simpl;
       by auto.
   Qed.
-  
+
+  Lemma cntAdd':
+    forall {j tp} vf arg p,
+      containsThread (addThread tp vf arg p) j ->
+      (containsThread tp j /\ j <> num_threads tp) \/ j = num_threads tp.
+  Proof.
+    intros.
+    unfold containsThread in *.
+    simpl in *.
+    destruct (j < (num_threads tp)) eqn:Hlt.
+    left.
+    split;
+      by [auto | ssromega].
+    right.
+    rewrite ltnS in H.
+    rewrite leq_eqVlt in H.
+    move/orP:H=> [H | H];
+      first by move/eqP:H.
+    exfalso.
+      by ssromega.
+  Qed.
+    
   (* TODO: most of these proofs are similar, automate them*)
   (** Getters and Setters Properties*)  
 
-  (*Lemma gssLockPool:
-    forall tp ls,
-      lockSet (updLockSet tp ls) = ls.
-  Proof.
-      by auto.
-  Qed.*)
+  Lemma gsslockResUpdLock: forall js a res,
+      lockRes (updLockSet js a res) a =
+      Some res.
+  Admitted.
+  
+  Lemma gsolockResUpdLock: forall js loc a res,
+                 lockRes (updLockSet js loc res) a =
+                 lockRes js a.
+  Admitted. 
 
+  Lemma gsslockResRemLock: forall js a,
+      lockRes (remLockSet js a) a =
+      None.
+  Admitted.
+  
+  Lemma gsolockResRemLock: forall js loc a,
+                 lockRes (remLockSet js loc) a =
+                 lockRes js a.
+  Admitted.
+  
+  
   Lemma gsoThreadLock:
     forall {i tp} c p (cnti: containsThread tp i),
       lockSet (updThread cnti c p) = lockSet tp.
@@ -268,6 +317,7 @@ Module OrdinalPool (SEM:Semantics) (RES:Resources) <: ThreadPoolSig
   Proof.
     auto.
   Qed.
+
 
   Lemma gssThreadCode {tid tp} (cnt: containsThread tp tid) c' p'
         (cnt': containsThread (updThread cnt c' p') tid) :
@@ -384,7 +434,27 @@ Module OrdinalPool (SEM:Semantics) (RES:Resources) <: ThreadPoolSig
     rewrite <- Bool.negb_true_iff. auto.
     rewrite H. simpl. rewrite add0n. reflexivity.
   Defined.
-  
+
+  Lemma gssAddRes:
+    forall {i tp} (cnt: containsThread tp i) vf arg pmap j
+      (Heq: j = latestThread tp)
+      (cnt': containsThread (addThread tp vf arg pmap) j),
+      getThreadR cnt' = pmap.
+  Proof.
+    intros. subst.
+    simpl.
+    unfold containsThread in cnt'. simpl in cnt'.
+    destruct (unlift (ordinal_pos_incr (num_threads tp))
+                     (Ordinal (n:=(num_threads tp).+1)
+                              (m:=num_threads tp) cnt')) eqn:H.
+    apply unlift_m_inv in H.
+    destruct o. simpl in *.
+    subst. exfalso;
+      ssromega.
+    rewrite H.
+      by reflexivity.
+  Qed.
+    
   Lemma goaThreadC {i tp}
         (cnti: containsThread tp i)  vf arg p
         (cnti': containsThread (addThread tp vf arg p) i) :
@@ -448,6 +518,62 @@ Module OrdinalPool (SEM:Semantics) (RES:Resources) <: ThreadPoolSig
     unfold getThreadC, containsThread. simpl in *.
     do 2 apply f_equal.
       by apply cnt_irr.
+  Qed.
+
+  Lemma gRemLockSetCode:
+    forall {i tp} addr (cnti: containsThread tp i)
+      (cnti': containsThread (remLockSet tp addr) i),
+      getThreadC cnti' = getThreadC cnti.
+  Proof.
+    intros.
+    unfold getThreadC, containsThread. simpl in *.
+    do 2 apply f_equal.
+      by apply cnt_irr.
+  Qed.
+
+  Lemma gRemLockSetRes:
+    forall {i tp} addr (cnti: containsThread tp i)
+      (cnti': containsThread (remLockSet tp addr) i),
+      getThreadR cnti' = getThreadR cnti.
+  Proof.
+    intros.
+    unfold getThreadR, containsThread. simpl in *.
+    do 2 apply f_equal.
+      by apply cnt_irr.
+  Qed.
+  
+  Lemma gssLockRes:
+    forall tp addr pmap,
+      lockRes (updLockSet tp addr pmap) addr = Some pmap.
+  Proof.
+  Admitted.
+
+  Lemma gsoLockRes:
+    forall tp addr addr' pmap
+      (Hneq: addr <> addr'),
+      lockRes (updLockSet tp addr pmap) addr' =
+      lockRes tp addr'.
+  Proof.
+  Admitted.
+  
+  Lemma gsoLockSet :
+    forall tp b b' ofs ofs'
+      pmap,
+      (b,ofs) <> (b', ofs') ->
+      (Maps.PMap.get b' (lockSet (updLockSet tp (b,ofs) pmap))) ofs' =
+      (Maps.PMap.get b' (lockSet tp)) ofs'.
+  Proof.
+    Admitted.
+
+  Lemma lockSet_updLockSet:
+    forall tp i (pf: containsThread tp i) c pmap addr rmap,
+      lockSet (updLockSet tp addr rmap) =
+      lockSet (updLockSet (updThread pf c pmap) addr rmap).
+  Proof.
+    intros.
+    unfold lockSet, updLockSet, updThread.
+    simpl;
+      by reflexivity.
   Qed.
     
 End OrdinalPool.

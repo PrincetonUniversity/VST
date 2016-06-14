@@ -21,6 +21,8 @@ Require Import sepcomp.effect_semantics.
 Require Import ccc26x86.BuiltinEffects.
 Require Import ccc26x86.load_frame.
 
+Require Import msl.Extensionality.
+
 Notation SP := ESP (only parsing).
 
 Notation "a # b" := (a b) (at level 1, only parsing).
@@ -99,113 +101,18 @@ End CEVAL_BUILTIN_ARG_COMPUTE.
 
 Section EFFSEM.
 
-Definition effect_instr (ge:genv) (c: code) (i: instruction) 
-                 (rs: regset) (m: mem)
-           : (block -> Z -> bool)  := EmptyEffect.
-(*
-Definition effect_instr (ge:genv) (e: preg -> val) (sp:val) (*(c: code)*) (i: instruction) 
-                 (*(rs: regset)*) (m: mem) 
-           : (block -> Z -> bool)  := (*EmptyEffect.*)
+Definition effect_instr (ge:genv) (c: code) (i: instruction) (rs: regset) (m: mem) 
+           : (block -> Z -> bool)  :=
   match i with
-  Pbuiltin ef args res =>
-     match ceval_builtin_args preg (Genv.to_senv ge) e sp m args with 
-       None => EmptyEffect
-     | Some vals => (BuiltinEffect ge ef (decode_longs (sig_args (ef_sig ef)) vals) m)
-     end
- (*    (BuiltinEffect ge ef (decode_longs (sig_args (ef_sig ef)) (map rs args)) m)*)
-  | _ => EmptyEffect
-  end. (*
-(decode_longs (sig_args (ef_sig callee)) args)
-
-  (** Moves *)
-  | Pmov_rr rd r1 => EmptyEffect
-  | Pmov_ri rd n => EmptyEffect
-  | Pmov_ra rd id => EmptyEffect
-  | Pmov_rm rd a => EmptyEffect
+  | Pfstps_m a => (StoreEffect (eval_addrmode ge a rs) (encode_val Mfloat32 (rs ST0)))
+  | Pfstpl_m a => (StoreEffect (eval_addrmode ge a rs) (encode_val Mfloat64 (rs ST0)))
+  | Pmovss_mf a r1 => (StoreEffect (eval_addrmode ge a rs) (encode_val Mfloat32 (rs r1)))
   | Pmov_mr a r1 => (StoreEffect (eval_addrmode ge a rs) (encode_val Mint32 (rs r1)))
-  | Pmovsd_ff rd r1 => EmptyEffect
-  | Pmovsd_fi rd n => EmptyEffect
-  | Pmovsd_fm rd a => EmptyEffect
-(*in Compcomp:  | Pmovsd_mf a r1 => (StoreEffect (eval_addrmode ge a rs) (encode_val Mfloat64al32 (rs r1)))*)
+  | Pmov_mr_a a r1 => (StoreEffect (eval_addrmode ge a rs) (encode_val Many32 (rs r1)))
   | Pmovsd_mf a r1 => (StoreEffect (eval_addrmode ge a rs) (encode_val Mfloat64 (rs r1)))
-  | Pfld_f r1 => EmptyEffect
-  | Pfld_m a => EmptyEffect
-  | Pfstp_f rd => EmptyEffect
-  | Pfstp_m a => StoreEffect (eval_addrmode ge a rs) (encode_val Mfloat64al32 (rs ST0))
-  | Pxchg_rr r1 r2 => EmptyEffect
-
-  (** Moves with conversion *)
+  | Pmovsd_mf_a a r1 => (StoreEffect (eval_addrmode ge a rs) (encode_val Many64 (rs r1)))
   | Pmovb_mr a r1 => StoreEffect (eval_addrmode ge a rs) (encode_val Mint8unsigned (rs r1))
   | Pmovw_mr a r1 => StoreEffect (eval_addrmode ge a rs) (encode_val Mint16unsigned (rs r1))
-  | Pmovzb_rr rd r1 => EmptyEffect
-  | Pmovzb_rm rd a => EmptyEffect
-  | Pmovsb_rr rd r1 => EmptyEffect
-  | Pmovsb_rm rd a => EmptyEffect
-  | Pmovzw_rr rd r1 => EmptyEffect
-  | Pmovzw_rm rd a => EmptyEffect
-  | Pmovsw_rr rd r1 => EmptyEffect
-  | Pmovsw_rm rd a => EmptyEffect
-  | Pcvtss2sd_fm rd a => EmptyEffect
-  | Pcvtsd2ss_ff rd r1 => EmptyEffect
-  | Pcvtsd2ss_mf a r1 => StoreEffect (eval_addrmode ge a rs) (encode_val Mfloat32 (rs r1))
-  | Pcvttsd2si_rf rd r1 => EmptyEffect
-  | Pcvtsi2sd_fr rd r1 => EmptyEffect
-
-  (** Integer arithmetic *)
-  | Plea rd a => EmptyEffect
-  | Pneg rd => EmptyEffect
-  | Psub_rr rd r1 => EmptyEffect
-  | Pimul_rr rd r1 => EmptyEffect
-  | Pimul_ri rd n => EmptyEffect
-  | Pimul_r r1 => EmptyEffect
-  | Pmul_r r1 => EmptyEffect
-  | Pdiv r1 =>  EmptyEffect
-  | Pidiv r1 => EmptyEffect
-  | Pand_rr rd r1 => EmptyEffect
-  | Pand_ri rd n => EmptyEffect
-  | Por_rr rd r1 => EmptyEffect
-  | Por_ri rd n => EmptyEffect
-  | Pxor_r rd => EmptyEffect
-  | Pxor_rr rd r1 => EmptyEffect
-  | Pxor_ri rd n => EmptyEffect
-  | Psal_rcl rd => EmptyEffect
-  | Psal_ri rd n => EmptyEffect
-  | Pshr_rcl rd => EmptyEffect
-  | Pshr_ri rd n => EmptyEffect
-  | Psar_rcl rd => EmptyEffect
-  | Psar_ri rd n => EmptyEffect
-  | Pshld_ri rd r1 n => EmptyEffect
-  | Pror_ri rd n => EmptyEffect
-  | Pcmp_rr r1 r2 => EmptyEffect
-  | Pcmp_ri r1 n => EmptyEffect
-  | Ptest_rr r1 r2 => EmptyEffect
-  | Ptest_ri r1 n => EmptyEffect
-  | Pcmov c rd r1 => EmptyEffect
-  | Psetcc c rd => EmptyEffect
-
-  (** Arithmetic operations over floats *)
-  | Paddd_ff rd r1 => EmptyEffect
-  | Psubd_ff rd r1 => EmptyEffect
-  | Pmuld_ff rd r1 => EmptyEffect
-  | Pdivd_ff rd r1 => EmptyEffect
-  | Pnegd rd => EmptyEffect
-  | Pabsd rd => EmptyEffect
-  | Pcomisd_ff r1 r2 => EmptyEffect
-  | Pxorpd_f rd => EmptyEffect
-
-  (** Branches and calls *)
-  | Pjmp_l lbl => EmptyEffect
-  | Pjmp_s id => EmptyEffect
-  | Pjmp_r r => EmptyEffect
-  | Pjcc cond lbl => EmptyEffect
-  | Pjcc2 cond1 cond2 lbl => EmptyEffect
-  | Pjmptbl r tbl => EmptyEffect
-  | Pcall_s id => EmptyEffect
-  | Pcall_r r => EmptyEffect
-  | Pret => EmptyEffect
-  (** Pseudo-instructions *)
-  | Plabel lbl => EmptyEffect
-  | Pallocframe sz ofs_ra ofs_link => EmptyEffect
   | Pfreeframe sz ofs_ra ofs_link =>
       match Mem.loadv Mint32 m (Val.add rs#ESP (Vint ofs_ra)) with
       | None => EmptyEffect 
@@ -223,12 +130,12 @@ Definition effect_instr (ge:genv) (e: preg -> val) (sp:val) (*(c: code)*) (i: in
               end
           end
       end
-  | Pbuiltin ef args res =>
-     (BuiltinEffect ge ef (decode_longs (sig_args (ef_sig ef)) (map rs args)) m)
-  | Pannot ef args =>
-      EmptyEffect 
-  end.*)
-*)
+  | Pbuiltin ef args res => EmptyEffect
+(*     (BuiltinEffect ge ef (decode_longs (sig_args (ef_sig ef)) (map rs args)) m)*)
+(*  | Pannot ef args =>
+      EmptyEffect *)
+  | _ => EmptyEffect
+  end. 
 Variable ge: genv.
 
 Inductive asm_effstep: (block -> Z -> bool) -> 
@@ -241,7 +148,8 @@ Inductive asm_effstep: (block -> Z -> bool) ->
       exec_instr ge f i rs m = Next rs' m' ->
       asm_effstep (effect_instr ge (fn_code f) i rs m) (State rs lf) m (State rs' lf) m'
   | asm_effexec_step_builtin:
-      forall b ofs f ef args res rs m vargs t E vres rs' m' lf,
+      forall b ofs f ef args res rs m vargs t E vres rs' m' lf
+         (NASS: ~ isInlinedAssembly ef)  (*NEW; we don't support inlined assembly yet*),
       rs PC = Vptr b ofs ->
       Genv.find_funct_ptr ge b = Some (Internal f) ->
       find_instr (Int.unsigned ofs) (fn_code f) = Some (Pbuiltin ef args res) ->
@@ -332,30 +240,30 @@ Qed.
 Lemma exec_instr_unchanged_on g f i rs m rs' m': forall
       (EI: exec_instr g f i rs m = Next rs' m'),
      Mem.unchanged_on (fun b ofs => effect_instr g (fn_code f) i rs m b ofs = false) m m'.
-Proof. intros. Admitted.
-(*    destruct i; 
+Proof. intros. 
+ destruct i;
     try solve [inv EI;
                 try solve [apply Mem.unchanged_on_refl];
                 try solve [eapply exec_load_unchanged_on; eauto];
                 try solve [eapply exec_store_unchanged_on; eauto];
-                try solve [eapply goto_label_unchanged_on; eauto]].  
-    inv EI. 
-      destruct (Val.divu (rs EAX) (rs # EDX <- Vundef r1)); inv H0.
-      destruct (Val.modu (rs EAX) (rs # EDX <- Vundef r1)); inv H1.
-      apply Mem.unchanged_on_refl.
-    inv EI.
-      destruct (Val.divs (rs EAX) (rs # EDX <- Vundef r1)); inv H0.
-      destruct (Val.mods (rs EAX) (rs # EDX <- Vundef r1)); inv H1.
-      apply Mem.unchanged_on_refl.
-    inv EI.
-      destruct (eval_testcond c0 rs); inv H0.
+                try solve [eapply goto_label_unchanged_on; eauto]].
++ (*Pdiv r1*) inv EI.
+  destruct (Val.divu (rs EAX) (rs # EDX <- Vundef r1)); inv H0.
+  destruct (Val.modu (rs EAX) (rs # EDX <- Vundef r1)); inv H1.
+  apply Mem.unchanged_on_refl.
++ (*Pidiv r1*) inv EI.
+  destruct (Val.divs (rs EAX) (rs # EDX <- Vundef r1)); inv H0.
+  destruct (Val.mods (rs EAX) (rs # EDX <- Vundef r1)); inv H1.
+  apply Mem.unchanged_on_refl.
++ (*Pcmov c rd r1*) inv EI.
+      destruct (eval_testcond c rs); inv H0.
         destruct b; inv H1; apply Mem.unchanged_on_refl.
       apply Mem.unchanged_on_refl.
-    inv EI.
-      destruct (eval_testcond c0 rs); inv H0.
++ (*Pjcc c l*) inv EI.
+      destruct (eval_testcond c rs); inv H0.
         destruct b; inv H1. eapply goto_label_unchanged_on; eauto.
       apply Mem.unchanged_on_refl.
-    inv EI.
++ (*Pjcc2 c1 c2 l*) inv EI.
       destruct (eval_testcond c1 rs); inv H0.
         destruct b; inv H1.
           destruct (eval_testcond c2 rs); inv H0.
@@ -363,11 +271,11 @@ Proof. intros. Admitted.
             apply Mem.unchanged_on_refl.
           destruct (eval_testcond c2 rs); inv H0.
             apply Mem.unchanged_on_refl.
-    inv EI.
++  (*Pjmptbl r tbl*) inv EI.
       destruct (rs r); inv H0.
         destruct (list_nth_z tbl (Int.unsigned i)); inv H1.
         eapply goto_label_unchanged_on; eauto.
-    inv EI.
++ (* Pallocframe sz ofs_ra ofs_link *) inv EI.
       remember (Mem.alloc m 0 sz) as d. 
       destruct d; apply eq_sym in Heqd; inv H0.
       remember (Mem.store Mint32 m0 b (Int.unsigned (Int.add Int.zero ofs_link)) (rs ESP)) as q.
@@ -390,7 +298,7 @@ Proof. intros. Admitted.
         rewrite PMap.gso; trivial. 
         rewrite PMap.gso; trivial. 
         eapply EmptyEffect_alloc; eassumption.
-    inv EI.
++ (* Pfreeframe sz ofs_ra ofs_link *) inv EI.
       remember (Mem.loadv Mint32 m (Val.add (rs ESP) (Vint ofs_ra))) as d.
       destruct d; inv H0.
       remember (Mem.loadv Mint32 m (Val.add (rs ESP) (Vint ofs_link))) as q.
@@ -403,70 +311,71 @@ Proof. intros. Admitted.
       Focus 2. eapply FreeEffect_free; eassumption.
       intuition. unfold effect_instr in H0.
         rewrite <- Heqw, <- Heqd, <- Heqq, Heqt in H0. trivial.
-Qed.*)
-
-(*Axiom EE1: forall g c ef res rs m b ofs,
-    effect_instr g c (Pbuiltin ef nil res) rs m b ofs = BuiltinEffect g ef nil m b ofs.
-*)
+Qed.
 
 Lemma decode_longs_nil: forall tys, decode_longs tys nil = nil.
 induction tys. trivial.  simpl in *. destruct a; trivial. Qed.
-Require Import msl.Extensionality.
-(*
+
 Lemma BuiltinEffect_decode: forall F V (ge: Genv.t F V) ef vargs,
  BuiltinEffect ge ef (decode_longs (sig_args (ef_sig ef)) vargs)=
- BuiltinEffect ge ef vargs.
-Proof. intros.
-  unfold BuiltinEffect. extensionality m. 
-  destruct ef; trivial.
+ BuiltinEffect ge ef vargs. 
+Proof. intros. 
+  destruct ef; trivial. 
   + unfold free_Effect. simpl.
     destruct vargs; simpl. reflexivity. destruct v; try reflexivity.
-    destruct vargs. reflexivity.
+   (* destruct vargs. reflexivity.
+    extensionality m. Locate decode_longs. simpl.
     destruct (Mem.load Mint32 m b (Int.unsigned i - 4)); try reflexivity.
     destruct v0; try reflexivity. 
     extensionality bb. extensionality z.
     destruct (eq_block bb b); simpl; trivial. subst.
     destruct (zlt 0 (Int.unsigned i0)); simpl; trivial.
     destruct (zle (Int.unsigned i - 4) z ); simpl; trivial.
-    destruct (zlt z (Int.unsigned i + Int.unsigned i0)); simpl; trivial. omega.
+    destruct (zlt z (Int.unsigned i + Int.unsigned i0)); simpl; trivial.*)
+  + extensionality m. extensionality bb. extensionality z.
+    remember (BuiltinEffect ge (EF_memcpy sz al) vargs m bb z) as r.
+    remember (BuiltinEffect ge (EF_memcpy sz al) (decode_longs (sig_args (ef_sig (EF_memcpy sz al))) vargs) m bb z) as l.
+    symmetry in Heql; symmetry in Heqr.
+    destruct r.
+    - specialize (BuiltinEffect_valid_block _ _ _ _ _ _ Heqr); intros.
+      destruct Heql;  simpl in *; trivial.
+      destruct vargs; simpl in *; try discriminate.
+      destruct v; simpl in *; try discriminate. 
+      destruct vargs; simpl in *; try discriminate.
+      destruct v; simpl in *; try discriminate.
+      destruct vargs; simpl in *; try discriminate. trivial. trivial.
+    - destruct l; trivial. specialize (BuiltinEffect_valid_block _ _ _ _ _ _ Heql); intros.
+      simpl in *. 
+      destruct vargs; simpl in *; try discriminate.
+      destruct v; simpl in *; try discriminate. 
+      destruct vargs; simpl in *; try discriminate.
+      destruct v; simpl in *; try discriminate.
+      destruct vargs; simpl in *; try discriminate. 
+      * rewrite Heqr in Heql. discriminate.
+      * exfalso. rewrite Heql in Heqr. discriminate. 
 Qed.
 
- BuiltinEffect ge ef (map tls (loc_arguments (ef_sig ef))) =
- BuiltinEffect ge ef (decode_longs (sig_args (ef_sig ef))
-           (map tls (loc_arguments (ef_sig ef)))).
-Proof. intros.
-  unfold BuiltinEffect. extensionality m. 
-  destruct ef; trivial.
-Qed.
-*)
-Lemma asmstep_effax1: forall (M : block -> Z -> bool) g c m c' m',
+Lemma asmstep_effax1: forall (M : block -> Z -> bool) g c m c' m'
+      (HF: helper_functions_declared g hf),
       asm_effstep g M c m c' m' ->
-      (asm_step (*hf*) g c m c' m' /\
+      (asm_step hf g c m c' m' /\
        Mem.unchanged_on (fun (b : block) (ofs : Z) => M b ofs = false) m m').
-Proof. Admitted.
- (*Proof.
+Proof. 
 intros.
-destruct H.
-+ split. eapply asm_exec_step_internal; eassumption.
+destruct H. 
++ split. eapply asm_exec_step_internal; eassumption. 
   clear -H2 hf. eapply exec_instr_unchanged_on; eassumption.
-+ split. eapply asm_exec_step_builtin; eassumption.
-  simpl. Locate BuiltinEffect_decode. in H6. subst. eapply BuiltinEffect_unchOn. eassumption. eassumption. inv H2.
-  - rewrite decode_longs_nil. eapply BuiltinEffect_unchOn; eassumption.
-  - eapply BuiltinEffect_unchOn. eassumption. eassumption. 
-  assert (EE1: effect_instr g (fn_code f) (Pbuiltin ef nil res) rs m b0 ofs0 = BuiltinEffect g ef nil m b0 ofs0).
-         eapply BuiltinEffect_unchOn; eassumption. 
-  admit. (*
-  split. econstructor; eauto.
-       apply Mem.unchanged_on_refl. *)
++ rewrite BuiltinEffect_decode in H6.
+  split. eapply asm_exec_step_builtin; try eassumption. 
+  subst E. eapply BuiltinEffect_unchOn; eassumption.
 + split. econstructor; eauto.
        apply Mem.unchanged_on_refl.
 + split. econstructor; eauto.
   inv H1.
-       exploit @BuiltinEffect_unchOn. 
+       exploit @BuiltinEffect_unchOn. eassumption.
          eapply EFhelpers; eassumption.
          eapply H3. 
-       unfold BuiltinEffect; simpl.
-         destruct callee; simpl; trivial; contradiction.
+       rewrite BuiltinEffect_decode; trivial. 
 + split. econstructor; eassumption. 
   { assert (sp_fresh: ~Mem.valid_block m stk).
     { eapply Mem.fresh_block_alloc; eauto. }
@@ -477,21 +386,21 @@ destruct H.
     solve[apply alloc_forward in H0; auto].
     simpl. intros b ofs H2 _ H3. subst. 
     solve[apply sp_fresh; auto]. }
-Admitted.       
-*)
+Qed.
+
 Lemma asmstep_effax2: forall  g c m c' m',
-      asm_step (*hf*) g c m c' m' ->
+      asm_step hf g c m c' m' ->
       exists M, asm_effstep g M c m c' m'.
-Proof. Admitted. (*
+Proof.
 intros. (*unfold corestep, Asm_coop_sem in H; simpl in H.*)
   inv H.
 + destruct i;
     try solve [eexists; econstructor; try eassumption].
-+ eexists. eapply asm_effexec_step_builtin; try eassumption. trivial.
++ eexists. eapply asm_effexec_step_builtin; try eassumption. trivial. reflexivity.
 + eexists. econstructor; eassumption.
 + eexists. econstructor; eauto.
 + eexists. econstructor; eauto.
-Qed.*)
+Qed.
 
 Lemma exec_store_curWR ge ch m1 a rs1 rs rs2 m2 b z l:
    exec_store ge ch m1 a rs1 rs l = Next rs2 m2 ->
@@ -524,7 +433,10 @@ Lemma exec_instr_curWR ge f i rs1 m1 rs2 m2: forall
       Mem.perm m1 b z Cur Writable.
 Proof. intros.
   destruct i; simpl in *; try discriminate.
-(*+ eapply exec_store_curWR; eauto. 
++ eapply exec_store_curWR; eauto. 
++ eapply exec_store_curWR; eauto. 
++ eapply exec_store_curWR; eauto. 
++ eapply exec_store_curWR; eauto. 
 + eapply exec_store_curWR; eauto. 
 + eapply exec_store_curWR; eauto. 
 + eapply exec_store_curWR; eauto. 
@@ -538,64 +450,23 @@ Proof. intros.
   destruct u; try discriminate.
   remember (Mem.free m1 b0 0 sz) as d.
   destruct d; try discriminate. 
-  symmetry in Heqd. eapply free_curWR; eassumption.*)
+  symmetry in Heqd. eapply free_curWR; eassumption.
 Qed.
 
 Lemma asm_effstep_curWR: forall (M : block -> Z -> bool) g c m c' m',
       asm_effstep g M c m c' m' ->
       forall b z, M b z = true -> Mem.perm m b z Cur Writable.
-Proof. Admitted. (*
+Proof.
   intros.
   induction H; try (solve [inv H0]).
 + eapply exec_instr_curWR; eauto.
-+ unfold effect_instr in H0.
-  destruct ef; simpl in *; try discriminate.
-  - inv H3. simpl in *.
-    destruct args; simpl in *. discriminate.
-    inv H6. rewrite <- H3 in *.
-    remember (Mem.load Mint32 m b1 (Int.unsigned lo - 4)) as u. 
-    destruct u; try discriminate.
-    destruct v; try discriminate. inv H5.
-    destruct (eq_block b b1); simpl in *; try discriminate. subst b1.
-    destruct (zlt 0 (Int.unsigned sz)); simpl in *; try discriminate.
-    destruct (zle (Int.unsigned lo - 4) z); simpl in *; try discriminate.
-    destruct (zlt z (Int.unsigned lo + Int.unsigned sz)); simpl in *; try discriminate.
-    eapply Mem.perm_implies. 
-    eapply Mem.free_range_perm. eassumption. omega. constructor.
-  - inv H3. simpl in *.
-    destruct args; simpl in *. discriminate.
-    inv H6. rewrite <- H3 in *.
-    destruct args; simpl in *. discriminate. inv H5. rewrite <- H14 in *.
-    destruct (eq_block b bdst); simpl in *; try discriminate. subst bdst.
-    destruct (zle (Int.unsigned odst) z); simpl in *; try discriminate.
-    destruct (zlt z (Int.unsigned odst + sz)); simpl in *; try discriminate.
-    eapply Mem.storebytes_range_perm. eassumption. 
-    apply Mem.loadbytes_length in H13. rewrite H13, nat_of_Z_eq; omega.
-+ unfold BuiltinEffect in H0. 
-  destruct callee; try discriminate.
-  - inv H2. inv H4. eapply free_curWR. eassumption.
-    destruct args; inv H2.
-    unfold free_Effect in H0. unfold FreeEffect. destruct args; try discriminate.
-    rewrite H3 in *.
-    destruct (eq_block b b1); subst; simpl in *; try discriminate.
-        destruct (zlt 0 (Int.unsigned sz)); simpl in *; try discriminate.
-        destruct (zle (Int.unsigned lo - 4) z); simpl in *; try discriminate. 
-        destruct (zlt z (Int.unsigned lo + Int.unsigned sz)); simpl in *; try discriminate.
-    apply Mem.load_valid_access in H3.
-    destruct (valid_block_dec m b1); trivial. 
-    elim n. eapply Mem.valid_access_valid_block. eapply Mem.valid_access_implies. eassumption. constructor.
-  - clear - H0 H2. inv H2. inv H. 
-    unfold memcpy_Effect in H0.
-    destruct args; inv H1. 
-    destruct args; inv H0. inv H11.
-    destruct args; inv H1.
-    destruct (eq_block b bdst); subst; simpl in *; try discriminate.
-    destruct (zle (Int.unsigned odst) z); simpl in *; try discriminate.
-    destruct (zlt z (Int.unsigned odst + sz)); simpl in *; try discriminate. 
-    eapply Mem.storebytes_range_perm. eassumption. 
-    apply Mem.loadbytes_length in H8. rewrite H8, nat_of_Z_eq; omega.
++ rewrite BuiltinEffect_decode in *; subst E.
+  eapply nonobs_extcall_curWR; eassumption.
++ apply EFhelpers in OBS. inv H2.
+  eapply nonobs_extcall_curWR. eassumption. eassumption.
+  rewrite BuiltinEffect_decode; trivial.
 Qed.
-*)
+
 Lemma exec_store_valid: forall g chunk m a rs rs1 pregs rs' m' b z,
   exec_store g chunk m a rs rs1 pregs = Next rs' m' ->
   StoreEffect (eval_addrmode g a rs) (encode_val chunk (rs rs1)) b z =
@@ -618,10 +489,10 @@ Program Definition Asm_eff_sem :
   @EffectSem genv state.
 Proof.
 eapply Build_EffectSem with (sem := Asm_mem_sem hf).
-apply asmstep_effax1.
+admit.
 apply asmstep_effax2.
 apply asm_effstep_curWR.
-Defined.
+Admitted.
 
 Lemma Asm_eff_sem_det : semantics_lemmas.corestep_fun Asm_eff_sem.
 Proof.

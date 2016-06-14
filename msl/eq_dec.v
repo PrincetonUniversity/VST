@@ -67,3 +67,8 @@ Instance EqDec_list (A: Type) (EA: EqDec A) : EqDec (list A).
 Proof.
  hnf. apply list_eq_dec; intros; apply EA.
 Defined.
+
+Instance EqDec_option (A: Type) (EA: EqDec A) : EqDec (option A).
+Proof.
+  hnf; decide equality.
+Defined.

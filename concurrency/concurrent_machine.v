@@ -91,6 +91,7 @@ Module Type ThreadPoolSig.
   Parameter updThread : forall {tid tp}, containsThread tp tid -> ctl -> res -> t.
   Parameter updLockSet : t -> address -> lock_info -> t.
   Parameter remLockSet : t -> address -> t.
+  Parameter latestThread : t -> tid.
   
   (*Proof Irrelevance of contains*)
   Axiom cnt_irr: forall t tid
@@ -102,6 +103,11 @@ Module Type ThreadPoolSig.
     forall {j tp} vf arg p,
       containsThread tp j ->
       containsThread (addThread tp vf arg p) j.
+
+  Axiom cntAdd':
+    forall {j tp} vf arg p,
+      containsThread (addThread tp vf arg p) j ->
+      (containsThread tp j /\ j <> latestThread tp) \/ j = latestThread tp.
   
   (* Update properties*)
   Axiom cntUpdateC:
@@ -174,6 +180,12 @@ Module Type ThreadPoolSig.
   Axiom gsoAddLock:
     forall tp vf arg p,
       lockSet (addThread tp vf arg p) = lockSet tp.
+
+  Axiom gssAddRes:
+    forall {i tp} (cnt: containsThread tp i) vf arg pmap j
+      (Heq: j = latestThread tp)
+      (cnt': containsThread (addThread tp vf arg pmap) j),
+      getThreadR cnt' = pmap.
    
   (*Get thread Properties*)
   Axiom gssThreadCode :
@@ -244,7 +256,28 @@ Module Type ThreadPoolSig.
     forall {i tp} addr (res : lock_info) (cnti: containsThread tp i)
       (cnti': containsThread (updLockSet tp addr res) i),
       getThreadC cnti' = getThreadC cnti.
-  
+
+  Axiom gssLockRes:
+    forall tp addr pmap,
+      lockRes (updLockSet tp addr pmap) addr = Some pmap.
+
+  Axiom gsoLockRes:
+    forall tp addr addr' pmap
+      (Hneq: addr <> addr'),
+      lockRes (updLockSet tp addr pmap) addr' =
+      lockRes tp addr'.
+
+  Axiom gsoLockSet :
+    forall tp b b' ofs ofs'
+      pmap,
+      (b,ofs) <> (b', ofs') ->
+      (Maps.PMap.get b' (lockSet (updLockSet tp (b,ofs) pmap))) ofs' =
+      (Maps.PMap.get b' (lockSet tp)) ofs'.
+
+  Axiom lockSet_updLockSet:
+    forall tp i (pf: containsThread tp i) c pmap addr rmap,
+      lockSet (updLockSet tp addr rmap) =
+      lockSet (updLockSet (updThread pf c pmap) addr rmap).
   
 End ThreadPoolSig.
 

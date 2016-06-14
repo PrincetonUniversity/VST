@@ -63,14 +63,17 @@ Inductive state: Type :=
 
 Inductive asm_step: state -> mem -> state -> mem -> Prop :=
   | asm_exec_step_internal:
-      forall b ofs (f:function) i rs m rs' m' lf,
+      forall b ofs (f:function) i rs m rs' m' lf
+      (HFD: helper_functions_declared ge hf),
       rs PC = Vptr b ofs ->
       Genv.find_funct_ptr ge b = Some (Internal f) ->
       find_instr (Int.unsigned ofs) (fn_code f) = Some i ->
       exec_instr ge f(*(fn_code f)*) i rs m = Next rs' m' ->
       asm_step (State rs lf) m (State rs' lf) m'
   | asm_exec_step_builtin:
-      forall b ofs f ef args res rs m vargs t vres rs' m' lf,
+      forall b ofs f ef args res rs m vargs t vres rs' m' lf
+        (HFD: helper_functions_declared ge hf)
+         (NASS: ~ isInlinedAssembly ef)  (*NEW; we don't support inlined assembly yet*),
       rs PC = Vptr b ofs ->
       Genv.find_funct_ptr ge b = Some (Internal f) ->
       find_instr (Int.unsigned ofs) f.(fn_code) = Some (Pbuiltin ef args res) ->
@@ -81,26 +84,16 @@ Inductive asm_step: state -> mem -> state -> mem -> Prop :=
              (set_res res vres
                (undef_regs (map preg_of (destroyed_by_builtin ef)) rs)) ->
       asm_step (State rs lf) m (State rs' lf) m'
-(*
-  | asm_exec_step_builtin:
-      forall b ofs f ef args res rs m t vres rs' m' lf,
-      rs PC = Vptr b ofs ->
-      Genv.find_funct_ptr ge b = Some (Internal f) ->
-      find_instr (Int.unsigned ofs) (fn_code f) = Some (Pbuiltin ef args res) ->
-      external_call' ef ge (map rs args) m t vl m' ->
-      ~ observableEF hf ef ->
-      rs' = nextinstr_nf 
-             (set_regs res vres
-               (undef_regs (map preg_of (destroyed_by_builtin ef)) rs)) ->
-      asm_step (State rs lf) m (State rs' lf) m'step (State rs m) t (State rs' m')*)
   | asm_exec_step_to_external:
-      forall b ef args rs m lf,
+      forall b ef args rs m lf
+      (HFD: helper_functions_declared ge hf),
       rs PC = Vptr b Int.zero ->
       Genv.find_funct_ptr ge b = Some (External ef) ->
       extcall_arguments rs m (ef_sig ef) args ->
       asm_step (State rs lf) m (Asm_CallstateOut ef args rs lf) m
   | asm_exec_step_external:
       forall b callee args res rs m t rs' m' lf
+      (HFD: helper_functions_declared ge hf)
       (OBS: EFisHelper (*hf*) callee),
       rs PC = Vptr b Int.zero ->
       Genv.find_funct_ptr ge b = Some (External callee) ->
@@ -109,7 +102,8 @@ Inductive asm_step: state -> mem -> state -> mem -> Prop :=
       asm_step (Asm_CallstateOut callee args rs lf) m (State rs' lf) m'
   (*NOTE [loader]*)
   | asm_exec_initialize_call: 
-      forall m args tys retty m1 stk m2 fb z,
+      forall m args tys retty m1 stk m2 fb z
+      (HFD: helper_functions_declared ge hf),
       args_len_rec args tys = Some z -> 
       Mem.alloc m 0 (4*z) = (m1, stk) ->
       store_args m1 stk args tys = Some m2 -> 
@@ -120,7 +114,18 @@ Inductive asm_step: state -> mem -> state -> mem -> Prop :=
       asm_step (Asm_CallstateIn fb args tys retty) m 
                (State rs0 (mk_load_frame stk retty)) m2.
 
-(*TODO 2.6
+Lemma EFisHelper_dec ef : {EFisHelper ef} + {~EFisHelper ef}.
+destruct ef; simpl; try solve [right; intros N; assumption].
+  apply I64Helpers.is_I64_helperS_dec.
+  apply is_I64_builtinS_dec.
+Qed.
+
+Lemma extcall_arg_det rs m a b1 b2 (EA1: extcall_arg rs m a b1) (EA2: extcall_arg rs m a b2):b1=b2.
+inv EA1; inv EA2; trivial.
+remember (Val.add (rs ESP) (Vint (Int.repr (Stacklayout.fe_ofs_arg + 4 * ofs)))). clear Heqv.
+destruct v; inv H0; inv H4. rewrite H0 in H1. inv H1; trivial.
+Qed. 
+
 Lemma asm_step_det c m c' m' c'' m'' :
   asm_step c m c' m' ->   
   asm_step c m c'' m'' -> 
@@ -138,75 +143,21 @@ Ltac Equalities :=
   + split. constructor. auto.
   + discriminate.
   + discriminate.
-  + eapply eval_builtin_args_determ in H10; try eassumption. subst vargs0.
-    case_eq (is_I64_helper'_dec hf ef0); intros X _.
-    assert (t=t0).
-    { specialize EC'_i64_helper_determ. eapply EC'_i64_helper_determ in H4. ; eauto. } subst t0.
-  inv H4; inv H10.
-  eapply external_call_deterministic in H; eauto. destruct H; subst. split; auto.
-  assert (t=t0).
-  { eapply EC'_determ in H10; eauto. }
-  inv H10; inv H4.
-  eapply external_call_deterministic in H0; eauto. destruct H0; subst. auto. split; auto.
-  eapply extcall_arguments_determ in H3; eauto. subst. auto.
-  case_eq (is_I64_helper'_dec hf callee); intros X _.
-  assert (t=t0).
-  { eapply EC'_i64_helper_determ in H3; eauto. eapply EFhelpers; eauto. } subst t0.
-  inv H3; inv H12.
-  eapply external_call_deterministic in H; eauto. destruct H; subst. split; auto.
-  assert (t=t0).
-  { eapply EC'_determ in H12; eauto. } subst t0.
-  inv H3; inv H12.
-  eapply external_call_deterministic in H; eauto. destruct H; subst. auto. 
-  rewrite H11 in H2; inversion H2. subst m2. inversion H2. rewrite H0 in H12.
-  rewrite H12 in H3; inversion H3. subst m''. split; auto. 
-  f_equal; auto.
-  unfold rs0, rs1; rewrite H4; auto.
+  + eapply eval_builtin_args_determ in H11; try eassumption. subst vargs0. red in H4.
+    destruct (EFisHelper_dec ef0).
+    - exploit (EC_determ ge). apply H5. apply H12. trivial. intros [? [? ?]]; subst. split; trivial.
+    - destruct ef0; simpl in *; try solve [elim H13; trivial].
+      * (*malloc*) exploit ec_determ. apply extcall_malloc_ok. apply H5. apply H12.
+        intros [? ?]. inv H5. inv H12. destruct H0; trivial. subst. inv H0. split; trivial.
+      * (*free*) exploit ec_determ. apply extcall_free_ok. apply H5. apply H12.
+        intros [? ?]. inv H5. inv H12. destruct H0; trivial. subst. split; trivial.
+      * (*memcpy*) exploit ec_determ. apply extcall_memcpy_ok. apply H5. apply H12.
+        intros [? ?]. inv H5. inv H12. destruct H0; trivial. subst. split; trivial.
+  + specialize (extcall_arguments_determ _ _ _ _ _ H3 H10); intros; subst. split; trivial.
+  + exploit (EC'_determ ge). apply H3. apply H12. trivial. intros [? [? ?]]; subst. split; trivial.
+  + split; trivial. 
 Qed.
 
-Lemma asm_step_det c m c' m' c'' m'' :
-  asm_step c m c' m' ->   
-  asm_step c m c'' m'' -> 
-  c'=c'' /\ m'=m''.
-Proof.
-Ltac Equalities :=
-  match goal with
-  | [ H1: ?a = ?b, H2: ?a = ?c |- _ ] =>
-      rewrite H1 in H2; inv H2; Equalities
-  | _ => idtac
-  end.
-  intros H H0.
-(* determ *)
-  inv H; inv H0; Equalities.
-  split. constructor. auto.
-  discriminate.
-  discriminate.
-  case_eq (is_I64_helper'_dec hf ef0); intros X _.
-  assert (t=t0).
-  { eapply eval_builtin_args_determ in H10; try eassumption. subst vargs0.
-    eapply EC'_i64_helper_determ in H5. ; eauto. } subst t0.
-  inv H4; inv H10.
-  eapply external_call_deterministic in H; eauto. destruct H; subst. split; auto.
-  assert (t=t0).
-  { eapply EC'_determ in H10; eauto. }
-  inv H10; inv H4.
-  eapply external_call_deterministic in H0; eauto. destruct H0; subst. auto. split; auto.
-  eapply extcall_arguments_determ in H3; eauto. subst. auto.
-  case_eq (is_I64_helper'_dec hf callee); intros X _.
-  assert (t=t0).
-  { eapply EC'_i64_helper_determ in H3; eauto. eapply EFhelpers; eauto. } subst t0.
-  inv H3; inv H12.
-  eapply external_call_deterministic in H; eauto. destruct H; subst. split; auto.
-  assert (t=t0).
-  { eapply EC'_determ in H12; eauto. } subst t0.
-  inv H3; inv H12.
-  eapply external_call_deterministic in H; eauto. destruct H; subst. auto. 
-  rewrite H11 in H2; inversion H2. subst m2. inversion H2. rewrite H0 in H12.
-  rewrite H12 in H3; inversion H3. subst m''. split; auto. 
-  f_equal; auto.
-  unfold rs0, rs1; rewrite H4; auto.
-Qed.
-*)
 End RELSEM.
 
 Definition Asm_at_external (c: state):
@@ -321,23 +272,23 @@ End ASM_CORESEM.
 
 Section ASM_MEMSEM.
 
-Lemma exec_load_mem_step g ch m a rs rd rs' m': forall 
-      (EI: exec_load g ch m a rs rd = Next rs' m'),
+Lemma exec_load_mem_step ge ch m a rs rd rs' m': forall 
+      (EI: exec_load ge ch m a rs rd = Next rs' m'),
       mem_step m m'.
 Proof. intros.
   unfold exec_load in EI.
-  remember (Mem.loadv ch m (eval_addrmode g a rs) ).
+  remember (Mem.loadv ch m (eval_addrmode ge a rs) ).
   symmetry in Heqo; destruct o; inv EI. apply mem_step_refl.
 Qed.
 
-Lemma exec_store_mem_step g ch m a rs rs0 vals rs' m': forall
-      (ES: exec_store g ch m a rs rs0 vals = Next rs' m'),
+Lemma exec_store_mem_step ge ch m a rs rs0 vals rs' m': forall
+      (ES: exec_store ge ch m a rs rs0 vals = Next rs' m'),
       mem_step m m'.
 Proof. intros.
   unfold exec_store in ES.
-  remember (Mem.storev ch m (eval_addrmode g a rs) (rs rs0)).
+  remember (Mem.storev ch m (eval_addrmode ge a rs) (rs rs0)).
   symmetry in Heqo; destruct o; inv ES.
-  remember (eval_addrmode g a rs). destruct v; inv Heqo.
+  remember (eval_addrmode ge a rs). destruct v; inv Heqo.
   eapply mem_step_store; eassumption.
 Qed.
 
@@ -351,8 +302,8 @@ Proof. intros.
    apply mem_step_refl.
 Qed.
 
-Lemma exec_instr_mem_step g c i rs m rs' m': forall 
-      (EI: exec_instr g c i rs m = Next rs' m'),
+Lemma exec_instr_mem_step ge c i rs m rs' m': forall 
+      (EI: exec_instr ge c i rs m = Next rs' m'),
       mem_step m m'.
 Proof. intros.
    destruct i; simpl in *; inv EI; try apply mem_step_refl;
@@ -411,21 +362,22 @@ Proof. intros.
     eapply mem_step_free; eassumption. 
 Qed.
 
-Lemma asm_mem_step : forall g c m c' m' (CS: asm_step g c m c' m'), mem_step m m'.
+Lemma asm_mem_step : forall ge c m c' m' (CS: asm_step ge c m c' m'), mem_step m m'.
 Proof. intros.
   inv CS; simpl in *; try apply mem_step_refl.
 + eapply exec_instr_mem_step; eassumption. 
-+ (*inv H2.*) admit. (*eapply extcall_mem_step; eassumption.*)
-+ inv H1. apply EFhelpers in OBS. admit. (* eapply extcall_mem_step; eassumption.*)
++ eapply extcall_mem_step; eassumption. 
++ inv H1. eapply extcall_mem_step; try eassumption. apply EFhelpers in OBS; assumption.
+  destruct callee; simpl in *; solve [intros NN; trivial].
 + eapply mem_step_trans. 
   eapply mem_step_alloc; eassumption.
   eapply store_args_mem_step; try eassumption.
-Admitted.
+Qed.
 
 Program Definition Asm_mem_sem : @MemSem genv state.
 Proof.
 apply Build_MemSem with (csem := Asm_core_sem).
-  apply asm_mem_step.
+  apply (asm_mem_step).
 Defined.
 
 Lemma exec_instr_forward g c i rs m rs' m': forall 
