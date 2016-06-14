@@ -75,7 +75,7 @@ Qed.
 Inductive drf_event :=
   Write : forall (b : block) (ofs : Z) (bytes : list memval), drf_event
 | Read : forall (b:block) (ofs n:Z), drf_event
-| Arith: drf_event
+| Pure: drf_event
 | Alloc: forall (lo hi:Z) (b:block), drf_event
 | Lock: drf_event
 | Unlock: drf_event
@@ -84,6 +84,11 @@ Inductive drf_event :=
 (** Similar to effect semantics, DRF semantics augment memory semantics with suitable effects, in the form 
     of a set of memory access traces associated with each internal 
     step of the semantics. *)
+
+Definition dropCur m (P:block -> Z -> Prop)  p mm:Prop :=
+  forall b ofs, 
+     (P b ofs -> Mem.perm_order'' (Some p) ((Mem.mem_access mm) !! b ofs Cur))
+   /\ ( ~ P b ofs -> (Mem.mem_access mm) !! b ofs Cur = (Mem.mem_access m) !! b ofs Cur).
 
 Record DRFSem {G C} :=
   { (** [sem] is a memory semantics. *)
@@ -102,24 +107,39 @@ Record DRFSem {G C} :=
        exists M, drfstep g M c m c' m'
   ; drf_fun: forall T' T'' g c m c' m' c'' m'',
        drfstep g T' c m c' m' -> drfstep g T'' c m c'' m'' -> T'=T''
-  ; drfstep_wr: forall g c m c' m' b ofs bytes,
+  ; drfstep_wr1: forall g c m c' m' b ofs bytes,
        drfstep g (Write b ofs bytes) c m c' m' ->
        Mem.storebytes m b ofs bytes = Some m' /\
-       forall mm, (exists n, 0 <= n < Zlength bytes /\
-                   Mem.perm_order'' (Some Readable) ((Mem.mem_access mm) !! b (ofs+n) Cur)) ->
+       forall mm (P:block -> Z -> Prop)
+                 (HP: exists ofs', P b ofs' /\ ofs <= ofs' < ofs + Zlength bytes),
+                   dropCur m P Readable mm -> (*could even drop to any p below RD*)
                    Mem.storebytes mm b ofs bytes = None 
+  ; drfstep_wr2: forall g c m c' m' b ofs bytes,
+       drfstep g (Write b ofs bytes) c m c' m' ->
+       forall mm (P:block -> Z -> Prop) 
+                 (HP: forall b' ofs', P b' ofs' -> (b'<>b \/ ofs' < ofs \/ ofs + Zlength bytes <=ofs')),
+                   dropCur m P Readable mm -> (*could even "drop" to any p*)
+                   exists cc' mm', Mem.storebytes mm b ofs bytes = Some mm' /\
+                                   corestep msem g c mm cc' mm'
   ; drfstep_rd: forall g c m c' m' b ofs n,
        drfstep g (Read b ofs n) c m c' m' ->
        exists bytes, Mem.loadbytes m b ofs n = Some bytes /\
-       (forall mm, (exists n, 0 <= n < Zlength bytes /\
-                   Mem.perm_order'' (Some Nonempty) ((Mem.mem_access mm) !! b (ofs+n) Cur)) ->
-                   Mem.loadbytes mm b ofs n = None) 
+       (forall mm (P:block -> Z -> Prop)
+                  (HP: exists ofs', P b ofs' /\ ofs <= ofs' < ofs + n),
+                       dropCur m P Nonempty mm -> 
+                   Mem.loadbytes mm b ofs n = None) /\
+       (forall mm (P:block -> Z -> Prop) 
+                  (Pdec: forall b ofs, P b ofs \/ ~ P b ofs)
+                  (HP: forall b' ofs', P b' ofs' -> (b'<>b \/ ofs' < ofs \/ ofs + n <=ofs')),
+                       dropCur m P Nonempty mm -> (*could even "drop" to any p*)
+                  exists cc' mm', exists bytes, Mem.loadbytes m b ofs n = Some bytes /\
+                                  corestep msem g c mm cc' mm')
   ; drfstep_alloc: forall g c m c' m' lo hi b,
        drfstep g (Alloc lo hi b) c m c' m' ->
        Mem.alloc m lo hi = (m',b)
-  ; drfstep_arith: forall g c m c' m',
-       drfstep g Arith c m c' m' -> 
-       (m=m' /\ forall mm, corestep msem g c mm c' mm)
+  ; drfstep_pure: forall g c m c' m',
+       drfstep g Pure c m c' m' -> 
+       (m=m' /\ forall mm, corestep msem g c mm c' mm) (*The latter clause ensures that only pure instructions are classified pure*) 
   }.
 
 Implicit Arguments DRFSem [].

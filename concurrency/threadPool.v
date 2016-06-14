@@ -66,6 +66,8 @@ Module OrdinalPool (SEM:Semantics) (RES:Resources) <: ThreadPoolSig
   Definition getThreadR {i tp} (cnt: containsThread tp i) : res :=
     (perm_maps tp) (Ordinal cnt).
 
+  Definition latestThread tp := n (num_threads tp).
+
   Definition addThread (tp : t) (vf arg : val) (pmap : res) : t :=
     let: new_num_threads := pos_incr (num_threads tp) in
     let: new_tid := ordinal_pos_incr (num_threads tp) in
@@ -242,7 +244,28 @@ Module OrdinalPool (SEM:Semantics) (RES:Resources) <: ThreadPoolSig
     simpl;
       by auto.
   Qed.
-  
+
+  Lemma cntAdd':
+    forall {j tp} vf arg p,
+      containsThread (addThread tp vf arg p) j ->
+      (containsThread tp j /\ j <> num_threads tp) \/ j = num_threads tp.
+  Proof.
+    intros.
+    unfold containsThread in *.
+    simpl in *.
+    destruct (j < (num_threads tp)) eqn:Hlt.
+    left.
+    split;
+      by [auto | ssromega].
+    right.
+    rewrite ltnS in H.
+    rewrite leq_eqVlt in H.
+    move/orP:H=> [H | H];
+      first by move/eqP:H.
+    exfalso.
+      by ssromega.
+  Qed.
+    
   (* TODO: most of these proofs are similar, automate them*)
   (** Getters and Setters Properties*)  
 
@@ -294,6 +317,7 @@ Module OrdinalPool (SEM:Semantics) (RES:Resources) <: ThreadPoolSig
   Proof.
     auto.
   Qed.
+
 
   Lemma gssThreadCode {tid tp} (cnt: containsThread tp tid) c' p'
         (cnt': containsThread (updThread cnt c' p') tid) :
@@ -410,7 +434,27 @@ Module OrdinalPool (SEM:Semantics) (RES:Resources) <: ThreadPoolSig
     rewrite <- Bool.negb_true_iff. auto.
     rewrite H. simpl. rewrite add0n. reflexivity.
   Defined.
-  
+
+  Lemma gssAddRes:
+    forall {i tp} (cnt: containsThread tp i) vf arg pmap j
+      (Heq: j = latestThread tp)
+      (cnt': containsThread (addThread tp vf arg pmap) j),
+      getThreadR cnt' = pmap.
+  Proof.
+    intros. subst.
+    simpl.
+    unfold containsThread in cnt'. simpl in cnt'.
+    destruct (unlift (ordinal_pos_incr (num_threads tp))
+                     (Ordinal (n:=(num_threads tp).+1)
+                              (m:=num_threads tp) cnt')) eqn:H.
+    apply unlift_m_inv in H.
+    destruct o. simpl in *.
+    subst. exfalso;
+      ssromega.
+    rewrite H.
+      by reflexivity.
+  Qed.
+    
   Lemma goaThreadC {i tp}
         (cnti: containsThread tp i)  vf arg p
         (cnti': containsThread (addThread tp vf arg p) i) :

@@ -131,7 +131,8 @@ SEPCOMP_FILES= \
   nucular_semantics.v \
   wholeprog_simulations.v \
   wholeprog_lemmas.v \
-  barebones_simulations.v
+  barebones_simulations.v \
+  drf_semantics.v
   #safety_preservation.v \
 
 CONCUR_FILES= \
@@ -141,12 +142,10 @@ CONCUR_FILES= \
   concurrent_machine.v juicy_machine.v dry_machine.v \
   dry_context.v dry_machine_lemmas.v \
   erasure.v  \
-  semax_conc.v semax_to_machine.v semax_to_juicy_machine.v
-  # mem_obs_eq.v
-  # dry_machine_lemmas.v
-  # Clight_erasure.v dry_context.v
-  # compcert_threads_lemmas.v
-  # lifting.v
+  semax_conc.v semax_to_machine.v semax_to_juicy_machine.v \
+  mem_obs_eq.v dry_machine_lemmas.v dry_context.v \
+  Clight_erasure.v compcert_threads_lemmas.v \
+  lifting.v
 
 CCC26x86_FILES = \
   Archi.v Bounds.v Conventions1.v Conventions.v Ctypes.v \
@@ -154,7 +153,7 @@ CCC26x86_FILES = \
   Machregs.v Asm.v \
   Switch.v Cminor.v \
   I64Helpers.v BuiltinEffects.v load_frame.v Asm_coop.v Asm_eff.v \
-  Asm_nucular.v 
+  Asm_nucular.v Asm_drf.v
 
 LINKING_FILES= \
   sepcomp.v \

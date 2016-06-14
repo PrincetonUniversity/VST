@@ -131,6 +131,23 @@ Section permMapDefs.
     simpl in *; inversion Hnorace;
     (discriminate || constructor).
   Qed.
+
+  Lemma perm_order_clash:
+    forall p p'
+      (Hreadable: Mem.perm_order' p Readable)
+      (Hwritable: Mem.perm_order' p' Writable),
+      ~ exists pu, perm_union p p' = Some pu.
+  Proof.
+    intros. intro Hcontra.
+    destruct p as [p0|], p' as [p0'|];
+      try destruct p0;
+      try destruct p0';
+      simpl in *;
+      destruct Hcontra as [pu H];
+      try inversion H;
+      try (by inversion Hwritable);
+      try (by inversion Hreadable).
+  Qed.
     
   Definition perm_max (p1 p2 : option permission) : option permission :=
     match p1,p2 with
@@ -971,7 +988,23 @@ Section permMapDefs.
     unfold Maps.PMap.get at 2; simpl.
     destruct (((Mem.mem_access m).2) ! (loc.1)) eqn:AA; reflexivity.
   Qed.
-  
+
+  Lemma getMax_restr :
+    forall p' m (Hlt: permMapLt p' (getMaxPerm m)) b,
+      (getMaxPerm (restrPermMap Hlt)) !!  b = (getMaxPerm m) !! b.
+  Proof.
+    intros.
+    unfold getMaxPerm.
+    unfold Maps.PMap.get.
+    simpl. do 2 rewrite Maps.PTree.gmap1.
+    unfold Coqlib.option_map.
+    rewrite Maps.PTree.gmap.
+    unfold Coqlib.option_map.
+    simpl.
+    destruct ((Mem.mem_access m).2 ! b);
+      by auto.
+  Qed.
+    
   Lemma restrPermMap_irr : forall p' p'' m
                              (Hlt : permMapLt p' (getMaxPerm m))
                              (Hlt': permMapLt p'' (getMaxPerm m))

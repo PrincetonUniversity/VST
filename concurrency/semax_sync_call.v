@@ -145,7 +145,7 @@ Proof.
 intros.
 rewrite H0,H1; clear H0 H1. subst argsig. clear.
 destruct witness as [v sh].
-rewrite semax.semax_fold_unfold.
+(* rewrite semax.semax_fold_unfold. *)
 Admitted.
 
 
@@ -390,6 +390,7 @@ Admitted.
 
 (* tactics from branch concurrency *)
 
+(*
 Ltac forward_call_id00_wow_threadlib witness witness' :=
 let Frame := fresh "Frame" in
  evar (Frame: list (mpred));
@@ -459,5 +460,5 @@ Tactic Notation "forward_call_threadlib" constr(witness) constr(witness') simple
      | complain_intros
      ]  
   ].
-
+*)
 End threadlib.
