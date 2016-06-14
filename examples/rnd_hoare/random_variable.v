@@ -16,7 +16,6 @@ Section RandomVariable.
 
 Context {ora: RandomOracle} {SFo: SigmaAlgebraFamily RandomHistory}.
 
-(* TODO: try avoiding this name overload. *)
 Definition RandomVarDomain {HBSFo: HistoryBasedSigF ora}: Type := PrFamily.measurable_subspace.
 
 Definition RandomVarDomain_HistoryAntiChain {HBSFo: HistoryBasedSigF ora} (Omega: RandomVarDomain): HistoryAntiChain := Build_HistoryAntiChain _ (proj1_sig Omega) (measurable_subspace_legal _ (proj2_sig Omega)).

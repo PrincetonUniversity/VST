@@ -277,6 +277,54 @@ Qed.
 
 Definition limit_domain_anti_chain (Omegas: RandomVarDomainStream): HistoryAntiChain := Build_HistoryAntiChain _ (limit_raw_domain Omegas) (limit_raw_domain_legal Omegas).
 
+Lemma limit_domain_anti_chain_hered: forall (Omegas: RandomVarDomainStream) (n: nat) h,
+  Omegas n h ->
+  exists h_limit,
+  prefix_history h h_limit /\ limit_domain_anti_chain Omegas h_limit.
+Proof.
+  intros.
+  destruct (classic (exists l, prefix_history h (fin_history l) /\ forall n0, covered_by (fin_history l) (Omegas n0))).
+  + (* when h_limit is finite *)
+    destruct H0 as [l ?].
+    pose proof 
+      dec_inh_nat_subset_has_unique_least_element
+        (fun m =>
+           exists l0, length l0 = m /\
+             prefix_history h (fin_history l0) /\
+             forall n0, covered_by (fin_history l0) (Omegas n0))
+        (fun n => classic (_ n))
+        (ex_intro _ (length l) (ex_intro _ l (conj (@eq_refl _ (length l)) H0))).
+    clear H0 l.
+    destruct H1 as [m [[[l [? [? ?]]] ?] _]].
+    exists (fin_history l).
+    split; auto.
+
+    assert (exists n0, Omegas n0 (fin_history l)) as HH; [| destruct HH as [n0 ?]].
+    Focus 1. {
+      destruct (classic (exists n0, (Omegas n0) (fin_history l))); auto; exfalso.
+      admit.
+    } Unfocus.
+    hnf; intros.
+    exists (max (S n1) n0), (fin_history l).
+    split; [pose proof Max.le_max_l (S n1) n0; omega |].
+    split; [auto |].
+    split; [apply prefix_history_refl |].
+
+    clear - H2 H4.
+    specialize (H2 (max (S n1) n0)); destruct H2 as [h [? ?]].
+    destruct (RandomVarDomainStream_mono Omegas n0 (max (S n1) n0) (Max.le_max_r _ _) h H0) as [h0 [? ?]].
+    assert (prefix_history h0 (fin_history l)) by (apply prefix_history_trans with h; auto).
+    pose proof anti_chain_not_comparable (Omegas n0) _ _ H2 H4 H3.
+    subst h0.
+    pose proof prefix_history_anti_sym _ _ H H1.
+    subst h.
+    auto.
+
+  + (* when h_limit is infinite *)
+    
+SearchAbout prefix_history (@eq RandomHistory).
+    
+
 Lemma limit_domain_anti_chain_covered_forward: forall (Omegas: RandomVarDomainStream) h,
   is_inf_history h ->
   (exists h', (prefix_history h' h \/ strict_conflict_history h' h) /\ limit_domain_anti_chain Omegas h') ->
@@ -303,7 +351,7 @@ Proof.
     
 
 Definition limit_domain (Omegas: RandomVarDomainStream) (dir: ConvergeDir Omegas): RandomVarDomain.
-  exists (limit_domain_anti_chain Omegas dir).
+  exists (limit_domain_anti_chain Omegas).
   eapply is_measurable_subspace_same_covered.
 
   admit.

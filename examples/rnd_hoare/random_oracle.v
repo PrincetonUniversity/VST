@@ -1,6 +1,7 @@
 Require Import Coq.omega.Omega.
 Require Import Coq.Lists.List.
 Require Export Coq.Logic.Classical.
+Require Export Coq.Logic.FunctionalExtensionality.
 Require Export Coq.Classes.Equivalence.
 Require Export Coq.Classes.Morphisms.
 
@@ -47,8 +48,22 @@ Proof.
   congruence.
 Qed.
 
-Definition history_equiv {ora: RandomOracle} (h1 h2: RandomHistory): Prop :=
-  forall n, h1 n = h2 n.
+Lemma history_extensionality {ora: RandomOracle}: forall h1 h2: RandomHistory, (forall n, h1 n = h2 n) -> h1 = h2.
+Proof.
+  intros.
+  destruct h1 as [h1 ?H], h2 as [h2 ?H]; simpl in *.
+  assert (h1 = h2) by (extensionality n; auto).
+  subst h2.
+  assert (H0 = H1) by (apply proof_irrelevance).
+  subst H1.
+  auto.
+Qed.
+
+Tactic Notation "history_extensionality" ident(x) :=
+  match goal with
+    [ |- ?X = ?Y ] =>
+     apply history_extensionality; intro x
+  end.
 
 Definition fin_history {ora: RandomOracle} (h: list RandomQA) : RandomHistory.
   exists (fun n => nth_error h n).
@@ -143,30 +158,6 @@ Definition strict_conflict_history {ora: RandomOracle} (h1 h2: RandomHistory): P
     | Some a1, Some a2 => projT1 a1 <> projT1 a2
     | _, _ => False
     end.
-
-Instance history_equiv_equiv {ora: RandomOracle}: Equivalence history_equiv.
-Proof.
-  constructor.
-  + hnf; intros.
-    hnf; intros.
-    reflexivity.
-  + hnf; intros.
-    hnf; intros.
-    symmetry; auto.
-  + hnf; intros.
-    hnf; intros.
-    transitivity (y n); auto.
-Qed.
-
-Instance prefix_history_proper {ora: RandomOracle}: Proper (history_equiv ==> history_equiv ==> iff) prefix_history.
-Proof.
-  hnf; intros; hnf; intros.
-  split; intros; hnf; intros.
-  + rewrite <- H, <- H0; specialize (H1 n).
-    auto.
-  + rewrite H, H0; specialize (H1 n).
-    auto.
-Qed.
 
 Lemma history_coincide_sym {ora: RandomOracle}: forall h1 h2 n,
   history_coincide n h1 h2 ->
@@ -305,9 +296,10 @@ Proof.
   + right; congruence.
 Qed.
 
-Lemma prefix_history_anti_sym {ora: RandomOracle}: forall h1 h2, prefix_history h1 h2 -> prefix_history h2 h1 -> history_equiv h1 h2.
+Lemma prefix_history_anti_sym {ora: RandomOracle}: forall h1 h2, prefix_history h1 h2 -> prefix_history h2 h1 -> h1 = h2.
 Proof.
   intros.
+  history_extensionality n.
   hnf; intros.
   specialize (H n); specialize (H0 n).
   destruct H, H0; congruence.
@@ -696,7 +688,7 @@ Lemma anti_chain_not_comparable {ora: RandomOracle}: forall (d: HistoryAntiChain
   d h1 ->
   d h2 ->
   prefix_history h1 h2 ->
-  history_equiv h1 h2.
+  h1 = h2.
 Proof.
   intros.
   pose proof (fun HH  => @rand_consi _ _ (raw_anti_chain_legal d) h1 h2 HH H H0).
@@ -715,7 +707,7 @@ Proof.
       unfold n_conflict_history.
       rewrite H2.
       destruct (h2 n); auto; congruence.
-  + hnf; intros.
+  + history_extensionality n.
     destruct (classic (h1 n = h2 n)); auto; exfalso.
     apply H; exists n; auto.
 Qed.
@@ -891,12 +883,10 @@ Qed.
 
 Lemma fstn_app_inf_fin {ora: RandomOracle}: forall l h n,
   n >= length l ->
-  history_equiv
-     (fstn_history n (inf_history (app_fin_inf l h)))
-     (fin_history (l ++ fisrtn_list_from_fun h (n - length l))).
+  fstn_history n (inf_history (app_fin_inf l h)) = fin_history (l ++ fisrtn_list_from_fun h (n - length l)).
 Proof.
   intros.
-  hnf; intros m.
+  history_extensionality m.
   destruct (le_dec n m).
   + rewrite fstn_history_None by auto.
     simpl.
@@ -918,7 +908,7 @@ Proof.
       auto.
 Qed.
 
-Lemma inf_history_construction {ora: RandomOracle}: forall (P: RandomHistory -> Prop) (init: list RandomQA) (P_proper: Proper (history_equiv ==> iff) P),
+Lemma inf_history_construction {ora: RandomOracle}: forall (P: RandomHistory -> Prop) (init: list RandomQA),
   P (fin_history init) ->
   (forall l, P (fin_history l) -> exists qa, P (fin_history (l ++ qa :: nil))) ->
   exists h, is_inf_history h /\ forall n, n >= length init -> P (fstn_history n h).
@@ -938,6 +928,6 @@ Proof.
     intros.
     specialize (H1 (n - length init)).
     unfold Q in H1.
-    eapply P_proper; [| exact H1].
-    apply fstn_app_inf_fin; auto.
+    rewrite fstn_app_inf_fin by auto.
+    auto.
 Qed.
