@@ -2,16 +2,17 @@ Require Import Clightdefs.
 
 Local Open Scope Z_scope.
 
-Definition ___stringlit_3 : ident := 65%positive.
+Definition ___stringlit_1 : ident := 65%positive.
 Definition ___builtin_fmadd : ident := 40%positive.
 Definition ___compcert_va_int64 : ident := 16%positive.
 Definition ___builtin_fmax : ident := 38%positive.
 Definition ___builtin_write16_reversed : ident := 46%positive.
-Definition _lookup : ident := 62%positive.
-Definition _tree_free : ident := 54%positive.
+Definition _main : ident := 69%positive.
+Definition _insert : ident := 62%positive.
+Definition _pa : ident := 54%positive.
 Definition ___i64_utod : ident := 22%positive.
 Definition ___builtin_va_arg : ident := 12%positive.
-Definition ___stringlit_1 : ident := 63%positive.
+Definition _v : ident := 63%positive.
 Definition ___builtin_membar : ident := 10%positive.
 Definition ___builtin_read16_reversed : ident := 44%positive.
 Definition _tree : ident := 3%positive.
@@ -19,10 +20,11 @@ Definition _value : ident := 2%positive.
 Definition _key : ident := 1%positive.
 Definition ___i64_sar : ident := 31%positive.
 Definition ___builtin_debug : ident := 49%positive.
-Definition ___stringlit_4 : ident := 66%positive.
-Definition _y : ident := 59%positive.
+Definition ___stringlit_2 : ident := 66%positive.
+Definition _treebox_free : ident := 59%positive.
 Definition _left : ident := 4%positive.
-Definition _x : ident := 58%positive.
+Definition ___stringlit_4 : ident := 68%positive.
+Definition _t : ident := 58%positive.
 Definition ___i64_umod : ident := 28%positive.
 Definition ___builtin_memcpy_aligned : ident := 7%positive.
 Definition ___i64_stod : ident := 21%positive.
@@ -31,14 +33,14 @@ Definition ___builtin_read32_reversed : ident := 45%positive.
 Definition ___builtin_va_copy : ident := 13%positive.
 Definition ___i64_smod : ident := 27%positive.
 Definition ___builtin_bswap32 : ident := 33%positive.
-Definition _t : ident := 56%positive.
+Definition _tree_free : ident := 56%positive.
 Definition ___i64_sdiv : ident := 25%positive.
 Definition ___compcert_va_int32 : ident := 15%positive.
-Definition _insert : ident := 60%positive.
+Definition _x : ident := 60%positive.
 Definition ___i64_dtou : ident := 20%positive.
 Definition ___builtin_bswap : ident := 32%positive.
 Definition ___i64_utof : ident := 24%positive.
-Definition _main : ident := 67%positive.
+Definition ___stringlit_3 : ident := 67%positive.
 Definition ___compcert_va_float64 : ident := 17%positive.
 Definition ___builtin_annot : ident := 8%positive.
 Definition _right : ident := 5%positive.
@@ -46,24 +48,24 @@ Definition _mallocN : ident := 50%positive.
 Definition ___builtin_fnmsub : ident := 43%positive.
 Definition _treebox_new : ident := 53%positive.
 Definition ___builtin_write32_reversed : ident := 47%positive.
-Definition _treebox_free : ident := 57%positive.
+Definition _b : ident := 57%positive.
 Definition ___builtin_ctz : ident := 36%positive.
 Definition ___builtin_va_end : ident := 14%positive.
 Definition ___builtin_fabs : ident := 6%positive.
 Definition ___i64_udiv : ident := 26%positive.
 Definition ___i64_dtos : ident := 19%positive.
 Definition ___builtin_fmin : ident := 39%positive.
-Definition _v : ident := 61%positive.
+Definition _y : ident := 61%positive.
 Definition ___builtin_va_start : ident := 11%positive.
 Definition ___builtin_fsqrt : ident := 37%positive.
 Definition ___builtin_fnmadd : ident := 42%positive.
 Definition ___builtin_annot_intval : ident := 9%positive.
-Definition ___stringlit_2 : ident := 64%positive.
+Definition _lookup : ident := 64%positive.
 Definition _p : ident := 52%positive.
 Definition ___builtin_fmsub : ident := 41%positive.
 Definition ___builtin_bswap16 : ident := 34%positive.
 Definition ___i64_shl : ident := 29%positive.
-Definition _b : ident := 55%positive.
+Definition _pb : ident := 55%positive.
 Definition ___builtin_clz : ident := 35%positive.
 Definition ___i64_shr : ident := 30%positive.
 Definition ___i64_stof : ident := 23%positive.
@@ -110,15 +112,15 @@ Definition f_treebox_new := {|
   fn_params := nil;
   fn_vars := nil;
   fn_temps := ((_p, (tptr (tptr (Tstruct _tree noattr)))) ::
-               (68%positive, (tptr tvoid)) :: nil);
+               (70%positive, (tptr tvoid)) :: nil);
   fn_body :=
 (Ssequence
   (Ssequence
-    (Scall (Some 68%positive)
+    (Scall (Some 70%positive)
       (Evar _mallocN (Tfunction (Tcons tint Tnil) (tptr tvoid) cc_default))
       ((Esizeof (tptr (Tstruct _tree noattr)) tuint) :: nil))
     (Sset _p
-      (Ecast (Etempvar 68%positive (tptr tvoid))
+      (Ecast (Etempvar 70%positive (tptr tvoid))
         (tptr (tptr (Tstruct _tree noattr))))))
   (Ssequence
     (Sassign
@@ -133,32 +135,38 @@ Definition f_tree_free := {|
   fn_callconv := cc_default;
   fn_params := ((_p, (tptr (Tstruct _tree noattr))) :: nil);
   fn_vars := nil;
-  fn_temps := nil;
+  fn_temps := ((_pa, (tptr (Tstruct _tree noattr))) ::
+               (_pb, (tptr (Tstruct _tree noattr))) :: nil);
   fn_body :=
 (Sifthenelse (Ebinop One (Etempvar _p (tptr (Tstruct _tree noattr)))
                (Ecast (Econst_int (Int.repr 0) tint) (tptr tvoid)) tint)
   (Ssequence
-    (Scall None
-      (Evar _tree_free (Tfunction (Tcons (tptr (Tstruct _tree noattr)) Tnil)
-                         tvoid cc_default))
-      ((Efield
-         (Ederef (Etempvar _p (tptr (Tstruct _tree noattr)))
-           (Tstruct _tree noattr)) _left (tptr (Tstruct _tree noattr))) ::
-       nil))
+    (Sset _pa
+      (Efield
+        (Ederef (Etempvar _p (tptr (Tstruct _tree noattr)))
+          (Tstruct _tree noattr)) _left (tptr (Tstruct _tree noattr))))
     (Ssequence
-      (Scall None
-        (Evar _tree_free (Tfunction
-                           (Tcons (tptr (Tstruct _tree noattr)) Tnil) tvoid
-                           cc_default))
-        ((Efield
-           (Ederef (Etempvar _p (tptr (Tstruct _tree noattr)))
-             (Tstruct _tree noattr)) _right (tptr (Tstruct _tree noattr))) ::
-         nil))
-      (Scall None
-        (Evar _freeN (Tfunction (Tcons (tptr tvoid) (Tcons tint Tnil)) tvoid
-                       cc_default))
-        ((Etempvar _p (tptr (Tstruct _tree noattr))) ::
-         (Esizeof (Tstruct _tree noattr) tuint) :: nil))))
+      (Sset _pb
+        (Efield
+          (Ederef (Etempvar _p (tptr (Tstruct _tree noattr)))
+            (Tstruct _tree noattr)) _right (tptr (Tstruct _tree noattr))))
+      (Ssequence
+        (Scall None
+          (Evar _freeN (Tfunction (Tcons (tptr tvoid) (Tcons tint Tnil))
+                         tvoid cc_default))
+          ((Etempvar _p (tptr (Tstruct _tree noattr))) ::
+           (Esizeof (Tstruct _tree noattr) tuint) :: nil))
+        (Ssequence
+          (Scall None
+            (Evar _tree_free (Tfunction
+                               (Tcons (tptr (Tstruct _tree noattr)) Tnil)
+                               tvoid cc_default))
+            ((Etempvar _pa (tptr (Tstruct _tree noattr))) :: nil))
+          (Scall None
+            (Evar _tree_free (Tfunction
+                               (Tcons (tptr (Tstruct _tree noattr)) Tnil)
+                               tvoid cc_default))
+            ((Etempvar _pb (tptr (Tstruct _tree noattr))) :: nil))))))
   Sskip)
 |}.
 
@@ -192,7 +200,7 @@ Definition f_insert := {|
                 (_value, (tptr tvoid)) :: nil);
   fn_vars := nil;
   fn_temps := ((_p, (tptr (Tstruct _tree noattr))) :: (_y, tint) ::
-               (69%positive, (tptr tvoid)) :: nil);
+               (71%positive, (tptr tvoid)) :: nil);
   fn_body :=
 (Sloop
   (Ssequence
@@ -206,12 +214,12 @@ Definition f_insert := {|
                      tint)
         (Ssequence
           (Ssequence
-            (Scall (Some 69%positive)
+            (Scall (Some 71%positive)
               (Evar _mallocN (Tfunction (Tcons tint Tnil) (tptr tvoid)
                                cc_default))
               ((Esizeof (Tstruct _tree noattr) tuint) :: nil))
             (Sset _p
-              (Ecast (Etempvar 69%positive (tptr tvoid))
+              (Ecast (Etempvar 71%positive (tptr tvoid))
                 (tptr (Tstruct _tree noattr)))))
           (Ssequence
             (Sassign
@@ -327,16 +335,16 @@ Definition f_main := {|
   fn_params := nil;
   fn_vars := nil;
   fn_temps := ((_p, (tptr (tptr (Tstruct _tree noattr)))) ::
-               (70%positive, (tptr (tptr (Tstruct _tree noattr)))) :: nil);
+               (72%positive, (tptr (tptr (Tstruct _tree noattr)))) :: nil);
   fn_body :=
 (Ssequence
   (Ssequence
     (Ssequence
-      (Scall (Some 70%positive)
+      (Scall (Some 72%positive)
         (Evar _treebox_new (Tfunction Tnil
                              (tptr (tptr (Tstruct _tree noattr))) cc_default))
         nil)
-      (Sset _p (Etempvar 70%positive (tptr (tptr (Tstruct _tree noattr))))))
+      (Sset _p (Etempvar 72%positive (tptr (tptr (Tstruct _tree noattr))))))
     (Ssequence
       (Scall None
         (Evar _insert (Tfunction

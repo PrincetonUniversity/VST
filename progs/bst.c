@@ -14,10 +14,13 @@ treebox treebox_new(void) {
 }
 
 void tree_free(struct tree *p) {
+  struct tree *pa, *pb;
   if (p!=NULL) {
-    tree_free(p->left);
-    tree_free(p->right);
+    pa=p->left;
+    pb=p->right;
     freeN(p, sizeof (*p));
+    tree_free(pa);
+    tree_free(pb);
   }
 }
 
