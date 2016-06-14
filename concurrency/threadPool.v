@@ -454,6 +454,38 @@ Module OrdinalPool (SEM:Semantics) (RES:Resources) <: ThreadPoolSig
     rewrite H.
       by reflexivity.
   Qed.
+
+  Lemma gsoAddRes:
+    forall {i tp} (cnt: containsThread tp i) vf arg pmap j
+      (cntj: containsThread tp j)
+      (cntj': containsThread (addThread tp vf arg pmap) j),
+      getThreadR cntj' = getThreadR cntj.
+  Proof.
+    intros.
+    simpl.
+    destruct (unlift (ordinal_pos_incr (num_threads tp))
+                     (Ordinal (n:=(num_threads tp).+1) (m:=j) cntj')) eqn:Hunlift.
+    rewrite Hunlift.
+    apply unlift_m_inv in Hunlift.
+    subst j.  simpl in *.
+    unfold getThreadR.
+    destruct o.
+    simpl;
+      by erewrite proof_irr with (a1 := i0) (a2:= cntj).
+    exfalso.
+    unfold containsThread in *.
+    simpl in *.
+    assert (Hcontra: (ordinal_pos_incr (num_threads tp))
+                       != (Ordinal (n:=(num_threads tp).+1) (m:=j) cntj')).
+    { apply/eqP. intros Hcontra.
+      unfold ordinal_pos_incr in Hcontra.
+      inversion Hcontra; auto. subst.
+        by ssromega.
+    }
+    apply unlift_some in Hcontra. rewrite Hunlift in Hcontra.
+    destruct Hcontra;
+      by discriminate.
+  Qed.
     
   Lemma goaThreadC {i tp}
         (cnti: containsThread tp i)  vf arg p

@@ -186,6 +186,12 @@ Module Type ThreadPoolSig.
       (Heq: j = latestThread tp)
       (cnt': containsThread (addThread tp vf arg pmap) j),
       getThreadR cnt' = pmap.
+
+  Axiom gsoAddRes:
+    forall {i tp} (cnt: containsThread tp i) vf arg pmap j
+      (cntj: containsThread tp j)
+      (cntj': containsThread (addThread tp vf arg pmap) j),
+      getThreadR cntj' = getThreadR cntj.
    
   (*Get thread Properties*)
   Axiom gssThreadCode :
