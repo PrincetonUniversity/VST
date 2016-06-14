@@ -1,21 +1,22 @@
-Require Import ssreflect ssrbool ssrnat ssrfun eqtype seq fintype finfun.
+(* ssreflect *)
+
+From mathcomp.ssreflect Require Import ssreflect ssrbool ssrnat ssrfun eqtype seq fintype finfun.
 Set Implicit Arguments.
 Unset Strict Implicit.
-Unset Printing Implicit Defensive.
 
 Require Import Bool.
 Require Import Zbool.
 Require Import BinPos. 
 
-Require Import compcert_imports. Import CompcertCommon.
+Require Import concurrency.compcert_imports. Import CompcertCommon.
 
-Require Import Axioms.
+Require Import msl.Axioms.
 
-Require Import sepcomp. Import SepComp.
+Require Import concurrency.sepcomp. Import SepComp.
 
-Require Import pred_lemmas.
-Require Import seq_lemmas.
-Require Import inj_lemmas.
+Require Import concurrency.pred_lemmas.
+Require Import concurrency.seq_lemmas.
+Require Import concurrency.inj_lemmas.
 
 (* The following variation of [join] is appropriate for shared resources  *)
 (* like extern injections: each core must have a consistent mapping on    *)
@@ -974,7 +975,7 @@ by rewrite 2!restrict_sm_local; apply: (disjoint_restrict _ A).
 have C: forall b b' ofs, 
   extern_of mu1' b = Some (b',ofs) -> ~~[predD (vis mu12') & (vis mu12)] b.
   { move=> b b' ofs; rewrite/mu12'/= => C; apply/negP; move/andP=> []E F. 
-    cut (locBlocksSrc mu1' b). 
+    cut (locBlocksSrc mu1' b = true). 
     by move/(locBlocksSrc_externNone _ (Inj_wd _)); rewrite C.
     move: E F; rewrite/mu12/vis/in_mem/=; move/negP; rewrite/in_mem/=.
     case: B=> _ []_ []_ []_ []_ []_ []<- []_ []_ _.
@@ -2048,6 +2049,8 @@ Qed.
 
 Section getBlocks_lems.
 
+(* GS HERE: val_list_inject no longer defined in compcert2.6/common/Values.v *)
+  
 Context args1 args2 j (vinj : val_list_inject j args1 args2).
 
 Lemma getBlocks_tail v vs b : 

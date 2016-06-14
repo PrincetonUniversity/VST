@@ -1,20 +1,21 @@
-Require Import ssreflect ssrbool ssrnat ssrfun eqtype seq fintype finfun.
+(* ssreflect *)
+
+From mathcomp.ssreflect Require Import ssreflect ssrbool ssrnat ssrfun eqtype seq fintype finfun.
 Set Implicit Arguments.
 Unset Strict Implicit.
-Unset Printing Implicit Defensive.
 
 Require Import Bool.
 Require Import Zbool.
 Require Import BinPos. 
 
-Require Import compcert_imports. Import CompcertCommon.
+Require Import concurrency.compcert_imports. Import CompcertCommon.
 
 Require Import Axioms.
 
-Require Import sepcomp. Import SepComp.
+Require Import concurrency.sepcomp. Import SepComp.
 
-Require Import pred_lemmas.
-Require Import seq_lemmas.
+Require Import concurrency.pred_lemmas.
+Require Import concurrency.seq_lemmas.
 
 (* This file collects lemmas on structured injections.                    *)
 (* [Inj.t] is the type of well-defined structured injections. It is       *)
@@ -199,7 +200,7 @@ Qed.
 
 Lemma replace_reach_wd m1 m2 (mu : Inj.t) vals1 vals2 :
   Memory.Mem.inject (as_inj mu) m1 m2 ->
-  List.Forall2 (Values.val_inject (as_inj mu)) vals1 vals2 ->
+  List.Forall2 (val_inject (as_inj mu)) vals1 vals2 ->
   SM_wd (replace_locals mu
           [predI locBlocksSrc mu & REACH m1 (exportedSrc mu vals1)]
           [predI locBlocksTgt mu & REACH m2 (exportedTgt mu vals2)]).
