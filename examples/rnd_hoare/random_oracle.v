@@ -807,4 +807,137 @@ Proof.
       inversion  H9.
 Qed.
 
+Require RndHoare.axiom. Import RndHoare.axiom.NatChoice.
+
+Fixpoint app_fin_inf {ora: RandomOracle} (l: list RandomQA) (f: nat -> RandomQA) :=
+  match l with
+  | nil => f
+  | qa :: l0 => fun n => 
+                match n with
+                | 0 => qa
+                | S m => app_fin_inf l0 f m
+                end
+  end.
+
+Lemma app_fin_inf_list {ora: RandomOracle}: forall l h m, m < length l -> Some (app_fin_inf l h m) = nth_error l m.
+Proof.
+  intros.
+  revert l H; induction m; intros; simpl.
+  + destruct l; [simpl in H; omega |].
+    simpl; auto.
+  + destruct l; [simpl in H; omega |].
+    simpl.
+    apply IHm.
+    simpl in H; omega.
+Qed.
+
+Lemma app_fin_inf_fun {ora: RandomOracle}: forall l h m, length l <= m -> app_fin_inf l h m = h (m - length l).
+Proof.
+  intros.
+  revert m H; induction l; intros; simpl.
+  + f_equal; omega.
+  + destruct m; [simpl in H; omega |].
+    rewrite IHl by (simpl in H; omega).
+    f_equal.
+Qed.
   
+(* These three lemmas are copied from veric/assert_lemmas.v and veric/initial_world.v *)
+Lemma nth_error_in_bounds: forall {A} (l: list A) i, (O <= i < length l)%nat
+  -> exists x, nth_error l i = value x.
+Proof.
+intros until i; intros H.
+revert i l H.
+induction i; destruct l; intros; simpl in *;
+  try solve [eauto | omega].
+apply IHi; omega.
+Qed.
+
+Lemma nth_error_app: forall {T} (al bl : list T) (j: nat),
+     nth_error (al++bl) (length al + j) = nth_error bl j.
+Proof.
+ intros. induction al; simpl; auto.
+Qed.
+
+Lemma nth_error_app1: forall {T} (al bl : list T) (j: nat),
+     (j < length al)%nat ->
+     nth_error (al++bl) j = nth_error al j.
+Proof.
+  intros. revert al H; induction j; destruct al; simpl; intros; auto; try omega.
+   apply IHj. omega.
+Qed.
+
+Lemma length_firstn_list_from_fun: forall {A} (f: nat -> A) n, length (fisrtn_list_from_fun f n) = n.
+Proof.
+  intros.
+  induction n; simpl; auto.
+  rewrite app_length, IHn.
+  simpl.
+  omega.
+Qed.
+
+Lemma nth_error_firstn_list_from_fun: forall {A} (f: nat -> A) n m, m < n -> nth_error (fisrtn_list_from_fun f n) m = Some (f m).
+Proof.
+  intros.
+  revert m H; induction n; intros; simpl.
+  + omega.
+  + destruct (le_dec n m).
+    - assert (n = m) by omega; subst.
+      replace m with (length (fisrtn_list_from_fun f m) + 0) at 3 by (rewrite length_firstn_list_from_fun; omega).
+      rewrite nth_error_app.
+      simpl; auto.
+    - rewrite nth_error_app1 by (rewrite length_firstn_list_from_fun; omega).
+      apply IHn; omega.
+Qed.
+
+Lemma fstn_app_inf_fin {ora: RandomOracle}: forall l h n,
+  n >= length l ->
+  history_equiv
+     (fstn_history n (inf_history (app_fin_inf l h)))
+     (fin_history (l ++ fisrtn_list_from_fun h (n - length l))).
+Proof.
+  intros.
+  hnf; intros m.
+  destruct (le_dec n m).
+  + rewrite fstn_history_None by auto.
+    simpl.
+    symmetry.
+    apply nth_error_None_iff.
+    rewrite app_length.
+    rewrite length_firstn_list_from_fun.
+    omega.
+  + rewrite fstn_history_Some by omega.
+    simpl.
+    destruct (le_dec (length l) m).
+    - rewrite app_fin_inf_fun by auto.
+      replace m with (length l + (m - length l)) at 2 by omega.
+      rewrite nth_error_app.
+      rewrite nth_error_firstn_list_from_fun by omega.
+      auto.
+    - rewrite nth_error_app1 by omega.
+      rewrite app_fin_inf_list by omega.
+      auto.
+Qed.
+
+Lemma inf_history_construction {ora: RandomOracle}: forall (P: RandomHistory -> Prop) (init: list RandomQA) (P_proper: Proper (history_equiv ==> iff) P),
+  P (fin_history init) ->
+  (forall l, P (fin_history l) -> exists qa, P (fin_history (l ++ qa :: nil))) ->
+  exists h, is_inf_history h /\ forall n, n >= length init -> P (fstn_history n h).
+Proof.
+  intros.
+  pose (Q := fun l => P (fin_history (init ++ l))).
+  destruct (nat_stepwise_choice Q) as [h ?].
+  + hnf.
+    rewrite app_nil_r; auto.
+  + subst Q; simpl; intros.
+    specialize (H0 _ H1).
+    destruct H0 as [qa ?]; exists qa.
+    rewrite app_assoc.
+    auto.
+  + exists (inf_history (app_fin_inf init h)).
+    split; [apply inf_history_inf |].
+    intros.
+    specialize (H1 (n - length init)).
+    unfold Q in H1.
+    eapply P_proper; [| exact H1].
+    apply fstn_app_inf_fin; auto.
+Qed.

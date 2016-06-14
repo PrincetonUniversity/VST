@@ -143,7 +143,7 @@ Global Coercion raw_direction: ConvergeDir >-> Funclass.
 
 Definition ProgStateStream (Omegas: RandomVarDomainStream) (state: Type) {state_sigma: SigmaAlgebra state}: Type := forall n: nat, ProgState (Omegas n) state.
 
-Definition is_limit_domain (Omegas: RandomVarDomainStream) (dir: ConvergeDir Omegas) (lim_Omega: RandomVarDomain) : Prop :=
+Definition is_limit_domain (Omegas: RandomVarDomainStream) (lim_Omega: RandomVarDomain) : Prop :=
   forall h,
     lim_Omega h <->
       (forall n h_low, is_fin_history h_low -> prefix_history h_low h ->
@@ -157,7 +157,7 @@ Definition is_limit {Omegas: RandomVarDomainStream} {lim_Omega: RandomVarDomain}
        forall n h_low, is_fin_history h_low -> prefix_history h_low h ->
          exists n' h', n' > n /\ prefix_history h_low h' /\ prefix_history h' h /\ dir n' h').
 
-Definition limit_raw_domain (Omegas: RandomVarDomainStream) (dir: ConvergeDir Omegas): RandomHistory -> Prop :=
+Definition limit_raw_domain (Omegas: RandomVarDomainStream): RandomHistory -> Prop :=
   fun h =>
     forall n h_low, is_fin_history h_low -> prefix_history h_low h ->
       exists n' h', n' > n /\ prefix_history h_low h' /\ prefix_history h' h /\ Omegas n' h'.
@@ -223,7 +223,7 @@ Proof.
   + apply RandomVarDomainStream_mono; auto.
 Qed.
 
-Lemma limit_raw_domain_covered: forall (Omegas: RandomVarDomainStream) (dir: ConvergeDir Omegas) h n, limit_raw_domain Omegas dir h -> covered_by h (Omegas n).
+Lemma limit_raw_domain_covered: forall (Omegas: RandomVarDomainStream) h n, limit_raw_domain Omegas h -> covered_by h (Omegas n).
 Proof.
   intros.
   rename h into h_limit.
@@ -237,7 +237,7 @@ Proof.
   apply prefix_history_trans with h0; auto.
 Qed.
 
-Lemma limit_raw_domain_measurable: forall (Omegas: RandomVarDomainStream) (dir: ConvergeDir Omegas), LegalHistoryAntiChain (limit_raw_domain Omegas dir).
+Lemma limit_raw_domain_legal: forall (Omegas: RandomVarDomainStream), LegalHistoryAntiChain (limit_raw_domain Omegas).
 Proof.
   intros.
   constructor.
@@ -247,8 +247,8 @@ Proof.
   destruct (H1 0 (fstn_history (S n) h2) (fstn_history_finite _ _) (fstn_history_prefix _ _)) as [m2 [h2' [? [? [? ?]]]]].
   
   destruct (raw_anti_chain_legal (Omegas (max m1 m2))) as [?H].
-  destruct (limit_raw_domain_covered Omegas dir h1 (max m1 m2) H0) as [h1'' [? ?]].
-  destruct (limit_raw_domain_covered Omegas dir h2 (max m1 m2) H1) as [h2'' [? ?]].
+  destruct (limit_raw_domain_covered Omegas h1 (max m1 m2) H0) as [h1'' [? ?]].
+  destruct (limit_raw_domain_covered Omegas h2 (max m1 m2) H1) as [h2'' [? ?]].
 
   assert (prefix_history (fstn_history (S n) h1) h1'').
   Focus 1. {
@@ -275,7 +275,32 @@ Proof.
   + apply squeeze_history_coincide; auto.
 Qed.
 
-Definition limit_domain_anti_chain (Omegas: RandomVarDomainStream) (dir: ConvergeDir Omegas): HistoryAntiChain := Build_HistoryAntiChain _ (limit_raw_domain Omegas dir) (limit_raw_domain_measurable Omegas dir).
+Definition limit_domain_anti_chain (Omegas: RandomVarDomainStream): HistoryAntiChain := Build_HistoryAntiChain _ (limit_raw_domain Omegas) (limit_raw_domain_legal Omegas).
+
+Lemma limit_domain_anti_chain_covered_forward: forall (Omegas: RandomVarDomainStream) h,
+  is_inf_history h ->
+  (exists h', (prefix_history h' h \/ strict_conflict_history h' h) /\ limit_domain_anti_chain Omegas h') ->
+  (exists h', (prefix_history h' h \/ strict_conflict_history h' h) /\ Omegas 0 h').
+Proof.
+  intros.
+  destruct H0 as [h' [? ?]].
+  pose proof limit_raw_domain_covered _ _ 0 H1.
+  destruct H2 as [h'' [? ?]].
+  exists h''; split; auto.
+  destruct H0.
+  + left; apply prefix_history_trans with h'; auto.
+  + apply (strict_conflict_prefix_left h h'' h'); auto.
+Qed.
+
+Lemma limit_domain_anti_chain_covered_backward: forall (Omegas: RandomVarDomainStream) h,
+  is_inf_history h ->
+  (exists h', (prefix_history h' h \/ strict_conflict_history h' h) /\ Omegas 0 h') ->
+  (exists h', (prefix_history h' h \/ strict_conflict_history h' h) /\ limit_domain_anti_chain Omegas h').
+Proof.
+  intros.
+  destruct (classic (exists n, exists h', strict_conflict_history h' h /\ (Omegas n) h')).
+  + clear H0; destruct H1 as [n [h' [? ?]]].
+    
 
 Definition limit_domain (Omegas: RandomVarDomainStream) (dir: ConvergeDir Omegas): RandomVarDomain.
   exists (limit_domain_anti_chain Omegas dir).
@@ -328,4 +353,4 @@ Fixpoint left_raw_state (n: nat): RandomHistory -> MetaState state -> Prop :=
 Definition right_raw_dir (n: nat): RandomHistory -> Prop :=
   fun h => exists m, covered_by h (left_raw_dir m) /\ ~ covered_by h (left_raw_dir (S m)) /\ MeasurableSubset_HistoryAntiChain (dir (n + S m)) h.
 
-End CutLimit.
+End CutLimit. 
