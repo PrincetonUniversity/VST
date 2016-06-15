@@ -7,7 +7,7 @@ Unset Strict Implicit.
 Require Import Bool.
 Require Import Zbool.
 Require Import BinPos. 
-Require Import eq_dec.
+Require Import msl.eq_dec.
 
 Require Import Globalenvs.
 Require Import Memory.
