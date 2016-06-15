@@ -196,10 +196,11 @@ Module Concur.
           (HangelDecr: forall b ofs, Mem.perm_order''
                                   (Maps.PMap.get b (getThreadR cnt0) ofs)
                                   (Maps.PMap.get b (computeMap
-                                                      empty_map virtue2) ofs))
-          (HangelIncr: forall b ofs, ~ Mem.perm_order'
-                                  (Maps.PMap.get b (computeMap empty_map virtue2)
-                                                 ofs) Nonempty)
+                                                      (getThreadR cnt0) virtue1) ofs))
+          (HangelIncr: forall b ofs,
+              Mem.perm_order'' Nonempty
+                               (Maps.PMap.get b (computeMap empty_map virtue2)
+                                              ofs))
           (Htp_upd: tp_upd = updThread cnt0 (Kresume c Vundef)
                                        (computeMap (getThreadR cnt0) virtue1))
           (Htp': tp' = addThread tp_upd vf arg
