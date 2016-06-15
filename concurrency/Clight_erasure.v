@@ -438,8 +438,7 @@ Module ClightParching <: ErasureSig.
       - intro i. unfold JTP.containsThread, JSEM.initial_machine; simpl.
         unfold DTP.containsThread, DSEM.initial_machine; simpl.
         trivial.
-      - (*Here*)
-        intro i. unfold JTP.containsThread, JSEM.initial_machine; simpl.
+      - intro i. unfold JTP.containsThread, JSEM.initial_machine; simpl.
         unfold DTP.containsThread, DSEM.initial_machine; simpl.
         trivial.
       - reflexivity.
@@ -850,25 +849,54 @@ Module ClightParching <: ErasureSig.
                        JSEM.ThreadPool.lockRes js l = Some (Some phi) ->
                        JSEM.mem_compatible js m ->
                        JSEM.mem_cohere' m phi .
-                   Proof.
-                     Lemma compatible_lockRes_sub: forall js m l phi,
+                   Proof.         
+                     Lemma compatible_lockRes_sub: forall js l phi,
                        JSEM.ThreadPool.lockRes js l = Some (Some phi) ->
-                       forall compat:JSEM.mem_compatible js m,
-                       join_sub phi 
-                   
-                   unfold d_phi.
-                 unfold sepalg.join in Hadd_lock_res.
-                 ShareMap.join_lifted.
-                 res_option_join
-
-                   Focus 2. reflexivity.
-                         
-                 
-                 unfold sepalg.join, Join_rmap in Hadd_lock_res. 
-                       
-                 admit. (*We know both sides are None, because of mem_compatible, the join and because 
-                         mem is None at that point, so it tricles down. *)
-           }
+                       forall all_juice,
+                         JSEM.join_all js all_juice ->
+                         join_sub phi all_juice.
+                     Admitted.
+                     intros.
+                     inversion H0.
+                     apply (compatible_lockRes_sub _ _ _ H ) in juice_join.
+                     Lemma mem_cohere_sub: forall phi1 phi2 m,
+                         JSEM.mem_cohere' m phi1 ->
+                         join_sub phi2 phi1 ->
+                         JSEM.mem_cohere' m phi2.
+                     Admitted.
+                     apply (mem_cohere_sub _ _ _ all_cohere) in juice_join .
+                     assumption.
+                   Qed.
+                   destruct
+                     (compatible_lockRes_cohere _ _ _ _
+                                                His_unlocked
+                                                Hcmpt).
+                   clear - acc_coh valb0MEM.
+                   admit. (*This will change when I change acc_coh back.*)
+                 - symmetry.
+                   Lemma compatible_threadRes_cohere:
+                     forall js m i (cnt:JTP.containsThread js i),
+                       JSEM.mem_compatible js m ->
+                       JSEM.mem_cohere' m (JSEM.ThreadPool.getThreadR cnt) .
+                   Proof.
+                     intros.
+                     Lemma compatible_threadRes_sub:
+                     forall js i (cnt:JTP.containsThread js i),
+                       forall all_juice,
+                         JSEM.join_all js all_juice ->
+                         join_sub (JSEM.ThreadPool.getThreadR cnt) all_juice.
+                     Admitted.
+                     inversion H.
+                     eapply mem_cohere_sub.
+                     - eassumption.
+                     - apply compatible_threadRes_sub. assumption.
+                   Qed.
+                   destruct
+                     (compatible_threadRes_cohere _ _ i Hi
+                                                  Hcmpt).
+                   clear - acc_coh valb0MEM.
+                   admit. (*This will change when I change acc_coh back.*)
+        }
            
            assert (H: exists l, DSEM.ThreadPool.lockRes ds (b, Int.intval ofs) = Some l).
            { inversion MATCH; subst.
@@ -886,7 +914,12 @@ Module ClightParching <: ErasureSig.
              apply restrPermMap_ext.
              intros b0.
              inversion MATCH; subst.
-             admit. (*This should follow from mtch_locks*)
+             extensionality ofs0.
+             rewrite DSEM.ThreadPool.lockSet_spec.
+             rewrite JSEM.ThreadPool.lockSet_spec.
+             generalize (mtch_locks (b0, ofs0)).
+             destruct (ssrbool.isSome (DSEM.ThreadPool.lockRes ds (b0, ofs0)));
+             intros HH; rewrite HH; reflexivity.
            + assumption.
            + assumption.
            + exact dlockRes.
@@ -917,12 +950,92 @@ Module ClightParching <: ErasureSig.
               (JSEM.juice2Perm d_phi m)).
          exists ds''.
          split; [|split].
-    - admit. (*Nick has this proof somewhere. *)
+    - unfold ds''.
+      cut (DSEM.invariant ds').
+      { intros dinv'.
+        apply updLock_inv.
+        - assumption. (*Another lemma for invariant.*)
+        - cut ( exists p, DSEM.ThreadPool.lockRes ds' (b, Int.intval ofs) = Some p).
+          {
+            intros HH i0 cnt . destruct HH as [p HH].
+          inversion dinv'.
+          unfold permMapsDisjoint in lock_set_threads.
+          specialize (lock_set_threads i0 cnt b (Int.intval ofs)).
+          destruct lock_set_threads as [pu lst].
+          rewrite DSEM.ThreadPool.lockSet_spec in lst.
+          rewrite HH in lst; simpl in lst.
+          generalize lst.
+          destruct ((DSEM.ThreadPool.getThreadR cnt) # b (Int.intval ofs)) as [perm|] eqn:AA;
+            rewrite AA;  [destruct perm; intros H; try solve[ inversion H] | ]; exists (Some Writable); reflexivity. }
+          { inversion MATCH; subst. specialize (mtch_locks (b,Int.intval ofs)).
+          rewrite His_locked in mtch_locks.
+          destruct (DSEM.ThreadPool.lockRes ds (b, Int.intval ofs)) eqn: AA; try solve[inversion mtch_locks].
+          exists l; assumption. }
+        - intros. 
+          unfold permMapsDisjoint.
+          admit. 
+        - admit. (*waiting for acc_cohere to change*)
+        - simpl. apply (resource_at_join _ _ _ (b, (Int.intval ofs))) in
+              Hrem_lock_res.
+          rewrite HJcanwrite in Hrem_lock_res.
+          simpl in Hrem_lock_res.
+          cut ((JSEM.juice2Perm d_phi m) # b (Int.intval ofs) = None \/
+               (JSEM.juice2Perm d_phi m) # b (Int.intval ofs) = Some Nonempty).
+          + intros HH; destruct HH as [A | A]; rewrite A;
+            exists (Some Writable); reflexivity.
+          + unfold JSEM.juice2Perm, JSEM.mapmap, PMap.get; simpl.
+            rewrite PTree.gmap.
+            rewrite PTree.gmap1.
+            destruct ((snd (Mem.mem_access m)) ! b).
+            * { simpl.
+                destruct (d_phi @ (b, Int.intval ofs)) eqn: HH; rewrite HH; simpl.
+                - destruct (eq_dec t Share.bot); [left|right]; reflexivity.
+                - right.
+                  unfold sepalg.join, Join_resource in Hrem_lock_res.
+                  inversion Hrem_lock_res; reflexivity.
+                - right; reflexivity.
+              }
+            * left; reflexivity.
+        - intros. simpl. inversion dinv'. apply lock_res_set in H.
+          apply permMapsDisjoint_comm in H.
+          specialize (H b (Int.intval ofs)).
+          rewrite DSEM.ThreadPool.lockSet_spec in H.
+          cut ( ssrbool.isSome
+                  (DSEM.ThreadPool.lockRes ds' (b, Int.intval ofs)) = true ).
+          { intros HH. rewrite HH in H. destruct H as [pu H].
+            exists (pu); assumption. }
+          { inversion MATCH; subst. specialize (mtch_locks (b, Int.intval ofs)).
+            rewrite His_locked in mtch_locks. 
+            rewrite DTP.gsoThreadLPool.
+            rewrite <- mtch_locks; reflexivity. }
+      }
+      { (*Proof DSEM.invariant ds'*)
+        apply updThread_inv.
+        - assumption.
+        - intros.  (*virtue is disjoint from other threads. *)
+        - intros. admit. (*virtue is disjoint from lockSet. *)
+        - intros. admit. (*virtue disjoint from other lock resources.*)
+      }
+
+
+
+
+      
     - unfold ds''.
       apply MTCH_updLockS.
-      Focus 2. inversion MATCH; subst.
+      Focus 2.
+      {
+      inversion MATCH; subst.
       intros; apply JSEM.juic2Perm_correct.
-      admit. (*lock resources cohere. We know this.*)
+      inversion Hcompatible.
+      eapply mem_cohere_sub.
+      - eassumption.
+      - eapply join_sub_trans.
+        + unfold join_sub. exists (m_phi jm'). eassumption.
+        + eapply compatible_threadRes_sub.
+      assumption. }
+
+      Unfocus.
       unfold ds'.
       apply MTCH_update; auto.
       intros.
@@ -945,7 +1058,12 @@ Module ClightParching <: ErasureSig.
              apply restrPermMap_ext.
              intros b0.
              inversion MATCH; subst.
-             admit. (*This should follow from mtch_locks*)
+             extensionality ofs0.
+             rewrite DSEM.ThreadPool.lockSet_spec.
+             rewrite JSEM.ThreadPool.lockSet_spec.
+             generalize (mtch_locks (b0, ofs0)).
+             destruct (ssrbool.isSome (DSEM.ThreadPool.lockRes ds (b0, ofs0)));
+             intros HH; rewrite HH; reflexivity.
       + assumption.
       + assumption.
       + exact dlockRes.
