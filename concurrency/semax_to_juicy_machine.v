@@ -74,9 +74,11 @@ Inductive cohere_res_lock : forall (resv : option (mpred * option rmap)) (wetv :
     cohere_res_lock (Some (R, Some phi)) wetv (Byte (Integers.Byte.one)).
  *)
 
+Definition islock_pred R r := exists sh sh' z, r = YES sh sh' (LK z) (SomeP ((unit:Type)::nil) (fun _ => R)).
+
 Inductive cohere_res_lock : forall (resv : option (option rmap)) (wetv : resource) (dryv : memval), Prop :=
 | cohere_notlock wetv dryv:
-    (forall R, ~islock_pred R wetv) ->
+    (forall  sh sh' z P, wetv <> YES sh sh' (LK z) P) ->
     cohere_res_lock None wetv dryv
 | cohere_locked R wetv :
     islock_pred R wetv ->
@@ -92,8 +94,8 @@ Definition state_invariant {Z} (Jspec : juicy_ext_spec Z) (n : nat) (state : cm_
     
     (* joinability condition *)
     (exists phi_all,
-        JuicyMachineShell_ClightSEM.join_all sss phi_all
-        /\
+        (* JuicyMachineShell_ClightSEM.join_all sss phi_all *)
+        (* /\ *)
         
         (* coherence between locks (dry, wet, and lockset) *)
         (forall lock : Address.address,
@@ -101,6 +103,8 @@ Definition state_invariant {Z} (Jspec : juicy_ext_spec Z) (n : nat) (state : cm_
               (@addressFiniteMap.AMap.find _ lock lockset)
               (phi_all @ lock)
               (contents_at m lock)))
+    /\
+    JuicyMachineShell_ClightSEM.mem_compatible sss m
     /\
     
     (* safety of each thread *)
@@ -172,7 +176,8 @@ Section Initial_State.
     set (q := projT1 (projT2 spr)).
     set (jm := proj1_sig (snd (projT2 (projT2 spr)) n)).
     
-    split; [exists (m_phi jm);split | split].
+    split; [exists (m_phi jm)(* ;split *) | split; [|split]].
+    (*
     - (* joining condition *)
       admit.
     (* Questions:
@@ -184,19 +189,69 @@ Section Initial_State.
     (* unfold join. *)
     (* now admit (* join with empty_rmap -- doable *). *)
     (* now admit. *)
+     *)
     
     - (* cohere_res_lock (there are no locks at first) *)
       intros lock.
-      replace (
-      addressFiniteMap.AMap.find (elt:=option rmap) lock
-                                 (addressFiniteMap.AMap.empty (option rmap))
-        ) with (@None (option rmap)) by admit.
+      rewrite threadPool.find_empty.
       constructor.
       intros.
       unfold jm.
       match goal with |- context [proj1_sig ?x] => destruct x as (jm' & jmm & lev & S & notlock) end.
-      intro.
-      eapply notlock; eexists; eauto.
+      simpl.
+      apply notlock.
+    
+    - (* mem_compatible *)
+      Import JuicyMachineShell_ClightSEM.
+      apply JuicyMachineShell_ClightSEM.Build_mem_compatible' with (all_juice := m_phi jm).
+      + apply JuicyMachineShell_ClightSEM.AllJuice with (m_phi jm) None.
+        * change (proj1_sig (snd (projT2 (projT2 spr)) n)) with jm.
+          unfold join_threads.
+          Import fintype.
+          Import ThreadPool.
+          Import pos.
+          (* unfold JuicyMachineShell_ClightSEM.getThreadsR. *)
+          replace getThreadsR with (fun tp => map (perm_maps tp) (ord_enum (pos.n (num_threads tp)))) by admit (* TODO this will reflexivity *).
+          
+          match goal with |- _ ?l _ => replace l with (m_phi jm :: nil) end; swap 1 2.
+          {
+            simpl.
+            generalize (m_phi jm); clear; intros r.
+            compute.
+            destruct ssrbool.idP as [_|F].
+            reflexivity.
+            exfalso. auto.
+          }
+          fold jm.
+          simpl.
+          exists (core (m_phi jm)).
+          {
+            split.
+            - apply join_comm.
+              apply core_unit.
+            - apply core_identity.
+          }
+        
+        * reflexivity.
+        * constructor.
+      + destruct (snd (projT2 (projT2 spr))) as [jm' [D H]]; unfold jm; clear jm; simpl.
+        subst m.
+        destruct jm' as [m' phi] eqn:E.
+        apply Build_mem_cohere'; simpl.
+        all:auto.
+        now admit (* should be access_cohere *).
+      + intros loc sh psh P z L.
+        destruct (snd (projT2 (projT2 spr))) as [jm' [D [H [A NL]]]]; unfold jm in *; clear jm; simpl in L |- *.
+        specialize (NL loc).
+        rewrite L in NL.
+        exfalso; eapply NL.
+        reflexivity.
+      + intros loc sh psh P z L.
+        destruct (snd (projT2 (projT2 spr))) as [jm' [D [H [A NL]]]]; unfold jm in *; clear jm; simpl in L |- *.
+        specialize (NL loc).
+        rewrite L in NL.
+        exfalso; eapply NL.
+        reflexivity.
     
     - (* safety of the only thread *)
       intros i pr_i phi jmi ora Ephi.
@@ -208,7 +263,7 @@ Section Initial_State.
       destruct (JS n) as (jm' & jmm & lev & S & notlock); simpl proj1_sig in *; simpl proj2_sig in *.
       subst.
       replace c with q in * by congruence.
-      replace (level jm') with (level jmi).
+      replace (ageable.level jm') with (ageable.level jmi).
       eapply jsafeN_proof_irrelevance; [ | | apply (S ora) ]; auto.
       { destruct jmi eqn:Ei, jm' eqn:E'.
         simpl; simpl in Ewet.
@@ -285,7 +340,7 @@ Section Simulation.
   Proof.
     intros ((m & ge) & sch & sss).
     destruct sss as (nthreads, thds, phis, lset) eqn:Esss.
-    intros ((phi_all & J & lock_coh) & safe & single).
+    intros ((phi_all & lock_coh) & mem_compat & safe & single).
     rewrite <-Esss in *.
     destruct sch as [ | i sch ].
     
@@ -293,8 +348,7 @@ Section Simulation.
     {
       exists (m, ge, (nil, sss)); subst; split.
       - constructor.
-      - split; eauto.
-        split; [ | now intuition ].
+      - repeat split; eauto.
         intros i pr_i phi jmi ora E_phi di wi.
         eassert.
         + eapply safe; eauto.
@@ -309,8 +363,7 @@ Section Simulation.
     {
       exists (m, ge, (i :: sch, sss)); subst; split.
       - constructor. unfold Machine.containsThread; simpl. rewrite Ei. auto.
-      - split; eauto.
-        split; [ | now intuition ].
+      - repeat split; eauto.
         intros j pr_j phi jmj ora E_phi di wi.
         eassert.
         + eapply safe; eauto.
@@ -339,7 +392,7 @@ Section Simulation.
     {
       assert (Hjmi : exists jmi, m_dry jmi = m /\ m_phi jmi = phi_i).
       { admit (* "slice" lemma for juicy memory *). }
-
+      
       destruct Hjmi as [jm_i [jm_i_m jm_i_phi_i]].
       
       destruct c_i as [ve te k | ef sig args lid ve te k] eqn:Heqc.
@@ -361,9 +414,7 @@ Section Simulation.
         pose (state' := (m', ge, (i :: sch, sss'))).
         exists state'.
         split.
-        - assert (mem_compat : JuicyMachineShell_ClightSEM.mem_compatible sss m).
-          { admit. }
-          apply state_step_internal with (contains_thread_i := pr_i) (mem_compat := mem_compat).
+        - apply state_step_internal with (contains_thread_i := pr_i) (mem_compat := mem_compat).
           apply JuicyMachineShell_ClightSEM.step_juicy with (c := c_i) (jm := jm_i) (c' := c_i') (jm' := jm_i').
           + admit (* mem_compat *).
           + admit (* mem coherence *).
@@ -371,8 +422,9 @@ Section Simulation.
           + apply step_i.
           + reflexivity.
           + reflexivity.
-        - split;[|split].
+        - split;[|split;[|split]].
           + admit (* get phi_all from the mem_compat, too? *).
+          + admit (* mem_compat *).
           + intros i0 pr_i0 q phi jmi ora.
             (* safety for all oracle : use the fact the oracle does
             not change after one step *)
@@ -387,7 +439,7 @@ Section Simulation.
       
       (* thread[i] is running and about to call an external *)
       {
-
+        
         (* paragraph below: ef has to be an EF_external *)
         assert (Hef : match ef with EF_external _ _ => True | _ => False end).
         {
@@ -457,6 +509,11 @@ Section Simulation.
         
         { (* the case of acquire *)
           
+          eexists.
+          split.
+          eapply state_step_concurrent.
+          
+          
           pose proof (safe i pr_i phi_i jm_i (* oracle=*)nil ltac:(assumption)) as safe_i.
           rewrite Ec_i in safe_i.
           specialize (safe_i ltac:(assumption) ltac:(assumption)).
@@ -481,7 +538,17 @@ Section Simulation.
           intros (phix, ((((ok, oracle_x), vx), shx), Rx)) Pre. simpl in Pre.
           destruct Pre as (phi0 & phi1 & Join & Precond & HnecR).
           simpl (and _).
+          intros Pre.
+          
           unfold cl_after_external.
+          
+          (* relate lset to val *)
+          pose proof lset.
+          destruct Precond as [A [[B D] C]].
+          hnf in B.
+          simpl in B.
+          hnf in D.
+          
           (* build the memory from the machine from scratch.  Do we
           really need the dummy oracle, then? *)
           
@@ -511,6 +578,7 @@ Section Simulation.
                 - release: this time, the jsafeN_ will explain how to
                   split the current rmap.
            *)
+          admit.
           }
         
         { (* the case of release *) admit. }

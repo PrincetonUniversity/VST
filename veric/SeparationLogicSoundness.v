@@ -44,7 +44,7 @@ Axiom semax_prog_rule :
        forall n, { jm |
        m_dry jm = m /\ level jm = n /\
        (forall z, jsafeN (@OK_spec Espec) (globalenv prog) n z q jm) /\
-       (forall addr, ~ islock (m_phi jm @ addr))
+       no_locks (m_phi jm)
      } } }%type.
 
 End SEPARATION_LOGIC_SOUNDNESS.

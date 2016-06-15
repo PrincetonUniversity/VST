@@ -58,8 +58,10 @@ Fixpoint join_to (ms : list rmap) (s : rmap) : Prop :=
 
 (** * How resources are related to resources in dry/wet memories *)
 
+Definition islock_pred R r := exists sh sh' z, r = YES sh sh' (LK z) (SomeP ((unit:Type)::nil) (fun _ => R)).
+
 Inductive cohere_res_lock : forall (resv : option (mpred * option rmap)) (wetv : resource) (dryv : memval), Prop :=
-| cohere_notlock wetv dryv:
+| cohere_nolock wetv dryv:
     (forall R, ~islock_pred R wetv) ->
     cohere_res_lock None wetv dryv
 | cohere_locked R wetv :
@@ -152,10 +154,10 @@ Proof.
   - (* cohere_res_lock (there are no locks at first) *)
     constructor.
     intros.
-    match goal with |- context [proj1_sig ?x] => destruct x as (jm' & jmm & lev & S & notlock) end.
-    intro.
-    eapply notlock; eexists; eauto.
-    
+    match goal with |- context [proj1_sig ?x] => destruct x as (jm' & jmm & lev & S & NL) end.
+    intros (sh & sh' & z & L).
+    apply (NL _ _ _ _ _ L).
+  
   - (* safety of the only thread *)
     intros i q0 m0 oracle E.
     destruct i as [ | [ | i ]]; simpl in E; inversion E; subst.
@@ -163,11 +165,8 @@ Proof.
     destruct (JS n) as (jm' & jmm & lev & S & notlock); simpl projT1 in *; simpl projT2 in *.
     subst.
     simpl snd.
-    (* apply (S oracle). *) 
-Admitted. (* faster *)
-(*
-Qed.  (* 1'40 --- Definition + Lemma faster than Program Definition *)
- *)
+    (* apply (S oracle).  *)
+Admitted.
 
 (* todo move those signatures to semax_conc *)
 Definition acquire_sig :=
