@@ -1586,6 +1586,81 @@ Module InternalSteps.
           eapply internal_step_disjoint_val_lockPool; eauto.
         + by eauto.
     Qed.
+
+    Lemma addThread_internal_step:
+      forall tp tp' m m' i vf arg pmap
+        (cnti: containsThread tp i)
+        (cnti': containsThread (addThread tp vf arg pmap) i)
+        (Hcomp: mem_compatible tp m)
+        (Hcomp': mem_compatible (addThread tp vf arg pmap) m)
+        (Hinv': invariant (addThread tp vf arg pmap))
+        (Hstep: internal_step cnti Hcomp tp' m'),
+        internal_step cnti' Hcomp' (addThread tp' vf arg pmap) m'.
+    Proof.
+      intros.
+      destruct Hstep as [Htstep | [Hresume | Hinit]].
+      - inversion Htstep; subst tp'0 m'0.
+        left.
+        eapply step_dry with (c := c) (c' := c'); eauto.
+        erewrite gsoAddCode with (cntj := cnti); eauto.
+        subst.
+        erewrite restrPermMap_irr with (Hlt' := Hcomp i cnti); eauto.
+        erewrite gsoAddRes with (cntj := cnti); eauto.
+        subst.
+          by rewrite add_update_comm.
+      - destruct Hresume as [Hresume ?]; subst.
+        inversion Hresume; subst.
+        right; left.
+        split; auto.
+        econstructor; eauto.
+        erewrite gsoAddCode with (cntj := ctn); eauto.            
+          by rewrite add_updateC_comm.
+      - destruct Hinit; subst.
+        right; right.
+        split; auto.
+        inversion H; subst.
+        econstructor; eauto.
+        erewrite gsoAddCode; eauto.
+          by rewrite add_updateC_comm.
+    Qed.
+
+    
+    Lemma addThread_internal_execution:
+      forall tp tp' m m' i j xs vf arg pmap
+        (Hneq: i <> j)
+        (Hinv': invariant (addThread tp vf arg pmap))
+        (Hcomp': mem_compatible (addThread tp vf arg pmap) m)
+        (Hexec: internal_execution [seq x <- xs | x == j] tp m tp' m'),
+        internal_execution [seq x <- xs | x == j]
+                           (addThread tp vf arg pmap) m
+                           (addThread tp' vf arg pmap) m'.
+    Proof.
+      intros.
+      generalize dependent m.
+      generalize dependent tp.
+      induction xs; intros.
+      - simpl in *.
+        inversion Hexec; subst;
+        first by constructor.
+        simpl in HschedN;
+          by discriminate.
+      - simpl in *.
+        destruct (a == j) eqn:Heq; move/eqP:Heq=>Heq.
+        subst a.
+        inversion Hexec; subst.
+        simpl in HschedN. inversion HschedN; subst tid.
+        assert (cnt':= cntAdd vf arg pmap cnt).
+        eapply addThread_internal_step
+        with (cnti' := cnt') (Hcomp' := Hcomp') in Hstep; eauto.
+        specialize (IHxs tp'0
+                         ltac:(eapply internal_step_invariant; eauto)
+                                m'0
+                                ltac:(eapply (internal_step_compatible);
+                                       eauto) Htrans).
+        econstructor;
+          by eauto.
+        eauto.
+    Qed.
     
   End InternalSteps.
 End InternalSteps.

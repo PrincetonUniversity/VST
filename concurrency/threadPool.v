@@ -486,36 +486,173 @@ Module OrdinalPool (SEM:Semantics) (RES:Resources) <: ThreadPoolSig
     destruct Hcontra;
       by discriminate.
   Qed.
-    
-  Lemma goaThreadC {i tp}
-        (cnti: containsThread tp i)  vf arg p
-        (cnti': containsThread (addThread tp vf arg p) i) :
-    getThreadC cnti' = getThreadC cnti.
+
+  Lemma gssAddCode:
+    forall {i tp} (cnt: containsThread tp i) vf arg pmap j
+      (Heq: j = latestThread tp)
+      (cnt': containsThread (addThread tp vf arg pmap) j),
+      getThreadC cnt' = Kinit vf arg.
   Proof.
+    intros. subst.
     simpl.
-    unfold getThreadC.
-    unfold addThread, containsThread in *. simpl in *.
+    unfold containsThread in cnt'. simpl in cnt'.
     destruct (unlift (ordinal_pos_incr (num_threads tp))
-                     (Ordinal (n:=(num_threads tp).+1) (m:=i) cnti')) eqn:H.
-    rewrite H. apply unlift_m_inv in H. subst i.
+                     (Ordinal (n:=(num_threads tp).+1)
+                              (m:=num_threads tp) cnt')) eqn:H.
+    apply unlift_m_inv in H.
+    destruct o. simpl in *.
+    subst. exfalso;
+      ssromega.
+    rewrite H.
+      by reflexivity.
+  Qed.
+  
+  Lemma gsoAddCode:
+    forall {i tp} (cnt: containsThread tp i) vf arg pmap j
+      (cntj: containsThread tp j)
+      (cntj': containsThread (addThread tp vf arg pmap) j),
+      getThreadC cntj' = getThreadC cntj.
+  Proof.
+    intros.
+    simpl.
+    destruct (unlift (ordinal_pos_incr (num_threads tp))
+                     (Ordinal (n:=(num_threads tp).+1) (m:=j) cntj')) eqn:Hunlift.
+    rewrite Hunlift.
+    apply unlift_m_inv in Hunlift.
+    subst j.  simpl in *.
+    unfold getThreadC.
     destruct o.
-    do 2 apply f_equal;
-      by apply proof_irr.
-    destruct (i == num_threads tp) eqn:Heqi; move/eqP:Heqi=>Heqi.
-    subst i.
-    exfalso;
-      by ssromega.
+    simpl;
+      by erewrite proof_irr with (a1 := i0) (a2:= cntj).
+    exfalso.
+    unfold containsThread in *.
+    simpl in *.
     assert (Hcontra: (ordinal_pos_incr (num_threads tp))
-                       != (Ordinal (n:=(num_threads tp).+1) (m:=i) cnti')).
+                       != (Ordinal (n:=(num_threads tp).+1) (m:=j) cntj')).
     { apply/eqP. intros Hcontra.
-            unfold ordinal_pos_incr in Hcontra.
-            inversion Hcontra; auto.
+      unfold ordinal_pos_incr in Hcontra.
+      inversion Hcontra; auto. subst.
+        by ssromega.
     }
-    apply unlift_some in Hcontra. rewrite H in Hcontra.
+    apply unlift_some in Hcontra. rewrite Hunlift in Hcontra.
     destruct Hcontra;
       by discriminate.
   Qed.
 
+  Lemma add_update_comm:
+    forall tp i vf arg pmap c' pmap'
+      (cnti: containsThread tp i)
+      (cnti': containsThread (addThread tp vf arg pmap) i),
+      addThread (updThread cnti c' pmap') vf arg pmap =
+      updThread cnti' c' pmap'.
+  Proof.
+    intros.
+    (* let's box pool and perm_maps in another
+                      function to avoid redoing the same proof *)
+    pose (fun tp ord => (pool tp ord, perm_maps tp ord)) as p.
+    assert (H: p (addThread (updThread cnti c' pmap') vf arg pmap)
+               = p (updThread cnti' c' pmap')).
+    { unfold addThread, updThread, p; simpl.
+      extensionality ord.
+      destruct (unlift (ordinal_pos_incr (num_threads tp)) ord)
+        as [o|] eqn:Hunlift.
+      rewrite Hunlift.
+      destruct ord as [m pfm].
+      apply unlift_m_inv in Hunlift.
+      simpl in *.
+      subst m.
+      destruct o as [m pfo].
+      destruct (m == i) eqn:Hmi; move/eqP:Hmi=>Hmi.
+      subst m.
+      erewrite proof_irr with (a1 := pfo) (a2 := cnti).
+      rewrite if_true;
+        by auto.
+      do 4 erewrite if_false
+        by (apply/eqP; intros Hcontra; inversion Hcontra; by subst).
+      reflexivity.
+      rewrite Hunlift.
+      destruct ord as [m pfm].
+      assert (Ordinal (n:=(num_threads tp).+1) (m:=m) pfm
+                      != Ordinal (n:=(num_threads tp).+1)
+                      (m:=i) cnti').
+      { apply/eqP; intros Heq.
+        inversion Heq; subst.
+        assert (Hcontra:
+                  (ordinal_pos_incr (num_threads tp)) !=
+                                                      (Ordinal (n:=(num_threads tp).+1) (m:=i) pfm)).
+        { apply/eqP. intros Hcontra.
+          unfold containsThread in *; simpl in *.
+          unfold ordinal_pos_incr in Hcontra.
+          inversion Hcontra. subst.
+            by ssromega.
+        }
+        apply unlift_some in Hcontra. simpl in Hcontra.
+        rewrite Hunlift in Hcontra.
+        destruct Hcontra;
+          by discriminate.
+      }
+      erewrite if_false by eauto.
+      erewrite if_false by eauto.
+        by reflexivity.
+    } 
+    unfold p in H. simpl in H.
+    apply prod_fun in H.
+    destruct H as [H1 H2].
+    unfold addThread, updThread.
+    rewrite H1 H2.
+      by reflexivity.
+  Qed.
+
+  Lemma add_updateC_comm:
+    forall tp i vf arg pmap c'
+      (cnti: containsThread tp i)
+      (cnti': containsThread (addThread tp vf arg pmap) i),
+      addThread (updThreadC cnti c') vf arg pmap =
+      updThreadC cnti' c'.
+  Proof.
+    intros.
+    assert (H: pool (addThread (updThreadC cnti c')
+                               vf arg pmap)
+               = pool (updThreadC cnti' c')).
+    { unfold addThread, updThread; simpl.
+      extensionality ord.
+      destruct (unlift (ordinal_pos_incr (num_threads tp)) ord)
+        as [o|] eqn:Hunlift.
+      rewrite Hunlift.
+      destruct ord as [m pfm].
+      apply unlift_m_inv in Hunlift.
+      simpl in *.
+      subst m.
+      destruct o as [m pfo].
+      destruct (m == i) eqn:Hmi; move/eqP:Hmi=>Hmi; auto.
+      rewrite Hunlift.
+      destruct ord as [m pfm].
+      assert (Ordinal (n:=(num_threads tp).+1) (m:=m) pfm
+                      != Ordinal (n:=(num_threads tp).+1)
+                      (m:=i) cnti').
+      { apply/eqP; intros Heq.
+        inversion Heq; subst.
+        assert (Hcontra:
+                  (ordinal_pos_incr (num_threads tp)) !=
+                                                      (Ordinal (n:=(num_threads tp).+1) (m:=i) pfm)).
+        { apply/eqP. intros Hcontra.
+          unfold containsThread in *; simpl in *.
+          unfold ordinal_pos_incr in Hcontra.
+          inversion Hcontra. subst.
+            by ssromega.
+        }
+        apply unlift_some in Hcontra. simpl in Hcontra.
+        rewrite Hunlift in Hcontra.
+        destruct Hcontra;
+          by discriminate.
+      }
+      erewrite if_false; eauto.
+    }
+    unfold addThread, updThreadC in *; simpl in *.
+    rewrite H.
+      by reflexivity.
+  Qed.
+                    
   Lemma gsoThreadCLPool:
     forall {i tp} c (cnti: containsThread tp i) addr,
       lockRes (updThreadC cnti c) addr = lockRes tp addr.

@@ -192,6 +192,32 @@ Module Type ThreadPoolSig.
       (cntj: containsThread tp j)
       (cntj': containsThread (addThread tp vf arg pmap) j),
       getThreadR cntj' = getThreadR cntj.
+
+  Axiom gssAddCode:
+    forall {i tp} (cnt: containsThread tp i) vf arg pmap j
+      (Heq: j = latestThread tp)
+      (cnt': containsThread (addThread tp vf arg pmap) j),
+      getThreadC cnt' = Kinit vf arg.
+
+  Axiom gsoAddCode:
+    forall {i tp} (cnt: containsThread tp i) vf arg pmap j
+      (cntj: containsThread tp j)
+      (cntj': containsThread (addThread tp vf arg pmap) j),
+      getThreadC cntj' = getThreadC cntj.
+
+  Axiom add_update_comm:
+    forall tp i vf arg pmap c' pmap'
+      (cnti: containsThread tp i)
+      (cnti': containsThread (addThread tp vf arg pmap) i),
+      addThread (updThread cnti c' pmap') vf arg pmap =
+      updThread cnti' c' pmap'.
+
+  Axiom add_updateC_comm:
+    forall tp i vf arg pmap c'
+      (cnti: containsThread tp i)
+      (cnti': containsThread (addThread tp vf arg pmap) i),
+      addThread (updThreadC cnti c') vf arg pmap =
+      updThreadC cnti' c'.
    
   (*Get thread Properties*)
   Axiom gssThreadCode :
@@ -238,12 +264,6 @@ Module Type ThreadPoolSig.
       (cntj: containsThread tp j) p
       (cntj': containsThread (updThreadR cnti p) j),
       getThreadC cntj' = getThreadC cntj.
-
-  Axiom goaThreadC:
-    forall {i tp}
-        (cnti: containsThread tp i) vf arg p
-        (cnti': containsThread (addThread tp vf arg p) i),
-      getThreadC cnti' = getThreadC cnti.
 
   Axiom gsoThreadCLPool:
     forall {i tp} c (cnti: containsThread tp i) addr,
