@@ -1,7 +1,8 @@
-Require Import ssreflect ssrbool ssrnat ssrfun eqtype seq fintype finfun.
+(* ssreflect *)
+
+From mathcomp.ssreflect Require Import ssreflect ssrbool ssrnat ssrfun eqtype seq fintype finfun.
 Set Implicit Arguments.
 Unset Strict Implicit.
-Unset Printing Implicit Defensive.
 
 Require Import Bool.
 Require Import Zbool.
@@ -15,12 +16,12 @@ Require Import Maps.
 
 Require Import Axioms.
 
-Require Import sepcomp. Import SepComp.
+Require Import concurrency.sepcomp. Import SepComp.
 
-Require Import pred_lemmas.
-Require Import seq_lemmas.
-Require Import inj_lemmas.
-Require Import join_sm.
+Require Import concurrency.pred_lemmas.
+Require Import concurrency.seq_lemmas.
+Require Import concurrency.inj_lemmas.
+Require Import concurrency.join_sm.
 
 (* nwp = no wild pointers *)
 
@@ -28,8 +29,8 @@ Definition nwp_aux m (IN OUT : block -> bool) :=
   forall b ofs, 
   IN b -> 
   Mem.perm m b ofs Cur Readable -> 
-  forall b' ofs' n, 
-    ZMap.get ofs (Mem.mem_contents m) !! b = Pointer b' ofs' n -> 
+  forall b' ofs' n q, 
+    ZMap.get ofs (Mem.mem_contents m) !! b = Fragment (Vptr b' ofs') q n -> 
     OUT b'.
 
 Definition nwp m := [fun bs => nwp_aux m bs bs].
@@ -42,16 +43,17 @@ move=> A; rewrite/REACH_closed=> b; rewrite REACHAX=> [][]L B.
 elim: L b B=> //; first by move=> b; rewrite reach_reach'.
 move=> [b' ofs'] L' IH b; rewrite reach_reach'=> /=.
 move: {A}(A b' ofs').
-case: (ZMap.get _ _ !! _)=> // b'' n n' A []B []C.
+case: (ZMap.get _ _ !! _)=> // v q n A.
+case: v A=> // b'' i A []B []C.
 rewrite -reach_reach'; move/(IH _)=> D.
-by move: (A D C b'' n n' erefl); rewrite -B.
+by move: (A D C b'' i n q erefl); rewrite -B.
 Qed.
 
 Lemma nwp_REACH_closed2 bs m : 
   REACH_closed m bs -> 
   nwp m bs.
 Proof.
-rewrite/REACH_closed=> A b ofs B C b' ofs' n D; apply: A.
+rewrite/REACH_closed=> A b ofs B C b' ofs' n q D; apply: A.
 by rewrite REACHAX; exists [:: (b,ofs)]; rewrite reach_reach' /= D.
 Qed.
 
@@ -77,8 +79,8 @@ Lemma nwp_aux_post phi1 phi2 phi2' m :
   {subset phi2 <= phi2'} -> 
   nwp_aux m phi1 phi2'.
 Proof.
-move=> A sub b ofs B C b' ofs' n D.
-by apply: sub; apply: (A _ _ B C b' ofs' n D).
+move=> A sub b ofs B C b' ofs' n q D.
+by apply: sub; apply: (A _ _ B C b' ofs' n q D).
 Qed.
 
 Lemma nwp_aux_update phi1 phi2 m m' : 
@@ -88,10 +90,10 @@ Lemma nwp_aux_update phi1 phi2 m m' :
   nwp_aux m' phi1 (fun b => phi1 b || phi2 b) -> 
   nwp_aux m' phi2 (fun b => phi1 b || phi2 b).
 Proof.
-move=> val A unch C b ofs D E b' ofs' n F.
+move=> val A unch C b ofs D E b' ofs' n q F.
 have G: Mem.perm m b ofs Cur Readable.
   by case: unch; move/(_ b ofs Cur Readable D (val _ D))=> ->.
-apply: (A b ofs D G b' ofs' n).
+apply: (A b ofs D G b' ofs' n q).
 by case: unch=> _; move/(_ _ _ D G)=> <-.
 Qed.
 
@@ -391,7 +393,7 @@ have H3: forall l, ~ reach m1 B l b.
 by elimtype False; apply: (H3 [::]); apply: reach_nil.
 case=> b0 ofs0 L IH b H; inversion 1; subst.
 have H7: forall l, ~ reach m1 B l b by apply: notin_REACHP.
-case get: (ZMap.get ofs0 (Mem.mem_contents m1) !! b0)=> [||b' off' n'].
+case get: (ZMap.get ofs0 (Mem.mem_contents m1) !! b0)=> [||v' q' n']. 
 exists b0,ofs0,[::(b0,ofs0) & L]; split=> //; first by left.
 case e: (E b0 ofs0); first by apply: (E_sub e).
 case f: (valid_block_dec m1 b0)=> [valid|nvalid].
@@ -418,12 +420,92 @@ by move: X; move/valid_dec.
 by apply/negP; move/valid_dec'=> X; clear f; apply: nvalid.
 case p: (Mem.perm_dec m1 b0 ofs0 Cur Readable)=> [prm|nprm].
  
-{ case e: (eq_dec (b,off) (b',off'))=> [pf|pf].
+{ case: v' get.
+  
+  { (* v' not a pointer fragment *)
+exists b0,ofs0,[::(b0,ofs0) & L]; split=> //; first by left.
+case e: (E b0 ofs0); first by apply: (E_sub e).
+case f: (valid_block_dec m1 b0)=> [valid|nvalid].
+have H5': Mem.perm m1 b0 ofs0 Cur Readable.
+{ case: unch; move/(_ _ _ _ _ e valid); case/(_ Cur Readable)=> E1 E2.
+  by move=> _; apply: E2. }
+by case: unch=> _; move/(_ _ _ e H5'); rewrite H6 get.
+apply: localloc_sub; apply/andP; split=> //.
+have X: Mem.valid_block m1' b0.
+{ by move: H5; apply: Mem.perm_valid_block. }
+by move: X; move/valid_dec.
+by apply/negP; move/valid_dec'=> X; clear f; apply: nvalid.
+  }
+
+  { (* v' not a pointer fragment *)
+exists b0,ofs0,[::(b0,ofs0) & L]; split=> //; first by left.
+case e: (E b0 ofs0); first by apply: (E_sub e).
+case f: (valid_block_dec m1 b0)=> [valid|nvalid].
+have H5': Mem.perm m1 b0 ofs0 Cur Readable.
+{ case: unch; move/(_ _ _ _ _ e valid); case/(_ Cur Readable)=> E1 E2.
+  by move=> _; apply: E2. }
+by case: unch=> _; move/(_ _ _ e H5'); rewrite H6 get.
+apply: localloc_sub; apply/andP; split=> //.
+have X: Mem.valid_block m1' b0.
+{ by move: H5; apply: Mem.perm_valid_block. }
+by move: X; move/valid_dec.
+by apply/negP; move/valid_dec'=> X; clear f; apply: nvalid.
+  }
+
+  { (* v' not a pointer fragment *)
+exists b0,ofs0,[::(b0,ofs0) & L]; split=> //; first by left.
+case e: (E b0 ofs0); first by apply: (E_sub e).
+case f: (valid_block_dec m1 b0)=> [valid|nvalid].
+have H5': Mem.perm m1 b0 ofs0 Cur Readable.
+{ case: unch; move/(_ _ _ _ _ e valid); case/(_ Cur Readable)=> E1 E2.
+  by move=> _; apply: E2. }
+by case: unch=> _; move/(_ _ _ e H5'); rewrite H6 get.
+apply: localloc_sub; apply/andP; split=> //.
+have X: Mem.valid_block m1' b0.
+{ by move: H5; apply: Mem.perm_valid_block. }
+by move: X; move/valid_dec.
+by apply/negP; move/valid_dec'=> X; clear f; apply: nvalid.
+  }
+
+  { (* v' not a pointer fragment *)
+move=> f.
+exists b0,ofs0,[::(b0,ofs0) & L]; split=> //; first by left.
+case e: (E b0 ofs0); first by apply: (E_sub e).
+case fx: (valid_block_dec m1 b0)=> [valid|nvalid].
+have H5': Mem.perm m1 b0 ofs0 Cur Readable.
+{ case: unch; move/(_ _ _ _ _ e valid); case/(_ Cur Readable)=> E1 E2.
+  by move=> _; apply: E2. }
+by case: unch=> _; move/(_ _ _ e H5'); rewrite H6 get.
+apply: localloc_sub; apply/andP; split=> //.
+have X: Mem.valid_block m1' b0.
+{ by move: H5; apply: Mem.perm_valid_block. }
+by move: X; move/valid_dec.
+by apply/negP; move/valid_dec'=> X; clear fx; apply: nvalid.
+  }
+
+  { (* v' not a pointer fragment *)
+move=> f.    
+exists b0,ofs0,[::(b0,ofs0) & L]; split=> //; first by left.
+case e: (E b0 ofs0); first by apply: (E_sub e).
+case fx: (valid_block_dec m1 b0)=> [valid|nvalid].
+have H5': Mem.perm m1 b0 ofs0 Cur Readable.
+{ case: unch; move/(_ _ _ _ _ e valid); case/(_ Cur Readable)=> E1 E2.
+  by move=> _; apply: E2. }
+by case: unch=> _; move/(_ _ _ e H5'); rewrite H6 get.
+apply: localloc_sub; apply/andP; split=> //.
+have X: Mem.valid_block m1' b0.
+{ by move: H5; apply: Mem.perm_valid_block. }
+by move: X; move/valid_dec.
+by apply/negP; move/valid_dec'=> X; clear fx; apply: nvalid.
+  }
+  
+  move=> b' off' get.
+  case e: (eq_dec (b,off) (b',off'))=> [pf|pf].
   inversion pf; subst; clear e pf.
   case f: (REACH m1 B b0).
   move: f; rewrite REACHAX; case=> L0 rch0.
   elimtype False; apply: (H7 [::(b0,ofs0) & L0]).
-  by apply: (reach_cons _ _ _ _ _ _ _ _ rch0 prm get).
+  by apply: (reach_cons _ _ _ _ _ _ _ _ _ rch0 prm get).
   have H8: ~~ REACH m1 B b0=true by apply/negP; rewrite f. 
   case: (IH _ H8 H3)=> bM []offM []L0 []rch' inL0 inE.
   exists bM,offM,[::(b0,ofs0) & L0]; split=> //.
@@ -437,7 +519,7 @@ case p: (Mem.perm_dec m1 b0 ofs0 Cur Readable)=> [prm|nprm].
   { case: unch; move/(_ _ _ _ _ f valid); case/(_ Cur Readable)=> E1 E2.
     by move=> _; apply: E2. }
   case: unch=> _; move/(_ _ _ f H5'); rewrite H6 get=> H8.
-  by move: pf e; case: H8=> -> -> _ pf; elimtype False; apply: pf.
+  by move: pf e; case: H8=> -> -> _ _ pf; elimtype False; apply: pf.
   apply: localloc_sub; apply/andP; split=> //.
   have X: Mem.valid_block m1' b0.
   { by move: H5; apply: Mem.perm_valid_block. }
