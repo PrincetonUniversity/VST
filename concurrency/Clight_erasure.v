@@ -13,7 +13,7 @@ Require Import concurrency.scheduler.
 Require Import concurrency.concurrent_machine.
 Require Import concurrency.juicy_machine. Import Concur.
 Require Import concurrency.dry_machine. Import Concur.
-Require Import concurrency.dry_machine_lemmas. 
+(*Require Import concurrency.dry_machine_lemmas. *)
 Require Import concurrency.lksize.
 Require Import concurrency.permissions.
 
@@ -525,7 +525,7 @@ Module ClightParching <: ErasureSig.
           rewrite DSEM.ThreadPool.lockSet_spec in lst.
           rewrite HH in lst; simpl in lst.
           generalize lst.
-          destruct ((DSEM.ThreadPool.getThreadR cnt) # b (Int.intval ofs)) as [perm|] eqn:AA;
+          destruct ((DSEM.ThreadPool.getThreadR cnt) !! b (Int.intval ofs)) as [perm|] eqn:AA;
             rewrite AA;  [destruct perm; intros H; try solve[ inversion H] | ]; exists (Some Writable); reflexivity. }
           { inversion MATCH; subst. specialize (mtch_locks (b,Int.intval ofs)).
           rewrite His_unlocked in mtch_locks.
@@ -776,7 +776,7 @@ Module ClightParching <: ErasureSig.
           rewrite DSEM.ThreadPool.lockSet_spec in lst.
           rewrite HH in lst; simpl in lst.
           generalize lst.
-          destruct ((DSEM.ThreadPool.getThreadR cnt) # b (Int.intval ofs)) as [perm|] eqn:AA;
+          destruct ((DSEM.ThreadPool.getThreadR cnt) !! b (Int.intval ofs)) as [perm|] eqn:AA;
             rewrite AA;  [destruct perm; intros H; try solve[ inversion H] | ]; exists (Some Writable); reflexivity. }
           { inversion MATCH; subst. specialize (mtch_locks (b,Int.intval ofs)).
           rewrite His_locked in mtch_locks.
@@ -790,8 +790,8 @@ Module ClightParching <: ErasureSig.
               Hrem_lock_res.
           rewrite HJcanwrite in Hrem_lock_res.
           simpl in Hrem_lock_res.
-          cut ((JSEM.juice2Perm d_phi m) # b (Int.intval ofs) = None \/
-               (JSEM.juice2Perm d_phi m) # b (Int.intval ofs) = Some Nonempty).
+          cut ((JSEM.juice2Perm d_phi m) !! b (Int.intval ofs) = None \/
+               (JSEM.juice2Perm d_phi m) !! b (Int.intval ofs) = Some Nonempty).
           + intros HH; destruct HH as [A | A]; rewrite A;
             exists (Some Writable); reflexivity.
           + unfold JSEM.juice2Perm, JSEM.mapmap, PMap.get; simpl.
@@ -916,8 +916,8 @@ Module ClightParching <: ErasureSig.
         - intros i0 cnt0.
           simpl (fst (b, Int.intval ofs)).
           simpl (snd (b, Int.intval ofs)).
-          assert ((DTP.getThreadR cnt0) # b (Int.intval ofs) = None \/
-                 (DTP.getThreadR cnt0) # b (Int.intval ofs) = Some Nonempty).
+          assert ((DTP.getThreadR cnt0) !! b (Int.intval ofs) = None \/
+                 (DTP.getThreadR cnt0) !! b (Int.intval ofs) = Some Nonempty).
           {  destruct (NatTID.eq_tid_dec i i0).
              - right. subst i0. 
                rewrite DTP.gssThreadRes. unfold pmap_tid'.
@@ -1091,8 +1091,8 @@ Module ClightParching <: ErasureSig.
           eapply remLock_inv.
           - assumption.
           - intros; simpl.
-            cut (((DTP.getThreadR cnt) # b (Int.intval ofs)) = Some Nonempty \/
-                 ((DTP.getThreadR cnt) # b (Int.intval ofs)) = None).
+            cut (((DTP.getThreadR cnt) !! b (Int.intval ofs)) = Some Nonempty \/
+                 ((DTP.getThreadR cnt) !! b (Int.intval ofs)) = None).
             { intros H; destruct H as [H | H]; rewrite H;
               exists (Some Writable); reflexivity. }
             { inversion MATCH; subst.
