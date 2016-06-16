@@ -9,7 +9,7 @@ From mathcomp.ssreflect Require Import ssreflect ssrbool ssrnat ssrfun eqtype se
 Set Implicit Arguments.
 
 (*NOTE: because of redefinition of [val], these imports must appear 
-  after Ssreflect eqtype.*)
+  after Ssreflect eqtype.*)  
 Require Import compcert.common.AST.     (*for typ*)
 Require Import compcert.common.Values. (*for val*)
 Require Import compcert.common.Globalenvs. 

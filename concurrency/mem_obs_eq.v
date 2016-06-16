@@ -995,7 +995,7 @@ Module CoreInjections.
         forall c c' f (Hinj: core_inj f c c'),
           match at_external Sem c, at_external Sem c' with
           | Some (ef, sig, vs), Some (ef', sig', vs') =>
-            ef = ef' /\ sig = sig' /\ Coqlib.list_forall2 (val_obs f) vs vs'
+            ef = ef' /\ sig = sig' /\ val_obs_list f vs vs'
           | None, None => True
           | _, _ => False
           end;
