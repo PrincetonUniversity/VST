@@ -593,7 +593,7 @@ Module Concur.
             (Hstore:
                Mem.store Mint32 m b (Int.intval ofs) (Vint Int.zero) = Some m')
             (*Check the new memory has the lock*)
-            (Hct: forall ofs', 0<ofs'-(Int.intval ofs)<LKSIZE ->
+            (Hct: forall ofs', 0 <= ofs'-(Int.intval ofs)<LKSIZE ->
                           exists val,
                 phi@ (b, ofs') = YES sh pfullshare (VAL val) (pack_res_inv R))
             (Hlock: phi'@ (b, Int.intval ofs) = YES sh pfullshare (LK LKSIZE) (pack_res_inv R))
