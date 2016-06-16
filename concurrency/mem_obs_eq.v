@@ -327,6 +327,20 @@ Proof.
   econstructor; eauto.
 Qed.
 
+Lemma valid_val_list_domain:
+  forall f f' m vs
+    (Hvalid: valid_val_list f vs)
+    (Hdomain: domain_memren f m)
+    (Hdomain': domain_memren f' m),
+    valid_val_list f' vs.
+Proof.
+  intros.
+  induction vs; first by constructor.
+  inversion Hvalid; subst.
+  constructor; [eapply valid_val_domain|];
+    by eauto.
+Qed.
+
 (** Well-definedeness is preserved through storing a well-defined value *)
 Lemma store_wd:
   forall m m' chunk b ofs v
@@ -932,9 +946,9 @@ End MemObsEq.
 Module CoreInjections.
 
   Import SEM ValObsEq MemoryWD Renamings.
-  Class CoreInj :=
-    { core_inj: memren -> C -> C -> Prop;
-      core_wd : memren -> C -> Prop;
+
+  Class CoreWD :=
+    { core_wd : memren -> C -> Prop;
       ge_wd : memren -> G -> Prop;
       ge_wd_incr: forall f f' (g : G),
           ge_wd f g ->
@@ -971,7 +985,12 @@ Module CoreInjections.
           initial_core Sem the_ge vf [:: arg] = Some c_new ->
           valid_val f arg ->
           ge_wd f the_ge ->
-          core_wd f c_new;
+          core_wd f c_new
+    }.
+
+  
+  Class CoreInj (WD: CoreWD) :=
+    { core_inj: memren -> C -> C -> Prop;
       core_inj_ext: 
         forall c c' f (Hinj: core_inj f c c'),
           match at_external Sem c, at_external Sem c' with
@@ -1004,11 +1023,12 @@ Module CoreInjections.
           | _, _ => False
           end;
       core_inj_init:
-        forall vf arg arg' c_new f
+        forall vf vf' arg arg' c_new f
           (Hf: val_obs_list f arg arg')
+          (Hf': val_obs f vf vf')
           (Hinit: initial_core Sem the_ge vf arg = Some c_new),
         exists c_new',
-          initial_core Sem the_ge vf arg' = Some c_new' /\
+          initial_core Sem the_ge vf' arg' = Some c_new' /\
           core_inj f c_new c_new';
       core_inj_id: forall c f,
           core_wd f c -> 
@@ -1032,7 +1052,8 @@ Module ThreadPoolInjections.
   Import dry_context mySchedule DryMachine DryMachine.ThreadPool.
   Import SEM ValObsEq MemoryWD Renamings CoreInjections concurrent_machine.
   (** Injections on programs *)
-  Context {ci : CoreInj}.
+  Context {cwd : CoreWD}.
+  Context {ci : CoreInj cwd}.
 
   (*not clear what should happen with vf. Normally it should be in the
 genv and hence should be mapped to itself, but let's not expose this
@@ -1040,7 +1061,7 @@ here*)
   Definition ctl_inj f cc cf : Prop :=
     match cc, cf with
     | Kinit vf arg, Kinit vf' arg' =>
-      vf = vf' /\ val_obs f arg arg'
+      val_obs f vf vf' /\ val_obs f arg arg'
     | Krun c, Krun c' => core_inj f c c'
     | Kblocked c, Kblocked c' => core_inj f c c'
     | Kresume c arg, Kresume c' arg' => core_inj f c c' /\ val_obs f arg arg'
@@ -1054,7 +1075,7 @@ here*)
     | Krun c => core_wd f c
     | Kblocked c => core_wd f c
     | Kresume c v => core_wd f c /\ valid_val f v
-    | Kinit _ v => valid_val f v
+    | Kinit vf v => valid_val f vf /\ valid_val f v
     end.
 
   Lemma ctl_wd_incr : forall f f' c,
@@ -1086,12 +1107,9 @@ here*)
     intros.
     destruct c, c', c''; simpl in *; try (by exfalso);
     try (destruct Hcore_inj, Hcore_inj'; split);
-    try (eapply core_inj_trans; eauto).
+    try (eapply core_inj_trans; eauto);
     eapply val_obs_trans;
       by eauto.
-      by subst.
-      eapply val_obs_trans;
-        by eauto.
   Qed.
 
   Definition tp_wd (f: memren) (tp : thread_pool) : Prop :=

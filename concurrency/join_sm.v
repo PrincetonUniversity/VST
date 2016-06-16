@@ -2049,9 +2049,7 @@ Qed.
 
 Section getBlocks_lems.
 
-(* GS HERE: val_list_inject no longer defined in compcert2.6/common/Values.v *)
-  
-Context args1 args2 j (vinj : val_list_inject j args1 args2).
+Context args1 args2 j (vinj : Val.inject_list j args1 args2).
 
 Lemma getBlocks_tail v vs b : 
   getBlocks vs b -> 
@@ -2072,6 +2070,9 @@ move: H2 vinj' H1; rewrite getBlocksD.
 case: args1'; first by move=> ?; inversion 1.
 move=> a1 args1' /=; case: a2=> //.
 move=> A; inversion 1; subst; move/andP=> []C D.
+case: (IH _ H4 D A)=> x []y []? ?; exists x,y; split=> //.
+by apply: getBlocks_tail.
+move=> i A; inversion 1; subst; move/andP=> []C D.
 case: (IH _ H4 D A)=> x []y []? ?; exists x,y; split=> //.
 by apply: getBlocks_tail.
 move=> i A; inversion 1; subst; move/andP=> []C D.

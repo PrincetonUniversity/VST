@@ -4,11 +4,11 @@ Require Import BinPos.
 
 Require Import Axioms.
 
-Require Import compcert_imports. Import CompcertCommon.
+Require Import concurrency.compcert_imports. Import CompcertCommon.
 
-Require Import sepcomp. Import SepComp.
-Require Import arguments.
-Require Import structured_injections.
+Require Import concurrency.sepcomp. Import SepComp.
+Require Import sepcomp.arguments.
+Require Import sepcomp.structured_injections.
 
 Set Implicit Arguments.
 Unset Strict Implicit.
@@ -184,16 +184,13 @@ rewrite e in H5; congruence.
 rewrite e; auto.
 Qed.
 
-Program Definition coopsem : CoopCoreSem (Genv.t F V) state :=
-  Build_CoopCoreSem _ _ coresem _ _.
+Program Definition memsem : MemSem (Genv.t F V) state :=
+  Build_MemSem _ _ coresem _.
 Next Obligation. 
 destruct (effax1 H) as [X Y].
-revert X; apply corestep_fwd. 
+revert X; apply corestep_mem. 
 Qed.
-Next Obligation.
-destruct (effax1 H0) as [X Y].
-eapply corestep_rdonly; eauto. 
-Qed.
+
 (** ** Reach-Closed Effect Semantics *)
 
 Lemma my_effax1 M ge c m c' m' :
@@ -218,8 +215,21 @@ Proof.
 destruct 1 as [H [H2 H3]].
 intros b ofs. eapply effstep_valid; eauto.
 Qed.
+
+Lemma my_effstep_perm :
+  forall (M : block -> Z -> bool) 
+         ge c (m : mem) c' (m' : mem),
+    effstep ge M c m c' m' ->
+    forall (b : block) (z : Z),
+      M b z = true -> Mem.perm m b z Cur Writable.
+Proof.
+  intros until m'.
+  destruct 1 as [H [H1 H2]].
+  eapply effstep_perm; eauto.
+Qed.  
+
 Definition effsem : @EffectSem (Genv.t F V) state :=
-  Build_EffectSem _ _ coopsem effstep my_effax1 my_effax2 my_effstep_valid.
+  Build_EffectSem _ _ memsem effstep my_effax1 my_effax2 my_effstep_perm.
 
 End rc. End RC.
 
