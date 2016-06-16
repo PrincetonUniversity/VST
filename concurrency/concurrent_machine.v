@@ -1,3 +1,4 @@
+From mathcomp.ssreflect Require Import ssreflect seq ssrbool.
 Require Import compcert.common.Memory.
 Require Import compcert.common.AST.     (*for typ*)
 Require Import compcert.common.Values. (*for val*)
@@ -10,9 +11,7 @@ Require Import concurrency.permissions.
 Require Import concurrency.addressFiniteMap.
 
 Require Import concurrency.scheduler.
-
 Require Import Coq.Program.Program.
-From mathcomp.ssreflect Require Import ssreflect seq.
 
 (* This module represents the arguments
    to build a CoreSemantics with 
@@ -253,6 +252,12 @@ Module Type ThreadPoolSig.
       (cntj': containsThread (updThreadC cnti c') j),
       getThreadC cntj = getThreadC cntj'.
 
+  Axiom getThreadCC:
+    forall {tp} i j
+      (cnti : containsThread tp i) (cntj : containsThread tp j)
+      c' (cntj' : containsThread (updThreadC cnti c') j),
+    getThreadC cntj' = if eq_tid_dec i j then c' else getThreadC cntj.
+
   Axiom gThreadCR:
     forall {i j tp} (cnti: containsThread tp i)
       (cntj: containsThread tp j) c'
@@ -273,6 +278,10 @@ Module Type ThreadPoolSig.
     forall {i tp} c p (cnti: containsThread tp i) addr,
       lockRes (updThread cnti c p) addr = lockRes tp addr.
 
+  Axiom gsoAddLPool:
+    forall tp vf arg p (addr : address),
+      lockRes (addThread tp vf arg p) addr = lockRes tp addr.
+  
   Axiom gLockSetRes:
     forall {i tp} addr (res : lock_info) (cnti: containsThread tp i)
       (cnti': containsThread (updLockSet tp addr res) i),

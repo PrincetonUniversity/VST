@@ -386,7 +386,19 @@ Module OrdinalPool (SEM:Semantics) (RES:Resources) <: ThreadPoolSig
     simpl in cntj'. unfold getThreadC.
     do 2 apply f_equal. by apply proof_irr.
   Qed.
-    
+
+  Lemma getThreadCC
+        {tp} i j
+        (cnti : containsThread tp i) (cntj : containsThread tp j)
+        c' (cntj' : containsThread (updThreadC cnti c') j):
+    getThreadC cntj' = if eq_tid_dec i j then c' else getThreadC cntj.
+  Proof.
+    destruct (eq_tid_dec i j); subst;
+    [rewrite gssThreadCC |
+     erewrite <- @gsoThreadCC with (cntj := cntj)];
+    now eauto.
+  Qed.
+  
   Lemma gThreadCR {i j tp} (cnti: containsThread tp i)
         (cntj: containsThread tp j) c'
         (cntj': containsThread (updThreadC cnti c') j) :
@@ -665,6 +677,15 @@ Module OrdinalPool (SEM:Semantics) (RES:Resources) <: ThreadPoolSig
       lockRes (updThread cnti c p) addr = lockRes tp addr.
   Proof.
       by auto.
+  Qed.
+
+  Lemma gsoAddLPool:
+    forall tp vf arg p (addr : address),
+      lockRes (addThread tp vf arg p) addr = lockRes tp addr.
+  Proof.
+    intros.
+    unfold addThread, lockRes.
+      by reflexivity.
   Qed.
 
   Lemma gLockSetRes:
