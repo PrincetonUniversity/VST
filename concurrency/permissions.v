@@ -6,10 +6,14 @@ Require Import concurrency.threads_lemmas.
 Require Import compcert.common.Memory.
 Require Import compcert.common.Values. (*for val*)
 Require Import compcert.lib.Integers.
+Require Export compcert.lib.Maps.
 Require Import Coq.ZArith.ZArith.
 From veric Require Import shares juicy_mem.
 Require Import msl.msl_standard.
 Import cjoins.
+
+(*IM using proof irrelevance!*)
+Require Import ProofIrrelevance.
 
 Lemma po_refl: forall p, Mem.perm_order'' p p.
 Proof.
@@ -230,11 +234,20 @@ Section permMapDefs.
   Proof.
     intros. unfold getCurPerm. by rewrite Maps.PMap.gmap.
   Qed.
- 
+
+  Definition permDisjoint p1 p2:=
+    exists pu : option permission,
+      perm_union p1 p2 = Some pu.
   Definition permMapsDisjoint (pmap1 pmap2 : access_map) : Prop :=
     forall b ofs, exists pu,
       perm_union ((Maps.PMap.get b pmap1) ofs)
                  ((Maps.PMap.get b pmap2) ofs) = Some pu.
+
+  Lemma empty_disjoint':
+    forall pmap,
+      permMapsDisjoint empty_map pmap.
+        intros pmap b ofs. exists (pmap !! b ofs). rewrite empty_map_spec; reflexivity.
+  Qed.
   Lemma empty_disjoint:
     permMapsDisjoint empty_map
                      empty_map.
@@ -448,6 +461,14 @@ Section permMapDefs.
                               else
                                 Maps.PMap.get b pmap ofs')
                   pmap.
+  Lemma disjoint_add:
+    forall p1 p2 b ofs,
+      permMapsDisjoint p1 p2 ->
+      permDisjoint (Some Writable) ((p2) !!  b ofs) ->
+      permMapsDisjoint ( setPerm (Some Writable) b ofs p1) p2.
+  Proof.
+    intros. unfold permMapsDisjoint; intros.
+  Admitted.
 
   Fixpoint setPermBlock  (p : option permission) (b : block)
            (ofs : Z) (pmap : access_map) (length: nat): access_map :=
@@ -953,6 +974,47 @@ Section permMapDefs.
       destruct (p'.1 ofs); tauto.
       rewrite H; auto. destruct k; auto.
   Defined.
+
+Lemma restrPermMap_irr:
+      forall p1 p2 m1 m2
+        (P1: permMapLt p1 (getMaxPerm m1))
+        (P2: permMapLt p2 (getMaxPerm m2)),
+        p1 = p2 -> m1 = m2 ->
+        restrPermMap P1 = restrPermMap P2.
+    Proof.
+      intros; subst.
+      replace P1 with P2.
+      reflexivity.
+      apply proof_irrelevance.
+    Qed.
+    Lemma restrPermMap_ext:
+      forall p1 p2 m
+        (P1: permMapLt p1 (getMaxPerm m))
+        (P2: permMapLt p2 (getMaxPerm m)),
+        (forall b, (p1 !! b) = (p2 !! b)) ->
+        restrPermMap P1 = restrPermMap P2.
+    Proof.
+      intros; subst.
+      remember (restrPermMap P1) as M1.
+      remember (restrPermMap P2) as M2.
+      assert (Mem.mem_contents M1 = Mem.mem_contents M2) by
+          (subst; reflexivity).
+      assert (Mem.nextblock M1 = Mem.nextblock M2) by
+          (subst; reflexivity).
+      assert (Mem.mem_access M1 = Mem.mem_access M2).
+      {
+        subst. simpl.
+        f_equal. f_equal.
+        simpl.
+        do 4 (apply functional_extensionality; intro).
+        destruct x2; try rewrite H; reflexivity. 
+      }
+      subst.
+      destruct (restrPermMap P1);
+        destruct (restrPermMap P2); simpl in *.
+      subst. f_equal;
+      apply proof_irrelevance.
+    Qed.
   
   Lemma restrPermMap_nextblock :
     forall p' m (Hlt: permMapLt p' (getMaxPerm m)),
@@ -1005,7 +1067,7 @@ Section permMapDefs.
       by auto.
   Qed.
     
-  Lemma restrPermMap_irr : forall p' p'' m
+  Lemma restrPermMap_irr' : forall p' p'' m
                              (Hlt : permMapLt p' (getMaxPerm m))
                              (Hlt': permMapLt p'' (getMaxPerm m))
                              (Heq_new: p' = p''),

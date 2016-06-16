@@ -265,7 +265,30 @@ Module OrdinalPool (SEM:Semantics) (RES:Resources) <: ThreadPoolSig
     exfalso.
       by ssromega.
   Qed.
-    
+
+  Lemma updLock_updThread_comm:
+        forall ds,
+        forall i (cnti: containsThread ds i) c map l lmap,
+          forall (cnti': containsThread (updLockSet ds l lmap) i),
+          updLockSet
+            (@updThread _ ds cnti c map) l lmap = 
+          @updThread _ (updLockSet ds l lmap) cnti' c map.
+            unfold updLockSet, updThread; simpl; intros.
+            f_equal.
+      Qed.
+      Lemma remLock_updThread_comm:
+        forall ds,
+        forall i (cnti: containsThread ds i) c map l,
+          forall (cnti': containsThread (remLockSet ds l) i),
+          remLockSet
+            (updThread cnti c map)
+            l = 
+          updThread cnti' c map.
+            unfold remLockSet, updThread; simpl; intros.
+            f_equal.
+      Qed.
+
+  
   (* TODO: most of these proofs are similar, automate them*)
   (** Getters and Setters Properties*)  
 
@@ -318,6 +341,26 @@ Module OrdinalPool (SEM:Semantics) (RES:Resources) <: ThreadPoolSig
     auto.
   Qed.
 
+  Lemma lockSet_upd: forall ds b ofs pmap,
+          lockSet (updLockSet ds (b, ofs) pmap) =
+          permissions.setPerm (Some Memtype.Writable) b ofs (lockSet ds).
+      Proof.
+        intros.
+      Admitted.
+
+      Lemma gsslockSet_rem: forall ds b ofs,
+          (lockSet (remLockSet ds (b, ofs))) !! b ofs =
+          (lockSet ds)  !! b ofs.
+      Proof.
+        intros.
+      Admitted.
+      Lemma gsolockSet_rem: forall ds b ofs b' ofs',
+          (b, ofs) <> (b', ofs') ->
+          (lockSet (remLockSet ds (b, ofs))) !! b' ofs' =
+          None.
+      Proof.
+        intros.
+      Admitted.
 
   Lemma gssThreadCode {tid tp} (cnt: containsThread tp tid) c' p'
         (cnt': containsThread (updThread cnt c' p') tid) :
