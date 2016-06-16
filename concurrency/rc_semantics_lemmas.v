@@ -4,17 +4,15 @@ Require Import BinPos.
 
 Require Import Axioms.
 
-Require Import compcert_imports. Import CompcertCommon.
+Require Import concurrency.compcert_imports. Import CompcertCommon.
 
-Require Import sepcomp. Import SepComp.
-Require Import arguments.
+Require Import concurrency.sepcomp. Import SepComp.
+Require Import sepcomp.arguments.
 
-Require Import rc_semantics.
+Require Import concurrency.rc_semantics.
 
-Require Import ssreflect ssrbool ssrfun seq eqtype fintype.
+From mathcomp.ssreflect Require Import ssreflect ssrbool ssrnat ssrfun seq fintype.
 Set Implicit Arguments.
-Unset Strict Implicit.
-Unset Printing Implicit Defensive.
 
 Import SM_simulation.
 
