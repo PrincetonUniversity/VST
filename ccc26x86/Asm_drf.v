@@ -349,9 +349,136 @@ Qed.
 
 Definition store_args_events sp args tys := store_args_ev_rec sp 0 args tys.
 
-Parameter ExtEvent : external_function-> mem -> list val -> option (list mem_event).
-(*Parameter builtin_args_events: val -> mem -> list (builtin_arg preg) -> list val -> option (list mem_event).*)
-Parameter call_args_events: (preg -> val) -> mem -> list val -> option (list mem_event).
+Lemma AR n: match n with
+                  | 0 => 0
+                  | Z.pos y' => Z.pos y'~0~0
+                  | Z.neg y' => Z.neg y'~0~0
+                  end = 4*n.
+destruct n; simpl; trivial. Qed. 
+
+Section EXTCALL_ARG_EVENT. 
+
+Inductive extcall_arg_ev (rs: regset) (m: mem): loc -> val -> list mem_event -> Prop :=
+  | extcall_arg_reg: forall r,
+      extcall_arg_ev rs m (R r) (rs (preg_of r)) nil
+  | extcall_arg_stack: forall ofs v ty bofs bytes chunk b z,
+      bofs = Stacklayout.fe_ofs_arg + 4 * ofs ->
+      Val.add (rs (IR ESP)) (Vint (Int.repr bofs)) = Vptr b z ->
+      chunk = chunk_of_type ty ->
+(*      Mem.loadv chunk m (Vptr b z) = Some v ->
+      extcall_arg_ev rs m (S Outgoing ofs ty) v [Read b (Int.unsigned z) (size_chunk chunk) (encode_val chunk v)].*)
+      (*(align_chunk (chunk_of_type ty) (Int.unsigned z)) ->*)
+      (align_chunk (chunk_of_type ty) | Int.unsigned z) -> (*(Int.add i (Int.repr (4 * ofs))))*)
+      Mem.loadbytes m b (Int.unsigned z) (size_chunk chunk) = Some bytes ->
+      v= decode_val chunk bytes ->
+      extcall_arg_ev rs m (S Outgoing ofs ty) v [Read b (Int.unsigned z) (size_chunk chunk) bytes].
+
+Lemma extcall_arg_extcall_arg_ev rs m l u (EA:extcall_arg rs m l u) : exists T, extcall_arg_ev rs m l u T.
+Proof.
+  inv EA.
++ exists nil; constructor.
++ remember (rs ESP) as p; destruct p; inv H0.
+  destruct (Mem.load_loadbytes _ _ _ _ _ H1) as [bytes [Bytes U]]. rewrite AR in *.
+  destruct (Mem.load_valid_access _ _ _ _ _ H1) as [ ALGN].
+  eexists; econstructor; try eassumption; try rewrite <- Heqp; reflexivity.
+Qed. 
+
+Lemma extcall_arg_ev_extcall_arg rs m l u T (EA:extcall_arg_ev rs m l u T): extcall_arg rs m l u.
+Proof.
+  inv EA.
++ constructor.
++ remember (rs ESP) as p; destruct p; inv H0. rewrite AR in *.
+  econstructor. reflexivity. rewrite <- Heqp. simpl. rewrite AR.
+  erewrite Mem.loadbytes_load; try reflexivity; eassumption.
+Qed. 
+
+Lemma extcall_arg_ev_determ rs m l u T (EAV:extcall_arg_ev rs m l u T) T' (EAV':extcall_arg_ev rs m l u T'): T=T'.
+Proof. inv EAV; inv EAV'; trivial. rewrite H5 in H0; inv H0. rewrite H8 in H3; inv H3. trivial. Qed.
+
+Inductive extcall_arguments_ev_aux: regset -> mem -> list loc -> list val -> list mem_event -> Prop :=
+  extcall_arguments_ev_nil: forall rs m, extcall_arguments_ev_aux rs m nil nil nil
+| extcall_arguments_ev_cons: forall rs m l locs v T1 vl T2 ,
+                         extcall_arg_ev rs m l v T1 ->
+                         extcall_arguments_ev_aux rs m locs vl T2 -> 
+                         extcall_arguments_ev_aux rs m (l::locs) (v::vl) (T1++T2).
+
+Definition extcall_arguments_ev (rs:regset) (m: mem) (sg:signature) (args: list val) (T: list mem_event): Prop :=
+  extcall_arguments_ev_aux rs m (loc_arguments sg) args T.
+
+Lemma extcall_arguments_ev_aux_determ rs m: forall locs args T (EA: extcall_arguments_ev_aux rs m locs args T)
+      T' (EA': extcall_arguments_ev_aux rs m locs args T'), T=T'.
+Proof.
+  induction 1; simpl; intros; inv EA'; trivial. f_equal.
+  apply (extcall_arg_ev_determ _ _ _ _ _ H _ H7). eauto.
+Qed.
+
+Lemma extcall_arguments_ev_determ rs m sg args T (EA: extcall_arguments_ev rs m sg args T)
+      T' (EA': extcall_arguments_ev rs m sg args T'): T=T'.
+Proof. eapply extcall_arguments_ev_aux_determ; eassumption. Qed.
+
+Lemma extcall_arguments_extcall_arguments_ev rs m sg args: 
+      extcall_arguments rs m sg args -> exists T, extcall_arguments_ev rs m sg args T.
+Proof.
+unfold extcall_arguments, extcall_arguments_ev. remember (loc_arguments sg) as locs. clear Heqlocs.
+intros LF; induction LF.
++ exists nil; constructor.
++ destruct IHLF as [T2 HT2]. destruct (extcall_arg_extcall_arg_ev _ _ _ _ H) as [T1 HT1].
+  exists (T1++T2). constructor; assumption.
+Qed.
+
+Lemma extcall_arguments_ev_extcall_arguments rs m sg args T: 
+      extcall_arguments_ev rs m sg args T -> extcall_arguments rs m sg args.
+Proof.
+unfold extcall_arguments, extcall_arguments_ev. remember (loc_arguments sg) as locs. clear Heqlocs.
+intros LF; induction LF.
++ constructor.
++ apply extcall_arg_ev_extcall_arg in H. 
+  constructor; assumption.
+Qed.
+
+Lemma extcall_arg_ev_elim rs m : forall l v T (EA: extcall_arg_ev rs m l v T), ev_elim m T m.
+Proof. induction 1; repeat constructor; eauto. Qed.
+
+Lemma extcall_arg_ev_elim_strong rs m : forall l v T (EA: extcall_arg_ev rs m l v T), 
+      ev_elim m T m /\ (forall mm mm', ev_elim mm T mm' -> mm'=mm /\ extcall_arg_ev rs mm l v T).
+Proof.
+ induction 1.
++ split.
+  - constructor.
+  - intros. inv H. split. trivial. constructor.
++ split.
+  - repeat constructor; eauto.
+  - intros. inv H4. inv H5. inv H1.
+    split. trivial.
+    econstructor; try eassumption; reflexivity. 
+Qed.
+
+Lemma extcall_arguments_ev_aux_elim rs m:
+      forall l args T (EA: extcall_arguments_ev_aux rs m l args T), ev_elim m T m.
+Proof. induction 1.
++ constructor.
++ apply extcall_arg_ev_elim in H. eapply ev_elim_app; eassumption.
+Qed.
+
+Lemma extcall_arguments_ev_aux_elim_strong rs m:
+      forall l args T (EA: extcall_arguments_ev_aux rs m l args T),
+      ev_elim m T m /\ (forall mm mm', ev_elim mm T mm' -> mm'=mm /\ extcall_arguments_ev_aux rs mm l args T).
+Proof. induction 1.
++ split.
+  - constructor.
+  - intros. inv H. split; trivial. constructor. 
++ destruct IHEA as [IH1 IH2].
+  split.
+  - apply extcall_arg_ev_elim in H. eapply ev_elim_app; eassumption.
+  - intros. destruct (extcall_arg_ev_elim_strong _ _ _ _ _ H) as [E1 HT1].
+    apply ev_elim_split in H0; destruct H0 as [m2 [EV1 EV2]].
+    destruct (IH2 _ _ EV2) as [MM EA2]; subst; clear IH2.
+    destruct (HT1 _ _ EV1) as [MM EA1]; subst.
+    split. trivial.
+    constructor; eassumption.
+Qed.
+
+End EXTCALL_ARG_EVENT.
 
 Section EVAL_BUILTIN_ARG_EV.
 
@@ -372,16 +499,22 @@ Inductive eval_builtin_arg_ev: builtin_arg A -> val -> list mem_event -> Prop :=
       eval_builtin_arg_ev (BA_float n) (Vfloat n) nil
   | eval_BA_ev_single: forall n,
       eval_builtin_arg_ev (BA_single n) (Vsingle n) nil
-  | eval_BA_ev_loadstack: forall chunk ofs v b z,
+  | eval_BA_ev_loadstack: forall chunk ofs v b z bytes,
       Mem.loadv chunk m (Val.add sp (Vint ofs)) = Some v ->
+      (align_chunk chunk | (Int.unsigned z)) -> 
+      Mem.loadbytes m b (Int.unsigned z) (size_chunk chunk) = Some bytes ->
+      v= decode_val chunk bytes ->
       Val.add sp (Vint ofs) = Vptr b z ->
-      eval_builtin_arg_ev (BA_loadstack chunk ofs) v [Read b (Int.unsigned z) (size_chunk chunk) (encode_val chunk v)]
+      eval_builtin_arg_ev (BA_loadstack chunk ofs) v [Read b (Int.unsigned z) (size_chunk chunk) bytes]
   | eval_BA_ev_addrstack: forall ofs,
       eval_builtin_arg_ev (BA_addrstack ofs) (Val.add sp (Vint ofs)) nil
-  | eval_BA_ev_loadglobal: forall chunk id ofs v b z,
+  | eval_BA_ev_loadglobal: forall chunk id ofs v b z bytes,
       Mem.loadv chunk m (Senv.symbol_address ge id ofs) = Some v ->
+      (align_chunk chunk | (Int.unsigned z)) -> 
+      Mem.loadbytes m b (Int.unsigned z) (size_chunk chunk) = Some bytes ->
+      v= decode_val chunk bytes ->
       Senv.symbol_address ge id ofs = Vptr b z ->
-      eval_builtin_arg_ev (BA_loadglobal chunk id ofs) v [Read b (Int.unsigned z) (size_chunk chunk) (encode_val chunk v)]
+      eval_builtin_arg_ev (BA_loadglobal chunk id ofs) v [Read b (Int.unsigned z) (size_chunk chunk) bytes]
   | eval_BA_ev_addrglobal: forall id ofs,
       eval_builtin_arg_ev (BA_addrglobal id ofs) (Senv.symbol_address ge id ofs) nil
   | eval_BA_ev_splitlong: forall hi lo vhi vlo Thi Tlo,
@@ -392,8 +525,8 @@ Lemma eval_builtin_arg_ev_determ: forall a v1 T1 (HT1:eval_builtin_arg_ev a v1 T
       v2 T2 (HT2:eval_builtin_arg_ev a v2 T2), v1=v2 /\ T1=T2.
 Proof.
 induction a; intros; inv HT1; inv HT2; try solve [split; trivial].
-+ rewrite H6 in H4; inv H4. rewrite H2 in H1; inv H1. split; trivial.
-+ rewrite H7 in H5; inv H5. rewrite H6 in H4; inv H4. split; trivial.
++ rewrite H11 in H7; inv H7. rewrite H6 in H3; inv H3. split; trivial.
++ rewrite H12 in H8; inv H8. rewrite H7 in H4; inv H4. split; trivial.
 + destruct (IHa1 _ _ H2 _ _ H1); subst.
   destruct (IHa2 _ _ H6 _ _ H4); subst. split; trivial.
 Qed.
@@ -402,14 +535,21 @@ Lemma eval_builtin_arg_event: forall a v, eval_builtin_arg ge e sp m a v -> exis
 Proof.
   induction 1; intros; try solve [eexists; econstructor; try eassumption].
 + assert (B: exists b z, sp = Vptr b z). destruct sp; inv H. exists b, i; trivial.
-  destruct B as [b [i SP]]. 
-  eexists. econstructor. eassumption. subst sp. reflexivity.
+  destruct B as [b [i SP]]. subst sp. simpl in H.
+  destruct (Mem.load_valid_access _ _ _ _ _ H) as [_ ALIGN]. 
+  destruct (Mem.load_loadbytes _ _ _ _ _ H) as [bytes [LD V]].
+  eexists. econstructor. subst sp; simpl; eassumption. eassumption. eassumption. trivial. subst sp. reflexivity.
 + assert (B: exists b z, (Senv.symbol_address ge id ofs) = Vptr b z). destruct (Senv.symbol_address ge id ofs); inv H. exists b, i; trivial.
-  destruct B as [b [i SA]]. 
-  eexists. econstructor; eassumption.
+  destruct B as [b [i SA]]. rewrite SA in *.
+  destruct (Mem.load_loadbytes _ _ _ _ _ H) as [bytes [LB V]].
+  destruct (Mem.load_valid_access _ _ _ _ _ H) as [_ ALGN].
+  eexists. econstructor; try eassumption; trivial. rewrite SA; trivial.
 + destruct IHeval_builtin_arg1 as [Thi HThi]. destruct IHeval_builtin_arg2 as [Tlo HTlo].
   eexists. econstructor; eassumption.
 Qed.
+
+Lemma eval_builtin_arg_event_inv: forall a v T, eval_builtin_arg_ev a v T -> eval_builtin_arg ge e sp m a v.
+Proof. induction 1; intros; solve [econstructor; try eassumption]. Qed.
 
 Inductive eval_builtin_args_ev: list (builtin_arg A) -> list val -> list mem_event -> Prop :=
   eval_builtin_args_ev_nil: eval_builtin_args_ev nil nil nil
@@ -438,7 +578,114 @@ Proof.
   eexists; econstructor; eassumption.
 Qed. 
 
+Lemma eval_builtin_args_ev_eval_builtin_args: forall al vl T, eval_builtin_args_ev al vl T ->
+  eval_builtin_args ge e sp m al vl.
+Proof.
+  induction 1.
++ econstructor.
++ apply eval_builtin_arg_event_inv in H. econstructor; eassumption. 
+Qed.
+ 
 End EVAL_BUILTIN_ARG_EV.
+
+Lemma eval_builtin_arg_ev_elim_strong {A} ge (rs: A -> val) sp m a v T (EV: eval_builtin_arg_ev A ge rs sp m a v T):
+  ev_elim m T m /\
+  (forall mm mm', ev_elim mm T mm' -> mm'=mm /\ eval_builtin_arg_ev A ge rs sp mm a v T).
+Proof.
+  induction EV.
++ split. econstructor. intros mm mm' MM; inv MM. split; trivial. econstructor.
++ split. econstructor. intros mm mm' MM; inv MM. split; trivial. econstructor.
++ split. econstructor. intros mm mm' MM; inv MM. split; trivial. econstructor.
++ split. econstructor. intros mm mm' MM; inv MM. split; trivial. econstructor.
++ split. econstructor. intros mm mm' MM; inv MM. split; trivial. econstructor.
++ split.
+  - constructor; trivial. constructor.
+  - intros mm mm' MM; inv MM; split.
+    * inv H5; trivial.
+    * inv H5. rewrite H3 in *.
+      destruct (Mem.load_loadbytes _ _ _ _ _ H) as [bytes2 [LB2 V2]]. rewrite LB2 in H1; inv H1.
+      destruct (Mem.load_valid_access _ _ _ _ _ H) as [_ ALGN].  
+      constructor; try eassumption; trivial.
+      rewrite H3; simpl. erewrite Mem.loadbytes_load; trivial.
++ split. econstructor. intros mm mm' MM; inv MM. split; trivial. econstructor.
++ split.
+  - constructor; trivial. constructor.
+  - intros mm mm' MM; inv MM; split.
+    * inv H5; trivial.
+    * inv H5. rewrite H3 in *.
+      destruct (Mem.load_loadbytes _ _ _ _ _ H) as [bytes2 [LB2 V2]]. rewrite LB2 in H1; inv H1.
+      destruct (Mem.load_valid_access _ _ _ _ _ H) as [_ ALGN].  
+      constructor; try eassumption; trivial.
+      rewrite H3; simpl. erewrite Mem.loadbytes_load; trivial.
++ split. econstructor. intros mm mm' MM; inv MM. split; trivial. econstructor.
++ destruct IHEV1 as [EL1 EStrong1]. destruct IHEV2 as [EL2 EStrong2].
+  split. eapply ev_elim_app; eassumption.
+  intros. apply ev_elim_split in H; destruct H as [m' [E1 E2]].
+  destruct (EStrong1 _ _ E1) as [MT EHi]; subst mm.
+  destruct (EStrong2 _ _ E2) as [ML ELo]; subst mm'.
+  split; trivial.
+  constructor; eassumption.
+Qed. 
+
+Lemma eval_builtin_args_ev_elim_strong {A} ge (rs: A -> val) sp m al vl T (EV: eval_builtin_args_ev A ge rs sp m al vl T):
+  ev_elim m T m /\
+  (forall mm mm', ev_elim mm T mm' -> mm'=mm /\ eval_builtin_args_ev A ge rs sp mm al vl T).
+Proof.
+  induction EV.
++ split. constructor.
+  intros mm mm' MM; inv MM; split; trivial. constructor.
++ destruct IHEV as [EV2 HEV2].
+  apply eval_builtin_arg_ev_elim_strong in H. destruct H as [EV1 HEV1].
+  split. eapply ev_elim_app; eassumption.
+  intros mm mm' MM. apply ev_elim_split in MM; destruct MM as [m' [EV1' EV2']].
+  destruct (HEV1 _ _ EV1') as [? HE1]; subst.
+  destruct (HEV2 _ _ EV2') as [? HE2]; subst.
+  split; trivial.
+  constructor; trivial.
+Qed.
+
+Inductive builtin_event: external_function -> mem -> list val -> list mem_event -> Prop := 
+  BE_malloc: forall m n m'' b m'
+         (ALLOC: Mem.alloc m (-4) (Int.unsigned n) = (m'', b))
+         (ALGN : (align_chunk Mint32 | (-4)))
+         (ST: Mem.storebytes m'' b (-4) (encode_val Mint32 (Vint n)) = Some m'),
+         builtin_event EF_malloc m [Vint n] 
+               [Alloc b (-4) (Int.unsigned n); Write b (-4) (encode_val Mint32 (Vint n))]
+| BE_free: forall m b lo bytes sz m'
+        (POS: Int.unsigned sz > 0)
+        (LB : Mem.loadbytes m b (Int.unsigned lo - 4) (size_chunk Mint32) = Some bytes)
+        (FR: Mem.free m b (Int.unsigned lo - 4) (Int.unsigned lo + Int.unsigned sz) = Some m')
+        (ALGN : (align_chunk Mint32 | Int.unsigned lo - 4))
+        (SZ : Vint sz = decode_val Mint32 bytes),
+        builtin_event EF_free m [Vptr b lo] 
+              [Read b (Int.unsigned lo - 4) (size_chunk Mint32) bytes;
+               Free [(b,Int.unsigned lo - 4, Int.unsigned lo + Int.unsigned sz)]]
+| BE_memcpy: forall m al bsrc bdst sz bytes osrc odst m'
+        (AL: al = 1 \/ al = 2 \/ al = 4 \/ al = 8)
+        (POS : sz >= 0)
+        (DIV : (al | sz))
+        (OSRC : sz > 0 -> (al | Int.unsigned osrc))
+        (ODST: sz > 0 -> (al | Int.unsigned odst))
+        (RNG: bsrc <> bdst \/
+                Int.unsigned osrc = Int.unsigned odst \/
+                Int.unsigned osrc + sz <= Int.unsigned odst \/ Int.unsigned odst + sz <= Int.unsigned osrc)
+        (LB: Mem.loadbytes m bsrc (Int.unsigned osrc) sz = Some bytes)
+        (ST: Mem.storebytes m bdst (Int.unsigned odst) bytes = Some m'),
+        builtin_event (EF_memcpy sz al) m [Vptr bdst odst; Vptr bsrc osrc]
+              [Read bsrc (Int.unsigned osrc) sz bytes;
+               Write bdst (Int.unsigned odst) bytes]
+| BE_EFexternal: forall name sg m vargs,
+        I64Helpers.is_I64_helperS name sg ->
+         builtin_event (EF_external name sg) m vargs []
+| BE_EFbuiltin: forall name sg m vargs, is_I64_builtinS name sg ->
+         builtin_event (EF_builtin name sg) m vargs [].
+
+Lemma builtin_event_determ ef m vargs T1 (BE1: builtin_event ef m vargs T1) T2 (BE2: builtin_event ef m vargs T2): T1=T2.
+inv BE1; inv BE2; simpl in *; trivial.
++ rewrite ALLOC0 in ALLOC; inv ALLOC; trivial.
++ rewrite LB0 in LB; inv LB. rewrite <- SZ in SZ0; inv SZ0. trivial.
++ rewrite LB0 in LB; inv LB; trivial.
+Qed.
 
 Inductive asm_ev_step ge : state -> mem -> list mem_event -> state -> mem -> Prop :=
   | asm_ev_step_internal:
@@ -450,7 +697,7 @@ Inductive asm_ev_step ge : state -> mem -> list mem_event -> state -> mem -> Pro
       drf_instr ge (fn_code f) i rs m = Some T ->
       asm_ev_step ge (State rs lf) m T (State rs' lf) m'
   | asm_ev_step_builtin:
-      forall b ofs f ef args res rs m vargs t vres rs' m' lf T
+      forall b ofs f ef args res rs m vargs t vres rs' m' lf T1 T2
         (HFD: helper_functions_declared ge hf)
          (NASS: ~ isInlinedAssembly ef)  (*NEW; we don't support inlined assembly yet*),
       rs PC = Vptr b ofs ->
@@ -462,17 +709,18 @@ Inductive asm_ev_step ge : state -> mem -> list mem_event -> state -> mem -> Pro
       rs' = nextinstr_nf
              (set_res res vres
                (undef_regs (map preg_of (destroyed_by_builtin ef)) rs)) ->
-      eval_builtin_args_ev _ ge rs (rs ESP) m args vargs T ->
-      asm_ev_step ge (State rs lf) m T (State rs' lf) m' 
+      eval_builtin_args_ev _ ge rs (rs ESP) m args vargs T1 ->
+      builtin_event ef m vargs T2 ->
+      asm_ev_step ge (State rs lf) m (T1++T2) (State rs' lf) m' 
   | asm_ev_step_to_external:
       forall b ef args rs m lf T
       (HFD: helper_functions_declared ge hf),
       rs PC = Vptr b Int.zero ->
       Genv.find_funct_ptr ge b = Some (External ef) ->
       extcall_arguments rs m (ef_sig ef) args ->
-      call_args_events rs m args = Some T -> 
+      extcall_arguments_ev rs m (ef_sig ef) args T -> 
       asm_ev_step ge (State rs lf) m T (Asm_CallstateOut ef args rs lf) m
-  | asm_ev_step_external:
+  | asm_ev_step_external: (*really, a helper-step*)
       forall b callee args res rs m t rs' m' lf T
       (HFD: helper_functions_declared ge hf)
       (OBS: EFisHelper (*hf*) callee),
@@ -480,7 +728,7 @@ Inductive asm_ev_step ge : state -> mem -> list mem_event -> state -> mem -> Pro
       Genv.find_funct_ptr ge b = Some (External callee) ->
       external_call' callee ge args m t res m' ->
       rs' = (set_regs (loc_external_result (ef_sig callee)) res rs) #PC <- (rs RA) ->
-      ExtEvent callee m args = Some T ->
+      builtin_event  callee m args T ->
       asm_ev_step ge (Asm_CallstateOut callee args rs lf) m T (State rs' lf) m'
   (*NOTE [loader]*)
   | asm_ev_initialize_call: 
@@ -710,14 +958,44 @@ Proof. induction 1.
       rewrite Heqp, Heqq, <- Heqr, Bytes1, Bytes2. reflexivity.
 + (*builtin*) 
   exploit eval_builtin_args_eval_builtin_args_ev. eassumption. intros [T HT].
-  exists T. eapply asm_ev_step_builtin; try eassumption.
-+ (*step-to_callstateOut*) admit. (*needs call args eexists. eapply asm_ev_step_to_external; eassumption. *)
-+ (*step_from-callstateOut*) admit. (*needs args stuff eexists. eapply asm_ev_step_external; try eassumption.*)
+  destruct ef; simpl in *; try solve [elim H4; trivial].
+  - exists (T ++ nil).
+    eapply asm_ev_step_builtin; try eassumption. simpl; trivial.
+    eapply BE_EFexternal. destruct (I64Helpers.is_I64_helperS_dec name sg); trivial. elim H4; trivial.
+  - exists (T ++ nil).
+    eapply asm_ev_step_builtin; try eassumption. simpl; trivial.
+    eapply BE_EFbuiltin. destruct (is_I64_builtinS_dec name sg); trivial. elim H4; trivial.
+  - (*malloc*)
+    inv H3. destruct (Mem.store_valid_access_3 _ _ _ _ _ _ H7) as [_ ALGN].
+    specialize (Mem.store_storebytes _ _ _ _ _ _ H7). intros.
+    eexists. eapply asm_ev_step_builtin; try eassumption; simpl; trivial.
+    * econstructor; try eassumption.
+    * econstructor; eassumption.
+  - (*free*)
+    inv H3. destruct (Mem.load_valid_access _ _ _ _ _ H6) as [_ ALGN].
+    destruct (Mem.load_loadbytes _ _ _ _ _ H6) as [bytes [LB V]]. 
+    eexists. eapply asm_ev_step_builtin; try eassumption; simpl; trivial.
+    * econstructor; try eassumption.
+    * econstructor; eassumption.
+  - (*memcpy*)
+    inv H3. 
+    eexists. eapply asm_ev_step_builtin; try eassumption; simpl; trivial.
+    * econstructor; try eassumption.
+    * econstructor; eassumption.
++ (*step-to_callstateOut*)
+   exploit extcall_arguments_extcall_arguments_ev. eassumption. intros [T HT].
+   exists T. econstructor; eassumption.
++ (*step_from-callstateOut*) 
+   exists nil.
+   econstructor; try eassumption. inv H1.
+   destruct callee; simpl in *; try solve [contradiction].
+   eapply BE_EFexternal. trivial.
+   eapply BE_EFbuiltin. trivial. 
 + (*loadframe*)
   unfold store_args in H1.
   destruct (store_args_ev_elim _ _ _ _ _ _ H1) as [T [HT EV]].
   eexists. eapply asm_ev_initialize_call; eassumption. 
-Admitted.
+Qed.
 
 Lemma asm_ev_fun g: forall c m T' c' m' T'' c'' m''
     (Estep': asm_ev_step g c m T' c' m') (Estep'': asm_ev_step g c m T'' c'' m''), T' = T''.
@@ -729,23 +1007,23 @@ inv Estep'; inv Estep''; trivial.
 + rewrite H in H6; inv H6. rewrite H0 in H7; inv H7.
   rewrite H1 in H8; inv H8. simpl in *; discriminate. 
 + rewrite H in H6; inv H6. rewrite H0 in H7; inv H7.
-+ rewrite H in H8; inv H8. rewrite H0 in H9; inv H9.
-  rewrite H1 in H10; inv H10. simpl in *; discriminate. 
-+ rewrite H in H8; inv H8. rewrite H0 in H9; inv H9.
-  rewrite H1 in H10; inv H10.
-  exploit eval_builtin_args_determ. apply H11. apply H2. intros; subst vargs0.
-  exploit eval_builtin_args_ev_determ. apply H6. apply H19. intros [_ X]; trivial.
-+ rewrite H in H8; inv H8. rewrite H0 in H9; inv H9.
-+ rewrite H in H5; inv H5. rewrite H0 in H6; inv H6.
-+ rewrite H in H5; inv H5. rewrite H0 in H6; inv H6.
-+ rewrite H in H5; inv H5. rewrite H0 in H6; inv H6.
-  exploit extcall_arguments_determ. apply H7. apply H1. intros; subst args0.
-  admit. (*needs determinsm of call_args_events*)
-+ rewrite H in H7; inv H7. simpl in *.  admit. (*TODO: needs determinism of ExtEvent*) 
++ rewrite H in H9; inv H9. rewrite H0 in H10; inv H10.
+  rewrite H1 in H11; inv H11. simpl in *; discriminate. 
++ rewrite H9 in H; inv H. rewrite H10 in H0; inv H0.
+  rewrite H11 in H1; inv H1.
+  exploit eval_builtin_args_ev_determ. apply H16. apply H6. intros [Y X]; subst.
+  f_equal. eapply builtin_event_determ; eassumption.
++ rewrite H9 in H; inv H. rewrite H0 in H10; discriminate.
++ rewrite H5 in H; inv H. rewrite H0 in H6; discriminate.
++ rewrite H5 in H; inv H. rewrite H0 in H6; discriminate.
++ rewrite H5 in H; inv H. rewrite H6 in H0; inv H0.
+  exploit extcall_arguments_determ. apply H1. apply H7. intros; subst args.
+  eapply extcall_arguments_ev_determ; eassumption.
++ rewrite H7 in H; inv H. eapply builtin_event_determ; eassumption. 
 + (*loadframe*)
-  rewrite H in H7; inv H7. rewrite H0 in H12; inv H12.
-  rewrite H1 in H13; inv H13. rewrite H2 in H14; inv H14. reflexivity. 
-Admitted.
+  rewrite H7 in H; inv H. rewrite H12 in H0; inv H0.
+  rewrite H13 in H1; inv H1. rewrite H14 in H2; inv H2. reflexivity. 
+Qed. 
 
 Lemma asm_ev_elim g: forall c m T c' m' (Estep: asm_ev_step g c m T c' m'), ev_elim m T m'.
 Proof.
@@ -964,22 +1242,48 @@ induction 1; intros.
     econstructor. trivial.
     econstructor. split. simpl. rewrite <- Heqt; trivial.
     econstructor. 
-+ (*builtin*) admit. (*TODO*)
- (* induction H6. admit. (*needs fact that builtins don't change memory*)*) 
-+ admit. (*needs facts about call_args*)
-+ admit. (*extcall*)
++ (*builtin*)
+  destruct ef; simpl in *; try solve [elim H4; trivial].
+  - inv H7. 
+    destruct (eval_builtin_args_ev_elim_strong _ _ _ _ _ _ _ H6) as [EV EVS].
+    eapply ev_elim_app. eassumption.
+    admit. (*EFexternal helpers don't change memory - should follow from HFD*)
+  - inv H7. 
+    destruct (eval_builtin_args_ev_elim_strong _ _ _ _ _ _ _ H6) as [EV EVS].
+    eapply ev_elim_app. eassumption.
+    admit. (*EFbuiltin helpers don't change memory - should follow from HFD*)
+  - (*malloc*)
+    inv H3; inv H7. rewrite H8 in ALLOC. inv ALLOC.
+    destruct (eval_builtin_args_ev_elim_strong _ _ _ _ _ _ _ H6) as [EV EVS].
+    apply Mem.store_storebytes in H9.
+    eapply ev_elim_app. eassumption.
+    econstructor. split. eassumption.
+    econstructor. split. eassumption. constructor.
+  - (*free*)
+    inv H3; inv H7. 
+    destruct (Mem.load_loadbytes _ _ _ _ _ H8) as [bytes1 [LB1 SZ1]].
+    rewrite LB1 in LB; inv LB. rewrite <- SZ1 in SZ; inv SZ.
+    rewrite H10 in FR; inv FR.
+    destruct (eval_builtin_args_ev_elim_strong _ _ _ _ _ _ _ H6) as [EV EVS].
+    eapply ev_elim_app. eassumption.
+    econstructor. eassumption.
+    econstructor. split. simpl. rewrite H10. reflexivity. constructor. 
+  - (*memcpy*)
+    inv H3; inv H7. rewrite LB in H14; inv H14. rewrite ST in H15; inv H15.
+    destruct (eval_builtin_args_ev_elim_strong _ _ _ _ _ _ _ H6) as [EV EVS].
+    eapply ev_elim_app. eassumption.
+    econstructor. eassumption.
+    econstructor. split. eassumption. constructor.
++ eapply extcall_arguments_ev_aux_elim; eassumption. 
++ inv H1.
+  destruct callee; simpl in *; try solve [contradiction].
+  - inv H3. admit. (*EFexternal helpers don't change memory - should follow from HFD*)
+  - inv H3. admit. (*EFbuiltin helpers don't change memory - should follow from HFD*)
 + (*loadframe*)
     eexists. split. eassumption.
     destruct (store_args_ev_elim _ _ _ _ _ _ H1) as [TT [HTT EV]].
     unfold store_args_events in H2. rewrite H2 in HTT. inv HTT. trivial.
-Admitted. (*due to extcall and builtins*)
-
-Lemma AR n: match n with
-                  | 0 => 0
-                  | Z.pos y' => Z.pos y'~0~0
-                  | Z.neg y' => Z.neg y'~0~0
-                  end = 4*n.
-destruct n; simpl; trivial. Qed. 
+Admitted. (*due to extcall and builtins -- should all follow from HFD*)
 
 Lemma store_args_rec_transfer stk m2 mm': forall args tys m1 n
  (STARGS: store_args_rec m1 stk n args tys = Some m2) TT
@@ -1452,12 +1756,96 @@ induction 1; intros.
       eexists; econstructor; try eassumption. 
       ++ simpl. rewrite <- Heqw; simpl. rewrite H3, H5, <- Heqd. reflexivity.
       ++ simpl. rewrite <- Heqw; simpl. rewrite H3, H5, <- Heqd. rewrite H2, H4. reflexivity.
-+ (*builtin*) admit.
-+ split.
-  - admit.  (*extcallargs*)
-  - intros mm mm' EV'. admit. (*inv EV'.
-    eexists. eapply asm_ev_step_to_external; try eassumption. econstructor. eassumption. eassumption.  simpl.*)
-+ admit. (*extcall*)
++ (*builtin*)
+  destruct ef; simpl in *; try solve [elim H4; trivial].
+  - inv H7. 
+    destruct (eval_builtin_args_ev_elim_strong _ _ _ _ _ _ _ H6) as [EV EVS].
+    split.
+    * eapply ev_elim_app. eassumption.
+      admit. (*EFexternal helpers don't change memory - should follow from HFD*)
+    * intros mm mm' MM. rewrite app_nil_r in MM.
+      destruct (EVS _ _ MM); subst mm'.
+      destruct (I64Helpers.is_I64_helperS_dec name sg). 2: elim H4; trivial.
+      admit. (*helpers don't access memory -- with stengthened HFD, proof will essesntially be like this:
+      eexists. eapply asm_ev_step_builtin; try eassumption. simpl; trivial.
+        eapply eval_builtin_args_ev_eval_builtin_args; eassumption.
+        2: reflexivity.
+        2: constructor; trivial. *)  
+  - inv H7. 
+    destruct (eval_builtin_args_ev_elim_strong _ _ _ _ _ _ _ H6) as [EV EVS].
+    split.
+    * eapply ev_elim_app. eassumption.
+      admit. (*EFbuiltin helpers don't change memory - should follow from HFD*)
+    * intros mm mm' MM. rewrite app_nil_r in MM.
+      destruct (EVS _ _ MM); subst mm'.
+      destruct (is_I64_builtinS_dec name sg). 2: elim H4; trivial.
+      admit. (*helpers don't access memory -- with stengthened HFD, proof will essesntially be like this:
+      eexists. eapply asm_ev_step_builtin; try eassumption. simpl; trivial.
+        eapply eval_builtin_args_ev_eval_builtin_args; eassumption.
+        2: reflexivity.
+        2: constructor; trivial. *)
+  - (*malloc*)
+    inv H3; inv H7. rewrite H8 in ALLOC. inv ALLOC.
+    destruct (eval_builtin_args_ev_elim_strong _ _ _ _ _ _ _ H6) as [EV EVS].
+    apply Mem.store_storebytes in H9.
+    split.
+    * eapply ev_elim_app. eassumption.
+      econstructor. split. eassumption.
+      econstructor. split. eassumption. constructor.
+    * intros mm mm' MM. apply ev_elim_split in MM; destruct MM as [mm1 [EV1 EV2]]. 
+      inv EV2. destruct H3. inv H5. destruct H7. inv H7.
+      rename x into mm2. rename x0 into mm3.
+      specialize (EVS _ _ EV1); destruct EVS; subst mm1.
+      eexists. eapply asm_ev_step_builtin; try eassumption; simpl; trivial.
+      ++ eapply eval_builtin_args_ev_eval_builtin_args; eassumption.
+      ++ econstructor. eassumption. erewrite Mem.storebytes_store; try reflexivity; eassumption.
+      ++ econstructor; try eassumption.
+  - (*free*)
+    inv H3; inv H7.  
+    destruct (Mem.load_loadbytes _ _ _ _ _ H8) as [bytes1 [LB1 SZ1]].
+    rewrite LB1 in LB; inv LB. rewrite <- SZ1 in SZ; inv SZ.
+    rewrite H10 in FR; inv FR.
+    destruct (eval_builtin_args_ev_elim_strong _ _ _ _ _ _ _ H6) as [EV EVS].
+    split.
+    * eapply ev_elim_app. eassumption.
+      econstructor. eassumption.
+      econstructor. split. simpl. rewrite H10. reflexivity. constructor. 
+    * intros mm mm' MM. apply ev_elim_split in MM; destruct MM as [mm1 [EV1 EV2]]. 
+      inv EV2. inv H5. destruct H7. inv H7.
+      rename x into mm2. 
+      specialize (EVS _ _ EV1); destruct EVS; subst mm1.
+      simpl in H5. 
+      remember (Mem.free mm b0 (Int.unsigned lo - 4) (Int.unsigned lo + Int.unsigned sz)) as d.
+      destruct d; inv H5; symmetry in Heqd.
+      eexists. eapply asm_ev_step_builtin; try eassumption; simpl; trivial.
+      ++ eapply eval_builtin_args_ev_eval_builtin_args; eassumption.
+      ++ econstructor; try eassumption.
+         rewrite SZ1. apply Mem.loadbytes_load; assumption.
+      ++ econstructor; eassumption.
+  - (*memcpy*)
+    inv H3; inv H7. rewrite LB in H14; inv H14. rewrite ST in H15; inv H15.
+    destruct (eval_builtin_args_ev_elim_strong _ _ _ _ _ _ _ H6) as [EV EVS].
+    split.
+    * eapply ev_elim_app. eassumption.
+      econstructor. eassumption.
+      econstructor. split. eassumption. constructor.
+    * intros mm mm' MM. apply ev_elim_split in MM; destruct MM as [mm1 [EV1 EV2]]. 
+      inv EV2. inv H5. destruct H7. inv H7.
+      rename x into mm2. 
+      specialize (EVS _ _ EV1); destruct EVS; subst mm1.
+      eexists. eapply asm_ev_step_builtin; try eassumption; simpl; trivial.
+      ++ eapply eval_builtin_args_ev_eval_builtin_args; eassumption.
+      ++ econstructor; try eassumption.
+      ++ econstructor; eassumption.
++ (*Step-to-external*)
+  exploit extcall_arguments_ev_aux_elim_strong. apply H2. intros [EV HEV].
+  split; trivial; intros.
+  destruct (HEV _ _ H3); subst.
+  eexists. eapply asm_ev_step_to_external; try eassumption. eapply extcall_arguments_ev_extcall_arguments. eassumption. 
++ inv H1.
+  destruct callee; simpl in *; try solve [contradiction].
+  - inv H3. admit. (*EFexternal helpers don't change memory - should follow from HFD*)
+  - inv H3. admit. (*EFbuiltin helpers don't change memory - should follow from HFD*)
 + (*loadframe*)
    destruct (store_args_ev_elim _ _ _ _ _ _ H1) as [TT [HTT EV]].
    unfold store_args_events in H2. rewrite H2 in HTT. inv HTT. 
@@ -1474,7 +1862,7 @@ eapply Build_EvSem with (msem := Asm_mem_sem hf) (ev_step:=asm_ev_step).
 + intros. eapply asm_ev_ax1; try eassumption. admit. (*helper_functions declared*)
 + eapply asm_ev_ax2; eassumption.
 + eapply asm_ev_fun; eassumption.
-+ eapply asm_ev_elim; eassumption.
++ eapply asm_ev_elim_strong; eassumption.
 Admitted. (*helper_functions declared*)
 
 End ASM_EV.

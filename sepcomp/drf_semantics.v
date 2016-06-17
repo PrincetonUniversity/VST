@@ -134,6 +134,36 @@ induction T; simpl; intros.
          simpl; trivial. }
 Qed.
 
+Lemma ev_elim_app: forall T1 m1 m2 (EV1:ev_elim m1 T1 m2) T2 m3  (EV2: ev_elim m2 T2 m3), ev_elim m1 (T1++T2) m3.
+Proof.
+  induction T1; simpl; intros; subst; trivial.
+  destruct a.
++ destruct EV1 as [mm [SB EV]]. specialize (IHT1 _ _ EV _ _ EV2).
+  exists mm; split; trivial.
++ destruct EV1 as [LB EV]. specialize (IHT1 _ _ EV _ _ EV2).
+  split; trivial.
++ destruct EV1 as [mm [AL EV]]. specialize (IHT1 _ _ EV _ _ EV2).
+  exists mm; split; trivial.
++ destruct EV1 as [mm [FL EV]]. specialize (IHT1 _ _ EV _ _ EV2).
+  exists mm; split; trivial.
+Qed.
+
+Lemma ev_elim_split: forall T1 T2 m1 m3 (EV1:ev_elim m1 (T1++T2) m3),
+      exists m2, ev_elim m1 T1 m2 /\ ev_elim m2 T2 m3.
+Proof.
+  induction T1; simpl; intros.
++ exists m1; split; trivial.
++ destruct a.
+  - destruct EV1 as [mm [SB EV]]. destruct (IHT1 _ _ _ EV) as [m2 [EV1 EV2]].
+    exists m2; split; trivial. exists mm; split; trivial.
+  - destruct EV1 as [LB EV]. destruct (IHT1 _ _ _ EV) as [m2 [EV1 EV2]].
+    exists m2; split; trivial. split; trivial.
+  - destruct EV1 as [mm [AL EV]]. destruct (IHT1 _ _ _ EV) as [m2 [EV1 EV2]].
+    exists m2; split; trivial. exists mm; split; trivial.
+  - destruct EV1 as [mm [SB EV]]. destruct (IHT1 _ _ _ EV) as [m2 [EV1 EV2]].
+    exists m2; split; trivial. exists mm; split; trivial.
+Qed.
+
 (** Similar to effect semantics, event semantics augment memory semantics with suitable effects, in the form 
     of a set of memory access traces associated with each internal 
     step of the semantics. *)
@@ -155,8 +185,11 @@ Record EvSem {G C} :=
        exists T, ev_step g c m T c' m'
   ; ev_step_fun: forall g c m T' c' m' T'' c'' m'',
        ev_step g c m T' c' m' -> ev_step g c m T'' c'' m'' -> T'=T''
-  ; ev_step_elim: forall g c m T c' m',
-       ev_step g c m T c' m' -> ev_elim m T m'
+(*  ; ev_step_elim: forall g c m T c' m',
+       ev_step g c m T c' m' -> ev_elim m T m'*)
+  ; ev_step_elim: forall g c m T c' m' (STEP: ev_step g c m T c' m'),
+       ev_elim m T m' /\ 
+       (forall mm mm', ev_elim mm T mm' -> exists cc', ev_step g c mm T cc' mm')
   }.
 
 Lemma Ev_sem_cur_perm {G C} (R: @EvSem G C) g c m T c' m' b ofs (D: ev_step R g c m T c' m'): 
