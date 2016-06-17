@@ -62,7 +62,7 @@ End LocksAndResources.
 Module ThreadPool (SEM:Semantics)  <: ThreadPoolSig
     with Module TID:= NatTID with Module SEM:=SEM
     with Module RES := LocksAndResources.
-    Include (OrdinalPool SEM LocksAndResources).
+                        Include (OrdinalPool SEM LocksAndResources).
 End ThreadPool.
 
 
@@ -75,222 +75,425 @@ Module Concur.
       with Module ThreadPool.SEM:= SEM
       with Module ThreadPool.RES:= LocksAndResources.
                                     
-    Module ThreadPool := ThreadPool SEM.
-    Import ThreadPool.
-    Import ThreadPool.SEM ThreadPool.RES.
+                                    Module ThreadPool := ThreadPool SEM.
+                                    Import ThreadPool.
+                                    Import ThreadPool.SEM ThreadPool.RES.
 
-    Notation tid := NatTID.tid.
+                                    Notation tid := NatTID.tid.
 
-    (** Memories*)
-    Definition richMem: Type:= mem.
-    Definition dryMem: richMem -> mem:= id.
-    Definition diluteMem: mem -> mem := setMaxPerm.
-    
-    Notation thread_pool := (ThreadPool.t).
-    Notation perm_map := ThreadPool.RES.res.
-    
-    (** The state respects the memory*)
-    Record mem_compatible' tp m : Prop :=
-      { compat_th :> forall {tid} (cnt: containsThread tp tid),
-            permMapLt (getThreadR cnt) (getMaxPerm m);
-        compat_lp : forall l pmap, lockRes tp l = Some pmap ->
-                              permMapLt pmap (getMaxPerm m);
-        compat_ls : permMapLt (lockSet tp) (getMaxPerm m)}.
-    
-    Definition mem_compatible tp m : Prop := mem_compatible' tp m.
+                                    (** Memories*)
+                                    Definition richMem: Type:= mem.
+                                    Definition dryMem: richMem -> mem:= id.
+                                    Definition diluteMem: mem -> mem := setMaxPerm.
+                                    
+                                    Notation thread_pool := (ThreadPool.t).
+                                    Notation perm_map := ThreadPool.RES.res.
+                                    
+                                    (** The state respects the memory*)
+                                    Record mem_compatible' tp m : Prop :=
+                                      { compat_th :> forall {tid} (cnt: containsThread tp tid),
+                                            permMapLt (getThreadR cnt) (getMaxPerm m);
+                                        compat_lp : forall l pmap, lockRes tp l = Some pmap ->
+                                                              permMapLt pmap (getMaxPerm m);
+                                        compat_ls : permMapLt (lockSet tp) (getMaxPerm m)}.
+                                    
+                                    Definition mem_compatible tp m : Prop := mem_compatible' tp m.
 
-    (** Per-thread disjointness definition*)
-    Definition race_free (tp : thread_pool) :=
-      forall i j (cnti : containsThread tp i)
-        (cntj : containsThread tp j) (Hneq: i <> j),
-        permMapsDisjoint (getThreadR cnti)
-                         (getThreadR cntj).
-      
-    (*argh this invariant is such a pain, tried collecting everything
+                                    (** Per-thread disjointness definition*)
+                                    Definition race_free (tp : thread_pool) :=
+                                      forall i j (cnti : containsThread tp i)
+                                        (cntj : containsThread tp j) (Hneq: i <> j),
+                                        permMapsDisjoint (getThreadR cnti)
+                                                         (getThreadR cntj).
+                                    
+                                    (*argh this invariant is such a pain, tried collecting everything
     first, still a pain *)
-    Record invariant' tp :=
-      { no_race : race_free tp;
-        lock_set_threads : forall i (cnt : containsThread tp i),
-            permMapsDisjoint (lockSet tp) (getThreadR cnt);
-        lock_res_threads : forall l pmap i (cnt : containsThread tp i),
-            lockRes tp l = Some pmap ->
-            permMapsDisjoint pmap (getThreadR cnt);
-        lock_res_set : forall l pmap,
-            lockRes tp l = Some pmap ->
-            permMapsDisjoint pmap (lockSet tp)
-      }.
+                                    Record invariant' tp :=
+                                      { no_race : race_free tp;
+                                        lock_set_threads : forall i (cnt : containsThread tp i),
+                                            permMapsDisjoint (lockSet tp) (getThreadR cnt);
+                                        lock_res_threads : forall l pmap i (cnt : containsThread tp i),
+                                            lockRes tp l = Some pmap ->
+                                            permMapsDisjoint pmap (getThreadR cnt);
+                                        lock_res_set : forall l pmap,
+                                            lockRes tp l = Some pmap ->
+                                            permMapsDisjoint pmap (lockSet tp)
+                                      }.
 
-    Definition invariant := invariant'.
+                                    Definition invariant := invariant'.
 
-    Record angelSpec (src tgt src' tgt' : access_map) : Prop :=
-      { angelIncr: forall b ofs,
-          Mem.perm_order' (Maps.PMap.get b tgt' ofs) Readable ->
-          Mem.perm_order' (Maps.PMap.get b tgt ofs) Readable \/
-          Mem.perm_order' (Maps.PMap.get b src ofs) Readable;
-        angelDecr: forall b ofs,
-            Mem.perm_order'' (Maps.PMap.get b src ofs)
-                             (Maps.PMap.get b src' ofs)}.
-                             
-    (** Steps*)
-    Inductive dry_step genv {tid0 tp m} (cnt: containsThread tp tid0)
-              (Hcompatible: mem_compatible tp m) : thread_pool -> mem  -> Prop :=
-    | step_dry :
-        forall (tp':thread_pool) c m1 m' (c' : code),
-        forall (Hrestrict_pmap:
-             restrPermMap (Hcompatible tid0 cnt) = m1)
-          (Hinv : invariant tp)
-          (Hcode: getThreadC cnt = Krun c)
-          (Hcorestep: corestep Sem genv c m1 c' m')
-          (Htp': tp' = updThread cnt (Krun c') (getCurPerm m')),
-          dry_step genv cnt Hcompatible tp' m'.
+                                    Record angelSpec (src tgt src' tgt' : access_map) : Prop :=
+                                      { angelIncr: forall b ofs,
+                                          Mem.perm_order' (Maps.PMap.get b tgt' ofs) Readable ->
+                                          Mem.perm_order' (Maps.PMap.get b tgt ofs) Readable \/
+                                          Mem.perm_order' (Maps.PMap.get b src ofs) Readable;
+                                        angelDecr: forall b ofs,
+                                            Mem.perm_order'' (Maps.PMap.get b src ofs)
+                                                             (Maps.PMap.get b src' ofs)}.
+                                    
+                                    (** Steps*)
+                                    Inductive dry_step genv {tid0 tp m} (cnt: containsThread tp tid0)
+                                              (Hcompatible: mem_compatible tp m) : thread_pool -> mem  -> Prop :=
+                                    | step_dry :
+                                        forall (tp':thread_pool) c m1 m' (c' : code),
+                                        forall (Hrestrict_pmap:
+                                             restrPermMap (Hcompatible tid0 cnt) = m1)
+                                          (Hinv : invariant tp)
+                                          (Hcode: getThreadC cnt = Krun c)
+                                          (Hcorestep: corestep Sem genv c m1 c' m')
+                                          (Htp': tp' = updThread cnt (Krun c') (getCurPerm m')),
+                                          dry_step genv cnt Hcompatible tp' m'.
 
-    (*missing lock-ranges*)
-    Inductive ext_step (genv:G) {tid0 tp m} (*Can we remove genv from here?*)
-              (cnt0:containsThread tp tid0)(Hcompat:mem_compatible tp m):
-      thread_pool -> mem -> Prop :=
-    | step_acquire :
-        forall (tp' tp'':thread_pool) m1 c m' b ofs pmap virtueThread
-          (Hinv : invariant tp)
-          (Hcode: getThreadC cnt0 = Kblocked c)
-          (Hat_external: at_external Sem c =
-                         Some (LOCK, ef_sig LOCK, Vptr b ofs::nil))
-          (Hcompatible: mem_compatible tp m)
-          (Hrestrict_pmap: restrPermMap (compat_ls Hcompat) = m1)
-          (Hload: Mem.load Mint32 m1 b (Int.intval ofs) = Some (Vint Int.one))
-          (Hstore: Mem.store Mint32 m1 b (Int.intval ofs) (Vint Int.zero) = Some m')
-          (HisLock: lockRes tp (b, Int.intval ofs) = Some pmap)
-          (Hangel: angelSpec pmap (getThreadR cnt0)
-                             empty_map
-                             (computeMap (getThreadR cnt0) virtueThread))
-          (Htp': tp' = updThread cnt0 (Kresume c Vundef)
-                                 (computeMap (getThreadR cnt0) virtueThread))
-          (Htp'': tp'' = updLockSet tp' (b, Int.intval ofs) empty_map),
-          ext_step genv cnt0 Hcompat tp'' m' 
-                   
-    | step_release :
-        forall (tp' tp'':thread_pool) m1 c m' b ofs pmap virtueThread virtueLP
-          (Hinv : invariant tp)
-          (Hcode: getThreadC cnt0 = Kblocked c)
-          (*His_empty: pmap = empty_map *) (*Maybe we need this? *)
-          (Hat_external: at_external Sem c =
-                         Some (UNLOCK, ef_sig UNLOCK, Vptr b ofs::nil))
-          (Hrestrict_pmap: restrPermMap (compat_ls Hcompat) = m1)
-          (Hload: Mem.load Mint32 m1 b (Int.intval ofs) = Some (Vint Int.zero))
-          (Hstore: Mem.store Mint32 m1 b (Int.intval ofs) (Vint Int.one) = Some m')
-          (HisLock: lockRes tp (b, Int.intval ofs) = Some pmap)
-          (Hangel: angelSpec (getThreadR cnt0) pmap
-                             (computeMap (getThreadR cnt0) virtueThread)
-                             virtueLP)
-          (Htp': tp' = updThread cnt0 (Kresume c Vundef)
-                                 (computeMap (getThreadR cnt0) virtueThread))
-          (Htp'': tp'' = updLockSet tp' (b, Int.intval ofs) virtueLP),
-          ext_step genv cnt0 Hcompat tp'' m' 
-                   
-    | step_create :
-        forall  (tp_upd tp':thread_pool) c vf arg virtue1 virtue2,
-        forall
-          (Hinv : invariant tp)
-          (Hcode: getThreadC cnt0 = Kblocked c)
-          (Hat_external: at_external Sem c =
-                         Some (CREATE, ef_sig CREATE, vf::arg::nil))
-          (Hangel: angelSpec (getThreadR cnt0) empty_map
-                             (computeMap (getThreadR cnt0) virtue1)
-                             (computeMap empty_map virtue2))
-          (Htp_upd: tp_upd = updThread cnt0 (Kresume c Vundef)
-                                       (computeMap (getThreadR cnt0) virtue1))
-          (Htp': tp' = addThread tp_upd vf arg
-                                 (computeMap empty_map virtue2)),
-          ext_step genv cnt0 Hcompat tp' m
-                   
-    | step_mklock :
-        forall  (tp' tp'': thread_pool) m1 c m' b ofs pmap_tid',
-          let: pmap_tid := getThreadR cnt0 in
-          forall
-            (Hinv : invariant tp)
-            (Hcode: getThreadC cnt0 = Kblocked c)
-            (Hat_external: at_external Sem c =
-                           Some (MKLOCK, ef_sig MKLOCK, Vptr b ofs::nil))
-            (Hrestrict_pmap: restrPermMap (Hcompat tid0 cnt0) = m1)
-            (Hstore:
-               Mem.store Mint32 m1 b (Int.intval ofs) (Vint Int.zero) = Some m')
-            (Hdrop_perm:
-               setPermBlock (Some Nonempty) b (Int.intval ofs) pmap_tid LKSIZE_nat = pmap_tid')
-            (*Hlp_perm: setPerm (Some Writable)
+                                    (*missing lock-ranges*)
+                                    Inductive ext_step (genv:G) {tid0 tp m} (*Can we remove genv from here?*)
+                                              (cnt0:containsThread tp tid0)(Hcompat:mem_compatible tp m):
+                                      thread_pool -> mem -> Prop :=
+                                    | step_acquire :
+                                        forall (tp' tp'':thread_pool) m1 c m' b ofs pmap virtueThread
+                                          (Hinv : invariant tp)
+                                          (Hcode: getThreadC cnt0 = Kblocked c)
+                                          (Hat_external: at_external Sem c =
+                                                         Some (LOCK, ef_sig LOCK, Vptr b ofs::nil))
+                                          (Hcompatible: mem_compatible tp m)
+                                          (Hrestrict_pmap: restrPermMap (compat_ls Hcompat) = m1)
+                                          (Hload: Mem.load Mint32 m1 b (Int.intval ofs) = Some (Vint Int.one))
+                                          (Hstore: Mem.store Mint32 m1 b (Int.intval ofs) (Vint Int.zero) = Some m')
+                                          (HisLock: lockRes tp (b, Int.intval ofs) = Some pmap)
+                                          (Hangel: angelSpec pmap (getThreadR cnt0)
+                                                             empty_map
+                                                             (computeMap (getThreadR cnt0) virtueThread))
+                                          (Htp': tp' = updThread cnt0 (Kresume c Vundef)
+                                                                 (computeMap (getThreadR cnt0) virtueThread))
+                                          (Htp'': tp'' = updLockSet tp' (b, Int.intval ofs) empty_map),
+                                          ext_step genv cnt0 Hcompat tp'' m' 
+                                                   
+                                    | step_release :
+                                        forall (tp' tp'':thread_pool) m1 c m' b ofs pmap virtueThread virtueLP
+                                          (Hinv : invariant tp)
+                                          (Hcode: getThreadC cnt0 = Kblocked c)
+                                          (*His_empty: pmap = empty_map *) (*Maybe we need this? *)
+                                          (Hat_external: at_external Sem c =
+                                                         Some (UNLOCK, ef_sig UNLOCK, Vptr b ofs::nil))
+                                          (Hrestrict_pmap: restrPermMap (compat_ls Hcompat) = m1)
+                                          (Hload: Mem.load Mint32 m1 b (Int.intval ofs) = Some (Vint Int.zero))
+                                          (Hstore: Mem.store Mint32 m1 b (Int.intval ofs) (Vint Int.one) = Some m')
+                                          (HisLock: lockRes tp (b, Int.intval ofs) = Some pmap)
+                                          (Hangel: angelSpec (getThreadR cnt0) pmap
+                                                             (computeMap (getThreadR cnt0) virtueThread)
+                                                             virtueLP)
+                                          (Htp': tp' = updThread cnt0 (Kresume c Vundef)
+                                                                 (computeMap (getThreadR cnt0) virtueThread))
+                                          (Htp'': tp'' = updLockSet tp' (b, Int.intval ofs) virtueLP),
+                                          ext_step genv cnt0 Hcompat tp'' m' 
+                                                   
+                                    | step_create :
+                                        forall  (tp_upd tp':thread_pool) c vf arg virtue1 virtue2,
+                                        forall
+                                          (Hinv : invariant tp)
+                                          (Hcode: getThreadC cnt0 = Kblocked c)
+                                          (Hat_external: at_external Sem c =
+                                                         Some (CREATE, ef_sig CREATE, vf::arg::nil))
+                                          (HangelDecr: forall b ofs, Mem.perm_order''
+                                                                  (Maps.PMap.get b (getThreadR cnt0) ofs)
+                                                                  (Maps.PMap.get b (computeMap
+                                                                                      (getThreadR cnt0) virtue1) ofs))
+                                          (HangelIncr: forall b ofs,
+                                              Mem.perm_order'' (Some Nonempty)
+                                                               (Maps.PMap.get b (computeMap empty_map virtue2)
+                                                                              ofs))
+                                          (Htp_upd: tp_upd = updThread cnt0 (Kresume c Vundef)
+                                                                       (computeMap (getThreadR cnt0) virtue1))
+                                          (Htp': tp' = addThread tp_upd vf arg
+                                                                 (computeMap empty_map virtue2)),
+                                          ext_step genv cnt0 Hcompat tp' m
+                                                   
+                                    | step_mklock :
+                                        forall  (tp' tp'': thread_pool) m1 c m' b ofs pmap_tid',
+                                          let: pmap_tid := getThreadR cnt0 in
+                                          forall
+                                            (Hinv : invariant tp)
+                                            (Hcode: getThreadC cnt0 = Kblocked c)
+                                            (Hat_external: at_external Sem c =
+                                                           Some (MKLOCK, ef_sig MKLOCK, Vptr b ofs::nil))
+                                            (Hrestrict_pmap: restrPermMap (Hcompat tid0 cnt0) = m1)
+                                            (Hstore:
+                                               Mem.store Mint32 m1 b (Int.intval ofs) (Vint Int.zero) = Some m')
+                                            (Hdrop_perm:
+                                               setPermBlock (Some Nonempty) b (Int.intval ofs) pmap_tid LKSIZE_nat = pmap_tid')
+                                            (*Hlp_perm: setPerm (Some Writable)
                                b (Int.intval ofs) (lockSet tp) = pmap_lp*)
-            (Htp': tp' = updThread cnt0 (Kresume c Vundef) pmap_tid')
-            (Htp'': tp'' = updLockSet tp' (b,(Int.intval ofs)) empty_map),
-            ext_step genv cnt0 Hcompat tp'' m' 
-                     
-    | step_freelock :
-        forall  (tp' tp'': thread_pool) c b ofs virtue pmap' m',
-          forall
-            (Hinv : invariant tp)
-            (Hcode: getThreadC cnt0 = Kblocked c)
-            (Hat_external: at_external Sem c =
-                           Some (FREE_LOCK, ef_sig FREE_LOCK, Vptr b ofs::nil))
-            (Hset_perm: setPermBlock virtue b (Int.intval ofs) (getThreadR cnt0) LKSIZE_nat = pmap')
-            (Htp': tp' = updThread cnt0 (Kresume c Vundef) pmap')
-            (Htp'': tp'' = remLockSet tp' (b,(Int.intval ofs)))
-            (Hmem_no_change: m = m'),
-            ext_step genv cnt0 Hcompat  tp'' m'
-                     
-    | step_acqfail :
-        forall  c b ofs m1,
-        forall
-          (Hinv : invariant tp)
-          (Hcode: getThreadC cnt0 = Kblocked c)
-          (Hat_external: at_external Sem c =
-                         Some (LOCK, ef_sig LOCK, Vptr b ofs::nil))
-          (*His_lock: (Maps.PMap.get b (lockSet tp)) (Int.intval ofs)*)
-          (Hrestrict_pmap: restrPermMap (compat_ls Hcompat) = m1)
-          (Hload: Mem.load Mint32 m1 b (Int.intval ofs) = Some (Vint Int.zero)),
-          ext_step genv cnt0 Hcompat tp m.
-    
-    Definition threadStep (genv : G): forall {tid0 ms m},
-        containsThread ms tid0 -> mem_compatible ms m ->
-        thread_pool -> mem -> Prop:=
-      @dry_step genv.
-    
-    Definition syncStep (genv :G) :
-      forall {tid0 ms m},
-        containsThread ms tid0 -> mem_compatible ms m ->
-        thread_pool -> mem -> Prop:=
-      @ext_step genv.
+                                            (Htp': tp' = updThread cnt0 (Kresume c Vundef) pmap_tid')
+                                            (Htp'': tp'' = updLockSet tp' (b,(Int.intval ofs)) empty_map),
+                                            ext_step genv cnt0 Hcompat tp'' m' 
+                                                     
+                                    | step_freelock :
+                                        forall  (tp' tp'': thread_pool) c b ofs virtue pmap' m',
+                                        forall
+                                          (Hinv : invariant tp)
+                                          (Hcode: getThreadC cnt0 = Kblocked c)
+                                          (Hat_external: at_external Sem c =
+                                                         Some (FREE_LOCK, ef_sig FREE_LOCK, Vptr b ofs::nil))
+                                          (Hset_perm: setPermBlock virtue b (Int.intval ofs) (getThreadR cnt0) LKSIZE_nat = pmap')
+                                          (Htp': tp' = updThread cnt0 (Kresume c Vundef) pmap')
+                                          (Htp'': tp'' = remLockSet tp' (b,(Int.intval ofs)))
+                                          (Hmem_no_change: m = m'),
+                                          ext_step genv cnt0 Hcompat  tp'' m'
+                                                   
+                                    | step_acqfail :
+                                        forall  c b ofs m1,
+                                        forall
+                                          (Hinv : invariant tp)
+                                          (Hcode: getThreadC cnt0 = Kblocked c)
+                                          (Hat_external: at_external Sem c =
+                                                         Some (LOCK, ef_sig LOCK, Vptr b ofs::nil))
+                                          (*His_lock: (Maps.PMap.get b (lockSet tp)) (Int.intval ofs)*)
+                                          (Hrestrict_pmap: restrPermMap (compat_ls Hcompat) = m1)
+                                          (Hload: Mem.load Mint32 m1 b (Int.intval ofs) = Some (Vint Int.zero)),
+                                          ext_step genv cnt0 Hcompat tp m.
+                                    
+                                    Definition threadStep (genv : G): forall {tid0 ms m},
+                                        containsThread ms tid0 -> mem_compatible ms m ->
+                                        thread_pool -> mem -> Prop:=
+                                      @dry_step genv.
+                                    
+                                    Definition syncStep (genv :G) :
+                                      forall {tid0 ms m},
+                                        containsThread ms tid0 -> mem_compatible ms m ->
+                                        thread_pool -> mem -> Prop:=
+                                      @ext_step genv.
 
-    Inductive threadHalted': forall {tid0 ms},
-                               containsThread ms tid0 -> Prop:=
-    | thread_halted':
-        forall tp c tid0
-          (cnt: containsThread tp tid0)
-          (Hinv: invariant tp)
-          (Hcode: getThreadC cnt = Krun c)
-          (Hcant: halted Sem c),
-          threadHalted' cnt.
-    
-    Definition threadHalted: forall {tid0 ms},
-        containsThread ms tid0 -> Prop:= @threadHalted'.
-    
-    Definition one_pos : pos := mkPos NPeano.Nat.lt_0_1.
+                                    Inductive threadHalted': forall {tid0 ms},
+                                        containsThread ms tid0 -> Prop:=
+                                    | thread_halted':
+                                        forall tp c tid0
+                                          (cnt: containsThread tp tid0)
+                                          (Hinv: invariant tp)
+                                          (Hcode: getThreadC cnt = Krun c)
+                                          (Hcant: halted Sem c),
+                                          threadHalted' cnt.
+                                    
+                                    Definition threadHalted: forall {tid0 ms},
+                                        containsThread ms tid0 -> Prop:= @threadHalted'.
+                                    
+                                    Definition one_pos : pos := mkPos NPeano.Nat.lt_0_1.
 
-    Definition compute_init_perm : G -> access_map := fun _ => empty_map. (*Needst to be filled*)
-    
-    Definition initial_machine genv c  :=
-      ThreadPool.mk
-        one_pos
-        (fun _ =>  Kresume c Vundef)
-        (fun _ =>  compute_init_perm genv)
-        empty_lset.
-    
-    Definition init_mach (genv:G)(v:val)(args:list val):option thread_pool :=
-      match initial_core Sem genv v args with
-      | Some c => Some (initial_machine genv c)
-      | None => None
-      end.
-    
-End DryMachineShell.
+                                    Definition compute_init_perm : G -> access_map := fun _ => empty_map. (*Needst to be filled*)
+                                    
+                                    Definition initial_machine genv c  :=
+                                      ThreadPool.mk
+                                        one_pos
+                                        (fun _ =>  Kresume c Vundef)
+                                        (fun _ =>  compute_init_perm genv)
+                                        empty_lset.
+                                    
+                                    Definition init_mach (genv:G)(v:val)(args:list val):option thread_pool :=
+                                      match initial_core Sem genv v args with
+                                      | Some c => Some (initial_machine genv c)
+                                      | None => None
+                                      end.
+
+                                    Module DryMachineLemmas.
+                                      
+                                      
+                                      Lemma updLock_raceFree: forall ds a pmap,
+                                        race_free ds ->
+                                        race_free (updLockSet ds a pmap).
+                                      Proof.
+                                        unfold race_free; intros.
+                                        rewrite gLockSetRes. rewrite gLockSetRes.
+                                        apply H; assumption.
+                                      Qed.
+
+                                      Lemma remLock_raceFree: forall ds a,
+                                          race_free ds ->
+                                          race_free (remLockSet ds a).
+                                      Proof.
+                                        unfold race_free; intros.
+                                        assert (cnti':=cntRemoveL' cnti).
+                                        assert (cntj':=cntRemoveL' cntj).
+                                        rewrite (gRemLockSetRes cnti' ).
+                                        erewrite (gRemLockSetRes cntj').
+                                        apply H; assumption.
+                                      Qed.
+
+                                      (*TODO: This lemma should probably be moved. *)
+                                      Lemma threads_canonical:
+                                        forall ds m i (cnt:ThreadPool.containsThread ds i),
+                                          mem_compatible ds m ->  
+                                          isCanonical (ThreadPool.getThreadR cnt).
+                                            intros.
+                                            pose (HH:= compat_th H cnt); apply canonical_lt in HH.
+                                            assumption.
+                                      Qed.
+
+                                      (** *Invariant Lemmas*)
+                                      Lemma initial_invariant: forall genv c,
+                                          invariant (initial_machine genv c).
+                                            unfold  invariant.
+                                            constructor.
+                                            - unfold race_free, initial_machine; simpl.
+                                              unfold containsThread; simpl.
+                                              intros.
+                                              apply empty_disjoint.
+                                            - intros.
+                                              unfold initial_machine; simpl.
+                                              unfold permMapsDisjoint; intros.
+                                              exists ((compute_init_perm genv) !! b ofs).
+                                              unfold empty_map.
+                                              unfold PMap.get at 1; simpl. rewrite PTree.gempty.
+                                              reflexivity.
+                                            - unfold initial_machine, lockRes, containsThread ; simpl.
+                                              intros. rewrite threadPool.find_empty in H; inversion H.
+                                            - unfold initial_machine, lockRes, containsThread ; simpl.
+                                              intros. rewrite threadPool.find_empty in H; inversion H.
+                                      Qed.
+
+                                      (** ** Updating the machine state**)
+                                      Lemma updCinvariant: forall {tid} ds c (cnt: containsThread ds tid),
+                                          invariant ds ->
+                                          invariant (updThreadC cnt c).
+                                            intros ? ? ? ? INV; inversion INV.
+                                            constructor.
+                                            - generalize no_race; unfold race_free.
+                                              simpl. intros.
+                                              apply no_race0; auto.
+                                            - simpl; assumption.
+                                            - simpl; assumption.
+                                            - simpl; assumption.
+                                      Qed.
+
+                                      
+
+                                      Lemma updThread_inv: forall ds i (cnt: containsThread ds i) c pmap,
+                                          invariant ds ->
+                                          (forall j (cnt: containsThread ds j),
+                                              i<>j -> permMapsDisjoint pmap (getThreadR cnt))->
+                                          (permMapsDisjoint (lockSet ds) pmap) ->
+                                          (forall l pmap0, lockRes ds l = Some pmap0 -> permMapsDisjoint pmap0 pmap) ->
+                                          invariant (updThread cnt c pmap).
+                                      Proof.
+                                        intros ? x ? ? ? INV A B C.
+                                        constructor.
+                                        - unfold race_free; intros.
+                                          destruct (scheduler.NatTID.eq_tid_dec x i); [|destruct (scheduler.NatTID.eq_tid_dec x j)].
+                                          + subst i.
+                                            rewrite gssThreadRes.
+                                            rewrite gsoThreadRes; try solve[assumption].
+                                            assert (cntj':=cntj).
+                                            apply cntUpdate' in cntj'.
+                                            eapply (A); assumption.
+                                          + subst j.
+                                            apply permMapsDisjoint_comm.
+                                            rewrite gssThreadRes.
+                                            rewrite gsoThreadRes; try solve[assumption].
+                                            apply A; assumption.
+                                          + rewrite gsoThreadRes; try solve[assumption].
+                                            rewrite gsoThreadRes; try solve[assumption].
+                                            inversion INV. apply no_race; assumption.
+                                        - intros. rewrite gsoThreadLock.
+                                          destruct (scheduler.NatTID.eq_tid_dec x i).
+                                          + subst x. rewrite gssThreadRes. apply B.
+                                          + rewrite gsoThreadRes; try solve[assumption].
+                                            inversion INV. apply lock_set_threads0.
+                                        - intros. rewrite gsoThreadLPool in H.
+                                          destruct (scheduler.NatTID.eq_tid_dec x i).
+                                          + subst x. rewrite gssThreadRes. 
+                                            apply (C _ _ H).
+                                          + rewrite gsoThreadRes; try solve[assumption].
+                                            inversion INV. eapply lock_res_threads; eassumption.
+                                        - intros. rewrite gsoThreadLPool in H.
+                                          rewrite gsoThreadLock.
+                                          inversion INV. eapply lock_res_set0. eassumption.
+                                      Qed.
+                                      
+                                      Lemma updLock_inv: forall ds a pmap,
+                                          invariant ds ->
+                                          (forall i (cnt: containsThread ds i),
+                                              permDisjoint (Some Writable) ((getThreadR cnt) !! (fst a) (snd a)) ) ->
+                                          (forall i (cnt : containsThread ds i),
+                                              permMapsDisjoint pmap (getThreadR cnt)) ->
+                                          (permMapsDisjoint (lockSet ds) pmap) ->
+                                          (permDisjoint (Some Writable) (pmap !! (fst a) (snd a))) ->
+                                          (forall l pmap0, lockRes ds l = Some pmap0 ->
+                                                      permDisjoint (Some Writable) (pmap0 !! (fst a) (snd a)))->
+                                          invariant (updLockSet ds a pmap).
+                                      Proof.
+                                        intros ? ? ? INV A B C D E. constructor.
+                                        - apply updLock_raceFree. inversion INV; assumption.
+                                        - intros. rewrite gLockSetRes.
+                                          destruct a as [b ofs]; rewrite lockSet_upd.
+                                          apply disjoint_add.
+                                          inversion INV; apply lock_set_threads0.
+                                          apply A.
+                                        - intros.
+                                          destruct (addressFiniteMap.AMap.E.eq_dec a l).
+                                          + subst.
+                                            rewrite gssLockRes in H; inversion H; subst.
+                                            rewrite gLockSetRes. apply B.
+                                          + rewrite gsoLockRes in H; try solve[assumption].
+                                            inversion INV. eapply lock_res_threads0. apply H.
+                                        - intros.
+                                          destruct (addressFiniteMap.AMap.E.eq_dec a l); destruct a.
+                                          + subst.
+                                            rewrite gssLockRes in H; inversion H; subst.
+                                            rewrite lockSet_upd.
+                                            apply permMapsDisjoint_comm; apply disjoint_add.
+                                            apply C0.
+                                            apply D.
+                                          + rewrite lockSet_upd.
+                                            apply permMapsDisjoint_comm.
+                                            apply disjoint_add.
+                                            * inversion INV. apply permMapsDisjoint_comm. eapply lock_res_set0.
+                                              rewrite <- H. symmetry.
+                                              apply gsoLockRes; assumption.
+                                            * eapply E. rewrite <- H.
+                                              rewrite gsoLockRes. reflexivity.
+                                              assumption.
+                                      Qed.
+
+                                      Lemma remLock_inv: forall ds a,
+                                          invariant ds ->
+                                          (forall i (cnt: containsThread ds i),
+                                              permDisjoint (Some Writable) ((getThreadR cnt) !! (fst a) (snd a)) ) ->
+                                          invariant (remLockSet ds a).
+                                      Proof.
+                                        intros ? ? INV A.
+                                        constructor.
+                                        - apply remLock_raceFree. inversion INV; assumption.
+                                        - intros.
+                                          
+                                          unfold permMapsDisjoint. intros.
+                                          destruct (addressFiniteMap.AMap.E.eq_dec a (b, ofs)).
+                                          + subst a. rewrite gsslockSet_rem.
+                                            inversion INV. apply lock_set_threads0.
+                                          + destruct a; rewrite (gsolockSet_rem _ ).
+                                            exists  ((getThreadR cnt) !! b ofs); reflexivity. assumption.
+                                        - intros.
+                                          destruct (addressFiniteMap.AMap.E.eq_dec a l).
+                                          + subst a. rewrite gsslockResRemLock in H; inversion H.
+                                          + rewrite gsolockResRemLock in H. inversion INV.
+                                            eapply lock_res_threads0.
+                                            eassumption.
+                                        - intros.
+                                          destruct (addressFiniteMap.AMap.E.eq_dec a l).
+                                          + subst a. rewrite gsslockResRemLock in H; inversion H.
+                                          + rewrite gsolockResRemLock in H. inversion INV.
+                                            unfold permMapsDisjoint. intros b ofs.
+                                            destruct (addressFiniteMap.AMap.E.eq_dec a (b, ofs)).
+                                            * subst a; rewrite gsslockSet_rem;
+                                              eapply lock_res_set0. eassumption.
+                                            * destruct a; rewrite gsolockSet_rem.
+                                              exists (pmap !! b ofs).
+                                              apply perm_union_comm; reflexivity.
+                                              assumption.
+                                      Qed.
+
+                                    End DryMachineLemmas.
+                                    
+  End DryMachineShell.
 
   (* Here I make the core semantics*)
-  (*Declare Module SEM:Semantics.
+(*Declare Module SEM:Semantics.
   Module DryMachine:= DryMachineShell SEM.
   Module myCoarseSemantics :=
     CoarseMachine mySchedule DryMachine.

@@ -1,10 +1,11 @@
 Require Import compcert.lib.Integers.
+Require Import compcert.lib.Axioms.
 From mathcomp.ssreflect Require Import ssreflect ssrbool ssrnat eqtype.
 Require Import Lists.List.
 Require Import Coq.ZArith.ZArith.
 Require Import PreOmega.
 Set Implicit Arguments.
-
+Import Axioms.
 (* tactics to support Omega for ssrnats*)
 Ltac arith_hypo_ssrnat2coqnat :=
   match goal with
@@ -77,6 +78,28 @@ Proof.
   intros a b c H H0.
   zify.
   rewrite Pos2Z.inj_sub; auto; omega.
+Qed.
+
+Lemma prod_fun :
+  forall {A B C : Type}
+    (f g: A -> (B * C)),
+    f = g ->
+    (fun x : A => fst (f x)) =  (fun x : A => fst (g x)) /\
+    (fun x : A => snd (f x)) = (fun x : A => snd (g x)).
+Proof.
+  intros.
+  assert ((fun x => fst (f x)) = (fun x => fst (g x))).
+    by (eapply extensionality; intros x;
+         pose (f x);
+         pose (g x);
+           by subst).
+  assert ((fun x => snd (f x)) = (fun x => snd (g x)))
+    by (eapply extensionality; intros x;
+         pose (f x);
+         pose (g x);
+           by subst).
+  rewrite H0 H1.
+    by split.
 Qed.
 
 Module BlockList.

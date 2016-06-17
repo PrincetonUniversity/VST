@@ -12,134 +12,155 @@ Require Import sepcomp.mem_lemmas.
 Require Import sepcomp.semantics.
 Require Import sepcomp.semantics_lemmas.
 
-Inductive drf_step m m' : Prop :=
-    drf_step_storebytes: forall b ofs bytes,
-       Mem.storebytes m b ofs bytes = Some m' -> drf_step m m'
-  | drf_step_loadbytes: forall b ofs n bytes,
-       Mem.loadbytes m b ofs n = Some bytes ->
-       (forall mm, (exists n, 0 <= n < Zlength bytes /\
-                   Mem.perm_order'' (Some Nonempty) ((Mem.mem_access mm) !! b (ofs+n) Cur)) ->
-                   Mem.loadbytes mm b ofs n = None) -> m'=m ->
-       drf_step m m'
-  | drf_step_alloc: forall lo hi b',
-       Mem.alloc m lo hi = (m',b') -> drf_step m m'
-  | drf_step_freelist: forall l,
-       Mem.free_list m l = Some m' -> drf_step m m'
-  (*add cases for lock/unlock, by inspecting atExternal? Or leave this to the "DRF machine"
-    which also add thread indices etc?*)
-  (*Some non-observable external calls are alloc+store-steps*)
-  | drf_step_trans: forall m'',
-       drf_step m m'' -> drf_step m'' m' -> drf_step m m'.
-
-(* DRF semantics are CoreSemantics that are specialized to CompCert memories
-   and evolve memory according to drf_step.*)
-Record DrfSem {G C} :=
-  { csem :> @CoreSemantics G C mem
-
-  ; corestep_drf : forall g c m c' m' (CS: corestep csem g c m c' m'), drf_step m m'
-  }.
-
-Implicit Arguments DrfSem [].
-
-(********************* Lemmas********)
-
-Lemma drf_step_refl m: drf_step m m.
-  apply (drf_step_freelist _ _ nil); trivial.
-Qed. 
- 
-Lemma drf_step_free: 
-      forall m b lo hi m', Mem.free m b lo hi = Some m' -> drf_step m m'.
-Proof.
- intros. eapply (drf_step_freelist _ _ ((b,lo,hi)::nil)). 
- simpl. rewrite H; reflexivity.
-Qed.
-
-Lemma drf_step_store: 
-      forall m ch b a v m', Mem.store ch m b a v = Some m' -> drf_step m m'.
-Proof.
- intros. eapply drf_step_storebytes. eapply Mem.store_storebytes; eassumption. 
-Qed.
-
-Lemma drf_step_mem_step: 
-      forall m m', drf_step m m' -> mem_step m m'.
-Proof.
- intros. induction H.
- eapply mem_step_storebytes; eassumption.
- subst. eapply mem_step_refl.
- eapply mem_step_alloc; eassumption.
- eapply mem_step_freelist; eassumption.
- eapply mem_step_trans; eassumption. 
-Qed.
-
 (** * Semantics annotated with Owens-style trace*)
-Inductive drf_event :=
-  Write : forall (b : block) (ofs : Z) (bytes : list memval), drf_event
-| Read : forall (b:block) (ofs n:Z), drf_event
-| Pure: drf_event
-| Alloc: forall (lo hi:Z) (b:block), drf_event
-| Lock: drf_event
-| Unlock: drf_event
-(*| Seq : drf_event -> drf_event -> drf_event*).
+Inductive mem_event :=
+  Write : forall (b : block) (ofs : Z) (bytes : list memval), mem_event
+| Read : forall (b:block) (ofs n:Z) (bytes: list memval), mem_event
+(*| Pure: drf_event*)
+| Alloc: forall (b:block)(lo hi:Z), mem_event
+(*| Lock: drf_event
+| Unlock: drf_event*)
+| Free: forall (l: list (block * Z * Z)), mem_event.
 
-(** Similar to effect semantics, DRF semantics augment memory semantics with suitable effects, in the form 
+Fixpoint ev_elim (m:mem) (T: list mem_event) (m':mem):Prop :=
+  match T with
+   nil => m'=m
+ | (Read b ofs n bytes :: R) => Mem.loadbytes m b ofs n = Some bytes /\ ev_elim m R m'
+ | (Write b ofs bytes :: R) => exists m'', Mem.storebytes m b ofs bytes = Some m'' /\ ev_elim m'' R m'
+ | (Alloc b lo hi :: R) => exists m'', Mem.alloc m lo hi = (m'',b) /\ ev_elim m'' R m'
+ | (Free l :: R) => exists m'', Mem.free_list m l = Some m'' /\ ev_elim m'' R m'
+  end.
+
+Definition pmax (popt qopt: option permission): option permission :=
+  match popt, qopt with
+    _, None => popt
+  | None, _ => qopt
+  | Some p, Some q => if Mem.perm_order_dec p q then Some p else Some q
+  end.
+
+Lemma po_pmax_I p q1 q2:
+  Mem.perm_order'' p q1 -> Mem.perm_order'' p q2 -> Mem.perm_order'' p (pmax q1 q2).
+Proof.
+  intros. destruct q1; destruct q2; simpl in *; trivial.
+  destruct (Mem.perm_order_dec p0 p1); trivial.
+Qed.
+
+Fixpoint cur_perm (l: block * Z) (T: list mem_event): option permission := 
+  match T with 
+      nil => None
+    | (mu :: R) => 
+          let popt := cur_perm l R in
+          match mu, l with 
+            | (Read b ofs n bytes), (b',ofs') => 
+                 pmax (if eq_block b b' && zle ofs ofs' && zlt ofs' (ofs+n)
+                       then Some Readable else None) popt
+            | (Write b ofs bytes), (b',ofs') => 
+                 pmax (if eq_block b b' && zle ofs ofs' && zlt ofs' (ofs+ Zlength bytes)
+                       then Some Writable else None) popt
+            | (Alloc b lo hi), (b',ofs') =>  (*we don't add a constrain relating lo/hi/ofs*)
+                 if eq_block b b' then None else popt
+            | (Free l), (b',ofs') => 
+                 List.fold_right (fun tr qopt => match tr with (b,lo,hi) => 
+                                                   if eq_block b b' && zle lo ofs' && zlt ofs' hi
+                                                   then Some Freeable else qopt
+                                                end)
+                                 popt l
+          end
+  end.
+
+Lemma po_None popt: Mem.perm_order'' popt None.
+Proof. destruct popt; simpl; trivial. Qed.
+
+Lemma ev_perm b ofs: forall T m m', ev_elim m T m' -> 
+      Mem.perm_order'' ((Mem.mem_access m) !! b ofs Cur) (cur_perm (b,ofs) T).
+Proof.
+induction T; simpl; intros.
++ subst. apply po_None. 
++ destruct a.
+  - (*Store*)
+     destruct H as [m'' [SB EV]]. specialize (IHT _ _ EV); clear EV. 
+     rewrite (Mem.storebytes_access _ _ _ _ _ SB) in *.
+     eapply po_pmax_I; try eassumption.
+     remember (eq_block b0 b && zle ofs0 ofs && zlt ofs (ofs0 + Zlength bytes)) as d.
+     destruct d; try solve [apply po_None].
+     destruct (eq_block b0 b); simpl in *; try discriminate.
+     destruct (zle ofs0 ofs); simpl in *; try discriminate.
+     destruct (zlt ofs (ofs0 + Zlength bytes)); simpl in *; try discriminate.
+     rewrite Zlength_correct in *.
+     apply Mem.storebytes_range_perm in SB. 
+     exploit (SB ofs); try omega.
+     intros; subst; assumption. 
+  - (*Load*)
+     destruct H as [LB EV]. specialize (IHT _ _ EV); clear EV. 
+     eapply po_pmax_I; try eassumption.
+     remember (eq_block b0 b && zle ofs0 ofs && zlt ofs (ofs0 + n)) as d.
+     destruct d; try solve [apply po_None].
+     destruct (eq_block b0 b); simpl in *; try discriminate.
+     destruct (zle ofs0 ofs); simpl in *; try discriminate.
+     destruct (zlt ofs (ofs0 + n)); simpl in *; try discriminate.
+     apply Mem.loadbytes_range_perm in LB. 
+     exploit (LB ofs); try omega.
+     intros; subst; assumption. 
+  - (*Alloc*)
+     destruct H as [m'' [ALLOC EV]]. specialize (IHT _ _ EV); clear EV. 
+     destruct (eq_block b0 b); subst; try solve [apply po_None].
+     eapply po_trans; try eassumption.
+     remember ((Mem.mem_access m'') !! b ofs Cur) as d.
+     destruct d; try solve [apply po_None].
+     symmetry in Heqd.
+     apply (Mem.perm_alloc_4 _ _ _ _ _ ALLOC b ofs Cur p).
+     * unfold Mem.perm; rewrite Heqd. destruct p; simpl; constructor.
+     * intros N; subst; elim n; trivial.
+  - (*Free*)
+     destruct H as [m'' [FR EV]]. specialize (IHT _ _ EV); clear EV. 
+     generalize dependent m.
+     induction l; simpl; intros.
+     * inv FR. assumption.
+     * destruct a as [[bb lo] hi].
+       remember (Mem.free m bb lo hi) as p.
+       destruct p; inv FR; symmetry in Heqp. specialize (IHl _ H0).
+       remember (eq_block bb b && zle lo ofs && zlt ofs hi) as d.
+       destruct d.
+       { clear - Heqp Heqd. apply Mem.free_range_perm in Heqp.
+         destruct (eq_block bb b); simpl in Heqd; inv Heqd.
+         exploit (Heqp ofs); clear Heqp; trivial.
+         destruct (zle lo ofs); try discriminate.
+         destruct (zlt ofs hi); try discriminate. omega. }
+       { eapply po_trans; try eassumption. clear - Heqp.
+         remember ((Mem.mem_access m0) !! b ofs Cur) as perm2.
+         destruct perm2; try solve [apply po_None].
+         exploit (Mem.perm_free_3 _ _ _ _ _ Heqp); unfold Mem.perm.
+            rewrite <- Heqperm2. apply perm_refl.
+         simpl; trivial. }
+Qed.
+
+(** Similar to effect semantics, event semantics augment memory semantics with suitable effects, in the form 
     of a set of memory access traces associated with each internal 
     step of the semantics. *)
 
-Definition dropCur m (P:block -> Z -> Prop)  p mm:Prop :=
-  forall b ofs, 
-     (P b ofs -> Mem.perm_order'' (Some p) ((Mem.mem_access mm) !! b ofs Cur))
-   /\ ( ~ P b ofs -> (Mem.mem_access mm) !! b ofs Cur = (Mem.mem_access m) !! b ofs Cur).
-
-Record DRFSem {G C} :=
+Record EvSem {G C} :=
   { (** [sem] is a memory semantics. *)
     msem :> MemSem G C
 
     (** The step relation of the new semantics. *)
-  ; drfstep: G -> drf_event -> C -> mem -> C -> mem -> Prop
+  ; ev_step: G -> C -> mem -> list mem_event -> C -> mem -> Prop
 
-    (** The next three fields axiomatize [drfstep] and its relation to the
+    (** The next four fields axiomatize [drfstep] and its relation to the
         underlying step relation of [msem]. *)
-  ; drfax1: forall T g c m c' m',
-       drfstep g T c m c' m' ->
+  ; ev_step_ax1: forall g c m T c' m',
+       ev_step g c m T c' m' ->
             corestep msem g c m c' m' 
-  ; drfax2: forall g c m c' m',
+  ; ev_step_ax2: forall g c m c' m',
        corestep msem g c m c' m' ->
-       exists M, drfstep g M c m c' m'
-  ; drf_fun: forall T' T'' g c m c' m' c'' m'',
-       drfstep g T' c m c' m' -> drfstep g T'' c m c'' m'' -> T'=T''
-  ; drfstep_wr1: forall g c m c' m' b ofs bytes,
-       drfstep g (Write b ofs bytes) c m c' m' ->
-       Mem.storebytes m b ofs bytes = Some m' /\
-       forall mm (P:block -> Z -> Prop)
-                 (HP: exists ofs', P b ofs' /\ ofs <= ofs' < ofs + Zlength bytes),
-                   dropCur m P Readable mm -> (*could even drop to any p below RD*)
-                   Mem.storebytes mm b ofs bytes = None 
-  ; drfstep_wr2: forall g c m c' m' b ofs bytes,
-       drfstep g (Write b ofs bytes) c m c' m' ->
-       forall mm (P:block -> Z -> Prop) 
-                 (HP: forall b' ofs', P b' ofs' -> (b'<>b \/ ofs' < ofs \/ ofs + Zlength bytes <=ofs')),
-                   dropCur m P Readable mm -> (*could even "drop" to any p*)
-                   exists cc' mm', Mem.storebytes mm b ofs bytes = Some mm' /\
-                                   corestep msem g c mm cc' mm'
-  ; drfstep_rd: forall g c m c' m' b ofs n,
-       drfstep g (Read b ofs n) c m c' m' ->
-       exists bytes, Mem.loadbytes m b ofs n = Some bytes /\
-       (forall mm (P:block -> Z -> Prop)
-                  (HP: exists ofs', P b ofs' /\ ofs <= ofs' < ofs + n),
-                       dropCur m P Nonempty mm -> 
-                   Mem.loadbytes mm b ofs n = None) /\
-       (forall mm (P:block -> Z -> Prop) 
-                  (Pdec: forall b ofs, P b ofs \/ ~ P b ofs)
-                  (HP: forall b' ofs', P b' ofs' -> (b'<>b \/ ofs' < ofs \/ ofs + n <=ofs')),
-                       dropCur m P Nonempty mm -> (*could even "drop" to any p*)
-                  exists cc' mm', exists bytes, Mem.loadbytes m b ofs n = Some bytes /\
-                                  corestep msem g c mm cc' mm')
-  ; drfstep_alloc: forall g c m c' m' lo hi b,
-       drfstep g (Alloc lo hi b) c m c' m' ->
-       Mem.alloc m lo hi = (m',b)
-  ; drfstep_pure: forall g c m c' m',
-       drfstep g Pure c m c' m' -> 
-       (m=m' /\ forall mm, corestep msem g c mm c' mm) (*The latter clause ensures that only pure instructions are classified pure*) 
+       exists T, ev_step g c m T c' m'
+  ; ev_step_fun: forall g c m T' c' m' T'' c'' m'',
+       ev_step g c m T' c' m' -> ev_step g c m T'' c'' m'' -> T'=T''
+  ; ev_step_elim: forall g c m T c' m',
+       ev_step g c m T c' m' -> ev_elim m T m'
   }.
 
-Implicit Arguments DRFSem [].
+Lemma Ev_sem_cur_perm {G C} (R: @EvSem G C) g c m T c' m' b ofs (D: ev_step R g c m T c' m'): 
+      Mem.perm_order'' ((Mem.mem_access m) !! b ofs Cur) (cur_perm (b,ofs) T).
+Proof. eapply ev_perm. eapply ev_step_elim; eassumption. Qed.
+
+Implicit Arguments EvSem [].

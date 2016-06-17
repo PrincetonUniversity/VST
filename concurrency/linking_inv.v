@@ -36,13 +36,12 @@ Require Import Memory.
 
 (* ssreflect *)
 
-Require Import ssreflect ssrbool ssrfun seq eqtype fintype.
+From mathcomp.ssreflect Require Import ssreflect ssrbool ssrnat ssrfun seq fintype.
 Set Implicit Arguments.
-Unset Strict Implicit.
-Unset Printing Implicit Defensive.
 
 Require Import Values.   
-Require Import nucular_semantics.
+Require Import sepcomp.nucular_semantics.
+Require Import sepcomp.wholeprog_simulations.
 
 (** * Linking Invariant *)
 

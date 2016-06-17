@@ -1,18 +1,18 @@
-Require Import ssreflect ssrbool ssrfun seq.
+From mathcomp.ssreflect Require Import ssreflect ssrbool ssrnat ssrfun seq fintype.
 Set Implicit Arguments.
-Unset Strict Implicit.
-Unset Printing Implicit Defensive.
 
 Require Import Axioms.
 
 Require Import Memory.
 Require Import ZArith.
 
-Require Import sepcomp. Import SepComp.
+Require Import sepcomp.rg_lemmas.
 
-Require Import pred_lemmas.
-Require Import inj_lemmas.
-Require Import join_sm.
+Require Import concurrency.sepcomp. Import SepComp.
+
+Require Import concurrency.pred_lemmas.
+Require Import concurrency.inj_lemmas.
+Require Import concurrency.join_sm.
 
 (* [disjinv] enforces disjointness conditions on the local, public and     *)
 (* foreign block sets declared by [mu0] and [mu].  The definition is used  *)
@@ -194,74 +194,8 @@ Proof.
 by move=> L E; rewrite /as_inj /join L E.
 Qed.
 
-(* obsolete: see bellow for disjinv_localloc_step*)
-Lemma disjinv_intern_step (mu0 mu mu' : Inj.t) m10 m20 m1 m2 :
-  disjinv mu0 mu -> 
-  intern_incr mu mu' -> 
-  mem_forward m10 m1 -> 
-  mem_forward m20 m2 ->   
-  sm_inject_separated mu0 mu m10 m20 -> 
-  sm_inject_separated mu mu' m1 m2  -> 
-  sm_valid mu0 m10 m20 -> 
-  sm_valid mu m1 m2 -> 
-  disjinv mu0 mu'.
-Proof.
-move=> inv INCR H3 H4 H5 H6 VAL VAL'.
-have VAL2: sm_valid mu0 m1 m2 by apply: (sm_valid_fwd VAL H3 H4).
-apply: Build_disjinv. 
-+ have A: Disjoint (locBlocksSrc mu0) (locBlocksSrc mu) by case: inv.
-  by apply: (DisjointLS_intern_step A INCR H6 VAL2 VAL').
-+ have A: Disjoint (locBlocksTgt mu0) (locBlocksTgt mu) by case: inv.
-  by apply: (DisjointLT_intern_step A INCR H6 VAL2 VAL').
-+ have A: [predI (frgnBlocksSrc mu') & locBlocksSrc mu0]
-          = [predI (frgnBlocksSrc mu) & locBlocksSrc mu0].
-    by rewrite (intern_incr_frgnsrc INCR).  
-  by rewrite A; case: inv.
-+ case: inv; rewrite/foreign_of. 
-  generalize dependent mu; generalize dependent mu'.
-  case; case=> /= ? ? ? ? ? ? ? ? ? ? ?. 
-  case; case=> /= ? ? ? ? ? ? ? ? ? ? ? incr.
-  move: (intern_incr_frgnsrc incr) (intern_incr_frgntgt incr)=> /= -> ->.
-  by move: (intern_incr_extern incr)=> /= ->.
-+ move=> b1 b2 b2' d2 d2'; case: INCR=> []X []. 
-  rewrite /as_inj /join=> <- _ Z W; case: inv=> _ _ _ _ C.
-  move: Z W.
-  case e: (extern_of mu0 b1)=> //[[b0 d0]|].
-  case f: (extern_of mu b1)=> //[[b1' d1']|].
-  case=> <- <-; case=> <- <-.
-  by apply: (C _ _ _ _ _ (ext_of_as_inj e) (ext_of_as_inj f)).
-  case=> <- <- l.
-  case m: (local_of mu b1)=> //[[b2'' d2'']|].
-  move: (X _ _ _ m); rewrite l; case=> -> ->.
-  by apply: (C _ _ _ _ _ (ext_of_as_inj e) (loc_of_as_inj m)).   
-  have M: as_inj mu b1 = None by rewrite /as_inj /join m f.
-  case: H6; case/(_ _ _ _ M (loc_of_as_inj l))=> Z W.
-  have W': DomSrc mu' b1.
-    move: l; move/local_DomRng; case; first by apply: Inj_wd.
-    by rewrite /DomSrc=> ->.
-  case; case/(_ _ Z W').
-  case: VAL2=> H1 H2; apply: H1; rewrite /DOM /DomSrc.
-  move: e; move/extern_DomRng; case; first by apply: Inj_wd.
-  by move=> -> _; apply/orP; right.
-  move=> L.
-  case f: (extern_of _ _)=> [[b1' d1']|].
-  case=> <- <-.
-  by move: (C _ _ _ _ _ (loc_of_as_inj L) (ext_of_as_inj f)).
-  move=> M.
-  case g: (local_of mu b1)=> [[b3 d3]|].
-  move: (X _ _ _ g).
-  rewrite M; case=> -> ->.
-  by apply: (C _ _ _ _ _ (loc_of_as_inj L) (loc_of_as_inj g)).
-  case: H6.
-  case/(_ _ _ _ (leNone_as_injNone g f) (loc_of_as_inj M))=> DS DT.
-  move=> []; move/(_ _ DS); case.
-  rewrite /DomSrc.
-  case: (local_DomRng _ _ _ _ _ M); first by apply Inj_wd.
-  by move=> -> _; apply/orP; left.
-  case: VAL2=> H1 H2; apply: H1; rewrite /DOM /DomSrc.
-  case: (local_DomRng _ _ _ _ _ L); first by apply Inj_wd.  
-  by move=> -> _; apply/orP; left.
-Qed.
+Arguments DisjointLS_intern_step' [_ _ _ _ _ _ _] _ _ _ _.
+Arguments DisjointLT_intern_step' [_ _ _ _ _ _ _] _ _ _ _.
 
 Lemma disjinv_localloc_step (mu0 mu mu' : Inj.t) m10 m20 m1 m2 m1' m2':
     disjinv mu0 mu ->
@@ -278,7 +212,7 @@ move=> inv incr' incr mf1 mf2 loca VAL VAL'.
 have VAL2: sm_valid mu0 m1 m2 by apply: (sm_valid_fwd VAL mf1 mf2).
 apply: Build_disjinv.  
 + have A: Disjoint (locBlocksSrc mu0) (locBlocksSrc mu) by case: inv.
-   by apply: (DisjointLS_intern_step' A incr loca VAL2).
+   apply (DisjointLS_intern_step' A incr loca VAL2).
 + have A: Disjoint (locBlocksTgt mu0) (locBlocksTgt mu) by case: inv.
   by apply: (DisjointLT_intern_step' A incr loca VAL2).
 + have A: [predI (frgnBlocksSrc mu') & locBlocksSrc mu0]
