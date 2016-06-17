@@ -52,35 +52,6 @@ Fixpoint tree_rep (t: tree val) (p: val) : mpred :=
 Definition treebox_rep (t: tree val) (b: val) :=
  EX p: val, data_at Tsh (tptr t_struct_tree) p b * tree_rep t p.
 
-Definition natural_alignment := 8.
-
-Definition malloc_compatible (n: Z) (p: val) : Prop :=
-  match p with
-  | Vptr b ofs => (natural_alignment | Int.unsigned ofs) /\
-                           Int.unsigned ofs + n < Int.modulus
-  | _ => False
-  end.
-
-Lemma malloc_compatible_field_compatible:
-  forall (cs: compspecs) t p n,
-     sizeof t = n ->
-     legal_alignas_type t = true ->
-     legal_cosu_type t = true ->
-     complete_type cenv_cs t = true ->
-     (alignof t | natural_alignment) ->
-     malloc_compatible n p ->
-     field_compatible t nil p.
-Proof.
-intros.
-subst n.
-destruct p; simpl in *; try contradiction.
-destruct H4.
-pose proof (Int.unsigned_range i).
-repeat split; simpl; auto; try omega.
-clear - H3 H.
-eapply Zdivides_trans; eauto.
-Qed.
-
 Definition mallocN_spec :=
  DECLARE _mallocN
   WITH n: Z
@@ -226,10 +197,7 @@ Proof.
  subst p1.
  forward_call (sizeof t_struct_tree). simpl; repable_signed.
  Intros p'.
-  rewrite memory_block_data_at_
-  by (eapply malloc_compatible_field_compatible; try eassumption; 
-      auto with typeclass_instances;
-      exists 2; reflexivity).
+ rewrite memory_block_data_at_ by auto.
  forward. (* p->key=x; *)
  simpl.
  forward. (* p->value=value; *)
@@ -388,13 +356,9 @@ Lemma body_treebox_new: semax_body Vprog Gprog f_treebox_new treebox_new_spec.
 Proof.
   start_function.
   forward_call (sizeof (tptr t_struct_tree)).
-
   simpl sizeof; computable.
   Intros p.
-  rewrite memory_block_data_at_
-  by (eapply malloc_compatible_field_compatible; try eassumption; 
-      auto with typeclass_instances;
-      exists 2; reflexivity).
+  rewrite memory_block_data_at_ by auto.
   forward.
   forward.
   Exists p. entailer!.

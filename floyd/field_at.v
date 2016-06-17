@@ -1601,6 +1601,39 @@ Qed.
 
 End CENV.
 
+Definition natural_alignment := 8.
+
+Definition malloc_compatible (n: Z) (p: val) : Prop :=
+  match p with
+  | Vptr b ofs => (natural_alignment | Int.unsigned ofs) /\
+                           Int.unsigned ofs + n < Int.modulus
+  | _ => False
+  end.
+
+Lemma malloc_compatible_field_compatible:
+  forall (cs: compspecs) t p,
+     malloc_compatible (sizeof t) p ->
+     legal_alignas_type t = true ->
+     legal_cosu_type t = true ->
+     complete_type cenv_cs t = true ->
+     (alignof t | natural_alignment) ->
+     field_compatible t nil p.
+Proof.
+intros.
+destruct p; simpl in *; try contradiction.
+destruct H.
+pose proof (Int.unsigned_range i).
+repeat split; simpl; auto; try omega.
+eapply Zdivides_trans; eauto.
+Qed.
+
+Hint Extern 2 (field_compatible _ nil _) =>
+ (apply malloc_compatible_field_compatible;
+  [assumption | reflexivity | reflexivity | reflexivity 
+  | apply Zmod_divide; 
+     [let Hx := fresh in intro Hx; inversion Hx | reflexivity]
+   ]).
+
 Lemma data_array_at_local_facts {cs: compspecs}:
  forall t' n a sh v p,
   data_at sh (Tarray t' n a) v p |-- 
