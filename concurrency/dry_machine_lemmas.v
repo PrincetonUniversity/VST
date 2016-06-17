@@ -15,7 +15,6 @@ Require Import compcert.common.Values. (*for val*)
 Require Import compcert.common.Globalenvs. 
 Require Import compcert.common.Memory.
 Require Import compcert.common.Events.
-Require Export compcert.lib.Maps.
 Require Import compcert.lib.Integers.
 
 Require Import Coq.ZArith.ZArith.
@@ -24,8 +23,6 @@ Require Import concurrency.threads_lemmas.
 Require Import concurrency.permissions.
 Require Import concurrency.concurrent_machine.
 Require Import concurrency.dry_context.
-
-
 
 Import DryMachine ThreadPool.
 
@@ -51,7 +48,6 @@ Global Ltac pf_cleanup :=
            apply cntUpdate' in H2;
              assert (H1 = H2) by (by eapply cnt_irr); subst H2
          end.
-
 
 (*TODO: Check if this module is still relevant*)
 Module ThreadPoolWF.
@@ -289,7 +285,6 @@ Module CoreLanguage.
         by eapply cntUpdate'; eauto.
     Qed.
 
-    
     (** Lemmas about invariants maintaned by coresteps*)
     
     Lemma corestep_compatible:
@@ -1675,7 +1670,7 @@ Module InternalSteps.
         eapply step_dry with (c := c) (c' := c'); eauto.
         erewrite gsoAddCode with (cntj := cnti); eauto.
         subst.
-        erewrite restrPermMap_irr' with (Hlt' := Hcomp i cnti); eauto.
+        erewrite restrPermMap_irr with (Hlt' := Hcomp i cnti); eauto.
         erewrite gsoAddRes with (cntj := cnti); eauto.
         subst.
           by rewrite add_update_comm.

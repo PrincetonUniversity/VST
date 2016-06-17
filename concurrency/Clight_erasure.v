@@ -233,7 +233,7 @@ Module ClightParching <: ErasureSig.
       intros.
       inversion H0; subst.
       econstructor.
-      admit. (*Do we need this?*)
+      admit. (*This requires some changes to the juicy machine. *)
       inversion H; subst. erewrite <- mtch_gtc. eassumption.
       apply Hcant.
     Admitted.
