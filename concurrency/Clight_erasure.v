@@ -48,6 +48,7 @@ Module ClightParching <: ErasureSig.
   Notation jstate:= JuicyMachine.SIG.ThreadPool.t.
   Notation jmachine_state:= JuicyMachine.MachState.
   Module JTP:=JuicyMachine.SIG.ThreadPool.
+  Import JSEM.JuicyMachineLemmas.
   
   Module DSEM:= DryMachineShell SEM.
   Module DryMachine:= CoarseMachine SCH DSEM.
@@ -656,54 +657,16 @@ Module ClightParching <: ErasureSig.
                  apply NO_identity.
                  - clear Hadd_lock_res.
                    symmetry.
-                   Lemma compatible_lockRes_cohere: forall js m l phi,
-                       JSEM.ThreadPool.lockRes js l = Some (Some phi) ->
-                       JSEM.mem_compatible js m ->
-                       JSEM.mem_cohere' m phi .
-                   Proof.         
-                     Lemma compatible_lockRes_sub: forall js l phi,
-                       JSEM.ThreadPool.lockRes js l = Some (Some phi) ->
-                       forall all_juice,
-                         JSEM.join_all js all_juice ->
-                         join_sub phi all_juice.
-                     Admitted.
-                     intros.
-                     inversion H0.
-                     apply (compatible_lockRes_sub _ _ _ H ) in juice_join.
-                     Lemma mem_cohere_sub: forall phi1 phi2 m,
-                         JSEM.mem_cohere' m phi1 ->
-                         join_sub phi2 phi1 ->
-                         JSEM.mem_cohere' m phi2.
-                     Admitted.
-                     apply (mem_cohere_sub _ _ _ all_cohere) in juice_join .
-                     assumption.
-                   Qed.
+                   
                    destruct
-                     (compatible_lockRes_cohere _ _ _ _
+                     (compatible_lockRes_cohere _
                                                 His_unlocked
                                                 Hcmpt).
                    clear - acc_coh valb0MEM.
                    admit. (*This will change when I change acc_coh back.*)
                  - symmetry.
-                   Lemma compatible_threadRes_cohere:
-                     forall js m i (cnt:JTP.containsThread js i),
-                       JSEM.mem_compatible js m ->
-                       JSEM.mem_cohere' m (JSEM.ThreadPool.getThreadR cnt) .
-                   Proof.
-                     intros.
-                     Lemma compatible_threadRes_sub:
-                     forall js i (cnt:JTP.containsThread js i),
-                       forall all_juice,
-                         JSEM.join_all js all_juice ->
-                         join_sub (JSEM.ThreadPool.getThreadR cnt) all_juice.
-                     Admitted.
-                     inversion H.
-                     eapply mem_cohere_sub.
-                     - eassumption.
-                     - apply compatible_threadRes_sub. assumption.
-                   Qed.
                    destruct
-                     (compatible_threadRes_cohere _ _ i Hi
+                     (compatible_threadRes_cohere Hi
                                                   Hcmpt).
                    clear - acc_coh valb0MEM.
                    admit. (*This will change when I change acc_coh back.*)
@@ -924,15 +887,8 @@ Module ClightParching <: ErasureSig.
                admit.
              - rewrite DTP.gsoThreadRes.
                inversion MATCH. rewrite <- (mtch_perm _ _ _ (mtch_cnt' _ cnt0)).
-               Lemma compatible_threadRes_join:
-                 forall js m,
-                   JSEM.mem_compatible js m ->
-                   forall i (cnti: JTP.containsThread js i) j (cntj: JTP.containsThread js j),
-                     i <> j ->
-                     sepalg.joins (JTP.getThreadR cnti) (JTP.getThreadR cntj).
-               Proof.
-               Admitted.
-               assert (HH:= compatible_threadRes_join _ _ Hcmpt _ Hi _ (mtch_cnt' i0 cnt0)).
+               
+               assert (HH:= compatible_threadRes_join Hcmpt Hi (mtch_cnt' i0 cnt0)).
                destruct HH as [SOME_RES HH]. assumption.
                apply (resource_at_join _ _ _ (b, Int.intval ofs)) in HH.
                rewrite Hpersonal_juice in HH.
@@ -1103,7 +1059,7 @@ Module ClightParching <: ErasureSig.
                  rewrite Hlock. left; reflexivity.
               - specialize (mtch_perm b (Int.intval ofs) i0 (mtch_cnt' _ cnt) cnt).
                 rewrite <- mtch_perm.
-                destruct (compatible_threadRes_join _ _ Hcompatible _ Hi _ (mtch_cnt' i0 cnt)) as
+                destruct (compatible_threadRes_join Hcompatible Hi (mtch_cnt' i0 cnt)) as
                 [result HH].
                 assumption.
                 apply (resource_at_join _ _ _ (b, Int.intval ofs)) in HH.

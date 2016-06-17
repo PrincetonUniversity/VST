@@ -630,7 +630,7 @@ Module Concur.
             (Hlock: phi@ (b, Int.intval ofs) = YES sh pfullshare (LK LKSIZE) (pack_res_inv R))
             (Hct: forall ofs', 0<= ofs'-(Int.intval ofs)<LKSIZE ->
                           exists val, (*I*)
-                          phi'@ (b, ofs') = YES sh pfullshare (VAL val) (pack_res_inv R))
+                            phi'@ (b, ofs') = YES sh pfullshare (VAL val) (pack_res_inv R))
             (*Check the old memory has the right continuations  THIS IS REDUNDANT!*)
             (*Hcont: forall i, 0<i<LKSIZE ->   phi@ (b, Int.intval ofs + i) = YES sh pfullshare (CT i) NoneP *)
             (*Check the two memories coincide in everything else *)
@@ -643,7 +643,7 @@ Module Concur.
             (Htp'': tp'' =
                     remLockSet tp' (b, Int.intval ofs) ),
             syncStep' genv cnt0 Hcompat  tp'' m  (* m_dry jm' = m_dry jm = m *)
-                     
+                      
     | step_acqfail :
         forall  c b ofs jm psh m1,
           let: phi := m_phi jm in
@@ -658,34 +658,34 @@ Module Concur.
             (Hrestrict_pmap:
                permissions.restrPermMap
                  (mem_compatible_locks_ltwritable Hcompatible)
-                  = m1)
+               = m1)
             (sh:Share.t)(R:pred rmap)
             (HJcanwrite: phi@(b, Int.intval ofs) = YES sh psh (LK LKSIZE) (pack_res_inv R))
             (Hload: Mem.load Mint32 m1 b (Int.intval ofs) = Some (Vint Int.zero)),
             syncStep' genv cnt0 Hcompat tp m.
     
     Definition threadStep (genv:G): forall {tid0 ms m},
-                                 containsThread ms tid0 -> mem_compatible ms m ->
-                                 thread_pool -> mem -> Prop:=
+        containsThread ms tid0 -> mem_compatible ms m ->
+        thread_pool -> mem -> Prop:=
       @juicy_step genv.
     
     
     Definition syncStep (genv:G):
       forall {tid0 ms m}, containsThread ms tid0 -> mem_compatible ms m ->
-        thread_pool -> mem -> Prop:=
+                     thread_pool -> mem -> Prop:=
       @syncStep' genv.
     
     Inductive threadHalted': forall {tid0 ms},
-                               containsThread ms tid0 -> Prop:=
+        containsThread ms tid0 -> Prop:=
     | thread_halted':
         forall tp c tid0
           (cnt: containsThread tp tid0),
-          forall
-            (Hthread: getThreadC cnt = Krun c)
-            (Hcant: halted the_sem c),
-            threadHalted' cnt. 
+        forall
+          (Hthread: getThreadC cnt = Krun c)
+          (Hcant: halted the_sem c),
+          threadHalted' cnt. 
     Definition threadHalted: forall {tid0 ms},
-                               containsThread ms tid0 -> Prop:= @threadHalted'.
+        containsThread ms tid0 -> Prop:= @threadHalted'.
 
 
     (* The initial machine has to be redefined.
@@ -707,6 +707,60 @@ Module Concur.
       | Some c => Some (initial_machine  c)
       | None => None
       end.
+
+    Module JuicyMachineLemmas.
+
+      Lemma compatible_lockRes_sub: forall js l phi,
+        ThreadPool.lockRes js l = Some (Some phi) ->
+        forall all_juice,
+          join_all js all_juice ->
+          join_sub phi all_juice.
+      Admitted.
+      
+      Lemma mem_cohere_sub: forall phi1 phi2 m,
+          mem_cohere' m phi1 ->
+          join_sub phi2 phi1 ->
+          mem_cohere' m phi2.
+      Admitted.
+      Lemma compatible_threadRes_sub:
+        forall js i (cnt:containsThread js i),
+        forall all_juice,
+          join_all js all_juice ->
+          join_sub (ThreadPool.getThreadR cnt) all_juice.
+      Admitted.
+      Lemma compatible_threadRes_join:
+        forall js m,
+          mem_compatible js m ->
+          forall i (cnti: containsThread js i) j (cntj: containsThread js j),
+            i <> j ->
+            sepalg.joins (getThreadR cnti) (getThreadR cntj).
+      Proof.
+      Admitted.
+      Lemma compatible_lockRes_cohere: forall js m l phi,
+          ThreadPool.lockRes js l = Some (Some phi) ->
+          mem_compatible js m ->
+          mem_cohere' m phi .
+      Proof.         
+        intros.
+        inversion H0.
+        apply (compatible_lockRes_sub _ H ) in juice_join.
+        apply (mem_cohere_sub all_cohere) in juice_join .
+        assumption.
+      Qed.
+
+      Lemma compatible_threadRes_cohere:
+        forall js m i (cnt:containsThread js i),
+          mem_compatible js m ->
+          mem_cohere' m (ThreadPool.getThreadR cnt) .
+      Proof.
+        intros.
+        inversion H.
+        eapply mem_cohere_sub.
+        - eassumption.
+        - apply compatible_threadRes_sub. assumption.
+      Qed.
+      
+    End JuicyMachineLemmas.
       
   End JuicyMachineShell.
   
