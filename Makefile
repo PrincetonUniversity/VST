@@ -204,7 +204,7 @@ PROGS_FILES= \
   verif_nest3.v verif_nest2.v \
   logical_compare.v verif_logical_compare.v field_loadstore.v  verif_field_loadstore.v \
   even.v verif_even.v odd.v verif_odd.v \
-  merge.v verif_merge.v verif_append.v bst.v verif_bst.v
+  merge.v verif_merge.v verif_append.v verif_append2.v bst.v verif_bst.v
 # verif_message.v verif_dotprod.v verif_insertion_sort.v 
 
 SHA_FILES= \

@@ -1380,3 +1380,50 @@ Lemma force_signed_int_e:
 Proof. reflexivity. Qed.
 Hint Rewrite force_signed_int_e : norm.
 
+Lemma allp_sepcon1 {A}{ND: NatDed A} {SL: SepLog A}:  
+  forall T (P: T ->  A) Q, sepcon (allp P) Q |-- allp (fun x => sepcon (P x) Q).
+Proof.
+intros.
+apply allp_right; intro x.
+apply sepcon_derives; auto.
+apply allp_left with x. auto.
+Qed.
+
+Lemma allp_sepcon2 {A}{ND: NatDed A} {SL: SepLog A}:  
+  forall T P (Q: T ->  A), sepcon P (allp Q) |-- allp (fun x => sepcon P (Q x)).
+Proof.
+intros.
+apply allp_right; intro x.
+apply sepcon_derives; auto.
+apply allp_left with x. auto.
+Qed.
+
+
+Lemma wand_refl_cancel_right:
+  forall {A}{ND: NatDed A} {SL: SepLog A}{CA: ClassicalSep A}
+    (P: A),  emp |-- P -* P.
+Proof.
+intros. apply wand_sepcon_adjoint.
+rewrite emp_sepcon. apply derives_refl.
+Qed.
+
+Lemma cancel_emp_wand:
+  forall P Q R: mpred,
+    P |-- Q ->
+    P |-- Q * (R -* R).
+Proof.
+intros. rewrite <- (sepcon_emp P).
+apply sepcon_derives; auto.
+apply wand_refl_cancel_right.
+Qed.
+
+Ltac cancel_wand :=
+  repeat
+  match goal with |- _ |-- ?B =>
+    match B with context [?A -* ?A] =>
+    rewrite ?sepcon_assoc;
+    pull_right (A -* A);
+    first [apply cancel_emp_wand | apply wand_refl_cancel_right]
+    end
+  end.
+

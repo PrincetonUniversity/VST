@@ -197,20 +197,6 @@ Qed.
 
 Hint Resolve treebox_rep_saturate_local: saturate_local.
 
-Lemma ramif_trans' {A : Type}{ND : NatDed A}{SL : SepLog A}:
-   forall (m l g' m' l': A), m |-- l * (l' -* m') -> m * (m' -* g') |-- l * (l' -* g').
-Proof.
-  intros. eapply RAMIF_PLAIN.trans. apply derives_refl. auto.
-Qed.
-
-Lemma modus_ponens_wand' {A}{ND: NatDed A}{SL: SepLog A}: 
-                      forall P P' Q: A, P |-- P' ->  derives (sepcon P (wand P' Q)) Q.
-Proof.
-intros.
-   eapply derives_trans; [apply sepcon_derives; [ | apply derives_refl] | apply modus_ponens_wand ].
-  auto.
-Qed.
-
 Definition insert_inv (b0: val) (t0: tree val) (x: Z) (v: val): environ -> mpred :=
   EX b: val, EX t: tree val, 
   PROP() 
@@ -282,7 +268,7 @@ Proof.
     replace (x<?k) with true by (symmetry; apply Z.ltb_lt; omega).
    replace (offset_val 8 p1) with (field_address t_struct_tree [StructField _left] p1)
      by (unfold field_address; simpl; rewrite if_true by auto with field_compatible; auto).
-  apply ramif_trans'.
+  apply RAMIF_PLAIN.trans'.
   unfold_data_at 2%nat.
   rewrite (field_at_data_at _ t_struct_tree [StructField _left]).
    match goal with |- ?A * (?Bk * (?Bv * (?Ba * ?Bb))) * ?Ta * ?Tb |-- _ =>
@@ -306,7 +292,7 @@ Proof.
   replace (k<?x) with true by (symmetry; apply Z.ltb_lt; omega).
   replace (offset_val 12 p1) with (field_address t_struct_tree [StructField _right] p1)
      by (unfold field_address; simpl; rewrite if_true by auto with field_compatible; auto).
-  apply ramif_trans'.
+  apply RAMIF_PLAIN.trans'.
   unfold_data_at 2%nat.
    rewrite (field_at_data_at _ t_struct_tree [StructField _right]).
    match goal with |- ?A * (?Bk * (?Bv * (?Ba * ?Bb))) * ?Ta * ?Tb |-- _ =>
