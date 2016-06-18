@@ -1,7 +1,7 @@
 # See the file BUILD_ORGANIZATION for 
 # explanations of why this is the way it is
 
-COMPCERT=compcert
+COMPCERT ?= compcert
 -include CONFIGURE
 #Note:  You can make a CONFIGURE file with the definition
 #   COMPCERT=../compcert
