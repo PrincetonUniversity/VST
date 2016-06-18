@@ -1224,6 +1224,14 @@ Tactic Notation "forward_while" constr(Inv) :=
           let a := fresh a2 in pose (a := EXP_NAME); 
           rewrite exp_uncurry
       end;
+      lazymatch goal with
+      (* goal already has the desired shape *)
+      | |- semax _ _ (Ssequence (Swhile _ _) _) _ => idtac
+      (* add unnecessary skip so that goal has the desired shape *)
+      | |- semax _ _ (Swhile _ _) _ => rewrite semax_seq_skip
+      (* bad goal *)
+      | |- _ => fail 1 "expected (Swhile _ _) or (Ssequence (Swhile _ _) _)"
+      end;
       eapply semax_seq;
       [match goal with |- semax ?Delta ?Pre (Swhile ?e _) _ =>
         (* the following line was before: eapply semax_while_3g1; *)
@@ -1273,7 +1281,8 @@ Tactic Notation "forward_while" constr(Inv) :=
                | apply typed_false_ptr in HRE
                | idtac ];
          repeat (apply semax_extract_PROP; intro);
-         do_repr_inj HRE; normalize in HRE
+         do_repr_inj HRE; normalize in HRE;
+         try fwd_skip
        ]
     ]; abbreviate_semax; autorewrite with ret_assert.
 
