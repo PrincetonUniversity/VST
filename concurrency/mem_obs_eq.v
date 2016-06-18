@@ -539,6 +539,53 @@ Module ValObsEq.
       by eauto.
   Qed.
 
+  Lemma ren_cmp_bool:
+    forall f v v' v0 cmp,
+      val_obs f v v' ->
+      Val.cmp_bool cmp v v0 = Val.cmp_bool cmp v' v0.
+  Proof.
+    intros.
+    destruct v; inversion H; subst;
+      by reflexivity.
+  Qed.
+
+  Lemma val_obs_hiword:
+    forall f v v',
+      val_obs f v v' ->
+      val_obs f (Val.hiword v) (Val.hiword v').
+  Proof.
+    intros.
+    destruct v; inversion H; subst;
+    simpl;
+      by constructor.
+  Qed.
+
+  Lemma val_obs_loword:
+    forall f v v',
+      val_obs f v v' ->
+      val_obs f (Val.loword v) (Val.loword v').
+  Proof.
+    intros.
+    destruct v; inversion H; subst;
+    simpl;
+      by constructor.
+  Qed.
+
+  Definition val_obsC f v :=
+    match v with
+    | Vptr b n => match f b with
+                 | Some b' => Vptr b' n
+                 | None => Vundef
+                 end
+    | _ => v
+    end.
+
+  Lemma val_obsC_correct:
+    forall f v,
+      valid_val f v ->
+      val_obs f v (val_obsC f v).
+  Admitted.
+
 End ValObsEq.
   
 (** ** Injections between memories *)
@@ -943,11 +990,14 @@ Module MemObsEq.
   
 End MemObsEq.
 
+Import dry_context SEM mySchedule DryMachine DryMachine.ThreadPool.
+
 Module CoreInjections.
 
-  Import SEM ValObsEq MemoryWD Renamings.
+  Import ValObsEq MemoryWD Renamings.
 
-  Class CoreWD :=
+  
+  Class CoreInj :=
     { core_wd : memren -> C -> Prop;
       ge_wd : memren -> G -> Prop;
       ge_wd_incr: forall f f' (g : G),
@@ -985,12 +1035,13 @@ Module CoreInjections.
           initial_core Sem the_ge vf [:: arg] = Some c_new ->
           valid_val f arg ->
           ge_wd f the_ge ->
-          core_wd f c_new
-    }.
-
-  
-  Class CoreInj (WD: CoreWD) :=
-    { core_inj: memren -> C -> C -> Prop;
+          core_wd f c_new;
+      core_inj: memren -> C -> C -> Prop;
+      ge_inj: memren -> G -> G -> Prop;
+      ge_inj_id: forall f g,
+        ge_wd f g -> 
+        (forall b1 b2, f b1 = Some b2 -> b1 = b2) ->
+        ge_inj f g g;
       core_inj_ext: 
         forall c c' f (Hinj: core_inj f c c'),
           match at_external Sem c, at_external Sem c' with
@@ -1001,6 +1052,10 @@ Module CoreInjections.
           end;
       core_inj_after_ext: 
         forall c cc c' ov1 f (Hinj: core_inj f c c'),
+          match ov1 with
+          | Some v1 => valid_val f v1
+          | None => True
+          end ->
           after_external Sem ov1 c = Some cc ->
           exists ov2 cc',
             after_external Sem ov2 c' = Some cc' /\
@@ -1023,9 +1078,12 @@ Module CoreInjections.
           | _, _ => False
           end;
       core_inj_init:
-        forall vf vf' arg arg' c_new f
+        forall vf vf' arg arg' c_new f fg
           (Hf: val_obs_list f arg arg')
           (Hf': val_obs f vf vf')
+          (Hge_wd: ge_wd fg the_ge)
+          (Hge_id: ge_inj fg the_ge the_ge)
+          (Hincr: ren_incr fg f)
           (Hinit: initial_core Sem the_ge vf arg = Some c_new),
         exists c_new',
           initial_core Sem the_ge vf' arg' = Some c_new' /\
@@ -1049,11 +1107,9 @@ End CoreInjections.
 
 Module ThreadPoolInjections.
 
-  Import dry_context mySchedule DryMachine DryMachine.ThreadPool.
-  Import SEM ValObsEq MemoryWD Renamings CoreInjections concurrent_machine.
+  Import ValObsEq MemoryWD Renamings CoreInjections concurrent_machine.
   (** Injections on programs *)
-  Context {cwd : CoreWD}.
-  Context {ci : CoreInj cwd}.
+  Context {ci : CoreInj}.
 
   (*not clear what should happen with vf. Normally it should be in the
 genv and hence should be mapped to itself, but let's not expose this

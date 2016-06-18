@@ -9,7 +9,7 @@ From mathcomp.ssreflect Require Import ssreflect ssrbool ssrnat ssrfun eqtype se
 Set Implicit Arguments.
 
 (*NOTE: because of redefinition of [val], these imports must appear 
-  after Ssreflect eqtype.*)  
+  after Ssreflect eqtype.*)
 Require Import compcert.common.AST.     (*for typ*)
 Require Import compcert.common.Values. (*for val*)
 Require Import compcert.common.Globalenvs. 
@@ -24,7 +24,7 @@ Require Import concurrency.permissions.
 Require Import concurrency.concurrent_machine.
 Require Import concurrency.dry_context.
 
-Import DryMachine ThreadPool.
+Import dry_context SEM mySchedule DryMachine DryMachine.ThreadPool.
 
 Global Notation "a # b" := (Maps.PMap.get b a) (at level 1).
 Global Ltac pf_cleanup :=
@@ -232,7 +232,6 @@ End ThreadPoolWF.
 (** ** Lemmas about threadwise semantics*)
 Module CoreLanguage.
   
-  Import dry_context.SEM.
   Section CoreLanguage.
     (** Assumptions on thread's corestep (e.g PPC semantics) *)
     Class corestepSpec :=
@@ -851,7 +850,6 @@ End StepLemmas.
 
 (** ** Definition of internal steps *)
 Module InternalSteps.
-  Import dry_context mySchedule DryMachine DryMachine.ThreadPool SEM.
   Import CoreLanguage.
 
   Section InternalSteps.
@@ -1733,7 +1731,7 @@ End InternalSteps.
 
 Module StepType.
 
-  Import SEM InternalSteps CoreLanguage StepLemmas.
+  Import InternalSteps CoreLanguage StepLemmas.
    (** Distinguishing the various step types of the concurrent machine *)
 
   Inductive StepType : Type :=
@@ -1788,7 +1786,7 @@ Module StepType.
 
   (** Proofs about [fmachine_step]*)
   Notation fmachine_step := ((corestep fine_semantics) the_ge).
-  Opaque at_external after_external halted Sem.
+  Opaque at_external after_external halted.
   (** Solves absurd cases from fine-grained internal steps *)
   Ltac absurd_internal Hstep :=
     inversion Hstep; try inversion Htstep; subst; simpl in *;
@@ -1802,12 +1800,13 @@ Module StepType.
            | [H1: match ?Expr with _ => _ end = _,
                   H2: ?Expr = _ |- _] => rewrite H2 in H1
            | [H: threadHalted _ |- _] =>
-             inversion H; clear H; subst; pf_cleanup
+             inversion H; clear H; subst; simpl in *; pf_cleanup
            | [H1: is_true (isSome (halted ?Sem ?C)),
                   H2: match at_external _ _ with _ => _ end = _ |- _] =>
              destruct (at_external_halted_excl Sem C) as [Hext | Hcontra];
                [rewrite Hext in H2;
-                 destruct (halted Sem C); discriminate |
+                 destruct (halted Sem C) eqn:Hh;
+                 [discriminate | rewrite Hh in H1; by exfalso] |
                 rewrite Hcontra in H1; exfalso; by auto]
            end; try discriminate; try (exfalso; by auto).
   
