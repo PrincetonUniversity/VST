@@ -249,12 +249,24 @@ Module CoreLanguage.
         corestep_nextblock:
           forall c m c' m',
             corestep Sem the_ge c m c' m' ->
-            forall b, Mem.valid_block m b ->
-                 Mem.valid_block m' b
+            (Mem.nextblock m <= Mem.nextblock m')%positive
       }.
 
     Context {cspec : corestepSpec}.
 
+    Lemma corestep_validblock:
+      forall c m c' m',
+        corestep Sem the_ge c m c' m' ->
+        forall b, Mem.valid_block m b ->
+             Mem.valid_block m' b.
+    Proof.
+      intros.
+      eapply corestep_nextblock in H.
+      unfold Mem.valid_block, Coqlib.Plt in *.
+      zify;
+        by omega.
+    Qed.
+                             
     (* TODO: These proofs break the opaquness of the modules, they
     should be redone in an opaque way *)
 
@@ -1550,7 +1562,7 @@ Module InternalSteps.
       intros.
       destruct Hstep as [Htstep | [[_ ?] | [_ ?]]];
         [inversion Htstep; subst;
-         eapply corestep_nextblock;
+         eapply corestep_validblock;
            by eauto | by subst | by subst].
     Qed.
 
@@ -1855,7 +1867,7 @@ Module StepType.
   Proof.
     intros.
     absurd_internal Hstep;
-      destruct Hinv as [Hno_race Hlock_pool].
+      destruct Hinv as [Hno_race Hlock_pool]. 
     - constructor;
       try rewrite gsoThreadCLock;
       try rewrite gsoThreadCLPool.
@@ -2044,7 +2056,7 @@ Module StepType.
     inversion Hstep; subst; auto.
     inversion Htstep; subst.
     erewrite <- diluteMem_valid.
-    eapply corestep_nextblock; eauto.
+    eapply corestep_validblock; eauto.
     inversion Htstep; subst; eauto.
     eapply Mem.store_valid_block_1; eauto.
     eapply Mem.store_valid_block_1; eauto.

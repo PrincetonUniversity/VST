@@ -525,6 +525,19 @@ Module ValObsEq.
     specialize (Hid _ _ Hf);
       by subst.
   Qed.
+
+  Lemma val_obs_list_id :
+    forall f vs
+      (Hvalid: valid_val_list f vs)
+      (Hf: forall b1 b2, f b1 = Some b2 -> b1 = b2),
+      val_obs_list f vs vs.
+  Proof.
+    intros.
+    induction vs; first by constructor.
+    inversion Hvalid; subst.
+    constructor;
+      [eapply val_obs_id; eauto | eauto].
+  Qed.
   
   Lemma memval_obs_eq_id:
     forall f mv
@@ -584,7 +597,72 @@ Module ValObsEq.
     forall f v,
       valid_val f v ->
       val_obs f v (val_obsC f v).
-  Admitted.
+  Proof.
+    intros.
+    destruct v; simpl;
+    try constructor.
+    simpl in H.
+    destruct H.
+    rewrite H;
+      by constructor.
+  Qed.
+
+  Lemma val_has_type_obs:
+    forall f v v' ty
+      (Hval_obs: val_obs f v v'),
+      val_casted.val_has_type_func v ty <-> val_casted.val_has_type_func v' ty.
+  Proof.
+    intros.
+    destruct v; inversion Hval_obs; subst; simpl;
+      by tauto.
+  Qed.
+  
+  Lemma val_has_type_list_obs:
+    forall f vs vs' ts
+      (Hval_obs: val_obs_list f vs vs'),
+      val_casted.val_has_type_list_func vs ts <->
+      val_casted.val_has_type_list_func vs' ts.
+  Proof.
+    intros.
+    generalize dependent vs'.
+    generalize dependent ts.
+    induction vs;
+      intros. inversion Hval_obs; subst.
+    simpl; destruct ts; split;
+      by auto.
+    inversion Hval_obs; subst.
+    destruct ts; simpl; first by split; auto.
+    split; intros; move/andP:H=>[H H'];
+      apply/andP.
+    split;
+      [erewrite <- val_has_type_obs; eauto |
+       destruct (IHvs ts _ H3); eauto].
+    split;
+      [erewrite val_has_type_obs; eauto |
+       destruct (IHvs ts _ H3); eauto].
+  Qed.
+
+  Lemma vals_defined_obs:
+    forall f vs vs'
+      (Hval_obs: val_obs_list f vs vs'),
+      val_casted.vals_defined vs <-> val_casted.vals_defined vs'.
+  Proof.
+    intros.
+    induction Hval_obs;
+      simpl; try tauto.
+    destruct v; inversion H;
+      by tauto.
+  Qed.
+
+  Lemma zlength_obs:
+    forall f v v'
+      (Hval_obs: val_obs_list f v v'),
+      Zlength v = Zlength v'.
+  Proof.
+    induction 1; simpl; auto.
+    do 2 rewrite Zlength_cons;
+      by rewrite IHHval_obs.
+  Qed.
 
 End ValObsEq.
   
@@ -697,6 +775,7 @@ Module MemObsEq.
       by apply mem_wd.align_chunk_0.
   Qed.
 
+  (* Obs_eq is a compcert injection*)
   (*
   Lemma val_obs_eq_inj :
     forall f v1 v2,
@@ -843,7 +922,7 @@ Module MemObsEq.
     inversion H2; subst; try discriminate; inversion Hval_obs; subst; congruence.
   Qed.
 
-  (*TODO: Lennart can you prove this lemma?*)
+  (*TODO*)
   Lemma proj_value_obs:
     forall f q vl1 vl2,
       Coqlib.list_forall2 (memval_obs_eq f) vl1 vl2 ->
@@ -908,7 +987,7 @@ Module MemObsEq.
     constructor.
   Qed.
 
-  (*TODO: prove this, should be easy once we have the lemmas above*)
+  (*TODO: The proof. should be easy once we have the lemmas above*)
   Lemma load_val_obs:
     forall (mc mf : mem) (f:memren)
       (b1 b2 : block) chunk (ofs : Z) v1
@@ -922,7 +1001,7 @@ Module MemObsEq.
   Admitted.
 
   (** ** Lemmas about [Mem.store] and [mem_obs_eq]*)
-  
+  (*TODO: The proof*)
   Lemma store_val_obs:
     forall (mc mc' mf : mem) (f:memren)
       (b1 b2 : block) chunk (ofs : Z) v1 v2
@@ -992,124 +1071,120 @@ End MemObsEq.
 
 Import dry_context SEM mySchedule DryMachine DryMachine.ThreadPool.
 
-Module CoreInjections.
+Module Type CoreInjections.
 
   Import ValObsEq MemoryWD Renamings.
 
-  
-  Class CoreInj :=
-    { core_wd : memren -> C -> Prop;
-      ge_wd : memren -> G -> Prop;
-      ge_wd_incr: forall f f' (g : G),
-          ge_wd f g ->
-          ren_domain_incr f f' ->
-          ge_wd f' g;
-      ge_wd_domain : forall f f' m (g : G),
-          ge_wd f g ->
-          domain_memren f m ->
-          domain_memren f' m ->
-          ge_wd f' g;
-      core_wd_incr : forall f f' c,
-          core_wd f c ->
-          ren_domain_incr f f' ->
-          core_wd f' c;
-      core_wd_domain : forall f f' m c,
-          core_wd f c ->
-          domain_memren f m ->
-          domain_memren f' m ->
-          core_wd f' c;
-      at_external_wd:
-        forall f c ef sig args,
-          core_wd f c ->
-          at_external Sem c = Some (ef, sig, args) ->
-          valid_val_list f args;
-      after_external_wd:
-        forall c c' f ef sig args ov,
-          at_external Sem c = Some (ef, sig, args) ->
-          core_wd f c ->
-          valid_val_list f args ->
-          after_external Sem ov c = Some c' ->
-          core_wd f c';
-      initial_core_wd:
-        forall f vf arg c_new,
-          initial_core Sem the_ge vf [:: arg] = Some c_new ->
-          valid_val f arg ->
-          ge_wd f the_ge ->
-          core_wd f c_new;
-      core_inj: memren -> C -> C -> Prop;
-      ge_inj: memren -> G -> G -> Prop;
-      ge_inj_id: forall f g,
-        ge_wd f g -> 
-        (forall b1 b2, f b1 = Some b2 -> b1 = b2) ->
-        ge_inj f g g;
-      core_inj_ext: 
-        forall c c' f (Hinj: core_inj f c c'),
-          match at_external Sem c, at_external Sem c' with
-          | Some (ef, sig, vs), Some (ef', sig', vs') =>
-            ef = ef' /\ sig = sig' /\ val_obs_list f vs vs'
-          | None, None => True
-          | _, _ => False
-          end;
-      core_inj_after_ext: 
-        forall c cc c' ov1 f (Hinj: core_inj f c c'),
-          match ov1 with
-          | Some v1 => valid_val f v1
-          | None => True
-          end ->
-          after_external Sem ov1 c = Some cc ->
-          exists ov2 cc',
-            after_external Sem ov2 c' = Some cc' /\
-            core_inj f cc cc' /\
-            match ov1 with
-            | Some v1 => match ov2 with
-                        | Some v2 => val_obs f v1 v2
-                        | _ => False
-                        end
-            | None => match ov2 with
-                     | None => True
-                     | _ => False
-                     end
-            end;
-      core_inj_halted:
-        forall c c' f (Hinj: core_inj f c c'),
-          match halted Sem c, halted Sem c' with
-          | Some v, Some v' => val_obs f v v'
-          | None, None => True
-          | _, _ => False
-          end;
-      core_inj_init:
-        forall vf vf' arg arg' c_new f fg
-          (Hf: val_obs_list f arg arg')
-          (Hf': val_obs f vf vf')
-          (Hge_wd: ge_wd fg the_ge)
-          (Hge_id: ge_inj fg the_ge the_ge)
-          (Hincr: ren_incr fg f)
-          (Hinit: initial_core Sem the_ge vf arg = Some c_new),
-        exists c_new',
-          initial_core Sem the_ge vf' arg' = Some c_new' /\
-          core_inj f c_new c_new';
-      core_inj_id: forall c f,
-          core_wd f c -> 
-          (forall b1 b2, f b1 = Some b2 -> b1 = b2) ->
-          core_inj f c c;
-      core_inj_trans:
-        forall c c' c'' (f f' f'' : memren)
-          (Hcore_inj: core_inj f c c'')
-          (Hcore_inj': core_inj f' c c')
-          (Hf: forall b b' b'',
-              f b = Some b'' ->
-              f' b = Some b' ->
-              f'' b' = Some b''),
-          core_inj f'' c' c''
-    }.
+  Parameter core_wd : memren -> C -> Prop.
+  Parameter ge_wd : memren -> G -> Prop.
+  Parameter ge_wd_incr: forall f f' (g : G),
+      ge_wd f g ->
+      ren_domain_incr f f' ->
+      ge_wd f' g.
+  Parameter ge_wd_domain : forall f f' m (g : G),
+      ge_wd f g ->
+      domain_memren f m ->
+      domain_memren f' m ->
+      ge_wd f' g.
+  Parameter core_wd_incr : forall f f' c,
+      core_wd f c ->
+      ren_domain_incr f f' ->
+      core_wd f' c.
+  Parameter core_wd_domain : forall f f' m c,
+      core_wd f c ->
+      domain_memren f m ->
+      domain_memren f' m ->
+      core_wd f' c.
+  Parameter at_external_wd:
+    forall f c ef sig args,
+      core_wd f c ->
+      at_external Sem c = Some (ef, sig, args) ->
+      valid_val_list f args.
+  Parameter after_external_wd:
+    forall c c' f ef sig args ov,
+      at_external Sem c = Some (ef, sig, args) ->
+      core_wd f c ->
+      valid_val_list f args ->
+      after_external Sem ov c = Some c' ->
+      core_wd f c'.
+  Parameter initial_core_wd:
+    forall f vf arg c_new,
+      initial_core Sem the_ge vf [:: arg] = Some c_new ->
+      valid_val f arg ->
+      ge_wd f the_ge ->
+      core_wd f c_new.
+  Parameter core_inj: memren -> C -> C -> Prop.
+  Parameter ge_inj: memren -> G -> G -> Prop.
+  Parameter ge_inj_id: forall f g,
+      ge_wd f g -> 
+      (forall b1 b2, f b1 = Some b2 -> b1 = b2) ->
+      ge_inj f g g.
+  Parameter core_inj_ext: 
+    forall c c' f (Hinj: core_inj f c c'),
+      match at_external Sem c, at_external Sem c' with
+      | Some (ef, sig, vs), Some (ef', sig', vs') =>
+        ef = ef' /\ sig = sig' /\ val_obs_list f vs vs'
+      | None, None => True
+      | _, _ => False
+      end.
+  Parameter core_inj_after_ext: 
+    forall c cc c' ov1 f (Hinj: core_inj f c c'),
+      match ov1 with
+      | Some v1 => valid_val f v1
+      | None => True
+      end ->
+      after_external Sem ov1 c = Some cc ->
+      exists ov2 cc',
+        after_external Sem ov2 c' = Some cc' /\
+        core_inj f cc cc' /\
+        match ov1 with
+        | Some v1 => match ov2 with
+                    | Some v2 => val_obs f v1 v2
+                    | _ => False
+                    end
+        | None => match ov2 with
+                 | None => True
+                 | _ => False
+                 end
+        end.
+  Parameter core_inj_halted:
+    forall c c' f (Hinj: core_inj f c c'),
+      match halted Sem c, halted Sem c' with
+      | Some v, Some v' => val_obs f v v'
+      | None, None => True
+      | _, _ => False
+      end.
+  Parameter core_inj_init:
+    forall vf vf' arg arg' c_new f fg
+      (Hf: val_obs_list f arg arg')
+      (Hf': val_obs f vf vf')
+      (Hge_wd: ge_wd fg the_ge)
+      (Hge_id: ge_inj fg the_ge the_ge)
+      (Hincr: ren_incr fg f)
+      (Hinit: initial_core Sem the_ge vf arg = Some c_new),
+    exists c_new',
+      initial_core Sem the_ge vf' arg' = Some c_new' /\
+      core_inj f c_new c_new'.
+  Parameter core_inj_id: forall c f,
+      core_wd f c -> 
+      (forall b1 b2, f b1 = Some b2 -> b1 = b2) ->
+      core_inj f c c.
+  Parameter core_inj_trans:
+    forall c c' c'' (f f' f'' : memren)
+      (Hcore_inj: core_inj f c c'')
+      (Hcore_inj': core_inj f' c c')
+      (Hf: forall b b' b'',
+          f b = Some b'' ->
+          f' b = Some b' ->
+          f'' b' = Some b''),
+      core_inj f'' c' c''.
 
 End CoreInjections.
 
-Module ThreadPoolInjections.
-
-  Import ValObsEq MemoryWD Renamings CoreInjections concurrent_machine.
+Module ThreadPoolInjections (CI: CoreInjections).
+  
+  Import ValObsEq MemoryWD Renamings CI concurrent_machine.
   (** Injections on programs *)
-  Context {ci : CoreInj}.
 
   (*not clear what should happen with vf. Normally it should be in the
 genv and hence should be mapped to itself, but let's not expose this
@@ -1250,7 +1325,7 @@ here*)
             eapply val_obs_id; eauto
            end.
   Qed.
-  
+
 End ThreadPoolInjections.
 
   

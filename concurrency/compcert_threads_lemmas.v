@@ -53,15 +53,17 @@ Require Import concurrency.scheduler.
 Require Import concurrency.concurrent_machine.
 Require Import concurrency.dry_machine_lemmas concurrency.dry_context.
 Require Import concurrency.mem_obs_eq.
+Require Import sepcomp.closed_safety.
 
 Import dry_context SEM mySchedule DryMachine DryMachine.ThreadPool.
 
-Module SimDefs.
+Module SimDefs (CI: CoreInjections).
 
   Import mySchedule CoreLanguage InternalSteps.
-  Require Import sepcomp.closed_safety.
   Import MemObsEq ValObsEq MemoryLemmas StepType.
-  Import CoreInjections ThreadPoolInjections MemoryWD Renamings.
+  Import CI MemoryWD Renamings.
+  Module ThreadPoolInjections := ThreadPoolInjections CI.
+  Import ThreadPoolInjections.
   
   Notation threadStep := (threadStep the_ge).
   Notation Sch := schedule.
@@ -69,7 +71,7 @@ Module SimDefs.
   Notation fmachine_step := ((corestep fine_semantics) the_ge).
   Notation CoarseSem := coarse_semantics.
   Hint Unfold myCoarseSemantics.MachStep myFineSemantics.MachStep.
-  
+
   (** Simulations between individual threads. *)
   
   (* Consider hiding thread_pool completely *)
@@ -174,7 +176,7 @@ Module SimDefs.
       tpc_wd: tp_wd f tpc;
       thege_wd: ge_wd fg the_ge;
       thege_inj: ge_inj fg the_ge the_ge;
-      fg_spec: ren_incr fg f /\ forall b b', fg b = Some b' -> b' = b;
+      fg_spec: ren_incr fg f /\ forall b b', fg b = Some b' -> b = b';
       xs_wd: forall i, List.In i xs -> containsThread tpc i
     }.
 
@@ -220,17 +222,17 @@ Module SimDefs.
 End SimDefs.
 
 (** ** Proofs *)
-Module SimProofs.
-
+Module SimProofs (CI: CoreInjections).
   Import mySchedule CoreLanguage InternalSteps.
   Require Import sepcomp.closed_safety.
   Import ThreadPoolWF StepLemmas StepType.
   Import MemoryWD MemObsEq ValObsEq MemoryLemmas.
-
-  Import CoreInjections ThreadPoolInjections Renamings.
+  Module ThreadPoolInjections := ThreadPoolInjections CI.
+  Module SimDefs := SimDefs CI.
+  Import SimDefs Renamings ThreadPoolInjections CI.
   
-  Import SimDefs.
 
+  Section SimProofs.
   Opaque at_external after_external halted Sem.
 
   (** Solves absurd cases from fine-grained internal steps *)
@@ -300,8 +302,8 @@ Module SimProofs.
     intros. unfold ctl_inj in Hinj.
     destruct c; destruct c'; try (by exfalso);
     unfold ctlType in *;
-    try assert (Hat_ext := core_inj_ext _ _ _ Hinj);
-    try assert (Hhalted := core_inj_halted _ _ _ Hinj); auto.
+    try assert (Hat_ext := core_inj_ext Hinj);
+    try assert (Hhalted := core_inj_halted Hinj); auto.
     destruct (at_external Sem c) as [[[? ?] ?]|]; simpl in *;
     destruct (at_external Sem c0) as [[[? ?] ?]|]; simpl in *; auto;
     try (by exfalso).
@@ -442,12 +444,13 @@ Module SimProofs.
   the domain of the new memory. *)
   
   Lemma internal_step_wd:
-    forall tp m tp' m' i (cnti: containsThread tp i) f
+    forall tp m tp' m' i (cnti: containsThread tp i) f fg
       (Hcomp: mem_compatible tp m)
       (Hmem_wd: valid_mem m)
       (Hdomain: domain_memren f m)
       (Htp_wd: tp_wd f tp)
-      (Hge_wd: ge_wd f the_ge)
+      (Hge_wd: ge_wd fg the_ge)
+      (Hfg_incr: ren_domain_incr fg f)
       (Hstep: internal_step cnti Hcomp tp' m'),
       valid_mem m' /\
       (exists f' : memren, ren_domain_incr f f' /\ domain_memren f' m') /\
@@ -501,7 +504,7 @@ Module SimProofs.
       destruct X as [[? ?] ?].
       simpl in *.
       destruct Htp_wd as [Hcore_wd _].
-      assert (Hargs:= at_external_wd _ _ Hcore_wd Hat_external).
+      assert (Hargs:= at_external_wd Hcore_wd Hat_external).
       eapply after_external_wd; eauto.
       eapply core_wd_incr; eauto.
       eapply valid_val_list_incr;
@@ -534,7 +537,8 @@ Module SimProofs.
       destruct Htp_wd.
       eapply valid_val_incr;
         by eauto.
-      eapply ge_wd_incr;
+      eapply ge_wd_incr; eauto.
+      eapply ren_domain_incr_trans;
         by eauto.
       erewrite <- @gsoThreadCC with (cntj := cntj); eauto.
       specialize (Htp_wd _ cntj).
@@ -543,11 +547,12 @@ Module SimProofs.
   Qed.
 
   Lemma internal_execution_wd:
-    forall tp m tp' m' i xs f
+    forall tp m tp' m' i xs f fg
       (Hdomain: domain_memren f m)
       (Hmem_wd: valid_mem m)
       (Htp_wd: tp_wd f tp)
-      (Hge_wd: ge_wd f the_ge)
+      (Hge_wd: ge_wd fg the_ge)
+      (Hge_incr: ren_domain_incr fg f)
       (Hexec: internal_execution [seq x <- xs | x == i] tp m tp' m'),
       valid_mem m' /\
       (exists f' : memren, ren_domain_incr f f' /\ domain_memren f' m') /\
@@ -570,12 +575,14 @@ Module SimProofs.
     subst a. inversion Hexec; subst.
     simpl in Htrans.
     simpl in HschedN; inversion HschedN; subst tid.
-    assert (H := internal_step_wd Hmem_wd Hdomain Htp_wd Hge_wd Hstep).
+    assert (H := internal_step_wd Hmem_wd Hdomain Htp_wd Hge_wd Hge_incr Hstep).
     destruct H as [Hmem_wd0' [[f' [Hincr Hdomain0']] Htp_wd0']].
     specialize (Htp_wd0' f' Hdomain0').
+    assert (Hge_incr0': ren_domain_incr fg f')
+      by ( eapply ren_domain_incr_trans; eauto).
     assert (Hge_wd0': ge_wd f' the_ge)
       by (eapply ge_wd_incr; eauto).
-    destruct (IHxs _ f' Htp_wd0' Hge_wd0' m'0 Hdomain0' Hmem_wd0' Htrans)
+    destruct (IHxs _ f' Htp_wd0' Hge_incr0'  m'0 Hdomain0' Hmem_wd0' Htrans)
       as (Hwd_mem' & Hf'' & Htp_wd').
     destruct Hf'' as [f'' [Hincr'' Hdomain'']].
     specialize (Htp_wd' _ Hdomain'').
@@ -705,6 +712,7 @@ Module SimProofs.
       (HinvF: invariant tpf)
       (Hge_wd: ge_wd fg the_ge)
       (Hge: ge_inj fg the_ge the_ge)
+      (Hren_incr: ren_incr fg fi)
       (Hstrong_sim: strong_tsim fi pfc pff Hcompc Hcompf)
       (Hstep_internal: internal_step pfc Hcompc tpc' mc'),
     exists tpf' mf' fi',
@@ -872,13 +880,13 @@ Module SimProofs.
                           end)
         by (by simpl).
       assert (Hafter_externalF :=
-                core_inj_after_ext _ _ (Some (Vint Int.zero)) _ Hcode_eq
+                core_inj_after_ext (Some (Vint Int.zero)) Hcode_eq
                                    Hvalid_val Hafter_external).
       destruct Hafter_externalF as [ov2 [cf' [Hafter_externalF [Hcode_eq' Hval_obs]]]].
       destruct ov2 as [v2 |]; try by exfalso.
       inversion Hval_obs; subst.
       (* cf is at external*)
-      assert (Hat_externalF_spec := core_inj_ext _ _ _ Hcode_eq).
+      assert (Hat_externalF_spec := core_inj_ext Hcode_eq).
       rewrite Hat_external in Hat_externalF_spec.
       simpl in Hat_externalF_spec.
       destruct X as [[ef sig] val].
@@ -918,7 +926,7 @@ Module SimProofs.
       destruct Hcode_eq as [Hvf Harg_obs].
       assert (Harg_obs_list: val_obs_list fi [:: arg] [:: arg'])
         by (constructor; auto; constructor).
-      assert (HinitF := core_inj_init fg Harg_obs_list Hvf Hge_wd Hge Hinitial).
+      assert (HinitF := core_inj_init Harg_obs_list Hvf Hge_wd Hge Hren_incr Hinitial).
       destruct HinitF as [c_newF [HinitialF Hcode_eq]].
       remember (updThreadC pff (Krun c_newF)) as tpf' eqn:Hupd.
       exists tpf', mf, fi.
@@ -985,7 +993,7 @@ Module SimProofs.
     erewrite <- diluteMem_valid.
     specialize (Hcodomain_valid b1 b2 Hf).
     erewrite restrPermMap_valid in Hcodomain_valid.
-    eapply corestep_nextblock;
+    eapply corestep_validblock;
       by eauto.
     intros b1 b2 ofs Hf.
     specialize (Hperm_obs_weak _ _ ofs Hf).
@@ -1132,13 +1140,14 @@ Module SimProofs.
     intros.
     inversion Hsim as
         [HnumThreads HmemCompC HmemCompF HsafeC
-                     HsimWeak Hfpsep HsimStrong HsimLocks
-                     HsimRes HinvF HmaxF Hmemc_wd Htpc_wd Hge_wd Hge_inj Hxs].
+                     HsimWeak Hfpsep HsimStrong HsimLocks HsimRes
+                     HinvF HmaxF Hmemc_wd Htpc_wd Hge_wd Hge_inj Hge_spec Hxs].
     assert (pfc: containsThread tpc i)
       by (eapply HnumThreads; eauto).
     (* Strong simulation for thread i*)
     destruct (HsimStrong i pfc pff)
-      as [tpc' [mc' [Hincr [Hsynced [Hexec [Htsim [Hownedi [Hownedi_ls Hownedi_lp]]]]]]]];
+      as (tpc' &  mc' & Hincr & Hsynced & Hexec & Htsim &
+          Hownedi & Hownedi_ls & Hownedi_lp);
       clear HsimStrong.
     assert (pfc': containsThread tpc' i)
       by (clear - Hexec pfc;
@@ -1160,8 +1169,11 @@ Module SimProofs.
       by (by erewrite (stepType_inj _ _ _ (code_eq Htsim))).
     apply at_internal_cmachine_step with (cnt := pfc') in Hstep'; eauto.
     destruct Hstep' as [Hcomp [Hstep' Heq]]. subst U; pf_cleanup.
+    assert (Hge_incr': ren_incr fg (fp i pfc))
+      by (destruct Hge_spec; eapply ren_incr_trans; eauto).
     (* And from this we derive safety for 1 step for fine-grained*)
-    destruct (tsim_fstep_safe fg HmaxF HinvF Hge_wd Hge_inj Htsim Hstep')
+    destruct (tsim_fstep_safe HmaxF HinvF Hge_wd Hge_inj
+                              Hge_incr' Htsim Hstep')
       as (tpf' & mf' & fi' & HstepF & HmaxF' & Hincr' & Hsepi & Htsim' & Howned' &
           Hownedls' & Hownedlp').
     assert (HstepF_empty := HstepF empty).
@@ -1357,24 +1369,6 @@ Module SimProofs.
             specialize (Hcodomain b1 b2 Hfj).
             erewrite restrPermMap_valid.
             erewrite restrPermMap_valid in Hcodomain.
-
-            Lemma fstep_valid_block:
-              forall tpf tpf' mf mf' i U b
-                (Hvalid: Mem.valid_block mf b)
-                (Hstep: fmachine_step (i :: U, tpf) mf (U, tpf') mf'),
-                Mem.valid_block mf' b.
-            Proof.
-              intros.
-              inversion Hstep; subst; auto.
-              inversion Htstep; subst.
-              erewrite <- diluteMem_valid.
-              eapply corestep_nextblock; eauto.
-              inversion Htstep; subst; eauto.
-              eapply Mem.store_valid_block_1; eauto.
-              eapply Mem.store_valid_block_1; eauto.
-              eapply Mem.store_valid_block_1; eauto.
-            Qed.
-            
             eapply fstep_valid_block;
               by eauto. 
           - by apply (injective (weak_obs_eq (obs_eq Htsimj))).
@@ -1525,6 +1519,7 @@ Module SimProofs.
       { assumption. }
       { assumption. }
       { assumption. }
+      { assumption. }
       { intros j Hin.
         inversion Hin; subst;
           by auto.
@@ -1583,13 +1578,15 @@ Module SimProofs.
   Qed.
 
   Lemma strong_tsim_step:
-    forall tp1 tp2 tp1' m1 m2 m1' j f
+    forall tp1 tp2 tp1' m1 m2 m1' j f fg
       (pf1j: containsThread tp1 j)
       (pf1j': containsThread tp1' j)
       (Hcomp1: mem_compatible tp1 m1)
       (Hcomp1': mem_compatible tp1' m1')
       (Hinv: invariant tp1')
-      (Hge_inj: ge_inj f the_ge the_ge)
+      (Hge_inj: ge_inj fg the_ge the_ge)
+      (Hge_wd: ge_wd fg the_ge)
+      (Hge_incr: ren_incr fg f)
       (Hsim: strong_tsim f pf1j pf1j' Hcomp1 Hcomp1')
       (Hstep: internal_step pf1j Hcomp1 tp2 m2),
     exists tp2' m2' f',
@@ -1629,7 +1626,7 @@ Module SimProofs.
       rewrite Hcode in Hcode_eq.
       simpl in Hcode_eq.
       destruct (getThreadC pf1j') as [c1' | | |] eqn:Hcodej'; try by exfalso.
-      assert (H := corestep_obs_eq c1' Hmem_obs_eq Hcode_eq Hcorestep).
+      assert (H := corestep_obs_eq Hmem_obs_eq Hcode_eq Hcorestep).
       destruct H
         as (c2' & m2' & f' & Hcorestep' & Hcode_eq'
             & Hobs_eq & Hincr & Hseparated & Hinjective
@@ -1700,7 +1697,7 @@ Module SimProofs.
       destruct (getThreadC pf1j') as [ | |c1'|] eqn:Hcode'; try by exfalso.
       destruct Hcode_eq as [Hcode_eq Hval_eq].
       inversion Hval_eq; subst.
-      assert (Hat_external_spec := core_inj_ext _ _ _ Hcode_eq).
+      assert (Hat_external_spec := core_inj_ext Hcode_eq).
       rewrite Hat_external in Hat_external_spec.
       destruct X as [[? ?] vs].
       destruct (at_external Sem c1') as [[[? ?] ?] | ] eqn:Hat_external';
@@ -1712,7 +1709,7 @@ Module SimProofs.
                           end)
         by (by simpl).
       assert (Hafter_external' :=
-                core_inj_after_ext _ _ (Some (Vint Int.zero)) _ 
+                core_inj_after_ext (Some (Vint Int.zero)) 
                                    Hcode_eq Hvalid_val Hafter_external).
       destruct Hafter_external' as [ov2 [c2' [Hafter_external'
                                                 [Hcore_inj' Hval_obs]]]].
@@ -1788,7 +1785,8 @@ Module SimProofs.
       destruct Hcode_eq as [Hvf Harg_obs].
       assert (Harg_obs_list: val_obs_list f [:: arg] [:: arg'])
         by (constructor; auto; constructor).
-      assert (HinitF := core_inj_init Harg_obs_list Hvf Hge_inj Hinitial).
+      assert (HinitF := core_inj_init Harg_obs_list Hvf Hge_wd Hge_inj
+                                      Hge_incr Hinitial).
       destruct HinitF as [c_newF [HinitialF Hcode_eq]].
       exists (updThreadC pf1j' (Krun c_newF)), m1', f.
       assert (Hinternal':
@@ -1852,13 +1850,15 @@ Module SimProofs.
   Qed.
 
   Lemma strong_tsim_execution:
-    forall tp1 tp2 tp1' m1 m2 m1' j xs f
+    forall tp1 tp2 tp1' m1 m2 m1' j xs f fg
       (pf1j: containsThread tp1 j)
       (pf1j': containsThread tp1' j)
       (Hcomp1: mem_compatible tp1 m1)
       (Hcomp1': mem_compatible tp1' m1')
       (Hinv: invariant tp1')
-      (Hge_inj: ge_inj f the_ge the_ge)
+      (Hge_inj: ge_inj fg the_ge the_ge)
+      (Hge_wd: ge_wd fg the_ge)
+      (Hge_incr: ren_incr fg f)
       (Hsim: strong_tsim f pf1j pf1j' Hcomp1 Hcomp1')
       (Hexec: internal_execution [seq x <- xs | x == j] tp1 m1 tp2 m2),
     exists tp2' m2' f',
@@ -1914,7 +1914,7 @@ Module SimProofs.
         simpl in Htrans. simpl in HschedN;
           inversion HschedN; subst tid; clear HschedN Hexec.
         pf_cleanup.
-        assert (Htsim := strong_tsim_step Hinv Hge_inj Hsim Hstep).
+        assert (Htsim := strong_tsim_step Hinv Hge_inj Hge_wd Hge_incr Hsim Hstep).
         destruct Htsim as
             (tp0' & m0' & f0 & Hstep0' & Hincr0' & Hsep0' & Hinjective0'
              & Hnextblock0' & Hinverse0' & Htsim0' & Hid0').
@@ -1922,9 +1922,9 @@ Module SimProofs.
         pf_cleanup.
         assert (Hinv0': invariant tp0')
           by (eapply internal_step_invariant; eauto).
-        assert (Hge_inj0': ge_inj f0 the_ge the_ge)
-          by (eapply ge_inj_incr; eauto).
-        destruct (IHxs _ _ _ _ Hinv0' _ Hge_inj0' _ _ _ _ Htsim0 Htrans)
+        assert (Hge_incr0': ren_incr fg f0)
+          by (eapply ren_incr_trans; eauto).
+        destruct (IHxs _ _ _ _ Hinv0' _ Hge_incr0' _ _ _ _ Htsim0 Htrans)
           as (tp2' & m2' & f2' & Hexec & Hincr2 & Hsep2 & Hinjective2
              & Hnextblock2 & Hinverse2 & Hsim2 & Hid2);
           exists tp2', m2', f2'.
@@ -2059,7 +2059,7 @@ Module SimProofs.
                 by rewrite Hnb0 Hnb0' Hnb1).
         specialize (Hid2 Hnb0 Hid0').
           by assumption.
-    - destruct (IHxs _ _ _ _ Hinv _ Hge_inj _ _ _ _ Hsim Hexec)
+    - destruct (IHxs _ _ _ _ Hinv f Hge_incr _ _ _ _ Hsim Hexec)
         as
           [tp2' [m2' [f2' [Hexec2
                              [Hincr2
@@ -2106,7 +2106,7 @@ Module SimProofs.
     simpl in Hcode_eq.
     destruct (getThreadC pff) as [c'| | |] eqn:Hcode';
       try by exfalso.
-    assert (Hat_external_spec := core_inj_ext _ _ _ Hcode_eq).
+    assert (Hat_external_spec := core_inj_ext Hcode_eq).
     rewrite Hat_external in Hat_external_spec.
     destruct X as [[? ?] ?].
     destruct (at_external Sem c') as [[[? ?] ?]|] eqn:Hat_external';
@@ -2131,7 +2131,7 @@ Module SimProofs.
   retains a strong simulation with the id injection on all other
   threads*)
   Lemma strong_tsim_id :
-    forall tp tp' tp'' m m' i j xs f
+    forall tp tp' tp'' m m' i j xs f fg
       (Hij: i <> j)
       (pfj: containsThread tp j)
       (pfj': containsThread tp' j)
@@ -2140,7 +2140,8 @@ Module SimProofs.
       (Hmem_wd: valid_mem m)
       (Hdomain: domain_memren f m)
       (Htp_wd: tp_wd f tp)
-      (Hge_wd: ge_wd f the_ge)
+      (Hge_inj: ge_inj fg the_ge the_ge)
+      (Hge_wd: ge_wd fg the_ge)
       (Hcomp: mem_compatible tp m)
       (Hcomp'': mem_compatible tp'' m')
       (Hsuspend: myCoarseSemantics.suspend_thread pfi' tp'')
@@ -2237,7 +2238,7 @@ Module SimProofs.
     inversion Hsim as
         [HnumThreads HmemCompC HmemCompF HsafeC HsimWeak Hfpsep
                      HsimStrong HsimLocks HsimRes HinvF HmaxF
-                     Hwd_mem Htp_wd Hge_wd Hge_inj Hxs].
+                     Hwd_mem Htp_wd Hge_wd Hge_inj Hge_spec Hxs].
     assert (pfc: containsThread tpc i)
       by (eapply HnumThreads; eauto).
     destruct (HsimStrong i pfc pff)
@@ -2309,7 +2310,9 @@ Module SimProofs.
       assert (Hdomainf: domain_memren f mc)
         by (specialize (HsimWeak _ pfc pff);
              eapply weak_obs_eq_domain_ren in HsimWeak; eauto).
-      assert (Hwd := internal_execution_wd _ _ Hdomainf Hwd_mem Htp_wd Hge_wd Hexec).
+      assert (Hwd := internal_execution_wd _ _ Hdomainf Hwd_mem Htp_wd
+                                           Hge_wd (ren_incr_domain_incr
+                                                     (proj1 Hge_spec)) Hexec).
       destruct Hwd as [Hwd_mem' [[f' [Hincrf' Hdomainf']] Htp_wd']].
       assert (pffi': containsThread tpf' i)
         by (eapply suspendF_containsThread with (cnti := pff); eauto).
@@ -2543,8 +2546,6 @@ Module SimProofs.
           (* the thread-pool is well-defined for id renaming*)
           assert (Htp_wd_id: tp_wd (id_ren mc) tpc)
             by (eapply tp_wd_domain; eauto).
-          assert (Hge_wd_id: ge_wd (id_ren mc) the_ge)
-            by (eapply ge_wd_domain; eauto).
           simpl.
           erewrite proof_irr
           with (a1 := (containsThread_internal_execution'
@@ -2572,11 +2573,33 @@ Module SimProofs.
             by (eapply suspendC_invariant with (tp := tpc');
                  [eapply internal_execution_invariant with (tp := tpc);
                    eauto | eauto]).
-          assert (Hge_inj_id: ge_inj (id_ren mc) the_ge the_ge)
-            by (eapply ge_inj_id; eauto;
-                eapply id_ren_correct).
-          assert (Hsimjj':= strong_tsim_execution xs Hinv'' Hge_inj_id
-                                                  Hsim_c_ci Hexecj).
+                    Lemma incr_domain_id:
+            forall m f f'
+              (Hincr: ren_incr f f')
+              (Hf_id: forall b b', f b = Some b' -> b = b')
+              (Hdomain_f: domain_memren f' m),
+              ren_incr f (id_ren m).
+          Proof.
+            intros.
+            intros b1 b2 Hf.
+            assert (b1 = b2)
+              by (eapply Hf_id in Hf; by subst).
+            subst b2.
+            apply Hincr in Hf.
+            destruct (Hdomain_f b1).
+            specialize (H0 ltac:(rewrite Hf; auto)).
+            assert (Hdomain_id := id_ren_domain m).
+            apply Hdomain_id in H0.
+            destruct (id_ren m b1) eqn:Hid; try by exfalso.
+            apply id_ren_correct in Hid;
+              by subst.
+          Qed.
+          assert (Hge_incr: ren_incr fg (id_ren mc))
+            by (clear - Hge_spec Hdomain_f;
+                 destruct Hge_spec;
+                 eapply incr_domain_id; eauto).
+          assert (Hsimjj':= strong_tsim_execution xs Hinv'' Hge_inj Hge_wd
+                                                  Hge_incr Hsim_c_ci Hexecj).
           destruct Hsimjj'
             as (tpcj' & mcj' & fij & Hexecij
                 & Hincr' & Hsep & Hinjective & Hnextblockj' & Hinverse & Hsimjj').
@@ -3780,7 +3803,10 @@ Module SimProofs.
           eapply ge_wd_incr;
             by eauto.
         }
-        { eapply ge_inj_incr;
+        { assumption. }
+        { destruct Hge_spec.
+          split; auto.
+          eapply ren_incr_trans;
             by eauto.
         }
         { intros k Hin.
@@ -5605,7 +5631,7 @@ Module SimProofs.
     inversion Hsim as
         [HnumThreads HmemCompC HmemCompF HsafeC HsimWeak HfpSep HsimStrong
                      [HsimLocks HLocksInv] HsimRes HinvF HmaxF
-                     Hmemc_wd Htpc_wd Hge_wd Hge_inj Hxs].
+                     Hmemc_wd Htpc_wd Hge_wd Hge_inj Hge_spec Hxs].
     (* Thread i is in the coarse-grained machine*)
     assert (pfc: containsThread tpc i)
       by (eapply HnumThreads; eauto).
@@ -5639,19 +5665,18 @@ Module SimProofs.
     assert (Heq : empty = U /\ syncStep the_ge pfc HmemCompC tpc' mc')
       by (eapply external_step_inverse; eauto).
     destruct Heq as [? HconcC]; subst U.
+    (*TODO: we must deduce that fact from safety of coarse-grained machine*)
     assert (HmemCompC': mem_compatible tpc' mc')
       by admit.
+    (*domain of f*)
+    assert (Hdomain_f: domain_memren (fp i pfc) mc)
+      by (apply (weak_obs_eq_domain_ren (HsimWeak _ pfc pff))).
     (* Useful facts about the global env*)
-    assert (Hge_wd_id: ge_wd (id_ren mc) the_ge).
-    { specialize (HsimWeak _ pfc pff);
-      eapply weak_obs_eq_domain_ren in HsimWeak;
-      eapply ge_wd_domain; eauto.
-      erewrite <- restrPermMap_domain; eauto.
-        by apply id_ren_domain.
-    }
-    assert (Hge_inj_id: ge_inj (id_ren mc) the_ge the_ge)
-      by (eapply ge_inj_id; eauto; eapply id_ren_correct).
-    (*TODO: we must deduce that fact from safety of coarse-grained machine*)
+    assert (Hge_incr: ren_incr fg (id_ren mc))
+      by (clear - Hge_spec Hdomain_f;
+           destruct Hge_spec;
+           eapply incr_domain_id; eauto).
+
     exists tpc', mc'.
     (* We proceed by case analysis on the concurrent call *)
     inversion HconcC; try subst tp' tp''; try subst m'.
@@ -5690,7 +5715,7 @@ Module SimProofs.
         destruct (getThreadC pff) as [? | cf |? | ?] eqn:HcodeF;
           try by exfalso.
         (* And now we can prove that cf is also at external *)
-        assert (Hat_external_spec := core_inj_ext _ _ _ Hcore_inj).
+        assert (Hat_external_spec := core_inj_ext Hcore_inj).
         rewrite Hat_external in Hat_external_spec.
         destruct (at_external Sem cf) as [[[? ?] vsf]|] eqn:Hat_externalF;
           try by exfalso.
@@ -5967,7 +5992,8 @@ Module SimProofs.
             destruct Htsimj_id as [Htsimj_id Hnextblock].
             
             (* Step 2.*)
-            assert (H := strong_tsim_execution _ HinvC' Hge_inj_id Htsimj_id Hexecj).
+            assert (H := strong_tsim_execution _ HinvC' Hge_inj Hge_wd Hge_incr
+                                               Htsimj_id Hexecj).
             destruct H as
                 (tp2' & m2' & f' & Hexecj'& Hincrj' & Hsepj'
                  & Hinj' & Hnextblock' & Hinvj' & Htsimj' & Hid').
@@ -6208,6 +6234,8 @@ Module SimProofs.
           assumption.
         - (*ge injection*)
           assumption.
+        - (*ge spec*)
+          assumption.
         - intros.
           apply cntUpdateL;
             apply cntUpdate;
@@ -6248,7 +6276,7 @@ Module SimProofs.
       destruct (getThreadC pff) as [? | cf |? | ?] eqn:HcodeF;
         try by exfalso.
       (* And now we can prove that cf is also at external *)
-      assert (Hat_external_spec := core_inj_ext _ _ _ Hcore_inj).
+      assert (Hat_external_spec := core_inj_ext Hcore_inj).
       rewrite Hat_external in Hat_external_spec.
       destruct (at_external Sem cf) as [[[? ?] vsf]|] eqn:Hat_externalF;
         try by exfalso.
@@ -6520,7 +6548,8 @@ Module SimProofs.
           destruct Htsimj_id as [Htsimj_id Hnextblock].
           
           (* Step 2.*)
-          assert (H := strong_tsim_execution _ HinvC' Hge_inj_id Htsimj_id Hexecj).
+          assert (H := strong_tsim_execution _ HinvC' Hge_inj Hge_wd
+                                             Hge_incr Htsimj_id Hexecj).
           destruct H as
               (tp2' & m2' & f' & Hexecj'& Hincrj' & Hsepj'
                & Hinj' & Hnextblock' & Hinvj' & Htsimj' & Hid').
@@ -6861,6 +6890,8 @@ Module SimProofs.
           assumption.
         - (*ge injection *)
           assumption.
+        - (*ge spec *)
+          assumption.
         - (*xs invariant*)
           intros;
           eapply cntUpdateL;
@@ -6877,7 +6908,7 @@ Module SimProofs.
       destruct (getThreadC pff) as [? | cf |? | ?] eqn:HcodeF;
         try by exfalso.
       (* And now we can prove that cf is also at external *)
-      assert (Hat_external_spec := core_inj_ext _ _ _ Hcore_inj).
+      assert (Hat_external_spec := core_inj_ext Hcore_inj).
       rewrite Hat_external in Hat_external_spec.
       destruct (at_external Sem cf) as [[[? ?] vsf]|] eqn:Hat_externalF;
         try by exfalso.
@@ -7507,6 +7538,8 @@ Module SimProofs.
           assumption.
         - (* ge_inj *)
           assumption.
+        - (* ge_spec *)
+          assumption.
         - intros j Hin.
           specialize (Hxs _ Hin).
           apply cntAdd;
@@ -7518,7 +7551,7 @@ Module SimProofs.
 
   Admitted.
   
-  
+End SimProofs.
 End SimProofs.
 
  (*Lemma sync_resources_mem_obs_eq :
