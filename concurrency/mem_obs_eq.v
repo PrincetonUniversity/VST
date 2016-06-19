@@ -462,6 +462,18 @@ Module ValObsEq.
                        val_obs_list mi vl vl' ->
                        val_obs_list mi (v :: vl) (v' :: vl').
 
+  Lemma val_obs_incr:
+    forall f f' v v'
+      (Hval_obs: val_obs f v v')
+      (Hincr: ren_incr f f'),
+      val_obs f' v v'.
+  Proof.
+    intros.
+    destruct v; inversion Hval_obs; subst;
+    constructor;
+      by eauto.
+  Qed.
+      
   Lemma val_obs_trans:
     forall (v v' v'' : val) (f f' f'' : memren),
       val_obs f v v'' ->
@@ -581,6 +593,19 @@ Module ValObsEq.
     intros.
     destruct v; inversion H; subst;
     simpl;
+      by constructor.
+  Qed.
+
+  Lemma val_obs_longofwords:
+    forall f vhi vhi' vlo vlo'
+      (Hobs_hi: val_obs f vhi vhi')
+      (Hobs_lo: val_obs f vlo vlo'),
+      val_obs f (Val.longofwords vhi vlo) (Val.longofwords vhi' vlo').
+  Proof.
+    intros.
+    destruct vhi; inversion Hobs_hi; subst; simpl;
+    try constructor.
+    destruct vlo; inversion Hobs_lo;
       by constructor.
   Qed.
 
@@ -1014,7 +1039,7 @@ Module MemObsEq.
   (*TODO: The Proof. Should be same as above*)
   Lemma loadv_val_obs:
     forall (mc mf : mem) (f:memren)
-      (vptr1 vptr2 : val) chunk (ofs : Z) v1
+      (vptr1 vptr2 : val) chunk v1
       (Hload: Mem.loadv chunk mc vptr1 = Some v1)
       (Hf: val_obs f vptr1 vptr2)
       (Hobs_eq: strong_mem_obs_eq f mc mf),
@@ -1028,7 +1053,7 @@ Module MemObsEq.
   (*TODO: The proof*)
   Lemma store_val_obs:
     forall (mc mc' mf : mem) (f:memren)
-      (b1 b2 : block) chunk (ofs : Z) v1 v2
+      (b1 b2 : block) chunk (ofs: Z) v1 v2
       (Hload: Mem.store chunk mc b1 ofs v1 = Some mc')
       (Hf: f b1 = Some b2)
       (Hval_obs_eq: val_obs f v1 v2)

@@ -51,14 +51,13 @@ Module X86WD.
         valid_val_list f vals /\ regset_wd rs /\ loader_wd loader
       end.
 
-    (** Well-definedness for global env not only implies that every
-  valid block in it is mapped, but also that it's mapped with the id
-  renaming *)
     Definition ge_wd (the_ge: genv) : Prop :=
       (forall b, Maps.PTree.get b (genv_funs the_ge) ->
             f b) /\
       (forall b, Maps.PTree.get b (genv_vars the_ge) ->
-            f b).
+            f b) /\
+      (forall id ofs v, Senv.symbol_address the_ge id ofs = v ->
+                   valid_val f v).
     
   End X86WD.
 
@@ -172,7 +171,8 @@ Module X86Inj <: CoreInjections.
   Import Genv.
   Definition ge_inj f (g g' : genv) :=
     (genv_public g) = (genv_public g') /\
-    (genv_symb g) = (genv_symb g') /\
+    (forall id ofs, val_obs f (Senv.symbol_address g id ofs)
+                       (Senv.symbol_address g' id ofs)) /\
     (forall b b', f b = Some b' ->
              Maps.PTree.get b (genv_funs g) =
              Maps.PTree.get b' (genv_funs g')) /\
@@ -364,18 +364,19 @@ Module X86Inj <: CoreInjections.
 
   Hint Resolve
        loader_ren_incr loader_ren_id loader_ren_trans
-       regset_ren_id val_obs_reg val_obs_add : renamings.
+       regset_ren_id val_obs_reg val_obs_add
+       valid_val_incr val_obs_incr : renamings.
+  Hint Constructors eval_builtin_arg val_obs : renamings.
   
   Lemma ge_wd_incr :
     forall (f f' : memren) (g : SEM.G),
       ge_wd f g -> ren_domain_incr f f' -> ge_wd f' g.
-  Proof.
+  Proof with (eauto with renamings).
     intros.
     unfold ge_wd in *.
-    destruct H;
-      split;
-      intros b Hget;
-        by eauto.
+    destruct H as (? & ? & ?);
+      repeat split;
+      intros...
   Qed.
 
   Lemma ge_wd_domain :
@@ -384,16 +385,18 @@ Module X86Inj <: CoreInjections.
   Proof.
     intros.
     unfold ge_wd in *.
-    destruct H as [Hf Hv];
-      split;
-      intros b Hget;
+    unfold domain_memren in *.
+    destruct H as (Hf & Hv & Hs);
+      repeat split;
+      intros;
+      try destruct (H0 b), (H1 b);
       try specialize (Hf _ ltac:(eauto));
       try specialize (Hv _ ltac:(eauto));
-      unfold domain_memren in *;
-      destruct (H0 b), (H1 b);
-        by eauto.
+      try specialize (Hs id ofs v ltac:(eauto));
+      eauto.
+    eapply valid_val_domain; eauto.
   Qed.
-
+    
   Lemma core_wd_incr :
     forall (f f' : memren) (c : DryMachine.ThreadPool.code),
       core_wd f c -> ren_domain_incr f f' -> core_wd f' c.
@@ -512,11 +515,13 @@ Module X86Inj <: CoreInjections.
     intros.
     unfold ge_inj.
     unfold ge_wd in *.
-    destruct H.
-    repeat (split; auto);
-      intros b b' Hf;
-      specialize (H0 _ _ Hf); subst;
-      reflexivity.
+    destruct H as (? & ? & ?);
+    repeat split;
+    intros;
+    try (specialize (H0 b b' ltac:(auto)); subst; auto).
+    specialize (H2 id ofs _ ltac:(reflexivity)).
+    eapply val_obs_id;
+      by eauto.
   Qed.
   
   Lemma core_inj_ext :
@@ -820,7 +825,6 @@ Module X86Inj <: CoreInjections.
            end; subst; eauto.
   Qed.
 
-
   (** ** Proof that related states take related steps*)
 
   Import MemObsEq.
@@ -849,6 +853,68 @@ Module X86Inj <: CoreInjections.
       by rewrite <- Hfn.
   Qed.
 
+  Lemma eval_builtin_arg_ren:
+    forall (g : genv) (rs rs' : regset) (f fg: memren) (m m' : mem)
+      (arg : builtin_arg preg) (varg : val)
+      (Hmem_obs_eq: mem_obs_eq f m m')
+      (Hrs_ren: regset_ren f rs rs')
+      (Hge_inj: ge_inj fg g g)
+      (Hge_wd: ge_wd fg g)
+      (Hincr: ren_incr fg f)
+      (Heval: eval_builtin_arg g rs (rs ESP) m arg varg),
+    exists varg',
+      eval_builtin_arg g rs' (rs' ESP) m' arg varg' /\
+      val_obs f varg varg'.
+  Proof with eauto with renamings.
+    intros.
+    destruct Hmem_obs_eq.
+    induction Heval; subst;
+    try by (eexists; split; eauto with renamings).
+    eapply loadv_val_obs with (vptr2 := Val.add (rs' ESP) (Vint ofs)) in H...
+    destruct H as (varg' & Hload' & Hval_obs).
+    exists varg';
+      split...
+    assert (Hb: val_obs f (Senv.symbol_address g id ofs)
+                        (Senv.symbol_address g id ofs))
+      by (destruct Hge_inj as (? & ? & ?); eauto with renamings).
+    eapply loadv_val_obs with (vptr2 := Senv.symbol_address g id ofs) in H;
+      eauto.
+    destruct H as (varg' & Hload' & Hval_obs);
+      exists varg'; split...
+    destruct Hge_inj as (? & ? & ? &?).
+    eexists; split...
+    destruct IHHeval1 as (vhi' & ? & ?), IHHeval2 as (vlo' & ? & ?).
+    exists (Val.longofwords vhi' vlo');
+      split...
+    eapply val_obs_longofwords; eauto.
+  Qed.
+  
+  Lemma eval_builtin_args_ren:
+    forall (g : genv) (rs rs' : regset) (f fg: memren) (m m' : mem)
+      (args : seq (builtin_arg preg)) (vargs : seq val)
+      (Hmem_obs_eq: mem_obs_eq f m m')
+      (Hrs_ren: regset_ren f rs rs')
+      (Hge_inj: ge_inj fg g g)
+      (Hge_wd: ge_wd fg g)
+      (Hincr: ren_incr fg f)
+      (Heval: eval_builtin_args g rs (rs ESP) m args vargs),
+    exists vargs',
+      eval_builtin_args g rs' (rs' ESP) m' args vargs' /\
+      val_obs_list f vargs vargs'.
+  Proof.
+    intros.
+    generalize dependent vargs.
+    induction args; intros.
+    inversion Heval; subst;
+    exists [::]; split; by constructor.
+    inversion Heval; subst.
+    eapply eval_builtin_arg_ren in H1; eauto.
+    destruct H1 as (varg' & Heval' & Hval_obs).
+    destruct (IHargs _ H3) as (vargs' & Heval_args' & Hobs_list).
+    exists (varg' :: vargs');
+      split; econstructor; eauto.
+  Qed.
+  
   (** Executing an instruction in related states results in related
   states: 1. The renaming function is extended to accommodate newly
   allocated blocks. 2. The extension to the renaming only relates
@@ -905,7 +971,7 @@ Module X86Inj <: CoreInjections.
     forall (cc cf cc' : Asm_coop.state) (mc mf mc' : mem) f fg,
       mem_obs_eq f mc mf ->
       core_inj f cc cf ->
-      ge_inj fg the_ge the_ge ->
+      (forall b1 b2, fg b1 = Some b2 -> b1 = b2) ->
       ge_wd fg the_ge ->
       ren_incr fg f ->
       corestep SEM.Sem the_ge cc mc cc' mc' ->
@@ -930,7 +996,7 @@ Module X86Inj <: CoreInjections.
          (forall b1 b2 : block, f b1 = Some b2 -> b1 = b2) ->
          forall b1 b2 : block, f' b1 = Some b2 -> b1 = b2).
   Proof with (eauto with renamings).
-    intros cc cf cc' mc mf mc' f fg Hobs_eq Hcore_inj Hge_inj Hge_wd Hincr Hcorestep.
+    intros cc cf cc' mc mf mc' f fg Hobs_eq Hcore_inj Hfg Hge_wd Hincr Hcorestep.
     destruct cc as [rs loader | |]; simpl in *;
     destruct cf as [rsF loaderF | |]; try by exfalso.
     - destruct Hcore_inj as [Hrs_ren Hloader_ren].
@@ -952,50 +1018,54 @@ Module X86Inj <: CoreInjections.
         destruct Hpc' as [v' [Hpc' Hpc_obs]].
         inversion Hpc_obs; subst. rewrite <- H0 in Hpc_obs.
         assert (Hfun := find_funct_ptr_ren Hge_inj Hge_wd Hincr Hpc_obs H2).
+        assert (Hargs' := eval_builtin_args_ren Hobs_eq Hrs_ren
+                                                Hge_inj Hge_wd Hincr H4).
+        destruct Hargs' as (vargs' & Heval_vargs' & Hobs_vargs).
 
-        Lemma eval_builtin_args_ren:
-          forall (g : genv) (rs rs' : regset) (f fg: memren) (m m' : mem)
-            (args : seq (builtin_arg preg)) (vargs : seq val)
-            (Hmem_obs_eq: mem_obs_eq f m m')
-            (Hrs_ren: regset_ren f rs rs')
+        Lemma external_call_ren:
+          forall f fg ef (g : genv) vargs vargs' (m1 m2 m1' : mem) (t : trace) vres
+            (Hexternal: external_call ef g vargs m1 t vres m2)
             (Hge_inj: ge_inj fg g g)
             (Hge_wd: ge_wd fg g)
             (Hincr: ren_incr fg f)
-            (Heval: eval_builtin_args g rs (rs ESP) m args vargs),
-          exists vargs',
-            eval_builtin_args g rs' (rs' ESP) m' args vargs' /\
-            val_obs_list f vargs vargs'.
+            (Hmem_obs_eq: mem_obs_eq f m1 m1') 
+            (Hvargs: val_obs_list f vargs vargs'),
+            exists vres' m2',
+              external_call ef g vargs' m1' t vres' m2' /\
+              val_obs f vres vres'.
         Proof.
           intros.
-          induction Heval; subst.
-          exists [::].
-          split;
-            by constructor.
-          
+          destruct ef. Focus 3.
+          simpl in *.
+          inversion Hexternal; subst.
+          inversion H; subst.
 
-          Lemma eval_builtin_arg_ren:
-            forall (g : genv) (rs rs' : regset) (f fg: memren) (m m' : mem)
-              (arg : builtin_arg preg) (varg : val)
-              (Hmem_obs_eq: mem_obs_eq f m m')
-              (Hrs_ren: regset_ren f rs rs')
+          Lemma eventval_match_ren:
+            forall fg g ev chunk v
               (Hge_inj: ge_inj fg g g)
-              (Hge_wd: ge_wd fg g)
-              (Hincr: ren_incr fg f)
-              (Heval: eval_builtin_arg g rs (rs ESP) m arg varg),
-            exists varg',
-              eval_builtin_arg g rs' (rs' ESP) m' arg varg' /\
-              val_obs f varg varg'.
-          Proof with (eauto with renamings).
+              (Hevent_val: eventval_match g ev (type_of_chunk chunk) v),
+              exists v',
+                eventval_match g ev (type_of_chunk chunk) v' /\
+                val_obs fg v v'.
+          Proof with eauto with renamings.
             intros.
-            inversion Heval; subst;
-            try (by (eexists; split;
-                     (econstructor || eauto with renamings))).
-            
-            
-            
-            
-            
-  
+            inversion Hevent_val; subst; try rewrite H1;
+            try by (eexists; split)...
+            rewrite <- H in Hevent_val.
+            destruct Hge_inj as (? & ? & ?).
+            unfold Senv.symbol_address in H3.
+            specialize (H3 id ofs).
+            rewrite H2 in H3.
+            eexists; split...
+          Qed.
+
+          destruct (eventval_match_ren chunk Hge_inj H2)
+            as (v' & Heventval' & Hobs_v).
+          inversion Hvargs; subst. inversion H5; inversion H7; subst.
+          exists (Val.load_result chunk v'), m1'. split; eauto.
+          econstructor.
+          
+          
 End X86Inj.    
 
 
