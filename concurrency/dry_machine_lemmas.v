@@ -1812,7 +1812,7 @@ Module InternalSteps.
         eapply step_dry with (c := c) (c' := c'); eauto.
         erewrite gsoAddCode with (cntj := cnti); eauto.
         subst.
-        erewrite restrPermMap_irr with (Hlt' := Hcomp i cnti); eauto.
+        erewrite restrPermMap_irr' with (Hlt' := Hcomp i cnti); eauto.
         erewrite gsoAddRes with (cntj := cnti); eauto.
         subst.
           by rewrite add_update_comm.
