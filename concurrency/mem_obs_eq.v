@@ -609,6 +609,17 @@ Module ValObsEq.
       by constructor.
   Qed.
 
+  Lemma val_obs_load_result:
+    forall f v v' chunk
+      (Hval_obs: val_obs f v v'),
+      val_obs f (Val.load_result chunk v) (Val.load_result chunk v').
+  Proof.
+    intros.
+    destruct v; inversion Hval_obs; subst;
+    destruct chunk; simpl; constructor;
+    auto.
+  Qed.
+
   Definition val_obsC f v :=
     match v with
     | Vptr b n => match f b with
