@@ -316,13 +316,12 @@ Module CoreLanguage.
         assert (cnt0 : containsThread tp tid)
           by (eapply cntUpdate' in cnt; auto).
         assert (Hlt := Hcompatible tid cnt0 b ofs).
-        assert (HdecayCur := corestep_decay Hcorestep).
-        apply decay_decay' in HdecayCur.
+        assert (Hdecay := corestep_decay Hcorestep).
         destruct (valid_block_dec (restrPermMap (Hcompatible i pf)) b)
           as [Hvalid|Hinvalid].
-        - destruct (HdecayCur b ofs) as [ _ Hdecay].
-          destruct (Hdecay Hvalid) as [Hfreed | Heq]; clear Hdecay.
-          + destruct Hfreed as [HFree Hdrop].
+        - destruct (Hdecay b ofs) as [ _ HdecayValid].
+          destruct (HdecayValid Hvalid) as [Hfreed | Heq]; clear Hdecay.
+          + destruct (Hfreed Cur) as [HFree Hdrop].
             assert (Hempty: (getThreadR cnt) # b ofs = None).
             { assert (Hp := restrPermMap_Cur (Hcompatible i pf) b ofs).
               unfold permission_at in Hp. rewrite Hp in HFree.
@@ -341,7 +340,14 @@ Module CoreLanguage.
             rewrite Hempty.
             destruct ((getMaxPerm m') # b ofs); simpl; auto.
           + rewrite getMaxPerm_correct. unfold permission_at.
-            admit.
+            assert (HeqCur := Heq Max).
+            rewrite <- HeqCur.
+            rewrite gsoThreadRes; auto.
+            assert (H := compat_th Hcompatible cnt0).
+            assert (Hrestr_max := restrPermMap_Max (Hcompatible i pf) b ofs).
+            unfold permission_at in Hrestr_max.
+            rewrite Hrestr_max;
+              by eauto.                        
         - apply Mem.nextblock_noaccess with (ofs := ofs) (k := Max) in Hinvalid.
           assert (Hp := restrPermMap_Max (Hcompatible i pf) b ofs).
           unfold permission_at in Hp. rewrite Hp in Hinvalid.
@@ -354,13 +360,87 @@ Module CoreLanguage.
       { intros l pmap Hres b ofs.
         rewrite gsoThreadLPool in Hres.
         assert (Hlt := compat_lp Hcompatible _ Hres b ofs).
-        admit.
+        assert (Hdecay := corestep_decay Hcorestep).
+        destruct (valid_block_dec (restrPermMap (Hcompatible i pf)) b)
+          as [Hvalid|Hinvalid].
+        - destruct (Hdecay b ofs) as [ _ HdecayValid].
+          destruct (HdecayValid Hvalid) as [Hfreed | Heq]; clear Hdecay.
+          + destruct (Hfreed Cur) as [HFree Hdrop].
+            assert (Hempty: pmap # b ofs = None).
+            { assert (Hp := restrPermMap_Cur (Hcompatible i pf) b ofs).
+              unfold permission_at in Hp. rewrite Hp in HFree.
+              assert (Hno_race := lock_res_threads Hinv).
+              unfold race_free in Hno_race.
+              specialize (Hno_race _ _ _ pf Hres).
+              unfold permMapsDisjoint in Hno_race.
+              specialize (Hno_race b ofs).
+              assert (Hnot_racy : not_racy (pmap # b ofs)).
+              rewrite perm_union_comm in Hno_race.
+              eapply no_race_racy with (p1 := (getThreadR pf) # b ofs); eauto.
+              rewrite HFree.
+              constructor.
+                by inversion Hnot_racy.
+            }
+            rewrite Hempty.
+            destruct ((getMaxPerm m') # b ofs); simpl; auto.
+          + rewrite getMaxPerm_correct. unfold permission_at.
+            assert (HeqCur := Heq Max).
+            rewrite <- HeqCur.
+            assert (H := compat_lp Hcompatible _ Hres b ofs).
+            assert (Hrestr_max := restrPermMap_Max (Hcompatible i pf) b ofs).
+            unfold permission_at in Hrestr_max.
+            rewrite Hrestr_max;
+              by eauto.
+        - apply Mem.nextblock_noaccess with (ofs := ofs) (k := Max) in Hinvalid.
+          assert (Hp := restrPermMap_Max (Hcompatible i pf) b ofs).
+          unfold permission_at in Hp. rewrite Hp in Hinvalid.
+          rewrite Hinvalid in Hlt.
+          simpl in Hlt.
+          destruct (pmap # b ofs);
+            [by exfalso| destruct ((getMaxPerm m') # b ofs); simpl; by auto].
       }
       { rewrite gsoThreadLock. intros b ofs.
         assert (Hlt := compat_ls Hcompatible b ofs).
-        admit. (* TODO: need lennart's new lemma about max perm*)
+        assert (Hdecay := corestep_decay Hcorestep).
+        destruct (valid_block_dec (restrPermMap (Hcompatible i pf)) b)
+          as [Hvalid|Hinvalid].
+        - destruct (Hdecay b ofs) as [ _ HdecayValid].
+          destruct (HdecayValid Hvalid) as [Hfreed | Heq]; clear Hdecay.
+          + destruct (Hfreed Cur) as [HFree Hdrop].
+            assert (Hempty: (lockSet tp) # b ofs = None).
+            { assert (Hp := restrPermMap_Cur (Hcompatible i pf) b ofs).
+              unfold permission_at in Hp. rewrite Hp in HFree.
+              assert (Hno_race := lock_set_threads Hinv).
+              unfold race_free in Hno_race.
+              specialize (Hno_race _ pf).
+              unfold permMapsDisjoint in Hno_race.
+              specialize (Hno_race b ofs).
+              assert (Hnot_racy : not_racy ((lockSet tp) # b ofs)).
+              rewrite perm_union_comm in Hno_race.
+              eapply no_race_racy with (p1 := (getThreadR pf) # b ofs); eauto.
+              rewrite HFree.
+              constructor.
+                by inversion Hnot_racy.
+            }
+            rewrite Hempty.
+            destruct ((getMaxPerm m') # b ofs); simpl; auto.
+          + rewrite getMaxPerm_correct. unfold permission_at.
+            assert (HeqCur := Heq Max).
+            rewrite <- HeqCur.
+            assert (H := compat_ls Hcompatible b ofs).
+            assert (Hrestr_max := restrPermMap_Max (Hcompatible i pf) b ofs).
+            unfold permission_at in Hrestr_max.
+            rewrite Hrestr_max;
+              by eauto.
+        - apply Mem.nextblock_noaccess with (ofs := ofs) (k := Max) in Hinvalid.
+          assert (Hp := restrPermMap_Max (Hcompatible i pf) b ofs).
+          unfold permission_at in Hp. rewrite Hp in Hinvalid.
+          rewrite Hinvalid in Hlt.
+          simpl in Hlt.
+          destruct ((lockSet tp) # b ofs);
+            [by exfalso| destruct ((getMaxPerm m') # b ofs); simpl; by auto].
       }
-    Admitted.
+    Qed.
 
     Lemma decay_disjoint:
       forall m m' p
@@ -372,14 +452,12 @@ Module CoreLanguage.
       intros.
       unfold permMapsDisjoint in *.
       intros.
-      apply decay_decay' in Hdecay.
-      unfold decay' in Hdecay.
       destruct (Hdecay b ofs) as [_ Hold].
       clear Hdecay.
       specialize (Hdisjoint b ofs).
       destruct (valid_block_dec m b) as [Hvalid | Hinvalid].
       - destruct (Hold Hvalid) as [Hfree | Heq].
-        + destruct Hfree as [_ Hm']. rewrite getCurPerm_correct.
+        + destruct (Hfree Cur) as [_ Hm']. rewrite getCurPerm_correct.
           assert (not_racy (permission_at m' b ofs Cur))
             by (unfold permission_at; rewrite Hm'; constructor).
             by eapply not_racy_union.
@@ -1454,104 +1532,111 @@ Module InternalSteps.
               (restrPermMap (Hcomp' _ cnt')).
     Proof.
       intros. unfold decay. intros b ofs.
-      assert (Hperm: permission_at
+      assert (HpermCur: permission_at
                        (restrPermMap (Hcomp' _ cnt')) b ofs Cur =
                      (getThreadR cnt') # b ofs)
         by (eapply restrPermMap_Cur; eauto).
-      unfold permission_at in Hperm.
+      assert (HpermMax: permission_at
+                          (restrPermMap (Hcomp' _ cnt')) b ofs Max =
+                        (Mem.mem_access m') # b ofs Max)
+        by (erewrite restrPermMap_Max;
+             erewrite getMaxPerm_correct;
+               by unfold permission_at).
+      unfold permission_at in *.
       destruct Hstep as [Hcstep | [[Hresume ?] | [Hstart ?]]]; subst.
       - inversion Hcstep. subst.
         eapply corestep_decay in Hcorestep.
-        unfold decay in *. intros.
-        specialize (Hcorestep b ofs).
-        assert (Hpmap: getThreadR cnt' = getCurPerm m')
-          by (by rewrite gssThreadRes).
-        unfold Mem.perm in *. 
-        repeat rewrite Hperm.
-        repeat rewrite Hpmap.
-        rewrite getCurPerm_correct.
-        unfold permission_at.
-          by assumption. 
+        destruct (Hcorestep b ofs).
+        split.
+        + intros.
+          erewrite restrPermMap_valid in H2.
+          assert (Hpmap: getThreadR cnt' = getCurPerm m')
+            by (by rewrite gssThreadRes).
+          specialize (H H1 H2).
+          destruct H as [H | H];
+            [left | right]; intros k;
+            specialize (H k);
+            destruct k;
+            try (rewrite HpermMax);
+            try (rewrite HpermCur); auto;
+          try (rewrite Hpmap;
+               rewrite getCurPerm_correct;
+               unfold permission_at;
+                 by assumption).
+        + intros Hvalid.
+          specialize (H0 Hvalid).
+          destruct H0 as [H0 | H0];
+            [left | right];
+            intros k;
+            specialize (H0 k);
+            [destruct H0 | idtac];
+            destruct k;
+            try rewrite HpermMax;
+            try rewrite HpermCur;
+            try split;
+            auto;
+          try rewrite gssThreadRes;
+          try rewrite getCurPerm_correct;
+          unfold permission_at;
+            by assumption.
       - inversion Hresume; subst.
         assert (Hpmap: getThreadR cnt' = getThreadR cnt)
           by (apply gThreadCR).
-        assert (Hperm0: permission_at
-                          (restrPermMap (Hcomp _ cnt)) b ofs Cur =
-                        (getThreadR cnt) # b ofs)
-          by (eapply restrPermMap_Cur; eauto).
-        unfold Mem.perm, permission_at in *.
-        rewrite Hperm Hperm0. rewrite Hpmap. auto.
-        split; auto.
-        intros Hinvalid p Hlt.
+        assert (H: forall k,
+                   (Mem.mem_access (restrPermMap (Hcomp' i cnt'))) # b ofs k =
+                   (Mem.mem_access (restrPermMap (Hcomp i cnt))) # b ofs k).
+        { intros k.
+          destruct k.
+          rewrite HpermMax.
+          assert (H := restrPermMap_Max (Hcomp i cnt) b ofs).
+          rewrite getMaxPerm_correct in H.
+          unfold permission_at in H;
+            by rewrite H.
+          rewrite HpermCur.
+          rewrite Hpmap.
+          assert (H := restrPermMap_Cur (Hcomp i cnt) b ofs).
+          unfold permission_at in H;
+            by rewrite H. }
+        split.
+        intros.
+        right.
+        intros k.
         apply Mem.nextblock_noaccess with (ofs := ofs)
-                                            (k := Cur) in Hinvalid.
-        rewrite Hinvalid in Hperm0. rewrite <- Hperm0 in Hlt.
-        simpl in Hlt. by exfalso.
+                                            (k := k) in H0.
+        specialize (H k).
+        rewrite H;
+          by assumption.
+        intros; auto.
       - inversion Hstart; subst.
         assert (Hpmap: getThreadR cnt' = getThreadR cnt)
           by (apply gThreadCR).
-        assert (Hperm0: permission_at
-                          (restrPermMap (Hcomp _ cnt)) b ofs Cur =
-                        (getThreadR cnt) # b ofs)
-          by (eapply restrPermMap_Cur; eauto).
-        unfold Mem.perm, permission_at in *.
-        rewrite Hperm Hperm0. rewrite Hpmap. auto.
-        split; auto.
-        intros Hinvalid p Hlt.
+        assert (H: forall k,
+                   (Mem.mem_access (restrPermMap (Hcomp' i cnt'))) # b ofs k =
+                   (Mem.mem_access (restrPermMap (Hcomp i cnt))) # b ofs k).
+        { intros k.
+          destruct k.
+          rewrite HpermMax.
+          assert (H := restrPermMap_Max (Hcomp i cnt) b ofs).
+          rewrite getMaxPerm_correct in H.
+          unfold permission_at in H;
+            by rewrite H.
+          rewrite HpermCur.
+          rewrite Hpmap.
+          assert (H := restrPermMap_Cur (Hcomp i cnt) b ofs).
+          unfold permission_at in H;
+            by rewrite H. }
+        split.
+        intros.
+        right.
+        intros k.
         apply Mem.nextblock_noaccess with (ofs := ofs)
-                                            (k := Cur) in Hinvalid.
-        rewrite Hinvalid in Hperm0. rewrite <- Hperm0 in Hlt.
-        simpl in Hlt. by exfalso.
-    Qed.
-
-    Lemma decay_trans :
-      forall m m' m'',
-        decay m m' ->
-        decay m' m'' ->
-        decay m m''.
-    Admitted. (* Lennart has proved that*)
-
-    (* This lemma is probably not useful anymore...*)
-    Lemma internal_execution_decay:
-      forall tp m tp' m' xs i (cnt: containsThread tp i)
-        (cnt': containsThread tp' i)
-        (Hcomp: mem_compatible tp m)
-        (Hcomp': mem_compatible tp' m')
-        (Hexec: internal_execution [seq x <- xs | x == i] tp m tp' m'),
-        decay (restrPermMap (Hcomp _ cnt))
-              (restrPermMap (Hcomp' _ cnt')).
-    Proof.
-      intros tp m tp' m' xs.
-      generalize dependent tp. generalize dependent m.
-      induction xs.
-      - intros. simpl in Hexec. inversion Hexec; subst.
-        pf_cleanup. admit. (*decay is refl *)
-        simpl in HschedN. discriminate.
-      - intros.
-        destruct (a == i) eqn:Heq; move/eqP:Heq=>Heq; subst.
-        + simpl in Hexec.
-          erewrite if_true in Hexec by (apply eq_refl).
-          inversion Hexec; subst; simpl in *.
-          inversion HschedN; subst tid.
-          assert (Hcomp'0: mem_compatible tp'0 m'0)
-            by (eapply internal_step_compatible; eauto).
-          assert (cnt0': containsThread tp'0 i)
-            by (eapply containsThread_internal_step; eauto).
-          pf_cleanup.
-          eapply IHxs with
-          (Hcomp := Hcomp'0) (Hcomp' := Hcomp')
-                             (cnt := cnt0') (cnt' := cnt') in Htrans.
-          assert (Hdecay:
-                    decay (restrPermMap (Hcomp _ cnt))
-                          (restrPermMap (Hcomp'0 _ cnt0')))
-            by (eapply internal_step_decay; eauto).
-          eapply decay_trans; eauto.
-        + simpl in Hexec.
-          erewrite if_false in Hexec
-            by (apply/eqP; assumption).
-          auto.
-    Admitted.
-
+                                            (k := k) in H0.
+        specialize (H k).
+        rewrite H;
+          by assumption.
+        intros; auto.
+    Qed.     
+                                                         
     Lemma internal_step_valid:
       forall tp m tp' m' i (cnt: containsThread tp i)
         (Hcomp: mem_compatible tp m)
@@ -1584,6 +1669,53 @@ Module InternalSteps.
       assert (Hvalid0: Mem.valid_block m'0 b)
         by (eapply internal_step_valid; eauto).
         by eauto.
+    Qed.
+ 
+    Lemma internal_execution_decay:
+      forall tp m tp' m' xs i (cnt: containsThread tp i)
+        (cnt': containsThread tp' i)
+        (Hcomp: mem_compatible tp m)
+        (Hcomp': mem_compatible tp' m')
+        (Hexec: internal_execution [seq x <- xs | x == i] tp m tp' m'),
+        decay (restrPermMap (Hcomp _ cnt))
+              (restrPermMap (Hcomp' _ cnt')).
+    Proof.
+      intros tp m tp' m' xs.
+      generalize dependent tp. generalize dependent m.
+      induction xs.
+      - intros. simpl in Hexec. inversion Hexec; subst.
+        pf_cleanup.
+          by apply decay_refl.
+        simpl in HschedN. discriminate.
+      - intros.
+        destruct (a == i) eqn:Heq; move/eqP:Heq=>Heq; subst.
+        + simpl in Hexec.
+          erewrite if_true in Hexec by (apply eq_refl).
+          inversion Hexec; subst; simpl in *.
+          inversion HschedN; subst tid.
+          assert (Hcomp'0: mem_compatible tp'0 m'0)
+            by (eapply internal_step_compatible; eauto).
+          assert (cnt0': containsThread tp'0 i)
+            by (eapply containsThread_internal_step; eauto).
+          pf_cleanup.
+          eapply IHxs with
+          (Hcomp := Hcomp'0) (Hcomp' := Hcomp')
+                             (cnt := cnt0') (cnt' := cnt') in Htrans.
+          assert (Hdecay:
+                    decay (restrPermMap (Hcomp _ cnt))
+                          (restrPermMap (Hcomp'0 _ cnt0')))
+            by (eapply internal_step_decay; eauto).
+          eapply decay_trans with (m' := restrPermMap (Hcomp'0 i cnt0'));
+            eauto.
+          intros.
+          erewrite restrPermMap_valid.
+          eapply internal_step_valid;
+            by eauto.
+
+        + simpl in Hexec.
+          erewrite if_false in Hexec
+            by (apply/eqP; assumption).
+          auto.
     Qed.
 
     Lemma internal_step_disjoint_val_lockPool :

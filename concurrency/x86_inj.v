@@ -247,7 +247,7 @@ Module X86Inj <: CoreInjections.
     rewrite Coqlib2.if_false; auto.
   Qed.
 
-  Lemma get_reg_ren:
+  Lemma get_reg_renC:
     forall f r rs rs',
       regset_ren f rs rs' ->
       rs' r = val_obsC f (rs r).
@@ -260,7 +260,32 @@ Module X86Inj <: CoreInjections.
     subst.
       by rewrite H1.
   Qed.
-  
+
+  Lemma get_reg_ren:
+    forall f r rs rs' v,
+      regset_ren f rs rs' ->
+      rs r = v ->
+      exists v', rs' r = v' /\ val_obs f v v'.
+  Proof.
+    intros.
+    unfold regset_ren, reg_ren in *.
+    specialize (H r).
+    unfold Pregmap.get in *.
+    rewrite H0 in H.
+    eexists;
+      by eauto.
+  Qed.
+
+  Lemma val_obs_reg:
+    forall f r rs rs',
+      regset_ren f rs rs' ->
+      val_obs f (rs r) (rs' r).
+  Proof.
+    intros.
+    specialize (H r).
+      by auto.
+  Qed.
+    
   Lemma regset_ren_trans:
     forall f f' f'' rs rs' rs'',
       regset_ren f rs rs'' ->
@@ -276,20 +301,6 @@ Module X86Inj <: CoreInjections.
     specialize (H0 r).
     eapply val_obs_trans;
       by eauto.
-  Qed.
-
-  Lemma loader_ren_trans:
-    forall f f' f'' loader loader' loader'',
-      loader_ren f loader loader'' ->
-      loader_ren f' loader loader' ->
-      (forall b b' b'' : block,
-          f b = Some b'' -> f' b = Some b' -> f'' b' = Some b'') ->
-      loader_ren f'' loader' loader''.
-  Proof.
-    intros.
-    unfold loader_ren in *.
-    destruct loader, loader', loader''.
-    destruct H, H0; split; subst; eauto.
   Qed.
 
   Lemma regset_ren_id:
@@ -309,6 +320,21 @@ Module X86Inj <: CoreInjections.
       by subst.
   Qed.
 
+  
+  Lemma loader_ren_trans:
+    forall f f' f'' loader loader' loader'',
+      loader_ren f loader loader'' ->
+      loader_ren f' loader loader' ->
+      (forall b b' b'' : block,
+          f b = Some b'' -> f' b = Some b' -> f'' b' = Some b'') ->
+      loader_ren f'' loader' loader''.
+  Proof.
+    intros.
+    unfold loader_ren in *.
+    destruct loader, loader', loader''.
+    destruct H, H0; split; subst; eauto.
+  Qed.
+
   Lemma loader_ren_id:
     forall f loader
       (Hloader_wd: loader_wd f loader)
@@ -322,6 +348,23 @@ Module X86Inj <: CoreInjections.
       [apply Hf in Hfsp;
          by subst | by exfalso].
   Qed.
+
+  Lemma loader_ren_incr:
+    forall f f' loader loader',
+      loader_ren f loader loader' ->
+      ren_incr f f' ->
+      loader_ren f' loader loader'.
+  Proof.
+    intros.
+    unfold loader_ren, ren_incr in *.
+    destruct loader, loader';
+      destruct H;
+        by auto.
+  Qed.
+
+  Hint Resolve
+       loader_ren_incr loader_ren_id loader_ren_trans
+       regset_ren_id val_obs_reg val_obs_add : renamings.
   
   Lemma ge_wd_incr :
     forall (f f' : memren) (g : SEM.G),
@@ -658,10 +701,10 @@ Module X86Inj <: CoreInjections.
       simpl in Heql0.
     destruct (rs EDX) eqn:?; simpl in *; inversion Heql0;
     subst;
-    erewrite get_reg_ren with (r := EDX); eauto;
+    erewrite get_reg_renC with (r := EDX); eauto;
     rewrite Heqv0; simpl;
     try constructor.
-    erewrite get_reg_ren with (f := f) (rs := rs) (rs' := rs0); eauto.
+    erewrite get_reg_renC with (f := f) (rs := rs) (rs' := rs0); eauto.
     destruct (rs EAX) eqn:Heax; subst;
     simpl;
     try constructor.
@@ -777,8 +820,183 @@ Module X86Inj <: CoreInjections.
            end; subst; eauto.
   Qed.
 
-End X86Inj.    
 
+  (** ** Proof that related states take related steps*)
+
+  Import MemObsEq.
+
+  Lemma find_funct_ptr_ren:
+    forall (g : genv) b1 b2 ofs (f fg : memren) fn
+      (Hge_inj: ge_inj fg g g)
+      (Hge_wd: ge_wd fg g)
+      (Hincr: ren_incr fg f)
+      (Hobs_eq: val_obs f (Vptr b1 ofs) (Vptr b2 ofs))
+      (Hget: Genv.find_funct_ptr g b1 = Some fn),
+      Genv.find_funct_ptr g b2 = Some fn.
+  Proof.
+    intros.
+    unfold Genv.find_funct_ptr in *.
+    assert (Hfg: fg b1 = Some b2).
+    { inversion Hobs_eq; subst.
+      destruct Hge_wd as [H1 H2].
+      specialize (H1 b1 ltac:(erewrite Hget; eauto)).
+      destruct (fg b1) eqn:Hfg; try by exfalso.
+      apply Hincr in Hfg.
+      rewrite Hfg in H0; inversion H0; by subst.
+    }
+    destruct Hge_inj as (_ & _ & Hfn & _).
+    specialize (Hfn _ _ Hfg);
+      by rewrite <- Hfn.
+  Qed.
+
+  (** Executing an instruction in related states results in related
+  states: 1. The renaming function is extended to accommodate newly
+  allocated blocks. 2. The extension to the renaming only relates
+  newly allocated blocks 3. The nextblock of the two memories is
+  increased by the same amount of blocks 4. Any newly allocated block
+  on the second memory is mapped by a new block on the first memory
+  (computable inverse) 5. If the initial nextblocks are equal and the
+  two memories were related by an id renaming, then the new memories
+  are still related by an (extended) id renaming*)
+  Lemma exec_instr_ren:
+    forall (g : genv) (fn : function) (i : instruction) (rs rs' rs2: regset)
+      (m m' m2 : mem) (f fg: memren)
+      (Hmem_obs_eq: mem_obs_eq f m m')
+      (Hrs_eq: regset_ren f rs rs')
+      (Hge_inj: ge_inj fg g g)
+      (Hge_wd: ge_wd fg g)
+      (Hincr: ren_incr fg f)
+      (Hexec: exec_instr g fn i rs m = Next rs2 m2),
+    exists f' rs2' m2',
+      exec_instr g fn i rs' m' = Next rs2' m2' /\
+      regset_ren f' rs2 rs2' /\
+      mem_obs_eq f' m2 m2' /\
+      ren_incr f f' /\
+      ren_separated f f' m m' /\
+      ((exists p : positive,
+           Mem.nextblock m2 = (Mem.nextblock m + p)%positive /\
+           Mem.nextblock m2' = (Mem.nextblock m' + p)%positive) \/
+       Mem.nextblock m2 = Mem.nextblock m /\
+       Mem.nextblock m2' = Mem.nextblock m') /\
+      (forall b0 : block,
+          Mem.valid_block m2' b0 ->
+          ~ Mem.valid_block m' b0 ->
+          f'
+            (Z.to_pos
+               match (- Z.pos_sub (Mem.nextblock m') (Mem.nextblock m))%Z with
+               | 0%Z => Z.pos b0
+               | Z.pos y' => Z.pos (b0 + y')
+               | Z.neg y' => Z.pos_sub b0 y'
+               end) = Some b0 /\
+          f
+            (Z.to_pos
+               match (- Z.pos_sub (Mem.nextblock m') (Mem.nextblock m))%Z with
+               | 0%Z => Z.pos b0
+               | Z.pos y' => Z.pos (b0 + y')
+               | Z.neg y' => Z.pos_sub b0 y'
+               end) = None) /\
+      (Mem.nextblock m = Mem.nextblock m' ->
+       (forall b1 b3 : block, f b1 = Some b3 -> b1 = b3) ->
+       forall b1 b0 : block, f' b1 = Some b0 -> b1 = b0).
+  Proof.
+    Admitted.
+  
+  Lemma corestep_obs_eq:
+    forall (cc cf cc' : Asm_coop.state) (mc mf mc' : mem) f fg,
+      mem_obs_eq f mc mf ->
+      core_inj f cc cf ->
+      ge_inj fg the_ge the_ge ->
+      ge_wd fg the_ge ->
+      ren_incr fg f ->
+      corestep SEM.Sem the_ge cc mc cc' mc' ->
+      exists (cf' : Asm_coop.state) (mf' : mem) (f' : Renamings.memren),
+        corestep SEM.Sem the_ge cf mf cf' mf' /\
+        core_inj f' cc' cf' /\
+        mem_obs_eq f' mc' mf' /\
+        ren_incr f f' /\
+        ren_separated f f' mc mf /\
+        ((exists p : positive,
+             Mem.nextblock mc' = (Mem.nextblock mc + p)%positive /\
+             Mem.nextblock mf' = (Mem.nextblock mf + p)%positive) \/
+         Mem.nextblock mc' = Mem.nextblock mc /\
+         Mem.nextblock mf' = Mem.nextblock mf) /\
+        (forall b : block,
+            Mem.valid_block mf' b ->
+            ~ Mem.valid_block mf b ->
+            let bz :=
+                (Z.pos b - (Z.pos (Mem.nextblock mf) - Z.pos (Mem.nextblock mc)))%Z in
+            f' (Z.to_pos bz) = Some b /\ f (Z.to_pos bz) = None) /\
+        (Mem.nextblock mc = Mem.nextblock mf ->
+         (forall b1 b2 : block, f b1 = Some b2 -> b1 = b2) ->
+         forall b1 b2 : block, f' b1 = Some b2 -> b1 = b2).
+  Proof with (eauto with renamings).
+    intros cc cf cc' mc mf mc' f fg Hobs_eq Hcore_inj Hge_inj Hge_wd Hincr Hcorestep.
+    destruct cc as [rs loader | |]; simpl in *;
+    destruct cf as [rsF loaderF | |]; try by exfalso.
+    - destruct Hcore_inj as [Hrs_ren Hloader_ren].
+      inversion Hcorestep; subst.
+      + assert (Hpc' := get_reg_ren PC Hrs_ren H1).
+        destruct Hpc' as [v' [Hpc' Hpc_obs]].
+        inversion Hpc_obs; subst. rewrite <- H0 in Hpc_obs.
+        assert (Hfun := find_funct_ptr_ren Hge_inj Hge_wd Hincr Hpc_obs H2).
+        destruct (exec_instr_ren _ _ Hobs_eq Hrs_ren Hge_inj Hge_wd Hincr H7)
+          as (f' & rsF' & mF' & Hexec' & Hrs_ren' & Hobs_eq' & Hincr' & Hsep
+              & Hnextblocks & Hinverse & Hid_extend).
+        exists (State rsF' loaderF), mF', f'.
+        repeat match goal with
+               | [ |- _ /\ _] =>
+                split; simpl; eauto with renamings
+               end.
+        econstructor...
+      + assert (Hpc' := get_reg_ren PC Hrs_ren H1).
+        destruct Hpc' as [v' [Hpc' Hpc_obs]].
+        inversion Hpc_obs; subst. rewrite <- H0 in Hpc_obs.
+        assert (Hfun := find_funct_ptr_ren Hge_inj Hge_wd Hincr Hpc_obs H2).
+
+        Lemma eval_builtin_args_ren:
+          forall (g : genv) (rs rs' : regset) (f fg: memren) (m m' : mem)
+            (args : seq (builtin_arg preg)) (vargs : seq val)
+            (Hmem_obs_eq: mem_obs_eq f m m')
+            (Hrs_ren: regset_ren f rs rs')
+            (Hge_inj: ge_inj fg g g)
+            (Hge_wd: ge_wd fg g)
+            (Hincr: ren_incr fg f)
+            (Heval: eval_builtin_args g rs (rs ESP) m args vargs),
+          exists vargs',
+            eval_builtin_args g rs' (rs' ESP) m' args vargs' /\
+            val_obs_list f vargs vargs'.
+        Proof.
+          intros.
+          induction Heval; subst.
+          exists [::].
+          split;
+            by constructor.
+          
+
+          Lemma eval_builtin_arg_ren:
+            forall (g : genv) (rs rs' : regset) (f fg: memren) (m m' : mem)
+              (arg : builtin_arg preg) (varg : val)
+              (Hmem_obs_eq: mem_obs_eq f m m')
+              (Hrs_ren: regset_ren f rs rs')
+              (Hge_inj: ge_inj fg g g)
+              (Hge_wd: ge_wd fg g)
+              (Hincr: ren_incr fg f)
+              (Heval: eval_builtin_arg g rs (rs ESP) m arg varg),
+            exists varg',
+              eval_builtin_arg g rs' (rs' ESP) m' arg varg' /\
+              val_obs f varg varg'.
+          Proof with (eauto with renamings).
+            intros.
+            inversion Heval; subst;
+            try (by (eexists; split;
+                     (econstructor || eauto with renamings))).
+            
+            
+            
+            
+            
+  
+End X86Inj.    
 
 
 

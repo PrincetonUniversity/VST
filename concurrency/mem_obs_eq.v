@@ -664,6 +664,17 @@ Module ValObsEq.
       by rewrite IHHval_obs.
   Qed.
 
+  Lemma val_obs_add:
+    forall f v1 v2 ofs
+      (Hval_obs: val_obs f v1 v2),
+      val_obs f (Val.add v1 (Vint ofs)) (Val.add v2 (Vint ofs)).
+  Proof.
+    intros.
+    destruct v1; inversion Hval_obs; subst;
+    simpl;
+      by constructor.
+  Qed.
+
 End ValObsEq.
   
 (** ** Injections between memories *)
@@ -953,7 +964,7 @@ Module MemObsEq.
     intros. inversion H; destruct chunk; simpl; econstructor; eauto.
   Qed.
   
-  Lemma decode_val_inject:
+  Lemma decode_val_obs:
     forall f vl1 vl2 chunk,
       Coqlib.list_forall2 (memval_obs_eq f) vl1 vl2 ->
       val_obs f (decode_val chunk vl1) (decode_val chunk vl2).
@@ -999,6 +1010,19 @@ Module MemObsEq.
       val_obs f v1 v2.
   Proof.
   Admitted.
+
+  (*TODO: The Proof. Should be same as above*)
+  Lemma loadv_val_obs:
+    forall (mc mf : mem) (f:memren)
+      (vptr1 vptr2 : val) chunk (ofs : Z) v1
+      (Hload: Mem.loadv chunk mc vptr1 = Some v1)
+      (Hf: val_obs f vptr1 vptr2)
+      (Hobs_eq: strong_mem_obs_eq f mc mf),
+    exists v2,
+      Mem.loadv chunk mf vptr2 = Some v2 /\
+      val_obs f v1 v2.
+  Proof.
+    Admitted.
 
   (** ** Lemmas about [Mem.store] and [mem_obs_eq]*)
   (*TODO: The proof*)
@@ -1073,33 +1097,39 @@ Import dry_context SEM mySchedule DryMachine DryMachine.ThreadPool.
 
 Module Type CoreInjections.
 
-  Import ValObsEq MemoryWD Renamings.
+  Import ValObsEq MemoryWD Renamings MemObsEq.
 
   Parameter core_wd : memren -> C -> Prop.
   Parameter ge_wd : memren -> G -> Prop.
+  
   Parameter ge_wd_incr: forall f f' (g : G),
       ge_wd f g ->
       ren_domain_incr f f' ->
       ge_wd f' g.
+  
   Parameter ge_wd_domain : forall f f' m (g : G),
       ge_wd f g ->
       domain_memren f m ->
       domain_memren f' m ->
       ge_wd f' g.
+  
   Parameter core_wd_incr : forall f f' c,
       core_wd f c ->
       ren_domain_incr f f' ->
       core_wd f' c.
+  
   Parameter core_wd_domain : forall f f' m c,
       core_wd f c ->
       domain_memren f m ->
       domain_memren f' m ->
       core_wd f' c.
+  
   Parameter at_external_wd:
     forall f c ef sig args,
       core_wd f c ->
       at_external Sem c = Some (ef, sig, args) ->
       valid_val_list f args.
+  
   Parameter after_external_wd:
     forall c c' f ef sig args ov,
       at_external Sem c = Some (ef, sig, args) ->
@@ -1107,18 +1137,22 @@ Module Type CoreInjections.
       valid_val_list f args ->
       after_external Sem ov c = Some c' ->
       core_wd f c'.
+  
   Parameter initial_core_wd:
     forall f vf arg c_new,
       initial_core Sem the_ge vf [:: arg] = Some c_new ->
       valid_val f arg ->
       ge_wd f the_ge ->
       core_wd f c_new.
+  
   Parameter core_inj: memren -> C -> C -> Prop.
   Parameter ge_inj: memren -> G -> G -> Prop.
+  
   Parameter ge_inj_id: forall f g,
       ge_wd f g -> 
       (forall b1 b2, f b1 = Some b2 -> b1 = b2) ->
       ge_inj f g g.
+  
   Parameter core_inj_ext: 
     forall c c' f (Hinj: core_inj f c c'),
       match at_external Sem c, at_external Sem c' with
@@ -1127,6 +1161,7 @@ Module Type CoreInjections.
       | None, None => True
       | _, _ => False
       end.
+  
   Parameter core_inj_after_ext: 
     forall c cc c' ov1 f (Hinj: core_inj f c c'),
       match ov1 with
@@ -1147,6 +1182,7 @@ Module Type CoreInjections.
                  | _ => False
                  end
         end.
+  
   Parameter core_inj_halted:
     forall c c' f (Hinj: core_inj f c c'),
       match halted Sem c, halted Sem c' with
@@ -1154,6 +1190,7 @@ Module Type CoreInjections.
       | None, None => True
       | _, _ => False
       end.
+  
   Parameter core_inj_init:
     forall vf vf' arg arg' c_new f fg
       (Hf: val_obs_list f arg arg')
@@ -1165,10 +1202,12 @@ Module Type CoreInjections.
     exists c_new',
       initial_core Sem the_ge vf' arg' = Some c_new' /\
       core_inj f c_new c_new'.
+  
   Parameter core_inj_id: forall c f,
       core_wd f c -> 
       (forall b1 b2, f b1 = Some b2 -> b1 = b2) ->
       core_inj f c c.
+  
   Parameter core_inj_trans:
     forall c c' c'' (f f' f'' : memren)
       (Hcore_inj: core_inj f c c'')
@@ -1178,6 +1217,38 @@ Module Type CoreInjections.
           f' b = Some b' ->
           f'' b' = Some b''),
       core_inj f'' c' c''.
+
+  Parameter corestep_obs_eq:
+    forall cc cf cc' mc mf mc' f
+      (Hobs_eq: mem_obs_eq f mc mf)
+      (Hcode_eq: core_inj f cc cf)
+      (Hstep: corestep Sem the_ge cc mc cc' mc'),
+    exists cf' mf' f',
+      corestep Sem the_ge cf mf cf' mf'
+      /\ core_inj f' cc' cf'
+      /\ mem_obs_eq f' mc' mf'
+      /\ ren_incr f f'
+      /\ ren_separated f f' mc mf
+      /\ (forall b1 b1' b2,
+            f b1 = None ->
+            f b1' = None ->
+            f' b1 = Some b2 ->
+            f' b1' = Some b2 ->
+            b1 = b1')
+      /\ ((exists p, ((Mem.nextblock mc' = Mem.nextblock mc + p)%positive /\
+                (Mem.nextblock mf' = Mem.nextblock mf + p)%positive))
+         \/ ((Mem.nextblock mc' = Mem.nextblock mc) /\
+            (Mem.nextblock mf' = Mem.nextblock mf)))
+      /\ (forall b,
+            Mem.valid_block mf' b ->
+            ~ Mem.valid_block mf b ->
+            let bz := ((Zpos b) - ((Zpos (Mem.nextblock mf)) -
+                                   (Zpos (Mem.nextblock mc))))%Z in
+            f' (Z.to_pos bz) = Some b /\
+            f (Z.to_pos bz) = None)
+      /\ (Mem.nextblock mc = Mem.nextblock mf ->
+         (forall b1 b2, f b1 = Some b2 -> b1 = b2) ->
+         forall b1 b2, f' b1 = Some b2 -> b1 = b2).
 
 End CoreInjections.
 

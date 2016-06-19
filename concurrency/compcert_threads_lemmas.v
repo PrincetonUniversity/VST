@@ -224,7 +224,6 @@ End SimDefs.
 (** ** Proofs *)
 Module SimProofs (CI: CoreInjections).
   Import mySchedule CoreLanguage InternalSteps.
-  Require Import sepcomp.closed_safety.
   Import ThreadPoolWF StepLemmas StepType.
   Import MemoryWD MemObsEq ValObsEq MemoryLemmas.
   Module ThreadPoolInjections := ThreadPoolInjections CI.
@@ -261,38 +260,6 @@ Module SimProofs (CI: CoreInjections).
 
   (** Assumptions on threadwise semantics*)
   Context {cSpec : corestepSpec}.
-  
-  Hypothesis corestep_obs_eq:
-    forall cc cf cc' mc mf mc' f
-      (Hobs_eq: mem_obs_eq f mc mf)
-      (Hcode_eq: core_inj f cc cf)
-      (Hstep: corestep Sem the_ge cc mc cc' mc'),
-    exists cf' mf' f',
-      corestep Sem the_ge cf mf cf' mf'
-      /\ core_inj f' cc' cf'
-      /\ mem_obs_eq f' mc' mf'
-      /\ ren_incr f f'
-      /\ ren_separated f f' mc mf
-      /\ (forall b1 b1' b2,
-            f b1 = None ->
-            f b1' = None ->
-            f' b1 = Some b2 ->
-            f' b1' = Some b2 ->
-            b1 = b1')
-      /\ ((exists p, ((Mem.nextblock mc' = Mem.nextblock mc + p)%positive /\
-                (Mem.nextblock mf' = Mem.nextblock mf + p)%positive))
-         \/ ((Mem.nextblock mc' = Mem.nextblock mc) /\
-            (Mem.nextblock mf' = Mem.nextblock mf)))
-      /\ (forall b,
-            Mem.valid_block mf' b ->
-            ~ Mem.valid_block mf b ->
-            let bz := ((Zpos b) - ((Zpos (Mem.nextblock mf)) -
-                                   (Zpos (Mem.nextblock mc))))%Z in
-            f' (Z.to_pos bz) = Some b /\
-            f (Z.to_pos bz) = None)
-      /\ (Mem.nextblock mc = Mem.nextblock mf ->
-         (forall b1 b2, f b1 = Some b2 -> b1 = b2) ->
-         forall b1 b2, f' b1 = Some b2 -> b1 = b2).
 
   Lemma ctlType_inj :
     forall c c' (f: memren)
@@ -619,19 +586,6 @@ Module SimProofs (CI: CoreInjections).
       by auto.
   Qed.
 
-  Lemma diluteMem_decay :
-    forall m m'
-      (Hdecay: decay m m'),
-      decay m (diluteMem m').
-  Proof.
-    intros.
-    unfold decay in *.
-    unfold Mem.perm in *. intros b ofs.
-    assert (Hperm:= setMaxPerm_Cur m' b ofs).
-    unfold permission_at in Hperm.
-    rewrite Hperm.
-      by auto.
-  Qed.
 
   (** Profs about [mem_obs_eq] and [weak_mem_obs_eq] *)
   
@@ -1001,7 +955,6 @@ Module SimProofs (CI: CoreInjections).
     destruct (j == tid) eqn:Hjtid; move/eqP:Hjtid=>Hjtid.
     - subst.
       eapply corestep_decay in Hcorestep.
-      apply decay_decay' in Hcorestep.
       specialize (Hcorestep b2 ofs).
       destruct Hcorestep as [_ Hold].
       apply Hcodomain_valid in Hf.
@@ -1012,7 +965,7 @@ Module SimProofs (CI: CoreInjections).
       rewrite getCurPerm_correct.
       unfold permission_at.
       destruct Hold as [Hfree | Heq].
-      + destruct Hfree as [Hfreeable Hempty].
+      + destruct (Hfree Cur) as [Hfreeable Hempty].
         rewrite Hempty.
         destruct ((getThreadR pfcj) # b1 ofs); simpl;
           by constructor.
@@ -1434,13 +1387,14 @@ Module SimProofs (CI: CoreInjections).
         absurd_internal HstepF_empty;
           try by erewrite gThreadCR with (cntj := Htid).
         apply corestep_decay in Hcorestep.
-        apply decay_decay' in Hcorestep.
         destruct (Hcorestep b2 ofs) as [_ Hdecay_valid].
         assert (Hp := restrPermMap_Cur (HmemCompF _ Htid ) b2 ofs).
         unfold permission_at in Hp.
-        destruct (Hdecay_valid Hcodomain) as [[Hcontra _]| Hstable].
+        destruct (Hdecay_valid Hcodomain) as [Hnew | Hstable].
+        destruct (Hnew Cur) as [Hcontra _].
         rewrite Hp in Hcontra;
           by congruence.
+        specialize (Hstable Cur).
         rewrite Hp in Hstable.
         rewrite Hownedj in Hstable.
         erewrite gssThreadRes.
@@ -2948,13 +2902,14 @@ Module SimProofs (CI: CoreInjections).
                 erewrite restrPermMap_Cur.
                 assert (Hdecay := internal_execution_decay).
                 specialize (Hdecay _ _ _ _ _ _ pfcj'' pfij memCompC'' Hcompij Hexecij).
-                unfold decay in Hdecay.
-                apply decay_decay' in Hdecay.
+
                 specialize (Hdecay b1 ofs).
                 destruct Hdecay as [_ Hold].
                 erewrite restrPermMap_valid in Hold.
                 specialize (Hold Hvalidmc'').
-                destruct Hold as [[Hcontra _] | Heq]; first by congruence.
+                destruct Hold as [Hold | Heq];
+                  first by (destruct (Hold Cur); congruence).
+                specialize (Heq Cur).
                 rewrite Hpermj_mc'' in Heq.
                 assert (Hperm_at := restrPermMap_Cur (Hcompij j pfij) b1 ofs).
                 unfold permission_at in Hperm_at. by rewrite Hperm_at in Heq.

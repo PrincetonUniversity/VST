@@ -141,7 +141,8 @@ CONCUR_FILES= \
   mem_obs_eq.v dry_machine_lemmas.v dry_context.v compcert_threads_lemmas.v \
   x86_inj.v x86_safety.v \
   erasure.v semax_conc.v semax_to_machine.v semax_to_juicy_machine.v Clight_erasure.v \
-#lifting.v
+lifting.v
+
 CCC26x86_FILES = \
   Archi.v Bounds.v Conventions1.v Conventions.v Ctypes.v \
   Locations.v Op.v Ordered.v Stacklayout.v Linear.v LTL.v \

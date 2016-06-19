@@ -2,6 +2,7 @@ From mathcomp.ssreflect Require Import ssreflect seq ssrbool
         ssrnat ssrfun eqtype seq fintype finfun.
 
 Set Implicit Arguments.
+Require Import sepcomp.mem_lemmas.
 Require Import concurrency.threads_lemmas.
 Require Import compcert.common.Memory.
 Require Import compcert.common.Values. (*for val*)
@@ -1235,7 +1236,7 @@ Section ShareMaps.
            end
          end) smap pmap.2.
      
-  Definition decay m_before m_after := forall b ofs, 
+  (*Definition decay m_before m_after := forall b ofs, 
       (~Mem.valid_block m_before b ->
        forall p, Mem.perm m_after b ofs Cur p -> Mem.perm m_after b ofs Cur Freeable) /\
       (Mem.perm m_before b ofs Cur Freeable ->
@@ -1243,25 +1244,75 @@ Section ShareMaps.
       (~Mem.perm m_before b ofs Cur Freeable ->
        forall p, Mem.perm m_before b ofs Cur p -> Mem.perm m_after b ofs Cur p) /\
       (Mem.valid_block m_before b ->
-       forall p, Mem.perm m_after b ofs Cur p -> Mem.perm m_before b ofs Cur p).
+       forall p, Mem.perm m_after b ofs Cur p -> Mem.perm m_before b ofs Cur p). *)
   
-  Definition decay' m_before m_after := forall b ofs, 
+  Definition decay m_before m_after := forall b ofs, 
       (~Mem.valid_block m_before b ->
        Mem.valid_block m_after b ->
-       Maps.PMap.get b (Mem.mem_access m_after) ofs Cur = Some Freeable
-      \/ Maps.PMap.get b (Mem.mem_access m_after) ofs Cur = None) /\
+       (forall k, Maps.PMap.get b (Mem.mem_access m_after) ofs k = Some Freeable)
+       \/ (forall k, Maps.PMap.get b (Mem.mem_access m_after) ofs k = None)) /\
       (Mem.valid_block m_before b ->
-       ((Maps.PMap.get b (Mem.mem_access m_before) ofs Cur = Some Freeable /\
-         Maps.PMap.get b (Mem.mem_access m_after) ofs Cur = None)) \/
-       (Maps.PMap.get b (Mem.mem_access m_before) ofs Cur =
-             Maps.PMap.get b (Mem.mem_access m_after) ofs Cur)).
+       (forall k,
+           (Maps.PMap.get b (Mem.mem_access m_before) ofs k = Some Freeable /\
+            Maps.PMap.get b (Mem.mem_access m_after) ofs k = None)) \/
+       (forall k, Maps.PMap.get b (Mem.mem_access m_before) ofs k =
+             Maps.PMap.get b (Mem.mem_access m_after) ofs k)).
 
-  Lemma decay_decay' :
+  Lemma decay_refl:
+    forall m,
+      decay m m.
+  Proof.
+    intros m b ofs.
+    split; intros; first by exfalso.
+    right; auto.
+  Qed.
+  
+  Lemma decay_trans :
+    forall m m' m'',
+      (forall b, Mem.valid_block m b -> Mem.valid_block m' b) ->
+      decay m m' ->
+      decay m' m'' ->
+      decay m m''.
+  Proof.
+    intros m m' m'' Hvblocks H H0.
+    unfold decay in *.
+    intros b ofs.
+    specialize (H b ofs).
+    specialize (H0 b ofs).
+    destruct H, H0.
+    split.
+    - intros Hinvalid Hvalid''.
+      destruct (valid_block_dec m' b) as [Hvalid' | Hinvalid'];
+        eauto.
+      specialize (H Hinvalid Hvalid').
+      specialize (H2 Hvalid').
+      destruct H2.
+      right. intros k; destruct (H2 k); eauto.
+      destruct H;
+        [left | right]; intros k; specialize (H k);
+        specialize (H2 k); rewrite <- H2; auto.
+    - intros Hvalid.
+      clear H.
+      specialize (H1 Hvalid).
+      specialize (Hvblocks _ Hvalid).
+      specialize (H2 Hvblocks).
+      destruct H2 as [H2 | H2], H1 as [H1 | H1].
+      + left; intros k; destruct (H1 k); destruct (H2 k);
+        eauto.
+      + left; intros k; specialize (H1 k); destruct (H2 k);
+        rewrite H1; eauto.
+      + left; intros k; destruct (H1 k); specialize (H2 k);
+        rewrite <- H2; eauto.
+      + right; intros k; specialize (H1 k); specialize (H2 k);
+        rewrite H1; rewrite H2; eauto.
+  Qed.
+
+  (*Lemma decay_decay' :
     forall m m',
       decay m m' ->
       decay' m m'.
   Proof.
-  Admitted.
+  Admitted. *)
   
   Definition shareMapsJoin (smap1 smap2 smap3 : share_map) : Prop :=
     forall b ofs,
