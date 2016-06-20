@@ -8,6 +8,7 @@ Require Import compcert.common.Memory.
 Require Import compcert.common.Memdata.
 Require Import compcert.common.Values.
 
+Require Import msl.Coqlib2.
 Require Import msl.eq_dec.
 Require Import veric.initial_world.
 Require Import veric.juicy_mem.
@@ -21,6 +22,7 @@ Require Import veric.juicy_extspec.
 Require Import veric.initial_world.
 Require Import veric.juicy_extspec.
 Require Import veric.tycontext.
+Require Import veric.semax_ext.
 Require Import veric.semax_ext_oracle.
 Require Import sepcomp.semantics.
 Require Import sepcomp.step_lemmas.
@@ -28,6 +30,7 @@ Require Import concurrency.semax_conc.
 Require Import concurrency.juicy_machine.
 Require Import concurrency.concurrent_machine.
 Require Import concurrency.scheduler.
+  
 
 Set Bullet Behavior "Strict Subproofs".
 
@@ -36,7 +39,11 @@ Ltac eassert :=
   pose (mp := fun {goal Q : Type} (x : goal) (y : goal -> Q) => y x);
   eapply mp; clear mp.
 
-(* Instantiation of modules *)
+(* debugging *)
+Axiom HOLE : forall {A}, A.
+Open Scope string_scope.
+
+(*! Instantiation of modules *)
 Module ClightSEM <: Semantics.
   Definition G := genv.
   Definition C := corestate.
@@ -47,18 +54,17 @@ Module JuicyMachineShell_ClightSEM := Concur.JuicyMachineShell ClightSEM.
 Module ListScheduler_NatTID := ListScheduler NatTID.
 Module JuicyMachine:= CoarseMachine (ListScheduler_NatTID) (JuicyMachineShell_ClightSEM).
 
-Definition join_list := JuicyMachineShell_ClightSEM.join_list.
+(* Definition join_list := JuicyMachineShell_ClightSEM.join_list. *)
 Definition schedule := ListScheduler_NatTID.schedule.
 Definition threads_and_lockpool := JuicyMachine.SIG.ThreadPool.t.
 Module Machine := JuicyMachineShell_ClightSEM.ThreadPool.
+Module JM := JuicyMachineShell_ClightSEM.
 
-Definition cm_state := (Mem.mem * genv * (schedule * threads_and_lockpool))%type.
+(*+ Description of the invariant *)
 
-(* Module JTP:=JuicyMachine.SIG.ThreadPool. *)
+Definition cm_state := (Mem.mem * Clight.genv * (schedule * Machine.t))%type.
 
-(* debugging *)
-Axiom HOLE : forall {A}, A.
-Open Scope string_scope.
+(*! Coherence between locks in dry/wet memories and lock pool *)
 
 Definition islock_pred R r := exists sh sh' z, r = YES sh sh' (LK z) (SomeP ((unit:Type)::nil) (fun _ => R)).
 
@@ -74,45 +80,79 @@ Inductive cohere_res_lock : forall (resv : option (option rmap)) (wetv : resourc
     R phi ->
     cohere_res_lock (Some (Some phi)) wetv (Byte (Integers.Byte.one)).
 
-Definition state_invariant {Z} (Jspec : juicy_ext_spec Z) (n : nat) (state : cm_state) : Prop :=
-  match state with
-  | (m, ge, (sch, Machine.mk nthds thds phis lockset as sss)) =>
-    
-    (* joinability condition *)
-    (exists phi_all,
-        (* JuicyMachineShell_ClightSEM.join_all sss phi_all *)
-        (* /\ *)
-        
-        (* coherence between locks (dry, wet, and lockset) *)
-        (forall lock : Address.address,
-            cohere_res_lock
-              (@addressFiniteMap.AMap.find _ lock lockset)
-              (phi_all @ lock)
-              (contents_at m lock)))
-    /\
-    JuicyMachineShell_ClightSEM.mem_compatible sss m
-    /\
-    
-    (* safety of each thread *)
-    (forall i pr_i phi jmi (ora : Z),
-        (* why is the i implicit?*)
-        @Machine.getThreadR i sss pr_i = phi ->
-        m_dry jmi = m ->
-        m_phi jmi = phi ->
-        match @Machine.getThreadC i sss pr_i with
-        | Krun q => semax.jsafeN Jspec ge n ora q jmi
-        | Kblocked q
-        | Kresume q _ => semax.jsafeN Jspec ge n ora q jmi /\ cl_at_external q <> None
-        | Kinit _ _ => True
-        end)
-    /\
-    
-    (* if one thread is running, it has to be the one being scheduled *)
-    (* except if there is only one, then we don't require anything *)
-    (lt 1 nthds.(pos.n) -> forall i pr_i q (ora : Z),
-        @Machine.getThreadC i sss pr_i = Krun q ->
-        exists sch', sch = i :: sch')
-  end.
+Definition lock_coherence lset (phi : rmap) (m : mem) :=
+  forall lock : Address.address,
+    cohere_res_lock
+      (@addressFiniteMap.AMap.find _ lock lset)
+      (phi @ lock)
+      (contents_at m lock).
+
+(*! Joinability and coherence *)
+
+Record mem_compatible_rmap (tp : JM.ThreadPool.t) (m : mem) (all_juice : rmap) : Prop :=
+  Build_mem_compatible_rmap
+  { juice_join : JM.join_all tp all_juice;
+    all_cohere : JM.mem_cohere' m all_juice;
+    loc_writable : JM.locks_writable all_juice;
+    loc_set_ok : JM.locks_correct (JM.ThreadPool.lockGuts tp) all_juice }.
+
+Lemma mem_compatible_forget {tp m phi} :
+  mem_compatible_rmap tp m phi -> JM.mem_compatible tp m.
+Proof. intros []; intros. hnf. econstructor; eauto. Qed.
+
+Definition jm_
+  {tp m PHI i}
+  (cnti : Machine.containsThread tp i)
+  (mcompat : mem_compatible_rmap tp m PHI)
+  : juicy_mem :=
+  JM.personal_mem cnti (mem_compatible_forget mcompat).
+
+(*
+(*! Safety of each thread *)
+
+Definition threads_safety {Z} (Jspec : juicy_ext_spec Z) ge (tp : JM.ThreadPool.t) (m : mem) (all_juice : rmap) n := 
+  forall i cnti phi jmi (ora : Z),
+    @Machine.getThreadR i tp cnti = phi ->
+    m_dry jmi = m ->
+    m_phi jmi = phi ->
+    match @Machine.getThreadC i tp cnti with
+    | Krun q => semax.jsafeN Jspec ge n ora q jmi
+    | Kblocked q
+    | Kresume q _ => semax.jsafeN Jspec ge n ora q jmi /\ cl_at_external q <> None
+    | Kinit _ _ => Logic.True
+    end.
+*)
+(*! Invariant (= above properties + safety + uniqueness of Krun) *)
+
+Inductive state_invariant {Z} (Jspec : juicy_ext_spec Z) (n : nat) : cm_state -> Prop :=
+  | state_invariant_c
+      (m : mem) (ge : genv) (sch : schedule) (tp : Machine.t) (PHI : rmap)
+      (mcompat : mem_compatible_rmap tp m PHI)
+      (lock_coh : lock_coherence tp.(Machine.lset) PHI m)
+      (safety :
+         forall i (cnti : Machine.containsThread tp i) (ora : Z),
+           match Machine.getThreadC cnti with
+           | Krun q
+           | Kblocked q
+           | Kresume q _ => semax.jsafeN Jspec ge n ora q (jm_ cnti mcompat)
+           | Kinit _ _ => Logic.True
+           end
+      )
+      (wellformed :
+         forall i (cnti : Machine.containsThread tp i) (ora : Z),
+           match Machine.getThreadC cnti with
+           | Krun q => Logic.True
+           | Kblocked q
+           | Kresume q _ => cl_at_external q <> None
+           | Kinit _ _ => Logic.True
+           end
+      )
+      (uniqueness_Krun :
+         (lt 1 tp.(Machine.num_threads).(pos.n) -> forall i cnti q (ora : Z),
+             @Machine.getThreadC i tp cnti = Krun q ->
+             exists sch', sch = i :: sch'))
+    :
+      state_invariant Jspec n (m, ge, (sch, tp)).
 
 Lemma jsafeN_proof_irrelevance Z OK_spec prog oracle c jm jm' :
   m_dry jm = m_dry jm' ->
@@ -120,6 +160,8 @@ Lemma jsafeN_proof_irrelevance Z OK_spec prog oracle c jm jm' :
   @jsafeN Z OK_spec (globalenv prog) (level jm) oracle c jm ->
   @jsafeN Z OK_spec (globalenv prog) (level jm') oracle c jm'.
 Admitted.
+
+(*! Initial machine *)
 
 Section Initial_State.
   Variables
@@ -154,6 +196,11 @@ Section Initial_State.
      )
     ).
   
+  Lemma personal_mem_unique_dry tp m (mc : JM.mem_compatible tp m) i (cnti : Machine.containsThread tp i) :
+    tp.(Machine.num_threads).(pos.n) = 1 ->
+    m_dry (JM.personal_mem cnti mc) = m.
+  Admitted.
+  
   Lemma initial_invariant n sch : state_invariant Jspec n (initial_state n sch).
   Proof.
     unfold initial_state.
@@ -161,57 +208,27 @@ Section Initial_State.
     set (spr := semax_prog_rule (Concurrent_Oracular_Espec CS ext_link) V G prog m all_safe Hm).
     set (q := projT1 (projT2 spr)).
     set (jm := proj1_sig (snd (projT2 (projT2 spr)) n)).
+    match goal with |- _ _ _ (_, (_, ?TP)) => set (tp := TP) end.
     
-    split; [exists (m_phi jm)(* ;split *) | split; [|split]].
-    (*
-    - (* joining condition *)
-      admit.
-    (* Questions:
-      - why is emp better that "empty_rmap"? it requires "identity", but I thought we had no identity?
-      - isn't core the corresponding neutral element? I can't find a lemma about that
-     *)
-    (* exists (empty_rmap n); split. *)
-    (* destruct spr as (b' & q' & Hb & JS); simpl proj1_sig in *; simpl proj2_sig in *. *)
-    (* unfold join. *)
-    (* now admit (* join with empty_rmap -- doable *). *)
-    (* now admit. *)
-     *)
-    
-    - (* cohere_res_lock (there are no locks at first) *)
-      intros lock.
-      rewrite threadPool.find_empty.
+    (*! compatibility of memories *)
+    assert (compat : mem_compatible_rmap tp m (m_phi jm)).
+    {
       constructor.
-      intros.
-      unfold jm.
-      match goal with |- context [proj1_sig ?x] => destruct x as (jm' & jmm & lev & S & notlock) end.
-      simpl.
-      apply notlock.
-    
-    - (* mem_compatible *)
-      Import JuicyMachineShell_ClightSEM.
-      apply JuicyMachineShell_ClightSEM.Build_mem_compatible' with (all_juice := m_phi jm).
-      + apply JuicyMachineShell_ClightSEM.AllJuice with (m_phi jm) None.
+      + apply JM.AllJuice with (m_phi jm) None.
         * change (proj1_sig (snd (projT2 (projT2 spr)) n)) with jm.
-          unfold join_threads.
-          Import fintype.
-          Import ThreadPool.
-          Import pos.
-          (* unfold JuicyMachineShell_ClightSEM.getThreadsR. *)
-          unfold getThreadsR.
+          unfold JM.join_threads.
+          unfold JM.getThreadsR.
           
-          match goal with |- _ ?l _ => replace l with (m_phi jm :: nil) end; swap 1 2.
-          {
+          match goal with |- _ ?l _ => replace l with (m_phi jm :: nil) end; swap 1 2. {
             simpl.
-            generalize (m_phi jm); clear; intros r.
-            compute.
-            destruct ssrbool.idP as [_|F].
-            reflexivity.
-            exfalso. auto.
+            set (a := m_phi jm).
+            match goal with |- context [m_phi ?jm] => set (b := m_phi jm) end.
+            replace b with a by reflexivity. clear. clearbody a.
+            unfold fintype.ord_enum, eqtype.insub, seq.iota in *.
+            simpl.
+            destruct ssrbool.idP as [F|F]. reflexivity. exfalso. auto.
           }
-          fold jm.
-          simpl.
-          exists (core (m_phi jm)).
-          {
+          exists (core (m_phi jm)). {
             split.
             - apply join_comm.
               apply core_unit.
@@ -223,28 +240,65 @@ Section Initial_State.
       + destruct (snd (projT2 (projT2 spr))) as [jm' [D H]]; unfold jm; clear jm; simpl.
         subst m.
         destruct jm' as [m' phi] eqn:E.
-        apply Build_mem_cohere'; simpl.
+        apply JM.Build_mem_cohere'; simpl.
         all:auto.
-        unfold access_cohere'.
+        unfold JM.access_cohere'.
         now admit (* should be access_cohere instead of this max_access_at *).
       + intros loc sh psh P z L.
         destruct (snd (projT2 (projT2 spr))) as [jm' [D [H [A NL]]]]; unfold jm in *; clear jm; simpl in L |- *.
-        specialize (NL loc).
-        rewrite L in NL.
-        exfalso; eapply NL.
+        pose proof (NL loc) as NL'.
+        rewrite L in NL'.
+        exfalso; eapply NL'.
         reflexivity.
       + intros loc sh psh P z L.
         destruct (snd (projT2 (projT2 spr))) as [jm' [D [H [A NL]]]]; unfold jm in *; clear jm; simpl in L |- *.
-        specialize (NL loc).
-        rewrite L in NL.
-        exfalso; eapply NL.
+        pose proof (NL loc) as NL'.
+        rewrite L in NL'.
+        exfalso; eapply NL'.
         reflexivity.
+    } (* end of mcompat *)
+
+    apply state_invariant_c with (PHI := m_phi jm) (mcompat := compat).
     
-    - (* safety of the only thread *)
-      intros i pr_i phi jmi ora Ephi.
-      destruct (Machine.getThreadC pr_i) as [c|c|c v|v1 v2] eqn:Ec; try discriminate.
+    - (*! lock coherence (no locks at first) *)
+      intros lock.
+      rewrite threadPool.find_empty.
+      constructor.
+      intros.
+      unfold jm.
+      match goal with |- context [proj1_sig ?x] => destruct x as (jm' & jmm & lev & S & nolock) end.
+      simpl.
+      apply nolock.
+    
+    - (*! safety of the only thread *)
+      intros i cnti ora.
+      destruct (Machine.getThreadC cnti) as [c|c|c v|v1 v2] eqn:Ec; try discriminate; [].
+      destruct i as [ | [ | i ]]. 2: now inversion cnti. 2:now inversion cnti.
+      (* the initial juicy has got to be the same as the one given in initial_mem *)
+      assert (Ejm: jm = jm_ cnti compat).
+      {
+        apply juicy_mem_ext; swap 1 2.
+        - reflexivity.
+        - unfold jm_.
+          rewrite personal_mem_unique_dry; [ | now auto].
+          unfold jm.
+          destruct spr as (b' & q' & Hb & JS); simpl proj1_sig in *; simpl proj2_sig in *.
+          destruct (JS n) as (jm' & jmm & lev & S & notlock); simpl projT1 in *; simpl projT2 in *.
+          now auto.
+      }
+      subst jm. rewrite <-Ejm.
+      simpl in Ec. replace c with q in * by congruence.
+      destruct spr as (b' & q' & Hb & JS); simpl proj1_sig in *; simpl proj2_sig in *.
+      destruct (JS n) as (jm' & jmm & lev & Safe & notlock); simpl projT1 in *; simpl projT2 in *.
+      subst q.
+      simpl proj1_sig in *; simpl proj2_sig in *. subst n.
+      eapply jsafeN_proof_irrelevance; [ | | apply (Safe ora) ]; auto.
+      
+      (*
+      destruct 
+      intros i cnti phi jmi ora Ephi.
       intros Edry Ewet.
-      destruct i as [ | [ | i ]]. 2: now inversion pr_i. 2:now inversion pr_i.
+      destruct i as [ | [ | i ]]. 2: now inversion cnti. 2:now inversion cnti.
       simpl in Ephi, Ec.
       destruct spr as (b' & q' & Hb & JS); simpl proj1_sig in *; simpl proj2_sig in *.
       destruct (JS n) as (jm' & jmm & lev & S & notlock); simpl proj1_sig in *; simpl proj2_sig in *.
@@ -255,12 +309,192 @@ Section Initial_State.
       { destruct jmi eqn:Ei, jm' eqn:E'.
         simpl; simpl in Ewet.
         congruence. }
+       *)
+    
+    - (* well-formedness *)
+      intros i cnti ora.
+      apply I.
       
     - (* only one thread running *)
       intros F; exfalso. simpl in F. omega.
   Admitted.
 
 End Initial_State.
+
+Require Import msl.Coqlib2.
+Lemma corestep_fun_juicy (rmap_ext  : forall phi1 phi2, (forall l, phi1 @ l = phi2 @ l) -> phi1 = phi2) :
+  corestep_fun (juicy_core_sem cl_core_sem).
+Proof.
+  intros ge jm q jm1 q1 jm2 q2 step1 step2.
+  destruct step1 as [step1 [[ll1 rd1] l1]].
+  destruct step2 as [step2 [[ll2 rd2] l2]].
+  pose proof semax_lemmas.cl_corestep_fun' _ _ _ _ _ _ _ step1 step2 as E.
+  injection E as <- E; f_equal.
+  apply juicy_mem_ext; auto.
+  apply rmap_ext; clear rmap_ext.
+  intros l.
+  specialize (rd1 l); specialize (rd2 l).
+  assert (El: level jm1 = level jm2) by (clear -l1 l2; omega).
+  assert (l1': level jm1 = Nat.pred (level jm)) by (clear -l1; omega).
+  assert (l2': level jm2 = Nat.pred (level jm)) by (clear -l2; omega).
+  rewrite level_juice_level_phi in *.
+  destruct jm  as [m  phi  jmc  jmacc  jmma  jmall ].
+  destruct jm1 as [m1 phi1 jmc1 jmacc1 jmma1 jmall1].
+  destruct jm2 as [m2 phi2 jmc2 jmacc2 jmma2 jmall2].
+  simpl in *.
+  subst m2; rename m1 into m'.
+  destruct rd1 as [jmno [E1 | [[sh1 [v1 [v1' [E1 E1']]]] | [[pos1 [v1 E1]] | [v1 [pp1 [E1 E1']]]]]]];
+  destruct rd2 as [_    [E2 | [[sh2 [v2 [v2' [E2 E2']]]] | [[pos2 [v2 E2]] | [v2 [pp2 [E2 E2']]]]]]];
+  try pose proof jmno pos1 as phino; try pose proof (jmno pos2) as phino; clear jmno;
+    remember (phi  @ l) as x ;
+    remember (phi1 @ l) as x1;
+    remember (phi2 @ l) as x2;
+    subst.
+  
+  - (* phi1: same   | phi2: same   *)
+    congruence.
+  
+  - (* phi1: same   | phi2: update *)
+    rewrite <- E1, El.
+    rewrite El in E1.
+    rewrite E1 in E2.
+    destruct (jmc1 _ _ _ _ _ E2).
+    destruct (jmc2 _ _ _ _ _ E2').
+    congruence.
+  
+  - (* phi1: same   | phi2: alloc  *)
+    exfalso.
+    rewrite phino in E1. simpl in E1.
+    specialize (jmacc1 l).
+    rewrite <- E1 in jmacc1.
+    simpl in jmacc1.
+    destruct (Share.EqDec_share Share.bot Share.bot) as [_ | F]; [ | congruence].
+    specialize (jmacc2 l).
+    rewrite E2 in jmacc2.
+    simpl in jmacc2.
+    rewrite jmacc1 in jmacc2.
+    clear -jmacc2. exfalso.
+    unfold perm_of_sh in *.
+    repeat if_tac in jmacc2; congruence.
+  
+  - (* phi1: same   | phi2: free   *)
+    exfalso.
+    rewrite E2 in E1.
+    simpl in E1.
+    specialize (jmacc1 l).
+    rewrite <- E1 in jmacc1.
+    simpl in jmacc1.
+    specialize (jmacc2 l).
+    rewrite E2' in jmacc2.
+    simpl in jmacc2.
+    destruct (Share.EqDec_share Share.bot Share.bot) as [_ | F]; [ | congruence].
+    rewrite jmacc1 in jmacc2.
+    clear -jmacc2. exfalso.
+    unfold perm_of_sh in *.
+    repeat if_tac in jmacc2; congruence.
+  
+  - (* phi1: update | phi2: same   *)
+    rewrite <- E2, <-El.
+    rewrite <-El in E2.
+    rewrite E2 in E1.
+    destruct (jmc1 _ _ _ _ _ E1').
+    destruct (jmc2 _ _ _ _ _ E1).
+    congruence.
+  
+  - (* phi1: update | phi2: update *)
+    destruct (jmc1 _ _ _ _ _ E1').
+    destruct (jmc2 _ _ _ _ _ E2').
+    congruence.
+  
+  - (* phi1: update | phi2: alloc  *)
+    rewrite phino in E1.
+    simpl in E1.
+    inversion E1.
+  
+  - (* phi1: update | phi2: free   *)
+    exfalso.
+    rewrite E2 in E1.
+    simpl in E1.
+    specialize (jmacc1 l).
+    rewrite E1' in jmacc1.
+    simpl in jmacc1.
+    specialize (jmacc2 l).
+    rewrite E2' in jmacc2.
+    simpl in jmacc2.
+    destruct (Share.EqDec_share Share.bot Share.bot) as [_ | F]; [ | congruence].
+    rewrite jmacc1 in jmacc2.
+    clear -jmacc2. exfalso.
+    unfold perm_of_sh in *.
+    unfold fullshare in *.
+    repeat if_tac in jmacc2; congruence.
+  
+  - (* phi1: alloc  | phi2: same   *)
+    exfalso.
+    rewrite phino in E2. simpl in E2.
+    specialize (jmacc2 l).
+    rewrite <- E2 in jmacc2.
+    simpl in jmacc2.
+    destruct (Share.EqDec_share Share.bot Share.bot) as [_ | F]; [ | congruence].
+    specialize (jmacc1 l).
+    rewrite E1 in jmacc1.
+    simpl in jmacc1.
+    rewrite jmacc2 in jmacc1.
+    clear -jmacc1. exfalso.
+    unfold perm_of_sh in *.
+    repeat if_tac in jmacc1; congruence.
+  
+  - (* phi1: alloc  | phi2: update *)
+    rewrite phino in E2.
+    simpl in E2.
+    inversion E2.
+  
+  - (* phi1: alloc  | phi2: alloc  *)
+    destruct (jmc1 _ _ _ _ _ E1).
+    destruct (jmc2 _ _ _ _ _ E2).
+    congruence.
+  
+  - (* phi1: alloc  | phi2: free   *)
+    congruence.
+  
+  - (* phi2: free   | phi2: same   *)
+    exfalso.
+    rewrite E1 in E2.
+    simpl in E2.
+    specialize (jmacc2 l).
+    rewrite <- E2 in jmacc2.
+    simpl in jmacc2.
+    specialize (jmacc1 l).
+    rewrite E1' in jmacc1.
+    simpl in jmacc1.
+    destruct (Share.EqDec_share Share.bot Share.bot) as [_ | F]; [ | congruence].
+    rewrite jmacc2 in jmacc1.
+    clear -jmacc1. exfalso.
+    unfold perm_of_sh in *.
+    repeat if_tac in jmacc1; congruence.
+  
+  - (* phi2: free   | phi2: update *)
+    exfalso.
+    rewrite E1 in E2.
+    simpl in E2.
+    specialize (jmacc2 l).
+    rewrite E2' in jmacc2.
+    simpl in jmacc2.
+    specialize (jmacc1 l).
+    rewrite E1' in jmacc1.
+    simpl in jmacc1.
+    destruct (Share.EqDec_share Share.bot Share.bot) as [_ | F]; [ | congruence].
+    rewrite jmacc2 in jmacc1.
+    clear -jmacc1. exfalso.
+    unfold perm_of_sh in *.
+    unfold fullshare in *.
+    repeat if_tac in jmacc1; congruence.
+  
+  - (* phi2: free   | phi2: alloc  *)
+    congruence.
+  
+  - (* phi2: free   | phi2: free   *)
+    congruence.
+Qed.
 
 Section Simulation.
   Variables
@@ -328,25 +562,6 @@ Section Simulation.
   .
    *)  
   
-  Require Import veric.semax_ext.
-  Require Import msl.Coqlib2.
-  
-  Import JuicyMachineShell_ClightSEM.
-  Import ThreadPool.
-  Import Machine.
-  
-  Lemma getThreadCC
-        (i j : tid) (tp : thread_pool)
-        (cnti : containsThread tp i) (cntj : containsThread tp j)
-        (c' : @ctl code) (cntj' : containsThread (@updThreadC i tp cnti c') j) :
-    @getThreadC j (@updThreadC i tp cnti c') cntj' = if eq_dec i j then c' else @getThreadC j tp cntj.
-  Proof.
-    destruct (eq_dec i j); subst;
-      [rewrite gssThreadCC |
-       erewrite <- @gsoThreadCC with (cntj := cntj)];
-      now eauto.
-  Qed.
-  
   Lemma state_invariant_step n :
     forall state,
       state_invariant Jspec' (S n) state ->
@@ -354,27 +569,29 @@ Section Simulation.
         state_step state state' /\
         state_invariant Jspec' n state'.
   Proof.
-    intros ((m & ge) & sch & sss).
-    destruct sss as (nthreads, thds, phis, lset) eqn:Esss.
-    intros Invariant.
-    assert (I:=Invariant).
-    destruct I as ((phi_all & lock_coh) & mem_compat & safe & single).
-    rewrite <-Esss in *.
+    intros cm I.
+    inversion I as [m ge sch tp Phi compat lock_coh safety wellformed unique E]. rewrite <-E in *.
+    (* intros ((m & ge) & sch & sss). *)
+    (* destruct sss as (nthreads, thds, phis, lset) eqn:Esss. *)
+    (* intros Invariant. *)
+    (* assert (I:=Invariant). *)
+    (* destruct I as [m0 ge0 sch0 tp PHI mcompat_rmap lock_coherence0 safety unique]. *)
+    (* destruct I as ((phi_all & lock_coh) & mcompat & safe & single). *)
+    (* rewrite <-Esss in *. *)
     destruct sch as [ | i sch ].
     
     (* empty schedule: we loop in the same state *)
     {
-      exists (m, ge, (nil, sss)); subst; split.
+      exists cm; subst; split.
       - constructor.
-      - repeat split; eauto.
-        intros i pr_i phi jmi ora E_phi di wi.
-        specialize (safe i pr_i phi jmi ora E_phi di wi).
-        eassert; [ apply safe | ].
-        destruct (Machine.getThreadC pr_i) as [c|c|c v|v1 v2] eqn:Ec; auto;
-          intros Safe; try split; try eapply safe_downward1, Safe; intuition.
+      - apply state_invariant_c with (PHI := Phi) (mcompat := compat); auto; [].
+        intros i cnti ora. simpl.
+        specialize (safety i cnti ora); simpl in safety.
+        destruct (Machine.getThreadC cnti); auto.
+        all: eapply safe_downward1; intuition.
     }
     
-    destruct (i < nthreads.(pos.n)) eqn:Ei; swap 1 2.
+    destruct (i < tp.(Machine.num_threads).(pos.n)) eqn:Ei; swap 1 2.
     
     (* bad schedule *)
     {
@@ -383,109 +600,118 @@ Section Simulation.
       - constructor.
         apply JuicyMachine.schedfail with i.
         + reflexivity.
-        + rewrite Esss.
-          unfold JuicyMachineShell_ClightSEM.ThreadPool.containsThread.
-          simpl.
+        + unfold JM.ThreadPool.containsThread.
           now rewrite Ei; auto.
         + now apply JuicyMachineShell_ClightSEM.True.
         + reflexivity.
       - simpl (ListScheduler_NatTID.schedSkip _).
-        subst sss.
-        repeat split; eauto.
-        intros j pr_j phi jmj ora E_phi di wi.
-        eassert.
-        + eapply safe; eauto.
-        + destruct (Machine.getThreadC pr_j) as [c|c|c v|v1 v2] eqn:Ec; auto;
+        apply state_invariant_c with (PHI := Phi) (mcompat := compat); auto.
+        + intros i0 cnti0 ora.
+          specialize (safety i0 cnti0 ora); simpl in safety.
+          eassert.
+          * eapply safety; eauto.
+          * destruct (Machine.getThreadC cnti0) as [c|c|c v|v1 v2] eqn:Ec; auto;
             intros Safe; try split; try eapply safe_downward1, Safe; intuition.
         + (* invariant about "only one Krun and it is scheduled": the
           bad schedule case is not possible *)
-          intros H i0 pri q ora Ec.
+          intros H i0 cnti q ora H0.
           exfalso.
-          specialize (single H i0 pri q ora Ec).
-          destruct single as [sch' single]; injection single as <- <- .
-          hnf in pri.
-          simpl in pri.
+          specialize (unique H i0 cnti q ora H0).
+          destruct unique as [sch' unique]; injection unique as <- <- .
           congruence.
     }
     
     (* the schedule selected one thread *)
-    assert (pr_i : Machine.containsThread sss i).
-    { rewrite Esss. apply Ei. }
-    remember (Machine.getThreadC pr_i) as c_i eqn:Ec_i; symmetry in Ec_i.
-    remember (Machine.getThreadR pr_i) as phi_i eqn:Ephi_i; symmetry in Ephi_i.
+    assert (cnti : Machine.containsThread tp i) by apply Ei.
+    remember (Machine.getThreadC cnti) as ci eqn:Eci; symmetry in Eci.
+    (* remember (Machine.getThreadR cnti) as phi_i eqn:Ephi_i; symmetry in Ephi_i. *)
     
-    destruct c_i as
-        [ (* Krun *) c_i
-        | (* Kblocked *) c_i
-        | (* Kresume *) c_i v
+    destruct ci as
+        [ (* Krun *) ci
+        | (* Kblocked *) ci
+        | (* Kresume *) ci v
         | (* Kinit *) v1 v2 ].
     
     (* thread[i] is running *)
     {
-      assert (Hjmi : exists jmi, m_dry jmi = m /\ m_phi jmi = phi_i).
-      { admit (* "slice" lemma for juicy memory *). }
+      pose (jmi := JM.personal_mem cnti (mem_compatible_forget compat)).
+      (* pose (phii := m_phi jmi). *)
+      (* pose (mi := m_dry jmi). *)
       
-      destruct Hjmi as [jm_i [jm_i_m jm_i_phi_i]].
-      
-      destruct c_i as [ve te k | ef sig args lid ve te k] eqn:Heqc.
+      destruct ci as [ve te k | ef sig args lid ve te k] eqn:Heqc.
       
       (* thread[i] is running and some internal step *)
       {
-        assert (next: exists c_i' jm_i',
-                   corestep (juicy_core_sem cl_core_sem) ge c_i jm_i c_i' jm_i'
-                   /\ forall ora, jsafeN Jspec' ge (S n) ora c_i' jm_i').
+        (* get the next step of this particular thread (with safety for all oracles) *)
+        assert (next: exists ci' jmi',
+                   corestep (juicy_core_sem cl_core_sem) ge ci jmi ci' jmi'
+                   /\ forall ora, jsafeN Jspec' ge n ora ci' jmi').
         {
-          admit.
-          (* there is this next state (use jsafeN) with trivial oracle *)
-          (* the next state is safe for all oracle *)
+          specialize (safety i cnti).
+          pose proof (safety nil) as safei.
+          rewrite Eci in *.
+          inversion safei as [ | ? ? ? ? c' m' step safe H H2 H3 H4 | | ]; subst.
+          2: now match goal with H : at_external _ _ = _ |- _ => inversion H end.
+          2: now match goal with H : halted _ _ = _ |- _ => inversion H end.
+          exists c', m'. split; [ apply step | ].
+          revert step safety safe; clear.
+          generalize (jm_ cnti compat).
+          generalize (State ve te k).
+          unfold jsafeN.
+          intros c j step safety safe ora.
+          eapply safe_corestep_forward.
+          - apply corestep_fun_juicy. admit.
+          - apply step.
+          - apply safety.
         }
         
-        destruct next as (c_i' & jm_i' & step_i & safe_i').
+        destruct next as (ci' & jm_i' & step_i & safe_i').
         pose (m' := m_dry jm_i' (* TODO update cur *)).
-        pose (sss' := @Machine.updThread i sss pr_i (Krun c_i') (m_phi jm_i')).
-        pose (state' := (m', ge, (i :: sch, sss'))).
-        exists state'.
+        pose (tp' := @Machine.updThread i tp cnti (Krun ci') (m_phi jm_i')).
+        pose (cm' := (m', ge, (i :: sch, tp'))).
+        exists cm'.
         split.
         - apply state_step_c; [].
-          apply JuicyMachine.thread_step with (tid := i) (Htid := pr_i) (Hcmpt := mem_compat); [|]. now reflexivity.
+          apply JuicyMachine.thread_step with (tid := i) (Htid := cnti) (Hcmpt := mem_compatible_forget compat); [|]. now reflexivity.
           hnf; [].
           eapply JuicyMachineShell_ClightSEM.step_juicy; eauto; [ | | | ].
           + hnf. now constructor.
-          + hnf.
-            unfold JuicyMachineShell_ClightSEM.ThreadPool.SEM.Sem in *.
-            unfold CLN_memsem in *.
-            simpl.
-            unfold juicy_core_sem in *.
-            simpl in step_i.
-            unfold jstep in *.
-            (* see with santiago how to prove the juicyRestrict *)
-            admit.
+          + destruct step_i as [stepi decay].
+            split.
+            * simpl.
+              subst.
+              apply stepi.
+            * simpl.
+              revert decay.
+              match goal with |- ?P -> ?Q => cut (P = Q); [ now auto | ] end.
+              reflexivity.
           + reflexivity.
           + reflexivity.
-        - hnf.
+        - (* related to updating CUR above: ask. *)
+          admit.
+          
           (*
-          apply state_step_internal with (contains_thread_i := pr_i) (mem_compat := mem_compat).
-          apply JuicyMachineShell_ClightSEM.step_juicy with (c := c_i) (jm := jm_i) (c' := c_i') (jm' := jm_i').
-          + admit (* mem_compat *).
+          apply state_step_internal with (contains_thread_i := cnti) (mcompat := mcompat).
+          apply JuicyMachineShell_ClightSEM.step_juicy with (c := ci) (jm := jm_i) (c' := ci') (jm' := jm_i').
+          + admit (* mcompat *).
           + admit (* mem coherence *).
           + congruence.
           + apply step_i.
           + reflexivity.
           + reflexivity.
         - split;[|split;[|split]].
-          + admit (* get phi_all from the mem_compat, too? *).
-          + admit (* mem_compat *).
-          + intros i0 pr_i0 q phi jmi ora.
+          + admit (* get phi_all from the mcompat, too? *).
+          + admit (* mcompat *).
+          + intros i0 cnti0 q phi jmi ora.
             (* safety for all oracle : use the fact the oracle does
             not change after one step *)
             admit.
-          + intros H i0 pr_i0 q ora H0.
+          + intros H i0 cnti0 q ora H0.
             exists sch.
             (* use the fact that there is at most one Krun on the
             previous step and this step did not add any *)
             admit.
            *)
-          admit.
       }
       (* end of internal step *)
       
@@ -496,13 +722,30 @@ Section Simulation.
           eapply JuicyMachine.suspend_step.
           + reflexivity.
           + reflexivity.
-          + assumption.
+          + eapply mem_compatible_forget; eauto.
           + econstructor.
             * eassumption.
             * reflexivity.
             * constructor.
             * reflexivity.
-        - repeat split; [ | | | ].
+        - match goal with |- _ _ (_, _, (_, ?tp)) => set (tp' := tp) end.
+          assert (compat' : mem_compatible_rmap tp' m Phi).
+          {
+            unfold tp'.
+            clear safety wellformed unique.
+            destruct compat as [JA MC LW LC].
+            constructor; [ | | | ].
+            - admit.
+            - admit.
+            - admit.
+            - admit.
+          }
+          apply state_invariant_c with (PHI := Phi) (mcompat := compat').
+          + admit.
+          + admit.
+          + admit.
+          + admit.
+(*
           + subst sss; clear -lock_coh.
             unfold ThreadPool.lset in *.
             exists phi_all.
@@ -510,16 +753,16 @@ Section Simulation.
           + unfold mem_compatible in *.
             subst sss.
             unfold ThreadPool.updThreadC in *; simpl.
-            inversion mem_compat; [].
+            inversion mcompat; [].
             inversion juice_join; [].
             econstructor; [ | | | ]; auto.
             now econstructor; [ | | ]; eauto.
             all: now auto.
-          + intros i0 pr_i0 phi jmi ora H H0 H1.
+          + intros i0 cnti0 phi jmi ora H H0 H1.
             destruct (eq_dec i i0) as [<-|E].
-            * specialize (safe i pr_i phi jmi ora).
+            * specialize (safe i cnti phi jmi ora).
               rewrite gssThreadCC.
-              rewrite Ec_i in safe.
+              rewrite Eci in safe.
               split. 2:subst; simpl; congruence.
               apply safe_downward1.
               change (jsafeN Jspec' ge (S n) ora (ExtCall ef sig args lid ve te k) jmi).
@@ -527,46 +770,44 @@ Section Simulation.
               erewrite <- gThreadCR in H.
               apply H.
             * subst sss. 
-              assert (pr_i0' := cntUpdateC' pr_i0).
-              specialize (safe i0 pr_i0' phi jmi ora).
-              erewrite <- gsoThreadCC with (cntj := pr_i0'). 2:apply E.
-              destruct (getThreadC pr_i0'); try split; try apply safe_downward1; try destruct safe as [safe|?]; try apply safe; auto.
+              assert (cnti0' := cntUpdateC' cnti0).
+              specialize (safe i0 cnti0' phi jmi ora).
+              erewrite <- gsoThreadCC with (cntj := cnti0'). 2:apply E.
+              destruct (getThreadC cnti0'); try split; try apply safe_downward1; try destruct safe as [safe|?]; try apply safe; auto.
               all: erewrite <- gThreadCR; apply H.
-          + intros H i0 pr_i0 q ora H0.
+          + intros H i0 cnti0 q ora H0.
             subst sss.
             exfalso.
             (* derive false: thread i0 is in Krun, even though that
             can only be the new Kblock or an old Krun, which would
             have been in conflict with the other, old, Krun *)
             admit.
+*)
       } (* end of Krun (at_ex c) -> Kblocked c *)
     } (* end of Krun *)
     
     (* thread[i] is in Kblocked *)
     {
-      (* goes to Kresume c_i' according to the rules of syncStep  *)
+      (* goes to Kresume ci' according to the rules of syncStep  *)
       
-      assert (Hjmi : exists jmi, m_dry jmi = m /\ m_phi jmi = phi_i).
-      { admit (* "slice" lemma for juicy memory *). }
-      
-      destruct Hjmi as [jm_i [jm_i_m jm_i_phi_i]].
-      
-      destruct c_i as [ve te k | ef sig args lid ve te k] eqn:Heqc.
+      destruct ci as [ve te k | ef sig args lid ve te k] eqn:Heqc.
       
       (* internal step: impossible, because in state Kblocked *)
       {
         exfalso.
-        pose proof (safe i pr_i phi_i).
-        (* we need again the splice theorems *)
-        admit.
+        pose proof (wellformed i cnti nil) as W.
+        rewrite Eci in W.
+        apply W.
+        reflexivity.
       }
       (* back to external step *)
-      
+
+(*
       (* paragraph below: ef has to be an EF_external *)
       assert (Hef : match ef with EF_external _ _ => Logic.True | _ => False end).
       {
-        pose proof (safe i pr_i phi_i jm_i nil ltac:(assumption)) as safe_i.
-        rewrite Ec_i in safe_i.
+        pose proof (safe i cnti phi_i jm_i nil ltac:(assumption)) as safe_i.
+        rewrite Eci in safe_i.
         specialize (safe_i ltac:(assumption) ltac:(assumption)).
         destruct safe_i as [safe_i atext].
         unfold jsafeN, juicy_safety.safeN in safe_i.
@@ -591,8 +832,8 @@ Section Simulation.
                 Some (ext_link "freelock") = (ef_id ext_link (EF_external name sg)) \/
                 Some (ext_link "spawn") = (ef_id ext_link (EF_external name sg))).
       {
-        pose proof (safe i pr_i phi_i jm_i (* oracle=*)nil ltac:(assumption)) as safe_i.
-        rewrite Ec_i in safe_i.
+        pose proof (safe i cnti phi_i jm_i (* oracle=*)nil ltac:(assumption)) as safe_i.
+        rewrite Eci in safe_i.
         specialize (safe_i ltac:(assumption) ltac:(assumption)).
         unfold jsafeN, juicy_safety.safeN in safe_i.
         destruct safe_i as [safe_i atext].
@@ -650,8 +891,8 @@ Section Simulation.
       
       (*
           
-          pose proof (safe i pr_i phi_i jm_i (* oracle=*)nil ltac:(assumption)) as safe_i.
-          rewrite Ec_i in safe_i.
+          pose proof (safe i cnti phi_i jm_i (* oracle=*)nil ltac:(assumption)) as safe_i.
+          rewrite Eci in safe_i.
           specialize (safe_i ltac:(assumption) ltac:(assumption)).
           
           unfold jsafeN, juicy_safety.safeN in safe_i.
@@ -728,12 +969,14 @@ Section Simulation.
         { (* the case of freelock *) admit. }
         
         { (* the case of spawn *) admit. }
+ *)
+      admit.
     }
     (* end of Kblocked *)
     
     (* thread[i] is in Kresume *)
     {
-      (* goes to Krun c_i' according with after_ex c_i = c_i'  *)
+      (* goes to Krun ci' according with after_ex ci = ci'  *)
       admit.
     }
     (* end of Kresume *)
