@@ -385,7 +385,6 @@ Instance x86Spec : CoreLanguage.corestepSpec.
    hnf in Hstep.
    inv Hstep.
  + (* asm_exec_step_internal *)
-   clear - H2 Hstable cspec.
    eapply x86_exec_instr_obeys_cur_write; eauto.
  + (* asm_exec_step_builtin *)
   admit.
