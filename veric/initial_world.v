@@ -1341,20 +1341,18 @@ Fixpoint prog_vars' {F V} (l: list (ident * globdef F V)) : list (ident * globva
 
 Definition prog_vars (p: program) := prog_vars' (prog_defs p).
 
-Definition islock_pred R r := exists sh sh' z, r = YES sh sh' (LK z) (SomeP ((unit:Type)::nil) (fun _ => R)).
-Definition islock r := exists R, islock_pred R r.
+Definition no_locks phi := forall addr sh sh' z P, phi @ addr <> YES sh sh' (LK z) P.
 
-Lemma initial_jm_without_locks prog m G n H H1 H2 R addr :
-  ~ islock_pred R (m_phi (initial_jm prog m G n H H1 H2) @ addr).
+Lemma initial_jm_without_locks prog m G n H H1 H2:
+  no_locks (m_phi (initial_jm prog m G n H H1 H2)).
 Proof.
   simpl.
   unfold inflate_initial_mem; simpl.
   match goal with |- context [ proj1_sig ?a ] => destruct a as (phi & lev & E) end; simpl.
   unfold inflate_initial_mem' in E.
   unfold compcert_rmaps.R.resource_at in E.
-  unfold "@".
+  unfold no_locks, "@"; intros.
   rewrite E.
-  intros (sh & sh' & z & N).
   destruct (access_at m addr); try congruence.
   destruct p; try congruence.
   destruct (proj1_sig (snd (unsquash (initial_core (Genv.globalenv prog) G n))) addr); try congruence.
