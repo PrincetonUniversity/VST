@@ -401,7 +401,7 @@ depend-linking:
 	$(COQDEP) $(FILES) $(LINKING_FILES:%.v=linking/%.v) > .depend
 
 depend-concur:
-	$(COQDEP) > .depend-concur $(CONCUR_FILES:%.v=concurrency/%.v) 
+	$(COQDEP) > .depend-concur $(CONCUR_FILES:%.v=concurrency/%.v) $(CCC26x86_FILES:%.v=concurrency/%.v)
 
 clean:
 	rm -f $(FILES:%.v=%.vo) $(FILES:%.v=%.glob) floyd/floyd.coq .loadpath .depend
