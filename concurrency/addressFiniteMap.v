@@ -1,14 +1,15 @@
 
 Require Import compcert.lib.Axioms.
+Require Import compcert.lib.Maps.
 
-Add LoadPath "../concurrency" as concurrency.
-
-Require Import sepcomp. Import SepComp.
+Require Import concurrency.sepcomp. Import SepComp.
 Require Import sepcomp.semantics_lemmas.
 
 Require Import Coq.ZArith.ZArith.
 
 Require Import Structures.OrderedType.
+
+Require Import concurrency.permissions.
 Import Address.
 Import Coqlib.
   
@@ -60,7 +61,6 @@ Import Coqlib.
            rewrite peq_true in H.
            assert (HH: z0 >= z0) by omega.
            destruct zlt as [a|b]; auto.
-           inversion H.
     Qed.
    Lemma compare : forall x y : t, Compare lt eq x y.
           destruct x as [x1 x2].
@@ -116,4 +116,19 @@ Import Coqlib.
   Module AMap:= Make AddressOrdered.
 
   
-  
+  Section AMap2PMap.
+    (*Need to build a permission map from a finite map*)
+    (*The pmap is used in the compcert memory. *)
+    Context {lock_info: Type}.
+    Variable am: AMap.t lock_info.
+
+    
+    
+    Definition A2PMap (*: Map.PMap*) :=
+      fold_left
+        (fun (pmap:access_map) (a:address * lock_info)=> match a with
+                      | ((b, ofs), _) => setPerm (Some Memtype.Writable) b ofs pmap
+                      end)
+        (AMap.elements am)
+        (PMap.init (fun _ => None)).
+    End AMap2PMap.

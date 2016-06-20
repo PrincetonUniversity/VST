@@ -27,6 +27,14 @@ Require Import msl.log_normalize.
 
 Local Open Scope logic.
 
+Lemma modus_ponens_wand' {A}{ND: NatDed A}{SL: SepLog A}: 
+                      forall P P' Q: A, P |-- P' ->  derives (sepcon P (wand P' Q)) Q.
+Proof.
+intros.
+   eapply derives_trans; [apply sepcon_derives; [ | apply derives_refl] | apply modus_ponens_wand ].
+  auto.
+Qed.
+
 Module RAMIF_PLAIN.
 Section RAMIF_PLAIN.
 
@@ -51,7 +59,10 @@ Proof.
   apply TT_right.
 Qed.
 
-Lemma trans: forall g m l g' m' l', g |-- m * (m' -* g') -> m |-- l * (l' -* m') -> g |-- l * (l' -* g').
+Lemma trans: forall g m l g' m' l', 
+      g |-- m * (m' -* g') -> 
+      m |-- l * (l' -* m') -> 
+      g |-- l * (l' -* g').
 Proof.
   intros.
   apply solve with ((l' -* m') * (m' -* g')).
@@ -62,6 +73,27 @@ Proof.
     eapply derives_trans; [| apply modus_ponens_wand].
     apply sepcon_derives; [| apply derives_refl].
     apply modus_ponens_wand.
+Qed.
+
+Lemma trans':
+   forall (m l g' m' l': A), 
+       m |-- l * (l' -* m') ->
+       m * (m' -* g') |-- l * (l' -* g').
+Proof.
+  intros. eapply trans. apply derives_refl. auto.
+Qed.
+
+Lemma trans'':
+   forall (p g' m' l': A), 
+       p |-- l' -* m' -> 
+       p * (m' -* g') |-- (l' -* g').
+Proof.
+  intros.
+  rewrite -> wand_sepcon_adjoint.
+  eapply derives_trans; [apply H | ]. clear H.
+  rewrite <- wand_sepcon_adjoint.
+  rewrite <- wand_sepcon_adjoint.
+  pull_left l'. apply modus_ponens_wand'. apply modus_ponens_wand.
 Qed.
 
 Lemma split: forall g1 g2 l1 l2 g1' g2' l1' l2',
@@ -211,6 +243,32 @@ Lemma simple_trans: forall {B} g m l (g' m' l': B -> A),
 Proof.
   intros.
   eapply trans with (mL' := m') (mG' := m') (fL := id B) (fG := id B); eauto.
+Qed.
+
+Lemma trans'': 
+  forall {CS: ClassicalSep A}
+     {B C: Type} (f: B->C) p l m g1 g2,
+     g2 = g1 oo f ->
+     p |-- allp (l -* m oo f) ->
+     p * allp (m -* g1) |-- allp (l -* g2).
+Proof.
+   intros.
+   subst g2.
+   apply allp_right; intro x.
+   simpl. rewrite <- wand_sepcon_adjoint.
+   rewrite sepcon_assoc.
+   eapply derives_trans; [apply sepcon_derives; [apply H0 | apply derives_refl] | ].
+    rewrite -> wand_sepcon_adjoint.
+  apply allp_left with x.
+   rewrite <- wand_sepcon_adjoint.
+   simpl.
+   rewrite <- !sepcon_assoc.
+   pull_left (l x).
+   eapply derives_trans; [apply sepcon_derives; [ | apply derives_refl] | ].
+   apply modus_ponens_wand.
+   rewrite sepcon_comm.
+   rewrite -> wand_sepcon_adjoint.
+   apply allp_left with (f x). auto.
 Qed.
 
 Lemma split: forall {B} g1 g2 l1 l2 (g1' g2' l1' l2': B -> A),

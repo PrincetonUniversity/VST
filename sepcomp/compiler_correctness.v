@@ -1,7 +1,6 @@
 Require Import compcert.lib.Coqlib.
 Require Import compcert.lib.Maps.
 Require Import compcert.lib.Integers.
-
 Require Import compcert.common.Values.
 Require Import compcert.common.Memory.
 Require Import compcert.common.Events.

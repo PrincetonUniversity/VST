@@ -133,7 +133,6 @@ destruct (readable_share_dec sh); [| tauto].
 destruct sz, sgn, v; (try rewrite FF_and; auto);
  repeat rewrite GG;
  apply prop_andp_left; intros ? ? _; hnf; try omega.
- destruct H6; split; try assumption; omega.
  pose proof (Int.signed_range i); omega.
  destruct H6; subst; 
   try rewrite Int.unsigned_zero; try rewrite Int.unsigned_one; omega.

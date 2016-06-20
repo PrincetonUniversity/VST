@@ -1,21 +1,21 @@
-Require Import Integers.
+Require Import compcert.lib.Integers.
 Require Import Recdef.
 Require Import List. Import ListNotations.
 Require Import Arith.
-Require Import Coqlib.
-Require Import general_lemmas.
-Require Import hmac_pure_lemmas.
-Require Import ByteBitRelations.
-Require Import HMAC_common_defs.
+Require Import compcert.lib.Coqlib.
+Require Import sha.general_lemmas.
+Require Import sha.hmac_pure_lemmas.
+Require Import sha.ByteBitRelations.
+Require Import sha.HMAC_common_defs.
 
-Require Import SHA256.
-Require Import HMAC_functional_prog.
-Require Import HMAC256_functional_prog.
-Require Import hmac_common_lemmas.
+Require Import sha.SHA256.
+Require Import sha.HMAC_functional_prog.
+Require Import sha.HMAC256_functional_prog.
+Require Import sha.hmac_common_lemmas.
 
-Require Import pure_lemmas.
-Require Import sha_padding_lemmas.
-Require Import sublist. (*for Forall_list_repeat*)
+Require Import sha.pure_lemmas.
+Require Import sha.sha_padding_lemmas.
+Require Import floyd.sublist. (*for Forall_list_repeat*)
 
 Definition c := (32 * 8)%nat.
 Definition p := (32 * 8)%nat.

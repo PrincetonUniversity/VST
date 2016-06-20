@@ -43,7 +43,7 @@ Qed.
 
 Definition  binary_operation_to_comparison (op: binary_operation) :=
  match op with
- | Oeq => Some eq
+ | Oeq => Some (@eq Z)
  | One => Some Zne
  | Olt => Some Z.lt
  | Ole => Some Z.le
@@ -121,7 +121,7 @@ Qed.
 Definition  binary_operation_to_opp_comparison (op: binary_operation) :=
  match op with
  | Oeq => Some Zne
- | One => Some eq
+ | One => Some (@eq Z)
  | Olt => Some Z.ge
  | Ole => Some Z.gt
  | Ogt => Some Z.le

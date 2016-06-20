@@ -1,6 +1,5 @@
 Require Import veric.base.
 Require Import compcert.cfrontend.Clight.
-
 Definition nullval : val := Vint Int.zero.
 
 Definition val_to_bool (v: val) : option bool :=
@@ -123,13 +122,15 @@ Proof.
  intros.
  destruct (Clight.eval_expr_lvalue_ind ge e le m
    (fun a v =>  forall v', Clight.eval_expr ge e le m a v' -> v=v')
-   (fun a b i => forall b' i', Clight.eval_lvalue ge e le m a b' i' -> (b,i)=(b',i'))); intros;
+   (fun a b i => forall b' i', Clight.eval_lvalue ge e le m a b' i' -> (b,i)=(b',i'))); 
+  simpl; intros;
 
   try solve [repeat 
   match goal with
   |  H: eval_expr _ _ _ _ ?a _  |- _ => (is_var a; fail 1) || inv H
   | H: eval_lvalue _ _ _ _ ?a _ _ |- _  => (is_var a; fail 1) || inv H
   end; congruence].
+
  * inv H1. apply H0 in H5; congruence. inv H2.
  * inv H2. apply H0 in H7; congruence. inv H3.
  * inv H4. apply H0 in H10. apply H2 in H11. congruence. inv H5.

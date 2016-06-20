@@ -1,5 +1,5 @@
 Require Import sepcomp.semantics.
-Require Import semantics_lemmas.
+Require Import sepcomp.semantics_lemmas.
 Require Import sepcomp.mem_lemmas.
 Require Import veric.base.
 Require Import veric.Clight_new.
@@ -77,5 +77,5 @@ Program Definition CLN_coop_sem :
 apply Build_CoopCoreSem with (coopsem := cl_core_sem).
 apply cln_forward.
 admit. (*This is the new readonly condition which should be easy to prove.*)
-Defined.
+Admitted.
 *)

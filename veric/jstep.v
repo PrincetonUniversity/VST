@@ -1,8 +1,7 @@
 Require Import msl.Axioms.
-
 Require Import compcert.common.Memory.
-
 Require Import sepcomp.semantics.
+
 
 Module FSem.
 Record t M TM := mk { 

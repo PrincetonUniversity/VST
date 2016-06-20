@@ -3,17 +3,17 @@ Import ListNotations.
 Local Open Scope logic.
 
 Require Import sha.spec_sha.
-Require Import sha_lemmas.
+Require Import sha.sha_lemmas.
 Require Import sha.HMAC_functional_prog.
 Require Import sha.HMAC256_functional_prog.
-Require Import hmac_common_lemmas.
+Require Import sha.hmac_common_lemmas.
 
 Require Import sha.hmac.
-Require Import spec_hmac.
+Require Import sha.spec_hmac.
 
 Module Type HMAC_ABSTRACT_SPEC.
 
-(*"Ordinary" abstract states contains a key and some data*)
+(*"Ordinary" abstract states contain a key and some data*)
 Inductive HABS := hABS: forall (key data:list Z), HABS.
 
 (*The mpred REP (hABS k d) c expresses that pointer value c holds
@@ -145,8 +145,8 @@ Definition hmac_cleanup_spec :=
           SEP(EMPTY c).
 
 
-Require Import ByteBitRelations.
-Require Import verif_hmac_crypto.
+Require Import sha.ByteBitRelations.
+Require Import sha.verif_hmac_crypto.
 Definition hmac_crypto_spec :=
   DECLARE _HMAC
    WITH md: val, KEY:DATA,

@@ -4,12 +4,12 @@
 Require Recdef.
 Require Import floyd.coqlib3.
 Require Import floyd.sublist.
-Require Import Integers.
-Require Import Coqlib.
+Require Import compcert.lib.Integers.
+Require Import compcert.lib.Coqlib.
 Require Import Coq.Strings.String.
 Require Import Coq.Strings.Ascii.
 Require Import List. 
-Require Import general_lemmas.
+Require Import sha.general_lemmas.
 
 (* THIS BLOCK OF STUFF is not needed to define SHA256,
   but is useful for reasoning about it *)

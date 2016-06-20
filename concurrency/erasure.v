@@ -1,8 +1,7 @@
-Add LoadPath "../concurrency" as concurrency.
-
 Require Import compcert.common.Memory.
 
 (* The concurrent machinery*)
+Require Import concurrency.scheduler.
 Require Import concurrency.concurrent_machine.
 Require Import concurrency.juicy_machine. Import Concur.
 Require Import concurrency.dry_machine. Import Concur.
@@ -76,7 +75,7 @@ Module Type ErasureSig.
   Variable main: Values.val.
   Axiom init_diagram:
     forall (j : Values.Val.meminj) (U:schedule) (js : jstate)
-      (vals : list Values.val) (m : M),
+      (vals : list Values.val) (m : mem),
    init_inj_ok j m ->
    initial_core (JMachineSem U) genv main vals = Some (U, js) ->
    exists (mu : SM_Injection) (ds : dstate),
@@ -86,9 +85,9 @@ Module Type ErasureSig.
      match_st js ds.
 
   Axiom core_diagram:
-    forall (m : M)  (U0 U U': schedule) 
+    forall (m : mem)  (U0 U U': schedule) 
      (ds : dstate) (js js': jstate) 
-     (m' : M),
+     (m' : mem),
    corestep (JMachineSem U0) genv (U, js) m (U', js') m' ->
    match_st js ds ->
    DSEM.invariant ds ->
@@ -153,14 +152,14 @@ Module ErasureFnctr (PC:ErasureSig).
   Theorem erasure: forall U,
     Wholeprog_sim.Wholeprog_sim
       (JMachineSem U) (DMachineSem U)
-      genv genv
-      main
+      PC.genv PC.genv
+      PC.main
       ge_inv init_inv halt_inv.
   Proof. intros U.
     apply (Wholeprog_sim.Build_Wholeprog_sim
              (JMachineSem U) (DMachineSem U)
-             genv genv
-             main
+             PC.genv PC.genv
+             PC.main
              ge_inv init_inv halt_inv
              core_data match_state core_ord core_ord_wf).
     - reflexivity.

@@ -1,16 +1,16 @@
 Require Import floyd.proofauto.
 Local Open Scope logic.
 Require Import List. Import ListNotations.
-Require Import general_lemmas.
+Require Import sha.general_lemmas.
 
-Require Import split_array_lemmas.
+Require Import tweetnacl20140427.split_array_lemmas.
 Require Import ZArith. 
-Require Import tweetNaclBase.
-Require Import Salsa20.
-Require Import tweetnaclVerifiableC.
-Require Import verif_salsa_base.
+Require Import tweetnacl20140427.tweetNaclBase.
+Require Import tweetnacl20140427.Salsa20.
+Require Import tweetnacl20140427.tweetnaclVerifiableC.
+Require Import tweetnacl20140427.verif_salsa_base.
 
-Require Import spec_salsa. 
+Require Import tweetnacl20140427.spec_salsa. 
 Opaque Snuffle.Snuffle. Opaque prepare_data.
 
 Definition HTrue_inv1 l i ys xs : Prop :=
@@ -313,7 +313,8 @@ Proof. intros. abbreviate_semax.
      thaw FR4. thaw FR3. freeze [0;1;2;3;5] FR5.
      Time forward; rewrite upd_Znth_diff; try (rewrite Zlength_map, PL2Zlength; simpl; omega). (*5.9 versus 13*)
      { Time entailer!. (*2 versus 4.6*)
-       rewrite Uj. simpl; trivial. }
+       destruct (Zlength_length _ Front (Zlength Front)) as [X _]. omega.
+       rewrite X, Uj; trivial. simpl; trivial. }
      { omega. } 
      Opaque Z.mul. Opaque Z.add.
      Time forward. (*5.8 versus 12.9*) rewrite Uj.
@@ -329,7 +330,7 @@ Proof. intros. abbreviate_semax.
      (*rewrite Uj. simpl.*)
      repeat rewrite <- sepcon_assoc.
      apply sepcon_derives.
-     + unfold SByte, QByte. subst c nonce.
+     + unfold SByte, QByte. (*subst c nonce.*)
        erewrite (Select_Unselect_Tarray_at 16); try reflexivity; try assumption.
        2: rewrite NNN; reflexivity.
        erewrite (Select_Unselect_Tarray_at 16); try reflexivity; try assumption.
@@ -608,7 +609,7 @@ Proof. intros. abbreviate_semax.
       rewrite (Z.add_comm _ 1), Z2Nat.inj_add. simpl. apply NPeano.Nat.add_1_l. omega. omega.
     rewrite AA. simpl.
     thaw FR6. thaw FR5. Time cancel. (*0.8*) 
-    rewrite <- Heqll. clear Heqll.
+(*    rewrite <- Heqll. clear Heqll.*)
 (*    remember (hPosLoop3 (Z.to_nat i) xs OUT) as ll; clear Heqll.*)
     assert (XXi: xi = Znth (5 * i) xs Int.zero).
       rewrite Znth_map' with (d':=Int.zero) in Xi; try omega. clear -Xi. inv Xi. trivial.
@@ -616,11 +617,12 @@ Proof. intros. abbreviate_semax.
       rewrite Znth_map' with (d':=Int.zero) in Zi; try omega. clear -Zi. inv Zi. trivial.
     rewrite Z2Nat.id, <- XXi, <- ZZi; try omega; clear XXi ZZi.
     unfold QByte.
-    remember (UpdateOut ll (4 * i) xi) as l.
+(*    remember (UpdateOut ll (4 * i) xi) as l.*)
+    remember (UpdateOut (hPosLoop3 (Z.to_nat i) xs OUT) (4 * i) xi) as l.
     assert (ZLU: Zlength(UpdateOut l (16 + 4 * i) zi) = 32).
       rewrite UpdateOut_Zlength; trivial. omega. omega.
     rewrite (split3_data_at_Tarray_tuchar Tsh 32 (16 + 4 * i) (4+16 + 4 * i)); try omega.
-      rewrite OC in *.
+(*      rewrite OC in *.*)
       rewrite field_address0_offset by auto with field_compatible.
       rewrite field_address0_offset by auto with field_compatible.
       unfold offset_val. Opaque QuadByte2ValList.  simpl. repeat rewrite Z.mul_1_l.
@@ -823,5 +825,5 @@ Time entailer!. (*5 versus 6.6*)
   destruct (HSums1 _ J) as [xj [Xj [X _]]].
   destruct X as [yj [Yi Sj]]. apply J.
   exists xj, yj. auto.
-thaw FR3. subst c k nonce. unfold CoreInSEP. Time cancel. (*0.1 penalty*)
+thaw FR3. (*subst c k nonce.*) unfold CoreInSEP. Time cancel. (*0.1 penalty*)
 Time Qed. (*3.9 versus 3 -- penalty*)

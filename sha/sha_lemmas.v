@@ -3,7 +3,7 @@ Require Import sha.SHA256.
 Require Import sha.spec_sha.
 Require Import sha.sha.
 Require Export sha.pure_lemmas.
-Require Export general_lemmas.
+Require Export sha.general_lemmas.
 Export ListNotations.
 
 Local Open Scope logic.

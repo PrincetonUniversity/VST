@@ -1,6 +1,6 @@
 Require Import Arith.
-Require Import Integers.
-Require Import Coqlib.
+Require Import compcert.lib.Integers.
+Require Import compcert.lib.Coqlib.
 Require Import List.
 Require Import List. Import ListNotations.
 

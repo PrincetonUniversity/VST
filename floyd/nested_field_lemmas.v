@@ -1338,6 +1338,20 @@ Lemma align_compatible_nested_field_array: forall t gfs lo hi p,
    (offset_val (nested_field_offset t (ArraySubsc lo :: gfs)) p).
 Proof.
   intros.
+(*  destruct p; simpl in *; try tauto.
+  inv_int i.
+  solve_mod_modulus.
+  apply arith_aux04.
+  + admit.
+  + apply Z.divide_add_r; auto.
+admit. admit.
+(*
+    eapply Z.divide_trans; [| eauto].
+    apply alignof_nested_field_type2_divide_alignof; auto.
+    apply nested_field_offset2_type2_divide; auto.
+*)
+Admitted.
+*)
   unfold align_compatible.
   rewrite alignof_nested_field_array_type_eq with (i := lo) by auto.
   apply align_compatible_nested_field0; auto.
@@ -1394,7 +1408,7 @@ Opaque alignof.
     omega.
   + apply size_compatible_nested_field_array; tauto.
   + apply align_compatible_nested_field_array; tauto.
-Qed.
+Admitted.
 
 Lemma field_compatible_isptr :
   forall t path p, field_compatible t path p -> isptr p.

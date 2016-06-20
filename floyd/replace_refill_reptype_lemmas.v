@@ -86,7 +86,7 @@ Proof.
     - admit.
     - admit.
     - admit.
-Qed.
+Admitted.
 
 End SINGLE_HOLE.
 
@@ -176,7 +176,7 @@ Ltac cbv_proj_struct H :=
     sumbool_rec sumbool_rect bool_dec bool_rec bool_rect option_rec option_rect
     eq_rect_r eq_rect eq_rec_r eq_rec eq_sym eq_trans f_equal
     type_eq type_rec type_rect typelist_eq typelist_rec typelist_rect
-    intsize_rec intsize_rect signedness_rec signedness_rect floatsize_rec floatsize_rect attr_rec attr_rect
+    intsize_rec intsize_rect signedness_rec signedness_rect floatsize_rec floatsize_rect
     tvoid tschar tuchar tshort tushort tint
     tuint tbool tlong tulong tfloat tdouble tptr tarray noattr
     ] in H; simpl in H.

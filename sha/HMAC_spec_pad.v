@@ -1,10 +1,10 @@
 Set Implicit Arguments.
 
-Require Import Coqlib.
+Require Import compcert.lib.Coqlib.
 Require Import Coq.Program.Basics. (* for function composition: ∘ *)
 Require Import List. Import ListNotations.
-Require Import Integers.
-Require Import general_lemmas.
+Require Import compcert.lib.Integers.
+Require Import sha.general_lemmas.
 Require Import hmac_pure_lemmas.
 Require Import ByteBitRelations.
 Require Import HMAC_common_defs.

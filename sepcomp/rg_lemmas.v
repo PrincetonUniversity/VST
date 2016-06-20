@@ -465,7 +465,7 @@ assert (ExtTgt: forall b, extBlocksTgt mu0 b = true -> DomTgt mu b = true).
    intros. eapply (LinkInv_DomTgt _ _ LI); unfold DomTgt; intuition.
 assert (DS:= reestablish_DomSrc _ _ LocSrc).
 assert (DT:= reestablish_DomTgt _ _ LocTgt).
-intuition.
+intuition; destruct LI.
   eapply reestablish_wd; try eassumption; eapply LI.
   eapply reestablish_extern_incr; eassumption.
   eapply reestablish_as_inj; eassumption.

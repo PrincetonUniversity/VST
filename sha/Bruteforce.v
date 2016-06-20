@@ -1,4 +1,4 @@
-Require Import Coqlib.
+Require Import compcert.lib.Coqlib.
 
 (* Ltac by Andrew Appel *)
 Ltac do_range H tac :=

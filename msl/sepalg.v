@@ -39,8 +39,8 @@ Hint Unfold unit_for.
 Lemma join_assoc_uniq:
   forall {t} {J: Join t} (PA1 PA2: @Perm_alg t J),
       forall a b c d e H H',
-         (proj1_sig (@join_assoc _ _ PA1  a b c d e H H'))
-        = (proj1_sig (@join_assoc _ _ PA2  a b c d e H H')).
+         (projT1 (@join_assoc _ _ PA1  a b c d e H H'))
+        = (projT1 (@join_assoc _ _ PA2  a b c d e H H')).
 Proof.
   intros.
   destruct (@join_assoc _ _ PA1  a b c d e H H') as [f [? ?]].

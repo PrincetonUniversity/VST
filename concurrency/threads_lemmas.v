@@ -1,9 +1,11 @@
 Require Import compcert.lib.Integers.
-Require Import ssreflect ssrbool ssrnat eqtype.
+Require Import compcert.lib.Axioms.
+From mathcomp.ssreflect Require Import ssreflect ssrbool ssrnat eqtype.
 Require Import Lists.List.
 Require Import Coq.ZArith.ZArith.
+Require Import PreOmega.
 Set Implicit Arguments.
-
+Import Axioms.
 (* tactics to support Omega for ssrnats*)
 Ltac arith_hypo_ssrnat2coqnat :=
   match goal with
@@ -53,6 +55,52 @@ Lemma if_false : forall {A : Type} b (x y : A)
 Proof.
   intros. rewrite <- Bool.if_negb. by rewrite Hfalse.
 Defined.
+
+Lemma le_sub:
+  forall x y z,
+    (x < z)%positive ->
+    (z <= y)%positive ->
+    (x <= Z.to_pos (Z.pos_sub y (z - x)))%positive.
+Proof.
+  intros x y z H H0.
+  zify.
+  rewrite <-Pos2Z.add_pos_neg.
+  assert (x < z)%positive by auto.
+  rewrite Z2Pos.id; zify; rewrite Pos2Z.inj_sub; auto; omega.
+Qed.
+
+Lemma lt_lt_sub:
+  forall a b c,
+    (a < b)%positive ->
+    (b <= c)%positive ->
+    (b - a < c)%positive.
+Proof.
+  intros a b c H H0.
+  zify.
+  rewrite Pos2Z.inj_sub; auto; omega.
+Qed.
+
+Lemma prod_fun :
+  forall {A B C : Type}
+    (f g: A -> (B * C)),
+    f = g ->
+    (fun x : A => fst (f x)) =  (fun x : A => fst (g x)) /\
+    (fun x : A => snd (f x)) = (fun x : A => snd (g x)).
+Proof.
+  intros.
+  assert ((fun x => fst (f x)) = (fun x => fst (g x))).
+    by (eapply extensionality; intros x;
+         pose (f x);
+         pose (g x);
+           by subst).
+  assert ((fun x => snd (f x)) = (fun x => snd (g x)))
+    by (eapply extensionality; intros x;
+         pose (f x);
+         pose (g x);
+           by subst).
+  rewrite H0 H1.
+    by split.
+Qed.
 
 Module BlockList.
   Import ListNotations.

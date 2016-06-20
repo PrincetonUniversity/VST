@@ -627,7 +627,7 @@ pose (f loc := @Trip_resource _ _ _ _ _ _
                  (resource_at_join _ _ _ loc H)
                  (resource_at_join _ _ _ loc H0)
                  (resource_at_join _ _ _ loc H1)).
-assert (CompCert_AV.valid (res_option oo (fun l => projT1 (f l)))).
+assert (CompCert_AV.valid (res_option oo (fun l => proj1_sig (f l)))).
 intros b' z'.
 unfold compose. simpl.
 destruct (f (b',z')); simpl.

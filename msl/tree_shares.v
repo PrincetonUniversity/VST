@@ -1791,8 +1791,8 @@ Module Share : SHARE_MODEL.
       match n with
       | O => (bot,tok)
       | S n' => 
-        (exist (fun x => canonicalTree x) (mkCanon (split_tok1 n' (projT1 tok))) (mkCanon_correct _)
-        ,exist (fun x => canonicalTree x) (mkCanon (split_tok2 n' (projT1 tok))) (mkCanon_correct _)
+        (exist (fun x => canonicalTree x) (mkCanon (split_tok1 n' (proj1_sig tok))) (mkCanon_correct _)
+        ,exist (fun x => canonicalTree x) (mkCanon (split_tok2 n' (proj1_sig tok))) (mkCanon_correct _)
         )
       end.
 
@@ -2462,12 +2462,12 @@ Module Share : SHARE_MODEL.
 
   Function unrel (t1 : t) (t2 : t) {measure tree_height t1} : t :=
    match t1 with
-    | exist (Leaf b) _ => t2
+    | exist _ (Leaf b) _ => t2
     | _ => let (ltr1, rtr1) := decompose t1 in
            let (ltr2, rtr2) := decompose t2 in
               match ltr1 with  
-               | exist (Leaf true) _ => ltr2
-               | exist (Leaf false) _ => unrel rtr1 rtr2
+               | exist _ (Leaf true) _ => ltr2
+               | exist _ (Leaf false) _ => unrel rtr1 rtr2
                | _ => unrel ltr1 ltr2
               end
    end.
@@ -3119,7 +3119,8 @@ Proof.
           (conj (or_intror eq_refl) (conj (or_introl eq_refl) (conj I I))))
          = (top,bot)).
    compute;apply injective_projections;apply exist_ext;trivial.
- rewrite H0;clear H0.
+ simpl nonFullTree in H0; simpl nonEmptyTree in H0.
+ rewrite H0. clear H0.
  destruct x.
  icase x.
  icase b.
@@ -3167,6 +3168,8 @@ Proof.
   simpl.
   destruct H0 as [? [? [? ?]]].
   apply injective_projections;apply exist_ext;trivial.
+  change BAF.lub with lub in H0.
+  simpl nonFullTree in H0|-*; simpl nonEmptyTree in H0|-*.
  rewrite H0.
  unfold bot.
  rewrite unrel_equation.

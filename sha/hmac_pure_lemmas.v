@@ -1,10 +1,10 @@
 (* Lemmas that DO NOT depend on CompCert or Verifiable C *)
 
-Require Import Integers.
-Require Import Coqlib.
-Require Import Vector.  
+Require Import compcert.lib.Integers.
+Require Import compcert.lib.Coqlib.
+Require Import Vector.
 Require Import List. Import ListNotations.
-Require Import general_lemmas.
+Require Import sha.general_lemmas.
 
 Definition Vector_0_is_nil (T : Type) (v : Vector.t T 0) : v = Vector.nil T := 
   match v with Vector.nil => eq_refl end.
@@ -12,7 +12,7 @@ Definition Vector_0_is_nil (T : Type) (v : Vector.t T 0) : v = Vector.nil T :=
 Lemma VectorToList_cons A n: forall (a:A) l,
       Vector.to_list (Vector.cons A a n l) =
       List.cons a (Vector.to_list l).
-Proof. intros. reflexivity. Qed. 
+Proof. intros. reflexivity. Qed.
 
 Lemma VectorToList_length {A}: forall n (v: Vector.t A n), length (Vector.to_list v) = n.
 Proof.
@@ -50,7 +50,7 @@ Lemma unsigned_Brepr_isbyte z: isbyteZ z -> Byte.unsigned (Byte.repr z) = z.
 Proof. intros. 
       unfold isbyteZ in H. apply Byte.unsigned_repr.
       unfold Byte.max_unsigned, Byte.modulus. simpl. omega.
-Qed.  
+Qed.
 
 Lemma isByte_ByteUnsigned b: isbyteZ (Byte.unsigned b).
 Proof.
@@ -84,13 +84,14 @@ Proof.
 Qed.
 
 Lemma isbyteZ_range q: isbyteZ q -> 0 <= q <= Byte.max_unsigned. 
-Proof. intros B; destruct B. unfold Byte.max_unsigned, Byte.modulus; simpl. omega. Qed.
-
+Proof. intros B; destruct B. unfold Byte.max_unsigned, Byte.modulus; simpl. omega.
+Qed.
+(*
 Lemma NPeano_divide_trans a b c: NPeano.divide a b -> 
       NPeano.divide b c -> NPeano.divide a c.
 Proof. intros. destruct H; destruct H0. subst.
   exists (x0 * x)%nat. apply mult_assoc.
-Qed. 
+Qed.*)
 
 Lemma app_inv_length1 {A}: forall (l1 m1 l2 m2:list A),
   l1++l2 = m1++m2 -> length l1 = length m1 -> l1=m1 /\ l2=m2.
@@ -123,8 +124,6 @@ Lemma cons_inv {A}: forall (a1 a2:A) t1 t2, a1::t1 = a2::t2 -> a1=a2 /\ t1=t2.
 Lemma mod_exists a b c: a mod b = c -> b<> 0 -> exists k, k*b+c=a.
 Proof. intros. specialize (Zmod_eq_full a b H0). intros.
   exists (a/b). rewrite H in H1; clear H H0. subst c. omega. Qed.
-
-
 
 Lemma app_inj1 {A} l2 m2: forall (l1 m1:list A) (H:l1++l2=m1++m2),
       length l1=length m1 -> l1=m1 /\ l2=m2.
@@ -389,12 +388,12 @@ Lemma length_mul_split A k (K:(0<k)%nat) n (N:(0<n)%nat): forall (l:list A), len
       exists l1, exists l2, l=l1++l2 /\ length l1=n /\ length l2 = ((k-1) * n)%nat.
 Proof.
   intros. 
-  assert ((k * n = n + (k-1) * n)%nat). rewrite mult_minus_distr_r. simpl. rewrite plus_0_r.  
-      rewrite NPeano.Nat.add_sub_assoc. rewrite minus_plus. trivial.
+  assert ((k * n = n + (k-1) * n)%nat). rewrite mult_minus_distr_r. simpl. rewrite plus_0_r.
+      rewrite le_plus_minus_r. (* NPeano.Nat.add_sub_assoc. rewrite minus_plus. *) trivial.
       specialize (mult_le_compat_r 1 k n). simpl; rewrite plus_0_r. simpl; intros. apply H0. omega.
   rewrite H0 in H; clear H0. 
   apply (list_splitLength _ _ _ H).
-Qed.   
+Qed.
 
 Lemma isbyteZ_xor a b: isbyteZ a -> isbyteZ b -> isbyteZ (Z.lxor a b).
 Proof. intros. rewrite xor_inrange.
@@ -402,4 +401,3 @@ Proof. intros. rewrite xor_inrange.
         symmetry; apply Zmod_small. apply H.
         symmetry; apply Zmod_small. apply H0.
 Qed.
-   

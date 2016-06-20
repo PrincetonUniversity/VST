@@ -1128,8 +1128,11 @@ Ltac do_repr_inj H :=
    simpl typeof in H;
   try first [apply typed_true_of_bool in H
                |apply typed_false_of_bool in H
-               | apply typed_true_ptr_e in H
+               | apply typed_true_ptr in H
                | apply typed_false_ptr_e in H
+               | unfold nullval in H; simple apply typed_true_tint_Vint in H
+               | unfold nullval in H; simple apply typed_false_tint_Vint in H
+(*               | simple apply typed_true_tint in H *)
                ];
    repeat (rewrite -> negb_true_iff in H || rewrite -> negb_false_iff in H);
    try apply int_eq_e in H;
@@ -1255,25 +1258,17 @@ Tactic Notation "forward_while" constr(Inv) :=
        | do_compute_expr1 Delta Pre e; eassumption
        | special_intros_EX;
          let HRE := fresh "HRE" in apply semax_extract_PROP; intro HRE;
-         first [simple apply typed_true_of_bool in HRE
-               | apply typed_true_tint_Vint in HRE
-               | apply typed_true_tint in HRE
-               | apply typed_true_ptr in HRE
-               | idtac ];
+         do_repr_inj HRE;
          repeat (apply semax_extract_PROP; intro); 
-         do_repr_inj HRE; normalize in HRE
+         normalize in HRE
         ]
        end
        | simpl update_tycon; 
          apply extract_exists_pre; special_intros_EX;
          let HRE := fresh "HRE" in apply semax_extract_PROP; intro HRE;
-         first [simple apply typed_false_of_bool in HRE
-               | apply typed_false_tint_Vint in HRE
-               | apply typed_false_tint in HRE
-               | apply typed_false_ptr in HRE
-               | idtac ];
+         do_repr_inj HRE;
          repeat (apply semax_extract_PROP; intro);
-         do_repr_inj HRE; normalize in HRE
+         normalize in HRE
        ]
     ]; abbreviate_semax; autorewrite with ret_assert.
 

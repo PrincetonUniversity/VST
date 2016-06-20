@@ -84,13 +84,14 @@ Section level'.
   Variable ag:ageable A.
 
   Require Coq.funind.Recdef.
-  Function level' (x:A) { wf (transp _ (@age A ag)) x } : nat :=
+  Function level' (x:A) { wf (fun x y => @age A ag y x)  x } : nat :=
+(*  Function level' (x:A) { wf (transp _ (@age A ag)) x } : nat := *)
     match age1 x with
     | None => 0
     | Some x' => S (level' x')
     end.
-    hnf; auto.
-    unfold transp; apply (af_wf _).
+    intros. hnf. assumption.
+    unfold transp. apply (af_wf _).
   Defined.
   
   Theorem level_level' : forall x:A, level x = level' x.

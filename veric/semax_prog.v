@@ -1334,7 +1334,8 @@ Proof.
   unfold is_Internal in INT; unfold find_params in Fparams.
   destruct (Genv.find_symbol (Genv.globalenv prog) id_fun) as [b|] eqn:Fid; [ | discriminate].
   destruct (Genv.find_funct_ptr (Genv.globalenv prog) b) as [[func|]|] eqn:Fb; try discriminate.
-  subst params; injection Fparams as Eparams; clear Fparams INT.
+  subst params; injection Fparams as Eparams.
+ clear INT.
   
   exists b.
   intros rho0 rho1.

@@ -4,9 +4,9 @@
 This file DOES NOT IMPORT anything about C or CompCert
   (except the CompCert Integers module)
 *)
-Require Import Coqlib.
+Require Import compcert.lib.Coqlib.
 Require Import msl.Coqlib2.
-Require Import general_lemmas.
+Require Import sha.general_lemmas.
 Require Import sha.SHA256.
 
 Lemma length_Round:

@@ -58,10 +58,9 @@ Proof.
     apply H.
     simpl; auto.
   + simpl.
-    f_equal.
-    - apply H.
-      simpl; auto.
-    - apply IHl.
+    rewrite H by (left; auto).
+    match goal with |- (_ * ?A = _ * ?B)%type => replace B with A; auto end.
+    apply IHl.
       intros.
       apply H.
       simpl; auto.
@@ -76,10 +75,9 @@ Proof.
     apply H.
     simpl; auto.
   + simpl.
-    f_equal.
-    - apply H.
-      simpl; auto.
-    - apply IHl.
+    rewrite H by (left; auto).
+    match goal with |- (_ + ?A = _ + ?B)%type => replace B with A; auto end.
+    apply IHl.
       intros.
       apply H.
       simpl; auto.

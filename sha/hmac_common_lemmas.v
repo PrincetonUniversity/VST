@@ -1,17 +1,17 @@
 (* Lemmas used by the hmac proofs that are independent of C/CompCert/VST*)
 
-Require Import Integers.
-Require Import Coqlib.
+Require Import compcert.lib.Integers.
+Require Import compcert.lib.Coqlib.
 Require Import List. Import ListNotations.
-Require Import general_lemmas.
-Require Import hmac_pure_lemmas.
-Require Import SHA256.
-Require Import pure_lemmas.     (* sha *)
+Require Import sha.general_lemmas.
+Require Import sha.hmac_pure_lemmas.
+Require Import sha.SHA256.
+Require Import sha.pure_lemmas.     (* sha *)
 Require Import sha.spec_sha.
-Require Import sublist.
+(*Require Import sublist.*)
 
-Require Import HMAC_functional_prog.
-Require Import HMAC256_functional_prog.
+Require Import sha.HMAC_functional_prog.
+Require Import sha.HMAC256_functional_prog.
 (*
 Lemma SF_ByteRepr x: isbyteZ x ->
                      HP.HMAC_SHA256.sixtyfour x = 

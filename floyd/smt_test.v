@@ -288,8 +288,8 @@ Require Import msl.shares.
 Require Import veric.shares.
 Require Import compcert.lib.Integers.
 Require Import compcert.common.Values.
-Require Import veric.expr.
 Require Import compcert.cfrontend.Ctypes.
+Require Import veric.expr.
 
 Lemma verif_sumarray_example1:
 forall (sh : share) (contents : list int) (size : Z) (a : val),

@@ -106,9 +106,9 @@ Module Knot (TF':TY_FUNCTOR) : KNOT with Module TF:=TF'.
   Qed.
 
   Definition unstratify (n:nat) (p:sinv n) : predicate := fun w =>
-    match w with (existT nw w',e) =>
+    match w with (existT _ nw w',e) =>
       match decompose_nat nw n with
-        | inleft (existT m Hm) => snd (floor m (S nw) (eq_rect  n _ p (m + S nw) Hm)) (w', e)
+        | inleft (existT _ m Hm) => snd (floor m (S nw) (eq_rect  n _ p (m + S nw) Hm)) (w', e)
         | inright H => T_bot
       end
     end.
@@ -320,7 +320,7 @@ Module Knot (TF':TY_FUNCTOR) : KNOT with Module TF:=TF'.
     match x with (n,y) => existT (F oo sinv) n (fmap (stratify n) y) end.
 
   Definition unsquash (x:knot) : (nat * F predicate) :=
-    match x with existT n y => (n, fmap (unstratify n) y) end.
+    match x with existT _ n y => (n, fmap (unstratify n) y) end.
 
   Definition def_knot_level (k:knot) := fst (unsquash k).
 

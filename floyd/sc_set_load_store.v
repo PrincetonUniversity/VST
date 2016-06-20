@@ -76,10 +76,10 @@ Transparent andp.
       unfold assertD, localD.
       rewrite (add_andp _ _ H0).
       apply andp_derives; [| auto].
-      rewrite Heqt.
       rewrite Int.repr_unsigned.
       apply andp_left2.
-      apply andp_right; auto. apply prop_right; auto.
+      apply andp_right; auto.
+      intros x; apply prop_True_right.
     - destruct (msubst_efield_denote T1 T2 efs) eqn:?H; [| inversion H].
       inversion H. 
       rewrite (add_andp _ _ (IHefs l eq_refl)).

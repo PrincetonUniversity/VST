@@ -1,7 +1,7 @@
 Require Import floyd.proofauto.
 Import ListNotations.
 Require Import sha.sha.
-Require Import general_lemmas.
+Require Import sha.general_lemmas.
 Require Import sha.SHA256.
 Instance CompSpecs : compspecs. make_compspecs prog. Defined. 
 Definition Vprog : varspecs. mk_varspecs prog. Defined.
@@ -203,7 +203,7 @@ Definition Gprog : funspecs :=
 Fixpoint do_builtins (n: nat) (defs : list (ident * globdef fundef type)) : funspecs :=
  match n, defs with
   | S n', (id, Gfun (External (EF_builtin _ sig) argtys resty cc_default))::defs' => 
-     (id, mk_funspec (iota_formals 1%positive argtys, resty) unit FF FF) 
+     (id, mk_funspec (iota_formals 1%positive argtys, resty) cc_default unit FF FF) 
       :: do_builtins n' defs'
   | _, _ => nil
  end.

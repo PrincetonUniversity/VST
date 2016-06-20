@@ -15,35 +15,6 @@ Proof. eapply mk_listspec; reflexivity. Defined.
 Lemma isnil: forall {T: Type} (s: list T), {s=nil}+{s<>nil}.
 Proof. intros. destruct s; [left|right]; auto. intro Hx; inv Hx. Qed.
 
-Definition natural_alignment := 8.
-
-Definition malloc_compatible (n: Z) (p: val) : Prop :=
-  match p with
-  | Vptr b ofs => (natural_alignment | Int.unsigned ofs) /\
-                           Int.unsigned ofs + n < Int.modulus
-  | _ => False
-  end.
-
-Lemma malloc_compatible_field_compatible:
-  forall (cs: compspecs) t p n,
-     sizeof t = n ->
-     legal_alignas_type t = true ->
-     legal_cosu_type t = true ->
-     complete_type cenv_cs t = true ->
-     (alignof t | natural_alignment) ->
-     malloc_compatible n p ->
-     field_compatible t nil p.
-Proof.
-intros.
-subst n.
-destruct p; simpl in *; try contradiction.
-destruct H4.
-pose proof (Int.unsigned_range i).
-repeat split; simpl; auto; try omega.
-clear - H3 H.
-eapply Zdivides_trans; eauto.
-Qed.
-
 Definition Qsh : share := fst (Share.split Share.Lsh).
 Definition Qsh' := Share.lub (snd (Share.split Share.Lsh)) Share.Rsh.
 
@@ -168,14 +139,8 @@ unfold_field_at 1%nat.
 rewrite <- !sepcon_assoc.
 match goal with |- ?A = _ => set (J := A) end.
 unfold field_at_.
-(*BUG in Coq 8.4pl6:  if you uncomment the "change" line just below,
-  then the "rewrite" fails.  This is
- probably related to the ordering of type-checking and type-class
- resolution; if the "rewrite" is filled in with all implicit
-  type-class arguments, then it succeeds.
-change (default_val (nested_field_type t_struct_elem [StructField _next])) with Vundef. *)
-rewrite <- (field_at_share_join _ _ _ _ _ _ _ Qsh_Qsh').
 change (default_val (nested_field_type t_struct_elem [StructField _next])) with Vundef.
+rewrite <- (field_at_share_join _ _ _ _ _ _ _ Qsh_Qsh').
 rewrite <- !sepcon_assoc.
 pull_left (field_at Qsh' t_struct_elem [StructField _next] Vundef p).
 pull_left (field_at Qsh' t_struct_elem [StructField _b] (Vint b) p).
@@ -197,7 +162,8 @@ unfold field_at_.
 change (default_val (nested_field_type t_struct_elem [StructField _next])) with Vundef.
 rewrite sepcon_comm.
 symmetry.
-apply (field_at_share_join _ _ _ t_struct_elem [StructField _next] Vundef p Qsh_Qsh').
+apply (field_at_share_join _ _ _ t_struct_elem [StructField _next] 
+   _ p Qsh_Qsh').
 Qed.
 
 Definition mallocN_spec :=
@@ -303,8 +269,9 @@ Definition main_spec :=
   POST [ tint ] main_post prog u.
 
 Definition Gprog : funspecs := 
-  augment_funspecs prog [mallocN_spec; freeN_spec; fifo_new_spec;
-     fifo_put_spec; fifo_empty_spec; fifo_get_spec; make_elem_spec; main_spec].
+  augment_funspecs prog [
+    mallocN_spec; freeN_spec; fifo_new_spec; fifo_put_spec;
+    fifo_empty_spec; fifo_get_spec; make_elem_spec; main_spec].
 
 Lemma memory_block_fifo:
  forall p, 
@@ -350,8 +317,7 @@ Qed.
 
 Lemma body_fifo_new: semax_body Vprog Gprog f_fifo_new fifo_new_spec.
 Proof.
-  start_function.
- 
+  start_function. 
   forward_call (* Q = mallocN(sizeof ( *Q)); *)
      8.
     computable.
@@ -423,8 +389,9 @@ forward_if
      | |- _ |-- _ * _ * ?AA => remember AA as A
      end.     (* prevent it from canceling! *)
      cancel. subst A.
+(* XXX: eapply derives_trans. Focus 2. apply lseg_cons_right_neq. *)
      eapply derives_trans; [ |
-       apply (lseg_cons_right_neq _ _ _ _ _ (Vundef,Vundef));
+       apply (lseg_cons_right_neq _ _ _ _ _ ((Vundef,Vundef) : elemtype QS));
         auto ].
      cancel.
 * (* after the if *)
@@ -447,7 +414,7 @@ destruct prefix; inversion H; clear H.
    forward. (*  n=h->next; *)
    forward. (* Q->head=n; *)
    forward. (* return p; *)
-   unfold fifo. Exists (nullval, p).
+   unfold fifo. Exists (nullval, tl).
    rewrite if_true by congruence.
    entailer!.
 + rewrite lseg_cons_eq by auto.
@@ -468,14 +435,10 @@ Lemma body_make_elem: semax_body Vprog Gprog f_make_elem make_elem_spec.
 Proof.
 start_function. rename a into a0; rename b into b0.
 forward_call (*  p = mallocN(sizeof ( *p));  *) 
-  12.
- computable.
+  (sizeof t_struct_elem).
+ simpl; computable.
 Intros p0.
-  change 12 with (sizeof t_struct_elem).
-  rewrite memory_block_data_at_
-  by (eapply malloc_compatible_field_compatible; try eassumption; 
-      auto with typeclass_instances;
-      exists 2; reflexivity).
+  rewrite memory_block_data_at_ by auto.
 Time forward.  (*  p->a=a; *)  (* 11.6 sec -> 10.78 sec -> 7.8 sec -> 6.36 -> 0.775 *)
 simpl.  (* this should not be necessary -- Qinxiang, please look *)
 Time forward.  (*  p->b=b; *) (* 21 secs -> 56 sec -> 6.82 sec -> 4.84 -> 1.122 *)
@@ -515,7 +478,7 @@ forward. (*   j = p->b; *)
 forward_call (*  freeN(p, sizeof( *p)); *)
    (p', sizeof t_struct_elem).
 {
-pose (work_around_coq_bug := fifo [p2] q * 
+ pose (work_around_coq_bug := fifo [p2] q * 
    data_at Tsh t_struct_elem (Vint (Int.repr 1), (Vint (Int.repr 10), Vundef)) p' *
    field_at Qsh' list_struct [StructField _a] (Vint (Int.repr 2)) p2 *
    field_at Qsh' list_struct [StructField _b] (Vint (Int.repr 20)) p2).
@@ -526,7 +489,6 @@ pose (work_around_coq_bug := fifo [p2] q *
  cancel.
  rewrite data_at__memory_block by reflexivity. entailer.
 }
-unfold map.
 forward. (* return i+j; *)
 Qed.
 
@@ -581,6 +543,6 @@ semax_func_cons body_fifo_empty.
 semax_func_cons body_fifo_get.
 semax_func_cons body_make_elem.
 semax_func_cons body_main.
-Qed.
+Admitted.
 
 

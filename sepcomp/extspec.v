@@ -1,5 +1,4 @@
 Require Import Coq.Lists.ListSet.
-
 Require Import compcert.common.AST.
 Require Import compcert.common.Values.
 Require Import compcert.common.Memory.

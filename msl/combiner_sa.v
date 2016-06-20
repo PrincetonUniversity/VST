@@ -16,7 +16,7 @@ Definition ijoinable A {JA: Join A} : Type := {sh : A & midObj sh}.
 
 Definition ijoin {A} {JA: Join A} (j1 j2 j3 : ijoinable A) : Prop :=
   match (j1, j2, j3) with 
-  (existT t1 _, existT t2 _, existT t3 _) => join t1 t2 t3
+  (existT _ t1 _, existT _ t2 _, existT _ t3 _) => join t1 t2 t3
   end.
 
 Lemma ijoin_eq {A} {JA: Join A}{PA: Perm_alg A} : forall j1 j2 j3 j3',
@@ -434,9 +434,9 @@ Section ParameterizedCombiner.
   Definition fcombiner_fmap (A B : Type) (f : A -> B) 
     (fa : fcombiner A) : fcombiner B :=
       match fa with
-        | CEmpty => CEmpty _ _ _ 
-        | CPart sh rs => CPart _ sh (fmap f rs)
-        | CFull trs => CFull _ _ (fmap f trs)
+        | CEmpty _ _ _=> CEmpty _ _ _ 
+        | CPart _ sh rs => CPart _ sh (fmap f rs)
+        | CFull _ _ trs => CFull _ _ (fmap f trs)
       end.
   Implicit Arguments fcombiner_fmap [A B].
   

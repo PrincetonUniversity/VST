@@ -787,7 +787,7 @@ Defined.
 Lemma mapsto_can_store_property: forall (ch:memory_chunk) v rsh b ofs jm v'
   (MAPSTO: (address_mapsto ch v rsh Share.top (b, ofs) * TT)%pred (m_phi jm)),
   Mem.store ch (m_dry jm) b ofs v' = 
-  Some(mapsto_can_store_definition jm v' MAPSTO).
+  Some(mapsto_can_store_definition _ _ _ _ _ jm v' MAPSTO).
 Proof.
 intros.
 pose proof (mapsto_valid_access_wr _ _ _ _ _ _ MAPSTO).
@@ -804,7 +804,7 @@ Lemma mapsto_can_store: forall ch v rsh b ofs jm v',
   -> exists m', Mem.store ch (m_dry jm) b ofs v' = Some m'.
 Proof.
 intros.
-exists (mapsto_can_store_definition jm v' H).
+exists (mapsto_can_store_definition _ _ _ _ _ jm v' H).
 apply mapsto_can_store_property.
 Qed.
 

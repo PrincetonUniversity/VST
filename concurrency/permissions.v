@@ -1,16 +1,20 @@
-Require Import ssreflect seq ssrbool
+From mathcomp.ssreflect Require Import ssreflect seq ssrbool
         ssrnat ssrfun eqtype seq fintype finfun.
 
 Set Implicit Arguments.
-Add LoadPath "../concurrency" as concurrency.
+Require Import sepcomp.mem_lemmas.
 Require Import concurrency.threads_lemmas.
 Require Import compcert.common.Memory.
 Require Import compcert.common.Values. (*for val*)
 Require Import compcert.lib.Integers.
+Require Export compcert.lib.Maps.
 Require Import Coq.ZArith.ZArith.
-Require Import veric.shares juicy_mem.
+From veric Require Import shares juicy_mem.
 Require Import msl.msl_standard.
 Import cjoins.
+
+(*IM using proof irrelevance!*)
+Require Import ProofIrrelevance.
 
 Lemma po_refl: forall p, Mem.perm_order'' p p.
 Proof.
@@ -38,6 +42,12 @@ Section permMapDefs.
   
   Definition empty_map : access_map :=
     (fun z => None, Maps.PTree.empty (Z -> option permission)).
+
+  Lemma empty_map_spec: forall b ofs,
+      Maps.PMap.get b empty_map ofs = None.
+        intros. unfold empty_map, Maps.PMap.get.
+        rewrite Maps.PTree.gempty; reflexivity.
+  Qed.
 
   Definition permission_at (m : mem) (b : block) (ofs : Z) (k : perm_kind) :=
     Maps.PMap.get b (Mem.mem_access m) ofs k.
@@ -86,6 +96,23 @@ Section permMapDefs.
             try inversion Hunion; subst; unfold Mem.perm_order''; split; constructor.
   Defined.
 
+  Lemma perm_union_lower:
+    forall p1 p2 p3
+      (Hpu: exists pu, perm_union p1 p2 = Some pu)
+      (Hperm: Mem.perm_order'' p2 p3),
+    exists pu, perm_union p1 p3 = Some pu.
+  Proof.
+    intros.
+    destruct p2 as [p|].
+    destruct p; simpl in Hperm;
+    destruct Hpu as [pu Hpu];
+    destruct p1 as [p|]; try destruct p; simpl in Hpu;
+    try congruence;
+    destruct p3; inversion Hperm; simpl; eexists; eauto.
+    simpl in Hperm.
+    destruct p3; simpl in *; tauto.
+  Qed.
+  
   Inductive not_racy : option permission -> Prop :=
   | empty : not_racy None.
 
@@ -108,6 +135,23 @@ Section permMapDefs.
     inversion Hracy; subst;
     simpl in *; inversion Hnorace;
     (discriminate || constructor).
+  Qed.
+
+  Lemma perm_order_clash:
+    forall p p'
+      (Hreadable: Mem.perm_order' p Readable)
+      (Hwritable: Mem.perm_order' p' Writable),
+      ~ exists pu, perm_union p p' = Some pu.
+  Proof.
+    intros. intro Hcontra.
+    destruct p as [p0|], p' as [p0'|];
+      try destruct p0;
+      try destruct p0';
+      simpl in *;
+      destruct Hcontra as [pu H];
+      try inversion H;
+      try (by inversion Hwritable);
+      try (by inversion Hreadable).
   Qed.
     
   Definition perm_max (p1 p2 : option permission) : option permission :=
@@ -191,11 +235,20 @@ Section permMapDefs.
   Proof.
     intros. unfold getCurPerm. by rewrite Maps.PMap.gmap.
   Qed.
- 
+
+  Definition permDisjoint p1 p2:=
+    exists pu : option permission,
+      perm_union p1 p2 = Some pu.
   Definition permMapsDisjoint (pmap1 pmap2 : access_map) : Prop :=
     forall b ofs, exists pu,
       perm_union ((Maps.PMap.get b pmap1) ofs)
                  ((Maps.PMap.get b pmap2) ofs) = Some pu.
+
+  Lemma empty_disjoint':
+    forall pmap,
+      permMapsDisjoint empty_map pmap.
+        intros pmap b ofs. exists (pmap !! b ofs). rewrite empty_map_spec; reflexivity.
+  Qed.
   Lemma empty_disjoint:
     permMapsDisjoint empty_map
                      empty_map.
@@ -350,6 +403,13 @@ Section permMapDefs.
     forall b ofs,
       Mem.perm_order'' (Maps.PMap.get b pmap2 ofs)
                        (Maps.PMap.get b pmap1 ofs).
+
+  Lemma empty_LT: forall pmap,
+             permMapLt empty_map pmap.
+               intros pmap b ofs.
+               rewrite empty_map_spec.
+               destruct (pmap !! b ofs); simpl; exact I.
+  Qed.
   
   Lemma canonical_lt :
     forall p' m
@@ -402,32 +462,86 @@ Section permMapDefs.
                               else
                                 Maps.PMap.get b pmap ofs')
                   pmap.
-  (* THIS OLD VERSION IS WRONG
-  Definition computeMap (pmap : access_map) (delta : delta_map) : access_map :=
-    (fun ofs => None,
-             Maps.PTree.map 
-               (fun b f => 
-                  fun ofs =>
-                    match (Maps.PMap.get b delta) ofs with
-                    | None => f ofs
-                    | Some p => p
-                    end) pmap.2). *)
+  Lemma disjoint_add:
+    forall p1 p2 b ofs,
+      permMapsDisjoint p1 p2 ->
+      permDisjoint (Some Writable) ((p2) !!  b ofs) ->
+      permMapsDisjoint ( setPerm (Some Writable) b ofs p1) p2.
+  Proof.
+    intros. unfold permMapsDisjoint; intros.
+  Admitted.
+
+  Fixpoint setPermBlock  (p : option permission) (b : block)
+           (ofs : Z) (pmap : access_map) (length: nat): access_map :=
+    match length with
+      0 => setPerm p b ofs pmap
+    | S len => setPermBlock p b ofs (setPerm p b (ofs + (Z_of_nat length))%Z pmap) len
+    end.
+  
+
+  (** Apply a [delta_map] to an [access_map]*)
   Definition computeMap (pmap : access_map) (delta : delta_map) : access_map :=
     (pmap.1,
-     @Maps.PTree.combine (Z -> option permission) (Z -> option (option permission)) (Z -> option permission)
+     @Maps.PTree.combine (Z -> option permission) (Z -> option (option permission))
+                         (Z -> option permission)
                          (fun p1 pd => match pd, p1 with
-                                    | Some pd', Some p1' => Some (fun z => match pd' z with
-                                                                           Some pd'' => pd''
-                                                                         | _ => p1' z
-                                                                         end)
-                                    | Some pd', None => Some (fun z => match pd' z with
-                                                                       Some pd'' => pd''
-                                                                       | _ => None
-                                                                     end)
+                                    | Some pd', Some p1' =>
+                                      Some (fun z => match pd' z with
+                                                    Some pd'' => pd''
+                                                  | _ => p1' z
+                                                  end)
+                                    | Some pd', None =>
+                                      Some (fun z => match pd' z with
+                                                    Some pd'' => pd''
+                                                  | _ => pmap.1 z
+                                                  end)
                                     | None, _ => p1
                                     end)
                          pmap.2 delta).
-      
+
+  (** If the [delta_map] changes the [access_map] at a specific [address] *)
+  Lemma computeMap_1 :
+    forall (pmap : access_map) (dmap : delta_map) b ofs df (p : option permission),
+      Maps.PTree.get b dmap = Some df ->
+      df ofs = Some p ->
+      Maps.PMap.get b (computeMap pmap dmap) ofs = p.
+  Proof.
+    intros pmap dmap b ofs df p Hdmap Hdf.
+    unfold computeMap, Maps.PMap.get. simpl.
+    rewrite Maps.PTree.gcombine; try reflexivity.
+    rewrite Hdmap.
+    destruct ((pmap.2) ! b);
+      by rewrite Hdf.
+  Qed.
+
+  (** If the [delta_map] changes the [access_map] at this [block] but not at this [offset] *)
+  Lemma computeMap_2 :
+    forall (pmap : access_map) (dmap : delta_map) b ofs df,
+      Maps.PTree.get b dmap = Some df ->
+      df ofs = None ->
+      Maps.PMap.get b (computeMap pmap dmap) ofs = Maps.PMap.get b pmap ofs.
+  Proof.
+    intros pmap dmap b ofs df Hdmap Hdf.
+    unfold computeMap, Maps.PMap.get. simpl.
+    rewrite Maps.PTree.gcombine; try reflexivity.
+    rewrite Hdmap.
+    destruct ((pmap.2) ! b);
+      by rewrite Hdf.
+  Qed.
+
+  (** If the [delta_map] does not change the [access_map] at this [block] *)
+  Lemma computeMap_3 :
+    forall (pmap : access_map) (dmap : delta_map) b ofs,
+      Maps.PTree.get b dmap = None ->
+      Maps.PMap.get b (computeMap pmap dmap) ofs = Maps.PMap.get b pmap ofs.
+  Proof.
+    intros pmap dmap b ofs Hdmap.
+    unfold computeMap, Maps.PMap.get. simpl.
+    rewrite Maps.PTree.gcombine; try reflexivity.
+    rewrite Hdmap.
+      by reflexivity.
+  Qed.
+  
   Import Maps BlockList.
   
   Definition maxF (f : Z -> perm_kind -> option permission) :=
@@ -861,6 +975,47 @@ Section permMapDefs.
       destruct (p'.1 ofs); tauto.
       rewrite H; auto. destruct k; auto.
   Defined.
+
+Lemma restrPermMap_irr:
+      forall p1 p2 m1 m2
+        (P1: permMapLt p1 (getMaxPerm m1))
+        (P2: permMapLt p2 (getMaxPerm m2)),
+        p1 = p2 -> m1 = m2 ->
+        restrPermMap P1 = restrPermMap P2.
+    Proof.
+      intros; subst.
+      replace P1 with P2.
+      reflexivity.
+      apply proof_irrelevance.
+    Qed.
+    Lemma restrPermMap_ext:
+      forall p1 p2 m
+        (P1: permMapLt p1 (getMaxPerm m))
+        (P2: permMapLt p2 (getMaxPerm m)),
+        (forall b, (p1 !! b) = (p2 !! b)) ->
+        restrPermMap P1 = restrPermMap P2.
+    Proof.
+      intros; subst.
+      remember (restrPermMap P1) as M1.
+      remember (restrPermMap P2) as M2.
+      assert (Mem.mem_contents M1 = Mem.mem_contents M2) by
+          (subst; reflexivity).
+      assert (Mem.nextblock M1 = Mem.nextblock M2) by
+          (subst; reflexivity).
+      assert (Mem.mem_access M1 = Mem.mem_access M2).
+      {
+        subst. simpl.
+        f_equal. f_equal.
+        simpl.
+        do 4 (apply functional_extensionality; intro).
+        destruct x2; try rewrite H; reflexivity. 
+      }
+      subst.
+      destruct (restrPermMap P1);
+        destruct (restrPermMap P2); simpl in *.
+      subst. f_equal;
+      apply proof_irrelevance.
+    Qed.
   
   Lemma restrPermMap_nextblock :
     forall p' m (Hlt: permMapLt p' (getMaxPerm m)),
@@ -896,8 +1051,24 @@ Section permMapDefs.
     unfold Maps.PMap.get at 2; simpl.
     destruct (((Mem.mem_access m).2) ! (loc.1)) eqn:AA; reflexivity.
   Qed.
-  
-  Lemma restrPermMap_irr : forall p' p'' m
+
+  Lemma getMax_restr :
+    forall p' m (Hlt: permMapLt p' (getMaxPerm m)) b,
+      (getMaxPerm (restrPermMap Hlt)) !!  b = (getMaxPerm m) !! b.
+  Proof.
+    intros.
+    unfold getMaxPerm.
+    unfold Maps.PMap.get.
+    simpl. do 2 rewrite Maps.PTree.gmap1.
+    unfold Coqlib.option_map.
+    rewrite Maps.PTree.gmap.
+    unfold Coqlib.option_map.
+    simpl.
+    destruct ((Mem.mem_access m).2 ! b);
+      by auto.
+  Qed.
+    
+  Lemma restrPermMap_irr' : forall p' p'' m
                              (Hlt : permMapLt p' (getMaxPerm m))
                              (Hlt': permMapLt p'' (getMaxPerm m))
                              (Heq_new: p' = p''),
@@ -1065,7 +1236,7 @@ Section ShareMaps.
            end
          end) smap pmap.2.
      
-  Definition decay m_before m_after := forall b ofs, 
+  (*Definition decay m_before m_after := forall b ofs, 
       (~Mem.valid_block m_before b ->
        forall p, Mem.perm m_after b ofs Cur p -> Mem.perm m_after b ofs Cur Freeable) /\
       (Mem.perm m_before b ofs Cur Freeable ->
@@ -1073,25 +1244,75 @@ Section ShareMaps.
       (~Mem.perm m_before b ofs Cur Freeable ->
        forall p, Mem.perm m_before b ofs Cur p -> Mem.perm m_after b ofs Cur p) /\
       (Mem.valid_block m_before b ->
-       forall p, Mem.perm m_after b ofs Cur p -> Mem.perm m_before b ofs Cur p).
+       forall p, Mem.perm m_after b ofs Cur p -> Mem.perm m_before b ofs Cur p). *)
   
-  Definition decay' m_before m_after := forall b ofs, 
+  Definition decay m_before m_after := forall b ofs, 
       (~Mem.valid_block m_before b ->
        Mem.valid_block m_after b ->
-       Maps.PMap.get b (Mem.mem_access m_after) ofs Cur = Some Freeable
-      \/ Maps.PMap.get b (Mem.mem_access m_after) ofs Cur = None) /\
+       (forall k, Maps.PMap.get b (Mem.mem_access m_after) ofs k = Some Freeable)
+       \/ (forall k, Maps.PMap.get b (Mem.mem_access m_after) ofs k = None)) /\
       (Mem.valid_block m_before b ->
-       ((Maps.PMap.get b (Mem.mem_access m_before) ofs Cur = Some Freeable /\
-         Maps.PMap.get b (Mem.mem_access m_after) ofs Cur = None)) \/
-       (Maps.PMap.get b (Mem.mem_access m_before) ofs Cur =
-             Maps.PMap.get b (Mem.mem_access m_after) ofs Cur)).
+       (forall k,
+           (Maps.PMap.get b (Mem.mem_access m_before) ofs k = Some Freeable /\
+            Maps.PMap.get b (Mem.mem_access m_after) ofs k = None)) \/
+       (forall k, Maps.PMap.get b (Mem.mem_access m_before) ofs k =
+             Maps.PMap.get b (Mem.mem_access m_after) ofs k)).
 
-  Lemma decay_decay' :
+  Lemma decay_refl:
+    forall m,
+      decay m m.
+  Proof.
+    intros m b ofs.
+    split; intros; first by exfalso.
+    right; auto.
+  Qed.
+  
+  Lemma decay_trans :
+    forall m m' m'',
+      (forall b, Mem.valid_block m b -> Mem.valid_block m' b) ->
+      decay m m' ->
+      decay m' m'' ->
+      decay m m''.
+  Proof.
+    intros m m' m'' Hvblocks H H0.
+    unfold decay in *.
+    intros b ofs.
+    specialize (H b ofs).
+    specialize (H0 b ofs).
+    destruct H, H0.
+    split.
+    - intros Hinvalid Hvalid''.
+      destruct (valid_block_dec m' b) as [Hvalid' | Hinvalid'];
+        eauto.
+      specialize (H Hinvalid Hvalid').
+      specialize (H2 Hvalid').
+      destruct H2.
+      right. intros k; destruct (H2 k); eauto.
+      destruct H;
+        [left | right]; intros k; specialize (H k);
+        specialize (H2 k); rewrite <- H2; auto.
+    - intros Hvalid.
+      clear H.
+      specialize (H1 Hvalid).
+      specialize (Hvblocks _ Hvalid).
+      specialize (H2 Hvblocks).
+      destruct H2 as [H2 | H2], H1 as [H1 | H1].
+      + left; intros k; destruct (H1 k); destruct (H2 k);
+        eauto.
+      + left; intros k; specialize (H1 k); destruct (H2 k);
+        rewrite H1; eauto.
+      + left; intros k; destruct (H1 k); specialize (H2 k);
+        rewrite <- H2; eauto.
+      + right; intros k; specialize (H1 k); specialize (H2 k);
+        rewrite H1; rewrite H2; eauto.
+  Qed.
+
+  (*Lemma decay_decay' :
     forall m m',
       decay m m' ->
       decay' m m'.
   Proof.
-  Admitted.
+  Admitted. *)
   
   Definition shareMapsJoin (smap1 smap2 smap3 : share_map) : Prop :=
     forall b ofs,

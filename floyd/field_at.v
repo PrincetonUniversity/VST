@@ -1601,6 +1601,39 @@ Qed.
 
 End CENV.
 
+Definition natural_alignment := 8.
+
+Definition malloc_compatible (n: Z) (p: val) : Prop :=
+  match p with
+  | Vptr b ofs => (natural_alignment | Int.unsigned ofs) /\
+                           Int.unsigned ofs + n < Int.modulus
+  | _ => False
+  end.
+
+Lemma malloc_compatible_field_compatible:
+  forall (cs: compspecs) t p,
+     malloc_compatible (sizeof t) p ->
+     legal_alignas_type t = true ->
+     legal_cosu_type t = true ->
+     complete_type cenv_cs t = true ->
+     (alignof t | natural_alignment) ->
+     field_compatible t nil p.
+Proof.
+intros.
+destruct p; simpl in *; try contradiction.
+destruct H.
+pose proof (Int.unsigned_range i).
+repeat split; simpl; auto; try omega.
+eapply Zdivides_trans; eauto.
+Qed.
+
+Hint Extern 2 (field_compatible _ nil _) =>
+ (apply malloc_compatible_field_compatible;
+  [assumption | reflexivity | reflexivity | reflexivity 
+  | apply Zmod_divide; 
+     [let Hx := fresh in intro Hx; inversion Hx | reflexivity]
+   ]).
+
 Lemma data_array_at_local_facts {cs: compspecs}:
  forall t' n a sh v p,
   data_at sh (Tarray t' n a) v p |-- 
@@ -1656,8 +1689,13 @@ eapply derives_trans; [apply field_at_local_facts |];
   apply derives_refl
 end.
 
+Hint Extern 1 (data_at _ _ _ _ |-- valid_pointer _) =>
+    (simple apply data_at_valid_ptr; [now auto | reflexivity]) : valid_pointer.
 
-Hint Resolve data_at_valid_ptr field_at_valid_ptr field_at_valid_ptr0 : valid_pointer.
+Hint Extern 1 (field_at _ _ _ _ _ |-- valid_pointer _) =>
+    (simple apply field_at_valid_ptr; [now auto | reflexivity]) : valid_pointer.
+
+(* Hint Resolve data_at_valid_ptr field_at_valid_ptr field_at_valid_ptr0 : valid_pointer. *)
 
 (*Hint Resolve field_at_local_facts : saturate_local.*)
 Hint Extern 1 (field_at _ _ _ _ _ |-- _) =>
@@ -2041,6 +2079,16 @@ Lemma nonreadable_memory_block_field_at:
    value_fits _ v ->
    memory_block sh (sizeof (nested_field_type t gfs)) (field_address t gfs p) = field_at sh t gfs v p.
 Proof.
+(*
+<<<<<<< HEAD
+intros.
+hnf in H0.
+destruct H0 as [Hp [? [_ [Hcom [Hsz [Hsc [Hal Hlnf]]]]]]].
+revert H0 Hsz v p Hcom Hsc Hp Hal Hlnf; pattern t; type_induction.type_induction t; intros; inv H0;
+ rewrite  data_at'_ind; auto; admit.
+Admitted.
+=======
+*)
   intros until p. intros NONREAD VF.
   unfold field_address.
   destruct (field_compatible_dec t gfs p).

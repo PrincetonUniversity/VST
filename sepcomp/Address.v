@@ -1,7 +1,6 @@
 Require Import compcert.lib.Coqlib.
 Require Import compcert.lib.Integers.
 Require Import compcert.lib.Floats.
-
 Require Import compcert.common.Values.
 Require Import compcert.common.Memory.
 

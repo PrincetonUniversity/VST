@@ -1,13 +1,13 @@
 Require Recdef.
-Require Import Integers.
+Require Import compcert.lib.Integers.
 Require Coq.Strings.String.
 Require Coq.Strings.Ascii.
-Require Import Coqlib.
+Require Import compcert.lib.Coqlib.
 Require Import msl.Coqlib2.
 Require Import floyd.coqlib3.
 Require Import floyd.sublist. 
 Require Import List. Import ListNotations.
-Require Import general_lemmas.
+Require Import sha.general_lemmas.
 Require Import sha.SHA256.
 
 (* FAST FUNCTIONAL VERSION OF SHA256 *)
@@ -548,7 +548,7 @@ unfold generate_and_pad,  generate_and_pad_alt.
 match goal with |- context [Zlist_to_intlist ?A] =>
   remember A as PADDED eqn:HP
 end.
-assert (NPeano.divide 4 (length PADDED)). {
+assert (Nat.divide 4 (length PADDED)). {
 subst PADDED.
 pose proof (roundup_ge (Zlength msg + 9) 64).
  spec H; [ omega | ].
@@ -614,7 +614,7 @@ clear Heqn.
 revert H88; induction n; intros.
 * (* base case for n *)
 clear H88.
-rewrite NPeano.Nat.sub_0_r.
+rewrite Nat.sub_0_r.
 rewrite Nat2Z.inj_mul.
 assert (0 <= Zlength msg) by (rewrite Zlength_correct; omega).
 assert (0 <= Zlength msg / 4) by (apply Z.div_pos; omega).

@@ -11,19 +11,19 @@ Require Import List. Import ListNotations.
 
 Require Import split_array_lemmas.*)
 Require Import ZArith. 
-Require Import tweetNaclBase.
-Require Import Salsa20.
-Require Import verif_salsa_base.
-Require Import tweetnaclVerifiableC.
-Require Import Snuffle. 
-Require Import spec_salsa.
+Require Import tweetnacl20140427.tweetNaclBase.
+Require Import tweetnacl20140427.Salsa20.
+Require Import tweetnacl20140427.verif_salsa_base.
+Require Import tweetnacl20140427.tweetnaclVerifiableC.
+Require Import tweetnacl20140427.Snuffle. 
+Require Import tweetnacl20140427.spec_salsa.
 
-Require Import verif_fcore_loop1.
-Require Import verif_fcore_loop2.
-Require Import verif_fcore_loop3.
+Require Import tweetnacl20140427.verif_fcore_loop1.
+Require Import tweetnacl20140427.verif_fcore_loop2.
+Require Import tweetnacl20140427.verif_fcore_loop3.
 
-Require Import verif_fcore_epilogue_htrue.
-Require Import verif_fcore_epilogue_hfalse.
+Require Import tweetnacl20140427.verif_fcore_epilogue_htrue.
+Require Import tweetnacl20140427.verif_fcore_epilogue_hfalse.
 
 Opaque littleendian_invert. Opaque Snuffle.Snuffle.
 
@@ -348,7 +348,7 @@ apply semax_seq with (Q:=fcore_EpiloguePOST t y x w nonce out c k h OUT data).
     freeze [0;1;2;3] FR5.
     Time forward_if (fcore_EpiloguePOST t y x w nonce out c k h OUT 
                ((N1, N2, N3, N4), (C1, C2, C3, C4), ((K1, K2, K3, K4), (L1, L2, L3, L4)))). (*4.8*)
-    - apply typed_true_tint_Vint in H.
+    - (*apply typed_true_tint_Vint in H.*)
       assert (HOUTLEN: OutLen h = 32). unfold OutLen. rewrite Int.eq_false; trivial.
       thaw FR5. thaw FR4. rewrite HOUTLEN in *. freeze [3;4] FR6.
       eapply semax_post.
@@ -362,8 +362,8 @@ apply semax_seq with (Q:=fcore_EpiloguePOST t y x w nonce out c k h OUT data).
         apply HTruePOST; trivial. rewrite Int.eq_false; trivial.
         subst xInit; reflexivity.
         thaw FR6. cancel.
-    - unfold typed_false in H. simpl in H. inversion H. apply negb_false_iff in H1. clear H.
-      assert (HOUTLEN: OutLen h = 64). unfold OutLen. rewrite H1; trivial.
+    - (*unfold typed_false in H. simpl in H. inversion H. apply negb_false_iff in H1. clear H.*)
+      assert (HOUTLEN: OutLen h = 64). unfold OutLen; rewrite H; trivial.
       thaw FR5. thaw FR4. rewrite HOUTLEN in *. freeze [1;3;4] FR6.
       drop_LOCAL 0%nat.
       eapply semax_post.
@@ -373,7 +373,7 @@ apply semax_seq with (Q:=fcore_EpiloguePOST t y x w nonce out c k h OUT data).
         unfold POSTCONDITION, abbreviate.
         rewrite overridePost_overridePost, normal_ret_assert_eq.
         Intros. subst ek vl. rewrite overridePost_normal'.      
-        apply HFalsePOST; trivial. subst; trivial. 
+        apply HFalsePOST; trivial. rewrite H. trivial. subst; trivial.
         thaw FR6. cancel. apply derives_refl. 
     - intros ? ?. apply andp_left2.
       unfold POSTCONDITION, abbreviate. 
@@ -385,26 +385,26 @@ apply semax_seq with (Q:=fcore_EpiloguePOST t y x w nonce out c k h OUT data).
     freeze [0;1;2;3;4] FR2. 
     Time forward. (*4 versus 18*)
     Exists t y x w. thaw FR2. Time entailer!. (*4.6 versus 8.4*)
-    rewrite Zlength_map in H2. 
+    rewrite Zlength_map in H1. 
     specialize (Snuffle_length _ _ _  H0 (prepare_data_length _ )); intros L.
     unfold fcore_result.
     unfold Snuffle20, bind. rewrite H0; clear H0.
     remember (Int.eq (Int.repr h) Int.zero) as hh.
     destruct hh.
     - Intros l. Exists l.
-        destruct (HFalse_inv16_char _ _ _ H) as [sums [SUMS1 SUMS2]].
+        destruct (HFalse_inv16_char _ _ _ H0) as [sums [SUMS1 SUMS2]].
           rewrite Zlength_correct, L; reflexivity. trivial.
         rewrite <- SUMS1, <- SUMS2.
         unfold fcorePOST_SEP, OutLen. rewrite <- Heqhh.
         Time entailer!. (*1.7*)
     - Intros intsums.
       Exists (hPosLoop3 4 (hPosLoop2 4 intsums C Nonce) OUT).
-      apply HTrue_inv_char in H. rewrite <- H.
+      apply HTrue_inv_char in H0. rewrite <- H0.
       destruct Nonce as [[[? ?] ?] ?]. destruct C as [[[? ?] ?] ?]. 
       rewrite <- TP with (OUT:=OUT).
       unfold fcorePOST_SEP, OutLen. rewrite <- Heqhh. 
       Time entailer!. (*4.3*)
-       rewrite Zlength_correct, (sumlist_length _ _ _ H), prepare_data_length; trivial.
+       rewrite Zlength_correct, (sumlist_length _ _ _ H0), prepare_data_length; trivial.
         rewrite ZL_OUT. unfold OutLen; rewrite <- Heqhh. trivial.
         rewrite Zlength_correct, L; reflexivity.
         rewrite Zlength_correct, prepare_data_length; reflexivity.

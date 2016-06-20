@@ -10,9 +10,9 @@ Require Import sha.HMAC_functional_prog.
 Require Import sha.HMAC256_functional_prog.
 Require Import sha.hmac.
 Require Import sha.spec_hmac.
-Require Import vst_lemmas.
-Require Import hmac_pure_lemmas.
-Require Import hmac_common_lemmas.
+Require Import sha.vst_lemmas.
+Require Import sha.hmac_pure_lemmas.
+Require Import sha.hmac_common_lemmas.
 
 Require Import sha.verif_hmac_init_part1.
 
@@ -367,7 +367,7 @@ Focus 2.
         freeze [0; 2] FR2.
         Time forward. (*5.4 versus 5*) (*FIXME NOW takes 20secs; this is the forward the ran out of 2GB memory in the previous version of floyd*)
         Time entailer!. (*5.7 versus 9.6*) 
-        Time (thaw FR2; simpl; rewrite HeqIPADcont, UPD_IPAD; simpl; trivial; cancel). (*0.6*)
+        Time (thaw FR2; simpl; rewrite (*HeqIPADcont,*) UPD_IPAD; simpl; trivial; cancel). (*0.6*)
       }
 Unfocus.
 cbv beta. rewrite sublist_same, sublist_nil, app_nil_r; trivial.
@@ -661,8 +661,7 @@ Lemma init_part2: forall MYPOST
 Proof. intros. abbreviate_semax.
 forward_if PostResetBranch. 
   { (* THEN*)
-    rename H into r_true. 
-    apply typed_true_tint_Vint in r_true. (* why didn't this happen automatically? *)
+    rename H into r_true.
     destruct R as [R | R]; [subst r; contradiction r_true; reflexivity | ].  
     subst r; clear r_true.
     remember (map Vint (map Int.repr 
@@ -725,17 +724,40 @@ rewrite mapnth' with (d:=emp); try reflexivity.
 extensionality. rewrite fold_right_sepcon_liftx, <- H0. trivial.
 Qed.*)
 
+       assert (ZZ: exists HMS':reptype t_struct_hmac_ctx_st, HMS'=HMS). exists HMS. trivial.
+       destruct ZZ as [HMS' HH].
+       remember (K_vector kv * data_at Tsh t_struct_hmac_ctx_st HMS' (Vptr cb cofs)
+                          * data_at Tsh (tarray tuchar (Zlength key)) (map Vint (map Int.repr key))
+                         (Vptr kb kofs)) as myPred.
     forward_seq. 
     { (*ipad loop*) 
       (*semax_subcommand HmacVarSpecs HmacFunSpecs f_HMAC_Init.*)
+       eapply semax_pre.
+       Focus 2. eapply (ipad_loop Espec pb pofs cb cofs ckb ckoff kb kofs l key kv myPred); try eassumption.
+       entailer. cancel. apply derives_refl. (*
+      eapply semax_pre. Focus 2. eapply (ipad_loop Espec pb pofs cb cofs ckb ckoff kb kofs l key kv 
+                      (K_vector kv * data_at Tsh t_struct_hmac_ctx_st HMS' (Vptr cb cofs)
+                          * data_at Tsh (tarray tuchar (Zlength key)) (map Vint (map Int.repr key))
+                         (Vptr kb kofs))).
+                eassumption. eassumption. eassumption.
+       clear HeqPostResetBranch. go_lower. apply andp_right. apply prop_right; trivial.
+            apply andp_right. apply prop_right; intuition.
+       assert (HFR: ?FR = (K_vector kv * data_at Tsh t_struct_hmac_ctx_st HMS(*'*) (Vptr cb cofs)
+                          * data_at Tsh (tarray tuchar (Zlength key)) (map Vint (map Int.repr key))
+                         (Vptr kb kofs))). cancel.  apply andp_left2.
+         entailer!. cancel. ; try eassumption.
       eapply semax_pre_post.
-      Focus 3. eapply (ipad_loop Espec pb pofs cb cofs ckb ckoff kb kofs l key kv (*HMS' *)
+      Focus 3. remember (data_at Tsh t_struct_hmac_ctx_st HMS(*'*) (Vptr cb cofs)) as myFR1. K_vector kv * data_at Tsh t_struct_hmac_ctx_st HMS(*'*) (Vptr cb cofs)
+                          * data_at Tsh (tarray tuchar (Zlength key)) (map Vint (map Int.repr key))
+                         (Vptr kb kofs)) as myFR. (data_at Tsh t_struct_hmac_ctx_st HMS (Vptr cb cofs)).
+ specialize (ipad_loop Espec pb pofs cb cofs ckb ckoff kb kofs l key kv). eapply  (*HMS' *)
                          (K_vector kv * data_at Tsh t_struct_hmac_ctx_st HMS(*'*) (Vptr cb cofs)
                           * data_at Tsh (tarray tuchar (Zlength key)) (map Vint (map Int.repr key))
-                         (Vptr kb kofs))); try eassumption.
+                         (Vptr kb kofs))). try eassumption.
       Time entailer!. (*8.7 *) apply derives_refl.
-      intros ? ?. apply andp_left2. apply derives_refl.
+      intros ? ?. apply andp_left2. apply derives_refl.*)
     }
+    subst myPred HMS'.
 
     (*continuation after ipad-loop*)
     Time normalize. (*3.4*)
@@ -752,7 +774,7 @@ Qed.*)
 
     (*Call to _SHA256_Init*)
     Time forward_call (Vptr cb (Int.add cofs (Int.repr 108))). (*9.5 versus 10.5*)
-    { change_compspecs CompSpecs; cancel. }
+(*Superfluous in Coq8.5pl1 - but the previous forward_call takes 50%longer    { change_compspecs CompSpecs; cancel. }*)
 
     (*Call to _SHA256_Update*)
     thaw FR2. 
@@ -783,7 +805,7 @@ Qed.*)
     { (*opad loop*)
       eapply semax_pre.
       2: apply (opadloop Espec pb pofs cb cofs ckb ckoff kb kofs l key kv (FRZL FR4) IPADcont) with (ipadSHAabs:=ipadSHAabs); try reflexivity; subst ipadSHAabs; try assumption.
-      entailer!. subst ipadSHAabs; trivial.
+      entailer!. (*superflous in Coq8.5pl1 subst ipadSHAabs; trivial.*)
     }
 
     (*continuation after opad-loop*)
@@ -799,7 +821,7 @@ Qed.*)
     unfold MORE_COMMANDS, abbreviate.
    
     Time forward_call (Vptr cb (Int.add cofs (Int.repr 216))). (*6.4 versus 10.6*)
-    { change_compspecs CompSpecs. cancel. }
+(*superfluous in Coq8.5pl1...    { change_compspecs CompSpecs. cancel. }*)
 
     (* Call to sha_update*)
     thaw FR6. 
@@ -812,7 +834,7 @@ Qed.*)
       rewrite FR; clear FR Frame.  
       unfold data_block. simpl.
       rewrite ZLO; trivial.
-      Time entailer!. (*1.5*) apply isbyte_map_ByteUnsigned. apply derives_refl.
+      Time entailer!. (*1.5*) apply isbyte_map_ByteUnsigned. (*superfluous.. apply derives_refl.*)
     }
     { rewrite ZLO. intuition. } 
 
@@ -820,7 +842,7 @@ Qed.*)
 
     Time subst PostResetBranch; entailer!. (*4.7 *)
     thaw FR5. unfold sha256state_, data_block.
-    rewrite ZLO. subst ipadSHAabs.
+    rewrite ZLO. (*superfluous...subst ipadSHAabs.*)
     Intros oUpd iUpd.
     change_compspecs CompSpecs.
     Exists (innerShaInit (map Byte.repr (HMAC_SHA256.mkKey key)),(iUpd,(outerShaInit (map Byte.repr (HMAC_SHA256.mkKey key)),oUpd))).
@@ -850,4 +872,4 @@ Qed.*)
 intros ? ?. apply andp_left2.  
    unfold POSTCONDITION, abbreviate. rewrite overridePost_overridePost. 
    apply derives_refl. 
-Time Qed. (*60 versus 63*) (*FIXME NOW: 80secs*)
+Time Qed. (*60 versus 63*) (*FIXME NOW: 80secs*) (*Coq8.5pl1: 20secs*)

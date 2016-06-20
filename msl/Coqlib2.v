@@ -40,10 +40,10 @@ Ltac invSome :=
                (revert H; case_eq A; [intros ? H Hx | intros H Hx]; inv Hx)
  | H: match ?A with Some _ => _  | None => False end |- _ =>
              (revert H; case_eq A; [intros ? H ? | intros; contradiction])
- | H: match ?A as x return (x= ?A -> _) with Some _ => _ | None => _ end (refl_equal ?A)
-                      = Some _ |- _ =>
-        let Hx := fresh in 
-           (revert H; generalize (refl_equal A); pattern A at 1 3; destruct A; 
+
+ | H: match ?A return _ with Some _ =>  _ | None => _ end eq_refl = Some _ |- _ =>
+ let Hx := fresh in 
+           (revert H; generalize (eq_refl A); pattern A at 1 3; destruct A; 
             [ intros Hx H | intros ? H; discriminate H])
  end.
 

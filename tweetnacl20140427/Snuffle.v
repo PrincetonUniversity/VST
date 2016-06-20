@@ -1,15 +1,15 @@
 (* Definition of Salsa according to Bernstein's paper 
 "The Salsa20 family of stream ciphers", http://cr.yp.to/snuffle/salsafamily-20071225.pdf*)
 
-Require Import Coqlib.
+Require Import compcert.lib.Coqlib.
 Require Import Coq.Strings.String.
-Require Import Extensionality.
+Require Import msl.Extensionality.
 Require Import List. Import ListNotations.
 
-Require Import Integers.
-Require Import functional_prog.
-Require Import Salsa20.
-Require Import tweetNaclBase. (*for bind, combinelist*)
+Require Import compcert.lib.Integers.
+Require Import sha.functional_prog.
+Require Import tweetnacl20140427.Salsa20.
+Require Import tweetnacl20140427.tweetNaclBase. (*for bind, combinelist*)
 
 Definition Step1 (x:list int): option (list int):=
 match x with [x0; x1; x2; x3; x4; x5; x6; x7; x8; x9; x10; x11; x12; x13; x14; x15]
