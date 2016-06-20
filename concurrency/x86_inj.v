@@ -699,19 +699,18 @@ Module X86Inj <: CoreInjections.
   Qed.
   
   Lemma core_inj_init :
-    forall (vf vf' : val) (arg arg' : seq val) (c_new : state)
-      (f fg : memren),
-      val_obs_list f arg arg' ->
-      val_obs f vf vf' ->
-      ge_wd fg the_ge ->
-      (forall b1 b2, fg b1 = Some b2 -> b1 = b2) ->
-      ren_incr fg f ->
-      initial_core SEM.Sem the_ge vf arg = Some c_new ->
+    forall vf vf' arg arg' c_new f fg
+      (Harg: val_obs_list f arg arg')
+      (Hvf: val_obs f vf vf')
+      (Hfg: forall b1 b2, fg b1 = Some b2 -> b1 = b2)
+      (Hge_wd: ge_wd fg the_ge)
+      (Hincr: ren_incr fg f)
+      (Hinit: initial_core SEM.Sem the_ge vf arg = Some c_new),
       exists c_new' : state,
         initial_core SEM.Sem the_ge vf' arg' = Some c_new' /\
         core_inj f c_new c_new'.
   Proof.
-    intros vf vf' arg arg' c_new f fg Harg Hvf Hge_wd Hfg Hincr Hinit.
+    intros.
     simpl in *.
     unfold Asm_initial_core in *.
     destruct vf; try discriminate.
@@ -720,7 +719,7 @@ Module X86Inj <: CoreInjections.
     unfold Genv.find_funct_ptr in *.
     destruct (Maps.PTree.get b (genv_funs the_ge)) eqn:Hget; try discriminate.
     destruct f0; try discriminate.
-    destruct Hge_wd as [Hge_wd1 Hge_wd2].
+    destruct Hge_wd as (Hge_wd1 & Hge_wd2 & Hge_wd3).
     specialize (Hge_wd1 b ltac:(rewrite Hget; eauto)).
     assert (Hfg_b: b = b2).
     { destruct (fg b) eqn:Hfg'.
@@ -900,6 +899,56 @@ Module X86Inj <: CoreInjections.
     exists (varg' :: vargs');
       split; econstructor; eauto.
   Qed.
+
+  Lemma eventval_valid_ge:
+    forall fg g ev chunk v
+      (Hge_wd: ge_wd fg g)
+      (Hevent_val: eventval_match g ev (type_of_chunk chunk) v),
+      valid_val fg v.
+  Proof with eauto with renamings.
+    intros.
+    inversion Hevent_val; subst; try rewrite H1;
+    try by (eexists; split)...
+    destruct Hge_wd as (? & ? &?).
+    unfold Senv.symbol_address in H4.
+    specialize (H4 id ofs _ ltac:(reflexivity)).
+    rewrite H2 in H4.
+    assumption.
+  Qed.
+
+  Lemma block_is_volatile_ren:
+    forall g fg f b1 b2
+      (Hfg: forall b1 b2 : block, fg b1 = Some b2 -> b1 = b2)
+      (Hge_wd: ge_wd fg g)
+      (Hincr: ren_incr fg f)
+      (Hf: f b1 = Some b2)
+      (Hinjective: forall b1 b1' b2, f b1 = Some b2 -> f b1' = Some b2 ->
+                                b1 = b1')
+      (Hvolatile: Senv.block_is_volatile g b1 = false),
+      Senv.block_is_volatile g b2 = false.
+  Proof.
+    intros.
+    destruct Hge_wd as (H1 & H2 & H3).
+    unfold Senv.block_is_volatile in *. simpl in *.
+    unfold block_is_volatile, find_var_info in *.
+    destruct (Maps.PTree.get b1 (genv_vars g)) eqn:Hget.
+    specialize (H2 b1 ltac:(rewrite Hget; auto)).
+    destruct (fg b1) eqn:Hfg'; try by exfalso.
+    assert (Heq:= Hfg _ _ Hfg'); subst b.
+    apply Hincr in Hfg'.
+    rewrite Hf in Hfg'; inversion Hfg';
+    subst.
+    rewrite Hget.
+    assumption.
+    destruct (Maps.PTree.get b2 (genv_vars g)) eqn:Hget2; auto.
+    specialize (H2 b2 ltac:(rewrite Hget2; auto)).
+    destruct (fg b2) eqn:Hfg'; try by exfalso.
+    assert (Heq:= Hfg _ _ Hfg'); subst b.
+    apply Hincr in Hfg'.
+    assert (b1 = b2)
+      by (eapply Hinjective; eauto); subst b2.
+      by congruence.
+  Qed.
   
   (** Executing an instruction in related states results in related
   states: 1. The renaming function is extended to accommodate newly
@@ -1021,27 +1070,11 @@ Module X86Inj <: CoreInjections.
               val_obs f vres vres'.
         Proof with eauto with renamings.
           intros.
-          destruct ef. Focus 3.
+          destruct ef.
           simpl in *.
-          inversion Hexternal; subst.
-          -
-            
-            Lemma eventval_valid_ge:
-              forall fg g ev chunk v
-                (Hge_wd: ge_wd fg g)
-                (Hevent_val: eventval_match g ev (type_of_chunk chunk) v),
-                valid_val fg v.
-            Proof with eauto with renamings.
-              intros.
-              inversion Hevent_val; subst; try rewrite H1;
-              try by (eexists; split)...
-              destruct Hge_wd as (? & ? &?).
-              unfold Senv.symbol_address in H4.
-              specialize (H4 id ofs _ ltac:(reflexivity)).
-              rewrite H2 in H4.
-              assumption.
-            Qed. 
-
+          - admit.
+          - admit.
+          - inversion Hexternal; subst.
             inversion H; subst.
             + inversion Hvargs; subst. inversion H5; inversion H7; subst.
               assert (b = b2).
@@ -1066,44 +1099,67 @@ Module X86Inj <: CoreInjections.
               destruct H1 as (vres' & Hload' & Hobs').
               exists vres', m1'; split; auto.
               do 2 econstructor; eauto.
-
-              Lemma block_is_volatile_ren:
-                forall g fg f b1 b2
-                  (Hfg: forall b1 b2 : block, fg b1 = Some b2 -> b1 = b2)
-                  (Hge_wd: ge_wd fg g)
-                  (Hincr: ren_incr fg f)
-                  (Hf: f b1 = Some b2)
-                  (Hinjective: forall b1 b1' b2, f b1 = Some b2 -> f b1' = Some b2 ->
-                                            b1 = b1')
-                  (Hvolatile: Senv.block_is_volatile g b1 = false),
-                  Senv.block_is_volatile g b2 = false.
-              Proof.
-                intros.
-                destruct Hge_wd as (H1 & H2 & H3).
-                unfold Senv.block_is_volatile in *. simpl in *.
-                unfold block_is_volatile, find_var_info in *.
-                destruct (Maps.PTree.get b1 (genv_vars g)) eqn:Hget.
-                specialize (H2 b1 ltac:(rewrite Hget; auto)).
-                destruct (fg b1) eqn:Hfg'; try by exfalso.
-                assert (Heq:= Hfg _ _ Hfg'); subst b.
-                apply Hincr in Hfg'.
-                rewrite Hf in Hfg'; inversion Hfg';
-                subst.
-                rewrite Hget.
-                assumption.
-                destruct (Maps.PTree.get b2 (genv_vars g)) eqn:Hget2; auto.
-                specialize (H2 b2 ltac:(rewrite Hget2; auto)).
-                destruct (fg b2) eqn:Hfg'; try by exfalso.
-                assert (Heq:= Hfg _ _ Hfg'); subst b.
-                apply Hincr in Hfg'.
-                assert (b1 = b2)
-                  by (eapply Hinjective; eauto); subst b2.
-                  by congruence.
-              Qed.
-
               eapply block_is_volatile_ren; eauto.
               destruct weak_obs_eq0; auto.
+          - inversion Hexternal; subst.
+            inversion H; subst.
+            + inversion Hvargs; subst. inversion H5; inversion H7; subst.
+              inversion H13; subst.
+              assert (b = b2).
+              { destruct Hge_wd as (? & ? & ?).
+                unfold Senv.symbol_address in *.
+                specialize (H6 id ofs _ ltac:(reflexivity)).
+                rewrite H1 in H6.
+                destruct H6 as [b' Hfg'].
+                assert (Heq := Hfg _ _ Hfg'); subst b'.
+                apply Hincr in Hfg'.
+                rewrite Hfg' in H8;
+                  inversion H8;
+                    by subst.
+              } subst b2.
+              exists Vundef, m1'. split...
+              econstructor; econstructor; eauto.
               
+
+              Lemma eventval_ren:
+                forall f fg g ev chunk v v'
+                  (Hfg: forall b1 b2, fg b1 = Some b2 -> b1 = b2)
+                  (Hge_wd: ge_wd fg g)
+                  (Hincr: ren_incr fg f)
+                  (Hval_obs: val_obs f v v')
+                  (Hevent_val: eventval_match g ev (type_of_chunk chunk)
+                                              (Val.load_result chunk v)),
+                  eventval_match g ev (type_of_chunk chunk)
+                                 (Val.load_result chunk v').
+              Proof.
+                intros.
+                assert (Hvalid := eventval_valid_ge _ Hge_wd Hevent_val).
+                destruct v; inversion Hval_obs; subst; destruct chunk;
+                simpl in *; auto;
+                inversion Hevent_val; subst;
+                econstructor; eauto.
+                destruct Hvalid as [b' Hfg'];
+                  assert (Heq := Hfg _ _ Hfg');
+                  subst b';
+                  apply Hincr in Hfg';
+                  rewrite H2 in Hfg'; inversion Hfg';
+                  subst b;
+                  auto.
+              Qed.
+
+              eapply eventval_ren; eauto. 
+            + destruct Hmem_obs_eq.
+              inversion Hvargs; subst. inversion H4; inversion H6; subst.
+              inversion H12; subst.
+              eapply store_val_obs with (mf := m1') in H1; eauto.
+              destruct H1 as (m2' & Hstore' & Hmem_obs_eq2).
+              exists Vundef, m2'; split...
+              do 2 econstructor; eauto.
+              eapply block_is_volatile_ren; eauto.
+              destruct weak_obs_eq0; auto.
+          - inversion Hexternal; subst.
+        Admitted.
+        Admitted.
 
 
       

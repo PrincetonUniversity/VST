@@ -788,6 +788,27 @@ Module MemObsEq.
   
   Definition max_inv mf := forall b ofs, Mem.valid_block mf b ->
                                     permission_at mf b ofs Max = Some Freeable.
+
+  Lemma max_inv_store:
+    forall m m' chunk b ofs v pmap
+      (Hlt: permMapLt pmap (getMaxPerm m))
+      (Hmax: max_inv m)
+      (Hstore: Mem.store chunk (restrPermMap Hlt) b ofs v = Some m'),
+      max_inv m'.
+  Proof.
+    intros.
+    intros b0 ofs0 Hvalid0.
+    unfold permission_at.
+    erewrite Mem.store_access; eauto.
+    assert (H := restrPermMap_Max Hlt b0 ofs0).
+    eapply Mem.store_valid_block_2 in Hvalid0; eauto.
+    erewrite restrPermMap_valid in Hvalid0.
+    specialize (Hmax b0 ofs0 Hvalid0).
+    unfold permission_at in H.
+    rewrite H.
+    rewrite getMaxPerm_correct;
+      by assumption.
+  Qed.
   
   Lemma sim_valid_access:
     forall (mf m1f : mem) 
@@ -1182,13 +1203,7 @@ Module Type CoreInjections.
       core_wd f c_new.
   
   Parameter core_inj: memren -> C -> C -> Prop.
-  Parameter ge_inj: memren -> G -> G -> Prop.
-  
-  Parameter ge_inj_id: forall f g,
-      ge_wd f g -> 
-      (forall b1 b2, f b1 = Some b2 -> b1 = b2) ->
-      ge_inj f g g.
-  
+
   Parameter core_inj_ext: 
     forall c c' f (Hinj: core_inj f c c'),
       match at_external Sem c, at_external Sem c' with
@@ -1231,8 +1246,8 @@ Module Type CoreInjections.
     forall vf vf' arg arg' c_new f fg
       (Hf: val_obs_list f arg arg')
       (Hf': val_obs f vf vf')
+      (Hfg: forall b1 b2, fg b1 = Some b2 -> b1 = b2)
       (Hge_wd: ge_wd fg the_ge)
-      (Hge_id: ge_inj fg the_ge the_ge)
       (Hincr: ren_incr fg f)
       (Hinit: initial_core Sem the_ge vf arg = Some c_new),
     exists c_new',
@@ -1255,9 +1270,12 @@ Module Type CoreInjections.
       core_inj f'' c' c''.
 
   Parameter corestep_obs_eq:
-    forall cc cf cc' mc mf mc' f
+    forall cc cf cc' mc mf mc' f fg
       (Hobs_eq: mem_obs_eq f mc mf)
       (Hcode_eq: core_inj f cc cf)
+      (Hfg: (forall b1 b2, fg b1 = Some b2 -> b1 = b2))
+      (Hge_wd: ge_wd fg the_ge)
+      (Hincr: ren_incr fg f)
       (Hstep: corestep Sem the_ge cc mc cc' mc'),
     exists cf' mf' f',
       corestep Sem the_ge cf mf cf' mf'
@@ -1265,12 +1283,6 @@ Module Type CoreInjections.
       /\ mem_obs_eq f' mc' mf'
       /\ ren_incr f f'
       /\ ren_separated f f' mc mf
-      /\ (forall b1 b1' b2,
-            f b1 = None ->
-            f b1' = None ->
-            f' b1 = Some b2 ->
-            f' b1' = Some b2 ->
-            b1 = b1')
       /\ ((exists p, ((Mem.nextblock mc' = Mem.nextblock mc + p)%positive /\
                 (Mem.nextblock mf' = Mem.nextblock mf + p)%positive))
          \/ ((Mem.nextblock mc' = Mem.nextblock mc) /\

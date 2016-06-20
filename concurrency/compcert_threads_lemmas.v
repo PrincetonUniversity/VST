@@ -175,7 +175,6 @@ Module SimDefs (CI: CoreInjections).
       memc_wd: valid_mem mc;
       tpc_wd: tp_wd f tpc;
       thege_wd: ge_wd fg the_ge;
-      thege_inj: ge_inj fg the_ge the_ge;
       fg_spec: ren_incr fg f /\ forall b b', fg b = Some b' -> b = b';
       xs_wd: forall i, List.In i xs -> containsThread tpc i
     }.
@@ -665,7 +664,7 @@ Module SimProofs (CI: CoreInjections).
       (HmaxF: max_inv mf)
       (HinvF: invariant tpf)
       (Hge_wd: ge_wd fg the_ge)
-      (Hge: ge_inj fg the_ge the_ge)
+      (Hfg: forall b1 b2, fg b1 = Some b2 -> b1 = b2)
       (Hren_incr: ren_incr fg fi)
       (Hstrong_sim: strong_tsim fi pfc pff Hcompc Hcompf)
       (Hstep_internal: internal_step pfc Hcompc tpc' mc'),
@@ -708,7 +707,7 @@ Module SimProofs (CI: CoreInjections).
       eapply corestep_obs_eq in Hcorestep; eauto.
       destruct Hcorestep as
           (cf' & mf' & fi' & HcorestepF & Hcode_eq'
-           & Hobs_eq' & Hincr & Hseparated & Hinjective
+           & Hobs_eq' & Hincr & Hseparated
            & Hblocks & _ & _).
       remember (restrPermMap (Hcompf _ pff)) as mf1 eqn:Hrestrict.
       symmetry in Hrestrict.
@@ -745,7 +744,7 @@ Module SimProofs (CI: CoreInjections).
           by (unfold permMapLt; intros;
               rewrite getCurPerm_correct; rewrite getMaxPerm_correct;
               apply Mem.access_max).
-        erewrite restrPermMap_irr with (Hlt' := Hlt_mc')
+        erewrite restrPermMap_irr' with (Hlt' := Hlt_mc')
           by (by rewrite gssThreadRes).
         assert (Hlt_mf': permMapLt (getCurPerm mf')
                                    (getMaxPerm (setMaxPerm mf'))).
@@ -758,7 +757,7 @@ Module SimProofs (CI: CoreInjections).
           apply Mem.nextblock_noaccess with (ofs := ofs) (k := Cur) in Hinvalid.
           unfold permission_at. rewrite Hinvalid. constructor.
         }
-        erewrite restrPermMap_irr with (Hlt' := Hlt_mf')
+        erewrite restrPermMap_irr' with (Hlt' := Hlt_mf')
           by (subst tpf'; rewrite gssThreadRes; eauto);
           by eapply mem_obs_eq_restr.
         (* block ownership*)
@@ -863,7 +862,7 @@ Module SimProofs (CI: CoreInjections).
         constructor;
           first by (subst tpf';
                      do 2 rewrite gssThreadCC; by simpl).
-        erewrite restrPermMap_irr with
+        erewrite restrPermMap_irr' with
         (Hlt' := Hcompf _ pff) by (subst; by erewrite @gThreadCR with (cntj := pff)).
         erewrite restrPermMap_irr; eauto;
           by rewrite gThreadCR.
@@ -880,7 +879,7 @@ Module SimProofs (CI: CoreInjections).
       destruct Hcode_eq as [Hvf Harg_obs].
       assert (Harg_obs_list: val_obs_list fi [:: arg] [:: arg'])
         by (constructor; auto; constructor).
-      assert (HinitF := core_inj_init Harg_obs_list Hvf Hge_wd Hge Hren_incr Hinitial).
+      assert (HinitF := core_inj_init Harg_obs_list Hvf Hfg Hge_wd Hren_incr Hinitial).
       destruct HinitF as [c_newF [HinitialF Hcode_eq]].
       remember (updThreadC pff (Krun c_newF)) as tpf' eqn:Hupd.
       exists tpf', mf, fi.
@@ -898,7 +897,7 @@ Module SimProofs (CI: CoreInjections).
         constructor;
           first by (subst tpf';
                      do 2 rewrite gssThreadCC; by simpl).
-        erewrite restrPermMap_irr with
+        erewrite restrPermMap_irr' with
         (Hlt' := Hcompf _ pff) by (subst; by erewrite @gThreadCR with (cntj := pff)).
         erewrite restrPermMap_irr; eauto;
           by rewrite gThreadCR.
@@ -1094,7 +1093,7 @@ Module SimProofs (CI: CoreInjections).
     inversion Hsim as
         [HnumThreads HmemCompC HmemCompF HsafeC
                      HsimWeak Hfpsep HsimStrong HsimLocks HsimRes
-                     HinvF HmaxF Hmemc_wd Htpc_wd Hge_wd Hge_inj Hge_spec Hxs].
+                     HinvF HmaxF Hmemc_wd Htpc_wd Hge_wd Hge_spec Hxs].
     assert (pfc: containsThread tpc i)
       by (eapply HnumThreads; eauto).
     (* Strong simulation for thread i*)
@@ -1125,7 +1124,7 @@ Module SimProofs (CI: CoreInjections).
     assert (Hge_incr': ren_incr fg (fp i pfc))
       by (destruct Hge_spec; eapply ren_incr_trans; eauto).
     (* And from this we derive safety for 1 step for fine-grained*)
-    destruct (tsim_fstep_safe HmaxF HinvF Hge_wd Hge_inj
+    destruct (tsim_fstep_safe HmaxF HinvF Hge_wd (proj2 Hge_spec)
                               Hge_incr' Htsim Hstep')
       as (tpf' & mf' & fi' & HstepF & HmaxF' & Hincr' & Hsepi & Htsim' & Howned' &
           Hownedls' & Hownedlp').
@@ -1473,7 +1472,6 @@ Module SimProofs (CI: CoreInjections).
       { assumption. }
       { assumption. }
       { assumption. }
-      { assumption. }
       { intros j Hin.
         inversion Hin; subst;
           by auto.
@@ -1538,7 +1536,7 @@ Module SimProofs (CI: CoreInjections).
       (Hcomp1: mem_compatible tp1 m1)
       (Hcomp1': mem_compatible tp1' m1')
       (Hinv: invariant tp1')
-      (Hge_inj: ge_inj fg the_ge the_ge)
+      (Hfg: forall b1 b2, fg b1 = Some b2 -> b1 = b2)
       (Hge_wd: ge_wd fg the_ge)
       (Hge_incr: ren_incr fg f)
       (Hsim: strong_tsim f pf1j pf1j' Hcomp1 Hcomp1')
@@ -1547,12 +1545,6 @@ Module SimProofs (CI: CoreInjections).
       internal_step pf1j' Hcomp1' tp2' m2' /\
       ren_incr f f' /\
       ren_separated f f' m1 m1' /\
-      (forall b1 b1' b2,
-          f b1 = None ->
-          f b1' = None ->
-          f' b1 = Some b2 ->
-          f' b1' = Some b2 ->
-          b1 = b1') /\
       ((exists p, ((Mem.nextblock m2 = Mem.nextblock m1 + p)%positive /\
               (Mem.nextblock m2' = Mem.nextblock m1' + p)%positive))
        \/ ((Mem.nextblock m2 = Mem.nextblock m1) /\
@@ -1580,10 +1572,10 @@ Module SimProofs (CI: CoreInjections).
       rewrite Hcode in Hcode_eq.
       simpl in Hcode_eq.
       destruct (getThreadC pf1j') as [c1' | | |] eqn:Hcodej'; try by exfalso.
-      assert (H := corestep_obs_eq Hmem_obs_eq Hcode_eq Hcorestep).
+      assert (H := corestep_obs_eq Hmem_obs_eq Hcode_eq Hfg Hge_wd Hge_incr Hcorestep).
       destruct H
         as (c2' & m2' & f' & Hcorestep' & Hcode_eq'
-            & Hobs_eq & Hincr & Hseparated & Hinjective
+            & Hobs_eq & Hincr & Hseparated
             & Hnextblock & Hinverse & Hid).
       exists (updThread pf1j' (Krun c2') (getCurPerm m2')), m2', f'.
       assert (Hinternal':
@@ -1595,7 +1587,6 @@ Module SimProofs (CI: CoreInjections).
       split; first by assumption.
       split; first by assumption.
       split; first by assumption.
-      split; first by auto.
       split.
       { assert (pf2j := containsThread_internal_step Hstep pf1j).
         assert (pf2j' := containsThread_internal_step Hinternal' pf1j').
@@ -1678,7 +1669,6 @@ Module SimProofs (CI: CoreInjections).
         first by assumption.
       split; first by auto.
       split; first by congruence.
-      split; first by congruence.
       split; first by auto.
       split; first by
           (intros; by exfalso).
@@ -1739,7 +1729,7 @@ Module SimProofs (CI: CoreInjections).
       destruct Hcode_eq as [Hvf Harg_obs].
       assert (Harg_obs_list: val_obs_list f [:: arg] [:: arg'])
         by (constructor; auto; constructor).
-      assert (HinitF := core_inj_init Harg_obs_list Hvf Hge_wd Hge_inj
+      assert (HinitF := core_inj_init Harg_obs_list Hvf Hfg Hge_wd
                                       Hge_incr Hinitial).
       destruct HinitF as [c_newF [HinitialF Hcode_eq]].
       exists (updThreadC pf1j' (Krun c_newF)), m1', f.
@@ -1750,7 +1740,6 @@ Module SimProofs (CI: CoreInjections).
       split;
         first by assumption.
       split; first by auto.
-      split; first by congruence.
       split; first by congruence.
       split; first by auto.
       split; first by
@@ -1810,7 +1799,7 @@ Module SimProofs (CI: CoreInjections).
       (Hcomp1: mem_compatible tp1 m1)
       (Hcomp1': mem_compatible tp1' m1')
       (Hinv: invariant tp1')
-      (Hge_inj: ge_inj fg the_ge the_ge)
+      (Hfg: forall b1 b2, fg b1 = Some b2 -> b1 = b2)
       (Hge_wd: ge_wd fg the_ge)
       (Hge_incr: ren_incr fg f)
       (Hsim: strong_tsim f pf1j pf1j' Hcomp1 Hcomp1')
@@ -1819,12 +1808,6 @@ Module SimProofs (CI: CoreInjections).
       internal_execution [seq x <- xs | x == j] tp1' m1' tp2' m2' /\
       ren_incr f f' /\
       ren_separated f f' m1 m1' /\
-      (forall b1 b1' b2,
-          f b1 = None ->
-          f b1' = None ->
-          f' b1 = Some b2 ->
-          f' b1' = Some b2 ->
-          b1 = b1') /\
       ((exists p, ((Mem.nextblock m2 = Mem.nextblock m1 + p)%positive /\
               (Mem.nextblock m2' = Mem.nextblock m1' + p)%positive))
        \/ ((Mem.nextblock m2 = Mem.nextblock m1) /\
@@ -1856,7 +1839,6 @@ Module SimProofs (CI: CoreInjections).
       split; first by constructor.
       split; first by auto.
       split; first by congruence.
-      split; first by congruence.
       split; first by auto.
       split; first by (intros; by exfalso).
       split; by eauto.
@@ -1868,9 +1850,9 @@ Module SimProofs (CI: CoreInjections).
         simpl in Htrans. simpl in HschedN;
           inversion HschedN; subst tid; clear HschedN Hexec.
         pf_cleanup.
-        assert (Htsim := strong_tsim_step Hinv Hge_inj Hge_wd Hge_incr Hsim Hstep).
+        assert (Htsim := strong_tsim_step Hinv Hfg Hge_wd Hge_incr Hsim Hstep).
         destruct Htsim as
-            (tp0' & m0' & f0 & Hstep0' & Hincr0' & Hsep0' & Hinjective0'
+            (tp0' & m0' & f0 & Hstep0' & Hincr0' & Hsep0'
              & Hnextblock0' & Hinverse0' & Htsim0' & Hid0').
         destruct Htsim0' as [pfj' [pfj0' [Hcomp' [Hcomp0' Htsim0]]]].
         pf_cleanup.
@@ -1879,7 +1861,7 @@ Module SimProofs (CI: CoreInjections).
         assert (Hge_incr0': ren_incr fg f0)
           by (eapply ren_incr_trans; eauto).
         destruct (IHxs _ _ _ _ Hinv0' _ Hge_incr0' _ _ _ _ Htsim0 Htrans)
-          as (tp2' & m2' & f2' & Hexec & Hincr2 & Hsep2 & Hinjective2
+          as (tp2' & m2' & f2' & Hexec & Hincr2 & Hsep2
              & Hnextblock2 & Hinverse2 & Hsim2 & Hid2);
           exists tp2', m2', f2'.
         destruct Hsim2 as [pf2j [pf2j' [Hcomp2 [Hcomp2' Htsim2]]]].
@@ -1906,58 +1888,6 @@ Module SimProofs (CI: CoreInjections).
               eapply internal_step_valid in Hcontra; eauto.
         }
         split.
-        { (* injectivity for new blocks *)
-          intros b1 b1' b2 Hf Hf' Hf2 Hf2'.
-          destruct (valid_block_dec m0 b1) as [Hvalidm0 | Hinvalidm0];
-            destruct (valid_block_dec m0 b1') as [Hvalidm0' | Hinvalidm0'].
-          - apply (domain_valid (weak_obs_eq (obs_eq Htsim0))) in Hvalidm0.
-            destruct Hvalidm0 as [b2' Hf0].
-            apply (domain_valid (weak_obs_eq (obs_eq Htsim0))) in Hvalidm0'.
-            destruct Hvalidm0' as [b2'' Hf0'].
-            assert (Heq: b2 = b2' /\ b2' = b2'').
-            { apply Hincr2 in Hf0'.
-              apply Hincr2 in Hf0. rewrite Hf0 in Hf2.
-              rewrite Hf0' in Hf2'. inversion Hf2; inversion Hf2'; by subst. }
-            destruct Heq; subst b2' b2''.
-            eapply Hinjective0'; eauto.
-          - (* Proof: b1 is valid in m0. By codomain_valid b2 must
-                 be valid in m0'. b1' is invalid in m0 and valid in
-                 m2.  by seperation any block that it maps is invalid
-                 in m0' and valid only in m2'.  Hence we derive a
-                 contradiction on Mem.valid_block m2' b2 *)
-            
-            apply (domain_valid (weak_obs_eq (obs_eq Htsim0))) in Hvalidm0.
-            destruct Hvalidm0 as [b2' Hf0].
-            apply (domain_invalid (weak_obs_eq (obs_eq Htsim0))) in Hinvalidm0'.
-            unfold inject_separated in Hsep2.
-            specialize (Hsep2 _ _ Hinvalidm0' Hf2').
-            destruct Hsep2 as [? Hinvalidb2].
-            assert (b2 = b2')
-              by (eapply Hincr2 in Hf0; rewrite Hf0 in Hf2; inversion Hf2; by subst);
-              subst b2'.
-            apply (codomain_valid (weak_obs_eq (obs_eq Htsim0))) in Hf0.
-            erewrite restrPermMap_valid in Hf0.
-              by exfalso.
-          - (* Proof: same as above with the roles of b1 and b1' exchanged *)
-            apply (domain_valid (weak_obs_eq (obs_eq Htsim0))) in Hvalidm0'.
-            destruct Hvalidm0' as [b2' Hf0].
-            apply (domain_invalid (weak_obs_eq (obs_eq Htsim0))) in Hinvalidm0.
-            unfold inject_separated in Hsep2.
-            specialize (Hsep2 _ _ Hinvalidm0 Hf2).
-            destruct Hsep2 as [? Hinvalidb2].
-            assert (b2 = b2')
-              by (eapply Hincr2 in Hf0; rewrite Hf0 in Hf2'; inversion Hf2';
-                    by subst);
-              subst b2'.
-            apply (codomain_valid (weak_obs_eq (obs_eq Htsim0))) in Hf0.
-            erewrite restrPermMap_valid in Hf0.
-              by exfalso.
-          - (* Proof: both b1 and b1' are not valid in m0, hence they are only
-                  valid in m2, for which we have injectivity by induction hypothesis *)
-            apply (domain_invalid (weak_obs_eq (obs_eq Htsim0))) in Hinvalidm0.
-            apply (domain_invalid (weak_obs_eq (obs_eq Htsim0))) in Hinvalidm0'.
-              by eauto.
-        } split.
         { (*Nextblock*)
           destruct Hnextblock0' as [[p0 [Hnextblock0 Hnextblock0']]
                                    | [Hnextblock0 Hnextblock0']];
@@ -2017,8 +1947,7 @@ Module SimProofs (CI: CoreInjections).
         as
           [tp2' [m2' [f2' [Hexec2
                              [Hincr2
-                                [Hsep2 [Hinjective2
-                                          [Hnextblock2 [Hinverse2 [Hsim2 Hid2]]]]]]]]]];
+                                [Hsep2 [Hnextblock2 [Hinverse2 [Hsim2 Hid2]]]]]]]]];
       exists tp2', m2', f2'.
       repeat (split; auto).
   Qed.
@@ -2071,10 +2000,10 @@ Module SimProofs (CI: CoreInjections).
     intros.
     constructor;
       first by do 2 rewrite gssThreadCC.
-    erewrite restrPermMap_irr with
+    erewrite restrPermMap_irr' with
     (Hlt := Hcompc' tid pfc') (Hlt' := Hcmpt tid Htid)
       by (erewrite gThreadCR with (cntj := Htid); reflexivity).
-    erewrite restrPermMap_irr with
+    erewrite restrPermMap_irr' with
     (Hlt := Hcompf' tid pff') (Hlt' := Hcompf tid pff)
       by (erewrite gThreadCR with (cntj := pff); reflexivity).
     assumption.
@@ -2094,7 +2023,7 @@ Module SimProofs (CI: CoreInjections).
       (Hmem_wd: valid_mem m)
       (Hdomain: domain_memren f m)
       (Htp_wd: tp_wd f tp)
-      (Hge_inj: ge_inj fg the_ge the_ge)
+      (Hfg: forall b1 b2, fg b1 = Some b2 -> b1 = b2)
       (Hge_wd: ge_wd fg the_ge)
       (Hcomp: mem_compatible tp m)
       (Hcomp'': mem_compatible tp'' m')
@@ -2192,7 +2121,7 @@ Module SimProofs (CI: CoreInjections).
     inversion Hsim as
         [HnumThreads HmemCompC HmemCompF HsafeC HsimWeak Hfpsep
                      HsimStrong HsimLocks HsimRes HinvF HmaxF
-                     Hwd_mem Htp_wd Hge_wd Hge_inj Hge_spec Hxs].
+                     Hwd_mem Htp_wd Hge_wd [Hge_incr Hfg] Hxs].
     assert (pfc: containsThread tpc i)
       by (eapply HnumThreads; eauto).
     destruct (HsimStrong i pfc pff)
@@ -2266,7 +2195,7 @@ Module SimProofs (CI: CoreInjections).
              eapply weak_obs_eq_domain_ren in HsimWeak; eauto).
       assert (Hwd := internal_execution_wd _ _ Hdomainf Hwd_mem Htp_wd
                                            Hge_wd (ren_incr_domain_incr
-                                                     (proj1 Hge_spec)) Hexec).
+                                                     Hge_incr) Hexec).
       destruct Hwd as [Hwd_mem' [[f' [Hincrf' Hdomainf']] Htp_wd']].
       assert (pffi': containsThread tpf' i)
         by (eapply suspendF_containsThread with (cnti := pff); eauto).
@@ -2527,7 +2456,7 @@ Module SimProofs (CI: CoreInjections).
             by (eapply suspendC_invariant with (tp := tpc');
                  [eapply internal_execution_invariant with (tp := tpc);
                    eauto | eauto]).
-                    Lemma incr_domain_id:
+          Lemma incr_domain_id:
             forall m f f'
               (Hincr: ren_incr f f')
               (Hf_id: forall b b', f b = Some b' -> b = b')
@@ -2548,15 +2477,14 @@ Module SimProofs (CI: CoreInjections).
             apply id_ren_correct in Hid;
               by subst.
           Qed.
-          assert (Hge_incr: ren_incr fg (id_ren mc))
-            by (clear - Hge_spec Hdomain_f;
-                 destruct Hge_spec;
+          assert (Hge_incr_id: ren_incr fg (id_ren mc))
+            by (clear - Hge_incr Hfg Hdomain_f;
                  eapply incr_domain_id; eauto).
-          assert (Hsimjj':= strong_tsim_execution xs Hinv'' Hge_inj Hge_wd
-                                                  Hge_incr Hsim_c_ci Hexecj).
+          assert (Hsimjj':= strong_tsim_execution xs Hinv'' Hfg Hge_wd
+                                                  Hge_incr_id Hsim_c_ci Hexecj).
           destruct Hsimjj'
             as (tpcj' & mcj' & fij & Hexecij
-                & Hincr' & Hsep & Hinjective & Hnextblockj' & Hinverse & Hsimjj').
+                & Hincr' & Hsep  & Hnextblockj' & Hinverse & Hsimjj').
           destruct Hsimjj' as [[pfcjj [pfij [Hcompjj [Hcompij Hsimij]]]] Hid_case].
           pf_cleanup.
           (* notice that mcj and mcj' will be equal up to nextblock mc
@@ -2800,6 +2728,7 @@ Module SimProofs (CI: CoreInjections).
               specialize (Hinverse _ Hvalidb' n0).
               simpl in Hinverse.
               destruct Hinverse as [Hfij' Hg].
+              assert (Hinjective := injective (weak_obs_eq (obs_eq Hsimij))).
               assert (b = Z.to_pos
                             match
                               (- Z.pos_sub (Mem.nextblock mc'')
@@ -2811,7 +2740,7 @@ Module SimProofs (CI: CoreInjections).
                             end)
                 by (eapply Hinjective; eauto;
                     assert (Hfid_domain:= iffLRn (id_ren_domain mc b) n1);
-                    destruct (id_ren mc b); [by exfalso | by tauto]);
+                    subst b; eauto);
                 by subst.
             - (*mem_obs_eq between thread-j on mij=mcj' and on mff'*)
               (* Before going into the actual proof, some assertions about
@@ -3420,7 +3349,8 @@ Module SimProofs (CI: CoreInjections).
                       clear Hdecbpj1.
                       apply (domain_invalid (weak_obs_eq (obs_eq Hsim_c_ci)))
                         in Hinvalidmcbpj1.
-                      specialize (Hinjective _ _ _ Hfid0 Hinvalidmcbpj1 Hfij0 Hfijp).
+                      assert (Hinjective := injective (weak_obs_eq (obs_eq Hsimij))).
+                      specialize (Hinjective _ _ _ Hfij0 Hfijp).
                       subst bpj1;
                         by assumption.
                       apply (codomain_valid (weak_obs_eq (obs_eq Hsimij))) in Hfijp.
@@ -3519,7 +3449,8 @@ Module SimProofs (CI: CoreInjections).
                       clear Hdecbpj1.
                       apply (domain_invalid (weak_obs_eq (obs_eq Hsim_c_ci)))
                         in Hinvalidmcbpj1.
-                      specialize (Hinjective _ _ _ Hfid0' Hinvalidmcbpj1 Hfij0' Hfijp).
+                      assert (Hinjective := injective (weak_obs_eq (obs_eq Hsimij))).
+                      specialize (Hinjective _ _ _  Hfij0' Hfijp).
                       subst bpj1;
                         by assumption.
                       apply (codomain_valid (weak_obs_eq (obs_eq Hsimij))) in Hfijp.
@@ -3758,9 +3689,7 @@ Module SimProofs (CI: CoreInjections).
           eapply ge_wd_incr;
             by eauto.
         }
-        { assumption. }
-        { destruct Hge_spec.
-          split; auto.
+        { split; auto.
           eapply ren_incr_trans;
             by eauto.
         }
@@ -5586,7 +5515,7 @@ Module SimProofs (CI: CoreInjections).
     inversion Hsim as
         [HnumThreads HmemCompC HmemCompF HsafeC HsimWeak HfpSep HsimStrong
                      [HsimLocks HLocksInv] HsimRes HinvF HmaxF
-                     Hmemc_wd Htpc_wd Hge_wd Hge_inj Hge_spec Hxs].
+                     Hmemc_wd Htpc_wd Hge_wd [Hge_incr Hfg] Hxs].
     (* Thread i is in the coarse-grained machine*)
     assert (pfc: containsThread tpc i)
       by (eapply HnumThreads; eauto).
@@ -5627,9 +5556,8 @@ Module SimProofs (CI: CoreInjections).
     assert (Hdomain_f: domain_memren (fp i pfc) mc)
       by (apply (weak_obs_eq_domain_ren (HsimWeak _ pfc pff))).
     (* Useful facts about the global env*)
-    assert (Hge_incr: ren_incr fg (id_ren mc))
-      by (clear - Hge_spec Hdomain_f;
-           destruct Hge_spec;
+    assert (Hge_incr_id: ren_incr fg (id_ren mc))
+      by (clear - Hge_incr Hfg Hdomain_f;
            eapply incr_domain_id; eauto).
 
     exists tpc', mc'.
@@ -5729,27 +5657,6 @@ Module SimProofs (CI: CoreInjections).
                                           (computeMap (getThreadR pfc) virtueThread)) 
                                (b, Int.intval ofs) empty_map))
           by  (eapply safeC_invariant; eauto).
-
-        Lemma max_inv_store:
-          forall m m' chunk b ofs v pmap
-            (Hlt: permMapLt pmap (getMaxPerm m))
-            (Hmax: max_inv m)
-            (Hstore: Mem.store chunk (restrPermMap Hlt) b ofs v = Some m'),
-            max_inv m'.
-        Proof.
-          intros.
-          intros b0 ofs0 Hvalid0.
-          unfold permission_at.
-          erewrite Mem.store_access; eauto.
-          assert (H := restrPermMap_Max Hlt b0 ofs0).
-          eapply Mem.store_valid_block_2 in Hvalid0; eauto.
-          erewrite restrPermMap_valid in Hvalid0.
-          specialize (Hmax b0 ofs0 Hvalid0).
-          unfold permission_at in H.
-          rewrite H.
-          rewrite getMaxPerm_correct;
-            by assumption.
-        Qed.
         assert (HmaxF': max_inv mf')
           by (eapply max_inv_store; eauto).
         (*TODO: lemma : max_inv implies compatible*)
@@ -5947,11 +5854,11 @@ Module SimProofs (CI: CoreInjections).
             destruct Htsimj_id as [Htsimj_id Hnextblock].
             
             (* Step 2.*)
-            assert (H := strong_tsim_execution _ HinvC' Hge_inj Hge_wd Hge_incr
+            assert (H := strong_tsim_execution _ HinvC' Hfg Hge_wd Hge_incr_id
                                                Htsimj_id Hexecj).
             destruct H as
                 (tp2' & m2' & f' & Hexecj'& Hincrj' & Hsepj'
-                 & Hinj' & Hnextblock' & Hinvj' & Htsimj' & Hid').
+                 & Hnextblock' & Hinvj' & Htsimj' & Hid').
             destruct Htsimj' as (pf2j & pf2j' & Hcomp2 & Hcomp2' & Htsimj').
             specialize (Hid' Hnextblock (id_ren_correct mc)).
             assert (f' = id_ren mcj)
@@ -5995,7 +5902,7 @@ Module SimProofs (CI: CoreInjections).
             specialize (lock_set_threads0 _ pffj).
             rewrite HeqRes;
               by eapply permMapsDisjoint_comm.
-            erewrite restrPermMap_irr with (Hlt := Hlt)
+            erewrite restrPermMap_irr' with (Hlt := Hlt)
                                              (Hlt' := (mem_compf Hsim) tid pffj);
               by eauto.
             split.
@@ -6187,10 +6094,8 @@ Module SimProofs (CI: CoreInjections).
             by auto.
         - (*ge well defined*)
           assumption.
-        - (*ge injection*)
-          assumption.
         - (*ge spec*)
-          assumption.
+          split; assumption.
         - intros.
           apply cntUpdateL;
             apply cntUpdate;
@@ -6503,11 +6408,11 @@ Module SimProofs (CI: CoreInjections).
           destruct Htsimj_id as [Htsimj_id Hnextblock].
           
           (* Step 2.*)
-          assert (H := strong_tsim_execution _ HinvC' Hge_inj Hge_wd
-                                             Hge_incr Htsimj_id Hexecj).
+          assert (H := strong_tsim_execution _ HinvC' Hfg Hge_wd
+                                             Hge_incr_id Htsimj_id Hexecj).
           destruct H as
               (tp2' & m2' & f' & Hexecj'& Hincrj' & Hsepj'
-               & Hinj' & Hnextblock' & Hinvj' & Htsimj' & Hid').
+               & Hnextblock' & Hinvj' & Htsimj' & Hid').
           destruct Htsimj' as (pf2j & pf2j' & Hcomp2 & Hcomp2' & Htsimj').
           specialize (Hid' Hnextblock (id_ren_correct mc)).
           assert (f' = id_ren mcj)
@@ -6551,7 +6456,7 @@ Module SimProofs (CI: CoreInjections).
           specialize (lock_set_threads0 _ pffj).
           rewrite HeqRes;
             by eapply permMapsDisjoint_comm.
-          erewrite restrPermMap_irr with (Hlt := Hlt)
+          erewrite restrPermMap_irr' with (Hlt := Hlt)
                                            (Hlt' := (mem_compf Hsim) tid pffj);
             by eauto.
           split.
@@ -6843,10 +6748,8 @@ Module SimProofs (CI: CoreInjections).
             by auto.
         - (*ge well defined*)
           assumption.
-        - (*ge injection *)
-          assumption.
         - (*ge spec *)
-          assumption.
+          split; assumption.
         - (*xs invariant*)
           intros;
           eapply cntUpdateL;
@@ -7491,10 +7394,8 @@ Module SimProofs (CI: CoreInjections).
             by auto.
         - (*ge_wd *)
           assumption.
-        - (* ge_inj *)
-          assumption.
         - (* ge_spec *)
-          assumption.
+          split; assumption.
         - intros j Hin.
           specialize (Hxs _ Hin).
           apply cntAdd;
