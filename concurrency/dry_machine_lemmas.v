@@ -239,6 +239,7 @@ Module CoreLanguage.
         corestep_unchanged_on:
           forall the_ge c m c' m' b ofs
             (Hstep: corestep Sem the_ge c m c' m')
+            (Hvalid: Mem.valid_block m b)
             (Hstable: ~ Mem.perm m b ofs Cur Writable),
             Maps.ZMap.get ofs (Maps.PMap.get b (Mem.mem_contents m)) =
             Maps.ZMap.get ofs (Maps.PMap.get b (Mem.mem_contents m'));
@@ -612,6 +613,18 @@ Module CoreLanguage.
               end; try discriminate; inversion Hreadable.
       }
       apply corestep_unchanged_on with (b := b) (ofs := ofs) in Hcorestep; auto.
+      erewrite restrPermMap_valid.
+      destruct (valid_block_dec m b); auto.
+      apply Mem.nextblock_noaccess with (ofs := ofs) (k := Max) in n.
+      assert (Hlt := Hcomp _ pfj b ofs).
+      rewrite getMaxPerm_correct in Hlt.
+      assert (Heq:= restrPermMap_Cur (Hcomp j pfj) b ofs).
+      unfold permission_at in *.
+      unfold Mem.perm in *.
+      rewrite Heq in Hreadable.
+      rewrite n in Hlt.
+      destruct ((getThreadR pfj) # b ofs); simpl in *;
+        by exfalso.
     Qed.
 
     Lemma corestep_disjoint_val_lockset:
@@ -650,6 +663,18 @@ Module CoreLanguage.
               end; try discriminate; inversion Hreadable.
       }
       apply corestep_unchanged_on with (b := b) (ofs := ofs) in Hcorestep; auto.
+      erewrite restrPermMap_valid.
+      destruct (valid_block_dec m b); auto.
+      apply Mem.nextblock_noaccess with (ofs := ofs) (k := Max) in n.
+      assert (Hlt := (compat_ls Hcomp) b ofs).
+      rewrite getMaxPerm_correct in Hlt.
+      assert (Heq:= restrPermMap_Cur (compat_ls Hcomp) b ofs).
+      unfold permission_at in *.
+      unfold Mem.perm in *.
+      rewrite Heq in Hreadable.
+      rewrite n in Hlt.
+      destruct ((lockSet tp) # b ofs); simpl in *;
+        by exfalso.
     Qed.
 
     Lemma corestep_disjoint_val_lockpool :
@@ -687,6 +712,18 @@ Module CoreLanguage.
               end; try discriminate; inversion Hreadable.
       }
       apply corestep_unchanged_on with (b := b) (ofs := ofs) in Hcorestep; auto.
+      erewrite restrPermMap_valid.
+      destruct (valid_block_dec m b); auto.
+      apply Mem.nextblock_noaccess with (ofs := ofs) (k := Max) in n.
+      assert (Hlt := ((compat_lp Hcomp) _ _  Hlock) b ofs).
+      rewrite getMaxPerm_correct in Hlt.
+      assert (Heq:= restrPermMap_Cur ((compat_lp Hcomp) _ _  Hlock) b ofs).
+      unfold permission_at in *.
+      unfold Mem.perm in *.
+      rewrite Heq in Hreadable.
+      rewrite n in Hlt.
+      destruct (pmap # b ofs); simpl in *;
+        by exfalso.
     Qed.
     
   End CoreLanguage.

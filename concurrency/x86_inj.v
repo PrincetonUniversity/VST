@@ -308,6 +308,19 @@ Module X86Inj <: CoreInjections.
       by subst.
   Qed.
 
+  Lemma regset_ren_set:
+    forall f rs rs' v v' r
+      (Hrs_ren: regset_ren f rs rs')
+      (Hval_obs: val_obs f v v'),
+      regset_ren f (rs # r <- v) (rs' # r <- v').
+  Proof.
+    intros.
+    intros r'.
+    unfold reg_ren.
+    do 2 rewrite Pregmap.gsspec.
+    destruct (Pregmap.elt_eq r' r); auto.
+    eapply Hrs_ren.
+  Qed.
   
   Lemma loader_ren_trans:
     forall f f' f'' loader loader' loader'',
@@ -350,12 +363,67 @@ Module X86Inj <: CoreInjections.
         by auto.
   Qed.
 
+  Lemma regset_comm:
+    forall (rs: Pregmap.t val) r r' v,
+      (rs # r <- v) # r' <- v = (rs # r' <- v) # r <- v.
+  Proof.
+    intros.
+    unfold Pregmap.set.
+    extensionality r''.
+    destruct (PregEq.eq r'' r'), (PregEq.eq r'' r); auto.
+  Qed.
+
+  Lemma undef_regs_comm:
+    forall regs rs r,
+      undef_regs regs (rs # r <- Vundef) =
+      (undef_regs regs rs) # r <- Vundef.
+  Proof.
+    intros.
+    generalize dependent rs.
+    induction regs; intros. simpl. auto.
+    simpl.
+    specialize (IHregs (rs # a <- Vundef)).
+    rewrite <- IHregs.
+    apply f_equal.
+      by rewrite regset_comm.
+  Qed.
+
+  Lemma ren_separated_refl:
+    forall f m m',
+      ren_separated f f m m'.
+  Proof.
+    unfold ren_separated.
+      by congruence.
+  Qed.
+  Hint Immediate ren_incr_refl ren_separated_refl : renamings.
+
+
   Hint Resolve
-       loader_ren_incr loader_ren_id loader_ren_trans
-       regset_ren_id val_obs_reg val_obs_add
-       valid_val_incr val_obs_incr val_obs_load_result : renamings.
-  Hint Constructors eval_builtin_arg val_obs : renamings.
+       loader_ren_incr loader_ren_id loader_ren_trans regset_ren_id
+       val_obs_reg regset_ren_set : reg_renamings.
   
+  Hint Resolve
+       val_obs_add valid_val_incr val_obs_incr
+       val_obs_load_result : renamings.
+  Hint Constructors eval_builtin_arg val_obs : renamings.
+  Hint Unfold Vone nextinstr nextinstr_nf : renamings.
+
+  Lemma regset_ren_undef:
+    forall f rs rs' regs
+      (Hrs_ren: regset_ren f rs rs'),
+      regset_ren f (undef_regs regs rs) (undef_regs regs rs').
+  Proof with eauto with renamings reg_renamings.
+    intros.
+    induction regs as [|r regs]; simpl; auto.
+    intros r'. unfold reg_ren.
+    do 2 rewrite undef_regs_comm;
+      do 2 rewrite Pregmap.gsspec;
+      unfold Pregmap.get;
+      destruct (Pregmap.elt_eq r' r)...
+  Qed.
+
+  Hint Resolve regset_ren_undef : reg_renamings.
+   
   Lemma ge_wd_incr :
     forall (f f' : memren) (g : SEM.G),
       ge_wd f g -> ren_domain_incr f f' -> ge_wd f' g.
@@ -848,11 +916,11 @@ Module X86Inj <: CoreInjections.
     exists varg',
       eval_builtin_arg g rs' (rs' ESP) m' arg varg' /\
       val_obs f varg varg'.
-  Proof with eauto with renamings.
+  Proof with eauto with renamings reg_renamings.
     intros.
     destruct Hmem_obs_eq.
     induction Heval; subst;
-    try by (eexists; split; eauto with renamings).
+    try by (eexists; split)...
     eapply loadv_val_obs with (vptr2 := Val.add (rs' ESP) (Vint ofs)) in H...
     destruct H as (varg' & Hload' & Hval_obs).
     exists varg';
@@ -999,8 +1067,133 @@ Module X86Inj <: CoreInjections.
       (Mem.nextblock m = Mem.nextblock m' ->
        (forall b1 b3 : block, f b1 = Some b3 -> b1 = b3) ->
        forall b1 b0 : block, f' b1 = Some b0 -> b1 = b0).
-  Proof.
-    Admitted.
+  Proof with eauto 8 with renamings reg_renamings.
+    intros.
+
+ 
+    
+    destruct i; simpl in *;
+    try match goal with
+        | [H: Next _ _ = Next _ _ |- _] =>
+          inversion H; clear H; subst;
+          exists f
+        end;
+    repeat match goal with
+        | [|- exists _ _, _ ] => do 2 eexists; split; first by eauto
+        | [|- _ /\ _] => split; eauto 3 with renamings
+        | [|- regset_ren _ _ _] =>
+          unfold nextinstr, Vone;
+            eauto 8 with renamings reg_renamings
+        | [|- forall _, _] => intros
+           end; try by exfalso.
+    repeat unfold nextinstr_nf, nextinstr, Vone.
+    eapply regset_ren_set.
+    eapply regset_ren_undef.
+    eapply regset_ren_set.
+    eauto.
+    apply obs_int.
+    apply val_obs_add.
+    apply val_obs_reg.
+    eapply regset_ren_undef.
+    eapply regset_ren_set.
+    eauto.
+    apply obs_int.
+ 
+    repeat unfold nextinstr_nf, nextinstr, Vone.
+
+    eapply regset_ren_set.
+    eapply regset_ren_undef.
+    eapply regset_ren_set.
+    eauto.
+    try apply obs_int. admit.
+    apply val_obs_add.
+    apply val_obs_reg.
+    eapply regset_ren_undef.
+    eapply regset_ren_set.
+    eauto.
+
+    Lemma val_obs_symb:
+      forall f fg g id i
+        (Hge_wd: ge_wd fg g)
+        (Hincr: ren_incr fg f)
+        (Hfg: forall b1 b2, fg b1 = Some b2 -> b1 = b2),
+        val_obs f (symbol_address g id i) (symbol_address g id i).
+    Proof.
+      intros.
+      destruct Hge_wd as (H1 & H2 & H3).
+      unfold symbol_address, Senv.symbol_address in *;
+        simpl in *.
+      specialize (H3 id i _ ltac:(reflexivity)).
+      destruct (find_symbol g id).
+
+      Lemma valid_val_ge_id:
+        forall fg f b i
+          (Hvalid: valid_val fg (Vptr b i))
+          (Hincr: ren_incr fg f)
+          (Hfg: forall b1 b2, fg b1 = Some b2 -> b1 = b2),
+          val_obs f (Vptr b i) (Vptr b i).
+      Proof.
+        intros.
+        destruct Hvalid as [b' Hfg'].
+        assert (Heq := Hfg _ _ Hfg'); subst.
+        apply Hincr in Hfg';
+          by econstructor.
+      Qed.
+                             
+      destruct H3 as [b' Hfg'].
+      
+    unfold symbol_address.
+    
+    apply obs_int.
+
+    eapply regset_ren_set.
+    eapply regset_ren_undef.
+    eapply regset_ren_set.
+    eauto.
+    apply obs_int.
+    apply val_obs_add.
+    apply val_obs_reg.
+    eapply val_obs_add.
+    
+
+Debug: 1 depth=8
+Debug: 1.1 depth=7 apply regset_ren_set
+Debug: 1.1.1 depth=6 apply regset_ren_undef
+Debug: 1.1.1.1 depth=5 apply regset_ren_set
+Debug: 1.1.1.1.1 depth=5 exact Hrs_eq
+Debug: 1.1.1.1.1.1 depth=5 apply obs_int
+Debug: 1.1.1.1.1.1.1 depth=4 apply val_obs_add
+Debug: 1.1.1.1.1.1.1.1 depth=3 apply val_obs_reg
+Debug: 1.1.1.1.1.1.1.1.1 depth=2 apply regset_ren_undef
+Debug: 1.1.1.1.1.1.1.1.1.1 depth=1 apply regset_ren_set
+Debug: 1.1.1.1.1.1.1.1.1.1.1 depth=1 exact Hrs_eq
+Debug: 1.1.1.1.1.1.1.1.1.1.1.1 depth=1 apply obs_int
+   
+
+
+
+
+    
+    regset_ren f
+               (undef_regs [:: ZF; CF; PF; SF; OF]
+                           rs # rd <- (symbol_address g id Int.zero)) # PC <-
+               (Val.add
+                  (undef_regs [:: ZF; CF; PF; SF; OF]
+                              rs # rd <- (symbol_address g id Int.zero) PC) 
+                  (Vint Int.one))
+               (undef_regs [:: ZF; CF; PF; SF; OF]
+                           rs' # rd <- (symbol_address g id Int.zero)) # PC <-
+               (Val.add
+                  (undef_regs [:: ZF; CF; PF; SF; OF]
+                              rs' # rd <- (symbol_address g id Int.zero) PC) 
+                  (Vint Int.one))
+    
+    debug eauto 8...
+    eapply regset_ren_undef.
+    unfold nextinstr_nf, nextinstr.
+      
+
+   
   
   Lemma corestep_obs_eq:
     forall (cc cf cc' : Asm_coop.state) (mc mf mc' : mem) f fg,
