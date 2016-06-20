@@ -12,12 +12,15 @@
 (* The following lemmas are developed by Qinxiang Cao in 2015 in Princeton.   *)
 (*    RAMIF_PLAIN.trans                                                       *)
 (*    RAMIF_PLAIN.weak_ramif_spec                                             *)
+(*    RAMIF_PLAIN.exp_right                                                   *)
 (*    RAMIF_Q.trans                                                           *)
 (*    RAMIF_Q.simple_trans                                                    *)
 (*    RAMIF_Q.weak_ramif_spec                                                 *)
 (*    RAMIF_Q.plain_spec                                                      *)
+(*    RAMIF_Q.exp_right                                                       *)
 
 Require Import msl.base.
+Require Import msl.Coqlib2.
 Require Import msl.simple_CCC.
 Require Import msl.seplog.
 Require Import msl.log_normalize.
@@ -136,6 +139,17 @@ Proof.
   + rewrite sepcon_comm; apply modus_ponens_wand.
 Qed.
 
+Lemma exp_right: forall {T} (a: T) g l g' l',
+  g |-- l * (l' -* g' a) ->
+  g |-- l * (l' -* exp g').
+Proof.
+  intros.
+  apply solve with (l' -* g' a); auto.
+  apply wand_sepcon_adjoint.
+  apply wand_derives; auto.
+  apply (exp_right a); auto.
+Qed.
+  
 End RAMIF_PLAIN.
 End RAMIF_PLAIN.
 
@@ -321,7 +335,51 @@ Proof.
     apply (allp_left _ x); auto.
 Qed.
 
+Lemma exp_right: forall {T B} (a: B -> T) g l (g': T -> B -> A) (l': B -> A),
+  g |-- l * allp (l' -* (fun b => g' (a b) b)) ->
+  g |-- l * allp (l' -* exp g').
+Proof.
+  intros.
+  apply solve with (allp (l' -* (fun b => g' (a b) b))); auto.
+  intros.
+  apply wand_sepcon_adjoint.
+  apply (allp_left _ x).
+  simpl.
+  apply wand_derives; auto.
+  apply (exp_right (a x)); auto.
+Qed.
+
 End RAMIF_Q.
+
+Ltac formalize :=
+  match goal with
+  | |- @derives ?Pred _ ?g (?l * @allp ?Pred _ ?T ?Func) =>
+      let g' := fresh "g'" in evar (g': T -> Pred);
+      let l' := fresh "l'" in evar (l': T -> Pred);
+      let x := fresh "x" in
+      let H := fresh "H" in
+      assert (Func = l' -* g') as H;
+      [
+        extensionality x; cbv beta;
+        match goal with
+        | |- ?L' -* exp ?G' = _ =>
+             super_pattern L' x; super_pattern_in_func G' x
+        | |- ?L' -* ?G' = _ =>
+             super_pattern L' x; super_pattern G' x
+        end;
+        match goal with
+        | |- ?L' _ -* exp (fun a => ?G' a _) = _ =>
+             instantiate (1 := L') in (Value of l');
+             instantiate (1 := exp G') in (Value of g')
+        | |- ?L' _ -* ?G' _ = _ =>
+             instantiate (1 := L') in (Value of l');
+             instantiate (1 := G') in (Value of g')
+        end;
+        subst g' l';
+        reflexivity
+      | subst g' l'; rewrite H; clear H]
+  end.
+
 End RAMIF_Q.
 
 Module RAMIF_Q'.
@@ -530,6 +588,59 @@ Proof.
     rewrite andp_comm; apply modus_ponens.
 Qed.
 
-End RAMIF_Q'.
+Lemma exp_right: forall {T B} (a: B -> T) p g l (g': T -> B -> A) (l': B -> A),
+  corable p ->
+  g |-- l * allp (p --> (l' -* (fun b => g' (a b) b))) ->
+  g |-- l * allp (p --> (l' -* exp g')).
+Proof.
+  intros.
+  apply solve with (allp (p --> (l' -* (fun b => g' (a b) b)))); auto.
+  intros.
+  rewrite <- corable_sepcon_andp1 by auto.
+  apply wand_sepcon_adjoint.
+  apply (allp_left _ x).
+  simpl.
+  apply wand_sepcon_adjoint.
+  rewrite corable_sepcon_andp1 by auto.
+  rewrite <- corable_andp_sepcon1 by auto.
+  eapply derives_trans; [apply sepcon_derives; [apply modus_ponens | apply derives_refl] |].
+  apply wand_sepcon_adjoint.
+  apply wand_derives; auto.
+  apply (exp_right (a x)); auto.
+Qed.
+
 End RAMIF_Q'.
 
+Ltac formalize :=
+  match goal with
+  | |- @derives ?Pred _ ?g (?l * @allp ?Pred _ ?T ?Func) =>
+      let p := fresh "p" in evar (p: T -> Pred);
+      let g' := fresh "g'" in evar (g': T -> Pred);
+      let l' := fresh "l'" in evar (l': T -> Pred);
+      let x := fresh "x" in
+      let H := fresh "H" in
+      assert (Func = p --> (l' -* g'));
+      [
+        extensionality x; cbv beta;
+        match goal with
+        | |- ?P --> (?L' -* exp ?G') = _ =>
+             super_pattern P x; super_pattern L' x; super_pattern_in_func G' x
+        | |- ?P --> (?L' -* ?G') = _ =>
+             super_pattern P x; super_pattern L' x; super_pattern G' x
+        end;
+        match goal with
+        | |- ?P _ --> (?L' _ -* exp (fun a => ?G' a _)) = _ =>
+             instantiate (1 := P) in (Value of p);
+             instantiate (1 := L') in (Value of l');
+             instantiate (1 := exp G') in (Value of g')
+        | |- ?P _ --> (?L' _ -* ?G' _) = _ =>
+             instantiate (1 := P) in (Value of p);
+             instantiate (1 := L') in (Value of l');
+             instantiate (1 := G') in (Value of g')
+        end;
+        subst p g' l';
+        reflexivity
+      | subst p g' l'; rewrite H; clear H]
+  end.
+
+End RAMIF_Q'.
