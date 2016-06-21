@@ -87,17 +87,6 @@ repeat
  admit.
  admit.
 Admitted.
-(*
- destruct ef; simpl in NASS; try now (simpl in NASS; contradiction NASS; auto).
- simpl in H6.
- 
-Focus 10.
-contradiction NASS; auto.
-contradiction.
- destruct ef; simpl in *.
-  +
-
-*)
 
 Lemma mem_step_nextblock:
   forall m m',
@@ -130,32 +119,67 @@ Proof.
  rewrite H; auto.
 *
  split; intros.
++
  assert (b=b').
  pose proof (Mem.nextblock_alloc _ _ _ _ _ H).
  apply Mem.alloc_result in H. subst.
  unfold Mem.valid_block in *.
  rewrite H2 in *; clear H2.
  apply Plt_succ_inv in H1. destruct H1; auto.
- contradiction. subst b'.
+ contradiction. subst b'. clear - H.
+ Transparent Mem.alloc. unfold Mem.alloc in H. Opaque Mem.alloc.
+  inv H. simpl.
  destruct (base.range_dec lo ofs hi); [left | right]; intros.
- pose proof (Mem.perm_alloc_2 _ _ _ _ _ H ofs k a).
- admit.
- pose proof (Mem.perm_alloc_3 _ _ _ _ _ H ofs k).
- admit.
+ rewrite PMap.gss. destruct (zle lo ofs); try omega. destruct (zlt ofs hi); try omega.
+ reflexivity.
+ rewrite PMap.gss.
+ destruct (zle lo ofs), (zlt ofs hi); try reflexivity.
+ omega.
+ +
  assert (b<>b').
  intro. subst b'. apply Mem.alloc_result in H. subst b.
  unfold Mem.valid_block in H0. apply Plt_ne in H0.
  contradiction H0; auto.
  right. intro.
- admit.
-* 
- admit.
+ Transparent Mem.alloc. unfold Mem.alloc in H. Opaque Mem.alloc.
+  inv H. simpl.
+  rewrite PMap.gso by auto. auto.
+*
+ revert m H; induction l; intros. inv H. apply decay_refl.
+ simpl in H. destruct a. destruct p. 
+ destruct (Mem.free m b z0 z) eqn:?H; inv H.
+ apply decay_trans with m0; [ | | eapply IHl; eauto].
+ eapply Mem.valid_block_free_1; eauto.
+ clear  - H0. rename m0 into m'. rename z0 into lo. rename z into hi.
+ Transparent Mem.free. unfold Mem.free in H0. Opaque Mem.free.
+ if_tac in H0; inv H0.
+ unfold Mem.unchecked_free; hnf; unfold Mem.valid_block; simpl.
+ split; intros; simpl. contradiction.
+ destruct (adr_range_dec (b,lo) (hi-lo) (b0,ofs)).
+ destruct a. subst b0. rewrite !PMap.gss. specialize (H ofs).
+ left; intro.
+ destruct (zle lo ofs); try omega. destruct (zlt ofs hi); try omega.
+ split; simpl; auto. spec H; [omega |].
+ hnf in H. match type of H with match ?A with _ => _ end => destruct A eqn:?H end; try contradiction.
+ assert (p=Freeable). inv H; auto. subst p. clear H.
+ destruct k; auto.
+ pose proof (Mem.access_max m b ofs).
+ rewrite H1 in H.
+ match goal with |- ?A = _ => destruct A; inv H end; auto.
+ clear H.
+ right. intros.
+ destruct (peq b b0); auto. subst b0. rewrite PMap.gss.
+ unfold adr_range in n.
+ assert (~ (lo <= ofs < hi)) by (contradict n; split; auto; omega).
+ destruct (zle lo ofs); try reflexivity.
+ destruct (zlt ofs hi); try reflexivity. omega.
+ rewrite PMap.gso by auto. auto.
 *
  apply decay_trans with m''; auto.
  apply mem_step_nextblock in H.
  unfold Mem.valid_block; intros.
  eapply Plt_Ple_trans; try apply H1. apply H.
-Admitted.
+Qed.
 
 Lemma exec_load_same_mem:
   forall ge ch m a rs rd rs' m',
@@ -187,15 +211,19 @@ intros.
 Qed.
 
 Lemma alloc_contents:
- forall m lo hi m' b',
+ forall m lo hi m' b' b ofs,
+    Mem.valid_block m b ->
     Mem.alloc m lo hi = (m',b') ->
-   forall b ofs, 
   ZMap.get ofs (PMap.get b (Mem.mem_contents m)) =
   ZMap.get ofs (PMap.get b (Mem.mem_contents m')).
 Proof.
  intros.
-SearchAbout Mem.alloc Mem.mem_contents.
-Admitted.
+Transparent Mem.alloc. unfold Mem.alloc in H0. Opaque Mem.alloc.
+inv H0. simpl.
+unfold Mem.valid_block in H.
+rewrite PMap.gso; auto.
+intro; subst. apply Plt_strict in H; auto.
+Qed.
 
 Lemma free_contents:
  forall m b lo hi m' b' ofs,
@@ -203,71 +231,15 @@ Lemma free_contents:
      ~adr_range (b,lo) (hi-lo) (b',ofs) ->
   ZMap.get ofs (PMap.get b' (Mem.mem_contents m)) =
   ZMap.get ofs (PMap.get b' (Mem.mem_contents m')).
-Admitted.
-
-Lemma exec_instr_allocframe_obeys_cur_write:
- forall (the_ge : genv) (m m' : mem) (b : block) 
-  (ofs : Z)  (f : function) sz ofs_ra ofs_link
-  (rs : preg -> val) (rs' : regset),
- Mem.valid_block m b ->
-~ Mem.perm m b ofs Cur Writable ->
-exec_instr the_ge f (Pallocframe sz ofs_ra ofs_link) rs m = Next rs' m' ->
-ZMap.get ofs (PMap.get b (Mem.mem_contents m)) =
-ZMap.get ofs (PMap.get b (Mem.mem_contents m')).
 Proof.
- intros. simpl in H1.
- destruct (Mem.alloc m 0 sz) eqn:?H.
- destruct (Mem.store Mint32 m0 b0
-         (Int.unsigned (Int.add Int.zero ofs_link)) 
-         (rs ESP)) eqn:?; inv H1.
- destruct (Mem.store Mint32 m1 b0
-         (Int.unsigned (Int.add Int.zero ofs_ra)) 
-         (rs RA)) eqn:?; inv H4.
- assert (~ Mem.perm m0 b ofs Cur Writable). {
-   contradict H0.
-   eapply Mem.perm_alloc_inv in H0; eauto.
-   rewrite if_false in H0; auto.
-  intro; subst; apply Mem.alloc_result in H2.
-  subst. red in H.
-  apply Plt_strict in H; auto.
- }
- assert (~ Mem.perm m1 b ofs Cur Writable). {
-   contradict H1. eapply Mem.perm_store_2; eauto.
- }
- eapply MemoryLemmas.store_contents_other with (b':=b)(ofs':=ofs) in Heqo; auto.
- eapply MemoryLemmas.store_contents_other with (b':=b)(ofs':=ofs) in Heqo0; auto.
- rewrite Heqo0, Heqo.
- eapply alloc_contents; eauto.
-Qed.
-
-Lemma exec_instr_freeframe_obeys_cur_write:
- forall (the_ge : genv) (m m' : mem) (b : block) 
-  (ofs : Z)  (f : function) sz ofs_ra ofs_link
-  (rs : preg -> val) (rs' : regset),
- Mem.valid_block m b ->
-~ Mem.perm m b ofs Cur Writable ->
-exec_instr the_ge f (Pfreeframe sz ofs_ra ofs_link) rs m = Next rs' m' ->
-ZMap.get ofs (PMap.get b (Mem.mem_contents m)) =
-ZMap.get ofs (PMap.get b (Mem.mem_contents m')).
-Proof.
- intros.
- simpl in H1.
-  repeat match goal with
-        | H: match ?A with  _ => _ end = _ |- _ =>
-        destruct A eqn:?; inv H
-      end.
- destruct (adr_range_dec (b0,0) sz (b,ofs)).
- +
-   destruct a. subst b0.
-   apply Mem.free_range_perm in Heqo1.
-   specialize (Heqo1 ofs).
-   spec Heqo1; [omega | ].
-   contradiction H0.
-   clear - Heqo1.
-   eapply Mem.perm_implies; eauto. constructor.
- + 
-    eapply free_contents; eauto.
-    rewrite Z.sub_0_r; auto.
+intros.
+Transparent Mem.free.
+unfold Mem.free in H.
+Opaque Mem.free.
+destruct (Mem.range_perm_dec m b lo hi Cur Freeable); inv H.
+unfold Mem.unchecked_free.
+simpl.
+reflexivity.
 Qed.
 
 Lemma mem_step_obeys_cur_write:
@@ -358,54 +330,26 @@ Opaque Mem.storebytes.
  eapply Plt_le_trans; eauto.
 Qed.
 
-Lemma x86_exec_instr_obeys_cur_write:
- forall (the_ge : genv) (m m' : mem) (b : block) 
-  (ofs : Z) (f : function) (i : instruction) 
-  (rs : preg -> val) (rs' : regset),
- Mem.valid_block m b ->
-~ Mem.perm m b ofs Cur Writable ->
-exec_instr the_ge f i rs m = Next rs' m' ->
-ZMap.get ofs (PMap.get b (Mem.mem_contents m)) =
-ZMap.get ofs (PMap.get b (Mem.mem_contents m')).
-Proof.
-intros.
-apply exec_instr_mem_step in H1.
-eapply mem_step_obeys_cur_write; eauto.
-Qed.
-
 Instance x86Spec : CoreLanguage.corestepSpec.
   Proof.
     split.
     intros m m' m'' ge c c' c'' Hstep Hstep'.
-    (*TODO: The proofs. *)
  *
    eapply x86_corestep_fun; eauto.
- * {
+ * 
    intros.
-   hnf in Hstep.
-   inv Hstep.
- + (* asm_exec_step_internal *)
-   eapply x86_exec_instr_obeys_cur_write; eauto.
- + (* asm_exec_step_builtin *)
-  admit.
- + (* asm_exec_step_to_external *)
-   reflexivity.
- + (* asm_exec_step_external *)
-  admit.
- + (* asm_exec_initialize_call*)
-  clear - H0 H1 Hstable.
-  admit. (* problem! *)
- }
+   hnf in Hstep. 
+   apply asm_mem_step in Hstep.
+  eapply mem_step_obeys_cur_write; auto.
  * 
   intros.
   apply mem_step_decay.
- apply asm_mem_step in H; auto.
+  apply asm_mem_step in H; auto.
  *
   intros.
- apply mem_step_nextblock.
- apply asm_mem_step in H; auto.
-Admitted.
-
+  apply mem_step_nextblock.
+  apply asm_mem_step in H; auto.
+Qed.
 
 End CSPEC.
 End X86Safe.
