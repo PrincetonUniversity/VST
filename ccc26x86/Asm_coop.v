@@ -34,7 +34,7 @@ Inductive load_frame: Type :=
     load_frame.
 
 Section ASM_MEM.
-Variable hf : I64Helpers.helper_functions.
+(*Variable hf : I64Helpers.helper_functions.*)
 
 Section RELSEM.
 Variable ge: genv.
@@ -64,16 +64,18 @@ Inductive state: Type :=
 Inductive asm_step: state -> mem -> state -> mem -> Prop :=
   | asm_exec_step_internal:
       forall b ofs (f:function) i rs m rs' m' lf
-      (HFD: helper_functions_declared ge hf),
+      (*(HFD: helper_functions_declared ge hf)*),
       rs PC = Vptr b ofs ->
       Genv.find_funct_ptr ge b = Some (Internal f) ->
       find_instr (Int.unsigned ofs) (fn_code f) = Some i ->
       exec_instr ge f(*(fn_code f)*) i rs m = Next rs' m' ->
       asm_step (State rs lf) m (State rs' lf) m'
   | asm_exec_step_builtin:
+      False -> (*We don't support builtins/helpers/vload/vstore etc yet*)
       forall b ofs f ef args res rs m vargs t vres rs' m' lf
-        (HFD: helper_functions_declared ge hf)
+        (*(HFD: helper_functions_declared ge hf)*)
          (NASS: ~ isInlinedAssembly ef)  (*NEW; we don't support inlined assembly yet*),
+      False -> (*We don't support builtins/helpers/vload/vstore etc yet*)
       rs PC = Vptr b ofs ->
       Genv.find_funct_ptr ge b = Some (Internal f) ->
       find_instr (Int.unsigned ofs) f.(fn_code) = Some (Pbuiltin ef args res) ->
@@ -86,14 +88,15 @@ Inductive asm_step: state -> mem -> state -> mem -> Prop :=
       asm_step (State rs lf) m (State rs' lf) m'
   | asm_exec_step_to_external:
       forall b ef args rs m lf
-      (HFD: helper_functions_declared ge hf),
+      (*(HFD: helper_functions_declared ge hf)*),
       rs PC = Vptr b Int.zero ->
       Genv.find_funct_ptr ge b = Some (External ef) ->
       extcall_arguments rs m (ef_sig ef) args ->
       asm_step (State rs lf) m (Asm_CallstateOut ef args rs lf) m
   | asm_exec_step_external:
+      False -> (*We don't support builtins/helpers/vload/vstore etc yet*)
       forall b callee args res rs m t rs' m' lf
-      (HFD: helper_functions_declared ge hf)
+      (*(HFD: helper_functions_declared ge hf)*)
       (OBS: EFisHelper (*hf*) callee),
       rs PC = Vptr b Int.zero ->
       Genv.find_funct_ptr ge b = Some (External callee) ->
@@ -103,7 +106,7 @@ Inductive asm_step: state -> mem -> state -> mem -> Prop :=
   (*NOTE [loader]*)
   | asm_exec_initialize_call: 
       forall m args tys retty m1 stk m2 fb z
-      (HFD: helper_functions_declared ge hf),
+      (*(HFD: helper_functions_declared ge hf)*),
       args_len_rec args tys = Some z -> 
       Mem.alloc m 0 (4*z) = (m1, stk) ->
       store_args m1 stk args tys = Some m2 -> 
@@ -139,11 +142,11 @@ Ltac Equalities :=
   end.
   intros H H0.
 (* determ *)
-  inv H; inv H0; Equalities.
+  inv H; inv H0; Equalities; try contradiction.
   + split. constructor. auto.
-  + discriminate.
-  + discriminate.
-  + eapply eval_builtin_args_determ in H11; try eassumption. subst vargs0. red in H4.
+  (*+ discriminate.*)
+  (*+ discriminate.*)
+  (*+ eapply eval_builtin_args_determ in H11; try eassumption. subst vargs0. red in H4.
     destruct (EFisHelper_dec ef0).
     - exploit (EC_determ ge). apply H5. apply H12. trivial. intros [? [? ?]]; subst. split; trivial.
     - destruct ef0; simpl in *; try solve [elim H13; trivial].
@@ -152,9 +155,9 @@ Ltac Equalities :=
       * (*free*) exploit ec_determ. apply extcall_free_ok. apply H5. apply H12.
         intros [? ?]. inv H5. inv H12. destruct H0; trivial. subst. split; trivial.
       * (*memcpy*) exploit ec_determ. apply extcall_memcpy_ok. apply H5. apply H12.
-        intros [? ?]. inv H5. inv H12. destruct H0; trivial. subst. split; trivial.
+        intros [? ?]. inv H5. inv H12. destruct H0; trivial. subst. split; trivial.*)
   + specialize (extcall_arguments_determ _ _ _ _ _ H3 H10); intros; subst. split; trivial.
-  + exploit (EC'_determ ge). apply H3. apply H12. trivial. intros [? [? ?]]; subst. split; trivial.
+  (*+ exploit (EC'_determ ge). apply H3. apply H12. trivial. intros [? [? ?]]; subst. split; trivial.*)
   + split; trivial. 
 Qed.
 
@@ -248,12 +251,12 @@ Qed.
 Lemma Asm_corestep_not_halted : forall ge m q m' q', 
        asm_step ge q m q' m' -> 
        Asm_halted q = None.
-  Proof. intros. inv H; simpl in *.
-    rewrite H0; simpl. trivial. destruct lf; auto.
-    rewrite H0; simpl. trivial. destruct lf; auto.
-    rewrite H0; simpl. trivial. destruct lf; auto.
-    trivial.
-    auto.
+  Proof. intros. inv H; simpl in *; try contradiction.
+  +  rewrite H0; simpl. trivial. destruct lf; auto.
+  (*+ rewrite H0; simpl. trivial. destruct lf; auto.*)
+  + rewrite H0; simpl. trivial. destruct lf; auto.
+  (*+  trivial.*)
+  + auto.
   Qed.
  
 Definition Asm_core_sem : CoreSemantics genv state mem.
@@ -364,11 +367,11 @@ Qed.
 
 Lemma asm_mem_step : forall ge c m c' m' (CS: asm_step ge c m c' m'), mem_step m m'.
 Proof. intros.
-  inv CS; simpl in *; try apply mem_step_refl.
+  inv CS; simpl in *; try apply mem_step_refl; try contradiction.
 + eapply exec_instr_mem_step; eassumption. 
-+ eapply extcall_mem_step; eassumption. 
-+ inv H1. eapply extcall_mem_step; try eassumption. apply EFhelpers in OBS; assumption.
-  destruct callee; simpl in *; solve [intros NN; trivial].
+(*+ eapply extcall_mem_step; eassumption. *)
+(*+ inv H1. eapply extcall_mem_step; try eassumption. apply EFhelpers in OBS; assumption.
+  destruct callee; simpl in *; solve [intros NN; trivial].*)
 + eapply mem_step_trans. 
   eapply mem_step_alloc; eassumption.
   eapply store_args_mem_step; try eassumption.

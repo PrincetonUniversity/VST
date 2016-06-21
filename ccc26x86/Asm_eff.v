@@ -29,7 +29,7 @@ Notation "a # b" := (a b) (at level 1, only parsing).
 Notation "a # b <- c" := (Pregmap.set b c a) (at level 1, b at next level).
 
 Section ASM_EFF.
-Variable hf : I64Helpers.helper_functions.
+(*Variable hf : I64Helpers.helper_functions.*)
 
 (*A computational variant of eval_builtin_arg*)
 Section CEVAL_BUILTIN_ARG_COMPUTE.
@@ -148,6 +148,7 @@ Inductive asm_effstep: (block -> Z -> bool) ->
       exec_instr ge f i rs m = Next rs' m' ->
       asm_effstep (effect_instr ge (fn_code f) i rs m) (State rs lf) m (State rs' lf) m'
   | asm_effexec_step_builtin:
+      False -> (*We don't support builtins/helpers/vload/vstore etc yet*)
       forall b ofs f ef args res rs m vargs t E vres rs' m' lf
          (NASS: ~ isInlinedAssembly ef)  (*NEW; we don't support inlined assembly yet*),
       rs PC = Vptr b ofs ->
@@ -161,19 +162,6 @@ Inductive asm_effstep: (block -> Z -> bool) ->
                (undef_regs (map preg_of (destroyed_by_builtin ef)) rs)) ->
       E = BuiltinEffect ge ef (decode_longs (sig_args (ef_sig ef)) vargs) m ->
       asm_effstep E (State rs lf) m (State rs' lf) m'
-(*WAS  | asm_effexec_step_builtin:
-      forall b ofs f ef args res rs m vargs t vres rs' m' lf,
-      rs PC = Vptr b ofs ->
-      Genv.find_funct_ptr ge b = Some (Internal f) ->
-      find_instr (Int.unsigned ofs) (fn_code f) = Some (Pbuiltin ef args res) ->
-      eval_builtin_args ge rs (rs ESP) m args vargs ->
-      external_call ef ge vargs m t vres m' ->
-      ~ observableEF hf ef ->
-      rs' = nextinstr_nf 
-             (set_res res vres
-               (undef_regs (map preg_of (destroyed_by_builtin ef)) rs)) ->
-      asm_effstep (effect_instr ge (fn_code f) (Pbuiltin ef args res) rs m) 
-                  (State rs lf) m (State rs' lf) m'*)
   | asm_effexec_step_to_external:
       forall b ef args rs m lf,
       rs PC = Vptr b Int.zero ->
@@ -181,6 +169,7 @@ Inductive asm_effstep: (block -> Z -> bool) ->
       extcall_arguments rs m (ef_sig ef) args ->
       asm_effstep EmptyEffect (State rs lf) m (Asm_CallstateOut ef args rs lf) m
   | asm_effexec_step_external:
+      False -> (*We don't support builtins/helpers/vload/vstore etc yet*)
       forall b callee args res rs m t rs' m' lf
       (OBS: EFisHelper (*hf*) callee),
       rs PC = Vptr b Int.zero ->
@@ -356,26 +345,26 @@ Proof. intros.
 Qed.
 
 Lemma asmstep_effax1: forall (M : block -> Z -> bool) g c m c' m'
-      (HF: helper_functions_declared g hf),
+      (*(HF: helper_functions_declared g hf)*),
       asm_effstep g M c m c' m' ->
-      (asm_step hf g c m c' m' /\
+      (asm_step (*hf*) g c m c' m' /\
        Mem.unchanged_on (fun (b : block) (ofs : Z) => M b ofs = false) m m').
 Proof. 
 intros.
-destruct H. 
-+ split. eapply asm_exec_step_internal; eassumption. 
-  clear -H2 hf. eapply exec_instr_unchanged_on; eassumption.
-+ rewrite BuiltinEffect_decode in H6.
+destruct H; try contradiction. 
++ split. eapply asm_exec_step_internal; try eassumption. 
+  (*clear -H2 hf.*) eapply exec_instr_unchanged_on; eassumption.
+(*+ rewrite BuiltinEffect_decode in H6.
   split. eapply asm_exec_step_builtin; try eassumption. 
-  subst E. eapply BuiltinEffect_unchOn; eassumption.
+  subst E. eapply BuiltinEffect_unchOn; eassumption.*)
 + split. econstructor; eauto.
        apply Mem.unchanged_on_refl.
-+ split. econstructor; eauto.
+(*+ split. econstructor; eauto.
   inv H1.
        exploit @BuiltinEffect_unchOn. eassumption.
          eapply EFhelpers; eassumption.
          eapply H3. 
-       rewrite BuiltinEffect_decode; trivial. 
+       rewrite BuiltinEffect_decode; trivial. *)
 + split. econstructor; eassumption. 
   { assert (sp_fresh: ~Mem.valid_block m stk).
     { eapply Mem.fresh_block_alloc; eauto. }
@@ -389,16 +378,16 @@ destruct H.
 Qed.
 
 Lemma asmstep_effax2: forall  g c m c' m',
-      asm_step hf g c m c' m' ->
+      asm_step (*hf*) g c m c' m' ->
       exists M, asm_effstep g M c m c' m'.
 Proof.
 intros. (*unfold corestep, Asm_coop_sem in H; simpl in H.*)
-  inv H.
+  inv H; try contradiction.
 + destruct i;
     try solve [eexists; econstructor; try eassumption].
-+ eexists. eapply asm_effexec_step_builtin; try eassumption. trivial. reflexivity.
+(*+ eexists. eapply asm_effexec_step_builtin; try eassumption. trivial. reflexivity.*)
 + eexists. econstructor; eassumption.
-+ eexists. econstructor; eauto.
+(*+ eexists. econstructor; eauto.*)
 + eexists. econstructor; eauto.
 Qed.
 
@@ -458,13 +447,13 @@ Lemma asm_effstep_curWR: forall (M : block -> Z -> bool) g c m c' m',
       forall b z, M b z = true -> Mem.perm m b z Cur Writable.
 Proof.
   intros.
-  induction H; try (solve [inv H0]).
+  induction H; try (solve [inv H0]); try contradiction.
 + eapply exec_instr_curWR; eauto.
-+ rewrite BuiltinEffect_decode in *; subst E.
-  eapply nonobs_extcall_curWR; eassumption.
-+ apply EFhelpers in OBS. inv H2.
+(*+ rewrite BuiltinEffect_decode in *; subst E.
+  eapply nonobs_extcall_curWR; eassumption.*)
+(*+ apply EFhelpers in OBS. inv H2.
   eapply nonobs_extcall_curWR. eassumption. eassumption.
-  rewrite BuiltinEffect_decode; trivial.
+  rewrite BuiltinEffect_decode; trivial.*)
 Qed.
 
 Lemma exec_store_valid: forall g chunk m a rs rs1 pregs rs' m' b z,
@@ -488,19 +477,19 @@ Proof. intros. eapply Mem.perm_valid_block. eapply asm_effstep_curWR; eassumptio
 Program Definition Asm_eff_sem : 
   @EffectSem genv state.
 Proof.
-eapply Build_EffectSem with (sem := Asm_mem_sem hf).
-admit.
+eapply Build_EffectSem with (sem := Asm_mem_sem (*hf*)).
+apply asmstep_effax1.
 apply asmstep_effax2.
 apply asm_effstep_curWR.
-Admitted.
+Defined.
 
 Lemma Asm_eff_sem_det : semantics_lemmas.corestep_fun Asm_eff_sem.
 Proof.
 intros m m' m'' ge c c' c'' step1 step2.
 simpl in step1, step2.
-admit. (*eapply asm_step_det in step1; eauto.*)
-(*destruct step1; subst; auto.*)
-Admitted.
+eapply asm_step_det in step1; eauto.
+destruct step1; subst; auto.
+Qed.
 
 End ASM_EFFSEM.
 
