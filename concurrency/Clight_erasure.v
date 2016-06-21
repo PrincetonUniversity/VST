@@ -491,6 +491,14 @@ Module ClightParching <: ErasureSig.
          pose (virtue:= PTree.map
                                       (fun (block : positive) (_ : Z -> option permission) (ofs : Z) =>
                                          (inflated_delta (block, ofs))) (snd (getCurPerm m)) ).
+         assert (virtue_some: forall l p, inflated_delta l = Some p ->
+                             p = perm_of_res (m_phi jm' @ l)).
+            {
+              intros l p; unfold inflated_delta.
+              destruct (d_phi @ l); try solve[intros HH; inversion HH; reflexivity].
+              destruct ( proj_sumbool (Share.EqDec_share t Share.bot));
+                [congruence| intros HH; inversion HH; reflexivity]. }
+            
          pose (ds':= DSEM.ThreadPool.updThread Htid' (Kresume c Vundef)
                   (computeMap
                      (DSEM.ThreadPool.getThreadR Htid') virtue)).
@@ -498,9 +506,7 @@ Module ClightParching <: ErasureSig.
                       (b, Int.intval ofs) empty_map).
          exists ds''.
          split; [|split].
-    - 
-
-      unfold ds''.
+    - unfold ds''.
       rewrite DSEM.ThreadPool.updLock_updThread_comm.
       pose (ds0:= (DSEM.ThreadPool.updLockSet ds (b, (Int.intval ofs)) empty_map)).
       
@@ -509,10 +515,136 @@ Module ClightParching <: ErasureSig.
         intros dinv0.
         apply updThread_inv.
         - assumption.
-        - intros. rewrite DTP.gLockSetRes.
-          admit. (*virtue is disjoint from other threads. *)
-        - intros. admit. (*virtue is disjoint from lockSet. *)
-        - intros. admit. (*virtue disjoint from other lock resources.*)
+        - Inductive deltaMap_cases (dmap:delta_map) b ofs:=
+        | DMAPS df p:  dmap ! b = Some df -> df ofs = Some p -> deltaMap_cases dmap b ofs
+        | DNONE1 df:  dmap ! b = Some df -> df ofs = None -> deltaMap_cases dmap b ofs
+        | DNONE2:  dmap ! b = None -> deltaMap_cases dmap b ofs.
+          Lemma deltaMap_dec: forall dmap b ofs, deltaMap_cases dmap b ofs.
+          Proof. intros. destruct (dmap ! b) eqn:H1; [destruct (o ofs) eqn:H2 | ]; econstructor; eassumption. Qed.
+
+          Definition deltaMap_cases_analysis dmap b ofs H1 H2 H3 :Prop:=
+            match deltaMap_dec dmap b ofs with
+              | DMAPS df p A B => H1 df p A B
+              | DNONE1 df A B => H2 df A B
+              | DNONE2 A => H3 A 
+            end.
+
+          Definition deltaMap_cases_analysis' dmap b ofs H1 H2 :Prop:=
+            match deltaMap_dec dmap b ofs with
+              | DMAPS df p A B => H1 df p
+              | DNONE1 df A B => H2
+              | DNONE2 A => H2 
+            end.
+          
+          Lemma Disjoint_computeMap: forall pmap1 pmap2 dmap,
+              (forall b ofs,
+                deltaMap_cases_analysis' dmap b ofs (fun _ p => permDisjoint p (pmap2 !! b ofs)) (permDisjoint (pmap1 !! b ofs) (pmap2 !! b ofs))) ->
+              permMapsDisjoint (computeMap pmap1 dmap) pmap2.
+          Proof.
+            intros. intros b0 ofs0.
+            generalize (H b0 ofs0); clear H; unfold deltaMap_cases_analysis'.
+            destruct (deltaMap_dec dmap b0 ofs0); intros H.
+            -  rewrite (computeMap_1 _ _ _ _ e e0).
+               destruct H as [k H3].
+               exists k; assumption.
+            - rewrite (computeMap_2 _ _ _ _ e e0).
+               destruct H as [k H3].
+               exists k; assumption.
+            - rewrite (computeMap_3 _ _ _ _ e).
+               destruct H as [k H3].
+               exists k; assumption.
+          Qed.
+               
+          (*virtue is disjoint from other threads. *)
+          intros. rewrite DTP.gLockSetRes.
+          apply Disjoint_computeMap. intros. 
+          unfold deltaMap_cases_analysis'; destruct (deltaMap_dec virtue b0 ofs0).
+          + unfold virtue in e.
+            rewrite PTree.gmap in e. destruct ((snd (getCurPerm m)) ! b0); inversion e.
+            clear e. rewrite <- H1 in e0.
+            
+            rewrite (virtue_some _ _ e0).
+            inversion MATCH. rewrite <- mtch_perm with (Htid:= mtch_cnt' _ cnt).
+            Lemma join_permDisjoint: forall r1 r2,
+                joins r1 r2 ->
+                permDisjoint (perm_of_res r1) (perm_of_res r2).
+            Admitted.
+            apply join_permDisjoint.
+
+            Lemma triple_joins_exists:
+              forall (a b c ab: rmap),
+                sepalg.join a b ab ->
+                joins b c ->
+                joins a c ->
+                joins ab c.
+            Proof.
+              intros a b c ab Hab [bc Hbc] [ac Hac].
+              destruct (triple_join_exists a b c ab bc ac Hab Hbc Hac).
+              exists x; assumption.
+            Qed.
+            Lemma resource_at_joins:
+              forall r1 r2,
+                joins r1 r2 ->
+                forall l,
+                  joins (r1 @ l) (r2 @ l).
+            Proof. intros r1 r2 [r3 HH] l.
+                   exists (r3 @l); apply resource_at_join. assumption.
+            Qed.
+
+            apply resource_at_joins.
+            eapply triple_joins_exists.
+            eassumption.
+            { eapply joins_comm. eapply compatible_threadRes_lockRes_join. (*Here*)
+              eassumption.
+              apply His_unlocked.
+            }
+            { eapply compatible_threadRes_join.
+              eassumption.
+              assumption.
+            }
+          + inversion dinv0; eapply no_race; assumption.
+          + inversion dinv0; eapply no_race; assumption.
+        - apply permMapsDisjoint_comm.
+          apply Disjoint_computeMap. intros b0 ofs0. 
+          unfold deltaMap_cases_analysis'; destruct (deltaMap_dec virtue b0 ofs0).
+          + unfold virtue in e.
+            rewrite PTree.gmap in e. destruct ((snd (getCurPerm m)) ! b0); inversion e.
+            clear e. rewrite <- H0 in e0.
+            rewrite (virtue_some _ _ e0).
+            inversion MATCH.
+            destruct (AMap.E.eq_dec (b, Int.intval ofs)(b0, ofs0)).
+            * inversion e; simpl; subst.
+              rewrite DSEM.ThreadPool.lockSet_spec.
+              rewrite DTP.gssLockRes; simpl.
+              apply (resource_at_join _ _ _ (b0, Int.intval ofs)) in 
+                  Hadd_lock_res.
+              rewrite HJcanwrite in Hadd_lock_res.
+              Lemma join_lock:
+                forall {sh psh n R r1 r2},
+                  sepalg.join (YES sh psh (LK n) R) r1 r2 ->
+                  perm_of_res r2 = Some Nonempty.
+              Proof. intros. inversion H; reflexivity. Qed.
+              rewrite (join_lock Hadd_lock_res).
+              exists ((Some Writable)); reflexivity.
+            * rewrite DTP.gsoLockSet.
+              
+            
+          + inversion dinv0; apply permDisjoint_comm;
+            eapply lock_set_threads.     
+          + inversion dinv0; apply permDisjoint_comm;
+            eapply lock_set_threads.
+        - intros l pmap0 Lres. apply permMapsDisjoint_comm.
+          apply Disjoint_computeMap. intros b0 ofs0. 
+          unfold deltaMap_cases_analysis'; destruct (deltaMap_dec virtue b0 ofs0).
+          + unfold virtue in e.
+            rewrite PTree.gmap in e. destruct ((snd (getCurPerm m)) ! b0); inversion e.
+            clear e. rewrite <- H0 in e0.
+            rewrite (virtue_some _ _ e0).
+            admit. (* This can be easilty proven. *)
+          + inversion dinv0; apply permDisjoint_comm;
+            eapply lock_res_threads. eassumption.
+          + inversion dinv0. apply permDisjoint_comm;
+            eapply lock_res_threads. eassumption.
       }
       { apply updLock_inv.
         - assumption. (*Another lemma for invariant.*)

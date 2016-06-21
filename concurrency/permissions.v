@@ -239,6 +239,19 @@ Section permMapDefs.
   Definition permDisjoint p1 p2:=
     exists pu : option permission,
       perm_union p1 p2 = Some pu.
+
+   Lemma permDisjoint_None: forall p,
+      permDisjoint None p.
+  Proof. intros p. exists p; reflexivity. Qed.
+  
+  Lemma permDisjoint_comm: forall p1 p2,
+      permDisjoint p1 p2 -> permDisjoint p2 p1.
+  Proof. intros p1 p2.
+         unfold permDisjoint, perm_union.
+         destruct p1 as [p3|]; destruct p2 as [p4|];
+         try destruct p3, p4; intros [k H]; exists k; inversion H;
+         reflexivity.  Qed.
+  
   Definition permMapsDisjoint (pmap1 pmap2 : access_map) : Prop :=
     forall b ofs, exists pu,
       perm_union ((Maps.PMap.get b pmap1) ofs)

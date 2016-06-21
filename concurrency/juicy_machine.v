@@ -736,6 +736,14 @@ Module Concur.
             sepalg.joins (getThreadR cnti) (getThreadR cntj).
       Proof.
       Admitted.
+      Lemma compatible_threadRes_lockRes_join:
+        forall js m,
+          mem_compatible js m ->
+          forall i (cnti: containsThread js i) l phi,
+            ThreadPool.lockRes js l = Some (Some phi) ->
+            sepalg.joins (getThreadR cnti) phi.
+      Proof.
+      Admitted.
       Lemma compatible_lockRes_cohere: forall js m l phi,
           ThreadPool.lockRes js l = Some (Some phi) ->
           mem_compatible js m ->
