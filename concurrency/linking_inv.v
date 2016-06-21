@@ -940,13 +940,14 @@ Qed.
 
 Let lo' := replace_locals mu pubS' pubT'.
 
+Require Import sepcomp.effect_properties.
+
 Lemma lo_wd : SM_wd lo'.
 Proof.
 move: vinj'=> H.
 eapply eff_after_check1; eauto.
 by move: (head_match inv); apply/match_sm_wd.
 by move: (head_match inv); apply/match_validblocks.
-by case=> wd.
 Qed.
 
 Let lo := Inj.mk lo_wd.
@@ -981,7 +982,9 @@ Lemma local_asinj_restrict: forall mu,
     reflexivity.
 Qed.
 
-Lemma init_rel_inv_mu : rel_inv_pred m1 init_mu $ Build_frame_pkg lo_valid.
+Arguments Build_frame_pkg [_ _ _] _.
+
+Lemma init_rel_inv_mu : rel_inv_pred m1 init_mu (Build_frame_pkg lo_valid).
 Proof.
 apply: Build_rel_inv.
 split=> /=.
@@ -1223,6 +1226,8 @@ move/frame_all_inv=> []? []? []? []? []-> ->.
 by move=> []? []? []? []? []? []? []? []? []? []_.
 Qed.
 
+Arguments frame_all_inv [_ _ _ _ _ _ _ _ _] _.
+
 Section frame_all_lems.
 
 Context mus m1 m2 s1 s2 
@@ -1236,20 +1241,26 @@ move: frameall.
 move: m1 m2 s1 s2; elim: mus=> //; case=> mu' ? ? ? mus' IH m1' m2' s1' s2' A.
 move: (frame_all_inv A)=> []c []s1'' []d []s2'' []_ _.
 move=> []pf []cd []? []? []? []? []? []? []? []B C. 
-case: B=> ? ? ? ? ?; move/match_genv=> []_ D; split.
+case: B=> ? ? ? ? ? X.
+apply match_genv in X.
+move: X.
+move=> []_ D. split.
 by rewrite (genvs_domain_eq_isGlobal _ _ (my_ge_S (Core.i c))); apply: D.
 by apply: (IH _ _ _ _ C).
 Qed.
 
 Lemma frame_all_presglobs :
   All (fun mu0 => Events.meminj_preserves_globals my_ge (extern_of mu0))
-    $ map (Inj.mu \o frame_mu0) mus.
+    (map (Inj.mu \o frame_mu0) mus).
 Proof.
 move: frameall.
 move: m1 m2 s1 s2; elim: mus=> //; case=> mu' ? ? ? mus' IH m1' m2' s1' s2' A.
 move: (frame_all_inv A)=> []c []s1'' []d []s2'' []_ _.
 move=> []pf []cd []? []? []? []? []? []? []? []B C.
-case: B=> ? ? ? ? ?; move/match_genv=> []D _; split=> /=.
+case: B=> ? ? ? ? ? X.
+apply match_genv in X.
+move: X.
+move=> []D _. split=> /=.
 rewrite -meminj_preserves_genv2blocks.
 rewrite (genvs_domain_eq_match_genvs (my_ge_S (Core.i c))).
 by rewrite meminj_preserves_genv2blocks.
@@ -1263,7 +1274,10 @@ move: frameall.
 move: m1 m2 s1 s2; elim: mus=> //; case=> mu' ? ? ? mus' IH m1' m2' s1' s2' A.
 move: (frame_all_inv A)=> []c []s1'' []d []s2'' []_ _.
 move=> []pf []cd []? []? []? []? []? []? []? []B C.
-case: B=> ? ? ? ? val; move/match_genv=> []_ D; split=> /=.
+case: B=> ? ? ? ? val X.
+apply match_genv in X.
+move: X.
+move=> []D _. split=> /=.
 by apply: (sm_valid_fwd val).
 by apply: (IH _ _ _ _ C).
 Qed.
@@ -1358,6 +1372,8 @@ Proof.
 by case: tlinv=> _; move/frame_all_size_eq.
 Qed.
 
+Arguments Build_frame_pkg [_ _ _] _.
+
 Lemma head_tail_inv c d (sig_pf : c.(Core.sg)=d.(Core.sg)) 
                     pf cd (mu : frame_pkg) e sig args1 args2
   (val : sm_valid mu m1 m2)
@@ -1432,6 +1448,8 @@ rewrite /foreign_of; case: mu=> ??????????.
 by case: (_ b).
 Qed.
 
+Arguments foreign_of_extern_of [_ _ _ _] _.
+
 Lemma mapped_frgnS_frgnT (mu : Inj.t) b b' d' : 
   as_inj mu b = Some (b',d') -> 
   vis mu b -> 
@@ -1487,6 +1505,11 @@ move/intern_incr_as_inj; move/(_ (Inj_wd _)).
 rewrite /globalfunction_ptr_inject=> H H2 b f Hfind.
 by case: (H2 _ _ Hfind); split=> //; apply: H.
 Qed.
+
+
+Arguments head_inv [_ _] _ _ _ _ _ _.
+Arguments globalfunction_ptr_inject_intern_incr [_ _ _ _ _] _ _ [_ _] _.
+
 
 Section step_lems.
 
@@ -1553,6 +1576,9 @@ Proof.
     by apply: (Disjoint_sub1 B C).
       by apply: (Disjoint_incr disj D).
 Qed.
+
+Arguments DisjointLS_intern_step [_ _ _ _ _ _ _ _] _ _ _.
+Arguments DisjointLT_intern_step [_ _ _ _ _ _ _ _] _ _ _.
 
   Lemma disjinv_localloc_step (mu0 mu mu' : Inj.t) m10 m20 m1 m2 m1' m2':
     disjinv mu0 mu ->
@@ -1621,7 +1647,6 @@ case: sep2=> A' []B' C'; split.
   by move: (C' _ F E)=> V1 V0; apply: V1; case: (fwd2 b2).
 Qed. *)
 
-
 Lemma intern_incr_local mu mu':
   forall b1 p,
     intern_incr mu mu' ->
@@ -1687,6 +1712,9 @@ Context
 (alloc : sm_locally_allocated mu mu' m1 m2 m1' m2')
 (visrc : REACH_closed m1' (vis mu')).
 
+
+Arguments localloc_stepSrc [_ _ _ _ _ _] _ [_] _.
+Arguments localloc_stepTgt [_ _ _ _ _ _] _ [_] _.
 
 Lemma rel_inv_pred_step pkg
   (fwd10 : mem_forward pkg.(frame_m10) m1)
@@ -1757,6 +1785,9 @@ have incr'': inject_incr (as_inj mu) (as_inj mu').
 + eapply gsep; eauto.
   
 }*)
+
+Arguments disjinv_localloc_step [_ _ _ _ _ _ _ _ _] _ _ _ _ _ _ _ _.
+    
     Lemma gsep_incr {F V}: forall (ge: Genv.t F V) mu nu nu',
                        globals_separate ge mu nu' ->
                        inject_incr (as_inj nu) (as_inj nu') ->
@@ -1817,6 +1848,10 @@ have [T|T]: b \in REACH m1 (vis a)
 by apply: rc; apply/andP; split.
 Qed.
 
+Arguments frame_all_fwd1 [_ _ _ _ _ _] _ [_] _.
+Arguments frame_all_fwd2 [_ _ _ _ _ _] _ [_] _.
+Arguments frame_all_tail [_ _ _ _ _ _] _.
+
 Lemma all_relinv_step mus s1 s2 :
   frame_all mus m1 m2 s1 s2 -> 
   All (rel_inv_pred m1 mu) mus -> 
@@ -1826,6 +1861,8 @@ elim: mus s1 s2=> // pkg mus' IH s1 s2 A /= => [][] B C.
 move: (rel_inv_pred_step (frame_all_fwd1 A) (frame_all_fwd2 A) B)=> D.
 by split=> //; last by apply: (IH _ _ (frame_all_tail A) C).
 Qed.
+
+Arguments all_relinv_step [_ _ _] _ _.
 
 Lemma all_relinv_step0 a mus :
   All (rel_inv_pred m1' mu') mus -> 
@@ -2130,7 +2167,10 @@ Proof. by rewrite /inContext /callStackSize R_len_callStack. Qed.
 Lemma R_wd : SM_wd mu.
 Proof.
 case: (R_inv pf)=> pf2 []pf_sig []mu_top []mus []eq []pf3 [].
-by move/match_sm_wd=> wd _ _ _ _ _ _; rewrite eq.
+move=> wd.
+apply match_sm_wd in wd.
+move=> _ _ _ _ _ _.
+by rewrite eq.
 Qed.
 
 End R_lems.
