@@ -186,10 +186,10 @@ Inductive state_invariant {Z} (Jspec : juicy_ext_spec Z) (n : nat) : cm_state ->
 Section Initial_State.
   Variables
     (CS : compspecs) (V : varspecs) (G : funspecs)
-    (ext_link : string -> ident) (prog : program) 
-    (all_safe : semax_prog (Concurrent_Oracular_Espec CS ext_link) prog V G)
+    (ext_link : string -> ident) (prog : program)
+    (all_safe : semax_prog.semax_prog (Concurrent_Oracular_Espec CS ext_link) prog V G)
     (init_mem_not_none : Genv.init_mem prog <> None).
-
+  
   Definition Jspec := @OK_spec (Concurrent_Oracular_Espec CS ext_link).
   
   Definition init_m : { m | Genv.init_mem prog = Some m } :=
@@ -217,7 +217,7 @@ Section Initial_State.
     ).
   
   Lemma personal_mem_unique_dry tp m (mc : JM.mem_compatible tp m) i (cnti : Machine.containsThread tp i) :
-    tp.(Machine.num_threads).(pos.n) = 1 ->
+    tp.(Machine.num_threads).(pos.n) = 1%nat ->
     m_dry (JM.personal_mem cnti mc) = m.
   Admitted.
   
@@ -329,6 +329,7 @@ Section Simulation.
     (CS : compspecs)
     (* (V : varspecs) (G : funspecs) *)
     (ext_link : string -> ident)
+    (ext_link_inj : forall s1 s2, ext_link s1 = ext_link s2 -> s1 = s2)
     (* (prog : program)  *)
     (* (all_safe : semax_prog (CEspec CS ext_link) prog V G) *)
     (* (init_mem_not_none : Genv.init_mem prog <> None) *)
@@ -424,7 +425,7 @@ Section Simulation.
         all: eapply safe_downward1; intuition.
     }
     
-    destruct (i < tp.(Machine.num_threads).(pos.n)) eqn:Ei; swap 1 2.
+    destruct (ssrnat.leq (S i) tp.(Machine.num_threads).(pos.n)) eqn:Ei; swap 1 2.
     
     (* bad schedule *)
     {
@@ -750,8 +751,8 @@ Section Simulation.
         unfold ext_spec_pre, ext_spec_post.
         Local Notation "{| 'JE_spec ... |}" := {| JE_spec := _; JE_pre_hered := _; JE_post_hered := _; JE_exit_hered := _ |}.
         destruct (oi_eq_dec (Some (ext_link "acquire")) (ef_id ext_link (EF_external name sg)))
-          as [E | E];
-          [ | now clear -E H_acquire; simpl in *; congruence ].
+          as [Eef | Eef];
+          [ | now clear -Eef H_acquire; simpl in *; congruence ].
         
         intros (phix, ((((ok, oracle_x), vx), shx), Rx)) Pre. simpl in Pre.
         destruct Pre as (phi0 & phi1 & Join & Precond & HnecR).
@@ -761,17 +762,47 @@ Section Simulation.
         (* relate lset to val *)
         destruct Precond as [PREA [[PREB _] PREC]].
         hnf in PREB.
-        assert (islock : exists b ofs, vx = Vptr b ofs /\ exists R, islock_pred R (phi0 @ (b, Int.intval ofs))). {
-          (* TODO see with andrew how to derive this from PREC *)
+        assert (islock : exists b ofs, vx = Vptr b ofs /\ exists R, islock_pred R (phi0 @ (b, Int.unsigned ofs))). {
+          unfold canon.SEPx in PREC.
+          simpl in PREC.
+          rewrite seplog.sepcon_emp in PREC.
+          replace semax_conc.lock_inv with lock_inv in *.
+          unfold lock_inv in PREC.
+          destruct PREC as (b & ofs & Evx & lk).
+          exists b, ofs. split. now apply Evx.
+          specialize (lk (b, Int.unsigned ofs)).
+          exists (approx (level phi0) (Interp Rx)).
+          simpl in lk.
+          if_tac in lk; swap 1 2. {
+            exfalso.
+            apply H.
+            unfold adr_range in *.
+            intuition.
+            unfold res_predicates.lock_size.
+            omega.
+          }
+          if_tac in lk; [ | tauto ].
+          destruct lk as [p lk].
+          rewrite lk.
+          do 3 eexists.
+          unfold compose.
+          assert
+            (
+              SomeP nil (fun _ : unit => approx (level phi0) (Interp Rx)) =
+              SomeP nil (fun _ : veric.rmaps.listprod nil => approx (level phi0) (Interp Rx))
+            ).
+          reflexivity.
+          admit.
           admit.
         }
+        
         assert (SUB : join_sub phi0 Phi). {
           apply join_sub_trans with  (JM.ThreadPool.getThreadR cnti).
           - econstructor; eauto.
           - eapply mem_compatible_rmap_join_sub_threadR; eauto.
         }
         destruct islock as [b [ofs [-> [R islock]]]].
-        pose proof (resource_at_join_sub _ _ (b, Int.intval ofs) SUB) as SUB'.
+        pose proof (resource_at_join_sub _ _ (b, Int.unsigned ofs) SUB) as SUB'.
         pose proof islock_pred_join_sub SUB' islock as isl.
         
         (* PLAN
@@ -800,7 +831,7 @@ Section Simulation.
         
           
         (* next step depends on status of lock: *)
-        pose proof (lock_coh (b, Int.intval ofs)) as lock_coh'.
+        pose proof (lock_coh (b, Int.unsigned ofs)) as lock_coh'.
         inversion lock_coh' as [wetv dryv notlock H H1 H2 | R0 wetv isl' Elockset Ewet Edry | R0 phi wetv isl' SAT_R_Phi Elockset Ewet Edry].
         
         - (* this is not even a lock *)
@@ -816,7 +847,12 @@ Section Simulation.
           destruct isl' as [sh' [psh' [z' Eat]]].
           rewrite Eat in Ewetv.
           injection Ewetv as -> -> -> Epr.
-          replace R0 with R in * by admit (* TODO see andrew for this *).
+          apply inj_pair2 in Epr.
+          assert (R0 = R). {
+            assert (feq: forall A B (f g : A -> B), f = g -> forall x, f x = g x) by congruence.
+            apply (feq _ _ _ _ Epr (tt, tt)).
+          }
+          subst R0; clear Epr.
           exists (m, ge, (sch, tp)); split.
           + (* taking the step *)
             eapply state_step_c.
@@ -826,10 +862,35 @@ Section Simulation.
             * apply Eci.
             * simpl.
               repeat f_equal.
-              -- admit (* TODO: Problem: this LOCK is a parameter of the whole thing. *).
-              -- admit (* should well-formedness imply this kind of thing? or just safety? *).
-              -- admit (* should well-formedness imply this kind of thing? or just safety? *).
-              -- admit (* should well-formedness imply this kind of thing? or just safety? *).
+              -- simpl in H_acquire.
+                 injection H_acquire as Ee.
+                 apply ext_link_inj in Ee.
+                 rewrite <-Ee.
+                 admit (* "acquire" = "LOCK" *).
+              -- inversion safei; subst. 
+                 admit. 2:admit.
+                 simpl in H0.
+                 injection H0 as <- <- <-.
+                 simpl in H1.
+                 admit.
+                 (* see with andrew: should safety require signatures
+                 to be exactly something?  Maybe it should be in
+                 ext_spec_type, it'd be easy, maybe. *)
+              -- admit (* another sig? *).
+              -- instantiate (2 := b).
+                 instantiate (1 := ofs).
+                 assert (L: length args = 1%nat) by admit. (* TODO discuss with andrew for where to add this requirement *)
+                 clear -PREB L.
+                 unfold expr.eval_id in PREB.
+                 unfold expr.force_val in PREB.
+                 match goal with H : context [Map.get ?a ?b] |- _ => destruct (Map.get a b) eqn:E end.
+                 subst v. 2: discriminate.
+                 pose  (gx := (filter_genv (symb2genv (Genv.genv_symb ge)))). fold gx in E.
+                 destruct args as [ | arg [ | ar args ]].
+                 ++ now inversion E.
+                 ++ inversion E. reflexivity.
+                 ++ inversion E. f_equal.
+                    inversion L.
             * reflexivity.
             * reflexivity.
             * (* TODO how to prove that personal_mem is the good one?

@@ -14,6 +14,7 @@ Require Import veric.semax_ext.
 Require Import veric.semax_ext_oracle.
 Require Import veric.juicy_safety.
 Require Import veric.Clight_new.
+Require Import veric.res_predicates.
 Require Import sepcomp.semantics.
 Require Import sepcomp.extspec.
 Require Import floyd.proofauto.
@@ -29,7 +30,15 @@ Variable voidstar_funtype : type.
 Definition tlock := Tstruct _lock_t noattr.
 (* Notation tlock := tuint (only parsing). *)
 
-Axiom lock_inv : share -> val -> mpred -> mpred.
+Definition lock_inv : share -> val -> mpred -> mpred :=
+  fun sh v R =>
+    (EX b : block, EX ofs : _,
+      !!(v = Vptr b ofs) &&
+      LKspec
+        R
+        (Share.unrel Share.Lsh sh)
+        (Share.unrel Share.Rsh sh)
+        (b, Int.unsigned ofs))%logic.
 
 Axiom lock_inv_share_join : forall sh1 sh2 sh v R, sepalg.join sh1 sh2 sh ->
   (lock_inv sh1 v R * lock_inv sh2 v R = lock_inv sh v R)%logic.
