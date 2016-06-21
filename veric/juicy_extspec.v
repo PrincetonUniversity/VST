@@ -286,3 +286,176 @@ Proof.
     eapply JE_exit_hered; eauto.
 Qed.
 
+Lemma juicy_core_sem_preserves_corestep_fun
+  {G C} (csem: CoreSemantics G C mem) :
+  corestep_fun csem ->
+  corestep_fun (juicy_core_sem csem).
+Proof.
+  intros determinism ge jm q jm1 q1 jm2 q2 step1 step2.
+  destruct step1 as [step1 [[ll1 rd1] l1]].
+  destruct step2 as [step2 [[ll2 rd2] l2]].
+  pose proof determinism _ _ _ _ _ _ _ step1 step2 as E.
+  injection E as <- E; f_equal.
+  apply juicy_mem_ext; auto.
+  assert (El: level jm1 = level jm2) by (clear -l1 l2; omega).
+  apply rmap_ext. now do 2 rewrite <-level_juice_level_phi; auto.
+  intros l.
+  specialize (rd1 l); specialize (rd2 l).
+  rewrite level_juice_level_phi in *.
+  destruct jm  as [m  phi  jmc  jmacc  jmma  jmall ].
+  destruct jm1 as [m1 phi1 jmc1 jmacc1 jmma1 jmall1].
+  destruct jm2 as [m2 phi2 jmc2 jmacc2 jmma2 jmall2].
+  simpl in *.
+  subst m2; rename m1 into m'.
+  destruct rd1 as [jmno [E1 | [[sh1 [v1 [v1' [E1 E1']]]] | [[pos1 [v1 E1]] | [v1 [pp1 [E1 E1']]]]]]];
+  destruct rd2 as [_    [E2 | [[sh2 [v2 [v2' [E2 E2']]]] | [[pos2 [v2 E2]] | [v2 [pp2 [E2 E2']]]]]]];
+  try pose proof jmno pos1 as phino; try pose proof (jmno pos2) as phino; clear jmno;
+    remember (phi  @ l) as x ;
+    remember (phi1 @ l) as x1;
+    remember (phi2 @ l) as x2;
+    subst.
+  
+  - (* phi1: same   | phi2: same   *)
+    congruence.
+  
+  - (* phi1: same   | phi2: update *)
+    rewrite <- E1, El.
+    rewrite El in E1.
+    rewrite E1 in E2.
+    destruct (jmc1 _ _ _ _ _ E2).
+    destruct (jmc2 _ _ _ _ _ E2').
+    congruence.
+  
+  - (* phi1: same   | phi2: alloc  *)
+    exfalso.
+    rewrite phino in E1. simpl in E1.
+    specialize (jmacc1 l).
+    rewrite <- E1 in jmacc1.
+    simpl in jmacc1.
+    destruct (Share.EqDec_share Share.bot Share.bot) as [_ | F]; [ | congruence].
+    specialize (jmacc2 l).
+    rewrite E2 in jmacc2.
+    simpl in jmacc2.
+    rewrite jmacc1 in jmacc2.
+    clear -jmacc2. exfalso.
+    unfold perm_of_sh in *.
+    repeat if_tac in jmacc2; congruence.
+  
+  - (* phi1: same   | phi2: free   *)
+    exfalso.
+    rewrite E2 in E1.
+    simpl in E1.
+    specialize (jmacc1 l).
+    rewrite <- E1 in jmacc1.
+    simpl in jmacc1.
+    specialize (jmacc2 l).
+    rewrite E2' in jmacc2.
+    simpl in jmacc2.
+    destruct (Share.EqDec_share Share.bot Share.bot) as [_ | F]; [ | congruence].
+    rewrite jmacc1 in jmacc2.
+    clear -jmacc2. exfalso.
+    unfold perm_of_sh in *.
+    repeat if_tac in jmacc2; congruence.
+  
+  - (* phi1: update | phi2: same   *)
+    rewrite <- E2, <-El.
+    rewrite <-El in E2.
+    rewrite E2 in E1.
+    destruct (jmc1 _ _ _ _ _ E1').
+    destruct (jmc2 _ _ _ _ _ E1).
+    congruence.
+  
+  - (* phi1: update | phi2: update *)
+    destruct (jmc1 _ _ _ _ _ E1').
+    destruct (jmc2 _ _ _ _ _ E2').
+    congruence.
+  
+  - (* phi1: update | phi2: alloc  *)
+    rewrite phino in E1.
+    simpl in E1.
+    inversion E1.
+  
+  - (* phi1: update | phi2: free   *)
+    exfalso.
+    rewrite E2 in E1.
+    simpl in E1.
+    specialize (jmacc1 l).
+    rewrite E1' in jmacc1.
+    simpl in jmacc1.
+    specialize (jmacc2 l).
+    rewrite E2' in jmacc2.
+    simpl in jmacc2.
+    destruct (Share.EqDec_share Share.bot Share.bot) as [_ | F]; [ | congruence].
+    rewrite jmacc1 in jmacc2.
+    clear -jmacc2. exfalso.
+    unfold perm_of_sh in *.
+    unfold fullshare in *.
+    repeat if_tac in jmacc2; congruence.
+  
+  - (* phi1: alloc  | phi2: same   *)
+    exfalso.
+    rewrite phino in E2. simpl in E2.
+    specialize (jmacc2 l).
+    rewrite <- E2 in jmacc2.
+    simpl in jmacc2.
+    destruct (Share.EqDec_share Share.bot Share.bot) as [_ | F]; [ | congruence].
+    specialize (jmacc1 l).
+    rewrite E1 in jmacc1.
+    simpl in jmacc1.
+    rewrite jmacc2 in jmacc1.
+    clear -jmacc1. exfalso.
+    unfold perm_of_sh in *.
+    repeat if_tac in jmacc1; congruence.
+  
+  - (* phi1: alloc  | phi2: update *)
+    rewrite phino in E2.
+    simpl in E2.
+    inversion E2.
+  
+  - (* phi1: alloc  | phi2: alloc  *)
+    destruct (jmc1 _ _ _ _ _ E1).
+    destruct (jmc2 _ _ _ _ _ E2).
+    congruence.
+  
+  - (* phi1: alloc  | phi2: free   *)
+    congruence.
+  
+  - (* phi2: free   | phi2: same   *)
+    exfalso.
+    rewrite E1 in E2.
+    simpl in E2.
+    specialize (jmacc2 l).
+    rewrite <- E2 in jmacc2.
+    simpl in jmacc2.
+    specialize (jmacc1 l).
+    rewrite E1' in jmacc1.
+    simpl in jmacc1.
+    destruct (Share.EqDec_share Share.bot Share.bot) as [_ | F]; [ | congruence].
+    rewrite jmacc2 in jmacc1.
+    clear -jmacc1. exfalso.
+    unfold perm_of_sh in *.
+    repeat if_tac in jmacc1; congruence.
+  
+  - (* phi2: free   | phi2: update *)
+    exfalso.
+    rewrite E1 in E2.
+    simpl in E2.
+    specialize (jmacc2 l).
+    rewrite E2' in jmacc2.
+    simpl in jmacc2.
+    specialize (jmacc1 l).
+    rewrite E1' in jmacc1.
+    simpl in jmacc1.
+    destruct (Share.EqDec_share Share.bot Share.bot) as [_ | F]; [ | congruence].
+    rewrite jmacc2 in jmacc1.
+    clear -jmacc1. exfalso.
+    unfold perm_of_sh in *.
+    unfold fullshare in *.
+    repeat if_tac in jmacc1; congruence.
+  
+  - (* phi2: free   | phi2: alloc  *)
+    congruence.
+  
+  - (* phi2: free   | phi2: free   *)
+    congruence.
+Qed.
