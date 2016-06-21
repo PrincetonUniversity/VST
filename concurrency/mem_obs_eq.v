@@ -120,6 +120,13 @@ Proof.
   unfold ren_incr; auto.
 Qed.
 
+Lemma ren_separated_refl:
+  forall f m m',
+    ren_separated f f m m'.
+Proof.
+  unfold ren_separated.
+    by congruence.
+Qed.
 
  (** ** Results about id injections*)
   Definition id_ren m :=
@@ -197,6 +204,8 @@ Qed.
       by exfalso.
   Qed.
 
+  Hint Immediate ren_incr_refl ren_separated_refl : renamings.
+  
 End Renamings.
 
 Module MemoryWD.
@@ -234,7 +243,6 @@ Definition valid_memval (f: memren) (mv : memval) : Prop :=
     valid_val f v
   | _ => True
   end.
-
 
 Lemma wd_val_valid:
   forall v m f
@@ -388,7 +396,7 @@ Admitted.
             
             try rewrite Maps.ZMap.gss in Hget;
             try discriminate. *)
-  
+
 End MemoryWD.
 
 Module MemoryLemmas.
@@ -425,12 +433,12 @@ Module MemoryLemmas.
                                     by rewrite encode_val_length);
       by auto.
   Qed.
-
+  
 End MemoryLemmas.
 
 (** ** Injections on values*)
 Module ValObsEq.
-  Import MemoryWD Renamings.
+  Import MemoryWD Renamings MemoryLemmas.
   
   (** Strong injections on values *)
   Inductive val_obs (mi : memren) : val -> val -> Prop :=
@@ -462,16 +470,16 @@ Module ValObsEq.
                        val_obs_list mi vl vl' ->
                        val_obs_list mi (v :: vl) (v' :: vl').
 
+  Hint Constructors val_obs : val_renamings.
+  
   Lemma val_obs_incr:
     forall f f' v v'
       (Hval_obs: val_obs f v v')
       (Hincr: ren_incr f f'),
       val_obs f' v v'.
-  Proof.
+  Proof with eauto with val_renamings.
     intros.
-    destruct v; inversion Hval_obs; subst;
-    constructor;
-      by eauto.
+    destruct v; inversion Hval_obs; subst...
   Qed.
       
   Lemma val_obs_trans:
@@ -483,10 +491,9 @@ Module ValObsEq.
           f' b = Some b' ->
           f'' b' = Some b'') -> 
       val_obs f'' v' v''.
-  Proof.
+  Proof with eauto with val_renamings.
     intros v v' v'' f f' f'' Hval'' Hval' Hf.
-    inversion Hval'; subst; inversion Hval''; subst;
-      by (constructor; eauto).
+    inversion Hval'; subst; inversion Hval''; subst...
   Qed.
 
   Lemma memval_obs_trans:
@@ -530,12 +537,12 @@ Module ValObsEq.
       (Hvalid: valid_val f v)
       (Hid: forall b b', f b = Some b' -> b = b'),
       val_obs f v v.
-  Proof.
+  Proof with eauto with val_renamings.
     intros.
-    destruct v; constructor.
+    destruct v...
     destruct Hvalid as [b' Hf].
     specialize (Hid _ _ Hf);
-      by subst.
+      subst...
   Qed.
 
   Lemma val_obs_list_id :
@@ -578,22 +585,20 @@ Module ValObsEq.
     forall f v v',
       val_obs f v v' ->
       val_obs f (Val.hiword v) (Val.hiword v').
-  Proof.
-    intros.
+  Proof with eauto with val_renamings.
+    intros;
     destruct v; inversion H; subst;
-    simpl;
-      by constructor.
+    simpl...
   Qed.
 
   Lemma val_obs_loword:
     forall f v v',
       val_obs f v v' ->
       val_obs f (Val.loword v) (Val.loword v').
-  Proof.
-    intros.
+  Proof with eauto with val_renamings.
+    intros;
     destruct v; inversion H; subst;
-    simpl;
-      by constructor.
+    simpl...
   Qed.
 
   Lemma val_obs_longofwords:
@@ -601,25 +606,30 @@ Module ValObsEq.
       (Hobs_hi: val_obs f vhi vhi')
       (Hobs_lo: val_obs f vlo vlo'),
       val_obs f (Val.longofwords vhi vlo) (Val.longofwords vhi' vlo').
-  Proof.
-    intros.
-    destruct vhi; inversion Hobs_hi; subst; simpl;
-    try constructor.
-    destruct vlo; inversion Hobs_lo;
-      by constructor.
+  Proof with eauto with val_renamings.
+    intros;
+    destruct vhi; inversion Hobs_hi; subst; simpl...
+    destruct vlo; inversion Hobs_lo...
   Qed.
 
   Lemma val_obs_load_result:
     forall f v v' chunk
       (Hval_obs: val_obs f v v'),
       val_obs f (Val.load_result chunk v) (Val.load_result chunk v').
-  Proof.
-    intros.
+  Proof with eauto with val_renamings.
+    intros;
     destruct v; inversion Hval_obs; subst;
-    destruct chunk; simpl; constructor;
-    auto.
+    destruct chunk; simpl...
   Qed.
 
+  Lemma val_obs_ext:
+    forall f v v' n
+      (Hval_obs: val_obs f v v'),
+      val_obs f (Val.zero_ext n v) (Val.zero_ext n v').
+  Proof with eauto with val_renamings.
+    intros; destruct v; inversion Hval_obs; subst; simpl...
+  Qed.
+  
   Definition val_obsC f v :=
     match v with
     | Vptr b n => match f b with
@@ -701,16 +711,417 @@ Module ValObsEq.
   Qed.
 
   Lemma val_obs_add:
-    forall f v1 v2 ofs
+    forall f v1 v2 v1' v2'
+      (Hval_obs': val_obs f v1' v2')
       (Hval_obs: val_obs f v1 v2),
-      val_obs f (Val.add v1 (Vint ofs)) (Val.add v2 (Vint ofs)).
-  Proof.
+      val_obs f (Val.add v1 v1') (Val.add v2 v2').
+  Proof with eauto with val_renamings.
     intros.
-    destruct v1; inversion Hval_obs; subst;
-    simpl;
-      by constructor.
+    destruct v1, v1'; inversion Hval_obs;
+    inversion Hval_obs'; subst; simpl...
   Qed.
 
+  Lemma val_obs_sign_ext:
+    forall f v v' n
+      (Hval_obs: val_obs f v v'),
+      val_obs f (Val.sign_ext n v) (Val.sign_ext n v').
+  Proof with eauto with val_renamings.
+    intros; destruct v; inversion Hval_obs; subst; simpl...
+  Qed.
+  
+  
+  Lemma val_obs_singleoffloat:
+    forall f v v'
+      (Hval_obs: val_obs f v v'),
+      val_obs f (Val.singleoffloat v) (Val.singleoffloat v').
+  Proof with eauto with val_renamings.
+    intros; destruct v; inversion Hval_obs; subst; simpl...
+  Qed.
+
+  Lemma val_obs_floatofsingle:
+    forall f v v'
+      (Hval_obs: val_obs f v v'),
+      val_obs f (Val.floatofsingle v) (Val.floatofsingle v').
+  Proof with eauto with val_renamings.
+    intros; destruct v; inversion Hval_obs; subst; simpl...
+  Qed.
+
+  Lemma val_obs_intoffloat:
+    forall f v v'
+      (Hval_obs: val_obs f v v'),
+      val_obs f (Val.maketotal (Val.intoffloat v))
+              (Val.maketotal (Val.intoffloat v')).
+  Proof with eauto with val_renamings.
+    intros; destruct v; unfold Val.maketotal;
+    inversion Hval_obs; subst; simpl...
+    match goal with
+    | [|- context[match ?Expr with _ => _ end]] =>
+      destruct Expr eqn:?
+    end...
+    unfold Coqlib.option_map in Heqo.
+    destruct (Floats.Float.to_int f0); inversion Heqo...
+  Qed.
+
+  Lemma val_obs_floatofint:
+    forall f v v'
+      (Hval_obs: val_obs f v v'),
+      val_obs f (Val.maketotal (Val.floatofint v))
+              (Val.maketotal (Val.floatofint v')).
+  Proof with eauto with val_renamings.
+    intros; destruct v; unfold Val.maketotal;
+    inversion Hval_obs; subst; simpl...
+  Qed.
+
+  Lemma val_obs_intofsingle:
+    forall f v v'
+      (Hval_obs: val_obs f v v'),
+      val_obs f (Val.maketotal (Val.intofsingle v))
+              (Val.maketotal (Val.intofsingle v')).
+  Proof with eauto with val_renamings.
+    intros; destruct v; unfold Val.maketotal;
+    inversion Hval_obs; subst; simpl...
+    match goal with
+    | [|- context[match ?Expr with _ => _ end]] =>
+      destruct Expr eqn:?
+    end...
+    unfold Coqlib.option_map in Heqo.
+    destruct (Floats.Float32.to_int f0); inversion Heqo...
+  Qed.
+  
+  Lemma val_obs_singleofint:
+    forall f v v'
+      (Hval_obs: val_obs f v v'),
+      val_obs f (Val.maketotal (Val.singleofint v))
+              (Val.maketotal (Val.singleofint v')).
+  Proof with eauto with val_renamings.
+    intros; destruct v; unfold Val.maketotal;
+    inversion Hval_obs; subst; simpl...
+  Qed.
+
+  Lemma val_obs_mul:
+    forall f v1 v2 v1' v2'
+      (Hval_obs': val_obs f v1' v2')
+      (Hval_obs: val_obs f v1 v2),
+      val_obs f (Val.mul v1 v1') (Val.mul v2 v2').
+  Proof with eauto with val_renamings.
+    intros.
+    destruct v1, v1'; inversion Hval_obs;
+    inversion Hval_obs'; subst; simpl...
+  Qed.
+
+  Lemma val_obs_mulhs:
+    forall f v1 v2 v1' v2'
+      (Hval_obs': val_obs f v1' v2')
+      (Hval_obs: val_obs f v1 v2),
+      val_obs f (Val.mulhs v1 v1') (Val.mulhs v2 v2').
+  Proof with eauto with val_renamings.
+    intros.
+    destruct v1, v1'; inversion Hval_obs;
+    inversion Hval_obs'; subst; simpl...
+  Qed.
+
+  Lemma val_obs_mulhu:
+    forall f v1 v2 v1' v2'
+      (Hval_obs': val_obs f v1' v2')
+      (Hval_obs: val_obs f v1 v2),
+      val_obs f (Val.mulhu v1 v1') (Val.mulhu v2 v2').
+  Proof with eauto with val_renamings.
+    intros.
+    destruct v1, v1'; inversion Hval_obs;
+    inversion Hval_obs'; subst; simpl...
+  Qed.
+  
+  Lemma val_obs_and:
+    forall f v1 v2 v1' v2'
+      (Hval_obs': val_obs f v1' v2')
+      (Hval_obs: val_obs f v1 v2),
+      val_obs f (Val.and v1 v1') (Val.and v2 v2').
+  Proof with eauto with val_renamings.
+    intros.
+    destruct v1, v1'; inversion Hval_obs;
+    inversion Hval_obs'; subst; simpl...
+  Qed.
+  
+  Lemma val_obs_or:
+    forall f v1 v2 v1' v2'
+      (Hval_obs': val_obs f v1' v2')
+      (Hval_obs: val_obs f v1 v2),
+      val_obs f (Val.or v1 v1') (Val.or v2 v2').
+  Proof with eauto with val_renamings.
+    intros.
+    destruct v1, v1'; inversion Hval_obs;
+    inversion Hval_obs'; subst; simpl...
+  Qed.
+
+  Lemma val_obs_xor:
+    forall f v1 v2 v1' v2'
+      (Hval_obs': val_obs f v1' v2')
+      (Hval_obs: val_obs f v1 v2),
+      val_obs f (Val.xor v1 v1') (Val.xor v2 v2').
+  Proof with eauto with val_renamings.
+    intros.
+    destruct v1, v1'; inversion Hval_obs;
+    inversion Hval_obs'; subst; simpl...
+  Qed.
+
+  Lemma val_obs_notint:
+    forall f v1 v2
+      (Hval_obs: val_obs f v1 v2),
+      val_obs f (Val.notint v1) (Val.notint v2).
+  Proof with eauto with val_renamings.
+    intros.
+    destruct v1; inversion Hval_obs; subst;
+    simpl...
+  Qed.
+
+  Lemma val_obs_shl:
+    forall f v1 v2 v1' v2'
+      (Hval_obs': val_obs f v1' v2')
+      (Hval_obs: val_obs f v1 v2),
+      val_obs f (Val.shl v1 v1') (Val.shl v2 v2').
+  Proof with eauto with val_renamings.
+    intros.
+    destruct v1, v1'; inversion Hval_obs;
+    inversion Hval_obs'; subst; simpl...
+    destruct (Int.ltu i0 Int.iwordsize)...
+  Qed.
+
+  Lemma val_obs_shr:
+    forall f v1 v2 v1' v2'
+      (Hval_obs': val_obs f v1' v2')
+      (Hval_obs: val_obs f v1 v2),
+      val_obs f (Val.shr v1 v1') (Val.shr v2 v2').
+  Proof with eauto with val_renamings.
+    intros.
+    destruct v1, v1'; inversion Hval_obs;
+    inversion Hval_obs'; subst; simpl...
+    destruct (Int.ltu i0 Int.iwordsize)...
+  Qed.
+
+  
+  Lemma val_obs_shru:
+    forall f v1 v2 v1' v2'
+      (Hval_obs': val_obs f v1' v2')
+      (Hval_obs: val_obs f v1 v2),
+      val_obs f (Val.shru v1 v1') (Val.shru v2 v2').
+  Proof with eauto with val_renamings.
+    intros.
+    destruct v1, v1'; inversion Hval_obs;
+    inversion Hval_obs'; subst; simpl...
+    destruct (Int.ltu i0 Int.iwordsize)...
+  Qed.
+
+  Lemma val_obs_ror:
+  forall f v1 v2 ofs
+      (Hval_obs: val_obs f v1 v2),
+      val_obs f (Val.ror v1 (Vint ofs)) (Val.ror v2 (Vint ofs)).
+  Proof with eauto with val_renamings.
+    intros.
+    destruct v1; inversion Hval_obs; subst;
+    simpl...
+    destruct (Int.ltu ofs Int.iwordsize)...
+  Qed.
+
+  Lemma val_obs_suboverflow:
+    forall f v1 v2 v1' v2'
+      (Hval_obs': val_obs f v1' v2')
+      (Hval_obs: val_obs f v1 v2),
+      val_obs f (Val.sub_overflow v1 v1') (Val.sub_overflow v2 v2').
+  Proof with eauto with val_renamings.
+    intros.
+    destruct v1, v1'; inversion Hval_obs;
+    inversion Hval_obs'; subst; simpl...
+  Qed.
+
+  Lemma val_obs_negative:
+    forall f v1 v2
+      (Hval_obs: val_obs f v1 v2),
+      val_obs f (Val.negative v1) (Val.negative v2).
+  Proof with eauto with val_renamings.
+    intros.
+    destruct v1; inversion Hval_obs; subst;
+    simpl...
+  Qed.
+
+  Lemma val_obs_neg:
+    forall f v1 v2
+      (Hval_obs: val_obs f v1 v2),
+      val_obs f (Val.neg v1) (Val.neg v2).
+  Proof with eauto with val_renamings.
+    intros.
+    destruct v1; inversion Hval_obs; subst;
+    simpl...
+  Qed.
+
+  Lemma val_obs_sub:
+    forall f v1 v2 v1' v2'
+      (Hinjective: forall b1 b1' b2,
+          f b1 = Some b2 -> f b1' = Some b2 -> b1 = b1')
+      (Hval_obs': val_obs f v1' v2')
+      (Hval_obs: val_obs f v1 v2),
+      val_obs f (Val.sub v1 v1') (Val.sub v2 v2').
+  Proof with eauto with val_renamings.
+    intros.
+    destruct v1, v1'; inversion Hval_obs;
+    inversion Hval_obs'; subst; simpl...
+    destruct (eq_block b b0); subst.
+    rewrite H6 in H2; inversion H2; subst.
+    destruct (eq_block b2 b2)...
+      by exfalso.
+      destruct (eq_block b2 b4)...
+      subst.
+      assert (b0 = b)
+        by (eapply Hinjective; eauto).
+      subst.
+        by exfalso.
+  Qed.
+
+  (** Floating point functions *)
+  Lemma val_obs_addf:
+    forall f v1 v2 v1' v2'
+      (Hval_obs': val_obs f v1' v2')
+      (Hval_obs: val_obs f v1 v2),
+      val_obs f (Val.addf v1 v1') (Val.addf v2 v2').
+  Proof with eauto with val_renamings.
+    intros.
+    destruct v1, v1'; inversion Hval_obs;
+    inversion Hval_obs'; subst; simpl...
+  Qed.
+
+  Lemma val_obs_addfs:
+    forall f v1 v2 v1' v2'
+      (Hval_obs': val_obs f v1' v2')
+      (Hval_obs: val_obs f v1 v2),
+      val_obs f (Val.addfs v1 v1') (Val.addfs v2 v2').
+  Proof with eauto with val_renamings.
+    intros.
+    destruct v1, v1'; inversion Hval_obs;
+    inversion Hval_obs'; subst; simpl...
+  Qed.
+
+  Lemma val_obs_mulf:
+    forall f v1 v2 v1' v2'
+      (Hval_obs': val_obs f v1' v2')
+      (Hval_obs: val_obs f v1 v2),
+      val_obs f (Val.mulf v1 v1') (Val.mulf v2 v2').
+  Proof with eauto with val_renamings.
+    intros.
+    destruct v1, v1'; inversion Hval_obs;
+    inversion Hval_obs'; subst; simpl...
+  Qed.
+
+  Lemma val_obs_mulfs:
+    forall f v1 v2 v1' v2'
+      (Hval_obs': val_obs f v1' v2')
+      (Hval_obs: val_obs f v1 v2),
+      val_obs f (Val.mulfs v1 v1') (Val.mulfs v2 v2').
+  Proof with eauto with val_renamings.
+    intros.
+    destruct v1, v1'; inversion Hval_obs;
+    inversion Hval_obs'; subst; simpl...
+  Qed.
+
+  Lemma val_obs_negf:
+    forall f v1 v2
+      (Hval_obs: val_obs f v1 v2),
+      val_obs f (Val.negf v1) (Val.negf v2).
+  Proof with eauto with val_renamings.
+    intros.
+    destruct v1; inversion Hval_obs;
+    subst; simpl...
+  Qed.
+
+  Lemma val_obs_negfs:
+    forall f v1 v2
+      (Hval_obs: val_obs f v1 v2),
+      val_obs f (Val.negfs v1) (Val.negfs v2).
+  Proof with eauto with val_renamings.
+    intros.
+    destruct v1; inversion Hval_obs;
+    subst; simpl...
+  Qed.
+  
+  Lemma val_obs_absf:
+    forall f v1 v2
+      (Hval_obs: val_obs f v1 v2),
+      val_obs f (Val.absf v1) (Val.absf v2).
+  Proof with eauto with val_renamings.
+    intros.
+    destruct v1; inversion Hval_obs;
+    subst; simpl...
+  Qed.
+
+  Lemma val_obs_absfs:
+    forall f v1 v2
+      (Hval_obs: val_obs f v1 v2),
+      val_obs f (Val.absfs v1) (Val.absfs v2).
+  Proof with eauto with val_renamings.
+    intros.
+    destruct v1; inversion Hval_obs;
+    subst; simpl...
+  Qed.
+
+  Lemma val_obs_subf:
+    forall f v1 v2 v1' v2'
+      (Hval_obs': val_obs f v1' v2')
+      (Hval_obs: val_obs f v1 v2),
+      val_obs f (Val.subf v1 v1') (Val.subf v2 v2').
+  Proof with eauto with val_renamings.
+    intros.
+    destruct v1, v1'; inversion Hval_obs;
+    inversion Hval_obs'; subst; simpl...
+  Qed.
+
+  Lemma val_obs_subfs:
+    forall f v1 v2 v1' v2'
+      (Hval_obs': val_obs f v1' v2')
+      (Hval_obs: val_obs f v1 v2),
+      val_obs f (Val.subfs v1 v1') (Val.subfs v2 v2').
+  Proof with eauto with val_renamings.
+    intros.
+    destruct v1, v1'; inversion Hval_obs;
+    inversion Hval_obs'; subst; simpl...
+  Qed.
+
+  Lemma val_obs_divf:
+    forall f v1 v2 v1' v2'
+      (Hval_obs': val_obs f v1' v2')
+      (Hval_obs: val_obs f v1 v2),
+      val_obs f (Val.divf v1 v1') (Val.divf v2 v2').
+  Proof with eauto with val_renamings.
+    intros.
+    destruct v1, v1'; inversion Hval_obs;
+    inversion Hval_obs'; subst; simpl...
+  Qed.
+
+  Lemma val_obs_divfs:
+    forall f v1 v2 v1' v2'
+      (Hval_obs': val_obs f v1' v2')
+      (Hval_obs: val_obs f v1 v2),
+      val_obs f (Val.divfs v1 v1') (Val.divfs v2 v2').
+  Proof with eauto with val_renamings.
+    intros.
+    destruct v1, v1'; inversion Hval_obs;
+    inversion Hval_obs'; subst; simpl...
+  Qed.
+  
+  Hint Resolve
+       val_obs_add valid_val_incr val_obs_incr
+       val_obs_load_result val_obs_hiword val_obs_loword
+       val_obs_longofwords val_obs_load_result val_obs_ext
+       val_obs_sign_ext val_obs_singleoffloat val_obs_floatofsingle
+       val_obs_intoffloat val_obs_floatofint val_obs_intofsingle
+       val_obs_singleofint val_obs_neg
+       val_obs_mul val_obs_mulhs val_obs_mulhu
+       val_obs_and val_obs_sub
+       val_obs_or val_obs_xor val_obs_notint
+       val_obs_shl val_obs_shr val_obs_shru
+       val_obs_ror val_obs_suboverflow val_obs_negative
+       val_obs_addf val_obs_addfs val_obs_mulf
+       val_obs_mulfs val_obs_negf val_obs_negfs
+       val_obs_absf val_obs_absfs val_obs_subf
+       val_obs_subfs val_obs_divf val_obs_divfs : val_renamings.
+  
 End ValObsEq.
   
 (** ** Injections between memories *)
@@ -1147,7 +1558,125 @@ Module MemObsEq.
     simpl;
       by auto.
   Qed.
-  
+
+  Lemma valid_pointer_ren:
+    forall f m m' b1 b2 ofs
+      (Hmem_obs_eq: mem_obs_eq f m m')
+      (Hf: f b1 = Some b2),
+      Mem.valid_pointer m b1 ofs = Mem.valid_pointer m' b2 ofs.
+  Proof.
+    intros.
+    unfold Mem.valid_pointer in *.
+    destruct Hmem_obs_eq as [_ [Hperm_eq _]].
+    specialize (Hperm_eq _ _ ofs Hf). 
+    unfold permissions.permission_at in *.
+    unfold Coqlib.proj_sumbool in *.
+    destruct (Mem.perm_dec m b1 ofs Cur Nonempty);
+      destruct (Mem.perm_dec m' b2 ofs Cur Nonempty); auto.
+    unfold Mem.perm in *. rewrite Hperm_eq in n.
+      by exfalso.
+      unfold Mem.perm in *. rewrite Hperm_eq in p.
+        by exfalso.
+  Qed.
+
+Lemma val_obs_cmpu:
+        forall f v1 v2 v1' v2' m m' (comp : comparison)
+          (Hval_obs': val_obs f v2 v2')
+          (Hval_obs: val_obs f v1 v1')
+          (Hmem_obs_eq: mem_obs_eq f m m'),
+          val_obs f (Val.cmpu (Mem.valid_pointer m) comp v1 v2)
+                  (Val.cmpu (Mem.valid_pointer m') comp v1' v2').
+      Proof with eauto with val_renamings.
+        intros.
+        destruct v1, v1'; inversion Hval_obs;
+        inversion Hval_obs'; subst; simpl; eauto with val_renamings;
+        unfold Val.cmpu,Val.of_optbool, Val.cmpu_bool, Vtrue, Vfalse...
+        - destruct (Int.cmpu comp i0 i2)...
+        - assert (Int.eq i0 Int.zero &&
+                       (Mem.valid_pointer m b1 (Int.unsigned ofs)
+                        || Mem.valid_pointer m b1 (Int.unsigned ofs - 1))
+                = Int.eq i0 Int.zero &&
+                         (Mem.valid_pointer m' b2 (Int.unsigned ofs)
+                          || Mem.valid_pointer m' b2 (Int.unsigned ofs - 1))).
+           { destruct (Int.eq i0 Int.zero); simpl; try reflexivity.
+             erewrite valid_pointer_ren; eauto.
+             erewrite valid_pointer_ren with (ofs := (Int.unsigned ofs - 1)%Z);
+               eauto.
+           }
+           rewrite H.
+        repeat match goal with
+               | [|- context[match ?Expr with _ => _ end]] =>
+                 destruct Expr eqn:?
+               end...
+        - assert (Int.eq i1 Int.zero &&
+                         (Mem.valid_pointer m b (Int.unsigned i0)
+                          || Mem.valid_pointer m b (Int.unsigned i0 - 1))
+                = Int.eq i1 Int.zero &&
+                         (Mem.valid_pointer m' b0 (Int.unsigned i0)
+                          || Mem.valid_pointer m' b0 (Int.unsigned i0 - 1))).
+           { destruct (Int.eq i1 Int.zero); simpl; try reflexivity.
+             erewrite valid_pointer_ren; eauto.
+             erewrite valid_pointer_ren with (ofs := (Int.unsigned i0 - 1)%Z);
+               eauto.
+           }
+           rewrite H.
+        repeat match goal with
+               | [|- context[match ?Expr with _ => _ end]] =>
+                 destruct Expr eqn:?
+               end...
+        - assert (Hequiv: (eq_block b b3) <-> (eq_block b0 b4)).
+          { split.
+            - intros Heq.
+              destruct (eq_block b b3); subst.
+              + rewrite H4 in H0; inversion H0; subst.
+                destruct (eq_block b0 b0); auto.
+              + by exfalso.
+            - intros Heq.
+              destruct (eq_block b b3); subst.
+              + rewrite H4 in H0; inversion H0; subst.
+                destruct (eq_block b0 b0); auto.
+              + destruct (eq_block b0 b4); subst; auto.
+                assert (Hinjective := injective (weak_obs_eq Hmem_obs_eq)).
+                specialize (Hinjective _ _ _ H4 H0); subst.
+                  by exfalso.
+          }            
+          destruct (eq_block b b3) eqn:Hb;
+            destruct (eq_block b0 b4) eqn:Hb0; simpl in *; subst;
+          destruct Hequiv; try (by exfalso; eauto).
+          assert (Hif: (Mem.valid_pointer m b3 (Int.unsigned i0)
+                        || Mem.valid_pointer m b3 (Int.unsigned i0 - 1))
+                         &&
+                         (Mem.valid_pointer m b3 (Int.unsigned ofs0)
+                          || Mem.valid_pointer m b3 (Int.unsigned ofs0 - 1))
+                       =
+                       (Mem.valid_pointer m' b4 (Int.unsigned i0)
+                        || Mem.valid_pointer m' b4 (Int.unsigned i0 - 1))
+                         &&
+                         (Mem.valid_pointer m' b4 (Int.unsigned ofs0)
+                          || Mem.valid_pointer m' b4 (Int.unsigned ofs0 - 1))).
+          { erewrite valid_pointer_ren; eauto.
+            erewrite valid_pointer_ren with
+            (m := m) (b1:=b3) (ofs := (Int.unsigned i0 - 1)%Z); eauto.
+            erewrite valid_pointer_ren with
+            (m := m) (b1:=b3) (ofs := Int.unsigned ofs0); eauto.
+            erewrite valid_pointer_ren with
+            (m := m) (b1:=b3) (ofs := (Int.unsigned ofs0 - 1)%Z); eauto.
+          }
+          rewrite Hif.
+          repeat match goal with
+                 | [|- context[match ?Expr with _ => _ end]] =>
+                   destruct Expr eqn:?
+                 end...
+          erewrite valid_pointer_ren; eauto.
+          erewrite valid_pointer_ren with (b1 := b3); eauto.
+          repeat match goal with
+                 | [|- context[match ?Expr with _ => _ end]] =>
+                   destruct Expr eqn:?
+                 end...
+      Qed.
+
+      Hint Resolve val_obs_cmpu : val_renamings.
+      
 End MemObsEq.
 
 Import dry_context SEM mySchedule DryMachine DryMachine.ThreadPool.
