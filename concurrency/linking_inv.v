@@ -114,6 +114,31 @@ Variable all_gvars_includedS: forall i b,
 Variable all_gvars_includedT: forall i b,
      gvars_included (Genv.find_var_info (cores_T i).(ge) b) (Genv.find_var_info my_ge b).  
 
+(* I'm not sure why the directives that follow seem to have no effect here 
+   when imported from sepcomp/arguments.v; nor do I have time to figure it out 
+   at the moment. *)
+Arguments match_sm_wd : default implicits.
+Arguments core_at_external : default implicits.
+Arguments core_halted : default implicits.
+Arguments disjoint_extern_local_Src : default implicits.
+
+Arguments core_data [F1 V1 C1 F2 V2 C2 Sem1 Sem2 ge1 ge2] _.
+Arguments core_ord  [F1 V1 C1 F2 V2 C2 Sem1 Sem2 ge1 ge2] _ _ _.
+Arguments match_state [F1 V1 C1 F2 V2 C2 Sem1 Sem2 ge1 ge2]
+  _ _ _ _ _ _ _.
+
+Arguments match_sm_wd 
+  [F1 V1 C1 F2 V2 C2 Sem1 Sem2 ge1 ge2 s d mu c1 m1 c2 m2] _.
+Arguments effect_semantics.effax1 [G C e M g c m c' m'] _.
+Arguments effect_semantics.effstepN_unchanged [G C Sem g n U c1 m1 c2 m2] _.
+(*Arguments corestep_mem [G C g c m0 c' m'] _.*)
+Arguments effect_semantics.effstepN_fwd [G C Sem g n U c m c' m'] _ _ _.
+Arguments match_validblocks 
+  [F1 V1 C1 F2 V2 C2 Sem1 Sem2 ge1 ge2] s [d mu c1 m1 c2 m2] _.
+
+Arguments match_genv [_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _] _.
+Arguments genvs_domain_eq_match_genvs [_ _ _ _ _ _] _.
+
 Let types := fun i : 'I_N => (sims i).(core_data).
 Let ords : forall i : 'I_N, types i -> types i -> Prop 
   := fun i : 'I_N => (sims i).(core_ord).
@@ -292,6 +317,15 @@ case g: (Genv.find_var_info _ _)=> //[gv].
 case: H4; first by exists gv.
 by move=> x; rewrite H5.
 Qed.
+
+Arguments invSym_findSymS _ [_ _] _.
+Arguments invSym_findSymT _ [_ _] _.
+Arguments findVar_findVarS _ [_ _] _.
+Arguments findVar_findVarT _ [_ _] _.
+Arguments findVar_findVarS_None _ [_ _].
+Arguments findVar_findVarT_None _ [_ _].
+Arguments findSym_findSym_down_S _ [_ _] _.
+Arguments findSym_findSym_down_T _ [_ _] _.
 
 Lemma isGlob_iffS ix b : 
   isGlobalBlock my_ge b <-> isGlobalBlock (ge (cores_S ix)) b.
@@ -542,6 +576,10 @@ Qed.
 
 End rel_inv_pred_all_lems.
 
+Arguments relinv_AllDisjointLS [_ _ _] _.
+Arguments relinv_AllDisjointLT [_ _ _] _.
+Arguments relinv_All_consistent [_ _ _] _.
+
 Section rel_inv_pred_all2_lems.
 
 Context m1 mus
@@ -642,6 +680,8 @@ by move=> ->; right.
 by move=> ->; left. 
 Qed.
 
+Arguments getBlocks_frgnpubS [_] _.
+
 Lemma getBlocks_frgnpubT b :
   getBlocks args2 b -> 
   [\/ pubBlocksTgt mu b | frgnBlocksTgt mu b].
@@ -663,6 +703,8 @@ move=> H4; case: (frgnSrc _ (Inj_wd _) _ H4)=> []? []? []fOf H5.
 move: (foreign_in_all _ _ _ _ fOf).
 by rewrite /j in H3; rewrite H3; case=> -> _; right.
 Qed.
+
+Arguments getBlocks_frgnpubT [_] _.
 
 Lemma getBlocks_locpubS b : 
   locBlocksSrc mu b -> 
@@ -713,15 +755,18 @@ by apply: (relinv_consistent A).
 by apply: IH.
 Qed.
 
+Arguments head_match [_ _ _ _ _ _ _ _] _.
+Arguments match_genv [_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _] _.
+
 Lemma head_globs b : isGlobalBlock my_ge b -> frgnBlocksSrc mu b.
 Proof.
-case: (match_genv $ head_match inv)=> A; move/(_ b).
+case: (match_genv (head_match inv))=> A; move/(_ b).
 by rewrite (genvs_domain_eq_isGlobal _ _ (my_ge_S (Core.i c))).
 Qed.
 
 Lemma head_presglobs : Events.meminj_preserves_globals my_ge (extern_of mu).
 Proof.
-case: (match_genv $ head_match inv)=> A.
+case: (match_genv (head_match inv))=> A.
 rewrite -meminj_preserves_genv2blocks.
 rewrite (genvs_domain_eq_match_genvs (my_ge_S (Core.i c))).
 by rewrite meminj_preserves_genv2blocks.
@@ -805,6 +850,8 @@ Qed.
 Lemma globs_in_vis :
   {subset isGlobalBlock (ge (cores_S new_ix)) <= vis mu}.
 Proof. by move=> b; move/globs_in_frgn; apply: frgnBlocksSrc_vis. Qed.
+
+Arguments getBlocks_restrict [_ _ _ _ _] _ _.
 
 Lemma blocks_in_vis : {subset getBlocks vals1 <= vis mu}.
 Proof. by move=> b H2; apply: (getBlocks_restrict vinj H2). Qed.
@@ -896,7 +943,7 @@ Let lo' := replace_locals mu pubS' pubT'.
 Lemma lo_wd : SM_wd lo'.
 Proof.
 move: vinj'=> H.
-exploit eff_after_check1; eauto.
+eapply eff_after_check1; eauto.
 by move: (head_match inv); apply/match_sm_wd.
 by move: (head_match inv); apply/match_validblocks.
 by case=> wd.
@@ -1914,7 +1961,7 @@ Lemma head_inv_step
   effect_semantics.effstepN 
     (sem (cores_T (Core.i d))) (ge (cores_T (Core.i d))) n V 
     (Core.c d) m2 d' m2' -> 
-  mem_welldefined.valid_genv (ge (cores_T (Core.i d))) m2 ->
+  sepcomp.mem_wd.valid_genv (ge (cores_T (Core.i d))) m2 ->
   match_state (sims (Core.i (Core.upd c c'))) cd' mu'
     (Core.c (Core.upd c c')) m1'
     (cast'' pf (Core.c (Core.upd d d'))) m2' -> 
@@ -1956,7 +2003,7 @@ Import CallStack.
 Import Linker.
 Import STACK.
 
-Require Import mem_welldefined.
+Require Import sepcomp.mem_wd.
 
 (** ** Top-Level Invariant *)
 
