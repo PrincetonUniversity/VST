@@ -21,7 +21,7 @@ Require Import sepcomp.semantics_lemmas.
 Require Import sepcomp.val_casted.
 Require Import ccc26x86.BuiltinEffects.
 Require Import ccc26x86.load_frame.
-Require Import sepcomp.drf_semantics.
+Require Import sepcomp.event_semantics.
 Require Import ccc26x86.Asm_coop.
 
 Require Import List. Import ListNotations.
@@ -699,7 +699,7 @@ Inductive asm_ev_step ge : state -> mem -> list mem_event -> state -> mem -> Pro
   | asm_ev_step_builtin:
       False -> (*We don't support builtins/helpers/vload/vstore etc yet*)      
       forall b ofs f ef args res rs m vargs t vres rs' m' lf T1 T2
-(*        (HFD: helper_functions_declared ge hf)*)
+        (*(HFD: helper_functions_declared ge hf)*)
          (NASS: ~ isInlinedAssembly ef)  (*NEW; we don't support inlined assembly yet*),
       rs PC = Vptr b ofs ->
       Genv.find_funct_ptr ge b = Some (Internal f) ->
@@ -722,7 +722,7 @@ Inductive asm_ev_step ge : state -> mem -> list mem_event -> state -> mem -> Pro
       extcall_arguments_ev rs m (ef_sig ef) args T -> 
       asm_ev_step ge (State rs lf) m T (Asm_CallstateOut ef args rs lf) m
   | asm_ev_step_external: (*really, a helper-step*)
-      False -> (*We don't support builtins/helpers/vload/vstore etc yet*)      
+      False -> (*We don't support builtins/helpers/vload/vstore etc yet*)
       forall b callee args res rs m t rs' m' lf T
       (*(HFD: helper_functions_declared ge hf)*)
       (OBS: EFisHelper (*hf*) callee),
@@ -747,7 +747,7 @@ Inductive asm_ev_step ge : state -> mem -> list mem_event -> state -> mem -> Pro
       asm_ev_step ge (Asm_CallstateIn fb args tys retty) m (Alloc stk 0 (4*z) :: T)
                (State rs0 (mk_load_frame stk retty)) m2.
 
-Lemma asm_ev_ax1 g (*(HFD: helper_functions_declared g hf*): 
+Lemma asm_ev_ax1 g (*(HFD: helper_functions_declared g hf)*): 
   forall c m T c' m' (EStep:asm_ev_step g c m T c' m'), corestep (Asm_mem_sem (*hf*)) g c m c' m'.
 Proof.
  induction 1; try contradiction.
@@ -1006,21 +1006,21 @@ inv Estep'; inv Estep''; trivial; try contradiction.
 + rewrite H in H6; inv H6. rewrite H0 in H7; inv H7.
   rewrite H1 in H8; inv H8. rewrite H2 in H9; inv H9.
   rewrite H3 in H14; inv H14. trivial.
-(*+ rewrite H in H6; inv H6. rewrite H0 in H7; inv H7.
+(*+ rewrite H in H7; inv H7. rewrite H0 in H7; inv H7.
   rewrite H1 in H8; inv H8. simpl in *; discriminate. *)
 + rewrite H in H6; inv H6. rewrite H0 in H7; inv H7.
 (*+ rewrite H in H9; inv H9. rewrite H0 in H10; inv H10.
-  rewrite H1 in H11; inv H11. simpl in *; discriminate. 
-(*+ rewrite H9 in H; inv H. rewrite H10 in H0; inv H0.*)
+  rewrite H1 in H11; inv H11. simpl in *; discriminate. *)
+(*+ rewrite H9 in H; inv H. rewrite H10 in H0; inv H0.
   rewrite H11 in H1; inv H1.
   exploit eval_builtin_args_ev_determ. apply H16. apply H6. intros [Y X]; subst.
-  f_equal. eapply builtin_event_determ; eassumption.
-+ rewrite H9 in H; inv H. rewrite H0 in H10; discriminate.*)
+  f_equal. eapply builtin_event_determ; eassumption.*)
+(*+ rewrite H9 in H; inv H. rewrite H0 in H10; discriminate.*)
 + rewrite H5 in H; inv H. rewrite H0 in H6; discriminate.
-(*+ rewrite H5 in H; inv H. rewrite H0 in H6; discriminate.*)
+(*+ rewrite H5 in H; inv H. rewrite H0 in H6; inv H6.*)
 + rewrite H5 in H; inv H. rewrite H6 in H0; inv H0.
   exploit extcall_arguments_determ. apply H1. apply H7. intros; subst args.
-  eapply extcall_arguments_ev_determ; eassumption.
+  eapply extcall_arguments_ev_determ; eassumption. 
 (*+ rewrite H7 in H; inv H. eapply builtin_event_determ; eassumption. *)
 + (*loadframe*)
   rewrite H7 in H; inv H. rewrite H12 in H0; inv H0.
@@ -1292,7 +1292,7 @@ Lemma store_args_rec_transfer stk m2 mm': forall args tys m1 n
  (STARGSEV: store_args_ev_rec stk n args tys = Some TT) x
  (EV: ev_elim x TT mm'), store_args_rec x stk n args tys = Some mm'.
 Proof.
- induction args; simpl; intros; destruct tys; try discriminate; try contradiction.
+ induction args; simpl; intros; destruct tys; try discriminate.
 + inv STARGS. inv STARGSEV. inv EV.  trivial.
 + rewrite AR in *. Opaque Z.mul. 
   destruct t. 
@@ -1768,8 +1768,8 @@ induction 1; intros; try contradiction.
     * intros mm mm' MM. rewrite app_nil_r in MM.
       destruct (EVS _ _ MM); subst mm'.
       destruct (I64Helpers.is_I64_helperS_dec name sg). 2: elim H4; trivial.
-       (*helpers don't access memory -- with stengthened HFD, proof will essesntially be like this:
-      for next goal: eexists. eapply asm_ev_step_builtin; try eassumption. simpl; trivial.
+      (*helpers don't access memory -- with stengthened HFD, proof will essesntially be like this:
+      eexists. eapply asm_ev_step_builtin; try eassumption. simpl; trivial.
         eapply eval_builtin_args_ev_eval_builtin_args; eassumption.
         2: reflexivity.
         2: constructor; trivial. *)  
@@ -1781,8 +1781,8 @@ induction 1; intros; try contradiction.
     * intros mm mm' MM. rewrite app_nil_r in MM.
       destruct (EVS _ _ MM); subst mm'.
       destruct (is_I64_builtinS_dec name sg). 2: elim H4; trivial.
-      (*helpers don't access memory -- with stengthened HFD, proof will essesntially be like this:
-      for next goal: eexists. eapply asm_ev_step_builtin; try eassumption. simpl; trivial.
+       (*helpers don't access memory -- with stengthened HFD, proof will essesntially be like this:
+      eexists. eapply asm_ev_step_builtin; try eassumption. simpl; trivial.
         eapply eval_builtin_args_ev_eval_builtin_args; eassumption.
         2: reflexivity.
         2: constructor; trivial. *)
@@ -1865,6 +1865,6 @@ eapply Build_EvSem with (msem := Asm_mem_sem (*hf*)) (ev_step:=asm_ev_step).
 + eapply asm_ev_ax2; eassumption.
 + eapply asm_ev_fun; eassumption.
 + eapply asm_ev_elim_strong; eassumption.
-Qed. (*helper_functions declared*)
+Defined. (*helper_functions declared*)
 
 End ASM_EV.
