@@ -876,7 +876,7 @@ Section Simulation.
                  injection H_acquire as Ee.
                  apply ext_link_inj in Ee.
                  rewrite <-Ee.
-                 admit (* "acquire" = "LOCK" *).
+                 reflexivity.
               -- inversion safei; subst.
                  admit. 2:admit.
                  simpl in H0.
