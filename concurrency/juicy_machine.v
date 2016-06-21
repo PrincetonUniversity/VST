@@ -768,6 +768,14 @@ Module Concur.
         - apply compatible_threadRes_sub. assumption.
       Qed.
       
+      (* used by Jean-Marie in semax_to_juicy_machine.v at line ~909 *)
+      Lemma compatible_getThreadR_m_phi
+        js m i (cnt:containsThread js i)
+        (c : mem_compatible js m) :
+        m_phi (personal_mem cnt c) = ThreadPool.getThreadR cnt.
+        (* pointwise is enough *)
+      Admitted.
+      
     End JuicyMachineLemmas.
       
   End JuicyMachineShell.

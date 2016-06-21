@@ -216,9 +216,10 @@ Section Initial_State.
      )
     ).
   
-  Lemma personal_mem_unique_dry tp m (mc : JM.mem_compatible tp m) i (cnti : Machine.containsThread tp i) :
-    tp.(Machine.num_threads).(pos.n) = 1%nat ->
-    m_dry (JM.personal_mem cnti mc) = m.
+  Lemma personal_mem_of_same_jm tp jm (mc : JM.mem_compatible tp (m_dry jm)) i (cnti : Machine.containsThread tp i) :
+    (Machine.getThreadR cnti = m_phi jm) ->
+    m_dry (JM.personal_mem cnti mc) = m_dry jm.
+  Proof.
   Admitted.
   
   Lemma initial_invariant n sch : state_invariant Jspec n (initial_state n sch).
@@ -233,7 +234,7 @@ Section Initial_State.
     (*! compatibility of memories *)
     assert (compat : mem_compatible_rmap tp m (m_phi jm)).
     {
-      constructor.
+      apply Build_mem_compatible_rmap.
       + apply JM.AllJuice with (m_phi jm) None.
         * change (proj1_sig (snd (projT2 (projT2 spr)) n)) with jm.
           unfold JM.join_threads.
@@ -262,6 +263,7 @@ Section Initial_State.
         destruct jm' as [m' phi] eqn:E.
         apply JM.Build_mem_cohere'; simpl.
         all:auto.
+        simpl in tp.
         unfold JM.access_cohere'.
         now admit (* should be access_cohere instead of this max_access_at *).
       + intros loc sh psh P z L.
@@ -300,11 +302,14 @@ Section Initial_State.
         apply juicy_mem_ext; swap 1 2.
         - reflexivity.
         - unfold jm_.
-          rewrite personal_mem_unique_dry; [ | now auto].
-          unfold jm.
-          destruct spr as (b' & q' & Hb & JS); simpl proj1_sig in *; simpl proj2_sig in *.
-          destruct (JS n) as (jm' & jmm & lev & S & notlock); simpl projT1 in *; simpl projT2 in *.
-          now auto.
+          symmetry.
+          admit.
+          (* apply personal_mem_of_same_jm. *)
+          (* rewrite personal_mem_unique_dry; [ | now auto]. *)
+          (* unfold jm. *)
+          (* destruct spr as (b' & q' & Hb & JS); simpl proj1_sig in *; simpl proj2_sig in *. *)
+          (* destruct (JS n) as (jm' & jmm & lev & S & notlock); simpl projT1 in *; simpl projT2 in *. *)
+          (* now auto. *)
       }
       subst jm. rewrite <-Ejm.
       simpl in Ec. replace c with q in * by congruence.
@@ -390,12 +395,7 @@ Section Simulation.
         (m', ge, (i :: sch, jstate'))
   .
    *)  
-  
-  Lemma mem_compatible_rmap_join_sub_threadR tp m Phi i cnti :
-    mem_compatible_rmap tp m Phi ->
-    join_sub (@JM.ThreadPool.getThreadR i tp cnti) Phi.
-  Admitted.
-  
+
   Lemma state_invariant_step n :
     forall state,
       state_invariant Jspec' (S n) state ->
@@ -494,7 +494,8 @@ Section Simulation.
           unfold jsafeN.
           intros c j step safety safe ora.
           eapply safe_corestep_forward.
-          - admit (* TODO: apply juicy_core_sem_preserves_corestep_fun *).
+          - apply juicy_core_sem_preserves_corestep_fun.
+            apply semax_lemmas.cl_corestep_fun'.
           - apply step.
           - apply safety.
         }
@@ -524,9 +525,17 @@ Section Simulation.
           + reflexivity.
         
         - (* build the new PHI: the new jm_i' + the other things? *)
+          (* use a program definition to generate this rmap, then prove things about it *)
+          assert (mem_compat_step : {Phi' | mem_compatible_rmap tp' (m_dry jmi') Phi'}). {
+            (* we probably need to assert a bunch of other things. *)
+            clear -i tp Phi compat ge cnti ci ci' jmi' stepi cm'.
+            admit.
+          }
           destruct stepi as [stepi decay].
-          eapply state_invariant_c with (PHI := (* Phi', modification of *) Phi) (mcompat := _).
+          destruct mem_compat_step as [Phi' compat'].
+          apply state_invariant_c with (PHI := Phi') (mcompat := compat').
           + (* lock coherence: own rmap has changed, not clear how to prove it did not affect locks *)
+            (* (kind of hard) see how new PHI is built *)
             admit.
           + (* safety *)
             intros i0 cnti0 ora.
@@ -799,7 +808,8 @@ Section Simulation.
         assert (SUB : join_sub phi0 Phi). {
           apply join_sub_trans with  (JM.ThreadPool.getThreadR cnti).
           - econstructor; eauto.
-          - eapply mem_compatible_rmap_join_sub_threadR; eauto.
+          - apply JM.JuicyMachineLemmas.compatible_threadRes_sub; eauto.
+            destruct compat; eauto.
         }
         destruct islock as [b [ofs [-> [R islock]]]].
         pose proof (resource_at_join_sub _ _ (b, Int.unsigned ofs) SUB) as SUB'.
@@ -810,7 +820,7 @@ Section Simulation.
            - DONE: sort out this dependent type problem
            - DONE: exploit jsafeN_ to figure out which possible cases
            - DONE: push the analysis through Krun/Kblocked/Kresume
-           - TODO: figure a wait out of the ext_link problem (the LOCK
+           - DONE: figure a wait out of the ext_link problem (the LOCK
              should be a parameter of the whole thing)
            - TODO: change the lock_coherence invariants to talk about
              Mem.load instead of directly reading the values, since
@@ -867,7 +877,7 @@ Section Simulation.
                  apply ext_link_inj in Ee.
                  rewrite <-Ee.
                  admit (* "acquire" = "LOCK" *).
-              -- inversion safei; subst. 
+              -- inversion safei; subst.
                  admit. 2:admit.
                  simpl in H0.
                  injection H0 as <- <- <-.
@@ -876,7 +886,7 @@ Section Simulation.
                  (* see with andrew: should safety require signatures
                  to be exactly something?  Maybe it should be in
                  ext_spec_type, it'd be easy, maybe. *)
-              -- admit (* another sig? *).
+              -- admit (* another sig! *).
               -- instantiate (2 := b).
                  instantiate (1 := ofs).
                  assert (L: length args = 1%nat) by admit. (* TODO discuss with andrew for where to add this requirement *)
@@ -893,8 +903,7 @@ Section Simulation.
                     inversion L.
             * reflexivity.
             * reflexivity.
-            * (* TODO how to prove that personal_mem is the good one?
-                 anyway, we have to prove this for phi0 already. *)
+            * rewrite JM.JuicyMachineLemmas.compatible_getThreadR_m_phi.
               unfold JM.pack_res_inv in *.
               admit.
             * (* maybe we should write this in the invariant instead? *)
@@ -916,7 +925,7 @@ Section Simulation.
           destruct isl' as [sh' [psh' [z' Eat]]].
           rewrite Eat in Ewetv.
           injection Ewetv as -> -> -> Epr.
-          replace R0 with R in * by admit (* TODO see andrew for this *).
+          replace R0 with R in * by admit (* OK (see above) *).
           eexists.
           split.
           + (* taking the step *)
@@ -952,13 +961,13 @@ Section Simulation.
                   (m_dry ?jm')).
              *)
             eapply state_invariant_c with (PHI := Phi) (mcompat := _).
-            * (* TODO lock_coherence -- some work needed here *)
+            * (* TODO lock_coherence (hard) some work needed here *)
               admit.
-            * (* TODO safety: a lot of work needed here, using the oracle. *)
+            * (* TODO safety (hard) a lot of work needed here, using the oracle. *)
               admit.
-            * (* wellformedness: again, easy *)
+            * (* wellformedness (symbol pushing) *)
               admit.
-            * (* uniqueness: easy too *)
+            * (* uniqueness (symbol pushing) *)
               admit.
       }
       
