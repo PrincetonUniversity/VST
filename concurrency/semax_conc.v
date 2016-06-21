@@ -340,7 +340,6 @@ Proof.
     destruct Ex as (name & sg & ->); clear Hef.
     
     Unset Printing Implicit.
-    Local Notation "{| 'JE_spec ... |}" := {| JE_spec := _; JE_pre_hered := _; JE_post_hered := _; JE_exit_hered := _ |}.
     revert x Pre Post.
     simpl (ext_spec_pre _); simpl (ext_spec_post _); simpl (ext_spec_type _).
     unfold funspec2pre, funspec2post, ext_spec_type, ext_spec_pre, ext_spec_post.

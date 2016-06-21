@@ -1026,7 +1026,7 @@ Lemma semax_prog_rule {CS: compspecs} :
          { jm |
            m_dry jm = m /\ level jm = n /\
            (forall z, jsafeN (@OK_spec Espec) (globalenv prog) n z q jm) /\
-           (forall addr, ~ islock (m_phi jm @ addr))
+           no_locks (m_phi jm)
      } } }%type.
 Proof.
   intros until m.
@@ -1206,9 +1206,7 @@ Proof.
       rewrite inflate_initial_mem_level.
       unfold initial_core.
       apply level_make_rmap.
-  - intros addr [R HI].
-    apply initial_jm_without_locks in HI.
-    easy.
+  - apply initial_jm_without_locks.
 Qed.
 
 Definition Delta_types V G {C: compspecs} (tys : list type) : tycontext := 

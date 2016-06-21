@@ -202,7 +202,7 @@ FLOYD_FILES= \
 PROGS_FILES= \
   list_dt.v verif_reverse.v verif_queue.v verif_sumarray.v \
   insertionsort.v reverse.v queue.v sumarray.v message.v string.v\
-  revarray.v verif_revarray.v insertionsort.v \
+  revarray.v verif_revarray.v insertionsort.v append.v \
   verif_float.v verif_ptr_compare.v \
   verif_nest3.v verif_nest2.v \
   logical_compare.v verif_logical_compare.v field_loadstore.v  verif_field_loadstore.v \
@@ -298,7 +298,7 @@ else
 	@$(COQC) $(COQFLAGS) $*.v
 endif
 
-COQVERSION=8.5 or-else 8.5pl1
+COQVERSION= 8.5pl1
 COQV=$(shell $(COQC) -v)
 ifeq ("$(filter $(COQVERSION),$(COQV))","")
 $(error FAILURE: You need Coq $(COQVERSION) but you have this version: $(COQV))
@@ -379,6 +379,8 @@ progs/odd.v: progs/odd.c
 progs/field_loadstore.v: progs/field_loadstore.c
 	$(CLIGHTGEN) ${CGFLAGS} $<
 progs/merge.v: progs/merge.c
+	$(CLIGHTGEN) ${CGFLAGS} $<
+progs/append.v: progs/append.c
 	$(CLIGHTGEN) ${CGFLAGS} $<
 endif
 

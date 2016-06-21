@@ -308,6 +308,19 @@ Module X86Inj <: CoreInjections.
       by subst.
   Qed.
 
+  Lemma regset_ren_set:
+    forall f rs rs' v v' r
+      (Hrs_ren: regset_ren f rs rs')
+      (Hval_obs: val_obs f v v'),
+      regset_ren f (rs # r <- v) (rs' # r <- v').
+  Proof.
+    intros.
+    intros r'.
+    unfold reg_ren.
+    do 2 rewrite Pregmap.gsspec.
+    destruct (Pregmap.elt_eq r' r); auto.
+    eapply Hrs_ren.
+  Qed.
   
   Lemma loader_ren_trans:
     forall f f' f'' loader loader' loader'',
@@ -350,16 +363,107 @@ Module X86Inj <: CoreInjections.
         by auto.
   Qed.
 
-  Hint Resolve
-       loader_ren_incr loader_ren_id loader_ren_trans
-       regset_ren_id val_obs_reg val_obs_add
-       valid_val_incr val_obs_incr val_obs_load_result : renamings.
-  Hint Constructors eval_builtin_arg val_obs : renamings.
+  Lemma regset_comm:
+    forall (rs: Pregmap.t val) r r' v,
+      (rs # r <- v) # r' <- v = (rs # r' <- v) # r <- v.
+  Proof.
+    intros.
+    unfold Pregmap.set.
+    extensionality r''.
+    destruct (PregEq.eq r'' r'), (PregEq.eq r'' r); auto.
+  Qed.
+
+  Lemma undef_regs_comm:
+    forall regs rs r,
+      undef_regs regs (rs # r <- Vundef) =
+      (undef_regs regs rs) # r <- Vundef.
+  Proof.
+    intros.
+    generalize dependent rs.
+    induction regs; intros. simpl. auto.
+    simpl.
+    specialize (IHregs (rs # a <- Vundef)).
+    rewrite <- IHregs.
+    apply f_equal.
+      by rewrite regset_comm.
+  Qed.
+
+  Lemma gso_undef_regs:
+    forall (rs : regset) r regs,
+      ~ List.In r regs ->
+      (undef_regs regs rs) r = rs r.
+  Proof.
+    intros.
+    induction regs; simpl; auto.
+    simpl in H.
+    rewrite undef_regs_comm.
+    assert (H1: ~ List.In r regs)
+      by (intros Hcontra; auto).
+    rewrite Pregmap.gso; eauto.
+  Qed.
+
+  Lemma valid_val_ge_id:
+    forall fg f b i
+      (Hvalid: valid_val fg (Vptr b i))
+      (Hincr: ren_incr fg f)
+      (Hfg: forall b1 b2, fg b1 = Some b2 -> b1 = b2),
+      f b = Some b.
+  Proof.
+    intros.
+    destruct Hvalid as [b' Hfg'].
+    assert (Heq := Hfg _ _ Hfg'); subst.
+    apply Hincr in Hfg';
+      by auto.
+  Qed.
+
+
   
+  Hint Resolve
+       loader_ren_incr loader_ren_id loader_ren_trans regset_ren_id
+       val_obs_reg regset_ren_set : reg_renamings.
+  Hint Rewrite gso_undef_regs : reg_renamings.
+  
+  Hint Resolve valid_val_ge_id  : ge_renamings.
+  Hint Constructors eval_builtin_arg : renamings.
+  Hint Unfold Vone Vzero nextinstr nextinstr_nf : renamings.
+
+  Lemma val_obs_symb:
+    forall f fg g id i
+      (Hge_wd: ge_wd fg g)
+      (Hincr: ren_incr fg f)
+      (Hfg: forall b1 b2, fg b1 = Some b2 -> b1 = b2),
+      val_obs f (symbol_address g id i) (symbol_address g id i).
+  Proof with eauto with ge_renamings renamings val_renamings.
+    intros.
+    destruct Hge_wd as (H1 & H2 & H3).
+    unfold symbol_address, Senv.symbol_address in *;
+      simpl in *.
+    specialize (H3 id i _ ltac:(reflexivity)).
+    destruct (find_symbol g id)...
+  Qed.
+  
+  Hint Resolve val_obs_symb : ge_renamings.
+
+  Lemma regset_ren_undef:
+    forall f rs rs' regs
+      (Hrs_ren: regset_ren f rs rs'),
+      regset_ren f (undef_regs regs rs) (undef_regs regs rs').
+  Proof with eauto with renamings reg_renamings val_renamings.
+    intros.
+    induction regs as [|r regs]; simpl; auto.
+    intros r'. unfold reg_ren.
+    do 2 rewrite undef_regs_comm;
+      do 2 rewrite Pregmap.gsspec;
+      unfold Pregmap.get;
+      destruct (Pregmap.elt_eq r' r)...
+  Qed.
+
+  Hint Resolve regset_ren_undef : reg_renamings.
+   
   Lemma ge_wd_incr :
     forall (f f' : memren) (g : SEM.G),
       ge_wd f g -> ren_domain_incr f f' -> ge_wd f' g.
-  Proof with (eauto with renamings).
+  Proof with (eauto with renamings val_renamings).
     intros.
     unfold ge_wd in *.
     destruct H as (? & ? & ?);
@@ -848,30 +952,24 @@ Module X86Inj <: CoreInjections.
     exists varg',
       eval_builtin_arg g rs' (rs' ESP) m' arg varg' /\
       val_obs f varg varg'.
-  Proof with eauto with renamings.
+  Proof with eauto with renamings reg_renamings val_renamings.
     intros.
     destruct Hmem_obs_eq.
     induction Heval; subst;
-    try by (eexists; split; eauto with renamings).
-    eapply loadv_val_obs with (vptr2 := Val.add (rs' ESP) (Vint ofs)) in H...
-    destruct H as (varg' & Hload' & Hval_obs).
-    exists varg';
-      split...
-    assert (Hb: val_obs f (Senv.symbol_address g id ofs)
+    try by (eexists; split)...
+    -
+      eapply loadv_val_obs with (vptr2 := Val.add (rs' ESP) (Vint ofs)) in H...
+      destruct H as (varg' & Hload' & Hval_obs)...
+    - assert (Hb: val_obs f (Senv.symbol_address g id ofs)
                         (Senv.symbol_address g id ofs))
-      by (eapply symb_val_obs; eauto).
-    eapply loadv_val_obs with (vptr2 := Senv.symbol_address g id ofs) in H;
-      eauto.
-    destruct H as (varg' & Hload' & Hval_obs);
-      exists varg'; split...
-    assert (Hb: val_obs f (Senv.symbol_address g id ofs)
-                        (Senv.symbol_address g id ofs))
-      by (eapply symb_val_obs; eauto).
-    eexists; split...
-    destruct IHHeval1 as (vhi' & ? & ?), IHHeval2 as (vlo' & ? & ?).
-    exists (Val.longofwords vhi' vlo');
-      split...
-    eapply val_obs_longofwords; eauto.
+        by (eapply symb_val_obs; eauto).
+      eapply loadv_val_obs with (vptr2 := Senv.symbol_address g id ofs) in H;
+        eauto.
+      destruct H as (varg' & Hload' & Hval_obs)...
+    - assert (Hb: val_obs f (Senv.symbol_address g id ofs)
+                          (Senv.symbol_address g id ofs))
+        by (eapply symb_val_obs; eauto)...
+    - destruct IHHeval1 as (vhi' & ? & ?), IHHeval2 as (vlo' & ? & ?)...
   Qed.
   
   Lemma eval_builtin_args_ren:
@@ -905,7 +1003,7 @@ Module X86Inj <: CoreInjections.
       (Hge_wd: ge_wd fg g)
       (Hevent_val: eventval_match g ev (type_of_chunk chunk) v),
       valid_val fg v.
-  Proof with eauto with renamings.
+  Proof with eauto with renamings val_renamings.
     intros.
     inversion Hevent_val; subst; try rewrite H1;
     try by (eexists; split)...
@@ -949,6 +1047,84 @@ Module X86Inj <: CoreInjections.
       by (eapply Hinjective; eauto); subst b2.
       by congruence.
   Qed.
+
+  Lemma val_obs_addrmode:
+    forall f fg g (a : addrmode) rs rs'
+      (Hrs_ren: regset_ren f rs rs')
+      (Hfg: forall b1 b2, fg b1 = Some b2 -> b1 = b2)
+      (Hge_wd: ge_wd fg g)
+      (Hincr: ren_incr fg f),
+      val_obs f (eval_addrmode g a rs) (eval_addrmode g a rs').
+  Proof with eauto 10 with val_renamings reg_renamings ge_renamings.
+    intros.
+    unfold eval_addrmode.
+    destruct a, base, ofs, const; autounfold with renamings;
+    try destruct p; try destruct p0;
+    try match goal with
+        | [|- context[match ?Expr with _ => _ end]] =>
+          destruct Expr
+        end...
+  Qed.
+
+  Lemma compare_ints_ren:
+    forall f v1 v2 v1' v2' rs rs' m m'
+      (Hval_obs: val_obs f v1 v1')
+      (Hval_obs': val_obs f v2 v2')
+      (Hrs_ren: regset_ren f rs rs')
+      (Hmem_obs_eq: mem_obs_eq f m m'),
+      regset_ren f (compare_ints v1 v2 rs m)
+                 (compare_ints v1' v2' rs' m').
+  Proof with eauto 15 with reg_renamings val_renamings.
+    intros.
+    assert (Hinjective := injective (weak_obs_eq Hmem_obs_eq)).
+    unfold compare_ints...
+  Qed.
+  
+      Lemma compare_floats32_ren:
+      forall f rs rs' v1 v2 v1' v2'
+        (Hval_obs: val_obs f v1 v1')
+        (Hval_obs': val_obs f v2 v2')
+        (Hrs_ren: regset_ren f rs rs'),
+        regset_ren f (compare_floats32 v1 v2 rs)
+                   (compare_floats32 v1' v2' rs').
+    Proof with eauto with reg_renamings.
+      intros.
+      unfold compare_floats32;
+        destruct v1; inversion Hval_obs; subst;
+        destruct v2; inversion Hval_obs'; subst...
+      admit.
+    Admitted.
+    
+    Lemma compare_floats_ren:
+      forall f rs rs' v1 v2 v1' v2'
+        (Hval_obs: val_obs f v1 v1')
+        (Hval_obs': val_obs f v2 v2')
+        (Hrs_ren: regset_ren f rs rs'),
+        regset_ren f (compare_floats v1 v2 rs)
+                   (compare_floats v1' v2' rs').
+    Proof with eauto with reg_renamings.
+      intros.
+      unfold compare_floats;
+        destruct v1; inversion Hval_obs; subst;
+        destruct v2; inversion Hval_obs'; subst...
+      admit.
+    Admitted.
+
+    Lemma val_obs_testcond:
+      forall f c rs rs'
+        (Hrs_ren: regset_ren f rs rs'),
+        val_obs f (Val.of_optbool (eval_testcond c rs))
+                (Val.of_optbool (eval_testcond c rs')).
+    Proof with eauto with val_renamings.
+      intros.
+      unfold Val.of_optbool, eval_testcond, Vtrue, Vfalse.
+      admit.
+    Admitted.
+
+    Hint Resolve compare_floats_ren compare_floats32_ren
+         compare_ints_ren : reg_renamings.
+    Hint Resolve val_obs_addrmode val_obs_testcond : val_renamings.
+
   
   (** Executing an instruction in related states results in related
   states: 1. The renaming function is extended to accommodate newly
@@ -999,9 +1175,35 @@ Module X86Inj <: CoreInjections.
       (Mem.nextblock m = Mem.nextblock m' ->
        (forall b1 b3 : block, f b1 = Some b3 -> b1 = b3) ->
        forall b1 b0 : block, f' b1 = Some b0 -> b1 = b0).
-  Proof.
-    Admitted.
-  
+  Proof with eauto 8 with renamings ge_renamings reg_renamings val_renamings.
+    intros.
+    assert (Hinjective := injective (weak_obs_eq Hmem_obs_eq)).
+    destruct i; simpl in *;
+    try match goal with
+        | [H: Next _ _ = Next _ _ |- _] =>
+          inversion H; clear H; subst;
+          exists f
+        end;
+    repeat match goal with
+        | [|- exists _ _, _ ] => do 2 eexists; split; first by eauto
+        | [|- _ /\ _] => split; eauto 3 with renamings
+        | [|- regset_ren _ _ _] =>
+          unfold nextinstr_nf, nextinstr, Vone, Vzero;
+            eauto 20 with reg_renamings ge_renamings val_renamings
+        | [|- forall _, _] => intros
+           end; try (by exfalso);
+    repeat match goal with
+           | [|- regset_ren _ _ _] =>
+               autorewrite with reg_renamings;
+               first by eauto 25 with reg_renamings val_renamings
+             | [ |- ~ List.In _ _] =>
+               compute; intros ?
+             | [H: _ \/ _ |- _] =>
+               destruct H; try discriminate;
+               try auto
+       end.
+  Admitted.    
+
   Lemma corestep_obs_eq:
     forall (cc cf cc' : Asm_coop.state) (mc mf mc' : mem) f fg,
       mem_obs_eq f mc mf ->
@@ -1030,7 +1232,7 @@ Module X86Inj <: CoreInjections.
         (Mem.nextblock mc = Mem.nextblock mf ->
          (forall b1 b2 : block, f b1 = Some b2 -> b1 = b2) ->
          forall b1 b2 : block, f' b1 = Some b2 -> b1 = b2).
-  Proof with (eauto with renamings).
+  Proof with (eauto with renamings reg_renamings).
     intros cc cf cc' mc mf mc' f fg Hobs_eq Hcore_inj Hfg Hge_wd Hincr Hcorestep.
     destruct cc as [rs loader | |]; simpl in *;
     destruct cf as [rsF loaderF | |]; try by exfalso.
@@ -1046,7 +1248,7 @@ Module X86Inj <: CoreInjections.
         exists (State rsF' loaderF), mF', f'.
         repeat match goal with
                | [ |- _ /\ _] =>
-                split; simpl; eauto with renamings
+                split; simpl; eauto with renamings reg_renamings
                end.
         econstructor...
       + assert (Hpc' := get_reg_ren PC Hrs_ren H1).
@@ -1068,7 +1270,7 @@ Module X86Inj <: CoreInjections.
             exists vres' m2',
               external_call ef g vargs' m1' t vres' m2' /\
               val_obs f vres vres'.
-        Proof with eauto with renamings.
+        Proof with eauto with renamings reg_renamings val_renamings ge_renamings.
           intros.
           destruct ef.
           simpl in *.
@@ -1162,10 +1364,7 @@ Module X86Inj <: CoreInjections.
         Admitted.
 
 
-      
-
-
-          
+                
         
 End X86Inj.    
 
