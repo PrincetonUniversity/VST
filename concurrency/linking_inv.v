@@ -2074,7 +2074,6 @@ Record R (data : sig_data N (fun ix : 'I_N => (sims ix).(core_data)))
   ; frame_mmr1: mem_respects_readonly my_ge m1
   ; frame_mmr2: mem_respects_readonly my_ge m2
 
-
     (* typing conditions *)
   ; R_tys1  : tys_agree (callStack s1)
   ; R_tys2  : tys_agree (callStack s2)

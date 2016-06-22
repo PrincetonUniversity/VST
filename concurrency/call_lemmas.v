@@ -8,7 +8,7 @@ Require Import Axioms. (*for proof_irr*)
 
 (* sepcomp imports *)
 
-Require Import sepcomp. Import SepComp. 
+Require Import concurrency.sepcomp. Import SepComp. 
 Require Import arguments.
 
 Require Import pos.
@@ -36,13 +36,15 @@ Require Import Memory.
 
 (* ssreflect *)
 
-Require Import ssreflect ssrbool ssrfun seq eqtype fintype.
+From mathcomp.ssreflect Require Import ssreflect ssrbool ssrnat ssrfun seq fintype.
 Set Implicit Arguments.
-Unset Strict Implicit.
-Unset Printing Implicit Defensive.
 
 Require Import Values.   
 Require Import nucular_semantics.
+
+Require Import Values.   
+Require Import sepcomp.nucular_semantics.
+Require Import sepcomp.wholeprog_simulations.
 
 Import Wholeprog_sim.
 Import SM_simulation.
@@ -51,7 +53,7 @@ Import Modsem.
 Import CallStack.
 
 Require Import compcert_imports. Import CompcertLibraries.
-Require Import mem_welldefined.
+Require Import sepcomp.mem_wd.
 
 Section call_lems.
 
@@ -103,10 +105,13 @@ have atext1':
     (Core.c (peekCore st1)) =
   Some (ef,sig,args1) by rewrite /RC.at_external.
 move=> hd_match _.
+
+Arguments core_at_external [_ _ _ _ _ _ _ _ _ _] _ [_ _ _] _ _ _ _ _ _ _ _.
+
 case: (core_at_external (sims (Core.i (c inv))) 
       _ _ _ _ _ _ hd_match atext1').
 move=> inj []mmr1 []mrr2 []args2 []valinj []atext2 extends; exists args2.
-set T := C \o cores_T.
+set (T := C \o cores_T).
 rewrite /LinkerSem.at_external0.
 set P := fun ix (x : T ix) => 
             at_external (sem (cores_T ix)) x
@@ -118,11 +123,11 @@ have X: (P (Core.i (c inv)) (my_cast_sym pf (Core.c (d inv)))).
             (my_cast_sym pf (Core.c (d inv))) =
            at_external (sem (cores_T (Core.i (d inv))))
             (Core.c (d inv)). 
-  { set T' := C \o cores_T.
-    set P' := fun ix (x : T' ix) => 
+  { set (T' := C \o cores_T).
+    set (P' := fun ix (x : T' ix) => 
                  at_external (sem (cores_T ix)) x
                  = at_external (sem (cores_T (Core.i (d inv))))
-                     (Core.c (d inv)).
+                     (Core.c (d inv))).
     change (P' (Core.i (c inv)) 
                (cast T' (sym_eq pf) (Core.c (d inv)))).
     by apply: cast_indnatdep. }
@@ -160,10 +165,10 @@ have atext2':
   at_external (sem (cores_T (Core.i (c inv)))) 
               (my_cast_sym pf (Core.c (d inv)))
   = Some (ef,sig,args2).
- { set T := C \o cores_T.
-   set P := fun ix (x : T ix) => 
+ { set (T := C \o cores_T).
+   set (P := fun ix (x : T ix) => 
               at_external (sem (cores_T ix)) x
-              = Some (ef, sig, args2).
+              = Some (ef, sig, args2)).
    have: (P (Core.i (d inv)) (Core.c (d inv)))
      by rewrite /LinkerSem.at_external0.
    by apply: cast_indnatdep. }
@@ -172,10 +177,10 @@ have atext2'':
   at_external (sem (cores_T (Core.i (c inv))))
               (my_cast_sym pf (Core.c (d inv)))
   = Some (ef,sig,args2).
- { set T := C \o cores_T.
-   set P := fun ix (x : T ix) => 
+ { set (T := C \o cores_T).
+   set (P := fun ix (x : T ix) => 
               at_external (sem (cores_T ix)) x
-              = Some (ef, sig, args2).
+              = Some (ef, sig, args2)).
    have: (P (Core.i (d inv)) (Core.c (d inv)))
      by rewrite /LinkerSem.at_external0.
    by apply: cast_indnatdep. }
@@ -205,9 +210,9 @@ have my_atext2:
     at_external (sem (cores_T (Core.i (d inv)))) (Core.c (d inv)) 
   = Some (ef,sig,args2).
 { move: atext2'. 
-  set T := C \o cores_T.
-  set P := fun (ix : 'I_N) (c : T ix) => 
-    at_external (sem (cores_T ix)) c = Some (ef,sig,args2).
+  set (T := C \o cores_T).
+  set (P := fun (ix : 'I_N) (c : T ix) => 
+    at_external (sem (cores_T ix)) c = Some (ef,sig,args2)).
   change (P (Core.i (c inv)) (cast T (sym_eq pf) (Core.c (d inv)))
        -> P (Core.i (d inv)) (Core.c (d inv))).
   by apply: cast_indnatdep'. }
@@ -231,6 +236,8 @@ have frgnT_sub_domT: {subset frgnT <= domT}.
   apply: (REACH_mono (fun b : block =>
     isGlobalBlock (ge (cores_T (Core.i c1))) b || getBlocks args2 b))=> //.
   move=> b0; case/orP=> H3.
+  Arguments isGlob_iffS [_ _ _] _ _ _.  
+  Arguments isGlob_iffT [_ _ _] _ _ _.
   move: (H3); rewrite -(isGlob_iffT my_ge_T)=> H3'.
   move: (head_globs my_ge_S hdinv); move/(_ b0 H3')=> H4.
   have J: extern_of mu_top b0 = Some (b0,0).
@@ -266,12 +273,16 @@ have globs_frgnS:
   forall b,
   isGlobalBlock (ge (cores_S (Core.i c1))) b ->
   frgnBlocksSrc mu_top b.
-{ move=> b H; case: (match_genv (head_match hdinv))=> _; move/(_ b); apply.  
+Arguments match_genv [_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _] _.
+{ move=> b H; case: (match_genv (head_match hdinv))=> _; move/(_ b); apply.
+  Arguments initCore_ix [_ _ _ _ _ _ _] _.
   move: H; rewrite -(initCore_ix init1).
   have eq: genvs_domain_eq (ge (cores_S ix)) (ge (cores_S (Core.i (c inv)))).
     apply genvs_domain_eq_trans with (ge2 := my_ge)=> //.
     by apply: (genvs_domain_eq_sym _ _ (my_ge_S ix)).
   by rewrite /= (genvs_domain_eq_isGlobal _ _ eq). }
+
+Require Import sepcomp.effect_properties.
 
 have presglobs: meminj_preserves_globals (ge (cores_S (Core.i c1))) j.
 { move: (head_presglobs my_ge_S hdinv).
@@ -296,6 +307,7 @@ have globs_frgnT:
   have eq: b=b'. 
   { case: (match_genv (head_match hdinv))=> [][]J []K L _.
     have H': isGlobalBlock (ge (cores_S (Core.i (c inv)))) b.
+    (* HERE *)
     { by rewrite (isGlob_iffST' my_ge_S); eauto. }
     move: H'; rewrite /isGlobalBlock /=.
     case e1: (Genv.invert_symbol _ _)=> //=.
