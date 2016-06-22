@@ -66,7 +66,7 @@ Definition cm_state := (Mem.mem * Clight.genv * (schedule * Machine.t))%type.
 
 (*! Coherence between locks in dry/wet memories and lock pool *)
 
-Definition islock_pred R r := exists sh sh' z, r = YES sh sh' (LK z) (SomeP ((unit:Type)::nil) (fun _ => R)).
+Definition islock_pred R r := exists sh sh' z, r = YES sh sh' (LK z) (SomeP nil (fun _ => R)).
 
 Lemma islock_pred_join_sub {r1 r2 R} : join_sub r1 r2 -> islock_pred R r1  -> islock_pred R r2.
 Proof.
@@ -134,52 +134,40 @@ Proof.
   - unfold JM.personal_mem in *. simpl. auto.
 Qed.
 
-(*
-(*! Safety of each thread *)
+(*! Invariant (= above properties + safety + uniqueness of Krun) *)
 
-Definition threads_safety {Z} (Jspec : juicy_ext_spec Z) ge (tp : JM.ThreadPool.t) (m : mem) (all_juice : rmap) n := 
-  forall i cnti phi jmi (ora : Z),
-    @Machine.getThreadR i tp cnti = phi ->
-    m_dry jmi = m ->
-    m_phi jmi = phi ->
-    match @Machine.getThreadC i tp cnti with
-    | Krun q => semax.jsafeN Jspec ge n ora q jmi
+Definition threads_safety {Z} (Jspec : juicy_ext_spec Z) m ge tp PHI (mcompat : mem_compatible_rmap tp m PHI) n :=
+  forall i (cnti : Machine.containsThread tp i) (ora : Z),
+    match Machine.getThreadC cnti with
+    | Krun q
     | Kblocked q
-    | Kresume q _ => semax.jsafeN Jspec ge n ora q jmi /\ cl_at_external q <> None
+    | Kresume q _ => semax.jsafeN Jspec ge n ora q (jm_ cnti mcompat)
     | Kinit _ _ => Logic.True
     end.
-*)
-(*! Invariant (= above properties + safety + uniqueness of Krun) *)
+
+Definition threads_wellformed tp :=
+  forall i (cnti : Machine.containsThread tp i),
+    match Machine.getThreadC cnti with
+    | Krun q => Logic.True
+    | Kblocked q => cl_at_external q <> None
+    | Kresume q v => cl_at_external q <> None /\ v = Vundef
+    | Kinit _ _ => Logic.True
+    end.
+
+Definition threads_unique_Krun tp sch :=
+  (lt 1 tp.(Machine.num_threads).(pos.n) -> forall i cnti q (ora : Z),
+      @Machine.getThreadC i tp cnti = Krun q ->
+      exists sch', sch = i :: sch').
 
 Inductive state_invariant {Z} (Jspec : juicy_ext_spec Z) (n : nat) : cm_state -> Prop :=
   | state_invariant_c
       (m : mem) (ge : genv) (sch : schedule) (tp : Machine.t) (PHI : rmap)
       (mcompat : mem_compatible_rmap tp m PHI)
       (lock_coh : lock_coherence tp.(Machine.lset) PHI m)
-      (safety :
-         forall i (cnti : Machine.containsThread tp i) (ora : Z),
-           match Machine.getThreadC cnti with
-           | Krun q
-           | Kblocked q
-           | Kresume q _ => semax.jsafeN Jspec ge n ora q (jm_ cnti mcompat)
-           | Kinit _ _ => Logic.True
-           end
-      )
-      (wellformed :
-         forall i (cnti : Machine.containsThread tp i),
-           match Machine.getThreadC cnti with
-           | Krun q => Logic.True
-           | Kblocked q => cl_at_external q <> None
-           | Kresume q v => cl_at_external q <> None /\ v = Vundef
-           | Kinit _ _ => Logic.True
-           end
-      )
-      (uniqueness_Krun :
-         (lt 1 tp.(Machine.num_threads).(pos.n) -> forall i cnti q (ora : Z),
-             @Machine.getThreadC i tp cnti = Krun q ->
-             exists sch', sch = i :: sch'))
-    :
-      state_invariant Jspec n (m, ge, (sch, tp)).
+      (safety : threads_safety Jspec m ge tp PHI mcompat n)
+      (wellformed : threads_wellformed tp)
+      (uniqkrun :  threads_unique_Krun tp sch)
+    : state_invariant Jspec n (m, ge, (sch, tp)).
 
 (*! Initial machine *)
 
@@ -303,13 +291,11 @@ Section Initial_State.
         - reflexivity.
         - unfold jm_.
           symmetry.
-          admit.
-          (* apply personal_mem_of_same_jm. *)
-          (* rewrite personal_mem_unique_dry; [ | now auto]. *)
-          (* unfold jm. *)
-          (* destruct spr as (b' & q' & Hb & JS); simpl proj1_sig in *; simpl proj2_sig in *. *)
-          (* destruct (JS n) as (jm' & jmm & lev & S & notlock); simpl projT1 in *; simpl projT2 in *. *)
-          (* now auto. *)
+          unfold jm.
+          destruct spr as (b' & q' & Hb & JS); simpl proj1_sig in *; simpl proj2_sig in *.
+          destruct (JS n) as (jm' & jmm & lev & S & notlock); simpl projT1 in *; simpl projT2 in *.
+          subst m.
+          rewrite personal_mem_of_same_jm; eauto.
       }
       subst jm. rewrite <-Ejm.
       simpl in Ec. replace c with q in * by congruence.
@@ -353,49 +339,71 @@ Section Simulation.
         (m, ge, (sch, jstate))
         (m', ge, (sch', jstate')).
   
-  (*
-  Inductive state_step : cm_state -> cm_state -> Prop :=
-  | state_step_empty_sched ge m jstate :
-      state_step
-        (m, ge, (nil, jstate))
-        (m, ge, (nil, jstate))
-  
-  | state_step_bad_sched ge m i sch jstate :
-      ~ Machine.containsThread jstate i ->
-      state_step
-        (m, ge, (i :: sch, jstate))
-        (m, ge, (i :: sch, jstate))
-  
-  | state_step_internal
-      ge m m' i sch jstate jstate'
-      (contains_thread_i : Machine.containsThread jstate i)
-      (mem_compat : JuicyMachineShell_ClightSEM.mem_compatible jstate m) :
-      @JuicyMachineShell_ClightSEM.juicy_step
-        ge i
-        jstate m
-        contains_thread_i
-        mem_compat
-        jstate' m' ->
-      state_step
-        (m, ge, (i :: sch, jstate))
-        (m', ge, (i :: sch, jstate'))
-  
-  | state_step_concurrent
-      ge m m' i sch jstate jstate'
-      (contains_thread_i : Machine.containsThread jstate i)
-      (mem_compat : JuicyMachineShell_ClightSEM.mem_compatible jstate m) :
-      @JuicyMachineShell_ClightSEM.syncStep'
-        ge i
-        jstate m
-        contains_thread_i
-        mem_compat
-        jstate' m' ->
-      state_step
-        (m, ge, (sch, jstate))
-        (m', ge, (i :: sch, jstate'))
-  .
-   *)  
+  Lemma invariant_thread_step
+        {Z} (Jspec : juicy_ext_spec Z)
+        n m ge i sch tp Phi ci ci' jmi'
+        (compat : mem_compatible_rmap tp m Phi)
+        (lock_coh : lock_coherence (Machine.lset tp) Phi m)
+        (safety : threads_safety Jspec' m ge tp Phi compat (S n))
+        (wellformed : threads_wellformed tp)
+        (unique : threads_unique_Krun tp (i :: sch))
+        (cnti : Machine.containsThread tp i)
+        (stepi : corestep (juicy_core_sem cl_core_sem) ge ci (JM.personal_mem cnti (mem_compatible_forget compat)) ci' jmi')
+        (safei' : forall ora : OK_ty, jsafeN Jspec' ge n ora ci' jmi')
+        (Eci : Machine.getThreadC cnti = Krun ci)
+        (tp' := Machine.updThread cnti (Krun ci') (m_phi jmi') : Machine.t)
+        (cm' := (m_dry jmi', ge, (i :: sch, tp')) : mem * genv * (list NatTID.tid * Machine.t)) :
+    state_invariant Jspec n cm'.
+  Proof.
+    destruct stepi as [stepi decay].
+    destruct compat as [juice_join all_cohere loc_writable loc_set_ok].
+    
+(* getting the new global phi by replacing jmi with jmi' : possible
+because resource_decay says the only new things are above nextblock.
 
+One should update all other threadR too? Just aging?
+
+lock_coherence : ok, but there is work to do: because locks are
+unchanged (no write permission) and no new lock have been allocated
+(hmm) nor freed.
+
+safety: current thread: we have its safety already, but we want to
+know it's the safety after taking the personal_mem.  We also have to
+prove that the other threads are safe with their new, aged, rmap.
+
+wellformed: ok
+
+unique: ok *)
+                                                                     
+    (* inversion juice_join as [tp0 PhiT PhiL r JT JL J H2 H3]; subst; clear juice_join. *)
+  (*
+    destruct mem_compat_step as [Phi' compat'].
+    apply state_invariant_c with (PHI := Phi') (mcompat := compat').
+    + (* lock coherence: own rmap has changed, not clear how to prove it did not affect locks *)
+      (* (kind of hard) see how new PHI is built *)
+      admit.
+    + (* safety *)
+      intros i0 cnti0 ora.
+      destruct (eq_dec i i0).
+      * (* for this threadshould be ok, if (jm_ of new Phi) is indeed jm_i' *)
+        admit.
+      * (* for other threads: prove that their new personal_mem (with the new Phi'/m') still make them safe *)
+        admit.
+    + (* wellformedness *)
+      intros i0 cnti0.
+      destruct (eq_dec i i0) as [ <- | ii0].
+      * unfold tp'.
+        rewrite Machine.gssThreadCode.
+        constructor.
+      * unfold tp'. 
+        rewrite (@Machine.gsoThreadCode _ _ tp ii0 cnti cnti0).
+        apply wellformed.
+    + (* uniqueness *)
+      intros notalone i0 cnti0' q ora Eci0.
+      admit (* more important things first *).
+   *)
+  Admitted.
+  
   Lemma state_invariant_step n :
     forall state,
       state_invariant Jspec' (S n) state ->
@@ -525,37 +533,7 @@ Section Simulation.
           + reflexivity.
         
         - (* build the new PHI: the new jm_i' + the other things? *)
-          (* use a program definition to generate this rmap, then prove things about it *)
-          assert (mem_compat_step : {Phi' | mem_compatible_rmap tp' (m_dry jmi') Phi'}). {
-            (* we probably need to assert a bunch of other things. *)
-            clear -i tp Phi compat ge cnti ci ci' jmi' stepi cm'.
-            admit.
-          }
-          destruct stepi as [stepi decay].
-          destruct mem_compat_step as [Phi' compat'].
-          apply state_invariant_c with (PHI := Phi') (mcompat := compat').
-          + (* lock coherence: own rmap has changed, not clear how to prove it did not affect locks *)
-            (* (kind of hard) see how new PHI is built *)
-            admit.
-          + (* safety *)
-            intros i0 cnti0 ora.
-            destruct (eq_dec i i0).
-            * (* for this threadshould be ok, if (jm_ of new Phi) is indeed jm_i' *)
-              admit.
-            * (* for other threads: prove that their new personal_mem (with the new Phi'/m') still make them safe *)
-              admit.
-          + (* wellformedness *)
-            intros i0 cnti0.
-            destruct (eq_dec i i0) as [ <- | ii0].
-            * unfold tp'.
-              rewrite Machine.gssThreadCode.
-              constructor.
-            * unfold tp'. 
-              rewrite (@Machine.gsoThreadCode _ _ tp ii0 cnti cnti0).
-              apply wellformed.
-          + (* uniqueness *)
-            intros notalone i0 cnti0' q ora Eci0.
-            admit (* more important things first *).
+          eapply invariant_thread_step; subst; eauto.
       }
       (* end of internal step *)
       
@@ -775,7 +753,6 @@ Section Simulation.
           unfold canon.SEPx in PREC.
           simpl in PREC.
           rewrite seplog.sepcon_emp in PREC.
-          replace semax_conc.lock_inv with lock_inv in *.
           unfold lock_inv in PREC.
           destruct PREC as (b & ofs & Evx & lk).
           exists b, ofs. split. now apply Evx.
@@ -795,14 +772,7 @@ Section Simulation.
           rewrite lk.
           do 3 eexists.
           unfold compose.
-          assert
-            (
-              SomeP nil (fun _ : unit => approx (level phi0) (Interp Rx)) =
-              SomeP nil (fun _ : veric.rmaps.listprod nil => approx (level phi0) (Interp Rx))
-            ).
           reflexivity.
-          admit.
-          admit.
         }
         
         assert (SUB : join_sub phi0 Phi). {
@@ -860,7 +830,7 @@ Section Simulation.
           apply inj_pair2 in Epr.
           assert (R0 = R). {
             assert (feq: forall A B (f g : A -> B), f = g -> forall x, f x = g x) by congruence.
-            apply (feq _ _ _ _ Epr (tt, tt)).
+            apply (feq _ _ _ _ Epr tt).
           }
           subst R0; clear Epr.
           exists (m, ge, (sch, tp)); split.

@@ -486,7 +486,7 @@ Module Concur.
             (Hm': m_dry jm' = m'),
             juicy_step genv cnt Hcompatible tp' m'.
 
-    Definition pack_res_inv R:= SomeP ([unit:Type])  (fun _ => R) .
+    Definition pack_res_inv R:= SomeP nil  (fun _ => R) .
 
     Notation Kblocked := (concurrent_machine.Kblocked).
     Inductive syncStep' genv {tid0 tp m}
