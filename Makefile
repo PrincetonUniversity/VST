@@ -106,6 +106,7 @@ UPDATE_SEPCOMP_FILES = \
   closed_safety.v compcert.v \
   val_casted.v \
   reach.v \
+  internal_diagram_trans.v \
   wholeprog_simulations.v \
   wholeprog_lemmas.v
 
