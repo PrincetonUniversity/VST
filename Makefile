@@ -119,7 +119,7 @@ SEPCOMP_FILES= \
   compiler_correctness.v \
   core_semantics.v core_semantics_lemmas.v CoopCoreSem.v \
   globalSep.v simulations.v \
-  simulations_lemmas.v \
+  simulations_lemmas.v full_composition.v \
   structured_injections.v \
   effect_semantics.v effect_simulations.v effect_simulations_lemmas.v \
   rg_lemmas.v \
