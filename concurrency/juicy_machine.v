@@ -773,8 +773,8 @@ Module Concur.
         js m i (cnt:containsThread js i)
         (c : mem_compatible js m) :
         m_phi (personal_mem cnt c) = ThreadPool.getThreadR cnt.
-        (* pointwise is enough *)
-      Admitted.
+         reflexivity.
+      Qed.
       
     End JuicyMachineLemmas.
       

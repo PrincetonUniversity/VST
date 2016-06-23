@@ -144,6 +144,13 @@ Module Concur.
            (Htp': tp' = updThread cnt (Krun c') (getCurPerm m')),
            dry_step genv cnt Hcompatible tp' m'.
 
+     Definition option_function {A B} (opt_f: option (A -> B)) (x:A): option B:=
+       match opt_f with
+         Some f => Some (f x)
+       | None => None
+       end.
+     Infix "??" := option_function (at level 80, right associativity).
+     
      (*missing lock-ranges*)
      Inductive ext_step (genv:G) {tid0 tp m} (*Can we remove genv from here?*)
                (cnt0:containsThread tp tid0)(Hcompat:mem_compatible tp m):
@@ -233,7 +240,19 @@ Module Concur.
            (Hcode: getThreadC cnt0 = Kblocked c)
            (Hat_external: at_external Sem c =
                           Some (FREE_LOCK, ef_sig FREE_LOCK, Vptr b ofs::nil))
-           (Hset_perm: setPermBlock virtue b (Int.intval ofs) (getThreadR cnt0) LKSIZE_nat = pmap')
+           (*(Hangel_spec1: forall b0, b0 <> b -> virtue ! b0 = None) 
+           (Hangel_spec2: forall ofs0, ~ Intv.In (ofs0 - Int.intval ofs) (0%Z, LKSIZE) ->
+                                  ((virtue ! b) ?? ofs0) = None)
+           (Hangel_spec3: forall ofs0, Intv.In (ofs0 - Int.intval ofs) (0%Z, LKSIZE) ->
+                                  ((virtue ! b) ?? ofs0) = Some (Some (Some Writable)) \/
+                                  (virtue ! b ?? ofs0) = Some (Some (Some Freeable)))*)
+           (Hangel: angelSpec (lockSet tp) (getThreadR cnt0)
+                              (lockSet (remLockSet tp (b, Int.intval ofs)))
+                              (computeMap (getThreadR cnt0) virtue ))
+           (Hset_perm: (computeMap (getThreadR cnt0) virtue) = pmap')
+           (*Hset_perm: setPermBlock virtue b (Int.intval ofs) 
+            (getThreadR cnt0) LKSIZE_nat = pmap') (* This should be computemap + specs*) *)
+           
            (Htp': tp' = updThread cnt0 (Kresume c Vundef) pmap')
            (Htp'': tp'' = remLockSet tp' (b,(Int.intval ofs)))
            (Hmem_no_change: m = m'),
