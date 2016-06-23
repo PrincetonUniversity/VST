@@ -36,7 +36,7 @@ Require Import Memory.
 
 (* ssreflect *)
 
-From mathcomp.ssreflect Require Import ssreflect ssrbool ssrnat ssrfun seq fintype.
+From mathcomp.ssreflect Require Import ssreflect ssrbool ssrnat ssrfun seq eqtype fintype.
 Set Implicit Arguments.
 
 Require Import Values.   
@@ -307,7 +307,7 @@ have globs_frgnT:
   have eq: b=b'. 
   { case: (match_genv (head_match hdinv))=> [][]J []K L _.
     have H': isGlobalBlock (ge (cores_S (Core.i (c inv)))) b.
-    (* HERE *)
+    Arguments isGlob_iffST' [_ _ _ _] _ _ _ _ _.
     { by rewrite (isGlob_iffST' my_ge_S); eauto. }
     move: H'; rewrite /isGlobalBlock /=.
     case e1: (Genv.invert_symbol _ _)=> //=.
@@ -322,6 +322,7 @@ have globs_frgnT:
 have vinj': Forall2 (val_inject (as_inj mu_top)) args1 args2. 
 { by apply: (forall_vals_inject_restrictD _ _ _ _ vinj). }
 
+Arguments match_validblocks [_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _] _ _.
 have domS_valid:
   forall b, domS b -> Mem.valid_block m1 b.
 { by move: (match_validblocks _ (head_match hdinv)); case=> H I; apply: H. }
@@ -330,6 +331,8 @@ have domT_valid:
   forall b, domT b -> Mem.valid_block m2 b.
 { by move: (match_validblocks _ (head_match hdinv)); case=> H I; apply: I. }
 
+Arguments core_data [_ _ _ _ _ _ _ _ _ _] _.
+Arguments match_state [F1 V1 C1 F2 V2 C2 Sem1 Sem2 ge1 ge2] _ _ _ _ _ _ _.
 have [cd_new [c2 [pf_new [init2 mtch12]]]]:
   exists (cd_new : core_data (sims (Core.i c1))) 
          (c2 : Core.t cores_T)
@@ -348,15 +351,16 @@ have [cd_new [c2 [pf_new [init2 mtch12]]]]:
   by apply: (genvs_domain_eq_globalptr_inject (my_ge_S c1_i) genvs). 
   by apply: (R_ro1 inv). 
   by apply: (R_ro2 inv).
-(*  by case: inv=> ????????? Ro1 Ro2 _ _ _ _; apply: Ro1.
-  by case: inv=> ????????? Ro1 Ro2 _ _; apply: Ro2.*)
   move=> cd' []c2' []init2 mtch_init12.
   exists cd',(Core.mk N cores_T c1_i c2' (ef_sig ef)),erefl.
   move: init2=> /= ->; split=> //=.
   rewrite cast_ty_erefl; move: X; case=> X.
   move: (EqdepFacts.eq_sigT_snd X)=> /= <-. intros. 
   rewrite -Eqdep_dec.eq_rect_eq_dec; first by apply: mtch_init12.
-  move=> m n; case e: (m == n); first by left; move: (eqP e).
+  move=> m n.
+  From mathcomp.ssreflect Require Import eqtype.
+  case e: (m == n).
+  by left; move: (eqP e).
   right=> Contra; rewrite Contra in e. 
   by rewrite eq_refl in e. }
 
@@ -413,10 +417,13 @@ set mu_pkg := Inj.mk mu_pkg_wd.
 have valid': sm_valid mu_pkg m1 m2. 
 { by apply match_validblocks in mtch_pkg. }
 
+Arguments Build_frame_pkg [_ _ _] _.
 set pkg := Build_frame_pkg valid'.
 
 have mu_pkg_as_inj: as_inj mu_pkg = as_inj mu_top.
 { by rewrite /mu_pkg /= replace_locals_as_inj. }
+
+Arguments head_inv [_ _ _] _ _ [_] _ [_ _] _ _ _ _ _ _.
 
 have pkg_hdinv: 
   head_inv rclosed_S nucular_T my_ge pf
@@ -535,6 +542,8 @@ subst q=> -> eq; have ->: eq = erefl (Core.i c1) by apply: proof_irr.
 rewrite cast_ty_erefl=> pf_new'.
 by have ->: pf_new' = pf_new by apply: proof_irr.
 
+Arguments blocks_in_vis [_ _ _] _ _ _.
+
 have valid'': sm_valid pkg m1 m2 by apply: valid'.
 have vinj'': 
   Forall2 (val_inject (restrict (as_inj pkg) (vis pkg))) args1 args2.
@@ -545,6 +554,9 @@ have vinj'':
   by rewrite replace_locals_frgnBlocksSrc; right. }
 have inj': Mem.inject (as_inj pkg) m1 m2.
 { by rewrite mu_pkg_as_inj. }
+
+Arguments head_tail_inv [_ _ _ _ _ _ _ _ _ _ _ _] _ [_ _] _ [_ _ _ _ _ _ _] _ _ _ _ _ _.
+
 move: (head_tail_inv tlinv pf_sig valid'' atext1' atext2' inj' vinj'' pkg_hdinv).
 rewrite /s1 /s2 st1'_eq /st2' /pkg /= => tlinv'. 
 by rewrite st1_eq st2_eq; apply: tlinv'.
