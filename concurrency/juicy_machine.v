@@ -214,16 +214,16 @@ Module Concur.
       forall loc sh psh P z, juice @ loc = YES sh psh (LK z) P  ->
                     Mem.perm_order'' (perm_of_res (juice @ loc)) (Some Writable).
     
-    Record mem_compatible' tp m: Prop :=
-      {   all_juice  : res
-        ; juice_join : join_all tp all_juice
+    Record mem_compatible_with' tp m all_juice : Prop :=
+      {   juice_join : join_all tp all_juice
         ; all_cohere : mem_cohere' m all_juice
         ; loc_writable : locks_writable all_juice
         ; loc_set_ok : locks_correct (lockGuts tp) all_juice
       }.
 
-    Definition mem_compatible: thread_pool -> mem -> Prop:=
-      mem_compatible'.
+    Definition mem_compatible_with := mem_compatible_with'.
+    
+    Definition mem_compatible tp m := ex (mem_compatible_with tp m).
 
     Lemma compat_lockLT: forall js m,
              mem_compatible js m ->
@@ -242,7 +242,7 @@ Module Concur.
     Lemma mem_compatible_locks_ltwritable:
       forall tp m, mem_compatible tp m ->
               permMapLt (lockSet tp) (getMaxPerm m ).
-    Proof. intros. inversion H. inversion all_cohere.
+    Proof. intros. inversion H as [all_juice M]; inversion M. inversion all_cohere0.
            destruct tp.
            unfold lockSet; simpl in *.
            eapply mem_compatible_locks_ltwritable'; eassumption.
@@ -299,7 +299,7 @@ Module Concur.
     Lemma disjoint_threads_compat: forall tp m
         (mc: mem_compatible tp m),
         disjoint_threads tp.
-    Proof. intros ? ? mc ; inversion mc.
+    Proof. intros ? ? mc ; inversion mc as [all_juice M]; inversion M.
            eapply disjoint_threads_compat'; eassumption.
     Qed.
     Lemma disjoint_locks_compat:  forall tp m
@@ -750,9 +750,9 @@ Module Concur.
           mem_cohere' m phi .
       Proof.         
         intros.
-        inversion H0.
-        apply (compatible_lockRes_sub _ H ) in juice_join.
-        apply (mem_cohere_sub all_cohere) in juice_join .
+        inversion H0 as [all_juice M]; inversion M.
+        apply (compatible_lockRes_sub _ H ) in juice_join0.
+        apply (mem_cohere_sub all_cohere0) in juice_join0.
         assumption.
       Qed.
 
@@ -762,7 +762,7 @@ Module Concur.
           mem_cohere' m (ThreadPool.getThreadR cnt) .
       Proof.
         intros.
-        inversion H.
+        inversion H as [all_juice M]; inversion M.
         eapply mem_cohere_sub.
         - eassumption.
         - apply compatible_threadRes_sub. assumption.
