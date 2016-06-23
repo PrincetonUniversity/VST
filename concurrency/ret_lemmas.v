@@ -8,25 +8,25 @@ Require Import Axioms. (*for proof_irr*)
 
 (* sepcomp imports *)
 
-Require Import sepcomp. Import SepComp. 
-Require Import arguments.
+Require Import concurrency.sepcomp. Import SepComp. 
+Require Import sepcomp.arguments.
 
-Require Import pos.
-Require Import stack.
-Require Import cast.
-Require Import pred_lemmas.
-Require Import seq_lemmas.
-Require Import wf_lemmas.
-Require Import reestablish.
-Require Import inj_lemmas.
-Require Import join_sm.
-Require Import reach_lemmas.
-Require Import compcert_linking.
-Require Import compcert_linking_lemmas.
-Require Import disjointness.
-Require Import rc_semantics.
-Require Import rc_semantics_lemmas.
-Require Import linking_inv.
+Require Import concurrency.pos.
+Require Import concurrency.stack.
+Require Import concurrency.cast.
+Require Import concurrency.pred_lemmas.
+Require Import concurrency.seq_lemmas.
+Require Import concurrency.wf_lemmas.
+Require Import concurrency.reestablish.
+Require Import concurrency.inj_lemmas.
+Require Import concurrency.join_sm.
+Require Import concurrency.reach_lemmas.
+Require Import concurrency.compcert_linking.
+Require Import concurrency.compcert_linking_lemmas.
+Require Import concurrency.disjointness.
+Require Import concurrency.rc_semantics.
+Require Import concurrency.rc_semantics_lemmas.
+Require Import concurrency.linking_inv.
 
 (* compcert imports *)
 
@@ -36,18 +36,17 @@ Require Import Memory.
 
 (* ssreflect *)
 
-Require Import ssreflect ssrbool ssrfun seq eqtype fintype.
+From mathcomp.ssreflect Require Import ssreflect ssrbool ssrfun seq eqtype fintype.
 Set Implicit Arguments.
-Unset Strict Implicit.
-Unset Printing Implicit Defensive.
 
 Require Import Values.   
-Require Import nucular_semantics.
+Require Import sepcomp.nucular_semantics.
 
 (* This file proves the main linking simulation result (see               *)
 (* linking/linking_spec.v for the specification of the theorem that's     *)
 (* proved).                                                               *)
 
+Require Import sepcomp.wholeprog_simulations.
 Import Wholeprog_sim.
 Import SM_simulation.
 Import Linker. 
@@ -107,12 +106,13 @@ move: hlt1; rewrite /LinkerSem.halted0.
 case hlt10: (halted _ _)=> //[rv].
 case hasty: (val_casted.val_has_type_func _ _)=> //. 
 case=> Heq; subst rv1.
+Arguments core_halted [_ _ _ _ _ _ _ _ _ _] _ [_ _ _ _ _ _ _] _ _.
 case: (core_halted (sims (Core.i (peekCore st1)))
-       _ _ _ _ _ _ (head_match hdinv) hlt10)
+       (head_match hdinv) hlt10)
        => rv2 []inj12 []mmr1 []mmr2 []vinj hlt2.
 exists rv2.
-set T := C \o cores_T.
-set P := fun sg ix (x : T ix) => 
+set (T := C \o cores_T).
+set (P := fun sg ix (x : T ix) => 
   match
      halted (sem (cores_T ix)) x
   with
@@ -121,7 +121,7 @@ set P := fun sg ix (x : T ix) =>
        then Some mv
        else None
    | None => None
-   end = Some rv2.
+   end = Some rv2).
 change (P (Core.sg (peekCore st2)) 
           (Core.i (peekCore st2)) (Core.c (peekCore st2))).
 apply: (cast_indnatdep'' (j := Core.i (peekCore st1))).
@@ -153,7 +153,7 @@ exists (updStack st2
 by apply: popCoreI.
 Qed.
 
-Require Import mem_welldefined.
+Require Import sepcomp.mem_wd.
 
 Context (aft1 : LinkerSem.after_external (Some rv1) st1'' = Some st1').
 
@@ -175,7 +175,7 @@ move: (R_tys1 inv); rewrite /s1=> tys1.
 move: (R_tys2 inv); rewrite /s2=> tys2.
 
 case: (core_halted (sims (Core.i (peekCore st1)))
-       _ _ _ _ _ _ (head_match hdinv) hlt10)
+       (head_match hdinv) hlt10)
        => rv2 []inj12 []mmr1 []mmr2 []vinj hlt2.
 
 have hasty2: (val_casted.val_has_type_func rv2 (proj_sig_res (Core.sg (peekCore st2)))).
@@ -254,14 +254,15 @@ set nu := replace_locals mu0 pubSrc' pubTgt'.
 have mu0_wd: SM_wd mu0.
 { by apply: Inj_wd. }
 
-have vinj0': Forall2 (val_inject (as_inj mu0)) vals01 vals02.
+have vinj0': List.Forall2 (val_inject (as_inj mu0)) vals01 vals02.
 { by apply: (forall_vals_inject_restrictD _ _ _ _ vinj0). }
 
+Require Import sepcomp.effect_properties.
 have [nu_wd [nu_valid0 [nu_inj0 nu_vinj]]]:
   SM_wd nu
   /\ sm_valid nu m10 m20 
   /\ Mem.inject (as_inj nu) m10 m20 
-  /\ Forall2 (val_inject (as_inj nu)) vals01 vals02.
+  /\ List.Forall2 (val_inject (as_inj nu)) vals01 vals02.
 { by apply: (eff_after_check1 
   _ mu0_wd 
   _ _ mu0_val
@@ -509,9 +510,9 @@ have sgeq2: Core.sg (peekCore st2)=ef_sig e0.
   rewrite /sig_of. 
   have at02': at_external (sem (cores_T (Core.i hd2))) (Core.c hd2) =
               Some (e0, sig02, vals02). 
-  { set T := C \o cores_T.  
-    set P := fun ix (x : T ix) =>
-      at_external (sem (cores_T ix)) x = Some (e0,sig02,vals02).
+  { set (T := C \o cores_T). 
+    set (P := fun ix (x : T ix) =>
+      at_external (sem (cores_T ix)) x = Some (e0,sig02,vals02)).
     move: at02.
     change (P (Core.i hd1) (cast T (sym_eq pf0) (Core.c hd2)) 
          -> P (Core.i hd2) (Core.c hd2)).
@@ -521,6 +522,7 @@ have sgeq2: Core.sg (peekCore st2)=ef_sig e0.
 have hasty_rv2: Val.has_type rv2 (proj_sig_res (ef_sig e0)).
 { by move: hasty2; move/val_casted.val_has_type_funcP; rewrite -sgeq2. }
 
+Arguments match_state [_ _ _ _ _ _ _ _ _ _] _ _ _ _ _ _ _.
 have [hd2' [pf_eq22' [pf_sig22' [pf_eq12' [pf_sig12' [cd' [aft2' mtch12']]]]]]]:
   exists hd2' (pf_eq22' : Core.i hd2 = Core.i hd2') 
               (pf_sig22' : Core.sg hd2 = Core.sg hd2')
@@ -542,13 +544,15 @@ have [hd2' [pf_eq22' [pf_sig22' [pf_eq12' [pf_sig12' [cd' [aft2' mtch12']]]]]]]:
   assert (RDS: RDOnly_fwd m10 m1 (ReadOnlyBlocks (ge (cores_S (Core.i hd1))))).
         specialize (frame_rdoS fr0); intros RD_S. red; intros. eapply RD_S.
         unfold ReadOnlyBlocks in Hb. remember (Genv.find_var_info (ge (cores_S (Core.i hd1))) b) as d.
-       destruct d; inv Hb. assert (GV:=all_gvars_includedS  (Core.i hd1) b). rewrite <- Heqd in GV. 
+        destruct d; inversion Hb; subst.
+        assert (GV:=all_gvars_includedS  (Core.i hd1) b). rewrite <- Heqd in GV. 
         red in GV. unfold ReadOnlyBlocks. destruct (Genv.find_var_info my_ge b ); try contradiction.
        destruct GV as [? [? ?]]. rewrite H1 H2. trivial.
   assert (RDT: RDOnly_fwd m20 m2 (ReadOnlyBlocks (ge (cores_T (Core.i hd1))))).
         specialize (frame_rdoT fr0); intros RD_T. red; intros. eapply RD_T.
         unfold ReadOnlyBlocks in Hb. remember (Genv.find_var_info (ge (cores_T (Core.i hd1))) b) as d.
-       destruct d; inv Hb. assert (GV:=all_gvars_includedT  (Core.i hd1) b). rewrite <- Heqd in GV. 
+        destruct d; inversion Hb; subst.
+        assert (GV:=all_gvars_includedT  (Core.i hd1) b). rewrite <- Heqd in GV. 
         red in GV. unfold ReadOnlyBlocks. destruct (Genv.find_var_info my_ge b ); try contradiction.
        destruct GV as [? [? ?]]. rewrite H1 H2. trivial.
 
@@ -576,12 +580,13 @@ have [hd2' [pf_eq22' [pf_sig22' [pf_eq12' [pf_sig12' [cd' [aft2' mtch12']]]]]]]:
   exists (sym_eq pf_sig0).
   exists (sym_eq e1)=> /=.
   exists (sym_eq esig).
+Arguments core_data [_ _ _ _ _ _ _ _ _ _] _.  
   exists (cast (fun ix => core_data (sims ix)) e1 cd'); split=> //.
   
   move: aft2''.
-  set T := C \o cores_T.  
-  set P := fun ix (x : T ix) (y : T ix) => 
-    after_external (sem (cores_T ix)) (Some rv2) x = Some y.
+  set (T := C \o cores_T).  
+  set (P := fun ix (x : T ix) (y : T ix) => 
+    after_external (sem (cores_T ix)) (Some rv2) x = Some y).
   change (P (Core.i hd1) (cast T (sym_eq pf0) (Core.c hd2)) d0'
        -> P (Core.i hd2) (Core.c hd2) (cast T (sym_eq (sym_eq pf0)) d0')).
   have ->: sym_eq (sym_eq pf0) = pf0 by apply: proof_irr.
@@ -591,8 +596,8 @@ have [hd2' [pf_eq22' [pf_sig22' [pf_eq12' [pf_sig12' [cd' [aft2' mtch12']]]]]]]:
   have ->: sym_eq (sym_eq e1) = e1 by apply: proof_irr.
   rewrite aft1' in aft1''; case: aft1''=> <-.
   set T := (fun ix => core_data (sims ix)).
-  set U := C \o cores_S.
-  set V := C \o cores_T.
+  set (U := C \o cores_S).
+  set (V := C \o cores_T).
   set P := fun ix (x : T ix) (y : U ix) (z : V ix) => 
     match_state (sims ix) x mu' y m1 z m2.
   change (P (Core.i hd1) cd' (cast U (sym_eq e1) (Core.c hd1')) d0'
@@ -610,7 +615,7 @@ split=> //.
 have hlt02': 
   (halted (sem (cores_T (Core.i (peekCore st2)))) (Core.c (peekCore st2))
    = Some rv2).
-{ set T := C \o cores_T.
+{ set (T := C \o cores_T).
   set P := fun ix (x : T ix) => 
    halted (sem (cores_T ix)) x = Some rv2.
   move: hlt2.
@@ -650,7 +655,7 @@ have mu0_mu'_inject_incr : inject_incr (as_inj mu0) (as_inj mu').
 { by apply: (eff_after_check4 mu0 pubSrc' pubTgt' nu erefl nu' nu_nu'_eincr
             mu' frgnSrc' frgnTgt' erefl nu'_wd). }
 
-have mu0_in: In (Inj.mu mu0) 
+have mu0_in: List.In (Inj.mu mu0) 
                 [seq (Inj.mu \o frame_mu0) x | x <- mus].
 { by rewrite mus_eq /=; left. }
 
@@ -802,7 +807,7 @@ have mu0_mu'_sep : sm_inject_separated mu0 mu' m10 m20.
 have mu0_mu'_sep : sm_inject_separated' mu0 mu' m10 m20.
 { ad_it. }*)
 
-exists (Inj.mk mu'_wd),(tl mus).
+exists (Inj.mk mu'_wd),(List.tl mus).
 
 move=> /=; split=> //.
 
@@ -816,14 +821,14 @@ move: (head_rel hdinv); rewrite mus_eq /= => rel.
 case: rel; case=> /= incr1 sep1 gsep1 disj1 rc rel. 
 
 have vinj'': 
- Forall2 (val_inject (restrict (as_inj mu_top) (vis mu_top))) 
+ List.Forall2 (val_inject (restrict (as_inj mu_top) (vis mu_top))) 
  [:: rv1] [:: rv2].
-{ by apply: Forall2_cons. }
+{ by apply: List.Forall2_cons. }
 
 have vinj''': 
- val_list_inject (restrict (as_inj mu_top) (vis mu_top)) 
+ Val.inject_list (restrict (as_inj mu_top) (vis mu_top)) 
  [:: rv1] [:: rv2].
-{ by apply: val_cons_inject. }
+{ eauto. }
 
 have eq: sharedSrc (reestablish nu mu_top) = sharedSrc nu.
 { rewrite !sharedSrc_iff_frgnpub=> //; extensionality b0.
@@ -1015,7 +1020,7 @@ have subF: {subset frgnBlocksSrc mu0 <= frgnSrc'}.
       || RC.roots (ge (cores_S (Core.i hd1))) 
                   (RC.mk (Core.c hd1) hd1_B) b).
   { move: eq_hd1'. 
-    set T := C \o cores_S.
+    set (T := C \o cores_S).
     set P := fun ix (x : T ix) => 
                RC.roots (ge (cores_S ix)) (RC.mk x [predU getBlocks [:: rv1] & hd1_B]) 
            = (fun b0 => 
@@ -1039,6 +1044,7 @@ have subF: {subset frgnBlocksSrc mu0 <= frgnSrc'}.
     case l: (locBlocksSrc mu0 b); first by apply/orP; left.
     rewrite /frgnSrc' /exportedSrc; apply/orP; right; apply/andP; split.
     rewrite /nu' reestablish_DomSrc /DomSrc.
+    Arguments vis_sub_DomSrc [_ _] _.
     by apply: (vis_sub_DomSrc J).
     rewrite /nu replace_locals_locBlocksSrc=> b0 M.
     case: incr1=> _ []; move/(_ b0)=> O _; apply: O.
@@ -1057,7 +1063,7 @@ have subF: {subset frgnBlocksSrc mu0 <= frgnSrc'}.
   { (* RCSem.I *)
     clear -at01 aft1' hd1_I; eapply RCSem.aftext_ax with (m' := m1) in at01; eauto.
     move: at01. 
-    set T := C \o cores_S.
+    set (T := C \o cores_S).
     set P := fun ix (x : T ix) => 
       RCSem.I (rclosed_S ix) x m1 (fun b : block => getBlocks [:: rv1] b || hd1_B b).
     change (P (Core.i hd1) (cast T (Logic.eq_sym e1) (Core.c hd1')) ->
@@ -1076,7 +1082,7 @@ have subF: {subset frgnBlocksSrc mu0 <= frgnSrc'}.
   { have nuke: Nuke_sem.I (nucular_T (Core.i (peekCore st1))) 
                (cast'' pf (Core.c (d inv))) m2. 
     { move: (head_nukeI hdinv).
-      set T := C \o cores_T.
+      set (T := C \o cores_T).
       set P := fun (ix : 'I_N) (c : T ix) => Nuke_sem.I (nucular_T ix) c m2.
       change (P (Core.i (d inv)) (Core.c (d inv))
            -> P (Core.i (peekCore st1)) (cast T (sym_eq pf) (Core.c (d inv)))).
@@ -1084,7 +1090,7 @@ have subF: {subset frgnBlocksSrc mu0 <= frgnSrc'}.
     by case: (Nuke_sem.wmd_halted nuke hlt2). }
   move: (frame_nukeI fr0)=> nukeI.
   move: (Nuke_sem.wmd_after_external nukeI aft2' rv2_val fwd2 wd2).
-  set T := C \o cores_T.
+  set (T := C \o cores_T).
   set P := fun (ix : 'I_N) (c : T ix) => Nuke_sem.I (nucular_T ix) c m2.
   change (P (Core.i hd2) (cast T (sym_eq pf_eq22') (Core.c hd2')) 
        -> P (Core.i hd2') (Core.c hd2')).

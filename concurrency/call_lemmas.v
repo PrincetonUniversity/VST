@@ -9,24 +9,24 @@ Require Import Axioms. (*for proof_irr*)
 (* sepcomp imports *)
 
 Require Import concurrency.sepcomp. Import SepComp. 
-Require Import arguments.
+Require Import sepcomp.arguments.
 
-Require Import pos.
-Require Import stack.
-Require Import cast.
-Require Import pred_lemmas.
-Require Import seq_lemmas.
-Require Import wf_lemmas.
-Require Import reestablish.
-Require Import inj_lemmas.
-Require Import join_sm.
-Require Import reach_lemmas.
-Require Import compcert_linking.
-Require Import compcert_linking_lemmas.
-Require Import disjointness.
-Require Import rc_semantics.
-Require Import rc_semantics_lemmas.
-Require Import linking_inv.
+Require Import concurrency.pos.
+Require Import concurrency.stack.
+Require Import concurrency.cast.
+Require Import concurrency.pred_lemmas.
+Require Import concurrency.seq_lemmas.
+Require Import concurrency.wf_lemmas.
+Require Import concurrency.reestablish.
+Require Import concurrency.inj_lemmas.
+Require Import concurrency.join_sm.
+Require Import concurrency.reach_lemmas.
+Require Import concurrency.compcert_linking.
+Require Import concurrency.compcert_linking_lemmas.
+Require Import concurrency.disjointness.
+Require Import concurrency.rc_semantics.
+Require Import concurrency.rc_semantics_lemmas.
+Require Import concurrency.linking_inv.
 
 (* compcert imports *)
 
@@ -40,7 +40,7 @@ From mathcomp.ssreflect Require Import ssreflect ssrbool ssrnat ssrfun seq eqtyp
 Set Implicit Arguments.
 
 Require Import Values.   
-Require Import nucular_semantics.
+Require Import sepcomp.nucular_semantics.
 
 Require Import Values.   
 Require Import sepcomp.nucular_semantics.
@@ -52,7 +52,7 @@ Import Linker.
 Import Modsem.
 Import CallStack.
 
-Require Import compcert_imports. Import CompcertLibraries.
+Require Import concurrency.compcert_imports. Import CompcertLibraries.
 Require Import sepcomp.mem_wd.
 
 Section call_lems.
