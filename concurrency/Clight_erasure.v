@@ -231,15 +231,16 @@ Module ClightParching <: ErasureSig.
         (cnt': DTP.containsThread  ds i),
         match_st js ds->
         JSEM.threadHalted cnt ->
+        DSEM.invariant ds ->
         DSEM.threadHalted cnt'.
     Proof.
       intros.
       inversion H0; subst.
       econstructor.
-      admit. (*This requires some changes to the juicy machine. *)
-      inversion H; subst. erewrite <- mtch_gtc. eassumption.
-      apply Hcant.
-    Admitted.
+      - assumption.
+      - inversion H; subst. erewrite <- mtch_gtc. eassumption.
+      - apply Hcant.
+    Qed.
     
     Lemma MTCH_updLockS:
              forall js ds loc jres dres,
@@ -567,12 +568,7 @@ Module ClightParching <: ErasureSig.
             
             rewrite (virtue_some _ _ e0).
             inversion MATCH. rewrite <- mtch_perm with (Htid:= mtch_cnt' _ cnt).
-            Lemma join_permDisjoint: forall r1 r2,
-                joins r1 r2 ->
-                permDisjoint (perm_of_res r1) (perm_of_res r2).
-            Admitted.
             apply join_permDisjoint.
-
             Lemma triple_joins_exists:
               forall (a b c ab: rmap),
                 sepalg.join a b ab ->
@@ -596,7 +592,7 @@ Module ClightParching <: ErasureSig.
             apply resource_at_joins.
             eapply triple_joins_exists.
             eassumption.
-            { eapply joins_comm. eapply compatible_threadRes_lockRes_join. (*Here*)
+            { eapply joins_comm. eapply compatible_threadRes_lockRes_join.
               eassumption.
               apply His_unlocked.
             }
@@ -668,15 +664,7 @@ Module ClightParching <: ErasureSig.
               apply Hadd_lock_res.
               inversion Hcompatible.
               eapply compatible_threadRes_lockRes_join; eassumption.
-              Lemma compatible_lockRes_join:
-                forall (js : jstate) (m : mem),
-                  JSEM.mem_compatible js m ->
-                  forall (l1 l2 : address) (phi1 phi2 : rmap),
-                    JSEM.ThreadPool.lockRes js l1 = Some (Some phi1) ->
-                    JSEM.ThreadPool.lockRes js l2 = Some (Some phi2) ->
-                    joins phi1 phi2.
-              Admitted.
-              eapply compatible_lockRes_join; eassumption.
+              eapply JSEM.compatible_lockRes_join; eassumption.
               (*smthng = None*)
               rewrite (mtch_locksEmpty _ _ H Lres).
               rewrite empty_map_spec. apply permDisjoint_comm.
@@ -921,8 +909,25 @@ Module ClightParching <: ErasureSig.
           destruct (DSEM.ThreadPool.lockRes ds (b, Int.intval ofs)) eqn: AA; try solve[inversion mtch_locks].
           exists l; assumption. }
         - intros.
-          unfold permMapsDisjoint.
-          intros.
+          apply permDisjoint_permMapsDisjoint; intros b0 ofs0.
+          rewrite <- JSEM.juic2Perm_correct.
+          + inversion MATCH.
+            { destruct (NatTID.eq_tid_dec i i0).
+              - subst i0. rewrite (DTP.gssThreadRes).
+                
+              - apply (@permDisjoint_sub ((JSEM.ThreadPool.getThreadR Hi) @ (b0, ofs0))).
+                apply (@join_join_sub' _ _ _ ((m_phi jm') @ (b0, ofs0)) ).
+                * apply resource_at_join. apply join_comm; assumption.
+                * rewrite mtch_perm. inversion dinv.
+                  apply permMapsDisjoint_permDisjoint. 
+                  unfold DSEM.race_free in  no_race.
+                  unfold ds' in cnt. rewrite (DTP.gsoThreadRes).
+                  apply no_race.
+                  assumption.
+                  assumption.
+            }
+          intros b0 ofs0.
+          
           (*rewrite <- JSEM.juic2Perm_correct.
           cut (permDisjoint (perm_of_res (d_phi @ (b0, ofs0))) ((DSEM.ThreadPool.getThreadR cnt) !! b0 ofs0)). { intros HH; destruct HH as [k HH]; exists k; assumption. }
           inversion MATCH. *)
@@ -1008,11 +1013,6 @@ Module ClightParching <: ErasureSig.
               unfold inflated_delta in e0.
               replace p with (perm_of_res (m_phi jm' @ (b0, ofs0))).
               {
-                Lemma permDisjoint_sub: forall r1 r2 p,
-                  join_sub r2 r1 ->
-                  permDisjoint (perm_of_res r1) p ->
-                  permDisjoint (perm_of_res r2) p.
-                Admitted.
                 apply (permDisjoint_sub ((JSEM.ThreadPool.getThreadR Hi) @ (b0, ofs0)) ).
                 apply resource_at_join_sub.
                 apply join_comm in Hrem_lock_res; apply (join_join_sub Hrem_lock_res).
@@ -1025,12 +1025,6 @@ Module ClightParching <: ErasureSig.
             + assumption. }
 
         { apply permDisjoint_comm.
-          Lemma permMapsDisjoint_permDisjoint: forall r1 r2 b ofs,
-              permMapsDisjoint r1 r2 ->
-              permDisjoint (r1 !! b ofs) (r2 !! b ofs).
-              intros. destruct  (H b ofs) as [k H'].
-              exists k; assumption.
-          Qed.
           apply permMapsDisjoint_permDisjoint.
           inversion dinv. apply lock_set_threads. }
 
@@ -1185,15 +1179,6 @@ Module ClightParching <: ErasureSig.
         - rewrite empty_map_spec. exists (Some Writable); reflexivity.
         - intros; simpl.
           rewrite DTP.gsoThreadLPool in H1.
-           Lemma compatible_threadRes_lemmaRes_join:
-             forall js m lrmap l,
-               JSEM.mem_compatible js m ->
-               JTP.lockRes js l = Some (Some lrmap) ->
-               forall i (cnti: JTP.containsThread js i) ,
-                     sepalg.joins (JTP.getThreadR cnti) lrmap.
-               Proof.
-                 
-               Admitted. 
                cut (exists loprmap, JTP.lockRes js l = Some loprmap).
                { intros HH; destruct HH as [loprmap HH].
                  destruct loprmap.
@@ -1252,11 +1237,6 @@ Module ClightParching <: ErasureSig.
                  b <> b0 ->
                  (setPermBlock X b ofs perm (Z.to_nat size)) !! b0 ofs0 = perm !! b0 ofs0.
              Admitted.
-            Lemma permDisjoint_permMapsDisjoint: forall r1 r2,
-                (forall b ofs, permDisjoint (r1 !! b ofs) (r2 !! b ofs))->
-                         permMapsDisjoint r1 r2.
-              intros. intros b ofs. apply H.
-            Qed.
             apply permDisjoint_permMapsDisjoint. intros b0 ofs0.
             unfold pmap_tid'.
 
@@ -1433,14 +1413,14 @@ Module ClightParching <: ErasureSig.
           reflexivity.
           apply proof_irrelevance.
     }
-
+    admit.
+    (*
     (* step_freelock *)
     { assert (Htid':= MTCH_cnt MATCH Hi).
      (* (Htp': tp' = updThread cnt0 (Kresume c) pmap_tid')
             (Htp'': tp'' = updLockSet tp' pmap_lp), *)
       Definition WorF (sh: share): permission:=
         if eq_dec sh Share.top then Freeable else Writable.
-      pose (virtue:= ).
       pose (pmap_tid  := DTP.getThreadR Htid').
       pose (pmap_tid' := (computeMap pmap_tid virtue)).
       pose (ds':= DSEM.ThreadPool.updThread Htid' (Kresume c Vundef)
@@ -1695,7 +1675,7 @@ Module ClightParching <: ErasureSig.
           apply proof_irrelevance.
           assumption.
     }
-
+*) 
     (* step_acqfail *)
     {
       exists ds.
@@ -1835,7 +1815,6 @@ Module ClightParching <: ErasureSig.
          econstructor 6; try eassumption.
          simpl; reflexivity.
          simpl. eapply MTCH_compat; eassumption; instantiate(1:=Htid').
-
          eapply MTCH_halted; eassumption.
        }
        

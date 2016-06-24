@@ -253,11 +253,35 @@ Section permMapDefs.
          reflexivity.
   Qed.
 
+  Lemma join_permDisjoint: forall r1 r2,
+      joins r1 r2 ->
+      permDisjoint (perm_of_res r1) (perm_of_res r2).
+  Admitted.
+
+  Lemma permDisjoint_sub: forall r1 r2 p,
+      join_sub r2 r1 ->
+      permDisjoint (perm_of_res r1) p ->
+      permDisjoint (perm_of_res r2) p.
+  Admitted.
+  
   Definition permMapsDisjoint (pmap1 pmap2 : access_map) : Prop :=
     forall b ofs, exists pu,
       perm_union ((Maps.PMap.get b pmap1) ofs)
                  ((Maps.PMap.get b pmap2) ofs) = Some pu.
 
+  Lemma permDisjoint_permMapsDisjoint: forall r1 r2,
+      (forall b ofs, permDisjoint (r1 !! b ofs) (r2 !! b ofs))->
+      permMapsDisjoint r1 r2.
+        intros. intros b ofs. apply H.
+  Qed.
+
+  Lemma permMapsDisjoint_permDisjoint: forall r1 r2 b ofs,
+      permMapsDisjoint r1 r2 ->
+      permDisjoint (r1 !! b ofs) (r2 !! b ofs).
+        intros. destruct  (H b ofs) as [k H'].
+        exists k; assumption.
+  Qed.
+  
   Lemma empty_disjoint':
     forall pmap,
       permMapsDisjoint empty_map pmap.

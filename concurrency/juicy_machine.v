@@ -266,6 +266,24 @@ Module Concur.
     Admitted.
 
     
+    Lemma compatible_lockRes_join:
+      forall js (m : mem),
+        mem_compatible js m ->
+        forall (l1 l2 : address) (phi1 phi2 : rmap),
+          ThreadPool.lockRes js l1 = Some (Some phi1) ->
+          ThreadPool.lockRes js l2 = Some (Some phi2) ->
+          joins phi1 phi2.
+    Admitted.
+
+    Lemma compatible_threadRes_lemmaRes_join:
+             forall js m lrmap l,
+               mem_compatible js m ->
+               lockRes js l = Some (Some lrmap) ->
+               forall i (cnti: containsThread js i) ,
+                 sepalg.joins (getThreadR cnti) lrmap.
+    Proof.
+    Admitted. 
+    
     (** There is no inteference in the thread pool *)
     (* Per-thread disjointness definition*)
     Definition disjoint_threads tp :=
