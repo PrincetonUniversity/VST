@@ -1075,7 +1075,7 @@ Module ClightParching <: ErasureSig.
       {
       inversion MATCH; subst.
       intros; apply JSEM.juic2Perm_correct.
-      inversion Hcompatible.
+      inversion Hcompatible; inversion H.
       eapply mem_cohere_sub.
       - eassumption.
       - eapply join_sub_trans.
@@ -1439,12 +1439,13 @@ Module ClightParching <: ErasureSig.
      (* (Htp': tp' = updThread cnt0 (Kresume c) pmap_tid')
             (Htp'': tp'' = updLockSet tp' pmap_lp), *)
       Definition WorF (sh: share): permission:=
-         if eq_dec sh Share.top then Freeable else Writable.
+        if eq_dec sh Share.top then Freeable else Writable.
+      pose (virtue:= ).
       pose (pmap_tid  := DTP.getThreadR Htid').
-      pose (pmap_tid' := 
+      pose (pmap_tid' := (computeMap pmap_tid virtue)).
       pose (ds':= DSEM.ThreadPool.updThread Htid' (Kresume c Vundef)
                                             (computeMap
-                                               (DSEM.ThreadPool.getThreadR Htid') virtue)).
+                                               (DSEM.ThreadPool.getThreadR Htid') virtue)) ).
       pose (pmap_tid' := setPermBlock (Some (WorF sh)) b (Int.intval ofs) pmap_tid LKSIZE_nat).
 (*      pose (pmap_tid' := (setPermBlock (Some (WorF sh)) b (Int.intval ofs)
            (DSEM.ThreadPool.getThreadR Htid') LKSIZE_nat)))*)

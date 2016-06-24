@@ -124,7 +124,7 @@ Module ErasureFnctr (PC:ErasureSig).
         init_inj_ok j m1 ->
         init_inv j g1 args1 m1 g2 args2 m2.
 
-    Inductive halt_inv:  SM_Injection ->
+    Inductive halt_inv:  Values.Val.meminj ->
                          G -> Values.val -> mem ->
                          G -> Values.val -> mem -> Prop:=
     |HaltEq: forall j g1 args1 m1 g2 args2 m2,
@@ -139,7 +139,7 @@ Module ErasureFnctr (PC:ErasureSig).
 
   (*States match if the dry part satisfies the invariant and the substates match.*)
   Inductive match_state :
-    core_data ->  SM_Injection -> jmachine_state ->  mem -> dmachine_state -> mem -> Prop:=
+    core_data ->  Values.Val.meminj -> jmachine_state ->  mem -> dmachine_state -> mem -> Prop:=
     MATCH: forall d j js ds U m,
       DSEM.invariant ds -> (*This could better go inside the state... but it's fine here. *)
       match_st js ds ->
@@ -168,7 +168,7 @@ Module ErasureFnctr (PC:ErasureSig).
       destruct c1 as [U0 js].
       assert (HH:=JuicyMachine.initial_schedule _ _ _ _ _ _ H); subst U0.
       destruct (init_diagram j U js vals2 m2 H4 H) as [mu [dms [injeq [IC [DINV MS] ]]]].
-      exists mu, tt, (U,dms); intuition.
+      exists tt, (U,dms); intuition.
       constructor; assumption.
     - intros until m2; intros MTCH.
       inversion MTCH; subst; clear MTCH.
