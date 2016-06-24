@@ -533,6 +533,7 @@ End MemoryLemmas.
 
 (** ** Injections on values*)
 Module ValObsEq.
+
   Import MemoryWD Renamings MemoryLemmas.
   
   (** Strong injections on values *)
@@ -626,6 +627,18 @@ Module ValObsEq.
       by eapply val_obs_trans; eauto.
   Qed.
 
+  Lemma val_obs_list_incr:
+    forall (vs vs' : seq val) (f f' : memren),
+      val_obs_list f vs vs' ->
+      ren_incr f f' ->
+      val_obs_list f' vs vs'.
+  Proof.
+    intros.
+    induction H;
+      constructor;
+      eauto using val_obs_incr.
+  Qed.
+    
   (** Two values that are equal are related by the id injection on a valid memory*)
   Lemma val_obs_id:
     forall f v
@@ -1450,12 +1463,12 @@ Module MemObsEq.
   Qed.
 
   (* Obs_eq is a compcert injection*)
-  (*
+
+    (*
   Lemma val_obs_eq_inj :
     forall f v1 v2,
       val_obs f v1 v2 ->
-      val_inject f v1 v2 /\
-      (v1 = Vundef -> v2 = Vundef).
+      val_inject f v1 v2
   Proof.
     intros f v1 v2 Hobs_eq.
     inversion Hobs_eq;
@@ -1465,7 +1478,7 @@ Module MemObsEq.
     eapply Val.inject_ptr with (delta := 0%Z); eauto.
       by rewrite Int.add_zero.
   Qed.
-  
+
   Lemma memval_obs_eq_inj :
     forall f mv1 mv2,
       memval_obs_eq f mv1 mv2 ->
