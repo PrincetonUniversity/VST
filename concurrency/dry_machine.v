@@ -124,9 +124,10 @@ Module Concur.
 
      Record angelSpec (src tgt src' tgt' : access_map) : Prop :=
        { angelIncr: forall b ofs,
-           Mem.perm_order' (Maps.PMap.get b tgt' ofs) Readable ->
            Mem.perm_order' (Maps.PMap.get b tgt ofs) Readable \/
-           Mem.perm_order' (Maps.PMap.get b src ofs) Readable;
+           Mem.perm_order' (Maps.PMap.get b src ofs) Readable <->
+           Mem.perm_order' (Maps.PMap.get b tgt' ofs) Readable ->
+           Mem.perm_order' (Maps.PMap.get b src' ofs) Readable;
          angelDecr: forall b ofs,
              Mem.perm_order'' (Maps.PMap.get b src ofs)
                               (Maps.PMap.get b src' ofs)}.
