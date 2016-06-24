@@ -9,7 +9,7 @@ Parameter hf : I64Helpers.helper_functions.
 Module SEM <: Semantics.
                Definition G := Asm.genv.
                Definition C := state.
-               Definition Sem := Asm_mem_sem hf.               
+               Definition Sem := Asm_mem_sem (*hf*).               
 End SEM.
                
 Module DryMachine:= DryMachineShell SEM.

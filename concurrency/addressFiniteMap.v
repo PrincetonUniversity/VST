@@ -10,6 +10,8 @@ Require Import Coq.ZArith.ZArith.
 Require Import Structures.OrderedType.
 
 Require Import concurrency.permissions.
+
+Require Import concurrency.lksize.
 Import Address.
 Import Coqlib.
   
@@ -126,9 +128,10 @@ Import Coqlib.
     
     Definition A2PMap (*: Map.PMap*) :=
       fold_left
-        (fun (pmap:access_map) (a:address * lock_info)=> match a with
-                      | ((b, ofs), _) => setPerm (Some Memtype.Writable) b ofs pmap
-                      end)
+        (fun (pmap:access_map) (a:address * lock_info)=>
+           match a with
+           | ((b, ofs), _) => setPermBlock (Some Memtype.Writable) b ofs pmap LKSIZE_nat
+           end)
         (AMap.elements am)
         (PMap.init (fun _ => None)).
     End AMap2PMap.

@@ -49,6 +49,8 @@ Module ClightParching <: ErasureSig.
   Notation jmachine_state:= JuicyMachine.MachState.
   Module JTP:=JuicyMachine.SIG.ThreadPool.
   Import JSEM.JuicyMachineLemmas.
+
+  Search JSEM.mem_compatible.
   
   Module DSEM:= DryMachineShell SEM.
   Module DryMachine:= CoarseMachine SCH DSEM.
@@ -1439,7 +1441,11 @@ Module ClightParching <: ErasureSig.
       Definition WorF (sh: share): permission:=
          if eq_dec sh Share.top then Freeable else Writable.
       pose (pmap_tid  := DTP.getThreadR Htid').
-       pose (pmap_tid' := setPermBlock (Some (WorF sh)) b (Int.intval ofs) pmap_tid LKSIZE_nat).
+      pose (pmap_tid' := 
+      pose (ds':= DSEM.ThreadPool.updThread Htid' (Kresume c Vundef)
+                                            (computeMap
+                                               (DSEM.ThreadPool.getThreadR Htid') virtue)).
+      pose (pmap_tid' := setPermBlock (Some (WorF sh)) b (Int.intval ofs) pmap_tid LKSIZE_nat).
 (*      pose (pmap_tid' := (setPermBlock (Some (WorF sh)) b (Int.intval ofs)
            (DSEM.ThreadPool.getThreadR Htid') LKSIZE_nat)))*)
       
