@@ -4,6 +4,7 @@ Require Import sepcomp.semantics_lemmas.
 
 Require Import concurrency.pos.
 
+Require Import compcert.lib.Coqlib.
 Require Import Coq.Program.Program.
 From mathcomp.ssreflect Require Import ssreflect ssrbool ssrnat ssrfun eqtype seq fintype finfun.
 Set Implicit Arguments.
@@ -432,6 +433,100 @@ Module MemoryLemmas.
     erewrite Mem.setN_outside by (right; rewrite size_chunk_conv in Hge';
                                     by rewrite encode_val_length);
       by auto.
+  Qed.
+
+  Transparent Mem.alloc.
+  
+  Lemma val_at_alloc_1:
+    forall m m' sz nb b ofs
+      (Halloc: Mem.alloc m 0 sz = (m', nb))
+      (Hvalid: Mem.valid_block m b),
+      Maps.ZMap.get ofs (Maps.PMap.get b (Mem.mem_contents m)) =
+      Maps.ZMap.get ofs (Maps.PMap.get b (Mem.mem_contents m')).
+  Proof.
+    intros.
+    unfold Mem.alloc in Halloc.
+    inv Halloc.
+    simpl.
+    rewrite Maps.PMap.gso; auto.
+    intro; subst. unfold Mem.valid_block in *.
+    eapply Plt_strict; eauto.
+  Qed.
+
+  Lemma val_at_alloc_2:
+    forall m m' sz nb ofs
+      (Halloc: Mem.alloc m 0 sz = (m', nb)),
+      Maps.ZMap.get ofs (Maps.PMap.get nb (Mem.mem_contents m')) = Undef.
+  Proof.
+    intros.
+    unfold Mem.alloc in Halloc.
+    inv Halloc.
+    simpl.
+    rewrite Maps.PMap.gss Maps.ZMap.gi.
+    reflexivity.
+  Qed.
+
+  Lemma permission_at_alloc_1:
+    forall m m' sz nb b ofs
+      (Halloc: Mem.alloc m 0 sz = (m', nb))
+      (Hvalid: Mem.valid_block m b),
+      permissions.permission_at m b ofs Cur =
+      permissions.permission_at m' b ofs Cur.
+  Proof.
+    intros.
+    Transparent Mem.alloc.
+    unfold Mem.alloc in Halloc.
+    inv Halloc.
+    unfold permissions.permission_at. simpl.
+    rewrite Maps.PMap.gso; auto.
+    intro; subst. unfold Mem.valid_block in *.
+    eapply Plt_strict; eauto.
+  Qed.
+
+  Lemma permission_at_alloc_2:
+    forall m m' sz nb ofs
+      (Halloc: Mem.alloc m 0 sz = (m', nb))
+      (Hofs: (0 <= ofs < sz)%Z),
+      permissions.permission_at m' nb ofs Cur = Some Freeable.
+  Proof.
+    intros.
+    unfold Mem.alloc in Halloc.
+    inv Halloc.
+    unfold permissions.permission_at. simpl.
+    rewrite Maps.PMap.gss.
+    rewrite if_true; auto.
+    destruct (zle 0 ofs), (zlt ofs sz); auto;
+    try omega.
+  Qed.
+
+  Lemma permission_at_alloc_3:
+    forall m m' sz nb ofs
+      (Halloc: Mem.alloc m 0 sz = (m', nb))
+      (Hofs: (ofs < 0 \/ ofs >= sz)%Z),
+      permissions.permission_at m' nb ofs Cur = None.
+  Proof.
+    intros.
+    unfold Mem.alloc in Halloc.
+    inv Halloc.
+    unfold permissions.permission_at. simpl.
+    rewrite Maps.PMap.gss.
+    rewrite if_false; auto.
+    apply negb_true_iff.
+    destruct (zle 0 ofs), (zlt ofs sz); auto;
+    omega.
+  Qed.
+
+  Lemma mem_free_contents:
+    forall m m2 sz b
+      (Hfree: Mem.free m b 0 sz = Some m2),
+    forall b' ofs,
+      Maps.ZMap.get ofs (Maps.PMap.get b' (Mem.mem_contents m)) =
+      Maps.ZMap.get ofs (Maps.PMap.get b' (Mem.mem_contents m2)).
+  Proof.
+    intros.
+    apply Mem.free_result in Hfree.
+    subst; unfold Mem.unchecked_free.
+    reflexivity.
   Qed.
   
 End MemoryLemmas.
@@ -1104,9 +1199,107 @@ Module ValObsEq.
     destruct v1, v1'; inversion Hval_obs;
     inversion Hval_obs'; subst; simpl...
   Qed.
+
+  Lemma divu_ren:
+    forall f v1 v2 v1' v2'
+      (Hval_obs: val_obs f v1 v1')
+      (Hval_obs': val_obs f v2 v2'),
+      Val.divu v1 v2 = Val.divu v1' v2'.
+  Proof.
+    intros.
+    destruct v1; inversion Hval_obs; subst;
+    destruct v2; inversion Hval_obs'; subst; simpl in *;
+    auto.
+  Qed.
+
+  Lemma modu_ren:
+    forall f v1 v2 v1' v2'
+      (Hval_obs: val_obs f v1 v1')
+      (Hval_obs': val_obs f v2 v2'),
+      Val.modu v1 v2 = Val.modu v1' v2'.
+  Proof.
+    intros.
+    destruct v1; inversion Hval_obs; subst;
+    destruct v2; inversion Hval_obs'; subst; simpl in *;
+    auto.
+  Qed.
+
+  Lemma val_obs_divu_id:
+    forall f v1 v2 v,
+      Val.divu v1 v2 = Some v ->
+      val_obs f v v.
+  Proof with eauto with val_renamings.
+    intros.
+    destruct v1, v2; simpl in *; try discriminate.
+    destruct (Int.eq i0 Int.zero); try discriminate.
+    inversion H...
+  Qed.
+
+  Lemma val_obs_modu_id:
+    forall f v1 v2 v,
+      Val.modu v1 v2 = Some v ->
+      val_obs f v v.
+  Proof with eauto with val_renamings.
+    intros.
+    destruct v1, v2; simpl in *; try discriminate.
+    destruct (Int.eq i0 Int.zero); try discriminate.
+    inversion H...
+  Qed.
+
+  Lemma divs_ren:
+    forall f v1 v2 v1' v2'
+      (Hval_obs: val_obs f v1 v1')
+      (Hval_obs': val_obs f v2 v2'),
+      Val.divs v1 v2 = Val.divs v1' v2'.
+  Proof.
+    intros.
+    destruct v1; inversion Hval_obs; subst;
+    destruct v2; inversion Hval_obs'; subst; simpl in *;
+    auto.
+  Qed.
+
+  Lemma mods_ren:
+    forall f v1 v2 v1' v2'
+      (Hval_obs: val_obs f v1 v1')
+      (Hval_obs': val_obs f v2 v2'),
+      Val.mods v1 v2 = Val.mods v1' v2'.
+  Proof.
+    intros.
+    destruct v1; inversion Hval_obs; subst;
+    destruct v2; inversion Hval_obs'; subst; simpl in *;
+    auto.
+  Qed.
+
+  Lemma val_obs_divs_id:
+    forall f v1 v2 v,
+      Val.divs v1 v2 = Some v ->
+      val_obs f v v.
+  Proof with eauto with val_renamings.
+    intros.
+    destruct v1, v2; simpl in *; try discriminate.
+    match goal with
+    | [H: match ?Expr with _ => _ end = _ |- _] =>
+      destruct Expr
+    end; try discriminate.
+    inversion H...
+  Qed.
+
+  Lemma val_obs_mods_id:
+    forall f v1 v2 v,
+      Val.mods v1 v2 = Some v ->
+      val_obs f v v.
+  Proof with eauto with val_renamings.
+    intros.
+    destruct v1, v2; simpl in *; try discriminate.
+    match goal with
+    | [H: match ?Expr with _ => _ end = _ |- _] =>
+      destruct Expr
+    end; try discriminate.
+    inversion H...
+  Qed.
   
   Hint Resolve
-       val_obs_add valid_val_incr val_obs_incr
+       val_obs_add valid_val_incr val_obs_incr val_obsC_correct
        val_obs_load_result val_obs_hiword val_obs_loword
        val_obs_longofwords val_obs_load_result val_obs_ext
        val_obs_sign_ext val_obs_singleoffloat val_obs_floatofsingle
@@ -1120,7 +1313,9 @@ Module ValObsEq.
        val_obs_addf val_obs_addfs val_obs_mulf
        val_obs_mulfs val_obs_negf val_obs_negfs
        val_obs_absf val_obs_absfs val_obs_subf
-       val_obs_subfs val_obs_divf val_obs_divfs : val_renamings.
+       val_obs_subfs val_obs_divf val_obs_divfs
+       val_obs_divu_id val_obs_modu_id
+       val_obs_divs_id val_obs_mods_id: val_renamings.
   
 End ValObsEq.
   
@@ -1494,19 +1689,33 @@ Module MemObsEq.
 
   (** ** Lemmas about [Mem.store] and [mem_obs_eq]*)
   (*TODO: The proof*)
+  
   Lemma store_val_obs:
     forall (mc mc' mf : mem) (f:memren)
       (b1 b2 : block) chunk (ofs: Z) v1 v2
       (Hload: Mem.store chunk mc b1 ofs v1 = Some mc')
       (Hf: f b1 = Some b2)
       (Hval_obs_eq: val_obs f v1 v2)
-      (Hobs_eq: strong_mem_obs_eq f mc mf),
+      (Hobs_eq: mem_obs_eq f mc mf),
     exists mf',
       Mem.store chunk mf b2 ofs v2 = Some mf' /\
-      strong_mem_obs_eq f mc' mf'.
+      mem_obs_eq f mc' mf'.
   Proof.
-    Admitted.
+  Admitted.
 
+  Lemma storev_val_obs:
+    forall (mc mc' mf : mem) (f:memren)
+      (vptr1 vptr2: val) chunk v1 v2
+      (Hload: Mem.storev chunk mc vptr1 v1 = Some mc')
+      (Hf: val_obs f vptr1 vptr2)
+      (Hval_obs_eq: val_obs f v1 v2)
+      (Hobs_eq: mem_obs_eq f mc mf),
+    exists mf',
+      Mem.storev chunk mf vptr2 v2 = Some mf' /\
+      mem_obs_eq f mc' mf'.
+  Proof.
+  Admitted.
+  
   Lemma mem_obs_eq_storeF:
     forall f mc mf mf' chunk b ofs v pmap pmap2
       (Hlt: permMapLt pmap (getMaxPerm mf))
@@ -1557,6 +1766,119 @@ Module MemObsEq.
       by eauto.
     simpl;
       by auto.
+  Qed.
+
+  Lemma alloc_perm_eq:
+    forall f m m' sz m2 m2' b b'
+      (Hobs_eq: mem_obs_eq f m m')
+      (Halloc: Mem.alloc m 0 sz = (m2, b))
+      (Halloc': Mem.alloc m' 0 sz = (m2', b'))
+      b1 b2 ofs
+      (Hf: (if proj_sumbool (valid_block_dec m b1)
+            then f b1
+            else if proj_sumbool (valid_block_dec m2 b1)
+                 then Some b' else None) = Some b2),
+      permission_at m2 b1 ofs Cur =
+      permission_at m2' b2 ofs Cur.
+  Proof.
+    intros.
+    destruct (valid_block_dec m b1); simpl in Hf.
+    - assert (H := perm_obs_strong (strong_obs_eq Hobs_eq) _ ofs Hf).
+      erewrite <- permission_at_alloc_1; eauto.
+      erewrite <- permission_at_alloc_1 with (m' := m2'); eauto.
+      eapply (codomain_valid (weak_obs_eq Hobs_eq));
+        by eauto.
+    - destruct (valid_block_dec m2 b1); simpl in *; try discriminate.
+      inv Hf.
+      eapply Mem.valid_block_alloc_inv in v; eauto.
+      destruct v; subst; try (by exfalso).
+      destruct (zle 0 ofs), (zlt ofs sz);
+        [erewrite permission_at_alloc_2 by eauto;
+          erewrite permission_at_alloc_2 by eauto;
+          reflexivity | | |];
+        erewrite permission_at_alloc_3 by (eauto; omega);
+        erewrite permission_at_alloc_3 by (eauto; omega);
+        auto.
+  Qed.
+
+  Lemma mem_free_obs_perm:
+    forall f m m' m2 m2' sz b1 b2
+      (Hmem_obs_eq: mem_obs_eq f m m')
+      (Hf: f b1 = Some b2)
+      (Hfree: Mem.free m b1 0 sz = Some m2)
+      (Hfree': Mem.free m' b2 0 sz = Some m2') b0 b3 ofs
+      (Hf0: f b0 = Some b3),
+      permissions.permission_at m2 b0 ofs Cur =
+      permissions.permission_at m2' b3 ofs Cur.
+  Proof.
+    intros.
+    pose proof (injective (weak_obs_eq Hmem_obs_eq)) as Hinjective.
+    pose proof (perm_obs_strong (strong_obs_eq Hmem_obs_eq)) as Hperm_eq.
+    eapply Mem.free_result in Hfree.
+    eapply Mem.free_result in Hfree'.
+    subst.
+    specialize (Hperm_eq _ _ ofs Hf0).
+    unfold permissions.permission_at, Mem.unchecked_free in *. simpl.
+    destruct (Pos.eq_dec b0 b1) as [Heq | Hneq].
+    - subst.
+      assert (b2 = b3)
+        by (rewrite Hf0 in Hf; by inv Hf).
+      subst b3.
+      do 2 rewrite Maps.PMap.gss.
+      rewrite Hperm_eq.
+      reflexivity.
+    - rewrite Maps.PMap.gso; auto.
+      rewrite Maps.PMap.gso; auto.
+      intros Hcontra.
+      subst.
+      apply Hneq; eapply Hinjective; eauto.
+  Qed.
+
+  Transparent Mem.free.
+  
+  Lemma mem_free_obs:
+    forall f m m' sz b1 b2 m2
+      (Hmem_obs_eq: mem_obs_eq f m m')
+      (Hf: f b1 = Some b2)
+      (Hfree: Mem.free m b1 0 sz = Some m2),
+    exists m2',
+      Mem.free m' b2 0 sz = Some m2' /\
+      mem_obs_eq f m2 m2'.
+  Proof.
+    intros.
+    assert (Hfree': Mem.free m' b2 0 sz = Some (Mem.unchecked_free m' b2 0 sz)).
+    { unfold Mem.free.
+      destruct (Mem.range_perm_dec m' b2 0 sz Cur Freeable); auto.
+      apply Mem.free_range_perm in Hfree.
+      unfold Mem.range_perm in *.
+      destruct Hmem_obs_eq as [_ [HpermEq _]].
+      unfold Mem.perm, permissions.permission_at in *.
+      exfalso.
+      apply n. intros ofs Hofs.
+      specialize (HpermEq _ _ ofs Hf).
+      rewrite HpermEq;
+        auto.
+    } 
+    - eexists; split; eauto.
+      constructor.
+      + (*weak_obs_eq*)
+        inversion Hmem_obs_eq as [Hweak_obs_eq Hstrong_obs_eq].
+        destruct Hweak_obs_eq.
+        assert (Heq_nb := Mem.nextblock_free _ _ _ _ _ Hfree).
+        constructor; simpl; unfold Mem.valid_block; try (rewrite Heq_nb);
+        auto.
+        intros.
+        erewrite mem_free_obs_perm with (b1 := b1) (b0 := b0); eauto.
+        apply permissions.po_refl.
+      + constructor.
+        intros.
+        erewrite mem_free_obs_perm with (b1 := b1) (b0 := b0); eauto.
+      + intros.
+        erewrite <- mem_free_contents; eauto.
+        erewrite <- mem_free_contents with (m2 := Mem.unchecked_free m' b2 0 sz);
+          eauto.
+        apply (val_obs_eq (strong_obs_eq Hmem_obs_eq)); auto.
+        eapply Mem.perm_free_3; eauto.
   Qed.
 
   Lemma valid_pointer_ren:

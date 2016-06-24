@@ -250,8 +250,9 @@ Section permMapDefs.
          unfold permDisjoint, perm_union.
          destruct p1 as [p3|]; destruct p2 as [p4|];
          try destruct p3, p4; intros [k H]; exists k; inversion H;
-         reflexivity.  Qed.
-  
+         reflexivity.
+  Qed.
+
   Definition permMapsDisjoint (pmap1 pmap2 : access_map) : Prop :=
     forall b ofs, exists pu,
       perm_union ((Maps.PMap.get b pmap1) ofs)
@@ -271,6 +272,7 @@ Section permMapDefs.
       rewrite Maps.PTree.gempty; simpl.
       exists None; reflexivity.
   Qed.
+  
   Lemma permMapsDisjoint_comm :
     forall pmap1 pmap2
       (Hdis: permMapsDisjoint pmap1 pmap2),

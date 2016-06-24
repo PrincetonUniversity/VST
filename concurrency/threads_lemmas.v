@@ -69,6 +69,17 @@ Proof.
   rewrite Z2Pos.id; zify; rewrite Pos2Z.inj_sub; auto; omega.
 Qed.
 
+Lemma lt_sub_bound:
+  forall x y,
+    (x < y)%positive ->
+    (Z.to_pos (Z.pos_sub y (y - x)) < Pos.succ x)%positive.
+Proof.
+  intros x y H.
+  zify.
+  rewrite <-Pos2Z.add_pos_neg.
+  rewrite Z2Pos.id; zify; rewrite Pos2Z.inj_sub; auto; omega.
+Qed.
+
 Lemma lt_lt_sub:
   forall a b c,
     (a < b)%positive ->

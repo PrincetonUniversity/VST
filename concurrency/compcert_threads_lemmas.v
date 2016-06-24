@@ -5588,7 +5588,7 @@ Module SimProofs (CI: CoreInjections).
         assert (Hval_obs: val_obs (fp i pfc) (Vint Int.zero) (Vint Int.zero))
           by constructor.
         (* and then storing gives us related memories*)
-        assert (HstoreF := store_val_obs _ _ _ Hstore Hfb Hval_obs HsimLocks).
+        assert (HstoreF := store_val_obs_2 _ _ _ Hstore Hfb Hval_obs HsimLocks).
         destruct HstoreF as [mf' [HstoreF HsimLocks']].
         (* We have that the code of the fine grained execution
         is related to the one of the coarse-grained*)
@@ -6126,7 +6126,7 @@ Module SimProofs (CI: CoreInjections).
       assert (Hval_obs: val_obs (fp i pfc) (Vint Int.one) (Vint Int.one))
         by constructor.
       (* and then storing gives us related memories*)
-      assert (HstoreF := store_val_obs _ _ _ Hstore Hfb Hval_obs HsimLocks).
+      assert (HstoreF := store_val_obs_2 _ _ _ Hstore Hfb Hval_obs HsimLocks).
       destruct HstoreF as [mf' [HstoreF HsimLocks']].
       (* We have that the code of the fine grained execution
         is related to the one of the coarse-grained*)
