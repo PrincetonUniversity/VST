@@ -1609,16 +1609,64 @@ Module MemObsEq.
     inversion H2; subst; try discriminate; inversion Hval_obs; subst; congruence.
   Qed.
 
+  
+  Lemma val_obs_equal:
+    forall f v1 v1' v2 v2'
+      (Hinjective: forall b1 b1' b2, f b1 = Some b2 -> f b1' = Some b2 -> b1 = b1')
+      (Hval1: val_obs f v1 v1')
+      (Hval2: val_obs f v2 v2'),
+      Val.eq v1 v2 <-> Val.eq v1' v2'.
+  Proof.
+    intros.
+    destruct v1; inv Hval1;
+    split; intro H;
+    match goal with
+    | [H: is_true (proj_sumbool (Val.eq ?V1 ?V2)) |- _] =>
+      destruct (Val.eq V1 V2)
+    end; subst; try (by exfalso);
+    inv Hval2; auto;
+    match goal with
+    | [|- is_true (proj_sumbool (Val.eq ?V1 ?V2))] =>
+      destruct (Val.eq V1 V2)
+    end; auto.
+    rewrite H2 in H4; inv H4; auto.
+    specialize (Hinjective _ _ _ H2 H3); subst.
+    auto.
+  Qed.
+
+  Lemma check_value_obs_2:
+    forall f n vl vl' v v' q
+      (Hf: forall b1 b1' b2, f b1 = Some b2 -> f b1' = Some b2 -> b1 = b1'),
+      Coqlib.list_forall2 (memval_obs_eq f) vl vl' ->
+      val_obs f v v' ->
+      check_value n v q vl = check_value n v' q vl'.
+  Proof.
+    intros f n.
+    induction n; intros; simpl in *.
+    destruct vl; inv H; auto.
+    destruct vl; inv H; auto.
+    destruct m; inv H3; auto.
+    erewrite IHn; eauto.
+    assert (Val.eq v v0 <-> Val.eq v' v2)
+      by (eapply val_obs_equal; eauto).
+    destruct (Val.eq v v0) eqn:?.
+    destruct (Val.eq v' v2); auto.
+    exfalso. specialize ((proj1 H) ltac:(auto)); auto.
+    destruct (Val.eq v' v2); auto.
+    exfalso. specialize ((proj2 H) ltac:(auto)); auto.
+  Qed.
+    
+      
   (*TODO*)
   Lemma proj_value_obs:
-    forall f q vl1 vl2,
+    forall f q vl1 vl2
+      
       Coqlib.list_forall2 (memval_obs_eq f) vl1 vl2 ->
       val_obs f (proj_value q vl1) (proj_value q vl2).
   Proof.
     intros f q vl1 v2 Hlst. unfold proj_value.
     inversion Hlst; subst. constructor.
     inversion H; subst; try constructor.
-    
     destruct (check_value (size_quantity_nat q) v1 q (Fragment v1 q0 n :: al)) eqn:B.
     destruct (Val.eq v1 Vundef).
     subst v1.
@@ -1628,9 +1676,9 @@ Module MemObsEq.
                           (Fragment Vundef q0 n :: bl));
       by auto.
     erewrite check_value_obs; eauto.
-    (*TODO: need a lemma about check_value being false, and obs_eq*)
-    admit.
-  Admitted.
+    eapply check_value_obs_2 in B; eauto.
+    rewrite B. constructor.
+  Qed.
   
   Lemma load_result_obs:
     forall f chunk v1 v2,
@@ -1779,6 +1827,14 @@ Module MemObsEq.
       by eauto.
     simpl;
       by auto.
+    intros.
+    unfold Mem.perm in *.
+    assert (Hcur := restrPermMap_Cur Hlt b2 ofs0).
+    assert (Hcur' := restrPermMap_Cur Hlt' b2 ofs0).
+    unfold permission_at in *.
+    rewrite <- Hcur in Hcur'.
+    rewrite Hcur' in Hperm.
+    eauto.
   Qed.
 
   Lemma alloc_perm_eq:
@@ -1886,12 +1942,15 @@ Module MemObsEq.
       + constructor.
         intros.
         erewrite mem_free_obs_perm with (b1 := b1) (b0 := b0); eauto.
-      + intros.
+        intros.
         erewrite <- mem_free_contents; eauto.
         erewrite <- mem_free_contents with (m2 := Mem.unchecked_free m' b2 0 sz);
           eauto.
         apply (val_obs_eq (strong_obs_eq Hmem_obs_eq)); auto.
         eapply Mem.perm_free_3; eauto.
+        intros.
+        destruct Hmem_obs_eq as [_ [? ?]].
+        eapply Mem.perm_free_3 in Hperm; eauto.
   Qed.
 
   Lemma valid_pointer_ren:
