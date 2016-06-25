@@ -122,12 +122,30 @@ Module Concur.
 
      Definition invariant := invariant'.
 
-     Record angelSpec (src tgt src' tgt' : access_map) : Prop :=
-       { angelIncr: forall b ofs,
-           Mem.perm_order' (Maps.PMap.get b tgt ofs) Readable \/
+     Record relAngelSpec (src tgt src' tgt' : access_map) : Prop :=
+       { relAngelIncr: forall b ofs,
            Mem.perm_order' (Maps.PMap.get b src ofs) Readable <->
            Mem.perm_order' (Maps.PMap.get b tgt' ofs) Readable \/
            Mem.perm_order' (Maps.PMap.get b src' ofs) Readable;
+         relAngelDecr: forall b ofs,
+             Mem.perm_order'' (Maps.PMap.get b src ofs)
+                              (Maps.PMap.get b src' ofs)}.
+
+     Record acqAngelSpec (src tgt src' tgt' : access_map) : Prop :=
+       { acqAngelIncr: forall b ofs,
+           Mem.perm_order' (Maps.PMap.get b tgt' ofs) Readable ->
+           Mem.perm_order' (Maps.PMap.get b tgt ofs) Readable \/
+           Mem.perm_order' (Maps.PMap.get b src ofs) Readable;
+         acqAngelDecr: forall b ofs,
+             Mem.perm_order'' (Maps.PMap.get b src ofs)
+                              (Maps.PMap.get b src' ofs)}.
+
+     (*Lets see if the other cases should change.*)
+     Record angelSpec (src tgt src' tgt' : access_map) : Prop :=
+       { angelIncr: forall b ofs,
+           Mem.perm_order' (Maps.PMap.get b tgt' ofs) Readable ->
+           Mem.perm_order' (Maps.PMap.get b tgt ofs) Readable \/
+           Mem.perm_order' (Maps.PMap.get b src ofs) Readable;
          angelDecr: forall b ofs,
              Mem.perm_order'' (Maps.PMap.get b src ofs)
                               (Maps.PMap.get b src' ofs)}.
@@ -167,7 +185,7 @@ Module Concur.
            (Hload: Mem.load Mint32 m1 b (Int.intval ofs) = Some (Vint Int.one))
            (Hstore: Mem.store Mint32 m1 b (Int.intval ofs) (Vint Int.zero) = Some m')
            (HisLock: lockRes tp (b, Int.intval ofs) = Some pmap)
-           (Hangel: angelSpec pmap (getThreadR cnt0)
+           (Hangel: acqAngelSpec pmap (getThreadR cnt0)
                               empty_map
                               (computeMap (getThreadR cnt0) virtueThread))
            (Htp': tp' = updThread cnt0 (Kresume c Vundef)
@@ -186,7 +204,7 @@ Module Concur.
            (Hload: Mem.load Mint32 m1 b (Int.intval ofs) = Some (Vint Int.zero))
            (Hstore: Mem.store Mint32 m1 b (Int.intval ofs) (Vint Int.one) = Some m')
            (HisLock: lockRes tp (b, Int.intval ofs) = Some pmap)
-           (Hangel: angelSpec (getThreadR cnt0) pmap
+           (Hangel: relAngelSpec (getThreadR cnt0) pmap
                               (computeMap (getThreadR cnt0) virtueThread)
                               virtueLP)
            (Htp': tp' = updThread cnt0 (Kresume c Vundef)
