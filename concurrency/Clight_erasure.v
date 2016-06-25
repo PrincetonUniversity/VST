@@ -914,7 +914,8 @@ Module ClightParching <: ErasureSig.
           + inversion MATCH.
             { destruct (NatTID.eq_tid_dec i i0).
               - subst i0. rewrite (DTP.gssThreadRes).
-                
+                apply permDisjoint_comm.
+                apply Disjoint_computeMap.
               - apply (@permDisjoint_sub ((JSEM.ThreadPool.getThreadR Hi) @ (b0, ofs0))).
                 apply (@join_join_sub' _ _ _ ((m_phi jm') @ (b0, ofs0)) ).
                 * apply resource_at_join. apply join_comm; assumption.
