@@ -637,14 +637,6 @@ Module SimProofs (CI: CoreInjections).
     rewrite Hcur in Hperm.
     rewrite getCurPerm_correct in Hperm;
       by assumption.
-    intros b2 ofs Hperm.
-    destruct (Hrestr b2 ofs).
-    destruct (Hrestr' b2 ofs).
-    unfold permission_at, Mem.perm in *.
-    rewrite H2 in Hperm.
-    rewrite getCurPerm_correct in Hperm.
-    unfold permission_at in Hperm.
-    eauto.
   Qed.
 
   Lemma weak_obs_eq_setMax:
@@ -1372,18 +1364,6 @@ Module SimProofs (CI: CoreInjections).
                       (m := mf) (tp' := tpf') (U := empty);
             by eauto. 
         }
-        { (* mapped blocks *)
-          intros b2 ofs Hperm.
-          destruct memObsEqj as [_ [? ? ?]].
-          assert (Hcur' := restrPermMap_Cur (memCompF' j pffj') b2 ofs).
-          assert (Hcur := restrPermMap_Cur ((mem_compf Hsim) j pffj) b2 ofs).
-          unfold Mem.perm in *.
-          unfold permission_at in *.
-          rewrite Hcur' in Hperm.
-          erewrite <- gsoThreadR_fstep with (pfj := pffj) (pfj' := pffj') in Hperm; eauto.
-          rewrite <- Hcur in Hperm.
-          eauto.
-        }           
         (* block ownership *)
         split.
         intros k pffk' Hjk b1 b2 ofs Hfj Hf.
@@ -1453,15 +1433,6 @@ Module SimProofs (CI: CoreInjections).
         } 
         erewrite <- corestep_disjoint_val_lockset with (m := mf) (m' := m');
           by eauto.
-        intros b2 ofs Hperm.
-        assert (Hcur := restrPermMap_Cur (compat_ls HmemCompF) b2 ofs).
-        assert (Hcur' := restrPermMap_Cur (compat_ls memCompF') b2 ofs).
-        unfold Mem.perm in *.
-        unfold permission_at in *.
-        rewrite Hcur' in Hperm.
-        erewrite <- gsoLockSet_fstepI in Hperm; eauto.
-        rewrite <- Hcur in Hperm;
-          by eauto. 
         intros bl2 ofs HRes.
         erewrite gsoLockRes_fstepI in HRes;
           by eauto.
@@ -1492,16 +1463,6 @@ Module SimProofs (CI: CoreInjections).
         absurd_internal HstepF_empty; auto.
         erewrite <- corestep_disjoint_val_lockpool with (m := mf) (m' := m');
           by eauto.
-        intros b2 ofs0 Hperm.
-        
-        assert (Hcur := restrPermMap_Cur (@compat_lp _ _ HmemCompF (bl2, ofs) rmap2
-                                                     ltac:(rewrite <- Hl_eq; auto)) b2 ofs0).
-        assert (Hcur' := restrPermMap_Cur (compat_lp memCompF' (bl2, ofs) Hl2) b2 ofs0).
-        unfold Mem.perm in *.
-        unfold permission_at in *.
-        rewrite Hcur' in Hperm.
-        rewrite <- Hcur in Hperm;
-          by eauto. 
       }
       { (*invariant tpf' *)
         eapply fmachine_step_invariant with (tp := tpf); eauto.
@@ -1668,15 +1629,6 @@ Module SimProofs (CI: CoreInjections).
             rewrite gssThreadRes in Hreadable;
               rewrite getCurPerm_correct in Hreadable.
               by assumption.
-          * intros b2 ofs Hperm.
-            assert (Hcur' := restrPermMap_Cur (Hcomp2' j pf2j') b2 ofs).
-            unfold Mem.perm in *.
-            unfold permission_at in *.
-            rewrite Hcur' in Hperm.
-            rewrite gssThreadRes in Hperm.
-            rewrite getCurPerm_correct in Hperm.
-            unfold permission_at in *;
-              by eauto.
       }
       do 2 erewrite restrPermMap_nextblock in Hid;
         by eauto.
@@ -1766,17 +1718,6 @@ Module SimProofs (CI: CoreInjections).
         rewrite Hp2 in Hreadable.
         rewrite Hp1.
           by rewrite gThreadCR in Hreadable.
-      + intros b2 ofs Hperm.
-        assert (Hcur' := restrPermMap_Cur (Hcomp2' j pf2j') b2 ofs).
-        assert (Hcur := restrPermMap_Cur (Hcomp1' j pf1j') b2 ofs).
-        unfold Mem.perm in *.
-        unfold permission_at in *.
-        rewrite Hcur' in Hperm.
-        rewrite gThreadCR in Hperm.
-        specialize (mapped_blocks0 b2 ofs).
-        rewrite Hcur in mapped_blocks0.
-        unfold permission_at in *;
-          by eauto.
     - (*case it's a start step*)      
       subst m2.
       inversion Hsim as [Hcode_eq Hmem_obs_eq].
@@ -1849,17 +1790,6 @@ Module SimProofs (CI: CoreInjections).
         rewrite Hp2 in Hreadable.
         rewrite Hp1.
           by rewrite gThreadCR in Hreadable.
-      + intros b2 ofs Hperm.
-        assert (Hcur' := restrPermMap_Cur (Hcomp2' j pf2j') b2 ofs).
-        assert (Hcur := restrPermMap_Cur (Hcomp1' j pf1j') b2 ofs).
-        unfold Mem.perm in *.
-        unfold permission_at in *.
-        rewrite Hcur' in Hperm.
-        rewrite gThreadCR in Hperm.
-        specialize (mapped_blocks0 b2 ofs).
-        rewrite Hcur in mapped_blocks0.
-        unfold permission_at in *;
-          by eauto.
   Qed.
 
   Lemma strong_tsim_execution:
@@ -2183,26 +2113,6 @@ Module SimProofs (CI: CoreInjections).
           by eauto.
         eapply containsThread_internal_execution';
           by eauto.
-        (* mapped blocks *)
-        intros b2 ofs Hperm.
-        assert (Hcur' := restrPermMap_Cur (Hcomp'' j pfj'') b2 ofs).
-        assert (Hcur := restrPermMap_Cur (Hcomp j pfj) b2 ofs).
-        unfold permission_at in *.
-        unfold Mem.perm in *.
-        rewrite Hcur' in Hperm.
-        erewrite <- gsoThreadR_suspendC with (cntj := pfj') in Hperm; eauto.
-        erewrite <- gsoThreadR_execution with (pfj :=  pfj) in Hperm; eauto.
-        assert (Mem.valid_block (restrPermMap (Hcomp _ pfj)) b2).
-        destruct (valid_block_dec (restrPermMap (Hcomp _ pfj)) b2) as [? | Hinvalid];
-          auto.
-        apply Mem.nextblock_noaccess with (ofs := ofs) (k := Cur) in Hinvalid.
-        rewrite Hcur in Hinvalid.
-        rewrite Hinvalid in Hperm.
-        simpl in Hperm;
-          by exfalso.
-        erewrite restrPermMap_valid in H.
-        apply id_ren_validblock in H.
-        eexists; eauto.
   Qed.
   
   Lemma sim_suspend : sim_suspend_def.
@@ -3551,94 +3461,6 @@ Module SimProofs (CI: CoreInjections).
                     rewrite <- Hundef_mcj in Hvalmcj_mf.
                     inversion Hvalmcj_mf.
                       by constructor.
-              }
-              { (* mapped blocks *)
-                intros b2 ofs Hperm.
-                assert (Hcur' := restrPermMap_Cur (memCompF' j pffj') b2 ofs).
-                assert (Hcur := restrPermMap_Cur ((mem_compf Hsim) j pffj) b2 ofs).
-                destruct Htsimj as [_ [Hweakj [Hpermj_eq _ ?]]].
-                unfold permission_at in *.
-                unfold Mem.perm in *.
-                rewrite Hcur' in Hperm.
-                erewrite <- gsoThreadR_suspendF with (cntj := pffj) in Hperm; eauto.
-                specialize (mapped_blocks0 b2 ofs).
-                rewrite Hcur in mapped_blocks0.
-                specialize (mapped_blocks0 Hperm).
-                destruct mapped_blocks0 as [b1 Hfj].
-                destruct (valid_block_dec mc b1).
-                - admit.
-                - destruct (valid_block_dec mc'' b1).
-                  assert (Hvalidj: Mem.valid_block mcj b1)
-                    by admit.
-                  apply (domain_valid (weak_obs_eq (obs_eq Hsimij))) in Hvalidj.
-                  destruct Hvalidj as [b3 Hfij].
-                  exists b3.
-                  assert ((id_ren mc) b1 = None) by admit.
-                  specialize (Hsep _ _ H Hfij).
-                  destruct Hsep as [Hinvalid Hinvalid''].
-                  assert (Hvalid_mcj': Mem.valid_block mcj' b3) by admit.
-                  destruct (valid_block_dec mc b3).
-                  exfalso. admit.
-                  destruct (valid_block_dec mc'' b3); first by exfalso.
-                  admit.
-                  
-                (* exists b1. *)
-                (* destruct Hweakj. *)
-                (* destruct (valid_block_dec mc b1). *)
-                (* - apply (domain_valid HsimWeak) in v. *)
-                (*   destruct v as [b2' Hf]. *)
-                (*   assert (Hf' := Hincrj _ _ Hf). *)
-                (*   rewrite Hfj in Hf'. inversion Hf'; subst. *)
-                (*   auto. *)
-                (* - destruct (valid_block_dec mc'' b1). *)
-                (*   assert (Hvalidj: Mem.valid_block mcj b1) *)
-                (*     by admit. *)
-                (*   apply (domain_valid (weak_obs_eq (obs_eq Hsimij))) in Hvalidj. *)
-                (*   destruct Hvalidj as [b3 Hfij]. *)
-                  
-                  
-
-                  Lemma internal_execution_owned:
-                    forall tp tp' m m' i j (cntj': containsThread tp' j) xs
-                      (Hexec: internal_execution [seq x <- xs | x == i] tp m tp' m')
-                      (Hcomp: mem_compatible tp m)
-                      (Hneq: i <> j) b ofs
-                      (Hinvalid: ~ Mem.valid_block m b)
-                      (Hvalid: Mem.valid_block m' b),
-                      (getThreadR cntj') # b ofs = None.
-                  Proof.
-                    intros.
-                    pose proof (containsThread_internal_execution' Hexec cntj')
-                      as cntj.
-                    erewrite <- gsoThreadR_execution with (pfj := cntj); eauto.
-                    specialize (Hcomp j cntj b ofs).
-                    apply Mem.nextblock_noaccess with (ofs := ofs) (k := Max)
-                      in Hinvalid.
-                    rewrite getMaxPerm_correct.
-                    unfold permission_at.
-                    rewrite Hinvalid.
-                    intros Hperm.
-                    simpl in Hperm.
-                    destruct ((getThreadR cntj) # b ofs); tauto.
-                  Qed.
-                  assert ((getThreadR pffj) # b2 ofs =
-                          (Mem.mem_access (restrPermMap (Hcompjj j pfcjj)))
-                            # b1 ofs Cur).
-                  { specialize (Hpermj_eq _ _ ofs Hfj).
-                    rewrite <- restrPermMap_Cur with (Hlt := (mem_compf Hsim) j pffj).
-                    unfold permission_at; auto.
-                  }
-                  rewrite H in Hperm.
-                  assert ((getThreadR pfc'j) # b1 ofs = None)
-                    by admit.
-                  
-                  specialize (Hpermj_mc'' _ ofs n v).
-
-
-                  apply (domain_valid (weak_obs_eq (obs_eq Htsim'))) in v.
-                  destruct v as [b2' Hfi].
-                  admit.
-                  admit.
               }
           } split.
           { (* Proof that block ownership is preserved*)
@@ -5036,17 +4858,16 @@ Module SimProofs (CI: CoreInjections).
             pose proof (proj1 (HangelIncr b1 ofs0) ltac:(eauto)).
             destruct H; auto. rewrite empty_map_spec in H. simpl in H.
               by exfalso.
-          * erewrite computeMap_projection_2; eauto.
-            pose proof (proj1 (HangelIncr b2 ofs0) ltac:(eauto)).
+          * admit.
    
 
             
-            intros b2 ofs0.
-            replace (empty_map # b2 ofs0) with (@None permission)
-              by (unfold Maps.PMap.get; rewrite Maps.PTree.gempty; by simpl).
-            destruct (pmapF # b2 ofs0);
-              by simpl.
-  Qed.
+            (* intros b2 ofs0. *)
+            (* replace (empty_map # b2 ofs0) with (@None permission) *)
+            (*   by (unfold Maps.PMap.get; rewrite Maps.PTree.gempty; by simpl). *)
+            (* destruct (pmapF # b2 ofs0); *)
+            (*   by simpl. *)
+  Admitted.
 
   Lemma angelSpec_project_unlock:
     forall (tpc tpf : thread_pool) (mc mf : mem) (f : memren)
@@ -5076,6 +4897,91 @@ Module SimProofs (CI: CoreInjections).
     intros.
     destruct Hangel as [HangelIncr HangelDecr].
     constructor.
+    { intros b2 ofs0.
+      split.
+      - intros [HpermT | HpermS].
+        + assert (Hb2: (exists b1, f b1 = Some b2) \/
+                        ~ (exists b1, f b1 = Some b2))
+            by eapply em.
+          destruct Hb2 as [[b1 Hf1] | Hunmapped].
+          * destruct HsimRes as [Hperm_eq _].
+            specialize (Hperm_eq _ _ ofs0 Hf1).
+            do 2 rewrite restrPermMap_Cur in Hperm_eq.
+            rewrite Hperm_eq in HpermT.
+            pose proof (proj1 (HangelIncr b1 ofs0) ltac:(eauto)).
+            destruct H; auto.
+            left.
+            erewrite <- projectMap_correct; eauto. admit.
+            right.
+            destruct Htsim.
+            erewrite computeMap_projection_1; eauto.
+          * admit.
+        +  assert (Hb2: (exists b1, f b1 = Some b2) \/
+                        ~ (exists b1, f b1 = Some b2))
+            by eapply em.
+           destruct Hb2 as [[b1 Hf1] | Hunmapped].
+           * destruct Htsim as [? Hmem_obs_eq].
+            erewrite computeMap_projection_1; eauto.
+            destruct Hmem_obs_eq as [_ [Hperm_eq _]].
+            specialize (Hperm_eq _ _ ofs0 Hf1).
+            do 2 rewrite restrPermMap_Cur in Hperm_eq.
+            rewrite Hperm_eq in HpermS.
+            admit.
+           * erewrite computeMap_projection_2; eauto.
+      - intros [HpermT | HpermS].
+        + assert (Hb2: (exists b1, f b1 = Some b2) \/
+                        ~ (exists b1, f b1 = Some b2))
+            by eapply em.
+          destruct Hb2 as [[b1 Hf1] | Hunmapped].
+          * destruct HsimRes as [Hperm_eq _].
+            specialize (Hperm_eq _ _ ofs0 Hf1).
+            do 2 rewrite restrPermMap_Cur in Hperm_eq.
+            rewrite Hperm_eq. admit.
+          * admit.
+        + 
+        +  assert (Hb2: (exists b1, f b1 = Some b2) \/
+                        ~ (exists b1, f b1 = Some b2))
+            by eapply em.
+           destruct Hb2 as [[b1 Hf1] | Hunmapped].
+           * destruct Htsim as [? Hmem_obs_eq].
+            erewrite computeMap_projection_1; eauto.
+            destruct Hmem_obs_eq as [_ [Hperm_eq _]].
+            specialize (Hperm_eq _ _ ofs0 Hf1).
+            do 2 rewrite restrPermMap_Cur in Hperm_eq.
+            rewrite Hperm_eq in HpermS.
+            admit.
+           * erewrite computeMap_projection_2; eauto.
+
+
+             do 2 rewrite restrPermMap_Cur in Hperm_eq.
+            rewrite Hperm_eq in HpermT.
+            pose proof (proj1 (HangelIncr b1 ofs0) ltac:(eauto)).
+            destruct H; auto.
+            left.
+            erewrite <- projectMap_correct; eauto. admit.
+            right.
+            destruct Htsim.
+            erewrite computeMap_projection_1; eauto.
+          assert (Hb2: (exists b1, f b1 = Some b2) \/
+                       ~ (exists b1, f b1 = Some b2))
+            by eapply em.
+          * destruct Hb2 as [[b1 Hf1] | Hunmapped].
+            destruct Htsim as [? Hmem_obs_eq].
+            erewrite computeMap_projection_1; eauto.
+            destruct HsimRes as [Hperm_eq _].
+            specialize (Hperm_eq _ _ ofs0 Hf1).
+            do 2 rewrite restrPermMap_Cur in Hperm_eq.
+            rewrite Hperm_eq in HpermS.
+            pose proof (proj1 (HangelIncr b1 ofs0) ltac:(eauto)).
+            destruct H; auto. rewrite empty_map_spec in H. simpl in H.
+              by exfalso.
+    
+
+
+
+
+
+      
     intros b2 ofs0 Hperm.
     (*NOTE: this is actually decidable*)
     assert (Hb2: (exists b1, f b1 = Some b2) \/

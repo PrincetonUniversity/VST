@@ -1659,12 +1659,12 @@ Module MemObsEq.
       
   (*TODO*)
   Lemma proj_value_obs:
-    forall f q vl1 vl2
-      
+    forall f q vl1 vl2,
+      (forall b1 b1' b2 : block, f b1 = Some b2 -> f b1' = Some b2 -> b1 = b1') ->
       Coqlib.list_forall2 (memval_obs_eq f) vl1 vl2 ->
       val_obs f (proj_value q vl1) (proj_value q vl2).
   Proof.
-    intros f q vl1 v2 Hlst. unfold proj_value.
+    intros f q vl1 v2 Hinjective Hlst. unfold proj_value.
     inversion Hlst; subst. constructor.
     inversion H; subst; try constructor.
     destruct (check_value (size_quantity_nat q) v1 q (Fragment v1 q0 n :: al)) eqn:B.
@@ -1676,7 +1676,7 @@ Module MemObsEq.
                           (Fragment Vundef q0 n :: bl));
       by auto.
     erewrite check_value_obs; eauto.
-    eapply check_value_obs_2 in B; eauto.
+    erewrite check_value_obs_2 in B; eauto.
     rewrite B. constructor.
   Qed.
   
@@ -1707,7 +1707,7 @@ Module MemObsEq.
       destruct chunk; try constructor;
       apply load_result_obs;
       apply proj_value_obs; auto.
-  Qed.
+  Admitted.
   
   
   Lemma load_valid_block:
@@ -1827,14 +1827,7 @@ Module MemObsEq.
       by eauto.
     simpl;
       by auto.
-    intros.
-    unfold Mem.perm in *.
-    assert (Hcur := restrPermMap_Cur Hlt b2 ofs0).
-    assert (Hcur' := restrPermMap_Cur Hlt' b2 ofs0).
-    unfold permission_at in *.
-    rewrite <- Hcur in Hcur'.
-    rewrite Hcur' in Hperm.
-    eauto.
+ 
   Qed.
 
   Lemma alloc_perm_eq:
@@ -1948,9 +1941,6 @@ Module MemObsEq.
           eauto.
         apply (val_obs_eq (strong_obs_eq Hmem_obs_eq)); auto.
         eapply Mem.perm_free_3; eauto.
-        intros.
-        destruct Hmem_obs_eq as [_ [? ?]].
-        eapply Mem.perm_free_3 in Hperm; eauto.
   Qed.
 
   Lemma valid_pointer_ren:
