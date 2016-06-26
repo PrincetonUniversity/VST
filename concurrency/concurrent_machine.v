@@ -282,7 +282,39 @@ Module Type ThreadPoolSig.
     forall tp i (pf: containsThread tp i) c pmap addr rmap,
       lockSet (updLockSet tp addr rmap) =
       lockSet (updLockSet (updThread pf c pmap) addr rmap).
-  
+
+  Axiom updThread_updThreadC_comm :
+    forall tp i j c pmap' c'
+      (Hneq: i <> j)
+      (cnti : containsThread tp i)
+      (cntj : containsThread tp j)
+      (cnti': containsThread (updThread cntj c' pmap') i)
+      (cntj': containsThread (updThreadC cnti c) j),
+      updThreadC cnti' c = updThread cntj' c' pmap'.
+
+ Axiom updThread_comm :
+    forall tp i j c pmap c' pmap'
+      (Hneq: i <> j)
+      (cnti : containsThread tp i)
+      (cntj : containsThread tp j)
+      (cnti': containsThread (updThread cntj c' pmap') i)
+      (cntj': containsThread (updThread cnti c pmap) j),
+      updThread cnti' c pmap = updThread cntj' c' pmap'.
+
+ Axiom add_updateC_comm:
+   forall tp i vf arg pmap c'
+     (cnti: containsThread tp i)
+     (cnti': containsThread (addThread tp vf arg pmap) i),
+     addThread (updThreadC cnti c') vf arg pmap =
+     updThreadC cnti' c'.
+
+ Axiom add_update_comm:
+   forall tp i vf arg pmap c' pmap'
+     (cnti: containsThread tp i)
+     (cnti': containsThread (addThread tp vf arg pmap) i),
+     addThread (updThread cnti c' pmap') vf arg pmap =
+     updThread cnti' c' pmap'.
+   
 End ThreadPoolSig.
 
 Module Type ConcurrentMachineSig.

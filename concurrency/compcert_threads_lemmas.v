@@ -2191,6 +2191,10 @@ Module SimProofs (CI: CoreInjections).
       (* We prove first that well-definedeness of the components of
       the state is also preserved. We only prove it here to avoid
       duplicated work when we re-establish these invariants *)
+      (* Notice also that the nextblock of mc will be
+                smaller or equal to that of mc''*)
+      assert (Hle: (Mem.nextblock mc <= Mem.nextblock mc'')%positive)
+        by (eapply internal_execution_nextblock; eauto).
       assert (Hdomainf: domain_memren f mc)
         by (specialize (HsimWeak _ pfc pff);
              eapply weak_obs_eq_domain_ren in HsimWeak; eauto).
@@ -2348,9 +2352,6 @@ Module SimProofs (CI: CoreInjections).
             first by (apply Hincr in Hfj; by congruence).
           destruct (valid_block_dec mc'' b') as [Hvalidib' | Hinvalidib'];
             first by congruence.
-          assert (Hle: (Mem.nextblock mc <= Mem.nextblock mc'')%positive)
-            by admit.
-          (*TODO: need nextblock instead of valid_block axioms*)
           specialize (HsimWeak _ pfc pff).
           apply Pos.lt_eq_cases in Hle.
           destruct Hle as [Hlt | Heq].
@@ -2457,27 +2458,6 @@ Module SimProofs (CI: CoreInjections).
             by (eapply suspendC_invariant with (tp := tpc');
                  [eapply internal_execution_invariant with (tp := tpc);
                    eauto | eauto]).
-          Lemma incr_domain_id:
-            forall m f f'
-              (Hincr: ren_incr f f')
-              (Hf_id: forall b b', f b = Some b' -> b = b')
-              (Hdomain_f: domain_memren f' m),
-              ren_incr f (id_ren m).
-          Proof.
-            intros.
-            intros b1 b2 Hf.
-            assert (b1 = b2)
-              by (eapply Hf_id in Hf; by subst).
-            subst b2.
-            apply Hincr in Hf.
-            destruct (Hdomain_f b1).
-            specialize (H0 ltac:(rewrite Hf; auto)).
-            assert (Hdomain_id := id_ren_domain m).
-            apply Hdomain_id in H0.
-            destruct (id_ren m b1) eqn:Hid; try by exfalso.
-            apply id_ren_correct in Hid;
-              by subst.
-          Qed.
           assert (Hge_incr_id: ren_incr fg (id_ren mc))
             by (clear - Hge_incr Hfg Hdomain_f;
                  eapply incr_domain_id; eauto).
@@ -2497,12 +2477,6 @@ Module SimProofs (CI: CoreInjections).
           (*TODO: comment deprecated*)
           specialize (Htsimj pfcjj Hcompjj).
           exists tpcj', mcj'.
-
-          (* Notice also that the nextblock of mc will be
-                smaller or equal to that of mc''*)
-          assert (Hle_nextblock: (Mem.nextblock mc <= Mem.nextblock mc'')%positive)
-            by admit.
-
           (* Moreover we prove that for all blocks b1 if the
                 inverse of b1 is mapped by fpj and b1 is not valid in
                 mc and mc'' then it is is valid in mcj'*)
@@ -2531,10 +2505,10 @@ Module SimProofs (CI: CoreInjections).
               first by assumption.
             exfalso.
             clear - Hnextblockj' Hinvalidmc Hinvalidmc''
-                                 Hf' Hinvalidmcj' Htsimj Hle_nextblock.
+                                 Hf' Hinvalidmcj' Htsimj Hle.
             pf_cleanup.
-            apply Pos.le_lteq in Hle_nextblock.
-            destruct Hle_nextblock as [Hlt | Hnbeq].
+            apply Pos.le_lteq in Hle.
+            destruct Hle as [Hlt | Hnbeq].
             - (*TODO: factor this out as a lemma*)
               assert (Hnblocks:
                         (Z.pos (Mem.nextblock mc'') + Z.neg (Mem.nextblock mc) =
@@ -2650,8 +2624,6 @@ Module SimProofs (CI: CoreInjections).
                 by (inversion Hexecj; [subst mcj; auto |
                                        simpl in HschedN; discriminate]).
               subst mcj.
-              assert (Hle: (Mem.nextblock mc <= Mem.nextblock mcj')%positive)
-                by admit.
               apply Pos.lt_eq_cases in Hle.
               destruct Hle as [Hlt | Heq].
               + apply Pos.le_nlt in Hinvalidmc.
@@ -2902,8 +2874,8 @@ Module SimProofs (CI: CoreInjections).
                   | [|- fp _ _ ?Expr = _] =>
                     destruct (valid_block_dec mcj Expr) as [Hvalidmcj | Hinvalidmcj]
                   end.
-                  + apply Pos.lt_eq_cases in Hle_nextblock.
-                    destruct Hle_nextblock as [Hlt | Heq].
+                  + apply Pos.lt_eq_cases in Hle.
+                    destruct Hle as [Hlt | Heq].
                     * apply Pos.le_nlt in Hinvalidmc''.
                       apply Pos.le_nlt in Hinvalidmc.
                       assert (Hinvalid':
@@ -3045,10 +3017,10 @@ Module SimProofs (CI: CoreInjections).
                           the same block as b1 which is valid in mc,
                           using injectivity of fpj*)
                         clear - Hfb1' Hfb1 Hincrj Htsimj Hvalidmc Hexec
-                                      Hinvalidmc''' Hinvalidmc' Hle_nextblock.
+                                      Hinvalidmc''' Hinvalidmc' Hle.
                         apply Hincrj in Hfb1.
-                        apply Pos.le_lteq in Hle_nextblock.
-                        destruct Hle_nextblock as [Hlt | Hnbeq].
+                        apply Pos.le_lteq in Hle.
+                        destruct Hle as [Hlt | Hnbeq].
                         * rewrite Z.pos_sub_gt in Hfb1'; auto. simpl in Hfb1'.
                           apply Pos.le_nlt in Hinvalidmc'''.
                           assert (Hinvalid: (Mem.nextblock mc
@@ -3085,10 +3057,10 @@ Module SimProofs (CI: CoreInjections).
                           the same block as b1 which is valid in mc,
                           using injectivity of fpj*)
                         clear - Hfb1' Hfb1 Hincrj Htsimj Hvalidmc' Hexec
-                                      Hinvalidmc''' Hinvalidmc Hle_nextblock.
+                                      Hinvalidmc''' Hinvalidmc Hle.
                         apply Hincrj in Hfb1'.
-                        apply Pos.le_lteq in Hle_nextblock.
-                        destruct Hle_nextblock as [Hlt | Hnbeq].
+                        apply Pos.le_lteq in Hle.
+                        destruct Hle as [Hlt | Hnbeq].
                         * rewrite Z.pos_sub_gt in Hfb1; auto. simpl in Hfb1.
                           apply Pos.le_nlt in Hinvalidmc'''.
                           assert (Hinvalid: (Mem.nextblock mc
@@ -3118,11 +3090,11 @@ Module SimProofs (CI: CoreInjections).
                           between fpj and fpi it must be that b2 <>
                           b2, contradiction. *)
                         clear - Hfb1' Hfb1 Htsimj Hfpsep Hinvalidmc Hexec
-                                      Hinvalidmc' Hinvalidmci' HsimWeak Hij Hle_nextblock.
+                                      Hinvalidmc' Hinvalidmci' HsimWeak Hij Hle.
                         exfalso.
                         apply (domain_invalid HsimWeak) in Hinvalidmc.
-                        apply Pos.le_lteq in Hle_nextblock.
-                        destruct Hle_nextblock as [Hlt | Hnbeq].
+                        apply Pos.le_lteq in Hle.
+                        destruct Hle as [Hlt | Hnbeq].
                         * rewrite Z.pos_sub_gt in Hfb1'; auto. simpl in Hfb1'.
                           apply Pos.le_nlt in Hinvalidmci'.
                           assert (Hinvalid: (Mem.nextblock mc
@@ -3143,11 +3115,11 @@ Module SimProofs (CI: CoreInjections).
                         { (*again orthogonal to the above case*)
                           clear - Hfb1' Hfb1 Htsimj Hfpsep Hexec Hinvalidmc
                                         Hinvalidmc' Hinvalidmci Hvalidmci' HsimWeak Hij
-                                        Hle_nextblock.
+                                        Hle.
                           exfalso.
                           apply (domain_invalid HsimWeak) in Hinvalidmc'.
-                          apply Pos.le_lteq in Hle_nextblock.
-                          destruct Hle_nextblock as [Hlt | Hnbeq].
+                          apply Pos.le_lteq in Hle.
+                          destruct Hle as [Hlt | Hnbeq].
                           * rewrite Z.pos_sub_gt in Hfb1; auto. simpl in Hfb1.
                             apply Pos.le_nlt in Hinvalidmci.
                             assert (Hinvalid: (Mem.nextblock mc
@@ -3171,8 +3143,8 @@ Module SimProofs (CI: CoreInjections).
                           apply (domain_invalid HsimWeak) in Hinvalidmc'.
                           assert (Heq := (injective (weak_obs_eq (obs_eq Htsimj)))
                                            _ _ _ Hfb1 Hfb1').
-                          apply Pos.le_lteq in Hle_nextblock.
-                          destruct Hle_nextblock as [Hlt | Hnbeq].
+                          apply Pos.le_lteq in Hle.
+                          destruct Hle as [Hlt | Hnbeq].
                           * eapply Pos.le_nlt in Hinvalidmci.
                             eapply Pos.le_nlt in Hinvalidmci'.
                             assert (((Mem.nextblock mc'' - Mem.nextblock mc) < b1)%positive)
@@ -3714,8 +3686,9 @@ Module SimProofs (CI: CoreInjections).
           eapply suspendC_containsThread with (tp := tpc'); eauto.
           eapply containsThread_internal_execution;
             by eauto.
-    } 
-  Admitted.
+        }
+    }
+  Qed.
 
   (** ** Proofs about external steps*)
 
@@ -4800,7 +4773,7 @@ Module SimProofs (CI: CoreInjections).
   
   (** The projected angel satisfies the [angelSpec] *)
     (* TODO: generalize this for non-empty map *)
-  Lemma angelSpec_project:
+  Lemma acqAngelSpec_project:
     forall (tpc tpf : thread_pool) (mc mf : mem) (f : memren)
       (i : tid)
       (pfc : containsThread tpc i)
@@ -4812,64 +4785,47 @@ Module SimProofs (CI: CoreInjections).
       (virtueThread : delta_map)
       (Hres: lockRes tpc (bl1, ofs) = Some pmap)
       (HresF: lockRes tpf (bl2,ofs) = Some pmapF)
-      (Hangel: angelSpec pmap (getThreadR pfc) empty_map
+      (Hangel: acqAngelSpec pmap (getThreadR pfc) empty_map
                          (computeMap (getThreadR pfc) virtueThread))
       (Hf: f bl1 = Some bl2)
       (HsimRes: strong_mem_obs_eq f
                                   (restrPermMap (compat_lp HmemCompC (bl1, ofs) Hres))
                                   (restrPermMap (compat_lp HmemCompF (bl2, ofs) HresF)))
       (Htsim: strong_tsim f pfc pff HmemCompC HmemCompF),
-      angelSpec pmapF (getThreadR pff) empty_map
+      acqAngelSpec pmapF (getThreadR pff) empty_map
                 (computeMap (getThreadR pff) (projectAngel f virtueThread)).
   Proof.
     intros.
     destruct Hangel as [HangelIncr HangelDecr].
     constructor.
     { (*Angel Incr *)
+      intros b2 ofs0 Hperm.
+    (*NOTE: this is actually decidable*)
+    assert (Hb2: (exists b1, f b1 = Some b2) \/
+                 ~ (exists b1, f b1 = Some b2))
+      by eapply em.
+    destruct Hb2 as [[b1 Hf1] | Hunmapped].
+    destruct Htsim as [? Hmem_obs_eq].
+    erewrite computeMap_projection_1 in Hperm; eauto.
+    specialize (HangelIncr _ _ Hperm).
+    destruct HangelIncr as [Hreadable | Hreadable];
+      [destruct Hmem_obs_eq as [_ [Hperm_eq _]] | destruct HsimRes as [Hperm_eq _]];
+      specialize (Hperm_eq _ _ ofs0 Hf1);
+      do 2 rewrite restrPermMap_Cur in Hperm_eq;
+      rewrite Hperm_eq;
+        by auto.
+    erewrite computeMap_projection_2 in Hperm; eauto.
+    }
+    { (*Angel Decr*)
       intros b2 ofs0.
-      split.
-      - intros [HpermT | HpermS].
-        + left.
-          assert (Hb2: (exists b1, f b1 = Some b2) \/
-                        ~ (exists b1, f b1 = Some b2))
-            by eapply em.
-          * destruct Hb2 as [[b1 Hf1] | Hunmapped].
-            destruct Htsim as [? Hmem_obs_eq].
-            erewrite computeMap_projection_1; eauto.
-            destruct Hmem_obs_eq as [_ [Hperm_eq _]].
-            specialize (Hperm_eq _ _ ofs0 Hf1).
-            do 2 rewrite restrPermMap_Cur in Hperm_eq.
-            rewrite Hperm_eq in HpermT.
-            pose proof (proj1 (HangelIncr b1 ofs0) ltac:(eauto)).
-            destruct H; auto. rewrite empty_map_spec in H. simpl in H.
-              by exfalso.
-          * erewrite computeMap_projection_2; eauto.
-        + left.
-          assert (Hb2: (exists b1, f b1 = Some b2) \/
-                       ~ (exists b1, f b1 = Some b2))
-            by eapply em.
-          * destruct Hb2 as [[b1 Hf1] | Hunmapped].
-            destruct Htsim as [? Hmem_obs_eq].
-            erewrite computeMap_projection_1; eauto.
-            destruct HsimRes as [Hperm_eq _].
-            specialize (Hperm_eq _ _ ofs0 Hf1).
-            do 2 rewrite restrPermMap_Cur in Hperm_eq.
-            rewrite Hperm_eq in HpermS.
-            pose proof (proj1 (HangelIncr b1 ofs0) ltac:(eauto)).
-            destruct H; auto. rewrite empty_map_spec in H. simpl in H.
-              by exfalso.
-          * admit.
-   
+      replace (empty_map # b2 ofs0) with (@None permission)
+        by (unfold Maps.PMap.get; rewrite Maps.PTree.gempty; by simpl).
+      destruct (pmapF # b2 ofs0);
+        by simpl.
+    }
+  Qed.
 
-            
-            (* intros b2 ofs0. *)
-            (* replace (empty_map # b2 ofs0) with (@None permission) *)
-            (*   by (unfold Maps.PMap.get; rewrite Maps.PTree.gempty; by simpl). *)
-            (* destruct (pmapF # b2 ofs0); *)
-            (*   by simpl. *)
-  Admitted.
-
-  Lemma angelSpec_project_unlock:
+  Lemma relAngelSpec_project:
     forall (tpc tpf : thread_pool) (mc mf : mem) (f : memren)
       (i : tid)
       (pfc : containsThread tpc i)
@@ -4882,14 +4838,14 @@ Module SimProofs (CI: CoreInjections).
       (virtueThread : delta_map)
       (Hres: lockRes tpc (bl1, ofs) = Some pmap)
       (HresF: lockRes tpf (bl2,ofs) = Some pmapF)
-      (Hangel: angelSpec (getThreadR pfc) pmap
+      (Hangel: relAngelSpec (getThreadR pfc) pmap
                          (computeMap (getThreadR pfc) virtueThread) virtueLP)
       (Hf: f bl1 = Some bl2)
       (HsimRes: strong_mem_obs_eq f
                                   (restrPermMap (compat_lp HmemCompC (bl1, ofs) Hres))
                                   (restrPermMap (compat_lp HmemCompF (bl2, ofs) HresF)))
       (Htsim: strong_tsim f pfc pff HmemCompC HmemCompF),
-      angelSpec (getThreadR pff) pmapF
+      relAngelSpec (getThreadR pff) pmapF
                 (computeMap (getThreadR pff)
                             (projectAngel f virtueThread))
                 (projectMap f virtueLP).
@@ -4897,126 +4853,74 @@ Module SimProofs (CI: CoreInjections).
     intros.
     destruct Hangel as [HangelIncr HangelDecr].
     constructor.
-    { intros b2 ofs0.
+    { (* Angel Incr *)
+      intros b2 ofs0.
       split.
+      - intros Hperm.
+        assert (Hb2: (exists b1, f b1 = Some b2) \/
+                        ~ (exists b1, f b1 = Some b2))
+            by eapply em.
+        destruct Hb2 as [[b1 Hf1] | Hunmapped].
+        + destruct Htsim as [? Hmem_obs_eq].
+          erewrite computeMap_projection_1; eauto.
+          destruct Hmem_obs_eq as [Hweak_obs_eq [Hperm_eq _]].
+          specialize (Hperm_eq _ _ ofs0 Hf1).
+          do 2 rewrite restrPermMap_Cur in Hperm_eq.
+          rewrite Hperm_eq in Hperm.
+          pose proof (proj1 (HangelIncr b1 ofs0) ltac:(eauto)).
+          destruct H.
+          erewrite <- projectMap_correct; eauto.
+          apply (injective Hweak_obs_eq).
+          auto.
+        + erewrite computeMap_projection_2; eauto.
       - intros [HpermT | HpermS].
         + assert (Hb2: (exists b1, f b1 = Some b2) \/
                         ~ (exists b1, f b1 = Some b2))
             by eapply em.
           destruct Hb2 as [[b1 Hf1] | Hunmapped].
-          * destruct HsimRes as [Hperm_eq _].
+          * destruct Htsim as [? Hmem_obs_eq].
+            destruct Hmem_obs_eq as [Hweak_obs_eq [Hperm_eq _]].
             specialize (Hperm_eq _ _ ofs0 Hf1).
+            erewrite <- projectMap_correct in HpermT; eauto.
+            pose proof (proj2 (HangelIncr b1 ofs0) ltac:(eauto)).
             do 2 rewrite restrPermMap_Cur in Hperm_eq.
-            rewrite Hperm_eq in HpermT.
-            pose proof (proj1 (HangelIncr b1 ofs0) ltac:(eauto)).
-            destruct H; auto.
-            left.
-            erewrite <- projectMap_correct; eauto. admit.
-            right.
-            destruct Htsim.
-            erewrite computeMap_projection_1; eauto.
-          * admit.
-        +  assert (Hb2: (exists b1, f b1 = Some b2) \/
-                        ~ (exists b1, f b1 = Some b2))
-            by eapply em.
-           destruct Hb2 as [[b1 Hf1] | Hunmapped].
-           * destruct Htsim as [? Hmem_obs_eq].
-            erewrite computeMap_projection_1; eauto.
-            destruct Hmem_obs_eq as [_ [Hperm_eq _]].
-            specialize (Hperm_eq _ _ ofs0 Hf1).
-            do 2 rewrite restrPermMap_Cur in Hperm_eq.
-            rewrite Hperm_eq in HpermS.
-            admit.
-           * erewrite computeMap_projection_2; eauto.
-      - intros [HpermT | HpermS].
-        + assert (Hb2: (exists b1, f b1 = Some b2) \/
-                        ~ (exists b1, f b1 = Some b2))
-            by eapply em.
-          destruct Hb2 as [[b1 Hf1] | Hunmapped].
-          * destruct HsimRes as [Hperm_eq _].
-            specialize (Hperm_eq _ _ ofs0 Hf1).
-            do 2 rewrite restrPermMap_Cur in Hperm_eq.
-            rewrite Hperm_eq. admit.
-          * admit.
-        + 
-        +  assert (Hb2: (exists b1, f b1 = Some b2) \/
-                        ~ (exists b1, f b1 = Some b2))
-            by eapply em.
-           destruct Hb2 as [[b1 Hf1] | Hunmapped].
-           * destruct Htsim as [? Hmem_obs_eq].
-            erewrite computeMap_projection_1; eauto.
-            destruct Hmem_obs_eq as [_ [Hperm_eq _]].
-            specialize (Hperm_eq _ _ ofs0 Hf1).
-            do 2 rewrite restrPermMap_Cur in Hperm_eq.
-            rewrite Hperm_eq in HpermS.
-            admit.
-           * erewrite computeMap_projection_2; eauto.
-
-
-             do 2 rewrite restrPermMap_Cur in Hperm_eq.
-            rewrite Hperm_eq in HpermT.
-            pose proof (proj1 (HangelIncr b1 ofs0) ltac:(eauto)).
-            destruct H; auto.
-            left.
-            erewrite <- projectMap_correct; eauto. admit.
-            right.
-            destruct Htsim.
-            erewrite computeMap_projection_1; eauto.
-          assert (Hb2: (exists b1, f b1 = Some b2) \/
-                       ~ (exists b1, f b1 = Some b2))
-            by eapply em.
-          * destruct Hb2 as [[b1 Hf1] | Hunmapped].
-            destruct Htsim as [? Hmem_obs_eq].
-            erewrite computeMap_projection_1; eauto.
-            destruct HsimRes as [Hperm_eq _].
-            specialize (Hperm_eq _ _ ofs0 Hf1).
-            do 2 rewrite restrPermMap_Cur in Hperm_eq.
-            rewrite Hperm_eq in HpermS.
-            pose proof (proj1 (HangelIncr b1 ofs0) ltac:(eauto)).
-            destruct H; auto. rewrite empty_map_spec in H. simpl in H.
+            rewrite Hperm_eq; auto.
+            apply (injective Hweak_obs_eq).
+          * erewrite projectMap_correct_2 in HpermT by eauto.
+            rewrite Hcanonical in HpermT.
+            simpl in HpermT;
               by exfalso.
-    
-
-
-
-
-
-      
-    intros b2 ofs0 Hperm.
-    (*NOTE: this is actually decidable*)
-    assert (Hb2: (exists b1, f b1 = Some b2) \/
-                 ~ (exists b1, f b1 = Some b2))
-      by eapply em.
-    destruct Hb2 as [[b1 Hf1] | Hunmapped].
-    destruct Htsim as [_ Hmem_obs_eq].
-    erewrite <- projectMap_correct in Hperm; eauto.
-    specialize (HangelIncr _ _ Hperm).
-    destruct HangelIncr as [Hreadable | Hreadable];
-      [destruct HsimRes as [Hperm_eq _] | destruct Hmem_obs_eq as [_ [Hperm_eq _]]];
-      specialize (Hperm_eq _ _ ofs0 Hf1);
-      do 2 rewrite restrPermMap_Cur in Hperm_eq;
-      rewrite Hperm_eq;
-        by auto.
-    destruct Hmem_obs_eq. destruct weak_obs_eq0.
-    eauto.
-    erewrite projectMap_correct_2 in Hperm; eauto.
-    rewrite Hcanonical in Hperm.
-    exfalso;
-      by simpl in Hperm.
-    intros b2 ofs0.
-    assert (Hb2: (exists b1, f b1 = Some b2) \/
-                 ~ (exists b1, f b1 = Some b2))
-      by eapply em.
-    destruct Hb2 as [[b1 Hf1] | Hunmapped].
-    destruct Htsim as [_ Hmem_obs_eq].
-    erewrite computeMap_projection_1; eauto.
-    destruct Hmem_obs_eq. destruct strong_obs_eq0.
-    specialize (perm_obs_strong0 _ _ ofs0 Hf1).
-    do 2 rewrite restrPermMap_Cur in perm_obs_strong0.
-    rewrite perm_obs_strong0;
-      by eauto.
-    rewrite computeMap_projection_2; eauto.
-      by apply po_refl.
+      -  assert (Hb2: (exists b1, f b1 = Some b2) \/
+                      ~ (exists b1, f b1 = Some b2))
+          by eapply em.
+         destruct Hb2 as [[b1 Hf1] | Hunmapped].
+         * destruct Htsim as [? Hmem_obs_eq].
+           erewrite computeMap_projection_1 in HpermS; eauto.
+           destruct Hmem_obs_eq as [_ [Hperm_eq _]].
+           specialize (Hperm_eq _ _ ofs0 Hf1).
+           do 2 rewrite restrPermMap_Cur in Hperm_eq.
+           rewrite Hperm_eq.
+           pose proof (proj2 (HangelIncr b1 ofs0) ltac:(eauto));
+             by auto.
+         * erewrite computeMap_projection_2 in HpermS;
+             by eauto.
+    }
+    { (* Angel decrease*)
+      intros b2 ofs0.
+      assert (Hb2: (exists b1, f b1 = Some b2) \/
+                   ~ (exists b1, f b1 = Some b2))
+        by eapply em.
+      destruct Hb2 as [[b1 Hf1] | Hunmapped].
+      destruct Htsim as [_ Hmem_obs_eq].
+      erewrite computeMap_projection_1; eauto.
+      destruct Hmem_obs_eq. destruct strong_obs_eq0.
+      specialize (perm_obs_strong0 _ _ ofs0 Hf1).
+      do 2 rewrite restrPermMap_Cur in perm_obs_strong0.
+      rewrite perm_obs_strong0;
+        by eauto.
+      rewrite computeMap_projection_2; eauto.
+        by apply po_refl.
+    }
   Qed.
   
   Lemma gss_mem_obs_eq_lock:
@@ -5058,10 +4962,8 @@ Module SimProofs (CI: CoreInjections).
                           ofs (Vint v) = Some mc')
       (HstoreF: Mem.store Mint32 (restrPermMap (compat_ls HmemCompF)) bl2
                           ofs (Vint v) = Some mf')
-      (Hangel : angelSpec pmap (getThreadR pfc) empty_map
+      (Hangel : acqAngelSpec pmap (getThreadR pfc) empty_map
                           (computeMap (getThreadR pfc) virtue))
-      (HangelF : angelSpec pmapF (getThreadR pff) empty_map
-                           (computeMap (getThreadR pff) (projectAngel f virtue)))
       (HsimRes:
          strong_mem_obs_eq f
                            (restrPermMap (compat_lp HmemCompC (bl1, ofs) HisLock))
@@ -5195,7 +5097,7 @@ Module SimProofs (CI: CoreInjections).
                                (computeMap (getThreadR pfc) virtueThread))
                     (bl1,  ofs) virtueLP) i)
        (Hf: f bl1 = Some bl2)
-       (Hangel: angelSpec (getThreadR pfc) pmap (computeMap (getThreadR pfc) virtueThread)
+       (Hangel: relAngelSpec (getThreadR pfc) pmap (computeMap (getThreadR pfc) virtueThread)
                           virtueLP)
        (Hobs_eq: mem_obs_eq f (restrPermMap (HmemCompC i pfc))
                             (restrPermMap (HmemCompF i pff)))
@@ -5695,7 +5597,41 @@ Module SimProofs (CI: CoreInjections).
         assert (Hval_obs: val_obs (fp i pfc) (Vint Int.zero) (Vint Int.zero))
           by constructor.
         (* and then storing gives us related memories*)
-        assert (HstoreF := store_val_obs_2 _ _ _ Hstore Hfb Hval_obs HsimLocks).
+        Lemma mem_obs_eq_of_weak_strong:
+          forall m m' f pmap1 pmap1' pmap2 pmap2'
+            (Hlt1: permMapLt pmap1 (getMaxPerm m))
+            (Hlt2: permMapLt pmap2 (getMaxPerm m'))
+            (Hlt1': permMapLt pmap1' (getMaxPerm m))
+            (Hlt2': permMapLt pmap2' (getMaxPerm m'))
+            (Hstrong_obs: strong_mem_obs_eq f (restrPermMap Hlt1) (restrPermMap Hlt2))
+            (Hweak: weak_mem_obs_eq f (restrPermMap Hlt1') (restrPermMap Hlt2')),
+            mem_obs_eq f (restrPermMap Hlt1) (restrPermMap Hlt2).
+        Proof.
+          intros.
+          destruct Hweak.
+          constructor; auto.
+          constructor; intros.
+          - specialize (domain_invalid0 b).
+            erewrite restrPermMap_valid in H, domain_invalid0;
+              eauto.
+          - specialize (domain_valid0 b).
+            erewrite restrPermMap_valid in H, domain_valid0;
+              eauto.
+          - specialize (codomain_valid0 _ _ H);
+            erewrite restrPermMap_valid in *;
+            eauto.
+          - eauto.
+          - destruct Hstrong_obs as [Hpermeq _].
+            specialize (Hpermeq _ _ ofs Hrenaming).
+            rewrite Hpermeq;
+              apply po_refl.
+        Qed.
+        assert (Hlocks_obs_eq: mem_obs_eq (fp i pfc)
+                                          (restrPermMap (compat_ls HmemCompC)) mf1)
+          by (subst mf1;
+               destruct Htsim as [_ [? ?]];
+               eapply mem_obs_eq_of_weak_strong; eauto).      
+        assert (HstoreF := store_val_obs _ _ _ Hstore Hfb Hval_obs Hlocks_obs_eq).
         destruct HstoreF as [mf' [HstoreF HsimLocks']].
         (* We have that the code of the fine grained execution
         is related to the one of the coarse-grained*)
@@ -5730,10 +5666,10 @@ Module SimProofs (CI: CoreInjections).
           by (eapply lockRes_eq; eauto).
         destruct HisLockF as [pmapF HisLockF].
         (* and then prove that the projected angel satisfies the angelSpec*)
-        assert (HangelF: angelSpec pmapF (getThreadR pff) (projectMap (fp i pfc)
+        assert (HangelF: acqAngelSpec pmapF (getThreadR pff) (projectMap (fp i pfc)
                                                                       empty_map)
-                                   (computeMap (getThreadR pff) virtueF)).        
-          by (subst; eapply angelSpec_project; eauto).
+                                   (computeMap (getThreadR pff) virtueF))
+          by (subst; eapply acqAngelSpec_project; eauto).
         (* and finally build the final fine-grained state*)
         remember (updLockSet tpf' (b2, Int.intval ofs)
                              (projectMap (fp i pfc) empty_map)) as tpf'' eqn:Htpf'';
@@ -6233,7 +6169,12 @@ Module SimProofs (CI: CoreInjections).
       assert (Hval_obs: val_obs (fp i pfc) (Vint Int.one) (Vint Int.one))
         by constructor.
       (* and then storing gives us related memories*)
-      assert (HstoreF := store_val_obs_2 _ _ _ Hstore Hfb Hval_obs HsimLocks).
+      assert (Hlocks_obs_eq: mem_obs_eq (fp i pfc)
+                                        (restrPermMap (compat_ls HmemCompC)) mf1)
+        by (subst mf1;
+             destruct Htsim as [_ [? ?]];
+             eapply mem_obs_eq_of_weak_strong; eauto).
+      assert (HstoreF := store_val_obs _ _ _ Hstore Hfb Hval_obs Hlocks_obs_eq).
       destruct HstoreF as [mf' [HstoreF HsimLocks']].
       (* We have that the code of the fine grained execution
         is related to the one of the coarse-grained*)
@@ -6270,9 +6211,9 @@ Module SimProofs (CI: CoreInjections).
         by (eapply lockRes_eq; eauto).
       destruct HisLockF as [pmapF HisLockF].
       (* and then prove that the projected angel satisfies the angelSpec*)
-      assert (HangelF: angelSpec (getThreadR pff) pmapF
+      assert (HangelF: relAngelSpec (getThreadR pff) pmapF
                                  (computeMap (getThreadR pff) virtueF) virtueLPF).
-      { subst. eapply angelSpec_project_unlock; eauto.
+      { subst. eapply relAngelSpec_project; eauto.
         destruct HmemCompC'.
         specialize (compat_lp0 (b, Int.intval ofs) virtueLP
                                ltac:(rewrite gssLockRes; eauto)).
@@ -6676,62 +6617,9 @@ Module SimProofs (CI: CoreInjections).
                    by  inversion Hres1); subst rmap1.
           unfold Mem.perm in *.
           rewrite Hperm_lp in Hperm.
-          destruct (HangelIncr _ _ Hperm) as [Hreadable_lp | Hreadable_thread].
-          { (* case the address was already readable on the lockpool*)
-            specialize (HsimRes _ _ _ _ _ Hfb HisLock HisLockF).
-            destruct HsimRes as [HpermRes HvalRes].
-            unfold Mem.perm in HvalRes.
-            assert (Hpmap := restrPermMap_Cur (compat_lp HmemCompC _ HisLock)
-                                              b1 ofs0).
-            unfold permission_at in Hpmap.
-            specialize (HvalRes _ _ ofs0 Hf1).
-            rewrite Hpmap in HvalRes.
-            (* in that case by simulation of the previous state we
-            know that the values on b1 and b0 will be related. *)
-            specialize (HvalRes Hreadable_lp).
-            (* but we need to prove that the store for the lock
-            release on both the coarse and fine-grained machine did
-            not change these values *)
-            assert (Hstable: ~ Mem.perm (restrPermMap (compat_ls HmemCompC))
-                                      b1 ofs0 Cur Writable).
-            { clear - HinvC Hreadable_lp HisLock.
-              intro Hcontra.
-              destruct HinvC.
-              specialize (lock_res_set0 _ _ HisLock).
-              eapply perm_order_clash; eauto.
-              specialize (lock_res_set0 b1 ofs0).
-              assert (H := restrPermMap_Cur (compat_ls HmemCompC) b1 ofs0).
-              unfold permission_at in H.
-              rewrite H;
-                by assumption.
-            }
-            (* by simulation of the lockset, the permission on pmapF
-            will be above readable *)
-            assert (Hreadable_lpF: Mem.perm_order' (pmapF # b0 ofs0) Readable)
-              by (specialize (HpermRes _ _ ofs0 Hf1);
-                   do 2 rewrite restrPermMap_Cur in HpermRes;
-                   rewrite HpermRes; auto).
-            (* and hence it must be below writable*)
-            assert (HstableF: ~ Mem.perm (restrPermMap (compat_ls HmemCompF))
-                                b0 ofs0 Cur Writable).
-            { clear - HinvF Hreadable_lpF HisLockF.
-              intro Hcontra.
-              destruct HinvF.
-              specialize (lock_res_set0 _ _ HisLockF).
-              eapply perm_order_clash; eauto.
-              specialize (lock_res_set0 b0 ofs0).
-              assert (H := restrPermMap_Cur (compat_ls HmemCompF) b0 ofs0).
-              unfold permission_at in H.
-              rewrite H;
-                by assumption.
-            }
-            simpl.
-            erewrite store_contents_other; eauto.
-            erewrite store_contents_other with
-            (m := restrPermMap (compat_ls HmemCompF)) (m' := mf') (b := b2);
-              by eauto.
-          }
-          { (* case the address was readable on the thread *)
+          specialize (proj2 (HangelIncr b1 ofs0) ltac:(eauto)).
+          intros Hreadable_thread.
+          (* case the address was readable on the thread *)
             destruct Htsim as [_ HobsEq].
             destruct HobsEq as [_ [HpermEq HvalEq]].
             unfold Mem.perm in HvalEq.
@@ -6781,8 +6669,7 @@ Module SimProofs (CI: CoreInjections).
             erewrite store_contents_other; eauto.
             erewrite store_contents_other with
             (m := restrPermMap (compat_ls HmemCompF)) (m' := mf') (b := b2);
-              by eauto.
-          }
+              by eauto.         
         }
         { (*case it's another lock*)
           assert ((b2, Int.intval ofs) <> (bl2, ofs0)).

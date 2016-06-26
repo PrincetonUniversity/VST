@@ -205,6 +205,28 @@ Qed.
       by exfalso.
   Qed.
 
+  Lemma incr_domain_id:
+    forall m f f'
+      (Hincr: ren_incr f f')
+      (Hf_id: forall b b', f b = Some b' -> b = b')
+      (Hdomain_f: domain_memren f' m),
+      ren_incr f (id_ren m).
+  Proof.
+    intros.
+    intros b1 b2 Hf.
+    assert (b1 = b2)
+      by (eapply Hf_id in Hf; by subst).
+    subst b2.
+    apply Hincr in Hf.
+    destruct (Hdomain_f b1).
+    specialize (H0 ltac:(rewrite Hf; auto)).
+    assert (Hdomain_id := id_ren_domain m).
+    apply Hdomain_id in H0.
+    destruct (id_ren m b1) eqn:Hid; try by exfalso.
+    apply id_ren_correct in Hid;
+      by subst.
+  Qed.
+  
   Hint Immediate ren_incr_refl ren_separated_refl : renamings.
   
 End Renamings.
@@ -1584,32 +1606,6 @@ Module MemObsEq.
       by rewrite (IHlist_forall2 (Logic.eq_refl _)).
   Qed.
   
-  Lemma check_value_obs:
-    forall f vl vl',
-      Coqlib.list_forall2 (memval_obs_eq f) vl vl' ->
-      forall v v' q n,
-        check_value n v q vl = true ->
-        val_obs f v v' -> v <> Vundef ->
-        check_value n v' q vl' = true.
-  Proof.
-    induction 1; intros; destruct n; simpl in *; auto.
-    inversion H; subst; auto.
-    apply Bool.andb_true_iff in H1.
-    destruct H1.
-    apply Bool.andb_true_iff in H1.
-    destruct H1.
-    apply Bool.andb_true_iff in H1.
-    destruct H1.
-    apply Coqlib.proj_sumbool_true in H1.
-    apply Coqlib.proj_sumbool_true in H6.
-    assert (n = n0) by (apply beq_nat_true; auto). subst v1 q0 n0.
-    replace v2 with v'.
-    unfold Coqlib.proj_sumbool; rewrite ! Coqlib.dec_eq_true.
-    rewrite <- beq_nat_refl. simpl; eauto.
-    inversion H2; subst; try discriminate; inversion Hval_obs; subst; congruence.
-  Qed.
-
-  
   Lemma val_obs_equal:
     forall f v1 v1' v2 v2'
       (Hinjective: forall b1 b1' b2, f b1 = Some b2 -> f b1' = Some b2 -> b1 = b1')
@@ -1634,7 +1630,7 @@ Module MemObsEq.
     auto.
   Qed.
 
-  Lemma check_value_obs_2:
+  Lemma check_value_obs:
     forall f n vl vl' v v' q
       (Hf: forall b1 b1' b2, f b1 = Some b2 -> f b1' = Some b2 -> b1 = b1'),
       Coqlib.list_forall2 (memval_obs_eq f) vl vl' ->
@@ -1656,8 +1652,7 @@ Module MemObsEq.
     exfalso. specialize ((proj2 H) ltac:(auto)); auto.
   Qed.
     
-      
-  (*TODO*)
+
   Lemma proj_value_obs:
     forall f q vl1 vl2,
       (forall b1 b1' b2 : block, f b1 = Some b2 -> f b1' = Some b2 -> b1 = b1') ->
@@ -1667,17 +1662,9 @@ Module MemObsEq.
     intros f q vl1 v2 Hinjective Hlst. unfold proj_value.
     inversion Hlst; subst. constructor.
     inversion H; subst; try constructor.
-    destruct (check_value (size_quantity_nat q) v1 q (Fragment v1 q0 n :: al)) eqn:B.
-    destruct (Val.eq v1 Vundef).
-    subst v1.
-    inversion Hval_obs.
-    subst v2.
-    destruct (check_value (size_quantity_nat q) Vundef q
-                          (Fragment Vundef q0 n :: bl));
-      by auto.
     erewrite check_value_obs; eauto.
-    erewrite check_value_obs_2 in B; eauto.
-    rewrite B. constructor.
+    destruct (check_value (size_quantity_nat q) v2 q (Fragment v2 q0 n :: bl));
+      eauto with val_renamings.
   Qed.
   
   Lemma load_result_obs:
@@ -1690,10 +1677,11 @@ Module MemObsEq.
   
   Lemma decode_val_obs:
     forall f vl1 vl2 chunk,
+      (forall b1 b1' b2 : block, f b1 = Some b2 -> f b1' = Some b2 -> b1 = b1') ->
       Coqlib.list_forall2 (memval_obs_eq f) vl1 vl2 ->
       val_obs f (decode_val chunk vl1) (decode_val chunk vl2).
   Proof.
-    intros f vl1 vl2 chunk Hobs_eq.
+    intros f vl1 vl2 chunk Hinjective Hobs_eq.
     unfold decode_val.
     destruct (proj_bytes vl1) as [bl1|] eqn:PB1.
     eapply proj_bytes_obs with (vl' := vl2) in PB1; eauto.
@@ -1707,8 +1695,7 @@ Module MemObsEq.
       destruct chunk; try constructor;
       apply load_result_obs;
       apply proj_value_obs; auto.
-  Admitted.
-  
+  Qed.
   
   Lemma load_valid_block:
     forall (m : mem) (b : block) (ofs : int) v,
@@ -1722,18 +1709,67 @@ Module MemObsEq.
     constructor.
   Qed.
 
+  Lemma valid_access_obs_eq:
+    forall f m1 m2 b1 b2 chunk ofs p,
+      strong_mem_obs_eq f m1 m2 ->
+      f b1 = Some b2 ->
+      Mem.valid_access m1 chunk b1 ofs p ->
+      Mem.valid_access m2 chunk b2 ofs p.
+  Proof.
+    intros. destruct H1 as [A B]. constructor; auto.    
+    intros ofs' Hofs.
+    specialize (A ofs' Hofs).
+    destruct H.
+    specialize (perm_obs_strong0 _ _ ofs' H0).
+    unfold permission_at in *.
+    unfold Mem.perm in *.
+    rewrite perm_obs_strong0; auto.
+  Qed.
+  
+  Lemma getN_obs:
+    forall f m1 m2 b1 b2,
+      strong_mem_obs_eq f m1 m2 ->
+      f b1 = Some b2 ->
+      forall n ofs,
+        Mem.range_perm m1 b1 ofs (ofs + Z_of_nat n) Cur Readable ->
+        list_forall2 (memval_obs_eq f)
+                     (Mem.getN n ofs (m1.(Mem.mem_contents)#b1))
+                     (Mem.getN n ofs (m2.(Mem.mem_contents)#b2)).
+  Proof.
+    induction n; intros; simpl.
+    constructor.
+    rewrite inj_S in H1.
+    destruct H.
+    constructor.
+    eapply val_obs_eq0; eauto.
+    apply H1. omega.
+    apply IHn. red; intros; apply H1; omega.
+  Qed.
+  
+  Transparent Mem.load.
   (*TODO: The proof. should be easy once we have the lemmas above*)
   Lemma load_val_obs:
     forall (mc mf : mem) (f:memren)
       (b1 b2 : block) chunk (ofs : Z) v1
       (Hload: Mem.load chunk mc b1 ofs = Some v1)
       (Hf: f b1 = Some b2)
+      (Hinjective: forall b0 b1' b3 : block, f b0 = Some b3 -> f b1' = Some b3 -> b0 = b1')
       (Hobs_eq: strong_mem_obs_eq f mc mf),
     exists v2,
       Mem.load chunk mf b2 ofs = Some v2 /\
       val_obs f v1 v2.
   Proof.
-  Admitted.
+    intros.
+    exists (decode_val chunk (Mem.getN (size_chunk_nat chunk) ofs (mf.(Mem.mem_contents)#b2))).
+    split. unfold Mem.load. apply pred_dec_true.
+    eapply valid_access_obs_eq; eauto.
+    eapply Mem.load_valid_access; eauto.
+    exploit Mem.load_result; eauto. intro. rewrite H.
+    apply decode_val_obs; auto.    
+    apply getN_obs; auto.
+    rewrite <- size_chunk_conv.
+    exploit Mem.load_valid_access; eauto. intros [A B]. auto.
+  Qed.
 
   (*TODO: The Proof. Should be same as above*)
   Lemma loadv_val_obs:
@@ -1741,13 +1777,19 @@ Module MemObsEq.
       (vptr1 vptr2 : val) chunk v1
       (Hload: Mem.loadv chunk mc vptr1 = Some v1)
       (Hf: val_obs f vptr1 vptr2)
+      (Hinjective: forall b0 b1' b3 : block, f b0 = Some b3 -> f b1' = Some b3 -> b0 = b1')
       (Hobs_eq: strong_mem_obs_eq f mc mf),
     exists v2,
       Mem.loadv chunk mf vptr2 = Some v2 /\
       val_obs f v1 v2.
   Proof.
-    Admitted.
-
+    intros.
+    unfold Mem.loadv in *.
+    destruct vptr1; try discriminate.
+    inversion Hf; subst.
+    eapply load_val_obs in Hload; eauto.
+  Qed.
+  
   (** ** Lemmas about [Mem.store] and [mem_obs_eq]*)
   (*TODO: The proof*)
   

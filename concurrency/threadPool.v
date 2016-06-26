@@ -707,7 +707,102 @@ Module OrdinalPool (SEM:Semantics) (RES:Resources) <: ThreadPoolSig
     rewrite H.
       by reflexivity.
   Qed.
-                    
+
+  Lemma updThread_comm :
+    forall tp  i j c pmap c' pmap'
+      (Hneq: i <> j)
+      (cnti : containsThread tp i)
+      (cntj : containsThread tp j)
+      (cnti': containsThread (updThread cntj c' pmap') i)
+      (cntj': containsThread (updThread cnti c pmap) j),
+      updThread cnti' c pmap = updThread cntj' c' pmap'.
+  Proof.
+    intros.
+    unfold updThread. simpl.
+
+    pose (fun tp ord => (pool tp ord, perm_maps tp ord)) as p.
+    assert (H: p (updThread cnti' c pmap)
+               = p (updThread cntj' c' pmap')).
+    { unfold updThread, p; simpl.
+      extensionality ord.
+      repeat match goal with
+             | [|- context[match ?Expr with _ => _ end]] =>
+               destruct Expr eqn:?
+             | [H: _ = true |- _] =>
+               move/eqP:H=>H
+             | [H: _ = false |- _] =>
+               move/eqP:H=>H
+             end; auto;
+      destruct ord;
+      try (inversion Heqb0; subst);
+      try (inversion Heqb1; subst);
+      try(inversion Heqb; subst);
+      try by exfalso.
+      erewrite proof_irr with (a1 := i0) (a2 := cnti) in Heqb1;
+        by exfalso.
+      erewrite proof_irr with (a1 := i0) (a2 := cntj') in Heqb1;
+        by exfalso.
+      erewrite proof_irr with (a1 := i0) (a2 := cntj') in Heqb1;
+        by exfalso.
+      erewrite proof_irr with (a1 := i0) (a2 := cntj') in Heqb1.
+      erewrite proof_irr with (a1 := i0) (a2 := cntj) in Heqb0;
+        by exfalso.
+      inversion Heqb2; subst.
+      erewrite proof_irr with (a1 := i0) (a2 := cnti') in Heqb;            
+        by exfalso.
+    }
+    unfold p in H. simpl in H.
+    apply prod_fun in H.
+    destruct H as [H1 H2].
+    rewrite H1 H2.
+      by reflexivity.
+  Qed.
+
+  Lemma updThread_updThreadC_comm :
+    forall tp i j c pmap' c'
+      (Hneq: i <> j)
+      (cnti : containsThread tp i)
+      (cntj : containsThread tp j)
+      (cnti': containsThread (updThread cntj c' pmap') i)
+      (cntj': containsThread (updThreadC cnti c) j),
+      updThreadC cnti' c = updThread cntj' c' pmap'.
+  Proof.
+    intros.
+    unfold updThread, updThreadC. simpl.
+    assert (H: pool (updThreadC cnti' c)
+               = pool (updThread cntj' c' pmap')).
+    { unfold updThread, updThreadC; simpl.
+      extensionality ord.
+      repeat match goal with
+             | [|- context[match ?Expr with _ => _ end]] =>
+               destruct Expr eqn:?
+             | [H: _ = true |- _] =>
+               move/eqP:H=>H
+             | [H: _ = false |- _] =>
+               move/eqP:H=>H
+             end; auto;
+      destruct ord;
+      try (inversion Heqb0; subst);
+      try (inversion Heqb1; subst);
+      try(inversion Heqb; subst);
+      try by exfalso.
+      erewrite proof_irr with (a1 := i0) (a2 := cnti) in Heqb1;
+        by exfalso.
+      erewrite proof_irr with (a1 := i0) (a2 := cntj') in Heqb1;
+        by exfalso.
+      erewrite proof_irr with (a1 := i0) (a2 := cntj') in Heqb1;
+        by exfalso.
+      erewrite proof_irr with (a1 := i0) (a2 := cntj') in Heqb1.
+      erewrite proof_irr with (a1 := i0) (a2 := cntj) in Heqb0;
+        by exfalso.
+      inversion Heqb2; subst.
+      erewrite proof_irr with (a1 := i0) (a2 := cnti') in Heqb;            
+        by exfalso.
+    }
+    simpl in H.
+    rewrite H. auto.
+  Qed.
+  
   Lemma gsoThreadCLPool:
     forall {i tp} c (cnti: containsThread tp i) addr,
       lockRes (updThreadC cnti c) addr = lockRes tp addr.
