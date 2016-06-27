@@ -9,6 +9,7 @@ Require Import compcert.lib.Axioms.
 Require Import compcert.lib.Axioms.
 Require Import concurrency.addressFiniteMap.
 Require Import compcert.lib.Maps.
+Require Import Coq.ZArith.ZArith.
 
 Set Implicit Arguments.
 
@@ -883,16 +884,31 @@ Module OrdinalPool (SEM:Semantics) (RES:Resources) <: ThreadPoolSig
       lockRes tp addr'.
   Proof.
   Admitted.
+
+  Lemma gssLockSet:
+    forall tp b ofs rmap ofs',
+      (ofs <= ofs' < ofs + Z.of_nat lksize.LKSIZE_nat)%Z ->
+      (Maps.PMap.get b (lockSet (updLockSet tp (b, ofs) rmap)) ofs') =
+      Some Memtype.Writable.
+  Proof.
+  Admitted.
   
-  Lemma gsoLockSet :
-    forall tp b b' ofs ofs'
-      pmap,
-      (b,ofs) <> (b', ofs') ->
+  Lemma gsoLockSet_1 :
+    forall tp b ofs ofs'  pmap
+      (Hofs: (ofs' < ofs)%Z \/ (ofs' >= ofs + (Z.of_nat lksize.LKSIZE_nat))%Z),
+      (Maps.PMap.get b (lockSet (updLockSet tp (b,ofs) pmap))) ofs' =
+      (Maps.PMap.get b (lockSet tp)) ofs'.
+  Proof.
+  Admitted.
+
+  Lemma gsoLockSet_2 :
+    forall tp b b' ofs ofs' pmap,
+      b <> b' -> 
       (Maps.PMap.get b' (lockSet (updLockSet tp (b,ofs) pmap))) ofs' =
       (Maps.PMap.get b' (lockSet tp)) ofs'.
   Proof.
-    Admitted.
-
+  Admitted.
+  
   Lemma lockSet_updLockSet:
     forall tp i (pf: containsThread tp i) c pmap addr rmap,
       lockSet (updLockSet tp addr rmap) =

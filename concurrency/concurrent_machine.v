@@ -271,10 +271,19 @@ Module Type ThreadPoolSig.
       lockRes (updLockSet tp addr pmap) addr' =
       lockRes tp addr'.
 
-  Axiom gsoLockSet :
-    forall tp b b' ofs ofs'
-      pmap,
-      (b,ofs) <> (b', ofs') ->
+  Axiom gssLockSet:
+    forall tp b ofs rmap ofs',
+      (ofs <= ofs' < ofs + Z.of_nat lksize.LKSIZE_nat)%Z ->
+      (Maps.PMap.get b (lockSet (updLockSet tp (b, ofs) rmap)) ofs') = Some Writable.
+    
+  Axiom gsoLockSet_1 :
+    forall tp b ofs ofs'  pmap
+      (Hofs: (ofs' < ofs)%Z \/ (ofs' >= ofs + (Z.of_nat lksize.LKSIZE_nat))%Z),
+      (Maps.PMap.get b (lockSet (updLockSet tp (b,ofs) pmap))) ofs' =
+      (Maps.PMap.get b (lockSet tp)) ofs'.
+  Axiom gsoLockSet_2 :
+    forall tp b b' ofs ofs' pmap,
+      b <> b' -> 
       (Maps.PMap.get b' (lockSet (updLockSet tp (b,ofs) pmap))) ofs' =
       (Maps.PMap.get b' (lockSet tp)) ofs'.
 
