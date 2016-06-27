@@ -207,9 +207,25 @@ Module Concur.
         all_juice @ loc = res.
     Admitted.
     
-    Definition locks_correct (lset : lockMap) (juice: rmap):=
-      forall loc sh psh P z, juice @ loc = YES sh psh (LK z) P  ->  AMap.find loc lset. 
-    
+    Definition juicyLocks_in_lockSet (lset : lockMap) (juice: rmap):=
+      forall loc sh psh P z, juice @ loc = YES sh psh (LK z) P  ->  AMap.find loc lset.
+
+    Definition lockSet_in_juicyLocks' (lset : lockMap) (juice: rmap):=
+      forall loc, AMap.find loc lset -> 
+	     exists sh psh P z, juice @ loc = YES sh psh (LK z) P \/
+	     exists sh, juice @ loc = NO sh. (* Maybe we want to allow leaking data somehow, 
+                                           in which case we get a lock in the lockSet 
+                                           with nothing in the juice. *)
+    Definition lockSet_in_juicyLocks (lset : lockMap) (juice: rmap):=
+      forall loc, AMap.find loc lset ->
+             Mem.perm_order'' (Some Nonempty) (perm_of_res (juice @ loc)).
+
+    Definition lockSet_compatible (lset : lockMap) m :=
+      forall b ofs, AMap.find (b,ofs) lset ->
+             Mem.perm_order'' ((Mem.mem_access m)!! b ofs Max) (Some Writable) .
+
+    (*This definition makes no sense. In fact if there is at least one lock in rmap, 
+     *then the locks_writable is false (because perm_of_res(LK) = Some Nonempty). *)
     Definition locks_writable (juice: rmap):=
       forall loc sh psh P z, juice @ loc = YES sh psh (LK z) P  ->
                     Mem.perm_order'' (perm_of_res (juice @ loc)) (Some Writable).
@@ -217,8 +233,9 @@ Module Concur.
     Record mem_compatible_with' tp m all_juice : Prop :=
       {   juice_join : join_all tp all_juice
         ; all_cohere : mem_cohere' m all_juice
-        ; loc_writable : locks_writable all_juice
-        ; loc_set_ok : locks_correct (lockGuts tp) all_juice
+        ; loc_writable : lockSet_compatible (lockGuts tp) m
+        ; jloc_in_set : juicyLocks_in_lockSet (lockGuts tp) all_juice
+        ; lset_in_juice: lockSet_in_juicyLocks  (lockGuts tp) all_juice
       }.
 
     Definition mem_compatible_with := mem_compatible_with'.
@@ -234,9 +251,7 @@ Module Concur.
     Admitted.
     
     Lemma mem_compatible_locks_ltwritable':
-      forall lset juice m, locks_writable juice ->
-                      locks_correct lset juice ->
-                      access_cohere' m juice ->
+      forall lset m, lockSet_compatible lset m ->
                       permMapLt (A2PMap lset) (getMaxPerm m ).
     Admitted.
     Lemma mem_compatible_locks_ltwritable:

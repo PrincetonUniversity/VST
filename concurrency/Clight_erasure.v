@@ -568,7 +568,7 @@ Module ClightParching <: ErasureSig.
             
             rewrite (virtue_some _ _ e0).
             inversion MATCH. rewrite <- mtch_perm with (Htid:= mtch_cnt' _ cnt).
-            apply join_permDisjoint.
+            apply joins_permDisjoint.
             Lemma triple_joins_exists:
               forall (a b c ab: rmap),
                 sepalg.join a b ab ->
@@ -624,11 +624,27 @@ Module ClightParching <: ErasureSig.
               Proof. intros. inversion H; reflexivity. Qed.
               rewrite (join_lock Hadd_lock_res).
               exists ((Some Writable)); reflexivity.
-            * rewrite DTP.gsoLockSet; try assumption.
-              admit. (*Must change mem_compatible:
-                       Add a clause stating the converse of locks_correct. In short
-                       that something in lockSet must be a lock in some thread. *)
-            
+            * { rewrite DTP.gsoLockSet; try assumption.
+                apply (@join_permDisjoint
+                         ((JSEM.ThreadPool.getThreadR Hi) @ (b0, ofs0))
+                         (d_phi @ (b0, ofs0))).
+                apply resource_at_join; assumption.
+                - rewrite mtch_perm.
+                  eapply permMapsDisjoint_permDisjoint.
+                  inversion dinv. apply permMapsDisjoint_comm; apply lock_set_threads.
+                - assert (HH: exists k, DSEM.ThreadPool.lockRes ds (b, Int.intval ofs) = Some k).
+                  { specialize (mtch_locks (b, Int.intval ofs)); rewrite His_unlocked in mtch_locks.
+                    simpl in mtch_locks; destruct (DSEM.ThreadPool.lockRes ds (b, Int.intval ofs));
+                    inversion mtch_locks.
+                    exists l; reflexivity. }
+                  destruct HH as [dmap HH].
+                  erewrite mtch_locksRes.
+                  eapply permMapsDisjoint_permDisjoint.
+                  inversion dinv. eapply lock_res_set.
+                  eapply HH.
+                  eassumption.
+                  eassumption.
+              }
           + inversion dinv0; apply permDisjoint_comm;
             eapply lock_set_threads.     
           + inversion dinv0; apply permDisjoint_comm;
@@ -658,7 +674,7 @@ Module ClightParching <: ErasureSig.
               destruct smthng.
               (*smthng = Some r*)
               rewrite <- (mtch_locksRes _ _ _ H Lres b0 ofs0).
-              apply join_permDisjoint.
+              apply joins_permDisjoint.
               apply resource_at_joins.
               eapply (juicy_mem_lemmas.components_join_joins ).
               apply Hadd_lock_res.
@@ -981,7 +997,7 @@ Module ClightParching <: ErasureSig.
             unfold inflated_delta in e0.
             replace p with (perm_of_res (m_phi jm' @ (b0, ofs0))).
             { inversion MATCH. rewrite <- (mtch_perm b0 ofs0 j (mtch_cnt' j cnt) _).
-              apply join_permDisjoint. apply resource_at_joins.
+              apply joins_permDisjoint. apply resource_at_joins.
               eapply (join_sub_joins_trans ).
               apply join_comm in Hrem_lock_res.
               apply (join_join_sub Hrem_lock_res).
@@ -992,12 +1008,12 @@ Module ClightParching <: ErasureSig.
           +  inversion MATCH.
              rewrite <- (mtch_perm b0 ofs0 _ (mtch_cnt' _ Htid'));
                rewrite <- (mtch_perm b0 ofs0 _ (mtch_cnt' _ cnt)).
-             apply join_permDisjoint;  apply resource_at_joins.
+             apply joins_permDisjoint;  apply resource_at_joins.
              eapply compatible_threadRes_join; eassumption.
           + inversion MATCH.
              rewrite <- (mtch_perm b0 ofs0 _ (mtch_cnt' _ Htid'));
                rewrite <- (mtch_perm b0 ofs0 _ (mtch_cnt' _ cnt)).
-             apply join_permDisjoint;  apply resource_at_joins.
+             apply joins_permDisjoint;  apply resource_at_joins.
              eapply compatible_threadRes_join; eassumption.
         - intros. apply permMapsDisjoint_comm.
 
@@ -1272,7 +1288,7 @@ Module ClightParching <: ErasureSig.
                           try solve[exists (Some Writable); reflexivity].
                   Qed.
                   eapply (permDisjointLT (perm_of_res (JTP.getThreadR Hi @ (b, ofs0)))).
-                  apply join_permDisjoint.
+                  apply joins_permDisjoint.
                   apply resource_at_joins.
                   eapply compatible_threadRes_join.
                   eassumption.
@@ -1526,7 +1542,7 @@ Module ClightParching <: ErasureSig.
                       auto.
                       
                   eapply (permDisjointLT (perm_of_res (JTP.getThreadR Hi @ (b, ofs0)))).
-                  apply join_permDisjoint.
+                  apply joins_permDisjoint.
                   apply resource_at_joins.
                   eapply compatible_threadRes_join.
                   eassumption.
