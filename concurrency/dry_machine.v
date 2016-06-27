@@ -315,18 +315,20 @@ Module Concur.
      
      Definition one_pos : pos := mkPos NPeano.Nat.lt_0_1.
 
-     Definition compute_init_perm : G -> access_map := fun _ => empty_map. (*Needst to be filled*)
+     Definition compute_init_perm : G -> access_map :=
+       fun _ => empty_map.
      
-     Definition initial_machine genv c  :=
+     Definition initial_machine genv c :=
        ThreadPool.mk
          one_pos
          (fun _ =>  Kresume c Vundef)
-         (fun _ =>  compute_init_perm genv)
+         (fun _ => compute_init_perm genv)
          empty_lset.
-     
+           
      Definition init_mach (genv:G)(v:val)(args:list val):option thread_pool :=
        match initial_core Sem genv v args with
-       | Some c => Some (initial_machine genv c)
+       | Some c =>      
+         Some (initial_machine genv c)
        | None => None
        end.
 

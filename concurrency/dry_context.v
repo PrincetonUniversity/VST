@@ -20,7 +20,9 @@ Module myFineSemantics :=
 Module mySchedule := mySchedule.
 
 Parameter initU: mySchedule.schedule.
-Parameter the_ge : SEM.G.
+Parameter the_program: Asm.program.
+
+Definition the_ge := Globalenvs.Genv.globalenv the_program.
 
 Definition coarse_semantics:=
   myCoarseSemantics.MachineSemantics initU.

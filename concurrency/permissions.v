@@ -510,13 +510,68 @@ Section permMapDefs.
     intros. unfold permMapsDisjoint; intros.
   Admitted.
 
-  Fixpoint setPermBlock  (p : option permission) (b : block)
+  Fixpoint setPermBlock (p : option permission) (b : block)
            (ofs : Z) (pmap : access_map) (length: nat): access_map :=
     match length with
-      0 => setPerm p b ofs pmap
-    | S len => setPermBlock p b ofs (setPerm p b (ofs + (Z_of_nat length))%Z pmap) len
+      0 => pmap
+    | S len =>
+      setPerm p b (ofs + (Z_of_nat len))%Z (setPermBlock p b ofs pmap len)
     end.
-  
+
+  Lemma setPermBlock_same:
+    forall p b ofs ofs' pmap sz
+      (Hofs: (ofs <= ofs' < ofs + (Z.of_nat sz))%Z),
+      (Maps.PMap.get b (setPermBlock p b ofs pmap sz)) ofs' = p.
+  Proof.
+    intros.
+    generalize dependent ofs'.
+    induction sz; simpl in *; intros.
+    - unfold setPerm.
+      exfalso. destruct Hofs. omega.
+    - unfold setPerm.
+      rewrite PMap.gss.
+      destruct (Coqlib.zeq (ofs + Z.of_nat sz) ofs');
+        first by (subst; reflexivity).
+      simpl.
+      eapply IHsz.
+      destruct Hofs.
+      split; auto.
+      clear - H0 n.
+      zify. omega.
+  Qed.
+
+  Lemma setPermBlock_other_1:
+    forall p b ofs ofs' pmap sz
+      (Hofs: (ofs' < ofs)%Z \/ (ofs' >= ofs + (Z.of_nat sz))%Z),
+      (Maps.PMap.get b (setPermBlock p b ofs pmap sz)) ofs' =
+      Maps.PMap.get b pmap ofs'.
+  Proof.
+    intros.
+    generalize dependent ofs'.
+    induction sz; simpl in *; intros; unfold setPerm.
+    - reflexivity.
+    - rewrite Maps.PMap.gss.
+      destruct (Coqlib.zeq (ofs + Z.of_nat sz) ofs') as [Hcontra | ?].
+      subst. exfalso.
+      destruct Hofs; zify; omega.
+      simpl. eapply IHsz.
+      destruct Hofs; auto.
+      right.
+      zify. omega.
+  Qed.
+
+  Lemma setPermBlock_other_2:
+    forall p b b' ofs ofs' pmap sz,
+      b <> b' ->
+      (Maps.PMap.get b' (setPermBlock p b ofs pmap sz)) ofs' =
+      Maps.PMap.get b' pmap ofs'.
+  Proof.
+    intros.
+    induction sz;
+      simpl;
+      auto.
+    rewrite Maps.PMap.gso; auto.
+  Qed.
 
   (** Apply a [delta_map] to an [access_map]*)
   Definition computeMap (pmap : access_map) (delta : delta_map) : access_map :=

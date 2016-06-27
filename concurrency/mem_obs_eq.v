@@ -2099,9 +2099,39 @@ Lemma val_obs_cmpu:
                  | [|- context[match ?Expr with _ => _ end]] =>
                    destruct Expr eqn:?
                  end...
-      Qed.
+      Qed.      
 
       Hint Resolve val_obs_cmpu : val_renamings.
+
+      Lemma mem_obs_eq_of_weak_strong:
+        forall m m' f pmap1 pmap1' pmap2 pmap2'
+          (Hlt1: permMapLt pmap1 (getMaxPerm m))
+          (Hlt2: permMapLt pmap2 (getMaxPerm m'))
+          (Hlt1': permMapLt pmap1' (getMaxPerm m))
+          (Hlt2': permMapLt pmap2' (getMaxPerm m'))
+          (Hstrong_obs: strong_mem_obs_eq f (restrPermMap Hlt1) (restrPermMap Hlt2))
+          (Hweak: weak_mem_obs_eq f (restrPermMap Hlt1') (restrPermMap Hlt2')),
+          mem_obs_eq f (restrPermMap Hlt1) (restrPermMap Hlt2).
+      Proof.
+        intros.
+        destruct Hweak.
+        constructor; auto.
+        constructor; intros.
+        - specialize (domain_invalid0 b).
+          erewrite restrPermMap_valid in H, domain_invalid0;
+            eauto.
+        - specialize (domain_valid0 b).
+          erewrite restrPermMap_valid in H, domain_valid0;
+            eauto.
+        - specialize (codomain_valid0 _ _ H);
+          erewrite restrPermMap_valid in *;
+          eauto.
+        - eauto.
+        - destruct Hstrong_obs as [Hpermeq _].
+          specialize (Hpermeq _ _ ofs Hrenaming).
+          rewrite Hpermeq;
+            apply po_refl.
+      Qed.
       
 End MemObsEq.
 

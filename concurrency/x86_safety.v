@@ -59,34 +59,17 @@ Require Import msl.Coqlib2.
 
 Lemma x86_corestep_fun:  corestep_fun Sem.
 Proof.
-hnf; intros.
-inv H; inv H0;
-repeat 
-  match goal with
-  | H: ?A = _, H':?A=_ |- _ => inversion2 H H' 
-  | H: ?A, H': ?A |- _ => clear H'
-  end;
- try congruence; try now (split; auto).
-*
- pose proof (eval_builtin_args_determ H4 H11).
- subst vargs0. clear H11.
- assert (H99: vres=vres0 /\ m'=m''); [ | destruct H99; subst; auto].
- clear - HFD NASS H4 H5 H6 H12.
- destruct (external_call_determ _ _ _ _ _ _ _ _ _ _ H5 H12).
- inv H; auto.
- admit.
- admit.
-*
- pose proof (extcall_arguments_determ _ _ _ _ _ H3 H10).
- subst args0; auto.
-*
- assert (H99: res=res0 /\ m'=m''); [ | destruct H99; subst; auto].
- destruct (external_call_determ' H3 H12).
- apply H0.
- inv H; auto.
- admit.
- admit.
-Admitted.
+  hnf; intros.
+  inv H; inv H0;
+  repeat 
+    match goal with
+    | H: ?A = _, H':?A=_ |- _ => inversion2 H H' 
+    | H: ?A, H': ?A |- _ => clear H'
+    end;
+  try congruence; try now (split; auto).
+  pose proof (extcall_arguments_determ _ _ _ _ _ H3 H10).
+  subst args0; auto.
+Qed.
 
 Lemma mem_step_nextblock:
   forall m m',
@@ -334,24 +317,30 @@ Instance x86Spec : CoreLanguage.corestepSpec.
   Proof.
     split.
     intros m m' m'' ge c c' c'' Hstep Hstep'.
- *
-   eapply x86_corestep_fun; eauto.
- * 
-   intros.
-   hnf in Hstep. 
-   apply asm_mem_step in Hstep.
-  eapply mem_step_obeys_cur_write; auto.
- * 
-  intros.
-  apply mem_step_decay.
-  apply asm_mem_step in H; auto.
- *
-  intros.
-  apply mem_step_nextblock.
-  apply asm_mem_step in H; auto.
-Qed.
+    *
+      eapply x86_corestep_fun; eauto.
+    * 
+      intros.
+      hnf in Hstep. 
+      apply asm_mem_step in Hstep.
+      eapply mem_step_obeys_cur_write; auto.
+    * 
+      intros.
+      apply mem_step_decay.
+      apply asm_mem_step in H; auto.
+    *
+      intros.
+      apply mem_step_nextblock.
+      apply asm_mem_step in H; auto.
+  Qed.
 
 End CSPEC.
+
+Parameter init_tp : thread_pool.
+Parameter init_mem : mem.
+
+
+
 End X86Safe.
 
   

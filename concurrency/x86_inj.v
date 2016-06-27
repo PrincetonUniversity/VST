@@ -977,10 +977,10 @@ Module X86Inj <: CoreInjections.
   Proof with eauto with renamings reg_renamings val_renamings.
     intros.
     destruct Hmem_obs_eq.
+    pose proof (injective weak_obs_eq0).
     induction Heval; subst;
     try by (eexists; split)...
-    -
-      eapply loadv_val_obs with (vptr2 := Val.add (rs' ESP) (Vint ofs)) in H...
+    - eapply loadv_val_obs with (vptr2 := Val.add (rs' ESP) (Vint ofs)) in H...
       destruct H as (varg' & Hload' & Hval_obs)...
     - assert (Hb: val_obs f (Senv.symbol_address g id ofs)
                         (Senv.symbol_address g id ofs))
@@ -1650,6 +1650,7 @@ Module X86Inj <: CoreInjections.
     split...
     constructor.
     pose proof (strong_obs_eq Hobs_eq).
+    pose proof (injective (weak_obs_eq Hobs_eq)).
     eapply loadv_val_obs in H0...
     destruct H0 as [arg' [Hloadv' Hval_obs]].
     exists arg'; split; auto.

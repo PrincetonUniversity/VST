@@ -49,7 +49,6 @@ Global Ltac pf_cleanup :=
              assert (H1 = H2) by (by eapply cnt_irr); subst H2
          end.
 
-(*TODO: Check if this module is still relevant*)
 Module ThreadPoolWF.
   Lemma unlift_m_inv :
     forall tp tid (Htid : tid < (num_threads tp).+1) ord
@@ -971,6 +970,28 @@ Module StepLemmas.
       unfold permission_at in *;
       rewrite Hinvalid in Hltth Hlrp Hltls; simpl in *;
         by auto.
+  Qed.
+
+  Lemma mem_compatible_add:
+    forall tp i (cnti: containsThread tp i) c pmap vf arg pmap2 m
+      (Hcomp: mem_compatible
+                (addThread
+                   (updThread cnti c pmap) vf arg pmap2) m),
+      mem_compatible (updThread cnti c pmap) m.
+  Proof.
+    intros.
+    split.
+    - intros j cntj.
+      assert (cntj' := cntAdd vf arg pmap2 cntj).
+      specialize (Hcomp _ cntj').
+      erewrite gsoAddRes;
+        by eauto.
+    - intros l pmap' Hres.
+      erewrite <- gsoAddLPool
+      with (vf := vf) (arg := arg) (p := pmap2) in Hres;
+        by pose proof ((compat_lp Hcomp _ Hres)).
+    - erewrite <- gsoAddLock with (vf := vf) (arg := arg) (p := pmap2);
+        by pose proof ((compat_ls Hcomp)).
   Qed.
   
 End StepLemmas.
