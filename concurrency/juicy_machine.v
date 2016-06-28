@@ -220,7 +220,7 @@ Module Concur.
       forall loc, AMap.find loc lset ->
              Mem.perm_order'' (Some Nonempty) (perm_of_res (juice @ loc)).
 
-    Definition lockSet_compatible (lset : lockMap) m :=
+    Definition lockSet_Writable (lset : lockMap) m :=
       forall b ofs, AMap.find (b,ofs) lset ->
              Mem.perm_order'' ((Mem.mem_access m)!! b ofs Max) (Some Writable) .
 
@@ -233,7 +233,7 @@ Module Concur.
     Record mem_compatible_with' tp m all_juice : Prop :=
       {   juice_join : join_all tp all_juice
         ; all_cohere : mem_cohere' m all_juice
-        ; loc_writable : lockSet_compatible (lockGuts tp) m
+        ; loc_writable : lockSet_Writable (lockGuts tp) m
         ; jloc_in_set : juicyLocks_in_lockSet (lockGuts tp) all_juice
         ; lset_in_juice: lockSet_in_juicyLocks  (lockGuts tp) all_juice
       }.
@@ -251,7 +251,7 @@ Module Concur.
     Admitted.
     
     Lemma mem_compatible_locks_ltwritable':
-      forall lset m, lockSet_compatible lset m ->
+      forall lset m, lockSet_Writable lset m ->
                       permMapLt (A2PMap lset) (getMaxPerm m ).
     Admitted.
     Lemma mem_compatible_locks_ltwritable:
@@ -626,16 +626,16 @@ Module Concur.
             (Hstore:
                Mem.store Mint32 m b (Int.intval ofs) (Vint Int.zero) = Some m')
             (*Check the new memory has the lock*)
-            (Hct: forall ofs', 0 <= ofs'-(Int.intval ofs)<LKSIZE ->
-                          exists val,
-                phi@ (b, ofs') = YES sh pfullshare (VAL val) (pack_res_inv R))
+            (Hct: forall ofs', (Int.intval ofs) <= ofs'<(Int.intval ofs)+LKSIZE  ->
+                          exists val sh',
+                phi@ (b, ofs') = YES sh' pfullshare (VAL val) (pack_res_inv R))
             (Hlock: phi'@ (b, Int.intval ofs) = YES sh pfullshare (LK LKSIZE) (pack_res_inv R))
-            (Hct: forall ofs', 0<ofs'-(Int.intval ofs)<LKSIZE ->
-                phi'@ (b, ofs') = YES sh pfullshare (CT LKSIZE) (pack_res_inv R))
+            (Hct: forall ofs', (Int.intval ofs) <ofs'<(Int.intval ofs)+LKSIZE ->
+                phi'@ (b, ofs') = YES sh pfullshare (CT LKSIZE) (pack_res_inv R)) (*This seems wrong it's not LKSIZE, its ofs0 -ofs *)
             (*Check the new memory has the right continuations THIS IS REDUNDANT! *)
             (*Hcont: forall i, 0<i<LKSIZE ->   phi'@ (b, Int.intval ofs + i) = YES sh pfullshare (CT i) NoneP*)
             (*Check the two memories coincide in everything else *)
-            (Hj_forward: forall loc, loc#1 <> b \/ ~0<loc#2-(Int.size ofs)<LKSIZE  -> phi@loc = phi'@loc)
+            (Hj_forward: forall loc, b <> loc#1 \/ ~(Int.intval ofs) <loc#2<(Int.intval ofs)+LKSIZE  -> phi@loc = phi'@loc)
             (*Check the memories are equal!*)
             (Htp': tp' = updThread cnt0 (Kresume c Vundef) phi')
             (Htp'': tp'' =
@@ -661,13 +661,15 @@ Module Concur.
             (Haccess: address_mapsto LKCHUNK (Vint Int.zero) sh Share.top (b, Int.intval ofs) phi')
             (*Check the old memory has the lock*)
             (Hlock: phi@ (b, Int.intval ofs) = YES sh pfullshare (LK LKSIZE) (pack_res_inv R))
-            (Hct: forall ofs', 0<= ofs'-(Int.intval ofs)<LKSIZE ->
-                          exists val, (*I*)
-                            phi'@ (b, ofs') = YES sh pfullshare (VAL val) (pack_res_inv R))
+            (Hlock': exists val, phi'@ (b, Int.intval ofs) = YES sh pfullshare (VAL val) (pack_res_inv R))
+            (Hct: forall ofs', (Int.intval ofs)< ofs'<(Int.intval ofs)+LKSIZE ->
+                          exists val sh' X, (*I*)
+                            phi@ (b, ofs') = YES sh' pfullshare (CT (Int.intval ofs)) X /\ (*<- might want to specify the X, Id ont' mind*)
+                            phi'@ (b, ofs') = YES sh' pfullshare (VAL val) (pack_res_inv R))
             (*Check the old memory has the right continuations  THIS IS REDUNDANT!*)
             (*Hcont: forall i, 0<i<LKSIZE ->   phi@ (b, Int.intval ofs + i) = YES sh pfullshare (CT i) NoneP *)
             (*Check the two memories coincide in everything else *)
-            (Hj_forward: forall loc, loc#1 <> b \/ ~0<loc#2-(Int.size ofs)<LKSIZE  -> phi@loc = phi'@loc)
+            (Hj_forward: forall loc, b <> loc#1 \/ ~(Int.intval ofs)<loc#2<(Int.intval ofs)+LKSIZE  -> phi@loc = phi'@loc)
             (*Check the memories are equal!*)
             (*Hm_forward:
                makeCurMax m = m1 *)

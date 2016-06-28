@@ -253,6 +253,30 @@ Section permMapDefs.
          reflexivity.
   Qed.
 
+  Lemma permDisjointLT: forall a b c,
+      permDisjoint a c ->
+      Mem.perm_order'' a b ->
+      permDisjoint b c.
+        intros a b c H1 H2.
+        destruct a, b; try solve[inversion H2];
+        try solve[exists c; reflexivity].
+        simpl in H2.
+        destruct H1 as [k H1].
+        inversion H2; subst.
+        - exists k; assumption.
+        - destruct c; inversion H1.
+          exists (Some p0); reflexivity.
+        - destruct c; inversion H1.
+          destruct p; inversion H0.
+          exists (Some Readable); reflexivity.
+        - exists (Some Readable); reflexivity.
+        - destruct c; inversion H1;
+          try solve[exists (Some Nonempty); reflexivity].
+          destruct p; inversion H0; try(destruct p0; inversion H3);
+          try solve[exists (Some Nonempty); reflexivity];
+          try solve[exists (Some Readable); reflexivity];
+          try solve[exists (Some Writable); reflexivity].
+  Qed.
   
   Lemma joins_permDisjoint: forall r1 r2,
       joins r1 r2 ->
@@ -588,6 +612,71 @@ Section permMapDefs.
       auto.
     rewrite Maps.PMap.gso; auto.
   Qed.
+
+  (*setPermBlock with a function*)
+  Fixpoint setPermBlockFunc (fp : Z -> option permission) (b : block)
+           (ofs : Z) (pmap : access_map) (length: nat): access_map :=
+    match length with
+      0 => pmap
+    | S len =>
+      setPerm (fp (ofs + (Z_of_nat len))%Z) b (ofs + (Z_of_nat len))%Z (setPermBlockFunc fp b ofs pmap len)
+    end.
+
+  Lemma setPermBlockFunc_same:
+    forall fp b ofs ofs' pmap sz
+      (Hofs: (ofs <= ofs' < ofs + (Z.of_nat sz))%Z),
+      (Maps.PMap.get b (setPermBlockFunc fp b ofs pmap sz)) ofs' = fp ofs'.
+  Proof.
+    intros.
+    generalize dependent ofs'.
+    induction sz; simpl in *; intros.
+    - unfold setPerm.
+      exfalso. destruct Hofs. omega.
+    - unfold setPerm.
+      rewrite PMap.gss.
+      destruct (Coqlib.zeq (ofs + Z.of_nat sz) ofs');
+        first by (subst; reflexivity).
+      simpl.
+      eapply IHsz.
+      destruct Hofs.
+      split; auto.
+      clear - H0 n.
+      zify. omega.
+  Qed.
+
+  Lemma setPermBlockFunc_other_1:
+    forall fp b ofs ofs' pmap sz
+      (Hofs: (ofs' < ofs)%Z \/ (ofs' >= ofs + (Z.of_nat sz))%Z),
+      (Maps.PMap.get b (setPermBlock fp b ofs pmap sz)) ofs' =
+      Maps.PMap.get b pmap ofs'.
+  Proof.
+    intros.
+    generalize dependent ofs'.
+    induction sz; simpl in *; intros; unfold setPerm.
+    - reflexivity.
+    - rewrite Maps.PMap.gss.
+      destruct (Coqlib.zeq (ofs + Z.of_nat sz) ofs') as [Hcontra | ?].
+      subst. exfalso.
+      destruct Hofs; zify; omega.
+      simpl. eapply IHsz.
+      destruct Hofs; auto.
+      right.
+      zify. omega.
+  Qed.
+
+  Lemma setPermBlockFunc_other_2:
+    forall fp b b' ofs ofs' pmap sz,
+      b <> b' ->
+      (Maps.PMap.get b' (setPermBlock fp b ofs pmap sz)) ofs' =
+      Maps.PMap.get b' pmap ofs'.
+  Proof.
+    intros.
+    induction sz;
+      simpl;
+      auto.
+    rewrite Maps.PMap.gso; auto.
+  Qed.
+  
 
   (** Apply a [delta_map] to an [access_map]*)
   Definition computeMap (pmap : access_map) (delta : delta_map) : access_map :=

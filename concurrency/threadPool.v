@@ -351,14 +351,14 @@ Module OrdinalPool (SEM:Semantics) (RES:Resources) <: ThreadPoolSig
 
       Lemma gsslockSet_rem: forall ds b ofs,
           (lockSet (remLockSet ds (b, ofs))) !! b ofs =
-          (lockSet ds)  !! b ofs.
+          None.
       Proof.
         intros.
       Admitted.
       Lemma gsolockSet_rem: forall ds b ofs b' ofs',
           (b, ofs) <> (b', ofs') ->
           (lockSet (remLockSet ds (b, ofs))) !! b' ofs' =
-          None.
+          (lockSet ds)  !! b' ofs'.
       Proof.
         intros.
       Admitted.

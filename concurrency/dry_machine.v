@@ -505,9 +505,9 @@ Module Concur.
            unfold permMapsDisjoint. intros.
            destruct (addressFiniteMap.AMap.E.eq_dec a (b, ofs)).
            + subst a. rewrite gsslockSet_rem.
+             exists  ((getThreadR cnt) !! b ofs); reflexivity.
+           + destruct a; rewrite (gsolockSet_rem _ ); try assumption.
              inversion INV. apply lock_set_threads0.
-           + destruct a; rewrite (gsolockSet_rem _ ).
-             exists  ((getThreadR cnt) !! b ofs); reflexivity. assumption.
          - intros.
            destruct (addressFiniteMap.AMap.E.eq_dec a l).
            + subst a. rewrite gsslockResRemLock in H; inversion H.
@@ -521,10 +521,10 @@ Module Concur.
              unfold permMapsDisjoint. intros b ofs.
              destruct (addressFiniteMap.AMap.E.eq_dec a (b, ofs)).
              * subst a; rewrite gsslockSet_rem;
-               eapply lock_res_set0. eassumption.
-             * destruct a; rewrite gsolockSet_rem.
                exists (pmap !! b ofs).
                apply perm_union_comm; reflexivity.
+             * destruct a; rewrite gsolockSet_rem.
+               eapply lock_res_set0. eassumption.
                assumption.
        Qed.
 
