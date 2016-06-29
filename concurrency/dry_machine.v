@@ -493,18 +493,19 @@ Module Concur.
 
        Lemma remLock_inv: forall ds a,
            invariant ds ->
-           (forall i (cnt: containsThread ds i),
-               permDisjoint (Some Writable) ((getThreadR cnt) !! (fst a) (snd a)) ) ->
            invariant (remLockSet ds a).
        Proof.
-         intros ? ? INV A.
+         intros ? ? INV.
          constructor.
          - apply remLock_raceFree. inversion INV; assumption.
          - intros.
-           
-           unfold permMapsDisjoint. intros.
-           destruct (addressFiniteMap.AMap.E.eq_dec a (b, ofs)).
-           + subst a. rewrite gsslockSet_rem.
+           apply permDisjoint_permMapsDisjoint.
+           intros b ofs.
+           (*
+           destruct a as [a1 a2].
+           destruct (ident_eq a1 b).
+           (*destruct (addressFiniteMap.AMap.E.eq_dec a (b, ofs)).*)
+           + subst. rewrite gsslockSet_rem.
              exists  ((getThreadR cnt) !! b ofs); reflexivity.
            + destruct a; rewrite (gsolockSet_rem _ ); try assumption.
              inversion INV. apply lock_set_threads0.
@@ -527,8 +528,8 @@ Module Concur.
                apply perm_union_comm; reflexivity.
              * destruct a; rewrite gsolockSet_rem.
                eapply lock_res_set0. eassumption.
-               assumption.
-       Qed.
+               assumption.*)
+       Admitted.
 
      End DryMachineLemmas.
      

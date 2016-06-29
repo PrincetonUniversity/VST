@@ -53,9 +53,22 @@ Module OrdinalPool (SEM:Semantics) (RES:Resources) <: ThreadPoolSig
   Definition lockRes t : address -> option lock_info:=
     AMap.find (elt:=lock_info)^~ (lockGuts t).
 
+  (*Fixpoint lockSet_spec': forall js b ofs n,
+      (lockSet js) !! b ofs =
+      if ssrbool.isSome (lockRes js (b,ofs)) then Some Memtype.Writable else None.
+  
   Lemma lockSet_spec: forall js b ofs,
       (lockSet js) !! b ofs =
       if ssrbool.isSome (lockRes js (b,ofs)) then Some Memtype.Writable else None.
+  Admitted.*)
+Lemma lockSet_WorNE: forall js b ofs,
+      (lockSet js) !! b ofs = Some Memtype.Writable \/ 
+      (lockSet js) !! b ofs = None.
+Admitted.
+
+  Lemma lockSet_spec_1: forall js b ofs,
+      lockRes js (b,ofs) ->
+      (lockSet js) !! b ofs = Some Memtype.Writable.
   Admitted.
 
   Definition containsThread (tp : t) (i : NatTID.tid) : Prop:=
@@ -350,16 +363,33 @@ Module OrdinalPool (SEM:Semantics) (RES:Resources) <: ThreadPoolSig
         intros.
       Admitted.
 
-      Lemma gsslockSet_rem: forall ds b ofs,
+      Lemma gsslockSet_rem': forall ds b ofs,
           (lockSet (remLockSet ds (b, ofs))) !! b ofs =
           None.
       Proof.
         intros.
       Admitted.
-      Lemma gsolockSet_rem: forall ds b ofs b' ofs',
-          (b, ofs) <> (b', ofs') ->
+
+      Lemma gsslockSet_rem: forall ds b ofs ofs0,
+           Intv.In ofs0 (ofs, ofs + lksize.LKSIZE)%Z ->
+          (lockSet (remLockSet ds (b, ofs))) !! b ofs0 =
+          None.
+      Proof.
+        intros.
+      Admitted.
+      
+      Lemma gsolockSet_rem1: forall ds b ofs b' ofs',
+          b  <> b' ->
           (lockSet (remLockSet ds (b, ofs))) !! b' ofs' =
           (lockSet ds)  !! b' ofs'.
+      Proof.
+        intros.
+      Admitted.
+
+      Lemma gsolockSet_rem2: forall ds b ofs ofs',
+          ~ Intv.In ofs' (ofs, ofs + lksize.LKSIZE)%Z ->
+          (lockSet (remLockSet ds (b, ofs))) !! b ofs' =
+          (lockSet ds)  !! b ofs'.
       Proof.
         intros.
       Admitted.

@@ -820,7 +820,13 @@ Module Concur.
         m_phi (personal_mem cnt c) = ThreadPool.getThreadR cnt.
          reflexivity.
       Qed.
-      
+
+      Lemma lockSet_CT: forall js m b ofs i (Hi: containsThread js i) sh psh n X,
+          mem_compatible js m ->
+          (getThreadR Hi) @ (b, ofs) = YES sh psh (LK n) X ->
+          (lockSet js) !! b ofs = Some Writable.
+      Admitted.
+            
     End JuicyMachineLemmas.
       
   End JuicyMachineShell.
