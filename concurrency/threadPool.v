@@ -309,8 +309,9 @@ Module OrdinalPool (SEM:Semantics) (RES:Resources) <: ThreadPoolSig
   Admitted.
   
   Lemma gsolockResRemLock: forall js loc a,
-                 lockRes (remLockSet js loc) a =
-                 lockRes js a.
+      loc <> a ->
+      lockRes (remLockSet js loc) a =
+      lockRes js a.
   Admitted.
   
   

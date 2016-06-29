@@ -513,11 +513,13 @@ Module Concur.
            + subst a. rewrite gsslockResRemLock in H; inversion H.
            + rewrite gsolockResRemLock in H. inversion INV.
              eapply lock_res_threads0.
-             eassumption.
+             eassumption. exact n.
          - intros.
            destruct (addressFiniteMap.AMap.E.eq_dec a l).
            + subst a. rewrite gsslockResRemLock in H; inversion H.
-           + rewrite gsolockResRemLock in H. inversion INV.
+           + rewrite gsolockResRemLock in H.
+             2: exact n.
+             inversion INV.
              unfold permMapsDisjoint. intros b ofs.
              destruct (addressFiniteMap.AMap.E.eq_dec a (b, ofs)).
              * subst a; rewrite gsslockSet_rem;

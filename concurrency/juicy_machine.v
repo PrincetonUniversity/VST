@@ -210,16 +210,26 @@ Module Concur.
     Definition juicyLocks_in_lockSet (lset : lockMap) (juice: rmap):=
       forall loc sh psh P z, juice @ loc = YES sh psh (LK z) P  ->  AMap.find loc lset.
 
-    Definition lockSet_in_juicyLocks' (lset : lockMap) (juice: rmap):=
+    Definition lockSet_in_juicyLocks (lset : lockMap) (juice: rmap):=
       forall loc, AMap.find loc lset -> 
 	     exists sh psh P z, juice @ loc = YES sh psh (LK z) P \/
 	     exists sh, juice @ loc = NO sh. (* Maybe we want to allow leaking data somehow, 
                                            in which case we get a lock in the lockSet 
                                            with nothing in the juice. *)
-    Definition lockSet_in_juicyLocks (lset : lockMap) (juice: rmap):=
+    Definition lockSet_in_juicyLocks' (lset : lockMap) (juice: rmap):=
       forall loc, AMap.find loc lset ->
              Mem.perm_order'' (Some Nonempty) (perm_of_res (juice @ loc)).
-
+    Lemma lockSet_in_juic_weak: forall lset juice,
+        lockSet_in_juicyLocks lset juice -> lockSet_in_juicyLocks' lset juice.
+    Proof.
+      intros lset juice HH loc FIND.
+      apply HH in FIND.
+      destruct FIND as [sh [psh [P [z [FIND | [sh0 FIND]]]]]]; rewrite FIND; simpl.
+      - constructor.
+      - destruct (eq_dec sh0 Share.bot); constructor.
+    Qed.
+           
+    
     Definition lockSet_Writable (lset : lockMap) m :=
       forall b ofs, AMap.find (b,ofs) lset ->
              Mem.perm_order'' ((Mem.mem_access m)!! b ofs Max) (Some Writable) .
