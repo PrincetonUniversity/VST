@@ -20,7 +20,6 @@ Require Import Coq.Program.Program.
 Module Type Semantics.
   Parameter G: Type.
   Parameter C: Type.
-  (* Definition M: Type:= mem. *) (*well we might as well drop that right?*)
   Parameter Sem: MemSem G C.
 End Semantics.
 
@@ -362,7 +361,7 @@ Module Type ConcurrentMachineSig.
 
   (*Parameter initial_machine: C -> thread_pool.*)
   
-  Parameter init_mach : G -> val -> list val -> option thread_pool.
+  Parameter init_mach : option RES.res  -> G -> val -> list val -> option thread_pool.
   
 End ConcurrentMachineSig.
 
@@ -376,10 +375,11 @@ Module Type ConcurrentMachine.
 
   Definition MachState : Type:= (schedule * t)%type.
 
-  Parameter MachineSemantics: schedule -> CoreSemantics SIG.ThreadPool.SEM.G MachState mem.
+  Parameter MachineSemantics: schedule -> option RES.res ->
+                              CoreSemantics SIG.ThreadPool.SEM.G MachState mem.
 
-  Axiom initial_schedule: forall genv main vals U U' c,
-      initial_core (MachineSemantics U) genv main vals = Some (U',c) ->
+  Axiom initial_schedule: forall genv main vals U U' p c,
+      initial_core (MachineSemantics U p) genv main vals = Some (U',c) ->
       U' = U.
 End ConcurrentMachine.
   
@@ -513,17 +513,19 @@ Module CoarseMachine (SCH:Scheduler)(SIG : ConcurrentMachineSig with Module Thre
     | _ => Some Vundef
     end.
 
-  Definition init_machine (U:schedule) the_ge (f : val) (args : list val) : option MachState :=
-    match init_mach the_ge f args with
-    |None => None
+  Definition init_machine (U:schedule) (r : option RES.res) the_ge
+             (f : val) (args : list val)
+    : option MachState :=
+    match init_mach r the_ge f args with
+    | None => None
     | Some c => Some (U, c)
     end.
   
-  Program Definition MachineSemantics (U:schedule):
+  Program Definition MachineSemantics (U:schedule) (r : option RES.res):
     CoreSemantics G MachState mem.
   intros.
   apply (@Build_CoreSemantics _ MachState _
-                              (init_machine U)
+                              (init_machine U r)
                               at_external
                               after_external
                               halted
@@ -535,13 +537,28 @@ Module CoarseMachine (SCH:Scheduler)(SIG : ConcurrentMachineSig with Module Thre
   Defined.
 (*
   Definition MachineSemantics:= MachineSemantics'.*)
-  Lemma initial_schedule: forall genv main vals U U' c,
-      initial_core (MachineSemantics U) genv main vals = Some (U',c) ->
+  Lemma initial_schedule: forall genv main vals U U' p c,
+      initial_core (MachineSemantics U p) genv main vals = Some (U',c) ->
       U' = U.
         simpl. unfold init_machine. intros.
-        destruct (init_mach genv main vals); try solve[inversion H].
+        destruct (init_mach p genv main vals); try solve[inversion H].
         inversion H; reflexivity.
   Qed.
+
+  (** Schedule safety of the coarse-grained machine*)
+  Inductive csafe (ge : G) (tp : thread_pool) (m : mem) (U:schedule) : Prop :=
+  | HaltedSafe: halted (U, tp) -> csafe ge tp m U
+  | CoreSafe : forall tp' m'
+                 (Hstep: MachStep ge (U, tp) m (U,tp') m')
+                 (Hsafe: csafe ge tp' m' U),
+      csafe ge tp m U
+  | AngelSafe: forall U' tp' m'
+                 (Hsched: U <> U')
+                 (Hstep: MachStep ge (U, tp) m (U',tp') m')
+                 (Hsafe: forall U'', csafe ge tp' m' U''),
+      csafe ge tp m U.
+  
+  
 End CoarseMachine.
 
 Module FineMachine  (SCH:Scheduler)(SIG : ConcurrentMachineSig with Module ThreadPool.TID:=SCH.TID) <: ConcurrentMachine with Module SCH:= SCH with Module SIG:= SIG.
@@ -662,35 +679,49 @@ Module FineMachine  (SCH:Scheduler)(SIG : ConcurrentMachineSig with Module Threa
   Definition after_external (ov : option val) (st : MachState) :
     option (MachState) := None.
   
-  (*not clear what the value of halted should be*)
-  Definition halted (st : MachState) : option val := None.
+  Definition halted (st : MachState) : option val :=
+    match schedPeek (fst st) with
+    | Some _ => None
+    | _ => Some Vundef
+    end.
   
-  Definition init_machine (U:schedule) the_ge (f : val) (args : list val) : option MachState :=
-    match init_mach the_ge f args with
+  Definition init_machine (U:schedule) (p : option RES.res) the_ge
+             (f : val) (args : list val) : option MachState :=
+    match init_mach p the_ge f args with
     | None => None
     | Some c => Some (U, c)
     end.
   
-  Program Definition MachineSemantics (U:schedule):
+  Program Definition MachineSemantics (U:schedule) (p : option RES.res):
     CoreSemantics G MachState mem.
   intros.
   apply (@Build_CoreSemantics _ MachState _
-                              (init_machine U)
+                              (init_machine U p)
                               at_external
                               after_external
                               halted
                               MachStep
         );
     unfold at_external, halted; try reflexivity.
+  intros. inversion H; subst; rewrite HschedN; reflexivity.
   auto.
   Defined.
 
 
-  Lemma initial_schedule: forall genv main vals U U' c,
-      initial_core (MachineSemantics U) genv main vals = Some (U',c) ->
+  Lemma initial_schedule: forall genv main vals U U' p c,
+      initial_core (MachineSemantics U p) genv main vals = Some (U',c) ->
       U' = U.
         simpl. unfold init_machine. intros.
-        destruct (init_mach genv main vals); try solve[inversion H].
+        destruct (init_mach p genv main vals); try solve[inversion H].
         inversion H; reflexivity.
   Qed.
+
+  (** Schedule safety of the fine-grained machine*)
+  Inductive fsafe (ge : G) (tp : thread_pool) (m : mem) (U:schedule) : Prop :=
+  | HaltedSafe: halted (U, tp) -> fsafe ge tp m U
+  | StepSafe : forall tp' m'
+                 (Hstep: MachStep ge (U, tp) m (U,tp') m')
+                 (Hsafe: fsafe ge tp' m' U),
+      fsafe ge tp m U.
+  
 End FineMachine.

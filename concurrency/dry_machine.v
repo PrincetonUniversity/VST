@@ -314,26 +314,27 @@ Module Concur.
          containsThread ms tid0 -> Prop:= @threadHalted'.
      
      Definition one_pos : pos := mkPos NPeano.Nat.lt_0_1.
-
-     Definition compute_init_perm : G -> access_map :=
-       fun _ => empty_map.
      
-     Definition initial_machine genv c :=
+     Definition initial_machine pmap c :=
        ThreadPool.mk
          one_pos
          (fun _ =>  Kresume c Vundef)
-         (fun _ => compute_init_perm genv)
+         (fun _ => pmap)
          empty_lset.
+
            
-     Definition init_mach (genv:G)(v:val)(args:list val):option thread_pool :=
+     Definition init_mach (pmap : option access_map) (genv:G)
+                (v:val)(args:list val):option thread_pool :=
        match initial_core Sem genv v args with
        | Some c =>      
-         Some (initial_machine genv c)
+         match pmap with
+         | Some pmap => Some (initial_machine pmap c)
+         | None => None
+         end
        | None => None
        end.
 
      Module DryMachineLemmas.
-       
        
        Lemma updLock_raceFree: forall ds a pmap,
          race_free ds ->
@@ -367,21 +368,25 @@ Module Concur.
        Qed.
 
        (** *Invariant Lemmas*)
-       Lemma initial_invariant: forall genv c,
-           invariant (initial_machine genv c).
+       Lemma initial_invariant: forall pmap c,
+           invariant (initial_machine pmap c).
              unfold  invariant.
              constructor.
              - unfold race_free, initial_machine; simpl.
                unfold containsThread; simpl.
                intros.
-               apply empty_disjoint.
+               exfalso.
+               apply Hneq.
+               destruct i,j; simpl in *; auto;
+               ssromega.
              - intros.
                unfold initial_machine; simpl.
-               unfold permMapsDisjoint; intros.
-               exists ((compute_init_perm genv) !! b ofs).
+               unfold permMapsDisjoint; intros. 
+               exists (pmap !! b ofs).
                unfold empty_map.
-               unfold PMap.get at 1; simpl. rewrite PTree.gempty.
-               reflexivity.
+               unfold lockSet. simpl.
+               unfold A2PMap. simpl.
+               rewrite PMap.gi; reflexivity.
              - unfold initial_machine, lockRes, containsThread ; simpl.
                intros. rewrite threadPool.find_empty in H; inversion H.
              - unfold initial_machine, lockRes, containsThread ; simpl.
@@ -402,8 +407,7 @@ Module Concur.
              - simpl; assumption.
        Qed.
 
-       
-
+      
        Lemma updThread_inv: forall ds i (cnt: containsThread ds i) c pmap,
            invariant ds ->
            (forall j (cnt: containsThread ds j),

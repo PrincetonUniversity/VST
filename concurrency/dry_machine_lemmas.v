@@ -224,7 +224,6 @@ Module ThreadPoolWF.
       by simpl in H.
   Qed.
 
-  
 End ThreadPoolWF.
 
 
@@ -942,7 +941,6 @@ Module StepLemmas.
       by erewrite gsoThreadCLPool.
   Qed.
 
-  
   Lemma mem_compatible_setMaxPerm :
     forall tp m
       (Hcomp: mem_compatible tp m),
@@ -993,7 +991,7 @@ Module StepLemmas.
     - erewrite <- gsoAddLock with (vf := vf) (arg := arg) (p := pmap2);
         by pose proof ((compat_ls Hcomp)).
   Qed.
-  
+
 End StepLemmas.
 
 (** ** Definition of internal steps *)

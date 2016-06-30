@@ -740,16 +740,20 @@ Module Concur.
        and function specs. *)
 
     Lemma onePos: (0<1)%coq_nat. auto. Qed.
-    Definition initial_machine c:=
+    Definition initial_machine rmap c:=
       mk
         (mkPos onePos)
         (fun _ => (Kresume c Vundef))
-        (fun _ => empty_rmap level)
+        (fun _ => rmap)
         (AMap.empty (option res)).
     
-    Definition init_mach (genv:G)(v:val)(args:list val) : option thread_pool:=
+    Definition init_mach rmap (genv:G)(v:val)(args:list val) : option thread_pool:=
       match initial_core the_sem genv v args with
-      | Some c => Some (initial_machine  c)
+      | Some c =>
+        match rmap with
+        | Some rmap => Some (initial_machine rmap c)
+        | None => None
+        end
       | None => None
       end.
 

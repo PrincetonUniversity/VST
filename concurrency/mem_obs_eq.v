@@ -228,6 +228,9 @@ Qed.
   Qed.
   
   Hint Immediate ren_incr_refl ren_separated_refl : renamings.
+
+  Hint Resolve id_ren_correct id_ren_domain id_ren_validblock
+       id_ren_invalidblock : id_renamings.
   
 End Renamings.
 
@@ -424,6 +427,7 @@ End MemoryWD.
 
 Module MemoryLemmas.
 
+  Transparent Mem.store.
   (*TODO: see if we can reuse that for gsoMem_obs_eq.*)
   Lemma store_contents_other:
     forall m m' b b' ofs ofs' v chunk
@@ -548,6 +552,20 @@ Module MemoryLemmas.
     intros.
     apply Mem.free_result in Hfree.
     subst; unfold Mem.unchecked_free.
+    reflexivity.
+  Qed.
+
+  Lemma mem_store_max:
+    forall chunk b ofs v m m',
+      Mem.store chunk m b ofs v = Some m' ->
+      forall b' ofs',
+        (getMaxPerm m) # b' ofs' = (getMaxPerm m') # b' ofs'.
+  Proof.
+    intros.
+    unfold Mem.store in *.
+    destruct (Mem.valid_access_dec m chunk b ofs Writable); try discriminate.
+    inversion H; subst.
+    rewrite getMaxPerm_correct.
     reflexivity.
   Qed.
   
@@ -1426,6 +1444,33 @@ Module MemObsEq.
     eapply weak_obs_eq_domain_ren;
       by eauto.
   Qed.
+
+  Lemma mem_obs_eq_id :
+    forall m,
+      valid_mem m ->
+      mem_obs_eq (id_ren m) m (setMaxPerm m).
+Proof with eauto with renamings id_renamings val_renamings.
+  intros.
+  constructor; constructor;
+  eauto with id_renamings; unfold id_ren; intros;
+  repeat match goal with
+         | [H: context[valid_block_dec ?M ?B] |- _] =>
+           destruct (valid_block_dec M B); simpl in *
+         | [H: _ = Some _ |- _] => inv H; clear H
+         end; auto.
+  rewrite setMaxPerm_Cur;
+    apply po_refl.
+  rewrite setMaxPerm_Cur; auto.
+  destruct (ZMap.get ofs (Mem.mem_contents m) # b2) eqn:Hget;
+    constructor.
+  destruct v0; constructor.
+  specialize (H _ v _ _ Hget).
+  simpl in H.
+  (*this gives an anomaly:
+  erewrite Coqlib2.if_true with (E:= {Mem.valid_block m b} + {~ Mem.valid_block m b}).
+   *)
+  destruct (valid_block_dec m b); simpl; tauto.
+Qed.
   
   Definition max_inv mf := forall b ofs, Mem.valid_block mf b ->
                                     permission_at mf b ofs Max = Some Freeable.

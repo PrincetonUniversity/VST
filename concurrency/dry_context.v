@@ -3,6 +3,7 @@ Require Import concurrency.threads_lemmas.
 Require Import concurrency.permissions.
 Require Import concurrency.concurrent_machine.
 Require Import ccc26x86.Asm_coop.
+Require Import compcert.common.Globalenvs.
 Import Concur.
 
 Parameter hf : I64Helpers.helper_functions.
@@ -22,11 +23,18 @@ Module mySchedule := mySchedule.
 Parameter initU: mySchedule.schedule.
 Parameter the_program: Asm.program.
 
+Definition init_mem := Genv.init_mem the_program.
+Definition init_perm : option access_map :=
+  match init_mem with
+  | Some m => Some (getMaxPerm m)
+  | None => None
+  end.
+
 Definition the_ge := Globalenvs.Genv.globalenv the_program.
 
 Definition coarse_semantics:=
-  myCoarseSemantics.MachineSemantics initU.
+  myCoarseSemantics.MachineSemantics initU init_perm.
 
 Definition fine_semantics:=
-  myFineSemantics.MachineSemantics initU.
+  myFineSemantics.MachineSemantics initU init_perm.
 

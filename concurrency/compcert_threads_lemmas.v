@@ -53,7 +53,6 @@ Require Import concurrency.scheduler.
 Require Import concurrency.concurrent_machine.
 Require Import concurrency.dry_machine_lemmas concurrency.dry_context.
 Require Import concurrency.mem_obs_eq.
-Require Import sepcomp.closed_safety.
 
 Import dry_context SEM mySchedule DryMachine DryMachine.ThreadPool.
 
@@ -121,7 +120,7 @@ Module SimDefs (CI: CoreInjections).
     { numThreads : forall i, containsThread tpc i <-> containsThread tpf i;
       mem_compc: mem_compatible tpc mc;
       mem_compf: mem_compatible tpf mf;
-      safeCoarse: forall sched n, safeN coarse_semantics the_ge n (sched, tpc) mc;
+      safeCoarse: forall sched, @myCoarseSemantics.csafe the_ge tpc mc sched;
       simWeak:
         forall tid
           (pfc: containsThread tpc tid)
@@ -228,7 +227,7 @@ Module SimProofs (CI: CoreInjections).
   Module ThreadPoolInjections := ThreadPoolInjections CI.
   Module SimDefs := SimDefs CI.
   Import SimDefs Renamings ThreadPoolInjections CI.
-  
+  Notation csafe := (myCoarseSemantics.csafe).
 
   Section SimProofs.
   Opaque at_external after_external halted Sem.
@@ -352,15 +351,13 @@ Module SimProofs (CI: CoreInjections).
   Qed.
 
   
-  Lemma safeN_corestepN_internal:
-    forall xs i U tpc mc tpc' mc' n
-      (Hsafe : safeN coarse_semantics the_ge
-                     ((size [seq x <- xs | x == i]) + n)
-                     (buildSched (i :: U), tpc) mc)
+  Lemma safety_det_corestepN_internal:
+    forall xs i U tpc mc tpc' mc'
+      (Hsafe : @csafe the_ge tpc mc (buildSched (i :: U)))
       (Hexec : internal_execution [seq x <- xs | x == i] tpc mc tpc' mc'),
       corestepN CoarseSem the_ge (size [seq x <- xs | x == i])
                 (buildSched (i :: U), tpc) mc (buildSched (i :: U), tpc') mc'
-      /\ safeN coarse_semantics the_ge n (buildSched (i :: U), tpc') mc'.
+      /\ @csafe the_ge tpc' mc' (buildSched (i :: U)).
   Proof.
     intros xs. induction xs as [ | x xs]; intros.
     { simpl in *. inversion Hexec; subst.
@@ -369,19 +366,25 @@ Module SimProofs (CI: CoreInjections).
     }
     { simpl in *.
       destruct (x == i) eqn:Hx; move/eqP:Hx=>Hx; subst.
-      - simpl in Hsafe.
-        destruct Hsafe as [[st' [m' Hmach_step]] Hsafe].
-        destruct st' as [stU' tp'].
-        specialize (Hsafe _ _ Hmach_step).
-        inversion Hexec; subst; simpl in *; clear Hexec;
-        inversion HschedN; subst i.
-        assert (Hmach_step_det :=
-                  internal_step_cmachine_step U Hstep).
-        destruct Hmach_step_det as [Hmach_step' Hmach_det].
-        specialize (Hmach_det _ _ _ Hmach_step).
-        destruct Hmach_det as [? [? ?]]; subst.
-        destruct (IHxs _ _ _ _ _ _ _ Hsafe Htrans) as [HcorestepN Hsafe'].
-        eauto.
+      - inversion Hsafe.
+        + simpl in H; by exfalso.
+        + inversion Hexec; subst; simpl in *; clear Hexec;
+          inversion HschedN; subst i.
+          assert (Hmach_step_det :=
+                    internal_step_cmachine_step U Hstep0).
+          destruct Hmach_step_det as [Hmach_step' Hmach_det].
+          specialize (Hmach_det _ _ _ Hstep).
+          destruct Hmach_det as [? [? ?]]; subst.
+          destruct (IHxs tid U tp' m' tpc' mc' Hsafe0 Htrans) as [HcorestepN Hsafe'].
+          eauto.
+        + exfalso.
+          inversion Hexec; subst; simpl in *; clear Hexec;
+          inversion HschedN; subst i.
+          assert (Hmach_step_det := internal_step_cmachine_step U Hstep0).
+          destruct Hmach_step_det as [Hmach_step' Hmach_det].
+          specialize (Hmach_det _ _ _ Hstep).
+          destruct Hmach_det as [? [? ?]]; subst.
+          unfold buildSched in Hsched. auto.
       - eapply IHxs; eauto.
     }
   Qed.
@@ -1085,6 +1088,41 @@ Module SimProofs (CI: CoreInjections).
     rewrite H.
       by reflexivity.
   Qed.
+
+  Lemma csafe_internal_step:
+    forall tp m i (cnti: containsThread tp i) U
+      (Hinternal: cnti @ I)
+      (Hsafe: @csafe the_ge tp m (buildSched (i :: U))),
+    exists tp' m', cmachine_step (buildSched (i :: U), tp) m
+                            (buildSched (i :: U), tp') m'.
+  Proof.
+    intros.
+    unfold buildSched in *.
+    inversion Hsafe; simpl in *.
+    - by exfalso.
+    - do 2 eexists; eauto.
+    - inversion Hstep; subst; simpl in *; subst; (try by exfalso);
+      unfold getStepType in Hinternal; inversion HschedN; subst.
+      inversion Htstep; subst.
+      pf_cleanup.
+      rewrite Hcode in Hinternal.
+      simpl in Hinternal.
+      rewrite Hat_external in Hinternal;
+        by discriminate.
+      inversion Htstep; subst;
+      pf_cleanup;
+      rewrite Hcode in Hinternal;
+      simpl in Hinternal;
+        by discriminate.
+      inversion Hhalted; subst.
+      pf_cleanup.
+      rewrite Hcode in Hinternal. simpl in Hinternal.
+      destruct (halted SEM.Sem c) eqn:Hhalt; try (by exfalso). 
+      rewrite Hhalt in Hinternal.
+      destruct (at_external Sem c);
+        by discriminate.
+        by exfalso.
+  Qed.
   
   Lemma sim_internal : sim_internal_def.
   Proof.
@@ -1105,22 +1143,21 @@ Module SimProofs (CI: CoreInjections).
       by (clear - Hexec pfc;
            eapply containsThread_internal_execution in pfc; eauto).
     specialize (Htsim pfc').
-    (* It's safe to step the coarse grained machine for one more step on i*)
-    specialize (HsafeC (mySchedule.buildSched (i :: nil))
-                       ((size ([seq x <- xs | x == i])).+1)).
-    rewrite <- addn1 in HsafeC.
-    assert (HcoreN := safeN_corestepN_internal xs _ _ 1 HsafeC Hexec).
-    destruct HcoreN as [HcorestepN HsafeN].
-    unfold safeN in HsafeN; simpl in *.
-    destruct HsafeN as [[[U tpc''] [mc'' Hstep']] _].
-    assert (HinvC: invariant tpc)
-      by (eapply cmachine_step_invariant; eauto).
+    (* The coarse machine is also at internal*)
     assert (memCompC' := internal_execution_compatible HmemCompC Hexec).
     specialize (Htsim memCompC').
     assert (Hinternal_pfc': pfc' @ I)
       by (by erewrite (stepType_inj _ _ _ (code_eq Htsim))).
+    (* It's safe to step the coarse grained machine for one more step on i*)
+    specialize (HsafeC (buildSched [:: i])).        
+    assert (HcoreN := safety_det_corestepN_internal xs HsafeC Hexec).
+    destruct HcoreN as [HcorestepN Hsafety].
+    destruct (csafe_internal_step pfc' Hinternal_pfc' Hsafety) as
+        (tpc'' & mc'' & Hstep').
+       assert (HinvC: invariant tpc)
+      by (eapply cmachine_step_invariant; eauto).
     apply at_internal_cmachine_step with (cnt := pfc') in Hstep'; eauto.
-    destruct Hstep' as [Hcomp [Hstep' Heq]]. subst U; pf_cleanup.
+    destruct Hstep' as [Hcomp [Hstep' _]].  pf_cleanup.
     assert (Hge_incr': ren_incr fg (fp i pfc))
       by (destruct Hge_spec; eapply ren_incr_trans; eauto).
     (* And from this we derive safety for 1 step for fine-grained*)
@@ -2114,6 +2151,53 @@ Module SimProofs (CI: CoreInjections).
         eapply containsThread_internal_execution';
           by eauto.
   Qed.
+
+  Lemma csafe_pop_step :
+    forall (tp : thread_pool) (m : mem) (i : tid) (cnti : containsThread tp i)
+      (U : seq tid)
+      (Hpop: cnti @ E \/ cnti @ S)
+      (Hsafe: @csafe the_ge tp m (buildSched (i :: U))),
+    exists (tp' : thread_pool) (m' : mem),
+      cmachine_step (buildSched (i :: U), tp) m (U, tp') m' /\
+      forall U'', @csafe the_ge tp' m' U''.
+  Proof.
+    intros.
+    unfold buildSched in *.
+    inversion Hsafe; simpl in *.
+    - by exfalso.
+    - unfold getStepType in Hpop.
+      inversion Hstep; subst; simpl in *;
+      inversion HschedN; subst tid;
+      try match goal with
+          | [H: ?X = ?Y :: ?X |- _] =>
+            exfalso;
+              clear - HschedS; induction U; simpl in *; try discriminate;
+              inversion HschedS;
+                by auto
+          end.
+      inversion Htstep; subst.
+      pf_cleanup.
+      rewrite Hcode in Hpop. simpl in Hpop.
+      destruct Hpop;
+        by discriminate.
+      inversion Htstep; subst.
+      pf_cleanup.
+      rewrite Hcode in Hpop; simpl in Hpop.
+      destruct Hpop;
+        by discriminate.
+      inversion Htstep; subst; pf_cleanup.
+      rewrite Hcode in Hpop. simpl in Hpop.
+      apply corestep_not_at_external in Hcorestep.
+      rewrite Hcorestep in Hpop.
+      destruct (halted Sem c);
+        destruct Hpop;
+          by discriminate.
+    - assert (U' = U)
+        by (inversion Hstep; simpl in *; subst; auto;
+              by exfalso).
+      subst.
+      do 2 eexists; eauto.
+  Qed.
   
   Lemma sim_suspend : sim_suspend_def.
   Proof.
@@ -2129,28 +2213,27 @@ Module SimProofs (CI: CoreInjections).
       as (tpc' & mc' & Hincr & Hsynced & Hexec & Htsim & Hownedi
           & Hownedi_ls & Hownedi_lp);
       clear HsimStrong.
+    (* The coarse machine is also at suspend*)
     assert (pfc': containsThread tpc' i)
       by (clear - Hexec pfc; eapply containsThread_internal_execution in pfc;
           eauto).
-    specialize (Htsim pfc').
-    specialize (HsafeC (mySchedule.buildSched (i ::  nil))
-                       ((size ([seq x <- xs | x == i])).+1)).
-    rewrite <- addn1 in HsafeC.
-    assert (HcoreN := safeN_corestepN_internal xs _ nil 1 HsafeC Hexec).
-    destruct HcoreN as [HcorestepN HsafeN].
-    unfold safeN in HsafeN; simpl in *.
-    destruct HsafeN as [[[U tpc''] [mc'' Hstep']] _].
-    assert (HinvC: invariant tpc)
-      by (eapply cmachine_step_invariant; eauto).
     assert (memCompC' := internal_execution_compatible HmemCompC Hexec).
-    specialize (Htsim memCompC').
+    specialize (Htsim pfc' memCompC').
     assert (Hstop_pfc': pfc' @ S)
       by (by erewrite (stepType_inj _ _ _ (code_eq Htsim))).
+    (* It's safe to step the coarse grained machine for one more step on i*)
+    specialize (HsafeC (buildSched [:: i])).
+    assert (HcoreN := safety_det_corestepN_internal xs HsafeC Hexec).
+    destruct HcoreN as [HcorestepN Hsafety].
+    destruct (csafe_pop_step pfc' ltac:(eauto) Hsafety) as
+        (tpc'' & mc'' & Hstep' & Hsafe').
+    assert (HinvC: invariant tpc)
+      by (eapply cmachine_step_invariant; eauto).
     (* A suspend step pops the schedule and does not touch the memory *)
-    assert (Heq : empty = U /\ mc' = mc'' /\ mem_compatible tpc' mc' /\
+    assert (Heq : mc' = mc'' /\ mem_compatible tpc' mc' /\
                   myCoarseSemantics.suspend_thread pfc' tpc'')
       by (eapply suspend_step_inverse; eauto).
-    destruct Heq as [? [? [Hcomp' HsuspendC]]]; subst mc' U.
+    destruct Heq as [? [Hcomp' HsuspendC]]; subst mc'.
     assert (memCompC'': mem_compatible tpc'' mc'')
       by (eapply suspendC_compatible; eauto).
     assert (HstepF := strong_tsim_stop HinvF Htsim Hstep' Hstop_pfc').
@@ -2222,21 +2305,7 @@ Module SimProofs (CI: CoreInjections).
           destruct (HnumThreads j); by auto].            
       }
       { (* safety of coarse state *)
-        intros U n.
-        assert (Hsafe_tpc := safeCoarse Hsim).
-        specialize (Hsafe_tpc (buildSched (i :: U))
-                              (size [seq x <- xs | x == i] + (1 + n))).
-        assert (HcoreN := safeN_corestepN_internal xs _ U _ Hsafe_tpc Hexec).
-        destruct HcoreN as [HcorestepN_tpc HsafeN_tpc'].
-        simpl in HsafeN_tpc'.
-        destruct HsafeN_tpc' as [[[U' tpc''0] [mc''0 Hstep'0]] Hsafe].
-
-        destruct (suspend_step_inverse pfc' Hstop_pfc' Hstep'0)
-          as [? [? [_ Hsuspend]]]; subst U' mc''0.
-        assert (tpc''0 = tpc'')
-          by (eapply suspendC_step_det; eauto);
-          subst tpc''0.
-          by eauto.
+        eapply Hsafe'.
       }
       { (* Proof of weak simulation between the threadpools and memories *)
         clear HsafeC. pf_cleanup.
@@ -2432,11 +2501,15 @@ Module SimProofs (CI: CoreInjections).
           assert (Htp_wd_id: tp_wd (id_ren mc) tpc)
             by (eapply tp_wd_domain; eauto).
           simpl.
-          erewrite proof_irr
-          with (a1 := (containsThread_internal_execution'
-                         Hexec (proj2 (suspendC_containsThread j HsuspendC)
-                                      pfcj'')))
-                 (a2 := pfcj).
+          assert (H : containsThread_internal_execution'
+                        Hexec (proj2 (suspendC_containsThread
+                                        j HsuspendC) pfcj'') = pfcj) by 
+              (erewrite proof_irr
+               with (a1 := (containsThread_internal_execution'
+                              Hexec (proj2 (suspendC_containsThread j HsuspendC)
+                                           pfcj'')))
+                      (a2 := pfcj); auto).
+          rewrite H; clear H.
           
           (* The original <tpc, mc> strongly injects into <tpc'',mc''> where
                <tpc, mc> -->i <tpc', mc'> -->iS <tpc'',mc'>  with the id map*)
@@ -5696,38 +5769,20 @@ Module SimProofs (CI: CoreInjections).
     econstructor 7; simpl; eauto.
   Qed.
     
-  (* TODO: move, see if it can be used for suspend and internal cases as well*)
-  Lemma safeC_trans:
-    forall (tpc tpc' : thread_pool) (mc mc': mem) (i : tid),
-      (forall (sched : Sch) (n : nat), safeN CoarseSem the_ge n (sched, tpc) mc) ->
-      myCoarseSemantics.MachStep the_ge (buildSched [:: i], tpc) mc
-                                 (empty, tpc') mc' ->
-      forall (sched : Sch) (n : nat),
-        safeN CoarseSem the_ge n (sched, tpc') mc'.
-  Proof.
-    intros.
-    specialize (H (i :: sched) (n.+1)).
-    simpl in H.
-    destruct H as [_ Hsafe'].
-    assert (HstepC': myCoarseSemantics.MachStep
-                       the_ge (i :: sched, tpc) mc
-                       (sched, tpc') mc')
-      by (eapply step_schedule; eauto).
-    specialize (Hsafe' _ _ HstepC');
-      by assumption.
-  Qed.
-
   Lemma safeC_invariant:
     forall tpc mc
-      (Hsafe: forall (sched : Sch) (n : nat), safeN CoarseSem the_ge n (sched, tpc) mc),
+      (Hsafe: forall (U : Sch),
+          @csafe the_ge tpc mc U),
       invariant tpc.
   Proof.
     intros.
-    specialize (Hsafe [:: 1] 1).
+    specialize (Hsafe [:: 1]).
     simpl in Hsafe.
-    destruct Hsafe as [[tpc' [mc' Hstep]] _].
-    inversion Hstep; try inversion Htstep; auto.
-    inversion Hhalted; simpl in *; subst; auto.
+    destruct Hsafe as [Hhalted | |];
+      [simpl in Hhalted;
+         by exfalso | |];
+    inversion Hstep; try inversion Htstep; auto;
+    try (inversion Hhalted; simpl in *; subst; auto);
     simpl in *; subst; auto.
   Qed.
 
@@ -6174,8 +6229,125 @@ Module SimProofs (CI: CoreInjections).
     }
   Qed.    
 
-    
-    
+  Lemma store_compatible:
+    forall tpf mf pmap chunk b ofs v mf' (Hlt: permMapLt pmap (getMaxPerm mf))
+      (Hcomp: mem_compatible tpf mf)
+      (Hstore: Mem.store chunk (restrPermMap Hlt) b ofs v = Some mf'),
+      mem_compatible tpf mf'.
+  Proof.
+    intros.
+    inversion Hcomp.
+    constructor.
+    - intros. intros b' ofs'.
+      apply mem_store_max with (b' := b') (ofs' := ofs') in Hstore.
+      rewrite getMax_restr in Hstore.
+      rewrite <- Hstore. eapply compat_th0.
+    - intros l rmap Hres b' ofs'.
+      apply mem_store_max with (b' := b') (ofs' := ofs') in Hstore.
+      rewrite getMax_restr in Hstore.
+      rewrite <- Hstore. eapply compat_lp0; eauto.
+    - intros b' ofs'.
+      apply mem_store_max with (b' := b') (ofs' := ofs') in Hstore.
+      rewrite getMax_restr in Hstore.
+      rewrite <- Hstore. eapply compat_ls0; eauto.
+  Qed.
+  
+  Lemma mem_compatible_sync:
+    forall tpf mf cf virtue1 virtue2 f bl1 bl2 ofsl i
+      (pff: containsThread tpf i)
+      (Hcanonical: isCanonical virtue2)
+      (Hf: f bl1 = Some bl2)
+      (HmaxF: max_inv mf)
+      (HmemCompF: mem_compatible tpf mf)
+      (Hcodomain_valid : forall b1 b2 : block,
+          f b1 = Some b2 -> Mem.valid_block mf b2),
+      mem_compatible
+        (updLockSet
+           (updThread pff cf
+                      (computeMap (getThreadR pff)
+                                  (projectAngel f virtue1)))
+           (bl2, ofsl) (projectMap f virtue2)) mf.
+  Proof.
+    intros.
+    constructor.
+    { intros j pffj.
+      rewrite gLockSetRes.
+      destruct (i == j) eqn:Hij; move/eqP:Hij=>Hij.
+      - subst.
+        rewrite gssThreadRes.
+        intros b2 ofs.
+        assert (Hb2: (exists b', f b' = Some b2) \/
+                     ~ (exists b', f b' = Some b2))
+          by eapply em.
+        destruct Hb2 as [Hbm | Hbu].
+        (*case b2 is mapped by f*)
+        destruct Hbm as [b1 Hfb1].
+        apply Hcodomain_valid in Hfb1.
+        specialize (HmaxF _ ofs Hfb1).
+        rewrite getMaxPerm_correct.
+        rewrite HmaxF.
+        simpl.
+        destruct ((computeMap (getThreadR pff) (projectAngel f virtue1)) # b2 ofs);
+          constructor.
+        erewrite computeMap_projection_2 by eauto.
+        eapply HmemCompF.
+      - rewrite gsoThreadRes; auto.
+        eapply HmemCompF.
+    }
+    { intros (bl', ofsl') rmap Hres.
+      destruct (EqDec_address (bl2, ofsl) (bl', ofsl')).
+      - inversion e; subst.
+        rewrite gssLockRes in Hres. inversion Hres; subst.
+        intros b2 ofs.
+        assert (Hb2: (exists b', f b' = Some b2) \/
+                     ~ (exists b', f b' = Some b2))
+          by eapply em.
+        destruct Hb2 as [Hbm | Hbu].
+        (*case b2 is mapped by f*)
+        destruct Hbm as [b1 Hfb1].
+        apply Hcodomain_valid in Hfb1.
+        specialize (HmaxF _ ofs Hfb1).
+        rewrite getMaxPerm_correct.
+        rewrite HmaxF.
+        simpl.
+        destruct ((projectMap f virtue2) # b2 ofs);
+          constructor.
+        erewrite projectMap_correct_2 by eauto.
+        rewrite Hcanonical.
+        destruct ((getMaxPerm mf) # b2 ofs); simpl; auto.
+      - rewrite gsoLockRes in Hres; auto.
+        rewrite gsoThreadLPool in Hres.
+        eapply HmemCompF; eauto.
+    }
+    { rewrite <- lockSet_updLockSet.
+      intros b2 ofs.
+      assert (Hb2: (exists b', f b' = Some b2) \/
+                   ~ (exists b', f b' = Some b2))
+        by eapply em.
+      destruct Hb2 as [Hbm | Hbu].
+      (*case b2 is mapped by f*)
+      destruct Hbm as [b1 Hfb1].
+      apply Hcodomain_valid in Hfb1.
+      specialize (HmaxF _ ofs Hfb1).
+      rewrite getMaxPerm_correct.
+      rewrite HmaxF.
+      simpl.
+      destruct ((lockSet (updLockSet tpf (bl2, ofsl) (projectMap f virtue2))) # b2
+                                                                              ofs);
+        constructor.
+      destruct (Pos.eq_dec b2 bl2); subst.
+      eapply Hcodomain_valid in Hf.
+      rewrite getMaxPerm_correct.
+      specialize (HmaxF _ ofs Hf).
+      rewrite HmaxF. simpl.
+      destruct ((lockSet (updLockSet tpf (bl2, ofsl) (projectMap f virtue2))) # bl2
+                                                                              ofs);
+        constructor.
+      rewrite gsoLockSet_2; auto.
+      eapply (compat_ls HmemCompF); eauto.
+    }
+  Qed.    
+  
   Lemma sim_external: sim_external_def.
   Proof.
     unfold sim_external_def.
@@ -6200,23 +6372,23 @@ Module SimProofs (CI: CoreInjections).
     (* And also f won't change, i.e. f = fi *)
     specialize (Hsyncf Hsynced); subst f.
     clear Hincr.
-    (* By safety, the coarse-grained machine can step for all schedules *)
-    specialize (HsafeC (mySchedule.buildSched (i :: nil)) 1).
-    simpl in HsafeC. destruct HsafeC as [[[U tpc'] [mc' HstepC]] _].
     (* We know there is a strong simulation for thread i*)
     specialize (Htsim pfc HmemCompC).
-    (*the invariant for tpc is implied by safety*)
-    assert (Hsafe := safeCoarse Hsim).
-    assert (HinvC: invariant tpc)
-      by (eapply safeC_invariant; eauto).
     (* Since the fine grained machine is at an external step so is
       the coarse-grained machine*)
     assert (HexternalC: pfc @ E)
       by (by erewrite (stepType_inj _ _ _ (code_eq Htsim))).
+    (* It's safe to step the coarse grained machine for one more step on i*)
+    specialize (HsafeC (buildSched [:: i])).
+    destruct (csafe_pop_step pfc ltac:(eauto) HsafeC) as
+        (tpc' & mc' & Hstep' & Hsafe').
+    (*the invariant for tpc is implied by safety*)
+    assert (Hsafe := safeCoarse Hsim).
+    assert (HinvC: invariant tpc)
+      by (eapply safeC_invariant; eauto).
     (* An external step pops the schedule and executes a concurrent call *)
-    assert (Heq : empty = U /\ syncStep the_ge pfc HmemCompC tpc' mc')
+    assert (HconcC: syncStep the_ge pfc HmemCompC tpc' mc')
       by (eapply external_step_inverse; eauto).
-    destruct Heq as [? HconcC]; subst U.
     (*TODO: we must deduce that fact from safety of coarse-grained machine*)
     assert (HmemCompC': mem_compatible tpc' mc')
       by admit.
@@ -6314,17 +6486,6 @@ Module SimProofs (CI: CoreInjections).
         econstructor; simpl;
           by eauto.
         (* Proof that the new coarse and fine state are in simulation*)
-        (* The safety of the new coarse grained state will be useful
-        to establish the machine invariant and the fact that the new
-        memory and threadpool are compatible hence we prove it here TODO: Make lemma*)
-        assert (HsafeC': forall sched n,
-                   safeN CoarseSem the_ge n
-                         (sched,
-                          (updLockSet
-                             (updThread pfc (Kresume c Vundef)
-                                        (computeMap (getThreadR pfc) virtueThread))) 
-                            (b, Int.intval ofs) empty_map) mc')
-          by (eapply safeC_trans; eauto).
         assert (HinvC':
                   invariant (updLockSet
                                (updThread pfc (Kresume c Vundef)
@@ -6334,8 +6495,13 @@ Module SimProofs (CI: CoreInjections).
         assert (HmaxF': max_inv mf')
           by (eapply max_inv_store; eauto).
         (*TODO: lemma : max_inv implies compatible*)
-        assert (HmemCompF'' : mem_compatible tpf'' mf')
-          by admit.
+        assert (HmemCompF'' : mem_compatible tpf'' mf').
+        { subst.
+          eapply store_compatible; eauto.
+          eapply mem_compatible_sync; eauto.
+          unfold isCanonical. reflexivity.
+          eapply (codomain_valid (weak_obs_eq (obs_eq Htsim))).
+        }
         subst.
         eapply Build_sim with (mem_compc := HmemCompC') (mem_compf := HmemCompF'').
         - (* containsThread *)
@@ -6864,17 +7030,6 @@ Module SimProofs (CI: CoreInjections).
       econstructor; simpl;
         by eauto.
       (* Proof that the new coarse and fine state are in simulation*)
-      (* The safety of the new coarse grained state will be useful
-        to establish the machine invariant and the fact that the new
-        memory and threadpool are compatible hence we prove it here*)
-      assert (HsafeC': forall sched n,
-                 safeN CoarseSem the_ge n
-                       (sched,
-                        (updLockSet
-                           (updThread pfc (Kresume c Vundef)
-                                      (computeMap (getThreadR pfc) virtueThread)) 
-                           (b, Int.intval ofs) virtueLP)) mc')
-        by (eapply safeC_trans; eauto).
       assert (HinvC':
                 invariant (updLockSet
                              (updThread pfc (Kresume c Vundef)
@@ -6883,11 +7038,7 @@ Module SimProofs (CI: CoreInjections).
         by  (eapply safeC_invariant; eauto).
       assert (HmaxF': max_inv mf')
         by (eapply max_inv_store; eauto).
-      (*TODO: lemma : max_inv implies compatible*)
-      assert (HmemCompF'' : mem_compatible tpf'' mf')
-        by admit.
-      subst.
-      (*A useful results is that the virtueLP will be canonical*)
+      (*A useful result is that the virtueLP will be canonical*)
       assert (Hcanonical: isCanonical virtueLP).
       { clear - HmemCompC'.
         destruct HmemCompC'.
@@ -6896,6 +7047,13 @@ Module SimProofs (CI: CoreInjections).
                                ltac:(erewrite gssLockRes; eauto)).
         eapply canonical_lt; eauto.
       }
+      assert (HmemCompF'' : mem_compatible tpf'' mf').
+      { subst.
+        eapply store_compatible; eauto.
+        eapply mem_compatible_sync; eauto.
+        eapply (codomain_valid (weak_obs_eq (obs_eq Htsim))).
+      }
+      subst.
       eapply Build_sim with (mem_compc := HmemCompC') (mem_compf := HmemCompF'').
       - (* containsThread *)
         clear - HnumThreads.
@@ -7458,17 +7616,6 @@ Module SimProofs (CI: CoreInjections).
       econstructor; simpl;
         by eauto.
       (* Proof that the new coarse and fine state are in simulation*)
-      (* The safety of the new coarse grained state will be useful
-        to establish the machine invariant and the fact that the new
-        memory and threadpool are compatible hence we prove it here*)
-      assert (HsafeC': forall sched n,
-                 safeN CoarseSem the_ge n
-                       (sched,
-                        (addThread
-                           (updThread pfc (Kresume c Vundef)
-                                      (computeMap (getThreadR pfc) virtue1)) vf arg
-                           (computeMap empty_map virtue2))) mc')
-        by (eapply safeC_trans; eauto).
       assert (HinvC': invariant
                         (addThread
                            (updThread pfc (Kresume c Vundef)
@@ -8056,20 +8203,6 @@ Module SimProofs (CI: CoreInjections).
       econstructor; simpl;
         by eauto.
       (* Proof that the new coarse and fine state are in simulation*)
-      (* The safety of the new coarse grained state will be useful
-        to establish the machine invariant and the fact that the new
-        memory and threadpool are compatible hence we prove it here*)
-      assert (HsafeC': forall sched n,
-                 safeN CoarseSem the_ge n
-                       (sched,
-                        updLockSet
-                          (updThread pfc (Kresume c Vundef)
-                                     (setPermBlock (Some Nonempty) b (Int.intval ofs) 
-                                                   (getThreadR pfc)
-                                                   lksize.LKSIZE_nat))
-                          (b, Int.intval ofs) empty_map)
-                       mc')
-        by (eapply safeC_trans; eauto).
       assert (HinvC':
                 invariant (updLockSet
                           (updThread pfc (Kresume c Vundef)
@@ -8516,8 +8649,9 @@ Module SimProofs (CI: CoreInjections).
             apply cntUpdate;
               by eauto.
     }
-  
-      
+    { (* Freelock case*)
+      admit. }
+      Admitted.
       
 
 
