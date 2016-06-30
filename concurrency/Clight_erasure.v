@@ -140,14 +140,13 @@ Module ClightParching <: ErasureSig.
     -intros tid cnt.
      unfold permMapLt; intros b ofs.
      assert (th_coh:= JSEM.thread_mem_compatible mc).
+     eapply po_trans.
      specialize (th_coh tid (mtch_cnt' _ cnt)).
      inversion th_coh.
      specialize (acc_coh (b, ofs)).
-     unfold access_at in acc_coh. simpl in acc_coh.
-     eapply po_trans.
-     rewrite getMaxPerm_correct.
-     apply (Mem.access_max m).
-     rewrite acc_coh.
+     rewrite getMaxPerm_correct;
+       apply acc_coh.
+     
      rewrite (mtch_perm _ _ _ (mtch_cnt' tid cnt) cnt).
      unfold DTP.getThreadR.
      apply po_refl.
