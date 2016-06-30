@@ -45,12 +45,6 @@ Module X86Safe.
 Section CSPEC.
   Context {cspec: CoreLanguage.corestepSpec}.
   
-  Definition csafe (tp : thread_pool) m sched :=
-    forall n, safety_det coarse_semantics the_ge n (sched,tp) m.
-
-  Definition fsafe (tp : thread_pool) m sched :=
-    forall n, safety_det fine_semantics the_ge n (sched,tp) m.
-
   Import Asm Asm_coop.
 
 Require Import Coqlib.
@@ -374,8 +368,8 @@ Axiom init_coarse_safe:
   forall f arg U tpc m,
     init_mem = Some m ->
     tpc_init f arg = Some (U, tpc) ->
-  forall (sched : Sch) (n : nat),
-    safeN coarse_semantics the_ge n (sched, tpc) m.
+  forall (sched : Sch),
+    csafe the_ge tpc m sched.
 
 (** If the initial state is defined then the initial memory was also
 defined*)
@@ -565,8 +559,6 @@ Proof.
   assert (HmemComp := init_compatible f arg H1 Hinit).
   assert (HmemCompF: mem_compatible tpf (diluteMem m))
     by (eapply mem_compatible_setMaxPerm; eauto).
-
-
   eapply Build_sim with (mem_compc := HmemComp) (mem_compf := HmemCompF).
   - intros; split; auto.
   - eapply init_coarse_safe with (f := f) (arg := arg); eauto.
@@ -637,16 +629,20 @@ Qed.
 
 Import StepType.
 
+Notation fsafe := (myFineSemantics.fsafe the_ge).
+
 Lemma fine_safe:
   forall tpf tpc mf mc (f fg : memren) fp (xs : Sch)
     (Hsim: sim tpc mc tpf mf xs f fg fp),
-  forall sched n,
-    safeN fine_semantics the_ge n (sched, tpf) mf.
+  forall sched,
+    fsafe tpf mf sched.
 Proof.
   intros.
   generalize dependent xs.
-  induction n; intros; simpl; auto.
-  destruct sched as [|i sched]; simpl; auto.
+  induction sched as [|i sched]; intros; simpl; auto.
+  constructor.
+  simpl; auto.
+  
   Definition containsThread_dec:
     forall i tp, {containsThread tp i} + { ~ containsThread tp i}.
   Proof.
@@ -655,32 +651,32 @@ Proof.
     destruct (leq (S i) (num_threads tp)) eqn:Hleq;
       by auto.
   Qed.
+  
   destruct (containsThread_dec i tpf) as [cnti | invalid].
   - (* By case analysis on the step type *)
     destruct (getStepType cnti) eqn:Htype.
     + pose proof (sim_internal cnti Htype Hsim) as (tpf' & m' & fp' & Hstep & Hsim').
-      split.
+      specialize (Hstep sched).
       exists (sched,tpf'), m'.
       eapply Hstep.
       intros (U' & tpf'') mf'' Hstep'.
       
       
       
-
-Theorem init_fine_safe:
-  forall f arg U tpf m
-    (Hmem: init_mem = Some m)
-    (Hinit: tpf_init f arg = Some (U, tpf)),
-    forall (sched : Sch) (n : nat),
-      safeN fine_semantics the_ge n (sched, tpf) m.
-Proof.
-  intros.
-  assert (Hsim := init_sim f arg Hinit Hinit Hmem).
-  clear - Hsim.
-  generalize dependent m. generalize dependent tpf.
-  induction n; simpl; auto.
-  intros.
-  destruct sched
+      
+      Theorem init_fine_safe:
+        forall f arg U tpf m
+          (Hmem: init_mem = Some m)
+          (Hinit: tpf_init f arg = Some (U, tpf)),
+        forall (sched : Sch),
+          fsafe tpf m sched.
+      Proof.
+        intros.
+        assert (Hsim := init_sim f arg Hinit Hinit Hmem).
+        clear - Hsim.
+        generalize dependent m. generalize dependent tpf.
+        induction n; simpl; auto.
+        intros.
   
       
                        

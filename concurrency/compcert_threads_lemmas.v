@@ -350,6 +350,14 @@ Module SimProofs (CI: CoreInjections).
     auto. 
   Qed.
 
+  Lemma list_cons_irrefl:
+    forall {A: Type} (x : A) xs,
+      ~ x :: xs = xs.
+  Proof.
+    intros.
+    induction xs; intro Hcontra; simpl; try discriminate.
+    inversion Hcontra; subst a; auto.
+  Qed.
   
   Lemma safety_det_corestepN_internal:
     forall xs i U tpc mc tpc' mc'
@@ -383,8 +391,9 @@ Module SimProofs (CI: CoreInjections).
           assert (Hmach_step_det := internal_step_cmachine_step U Hstep0).
           destruct Hmach_step_det as [Hmach_step' Hmach_det].
           specialize (Hmach_det _ _ _ Hstep).
-          destruct Hmach_det as [? [? ?]]; subst.
-          unfold buildSched in Hsched. auto.
+          destruct Hmach_det as [? [? ?]].
+          exfalso;
+          eapply list_cons_irrefl; eauto.
       - eapply IHxs; eauto.
     }
   Qed.
@@ -1101,7 +1110,13 @@ Module SimProofs (CI: CoreInjections).
     inversion Hsafe; simpl in *.
     - by exfalso.
     - do 2 eexists; eauto.
-    - inversion Hstep; subst; simpl in *; subst; (try by exfalso);
+    - inversion Hstep; progress subst;
+      simpl in *;
+      try match goal with
+          | [H: ?X :: ?Y = ?Y |- _] =>
+            exfalso; eapply list_cons_irrefl; eauto
+          end;
+      subst; (try by exfalso);
       unfold getStepType in Hinternal; inversion HschedN; subst.
       inversion Htstep; subst.
       pf_cleanup.
@@ -1109,7 +1124,7 @@ Module SimProofs (CI: CoreInjections).
       simpl in Hinternal.
       rewrite Hat_external in Hinternal;
         by discriminate.
-      inversion Htstep; subst;
+      inversion Htstep; 
       pf_cleanup;
       rewrite Hcode in Hinternal;
       simpl in Hinternal;
@@ -2192,11 +2207,7 @@ Module SimProofs (CI: CoreInjections).
       destruct (halted Sem c);
         destruct Hpop;
           by discriminate.
-    - assert (U' = U)
-        by (inversion Hstep; simpl in *; subst; auto;
-              by exfalso).
-      subst.
-      do 2 eexists; eauto.
+    - do 2 eexists; eauto.
   Qed.
   
   Lemma sim_suspend : sim_suspend_def.
@@ -5736,18 +5747,6 @@ Module SimProofs (CI: CoreInjections).
         intros b b' b'' Hf' Hfid'.
         apply id_ren_correct in Hfid';
           by subst.
-  Qed.
-
-  Lemma list_cons_irrefl:
-    forall {A:Type} (x : A) xs,
-      ~ x :: xs = xs.
-  Proof.
-    intros.
-    induction xs as [|y xs]; intros Hcontra;
-    first by discriminate.
-    apply IHxs.
-    inversion Hcontra. subst y.
-      by rewrite H1.
   Qed.
    
   Lemma step_schedule:

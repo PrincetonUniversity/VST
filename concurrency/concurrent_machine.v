@@ -552,9 +552,8 @@ Module CoarseMachine (SCH:Scheduler)(SIG : ConcurrentMachineSig with Module Thre
                  (Hstep: MachStep ge (U, tp) m (U,tp') m')
                  (Hsafe: csafe ge tp' m' U),
       csafe ge tp m U
-  | AngelSafe: forall U' tp' m'
-                 (Hsched: U <> U')
-                 (Hstep: MachStep ge (U, tp) m (U',tp') m')
+  | AngelSafe: forall tp' m'
+                 (Hstep: MachStep ge (U, tp) m (schedSkip U,tp') m')
                  (Hsafe: forall U'', csafe ge tp' m' U''),
       csafe ge tp m U.
   
@@ -720,8 +719,8 @@ Module FineMachine  (SCH:Scheduler)(SIG : ConcurrentMachineSig with Module Threa
   Inductive fsafe (ge : G) (tp : thread_pool) (m : mem) (U:schedule) : Prop :=
   | HaltedSafe: halted (U, tp) -> fsafe ge tp m U
   | StepSafe : forall tp' m'
-                 (Hstep: MachStep ge (U, tp) m (U,tp') m')
-                 (Hsafe: fsafe ge tp' m' U),
+                 (Hstep: MachStep ge (U, tp) m (schedSkip U,tp') m')
+                 (Hsafe: fsafe ge tp' m' (schedSkip U)),
       fsafe ge tp m U.
   
 End FineMachine.
