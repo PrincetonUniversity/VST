@@ -75,23 +75,23 @@ Module Type ErasureSig.
   Variable main: Values.val.
   Axiom init_diagram:
     forall (j : Values.Val.meminj) (U:schedule) (js : jstate)
-      (vals : list Values.val) (m : mem),
+      (vals : list Values.val) (m : mem)init_res,
    init_inj_ok j m ->
-   initial_core (JMachineSem U) genv main vals = Some (U, js) ->
-   exists (mu : SM_Injection) (ds : dstate),
+   initial_core (JMachineSem U init_res) genv main vals = Some (U, js) ->
+   exists (mu : SM_Injection) (ds : dstate) init_perm,
      as_inj mu = j /\
-     initial_core (DMachineSem U) genv main vals = Some (U, ds) /\
+     initial_core (DMachineSem U init_perm) genv main vals = Some (U, ds) /\
      DSEM.invariant ds /\
      match_st js ds.
 
   Axiom core_diagram:
     forall (m : mem)  (U0 U U': schedule) 
      (ds : dstate) (js js': jstate) 
-     (m' : mem),
-   corestep (JMachineSem U0) genv (U, js) m (U', js') m' ->
+     (m' : mem) ires,
+   corestep (JMachineSem U0 ires) genv (U, js) m (U', js') m' ->
    match_st js ds ->
    DSEM.invariant ds ->
-   exists (ds' : dstate),
+   exists (ds' : dstate) ,
      DSEM.invariant ds' /\
      match_st js' ds' /\
      corestep (DMachineSem U0) genv (U, ds) m (U', ds') m'.
