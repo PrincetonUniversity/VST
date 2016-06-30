@@ -95,7 +95,9 @@ Definition lock_coherence lset (phi : rmap) (m : mem) :=
 
 (*! Joinability and coherence *)
 
-Record mem_compatible_rmap (tp : JM.ThreadPool.t) (m : mem) (all_juice : rmap) : Prop :=
+Definition mem_compatible_rmap := JM.mem_compatible_with.
+
+(*Record mem_compatible_rmap (tp : JM.ThreadPool.t) (m : mem) (all_juice : rmap) : Prop :=
   Build_mem_compatible_rmap
   { juice_join : JM.join_all tp all_juice;
     all_cohere : JM.mem_cohere' m all_juice;
@@ -105,6 +107,11 @@ Record mem_compatible_rmap (tp : JM.ThreadPool.t) (m : mem) (all_juice : rmap) :
 Lemma mem_compatible_forget {tp m phi} :
   mem_compatible_rmap tp m phi -> JM.mem_compatible tp m.
 Proof. intros []; intros. hnf. econstructor; eauto. Qed.
+*)
+
+Lemma mem_compatible_forget {tp m phi} :
+  mem_compatible_rmap tp m phi -> JM.mem_compatible tp m.
+Proof. intros M; exists phi. apply M. Qed.
 
 Definition jm_
   {tp m PHI i}
@@ -169,7 +176,8 @@ Inductive state_invariant {Z} (Jspec : juicy_ext_spec Z) (n : nat) : cm_state ->
       (uniqkrun :  threads_unique_Krun tp sch)
     : state_invariant Jspec n (m, ge, (sch, tp)).
 
-(*! Initial machine *)
+(*! Final instantiation *)
+
 
 Section Initial_State.
   Variables
@@ -222,7 +230,7 @@ Section Initial_State.
     (*! compatibility of memories *)
     assert (compat : mem_compatible_rmap tp m (m_phi jm)).
     {
-      apply Build_mem_compatible_rmap.
+      constructor.
       + apply JM.AllJuice with (m_phi jm) None.
         * change (proj1_sig (snd (projT2 (projT2 spr)) n)) with jm.
           unfold JM.join_threads.
@@ -248,24 +256,22 @@ Section Initial_State.
         * constructor.
       + destruct (snd (projT2 (projT2 spr))) as [jm' [D H]]; unfold jm; clear jm; simpl.
         subst m.
-        destruct jm' as [m' phi] eqn:E.
-        apply JM.Build_mem_cohere'; simpl.
-        all:auto.
-        simpl in tp.
-        unfold JM.access_cohere'.
-        now admit (* should be access_cohere instead of this max_access_at *).
+        apply JM.JuicyMachineLemmas.mem_cohere'_juicy_mem.
+      + intros b ofs.
+        match goal with |- context [ssrbool.isSome ?x] => destruct x as [ phi | ] eqn:Ephi end; swap 1 2.
+        { unfold is_true. simpl. congruence. } intros _.
+        unfold tp in Ephi; simpl in Ephi.
+        discriminate.
       + intros loc sh psh P z L.
         destruct (snd (projT2 (projT2 spr))) as [jm' [D [H [A NL]]]]; unfold jm in *; clear jm; simpl in L |- *.
         pose proof (NL loc) as NL'.
         rewrite L in NL'.
         exfalso; eapply NL'.
         reflexivity.
-      + intros loc sh psh P z L.
-        destruct (snd (projT2 (projT2 spr))) as [jm' [D [H [A NL]]]]; unfold jm in *; clear jm; simpl in L |- *.
-        pose proof (NL loc) as NL'.
-        rewrite L in NL'.
-        exfalso; eapply NL'.
-        reflexivity.
+      + hnf.
+        simpl.
+        intros ? F.
+        inversion F.
     } (* end of mcompat *)
 
     apply state_invariant_c with (PHI := m_phi jm) (mcompat := compat).
@@ -311,7 +317,7 @@ Section Initial_State.
       
     - (* only one thread running *)
       intros F; exfalso. simpl in F. omega.
-  Admitted.
+  Qed.
 
 End Initial_State.
 
@@ -339,6 +345,27 @@ Section Simulation.
         (m, ge, (sch, jstate))
         (m', ge, (sch', jstate')).
   
+  Lemma join_resource_decay b phi1 phi1' phi2 phi3 :
+    resource_decay b phi1 phi1' ->
+    level phi1 = S (level phi1') ->
+    sepalg.join phi1 phi2 phi3 ->
+    exists phi3',
+      sepalg.join phi1' phi2 phi3' /\
+      resource_decay b phi3 phi3' /\
+      level phi3 = S (level phi3').
+  Admitted.
+  
+  Lemma join_all_resource_decay {tp m Phi} c' {phi' i} {cnti : Machine.containsThread tp i}:
+    resource_decay (Mem.nextblock m) (JM.ThreadPool.getThreadR cnti) phi' /\
+    level (JM.ThreadPool.getThreadR cnti) = S (level phi') ->
+    JM.join_all tp Phi ->
+    exists Phi',
+      JM.join_all (Machine.updThread cnti c' phi') Phi' /\
+      resource_decay (Mem.nextblock m) Phi Phi' /\
+      level Phi = S (level Phi')
+  .
+  Admitted.
+  
   Lemma invariant_thread_step
         {Z} (Jspec : juicy_ext_spec Z)
         n m ge i sch tp Phi ci ci' jmi'
@@ -357,7 +384,83 @@ Section Simulation.
   Proof.
     destruct stepi as [stepi decay].
     destruct compat as [juice_join all_cohere loc_writable loc_set_ok].
+    simpl in *.
+    destruct (join_all_resource_decay (Krun ci') decay juice_join) as [Phi' [J' [RD L]]].
     
+    assert (compat' : mem_compatible_rmap tp' (m_dry jmi') Phi').
+    {
+      constructor.
+      - (* join_all (proved in lemma) *)
+        apply J'.
+      - (* cohere *)
+        
+        simpl in *.
+        (* reasoning: first we have [cohere m Phi] then we have
+        [cohere m jmi] because [jmi<Phi] then we have [cohere m' jmi']
+        by definition of juicy memory.  We need then to prove [cohere
+        m' Phi'] which should be implied by [cohere m' jmi'] and
+        [cohere m Phi] because the only changes are in jmi's writable
+        CUR locations ... *)
+        Definition mem_cohere := JM.mem_cohere'.
+        
+        Lemma mem_cohere_step_adhoc m c c' jm jm' Phi (X : rmap) ge :
+          mem_cohere m Phi ->
+          sepalg.join (m_phi jm) X Phi ->
+          corestep (juicy_core_sem cl_core_sem) ge c jm c' jm' ->
+          exists Phi',
+            sepalg.join (m_phi jm') X Phi' /\
+            mem_cohere (m_dry jm') Phi'.
+        Proof.
+          intros MC J C.
+          destruct C as [step [RD L]].
+          destruct (join_resource_decay _ _ _ _ _ RD L J) as [Phi' [J' [RD' L']]].
+          eexists. split; [admit|].
+          constructor.
+          - intros l sh v loc pp H.
+            admit.
+          - admit.
+          - admit.
+          - admit.
+        Admitted.
+          
+        (*
+        apply JM.JuicyMachineLemmas.mem_cohere_sub with (m_phi jmi').
+        + destruct jmi'; simpl in *; constructor; auto.
+          admit (* this is supposed to be access_cohere *).
+        + apply JM.JuicyMachineLemmas.compatible_threadRes_sub. 
+          intro.
+          hnf. *)
+        constructor.
+        + intros rsh sh v loc pp E.
+          clear stepi safety.
+          destruct jmi' as [m0 phi JMcontents JMaccess JMmax_access JMalloc].
+          inversion all_cohere.
+          specialize (cont_coh rsh sh v loc pp).
+          unfold resource_decay in *.
+          destruct RD as [La RD].
+          specialize (RD loc).
+          destruct RD as [A [B|[B|[B|B]]]].
+          * admit.
+          * admit.
+          * admit.
+          * admit.
+        + admit.
+          (*rewrite E in *.
+          unfold contents_cohere in *. *)
+        (* specialize (all_cohere rsh). *)
+        (* seems like it would fit a lemma using resource_decay as premise, instead? *)
+        + admit.
+        + admit.
+      - admit.
+      - admit.
+      - admit.
+    }
+    
+    apply state_invariant_c with Phi' compat'.
+    - admit.
+    - admit.
+    - admit.
+    - admit.
 (* getting the new global phi by replacing jmi with jmi' : possible
 because resource_decay says the only new things are above nextblock.
 
@@ -558,14 +661,17 @@ unique: ok *)
           assert (compat' : mem_compatible_rmap tp' m Phi).
           {
             clear safety wellformed unique.
-            destruct compat as [JA MC LW LC].
-            constructor; [ | | | ].
+            destruct compat as [JA MC LW LC LJ].
+            constructor; [ | | | | ].
             - destruct JA as [tp phithreads philocks Phi jointhreads joinlocks join].
               econstructor; eauto.
             - apply MC.
-            - intros l sh psh P z H.
-              apply (LW l sh psh P z H).
+            - intros b o H.
+              apply (LW b o H).
+            (* - intros l sh psh P z H. *)
+            (*   apply (LW l sh psh P z H). *)
             - apply LC.
+            - apply LJ.
           }
           apply state_invariant_c with (PHI := Phi) (mcompat := compat').
           
@@ -744,7 +850,7 @@ unique: ok *)
         intros (phix, ((((ok, oracle_x), vx), shx), Rx)) Pre. simpl in Pre.
         destruct Pre as (phi0 & phi1 & Join & Precond & HnecR).
         simpl (and _).
-        intros Pre.
+        intros Post.
         
         (* relate lset to val *)
         destruct Precond as [PREA [[PREB _] PREC]].
@@ -875,7 +981,12 @@ unique: ok *)
             * reflexivity.
             * rewrite JM.JuicyMachineLemmas.compatible_getThreadR_m_phi.
               unfold JM.pack_res_inv in *.
-              admit.
+              (*
+              etransitivity. admit.
+              etransitivity. apply Eat.
+              f_equal.*)
+              (* destruct args. *)
+              admit (* LKSIZE problem + joinsub things *).
             * (* maybe we should write this in the invariant instead? *)
               admit.
           + (* invariant (easy, same state than before) *)
@@ -895,8 +1006,14 @@ unique: ok *)
           destruct isl' as [sh' [psh' [z' Eat]]].
           rewrite Eat in Ewetv.
           injection Ewetv as -> -> -> Epr.
-          replace R0 with R in * by admit (* OK (see above) *).
-          eexists.
+          apply inj_pair2 in Epr.
+          assert (R0 = R). {
+            assert (feq: forall A B (f g : A -> B), f = g -> forall x, f x = g x) by congruence.
+            apply (feq _ _ _ _ Epr tt).
+          }
+          subst R0; clear Epr.
+          eexists (* TODO explicitely provide the state -- wait, how
+          do I specify the non-join? is it thanks to Post? *).
           split.
           + (* taking the step *)
             eapply state_step_c.
@@ -906,10 +1023,14 @@ unique: ok *)
             * eassumption.
             * simpl.
               repeat f_equal; [ | | | ].
-              -- admit (* TODO: Problem: this LOCK is a parameter of the whole thing. *).
-              -- admit (* should well-formedness imply this kind of thing? or just safety? *).
-              -- admit (* should well-formedness imply this kind of thing? or just safety? *).
-              -- admit (* should well-formedness imply this kind of thing? or just safety? *).
+              -- simpl in H_acquire.
+                 injection H_acquire as Ee.
+                 apply ext_link_inj in Ee.
+                 rewrite <-Ee.
+                 reflexivity.
+              -- admit (* same problem above *).
+              -- admit (* same problem above *).
+              -- admit (* same problem above *).
             * reflexivity.
             * admit (* precondition? *).
             * reflexivity.
@@ -1095,3 +1216,61 @@ Lemma safeN_step_jsem_spec: forall gx vx tx n k jm,
 Admitted.
 *)
 End Simulation.
+
+Section Safety.
+  Variables
+    (CS : compspecs)
+    (V : varspecs)
+    (G : funspecs)
+    (ext_link : string -> ident)
+    (prog : program)
+    (all_safe : semax_prog.semax_prog (Concurrent_Oracular_Espec CS ext_link) prog V G)
+    (init_mem_not_none : Genv.init_mem prog <> None).
+
+  Definition init_mem : { m | Genv.init_mem prog = Some m } :=
+    match Genv.init_mem prog as y return (y <> None -> {m : mem | y = Some m}) with
+    | Some m => fun _ => exist _ m eq_refl
+    | None => fun H => (fun Heq => False_rect _ (H Heq)) eq_refl
+    end init_mem_not_none.
+  
+  Definition spr :=
+    semax_prog_rule
+      (Concurrent_Oracular_Espec CS ext_link) V G prog
+      (proj1_sig init_mem) all_safe (proj2_sig init_mem).
+  
+  Definition initial_corestate : corestate := projT1 (projT2 spr).
+  
+  Definition initial_jm (n : nat) : juicy_mem := proj1_sig (snd (projT2 (projT2 spr)) n).
+  
+  Definition initial_machine_state (n : nat) :=
+    Machine.mk
+      (pos.mkPos (le_n 1))
+      (fun _ => Krun initial_corestate)
+      (fun _ => m_phi (initial_jm n))
+      (addressFiniteMap.AMap.empty _).
+
+  Definition NoExternal_Espec : external_specification mem external_function unit :=
+    Build_external_specification
+      _ _ _ (fun _ => False) (fun _ _ _ _ _ _ _ => False)
+      (fun _ _ _ _ _ _ _ => False) (fun _ _ _ => False).
+  
+  Definition NoExternal_Hrel : nat -> mem -> mem -> Prop := fun _ _ _ => False.
+  
+  Variable unknown : JuicyMachineShell_ClightSEM.ThreadPool.SEM.G -> Maps.PTree.t block.
+  
+  Lemma safe_initial_state : forall sch r n,
+      @safeN_
+        _ _ _ _
+        unknown
+        NoExternal_Hrel
+        (JuicyMachine.MachineSemantics sch r)
+        NoExternal_Espec
+        (globalenv prog)
+        n
+        tt
+        (sch, initial_machine_state n)
+        (proj1_sig init_mem).
+  Proof.
+  Admitted.
+  
+End Safety.

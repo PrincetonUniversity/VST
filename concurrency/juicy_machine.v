@@ -776,12 +776,32 @@ Module Concur.
           join_sub phi2 phi1 ->
           mem_cohere' m phi2.
       Admitted.
+      
+      Lemma mem_cohere'_juicy_mem jm : mem_cohere' (m_dry jm) (m_phi jm).
+      Proof.
+        destruct jm as [m phi C A M L]; simpl.
+        constructor; auto; [].
+        intros loc; specialize (A loc); specialize (M loc).
+        destruct (phi @ loc).
+        * simpl in *.
+          unfold perm_of_sh in M.
+          if_tac in M.
+          -- exfalso; unshelve eapply (Share.nontrivial _); auto.
+          -- if_tac in M. now auto. congruence.
+        * simpl in *.
+          destruct k eqn:Ek.
+          now auto.
+          all: rewrite <- A.
+          all: now apply Mem.access_max.
+      Qed.
+      
       Lemma compatible_threadRes_sub:
         forall js i (cnt:containsThread js i),
         forall all_juice,
           join_all js all_juice ->
           join_sub (ThreadPool.getThreadR cnt) all_juice.
       Admitted.
+      
       Lemma compatible_threadRes_join:
         forall js m,
           mem_compatible js m ->
