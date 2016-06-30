@@ -165,8 +165,8 @@ Module Concur.
       Mem.perm_order'' (max_access_at m loc) (perm_of_res (phi @ loc)).
     Record mem_cohere' m phi :=
       { cont_coh: contents_cohere m phi;
-        (*acc_coh: access_cohere m phi;*)
-        acc_coh: access_cohere' m phi;
+        acc_coh: access_cohere m phi;
+        (*acc_coh: access_cohere' m phi;*)
         max_coh: max_access_cohere m phi;
         all_coh: alloc_cohere m phi
       }.
@@ -379,61 +379,56 @@ Module Concur.
         destruct (perm_of_res (phi @ (b, ofs))); trivial.
     Qed.
     Lemma juice2Perm_cohere: forall phi m,
-        access_cohere' m phi ->
+        access_cohere m phi ->
         permMapLt (juice2Perm phi m) (getMaxPerm m).
     Proof.
       unfold permMapLt; intros.
       rewrite getMaxPerm_correct; unfold permission_at.
       eapply (po_trans _ (perm_of_res (phi @ (b, ofs))) _) .
-      - specialize (H (b, ofs)); simpl in H. apply H. unfold max_access_at in H.
+      - specialize (H (b, ofs)); simpl in H. rewrite <- H.
+        unfold access_at; simpl. eapply (Mem.access_max m).
       - apply juice2Perm_nogrow.
     Qed.
 
     Lemma Mem_canonical_useful: forall m loc k, (Mem.mem_access m)#1 loc k = None.
     Admitted.
     
-      Lemma juic2Perm_correct:
-        forall r m b ofs,
-          access_cohere' m r ->
-          perm_of_res (r @ (b,ofs)) = (juice2Perm r m) !! b ofs.
-      Proof.
-        intros.
-        unfold juice2Perm, mapmap.
-        unfold PMap.get; simpl.
-        rewrite PTree.gmap. 
-        rewrite PTree.gmap1; simpl.
-        destruct ((snd (Mem.mem_access m)) ! b) eqn:search; simpl.
-        - auto.
-        - generalize (H (b, ofs)).
-          unfold max_access_at, PMap.get; simpl.
-          rewrite search. rewrite Mem_canonical_useful.
-          unfold perm_of_res. destruct ( r @ (b, ofs)).
-          destruct (eq_dec t0 Share.bot); auto; simpl.
-          intros HH. contradiction HH.
-          destruct k;  try solve [intros HH;inversion HH].
-          destruct (perm_of_sh t0 (pshare_sh p)); auto.
-          intros HH;inversion HH.
-          intros HH;inversion HH.
-      Qed.
-    
-    Definition juicyRestrict {phi:rmap}{m:Mem.mem}(coh:access_cohere' m phi): Mem.mem:=
+    Lemma juic2Perm_correct:
+      forall r m b ofs,
+        access_cohere m r ->
+        perm_of_res (r @ (b,ofs)) = (juice2Perm r m) !! b ofs.
+    Proof.
+      intros.
+      unfold juice2Perm, mapmap.
+      unfold PMap.get; simpl.
+      rewrite PTree.gmap. 
+      rewrite PTree.gmap1; simpl.
+      destruct ((snd (Mem.mem_access m)) ! b) eqn:search; simpl.
+      - auto.
+      - generalize (H (b, ofs)).
+        unfold access_at. simpl.
+        unfold PMap.get; rewrite search.
+        intros HH; rewrite <- HH.
+        apply Mem_canonical_useful.
+    Qed.
+    Definition juicyRestrict {phi:rmap}{m:Mem.mem}(coh:access_cohere m phi): Mem.mem:=
       restrPermMap (juice2Perm_cohere coh).
-    Lemma juicyRestrictContents: forall phi m (coh:access_cohere' m phi),
+    Lemma juicyRestrictContents: forall phi m (coh:access_cohere m phi),
         forall loc, contents_at m loc = contents_at (juicyRestrict coh) loc.
     Proof. unfold juicyRestrict; intros. rewrite restrPermMap_contents; reflexivity. Qed.
-    Lemma juicyRestrictMax: forall phi m (coh:access_cohere' m phi),
+    Lemma juicyRestrictMax: forall phi m (coh:access_cohere m phi),
         forall loc, max_access_at m loc = max_access_at (juicyRestrict coh) loc.
     Proof. unfold juicyRestrict; intros. rewrite restrPermMap_max; reflexivity. Qed.
-    Lemma juicyRestrictNextblock: forall phi m (coh:access_cohere' m phi),
+    Lemma juicyRestrictNextblock: forall phi m (coh:access_cohere m phi),
         Mem.nextblock m = Mem.nextblock (juicyRestrict coh).
     Proof. unfold juicyRestrict; intros. rewrite restrPermMap_nextblock; reflexivity. Qed.
-    Lemma juicyRestrictContentCoh: forall phi m (coh:access_cohere' m phi) (ccoh:contents_cohere m phi),
+    Lemma juicyRestrictContentCoh: forall phi m (coh:access_cohere m phi) (ccoh:contents_cohere m phi),
         contents_cohere (juicyRestrict coh) phi.
     Proof.
       unfold contents_cohere; intros. rewrite <- juicyRestrictContents.
       eapply ccoh; eauto.
     Qed.
-    Lemma juicyRestrictMaxCoh: forall phi m (coh:access_cohere' m phi) (ccoh:max_access_cohere m phi),
+    Lemma juicyRestrictMaxCoh: forall phi m (coh:access_cohere m phi) (ccoh:max_access_cohere m phi),
         max_access_cohere (juicyRestrict coh) phi.
     Proof.
       unfold max_access_cohere; intros.
@@ -441,7 +436,7 @@ Module Concur.
       repeat rewrite <- juicyRestrictNextblock.
       apply ccoh.
     Qed.
-    Lemma juicyRestrictAllocCoh: forall phi m (coh:access_cohere' m phi) (ccoh:alloc_cohere m phi),
+    Lemma juicyRestrictAllocCoh: forall phi m (coh:access_cohere m phi) (ccoh:alloc_cohere m phi),
         alloc_cohere (juicyRestrict coh) phi.
     Proof.
       unfold alloc_cohere; intros.
@@ -459,7 +454,7 @@ Module Concur.
     Proof. admit. Admitted.
 
     Lemma juicyRestrictCurEq:
-      forall (phi : rmap) (m : mem) (coh : access_cohere' m phi)
+      forall (phi : rmap) (m : mem) (coh : access_cohere m phi)
      (loc : Address.address),
         (access_at (juicyRestrict coh) loc) = (perm_of_res (phi @ loc)).
     Proof.
@@ -479,17 +474,15 @@ Module Concur.
         destruct ((perm_of_res (phi @ (b, z)))) eqn:HH; rewrite HH; reflexivity. 
       - simpl. rewrite PTree.gmap1 in THING.
         destruct (((Mem.mem_access m)#2) ! (loc#1)) eqn:HHH; simpl in THING; try solve[inversion THING].
-        unfold access_cohere' in coh.
-        unfold max_access_at in coh. unfold PMap.get in coh.
+        unfold access_cohere in coh.
+        unfold access_at in coh. unfold PMap.get in coh.
         generalize (coh loc).
         rewrite HHH; simpl.
-        
         rewrite Mem_canonical_useful.
-        destruct (perm_of_res (phi @ loc)); auto.
-        intro H; inversion H.
+        trivial.
     Qed.
     
-    Lemma juicyRestrictAccCoh: forall phi m (coh:access_cohere' m phi),
+    Lemma juicyRestrictAccCoh: forall phi m (coh:access_cohere m phi),
         access_cohere (juicyRestrict coh) phi.
     Proof.
       unfold access_cohere; intros.
@@ -500,7 +493,7 @@ Module Concur.
     (* PERSONAL MEM: Is the contents of the global memory, 
        with the juice of a single thread and the Cur that corresponds to that juice.*)
     Definition personal_mem' {phi m}
-               (acoh: access_cohere' m phi)
+               (acoh: access_cohere m phi)
                (ccoh:contents_cohere m phi)
                (macoh: max_access_cohere m phi)
                (alcoh: alloc_cohere m phi) : juicy_mem :=
