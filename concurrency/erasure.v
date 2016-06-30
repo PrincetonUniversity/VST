@@ -73,33 +73,35 @@ Module Type ErasureSig.
        
   Variable genv: G.
   Variable main: Values.val.
+  Variable match_rmap_perm: JuicyMachine.SIG.ThreadPool.RES.res -> DryMachine.SIG.ThreadPool.RES.res -> Prop.
   Axiom init_diagram:
     forall (j : Values.Val.meminj) (U:schedule) (js : jstate)
-      (vals : list Values.val) (m : mem),
-   init_inj_ok j m ->
-   initial_core (JMachineSem U) genv main vals = Some (U, js) ->
+      (vals : list Values.val) (m : mem) rmap pmap,
+      init_inj_ok j m ->
+      match_rmap_perm rmap pmap ->
+   initial_core (JMachineSem U (Some rmap)) genv main vals = Some (U, js) ->
    exists (mu : SM_Injection) (ds : dstate),
      as_inj mu = j /\
-     initial_core (DMachineSem U) genv main vals = Some (U, ds) /\
+     initial_core (DMachineSem U (Some pmap)) genv main vals = Some (U, ds) /\
      DSEM.invariant ds /\
      match_st js ds.
 
   Axiom core_diagram:
-    forall (m : mem)  (U0 U U': schedule) 
+    forall (m : mem)  (U0 U U': schedule) rmap pmap
      (ds : dstate) (js js': jstate) 
      (m' : mem),
-   corestep (JMachineSem U0) genv (U, js) m (U', js') m' ->
+   corestep (JMachineSem U0 rmap) genv (U, js) m (U', js') m' ->
    match_st js ds ->
    DSEM.invariant ds ->
    exists (ds' : dstate),
      DSEM.invariant ds' /\
      match_st js' ds' /\
-     corestep (DMachineSem U0) genv (U, ds) m (U', ds') m'.
+     corestep (DMachineSem U0 pmap) genv (U, ds) m (U', ds') m'.
 
   Axiom halted_diagram:
-    forall U ds js,
+    forall U ds js  rmap pmap,
       fst js = fst ds ->
-      halted (JMachineSem U) js = halted (DMachineSem U) ds.
+      halted (JMachineSem U rmap) js = halted (DMachineSem U pmap) ds.
 
 End ErasureSig.
 
@@ -149,31 +151,32 @@ Module ErasureFnctr (PC:ErasureSig).
   
   Lemma core_ord_wf:  well_founded core_ord.
       Proof. constructor; intros y H; inversion H. Qed.
-  Theorem erasure: forall U,
-    Wholeprog_sim.Wholeprog_sim
-      (JMachineSem U) (DMachineSem U)
-      PC.genv PC.genv
-      PC.main
-      ge_inv init_inv halt_inv.
-  Proof. intros U.
+      Theorem erasure: forall U rmap pmap,
+          PC.match_rmap_perm rmap pmap ->
+          Wholeprog_sim.Wholeprog_sim
+            (JMachineSem U (Some rmap)) (DMachineSem U (Some pmap))
+            PC.genv PC.genv
+            PC.main
+            ge_inv init_inv halt_inv.
+  Proof. intros U rmap pmap init_OK.
     apply (Wholeprog_sim.Build_Wholeprog_sim
-             (JMachineSem U) (DMachineSem U)
+             (JMachineSem U (Some rmap)) (DMachineSem U (Some pmap))
              PC.genv PC.genv
              PC.main
              ge_inv init_inv halt_inv
              core_data match_state core_ord core_ord_wf).
     - reflexivity.
     - intros until m2; intros H H0.
-      inversion H0; subst. clear - H4 H.
+      inversion H0; subst. clear - H4 H init_OK.
       destruct c1 as [U0 js].
-      assert (HH:=JuicyMachine.initial_schedule _ _ _ _ _ _ H); subst U0.
-      destruct (init_diagram j U js vals2 m2 H4 H) as [mu [dms [injeq [IC [DINV MS] ]]]].
+      assert (HH:=JuicyMachine.initial_schedule _ _ _ _ _ _ _ H); subst U0.
+      destruct (init_diagram j U js vals2 m2 rmap pmap H4 init_OK H) as [mu [dms [injeq [IC [DINV MS] ]]]].
       exists tt, (U,dms); intuition.
       constructor; assumption.
     - intros until m2; intros MTCH.
       inversion MTCH; subst; clear MTCH.
       destruct st1' as [U' js'].
-      destruct (core_diagram m2 U U0 U' ds js js' m1' H H1 H0) as
+      destruct (core_diagram m2 U U0 U' (Some rmap) (Some pmap) ds js js' m1' H H1 H0) as
           [ds' [DINV [MTCH CORE]]].
       exists (U', ds'), m1', tt, mu. split.
       + constructor; assumption.

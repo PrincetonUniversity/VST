@@ -410,9 +410,14 @@ Module ClightParching <: ErasureSig.
       - simpl; eapply mtch_locksRes; eassumption.
     Qed.
 
+    
+    Definition match_rmap_perm (rmap : rmap) (pmap: access_map): Prop:=
+      forall b ofs, perm_of_res (rmap @ (b, ofs)) = pmap !! b ofs.
+
     Lemma MTCH_initial:
-      forall genv c,
-        match_st (JSEM.initial_machine c) (DSEM.initial_machine genv c).
+      forall  c rmap pmap,
+        match_rmap_perm rmap pmap ->
+        match_st (JSEM.initial_machine rmap c) (DSEM.initial_machine (*genv*) pmap c).
     Proof.
       intros.
       constructor.
@@ -426,28 +431,26 @@ Module ClightParching <: ErasureSig.
       - intros.
         unfold JTP.getThreadR; unfold JSEM.initial_machine; simpl.
         unfold DTP.getThreadR; unfold DSEM.initial_machine; simpl.
+        unfold match_rmap_perm in H. apply H. 
         unfold empty_rmap, "@"; simpl.
-        rewrite compcert_rmaps.R.unsquash_squash; simpl.
-        destruct (eq_dec Share.bot Share.bot); try solve[exfalso; apply n; reflexivity].
-        unfold DSEM.compute_init_perm.
-        rewrite empty_map_spec; reflexivity.
       - reflexivity.
       - unfold DSEM.ThreadPool.lockRes, DSEM.initial_machine; simpl.
-        intros. rewrite threadPool.find_empty in H0; inversion H0.
+        intros. rewrite threadPool.find_empty in H1; inversion H1.
       - unfold DSEM.ThreadPool.lockRes, DSEM.initial_machine; simpl.
-        intros. rewrite threadPool.find_empty in H0; inversion H0.
+        intros. rewrite threadPool.find_empty in H1; inversion H1.
     Qed.
     
     Variable genv: G.
     Variable main: Values.val.
     Lemma init_diagram:
       forall (j : Values.Val.meminj) (U:schedule) (js : jstate)
-        (vals : list Values.val) (m : mem),
+        (vals : list Values.val) (m : mem)rmap pmap,
         init_inj_ok j m ->
-        initial_core (JMachineSem U) genv main vals = Some (U, js) ->
+        match_rmap_perm rmap pmap ->
+        initial_core (JMachineSem U (Some rmap)) genv main vals = Some (U, js) ->
         exists (mu : SM_Injection) (ds : dstate),
           as_inj mu = j /\
-          initial_core (DMachineSem U) genv main vals = Some (U, ds) /\
+          initial_core (DMachineSem U (Some pmap)) genv main vals = Some (U, ds) /\
           DSEM.invariant ds /\
           match_st js ds.
     Proof.
@@ -457,12 +460,12 @@ Module ClightParching <: ErasureSig.
       exists (initial_SM (valid_block_dec m) (valid_block_dec m) (fun _ => false) (fun _ => false) j).
 
       (* Build the dry state *)
-      simpl in H0.
-      unfold JuicyMachine.init_machine in H0.
-      unfold JSEM.init_mach in H0. simpl in H0.
-      destruct ( initial_core JSEM.ThreadPool.SEM.Sem genv main vals) eqn:C; try solve[inversion H0].
-      inversion H0.
-      exists (DSEM.initial_machine genv c).
+      simpl in H1.
+      unfold JuicyMachine.init_machine in H1.
+      unfold JSEM.init_mach in H1. simpl in H1.
+      destruct ( initial_core JSEM.ThreadPool.SEM.Sem genv main vals) eqn:C; try solve[inversion H1].
+      inversion H1.
+      exists (DSEM.initial_machine pmap c).
 
       split; [|split;[|split]].
       
@@ -474,7 +477,7 @@ Module ClightParching <: ErasureSig.
         rewrite C.
         f_equal.
       - apply initial_invariant.
-      - apply MTCH_initial.
+      - apply MTCH_initial. assumption.
     Qed.
   
   Lemma conc_step_diagram:
@@ -1839,16 +1842,16 @@ Module ClightParching <: ErasureSig.
   
   Lemma core_diagram':
     forall (m : mem)  (U0 U U': schedule) 
-     (ds : dstate) (js js': jstate) 
+     (ds : dstate) (js js': jstate) rmap pmap
      (m' : mem),
    match_st js ds ->
    DSEM.invariant ds ->
-   corestep (JMachineSem U0) genv (U, js) m (U', js') m' ->
+   corestep (JMachineSem U0 rmap) genv (U, js) m (U', js') m' ->
    exists (ds' : dstate),
      DSEM.invariant ds' /\
      match_st js' ds' /\
-     corestep (DMachineSem U0) genv (U, ds) m (U', ds') m'.
-       intros m U0 U U' ds js js' m' MATCH dinv.
+     corestep (DMachineSem U0 pmap) genv (U, ds) m (U', ds') m'.
+       intros m U0 U U' ds js js' rmap pmap m' MATCH dinv.
        unfold JuicyMachine.MachineSemantics; simpl.
        unfold JuicyMachine.MachStep; simpl.
        intros STEP;
@@ -1969,27 +1972,27 @@ Module ClightParching <: ErasureSig.
   Admitted.
 
   Lemma core_diagram:
-    forall (m : mem)  (U0 U U': schedule) 
+    forall (m : mem)  (U0 U U': schedule) rmap pmap 
      (ds : dstate) (js js': jstate) 
      (m' : mem),
-   corestep (JMachineSem U0) genv (U, js) m (U', js') m' ->
+   corestep (JMachineSem U0 rmap) genv (U, js) m (U', js') m' ->
    match_st js ds ->
    DSEM.invariant ds ->
    exists (ds' : dstate),
      DSEM.invariant ds' /\
      match_st js' ds' /\
-     corestep (DMachineSem U0) genv (U, ds) m (U', ds') m'.
+     corestep (DMachineSem U0 pmap) genv (U, ds) m (U', ds') m'.
   Proof.
-    intros. destruct (core_diagram' m U0 U U' ds js js' m' H0 H1 H) as [ds' [A[B C]]].
+    intros. destruct (core_diagram' m U0 U U' ds js js' rmap0 pmap m' H0 H1 H) as [ds' [A[B C]]].
     exists ds'; split;[|split]; try assumption.
   Qed.
 
   
   Lemma halted_diagram:
-    forall U ds js,
+    forall U ds js rmap pmap,
       fst js = fst ds ->
-      halted (JMachineSem U) js = halted (DMachineSem U) ds.
-        intros until js. destruct ds, js; simpl; intros HH; rewrite HH.
+      halted (JMachineSem U rmap) js = halted (DMachineSem U pmap) ds.
+        intros until pmap. destruct ds, js; simpl; intros HH; rewrite HH.
         reflexivity.
   Qed.
 
@@ -2004,9 +2007,10 @@ Module ClightErasure:= ErasureFnctr ClightParching.
 
 
 Theorem clight_erasure:
-  forall U : DryMachine.Sch,
-       Wholeprog_sim.Wholeprog_sim (JMachineSem U) 
-         (DMachineSem U) ClightParching.genv ClightParching.genv ClightParching.main ClightErasure.ge_inv
+  forall (U : DryMachine.Sch) rmap pmap,
+    match_rmap_perm rmap pmap -> 
+    Wholeprog_sim.Wholeprog_sim (JMachineSem U (Some rmap)) 
+         (DMachineSem U (Some pmap)) ClightParching.genv ClightParching.genv ClightParching.main ClightErasure.ge_inv
          ClightErasure.init_inv ClightErasure.halt_inv.
 Proof.
-  Proof. apply ClightErasure.erasure. Qed.
+  Proof. intros. apply ClightErasure.erasure. assumption. Qed.

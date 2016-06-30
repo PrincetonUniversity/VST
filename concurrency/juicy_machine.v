@@ -167,7 +167,7 @@ Module Concur.
     (* This is similar to the coherence of juicy memories, *
      * but for entire machines. It is slighly weaker in one way:
      * - acc_coh is looser and only talks about maxcoh. 
-     * - alse acc_coh  might me redundant with max_coh IDK... *)
+     * - alse acc_coh  might me redundant with max_coh IDK... x*)
     Record mem_cohere' m phi :=
       { cont_coh: contents_cohere m phi;
         (*acc_coh: access_cohere m phi;*)
