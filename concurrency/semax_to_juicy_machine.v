@@ -176,8 +176,9 @@ Inductive state_invariant {Z} (Jspec : juicy_ext_spec Z) (n : nat) : cm_state ->
       (uniqkrun :  threads_unique_Krun tp sch)
     : state_invariant Jspec n (m, ge, (sch, tp)).
 
-(*! Final instantiation *)
 
+
+(*+ Initial state *)
 
 Section Initial_State.
   Variables
@@ -1217,21 +1218,20 @@ Admitted.
 *)
 End Simulation.
 
+(*+ Final instantiation *)
+
 Section Safety.
   Variables
     (CS : compspecs)
     (V : varspecs)
     (G : funspecs)
     (ext_link : string -> ident)
+    (ext_link_inj : forall s1 s2, ext_link s1 = ext_link s2 -> s1 = s2)
     (prog : program)
     (all_safe : semax_prog.semax_prog (Concurrent_Oracular_Espec CS ext_link) prog V G)
     (init_mem_not_none : Genv.init_mem prog <> None).
 
-  Definition init_mem : { m | Genv.init_mem prog = Some m } :=
-    match Genv.init_mem prog as y return (y <> None -> {m : mem | y = Some m}) with
-    | Some m => fun _ => exist _ m eq_refl
-    | None => fun H => (fun Heq => False_rect _ (H Heq)) eq_refl
-    end init_mem_not_none.
+  Definition init_mem : { m | Genv.init_mem prog = Some m } := init_m prog init_mem_not_none.
   
   Definition spr :=
     semax_prog_rule
@@ -1251,18 +1251,25 @@ Section Safety.
 
   Definition NoExternal_Espec : external_specification mem external_function unit :=
     Build_external_specification
-      _ _ _ (fun _ => False) (fun _ _ _ _ _ _ _ => False)
-      (fun _ _ _ _ _ _ _ => False) (fun _ _ _ => False).
+      _ _ _
+      (* no external calls from the machine *)
+      (fun _ => False)
+      (fun _ _ _ _ _ _ _ => False)
+      (fun _ _ _ _ _ _ _ => False)
+      (* when the machine is halted, it means no more schedule, there
+      is nothing to check: *)
+      (fun _ _ _ => True).
   
   Definition NoExternal_Hrel : nat -> mem -> mem -> Prop := fun _ _ _ => False.
   
-  Variable unknown : JuicyMachineShell_ClightSEM.ThreadPool.SEM.G -> Maps.PTree.t block.
-  
-  Lemma safe_initial_state : forall sch r n,
-      @safeN_
-        _ _ _ _
-        unknown
-        NoExternal_Hrel
+  Lemma safe_initial_state : forall sch r n genv_symb,
+      safeN_
+        (G := genv)
+        (C := schedule * Machine.t)
+        (M := mem)
+        (Z := unit)
+        (genv_symb := genv_symb)
+        (Hrel := NoExternal_Hrel)
         (JuicyMachine.MachineSemantics sch r)
         NoExternal_Espec
         (globalenv prog)
@@ -1271,6 +1278,32 @@ Section Safety.
         (sch, initial_machine_state n)
         (proj1_sig init_mem).
   Proof.
-  Admitted.
+    intros sch r n thisfunction.
+    pose proof initial_invariant CS V G ext_link prog as INIT.
+    repeat (specialize (INIT ltac:(assumption))).
+    pose proof state_invariant_step CS ext_link ext_link_inj as SIM.
+    revert INIT.
+    unfold initial_state, initial_machine_state.
+    unfold initial_corestate, initial_jm, spr, init_mem.
+    match goal with |- context[(sch, ?tp)] => generalize tp end.
+    match goal with |- context[(proj1_sig ?m)] => generalize (proj1_sig m) end.
+    (* here we decorelate the CoreSemantics parameters from the
+    initial state parameters *)
+    generalize sch at 2.
+    generalize (globalenv prog), sch.
+    clear -SIM.
+    induction n; intros g sch schSEM m t INV; [ now constructor | ].
+    destruct (SIM _ _ INV) as [cm' [step INV']].
+    inversion step as [ | ? ? m' ? sch' ? tp' STEP ]; subst; clear step.
+    - (* empty schedule *)
+      eapply safeN_halted.
+      + reflexivity.
+      + apply I.
+    - (* a step can be taken *) 
+      eapply safeN_step with (c' := (sch', tp')) (m'0 := m').
+      + eapply STEP.
+      + apply IHn.
+        apply INV'.
+  Qed.
   
 End Safety.
