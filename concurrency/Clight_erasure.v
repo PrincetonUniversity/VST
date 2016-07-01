@@ -137,12 +137,6 @@ Module ClightParching <: ErasureSig.
     unfold JSEM.ThreadPool.lockGuts, DSEM.ThreadPool.lockGuts.
     intros HH; specialize (HH  (b, ofs)).
     unfold A2PMap.
-    rewrite <- AMap.fold_1.
-    f_equal.
-    f_equal.
-    rewrite <- AMap.fold_1.
-    unfold JSEM.ThreadPool.lset.
-    unfold DSEM.ThreadPool.lset.
          
   Admitted.
   
@@ -1012,9 +1006,75 @@ Module ClightParching <: ErasureSig.
              replace (MTCH_cnt MATCH Hi) with Htid'.
              reflexivity.
              apply proof_irrelevance.
-           + (*constructor. 
-             intros. left. *)
-             admit. (*angelSpec!!! *)
+           + { constructor.
+               - intros b0 ofs0 H.
+                 destruct (virtue ! b0) eqn:vb0.
+                 destruct (o ofs0) eqn:oofs0.
+                 + rewrite (computeMap_1 _ _ _  _ vb0 oofs0) in H.
+                   unfold virtue in vb0. rewrite PTree.gmap in vb0.
+                   unfold inflated_delta in vb0.
+                   destruct ((snd (getCurPerm m)) ! b0) ; inversion vb0.
+                   rewrite <- H1 in oofs0. clear H1.
+                   replace o0 with (perm_of_res (m_phi jm' @ (b0, ofs0))) in H. clear oofs0.
+                   Lemma preservationOfReads1: forall r1 r2 r3,
+                       sepalg.join r1 r2 r3 ->
+                       Mem.perm_order' (perm_of_res r3) Readable ->
+                       Mem.perm_order' (perm_of_res r1) Readable \/
+                       Mem.perm_order' (perm_of_res r2) Readable.
+                   Proof. intros  ? ? ? J po.
+                          inversion J; subst; simpl in po; try inversion po; simpl.
+                          - destruct (eq_dec rsh3 Share.bot); inversion po.
+                          - destruct k; try inversion po.
+                            unfold perm_of_sh. destruct (eq_dec sh pfullshare).
+                            destruct (eq_dec rsh1 Share.top).
+                            subst; simpl. rewrite if_true. left; constructor. reflexivity.
+                            subst; simpl. rewrite if_true. left; constructor. reflexivity.
+                            subst; simpl. rewrite if_false.
+                            rewrite if_false. simpl; left; constructor.
+                            intros HH.
+                            eapply juicy_mem_ops.Abs.pshare_sh_bot. eassumption.
+                            intros HH. apply n.
+                            apply shares.top_pfullshare; assumption.
+                          - destruct k; try inversion po.
+                            unfold perm_of_sh. destruct (eq_dec sh pfullshare).
+                            destruct (eq_dec rsh2 Share.top).
+                            right; subst; simpl. rewrite if_true. constructor. reflexivity.
+                            right; subst; simpl. rewrite if_true. constructor. reflexivity.
+                            right; subst; simpl. rewrite if_false.
+                            rewrite if_false. simpl; constructor.
+                            intros HH.
+                            eapply juicy_mem_ops.Abs.pshare_sh_bot. eassumption.
+                            intros HH. apply n.
+                            apply shares.top_pfullshare; assumption.
+                          - destruct k; try inversion po.
+                            unfold perm_of_sh. destruct (eq_dec sh1 pfullshare).
+                            destruct (eq_dec rsh1 Share.top).
+                            subst; simpl. rewrite if_true. left; constructor. reflexivity.
+                            subst; simpl. rewrite if_true. left; constructor. reflexivity.
+                            subst; simpl. rewrite if_false.
+                            rewrite if_false. simpl; left; constructor.
+                            intros HH.
+                            eapply juicy_mem_ops.Abs.pshare_sh_bot. eassumption.
+                            intros HH. apply n.
+                            apply shares.top_pfullshare; assumption.
+                   Qed.
+                   inversion MATCH.
+                   erewrite <- mtch_perm. erewrite <- mtch_locksRes.
+                   eapply preservationOfReads1. apply resource_at_join. eassumption.
+                   assumption.
+                   eassumption.
+                   eassumption.
+                   { (*prove the replacement above*)
+                     clear - oofs0.
+                     destruct (d_phi @ (b0, ofs0));
+                       try ( destruct ((Share.EqDec_share t Share.bot))); (*For the no case*)
+                       inversion oofs0; try reflexivity.
+                   }
+                 + erewrite (computeMap_2) in H; try left; eassumption.
+                 + rewrite (computeMap_3) in H; try left; eassumption.
+               - intros. rewrite empty_map_spec.
+                 simpl. destruct ((l !! b0 ofs0)); constructor.
+             }
     }  
     
     (* step_release *)
@@ -1033,7 +1093,13 @@ Module ClightParching <: ErasureSig.
                   (computeMap
                      (DSEM.ThreadPool.getThreadR Htid') virtue)).
          pose (ds'':= DSEM.ThreadPool.updLockSet ds' (b, Int.intval ofs)
-              (JSEM.juice2Perm d_phi m)).
+                                                 (JSEM.juice2Perm d_phi m)).
+
+         assert (virtue_spec: forall b0 ofs0, perm_of_res (m_phi jm' @ (b0, ofs0)) =
+                              (computeMap (DSEM.ThreadPool.getThreadR Htid') virtue) !! b0 ofs0).
+         {
+           admit.
+         }
          exists ds''.
          split; [|split].
     - unfold ds''.
@@ -1298,10 +1364,6 @@ Module ClightParching <: ErasureSig.
       Unfocus.
       unfold ds'.
       apply MTCH_update; auto.
-      intros.
-      (*This is going tot ake some work. If its false the definitions can easily change. *)
-      (*TODO: this spec should be proven on defining virtue... then used everywhere... instead of the cases stuff..*)
-      admit.
 
       assert (H: exists l, DSEM.ThreadPool.lockRes ds (b, Int.intval ofs) = Some l).
       { inversion MATCH; subst.
@@ -1330,9 +1392,51 @@ Module ClightParching <: ErasureSig.
         replace (MTCH_cnt MATCH Hi) with Htid'.
         reflexivity.
         apply proof_irrelevance.
-      + admit. (*angelSpec!!!*)
-    }
+      + { move virtue_spec at bottom.
+          constructor.
+          - intros b0 ofs0.
+            replace (MTCH_cnt MATCH Hi) with Htid' by apply proof_irrelevance.
+            rewrite <- virtue_spec.
+            rewrite <- JSEM.juic2Perm_correct.
+            inversion MATCH. erewrite <- mtch_perm. split.
+            + eapply preservationOfReads1.
+              apply resource_at_join. eassumption.
+            + Lemma preservationOfReads2: forall r1 r2 r3,
+                sepalg.join r1 r2 r3 ->
+                Mem.perm_order' (perm_of_res r1) Readable \/
+                Mem.perm_order' (perm_of_res r2) Readable ->
+                Mem.perm_order' (perm_of_res r3) Readable.
+              Proof. intros ? ? ? JOIN.
+                     do 3 erewrite po_oo; intros [H | H];
+                     eapply po_trans; try eassumption;
+                     apply po_join_sub; eapply join_join_sub.
+                     - eassumption.
+                     - eapply join_comm; eassumption.
+              Qed.
+              apply preservationOfReads2.
+              apply resource_at_join; assumption.
 
+              (*  JSEM.access_cohere' m d_phi *)
+              intros addr.
+              destruct Hcompatible as [all_juice Hcompatible].
+              inversion Hcompatible. 
+              eapply po_trans.
+              apply all_cohere.
+              apply po_join_sub.
+              apply resource_at_join_sub.
+              eapply join_sub_trans.
+              eapply join_join_sub; apply Hrem_lock_res.
+              apply compatible_threadRes_sub. assumption.
+          - intros.
+            replace (MTCH_cnt MATCH Hi) with Htid' by apply proof_irrelevance.
+            rewrite <- virtue_spec.
+            inversion MATCH; erewrite <- mtch_perm.
+            apply po_join_sub.
+            apply resource_at_join_sub.
+            eapply join_join_sub.
+            eapply join_comm. eassumption.
+        }
+    }
     (* step_create *)
     { 
 
@@ -1621,6 +1725,13 @@ Module ClightParching <: ErasureSig.
        pose (pmap_tid  := DTP.getThreadR Htid').
        pose (pmap_tid' := (computeMap pmap_tid virtue)).
 
+       assert (virtue_spec: forall (b0 : block) (ofs0 : Z),
+                  perm_of_res (m_phi jm' @ (b0, ofs0)) =
+                  (computeMap (DTP.getThreadR Htid') virtue) !! b0 ofs0).
+       {
+         admit.
+       }
+
        pose (ds':= DTP.updThread Htid' (Kresume c Vundef) pmap_tid').
        pose (ds'':= DTP.remLockSet ds' (b,(Int.intval ofs))).
        
@@ -1861,7 +1972,7 @@ Module ClightParching <: ErasureSig.
         (* Now I prove the map construction is correct*)
         {
           unfold pmap_tid'. intros.
-          admit.
+          apply virtue_spec.
         }
         
       - econstructor 5. (*The step *)
@@ -1869,7 +1980,17 @@ Module ClightParching <: ErasureSig.
         + assumption.
         + eapply MTCH_getThreadC; eassumption.
         + eassumption.
-        + admit. (*angelSpec*)
+        + { (*AngelSpec*)
+            constructor.
+            - intros b0 ofs0.
+              replace (MTCH_cnt MATCH Hi) with Htid'.
+              rewrite <- virtue_spec.
+              
+            -
+
+          }
+
+          admit. (*angelSpec*)
         + instantiate(2:= virtue ). reflexivity.
         + reflexivity.
         + unfold ds'',  ds'.

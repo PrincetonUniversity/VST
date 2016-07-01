@@ -1534,7 +1534,9 @@ Section ShareMaps.
     now apply joins_comm in Hjoin.
   Qed.
                        
-End ShareMaps. 
+End ShareMaps.
+
+
 
 (* Computation of a canonical form of permission maps where the
      default element is a function to the empty permission *)
