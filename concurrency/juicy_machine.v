@@ -217,7 +217,7 @@ Module Concur.
 
     Definition lockSet_in_juicyLocks (lset : lockMap) (juice: rmap):=
       forall loc, AMap.find loc lset -> 
-	     exists sh psh P z, juice @ loc = YES sh psh (LK z) P \/
+	     (exists sh psh P z, juice @ loc = YES sh psh (LK z) P) \/
 	     exists sh, juice @ loc = NO sh. (* Maybe we want to allow leaking data somehow, 
                                            in which case we get a lock in the lockSet 
                                            with nothing in the juice. *)
@@ -229,7 +229,7 @@ Module Concur.
     Proof.
       intros lset juice HH loc FIND.
       apply HH in FIND.
-      destruct FIND as [sh [psh [P [z [FIND | [sh0 FIND]]]]]]; rewrite FIND; simpl.
+      destruct FIND as [[sh [psh [P [z FIND]]]] | [sh0 FIND]]; rewrite FIND; simpl.
       - constructor.
       - destruct (eq_dec sh0 Share.bot); constructor.
     Qed.
