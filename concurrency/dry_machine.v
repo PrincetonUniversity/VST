@@ -139,16 +139,6 @@ Module Concur.
          acqAngelDecr: forall b ofs,
              Mem.perm_order'' (Maps.PMap.get b src ofs)
                               (Maps.PMap.get b src' ofs)}.
-
-     (*Lets see if the other cases should change.*)
-     Record angelSpec (src tgt src' tgt' : access_map) : Prop :=
-       { angelIncr: forall b ofs,
-           Mem.perm_order' (Maps.PMap.get b tgt' ofs) Readable ->
-           Mem.perm_order' (Maps.PMap.get b tgt ofs) Readable \/
-           Mem.perm_order' (Maps.PMap.get b src ofs) Readable;
-         angelDecr: forall b ofs,
-             Mem.perm_order'' (Maps.PMap.get b src ofs)
-                              (Maps.PMap.get b src' ofs)}.
      
      (** Steps*)
      Inductive dry_step genv {tid0 tp m} (cnt: containsThread tp tid0)
@@ -246,8 +236,6 @@ Module Concur.
                 Mem.store Mint32 m1 b (Int.intval ofs) (Vint Int.zero) = Some m')
              (Hdrop_perm:
                 setPermBlock (Some Nonempty) b (Int.intval ofs) pmap_tid LKSIZE_nat = pmap_tid')
-             (*Hlp_perm: setPerm (Some Writable)
-                               b (Int.intval ofs) (lockSet tp) = pmap_lp*)
              (Htp': tp' = updThread cnt0 (Kresume c Vundef) pmap_tid')
              (Htp'': tp'' = updLockSet tp' (b,(Int.intval ofs)) empty_map),
              ext_step genv cnt0 Hcompat tp'' m' 
@@ -259,19 +247,18 @@ Module Concur.
            (Hcode: getThreadC cnt0 = Kblocked c)
            (Hat_external: at_external Sem c =
                           Some (FREE_LOCK, ef_sig FREE_LOCK, Vptr b ofs::nil))
-           (*(Hangel_spec1: forall b0, b0 <> b -> virtue ! b0 = None) 
-           (Hangel_spec2: forall ofs0, ~ Intv.In (ofs0 - Int.intval ofs) (0%Z, LKSIZE) ->
-                                  ((virtue ! b) ?? ofs0) = None)
-           (Hangel_spec3: forall ofs0, Intv.In (ofs0 - Int.intval ofs) (0%Z, LKSIZE) ->
-                                  ((virtue ! b) ?? ofs0) = Some (Some (Some Writable)) \/
-                                  (virtue ! b ?? ofs0) = Some (Some (Some Freeable)))*)
-           (Hangel: angelSpec (lockSet tp) (getThreadR cnt0)
-                              (lockSet (remLockSet tp (b, Int.intval ofs)))
-                              (computeMap (getThreadR cnt0) virtue ))
-           (Hset_perm: (computeMap (getThreadR cnt0) virtue) = pmap')
-           (*Hset_perm: setPermBlock virtue b (Int.intval ofs) 
-            (getThreadR cnt0) LKSIZE_nat = pmap') (* This should be computemap + specs*) *)
-           
+           (His_lock: lockRes tp (b, (Int.intval ofs)))
+           (Hset_perm: computeMap (getThreadR cnt0) virtue = pmap')
+           (Hchanged: forall ofs',
+               Intv.In ofs' (Int.intval ofs,
+                                 (Int.intval ofs) + Z.of_nat (LKSIZE_nat))%Z ->
+               Mem.perm_order' (pmap' !! b ofs') Writable)
+           (Hunchanged: forall b' ofs',
+               (b = b' /\ (~ Intv.In ofs' (Int.intval ofs,
+                                              (Int.intval ofs) +
+                                               Z.of_nat (LKSIZE_nat)))%Z
+                \/ b <> b') -> 
+               pmap' !! b' ofs' = (getThreadR cnt0) !! b' ofs')
            (Htp': tp' = updThread cnt0 (Kresume c Vundef) pmap')
            (Htp'': tp'' = remLockSet tp' (b,(Int.intval ofs)))
            (Hmem_no_change: m = m'),
@@ -284,7 +271,6 @@ Module Concur.
            (Hcode: getThreadC cnt0 = Kblocked c)
            (Hat_external: at_external Sem c =
                           Some (LOCK, ef_sig LOCK, Vptr b ofs::nil))
-           (*His_lock: (Maps.PMap.get b (lockSet tp)) (Int.intval ofs)*)
            (Hrestrict_pmap: restrPermMap (compat_ls Hcompat) = m1)
            (Hload: Mem.load Mint32 m1 b (Int.intval ofs) = Some (Vint Int.zero)),
            ext_step genv cnt0 Hcompat tp m.

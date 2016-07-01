@@ -347,6 +347,21 @@ Axiom init_core_wd:
     | None => True
     end.
 
+(** Assuming that coresteps maintain well-defideness of the state*)
+Axiom corestep_wd:
+  forall c m c' m' f
+    (Hwd: core_wd f c)
+    (Hmem_wd: valid_mem m)
+    (Hdomain: domain_memren f m)
+    (Hcorestep: corestep Sem the_ge c m c' m'),
+    valid_mem m' /\
+    (exists f', ren_domain_incr f f' /\ domain_memren f' m') /\
+    forall f', domain_memren f' m' ->
+          core_wd f' c'.
+
+(** Excluded middle is required, but can be easily lifted*)
+Axiom em : ClassicalFacts.excluded_middle.
+
 Lemma init_tp_wd:
   forall v args m tp,
     init_mem = Some m ->
@@ -631,6 +646,16 @@ Import StepType.
 
 Notation fsafe := (myFineSemantics.fsafe the_ge).
 
+(*TODO: Put in threadpool*)
+Definition containsThread_dec:
+  forall i tp, {containsThread tp i} + { ~ containsThread tp i}.
+Proof.
+  intros.
+  unfold containsThread.
+  destruct (leq (S i) (num_threads tp)) eqn:Hleq;
+    by auto.
+Qed.
+
 Lemma fine_safe:
   forall tpf tpc mf mc (f fg : memren) fp (xs : Sch)
     (Hsim: sim tpc mc tpf mf xs f fg fp),
@@ -639,48 +664,54 @@ Lemma fine_safe:
 Proof.
   intros.
   generalize dependent xs.
+  generalize dependent mf.
+  generalize dependent tpf.
+  generalize dependent fp.
+  generalize dependent tpc.
+  generalize dependent mc.
+  generalize dependent f.
   induction sched as [|i sched]; intros; simpl; auto.
   constructor.
   simpl; auto.
-  
-  Definition containsThread_dec:
-    forall i tp, {containsThread tp i} + { ~ containsThread tp i}.
-  Proof.
-    intros.
-    unfold containsThread.
-    destruct (leq (S i) (num_threads tp)) eqn:Hleq;
-      by auto.
-  Qed.
-  
   destruct (containsThread_dec i tpf) as [cnti | invalid].
   - (* By case analysis on the step type *)
     destruct (getStepType cnti) eqn:Htype.
     + pose proof (sim_internal cnti Htype Hsim) as (tpf' & m' & fp' & Hstep & Hsim').
       specialize (Hstep sched).
-      exists (sched,tpf'), m'.
-      eapply Hstep.
-      intros (U' & tpf'') mf'' Hstep'.
-      
-      
-      
-      
-      Theorem init_fine_safe:
-        forall f arg U tpf m
-          (Hmem: init_mem = Some m)
-          (Hinit: tpf_init f arg = Some (U, tpf)),
-        forall (sched : Sch),
-          fsafe tpf m sched.
-      Proof.
-        intros.
-        assert (Hsim := init_sim f arg Hinit Hinit Hmem).
-        clear - Hsim.
-        generalize dependent m. generalize dependent tpf.
-        induction n; simpl; auto.
-        intros.
-  
-      
-                       
+      econstructor 2; simpl; eauto.
+    + assert (~ List.In i xs)
+        by admit.
+      pose proof (sim_external corestep_wd em cnti Htype H Hsim) as Hsim'.
+      destruct Hsim' as (? & ? & ? & ? & ? & ? & Hstep & Hsim'').
+      specialize (Hstep sched).
+      econstructor 2; simpl; eauto.
+    + econstructor 2.
+      eapply sim_halted; eauto.
+      eauto.
+    + pose proof (sim_suspend corestep_wd cnti Htype Hsim) as
+          (? & ? & tpf' & m' & ? & ? & Hstep & Hsim').
+      specialize (Hstep sched).
+      econstructor 2; simpl; eauto.
+  - econstructor 2.
+    econstructor 7; simpl; eauto.
+    simpl. eauto.
+Admitted.   
 
+
+(** Safety preservation for the FineConc machine*)
+Theorem init_fine_safe:
+  forall f arg U tpf m
+    (Hmem: init_mem = Some m)
+    (Hinit: tpf_init f arg = Some (U, tpf)),
+  forall (sched : Sch),
+    fsafe tpf (diluteMem m) sched.
+Proof.
+  intros.
+  assert (Hsim := init_sim f arg Hinit Hinit Hmem).
+  clear - Hsim.
+  eapply fine_safe; eauto.
+Qed.
+  
 End X86Safe.
 
   
