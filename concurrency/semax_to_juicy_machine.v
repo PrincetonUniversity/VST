@@ -12,6 +12,7 @@ Require Import msl.Coqlib2.
 Require Import msl.eq_dec.
 Require Import veric.initial_world.
 Require Import veric.juicy_mem.
+Require Import veric.juicy_mem_lemmas.
 Require Import veric.semax_prog.
 Require Import veric.compcert_rmaps.
 Require Import veric.Clight_new.
@@ -30,7 +31,7 @@ Require Import concurrency.semax_conc.
 Require Import concurrency.juicy_machine.
 Require Import concurrency.concurrent_machine.
 Require Import concurrency.scheduler.
-  
+Require Import concurrency.addressFiniteMap.
 
 Set Bullet Behavior "Strict Subproofs".
 
@@ -38,6 +39,8 @@ Ltac eassert :=
   let mp := fresh "mp" in
   pose (mp := fun {goal Q : Type} (x : goal) (y : goal -> Q) => y x);
   eapply mp; clear mp.
+
+Ltac espec H := specialize (H ltac:(solve [eauto])).
 
 (* debugging *)
 Axiom HOLE : forall {A}, A.
@@ -322,6 +325,188 @@ Section Initial_State.
 
 End Initial_State.
 
+
+
+Require Import concurrency.permissions.
+
+Lemma cl_step_decay ge c m c' m' : @cl_step ge c m c' m' -> @decay m m'.
+Proof.
+  intros step; induction step; try apply decay_refl || apply IHstep.
+  - (* assign: no change in permission *)
+    intros b o.
+    (* destruct (valid_block_dec m b). *)
+    admit.
+  - (* call_internal: alloc_variables *)
+    admit.
+  - (* return: free_list *)
+    admit.
+Admitted.
+
+Lemma join_resource_decay b phi1 phi1' phi2 phi3 :
+  resource_decay b phi1 phi1' ->
+  level phi1 = S (level phi1') ->
+  sepalg.join phi1 phi2 phi3 ->
+  exists phi3',
+    sepalg.join phi1' phi2 phi3' /\
+    resource_decay b phi3 phi3' /\
+    level phi3 = S (level phi3').
+Admitted.
+
+Lemma join_all_resource_decay {tp m Phi} c' {phi' i} {cnti : Machine.containsThread tp i}:
+  resource_decay (Mem.nextblock m) (JM.ThreadPool.getThreadR cnti) phi' /\
+  level (JM.ThreadPool.getThreadR cnti) = S (level phi') ->
+  JM.join_all tp Phi ->
+  exists Phi',
+    JM.join_all (Machine.updThread cnti c' phi') Phi' /\
+    resource_decay (Mem.nextblock m) Phi Phi' /\
+    level Phi = S (level Phi')
+.
+Admitted.
+
+Definition mem_cohere := JM.mem_cohere'.
+Lemma mem_cohere_step m c c' jm jm' Phi (X : rmap) ge :
+  mem_cohere m Phi ->
+  sepalg.join (m_phi jm) X Phi ->
+  corestep (juicy_core_sem cl_core_sem) ge c jm c' jm' ->
+  exists Phi',
+    sepalg.join (m_phi jm') X Phi' /\
+    mem_cohere (m_dry jm') Phi'.
+Proof.
+  intros MC J C.
+  destruct C as [step [RD L]].
+  destruct (join_resource_decay _ _ _ _ _ RD L J) as [Phi' [J' [RD' L']]].
+  exists Phi'. split. apply J'.
+  constructor.
+  - intros l sh v loc pp AT.
+    pose proof resource_at_join _ _ _ loc J as Jloc.
+    pose proof resource_at_join _ _ _ loc J' as J'loc.
+    rewrite AT in J'loc.
+    inversion J'loc; subst.
+    + (* all was in jm' *)
+      admit.
+    + (* all was in X *)
+      rewrite <-H in Jloc.
+      inversion Jloc; subst.
+      * symmetry in H7.
+        pose proof JM.cont_coh MC _ H7.
+        intuition.
+        (* because the juice was NO, the dry hasn't changed *)
+        admit.
+      * (* same reasoning? *)
+        admit.
+    + (* joining of permissions, values don't change *)
+      symmetry in H.
+      destruct jm'.
+      apply (JMcontents _ _ _ _ _ H).
+  - admit.
+  - admit.
+  - admit.
+Admitted.
+
+Lemma resource_decay_LK {b phi phi' loc rsh sh n pp} :
+  resource_decay b phi phi' ->
+  phi @ loc = YES rsh sh (LK n) pp ->
+  phi' @ loc = YES rsh sh (LK n) (preds_fmap (approx (level phi')) pp).
+Proof.
+  intros [L R] E.
+  specialize (R loc).
+  rewrite E in *.
+  destruct R as [N [R|[R|[R|R]]]].
+  - rewrite <- R.
+    reflexivity.
+  - destruct R as [sh' [v [v' [R H]]]]. simpl in R. congruence.
+  - destruct R as [v [v' R]]. specialize (N ltac:(auto)). congruence.
+  - destruct R as [v [pp' [R H]]]. congruence.
+Qed.
+
+Lemma resource_decay_LK_inv {b phi phi' loc rsh sh n pp'} :
+  resource_decay b phi phi' ->
+  phi' @ loc = YES rsh sh (LK n) pp' ->
+  exists pp,
+    pp' = preds_fmap (approx (level phi')) pp /\
+    phi @ loc = YES rsh sh (LK n) pp.
+Proof.
+  intros [L R] E.
+  specialize (R loc).
+  rewrite E in *.
+  destruct R as [N [R|[R|[R|R]]]].
+  - destruct (phi @ loc); simpl in R; try discriminate.
+    eexists.
+    injection R. intros; subst.
+    split; reflexivity.
+  - destruct R as [sh' [v [v' [R H]]]]; congruence.
+  - destruct R as [v [v' R]]; congruence.
+  - destruct R as [v [pp [R H]]]; congruence.
+Qed.
+
+Definition resource_is_lock r := exists rsh sh n pp, r = YES rsh sh (LK n) pp.
+
+Definition same_locks phi1 phi2 := 
+  forall loc, resource_is_lock (phi1 @ loc) <-> resource_is_lock (phi2 @ loc).
+
+Definition lockSet_bound lset b :=
+  forall loc, isSome (AMap.find (elt:=option rmap) loc lset) -> (fst loc < b)%positive.
+
+Lemma resource_decay_same_locks {b phi phi'} :
+  resource_decay b phi phi' -> same_locks phi phi'.
+Proof.
+  intros R loc; split; intros (rsh & sh & n & pp & E).
+  - repeat eexists. eapply resource_decay_LK in E; eauto.
+  - destruct (resource_decay_LK_inv R E) as [pp' [E' ->]].
+    repeat eexists.
+Qed.
+
+Lemma same_locks_juicyLocks_in_lockSet phi phi' lset :
+  same_locks phi phi' ->
+  JM.juicyLocks_in_lockSet lset phi ->
+  JM.juicyLocks_in_lockSet lset phi'.
+Proof.
+  intros SL IN loc sh psh P n E.
+  destruct (SL loc) as [_ (rsh & sh' & n' & pp & E')].
+  { rewrite E. repeat eexists. }
+  apply (IN loc _ _ _ _ E').
+Qed.
+
+Lemma resource_decay_lockSet_in_juicyLocks b phi phi' lset :
+  resource_decay b phi phi' ->
+  lockSet_bound lset b ->
+  JM.lockSet_in_juicyLocks lset phi ->
+  JM.lockSet_in_juicyLocks lset phi'.
+Proof.
+  intros RD LB IN loc IT.
+  destruct (IN _ IT) as [(rsh & sh & pp & n & E)|(sh & N)].
+  - assert (SL : same_locks phi phi') by (eapply resource_decay_same_locks; eauto). destruct (SL loc) as [(rsh' & sh' & n' & pp' & E') _].
+    + rewrite E. exists rsh, sh, n, pp. reflexivity.
+    + rewrite E'. left. exists rsh', sh', pp', n'. reflexivity.
+  - destruct RD as [L RD].
+    destruct (RD loc) as [NN [R|[R|[[P [v R]]|R]]]].
+    + rewrite N in R; simpl in R; rewrite <- R.
+      right. eauto.
+    + rewrite N in R. destruct R as (sh' & v & v' & R & H). discriminate.
+    + specialize (LB loc).
+      cut (fst loc < b)%positive. now intro; exfalso; eauto.
+      apply LB. destruct (AMap.find (elt:=option rmap) loc lset).
+      * apply I.
+      * inversion IT.
+    + destruct R as (v & v' & R & N').
+      right; eauto.
+Qed.
+
+Lemma lockSet_Writable_lockSet_bound m lset  :
+  JM.lockSet_Writable lset m ->
+  lockSet_bound lset (Mem.nextblock m).
+Proof.
+  simpl; intros LW.
+  intros (b, ofs) IN; simpl.
+  specialize (LW b ofs).
+  destruct (AMap.find (elt:=option rmap) (b, ofs) lset). 2:inversion IN.
+  specialize (LW eq_refl).
+  cut (~ ~ (b < Mem.nextblock m)%positive). zify. omega. intros L.
+  rewrite (Mem.nextblock_noaccess _ _ ofs Max L) in LW.
+  inversion LW.
+Qed.
+
+
 Section Simulation.
   Variables
     (CS : compspecs)
@@ -346,26 +531,6 @@ Section Simulation.
         (m, ge, (sch, jstate))
         (m', ge, (sch', jstate')).
   
-  Lemma join_resource_decay b phi1 phi1' phi2 phi3 :
-    resource_decay b phi1 phi1' ->
-    level phi1 = S (level phi1') ->
-    sepalg.join phi1 phi2 phi3 ->
-    exists phi3',
-      sepalg.join phi1' phi2 phi3' /\
-      resource_decay b phi3 phi3' /\
-      level phi3 = S (level phi3').
-  Admitted.
-  
-  Lemma join_all_resource_decay {tp m Phi} c' {phi' i} {cnti : Machine.containsThread tp i}:
-    resource_decay (Mem.nextblock m) (JM.ThreadPool.getThreadR cnti) phi' /\
-    level (JM.ThreadPool.getThreadR cnti) = S (level phi') ->
-    JM.join_all tp Phi ->
-    exists Phi',
-      JM.join_all (Machine.updThread cnti c' phi') Phi' /\
-      resource_decay (Mem.nextblock m) Phi Phi' /\
-      level Phi = S (level Phi')
-  .
-  Admitted.
   
   Lemma invariant_thread_step
         {Z} (Jspec : juicy_ext_spec Z)
@@ -383,10 +548,13 @@ Section Simulation.
         (cm' := (m_dry jmi', ge, (i :: sch, tp')) : mem * genv * (list NatTID.tid * Machine.t)) :
     state_invariant Jspec n cm'.
   Proof.
-    destruct stepi as [stepi decay].
-    destruct compat as [juice_join all_cohere loc_writable loc_set_ok].
-    simpl in *.
-    destruct (join_all_resource_decay (Krun ci') decay juice_join) as [Phi' [J' [RD L]]].
+    (* destruct stepi as [step decay]. *)
+    (* destruct compat as [juice_join all_cohere loc_writable loc_set_ok]. *)
+    destruct compat as [JJ AC LW LO] eqn:Ecompat. simpl in *.
+    rewrite <-Ecompat in *.
+    destruct (JM.JuicyMachineLemmas.compatible_threadRes_sub cnti JJ) as [EXT JEXT].
+    destruct (join_all_resource_decay (Krun ci') (proj2 stepi) JJ) as [Phi' [J' [RD L]]].
+    assert (JEXT' : sepalg.join (m_phi jmi') EXT Phi'). admit (* cancellativity *).
     
     assert (compat' : mem_compatible_rmap tp' (m_dry jmi') Phi').
     {
@@ -394,74 +562,143 @@ Section Simulation.
       - (* join_all (proved in lemma) *)
         apply J'.
       - (* cohere *)
-        
         simpl in *.
-        (* reasoning: first we have [cohere m Phi] then we have
-        [cohere m jmi] because [jmi<Phi] then we have [cohere m' jmi']
-        by definition of juicy memory.  We need then to prove [cohere
-        m' Phi'] which should be implied by [cohere m' jmi'] and
-        [cohere m Phi] because the only changes are in jmi's writable
-        CUR locations ... *)
-        Definition mem_cohere := JM.mem_cohere'.
+        erewrite <- JM.JuicyMachineLemmas.compatible_getThreadR_m_phi in JEXT.
+        destruct (mem_cohere_step m _ _ _ _ Phi EXT _ (ltac:(auto)) (ltac:(eauto)) stepi) as [Phi'' [J'' MC]].
+        assert (Phi'' = Phi') by admit (* cancellativity *). subst Phi''.
+        apply MC.
+      
+      - (* lockSet_Writable *)
+        simpl.
+        clear -LW stepi.
+        destruct stepi as [step _]; simpl in step.
+        intros b ofs IN.
+        specialize (LW b ofs IN).
+        (* the juicy memory don't help much because we care about Max
+        here. There are several cases were no permission change, the
+        only cases where they do are:
+        (1) call_internal (alloc_variables m -> m1)
+        (2) return (free_list m -> m')
+        in the end, (1) cannot hurt because there is already
+        something, but maybe things have returned?
+         *)
         
-        Lemma mem_cohere_step_adhoc m c c' jm jm' Phi (X : rmap) ge :
-          mem_cohere m Phi ->
-          sepalg.join (m_phi jm) X Phi ->
-          corestep (juicy_core_sem cl_core_sem) ge c jm c' jm' ->
-          exists Phi',
-            sepalg.join (m_phi jm') X Phi' /\
-            mem_cohere (m_dry jm') Phi'.
-        Proof.
-          intros MC J C.
-          destruct C as [step [RD L]].
-          destruct (join_resource_decay _ _ _ _ _ RD L J) as [Phi' [J' [RD' L']]].
-          eexists. split; [admit|].
-          constructor.
-          - intros l sh v loc pp H.
-            admit.
-          - admit.
-          - admit.
-          - admit.
-        Admitted.
+        destruct (Maps.PMap.get b (Mem.mem_access m) ofs Max)
+          as [ [ | | | ] | ] eqn:Emax;
+          try solve [inversion LW].
+        + (* Max = Freeable *)
           
-        (*
-        apply JM.JuicyMachineLemmas.mem_cohere_sub with (m_phi jmi').
-        + destruct jmi'; simpl in *; constructor; auto.
-          admit (* this is supposed to be access_cohere *).
-        + apply JM.JuicyMachineLemmas.compatible_threadRes_sub. 
-          intro.
-          hnf. *)
-        constructor.
-        + intros rsh sh v loc pp E.
-          clear stepi safety.
-          destruct jmi' as [m0 phi JMcontents JMaccess JMmax_access JMalloc].
-          inversion all_cohere.
-          specialize (cont_coh rsh sh v loc pp).
-          unfold resource_decay in *.
-          destruct RD as [La RD].
-          specialize (RD loc).
-          destruct RD as [A [B|[B|[B|B]]]].
-          * admit.
-          * admit.
-          * admit.
-          * admit.
-        + admit.
-          (*rewrite E in *.
-          unfold contents_cohere in *. *)
-        (* specialize (all_cohere rsh). *)
-        (* seems like it would fit a lemma using resource_decay as premise, instead? *)
-        + admit.
-        + admit.
-      - admit.
-      - admit.
-      - admit.
+          match goal with _ : cl_step _ _ ?m _ _ |- _ => set (mi := m) end.
+          fold mi in step.
+          (* state that the Cur [Nonempty] using the juice and the
+             fact that this is a lock *)
+          assert (CurN : (Mem.mem_access mi) !! b ofs Cur = Some Nonempty
+                 \/ (Mem.mem_access mi) !! b ofs Cur = None).
+          {
+            pose proof JM.juicyRestrictCurEq as H.
+            unfold access_at in H.
+            replace b with (fst (b, ofs)) by reflexivity.
+            replace ofs with (snd (b, ofs)) by reflexivity.
+            unfold mi.
+            rewrite (H _ _  _ (b, ofs)).
+            cut (Mem.perm_order'' (Some Nonempty) (perm_of_res (JM.ThreadPool.getThreadR cnti @ (b, ofs)))). {
+              destruct (perm_of_res (JM.ThreadPool.getThreadR cnti @ (b,ofs))) as [[]|]; simpl.
+              all:intros po; inversion po; subst; eauto.
+            }
+            clear -compat IN.
+            apply po_trans with (perm_of_res (Phi @ (b, ofs))).
+            - destruct compat.
+              destruct (lset_in_juice (b, ofs) IN) as [(?&?&?&?& ->)|(?& ->)].
+              + constructor.
+              + simpl. if_tac; constructor.
+            - cut (join_sub (JM.ThreadPool.getThreadR cnti @ (b, ofs)) (Phi @ (b, ofs))).
+              + apply po_join_sub.
+              + apply resource_at_join_sub.
+                eapply JM.JuicyMachineLemmas.compatible_threadRes_sub.
+                apply compat.
+          }
+          
+          (* then impossible using [decay] *)
+          apply cl_step_decay in step.
+          revert step CurN.
+          assert
+            (WR: (Mem.mem_access mi) !! b ofs Max = Some Freeable).
+          {
+            rewrite <-Emax.
+            pose proof JM.juicyRestrictMax (JM.acc_coh (JM.thread_mem_compatible (mem_compatible_forget compat) cnti)) (b, ofs).
+            unfold max_access_at in *.
+            simpl fst in H; simpl snd in H.
+            rewrite H.
+            reflexivity.
+          }
+          clearbody mi.
+          generalize (m_dry jmi'); intros mi'.
+          clear -WR. intros D [NE|NE].
+          * replace ((Mem.mem_access mi') !! b ofs Max) with (Some Freeable). now constructor.
+            symmetry.
+            destruct (D b ofs) as [A B].
+            destruct (valid_block_dec mi b) as [v|n].
+            -- espec B.
+               destruct B as [B|B].
+               ++ destruct (B Cur). congruence.
+               ++ specialize (B Max). congruence.
+            -- pose proof Mem.nextblock_noaccess mi b ofs Max n.
+               congruence.
+          * replace ((Mem.mem_access mi') !! b ofs Max) with (Some Freeable). now constructor.
+            symmetry.
+            destruct (D b ofs) as [A B].
+            destruct (valid_block_dec mi b) as [v|n].
+            -- espec B.
+               destruct B as [B|B].
+               ++ destruct (B Cur); congruence.
+               ++ specialize (B Max). congruence.
+            -- pose proof Mem.nextblock_noaccess mi b ofs Max n.
+               congruence.
+        
+        + (* writable : must be writable after, because unchanged using "decay" *)
+          apply cl_step_decay in step.
+          assert
+            (WR: (Mem.mem_access (JM.juicyRestrict(JM.acc_coh (JM.thread_mem_compatible (mem_compatible_forget compat) cnti)))) !! b ofs Max = Some Writable).
+          {
+            rewrite <-Emax.
+            pose proof JM.juicyRestrictMax (JM.acc_coh (JM.thread_mem_compatible (mem_compatible_forget compat) cnti)) (b, ofs).
+            unfold max_access_at in *.
+            simpl fst in H; simpl snd in H.
+            rewrite <-H.
+            reflexivity.
+          }
+          revert step WR.
+          generalize (m_dry jmi').
+          generalize (JM.juicyRestrict (JM.acc_coh (JM.thread_mem_compatible (mem_compatible_forget compat) cnti))).
+          clear.
+          intros m m' D WR.
+          match goal with |- _ ?a ?b => cut (a = b) end.
+          { intros ->; apply po_refl. }
+          specialize (D b ofs).
+          destruct D as [A B].
+          destruct (valid_block_dec m b) as [v|n].
+          * espec B.
+            destruct B as [B|B].
+            -- destruct (B Max); congruence.
+            -- specialize (B Max). congruence.
+          * pose proof Mem.nextblock_noaccess m b ofs Max n.
+            congruence.
+        
+        (* permissions should not have changed for locks (because
+        neither freeable or None?) *)
+        
+      - (* juicyLocks_in_lockSet *)
+        eapply same_locks_juicyLocks_in_lockSet.
+        + eapply resource_decay_same_locks.
+          apply RD.
+        + simpl. assumption.
+        
+      - (* lockSet_in_juicyLocks *)
+        eapply resource_decay_lockSet_in_juicyLocks.
+        + eassumption.
+        + simpl. apply lockSet_Writable_lockSet_bound, LW.
+        + assumption.
     }
-    
-    apply state_invariant_c with Phi' compat'.
-    - admit.
-    - admit.
-    - admit.
-    - admit.
 (* getting the new global phi by replacing jmi with jmi' : possible
 because resource_decay says the only new things are above nextblock.
 
@@ -1199,21 +1436,6 @@ unique: ok *)
        destruct k as [ | [ s | s1 s2 | s1 s2 | | ret f e' te' ] ks].
        *)
 
-(*    
-Lemma safeN_step_jsem_spec: forall gx vx tx n k jm,
-        (forall ora,
-            @safeN_
-              _ _ _ _ (fun x => Genv.genv_symb (genv_genv x)) juicy_safety.Hrel
-              (juicy_core_sem cl_core_sem) OK_spec
-              gx (S n) ora (State vx tx k) jm) ->
-        exists c' m', (cl_step gx (State vx tx k) (m_dry jm) c' (m_dry m') /\
-                  resource_decay (Mem.nextblock (m_dry jm)) (m_phi jm) (m_phi m') /\
-                  level jm = S (level m') /\
-                  forall ora,
-                    @safeN_
-                      _ _ _ _ (fun x => Genv.genv_symb (genv_genv x)) juicy_safety.Hrel
-                      (juicy_core_sem cl_core_sem) OK_spec gx n ora c' m').
- *)
 Admitted.
 *)
 End Simulation.
@@ -1262,7 +1484,13 @@ Section Safety.
   
   Definition NoExternal_Hrel : nat -> mem -> mem -> Prop := fun _ _ _ => False.
   
-  Lemma safe_initial_state : forall sch r n genv_symb,
+  (* We state the theorem in terms of [safeN_] but because there are
+  no external, this really just says that the initial state is
+  "angelically safe" : for every schedule and every fuel n, there is a
+  path either ending on an empty schedule or consuming all the
+  fuel. *)
+  
+  Theorem safe_initial_state : forall sch r n genv_symb,
       safeN_
         (G := genv)
         (C := schedule * Machine.t)
@@ -1299,7 +1527,7 @@ Section Safety.
       eapply safeN_halted.
       + reflexivity.
       + apply I.
-    - (* a step can be taken *) 
+    - (* a step can be taken *)
       eapply safeN_step with (c' := (sch', tp')) (m'0 := m').
       + eapply STEP.
       + apply IHn.
