@@ -127,6 +127,23 @@ Module ClightParching <: ErasureSig.
   Lemma MTCH_lockSet: forall js ds,
       match_st js ds ->
       forall b ofs, (JTP.lockSet js) !! b ofs = (DTP.lockSet ds) !! b ofs.
+  Proof.
+    intros js ds MATCH b ofs.
+    inversion MATCH.
+    generalize mtch_locks.
+    clear.
+    unfold JTP.lockSet, DTP.lockSet.
+    unfold JSEM.ThreadPool.lockRes, DSEM.ThreadPool.lockRes.
+    unfold JSEM.ThreadPool.lockGuts, DSEM.ThreadPool.lockGuts.
+    intros HH; specialize (HH  (b, ofs)).
+    unfold A2PMap.
+    rewrite <- AMap.fold_1.
+    f_equal.
+    f_equal.
+    rewrite <- AMap.fold_1.
+    unfold JSEM.ThreadPool.lset.
+    unfold DSEM.ThreadPool.lset.
+         
   Admitted.
   
   Lemma MTCH_compat: forall js ds m,
@@ -944,13 +961,29 @@ Module ClightParching <: ErasureSig.
                                                 His_unlocked
                                                 Hcmpt).
                    clear - acc_coh valb0MEM.
-                   admit. (*This will change when I change acc_coh back.*)
+                   unfold JSEM.access_cohere' in acc_coh.
+                   unfold max_access_at in acc_coh.
+                   specialize (acc_coh (b0, ofs0)).
+                   simpl in acc_coh.
+                   unfold PMap.get in acc_coh. rewrite valb0MEM in acc_coh.
+                   rewrite JSEM.Mem_canonical_useful in acc_coh.
+                   destruct (perm_of_res (d_phi @ (b0, ofs0))) eqn:AA.
+                   inversion acc_coh.
+                   apply blah in AA. assumption.
                  - symmetry.
                    destruct
                      (compatible_threadRes_cohere Hi
                                                   Hcmpt).
                    clear - acc_coh valb0MEM.
-                  admit. (*This will change when I change acc_coh back.*)
+                   unfold JSEM.access_cohere' in acc_coh.
+                   unfold max_access_at in acc_coh.
+                   specialize (acc_coh (b0, ofs0)).
+                   simpl in acc_coh.
+                   unfold PMap.get in acc_coh. rewrite valb0MEM in acc_coh.
+                   rewrite JSEM.Mem_canonical_useful in acc_coh.
+                   destruct  (perm_of_res (JSEM.ThreadPool.getThreadR Hi @ (b0, ofs0))) eqn:AA.
+                   inversion acc_coh.
+                   apply blah in AA. assumption.
         }
            
            assert (H: exists l, DSEM.ThreadPool.lockRes ds (b, Int.intval ofs) = Some l).
@@ -1026,8 +1059,14 @@ Module ClightParching <: ErasureSig.
           exists l; assumption. }
         - intros.
           assert (dphi_coh: JSEM.access_cohere' m d_phi).
-          {
-            admit.
+          {  (* *)
+            destruct Hcompatible as [all_juice Hcompatible].
+            eapply access_cohere_sub' with (phi1:=all_juice).
+            - inversion Hcompatible. apply JSEM.acc_coh; assumption.
+            - inversion Hcompatible.
+              apply join_sub_trans with (b0:=(JSEM.ThreadPool.getThreadR Hi)).
+              + exists (m_phi jm'). apply Hrem_lock_res.
+              + apply compatible_threadRes_sub; assumption.
           }
           { destruct (NatTID.eq_tid_dec i i0).
             - subst i0. rewrite (DTP.gssThreadRes).
@@ -1071,7 +1110,22 @@ Module ClightParching <: ErasureSig.
                   simpl. apply JSEM.Mem_canonical_useful. }
                 replace ((DSEM.ThreadPool.getThreadR Htid') !! b0 ofs0) with (max_access_at m (b0, ofs0)).
                 * rewrite MAA_none.  exists ((JSEM.juice2Perm d_phi m) !! b0 ofs0); reflexivity.
-                * admit. (*This should be true by access_cohere. *)
+                * { rewrite MAA_none.
+                    destruct Hcompatible as [x Hcompatible].
+                    inversion Hcompatible.
+                    assert (acc_coh:= JSEM.acc_coh all_cohere).
+                    specialize (acc_coh (b0, ofs0)).
+                    rewrite MAA_none in acc_coh.
+                    Lemma po_None1: forall p, Mem.perm_order'' None p -> p = None.
+                      Proof. intros. simpl in H. destruct p; inversion H; reflexivity. Qed.
+                    apply po_trans with (c:=(DSEM.ThreadPool.getThreadR Htid') !! b0 ofs0) in acc_coh.
+                    - apply po_None1 in acc_coh. symmetry; assumption.
+                    - inversion MATCH. erewrite <- mtch_perm.
+                      apply po_join_sub.
+                      apply resource_at_join_sub.
+                      apply compatible_threadRes_sub.
+                      assumption.
+                  }
             - rewrite (DTP.gsoThreadRes); try assumption.
               apply permDisjoint_permMapsDisjoint; intros b0 ofs0.
               rewrite <- JSEM.juic2Perm_correct.
@@ -1084,7 +1138,21 @@ Module ClightParching <: ErasureSig.
               eapply compatible_threadRes_join; eassumption.
               assumption.
           }
-        - admit. (*waiting for acc_cohere to change*)
+        - rewrite DTP.gsoThreadLock. apply permDisjoint_permMapsDisjoint.
+          intros b0 ofs0.
+          rewrite <- JSEM.juic2Perm_correct.
+          inversion MATCH. apply permDisjoint_comm.
+          apply permDisjoint_sub with (r1:=(JSEM.ThreadPool.getThreadR Hi) @ (b0, ofs0)). eapply resource_at_join_sub.
+          exists (m_phi jm'); assumption.
+          rewrite mtch_perm. apply permDisjoint_comm; apply permMapsDisjoint_permDisjoint.
+          inversion dinv. apply lock_set_threads.
+          apply access_cohere_sub' with (phi1:= (JSEM.ThreadPool.getThreadR Hi)).
+          destruct Hcompatible as [all_juice Hcompatible].
+          inversion Hcompatible.
+          apply access_cohere_sub' with (phi1:= all_juice).
+          apply JSEM.acc_coh; assumption.
+          apply compatible_threadRes_sub; assumption.
+          eexists; eassumption.
         - simpl. apply (resource_at_join _ _ _ (b, (Int.intval ofs))) in
               Hrem_lock_res.
           rewrite HJcanwrite in Hrem_lock_res.
@@ -1792,7 +1860,7 @@ Module ClightParching <: ErasureSig.
 
         (* Now I prove the map construction is correct*)
         {
-          unfold pmap_tid'.
+          unfold pmap_tid'. intros.
           admit.
         }
         
@@ -1861,25 +1929,24 @@ Module ClightParching <: ErasureSig.
        admit.
        
        (* resume_step *)
-       inversion MATCH; subst.
-       inversion Htstep; subst.
-       exists (DTP.updThreadC (mtch_cnt _ ctn) (Krun c')).
-       split;[|split].
-       (*Invariant*)
-       { apply updCinvariant; assumption. }
-       (*Match *)
-       { (*This should be a lemma *)
-         apply MTCH_updt; assumption.
+       { inversion MATCH; subst.
+         inversion Htstep; subst.
+         exists (DTP.updThreadC (mtch_cnt _ ctn) (Krun c')).
+         split;[|split].
+         (*Invariant*)
+         { apply updCinvariant; assumption. }
+         (*Match *)
+         { (*This should be a lemma *)
+           apply MTCH_updt; assumption.
+         }
+         (*Step*)
+         { econstructor 2; try eassumption.
+           - simpl. eapply MTCH_compat; eassumption.
+           - simpl. econstructor; try eassumption.
+             + rewrite <- Hcode. symmetry. apply mtch_gtc.
+             + reflexivity.
+         }
        }
-       
-       (*Step*)
-       { econstructor 2; try eassumption.
-         - simpl. eapply MTCH_compat; eassumption.
-         - simpl. econstructor; try eassumption.
-           + rewrite <- Hcode. symmetry. apply mtch_gtc.
-           + reflexivity.
-       }
-
        
        (* core_step *)
        {
@@ -1891,6 +1958,8 @@ Module ClightParching <: ErasureSig.
          { (* apply updThread_inv.
            - assumption.
              intros.*) (*Need to use core steps preserve mem_compatible*)
+           (* Require Import dry_machine_lemmas.
+           eapply concurrency.dry_machine_lemmas.CoreLanguage.corestep_invariant. *)
            admit.
          }
          { apply MTCH_update.

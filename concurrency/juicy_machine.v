@@ -770,6 +770,22 @@ Module Concur.
           join_all js all_juice ->
           join_sub phi all_juice.
       Admitted.
+
+      Lemma access_cohere_sub': forall phi1 phi2 m,
+          access_cohere' m phi1 ->
+          join_sub phi2 phi1 ->
+          access_cohere' m phi2.
+      Proof.
+        unfold access_cohere'; intros.
+        eapply po_trans.
+        - apply H.
+        - Lemma po_join_sub: forall r1 r2,
+            join_sub r2 r1 ->
+            Mem.perm_order'' (perm_of_res r1) (perm_of_res r2).
+          Admitted.
+          apply po_join_sub.
+          apply resource_at_join_sub; assumption.
+      Qed.
       
       Lemma mem_cohere_sub: forall phi1 phi2 m,
           mem_cohere' m phi1 ->
