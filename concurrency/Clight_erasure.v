@@ -1086,24 +1086,24 @@ Module ClightParching <: ErasureSig.
                       NO s => if Share.EqDec_share s Share.bot then None else Some ( perm_of_res ((m_phi jm') @ loc))
                     | _ => Some (perm_of_res ((m_phi jm') @ loc))
                     end).
-         pose (virtue:= PTree.map
-                                      (fun (block : positive) (_ : Z -> option permission) (ofs : Z) =>
-                                         (inflated_delta (block, ofs))) (snd (getCurPerm m)) ).
-         pose (ds':= DSEM.ThreadPool.updThread Htid' (Kresume c Vundef)
-                  (computeMap
-                     (DSEM.ThreadPool.getThreadR Htid') virtue)).
-         pose (ds'':= DSEM.ThreadPool.updLockSet ds' (b, Int.intval ofs)
-                                                 (JSEM.juice2Perm d_phi m)).
-
-         assert (virtue_spec: forall b0 ofs0, perm_of_res (m_phi jm' @ (b0, ofs0)) =
-                              (computeMap (DSEM.ThreadPool.getThreadR Htid') virtue) !! b0 ofs0).
-         {
-           intros b0 ofs0.
+      pose (virtue:= PTree.map
+                       (fun (block : positive) (_ : Z -> option permission) (ofs : Z) =>
+                          (inflated_delta (block, ofs))) (snd (getMaxPerm m)) ).
+    pose (ds':= DSEM.ThreadPool.updThread Htid' (Kresume c Vundef)
+                                          (computeMap
+                                             (DSEM.ThreadPool.getThreadR Htid') virtue)).
+    pose (ds'':= DSEM.ThreadPool.updLockSet ds' (b, Int.intval ofs)
+                                            (JSEM.juice2Perm d_phi m)).
+    
+    assert (virtue_spec: forall b0 ofs0, perm_of_res (m_phi jm' @ (b0, ofs0)) =
+                                    (computeMap (DSEM.ThreadPool.getThreadR Htid') virtue) !! b0 ofs0).
+    {
+      intros b0 ofs0.
            destruct (virtue ! b0) eqn:VIRT.
            destruct (o ofs0) eqn:O.
            - erewrite computeMap_1; try eassumption.
              unfold virtue in VIRT. rewrite PTree.gmap in VIRT.
-             destruct ((snd (getCurPerm m)) ! b0); inversion VIRT.
+             destruct ((snd (getMaxPerm m)) ! b0); inversion VIRT.
              unfold inflated_delta in H0. rewrite <- H0 in O.
              clear VIRT H0.
              replace o0 with (perm_of_res (m_phi jm' @ (b0, ofs0))).
@@ -1112,7 +1112,7 @@ Module ClightParching <: ErasureSig.
                inversion O; reflexivity.
            - erewrite computeMap_2; try eassumption.
              unfold virtue in VIRT. rewrite PTree.gmap in VIRT.
-             destruct ((snd (getCurPerm m)) ! b0); inversion VIRT.
+             destruct ((snd (getMaxPerm m)) ! b0); inversion VIRT.
              unfold inflated_delta in H0. rewrite <- H0 in O.
              apply resource_at_join with (loc:=(b0,ofs0)) in Hrem_lock_res.
              move Hrem_lock_res at bottom.
@@ -1133,18 +1133,38 @@ Module ClightParching <: ErasureSig.
                subst; reflexivity.
            - erewrite computeMap_3; try eassumption.
              unfold virtue in VIRT. rewrite PTree.gmap in VIRT.
-             destruct ((snd (getCurPerm m)) ! b0) eqn:notInMem; inversion VIRT.
+             destruct ((snd (getMaxPerm m)) ! b0) eqn:notInMem; inversion VIRT.
              clear VIRT.
-             
-             
-               inversion Hrem_lock_res; try reflexivity.
-               inversion RJ; reflexivity.
-             replace o0 with (perm_of_res (m_phi jm' @ (b0, ofs0))) in Hrem_lock_res.
-             clear VIRT H0.
-           admit.
-         }
-         exists ds''.
-         split; [|split].
+             assert (THE_CURE: (getMaxPerm m) !! b0 = fun _ => None).
+             { unfold PMap.get. rewrite notInMem.
+               apply Max_isCanonical.
+             }
+             assert (the_cure:= equal_f THE_CURE ofs0).
+             rewrite getMaxPerm_correct in the_cure.
+             replace ((DSEM.ThreadPool.getThreadR Htid') !! b0 ofs0) with
+             (perm_of_res ((JSEM.ThreadPool.getThreadR Hi)@ (b0, ofs0))).
+             + assert (Hcohere':= Hcompatible).
+               apply compatible_threadRes_cohere with (cnt:=Hi) in Hcohere'.
+               inversion Hcohere'. unfold JSEM.access_cohere' in acc_coh.
+               specialize (acc_coh (b0,ofs0)).
+               unfold max_access_at in acc_coh.
+               unfold permission_at in the_cure.
+               rewrite the_cure in acc_coh.
+               Lemma po_None1: forall p, Mem.perm_order'' None p -> p = None.
+               Proof. intros. simpl in H. destruct p; inversion H; reflexivity. Qed.
+               apply po_None1 in acc_coh.
+               move Hrem_lock_res at bottom.
+               apply join_comm in Hrem_lock_res.
+               apply resource_at_join with (loc:=(b0,ofs0)) in Hrem_lock_res.
+               apply join_join_sub in Hrem_lock_res.
+               assert (HH:= po_join_sub Hrem_lock_res).
+               rewrite acc_coh in HH. rewrite acc_coh.
+               apply po_None1 in HH. assumption.
+             + inversion MATCH; rewrite mtch_perm; reflexivity.
+    }
+    
+    exists ds''.
+    split; [|split].
     - unfold ds''.
       cut (DSEM.invariant ds').
       { intros dinv'.
@@ -1183,7 +1203,7 @@ Module ClightParching <: ErasureSig.
               apply Disjoint_computeMap; intros b0 ofs0.
               unfold deltaMap_cases_analysis'; destruct (deltaMap_dec virtue b0 ofs0).
               + unfold virtue in e; rewrite PTree.gmap in e.
-                destruct ((snd (getCurPerm m)) ! b0) eqn:CURb0; inversion e.
+                destruct ((snd (getMaxPerm m)) ! b0) eqn:CURb0; inversion e.
                 unfold inflated_delta in H0.
                 rewrite <- H0 in e0.
                 assert (HH: p = perm_of_res (m_phi jm' @ (b0, ofs0))).
@@ -1198,7 +1218,7 @@ Module ClightParching <: ErasureSig.
                 assert (HH: (d_phi @ (b0, ofs0)) = NO Share.bot).
                 { unfold virtue in e.
                   rewrite PTree.gmap in e.
-                  destruct ((snd (getCurPerm m)) ! b0); inversion e. (* solves one of the subgoals*)
+                  destruct ((snd (getMaxPerm m)) ! b0); inversion e. (* solves one of the subgoals*)
                   rewrite <- H0 in e0.
                   unfold inflated_delta in e0.
                   destruct (d_phi @ (b0, ofs0)); try solve[inversion e0].
@@ -1209,7 +1229,7 @@ Module ClightParching <: ErasureSig.
                 assumption.
               + unfold virtue in e.
                 rewrite PTree.gmap in e.
-                destruct ((snd (getCurPerm m)) ! b0) eqn:AA; inversion e.
+                destruct ((snd (getMaxPerm m)) ! b0) eqn:AA; inversion e.
                 simpl in AA. rewrite PTree.gmap1 in AA.
                 destruct ((snd (Mem.mem_access m)) ! b0) eqn:BB; inversion AA.
                 simpl in AA.
@@ -1225,8 +1245,6 @@ Module ClightParching <: ErasureSig.
                     assert (acc_coh:= JSEM.acc_coh all_cohere).
                     specialize (acc_coh (b0, ofs0)).
                     rewrite MAA_none in acc_coh.
-                    Lemma po_None1: forall p, Mem.perm_order'' None p -> p = None.
-                      Proof. intros. simpl in H. destruct p; inversion H; reflexivity. Qed.
                     apply po_trans with (c:=(DSEM.ThreadPool.getThreadR Htid') !! b0 ofs0) in acc_coh.
                     - apply po_None1 in acc_coh. symmetry; assumption.
                     - inversion MATCH. erewrite <- mtch_perm.
@@ -1302,7 +1320,7 @@ Module ClightParching <: ErasureSig.
           intros.
           unfold deltaMap_cases_analysis'; destruct (deltaMap_dec virtue b0 ofs0).
           + unfold virtue in e. rewrite PTree.gmap in e.
-            destruct ((snd (getCurPerm m)) ! b0); inversion e.
+            destruct ((snd (getMaxPerm m)) ! b0); inversion e.
             rewrite <- H1 in e0.
             unfold inflated_delta in e0.
             replace p with (perm_of_res (m_phi jm' @ (b0, ofs0))).
@@ -1335,7 +1353,7 @@ Module ClightParching <: ErasureSig.
           { intros CUT.
             unfold deltaMap_cases_analysis'; destruct (deltaMap_dec virtue b0 ofs0).
             + unfold virtue in e. rewrite PTree.gmap in e.
-              destruct ((snd (getCurPerm m)) ! b0); inversion e.
+              destruct ((snd (getMaxPerm m)) ! b0); inversion e.
               rewrite <- H0 in e0.
               unfold inflated_delta in e0.
               replace p with (perm_of_res (m_phi jm' @ (b0, ofs0))).
@@ -1364,7 +1382,7 @@ Module ClightParching <: ErasureSig.
           { intros CUT.
             unfold deltaMap_cases_analysis'; destruct (deltaMap_dec virtue b0 ofs0).
             + unfold virtue in e. rewrite PTree.gmap in e.
-              destruct ((snd (getCurPerm m)) ! b0); inversion e.
+              destruct ((snd (getMaxPerm m)) ! b0); inversion e.
               rewrite <- H1 in e0.
               unfold inflated_delta in e0.
               replace p with (perm_of_res (m_phi jm' @ (b0, ofs0))).
@@ -1771,8 +1789,46 @@ Module ClightParching <: ErasureSig.
        assert (virtue_spec: forall (b0 : block) (ofs0 : Z),
                   perm_of_res (m_phi jm' @ (b0, ofs0)) =
                   (computeMap (DTP.getThreadR Htid') virtue) !! b0 ofs0).
-       {
-         admit.
+       { intros b0 ofs0.
+         destruct (virtue ! b0) eqn:VIRT.
+         destruct (o ofs0) eqn:O.
+         - erewrite computeMap_1; try eassumption.
+           unfold virtue in VIRT.
+           destruct (ident_eq b0 b).
+           + subst b0.
+             rewrite PTree.gss in VIRT. inversion VIRT. subst o.
+             unfold delta_b in O.
+             destruct (Intv.In_dec ofs0 (Int.intval ofs, Int.intval ofs + LKSIZE)); inversion O.
+             reflexivity.
+           + rewrite PTree.gso in VIRT. unfold empty_delta_map in VIRT.
+             rewrite PTree.gempty in VIRT; inversion VIRT.
+             assumption.
+         - erewrite computeMap_2; try eassumption.
+           unfold virtue in VIRT.
+           destruct (ident_eq b0 b).
+           + subst b0.
+             rewrite PTree.gss in VIRT. inversion VIRT. subst o.
+             unfold delta_b in O.
+             destruct (Intv.In_dec ofs0 (Int.intval ofs, Int.intval ofs + LKSIZE)); inversion O.
+             rewrite <- Hj_forward.
+             * inversion MATCH; rewrite mtch_perm; reflexivity.
+             * right. replace juicy_machine.LKSIZE with LKSIZE by reflexivity; simpl.
+               intros HH; apply n. unfold Intv.In; simpl; xomega.
+               
+           + rewrite PTree.gso in VIRT. unfold empty_delta_map in VIRT.
+             rewrite PTree.gempty in VIRT; inversion VIRT.
+             assumption.
+         - erewrite computeMap_3; try eassumption.
+           unfold virtue in VIRT.
+           destruct (ident_eq b0 b).
+           + subst b0.
+             rewrite PTree.gss in VIRT. inversion VIRT.
+           + rewrite PTree.gso in VIRT; try assumption.
+             unfold empty_delta_map in VIRT.
+             rewrite PTree.gempty in VIRT; inversion VIRT.
+             rewrite <- Hj_forward.
+             * inversion MATCH; rewrite mtch_perm; reflexivity.
+             * left. intros HH; apply n; symmetry; assumption.
        }
 
        pose (ds':= DTP.updThread Htid' (Kresume c Vundef) pmap_tid').
@@ -2027,7 +2083,7 @@ Module ClightParching <: ErasureSig.
           destruct Hcompatible as [all_juice Hcompatible].
           inversion Hcompatible.
           assert (all_sub: join_sub (JSEM.ThreadPool.getThreadR Hi) all_juice).
-          admit.
+          { apply compatible_threadRes_sub; assumption. }
           clear - Hlock all_sub jloc_in_set.
           apply resource_at_join_sub with (l:=(b, Int.intval ofs)) in all_sub. 
           destruct all_sub as [whatever all_join].
@@ -2090,7 +2146,7 @@ Module ClightParching <: ErasureSig.
             assumption.
         }
     }
-
+    
   Admitted.
 
     
