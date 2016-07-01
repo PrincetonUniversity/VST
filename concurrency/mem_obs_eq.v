@@ -2456,6 +2456,18 @@ here*)
       by rewrite gLockSetCode.
   Qed.
 
+  Lemma tp_wd_remLock :
+    forall (tp : thread_pool) (f : memren) (addr : address)
+      (Htp_wd: tp_wd f tp),
+      tp_wd f (remLockSet tp addr).
+  Proof.
+    intros.
+    intros i cnti'.
+    assert (cnti := cntRemoveL' _ cnti').
+    specialize (Htp_wd _ cnti);
+      by rewrite gRemLockSetCode.
+  Qed.
+
   Lemma ctl_inj_id:
     forall f c,
       ctl_wd f c ->

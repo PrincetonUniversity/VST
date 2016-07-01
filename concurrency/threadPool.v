@@ -61,14 +61,20 @@ Module OrdinalPool (SEM:Semantics) (RES:Resources) <: ThreadPoolSig
       (lockSet js) !! b ofs =
       if ssrbool.isSome (lockRes js (b,ofs)) then Some Memtype.Writable else None.
   Admitted.*)
-Lemma lockSet_WorNE: forall js b ofs,
+  Lemma lockSet_WorNE: forall js b ofs,
       (lockSet js) !! b ofs = Some Memtype.Writable \/ 
       (lockSet js) !! b ofs = None.
-Admitted.
+  Admitted.
 
   Lemma lockSet_spec_1: forall js b ofs,
       lockRes js (b,ofs) ->
       (lockSet js) !! b ofs = Some Memtype.Writable.
+  Admitted.
+
+  Lemma  lockSet_spec_2 :
+    forall (js : t') (b : block) (ofs ofs' : Z),
+      Intv.In ofs' (ofs, (ofs + Z.of_nat lksize.LKSIZE_nat)%Z) ->
+      lockRes js (b, ofs) -> (lockSet js) !! b ofs' = Some Memtype.Writable.
   Admitted.
 
   Definition containsThread (tp : t) (i : NatTID.tid) : Prop:=
@@ -357,42 +363,42 @@ Admitted.
   Qed.
 
   Lemma lockSet_upd: forall ds b ofs pmap,
-          lockSet (updLockSet ds (b, ofs) pmap) =
-          permissions.setPerm (Some Memtype.Writable) b ofs (lockSet ds).
-      Proof.
-        intros.
-      Admitted.
+      lockSet (updLockSet ds (b, ofs) pmap) =
+      permissions.setPerm (Some Memtype.Writable) b ofs (lockSet ds).
+  Proof.
+    intros.
+  Admitted.
 
-      Lemma gsslockSet_rem': forall ds b ofs,
-          (lockSet (remLockSet ds (b, ofs))) !! b ofs =
-          None.
-      Proof.
-        intros.
-      Admitted.
+  Lemma gsslockSet_rem': forall ds b ofs,
+      (lockSet (remLockSet ds (b, ofs))) !! b ofs =
+      None.
+  Proof.
+    intros.
+  Admitted.
 
-      Lemma gsslockSet_rem: forall ds b ofs ofs0,
-           Intv.In ofs0 (ofs, ofs + lksize.LKSIZE)%Z ->
-          (lockSet (remLockSet ds (b, ofs))) !! b ofs0 =
-          None.
-      Proof.
-        intros.
-      Admitted.
-      
-      Lemma gsolockSet_rem1: forall ds b ofs b' ofs',
-          b  <> b' ->
-          (lockSet (remLockSet ds (b, ofs))) !! b' ofs' =
-          (lockSet ds)  !! b' ofs'.
-      Proof.
-        intros.
-      Admitted.
+  Lemma gsslockSet_rem: forall ds b ofs ofs0,
+      Intv.In ofs0 (ofs, ofs + lksize.LKSIZE)%Z ->
+      (lockSet (remLockSet ds (b, ofs))) !! b ofs0 =
+      None.
+  Proof.
+    intros.
+  Admitted.
+  
+  Lemma gsolockSet_rem1: forall ds b ofs b' ofs',
+      b  <> b' ->
+      (lockSet (remLockSet ds (b, ofs))) !! b' ofs' =
+      (lockSet ds)  !! b' ofs'.
+  Proof.
+    intros.
+  Admitted.
 
-      Lemma gsolockSet_rem2: forall ds b ofs ofs',
-          ~ Intv.In ofs' (ofs, ofs + lksize.LKSIZE)%Z ->
-          (lockSet (remLockSet ds (b, ofs))) !! b ofs' =
-          (lockSet ds)  !! b ofs'.
-      Proof.
-        intros.
-      Admitted.
+  Lemma gsolockSet_rem2: forall ds b ofs ofs',
+      ~ Intv.In ofs' (ofs, ofs + lksize.LKSIZE)%Z ->
+      (lockSet (remLockSet ds (b, ofs))) !! b ofs' =
+      (lockSet ds)  !! b ofs'.
+  Proof.
+    intros.
+  Admitted.
 
   Lemma gssThreadCode {tid tp} (cnt: containsThread tp tid) c' p'
         (cnt': containsThread (updThread cnt c' p') tid) :

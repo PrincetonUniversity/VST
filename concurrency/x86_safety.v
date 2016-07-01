@@ -617,14 +617,15 @@ Proof.
     simpl in Hperm. exfalso; auto.
     intros. unfold lockRes, initial_machine in H. simpl in H.
       by exfalso.
-  - intros.
-    unfold init_mach, init_perm in Hinit.
+  - unfold init_mach, init_perm in Hinit.
     rewrite H1 in Hinit.
     destruct (initial_core SEM.Sem the_ge f arg); try discriminate.
     inversion Hinit; subst.
-    unfold lockRes, initial_machine in Hl1.
-    simpl in Hl1;
-      by exfalso.
+    unfold lockRes, initial_machine. simpl.
+    split; intros.
+    exfalso.
+    rewrite threadPool.find_empty in Hl1; discriminate.
+    split; auto.
   - unfold init_mach, init_perm in Hinit.
     rewrite H1 in Hinit.
     destruct (initial_core SEM.Sem the_ge f arg); try discriminate.
@@ -656,6 +657,35 @@ Proof.
     by auto.
 Qed.
 
+Lemma at_external_not_in_xs:
+  forall tpc mc tpf mf xs f fg fp i
+    (Hsim: sim tpc mc tpf mf xs f fg fp)
+    (pffi: containsThread tpf i)
+    (Hexternal: pffi @ E),
+    ~ List.In i xs.
+Proof.
+  intros; intro Hin.
+  destruct Hsim.
+  assert (pfci: containsThread tpc i)
+    by (eapply numThreads0; eauto).
+  specialize (simStrong0 _ pfci pffi).
+  destruct simStrong0 as (tpc' & mc' & Hincr & _ & Hexec & Htsim & _).
+  assert (pfci' : containsThread tpc' i)
+    by (eapply InternalSteps.containsThread_internal_execution; eauto).
+
+  assert (HmemCompC': mem_compatible tpc' mc')
+    by (eapply InternalSteps.internal_execution_compatible with (tp := tpc); eauto).
+  specialize (Htsim pfci' HmemCompC').
+  destruct Htsim.
+  clear - Hexec code_eq0 Hexternal Hin.
+  unfold getStepType in Hexternal.
+  eapply internal_execution_result_type with (cnti' := pfci') in Hexec; eauto.
+  unfold getStepType in Hexec.
+  apply ctlType_inj in code_eq0.
+  rewrite Hexternal in code_eq0.
+  auto.
+Qed.
+
 Lemma fine_safe:
   forall tpf tpc mf mc (f fg : memren) fp (xs : Sch)
     (Hsim: sim tpc mc tpf mf xs f fg fp),
@@ -680,7 +710,7 @@ Proof.
       specialize (Hstep sched).
       econstructor 2; simpl; eauto.
     + assert (~ List.In i xs)
-        by admit.
+        by (eapply at_external_not_in_xs; eauto).
       pose proof (sim_external corestep_wd em cnti Htype H Hsim) as Hsim'.
       destruct Hsim' as (? & ? & ? & ? & ? & ? & Hstep & Hsim'').
       specialize (Hstep sched).
@@ -695,7 +725,7 @@ Proof.
   - econstructor 2.
     econstructor 7; simpl; eauto.
     simpl. eauto.
-Admitted.   
+Qed.   
 
 
 (** Safety preservation for the FineConc machine*)

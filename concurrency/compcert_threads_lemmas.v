@@ -3835,21 +3835,7 @@ Module SimProofs (CI: CoreInjections).
   Qed.
 
   (** ** Proofs about external steps*)
-
-  Lemma not_in_filter :
-    forall {A:eqType} (i : A) xs
-      (HIn: ~ List.In i xs),
-      [seq x <- xs | x == i] = [::].
-  Proof.
-    intros.
-    induction xs as [|j xs]; first by reflexivity.
-    simpl.
-    destruct (j == i) eqn:Hji; move/eqP:Hji=>Hji;
-      first by (subst j; simpl in *; exfalso; apply HIn; by auto).
-    apply IHxs. intros Hcontra.
-    apply HIn. simpl; by auto.
-  Qed.
-
+  
   Lemma external_step_inverse :
     forall U U' tp m tp' m' i (cnti: containsThread tp i)
       (Hcomp: mem_compatible tp m)
@@ -4758,7 +4744,7 @@ Module SimProofs (CI: CoreInjections).
         destruct HsimLP as [HpermLP _].
         specialize (HpermLP _ _ ofsl Hfbl).
         do 2 rewrite restrPermMap_Cur in HpermLP.
-        assert (Hperm_bl := lockSetGuts_1 _ _ _ Hres).
+        assert (Hperm_bl := lockSet_spec_1 tpf bl ofsl ltac:(rewrite Hres; auto)).
         rewrite Hperm_bl in HpermLP.
         symmetry in HpermLP.
         destruct (Hlock_if _ _ ofsl Hfbl) as [_ Hlock_if2].
@@ -4889,13 +4875,10 @@ Module SimProofs (CI: CoreInjections).
         rewrite gsoThreadLPool in Hres2.
         specialize (Hlocks bl ofsl ltac:(rewrite Hres2; auto)).
         destruct Hlocks as [bl1 Hfbl1].
-        assert (H := lockSetGuts_1 _ _ _ Hres2).
-        assert (Hres1 := HpermLP _ _ ofsl Hfbl1).
-        do 2 rewrite restrPermMap_Cur in Hres1.
-        rewrite H in Hres1.
-        symmetry in Hres1.
-        apply lockSetGuts_2 in Hres1.
-        destruct Hres1 as [res1 Hres1].
+        assert (H := lockSet_spec_1 tpf bl ofsl ltac:(rewrite Hres2; auto)).
+        specialize (proj2 (Hlock_if _ _ ofsl Hfbl1) ltac:(unfold isSome; rewrite Hres2; auto)).
+        intro Hres1_true.
+        destruct (lockRes tpc (bl1, ofsl)) as [res1|] eqn:Hres1; try by exfalso.
         specialize (HsimRes _ _ _ _ _ Hfbl1 Hres1 Hres2).
         destruct HsimRes as [HpermRes _].
         specialize (HinvC' (bl1, ofsl) res1).
@@ -4952,29 +4935,6 @@ Module SimProofs (CI: CoreInjections).
       }
     }
     Unshelve. auto. auto.
-  Qed.
-
-  Lemma lockRes_eq:
-    forall (tpc tpf : thread_pool) (mc mf : mem) i f
-      (HmemCompC : mem_compatible tpc mc)
-      (HmemCompF : mem_compatible tpf mf)
-      (pfc : containsThread tpc i)
-      (b1 b2 : block) ofs
-      (pmap : dry_machine.LocksAndResources.lock_info)
-      (HisLock : lockRes tpc (b1, ofs) = Some pmap)
-      (Hf: f b1 = Some b2)
-      (Hsim_ls: strong_mem_obs_eq f (restrPermMap (compat_ls HmemCompC))
-                                  (restrPermMap (compat_ls HmemCompF))),
-    exists pmapF : dry_machine.LocksAndResources.lock_info,
-      lockRes tpf (b2, ofs) = Some pmapF.
-  Proof.
-    intros.
-    destruct Hsim_ls as [Hperm_ls _].
-    specialize (Hperm_ls _ _ ofs Hf).
-    assert (Hlock_perm := lockSetGuts_1 _ _ _ HisLock).
-    do 2 rewrite restrPermMap_Cur in Hperm_ls.
-    rewrite Hlock_perm in Hperm_ls.
-      by eapply lockSetGuts_2 in Hperm_ls.
   Qed.
   
   (** The projected angel satisfies the [angelSpec] *)
@@ -5960,7 +5920,10 @@ Module SimProofs (CI: CoreInjections).
              (Hl2 : lockRes tpf (bl2, ofs) = Some rmap2),
              strong_mem_obs_eq f
                                (restrPermMap (compat_lp HmemCompC (bl1, ofs) Hl1))
-                               (restrPermMap (compat_lp HmemCompF (bl2, ofs) Hl2))),
+                               (restrPermMap (compat_lp HmemCompF (bl2, ofs) Hl2)))
+       (Hlock_if: forall (bl1 bl2 : block) (ofs : Z),
+                  f bl1 = Some bl2 ->
+                  lockRes tpc (bl1, ofs) <-> lockRes tpf (bl2, ofs)),
       invariant
         (addThread
            (updThread pff cf
@@ -6223,11 +6186,10 @@ Module SimProofs (CI: CoreInjections).
       specialize (HpermLP _ _ ofsl Hfl1).
       do 2 rewrite restrPermMap_Cur in HpermLP.
       assert (HresC: exists rmap1, lockRes tpc (bl1, ofsl) = Some rmap1).
-      { apply lockSetGuts_1 in Hres.
-        rewrite Hres in HpermLP.
-        symmetry in HpermLP.
-        apply lockSetGuts_2 in HpermLP.
-        auto.
+      { specialize (proj2 (Hlock_if _ _ ofsl Hfl1) ltac:(unfold isSome; rewrite Hres; auto)).
+        intro H.
+        destruct (lockRes tpc (bl1, ofsl)); try by exfalso.
+        eexists; eauto.
       }
       destruct HresC as [rmap1 HresC].
       pose proof ((lock_res_threads HinvC') (bl1,ofsl) _ j pfcj'' HresC)
@@ -7086,8 +7048,12 @@ Module SimProofs (CI: CoreInjections).
       (* And also apply the renaming to the resources that go to the lockpool*)
       remember (projectMap (fp i pfc) virtueLP) as virtueLPF eqn:HvirtueLPF.
       (* We prove that the mapped block is a lock*)
-      assert (HisLockF: exists pmapF, lockRes tpf (b2, Int.intval ofs) = Some pmapF)
-        by (eapply lockRes_eq; eauto).
+      assert (HisLockF: exists pmapF, lockRes tpf (b2, Int.intval ofs) = Some pmapF).
+      { specialize (proj1 (Hlock_if _ _ (Int.intval ofs) Hfb) ltac:(unfold isSome; rewrite HisLock; auto)).
+        intro H.
+        destruct (lockRes tpf (b2, Int.intval ofs)); try by exfalso.
+        eexists; eauto.
+      }
       destruct HisLockF as [pmapF HisLockF].
       (* and then prove that the projected angel satisfies the angelSpec*)
       assert (HangelF: relAngelSpec (getThreadR pff) pmapF
@@ -9057,10 +9023,6 @@ Module SimProofs (CI: CoreInjections).
                                   (Int.intval ofs,
                                    (Int.intval ofs + Z.of_nat lksize.LKSIZE_nat)%Z)).
             + (* look at lockset*)
-              Parameter lockSet_spec_2 :
-                forall (js : t') (b : block) (ofs ofs' : Z),
-                  Intv.In ofs' (ofs, (ofs + Z.of_nat lksize.LKSIZE_nat)%Z) ->
-                  lockRes js (b, ofs) -> (lockSet js) # b ofs' = Some Writable.
               eapply lockSet_spec_2 in His_lock; eauto.
               specialize (HvalLS _ _ ofs0 Hrenaming).
               rewrite <- restrPermMap_Cur with (Hlt := compat_ls HmemCompC)
@@ -9109,75 +9071,6 @@ Module SimProofs (CI: CoreInjections).
                 (b, Int.intval ofs)), mcj.
           split; eauto.
           split; eauto.
-
-
-          Lemma remLock_internal_step:
-            forall tp tp' m m' j (cntj: containsThread tp j) b ofs
-              (Hcomp: mem_compatible tp m)
-              (Hcomp': mem_compatible (remLockSet tp (b,ofs)) m)
-              (cntj': containsThread (remLockSet tp (b,ofs)) j)
-              (Hstep: internal_step cntj Hcomp tp' m'),
-              internal_step cntj' Hcomp' (remLockSet tp' (b,ofs)) m'.
-          Proof.
-            intros.
-            inversion Hstep as [? | [[? ?] | [? ?]]].
-            - inversion H; subst.
-              left.
-              eapply step_dry with (c := c) (c' := c'); eauto.
-              eapply DryMachineLemmas.remLock_inv; eauto.
-              rewrite gRemLockSetCode.
-              auto.
-              erewrite <- restrPermMap_irr' with (Hlt' := Hcomp' j cntj') (Hlt := Hcomp j cntj);
-                eauto.
-              rewrite gRemLockSetRes; auto.
-            - subst.
-              inversion H; subst.
-              right. left.
-              split; auto.
-              econstructor; eauto.
-              rewrite gRemLockSetCode; auto.
-              eapply DryMachineLemmas.remLock_inv; eauto.
-            - subst.
-              inversion H; subst.
-              do 2 right.
-              split; auto.
-              econstructor; eauto.
-              rewrite gRemLockSetCode; auto.
-              eapply DryMachineLemmas.remLock_inv; eauto.
-          Qed.
-          
-          Lemma remLock_internal_execution:
-            forall tp tp' m m' j xs b ofs
-              (Hcomp': mem_compatible (remLockSet tp (b,ofs)) m)
-              (Hexec: internal_execution [seq x <- xs | x == j] tp m tp' m'),
-              internal_execution [seq x <- xs | x == j] (remLockSet tp (b, ofs)) m
-                                 (remLockSet tp' (b,ofs)) m'.
-          Proof.
-            intros.
-            generalize dependent m.
-            generalize dependent tp.
-            induction xs; intros.
-            - simpl in *.
-              inversion Hexec; subst;
-              first by constructor.
-              simpl in HschedN;
-                by discriminate.
-            - simpl in *.
-              destruct (a == j) eqn:Heq; move/eqP:Heq=>Heq.
-              subst a.
-              inversion Hexec; subst.
-              simpl in HschedN. inversion HschedN; subst tid.
-              assert (cntj' := cntRemoveL (b, ofs) cnt).
-              eapply remLock_internal_step
-              with (cntj' := cntj') (Hcomp' := Hcomp') in Hstep; eauto.
-              specialize (IHxs tp'0 _
-                                      ltac:(eapply (internal_step_compatible);
-                                             eauto) Htrans).
-              econstructor;
-                by eauto.
-              eauto.
-          Qed.
-
           split.
           do 2 rewrite remLock_updThread_comm.
           eapply updThread_internal_execution; eauto.
@@ -9590,11 +9483,6 @@ Module SimProofs (CI: CoreInjections).
       - (* new memory is well-defined*)
         assumption.
       - (* new tpc well defined*)
-        Lemma tp_wd_remLock :
-          forall (tp : thread_pool) (f : memren) (addr : address),
-            tp_wd f tp -> tp_wd f (remLockSet tp addr).
-        Proof.
-        Admitted.
         eapply tp_wd_remLock.
         intros j cntj'.
         destruct (i == j) eqn:Hij; move/eqP:Hij=>Hij.

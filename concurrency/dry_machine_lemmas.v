@@ -186,22 +186,6 @@ Module ThreadPoolWF.
     - by eauto.
   Qed.
 
-  
-  Lemma lockSetGuts_1:
-    forall tp b ofs rmap,
-      lockRes tp (b,ofs) = Some rmap ->
-      Maps.PMap.get b (lockSet tp) ofs = Some Writable.
-  Proof.
-  Admitted.
-
-  Lemma lockSetGuts_2:
-    forall tp b ofs,
-      Maps.PMap.get b (lockSet tp) ofs = Some Writable ->
-      exists rmap,
-        lockRes tp (b,ofs) = Some rmap.
-  Proof.
-  Admitted.
-  
   Lemma lock_valid_block:
     forall (tpc : thread_pool) (mc : mem) (bl1 : block) 
       (ofs : Z) rmap1
@@ -210,7 +194,7 @@ Module ThreadPoolWF.
       Mem.valid_block mc bl1.
   Proof.
     intros.
-    assert (HlockSet := lockSetGuts_1 _ _ _ Hl1).
+    assert (HlockSet := lockSet_spec_1 tpc bl1 ofs ltac:(rewrite Hl1; auto)).
     destruct (valid_block_dec mc bl1) as [? | Hinvalid]; auto.
     exfalso.
     apply (Mem.nextblock_noaccess) with (k:= Max) (ofs := ofs) in Hinvalid.
@@ -1996,6 +1980,73 @@ Module InternalSteps.
         eauto.
     Qed.
 
+    Lemma remLock_internal_step:
+      forall tp tp' m m' j (cntj: containsThread tp j) b ofs
+        (Hcomp: mem_compatible tp m)
+        (Hcomp': mem_compatible (remLockSet tp (b,ofs)) m)
+        (cntj': containsThread (remLockSet tp (b,ofs)) j)
+        (Hstep: internal_step cntj Hcomp tp' m'),
+        internal_step cntj' Hcomp' (remLockSet tp' (b,ofs)) m'.
+    Proof.
+      intros.
+      inversion Hstep as [? | [[? ?] | [? ?]]].
+      - inversion H; subst.
+        left.
+        eapply step_dry with (c := c) (c' := c'); eauto.
+        eapply DryMachineLemmas.remLock_inv; eauto.
+        rewrite gRemLockSetCode.
+        auto.
+        erewrite <- restrPermMap_irr' with (Hlt' := Hcomp' j cntj') (Hlt := Hcomp j cntj);
+          eauto.
+        rewrite gRemLockSetRes; auto.
+      - subst.
+        inversion H; subst.
+        right. left.
+        split; auto.
+        econstructor; eauto.
+        rewrite gRemLockSetCode; auto.
+        eapply DryMachineLemmas.remLock_inv; eauto.
+      - subst.
+        inversion H; subst.
+        do 2 right.
+        split; auto.
+        econstructor; eauto.
+        rewrite gRemLockSetCode; auto.
+        eapply DryMachineLemmas.remLock_inv; eauto.
+    Qed.
+    
+    Lemma remLock_internal_execution:
+      forall tp tp' m m' j xs b ofs
+        (Hcomp': mem_compatible (remLockSet tp (b,ofs)) m)
+        (Hexec: internal_execution [seq x <- xs | x == j] tp m tp' m'),
+        internal_execution [seq x <- xs | x == j] (remLockSet tp (b, ofs)) m
+                           (remLockSet tp' (b,ofs)) m'.
+    Proof.
+      intros.
+      generalize dependent m.
+      generalize dependent tp.
+      induction xs; intros.
+      - simpl in *.
+        inversion Hexec; subst;
+        first by constructor.
+        simpl in HschedN;
+          by discriminate.
+      - simpl in *.
+        destruct (a == j) eqn:Heq; move/eqP:Heq=>Heq.
+        subst a.
+        inversion Hexec; subst.
+        simpl in HschedN. inversion HschedN; subst tid.
+        assert (cntj' := cntRemoveL (b, ofs) cnt).
+        eapply remLock_internal_step
+        with (cntj' := cntj') (Hcomp' := Hcomp') in Hstep; eauto.
+        specialize (IHxs tp'0 _
+                         ltac:(eapply (internal_step_compatible);
+                                eauto) Htrans).
+        econstructor;
+          by eauto.
+        eauto.
+    Qed.
+
     Lemma internal_step_nextblock:
       forall tp m tp' m' i (cnti: containsThread tp i)
         (Hcomp: mem_compatible tp m)
@@ -2060,11 +2111,16 @@ Module StepType.
   Definition getStepType {i tp} (cnt : containsThread tp i) : StepType :=
     ctlType (getThreadC cnt).
 
+  Global Notation "cnt '@'  'I'" := (getStepType cnt = Internal) (at level 80).
+  Global Notation "cnt '@'  'E'" := (getStepType cnt = Concurrent) (at level 80).
+  Global Notation "cnt '@'  'S'" := (getStepType cnt = Suspend) (at level 80).
+  Global Notation "cnt '@'  'H'" := (getStepType cnt = Halted) (at level 80).
+  
   Lemma internal_step_type :
     forall i tp tp' m m' (cnt : containsThread tp i)
       (Hcomp: mem_compatible tp m)
       (Hstep_internal: internal_step cnt Hcomp tp' m'),
-      getStepType cnt = Internal.
+      cnt @ I.
   Proof.
     intros.
     unfold getStepType, ctlType.
@@ -2080,14 +2136,63 @@ Module StepType.
     inversion Hstart; subst.
     pf_cleanup;
       by rewrite Hcode.
-    
   Qed.
 
-  Global Notation "cnt '@'  'I'" := (getStepType cnt = Internal) (at level 80).
-  Global Notation "cnt '@'  'E'" := (getStepType cnt = Concurrent) (at level 80).
-  Global Notation "cnt '@'  'S'" := (getStepType cnt = Suspend) (at level 80).
-  Global Notation "cnt '@'  'H'" := (getStepType cnt = Halted) (at level 80).
+  Lemma internal_step_result_type:
+    forall tp m tp' m' i (cnti: containsThread tp i)
+      (cnti': containsThread tp' i)
+      (Hcomp: mem_compatible tp m)
+      (Hinternal: internal_step cnti Hcomp tp' m'),
+      ~ (cnti' @ E).
+  Proof.
+    intros. intro Hcontra.
+    destruct Hinternal as [Htstep | [[Htstep ?] | [Htstep ?]]]; subst;
+    inversion Htstep; subst;
+    unfold getStepType in Hcontra;
+    try rewrite gssThreadCode in Hcontra;
+    try rewrite gssThreadCC in Hcontra; unfold ctlType in Hcontra;
+    repeat match goal with
+           | [H: match ?Expr with _ => _ end = _ |- _] =>
+             destruct Expr
+           end; discriminate.
+  Qed.
 
+  Lemma internal_execution_result_type:
+    forall tp m tp' m' i xs
+      (cnti': containsThread tp' i)
+      (Hin: List.In i xs)
+      (Hexec: internal_execution [seq x <- xs | x == i] tp m tp' m'),
+      ~ (cnti' @ E).
+  Proof.
+    intros.
+    generalize dependent m.
+    generalize dependent tp.
+    induction xs; intros.
+    - simpl in *.
+      inversion Hexec; subst.
+      by exfalso.
+      simpl in HschedN;
+        by discriminate.
+    - destruct (a == i) eqn:Hia; move/eqP:Hia=>Hia.
+      subst a.
+      simpl in *.
+      erewrite if_true in Hexec by apply eq_refl.
+      inversion Hexec; subst.
+      simpl in HschedN. inversion HschedN; subst tid.
+      simpl in Htrans.
+      destruct (List.In_dec (eq_dec.nat_eq_dec) i xs).
+      eauto.
+      rewrite not_in_filter in Htrans; auto.
+      inversion Htrans; subst.
+      eapply internal_step_result_type; eauto.
+      simpl in HschedN0; discriminate.
+      destruct Hin; first by (exfalso; auto).
+      simpl in Hexec.
+      erewrite if_false in Hexec.
+      eauto.
+      move/eqP:Hia; auto.
+  Qed.
+      
   (** Proofs about [fmachine_step]*)
   Notation fmachine_step := ((corestep fine_semantics) the_ge).
   Opaque at_external after_external halted.

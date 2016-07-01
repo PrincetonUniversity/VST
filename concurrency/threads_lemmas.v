@@ -1,6 +1,6 @@
 Require Import compcert.lib.Integers.
 Require Import compcert.lib.Axioms.
-From mathcomp.ssreflect Require Import ssreflect ssrbool ssrnat eqtype.
+From mathcomp.ssreflect Require Import ssreflect ssrbool ssrnat eqtype seq.
 Require Import Lists.List.
 Require Import Coq.ZArith.ZArith.
 Require Import PreOmega.
@@ -55,6 +55,20 @@ Lemma if_false : forall {A : Type} b (x y : A)
 Proof.
   intros. rewrite <- Bool.if_negb. by rewrite Hfalse.
 Defined.
+
+Lemma not_in_filter :
+  forall {A:eqType} (i : A) xs
+    (HIn: ~ List.In i xs),
+    [seq x <- xs | x == i] = [::].
+Proof.
+  intros.
+  induction xs as [|j xs]; first by reflexivity.
+  simpl.
+  destruct (j == i) eqn:Hji; move/eqP:Hji=>Hji;
+    first by (subst j; simpl in *; exfalso; apply HIn; by auto).
+  apply IHxs. intros Hcontra.
+  apply HIn. simpl; by auto.
+Qed.
 
 Lemma le_sub:
   forall x y z,
