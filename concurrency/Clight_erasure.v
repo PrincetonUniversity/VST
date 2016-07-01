@@ -1098,6 +1098,49 @@ Module ClightParching <: ErasureSig.
          assert (virtue_spec: forall b0 ofs0, perm_of_res (m_phi jm' @ (b0, ofs0)) =
                               (computeMap (DSEM.ThreadPool.getThreadR Htid') virtue) !! b0 ofs0).
          {
+           intros b0 ofs0.
+           destruct (virtue ! b0) eqn:VIRT.
+           destruct (o ofs0) eqn:O.
+           - erewrite computeMap_1; try eassumption.
+             unfold virtue in VIRT. rewrite PTree.gmap in VIRT.
+             destruct ((snd (getCurPerm m)) ! b0); inversion VIRT.
+             unfold inflated_delta in H0. rewrite <- H0 in O.
+             clear VIRT H0.
+             replace o0 with (perm_of_res (m_phi jm' @ (b0, ofs0))).
+             + reflexivity.
+             + destruct (d_phi @ (b0, ofs0)) eqn:AA; rewrite AA in O; try destruct (Share.EqDec_share t Share.bot);
+               inversion O; reflexivity.
+           - erewrite computeMap_2; try eassumption.
+             unfold virtue in VIRT. rewrite PTree.gmap in VIRT.
+             destruct ((snd (getCurPerm m)) ! b0); inversion VIRT.
+             unfold inflated_delta in H0. rewrite <- H0 in O.
+             apply resource_at_join with (loc:=(b0,ofs0)) in Hrem_lock_res.
+             move Hrem_lock_res at bottom.
+             replace (d_phi @ (b0, ofs0)) with (NO Share.bot) in Hrem_lock_res.
+             + inversion MATCH; rewrite <- mtch_perm with (Htid:= Hi).
+               f_equal.
+               Lemma join_NO_bot: forall x y,
+                   sepalg.join (NO Share.bot) x y -> x = y.
+               Proof. intros ? ? J.
+                      inversion J; f_equal;
+                      eapply sepalg.join_eq;
+                      try apply bot_join_eq;
+                      assumption.
+               Qed.
+               apply join_NO_bot; assumption.
+             + destruct (d_phi @ (b0, ofs0)) eqn:HH; rewrite HH in O; try solve[inversion O].
+               destruct ((Share.EqDec_share t Share.bot)); try solve[ inversion O].
+               subst; reflexivity.
+           - erewrite computeMap_3; try eassumption.
+             unfold virtue in VIRT. rewrite PTree.gmap in VIRT.
+             destruct ((snd (getCurPerm m)) ! b0) eqn:notInMem; inversion VIRT.
+             clear VIRT.
+             
+             
+               inversion Hrem_lock_res; try reflexivity.
+               inversion RJ; reflexivity.
+             replace o0 with (perm_of_res (m_phi jm' @ (b0, ofs0))) in Hrem_lock_res.
+             clear VIRT H0.
            admit.
          }
          exists ds''.
