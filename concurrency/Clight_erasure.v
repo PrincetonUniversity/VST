@@ -1980,25 +1980,49 @@ Module ClightParching <: ErasureSig.
         + assumption.
         + eapply MTCH_getThreadC; eassumption.
         + eassumption.
-        + { (*AngelSpec*)
-            constructor.
-            - intros b0 ofs0.
-              replace (MTCH_cnt MATCH Hi) with Htid'.
-              rewrite <- virtue_spec.
-              
-            -
-
-          }
-
-          admit. (*angelSpec*)
-        + instantiate(2:= virtue ). reflexivity.
+        + inversion MATCH. rewrite <- mtch_locks.
+          destruct Hcompatible as [all_juice Hcompatible].
+          inversion Hcompatible.
+          assert (all_sub: join_sub (JSEM.ThreadPool.getThreadR Hi) all_juice).
+          admit.
+          clear - Hlock all_sub jloc_in_set.
+          apply resource_at_join_sub with (l:=(b, Int.intval ofs)) in all_sub. 
+          destruct all_sub as [whatever all_join].
+          rewrite Hlock in all_join.
+          inversion all_join;
+            eapply jloc_in_set;
+            symmetry; eassumption. (*Solves two goals*)
         + reflexivity.
-        + unfold ds'',  ds'.
-          f_equal. f_equal.
-          apply proof_irrelevance.
-          unfold pmap_tid', pmap_tid. f_equal.
-          f_equal. 
-          apply proof_irrelevance.
+        + intros ofs0 intv.
+          instantiate (1:=virtue).
+          unfold virtue.
+          replace (MTCH_cnt MATCH Hi) with Htid' by apply proof_irrelevance.
+          erewrite <- virtue_spec.
+          destruct (zeq ofs0 (Int.intval ofs)).
+          * subst ofs0. destruct Hlock' as [val Hlock'].
+            rewrite Hlock'; simpl.
+            destruct (eq_dec sh Share.top).
+            subst sh. rewrite perm_of_sh_fullshare; constructor.
+            rewrite perm_of_writable; try assumption; constructor.
+          * destruct (Hct ofs0) as [val [sh' [X [Hct_old Hval_new]]]]. 
+            clear -intv n. unfold Intv.In in intv. simpl in intv.
+            unfold juicy_machine.LKSIZE; simpl. xomega.
+            rewrite Hval_new. simpl.
+            destruct (eq_dec sh' Share.top).
+            subst sh'. rewrite perm_of_sh_fullshare; constructor.
+            rewrite perm_of_writable; try assumption; constructor.
+        + intros. 
+          replace (MTCH_cnt MATCH Hi) with Htid' by apply proof_irrelevance.
+          rewrite <- virtue_spec.
+          inversion MATCH; erewrite <- mtch_perm.
+          destruct H as [[BB notIn] | BB];
+          rewrite <- (Hj_forward (b', ofs'));
+          try reflexivity; [right | left]; try (simpl; assumption).
+          move notIn at bottom.
+          unfold juicy_machine.LKSIZE; simpl.
+          intros HH; apply notIn; unfold Intv.In; simpl; xomega.
+        + reflexivity.
+        + do 2 (replace (MTCH_cnt MATCH Hi) with Htid' by apply proof_irrelevance); reflexivity.
         + assumption.
     }
 
