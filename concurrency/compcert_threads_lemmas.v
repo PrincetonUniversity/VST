@@ -6585,9 +6585,9 @@ Module SimProofs (CI: CoreInjections).
           (*TODO: factor this out as a lemma*)
           intros j pfcj' pffj'.
           assert (pfcj: containsThread tpc j)
-            by (eapply cntUpdateC'; eauto).
+            by auto.
           assert (pffj: containsThread tpf j)
-            by (eapply cntUpdateC'; eauto).
+            by auto.
           specialize (HsimWeak _ pfcj pffj).
           assert (Hvb: forall b, Mem.valid_block mc b <-> Mem.valid_block mc' b)
             by (
@@ -6658,9 +6658,9 @@ Module SimProofs (CI: CoreInjections).
           (* Proof of seperation of injections *)
           intros k j cntk' cntj' Hkj b0 b0' b3 b3' Hf0 Hf0' Hfk' Hfj'.
           assert (cntk: containsThread tpc k)
-            by (eapply cntUpdateC'; eauto).
+            by auto.
           assert (cntj: containsThread tpc j)
-            by (eapply cntUpdateC'; eauto).
+            by auto.
           erewrite cnt_irr with (cnt1 := cntk') (cnt2 := cntk) in Hfk'.
           erewrite cnt_irr with (cnt1 := cntj') (cnt2 := cntj) in Hfj'.
           eapply (HfpSep _ _ cntk cntj Hkj b0 b0');
@@ -6687,7 +6687,7 @@ Module SimProofs (CI: CoreInjections).
             do 2 rewrite gssThreadCode;
               by (split; [assumption | constructor]).
             destruct Htsim;
-              by (eapply gss_mem_obs_eq_lock; eauto).
+               by (eapply gss_mem_obs_eq_lock; eauto).
             repeat split;
               by congruence.
           }
@@ -7150,9 +7150,9 @@ Module SimProofs (CI: CoreInjections).
         (*TODO: factor this out as a lemma*)
         intros j pfcj' pffj'.
         assert (pfcj: containsThread tpc j)
-          by (eapply cntUpdateC'; eauto).
+          by auto.
         assert (pffj: containsThread tpf j)
-          by (eapply cntUpdateC'; eauto).
+          by auto.
         specialize (HsimWeak _ pfcj pffj).
         assert (Hvb: forall b, Mem.valid_block mc b <-> Mem.valid_block mc' b)
           by (
@@ -7223,9 +7223,9 @@ Module SimProofs (CI: CoreInjections).
       - (* Proof of seperation of injections *)
         intros k j cntk' cntj' Hkj b0 b0' b3 b3' Hf0 Hf0' Hfk' Hfj'.
         assert (cntk: containsThread tpc k)
-          by (eapply cntUpdateC'; eauto).
+          by auto.
         assert (cntj: containsThread tpc j)
-          by (eapply cntUpdateC'; eauto).
+          by auto.
         erewrite cnt_irr with (cnt1 := cntk') (cnt2 := cntk) in Hfk'.
         erewrite cnt_irr with (cnt1 := cntj') (cnt2 := cntj) in Hfj'.
         eapply (HfpSep _ _ cntk cntj Hkj b0 b0');
@@ -7444,8 +7444,8 @@ Module SimProofs (CI: CoreInjections).
         split.
         eapply sync_locks_mem_obs_eq with (tpc := tpc) (tpf := tpf)
                                                        (mc := mc) (mf := mf); eauto.
-        erewrite lockSet_updLockSet. reflexivity.
-        erewrite lockSet_updLockSet. reflexivity.
+        erewrite <- lockSet_updLockSet. reflexivity.
+        erewrite <- lockSet_updLockSet. reflexivity.
         intros bl2 ofs0 Hres.
         destruct (EqDec_address (bl2, ofs0) (b2, Int.intval ofs)) as [Heq | Hneq].
         inversion Heq; subst.
@@ -8330,9 +8330,9 @@ Module SimProofs (CI: CoreInjections).
       - (* weak simulation between the two machines*)
         intros j pfcj' pffj'.
         assert (pfcj: containsThread tpc j)
-          by (eapply cntUpdateC'; eauto).
+          by auto.
         assert (pffj: containsThread tpf j)
-          by (eapply cntUpdateC'; eauto).
+          by auto.
         specialize (HsimWeak _ pfcj pffj).
         assert (Hvb: forall b, Mem.valid_block mc b <-> Mem.valid_block mc' b)
           by (
@@ -8412,9 +8412,9 @@ Module SimProofs (CI: CoreInjections).
       - (* Proof of seperation of injections *)
         intros k j cntk' cntj' Hkj b0 b0' b3 b3' Hf0 Hf0' Hfk' Hfj'.
         assert (cntk: containsThread tpc k)
-          by (eapply cntUpdateC'; eauto).
+          by auto.
         assert (cntj: containsThread tpc j)
-          by (eapply cntUpdateC'; eauto).
+          by auto.
         erewrite cnt_irr with (cnt1 := cntk') (cnt2 := cntk) in Hfk'.
         erewrite cnt_irr with (cnt1 := cntj') (cnt2 := cntj) in Hfj'.
         eapply (HfpSep _ _ cntk cntj Hkj b0 b0');
@@ -8953,9 +8953,9 @@ Module SimProofs (CI: CoreInjections).
       - (* weak simulation between the two machines*)
         intros j pfcj' pffj'.
         assert (pfcj: containsThread tpc j)
-          by (eapply cntUpdateC'; eauto).
+          by auto.
         assert (pffj: containsThread tpf j)
-          by (eapply cntUpdateC'; eauto).
+          by auto.
         specialize (HsimWeak _ pfcj pffj).
         clear - HsimWeak Hsim Hf Hpermi_eq.
         destruct HsimWeak.
@@ -8983,9 +8983,9 @@ Module SimProofs (CI: CoreInjections).
       - (* Proof of seperation of injections *)
         intros k j cntk' cntj' Hkj b0 b0' b3 b3' Hf0 Hf0' Hfk' Hfj'.
         assert (cntk: containsThread tpc k)
-          by (eapply cntUpdateC'; eauto).
+          by auto.
         assert (cntj: containsThread tpc j)
-          by (eapply cntUpdateC'; eauto).
+          by auto.
         erewrite cnt_irr with (cnt1 := cntk') (cnt2 := cntk) in Hfk'.
         erewrite cnt_irr with (cnt1 := cntj') (cnt2 := cntj) in Hfj'.
         eapply (HfpSep _ _ cntk cntj Hkj b0 b0');
@@ -9369,19 +9369,16 @@ Module SimProofs (CI: CoreInjections).
             eauto.
         }
       - (* Proof of invariant preservation for fine-grained machine*)
-        clear - HinvF HresF  His_lock HinvC' Hf HunchangedF HnumThreads
-                      HsimWeak HsimRes HpermLS Hpermi_eq Hmem_obs_eq.
+        clear - HinvF HresF  His_lock HinvC' Hf HunchangedF HchangedF HnumThreads
+                      HsimWeak HsimRes HpermLS Hpermi_eq Hmem_obs_eq
+                      Hlock_if HLocksInv.
         constructor.
         { (* threads don't race *)
           intros j k cntj cntk Hjk.
           assert (pfck : containsThread tpc k)
-                 by (eapply cntRemoveL; eapply cntRemoveL' in cntk;
-                     eapply cntUpdate' in cntk;
-                     eapply HnumThreads; eauto).
+            by (eapply HnumThreads; eauto).
           assert (pfcj : containsThread tpc j)
-            by (eapply cntRemoveL; eapply cntRemoveL' in cntj;
-                eapply cntUpdate' in cntj;
-                eapply HnumThreads; eauto).
+            by (eapply HnumThreads; eauto).
           destruct HinvC' as [HinvC' _ _ _].
           rewrite gRemLockSetRes.
           rewrite gRemLockSetRes.
@@ -9443,6 +9440,19 @@ Module SimProofs (CI: CoreInjections).
         }
         { intros j pffj'.
           intros b2' ofs'.
+          destruct HinvC' as [_ HinvC' _ _].
+          assert (pffj: containsThread tpf j)
+            by eauto.
+          assert (pfcj: containsThread tpc j)
+            by (eapply HnumThreads; eauto).
+          assert (pfcj': containsThread
+                           (remLockSet
+                              (updThread pfc (Kresume c Vundef)
+                                         (computeMap (getThreadR pfc) virtue))
+                              (b, Int.intval ofs)) j)
+            by (eapply cntRemoveL; eapply cntRemoveL' in pffj';
+                eapply cntUpdate' in pffj'; eauto).
+          rewrite gRemLockSetRes.
           destruct (Pos.eq_dec b2 b2').
           - subst.
             destruct (Intv.In_dec ofs' (Int.intval ofs,
@@ -9451,15 +9461,141 @@ Module SimProofs (CI: CoreInjections).
               eapply not_racy_union; constructor.
             + erewrite gsolockSet_rem2 by eauto.
               rewrite gsoThreadLock.
+              specialize (HpermLS _ _ ofs' Hf).
+              do 2 rewrite restrPermMap_Cur in HpermLS.
+              rewrite HpermLS.
+              specialize (HinvC' _ pfcj' b ofs').
+              rewrite gRemLockSetRes in HinvC'.
+              erewrite gsolockSet_rem2 in HinvC' by eauto.
+              rewrite gsoThreadLock in HinvC'.
               destruct (i == j) eqn:Hij; move/eqP:Hij=>Hij.
-              
+              * subst.
+                rewrite gssThreadRes.
+                specialize (Hpermi_eq pfcj' pffj' _ _ ofs' Hf).
+                do 2 rewrite restrPermMap_Cur in Hpermi_eq.
+                rewrite gRemLockSetRes in Hpermi_eq.
+                rewrite gRemLockSetRes in Hpermi_eq.
+                rewrite gssThreadRes in Hpermi_eq.
+                rewrite gssThreadRes in Hpermi_eq.
+                rewrite <- Hpermi_eq.
+                rewrite gssThreadRes in HinvC'.
+                eauto.
+              * rewrite gsoThreadRes; auto.
+                rewrite gsoThreadRes in HinvC'; auto.
+                specialize (HsimWeak _ pfcj pffj).
+                pose proof ((perm_obs_weak HsimWeak) _ _ ofs' Hf).
+                do 2 rewrite restrPermMap_Cur in H.
+                eapply perm_union_lower; eauto.
+          - erewrite gsolockSet_rem1 by eauto.
+            rewrite gsoThreadLock.
+            specialize ((lock_set_threads HinvF) _ pffj b2' ofs');
+              eauto.
+            destruct (i == j) eqn:Hij; move/eqP:Hij=>Hij.
+            + subst. rewrite gssThreadRes.
+              specialize (HunchangedF b2' ofs' (or_intror n)).
+              rewrite HunchangedF. eauto.
+              pf_cleanup; auto.
+            + rewrite gsoThreadRes; eauto.
+        }
+        { intros (bl' & ofsl') rmap' j pffj' Hres'.
+          destruct HinvC' as [_ _ HinvC' _].
+          assert (pffj: containsThread tpf j)
+            by auto.
+          assert (pfcj: containsThread tpc j)
+            by ( eapply HnumThreads; eauto).
+          assert (pfcj': containsThread
+                           (remLockSet
+                              (updThread pfc (Kresume c Vundef)
+                                         (computeMap (getThreadR pfc) virtue))
+                              (b, Int.intval ofs)) j)
+            by (eapply cntRemoveL; eapply cntRemoveL' in pffj';
+                eapply cntUpdate' in pffj'; eauto).
+          rewrite gRemLockSetRes.
+          destruct (EqDec_address (b2, Int.intval ofs) (bl', ofsl')).
+          - inversion e;
+            subst.
+            rewrite gsslockResRemLock in Hres';
+              discriminate.
+          - rewrite gsolockResRemLock in Hres'; auto.
+            rewrite gsoThreadLPool in Hres'; auto.
+            specialize (HLocksInv bl' ofsl'
+                                  ltac:(unfold isSome; rewrite Hres'; auto)).
+            destruct HLocksInv as [bl1' Hf'].
+            specialize (proj2 (Hlock_if _ _ ofsl' Hf')
+                              ltac:(unfold isSome; rewrite Hres'; auto)).
+            intros HresC'.
+            destruct (lockRes tpc (bl1', ofsl')) as [rmap1'|] eqn:Hres1';
+              try by exfalso.
+            specialize (HsimRes _ _ _ _ _ Hf' Hres1' Hres').            
+            destruct (i == j) eqn:Hij; move/eqP:Hij=>Hij.
+            + subst. rewrite gssThreadRes.
+              intros b' ofs'.
+              destruct (Pos.eq_dec b2 b').
+              * subst.
+                specialize (Hpermi_eq pfcj' pffj' _ _ ofs' Hf).
+                do 2 rewrite restrPermMap_Cur in Hpermi_eq.
+                rewrite gRemLockSetRes in Hpermi_eq.
+                rewrite gRemLockSetRes in Hpermi_eq.
+                rewrite gssThreadRes in Hpermi_eq.
+                rewrite gssThreadRes in Hpermi_eq.
+                rewrite <- Hpermi_eq.
+                destruct HsimRes as [HpermRes _].
+                specialize (HpermRes _ _ ofs' Hf).
+                do 2 rewrite restrPermMap_Cur in HpermRes.
+                rewrite HpermRes.
+                specialize (HinvC' (bl1', ofsl') rmap1' j pfcj').
+                assert ((b, Int.intval ofs) <> (bl1', ofsl'))
+                  by (intros Hcontra;
+                       inversion Hcontra; subst;
+                       clear - Hf Hf' n;
+                       rewrite Hf' in Hf; inversion Hf; subst; auto).              
+                erewrite gsolockResRemLock in HinvC' by eauto.
+                rewrite gsoThreadLPool in HinvC'.
+                specialize (HinvC' Hres1' b ofs').
+                rewrite gRemLockSetRes in HinvC'.
+                rewrite gssThreadRes in HinvC';
+                  eauto.
+              * specialize (HunchangedF _ ofs' (or_intror n0)).
+                rewrite HunchangedF.
+                pose proof ((lock_res_threads HinvF) _ _ _ pff Hres' b' ofs').
+                eauto.
+            + rewrite gsoThreadRes; auto.
+              pose proof ((lock_res_threads HinvF) _ _ _ pffj Hres').
+              eauto.
+        }
+        { intros (bl & ofsl) rmap Hres.
+          destruct (EqDec_address (b2, Int.intval ofs) (bl, ofsl)).
+          - inversion e; subst.
+            rewrite gsslockResRemLock in Hres; discriminate.
+          - erewrite gsolockResRemLock in Hres by eauto.
+            rewrite gsoThreadLPool in Hres.
+            intros b' ofs'.
+            destruct HinvF as [_ _ _ HinvF].
+            destruct (Pos.eq_dec b2 b').
+            + subst.
+              destruct (Intv.In_dec ofs' (Int.intval ofs,
+                                          ((Int.intval ofs) + lksize.LKSIZE)%Z)).
+              * rewrite gsslockSet_rem; auto.
+                rewrite perm_union_comm.
+                eapply not_racy_union; constructor.
+              * erewrite gsolockSet_rem2 by eauto.
+                rewrite gsoThreadLock.
+                eapply HinvF; eauto.
+            + erewrite gsolockSet_rem1 by eauto.
+              rewrite gsoThreadLock.
+              eapply HinvF; eauto.
+        }
       - (* Max permission invariant*)
           by assumption.
       - (* new memory is well-defined*)
-        eapply store_wd; eauto.
-          by simpl.
+        assumption.
       - (* new tpc well defined*)
-        apply tp_wd_lockSet.
+        Lemma tp_wd_remLock :
+          forall (tp : thread_pool) (f : memren) (addr : address),
+            tp_wd f tp -> tp_wd f (remLockSet tp addr).
+        Proof.
+        Admitted.
+        eapply tp_wd_remLock.
         intros j cntj'.
         destruct (i == j) eqn:Hij; move/eqP:Hij=>Hij.
         subst. rewrite gssThreadCode.
@@ -9476,13 +9612,51 @@ Module SimProofs (CI: CoreInjections).
       - (*ge spec*)
         split; assumption.
       - intros.
-        apply cntUpdateL;
+        apply cntRemoveL;
           apply cntUpdate;
             by eauto.
-
-
     }
-      Admitted.
+    { subst tpc' mc'.
+      (* We have that the code of the fine grained execution
+        is related to the one of the coarse-grained*)
+      assert (Hcore_inj:= code_eq Htsim).
+      rewrite Hcode in Hcore_inj.
+      simpl in Hcore_inj.
+      destruct (getThreadC pff) as [? | cf |? | ?] eqn:HcodeF;
+        try by exfalso.
+      (* And now we can prove that cf is also at external *)
+      assert (Hat_external_spec := core_inj_ext Hcore_inj).
+      rewrite Hat_external in Hat_external_spec.
+      destruct (at_external Sem cf) as [[[? ?] vsf]|] eqn:Hat_externalF;
+        try by exfalso.
+      (* and moreover that it's the same external and their
+        arguments are related by the injection*)
+      destruct Hat_external_spec as [? [? Harg_obs]]; subst.
+      inversion Harg_obs as [|? ? ? ? Hptr_obs Hl]; subst.
+      inversion Hl; subst.
+      inversion Hptr_obs as [| | | |b1 b2 ofs0 Hf|];
+        subst b1 ofs0 v'.
+      (*We prove that b is valid in m1 (and mc)*)
+      remember (restrPermMap (compat_ls HmemCompF)) as mf1 eqn:Hrestrict_pmapF.
+      (* and prove that loading from that block in mf gives us the
+        same value as in mc, i.e. unlocked*)
+      assert (HloadF: Mem.load Mint32 mf1 b2 (Int.intval ofs) = Some (Vint Int.zero)).
+      { destruct (load_val_obs _ _ _ Hload Hf Hinjective HsimLocks)
+          as [v2 [Hloadf Hobs_eq]].
+        inversion Hobs_eq; subst.
+          by auto.
+      }
+      (* The state is not changed by a failed load*)
+      exists tpf, mf, (fp i pfc), fp.
+      split.
+      intros U.
+      subst.
+      econstructor 5; simpl; eauto.
+      econstructor 6; eauto.
+      (* Proof that the new coarse and fine state are in simulation*)
+      assumption.
+      Unshelve. all:eauto.
+  Admitted.
       
 
 
