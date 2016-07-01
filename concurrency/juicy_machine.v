@@ -26,6 +26,7 @@ Require Import Coq.ZArith.ZArith.
 Require Import msl.rmaps.
 Require Import veric.compcert_rmaps.
 Require Import veric.juicy_mem.
+Require Import veric.juicy_mem_lemmas.
 Require Import veric.juicy_extspec.
 Require Import veric.jstep.
 
@@ -779,11 +780,7 @@ Module Concur.
         unfold access_cohere'; intros.
         eapply po_trans.
         - apply H.
-        - Lemma po_join_sub: forall r1 r2,
-            join_sub r2 r1 ->
-            Mem.perm_order'' (perm_of_res r1) (perm_of_res r2).
-          Admitted.
-          apply po_join_sub.
+        - apply po_join_sub.
           apply resource_at_join_sub; assumption.
       Qed.
       

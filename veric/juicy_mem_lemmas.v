@@ -1124,3 +1124,80 @@ inv IHclos_refl_trans1.
 inv IHclos_refl_trans2.
 auto.
 Qed.
+
+Lemma perm_order''_trans p1 p2 p3 :
+  perm_order'' p1 p2 ->
+  perm_order'' p2 p3 ->
+  perm_order'' p1 p3.
+Proof.
+  destruct p1, p2, p3; simpl; try tauto.
+  apply perm_order_trans.
+Qed.
+
+Lemma po_join_sub_sh sh1 rsh1 sh2 rsh2 :
+  join_sub sh2 sh1 ->
+  join_sub rsh2 rsh1 ->
+  Mem.perm_order'' (perm_of_sh sh1 rsh1) (perm_of_sh sh2 rsh2).
+Proof.
+  intros [sh J].
+  intros [rsh Jr].
+  unfold perm_of_sh.
+  assert (P1 : forall sh sh', Share.lub sh sh' = Share.bot -> sh = Share.bot). {
+    intros a b E.
+    pose proof Share.lub_upper1 a b.
+    rewrite E in *.
+    eauto with *.
+  } 
+  assert (P2 : forall sh, Share.lub Share.top sh = Share.bot -> False). {
+    intros a Q.
+    eapply Share.nontrivial.
+    eauto.
+  }
+  assert (forall sh sh', Share.lub Share.top sh = sh' -> sh' = Share.top). {
+    intros a b E.
+    rewrite Share.lub_commute in *.
+    rewrite Share.lub_top in *.
+    auto.
+  }
+  repeat if_tac; (constructor || exfalso).
+  all: subst; unfold join, Share.Join_ba in *.
+  all: repeat match goal with H : _ /\ _ |- _ => destruct H end.
+  all: now eauto.
+Qed.
+
+Lemma po_join_sub r1 r2 :
+  join_sub r2 r1 ->
+  Mem.perm_order'' (perm_of_res r1) (perm_of_res r2).
+Proof.
+  intros [r J]; inversion J; subst; simpl.
+  - if_tac.
+    + subst.
+      if_tac.
+      * eauto with *.
+      * exfalso.
+        pose proof Share.lub_upper1 rsh1 rsh2.
+        inversion RJ as [_ E].
+        rewrite E in H0.
+        eauto with *.
+    + if_tac; constructor.
+  - destruct k; try solve [constructor].
+    apply po_join_sub_sh.
+    + eexists; eauto.
+    + apply join_sub_refl.
+  - destruct k.
+    + if_tac.
+      * hnf. if_tac; apply I.
+      * apply perm_order''_trans with (perm_of_sh rsh1 (pshare_sh sh)).
+        -- apply po_join_sub_sh.
+           ++ eexists; eauto.
+           ++ apply join_sub_refl.
+        -- destruct  (perm_of_sh rsh1 (pshare_sh sh)) eqn:E.
+           ++ constructor.
+           ++ pose proof @perm_of_empty_inv _ _ E. tauto.
+    + if_tac; constructor.
+    + if_tac; constructor.
+    + if_tac; constructor.
+  - destruct k; try constructor.
+    apply po_join_sub_sh; eexists; eauto.
+  - constructor.
+Qed.
