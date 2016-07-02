@@ -938,3 +938,34 @@ econstructor 2. constructor 1; eauto. apply H0.
 auto.
 auto.
 Qed.
+
+(* Apply [age1] n times (meaningful when [n <= level x] *)
+Fixpoint age_by n {A} `{agA : ageable A} (x : A) : A :=
+  match n with
+    O => x
+  | S n => match age1 x with Some y => age_by n y | None => x end
+  end.
+
+Lemma level_age_by k n {A} `{agA : ageable A} x : level x = k + n -> level (age_by k x) = n.
+Proof.
+  revert x; induction k; intros x E; simpl.
+  - auto.
+  - destruct (age1 x) as [y|] eqn:F.
+    + apply IHk.
+      assert (level x = S (level y)). 2:omega.
+      eapply af_level2; eauto.
+      destruct agA; eauto.
+    + exfalso.
+      assert (level x = O). 2:omega.
+      eapply af_level1; eauto.
+      destruct agA; eauto.
+Qed.
+
+(* Age [x] to the level [k] (meaningul when [k <= level x] *)
+Definition age_to k {A} `{agA : ageable A} (x : A) : A := age_by (level x - k) x.
+
+Lemma level_age_to k {A} `{agA : ageable A} x : k <= level x -> level (age_to k x) = k.
+Proof.
+  intros L.
+  apply level_age_by; omega.
+Qed.

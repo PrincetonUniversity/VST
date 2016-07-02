@@ -142,7 +142,6 @@ Module Concur.
     Notation tid := NatTID.tid.                  
 
     (** Memories*)
-    Parameter level: nat.
     Definition richMem: Type:= juicy_mem.
     Definition dryMem: richMem -> mem:= m_dry.
     Definition diluteMem: mem -> mem := fun x => x.
@@ -522,6 +521,76 @@ Module Concur.
     Definition juicy_sem := (FSem.F _ _ JuicyFSem.t) _ _ the_sem.
     (* Definition juicy_step := (FSem.step _ _ JuicyFSem.t) _ _ the_sem. *)
     
+    Program Definition first_phi (tp : thread_pool) : rmap := (@getThreadR 0%nat tp _).
+    Next Obligation.
+      intros tp.
+      unfold containsThread.
+      destruct num_threads.
+      simpl.
+      ssromega.
+    Defined.
+    
+    Program Definition level_tp (tp : thread_pool) := level (first_phi tp).
+    
+    Definition tp_level_is_above n tp :=
+      (forall i (cnti : containsThread tp i), le n (level (getThreadR cnti))) /\
+      (forall i phi, lockRes tp i = Some (Some phi) -> le n (level phi)).
+    
+    Definition tp_level_is n tp :=
+      (forall i (cnti : containsThread tp i), level (getThreadR cnti) = n) /\
+      (forall i phi, lockRes tp i = Some (Some phi) -> level phi = n).
+    
+    Lemma mem_compatible_same_level tp m :
+      mem_compatible tp m -> tp_level_is (level_tp tp) tp.
+    Proof.
+      intros M.
+      pose proof disjoint_threads_compat M as DT.
+      pose proof disjoint_locks_t_hread_compat M as DLT.
+      destruct M as [Phi M].
+      unfold level_tp, first_phi.
+      split.
+      - intros i cnti.
+        destruct (eq_dec i 0%nat).
+        + subst.
+          repeat f_equal.
+          now apply cnt_irr.
+        + apply rmap_join_eq_level.
+          apply DT.
+          auto.
+      - intros i phi E.
+        apply rmap_join_eq_level.
+        rewrite joins_sym.
+        eapply (DLT _); eauto.
+    Qed.
+    
+    Definition cnt_from_ordinal tp : forall i : ordinal (pos.n (num_threads tp)), containsThread tp i.
+      intros [i pr]; apply pr. Defined.
+    
+    Definition age_tp_to (k : nat) (tp : thread_pool) : thread_pool :=
+      match tp with
+        mk n pool maps lset =>
+        mk n pool
+           ((age_to k) oo maps)
+           (AMap.map (option_map (age_to k)) lset)
+      end.
+    
+    Lemma level_age_tp_to tp k : tp_level_is_above k tp -> tp_level_is k (age_tp_to k tp).
+    Proof.
+      intros [T L]; split.
+      - intros i cnti.
+        destruct tp.
+        apply level_age_to.
+        apply T.
+      - intros i phi' IN. destruct tp as [n thds phis lset].
+        simpl in IN.
+        unfold lockRes in IN; simpl in IN.
+        destruct (@AMap_find_map_inv lock_info _ _ _ _ _ IN) as [phi [IN' E]].
+        destruct phi as [phi | ]. 2:inversion E.
+        simpl in E. injection E as ->.
+        apply level_age_to.
+        eapply L, IN'.
+    Qed.
+    
     Inductive juicy_step genv {tid0 tp m} (cnt: containsThread tp tid0)
       (Hcompatible: mem_compatible tp m) : thread_pool -> mem  -> Prop :=
     | step_juicy :
@@ -531,7 +600,7 @@ Module Concur.
             (Hinv : invariant tp)
             (Hthread: getThreadC cnt = Krun c)
             (Hcorestep: corestep juicy_sem genv c jm c' jm')
-            (Htp': tp' = updThread cnt (Krun c') (m_phi jm'))
+            (Htp': tp' = age_tp_to (level jm') (updThread cnt (Krun c') (m_phi jm')))
             (Hm': m_dry jm' = m'),
             juicy_step genv cnt Hcompatible tp' m'.
 
@@ -884,4 +953,3 @@ Declare Module SEM:Semantics.
     myCoarseSemantics.MachineSemantics.*)
   
 End Concur.
-
