@@ -1552,8 +1552,18 @@ Module ClightParching <: ErasureSig.
               + erewrite DSEM.ThreadPool.gsoAddRes with (cntj:= cnt0); try eassumption.
                 inversion dinv. apply lock_set_threads.
               + erewrite DSEM.ThreadPool.gssAddRes; try eassumption.
-                eapply BB. eassumption.
-              
+            - intros.
+              assert (cnt':=cnt).
+              eapply DSEM.ThreadPool.cntAdd' in cnt'.
+              destruct cnt' as [[cnt0 dif]| eq].
+              + erewrite DSEM.ThreadPool.gsoAddRes with (cntj:= cnt0); try eassumption.
+                inversion dinv. eapply lock_res_threads; eassumption.
+              + erewrite DSEM.ThreadPool.gssAddRes; try eassumption.
+                eapply CC; eassumption.
+            - intros. rewrite DSEM.ThreadPool.gsoAddLock.
+              inversion dinv. eapply lock_res_set; eassumption.
+          Qed.
+          
         admit.
         
       }
