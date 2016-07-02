@@ -181,7 +181,7 @@ Module Type ThreadPoolSig.
       lockSet (addThread tp vf arg p) = lockSet tp.
 
   Axiom gssAddRes:
-    forall {i tp} (cnt: containsThread tp i) vf arg pmap j
+    forall {tp} vf arg pmap j
       (Heq: j = latestThread tp)
       (cnt': containsThread (addThread tp vf arg pmap) j),
       getThreadR cnt' = pmap.

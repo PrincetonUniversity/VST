@@ -529,7 +529,7 @@ Module OrdinalPool (SEM:Semantics) (RES:Resources) <: ThreadPoolSig
   Defined.
 
   Lemma gssAddRes:
-    forall {i tp} (cnt: containsThread tp i) vf arg pmap j
+    forall {tp} vf arg pmap j
       (Heq: j = latestThread tp)
       (cnt': containsThread (addThread tp vf arg pmap) j),
       getThreadR cnt' = pmap.
@@ -541,17 +541,16 @@ Module OrdinalPool (SEM:Semantics) (RES:Resources) <: ThreadPoolSig
                      (Ordinal (n:=(num_threads tp).+1)
                               (m:=num_threads tp) cnt')) eqn:H.
     apply unlift_m_inv in H.
-    destruct o. simpl in *.
+    destruct o.
+    simpl in *.
     subst. exfalso;
       ssromega.
-    rewrite H.
-      by reflexivity.
+    rewrite H. by reflexivity.
   Qed.
 
   Lemma gsoAddRes:
-    forall {i tp} (cnt: containsThread tp i) vf arg pmap j
-      (cntj: containsThread tp j)
-      (cntj': containsThread (addThread tp vf arg pmap) j),
+    forall {tp} vf arg pmap j
+      (cntj: containsThread tp j) (cntj': containsThread (addThread tp vf arg pmap) j),
       getThreadR cntj' = getThreadR cntj.
   Proof.
     intros.
@@ -564,20 +563,17 @@ Module OrdinalPool (SEM:Semantics) (RES:Resources) <: ThreadPoolSig
     unfold getThreadR.
     destruct o.
     simpl;
-      by erewrite proof_irr with (a1 := i0) (a2:= cntj).
-    exfalso.
-    unfold containsThread in *.
-    simpl in *.
+      by erewrite proof_irr with (a1 := i) (a2:= cntj).
+    exfalso .
+     unfold containsThread in *. simpl in *.
     assert (Hcontra: (ordinal_pos_incr (num_threads tp))
                        != (Ordinal (n:=(num_threads tp).+1) (m:=j) cntj')).
     { apply/eqP. intros Hcontra.
       unfold ordinal_pos_incr in Hcontra.
-      inversion Hcontra; auto. subst.
-        by ssromega.
+      inversion Hcontra; auto. subst. by ssromega.
     }
     apply unlift_some in Hcontra. rewrite Hunlift in Hcontra.
-    destruct Hcontra;
-      by discriminate.
+    destruct Hcontra; by discriminate.
   Qed.
 
   Lemma gssAddCode:
