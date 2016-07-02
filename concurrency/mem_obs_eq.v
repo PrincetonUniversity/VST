@@ -375,7 +375,69 @@ Proof.
     by eauto.
 Qed.
 
-(** Well-definedeness is preserved through storing a well-defined value *)
+Lemma ofs_val_lt :
+  forall ofs chunk v,
+    ofs < ofs + Z.of_nat (length (encode_val chunk v)).
+Proof.
+  destruct chunk, v; simpl; try omega;
+  rewrite length_inj_bytes encode_int_length;
+  simpl; omega.
+Qed.
+
+Lemma inj_bytes_type:
+  forall bs mv,
+    In mv (inj_bytes bs) ->
+    match mv with
+    | Byte _ => True
+    | _ => False
+    end.
+Proof.
+  induction bs; intros; simpl in *;
+  first  by exfalso.
+  destruct H.
+  rewrite <- H; auto.
+  eapply IHbs; eauto.
+Qed.
+
+Lemma valid_val_encode:
+  forall v m chunk
+    (Hval_wd: mem_wd.val_valid v m),
+  forall v',
+    List.In v' (encode_val chunk v) ->
+    match v' with
+    | Undef => True
+    | Byte _ => True
+    | Fragment v'' _ _ =>
+      mem_wd.val_valid v'' m
+    end.
+Proof.
+  intros.
+  destruct v'; auto.
+  destruct v, chunk; simpl in *;
+  repeat (match goal with
+          | [H: _ \/ _ |- _] =>
+            destruct H
+          | [H: False |- _] =>
+              by exfalso
+          | [H: _ = _ |- _] =>
+            inversion H; subst; clear H
+          end); simpl; auto;
+  apply inj_bytes_type in H;
+    by exfalso.
+Qed.
+
+Lemma valid_val_store:
+  forall v m m' chunk b ofs v'
+    (Hvalid: mem_wd.val_valid v m)
+    (Hstore: Mem.store chunk m b ofs v' = Some m'),
+    mem_wd.val_valid v m'.
+Proof.
+  intros.
+  destruct v; simpl; auto.
+  eapply Mem.store_valid_block_1; eauto.
+Qed.
+
+(** Well-definedeness is preserved through storing of a well-defined value *)
 Lemma store_wd:
   forall m m' chunk b ofs v
     (Hstore: Mem.store chunk m b ofs v = Some m')
@@ -383,45 +445,37 @@ Lemma store_wd:
     (Hmem_wd: valid_mem m),
     valid_mem m'.
 Proof.
-Admitted.
-(*intros.
-            intros b' Hvalid' ofs' mv' Hget.
-            assert (Hvalid := Mem.store_valid_access_3 _ _ _ _ _ _ Hstore).
-            eapply Mem.valid_access_implies with (p2 := Nonempty) in Hvalid;
-              try constructor.
-            eapply Mem.valid_access_valid_block in Hvalid.
-            destruct mv'; auto.
-            assert (Hcontents := Mem.store_mem_contents _ _ _ _ _ _ Hstore).
-            rewrite Hcontents in Hget. clear Hcontents.
-            destruct (Pos.eq_dec b b') as [Heq | Hneq].
-            (*case it's the same block*)
-            subst.
-            rewrite Maps.PMap.gss in Hget.
-            destruct v, chunk; simpl in *. Focus 3.
-            try match goal with
-                | [H: Maps.ZMap.get ?Ofs (Maps.ZMap.set ?Ofs' _ _) = _ |- _] =>
-                  destruct (Z.eq_dec Ofs Ofs'); subst
-                end;
-            try match goal with
-                | [H: Maps.ZMap.get ?Ofs (Maps.ZMap.set ?Ofs _ _) = _ |- _] =>
-                  rewrite Maps.ZMap.gss in H
-                | [H: Maps.ZMap.get ?Ofs (Maps.ZMap.set ?Ofs' _ _) = _,
-                      H1: ?Ofs <> ?Ofs' |- _] =>
-                  rewrite Maps.ZMap.gso in H; auto
-                end;
-            try discriminate;
-            unfold mem_wd.val_valid;
-            destruct v0; auto;
-            try (specialize (Hmem_wd b' Hvalid ofs' _ Hget);
-                  simpl in Hmem_wd);
-            try (by (eapply Mem.store_valid_block_1; eauto)).
-            try match goal with
-                | [H: Maps.ZMap.get ?ofS (Maps.ZMap.set ?Ofs _ _) = _ |- _] =>
-                  destruct (Z.eq_dec ofs' Ofs); subst
-                end.
-            
-            try rewrite Maps.ZMap.gss in Hget;
-            try discriminate. *)
+  intros.
+  unfold valid_mem in *.
+  intros b0 Hvalid ofs0 mv Hget.
+  eapply Mem.store_valid_block_2 in Hvalid; eauto.
+  rewrite (Mem.store_mem_contents _ _ _ _ _ _ Hstore) in Hget.
+  destruct (Pos.eq_dec b b0) as [Heq | Hneq].
+  - (*case it's the same block*)
+    subst.
+    rewrite Maps.PMap.gss.
+    destruct (Intv.In_dec ofs0
+                          (ofs,
+                           (ofs + Z.of_nat (length (encode_val chunk v)))%Z)).
+
+    + apply Mem.setN_in with (c:= (Mem.mem_contents m) # b0) in i.
+      apply valid_val_encode with (m := m) in i; auto.
+      destruct (ZMap.get ofs0
+                       (Mem.setN (encode_val chunk v) ofs (Mem.mem_contents m) # b0));
+        simpl; auto.
+      eapply valid_val_store; eauto.
+    + apply Intv.range_notin in n.
+      erewrite Mem.setN_outside by eauto.
+      specialize (Hmem_wd _ Hvalid ofs0 _ ltac:(reflexivity)).
+      destruct (ZMap.get ofs0 (Mem.mem_contents m) # b0); auto.
+      eapply valid_val_store; eauto.
+      simpl.
+      apply ofs_val_lt.
+  - erewrite Maps.PMap.gso in Hget by eauto.
+    specialize (Hmem_wd _ Hvalid ofs0 _ ltac:(reflexivity)).
+    destruct (ZMap.get ofs0 (Mem.mem_contents m) # b0); subst; auto.
+    eapply valid_val_store; eauto.
+Qed.
 
 End MemoryWD.
 
@@ -1630,14 +1684,6 @@ Qed.
     apply Hincr in H1.
       by auto.
   Qed.
-
-  (* Don't really care about this right now*)
-  (* Lemma mem_inj_dillute: *)
-  (*   forall mc mf f, *)
-  (*     Mem.mem_inj f mc mf -> *)
-  (*     Mem.mem_inj f mc (makeCurMax mf). *)
-  (* Admitted. *)
-
 
   (* Proof as in compcert*)
   Lemma proj_bytes_obs:
