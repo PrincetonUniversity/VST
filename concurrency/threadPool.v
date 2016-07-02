@@ -61,21 +61,70 @@ Module OrdinalPool (SEM:Semantics) (RES:Resources) <: ThreadPoolSig
       (lockSet js) !! b ofs =
       if ssrbool.isSome (lockRes js (b,ofs)) then Some Memtype.Writable else None.
   Admitted.*)
+Require Import msl.Coqlib2.
+Import Coqlib.
+
   Lemma lockSet_WorNE: forall js b ofs,
       (lockSet js) !! b ofs = Some Memtype.Writable \/ 
       (lockSet js) !! b ofs = None.
-  Admitted.
-
-  Lemma lockSet_spec_1: forall js b ofs,
-      lockRes js (b,ofs) ->
-      (lockSet js) !! b ofs = Some Memtype.Writable.
-  Admitted.
+  Proof.
+   intros. unfold lockSet. 
+  unfold A2PMap.
+  rewrite <- List.fold_left_rev_right.
+  match goal with |- context [List.fold_right ?F ?Z ?A] => 
+             set (f := F); set (z:=Z); induction A end.
+  right. simpl. rewrite PMap.gi. auto.
+  change (List.fold_right f z (a::l)) with (f a (List.fold_right f z l)).
+  unfold f at 1 3.
+  destruct a. destruct a.
+  simpl.
+  destruct (peq b0 b).
+  subst b0.
+  unfold permissions.setPerm.
+  rewrite !PMap.gss.
+   repeat (if_tac; auto).
+  unfold permissions.setPerm.
+  rewrite !PMap.gso;  auto.
+Qed.
 
   Lemma  lockSet_spec_2 :
     forall (js : t') (b : block) (ofs ofs' : Z),
       Intv.In ofs' (ofs, (ofs + Z.of_nat lksize.LKSIZE_nat)%Z) ->
       lockRes js (b, ofs) -> (lockSet js) !! b ofs' = Some Memtype.Writable.
-  Admitted.
+  Proof.
+   intros.
+  hnf in H0.
+  hnf in H. simpl in H.
+  unfold lockSet. unfold A2PMap.
+  rewrite <- List.fold_left_rev_right.
+  unfold lockRes in H0. unfold lockGuts in H0.
+ match type of H0 with isSome ?A = true=> destruct A eqn:?H; inv H0 end.
+  apply AMap.find_2 in H1.
+ apply AMap.elements_1 in H1.
+ apply SetoidList.InA_rev in H1.
+ unfold AMap.key in H1.
+ forget (@rev (address * lock_info) (AMap.elements (elt:=lock_info) (lset js))) as el.
+  match goal with |- context [List.fold_right ?F ?Z ?A] => 
+             set (f := F); set (z:=Z) end.
+ revert H1; induction el; intros.
+ inv H1.
+ apply SetoidList.InA_cons in H1.
+ destruct H1.
+ hnf in H0. destruct a; simpl in H0. destruct H0; subst a l0.
+ simpl. unfold permissions.setPerm. rewrite !PMap.gss.
+ repeat match goal with |- context [is_left ?A] => destruct A; simpl; auto end.
+ omega.
+ apply IHel in H0; clear IHel.
+ simpl.
+ unfold f at 1. destruct a. destruct a.
+ unfold permissions.setPermBlock. simpl.
+ unfold permissions.setPerm. rewrite !PMap.gss.
+ destruct (peq b0 b). subst b0. rewrite !PMap.gss.
+ repeat match goal with |- context [is_left ?A] => destruct A; simpl; auto end.
+ rewrite !PMap.gso; auto.
+Qed.
+
+Open Scope nat_scope.
 
   Definition containsThread (tp : t) (i : NatTID.tid) : Prop:=
     i < num_threads tp.
@@ -312,27 +361,133 @@ Module OrdinalPool (SEM:Semantics) (RES:Resources) <: ThreadPoolSig
   (* TODO: most of these proofs are similar, automate them*)
   (** Getters and Setters Properties*)  
 
+Set Bullet Behavior "None".
+Set Bullet Behavior "Strict Subproofs".
+
   Lemma gsslockResUpdLock: forall js a res,
       lockRes (updLockSet js a res) a =
       Some res.
-  Admitted.
+ Proof. 
+ intros.
+ unfold lockRes, updLockSet. simpl.
+ unfold AMap.find; simpl.
+ forget (AMap.this (lockGuts js)) as el.
+ unfold AMap.find; simpl.
+ induction el.
+ *
+ simpl.
+ destruct (@AMap.Raw.PX.MO.elim_compare_eq a a); auto. rewrite H. auto.
+ *
+ rewrite AMap.Raw.add_equation. destruct a0.
+ destruct (AddressOrdered.compare a a0).
+ simpl. 
+ destruct (@AMap.Raw.PX.MO.elim_compare_eq a a); auto. rewrite H. auto.
+ simpl.
+ destruct (@AMap.Raw.PX.MO.elim_compare_eq a a); auto. rewrite H. auto.
+ simpl.
+ destruct (AddressOrdered.compare a a0).
+ pose proof (AddressOrdered.lt_trans l0 l1).
+ apply AddressOrdered.lt_not_eq in H. contradiction H.
+ reflexivity.
+ apply AddressOrdered.lt_not_eq in l0.
+ hnf in e. subst. contradiction l0; reflexivity.
+ auto.
+Qed.
   
+
+Ltac address_ordered_auto :=
+ auto; repeat match goal with
+ | H: AddressOrdered.eq ?A ?A |- _ => clear H
+ | H: AddressOrdered.eq ?A ?B |- _ => hnf in H; subst A 
+ | H: ?A <> ?A |- _ => contradiction H; reflexivity
+ | H: AddressOrdered.lt ?A ?A |- _ => 
+     apply AddressOrdered.lt_not_eq in H; contradiction H; reflexivity
+ | H: AddressOrdered.lt ?A ?B, H': AddressOrdered.lt ?B ?A |- _ =>
+     contradiction (AddressOrdered.lt_not_eq (AddressOrdered.lt_trans H H')); reflexivity
+ end.
+
   Lemma gsolockResUpdLock: forall js loc a res,
+                 loc <> a ->
                  lockRes (updLockSet js loc res) a =
                  lockRes js a.
-  Admitted. 
+ Proof.
+ intros.
+ unfold lockRes, updLockSet. simpl.
+ unfold AMap.find; simpl.
+ forget (AMap.this (lockGuts js)) as el.
+ unfold AMap.find; simpl.
+ induction el; simpl.
+ destruct (AddressOrdered.compare a loc); auto.
+ address_ordered_auto.
+ destruct a0.
+ destruct (AddressOrdered.compare a a0); simpl; address_ordered_auto.
+ destruct (AddressOrdered.compare loc a0); simpl; address_ordered_auto.
+ destruct (AddressOrdered.compare a loc); simpl; address_ordered_auto.
+ destruct (AddressOrdered.compare a a0); simpl; address_ordered_auto.
+ destruct (AddressOrdered.compare a a0); simpl; address_ordered_auto.
+ destruct (AddressOrdered.compare a a0); simpl; address_ordered_auto.
+ destruct (AddressOrdered.compare loc a0); simpl; address_ordered_auto.
+ destruct (AddressOrdered.compare a0 a0); simpl; address_ordered_auto.
+ destruct (AddressOrdered.compare a0 loc); simpl; address_ordered_auto.
+ destruct (AddressOrdered.compare a0 a0); simpl; address_ordered_auto.
+ destruct (AddressOrdered.compare loc a0); simpl; address_ordered_auto.
+ destruct (AddressOrdered.compare a a0); simpl; address_ordered_auto.
+ pose proof (AddressOrdered.lt_trans l1 l0).
+ destruct (AddressOrdered.compare a loc); simpl; address_ordered_auto.
+ destruct (AddressOrdered.compare a a0); simpl; address_ordered_auto.
+ destruct (AddressOrdered.compare a a0); simpl; address_ordered_auto.
+Qed.
 
   Lemma gsslockResRemLock: forall js a,
       lockRes (remLockSet js a) a =
       None.
-  Admitted.
+ Proof.
+  intros.
+   unfold lockRes, remLockSet; simpl. unfold AMap.find, AMap.remove; simpl.
+ destruct js; simpl. destruct lset0; simpl.
+ assert (SetoidList.NoDupA (@AMap.Raw.PX.eqk _) this). 
+ apply SetoidList.SortA_NoDupA with (@AMap.Raw.PX.ltk _); auto with typeclass_instances.
+ rename this into el.
+ revert H; clear; induction el; simpl; intros; auto.
+ destruct a0.
+ destruct (AddressOrdered.compare a a0); simpl; address_ordered_auto.
+ destruct (AddressOrdered.compare a a0); simpl; address_ordered_auto.
+ inv H.
+ clear - H2.
+ revert H2; induction el; intros; auto.
+ simpl. destruct a.
+ destruct (AddressOrdered.compare a0 a); simpl; address_ordered_auto.
+ contradiction H2. left. reflexivity.
+ destruct (AddressOrdered.compare a a0); simpl; address_ordered_auto.
+ apply IHel.
+ inv H; auto.
+Qed.
   
   Lemma gsolockResRemLock: forall js loc a,
       loc <> a ->
       lockRes (remLockSet js loc) a =
       lockRes js a.
-  Admitted.
-  
+ Proof.
+  intros.
+   unfold lockRes, remLockSet; simpl. unfold AMap.find, AMap.remove; simpl.
+ destruct js; simpl. destruct lset0; simpl.
+ rename this into el.
+ induction sorted; simpl; auto.
+ destruct a0 as [b ?].
+ destruct (AddressOrdered.compare loc b); simpl; address_ordered_auto;
+ destruct (AddressOrdered.compare a b); simpl; address_ordered_auto.
+ assert (forall y, SetoidList.InA (@AMap.Raw.PX.eqk _) y l -> AMap.Raw.PX.ltk (b,l0) y).
+ apply SetoidList.InfA_alt; auto with typeclass_instances.
+ specialize (H1 (a,l0)).
+ assert (~SetoidList.InA (AMap.Raw.PX.eqk (elt:=lock_info)) (a, l0) l ).
+ intro. specialize (H1 H2). 
+ change (AddressOrdered.lt b a) in H1. address_ordered_auto.
+ clear - H2.
+ induction l as [| [b ?]]; simpl in *; auto.
+ destruct (AddressOrdered.compare a b); simpl; address_ordered_auto.
+ contradiction H2. left; auto.
+Qed.
+
   
   Lemma gsoThreadLock:
     forall {i tp} c p (cnti: containsThread tp i),
@@ -367,13 +522,77 @@ Module OrdinalPool (SEM:Semantics) (RES:Resources) <: ThreadPoolSig
       permissions.setPerm (Some Memtype.Writable) b ofs (lockSet ds).
   Proof.
     intros.
+   unfold lockSet, updLockSet; simpl.
+  unfold A2PMap.
+ match goal with |- fold_left ?F ?Z _ = _ => set (f:=F) end.
+ unfold lockGuts.
+ unfold AMap.elements.
+ rewrite <- !List.fold_left_rev_right. simpl.
+ forget (AMap.this (lset ds)) as el.
+ unfold permissions.setPerm.
+ induction el as [ | [a ?]].
+ simpl.
+ (* NOT TRUE!
+  updLockSet changes permissions at 4 locations (starting at ofs),
+ but setPerm changes permissions only at 1 location (at ofs).
+ *)
+
   Admitted.
 
-  Lemma gsslockSet_rem': forall ds b ofs,
+Lemma PX_in_rev:
+  forall elt a m, AMap.Raw.PX.In (elt:=elt) a m <-> AMap.Raw.PX.In a (rev m).
+Proof.
+ intros.
+unfold AMap.Raw.PX.In.
+unfold AMap.Raw.PX.MapsTo.
+split; intros [e ?]; exists e.
+ rewrite SetoidList.InA_rev; auto.
+ rewrite <- SetoidList.InA_rev; auto.
+Qed.
+
+ Lemma gsslockSet_rem': forall ds b ofs,
       (lockSet (remLockSet ds (b, ofs))) !! b ofs =
       None.
   Proof.
     intros.
+   unfold lockSet, remLockSet; simpl.
+ (* NOT TRUE: Suppose address 100 and 102 are in the lock set.
+  Then "remove" address 102, but the permission at 102 is still Writable.
+*)
+
+(*
+ unfold A2PMap, AMap.remove; simpl.
+ destruct ds; simpl. destruct lset0; simpl.
+ rewrite <- !List.fold_left_rev_right.
+ match goal with |- context [fold_right ?F] => set (f:=F) end.
+ assert (SetoidList.NoDupA (@AMap.Raw.PX.eqk _) this). 
+ apply SetoidList.SortA_NoDupA with (@AMap.Raw.PX.ltk _); auto with typeclass_instances.
+ clear sorted.*)
+(*
+ pose proof (@AMap.remove_1 _ (lockGuts ds) (b,ofs) (b,ofs)).
+ spec H; [reflexivity |].
+ unfold A2PMap.
+ forget (AMap.remove (elt:=lock_info) (b, ofs) (lockGuts ds)) as m.
+ rewrite <- !List.fold_left_rev_right.
+ unfold AMap.In in H. unfold AMap.elements.
+ unfold AMap.Raw.elements.
+ assert (~ AMap.Raw.PX.In (b, ofs) (rev (AMap.this m)))
+   by (contradict H; rewrite PX_in_rev; auto).
+ clear H. forget (rev (AMap.this m)) as el.
+ match goal with |- context [fold_right ?F] => set (f:=F) end.
+ induction el; simpl. rewrite PMap.gi; auto.
+ destruct a. destruct a.
+ destruct (EqDec_address (b0,z) (b,ofs)). inv e.
+ unfold f at 1.
+ simpl.
+ contradiction H0. eauto.
+ unfold f at 1. simpl.
+ unfold permissions.setPerm.
+ rewrite !PMap.gss.
+ destruct (peq b0 b). subst b0. rewrite !PMap.gss.
+ 
+ *)
+
   Admitted.
 
   Lemma gsslockSet_rem: forall ds b ofs ofs0,
@@ -382,6 +601,8 @@ Module OrdinalPool (SEM:Semantics) (RES:Resources) <: ThreadPoolSig
       None.
   Proof.
     intros.
+  hnf in H. simpl in H.
+ (* NOT TRUE.  See lemma just above *)
   Admitted.
   
   Lemma gsolockSet_rem1: forall ds b ofs b' ofs',
@@ -390,6 +611,13 @@ Module OrdinalPool (SEM:Semantics) (RES:Resources) <: ThreadPoolSig
       (lockSet ds)  !! b' ofs'.
   Proof.
     intros.
+   unfold lockSet, remLockSet. simpl.
+ unfold A2PMap.
+ rewrite <- !List.fold_left_rev_right.
+ match goal with |- context [fold_right ?F] => set (f:=F) end.
+ simpl. unfold AMap.elements, AMap.Raw.elements.
+ unfold lockGuts. 
+   (* NOT TRUE.  See lemmas just above *)
   Admitted.
 
   Lemma gsolockSet_rem2: forall ds b ofs ofs',
@@ -397,18 +625,26 @@ Module OrdinalPool (SEM:Semantics) (RES:Resources) <: ThreadPoolSig
       (lockSet (remLockSet ds (b, ofs))) !! b ofs' =
       (lockSet ds)  !! b ofs'.
   Proof.
-    intros.
+    intros. (* NOT TRUE.  See lemmas just above *)
   Admitted.
 
   Lemma gssThreadCode {tid tp} (cnt: containsThread tp tid) c' p'
         (cnt': containsThread (updThread cnt c' p') tid) :
     getThreadC cnt' = c'.
   Proof.
-    simpl. rewrite if_true; auto.
-    unfold updThread, containsThread in *. simpl in *.
-    apply/eqP. apply f_equal.
-    apply proof_irr.
+    simpl.
+   unfold eq_op; simpl. rewrite eq_refl; auto.
   Qed.
+
+Lemma eq_op_false: forall A i j, i <>j -> @eq_op A i j = false.
+ Proof.
+ intros.
+ unfold eq_op; simpl.
+ unfold Equality.op. destruct A eqn:?. simpl.
+unfold Equality.sort in *.
+destruct m; simpl in *.
+generalize (a i j); intros. inv H0; auto. contradiction H;auto.
+Qed.
 
   Lemma gsoThreadCode:
     forall {i j tp} (Hneq: i <> j) (cnti: containsThread tp i)
@@ -418,20 +654,18 @@ Module OrdinalPool (SEM:Semantics) (RES:Resources) <: ThreadPoolSig
   Proof.
     intros.
     simpl.
-    erewrite if_false
-      by (apply/eqP; intros Hcontra; inversion Hcontra; by auto).
+    unfold eq_op. simpl.
+   rewrite eq_op_false; auto.
     unfold updThread in cntj'. unfold containsThread in *. simpl in *.
     unfold getThreadC. do 2 apply f_equal. apply proof_irr.
-  Qed.
+Qed.
   
   Lemma gssThreadRes {tid tp} (cnt: containsThread tp tid) c' p'
         (cnt': containsThread (updThread cnt c' p') tid) :
     getThreadR cnt' = p'.
   Proof.
-    simpl. rewrite if_true; auto.
-    unfold updThread, containsThread in *. simpl in *.
-    apply/eqP. apply f_equal.
-    apply proof_irr.
+    simpl. 
+    unfold eq_op; simpl. rewrite eq_refl; auto. 
   Qed.
 
   Lemma gsoThreadRes {i j tp} (cnti: containsThread tp i)
@@ -440,8 +674,8 @@ Module OrdinalPool (SEM:Semantics) (RES:Resources) <: ThreadPoolSig
     getThreadR cntj' = getThreadR cntj.
   Proof.
     simpl.
-    erewrite if_false
-      by (apply/eqP; intros Hcontra; inversion Hcontra; by auto).
+    unfold eq_op; simpl.
+  rewrite eq_op_false; auto.
     unfold updThread in cntj'. unfold containsThread in *. simpl in *.
     unfold getThreadR. do 2 apply f_equal. apply proof_irr.
   Qed.
@@ -450,10 +684,8 @@ Module OrdinalPool (SEM:Semantics) (RES:Resources) <: ThreadPoolSig
         (cnt': containsThread (updThreadC cnt c') tid) :
     getThreadC cnt' = c'.
   Proof.
-    simpl. rewrite if_true; auto.
-    unfold updThreadC, containsThread in *. simpl in *.
-    apply/eqP. apply f_equal.
-    apply proof_irr.
+    simpl.
+    unfold eq_op; simpl. rewrite eq_refl. auto.
   Qed.
 
   Lemma gsoThreadCC {i j tp} (Hneq: i <> j) (cnti: containsThread tp i)
@@ -462,7 +694,8 @@ Module OrdinalPool (SEM:Semantics) (RES:Resources) <: ThreadPoolSig
     getThreadC cntj = getThreadC cntj'.
   Proof.
     simpl.
-    erewrite if_false by (apply/eqP; intros Hcontra; inversion Hcontra; auto).
+    unfold eq_op; simpl.
+  rewrite eq_op_false; auto.
     unfold updThreadC in cntj'. unfold containsThread in *.
     simpl in cntj'. unfold getThreadC.
     do 2 apply f_equal. by apply proof_irr.
@@ -658,11 +891,8 @@ Module OrdinalPool (SEM:Semantics) (RES:Resources) <: ThreadPoolSig
       destruct (m == i) eqn:Hmi; move/eqP:Hmi=>Hmi.
       subst m.
       erewrite proof_irr with (a1 := pfo) (a2 := cnti).
-      rewrite if_true;
-        by auto.
-      do 4 erewrite if_false
-        by (apply/eqP; intros Hcontra; inversion Hcontra; by subst).
-      reflexivity.
+     unfold eq_op; simpl. rewrite eq_refl; auto.
+     unfold eq_op; simpl. rewrite eq_op_false; auto.
       rewrite Hunlift.
       destruct ord as [m pfm].
       assert (Ordinal (n:=(num_threads tp).+1) (m:=m) pfm
@@ -684,9 +914,8 @@ Module OrdinalPool (SEM:Semantics) (RES:Resources) <: ThreadPoolSig
         destruct Hcontra;
           by discriminate.
       }
-      erewrite if_false by eauto.
-      erewrite if_false by eauto.
-        by reflexivity.
+      unfold eq_op in H|-*.
+      apply negb_true_iff in H. rewrite H. auto.
     } 
     unfold p in H. simpl in H.
     apply prod_fun in H.
@@ -739,7 +968,7 @@ Module OrdinalPool (SEM:Semantics) (RES:Resources) <: ThreadPoolSig
         destruct Hcontra;
           by discriminate.
       }
-      erewrite if_false; eauto.
+     apply negb_true_iff in H. rewrite H. auto.
     }
     unfold addThread, updThreadC in *; simpl in *.
     rewrite H.
@@ -912,7 +1141,21 @@ Module OrdinalPool (SEM:Semantics) (RES:Resources) <: ThreadPoolSig
     forall tp addr pmap,
       lockRes (updLockSet tp addr pmap) addr = Some pmap.
   Proof.
-  Admitted.
+  intros.
+  unfold lockRes, updLockSet. simpl.
+  unfold AMap.find, AMap.add; simpl.
+  forget (AMap.this (lockGuts tp)) as el.
+  clear. induction el; simpl.
+  destruct (AddressOrdered.compare addr addr); address_ordered_auto.
+  destruct a.
+  destruct (AddressOrdered.compare addr a); address_ordered_auto.
+  simpl.
+  destruct (AddressOrdered.compare addr addr); address_ordered_auto.
+  simpl.
+  destruct (AddressOrdered.compare a a); address_ordered_auto.
+  simpl.
+  destruct (AddressOrdered.compare addr a); address_ordered_auto.
+Qed.
 
   Lemma gsoLockRes:
     forall tp addr addr' pmap
@@ -920,7 +1163,26 @@ Module OrdinalPool (SEM:Semantics) (RES:Resources) <: ThreadPoolSig
       lockRes (updLockSet tp addr pmap) addr' =
       lockRes tp addr'.
   Proof.
-  Admitted.
+   intros.
+  rename addr into a; rename addr' into b.
+  unfold lockRes, updLockSet. simpl. destruct tp; simpl. destruct lset0; simpl.
+  unfold AMap.find, AMap.add; simpl.
+  rename this into el.
+  induction el as [ | [c ?]].
+ simpl.
+  destruct (AddressOrdered.compare b a); address_ordered_auto.
+  simpl.
+  destruct (AddressOrdered.compare a c); simpl; address_ordered_auto.
+  destruct (AddressOrdered.compare b c); simpl; address_ordered_auto.
+  destruct (AddressOrdered.compare b a); simpl; address_ordered_auto.
+  destruct (AddressOrdered.compare c a); simpl; address_ordered_auto.
+  destruct (AddressOrdered.compare b a); simpl; address_ordered_auto.
+  pose proof (AddressOrdered.lt_trans l0 l1); address_ordered_auto.
+  destruct (AddressOrdered.compare b c); simpl; address_ordered_auto.
+  destruct (AddressOrdered.compare b c); simpl; address_ordered_auto.
+  apply IHel.
+ inv sorted; auto.
+Qed.
 
   Lemma gssLockSet:
     forall tp b ofs rmap ofs',
@@ -928,15 +1190,39 @@ Module OrdinalPool (SEM:Semantics) (RES:Resources) <: ThreadPoolSig
       (Maps.PMap.get b (lockSet (updLockSet tp (b, ofs) rmap)) ofs') =
       Some Memtype.Writable.
   Proof.
-  Admitted.
+    intros.
+    apply lockSet_spec_2 with ofs; auto.
+    red.
+   rewrite gssLockRes. reflexivity.
+Qed.
   
+  Lemma gsoLockSet_12 :
+    forall tp b b' ofs ofs' pmap,
+      ~ adr_range (b,ofs) 4 (b',ofs') -> 
+      (Maps.PMap.get b' (lockSet (updLockSet tp (b,ofs) pmap))) ofs' =
+      (Maps.PMap.get b' (lockSet tp)) ofs'.
+  Proof.
+   intros.
+   simpl in *. unfold lockSet, updLockSet. simpl.
+   unfold A2PMap, AMap.add. simpl.
+  rewrite <- !List.fold_left_rev_right.
+  match goal with |- context [fold_right ?F _ ?B] => set (f:=F) end.
+  unfold lockGuts; simpl. unfold AMap.elements; simpl.
+  forget (AMap.this (lset tp)) as el.
+  unfold AMap.Raw.elements.
+  (* THIS IS DOUBTFUL, for the same reason about overlapping locks
+    as some of the lemmas above *)
+  Admitted.
+
   Lemma gsoLockSet_1 :
     forall tp b ofs ofs'  pmap
       (Hofs: (ofs' < ofs)%Z \/ (ofs' >= ofs + (Z.of_nat lksize.LKSIZE_nat))%Z),
       (Maps.PMap.get b (lockSet (updLockSet tp (b,ofs) pmap))) ofs' =
       (Maps.PMap.get b (lockSet tp)) ofs'.
   Proof.
-  Admitted.
+    intros.
+    apply gsoLockSet_12. intros [? ?]. simpl in Hofs; omega.
+  Qed.
 
   Lemma gsoLockSet_2 :
     forall tp b b' ofs ofs' pmap,
@@ -944,8 +1230,10 @@ Module OrdinalPool (SEM:Semantics) (RES:Resources) <: ThreadPoolSig
       (Maps.PMap.get b' (lockSet (updLockSet tp (b,ofs) pmap))) ofs' =
       (Maps.PMap.get b' (lockSet tp)) ofs'.
   Proof.
-  Admitted.
-  
+    intros.
+    apply gsoLockSet_12. intros [? ?]. contradiction.
+ Qed.
+
   Lemma lockSet_updLockSet:
     forall tp i (pf: containsThread tp i) c pmap addr rmap,
       lockSet (updLockSet tp addr rmap) =
