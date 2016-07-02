@@ -5811,6 +5811,30 @@ Module SimProofs (CI: CoreInjections).
     simpl in *; subst; auto.
   Qed.
 
+  Lemma safeC_compatible:
+    forall tpc mc
+      (Hsafe: forall (U : Sch),
+          @csafe the_ge tpc mc U),
+      mem_compatible tpc mc.
+  Proof.
+    intros.
+    specialize (Hsafe [:: 0]).
+    simpl in Hsafe.
+    destruct Hsafe as [Hhalted | |];
+      [simpl in Hhalted;
+         by exfalso | |];
+      inversion Hstep; try inversion Htstep; auto;
+      simpl in *; subst; auto; try discriminate.
+    inversion HschedN; subst.
+    unfold containsThread in Htid.
+    exfalso.
+    clear - Htid.
+    destruct num_threads.
+    simpl in *.
+    apply Htid.
+    ssromega.
+  Qed.
+
   (*NOTE: violating the interface a bit, to create a super ugly proof*)
   Lemma contains_iff_num:
     forall tp tp'
@@ -6373,7 +6397,80 @@ Module SimProofs (CI: CoreInjections).
       rewrite gsoLockSet_2; auto.
       eapply (compat_ls HmemCompF); eauto.
     }
-  Qed.    
+  Qed.
+
+  Lemma mem_compatible_spawn :
+    forall (tpf : thread_pool) (mf : mem) (cf : ctl) 
+      (virtue1 virtue2 : delta_map) (f : block -> option block)
+      vf args (i : tid) (pff : containsThread tpf i)
+      (Hmax_inv: max_inv mf)
+      (HmemCompF: mem_compatible tpf mf)
+      (Hcodomain: forall b1 b2 : block, f b1 = Some b2 -> Mem.valid_block mf b2),
+      mem_compatible
+        (addThread
+           (updThread pff cf
+                      (computeMap (getThreadR pff) (projectAngel f virtue1)))
+           vf args (computeMap empty_map (projectAngel f virtue2))) mf.
+  Proof.
+    intros.
+    constructor.
+    { intros j pffj''.
+      assert (pffj' := cntAdd' _ _ _ pffj'').
+      destruct pffj' as [[pffj' Hneq] | Heq].
+      - (*case it's an old thread *)
+        erewrite gsoAddRes with (cntj := pffj') by eauto.
+        destruct (i == j) eqn:Hij; move/eqP:Hij=>Hij.
+        + subst.
+          rewrite gssThreadRes.
+          intros b2 ofs.
+          assert (Hb2: (exists b', f b' = Some b2) \/
+                       ~ (exists b', f b' = Some b2))
+            by eapply em.
+          destruct Hb2 as [Hbm | Hbu].
+          (*case b2 is mapped by f*)
+          destruct Hbm as [b1 Hfb1].
+          apply Hcodomain in Hfb1.
+          specialize (Hmax_inv _ ofs Hfb1).
+          rewrite getMaxPerm_correct.
+          rewrite Hmax_inv.
+          simpl.
+          destruct ((computeMap (getThreadR pff) (projectAngel f virtue1)) # b2 ofs);
+            constructor.
+          erewrite computeMap_projection_2 by eauto.
+          eapply HmemCompF.
+        + rewrite gsoThreadRes; auto.
+          eapply HmemCompF.
+      - (*case it's the new thread*)
+        subst.
+        erewrite gssAddRes; eauto.
+        intros b2 ofs.
+        assert (Hb2: (exists b', f b' = Some b2) \/
+                     ~ (exists b', f b' = Some b2))
+          by eapply em.
+        destruct Hb2 as [Hbm | Hbu].
+        (*case b2 is mapped by f*)
+        destruct Hbm as [b1 Hfb1].
+        apply Hcodomain in Hfb1.
+        specialize (Hmax_inv _ ofs Hfb1).
+        rewrite getMaxPerm_correct.
+        rewrite Hmax_inv.
+        simpl.
+        destruct ((computeMap empty_map (projectAngel f virtue2)) # b2 ofs);
+          constructor.
+        erewrite computeMap_projection_2 by eauto.
+        rewrite empty_map_spec.
+        destruct ((getMaxPerm mf) # b2 ofs); simpl; auto.
+    }
+    { intros (bl', ofsl') rmap Hres.
+      rewrite gsoAddLPool in Hres.
+      rewrite gsoThreadLPool in Hres.
+      eapply HmemCompF; eauto.
+    }
+    { rewrite gsoAddLock.
+      rewrite gsoThreadLock.
+      eapply (compat_ls HmemCompF).
+    }
+  Qed.
   
   Lemma sim_external: sim_external_def.
   Proof.
@@ -6418,7 +6515,7 @@ Module SimProofs (CI: CoreInjections).
       by (eapply external_step_inverse; eauto).
     (*TODO: we must deduce that fact from safety of coarse-grained machine*)
     assert (HmemCompC': mem_compatible tpc' mc')
-      by admit.
+      by (eapply safeC_compatible; eauto).
     (*domain of f*)
     assert (Hdomain_f: domain_memren (fp i pfc) mc)
       by (apply (weak_obs_eq_domain_ren (HsimWeak _ pfc pff))).
@@ -7682,9 +7779,9 @@ Module SimProofs (CI: CoreInjections).
                                       (computeMap (getThreadR pfc) virtue1)) vf arg
                            (computeMap empty_map virtue2)))
         by  (eapply safeC_invariant; eauto).
-      (*TODO: by maxinv*)
       assert (HmemCompF'' : mem_compatible tpf' mf)
-        by admit.
+        by (pose proof (codomain_valid (weak_obs_eq (obs_eq Htsim))); subst;
+            eapply mem_compatible_spawn; eauto).
       subst.
       assert (Hnum: num_threads tpc = num_threads tpf)
           by (eapply contains_iff_num; eauto).
@@ -8278,8 +8375,66 @@ Module SimProofs (CI: CoreInjections).
       assert (HmaxF': max_inv mf')
         by (eapply max_inv_store; eauto).
       (*TODO: lemma : max_inv implies compatible*)
-      assert (HmemCompF'' : mem_compatible tpf'' mf')
-        by admit.
+      assert (HmemCompF'': mem_compatible tpf'' mf').
+      { subst.
+        clear - HmemCompF HmaxF' Hf Hmem_obs_eq Hvalidb2 HstoreF.
+        constructor.
+        - intros.
+          rewrite gLockSetRes.
+          destruct (i == tid) eqn:Heq; move/eqP:Heq=>Heq.
+          + subst. rewrite gssThreadRes.
+            intros b' ofs'.
+            destruct (Pos.eq_dec b2 b').
+            * subst.
+              assert (Hvalidb2' := Mem.store_valid_block_1 _ _ _ _ _ _
+                                                           HstoreF b' Hvalidb2).
+              specialize (HmaxF' _ ofs' Hvalidb2').
+              rewrite getMaxPerm_correct.
+              rewrite HmaxF'.
+              destruct ((setPermBlock (Some Nonempty) b' (Int.intval ofs) 
+                                      (getThreadR pff) lksize.LKSIZE_nat) # b' ofs');
+                simpl; constructor.
+            * rewrite setPermBlock_other_2; auto.
+              erewrite <- mem_store_max by eauto.
+              rewrite getMax_restr.
+              eapply HmemCompF.
+          + intros b' ofs'.
+            erewrite <- mem_store_max by eauto.
+            rewrite getMax_restr.
+            rewrite gsoThreadRes; auto.
+            eapply HmemCompF.
+        - intros l rmap Hres.
+          destruct (EqDec_address (b2, Int.intval ofs) l).
+          + inversion e; subst.
+            rewrite gsslockResUpdLock in Hres.
+            inversion Hres.
+            intros b' ofs'.
+            rewrite empty_map_spec.
+            destruct ((getMaxPerm mf') # b' ofs'); simpl; auto.
+          + rewrite gsolockResUpdLock in Hres.
+            intros b' ofs'.
+            erewrite <- mem_store_max by eauto.
+            rewrite gsoThreadLPool in Hres.
+            rewrite getMax_restr.
+            eapply (compat_lp HmemCompF); eauto.
+        - intros b' ofs'.
+          destruct (Pos.eq_dec b2 b').
+          * subst.
+            assert (Hvalidb2' := Mem.store_valid_block_1 _ _ _ _ _ _
+                                                         HstoreF b' Hvalidb2).
+            specialize (HmaxF' _ ofs' Hvalidb2').
+            rewrite getMaxPerm_correct.
+            rewrite HmaxF'.
+            simpl.
+            match goal with
+              [|- match ?Expr with _ => _ end] => destruct Expr
+            end; constructor.
+            rewrite gsoLockSet_2; auto.
+            rewrite gsoThreadLock.
+            erewrite <- mem_store_max by eauto.
+            rewrite getMax_restr.
+            eapply (compat_ls HmemCompF).
+      }
       subst.
       eapply Build_sim with (mem_compc := HmemCompC') (mem_compf := HmemCompF'').
       - (* containsThread *)
@@ -9075,8 +9230,7 @@ Module SimProofs (CI: CoreInjections).
           do 2 rewrite remLock_updThread_comm.
           eapply updThread_internal_execution; eauto.
           eapply remLock_internal_execution; eauto.
-          (*mem_compatible_remlock*)
-          admit.
+          apply mem_compatible_remlock; auto.      
           split.
           (* strong_tsim *)
           intros.

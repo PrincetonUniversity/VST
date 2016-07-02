@@ -375,7 +375,69 @@ Proof.
     by eauto.
 Qed.
 
-(** Well-definedeness is preserved through storing a well-defined value *)
+Lemma ofs_val_lt :
+  forall ofs chunk v,
+    ofs < ofs + Z.of_nat (length (encode_val chunk v)).
+Proof.
+  destruct chunk, v; simpl; try omega;
+  rewrite length_inj_bytes encode_int_length;
+  simpl; omega.
+Qed.
+
+Lemma inj_bytes_type:
+  forall bs mv,
+    In mv (inj_bytes bs) ->
+    match mv with
+    | Byte _ => True
+    | _ => False
+    end.
+Proof.
+  induction bs; intros; simpl in *;
+  first  by exfalso.
+  destruct H.
+  rewrite <- H; auto.
+  eapply IHbs; eauto.
+Qed.
+
+Lemma valid_val_encode:
+  forall v m chunk
+    (Hval_wd: mem_wd.val_valid v m),
+  forall v',
+    List.In v' (encode_val chunk v) ->
+    match v' with
+    | Undef => True
+    | Byte _ => True
+    | Fragment v'' _ _ =>
+      mem_wd.val_valid v'' m
+    end.
+Proof.
+  intros.
+  destruct v'; auto.
+  destruct v, chunk; simpl in *;
+  repeat (match goal with
+          | [H: _ \/ _ |- _] =>
+            destruct H
+          | [H: False |- _] =>
+              by exfalso
+          | [H: _ = _ |- _] =>
+            inversion H; subst; clear H
+          end); simpl; auto;
+  apply inj_bytes_type in H;
+    by exfalso.
+Qed.
+
+Lemma valid_val_store:
+  forall v m m' chunk b ofs v'
+    (Hvalid: mem_wd.val_valid v m)
+    (Hstore: Mem.store chunk m b ofs v' = Some m'),
+    mem_wd.val_valid v m'.
+Proof.
+  intros.
+  destruct v; simpl; auto.
+  eapply Mem.store_valid_block_1; eauto.
+Qed.
+
+(** Well-definedeness is preserved through storing of a well-defined value *)
 Lemma store_wd:
   forall m m' chunk b ofs v
     (Hstore: Mem.store chunk m b ofs v = Some m')
@@ -383,45 +445,37 @@ Lemma store_wd:
     (Hmem_wd: valid_mem m),
     valid_mem m'.
 Proof.
-Admitted.
-(*intros.
-            intros b' Hvalid' ofs' mv' Hget.
-            assert (Hvalid := Mem.store_valid_access_3 _ _ _ _ _ _ Hstore).
-            eapply Mem.valid_access_implies with (p2 := Nonempty) in Hvalid;
-              try constructor.
-            eapply Mem.valid_access_valid_block in Hvalid.
-            destruct mv'; auto.
-            assert (Hcontents := Mem.store_mem_contents _ _ _ _ _ _ Hstore).
-            rewrite Hcontents in Hget. clear Hcontents.
-            destruct (Pos.eq_dec b b') as [Heq | Hneq].
-            (*case it's the same block*)
-            subst.
-            rewrite Maps.PMap.gss in Hget.
-            destruct v, chunk; simpl in *. Focus 3.
-            try match goal with
-                | [H: Maps.ZMap.get ?Ofs (Maps.ZMap.set ?Ofs' _ _) = _ |- _] =>
-                  destruct (Z.eq_dec Ofs Ofs'); subst
-                end;
-            try match goal with
-                | [H: Maps.ZMap.get ?Ofs (Maps.ZMap.set ?Ofs _ _) = _ |- _] =>
-                  rewrite Maps.ZMap.gss in H
-                | [H: Maps.ZMap.get ?Ofs (Maps.ZMap.set ?Ofs' _ _) = _,
-                      H1: ?Ofs <> ?Ofs' |- _] =>
-                  rewrite Maps.ZMap.gso in H; auto
-                end;
-            try discriminate;
-            unfold mem_wd.val_valid;
-            destruct v0; auto;
-            try (specialize (Hmem_wd b' Hvalid ofs' _ Hget);
-                  simpl in Hmem_wd);
-            try (by (eapply Mem.store_valid_block_1; eauto)).
-            try match goal with
-                | [H: Maps.ZMap.get ?ofS (Maps.ZMap.set ?Ofs _ _) = _ |- _] =>
-                  destruct (Z.eq_dec ofs' Ofs); subst
-                end.
-            
-            try rewrite Maps.ZMap.gss in Hget;
-            try discriminate. *)
+  intros.
+  unfold valid_mem in *.
+  intros b0 Hvalid ofs0 mv Hget.
+  eapply Mem.store_valid_block_2 in Hvalid; eauto.
+  rewrite (Mem.store_mem_contents _ _ _ _ _ _ Hstore) in Hget.
+  destruct (Pos.eq_dec b b0) as [Heq | Hneq].
+  - (*case it's the same block*)
+    subst.
+    rewrite Maps.PMap.gss.
+    destruct (Intv.In_dec ofs0
+                          (ofs,
+                           (ofs + Z.of_nat (length (encode_val chunk v)))%Z)).
+
+    + apply Mem.setN_in with (c:= (Mem.mem_contents m) # b0) in i.
+      apply valid_val_encode with (m := m) in i; auto.
+      destruct (ZMap.get ofs0
+                       (Mem.setN (encode_val chunk v) ofs (Mem.mem_contents m) # b0));
+        simpl; auto.
+      eapply valid_val_store; eauto.
+    + apply Intv.range_notin in n.
+      erewrite Mem.setN_outside by eauto.
+      specialize (Hmem_wd _ Hvalid ofs0 _ ltac:(reflexivity)).
+      destruct (ZMap.get ofs0 (Mem.mem_contents m) # b0); auto.
+      eapply valid_val_store; eauto.
+      simpl.
+      apply ofs_val_lt.
+  - erewrite Maps.PMap.gso in Hget by eauto.
+    specialize (Hmem_wd _ Hvalid ofs0 _ ltac:(reflexivity)).
+    destruct (ZMap.get ofs0 (Mem.mem_contents m) # b0); subst; auto.
+    eapply valid_val_store; eauto.
+Qed.
 
 End MemoryWD.
 
@@ -566,6 +620,20 @@ Module MemoryLemmas.
     destruct (Mem.valid_access_dec m chunk b ofs Writable); try discriminate.
     inversion H; subst.
     rewrite getMaxPerm_correct.
+    reflexivity.
+  Qed.
+
+  Lemma mem_store_cur:
+    forall chunk b ofs v m m',
+      Mem.store chunk m b ofs v = Some m' ->
+      forall b' ofs',
+        (getCurPerm m) # b' ofs' = (getCurPerm m') # b' ofs'.
+  Proof.
+    intros.
+    unfold Mem.store in *.
+    destruct (Mem.valid_access_dec m chunk b ofs Writable); try discriminate.
+    inversion H; subst.
+    rewrite getCurPerm_correct.
     reflexivity.
   Qed.
   
@@ -1617,14 +1685,6 @@ Qed.
       by auto.
   Qed.
 
-  (* Don't really care about this right now*)
-  (* Lemma mem_inj_dillute: *)
-  (*   forall mc mf f, *)
-  (*     Mem.mem_inj f mc mf -> *)
-  (*     Mem.mem_inj f mc (makeCurMax mf). *)
-  (* Admitted. *)
-
-
   (* Proof as in compcert*)
   Lemma proj_bytes_obs:
     forall (f : memren) (vl vl' : seq memval),
@@ -1836,12 +1896,44 @@ Qed.
   Qed.
   
   (** ** Lemmas about [Mem.store] and [mem_obs_eq]*)
-  (*TODO: The proof*)
+
+  Lemma encode_val_obs_eq:
+    forall (f : memren) (v1 v2 : val) (chunk : memory_chunk),
+      val_obs f v1 v2 ->
+      list_forall2 (memval_obs_eq f) (encode_val chunk v1)
+                   (encode_val chunk v2).
+  Proof.
+    intros.
+    destruct v1; inversion H; subst; destruct chunk;
+    simpl; repeat constructor; auto.
+  Qed.
+
+  Lemma setN_obs_eq :
+    forall (access : Z -> Prop) (f : memren) (vl1 vl2 : seq memval),
+      list_forall2 (memval_obs_eq f) vl1 vl2 ->
+      forall (p : Z) (c1 c2 : ZMap.t memval),
+        (forall q : Z,
+            access q ->
+            memval_obs_eq f (ZMap.get q c1) (ZMap.get q c2)) ->
+        forall q : Z,
+          access q ->
+          memval_obs_eq f (ZMap.get q (Mem.setN vl1 p c1))
+                        (ZMap.get q (Mem.setN vl2 p c2)).
+  Proof.
+    induction 1; intros; simpl.
+    auto.
+    apply IHlist_forall2; auto.
+    intros. erewrite ZMap.gsspec at 1. destruct (ZIndexed.eq q0 p). subst q0.
+    rewrite ZMap.gss. auto.
+    rewrite ZMap.gso. auto. unfold ZIndexed.t in *. omega.
+  Qed.
   
+  (** Storing related values on related memories results in related memories*)
+  Transparent Mem.store.
   Lemma store_val_obs:
     forall (mc mc' mf : mem) (f:memren)
       (b1 b2 : block) chunk (ofs: Z) v1 v2
-      (Hload: Mem.store chunk mc b1 ofs v1 = Some mc')
+      (Hstore: Mem.store chunk mc b1 ofs v1 = Some mc')
       (Hf: f b1 = Some b2)
       (Hval_obs_eq: val_obs f v1 v2)
       (Hobs_eq: mem_obs_eq f mc mf),
@@ -1849,12 +1941,78 @@ Qed.
       Mem.store chunk mf b2 ofs v2 = Some mf' /\
       mem_obs_eq f mc' mf'.
   Proof.
-  Admitted.
+    intros.
+    pose proof (strong_obs_eq Hobs_eq) as Hstrong_obs_eq.
+    assert (HvalidF: Mem.valid_access mf chunk b2 ofs Writable).
+      by (eapply valid_access_obs_eq; eauto with mem).
+    destruct (Mem.valid_access_store _ _ _ _ v2 HvalidF) as [mf' HstoreF].
+    exists mf'; split. auto.
+    constructor.
+    { pose proof (weak_obs_eq Hobs_eq).
+      inversion H.
+      constructor; simpl; auto; intros.
+      eapply domain_invalid0. intro Hcontra.
+      eapply Mem.store_valid_block_1 in Hcontra; eauto.
+      eapply Mem.store_valid_block_2 in H0; eauto.
+      eapply Mem.store_valid_block_1; eauto.
+      assert (H1 := mem_store_cur _ _ _ _ _ Hstore b0 ofs0).
+      assert (H2 := mem_store_cur _ _ _ _ _ HstoreF b3 ofs0).
+      do 2 rewrite getCurPerm_correct in H1.
+      do 2 rewrite getCurPerm_correct in H2.
+      rewrite <- H1.
+      rewrite <- H2.
+      eauto.
+    }
+    { destruct Hstrong_obs_eq.
+      constructor.
+      - intros.
+        assert (H1 := mem_store_cur _ _ _ _ _ Hstore b0 ofs0).
+        assert (H2 := mem_store_cur _ _ _ _ _ HstoreF b3 ofs0).
+        do 2 rewrite getCurPerm_correct in H1.
+        do 2 rewrite getCurPerm_correct in H2.
+        rewrite <- H1.
+        rewrite <- H2.
+        eauto.
+      - intros.
+        eapply Mem.perm_store_2 in Hperm; eauto.
+        rewrite (Mem.store_mem_contents _ _ _ _ _ _ Hstore).
+        rewrite (Mem.store_mem_contents _ _ _ _ _ _ HstoreF).
+        clear Hstore HstoreF.
+        destruct (Pos.eq_dec b1 b0).
+        + subst.
+          assert (b2 = b3)
+            by (rewrite Hrenaming in Hf; inversion Hf; subst; auto).
+          subst b3.
+          do 2 rewrite Maps.PMap.gss.
+          destruct (Intv.In_dec ofs0
+                                (ofs,
+                                 (ofs + Z.of_nat (length (encode_val chunk v1)))%Z)).
+          * apply setN_obs_eq with
+            (access := fun ofs => Mem.perm mc b0 ofs Cur Readable); auto.
+            eapply encode_val_obs_eq; eauto.            
+          * apply Intv.range_notin in n.
+            simpl in n.
+            erewrite Mem.setN_outside by eauto.
+            apply encode_val_obs_eq with (chunk := chunk) in Hval_obs_eq.
+            apply list_forall2_length in Hval_obs_eq. rewrite Hval_obs_eq in n.
+            erewrite Mem.setN_outside by eauto.
+            eauto.
+            clear.
+            destruct chunk, v1; simpl; try omega;
+            rewrite length_inj_bytes encode_int_length;
+            simpl; omega.
+        + rewrite Maps.PMap.gso; auto.
+          rewrite Maps.PMap.gso; auto.
+          intros Hcontra. subst.
+          pose proof (injective (weak_obs_eq Hobs_eq)).
+          specialize (H _ _ _ Hrenaming Hf). auto.
+  Qed.
+  Opaque Mem.store.
 
   Lemma storev_val_obs:
     forall (mc mc' mf : mem) (f:memren)
       (vptr1 vptr2: val) chunk v1 v2
-      (Hload: Mem.storev chunk mc vptr1 v1 = Some mc')
+      (Hstore: Mem.storev chunk mc vptr1 v1 = Some mc')
       (Hf: val_obs f vptr1 vptr2)
       (Hval_obs_eq: val_obs f v1 v2)
       (Hobs_eq: mem_obs_eq f mc mf),
@@ -1862,8 +2020,13 @@ Qed.
       Mem.storev chunk mf vptr2 v2 = Some mf' /\
       mem_obs_eq f mc' mf'.
   Proof.
-  Admitted.
-  
+    intros.
+    unfold Mem.storev in *.
+    destruct vptr1; try discriminate.
+    inversion Hf; subst.
+    eapply store_val_obs in Hstore; eauto.
+  Qed.
+    
   Lemma mem_obs_eq_storeF:
     forall f mc mf mf' chunk b ofs v pmap pmap2
       (Hlt: permMapLt pmap (getMaxPerm mf))
@@ -1914,7 +2077,6 @@ Qed.
       by eauto.
     simpl;
       by auto.
- 
   Qed.
 
   Lemma alloc_perm_eq:

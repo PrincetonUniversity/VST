@@ -567,6 +567,156 @@ Module Concur.
            inversion dinv. eapply lock_res_set; eassumption.
        Qed.
 
+       (** Similar states are the ones that are identical for
+       everything but permissions. *)
+       Inductive similar_mem m m' :=
+       | SimilarMem : Mem.mem_contents m = Mem.mem_contents m' ->
+                      Mem.nextblock m = Mem.nextblock m' ->
+                      similar_mem m m'.
+
+       Inductive similar_threadPool tp tp' :=
+       | SimilarPool :
+           num_threads tp = num_threads tp' ->
+           (forall i (cnti: containsThread tp i) (cnti': containsThread tp' i),
+               getThreadC cnti = getThreadC cnti') ->
+           similar_threadPool tp tp'.
+
+       Lemma similar_updLockSet:
+         forall tp tp' addr addr' rmap rmap',
+           similar_threadPool tp tp' ->
+           similar_threadPool (updLockSet tp addr rmap)
+                              (updLockSet tp' addr' rmap').
+       Proof.
+         intros.
+         inversion H.
+         constructor; auto.
+       Qed.
+       
+       Lemma similar_updThread:
+         forall tp tp' i (cnti: containsThread tp i)
+           (cnti': containsThread tp' i) c pmap pmap',
+           similar_threadPool tp tp' ->
+           similar_threadPool (updThread cnti c pmap) (updThread cnti' c pmap').
+       Proof.
+         intros.
+         inversion H.
+         constructor; auto.
+         intros.
+         destruct (i0 == i) eqn:Heq; move/eqP:Heq=>Heq.
+         subst. do 2 rewrite gssThreadCode; auto.
+         rewrite gsoThreadCode; auto.
+         rewrite gsoThreadCode; auto.
+       Qed.
+
+       Lemma similar_addThread:
+         forall tp tp' i (cnti: containsThread tp i)
+           (cnti': containsThread tp' i) v arg pmap pmap',
+           similar_threadPool tp tp' ->
+           similar_threadPool (addThread tp v arg pmap) (addThread tp' v arg pmap').
+       Proof.
+         intros.
+         inversion H.
+         constructor.
+         unfold addThread; simpl. rewrite H0; auto.
+         intros.
+         assert (cnti00 := cntAdd' cnti0).
+         assert (cnti0'0 := cntAdd' cnti'0).
+         destruct cnti00 as [[cnti00 ?] | Heq];
+           destruct cnti0'0 as [[cnti0'0 ?] | ?].
+         - erewrite gsoAddCode with (cntj := cnti00) by eauto.
+           erewrite gsoAddCode with (cntj := cnti0'0) by eauto.
+           eauto.
+         - exfalso; subst; apply H2.
+           destruct (num_threads tp), (num_threads tp'); simpl; inversion H0; auto.
+         - exfalso; subst; apply H2.
+           destruct (num_threads tp), (num_threads tp'); simpl; inversion H0; auto.
+         - subst. erewrite gssAddCode by eauto.
+           erewrite gssAddCode; eauto.
+       Qed.
+       
+       Lemma similar_remLockSet:
+         forall tp tp' addr addr',
+           similar_threadPool tp tp' ->
+           similar_threadPool (remLockSet tp addr)
+                              (remLockSet tp' addr').
+       Proof.
+         intros.
+         inversion H.
+         constructor; auto.
+       Qed.
+
+       Lemma mem_load_similar:
+         forall chunk m m' b ofs pmap pmap' v v'
+           (Hlt: permMapLt pmap (getMaxPerm m))
+           (Hlt': permMapLt pmap' (getMaxPerm m'))
+           (Hload: Mem.load chunk (restrPermMap Hlt) b ofs = Some v)
+           (Hload': Mem.load chunk (restrPermMap Hlt') b ofs = Some v')
+           (Hsimilar: similar_mem m m'),
+           v = v'.
+       Proof.
+         intros.
+         inversion Hsimilar.
+         apply Mem.load_result in Hload.
+         apply Mem.load_result in Hload'.
+         simpl in *.
+         rewrite H in Hload. subst; auto.
+       Qed.
+
+       Lemma mem_store_similar:
+         forall chunk m m' b ofs pmap pmap' v m2 m2'
+           (Hlt: permMapLt pmap (getMaxPerm m))
+           (Hlt': permMapLt pmap' (getMaxPerm m'))
+           (Hstore: Mem.store chunk (restrPermMap Hlt) b ofs v = Some m2)
+           (Hstore': Mem.store chunk (restrPermMap Hlt') b ofs v = Some m2')
+           (Hsimilar: similar_mem m m'),
+           similar_mem m2 m2'.
+       Proof.
+         intros.
+         inversion Hsimilar.
+         constructor.
+         erewrite Mem.store_mem_contents by eauto.
+         erewrite Mem.store_mem_contents with (m2 := m2') by eauto.
+         simpl. rewrite H; auto.
+         apply Mem.nextblock_store in Hstore.
+         apply Mem.nextblock_store in Hstore'.
+         simpl in *.
+         rewrite Hstore Hstore' H0; auto.
+       Qed.
+       
+       Hint Resolve similar_updLockSet similar_updThread
+            similar_addThread similar_remLockSet mem_store_similar: similar.
+
+       (** Synchronization steps from similar states reach similar states*)
+       Lemma syncStep_value_det:
+         forall ge tp1 tp1' m1 m1' tp2 m2 tp2' m2' i
+           (cnti: containsThread tp1 i)
+           (cnti': containsThread tp1' i)
+           (HsimilarPool: similar_threadPool tp1 tp1')
+           (HsimilarMem: similar_mem m1 m1')
+           (Hcomp1: mem_compatible tp1 m1)
+           (Hcomp1': mem_compatible tp1' m1')
+           (Hstep1: syncStep ge cnti Hcomp1 tp2 m2)
+           (Hstep1': syncStep ge cnti' Hcomp1' tp2' m2'),
+           similar_threadPool tp2 tp2' /\ similar_mem m2 m2'.
+       Proof with eauto with similar.
+         intros.
+         inversion HsimilarPool.
+         inversion Hstep1; subst;
+         inversion Hstep1'; subst;
+         specialize (H0 _ cnti cnti');
+         rewrite H0 in Hcode;
+         rewrite Hcode in Hcode0;
+         inversion Hcode0; subst;
+         rewrite Hat_external in Hat_external0;
+         inversion Hat_external0; subst; split;
+         try match goal with
+             | [H1: Mem.load _ _ _ _ = Some ?V1,
+                    H2: Mem.load _ _ _ _ = Some ?V2 |- _] =>
+               assert (Heq := mem_load_similar _ _ _ _ _ H1 H2 HsimilarMem)
+             end; try discriminate;
+         eauto with similar.
+       Qed.
+       
      End DryMachineLemmas.
      
   End DryMachineShell.
@@ -585,92 +735,3 @@ Module Concur.
     myFineSemantics.MachineSemantics.*)
   
 End Concur.
-
-
-
-(* After this there needs to be some cleaning. *)
-
-
-
-
-
-
-
-
-
-
-(* Section InitialCore. *)
-
-(*   Context {cT G : Type} {the_sem : CoreSemantics G cT Mem.mem}. *)
-(*   Import ThreadPool. *)
-
-  
-(*   Notation thread_pool := (t cT). *)
-(*   Notation perm_map := access_map. *)
-  
-(*   Definition at_external (st : (list nat) * thread_pool) *)
-(*   : option (external_function * signature * seq val) := None. *)
-
-(*   Definition after_external (ov : option val) (st : list nat * thread_pool) : *)
-(*     option (list nat * thread_pool) := None. *)
-
-(*   Definition two_pos : pos := mkPos NPeano.Nat.lt_0_2. *)
-  
-(*   Definition ord1 := Ordinal (n := two_pos) (m := 1) (leqnn two_pos). *)
-
-(*   (*not clear what the value of halted should be*) *)
-(*   Definition halted (st : list nat * thread_pool) : option val := None. *)
-
-(*   Variable compute_init_perm : G -> access_map. *)
-(*   Variable lp_code : cT. *)
-(*   Variable sched : list nat. *)
-
-(*   Definition initial_core the_ge (f : val) (args : list val) : option (list nat * thread_pool) := *)
-(*     match initial_core the_sem the_ge f args with *)
-(*       | None => None *)
-(*       | Some c => *)
-(*         Some (sched, ThreadPool.mk *)
-(*                        two_pos *)
-(*                        (fun tid => if tid == ord0 then lp_code *)
-(*                                 else if tid == ord1 then c *)
-(*                                      else c (*bogus value; can't occur*)) *)
-(*                        (fun tid => if tid == ord0 then empty_map else *)
-(*                                   if tid == ord1 then compute_init_perm the_ge *)
-(*                                   else empty_map) *)
-(*                        0) *)
-(*     end. *)
-
-(*   Variable aggelos : nat -> access_map. *)
-
-(*   Definition cstep (the_ge : G) (st : list nat * thread_pool) m *)
-(*              (st' : list nat * thread_pool) m' := *)
-(*     @step cT G the_sem the_ge aggelos (@coarse_step cT G the_sem the_ge) *)
-(*           (fst st) (snd st) m (fst st') (snd st') m'. *)
-
-(*   Definition fstep (the_ge : G) (st : list nat * thread_pool) m *)
-(*              (st' : list nat * thread_pool) m' := *)
-(*     @step cT G the_sem the_ge aggelos (@fine_step cT G the_sem the_ge) *)
-(*           (fst st) (snd st) m (fst st') (snd st') m'. *)
-  
-(*   Program Definition coarse_semantics : *)
-(*     CoreSemantics G (list nat * thread_pool) mem := *)
-(*     Build_CoreSemantics _ _ _ *)
-(*                         initial_core *)
-(*                         at_external *)
-(*                         after_external *)
-(*                         halted *)
-(*                         cstep *)
-(*                         _ _ _. *)
-
-(*   Program Definition fine_semantics : *)
-(*     CoreSemantics G (list nat * thread_pool) mem := *)
-(*     Build_CoreSemantics _ _ _ *)
-(*                         initial_core *)
-(*                         at_external *)                                          
-(*                         after_external *)
-(*                         halted *)
-(*                         fstep *)
-(*                         _ _ _. *)
-
-(* End InitialCore. *)
-(* End Concur. *)
