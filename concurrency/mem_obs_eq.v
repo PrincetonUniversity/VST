@@ -1850,7 +1850,39 @@ Qed.
   Qed.
   
   (** ** Lemmas about [Mem.store] and [mem_obs_eq]*)
-  (*TODO: The proof*)
+
+  Lemma encode_val_obs_eq:
+    forall (f : memren) (v1 v2 : val) (chunk : memory_chunk),
+      val_obs f v1 v2 ->
+      list_forall2 (memval_obs_eq f) (encode_val chunk v1)
+                   (encode_val chunk v2).
+  Proof.
+    intros.
+    destruct v1; inversion H; subst; destruct chunk;
+    simpl; repeat constructor; auto.
+  Qed.
+
+  Lemma setN_obs_eq :
+    forall (access : Z -> Prop) (f : memren) (vl1 vl2 : seq memval),
+      list_forall2 (memval_obs_eq f) vl1 vl2 ->
+      forall (p : Z) (c1 c2 : ZMap.t memval),
+        (forall q : Z,
+            access q ->
+            memval_obs_eq f (ZMap.get q c1) (ZMap.get q c2)) ->
+        forall q : Z,
+          access q ->
+          memval_obs_eq f (ZMap.get q (Mem.setN vl1 p c1))
+                        (ZMap.get q (Mem.setN vl2 p c2)).
+  Proof.
+    induction 1; intros; simpl.
+    auto.
+    apply IHlist_forall2; auto.
+    intros. erewrite ZMap.gsspec at 1. destruct (ZIndexed.eq q0 p). subst q0.
+    rewrite ZMap.gss. auto.
+    rewrite ZMap.gso. auto. unfold ZIndexed.t in *. omega.
+  Qed.
+  
+  (** Storing related values on related memories results in related memories*)
   Transparent Mem.store.
   Lemma store_val_obs:
     forall (mc mc' mf : mem) (f:memren)
@@ -1897,11 +1929,9 @@ Qed.
         eauto.
       - intros.
         eapply Mem.perm_store_2 in Hperm; eauto.
-        unfold Mem.store in Hstore, HstoreF.
-        destruct (Mem.valid_access_dec mf chunk b2 ofs Writable); try discriminate.
-        destruct (Mem.valid_access_dec mc chunk b1 ofs Writable); try discriminate.
-        inversion HstoreF; inversion Hstore; simpl in *.
-        clear Hstore HstoreF H0 H1.
+        rewrite (Mem.store_mem_contents _ _ _ _ _ _ Hstore).
+        rewrite (Mem.store_mem_contents _ _ _ _ _ _ HstoreF).
+        clear Hstore HstoreF.
         destruct (Pos.eq_dec b1 b0).
         + subst.
           assert (b2 = b3)
@@ -1909,38 +1939,28 @@ Qed.
           subst b3.
           do 2 rewrite Maps.PMap.gss.
           destruct (Intv.In_dec ofs0
-                             (ofs,
-                              (ofs + Z.of_nat (length (encode_val chunk v1)))%Z)).
-          admit.
-          apply Intv.range_notin in n.
-          simpl in n.
-          erewrite Mem.setN_outside by eauto.
-          
-
-          Lemma encode_val_obs_eq:
-            forall (f : memren) (v1 v2 : val) (chunk : memory_chunk),
-              val_obs f v1 v2 ->
-              list_forall2 (memval_obs_eq f) (encode_val chunk v1)
-                           (encode_val chunk v2).
-          Proof.
-            intros.
-            destruct v1; inversion H; subst; destruct chunk;
-            simpl; repeat constructor; auto.
-          Qed.
-          apply encode_val_obs_eq with (chunk := chunk) in Hval_obs_eq.
-          apply list_forall2_length in Hval_obs_eq. rewrite Hval_obs_eq in n.
-          erewrite Mem.setN_outside by eauto.
-          eauto.
-          clear.
-          destruct chunk, v1; simpl; try omega;
-          rewrite length_inj_bytes encode_int_length;
-          simpl; omega.
+                                (ofs,
+                                 (ofs + Z.of_nat (length (encode_val chunk v1)))%Z)).
+          * apply setN_obs_eq with
+            (access := fun ofs => Mem.perm mc b0 ofs Cur Readable); auto.
+            eapply encode_val_obs_eq; eauto.            
+          * apply Intv.range_notin in n.
+            simpl in n.
+            erewrite Mem.setN_outside by eauto.
+            apply encode_val_obs_eq with (chunk := chunk) in Hval_obs_eq.
+            apply list_forall2_length in Hval_obs_eq. rewrite Hval_obs_eq in n.
+            erewrite Mem.setN_outside by eauto.
+            eauto.
+            clear.
+            destruct chunk, v1; simpl; try omega;
+            rewrite length_inj_bytes encode_int_length;
+            simpl; omega.
         + rewrite Maps.PMap.gso; auto.
           rewrite Maps.PMap.gso; auto.
           intros Hcontra. subst.
           pose proof (injective (weak_obs_eq Hobs_eq)).
           specialize (H _ _ _ Hrenaming Hf). auto.
-  Admitted.
+  Qed.
   Opaque Mem.store.
 
   Lemma storev_val_obs:
@@ -2011,7 +2031,6 @@ Qed.
       by eauto.
     simpl;
       by auto.
- 
   Qed.
 
   Lemma alloc_perm_eq:
