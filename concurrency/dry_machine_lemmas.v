@@ -975,7 +975,6 @@ Module StepLemmas.
     - erewrite <- gsoAddLock with (vf := vf) (arg := arg) (p := pmap2);
         by pose proof ((compat_ls Hcomp)).
   Qed.
-
   
   Lemma mem_compatible_remlock:
     forall tp m addr
