@@ -136,6 +136,21 @@ Import Coqlib.
         (PMap.init (fun _ => None)).
     End AMap2PMap.
 
+Lemma AMap_find_map {A B} m (f : A -> B) k (x : A) :
+  AMap.find k m = Some x ->
+  AMap.find k (AMap.map f m) = Some (f x).
+Proof.
+  destruct m as [l sorted].
+  unfold AMap.Raw.t, AMap.find in *.
+  simpl.
+  clear sorted.
+  induction l as [| [addr a] l IHl]; simpl.
+  - intro. discriminate.
+  - destruct (AddressOrdered.compare k addr); intros E.
+    + discriminate.
+    + injection E as <-. eauto.
+    + eauto.
+Qed.
     
 Lemma AMap_find_map_inv {A B} m (f : A -> B) k (y : B) :
   AMap.find k (AMap.map f m) = Some y ->

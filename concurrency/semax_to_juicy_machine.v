@@ -357,7 +357,7 @@ Lemma join_all_resource_decay {tp m Phi} c' {phi' i} {cnti : Machine.containsThr
   level (JM.ThreadPool.getThreadR cnti) = S (level phi') ->
   JM.join_all tp Phi ->
   exists Phi',
-    JM.join_all (Machine.updThread cnti c' phi') Phi' /\
+    JM.join_all (JM.age_tp_to (level phi') (Machine.updThread cnti c' phi')) Phi' /\
     resource_decay (Mem.nextblock m) Phi Phi' /\
     level Phi = S (level Phi')
 .
@@ -558,6 +558,15 @@ Proof.
       admit.
 Admitted.
 
+Lemma isSome_find_map addr f lset :
+  ssrbool.isSome (AMap.find (elt:=option rmap) addr (AMap.map f lset)) = 
+  ssrbool.isSome (AMap.find (elt:=option rmap) addr lset).
+Proof.
+  match goal with |- _ ?a = _ ?b => destruct a eqn:E; destruct b eqn:F end; try reflexivity.
+  - apply AMap_find_map_inv in E. destruct E as [x []]. congruence.
+  - admit (* this should work later: apply AMap_find_map in F. destruct F as [x []]. congruence *).
+Admitted.
+
 Section Simulation.
   Variables
     (CS : compspecs)
@@ -591,12 +600,13 @@ Section Simulation.
         (safei' : forall ora : OK_ty, jsafeN Jspec' ge n ora ci' jmi')
         (Eci : Machine.getThreadC cnti = Krun ci)
         (tp' := Machine.updThread cnti (Krun ci') (m_phi jmi') : Machine.t)
-        (cm' := (m_dry jmi', ge, (i :: sch, tp')) : mem * genv * (list NatTID.tid * Machine.t)) :
+        (tp'' := JM.age_tp_to (level jmi') tp')
+        (cm' := (m_dry jmi', ge, (i :: sch, tp'')) : mem * genv * (list NatTID.tid * Machine.t)) :
     state_invariant Jspec n cm'.
   Proof.
     (* destruct stepi as [step decay]. *)
     (* destruct compat as [juice_join all_cohere loc_writable loc_set_ok]. *)
-    destruct compat as [JJ AC LW LO] eqn:Ecompat. simpl in *.
+    destruct compat as [JJ AC LW LJ JL] eqn:Ecompat. simpl in *.
     rewrite <-Ecompat in *.
     destruct (JM.JuicyMachineLemmas.compatible_threadRes_sub cnti JJ) as [EXT JEXT].
     destruct (join_all_resource_decay (Krun ci') (proj2 stepi) JJ) as [Phi' [J' [RD L]]].
@@ -607,7 +617,7 @@ Section Simulation.
       admit. (* cancellativity? or just list results *)
     }
     
-    assert (compat' : JM.mem_compatible_with tp' (m_dry jmi') Phi').
+    assert (compat' : JM.mem_compatible_with tp'' (m_dry jmi') Phi').
     {
       constructor.
       - (* join_all (proved in lemma) *)
@@ -624,6 +634,7 @@ Section Simulation.
         clear -LW stepi.
         destruct stepi as [step _]; simpl in step.
         intros b ofs IN.
+        rewrite isSome_find_map in IN.
         specialize (LW b ofs IN).
         (* the juicy memory don't help much because we care about Max
         here. There are several cases were no permission change, the
@@ -742,13 +753,22 @@ Section Simulation.
         eapply same_locks_juicyLocks_in_lockSet.
         + eapply resource_decay_same_locks.
           apply RD.
-        + simpl. assumption.
+        + simpl.
+          clear -LJ.
+          (* todo: easy lemma (aging does not change which addresses are locks in lset) *)
+          admit.
         
       - (* lockSet_in_juicyLocks *)
         eapply resource_decay_lockSet_in_juicyLocks.
         + eassumption.
-        + simpl. apply lockSet_Writable_lockSet_bound, LW.
-        + assumption.
+        + simpl.
+          apply lockSet_Writable_lockSet_bound.
+          clear -LW.
+          (* todo: easy lemma (aging does not change which addresses are locks in lset) *)
+          admit.
+        + clear -JL.
+          (* todo: easy lemma (aging does not change which addresses are locks in lset) *)
+          admit.
     }
     
     (* now that JM.mem_compatible_with is established, we move on to the
@@ -791,11 +811,13 @@ unique: ok *)
       intros i0 cnti0.
       destruct (eq_dec i i0) as [ <- | ii0].
       + unfold tp'.
-        rewrite Machine.gssThreadCode.
-        constructor.
-      + unfold tp'. 
-        rewrite (@Machine.gsoThreadCode _ _ tp ii0 cnti cnti0).
-        apply wellformed.
+        admit.
+        (* rewrite Machine.gssThreadCode. *)
+        (* constructor. *)
+      + unfold tp'.
+        admit.
+        (* rewrite (@Machine.gsoThreadCode _ _ tp ii0 cnti cnti0). *)
+        (* apply wellformed. *)
     - (* uniqueness *)
       intros notalone i0 cnti0' q ora Eci0.
       admit (* more important things first *).
@@ -907,12 +929,16 @@ unique: ok *)
         
         destruct next as (ci' & jmi' & stepi & safei').
         pose (tp' := @Machine.updThread i tp cnti (Krun ci') (m_phi jmi')).
-        pose (cm' := (m_dry jmi', ge, (i :: sch, tp'))).
+        pose (tp'' := JM.age_tp_to (level jmi') tp').
+        pose (cm' := (m_dry jmi', ge, (i :: sch, tp''))).
         exists cm'.
         split.
         
         - apply state_step_c; [].
-          apply JuicyMachine.thread_step with (tid := i) (Htid := cnti) (Hcmpt := mem_compatible_forget compat); [|]. reflexivity.
+          apply JuicyMachine.thread_step with
+          (tid := i)
+            (Htid := cnti)
+            (Hcmpt := mem_compatible_forget compat); [|]. reflexivity.
           eapply JuicyMachineShell_ClightSEM.step_juicy; [ | | | | | ].
           + reflexivity.
           + now constructor.
