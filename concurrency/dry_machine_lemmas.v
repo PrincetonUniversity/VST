@@ -976,6 +976,35 @@ Module StepLemmas.
         by pose proof ((compat_ls Hcomp)).
   Qed.
 
+  
+  Lemma mem_compatible_remlock:
+    forall tp m addr
+      (Hcomp: mem_compatible tp m),
+      mem_compatible (remLockSet tp addr) m.
+  Proof.
+    intros.
+    constructor.
+    - eapply Hcomp.
+    - intros.
+      destruct (EqDec_address addr l).
+      subst. rewrite gsslockResRemLock in H. discriminate.
+      rewrite gsolockResRemLock in H; auto.
+      eapply Hcomp; eauto.
+    - intros b' ofs'.
+      destruct addr as [b ofs].
+      destruct (Pos.eq_dec b b').
+      + subst.
+        destruct (Intv.In_dec ofs' (ofs,
+                                    (ofs + lksize.LKSIZE)%Z)).
+        rewrite gsslockSet_rem; auto.
+        destruct ((getMaxPerm m) # b' ofs'); simpl; constructor.
+        rewrite gsolockSet_rem2; auto.
+        eapply (compat_ls Hcomp).
+      + rewrite gsolockSet_rem1; auto.
+        eapply (compat_ls Hcomp).
+  Qed.
+  
+
 End StepLemmas.
 
 (** ** Definition of internal steps *)
