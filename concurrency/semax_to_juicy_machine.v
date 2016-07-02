@@ -113,13 +113,13 @@ Proof. intros []; intros. hnf. econstructor; eauto. Qed.
 *)
 
 Lemma mem_compatible_forget {tp m phi} :
-  mem_compatible_rmap tp m phi -> JM.mem_compatible tp m.
+  JM.mem_compatible_with tp m phi -> JM.mem_compatible tp m.
 Proof. intros M; exists phi. apply M. Qed.
 
 Definition jm_
   {tp m PHI i}
   (cnti : Machine.containsThread tp i)
-  (mcompat : mem_compatible_rmap tp m PHI)
+  (mcompat : JM.mem_compatible_with tp m PHI)
   : juicy_mem :=
   JM.personal_mem cnti (mem_compatible_forget mcompat).
 
@@ -146,7 +146,7 @@ Qed.
 
 (*! Invariant (= above properties + safety + uniqueness of Krun) *)
 
-Definition threads_safety {Z} (Jspec : juicy_ext_spec Z) m ge tp PHI (mcompat : mem_compatible_rmap tp m PHI) n :=
+Definition threads_safety {Z} (Jspec : juicy_ext_spec Z) m ge tp PHI (mcompat : JM.mem_compatible_with tp m PHI) n :=
   forall i (cnti : Machine.containsThread tp i) (ora : Z),
     match Machine.getThreadC cnti with
     | Krun q
@@ -172,7 +172,7 @@ Definition threads_unique_Krun tp sch :=
 Inductive state_invariant {Z} (Jspec : juicy_ext_spec Z) (n : nat) : cm_state -> Prop :=
   | state_invariant_c
       (m : mem) (ge : genv) (sch : schedule) (tp : Machine.t) (PHI : rmap)
-      (mcompat : mem_compatible_rmap tp m PHI)
+      (mcompat : JM.mem_compatible_with tp m PHI)
       (lock_coh : lock_coherence tp.(Machine.lset) PHI m)
       (safety : threads_safety Jspec m ge tp PHI mcompat n)
       (wellformed : threads_wellformed tp)
@@ -232,7 +232,7 @@ Section Initial_State.
     match goal with |- _ _ _ (_, (_, ?TP)) => set (tp := TP) end.
     
     (*! compatibility of memories *)
-    assert (compat : mem_compatible_rmap tp m (m_phi jm)).
+    assert (compat : JM.mem_compatible_with tp m (m_phi jm)).
     {
       constructor.
       + apply JM.AllJuice with (m_phi jm) None.
@@ -506,17 +506,63 @@ Proof.
   inversion LW.
 Qed.
 
+Lemma resource_decay_lock_coherence {b phi phi' lset m} :
+  resource_decay b phi phi' ->
+  lock_coherence lset phi m ->
+  lock_coherence lset phi' m.
+Proof.
+  intros [L RD] LC loc.
+  specialize (LC loc).
+  specialize (RD loc).
+  inversion LC as [wetv dryv A H H1 H2 | RI wetv IL H H1 H0 | RI phi0 wetv IL SAT H H2 H0]; subst.
+  
+  - constructor 1.
+    intros sh sh' z pp E.
+    destruct RD as [NN [R|[R|[[P [v R]]|R]]]].
+    + rewrite E in R.
+      destruct (phi @ loc); simpl in R; inversion R; subst.
+      eapply A; eauto.
+    + rewrite E in R.
+      destruct R as (?&?&?&?&?).
+      congruence.
+    + congruence.
+    + destruct R as (?&?&?&?).
+      congruence.
+  
+  - constructor 2 with (approx (level phi') RI).
+    destruct IL as (?&?&?&E).
+    rewrite E in RD.
+    destruct RD as [NN [R|[R|[[P [v R]]|R]]]]; simpl in *.
+    + rewrite <-R.
+      repeat eexists.
+    + destruct R as (?&?&?&?&?).
+      congruence.
+    + espec NN. congruence.
+    + destruct R as (?&?&?&?).
+      congruence.
+  
+  - constructor 3 with (approx (level phi') RI).
+    + destruct IL as (?&?&?&E).
+      rewrite E in RD.
+      destruct RD as [NN [R|[R|[[P [v R]]|R]]]]; simpl in *.
+      * rewrite <-R.
+        repeat eexists.
+      * destruct R as (?&?&?&?&?).
+        congruence.
+      * espec NN. congruence.
+      * destruct R as (?&?&?&?).
+        congruence.
+    + simpl.
+      split; auto.
+      (* hmm. it seems the phi0 in the lset should have been aged? *)
+      admit.
+Admitted.
 
 Section Simulation.
   Variables
     (CS : compspecs)
-    (* (V : varspecs) (G : funspecs) *)
     (ext_link : string -> ident)
-    (ext_link_inj : forall s1 s2, ext_link s1 = ext_link s2 -> s1 = s2)
-    (* (prog : program)  *)
-    (* (all_safe : semax_prog (CEspec CS ext_link) prog V G) *)
-    (* (init_mem_not_none : Genv.init_mem prog <> None) *)
-  .
+    (ext_link_inj : forall s1 s2, ext_link s1 = ext_link s2 -> s1 = s2).
 
   Definition Jspec' := (@OK_spec (Concurrent_Oracular_Espec CS ext_link)).
   
@@ -535,7 +581,7 @@ Section Simulation.
   Lemma invariant_thread_step
         {Z} (Jspec : juicy_ext_spec Z)
         n m ge i sch tp Phi ci ci' jmi'
-        (compat : mem_compatible_rmap tp m Phi)
+        (compat : JM.mem_compatible_with tp m Phi)
         (lock_coh : lock_coherence (Machine.lset tp) Phi m)
         (safety : threads_safety Jspec' m ge tp Phi compat (S n))
         (wellformed : threads_wellformed tp)
@@ -554,9 +600,14 @@ Section Simulation.
     rewrite <-Ecompat in *.
     destruct (JM.JuicyMachineLemmas.compatible_threadRes_sub cnti JJ) as [EXT JEXT].
     destruct (join_all_resource_decay (Krun ci') (proj2 stepi) JJ) as [Phi' [J' [RD L]]].
-    assert (JEXT' : sepalg.join (m_phi jmi') EXT Phi'). admit (* cancellativity *).
+    assert (JEXT' : sepalg.join (m_phi jmi') EXT Phi'). {
+      clear -JEXT J' JJ compat.
+      rewrite <- (JM.JuicyMachineLemmas.compatible_getThreadR_m_phi cnti (mem_compatible_forget compat)) in *.
+      pose proof JM.JuicyMachineLemmas.compatible_threadRes_sub cnti JJ.
+      admit. (* cancellativity? or just list results *)
+    }
     
-    assert (compat' : mem_compatible_rmap tp' (m_dry jmi') Phi').
+    assert (compat' : JM.mem_compatible_with tp' (m_dry jmi') Phi').
     {
       constructor.
       - (* join_all (proved in lemma) *)
@@ -565,7 +616,7 @@ Section Simulation.
         simpl in *.
         erewrite <- JM.JuicyMachineLemmas.compatible_getThreadR_m_phi in JEXT.
         destruct (mem_cohere_step m _ _ _ _ Phi EXT _ (ltac:(auto)) (ltac:(eauto)) stepi) as [Phi'' [J'' MC]].
-        assert (Phi'' = Phi') by admit (* cancellativity *). subst Phi''.
+        assert (Phi'' = Phi') by (eapply join_eq; eauto). subst Phi''.
         apply MC.
       
       - (* lockSet_Writable *)
@@ -699,6 +750,10 @@ Section Simulation.
         + simpl. apply lockSet_Writable_lockSet_bound, LW.
         + assumption.
     }
+    
+    (* now that JM.mem_compatible_with is established, we move on to the
+    invariant. *)
+    
 (* getting the new global phi by replacing jmi with jmi' : possible
 because resource_decay says the only new things are above nextblock.
 
@@ -717,32 +772,33 @@ wellformed: ok
 unique: ok *)
                                                                      
     (* inversion juice_join as [tp0 PhiT PhiL r JT JL J H2 H3]; subst; clear juice_join. *)
-  (*
-    destruct mem_compat_step as [Phi' compat'].
+    
     apply state_invariant_c with (PHI := Phi') (mcompat := compat').
-    + (* lock coherence: own rmap has changed, not clear how to prove it did not affect locks *)
-      (* (kind of hard) see how new PHI is built *)
+    - (* lock coherence: own rmap has changed, not clear how to prove it did not affect locks *)
+      simpl.
+      apply (resource_decay_lock_coherence RD).
+      (* now for the dry part, use the fact that the corestep didn't
+      have permissions to modify locks? *)
       admit.
-    + (* safety *)
+    - (* safety *)
       intros i0 cnti0 ora.
       destruct (eq_dec i i0).
-      * (* for this threadshould be ok, if (jm_ of new Phi) is indeed jm_i' *)
+      + (* for this threadshould be ok, if (jm_ of new Phi) is indeed jm_i' *)
         admit.
-      * (* for other threads: prove that their new personal_mem (with the new Phi'/m') still make them safe *)
+      + (* for other threads: prove that their new personal_mem (with the new Phi'/m') still make them safe *)
         admit.
-    + (* wellformedness *)
+    - (* wellformedness *)
       intros i0 cnti0.
       destruct (eq_dec i i0) as [ <- | ii0].
-      * unfold tp'.
+      + unfold tp'.
         rewrite Machine.gssThreadCode.
         constructor.
-      * unfold tp'. 
+      + unfold tp'. 
         rewrite (@Machine.gsoThreadCode _ _ tp ii0 cnti cnti0).
         apply wellformed.
-    + (* uniqueness *)
+    - (* uniqueness *)
       intros notalone i0 cnti0' q ora Eci0.
       admit (* more important things first *).
-   *)
   Admitted.
   
   Lemma state_invariant_step n :
@@ -896,7 +952,7 @@ unique: ok *)
         
         - (* maintaining the invariant *)
           match goal with |- _ _ (_, _, (_, ?tp)) => set (tp' := tp) end.
-          assert (compat' : mem_compatible_rmap tp' m Phi).
+          assert (compat' : JM.mem_compatible_with tp' m Phi).
           {
             clear safety wellformed unique.
             destruct compat as [JA MC LW LC LJ].
@@ -1281,7 +1337,7 @@ unique: ok *)
           + (* invariant is maintainted (should be the same global rmap) *)
             (*
             assert (
-                mem_compatible_rmap
+                JM.mem_compatible_with
                   (JM.ThreadPool.updLockSet
                      (JM.ThreadPool.updThread
                         cnti
