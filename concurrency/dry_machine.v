@@ -521,6 +521,52 @@ Module Concur.
                assumption.*)
        Admitted.
 
+       Lemma addThrd_inv: forall ds vf arg new_perm,
+           invariant ds ->
+           (forall i (Hi: containsThread ds i), permMapsDisjoint (getThreadR Hi) new_perm) ->
+           (permMapsDisjoint (lockSet ds) new_perm) ->
+           (forall l lmap,
+               lockRes ds l = Some lmap -> permMapsDisjoint lmap new_perm) ->
+           invariant (addThread ds vf arg new_perm).
+       Proof.
+         intros ? ? ? ? dinv AA BB CC.
+         constructor.
+         - intros i j cnti cntj ineq.
+           assert (cnti':=cnti); assert (cntj':=cntj).
+           eapply cntAdd' in cnti'.
+           eapply cntAdd' in cntj'.
+           destruct cnti' as [[cnti0 difi]| eqi]; destruct cntj' as [[cntj0 difj]| eqj].
+           + erewrite gsoAddRes with (cntj1:= cnti0); try eassumption.
+             erewrite gsoAddRes with (cntj1:= cntj0); try eassumption.
+             apply no_race; assumption. 
+           + subst j. erewrite gsoAddRes with (cntj0:= cnti0); try eassumption.
+             erewrite gssAddRes. apply AA.
+             reflexivity.
+           + subst i. erewrite gsoAddRes with (cntj1:= cntj0); try eassumption.
+             erewrite gssAddRes.
+             apply permMapsDisjoint_comm; apply AA.
+             reflexivity.
+           + subst. contradict ineq; reflexivity.
+         - intros.
+           assert (cnt':=cnt).
+           eapply cntAdd' in cnt'.
+           destruct cnt' as [[cnt0 dif]| eq].
+           + erewrite gsoAddRes with (cntj:= cnt0); try eassumption.
+             rewrite gsoAddLock.
+             apply lock_set_threads; assumption.
+           + erewrite gssAddRes; try eassumption.
+         - intros.
+           assert (cnt':=cnt).
+           eapply cntAdd' in cnt'.
+           destruct cnt' as [[cnt0 dif]| eq].
+           + erewrite gsoAddRes with (cntj:= cnt0); try eassumption.
+             inversion dinv. eapply lock_res_threads; eassumption.
+           + erewrite gssAddRes; try eassumption.
+             eapply CC; eassumption.
+         - intros. rewrite gsoAddLock.
+           inversion dinv. eapply lock_res_set; eassumption.
+       Qed.
+
      End DryMachineLemmas.
      
   End DryMachineShell.

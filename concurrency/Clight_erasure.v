@@ -1508,62 +1508,141 @@ Module ClightParching <: ErasureSig.
       pose (virtue1:= PTree.map
                        (fun (block : positive) (_ : Z -> option permission) (ofs : Z) =>
                           (inflated_delta1 (block, ofs))) (snd (getMaxPerm m')) ).
+      assert (virtue_spec1: forall b0 ofs0,
+                 (computeMap (DTP.getThreadR (MTCH_cnt MATCH Hi)) virtue1) !! b0 ofs0 =
+                 perm_of_res (phi' @ (b0, ofs0))).
+      { intros b0 ofs0.
+        destruct (virtue1 ! b0) eqn:VIRT.
+        destruct (o ofs0) eqn:O.
+        - erewrite computeMap_1; try eassumption.
+          unfold virtue1 in VIRT. rewrite PTree.gmap in VIRT.
+          destruct ((snd (getMaxPerm m')) ! b0); inversion VIRT.
+          rewrite <- H0 in O.
+          unfold inflated_delta1 in O.
+          destruct (d_phi @ (b0, ofs0)) eqn:AA;
+          try (inversion O; reflexivity).
+          destruct (Share.EqDec_share t Share.bot); inversion O.
+          reflexivity.
+        - erewrite computeMap_2; try eassumption.
+          unfold virtue1 in VIRT. rewrite PTree.gmap in VIRT.
+          destruct ((snd (getMaxPerm m')) ! b0); inversion VIRT.
+          rewrite <- H0 in O.
+          unfold inflated_delta1 in O.
+          destruct (d_phi @ (b0, ofs0)) eqn:AA;
+          try (inversion O; reflexivity).
+          destruct (Share.EqDec_share t Share.bot); inversion O.
+          subst.
+          apply resource_at_join with (loc:= (b0,ofs0)) in Hrem_fun_res.
+          rewrite AA in Hrem_fun_res.
+          apply join_NO_bot in Hrem_fun_res; rewrite Hrem_fun_res.
+          inversion MATCH.
+          symmetry.
+          apply mtch_perm.
+        - erewrite computeMap_3; try eassumption.
+             unfold virtue1 in VIRT. rewrite PTree.gmap in VIRT.
+             destruct ((snd (getMaxPerm m')) ! b0) eqn:notInMem; inversion VIRT.
+             clear VIRT.
+             assert (THE_CURE: (getMaxPerm m') !! b0 = fun _ => None).
+             { unfold PMap.get. rewrite notInMem.
+               apply Max_isCanonical.
+             }
+             assert (the_cure:= equal_f THE_CURE ofs0).
+             rewrite getMaxPerm_correct in the_cure.
+             replace ((DSEM.ThreadPool.getThreadR (MTCH_cnt MATCH Hi)) !! b0 ofs0) with
+             (perm_of_res ((JSEM.ThreadPool.getThreadR Hi)@ (b0, ofs0))).
+             + assert (Hcohere':= Hcompatible).
+               apply compatible_threadRes_cohere with (cnt:=Hi) in Hcohere'.
+               inversion Hcohere'. unfold JSEM.access_cohere' in acc_coh.
+               specialize (acc_coh (b0,ofs0)).
+               unfold max_access_at in acc_coh.
+               unfold permission_at in the_cure.
+               rewrite the_cure in acc_coh.
+               apply po_None1 in acc_coh.
+               move Hrem_fun_res at bottom.
+               apply join_comm in Hrem_fun_res.
+               apply resource_at_join with (loc:=(b0,ofs0)) in Hrem_fun_res.
+               apply join_join_sub in Hrem_fun_res.
+               assert (HH:= juicy_mem_lemmas.po_join_sub _ _ Hrem_fun_res).
+               rewrite acc_coh in HH. rewrite acc_coh.
+               apply po_None1 in HH. symmetry; assumption.
+             + inversion MATCH.  apply mtch_perm.
+      }
       pose (inflated_delta2:=fun loc => Some (perm_of_res (d_phi @ loc))).
       pose (virtue2:= PTree.map
                        (fun (block : positive) (_ : Z -> option permission) (ofs : Z) =>
                           (inflated_delta2 (block, ofs))) (snd (getMaxPerm m')) ).
+      assert (virtue_spec2: forall b0 ofs0,
+                 (computeMap empty_map virtue2) !! b0 ofs0 = (perm_of_res (d_phi @(b0, ofs0)))).
+      { intros b0 ofs0.
+        destruct (virtue2 ! b0) eqn:VIRT.
+        destruct (o ofs0) eqn:O.
+        - erewrite computeMap_1; try eassumption.
+          unfold virtue2 in VIRT. rewrite PTree.gmap in VIRT.
+          destruct ((snd (getMaxPerm m')) ! b0); inversion VIRT.
+          rewrite <- H0 in O.
+          inversion O; reflexivity.
+        - erewrite computeMap_2; try eassumption.
+          rewrite PTree.gmap in VIRT.
+          destruct ((snd (getMaxPerm m')) ! b0); inversion VIRT.
+          rewrite <- H0 in O.
+          inversion O.
+        - erewrite computeMap_3; try eassumption.
+          rewrite PTree.gmap in VIRT.
+          destruct ((snd (getMaxPerm m')) ! b0) eqn:notInMem; inversion VIRT.
+          clear VIRT.
+          assert (THE_CURE: (getMaxPerm m') !! b0 = fun _ => None).
+          { unfold PMap.get. rewrite notInMem.
+            apply Max_isCanonical.
+             }
+          assert (the_cure:= equal_f THE_CURE ofs0).
+          rewrite getMaxPerm_correct in the_cure.
+          replace ((DSEM.ThreadPool.getThreadR (MTCH_cnt MATCH Hi)) !! b0 ofs0) with
+          (perm_of_res ((JSEM.ThreadPool.getThreadR Hi)@ (b0, ofs0))).
+          + assert (Hcohere':= Hcompatible).
+            apply compatible_threadRes_cohere with (cnt:=Hi) in Hcohere'.
+            inversion Hcohere'. unfold JSEM.access_cohere' in acc_coh.
+            specialize (acc_coh (b0,ofs0)).
+            unfold max_access_at in acc_coh.
+            unfold permission_at in the_cure.
+            rewrite the_cure in acc_coh.
+            apply po_None1 in acc_coh.
+            move Hrem_fun_res at bottom.
+            apply resource_at_join with (loc:=(b0,ofs0)) in Hrem_fun_res.
+            apply join_join_sub in Hrem_fun_res.
+            assert (HH:= juicy_mem_lemmas.po_join_sub _ _ Hrem_fun_res).
+            rewrite acc_coh in HH.
+            apply po_None1 in HH. rewrite HH.
+            rewrite empty_map_spec; reflexivity.
+          + inversion MATCH.  apply mtch_perm.
+      }
       pose (ds_upd:= DTP.updThread (MTCH_cnt MATCH Hi) (Kresume c Vundef) (computeMap (DTP.getThreadR (MTCH_cnt MATCH Hi)) virtue1)).
       pose (ds':= DTP.addThread ds_upd (Vptr b ofs) arg (computeMap empty_map virtue2)).
+      
       exists ds'.
       split ;[|split].
       { (* invariant *)  
         cut (DSEM.invariant ds_upd).
         { intros HH. unfold ds'.
-          Lemma addThrd_inv: forall ds vf arg new_perm,
-              DSEM.invariant ds ->
-              (forall i (Hi: DTP.containsThread ds i), permMapsDisjoint (DTP.getThreadR Hi) new_perm) ->
-              (permMapsDisjoint (DSEM.ThreadPool.lockSet ds) new_perm) ->
-              (forall l lmap,
-                  DTP.lockRes ds l = Some lmap -> permMapsDisjoint lmap new_perm) ->
-              DSEM.invariant (DTP.addThread ds vf arg new_perm).
-          Proof.
-            intros ? ? ? ? dinv AA BB CC.
-            constructor.
-            - intros i j cnti cntj ineq.
-              assert (cnti':=cnti); assert (cntj':=cntj).
-              eapply DSEM.ThreadPool.cntAdd' in cnti'.
-              eapply DSEM.ThreadPool.cntAdd' in cntj'.
-              destruct cnti' as [[cnti0 difi]| eqi]; destruct cntj' as [[cntj0 difj]| eqj].
-              + erewrite DSEM.ThreadPool.gsoAddRes with (cntj1:= cnti0); try eassumption.
-                erewrite DSEM.ThreadPool.gsoAddRes with (cntj1:= cntj0); try eassumption.
-                inversion dinv. apply no_race. assumption.
-              + subst j. erewrite DSEM.ThreadPool.gsoAddRes with (cntj0:= cnti0); try eassumption.
-                erewrite DSEM.ThreadPool.gssAddRes. apply AA.
-                reflexivity.
-              + subst i. erewrite DSEM.ThreadPool.gsoAddRes with (cntj1:= cntj0); try eassumption.
-                erewrite DSEM.ThreadPool.gssAddRes.
-                apply permMapsDisjoint_comm; apply AA.
-                reflexivity.
-              + subst. contradict ineq; reflexivity.
-            - intros.
-              assert (cnt':=cnt).
-              eapply DSEM.ThreadPool.cntAdd' in cnt'.
-              destruct cnt' as [[cnt0 dif]| eq].
-              + erewrite DSEM.ThreadPool.gsoAddRes with (cntj:= cnt0); try eassumption.
-                inversion dinv. apply lock_set_threads.
-              + erewrite DSEM.ThreadPool.gssAddRes; try eassumption.
-            - intros.
-              assert (cnt':=cnt).
-              eapply DSEM.ThreadPool.cntAdd' in cnt'.
-              destruct cnt' as [[cnt0 dif]| eq].
-              + erewrite DSEM.ThreadPool.gsoAddRes with (cntj:= cnt0); try eassumption.
-                inversion dinv. eapply lock_res_threads; eassumption.
-              + erewrite DSEM.ThreadPool.gssAddRes; try eassumption.
-                eapply CC; eassumption.
-            - intros. rewrite DSEM.ThreadPool.gsoAddLock.
-              inversion dinv. eapply lock_res_set; eassumption.
-          Qed.
-          
+          eapply addThrd_inv.
+          - assumption.
+          - intros.
+            destruct (NatTID.eq_tid_dec i i0).
+            + subst i0.
+              rewrite DryMachine.SIG.ThreadPool.gssThreadRes.
+              apply permDisjoint_permMapsDisjoint.
+              intros b0 ofs0.
+              rewrite virtue_spec1 virtue_spec2.
+              apply joins_permDisjoint.
+              apply joins_comm.
+              apply resource_at_joins.
+              eapply join_joins.
+              eassumption.
+            + rewrite DryMachine.SIG.ThreadPool.gsoThreadRes. 2: assumption.
+              apply permDisjoint_permMapsDisjoint.
+              intros b0 ofs0.
+              rewrite virtue_spec2.
+              
+              
         admit.
         
       }
