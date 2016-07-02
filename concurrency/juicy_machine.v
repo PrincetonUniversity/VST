@@ -607,6 +607,7 @@ Module Concur.
     Definition pack_res_inv R:= SomeP nil  (fun _ => R) .
 
     Notation Kblocked := (concurrent_machine.Kblocked).
+    Open Scope Z_scope.
     Inductive syncStep' genv {tid0 tp m}
               (cnt0:containsThread tp tid0)(Hcompat:mem_compatible tp m):
       thread_pool -> mem -> Prop :=
