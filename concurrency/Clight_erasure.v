@@ -1898,12 +1898,11 @@ Module ClightParching <: ErasureSig.
           simpl in Hrem_fun_res.
           eapply join_comm; eassumption.
         - intros. rewrite virtue_spec2.
-          admit. (*This has to come from the juicy_semantics*)
+          apply JSEM.almost_empty_perm.
+          assumption.
         - reflexivity.
         - reflexivity.
-          
       }
-
     }
     
     (* step_mklock *)

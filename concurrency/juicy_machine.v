@@ -590,7 +590,26 @@ Module Concur.
         apply level_age_to.
         eapply L, IN'.
     Qed.
-    
+
+    Definition almost_empty rm: Prop:=
+      forall loc sh psh k P, rm @ loc = YES sh psh k P -> forall val, ~ k = VAL val. 
+
+    Lemma almost_empty_perm: forall rm,
+        almost_empty rm ->
+        forall loc, Mem.perm_order'' (Some Nonempty) (perm_of_res (rm @ loc)).
+    Proof.
+      intros rm H loc.
+      specialize (H loc).
+      destruct (rm @ loc) eqn:res.
+      - simpl (perm_of_res(NO t0)).
+        destruct (eq_dec t0 Share.bot); auto; constructor.
+      - destruct k;
+          try (simpl; constructor).
+        specialize (H t0 p (VAL m) p0 ltac:(reflexivity) m).
+        contradict H; reflexivity.
+      - simpl; constructor.
+    Qed.
+        
     Inductive juicy_step genv {tid0 tp m} (cnt: containsThread tp tid0)
       (Hcompatible: mem_compatible tp m) : thread_pool -> mem  -> Prop :=
     | step_juicy :
@@ -684,6 +703,7 @@ Module Concur.
                personal_mem cnt0 Hcompatible = jm)
             (Hget_fun_spec: JMem.get_fun_spec jm (b, Int.intval ofs) arg = Some (P,Q))
             (Hsat_fun_spec: P d_phi)
+            (Halmost_empty: almost_empty d_phi)
             (Hrem_fun_res: join d_phi phi' (m_phi jm))
             (Htp': tp_upd = updThread cnt0 (Kresume c Vundef) phi')
             (Htp'': tp' = addThread tp_upd vf arg d_phi),
