@@ -312,24 +312,6 @@ Module SimProofs (CI: CoreInjections).
     econstructor; eauto.
     rewrite Heqo; eauto.
   Qed.
-
-  (* Starting from a wd state -- maybe it also requires the_ge to be
-     wd, we get a new valid memory and the fact that there exists some
-     renaming whose domain is the same as the new memory and
-     additionally that the new core is well defined with respect to
-     all renamings withe same domain.  Note that we cannot say
-     anything about the codomain, i.e. that f' is an extension of f,
-     because our definitions are not strong enough.*) 
-  Hypothesis corestep_wd:
-    forall c m c' m' f
-      (Hwd: core_wd f c)
-      (Hmem_wd: valid_mem m)
-      (Hdomain: domain_memren f m)
-      (Hcorestep: corestep Sem the_ge c m c' m'),
-      valid_mem m' /\
-      (exists f', ren_domain_incr f f' /\ domain_memren f' m') /\
-      forall f', domain_memren f' m' ->
-            core_wd f' c'.
   
   (** Proofs about [internal_execution] and [internal_step] *)
   
@@ -5359,7 +5341,7 @@ Module SimProofs (CI: CoreInjections).
         rewrite gsslockResUpdLock in Hres.
         inversion Hres; subst.
         apply empty_disjoint'.
-      + rewrite gsolockResUpdLock in Hres.
+      + rewrite gsolockResUpdLock in Hres; auto.
         destruct Hinv as [_ _ Hinv _].
         destruct (i == j) eqn:Hij; move/eqP:Hij=>Hij.
         * subst. rewrite gssThreadRes.
@@ -5389,7 +5371,7 @@ Module SimProofs (CI: CoreInjections).
         rewrite gsslockResUpdLock in Hres.
         inversion Hres; subst.
         apply empty_disjoint'.
-      + rewrite gsolockResUpdLock in Hres.
+      + rewrite gsolockResUpdLock in Hres; auto.
         destruct Hinv as [_ _ Hno_race Hinv].
         intros b'' ofs''.
         specialize (Hinv _ _ Hres b'' ofs'').
@@ -5558,7 +5540,177 @@ Module SimProofs (CI: CoreInjections).
     specialize (val_obs_eq0 _ _ ofs0 Hf1 ltac:(rewrite H1; auto)).
       by eauto.
   Qed.
-    
+
+
+  Lemma setPermBlock_obs_eq:
+    forall f bl1 bl2 ofsl b1 b2 ofs pmap pmap'
+      (Hf: f b1 = Some b2)
+      (Hfl: f bl1 = Some bl2)
+      (Hinjective: forall b1 b1' b2 : block,
+          f b1 = Some b2 -> f b1' = Some b2 -> b1 = b1')
+      (Hperm: pmap # b1 ofs = pmap' # b2 ofs),
+      (setPermBlock (Some Nonempty) bl1 ofsl pmap
+                    lksize.LKSIZE_nat) # b1 ofs =
+      (setPermBlock (Some Nonempty) bl2 ofsl pmap'
+                    lksize.LKSIZE_nat) # b2 ofs.
+  Proof.
+    intros.
+    destruct (Pos.eq_dec b1 bl1).
+    - subst.
+      assert (b2 = bl2)
+        by (rewrite Hf in Hfl; inversion Hfl; subst; auto).
+      subst.
+      destruct (Intv.In_dec ofs (ofsl, (ofsl + lksize.LKSIZE)%Z)).
+      + erewrite setPermBlock_same by eauto.
+        erewrite setPermBlock_same by eauto.
+        reflexivity.
+      + apply Intv.range_notin in n.
+        simpl in n.
+        erewrite setPermBlock_other_1 by eauto.
+        erewrite setPermBlock_other_1 by eauto.
+        eauto.
+        unfold lksize.LKSIZE. simpl. omega.
+    - erewrite setPermBlock_other_2 by eauto.
+      assert (b2 <> bl2)
+        by (intros Hcontra;
+             subst; specialize (Hinjective _ _ _ Hf Hfl); subst; auto).
+      erewrite setPermBlock_other_2 by eauto.
+      eauto.
+  Qed.
+
+  (** Maintating mem_obs_eq after makelock for the thread that created the lock*)  
+  Lemma mem_obs_eq_makelock:
+    forall  tpc tpf mc mf mc' mf' c cf i (f: memren)
+       bl1 bl2 ofs v
+       (pfc: containsThread tpc i)
+       (pff: containsThread tpf i)
+       (HmemCompC : mem_compatible tpc mc)
+       (HmemCompF : mem_compatible tpf mf)
+       (HmemCompC' : mem_compatible
+                       (updLockSet
+                          (updThread pfc (Kresume c Vundef)
+                                     (setPermBlock (Some Nonempty) bl1
+                                                   ofs (getThreadR pfc)
+                                                   lksize.LKSIZE_nat))
+                          (bl1, ofs)
+                          empty_map) mc')
+       (HmemCompF'' : mem_compatible
+                        (updLockSet
+                           (updThread pff (Kresume cf Vundef)
+                                      (setPermBlock (Some Nonempty) bl2 
+                                                    ofs (getThreadR pff)
+                                                    lksize.LKSIZE_nat))
+                           (bl2, ofs)
+                           empty_map) mf')
+       (pff' : containsThread
+                 (updLockSet
+                    (updThread pff (Kresume cf Vundef)
+                               (setPermBlock (Some Nonempty) bl2 
+                                             ofs (getThreadR pff)
+                                             lksize.LKSIZE_nat))
+                    (bl2, ofs) empty_map) i)
+       (pfc' : containsThread
+                 (updLockSet
+                    (updThread pfc (Kresume c Vundef)
+                               (setPermBlock (Some Nonempty) bl1
+                                             ofs (getThreadR pfc)
+                                             lksize.LKSIZE_nat))
+                    (bl1, ofs) empty_map) i)
+       (Hf: f bl1 = Some bl2)
+       (Hobs_eq: mem_obs_eq f (restrPermMap (HmemCompC i pfc))
+                            (restrPermMap (HmemCompF i pff)))
+       (Hstore: Mem.store Mint32 (restrPermMap (HmemCompC i pfc)) bl1 
+                          ofs (Vint v) = Some mc')
+       (HstoreF: Mem.store Mint32 (restrPermMap (HmemCompF i pff)) bl2 
+                           ofs (Vint v) = Some mf'),
+      mem_obs_eq f (restrPermMap (HmemCompC' i pfc'))
+                 (restrPermMap (HmemCompF'' i pff')).
+  Proof.
+    intros.
+    inversion Hobs_eq.
+    assert (Hvb: forall b, Mem.valid_block mc b <-> Mem.valid_block mc' b)
+      by (intros;
+           erewrite <- restrPermMap_valid with (Hlt := HmemCompC _ pfc);
+           split;
+           [eapply Mem.store_valid_block_1 | eapply Mem.store_valid_block_2];
+           eauto).
+    assert (Hvb': forall b, ~ Mem.valid_block mc b <-> ~ Mem.valid_block mc' b)
+      by (intros; split; intros Hinvalid Hcontra;
+            by apply Hvb in Hcontra).
+    assert (HvbF: forall b, Mem.valid_block mf b <-> Mem.valid_block mf' b)
+      by (
+          intros;
+          erewrite <- restrPermMap_valid with (Hlt := HmemCompF _ pff);
+          split;
+          [eapply Mem.store_valid_block_1 | eapply Mem.store_valid_block_2];
+          eauto).
+    destruct weak_obs_eq0.
+    destruct strong_obs_eq0.
+    constructor.
+    - (*weak_obs_eq*)
+      constructor;
+      try (intros b1; erewrite restrPermMap_valid);
+      try (erewrite <- Hvb');
+      try (erewrite <- Hvb);
+      try by eauto.
+      intros b1 b2 Hf1. erewrite restrPermMap_valid.
+      erewrite <- HvbF.
+      specialize (codomain_valid0 _ _ Hf1);
+        by erewrite restrPermMap_valid in codomain_valid0.
+      intros b1 b2 ofs0 Hf1.
+      do 2 rewrite restrPermMap_Cur gLockSetRes gssThreadRes.
+      specialize (perm_obs_strong0 _ _ ofs0 Hf1).
+      do 2 rewrite restrPermMap_Cur in perm_obs_strong0.
+      erewrite setPermBlock_obs_eq by eauto.
+      apply po_refl.
+    - constructor.
+      intros.
+      specialize (perm_obs_strong0 _ _ ofs0 Hrenaming).
+      do 2 rewrite restrPermMap_Cur in perm_obs_strong0.
+      do 2 rewrite restrPermMap_Cur gLockSetRes gssThreadRes.
+      erewrite <- setPermBlock_obs_eq; eauto.
+      intros.
+      simpl.
+      unfold Mem.perm in *.
+      assert (Heq := restrPermMap_Cur (HmemCompC' i pfc') b1 ofs0).
+      unfold permission_at in Heq.
+      erewrite gLockSetRes with (cnti' := pfc') (cnti := pfc) in Heq at 2 by eauto.
+      rewrite gssThreadRes in Heq.
+      rewrite Heq in Hperm.
+      assert (Heq0 := restrPermMap_Cur (HmemCompC i pfc) b1 ofs0).
+      unfold permission_at in Heq0.
+      specialize (val_obs_eq0 _ _ ofs0 Hrenaming).
+      rewrite Heq0 in val_obs_eq0.
+      simpl in val_obs_eq0.
+      erewrite Mem.store_mem_contents by eauto.
+      erewrite Mem.store_mem_contents with (m2 := mf') by eauto.
+      destruct (Pos.eq_dec bl1 b1).
+      + subst.
+        assert (b2 = bl2)
+          by (rewrite Hf in Hrenaming; inversion Hrenaming; subst; auto).
+        subst.
+        rewrite Maps.PMap.gss.
+        rewrite Maps.PMap.gss.
+        destruct (Intv.In_dec ofs0 (ofs, (ofs + lksize.LKSIZE)%Z)).
+        * erewrite setPermBlock_same in Hperm by eauto.
+          simpl in Hperm. inversion Hperm.
+        * apply Intv.range_notin in n.
+          simpl in n.
+          erewrite setPermBlock_other_1 in Hperm by eauto.
+          simpl.
+          erewrite Mem.setN_outside by eauto.
+          erewrite Mem.setN_outside by eauto.
+          eauto.
+          unfold lksize.LKSIZE; simpl. omega.
+      + erewrite Maps.PMap.gso by auto.
+        assert (bl2 <> b2)
+          by (intros Hcontra;
+               subst; specialize (injective0 _ _ _ Hf Hrenaming); subst; auto).
+        erewrite Maps.PMap.gso by eauto.
+        simpl.
+        erewrite setPermBlock_other_2 in Hperm by auto.
+        eauto.
+  Qed.
 
   (** Performing a store on some disjoint part of the memory, retains
   a strong simulation, using the id injection, for threads*)
@@ -7049,7 +7201,15 @@ Module SimProofs (CI: CoreInjections).
               do 2 rewrite gsslockResUpdLock.
               split;
               auto.
-            - do 2 rewrite gsolockResUpdLock gsoThreadLPool.
+            - erewrite gsolockResUpdLock by auto.
+              assert ((b2, Int.intval ofs) <> (bl2, ofs0)).
+              { intros Hcontra.
+                inversion Hcontra; subst.
+                specialize (Hinjective _ _ _ Hfl1 Hfb).
+                subst; auto.
+              }
+              erewrite gsolockResUpdLock by eauto.
+              do 2 rewrite gsoThreadLPool.
               eauto.
           }
         - (* Proof of invariant preservation for fine-grained machine*)
@@ -7662,7 +7822,15 @@ Module SimProofs (CI: CoreInjections).
             do 2 rewrite gsslockResUpdLock.
             split;
             auto.
-          - do 2rewrite gsolockResUpdLock gsoThreadLPool.
+          - erewrite gsolockResUpdLock by eauto.
+            assert ((b2, Int.intval ofs) <> (bl2, ofs0)).
+            { intros Hcontra.
+              inversion Hcontra; subst.
+              specialize (Hinjective _ _ _ Hfl1 Hf).
+              subst; auto.
+            }
+            erewrite gsolockResUpdLock by eauto.
+            do 2 rewrite gsoThreadLPool.
             eauto.
         }
         - (* Proof of invariant preservation for fine-grained machine*)
@@ -8375,7 +8543,6 @@ Module SimProofs (CI: CoreInjections).
         by  (eapply safeC_invariant; eauto).
       assert (HmaxF': max_inv mf')
         by (eapply max_inv_store; eauto).
-      (*TODO: lemma : max_inv implies compatible*)
       assert (HmemCompF'': mem_compatible tpf'' mf').
       { subst.
         clear - HmemCompF HmaxF' Hf Hmem_obs_eq Hvalidb2 HstoreF.
@@ -8412,7 +8579,7 @@ Module SimProofs (CI: CoreInjections).
             intros b' ofs'.
             rewrite empty_map_spec.
             destruct ((getMaxPerm mf') # b' ofs'); simpl; auto.
-          + rewrite gsolockResUpdLock in Hres.
+          + erewrite gsolockResUpdLock in Hres by eauto.
             intros b' ofs'.
             erewrite <- mem_store_max by eauto.
             rewrite gsoThreadLPool in Hres.
@@ -8563,8 +8730,7 @@ Module SimProofs (CI: CoreInjections).
           do 2 rewrite gLockSetCode.
           do 2 rewrite gssThreadCode;
             by (split; [assumption | constructor]).
-          (*TODO: mem_obs_eq*)
-          admit.
+          eapply mem_obs_eq_makelock; eauto.
           repeat split;
             by congruence.
         }       
@@ -8840,7 +9006,14 @@ Module SimProofs (CI: CoreInjections).
             do 2 rewrite gsslockResUpdLock.
             split;
             auto.
-          * do 2 rewrite gsolockResUpdLock gsoThreadLPool.
+          * erewrite gsolockResUpdLock by eauto.
+            assert ((b2, Int.intval ofs) <> (bl2, ofs0)).
+            { intros Hcontra; inversion Hcontra; subst.
+              specialize (Hinjective _ _ _ Hfb Hfl1).
+              subst; auto.
+            }
+            erewrite gsolockResUpdLock by eauto.
+            do 2 rewrite gsoThreadLPool.
             eapply Hlock_if;
             eauto.
         - (* Proof of invariant preservation for fine-grained machine*)

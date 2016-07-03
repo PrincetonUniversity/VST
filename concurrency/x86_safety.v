@@ -347,18 +347,6 @@ Axiom init_core_wd:
     | None => True
     end.
 
-(** Assuming that coresteps maintain well-defideness of the state*)
-Axiom corestep_wd:
-  forall c m c' m' f
-    (Hwd: core_wd f c)
-    (Hmem_wd: valid_mem m)
-    (Hdomain: domain_memren f m)
-    (Hcorestep: corestep Sem the_ge c m c' m'),
-    valid_mem m' /\
-    (exists f', ren_domain_incr f f' /\ domain_memren f' m') /\
-    forall f', domain_memren f' m' ->
-          core_wd f' c'.
-
 (** Excluded middle is required, but can be easily lifted*)
 Axiom em : ClassicalFacts.excluded_middle.
 
@@ -711,7 +699,7 @@ Proof.
       econstructor 2; simpl; eauto.
     + assert (~ List.In i xs)
         by (eapply at_external_not_in_xs; eauto).
-      pose proof (sim_external corestep_wd em cnti Htype H Hsim) as Hsim'.
+      pose proof (sim_external em cnti Htype H Hsim) as Hsim'.
       destruct Hsim' as (? & ? & ? & ? & ? & ? & Hstep & Hsim'').
       specialize (Hstep sched).
       econstructor 2; simpl; eauto.

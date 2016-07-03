@@ -2612,6 +2612,24 @@ Module Type CoreInjections.
          (forall b1 b2, f b1 = Some b2 -> b1 = b2) ->
          forall b1 b2, f' b1 = Some b2 -> b1 = b2).
 
+  (* Starting from a wd state -- maybe it also requires the_ge to be
+     wd, we get a new valid memory and the fact that there exists some
+     renaming whose domain is the same as the new memory and
+     additionally that the new core is well defined with respect to
+     all renamings withe same domain.  Note that we cannot say
+     anything about the codomain, i.e. that f' is an extension of f,
+     because our definitions are not strong enough.*) 
+  Parameter corestep_wd:
+    forall c m c' m' f
+      (Hwd: core_wd f c)
+      (Hmem_wd: valid_mem m)
+      (Hdomain: domain_memren f m)
+      (Hcorestep: corestep Sem the_ge c m c' m'),
+      valid_mem m' /\
+      (exists f', ren_domain_incr f f' /\ domain_memren f' m') /\
+      forall f', domain_memren f' m' ->
+            core_wd f' c'.
+
 End CoreInjections.
 
 Module ThreadPoolInjections (CI: CoreInjections).
