@@ -279,13 +279,17 @@ Module ClightParching <: ErasureSig.
              destruct (AMap.E.eq_dec loc a) as [EQ | NEQ].
              * subst loc. rewrite JSEM.ThreadPool.gsslockResUpdLock DSEM.ThreadPool.gsslockResUpdLock.
                reflexivity.
-             * rewrite JSEM.ThreadPool.gsolockResUpdLock DSEM.ThreadPool.gsolockResUpdLock.
+             * rewrite JSEM.ThreadPool.gsolockResUpdLock.
+               rewrite DSEM.ThreadPool.gsolockResUpdLock.
                inversion H. solve[apply mtch_locks].
+               assumption.
+               assumption.
            + intros. 
              destruct (AMap.E.eq_dec loc lock) as [EQ | NEQ].
              * subst loc. rewrite JSEM.ThreadPool.gsslockResUpdLock in H1; inversion H1. 
              * rewrite JSEM.ThreadPool.gsolockResUpdLock in H1. rewrite DSEM.ThreadPool.gsolockResUpdLock in H2.
                inversion H. eapply mtch_locksEmpty; eassumption.
+               assumption. assumption.
            + intros. 
              destruct (AMap.E.eq_dec loc lock) as [EQ | NEQ].
              * subst loc.
@@ -295,6 +299,8 @@ Module ClightParching <: ErasureSig.
                apply H0.
              * rewrite JSEM.ThreadPool.gsolockResUpdLock in H1. rewrite DSEM.ThreadPool.gsolockResUpdLock in H2.
                inversion H. eapply mtch_locksRes; eassumption.
+               assumption.
+               assumption.
     Qed.
     
     Lemma MTCH_updLockN:
@@ -319,21 +325,26 @@ Module ClightParching <: ErasureSig.
              destruct (AMap.E.eq_dec loc a) as [EQ | NEQ].
              * subst loc. rewrite JSEM.ThreadPool.gsslockResUpdLock DSEM.ThreadPool.gsslockResUpdLock.
                reflexivity.
-             * rewrite JSEM.ThreadPool.gsolockResUpdLock DSEM.ThreadPool.gsolockResUpdLock.
+             * rewrite JSEM.ThreadPool.gsolockResUpdLock.
+               rewrite DSEM.ThreadPool.gsolockResUpdLock.
                inversion H. solve[apply mtch_locks].
+               assumption. assumption.
            + intros. 
              destruct (AMap.E.eq_dec loc lock) as [EQ | NEQ].
              * subst loc. rewrite DSEM.ThreadPool.gsslockResUpdLock in H1; inversion H1; reflexivity. 
              * rewrite DSEM.ThreadPool.gsolockResUpdLock in H1.
                rewrite JSEM.ThreadPool.gsolockResUpdLock in H0.
                inversion H. eapply mtch_locksEmpty; eassumption.
+               assumption.
+               assumption.
            + intros. 
              destruct (AMap.E.eq_dec loc lock) as [EQ | NEQ].
              * subst loc.
                rewrite JSEM.ThreadPool.gsslockResUpdLock in H0.
                rewrite DSEM.ThreadPool.gsslockResUpdLock in H1.
                inversion H0. 
-             * rewrite JSEM.ThreadPool.gsolockResUpdLock in H0. rewrite DSEM.ThreadPool.gsolockResUpdLock in H1.
+             * rewrite JSEM.ThreadPool.gsolockResUpdLock in H0. 2: assumption.
+               rewrite DSEM.ThreadPool.gsolockResUpdLock in H1. 2: assumption.
                inversion H. eapply mtch_locksRes; eassumption.
     Qed.
     
