@@ -325,22 +325,132 @@ Section Initial_State.
 
 End Initial_State.
 
-
-
 Require Import concurrency.permissions.
 
 Lemma cl_step_decay ge c m c' m' : @cl_step ge c m c' m' -> @decay m m'.
 Proof.
-  intros step; induction step; try apply decay_refl || apply IHstep.
+  intros step.
+  induction step
+    as [ ve te k m a1 a2 b ofs v2 v m' H H0 H1 H2 ASS | |
+         ve te k m optid a al tyagrs tyres cc vf vargs f m'  ve' le' H H0 H1 H2 H3 H4 NRV ALLOC H6 
+         | | | | | | | | | f ve te optexp optid k m v' m' ve' te'' k' H H0 FREE H2 H3 | | | ];
+    try apply decay_refl || apply IHstep.
+  
   - (* assign: no change in permission *)
-    intros b o.
-    (* destruct (valid_block_dec m b). *)
-    admit.
-  - (* call_internal: alloc_variables *)
-    admit.
+    intros b' ofs'.
+    split.
+    + inversion ASS as [v0 chunk m'0 H3 BAD H5 H6 | b'0 ofs'0 bytes m'0 H3 H4 H5 H6 H7 BAD H9 H10]; subst.
+      -- pose proof storev_valid_block_2 _ _ _ _ _ BAD b'. tauto.
+      -- pose proof Mem.storebytes_valid_block_2 _ _ _ _ _ BAD b'. tauto.
+    + intros V; right; intros kind.
+      (* destruct m as [c acc nb max no def]. simpl in *. *)
+      inversion ASS as [v0 chunk m'0 H3 STO H5 H6 | b'0 ofs'0 bytes m'0 H3 H4 H5 H6 H7 STO H9 H10]; subst.
+      -- simpl in *.
+         Transparent Mem.store.
+         unfold Mem.store in *; simpl in *.
+         destruct (Mem.valid_access_dec m chunk b (Int.unsigned ofs) Writable).
+         2:discriminate.
+         injection STO as <-. simpl.
+         reflexivity.
+      -- Transparent Mem.storebytes.
+         unfold Mem.storebytes in *.
+         destruct (Mem.range_perm_dec
+                     m b (Int.unsigned ofs)
+                     (Int.unsigned ofs + Z.of_nat (Datatypes.length bytes)) Cur Writable).
+         2:discriminate.
+         injection STO as <-. simpl.
+         reflexivity.
+  
+  - (* internal call : allocations *)
+    clear -ALLOC.
+    induction ALLOC. now apply decay_refl.
+    apply decay_trans with m1. 3:apply IHALLOC.
+    
+    + clear -H.
+      Transparent Mem.alloc.
+      unfold Mem.alloc in *.
+      injection H as <- <-.
+      intros b V.
+      unfold Mem.valid_block in *. simpl.
+      apply Coqlib.Plt_trans_succ, V.
+      
+    + clear -H.
+      unfold Mem.alloc in *.
+      injection H as E <-.
+      intros b ofs.
+      split.
+      * intros N V.
+        subst m1.
+        simpl in *.
+        rewrite PMap.gsspec.
+        unfold Mem.valid_block in *; simpl in *.
+        if_tac; subst; auto.
+        -- if_tac; auto.
+        -- destruct N.
+           apply Coqlib.Plt_succ_inv in V.
+           tauto.
+      * intros V.
+        right.
+        intros k.
+        subst.
+        simpl.
+        rewrite PMap.gsspec.
+        if_tac.
+        -- subst b. inversion V. rewrite Pos.compare_lt_iff in *. edestruct Pos.lt_irrefl; eauto.
+        -- reflexivity.
+  
   - (* return: free_list *)
-    admit.
-Admitted.
+    revert FREE; clear.
+    generalize (blocks_of_env ge ve); intros l.
+    revert m m'; induction l as [| [[b o] o'] l IHl]; intros m m'' E.
+    + simpl. injection E as <- ; apply decay_refl.
+    + simpl in E.
+      destruct (Mem.free m b o o') as [m' |] eqn:F.
+      2:discriminate.
+      specialize (IHl _ _ E).
+      Transparent Mem.free.
+      unfold Mem.free in *.
+      if_tac in F. rename H into G.
+      2:discriminate.
+      apply decay_trans with m'. 3:now apply IHl.
+      * injection F as <-.
+        intros.
+        unfold Mem.unchecked_free, Mem.valid_block in *.
+        simpl in *.
+        assumption.
+      
+      * injection F as <-.
+        clear -G.
+        unfold Mem.unchecked_free in *.
+        intros b' ofs; simpl. unfold Mem.valid_block; simpl.
+        split.
+        tauto.
+        intros V.
+        rewrite PMap.gsspec.
+        if_tac; auto. subst b'.
+        hnf in G.
+        destruct (Coqlib.proj_sumbool (Coqlib.zle o ofs)&&Coqlib.proj_sumbool (Coqlib.zlt ofs o')) eqn:E.
+        2: now auto.
+        left. split; auto.
+        destruct m as [co acc nb max noa def] eqn:Em; simpl in *.
+        unfold Mem.perm in G; simpl in *.
+        specialize (G ofs).
+        cut (acc !! b ofs Cur = Some Freeable). {
+          destruct k; auto.
+          pose proof Mem.access_max m b ofs as M.
+          subst m; simpl in M.
+          intros A; rewrite A in M.
+          destruct (acc !! b ofs Max) as [ [] | ]; inversion M; auto.
+        }
+        assert (R: (o <= ofs < o')%Z). {
+          rewrite andb_true_iff in *. destruct E as [E F].
+          apply Coqlib.proj_sumbool_true in E.
+          apply Coqlib.proj_sumbool_true in F.
+          auto.
+        }
+        espec G.
+        destruct (acc !! b ofs Cur) as [ [] | ]; inversion G; auto.
+Qed.
 
 Lemma join_resource_decay b phi1 phi1' phi2 phi3 :
   resource_decay b phi1 phi1' ->
@@ -563,9 +673,9 @@ Lemma isSome_find_map addr f lset :
   ssrbool.isSome (AMap.find (elt:=option rmap) addr lset).
 Proof.
   match goal with |- _ ?a = _ ?b => destruct a eqn:E; destruct b eqn:F end; try reflexivity.
-  - apply AMap_find_map_inv in E. destruct E as [x []]. congruence.
-  - admit (* this should work later: apply AMap_find_map in F. destruct F as [x []]. congruence *).
-Admitted.
+  - apply AMap_find_map_inv in E; destruct E as [x []]; congruence.
+  - rewrite (AMap_find_map _ _ _ o F) in E. discriminate.
+Qed.
 
 Section Simulation.
   Variables
@@ -625,7 +735,9 @@ Section Simulation.
       - (* cohere *)
         simpl in *.
         erewrite <- JM.JuicyMachineLemmas.compatible_getThreadR_m_phi in JEXT.
-        destruct (mem_cohere_step m _ _ _ _ Phi EXT _ (ltac:(auto)) (ltac:(eauto)) stepi) as [Phi'' [J'' MC]].
+        destruct (mem_cohere_step
+                    m _ _ _ _ Phi EXT _ (ltac:(auto))
+                    (ltac:(eauto)) stepi) as [Phi'' [J'' MC]].
         assert (Phi'' = Phi') by (eapply join_eq; eauto). subst Phi''.
         apply MC.
       
@@ -755,8 +867,9 @@ Section Simulation.
           apply RD.
         + simpl.
           clear -LJ.
-          (* todo: easy lemma (aging does not change which addresses are locks in lset) *)
-          admit.
+          intros loc sh psh P z H.
+          rewrite isSome_find_map.
+          eapply LJ; eauto.
         
       - (* lockSet_in_juicyLocks *)
         eapply resource_decay_lockSet_in_juicyLocks.
@@ -764,11 +877,15 @@ Section Simulation.
         + simpl.
           apply lockSet_Writable_lockSet_bound.
           clear -LW.
-          (* todo: easy lemma (aging does not change which addresses are locks in lset) *)
-          admit.
+          intros b ofs.
+          rewrite isSome_find_map.
+          apply LW.
+        
         + clear -JL.
-          (* todo: easy lemma (aging does not change which addresses are locks in lset) *)
-          admit.
+          unfold tp''.
+          intros addr; simpl.
+          rewrite isSome_find_map.
+          apply JL.
     }
     
     (* now that JM.mem_compatible_with is established, we move on to the
