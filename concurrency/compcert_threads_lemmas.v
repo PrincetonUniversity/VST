@@ -503,10 +503,10 @@ Module SimProofs (CI: CoreInjections).
         by (eapply domain_memren_incr with (f' := f) (f'' := f''); eauto;
             apply ren_domain_incr_refl).
       destruct (i == j) eqn:Hij; move/eqP:Hij=>Hij; subst.
-      rewrite gssThreadCC.
-      pf_cleanup.
-      specialize (Htp_wd _ cntj).
-      rewrite Hcode in Htp_wd.
+      + rewrite gssThreadCC.
+        pf_cleanup.
+        specialize (Htp_wd _ cntj).
+        rewrite Hcode in Htp_wd.
       destruct X as [[? ?] ?].
       simpl in *.
       destruct Htp_wd as [Hcore_wd _].
@@ -515,10 +515,11 @@ Module SimProofs (CI: CoreInjections).
       eapply core_wd_incr; eauto.
       eapply valid_val_list_incr;
         by eauto.
-      erewrite <- @gsoThreadCC with (cntj := cntj); eauto.
-      specialize (Htp_wd _ cntj).
-      eapply ctl_wd_incr;
-        by eauto.
+      simpl; auto.
+      + erewrite <- @gsoThreadCC with (cntj := cntj); eauto.
+        specialize (Htp_wd _ cntj).
+        eapply ctl_wd_incr;
+          by eauto.
     - subst; split; auto.
       inversion Htstep; subst.
       split.

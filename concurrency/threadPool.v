@@ -86,44 +86,54 @@ Import Coqlib.
   unfold permissions.setPerm.
   rewrite !PMap.gso;  auto.
 Qed.
-
-  Lemma  lockSet_spec_2 :
+  
+  Lemma lockSet_spec_2 :
     forall (js : t') (b : block) (ofs ofs' : Z),
       Intv.In ofs' (ofs, (ofs + Z.of_nat lksize.LKSIZE_nat)%Z) ->
       lockRes js (b, ofs) -> (lockSet js) !! b ofs' = Some Memtype.Writable.
   Proof.
-   intros.
-  hnf in H0.
-  hnf in H. simpl in H.
-  unfold lockSet. unfold A2PMap.
-  rewrite <- List.fold_left_rev_right.
-  unfold lockRes in H0. unfold lockGuts in H0.
- match type of H0 with isSome ?A = true=> destruct A eqn:?H; inv H0 end.
-  apply AMap.find_2 in H1.
- apply AMap.elements_1 in H1.
- apply SetoidList.InA_rev in H1.
- unfold AMap.key in H1.
- forget (@rev (address * lock_info) (AMap.elements (elt:=lock_info) (lset js))) as el.
-  match goal with |- context [List.fold_right ?F ?Z ?A] => 
-             set (f := F); set (z:=Z) end.
- revert H1; induction el; intros.
- inv H1.
- apply SetoidList.InA_cons in H1.
- destruct H1.
- hnf in H0. destruct a; simpl in H0. destruct H0; subst a l0.
- simpl. unfold permissions.setPerm. rewrite !PMap.gss.
- repeat match goal with |- context [is_left ?A] => destruct A; simpl; auto end.
- omega.
- apply IHel in H0; clear IHel.
- simpl.
- unfold f at 1. destruct a. destruct a.
- unfold permissions.setPermBlock. simpl.
- unfold permissions.setPerm. rewrite !PMap.gss.
- destruct (peq b0 b). subst b0. rewrite !PMap.gss.
- repeat match goal with |- context [is_left ?A] => destruct A; simpl; auto end.
- rewrite !PMap.gso; auto.
-Qed.
+    intros.
+    hnf in H0.
+    hnf in H. simpl in H.
+    unfold lockSet. unfold A2PMap.
+    rewrite <- List.fold_left_rev_right.
+    unfold lockRes in H0. unfold lockGuts in H0.
+    match type of H0 with isSome ?A = true=> destruct A eqn:?H; inv H0 end.
+    apply AMap.find_2 in H1.
+    apply AMap.elements_1 in H1.
+    apply SetoidList.InA_rev in H1.
+    unfold AMap.key in H1.
+    forget (@rev (address * lock_info) (AMap.elements (elt:=lock_info) (lset js))) as el.
+    match goal with |- context [List.fold_right ?F ?Z ?A] => 
+                    set (f := F); set (z:=Z) end.
+    revert H1; induction el; intros.
+    inv H1.
+    apply SetoidList.InA_cons in H1.
+    destruct H1.
+    hnf in H0. destruct a; simpl in H0. destruct H0; subst a l0.
+    simpl. unfold permissions.setPerm. rewrite !PMap.gss.
+    repeat match goal with |- context [is_left ?A] => destruct A; simpl; auto end.
+    omega.
+    apply IHel in H0; clear IHel.
+    simpl.
+    unfold f at 1. destruct a. destruct a.
+    unfold permissions.setPermBlock. simpl.
+    unfold permissions.setPerm. rewrite !PMap.gss.
+    destruct (peq b0 b). subst b0. rewrite !PMap.gss.
+    repeat match goal with |- context [is_left ?A] => destruct A; simpl; auto end.
+    rewrite !PMap.gso; auto.
+  Qed.
 
+  Lemma lockSet_spec_1: forall js b ofs,
+      lockRes js (b,ofs) ->
+      (lockSet js) !! b ofs = Some Memtype.Writable.
+  Proof.
+    intros.
+    eapply lockSet_spec_2; eauto.
+    unfold Intv.In.
+    simpl. omega.
+  Qed.
+    
 Open Scope nat_scope.
 
   Definition containsThread (tp : t) (i : NatTID.tid) : Prop:=
