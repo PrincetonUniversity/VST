@@ -33,6 +33,7 @@ Require Import concurrency.juicy_machine.
 Require Import concurrency.concurrent_machine.
 Require Import concurrency.scheduler.
 Require Import concurrency.addressFiniteMap.
+Require Import concurrency.permissions.
 
 Set Bullet Behavior "Strict Subproofs".
 
@@ -329,8 +330,6 @@ Section Initial_State.
 
 End Initial_State.
 
-Require Import concurrency.permissions.
-
 Lemma cl_step_decay ge c m c' m' : @cl_step ge c m c' m' -> @decay m m'.
 Proof.
   intros step.
@@ -491,12 +490,14 @@ Proof.
   destruct (join_resource_decay _ _ _ _ _ RD L J) as [Phi' [J' [RD' L']]].
   exists Phi'. split. apply J'.
   constructor.
-  - intros l sh v loc pp AT.
+  - intros sh rsh v loc pp AT.
     pose proof resource_at_join _ _ _ loc J as Jloc.
     pose proof resource_at_join _ _ _ loc J' as J'loc.
     rewrite AT in J'loc.
     inversion J'loc; subst.
     + (* all was in jm' *)
+      destruct MC.
+      (* specialize (cont_coh sh rsh v loc pp). *)
       admit.
     + (* all was in X *)
       rewrite <-H in Jloc.
@@ -623,14 +624,15 @@ Qed.
 Lemma resource_decay_lock_coherence {b phi phi' lset m} :
   resource_decay b phi phi' ->
   lock_coherence lset phi m ->
-  lock_coherence lset phi' m.
+  lock_coherence  (AMap.map (Coqlib.option_map (age_to (level phi'))) lset) phi' m.
 Proof.
   intros [L RD] LC loc.
   specialize (LC loc).
   specialize (RD loc).
   inversion LC as [wetv dryv A H H1 H2 | RI wetv IL H H1 H0 | RI phi0 wetv IL SAT H H2 H0]; subst.
   
-  - constructor 1.
+  - rewrite AMap_find_map_None. 2:auto.
+    constructor 1.
     intros sh sh' z pp E.
     destruct RD as [NN [R|[R|[[P [v R]]|R]]]].
     + rewrite E in R.
@@ -643,7 +645,8 @@ Proof.
     + destruct R as (?&?&?&?).
       congruence.
   
-  - constructor 2 with (approx (level phi') RI).
+  - erewrite AMap_find_map. 2:eauto.
+    constructor 2 with (approx (level phi') RI).
     destruct IL as (?&?&?&E).
     rewrite E in RD.
     destruct RD as [NN [R|[R|[[P [v R]]|R]]]]; simpl in *.
@@ -655,7 +658,8 @@ Proof.
     + destruct R as (?&?&?&?).
       congruence.
   
-  - constructor 3 with (approx (level phi') RI).
+  - erewrite AMap_find_map. 2:eauto.
+    constructor 3 with (approx (level phi') RI).
     + destruct IL as (?&?&?&E).
       rewrite E in RD.
       destruct RD as [NN [R|[R|[[P [v R]]|R]]]]; simpl in *.
@@ -669,6 +673,10 @@ Proof.
     + simpl.
       split; auto.
       (* hmm. it seems the phi0 in the lset should have been aged? *)
+      rewrite level_age_to. (* oh. level phi' < level phi'... *)
+      admit.
+      admit.
+      (* need to age the resource invariant too? RI (age_to (level phi') phi0) *)
       admit.
 Admitted.
 
@@ -917,6 +925,7 @@ unique: ok *)
     apply state_invariant_c with (PHI := Phi') (mcompat := compat').
     - (* lock coherence: own rmap has changed, not clear how to prove it did not affect locks *)
       simpl.
+      replace (level (m_phi jmi')) with (level Phi') by admit.
       apply (resource_decay_lock_coherence RD).
       (* now for the dry part, use the fact that the corestep didn't
       have permissions to modify locks? *)
