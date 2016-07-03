@@ -716,7 +716,7 @@ Module Concur.
              end; try discriminate;
          eauto with similar.
        Qed.
-       
+
      End DryMachineLemmas.
      
   End DryMachineShell.

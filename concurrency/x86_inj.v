@@ -74,6 +74,18 @@ Module X86WD.
       by eauto.
   Qed.
 
+  Lemma regset_wd_set:
+    forall f rs r v
+      (H: valid_val f v)
+      (Hrs: regset_wd f rs),
+      regset_wd f (rs # r <- v).
+  Proof.
+    intros.
+    intro r'.
+    rewrite Pregmap.gsspec.
+    destruct (Pregmap.elt_eq r' r); subst; auto.
+  Qed.
+
   Lemma loader_wd_incr:
     forall f1 f2 loader
       (Hwd: loader_wd f1 loader)
@@ -135,7 +147,10 @@ Module X86WD.
     destruct v0;
       by constructor.
   Qed.
-  
+
+  Hint Resolve loader_wd_domain loader_wd_incr regset_wd_domain
+       regset_wd_incr valid_val_incr valid_val_list_incr valid_val_domain
+       valid_val_list_domain : wd.
 End X86WD.
 
 (** ** Injections on X86 cores *)
@@ -567,34 +582,128 @@ Module X86Inj <: CoreInjections.
     destruct H;
       by eapply decode_longs_valid_val.
   Qed.
+
+  Lemma valid_val_hiword:
+    forall f v,
+      valid_val f v ->
+      valid_val f (Val.hiword v).
+  Proof.
+    intros.
+    destruct v; simpl; auto.
+  Qed.
+
+  Lemma valid_val_loword:
+    forall f v,
+      valid_val f v ->
+      valid_val f (Val.loword v).
+  Proof.
+    intros.
+    destruct v; simpl; auto.
+  Qed.
+  
   
   Lemma after_external_wd :
     forall (c c' : state) (f : memren) (ef : external_function)
-      (sig : signature) (args : seq val) (ov : option val),
-      at_external SEM.Sem c = Some (ef, sig, args) ->
-      core_wd f c ->
-      valid_val_list f args ->
-      after_external SEM.Sem ov c = Some c' -> core_wd f c'.
+      (sig : signature) (args : seq val) (ov : option val)
+      (Hat_external: at_external SEM.Sem c = Some (ef, sig, args))
+      (Hcore_wd: core_wd f c)
+      (Hvalid_list: valid_val_list f args)
+      (Hafter_external: after_external SEM.Sem ov c = Some c')
+      (Hov: match ov with
+            | Some v => valid_val f v
+            | None => True
+            end),
+      core_wd f c'.
   Proof.
     intros.
     simpl in *.
     unfold core_wd, Asm_at_external, Asm_after_external in *.
     destruct c; try discriminate.
     destruct (BuiltinEffects.observableEF_dec f0); try discriminate.
-    destruct H0 as (? & ? & ?).
-    inversion H; subst.
-    destruct ov; inversion H2; subst.
-    + split; auto.
+    destruct Hcore_wd as (Hval_vals & Hrs_wd & Hloader_wd).
+    inversion Hat_external; subst.
+    destruct ov; inversion Hafter_external; subst.
+    - split; auto.
       intros r.
-      specialize (H3 r).
-      destruct (PregEq.eq r PC).
-      * subst. admit.
-      (*NOTE: admitting this for now to avoid getting into the
-        complicated details *)
-      * admit.
-    + split; auto.
-      admit.
-  Admitted.
+      unfold regset_wd, Pregmap.get in Hrs_wd.
+      assert (Hr := Hrs_wd r).
+      rewrite Pregmap.gsspec.
+      destruct (Pregmap.elt_eq r PC); subst;
+      simpl; first by auto.
+      (* it's easier to do the case analysis than try to write a lemma
+    for set_regs (are the registers unique and more similar problems)*)
+      destruct (loc_external_result (ef_sig ef)) as [|r' regs].
+      rewrite set_regs_empty_2;
+        first by eauto.
+      simpl.
+      destruct (sig_res (ef_sig ef)) as [ty|];
+        try destruct ty;
+        simpl;
+        try rewrite set_regs_empty_1;
+        try rewrite Pregmap.gsspec;
+        try (destruct (Pregmap.elt_eq r r'); subst; eauto);
+        destruct regs as [|r'' regs''];
+        simpl;
+        try (rewrite Pregmap.gsspec);
+        repeat match goal with
+               | [|- context[match Pregmap.elt_eq ?X ?X with _ => _ end]] =>
+                 rewrite Coqlib2.if_true; auto
+               | [H: ?X <> ?Y|- context[match Pregmap.elt_eq ?X ?Y with _ => _ end]] =>
+                 rewrite Coqlib2.if_false; auto
+               | [|- valid_val _ (Val.hiword _)] =>
+                 eapply valid_val_hiword
+               | [|- context[set_regs _ [::] _]] =>
+                 rewrite set_regs_empty_1
+               end; eauto;
+        do 2 rewrite Pregmap.gsspec;
+        repeat match goal with
+               | [|- context[match ?Expr with _ => _ end]] =>
+                 destruct Expr; subst; eauto
+               | [|- valid_val _ (Val.loword _)] =>
+                 eapply valid_val_loword
+               | [|- valid_val _ (Val.hiword _)] =>
+                 eapply valid_val_hiword
+               end; eauto.
+    - split; auto.
+      intros r.
+      unfold regset_wd, Pregmap.get in Hrs_wd.
+      assert (Hr := Hrs_wd r).
+      rewrite Pregmap.gsspec.
+      destruct (Pregmap.elt_eq r PC); subst;
+      simpl; first by auto.
+      destruct (loc_external_result (ef_sig ef)) as [|r' regs].
+      rewrite set_regs_empty_2;
+        first by eauto.
+      simpl.
+      destruct (sig_res (ef_sig ef)) as [ty|];
+        try destruct ty;
+        simpl;
+        try rewrite set_regs_empty_1;
+        try rewrite Pregmap.gsspec;
+        try (destruct (Pregmap.elt_eq r r'); subst; eauto);
+        destruct regs as [|r'' regs''];
+        simpl;
+        try (rewrite Pregmap.gsspec);
+        repeat match goal with
+               | [|- context[match Pregmap.elt_eq ?X ?X with _ => _ end]] =>
+                 rewrite Coqlib2.if_true; auto
+               | [H: ?X <> ?Y|- context[match Pregmap.elt_eq ?X ?Y with _ => _ end]] =>
+                 rewrite Coqlib2.if_false; auto
+               | [|- valid_val _ (Val.hiword _)] =>
+                 eapply valid_val_hiword
+               | [|- context[set_regs _ [::] _]] =>
+                 rewrite set_regs_empty_1
+               end; eauto;
+        do 2 rewrite Pregmap.gsspec;
+        repeat match goal with
+               | [|- context[match ?Expr with _ => _ end]] =>
+                 destruct Expr; subst; eauto
+               | [|- valid_val _ (Val.loword _)] =>
+                 eapply valid_val_loword
+               | [|- valid_val _ (Val.hiword _)] =>
+                 eapply valid_val_hiword
+               end; eauto.
+  Qed.
   
   Lemma initial_core_wd :
     forall (f : memren) (vf arg : val) (c_new : state),
@@ -1102,306 +1211,304 @@ Module X86Inj <: CoreInjections.
     unfold compare_ints...
   Qed.
   
-      Lemma compare_floats32_ren:
-      forall f rs rs' v1 v2 v1' v2'
-        (Hval_obs: val_obs f v1 v1')
-        (Hval_obs': val_obs f v2 v2')
-        (Hrs_ren: regset_ren f rs rs'),
-        regset_ren f (compare_floats32 v1 v2 rs)
-                   (compare_floats32 v1' v2' rs').
-    Proof with eauto with reg_renamings.
-      intros.
-      unfold compare_floats32;
-        destruct v1; inversion Hval_obs; subst;
-        destruct v2; inversion Hval_obs'; subst...
-      admit.
-    Admitted.
-    
-    Lemma compare_floats_ren:
-      forall f rs rs' v1 v2 v1' v2'
-        (Hval_obs: val_obs f v1 v1')
-        (Hval_obs': val_obs f v2 v2')
-        (Hrs_ren: regset_ren f rs rs'),
-        regset_ren f (compare_floats v1 v2 rs)
-                   (compare_floats v1' v2' rs').
-    Proof with eauto with reg_renamings.
-      intros.
-      unfold compare_floats;
-        destruct v1; inversion Hval_obs; subst;
-        destruct v2; inversion Hval_obs'; subst...
-      admit.
-    Admitted.
-    
-    Lemma eval_testcond_ren:
-      forall f (c : testcond) rs rs'
-        (Hrs_ren: regset_ren f rs rs'),
-        eval_testcond c rs = eval_testcond c rs'.
-    Proof.
-      intros.
-      unfold eval_testcond.
-      destruct c;
-        unfold regset_ren, reg_ren, Pregmap.get in *;
-        repeat match goal with
-               | [|- match (?Rs ?R) with _ => _ end = _] =>
-                 pose proof (Hrs_ren R);
-                   destruct (Rs R);
-                   match goal with
-                   | [H: val_obs _ _ _ |- _] =>
-                     inv H
-                   end
-               end; auto.
-    Qed.
+  Lemma compare_floats32_ren:
+    forall f rs rs' v1 v2 v1' v2'
+      (Hval_obs: val_obs f v1 v1')
+      (Hval_obs': val_obs f v2 v2')
+      (Hrs_ren: regset_ren f rs rs'),
+      regset_ren f (compare_floats32 v1 v2 rs)
+                 (compare_floats32 v1' v2' rs').
+  Proof with eauto 10 with reg_renamings val_renamings.
+    intros.
+    unfold compare_floats32;
+      destruct v1; inversion Hval_obs; subst;
+      destruct v2; inversion Hval_obs'; subst...
+  Qed.
 
-    Lemma val_obs_testcond:
-      forall f c rs rs'
-        (Hrs_ren: regset_ren f rs rs'),
-        val_obs f (Val.of_optbool (eval_testcond c rs))
-                (Val.of_optbool (eval_testcond c rs')).
-    Proof with eauto with val_renamings.
-      intros.
-      erewrite eval_testcond_ren; eauto.
-      destruct (eval_testcond c rs') as [[|]|];
+  Lemma compare_floats_ren:
+    forall f rs rs' v1 v2 v1' v2'
+      (Hval_obs: val_obs f v1 v1')
+      (Hval_obs': val_obs f v2 v2')
+      (Hrs_ren: regset_ren f rs rs'),
+      regset_ren f (compare_floats v1 v2 rs)
+                 (compare_floats v1' v2' rs').
+  Proof with eauto 10 with reg_renamings val_renamings.
+    intros.
+    unfold compare_floats;
+      destruct v1; inversion Hval_obs; subst;
+      destruct v2; inversion Hval_obs'; subst...
+  Qed.
+  
+  Lemma eval_testcond_ren:
+    forall f (c : testcond) rs rs'
+      (Hrs_ren: regset_ren f rs rs'),
+      eval_testcond c rs = eval_testcond c rs'.
+  Proof.
+    intros.
+    unfold eval_testcond.
+    destruct c;
+      unfold regset_ren, reg_ren, Pregmap.get in *;
+      repeat match goal with
+             | [|- match (?Rs ?R) with _ => _ end = _] =>
+               pose proof (Hrs_ren R);
+                 destruct (Rs R);
+                 match goal with
+                 | [H: val_obs _ _ _ |- _] =>
+                   inv H
+                 end
+             end; auto.
+  Qed.
+
+  Lemma val_obs_testcond:
+    forall f c rs rs'
+      (Hrs_ren: regset_ren f rs rs'),
+      val_obs f (Val.of_optbool (eval_testcond c rs))
+              (Val.of_optbool (eval_testcond c rs')).
+  Proof with eauto with val_renamings.
+    intros.
+    erewrite eval_testcond_ren; eauto.
+    destruct (eval_testcond c rs') as [[|]|];
       unfold Val.of_optbool, Vtrue, Vfalse...
-    Qed.
-    
-    Hint Resolve compare_floats_ren compare_floats32_ren
-         compare_ints_ren : reg_renamings.
-    Hint Resolve val_obs_addrmode val_obs_testcond : val_renamings.
+  Qed.
+  
+  Hint Resolve compare_floats_ren compare_floats32_ren
+       compare_ints_ren : reg_renamings.
+  Hint Resolve val_obs_addrmode val_obs_testcond : val_renamings.
 
 
-    Lemma nextblock_storev :
-      forall chunk  (m1 : mem) (vptr v : val) (m2 : mem),
-        Mem.storev chunk m1 vptr v = Some m2 ->
-        Mem.nextblock m2 = Mem.nextblock m1.
-    Proof.
-      intros.
-      unfold Mem.storev in H.
-      destruct vptr; try discriminate.
-      erewrite Mem.nextblock_store; eauto.
-    Qed.
+  Lemma nextblock_storev :
+    forall chunk  (m1 : mem) (vptr v : val) (m2 : mem),
+      Mem.storev chunk m1 vptr v = Some m2 ->
+      Mem.nextblock m2 = Mem.nextblock m1.
+  Proof.
+    intros.
+    unfold Mem.storev in H.
+    destruct vptr; try discriminate.
+    erewrite Mem.nextblock_store; eauto.
+  Qed.
 
-    Lemma alloc_obs_eq:
-      forall f m m' sz m2 m2' b b'
-        (Hobs_eq: mem_obs_eq f m m')
-        (Halloc: Mem.alloc m 0 sz = (m2, b))
-        (Halloc': Mem.alloc m' 0 sz = (m2', b')),
-      exists f',
-        f' b = Some b' /\
-        mem_obs_eq f' m2 m2' /\
-        ren_incr f f' /\
-        ren_separated f f' m m' /\
-        ((exists p : positive,
-             Mem.nextblock m2 = (Mem.nextblock m + p)%positive /\
-             Mem.nextblock m2' = (Mem.nextblock m' + p)%positive) \/
-         Mem.nextblock m2 = Mem.nextblock m /\
-         Mem.nextblock m2' = Mem.nextblock m') /\
-        (forall b0 : block,
-            Mem.valid_block m2' b0 ->
-            ~ Mem.valid_block m' b0 ->
-            f'
-              (Z.to_pos
-                 match - Z.pos_sub (Mem.nextblock m') (Mem.nextblock m) with
-                 | 0 => Z.pos b0
-                 | Z.pos y' => Z.pos (b0 + y')
-                 | Z.neg y' => Z.pos_sub b0 y'
-                 end) = Some b0 /\
-            f
-              (Z.to_pos
-                 match - Z.pos_sub (Mem.nextblock m') (Mem.nextblock m) with
-                 | 0 => Z.pos b0
-                 | Z.pos y' => Z.pos (b0 + y')
-                 | Z.neg y' => Z.pos_sub b0 y'
-                 end) = None) /\
-        (Mem.nextblock m = Mem.nextblock m' ->
-         (forall b1 b3 : block, f b1 = Some b3 -> b1 = b3) ->
-         forall b1 b0 : block, f' b1 = Some b0 -> b1 = b0).
-    Proof.
-      intros.
-      exists (fun b => if valid_block_dec m b then f b else
-                 if valid_block_dec m2 b then Some b' else None).
-      split.
-      { destruct (valid_block_dec m b); simpl.
-        apply Mem.alloc_result in Halloc.
-        unfold Mem.valid_block in *.
-        subst.
-        exfalso;
-          by apply Pos.lt_irrefl in v.
-        destruct (valid_block_dec m2 b); first by reflexivity.
-        apply Mem.valid_new_block in Halloc;
-          by exfalso.        
-      } split.
-      { constructor.
-        - (*weak_mem_obs_eq*)
-          constructor.
-          + (*domain_invalid*)
-            intros b1 Hinvalid.
-            assert (Hinvalid0: ~ Mem.valid_block m b1)
-              by (intro; eapply Mem.valid_block_alloc in H; eauto).
-            destruct (valid_block_dec m b1); try by exfalso.
-            destruct (valid_block_dec m2 b1); try by exfalso.
-            reflexivity.
-          + (*domain_valid*)
-            intros b1 Hvalid.
-            (* by case analysis on whether this is the fresh block or an older one*)
-            pose proof (Mem.valid_block_alloc_inv _ _ _ _ _ Halloc _ Hvalid) as H.
-            destruct H as [Heq | Hvalid0].
-            * subst.
-              assert (Hinvalid := Mem.fresh_block_alloc _ _ _ _ _ Halloc).
-              destruct (valid_block_dec m b); try by exfalso.
-              destruct (valid_block_dec m2 b); try by exfalso.
-              simpl; eexists; reflexivity.
-            * destruct (valid_block_dec m b1); try by exfalso.
-              simpl;
-                by apply (domain_valid (weak_obs_eq Hobs_eq)).
-          + (*Codomain valid*)
-            intros b1 b2 Hmapped.
-            destruct (valid_block_dec m b1); simpl in *.
-            * apply (codomain_valid (weak_obs_eq Hobs_eq)) in Hmapped.
-              eapply Mem.valid_block_alloc; eauto.
-            * destruct (valid_block_dec m2 b1); simpl in *; try discriminate.
-              inv Hmapped.
-              eapply Mem.valid_new_block;
-                by eauto.
-          + (* injective *)
-            intros b1 b1' b2 Hf1 Hf1'.
-            destruct (valid_block_dec m b1); simpl in *.
-            * destruct (valid_block_dec m b1'); simpl in *;
-              first by (eapply (injective (weak_obs_eq Hobs_eq)); eauto).
-              exfalso.
-              destruct (valid_block_dec m2 b1'); simpl in *; try discriminate.
-              inv Hf1'.            
-              apply (codomain_valid (weak_obs_eq Hobs_eq)) in Hf1.
-              apply Mem.fresh_block_alloc in Halloc'.
-              auto.
-            * destruct (valid_block_dec m b1'); simpl in *.
-              destruct (valid_block_dec m2 b1); simpl in *; try discriminate.
-              inv Hf1.
-              apply (codomain_valid (weak_obs_eq Hobs_eq)) in Hf1'.
-              apply Mem.fresh_block_alloc in Halloc';
-                by auto.
-              destruct (valid_block_dec m2 b1); simpl in *; try discriminate.
-              destruct (valid_block_dec m2 b1'); simpl in *; try discriminate.
-              inv Hf1; inv Hf1'.
-              eapply Mem.valid_block_alloc_inv in v0; eauto.
-              eapply Mem.valid_block_alloc_inv in v; eauto.
-              destruct v, v0; subst; eauto; try by exfalso.
-          + (* m permissions are higher than m' permissions *)
-            intros. erewrite alloc_perm_eq by eauto.
-            apply permissions.po_refl.
-        - constructor;
-          first by (intros; erewrite <- alloc_perm_eq; eauto).
-          intros.
+  Lemma alloc_obs_eq:
+    forall f m m' sz m2 m2' b b'
+      (Hobs_eq: mem_obs_eq f m m')
+      (Halloc: Mem.alloc m 0 sz = (m2, b))
+      (Halloc': Mem.alloc m' 0 sz = (m2', b')),
+    exists f',
+      f' b = Some b' /\
+      mem_obs_eq f' m2 m2' /\
+      ren_incr f f' /\
+      ren_separated f f' m m' /\
+      ((exists p : positive,
+           Mem.nextblock m2 = (Mem.nextblock m + p)%positive /\
+           Mem.nextblock m2' = (Mem.nextblock m' + p)%positive) \/
+       Mem.nextblock m2 = Mem.nextblock m /\
+       Mem.nextblock m2' = Mem.nextblock m') /\
+      (forall b0 : block,
+          Mem.valid_block m2' b0 ->
+          ~ Mem.valid_block m' b0 ->
+          f'
+            (Z.to_pos
+               match - Z.pos_sub (Mem.nextblock m') (Mem.nextblock m) with
+               | 0 => Z.pos b0
+               | Z.pos y' => Z.pos (b0 + y')
+               | Z.neg y' => Z.pos_sub b0 y'
+               end) = Some b0 /\
+          f
+            (Z.to_pos
+               match - Z.pos_sub (Mem.nextblock m') (Mem.nextblock m) with
+               | 0 => Z.pos b0
+               | Z.pos y' => Z.pos (b0 + y')
+               | Z.neg y' => Z.pos_sub b0 y'
+               end) = None) /\
+      (Mem.nextblock m = Mem.nextblock m' ->
+       (forall b1 b3 : block, f b1 = Some b3 -> b1 = b3) ->
+       forall b1 b0 : block, f' b1 = Some b0 -> b1 = b0).
+  Proof.
+    intros.
+    exists (fun b => if valid_block_dec m b then f b else
+               if valid_block_dec m2 b then Some b' else None).
+    split.
+    { destruct (valid_block_dec m b); simpl.
+      apply Mem.alloc_result in Halloc.
+      unfold Mem.valid_block in *.
+      subst.
+      exfalso;
+        by apply Pos.lt_irrefl in v.
+      destruct (valid_block_dec m2 b); first by reflexivity.
+      apply Mem.valid_new_block in Halloc;
+        by exfalso.        
+    } split.
+    { constructor.
+      - (*weak_mem_obs_eq*)
+        constructor.
+        + (*domain_invalid*)
+          intros b1 Hinvalid.
+          assert (Hinvalid0: ~ Mem.valid_block m b1)
+            by (intro; eapply Mem.valid_block_alloc in H; eauto).
+          destruct (valid_block_dec m b1); try by exfalso.
+          destruct (valid_block_dec m2 b1); try by exfalso.
+          reflexivity.
+        + (*domain_valid*)
+          intros b1 Hvalid.
+          (* by case analysis on whether this is the fresh block or an older one*)
+          pose proof (Mem.valid_block_alloc_inv _ _ _ _ _ Halloc _ Hvalid) as H.
+          destruct H as [Heq | Hvalid0].
+          * subst.
+            assert (Hinvalid := Mem.fresh_block_alloc _ _ _ _ _ Halloc).
+            destruct (valid_block_dec m b); try by exfalso.
+            destruct (valid_block_dec m2 b); try by exfalso.
+            simpl; eexists; reflexivity.
+          * destruct (valid_block_dec m b1); try by exfalso.
+            simpl;
+              by apply (domain_valid (weak_obs_eq Hobs_eq)).
+        + (*Codomain valid*)
+          intros b1 b2 Hmapped.
           destruct (valid_block_dec m b1); simpl in *.
-          + erewrite <- val_at_alloc_1; eauto.
-            erewrite <- val_at_alloc_1 with (m' := m2')
-              by (eauto; eapply (codomain_valid (weak_obs_eq Hobs_eq)); eauto).
-            assert (Heq := permission_at_alloc_1 ofs Halloc v).
-            unfold permissions.permission_at in Heq.
-            pose proof (val_obs_eq (strong_obs_eq Hobs_eq) _ ofs Hrenaming).
-            unfold Mem.perm in *.
-            rewrite Heq in H.
-            specialize (H Hperm).
-            eapply memval_obs_eq_incr; eauto.
-            destruct (valid_block_dec m b1); try by exfalso.
-            simpl; auto.
-            intros b1' b2' Hf'.
-            destruct (valid_block_dec m b1'); simpl. auto.
-            apply (domain_invalid (weak_obs_eq Hobs_eq)) in n; by congruence.
-          + destruct (valid_block_dec m2 b1); simpl in *; try discriminate.
-            inv Hrenaming.
+          * apply (codomain_valid (weak_obs_eq Hobs_eq)) in Hmapped.
+            eapply Mem.valid_block_alloc; eauto.
+          * destruct (valid_block_dec m2 b1); simpl in *; try discriminate.
+            inv Hmapped.
+            eapply Mem.valid_new_block;
+              by eauto.
+        + (* injective *)
+          intros b1 b1' b2 Hf1 Hf1'.
+          destruct (valid_block_dec m b1); simpl in *.
+          * destruct (valid_block_dec m b1'); simpl in *;
+            first by (eapply (injective (weak_obs_eq Hobs_eq)); eauto).
+            exfalso.
+            destruct (valid_block_dec m2 b1'); simpl in *; try discriminate.
+            inv Hf1'.            
+            apply (codomain_valid (weak_obs_eq Hobs_eq)) in Hf1.
+            apply Mem.fresh_block_alloc in Halloc'.
+            auto.
+          * destruct (valid_block_dec m b1'); simpl in *.
+            destruct (valid_block_dec m2 b1); simpl in *; try discriminate.
+            inv Hf1.
+            apply (codomain_valid (weak_obs_eq Hobs_eq)) in Hf1'.
+            apply Mem.fresh_block_alloc in Halloc';
+              by auto.
+            destruct (valid_block_dec m2 b1); simpl in *; try discriminate.
+            destruct (valid_block_dec m2 b1'); simpl in *; try discriminate.
+            inv Hf1; inv Hf1'.
+            eapply Mem.valid_block_alloc_inv in v0; eauto.
             eapply Mem.valid_block_alloc_inv in v; eauto.
-            destruct v as [? | ?]; try by exfalso.
-            subst.
-            erewrite val_at_alloc_2; eauto.
-            erewrite val_at_alloc_2; eauto.
-            constructor.
-      } split.
-      { intros ? ? ?.
-        destruct (valid_block_dec m b0); simpl; auto.
-        apply (domain_invalid (weak_obs_eq Hobs_eq)) in n; by congruence.
-      } split.
-      { intros ? ? Hf Hf'.
-        destruct (valid_block_dec m b1); simpl in *; try congruence.
-        destruct (valid_block_dec m2 b1); simpl in *; try congruence.
-        inv Hf'.
-        split; auto.
-        intro Hcontra.
-        apply Mem.fresh_block_alloc in Halloc';
+            destruct v, v0; subst; eauto; try by exfalso.
+        + (* m permissions are higher than m' permissions *)
+          intros. erewrite alloc_perm_eq by eauto.
+          apply permissions.po_refl.
+      - constructor;
+        first by (intros; erewrite <- alloc_perm_eq; eauto).
+        intros.
+        destruct (valid_block_dec m b1); simpl in *.
+        + erewrite <- val_at_alloc_1; eauto.
+          erewrite <- val_at_alloc_1 with (m' := m2')
+            by (eauto; eapply (codomain_valid (weak_obs_eq Hobs_eq)); eauto).
+          assert (Heq := permission_at_alloc_1 ofs Halloc v).
+          unfold permissions.permission_at in Heq.
+          pose proof (val_obs_eq (strong_obs_eq Hobs_eq) _ ofs Hrenaming).
+          unfold Mem.perm in *.
+          rewrite Heq in H.
+          specialize (H Hperm).
+          eapply memval_obs_eq_incr; eauto.
+          destruct (valid_block_dec m b1); try by exfalso.
+          simpl; auto.
+          intros b1' b2' Hf'.
+          destruct (valid_block_dec m b1'); simpl. auto.
+          apply (domain_invalid (weak_obs_eq Hobs_eq)) in n; by congruence.
+        + destruct (valid_block_dec m2 b1); simpl in *; try discriminate.
+          inv Hrenaming.
+          eapply Mem.valid_block_alloc_inv in v; eauto.
+          destruct v as [? | ?]; try by exfalso.
+          subst.
+          erewrite val_at_alloc_2; eauto.
+          erewrite val_at_alloc_2; eauto.
+          constructor.
+    } split.
+    { intros ? ? ?.
+      destruct (valid_block_dec m b0); simpl; auto.
+      apply (domain_invalid (weak_obs_eq Hobs_eq)) in n; by congruence.
+    } split.
+    { intros ? ? Hf Hf'.
+      destruct (valid_block_dec m b1); simpl in *; try congruence.
+      destruct (valid_block_dec m2 b1); simpl in *; try congruence.
+      inv Hf'.
+      split; auto.
+      intro Hcontra.
+      apply Mem.fresh_block_alloc in Halloc';
+        auto.
+    } split.
+    { left. exists 1%positive.
+      erewrite Mem.nextblock_alloc; eauto.
+      erewrite Mem.nextblock_alloc with (m2 := m2'); eauto.
+      do 2 rewrite Pplus_one_succ_r; split; reflexivity.
+    } split.
+    { intros b1 Hvalid2' Hinvalid'.
+      eapply Mem.valid_block_alloc_inv in Hvalid2'; eauto.
+      destruct Hvalid2'; subst; try by exfalso.
+      assert (Hle: (Mem.nextblock m <= Mem.nextblock m')%positive)
+        by admit. (*pigeon hole or extra invariant *)
+      match goal with
+      | [|- context[match proj_sumbool (valid_block_dec ?M ?Expr) with _ => _ end]] =>
+        destruct (valid_block_dec M Expr)
+      end.
+      - exfalso.
+        apply Pos.lt_eq_cases in Hle.
+        destruct Hle as [Hlt | Heq].
+        +  rewrite Z.pos_sub_gt in v; auto.
+           simpl in v.
+           unfold Mem.valid_block, Plt in *.
+           rewrite <- Pos.le_nlt in Hinvalid'.
+           assert (H := le_sub Hlt Hinvalid').
+           erewrite Pos.le_nlt in H.
+           auto.
+        + rewrite Heq in v.
+          rewrite Z.pos_sub_diag in v. simpl in v.
+          unfold Mem.valid_block in *.
+          rewrite Heq in v.
           auto.
-      } split.
-      { left. exists 1%positive.
-        erewrite Mem.nextblock_alloc; eauto.
-        erewrite Mem.nextblock_alloc with (m2 := m2'); eauto.
-        do 2 rewrite Pplus_one_succ_r; split; reflexivity.
-      } split.
-      { intros b1 Hvalid2' Hinvalid'.
-        eapply Mem.valid_block_alloc_inv in Hvalid2'; eauto.
-        destruct Hvalid2'; subst; try by exfalso.
-        assert (Hle: (Mem.nextblock m <= Mem.nextblock m')%positive)
-          by admit. (*pigeon hole or extra invariant *)
+      - simpl.
         match goal with
         | [|- context[match proj_sumbool (valid_block_dec ?M ?Expr) with _ => _ end]] =>
           destruct (valid_block_dec M Expr)
-        end.
-        - exfalso.
+        end; simpl.
+        + split; auto.
+          apply (domain_invalid (weak_obs_eq Hobs_eq)); auto.
+        + exfalso.
+          apply Mem.alloc_result in Halloc'. subst b'.
           apply Pos.lt_eq_cases in Hle.
-          destruct Hle as [Hlt | Heq].
-          +  rewrite Z.pos_sub_gt in v; auto.
-             simpl in v.
-             unfold Mem.valid_block, Plt in *.
-             rewrite <- Pos.le_nlt in Hinvalid'.
-             assert (H := le_sub Hlt Hinvalid').
-             erewrite Pos.le_nlt in H.
-             auto.
-          + rewrite Heq in v.
-            rewrite Z.pos_sub_diag in v. simpl in v.
-            unfold Mem.valid_block in *.
-            rewrite Heq in v.
-            auto.
-        - simpl.
-          match goal with
-          | [|- context[match proj_sumbool (valid_block_dec ?M ?Expr) with _ => _ end]] =>
-            destruct (valid_block_dec M Expr)
-          end; simpl.
-          + split; auto.
-            apply (domain_invalid (weak_obs_eq Hobs_eq)); auto.
-          + exfalso.
-            apply Mem.alloc_result in Halloc'. subst b'.
-            apply Pos.lt_eq_cases in Hle.
-            destruct Hle as [Hlt | Heq]. 
-            * rewrite Z.pos_sub_gt in n0; auto.
-              simpl in n0.
-              unfold Mem.valid_block, Plt in *.
-              rewrite <- Pos.le_nlt in n0.
-              erewrite Mem.nextblock_alloc in n0 by eauto.
-              clear - Hlt n0.
-              assert (Hcontra := lt_sub_bound Hlt).
-              erewrite Pos.le_nlt in n0. auto.
-            * rewrite Heq in n0.
-              rewrite Z.pos_sub_diag in n0. simpl in n0.
-              unfold Mem.valid_block, Plt in *.
-              rewrite <- Heq in n0.
-              erewrite Mem.nextblock_alloc with (m2 := m2) in n0 by eauto.
-              zify; omega.
-      }
-      { intros Hnext Hid b1 b2.
-        destruct (valid_block_dec m b1); simpl; auto.
-        destruct (valid_block_dec m2 b1); simpl; intros; try discriminate.
-        inv H.
-        assert (b1 = b).
-        { clear - Halloc n v.
-          unfold Mem.valid_block, Plt in *.
-          erewrite Mem.nextblock_alloc in v; eauto.
-          rewrite <- Pos.le_nlt in n.
-          apply Pos.lt_eq_cases in n; destruct n.
-          exfalso. zify. omega.
-          rewrite H in v.
-          apply Mem.alloc_result in Halloc; subst; auto.
-        } subst b1.
-        apply Mem.alloc_result in Halloc'. subst.
+          destruct Hle as [Hlt | Heq]. 
+          * rewrite Z.pos_sub_gt in n0; auto.
+            simpl in n0.
+            unfold Mem.valid_block, Plt in *.
+            rewrite <- Pos.le_nlt in n0.
+            erewrite Mem.nextblock_alloc in n0 by eauto.
+            clear - Hlt n0.
+            assert (Hcontra := lt_sub_bound Hlt).
+            erewrite Pos.le_nlt in n0. auto.
+          * rewrite Heq in n0.
+            rewrite Z.pos_sub_diag in n0. simpl in n0.
+            unfold Mem.valid_block, Plt in *.
+            rewrite <- Heq in n0.
+            erewrite Mem.nextblock_alloc with (m2 := m2) in n0 by eauto.
+            zify; omega.
+    }
+    { intros Hnext Hid b1 b2.
+      destruct (valid_block_dec m b1); simpl; auto.
+      destruct (valid_block_dec m2 b1); simpl; intros; try discriminate.
+      inv H.
+      assert (b1 = b).
+      { clear - Halloc n v.
+        unfold Mem.valid_block, Plt in *.
+        erewrite Mem.nextblock_alloc in v; eauto.
+        rewrite <- Pos.le_nlt in n.
+        apply Pos.lt_eq_cases in n; destruct n.
+        exfalso. zify. omega.
+        rewrite H in v.
         apply Mem.alloc_result in Halloc; subst; auto.
-      }
-    Admitted. 
+      } subst b1.
+      apply Mem.alloc_result in Halloc'. subst.
+      apply Mem.alloc_result in Halloc; subst; auto.
+    }
+  Admitted. 
 
     
   (** Executing an instruction in related states results in related
@@ -1682,101 +1789,101 @@ Module X86Inj <: CoreInjections.
       constructor; eauto.
   Qed.
 
-   Lemma load_frame_store_args_rec_obs:
-        forall f m m2 m' stk stk' args args' tys ofs
-          (Hmem_obs_eq: mem_obs_eq f m m')
-          (Hargs: val_obs_list f args args')
-          (Hf: f stk = Some stk')
-          (Hload_frame: load_frame.store_args_rec m stk ofs args tys = Some m2),
-        exists m2',
-          load_frame.store_args_rec m' stk' ofs args' tys = Some m2' /\
-          mem_obs_eq f m2 m2'.
-      Proof with eauto with val_renamings reg_renamings.
-        intros.
-        generalize dependent tys.
-        generalize dependent args'.
-        generalize dependent ofs.
-        generalize dependent m'.
-        generalize dependent m.
-        induction args; intros.
-        - unfold load_frame.store_args in *.
-          simpl in *. destruct tys; intros; try discriminate.
-          inv Hargs; inv Hload_frame.
-          simpl. eexists; split; eauto.
-        - unfold load_frame.store_args in *.
-          inv Hargs.
-          destruct tys; simpl in *; try discriminate;
-          destruct t0;
-          match goal with
-          | [H: match ?Expr with _ => _ end = _ |- _] =>
-            destruct Expr eqn:Hload_frame_rec
-          end; try discriminate; subst;
-          unfold load_frame.store_stack in *;
-          try( eapply storev_val_obs in Hload_frame_rec;
-               eauto with val_renamings reg_renamings;
-               destruct Hload_frame_rec as [mf' [Hstorev' Hobs_eq']];
-               rewrite Hstorev';
-               eapply IHargs; eauto).
-          repeat match goal with
-                 | [H: match ?Expr with _ => _ end = _ |- _] =>
-                   destruct Expr eqn:?
-                 end; try discriminate; subst.
-          inversion H1; subst.
-          eapply storev_val_obs in Heqo...
-          destruct Heqo as [m0' [Hstore0' Hmem_obs_eq0']].
-          eapply storev_val_obs in Heqo0...
-          destruct Heqo0 as [m2' [Hstore' Hmem_obs_eq']].
-          rewrite Hstore0' Hstore'.
-          eauto.
-      Qed.
-      
-      Lemma load_frame_store_args_obs:
-        forall f m m2 m' stk stk' args args' tys
-          (Hmem_obs_eq: mem_obs_eq f m m')
-          (Hargs: val_obs_list f args args')
-          (Hf: f stk = Some stk')
-          (Hload_frame: load_frame.store_args m stk args tys = Some m2),
-        exists m2',
-          load_frame.store_args m' stk' args' tys = Some m2' /\
-          mem_obs_eq f m2 m2'.
-      Proof.
-        intros.
-        unfold load_frame.store_args in *.
-        eapply load_frame_store_args_rec_obs; eauto.
-      Qed.
+  Lemma load_frame_store_args_rec_obs:
+    forall f m m2 m' stk stk' args args' tys ofs
+      (Hmem_obs_eq: mem_obs_eq f m m')
+      (Hargs: val_obs_list f args args')
+      (Hf: f stk = Some stk')
+      (Hload_frame: load_frame.store_args_rec m stk ofs args tys = Some m2),
+    exists m2',
+      load_frame.store_args_rec m' stk' ofs args' tys = Some m2' /\
+      mem_obs_eq f m2 m2'.
+  Proof with eauto with val_renamings reg_renamings.
+    intros.
+    generalize dependent tys.
+    generalize dependent args'.
+    generalize dependent ofs.
+    generalize dependent m'.
+    generalize dependent m.
+    induction args; intros.
+    - unfold load_frame.store_args in *.
+      simpl in *. destruct tys; intros; try discriminate.
+      inv Hargs; inv Hload_frame.
+      simpl. eexists; split; eauto.
+    - unfold load_frame.store_args in *.
+      inv Hargs.
+      destruct tys; simpl in *; try discriminate;
+      destruct t0;
+      match goal with
+      | [H: match ?Expr with _ => _ end = _ |- _] =>
+        destruct Expr eqn:Hload_frame_rec
+      end; try discriminate; subst;
+      unfold load_frame.store_stack in *;
+      try( eapply storev_val_obs in Hload_frame_rec;
+           eauto with val_renamings reg_renamings;
+           destruct Hload_frame_rec as [mf' [Hstorev' Hobs_eq']];
+           rewrite Hstorev';
+           eapply IHargs; eauto).
+      repeat match goal with
+             | [H: match ?Expr with _ => _ end = _ |- _] =>
+               destruct Expr eqn:?
+             end; try discriminate; subst.
+      inversion H1; subst.
+      eapply storev_val_obs in Heqo...
+      destruct Heqo as [m0' [Hstore0' Hmem_obs_eq0']].
+      eapply storev_val_obs in Heqo0...
+      destruct Heqo0 as [m2' [Hstore' Hmem_obs_eq']].
+      rewrite Hstore0' Hstore'.
+      eauto.
+  Qed.
+  
+  Lemma load_frame_store_args_obs:
+    forall f m m2 m' stk stk' args args' tys
+      (Hmem_obs_eq: mem_obs_eq f m m')
+      (Hargs: val_obs_list f args args')
+      (Hf: f stk = Some stk')
+      (Hload_frame: load_frame.store_args m stk args tys = Some m2),
+    exists m2',
+      load_frame.store_args m' stk' args' tys = Some m2' /\
+      mem_obs_eq f m2 m2'.
+  Proof.
+    intros.
+    unfold load_frame.store_args in *.
+    eapply load_frame_store_args_rec_obs; eauto.
+  Qed.
 
-      Lemma load_frame_store_args_rec_nextblock:
-        forall args m m2 stk ofs tys
-          (Hload_frame: load_frame.store_args_rec m stk ofs args tys = Some m2),
-          Mem.nextblock m2 = Mem.nextblock m.
-      Proof.
-        intro args.
-        induction args; intros; simpl in *.
-        destruct tys; inv Hload_frame; auto.
-        destruct tys; try discriminate;
-        destruct t0;
-        repeat match goal with
-               | [H: match ?Expr with _ => _ end = _ |- _] =>
-                 destruct Expr eqn:?; try discriminate;
-                   unfold load_frame.store_stack in *
-               | [H: Mem.storev _ _ _ _ = _ |- _] =>
-                 eapply nextblock_storev in H
-               | [H: ?Expr = ?Expr2 |- context[?Expr2]] =>
-                 rewrite <- H
-               end;
-        eauto.
-      Qed.
-      
-      Lemma load_frame_store_nextblock:
-        forall m m2 stk args tys
-          (Hload_frame: load_frame.store_args m stk args tys = Some m2),
-          Mem.nextblock m2 = Mem.nextblock m.
-      Proof.
-        intros.
-        unfold load_frame.store_args in *.
-        eapply load_frame_store_args_rec_nextblock; eauto.
-      Qed.
-      
+  Lemma load_frame_store_args_rec_nextblock:
+    forall args m m2 stk ofs tys
+      (Hload_frame: load_frame.store_args_rec m stk ofs args tys = Some m2),
+      Mem.nextblock m2 = Mem.nextblock m.
+  Proof.
+    intro args.
+    induction args; intros; simpl in *.
+    destruct tys; inv Hload_frame; auto.
+    destruct tys; try discriminate;
+    destruct t0;
+    repeat match goal with
+           | [H: match ?Expr with _ => _ end = _ |- _] =>
+             destruct Expr eqn:?; try discriminate;
+               unfold load_frame.store_stack in *
+           | [H: Mem.storev _ _ _ _ = _ |- _] =>
+             eapply nextblock_storev in H
+           | [H: ?Expr = ?Expr2 |- context[?Expr2]] =>
+             rewrite <- H
+           end;
+    eauto.
+  Qed.
+  
+  Lemma load_frame_store_nextblock:
+    forall m m2 stk args tys
+      (Hload_frame: load_frame.store_args m stk args tys = Some m2),
+      Mem.nextblock m2 = Mem.nextblock m.
+  Proof.
+    intros.
+    unfold load_frame.store_args in *.
+    eapply load_frame_store_args_rec_nextblock; eauto.
+  Qed.
+  
   Lemma corestep_obs_eq:
     forall (cc cf cc' : Asm_coop.state) (mc mf mc' : mem) f fg,
       mem_obs_eq f mc mf ->
@@ -1889,6 +1996,231 @@ Module X86Inj <: CoreInjections.
       econstructor; eauto.
     - inversion Hcorestep; by exfalso.
   Qed.
+
+  (** Coresteps maintain well-definedness *)
+  Lemma valid_mem_loadv:
+    forall chunk m vptr v f
+      (Hwd: valid_mem m)
+      (Hdomain: domain_memren f m)
+      (Hload: Mem.loadv chunk m vptr = Some v),
+      valid_val f v.
+  Proof. Admitted.
+  
+  Lemma extcall_arg_valid:
+    forall f rs m locs arg
+      (Hrs_wd: regset_wd f rs)
+      (Hmem_wd : valid_mem m)
+      (Hobs_eq: domain_memren f m)
+      (Harg: extcall_arg rs m locs arg),
+      valid_val f arg.
+  Proof with eauto with wd.
+    intros.
+    inversion Harg; subst.
+    eauto.
+    eapply valid_mem_loadv in H0; eauto.
+  Qed.
+
+  Lemma extcall_arguments_valid:
+    forall f m ef args rs
+      (Hexternal: extcall_arguments rs m (ef_sig ef) args)
+      (Hrs_wd: regset_wd f rs)
+      (Hmem_wd : valid_mem m)
+      (Hobs_eq: domain_memren f m),
+      valid_val_list f args.
+  Proof.
+    intros.
+    unfold extcall_arguments in *.
+    generalize dependent (Conventions1.loc_arguments (ef_sig ef)).
+    induction args; intros; constructor.
+    inversion Hexternal; subst.
+    eapply extcall_arg_valid; eauto.
+    inversion Hexternal; subst.
+    eauto.
+  Qed.
+
+  Lemma mem_valid_alloc:
+    forall m sz m' b f
+      (Hdomain: domain_memren f m)
+      (Hvalid_mem: valid_mem m)
+      (Halloc: Mem.alloc m 0 sz = (m', b)),
+      valid_mem m' /\
+      (exists f', ren_domain_incr f f' /\ domain_memren f' m').
+  Proof.
+    intros.
+    split.
+    - unfold valid_mem.
+      intros b0 Hvalid0 ofs mv Hget.
+      pose proof (Mem.valid_block_alloc_inv _ _ _ _ _ Halloc _ Hvalid0) as H.
+      destruct H.
+      + subst.
+        erewrite val_at_alloc_2; eauto.
+      + unfold valid_mem in Hvalid_mem.
+        specialize (Hvalid_mem _ H ofs _ ltac:(reflexivity)).
+        erewrite val_at_alloc_1 in Hvalid_mem; eauto.
+        rewrite Hget in Hvalid_mem.
+        destruct mv; auto.
+        destruct v; auto.
+        simpl in *.
+        eapply Mem.valid_block_alloc; eauto.
+    - exists (fun b0 => if valid_block_dec m b0 then f b0 else
+                  if valid_block_dec m' b0 then Some b else None).
+      split.
+      + unfold ren_domain_incr.
+        intros b0 Hf.
+        destruct (valid_block_dec m b0); simpl; auto.
+        destruct (valid_block_dec m' b0); simpl; auto.
+        erewrite <- (Hdomain b0) in Hf.
+          by exfalso.
+      + unfold domain_memren.
+        intros b0. split; intros.
+        * eapply Mem.valid_block_alloc_inv in H; eauto.
+          destruct H.
+          subst.
+          assert (Hinvalid := Mem.fresh_block_alloc _ _ _ _ _ Halloc).
+          assert (Hvalid := Mem.valid_new_block _ _ _ _ _ Halloc).
+          destruct (valid_block_dec m b); simpl; auto.
+          destruct (valid_block_dec m' b); simpl;
+            by auto.
+          destruct (valid_block_dec m b0); simpl; auto.
+          eapply Hdomain; auto.
+        * destruct (valid_block_dec m b0);
+          simpl in H.
+          eapply Mem.valid_block_alloc; eauto.
+          destruct (valid_block_dec m' b0); simpl in H; auto.
+            by exfalso.
+  Qed.
+  
+  Lemma load_frame_store_args_rec_wd_domain:
+    forall f m m' stk  args tys ofs
+      (Hargs: valid_val_list f args)
+      (Hmem_wd : valid_mem m)
+      (Hdomain : domain_memren f m)
+      (Hload_frame: load_frame.store_args_rec m stk ofs args tys = Some m'),
+      valid_mem m' /\ domain_memren f m'.
+  Proof.
+    intros.
+    generalize dependent tys.
+    generalize dependent ofs.
+    generalize dependent m'.
+    generalize dependent m.
+    induction args; intros.
+    - unfold load_frame.store_args in *.
+      simpl in *. destruct tys; intros; try discriminate.
+      inv Hargs; inv Hload_frame; auto.
+    - unfold load_frame.store_args in *.
+      inv Hargs.
+      destruct tys; simpl in *; try discriminate;
+      destruct t0;
+      match goal with
+      | [H: match ?Expr with _ => _ end = _ |- _] =>
+        destruct Expr eqn:Hload_frame_rec
+      end; try discriminate; subst;
+      try (unfold load_frame.store_stack in *;
+      assert (domain_memren f m0)
+        by (eapply domain_memren_storev; eauto);
+      eapply storev_wd in Hload_frame_rec; eauto);
+      try (eapply wd_val_valid; eauto).
+      repeat match goal with
+             | [H: match ?Expr with _ => _ end = _ |- _] =>
+               destruct Expr eqn:?
+             end; try discriminate; subst.
+      unfold load_frame.store_stack in *.
+      assert (domain_memren f m0)
+        by (eapply domain_memren_storev; eauto).
+      assert (domain_memren f m1)
+        by (eapply domain_memren_storev; eauto).
+      eapply storev_wd in Heqo; eauto.
+      eapply storev_wd in Heqo0; eauto.
+  Qed.
+
+  Corollary load_frame_store_args_rec_valid:
+    forall f m m' stk  args tys ofs
+      (Hargs: valid_val_list f args)
+      (Hmem_wd : valid_mem m)
+      (Hdomain : domain_memren f m)
+      (Hload_frame: load_frame.store_args_rec m stk ofs args tys = Some m'),
+      valid_mem m'.
+  Proof.
+    eapply load_frame_store_args_rec_wd_domain; eauto.
+  Qed.
+  
+  Corollary load_frame_store_args_rec_domain:
+    forall f m m' stk args tys ofs
+      (Hargs: valid_val_list f args)
+      (Hmem_wd : valid_mem m)
+      (Hdomain : domain_memren f m)
+      (Hload_frame: load_frame.store_args_rec m stk ofs args tys = Some m'),
+      domain_memren f m'.
+  Proof.
+    eapply load_frame_store_args_rec_wd_domain.
+  Qed.
+
+  (** Well-definedness of state is retained. *)
+  (* The case for internal steps is missing. It's probably the most
+interesting, but on the other hand all necessary lemmas, for store,
+alloc, etc. have been proved.*)
+  Lemma corestep_wd:
+    forall c m c' m' f
+      (Hwd: core_wd f c)
+      (Hmem_wd: valid_mem m)
+      (Hdomain: domain_memren f m)
+      (Hcorestep: corestep SEM.Sem the_ge c m c' m'),
+      valid_mem m' /\
+      (exists f', ren_domain_incr f f' /\ domain_memren f' m') /\
+      forall f', domain_memren f' m' ->
+            core_wd f' c'.
+  Proof with eauto 3 with wd.
+    intros.
+    destruct c;
+      simpl in *.
+    - inversion Hcorestep; subst; try by exfalso.
+      admit.
+    - inversion Hcorestep; subst.
+      split; auto. split.
+      exists f; split; eauto using ren_domain_incr_refl.
+      intros f' Hdomain'.
+      simpl.
+      destruct Hwd.
+      split; first by (eapply extcall_arguments_valid; eauto with wd).
+      split...
+    - inversion Hcorestep; subst.
+      destruct Hwd.
+      assert (Hstk := Mem.valid_new_block _ _ _ _ _ H7).
+      eapply mem_valid_alloc in H7; eauto.
+      destruct H7. destruct H2 as [f' [Hincr Hdomain']].
+      split.
+      eapply valid_val_list_incr in H0; eauto.
+      eapply load_frame_store_args_rec_valid with (f := f'); eauto.
+      split.
+      exists f'; split; eauto.
+      eapply load_frame_store_args_rec_domain...
+      intros f'' Hdomain''.
+      simpl.
+      erewrite (Hdomain' stk) in Hstk.
+      assert (domain_memren f' m')
+        by (eapply load_frame_store_args_rec_domain; eauto with wd).
+      assert (exists x, f'' stk = Some x).
+      { erewrite <- (H2 stk) in Hstk.
+        erewrite (Hdomain'' stk) in Hstk.
+        destruct (f'' stk); try by exfalso.
+        eexists; eauto. }
+      split.
+      intro r.
+      unfold Pregmap.get.
+      apply regset_wd_set; auto.
+      apply regset_wd_set; simpl; auto.
+      apply regset_wd_set; simpl.
+      apply Hincr in H.
+      erewrite <- (H2 f0) in H.
+      erewrite (Hdomain'' f0) in H.
+      destruct (f'' f0); try by exfalso.
+      eexists; eauto.
+      intro r0. unfold Pregmap.get. rewrite Pregmap.gi.
+      simpl; auto.
+      destruct H3. rewrite H3. auto.
+    - inversion Hcorestep; by exfalso.
+  Admitted.
+
         
 End X86Inj.    
 
