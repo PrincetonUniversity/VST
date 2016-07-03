@@ -345,6 +345,14 @@ Open Scope nat_scope.
       by ssromega.
   Qed.
 
+  Lemma contains_add_latest: forall ds p a r,
+      containsThread (addThread ds p a r)
+                     (latestThread ds).
+  Proof. intros. 
+         simpl. unfold containsThread, latestThread.
+         simpl. ssromega.
+  Qed.
+
   Lemma updLock_updThread_comm:
         forall ds,
         forall i (cnti: containsThread ds i) c map l lmap,
@@ -820,7 +828,7 @@ Qed.
   Qed.
 
   Lemma gssAddCode:
-    forall {i tp} (cnt: containsThread tp i) vf arg pmap j
+    forall {tp} vf arg pmap j
       (Heq: j = latestThread tp)
       (cnt': containsThread (addThread tp vf arg pmap) j),
       getThreadC cnt' = Kinit vf arg.

@@ -17,6 +17,12 @@ Require Import concurrency.dry_machine. Import Concur.
 Require Import concurrency.lksize.
 Require Import concurrency.permissions.
 
+(*SSReflect*)
+From mathcomp.ssreflect Require Import ssreflect ssrbool ssrnat eqtype seq.
+Require Import Coq.ZArith.ZArith.
+Require Import PreOmega.
+Require Import concurrency.ssromega. (*omega in ssrnat *)
+
 (*The simulations*)
 Require Import sepcomp.wholeprog_simulations.
 
@@ -461,12 +467,141 @@ Module ClightParching <: ErasureSig.
       - unfold DSEM.ThreadPool.lockRes, DSEM.initial_machine; simpl.
         intros. rewrite threadPool.find_empty in H1; inversion H1.
     Qed.
+
+    (*Lemma to prove MTCH_latestThread*)
+      Lemma contains_iff_num:
+        forall js ds
+          (Hcnt: forall i, JTP.containsThread js i <-> DTP.containsThread ds i),
+          JSEM.ThreadPool.num_threads js = DSEM.ThreadPool.num_threads ds.
+      Proof.
+        intros.
+        unfold JTP.containsThread, DTP.containsThread in *.
+        remember (JSEM.ThreadPool.num_threads js).
+        remember (DSEM.ThreadPool.num_threads ds).
+        destruct p, p0; simpl in *.
+        assert (n = n0).
+        { clear - Hcnt.
+          generalize dependent n0.
+          induction n; intros.
+          destruct n0; auto.
+          destruct (Hcnt 0%nat).
+          exfalso.
+          specialize (H0 ltac:(ssromega));
+            by ssromega.
+
+          destruct n0.
+          exfalso.
+          destruct (Hcnt 0%nat).
+          specialize (H ltac:(ssromega));
+            by ssromega.
+          erewrite IHn; eauto.
+          intros; split; intro H.
+          assert (i.+1 < n.+1) by ssromega.
+          specialize (proj1 (Hcnt (i.+1)) H0).
+          intros.
+          clear -H1;
+            by ssromega.
+          assert (i.+1 < n0.+1) by ssromega.
+          specialize (proj2 (Hcnt (i.+1)) H0).
+          intros.
+          clear -H1;
+            by ssromega. }
+        subst.
+          by erewrite proof_irr with (a1 := N_pos) (a2 := N_pos0).
+      Qed.
     
+    
+    Lemma MTCH_latestThread: forall js ds,
+        match_st js ds ->
+        JTP.latestThread js = DTP.latestThread ds.
+    Proof.
+      intros js ds MATCH.
+      unfold JTP.latestThread.
+      unfold DTP.latestThread.
+      erewrite contains_iff_num.
+      - reflexivity.
+      - split; generalize i; inversion MATCH; assumption.
+    Qed.
+
+    Lemma MTCH_addThread: forall js ds parg arg phi res,
+            match_st js ds ->
+            (forall b0 ofs0, perm_of_res (phi@(b0, ofs0)) = res !! b0 ofs0) ->
+            match_st
+              (JTP.addThread js parg arg phi)
+              (DTP.addThread ds parg arg res).
+        Proof.
+          intros ? ? ? ? ? ? MATCH DISJ. constructor.
+          - intros tid HH.
+            apply JTP.cntAdd' in HH. destruct HH as [[HH ineq] | HH].
+            + apply DTP.cntAdd. inversion MATCH. apply mtch_cnt. assumption.
+            + 
+              erewrite MTCH_latestThread in HH.
+              rewrite HH.
+              apply DSEM.ThreadPool.contains_add_latest.
+              assumption.
+          - intros tid HH.
+            apply DTP.cntAdd' in HH. destruct HH as [[HH ineq] | HH].
+            + apply JTP.cntAdd. inversion MATCH. eapply  mtch_cnt'; assumption.
+            + erewrite <- MTCH_latestThread in HH.
+              rewrite HH.
+              apply JSEM.ThreadPool.contains_add_latest.
+              assumption.
+            + intros.
+              destruct (JTP.cntAdd' _ _ _ Htid) as [[jcnt jNLast]| jLast];
+              destruct (DTP.cntAdd' _ _ _ Htid') as [[dcnt dNLast]| dLast].
+              * erewrite JSEM.ThreadPool.gsoAddCode; try eassumption.
+                erewrite DSEM.ThreadPool.gsoAddCode; try eassumption.
+                inversion MATCH. eapply mtch_gtc.
+              * contradict jNLast.
+                rewrite <- (MTCH_latestThread js ds) in dLast.
+                rewrite dLast; reflexivity.
+                assumption.
+              * contradict dNLast.
+                rewrite (MTCH_latestThread js ds) in jLast.
+                rewrite jLast; reflexivity.
+                assumption.
+              * erewrite JSEM.ThreadPool.gssAddCode; try eassumption.
+                erewrite DSEM.ThreadPool.gssAddCode; try eassumption.
+                reflexivity.
+          - intros.
+            destruct (JTP.cntAdd' _ _ _ Htid) as [[jcnt jNLast]| jLast];
+              destruct (DTP.cntAdd' _ _ _ Htid') as [[dcnt dNLast]| dLast].
+              * erewrite JSEM.ThreadPool.gsoAddRes; try eassumption.
+                erewrite DSEM.ThreadPool.gsoAddRes; try eassumption.
+                inversion MATCH. eapply mtch_perm.
+              * contradict jNLast.
+                rewrite <- (MTCH_latestThread js ds) in dLast.
+                rewrite dLast; reflexivity.
+                assumption.
+              * contradict dNLast.
+                rewrite (MTCH_latestThread js ds) in jLast.
+                rewrite jLast; reflexivity.
+                assumption.
+              * erewrite JSEM.ThreadPool.gssAddRes; try eassumption.
+                erewrite DSEM.ThreadPool.gssAddRes; try eassumption.
+                apply DISJ.
+          - intros. rewrite JTP.gsoAddLPool DTP.gsoAddLPool.
+            inversion MATCH. apply mtch_locks.
+          - intros lock dres.
+            rewrite JTP.gsoAddLPool DTP.gsoAddLPool.
+            inversion MATCH. apply mtch_locksEmpty.
+          - intros lock jres dres .
+            rewrite JTP.gsoAddLPool DTP.gsoAddLPool.
+            inversion MATCH. apply mtch_locksRes.
+            Grab Existential Variables.
+            assumption.
+            assumption.
+            assumption.
+            assumption.
+        Qed.
+
+
+
     Variable genv: G.
     Variable main: Values.val.
     Lemma init_diagram:
       forall (j : Values.Val.meminj) (U:schedule) (js : jstate)
-        (vals : list Values.val) (m : mem)rmap pmap,
+        (vals : list Values.val) (m : Mem.mem) rmap pmap,
         init_inj_ok j m ->
         match_rmap_perm rmap pmap ->
         initial_core (JMachineSem U (Some rmap)) genv main vals = Some (U, js) ->
@@ -1652,14 +1787,121 @@ Module ClightParching <: ErasureSig.
               apply permDisjoint_permMapsDisjoint.
               intros b0 ofs0.
               rewrite virtue_spec2.
-              
-              
-        admit.
-        
+              inversion MATCH; erewrite <- mtch_perm.
+              apply joins_permDisjoint. apply joins_comm.
+              eapply join_sub_joins_trans.
+              eapply join_join_sub.
+              move Hrem_fun_res at bottom.
+              apply resource_at_join. eassumption.
+              simpl.
+              eapply resource_at_joins.
+              eapply (compatible_threadRes_join).
+              eassumption.
+              assumption.
+          - rewrite DSEM.ThreadPool.gsoThreadLock.
+            apply permDisjoint_permMapsDisjoint.
+            intros b0 ofs0.
+            rewrite virtue_spec2.
+            apply permDisjoint_comm.
+            eapply permDisjoint_sub.
+            eapply join_join_sub.
+            eapply resource_at_join.
+            eassumption.
+            inversion MATCH; rewrite mtch_perm.
+            apply mtch_cnt; assumption.
+            intros; apply permMapsDisjoint_permDisjoint.
+            inversion dinv.
+            apply permMapsDisjoint_comm; apply lock_set_threads.
+          - intros l lmap.
+            rewrite DTP.gsoThreadLPool.
+            intros H. 
+            apply permDisjoint_permMapsDisjoint.
+            intros b0 ofs0.
+            rewrite virtue_spec2.
+            apply permDisjoint_comm.
+            eapply permDisjoint_sub.
+            eapply join_join_sub.
+            eapply resource_at_join.
+            eassumption.
+            inversion MATCH; rewrite mtch_perm.
+            apply mtch_cnt; assumption.
+            intros; apply permMapsDisjoint_permDisjoint.
+            inversion dinv.
+            apply permMapsDisjoint_comm. eapply lock_res_threads.
+            eassumption.
+        }
+        { (*invariant ds_upd*)
+          eapply updThread_inv.
+          - assumption.
+          - intros.
+            apply permDisjoint_permMapsDisjoint; intros b0 ofs0.
+            rewrite virtue_spec1.
+            eapply permDisjoint_sub.
+            eapply join_join_sub.
+            eapply resource_at_join.
+            eapply join_comm.
+            eassumption.
+            inversion MATCH; rewrite mtch_perm.
+            apply mtch_cnt; assumption.
+            intros. 
+            apply permMapsDisjoint_comm.
+            inversion dinv. apply no_race.
+            intros HH; apply H; symmetry; exact HH.
+          - intros.
+            apply permDisjoint_permMapsDisjoint; intros b0 ofs0.
+            rewrite virtue_spec1.
+            eapply permDisjoint_comm.
+            eapply permDisjoint_sub.
+            eapply join_join_sub.
+            eapply resource_at_join.
+            eapply join_comm.
+            eassumption.
+            inversion MATCH; rewrite mtch_perm.
+            apply mtch_cnt; assumption.
+            intros. 
+            apply permMapsDisjoint_comm.
+            inversion dinv. apply lock_set_threads.
+          - intros.
+            apply permDisjoint_permMapsDisjoint; intros b0 ofs0.
+            rewrite virtue_spec1.
+            eapply permDisjoint_comm.
+            eapply permDisjoint_sub.
+            eapply join_join_sub.
+            eapply resource_at_join.
+            eapply join_comm.
+            eassumption.
+            inversion MATCH; rewrite mtch_perm.
+            apply mtch_cnt; assumption.
+            intros. 
+            apply permMapsDisjoint_comm.
+            inversion dinv. eapply lock_res_threads.
+            eassumption.
+        }
+      } 
+      { (*match_st*)
+        apply MTCH_addThread.
+        - apply MTCH_update.
+          + assumption.
+          + intros. symmetry; apply virtue_spec1.
+        - intros. symmetry; apply virtue_spec2.
       }
-      { admit.
-      }
-      { admit.
+      {
+        eapply DSEM.step_create with (virtue1:=virtue1)(virtue2:=virtue2).
+        - assumption.
+        - inversion MATCH. erewrite <- mtch_gtc; eassumption.
+        - eassumption.
+        - intros. rewrite virtue_spec1.
+          inversion MATCH. erewrite <- mtch_perm.
+          eapply juicy_mem_lemmas.po_join_sub.
+          eapply join_join_sub.
+          apply resource_at_join.
+          simpl in Hrem_fun_res.
+          eapply join_comm; eassumption.
+        - intros. rewrite virtue_spec2.
+          admit. (*This has to come from the juicy_semantics*)
+        - reflexivity.
+        - reflexivity.
+          
       }
 
     }
@@ -2310,9 +2552,9 @@ Module ClightParching <: ErasureSig.
 
   
   Lemma core_diagram':
-    forall (m : mem)  (U0 U U': schedule) 
+    forall (m : Mem.mem)  (U0 U U': schedule) 
      (ds : dstate) (js js': jstate) rmap pmap
-     (m' : mem),
+     (m' : Mem.mem),
    match_st js ds ->
    DSEM.invariant ds ->
    corestep (JMachineSem U0 rmap) genv (U, js) m (U', js') m' ->
@@ -2363,7 +2605,14 @@ Module ClightParching <: ErasureSig.
            eapply concurrency.dry_machine_lemmas.CoreLanguage.corestep_invariant. *)
            admit.
          }
-         { apply MTCH_update.
+         { Lemma MTCH_age: forall js ds age,
+             match_st js ds ->
+             match_st (JSEM.age_tp_to age js) ds. 
+           Proof.
+             intros. constructor.
+           Admitted.
+           apply MTCH_age.               
+           apply MTCH_update.
            assumption.
            intros.
            assert (HH:= juicy_mem_access jm').
@@ -2442,9 +2691,9 @@ Module ClightParching <: ErasureSig.
   Admitted.
 
   Lemma core_diagram:
-    forall (m : mem)  (U0 U U': schedule) rmap pmap 
+    forall (m : Mem.mem)  (U0 U U': schedule) rmap pmap 
      (ds : dstate) (js js': jstate) 
-     (m' : mem),
+     (m' : Mem.mem),
    corestep (JMachineSem U0 rmap) genv (U, js) m (U', js') m' ->
    match_st js ds ->
    DSEM.invariant ds ->

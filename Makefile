@@ -137,6 +137,7 @@ SEPCOMP_FILES= \
   #safety_preservation.v \
 
 CONCUR_FILES= \
+  ssromega.v \
   addressFiniteMap.v sepcomp.v threads_lemmas.v permissions.v pos.v scheduler.v threadPool.v \
   concurrent_machine.v juicy_machine.v dry_machine.v dry_context.v dry_machine_lemmas.v \
   mem_obs_eq.v dry_machine_lemmas.v dry_context.v compcert_threads_lemmas.v \
