@@ -70,6 +70,12 @@ Proof.
   rewrite (loop _ H) in *; eauto.
 Qed.
 
+Lemma safe_one {X} (R : Rel X) x y : R x y -> (forall y, R x y -> safe R y) -> safe R x.
+Proof.
+  intros xy H z xz.
+  inversion xz; subst; compute in *; eauto.
+Qed.
+
 (*! Indexed version of safety (not needed here) *)
 
 Inductive iter {X} (R : Rel X) : nat -> Rel X :=
