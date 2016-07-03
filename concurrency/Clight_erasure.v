@@ -2608,9 +2608,99 @@ Module ClightParching <: ErasureSig.
              match_st js ds ->
              match_st (JSEM.age_tp_to age js) ds. 
            Proof.
-             intros. constructor.
-           Admitted.
-           apply MTCH_age.               
+             intros js ds age MATCH; inversion MATCH. constructor.
+             - Lemma cnt_age: forall js i age,
+                 JTP.containsThread js i <->
+                 JTP.containsThread (JSEM.age_tp_to age js) i.
+               Proof.
+               Admitted.
+               intros i HH. apply cnt_age in HH.
+               apply mtch_cnt; assumption.
+             - intros i HH. apply cnt_age.
+               apply mtch_cnt'; assumption.
+             - intros i cnt cnt'.
+               Lemma gtc_age: forall js i age,
+                   forall (cnt: JTP.containsThread js i)
+                     (cnt': JTP.containsThread (JSEM.age_tp_to age js) i),
+                     JTP.getThreadC cnt= JTP.getThreadC cnt'.
+               Proof.
+                 intros. unfold JTP.getThreadC; destruct js; simpl.
+                 unfold JTP.containsThread in cnt, cnt'.
+                 simpl in cnt, cnt'.
+                 do 2 f_equal. apply proof_irrelevance.
+               Qed.
+               erewrite <- gtc_age.
+               eapply mtch_gtc.
+             - intros.
+               Lemma getThreadR_age: forall js i age,
+                   forall (cnt: JTP.containsThread js i)
+                     (cnt': JTP.containsThread (JSEM.age_tp_to age js) i),
+                     age_to age (JTP.getThreadR cnt) = JTP.getThreadR cnt'.
+               Proof.
+                intros. unfold JTP.getThreadR; destruct js; simpl.
+                 unfold JTP.containsThread in cnt, cnt'.
+                 simpl in cnt, cnt'.
+                 unfold "oo"; 
+                   do 3 f_equal. apply proof_irrelevance.
+               Qed.
+               erewrite <- getThreadR_age. simpl.
+               Lemma perm_of_age:
+                 forall rm age loc,
+                   perm_of_res (age_to age rm @ loc) = perm_of_res (rm @ loc).
+               Proof.
+               Admitted.
+               rewrite perm_of_age.
+               apply mtch_perm.
+             - intros.
+               Lemma LockRes_age: forall js age a,
+                   isSome (JTP.lockRes (JSEM.age_tp_to age js) a) = isSome(JTP.lockRes js a).
+               Proof. destruct js.
+                      intros;
+                      unfold JTP.lockRes; simpl.
+                      destruct (AMap.find (elt:=juicy_machine.LocksAndResources.lock_info) a
+                                          (AMap.map (option_map (age_to age)) lset)) eqn:AA;
+                        destruct (AMap.find (elt:=juicy_machine.LocksAndResources.lock_info) a lset) eqn:BB;
+                        try (reflexivity).
+                      - apply AMap_find_map_inv in AA. destruct AA as [x [BB' rest]].
+                        rewrite BB' in BB; inversion BB.
+                      - apply AMap_find_map with (f:=(option_map (age_to age))) in BB.
+                        rewrite BB in AA; inversion AA.
+               Qed.
+               rewrite LockRes_age. apply mtch_locks.
+             - intros.
+               Lemma LockRes_content1: forall js age a,
+                   JTP.lockRes (JSEM.age_tp_to age js) a = Some None ->
+                   JTP.lockRes js a = Some None.
+                     intros js age a. unfold JTP.lockRes; destruct js.
+                     simpl.
+                     intros AA.
+                     apply AMap_find_map_inv in AA. destruct AA as [x [map rest]].
+                     rewrite map. f_equal.
+                     destruct x; inversion rest; try reflexivity.
+               Qed.
+               apply LockRes_content1 in H1.
+               eapply mtch_locksEmpty; eassumption.
+             - Lemma LockRes_content2: forall js age a rm,
+                   JTP.lockRes (JSEM.age_tp_to age js) a = Some (Some rm) ->
+                   exists r, JTP.lockRes js a = Some (Some r) /\ rm = age_to age r.
+                     intros js age a rm. unfold JTP.lockRes; destruct js.
+                     simpl.
+                     intros AA.
+                     apply AMap_find_map_inv in AA. destruct AA as [x [map rest]].
+                     destruct x; inversion rest.
+                     exists r; rewrite map; auto.
+               Qed.
+               intros. apply LockRes_content2 in H1.
+               destruct H1 as [r [AA BB]].
+               rewrite BB.
+               rewrite perm_of_age.
+               eapply mtch_locksRes; eassumption.
+
+               Grab Existential Variables.
+               eapply cnt_age; eassumption.
+               eapply cnt_age; eassumption.
+           Qed.
+           apply MTCH_age.
            apply MTCH_update.
            assumption.
            intros.
@@ -2713,7 +2803,7 @@ Module ClightParching <: ErasureSig.
         intros until pmap. destruct ds, js; simpl; intros HH; rewrite HH.
         reflexivity.
   Qed.
-
+  
 End ClightParching.
 Export ClightParching.
 
