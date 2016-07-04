@@ -750,6 +750,47 @@ Module Concur.
          eauto with similar.
        Qed.
 
+
+Lemma corestep_value_det:
+   forall ge c1 m1 m1' c2 m2 c2' m2', 
+       similar_mem m1 m1' ->
+       corestep Sem ge c1 m1 c2 m2 ->
+       corestep Sem ge c1 m1' c2' m2' ->
+       c2=c2' /\ similar_mem m2 m2'.
+Admitted.
+
+       Lemma threadStep_value_det:
+         forall ge tp1 tp1' m1 m1' tp2 m2 tp2' m2' i
+           (cnti: containsThread tp1 i)
+           (cnti': containsThread tp1' i)
+           (HsimilarPool: similar_threadPool tp1 tp1')
+           (HsimilarMem: similar_mem m1 m1')
+           (Hcomp1: mem_compatible tp1 m1)
+           (Hcomp1': mem_compatible tp1' m1')
+           (Hstep1: threadStep ge cnti Hcomp1 tp2 m2)
+           (Hstep1': threadStep ge cnti' Hcomp1' tp2' m2'),
+           similar_threadPool tp2 tp2' /\ similar_mem m2 m2'.
+       Proof with eauto with similar.
+         intros.
+         inversion HsimilarPool; clear HsimilarPool.
+         inversion Hstep1; clear Hstep1; subst;
+         inversion Hstep1'; clear Hstep1'; subst.
+         rewrite (H0 _ cnti cnti') in Hcode.
+         rewrite Hcode in Hcode0.
+         inversion Hcode0; clear Hcode0; subst.
+         rename c0 into c.
+         assert (c'=c'0 /\ similar_mem m2 m2'). {
+            eapply corestep_value_det. 2: apply Hcorestep. 2: apply Hcorestep0.
+            inversion HsimilarMem; constructor; simpl; auto.
+        }
+        destruct H1; subst c'0; split; auto.
+        constructor. simpl. auto. intros.
+        specialize (H0 _ cnti0 cnti'0).
+        clear - H0. unfold getThreadC in *; simpl in *.
+        unfold eq_op; simpl. 
+        destruct (i0==i); auto.
+Qed.
+
      End DryMachineLemmas.
      
   End DryMachineShell.
