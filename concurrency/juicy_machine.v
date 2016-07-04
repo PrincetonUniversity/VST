@@ -591,6 +591,34 @@ Module Concur.
         eapply L, IN'.
     Qed.
 
+    Lemma perm_of_age:
+        forall rm age loc,
+          perm_of_res (age_to age rm @ loc) = perm_of_res (rm @ loc).
+      Proof.
+        intros.
+        unfold age_to.
+        pose (k:= (level rm - age)%coq_nat).
+        fold k.
+        generalize rm;
+        induction k.
+        - intros; simpl; reflexivity.
+        - intros rm0; simpl.
+          destruct (age1 rm0) eqn: old; try reflexivity.
+          rewrite IHk.
+          (*Tha case analisis begins:*)
+          destruct (rm0 @ loc)eqn:res.
+          + eapply age1_NO with (l:=loc) in old.
+            apply old in res; rewrite res; reflexivity.
+          + eapply age1_YES' with (l:=loc) in old.
+            assert (HH:exists P, rm0 @ loc = YES t0 p k0 P) by (exists p0; auto).
+            apply old in HH. destruct HH as [P HH]. rewrite HH.
+            reflexivity.
+          + eapply age1_PURE in old.
+            assert (HH: exists P, rm0 @ loc = PURE k0 P) by (exists p; auto).
+            apply old in HH. destruct HH as [P HH]; rewrite HH.
+            reflexivity.
+      Qed.
+
     Definition almost_empty rm: Prop:=
       forall loc sh psh k P, rm @ loc = YES sh psh k P -> forall val, ~ k = VAL val. 
 
@@ -950,7 +978,7 @@ Module Concur.
         js m i (cnt:containsThread js i)
         (c : mem_compatible js m) :
         m_phi (personal_mem cnt c) = ThreadPool.getThreadR cnt.
-         reflexivity.
+          reflexivity.
       Qed.
 
       Lemma lockSet_CT: forall js m b ofs i (Hi: containsThread js i) sh psh n X,
@@ -958,9 +986,81 @@ Module Concur.
           (getThreadR Hi) @ (b, ofs) = YES sh psh (LK n) X ->
           (lockSet js) !! b ofs = Some Writable.
       Admitted.
-            
-    End JuicyMachineLemmas.
+
+      (** *Lemmas about aging*)
+      Lemma cnt_age: forall js i age,
+          containsThread js i <->
+          containsThread (age_tp_to age js) i.
+      Proof.
+        intros. unfold containsThread.
+        destruct js; simpl; split; intros HH; exact HH.
+      Qed.
       
+      Lemma gtc_age: forall js i age,
+          forall (cnt: containsThread js i)
+            (cnt': containsThread (age_tp_to age js) i),
+            getThreadC cnt= getThreadC cnt'.
+      Proof.
+        intros. unfold getThreadC; destruct js; simpl.
+        unfold containsThread in cnt, cnt'.
+        simpl in cnt, cnt'.
+        do 2 f_equal. apply proof_irrelevance.
+      Qed.
+
+      Lemma getThreadR_age: forall js i age,
+          forall (cnt: containsThread js i)
+            (cnt': containsThread (age_tp_to age js) i),
+            age_to age (getThreadR cnt) = getThreadR cnt'.
+      Proof.
+        intros. unfold getThreadR; destruct js; simpl.
+        unfold containsThread in cnt, cnt'.
+        simpl in cnt, cnt'.
+        unfold "oo"; 
+          do 3 f_equal. apply proof_irrelevance.
+      Qed.
+
+      
+
+      Lemma LockRes_age: forall js age a,
+          isSome (lockRes (age_tp_to age js) a) = isSome(lockRes js a).
+      Proof. destruct js.
+             intros;
+               unfold lockRes; simpl.
+             destruct (AMap.find (elt:=lock_info) a
+                                 (AMap.map (option_map (age_to age)) lset0)) eqn:AA;
+               destruct (AMap.find (elt:=lock_info) a lset0) eqn:BB;
+               try (reflexivity).
+             - apply AMap_find_map_inv in AA. destruct AA as [x [BB' rest]].
+               rewrite BB' in BB; inversion BB.
+             - apply AMap_find_map with (f:=(option_map (age_to age))) in BB.
+               rewrite BB in AA; inversion AA.
+      Qed.
+
+      Lemma LockRes_age_content1: forall js age a,
+          lockRes (age_tp_to age js) a = Some None ->
+          lockRes js a = Some None.
+            intros js age a. unfold lockRes; destruct js.
+            simpl.
+            intros AA.
+            apply AMap_find_map_inv in AA. destruct AA as [x [map rest]].
+            rewrite map. f_equal.
+            destruct x; inversion rest; try reflexivity.
+      Qed.
+
+      Lemma LockRes_age_content2: forall js age a rm,
+          lockRes (age_tp_to age js) a = Some (Some rm) ->
+          exists r, lockRes js a = Some (Some r) /\ rm = age_to age r.
+      Proof.
+        intros js age a rm. unfold lockRes; destruct js.
+        simpl.
+        intros AA.
+        apply AMap_find_map_inv in AA. destruct AA as [x [map rest]].
+        destruct x; inversion rest.
+        exists r; rewrite map; auto.
+      Qed.
+      
+    End JuicyMachineLemmas.
+    
   End JuicyMachineShell.
   
   (*

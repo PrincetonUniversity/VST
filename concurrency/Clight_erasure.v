@@ -509,95 +509,133 @@ Module ClightParching <: ErasureSig.
         subst.
           by erewrite proof_irr with (a1 := N_pos) (a2 := N_pos0).
       Qed.
-    
-    
-    Lemma MTCH_latestThread: forall js ds,
-        match_st js ds ->
-        JTP.latestThread js = DTP.latestThread ds.
-    Proof.
-      intros js ds MATCH.
-      unfold JTP.latestThread.
-      unfold DTP.latestThread.
-      erewrite contains_iff_num.
-      - reflexivity.
-      - split; generalize i; inversion MATCH; assumption.
-    Qed.
+      
+      
+      Lemma MTCH_latestThread: forall js ds,
+          match_st js ds ->
+          JTP.latestThread js = DTP.latestThread ds.
+      Proof.
+        intros js ds MATCH.
+        unfold JTP.latestThread.
+        unfold DTP.latestThread.
+        erewrite contains_iff_num.
+        - reflexivity.
+        - split; generalize i; inversion MATCH; assumption.
+      Qed.
 
-    Lemma MTCH_addThread: forall js ds parg arg phi res,
-            match_st js ds ->
-            (forall b0 ofs0, perm_of_res (phi@(b0, ofs0)) = res !! b0 ofs0) ->
-            match_st
-              (JTP.addThread js parg arg phi)
-              (DTP.addThread ds parg arg res).
-        Proof.
-          intros ? ? ? ? ? ? MATCH DISJ. constructor.
-          - intros tid HH.
-            apply JTP.cntAdd' in HH. destruct HH as [[HH ineq] | HH].
-            + apply DTP.cntAdd. inversion MATCH. apply mtch_cnt. assumption.
-            + 
-              erewrite MTCH_latestThread in HH.
-              rewrite HH.
-              apply DSEM.ThreadPool.contains_add_latest.
-              assumption.
-          - intros tid HH.
-            apply DTP.cntAdd' in HH. destruct HH as [[HH ineq] | HH].
-            + apply JTP.cntAdd. inversion MATCH. eapply  mtch_cnt'; assumption.
-            + erewrite <- MTCH_latestThread in HH.
-              rewrite HH.
-              apply JSEM.ThreadPool.contains_add_latest.
-              assumption.
-            + intros.
-              destruct (JTP.cntAdd' _ _ _ Htid) as [[jcnt jNLast]| jLast];
-              destruct (DTP.cntAdd' _ _ _ Htid') as [[dcnt dNLast]| dLast].
-              * erewrite JSEM.ThreadPool.gsoAddCode; try eassumption.
-                erewrite DSEM.ThreadPool.gsoAddCode; try eassumption.
-                inversion MATCH. eapply mtch_gtc.
-              * contradict jNLast.
-                rewrite <- (MTCH_latestThread js ds) in dLast.
-                rewrite dLast; reflexivity.
-                assumption.
-              * contradict dNLast.
-                rewrite (MTCH_latestThread js ds) in jLast.
-                rewrite jLast; reflexivity.
-                assumption.
-              * erewrite JSEM.ThreadPool.gssAddCode; try eassumption.
-                erewrite DSEM.ThreadPool.gssAddCode; try eassumption.
-                reflexivity.
-          - intros.
+      Lemma MTCH_addThread: forall js ds parg arg phi res,
+          match_st js ds ->
+          (forall b0 ofs0, perm_of_res (phi@(b0, ofs0)) = res !! b0 ofs0) ->
+          match_st
+            (JTP.addThread js parg arg phi)
+            (DTP.addThread ds parg arg res).
+      Proof.
+        intros ? ? ? ? ? ? MATCH DISJ. constructor.
+        - intros tid HH.
+          apply JTP.cntAdd' in HH. destruct HH as [[HH ineq] | HH].
+          + apply DTP.cntAdd. inversion MATCH. apply mtch_cnt. assumption.
+          + 
+            erewrite MTCH_latestThread in HH.
+            rewrite HH.
+            apply DSEM.ThreadPool.contains_add_latest.
+            assumption.
+        - intros tid HH.
+          apply DTP.cntAdd' in HH. destruct HH as [[HH ineq] | HH].
+          + apply JTP.cntAdd. inversion MATCH. eapply  mtch_cnt'; assumption.
+          + erewrite <- MTCH_latestThread in HH.
+            rewrite HH.
+            apply JSEM.ThreadPool.contains_add_latest.
+            assumption.
+          + intros.
             destruct (JTP.cntAdd' _ _ _ Htid) as [[jcnt jNLast]| jLast];
               destruct (DTP.cntAdd' _ _ _ Htid') as [[dcnt dNLast]| dLast].
-              * erewrite JSEM.ThreadPool.gsoAddRes; try eassumption.
-                erewrite DSEM.ThreadPool.gsoAddRes; try eassumption.
-                inversion MATCH. eapply mtch_perm.
-              * contradict jNLast.
-                rewrite <- (MTCH_latestThread js ds) in dLast.
-                rewrite dLast; reflexivity.
-                assumption.
-              * contradict dNLast.
-                rewrite (MTCH_latestThread js ds) in jLast.
-                rewrite jLast; reflexivity.
-                assumption.
-              * erewrite JSEM.ThreadPool.gssAddRes; try eassumption.
-                erewrite DSEM.ThreadPool.gssAddRes; try eassumption.
-                apply DISJ.
-          - intros. rewrite JTP.gsoAddLPool DTP.gsoAddLPool.
-            inversion MATCH. apply mtch_locks.
-          - intros lock dres.
-            rewrite JTP.gsoAddLPool DTP.gsoAddLPool.
-            inversion MATCH. apply mtch_locksEmpty.
-          - intros lock jres dres .
-            rewrite JTP.gsoAddLPool DTP.gsoAddLPool.
-            inversion MATCH. apply mtch_locksRes.
-            Grab Existential Variables.
+            * erewrite JSEM.ThreadPool.gsoAddCode; try eassumption.
+              erewrite DSEM.ThreadPool.gsoAddCode; try eassumption.
+              inversion MATCH. eapply mtch_gtc.
+            * contradict jNLast.
+              rewrite <- (MTCH_latestThread js ds) in dLast.
+              rewrite dLast; reflexivity.
+              assumption.
+            * contradict dNLast.
+              rewrite (MTCH_latestThread js ds) in jLast.
+              rewrite jLast; reflexivity.
+              assumption.
+            * erewrite JSEM.ThreadPool.gssAddCode; try eassumption.
+              erewrite DSEM.ThreadPool.gssAddCode; try eassumption.
+              reflexivity.
+        - intros.
+          destruct (JTP.cntAdd' _ _ _ Htid) as [[jcnt jNLast]| jLast];
+            destruct (DTP.cntAdd' _ _ _ Htid') as [[dcnt dNLast]| dLast].
+          * erewrite JSEM.ThreadPool.gsoAddRes; try eassumption.
+            erewrite DSEM.ThreadPool.gsoAddRes; try eassumption.
+            inversion MATCH. eapply mtch_perm.
+          * contradict jNLast.
+            rewrite <- (MTCH_latestThread js ds) in dLast.
+            rewrite dLast; reflexivity.
             assumption.
+          * contradict dNLast.
+            rewrite (MTCH_latestThread js ds) in jLast.
+            rewrite jLast; reflexivity.
             assumption.
-            assumption.
-            assumption.
-        Qed.
+          * erewrite JSEM.ThreadPool.gssAddRes; try eassumption.
+            erewrite DSEM.ThreadPool.gssAddRes; try eassumption.
+            apply DISJ.
+        - intros. rewrite JTP.gsoAddLPool DTP.gsoAddLPool.
+          inversion MATCH. apply mtch_locks.
+        - intros lock dres.
+          rewrite JTP.gsoAddLPool DTP.gsoAddLPool.
+          inversion MATCH. apply mtch_locksEmpty.
+        - intros lock jres dres .
+          rewrite JTP.gsoAddLPool DTP.gsoAddLPool.
+          inversion MATCH. apply mtch_locksRes.
+          Grab Existential Variables.
+          assumption.
+          assumption.
+          assumption.
+          assumption.
+      Qed.
+
+      Lemma MTCH_age: forall js ds age,
+          match_st js ds ->
+          match_st (JSEM.age_tp_to age js) ds. 
+      Proof.
+        intros js ds age MATCH; inversion MATCH. constructor.
+        - 
+          intros i HH. apply cnt_age in HH.
+          apply mtch_cnt; assumption.
+        - intros i HH. apply cnt_age.
+          apply mtch_cnt'; assumption.
+        - intros i cnt cnt'.
+          
+          erewrite <- gtc_age.
+          eapply mtch_gtc.
+        - intros.
+          
+          erewrite <- getThreadR_age. simpl.
+          
+          rewrite JSEM.perm_of_age.
+          apply mtch_perm.
+        - intros.
+          
+          rewrite LockRes_age. apply mtch_locks.
+        - intros.
+          
+          apply LockRes_age_content1 in H1.
+          eapply mtch_locksEmpty; eassumption.
+        -
+          intros. apply LockRes_age_content2 in H1.
+          destruct H1 as [r [AA BB]].
+          rewrite BB.
+          rewrite JSEM.perm_of_age.
+          eapply mtch_locksRes; eassumption.
+
+          Grab Existential Variables.
+          eapply cnt_age; eassumption.
+          eapply cnt_age; eassumption.
+      Qed.
 
 
-
-    Variable genv: G.
+      Variable genv: G.
     Variable main: Values.val.
     Lemma init_diagram:
       forall (j : Values.Val.meminj) (U:schedule) (js : jstate)
@@ -2544,9 +2582,8 @@ Module ClightParching <: ErasureSig.
             assumption.
         }
     }
+Qed.
     
-  Admitted.
-
     
 
   
@@ -2604,102 +2641,7 @@ Module ClightParching <: ErasureSig.
            eapply concurrency.dry_machine_lemmas.CoreLanguage.corestep_invariant. *)
            admit.
          }
-         { Lemma MTCH_age: forall js ds age,
-             match_st js ds ->
-             match_st (JSEM.age_tp_to age js) ds. 
-           Proof.
-             intros js ds age MATCH; inversion MATCH. constructor.
-             - Lemma cnt_age: forall js i age,
-                 JTP.containsThread js i <->
-                 JTP.containsThread (JSEM.age_tp_to age js) i.
-               Proof.
-               Admitted.
-               intros i HH. apply cnt_age in HH.
-               apply mtch_cnt; assumption.
-             - intros i HH. apply cnt_age.
-               apply mtch_cnt'; assumption.
-             - intros i cnt cnt'.
-               Lemma gtc_age: forall js i age,
-                   forall (cnt: JTP.containsThread js i)
-                     (cnt': JTP.containsThread (JSEM.age_tp_to age js) i),
-                     JTP.getThreadC cnt= JTP.getThreadC cnt'.
-               Proof.
-                 intros. unfold JTP.getThreadC; destruct js; simpl.
-                 unfold JTP.containsThread in cnt, cnt'.
-                 simpl in cnt, cnt'.
-                 do 2 f_equal. apply proof_irrelevance.
-               Qed.
-               erewrite <- gtc_age.
-               eapply mtch_gtc.
-             - intros.
-               Lemma getThreadR_age: forall js i age,
-                   forall (cnt: JTP.containsThread js i)
-                     (cnt': JTP.containsThread (JSEM.age_tp_to age js) i),
-                     age_to age (JTP.getThreadR cnt) = JTP.getThreadR cnt'.
-               Proof.
-                intros. unfold JTP.getThreadR; destruct js; simpl.
-                 unfold JTP.containsThread in cnt, cnt'.
-                 simpl in cnt, cnt'.
-                 unfold "oo"; 
-                   do 3 f_equal. apply proof_irrelevance.
-               Qed.
-               erewrite <- getThreadR_age. simpl.
-               Lemma perm_of_age:
-                 forall rm age loc,
-                   perm_of_res (age_to age rm @ loc) = perm_of_res (rm @ loc).
-               Proof.
-               Admitted.
-               rewrite perm_of_age.
-               apply mtch_perm.
-             - intros.
-               Lemma LockRes_age: forall js age a,
-                   isSome (JTP.lockRes (JSEM.age_tp_to age js) a) = isSome(JTP.lockRes js a).
-               Proof. destruct js.
-                      intros;
-                      unfold JTP.lockRes; simpl.
-                      destruct (AMap.find (elt:=juicy_machine.LocksAndResources.lock_info) a
-                                          (AMap.map (option_map (age_to age)) lset)) eqn:AA;
-                        destruct (AMap.find (elt:=juicy_machine.LocksAndResources.lock_info) a lset) eqn:BB;
-                        try (reflexivity).
-                      - apply AMap_find_map_inv in AA. destruct AA as [x [BB' rest]].
-                        rewrite BB' in BB; inversion BB.
-                      - apply AMap_find_map with (f:=(option_map (age_to age))) in BB.
-                        rewrite BB in AA; inversion AA.
-               Qed.
-               rewrite LockRes_age. apply mtch_locks.
-             - intros.
-               Lemma LockRes_content1: forall js age a,
-                   JTP.lockRes (JSEM.age_tp_to age js) a = Some None ->
-                   JTP.lockRes js a = Some None.
-                     intros js age a. unfold JTP.lockRes; destruct js.
-                     simpl.
-                     intros AA.
-                     apply AMap_find_map_inv in AA. destruct AA as [x [map rest]].
-                     rewrite map. f_equal.
-                     destruct x; inversion rest; try reflexivity.
-               Qed.
-               apply LockRes_content1 in H1.
-               eapply mtch_locksEmpty; eassumption.
-             - Lemma LockRes_content2: forall js age a rm,
-                   JTP.lockRes (JSEM.age_tp_to age js) a = Some (Some rm) ->
-                   exists r, JTP.lockRes js a = Some (Some r) /\ rm = age_to age r.
-                     intros js age a rm. unfold JTP.lockRes; destruct js.
-                     simpl.
-                     intros AA.
-                     apply AMap_find_map_inv in AA. destruct AA as [x [map rest]].
-                     destruct x; inversion rest.
-                     exists r; rewrite map; auto.
-               Qed.
-               intros. apply LockRes_content2 in H1.
-               destruct H1 as [r [AA BB]].
-               rewrite BB.
-               rewrite perm_of_age.
-               eapply mtch_locksRes; eassumption.
-
-               Grab Existential Variables.
-               eapply cnt_age; eassumption.
-               eapply cnt_age; eassumption.
-           Qed.
+         { 
            apply MTCH_age.
            apply MTCH_update.
            assumption.
