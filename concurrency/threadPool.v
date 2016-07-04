@@ -545,7 +545,8 @@ Qed.
     auto.
   Qed.
 
-  Lemma lockSet_upd: forall ds b ofs pmap,
+  (*REMOVE ?*)
+ (* Lemma lockSet_upd: forall ds b ofs pmap,
       lockSet (updLockSet ds (b, ofs) pmap) =
       permissions.setPerm (Some Memtype.Writable) b ofs (lockSet ds).
   Proof.
@@ -565,7 +566,7 @@ Qed.
  but setPerm changes permissions only at 1 location (at ofs).
  *)
 
-  Admitted.
+  Admitted.*)
 
 Lemma PX_in_rev:
   forall elt a m, AMap.Raw.PX.In (elt:=elt) a m <-> AMap.Raw.PX.In a (rev m).
@@ -578,14 +579,16 @@ split; intros [e ?]; exists e.
  rewrite <- SetoidList.InA_rev; auto.
 Qed.
 
- Lemma gsslockSet_rem': forall ds b ofs,
+Lemma gsslockSet_rem': forall ds b ofs,
+    lr_valid (lockRes ds) ->
       (lockSet (remLockSet ds (b, ofs))) !! b ofs =
       None.
   Proof.
     intros.
    unfold lockSet, remLockSet; simpl.
- (* NOT TRUE: Suppose address 100 and 102 are in the lock set.
-  Then "remove" address 102, but the permission at 102 is still Writable.
+ (* FIXED!! Is it correct now?
+  * NOT TRUE: Suppose address 100 and 102 are in the lock set.
+  * Then "remove" address 102, but the permission at 102 is still Writable.
 *)
 
 (*
@@ -624,13 +627,15 @@ Qed.
   Admitted.
 
   Lemma gsslockSet_rem: forall ds b ofs ofs0,
+      lr_valid (lockRes ds) ->
       Intv.In ofs0 (ofs, ofs + lksize.LKSIZE)%Z ->
       (lockSet (remLockSet ds (b, ofs))) !! b ofs0 =
       None.
   Proof.
     intros.
   hnf in H. simpl in H.
- (* NOT TRUE.  See lemma just above *)
+ (* FIXED!!!
+  * NOT TRUE.  See lemma just above *)
   Admitted.
   
   Lemma gsolockSet_rem1: forall ds b ofs b' ofs',
@@ -645,15 +650,19 @@ Qed.
  match goal with |- context [fold_right ?F] => set (f:=F) end.
  simpl. unfold AMap.elements, AMap.Raw.elements.
  unfold lockGuts. 
-   (* NOT TRUE.  See lemmas just above *)
+   (* THIS IS CORRECT!!! because it's in different blocks
+    * NOT TRUE.  See lemmas just above *)
   Admitted.
 
   Lemma gsolockSet_rem2: forall ds b ofs ofs',
+      lr_valid (lockRes ds) ->
       ~ Intv.In ofs' (ofs, ofs + lksize.LKSIZE)%Z ->
       (lockSet (remLockSet ds (b, ofs))) !! b ofs' =
       (lockSet ds)  !! b ofs'.
   Proof.
-    intros. (* NOT TRUE.  See lemmas just above *)
+    intros.
+    (* FIXED!!!
+     * NOT TRUE.  See lemmas just above *)
   Admitted.
 
   Lemma gssThreadCode {tid tp} (cnt: containsThread tp tid) c' p'

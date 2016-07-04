@@ -446,14 +446,19 @@ Module Concur.
        
        Lemma updLock_inv: forall ds a pmap,
            invariant ds ->
-           (forall i (cnt: containsThread ds i),
-               permDisjoint (Some Writable) ((getThreadR cnt) !! (fst a) (snd a)) ) ->
+           (forall i (cnt: containsThread ds i) ofs0,
+               Intv.In ofs0 (snd a, ((snd a) + LKSIZE)%Z) ->
+               permDisjoint (Some Writable) ((getThreadR cnt) !! (fst a) ofs0) ) ->
            (forall i (cnt : containsThread ds i),
                permMapsDisjoint pmap (getThreadR cnt)) ->
            (permMapsDisjoint (lockSet ds) pmap) ->
-           (permDisjoint (Some Writable) (pmap !! (fst a) (snd a))) ->
+           (forall ofs0,
+               Intv.In ofs0 (snd a, ((snd a) + LKSIZE)%Z) ->
+               permDisjoint (Some Writable) (pmap !! (fst a) ofs0)) ->
            (forall l pmap0, lockRes ds l = Some pmap0 ->
-                       permDisjoint (Some Writable) (pmap0 !! (fst a) (snd a)))->
+                       forall ofs0,
+                         Intv.In ofs0 (snd a, ((snd a) + LKSIZE)%Z) ->
+                       permDisjoint (Some Writable) (pmap0 !! (fst a) ofs0))->
            (forall ofs0,
                (snd a < ofs0 < (snd a) + LKSIZE)%Z -> lockRes ds (fst a, ofs0) = None) ->
            (forall ofs : Z,
@@ -463,10 +468,20 @@ Module Concur.
          intros ? ? ? INV A B C D E F G. constructor.
          - apply updLock_raceFree. inversion INV; assumption.
          - intros. rewrite gLockSetRes.
-           destruct a as [b ofs]; rewrite lockSet_upd.
-           apply disjoint_add.
-           inversion INV; apply lock_set_threads0.
-           apply A.
+           apply permDisjoint_permMapsDisjoint; intros b0 ofs0.
+           destruct a as [b ofs].
+           destruct (ident_eq b b0).
+           subst b0; destruct (Intv.In_dec ofs0 (ofs, ofs + LKSIZE)%Z).
+           + rewrite gssLockSet; auto.
+           + rewrite gsoLockSet_1; auto.
+             apply permMapsDisjoint_permDisjoint.
+             inversion INV; auto.
+             apply Intv.range_notin in n.
+             unfold LKSIZE in n; simpl in n; simpl; assumption.
+             unfold LKSIZE; simpl; omega.
+           + rewrite gsoLockSet_2; auto.
+             apply permMapsDisjoint_permDisjoint.
+             inversion INV; auto.
          - intros.
            destruct (addressFiniteMap.AMap.E.eq_dec a l).
            + subst.
@@ -475,22 +490,36 @@ Module Concur.
            + rewrite gsoLockRes in H; try solve[assumption].
              inversion INV. eapply lock_res_threads0. apply H.
          - intros.
-           destruct (addressFiniteMap.AMap.E.eq_dec a l); destruct a.
+           destruct (addressFiniteMap.AMap.E.eq_dec a l); destruct a as [b ofs].
            + subst.
-             rewrite gssLockRes in H; inversion H; subst.
-             rewrite lockSet_upd.
-             apply permMapsDisjoint_comm; apply disjoint_add.
-             apply C0.
-             apply D.
-           + rewrite lockSet_upd.
-             apply permMapsDisjoint_comm.
-             apply disjoint_add.
-             * inversion INV. apply permMapsDisjoint_comm. eapply lock_res_set0.
-               rewrite <- H. symmetry.
-               apply gsoLockRes; assumption.
-             * eapply E. rewrite <- H.
-               rewrite gsoLockRes. reflexivity.
-               assumption.
+             rewrite gsslockResUpdLock in H; inversion H. subst pmap0.
+             apply permDisjoint_permMapsDisjoint; intros b0 ofs0.
+             { destruct (ident_eq b b0).
+               subst b; destruct (Intv.In_dec ofs0 (ofs, ofs + LKSIZE)%Z).
+               + apply permDisjoint_comm; rewrite gssLockSet; auto.
+               + rewrite gsoLockSet_1.
+                 apply permDisjoint_comm; apply permMapsDisjoint_permDisjoint; auto.
+                 eapply Intv.range_notin in n; unfold LKSIZE in n. auto.
+                 simpl. unfold LKSIZE; simpl; omega.
+               + rewrite gsoLockSet_2; auto.
+                 apply permDisjoint_comm; apply permMapsDisjoint_permDisjoint; auto.
+             }
+             
+           + rewrite gsolockResUpdLock in H; auto.
+             apply permDisjoint_permMapsDisjoint; intros b0 ofs0.
+             { destruct (ident_eq b b0).
+               subst b; destruct (Intv.In_dec ofs0 (ofs, ofs + LKSIZE)%Z).
+               + apply permDisjoint_comm; rewrite gssLockSet; auto.
+                 eapply E; eassumption.
+               + rewrite gsoLockSet_1.
+                 apply permMapsDisjoint_permDisjoint; auto.
+                 inversion INV. eapply lock_res_set0. eassumption. 
+                 eapply Intv.range_notin in n0; unfold LKSIZE in n0; auto.
+                 simpl. unfold LKSIZE; simpl; omega.
+               + rewrite gsoLockSet_2; auto.
+                 apply permMapsDisjoint_permDisjoint; auto.
+                 inversion INV. eapply lock_res_set0. eassumption. 
+             }
          - intros b ofs.
            destruct (AMap.E.eq_dec a (b,ofs)).
            + subst a. rewrite gsslockResUpdLock.
