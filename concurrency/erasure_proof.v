@@ -1036,6 +1036,53 @@ Module Parching <: ErasureSig.
           { inversion MATCH; subst. specialize (mtch_locks (b, Int.intval ofs)).
             rewrite His_unlocked in mtch_locks. 
             rewrite <- mtch_locks; reflexivity. }
+        - simpl; intros.
+          cut (JSEM.ThreadPool.lockRes js (b, ofs0) = None).
+          { intros HH. inversion MATCH.
+            specialize (mtch_locks (b, ofs0)).
+            rewrite HH in mtch_locks.
+            clear - mtch_locks.
+            destruct (DSEM.ThreadPool.lockRes ds (b, ofs0)) eqn:AA; try reflexivity.
+            - inversion mtch_locks.
+            - assumption. }
+          {(*the cut*)
+            move HJcanwrite at bottom.
+            destruct Hcmpt as [all_juice Hcmpt].
+            inversion Hcmpt.
+            unfold JSEM.juicyLocks_in_lockSet in jloc_in_set.
+            eapply compatible_threadRes_sub with (cnt:= Hi) in juice_join.
+            destruct juice_join.
+            apply resource_at_join with (loc:=(b, Int.intval ofs)) in H0.
+            rewrite HJcanwrite in H0.
+            inversion H0.
+            -
+            symmetry in H7.
+            apply jloc_in_set in H7.
+            assert (VALID:= JSEM.compat_lr_valid Hcompatible).
+            specialize (VALID b (Int.intval ofs)).
+            unfold JSEM.ThreadPool.lockRes in VALID.
+            destruct (AMap.find (elt:=juicy_machine.LocksAndResources.lock_info)
+                                (b, Int.intval ofs) (JSEM.ThreadPool.lockGuts js)) eqn:AA;
+              rewrite AA in H7; try solve[inversion H7].
+            apply VALID. auto.
+            -
+            symmetry in H7.
+            apply jloc_in_set in H7.
+            assert (VALID:= JSEM.compat_lr_valid Hcompatible).
+            specialize (VALID b (Int.intval ofs)).
+            unfold JSEM.ThreadPool.lockRes in VALID.
+            destruct (AMap.find (elt:=juicy_machine.LocksAndResources.lock_info)
+                                (b, Int.intval ofs) (JSEM.ThreadPool.lockGuts js)) eqn:AA;
+              rewrite AA in H7; try solve[inversion H7].
+            apply VALID. auto.
+          }
+        - 
+            
+            rewrite H7 in VALID.
+            apply jloc_in_set in HJcanwrite.
+            destruct (JSEM.ThreadPool.lockRes js (b, ofs0)) eqn:MAP; try reflexivity.
+            rewrite <- mtch_locks. eassumption.
+          
       }
    
       - unfold ds''.
