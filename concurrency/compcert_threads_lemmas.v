@@ -60,7 +60,7 @@ Module SimDefs (CI: CoreInjections).
 
   Import mySchedule CoreLanguage InternalSteps.
   Import MemObsEq ValObsEq MemoryLemmas StepType.
-  Import CI MemoryWD Renamings.
+  Import CI ValueWD MemoryWD Renamings.
   Module ThreadPoolInjections := ThreadPoolInjections CI.
   Import ThreadPoolInjections.
   
@@ -234,7 +234,7 @@ End SimDefs.
 Module SimProofs (CI: CoreInjections).
   Import mySchedule CoreLanguage InternalSteps.
   Import ThreadPoolWF StepLemmas StepType.
-  Import MemoryWD MemObsEq ValObsEq MemoryLemmas.
+  Import ValueWD MemoryWD MemObsEq ValObsEq MemoryLemmas.
   Module ThreadPoolInjections := ThreadPoolInjections CI.
   Module SimDefs := SimDefs CI.
   Import SimDefs Renamings ThreadPoolInjections CI.
@@ -448,7 +448,7 @@ Module SimProofs (CI: CoreInjections).
     inversion Hstep as [Htstep | [[Htstep ?] | [Htstep ?]]].
     - inversion Htstep; subst.
       erewrite restrPermMap_mem_valid with (Hlt := Hcomp i cnti) in Hmem_wd.
-      apply corestep_wd with (f := f) in Hcorestep; eauto.
+      apply corestep_wd with (f := f) (fg := fg) in Hcorestep; eauto.
       destruct Hcorestep as [Hmem_wd' [Hf' Hcore_wd']].
       destruct Hf' as [f' [Hincr Hdomain']].
       assert (Hcore_wd_f':= Hcore_wd' _ Hdomain').

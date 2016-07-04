@@ -28,7 +28,7 @@ Import ValObsEq Renamings.
 
 (** ** Well defined X86 cores *)
 Module X86WD.
-  Import MemoryWD Genv SEM.
+  Import MemoryWD Genv SEM ValueWD.
   Section X86WD.
     Variable f: memren.
 
@@ -148,9 +148,192 @@ Module X86WD.
       by constructor.
   Qed.
 
-  Hint Resolve loader_wd_domain loader_wd_incr regset_wd_domain
-       regset_wd_incr valid_val_incr valid_val_list_incr valid_val_domain
-       valid_val_list_domain : wd.
+  Hint Extern 1 (valid_val _ (@Pregmap.set _ _ _ _ _)) => eapply regset_wd_set : wd.
+  Hint Resolve regset_wd_set : wd.
+
+  (*NOTE: Do i use that?*)
+  Lemma valid_val_reg_set:
+    forall f rs r r' v,
+      valid_val f v ->
+      regset_wd f rs ->
+      valid_val f (rs # r <- v r').
+  Proof.
+    intros.
+    eauto with wd.
+  Qed.
+
+   Lemma regset_comm:
+    forall (rs: Pregmap.t val) r r' v,
+      (rs # r <- v) # r' <- v = (rs # r' <- v) # r <- v.
+  Proof.
+    intros.
+    unfold Pregmap.set.
+    extensionality r''.
+    destruct (PregEq.eq r'' r'), (PregEq.eq r'' r); auto.
+  Qed.
+
+  Lemma undef_regs_comm:
+    forall regs rs r,
+      undef_regs regs (rs # r <- Vundef) =
+      (undef_regs regs rs) # r <- Vundef.
+  Proof.
+    intros.
+    generalize dependent rs.
+    induction regs; intros. simpl. auto.
+    simpl.
+    specialize (IHregs (rs # a <- Vundef)).
+    rewrite <- IHregs.
+    apply f_equal.
+      by rewrite regset_comm.
+  Qed.
+  
+  Lemma regset_wd_undef:
+    forall f rs regs
+      (Hrs_wd: regset_wd f rs),
+      regset_wd f (undef_regs regs rs).
+  Proof with eauto with wd.
+    intros.
+    induction regs as [|r regs]; simpl; auto.
+    intros r'.
+    rewrite undef_regs_comm;
+      rewrite Pregmap.gsspec;
+      unfold Pregmap.get;
+      destruct (Pregmap.elt_eq r' r); simpl...
+  Qed.
+  
+  Hint Extern 0 (valid_val _ (undef_regs _ _ # _ <- _ _)) => eapply regset_wd_set : wd.
+  
+  Hint Resolve loader_wd_domain regset_wd_domain
+       valid_val_list_incr valid_val_domain
+       valid_val_list_domain regset_wd_undef : wd.
+
+  Lemma valid_symb:
+    forall f fg g id i
+      (Hge_wd: ge_wd fg g)
+      (Hincr: ren_domain_incr fg f),
+      valid_val f (symbol_address g id i).
+  Proof with eauto with wd.
+    intros.
+    destruct Hge_wd as (H1 & H2 & H3).
+    unfold symbol_address, Senv.symbol_address in *;
+      simpl in *.
+    specialize (H3 id i _ ltac:(reflexivity)).
+    destruct (find_symbol g id); auto.
+    eapply valid_val_incr; eauto.      
+  Qed.
+
+  Hint Resolve valid_symb : wd.
+
+  Lemma valid_val_cmpu:
+    forall f ptr c v1 v2,
+      valid_val f (Val.cmpu ptr c v1 v2).
+  Proof with eauto with wd.
+    intros.
+    destruct v1,v2; simpl; auto;
+    unfold Val.cmpu, Val.cmpu_bool...
+  Qed.
+
+  Hint Immediate valid_val_cmpu :wd.
+  
+  Lemma valid_val_addrmode:
+    forall ge rs f fg a,
+      ren_domain_incr fg f ->
+      ge_wd fg ge ->
+      regset_wd f rs ->
+      valid_val f (eval_addrmode ge a rs).
+  Proof.
+    intros.
+    unfold eval_addrmode.
+    destruct a.
+    apply valid_val_add.
+    destruct base; eauto with wd.
+    apply valid_val_add.
+    destruct ofs; eauto with wd.
+    destruct p. destruct (Int.eq i0 Int.one);
+      eauto with wd.
+    destruct const; simpl; auto.
+    destruct p.
+    destruct H0.
+    destruct H2.
+    specialize (H3 i i0 _ ltac:(reflexivity)).
+    unfold symbol_address, Senv.symbol_address in *. simpl in *.
+    eapply valid_val_incr; eauto.
+  Qed.
+
+  Lemma valid_val_compare_ints:
+    forall f rs m v1 v2 r,
+      regset_wd f rs ->
+      valid_val f (compare_ints v1 v2 rs m r).
+  Proof with eauto 10 with wd.
+    intros.
+    unfold compare_ints...
+  Qed.
+
+  Hint Resolve valid_val_compare_ints : wd.
+
+  Lemma regset_wd_compare_ints:
+    forall f rs m v1 v2,
+      regset_wd f rs ->
+      regset_wd f (compare_ints v1 v2 rs m).
+  Proof with eauto with wd.
+    intros.
+    intro r.
+    unfold Pregmap.get...
+  Qed.
+
+  Lemma valid_val_compare_floats:
+    forall f rs v1 v2 r,
+      regset_wd f rs ->
+      valid_val f (compare_floats v1 v2 rs r).
+  Proof with eauto 10 with wd.
+    intros.
+    unfold compare_floats.
+    destruct v1; try (apply regset_wd_undef; eauto with wd).
+    destruct v2;
+      try (apply regset_wd_undef; eauto with wd).
+
+    eauto 8 with wd.
+  Qed.
+
+  Hint Resolve valid_val_compare_floats : wd.
+
+  Lemma regset_wd_compare_floats:
+    forall f rs v1 v2,
+      regset_wd f rs ->
+      regset_wd f (compare_floats v1 v2 rs).
+  Proof with eauto with wd.
+    intros.
+    intro r.
+    unfold Pregmap.get...
+  Qed.
+  
+  Lemma valid_val_compare_floats32:
+    forall f rs v1 v2 r,
+      regset_wd f rs ->
+      valid_val f (compare_floats32 v1 v2 rs r).
+  Proof with eauto 10 with wd.
+    intros.
+    unfold compare_floats32.
+    destruct v1; try (apply regset_wd_undef; eauto with wd).
+    destruct v2;
+      try (apply regset_wd_undef; eauto with wd)...
+  Qed.
+
+  Hint Resolve valid_val_compare_floats32 : wd.
+  
+  Lemma regset_wd_compare_floats32:
+    forall f rs v1 v2,
+      regset_wd f rs ->
+      regset_wd f (compare_floats32 v1 v2 rs).
+  Proof with eauto with wd.
+    intros; intro r; unfold Pregmap.get...
+  Qed.
+
+  
+  Hint Resolve valid_val_addrmode
+       regset_wd_compare_floats regset_wd_compare_floats32
+       regset_wd_compare_ints : wd.
+  
 End X86WD.
 
 (** ** Injections on X86 cores *)
@@ -184,7 +367,7 @@ Module X86Inj <: CoreInjections.
     | _, _ => False
     end.
 
-  Import MemoryWD Genv.
+  Import ValueWD MemoryWD Genv.
   Include X86WD.
 
   Lemma decode_longs_val_obs_list:
@@ -398,31 +581,6 @@ Module X86Inj <: CoreInjections.
     destruct loader, loader';
       destruct H;
         by auto.
-  Qed.
-
-  Lemma regset_comm:
-    forall (rs: Pregmap.t val) r r' v,
-      (rs # r <- v) # r' <- v = (rs # r' <- v) # r <- v.
-  Proof.
-    intros.
-    unfold Pregmap.set.
-    extensionality r''.
-    destruct (PregEq.eq r'' r'), (PregEq.eq r'' r); auto.
-  Qed.
-
-  Lemma undef_regs_comm:
-    forall regs rs r,
-      undef_regs regs (rs # r <- Vundef) =
-      (undef_regs regs rs) # r <- Vundef.
-  Proof.
-    intros.
-    generalize dependent rs.
-    induction regs; intros. simpl. auto.
-    simpl.
-    specialize (IHregs (rs # a <- Vundef)).
-    rewrite <- IHregs.
-    apply f_equal.
-      by rewrite regset_comm.
   Qed.
 
   Lemma gso_undef_regs:
@@ -2155,14 +2313,97 @@ Module X86Inj <: CoreInjections.
     eapply load_frame_store_args_rec_wd_domain.
   Qed.
 
+ Lemma exec_instr_wd:
+    forall (g : genv) (fn : function) (i : instruction) (rs rs': regset)
+      (m m' : mem) (f fg: memren) loader
+      (Hmem_wd: valid_mem m)
+      (Hrs_wd: regset_wd f rs)
+      (Hloader_wd: loader_wd f loader)
+      (Hge_wd: ge_wd fg g)
+      (Hincr: ren_domain_incr fg f)
+      (Hdomain: domain_memren f m)
+      (Hexec: exec_instr g fn i rs m = Next rs' m'),
+      valid_mem m' /\
+      (exists f' : memren, ren_domain_incr f f' /\ domain_memren f' m') /\
+      (forall f' : memren,
+          domain_memren f' m' -> core_wd f' (State rs' loader)).
+  Proof with eauto 10 with wd.
+    intros.
+    destruct i; simpl in *;
+    unfold goto_label in *;
+    repeat match goal with
+           | [H: match ?Expr with _ => _ end = _ |- _] =>
+             destruct Expr eqn:?
+           end; try discriminate;
+    try match goal with
+        | [H: exec_store ?G ?CHUNK ?M ?A ?RS ?RS0 _ = _ |- _] =>
+          unfold exec_store in H;
+            destruct (Mem.storev CHUNK M (eval_addrmode G A RS) (RS RS0)) eqn:?;
+                     inv H
+        | [H: exec_load ?G ?CHUNK ?M ?A ?RS ?RD = _ |- _] =>
+          unfold exec_load in H;
+            destruct (Mem.loadv CHUNK M (eval_addrmode G A RS)) eqn:?;
+                     inv H
+        | [H: Next _ _ = Next _ _ |- _] =>
+          inv H
+        end;
+    try match goal with
+        | [H: Mem.storev _ _ (eval_addrmode ?G ?A rs) (rs ?R) = _ |- _] =>
+          eapply storev_wd_domain in H; destruct H as [? ?]
+        end;
+      repeat match goal with
+             | [H: Mem.loadv _ _ (eval_addrmode ?G ?A rs) = _ |- _] =>
+               eapply loadv_wd in H;
+                 eauto
+             | [H: Stuck = Next _ _ |- _] => discriminate
+             | [|- _ /\ _] =>
+               split
+             | [H: Mem.alloc _ _ _ = _ |- exists _, _] =>
+               idtac
+             | [|- exists _, _ /\ _] => exists f
+             | [|- forall _, _] => intros
+             end;
+      unfold nextinstr, nextinstr_nf;
+      try match goal with
+          | [H: domain_memren ?F ?M, H1: ren_domain_incr ?FG ?F,
+                                         H2: domain_memren ?F2 ?M |- _] =>
+            assert (ren_domain_incr ?FG ?F2) by
+                (eapply domain_memren_incr with (f'' := F2) (f' := F);
+                  eauto)
+          end; unfold nextinstr, nextinstr_nf;
+      (* first steps are done manually to speed up eauto*)
+      repeat match goal with
+          | [|- regset_wd _ (@Pregmap.set _ _ _ _)] =>
+            apply regset_wd_set
+          | [|- valid_val _ (Val.add _ _)] =>
+            apply valid_val_add
+          | [|- regset_wd _ (undef_regs _ _)] =>
+            eapply regset_wd_undef
+          | [|- valid_val _ (@Pregmap.set _ _ _ _ _)] =>
+            eapply regset_wd_set
+          | [|- valid_val _ (undef_regs _ _ _)] =>
+            eapply regset_wd_undef
+          | [|- mem_wd.val_valid _ _] =>
+            eapply wd_val_valid
+          | [H: _ = Vptr ?B _ |- valid_val _ (Vptr ?B _)] =>
+            eapply valid_val_offset;
+              erewrite <- H; eauto with wd
+          end;
+      eauto 4 with wd.
+    (*TODO: allocation and free case left*)
+    Admitted.
+    
+  
   (** Well-definedness of state is retained. *)
   (* The case for internal steps is missing. It's probably the most
 interesting, but on the other hand all necessary lemmas, for store,
 alloc, etc. have been proved.*)
   Lemma corestep_wd:
-    forall c m c' m' f
+    forall c m c' m' f fg
       (Hwd: core_wd f c)
       (Hmem_wd: valid_mem m)
+      (Hge_wd: ge_wd fg the_ge)
+      (Hincr: ren_domain_incr fg f)
       (Hdomain: domain_memren f m)
       (Hcorestep: corestep SEM.Sem the_ge c m c' m'),
       valid_mem m' /\
@@ -2174,7 +2415,8 @@ alloc, etc. have been proved.*)
     destruct c;
       simpl in *.
     - inversion Hcorestep; subst; try by exfalso.
-      admit.
+      destruct Hwd.
+      eapply exec_instr_wd; eauto.
     - inversion Hcorestep; subst.
       split; auto. split.
       exists f; split; eauto using ren_domain_incr_refl.
@@ -2187,7 +2429,7 @@ alloc, etc. have been proved.*)
       destruct Hwd.
       assert (Hstk := Mem.valid_new_block _ _ _ _ _ H7).
       eapply mem_valid_alloc in H7; eauto.
-      destruct H7. destruct H2 as [f' [Hincr Hdomain']].
+      destruct H7. destruct H2 as [f' [Hincr' Hdomain']].
       split.
       eapply valid_val_list_incr in H0; eauto.
       eapply load_frame_store_args_rec_valid with (f := f'); eauto.
@@ -2210,7 +2452,7 @@ alloc, etc. have been proved.*)
       apply regset_wd_set; auto.
       apply regset_wd_set; simpl; auto.
       apply regset_wd_set; simpl.
-      apply Hincr in H.
+      apply Hincr' in H.
       erewrite <- (H2 f0) in H.
       erewrite (Hdomain'' f0) in H.
       destruct (f'' f0); try by exfalso.
@@ -2219,7 +2461,7 @@ alloc, etc. have been proved.*)
       simpl; auto.
       destruct H3. rewrite H3. auto.
     - inversion Hcorestep; by exfalso.
-  Admitted.
+  Qed.
 
         
 End X86Inj.    

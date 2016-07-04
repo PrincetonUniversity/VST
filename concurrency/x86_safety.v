@@ -40,7 +40,7 @@ Module X86Safe.
   Module SimDefs := SimDefs X86Inj.
   Module SimProofs := SimProofs X86Inj.
   Import SimDefs SimProofs X86Inj dry_machine_lemmas.
-  Import Renamings MemObsEq ValObsEq.
+  Import Renamings MemObsEq ValObsEq ValueWD.
 
 Section CSPEC.
   Context {cspec: CoreLanguage.corestepSpec}.
@@ -706,7 +706,7 @@ Proof.
     + econstructor 2.
       eapply sim_halted; eauto.
       eauto.
-    + pose proof (sim_suspend corestep_wd cnti Htype Hsim) as
+    + pose proof (sim_suspend cnti Htype Hsim) as
           (? & ? & tpf' & m' & ? & ? & Hstep & Hsim').
       specialize (Hstep sched).
       econstructor 2; simpl; eauto.
