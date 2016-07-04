@@ -1,20 +1,18 @@
 (* sepcomp imports *)
 
-Require Import sepcomp. Import SepComp. 
-Require Import arguments.
+Require Import concurrency.sepcomp. Import SepComp. 
+Require Import sepcomp.arguments.
 
-Require Import pos.
-Require Import compcert_linking.
-Require Import rc_semantics.
+Require Import concurrency.pos.
+Require Import concurrency.compcert_linking.
+Require Import concurrency.rc_semantics.
 
 (* ssreflect *)
 
-Require Import ssreflect ssrbool ssrfun seq eqtype fintype.
+From mathcomp.ssreflect Require Import ssreflect ssrbool ssrnat ssrfun seq fintype.
 Set Implicit Arguments.
-Unset Strict Implicit.
-Unset Printing Implicit Defensive.
 
-Require Import nucular_semantics.
+Require Import sepcomp.nucular_semantics.
 Require Import Values.   
 
 (** * Forward Simulation is Compatible with Linking *)
@@ -45,7 +43,7 @@ Require Import Values.
 satisfied by all CompCert x86 Asm programs), see
 [linking/CompositionalComplements.v] or footnote 5 on pg. 9 of the paper. *)
 
-Import Wholeprog_sim.
+Require Import sepcomp.wholeprog_simulations. Import Wholeprog_sim.
 Import SM_simulation.
 Import Linker. 
 Import Modsem.

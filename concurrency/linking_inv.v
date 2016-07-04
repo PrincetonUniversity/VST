@@ -2053,7 +2053,7 @@ Record R (data : sig_data N (fun ix : 'I_N => (sims ix).(core_data)))
   ; pf1 := CallStack.callStack_nonempty s1 
   ; pf2 := CallStack.callStack_nonempty s2 
   ; c   := STACK.head _ pf1 
-  ; d   := STACK.head _ pf2 
+  ; d   := STACK.head _ pf2
 
     (* main invariant *)
   ; R_inv : 
@@ -2083,7 +2083,7 @@ End R.
 
 Section R_lems.
 
-Context data mu x1 m1 x2 m2 (pf : R data mu x1 m1 x2 m2).
+Context data j x1 m1 x2 m2 (pf : R data j x1 m1 x2 m2).
 
 Import CallStack.
 Import Linker.

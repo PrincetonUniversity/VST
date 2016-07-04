@@ -72,6 +72,7 @@ End Wholeprog_sim.
 
 End Wholeprog_sim.
 
+
 Section CompCert_wholeprog_sim.
 
 Context {F1 V1 C1 F2 V2 C2 : Type}
@@ -85,30 +86,11 @@ Context {F1 V1 C1 F2 V2 C2 : Type}
 (main : val).
 
 Definition cc_init_inv j (ge1 : Genv.t F1 V1) vals1 m1 (ge2 : Genv.t F2 V2) vals2 m2 :=
-  Mem.inject j m1 m2 
-  /\ Forall2 (val_inject j) vals1 vals2 
-  /\ meminj_preserves_globals ge1 j 
-    (* TODO REACH redundant with val_valid and mem_wd, should be removed *)
-  /\ (forall b, 
-      REACH m2 (fun b0 => isGlobalBlock ge1 b0 || getBlocks vals2 b0) b=true ->
-      Mem.valid_block m2 b)
-  /\ mem_wd m2 
-  /\ valid_genv ge2 m2 
-  /\ Forall (fun v2 => val_valid v2 m2) vals2.
-  (*
-Definition cc_halt_inv j (ge1 : Genv.t F1 V1) v1 m1 (ge2 : Genv.t F2 V2) v2 m2 :=
-  meminj_preserves_globals ge1 (as_inj j)
-  /\ val_inject (as_inj j) v1 v2
-  /\ Mem.inject (as_inj j) m1 m2.
-
-Definition CompCert_wholeprog_sim :=
-  @Wholeprog_sim.Wholeprog_sim _ _ _ _ _ _ 
-    Sem1 Sem2
-    ge1 ge2
-    main
-    genvs_domain_eq
-    cc_init_inv
-    cc_halt_inv.*)
+  Mem.inject j m1 m2 /\ Forall2 (val_inject j) vals1 vals2 
+  /\ meminj_preserves_globals ge1 j /\ globalfunction_ptr_inject ge1 j 
+  /\ mem_wd m2 /\ valid_genv ge2 m2 /\ Forall (fun v2 => val_valid v2 m2) vals2
+  /\ mem_respects_readonly ge1 m1 /\ mem_respects_readonly ge2 m2.
+  
 Definition cc_halt_inv j (ge1 : Genv.t F1 V1) v1 m1 (ge2 : Genv.t F2 V2) v2 m2 :=
   meminj_preserves_globals ge1 j
   /\ val_inject j v1 v2
