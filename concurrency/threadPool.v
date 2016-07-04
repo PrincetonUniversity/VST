@@ -11,6 +11,8 @@ Require Import concurrency.addressFiniteMap.
 Require Import compcert.lib.Maps.
 Require Import Coq.ZArith.ZArith.
 
+Require Import concurrency.lksize.
+
 Set Implicit Arguments.
 
 (*TODO: Enrich Resources interface to enable access of resources*)
@@ -52,6 +54,14 @@ Module OrdinalPool (SEM:Semantics) (RES:Resources) <: ThreadPoolSig
 
   Definition lockRes t : address -> option lock_info:=
     AMap.find (elt:=lock_info)^~ (lockGuts t).
+
+  Definition lr_valid (lr: address -> option lock_info):=
+    forall b ofs,
+      match lr (b,ofs) with
+      | Some r => forall ofs0:Z, (ofs < ofs0 < ofs+LKSIZE)%Z -> lr (b, ofs0) = None
+      | _ => True
+      end.
+                         
 
   (*Fixpoint lockSet_spec': forall js b ofs n,
       (lockSet js) !! b ofs =

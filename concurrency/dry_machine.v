@@ -107,7 +107,8 @@ Module Concur.
                           (getThreadR cntj).
      
      (*argh this invariant is such a pain, tried collecting everything
-    first, still a pain *)
+    first, still a pain.
+      lol, what else do you want? *)
      Record invariant' tp :=
        { no_race : race_free tp;
          lock_set_threads : forall i (cnt : containsThread tp i),
@@ -117,7 +118,8 @@ Module Concur.
              permMapsDisjoint pmap (getThreadR cnt);
          lock_res_set : forall l pmap,
              lockRes tp l = Some pmap ->
-             permMapsDisjoint pmap (lockSet tp)
+             permMapsDisjoint pmap (lockSet tp);
+         lockRes_valid: lr_valid (lockRes tp)
        }.
 
      Definition invariant := invariant'.
@@ -377,6 +379,8 @@ Module Concur.
                intros. rewrite threadPool.find_empty in H; inversion H.
              - unfold initial_machine, lockRes, containsThread ; simpl.
                intros. rewrite threadPool.find_empty in H; inversion H.
+             - unfold initial_machine, lockRes, empty_lset. simpl.
+               intros b ofs; unfold AMap.empty; simpl. constructor.
        Qed.
 
        (** ** Updating the machine state**)
@@ -388,6 +392,7 @@ Module Concur.
              - generalize no_race; unfold race_free.
                simpl. intros.
                apply no_race0; auto.
+             - simpl; assumption.
              - simpl; assumption.
              - simpl; assumption.
              - simpl; assumption.
@@ -434,6 +439,9 @@ Module Concur.
          - intros. rewrite gsoThreadLPool in H.
            rewrite gsoThreadLock.
            inversion INV. eapply lock_res_set0. eassumption.
+         - intros.
+           intros b ofs. rewrite gsoThreadLPool.
+           inversion INV. eapply lockRes_valid0.
        Qed.
        
        Lemma updLock_inv: forall ds a pmap,
@@ -446,9 +454,13 @@ Module Concur.
            (permDisjoint (Some Writable) (pmap !! (fst a) (snd a))) ->
            (forall l pmap0, lockRes ds l = Some pmap0 ->
                        permDisjoint (Some Writable) (pmap0 !! (fst a) (snd a)))->
+           (forall ofs0,
+               (snd a < ofs0 < (snd a) + LKSIZE)%Z -> lockRes ds (fst a, ofs0) = None) ->
+           (forall ofs : Z,
+               (ofs < (snd a) < ofs + LKSIZE)%Z -> lockRes ds (fst a, ofs) = None ) ->
            invariant (updLockSet ds a pmap).
        Proof.
-         intros ? ? ? INV A B C D E. constructor.
+         intros ? ? ? INV A B C D E F G. constructor.
          - apply updLock_raceFree. inversion INV; assumption.
          - intros. rewrite gLockSetRes.
            destruct a as [b ofs]; rewrite lockSet_upd.
@@ -479,8 +491,27 @@ Module Concur.
              * eapply E. rewrite <- H.
                rewrite gsoLockRes. reflexivity.
                assumption.
+         - intros b ofs.
+           destruct (AMap.E.eq_dec a (b,ofs)).
+           + subst a. rewrite gsslockResUpdLock.
+             intros ofs0 HH. rewrite gsolockResUpdLock.
+             apply F; auto.
+             intros AA. inversion AA. rewrite H0 in HH.
+             destruct HH as [H1 H2]; clear - H1.
+             omega.
+           + rewrite gsolockResUpdLock; auto.
+             inversion INV. clear - lockRes_valid0 n G.
+             specialize (lockRes_valid0 b ofs).
+             destruct (lockRes ds (b, ofs)) eqn:MAP; auto.
+             intros ofs0 ineq.
+             destruct (AMap.E.eq_dec a (b,ofs0)).
+             * subst a. apply G0 in ineq.
+                   rewrite ineq in MAP; inversion MAP.
+             * rewrite gsolockResUpdLock; auto.
        Qed.
 
+       (*This probaly needs more hypothesis. 
+        *  *)
        Lemma remLock_inv: forall ds a,
            invariant ds ->
            invariant (remLockSet ds a).
@@ -565,6 +596,8 @@ Module Concur.
              eapply CC; eassumption.
          - intros. rewrite gsoAddLock.
            inversion dinv. eapply lock_res_set; eassumption.
+         - intros b ofs; rewrite gsoAddLPool.
+           inversion dinv. apply lockRes_valid0.
        Qed.
 
        (** Similar states are the ones that are identical for

@@ -61,6 +61,9 @@ Notation LOCK := (EF_external "acquire" LOCK_SIG).
 Notation UNLOCK_SIG := (mksignature (AST.Tint::nil) (Some AST.Tint) cc_default).
 Notation UNLOCK := (EF_external "release" UNLOCK_SIG).
 
+
+(*  This shoul be replaced by global: 
+    Require Import concurrency.lksize.  *)
 Definition LKCHUNK:= Mint32.
 Definition LKSIZE:= align_chunk LKCHUNK.
 
@@ -215,12 +218,15 @@ Module Concur.
     Definition juicyLocks_in_lockSet (lset : lockMap) (juice: rmap):=
       forall loc sh psh P z, juice @ loc = YES sh psh (LK z) P  ->  AMap.find loc lset.
 
+    (* I removed the NO case for two reasons:
+     * - To ensure that lset is "valid" (lr_valid), it needs inherit it from the rmap 
+     * - there was no real reason to have a NO other than speculation of the future. *)
     Definition lockSet_in_juicyLocks (lset : lockMap) (juice: rmap):=
       forall loc, AMap.find loc lset -> 
-	     (exists sh psh P z, juice @ loc = YES sh psh (LK z) P) \/
-	     exists sh, juice @ loc = NO sh. (* Maybe we want to allow leaking data somehow, 
-                                           in which case we get a lock in the lockSet 
-                                           with nothing in the juice. *)
+	     (exists sh psh P, juice @ loc = YES sh psh (LK LKSIZE) P).
+
+    
+    
     Definition lockSet_in_juicyLocks' (lset : lockMap) (juice: rmap):=
       forall loc, AMap.find loc lset ->
              Mem.perm_order'' (Some Nonempty) (perm_of_res (juice @ loc)).
@@ -229,9 +235,10 @@ Module Concur.
     Proof.
       intros lset juice HH loc FIND.
       apply HH in FIND.
-      destruct FIND as [[sh [psh [P [z FIND]]]] | [sh0 FIND]]; rewrite FIND; simpl.
+      (*destruct FIND as [[sh [psh [P [z FIND]]]] | [sh0 FIND]]; rewrite FIND; simpl.*)
+      destruct FIND as [sh [psh [P FIND]]]; rewrite FIND; simpl.
       - constructor.
-      - destruct (eq_dec sh0 Share.bot); constructor.
+      (*- destruct (eq_dec sh0 Share.bot); constructor.*)
     Qed.
            
     
@@ -257,6 +264,41 @@ Module Concur.
     
     Definition mem_compatible tp m := ex (mem_compatible_with tp m).
 
+    Lemma jlocinset_lr_valid: forall ls juice,
+        lockSet_in_juicyLocks ls juice ->
+        lr_valid (AMap.find (elt:=lock_info)^~ (ls)).
+    Proof.
+      unfold lr_valid, lockSet_in_juicyLocks; intros.
+      destruct (AMap.find (elt:=lock_info) (b, ofs) ls) eqn:MAP.
+      - intros ofs0 ineq.
+        destruct (AMap.find (elt:=lock_info) (b, ofs0) ls) eqn:MAP'; try reflexivity.
+        assert (H':=H).
+        specialize (H (b,ofs) ltac:(rewrite MAP; auto)).
+        destruct H as [sh [psh [P H]]].
+        specialize (H' (b,ofs0) ltac:(rewrite MAP'; auto)).
+        destruct H' as [sh' [psh' [P' H']]].
+        assert (VALID:=phi_valid juice).
+        specialize (VALID b ofs). unfold "oo" in VALID.
+        rewrite H in VALID; simpl in VALID.
+        assert (ineq': (0< ofs0 - ofs < LKSIZE)%Z).
+        { clear - ineq.
+          unfold LKSIZE; simpl.
+          unfold lksize.LKSIZE in ineq; simpl in ineq. xomega. }
+        apply VALID in ineq'.
+        replace (ofs + (ofs0 - ofs))%Z with ofs0 in ineq' by xomega.
+        rewrite H' in ineq'. inversion ineq'.
+        auto.
+    Qed.
+
+    Lemma compat_lr_valid: forall js m,
+        mem_compatible js m ->
+        lr_valid (lockRes js).
+    Proof. intros js m H.
+           inversion H. 
+           eapply jlocinset_lr_valid with (juice:=x).
+           inversion H0; auto.
+    Qed.
+          
     Lemma compat_lockLT: forall js m,
              mem_compatible js m ->
              forall l r,
