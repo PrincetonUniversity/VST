@@ -2313,6 +2313,16 @@ Module X86Inj <: CoreInjections.
     eapply load_frame_store_args_rec_wd_domain.
   Qed.
 
+    Lemma store_wd_domain:
+      forall (m m' : mem) (chunk : memory_chunk) (v : val) b ofs f,
+        domain_memren f m ->
+        Mem.store chunk m b ofs v = Some m' ->
+        mem_wd.val_valid v m ->
+        valid_mem m ->
+        valid_mem m' /\ domain_memren f m'.
+    Proof.
+    Admitted.
+  
  Lemma exec_instr_wd:
     forall (g : genv) (fn : function) (i : instruction) (rs rs': regset)
       (m m' : mem) (f fg: memren) loader
@@ -2356,11 +2366,13 @@ Module X86Inj <: CoreInjections.
                eapply loadv_wd in H;
                  eauto
              | [H: Stuck = Next _ _ |- _] => discriminate
+             | [H: Mem.alloc _ _ _ = _ |- _ /\ _] =>
+               idtac
              | [|- _ /\ _] =>
                split
-             | [H: Mem.alloc _ _ _ = _ |- exists _, _] =>
+             | [H: Mem.alloc _ _ _ = _ |- _] =>
                idtac
-             | [|- exists _, _ /\ _] => exists f
+             | [|- exists _, _ /\ _] => eexists
              | [|- forall _, _] => intros
              end;
       unfold nextinstr, nextinstr_nf;
@@ -2390,9 +2402,26 @@ Module X86Inj <: CoreInjections.
               erewrite <- H; eauto with wd
           end;
       eauto 4 with wd.
-    (*TODO: allocation and free case left*)
-    Admitted.
-    
+    (* Allocation case*)
+    (*NOTE: Giving up on this for now, it's very easy but have more
+    imporant theorems to proof *)
+    repeat match goal with
+           | [H: Mem.alloc _ _ _ = _ |- _] =>
+             eapply mem_valid_alloc in H; eauto;
+             destruct H as [? [f'' [? ?]]]
+           | [H1: valid_mem ?M, H: Mem.store _ ?M _ _ _ = _ |- _] =>
+             eapply store_wd_domain in H; eauto;
+             destruct H
+           end.
+    split; auto.
+    split. eexists; split; eauto.
+    intros.
+    assert (ren_domain_incr f f') by
+        (eapply domain_memren_incr with (f' := f'');
+          eauto).
+    split.
+    Hint Resolve valid_val_incr regset_wd_incr : wd_alloc.
+  Admitted.
   
   (** Well-definedness of state is retained. *)
   (* The case for internal steps is missing. It's probably the most

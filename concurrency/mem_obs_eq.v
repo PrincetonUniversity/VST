@@ -1188,12 +1188,23 @@ Module MemoryWD.
       eapply valid_val_store; eauto.
   Qed.
 
+
+  Lemma store_wd_domain:
+    forall (m m' : mem) (chunk : memory_chunk) (v : val) b ofs f,
+      domain_memren f m ->
+      Mem.store chunk m b ofs v = Some m' ->
+      mem_wd.val_valid v m ->
+      valid_mem m ->
+      valid_mem m' /\ domain_memren f m'.
+  Proof.
+    Admitted.
   
   Lemma storev_wd_domain:
     forall (m m' : mem) (chunk : memory_chunk) (vptr v : val) f,
       domain_memren f m ->
       Mem.storev chunk m vptr v = Some m' ->
-      mem_wd.val_valid v m -> valid_mem m ->
+      mem_wd.val_valid v m ->
+      valid_mem m ->
       valid_mem m' /\ domain_memren f m'.
   Proof.
   Admitted.
