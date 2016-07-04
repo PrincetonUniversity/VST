@@ -27,7 +27,7 @@ Require Import concurrency.ssromega. (*omega in ssrnat *)
 Require Import sepcomp.wholeprog_simulations.
 
 (*General erasure*)
-Require Import concurrency.erasure.
+Require Import concurrency.erasure_signature.
 
 From mathcomp.ssreflect Require Import ssreflect seq.
 
@@ -108,7 +108,20 @@ Module ClightParching <: ErasureSig.
            DTP.containsThread ds tid -> JTP.containsThread js tid.
   Proof. intros ? ? ? MTCH. inversion MTCH. apply mtch_cnt'. Qed.
 
-
+  Lemma MTCH_perm: forall {js ds i},
+      forall (cnt: JSEM.ThreadPool.containsThread js i)
+      (MTCH: match_st js ds),
+      forall b ofs,
+        juicy_mem.perm_of_res ((JTP.getThreadR cnt) @ (b, ofs)) = ((DTP.getThreadR (MTCH_cnt MTCH cnt)) !! b) ofs.
+  Proof. intros. inversion MTCH. apply mtch_perm. Qed.
+  Lemma MTCH_perm': forall {js ds i},
+      forall (cnt: DSEM.ThreadPool.containsThread ds i)
+      (MTCH: match_st js ds),
+      forall b ofs,
+        ((DTP.getThreadR cnt) !! b) ofs =
+        juicy_mem.perm_of_res ((JTP.getThreadR (MTCH_cnt' MTCH cnt)) @ (b, ofs)).
+  Proof. intros. inversion MTCH. symmetry; apply mtch_perm. Qed.
+  
   Lemma cnt_irr: forall tid ds (cnt1 cnt2: DTP.containsThread ds tid),
       DTP.getThreadC cnt1 = DTP.getThreadC cnt2.
   Proof. intros.
@@ -163,7 +176,6 @@ Module ClightParching <: ErasureSig.
      specialize (acc_coh (b, ofs)).
      rewrite getMaxPerm_correct;
        apply acc_coh.
-     
      rewrite (mtch_perm _ _ _ (mtch_cnt' tid cnt) cnt).
      unfold DTP.getThreadR.
      apply po_refl.
@@ -788,7 +800,7 @@ Module ClightParching <: ErasureSig.
             clear e. rewrite <- H1 in e0.
             
             rewrite (virtue_some _ _ e0).
-            inversion MATCH. rewrite <- mtch_perm with (Htid:= mtch_cnt' _ cnt).
+            erewrite MTCH_perm' with (MTCH:=MATCH).
             apply joins_permDisjoint.
             Lemma triple_joins_exists:
               forall (a b c ab: rmap),
@@ -913,6 +925,7 @@ Module ClightParching <: ErasureSig.
               assert (Hadd_lock_res':=Hadd_lock_res).
               apply (resource_at_join _ _ _ (b, ofs0)) in 
                   Hadd_lock_res.
+
               inversion MATCH. erewrite <- mtch_perm.
               rewrite (perm_inRangeOfLock _ _ _ _ _ _ _ _ HJcanwrite).
               exists (Some Writable); reflexivity.
@@ -1431,7 +1444,7 @@ Module ClightParching <: ErasureSig.
                     rewrite MAA_none in acc_coh.
                     apply po_trans with (c:=(DSEM.ThreadPool.getThreadR Htid') !! b0 ofs0) in acc_coh.
                     - apply po_None1 in acc_coh. symmetry; assumption.
-                    - inversion MATCH. erewrite <- mtch_perm.
+                    - erewrite MTCH_perm' with (MTCH:=MATCH).
                       apply juicy_mem_lemmas.po_join_sub.
                       apply resource_at_join_sub.
                       apply compatible_threadRes_sub.
@@ -1440,7 +1453,7 @@ Module ClightParching <: ErasureSig.
             - rewrite (DTP.gsoThreadRes); try assumption.
               apply permDisjoint_permMapsDisjoint; intros b0 ofs0.
               rewrite <- JSEM.juic2Perm_correct.
-              inversion MATCH. erewrite <- mtch_perm.
+            erewrite MTCH_perm' with (MTCH:=MATCH).
               eapply permDisjoint_sub.
               apply resource_at_join_sub.
               exists  (m_phi jm'). eassumption.
@@ -1825,7 +1838,7 @@ Module ClightParching <: ErasureSig.
               apply permDisjoint_permMapsDisjoint.
               intros b0 ofs0.
               rewrite virtue_spec2.
-              inversion MATCH; erewrite <- mtch_perm.
+            erewrite MTCH_perm' with (MTCH:=MATCH).
               apply joins_permDisjoint. apply joins_comm.
               eapply join_sub_joins_trans.
               eapply join_join_sub.
@@ -2034,8 +2047,8 @@ Module ClightParching <: ErasureSig.
               destruct (Intv.In_dec ofs0 ((Int.intval ofs),(Int.intval ofs) + LKSIZE )).
               * { rewrite setPermBlock_same; try assumption.
                   simpl.
-                  inversion MATCH. erewrite <- mtch_perm.
-                
+                  erewrite MTCH_perm' with (MTCH:=MATCH).
+                  
                   eapply (@permDisjointLT (perm_of_res (JTP.getThreadR Hi @ (b, ofs0)))).
                   apply joins_permDisjoint.
                   apply resource_at_joins.
@@ -2183,7 +2196,7 @@ Module ClightParching <: ErasureSig.
                   unfold LKSIZE; simpl; xomega. }
             + { rewrite setPermBlock_other_2; try assumption.
                 rewrite <- Hj_forward.
-                  inversion MATCH. erewrite <- mtch_perm. 
+                inversion MATCH. erewrite <- mtch_perm. 
                   rewrite <- Hpersonal_juice; reflexivity.
                   left; assumption. }
         }
@@ -2322,14 +2335,16 @@ Module ClightParching <: ErasureSig.
                 + assumption.
             }
             { unfold pmap_tid. rewrite DSEM.ThreadPool.gRemLockSetRes.
-              inversion MATCH. erewrite <- mtch_perm. erewrite <- mtch_perm.
+              erewrite MTCH_perm' with (MTCH:=MATCH).
+              erewrite MTCH_perm' with (MTCH:=MATCH).
               apply joins_permDisjoint. apply resource_at_joins.
               eapply compatible_threadRes_join.
               eassumption.
               assumption.
             }
             { unfold pmap_tid. rewrite DSEM.ThreadPool.gRemLockSetRes.
-              inversion MATCH. erewrite <- mtch_perm. erewrite <- mtch_perm.
+              erewrite MTCH_perm' with (MTCH:=MATCH).
+              erewrite MTCH_perm' with (MTCH:=MATCH).
               apply joins_permDisjoint. apply resource_at_joins.
               eapply compatible_threadRes_join.
               eassumption.
@@ -2473,29 +2488,7 @@ Module ClightParching <: ErasureSig.
         { 
           eapply remLock_inv.
           - assumption.
-            (*Seems like all of this is not needed!!! *)
-         (* - intros; simpl.
-            cut (((DTP.getThreadR cnt) !! b (Int.intval ofs)) = Some Nonempty \/
-                 ((DTP.getThreadR cnt) !! b (Int.intval ofs)) = None).
-            { intros H; destruct H as [H | H]; rewrite H;
-              exists (Some Writable); reflexivity. }
-            { inversion MATCH; subst.
-              destruct (NatTID.eq_tid_dec i i0).
-              - subst i0.
-                specialize (mtch_perm b (Int.intval ofs) i Hi cnt).
-                 rewrite <- mtch_perm.
-                 rewrite Hlock. left; reflexivity.
-              - specialize (mtch_perm b (Int.intval ofs) i0 (mtch_cnt' _ cnt) cnt).
-                rewrite <- mtch_perm.
-                destruct (compatible_threadRes_join Hcompatible Hi (mtch_cnt' i0 cnt)) as
-                [result HH].
-                assumption.
-                apply (resource_at_join _ _ _ (b, Int.intval ofs)) in HH.
-                rewrite Hlock in HH.
-                apply YES_join_full in HH. destruct HH as [rsh2 HH].
-                rewrite HH; simpl.
-                destruct (eq_dec rsh2 Share.bot); [right | left]; reflexivity.
-            } *)
+            
         }
         
       - unfold ds''.
@@ -2579,10 +2572,15 @@ Module ClightParching <: ErasureSig.
             intros b0.
             inversion MATCH; subst.
             extensionality x. symmetry; apply MTCH_lockSet;
-            assumption.
+                              assumption.
         }
     }
-Qed.
+    Grab Existential Variables.
+    assumption.
+    assumption.
+    assumption.
+    assumption.
+  Qed.
     
     
 
@@ -2605,7 +2603,21 @@ Qed.
          inversion STEP; subst.
       
        (* start_step *)
-       admit.
+       { inversion Htstep; subst.
+         pose (ds':= (DSEM.ThreadPool.updThreadC (MTCH_cnt MATCH ctn) (Krun c_new))).
+         exists ds'. split; [|split].
+         - apply updCinvariant. assumption.
+         - apply MTCH_updt; assumption.
+         - econstructor 1.
+           + eassumption.
+           + eapply MTCH_compat; eassumption.
+           + { econstructor.
+               - eapply MTCH_getThreadC. eassumption. eassumption.
+               - eassumption.
+               - eassumption.
+               - reflexivity.
+             }
+       }
        
        (* resume_step *)
        { inversion MATCH; subst.
@@ -2634,9 +2646,14 @@ Qed.
          assert (Htid':=mtch_cnt _ Htid).
          exists (DTP.updThread Htid' (Krun c') (permissions.getCurPerm (m_dry jm'))).
          split ; [|split].
-         { (* apply updThread_inv.
+         {
+          (* apply updThread_inv.
            - assumption.
-             intros.*) (*Need to use core steps preserve mem_compatible*)
+           - intros.
+             admit. (*probablys someone did this. *)
+           - a
+
+             *) (*Need to use core steps preserve mem_compatible*)
            (* Require Import dry_machine_lemmas.
            eapply concurrency.dry_machine_lemmas.CoreLanguage.corestep_invariant. *)
            admit.
@@ -2764,3 +2781,426 @@ Theorem clight_erasure:
          ClightErasure.init_inv ClightErasure.halt_inv.
 Proof.
   Proof. intros. apply ClightErasure.erasure. assumption. Qed.
+
+
+  
+  (*
+ALL OF THE FOLLOWING WILL SLOWLY MIGRATE TO FILE Clight_erasure.
+WILL EVENTUALLY DELETE. *)
+
+
+
+
+Module ParchingFnctr (PA:ParchingAbstract) <: ErasureSig.
+
+ Module SCH:=mySchedule.
+ Import SCH.
+ Module SEM:= PA.SEM.
+ Import SEM.
+ Module JSEM:= JuicyMachineShell SEM.
+ Module JuicyMachine:= CoarseMachine SCH JSEM.
+ Notation (JMachineSem U):= JuicyMachine.MachineSemantics.
+ Notation jstate:= JSEM.ThreadPool.t.
+ Notation jmachine_state:= JuicyMachine.MachState.
+ 
+ Module DSEM:= DryMachineShell SEM.
+ Module DryMachine:= CoarseMachine SCH DSEM.
+ Notation DMachineSem:= DryMachine.MachineSemantics. 
+ Notation dstate:= DSEM.ThreadPool.t.
+ Notation dmachine_state:= DryMachine.MachState.
+ 
+ (*Parameter parch_state : jstate ->  dstate.*)
+ Definition match_st : jstate ->  dstate -> Prop.
+                         admit. Defined.
+                              
+      (*match axioms*)
+      Lemma MTCH_cnt: forall {js tid ds},
+          match_st js ds ->
+          JSEM.ThreadPool.containsThread js tid -> DSEM.ThreadPool.containsThread ds tid.
+            intros.
+      Admitted.
+      
+      Lemma MTCH_cnt': forall {js tid ds},
+          match_st js ds ->
+          DSEM.ThreadPool.containsThread ds tid -> JSEM.ThreadPool.containsThread js tid.
+      Admitted.
+        
+       Lemma MTCH_getThreadC: forall js ds tid (c:ctl),
+           forall (cnt: JSEM.ThreadPool.containsThread js tid)
+           (M: match_st js ds),
+           JSEM.ThreadPool.getThreadC cnt =  c ->
+           DSEM.ThreadPool.getThreadC (MTCH_cnt M cnt) = c.
+      Admitted.
+        
+       Lemma MTCH_compat: forall js ds m,
+           match_st js ds ->
+         JSEM.mem_compatible js m ->
+         DSEM.mem_compatible ds m.
+           Admitted.
+        
+       Lemma MTCH_updt:
+           forall js ds tid c
+             (H0:match_st js ds)  (cnt: JSEM.ThreadPool.containsThread js tid),
+             match_st (JSEM.ThreadPool.updThreadC cnt c)
+                       (DSEM.ThreadPool.updThreadC (MTCH_cnt H0 cnt) c).
+               Admitted.
+
+  (*Axiom parch_match: forall (js: jstate) (ds: dstate),
+      match_st js ds <-> ds = parch_state js.*)
+  
+  (*Init diagram*)
+  Lemma match_init: forall c, match_st (JSEM.initial_machine c) (DSEM.initial_machine c).
+             Admitted.
+  (*Core Diagram*)
+  Lemma parched_diagram: forall genv U U' m m' jst jst' ds ds',  
+      corestep (JMachineSem U) genv (U, jst) m (U', jst') m' ->
+      match_st jst ds -> match_st jst ds -> 
+      corestep DMachineSem genv (U, ds)  m (U', ds') m'.
+        Admitted.
+
+End Parching.
+
+    
+                                                  
+                                                  
+Module Erasure (PC: Parching).
+  Module SCH:=PC.SCH.
+  Module SEM:=PC.SEM.
+  Module JSEM:=PC.JSEM.
+  Module DSEM:=PC.DSEM.
+  
+  Import SEM.
+  Import PC.
+  Parameter genv: G.
+  Parameter main: Values.val.
+    
+  (*Module JSEM:= JuicyMachineSig SEM.
+  Module JuicyMachine:= CoarseMachine NatTID SCH JSEM.
+  Definition (JMachineSem U):= JuicyMachine.MachineSemantics.*)
+  Notation jmachine_state:= JuicyMachine.MachState.
+  
+  (*Module DSEM:= ShareMachineSig SEM.
+  Module DryMachine:= CoarseMachine NatTID SCH DSEM.
+  Definition DMachineSem:= DryMachine.MachineSemantics.*)
+  Notation dmachine_state:= DryMachine.MachState.
+  
+
+  (* The main erasure theorem is stated with Wholeprog_sim
+     which might change, but will escentially have the same
+     structure: match, init_clause, core_diagram, etc...  *)
+  Definition ge_inv (g1 g2: SEM.G):= g1 = g2.
+  Inductive init_inv:  Values.Val.meminj ->
+                       G -> list Values.val -> mem ->
+                       G -> list Values.val -> mem -> Prop:=
+  |InitEq: forall j g1 args1 m1 g2 args2 m2,
+      g1 = g2 ->
+      args1 = args2 ->
+      m1 = m2 ->
+      init_inv j g1 args1 m1 g2 args2 m2.
+
+  Inductive halt_inv:  SM_Injection ->
+                       G -> Values.val -> mem ->
+                       G -> Values.val -> mem -> Prop:=
+  |HaltEq: forall j g1 args1 m1 g2 args2 m2,
+      g1 = g2 ->
+      args1 = args2 ->
+      m1 = m2 ->
+      halt_inv j g1 args1 m1 g2 args2 m2.
+
+  Definition core_data:= unit.
+  Inductive match_state :
+    core_data ->  SM_Injection -> jmachine_state ->  mem -> dmachine_state -> mem -> Prop:=
+    MATCH: forall d j js ds U m,
+      DSEM.invariant ds -> (*This could better go inside the state... but it's fine here. *)
+      match_st js ds -> match_state d j  (U, js) m (U, ds) m.
+  
+  Definition core_ord: unit-> unit -> Prop := fun _ _ => False.
+  Definition core_ord_wf:  well_founded core_ord.
+      constructor; intros y H; inversion H.
+  Defined.
+  Lemma core_initial (j: Values.Val.meminj)
+             (JS: JuicyMachine.MachState)(vals1:list Values.val)(m1: mem)
+             (vals2:list Values.val)(m2: mem)
+             : initial_core (JMachineSem U) genv main vals1 = Some JS ->
+                   init_inv j genv vals1 m1 genv vals2 m2 ->
+                   exists (mu : SM_Injection) (cd : core_data) 
+                   (DS : DryMachine.MachState),
+                     as_inj mu = j /\
+                     initial_core DMachineSem genv main vals2 = Some DS /\
+                     match_state cd mu JS m1 DS m2.
+  Proof.
+    intros INIT_C INIT_INV.
+    inversion INIT_INV; subst.
+    pose (mu:=(initial_SM
+         (fun _ : block => false)(fun _ : block => false)
+         (fun b:block => match j b with Some _ => true | None => false end)
+         (fun b:block => match j b with Some _ => true | None => false end)
+         j)).
+    
+    exists mu, tt.
+    simpl in INIT_C. unfold JuicyMachine.init_machine in INIT_C. unfold (JMachineSem U).
+    simpl JSEM.init_mach in INIT_C.
+(*    unfold JSEM.init_mach, JSEM.Sem in INIT_C. *)
+    unfold JSEM.init_mach, JSEM.Sem in INIT_C.
+    destruct (@initial_core G C M Sem genv main vals2) eqn:initc; inversion INIT_C.
+    exists (DryMachine.U, DSEM.initial_machine (Kresume c)).
+    split; [|split].
+    - unfold mu; apply initial_SM_as_inj.
+    - simpl.
+      unfold DryMachine.init_machine.
+      unfold DSEM.init_mach.
+      unfold DSEM.Sem.
+      rewrite initc; reflexivity.
+    - assert (same_sch: JuicyMachine.U = DryMachine.U). admit. (* This should be proven elswhere. The same SCHEDULE *)
+      rewrite same_sch; constructor.
+      admit. (*init invariant*)
+      apply match_init.
+  Qed.
+
+  Lemma core_step' :
+    forall (st1 : JuicyMachine.MachState) (m1 : mem)
+     (st1' : JuicyMachine.MachState) (m1' : mem),
+   corestep (JMachineSem U) genv st1 m1 st1' m1' ->
+   forall (cd : core_data) (st2 : DryMachine.MachState)
+     (mu : SM_Injection) (m2 : mem),
+   match_state cd mu st1 m1 st2 m2 ->
+   exists  (m2' : mem) (cd' : core_data)  (mu' : SM_Injection)
+      (st2' : DryMachine.MachState),
+     match_state cd' mu' st1' m1' st2' m2' /\
+     (corestep DMachineSem genv st2 m2 st2' m2').
+       intros jmst m1 jmst' m1' STEP cd dmst mu m2 MATCH.
+       exists  m1', tt, mu.
+       unfold corestep, (JMachineSem U),
+       JuicyMachine.MachineSemantics, JuicyMachine.MachStep in STEP.
+       inversion STEP; subst.
+       
+       (* resume_step *)
+       inversion MATCH0; subst.
+       inversion H3; subst.
+       
+       
+       eapply (MTCH_getThreadC _ ds tid _ cnt H1) in HC.
+       exists (U, DSEM.updThreadC (MTCH_cnt H1 cnt) (Krun c)).
+       split.
+       { destruct jmst'.
+         simpl in Hms'; rewrite <- Hms'.
+         simpl in H; rewrite <- H.
+         constructor.
+         admit. (* invariant updateC*)
+         apply MTCH_updt.
+       }
+       { econstructor 1.
+         - eassumption.
+         - simpl.
+         - simpl in Hcmpt.
+           eapply (MTCH_compat _ _ _ H1 Hcmpt).
+         - simpl.
+           econstructor; try eassumption; reflexivity. }
+       (* core_step *)
+       {
+         inversion MATCH; subst.
+         inversion H3; subst.
+         inversion Hcorestep.
+         Search dstate.
+         Axiom get_permMap: mem -> permissions.share_map.
+         exists (U, updThread (MTCH_cnt H1 (Htid))
+                         (Krun c') (get_permMap (juicy_mem.m_dry jm'))).
+         split.
+         - destruct jmst' as [U' js'].
+         simpl in *; subst.
+         constructor.
+         simpl.
+         Axiom upd_MATCH: forall js ds tid (Htid: JSEM.containsThread js tid) c new_jm
+                            (MATCH: match_st js ds),
+             match_st
+               (juicy_machine.updThread js (cont2ord Htid) c (juicy_mem.m_phi new_jm))
+               (updThread (MTCH_cnt MATCH Htid) c (get_permMap (juicy_mem.m_dry new_jm))).
+         admit. (*invariant step *)
+         - apply upd_MATCH.
+         - pose (Hcompatible:= @MTCH_compat js _ _ H1 Hcmpt).
+           assert (Hcnt : ThreadPool.containsThread ds tid) by (apply (@MTCH_cnt js); auto).
+           econstructor 2; try eassumption.
+           unfold DSEM.cstep.
+           eapply (@step_dry _ _ Sem _ tid ds m2 (MTCH_cnt H1 Htid) _  _ c).
+           reflexivity.
+           inversion MATCH0; try eassumption.
+           apply MTCH_getThreadC; eassumption.
+           simpl in *. unfold JSEM.Sem in H2; unfold DSEM.Sem.
+           instantiate(1:=c'); instantiate(1:=Hcompatible).
+           Lemma MTCH_personal_mem:
+             forall tid ds js m
+               (MTCH: match_st js ds)
+               (Htid: JSEM.containsThread js tid)
+               (Hcmpt: JSEM.mem_compatible js m),
+               (juicy_mem.m_dry (personal_mem Htid Hcmpt)) = 
+               (restrPermMap
+                  (permMapsInv_lt (perm_comp (MTCH_compat _ _ _ MTCH Hcmpt)) (MTCH_cnt MTCH Htid))).
+           Admitted.
+           unfold Hcompatible.
+           rewrite <- MTCH_personal_mem.
+           assumption.
+         - simpl. f_equal.
+           admit. (*This will change with the updated semantics of juicy_machine. *)
+       }
+           
+       (* suspend_step *)
+       inversion MATCH0; subst.
+       inversion H; subst.
+       eapply (MTCH_getThreadC _ ds tid _ cnt H1) in HC.
+       exists (SCH.schedSkip U, DSEM.updThreadC (MTCH_cnt H1 cnt) (Kstop c)).
+       split.
+       { destruct jmst'.
+         simpl in Hms'; rewrite <- Hms'.
+         simpl in HschedS. rewrite <- HschedS.
+         constructor.
+         admit. (*invariant update. *)
+         apply MTCH_updt.
+       }
+       { econstructor 3.
+         - eassumption.
+         - reflexivity.
+         - simpl in Hcmpt.
+           eapply (MTCH_compat _ _ _ H1 Hcmpt).
+         - simpl.
+           econstructor; try eassumption; reflexivity. }
+       (* conc_step *)
+       {
+         (*Have to go through the cases*)
+         inversion MATCH.
+         inversion Hconc; subst.
+         - (*Lock*)
+           exists (fst jmst',updThread (MTCH_cnt H0 (Htid))
+                         (Krun c') (get_permMap (juicy_mem.m_dry jm'))).
+           simpl; split.
+           + destruct jmst' as [U' jm''].
+             simpl in *; subst.
+             econstructor.
+             admit. (* invariant on update. *)
+             admit. (* match on update . probably need a new axiom *)
+             simpl.
+             unfold DryMachine.MachStep; simpl.
+             econstructor 4;
+               try eassumption.
+             econstructor 1;
+               try eassumption.
+           + eapply MTCH_getThreadC; eassumption.
+           + 
+               
+         - (*Unlock*)
+         - (*Create*)
+         - (*MkLock*)
+         - (*Freelock*)
+         - (*LockFail*)
+
+         
+       admit.
+       }
+       (* step_halted *)
+       exists (SCH.schedSkip (fst dmst), snd dmst).
+       split. 
+       { destruct jmst'.
+         simpl in H4; rewrite <- H4.
+         simpl in HschedS; rewrite <- HschedS.
+         inversion MATCH0; subst.
+         simpl; constructor.
+         assumption.
+       }
+       { destruct dmst.
+         unfold DryMachine.MachStep; simpl.
+         inversion MATCH0; subst.
+         inversion Hhalted; subst.
+         cut (DSEM.threadHalted (MTCH_cnt H7 cnt)).
+         { intros HH; eapply (DryMachine.step_halted tid _ _ _ _ _ _ _ _ HH). }
+         { inversion Hhalted; subst.
+           econstructor.
+           - apply (MTCH_getThreadC). eapply Hthread. 
+           - cut (c = c0).
+             { intros; subst c;  assumption. }
+             { simpl in cnt0.
+               Lemma getTC_proof_indep:
+                 forall {js tid} (cnt1 cnt2: JSEM.containsThread js tid),
+                   JSEM.getThreadC cnt1 =JSEM.getThreadC cnt2.
+               Admitted.
+               rewrite (getTC_proof_indep cnt cnt0) in Hthread.
+               rewrite Hthread in Hthread0; inversion Hthread0; reflexivity. }
+         }
+         }
+           
+       (* schedfail *)
+       exists (fst jmst', snd dmst).
+       split.
+       - destruct jmst' as [U' jst'];  econstructor.
+         destruct jmst as [U jst]; simpl in H4. 
+         inversion MATCH0; subst; assumption.
+       -  inversion MATCH0; subst. econstructor 6. simpl. exact HschedN.
+          simpl.
+          unfold not; intros NOWAY; apply Htid.
+          eapply MTCH_cnt' in NOWAY;  eassumption.
+          simpl. exact HschedS. 
+
+          (* Fix this in place*)
+          Grab Existential Variables.
+          - simpl in Hcmpt. inversion MATCH0; subst. eapply MTCH_compat; eassumption.
+          - reflexivity.
+          - simpl. assumption.
+  Qed.
+  
+  Lemma core_step :
+    forall (st1 : JuicyMachine.MachState) (m1 : mem)
+     (st1' : JuicyMachine.MachState) (m1' : mem),
+   corestep (JMachineSem U) genv st1 m1 st1' m1' ->
+   forall (cd : core_data) (st2 : DryMachine.MachState)
+     (mu : SM_Injection) (m2 : mem),
+   match_state cd mu st1 m1 st2 m2 ->
+   exists
+     (st2' : DryMachine.MachState) (m2' : mem) (cd' : core_data) 
+   (mu' : SM_Injection),
+     match_state cd' mu' st1' m1' st2' m2' /\
+     (semantics_lemmas.corestep_plus DMachineSem genv st2 m2 st2' m2' \/
+      semantics_lemmas.corestep_star DMachineSem genv st2 m2 st2' m2' /\
+      core_ord cd' cd).
+       intros jmst m1 jmst' m1' STEP cd dmst mu m2 MATCH.
+       destruct (core_step' jmst m1 jmst' m1' STEP cd dmst mu m2 MATCH)
+         as [m2' [cd' [mu' [st2' [MATCH' STEP']]]]].
+       exists st2', m2', cd', mu'.
+       split; [ | left ; apply semantics_lemmas.corestep_plus_one]; assumption.
+  Qed.
+
+  Lemma core_halted:
+     forall (cd : core_data) (mu : SM_Injection)
+     (c1 : JuicyMachine.MachState) (m1 : mem) (c2 : DryMachine.MachState)
+     (m2 : mem) (v1 : Values.val),
+   match_state cd mu c1 m1 c2 m2 ->
+   halted (JMachineSem U) c1 = Some v1 ->
+   exists (j : SM_Injection) (v2 : Values.val),
+     halt_inv j genv v1 m1 genv v2 m2 /\ halted DMachineSem c2 = Some v2.
+  Proof.
+    intros cd mu jmst m1 dmst m2 v1 MATCH HALT.
+    exists mu, v1.
+    inversion MATCH; subst.
+    split.
+    - constructor; try reflexivity.
+    - inversion HALT.
+  Qed.
+
+  
+  Theorem erasure:
+    Wholeprog_sim.Wholeprog_sim
+      (JMachineSem U) DMachineSem
+      genv genv
+      main
+      ge_inv init_inv halt_inv.
+  Proof.
+    apply (Wholeprog_sim.Build_Wholeprog_sim
+             (JMachineSem U) DMachineSem
+             genv genv
+             main
+             ge_inv init_inv halt_inv
+             core_data match_state core_ord core_ord_wf).
+    - reflexivity.
+    - apply core_initial.
+    - apply core_step.
+    - apply core_halted.
+  Qed.
+    
+End Erasure.
