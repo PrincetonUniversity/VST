@@ -27,6 +27,7 @@ Require Import veric.semax_ext.
 Require Import veric.semax_ext_oracle.
 Require Import sepcomp.semantics.
 Require Import sepcomp.step_lemmas.
+Require Import sepcomp.event_semantics.
 Require Import concurrency.semax_conc.
 Require Import concurrency.juicy_machine.
 Require Import concurrency.concurrent_machine.
@@ -50,7 +51,10 @@ Open Scope string_scope.
 Module ClightSEM <: Semantics.
   Definition G := genv.
   Definition C := corestate.
-  Definition Sem := CLN_memsem.
+  Parameter CLN_evsem : EvSem G C.
+  Parameter CLN_msem :
+    msem CLN_evsem = CLN_memsem.
+  Definition Sem := CLN_evsem.
 End ClightSEM.
 
 Module JuicyMachineShell_ClightSEM := Concur.JuicyMachineShell ClightSEM.

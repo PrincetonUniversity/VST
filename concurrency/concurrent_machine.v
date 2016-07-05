@@ -325,20 +325,9 @@ Module Type ThreadPoolSig.
    
 End ThreadPoolSig.
 
-Module Type ConcurrentMachineSig.
-  Declare Module ThreadPool: ThreadPoolSig.
-  Import ThreadPool.
-  Import SEM.
-
-  Notation thread_pool := ThreadPool.t.
-  (** Memories*)
-  Parameter richMem: Type.
-  Parameter dryMem: richMem -> mem.
-  Parameter diluteMem : mem -> mem.
-  
-  (** Environment and Threadwise semantics *)
-  (** These values come from SEM *)
-
+Module Type EventSig.
+  Declare Module TID: ThreadID.
+  Import TID.
   Inductive sync_event : Type :=
   | release : address -> sync_event
   | acquire : address -> sync_event
@@ -351,7 +340,25 @@ Module Type ConcurrentMachineSig.
   | internal: TID.tid -> seq mem_event -> machine_event
   | external : TID.tid -> sync_event -> machine_event
   | halt : TID.tid -> machine_event.
+End EventSig.
   
+
+Module Type ConcurrentMachineSig.
+  Declare Module ThreadPool: ThreadPoolSig.
+  Declare Module Events: EventSig.
+  Import ThreadPool.
+  Import Events.
+  Import SEM.
+
+  Notation thread_pool := ThreadPool.t.
+  (** Memories*)
+  Parameter richMem: Type.
+  Parameter dryMem: richMem -> mem.
+  Parameter diluteMem : mem -> mem.
+  
+  (** Environment and Threadwise semantics *)
+  (** These values come from SEM *)
+
   (** The thread pool respects the memory*)
   Parameter mem_compatible: thread_pool -> mem -> Prop.
   Parameter invariant: thread_pool -> Prop.
@@ -384,8 +391,9 @@ Module Type ConcurrentMachine.
 
   Import SCH.
   Import SIG.ThreadPool.
+  Import SIG.Events.
 
-  Notation event_trace := (seq SIG.machine_event).
+  Notation event_trace := (seq machine_event).
   
   Definition MachState : Type:= (schedule * event_trace * t)%type.
 
@@ -394,13 +402,13 @@ Module Type ConcurrentMachine.
 
   Axiom initial_schedule: forall genv main vals U U' p c tr,
       initial_core (MachineSemantics U p) genv main vals = Some (U',tr,c) ->
-      U' = U.
+      U' = U /\ tr = nil.
 End ConcurrentMachine.
   
-Module CoarseMachine (SCH:Scheduler)(SIG : ConcurrentMachineSig with Module ThreadPool.TID:=SCH.TID) <: ConcurrentMachine with Module SCH:= SCH with Module SIG:= SIG.
+Module CoarseMachine (SCH:Scheduler)(SIG : ConcurrentMachineSig with Module ThreadPool.TID:=SCH.TID with Module Events.TID :=SCH.TID) <: ConcurrentMachine with Module SCH:= SCH with Module SIG:= SIG.
   Module SCH:=SCH.
   Module SIG:=SIG.
-  Import SCH SIG TID ThreadPool ThreadPool.SEM.
+  Import SCH SIG TID ThreadPool ThreadPool.SEM Events.
   
   Notation Sch:=schedule.
   Notation machine_state := ThreadPool.t.
@@ -558,10 +566,18 @@ Module CoarseMachine (SCH:Scheduler)(SIG : ConcurrentMachineSig with Module Thre
   Definition MachineSemantics:= MachineSemantics'.*)
   Lemma initial_schedule: forall genv main vals U U' p c tr,
       initial_core (MachineSemantics U p) genv main vals = Some (U',tr,c) ->
-      U' = U.
+      U' = U /\ tr = nil.
         simpl. unfold init_machine. intros.
         destruct (init_mach p genv main vals); try solve[inversion H].
-        inversion H; reflexivity.
+        inversion H; subst; split; auto.
+  Qed.
+
+  Lemma corestep_empty_trace: forall genv U tr tr' c m c' m' U',
+      MachStep genv (U,tr,c) m (U', tr', c') m' ->
+      tr = nil /\ tr' = nil.
+  Proof.
+    intros.
+    inversion H; subst; simpl in *; auto.
   Qed.
 
   (** Schedule safety of the coarse-grained machine*)
@@ -580,10 +596,10 @@ Module CoarseMachine (SCH:Scheduler)(SIG : ConcurrentMachineSig with Module Thre
   
 End CoarseMachine.
 
-Module FineMachine  (SCH:Scheduler)(SIG : ConcurrentMachineSig with Module ThreadPool.TID:=SCH.TID) <: ConcurrentMachine with Module SCH:= SCH with Module SIG:= SIG.
+Module FineMachine  (SCH:Scheduler)(SIG : ConcurrentMachineSig with Module ThreadPool.TID:=SCH.TID with Module Events.TID:=SCH.TID)<: ConcurrentMachine with Module SCH:= SCH with Module SIG:= SIG.
   Module SCH:=SCH.
   Module SIG:=SIG.
-  Import SCH SIG TID ThreadPool ThreadPool.SEM.
+  Import SCH SIG TID ThreadPool ThreadPool.SEM Events.
   
   Notation Sch:=schedule.
   Notation machine_state := ThreadPool.t.
@@ -733,10 +749,10 @@ Module FineMachine  (SCH:Scheduler)(SIG : ConcurrentMachineSig with Module Threa
 
   Lemma initial_schedule: forall genv main vals U U' p c tr,
       initial_core (MachineSemantics U p) genv main vals = Some (U',tr,c) ->
-      U' = U.
+      U' = U /\ tr = nil.
         simpl. unfold init_machine. intros.
         destruct (init_mach p genv main vals); try solve[inversion H].
-        inversion H; reflexivity.
+        inversion H; subst; split; auto.
   Qed.
 
   (** Schedule safety of the fine-grained machine*)
@@ -750,3 +766,23 @@ Module FineMachine  (SCH:Scheduler)(SIG : ConcurrentMachineSig with Module Threa
       fsafe ge tp m U (ev ++ tr).
   
 End FineMachine.
+
+Module Events  <: EventSig
+   with Module TID:=NatTID. 
+
+ Module TID := NatTID.
+ Import TID event_semantics.
+         
+ Inductive sync_event : Type :=
+  | release : address -> sync_event
+  | acquire : address -> sync_event
+  | mklock :  address -> sync_event
+  | freelock : address -> sync_event
+  | spawn : val -> sync_event
+  | failacq: address -> sync_event.
+
+  Inductive machine_event : Type :=
+  | internal: TID.tid -> list mem_event -> machine_event
+  | external : TID.tid -> sync_event -> machine_event
+  | halt : TID.tid -> machine_event.
+End Events.

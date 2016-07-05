@@ -48,8 +48,8 @@ Module Parching <: ErasureSig.
   Module SEM:= ClightSEM.
   Import SCH SEM.
 
-  Module JSEM:= JuicyMachineShell SEM. (* JuicyMachineShell : Semantics -> ConcurrentSemanticsSig *)
-  Module JuicyMachine:= CoarseMachine SCH JSEM. (* CoarseMachine : Schedule -> ConcurrentSemanticsSig -> ConcurrentSemantics *)
+  Module JSEM := JuicyMachineShell SEM. (* JuicyMachineShell : Semantics -> ConcurrentSemanticsSig *)
+  Module JuicyMachine := CoarseMachine SCH JSEM. (* CoarseMachine : Schedule -> ConcurrentSemanticsSig -> ConcurrentSemantics *)
   Notation JMachineSem:= JuicyMachine.MachineSemantics.
   Notation jstate:= JuicyMachine.SIG.ThreadPool.t.
   Notation jmachine_state:= JuicyMachine.MachState.
@@ -58,13 +58,13 @@ Module Parching <: ErasureSig.
 
   Search JSEM.mem_compatible.
   
-  Module DSEM:= DryMachineShell SEM.
-  Module DryMachine:= CoarseMachine SCH DSEM.
+  Module DSEM := DryMachineShell SEM.
+  Module DryMachine <: ConcurrentMachine:= CoarseMachine SCH DSEM.
   Notation DMachineSem:= DryMachine.MachineSemantics. 
   Notation dstate:= DryMachine.SIG.ThreadPool.t.
   Notation dmachine_state:= DryMachine.MachState.
   Module DTP:=DryMachine.SIG.ThreadPool.
-  Import DSEM.DryMachineLemmas.
+  Import DSEM.DryMachineLemmas event_semantics.
 
 
 
@@ -651,13 +651,13 @@ Module Parching <: ErasureSig.
     Variable main: Values.val.
     Lemma init_diagram:
       forall (j : Values.Val.meminj) (U:schedule) (js : jstate)
-        (vals : list Values.val) (m : Mem.mem) rmap pmap,
+        (vals : list Values.val) (m : Mem.mem) tr rmap pmap,
         init_inj_ok j m ->
         match_rmap_perm rmap pmap ->
-        initial_core (JMachineSem U (Some rmap)) genv main vals = Some (U, js) ->
+        initial_core (JMachineSem U (Some rmap)) genv main vals = Some (U, tr, js) ->
         exists (mu : SM_Injection) (ds : dstate),
           as_inj mu = j /\
-          initial_core (DMachineSem U (Some pmap)) genv main vals = Some (U, ds) /\
+          initial_core (DMachineSem U (Some pmap)) genv main vals = Some (U, nil,ds) /\
           DSEM.invariant ds /\
           match_st js ds.
     Proof.
@@ -670,7 +670,7 @@ Module Parching <: ErasureSig.
       simpl in H1.
       unfold JuicyMachine.init_machine in H1.
       unfold JSEM.init_mach in H1. simpl in H1.
-      destruct ( initial_core JSEM.ThreadPool.SEM.Sem genv main vals) eqn:C; try solve[inversion H1].
+      destruct ( initial_core (msem JSEM.ThreadPool.SEM.Sem) genv main vals) eqn:C; try solve[inversion H1].
       inversion H1.
       exists (DSEM.initial_machine pmap c).
 
@@ -686,19 +686,20 @@ Module Parching <: ErasureSig.
       - apply initial_invariant.
       - apply MTCH_initial. assumption.
     Qed.
-  
+   
   Lemma conc_step_diagram:
-    forall m m' U js js' ds i genv
+    forall m m' U js js' ds i genv ev
       (MATCH: match_st js ds)
       (dinv: DSEM.invariant ds)
       (Hi: JSEM.ThreadPool.containsThread js i)
       (Hcmpt: JSEM.mem_compatible js m)
       (HschedN: schedPeek U = Some i)
-      (Htstep:  JSEM.syncStep genv Hi Hcmpt js' m'),
+      (Htstep:  JSEM.syncStep genv Hi Hcmpt js' m' ev),
       exists ds' : dstate,
         DSEM.invariant ds' /\
         match_st js' ds' /\
-        DSEM.syncStep genv (MTCH_cnt MATCH Hi) (MTCH_compat _ _ _ MATCH Hcmpt) ds' m'.
+        DSEM.syncStep genv (MTCH_cnt MATCH Hi) (MTCH_compat _ _ _ MATCH Hcmpt) ds' m'
+                      ev.
   Proof.
 
     intros.
@@ -862,7 +863,7 @@ Module Parching <: ErasureSig.
                   reflexivity.
               }
               
-              Lemma perm_inRangeOfLock: forall rm b ofs ofs0 sh psh n X,
+             Lemma perm_inRangeOfLock: forall rm b ofs ofs0 sh psh n X,
                   rm @ (b, ofs) = YES sh psh (LK n) X -> 
                   Intv.In ofs0 (ofs, ofs + n) ->
                   perm_of_res (rm @ (b, ofs0)) = Some Nonempty.

@@ -235,7 +235,7 @@ End SimDefs.
 Module SimProofs (CI: CoreInjections).
   Import mySchedule CoreLanguage InternalSteps.
   Import ThreadPoolWF StepLemmas StepType.
-  Import ValueWD MemoryWD MemObsEq ValObsEq MemoryLemmas event_semantics.
+  Import ValueWD MemoryWD MemObsEq ValObsEq MemoryLemmas event_semantics Events.
   Module ThreadPoolInjections := ThreadPoolInjections CI.
   Module SimDefs := SimDefs CI.
   Import SimDefs Renamings ThreadPoolInjections CI.

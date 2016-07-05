@@ -65,7 +65,6 @@ Module ThreadPool (SEM:Semantics)  <: ThreadPoolSig
                         Include (OrdinalPool SEM LocksAndResources).
 End ThreadPool.
 
-
 Module Concur.
   
   Module mySchedule := ListScheduler NatTID.
@@ -73,30 +72,17 @@ Module Concur.
   Module DryMachineShell (SEM:Semantics)  <: ConcurrentMachineSig
       with Module ThreadPool.TID:=mySchedule.TID
       with Module ThreadPool.SEM:= SEM
-      with Module ThreadPool.RES:= LocksAndResources.
-                                    
+      with Module ThreadPool.RES:= LocksAndResources
+      with Module Events.TID := mySchedule.TID.
+
+     Module Events := Events.
      Module ThreadPool := ThreadPool SEM.
      Import ThreadPool.
      Import ThreadPool.SEM ThreadPool.RES.
-     Import event_semantics.
+     Import event_semantics Events.
      
      Notation tid := NatTID.tid.
 
-     (* Probably need to pass these around through a functor, or some
-    kind of different module*)
-    Inductive sync_event : Type :=
-    | release : address -> sync_event
-    | acquire : address -> sync_event
-    | mklock :  address -> sync_event
-    | freelock : address -> sync_event
-    | spawn : val -> sync_event
-    | failacq: address -> sync_event.
-
-    
-    Inductive machine_event : Type :=
-    | internal: TID.tid -> seq mem_event -> machine_event
-    | external : TID.tid -> sync_event -> machine_event
-    | halt : TID.tid -> machine_event.
      
      (** Memories*)
      Definition richMem: Type:= mem.
@@ -807,21 +793,25 @@ Lemma corestep_value_det:
 Admitted.
 
        Lemma threadStep_value_det:
-         forall ge tp1 tp1' m1 m1' tp2 m2 tp2' m2' i
+         forall ge tp1 tp1' m1 m1' tp2 m2 tp2' m2' i ev1 ev2
            (cnti: containsThread tp1 i)
            (cnti': containsThread tp1' i)
            (HsimilarPool: similar_threadPool tp1 tp1')
            (HsimilarMem: similar_mem m1 m1')
            (Hcomp1: mem_compatible tp1 m1)
            (Hcomp1': mem_compatible tp1' m1')
-           (Hstep1: threadStep ge cnti Hcomp1 tp2 m2)
-           (Hstep1': threadStep ge cnti' Hcomp1' tp2' m2'),
+           (Hstep1: threadStep ge cnti Hcomp1 tp2 m2 ev1 )
+           (Hstep1': threadStep ge cnti' Hcomp1' tp2' m2' ev2),
            similar_threadPool tp2 tp2' /\ similar_mem m2 m2'.
+
        Proof with eauto with similar.
          intros.
          inversion HsimilarPool; clear HsimilarPool.
          inversion Hstep1; clear Hstep1; subst;
          inversion Hstep1'; clear Hstep1'; subst.
+         (*Do we want the stronger version with events?*)
+         apply ev_step_ax1 in Hcorestep.
+         apply ev_step_ax1 in Hcorestep0.
          rewrite (H0 _ cnti cnti') in Hcode.
          rewrite Hcode in Hcode0.
          inversion Hcode0; clear Hcode0; subst.

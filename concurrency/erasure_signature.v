@@ -79,10 +79,10 @@ Module Type ErasureSig.
       (vals : list Values.val) (m : mem) rmap pmap,
       init_inj_ok j m ->
       match_rmap_perm rmap pmap ->
-   initial_core (JMachineSem U (Some rmap)) genv main vals = Some (U, js) ->
+   initial_core (JMachineSem U (Some rmap)) genv main vals = Some (U, nil, js) ->
    exists (mu : SM_Injection) (ds : dstate),
      as_inj mu = j /\
-     initial_core (DMachineSem U (Some pmap)) genv main vals = Some (U, ds) /\
+     initial_core (DMachineSem U (Some pmap)) genv main vals = Some (U, nil, ds) /\
      DSEM.invariant ds /\
      match_st js ds.
 
@@ -90,18 +90,26 @@ Module Type ErasureSig.
     forall (m : mem)  (U0 U U': schedule) rmap pmap
      (ds : dstate) (js js': jstate) 
      (m' : mem),
-   corestep (JMachineSem U0 rmap) genv (U, js) m (U', js') m' ->
+   corestep (JMachineSem U0 rmap) genv (U, nil, js) m (U', nil, js') m' ->
    match_st js ds ->
    DSEM.invariant ds ->
    exists (ds' : dstate),
      DSEM.invariant ds' /\
      match_st js' ds' /\
-     corestep (DMachineSem U0 pmap) genv (U, ds) m (U', ds') m'.
+     corestep (DMachineSem U0 pmap) genv (U, nil, ds) m (U', nil, ds') m'.
 
   Axiom halted_diagram:
-    forall U ds js  rmap pmap,
-      fst js = fst ds ->
+    forall U (ds : dmachine_state) (js : jmachine_state)  rmap pmap,
+      fst (fst js) = fst (fst ds) ->
       halted (JMachineSem U rmap) js = halted (DMachineSem U pmap) ds.
+
+  Axiom jstep_empty_trace: forall genv U0 U tr tr' c m c' m' U' rmap,
+      corestep (JMachineSem U0 rmap) genv (U,tr,c) m (U', tr', c') m' ->
+      tr = nil /\ tr' = nil.
+
+  Axiom dstep_empty_trace: forall genv U0 U tr tr' c m c' m' U' rmap,
+      corestep (DMachineSem U0 rmap) genv (U,tr,c) m (U', tr', c') m' ->
+      tr = nil /\ tr' = nil.
 
 End ErasureSig.
 
@@ -145,7 +153,7 @@ Module ErasureFnctr (PC:ErasureSig).
     MATCH: forall d j js ds U m,
       DSEM.invariant ds -> (*This could better go inside the state... but it's fine here. *)
       match_st js ds ->
-      match_state d j  (U, js) m (U, ds) m.
+      match_state d j  (U, nil, js) m (U, nil, ds) m.
   
   
   
@@ -168,17 +176,20 @@ Module ErasureFnctr (PC:ErasureSig).
     - reflexivity.
     - intros until m2; intros H H0.
       inversion H0; subst. clear - H4 H init_OK.
-      destruct c1 as [U0 js].
-      assert (HH:=JuicyMachine.initial_schedule _ _ _ _ _ _ _ H); subst U0.
+      destruct c1 as [[U0 tr0] js].
+      assert (HH:=JuicyMachine.initial_schedule _ _ _ _ _ _ _ tr0 H).
+      destruct HH. subst U0 tr0.
       destruct (init_diagram j U js vals2 m2 rmap pmap H4 init_OK H) as [mu [dms [injeq [IC [DINV MS] ]]]].
-      exists tt, (U,dms); intuition.
+      exists tt, (U,nil,dms); intuition.
       constructor; assumption.
     - intros until m2; intros MTCH.
       inversion MTCH; subst; clear MTCH.
-      destruct st1' as [U' js'].
+      destruct st1' as [[U' tr1'] js'].
+      assert (H' := H).
+      apply jstep_empty_trace in H'. destruct H'; subst.
       destruct (core_diagram m2 U U0 U' (Some rmap) (Some pmap) ds js js' m1' H H1 H0) as
           [ds' [DINV [MTCH CORE]]].
-      exists (U', ds'), m1', tt, mu. split.
+      exists (U', nil, ds'), m1', tt, mu. split.
       + constructor; assumption.
       + left; apply semantics_lemmas.corestep_plus_one; assumption.
     - intros until v1; intros MTCH.

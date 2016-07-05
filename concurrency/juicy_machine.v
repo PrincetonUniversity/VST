@@ -132,17 +132,19 @@ Module Concur.
   Module JuicyMachineShell (SEM:Semantics)  <: ConcurrentMachineSig
       with Module ThreadPool.TID:=mySchedule.TID
       with Module ThreadPool.SEM:= SEM
-      with Module ThreadPool.RES := LocksAndResources.
+      with Module ThreadPool.RES := LocksAndResources
+      with Module Events.TID := NatTID.
       Import LocksAndResources.
       (*Notation lockMap:=(address -> option (option rmap)).*)
       Notation lockMap:= (AMap.t (option rmap)).
       Notation SSome x:= (Some (Some x)).
       Notation SNone:= (Some None).
+      Module Events := Events.
+      Module ThreadPool := ThreadPool SEM.
       
-    Module ThreadPool := ThreadPool SEM.
     Import ThreadPool.
     Import ThreadPool.SEM.
-    Import event_semantics.
+    Import event_semantics Events.
     Notation tid := NatTID.tid.
 
     (** Memories*)
@@ -155,22 +157,6 @@ Module Concur.
     (*Parameter G : Type.
     Parameter Sem : CoreSemantics G code mem.*)
     Notation the_sem := (csem (event_semantics.msem Sem)).
-
-    (* Probably need to pass these around through a functor, or some
-    kind of different module*)
-    Inductive sync_event : Type :=
-    | release : address -> sync_event
-    | acquire : address -> sync_event
-    | mklock :  address -> sync_event
-    | freelock : address -> sync_event
-    | spawn : val -> sync_event
-    | failacq: address -> sync_event.
-
-    
-    Inductive machine_event : Type :=
-    | internal: TID.tid -> list mem_event -> machine_event
-    | external : TID.tid -> sync_event -> machine_event
-    | halt : TID.tid -> machine_event.
     
     (*thread pool*)
     Import ThreadPool.  

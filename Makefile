@@ -142,7 +142,7 @@ CONCUR_FILES= \
   concurrent_machine.v juicy_machine.v dry_machine.v dry_context.v dry_machine_lemmas.v \
   mem_obs_eq.v dry_machine_lemmas.v dry_context.v compcert_threads_lemmas.v \
   x86_inj.v x86_safety.v \
-  erasure_signature.v Clight_erasure.v \
+  erasure_signature.v erasure_proof.v Clight_erasure.v \
   semax_conc.v semax_to_machine.v semax_to_juicy_machine.v \
   stack.v cast.v pred_lemmas.v seq_lemmas.v wf_lemmas.v reestablish.v \
   inj_lemmas.v join_sm.v reach_lemmas.v compcert_linking.v compcert_linking_lemmas.v \
