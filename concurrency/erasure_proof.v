@@ -41,11 +41,18 @@ Import addressFiniteMap.
   Definition  
 End ClightSEM.*)
 
-Module Parching <: ErasureSig.
+Module Type DecayingSemantics.
+  Include Semantics.
+  Axiom step_decay: forall g c m tr c' m',
+      event_semantics.ev_step (Sem) g c m tr c' m' ->
+      decay m m'.
+End DecayingSemantics.
 
-  Declare Module ClightSEM: Semantics. (*This will be imported from Clight wonce we port it*)
+
+Module Parching (DecayingSEM: DecayingSemantics) <: ErasureSig.
+
   Module SCH:= ListScheduler NatTID.            
-  Module SEM:= ClightSEM.
+  Module SEM:= DecayingSEM.
   Import SCH SEM.
 
   Module JSEM := JuicyMachineShell SEM. (* JuicyMachineShell : Semantics -> ConcurrentSemanticsSig *)
@@ -2969,25 +2976,15 @@ Module Parching <: ErasureSig.
          exists (DTP.updThread Htid' (Krun c') (permissions.getCurPerm (m_dry jm'))).
          split ; [|split].
          {
+           inversion Hcorestep.
+           eapply ev_step_ax2 in H; destruct H as [T H].
+           apply DecayingSEM.step_decay in H.
+           
            
            eapply Top.Parching.DSEM.DryMachineLemmas.step_decay_invariant
-           with (Hcompatible:= MTCH_compat _ _ _ MATCH Hcmpt); eauto.
-           
-           pose (jm:= (JSEM.personal_mem Htid Hcmpt)).
-           fold jm in Hcorestep.
-           inversion Hcorestep.
-
-           intros b ofs.
-           destruct H0 as [DC _].
-           destruct DC as [_ DC].
-           specialize (DC (b, ofs)).
-           destruct DC as [not_val rest].
-           split; intros.
-           - unfold Mem.valid_block in H0.
-             admit.
-           - admit.
-
-
+           with (Hcompatible:= MTCH_compat _ _ _ MATCH Hcmpt); try eapply H; eauto.
+           eapply MTCH_restrict_personal.
+           auto.
            inversion MATCH. erewrite <- mtch_gtc0; eassumption.
          }
          { 
@@ -3068,8 +3065,9 @@ Module Parching <: ErasureSig.
        Grab Existential Variables.
        - simpl. apply mtch_cnt. assumption.
        - assumption.
-  Admitted.
-
+       - simpl. eapply MTCH_cnt ; eauto.
+Qed.
+  
   Lemma core_diagram:
     forall (m : Mem.mem)  (U0 U U': schedule) rmap pmap 
      (ds : dstate) (js js': jstate) 
@@ -3108,4 +3106,4 @@ Module Parching <: ErasureSig.
   Proof. intros. inversion H; simpl in *; subst; auto. Qed.
   
 End Parching.
-Export Parching.
+(*Export Parching.*)
