@@ -2968,6 +2968,44 @@ Module Parching <: ErasureSig.
          exists (DTP.updThread Htid' (Krun c') (permissions.getCurPerm (m_dry jm'))).
          split ; [|split].
          {
+           
+           eapply Top.Parching.DSEM.DryMachineLemmas.step_decay_invariant
+           with (Hcompatible:= MTCH_compat _ _ _ MATCH Hcmpt); eauto.
+           
+           pose (jm:= (JSEM.personal_mem Htid Hcmpt)).
+           fold jm in Hcorestep.
+           inversion Hcorestep.
+
+           intros b ofs.
+           destruct H0 as [DC _].
+           destruct DC as [_ DC].
+           specialize (DC (b, ofs)).
+           destruct DC as [not_val rest].
+           split; intros.
+           - unfold Mem.valid_block in H0.
+           
+           replace (restrPermMap (DSEM.compat_th (MTCH_compat js ds m MATCH Hcmpt)  Htid')) with
+           (m_dry (JSEM.personal_mem Htid Hcmpt)).
+           Focus 2. simpl.
+           unfold JSEM.juicyRestrict; simpl.
+           Set Printing All.
+           rewrite JSEM.juic2Perm_correct.
+           simpl in H0.
+           eapply decay_erasure.
+             
+           
+           intros b ofs.
+           split; intros.
+           
+           
+           erewrite <- mtch_gtc; eauto.
+           
+           inversion Hcorestep.
+           unfold resource_decay in H0.
+           destruct H0 as [PERMS _].
+           destruct PERMS as [_ PERMS].
+           
+           
           (* apply updThread_inv.
            - assumption.
            - intros.
