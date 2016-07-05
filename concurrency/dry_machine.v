@@ -820,6 +820,148 @@ Admitted.
         destruct (i0==i); auto.
 Qed.
 
+       (** *Invariant after corestep*)
+       Lemma decay_disjoint:
+      forall m m' p
+        (Hdecay: decay m m')
+        (Hlt: permMapLt p (getMaxPerm m))
+        (Hdisjoint: permMapsDisjoint (getCurPerm m) p),
+        permMapsDisjoint (getCurPerm m') p.
+    Proof.
+      intros.
+      unfold permMapsDisjoint in *.
+      intros.
+      destruct (Hdecay b ofs) as [_ Hold].
+      clear Hdecay.
+      specialize (Hdisjoint b ofs).
+      destruct (valid_block_dec m b) as [Hvalid | Hinvalid].
+      - destruct (Hold Hvalid) as [Hfree | Heq].
+        + destruct (Hfree Cur) as [_ Hm']. rewrite getCurPerm_correct.
+          assert (not_racy (permission_at m' b ofs Cur))
+            by (unfold permission_at; rewrite Hm'; constructor).
+            by eapply not_racy_union.
+        + rewrite getCurPerm_correct. unfold permission_at.
+          rewrite <- Heq. rewrite getCurPerm_correct in Hdisjoint.
+          unfold permission_at in Hdisjoint. assumption.
+      - assert (Hnone: (p !! b ofs) = None).
+        { apply Mem.nextblock_noaccess with (ofs := ofs) (k := Max) in Hinvalid.
+          unfold permMapLt in Hlt.
+          specialize (Hlt b ofs).
+          rewrite getMaxPerm_correct in Hlt.
+          unfold permission_at in Hlt.
+          rewrite Hinvalid in Hlt. simpl in Hlt.
+          destruct (p !! b ofs); tauto.
+        }
+        rewrite Hnone.
+        rewrite perm_union_comm.
+        eapply not_racy_union;
+          by constructor.
+    Qed.
+       
+       Opaque getThreadR.
+    Lemma step_decay_invariant:
+      forall (tp : thread_pool) (m : mem) (i : nat)
+        (pf : containsThread tp i) c m1 m1' c'
+        (Hinv: invariant tp)
+        (Hcompatible: mem_compatible tp m)
+        (Hrestrict_pmap :restrPermMap (Hcompatible i pf) = m1)
+        (Hdecay: decay m1 m1')
+        (Hcode: getThreadC pf = Krun c),
+        invariant (updThread pf (Krun c') (getCurPerm m1')).
+    Proof.
+      intros.
+      destruct Hinv as [Hrace Hlp].
+      constructor.
+      { (* non-interference in threads *)
+        unfold race_free in *.
+        intros j k.
+        destruct (i == j) eqn:Heqj, (i == k) eqn:Heqk; move/eqP:Heqj=>Heqj;
+          move/eqP:Heqk=>Heqk; simpl in *; intros cntj' cntk' Hneq;
+                        assert (cntk: containsThread tp k)
+                          by (eapply cntUpdate'; eauto);
+                        assert (cntj: containsThread tp j)
+                          by (eapply cntUpdate'; eauto).
+        - subst j k; exfalso; auto.
+        - subst j.
+          erewrite gssThreadRes.
+          erewrite @gsoThreadRes with (cntj := cntk); eauto.
+          specialize (Hrace _ _ pf cntk Hneq).
+          assert (Hlt := compat_th Hcompatible cntk).
+          subst m1.
+          eapply decay_disjoint; eauto.
+          unfold permMapLt in *.
+          intros b ofs.
+          rewrite getMaxPerm_correct;
+            by rewrite restrPermMap_Max.
+          intros b ofs.
+          rewrite getCurPerm_correct;
+            by rewrite restrPermMap_Cur.
+        - subst k.
+          erewrite @gsoThreadRes with (cntj := cntj); auto.
+          erewrite gssThreadRes.
+          specialize (Hrace _ _ pf cntj Heqj).
+          assert (Hlt := compat_th Hcompatible cntj).
+          subst m1.
+          eapply permMapsDisjoint_comm.
+          eapply decay_disjoint; eauto.
+          unfold permMapLt in *.
+          intros b ofs.
+          rewrite getMaxPerm_correct;
+            by rewrite restrPermMap_Max.
+          intros b ofs.
+          rewrite getCurPerm_correct;
+            by rewrite restrPermMap_Cur.
+        - erewrite @gsoThreadRes with (cntj := cntj); auto.
+          erewrite @gsoThreadRes with (cntj := cntk); auto.
+      }
+      { (* non-interference with lockpool*)
+        intros j cntj.
+        rewrite gsoThreadLock.
+        destruct (i == j) eqn:Hij; move/eqP:Hij=>Hik; subst.
+        - erewrite gssThreadRes. apply permMapsDisjoint_comm.
+          assert (Hlt := compat_ls Hcompatible).
+          eapply decay_disjoint; eauto.
+          intros b ofs.
+          rewrite getMaxPerm_correct;
+            by rewrite restrPermMap_Max.
+          intros b ofs. rewrite perm_union_comm.
+          rewrite getCurPerm_correct.
+          rewrite restrPermMap_Cur.
+            by eapply Hlp.
+        - erewrite @gsoThreadRes with (cntj := cntUpdate' cntj);
+            by eauto.
+      }
+      { intros l pmap j cntj Hres.
+        rewrite gsoThreadLPool in Hres.
+        destruct (i == j) eqn:Hij; move/eqP:Hij=>Hik; subst.
+        - erewrite gssThreadRes. apply permMapsDisjoint_comm.
+          assert (Hlt := compat_lp Hcompatible _ Hres).
+          eapply decay_disjoint; eauto.
+          intros b ofs.
+          rewrite getMaxPerm_correct;
+            by rewrite restrPermMap_Max.
+          intros b ofs. rewrite perm_union_comm.
+          rewrite getCurPerm_correct.
+          rewrite restrPermMap_Cur;
+            by (eapply lock_res_threads0; eauto).
+        - erewrite @gsoThreadRes with (cntj := cntUpdate' cntj);
+            by eauto.
+      }
+      { intros l pmap Hres.
+        rewrite gsoThreadLock.
+        rewrite gsoThreadLPool in Hres;
+          by eauto.
+      }
+      { clear - lockRes_valid0.
+        intros b ofs. rewrite gsoThreadLPool.
+        specialize (lockRes_valid0 b ofs).
+        destruct (lockRes tp (b, ofs)); try constructor.
+        intros ofs0 ineq.
+        rewrite gsoThreadLPool; auto.
+        }
+    Qed.
+       
+       
      End DryMachineLemmas.
      
   End DryMachineShell.

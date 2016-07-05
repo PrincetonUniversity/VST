@@ -545,29 +545,6 @@ Qed.
     auto.
   Qed.
 
-  (*REMOVE ?*)
- (* Lemma lockSet_upd: forall ds b ofs pmap,
-      lockSet (updLockSet ds (b, ofs) pmap) =
-      permissions.setPerm (Some Memtype.Writable) b ofs (lockSet ds).
-  Proof.
-    intros.
-   unfold lockSet, updLockSet; simpl.
-  unfold A2PMap.
- match goal with |- fold_left ?F ?Z _ = _ => set (f:=F) end.
- unfold lockGuts.
- unfold AMap.elements.
- rewrite <- !List.fold_left_rev_right. simpl.
- forget (AMap.this (lset ds)) as el.
- unfold permissions.setPerm.
- induction el as [ | [a ?]].
- simpl.
- (* NOT TRUE!
-  updLockSet changes permissions at 4 locations (starting at ofs),
- but setPerm changes permissions only at 1 location (at ofs).
- *)
-
-  Admitted.*)
-
 Lemma PX_in_rev:
   forall elt a m, AMap.Raw.PX.In (elt:=elt) a m <-> AMap.Raw.PX.In a (rev m).
 Proof.
