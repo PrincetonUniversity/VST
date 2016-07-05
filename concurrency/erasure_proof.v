@@ -197,7 +197,7 @@ Module Parching (DecayingSEM: DecayingSemantics) <: ErasureSig.
       +  specialize (mtch_locksRes _ _ _ HH H).
          intros b ofs.
          rewrite <- mtch_locksRes.
-         eapply JSEM.compat_lockLT;
+         eapply JSEM.JuicyMachineLemmas.compat_lockLT;
            eassumption.
       + specialize (mtch_locksEmpty _ _ HH H).
          rewrite mtch_locksEmpty.
@@ -1865,7 +1865,7 @@ Module Parching (DecayingSEM: DecayingSemantics) <: ErasureSig.
       inversion MATCH; subst.
       intros; apply JSEM.juic2Perm_correct.
       inversion Hcompatible; inversion H.
-      eapply mem_cohere_sub.
+      eapply JSEM.mem_cohere_sub.
       - eassumption.
       - eapply join_sub_trans.
         + unfold join_sub. exists (m_phi jm'). eassumption.

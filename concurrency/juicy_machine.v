@@ -210,13 +210,13 @@ Module Concur.
         join (Some r0) r1 (Some r) ->
         join_all tp r.
 
-    Lemma join_geq:
+    (*Lemma join_geq:
       forall {tid} js res all_juice loc
         (cnt: containsThread js tid),
         (getThreadR cnt) @ loc = res ->
         join_all js all_juice ->
         all_juice @ loc = res.
-    Admitted.
+    Admitted.*)
     
     Definition juicyLocks_in_lockSet (lset : lockMap) (juice: rmap):=
       forall loc sh psh P z, juice @ loc = YES sh psh (LK z) P  ->  AMap.find loc lset.
@@ -302,18 +302,18 @@ Module Concur.
            inversion H0; auto.
     Qed.
           
-    Lemma compat_lockLT: forall js m,
-             mem_compatible js m ->
-             forall l r,
-             ThreadPool.lockRes js l = Some (Some r) ->
-             forall b ofs,
-               Mem.perm_order'' ((getMaxPerm m) !! b ofs) (perm_of_res (r @ (b, ofs))).
-    Admitted.
+    
     
     Lemma mem_compatible_locks_ltwritable':
       forall lset m, lockSet_Writable lset m ->
-                      permMapLt (A2PMap lset) (getMaxPerm m ).
+                permMapLt (A2PMap lset) (getMaxPerm m ).
+    Proof.
+      unfold permMapLt, lockSet_Writable; intros.
+      specialize (H b ofs).
+      
     Admitted.
+
+
     Lemma mem_compatible_locks_ltwritable:
       forall tp m, mem_compatible tp m ->
               permMapLt (lockSet tp) (getMaxPerm m ).
@@ -322,22 +322,13 @@ Module Concur.
            unfold lockSet; simpl in *.
            eapply mem_compatible_locks_ltwritable'; eassumption.
     Qed.
-                    
-    Lemma thread_mem_compatible: forall tp m,
-        mem_compatible tp m ->
-        mem_thcohere tp m.
-    Admitted.
-
-    Lemma lock_mem_compatible: forall tp m,
-        mem_compatible tp m ->
-        mem_lock_cohere (lockGuts tp) m.
-    Admitted.
 
     Lemma compat_lt_m: forall m js,
         mem_compatible js m ->
         forall b ofs,
           Mem.perm_order'' ((getMaxPerm m) !! b ofs)
                            ((lockSet js) !! b ofs).
+            
     Admitted.
 
     
@@ -348,16 +339,23 @@ Module Concur.
           ThreadPool.lockRes js l1 = Some (Some phi1) ->
           ThreadPool.lockRes js l2 = Some (Some phi2) ->
           joins phi1 phi2.
+    Proof. intros ? ? Hcompat; intros.
+           destruct Hcompat as [allj Hcompat].
+           inversion Hcompat.
+           inversion juice_join0; subst.
+           unfold join_locks in H2.
+           clear - H2 H H0. unfold lockRes,lockGuts in H, H0.
     Admitted.
 
-    Lemma compatible_threadRes_lemmaRes_join:
+    (*Lemma compatible_threadRes_lemmaRes_join:
              forall js m lrmap l,
                mem_compatible js m ->
                lockRes js l = Some (Some lrmap) ->
                forall i (cnti: containsThread js i) ,
                  sepalg.joins (getThreadR cnti) lrmap.
     Proof.
-    Admitted. 
+      
+    Admitted. *)
     
     (** There is no inteference in the thread pool *)
     (* Per-thread disjointness definition*)
@@ -385,7 +383,8 @@ Module Concur.
     Definition invariant := invariant'.
 
     (*Lemmas to retrive the ex-invariant properties from the mem-compat*)
-    Lemma disjoint_threads_compat': forall tp all_juice,
+
+    (*Lemma disjoint_threads_compat': forall tp all_juice,
         join_all tp all_juice ->
         disjoint_threads tp.
     Admitted.
@@ -394,15 +393,17 @@ Module Concur.
         disjoint_threads tp.
     Proof. intros ? ? mc ; inversion mc as [all_juice M]; inversion M.
            eapply disjoint_threads_compat'; eassumption.
-    Qed.
-    Lemma disjoint_locks_compat:  forall tp m
+    Qed.*)
+
+    (*Lemma disjoint_locks_compat:  forall tp m
         (mc: mem_compatible tp m),
         disjoint_locks tp.
-    Admitted.
-    Lemma disjoint_locks_t_hread_compat:  forall tp m
+    Admitted. *)
+
+    (*Lemma disjoint_locks_t_hread_compat:  forall tp m
         (mc: mem_compatible tp m),
         disjoint_lock_thread tp.
-    Admitted.
+    Admitted.*)
     
     (** Steps*)
 
@@ -439,14 +440,30 @@ Module Concur.
       - apply juice2Perm_nogrow.
     Qed.
 
-    Lemma Mem_canonical_useful: forall m loc k, (Mem.mem_access m)#1 loc k = None.
-    Admitted.
+    Lemma Mem_canonical_useful: forall m loc k,
+        (Mem.mem_access m)#1 loc k = None.
+    Proof. intros. destruct m; simpl in *.
+           unfold PMap.get in nextblock_noaccess.
+           pose (b:= Pos.max (TreeMaxIndex (mem_access#2) + 1 )  nextblock).
+           assert (H1:  ~ Plt b nextblock).
+           { intros H. assert (HH:= Pos.le_max_r (TreeMaxIndex (mem_access#2) + 1) nextblock).
+             clear - H HH. unfold Pos.le in HH. unfold Plt in H.
+             apply HH. eapply Pos.compare_gt_iff.
+             auto. }
+           assert (H2 :( b > (TreeMaxIndex (mem_access#2)))%positive ).
+           { assert (HH:= Pos.le_max_l (TreeMaxIndex (mem_access#2) + 1) nextblock).
+             apply Pos.lt_gt. eapply Pos.lt_le_trans; eauto.
+             xomega. }
+           specialize (nextblock_noaccess b loc k H1).
+           apply max_works in H2. rewrite H2 in nextblock_noaccess.
+           assumption.
+    Qed.
     
-      Lemma juic2Perm_correct:
-        forall r m b ofs,
-          access_cohere' m r ->
-          perm_of_res (r @ (b,ofs)) = (juice2Perm r m) !! b ofs.
-      Proof.
+    Lemma juic2Perm_correct:
+      forall r m b ofs,
+        access_cohere' m r ->
+        perm_of_res (r @ (b,ofs)) = (juice2Perm r m) !! b ofs.
+    Proof.
         intros.
         unfold juice2Perm, mapmap.
         unfold PMap.get; simpl.
@@ -499,6 +516,7 @@ Module Concur.
       apply ccoh; assumption.
     Qed.
 
+    (*Move to permissions*)
     Lemma restrPermMap_correct :
     forall p' m (Hlt: permMapLt p' (getMaxPerm m))
       b ofs,
@@ -506,7 +524,9 @@ Module Concur.
       Maps.PMap.get b (getMaxPerm m) ofs /\
       permission_at (restrPermMap Hlt) b ofs Cur =
       Maps.PMap.get b p' ofs.
-    Proof. admit. Admitted.
+    Proof.
+      
+    Admitted.
 
     Lemma juicyRestrictCurEq:
       forall (phi : rmap) (m : mem) (coh : access_cohere' m phi)
@@ -547,6 +567,27 @@ Module Concur.
       destruct ((perm_of_res (phi @ loc))) eqn:HH; try rewrite HH; simpl; reflexivity.
     Qed.
 
+    Lemma mem_cohere_sub: forall phi1 phi2 m,
+          mem_cohere' m phi1 ->
+          join_sub phi2 phi1 ->
+          mem_cohere' m phi2.
+      Admitted.
+
+      Lemma thread_mem_compatible: forall tp m,
+          mem_compatible tp m ->
+          mem_thcohere tp m.
+      Proof. intros. destruct H as [allj H].
+             inversion H.
+             unfold mem_thcohere; intros.
+             Search mem_cohere'.
+      Admitted.
+
+       Lemma lock_mem_compatible: forall tp m,
+        mem_compatible tp m ->
+        mem_lock_cohere (lockGuts tp) m.
+          
+    Admitted.
+    
     (* PERSONAL MEM: Is the contents of the global memory, 
        with the juice of a single thread and the Cur that corresponds to that juice.*)
     Definition personal_mem' {phi m}
@@ -584,7 +625,8 @@ Module Concur.
     Definition tp_level_is n tp :=
       (forall i (cnti : containsThread tp i), level (getThreadR cnti) = n) /\
       (forall i phi, lockRes tp i = Some (Some phi) -> level phi = n).
-    
+
+    (*
     Lemma mem_compatible_same_level tp m :
       mem_compatible tp m -> tp_level_is (level_tp tp) tp.
     Proof.
@@ -606,7 +648,7 @@ Module Concur.
         apply rmap_join_eq_level.
         rewrite joins_sym.
         eapply (DLT _); eauto.
-    Qed.
+    Qed. *)
     
     Definition cnt_from_ordinal tp : forall i : ordinal (pos.n (num_threads tp)), containsThread tp i.
       intros [i pr]; apply pr. Defined.
@@ -936,6 +978,26 @@ Module Concur.
           join_sub phi all_juice.
       Admitted.
 
+      Lemma compat_lockLT: forall js m,
+             mem_compatible js m ->
+             forall l r,
+             ThreadPool.lockRes js l = Some (Some r) ->
+             forall b ofs,
+               Mem.perm_order'' ((getMaxPerm m) !! b ofs) (perm_of_res (r @ (b, ofs))).
+    Proof.
+      intros. destruct H as [allj H].
+      inversion H.
+      cut (Mem.perm_order'' (perm_of_res (allj @ (b,ofs))) (perm_of_res (r @ (b, ofs)))).
+      {intros AA. eapply po_trans; eauto.
+       inversion all_cohere0.
+       specialize (acc_coh0 (b, ofs)).
+       rewrite getMaxPerm_correct.
+       apply acc_coh0. }
+      { apply po_join_sub.
+        apply resource_at_join_sub. admit. }
+        
+    Admitted.
+      
       Lemma access_cohere_sub': forall phi1 phi2 m,
           access_cohere' m phi1 ->
           join_sub phi2 phi1 ->
@@ -948,11 +1010,7 @@ Module Concur.
           apply resource_at_join_sub; assumption.
       Qed.
       
-      Lemma mem_cohere_sub: forall phi1 phi2 m,
-          mem_cohere' m phi1 ->
-          join_sub phi2 phi1 ->
-          mem_cohere' m phi2.
-      Admitted.
+      
       
       Lemma mem_cohere'_juicy_mem jm : mem_cohere' (m_dry jm) (m_phi jm).
       Proof.
