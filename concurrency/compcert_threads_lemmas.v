@@ -185,24 +185,24 @@ Module SimDefs (CI: CoreInjections).
 
   (** Simulations Diagrams *)
   Definition sim_internal_def :=
-    forall (tpc tpf : thread_pool) (mc mf : Mem.mem)
+    forall (tpc tpf : thread_pool) (mc mf : Mem.mem) tr
       (xs : Sch) (f fg : memren) (fp : fpool tpc) (i : NatTID.tid)
       (pff: containsThread tpf i)
       (Hinternal: pff @ I)
       (Hsim: sim tpc mc tpf mf xs f fg fp),
-    exists tpf' mf' fp',
-      (forall U, fmachine_step (i :: U, tpf) mf (U, tpf') mf') /\
+    exists tpf' mf' fp' tr',
+      (forall U, fmachine_step (i :: U, tr, tpf) mf (U, tr', tpf') mf') /\
       sim tpc mc tpf' mf' (i :: xs) f fg fp'.
 
   Definition sim_external_def :=
-    forall (tpc tpf : thread_pool) (mc mf : Mem.mem)
+    forall (tpc tpf : thread_pool) (mc mf : Mem.mem) tr
       (xs : Sch) (f fg : memren) (fp : fpool tpc) (i : NatTID.tid)
       (pff: containsThread tpf i)
       (Hexternal: pff @ E)
       (Hsynced: ~ List.In i xs)
       (Hsim: sim tpc mc tpf mf xs f fg fp),
-    exists tpc' mc' tpf' mf' f' fp',
-      (forall U, fmachine_step (i :: U, tpf) mf (U, tpf') mf') /\
+    exists tpc' mc' tpf' mf' f' fp' tr',
+      (forall U, fmachine_step (i :: U, tr, tpf) mf (U, tr', tpf') mf') /\
       sim tpc' mc' tpf' mf' xs f' fg fp'.
 
   (** When we reach a suspend step, we can ``synchronize'' the two
@@ -211,22 +211,23 @@ Module SimDefs (CI: CoreInjections).
   thread will now serve as the new injection. *)
 
   Definition sim_suspend_def :=
-    forall (tpc tpf : thread_pool) (mc mf : Mem.mem)
+    forall (tpc tpf : thread_pool) (mc mf : Mem.mem) tr
       (xs : Sch) (f fg : memren) (fp : fpool tpc) (i : NatTID.tid)
       (pff: containsThread tpf i)
       (Hexternal: pff @ S)
       (Hsim: sim tpc mc tpf mf xs f fg fp),
-    exists tpc' mc' tpf' mf' f' fp',
-      (forall U, fmachine_step (i :: U, tpf) mf (U, tpf') mf') /\
+    exists tpc' mc' tpf' mf' f' fp' tr',
+      (forall U, fmachine_step (i :: U, tr, tpf) mf (U, tr', tpf') mf') /\
       sim tpc' mc' tpf' mf' [seq x <- xs | x != i] f' fg fp'.
 
   Definition sim_halted_def :=
-    forall (tpc tpf : thread_pool) (mc mf : Mem.mem)
+    forall (tpc tpf : thread_pool) (mc mf : Mem.mem) tr
       (xs : Sch) (f fg : memren) (fp : fpool tpc) (i : NatTID.tid)
       (pff: containsThread tpf i)
       (Hinternal: pff @ H)
       (Hsim: sim tpc mc tpf mf xs f fg fp),
-      (forall U, fmachine_step (i :: U, tpf) mf (U, tpf) mf).
+      exists tr',
+      (forall U, fmachine_step (i :: U, tr, tpf) mf (U, tr', tpf) mf).
 
 End SimDefs.
 
@@ -234,7 +235,7 @@ End SimDefs.
 Module SimProofs (CI: CoreInjections).
   Import mySchedule CoreLanguage InternalSteps.
   Import ThreadPoolWF StepLemmas StepType.
-  Import ValueWD MemoryWD MemObsEq ValObsEq MemoryLemmas.
+  Import ValueWD MemoryWD MemObsEq ValObsEq MemoryLemmas event_semantics.
   Module ThreadPoolInjections := ThreadPoolInjections CI.
   Module SimDefs := SimDefs CI.
   Import SimDefs Renamings ThreadPoolInjections CI.
@@ -308,28 +309,29 @@ Module SimProofs (CI: CoreInjections).
     destruct (getThreadC pff) eqn:Hget; simpl in *;
     try discriminate.
     destruct (at_external Sem c), (halted Sem c) eqn:?; try discriminate.
+    exists (tr ++ [:: halt i]).
     econstructor 6; simpl; eauto.
-    econstructor; eauto.
+    econstructor; eauto. 
     rewrite Heqo; eauto.
   Qed.
-  
+
   (** Proofs about [internal_execution] and [internal_step] *)
-  
+
   Lemma internal_step_cmachine_step :
     forall (i : NatTID.tid) (tp tp' : thread_pool) (m m' : mem)
       (U : list NatTID.tid)
       (Hcnt: containsThread tp i)
       (Hcomp: mem_compatible tp m) 
       (Hstep_internal: internal_step Hcnt Hcomp tp' m'),
-      cmachine_step ((buildSched (i :: U)), tp) m
-                    ((buildSched (i :: U)), tp') m' /\
+      cmachine_step ((buildSched (i :: U)), [::], tp) m
+                    ((buildSched (i :: U)), [::], tp') m' /\
       (forall tp'' m'' U',
-          cmachine_step ((buildSched (i :: U)), tp) m
-                        ((buildSched U'), tp'') m'' ->
+          cmachine_step ((buildSched (i :: U)), [::],tp) m
+                        ((buildSched U'), [::], tp'') m'' ->
           tp' = tp'' /\ m' = m'' /\ i :: U = U').
   Proof.
     intros. split.
-    destruct Hstep_internal as [Hcore | [[Hresume ?] | [Hstart ?]]]; subst;
+    destruct Hstep_internal as [[? Hcore] | [[Hresume ?] | [Hstart ?]]]; subst;
     autounfold.
     econstructor; simpl; eauto.
     econstructor 2; simpl; eauto.
@@ -338,7 +340,7 @@ Module SimProofs (CI: CoreInjections).
     assert (Hstep_internal': internal_step Hcnt Hcomp tp'' m'' /\ i :: U = U').
     { inversion Hstep; subst; clear Hstep;
       simpl in *; inversion HschedN; subst; pf_cleanup;
-      unfold internal_step; try (by auto);
+      unfold internal_step; try (by eexists; eauto);
       apply internal_step_type in Hstep_internal; exfalso;
       unfold getStepType, ctlType in Hstep_internal;
       try inversion Htstep; 
@@ -357,7 +359,7 @@ Module SimProofs (CI: CoreInjections).
     }
     destruct Hstep_internal' as [Hstep_internal' Heq]; subst.
     destruct (internal_step_det Hstep_internal Hstep_internal'); subst.
-    auto. 
+    auto.
   Qed.
 
   Lemma list_cons_irrefl:
@@ -374,12 +376,12 @@ Module SimProofs (CI: CoreInjections).
       (Hsafe : @csafe the_ge tpc mc (buildSched (i :: U)))
       (Hexec : internal_execution [seq x <- xs | x == i] tpc mc tpc' mc'),
       corestepN CoarseSem the_ge (size [seq x <- xs | x == i])
-                (buildSched (i :: U), tpc) mc (buildSched (i :: U), tpc') mc'
+                (buildSched (i :: U), [::], tpc) mc (buildSched (i :: U), [::], tpc') mc'
       /\ @csafe the_ge tpc' mc' (buildSched (i :: U)).
   Proof.
     intros xs. induction xs as [ | x xs]; intros.
     { simpl in *. inversion Hexec; subst.
-      auto.
+      eexists; eauto.
       simpl in HschedN. discriminate.
     }
     { simpl in *.
@@ -394,7 +396,7 @@ Module SimProofs (CI: CoreInjections).
           specialize (Hmach_det _ _ _ Hstep).
           destruct Hmach_det as [? [? ?]]; subst.
           destruct (IHxs tid U tp' m' tpc' mc' Hsafe0 Htrans) as [HcorestepN Hsafe'].
-          eauto.
+          split; eauto.
         + exfalso.
           inversion Hexec; subst; simpl in *; clear Hexec;
           inversion HschedN; subst i.
@@ -411,7 +413,7 @@ Module SimProofs (CI: CoreInjections).
   Lemma at_internal_cmachine_step :
     forall i U U' tp tp' m m' (cnt: containsThread tp i)
       (isInternal: cnt @ I)
-      (Hstep: cmachine_step (buildSched (i :: U), tp) m (U', tp') m'),
+      (Hstep: cmachine_step (buildSched (i :: U), [::],tp) m (U', [::], tp') m'),
     exists (Hcomp : mem_compatible tp m),
       internal_step cnt Hcomp tp' m' /\ U' = buildSched (i :: U).
   Proof.
@@ -424,7 +426,7 @@ Module SimProofs (CI: CoreInjections).
     right; left;
       by auto.
     exists Hcmpt. split; auto.
-    left; auto.
+    left; eauto.
   Qed.
   
   (** Starting from a well-defined state, an internal execution
@@ -445,9 +447,10 @@ Module SimProofs (CI: CoreInjections).
       (forall f' : memren, domain_memren f' m' -> tp_wd f' tp').
   Proof.
     intros.
-    inversion Hstep as [Htstep | [[Htstep ?] | [Htstep ?]]].
+    inversion Hstep as [[? Htstep] | [[Htstep ?] | [Htstep ?]]].
     - inversion Htstep; subst.
       erewrite restrPermMap_mem_valid with (Hlt := Hcomp i cnti) in Hmem_wd.
+      eapply ev_step_ax1 in Hcorestep.
       apply corestep_wd with (f := f) (fg := fg) in Hcorestep; eauto.
       destruct Hcorestep as [Hmem_wd' [Hf' Hcore_wd']].
       destruct Hf' as [f' [Hincr Hdomain']].
@@ -680,7 +683,7 @@ Module SimProofs (CI: CoreInjections).
   (** ** Proofs of internal step safety and simulation*)
 
   Lemma tsim_fstep_safe:
-    forall tpc tpc' tpf mc mc' mf i fi fg
+    forall tpc tpc' tpf mc mc' mf i fi fg tr
       (pfc: containsThread tpc i) (pff: containsThread tpf i)
       (Hcompc: mem_compatible tpc mc)
       (Hcompf: mem_compatible tpf mf)
@@ -691,8 +694,8 @@ Module SimProofs (CI: CoreInjections).
       (Hren_incr: ren_incr fg fi)
       (Hstrong_sim: strong_tsim fi pfc pff Hcompc Hcompf)
       (Hstep_internal: internal_step pfc Hcompc tpc' mc'),
-    exists tpf' mf' fi',
-      (forall U, fmachine_step (i :: U, tpf) mf (U, tpf') mf') /\
+    exists tpf' mf' fi' tr',
+      (forall U, fmachine_step (i :: U, tr, tpf) mf (U, tr', tpf') mf') /\
       max_inv mf' /\
       ren_incr fi fi' /\
       ren_separated fi fi' mc mf /\
@@ -719,7 +722,7 @@ Module SimProofs (CI: CoreInjections).
     intros.
     assert (HinvC': invariant tpc')
       by (eapply internal_step_invariant; eauto).
-    destruct Hstep_internal as [Hcstep | [Hresume | Hstart]].
+    destruct Hstep_internal as [[? Hcstep] | [Hresume | Hstart]].
     { inversion Hcstep; subst; clear Hcstep.
       destruct Hstrong_sim as [Hcode_eq memObsEq].
       rewrite Hcode in Hcode_eq.
@@ -727,6 +730,7 @@ Module SimProofs (CI: CoreInjections).
       simpl in Hcode_eq. destruct (getThreadC pff) as [cf| ? | ? | ?] eqn:Hcodef;
         try (by exfalso).
       assert (H' := Hcorestep).
+      apply ev_step_ax1 in Hcorestep.
       eapply corestep_obs_eq in Hcorestep; eauto.
       destruct Hcorestep as
           (cf' & mf' & fi' & HcorestepF & Hcode_eq'
@@ -736,7 +740,9 @@ Module SimProofs (CI: CoreInjections).
       symmetry in Hrestrict.
       remember (updThread pff (Krun cf') (getCurPerm mf'))
         as tpf' eqn:Hupd.
-      exists tpf', (setMaxPerm mf'), fi'.
+      assert (Hevent_stepF:=ev_step_ax2 _ _ _ _ _ _ HcorestepF).
+      destruct Hevent_stepF as [evF Hev_stepF].
+      exists tpf', (setMaxPerm mf'), fi', (tr ++ [:: internal i evF]).
       split.
       { (* fine machine steps *)
         intros U. eapply myFineSemantics.thread_step; simpl; eauto.
@@ -870,7 +876,7 @@ Module SimProofs (CI: CoreInjections).
         try by exfalso.
       destruct Hat_externalF_spec as [? [? Harg_obs]]; subst.                         
       remember (updThreadC pff (Krun cf')) as tpf' eqn:Hupd.
-      exists tpf', mf, fi.
+      exists tpf', mf, fi, tr.
       split.
       { (* The fine-grained machine steps *)
         intros. eapply myFineSemantics.resume_step with (Htid := pff); simpl; eauto.
@@ -905,7 +911,7 @@ Module SimProofs (CI: CoreInjections).
       assert (HinitF := core_inj_init Harg_obs_list Hvf Hfg Hge_wd Hren_incr Hinitial).
       destruct HinitF as [c_newF [HinitialF Hcode_eq]].
       remember (updThreadC pff (Krun c_newF)) as tpf' eqn:Hupd.
-      exists tpf', mf, fi.
+      exists tpf', mf, fi, tr.
       split.
       { (* The fine-grained machine steps *)
         intros. eapply myFineSemantics.start_step with (Htid := pff); simpl; eauto.
@@ -930,7 +936,7 @@ Module SimProofs (CI: CoreInjections).
   Qed.
   
   Lemma weak_tsim_fstep:
-    forall tpc tpf tpf' mc mf mf' i j f U
+    forall tpc tpf tpf' mc mf mf' i j f U tr tr'
       (pffi: containsThread tpf i)
       (pfcj: containsThread tpc j) (pffj: containsThread tpf j)
       (pffj': containsThread tpf' j)
@@ -939,7 +945,7 @@ Module SimProofs (CI: CoreInjections).
       (Hcompf': mem_compatible tpf' mf')
       (HinvF: invariant tpf)
       (Hinternal: pffi @ I)
-      (Hstep: fmachine_step (i :: U, tpf) mf (U, tpf') mf')
+      (Hstep: fmachine_step (i :: U, tr, tpf) mf (U, tr',tpf') mf')
       (HweakSim: weak_tsim f pfcj pffj Hcompc Hcompf),
       weak_tsim f pfcj pffj' Hcompc Hcompf'.
   Proof.
@@ -969,11 +975,12 @@ Module SimProofs (CI: CoreInjections).
     erewrite <- diluteMem_valid.
     specialize (Hcodomain_valid b1 b2 Hf).
     erewrite restrPermMap_valid in Hcodomain_valid.
-    eapply corestep_validblock;
+    eapply ev_step_validblock;
       by eauto.
     intros b1 b2 ofs Hf.
     specialize (Hperm_obs_weak _ _ ofs Hf).
     clear - Hcorestep Hf Hcodomain_valid Hperm_obs_weak.
+    eapply ev_step_ax1 in Hcorestep.
     destruct (j == tid) eqn:Hjtid; move/eqP:Hjtid=>Hjtid.
     - subst.
       eapply corestep_decay in Hcorestep.
@@ -1005,8 +1012,8 @@ Module SimProofs (CI: CoreInjections).
   Lemma cmachine_step_invariant:
     forall tpc mc tpc' mc' tpc'' mc'' U U' U'' n
       (HstepN: corestepN CoarseSem the_ge n
-                         (U, tpc) mc (U', tpc') mc')
-      (Hstep: cmachine_step (U', tpc') mc' (U'', tpc'') mc''),
+                         (U, [::], tpc) mc (U', [::],tpc') mc')
+      (Hstep: cmachine_step (U', [::], tpc') mc' (U'',[::], tpc'') mc''),
       invariant tpc.
   Proof.
     intros. destruct n; simpl in HstepN. inversion HstepN; subst.
@@ -1113,8 +1120,8 @@ Module SimProofs (CI: CoreInjections).
     forall tp m i (cnti: containsThread tp i) U
       (Hinternal: cnti @ I)
       (Hsafe: @csafe the_ge tp m (buildSched (i :: U))),
-    exists tp' m', cmachine_step (buildSched (i :: U), tp) m
-                            (buildSched (i :: U), tp') m'.
+    exists tp' m', cmachine_step (buildSched (i :: U), [::], tp) m
+                            (buildSched (i :: U), [::], tp') m'.
   Proof.
     intros.
     unfold buildSched in *.
@@ -1187,9 +1194,9 @@ Module SimProofs (CI: CoreInjections).
     assert (Hge_incr': ren_incr fg (fp i pfc))
       by (destruct Hge_spec; eapply ren_incr_trans; eauto).
     (* And from this we derive safety for 1 step for fine-grained*)
-    destruct (tsim_fstep_safe HmaxF HinvF Hge_wd (proj2 Hge_spec)
+    destruct (tsim_fstep_safe tr HmaxF HinvF Hge_wd (proj2 Hge_spec)
                               Hge_incr' Htsim Hstep')
-      as (tpf' & mf' & fi' & HstepF & HmaxF' & Hincr' & Hsepi & Htsim' & Howned' &
+      as (tpf' & mf' & fi' & tr' & HstepF & HmaxF' & Hincr' & Hsepi & Htsim' & Howned' &
           Hownedls' & Hownedlp').
     assert (HstepF_empty := HstepF empty).
     assert (pfc'': containsThread tpc'' i)
@@ -1200,7 +1207,7 @@ Module SimProofs (CI: CoreInjections).
     eapply internal_step_compatible with (Hcompatible := memCompC'); eauto.
     assert (memCompF': mem_compatible tpf' mf')
       by (eapply fmachine_step_compatible with (pf := pff); eauto).
-    exists tpf', mf', (updateFP pfc fp fi').
+    exists tpf', mf', (updateFP pfc fp fi'), tr'.
     split.
     (** Proof that the fine-grained execution steps *)
     assumption.
@@ -1390,14 +1397,14 @@ Module SimProofs (CI: CoreInjections).
           - intros b1 b2 ofs.
             rewrite <- permission_at_fstep with
             (Hcomp := (mem_compf Hsim)) (U := empty) (i := i) (pfi := pff)
-                                        (pfj := pffj)
+                                        (pfj := pffj) (tr := tr) (tr' := tr')
                                         (Hcomp' := memCompF'); auto.
               by apply (perm_obs_weak (weak_obs_eq memObsEqj)).
         }
         constructor. (*strong_obs_eq proof *)
         { intros b1 b2 ofs.
           rewrite <- permission_at_fstep with
-          (Hcomp := (mem_compf Hsim)) (i := i) (U := empty) (pfi := pff)
+          (Hcomp := (mem_compf Hsim)) (i := i) (U := empty) (pfi := pff) (tr := tr) (tr' := tr')
                                       (pfj := pffj) (Hcomp' := memCompF'); auto.
             by apply (perm_obs_strong (strong_obs_eq memObsEqj)).
         }
@@ -1448,6 +1455,7 @@ Module SimProofs (CI: CoreInjections).
         clear - Hownedj Hcodomain Hjk HstepF_empty Hinternal HmemCompF.
         absurd_internal HstepF_empty;
           try by erewrite gThreadCR with (cntj := Htid).
+        apply ev_step_ax1 in Hcorestep.
         apply corestep_decay in Hcorestep.
         destruct (Hcorestep b2 ofs) as [_ Hdecay_valid].
         assert (Hp := restrPermMap_Cur (HmemCompF _ Htid ) b2 ofs).
@@ -1493,7 +1501,8 @@ Module SimProofs (CI: CoreInjections).
           unfold permission_at in HLocksPerm.
           rewrite HLocksPerm;
             by auto.
-        } 
+        }
+        apply ev_step_ax1 in Hcorestep.
         erewrite <- corestep_disjoint_val_lockset with (m := mf) (m' := m');
           by eauto.
         intros bl2 ofs HRes.
@@ -1524,8 +1533,9 @@ Module SimProofs (CI: CoreInjections).
             unfold permission_at in HpermRes.
               by rewrite HpermRes.
         }
-        absurd_internal HstepF_empty; auto.
-        erewrite <- corestep_disjoint_val_lockpool with (m := mf) (m' := m');
+          absurd_internal HstepF_empty; auto.
+          apply ev_step_ax1 in Hcorestep.
+          erewrite <- corestep_disjoint_val_lockpool with (m := mf) (m' := m');
           by eauto.
         - intros bl1 bl2 ofs Hf.
           erewrite gsoLockRes_fstepI with (tp' := tpf'); eauto.
@@ -1547,6 +1557,7 @@ Module SimProofs (CI: CoreInjections).
   
   (** ** Proof of simulation for stop steps *)
 
+  (*TODO : move this*)
   Lemma filter_neq_eq :
     forall {A :eqType} (xs : seq A) i j (Hneq: i <> j),
       [seq x <- [seq x <- xs | x != i] | x == j] = [seq x <- xs | x == j].
@@ -1565,7 +1576,7 @@ Module SimProofs (CI: CoreInjections).
     forall i U U' tpc tpc' mc mc'
       (cnt: containsThread tpc i)
       (Hsuspend: cnt @ S)
-      (Hstep: cmachine_step (i :: U, tpc) mc (U', tpc') mc'),
+      (Hstep: cmachine_step (i :: U, [::], tpc) mc (U', [::], tpc') mc'),
       U = U' /\ mc = mc' /\ mem_compatible tpc mc /\
       myCoarseSemantics.suspend_thread cnt tpc'.
   Proof.
@@ -1588,6 +1599,7 @@ Module SimProofs (CI: CoreInjections).
              rewrite Hcontra in Hcant; by auto]
         end.
     destruct (at_external Sem c) eqn:Hat_external.
+    apply ev_step_ax1 in Hcorestep.
     apply corestep_not_at_external in Hcorestep.
     rewrite Hcorestep in Hat_external;
       by discriminate.
@@ -1632,22 +1644,25 @@ Module SimProofs (CI: CoreInjections).
        forall b1 b2 : block, f' b1 = Some b2 -> b1 = b2).
   Proof.
     intros.
-    inversion Hstep as [Hcstep | [[Hresume ?] | [Hstart ?]]].
+    inversion Hstep as [[? Hcstep] | [[Hresume ?] | [Hstart ?]]].
     - inversion Hcstep; subst.
       inversion Hsim as [Hcode_eq Hmem_obs_eq].
       rewrite Hcode in Hcode_eq.
       simpl in Hcode_eq.
       destruct (getThreadC pf1j') as [c1' | | |] eqn:Hcodej'; try by exfalso.
+      apply ev_step_ax1 in Hcorestep.
       assert (H := corestep_obs_eq Hmem_obs_eq Hcode_eq Hfg Hge_wd Hge_incr Hcorestep).
       destruct H
         as (c2' & m2' & f' & Hcorestep' & Hcode_eq'
             & Hobs_eq & Hincr & Hseparated
             & Hnextblock & Hinverse & Hid).
       exists (updThread pf1j' (Krun c2') (getCurPerm m2')), m2', f'.
+      eapply ev_step_ax2 in Hcorestep'.
+      destruct Hcorestep' as [evF Hcorestep'].
       assert (Hinternal':
                 internal_step pf1j' Hcomp1'
                               (updThread pf1j' (Krun c2') (getCurPerm m2')) m2')
-        by (left; econstructor; eauto).
+        by (left; eexists; econstructor; eauto).
       split; first by assumption.
       split; first by assumption.
       split; first by assumption.
@@ -2024,7 +2039,7 @@ Module SimProofs (CI: CoreInjections).
       (Hcompc: mem_compatible tpc mc) (Hcompf: mem_compatible tpf mf)
       (HinvF: invariant tpf)
       (Hstrong_sim: strong_tsim fi pfc pff Hcompc Hcompf)
-      (Hstep: cmachine_step (buildSched [:: i], tpc) mc (empty, tpc') mc')
+      (Hstep: cmachine_step (buildSched [:: i], [::], tpc) mc (empty, [::], tpc') mc')
       (Hsuspend: pfc @ S),
     exists tpf',
       myFineSemantics.suspend_thread pff tpf' /\
@@ -2074,7 +2089,6 @@ Module SimProofs (CI: CoreInjections).
       by (erewrite gThreadCR with (cntj := pff); reflexivity).
     assumption.
   Qed.
-
  
   (** Stepping on thread i with internal steps and then a suspend step
   retains a strong simulation with the id injection on all other
@@ -2187,7 +2201,7 @@ Module SimProofs (CI: CoreInjections).
       (Hpop: cnti @ E \/ cnti @ S)
       (Hsafe: @csafe the_ge tp m (buildSched (i :: U))),
     exists (tp' : thread_pool) (m' : mem),
-      cmachine_step (buildSched (i :: U), tp) m (U, tp') m' /\
+      cmachine_step (buildSched (i :: U), [::],tp) m (U, [::],tp') m' /\
       forall U'', @csafe the_ge tp' m' U''.
   Proof.
     intros.
@@ -2216,6 +2230,7 @@ Module SimProofs (CI: CoreInjections).
         by discriminate.
       inversion Htstep; subst; pf_cleanup.
       rewrite Hcode in Hpop. simpl in Hpop.
+      apply ev_step_ax1 in Hcorestep.
       apply corestep_not_at_external in Hcorestep.
       rewrite Hcorestep in Hpop.
       destruct (halted Sem c);
@@ -2290,7 +2305,7 @@ Module SimProofs (CI: CoreInjections).
                                   Z.pos (Mem.nextblock mc)))%Z in
                  (fp j cntj) (Z.to_pos bz)
                end
-             end).
+             end), tr.
     split.
     { (* the fine-grained machine takes a suspend step *)
       intros U; eapply myFineSemantics.suspend_step; simpl; eauto.
@@ -3823,8 +3838,8 @@ Module SimProofs (CI: CoreInjections).
     forall U U' tp m tp' m' i (cnti: containsThread tp i)
       (Hcomp: mem_compatible tp m)
       (Hexternal: cnti @ E)
-      (Hstep: myCoarseSemantics.MachStep the_ge (i :: U,tp) m (U', tp') m'),
-      U = U' /\ syncStep the_ge cnti Hcomp tp' m'.
+      (Hstep: myCoarseSemantics.MachStep the_ge (i :: U, [::], tp) m (U', [::], tp') m'),
+      U = U' /\ exists ev, syncStep the_ge cnti Hcomp tp' m' ev.
   Proof.
     intros.
     inversion Hstep;
@@ -3847,8 +3862,8 @@ Module SimProofs (CI: CoreInjections).
                  [rewrite Hext in H2;
                    destruct (halted Sem C); discriminate |
                   rewrite Hcontra in H1; exfalso; by auto]
-             end; try discriminate;
-      auto.
+             end; try discriminate; eexists;
+      eauto.
       by exfalso.
   Qed.
 
@@ -5930,8 +5945,8 @@ Module SimProofs (CI: CoreInjections).
    
   Lemma step_schedule:
     forall tpc tpc' mc mc' i U U'
-      (Hstep: myCoarseSemantics.MachStep the_ge (i :: U, tpc) mc (U, tpc') mc'),
-      myCoarseSemantics.MachStep the_ge (i :: U', tpc) mc (U', tpc') mc'.
+      (Hstep: myCoarseSemantics.MachStep the_ge (i :: U, [::], tpc) mc (U, [::], tpc') mc'),
+      myCoarseSemantics.MachStep the_ge (i :: U', [::], tpc) mc (U', [::], tpc') mc'.
   Proof.
     intros.
     inversion Hstep; subst; simpl in *;
@@ -6664,8 +6679,9 @@ Module SimProofs (CI: CoreInjections).
     assert (HinvC: invariant tpc)
       by (eapply safeC_invariant; eauto).
     (* An external step pops the schedule and executes a concurrent call *)
-    assert (HconcC: syncStep the_ge pfc HmemCompC tpc' mc')
+    assert (HconcC: exists ev, syncStep the_ge pfc HmemCompC tpc' mc' ev)
       by (eapply external_step_inverse; eauto).
+    destruct HconcC as [ev HconcC].
     (*TODO: we must deduce that fact from safety of coarse-grained machine*)
     assert (HmemCompC': mem_compatible tpc' mc')
       by (eapply safeC_compatible; eauto).
@@ -6755,11 +6771,11 @@ Module SimProofs (CI: CoreInjections).
         remember (updLockSet tpf' (b2, Int.intval ofs)
                              (projectMap (fp i pfc) empty_map)) as tpf'' eqn:Htpf'';
           symmetry in Htpf''.
-        exists tpf'', mf', (fp i pfc), fp.
+        exists tpf'', mf', (fp i pfc), fp, (tr ++ [:: (external i (acquire (b2, Int.intval ofs)))]).
         split.
         (* proof that the fine grained machine can step*)
         intros U.
-        assert (HsyncStepF: syncStep the_ge pff HmemCompF tpf'' mf')
+        assert (HsyncStepF: syncStep the_ge pff HmemCompF tpf'' mf'  (acquire (b2, Int.intval ofs)))
           by (eapply step_acquire with (b:=b2); eauto).
         econstructor; simpl;
           by eauto.
@@ -7325,11 +7341,11 @@ Module SimProofs (CI: CoreInjections).
       (* and finally build the final fine-grained state*)
       remember (updLockSet tpf' (b2, Int.intval ofs) virtueLPF) as tpf'' eqn:Htpf'';
         symmetry in Htpf''.
-      exists tpf'', mf', (fp i pfc), fp.
+      exists tpf'', mf', (fp i pfc), fp, (tr ++ [:: (external i (release (b2, Int.intval ofs)))]).
       split.
       (* proof that the fine grained machine can step*)
       intros U.
-      assert (HsyncStepF: syncStep the_ge pff HmemCompF tpf'' mf')
+      assert (HsyncStepF: syncStep the_ge pff HmemCompF tpf'' mf' (release (b2, Int.intval ofs)))
         by (eapply step_release with (b:=b2); eauto).
       econstructor; simpl;
         by eauto.
@@ -7933,11 +7949,12 @@ Module SimProofs (CI: CoreInjections).
       (* we augment the renamings pool by assigning the ''generic''
       renaming (fp i pfc) to the new thread *)
       exists tpf', mf, (fp i pfc),
-      (@addFP _ fp (fp i pfc) vf arg (computeMap empty_map virtue2)).
+      (@addFP _ fp (fp i pfc) vf arg (computeMap empty_map virtue2)),
+      (tr ++ [:: (external i (spawn vff)) ]). 
       split.
       (* proof that the fine grained machine can step*)
       intros U.
-      assert (HsyncStepF: syncStep the_ge pff HmemCompF tpf' mf)
+      assert (HsyncStepF: syncStep the_ge pff HmemCompF tpf' mf (spawn vff))
         by (eapply step_create; eauto).
       econstructor; simpl;
         by eauto.
@@ -8524,11 +8541,11 @@ Module SimProofs (CI: CoreInjections).
       state*)
       remember (updLockSet tpf' (b2, Int.intval ofs) empty_map) as tpf'' eqn:Htpf'';
         symmetry in Htpf''.
-      exists tpf'', mf', (fp i pfc), fp.
+      exists tpf'', mf', (fp i pfc), fp, (tr ++ [:: (external i (mklock (b2, Int.intval ofs)))]).
       split.
       (* proof that the fine grained machine can step*)
       intros U.
-      assert (HsyncStepF: syncStep the_ge pff HmemCompF tpf'' mf')
+      assert (HsyncStepF: syncStep the_ge pff HmemCompF tpf'' mf' (mklock (b2, Int.intval ofs)))
         by (eapply step_mklock with (b:=b2); eauto).
       econstructor; simpl;
         by eauto.
@@ -9143,11 +9160,11 @@ Module SimProofs (CI: CoreInjections).
       }
       (* we remove the lock from the fine-grained machine*)
       remember (remLockSet tpf' (b2, Int.intval ofs)) as tpf'' eqn:Htpf''.
-      exists tpf'', mf, (fp i pfc), fp.
+      exists tpf'', mf, (fp i pfc), fp, (tr ++ [:: (external i (freelock (b2, Int.intval ofs)))]).
       split.
       (* proof that the fine grained machine can step*)
       intros U.
-      assert (HsyncStepF: syncStep the_ge pff HmemCompF tpf'' mf)
+      assert (HsyncStepF: syncStep the_ge pff HmemCompF tpf'' mf (freelock (b2, Int.intval ofs)))
         by (eapply step_freelock with (b:=b2); eauto;
             rewrite HresF; eauto).
       econstructor; simpl;
@@ -9863,56 +9880,19 @@ Module SimProofs (CI: CoreInjections).
           by auto.
       }
       (* The state is not changed by a failed load*)
-      exists tpf, mf, (fp i pfc), fp.
+      exists tpf, mf, (fp i pfc), fp, (tr ++ [:: (external i (failacq (b2, Int.intval ofs)))]).
       split.
       intros U.
       subst.
       econstructor 5; simpl; eauto.
       econstructor 6; eauto.
       (* Proof that the new coarse and fine state are in simulation*)
-      assumption.
+      assumption. }
       Unshelve. all:eauto.
-  Admitted.
+Qed.
       
 
 
   
 End SimProofs.
 End SimProofs.
-
- (*Lemma sync_resources_mem_obs_eq :
-            forall (tpc tpc' tpf tpf' : thread_pool) (mc mc' mf mf' : mem) f
-              (HmemCompC : mem_compatible tpc mc)
-              (HmemCompF : mem_compatible tpf mf)
-              (b1 b2 b3 b4: block) ofs ofs' v rmap3 rmap4 pmap pmap'
-              (HmemCompC' : mem_compatible tpc' mc')
-              (HmemCompF': mem_compatible tpf' mf')
-              (Hf: f b1 = Some b2)
-              (Hres1: lockRes tpc' (b3, ofs) = Some rmap3)
-              (Hres2: lockRes tpf' (b4, ofs) = Some rmap4)
-              (Htpc': lockRes (updLockSet tpc (b1, ofs') rmap) = lockRes tpc')
-              (Htpf': lockRes (updLockSet tpf (b2, ofs') rmap') = lockRes tpf')
-              (Hinj: forall b1 b1' b2 : block,
-                  f b1 = Some b2 ->
-                  f b1' = Some b2 -> b1 = b1')
-              (Hmem_obs: strong_mem_obs_eq f
-                                           (restrPermMap (compat_ls HmemCompC))
-                                           (restrPermMap (compat_ls HmemCompF)))
-              (HsimRes : forall (bl1 bl2 : block) (ofs : Z)
-                           (rmap1 rmap2 : dry_machine.LocksAndResources.lock_info),
-                  f bl1 = Some bl2 ->
-                  forall (Hl1 : lockRes tpc (bl1, ofs) = Some rmap1)
-                    (Hl2 : lockRes tpf (bl2, ofs) = Some rmap2),
-                    strong_mem_obs_eq f (restrPermMap
-                                           (compat_lp HmemCompC (bl1, ofs) Hl1))
-                                      (restrPermMap
-                                         (compat_lp HmemCompF (bl2, ofs) Hl2)))
-              (Hstore: Mem.store Mint32 (restrPermMap (compat_ls HmemCompC)) b1
-                                 (Int.intval ofs) (Vint v) = Some mc')
-              (HstoreF: Mem.store Mint32 (restrPermMap (compat_ls HmemCompF)) b2
-                                  (Int.intval ofs) (Vint v) = Some mf'),
-              strong_mem_obs_eq f (restrPermMap (compat_lp HmemCompC'))
-                                (restrPermMap (compat_ls HmemCompF')).
-          Proof.
-          Admitted.
-          eapply sync_resources_mem_obs_eq. *)

@@ -2979,7 +2979,7 @@ Lemma val_obs_cmpu:
       
 End MemObsEq.
 
-Import dry_context SEM mySchedule DryMachine DryMachine.ThreadPool.
+Import dry_context SEM mySchedule DryMachine DryMachine.ThreadPool event_semantics.
 
 Module Type CoreInjections.
 

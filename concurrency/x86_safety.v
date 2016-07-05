@@ -45,7 +45,7 @@ Module X86Safe.
 Section CSPEC.
   Context {cspec: CoreLanguage.corestepSpec}.
   
-  Import Asm Asm_coop.
+  Import Asm Asm_coop event_semantics.
 
 Require Import Coqlib.
 Require Import msl.Coqlib2.
@@ -329,7 +329,7 @@ Instance x86Spec : CoreLanguage.corestepSpec.
 
 End CSPEC.
 
-Import MemoryWD SimDefs ThreadPoolInjections StepLemmas.
+Import MemoryWD SimDefs ThreadPoolInjections StepLemmas event_semantics.
 Definition tpc_init f arg := initial_core coarse_semantics the_ge f arg.
 Definition tpf_init f arg := initial_core fine_semantics the_ge f arg.
 
@@ -678,7 +678,8 @@ Lemma fine_safe:
   forall tpf tpc mf mc (f fg : memren) fp (xs : Sch)
     (Hsim: sim tpc mc tpf mf xs f fg fp),
   forall sched,
-    fsafe tpf mf sched.
+    exists tr,
+    fsafe tpf mf sched tr.
 Proof.
   intros.
   generalize dependent xs.
@@ -689,32 +690,41 @@ Proof.
   generalize dependent mc.
   generalize dependent f.
   induction sched as [|i sched]; intros; simpl; auto.
-  constructor.
-  simpl; auto.
+  exists [::].
+  econstructor. simpl; eauto.
   destruct (containsThread_dec i tpf) as [cnti | invalid].
   - (* By case analysis on the step type *)
     destruct (getStepType cnti) eqn:Htype.
-    + pose proof (sim_internal cnti Htype Hsim) as (tpf' & m' & fp' & Hstep & Hsim').
+    + pose proof (sim_internal [::] cnti Htype Hsim) as (tpf' & m' & fp' & tr' & Hstep & Hsim').
       specialize (Hstep sched).
+      destruct (IHsched _ _ _ _ _ _ _ Hsim') as [tr'' Hsafe''].
+      exists (tr' ++ tr'').
       econstructor 2; simpl; eauto.
     + assert (~ List.In i xs)
         by (eapply at_external_not_in_xs; eauto).
-      pose proof (sim_external em cnti Htype H Hsim) as Hsim'.
-      destruct Hsim' as (? & ? & ? & ? & ? & ? & Hstep & Hsim'').
+      pose proof (sim_external em [::] cnti Htype H Hsim) as Hsim'.
+      destruct Hsim' as (? & ? & ? & ? & ? & ? & tr' & Hstep & Hsim'').
+      destruct (IHsched _ _ _ _ _ _ _ Hsim'') as [tr'' Hsafe''].
       specialize (Hstep sched).
+      exists (tr' ++ tr'').
       econstructor 2; simpl; eauto.
-    + econstructor 2.
-      eapply sim_halted; eauto.
+    + pose proof (sim_halted [::] cnti Htype Hsim) as (tr' & Hstep).
+      specialize (Hstep sched).
+      destruct (IHsched _ _ _ _ _ _ _ Hsim) as [tr'' Hsafe''].
+      exists (tr' ++ tr'').
+      econstructor 2;
       eauto.
-    + pose proof (sim_suspend cnti Htype Hsim) as
-          (? & ? & tpf' & m' & ? & ? & Hstep & Hsim').
+    + pose proof (sim_suspend [::] cnti Htype Hsim) as
+          (? & ? & tpf' & m' & ? & ? & tr' & Hstep & Hsim').
+      destruct (IHsched _ _ _ _ _ _ _ Hsim') as [tr'' Hsafe''].
       specialize (Hstep sched).
+      exists (tr' ++ tr'').
       econstructor 2; simpl; eauto.
-  - econstructor 2.
+  - destruct (IHsched _ _ _ _ _ _ _ Hsim) as [tr Hsafe].
+    exists ([::] ++ tr).
+    econstructor 2; eauto.
     econstructor 7; simpl; eauto.
-    simpl. eauto.
 Qed.   
-
 
 (** Safety preservation for the FineConc machine*)
 Theorem init_fine_safe:
@@ -722,7 +732,8 @@ Theorem init_fine_safe:
     (Hmem: init_mem = Some m)
     (Hinit: tpf_init f arg = Some (U, tpf)),
   forall (sched : Sch),
-    fsafe tpf (diluteMem m) sched.
+    exists tr,
+      fsafe tpf (diluteMem m) sched tr.
 Proof.
   intros.
   assert (Hsim := init_sim f arg Hinit Hinit Hmem).
@@ -736,4 +747,4 @@ End X86Safe.
   
 
 
-  
+

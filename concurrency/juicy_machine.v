@@ -142,7 +142,8 @@ Module Concur.
     Module ThreadPool := ThreadPool SEM.
     Import ThreadPool.
     Import ThreadPool.SEM.
-    Notation tid := NatTID.tid.                  
+    Import event_semantics.
+    Notation tid := NatTID.tid.
 
     (** Memories*)
     Definition richMem: Type:= juicy_mem.
@@ -153,7 +154,23 @@ Module Concur.
     (* This all comes from the SEM. *)
     (*Parameter G : Type.
     Parameter Sem : CoreSemantics G code mem.*)
-    Notation the_sem := Sem.
+    Notation the_sem := (csem (event_semantics.msem Sem)).
+
+    (* Probably need to pass these around through a functor, or some
+    kind of different module*)
+    Inductive sync_event : Type :=
+    | release : address -> sync_event
+    | acquire : address -> sync_event
+    | mklock :  address -> sync_event
+    | freelock : address -> sync_event
+    | spawn : val -> sync_event
+    | failacq: address -> sync_event.
+
+    
+    Inductive machine_event : Type :=
+    | internal: TID.tid -> list mem_event -> machine_event
+    | external : TID.tid -> sync_event -> machine_event
+    | halt : TID.tid -> machine_event.
     
     (*thread pool*)
     Import ThreadPool.  
@@ -679,9 +696,9 @@ Module Concur.
         contradict H; reflexivity.
       - simpl; constructor.
     Qed.
-        
+
     Inductive juicy_step genv {tid0 tp m} (cnt: containsThread tp tid0)
-      (Hcompatible: mem_compatible tp m) : thread_pool -> mem  -> Prop :=
+      (Hcompatible: mem_compatible tp m) : thread_pool -> mem -> list mem_event -> Prop :=
     | step_juicy :
         forall (tp':thread_pool) c jm jm' m' (c' : code),
           forall (Hpersonal_perm:
@@ -691,7 +708,7 @@ Module Concur.
             (Hcorestep: corestep juicy_sem genv c jm c' jm')
             (Htp': tp' = age_tp_to (level jm') (updThread cnt (Krun c') (m_phi jm')))
             (Hm': m_dry jm' = m'),
-            juicy_step genv cnt Hcompatible tp' m'.
+            juicy_step genv cnt Hcompatible tp' m' [::].
 
     Definition pack_res_inv R:= SomeP nil  (fun _ => R) .
 
@@ -699,7 +716,7 @@ Module Concur.
     Open Scope Z_scope.
     Inductive syncStep' genv {tid0 tp m}
               (cnt0:containsThread tp tid0)(Hcompat:mem_compatible tp m):
-      thread_pool -> mem -> Prop :=
+      thread_pool -> mem -> sync_event -> Prop :=
     | step_acquire :
         forall (tp' tp'':thread_pool) c m1 jm' b ofs d_phi psh phi,
           (*let: phi := m_phi jm in*)
@@ -726,7 +743,7 @@ Module Concur.
             (Hadd_lock_res: join phi d_phi  phi')  
             (Htp': tp' = updThread cnt0 (Kresume c Vundef) phi')
             (Htp'': tp'' = updLockSet tp' (b, Int.intval ofs) None ),
-            syncStep' genv cnt0 Hcompat tp'' m'                 
+            syncStep' genv cnt0 Hcompat tp'' m' (acquire (b, Int.intval ofs))                
     | step_release :
         forall  (tp' tp'':thread_pool) c m1 jm' b ofs psh (phi d_phi :rmap) (R: pred rmap) ,
           (* let: phi := m_phi jm in *)
@@ -757,7 +774,7 @@ Module Concur.
             (Htp': tp' = updThread cnt0 (Kresume c Vundef) phi')
             (Htp'': tp'' =
                     updLockSet tp' (b, Int.intval ofs) (Some d_phi)),
-            syncStep' genv cnt0 Hcompat tp'' m'          
+            syncStep' genv cnt0 Hcompat tp'' m' (release (b, Int.intval ofs))      
     | step_create :
         (* HAVE TO REVIEW THIS STEP LOOKING INTO THE ORACULAR SEMANTICS*)
         forall  (tp_upd tp':thread_pool) c c_new vf arg jm (d_phi phi': rmap) b ofs P Q,
@@ -777,7 +794,7 @@ Module Concur.
             (Hrem_fun_res: join d_phi phi' (m_phi jm))
             (Htp': tp_upd = updThread cnt0 (Kresume c Vundef) phi')
             (Htp'': tp' = addThread tp_upd vf arg d_phi),
-            syncStep' genv cnt0 Hcompat tp' m
+            syncStep' genv cnt0 Hcompat tp' m (spawn vf)
                      
     | step_mklock :
         forall  (tp' tp'': thread_pool)  jm jm' c b ofs R ,
@@ -816,7 +833,7 @@ Module Concur.
             (Htp': tp' = updThread cnt0 (Kresume c Vundef) phi')
             (Htp'': tp'' =
                     updLockSet tp' (b, Int.intval ofs) None ),
-            syncStep' genv cnt0 Hcompat tp'' m' 
+            syncStep' genv cnt0 Hcompat tp'' m' (mklock (b, Int.intval ofs))
     | step_freelock :
         forall  (tp' tp'': thread_pool) c b ofs phi jm' R,
           (*let: phi := m_phi jm in*)
@@ -853,7 +870,7 @@ Module Concur.
             (Htp': tp' = updThread cnt0 (Kresume c Vundef) (m_phi jm'))
             (Htp'': tp'' =
                     remLockSet tp' (b, Int.intval ofs) ),
-            syncStep' genv cnt0 Hcompat  tp'' m  (* m_dry jm' = m_dry jm = m *)
+            syncStep' genv cnt0 Hcompat  tp'' m (freelock (b, Int.intval ofs)) (* m_dry jm' = m_dry jm = m *)
                       
     | step_acqfail :
         forall  c b ofs jm psh m1,
@@ -873,17 +890,17 @@ Module Concur.
             (sh:Share.t)(R:pred rmap)
             (HJcanwrite: phi@(b, Int.intval ofs) = YES sh psh (LK LKSIZE) (pack_res_inv R))
             (Hload: Mem.load Mint32 m1 b (Int.intval ofs) = Some (Vint Int.zero)),
-            syncStep' genv cnt0 Hcompat tp m.
+            syncStep' genv cnt0 Hcompat tp m (failacq (b,Int.intval ofs)).
     
     Definition threadStep (genv:G): forall {tid0 ms m},
         containsThread ms tid0 -> mem_compatible ms m ->
-        thread_pool -> mem -> Prop:=
+        thread_pool -> mem -> list mem_event -> Prop:=
       @juicy_step genv.
     
     
     Definition syncStep (genv:G):
       forall {tid0 ms m}, containsThread ms tid0 -> mem_compatible ms m ->
-                     thread_pool -> mem -> Prop:=
+                     thread_pool -> mem -> sync_event ->  Prop:=
       @syncStep' genv.
     
     Inductive threadHalted': forall {tid0 ms},

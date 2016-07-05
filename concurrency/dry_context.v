@@ -3,14 +3,14 @@ Require Import concurrency.threads_lemmas.
 Require Import concurrency.permissions.
 Require Import concurrency.concurrent_machine.
 Require Import ccc26x86.Asm_coop.
+Require Import ccc26x86.Asm_event.
 Require Import compcert.common.Globalenvs.
 Import Concur.
 
-Parameter hf : I64Helpers.helper_functions.
 Module SEM <: Semantics.
                Definition G := Asm.genv.
                Definition C := state.
-               Definition Sem := Asm_mem_sem (*hf*).               
+               Definition Sem := Asm_EvSem.               
 End SEM.
                
 Module DryMachine:= DryMachineShell SEM.

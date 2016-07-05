@@ -24,7 +24,7 @@ Require Import concurrency.mem_obs_eq.
 Require Import ccc26x86.Asm ccc26x86.Asm_coop.
 Require Import concurrency.dry_context.
 
-Import ValObsEq Renamings.
+Import ValObsEq Renamings event_semantics.
 
 (** ** Well defined X86 cores *)
 Module X86WD.

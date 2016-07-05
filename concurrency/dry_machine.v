@@ -78,8 +78,25 @@ Module Concur.
      Module ThreadPool := ThreadPool SEM.
      Import ThreadPool.
      Import ThreadPool.SEM ThreadPool.RES.
+     Import event_semantics.
      
      Notation tid := NatTID.tid.
+
+     (* Probably need to pass these around through a functor, or some
+    kind of different module*)
+    Inductive sync_event : Type :=
+    | release : address -> sync_event
+    | acquire : address -> sync_event
+    | mklock :  address -> sync_event
+    | freelock : address -> sync_event
+    | spawn : val -> sync_event
+    | failacq: address -> sync_event.
+
+    
+    Inductive machine_event : Type :=
+    | internal: TID.tid -> seq mem_event -> machine_event
+    | external : TID.tid -> sync_event -> machine_event
+    | halt : TID.tid -> machine_event.
      
      (** Memories*)
      Definition richMem: Type:= mem.
@@ -144,16 +161,17 @@ Module Concur.
      
      (** Steps*)
      Inductive dry_step genv {tid0 tp m} (cnt: containsThread tp tid0)
-               (Hcompatible: mem_compatible tp m) : thread_pool -> mem  -> Prop :=
+               (Hcompatible: mem_compatible tp m) :
+       thread_pool -> mem -> seq mem_event -> Prop :=
      | step_dry :
-         forall (tp':thread_pool) c m1 m' (c' : code),
+         forall (tp':thread_pool) c m1 m' (c' : code) ev,
          forall (Hrestrict_pmap:
               restrPermMap (Hcompatible tid0 cnt) = m1)
            (Hinv : invariant tp)
            (Hcode: getThreadC cnt = Krun c)
-           (Hcorestep: corestep Sem genv c m1 c' m')
+           (Hcorestep: ev_step Sem genv c m1 ev c' m')
            (Htp': tp' = updThread cnt (Krun c') (getCurPerm m')),
-           dry_step genv cnt Hcompatible tp' m'.
+           dry_step genv cnt Hcompatible tp' m' ev.
 
      Definition option_function {A B} (opt_f: option (A -> B)) (x:A): option B:=
        match opt_f with
@@ -162,10 +180,9 @@ Module Concur.
        end.
      Infix "??" := option_function (at level 80, right associativity).
      
-     (*missing lock-ranges*)
      Inductive ext_step (genv:G) {tid0 tp m} (*Can we remove genv from here?*)
                (cnt0:containsThread tp tid0)(Hcompat:mem_compatible tp m):
-       thread_pool -> mem -> Prop :=
+       thread_pool -> mem -> sync_event -> Prop :=
      | step_acquire :
          forall (tp' tp'':thread_pool) m1 c m' b ofs pmap virtueThread
            (Hinv : invariant tp)
@@ -183,7 +200,7 @@ Module Concur.
            (Htp': tp' = updThread cnt0 (Kresume c Vundef)
                                   (computeMap (getThreadR cnt0) virtueThread))
            (Htp'': tp'' = updLockSet tp' (b, Int.intval ofs) empty_map),
-           ext_step genv cnt0 Hcompat tp'' m' 
+           ext_step genv cnt0 Hcompat tp'' m' (acquire (b, Int.intval ofs))
                     
      | step_release :
          forall (tp' tp'':thread_pool) m1 c m' b ofs pmap virtueThread virtueLP
@@ -202,7 +219,7 @@ Module Concur.
            (Htp': tp' = updThread cnt0 (Kresume c Vundef)
                                   (computeMap (getThreadR cnt0) virtueThread))
            (Htp'': tp'' = updLockSet tp' (b, Int.intval ofs) virtueLP),
-           ext_step genv cnt0 Hcompat tp'' m' 
+           ext_step genv cnt0 Hcompat tp'' m' (release (b, Int.intval ofs))
                     
      | step_create :
          forall  (tp_upd tp':thread_pool) c vf arg virtue1 virtue2,
@@ -223,7 +240,7 @@ Module Concur.
                                         (computeMap (getThreadR cnt0) virtue1))
            (Htp': tp' = addThread tp_upd vf arg
                                   (computeMap empty_map virtue2)),
-           ext_step genv cnt0 Hcompat tp' m
+           ext_step genv cnt0 Hcompat tp' m (spawn vf)
                     
      | step_mklock :
          forall  (tp' tp'': thread_pool) m1 c m' b ofs pmap_tid',
@@ -240,7 +257,7 @@ Module Concur.
                 setPermBlock (Some Nonempty) b (Int.intval ofs) pmap_tid LKSIZE_nat = pmap_tid')
              (Htp': tp' = updThread cnt0 (Kresume c Vundef) pmap_tid')
              (Htp'': tp'' = updLockSet tp' (b,(Int.intval ofs)) empty_map),
-             ext_step genv cnt0 Hcompat tp'' m' 
+             ext_step genv cnt0 Hcompat tp'' m' (mklock (b, Int.intval ofs))
                       
      | step_freelock :
          forall  (tp' tp'': thread_pool) c b ofs virtue pmap' m',
@@ -264,7 +281,7 @@ Module Concur.
            (Htp': tp' = updThread cnt0 (Kresume c Vundef) pmap')
            (Htp'': tp'' = remLockSet tp' (b,(Int.intval ofs)))
            (Hmem_no_change: m = m'),
-           ext_step genv cnt0 Hcompat  tp'' m'
+           ext_step genv cnt0 Hcompat  tp'' m' (freelock (b,Int.intval ofs))
                     
      | step_acqfail :
          forall  c b ofs m1,
@@ -275,17 +292,17 @@ Module Concur.
                           Some (LOCK, ef_sig LOCK, Vptr b ofs::nil))
            (Hrestrict_pmap: restrPermMap (compat_ls Hcompat) = m1)
            (Hload: Mem.load Mint32 m1 b (Int.intval ofs) = Some (Vint Int.zero)),
-           ext_step genv cnt0 Hcompat tp m.
+           ext_step genv cnt0 Hcompat tp m (failacq (b, Int.intval ofs)).
      
      Definition threadStep (genv : G): forall {tid0 ms m},
          containsThread ms tid0 -> mem_compatible ms m ->
-         thread_pool -> mem -> Prop:=
+         thread_pool -> mem -> seq mem_event -> Prop:=
        @dry_step genv.
      
      Definition syncStep (genv :G) :
        forall {tid0 ms m},
          containsThread ms tid0 -> mem_compatible ms m ->
-         thread_pool -> mem -> Prop:=
+         thread_pool -> mem -> sync_event -> Prop:=
        @ext_step genv.
 
      Inductive threadHalted': forall {tid0 ms},
@@ -749,16 +766,17 @@ Module Concur.
             similar_addThread similar_remLockSet mem_store_similar: similar.
 
        (** Synchronization steps from similar states reach similar states*)
+       (*TODO: can strengthen to say that the events will be equal as well*)
        Lemma syncStep_value_det:
-         forall ge tp1 tp1' m1 m1' tp2 m2 tp2' m2' i
+         forall ge tp1 tp1' m1 m1' tp2 m2 tp2' m2' i ev1 ev2
            (cnti: containsThread tp1 i)
            (cnti': containsThread tp1' i)
            (HsimilarPool: similar_threadPool tp1 tp1')
            (HsimilarMem: similar_mem m1 m1')
            (Hcomp1: mem_compatible tp1 m1)
            (Hcomp1': mem_compatible tp1' m1')
-           (Hstep1: syncStep ge cnti Hcomp1 tp2 m2)
-           (Hstep1': syncStep ge cnti' Hcomp1' tp2' m2'),
+           (Hstep1: syncStep ge cnti Hcomp1 tp2 m2 ev1)
+           (Hstep1': syncStep ge cnti' Hcomp1' tp2' m2' ev2),
            similar_threadPool tp2 tp2' /\ similar_mem m2 m2'.
        Proof with eauto with similar.
          intros.
