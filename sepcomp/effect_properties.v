@@ -973,24 +973,6 @@ Proof. intros. eexists; eexists; eexists.
       destruct (locBlocksSrc mu b1 && REACH m1 (exportedSrc mu (v1 :: nil)) b1); trivial; discriminate.
 Qed.
   
-Lemma get_freelist:
-  forall fbl m m' (FL: Mem.free_list m fbl = Some m') b
-  (H: forall b' lo hi, In (b', lo, hi) fbl -> b' <> b) z,
-  ZMap.get z (Mem.mem_contents m') !! b = 
-  ZMap.get z (Mem.mem_contents m) !! b.
-Proof. intros fbl.
-  induction fbl; simpl; intros; inv FL; trivial.
-  destruct a. destruct p.
-  remember (Mem.free m b0 z1 z0) as d.
-  destruct d; inv H1. apply eq_sym in Heqd.
-  rewrite (IHfbl _ _ H2 b).
-     clear IHfbl H2.
-     case_eq (eq_block b0 b); intros.
-      exfalso. eapply (H b0). left. reflexivity. assumption.
-     apply Mem.free_result in Heqd. subst. reflexivity.
-  eauto.
-Qed.
-
 Lemma intern_incr_vis_inv: forall mu nu (WDmu: SM_wd mu) (WDnu: SM_wd nu)
       (INC: intern_incr mu nu) 
        b1 b2 d (AI: as_inj mu b1 = Some(b2,d))

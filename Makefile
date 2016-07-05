@@ -154,7 +154,8 @@ CCC26x86_FILES = \
   Machregs.v Asm.v \
   Switch.v Cminor.v \
   I64Helpers.v BuiltinEffects.v load_frame.v Asm_coop.v Asm_eff.v \
-  Asm_nucular.v Asm_event.v
+  Asm_nucular.v Asm_event.v \
+  Clight.v Clight_coop.v Clight_eff.v
 
 LINKING_FILES= \
   sepcomp.v \

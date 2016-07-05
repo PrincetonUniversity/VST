@@ -64,22 +64,6 @@ Proof.
   subst args0; auto.
 Qed.
 
-Lemma mem_step_nextblock:
-  forall m m',
-     mem_step m m' ->
-   (Mem.nextblock m <= Mem.nextblock m')%positive.
-Proof.
- induction 1.
- apply Mem.nextblock_storebytes in H; 
-   rewrite H; apply Pos.le_refl.
- apply Mem.nextblock_alloc in H.
- rewrite H. clear.
- apply Pos.lt_eq_cases. left. apply Pos.lt_succ_r. apply Pos.le_refl.
- apply effect_properties.nextblock_freelist in H.
-   rewrite H; apply Pos.le_refl.
- eapply Pos.le_trans; eassumption.
-Qed.
-
 Lemma mem_step_decay:
   forall m m',
      mem_step m m' ->
@@ -184,38 +168,6 @@ intros.
  destruct (eval_addrmode ge a rs); inv Heqo.
  symmetry;
  eapply MemoryLemmas.store_contents_other; eauto.
-Qed.
-
-Lemma alloc_contents:
- forall m lo hi m' b' b ofs,
-    Mem.valid_block m b ->
-    Mem.alloc m lo hi = (m',b') ->
-  ZMap.get ofs (PMap.get b (Mem.mem_contents m)) =
-  ZMap.get ofs (PMap.get b (Mem.mem_contents m')).
-Proof.
- intros.
-Transparent Mem.alloc. unfold Mem.alloc in H0. Opaque Mem.alloc.
-inv H0. simpl.
-unfold Mem.valid_block in H.
-rewrite PMap.gso; auto.
-intro; subst. apply Plt_strict in H; auto.
-Qed.
-
-Lemma free_contents:
- forall m b lo hi m' b' ofs,
-    Mem.free m b lo hi = Some m' ->
-     ~adr_range (b,lo) (hi-lo) (b',ofs) ->
-  ZMap.get ofs (PMap.get b' (Mem.mem_contents m)) =
-  ZMap.get ofs (PMap.get b' (Mem.mem_contents m')).
-Proof.
-intros.
-Transparent Mem.free.
-unfold Mem.free in H.
-Opaque Mem.free.
-destruct (Mem.range_perm_dec m b lo hi Cur Freeable); inv H.
-unfold Mem.unchecked_free.
-simpl.
-reflexivity.
 Qed.
 
 Lemma mem_step_obeys_cur_write:

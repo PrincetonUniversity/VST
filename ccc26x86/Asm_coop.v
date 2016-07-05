@@ -377,46 +377,6 @@ Proof. intros.
   eapply store_args_mem_step; try eassumption.
 Qed.
 
-Require Import msl.Coqlib2.
-
-Lemma ple_load m ch a v 
-            (LD: Mem.loadv ch m a = Some v)
-            m1 (PLE: perm_lesseq m m1): 
-           Mem.loadv ch m1 a = Some v.
-Proof.
-unfold Mem.loadv in *.
-destruct a; auto.
-Transparent Mem.load.
-unfold Mem.load in *.
-Opaque Mem.load.
-destruct PLE.
-if_tac in LD; [ | inv LD].
-rewrite if_true.
-rewrite <- LD; clear LD.
-f_equal. f_equal.
-destruct H.
-rewrite size_chunk_conv in H.
-clear - H perm_le_cont.
-forget (size_chunk_nat ch) as n.
-forget (Int.unsigned i) as j.
-revert j H; induction n; intros; simpl; f_equal.
-apply perm_le_cont.
-apply (H j).
-rewrite inj_S.
-omega.
-apply IHn.
-rewrite inj_S in H.
-intros ofs ?; apply H. omega.
-clear - H perm_le_Cur.
-destruct H; split; auto.
-intros ? ?. specialize (H ofs H1).
-hnf in H|-*.
-specialize (perm_le_Cur b ofs).
-destruct ((Mem.mem_access m) !! b ofs Cur); try contradiction.
-destruct ((Mem.mem_access m1) !! b ofs Cur);
-inv perm_le_Cur; auto; try constructor; try inv H.
-Qed.
-
 Lemma ple_exec_load:
     forall g ch m a rs rd rs' m'
        m1 (PLE: perm_lesseq m m1),
@@ -431,62 +391,6 @@ Proof.
 Qed.
 
 
-Lemma ple_store:
-  forall ch m v1 v2 m' m1
-   (PLE: perm_lesseq m m1),
-   Mem.storev ch m v1 v2 = Some m' ->
-   exists m1', perm_lesseq m' m1' /\ Mem.storev ch m1 v1 v2 = Some m1'.
-Proof.
-intros.
-unfold Mem.storev in *.
-destruct v1; try discriminate.
-Transparent Mem.store.
-unfold Mem.store in *.
-Opaque Mem.store.
-destruct (Mem.valid_access_dec m ch b (Int.unsigned i)  Writable); inv H.
-destruct (Mem.valid_access_dec m1 ch b (Int.unsigned i)
-      Writable).
-*
-eexists; split; [ | reflexivity].
-destruct PLE.
-constructor; simpl; auto.
-intros. unfold Mem.perm in H. simpl in H.
-forget (Int.unsigned i) as z.
-destruct (eq_block b0 b). subst.
-rewrite !PMap.gss.
-forget (encode_val ch v2) as vl.
-assert (z <= ofs < z + Z.of_nat (length vl) \/ ~ (z <= ofs < z + Z.of_nat (length vl))) by omega.
-destruct H0.
-clear - H0.
-forget ((Mem.mem_contents m1) !! b) as mA.
-forget ((Mem.mem_contents m) !! b) as mB.
-revert z mA mB H0; induction vl; intros; simpl. 
-simpl in H0; omega.
-simpl length in H0; rewrite inj_S in H0.
-destruct (zeq z ofs).
-subst ofs.
-rewrite !Mem.setN_outside by omega. rewrite !ZMap.gss; auto.
-apply IHvl; omega.
-rewrite !Mem.setN_outside by omega.
-apply perm_le_cont. auto.
-rewrite !PMap.gso by auto.
-apply perm_le_cont. auto.
-*
-contradiction n; clear n.
-destruct PLE.
-unfold Mem.valid_access in *.
-destruct v; split; auto.
-hnf in H|-*; intros.
-specialize (H _ H1).
-clear - H perm_le_Cur.
-specialize (perm_le_Cur b ofs).
-hnf in H|-*.
-destruct ((Mem.mem_access m) !! b ofs Cur); try contradiction.
-inv H;
-destruct ((Mem.mem_access m1) !! b ofs Cur); 
-inv perm_le_Cur; auto; try constructor; try inv H.
-Qed.
-
 Lemma ple_exec_store:
   forall g ch m a rs rs0 rsx rs' m' m1
    (PLE: perm_lesseq m m1),
@@ -500,15 +404,6 @@ intros.
  destruct (ple_store _ _ _ _ _ _ PLE Heqo) as [m1' [? ?]].
  exists m1'; split; auto.
  rewrite H0. auto.
-Qed.
-
-Lemma perm_lesseq_refl:
-  forall m, perm_lesseq m m.
-Proof.
-intros.
- constructor; intros; auto.
- match goal with |- Mem.perm_order'' ?A _ => destruct A; constructor end.
- match goal with |- Mem.perm_order'' ?A _ => destruct A; constructor end.
 Qed.
 
 Lemma asm_inc_perm: forall (g : genv) c m c' m' (CS:corestep Asm_core_sem g c m c' m')
@@ -538,7 +433,7 @@ Program Definition Asm_mem_sem : @MemSem genv state.
 Proof.
 apply Build_MemSem with (csem := Asm_core_sem).
   apply (asm_mem_step).
-  apply asm_inc_perm.
+(*  apply asm_inc_perm.*)
 Defined.
 
 Lemma exec_instr_forward g c i rs m rs' m': forall 

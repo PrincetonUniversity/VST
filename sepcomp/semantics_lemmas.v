@@ -13,6 +13,8 @@ Require Import msl.Extensionality.
 Require Import sepcomp.mem_lemmas.
 Require Import sepcomp.semantics.
 
+Require Import msl.Coqlib2.
+
 (********************* Lemmas and definitions related to mem_step ********)
 
 Lemma mem_step_refl m: mem_step m m.
@@ -437,6 +439,242 @@ Opaque Mem.storebytes.
    apply mem_step_nextblock in H1_1.
    unfold Mem.valid_block in *.
    eapply Plt_le_trans; eauto.
+Qed.
+
+Lemma ple_load m ch a v 
+            (LD: Mem.loadv ch m a = Some v)
+            m1 (PLE: perm_lesseq m m1): 
+           Mem.loadv ch m1 a = Some v.
+Proof.
+unfold Mem.loadv in *.
+destruct a; auto.
+Transparent Mem.load.
+unfold Mem.load in *.
+Opaque Mem.load.
+destruct PLE.
+if_tac in LD; [ | inv LD].
+rewrite if_true.
+rewrite <- LD; clear LD.
+f_equal. f_equal.
+destruct H.
+rewrite size_chunk_conv in H.
+clear - H perm_le_cont.
+forget (size_chunk_nat ch) as n.
+forget (Int.unsigned i) as j.
+revert j H; induction n; intros; simpl; f_equal.
+apply perm_le_cont.
+apply (H j).
+rewrite inj_S.
+omega.
+apply IHn.
+rewrite inj_S in H.
+intros ofs ?; apply H. omega.
+clear - H perm_le_Cur.
+destruct H; split; auto.
+intros ? ?. specialize (H ofs H1).
+hnf in H|-*.
+specialize (perm_le_Cur b ofs).
+destruct ((Mem.mem_access m) !! b ofs Cur); try contradiction.
+destruct ((Mem.mem_access m1) !! b ofs Cur);
+inv perm_le_Cur; auto; try constructor; try inv H.
+Qed.
+
+Lemma ple_store:
+  forall ch m v1 v2 m' m1
+   (PLE: perm_lesseq m m1),
+   Mem.storev ch m v1 v2 = Some m' ->
+   exists m1', perm_lesseq m' m1' /\ Mem.storev ch m1 v1 v2 = Some m1'.
+Proof.
+intros.
+unfold Mem.storev in *.
+destruct v1; try discriminate.
+Transparent Mem.store.
+unfold Mem.store in *.
+Opaque Mem.store.
+destruct (Mem.valid_access_dec m ch b (Int.unsigned i)  Writable); inv H.
+destruct (Mem.valid_access_dec m1 ch b (Int.unsigned i)
+      Writable).
+*
+eexists; split; [ | reflexivity].
+destruct PLE.
+constructor; simpl; auto.
+intros. unfold Mem.perm in H. simpl in H.
+forget (Int.unsigned i) as z.
+destruct (eq_block b0 b). subst.
+rewrite !PMap.gss.
+forget (encode_val ch v2) as vl.
+assert (z <= ofs < z + Z.of_nat (length vl) \/ ~ (z <= ofs < z + Z.of_nat (length vl))) by omega.
+destruct H0.
+clear - H0.
+forget ((Mem.mem_contents m1) !! b) as mA.
+forget ((Mem.mem_contents m) !! b) as mB.
+revert z mA mB H0; induction vl; intros; simpl. 
+simpl in H0; omega.
+simpl length in H0; rewrite inj_S in H0.
+destruct (zeq z ofs).
+subst ofs.
+rewrite !Mem.setN_outside by omega. rewrite !ZMap.gss; auto.
+apply IHvl; omega.
+rewrite !Mem.setN_outside by omega.
+apply perm_le_cont. auto.
+rewrite !PMap.gso by auto.
+apply perm_le_cont. auto.
+*
+contradiction n; clear n.
+destruct PLE.
+unfold Mem.valid_access in *.
+destruct v; split; auto.
+hnf in H|-*; intros.
+specialize (H _ H1).
+clear - H perm_le_Cur.
+specialize (perm_le_Cur b ofs).
+hnf in H|-*.
+destruct ((Mem.mem_access m) !! b ofs Cur); try contradiction.
+inv H;
+destruct ((Mem.mem_access m1) !! b ofs Cur); 
+inv perm_le_Cur; auto; try constructor; try inv H.
+Qed.
+
+
+Lemma ple_free: forall m m' b lo hi (FL: Mem.free m b lo hi = Some m') m1 (PLE:perm_lesseq m m1),
+      exists m1', Mem.free m1 b lo hi = Some m1' /\ perm_lesseq m' m1'.
+Proof. intros.
+  specialize (Mem.free_range_perm _ _ _ _ _ FL). intros.
+  assert (RF: Mem.range_perm m1 b lo hi Cur Freeable).
+  { destruct PLE. red; intros.
+    specialize (perm_le_Cur b ofs). specialize (H _ H0). unfold Mem.perm in *.
+    destruct ((Mem.mem_access m) !! b ofs Cur); simpl in *; try contradiction.  
+    destruct ((Mem.mem_access m1) !! b ofs Cur); simpl in *; try contradiction.
+    eapply perm_order_trans; eassumption.
+  }
+  destruct (Mem.range_perm_free m1 b lo hi RF) as [mm MM].
+  exists mm; split; trivial.
+  destruct PLE.
+  split; intros.
+  - destruct (eq_block b0 b); subst.
+    * admit.
+    * specialize (perm_le_Cur b0 ofs); clear perm_le_Max perm_le_cont.
+      remember((Mem.mem_access m1) !! b0 ofs Cur). destruct o; simpl in *.
+      ++ symmetry in Heqo.
+         assert (Q: Mem.perm mm b0 ofs Cur p).
+         eapply (Mem.perm_free_1 _ _ _ _ _ MM b0 ofs Cur p). left; trivial.  
+         unfold Mem.perm. rewrite Heqo. destruct p; trivial; simpl; constructor.
+         remember ((Mem.mem_access m) !! b0 ofs Cur) as w.
+         destruct w; inv perm_le_Cur. symmetry in Heqw.
+         assert (Qq: Mem.perm m' b0 ofs Cur p0).
+         eapply (Mem.perm_free_1 _ _ _ _ _ FL b0 ofs Cur p0). left; trivial.  
+         unfold Mem.perm. rewrite Heqw. destruct p0; trivial; simpl; constructor.
+         unfold Mem.perm in *.
+Locate perm_lesseq.
+         remember ((Mem.mem_access m) !! b0 ofs Cur) as w.
+Admitted.
+
+Lemma ple_freelist: forall l m m' (FL: Mem.free_list m l = Some m') m1 (PLE:perm_lesseq m m1),
+      exists m1', Mem.free_list m1 l = Some m1' /\ perm_lesseq m' m1'.
+Proof. induction l; simpl; intros.
++ inv FL;  exists m1; split; trivial.
++ destruct a as [[b lo] hi]. remember (Mem.free m b lo hi) as q. destruct q; inv FL.
+  symmetry in Heqq.
+  destruct (ple_free _ _ _ _ _ Heqq _ PLE) as [mm [MMF MM]]. rewrite MMF. eauto.
+Qed.
+
+Lemma ple_storebytes:
+  forall m b ofs bytes m' m1
+   (PLE: perm_lesseq m m1),
+   Mem.storebytes m b ofs bytes = Some m' ->
+   exists m1', perm_lesseq m' m1' /\ Mem.storebytes m1 b ofs bytes = Some m1'.
+Proof.
+intros. Transparent Mem.storebytes. unfold Mem.storebytes in *. Opaque Mem.storebytes.
+remember (Mem.range_perm_dec m b ofs (ofs + Z.of_nat (length bytes)) Cur Writable ) as d.
+destruct d; inv H. 
+destruct (Mem.range_perm_dec m1 b ofs (ofs + Z.of_nat (length bytes)) Cur Writable).
++ clear Heqd.
+  eexists; split. 2: reflexivity.
+  destruct PLE. 
+  split; intros; simpl.
+  - simpl. apply perm_le_Cur.
+  - simpl. apply perm_le_Max.
+  - simpl in *. rewrite PMap.gsspec. rewrite PMap.gsspec.
+    destruct (peq b0 b); subst. 
+    * destruct (zlt ofs0 ofs).
+      ++ rewrite Mem.setN_outside. 2: left; trivial.  rewrite Mem.setN_outside. 2: left; trivial.  apply perm_le_cont. apply H.
+      ++ destruct (zle (ofs+Z.of_nat (length bytes)) ofs0).
+         rewrite Mem.setN_outside. 2: right; xomega.  rewrite Mem.setN_outside. 2: right; xomega.  apply perm_le_cont. apply H.
+         clear - g g0.
+         remember ((Mem.mem_contents m1) !! b) as mA. clear HeqmA.
+         remember ((Mem.mem_contents m) !! b) as mB. clear HeqmB.
+         revert ofs mA mB g g0; induction bytes; intros; simpl. 
+         -- simpl in *; omega.
+         -- simpl length in g0; rewrite inj_S in g0.
+            destruct (zeq ofs ofs0). 
+            ** subst ofs0. rewrite !Mem.setN_outside by omega. rewrite !ZMap.gss; auto.
+            ** apply IHbytes; omega.
+    * apply perm_le_cont. apply H.
+  - assumption .
++ elim n; clear - PLE r. destruct PLE.
+  red; intros. specialize (r _ H). specialize (perm_le_Cur b ofs0).
+  unfold Mem.perm in *.
+  destruct ((Mem.mem_access m1) !! b ofs0 Cur).
+  destruct ((Mem.mem_access m) !! b ofs0 Cur). simpl in *. eapply perm_order_trans; eassumption.
+  inv r.
+  destruct ((Mem.mem_access m) !! b ofs0 Cur); inv perm_le_Cur. inv r.
+Qed. 
+
+Lemma ple_loadbytes m b ofs n bytes 
+            (LD: Mem.loadbytes m b ofs n = Some bytes)
+            m1 (PLE: perm_lesseq m m1) (N: 0 <= n): 
+            Mem.loadbytes m1 b ofs n = Some bytes.
+Proof.
+Transparent Mem.loadbytes.
+unfold Mem.loadbytes.
+Opaque Mem.loadbytes.
+apply loadbytes_D in LD. destruct LD as [RP1 CONT].
+destruct PLE.
+destruct (Mem.range_perm_dec m1 b ofs (ofs + n) Cur Readable).
++ rewrite CONT; f_equal. eapply Mem.getN_exten.
+  intros. apply perm_le_cont. apply RP1. rewrite nat_of_Z_eq in H; omega. 
++ elim n0; clear - RP1 perm_le_Cur.
+  red; intros. specialize (RP1 _ H). specialize (perm_le_Cur b ofs0).
+  unfold Mem.perm in *.
+  destruct ((Mem.mem_access m1) !! b ofs0 Cur).
+  destruct ((Mem.mem_access m) !! b ofs0 Cur). simpl in *. eapply perm_order_trans; eassumption.
+  inv RP1.
+  destruct ((Mem.mem_access m) !! b ofs0 Cur); inv perm_le_Cur. inv RP1.
+Qed.
+
+Lemma alloc_inc_perm: forall m lo hi m' b
+      (M: Mem.alloc m lo hi = (m',b)) m1 (PLE: perm_lesseq m m1),
+      exists m1' : mem, Mem.alloc m1 lo hi =(m1',b) /\ perm_lesseq m' m1'. 
+Proof. intros.
+  remember (Mem.alloc m1 lo hi). destruct p.
+  symmetry in Heqp.
+  assert (B: b0=b).
+     apply Mem.alloc_result  in M. apply Mem.alloc_result  in Heqp.
+     destruct PLE. rewrite perm_le_nb in *; subst. trivial.
+  subst b0.
+  eexists m0; split; trivial.
+  destruct PLE.
+  split; intros.
+  + specialize (perm_le_Cur b0 ofs); clear perm_le_Max.
+    destruct ((Mem.mem_access m1) !! b0 ofs Cur); simpl in *.
+    - remember ((Mem.mem_access m) !! b0 ofs Cur) as q.
+      destruct q; symmetry in Heqq.
+      * assert (VB: Mem.valid_block m b0).
+        { eapply (Mem.perm_valid_block m b0 ofs Cur p0). unfold Mem.perm. rewrite Heqq. simpl. apply perm_refl. }
+        destruct (eq_block b0 b).
+        ++ subst. elim (Mem.fresh_block_alloc _ _ _ _ _ M); trivial.
+        ++ specialize (Mem.perm_alloc_1 _ _ _ _ _ M b0 ofs Cur). unfold Mem.perm. rewrite Heqq. intros.
+           remember ((Mem.mem_access m0) !! b0 ofs Cur) as w. destruct w; simpl.
+           symmetry in Heqw.
+Admitted.
+
+Lemma perm_lesseq_refl:
+  forall m, perm_lesseq m m.
+Proof.
+intros.
+ constructor; intros; auto.
+ match goal with |- Mem.perm_order'' ?A _ => destruct A; constructor end.
+ match goal with |- Mem.perm_order'' ?A _ => destruct A; constructor end.
 Qed.
 
 (*************************************************************************)

@@ -90,8 +90,9 @@ Record MemSem {G C} :=
   { csem :> @CoreSemantics G C mem
 
   ; corestep_mem : forall g c m c' m' (CS: corestep csem g c m c' m'), mem_step m m'
+  (*later, we'll want to add the following constraint
   ; corestep_incr_perm: forall g c m c' m' (CS: corestep csem g c m c' m')  m1 (PLE: perm_lesseq m m1),
-         exists m1', corestep csem g c m1 c' m1' /\ perm_lesseq m' m1'
+         exists m1', corestep csem g c m1 c' m1' /\ perm_lesseq m' m1'*)
   }.
 
 Implicit Arguments MemSem [].
