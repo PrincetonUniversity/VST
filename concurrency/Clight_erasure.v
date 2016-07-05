@@ -28,7 +28,7 @@ Require Import sepcomp.wholeprog_simulations.
 
 (*General erasure*)
 Require Import concurrency.erasure_signature.
-Require Import concurrency.erasure_proof. Import Parching.
+Require Import concurrency.erasure_proof.
 
 From mathcomp.ssreflect Require Import ssreflect seq.
 
