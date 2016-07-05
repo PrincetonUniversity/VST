@@ -1503,69 +1503,6 @@ Proof.
   + eassumption.
 Qed.
 
-Section ALLOC.
-
-Variable m1: mem.
-Variables lo hi: Z.
-Variable m2: mem.
-Variable b: Values.block.
-Hypothesis ALLOC: Mem.alloc m1 lo hi = (m2, b).
-
-Transparent Mem.alloc.
-Lemma AllocContentsUndef: 
-     (Mem.mem_contents m2) !! b = ZMap.init Undef.
-Proof.
-   injection ALLOC. simpl; intros. subst.
-   simpl. rewrite PMap.gss. reflexivity.
-Qed.
-Lemma AllocContentsOther: forall b', b' <> b -> 
-     (Mem.mem_contents m2) !! b' = (Mem.mem_contents m1) !! b'.
-Proof.
-   injection ALLOC. simpl; intros. subst. simpl.
-   rewrite PMap.gso; trivial.
-Qed.
-Opaque Mem.alloc.
-
-Lemma AllocContentsUndef1: forall z,
-     ZMap.get z (Mem.mem_contents m2) !! b = Undef.
-Proof. intros. rewrite AllocContentsUndef . apply ZMap.gi. Qed.
-
-Lemma AllocContentsOther1: forall b', b' <> b -> 
-      (Mem.mem_contents m2) !! b' = (Mem.mem_contents m1) !! b'. 
-Proof. intros. rewrite AllocContentsOther; trivial. Qed.
-
-End ALLOC.
-
-(*The following 2 lemmas are from Cminorgenproof.v*)
-Lemma nextblock_storev:
-  forall chunk m addr v m',
-  Mem.storev chunk m addr v = Some m' -> Mem.nextblock m' = Mem.nextblock m.
-Proof.
-  unfold Mem.storev; intros. destruct addr; try discriminate. 
-  eapply Mem.nextblock_store; eauto.
-Qed.
-Lemma nextblock_freelist:
-  forall fbl m m',
-  Mem.free_list m fbl = Some m' ->
-  Mem.nextblock m' = Mem.nextblock m.
-Proof.
-  induction fbl; intros until m'; simpl.
-  congruence.
-  destruct a as [[b lo] hi]. 
-  case_eq (Mem.free m b lo hi); intros; try congruence.
-  transitivity (Mem.nextblock m0). eauto. eapply Mem.nextblock_free; eauto.
-Qed.
-Lemma perm_freelist:
-  forall fbl m m' b ofs k p,
-  Mem.free_list m fbl = Some m' ->
-  Mem.perm m' b ofs k p ->
-  Mem.perm m b ofs k p.
-Proof.
-  induction fbl; simpl; intros until p.
-  congruence.
-  destruct a as [[b' lo] hi]. case_eq (Mem.free m b' lo hi); try congruence.
-  intros. eauto with mem.
-Qed.
 
 Lemma storebytes_freshloc: forall m b z bytes m'
   (SB: Mem.storebytes m b z bytes = Some m'),
