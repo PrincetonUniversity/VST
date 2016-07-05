@@ -377,10 +377,62 @@ Proof. intros.
   eapply store_args_mem_step; try eassumption.
 Qed.
 
+Lemma ple_load m ch a v (LD: Mem.loadv ch m a = Some v) m1 (PLE: perm_lesseq m m1): Mem.loadv ch m1 a = Some v.
+Admitted.
+
+Lemma asm_inc_perm: forall (g : genv) c m c' m' (CS:corestep Asm_core_sem g c m c' m')
+      m1 (PLE: perm_lesseq m m1),
+      exists m1', corestep Asm_core_sem g c m1 c' m1' /\ perm_lesseq m' m1'.
+Proof.
+intros; inv CS; simpl in *; try contradiction.
++ destruct i; simpl in *; inv H2;
+  try solve [exists m1; split; trivial; econstructor; try eassumption; reflexivity].
+  - unfold exec_load in H4. remember (Mem.loadv Mint32 m (eval_addrmode g a rs)) as d.
+    destruct d; inv H4. 
+    exists m1; split; trivial. econstructor; try eassumption. simpl. unfold exec_load. 
+     symmetry in Heqd.
+     rewrite (ple_load _ _ _ _ Heqd _ PLE); trivial.
+  - admit.  
+  - admit.  
+  - admit.  
+  - admit.  
+  - admit.  
+  - admit.  
+  - admit.  
+  - admit.  
+  - admit.  
+  - admit.  
+  - admit.  
+  - admit.  
+  - admit.  
+  - admit.  
+  - admit.  
+  - admit.  
+  - admit.  
+  - admit.  
+  - admit.  
+  - admit.  
+  - admit.  
+  - admit.  
+  - admit.  
+  - admit.  
+  - admit.  
+  - admit.  
+  - admit.  
+  - admit.  
+  - admit.  
+  - admit.  
+  - admit.  
+  - admit.
++ exists m1; split; trivial. econstructor; try eassumption. admit.
++ admit.
+Admitted.
+    
 Program Definition Asm_mem_sem : @MemSem genv state.
 Proof.
 apply Build_MemSem with (csem := Asm_core_sem).
   apply (asm_mem_step).
+  apply asm_inc_perm.
 Defined.
 
 Lemma exec_instr_forward g c i rs m rs' m': forall 

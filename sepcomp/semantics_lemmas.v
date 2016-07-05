@@ -261,6 +261,25 @@ Proof.
 eapply (memsem_preserves s _ readonly_preserve'); eassumption.
 Qed.
 
+Lemma mem_step_nextblock:  memstep_preserve (fun m m' => Mem.nextblock m <= Mem.nextblock m')%positive.
+constructor.
++ intros. xomega.
++ induction 1.
+ - apply Mem.nextblock_storebytes in H; 
+   rewrite H; xomega. 
+ - apply Mem.nextblock_alloc in H.
+   rewrite H. clear. xomega.
+ - apply nextblock_freelist in H.
+   rewrite H; xomega.
+ - xomega.
+Qed.
+
+Lemma mem_step_nextblock':
+  forall m m',
+     mem_step m m' ->
+   (Mem.nextblock m <= Mem.nextblock m')%positive.
+Proof. apply mem_step_nextblock. Qed.
+
 (*E-step: Axiomatization of external steps - potentially useful when Memory interface is hardened
 Inductive e_step m m' : Prop :=
     mem_step_estep: mem_step m m' -> e_step m m'
@@ -333,6 +352,92 @@ Transparent Mem.loadbytes.
   elim n; clear n. red; intros. eapply Mem.perm_drop_4. eassumption. apply r. trivial.
 Qed. 
 *)
+
+Lemma mem_step_obeys_cur_write:
+  forall m b ofs m',
+    Mem.valid_block m b ->
+   ~ Mem.perm m b ofs Cur Writable ->
+   mem_step m m' ->
+ ZMap.get ofs (PMap.get b (Mem.mem_contents m)) =
+ ZMap.get ofs (PMap.get b (Mem.mem_contents m')).
+Proof.
+ intros.
+ induction H1.
+* revert m ofs0 H H0 H1; induction bytes; intros.
+ Transparent Mem.storebytes.
+ unfold Mem.storebytes in H1.
+ destruct (Mem.range_perm_dec m b0 ofs0
+         (ofs0 + Z.of_nat (length nil)) Cur Writable);
+  inv H1; simpl.
+ destruct (peq b b0). subst b0.
+ rewrite PMap.gss. auto.
+ rewrite PMap.gso; auto.
+ change (a::bytes) with ((a::nil)++bytes) in H1.
+ apply Mem.storebytes_split in H1.
+ destruct H1 as [m1 [? ?]].
+ etransitivity.
+ 2: eapply IHbytes; try apply H2.
+ clear H2 IHbytes.
+ unfold Mem.storebytes in H1. 
+Opaque Mem.storebytes.
+ destruct (Mem.range_perm_dec m b0 ofs0
+         (ofs0 + Z.of_nat (length (a :: nil))) Cur Writable);
+ inv H1; simpl.
+ destruct (peq b b0). subst b0.
+ rewrite PMap.gss.
+ destruct (zeq ofs0 ofs). subst.
+ contradiction H0. apply r. simpl. omega.
+ rewrite ZMap.gso; auto. 
+ rewrite PMap.gso; auto.
+ clear - H H1.
+ eapply Mem.storebytes_valid_block_1; eauto.
+ contradict H0. clear - H1 H0.
+ eapply Mem.perm_storebytes_2; eauto.
+*
+ apply AllocContentsOther with (b':=b) in H1.
+ rewrite H1. auto. intro; subst.
+ apply Mem.alloc_result in H1; unfold Mem.valid_block in H.
+ subst. apply Plt_strict in H; auto.
+*
+ revert m H H0 H1; induction l; simpl; intros.
+ inv H1; auto.
+ destruct a. destruct p.
+ destruct (Mem.free m b0 z0 z) eqn:?; inv H1.
+ rewrite <- (IHl m0); auto.
+ eapply free_contents; eauto.
+ intros [? ?]. subst b0. apply H0.
+ apply Mem.free_range_perm in Heqo.
+   specialize (Heqo ofs).
+   eapply Mem.perm_implies. apply Heqo. omega. constructor.
+ clear - H Heqo.
+ unfold Mem.valid_block in *.
+ apply Mem.nextblock_free in Heqo. rewrite Heqo.
+ auto.
+ clear - H0 Heqo.
+ contradict H0.
+ eapply Mem.perm_free_3; eauto.
+*
+ assert (Mem.valid_block m'' b). {
+   apply mem_step_nextblock in H1_.
+   unfold Mem.valid_block in *.
+   eapply Plt_le_trans; eauto.
+ }
+ erewrite IHmem_step1 by auto. apply IHmem_step2; auto.
+ contradict H0.
+ clear - H H1_ H0.
+ revert H H0; induction H1_; intros.
+ eapply Mem.perm_storebytes_2; eauto.
+ pose proof (Mem.perm_alloc_inv _ _ _ _ _ H _ _ _ _ H1).
+ destruct (eq_block b b'); subst; trivial.
+ - pose proof (Mem.alloc_result _ _ _ _ _ H).
+   subst. apply Plt_strict in H0. contradiction.
+ - eapply Mem.perm_free_list in H; try apply H1.
+   destruct H; auto.
+ - eapply IHH1_1; auto. eapply IHH1_2; eauto.
+   apply mem_step_nextblock in H1_1.
+   unfold Mem.valid_block in *.
+   eapply Plt_le_trans; eauto.
+Qed.
 
 (*************************************************************************)
 

@@ -70,6 +70,19 @@ Inductive mem_step m m' : Prop :=
   | mem_step_trans: forall m'',
        mem_step m m'' -> mem_step m'' m' -> mem_step m m'.
 
+Local Notation "a # b" := (PMap.get b a) (at level 1).
+Record perm_lesseq (m m': mem):= {
+  perm_le_Cur:
+    forall b ofs, Mem.perm_order'' ((Mem.mem_access m')#b ofs Cur) ((Mem.mem_access m)#b ofs Cur)
+; perm_le_Max:
+    forall b ofs, Mem.perm_order'' ((Mem.mem_access m')#b ofs Max) ((Mem.mem_access m)#b ofs Max)
+; perm_le_cont:
+    forall b ofs, Mem.perm m b ofs Cur Readable -> 
+     ZMap.get ofs (Mem.mem_contents m') !! b= ZMap.get ofs (Mem.mem_contents m) !! b
+; perm_le_nb: Mem.nextblock m = Mem.nextblock m'
+}.
+
+
 (* Memory semantics are CoreSemantics that are specialized to CompCert memories
    and evolve memory according to mem_step. Previous notion CoopCoreSem is deprecated,
    but for now retained in file CoopCoreSem.v *)
@@ -77,6 +90,8 @@ Record MemSem {G C} :=
   { csem :> @CoreSemantics G C mem
 
   ; corestep_mem : forall g c m c' m' (CS: corestep csem g c m c' m'), mem_step m m'
+  ; corestep_incr_perm: forall g c m c' m' (CS: corestep csem g c m c' m')  m1 (PLE: perm_lesseq m m1),
+         exists m1', corestep csem g c m1 c' m1' /\ perm_lesseq m' m1'
   }.
 
 Implicit Arguments MemSem [].

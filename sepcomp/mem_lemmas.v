@@ -11,6 +11,8 @@ Require Import compcert.common.Globalenvs.
 
 Require Import msl.Extensionality.
 
+Require Import sepcomp.Address.
+
 Notation val_inject:= Val.inject.
 
 Lemma valid_block_dec: forall m b, {Mem.valid_block m b} +  {~Mem.valid_block m b}.
@@ -1890,6 +1892,122 @@ split. eapply Genv.load_store_init_data_invariant; try eassumption.
 split. trivial.
 intros z N. apply (NP z); eauto.
 Qed.
+
+(*The following 2 lemmas are from Cminorgenproof.v*)
+Lemma nextblock_storev:
+  forall chunk m addr v m',
+  Mem.storev chunk m addr v = Some m' -> Mem.nextblock m' = Mem.nextblock m.
+Proof.
+  unfold Mem.storev; intros. destruct addr; try discriminate. 
+  eapply Mem.nextblock_store; eauto.
+Qed.
+Lemma nextblock_freelist:
+  forall fbl m m',
+  Mem.free_list m fbl = Some m' ->
+  Mem.nextblock m' = Mem.nextblock m.
+Proof.
+  induction fbl; intros until m'; simpl.
+  congruence.
+  destruct a as [[b lo] hi]. 
+  case_eq (Mem.free m b lo hi); intros; try congruence.
+  transitivity (Mem.nextblock m0). eauto. eapply Mem.nextblock_free; eauto.
+Qed.
+Lemma perm_freelist:
+  forall fbl m m' b ofs k p,
+  Mem.free_list m fbl = Some m' ->
+  Mem.perm m' b ofs k p ->
+  Mem.perm m b ofs k p.
+Proof.
+  induction fbl; simpl; intros until p.
+  congruence.
+  destruct a as [[b' lo] hi]. case_eq (Mem.free m b' lo hi); try congruence.
+  intros. eauto with mem.
+Qed.
+
+
+Lemma get_freelist:
+  forall fbl m m' (FL: Mem.free_list m fbl = Some m') b
+  (H: forall b' lo hi, In (b', lo, hi) fbl -> b' <> b) z,
+  ZMap.get z (Mem.mem_contents m') !! b = 
+  ZMap.get z (Mem.mem_contents m) !! b.
+Proof. intros fbl.
+  induction fbl; simpl; intros; inv FL; trivial.
+  destruct a. destruct p.
+  remember (Mem.free m b0 z1 z0) as d.
+  destruct d; inv H1. apply eq_sym in Heqd.
+  rewrite (IHfbl _ _ H2 b).
+     clear IHfbl H2.
+     case_eq (eq_block b0 b); intros.
+      exfalso. eapply (H b0). left. reflexivity. assumption.
+     apply Mem.free_result in Heqd. subst. reflexivity.
+  eauto.
+Qed.
+
+Lemma free_contents:
+ forall m b lo hi m' b' ofs,
+    Mem.free m b lo hi = Some m' ->
+     ~adr_range (b,lo) (hi-lo) (b',ofs) ->
+  ZMap.get ofs (PMap.get b' (Mem.mem_contents m)) =
+  ZMap.get ofs (PMap.get b' (Mem.mem_contents m')).
+Proof.
+intros.
+Transparent Mem.free.
+unfold Mem.free in H.
+Opaque Mem.free.
+destruct (Mem.range_perm_dec m b lo hi Cur Freeable); inv H.
+unfold Mem.unchecked_free.
+simpl.
+reflexivity.
+Qed.
+
+
+Section ALLOC.
+
+Variable m1: mem.
+Variables lo hi: Z.
+Variable m2: mem.
+Variable b: Values.block.
+Hypothesis ALLOC: Mem.alloc m1 lo hi = (m2, b).
+
+Transparent Mem.alloc.
+Lemma AllocContentsUndef: 
+     (Mem.mem_contents m2) !! b = ZMap.init Undef.
+Proof.
+   injection ALLOC. simpl; intros. subst.
+   simpl. rewrite PMap.gss. reflexivity.
+Qed.
+Lemma AllocContentsOther: forall b', b' <> b -> 
+     (Mem.mem_contents m2) !! b' = (Mem.mem_contents m1) !! b'.
+Proof.
+   injection ALLOC. simpl; intros. subst. simpl.
+   rewrite PMap.gso; trivial.
+Qed.
+Opaque Mem.alloc.
+
+Lemma AllocContentsUndef1: forall z,
+     ZMap.get z (Mem.mem_contents m2) !! b = Undef.
+Proof. intros. rewrite AllocContentsUndef . apply ZMap.gi. Qed.
+
+Lemma AllocContentsOther1: forall b', b' <> b -> 
+      (Mem.mem_contents m2) !! b' = (Mem.mem_contents m1) !! b'. 
+Proof. intros. rewrite AllocContentsOther; trivial. Qed.
+
+Lemma alloc_contents:
+ forall b1 ofs,
+    Mem.valid_block m1 b1 ->
+  ZMap.get ofs (PMap.get b1 (Mem.mem_contents m1)) =
+  ZMap.get ofs (PMap.get b1 (Mem.mem_contents m2)).
+Proof.
+ intros.
+Transparent Mem.alloc. unfold Mem.alloc in ALLOC. Opaque Mem.alloc.
+inv ALLOC. simpl.
+unfold Mem.valid_block in H.
+rewrite PMap.gso; auto.
+intro; subst. apply Plt_strict in H; auto.
+Qed.
+
+
+End ALLOC.
 
 Definition gvar_info_eq {V1 V2} (v1: option (globvar V1)) (v2: option (globvar V2)) :=
   match v1, v2 with
