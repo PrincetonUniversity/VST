@@ -2083,7 +2083,7 @@ End R.
 
 Section R_lems.
 
-Context data j x1 m1 x2 m2 (pf : R data j x1 m1 x2 m2).
+Context data mu x1 m1 x2 m2 (pf : R data mu x1 m1 x2 m2).
 
 Import CallStack.
 Import Linker.
