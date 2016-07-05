@@ -2981,7 +2981,7 @@ Module Parching (DecayingSEM: DecayingSemantics) <: ErasureSig.
            apply DecayingSEM.step_decay in H.
            
            
-           eapply Top.Parching.DSEM.DryMachineLemmas.step_decay_invariant
+           eapply DSEM.DryMachineLemmas.step_decay_invariant
            with (Hcompatible:= MTCH_compat _ _ _ MATCH Hcmpt); try eapply H; eauto.
            eapply MTCH_restrict_personal.
            auto.

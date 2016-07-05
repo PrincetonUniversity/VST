@@ -926,6 +926,7 @@ Module Concur.
       | None => None
       end.
 
+    
     Module JuicyMachineLemmas.
 
       Lemma compatible_lockRes_sub: forall js l phi,
