@@ -42,7 +42,7 @@ Import addressFiniteMap.
   Definition  
 End ClightSEM.*)
 
-    
+    (*
 
 
 
@@ -64,7 +64,7 @@ Theorem clight_erasure:
                                 ClightErasure.init_inv
                                 ClightErasure.halt_inv.
 Proof.
-  Proof. intros. apply ClightErasure.erasure. assumption. Qed.
+  Proof. intros. apply ClightErasure.erasure. assumption. Qed.*)
 
 
   
