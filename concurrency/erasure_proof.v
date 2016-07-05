@@ -2917,7 +2917,7 @@ Module Parching (DecayingSEM: DecayingSemantics) <: ErasureSig.
   Lemma core_diagram':
     forall (m : Mem.mem)  (U0 U U': schedule) 
      (ds : dstate) (js js': jstate) rmap pmap
-     (m' : Mem.mem),
+     (m' : Mem.mem) genv,
    match_st js ds ->
    DSEM.invariant ds ->
    corestep (JMachineSem U0 rmap) genv (U,nil, js) m (U',nil, js') m' ->
@@ -2925,7 +2925,7 @@ Module Parching (DecayingSEM: DecayingSemantics) <: ErasureSig.
      DSEM.invariant ds' /\
      match_st js' ds' /\
      corestep (DMachineSem U0 pmap) genv (U,nil, ds) m (U',nil, ds') m'.
-       intros m U0 U U' ds js js' rmap pmap m' MATCH dinv.
+       intros m U0 U U' ds js js' rmap pmap m' genv MATCH dinv.
        unfold JuicyMachine.MachineSemantics; simpl.
        unfold JuicyMachine.MachStep; simpl.
        intros STEP;
@@ -3071,7 +3071,7 @@ Qed.
   Lemma core_diagram:
     forall (m : Mem.mem)  (U0 U U': schedule) rmap pmap 
      (ds : dstate) (js js': jstate) 
-     (m' : Mem.mem),
+     (m' : Mem.mem) genv,
    corestep (JMachineSem U0 rmap) genv (U,nil, js) m (U',nil, js') m' ->
    match_st js ds ->
    DSEM.invariant ds ->
@@ -3080,7 +3080,7 @@ Qed.
      match_st js' ds' /\
      corestep (DMachineSem U0 pmap) genv (U,nil, ds) m (U',nil, ds') m'.
   Proof.
-    intros. destruct (core_diagram' m U0 U U' ds js js' rmap0 pmap m' H0 H1 H) as [ds' [A[B C]]].
+    intros. destruct (core_diagram' m U0 U U' ds js js' rmap0 pmap m' genv0 H0 H1 H) as [ds' [A[B C]]].
     exists ds'; split;[|split]; try assumption.
   Qed.
 
