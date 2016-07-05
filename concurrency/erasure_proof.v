@@ -651,10 +651,10 @@ Module Parching <: ErasureSig.
     Variable main: Values.val.
     Lemma init_diagram:
       forall (j : Values.Val.meminj) (U:schedule) (js : jstate)
-        (vals : list Values.val) (m : Mem.mem) tr rmap pmap,
+        (vals : list Values.val) (m : Mem.mem) rmap pmap,
         init_inj_ok j m ->
         match_rmap_perm rmap pmap ->
-        initial_core (JMachineSem U (Some rmap)) genv main vals = Some (U, tr, js) ->
+        initial_core (JMachineSem U (Some rmap)) genv main vals = Some (U, nil, js) ->
         exists (mu : SM_Injection) (ds : dstate),
           as_inj mu = j /\
           initial_core (DMachineSem U (Some pmap)) genv main vals = Some (U, nil,ds) /\
@@ -2248,17 +2248,17 @@ Module Parching <: ErasureSig.
                destruct (eq_dec x Share.bot); auto.
                assumption.
           }
-          { destruct H1 as [HH | HH]; rewrite HH; exists (Some Writable); reflexivity. }
+          { destruct H2 as [HH | HH]; rewrite HH; exists (Some Writable); reflexivity. }
         - intros. apply empty_disjoint'.
         - apply permMapsDisjoint_comm; apply empty_disjoint'.
         - intros. rewrite empty_map_spec. exists (Some Writable); reflexivity.
         - intros; simpl.
           assert (exists r, JSEM.ThreadPool.lockRes js l = Some r).
-          { rewrite DryMachine.SIG.ThreadPool.gsoThreadLPool in H1.
-            inversion MATCH. specialize (mtch_locks l); rewrite H1 in mtch_locks.
+          { rewrite DryMachine.SIG.ThreadPool.gsoThreadLPool in H2.
+            inversion MATCH. specialize (mtch_locks l); rewrite H2 in mtch_locks.
             destruct (JSEM.ThreadPool.lockRes js l) eqn:AA; inversion mtch_locks.
             exists l0; reflexivity. }
-          destruct H3 as [l0 HH].
+          destruct H4 as [l0 HH].
           destruct l0.
           + inversion MATCH. erewrite <- mtch_locksRes; eauto.
             apply permDisjoint_comm.
@@ -2266,14 +2266,14 @@ Module Parching <: ErasureSig.
             apply resource_at_joins with (l:= (b, ofs0)) in HH.
             move HH at bottom.
             assert (ineq':Int.intval ofs <= ofs0 < Int.intval ofs + juicy_machine.LKSIZE).
-            { clear - H2; destruct H2; auto. }
+            { clear - H3; destruct H3; auto. }
             apply Hct in ineq'.
             destruct ineq' as [val [sh' MAP]].
             rewrite <- Hpersonal_perm in MAP; rewrite MAP in HH.
             destruct HH as [? HH]; inversion HH.
             * simpl. destruct (eq_dec rsh2 Share.bot); exists (Some Writable); reflexivity.
-            * exfalso. apply join_joins in H11. apply pshare_join_full_false1 in H11.
-              exact H11.
+            * exfalso. apply join_joins in H12. apply pshare_join_full_false1 in H12.
+              exact H12.
           + inversion MATCH. replace pmap0 with empty_map.
             rewrite empty_map_spec; exists (Some Writable); reflexivity.
             symmetry; eapply mtch_locksEmpty; eauto.
@@ -2328,7 +2328,7 @@ Module Parching <: ErasureSig.
           rewrite <- Hpersonal_juice in MAP'. 
           rewrite MAP' in HH.
           destruct HH as [X HH].
-          inversion HH; rewrite <- H9 in ineq';
+          inversion HH; rewrite <- H10 in ineq';
           inversion ineq'.
         }
           
@@ -2913,11 +2913,11 @@ Module Parching <: ErasureSig.
      (m' : Mem.mem),
    match_st js ds ->
    DSEM.invariant ds ->
-   corestep (JMachineSem U0 rmap) genv (U, js) m (U', js') m' ->
+   corestep (JMachineSem U0 rmap) genv (U,nil, js) m (U',nil, js') m' ->
    exists (ds' : dstate),
      DSEM.invariant ds' /\
      match_st js' ds' /\
-     corestep (DMachineSem U0 pmap) genv (U, ds) m (U', ds') m'.
+     corestep (DMachineSem U0 pmap) genv (U,nil, ds) m (U',nil, ds') m'.
        intros m U0 U U' ds js js' rmap pmap m' MATCH dinv.
        unfold JuicyMachine.MachineSemantics; simpl.
        unfold JuicyMachine.MachStep; simpl.
@@ -2984,39 +2984,11 @@ Module Parching <: ErasureSig.
            destruct DC as [not_val rest].
            split; intros.
            - unfold Mem.valid_block in H0.
-           
-           replace (restrPermMap (DSEM.compat_th (MTCH_compat js ds m MATCH Hcmpt)  Htid')) with
-           (m_dry (JSEM.personal_mem Htid Hcmpt)).
-           Focus 2. simpl.
-           unfold JSEM.juicyRestrict; simpl.
-           Set Printing All.
-           rewrite JSEM.juic2Perm_correct.
-           simpl in H0.
-           eapply decay_erasure.
-             
-           
-           intros b ofs.
-           split; intros.
-           
-           
-           erewrite <- mtch_gtc; eauto.
-           
-           inversion Hcorestep.
-           unfold resource_decay in H0.
-           destruct H0 as [PERMS _].
-           destruct PERMS as [_ PERMS].
-           
-           
-          (* apply updThread_inv.
-           - assumption.
-           - intros.
-             admit. (*probablys someone did this. *)
-           - a
+             admit.
+           - admit.
 
-             *) (*Need to use core steps preserve mem_compatible*)
-           (* Require Import dry_machine_lemmas.
-           eapply concurrency.dry_machine_lemmas.CoreLanguage.corestep_invariant. *)
-           admit.
+
+           inversion MATCH. erewrite <- mtch_gtc0; eassumption.
          }
          { 
            apply MTCH_age.
@@ -3030,15 +3002,15 @@ Module Parching <: ErasureSig.
          }
          {  assert (Hcmpt': DSEM.mem_compatible ds m) by
                (eapply MTCH_compat; eassumption).
-
+            inversion Hcorestep.
+             eapply ev_step_ax2 in H.
+             destruct H as [T evSTEP].
+            
            econstructor; simpl.
            - eassumption.
            - econstructor; try eassumption.
-             Focus 4. reflexivity.
+             Focus 3. reflexivity.
              Focus 2. eapply (MTCH_getThreadC _ _ _ _ _ _ _ Hthread).
-             Focus 2.
-             simpl.
-             inversion Hcorestep. apply H.
              instantiate(1:=Hcmpt').
              apply MTCH_restrict_personal.
              assumption.
@@ -3065,7 +3037,7 @@ Module Parching <: ErasureSig.
 
        (*Conc step*)
        {
-         destruct (conc_step_diagram m m' U js js' ds tid genv MATCH dinv Htid Hcmpt HschedN Htstep)
+         destruct (conc_step_diagram m m' U js js' ds tid genv ev MATCH dinv Htid Hcmpt HschedN Htstep)
            as [ds' [dinv' [MTCH' step']]]; eauto.
          exists ds'; split; [| split]; try assumption.
          econstructor 5; simpl; try eassumption.
@@ -3102,13 +3074,13 @@ Module Parching <: ErasureSig.
     forall (m : Mem.mem)  (U0 U U': schedule) rmap pmap 
      (ds : dstate) (js js': jstate) 
      (m' : Mem.mem),
-   corestep (JMachineSem U0 rmap) genv (U, js) m (U', js') m' ->
+   corestep (JMachineSem U0 rmap) genv (U,nil, js) m (U',nil, js') m' ->
    match_st js ds ->
    DSEM.invariant ds ->
    exists (ds' : dstate),
      DSEM.invariant ds' /\
      match_st js' ds' /\
-     corestep (DMachineSem U0 pmap) genv (U, ds) m (U', ds') m'.
+     corestep (DMachineSem U0 pmap) genv (U,nil, ds) m (U',nil, ds') m'.
   Proof.
     intros. destruct (core_diagram' m U0 U U' ds js js' rmap0 pmap m' H0 H1 H) as [ds' [A[B C]]].
     exists ds'; split;[|split]; try assumption.
@@ -3117,11 +3089,23 @@ Module Parching <: ErasureSig.
   
   Lemma halted_diagram:
     forall U ds js rmap pmap,
-      fst js = fst ds ->
+      fst (fst js) = fst (fst ds) ->
       halted (JMachineSem U rmap) js = halted (DMachineSem U pmap) ds.
-        intros until pmap. destruct ds, js; simpl; intros HH; rewrite HH.
+        intros until pmap. destruct ds as [dp ?], js as [jp ?]; destruct dp, jp; simpl; intros HH; rewrite HH.
         reflexivity.
   Qed.
+
+  Lemma jstep_empty_trace: forall genv U0 U tr tr' c m c' m' U' rmap,
+      corestep (JMachineSem U0 rmap) genv (U,tr,c) m (U', tr', c') m' ->
+      tr = nil /\ tr' = nil.
+  Proof. intros. inversion H; simpl in *; subst; auto. Qed.
+    
+
+                   
+  Lemma dstep_empty_trace: forall genv U0 U tr tr' c m c' m' U' rmap,
+      corestep (DMachineSem U0 rmap) genv (U,tr,c) m (U', tr', c') m' ->
+      tr = nil /\ tr' = nil.
+  Proof. intros. inversion H; simpl in *; subst; auto. Qed.
   
 End Parching.
 Export Parching.
