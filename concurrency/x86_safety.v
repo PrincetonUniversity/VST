@@ -212,7 +212,7 @@ Opaque Mem.storebytes.
  contradict H0. clear - H1 H0.
  eapply Mem.perm_storebytes_2; eauto.
 *
- apply effect_properties.AllocContentsOther with (b':=b) in H1.
+ apply AllocContentsOther with (b':=b) in H1.
  rewrite H1. auto. intro; subst.
  apply Mem.alloc_result in H1; unfold Mem.valid_block in H.
  subst. apply Plt_strict in H; auto.
@@ -320,11 +320,10 @@ Qed.
     
 (** Assuming safety of cooperative concurrency*)
 Axiom init_coarse_safe:
-  forall f arg U tpc m,
-    init_mem = Some m ->
-    tpc_init f arg = Some (U, tpc) ->
-  forall (sched : Sch),
-    csafe the_ge tpc m sched.
+  forall f arg U tpc mem sched n,
+    init_mem = Some mem ->
+    tpc_init f arg = Some (U, [::], tpc) ->
+    csafe the_ge (sched,[::],tpc) mem n.
 
 (** If the initial state is defined then the initial memory was also
 defined*)
@@ -499,11 +498,11 @@ Qed.
 
 (** Establishing the simulation relation for the initial state*)
 Lemma init_sim:
-  forall f arg U U' tpc tpf m,
-    tpc_init f arg = Some (U, tpc) ->
-    tpf_init f arg = Some (U', tpf) ->
+  forall f arg U U' tpc tpf m n,
+    tpc_init f arg = Some (U, [::], tpc) ->
+    tpf_init f arg = Some (U', [::], tpf) ->
     init_mem = Some m ->
-    sim tpc m tpf (diluteMem m) nil (id_ren m) (id_ren m) (fun i cnti => id_ren m).
+    sim tpc m tpf (diluteMem m) nil (id_ren m) (id_ren m) (fun i cnti => id_ren m) n.
 Proof.
   intros.
   unfold tpc_init, tpf_init in *. simpl in *.
@@ -516,7 +515,9 @@ Proof.
     by (eapply mem_compatible_setMaxPerm; eauto).
   eapply Build_sim with (mem_compc := HmemComp) (mem_compf := HmemCompF).
   - intros; split; auto.
-  - eapply init_coarse_safe with (f := f) (arg := arg); eauto.
+  - simpl. rewrite addn0.
+    intros.
+    eapply init_coarse_safe with (f := f) (arg := arg) (n := n); eauto.
     unfold tpc_init. simpl. unfold myCoarseSemantics.init_machine.
     rewrite Hinit. reflexivity. 
   - intros i cnti cnti'.
@@ -598,8 +599,8 @@ Proof.
 Qed.
 
 Lemma at_external_not_in_xs:
-  forall tpc mc tpf mf xs f fg fp i
-    (Hsim: sim tpc mc tpf mf xs f fg fp)
+  forall tpc mc tpf mf xs f fg fp i n
+    (Hsim: sim tpc mc tpf mf xs f fg fp n)
     (pffi: containsThread tpf i)
     (Hexternal: pffi @ E),
     ~ List.In i xs.
@@ -626,12 +627,12 @@ Proof.
   auto.
 Qed.
 
+
 Lemma fine_safe:
-  forall tpf tpc mf mc (f fg : memren) fp (xs : Sch)
-    (Hsim: sim tpc mc tpf mf xs f fg fp),
-  forall sched,
+  forall tpf tpc mf mc (f fg : memren) fp (xs : Sch) sched
+    (Hsim: sim tpc mc tpf mf xs f fg fp (S (size sched))),
     exists tr,
-    fsafe tpf mf sched tr.
+    fsafe tpf mf sched tr (S (size sched)).
 Proof.
   intros.
   generalize dependent xs.
@@ -651,7 +652,7 @@ Proof.
       specialize (Hstep sched).
       destruct (IHsched _ _ _ _ _ _ _ Hsim') as [tr'' Hsafe''].
       exists (tr' ++ tr'').
-      econstructor 2; simpl; eauto.
+      econstructor 3; simpl; eauto.
     + assert (~ List.In i xs)
         by (eapply at_external_not_in_xs; eauto).
       pose proof (sim_external em [::] cnti Htype H Hsim) as Hsim'.
@@ -659,36 +660,40 @@ Proof.
       destruct (IHsched _ _ _ _ _ _ _ Hsim'') as [tr'' Hsafe''].
       specialize (Hstep sched).
       exists (tr' ++ tr'').
-      econstructor 2; simpl; eauto.
-    + pose proof (sim_halted [::] cnti Htype Hsim) as (tr' & Hstep).
+      econstructor 3; simpl; eauto.
+    + pose proof (sim_halted [::] cnti Htype Hsim) as Hsim'.
+      destruct Hsim' as (tr' & Hstep & Hsim'').
+      destruct (IHsched _ _ _ _ _ _ _ Hsim'') as [tr'' Hsafe''].
       specialize (Hstep sched).
-      destruct (IHsched _ _ _ _ _ _ _ Hsim) as [tr'' Hsafe''].
       exists (tr' ++ tr'').
-      econstructor 2;
+      econstructor 3;
       eauto.
     + pose proof (sim_suspend [::] cnti Htype Hsim) as
           (? & ? & tpf' & m' & ? & ? & tr' & Hstep & Hsim').
       destruct (IHsched _ _ _ _ _ _ _ Hsim') as [tr'' Hsafe''].
       specialize (Hstep sched).
       exists (tr' ++ tr'').
-      econstructor 2; simpl; eauto.
-  - destruct (IHsched _ _ _ _ _ _ _ Hsim) as [tr Hsafe].
+      econstructor 3; simpl; eauto.
+  -  pose proof (sim_fail [::] invalid Hsim) as
+      (tr' & Hstep & Hsim').
+    destruct (IHsched _ _ _ _ _ _ _ Hsim') as [tr Hsafe].
     exists ([::] ++ tr).
-    econstructor 2; eauto.
+    econstructor 3; eauto.
     econstructor 7; simpl; eauto.
-Qed.   
+Qed.
+
 
 (** Safety preservation for the FineConc machine*)
 Theorem init_fine_safe:
   forall f arg U tpf m
     (Hmem: init_mem = Some m)
-    (Hinit: tpf_init f arg = Some (U, tpf)),
+    (Hinit: tpf_init f arg = Some (U, [::], tpf)),
   forall (sched : Sch),
     exists tr,
-      fsafe tpf (diluteMem m) sched tr.
+      fsafe tpf (diluteMem m) sched tr (size sched).+1.
 Proof.
   intros.
-  assert (Hsim := init_sim f arg Hinit Hinit Hmem).
+  assert (Hsim := init_sim f arg (size sched).+1 Hinit Hinit Hmem).
   clear - Hsim.
   eapply fine_safe; eauto.
 Qed.

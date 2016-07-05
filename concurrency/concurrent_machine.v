@@ -592,7 +592,14 @@ Module CoarseMachine (SCH:Scheduler)(SIG : ConcurrentMachineSig with Module Thre
                  (Hstep: MachStep ge st m (schedSkip (fst (fst st)),[::],tp') m')
                  (Hsafe: forall U'', csafe ge (U'',[::],tp') m' n),
       csafe ge st m (S n).
-  
+
+  Lemma csafe_reduce:
+    forall ge sched tp mem n m,
+      csafe ge (sched, [::], tp) mem n ->
+      m <= n ->
+      csafe ge (sched, [::], tp) mem m.
+  Proof.
+  Admitted.
   
 End CoarseMachine.
 
@@ -755,15 +762,16 @@ Module FineMachine  (SCH:Scheduler)(SIG : ConcurrentMachineSig with Module Threa
         inversion H; subst; split; auto.
   Qed.
 
-  (** Schedule safety of the fine-grained machine*)
+  (** Schedule safety of the fine-grained machine*)  
   Inductive fsafe (ge : SEM.G) (tp : thread_pool) (m : mem) (U : Sch)
-    : event_trace -> Prop :=
-  |  HaltedSafe : halted (U, [::], tp) -> fsafe ge tp m U [::]
+    : event_trace -> nat -> Prop :=
+  | Safe_0: forall tr, fsafe ge tp m U tr 0
+  | HaltedSafe : forall n, halted (U, [::], tp) -> fsafe ge tp m U [::] n
   | StepSafe : forall (tp' : thread_pool) (m' : mem)
-                 (ev tr : event_trace),
+                 (ev tr : event_trace) n,
       MachStep ge (U, [::], tp) m (schedSkip U, ev, tp') m' ->
-      fsafe ge tp' m' (schedSkip U) tr ->
-      fsafe ge tp m U (ev ++ tr).
+      fsafe ge tp' m' (schedSkip U) tr n ->
+      fsafe ge tp m U (ev ++ tr) (S n).
   
 End FineMachine.
 
