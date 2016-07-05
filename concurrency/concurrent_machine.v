@@ -581,17 +581,17 @@ Module CoarseMachine (SCH:Scheduler)(SIG : ConcurrentMachineSig with Module Thre
   Qed.
 
   (** Schedule safety of the coarse-grained machine*)
-  Inductive csafe (ge : G) (tp : thread_pool) (m : mem)
-            (U:schedule) : Prop :=
-  | HaltedSafe: halted (U, [::], tp) -> csafe ge tp m U
-  | CoreSafe : forall tp' m'
-                 (Hstep: MachStep ge (U, [::], tp) m (U,[::],tp') m')
-                 (Hsafe: csafe ge tp' m' U),
-      csafe ge tp m U
-  | AngelSafe: forall tp' m'
-                 (Hstep: MachStep ge (U,[::], tp) m (schedSkip U,[::],tp') m')
-                 (Hsafe: forall U'', csafe ge tp' m' U''),
-      csafe ge tp m U.
+  Inductive csafe (ge : G) (st : MachState) (m : mem) : nat -> Prop :=
+  | Safe_0: csafe ge st m 0
+  | HaltedSafe: forall n, halted st -> csafe ge st m n
+  | CoreSafe : forall tp' m' n
+                 (Hstep: MachStep ge st m (fst (fst st),[::],tp') m')
+                 (Hsafe: csafe ge (fst (fst st),[::],tp') m' n),
+      csafe ge st m (S n)
+  | AngelSafe: forall tp' m' n
+                 (Hstep: MachStep ge st m (schedSkip (fst (fst st)),[::],tp') m')
+                 (Hsafe: forall U'', csafe ge (U'',[::],tp') m' n),
+      csafe ge st m (S n).
   
   
 End CoarseMachine.
