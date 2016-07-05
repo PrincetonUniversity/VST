@@ -1041,6 +1041,7 @@ Module StepLemmas.
   
   Lemma mem_compatible_remlock:
     forall tp m addr
+      (Hinv: lr_valid (lockRes tp))
       (Hcomp: mem_compatible tp m),
       mem_compatible (remLockSet tp addr) m.
   Proof.
@@ -1059,13 +1060,11 @@ Module StepLemmas.
         destruct (Intv.In_dec ofs' (ofs, (ofs + lksize.LKSIZE)%Z)).
         rewrite gsslockSet_rem; auto.
         destruct ((getMaxPerm m) # b' ofs'); simpl; constructor.
-        admit.
         rewrite gsolockSet_rem2; auto.
         eapply (compat_ls Hcomp).
-        admit.
       + rewrite gsolockSet_rem1; auto.
         eapply (compat_ls Hcomp).
-  Admitted.
+  Qed.
 
 End StepLemmas.
 

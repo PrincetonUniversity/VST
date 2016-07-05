@@ -4932,6 +4932,65 @@ Module SimProofs (CI: CoreInjections).
           eapply lock_res_set0; eauto.
       }
     }
+    { (* lr_valid *)
+      intros b0 ofs0.
+      destruct (lockRes
+       (updLockSet
+          (updThread pff cf
+             (computeMap (getThreadR pff) (projectAngel f virtue)))
+          (b2, ofs) (projectMap f rmap1)) (b0, ofs0)) eqn:Hres0; auto.
+      intros ofs1 Hofs1.
+      pose proof (lockRes_valid HinvC') as HlrC'.
+      destruct (Pos.eq_dec b0 b2).
+      { subst.
+        destruct (Z.eq_dec ofs ofs1).
+        - subst.
+          specialize (HlrC' b1 ofs0).
+          erewrite gsolockResUpdLock in HlrC'
+            by (intros Hcontra; inversion Hcontra; subst; omega).
+          erewrite gsolockResUpdLock in Hres0
+            by (intros Hcontra; inversion Hcontra; subst; omega).
+          rewrite gsoThreadLPool in Hres0.
+          rewrite gsoThreadLPool in HlrC'.
+          specialize (proj2 (Hlock_if _ _ ofs0 Hf) ltac:(rewrite Hres0;auto)).
+          intro HresC.
+          destruct (lockRes tpc (b1, ofs0)); try by exfalso.
+          specialize (HlrC' ofs1 Hofs1).
+          rewrite gsslockResUpdLock in HlrC'.
+          discriminate.
+        - erewrite gsolockResUpdLock
+            by (intros Hcontra; inversion Hcontra; subst; auto).
+          rewrite gsoThreadLPool.
+          destruct (Z.eq_dec ofs ofs0).
+          + subst.
+            specialize (HlrC' b1 ofs0).
+            rewrite gsslockResUpdLock in HlrC'.
+            specialize (HlrC' ofs1 Hofs1).
+            unfold lksize.LKSIZE in Hofs1. simpl in Hofs1.
+            erewrite gsolockResUpdLock in HlrC'
+              by (intro Hcontra; inversion Hcontra; subst; omega).
+            rewrite gsoThreadLPool in HlrC'.
+            destruct (lockRes tpf (b2, ofs1)) eqn:HlockF; auto.
+            specialize (proj2 (Hlock_if _ _ ofs1 Hf) ltac:(rewrite HlockF; auto)).
+            intro Hcontra. rewrite HlrC' in Hcontra; by exfalso.
+          + erewrite gsolockResUpdLock in Hres0
+              by (intro Hcontra; inversion Hcontra; subst; omega).
+            rewrite gsoThreadLPool in Hres0.
+            pose proof (lockRes_valid HinvF).
+            specialize (H b2 ofs0).
+            rewrite Hres0 in H; eauto.
+      }
+      { erewrite gsolockResUpdLock
+          by (intro Hcontra; inversion Hcontra; subst; auto).
+        rewrite gsoThreadLPool.
+        erewrite gsolockResUpdLock in Hres0
+          by (intro Hcontra; inversion Hcontra; subst; auto).
+        rewrite gsoThreadLPool in Hres0.
+        pose proof (lockRes_valid HinvF).
+        specialize (H b0 ofs0).
+        rewrite Hres0 in H; eauto. 
+      }
+    }
     Unshelve. auto. auto.
   Qed.
   
@@ -5227,12 +5286,21 @@ Module SimProofs (CI: CoreInjections).
   Qed.
 
   Lemma invariant_mklock:
-    forall (tp : thread_pool) (i : tid) (cnti : containsThread tp i)
-      ofs (b : block) (c : ctl) 
+    forall (tpc tpf : thread_pool) (i : tid) (cnti : containsThread tpf i)
+      (ccnti: containsThread tpc i)
+      ofs (bc b : block) (c cc: ctl) pmapc f
       (Hdrop:
          forall ofs0, (ofs <= ofs0 < ofs + Z.of_nat (lksize.LKSIZE_nat))%Z ->
                  Mem.perm_order' ((getThreadR cnti) # b ofs0) Writable)
-      (Hinv: invariant tp),
+      (Hlock_if: forall (bl1 bl2 : block) (ofs : Z),
+          f bl1 = Some bl2 ->
+          lockRes tpc (bl1, ofs) <-> lockRes tpf (bl2, ofs))
+      (Hf: f bc = Some b)
+      (HinvC: invariant
+               (updLockSet
+                  (updThread ccnti cc pmapc) 
+                  (bc, ofs) empty_map))
+      (Hinv: invariant tpf),
       invariant
         (updLockSet
            (updThread cnti c
@@ -5244,10 +5312,10 @@ Module SimProofs (CI: CoreInjections).
     constructor.
     - intros j k cntj cntk Hkj.
       destruct Hinv as [Hinv _ _ _].
-      assert (cntk0 : containsThread tp k)
+      assert (cntk0 : containsThread tpf k).
         by (apply cntUpdateL' in cntk;
              apply cntUpdate' in cntk; auto).
-      assert (cntj0 : containsThread tp j)
+      assert (cntj0 : containsThread tpf j)
         by (apply cntUpdateL' in cntj;
              apply cntUpdate' in cntj; auto).
       destruct (i == j) eqn:Hij; move/eqP:Hij=>Hij.
@@ -5409,6 +5477,65 @@ Module SimProofs (CI: CoreInjections).
             eauto.
         }
         { erewrite gsoLockSet_2; eauto. }
+    -  (* lr_valid *)
+      intros b0 ofs0.
+      destruct (lockRes
+       (updLockSet
+          (updThread cnti c
+             (setPermBlock (Some Nonempty) b ofs 
+                (getThreadR cnti) lksize.LKSIZE_nat)) 
+          (b, ofs) empty_map) (b0, ofs0)) eqn:Hres0; auto.
+      intros ofs1 Hofs1.
+      pose proof (lockRes_valid HinvC) as HlrC'.
+      destruct (Pos.eq_dec b0 b).
+      { subst.
+        destruct (Z.eq_dec ofs ofs1).
+        - subst.
+          specialize (HlrC' bc ofs0).
+          erewrite gsolockResUpdLock in HlrC'
+            by (intros Hcontra; inversion Hcontra; subst; omega).
+          erewrite gsolockResUpdLock in Hres0
+            by (intros Hcontra; inversion Hcontra; subst; omega).
+          rewrite gsoThreadLPool in Hres0.
+          rewrite gsoThreadLPool in HlrC'.
+          specialize (proj2 (Hlock_if _ _ ofs0 Hf) ltac:(rewrite Hres0;auto)).
+          intro HresC.
+          destruct (lockRes tpc (bc, ofs0)); try by exfalso.
+          specialize (HlrC' ofs1 Hofs1).
+          rewrite gsslockResUpdLock in HlrC'.
+          discriminate.
+        - erewrite gsolockResUpdLock
+            by (intros Hcontra; inversion Hcontra; subst; auto).
+          rewrite gsoThreadLPool.
+          destruct (Z.eq_dec ofs ofs0).
+          + subst.
+            specialize (HlrC' bc ofs0).
+            rewrite gsslockResUpdLock in HlrC'.
+            specialize (HlrC' ofs1 Hofs1).
+            unfold lksize.LKSIZE in Hofs1. simpl in Hofs1.
+            erewrite gsolockResUpdLock in HlrC'
+              by (intro Hcontra; inversion Hcontra; subst; omega).
+            rewrite gsoThreadLPool in HlrC'.
+            destruct (lockRes tpf (b, ofs1)) eqn:HlockF; auto.
+            specialize (proj2 (Hlock_if _ _ ofs1 Hf) ltac:(rewrite HlockF; auto)).
+            intro Hcontra. rewrite HlrC' in Hcontra; by exfalso.
+          + erewrite gsolockResUpdLock in Hres0
+              by (intro Hcontra; inversion Hcontra; subst; omega).
+            rewrite gsoThreadLPool in Hres0.
+            pose proof (lockRes_valid Hinv).
+            specialize (H b ofs0).
+            rewrite Hres0 in H; eauto.
+      }
+      { erewrite gsolockResUpdLock
+          by (intro Hcontra; inversion Hcontra; subst; auto).
+        rewrite gsoThreadLPool.
+        erewrite gsolockResUpdLock in Hres0
+          by (intro Hcontra; inversion Hcontra; subst; auto).
+        rewrite gsoThreadLPool in Hres0.
+        pose proof (lockRes_valid Hinv).
+        specialize (H b0 ofs0).
+        rewrite Hres0 in H; eauto. 
+      }
   Qed.
   
 
@@ -6078,6 +6205,11 @@ Module SimProofs (CI: CoreInjections).
       with (vf := vf) (arg := arg) (p := pmap2) in Hres.
       erewrite <- gsoAddLock with (vf := vf) (arg := arg) (p := pmap2);
         by pose proof ((lock_res_set Hinv) _ _ Hres).
+    - (* lr_valid *)
+      intros b0 ofs0.
+      pose proof (lockRes_valid Hinv).
+      specialize (H b0 ofs0).
+      rewrite gsoAddLPool in H. auto.
   Qed.
   
   Lemma invariant_project_spawn:
@@ -6438,13 +6570,18 @@ Module SimProofs (CI: CoreInjections).
         unfold latestThread. simpl.
         erewrite <- contains_iff_num; eauto.
     }
-
     { rewrite gsoAddLock gsoThreadLock.
       intros.
       rewrite gsoAddLPool in H.
       rewrite gsoThreadLPool in H.
       destruct HinvF as [_ _ _ HinvF].
       eauto.
+    }
+    { intros b ofs.
+      rewrite gsoAddLPool.
+      rewrite gsoThreadLPool.
+      pose proof (lockRes_valid HinvF).
+      specialize (H b ofs). eauto.
     }
   Qed.    
 
@@ -9034,7 +9171,7 @@ Module SimProofs (CI: CoreInjections).
             eapply Hlock_if;
             eauto.
         - (* Proof of invariant preservation for fine-grained machine*)
-          clear - HinvF HstoreF.
+          clear - HinvF HstoreF HinvC' Hlock_if Hf.
           eapply invariant_mklock; eauto.
           apply Mem.store_valid_access_3 in HstoreF.
           destruct HstoreF.
@@ -9176,6 +9313,16 @@ Module SimProofs (CI: CoreInjections).
                                         (computeMap (getThreadR pfc) virtue)) 
                              (b, Int.intval ofs)))
         by  (eapply safeC_invariant; eauto).
+      assert (HlockRes_valid:  lr_valid
+                                 (lockRes
+                                    (updThread pff (Kresume cf Vundef)
+                                               (computeMap (getThreadR pff) (projectAngel (fp i pfc) virtue))))).
+      { intros b0 ofs0.
+        rewrite gsoThreadLPool.
+        pose proof (lockRes_valid HinvF).
+        specialize (H0 b0 ofs0). eauto.
+        }
+                    
       (* mem_compatible is easily derived as permissions only changed
       at the lock permission and will always be below freeable*)
       assert (HmemCompF' : mem_compatible tpf'' mf).
@@ -9217,9 +9364,9 @@ Module SimProofs (CI: CoreInjections).
           - subst.
             destruct (Intv.In_dec ofsl' (Int.intval ofs,
                                          ((Int.intval ofs) + lksize.LKSIZE)%Z)).
-            + rewrite gsslockSet_rem; auto.
+            + erewrite gsslockSet_rem by eauto.
               destruct ((getMaxPerm mf) # bl' ofsl'); simpl; auto.
-            + erewrite gsolockSet_rem2; eauto.
+            + erewrite gsolockSet_rem2 by eauto.
               rewrite gsoThreadLock.
               eapply (compat_ls HmemCompF).
           - erewrite gsolockSet_rem1; eauto.
@@ -9421,7 +9568,8 @@ Module SimProofs (CI: CoreInjections).
           do 2 rewrite remLock_updThread_comm.
           eapply updThread_internal_execution; eauto.
           eapply remLock_internal_execution; eauto.
-          apply mem_compatible_remlock; auto.      
+          apply mem_compatible_remlock; auto.
+            by pose proof (lockRes_valid HinvC).
           split.
           (* strong_tsim *)
           intros.
@@ -9499,7 +9647,8 @@ Module SimProofs (CI: CoreInjections).
         split.
       - (* Proof of [strong_mem_obs_eq] for lock set*)
         specialize (HsimWeak _ pfc pff).
-        clear - HpermLS HvalLS Hf HsimWeak.
+        clear - HpermLS HvalLS Hf HsimWeak HlockRes_valid HinvC.
+        pose proof (lockRes_valid HinvC).
         constructor.
         { intros.
           do 2 rewrite restrPermMap_Cur.
@@ -9520,7 +9669,7 @@ Module SimProofs (CI: CoreInjections).
               do 2 rewrite restrPermMap_Cur in HpermLS.
               auto.
           + assert (b <> b1)
-              by (intros H; subst;
+              by (intros Hcontra; subst;
                   rewrite Hrenaming in Hf; inversion Hf; by subst).
             rewrite gsolockSet_rem1; auto.
             rewrite gsoThreadLock.
@@ -9609,7 +9758,16 @@ Module SimProofs (CI: CoreInjections).
       - (* Proof of invariant preservation for fine-grained machine*)
         clear - HinvF HresF  His_lock HinvC' Hf HunchangedF HchangedF HnumThreads
                       HsimWeak HsimRes HpermLS Hpermi_eq Hmem_obs_eq
-                      Hlock_if HLocksInv.
+                      Hlock_if HLocksInv HlockRes_valid HinvC.
+        assert (HlockRes_validC:  lr_valid
+                                   (lockRes
+                                      (updThread pfc (Kresume c Vundef)
+                                                 (computeMap (getThreadR pfc) virtue)))).
+        { intros b0 ofs0.
+          rewrite gsoThreadLPool.
+          pose proof (lockRes_valid HinvC).
+          specialize (H b0 ofs0). eauto.
+        }
         constructor.
         { (* threads don't race *)
           intros j k cntj cntk Hjk.
@@ -9823,6 +9981,49 @@ Module SimProofs (CI: CoreInjections).
               rewrite gsoThreadLock.
               eapply HinvF; eauto.
         }
+      { subst.
+        intros b0 ofs0.
+        destruct (lockRes
+                    (remLockSet
+                       (updThread pff (Kresume cf Vundef)
+                                  (computeMap (getThreadR pff)
+                                              (projectAngel (fp i pfc) virtue)))
+                       (b2, Int.intval ofs)) (b0, ofs0)) eqn:Hres0; auto.
+      intros ofs1 Hofs1.
+      pose proof (lockRes_valid HinvC') as HlrC'.
+      destruct (Pos.eq_dec b0 b2).
+      { subst.
+        destruct (Z.eq_dec (Int.intval ofs) ofs1).
+        - subst.
+          specialize (HlrC' b ofs0).
+          rewrite gsslockResRemLock. auto.
+        - erewrite gsolockResRemLock by
+              (intro Hcontra; inversion Hcontra; subst; auto).
+          rewrite gsoThreadLPool.
+          specialize (HlrC' b2 ofs0).
+          destruct (Z.eq_dec (Int.intval ofs) ofs0).
+          + subst.
+            erewrite gsslockResRemLock in Hres0; discriminate.
+          + erewrite gsolockResRemLock in Hres0
+              by (intro Hcontra; inversion Hcontra; subst; auto).
+            rewrite gsoThreadLPool in Hres0.
+            pose proof (lockRes_valid HinvF) as HresValidF.
+            specialize (HresValidF b2 ofs0).
+            rewrite Hres0 in HresValidF.
+            eauto.
+      }
+      { erewrite gsolockResRemLock
+          by (intros Hcontra; inversion Hcontra; subst; auto).
+        rewrite gsoThreadLPool.
+        erewrite gsolockResRemLock in Hres0
+          by (intros Hcontra; inversion Hcontra; subst; auto).
+        rewrite gsoThreadLPool in Hres0.
+        pose proof (lockRes_valid HinvF) as HresValidF.
+        specialize (HresValidF b0 ofs0).
+        rewrite Hres0 in HresValidF;
+          eauto.
+      }
+      }
       - (* Max permission invariant*)
           by assumption.
       - (* new memory is well-defined*)
@@ -9891,8 +10092,6 @@ Module SimProofs (CI: CoreInjections).
       Unshelve. all:eauto.
 Qed.
       
-
-
   
 End SimProofs.
 End SimProofs.
