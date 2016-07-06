@@ -247,6 +247,18 @@ Proof.
     by eauto.
 Qed.
 
+Lemma domain_memren_trans:
+  forall f f' m m',
+    domain_memren f m ->
+    domain_memren f m' ->
+    domain_memren f' m' ->
+    domain_memren f' m.
+Proof.
+  intros.
+  split;
+    destruct (H b), (H0 b), (H1 b); auto.
+Qed.
+
 Lemma ren_incr_domain_incr:
   forall f f',
     ren_incr f f' ->
