@@ -647,9 +647,79 @@ Qed.
    unfold lockSet, remLockSet. simpl.
  unfold A2PMap.
  rewrite <- !List.fold_left_rev_right.
- match goal with |- context [fold_right ?F] => set (f:=F) end.
- simpl. unfold AMap.elements, AMap.Raw.elements.
- unfold lockGuts. 
+ match goal with |- context [fold_right ?F ?I (rev ?E)] => 
+         set (f:=F); set (init:=I); remember E as rl
+ end.
+ remember  (AMap.elements (elt:=lock_info) (lset ds)) as el.
+ unfold lockGuts in *.
+ assert (H0: forall ofs' e, @InA _ (@AMap.eq_key_elt lock_info) (b',ofs',e) (rev el) 
+                  <-> AMap.MapsTo (b', ofs') e (lset ds)). {
+  intros. split; intro. 
+   apply AMap.elements_2. rewrite <- Heqel. rewrite <- InA_rev; auto.
+   rewrite -> InA_rev. rewrite Heqel. apply AMap.elements_1. auto.
+ }
+ assert (H1: forall ofs' e, @InA _ (@AMap.eq_key_elt lock_info) (b',ofs',e) (rev rl) <->
+      AMap.MapsTo (b',ofs') e (AMap.remove (elt:=lock_info) (b, ofs) (lset ds))). {
+   split; intros.
+   apply AMap.elements_2; auto. rewrite <- Heqrl, <- InA_rev. auto.
+   rewrite -> InA_rev,  -> Heqrl.  apply AMap.elements_1. auto.
+ } 
+ assert (H3: forall ofs' e, AMap.MapsTo (b',ofs') e (AMap.remove (elt:=lock_info) (b, ofs) (lset ds)) 
+                      <-> AMap.MapsTo (b',ofs') e (lset ds)). {
+   split. apply AMap.remove_3. apply AMap.remove_2. congruence.
+ }
+ forget (AMap.remove (elt:=lock_info) (b, ofs) (lset ds)) as removed.
+ unfold AMap.key in *.
+ forget (rev el) as el'. forget (rev rl) as rl'.
+ clear Heqrl rl Heqel el.
+ assert (H4: forall ofs' e, @InA _ (@AMap.eq_key_elt lock_info) (b', ofs', e) el' 
+           <-> @InA _ (@AMap.eq_key_elt lock_info) (b', ofs', e) rl'). {
+  intros. rewrite H1; rewrite H0. symmetry; apply H3.
+ }
+ clear - H H4.
+(*
+ revert el' H4; induction rl'; intros.
+ *
+   simpl. rewrite PMap.gi. revert H4; induction el'; intros. simpl. rewrite PMap.gi; auto.
+  simpl. unfold f at 1.  destruct a as [[? ?] ?]. simpl.
+  destruct (peq b0 b').
+  + subst b0. specialize (H4 z l).
+     elimtype False; clear - H4.
+     match type of H4 with ?A <-> ?B => assert (A <-> True); [ | assert (B <-> False)] end.
+     clear; intuition. left; reflexivity. clear; intuition. inv H. intuition.
+  + rewrite !PMap.gso; auto. 
+      apply IHel'; intros. rewrite <- H4.
+      clear - n; split; intros. right; auto. inv H; auto.
+      inv H1. simpl in *. inv H. contradiction n; auto.
+*
+ simpl. unfold f at 1.   destruct a as [[? ?] ?]. simpl.
+  destruct (peq b0 b').
+  + subst b0.
+     specialize (IHrl' el').
+     elimtype False.
+     clear - H4.
+     match type of H4 with ?A <-> ?B => assert (A <-> True); [ | assert (B <-> False)] end.
+     clear; intuition. left; reflexivity. clear; intuition. inv H. intuition.
+
+
+
+  destruct (peq b0 b).
+  + subst b0. rewrite !PMap.gso; auto. apply IHrl'.
+      intros. rewrite H4. clear - H. split; intro. inv H0; auto. inv H2. simpl in *. congruence.
+      right; auto.
+  + rewrite <- IHrl'.
+ elimtype False.
+      
+ specialize (H4 z l).
+     elimtype False; clear - H4.
+     match type of H4 with ?A <-> ?B => assert (A <-> True); [ | assert (B <-> False)] end.
+     clear; intuition. left; reflexivity. clear; intuition. inv H. intuition.
+  + rewrite !PMap.gso; auto. 
+      apply IHel'; intros. rewrite <- H4.
+      clear - n; split; intros. right; auto. inv H; auto.
+      inv H1. simpl in *. inv H. contradiction n; auto.
+ *)
+ 
    (* THIS IS CORRECT!!! because it's in different blocks
     * NOT TRUE.  See lemmas just above *)
   Admitted.

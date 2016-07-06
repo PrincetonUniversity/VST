@@ -381,15 +381,33 @@ Module Concur.
       forall js (m : mem),
         mem_compatible js m ->
         forall (l1 l2 : address) (phi1 phi2 : rmap),
+          l1 <> l2 ->
           ThreadPool.lockRes js l1 = Some (Some phi1) ->
           ThreadPool.lockRes js l2 = Some (Some phi2) ->
           joins phi1 phi2.
-    Proof. intros ? ? Hcompat; intros.
+    Proof. intros ? ? Hcompat; intros ? ? ? ? Hneq; intros.
            destruct Hcompat as [allj Hcompat].
            inversion Hcompat.
            inversion juice_join0; subst.
            unfold join_locks in H2.
-           clear - H2 H H0. unfold lockRes,lockGuts in H, H0.
+           clear - Hneq H2 H H0. unfold lockRes,lockGuts in H, H0.
+           apply AMap.find_2 in H. apply AMap.find_2 in H0.
+  assert (forall x e, AMap.MapsTo x e (lset js) <->
+               SetoidList.InA (eqA:=@AMap.eq_key_elt lock_info) (x,e) (AMap.elements (lset js))). {
+    split; intros. apply AMap.elements_1; auto.  apply AMap.elements_2; auto.
+  } forget (AMap.elements (elt:=lock_info) (lset js)) as el.
+  assert (SetoidList.InA (eqA:=@AMap.eq_key_elt lock_info) (l1, Some phi1) el).
+   apply H1; auto.
+  assert (SetoidList.InA (eqA:=@AMap.eq_key_elt lock_info) (l2, Some phi2) el).
+   apply H1; auto.
+ clear - H2 H3 H4 Hneq.
+ revert r1 H2 H3 H4; induction el; simpl; intros.
+ inv H3.
+ destruct H2 as [r2 [? ?]].
+ destruct H3. inv H1. simpl in *. destruct y; simpl in *; subst.
+ inv H4. inv H2.
+  apply IHel in H0; clear IHel. auto. simpl in *. congruence. simpl in *; congruence.
+       
     Admitted.
 
     
