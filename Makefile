@@ -103,6 +103,7 @@ UPDATE_SEPCOMP_FILES = \
   structured_injections.v \
   effect_semantics.v effect_simulations.v effect_simulations_lemmas.v \
   effect_properties.v \
+  event_semantics.v \
   closed_safety.v compcert.v \
   val_casted.v \
   reach.v \

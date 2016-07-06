@@ -1215,7 +1215,18 @@ Lemma restrPermMap_irr:
       subst. f_equal;
       apply proof_irrelevance.
     Qed.
-  
+
+(*Lemma restrPermMap_correct :
+  forall p' m (Hlt: permMapLt p' (getMaxPerm m))
+    b ofs,
+    permission_at (restrPermMap Hlt) b ofs Max =
+    Maps.PMap.get b (getMaxPerm m) ofs /\
+    permission_at (restrPermMap Hlt) b ofs Cur =
+    Maps.PMap.get b p' ofs.
+Proof.
+      
+    Admitted.*)
+    
   Lemma restrPermMap_nextblock :
     forall p' m (Hlt: permMapLt p' (getMaxPerm m)),
       Mem.nextblock (restrPermMap Hlt) = Mem.nextblock m.
@@ -1798,3 +1809,4 @@ Section CanonicalPMap.
     Defined.
 
 End CanonicalPMap. *)
+

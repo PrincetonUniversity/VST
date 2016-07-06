@@ -1073,7 +1073,7 @@ Module Parching (DecayingSEM: DecayingSemantics) <: ErasureSig.
             destruct Hcmpt as [all_juice Hcmpt].
             inversion Hcmpt.
             unfold JSEM.juicyLocks_in_lockSet in jloc_in_set.
-            eapply compatible_threadRes_sub with (cnt:= Hi) in juice_join.
+            eapply JSEM.compatible_threadRes_sub with (cnt:= Hi) in juice_join.
             destruct juice_join.
             apply resource_at_join with (loc:=(b, Int.intval ofs)) in H0.
             rewrite HJcanwrite in H0.
@@ -1110,7 +1110,7 @@ Module Parching (DecayingSEM: DecayingSemantics) <: ErasureSig.
             destruct Hcmpt as [all_juice Hcmpt].
             inversion Hcmpt.
             unfold JSEM.juicyLocks_in_lockSet in jloc_in_set.
-            eapply compatible_threadRes_sub with (cnt:= Hi) in juice_join.
+            eapply JSEM.compatible_threadRes_sub with (cnt:= Hi) in juice_join.
             destruct juice_join.
             apply resource_at_join with (loc:=(b, Int.intval ofs)) in H.
             rewrite HJcanwrite in H.
@@ -1486,7 +1486,7 @@ Module Parching (DecayingSEM: DecayingSemantics) <: ErasureSig.
               eapply join_sub_trans.
               eapply join_join_sub; eapply join_comm.
               eassumption.
-              eapply compatible_threadRes_sub; eassumption.
+              eapply JSEM.compatible_threadRes_sub; eassumption.
               
               move His_locked at bottom.
               unfold JSEM.ThreadPool.lockRes in His_locked.
@@ -1539,7 +1539,7 @@ Module Parching (DecayingSEM: DecayingSemantics) <: ErasureSig.
             - inversion Hcompatible.
               apply join_sub_trans with (b0:=(JSEM.ThreadPool.getThreadR Hi)).
               + exists (m_phi jm'). apply Hrem_lock_res.
-              + apply compatible_threadRes_sub; assumption.
+              + apply JSEM.compatible_threadRes_sub; assumption.
           }
           { destruct (NatTID.eq_tid_dec i i0).
             - subst i0. rewrite (DTP.gssThreadRes).
@@ -1594,7 +1594,7 @@ Module Parching (DecayingSEM: DecayingSemantics) <: ErasureSig.
                     - erewrite MTCH_perm' with (MTCH:=MATCH).
                       apply juicy_mem_lemmas.po_join_sub.
                       apply resource_at_join_sub.
-                      apply compatible_threadRes_sub.
+                      apply JSEM.compatible_threadRes_sub.
                       assumption.
                   }
             - rewrite (DTP.gsoThreadRes); try assumption.
@@ -1622,7 +1622,7 @@ Module Parching (DecayingSEM: DecayingSemantics) <: ErasureSig.
           inversion Hcompatible.
           apply access_cohere_sub' with (phi1:= all_juice).
           apply JSEM.acc_coh; assumption.
-          apply compatible_threadRes_sub; assumption.
+          apply JSEM.compatible_threadRes_sub; assumption.
           eexists; eassumption.
         - simpl.
           assert (JOIN:= Hrem_lock_res).
@@ -1660,7 +1660,7 @@ Module Parching (DecayingSEM: DecayingSemantics) <: ErasureSig.
               eapply access_cohere_sub'; eauto.
               eapply join_sub_trans.
               eapply join_join_sub. move JOIN at bottom. eassumption.
-              eapply compatible_threadRes_sub; assumption.
+              eapply JSEM.compatible_threadRes_sub; assumption.
             }
         - simpl; intros; simpl.
           assert (exists r, JSEM.ThreadPool.lockRes js l = Some r).
@@ -1708,7 +1708,7 @@ Module Parching (DecayingSEM: DecayingSemantics) <: ErasureSig.
             inversion Hcompatible.
             assert (VALID:= JSEM.compat_lr_valid Hcmpt).
             specialize (VALID b (Int.intval ofs)).
-            eapply compatible_threadRes_sub with (cnt:= Hi) in juice_join.
+            eapply JSEM.compatible_threadRes_sub with (cnt:= Hi) in juice_join.
             eapply resource_at_join_sub with (l:=(b,Int.intval ofs)) in juice_join.
             rewrite HJcanwrite in juice_join.
             destruct juice_join as [x HH].
@@ -1743,7 +1743,7 @@ Module Parching (DecayingSEM: DecayingSemantics) <: ErasureSig.
             specialize (VALID b ofs0).
             rewrite AA in VALID.
             apply VALID in ineq.
-            eapply compatible_threadRes_sub with (cnt:= Hi) in juice_join.
+            eapply JSEM.compatible_threadRes_sub with (cnt:= Hi) in juice_join.
             eapply resource_at_join_sub with (l:=(b,Int.intval ofs)) in juice_join.
             rewrite HJcanwrite in juice_join.
             destruct juice_join as [x HH].
@@ -1869,7 +1869,7 @@ Module Parching (DecayingSEM: DecayingSemantics) <: ErasureSig.
       - eassumption.
       - eapply join_sub_trans.
         + unfold join_sub. exists (m_phi jm'). eassumption.
-        + eapply compatible_threadRes_sub.
+        + eapply JSEM.compatible_threadRes_sub.
       assumption. }
 
       Unfocus.
@@ -1937,7 +1937,7 @@ Module Parching (DecayingSEM: DecayingSemantics) <: ErasureSig.
               apply resource_at_join_sub.
               eapply join_sub_trans.
               eapply join_join_sub; apply Hrem_lock_res.
-              apply compatible_threadRes_sub. assumption.
+              apply JSEM.compatible_threadRes_sub. assumption.
           - intros.
             replace (MTCH_cnt MATCH Hi) with Htid' by apply proof_irrelevance.
             rewrite <- virtue_spec.
@@ -2295,7 +2295,7 @@ Module Parching (DecayingSEM: DecayingSemantics) <: ErasureSig.
           unfold JSEM.ThreadPool.lockRes in BB.
           specialize (lset_in_juice (b, ofs0)). rewrite BB in lset_in_juice.
           destruct lset_in_juice as [sh' [psh [P MAP]]]; auto.
-          assert (HH:= compatible_threadRes_sub Hi juice_join).
+          assert (HH:= JSEM.compatible_threadRes_sub Hi juice_join).
           apply resource_at_join_sub with (l:= (b,ofs0)) in HH.
           rewrite MAP in HH.
           assert (ineq': Int.intval ofs <= ofs0 < Int.intval ofs + juicy_machine.LKSIZE).
@@ -2318,7 +2318,7 @@ Module Parching (DecayingSEM: DecayingSemantics) <: ErasureSig.
           unfold JSEM.ThreadPool.lockRes in BB.
           specialize (lset_in_juice (b, ofs0)). rewrite BB in lset_in_juice.
           destruct lset_in_juice as [sh' [psh [P MAP]]]; auto.
-          assert (HH:= compatible_threadRes_sub Hi juice_join).
+          assert (HH:= JSEM.compatible_threadRes_sub Hi juice_join).
           assert (VALID:= phi_valid allj).
           specialize (VALID b ofs0).
           unfold "oo" in VALID.
@@ -2841,7 +2841,7 @@ Module Parching (DecayingSEM: DecayingSemantics) <: ErasureSig.
           destruct Hcompatible as [all_juice Hcompatible].
           inversion Hcompatible.
           assert (all_sub: join_sub (JSEM.ThreadPool.getThreadR Hi) all_juice).
-          { apply compatible_threadRes_sub; assumption. }
+          { apply JSEM.compatible_threadRes_sub; assumption. }
           clear - Hlock all_sub jloc_in_set.
           apply resource_at_join_sub with (l:=(b, Int.intval ofs)) in all_sub. 
           destruct all_sub as [whatever all_join].
