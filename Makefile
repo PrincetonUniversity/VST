@@ -146,7 +146,7 @@ CONCUR_FILES= \
   mem_obs_eq.v dry_machine_lemmas.v dry_context.v compcert_threads_lemmas.v \
   x86_inj.v fineConc_safe.v erased_machine.v x86_safe.v\
   erasure_signature.v erasure_proof.v erasure_safety.v Clight_erasure.v \
-  semax_conc.v semax_to_machine.v semax_to_juicy_machine.v \
+  semax_conc.v semax_to_juicy_machine.v \
   stack.v cast.v pred_lemmas.v seq_lemmas.v wf_lemmas.v reestablish.v \
   inj_lemmas.v join_sm.v reach_lemmas.v compcert_linking.v compcert_linking_lemmas.v \
   disjointness.v rc_semantics.v rc_semantics_lemmas.v linking_inv.v

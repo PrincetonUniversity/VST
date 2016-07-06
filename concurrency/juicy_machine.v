@@ -67,6 +67,9 @@ Notation UNLOCK := (EF_external "release" UNLOCK_SIG).
 Definition LKCHUNK:= Mint32.
 Definition LKSIZE:= align_chunk LKCHUNK.
 
+Definition almost_empty rm: Prop:=
+  forall loc sh psh k P, rm @ loc = YES sh psh k P -> forall val, ~ k = VAL val.
+
 Require Import (*compcert_linking*) concurrency.permissions concurrency.threadPool.
 
 (* There are some overlaping definition conflicting. 
@@ -825,6 +828,11 @@ Qed.
         apply level_age_to.
         eapply L, IN'.
     Qed.
+    
+    Lemma map_compose {A B C} (g : A -> B) (f : B -> C) l : map (f oo g) l = map f (map g l).
+    Proof.
+      induction l; simpl; auto. rewrite IHl. auto.
+    Qed.
 
     Lemma perm_of_age:
         forall rm age loc,
@@ -853,9 +861,6 @@ Qed.
             apply old in HH. destruct HH as [P HH]; rewrite HH.
             reflexivity.
       Qed.
-
-    Definition almost_empty rm: Prop:=
-      forall loc sh psh k P, rm @ loc = YES sh psh k P -> forall val, ~ k = VAL val. 
 
     Lemma almost_empty_perm: forall rm,
         almost_empty rm ->

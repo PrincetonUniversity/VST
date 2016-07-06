@@ -129,7 +129,7 @@ Lemma semax_acquire:
        LOCAL (temp _lock v)  SEP (lock_inv sh v ResInv)))  ->
  Post witness = (let (v,sh) := witness in
           (PROP ( )  LOCAL ()  SEP (lock_inv sh v ResInv; ResInv))) ->
-@semax cs (Concurrent_Espec cs ext_link) Delta
+@semax cs (Concurrent_Espec unit cs ext_link) Delta
   (tc_exprlist Delta (argtypes [(_lock, tptr tlock)]) bl &&
    (` (Pre witness)  (make_args' (argsig, Tvoid)
                           (eval_exprlist (argtypes argsig) bl)) *
@@ -146,7 +146,7 @@ intros.
 rewrite H0,H1; clear H0 H1. subst argsig. clear.
 destruct witness as [v sh].
 (* rewrite semax.semax_fold_unfold. *)
-Admitted.
+Abort.
 
 
 Lemma semax_call_00_helper:  (* This lemma's proof almost identical to semax_call_id00_wow *)
@@ -187,7 +187,7 @@ forall (Frame : list mpred) (cs : compspecs) (Delta : tycontext)
   (POST1 : Post witness =
         (EX vret : B, PROPx (Ppost vret) LOCAL ()  (SEPx (Rpost vret)))%assert),
 
-@semax cs (Concurrent_Espec cs ext_link) Delta
+@semax cs (Concurrent_Espec unit cs ext_link) Delta
   (tc_exprlist Delta (argtypes argsig) bl &&
    (` (Pre witness)  (make_args' (argsig, Tvoid)
                           (eval_exprlist (argtypes argsig) bl)) *
@@ -199,7 +199,7 @@ forall (Frame : list mpred) (cs : compspecs) (Delta : tycontext)
   (normal_ret_assert
      (` (Post witness)
         (make_args [] []) * PROPx P (LOCALx Q (SEPx Frame)))) ->
- @semax  cs (Concurrent_Espec cs ext_link)  Delta (PROPx P (LOCALx Q (SEPx R)))
+ @semax  cs (Concurrent_Espec unit cs ext_link)  Delta (PROPx P (LOCALx Q (SEPx R)))
   (Scall None
      (Evar (ext_link "acquire")
         (Tfunction (type_of_params argsig) Tvoid cc_default)) bl)
@@ -351,7 +351,7 @@ Lemma semax_call_id00_wow_threads:
    (POST2: Post2 = EX vret:B, PROPx (P++ Ppost vret ) (LOCALx Q
              (SEPx (Rpost vret ++ Frame))))
    (PPRE: fold_right_and True Ppre),
-   @semax cs (Concurrent_Espec cs ext_link) Delta (PROPx P (LOCALx Q (SEPx R)))
+   @semax cs (Concurrent_Espec unit cs ext_link) Delta (PROPx P (LOCALx Q (SEPx R)))
     (Scall None
              (Evar id (Tfunction paramty Tvoid cc))
              bl)
@@ -379,11 +379,11 @@ repeat if_tac in NAME.
   apply inj_pair2 in H3.
   apply inj_pair2 in H4.
   eapply semax_call_00_helper; try eassumption.
-  eapply semax_acquire; auto; try assumption.
-  rewrite <- H3; reflexivity.
- rewrite <- H4; reflexivity.
-*
-Admitted.
+  (* eapply semax_acquire; auto; try assumption. *)
+ (*  rewrite <- H3; reflexivity. *)
+ (* rewrite <- H4; reflexivity. *)
+Abort.
+
 (* We need different tactics for them, if only because we have an
    additional witness, which would conflict with the intropattern
    notation. *)
