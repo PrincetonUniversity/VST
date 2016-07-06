@@ -1,4 +1,4 @@
-(*+ Progress and preservation *)
+(*+ CSL to progress and preservation *)
 
 (* In this file, we use the same notion of thread safety as in the
 rest of VST, which is defined using specifications for external
@@ -637,4 +637,36 @@ Proof.
       * inversion ae; subst.
         inversion E; subst.
         apply Sa'.
+Qed.
+
+Inductive csafe : nat -> config -> Prop :=
+| csafe_0 sch thd pool : csafe 0 (sch, thd, pool)
+| csafe_halted n thd pool : csafe n (nil, thd, pool)
+| csafe_core n sch thd pool thd' pool' :
+    machine (sch, thd, pool) (sch, thd', pool') ->
+    csafe n (sch, thd', pool') ->
+    csafe (S n) (sch, thd, pool)
+| csafe_sch n i sch thd pool thd' pool' :
+    machine (i :: sch, thd, pool) (sch, thd', pool') ->
+    (forall sch', csafe n (sch', thd', pool')) ->
+    csafe (S n) (i :: sch, thd, pool).
+
+Lemma safety_invariant n state :
+  invariant n state -> csafe n state.
+Proof.
+  assert (forall n s s' t p, invariant n (s, t, p) -> invariant n (s', t, p))
+    by (clear; intros n s s' t p (Phi & J & PM & MP & Safe); exists Phi; intuition).
+  revert state; induction n; intros ((sch, thd), pool) Inv.
+  now constructor.
+  destruct (progress _ _ Inv) as (x, step).
+  assert (pre : forall y, (sch, thd, pool) ===> y -> invariant n y) 
+    by (intros; eapply preservation; eauto).
+  inversion Inv as (Phi & J & PM & MP & Safe).
+  inversion step; subst.
+  - constructor.
+  - eapply csafe_sch; [ now eapply step | ]; eauto.
+  - eapply csafe_core; eauto.
+  - eapply csafe_sch; [ now eapply step | ]; eauto.
+  - eapply csafe_sch; [ now eapply step | ]; eauto.
+  - eapply csafe_core; eauto.
 Qed.
