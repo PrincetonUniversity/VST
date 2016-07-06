@@ -149,7 +149,8 @@ CONCUR_FILES= \
   semax_conc.v semax_to_juicy_machine.v \
   stack.v cast.v pred_lemmas.v seq_lemmas.v wf_lemmas.v reestablish.v \
   inj_lemmas.v join_sm.v reach_lemmas.v compcert_linking.v compcert_linking_lemmas.v \
-  disjointness.v rc_semantics.v rc_semantics_lemmas.v linking_inv.v
+  disjointness.v rc_semantics.v rc_semantics_lemmas.v linking_inv.v \
+  main.v
 
 CCC26x86_FILES = \
   Archi.v Bounds.v Conventions1.v Conventions.v Ctypes.v \
