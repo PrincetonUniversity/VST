@@ -896,7 +896,7 @@ Module Concur.
             (Hrem_fun_res: join d_phi phi' (m_phi jm))
             (Htp': tp_upd = updThread cnt0 (Kresume c Vundef) phi')
             (Htp'': tp' = addThread tp_upd vf arg d_phi),
-            syncStep' genv cnt0 Hcompat tp' m (spawn vf)
+            syncStep' genv cnt0 Hcompat tp' m (spawn (b, Int.intval ofs))
                      
     | step_mklock :
         forall  (tp' tp'': thread_pool)  jm jm' c b ofs R ,

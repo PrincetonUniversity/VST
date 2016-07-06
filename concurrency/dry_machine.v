@@ -208,12 +208,12 @@ Module Concur.
            ext_step genv cnt0 Hcompat tp'' m' (release (b, Int.intval ofs))
                     
      | step_create :
-         forall  (tp_upd tp':thread_pool) c vf arg virtue1 virtue2,
+         forall  (tp_upd tp':thread_pool) c b ofs arg virtue1 virtue2,
          forall
            (Hinv : invariant tp)
            (Hcode: getThreadC cnt0 = Kblocked c)
            (Hat_external: at_external Sem c =
-                          Some (CREATE, ef_sig CREATE, vf::arg::nil))
+                          Some (CREATE, ef_sig CREATE, Vptr b ofs::arg::nil))
            (HangelDecr: forall b ofs, Mem.perm_order''
                                    (Maps.PMap.get b (getThreadR cnt0) ofs)
                                    (Maps.PMap.get b (computeMap
@@ -224,9 +224,9 @@ Module Concur.
                                                ofs))
            (Htp_upd: tp_upd = updThread cnt0 (Kresume c Vundef)
                                         (computeMap (getThreadR cnt0) virtue1))
-           (Htp': tp' = addThread tp_upd vf arg
+           (Htp': tp' = addThread tp_upd (Vptr b ofs) arg
                                   (computeMap empty_map virtue2)),
-           ext_step genv cnt0 Hcompat tp' m (spawn vf)
+           ext_step genv cnt0 Hcompat tp' m (spawn (b, Int.intval ofs))
                     
      | step_mklock :
          forall  (tp' tp'': thread_pool) m1 c m' b ofs pmap_tid',

@@ -813,8 +813,8 @@ Module StepLemmas.
   (** Lemmas about suspend steps*)
   Lemma suspendC_step_det:
     forall tp tp' tp'' i (cnt: containsThread tp i)
-      (Hstep: myCoarseSemantics.suspend_thread cnt tp')
-      (Hstep': myCoarseSemantics.suspend_thread cnt tp''),
+      (Hstep: DryConc.suspend_thread cnt tp')
+      (Hstep': DryConc.suspend_thread cnt tp''),
       tp' = tp''.
   Proof.
     intros.
@@ -825,7 +825,7 @@ Module StepLemmas.
 
   Lemma suspendF_containsThread:
     forall tp tp' i j (cnti: containsThread tp i)
-      (Hsuspend: myFineSemantics.suspend_thread cnti tp'),
+      (Hsuspend: FineConc.suspend_thread cnti tp'),
       containsThread tp j <-> containsThread tp' j.
   Proof.
     intros; inversion Hsuspend; subst.
@@ -835,7 +835,7 @@ Module StepLemmas.
 
   Lemma suspendC_containsThread:
     forall tp tp' i j (cnti: containsThread tp i)
-      (Hsuspend: myCoarseSemantics.suspend_thread cnti tp'),
+      (Hsuspend: DryConc.suspend_thread cnti tp'),
       containsThread tp j <-> containsThread tp' j.
   Proof.
     intros; inversion Hsuspend; subst.
@@ -846,7 +846,7 @@ Module StepLemmas.
   Corollary suspendC_compatible:
     forall tp tp' m i (cnt: containsThread tp i)
       (Hcomp: mem_compatible tp m)
-      (Hsuspend: myCoarseSemantics.suspend_thread cnt tp'),
+      (Hsuspend: DryConc.suspend_thread cnt tp'),
       mem_compatible tp' m.
   Proof.
     intros. inversion Hsuspend; subst.
@@ -856,7 +856,7 @@ Module StepLemmas.
   Corollary suspendF_compatible:
     forall tp tp' m i (cnt: containsThread tp i)
       (Hcomp: mem_compatible tp m)
-      (Hsuspend: myFineSemantics.suspend_thread cnt tp'),
+      (Hsuspend: FineConc.suspend_thread cnt tp'),
       mem_compatible tp' m.
   Proof.
     intros. inversion Hsuspend; subst.
@@ -875,7 +875,7 @@ Module StepLemmas.
   Corollary gsoThreadC_suspendC:
     forall tp tp' i j (cnt: containsThread tp i) (cntj: containsThread tp j)
       (cntj': containsThread tp' j) (Hneq: i <> j)
-      (Hsuspend: myCoarseSemantics.suspend_thread cnt tp'),
+      (Hsuspend: DryConc.suspend_thread cnt tp'),
       getThreadC cntj = getThreadC cntj'.
   Proof.
     intros; inversion Hsuspend; subst;
@@ -885,7 +885,7 @@ Module StepLemmas.
   Corollary gsoThreadC_suspendF:
     forall tp tp' i j (cnt: containsThread tp i) (cntj: containsThread tp j)
       (cntj': containsThread tp' j) (Hneq: i <> j)
-      (Hsuspend: myFineSemantics.suspend_thread cnt tp'),
+      (Hsuspend: FineConc.suspend_thread cnt tp'),
       getThreadC cntj = getThreadC cntj'.
   Proof.
     intros; inversion Hsuspend; subst;
@@ -895,7 +895,7 @@ Module StepLemmas.
   Lemma gsoThreadR_suspendC:
     forall tp tp' i j (cnt: containsThread tp i) (cntj: containsThread tp j)
       (cntj': containsThread tp' j)
-      (Hsuspend: myCoarseSemantics.suspend_thread cnt tp'),
+      (Hsuspend: DryConc.suspend_thread cnt tp'),
       getThreadR cntj = getThreadR cntj'.
   Proof.
     intros. inversion Hsuspend. subst.
@@ -905,7 +905,7 @@ Module StepLemmas.
   Lemma gsoThreadR_suspendF:
     forall tp tp' i j (cnt: containsThread tp i) (cntj: containsThread tp j)
       (cntj': containsThread tp' j)
-      (Hsuspend: myFineSemantics.suspend_thread cnt tp'),
+      (Hsuspend: FineConc.suspend_thread cnt tp'),
       getThreadR cntj = getThreadR cntj'.
   Proof.
     intros. inversion Hsuspend. subst.
@@ -916,7 +916,7 @@ Module StepLemmas.
     forall tp tp' i
       (pff: containsThread tp i)
       (Hinv: invariant tp)
-      (Hsuspend: myCoarseSemantics.suspend_thread pff tp'),
+      (Hsuspend: DryConc.suspend_thread pff tp'),
       invariant tp'.
   Proof.
     intros.
@@ -928,7 +928,7 @@ Module StepLemmas.
     forall tp tp' i
       (pff: containsThread tp i)
       (Hinv: invariant tp)
-      (Hsuspend: myFineSemantics.suspend_thread pff tp'),
+      (Hsuspend: FineConc.suspend_thread pff tp'),
       invariant tp'.
   Proof.
     intros.
@@ -939,7 +939,7 @@ Module StepLemmas.
   Lemma suspendF_lockSet:
     forall tp tp' i
       (pff: containsThread tp i)
-      (Hsuspend: myFineSemantics.suspend_thread pff tp'),
+      (Hsuspend: FineConc.suspend_thread pff tp'),
       lockSet tp = lockSet tp'.
   Proof.
     intros.
@@ -950,7 +950,7 @@ Module StepLemmas.
   Lemma suspendF_lockRes:
     forall tp tp' i
       (pff: containsThread tp i)
-      (Hsuspend: myFineSemantics.suspend_thread pff tp'),
+      (Hsuspend: FineConc.suspend_thread pff tp'),
       lockRes tp = lockRes tp'.
   Proof.
     intros.
@@ -962,7 +962,7 @@ Module StepLemmas.
   Lemma suspendC_lockSet:
     forall tp tp' i
       (pff: containsThread tp i)
-      (Hsuspend: myCoarseSemantics.suspend_thread pff tp'),
+      (Hsuspend: DryConc.suspend_thread pff tp'),
       lockSet tp = lockSet tp'.
   Proof.
     intros.
@@ -972,7 +972,7 @@ Module StepLemmas.
 
   Lemma suspendC_lockPool :
     forall (tp tp' : thread_pool) (i : tid) (pfc : containsThread tp i)
-      (Hsuspend: myCoarseSemantics.suspend_thread pfc tp') addr,
+      (Hsuspend: DryConc.suspend_thread pfc tp') addr,
       lockRes tp addr = lockRes tp' addr.
   Proof.
     intros. inversion Hsuspend; subst.
@@ -981,7 +981,7 @@ Module StepLemmas.
   
   Lemma suspendF_lockPool :
     forall (tp tp' : thread_pool) (i : tid) (pff : containsThread tp i)
-      (Hsuspend: myFineSemantics.suspend_thread pff tp') addr,
+      (Hsuspend: FineConc.suspend_thread pff tp') addr,
       lockRes tp addr = lockRes tp' addr.
   Proof.
     intros. inversion Hsuspend; subst.
@@ -1083,8 +1083,8 @@ Module InternalSteps.
     Definition internal_step {tid} {tp} m (cnt: containsThread tp tid)
                (Hcomp: mem_compatible tp m) tp' m' :=
       (exists ev, threadStep cnt Hcomp tp' m' ev) \/
-      (myCoarseSemantics.resume_thread cnt tp' /\ m = m') \/
-      (myCoarseSemantics.start_thread the_ge cnt tp' /\ m = m').
+      (DryConc.resume_thread cnt tp' /\ m = m') \/
+      (DryConc.start_thread the_ge cnt tp' /\ m = m').
 
     (* For now we don't emit events from internal_execution*)
     (*NOTE: we will probably never need to do so*)
@@ -1244,7 +1244,7 @@ Module InternalSteps.
     Corollary coarseResume_compatible :
       forall (tp tp' : thread_pool) m (i : nat) (pf : containsThread tp i)
         (Hcompatible: mem_compatible tp m)
-        (Hresume: myCoarseSemantics.resume_thread pf tp'),
+        (Hresume: DryConc.resume_thread pf tp'),
         mem_compatible tp' m.
     Proof.
       intros.
@@ -1256,7 +1256,7 @@ Module InternalSteps.
     Corollary coarseStart_compatible :
       forall (tp tp' : thread_pool) m (i : nat) (pf : containsThread tp i)
         (Hcompatible: mem_compatible tp m)
-        (Hstart: myCoarseSemantics.start_thread the_ge pf tp'),
+        (Hstart: DryConc.start_thread the_ge pf tp'),
         mem_compatible tp' m.
     Proof.
       intros.

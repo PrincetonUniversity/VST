@@ -748,19 +748,24 @@ Section permMapDefs.
               | Max => Some Freeable
               | Cur => f ofs k
               end.
+
+  Definition allF (f : Z -> perm_kind -> option permission) :=
+    fun (_ : Z) (_ : perm_kind) => Some Freeable.
   
-  Fixpoint PList l m : list (positive * (Z -> perm_kind -> option permission)) :=
+  Fixpoint PList (f : (Z -> perm_kind -> option permission) ->
+                      Z -> perm_kind -> option permission)
+           l m : list (positive * (Z -> perm_kind -> option permission)) :=
     match l with
       | nil => nil
       | x :: l =>
-        (Pos.of_nat x, maxF (PMap.get (Pos.of_nat x) m)) :: (PList l m)
+        (Pos.of_nat x, f (PMap.get (Pos.of_nat x) m)) :: (PList f l m)
   end.
   
   Lemma PList_app :
-    forall l m x,
-      (PList l m) ++ ((Pos.of_nat x,
-                                maxF (PMap.get (Pos.of_nat x) m)) :: nil) =
-      PList (l ++ (x :: nil)) m.
+    forall l m x f,
+      (PList f l m) ++ ((Pos.of_nat x,
+                                f (PMap.get (Pos.of_nat x) m)) :: nil) =
+      PList f (l ++ (x :: nil)) m.
   Proof.
     intro l. induction l; intros.
     reflexivity.
@@ -769,29 +774,29 @@ Section permMapDefs.
   Qed.
 
   Lemma PList_cons :
-    forall l m x,
-      (Pos.of_nat x, maxF (PMap.get (Pos.of_nat x) m)) :: (PList l m) =
-      PList (x :: l) m.
+    forall f l m x,
+      (Pos.of_nat x, f (PMap.get (Pos.of_nat x) m)) :: (PList f l m) =
+      PList f (x :: l) m.
   Proof.
     reflexivity.
   Qed.
 
   Lemma PList_correct :
-    forall l m k v
+    forall f l m k v
            (HInl: List.In k l)
            (HInMap: List.In (Pos.of_nat k, v) (PTree.elements m.2)),
-      List.In (Pos.of_nat k, maxF v) (PList l m).
+      List.In (Pos.of_nat k, f v) (PList f l m).
   Proof.
-    intros l m. induction l; intros; inversion HInl.
+    intros f l m. induction l; intros; inversion HInl.
     - subst. simpl. apply PTree.elements_complete in HInMap.
       unfold PMap.get. rewrite HInMap. now left.
     - simpl. right. auto.
   Qed.
 
   Lemma PList_mkBlock_complete :
-    forall k v m n
+    forall f k v m n
            (Hk: k > 0)
-           (HIn1: List.In (Pos.of_nat k, v) (PList (mkBlockList n) m)),
+           (HIn1: List.In (Pos.of_nat k, v) (PList f (mkBlockList n) m)),
       List.In k (mkBlockList n).
   Proof.
     intros.
@@ -811,9 +816,9 @@ Section permMapDefs.
   Qed.
   
   Lemma PList_mkBlock_det :
-    forall n k v v' m
-           (HIn1: List.In (Pos.of_nat k, v) (PList (mkBlockList n) m))
-           (HIn2: List.In (Pos.of_nat k, v') (PList (mkBlockList n) m)),
+    forall n f k v v' m
+           (HIn1: List.In (Pos.of_nat k, v) (PList f (mkBlockList n) m))
+           (HIn2: List.In (Pos.of_nat k, v') (PList f (mkBlockList n) m)),
       v = v'.
   Proof.
     intros n. induction n.
@@ -832,7 +837,7 @@ Section permMapDefs.
       + destruct HIn2 as [Heq2 | HIn2].
         inversion Heq1; inversion Heq2. reflexivity.
         assert (Heq:Pos.of_nat (S (S n)) =
-                    Pos.of_nat k /\ maxF (m !! (Pos.of_nat (S (S n)))) = v)
+                    Pos.of_nat k /\ f (m !! (Pos.of_nat (S (S n)))) = v)
           by (inversion Heq1; auto).
         destruct Heq as [HEqk Hv].
         rewrite <- HEqk in HIn2.
@@ -875,9 +880,9 @@ Section permMapDefs.
   Qed.
 
   Lemma canonicalPTree_get_complete :
-    forall l m k f
-           (HGet: (canonicalPTree (PList l m)) ! k = Some f),
-      List.In (k, f) (PList l m).
+    forall l m k f fn
+           (HGet: (canonicalPTree (PList fn l m)) ! k = Some f),
+      List.In (k, f) (PList fn l m).
   Proof.
     intro l. induction l.
     simpl. intros. rewrite PTree.gempty in HGet. discriminate.
@@ -891,10 +896,10 @@ Section permMapDefs.
   Qed.
   
   Lemma canonicalPTree_get_sound :
-    forall n m k
+    forall n m k fn
            (Hk: k > 0)
            (Hn: n > 1)
-           (HGet: (canonicalPTree (PList (mkBlockList n) m)) ! (Pos.of_nat k) = None),
+           (HGet: (canonicalPTree (PList fn (mkBlockList n) m)) ! (Pos.of_nat k) = None),
       ~ List.In k (mkBlockList n).
   Proof.
     intros.
@@ -921,25 +926,25 @@ Section permMapDefs.
     assumption.
   Qed.
   
-  Definition canonicalPMap n m : Maps.PMap.t (Z -> perm_kind -> option permission) :=
+  Definition canonicalPMap fn n m : Maps.PMap.t (Z -> perm_kind -> option permission) :=
     let l := mkBlockList n in
-    (fun _ _ => None, canonicalPTree (PList l m)).
+    (fun _ _ => None, canonicalPTree (PList fn l m)).
 
   Lemma canonicalPMap_sound :
-    forall k n m
+    forall k n m fn
            (Hk : k > 0)
            (Hkn : k < n),
-      maxF (m !! (Pos.of_nat k)) = (canonicalPMap n m) !! (Pos.of_nat k).
+      fn (m !! (Pos.of_nat k)) = (canonicalPMap fn n m) !! (Pos.of_nat k).
   Proof.
     intros.
     unfold PMap.get.
-    destruct (((canonicalPMap n m).2) ! (Pos.of_nat k)) as [f|] eqn:HGet.
+    destruct (((canonicalPMap fn n m).2) ! (Pos.of_nat k)) as [f|] eqn:HGet.
     - apply PTree.elements_correct in HGet.
       unfold canonicalPMap in HGet.  simpl in HGet.
       destruct ((m.2) ! (Pos.of_nat k)) eqn:HGet'.
       + apply PTree.elements_correct in HGet'.
         apply canonicalPTree_elements in HGet.
-        apply PList_correct with (l := mkBlockList n) in HGet'.
+        apply PList_correct with (f := fn) (l := mkBlockList n) in HGet'.
         eapply PList_mkBlock_det; eauto.
         apply PList_mkBlock_complete in HGet. assumption.
         assumption.
@@ -959,9 +964,9 @@ Section permMapDefs.
   Qed.
 
   Lemma canonicalPMap_default :
-    forall n k m
+    forall n k m fn
            (Hkn : k >= n),
-      (canonicalPMap n m) !! (Pos.of_nat k) = fun _ _ => None.
+      (canonicalPMap fn n m) !! (Pos.of_nat k) = fun _ _ => None.
   Proof.
     intro. induction n; intros. unfold canonicalPMap. simpl.
     unfold PMap.get.
@@ -973,16 +978,16 @@ Section permMapDefs.
     rewrite <- mkBlockList_unfold'. rewrite <- PList_cons.
     unfold canonicalPTree.
     rewrite PTree.gso. fold canonicalPTree.
-    specialize (IHn _ m Hkn').
+    specialize (IHn _ m fn Hkn').
     unfold canonicalPMap, PMap.get, snd in IHn.
-    destruct ((canonicalPTree (PList (mkBlockList n.+1) m)) ! (Pos.of_nat k)); auto.
+    destruct ((canonicalPTree (PList fn (mkBlockList n.+1) m)) ! (Pos.of_nat k)); auto.
     unfold fst. intros HContra. apply Nat2Pos.inj_iff in HContra; subst; ssromega.
   Qed.
 
   Definition setMaxPerm (m : mem) : mem.
   Proof.
     refine (Mem.mkmem (Mem.mem_contents m)
-                      (canonicalPMap (Pos.to_nat (Mem.nextblock m))
+                      (canonicalPMap maxF (Pos.to_nat (Mem.nextblock m))
                                      (Mem.mem_access m))
                       (Mem.nextblock m) _ _ _).
       { intros.
@@ -1391,6 +1396,77 @@ Proof.
     unfold restrPermMap, getMaxPerm, isCanonical in *. simpl in *.
     auto.
   Defined.
+
+  Definition erasePerm (m : mem) : mem.
+  Proof.
+    refine (Mem.mkmem (Mem.mem_contents m)
+                      (canonicalPMap allF (Pos.to_nat (Mem.nextblock m))
+                                     (Mem.mem_access m))
+                      (Mem.nextblock m) _ _ _).
+      { intros.
+        replace b with (Pos.of_nat (Pos.to_nat b)) by (rewrite Pos2Nat.id; done).
+        destruct (leq (Pos.to_nat (Mem.nextblock m)) (Pos.to_nat b)) eqn:Hbn.
+          by rewrite canonicalPMap_default.
+          erewrite <- canonicalPMap_sound. simpl.
+          constructor.
+          apply/ltP/Pos2Nat.is_pos.
+          ssromega. }
+      { intros b ofs k H.
+        replace b with (Pos.of_nat (Pos.to_nat b)) by (rewrite Pos2Nat.id; done).
+        erewrite canonicalPMap_default. reflexivity.
+        apply Pos.le_nlt in H.
+        apply/leP.
+        now apply Pos2Nat.inj_le.
+      }
+      { apply Mem.contents_default. }
+  Defined.
+
+  Lemma erasePerm_Perm :
+    forall m b ofs k ,
+      (Mem.valid_block m b ->
+       permission_at (erasePerm m) b ofs k = Some Freeable) /\
+      (~Mem.valid_block m b ->
+       permission_at (erasePerm m) b ofs k = None).
+  Proof.
+    intros.
+    assert (Hb : b = Pos.of_nat (Pos.to_nat b))
+      by (by rewrite Pos2Nat.id).
+    split.
+    { intros Hvalid. unfold permission_at,  setMaxPerm. simpl.
+      rewrite Hb.
+      rewrite <- canonicalPMap_sound.
+      reflexivity.
+      assert (H := Pos2Nat.is_pos b). ssromega.
+      apply Pos2Nat.inj_lt in Hvalid. ssromega.
+    }
+    { intros Hinvalid.
+      unfold permission_at, setMaxPerm. simpl.
+      rewrite Hb.
+      rewrite canonicalPMap_default. reflexivity.
+      apply Pos.le_nlt in Hinvalid.
+      apply Pos2Nat.inj_le in Hinvalid. ssromega.
+    }
+  Qed.
+
+   Lemma erasePerm_V :
+    forall m b ofs k,
+      Mem.valid_block m b ->
+       permission_at (erasePerm m) b ofs k = Some Freeable.
+  Proof.
+    intros;
+    assert (Hperm := erasePerm_Perm m b ofs k);
+    destruct Hperm; auto.
+  Qed.
+
+  Lemma erasePerm_I :
+    forall m b ofs k,
+      ~ Mem.valid_block m b ->
+      permission_at (erasePerm m) b ofs k = None.
+  Proof.
+    intros;
+    assert (Hperm := erasePerm_Perm m b ofs k);
+    destruct Hperm; auto.
+  Qed.
   
 End permMapDefs.
 

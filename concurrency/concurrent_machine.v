@@ -333,13 +333,13 @@ Module Type EventSig.
   | acquire : address -> sync_event
   | mklock :  address -> sync_event
   | freelock : address -> sync_event
-  | spawn : val -> sync_event
+  | spawn : address -> sync_event
   | failacq: address -> sync_event.
 
   Inductive machine_event : Type :=
-  | internal: TID.tid -> seq mem_event -> machine_event
-  | external : TID.tid -> sync_event -> machine_event
-  | halt : TID.tid -> machine_event.
+  | internal: TID.tid -> mem_event -> machine_event
+  | external : TID.tid -> sync_event -> machine_event.
+  
 End EventSig.
   
 
@@ -680,7 +680,9 @@ Module FineMachine  (SCH:Scheduler)(SIG : ConcurrentMachineSig with Module Threa
         (Htid: containsThread ms tid)
         (Hcmpt: mem_compatible ms m)
         (Htstep: threadStep genv Htid Hcmpt ms' m' ev),
-        machine_step U tr ms m U' (tr ++ [:: internal tid ev]) ms' (diluteMem m')
+        machine_step U tr ms m U'
+                     (tr ++ (List.map (fun mev => internal tid mev) ev))
+                     ms' (diluteMem m')
   | suspend_step:
       forall tid U U' ms ms' m tr
         (HschedN: schedPeek U = Some tid)
@@ -704,7 +706,7 @@ Module FineMachine  (SCH:Scheduler)(SIG : ConcurrentMachineSig with Module Threa
         (Htid: containsThread ms tid)
         (Hcmpt: mem_compatible ms m)
         (Hhalted: threadHalted Htid),
-        machine_step U tr ms m U' (tr ++ [:: halt tid]) ms m
+        machine_step U tr ms m U' tr ms m
   | schedfail :
       forall tid U U' ms m tr
         (HschedN: schedPeek U = Some tid)
@@ -786,11 +788,36 @@ Module Events  <: EventSig
   | acquire : address -> sync_event
   | mklock :  address -> sync_event
   | freelock : address -> sync_event
-  | spawn : val -> sync_event
+  | spawn : address -> sync_event
   | failacq: address -> sync_event.
 
   Inductive machine_event : Type :=
-  | internal: TID.tid -> list mem_event -> machine_event
-  | external : TID.tid -> sync_event -> machine_event
-  | halt : TID.tid -> machine_event.
+  | internal: TID.tid -> mem_event -> machine_event
+  | external : TID.tid -> sync_event -> machine_event.
+
+  Definition thread_id ev : tid :=
+    match ev with
+    | internal i _ => i
+    | external i _ => i
+    end.
+
+  Definition location ev : option address :=
+    match ev with
+    | internal _ mev =>
+      match mev with
+      | Write b ofs _ => Some (b, ofs)
+      | Read b ofs _ _ => Some (b, ofs)
+      | _ => None
+      end 
+    | external _ sev =>
+      match sev with
+      | release addr => Some addr
+      | acquire addr => Some addr
+      | mklock addr => Some addr
+      | freelock addr => Some addr
+      | spawn addr => Some addr
+      | failacq addr => Some addr
+      end
+    end.
+  
 End Events.

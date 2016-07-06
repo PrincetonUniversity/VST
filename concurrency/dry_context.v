@@ -1,4 +1,5 @@
 Require Import concurrency.dry_machine.
+Require Import concurrency.erased_machine.
 Require Import concurrency.threads_lemmas.
 Require Import concurrency.permissions.
 Require Import concurrency.concurrent_machine.
@@ -12,13 +13,22 @@ Module SEM <: Semantics.
                Definition C := state.
                Definition Sem := Asm_EvSem.               
 End SEM.
-               
+
+
 Module DryMachine:= DryMachineShell SEM.
-Module myCoarseSemantics :=
-  CoarseMachine mySchedule DryMachine.
-Module myFineSemantics :=
-  FineMachine mySchedule  DryMachine.
+Module ErasedMachine := ErasedMachineShell SEM.
 Module mySchedule := mySchedule.
+(** DryConc machine instantiated for X86*)
+Module DryConc :=
+  CoarseMachine mySchedule DryMachine.
+
+(** FineConc machine instantiated for X86*)
+Module FineConc :=
+  FineMachine mySchedule DryMachine.
+
+(** X86-SC machine*)
+Module X86SC :=
+  FineMachine mySchedule ErasedMachine.
 
 Parameter initU: mySchedule.schedule.
 Parameter the_program: Asm.program.
@@ -33,8 +43,12 @@ Definition init_perm : option access_map :=
 Definition the_ge := Globalenvs.Genv.globalenv the_program.
 
 Definition coarse_semantics:=
-  myCoarseSemantics.MachineSemantics initU init_perm.
+  DryConc.MachineSemantics initU init_perm.
 
 Definition fine_semantics:=
-  myFineSemantics.MachineSemantics initU init_perm.
+  FineConc.MachineSemantics initU init_perm.
+
+Definition x86_sc_semantics :=
+  X86SC.MachineSemantics initU None.
+  
 
