@@ -1,6 +1,6 @@
 
 (*Require Import semax_to_juicy_machine.*)
-Require Import erasure_safety.
+Require Import concurrency.erasure_safety.
 
 (*From semax_to_juicy_machine*)
 (*Lemma juicy_safety: forall U rmap0 genv main vals js,

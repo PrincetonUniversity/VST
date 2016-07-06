@@ -1324,8 +1324,62 @@ Qed.
       contradict H0. inv H0. auto.
     forget (Ordinal (n:=n (num_threads js)) (m:=j) cntj) as j'.
     forget (Ordinal (n:=n (num_threads js)) (m:=i) cnti) as i'.
+    forget (ord_enum (num_threads js)) as el.
     clear - H2 H1 H3 H.
-    Admitted.
+    revert r0 H1 H2 H; induction el; simpl; intros. inv H1.
+    destruct H as [r' [? ?]].
+    unfold in_mem, pred_of_mem in H1, H2. simpl in H1, H2.
+    match type of H1 with is_true (?A || ?B) =>
+      assert (H1' := @orP A B); inv H1';
+      [ | destruct (A || B); inv H1; discriminate]
+    end. clear H4.
+    match type of H2 with is_true (?A || ?B) =>
+      assert (H2' := @orP A B); inv H2';
+      [ | destruct (A || B); inv H2; discriminate]
+    end. clear H4 H2.
+    destruct H5.
+    pose proof (@eqP _ i' a); destruct (i'==a); inv H2. clear H1. inv H4.
+    pose proof (@eqP _ j' a); destruct (j'==a); inv H1. contradiction H3; auto.
+    destruct H6. inv H1.
+    clear IHel. change (is_true (j' \in el)) in H1.
+    clear - H1 H0 H.
+    assert (joins (perm_maps js a) r'). eexists; eauto. clear H; rename H2 into H.
+    revert r' H0 H1 H; induction el; simpl; intros. inv H1.
+    destruct H0 as [? [? ?]].
+    unfold in_mem, pred_of_mem in H1. simpl in H1.
+    match type of H1 with is_true (?A || ?B) =>
+      assert (H1' := @orP A B); inv H1';
+      [ | destruct (A || B); inv H1; discriminate]
+    end. clear H3 H1. destruct H4.
+    pose proof (@eqP _ j' a0); destruct (j'==a0); inv H1.
+    inv H3. 
+    eapply join_sub_joins'; try eassumption.
+    apply join_sub_refl. 
+    exists x.  eassumption.
+    apply (IHel _ H2 H1).
+    eapply join_sub_joins'; try eassumption. 
+    apply join_sub_refl. eexists;  eauto.
+    clear H1. specialize (IHel r' H2).
+    destruct H6.
+    pose proof (@eqP _ j' a); destruct (j'==a); inv H1.  inv H4.
+    clear IHel.
+    assert (joins r' (perm_maps js a)). eexists; eauto. clear H; rename H1 into H.
+    clear H3.
+    eapply join_sub_joins'; try eassumption; try apply join_sub_refl. 
+    clear - H2 H0.
+    revert r' H2 H0; induction el; simpl; intros. inv H2.
+    destruct H0 as [? [? ?]].
+    rename H2 into H1.
+    match type of H1 with is_true (?A || ?B) =>
+      assert (H1' := @orP A B); inv H1';
+      [ | destruct (A || B); inv H1; discriminate]
+    end. clear H2 H1. destruct H3.
+    pose proof (@eqP _ i' a); destruct (i'==a); inv H1.
+    inv H2. eexists; eauto.
+    apply IHel in H0; auto.
+    apply join_sub_trans with x; auto. eexists; eauto.
+    apply IHel in H0; auto.
+Qed. 
 
       Lemma compatible_threadRes_lockRes_join:
         forall js m,
