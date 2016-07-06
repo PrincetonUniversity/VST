@@ -358,7 +358,7 @@ Module X86Erasure.
       repeat match goal with
              | [H: _ /\ _ |- _] => destruct H
              end; subst.
-
+Admitted.
 End X86Erasure.
 
 (** ** Safety for X86-SC semantics *)
