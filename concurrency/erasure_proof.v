@@ -26,6 +26,9 @@ Require Import concurrency.ssromega. (*omega in ssrnat *)
 (*The simulations*)
 Require Import sepcomp.wholeprog_simulations.
 
+(*The semantics*)
+Require Import concurrency.JuicyMachineModule.
+
 (*General erasure*)
 Require Import concurrency.erasure_signature.
 
@@ -41,19 +44,31 @@ Import addressFiniteMap.
   Definition  
 End ClightSEM.*)
 
-Module Type DecayingSemantics.
+(*Module Type DecayingSemantics.
   Include Semantics.
   Axiom step_decay: forall g c m tr c' m',
       event_semantics.ev_step (Sem) g c m tr c' m' ->
       decay m m'.
-End DecayingSemantics.
+End DecayingSemantics. *)
 
 
-Module Parching (DecayingSEM: DecayingSemantics) <: ErasureSig.
-
-  Module SCH:= ListScheduler NatTID.            
-  Module SEM:= DecayingSEM.
+Module Parching <: ErasureSig.
+  Import THE_JUICY_MACHINE.
+  Module SCH:= THE_JUICY_MACHINE.SCH.
+  Module SEM:= THE_JUICY_MACHINE.SEM.
   Import SCH SEM.
+
+  Module JSEM := THE_JUICY_MACHINE.JSEM.
+  Module JuicyMachine := THE_JUICY_MACHINE.JuicyMachine.
+  Notation JMachineSem:= THE_JUICY_MACHINE.JMachineSem.
+  Notation jstate:= JuicyMachine.SIG.ThreadPool.t.
+  Notation jmachine_state:= JuicyMachine.MachState.
+  Module JTP:=THE_JUICY_MACHINE.JTP.
+
+  Import JSEM.JuicyMachineLemmas.
+  (*Module SCH:= ListScheduler NatTID.            
+  Module SEM:= DecayingSEM.
+  
 
   Module JSEM := JuicyMachineShell SEM. (* JuicyMachineShell : Semantics -> ConcurrentSemanticsSig *)
   Module JuicyMachine := CoarseMachine SCH JSEM. (* CoarseMachine : Schedule -> ConcurrentSemanticsSig -> ConcurrentSemantics *)
@@ -61,10 +76,8 @@ Module Parching (DecayingSEM: DecayingSemantics) <: ErasureSig.
   Notation jstate:= JuicyMachine.SIG.ThreadPool.t.
   Notation jmachine_state:= JuicyMachine.MachState.
   Module JTP:=JuicyMachine.SIG.ThreadPool.
-  Import JSEM.JuicyMachineLemmas.
+  Import JSEM.JuicyMachineLemmas.*)
 
-  Search JSEM.mem_compatible.
-  
   Module DSEM := DryMachineShell SEM.
   Module DryMachine <: ConcurrentMachine:= CoarseMachine SCH DSEM.
   Notation DMachineSem:= DryMachine.MachineSemantics. 
@@ -633,45 +646,42 @@ Module Parching (DecayingSEM: DecayingSemantics) <: ErasureSig.
       Proof.
         intros js ds age MATCH; inversion MATCH. constructor.
         - 
-          intros i HH. apply cnt_age in HH.
+          intros i HH. apply JSEM.JuicyMachineLemmas.cnt_age in HH.
           apply mtch_cnt; assumption.
-        - intros i HH. apply cnt_age.
+        - intros i HH. apply JSEM.JuicyMachineLemmas.cnt_age.
           apply mtch_cnt'; assumption.
         - intros i cnt cnt'.
           
-          erewrite <- gtc_age.
+          erewrite <- JSEM.JuicyMachineLemmas.gtc_age.
           eapply mtch_gtc.
         - intros.
           
-          erewrite <- getThreadR_age. simpl.
+          erewrite <- JSEM.JuicyMachineLemmas.getThreadR_age. simpl.
           
           rewrite JSEM.perm_of_age.
           apply mtch_perm.
         - intros.
           
-          rewrite LockRes_age. apply mtch_locks.
+          rewrite JSEM.JuicyMachineLemmas.LockRes_age. apply mtch_locks.
         - intros.
           
-          apply LockRes_age_content1 in H1.
+          apply JSEM.JuicyMachineLemmas.LockRes_age_content1 in H1.
           eapply mtch_locksEmpty; eassumption.
         -
-          intros. apply LockRes_age_content2 in H1.
+          intros. apply JSEM.JuicyMachineLemmas.LockRes_age_content2 in H1.
           destruct H1 as [r [AA BB]].
           rewrite BB.
           rewrite JSEM.perm_of_age.
           eapply mtch_locksRes; eassumption.
 
           Grab Existential Variables.
-          eapply cnt_age; eassumption.
-          eapply cnt_age; eassumption.
+          eapply JSEM.JuicyMachineLemmas.cnt_age; eassumption.
+          eapply JSEM.JuicyMachineLemmas.cnt_age; eassumption.
       Qed.
 
-
-      Variable genv: G.
-    Variable main: Values.val.
     Lemma init_diagram:
       forall (j : Values.Val.meminj) (U:schedule) (js : jstate)
-        (vals : list Values.val) (m : Mem.mem) rmap pmap,
+        (vals : list Values.val) (m : Mem.mem) rmap pmap main genv,
         init_inj_ok j m ->
         match_rmap_perm rmap pmap ->
         initial_core (JMachineSem U (Some rmap)) genv main vals = Some (U, nil, js) ->
@@ -846,11 +856,11 @@ Module Parching (DecayingSEM: DecayingSemantics) <: ErasureSig.
             apply resource_at_joins.
             eapply triple_joins_exists.
             eassumption.
-            { eapply joins_comm. eapply compatible_threadRes_lockRes_join.
+            { eapply joins_comm. eapply JSEM.JuicyMachineLemmas.compatible_threadRes_lockRes_join.
               eassumption.
               apply His_unlocked.
             }
-            { eapply compatible_threadRes_join.
+            { eapply JSEM.JuicyMachineLemmas.compatible_threadRes_join.
               eassumption.
               assumption.
             }
@@ -1016,7 +1026,7 @@ Module Parching (DecayingSEM: DecayingSemantics) <: ErasureSig.
               eapply (juicy_mem_lemmas.components_join_joins ).
               apply Hadd_lock_res.
               inversion Hcompatible.
-              eapply compatible_threadRes_lockRes_join; eassumption.
+              eapply JSEM.JuicyMachineLemmas.compatible_threadRes_lockRes_join; eassumption.
               eapply JSEM.compatible_lockRes_join; eassumption.
               (*smthng = None*)
               rewrite (mtch_locksEmpty _ _ H Lres).
@@ -1261,7 +1271,7 @@ Module Parching (DecayingSEM: DecayingSemantics) <: ErasureSig.
                    symmetry.
                    
                    destruct
-                     (compatible_lockRes_cohere _
+                     (JSEM.JuicyMachineLemmas.compatible_lockRes_cohere _
                                                 His_unlocked
                                                 Hcmpt).
                    clear - acc_coh valb0MEM.
@@ -1276,7 +1286,7 @@ Module Parching (DecayingSEM: DecayingSemantics) <: ErasureSig.
                    apply blah in AA. assumption.
                  - symmetry.
                    destruct
-                     (compatible_threadRes_cohere Hi
+                     (JSEM.JuicyMachineLemmas.compatible_threadRes_cohere Hi
                                                   Hcmpt).
                    clear - acc_coh valb0MEM.
                    unfold JSEM.access_cohere' in acc_coh.
@@ -1454,7 +1464,7 @@ Module Parching (DecayingSEM: DecayingSemantics) <: ErasureSig.
              replace ((DSEM.ThreadPool.getThreadR Htid') !! b0 ofs0) with
              (perm_of_res ((JSEM.ThreadPool.getThreadR Hi)@ (b0, ofs0))).
              + assert (Hcohere':= Hcompatible).
-               apply compatible_threadRes_cohere with (cnt:=Hi) in Hcohere'.
+               apply JSEM.JuicyMachineLemmas.compatible_threadRes_cohere with (cnt:=Hi) in Hcohere'.
                inversion Hcohere'. unfold JSEM.access_cohere' in acc_coh.
                specialize (acc_coh (b0,ofs0)).
                unfold max_access_at in acc_coh.
@@ -3010,7 +3020,7 @@ Module Parching (DecayingSEM: DecayingSemantics) <: ErasureSig.
          {
            inversion Hcorestep.
            eapply ev_step_ax2 in H; destruct H as [T H].
-           apply DecayingSEM.step_decay in H.
+           apply ClightSEM.step_decay in H.
            
            
            eapply DSEM.DryMachineLemmas.step_decay_invariant
@@ -3112,7 +3122,7 @@ Qed.
      match_st js' ds' /\
      corestep (DMachineSem U0 pmap) genv (U,nil, ds) m (U',nil, ds') m'.
   Proof.
-    intros. destruct (core_diagram' m U0 U U' ds js js' rmap0 pmap m' genv0 H0 H1 H) as [ds' [A[B C]]].
+    intros. destruct (core_diagram' m U0 U U' ds js js' rmap0 pmap m' genv H0 H1 H) as [ds' [A[B C]]].
     exists ds'; split;[|split]; try assumption.
   Qed.
 
