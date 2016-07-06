@@ -347,8 +347,9 @@ Module Concur.
       erewrite lockSet_spec_2. apply po_refl.
       apply ineq'.
       unfold lockRes; rewrite H3; constructor.
-      
-      pose (ThreadPool.lockRes_spec_3).
+
+      (*HERE*)
+      pose (JuicyMachineShell.ThreadPool.lockSet_spec_3).
       assert (forall z, (z <= ofs < z + 4)%Z -> lockRes js (b, z) = None).
       { intros.
       assert (z = ofs \/ z = ofs-1 \/ z = ofs-2 \/ z=ofs-3)%Z.
