@@ -15,9 +15,13 @@ Require Import veric.semax_ext_oracle.
 Require Import veric.juicy_safety.
 Require Import veric.Clight_new.
 Require Import veric.res_predicates.
+Require Import veric.SeparationLogic.
 Require Import sepcomp.semantics.
 Require Import sepcomp.extspec.
-Require Import floyd.proofauto.
+Require Import floyd.reptype_lemmas.
+Require Import floyd.field_at.
+Require Import floyd.client_lemmas.
+Require Import floyd.jmeq_lemmas.
 Require Import concurrency.juicy_machine.
 
 Set Bullet Behavior "Strict Subproofs".
@@ -91,7 +95,7 @@ Definition acquire_oracular_spec :=
   mk_funspecOracle
     Oracle
     (* ARGS *)
-    ([(_lock, tptr tlock)], tvoid)
+    ((_lock, tptr tlock) :: nil, tvoid)
     cc_default
     (* WITH *)
     (Prop * Oracle * val * share * Pred)
@@ -131,7 +135,7 @@ Definition release_oracular_spec :=
   mk_funspecOracle
     Oracle
     (* ARGS *)
-    ([(_lock, tptr tlock)], tvoid)
+    ((_lock, tptr tlock) :: nil, tvoid)
     cc_default
     (* WITH *)
     (Oracle * val * share * Pred)
@@ -385,7 +389,7 @@ Proof.
             (fun T : Type =>
                forall x2 : T,
                  @JMeq (rmap * (Prop * list rmap * val * share * Pred)) xwith T x2 ->
-                 @jsafeN (list rmap) (concurrent_oracular_ext_spec cs ext_link) ge (S n) []
+                 @jsafeN (list rmap) (concurrent_oracular_ext_spec cs ext_link) ge (S n) nil
                          (Clight_new.ExtCall (EF_external name sg) sig args lid ve te k) m)
               (@ext_spec_type juicy_mem external_function (@OK_ty (Concurrent_Oracular_Espec cs ext_link))
                               (@OK_spec (Concurrent_Oracular_Espec cs ext_link)) (EF_external name sg))).
