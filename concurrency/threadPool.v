@@ -63,14 +63,6 @@ Module OrdinalPool (SEM:Semantics) (RES:Resources) <: ThreadPoolSig
       end.
                          
 
-  (*Fixpoint lockSet_spec': forall js b ofs n,
-      (lockSet js) !! b ofs =
-      if ssrbool.isSome (lockRes js (b,ofs)) then Some Memtype.Writable else None.
-  
-  Lemma lockSet_spec: forall js b ofs,
-      (lockSet js) !! b ofs =
-      if ssrbool.isSome (lockRes js (b,ofs)) then Some Memtype.Writable else None.
-  Admitted.*)
 Require Import msl.Coqlib2.
 Import Coqlib.
 
@@ -560,9 +552,32 @@ Import SetoidList.
 Arguments InA {A}{eqA} x _.
 Arguments AMap.In {elt} x m.
 
+Lemma lockRes_range_dec: forall tp b ofs,
+    { (exists z, z <= ofs < z+LKSIZE /\ lockRes tp (b,z) )%Z  } + {(forall z, z <= ofs < z+LKSIZE -> lockRes tp (b,z) = None)%Z }.
+Proof.
+  replace LKSIZE with 4%Z by auto.
+  intros.
+  (*0*)
+  destruct (lockRes tp (b, ofs)) eqn:H0.
+  left; exists ofs; split; [omega | rewrite H0; auto].
+  (*1*)
+  destruct (lockRes tp (b, ofs-1))%Z eqn:H1.
+  left; exists (ofs-1)%Z; split; [omega | rewrite H1; auto].
+  (*2*)
+  destruct (lockRes tp (b, ofs-2))%Z eqn:H2.
+  left; exists (ofs-2)%Z; split; [omega | rewrite H2; auto].
+  (*3*)
+  destruct (lockRes tp (b, ofs-3))%Z eqn:H3.
+  left; exists (ofs-3)%Z; split; [omega | rewrite H3; auto].
+  (*rest*)
+  right. intros.
+  assert (z = ofs \/ z = ofs-1 \/ z = ofs-2 \/ z = ofs-3 )%Z by omega.
+  destruct H4 as [? | [ ? | [? | ?]]]; subst; auto.
+Qed.
+
 Lemma lockSet_spec_3:
   forall ds b ofs,
-    (forall z, z <= ofs < z+4 -> lockRes ds (b,z) = None)%Z ->
+    (forall z, z <= ofs < z+LKSIZE -> lockRes ds (b,z) = None)%Z ->
    (lockSet ds) !! b ofs = None.
 Proof.
   intros.
@@ -609,9 +624,11 @@ Qed.
       (lockSet (remLockSet ds (b, ofs))) !! b ofs0 =
       None.
   Proof.
-    intros.
-    hnf in H0; simpl in H0. change LKSIZE with 4%Z in H0.
+    intros. 
+    hnf in H0; simpl in H0.
     apply lockSet_spec_3.
+    change LKSIZE with 4%Z in H0. 
+    change LKSIZE with 4%Z.
     intros.
     destruct (zeq ofs z).
     * subst ofs.
@@ -623,7 +640,7 @@ Qed.
    * hnf in H.
      destruct (lockRes ds (b,z)) eqn:?; inv H1.
      + destruct (lockRes ds (b,ofs)) eqn:?; inv H4.
-         assert (z <= ofs < z+4 \/ ofs <= z <= ofs+4)%Z by omega.
+       assert (z <= ofs < z+4 \/ ofs <= z <= ofs+4)%Z by omega.
          destruct H1.
          - specialize (H b z). rewrite Heqo in H. change LKSIZE with 4%Z in H.
               specialize (H ofs). spec H; [omega|]. congruence.
@@ -637,92 +654,31 @@ Qed.
        unfold lockRes in Heqo.
        apply AMap.find_1 in Heqo0. congruence.
 Qed.
+
+
   
   Lemma gsolockSet_rem1: forall ds b ofs b' ofs',
       b  <> b' ->
       (lockSet (remLockSet ds (b, ofs))) !! b' ofs' =
       (lockSet ds)  !! b' ofs'.
   Proof.
+    
     intros.
-   unfold lockSet, remLockSet. simpl.
- unfold A2PMap.
- rewrite <- !List.fold_left_rev_right.
- match goal with |- context [fold_right ?F ?I (rev ?E)] => 
-         set (f:=F); set (init:=I); remember E as rl
- end.
- remember  (AMap.elements (elt:=lock_info) (lset ds)) as el.
- unfold lockGuts in *.
- assert (H0: forall ofs' e, @InA _ (@AMap.eq_key_elt lock_info) (b',ofs',e) (rev el) 
-                  <-> AMap.MapsTo (b', ofs') e (lset ds)). {
-  intros. split; intro. 
-   apply AMap.elements_2. rewrite <- Heqel. rewrite <- InA_rev; auto.
-   rewrite -> InA_rev. rewrite Heqel. apply AMap.elements_1. auto.
- }
- assert (H1: forall ofs' e, @InA _ (@AMap.eq_key_elt lock_info) (b',ofs',e) (rev rl) <->
-      AMap.MapsTo (b',ofs') e (AMap.remove (elt:=lock_info) (b, ofs) (lset ds))). {
-   split; intros.
-   apply AMap.elements_2; auto. rewrite <- Heqrl, <- InA_rev. auto.
-   rewrite -> InA_rev,  -> Heqrl.  apply AMap.elements_1. auto.
- } 
- assert (H3: forall ofs' e, AMap.MapsTo (b',ofs') e (AMap.remove (elt:=lock_info) (b, ofs) (lset ds)) 
-                      <-> AMap.MapsTo (b',ofs') e (lset ds)). {
-   split. apply AMap.remove_3. apply AMap.remove_2. congruence.
- }
- forget (AMap.remove (elt:=lock_info) (b, ofs) (lset ds)) as removed.
- unfold AMap.key in *.
- forget (rev el) as el'. forget (rev rl) as rl'.
- clear Heqrl rl Heqel el.
- assert (H4: forall ofs' e, @InA _ (@AMap.eq_key_elt lock_info) (b', ofs', e) el' 
-           <-> @InA _ (@AMap.eq_key_elt lock_info) (b', ofs', e) rl'). {
-  intros. rewrite H1; rewrite H0. symmetry; apply H3.
- }
- clear - H H4.
-(*
- revert el' H4; induction rl'; intros.
- *
-   simpl. rewrite PMap.gi. revert H4; induction el'; intros. simpl. rewrite PMap.gi; auto.
-  simpl. unfold f at 1.  destruct a as [[? ?] ?]. simpl.
-  destruct (peq b0 b').
-  + subst b0. specialize (H4 z l).
-     elimtype False; clear - H4.
-     match type of H4 with ?A <-> ?B => assert (A <-> True); [ | assert (B <-> False)] end.
-     clear; intuition. left; reflexivity. clear; intuition. inv H. intuition.
-  + rewrite !PMap.gso; auto. 
-      apply IHel'; intros. rewrite <- H4.
-      clear - n; split; intros. right; auto. inv H; auto.
-      inv H1. simpl in *. inv H. contradiction n; auto.
-*
- simpl. unfold f at 1.   destruct a as [[? ?] ?]. simpl.
-  destruct (peq b0 b').
-  + subst b0.
-     specialize (IHrl' el').
-     elimtype False.
-     clear - H4.
-     match type of H4 with ?A <-> ?B => assert (A <-> True); [ | assert (B <-> False)] end.
-     clear; intuition. left; reflexivity. clear; intuition. inv H. intuition.
-
-
-
-  destruct (peq b0 b).
-  + subst b0. rewrite !PMap.gso; auto. apply IHrl'.
-      intros. rewrite H4. clear - H. split; intro. inv H0; auto. inv H2. simpl in *. congruence.
-      right; auto.
-  + rewrite <- IHrl'.
- elimtype False.
-      
- specialize (H4 z l).
-     elimtype False; clear - H4.
-     match type of H4 with ?A <-> ?B => assert (A <-> True); [ | assert (B <-> False)] end.
-     clear; intuition. left; reflexivity. clear; intuition. inv H. intuition.
-  + rewrite !PMap.gso; auto. 
-      apply IHel'; intros. rewrite <- H4.
-      clear - n; split; intros. right; auto. inv H; auto.
-      inv H1. simpl in *. inv H. contradiction n; auto.
- *)
- 
-   (* THIS IS CORRECT!!! because it's in different blocks
-    * NOT TRUE.  See lemmas just above *)
-  Admitted.
+    destruct (lockRes_range_dec ds b' ofs').
+    - destruct e as [z [ineq HH]]. change LKSIZE with 4%Z in ineq.
+      erewrite lockSet_spec_2.
+      erewrite lockSet_spec_2; auto.
+      + hnf; simpl; eauto.
+      + auto.
+      + hnf; simpl; eauto.
+      + rewrite gsolockResRemLock; auto.
+        intros AA. inversion AA; subst. congruence.
+    - erewrite lockSet_spec_3.
+      erewrite lockSet_spec_3; auto.
+      intros.
+      rewrite gsolockResRemLock; auto.
+      intros AA. inversion AA; congruence.
+  Qed. 
 
   Lemma gsolockSet_rem2: forall ds b ofs ofs',
       lr_valid (lockRes ds) ->
@@ -731,10 +687,28 @@ Qed.
       (lockSet ds)  !! b ofs'.
   Proof.
     intros.
-    (* FIXED!!!
-     * NOT TRUE.  See lemmas just above *)
-  Admitted.
-
+    destruct (lockRes_range_dec ds b ofs').
+    - destruct e as [z [ineq HH]]. change LKSIZE with 4%Z in ineq.
+      assert (ofs <> z).
+      { intros AA. inversion AA.
+        apply H0. hnf. change LKSIZE with 4%Z.
+        simpl; omega. }
+      erewrite lockSet_spec_2.
+      erewrite lockSet_spec_2; auto.
+      + hnf; simpl; eauto.
+      + auto.
+      + hnf; simpl; eauto.
+      + rewrite gsolockResRemLock; auto.
+        intros AA. inversion AA. congruence.
+    - erewrite lockSet_spec_3.
+      erewrite lockSet_spec_3; auto.
+      intros.
+      destruct (zeq ofs z).
+      subst ofs; rewrite gsslockResRemLock; auto.
+      rewrite gsolockResRemLock; auto.
+      intros AA. inversion AA; congruence.
+  Qed.
+  
   Lemma gssThreadCode {tid tp} (cnt: containsThread tp tid) c' p'
         (cnt': containsThread (updThread cnt c' p') tid) :
     getThreadC cnt' = c'.
@@ -1305,19 +1279,27 @@ Qed.
       (Maps.PMap.get b' (lockSet (updLockSet tp (b,ofs) pmap))) ofs' =
       (Maps.PMap.get b' (lockSet tp)) ofs'.
   Proof.
-   intros.
-   simpl in *. unfold lockSet, updLockSet. simpl.
-   unfold A2PMap, AMap.add. simpl.
-  rewrite <- !List.fold_left_rev_right.
-  match goal with |- context [fold_right ?F _ ?B] => set (f:=F) end.
-  unfold lockGuts; simpl. unfold AMap.elements; simpl.
-  forget (AMap.this (lset tp)) as el.
-  unfold AMap.Raw.elements.
-  (* THIS IS DOUBTFUL, for the same reason about overlapping locks
-    as some of the lemmas above *)
-  Admitted.
+    
+    intros.
+    destruct (lockRes_range_dec tp b' ofs').
+    - destruct e as [z [ineq HH]]. change LKSIZE with 4%Z in ineq.
+      erewrite lockSet_spec_2.
+      erewrite lockSet_spec_2; auto.
+      + hnf; simpl; eauto.
+      + auto.
+      + hnf; simpl; eauto.
+      + rewrite gsolockResUpdLock; auto.
+        intros AA. inversion AA.
+        eapply H. unfold adr_range. subst; split; auto.
+    - erewrite lockSet_spec_3.
+      erewrite lockSet_spec_3; auto.
+      intros.
+      rewrite gsolockResUpdLock; auto.
+      intros AA. inversion AA.
+      eapply H. unfold adr_range. subst; split; auto.
+  Qed.
 
-  Lemma gsoLockSet_1 :
+  Lemma gsoLockSet_1:
     forall tp b ofs ofs'  pmap
       (Hofs: (ofs' < ofs)%Z \/ (ofs' >= ofs + (Z.of_nat lksize.LKSIZE_nat))%Z),
       (Maps.PMap.get b (lockSet (updLockSet tp (b,ofs) pmap))) ofs' =
@@ -1350,3 +1332,5 @@ Qed.
     
 End OrdinalPool.
   
+
+
