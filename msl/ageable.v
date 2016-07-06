@@ -992,9 +992,55 @@ Proof.
     + omega.
 Qed.
 
-Lemma age_to_eq k {A} `{agA : ageable A} (x y : A) : k = level x -> age_to k x = x.
+Lemma age_to_eq k {A} `{agA : ageable A} (x : A) : k = level x -> age_to k x = x.
 Proof.
   intros E. unfold age_to.
   rewrite <-E. replace (k - k) with 0 by auto with *.
   reflexivity.
+Qed.
+
+Lemma age1_age_to n {A} `{agA : ageable A} x y : level x = S n -> age1 x = Some y -> age_to n x = y.
+Proof.
+  intros E Y.
+  assert (L : (n < level x)%nat) by omega.
+  destruct (age_to_lt n x L) as [y' [E' ->]].
+  assert (y' = y) by congruence. subst y'.
+  apply age_to_eq.
+  pose proof @af_level2 A level age1 (@age_facts _ agA) _ _ E'.
+  omega.
+Qed.
+
+Lemma age_to_ageN n {A} `{agA : ageable A} (x : A) :
+  exists k, ageN k x = Some (age_to n x).
+Proof.
+  unfold age_to. generalize (level x - n); clear.
+  intros n; revert x; induction n; intros x.
+  - exists 0. reflexivity.
+  - simpl.
+    destruct (age1 x) as [ y | ] eqn:Ey; swap 1 2.
+    + exists 0; reflexivity.
+    + destruct (IHn y) as [k <-].
+      exists (S k).
+      unfold ageN.
+      simpl.
+      rewrite Ey.
+      auto.
+Qed.
+
+Lemma age_to_ind {A} `{agA : ageable A} (P : A -> Prop) : 
+  (forall x y, age1 x = Some y -> P x -> P y) ->
+  forall x n, P x -> P (age_to n x).
+Proof.
+  intros IH x n.
+  destruct (age_to_ageN n x) as [k E].
+  revert E.
+  generalize (age_to n x).
+  revert x; clear n.
+  induction k.
+  - unfold ageN; simpl. congruence.
+  - intros x a E Px.
+    unfold ageN in E; simpl in E.
+    destruct (age1 x) as [ y | ] eqn:Ex. 2:discriminate.
+    apply IH in Ex; auto.
+    eapply IHk; eauto.
 Qed.
