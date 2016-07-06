@@ -183,3 +183,15 @@ Proof.
     + injection E as <-. eauto.
     + eauto.
 Qed.
+
+Lemma AMap_map {A B} (f : A -> B) m :
+  map snd (AMap.elements (AMap.map f m)) =
+  map f (map snd (AMap.elements m)).
+Proof.
+  destruct m as [l sorted].
+  unfold AMap.Raw.t, AMap.find in *.
+  simpl.
+  clear sorted.
+  induction l as [| [addr a] l IHl]; simpl; auto.
+  rewrite IHl; auto.
+Qed.

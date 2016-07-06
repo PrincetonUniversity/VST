@@ -22,7 +22,6 @@ Require Import Coq.ZArith.ZArith.
 Require Import concurrency.threads_lemmas.
 Require Import concurrency.permissions.
 Require Import concurrency.concurrent_machine.
-Require Import concurrency.mem_obs_eq.
 Require Import concurrency.dry_context.
 Require Import concurrency.fineConc_safe.
 Require Import Coqlib.
@@ -85,10 +84,18 @@ Module X86Safe.
       sc_safe tpsc (diluteMem m) sched trace (size sched).+1.
 
   (** Competing Events *)
+
+  Definition sameLocation ev1 ev2 :=
+    match location ev1, location ev2 with
+    | Some (b1, ofs1, size1), Some (b2, ofs2, size2) =>
+      b1 = b2 /\ exists ofs, Intv.In ofs (ofs1, (ofs1 + Z.of_nat size1)%Z) /\
+                       Intv.In ofs (ofs2, (ofs2 + Z.of_nat size2)%Z)
+    | _,_ => False
+    end.
   
   Definition competes (ev1 ev2 : machine_event) : Prop :=
     thread_id ev1 <> thread_id ev2 /\
-    location ev1 = location ev2 /\
+    sameLocation ev1 ev2 /\
     (is_internal ev1 ->
      is_internal ev2 ->
      action ev1 = Some Write \/ action ev2 = Some Write) /\
@@ -119,7 +126,7 @@ Module X86Safe.
       action evi = Some Mklock ->
       (~ exists u evu, i < u < j /\ List.nth_error tr u = Some evu /\
                   action evu = Some Freelock /\ location evu = location evi) ->
-      location evj = location evi ->
+      sameLocation evj evi ->
       action evj <> Some Write /\ action evj <> Some Read.
   
 End X86Safe.

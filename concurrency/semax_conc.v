@@ -18,6 +18,9 @@ Require Import veric.res_predicates.
 Require Import sepcomp.semantics.
 Require Import sepcomp.extspec.
 Require Import floyd.proofauto.
+Require Import concurrency.juicy_machine.
+
+Set Bullet Behavior "Strict Subproofs".
 
 (* Variables to be instantiated once the program is known. *)
 Definition _f := 1%positive.      (* alpha-convertible *)
@@ -40,12 +43,8 @@ Definition lock_inv : share -> val -> mpred -> mpred :=
         (Share.unrel Share.Rsh sh)
         (b, Int.unsigned ofs))%logic.
 
-Axiom lock_inv_share_join : forall sh1 sh2 sh v R, sepalg.join sh1 sh2 sh ->
-  (lock_inv sh1 v R * lock_inv sh2 v R = lock_inv sh v R)%logic.
-
-Axiom lock_inv_isptr : forall sh v R, (`(lock_inv sh v R) |-- !!(isptr v))%logic.
-
-Axiom lock_hold : share -> val -> mpred.
+Definition positive_mpred (R : mpred) :=
+  forall phi, app_pred R phi -> exists l sh rsh k p, phi @ l = YES sh rsh k p.
 
 (*+ Deep embedding of [mpred]s *)
 
@@ -54,7 +53,6 @@ Inductive Pred :=
   | Mapsto_ :  Share.t -> type -> val -> Pred
   | Data_at : forall cs : compspecs, Share.t -> forall t : type, reptype t -> val -> Pred
   | Data_at_ : forall cs : compspecs, Share.t -> type -> val -> Pred
-  | Lock_hold : Share.t -> val -> Pred
   | Lock_inv : Share.t -> val -> Pred -> Pred
   | Pred_prop : Prop -> Pred
   | Exp : forall A : Type, (A -> Pred) -> Pred
@@ -67,7 +65,6 @@ Fixpoint Interp (p : Pred) : mpred :=
   | Data_at a b c d e => @data_at a b c d e
   | Data_at_ a b c d => @data_at_ a b c d
   | Lock_inv a b c => lock_inv a b (Interp c)
-  | Lock_hold a b => lock_hold a b
   | Pred_prop a => prop a
   | Exp a b => exp (fun x => Interp (b x))
   | Pred_list l => fold_right sepcon emp (map Interp l)
@@ -88,7 +85,7 @@ Definition acquire_spec :=
    POST [ tvoid ]
      PROP ()
      LOCAL ()
-     SEP (lock_inv sh v (Interp R); lock_hold Share.top v; Interp R).
+     SEP (lock_inv sh v (Interp R); Interp R).
 
 Definition acquire_oracular_spec :=
   mk_funspecOracle
@@ -116,15 +113,15 @@ Definition acquire_oracular_spec :=
          (ok, oracle_x, v, sh, R) =>
          PROP (oracle = oracle_x; ok)
          LOCAL ()
-         SEP (lock_inv sh v (Interp R); lock_hold Share.top v; Interp R)
+         SEP (lock_inv sh v (Interp R); Interp R)
        end).
 
 Definition release_spec :=
    WITH v : val, sh : share, R : Pred
    PRE [ _lock OF tptr tlock ]
-     PROP (readable_share sh)
+     PROP (readable_share sh; precise (Interp R); positive_mpred (Interp R))
      LOCAL (temp _lock v)
-     SEP (lock_inv sh v (Interp R); lock_hold Share.top v; Interp R)
+     SEP (lock_inv sh v (Interp R); Interp R)
    POST [ tvoid ]
      PROP ()
      LOCAL ()
@@ -144,7 +141,7 @@ Definition release_oracular_spec :=
          (oracle_x, v, sh, R) =>
          PROP (oracle = oracle_x; readable_share sh)
          LOCAL (temp _lock v)
-         SEP (lock_inv sh v (Interp R); lock_hold Share.top v; Interp R)
+         SEP (lock_inv sh v (Interp R); Interp R)
        end)
     (* POST *)
     (fun (x : Oracle * val * share * Pred) (oracle : Oracle) =>
@@ -164,18 +161,18 @@ Definition makelock_spec cs :=
    POST [ tvoid ]
      PROP ()
      LOCAL ()
-     SEP (lock_inv sh v (Interp R); lock_hold Share.top v).
+     SEP (lock_inv sh v (Interp R)).
 
 Definition freelock_spec cs :=
    WITH v : val, sh : share, R : Pred
    PRE [ _lock OF tptr tlock ]
-     PROP (writable_share sh)
+     PROP (writable_share sh; positive_mpred (Interp R))
      LOCAL (temp _lock v)
-     SEP (lock_inv sh v (Interp R); lock_hold Share.top v)
+     SEP (lock_inv sh v (Interp R); Interp R)
    POST [ tvoid ]
      PROP ()
      LOCAL ()
-     SEP (@data_at_ cs sh tlock v).
+     SEP (@data_at_ cs sh tlock v; Interp R).
 
 (* Notes about spawn_thread:
 
@@ -211,15 +208,21 @@ Definition spawn_spec :=
        b : val,
        PrePost :
          { ty : Type &
-          (ty *                     (* WITH we call spawn with *)
-          (ty -> val -> Pred) *       (* precondition *)
-          (ty -> val -> Pred))%type}  (* postcondition *)
+          (ty *                     (* WITH clause for spawned function *)
+          (ty -> val -> Pred))%type}  (* precondition (postcondition is emp) *)
    PRE [_f OF tptr voidstar_funtype, _args OF tptr tvoid]
-     PROP ()
+     PROP (
+       match PrePost with
+         existT ty (w, pre) =>
+         forall phi,
+           app_pred (Interp (pre w b)) phi ->
+           almost_empty phi
+       end
+     )
      LOCAL (temp _args b)
      SEP
      (EX _y : ident, EX globals : list (ident * val),
-      match PrePost with existT ty (_, pre, post) =>
+      match PrePost with existT ty (_, pre) =>
       (func_ptr'
         (WITH y : val, x : ty
           PRE [ _y OF tptr tvoid ]
@@ -229,12 +232,14 @@ Definition spawn_spec :=
           POST [tptr tvoid]
             PROP  ()
             LOCAL ()
-            SEP   (Interp (post x y)))
+            SEP   (emp))
        f)
       end;
-      match PrePost with existT ty (w, pre, post) =>
-      Interp (pre w b)
-      end)
+        match PrePost with
+          existT ty (w, pre) =>
+          Interp (pre w b)
+      end
+     )
    POST [ tvoid  ]
      PROP  ()
      LOCAL ()
@@ -342,7 +347,6 @@ Proof.
                  _ : context [ oi_eq_dec ?x ?y ] |- _ =>
                  destruct (oi_eq_dec x y); try discriminate; try tauto
                end.
-      (* all: match goal with E : _ = 1%positive |- _ => admit end. *)
     }
     
     assert (Ex : exists name sig, e = EF_external name sig) by (destruct e; eauto; tauto).

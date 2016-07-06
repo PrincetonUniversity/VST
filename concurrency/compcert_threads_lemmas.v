@@ -7418,7 +7418,8 @@ Module SimProofs (CI: CoreInjections).
         - (* Max permission invariant*)
             by assumption.
         - (* new memory is well-defined*)
-          eapply store_wd; eauto.
+          eapply store_wd_domain with
+          (m := (restrPermMap (compat_ls HmemCompC))); eauto.
             by simpl.
         - (* new tpc well defined*)
           apply tp_wd_lockSet.
@@ -8039,7 +8040,8 @@ Module SimProofs (CI: CoreInjections).
         - (* Max permission invariant*)
             by assumption.
         - (* new memory is well-defined*)
-          eapply store_wd; eauto.
+          eapply store_wd_domain
+          with (m := (restrPermMap (compat_ls HmemCompC))); eauto.
             by simpl.
         - (* new tpc well defined*)
           apply tp_wd_lockSet.
@@ -9236,7 +9238,8 @@ Module SimProofs (CI: CoreInjections).
         - (* Max permission invariant*)
             by assumption.
         - (* new memory is well-defined*)
-          eapply store_wd; eauto.
+          eapply store_wd_domain
+          with (m := (restrPermMap (HmemCompC i pfc))); eauto.
             by simpl.
         - (* new tpc well defined*)
           apply tp_wd_lockSet.

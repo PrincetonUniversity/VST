@@ -1603,7 +1603,12 @@ Module X86Inj <: CoreInjections.
       eapply Mem.valid_block_alloc_inv in Hvalid2'; eauto.
       destruct Hvalid2'; subst; try by exfalso.
       assert (Hle: (Mem.nextblock m <= Mem.nextblock m')%positive)
-        by admit. (*pigeon hole or extra invariant *)
+        by admit.
+      (* We either need to keep this as an extra invariant or make a
+      pigeon hole argument. Since f maps every valid block of memory m
+      to a valid block of memory m', it has to be that memory m' is at
+      least as big as memory m', because f is injective so no two
+      blocks can be mapped to the same location*)
       match goal with
       | [|- context[match proj_sumbool (valid_block_dec ?M ?Expr) with _ => _ end]] =>
         destruct (valid_block_dec M Expr)
@@ -2168,7 +2173,7 @@ Module X86Inj <: CoreInjections.
     intros.
     inversion Harg; subst.
     eauto.
-    eapply valid_mem_loadv in H0; eauto.
+    eapply loadv_wd in H0; eauto.
   Qed.
 
   Lemma extcall_arguments_valid:
@@ -2266,11 +2271,12 @@ Module X86Inj <: CoreInjections.
       | [H: match ?Expr with _ => _ end = _ |- _] =>
         destruct Expr eqn:Hload_frame_rec
       end; try discriminate; subst;
-      try (unfold load_frame.store_stack in *;
-      assert (domain_memren f m0)
+      unfold load_frame.store_stack in *;
+      try (assert (domain_memren f m0)
         by (eapply domain_memren_storev; eauto);
-      eapply storev_wd in Hload_frame_rec; eauto);
-      try (eapply wd_val_valid; eauto).
+            eapply storev_wd_domain in Hload_frame_rec; eauto);
+      try (destruct Hload_frame_rec);
+      try (eapply wd_val_valid; eauto); eauto.
       repeat match goal with
              | [H: match ?Expr with _ => _ end = _ |- _] =>
                destruct Expr eqn:?
@@ -2280,8 +2286,10 @@ Module X86Inj <: CoreInjections.
         by (eapply domain_memren_storev; eauto).
       assert (domain_memren f m1)
         by (eapply domain_memren_storev; eauto).
-      eapply storev_wd in Heqo; eauto.
-      eapply storev_wd in Heqo0; eauto.
+      eapply storev_wd_domain in Heqo; eauto.
+      destruct Heqo.
+      eapply storev_wd_domain in Heqo0; eauto.
+      destruct Heqo0; eauto.
   Qed.
 
   Corollary load_frame_store_args_rec_valid:
@@ -2306,6 +2314,26 @@ Module X86Inj <: CoreInjections.
     eapply load_frame_store_args_rec_wd_domain.
   Qed.
 
+  Lemma free_wd_domain :
+  forall (m m' : mem) b sz (f : memren),
+    domain_memren f m ->
+    Mem.free m b 0 sz = Some m' ->
+    valid_mem m ->
+    valid_mem m' /\ domain_memren f m'.
+Proof.
+  intros.
+  pose proof (Mem.valid_block_free_2 _ _ _ _ _ H0).
+  split.
+  unfold valid_mem.
+  intros.
+  erewrite <- mem_free_contents in H4; eauto.
+  specialize (H1 b0 (H2 _ H3) ofs mv H4).
+  destruct mv; auto.
+  destruct v; auto.
+  simpl in *.
+  eapply Mem.valid_block_free_1; eauto.
+  split; destruct (H b0); eauto using Mem.valid_block_free_1.
+Qed.
   
  Lemma exec_instr_wd:
     forall (g : genv) (fn : function) (i : instruction) (rs rs': regset)
@@ -2352,6 +2380,9 @@ Module X86Inj <: CoreInjections.
              | [H: Stuck = Next _ _ |- _] => discriminate
              | [H: Mem.alloc _ _ _ = _ |- _ /\ _] =>
                idtac
+             | [H: Mem.free _ _ _ _ = _ |- _] =>
+               eapply free_wd_domain in H; eauto;
+               destruct H
              | [|- _ /\ _] =>
                split
              | [H: Mem.alloc _ _ _ = _ |- _] =>
@@ -2389,6 +2420,8 @@ Module X86Inj <: CoreInjections.
     (* Allocation case*)
     (*NOTE: Giving up on this for now, it's very easy but have more
     imporant theorems to proof *)
+    assert (Hnew: Mem.valid_block m0 b)
+      by (eapply Mem.valid_new_block; eauto).
     repeat match goal with
            | [H: Mem.alloc _ _ _ = _ |- _] =>
              eapply mem_valid_alloc in H; eauto;
@@ -2403,9 +2436,31 @@ Module X86Inj <: CoreInjections.
     assert (ren_domain_incr f f') by
         (eapply domain_memren_incr with (f' := f'');
           eauto).
-    split.
-    Hint Resolve valid_val_incr regset_wd_incr : wd_alloc.
-  Admitted.
+    Hint Resolve valid_val_incr regset_wd_incr loader_wd_incr : wd_alloc.
+    split; eauto 2 with wd wd_alloc.
+    assert (domain_memren f' m0) by
+        (eapply domain_memren_trans; eauto). 
+    apply regset_wd_set.
+    apply valid_val_add; eauto 2 with wd.
+    apply regset_wd_set; eauto with wd wd_alloc.
+    apply regset_wd_set.
+    simpl. destruct (H8 b). specialize (H9 Hnew).
+    destruct (f' b); try by exfalso. eauto.
+    eauto with wd wd_alloc.
+    eapply wd_val_valid; eauto with wd wd_alloc.
+    eapply wd_val_valid; eauto with wd wd_alloc.
+    (* left-overs from free case*)
+    eapply valid_val_domain with (f := f); eauto.
+    unfold Mem.loadv in *; simpl in *.
+    eapply valid_mem_load with (m := m); eauto.
+    eapply valid_val_domain with (f := f); eauto.
+    unfold Mem.loadv in *; simpl in *.
+    eapply valid_mem_load with (m := m); eauto.
+    eapply valid_val_domain with (f := f); eauto.
+    unfold Mem.loadv in *; simpl in *.
+    eapply valid_mem_load with (m := m); eauto.
+  Qed.
+    
   
   (** Well-definedness of state is retained. *)
   (* The case for internal steps is missing. It's probably the most

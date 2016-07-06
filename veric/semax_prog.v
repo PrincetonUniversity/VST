@@ -1294,7 +1294,7 @@ Definition find_params (prog : program) (f : ident) :=
 Lemma semax_prog_entry_point {CS: compspecs} :
   forall V G prog id_fun id_arg arg params A P Q,
     @semax_prog CS prog V G ->
-    is_Internal prog id_fun = true ->
+    (* is_Internal prog id_fun = true -> *)
     params = (id_arg, Tpointer Tvoid noattr) :: nil ->
     find_params prog id_fun = Some params ->
     find_id id_fun G = Some (mk_funspec (params, Tvoid) cc_default A P Q) ->
@@ -1328,12 +1328,11 @@ Lemma semax_prog_entry_point {CS: compspecs} :
           app_pred (funassert (Delta_types V G (Tpointer Tvoid noattr::nil)) rho0) (m_phi jm) ->
           forall z, jsafeN (@OK_spec Espec) (globalenv prog) (level jm) z q jm } }.
 Proof.
-  intros V G prog id_fun id_arg arg params A P Q SP INT Eparams Fparams id_in_G QFF arg_p.
-  unfold is_Internal in INT; unfold find_params in Fparams.
+  intros V G prog id_fun id_arg arg params A P Q SP (* INT *) Eparams Fparams id_in_G QFF arg_p.
+  unfold find_params in Fparams.
   destruct (Genv.find_symbol (Genv.globalenv prog) id_fun) as [b|] eqn:Fid; [ | discriminate].
   destruct (Genv.find_funct_ptr (Genv.globalenv prog) b) as [[func|]|] eqn:Fb; try discriminate.
   subst params; injection Fparams as Eparams.
- clear INT.
   
   exists b.
   intros rho0 rho1.

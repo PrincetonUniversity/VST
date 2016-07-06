@@ -247,6 +247,18 @@ Proof.
     by eauto.
 Qed.
 
+Lemma domain_memren_trans:
+  forall f f' m m',
+    domain_memren f m ->
+    domain_memren f m' ->
+    domain_memren f' m' ->
+    domain_memren f' m.
+Proof.
+  intros.
+  split;
+    destruct (H b), (H0 b), (H1 b); auto.
+Qed.
+
 Lemma ren_incr_domain_incr:
   forall f f',
     ren_incr f f' ->
@@ -1238,18 +1250,6 @@ Module MemoryWD.
     eapply valid_mem_load; eauto.
   Qed.
   
-  Lemma storev_wd:
-    forall m m' chunk vptr v
-      (Hstore: Mem.storev chunk m vptr v = Some m')
-      (Hval_wd: mem_wd.val_valid v m)
-      (Hmem_wd: valid_mem m),
-      valid_mem m'.
-  Proof.
-    intros.
-    destruct vptr; try discriminate.
-    eapply store_wd; eauto.
-  Qed.
-
   Lemma domain_memren_store:
     forall chunk m m' b ofs v f
       (Hdomain: domain_memren f m)
