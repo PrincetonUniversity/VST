@@ -290,20 +290,40 @@ pointers, but it should be provable*)
     forall m, init_mem = Some m -> valid_mem m.
 
   (** Also assuming that the initial core will be well-defined*)
-  Axiom init_core_wd:
-    forall v args m,
-      init_mem = Some m ->
+  Lemma init_core_wd:
+    forall v args m (ARGS:valid_val_list (id_ren m) args),
+      init_mem = Some m -> 
       match initial_core SEM.Sem the_ge v args with
       | Some c => core_wd (id_ren m) c
       | None => True
       end.
+  Proof. intros.
+    unfold initial_core. unfold SEM.Sem. simpl. unfold Asm_coop.Asm_initial_core.
+    destruct v; trivial. 
+    destruct (Int.eq_dec i Int.zero); trivial.
+    remember (Genv.find_funct_ptr the_ge b ) as d.
+    destruct d; trivial. destruct f; trivial.
+    remember (val_casted.val_has_type_list_func args (sig_args (Asm.fn_sig f))) as t.
+    destruct t; try solve [simpl; trivial].
+    rewrite andb_true_l.
+    remember (val_casted.vals_defined args ) as w.
+    destruct w; try solve [simpl; trivial].
+    rewrite andb_true_l.
+    remember (proj_sumbool (zlt (4 * (2 * Zlength args)) Int.max_unsigned)) as r.
+    destruct r; try solve [simpl; trivial]. simpl.
+    unfold init_mem in H.
+    split; trivial.
+    unfold id_ren, is_left. symmetry in Heqd.
+      specialize (Genv.find_funct_ptr_not_fresh _ _ H Heqd); intros.
+      remember (valid_block_dec m b). destruct s; simpl; trivial. contradiction.
+  Qed.
 
   (** Excluded middle is required, but can be easily lifted*)
   Axiom em : ClassicalFacts.excluded_middle.
 
   Lemma init_tp_wd:
-    forall v args m tp,
-      init_mem = Some m ->
+    forall v args m tp (ARGS:valid_val_list (id_ren m) args),
+      init_mem = Some m -> 
       init_mach init_perm the_ge v args = Some tp ->
       tp_wd (id_ren m) tp.
   Proof.
@@ -313,8 +333,7 @@ pointers, but it should be provable*)
     destruct (initial_core SEM.Sem the_ge v args) eqn:?, init_perm; try discriminate.
     inversion H0; subst.
     simpl. split; auto.
-    pose proof (init_core_wd v args H).
-    rewrite Heqo in H1; auto.
+    specialize (init_core_wd v ARGS H). rewrite Heqo; trivial. 
   Qed.
   
   (** Assuming safety of cooperative concurrency*)
@@ -468,19 +487,18 @@ defined*)
   Lemma strong_tsim_refl:
     forall tp f args m i (cnti: containsThread tp i)
       (Hcomp: mem_compatible tp m)
-      (HcompF: mem_compatible tp (diluteMem m)),
+      (HcompF: mem_compatible tp (diluteMem m))
+      (ARGS:valid_val_list (id_ren m) args),
       init_mem = Some m ->
       init_mach init_perm the_ge f args = Some tp ->
       strong_tsim (id_ren m) cnti cnti Hcomp HcompF.
   Proof.
     intros.
     constructor.
-    eapply ctl_inj_id; eauto.
-    pose proof (init_tp_wd f args).
-    specialize (H1 _ _ H H0 i cnti).
-    auto.
-    apply id_ren_correct.
-    eapply init_mem_obs_eq; eauto.
+    - eapply ctl_inj_id; eauto.
+      apply (init_tp_wd _ ARGS H H0).
+      apply id_ren_correct.
+    - eapply init_mem_obs_eq; eauto.
   Qed.
 
   Lemma setMaxPerm_inv:
@@ -497,7 +515,7 @@ defined*)
 
   (** Establishing the simulation relation for the initial state*)
   Lemma init_sim:
-    forall f arg U U' tpc tpf m n,
+    forall f arg U U' tpc tpf m n (ARG:valid_val_list (id_ren m) arg),
       tpc_init f arg = Some (U, [::], tpc) ->
       tpf_init f arg = Some (U', [::], tpf) ->
       init_mem = Some m ->
@@ -520,7 +538,7 @@ defined*)
       unfold tpc_init. simpl. unfold DryConc.init_machine.
       rewrite Hinit. reflexivity. 
     - intros i cnti cnti'.
-      pose proof (strong_tsim_refl _ _ cnti HmemComp HmemCompF H1 Hinit).
+      pose proof (strong_tsim_refl _ cnti HmemComp HmemCompF ARG H1 Hinit).
       pf_cleanup.
       destruct H. destruct obs_eq0.
       eauto.
@@ -687,13 +705,14 @@ defined*)
   Theorem init_fine_safe:
     forall f arg U tpf m
       (Hmem: init_mem = Some m)
-      (Hinit: tpf_init f arg = Some (U, [::], tpf)),
+      (Hinit: tpf_init f arg = Some (U, [::], tpf))
+      (ARG: valid_val_list (id_ren m) arg),
     forall (sched : Sch),
     exists tr,
       fsafe tpf (diluteMem m) sched tr (size sched).+1.
   Proof.
-    intros.
-    assert (Hsim := init_sim f arg (size sched).+1 Hinit Hinit Hmem).
+    intros. (* specialize (init_sim f ARG (size sched).+1).*)
+    assert (Hsim := init_sim f (size sched).+1 ARG Hinit Hinit Hmem).
     clear - Hsim.
     eapply fine_safe; eauto.
   Qed.
