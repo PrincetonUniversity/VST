@@ -241,7 +241,7 @@ Module Concur.
     Definition lockSet_Writable (lset : lockMap) m :=
       forall b ofs, AMap.find (b,ofs) lset ->
                forall ofs0, Intv.In ofs0 (ofs, ofs + LKSIZE)%Z ->
-             Mem.perm_order'' ((Mem.mem_access m)!! b ofs Max) (Some Writable) .
+             Mem.perm_order'' ((Mem.mem_access m)!! b ofs0 Max) (Some Writable) .
 
     (*This definition makes no sense. In fact if there is at least one lock in rmap, 
      *then the locks_writable is false (because perm_of_res(LK) = Some Nonempty). *)
@@ -299,13 +299,64 @@ Module Concur.
     
     
     Lemma mem_compatible_locks_ltwritable':
-      forall lset m, lockSet_Writable lset m ->
-                permMapLt (A2PMap lset) (getMaxPerm m ).
+      forall js m, lockSet_Writable (lockGuts js) m ->
+                permMapLt (lockSet js) (getMaxPerm m ).
     Proof.
-      unfold permMapLt, lockSet_Writable; intros.
-      specialize (H b ofs).
+      unfold permMapLt, lockSet_Writable. intros.
+      rewrite getMaxPerm_correct.
+      specialize (H b).
+      (*0*)
+      destruct (lockRes js (b, ofs)) eqn:H0.
+      unfold lockRes in H0; specialize (H ofs ltac:(rewrite H0; auto) ofs).
+      assert (ineq: Intv.In ofs (ofs, (ofs + LKSIZE)%Z)).
+      replace LKSIZE with 4%Z by auto; hnf; simpl. omega.
+      apply H in ineq.
+      eapply po_trans; eauto.
+      rewrite lockSet_spec_1. apply po_refl.
+      unfold lockRes; rewrite H0; constructor.
+
+      (*1*)
+      destruct (lockRes js (b, (ofs-1)%Z)) eqn:H1.
+      unfold lockRes in H1. specialize (H (ofs-1)%Z ltac:(rewrite H1; auto) (ofs)).
+      assert (ineq: Intv.In ofs (ofs - 1, (ofs -1 + LKSIZE))%Z).
+      replace LKSIZE with 4%Z by auto; hnf; simpl. omega.
+      assert (ineq':=ineq).
+      apply H in ineq. eapply po_trans; eauto.
+      erewrite lockSet_spec_2. apply po_refl.
+      apply ineq'.
+      unfold lockRes; rewrite H1; constructor.
+
+      (*2*)
+      destruct (lockRes js (b, (ofs-2)%Z)) eqn:H2.
+      unfold lockRes in H2. specialize (H (ofs-2)%Z ltac:(rewrite H2; auto) (ofs)).
+      assert (ineq: Intv.In ofs (ofs - 2, (ofs -2 + LKSIZE))%Z).
+      replace LKSIZE with 4%Z by auto; hnf; simpl. omega.
+      assert (ineq':=ineq).
+      apply H in ineq. eapply po_trans; eauto.
+      erewrite lockSet_spec_2. apply po_refl.
+      apply ineq'.
+      unfold lockRes; rewrite H2; constructor.
+
+      (*3*)
+      destruct (lockRes js (b, (ofs-3)%Z)) eqn:H3.
+      unfold lockRes in H3. specialize (H (ofs-3)%Z ltac:(rewrite H3; auto) (ofs)).
+      assert (ineq: Intv.In ofs (ofs - 3, (ofs -3 + LKSIZE))%Z).
+      replace LKSIZE with 4%Z by auto; hnf; simpl. omega.
+      assert (ineq':=ineq).
+      apply H in ineq. eapply po_trans; eauto.
+      erewrite lockSet_spec_2. apply po_refl.
+      apply ineq'.
+      unfold lockRes; rewrite H3; constructor.
       
-    Admitted.
+      pose (ThreadPool.lockRes_spec_3).
+      assert (forall z, (z <= ofs < z + 4)%Z -> lockRes js (b, z) = None).
+      { intros.
+      assert (z = ofs \/ z = ofs-1 \/ z = ofs-2 \/ z=ofs-3)%Z.
+      omega.
+      destruct H5 as [? | [? | [? | ]]]; subst; auto. }
+      apply e in H4. rewrite H4. 
+      apply po_None.
+    Qed.
 
 
     Lemma mem_compatible_locks_ltwritable:
@@ -313,7 +364,7 @@ Module Concur.
               permMapLt (lockSet tp) (getMaxPerm m ).
     Proof. intros. inversion H as [all_juice M]; inversion M. inversion all_cohere0.
            destruct tp.
-           unfold lockSet; simpl in *.
+           simpl in *.
            eapply mem_compatible_locks_ltwritable'; eassumption.
     Qed.
 
@@ -322,8 +373,7 @@ Module Concur.
         forall b ofs,
           Mem.perm_order'' ((getMaxPerm m) !! b ofs)
                            ((lockSet js) !! b ofs).
-            
-    Admitted.
+    Proof. intros. eapply mem_compatible_locks_ltwritable; auto. Qed.
 
     
     Lemma compatible_lockRes_join:
@@ -1012,21 +1062,20 @@ Module Concur.
        rewrite getMaxPerm_correct.
        apply acc_coh0. }
       { apply po_join_sub.
-        apply resource_at_join_sub. admit. }
-        
-    Admitted.
-      
-      Lemma access_cohere_sub': forall phi1 phi2 m,
-          access_cohere' m phi1 ->
-          join_sub phi2 phi1 ->
-          access_cohere' m phi2.
-      Proof.
-        unfold access_cohere'; intros.
-        eapply po_trans.
+        apply resource_at_join_sub. eapply compatible_lockRes_sub; eauto. }
+    Qed.
+    
+    Lemma access_cohere_sub': forall phi1 phi2 m,
+        access_cohere' m phi1 ->
+        join_sub phi2 phi1 ->
+        access_cohere' m phi2.
+    Proof.
+      unfold access_cohere'; intros.
+      eapply po_trans.
         - apply H.
         - apply po_join_sub.
           apply resource_at_join_sub; assumption.
-      Qed.
+    Qed.
       
       
       
@@ -1057,6 +1106,7 @@ Module Concur.
             i <> j ->
             sepalg.joins (getThreadR cnti) (getThreadR cntj).
       Proof.
+        
       Admitted.
       Lemma compatible_threadRes_lockRes_join:
         forall js m,
@@ -1065,6 +1115,7 @@ Module Concur.
             ThreadPool.lockRes js l = Some (Some phi) ->
             sepalg.joins (getThreadR cnti) phi.
       Proof.
+        
       Admitted.
       Lemma compatible_lockRes_cohere: forall js m l phi,
           ThreadPool.lockRes js l = Some (Some phi) ->
@@ -1097,12 +1148,6 @@ Module Concur.
         m_phi (personal_mem cnt c) = ThreadPool.getThreadR cnt.
           reflexivity.
       Qed.
-
-      Lemma lockSet_CT: forall js m b ofs i (Hi: containsThread js i) sh psh n X,
-          mem_compatible js m ->
-          (getThreadR Hi) @ (b, ofs) = YES sh psh (LK n) X ->
-          (lockSet js) !! b ofs = Some Writable.
-      Admitted.
 
       (** *Lemmas about aging*)
       Lemma cnt_age: forall js i age,
