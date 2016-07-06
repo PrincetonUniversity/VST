@@ -834,6 +834,83 @@ Qed.
       induction l; simpl; auto. rewrite IHl. auto.
     Qed.
 
+    Lemma join_list_age_to k l Phi :
+      le k (level Phi) ->
+      join_list l Phi ->
+      join_list (map (age_to k) l) (age_to k Phi).
+    Proof.
+      revert Phi. induction l as [| phi l IHl]; intros Phi L; simpl.
+      - apply age_to_identy.
+      - intros [a [aphi la]].
+        apply IHl in la.
+        + exists (age_to k a); split; auto.
+          apply age_to_join_eq; auto.
+        + cut (level a = level Phi); [ intuition | ].
+          eapply join_level; eauto.
+    Qed.
+    
+    Lemma join_list'_age_to k (l : list (option res)) (Phi : option res) :
+      (match Phi with None => Logic.True | Some phi => le k (level phi) end) ->
+      join_list' l Phi ->
+      join_list' (map (option_map (age_to k)) l) (option_map (age_to k) Phi).
+    Proof.
+      revert Phi. induction l as [| phi l IHl]; intros Phi L; simpl.
+      - destruct Phi; simpl; auto. discriminate.
+      - intros [[a | ] [aphi la]].
+        + destruct Phi as [Phi|]; [|inversion aphi].
+          apply IHl in la.
+          * exists (Some (age_to k a)); split; auto.
+            inversion aphi; subst; simpl; constructor.
+            apply age_to_join_eq; auto.
+          * cut (level a = level Phi); [ intuition | ]. 
+            inversion aphi; subst; simpl; auto.
+            eapply join_level; eauto.
+        + apply IHl in la.
+          * exists None; split; auto.
+            inversion aphi; subst; simpl; constructor.
+          * constructor.
+    Qed.
+    
+    Lemma AMap_map f l :
+      map snd (AMap.elements (elt:=lock_info) (AMap.map f l)) =
+      map f (map snd (AMap.elements (elt:=lock_info) l)).
+    Proof.
+    Admitted.
+    
+    Lemma join_all_age_to k tp Phi :
+      le k (level Phi) ->
+      join_all tp Phi ->
+      join_all (age_tp_to k tp) (age_to k Phi).
+    Proof.
+      intros L J. inversion J as [r rT rL r' JT JL JTL]; subst.
+      pose (rL' := option_map (age_to k) rL).
+      destruct tp as [N pool phis lset]; simpl in *.
+      eapply AllJuice with (age_to k rT) rL'.
+      - {
+          hnf in *; simpl in *.
+          unfold getThreadsR in *; simpl in *.
+          rewrite map_compose.
+          apply join_list_age_to; auto.
+          assert (E : level rT = level Phi). {
+            inversion JTL as [ | a H H0 H2 | a1 a2 a3 JJ H H1 H0]; subst. auto.
+            pose proof join_level _ _ _ JJ. intuition. }
+          rewrite E; auto.
+        }
+      - hnf. (simpl ThreadPool.lset).
+        hnf in JL. simpl in JL.
+        revert JL.
+        rewrite AMap_map.
+        apply join_list'_age_to.
+        destruct rL as [rL|]; auto.
+        assert (E : level rL = level Phi). {
+          inversion JTL as [ | a H H0 H2 | a1 a2 a3 JJ H H1 H0]; subst. auto.
+          pose proof join_level _ _ _ JJ. intuition. }
+        rewrite E; auto.
+      - destruct rL as [rL | ]; unfold rL'.
+        + constructor. apply age_to_join_eq; eauto. inversion JTL; eauto.
+        + inversion JTL. constructor.
+    Qed.
+
     Lemma perm_of_age:
         forall rm age loc,
           perm_of_res (age_to age rm @ loc) = perm_of_res (rm @ loc).

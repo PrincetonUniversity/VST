@@ -253,6 +253,15 @@ subst.
 unfold age in *. congruence.
 Qed.
 
+Lemma age_to_identy {A} `{asaA: Age_alg A}: forall k phi,
+    identity phi -> identity (age_to k phi).
+Proof.
+  intros k phi. unfold age_to. generalize (level phi - k); intros n; revert phi.
+  induction n; intros phi id; simpl; auto.
+  destruct (age1 phi) eqn:E; auto.
+  apply IHn. eapply age_identity; eauto.
+Qed.
+
 Lemma age_comparable {A} {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A} {agA: ageable A}{asaA: Age_alg A}:
     forall phi1 phi2 phi1' phi2', age phi1 phi1' -> age phi2 phi2' ->
       comparable phi1 phi2 -> comparable phi1' phi2'.
