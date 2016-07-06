@@ -1497,8 +1497,6 @@ Qed.
           do 3 f_equal. apply proof_irrelevance.
       Qed.
 
-      
-
       Lemma LockRes_age: forall js age a,
           isSome (lockRes (age_tp_to age js) a) = isSome(lockRes js a).
       Proof. destruct js.
@@ -1535,6 +1533,73 @@ Qed.
         apply AMap_find_map_inv in AA. destruct AA as [x [map rest]].
         destruct x; inversion rest.
         exists r; rewrite map; auto.
+      Qed.
+
+      Lemma age1_YES'_1 {phi phi' l rsh sh k P} :
+        age1 phi = Some phi' ->
+        phi @ l = YES rsh sh k P ->
+        (exists P, phi' @ l = YES rsh sh k P).
+      Proof.
+        intros A E.
+        apply (proj1 (age1_YES' phi phi' l rsh sh k A)).
+        eauto.
+      Qed.
+      
+      Lemma age1_YES'_2 {phi phi' l rsh sh k P} :
+        age1 phi = Some phi' ->
+        phi' @ l = YES rsh sh k P ->
+        (exists P, phi @ l = YES rsh sh k P).
+      Proof.
+        intros A E.
+        apply (proj2 (age1_YES' phi phi' l rsh sh k A)).
+        eauto.
+      Qed.
+      
+      Lemma age1_PURE_2 {phi phi' l k P} :
+        age1 phi = Some phi' ->
+        phi' @ l = PURE k P ->
+        (exists P, phi @ l = PURE k P).
+      Proof.
+        intros A E.
+        apply (proj2 (age1_PURE phi phi' l k A)).
+        eauto.
+      Qed.
+      
+      Lemma mem_cohere_age_to n m phi :
+        mem_cohere' m phi ->
+        mem_cohere' m (age_to n phi).
+      Proof.
+        apply age_to_ind; clear.
+        intros x y E.
+        intros [A B C D]; constructor.
+        
+        - intros rsh sh v loc pp H.
+          destruct (proj2 (age1_YES' _ _ loc rsh sh (VAL v) E)) as [pp' E'].
+          eauto.
+          specialize (A rsh sh v loc _ E').
+          destruct A as [A ->]. split; auto.
+          apply (proj1 (age1_YES _ _ loc rsh sh (VAL v) E)) in E'.
+          congruence.
+        
+        - intros addr.
+          destruct (age1_levelS _ _ E) as [n L].
+          eapply (age1_age_to n) in E; auto.
+          rewrite <-E.
+          rewrite perm_of_age.
+          apply B.
+        
+        - intros addr; specialize (C addr).
+          destruct (y @ addr) as [sh | sh p k pp | k p] eqn:AT.
+          + eapply (age1_NO x) in AT; auto.
+            rewrite AT in C; auto.
+          + destruct (age1_YES'_2 E AT) as [P Ex].
+            rewrite Ex in C.
+            auto.
+          + destruct (age1_PURE_2 E AT) as [P Ex].
+            rewrite Ex in C; auto.
+        
+        - intros loc G; specialize (D loc G).
+          eapply (age1_NO x); eauto.
       Qed.
       
     End JuicyMachineLemmas.
