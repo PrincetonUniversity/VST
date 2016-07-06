@@ -583,6 +583,11 @@ Definition resource_is_lock r := exists rsh sh n pp, r = YES rsh sh (LK n) pp.
 Definition same_locks phi1 phi2 := 
   forall loc, resource_is_lock (phi1 @ loc) <-> resource_is_lock (phi2 @ loc).
 
+Definition resource_is_lock_sized n r := exists rsh sh pp, r = YES rsh sh (LK n) pp.
+
+Definition same_locks_sized phi1 phi2 := 
+  forall loc n, resource_is_lock_sized n (phi1 @ loc) <-> resource_is_lock_sized n (phi2 @ loc).
+
 Definition lockSet_bound lset b :=
   forall loc, isSome (AMap.find (elt:=option rmap) loc lset) -> (fst loc < b)%positive.
 
@@ -590,6 +595,15 @@ Lemma resource_decay_same_locks {b phi phi'} :
   resource_decay b phi phi' -> same_locks phi phi'.
 Proof.
   intros R loc; split; intros (rsh & sh & n & pp & E).
+  - repeat eexists. eapply resource_decay_LK in E; eauto.
+  - destruct (resource_decay_LK_inv R E) as [pp' [E' ->]].
+    repeat eexists.
+Qed.
+
+Lemma resource_decay_same_locks_sized {b phi phi'} :
+  resource_decay b phi phi' -> same_locks_sized phi phi'.
+Proof.
+  intros R loc n; split; intros (rsh & sh & pp & E).
   - repeat eexists. eapply resource_decay_LK in E; eauto.
   - destruct (resource_decay_LK_inv R E) as [pp' [E' ->]].
     repeat eexists.
@@ -613,22 +627,25 @@ Lemma resource_decay_lockSet_in_juicyLocks b phi phi' lset :
   JM.lockSet_in_juicyLocks lset phi'.
 Proof.
   intros RD LB IN loc IT.
-  destruct (IN _ IT) as [(rsh & sh & pp & n & E)|(sh & N)].
-  - assert (SL : same_locks phi phi') by (eapply resource_decay_same_locks; eauto). destruct (SL loc) as [(rsh' & sh' & n' & pp' & E') _].
-    + rewrite E. exists rsh, sh, n, pp. reflexivity.
-    + rewrite E'. left. exists rsh', sh', pp', n'. reflexivity.
-  - destruct RD as [L RD].
-    destruct (RD loc) as [NN [R|[R|[[P [v R]]|R]]]].
-    + rewrite N in R; simpl in R; rewrite <- R.
-      right. eauto.
-    + rewrite N in R. destruct R as (sh' & v & v' & R & H). discriminate.
-    + specialize (LB loc).
-      cut (fst loc < b)%positive. now intro; exfalso; eauto.
-      apply LB. destruct (AMap.find (elt:=option rmap) loc lset).
-      * apply I.
-      * inversion IT.
-    + destruct R as (v & v' & R & N').
-      right; eauto.
+  destruct (IN _ IT) as (rsh & sh & pp & E).
+  (* assert (SL : same_locks phi phi') by (eapply resource_decay_same_locks; eauto). *)
+  assert (SL : same_locks_sized phi phi') by (eapply resource_decay_same_locks_sized; eauto).
+  destruct (SL loc LKSIZE) as [(rsh' & sh' & pp' &  E') _].
+  { rewrite E. exists rsh, sh, pp. reflexivity. }
+  destruct RD as [L RD].
+  destruct (RD loc) as [NN [R|[R|[[P [v R]]|R]]]].
+  + rewrite E in R. simpl in R; rewrite <- R.
+    eauto.
+  + rewrite E in R. destruct R as (sh'' & v & v' & R & H). discriminate.
+  + specialize (LB loc).
+    cut (fst loc < b)%positive. now intro; exfalso; eauto.
+    apply LB. destruct (AMap.find (elt:=option rmap) loc lset).
+    * apply I.
+    * inversion IT.
+  + destruct R as (v & v' & R & N').
+    rewrite E'.
+    exists rsh', sh', pp'.
+    eauto.
 Qed.
 
 Lemma lockSet_Writable_lockSet_bound m lset  :
@@ -727,7 +744,7 @@ Section Simulation.
         (m, ge, (nil, jstate))
         (m, ge, (nil, jstate))
   | state_step_c ge m m' sch sch' jstate jstate' :
-      @JuicyMachine.machine_step ge sch jstate m sch' jstate' m' ->
+      @JuicyMachine.machine_step ge sch nil jstate m sch' nil jstate' m' ->
       state_step
         (m, ge, (sch, jstate))
         (m', ge, (sch', jstate')).
@@ -817,9 +834,8 @@ Section Simulation.
             clear -compat IN.
             apply po_trans with (perm_of_res (Phi @ (b, ofs))).
             - destruct compat.
-              destruct (lset_in_juice (b, ofs) IN) as [(?&?&?&?& ->)|(?& ->)].
-              + constructor.
-              + simpl. if_tac; constructor.
+              destruct (lset_in_juice (b, ofs) IN) as (?&?&?& ->).
+              constructor.
             - cut (join_sub (JM.ThreadPool.getThreadR cnti @ (b, ofs)) (Phi @ (b, ofs))).
               + apply po_join_sub.
               + apply resource_at_join_sub.
@@ -1057,6 +1073,7 @@ unique: ok *)
         apply state_step_c; [].
         apply JuicyMachine.thread_step with
         (tid := i)
+          (ev := nil)
           (Htid := cnti)
           (Hcmpt := mem_compatible_forget compat); [|]. reflexivity.
         eapply JuicyMachineShell_ClightSEM.step_juicy; [ | | | | | ].
@@ -1067,6 +1084,8 @@ unique: ok *)
           split.
           * simpl.
             subst.
+            unfold JuicyMachineShell_ClightSEM.ThreadPool.SEM.Sem in *.
+            rewrite ClightSEM.CLN_msem.
             apply stepi.
           * simpl.
             revert decay.
@@ -1088,7 +1107,9 @@ unique: ok *)
         + eapply mem_compatible_forget; eauto.
         + econstructor.
           * eassumption.
-          * reflexivity.
+          * unfold JuicyMachineShell_ClightSEM.ThreadPool.SEM.Sem in *.
+            rewrite ClightSEM.CLN_msem.
+            reflexivity.
           * constructor.
           * reflexivity.
       } (* end of Krun (at_ex c) -> Kblocked c *)
@@ -1289,17 +1310,15 @@ unique: ok *)
             * constructor.
             * apply Eci.
             * simpl.
+              unfold JuicyMachineShell_ClightSEM.ThreadPool.SEM.Sem in *.
+              rewrite ClightSEM.CLN_msem; simpl.
               repeat f_equal.
-              -- simpl in H_acquire.
+              -- simpl.
+                 simpl in H_acquire.
                  injection H_acquire as Ee.
                  apply ext_link_inj in Ee.
-                 rewrite <-Ee.
-                 reflexivity.
-              -- inversion safei; subst.
-                 admit. 2:admit.
-                 simpl in H0.
-                 injection H0 as <- <- <-.
-                 simpl in H1.
+                 auto.
+              -- (* inversion safei; subst. *)
                  admit.
                  (* see with andrew: should safety require signatures
                  to be exactly something?  Maybe it should be in
@@ -1353,6 +1372,9 @@ unique: ok *)
             * now auto.
             * eassumption.
             * simpl.
+              unfold JuicyMachineShell_ClightSEM.ThreadPool.SEM.Sem in *.
+              rewrite ClightSEM.CLN_msem.
+              simpl.
               repeat f_equal; [ | | | ].
               -- simpl in H_acquire.
                  injection H_acquire as Ee.
@@ -1406,9 +1428,18 @@ unique: ok *)
           apply JuicyMachine.resume_step with (tid := i) (Htid := cnti).
           * reflexivity.
           * eapply mem_compatible_forget. eauto.
-          * eapply JuicyMachine.ResumeThread with (c := ci) (c' := ci').
-            -- subst. reflexivity.
-            -- subst. simpl. destruct lid; reflexivity.
+          * unfold JuicyMachineShell_ClightSEM.ThreadPool.SEM.Sem in *.
+            eapply JuicyMachine.ResumeThread with (c := ci) (c' := ci');
+              try rewrite ClightSEM.CLN_msem in *;
+              simpl.
+            -- subst.
+               unfold JuicyMachineShell_ClightSEM.ThreadPool.SEM.Sem in *.
+               rewrite ClightSEM.CLN_msem in *; simpl.
+               reflexivity.
+            -- subst.
+               unfold JuicyMachineShell_ClightSEM.ThreadPool.SEM.Sem in *.
+               rewrite ClightSEM.CLN_msem in *; simpl.
+               destruct lid; reflexivity.
             -- rewrite Eci.
                subst ci.
                f_equal.
@@ -2117,17 +2148,17 @@ Inductive jmsafe : nat -> cm_state -> Prop :=
 | jmsafe_0 m ge sch tp : jmsafe 0 (m, ge, (sch, tp))
 | jmsafe_halted n m ge tp : jmsafe n (m, ge, (nil, tp))
 | jmsafe_core n m m' ge sch tp tp':
-    @JuicyMachine.machine_step ge sch tp m sch tp' m' ->
+    @JuicyMachine.machine_step ge sch nil tp m sch nil tp' m' ->
     jmsafe n (m', ge, (sch, tp')) ->
     jmsafe (S n) (m, ge, (sch, tp))
 | jmsafe_sch n m m' ge i sch tp tp':
-    @JuicyMachine.machine_step ge (i :: sch) tp m sch tp' m' ->
+    @JuicyMachine.machine_step ge (i :: sch) nil tp m sch nil tp' m' ->
     (forall sch', jmsafe n (m', ge, (sch', tp'))) ->
     jmsafe (S n) (m, ge, (i :: sch, tp)).
 
 Lemma step_sch_irr ge i sch sch' tp m tp' m' :
-  @JuicyMachine.machine_step ge (i :: sch) tp m sch tp' m' ->
-  @JuicyMachine.machine_step ge (i :: sch') tp m sch' tp' m'.
+  @JuicyMachine.machine_step ge (i :: sch) nil tp m sch nil tp' m' ->
+  @JuicyMachine.machine_step ge (i :: sch') nil tp m sch' nil tp' m'.
 Proof.
   intros step.
   assert (i :: sch <> sch) by (clear; induction sch; congruence).
@@ -2247,7 +2278,7 @@ Section Safety.
   Theorem safe_initial_state : forall sch r n genv_symb,
       safeN_
         (G := genv)
-        (C := schedule * Machine.t)
+        (C := schedule * list _ * Machine.t)
         (M := mem)
         (Z := unit)
         (genv_symb := genv_symb)
@@ -2257,7 +2288,7 @@ Section Safety.
         (globalenv prog)
         n
         tt
-        (sch, initial_machine_state n)
+        (sch, nil, initial_machine_state n)
         (proj1_sig init_mem).
   Proof.
     intros sch r n thisfunction.
@@ -2282,7 +2313,7 @@ Section Safety.
       + reflexivity.
       + apply I.
     - (* a step can be taken *)
-      eapply safeN_step with (c' := (sch', tp')) (m'0 := m').
+      eapply safeN_step with (c' := (sch', nil, tp')) (m'0 := m').
       + eapply STEP.
       + apply IHn.
         apply INV'.
