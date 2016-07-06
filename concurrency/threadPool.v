@@ -63,6 +63,14 @@ Module OrdinalPool (SEM:Semantics) (RES:Resources) <: ThreadPoolSig
       end.
                          
 
+  (*Fixpoint lockSet_spec': forall js b ofs n,
+      (lockSet js) !! b ofs =
+      if ssrbool.isSome (lockRes js (b,ofs)) then Some Memtype.Writable else None.
+  
+  Lemma lockSet_spec: forall js b ofs,
+      (lockSet js) !! b ofs =
+      if ssrbool.isSome (lockRes js (b,ofs)) then Some Memtype.Writable else None.
+  Admitted.*)
 Require Import msl.Coqlib2.
 Import Coqlib.
 
@@ -552,32 +560,9 @@ Import SetoidList.
 Arguments InA {A}{eqA} x _.
 Arguments AMap.In {elt} x m.
 
-Lemma lockRes_range_dec: forall tp b ofs,
-    { (exists z, z <= ofs < z+LKSIZE /\ lockRes tp (b,z) )%Z  } + {(forall z, z <= ofs < z+LKSIZE -> lockRes tp (b,z) = None)%Z }.
-Proof.
-  replace LKSIZE with 4%Z by auto.
-  intros.
-  (*0*)
-  destruct (lockRes tp (b, ofs)) eqn:H0.
-  left; exists ofs; split; [omega | rewrite H0; auto].
-  (*1*)
-  destruct (lockRes tp (b, ofs-1))%Z eqn:H1.
-  left; exists (ofs-1)%Z; split; [omega | rewrite H1; auto].
-  (*2*)
-  destruct (lockRes tp (b, ofs-2))%Z eqn:H2.
-  left; exists (ofs-2)%Z; split; [omega | rewrite H2; auto].
-  (*3*)
-  destruct (lockRes tp (b, ofs-3))%Z eqn:H3.
-  left; exists (ofs-3)%Z; split; [omega | rewrite H3; auto].
-  (*rest*)
-  right. intros.
-  assert (z = ofs \/ z = ofs-1 \/ z = ofs-2 \/ z = ofs-3 )%Z by omega.
-  destruct H4 as [? | [ ? | [? | ?]]]; subst; auto.
-Qed.
-
 Lemma lockSet_spec_3:
   forall ds b ofs,
-    (forall z, z <= ofs < z+LKSIZE -> lockRes ds (b,z) = None)%Z ->
+    (forall z, z <= ofs < z+4 -> lockRes ds (b,z) = None)%Z ->
    (lockSet ds) !! b ofs = None.
 Proof.
   intros.
@@ -624,11 +609,9 @@ Qed.
       (lockSet (remLockSet ds (b, ofs))) !! b ofs0 =
       None.
   Proof.
-    intros. 
-    hnf in H0; simpl in H0.
+    intros.
+    hnf in H0; simpl in H0. change LKSIZE with 4%Z in H0.
     apply lockSet_spec_3.
-    change LKSIZE with 4%Z in H0. 
-    change LKSIZE with 4%Z.
     intros.
     destruct (zeq ofs z).
     * subst ofs.
@@ -640,7 +623,7 @@ Qed.
    * hnf in H.
      destruct (lockRes ds (b,z)) eqn:?; inv H1.
      + destruct (lockRes ds (b,ofs)) eqn:?; inv H4.
-       assert (z <= ofs < z+4 \/ ofs <= z <= ofs+4)%Z by omega.
+         assert (z <= ofs < z+4 \/ ofs <= z <= ofs+4)%Z by omega.
          destruct H1.
          - specialize (H b z). rewrite Heqo in H. change LKSIZE with 4%Z in H.
               specialize (H ofs). spec H; [omega|]. congruence.
@@ -654,8 +637,6 @@ Qed.
        unfold lockRes in Heqo.
        apply AMap.find_1 in Heqo0. congruence.
 Qed.
-
-
   
   Lemma gsolockSet_rem1: forall ds b ofs b' ofs',
       b  <> b' ->
@@ -668,9 +649,7 @@ Qed.
  rewrite <- !List.fold_left_rev_right.
  match goal with |- context [fold_right ?F] => set (f:=F) end.
  simpl. unfold AMap.elements, AMap.Raw.elements.
- unfold lockGuts.
- 
- 
+ unfold lockGuts. 
    (* THIS IS CORRECT!!! because it's in different blocks
     * NOT TRUE.  See lemmas just above *)
   Admitted.
@@ -682,28 +661,10 @@ Qed.
       (lockSet ds)  !! b ofs'.
   Proof.
     intros.
-    destruct (lockRes_range_dec ds b ofs').
-    - destruct e as [z [ineq HH]]. change LKSIZE with 4%Z in ineq.
-      assert (ofs <> z).
-      { intros AA. inversion AA.
-        apply H0. hnf. change LKSIZE with 4%Z.
-        simpl; omega. }
-      erewrite lockSet_spec_2.
-      erewrite lockSet_spec_2; auto.
-      + hnf; simpl; eauto.
-      + auto.
-      + hnf; simpl; eauto.
-      + rewrite gsolockResRemLock; auto.
-        intros AA. inversion AA. congruence.
-    - erewrite lockSet_spec_3.
-      erewrite lockSet_spec_3; auto.
-      intros.
-      destruct (zeq ofs z).
-      subst ofs; rewrite gsslockResRemLock; auto.
-      rewrite gsolockResRemLock; auto.
-      intros AA. inversion AA; congruence.
-  Qed.
-  
+    (* FIXED!!!
+     * NOT TRUE.  See lemmas just above *)
+  Admitted.
+
   Lemma gssThreadCode {tid tp} (cnt: containsThread tp tid) c' p'
         (cnt': containsThread (updThread cnt c' p') tid) :
     getThreadC cnt' = c'.
@@ -1286,7 +1247,7 @@ Qed.
     as some of the lemmas above *)
   Admitted.
 
-  Lemma gsoLockSet_1:
+  Lemma gsoLockSet_1 :
     forall tp b ofs ofs'  pmap
       (Hofs: (ofs' < ofs)%Z \/ (ofs' >= ofs + (Z.of_nat lksize.LKSIZE_nat))%Z),
       (Maps.PMap.get b (lockSet (updLockSet tp (b,ofs) pmap))) ofs' =
