@@ -2695,6 +2695,25 @@ Module Parching (DecayingSEM: DecayingSemantics) <: ErasureSig.
                     eapply MTCH_lr_valid; eauto.
                     eapply JSEM.compat_lr_valid; eauto.
                     auto.
+                - cut (is_true (isSome( JSEM.ThreadPool.lockRes js (b, Int.intval ofs)))).
+                  { intros HH; inversion MATCH. specialize (mtch_locks (b, Int.intval ofs)).
+                    destruct (JSEM.ThreadPool.lockRes js (b, Int.intval ofs)) eqn:LR; inversion HH.
+                    destruct (DSEM.ThreadPool.lockRes ds (b, Int.intval ofs)) eqn:LR'; inversion mtch_locks.
+                    constructor.
+                  }
+                  { destruct Hcompatible as [allj Hcompatible].
+                    inversion Hcompatible. unfold JSEM.ThreadPool.lockRes.
+                    eapply JSEM.compatible_threadRes_sub with (cnt:=Hi) in juice_join.
+                    eapply resource_at_join_sub with (l:=(b, Int.intval ofs)) in juice_join.
+                    rewrite Hlock in juice_join.
+                    destruct juice_join as [X JOIN].
+                    inversion JOIN.
+                    - eapply jloc_in_set;
+                    rewrite <- H; 
+                    reflexivity.
+                    - eapply jloc_in_set;
+                    rewrite <- H8; 
+                    reflexivity. }
                 - rewrite DSEM.ThreadPool.gsolockSet_rem1. 2 : assumption.
                   unfold empty_delta_map in e.
                   rewrite PTree.gso in e. rewrite PTree.gempty in e; inversion e.

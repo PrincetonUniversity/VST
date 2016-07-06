@@ -560,7 +560,7 @@ Import SetoidList.
 Arguments InA {A}{eqA} x _.
 Arguments AMap.In {elt} x m.
 
-Lemma lockRes_spec_3:
+Lemma lockSet_spec_3:
   forall ds b ofs,
     (forall z, z <= ofs < z+4 -> lockRes ds (b,z) = None)%Z ->
    (lockSet ds) !! b ofs = None.
@@ -605,13 +605,13 @@ Qed.
   Lemma gsslockSet_rem: forall ds b ofs ofs0,
       lr_valid (lockRes ds) ->
       Intv.In ofs0 (ofs, ofs + lksize.LKSIZE)%Z ->
-      isSome ((lockRes ds) (b,ofs)) -> 
+      isSome ((lockRes ds) (b,ofs)) ->  (*New hypothesis needed. Shouldn't be a problem *)
       (lockSet (remLockSet ds (b, ofs))) !! b ofs0 =
       None.
   Proof.
     intros.
     hnf in H0; simpl in H0. change LKSIZE with 4%Z in H0.
-    apply lockRes_spec_3.
+    apply lockSet_spec_3.
     intros.
     destruct (zeq ofs z).
     * subst ofs.
