@@ -871,12 +871,6 @@ Qed.
           * constructor.
     Qed.
     
-    Lemma AMap_map f l :
-      map snd (AMap.elements (elt:=lock_info) (AMap.map f l)) =
-      map f (map snd (AMap.elements (elt:=lock_info) l)).
-    Proof.
-    Admitted.
-    
     Lemma join_all_age_to k tp Phi :
       le k (level Phi) ->
       join_all tp Phi ->
