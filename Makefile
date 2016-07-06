@@ -146,7 +146,7 @@ CONCUR_FILES= \
   compcert_linking.v compcert_linking_lemmas.v \
   compcert_threads_lemmas.v \
   concurrent_machine.v disjointness.v dry_context.v dry_machine.v dry_machine_lemmas.v \
-  JuicyMachineModule.v \
+  ClightSemantincsForMachines.v JuicyMachineModule.v DryMachineSource.v \
   erased_machine.v erasure_proof.v erasure_safety.v erasure_signature.v \
   fineConc_safe.v inj_lemmas.v join_sm.v juicy_machine.v \
   lifting.v linking_inv.v linking_spec.v lksize.v \

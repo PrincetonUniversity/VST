@@ -28,6 +28,7 @@ Require Import sepcomp.wholeprog_simulations.
 
 (*The semantics*)
 Require Import concurrency.JuicyMachineModule.
+Require Import concurrency.DryMachineSource.
 
 (*General erasure*)
 Require Import concurrency.erasure_signature.
@@ -77,13 +78,14 @@ Module Parching <: ErasureSig.
   Notation jmachine_state:= JuicyMachine.MachState.
   Module JTP:=JuicyMachine.SIG.ThreadPool.
   Import JSEM.JuicyMachineLemmas.*)
-
-  Module DSEM := DryMachineShell SEM.
-  Module DryMachine <: ConcurrentMachine:= CoarseMachine SCH DSEM.
+  Import THE_DRY_MACHINE_SOURCE.
+  
+  Module DSEM := THE_DRY_MACHINE_SOURCE.DSEM. 
+  Module DryMachine <: ConcurrentMachine:= THE_DRY_MACHINE_SOURCE.DryMachine.
   Notation DMachineSem:= DryMachine.MachineSemantics. 
   Notation dstate:= DryMachine.SIG.ThreadPool.t.
   Notation dmachine_state:= DryMachine.MachState.
-  Module DTP:=DryMachine.SIG.ThreadPool.
+  Module DTP:=THE_DRY_MACHINE_SOURCE.DTP.
   Import DSEM.DryMachineLemmas event_semantics.
 
 

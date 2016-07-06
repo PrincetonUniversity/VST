@@ -71,12 +71,12 @@ Module Type ErasureSig.
              match_st (JSEM.ThreadPool.updThreadC cnt c)
                        (DSEM.ThreadPool.updThreadC cnt' c).
        
-  Variable genv: G.
-  Variable main: Values.val.
+  (*Variable genv: G.
+  Variable main: Values.val.*)
   Variable match_rmap_perm: JuicyMachine.SIG.ThreadPool.RES.res -> DryMachine.SIG.ThreadPool.RES.res -> Prop.
   Axiom init_diagram:
     forall (j : Values.Val.meminj) (U:schedule) (js : jstate)
-      (vals : list Values.val) (m : mem) rmap pmap,
+      (vals : list Values.val) (m : mem) rmap pmap main genv,
       init_inj_ok j m ->
       match_rmap_perm rmap pmap ->
    initial_core (JMachineSem U (Some rmap)) genv main vals = Some (U, nil, js) ->
@@ -159,18 +159,18 @@ Module ErasureFnctr (PC:ErasureSig).
   
   Lemma core_ord_wf:  well_founded core_ord.
       Proof. constructor; intros y H; inversion H. Qed.
-      Theorem erasure: forall U rmap pmap,
+      Theorem erasure: forall U rmap pmap main genv,
           PC.match_rmap_perm rmap pmap ->
           Wholeprog_sim.Wholeprog_sim
             (JMachineSem U (Some rmap)) (DMachineSem U (Some pmap))
-            PC.genv PC.genv
-            PC.main
+            genv genv
+            main
             ge_inv init_inv halt_inv.
-  Proof. intros U rmap pmap init_OK.
+  Proof. intros U rmap pmap main genv init_OK.
     apply (Wholeprog_sim.Build_Wholeprog_sim
              (JMachineSem U (Some rmap)) (DMachineSem U (Some pmap))
-             PC.genv PC.genv
-             PC.main
+             genv genv
+             main
              ge_inv init_inv halt_inv
              core_data match_state core_ord core_ord_wf).
     - reflexivity.
@@ -179,7 +179,7 @@ Module ErasureFnctr (PC:ErasureSig).
       destruct c1 as [[U0 tr0] js].
       assert (HH:=JuicyMachine.initial_schedule _ _ _ _ _ _ _ tr0 H).
       destruct HH. subst U0 tr0.
-      destruct (init_diagram j U js vals2 m2 rmap pmap H4 init_OK H) as [mu [dms [injeq [IC [DINV MS] ]]]].
+      destruct (init_diagram j U js vals2 m2 rmap pmap main genv H4 init_OK H) as [mu [dms [injeq [IC [DINV MS] ]]]].
       exists tt, (U,nil,dms); intuition.
       constructor; assumption.
     - intros until m2; intros MTCH.
@@ -187,7 +187,7 @@ Module ErasureFnctr (PC:ErasureSig).
       destruct st1' as [[U' tr1'] js'].
       assert (H' := H).
       apply jstep_empty_trace in H'. destruct H'; subst.
-      destruct (core_diagram m2 U U0 U' (Some rmap) (Some pmap) ds js js' m1' PC.genv H H1 H0) as
+      destruct (core_diagram m2 U U0 U' (Some rmap) (Some pmap) ds js js' m1' genv H H1 H0) as
           [ds' [DINV [MTCH CORE]]].
       exists (U', nil, ds'), m1', tt, mu. split.
       + constructor; assumption.

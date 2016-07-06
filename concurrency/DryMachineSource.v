@@ -23,17 +23,17 @@ Require Import veric.Clightnew_coop.
 Require Import sepcomp.event_semantics.
 Require Import concurrency.ClightSemantincsForMachines.
 
-Module THE_JUICY_MACHINE.
+Module THE_DRY_MACHINE_SOURCE.
   Module SCH:= ListScheduler NatTID.            
   Module SEM:= ClightSEM.
   Import SCH SEM.
 
-  Module JSEM := JuicyMachineShell SEM. (* JuicyMachineShell : Semantics -> ConcurrentSemanticsSig *)
-  Module JuicyMachine := CoarseMachine SCH JSEM. (* CoarseMachine : Schedule -> ConcurrentSemanticsSig -> ConcurrentSemantics *)
-  Notation JMachineSem:= JuicyMachine.MachineSemantics.
-  Notation jstate:= JuicyMachine.SIG.ThreadPool.t.
-  Notation jmachine_state:= JuicyMachine.MachState.
-  Module JTP:=JuicyMachine.SIG.ThreadPool.
-  Import JSEM.JuicyMachineLemmas.
+  Module DSEM := DryMachineShell SEM.
+  Module DryMachine <: ConcurrentMachine:= CoarseMachine SCH DSEM.
+  Notation DMachineSem:= DryMachine.MachineSemantics. 
+  Notation dstate:= DryMachine.SIG.ThreadPool.t.
+  Notation dmachine_state:= DryMachine.MachState.
+  Module DTP:=DryMachine.SIG.ThreadPool.
+  Import DSEM.DryMachineLemmas event_semantics.
 
-End THE_JUICY_MACHINE.
+End THE_DRY_MACHINE_SOURCE.
