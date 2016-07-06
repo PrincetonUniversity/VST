@@ -142,7 +142,7 @@ CONCUR_FILES= \
   concurrent_machine.v juicy_machine.v dry_machine.v dry_context.v dry_machine_lemmas.v \
   mem_obs_eq.v dry_machine_lemmas.v dry_context.v compcert_threads_lemmas.v \
   x86_inj.v x86_safety.v \
-  erasure_signature.v erasure_proof.v Clight_erasure.v \
+  erasure_signature.v erasure_proof.v erasure_safety.v Clight_erasure.v \
   semax_conc.v semax_to_machine.v semax_to_juicy_machine.v \
   stack.v cast.v pred_lemmas.v seq_lemmas.v wf_lemmas.v reestablish.v \
   inj_lemmas.v join_sm.v reach_lemmas.v compcert_linking.v compcert_linking_lemmas.v \
@@ -154,7 +154,8 @@ CCC26x86_FILES = \
   Machregs.v Asm.v \
   Switch.v Cminor.v \
   I64Helpers.v BuiltinEffects.v load_frame.v Asm_coop.v Asm_eff.v \
-  Asm_nucular.v Asm_event.v
+  Asm_nucular.v Asm_event.v \
+  Clight.v Clight_coop.v Clight_eff.v
 
 LINKING_FILES= \
   sepcomp.v \
