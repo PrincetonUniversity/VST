@@ -403,12 +403,43 @@ Module Concur.
  clear - H2 H3 H4 Hneq.
  revert r1 H2 H3 H4; induction el; simpl; intros.
  inv H3.
- destruct H2 as [r2 [? ?]].
- destruct H3. inv H1. simpl in *. destruct y; simpl in *; subst.
- inv H4. inv H2.
-  apply IHel in H0; clear IHel. auto. simpl in *. congruence. simpl in *; congruence.
-       
-    Admitted.
+ destruct H2 as [r2 [? ?]]. destruct a.
+  assert (H8: joins (Some phi1) (Some phi2));
+    [ | destruct H8 as [x H8]; destruct x; inv H8; eauto].
+ inv H3; [ | inv H4].
+ {  (* case 1: l1=k *)
+  inv H2. simpl in *. subst. inv H4. inv H2. simpl in *; subst; congruence.
+  clear - H2 H H0 Hneq.
+  assert (exists r1', r1 = Some r1').
+  destruct r1; inv H; eauto.
+  destruct H1 as [r1' ?]. subst r1.
+  assert (joins (Some phi1) r2) by eauto. clear H.
+  eapply join_sub_joins'; try apply H1. apply join_sub_refl.
+  clear - H0 H2.
+  revert r2 H0; induction el; simpl in *; intros. inv H2.
+  destruct H0 as [? [? ?]]. inv H2. destruct a; inv H3. simpl in *; subst.
+  exists x; auto.
+  apply IHel in H0; eauto. apply join_sub_trans with x; auto.
+  eexists; eauto.
+ }
+ { (* case 2: l2 = k *)
+  inv H3. simpl in *. subst.
+  assert (joins r2 (Some phi2)) by eauto.
+  clear - H1 H2 H0.
+  eapply join_sub_joins'; try apply H1.
+  clear  H1.
+  revert r2 H0; induction el; simpl in *; intros. inv H2.
+  destruct H0 as [? [? ?]]. inv H2. destruct a; inv H3. simpl in *; subst.
+  exists x; auto. destruct a; simpl in *.
+  apply IHel in H0; auto. apply join_sub_trans with x; auto. exists l; auto.
+  apply join_sub_refl.
+ }
+ { (* case 3 *)
+  apply IHel in H0; auto.
+  destruct H0. exists (Some x); 
+  constructor; auto.
+ }
+Qed.
 
     
     (** There is no inteference in the thread pool *)
