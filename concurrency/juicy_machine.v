@@ -120,9 +120,41 @@ Module ThreadPool (SEM:Semantics) <: ThreadPoolSig
 End ThreadPool.
 
 Module JMem.
+
   
-  Parameter get_fun_spec: juicy_mem -> address -> val -> option (pred rmap * pred rmap).
-  Parameter get_lock_inv: juicy_mem -> address -> option (pred rmap).
+  Definition get_fun_spec' (jm:juicy_mem) (l:address) (v : val) : option (sigT (fun A => veric.rmaps.listprod A -> pred rmap)).
+  Proof.
+    destruct jm. destruct (phi @ l) eqn:FUN.
+    - exact None.
+    - destruct k.
+      + exact None.
+      + exact None.
+      + exact None.
+      + exact None.
+        destruct p.
+        refine (Some (existT _ _ p)).
+  Defined.
+  Definition AType: Type. exact bool. Defined.
+  Definition get_fun_spec (p: veric.rmaps.listprod (AType::nil) -> pred rmap) : option (pred rmap * pred rmap).
+  Proof. exact (Some (p (true, tt), p (false, tt))).
+  Defined.
+
+  (*This won't be needed, we have a better way to compute it. *)
+  Definition get_lock_inv' (jm:juicy_mem) (l:address) : option (sigT (fun A => veric.rmaps.listprod A -> pred rmap)).
+  Proof.
+    destruct jm. destruct (phi @ l) eqn:FUN.
+    - exact None.
+    - destruct k.
+      + exact None.
+      + destruct p0.
+        refine (Some (existT _ _ p0)).
+      + exact None.
+      + exact None.
+      + exact None.
+  Defined.
+  Definition get_lock_inv (p: veric.rmaps.listprod (AType::nil) -> pred rmap) : option (pred rmap).
+  Proof. exact (Some (p (true, tt))).
+  Defined.
   
 End JMem.
 
@@ -997,7 +1029,7 @@ Qed.
             (Htp'': tp'' = updLockSet tp' (b, Int.intval ofs) None ),
             syncStep' genv cnt0 Hcompat tp'' m' (acquire (b, Int.intval ofs))                
     | step_release :
-        forall  (tp' tp'':thread_pool) c m1 jm' b ofs psh (phi d_phi :rmap) (R: pred rmap) ,
+        forall  (tp' tp'':thread_pool) c m1 jm' b ofs psh  (phi d_phi :rmap) (R: pred rmap) ,
           (* let: phi := m_phi jm in *)
           let: phi' := m_phi jm' in
           let: m' := m_dry jm' in
@@ -1020,7 +1052,8 @@ Qed.
             (Hstore: Mem.store Mint32 m1 b (Int.intval ofs) (Vint Int.one) = Some m')
             (His_locked: lockRes tp (b, Int.intval ofs) = SNone )
             (* what does the return value denote?*)
-            (*Hget_lock_inv: JMem.get_lock_inv jm (b, Int.intval ofs) = Some R*)
+            (*p: veric.rmaps.listprod (JMem.AType::nil) -> pred rmap*)
+            (*Hget_lock_inv': JMem.get_lock_inv' jm (b, Int.intval ofs) = Some (existT _ _ p) *)
             (Hsat_lock_inv: R d_phi)
             (Hrem_lock_res: join d_phi phi' phi)
             (Htp': tp' = updThread cnt0 (Kresume c Vundef) phi')
@@ -1040,7 +1073,9 @@ Qed.
             (Hcompatible: mem_compatible tp m)
             (Hpersonal_perm: 
                personal_mem cnt0 Hcompatible = jm)
-            (Hget_fun_spec: JMem.get_fun_spec jm (b, Int.intval ofs) arg = Some (P,Q))
+            (p: veric.rmaps.listprod (JMem.AType::nil) -> pred rmap)
+            (Hget_fun_spec': JMem.get_fun_spec' jm (b, Int.intval ofs) arg = Some (existT _ _ p))
+            (Hget_fun_spec: JMem.get_fun_spec p = Some (P, Q))
             (Hsat_fun_spec: P d_phi)
             (Halmost_empty: almost_empty d_phi)
             (Hrem_fun_res: join d_phi phi' (m_phi jm))
