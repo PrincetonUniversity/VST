@@ -9415,8 +9415,10 @@ Module SimProofs (CI: CoreInjections).
           - subst.
             destruct (Intv.In_dec ofsl' (Int.intval ofs,
                                          ((Int.intval ofs) + lksize.LKSIZE)%Z)).
-            + erewrite gsslockSet_rem by eauto.
+            + erewrite gsslockSet_rem; eauto.
               destruct ((getMaxPerm mf) # bl' ofsl'); simpl; auto.
+              rewrite gsoThreadLPool.
+              rewrite HresF; auto.
             + erewrite gsolockSet_rem2 by eauto.
               rewrite gsoThreadLock.
               eapply (compat_ls HmemCompF).
@@ -9676,7 +9678,9 @@ Module SimProofs (CI: CoreInjections).
             - subst.
               destruct (Intv.In_dec ofs0 (Int.intval ofs,
                                           ((Int.intval ofs) + lksize.LKSIZE)%Z)).
-              + by rewrite gsslockSet_rem.
+              + erewrite gsslockSet_rem; eauto.
+                rewrite gsoThreadLPool.
+                rewrite HresF; auto.
               + rewrite gsolockSet_rem2; auto.
                 rewrite gsoThreadLock.
                 eauto.
@@ -9698,7 +9702,7 @@ Module SimProofs (CI: CoreInjections).
         split.
       - (* Proof of [strong_mem_obs_eq] for lock set*)
         specialize (HsimWeak _ pfc pff).
-        clear - HpermLS HvalLS Hf HsimWeak HlockRes_valid HinvC.
+        clear - HpermLS HvalLS Hf HsimWeak HlockRes_valid HinvC HresF His_lock.
         pose proof (lockRes_valid HinvC).
         constructor.
         { intros.
@@ -9712,6 +9716,8 @@ Module SimProofs (CI: CoreInjections).
                                         ((Int.intval ofs) + lksize.LKSIZE)%Z)).
             * rewrite gsslockSet_rem; auto.
               rewrite gsslockSet_rem; auto.
+              rewrite gsoThreadLPool.
+              rewrite HresF; auto.
             * rewrite gsolockSet_rem2; auto.
               rewrite gsoThreadLock.
               rewrite gsolockSet_rem2; auto.
@@ -9904,8 +9910,10 @@ Module SimProofs (CI: CoreInjections).
           - subst.
             destruct (Intv.In_dec ofs' (Int.intval ofs,
                                         ((Int.intval ofs) + lksize.LKSIZE)%Z)).
-            + erewrite gsslockSet_rem by eauto.
+            + erewrite gsslockSet_rem; eauto.
               eapply not_racy_union; constructor.
+              rewrite gsoThreadLPool.
+              rewrite HresF; auto.
             + erewrite gsolockSet_rem2 by eauto.
               rewrite gsoThreadLock.
               specialize (HpermLS _ _ ofs' Hf).
@@ -10025,6 +10033,7 @@ Module SimProofs (CI: CoreInjections).
               * rewrite gsslockSet_rem; auto.
                 rewrite perm_union_comm.
                 eapply not_racy_union; constructor.
+                rewrite gsoThreadLPool; rewrite HresF; auto.
               * erewrite gsolockSet_rem2 by eauto.
                 rewrite gsoThreadLock.
                 eapply HinvF; eauto.
