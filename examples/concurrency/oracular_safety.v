@@ -150,7 +150,13 @@ Inductive safeN_ (at_ext : C -> option ext) : nat -> Z -> C -> M -> Prop :=
       safeN_ at_ext (S n) z c m.
 
 Lemma safeN_S at_ext n z c m : safeN_ at_ext (S n) z c m -> safeN_ at_ext n z c m.
-Admitted.
+Proof.
+  revert z c m; induction n; intros z c m.
+  - intros _. constructor.
+  - intros H; inversion H; subst.
+    + econstructor; eauto.
+    + econstructor; eauto.
+Qed.
 
 (*+ New way of writing specs *)
 
@@ -1414,7 +1420,7 @@ Proof.
                  apply step_acquire.
                  --- admit (* same as above *).
                  --- admit (* PROBLEM HERE: NOT A HYPOTHESIS *).
-Admitted.
+Abort.
 
 
 (*+ Trying to relate spec safety to "oracle steps" safety *)
@@ -1460,7 +1466,7 @@ Proof.
     + eexists; eapply machine_acquire_success; [ apply E | .. ]. eassumption.
       admit (* implied by J, whatever *).
     + eexists; eapply machine_acquire_failure; [ apply E | .. ]. eassumption.
-Admitted.
+Abort.
 
 Theorem Q_subject_reduction n x y : x ===> y -> Q (S n) x -> Q n y.
 Proof.
@@ -1589,7 +1595,7 @@ Proof.
       * intros m0 p0 H.
         apply safeN_S.
         eapply Sa; eauto.
-Admitted.
+Abort.
 
 
 
@@ -1644,7 +1650,7 @@ Proof.
       (* implied by joinability condition *)
       admit.
     + eexists; eapply machine_acquire_failure; [ apply E | .. ]. eassumption.
-Admitted.
+Abort.
 
 Theorem Q_subject_reduction_clean n x y : x ===> y -> Q_clean (S n) x -> Q_clean n y.
 Proof.
@@ -1769,4 +1775,4 @@ Proof.
       * intros m0 p0 H.
         apply safeN_S.
         eapply Sa; eauto.
-Admitted.
+Abort.
