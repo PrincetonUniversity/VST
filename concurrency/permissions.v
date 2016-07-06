@@ -274,6 +274,43 @@ Section permMapDefs.
       joins r1 r2 ->
       permDisjoint (perm_of_res r1) (perm_of_res r2).
   Proof.
+    intros. unfold permDisjoint.
+    destruct H as [X H]; inversion H; simpl.
+    - destruct (eq_dec rsh1 Share.bot); destruct (eq_dec rsh2 Share.bot);
+      try solve[eexists; reflexivity].
+    - destruct k; destruct (eq_dec rsh2 Share.bot); try solve[eexists; reflexivity].
+      + eapply permDisjoint_comm. apply permDisjoint_None.
+      + pose Share.nontrivial.
+        subst; unfold perm_of_sh.
+        destruct (@eq_dec Share.t Share.EqDec_share (pshare_sh sh) Share.top);
+        destruct (eq_dec rsh1 Share.top);
+        destruct (@eq_dec Share.t Share.EqDec_share (pshare_sh sh) Share.bot);
+        destruct (eq_dec rsh1 Share.bot);
+        try solve[eexists; reflexivity]; subst; try solve [congruence].
+        clear - RJ n. inversion RJ.
+        rewrite Share.glb_commute in H. rewrite Share.glb_top in H; congruence.
+    - destruct k; destruct (eq_dec rsh1 Share.bot); try solve[eexists; reflexivity].
+      pose Share.nontrivial.
+      subst; unfold perm_of_sh.
+      destruct (@eq_dec Share.t Share.EqDec_share (pshare_sh sh) Share.top);
+        destruct (eq_dec rsh2 Share.top);
+        destruct (@eq_dec Share.t Share.EqDec_share (pshare_sh sh) Share.bot);
+        destruct (eq_dec rsh2 Share.bot);
+        try solve[eexists; reflexivity]; subst; try solve [congruence].
+      clear - RJ n. inversion RJ.
+      rewrite Share.glb_top in H; congruence.
+    - destruct k; try solve[eexists; reflexivity].
+      pose Share.nontrivial.
+      unfold perm_of_sh.
+      destruct (@eq_dec Share.t Share.EqDec_share (pshare_sh sh1) Share.top);
+      destruct (eq_dec rsh1 Share.top);
+      destruct (@eq_dec Share.t Share.EqDec_share (pshare_sh sh1) Share.bot);
+      destruct (eq_dec rsh1 Share.bot);
+      destruct (@eq_dec Share.t Share.EqDec_share (pshare_sh sh2) Share.top);
+      destruct (eq_dec rsh2 Share.top);
+      destruct (@eq_dec Share.t Share.EqDec_share (pshare_sh sh2) Share.bot);
+      destruct (eq_dec rsh2 Share.bot);
+      try solve[eexists; reflexivity]; subst; try solve [congruence].
     Admitted.
 
   Lemma permDisjoint_sub: forall r1 r2 p,
@@ -283,14 +320,6 @@ Section permMapDefs.
   Admitted.
 
   Lemma join_permDisjoint: forall r1 r2 r3 p,
-      join r1 r2 r3 ->
-      permDisjoint (perm_of_res r1) p ->
-      permDisjoint (perm_of_res r2) p ->
-      permDisjoint (perm_of_res r3) p.
-  Admitted.
-
-  
-  Lemma join_permDisjoint': forall r1 r2 r3 p,
       join r1 r2 r3 ->
       permDisjoint (perm_of_res r1) p ->
       permDisjoint (perm_of_res r2) p ->
@@ -1205,17 +1234,6 @@ Lemma restrPermMap_irr:
       subst. f_equal;
       apply proof_irrelevance.
     Qed.
-
-(*Lemma restrPermMap_correct :
-  forall p' m (Hlt: permMapLt p' (getMaxPerm m))
-    b ofs,
-    permission_at (restrPermMap Hlt) b ofs Max =
-    Maps.PMap.get b (getMaxPerm m) ofs /\
-    permission_at (restrPermMap Hlt) b ofs Cur =
-    Maps.PMap.get b p' ofs.
-Proof.
-      
-    Admitted.*)
     
   Lemma restrPermMap_nextblock :
     forall p' m (Hlt: permMapLt p' (getMaxPerm m)),
