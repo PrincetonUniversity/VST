@@ -690,7 +690,26 @@ Qed.
        [ | destruct H9 as [x H9]; exists (Some x); constructor; auto].
        unfold getThreadR. unfold join_threads in H0.
        unfold getThreadsR in H0.
-     Admitted.
+      destruct js; simpl in *.
+     pose proof (mem_ord_enum (n:= n num_threads0)).
+     specialize (H (Ordinal (n:=n num_threads0) (m:=i) cnt)) .
+    forget (ord_enum (n num_threads0)) as el.
+    forget ((Ordinal (n:=n num_threads0) (m:=i) cnt)) as j.
+    revert H H0; clear; revert r0; induction el; intros. inv H.
+    unfold in_mem in H. unfold pred_of_mem in H. simpl in H.
+    pose proof @orP.
+    specialize (H1 (j == a)(pred_of_eq_seq (T:=ordinal_eqType (n num_threads0)) el j)).
+    destruct ((j == a)
+       || pred_of_eq_seq (T:=ordinal_eqType (n num_threads0)) el j); inv H.
+    inv H1. destruct H.
+    pose proof (@eqP _ j a). destruct (j==a); inv H; inv H1.
+    simpl in H0. destruct H0 as [? [? ?]].
+    exists x; auto.
+    unfold pred_of_eq_seq in H.
+    destruct H0 as [? [? ?]].
+    apply (IHel x) in H. apply join_sub_trans with x; auto. eexists; eauto.
+    auto.
+Qed.
     
     Lemma thread_mem_compatible: forall tp m,
         mem_compatible tp m ->
@@ -1182,8 +1201,20 @@ Qed.
             sepalg.joins (getThreadR cnti) (getThreadR cntj).
       Proof.
         intros.
-        unfold getThreadR.      
-      Admitted.
+        unfold getThreadR. 
+       destruct H. destruct H as [JJ _ _ _ _].
+       inv JJ. clear H1 H2. unfold join_threads in H.
+       unfold getThreadsR in H.
+       assert (H1 :=mem_ord_enum (n:= n (num_threads js))).
+       generalize (H1 (Ordinal (n:=n (num_threads js)) (m:=j) cntj)); intro.
+       specialize (H1 (Ordinal (n:=n (num_threads js)) (m:=i) cnti)).
+    assert ((Ordinal (n:=n (num_threads js)) (m:=i) cnti) <> 
+              (Ordinal (n:=n (num_threads js)) (m:=j) cntj)).
+      contradict H0. inv H0. auto.
+    forget (Ordinal (n:=n (num_threads js)) (m:=j) cntj) as j'.
+    forget (Ordinal (n:=n (num_threads js)) (m:=i) cnti) as i'.
+    clear - H2 H1 H3 H.
+    Admitted.
 
       Lemma compatible_threadRes_lockRes_join:
         forall js m,
@@ -1192,9 +1223,51 @@ Qed.
             ThreadPool.lockRes js l = Some (Some phi) ->
             sepalg.joins (getThreadR cnti) phi.
       Proof.
-        
-      Admitted.
-
+       intros.
+        unfold getThreadR. 
+       destruct H. destruct H as [JJ _ _ _ _].
+       inv JJ. unfold join_locks, join_threads in H1.
+       unfold lockRes in H0.
+       apply AMap.find_2 in H0. unfold lockGuts in H0.
+       apply AMap.elements_1 in H0. unfold lock_info in H1.
+       forget  (AMap.elements (elt:=option rmap) (lset js)) as el.
+       match goal with |- joins ?A ?B => assert (H3: joins (Some A) (Some B)) end.
+      Focus 2. destruct H3; inv H3; eexists; eauto.
+       eapply join_sub_joins'. 2: instantiate (1:=r1). instantiate (1:= Some r0).
+       assert (join_sub (perm_maps js (Ordinal (n:=n (num_threads js)) (m:=i) cnti)) r0).
+       Focus 2. destruct H3 as [xx H3];  exists (Some xx); constructor; auto.
+       3: eauto.
+       { clear - H.
+           unfold join_threads in H. unfold getThreadsR in H.
+           pose proof (mem_ord_enum (n:= n (num_threads js))).
+           specialize (H0 (Ordinal (n:=n (num_threads js)) (m:=i) cnti)) .
+           forget (ord_enum (n (num_threads js))) as el.
+           forget ((Ordinal (n:=n (num_threads js)) (m:=i) cnti)) as j.
+           rename H into H'; rename H0 into H; rename H' into H0.
+           revert H H0; clear; revert r0; induction el; intros. inv H.
+            unfold in_mem in H. unfold pred_of_mem in H. simpl in H.
+           pose proof @orP.
+           specialize (H1 (j == a)(pred_of_eq_seq (T:=ordinal_eqType (n (num_threads js))) el j)).
+        destruct ((j == a)
+       || pred_of_eq_seq (T:=ordinal_eqType (n (num_threads js))) el j); inv H.
+    inv H1. destruct H.
+    pose proof (@eqP _ j a). destruct (j==a); inv H; inv H1.
+    simpl in H0. destruct H0 as [? [? ?]].
+    exists x; auto.
+    unfold pred_of_eq_seq in H.
+    destruct H0 as [? [? ?]].
+    apply (IHel x) in H. apply join_sub_trans with x; auto. eexists; eauto.
+    auto.
+         }   
+       { clear - H0 H1.
+           revert r1 H1 H0; induction el; intros. inv H0.
+           destruct H1 as [? [? ?]].
+           inv H0. inv H3. destruct a; simpl in *; subst. eexists; eauto.
+           apply IHel in H1; auto. apply join_sub_trans with x; auto.
+           eexists; eauto.
+         }   
+    Qed.
+               
       Lemma compatible_lockRes_cohere: forall js m l phi,
           ThreadPool.lockRes js l = Some (Some phi) ->
           mem_compatible js m ->
