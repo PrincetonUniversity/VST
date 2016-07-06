@@ -240,6 +240,7 @@ Module Concur.
     
     Definition lockSet_Writable (lset : lockMap) m :=
       forall b ofs, AMap.find (b,ofs) lset ->
+               forall ofs0, Intv.In ofs0 (ofs, ofs + LKSIZE)%Z ->
              Mem.perm_order'' ((Mem.mem_access m)!! b ofs Max) (Some Writable) .
 
     (*This definition makes no sense. In fact if there is at least one lock in rmap, 
