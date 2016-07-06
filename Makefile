@@ -95,6 +95,7 @@ UPDATE_SEPCOMP_FILES = \
   Address.v \
   step_lemmas.v \
   extspec.v \
+  rg_lemmas.v \
   FiniteMaps.v \
   mem_lemmas.v mem_wd.v \
   semantics.v semantics_lemmas.v \

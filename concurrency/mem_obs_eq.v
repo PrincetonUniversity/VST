@@ -1149,55 +1149,52 @@ Module MemoryWD.
   Qed.
 
   (** Well-definedeness is preserved through storing of a well-defined value *)
-  Lemma store_wd:
-    forall m m' chunk b ofs v
+  Lemma store_wd_domain:
+    forall (m m' : mem) (chunk : memory_chunk) (v : val) b ofs f
+      (Hdomain: domain_memren f m)
       (Hstore: Mem.store chunk m b ofs v = Some m')
       (Hval_wd: mem_wd.val_valid v m)
       (Hmem_wd: valid_mem m),
-      valid_mem m'.
+      valid_mem m' /\ domain_memren f m'.
   Proof.
     intros.
     unfold valid_mem in *.
-    intros b0 Hvalid ofs0 mv Hget.
-    eapply Mem.store_valid_block_2 in Hvalid; eauto.
-    rewrite (Mem.store_mem_contents _ _ _ _ _ _ Hstore) in Hget.
-    destruct (Pos.eq_dec b b0) as [Heq | Hneq].
-    - (*case it's the same block*)
-      subst.
-      rewrite Maps.PMap.gss.
-      destruct (Intv.In_dec ofs0
-                            (ofs,
-                             (ofs + Z.of_nat (length (encode_val chunk v)))%Z)).
-
-      + apply Mem.setN_in with (c:= (Mem.mem_contents m) # b0) in i.
-        apply valid_val_encode with (m := m) in i; auto.
-        destruct (ZMap.get ofs0
-                           (Mem.setN (encode_val chunk v) ofs (Mem.mem_contents m) # b0));
-          simpl; auto.
-        eapply valid_val_store; eauto.
-      + apply Intv.range_notin in n.
-        erewrite Mem.setN_outside by eauto.
+    split.
+    { intros b0 Hvalid ofs0 mv Hget.
+      eapply Mem.store_valid_block_2 in Hvalid; eauto.
+      rewrite (Mem.store_mem_contents _ _ _ _ _ _ Hstore) in Hget.
+      destruct (Pos.eq_dec b b0) as [Heq | Hneq].
+      - (*case it's the same block*)
+        subst.
+        rewrite Maps.PMap.gss.
+        destruct (Intv.In_dec ofs0
+                              (ofs,
+                               (ofs + Z.of_nat (length (encode_val chunk v)))%Z)).
+        
+        + apply Mem.setN_in with (c:= (Mem.mem_contents m) # b0) in i.
+          apply valid_val_encode with (m := m) in i; auto.
+          destruct (ZMap.get ofs0
+                             (Mem.setN (encode_val chunk v) ofs (Mem.mem_contents m) # b0));
+            simpl; auto.
+          eapply valid_val_store; eauto.
+        + apply Intv.range_notin in n.
+          erewrite Mem.setN_outside by eauto.
+          specialize (Hmem_wd _ Hvalid ofs0 _ ltac:(reflexivity)).
+          destruct (ZMap.get ofs0 (Mem.mem_contents m) # b0); auto.
+          eapply valid_val_store; eauto.
+          simpl.
+          apply ofs_val_lt.
+      - erewrite Maps.PMap.gso in Hget by eauto.
         specialize (Hmem_wd _ Hvalid ofs0 _ ltac:(reflexivity)).
-        destruct (ZMap.get ofs0 (Mem.mem_contents m) # b0); auto.
-        eapply valid_val_store; eauto.
-        simpl.
-        apply ofs_val_lt.
-    - erewrite Maps.PMap.gso in Hget by eauto.
-      specialize (Hmem_wd _ Hvalid ofs0 _ ltac:(reflexivity)).
-      destruct (ZMap.get ofs0 (Mem.mem_contents m) # b0); subst; auto.
-      eapply valid_val_store; eauto.
+        destruct (ZMap.get ofs0 (Mem.mem_contents m) # b0); subst; auto.
+        eapply valid_val_store; eauto. }
+    { split.
+      intros. eapply Mem.store_valid_block_2 in H; eauto.
+      eapply Hdomain; auto.
+      intros. eapply Mem.store_valid_block_1; eauto.
+      apply Hdomain; auto.
+    } 
   Qed.
-
-
-  Lemma store_wd_domain:
-    forall (m m' : mem) (chunk : memory_chunk) (v : val) b ofs f,
-      domain_memren f m ->
-      Mem.store chunk m b ofs v = Some m' ->
-      mem_wd.val_valid v m ->
-      valid_mem m ->
-      valid_mem m' /\ domain_memren f m'.
-  Proof.
-    Admitted.
   
   Lemma storev_wd_domain:
     forall (m m' : mem) (chunk : memory_chunk) (vptr v : val) f,
@@ -1207,7 +1204,10 @@ Module MemoryWD.
       valid_mem m ->
       valid_mem m' /\ domain_memren f m'.
   Proof.
-  Admitted.
+    intros.
+    destruct vptr; simpl in *; try discriminate.
+    eapply store_wd_domain; eauto.
+  Qed.
 
   (** Loading a value from a well-defined memory returns a valid value*)
   Lemma valid_mem_load:
@@ -1237,7 +1237,7 @@ Module MemoryWD.
     destruct vptr; try discriminate.
     eapply valid_mem_load; eauto.
   Qed.
-    
+  
   Lemma storev_wd:
     forall m m' chunk vptr v
       (Hstore: Mem.storev chunk m vptr v = Some m')

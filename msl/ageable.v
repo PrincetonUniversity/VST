@@ -969,3 +969,32 @@ Proof.
   intros L.
   apply level_age_by; omega.
 Qed.
+
+(* Proof techniques for age_to *)
+Lemma age_to_lt k {A} `{agA : ageable A} (x : A) : k < level x -> exists y, age1 x = Some y /\ age_to k x = age_to k y.
+Proof.
+  intros L.
+  destruct (age1 x) as [y|] eqn:Ex; swap 1 2.
+  - rewrite age1_level0 in Ex. omega.
+  - exists y; intuition.
+    pose proof @af_level2 A level age1 (@age_facts _ agA) _ _ Ex as E.
+    unfold age_to; rewrite E.
+    remember (level y) as a.
+    destruct (lt_eq_lt_dec k a) as [[e|e]|e].
+    + replace (S a - k) with (S (a - k)) by auto with *.
+      simpl. rewrite Ex. auto.
+    + subst a.
+      rewrite <-e.
+      replace (S k - k) with 1 by auto with *.
+      replace (k - k) with 0 by auto with *.
+      simpl.
+      rewrite Ex; auto.
+    + omega.
+Qed.
+
+Lemma age_to_eq k {A} `{agA : ageable A} (x y : A) : k = level x -> age_to k x = x.
+Proof.
+  intros E. unfold age_to.
+  rewrite <-E. replace (k - k) with 0 by auto with *.
+  reflexivity.
+Qed.

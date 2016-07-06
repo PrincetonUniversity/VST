@@ -174,23 +174,35 @@ Definition threads_unique_Krun tp sch :=
       @Machine.getThreadC i tp cnti = Krun q ->
       exists sch', sch = i :: sch').
 
-Inductive state_invariant {Z} (Jspec : juicy_ext_spec Z) (n : nat) : cm_state -> Prop :=
+Definition matchfunspec (ge : genviron) Gamma : forall Phi, Prop :=
+  (ALL b : block,
+    (ALL fs : funspec,
+      seplog.func_at' fs (b, 0%Z) -->
+      (EX id : ident,
+        !! (ge id = Some b) && !! (Gamma ! id = Some fs))))%pred.
+
+Inductive state_invariant {Z} (Jspec : juicy_ext_spec Z) (n : nat) (* Gamma *) : cm_state -> Prop :=
   | state_invariant_c
       (m : mem) (ge : genv) (sch : schedule) (tp : Machine.t) (PHI : rmap)
+      (* (lev : level PHI = n) TODO add this back later *)
+      (* (mfunspec : matchfunspec (filter_genv ge) Gamma PHI) *)
       (mcompat : JM.mem_compatible_with tp m PHI)
       (lock_coh : lock_coherence tp.(Machine.lset) PHI m)
       (safety : threads_safety Jspec m ge tp PHI mcompat n)
       (wellformed : threads_wellformed tp)
       (uniqkrun :  threads_unique_Krun tp sch)
-    : state_invariant Jspec n (m, ge, (sch, tp)).
+    : state_invariant Jspec n (* Gamma *) (m, ge, (sch, tp)).
 
 Lemma state_invariant_S {Z} (Jspec : juicy_ext_spec Z) (n : nat) m ge sch tp :
   state_invariant Jspec (S n) (m, ge, (sch, tp)) ->
-  state_invariant Jspec n (m, ge, (sch, tp)).
+  state_invariant Jspec n (m, ge, (sch, (* JM.age_tp_to n *) tp)).
 Proof.
   intros INV.
-  inversion INV as [m0 ge0 sch0 tp0 PHI mcompat lock_coh safety wellformed uniqkrun H0]; subst.
+  inversion INV as [m0 ge0 sch0 tp0 PHI (* lev *) mcompat lock_coh safety wellformed uniqkrun H0]; subst.
   apply state_invariant_c with PHI mcompat; auto.
+  (* unshelve eapply state_invariant_c with (age_to n PHI) _; auto.
+  - inversion mcompat as [A B C D E]; constructor.
+    clear -lev A. *)
   intros i cnti ora; specialize (safety i cnti ora).
   destruct (Machine.getThreadC cnti); auto; apply safe_downward1, safety.
 Qed.
@@ -2322,11 +2334,30 @@ Section Safety.
   (* The following is a slightly stronger result, proving [jmsafe]
   i.e. a safety that universally quantifies over all schedule each
   time a part of the schedule is consumed *)
-  
-  Theorem safety_initial_state sch n :
+
+  Theorem jmsafe_initial_state sch n :
     jmsafe n ((proj1_sig init_mem, globalenv prog), (sch, initial_machine_state n)).
   Proof.
     apply invariant_safe, initial_invariant.
   Qed.
-
+  
+  Lemma jmsafe_csafe n m ge sch s : jmsafe n (m, ge, (sch, s)) -> JuicyMachine.csafe ge (sch, nil, s) m n.
+  Proof.
+    clear.
+    revert m ge sch s; induction n; intros m ge sch s SAFE.
+    now constructor 1.
+    inversion SAFE; subst.
+    - constructor 2. reflexivity.
+    - econstructor 3; simpl; eauto.
+    - econstructor 4; simpl; eauto.
+  Qed.
+  
+  (* TODO remove [jmsafe] and prove [csafe] directly *)
+  
+  Theorem safety_initial_state (sch : schedule) (n : nat) :
+    JuicyMachine.csafe (globalenv prog) (sch, nil, initial_machine_state n) (proj1_sig init_mem) n.
+  Proof.
+    apply jmsafe_csafe, jmsafe_initial_state.
+  Qed.
+  
 End Safety.

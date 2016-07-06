@@ -2156,13 +2156,6 @@ Module X86Inj <: CoreInjections.
   Qed.
 
   (** Coresteps maintain well-definedness *)
-  Lemma valid_mem_loadv:
-    forall chunk m vptr v f
-      (Hwd: valid_mem m)
-      (Hdomain: domain_memren f m)
-      (Hload: Mem.loadv chunk m vptr = Some v),
-      valid_val f v.
-  Proof. Admitted.
   
   Lemma extcall_arg_valid:
     forall f rs m locs arg
@@ -2313,15 +2306,6 @@ Module X86Inj <: CoreInjections.
     eapply load_frame_store_args_rec_wd_domain.
   Qed.
 
-    Lemma store_wd_domain:
-      forall (m m' : mem) (chunk : memory_chunk) (v : val) b ofs f,
-        domain_memren f m ->
-        Mem.store chunk m b ofs v = Some m' ->
-        mem_wd.val_valid v m ->
-        valid_mem m ->
-        valid_mem m' /\ domain_memren f m'.
-    Proof.
-    Admitted.
   
  Lemma exec_instr_wd:
     forall (g : genv) (fn : function) (i : instruction) (rs rs': regset)

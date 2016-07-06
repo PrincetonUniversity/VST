@@ -801,22 +801,62 @@ Module Events  <: EventSig
     | external i _ => i
     end.
 
-  Definition location ev : option address :=
+  Inductive act : Type :=
+  | Read : act
+  | Write : act
+  | Release : act
+  | Acquire : act
+  | Mklock : act
+  | Freelock : act
+  | Failacq : act.
+
+  Definition is_internal ev :=
+    match ev with
+    | internal _ _ => true
+    | _ => false
+    end.
+
+  Definition is_external ev :=
+    match ev with
+    | external _ _ => true
+    | _ => false
+    end.
+  
+  Definition action ev : option act :=
     match ev with
     | internal _ mev =>
       match mev with
-      | Write b ofs _ => Some (b, ofs)
-      | Read b ofs _ _ => Some (b, ofs)
+      | event_semantics.Write _ _ _ => Some Write
+      | event_semantics.Read _ _ _ _ => Some Read
+      | _ => None
+      end
+    | external _ sev =>
+      match sev with
+      | release _ => Some Release
+      | acquire _ => Some Acquire
+      | mklock _ => Some Mklock
+      | freelock _ => Some Freelock
+      | failacq _ => Some Failacq
+      | _ => None (*should spawn also compete?*)
+      end
+    end.
+  
+  Definition location ev : option (address*nat) :=
+    match ev with
+    | internal _ mev =>
+      match mev with
+      | event_semantics.Write b ofs vs => Some ((b, ofs), size vs)
+      | event_semantics.Read b ofs _ vs => Some ((b, ofs), size vs)
       | _ => None
       end 
     | external _ sev =>
       match sev with
-      | release addr => Some addr
-      | acquire addr => Some addr
-      | mklock addr => Some addr
-      | freelock addr => Some addr
-      | spawn addr => Some addr
-      | failacq addr => Some addr
+      | release addr => Some (addr, lksize.LKSIZE_nat)
+      | acquire addr => Some (addr, lksize.LKSIZE_nat)
+      | mklock addr => Some (addr, lksize.LKSIZE_nat)
+      | freelock addr => Some (addr, lksize.LKSIZE_nat)
+      | spawn addr => Some (addr, lksize.LKSIZE_nat)
+      | failacq addr => Some (addr, lksize.LKSIZE_nat)
       end
     end.
   
