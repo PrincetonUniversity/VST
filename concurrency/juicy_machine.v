@@ -680,7 +680,17 @@ Qed.
         forall all_juice,
           join_all js all_juice ->
           join_sub (ThreadPool.getThreadR cnt) all_juice.
-      Admitted.
+      Proof.
+        intros. inv H.
+        assert (H9: join_sub (Some (getThreadR cnt)) (Some all_juice));
+       [ | destruct H9 as [x H9]; inv H9; [apply join_sub_refl | eexists; eauto]].
+       apply join_sub_trans with (Some r0); [ | eexists; eauto].
+       clear - H0.
+       assert (H9: join_sub (getThreadR cnt) r0);
+       [ | destruct H9 as [x H9]; exists (Some x); constructor; auto].
+       unfold getThreadR. unfold join_threads in H0.
+       unfold getThreadsR in H0.
+     Admitted.
     
     Lemma thread_mem_compatible: forall tp m,
         mem_compatible tp m ->
@@ -697,7 +707,22 @@ Qed.
         forall all_juice,
           join_all js all_juice ->
           join_sub phi all_juice.
-    Admitted.
+    Proof.
+     intros.
+     inv H0.
+     assert (H9: join_sub (Some phi) (Some all_juice));
+       [ | destruct H9 as [x H9]; inv H9; [apply join_sub_refl | eexists; eauto]].
+     apply join_sub_trans with (b:=r1); [ | eexists; eauto].
+     clear - H H2.
+     hnf in H2. unfold lockRes in H.
+     apply AMap.find_2 in H. unfold lockGuts in *.
+     apply AMap.elements_1 in H. unfold lock_info in *.
+     forget (AMap.elements (elt:= option rmap) (lset js)) as el.
+     revert r1 H2; induction el; simpl; intros. inv H.
+     destruct H2 as [? [? ?]]. destruct a; simpl in *. inv H. inv H3. simpl in *; subst.
+     exists x; auto. apply IHel in H1; auto.
+     apply join_sub_trans with x; auto. exists o; auto.
+   Qed.
     
     Lemma lock_mem_compatible: forall tp m,
         mem_compatible tp m ->
@@ -1156,8 +1181,10 @@ Qed.
             i <> j ->
             sepalg.joins (getThreadR cnti) (getThreadR cntj).
       Proof.
-        
+        intros.
+        unfold getThreadR.      
       Admitted.
+
       Lemma compatible_threadRes_lockRes_join:
         forall js m,
           mem_compatible js m ->
@@ -1167,6 +1194,7 @@ Qed.
       Proof.
         
       Admitted.
+
       Lemma compatible_lockRes_cohere: forall js m l phi,
           ThreadPool.lockRes js l = Some (Some phi) ->
           mem_compatible js m ->
