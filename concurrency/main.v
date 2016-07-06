@@ -65,7 +65,6 @@ Module MainSafety (DecayingSEM: DecayingSemantics).
 
 
   Section Initil.
-    Import 
     Variables
       (CS : compspecs)
       (V : varspecs)
@@ -74,12 +73,26 @@ Module MainSafety (DecayingSEM: DecayingSemantics).
       (ext_link_inj : forall s1 s2, ext_link s1 = ext_link s2 -> s1 = s2)
       (prog : program)
       (all_safe : semax_prog.semax_prog (Concurrent_Oracular_Espec CS ext_link) prog V G)
-      (init_mem_not_none : Genv.init_mem prog <> None).
+      (init_mem_not_none : Genv.init_mem prog <> None)
+      (x: block)
+      (block: (Genv.find_symbol (globalenv prog) (prog_main prog) = Some x)).
 
-    initial_machine_state
+    Definition js_initial n := initial_machine_state CS V G ext_link prog all_safe
+                                                     init_mem_not_none n.
+    Definition dry_initial_perm :=
+      getCurPerm( proj1_sig (init_m prog init_mem_not_none)).
     
-  
-(*From semax_to_juicy_machine*)
+    Definition dry_initial_core:=
+      initial_core (juicy_core_sem cl_core_sem) 
+                   (globalenv prog) (Vptr x Int.zero) nil.
+    Definition ds_initial c := DSEM.initial_machine
+                               dry_initial_perm
+                               c.                   
+    (*Lemma erasure_match: forall n,z
+        exists c, dry_initial_core = Some c /\ 
+             ErasureProof.match_st (js_initial n) (ds_initial c).
+  *)
+
 (*Lemma juicy_safety: forall U rmap0 genv main vals js,
   semantics.initial_core (JMachineSem U (Some rmap0)) genv
          main vals = Some (U, nil, js) -> False.

@@ -96,7 +96,6 @@ Qed.
     eapply erasure_safety'; eauto.
   Qed.
 
-  Definition balh:= init_diagram.
   Theorem initial_safety:
     forall (U : DryMachine.Sch) (js : jstate)
       (vals : seq Values.val) (m : Memory.mem) 
