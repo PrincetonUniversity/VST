@@ -1603,7 +1603,12 @@ Module X86Inj <: CoreInjections.
       eapply Mem.valid_block_alloc_inv in Hvalid2'; eauto.
       destruct Hvalid2'; subst; try by exfalso.
       assert (Hle: (Mem.nextblock m <= Mem.nextblock m')%positive)
-        by admit. (*pigeon hole or extra invariant *)
+        by admit.
+      (* We either need to keep this as an extra invariant or make a
+      pigeon hole argument. Since f maps every valid block of memory m
+      to a valid block of memory m', it has to be that memory m' is at
+      least as big as memory m', because f is injective so no two
+      blocks can be mapped to the same location*)
       match goal with
       | [|- context[match proj_sumbool (valid_block_dec ?M ?Expr) with _ => _ end]] =>
         destruct (valid_block_dec M Expr)
@@ -2168,7 +2173,7 @@ Module X86Inj <: CoreInjections.
     intros.
     inversion Harg; subst.
     eauto.
-    eapply valid_mem_loadv in H0; eauto.
+    eapply loadv_wd in H0; eauto.
   Qed.
 
   Lemma extcall_arguments_valid:
@@ -2266,11 +2271,12 @@ Module X86Inj <: CoreInjections.
       | [H: match ?Expr with _ => _ end = _ |- _] =>
         destruct Expr eqn:Hload_frame_rec
       end; try discriminate; subst;
-      try (unfold load_frame.store_stack in *;
-      assert (domain_memren f m0)
+      unfold load_frame.store_stack in *;
+      try (assert (domain_memren f m0)
         by (eapply domain_memren_storev; eauto);
-      eapply storev_wd in Hload_frame_rec; eauto);
-      try (eapply wd_val_valid; eauto).
+            eapply storev_wd_domain in Hload_frame_rec; eauto);
+      try (destruct Hload_frame_rec);
+      try (eapply wd_val_valid; eauto); eauto.
       repeat match goal with
              | [H: match ?Expr with _ => _ end = _ |- _] =>
                destruct Expr eqn:?
@@ -2280,8 +2286,10 @@ Module X86Inj <: CoreInjections.
         by (eapply domain_memren_storev; eauto).
       assert (domain_memren f m1)
         by (eapply domain_memren_storev; eauto).
-      eapply storev_wd in Heqo; eauto.
-      eapply storev_wd in Heqo0; eauto.
+      eapply storev_wd_domain in Heqo; eauto.
+      destruct Heqo.
+      eapply storev_wd_domain in Heqo0; eauto.
+      destruct Heqo0; eauto.
   Qed.
 
   Corollary load_frame_store_args_rec_valid:
