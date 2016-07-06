@@ -34,9 +34,9 @@ From mathcomp.ssreflect Require Import ssreflect seq.
 
 Import addressFiniteMap.
 
-Module ErasureSafety (DecayingSEM: DecayingSemantics).
+Module ErasureSafety.
 
-  Module ErasureProof := erasure_proof.Parching DecayingSEM.
+  Module ErasureProof := erasure_proof.Parching.
   Module Erasure := ErasureFnctr ErasureProof.
   Import ErasureProof.
   Import Erasure.
@@ -46,7 +46,7 @@ Module ErasureSafety (DecayingSEM: DecayingSemantics).
   Parameter init_pmap : DSEM.perm_map.
   Parameter init_rmap_perm:  match_rmap_perm init_rmap init_pmap.
 
-  Definition local_erasure:= erasure initU init_rmap init_pmap init_rmap_perm.
+  (*Definition local_erasure:= erasure initU init_rmap init_pmap init_rmap_perm.*)
   Definition step_diagram:= ErasureProof.core_diagram.
   
   Lemma erasure_safety': forall n ge sch js ds m,
@@ -58,11 +58,14 @@ Module ErasureSafety (DecayingSEM: DecayingSemantics).
     induction n.
     intros. constructor.
     intros. inversion H1.
-    - (*Safe_0*) constructor.  
+(*    - (*Safe_0*) constructor.  *)
     - (*HaltedSafe*)
-      simpl. unfold DryMachine.halted; simpl.
+      constructor; simpl. unfold DryMachine.halted; simpl.
       unfold JuicyMachine.halted in H2; simpl in H2.
-      destruct (SCH.schedPeek sch); inversion H; auto.
+      change JuicyMachineModule.THE_JUICY_MACHINE.SCH.schedPeek with
+      DryMachineSource.THE_DRY_MACHINE_SOURCE.SCH.schedPeek in H2.
+      destruct ( DryMachineSource.THE_DRY_MACHINE_SOURCE.SCH.schedPeek sch ) eqn:AA;
+      inversion H; auto.
     - { simpl in Hstep.
         unfold JuicyMachine.MachStep in Hstep; simpl in Hstep.
         assert (step_diagram:=step_diagram).
@@ -99,17 +102,17 @@ Qed.
   Theorem initial_safety:
     forall (U : DryMachine.Sch) (js : jstate)
       (vals : seq Values.val) (m : Memory.mem) 
-      (rmap0 : rmap) (pmap : access_map),
+      (rmap0 : rmap) (pmap : access_map) main genv,
       match_rmap_perm rmap0 pmap ->
-      initial_core (JMachineSem U (Some rmap0)) ErasureProof.genv
-         ErasureProof.main vals = Some (U, [::], js) ->
+      initial_core (JMachineSem U (Some rmap0)) genv
+         main vals = Some (U, [::], js) ->
       exists (mu : SM_Injection) (ds : dstate),
-        initial_core (DMachineSem U (Some pmap)) ErasureProof.genv
-                     ErasureProof.main vals = Some (U, [::], ds) /\
+        initial_core (DMachineSem U (Some pmap)) genv
+                     main vals = Some (U, [::], ds) /\
         DSEM.invariant ds /\ match_st js ds.
   Proof.
-    intros ? ? ? ? ? ? mtch_perms init.
-    destruct (init_diagram (fun _ => None) U js vals m rmap0 pmap)
+    intros ? ? ? ? ? ? ? ? mtch_perms init.
+    destruct (init_diagram (fun _ => None) U js vals m rmap0 pmap main genv)
     as [mu [ds [_ [dinit [dinv MTCH]]]]]; eauto.
     unfold init_inj_ok; intros b b' ofs H. inversion H.
   Qed.

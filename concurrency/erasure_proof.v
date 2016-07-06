@@ -3022,7 +3022,7 @@ Module Parching <: ErasureSig.
          {
            inversion Hcorestep.
            eapply ev_step_ax2 in H; destruct H as [T H].
-           apply ClightSEM.step_decay in H.
+           apply SEM.step_decay in H.
            
            
            eapply DSEM.DryMachineLemmas.step_decay_invariant
