@@ -155,16 +155,29 @@ Module Parching (DecayingSEM: DecayingSemantics) <: ErasureSig.
       forall b ofs, (JTP.lockSet js) !! b ofs = (DTP.lockSet ds) !! b ofs.
   Proof.
     intros js ds MATCH b ofs.
-    inversion MATCH.
-    generalize mtch_locks.
-    clear.
-    unfold JTP.lockSet, DTP.lockSet.
-    unfold JSEM.ThreadPool.lockRes, DSEM.ThreadPool.lockRes.
-    unfold JSEM.ThreadPool.lockGuts, DSEM.ThreadPool.lockGuts.
-    intros HH; specialize (HH  (b, ofs)).
-    unfold A2PMap.
-         
-  Admitted.
+    inversion MATCH. clear - mtch_locks.
+    destruct (DSEM.ThreadPool.lockRes_range_dec ds b ofs).
+    - destruct e as [z [ineq dLR]].
+      specialize (mtch_locks (b, z)).
+      destruct ( DSEM.ThreadPool.lockRes ds (b, z)) eqn:AA; inversion dLR.
+      destruct (JSEM.ThreadPool.lockRes js (b, z)) eqn:BB; inversion mtch_locks.
+      erewrite JSEM.ThreadPool.lockSet_spec_2; eauto.
+      erewrite DSEM.ThreadPool.lockSet_spec_2; eauto.
+      rewrite BB; constructor.
+      rewrite AA in dLR; inversion dLR.
+    - destruct (JSEM.ThreadPool.lockRes_range_dec js b ofs).
+      clear e.
+      destruct e0 as [z [ineq dLR]].
+      specialize (mtch_locks (b, z)).
+      destruct (JSEM.ThreadPool.lockRes js (b, z)) eqn:AA; inversion dLR.
+      destruct ( DSEM.ThreadPool.lockRes ds (b, z)) eqn:BB; inversion mtch_locks.
+      erewrite JSEM.ThreadPool.lockSet_spec_2; eauto.
+      erewrite DSEM.ThreadPool.lockSet_spec_2; eauto.
+      rewrite BB; constructor.
+      rewrite AA in dLR; inversion dLR.
+    - erewrite JSEM.ThreadPool.lockSet_spec_3; eauto.
+      erewrite DSEM.ThreadPool.lockSet_spec_3; eauto.
+  Qed.
   
   Lemma MTCH_compat: forall js ds m,
       match_st js ds ->
