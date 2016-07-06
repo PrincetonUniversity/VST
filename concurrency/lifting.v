@@ -14,10 +14,19 @@ Require Import sepcomp.simulations. Import SM_simulation.
 (* We lift to a whole-program simulation on the dry concurrency machine *)
 Require Import sepcomp.wholeprog_simulations. Import Wholeprog_sim.
 
+Require Import sepcomp.event_semantics.
+
+Record EvEffSem {G C} :=
+  { (** [sem] is a memory semantics. *)
+    esem : @EvSem G C;
+    effsem : @EffectSem G C;
+    axiom : msem esem = sem effsem
+  }.
+
 Module Type EFFSEM.
   Parameters F V C : Type.
   Notation G := (Genv.t F V).
-  Parameter sem : @EffectSem G C.
+  Parameter sem : @EvEffSem G C.
 End EFFSEM.  
 
 Module Semantics_of_EFFSEM (e : EFFSEM) <: Semantics.
@@ -25,7 +34,7 @@ Module Semantics_of_EFFSEM (e : EFFSEM) <: Semantics.
   Definition C := e.C.
   Definition M := Mem.mem.
   Definition richMem := Mem.mem.
-  Definition Sem := sem e.sem.
+  Definition Sem := esem e.sem.
 End Semantics_of_EFFSEM.  
   
 Module lifting (eS eT : EFFSEM).
@@ -60,7 +69,7 @@ Module lifting (eS eT : EFFSEM).
 
   Variables (gS : GS) (gT : GT).
   
-  Variable thread_sim : SM_simulation_inject semS semT gS gT.
+  Variable thread_sim : SM_simulation_inject (effsem semS) (effsem semT) gS gT.
 
   Definition ge_inv (geS : GS) (geT : GT) :=
     genvs_domain_eq geS geT.
@@ -70,22 +79,14 @@ Module lifting (eS eT : EFFSEM).
       List.Forall2 (val_inject j) valsS valsT /\
       Events.meminj_preserves_globals geS j.
 
-  Definition halt_inv mu (geS : GS) rv1 mS (geT : GT) rv2 mT :=
-    Mem.mem_inj (as_inj mu) mS mT /\
-    val_inject (as_inj mu) rv1 rv2.
-
-  Inductive thread_match : SM_Injection -> CS -> mem -> CT -> mem -> Prop :=
-    mkThreadMatch :
-      forall m1 m2 m1' m2' cS cT,
-        mem_forward m1 m1' ->
-        mem_forward m2 m2' ->
-        RDOnly_fwd m1 m1' ->
-        RDOnly_fwd m2 m2' ->
+  Definition halt_inv j (geS : GS) rv1 mS (geT : GT) rv2 mT :=
+    Mem.mem_inj j mS mT /\
+    val_inject j rv1 rv2.
   
-  Lemma concur_sim main (sch : mySchedule.schedule) :
+  Lemma concur_sim main p (sch : mySchedule.schedule) :
     Wholeprog_sim
-      (source_concurrent_semantics sch)
-      (target_concurrent_semantics sch)
+      (source_concurrent_semantics sch p)
+      (target_concurrent_semantics sch p)
       gS gT main
       ge_inv init_inv halt_inv.
   Proof. Admitted.

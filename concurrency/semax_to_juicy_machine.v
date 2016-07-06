@@ -181,24 +181,24 @@ Definition matchfunspec (ge : genviron) Gamma : forall Phi, Prop :=
       (EX id : ident,
         !! (ge id = Some b) && !! (Gamma ! id = Some fs))))%pred.
 
-Inductive state_invariant {Z} (Jspec : juicy_ext_spec Z) (* Gamma *) (n : nat) : cm_state -> Prop :=
+Inductive state_invariant {Z} (Jspec : juicy_ext_spec Z) Gamma (n : nat) : cm_state -> Prop :=
   | state_invariant_c
       (m : mem) (ge : genv) (sch : schedule) (tp : Machine.t) (PHI : rmap)
       (* (lev : level PHI = n) TODO add this back later *)
-      (* (gamma : matchfunspec (filter_genv ge) (* Gamma *) PHI) *)
+      (gamma : matchfunspec (filter_genv ge) Gamma PHI)
       (mcompat : JM.mem_compatible_with tp m PHI)
       (lock_coh : lock_coherence tp.(Machine.lset) PHI m)
       (safety : threads_safety Jspec m ge tp PHI mcompat n)
       (wellformed : threads_wellformed tp)
       (uniqkrun :  threads_unique_Krun tp sch)
-    : state_invariant Jspec (* Gamma *) n (m, ge, (sch, tp)).
+    : state_invariant Jspec Gamma n (m, ge, (sch, tp)).
 
-Lemma state_invariant_S {Z} (Jspec : juicy_ext_spec Z) (* Gamma *) n m ge sch tp :
-  state_invariant Jspec (* Gamma *) (S n) (m, ge, (sch, tp)) ->
-  state_invariant Jspec (* Gamma *) n (m, ge, (sch, (* JM.age_tp_to n *) tp)).
+Lemma state_invariant_S {Z} (Jspec : juicy_ext_spec Z) Gamma n m ge sch tp :
+  state_invariant Jspec Gamma (S n) (m, ge, (sch, tp)) ->
+  state_invariant Jspec Gamma n (m, ge, (sch, (* JM.age_tp_to n *) tp)).
 Proof.
   intros INV.
-  inversion INV as [m0 ge0 sch0 tp0 PHI (* lev *) (* gam *) mcompat lock_coh safety wellformed uniqkrun H0]; subst.
+  inversion INV as [m0 ge0 sch0 tp0 PHI (* lev *) gam mcompat lock_coh safety wellformed uniqkrun H0]; subst.
   apply state_invariant_c with PHI mcompat; auto.
   (* unshelve eapply state_invariant_c with (age_to n PHI) _; auto.
   - inversion mcompat as [A B C D E]; constructor.
@@ -207,14 +207,14 @@ Proof.
   destruct (Machine.getThreadC cnti); auto; apply safe_downward1, safety.
 Qed.
 
-Lemma state_invariant_sch_irr {Z} (Jspec : juicy_ext_spec Z) (* Gamma *) n m ge i sch sch' tp :
-  state_invariant Jspec (* Gamma *) n (m, ge, (i :: sch, tp)) ->
-  state_invariant Jspec (* Gamma *) n (m, ge, (i :: sch', tp)).
+Lemma state_invariant_sch_irr {Z} (Jspec : juicy_ext_spec Z) Gamma n m ge i sch sch' tp :
+  state_invariant Jspec Gamma n (m, ge, (i :: sch, tp)) ->
+  state_invariant Jspec Gamma n (m, ge, (i :: sch', tp)).
 Proof.
   intros INV.
-  inversion INV as [m0 ge0 sch0 tp0 PHI (* gam *) mcompat lock_coh safety wellformed uniqkrun H0];
+  inversion INV as [m0 ge0 sch0 tp0 PHI gam mcompat lock_coh safety wellformed uniqkrun H0];
     subst m0 ge0 sch0 tp0.
-  refine (state_invariant_c Jspec (* Gamma *) n m ge (i :: sch') tp PHI (* gam *) mcompat lock_coh safety wellformed _).
+  refine (state_invariant_c Jspec Gamma n m ge (i :: sch') tp PHI gam mcompat lock_coh safety wellformed _).
   clear -uniqkrun.
   intros H i0 cnti q ora H0.
   destruct (uniqkrun H i0 cnti q ora H0) as [sch'' E].
@@ -263,7 +263,7 @@ Section Initial_State.
   Proof.
   Admitted.
   
-  Lemma initial_invariant n sch : state_invariant Jspec n (initial_state n sch).
+  Lemma initial_invariant n sch : state_invariant Jspec (make_tycontext_s G) n (initial_state n sch).
   Proof.
     unfold initial_state.
     destruct init_m as [m Hm]; simpl proj1_sig; simpl proj2_sig.
@@ -321,6 +321,14 @@ Section Initial_State.
 
     apply state_invariant_c with (PHI := m_phi jm) (mcompat := compat).
     
+    - pose proof semax_prog_entry_point (Concurrent_Oracular_Espec CS ext_link) V G prog.
+      unfold matchfunspec in *.
+      simpl.
+      intros b SPEC phi NECR FU.
+      (* rewrite find_id_maketycontext_s. *)
+      admit.
+    (* we need to relate the [jm] given by [semax_prog_rule]  *)
+    
     - (*! lock coherence (no locks at first) *)
       intros lock.
       rewrite threadPool.find_empty.
@@ -362,7 +370,7 @@ Section Initial_State.
       
     - (* only one thread running *)
       intros F; exfalso. simpl in F. omega.
-  Qed.
+  Admitted.
   
 End Initial_State.
 
@@ -746,12 +754,6 @@ Proof.
   - rewrite (AMap_find_map _ _ _ o F) in E. discriminate.
 Qed.
 
-(* should be proved by andrew *)
-Lemma compatible_threadRes_sub {js i} (cnt:Machine.containsThread js i) {all_juice} :
-  JM.join_all js all_juice ->
-  join_sub (Machine.getThreadR cnt) all_juice.
-Admitted.
-  
 Section Simulation.
   Variables
     (CS : compspecs)
@@ -772,8 +774,9 @@ Section Simulation.
         (m', ge, (sch', jstate')).
   
   Lemma invariant_thread_step
-        {Z} (Jspec : juicy_ext_spec Z)
+        {Z} (Jspec : juicy_ext_spec Z) Gamma
         n m ge i sch tp Phi ci ci' jmi'
+        (gam : matchfunspec (filter_genv ge) Gamma Phi)
         (compat : JM.mem_compatible_with tp m Phi)
         (lock_coh : lock_coherence (Machine.lset tp) Phi m)
         (safety : threads_safety Jspec' m ge tp Phi compat (S n))
@@ -786,19 +789,19 @@ Section Simulation.
         (tp' := Machine.updThread cnti (Krun ci') (m_phi jmi') : Machine.t)
         (tp'' := JM.age_tp_to (level jmi') tp')
         (cm' := (m_dry jmi', ge, (i :: sch, tp'')) : mem * genv * (list NatTID.tid * Machine.t)) :
-    state_invariant Jspec n cm'.
+    state_invariant Jspec Gamma n cm'.
   Proof.
     (* destruct stepi as [step decay]. *)
     (* destruct compat as [juice_join all_cohere loc_writable loc_set_ok]. *)
     destruct compat as [JJ AC LW LJ JL] eqn:Ecompat. simpl in *.
     rewrite <-Ecompat in *.
     
-    destruct (compatible_threadRes_sub cnti JJ) as [EXT JEXT].
+    destruct (JM.compatible_threadRes_sub cnti JJ) as [EXT JEXT].
     destruct (join_all_resource_decay (Krun ci') (proj2 stepi) JJ) as [Phi' [J' [RD L]]].
     assert (JEXT' : sepalg.join (m_phi jmi') EXT Phi'). {
       clear -JEXT J' JJ compat.
       rewrite <- (JM.JuicyMachineLemmas.compatible_getThreadR_m_phi cnti (mem_compatible_forget compat)) in *.
-      pose proof compatible_threadRes_sub cnti JJ.
+      pose proof JM.compatible_threadRes_sub cnti JJ.
       admit. (* cancellativity? or just list results *)
     }
     
@@ -864,7 +867,7 @@ Section Simulation.
             - cut (join_sub (JM.ThreadPool.getThreadR cnti @ (b, ofs0)) (Phi @ (b, ofs0))).
               + apply po_join_sub.
               + apply resource_at_join_sub.
-                eapply compatible_threadRes_sub.
+                eapply JM.compatible_threadRes_sub.
                 apply compat.
           }
           
@@ -994,9 +997,18 @@ unique: ok *)
     (* inversion juice_join as [tp0 PhiT PhiL r JT JL J H2 H3]; subst; clear juice_join. *)
     
     apply state_invariant_c with (PHI := Phi') (mcompat := compat').
+    - (* matchfunspecs *)
+      (* clear -RD gam. *)
+      (* unfold resource_decay in RD. *)
+      admit.
+      
     - (* lock coherence: own rmap has changed, not clear how to prove it did not affect locks *)
       simpl.
-      replace (level (m_phi jmi')) with (level Phi') by admit.
+      assert (level (m_phi jmi') = level Phi'). {
+        apply rmap_join_sub_eq_level.
+        admit (* can be derived from J' *).
+      }
+      replace (level (m_phi jmi')) with (level Phi') by auto.
       apply (resource_decay_lock_coherence RD).
       (* now for the dry part, use the fact that the corestep didn't
       have permissions to modify locks? *)
@@ -1024,13 +1036,13 @@ unique: ok *)
       admit (* more important things first *).
   Admitted.
   
-  Theorem progress n state :
-    state_invariant Jspec' (S n) state ->
+  Theorem progress Gamma n state :
+    state_invariant Jspec' Gamma (S n) state ->
     exists state',
       state_step state state'.
   Proof.
     intros I.
-    inversion I as [m ge sch tp Phi compat lock_coh safety wellformed unique E]. rewrite <-E in *.
+    inversion I as [m ge sch tp Phi gam compat lock_coh safety wellformed unique E]. rewrite <-E in *.
     destruct sch as [ | i sch ].
     
     (* empty schedule: we loop in the same state *)
@@ -1279,7 +1291,7 @@ unique: ok *)
         assert (SUB : join_sub phi0 Phi). {
           apply join_sub_trans with  (JM.ThreadPool.getThreadR cnti).
           - econstructor; eauto.
-          - apply compatible_threadRes_sub; eauto.
+          - apply JM.compatible_threadRes_sub; eauto.
             destruct compat; eauto.
         }
         destruct islock as [b [ofs [-> [R islock]]]].
@@ -1504,16 +1516,16 @@ unique: ok *)
     (* end of Kinit *)
   Admitted.
   
-  Theorem preservation n state state' :
+  Theorem preservation Gamma n state state' :
     state_step state state' ->
-    state_invariant Jspec' (S n) state ->
-    state_invariant Jspec' n state'.
+    state_invariant Jspec' Gamma (S n) state ->
+    state_invariant Jspec' Gamma n state'.
   Proof.
     intros STEP.
     inversion STEP as [ | ge m m' sch sch' tp tp' jmstep E E'];
       [ now apply state_invariant_S | ]; subst state state'; clear STEP.
     intros INV.
-    inversion INV as [m0 ge0 sch0 tp0 Phi compat lock_coh safety wellformed unique E].
+    inversion INV as [m0 ge0 sch0 tp0 Phi gam compat lock_coh safety wellformed unique E].
     subst m0 ge0 sch0 tp0.
     
     destruct sch as [ | i sch ].
@@ -2162,14 +2174,14 @@ unique: ok *)
 *)
   Admitted.
 
-  Lemma state_invariant_step n state :
-    state_invariant Jspec' (S n) state ->
+  Lemma state_invariant_step Gamma n state :
+    state_invariant Jspec' Gamma (S n) state ->
     exists state',
       state_step state state' /\
-      state_invariant Jspec' n state'.
+      state_invariant Jspec' Gamma n state'.
   Proof.
     intros inv.
-    destruct (progress _ _ inv) as (state', step).
+    destruct (progress _ _ _ inv) as (state', step).
     exists state'; split; [ now apply step | ].
     eapply preservation; eauto.
   Qed.
@@ -2214,8 +2226,8 @@ Section Safety.
     (all_safe : semax_prog.semax_prog (Concurrent_Oracular_Espec CS ext_link) prog V G)
     (init_mem_not_none : Genv.init_mem prog <> None).
 
-  Lemma invariant_safe n state :
-    state_invariant (Jspec' CS ext_link) n state -> jmsafe n state.
+  Lemma invariant_safe Gamma n state :
+    state_invariant (Jspec' CS ext_link) Gamma n state -> jmsafe n state.
   Proof.
     intros INV.
     pose proof (progress CS ext_link ext_link_inj) as Progress.
@@ -2225,8 +2237,8 @@ Section Safety.
     - apply jmsafe_0.
     - destruct sch.
       + apply jmsafe_halted.
-      + destruct (Progress _ _ INV) as (state', step).
-        pose proof (Preservation _ _ _ step INV).
+      + destruct (Progress _ _ _ INV) as (state', step).
+        pose proof (Preservation _ _ _ _ step INV).
         inversion step as [ | ge' m0 m' sch' sch'' tp0 tp' jmstep ]; subst; simpl in *.
         inversion jmstep; subst.
         * eapply jmsafe_core; eauto.
@@ -2239,7 +2251,7 @@ Section Safety.
           assert (step' : state_step (m', ge, (t :: sch', tp)) (m', ge, (sch', tp'))).
           { constructor; auto. }
           eapply state_invariant_sch_irr in INV.
-          specialize (Preservation _ _ _ step' INV).
+          specialize (Preservation _ _ _ _ step' INV).
           assumption.
         * eapply jmsafe_sch; eauto.
           intros sch'; apply IHn.
@@ -2248,7 +2260,7 @@ Section Safety.
           assert (step' : state_step (m, ge, (t :: sch', tp)) (m', ge, (sch', tp'))).
           { constructor; auto. }
           eapply state_invariant_sch_irr in INV.
-          specialize (Preservation _ _ _ step' INV).
+          specialize (Preservation _ _ _ _ step' INV).
           assumption.
         * eapply jmsafe_sch; eauto.
           intros sch'; apply IHn.
@@ -2257,7 +2269,7 @@ Section Safety.
           assert (step' : state_step (m', ge, (t :: sch', tp')) (m', ge, (sch', tp'))).
           { constructor; auto. }
           eapply state_invariant_sch_irr in INV.
-          specialize (Preservation _ _ _ step' INV).
+          specialize (Preservation _ _ _ _ step' INV).
           assumption.
         * eapply jmsafe_sch; eauto.
           intros sch'; apply IHn.
@@ -2266,7 +2278,7 @@ Section Safety.
           assert (step' : state_step (m', ge, (t :: sch', tp')) (m', ge, (sch', tp'))).
           { constructor; auto. }
           eapply state_invariant_sch_irr in INV.
-          specialize (Preservation _ _ _ step' INV).
+          specialize (Preservation _ _ _ _ step' INV).
           assumption.
   Qed.
   
@@ -2338,7 +2350,7 @@ Section Safety.
     generalize (globalenv prog), sch.
     clear -SIM.
     induction n; intros g sch schSEM m t INV; [ now constructor | ].
-    destruct (SIM _ _ INV) as [cm' [step INV']].
+    destruct (SIM _ _ _ INV) as [cm' [step INV']].
     inversion step as [ | ? ? m' ? sch' ? tp' STEP ]; subst; clear step.
     - (* empty schedule *)
       eapply safeN_halted.
@@ -2358,7 +2370,7 @@ Section Safety.
   Theorem jmsafe_initial_state sch n :
     jmsafe n ((proj1_sig init_mem, globalenv prog), (sch, initial_machine_state n)).
   Proof.
-    apply invariant_safe, initial_invariant.
+    eapply invariant_safe, initial_invariant.
   Qed.
   
   Lemma jmsafe_csafe n m ge sch s : jmsafe n (m, ge, (sch, s)) -> JuicyMachine.csafe ge (sch, nil, s) m n.
@@ -2372,7 +2384,8 @@ Section Safety.
     - econstructor 4; simpl; eauto.
   Qed.
   
-  (* TODO remove [jmsafe] and prove [csafe] directly *)
+  (* [jmsafe] is used as a intermediary, eventually we'll prove
+  [csafe] directly *)
   
   Theorem safety_initial_state (sch : schedule) (n : nat) :
     JuicyMachine.csafe (globalenv prog) (sch, nil, initial_machine_state n) (proj1_sig init_mem) n.
