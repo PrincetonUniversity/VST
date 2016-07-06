@@ -556,64 +556,87 @@ split; intros [e ?]; exists e.
  rewrite <- SetoidList.InA_rev; auto.
 Qed.
 
-Lemma gsslockSet_rem': forall ds b ofs,
-    lr_valid (lockRes ds) ->
-      (lockSet (remLockSet ds (b, ofs))) !! b ofs =
-      None.
-  Proof.
-    intros.
-   unfold lockSet, remLockSet; simpl.
- (* FIXED!! Is it correct now?
-  * NOT TRUE: Suppose address 100 and 102 are in the lock set.
-  * Then "remove" address 102, but the permission at 102 is still Writable.
-*)
+Import SetoidList.
+Arguments InA {A}{eqA} x _.
+Arguments AMap.In {elt} x m.
 
-(*
- unfold A2PMap, AMap.remove; simpl.
- destruct ds; simpl. destruct lset0; simpl.
- rewrite <- !List.fold_left_rev_right.
- match goal with |- context [fold_right ?F] => set (f:=F) end.
- assert (SetoidList.NoDupA (@AMap.Raw.PX.eqk _) this). 
- apply SetoidList.SortA_NoDupA with (@AMap.Raw.PX.ltk _); auto with typeclass_instances.
- clear sorted.*)
-(*
- pose proof (@AMap.remove_1 _ (lockGuts ds) (b,ofs) (b,ofs)).
- spec H; [reflexivity |].
- unfold A2PMap.
- forget (AMap.remove (elt:=lock_info) (b, ofs) (lockGuts ds)) as m.
- rewrite <- !List.fold_left_rev_right.
- unfold AMap.In in H. unfold AMap.elements.
- unfold AMap.Raw.elements.
- assert (~ AMap.Raw.PX.In (b, ofs) (rev (AMap.this m)))
-   by (contradict H; rewrite PX_in_rev; auto).
- clear H. forget (rev (AMap.this m)) as el.
- match goal with |- context [fold_right ?F] => set (f:=F) end.
- induction el; simpl. rewrite PMap.gi; auto.
- destruct a. destruct a.
- destruct (EqDec_address (b0,z) (b,ofs)). inv e.
- unfold f at 1.
- simpl.
- contradiction H0. eauto.
- unfold f at 1. simpl.
- unfold permissions.setPerm.
- rewrite !PMap.gss.
- destruct (peq b0 b). subst b0. rewrite !PMap.gss.
- 
- *)
+Lemma lockRes_spec_3:
+  forall ds b ofs,
+    (forall z, z <= ofs < z+4 -> lockRes ds (b,z) = None)%Z ->
+   (lockSet ds) !! b ofs = None.
+Proof.
+  intros.
+  unfold lockSet. unfold A2PMap.
+   rewrite <- !List.fold_left_rev_right.
+   match goal with |- context [fold_right ?F ?I] => set (f:=F); set (init:=I)end.
+   unfold lockRes in H.
+   assert (H': forall z,  (z <= ofs < z + 4)%Z ->
+                 ~ AMap.In (b,z) (lockGuts ds)). {
+    intros. intro. destruct H1; apply AMap.find_1 in H1.
+     rewrite H in H1. inv H1. auto.
+  } clear H.
+   unfold lockGuts in *. 
+   assert (H7 : forall (x : AMap.key) (e : lock_info),
+     @InA _ (@AMap.eq_key_elt lock_info) (x, e) (rev (AMap.elements (lset ds))) ->
+       AMap.MapsTo x e (lset ds)). {
+     intros. apply AMap.elements_2. rewrite -> InA_rev in H. apply H.
+    }
+    change address with AMap.key.
+    forget (rev (AMap.elements (lset ds))) as al.
+   revert H7; induction al; intros.
+  simpl. rewrite PMap.gi. auto.
+  change ((f a (fold_right f init al)) !! b ofs = None).
+  unfold f at 1. destruct a as [[? ?] ?].
+  simpl.
+  destruct (peq b0 b).    
+   2: unfold permissions.setPerm; rewrite !PMap.gso; auto.
+  subst b0; rewrite !PMap.gss.
+  cut (~ (z <= ofs < z+4))%Z.
+   intro.
+  repeat match goal with |- context [is_left ?A] => destruct A; [ omega | simpl ] end.
+  apply IHal. intros. apply H7. right; auto.
+  intro.
+  apply H' in H. apply H; clear H.
+  specialize (H7 (b,z) l). spec H7; [left; reflexivity |].
+  exists l; auto.
+Qed.
 
-  Admitted.
 
   Lemma gsslockSet_rem: forall ds b ofs ofs0,
       lr_valid (lockRes ds) ->
       Intv.In ofs0 (ofs, ofs + lksize.LKSIZE)%Z ->
+      isSome ((lockRes ds) (b,ofs)) -> 
       (lockSet (remLockSet ds (b, ofs))) !! b ofs0 =
       None.
   Proof.
     intros.
-  hnf in H. simpl in H.
- (* FIXED!!!
-  * NOT TRUE.  See lemma just above *)
-  Admitted.
+    hnf in H0; simpl in H0. change LKSIZE with 4%Z in H0.
+    apply lockRes_spec_3.
+    intros.
+    destruct (zeq ofs z).
+    * subst ofs.
+       unfold lockRes. unfold lockGuts. unfold remLockSet. simpl.
+       assert (H8 := @AMap.remove_1 _ (lockGuts ds) (b,z) (b,z) (refl_equal _)).
+       destruct (AMap.find (b, z) (AMap.remove (b, z) (lockGuts ds))) eqn:?; auto.
+       apply  AMap.find_2 in Heqo.
+      contradiction H8; eexists; eassumption.
+   * hnf in H.
+     destruct (lockRes ds (b,z)) eqn:?; inv H1.
+     + destruct (lockRes ds (b,ofs)) eqn:?; inv H4.
+         assert (z <= ofs < z+4 \/ ofs <= z <= ofs+4)%Z by omega.
+         destruct H1.
+         - specialize (H b z). rewrite Heqo in H. change LKSIZE with 4%Z in H.
+              specialize (H ofs). spec H; [omega|]. congruence.
+         - specialize (H b ofs). rewrite Heqo0 in H. specialize (H z).
+              change LKSIZE with 4%Z in H.
+              spec H; [omega|]. congruence.
+     + unfold lockRes, remLockSet.  simpl.
+             assert (H8 := @AMap.remove_3 _ (lockGuts ds) (b,ofs) (b,z)).
+         destruct (AMap.find (b, z) (AMap.remove (b, ofs) (lockGuts ds))) eqn:?; auto.
+       apply  AMap.find_2 in Heqo0. apply H8 in Heqo0.
+       unfold lockRes in Heqo.
+       apply AMap.find_1 in Heqo0. congruence.
+Qed.
   
   Lemma gsolockSet_rem1: forall ds b ofs b' ofs',
       b  <> b' ->
