@@ -599,7 +599,28 @@ Module CoarseMachine (SCH:Scheduler)(SIG : ConcurrentMachineSig with Module Thre
       m <= n ->
       csafe ge (sched, [::], tp) mem m.
   Proof.
-  Admitted.
+    intros. generalize n mem tp sched H0 H.
+    induction m.
+    intros. constructor.
+    intros.
+    assert (exists n', n0 = S n').
+    { clear - H1. induction H1. exists m; auto.
+      destruct IHle. exists (S x); auto. }
+    destruct H3 as [n' H3].
+    subst.
+    inversion H2.
+    + constructor 2; auto.
+    + econstructor 3; eauto.
+      simpl. subst. eapply IHm.
+      omega. simpl in Hsafe. instantiate (1:=n').
+      Focus 2. simpl in Hsafe. eauto.
+      omega.
+    + econstructor 4; eauto.
+      simpl. subst. intros. eapply IHm.
+      omega. simpl in Hsafe. instantiate (1:=n').
+      Focus 2. simpl in Hsafe. eauto.
+      omega.
+  Qed.
   
 End CoarseMachine.
 
