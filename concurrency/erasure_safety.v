@@ -95,5 +95,24 @@ Qed.
     inversion MATCH. subst.
     eapply erasure_safety'; eauto.
   Qed.
+
+  Definition balh:= init_diagram.
+  Theorem initial_safety:
+    forall (U : DryMachine.Sch) (js : jstate)
+      (vals : seq Values.val) (m : Memory.mem) 
+      (rmap0 : rmap) (pmap : access_map),
+      match_rmap_perm rmap0 pmap ->
+      initial_core (JMachineSem U (Some rmap0)) ErasureProof.genv
+         ErasureProof.main vals = Some (U, [::], js) ->
+      exists (mu : SM_Injection) (ds : dstate),
+        initial_core (DMachineSem U (Some pmap)) ErasureProof.genv
+                     ErasureProof.main vals = Some (U, [::], ds) /\
+        DSEM.invariant ds /\ match_st js ds.
+  Proof.
+    intros ? ? ? ? ? ? mtch_perms init.
+    destruct (init_diagram (fun _ => None) U js vals m rmap0 pmap)
+    as [mu [ds [_ [dinit [dinv MTCH]]]]]; eauto.
+    unfold init_inj_ok; intros b b' ofs H. inversion H.
+  Qed.
     
 End ErasureSafety. 

@@ -149,7 +149,7 @@ CONCUR_FILES= \
   erased_machine.v erasure_proof.v erasure_safety.v erasure_signature.v \
   fineConc_safe.v inj_lemmas.v join_sm.v juicy_machine.v \
   lifting.v linking_inv.v linking_spec.v lksize.v \
-  mem_obs_eq.v permissions.v pos.v pred_lemmas.v \
+  main.v mem_obs_eq.v permissions.v pos.v pred_lemmas.v \
   rc_semantics.v rc_semantics_lemmas.v reach_lemmas.v reestablish.v ret_lemmas.v \
   scheduler.v   semax_conc.v semax_to_juicy_machine.v \
   sepcomp.v seq_lemmas.v ssromega.v stack.v \
