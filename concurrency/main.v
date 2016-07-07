@@ -231,20 +231,52 @@ Definition dry_initial_perm :=
       unfold DryMachineSource.THE_DRY_MACHINE_SOURCE.DSEM.init_mach.
 
       admit.
+      specialize (core_initial H).
 
-      
-      
-(*From semax_to_juicy_machine*)
-(*Lemma juicy_safety: forall U rmap0 genv main vals js,
-  semantics.initial_core (JMachineSem U (Some rmap0)) genv
-         main vals = Some (U, nil, js) -> False.
-*)
+      assert (lifting.init_inv (fun b : Values.block => Some (b, 0%Z))
+                   A_crazy_env nil initial_memory the_ge nil
+                   initial_memory).
+      { unfold lifting.init_inv.
+        split.
+        - { constructor; intros.
+            - inversion H0; subst; auto.
+              replace (ofs+0)%Z with ofs by omega.
+              inversion H0; subst; auto.
+              inversion H0; subst; auto.
+              exists Z0. omega.
+              unfold align_chunk.
+            - inversion H0; subst; auto.
+              replace (ofs+0)%Z with ofs by omega.
+              eapply memval_inject_id_refl. }
+        - split. constructor.
+        - simpl. constructor; intros.
+          + reflexivity.
+          + split; intros.
+            * reflexivity.
+            * inversion H1; subst. reflexivity. }
+      specialize (core_initial H0).
 
-(*Theorem safety_initial_state (sch : schedule) (n : nat) :
-  JuicyMachine.csafe (globalenv prog) (sch, nil, initial_machine_state n) (proj1_sig init_mem) n.
-Proof.
-  apply jmsafe_csafe, jmsafe_initial_state.
-Qed.
-*)
+      destruct core_initial as [cd [c2 [init_core MTCH]]].
+      destruct c2 as [A c2].
+      exists c2; split.
+      - unfold initial_core in init_core.
+        unfold ds_initial_2.
+        unfold  DryConc.MachineSemantics in init_core.
+        unfold DryConc.init_machine in init_core.
+        destruct (DryMachine.init_mach (Some (getCurPerm initial_memory))
+                                       the_ge (Vptr x Int.zero) nil) eqn:AA; try inversion init_core.
+        subst; auto. clear - AA.
+        rewrite <- AA; f_equal.
+        unfold init_perm, initial_memory.
+        (*JM: This is also something I assume you will be able to prove? *)
+        
+        admit.
+
+        (** *The induction*)
+        admit.
+    Admitted.
+        
+        
+        
 End Initil.
 End MainSafety.
