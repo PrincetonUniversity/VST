@@ -44,7 +44,8 @@ Require Import concurrency.erasure_proof.
 Require Import concurrency.erasure_safety.
 
 Require Import concurrency.fineConc_safe.
-(** **)
+
+Set Bullet Behavior "Strict Subproofs".
 
 
 Module MainSafety .
@@ -57,17 +58,11 @@ Module MainSafety .
   Module ErasureSafety := ErasureSafety.
   Import ErasureSafety.
 
-  Parameters initU: DryMachine.Sch.
-  Parameter init_rmap : JuicyMachine.SIG.ThreadPool.RES.res.
-  Parameter init_pmap : DSEM.perm_map.
-  Parameter init_rmap_perm:  match_rmap_perm init_rmap init_pmap.
-
-  (*Definition local_erasure:= erasure initU init_rmap init_pmap init_rmap_perm*)
   Definition step_diagram:= ErasureProof.core_diagram.
 
 
   Section Initil.
-   (* Import  *)
+   (*The following variables represent a program satisfying some CSL*)
     Variables
       (CS : compspecs)
       (V : varspecs)
@@ -96,7 +91,6 @@ Module MainSafety .
     Definition ds_initial := DSEM.initial_machine
                                dry_initial_perm initial_corestate.
 
-    Set Bullet Behavior "Strict Subproofs".
     
     Lemma erasure_match: forall n,
         ErasureProof.match_st (js_initial n) ds_initial.
@@ -156,7 +150,8 @@ Module MainSafety .
     Qed.
 
     Definition initial_memory:= (proj1_sig (init_mem prog init_mem_not_none)).
-    
+
+    (** * Safety of the dry Clight concurrent semantics*)
     Theorem dry_clight_safety: forall n sch,
         DryMachine.csafe (globalenv prog) (sch, nil, ds_initial) initial_memory n.
     Proof.
@@ -170,26 +165,18 @@ Module MainSafety .
       - eapply AA.
     Qed.
 
-    Definition A_crazy_env: JuicyMachineModule.THE_JUICY_MACHINE.JSEM.ThreadPool.SEM.G.
-                              exact (globalenv prog).
-    Qed.
-    
-    Definition dry_initial_perm_2 :=
-      getCurPerm( proj1_sig (init_m prog init_mem_not_none)).
-
-    
     Require Import concurrency.dry_context. 
     Definition dry_initial_core_2:=
       initial_core (coarse_semantics) 
                    (the_ge) (Vptr x Int.zero) nil.
-    
     Definition initial_corestate_2 :=
       initial_core coarse_semantics the_ge (Vptr x Int.zero) nil.
-                   
     Definition ds_initial_2 := DryMachine.init_mach
                                  init_perm the_ge
                                  (Vptr x Int.zero) nil.
 
+
+    (** *The comiler preserves safety*)
     Lemma compilation_safety_preservation: forall n sch m,
         dry_context.init_mem = Some m -> 
         DryMachine.csafe (globalenv prog) (sch, nil, ds_initial) initial_memory n ->
@@ -197,6 +184,8 @@ Module MainSafety .
         DryConc.csafe the_ge (sch, nil, c) m n.
     Admitted.
 
+    (** *Safety of the dry x86 concurrent semantics,*)
+    (** *whit a cooperative schedule*)
     Theorem dry_x86_coarse_safety: forall n sch m,
         dry_context.init_mem = Some m -> 
         exists c, ds_initial_2 = Some c /\
@@ -208,7 +197,9 @@ Module MainSafety .
       eapply dry_clight_safety.
     Qed.
 
-    Theorem x86_safe:
+    (** *Safety of the dry x86 concurrent semantics,*)
+    (** *whit a prehemptive schedule*)
+    Theorem x86_fine_safe:
     forall U (tpf : FineConc.machine_state) m
       (Hmem: dry_context.init_mem = Some m)
       (Hinit: FineConcSafe.tpf_init (Vptr x Int.zero) nil = Some (U, nil, tpf))
