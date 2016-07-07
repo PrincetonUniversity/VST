@@ -152,9 +152,88 @@ Module MainSafety .
            - unfold ErasureProof.DSEM.ThreadPool.lockRes.
              simpl. intros.  rewrite threadPool.find_empty in H0; inversion H0.
     Admitted.
-             
-             
-  
+
+    Definition initial_memory:= (proj1_sig (init_mem prog init_mem_not_none)).
+    
+    Theorem dry_clight_safety: forall n sch,
+        DryMachine.csafe (globalenv prog) (sch, nil, ds_initial) initial_memory n.
+    Proof.
+      intros.
+      assert (AA:=safety_initial_state CS V G ext_link ext_link_inj prog all_safe init_mem_not_none sch n).
+      assert (BB:= erasure_match).
+      assert (CC:= erasure_safety' n).
+      eapply CC in BB.
+      - eapply BB.
+      - eapply DSEM.DryMachineLemmas.initial_invariant.
+      - eapply AA.
+    Qed.
+
+    Definition A_crazy_env: JuicyMachineModule.THE_JUICY_MACHINE.JSEM.ThreadPool.SEM.G.
+                              exact (globalenv prog).
+    Qed.
+    
+    Definition dry_initial_perm_2 :=
+      getCurPerm( proj1_sig (init_m prog init_mem_not_none)).
+
+    
+    Require Import dry_context. 
+    Definition dry_initial_core_2:=
+      initial_core (coarse_semantics) 
+                   (the_ge) (Vptr x Int.zero) nil.
+    
+    Definition initial_corestate_2 :=
+      initial_core coarse_semantics the_ge (Vptr x Int.zero) nil.
+                   
+    Definition ds_initial_2 := DryMachine.init_mach
+                                 init_perm the_ge
+                                 (Vptr x Int.zero) nil.
+
+    (*
+
+Definition dry_initial_perm :=
+      getCurPerm( proj1_sig (init_m prog init_mem_not_none)).
+    
+    Definition dry_initial_core:=
+      initial_core (juicy_core_sem cl_core_sem) 
+                   (globalenv prog) (Vptr x Int.zero) nil.
+    
+    Definition initial_corestate :=
+      initial_corestate CS V G ext_link prog all_safe init_mem_not_none.
+    
+    Definition ds_initial := DSEM.initial_machine
+                               dry_initial_perm initial_corestate.
+
+     *)
+    
+    
+    Require Import lifting.
+    Theorem dry_x86_coarse_safety: forall n sch,
+        exists c, ds_initial_2 = Some c /\
+        DryConc.csafe the_ge (sch, nil, c) initial_memory n.
+    Proof.
+      intros n sch.
+      assert (HH:=lifting.concur_sim ).
+      specialize (HH the_ge A_crazy_env (Vptr x Int.zero) (Some (getCurPerm initial_memory)) sch).
+      inversion HH.
+      specialize (core_initial (fun b => Some(b ,0%Z)) (sch, nil,ds_initial) nil).
+      clear core_diagram0.
+      clear core_halted.
+      specialize (core_initial initial_memory nil initial_memory).
+      assert (initial_core
+                   (ErasureProof.DMachineSem sch
+                      (Some (getCurPerm initial_memory))) A_crazy_env
+                   (Vptr x Int.zero) nil = Some (sch, nil, ds_initial)).
+      (*JM: I can prove this from the asumptions right?*)
+      simpl.
+      unfold ds_initial.
+      unfold DSEM.initial_machine; simpl.
+      unfold ErasureProof.DryMachine.init_machine; simpl.
+      unfold DryMachineSource.THE_DRY_MACHINE_SOURCE.DSEM.init_mach.
+
+      admit.
+
+      
+      
 (*From semax_to_juicy_machine*)
 (*Lemma juicy_safety: forall U rmap0 genv main vals js,
   semantics.initial_core (JMachineSem U (Some rmap0)) genv

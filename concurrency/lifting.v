@@ -54,7 +54,15 @@ Module lifting.
         (dry_context.DryConc.MachineSemantics sch p)
         gS gT main
         ge_inv init_inv halt_inv.
-    Proof. Admitted.
+    Proof.
+      eapply Build_Wholeprog_sim with (core_data:=unit).
+    Admitted.
+
+(*    Lemma compiler_safety: forall n sch main ge1 ge2 p,
+        (genv_inv (concur_sim main sch ge1 ge2)).
+        initial_core (DMachineSem sch p) ge1 main vals1 = Some c1 ->
+        DryMachine.csafe *)
+        
   End lifting.
 End lifting.
       
