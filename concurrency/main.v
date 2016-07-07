@@ -214,8 +214,7 @@ Module MainSafety .
       (Hinit: FineConcSafe.tpf_init (Vptr x Int.zero) nil = Some (U, nil, tpf))
       (ARG: mem_obs_eq.ValueWD.valid_val_list (mem_obs_eq.Renamings.id_ren m) nil),
     forall (sched : X86SC.Sch),
-    exists tr,
-      FineConc.fsafe the_ge tpf (DryMachine.diluteMem m) sched tr (seq.size sched + 1).
+      FineConc.fsafe the_ge tpf (DryMachine.diluteMem m) sched (seq.size sched + 1).
     Proof.
       intros.
       replace (seq.size sched + 1) with (S (seq.size sched)) by omega.
