@@ -119,8 +119,6 @@ Module MainSafety .
              specialize (INV n nil).
              remember (initial_state CS V G ext_link prog all_safe init_mem_not_none tid nil) as cm.
              destruct cm as ((m, ge), (sch, tp)).
-             inversion INV as [m0 ge0 sch0 tp0 PHI _ mcompat _ _ _ _]; subst.
-             inversion mcompat as [juice_join all_cohere loc_writable jloc_in_set lset_in_juice].
              unfold initial_jm in *.
              unfold initial_state in *.
              unfold spr in *.
@@ -137,8 +135,6 @@ Module MainSafety .
              simpl projT1 in *; simpl projT2 in *.
              injection Heqcm as -> -> -> -> .
              simpl in *.
-             clear -juice_join all_cohere.
-             clear juice_join all_cohere.
              destruct (JS n) as [[m phi CON ACC MAX All] [E HYPS]]; simpl.
              simpl in E. rewrite <-E.
              rewrite <-ACC.
