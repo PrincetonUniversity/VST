@@ -224,15 +224,46 @@ Definition dry_initial_perm :=
                       (Some (getCurPerm initial_memory))) A_crazy_env
                    (Vptr x Int.zero) nil = Some (sch, nil, ds_initial)).
       (*JM: I can prove this from the asumptions right?*)
-      simpl.
-      unfold ds_initial.
-      unfold DSEM.initial_machine; simpl.
-      unfold ErasureProof.DryMachine.init_machine; simpl.
-      unfold DryMachineSource.THE_DRY_MACHINE_SOURCE.DSEM.init_mach.
-
-      admit.
+      {
+        (* yep: *)
+        simpl.
+        unfold ds_initial.
+        unfold DSEM.initial_machine; simpl.
+        unfold ErasureProof.DryMachine.init_machine; simpl.
+        unfold DryMachineSource.THE_DRY_MACHINE_SOURCE.DSEM.init_mach.
+        unfold DryMachineSource.THE_DRY_MACHINE_SOURCE.DSEM.ThreadPool.SEM.Sem in *.
+        unfold DryMachineSource.THE_DRY_MACHINE_SOURCE.SEM.CLN_evsem in *.
+        rewrite ClightSemantincsForMachines.ClightSEM.CLN_msem.
+        simpl (initial_core _).
+        unfold DryMachineSource.THE_DRY_MACHINE_SOURCE.DSEM.initial_machine in *.
+        unfold DryMachineSource.THE_DRY_MACHINE_SOURCE.DSEM.one_pos in *.
+        unfold dry_initial_perm in *.
+        unfold initial_memory in *.
+        unfold initial_corestate in *.
+        unfold semax_to_juicy_machine.initial_corestate in *.
+        destruct
+          (semax_prog_rule (Concurrent_Oracular_Espec CS ext_link) V G
+                           prog (proj1_sig (semax_to_juicy_machine.init_mem prog init_mem_not_none)) all_safe
+                           (proj2_sig (semax_to_juicy_machine.init_mem prog init_mem_not_none))) as
+            [b [q [[SYMB CORE ] JS]]].
+        simpl (initial_core _) in CORE.
+        assert (Eb : b = x) by congruence. subst b.
+        assert (Eenv : A_crazy_env = globalenv prog). {
+          admit. (* why opaque? *)
+        }
+        rewrite Eenv.
+        rewrite CORE.
+        f_equal.
+        f_equal.
+        f_equal.
+        destruct spr as [b [q' [[Eb Eq] LO]]]; simpl.
+        unfold juicy_core_sem in *.
+        simpl (initial_core _) in Eq.
+        cut (q = q'). intros <-. auto.
+        congruence.
+        }
+      
       specialize (core_initial H).
-
       assert (lifting.init_inv (fun b : Values.block => Some (b, 0%Z))
                    A_crazy_env nil initial_memory the_ge nil
                    initial_memory).
@@ -268,7 +299,10 @@ Definition dry_initial_perm :=
         subst; auto. clear - AA.
         rewrite <- AA; f_equal.
         unfold init_perm, initial_memory.
+        
         (*JM: This is also something I assume you will be able to prove? *)
+        unfold init_mem in *.
+        Fail unfold the_program in *.
         
         admit.
 
