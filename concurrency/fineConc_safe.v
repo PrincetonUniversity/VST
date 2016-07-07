@@ -332,7 +332,7 @@ pointers, but it should be provable*)
     unfold init_mach in H0.
     destruct (initial_core SEM.Sem the_ge v args) eqn:?, init_perm; try discriminate.
     inversion H0; subst.
-    simpl. split; auto.
+    simpl. (*split; auto.*)
     specialize (init_core_wd v ARGS H). rewrite Heqo; trivial. 
   Qed.
   
