@@ -43,8 +43,8 @@ Require Import concurrency.erasure_signature.
 Require Import concurrency.erasure_proof.
 Require Import concurrency.erasure_safety.
 
-Require Import fineConc_safe.
-
+Require Import concurrency.FineConc_safe.
+(** **)
 
 
 Module MainSafety .

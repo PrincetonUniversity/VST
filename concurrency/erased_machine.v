@@ -188,7 +188,7 @@ Module ErasedMachineShell (SEM:Semantics)  <: ConcurrentMachineSig
    Definition initial_machine c :=
      ThreadPool.mk
        one_pos
-       (fun _ =>  Kresume c Vundef)
+       (fun _ =>  Krun c)
        (fun _ => tt)
        empty_lset.
 

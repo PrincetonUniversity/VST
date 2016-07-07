@@ -786,15 +786,15 @@ Module FineMachine  (SCH:Scheduler)(SIG : ConcurrentMachineSig with Module Threa
   Qed.
 
   (** Schedule safety of the fine-grained machine*)  
-  Inductive fsafe (ge : SEM.G) (tp : thread_pool) (m : mem) (U : Sch)
-    : event_trace -> nat -> Prop :=
-  | Safe_0: forall tr, fsafe ge tp m U tr 0
-  | HaltedSafe : forall n, halted (U, [::], tp) -> fsafe ge tp m U [::] n
+   Inductive fsafe (ge : SEM.G) (tp : thread_pool) (m : mem) (U : Sch)
+    : nat -> Prop :=
+  | Safe_0: fsafe ge tp m U 0
+  | HaltedSafe : forall n tr, halted (U, tr, tp) -> fsafe ge tp m U n
   | StepSafe : forall (tp' : thread_pool) (m' : mem)
-                 (ev tr : event_trace) n,
-      MachStep ge (U, [::], tp) m (schedSkip U, ev, tp') m' ->
-      fsafe ge tp' m' (schedSkip U) tr n ->
-      fsafe ge tp m U (ev ++ tr) (S n).
+                 (tr tr': event_trace) n,
+      MachStep ge (U, tr, tp) m (schedSkip U, tr', tp') m' ->
+      fsafe ge tp' m' (schedSkip U) n ->
+      fsafe ge tp m U (S n).
   
 End FineMachine.
 

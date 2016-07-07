@@ -646,13 +646,11 @@ defined*)
     rewrite Hexternal in code_eq0.
     auto.
   Qed.
-
-
+  
   Lemma fine_safe:
     forall tpf tpc mf mc (g fg : memren) fp (xs : Sch) sched
       (Hsim: sim tpc mc tpf mf xs g fg fp (S (size sched))),
-    exists tr,
-      fsafe tpf mf sched tr (S (size sched)).
+      fsafe tpf mf sched (S (size sched)).
   Proof.
     intros.
     generalize dependent xs.
@@ -663,44 +661,39 @@ defined*)
     generalize dependent mc.
     generalize dependent g.
     induction sched as [|i sched]; intros; simpl; auto.
-    exists [::].
-    econstructor. simpl; eauto.
+    econstructor; simpl; eauto.
     destruct (containsThread_dec i tpf) as [cnti | invalid].
     - (* By case analysis on the step type *)
       destruct (getStepType cnti) eqn:Htype.
       + pose proof (sim_internal [::] cnti Htype Hsim) as
             (tpf' & m' & fp' & tr' & Hstep & Hsim').
         specialize (Hstep sched).
-        destruct (IHsched _ _ _ _ _ _ _ Hsim') as [tr'' Hsafe''].
-        exists (tr' ++ tr'').
+        specialize (IHsched _ _ _ _ _ _ _ Hsim').
         econstructor 3; simpl; eauto.
       + assert (~ List.In i xs)
           by (eapply at_external_not_in_xs; eauto).
         pose proof (sim_external em [::] cnti Htype H Hsim) as Hsim'.
         destruct Hsim' as (? & ? & ? & ? & ? & ? & tr' & Hstep & Hsim'').
-        destruct (IHsched _ _ _ _ _ _ _ Hsim'') as [tr'' Hsafe''].
+        specialize (IHsched _ _ _ _ _ _ _ Hsim'').
         specialize (Hstep sched).
-        exists (tr' ++ tr'').
         econstructor 3; simpl; eauto.
       + pose proof (sim_halted [::] cnti Htype Hsim) as Hsim'.
         destruct Hsim' as (tr' & Hstep & Hsim'').
-        destruct (IHsched _ _ _ _ _ _ _ Hsim'') as [tr'' Hsafe''].
+        specialize (IHsched _ _ _ _ _ _ _ Hsim'').
         specialize (Hstep sched).
-        exists (tr' ++ tr'').
         econstructor 3;
           eauto.
       + pose proof (sim_suspend [::] cnti Htype Hsim) as
             (? & ? & tpf' & m' & ? & ? & tr' & Hstep & Hsim').
-        destruct (IHsched _ _ _ _ _ _ _ Hsim') as [tr'' Hsafe''].
+        specialize (IHsched _ _ _ _ _ _ _ Hsim').
         specialize (Hstep sched).
-        exists (tr' ++ tr'').
         econstructor 3; simpl; eauto.
     -  pose proof (sim_fail [::] invalid Hsim) as
           (tr' & Hstep & Hsim').
-       destruct (IHsched _ _ _ _ _ _ _ Hsim') as [tr Hsafe].
-       exists ([::] ++ tr).
+       specialize (IHsched _ _ _ _ _ _ _ Hsim').
+       specialize (Hstep sched).
        econstructor 3; eauto.
-       econstructor 7; simpl; eauto.
+       Unshelve. eapply [::].
   Qed.
 
 
@@ -711,8 +704,7 @@ defined*)
       (Hinit: tpf_init f arg = Some (U, [::], tpf))
       (ARG: valid_val_list (id_ren m) arg),
     forall (sched : Sch),
-    exists tr,
-      fsafe tpf (diluteMem m) sched tr (size sched).+1.
+      fsafe tpf (diluteMem m) sched (size sched).+1.
   Proof.
     intros. (* specialize (init_sim f ARG (size sched).+1).*)
     assert (Hsim := init_sim (size sched).+1 ARG Hinit Hinit Hmem).
