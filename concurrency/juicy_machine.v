@@ -1232,7 +1232,7 @@ Qed.
     Definition initial_machine rmap c:=
       mk
         (mkPos onePos)
-        (fun _ => (Kresume c Vundef))
+        (fun _ => (Krun c))
         (fun _ => rmap)
         (AMap.empty (option res)).
     

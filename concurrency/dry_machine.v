@@ -309,7 +309,7 @@ Module Concur.
      Definition initial_machine pmap c :=
        ThreadPool.mk
          one_pos
-         (fun _ =>  Kresume c Vundef)
+         (fun _ =>  Krun c)
          (fun _ => pmap)
          empty_lset.
 
