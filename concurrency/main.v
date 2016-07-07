@@ -197,111 +197,6 @@ Module MainSafety .
         DryConc.csafe the_ge (sch, nil, c) m n.
     Admitted.
 
-    (*This is the failed attempt at proving the above theorem. *)
-   (* Require Import lifting.
-    Theorem dry_x86_coarse_safety: forall n sch,
-        exists c, ds_initial_2 = Some c /\
-        DryConc.csafe the_ge (sch, nil, c) initial_memory n.
-    Proof.
-      intros n sch.
-      assert (HH:=lifting.concur_sim ).
-      specialize (HH the_ge A_crazy_env (Vptr x Int.zero) (Some (getCurPerm initial_memory)) sch).
-      inversion HH.
-      specialize (core_initial (fun b => Some(b ,0%Z)) (sch, nil,ds_initial) nil).
-      clear core_diagram0.
-      clear core_halted.
-      specialize (core_initial initial_memory nil initial_memory).
-      assert (initial_core
-                   (ErasureProof.DMachineSem sch
-                      (Some (getCurPerm initial_memory))) A_crazy_env
-                   (Vptr x Int.zero) nil = Some (sch, nil, ds_initial)).
-      (*JM: I can prove this from the asumptions right?*)
-      {
-        (* yep: *)
-        simpl.
-        unfold ds_initial.
-        unfold DSEM.initial_machine; simpl.
-        unfold ErasureProof.DryMachine.init_machine; simpl.
-        unfold DryMachineSource.THE_DRY_MACHINE_SOURCE.DSEM.init_mach.
-        unfold DryMachineSource.THE_DRY_MACHINE_SOURCE.DSEM.ThreadPool.SEM.Sem in *.
-        unfold DryMachineSource.THE_DRY_MACHINE_SOURCE.SEM.CLN_evsem in *.
-        rewrite ClightSemantincsForMachines.ClightSEM.CLN_msem.
-        simpl (initial_core _).
-        unfold DryMachineSource.THE_DRY_MACHINE_SOURCE.DSEM.initial_machine in *.
-        unfold DryMachineSource.THE_DRY_MACHINE_SOURCE.DSEM.one_pos in *.
-        unfold dry_initial_perm in *.
-        unfold initial_memory in *.
-        unfold initial_corestate in *.
-        unfold semax_to_juicy_machine.initial_corestate in *.
-        destruct
-          (semax_prog_rule (Concurrent_Oracular_Espec CS ext_link) V G
-                           prog (proj1_sig (semax_to_juicy_machine.init_mem prog init_mem_not_none)) all_safe
-                           (proj2_sig (semax_to_juicy_machine.init_mem prog init_mem_not_none))) as
-            [b [q [[SYMB CORE ] JS]]].
-        simpl (initial_core _) in CORE.
-        assert (Eb : b = x) by congruence. subst b.
-        assert (Eenv : A_crazy_env = globalenv prog). {
-          admit. (* why opaque? *)
-        }
-        rewrite Eenv.
-        rewrite CORE.
-        f_equal.
-        f_equal.
-        f_equal.
-        destruct spr as [b [q' [[Eb Eq] LO]]]; simpl.
-        unfold juicy_core_sem in *.
-        simpl (initial_core _) in Eq.
-        cut (q = q'). intros <-. auto.
-        congruence.
-        }
-      
-      specialize (core_initial H).
-      assert (lifting.init_inv (fun b : Values.block => Some (b, 0%Z))
-                   A_crazy_env nil initial_memory the_ge nil
-                   initial_memory).
-      { unfold lifting.init_inv.
-        split.
-        - { constructor; intros.
-            - inversion H0; subst; auto.
-              replace (ofs+0)%Z with ofs by omega.
-              inversion H0; subst; auto.
-              inversion H0; subst; auto.
-              exists Z0. omega.
-              unfold align_chunk.
-            - inversion H0; subst; auto.
-              replace (ofs+0)%Z with ofs by omega.
-              eapply memval_inject_id_refl. }
-        - split. constructor.
-        - simpl. constructor; intros.
-          + reflexivity.
-          + split; intros.
-            * reflexivity.
-            * inversion H1; subst. reflexivity. }
-      specialize (core_initial H0).
-
-      destruct core_initial as [cd [c2 [init_core MTCH]]].
-      destruct c2 as [A c2].
-      exists c2; split.
-      - unfold initial_core in init_core.
-        unfold ds_initial_2.
-        unfold  DryConc.MachineSemantics in init_core.
-        unfold DryConc.init_machine in init_core.
-        destruct (DryMachine.init_mach (Some (getPerm initial_memory))
-                                       the_ge (Vptr x Int.zero) nil) eqn:AA; try inversion init_core.
-        subst; auto. clear - AA.
-        rewrite <- AA; f_equal.
-        unfold init_perm, initial_memory.
-        
-        (*JM: This is also something I assume you will be able to prove? *)
-        destruct init_mem eqn:BB.
-        unfold init_mem in BB. 
-        
-        admit.
-
-        (** *The induction*)
-        admit.
-    Admitted.*)
-
     Theorem dry_x86_coarse_safety: forall n sch m,
         dry_context.init_mem = Some m -> 
         exists c, ds_initial_2 = Some c /\
@@ -342,11 +237,12 @@ Module MainSafety .
           unfold FineConcSafe.SimProofs.SimDefs.CoarseSem in H0.
           unfold DryConc.MachineSemantics in H0; simpl in H0.
           unfold DryConc.init_machine in H0.
-          rewrite initC in H0.
-          
-          
-          admit.
-  Admitted.
-  
+          rewrite initC in H0; inversion H0.
+          subst; auto.
+      - assumption.
+      - eassumption.
+      - constructor.
+    Qed.
+    
 End Initil.
 End MainSafety.
