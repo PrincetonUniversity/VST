@@ -297,6 +297,75 @@ Module X86Erasure.
   Hint Resolve erased_updLockSet erased_updThread
        erased_addThread erased_remLockSet mem_store_erased: erased.
 
+  Lemma erased_val_list_decode:
+    forall vals vals' typs,
+      erased_val_list vals vals' ->
+      erased_val_list (decode_longs typs vals) (decode_longs typs vals').
+  Proof.
+    intros.
+    generalize dependent vals.
+    generalize dependent vals'.
+    induction typs; intros; simpl;
+    first by constructor.
+    destruct vals;
+      destruct a; inversion H; subst;
+      try constructor; eauto.
+    destruct vals; inversion H4; subst.
+    constructor.
+    unfold Val.longofwords.
+    destruct v;
+      constructor; eauto;
+      inv H2; try constructor.
+    unfold erased_val in H3.
+    destruct v0; subst; auto;
+    constructor.
+  Qed.
+
+  (** ** Lemmas about erased values*)
+  Lemma erased_val_hiword:
+    forall v v',
+      erased_val v v' ->
+      erased_val (Val.hiword v) (Val.hiword v').
+  Proof.
+    intros;
+    destruct v; simpl; inv H; auto.
+  Qed.
+
+  Lemma erased_val_loword:
+    forall v v',
+      erased_val v v' ->
+      erased_val (Val.loword v) (Val.loword v').
+  Proof.
+    intros;
+    destruct v; simpl; inv H; auto.
+  Qed.
+
+  Lemma erased_regs_set:
+    forall rs rs' v v' r
+      (Hrs_ren: erased_regs rs rs')
+      (Hval: erased_val v v'),
+      erased_regs (rs # r <- v) (rs' # r <- v').
+  Proof.
+    intros.
+    intros r'.
+    unfold erased_reg.
+    do 2 rewrite Pregmap.gsspec.
+    destruct (Pregmap.elt_eq r' r); auto.
+    eapply Hrs_ren.
+  Qed.
+
+  (*NOTE THIS IS DUPLICATED WITH X86_INJ*)
+  Lemma set_regs_empty_1:
+    forall regs rs,
+      set_regs regs [::] rs = rs.
+  Proof.
+    intros;
+    induction regs; by reflexivity.
+  Qed.
+  
+  Hint Resolve erased_val_hiword erased_val_loword erased_regs_set : erased.
+
+  (** ** Result about at_external, after_external and initial_core *)
   Lemma at_external_erase:
     forall c c' (Herase: erasedCores c c'),
       match at_external Sem c, at_external Sem c' with
@@ -305,60 +374,471 @@ Module X86Erasure.
       | None, None => True
       | _, _ => False
       end.
-  Admitted.
+  Proof.
+    intros.
+    unfold erasedCores in *.
+    destruct c, c'; try (by exfalso);
+    repeat match goal with
+    | [H: _ /\ _ |- _] => destruct H
+           end; subst;
+    unfold at_external; simpl; auto.
+    destruct (BuiltinEffects.observableEF_dec f0); auto.
+    split; auto.
+    split; auto.
+    eapply erased_val_list_decode; eauto.
+  Qed.
+
+  Lemma after_external_erase :
+    forall v v' c c' c2
+      (HeraseCores: erasedCores c c')
+      (HeraseVal: erased_val v v')
+      (Hafter_external: after_external SEM.Sem (Some v) c = Some c2),
+    exists (c2' : state),
+      after_external SEM.Sem (Some v') c' = Some c2' /\
+      erasedCores c2 c2'.
+  Proof.
+    intros.
+    unfold after_external in *.
+    simpl in *.
+    unfold Asm_after_external in *.
+    destruct c; try discriminate.
+    inv Hafter_external.
+    unfold erasedCores in HeraseCores.
+    destruct c'; try by exfalso.
+    destruct HeraseCores as (? & ? & ? &?); subst.
+    unfold erased_loader in H2; subst.
+    eexists; split; eauto.
+    simpl.
+    split; [|unfold erased_loader; auto].      
+    destruct (loc_external_result (ef_sig f0)) as [|r' regs];
+      simpl.
+    eapply erased_regs_set; eauto.
+    eapply H1.
+    destruct (sig_res (ef_sig f0)) as [ty|];
+      try destruct ty;
+      simpl;
+      try do 2 rewrite set_regs_empty_1;
+      repeat apply erased_regs_set; eauto;
+      try apply H1.
+    destruct regs as [|r'' regs'']; simpl;
+    eauto with erased.
+    do 2 rewrite set_regs_empty_1;
+      eauto with erased.
+  Qed.
+
+  Lemma erasure_initial_core:
+    forall ge v arg v' arg' c
+      (Hv: erased_val v v')
+      (Harg: erased_val arg arg')
+      (Hinit: initial_core SEM.Sem ge v [:: arg] = Some c),
+      initial_core ErasedMachine.ThreadPool.SEM.Sem ge v' [:: arg'] = Some c.
+  Proof.
+    intros.
+    unfold initial_core in *; simpl in *.
+    unfold  Asm_initial_core in *.
+    destruct v; try discriminate.
+    inversion Hv; subst.
+    destruct (Int.eq_dec i Int.zero); try discriminate.
+    destruct (Genv.find_funct_ptr ge b); try discriminate.
+    destruct f; try discriminate.
+    match goal with
+    | [H: match ?Expr with _ => _ end = _ |- _] =>
+      destruct Expr eqn:?
+    end; try discriminate.
+    apply andb_true_iff in Heqb0.
+    destruct Heqb0.
+    apply andb_true_iff in H.
+    destruct H.
+    unfold val_casted.vals_defined in *.
+    destruct arg; (try discriminate);
+    inv Harg; rewrite H0 H; simpl;
+    auto.
+  Qed.
+
 
   (** Simulation of synchronization steps between erased states*)
 
-    Lemma syncStep_erase:
-      forall ge tp1 tp1' m1 m1' tp2 m2 i ev
-        (HerasePool: erased_threadPool tp1 tp1')
-        (cnti: containsThread tp1 i)
-        (cnti': ErasedMachine.ThreadPool.containsThread tp1' i)
-        (HerasedMem: erasedMem m1 m1')
-        (Hcomp1: mem_compatible tp1 m1)
-        (Hcomp1': ErasedMachine.mem_compatible tp1' m1')
-        (Hstep: syncStep ge cnti Hcomp1 tp2 m2 ev),
-      exists tp2' m2',
-        ErasedMachine.syncStep ge cnti' Hcomp1' tp2' m2' ev /\
-        erased_threadPool tp2 tp2' /\ erasedMem m2 m2'.
-    Proof with eauto with erased.
-      intros.
-      inversion HerasePool as [Hnum Hthreads].
-      specialize (Hthreads _ cnti cnti').      
-      inversion Hstep; subst;
-      match goal with
-      | [H: erasedCtl ?Expr1 ?Expr2, H1: ?Expr1 = _ |- _] =>
-        rewrite H1 in H; simpl in H;
+  Lemma syncStep_erase:
+    forall ge tp1 tp1' m1 m1' tp2 m2 i ev
+      (HerasePool: erased_threadPool tp1 tp1')
+      (cnti: containsThread tp1 i)
+      (cnti': ErasedMachine.ThreadPool.containsThread tp1' i)
+      (HerasedMem: erasedMem m1 m1')
+      (Hcomp1: mem_compatible tp1 m1)
+      (Hcomp1': ErasedMachine.mem_compatible tp1' m1')
+      (Hstep: syncStep ge cnti Hcomp1 tp2 m2 ev),
+    exists tp2' m2',
+      ErasedMachine.syncStep ge cnti' Hcomp1' tp2' m2' ev /\
+      erased_threadPool tp2 tp2' /\ erasedMem m2 m2'.
+  Proof with eauto with erased.
+    intros.
+    inversion HerasePool as [Hnum Hthreads].
+    specialize (Hthreads _ cnti cnti').      
+    inversion Hstep; subst;
+    match goal with
+    | [H: erasedCtl ?Expr1 ?Expr2, H1: ?Expr1 = _ |- _] =>
+      rewrite H1 in H; simpl in H;
         destruct Expr2 eqn:?
-      end; try (by exfalso);
-      try match goal with
-          | [H: Mem.load _ _ _ _ = Some _ |- _] =>
-            eapply mem_load_erased in H; eauto
-          end;
-      try match goal with
-          | [H: Mem.store _ _ _ _ _ = Some _ |- _] =>
-            eapply mem_store_erased in H; eauto;
-            destruct Hstore as [m2' [Hstore HerasedMem']]
-          end;
-      try match goal with
-          | [|- _ <> Vundef] => intro Hcontra; discriminate
-          end;
-      match goal with
-      | [H: at_external _ _ = _, H1: erasedCores _ _ |- _] =>
-        pose proof (at_external_erase _ _ H1);
-          match goal with
+    end; try (by exfalso);
+    try match goal with
+        | [H: Mem.load _ _ _ _ = Some _ |- _] =>
+          eapply mem_load_erased in H; eauto
+        end;
+    try match goal with
+        | [H: Mem.store _ _ _ _ _ = Some _ |- _] =>
+          eapply mem_store_erased in H; eauto;
+          destruct Hstore as [m2' [Hstore HerasedMem']]
+        end;
+    try match goal with
+        | [|- _ <> Vundef] => intro Hcontra; discriminate
+        end;
+    match goal with
+    | [H: at_external _ _ = _, H1: erasedCores _ _ |- _] =>
+      pose proof (at_external_erase _ _ H1);
+        match goal with
           | [H2: match at_external _ _ with _ => _ end |- _] =>
             rewrite H in H2;
               match goal with
               | [H3: match at_external ?E1 ?E2 with _ => _ end |- _] =>
-                destruct (at_external E1 E2) as [[[? ?] ?]|]; try by exfalso
+                destruct (at_external E1 E2) as [[[? ?] ?]|] eqn:?; try by exfalso
               end
-          end
-      end;
-      repeat match goal with
-             | [H: _ /\ _ |- _] => destruct H
-             end; subst.
-Admitted.
+        end
+    end;
+    repeat match goal with
+           | [H: _ /\ _ |- _] => destruct H
+           | [H: erased_val_list _ _ |- _] =>
+             inv H
+           | [H: erased_val (Vptr _ _) _ |- _] => inv H
+           end; subst.
+    - exists (ErasedMachine.ThreadPool.updThreadC cnti' (Kresume c0 Vundef)), m2'.
+      split; [econstructor; eauto | split; eauto].
+      constructor. simpl; eauto.
+      intros j cntj cntj'.
+      rewrite gLockSetCode.
+      destruct (i == j) eqn:Hij; move/eqP:Hij=>Hij.
+      + subst.
+        rewrite gssThreadCode.
+        rewrite ErasedMachine.ThreadPool.gssThreadCC.
+        simpl; auto.
+      + rewrite gsoThreadCode; auto.
+        assert (cntj0' := ErasedMachine.ThreadPool.cntUpdateC' _ _ cntj').
+        erewrite <- @ErasedMachine.ThreadPool.gsoThreadCC with (cntj := cntj0')
+          by eauto.
+        inversion HerasePool; eauto.
+    - exists (ErasedMachine.ThreadPool.updThreadC cnti' (Kresume c0 Vundef)), m2'.
+      split; [econstructor; eauto | split; eauto].
+      constructor. simpl; eauto.
+      intros j cntj cntj'.
+      rewrite gLockSetCode.
+      destruct (i == j) eqn:Hij; move/eqP:Hij=>Hij.
+      + subst.
+        rewrite gssThreadCode.
+        rewrite ErasedMachine.ThreadPool.gssThreadCC.
+        simpl; auto.
+      + rewrite gsoThreadCode; auto.
+        assert (cntj0' := ErasedMachine.ThreadPool.cntUpdateC' _ _ cntj').
+        erewrite <- @ErasedMachine.ThreadPool.gsoThreadCC with (cntj := cntj0')
+          by eauto.
+        inversion HerasePool; eauto.
+    - exists (ErasedMachine.ThreadPool.addThread
+           (ErasedMachine.ThreadPool.updThreadC cnti' (Kresume c0 Vundef))
+           (Vptr b ofs) v'0 tt), m1'.
+      split; [econstructor; eauto | split; eauto].
+      constructor. simpl; eauto. rewrite Hnum. auto.
+      intros j cntj cntj'.
+      assert (cntj0 := cntAdd' _ _ _ cntj).
+      destruct cntj0 as [[cntj0 ?] | Heq].
+      + (* case it's an old thread*)
+        erewrite @gsoAddCode with (cntj := cntj0) by eauto.
+        assert (cntj00 := cntUpdate' _ _ _ cntj0).
+        assert (cntj00': ErasedMachine.ThreadPool.containsThread tp1' j)
+          by (unfold containsThread,ErasedMachine.ThreadPool.containsThread;
+               rewrite <- Hnum; auto).
+        assert (cntj0' := ErasedMachine.ThreadPool.cntUpdateC (Kresume c0 Vundef)
+                                                              cnti' cntj00').
+        erewrite @ErasedMachine.ThreadPool.gsoAddCode with (cntj := cntj0')
+          by eauto.
+        destruct (i == j) eqn:Hij; move/eqP:Hij=>Hij.
+        * subst.
+          rewrite gssThreadCode.
+          rewrite ErasedMachine.ThreadPool.gssThreadCC.
+          simpl; auto.
+        * rewrite gsoThreadCode; auto.
+          erewrite <- @ErasedMachine.ThreadPool.gsoThreadCC with (cntj := cntj00')
+            by eauto.
+          inversion HerasePool; eauto.
+      + (*case j is the just addded thread *)
+        subst.
+        erewrite gssAddCode by (unfold latestThread; reflexivity).
+        erewrite ErasedMachine.ThreadPool.gssAddCode
+          by (unfold ErasedMachine.ThreadPool.latestThread;
+               simpl; rewrite Hnum; auto).
+        simpl; auto.
+    - exists (ErasedMachine.ThreadPool.updThreadC cnti' (Kresume c0 Vundef)), m2'.
+      split; [econstructor; eauto | split; eauto].
+      constructor. simpl; eauto.
+      intros j cntj cntj'.
+      rewrite gLockSetCode.
+      destruct (i == j) eqn:Hij; move/eqP:Hij=>Hij.
+      + subst.
+        rewrite gssThreadCode.
+        rewrite ErasedMachine.ThreadPool.gssThreadCC.
+        simpl; auto.
+      + rewrite gsoThreadCode; auto.
+        assert (cntj0' := ErasedMachine.ThreadPool.cntUpdateC' _ _ cntj').
+        erewrite <- @ErasedMachine.ThreadPool.gsoThreadCC with (cntj := cntj0')
+          by eauto.
+        inversion HerasePool; eauto.
+    - exists (ErasedMachine.ThreadPool.updThreadC cnti' (Kresume c0 Vundef)), m1'.
+      split; [econstructor; eauto | split; eauto].
+      constructor. simpl; eauto.
+      intros j cntj cntj'.
+      rewrite gRemLockSetCode.
+      destruct (i == j) eqn:Hij; move/eqP:Hij=>Hij.
+      + subst.
+        rewrite gssThreadCode.
+        rewrite ErasedMachine.ThreadPool.gssThreadCC.
+        simpl; auto.
+      + rewrite gsoThreadCode; auto.
+        assert (cntj0' := ErasedMachine.ThreadPool.cntUpdateC' _ _ cntj').
+        erewrite <- @ErasedMachine.ThreadPool.gsoThreadCC with (cntj := cntj0')
+          by eauto.
+        inversion HerasePool; eauto.
+    - exists tp1', m1'.
+      split; [econstructor; eauto | split; eauto].
+  Qed.
+
+  Lemma evstep_erase:
+    forall ge c1 c1' c2 ev m1 m1' m2
+      (HeraseCores: erasedCores c1 c1')
+      (HerasedMem: erasedMem m1 m1')
+      (Hstep: ev_step SEM.Sem ge c1 m1 ev c2 m2),
+    exists c2' m2',
+      ev_step ErasedMachine.ThreadPool.SEM.Sem ge c1' m1' ev c2' m2' /\
+      erasedCores c2 c2' /\ erasedMem m2 (erasePerm m2').
+  Proof.
+  Admitted.
+  
+  Lemma threadStep_erase:
+    forall ge tp1 tp1' m1 m1' tp2 m2 i ev
+      (HerasePool: erased_threadPool tp1 tp1')
+      (cnti: containsThread tp1 i)
+      (cnti': ErasedMachine.ThreadPool.containsThread tp1' i)
+      (HerasedMem: erasedMem m1 m1')
+      (Hcomp1: mem_compatible tp1 m1)
+      (Hcomp1': ErasedMachine.mem_compatible tp1' m1')
+      (Hstep: threadStep ge cnti Hcomp1 tp2 m2 ev),
+    exists tp2' m2',
+      ErasedMachine.threadStep ge cnti' Hcomp1' tp2' m2' ev /\
+      erased_threadPool tp2 tp2' /\ erasedMem m2 (erasePerm m2').
+  Proof.
+    intros.
+    inversion Hstep; subst.
+    Admitted.
+
+  Ltac pf_cleanup :=
+    repeat match goal with
+           | [H1: invariant ?X, H2: invariant ?X |- _] =>
+             assert (H1 = H2) by (by eapply proof_irr);
+               subst H2
+           | [H1: mem_compatible ?TP ?M, H2: mem_compatible ?TP ?M |- _] =>
+             assert (H1 = H2) by (by eapply proof_irr);
+             subst H2
+           | [H1: is_true (leq ?X ?Y), H2: is_true (leq ?X ?Y) |- _] =>
+             assert (H1 = H2) by (by eapply proof_irr); subst H2
+           | [H1: containsThread ?TP ?M, H2: containsThread ?TP ?M |- _] =>
+           assert (H1 = H2) by (by eapply proof_irr); subst H2
+           | [H1: containsThread ?TP ?M,
+                  H2: containsThread (@updThreadC _ ?TP _ _) ?M |- _] =>
+             apply cntUpdateC' in H2;
+             assert (H1 = H2) by (by eapply cnt_irr); subst H2
+           | [H1: containsThread ?TP ?M,
+                  H2: containsThread (@updThread _ ?TP _ _ _) ?M |- _] =>
+             apply cntUpdate' in H2;
+               assert (H1 = H2) by (by eapply cnt_irr); subst H2
+         end.
+
+  (** ** Result about startStep, resumeStep and suspendStep *)
+  
+  Lemma startStep_erasure:
+  forall ge tp1 tp1' m1 m1' tp2 i
+    (HerasePool: erased_threadPool tp1 tp1')
+    (cnti: containsThread tp1 i)
+    (cnti': ErasedMachine.ThreadPool.containsThread tp1' i)
+    (HerasedMem: erasedMem m1 m1')
+    (Hcomp1: mem_compatible tp1 m1)
+    (Hcomp1': ErasedMachine.mem_compatible tp1' m1')
+    (Hstep: FineConc.start_thread ge cnti tp2),
+  exists tp2',
+    X86SC.start_thread ge cnti' tp2' /\
+    erased_threadPool tp2 tp2'.
+  Proof.
+    intros.
+    inversion HerasePool as [Hnum Hthreads].
+    specialize (Hthreads _ cnti cnti').
+    inversion Hstep; subst.
+    pf_cleanup;
+    match goal with
+      [H: erasedCtl ?Expr1 ?Expr2, H1: ?Expr1 = _ |- _] =>
+      rewrite H1 in H; simpl in H;
+      destruct Expr2 eqn:?
+    end; try (by exfalso).
+    repeat match goal with
+           | [H: _ /\ _ |- _] => destruct H
+           | [H: erased_val_list _ _ |- _] =>
+             inv H
+           | [H: erased_val (Vptr _ _) _ |- _] => inv H
+           end; subst.
+    eapply erasure_initial_core in Hinitial; eauto.
+    exists (ErasedMachine.ThreadPool.updThreadC cnti' (Krun c_new)).
+    split; econstructor; eauto.
+    intros j cntj cntj'.
+    destruct (i == j) eqn:Hij; move/eqP:Hij=>Hij.
+    + subst.
+      rewrite gssThreadCC.
+      rewrite ErasedMachine.ThreadPool.gssThreadCC.
+      simpl. apply erasedCores_refl.
+    +
+      assert (cntj0' := ErasedMachine.ThreadPool.cntUpdateC' _ _ cntj').
+      assert (cntj0 := cntUpdateC' _ _ cntj).
+      erewrite <- @gsoThreadCC with (cntj :=  cntj0) by eauto.
+      erewrite <- @ErasedMachine.ThreadPool.gsoThreadCC with (cntj := cntj0')
+        by eauto.
+      inversion HerasePool; eauto.
+  Qed.
+
+  Lemma resumeStep_erasure:
+    forall tp1 tp1' tp2 i
+      (HerasePool: erased_threadPool tp1 tp1')
+      (cnti: containsThread tp1 i)
+      (cnti': ErasedMachine.ThreadPool.containsThread tp1' i)
+      (Hstep: FineConc.resume_thread cnti tp2),
+    exists tp2',
+      X86SC.resume_thread cnti' tp2' /\
+      erased_threadPool tp2 tp2'.
+  Proof.
+    intros.
+    inversion HerasePool as [Hnum Hthreads].
+    specialize (Hthreads _ cnti cnti').
+    inversion Hstep; subst.
+    pf_cleanup;
+      match goal with
+        [H: erasedCtl ?Expr1 ?Expr2, H1: ?Expr1 = _ |- _] =>
+        rewrite H1 in H; simpl in H;
+        destruct Expr2 eqn:?
+      end; try (by exfalso).
+    destruct Hthreads as [HeraseCores _].
+    pose proof (at_external_erase _ _ HeraseCores).
+    rewrite Hat_external in H.
+    destruct X, p.
+    destruct (at_external Sem c0) eqn:Hat_external'; try by exfalso.
+    destruct p as [[? ?] ?].
+    destruct H as [? [? ?]]; subst.
+    eapply after_external_erase with (v' := Vint Int.zero) in Hafter_external;
+      eauto with erased.
+    destruct Hafter_external as [c2' [Hafter_external' HerasedCores']].
+    
+    
+
+  Notation fstep := (corestep fine_semantics).
+  Notation scstep := (corestep x86_sc_semantics).
+
+  Lemma erasedPool_contains:
+    forall tp1 tp1' 
+      (HerasedPool: erased_threadPool tp1 tp1') i,
+      containsThread tp1 i <-> ErasedMachine.ThreadPool.containsThread tp1' i.
+  Proof.
+  Admitted.
+  
+  Lemma sc_erasure:
+    forall ge tp1 tp1' i U tr tr' m1 m1' tp2 m2
+      (HerasePool: erased_threadPool tp1 tp1')
+      (HerasedMem: erasedMem m1 m1')
+      (Hfstep: fstep ge (i :: U, tr, tp1) m1 (U, tr', tp2) m2),
+    exists tp2' m2',
+      scstep ge (i :: U, tr, tp1') m1' (U, tr', tp2') m2' /\
+      erased_threadPool tp2 tp2' /\ erasedMem m2 m2'.
+  Proof.
+    intros.
+    inversion Hfstep; simpl in *; subst;
+    inv HschedN;
+    try match goal with
+        | [H: containsThread tp1 ?I |- _ ] =>
+          assert (ErasedMachine.ThreadPool.containsThread tp1' I)
+            by (eapply erasedPool_contains; eauto)
+        end;
+    assert (Hcomp1' : ErasedMachine.mem_compatible tp1' m1')
+      by (unfold ErasedMachine.mem_compatible; auto).
+    - assert (Hstep' := startStep_erasure HerasePool H HerasedMem Hcmpt I Htstep).
+      destruct Hstep' as [tp2' [Hstart' HerasePool']].
+      exists tp2', m1'.
+      split. econstructor 1; simpl; eauto.
+      split; eauto.
+    -
+   
+
+      
+      
+    exists (ErasedMachine.ThreadPool.updThreadC cnti' (Krun c)).
+    split; econstructor; eauto.
+    intros j cntj cntj'.
+    destruct (i == j) eqn:Hij; move/eqP:Hij=>Hij.
+    + subst.
+      rewrite gssThreadCC.
+      rewrite ErasedMachine.ThreadPool.gssThreadCC.
+      simpl. apply erasedCores_refl.
+    +
+      assert (cntj0' := ErasedMachine.ThreadPool.cntUpdateC' _ _ cntj').
+      assert (cntj0 := cntUpdateC' _ _ cntj).
+      erewrite <- @gsoThreadCC with (cntj :=  cntj0) by eauto.
+      erewrite <- @ErasedMachine.ThreadPool.gsoThreadCC with (cntj := cntj0')
+        by eauto.
+      inversion HerasePool; eauto.
+  Qed.
+      
+    - assert (Htstep' := threadStep_erase HerasePool H HerasedMem Hcomp1' Htstep).
+      destruct Htstep' as [tp2' [m2' [Htstep' [HerasePool' HerasedMem']]]].
+      exists tp2', (erasePerm m2').
+      split.
+      eapply X86SC.thread_step; eauto.
+      split; eauto.
+
+      Lemma erasedMem_dilute_1:
+        forall m m',
+          erasedMem m m' ->
+          erasedMem (DryMachine.diluteMem m) m'.
+      Admitted.
+
+      eapply erasedMem_dilute_1; eauto.
+    - admit.
+    - assert (Hstep' := syncStep_erase HerasePool H HerasedMem Hcomp1' Htstep).
+      destruct Hstep' as [tp2' [m2' [Hstep' [HerasePool' HerasedMem']]]].
+      exists tp2', m2'.
+      split.
+      eapply X86SC.sync_step; eauto.
+      split; eauto.
+    - admit.
+    - assert (~ ErasedMachine.ThreadPool.containsThread tp1' tid).
+      { intros Hcontra.
+        destruct HerasePool as [Hnum _].
+        unfold containsThread, ErasedMachine.ThreadPool.containsThread in *.
+        rewrite <- Hnum in Hcontra.
+        auto.
+      }
+      exists tp1', m1'.
+      split.
+      econstructor 7; simpl; eauto.
+      split; eauto.
+  Admitted.
+        
+
+
+    Lemma startStep_erasure:
+      forall 
+    
+    assert (X86SC.start_thread ge 
+    
+  
 End X86Erasure.
 
 (** ** Safety for X86-SC semantics *)
