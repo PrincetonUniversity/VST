@@ -110,7 +110,7 @@ Module MainSafety .
              intros. 
              transitivity (Krun initial_corestate).
              + reflexivity.
-             + admit.
+             + reflexivity.
            - intros.
              unfold ErasureProof.JTP.getThreadR;
                unfold ErasureProof.DTP.getThreadR; simpl.
@@ -151,7 +151,7 @@ Module MainSafety .
              simpl. intros.  rewrite threadPool.find_empty in H0; inversion H0.
            - unfold ErasureProof.DSEM.ThreadPool.lockRes.
              simpl. intros.  rewrite threadPool.find_empty in H0; inversion H0.
-    Admitted.
+    Qed.
 
     Definition initial_memory:= (proj1_sig (init_mem prog init_mem_not_none)).
     
