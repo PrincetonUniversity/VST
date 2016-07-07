@@ -43,8 +43,9 @@ Require Import concurrency.erasure_signature.
 Require Import concurrency.erasure_proof.
 Require Import concurrency.erasure_safety.
 
-(** **)
-Require Import wholeprog_lemmas.
+Require Import fineConc_safe.
+
+
 
 Module MainSafety .
 
@@ -189,11 +190,11 @@ Module MainSafety .
                                  init_perm the_ge
                                  (Vptr x Int.zero) nil.
 
-
-    Lemma compilation_safety_preservation: forall n sch, 
+    Lemma compilation_safety_preservation: forall n sch m,
+        dry_context.init_mem = Some m -> 
         DryMachine.csafe (globalenv prog) (sch, nil, ds_initial) initial_memory n ->
         exists c, ds_initial_2 = Some c /\
-        DryConc.csafe the_ge (sch, nil, c) initial_memory n.
+        DryConc.csafe the_ge (sch, nil, c) m n.
     Admitted.
 
     (*This is the failed attempt at proving the above theorem. *)
@@ -300,8 +301,44 @@ Module MainSafety .
         (** *The induction*)
         admit.
     Admitted.*)
-        
-        
-        
+
+    Theorem dry_x86_coarse_safety: forall n sch m,
+        dry_context.init_mem = Some m -> 
+        exists c, ds_initial_2 = Some c /\
+             DryConc.csafe the_ge (sch, nil, c) m n.
+    Proof.
+      intros. 
+      eapply compilation_safety_preservation.
+      auto.
+      eapply dry_clight_safety.
+    Qed.
+
+    Theorem x86_safe:
+    forall U (tpf : FineConc.machine_state) m
+      (Hmem: dry_context.init_mem = Some m)
+      (Hinit: FineConcSafe.tpf_init (Vptr x Int.zero) nil = Some (U, nil, tpf))
+      (ARG: mem_obs_eq.ValueWD.valid_val_list (mem_obs_eq.Renamings.id_ren m) nil),
+    forall (sched : X86SC.Sch),
+    exists tr,
+      FineConc.fsafe the_ge tpf (DryMachine.diluteMem m) sched tr (seq.size sched + 1).
+    Proof.
+      intros.
+      replace (seq.size sched + 1) with (S (seq.size sched)) by omega.
+      eapply FineConcSafe.init_fine_safe.
+      intros.
+      - assert (HH:= dry_x86_coarse_safety n sched0 mem H).
+        destruct HH as [c [initC safe ]].
+        replace tpc with c.
+        auto.
+        + unfold ds_initial_2 in initC.
+          unfold FineConcSafe.tpf_init, fine_semantics in Hinit.
+          unfold initial_core in Hinit.
+          unfold FineConc.MachineSemantics in Hinit.
+          unfold FineConc.init_machine in Hinit.
+          rewrite initC in Hinit.
+          inversion Hinit.
+          admit.
+  Admitted.
+  
 End Initil.
 End MainSafety.

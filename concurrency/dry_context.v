@@ -36,7 +36,7 @@ Parameter the_program: Asm.program.
 Definition init_mem := Genv.init_mem the_program.
 Definition init_perm : option access_map :=
   match init_mem with
-  | Some m => Some (getMaxPerm m)
+  | Some m => Some (getCurPerm m)
   | None => None
   end.
 

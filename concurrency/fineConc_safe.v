@@ -337,11 +337,12 @@ pointers, but it should be provable*)
   Qed.
   
   (** Assuming safety of cooperative concurrency*)
-  Axiom init_coarse_safe:
-    forall f arg U tpc mem sched n,
-      init_mem = Some mem ->
-      tpc_init f arg = Some (U, [::], tpc) ->
-      csafe the_ge (sched,[::],tpc) mem n.
+  Section safety.
+    Variable init_coarse_safe:
+      forall f arg U tpc mem sched n,
+        init_mem = Some mem ->
+        tpc_init f arg = Some (U, [::], tpc) ->
+        csafe the_ge (sched,[::],tpc) mem n.
 
   (** If the initial state is defined then the initial memory was also
 defined*)
@@ -454,7 +455,10 @@ defined*)
     intros j cntj.
     simpl.
     unfold permMapLt; intros.
-    apply po_refl.
+    rewrite getMaxPerm_correct getCurPerm_correct.
+    destruct m; simpl.
+    unfold permission_at; simpl.
+    apply access_max.
     unfold initial_machine. simpl. intros.
     unfold lockRes in H1.
     simpl in H1.
@@ -717,6 +721,8 @@ defined*)
     eapply fine_safe; eauto.
   Qed.
   
+
+  End safety.
 End FineConcSafe.
 
 
