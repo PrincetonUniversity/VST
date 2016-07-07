@@ -198,7 +198,7 @@ Module MainSafety .
     Qed.
 
     (** *Safety of the dry x86 concurrent semantics,*)
-    (** *whit a prehemptive schedule*)
+    (** *with a preemptive schedule*)
     Theorem x86_fine_safe:
     forall U (tpf : FineConc.machine_state) m
       (Hmem: dry_context.init_mem = Some m)
