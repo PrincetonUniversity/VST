@@ -115,12 +115,38 @@ Module MainSafety .
              unfold ErasureProof.JTP.getThreadR;
                unfold ErasureProof.DTP.getThreadR; simpl.
              pose proof initial_invariant as INV.
-             repeat espec INV.
-             specialize (INV nil).
-             (* remember (initial_state CS V G ext_link prog all_safe init_mem_not_none tid nil) as cm. *)
-             (* destruct cm as ((m, ge), (sch, [])). *)
-             (* inversion INV as [m ge sch tp PHI gamma mcompat lock_coh safety wellformed uniqkrun]. *)
-             admit. (*Should follow from mem_compatible? *)
+             do 7 espec INV.
+             specialize (INV n nil).
+             remember (initial_state CS V G ext_link prog all_safe init_mem_not_none tid nil) as cm.
+             destruct cm as ((m, ge), (sch, tp)).
+             inversion INV as [m0 ge0 sch0 tp0 PHI _ mcompat _ _ _ _]; subst.
+             inversion mcompat as [juice_join all_cohere loc_writable jloc_in_set lset_in_juice].
+             unfold initial_jm in *.
+             unfold initial_state in *.
+             unfold spr in *.
+             remember
+              (semax_prog_rule (Concurrent_Oracular_Espec CS ext_link) V G
+                       prog (proj1_sig (init_mem prog init_mem_not_none)) all_safe
+                       (proj2_sig (init_mem prog init_mem_not_none))) as spr.
+             unfold init_mem in *.
+             rewrite <- Heqspr in Heqcm.
+             unfold dry_initial_perm in *.
+             rewrite <- Heqspr in *.
+             destruct spr as (b' & q' & Hb & JS); simpl proj1_sig in *; simpl proj2_sig in *.
+             clear Heqspr.
+             simpl projT1 in *; simpl projT2 in *.
+             injection Heqcm as -> -> -> -> .
+             simpl in *.
+             clear -juice_join all_cohere.
+             clear juice_join all_cohere.
+             destruct (JS n) as [[m phi CON ACC MAX All] [E HYPS]]; simpl.
+             simpl in E. rewrite <-E.
+             rewrite <-ACC.
+             unfold access_at in *.
+             rewrite getCurPerm_correct.
+             simpl.
+             unfold permission_at in *.
+             reflexivity.
            - intros.
              unfold ErasureProof.JSEM.ThreadPool.lockRes;
                unfold ErasureProof.DSEM.ThreadPool.lockRes.
