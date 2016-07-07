@@ -990,7 +990,35 @@ Module X86Safe.
   Definition sc_init f arg := initial_core x86_sc_semantics the_ge f arg.
   
   Notation sc_safe := (X86SC.fsafe the_ge).
+  Notation fsafe := (FineConc.fsafe the_ge).
+    
 
+  Inductive sc_execution :
+      X86SC.MachState -> mem -> X86SC.MachState -> mem -> Prop :=
+  | refl_sc_exec : forall ms (m : mem),
+      X86SC.halted ms ->
+      sc_execution ms m ms m
+  | step_sc_trans : forall (i : tid) U U'
+                   (tp tp' tp'': X86SC.machine_state)
+                   (tr tr' tr'': X86SC.event_trace)
+                   (m m' m'' : mem),
+      X86SC.MachStep the_ge (i :: U, tr, tp) m (U, tr', tp') m' ->
+      sc_execution (U, tr', tp') m' (U', tr'', tp'') m'' ->
+      sc_execution (i :: U,tr,tp) m (U',tr'',tp'') m''.
+
+  Inductive fine_execution :
+    FineConc.MachState -> mem -> FineConc.MachState -> mem -> Prop :=
+  | refl_fine_exec : forall ms (m : mem),
+      FineConc.halted ms ->
+      fine_execution ms m ms m
+  | step_fine_trans : forall (i : tid) U U'
+                   (tp tp' tp'': FineConc.machine_state)
+                   (tr tr' tr'': FineConc.event_trace)
+                   (m m' m'' : mem),
+      FineConc.MachStep the_ge (i :: U, tr, tp) m (U, tr', tp') m' ->
+      fine_execution (U, tr', tp') m' (U', tr'', tp'') m'' ->
+      fine_execution (i :: U,tr,tp) m (U',tr'',tp'') m''.
+  
   (** The initial state of X86SC is an erasure of the initial state of
   the FineConc machine *)
   Lemma init_erasure:
@@ -1014,19 +1042,54 @@ Module X86Safe.
     simpl.
     apply erasedCores_refl; auto.
   Qed.
-    
+
+    (** Any execution of the FineConc machine resulting in some trace
+    tr' can be matched by an execution of the X86-SC machine with the
+    same trace*)
+  Lemma execution_sim:
+    forall U U' tpf tpf' mf mf' tpsc msc tr tr' 
+      (Hexec: fine_execution (U, tr, tpf) mf (U', tr', tpf') mf')
+      (HerasedPool: erased_threadPool tpf tpsc)
+      (HerasedMem: erasedMem mf msc),
+    exists tpsc' msc',
+      sc_execution (U, tr, tpsc) msc (U', tr', tpsc') msc' /\
+      erased_threadPool tpf' tpsc' /\ erasedMem mf' msc'.
+  Proof.
+    intros U.
+    induction U.
+    - intros.
+      inversion Hexec; subst.
+      exists tpsc, msc.
+      split.
+      econstructor 1. simpl; auto.
+      split; auto.
+    - intros.
+      inversion Hexec; subst.
+      + simpl in H5; by exfalso.
+      + eapply sc_erasure in H8; eauto.
+        destruct H8 as (tpsc0 & msc0 & Hstep0 & HerasedPool0 & HerasedMem0).
+        specialize (IHU _ _ _ _ _ _ _ _ _ H9 HerasedPool0 HerasedMem0).
+        destruct IHU as (tpsc2' & msc2' & Hsexec & HerasedPool' & HerasedMem').
+        exists tpsc2', msc2'.
+        split; eauto.
+        econstructor; eauto.
+  Qed.
+
+  Lemma fsafe_execution:
+    forall tpf mf U tr,
+      fsafe tpf mf U (size U).+1 ->
+      exists tpf' mf' tr',
+        fine_execution (U, tr, tpf) mf ([::], tr ++ tr', tpf') mf'.
+  Admitted.
+  
   (** Erasure from FineConc to X86-SC.*)
-  Theorem x86sc_erasure:
+  Conjecture x86sc_erasure:
     forall sched f arg U tpsc tpf m
       (Hmem: init_mem = Some m)
       (HinitSC: sc_init f arg = Some (U, [::], tpsc))
       (HinitF: tpf_init f arg = Some (U, [::], tpf))
       (HsafeF: fsafe tpf m sched (size sched).+1),
       sc_safe tpsc (ErasedMachine.diluteMem m) sched (size sched).+1.
-  Proof.
-    intro sched.
-    induction sched; simpl; intros.
-    econstructor 2.
 
   (** Competing Events *)
 

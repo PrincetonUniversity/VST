@@ -43,7 +43,7 @@ Require Import concurrency.erasure_signature.
 Require Import concurrency.erasure_proof.
 Require Import concurrency.erasure_safety.
 
-Require Import concurrency.FineConc_safe.
+Require Import concurrency.fineConc_safe.
 (** **)
 
 
@@ -178,7 +178,7 @@ Module MainSafety .
       getCurPerm( proj1_sig (init_m prog init_mem_not_none)).
 
     
-    Require Import dry_context. 
+    Require Import concurrency.dry_context. 
     Definition dry_initial_core_2:=
       initial_core (coarse_semantics) 
                    (the_ge) (Vptr x Int.zero) nil.
