@@ -87,15 +87,18 @@ Module MainSafety .
     Definition dry_initial_core:=
       initial_core (juicy_core_sem cl_core_sem) 
                    (globalenv prog) (Vptr x Int.zero) nil.
-    Definition ds_initial c := DSEM.initial_machine
-                               dry_initial_perm
-                               c.                   
+    
+    Definition initial_corestate :=
+      initial_corestate CS V G ext_link prog all_safe init_mem_not_none.
+    
+    Definition ds_initial := DSEM.initial_machine
+                               dry_initial_perm initial_corestate.
+
+    Set Bullet Behavior "Strict Subproofs".
+    
     Lemma erasure_match: forall n,
-        exists c, dry_initial_core = Some c /\ 
-             ErasureProof.match_st (js_initial n) (ds_initial c).
+        ErasureProof.match_st (js_initial n) ds_initial.
     Proof. intros.
-           destruct (dry_initial_core) eqn: AA.
-           exists c; split; auto.
            constructor.
            - intro i.
              unfold js_initial, initial_machine_state, ErasureProof.JTP.containsThread; simpl;
@@ -105,22 +108,18 @@ Module MainSafety .
              unfold ds_initial ,DSEM.initial_machine, ErasureProof.DTP.containsThread; simpl; auto.
            - unfold ErasureProof.JTP.getThreadC, ErasureProof.DTP.getThreadC; simpl.
              intros. 
-             transitivity (Krun c). f_equal.
-             unfold initial_corestate.
-             destruct (spr CS V G ext_link prog all_safe init_mem_not_none); simpl.
-             destruct s;  simpl.
-             unfold dry_initial_core in AA.
-             destruct p.
-             destruct p. congruence.
-             admit.
+             transitivity (Krun initial_corestate).
+             + reflexivity.
+             + admit.
            - intros.
              unfold ErasureProof.JTP.getThreadR;
                unfold ErasureProof.DTP.getThreadR; simpl.
-             unfold dry_initial_perm. unfold initial_jm; simpl.
-             destruct (spr CS V G ext_link prog all_safe init_mem_not_none) eqn:NN.
-             simpl.
-             unfold init_m.
-             
+             pose proof initial_invariant as INV.
+             repeat espec INV.
+             specialize (INV nil).
+             (* remember (initial_state CS V G ext_link prog all_safe init_mem_not_none tid nil) as cm. *)
+             (* destruct cm as ((m, ge), (sch, [])). *)
+             (* inversion INV as [m ge sch tp PHI gamma mcompat lock_coh safety wellformed uniqkrun]. *)
              admit. (*Should follow from mem_compatible? *)
            - intros.
              unfold ErasureProof.JSEM.ThreadPool.lockRes;
