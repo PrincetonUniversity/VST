@@ -338,8 +338,9 @@ pointers, but it should be provable*)
   
   (** Assuming safety of cooperative concurrency*)
   Section safety.
+    Variable (f : val) (arg : list val).
     Variable init_coarse_safe:
-      forall f arg U tpc mem sched n,
+      forall  U tpc mem sched n,
         init_mem = Some mem ->
         tpc_init f arg = Some (U, [::], tpc) ->
         csafe the_ge (sched,[::],tpc) mem n.
@@ -347,7 +348,7 @@ pointers, but it should be provable*)
   (** If the initial state is defined then the initial memory was also
 defined*)
   Lemma tpc_init_mem_defined:
-    forall f arg U tpc,
+    forall U tpc,
       tpc_init f arg = Some (U, tpc) ->
       exists m, init_mem = Some m.
   Proof.
@@ -396,18 +397,18 @@ defined*)
 
   (** Simulation relation with id renaming for initial memory*)
   Lemma init_mem_obs_eq :
-    forall m tp f args i (cnti : containsThread tp i)
+    forall m tp i (cnti : containsThread tp i)
       (Hcomp: mem_compatible tp m)
       (HcompF: mem_compatible tp (diluteMem m)),
       init_mem = Some m ->
-      init_mach init_perm the_ge f args = Some tp ->
+      init_mach init_perm the_ge f arg = Some tp ->
       mem_obs_eq (id_ren m) (restrPermMap (Hcomp _ cnti))
                  (restrPermMap (HcompF _ cnti)).
   Proof.
     intros.
     pose proof (mem_obs_eq_id (init_mem_wd H)) as Hobs_eq_id.
     unfold init_mach in H0.
-    destruct (initial_core SEM.Sem the_ge f args), init_perm eqn:Hinit_perm;
+    destruct (initial_core SEM.Sem the_ge f arg), init_perm eqn:Hinit_perm;
       try discriminate.
     inversion H0; subst.
     unfold init_perm in Hinit_perm.
@@ -441,7 +442,7 @@ defined*)
   Qed.
   
   Lemma init_compatible:
-    forall tp f arg m,
+    forall tp m,
       init_mem = Some m ->
       init_mach init_perm the_ge f arg = Some tp ->
       mem_compatible tp m.
@@ -471,7 +472,7 @@ defined*)
   Qed.
 
   Lemma init_thread:
-    forall f arg tp i,
+    forall tp i,
       init_mach init_perm the_ge f arg = Some tp ->
       containsThread tp i ->
       containsThread tp 0.
@@ -489,12 +490,12 @@ defined*)
   Qed.
 
   Lemma strong_tsim_refl:
-    forall tp f args m i (cnti: containsThread tp i)
+    forall tp m i (cnti: containsThread tp i)
       (Hcomp: mem_compatible tp m)
       (HcompF: mem_compatible tp (diluteMem m))
-      (ARGS:valid_val_list (id_ren m) args),
+      (ARGS:valid_val_list (id_ren m) arg),
       init_mem = Some m ->
-      init_mach init_perm the_ge f args = Some tp ->
+      init_mach init_perm the_ge f arg = Some tp ->
       strong_tsim (id_ren m) cnti cnti Hcomp HcompF.
   Proof.
     intros.
@@ -519,7 +520,7 @@ defined*)
 
   (** Establishing the simulation relation for the initial state*)
   Lemma init_sim:
-    forall f arg U U' tpc tpf m n (ARG:valid_val_list (id_ren m) arg),
+    forall U U' tpc tpf m n (ARG:valid_val_list (id_ren m) arg),
       tpc_init f arg = Some (U, [::], tpc) ->
       tpf_init f arg = Some (U', [::], tpf) ->
       init_mem = Some m ->
@@ -531,18 +532,16 @@ defined*)
     destruct (init_mach init_perm the_ge f arg) eqn:Hinit; try discriminate.
     inversion H; subst. inversion H0; subst.
     clear H H0.
-    assert (HmemComp := init_compatible f arg H1 Hinit).
+    assert (HmemComp := init_compatible H1 Hinit).
     assert (HmemCompF: mem_compatible tpf (diluteMem m))
       by (eapply mem_compatible_setMaxPerm; eauto).
     eapply Build_sim with (mem_compc := HmemComp) (mem_compf := HmemCompF).
     - intros; split; auto.
     - simpl. rewrite addn0.
       intros.
-      eapply init_coarse_safe with (f := f) (arg := arg) (n := n); eauto.
-      unfold tpc_init. simpl. unfold DryConc.init_machine.
-      rewrite Hinit. reflexivity. 
+      eapply init_coarse_safe with (n := n); eauto.
     - intros i cnti cnti'.
-      pose proof (strong_tsim_refl _ cnti HmemComp HmemCompF ARG H1 Hinit).
+      pose proof (strong_tsim_refl cnti HmemComp HmemCompF ARG H1 Hinit).
       pf_cleanup.
       destruct H. destruct obs_eq0.
       eauto.
@@ -650,8 +649,8 @@ defined*)
 
 
   Lemma fine_safe:
-    forall tpf tpc mf mc (f fg : memren) fp (xs : Sch) sched
-      (Hsim: sim tpc mc tpf mf xs f fg fp (S (size sched))),
+    forall tpf tpc mf mc (g fg : memren) fp (xs : Sch) sched
+      (Hsim: sim tpc mc tpf mf xs g fg fp (S (size sched))),
     exists tr,
       fsafe tpf mf sched tr (S (size sched)).
   Proof.
@@ -662,7 +661,7 @@ defined*)
     generalize dependent fp.
     generalize dependent tpc.
     generalize dependent mc.
-    generalize dependent f.
+    generalize dependent g.
     induction sched as [|i sched]; intros; simpl; auto.
     exists [::].
     econstructor. simpl; eauto.
@@ -707,7 +706,7 @@ defined*)
 
   (** Safety preservation for the FineConc machine starting from the initial state*)
   Theorem init_fine_safe:
-    forall f arg U tpf m
+    forall U tpf m
       (Hmem: init_mem = Some m)
       (Hinit: tpf_init f arg = Some (U, [::], tpf))
       (ARG: valid_val_list (id_ren m) arg),
@@ -716,7 +715,7 @@ defined*)
       fsafe tpf (diluteMem m) sched tr (size sched).+1.
   Proof.
     intros. (* specialize (init_sim f ARG (size sched).+1).*)
-    assert (Hsim := init_sim f (size sched).+1 ARG Hinit Hinit Hmem).
+    assert (Hsim := init_sim (size sched).+1 ARG Hinit Hinit Hmem).
     clear - Hsim.
     eapply fine_safe; eauto.
   Qed.

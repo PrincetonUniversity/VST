@@ -337,6 +337,14 @@ Module MainSafety .
           unfold FineConc.init_machine in Hinit.
           rewrite initC in Hinit.
           inversion Hinit.
+
+          unfold FineConcSafe.tpc_init in H0.
+          unfold FineConcSafe.SimProofs.SimDefs.CoarseSem in H0.
+          unfold DryConc.MachineSemantics in H0; simpl in H0.
+          unfold DryConc.init_machine in H0.
+          rewrite initC in H0.
+          
+          
           admit.
   Admitted.
   
