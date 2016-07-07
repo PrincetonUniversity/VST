@@ -44,6 +44,7 @@ Require Import concurrency.erasure_proof.
 Require Import concurrency.erasure_safety.
 
 (** **)
+Require Import wholeprog_lemmas.
 
 Module MainSafety .
 
@@ -188,25 +189,15 @@ Module MainSafety .
                                  init_perm the_ge
                                  (Vptr x Int.zero) nil.
 
-    (*
 
-Definition dry_initial_perm :=
-      getCurPerm( proj1_sig (init_m prog init_mem_not_none)).
-    
-    Definition dry_initial_core:=
-      initial_core (juicy_core_sem cl_core_sem) 
-                   (globalenv prog) (Vptr x Int.zero) nil.
-    
-    Definition initial_corestate :=
-      initial_corestate CS V G ext_link prog all_safe init_mem_not_none.
-    
-    Definition ds_initial := DSEM.initial_machine
-                               dry_initial_perm initial_corestate.
+    Lemma compilation_safety_preservation: forall n sch, 
+        DryMachine.csafe (globalenv prog) (sch, nil, ds_initial) initial_memory n ->
+        exists c, ds_initial_2 = Some c /\
+        DryConc.csafe the_ge (sch, nil, c) initial_memory n.
+    Admitted.
 
-     *)
-    
-    
-    Require Import lifting.
+    (*This is the failed attempt at proving the above theorem. *)
+   (* Require Import lifting.
     Theorem dry_x86_coarse_safety: forall n sch,
         exists c, ds_initial_2 = Some c /\
         DryConc.csafe the_ge (sch, nil, c) initial_memory n.
@@ -263,18 +254,20 @@ Definition dry_initial_perm :=
         unfold ds_initial_2.
         unfold  DryConc.MachineSemantics in init_core.
         unfold DryConc.init_machine in init_core.
-        destruct (DryMachine.init_mach (Some (getCurPerm initial_memory))
+        destruct (DryMachine.init_mach (Some (getPerm initial_memory))
                                        the_ge (Vptr x Int.zero) nil) eqn:AA; try inversion init_core.
         subst; auto. clear - AA.
         rewrite <- AA; f_equal.
         unfold init_perm, initial_memory.
         (*JM: This is also something I assume you will be able to prove? *)
+        destruct init_mem eqn:BB.
+        unfold init_mem in BB. 
         
         admit.
 
         (** *The induction*)
         admit.
-    Admitted.
+    Admitted.*)
         
         
         
