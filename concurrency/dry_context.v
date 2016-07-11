@@ -8,30 +8,33 @@ Require Import ccc26x86.Asm_event.
 Require Import compcert.common.Globalenvs.
 Import Concur.
 
-Module SEM <: Semantics.
+Module X86SEM <: Semantics.
                Definition G := Asm.genv.
                Definition C := state.
-               Definition Sem := Asm_EvSem.               
-End SEM.
-
-Module DryContext (SEM : Semantics).
-  Module DryMachine:= DryMachineShell SEM.
+               Definition Sem := Asm_EvSem.
+End X86SEM.
+  
+Module Type MachinesSig.
+  Declare Module SEM: Semantics.
+  
+  Module DryMachine := DryMachineShell SEM.
   Module ErasedMachine := ErasedMachineShell SEM.
-  Module mySchedule := mySchedule.
-  (** DryConc machine instantiated for X86*)
-  Module DryConc :=
-    CoarseMachine mySchedule DryMachine.
-  
-  (** FineConc machine instantiated for X86*)
-  Module FineConc :=
-    FineMachine mySchedule DryMachine.
-  
-  (** X86-SC machine*)
-  Module X86SC :=
-    FineMachine mySchedule ErasedMachine.
-  
+
+  Module DryConc := CoarseMachine mySchedule DryMachine.
+  (** FineConc machine instantiated for low-level language*)
+  Module FineConc := FineMachine mySchedule DryMachine.
+  (** SC machine*)
+  Module SC := FineMachine mySchedule ErasedMachine.
+End MachinesSig.
+
+
+Module AsmContext (SEM : Semantics) (Machines : MachinesSig with Module SEM := SEM).
+
+  Import Machines.
   Parameter initU: mySchedule.schedule.
-  Parameter the_program: Asm.program.
+  Parameter F : Type.
+  Parameter V : Type.
+  Parameter the_program: AST.program F V.
   
   Definition init_mem := Genv.init_mem the_program.
   Definition init_perm : option access_map :=
@@ -48,7 +51,10 @@ Module DryContext (SEM : Semantics).
   Definition fine_semantics:=
     FineConc.MachineSemantics initU init_perm.
   
-  Definition x86_sc_semantics :=
-    X86SC.MachineSemantics initU None.
+  Definition sc_semantics :=
+    SC.MachineSemantics initU None.
+  
+End AsmContext.
+  
   
 

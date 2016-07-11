@@ -24,32 +24,12 @@ Require Import concurrency.permissions.
 Require Import concurrency.concurrent_machine.
 Require Import concurrency.dry_context.
 
-Import dry_context SEM mySchedule DryMachine DryMachine.ThreadPool.
-
 Global Notation "a # b" := (Maps.PMap.get b a) (at level 1).
-Global Ltac pf_cleanup :=
-  repeat match goal with
-         | [H1: invariant ?X, H2: invariant ?X |- _] =>
-           assert (H1 = H2) by (by eapply proof_irr);
-             subst H2
-         | [H1: mem_compatible ?TP ?M, H2: mem_compatible ?TP ?M |- _] =>
-           assert (H1 = H2) by (by eapply proof_irr);
-             subst H2
-         | [H1: is_true (leq ?X ?Y), H2: is_true (leq ?X ?Y) |- _] =>
-           assert (H1 = H2) by (by eapply proof_irr); subst H2
-         | [H1: containsThread ?TP ?M, H2: containsThread ?TP ?M |- _] =>
-           assert (H1 = H2) by (by eapply proof_irr); subst H2
-         | [H1: containsThread ?TP ?M,
-                H2: containsThread (@updThreadC _ ?TP _ _) ?M |- _] =>
-           apply cntUpdateC' in H2;
-             assert (H1 = H2) by (by eapply cnt_irr); subst H2
-         | [H1: containsThread ?TP ?M,
-                H2: containsThread (@updThread _ ?TP _ _ _) ?M |- _] =>
-           apply cntUpdate' in H2;
-             assert (H1 = H2) by (by eapply cnt_irr); subst H2
-         end.
 
-Module ThreadPoolWF.
+
+Module ThreadPoolWF (SEM: Semantics) (Machines: MachinesSig with Module SEM := SEM).
+
+  Import Machines DryMachine ThreadPool.
   Lemma unlift_m_inv :
     forall tp tid (Htid : tid < (num_threads tp).+1) ord
       (Hunlift: unlift (ordinal_pos_incr (num_threads tp))
@@ -211,36 +191,34 @@ Module ThreadPoolWF.
 
 End ThreadPoolWF.
 
+Module Type SemanticsAxioms (SEM: Semantics).
 
+  Import event_semantics SEM.
+  Parameter corestep_det: corestep_fun Sem.
+  Parameter corestep_unchanged_on:
+    forall the_ge c m c' m' b ofs
+      (Hstep: corestep (msem Sem) the_ge c m c' m')
+      (Hvalid: Mem.valid_block m b)
+      (Hstable: ~ Mem.perm m b ofs Cur Writable),
+      Maps.ZMap.get ofs (Maps.PMap.get b (Mem.mem_contents m)) =
+      Maps.ZMap.get ofs (Maps.PMap.get b (Mem.mem_contents m')).
+  Parameter corestep_decay:
+    forall ge c c' m m',
+      corestep Sem ge c m c' m' ->
+      decay m m'.
+  Parameter corestep_nextblock:
+    forall ge c m c' m',
+      corestep Sem ge c m c' m' ->
+      (Mem.nextblock m <= Mem.nextblock m')%positive.
+End SemanticsAxioms.
+                                          
 (** ** Lemmas about threadwise semantics*)
-Module CoreLanguage.
-  Import event_semantics.
-  Section CoreLanguage.
-    (** Assumptions on thread's corestep (e.g PPC semantics) *)
-    Class corestepSpec :=
-      { corestep_det: corestep_fun (msem Sem);
-        corestep_unchanged_on:
-          forall the_ge c m c' m' b ofs
-            (Hstep: corestep (msem Sem) the_ge c m c' m')
-            (Hvalid: Mem.valid_block m b)
-            (Hstable: ~ Mem.perm m b ofs Cur Writable),
-            Maps.ZMap.get ofs (Maps.PMap.get b (Mem.mem_contents m)) =
-            Maps.ZMap.get ofs (Maps.PMap.get b (Mem.mem_contents m'));
-        corestep_decay:
-          forall c c' m m',
-            corestep (msem Sem) the_ge c m c' m' ->
-            decay m m';
-        corestep_nextblock:
-          forall c m c' m',
-            corestep (msem Sem) the_ge c m c' m' ->
-            (Mem.nextblock m <= Mem.nextblock m')%positive
-      }.
-
-    Context {cspec : corestepSpec}.
-
-    Lemma corestep_validblock:
-      forall c m c' m',
-        corestep Sem the_ge c m c' m' ->
+Module CoreLanguage (SEM : Semantics) (SemAxioms: SemanticsAxioms SEM).
+  Import SEM event_semantics SemAxioms.
+ 
+  Lemma corestep_validblock:
+      forall ge c m c' m',
+        corestep Sem ge c m c' m' ->
         forall b, Mem.valid_block m b ->
              Mem.valid_block m' b.
     Proof.
@@ -259,7 +237,7 @@ Module CoreLanguage.
       intros.
       assert (Hcore := ev_step_ax1 _ _ _ _ _ _ _ H).
       assert (Hcore' := ev_step_ax1 _ _ _ _ _ _ _ H0).
-      assert (Heq := corestep_det Hcore Hcore').
+      assert (Heq := corestep_det _ _ _  _ _ _ _ Hcore Hcore').
       destruct Heq; repeat split; auto.
       eapply ev_step_fun; eauto.
     Qed.
@@ -278,8 +256,8 @@ Module CoreLanguage.
     Qed.
 
     Lemma ev_step_decay:
-      forall c c' m m' ev,
-        ev_step Sem the_ge c m ev c' m' ->
+      forall ge c c' m m' ev,
+        ev_step Sem ge c m ev c' m' ->
         decay m m'.
     Proof.
       intros.
@@ -288,8 +266,8 @@ Module CoreLanguage.
     Qed.
 
     Lemma ev_step_nextblock:
-      forall c m ev c' m',
-        ev_step Sem the_ge c m ev c' m' ->
+      forall ge c m ev c' m',
+        ev_step Sem ge c m ev c' m' ->
         (Mem.nextblock m <= Mem.nextblock m')%positive.
     Proof.
       intros.
@@ -298,8 +276,8 @@ Module CoreLanguage.
     Qed.
 
     Lemma ev_step_validblock:
-      forall c m ev c' m',
-        ev_step Sem the_ge c m ev c' m' ->
+      forall ge c m ev c' m',
+        ev_step Sem ge c m ev c' m' ->
         forall b, Mem.valid_block m b ->
              Mem.valid_block m' b.
     Proof.
@@ -310,18 +288,27 @@ Module CoreLanguage.
       zify;
         by omega.
     Qed.
+End CoreLanguage.
 
-    
-    (* TODO: These proofs break the opaquness of the modules, they
+
+(** Lemmas about the threadwise semantics with respect to a (dry) concurrent machine*)
+Module CoreLanguageDry (SEM : Semantics) (SemAxioms: SemanticsAxioms SEM)
+       (DryMachine : dry_machine.Concur.DryMachineSig SEM).
+               
+  Import SEM event_semantics SemAxioms DryMachine ThreadPool.
+
+  Module CoreLanguage := CoreLanguage SEM SemAxioms.
+  Import CoreLanguage.
+  (* TODO: These proofs break the opaquness of the modules, they
     should be redone in an opaque way *)
 
 
     (** Lemmas about containsThread and coresteps *)
     Lemma corestep_containsThread:
-      forall (tp : thread_pool) c c' m m' p (i j : tid) ev
+      forall (tp : thread_pool) ge c c' m m' p i j ev
         (Hcnti : containsThread tp i)
         (Hcntj: containsThread tp j)
-        (Hcorestep: ev_step Sem the_ge c m ev c' m')
+        (Hcorestep: ev_step Sem ge c m ev c' m')
         (Hcode: getThreadC Hcnti = Krun c),
         containsThread (updThread Hcnti (Krun c') p) j.
     Proof.
@@ -330,10 +317,10 @@ Module CoreLanguage.
     Qed.
 
     Lemma corestep_containsThread':
-      forall (tp : thread_pool) c c' m m' p (i j : tid) ev
+      forall (tp : thread_pool) ge c c' m m' p i j ev
         (Hcnti : containsThread tp i)
         (Hcntj : containsThread (updThread Hcnti (Krun c') p) j)
-        (Hcorestep: ev_step Sem the_ge c m ev c' m')
+        (Hcorestep: ev_step Sem ge c m ev c' m')
         (Hcode: getThreadC Hcnti = Krun c),
         containsThread tp j.
     Proof.
@@ -344,12 +331,12 @@ Module CoreLanguage.
     (** Lemmas about invariants maintaned by coresteps*)
     
     Lemma corestep_compatible:
-      forall (tp : thread_pool) (m m' : mem) (i : tid) ev
+      forall (tp : thread_pool) ge (m m' : mem) i ev
         (pf : containsThread tp i) (c c': C)
         (Hinv: invariant tp)
         (Hcode: getThreadC pf = Krun c)
         (Hcompatible : mem_compatible tp m)
-        (Hcorestep: ev_step Sem the_ge c (restrPermMap (Hcompatible i pf)) ev c' m'),
+        (Hcorestep: ev_step Sem ge c (restrPermMap (Hcompatible i pf)) ev c' m'),
         mem_compatible (updThread pf (Krun c') (getCurPerm m')) m'.
     Proof.
       intros.
@@ -361,7 +348,7 @@ Module CoreLanguage.
         assert (cnt0 : containsThread tp tid)
           by (eapply cntUpdate' in cnt; auto).
         assert (Hlt := Hcompatible tid cnt0 b ofs).
-        assert (Hdecay := ev_step_decay Hcorestep).
+        assert (Hdecay := ev_step_decay _ _ _ _ _ _ Hcorestep).
         destruct (valid_block_dec (restrPermMap (Hcompatible i pf)) b)
           as [Hvalid|Hinvalid].
         - destruct (Hdecay b ofs) as [ _ HdecayValid].
@@ -405,7 +392,7 @@ Module CoreLanguage.
       { intros l pmap Hres b ofs.
         rewrite gsoThreadLPool in Hres.
         assert (Hlt := compat_lp Hcompatible _ Hres b ofs).
-        assert (Hdecay := ev_step_decay Hcorestep).
+        assert (Hdecay := ev_step_decay _ _ _ _ _ _ Hcorestep).
         destruct (valid_block_dec (restrPermMap (Hcompatible i pf)) b)
           as [Hvalid|Hinvalid].
         - destruct (Hdecay b ofs) as [ _ HdecayValid].
@@ -446,7 +433,7 @@ Module CoreLanguage.
       }
       { rewrite gsoThreadLock. intros b ofs.
         assert (Hlt := compat_ls Hcompatible b ofs).
-        assert (Hdecay := ev_step_decay Hcorestep).
+        assert (Hdecay := ev_step_decay _ _ _ _ _ _ Hcorestep).
         destruct (valid_block_dec (restrPermMap (Hcompatible i pf)) b)
           as [Hvalid|Hinvalid].
         - destruct (Hdecay b ofs) as [ _ HdecayValid].
@@ -526,12 +513,12 @@ Module CoreLanguage.
 
     Opaque getThreadR.
     Lemma corestep_invariant:
-      forall (tp : thread_pool) (m : mem) (i : nat)
+      forall (tp : thread_pool) ge (m : mem) (i : nat)
         (pf : containsThread tp i) c m1 m1' c'
         (Hinv: invariant tp)
         (Hcompatible: mem_compatible tp m)
         (Hrestrict_pmap :restrPermMap (Hcompatible i pf) = m1)
-        (Hcorestep: corestep SEM.Sem the_ge c m1 c' m1')
+        (Hcorestep: corestep Sem ge c m1 c' m1')
         (Hcode: getThreadC pf = Krun c),
         invariant (updThread pf (Krun c') (getCurPerm m1')).
     Proof.
@@ -595,7 +582,7 @@ Module CoreLanguage.
           rewrite getCurPerm_correct.
           rewrite restrPermMap_Cur.
             by eapply Hlp.
-        - erewrite @gsoThreadRes with (cntj := cntUpdate' _ _ _ cntj);
+        - erewrite @gsoThreadRes with (cntj := cntUpdate'  cntj);
             by eauto.
       }
       { intros l pmap j cntj Hres.
@@ -611,7 +598,7 @@ Module CoreLanguage.
           rewrite getCurPerm_correct.
           rewrite restrPermMap_Cur;
             by (eapply lock_res_threads0; eauto).
-        - erewrite @gsoThreadRes with (cntj := cntUpdate' _ _ _ cntj);
+        - erewrite @gsoThreadRes with (cntj := cntUpdate' cntj);
             by eauto.
       }
       { intros l pmap Hres.
@@ -619,16 +606,16 @@ Module CoreLanguage.
         rewrite gsoThreadLPool in Hres;
           by eauto.
       }
-      eauto.
+      eapply updThread_lr_valid; eauto.
     Qed.
 
     Lemma corestep_disjoint_val:
-      forall (tp : thread_pool) (m m' : mem) (i j : tid) (Hneq: i <> j)
+      forall (tp : thread_pool) ge (m m' : mem) i j (Hneq: i <> j)
         (c c' : C) 
         (pfi : containsThread tp i) (pfj : containsThread tp j)
         (Hcomp : mem_compatible tp m) (b : block) (ofs : Z) 
         (Hreadable: Mem.perm (restrPermMap (Hcomp j pfj)) b ofs Cur Readable)
-        (Hcorestep: corestep Sem the_ge c (restrPermMap (Hcomp i pfi)) c' m')
+        (Hcorestep: corestep Sem ge c (restrPermMap (Hcomp i pfi)) c' m')
         (Hinv: invariant tp),
         Maps.ZMap.get ofs (Mem.mem_contents m) # b =
         Maps.ZMap.get ofs (Mem.mem_contents m') # b.
@@ -673,12 +660,12 @@ Module CoreLanguage.
     Qed.
 
     Lemma corestep_disjoint_val_lockset:
-      forall (tp : thread_pool) (m m' : mem) (i : tid)
+      forall (tp : thread_pool) ge (m m' : mem) i
         (c c' : C) 
         (pfi : containsThread tp i)
         (Hcomp : mem_compatible tp m) (b : block) (ofs : Z) 
         (Hreadable: Mem.perm (restrPermMap (compat_ls Hcomp)) b ofs Cur Readable)
-        (Hcorestep: corestep Sem the_ge c (restrPermMap (Hcomp i pfi)) c' m')
+        (Hcorestep: corestep Sem ge c (restrPermMap (Hcomp i pfi)) c' m')
         (Hinv: invariant tp),
         Maps.ZMap.get ofs (Mem.mem_contents m) # b =
         Maps.ZMap.get ofs (Mem.mem_contents m') # b.
@@ -723,13 +710,13 @@ Module CoreLanguage.
     Qed.
 
     Lemma corestep_disjoint_val_lockpool :
-      forall (tp : thread_pool) (m m' : mem) (i : tid) (c c' : code)
+      forall (tp : thread_pool) ge (m m' : mem) i (c c' : C)
         (pfi : containsThread tp i) (Hcomp : mem_compatible tp m) addr pmap
         (Hlock: lockRes tp addr = Some pmap)
         (b : block) (ofs : Z)
-        (Hreadable: Mem.perm (restrPermMap (compat_lp Hcomp addr Hlock))
+        (Hreadable: Mem.perm (restrPermMap (compat_lp Hcomp _ Hlock))
                              b ofs Cur Readable)
-        (Hcorestep: corestep Sem the_ge c (restrPermMap (Hcomp i pfi)) c' m')
+        (Hcorestep: corestep Sem ge c (restrPermMap (Hcomp i pfi)) c' m')
         (Hinv: invariant tp),
         Maps.ZMap.get ofs (Mem.mem_contents m) # b =
         Maps.ZMap.get ofs (Mem.mem_contents m') # b.
@@ -771,13 +758,41 @@ Module CoreLanguage.
         by exfalso.
     Qed.
     
-  End CoreLanguage.
-End CoreLanguage.
+End CoreLanguageDry.
 
-Module StepLemmas.
+(** These lemmas require the machines. But the machines are
+parameterized by the semantics so they can be used by either
+high-level or low-level languages*)
+Module StepLemmas (SEM : Semantics)
+       (Machine : MachinesSig with Module SEM := SEM).
+               
+  Import SEM event_semantics.
+  Import Machine DryMachine DryConc ThreadPool.
 
+   Global Ltac pf_cleanup :=
+    repeat match goal with
+           | [H1: invariant ?X, H2: invariant ?X |- _] =>
+             assert (H1 = H2) by (by eapply proof_irr);
+               subst H2
+           | [H1: mem_compatible ?TP ?M, H2: mem_compatible ?TP ?M |- _] =>
+             assert (H1 = H2) by (by eapply proof_irr);
+               subst H2
+           | [H1: is_true (leq ?X ?Y), H2: is_true (leq ?X ?Y) |- _] =>
+             assert (H1 = H2) by (by eapply proof_irr); subst H2
+           | [H1: containsThread ?TP ?M, H2: containsThread ?TP ?M |- _] =>
+             assert (H1 = H2) by (by eapply proof_irr); subst H2
+           | [H1: containsThread ?TP ?M,
+                  H2: containsThread (@updThreadC _ ?TP _ _) ?M |- _] =>
+             apply cntUpdateC' in H2;
+               assert (H1 = H2) by (by eapply cnt_irr); subst H2
+           | [H1: containsThread ?TP ?M,
+                  H2: containsThread (@updThread _ ?TP _ _ _) ?M |- _] =>
+             apply cntUpdate' in H2;
+               assert (H1 = H2) by (by eapply cnt_irr); subst H2
+           end.
+  
   Lemma updThreadC_compatible:
-    forall (tp : thread_pool) m (i : tid) (c : ctl)
+    forall (tp : thread_pool) m i (c : ctl)
       (ctn : containsThread tp i)
       (Hcomp: mem_compatible tp m),
       mem_compatible (updThreadC ctn c) m.
@@ -785,7 +800,7 @@ Module StepLemmas.
     intros.
     constructor.
     intros j cntj'.
-    assert (cntj := cntUpdateC' c ctn cntj').
+    assert (cntj := cntUpdateC' _ _ cntj').
     specialize (Hcomp _ cntj).
     erewrite @gThreadCR with (cntj := cntj);
       by auto.
@@ -798,23 +813,23 @@ Module StepLemmas.
   Qed.
 
   Lemma updThreadC_invariant:
-    forall (tp : thread_pool) (i : tid) (c : ctl)
+    forall (tp : thread_pool) i (c : ctl)
       (ctn : containsThread tp i)
       (Hinv : invariant tp),
       invariant (updThreadC ctn c).
   Proof.
     intros. 
     inversion Hinv;
-      constructor; unfold race_free in *;
+    constructor; unfold race_free in *;
       simpl;
-        by auto.
+      try  by auto.
   Qed.
 
   (** Lemmas about suspend steps*)
   Lemma suspendC_step_det:
     forall tp tp' tp'' i (cnt: containsThread tp i)
-      (Hstep: DryConc.suspend_thread cnt tp')
-      (Hstep': DryConc.suspend_thread cnt tp''),
+      (Hstep: suspend_thread cnt tp')
+      (Hstep':suspend_thread cnt tp''),
       tp' = tp''.
   Proof.
     intros.
@@ -1070,14 +1085,22 @@ Module StepLemmas.
 End StepLemmas.
 
 (** ** Definition of internal steps *)
-Module InternalSteps.
-  Import CoreLanguage event_semantics.
+Module InternalSteps (SEM : Semantics) (SemAxioms: SemanticsAxioms SEM)
+       (Machine : MachinesSig with Module SEM := SEM).
+
+  Import SEM event_semantics SemAxioms.
+  Import Machine DryMachine DryConc ThreadPool.
+
+  Module CoreLanguage := CoreLanguage SEM SemAxioms.
+  Module CoreLanguageDry := CoreLanguageDry SEM SemAxioms DryMachine.
+  Module StepLemmas := StepLemmas SEM Machine.
+  Import StepLemmas CoreLanguage CoreLanguageDry SCH.
 
   Section InternalSteps.
+    Variable the_ge : G.
     
     Notation threadStep := (threadStep the_ge).
-    Notation Sch := schedule.
-    Context {cSpec : corestepSpec}.
+    Notation Sch := SCH.schedule.
     
     (** Internal steps are just thread coresteps or resume steps or
   start steps, they mimic fine-grained internal steps *)
@@ -2190,9 +2213,15 @@ Module InternalSteps.
   End InternalSteps.
 End InternalSteps.
 
-Module StepType.
+Module StepType (SEM : Semantics) (SemAxioms: SemanticsAxioms SEM)
+       (Machine : MachinesSig with Module SEM := SEM).
 
-  Import InternalSteps CoreLanguage StepLemmas event_semantics.
+  Import SEM event_semantics SemAxioms.
+  Import Machine DryMachine ThreadPool.
+
+  Module StepLemmas := StepLemmas SEM Machine.
+  Module InternalSteps := InternalSteps SEM SemAxioms Machine.
+  Import InternalSteps StepLemmas event_semantics.
    (** Distinguishing the various step types of the concurrent machine *)
 
   Inductive StepType : Type :=
@@ -2221,11 +2250,12 @@ Module StepType.
   Global Notation "cnt '@'  'E'" := (getStepType cnt = Concurrent) (at level 80).
   Global Notation "cnt '@'  'S'" := (getStepType cnt = Suspend) (at level 80).
   Global Notation "cnt '@'  'H'" := (getStepType cnt = Halted) (at level 80).
-  
+  Section StepType.
+    Variable ge : G.
   Lemma internal_step_type :
-    forall i tp tp' m m' (cnt : containsThread tp i)
+    forall  i tp tp' m m' (cnt : containsThread tp i)
       (Hcomp: mem_compatible tp m)
-      (Hstep_internal: internal_step cnt Hcomp tp' m'),
+      (Hstep_internal: internal_step ge cnt Hcomp tp' m'),
       cnt @ I.
   Proof.
     intros.
@@ -2249,7 +2279,7 @@ Module StepType.
     forall tp m tp' m' i (cnti: containsThread tp i)
       (cnti': containsThread tp' i)
       (Hcomp: mem_compatible tp m)
-      (Hinternal: internal_step cnti Hcomp tp' m'),
+      (Hinternal: internal_step ge cnti Hcomp tp' m'),
       ~ (cnti' @ E).
   Proof.
     intros. intro Hcontra.
@@ -2268,7 +2298,7 @@ Module StepType.
     forall tp m tp' m' i xs
       (cnti': containsThread tp' i)
       (Hin: List.In i xs)
-      (Hexec: internal_execution [seq x <- xs | x == i] tp m tp' m'),
+      (Hexec: internal_execution ge [seq x <- xs | x == i] tp m tp' m'),
       ~ (cnti' @ E).
   Proof.
     intros.
@@ -2301,7 +2331,7 @@ Module StepType.
   Qed.
       
   (** Proofs about [fmachine_step]*)
-  Notation fmachine_step := ((corestep fine_semantics) the_ge).
+  Notation fmachine_step := ((corestep fine_semantics) ge).
   Opaque at_external after_external halted.
   (** Solves absurd cases from fine-grained internal steps *)
   Ltac absurd_internal Hstep :=
