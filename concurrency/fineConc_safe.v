@@ -646,6 +646,17 @@ defined*)
     rewrite Hexternal in code_eq0.
     auto.
   Qed.
+
+  Inductive fsafe2 (ge : SEM.G) (tp : thread_pool) (m : mem) (U : Sch)
+            (tr : FineConc.event_trace)
+    : nat -> Prop :=
+  | Safe_0: fsafe2 ge tp m U tr 0
+  | HaltedSafe : forall n, FineConc.halted (U, tr, tp) -> fsafe2 ge tp m U tr n
+  | StepSafe : forall (tp' : thread_pool) (m' : mem)
+                 (ev tr': FineConc.event_trace) n,
+      FineConc.MachStep ge (U, tr, tp) m (schedSkip U, tr ++ ev, tp') m' ->
+      fsafe2 ge tp' m' (schedSkip U) (tr ++ ev ++ tr') n ->
+      fsafe2 ge tp m U (tr ++ ev ++ tr') (S n).
   
   Lemma fine_safe:
     forall tpf tpc mf mc (g fg : memren) fp (xs : Sch) sched

@@ -33,29 +33,9 @@ Import dry_context SEM mySchedule DryMachine DryMachine.ThreadPool.
 Set Bullet Behavior "None".
 Set Bullet Behavior "Strict Subproofs".
 
+(** ** Erasure of Values*)
+Module ValErasure.
 
-(** ** Erasure from FineConc to X86-SC*)
-Module X86Erasure.
-
-  Require Import ccc26x86.Asm ccc26x86.Asm_coop.
-  Import event_semantics.
-  (*TODO: Things here should be abstracted to support similar
-  erasures, e.g. for Power, but due to time constraints I am going to
-  do it right away for now*)
-  
-  (**  The erased memory is identical for
-       everything but permissions. *)
-  Local Notation "a # b" := (PMap.get b a) (at level 1).
-
-  Record erasedMem (m m': mem) :=
-    { perm_le:
-        forall b ofs k,
-          (Mem.mem_access m')#b ofs k = Some Freeable;
-      erased_contents:
-       (Mem.mem_contents m') = (Mem.mem_contents m);
-      erased_nb: Mem.nextblock m = Mem.nextblock m'
-    }.
-  
   Definition erased_val v1 v2 : Prop :=
     match v1, v2 with
     | Vundef, _ => True
@@ -68,74 +48,7 @@ Module X86Erasure.
       erased_val v v' ->
       erased_val_list vl vl' ->
       erased_val_list (v :: vl) (v' :: vl').
-    
-  Definition erased_reg (r:PregEq.t) (rs rs' : regset) : Prop :=
-    erased_val (Pregmap.get r rs) (Pregmap.get r rs').
-  
-  Definition erased_regs rs rs' : Prop :=
-    forall r, erased_reg r rs rs'.
 
-  Definition erased_loader (l l' : load_frame) : Prop :=
-    l = l'.
-
-  Definition erasedCores c c' :=
-    match c, c' with
-    | State rs loader, State rs' loader' =>
-      erased_regs rs rs' /\ erased_loader loader loader'
-    | Asm_CallstateIn vf args tys retty, Asm_CallstateIn vf' args' tys' retty' =>
-      vf = vf' /\ erased_val_list args args' /\
-      tys = tys' /\ retty = retty'
-    | Asm_CallstateOut ef vals rs loader, Asm_CallstateOut ef' vals' rs' loader' =>
-      ef = ef' /\ erased_val_list vals vals'
-      /\ erased_regs rs rs' /\ erased_loader loader loader'
-    | _, _ => False
-    end.
-
-  Definition erasedCtl c c' : Prop :=
-    match c, c' with
-    | Kinit vf arg, Kinit vf' arg' =>
-      erased_val vf vf' /\ erased_val arg arg'
-    | Krun c, Krun c' =>
-      erasedCores c c'
-    | Kblocked c, Kblocked c' =>
-      erasedCores c c'
-    | Kresume c arg, Kresume c' arg' =>
-      erasedCores c c' /\ arg = arg'
-                   (*we don't use this and our semantics are strange*)
-    | _, _  => False
-    end.
-
-  Inductive erased_threadPool tp (tp' : ErasedMachine.ThreadPool.t) :=
-    | ErasedPool :
-        num_threads tp = ErasedMachine.ThreadPool.num_threads tp' ->
-        (forall i (cnti: containsThread tp i)
-           (cnti': ErasedMachine.ThreadPool.containsThread tp' i),
-            erasedCtl (getThreadC cnti)
-                      (ErasedMachine.ThreadPool.getThreadC cnti')) ->
-        erased_threadPool tp tp'.
-
-  Lemma erasedPool_contains:
-    forall tp1 tp1' 
-      (HerasedPool: erased_threadPool tp1 tp1') i,
-      containsThread tp1 i <-> ErasedMachine.ThreadPool.containsThread tp1' i.
-  Proof.
-    intros.
-    inversion HerasedPool.
-    unfold containsThread, ErasedMachine.ThreadPool.containsThread.
-    rewrite H.
-    split; auto.
-  Qed.
-  
-  Lemma erasedMem_dilute_1:
-    forall m m',
-      erasedMem m m' ->
-      erasedMem (DryMachine.diluteMem m) m'.
-  Proof.
-    intros.
-    inversion H.
-    constructor; auto.
-  Qed.
-  
   Lemma erased_val_refl:
     forall v, erased_val v v.
   Proof.
@@ -151,31 +64,233 @@ Module X86Erasure.
     induction vs; simpl...
   Qed.
 
-  Lemma erased_regs_refl:
-    forall rs, erased_regs rs rs.
-  Proof with eauto with erased.
-    intros rs r;
-    unfold erased_reg...
-  Qed.
-
-  Lemma erased_loader_refl:
-    forall loader, erased_loader loader loader.
+  Lemma erased_val_list_decode:
+    forall vals vals' typs,
+      erased_val_list vals vals' ->
+      erased_val_list (decode_longs typs vals) (decode_longs typs vals').
   Proof.
-    unfold erased_loader; auto.
+    intros.
+    generalize dependent vals.
+    generalize dependent vals'.
+    induction typs; intros; simpl;
+    first by constructor.
+    destruct vals;
+      destruct a; inversion H; subst;
+      try constructor; eauto.
+    destruct vals; inversion H4; subst.
+    constructor.
+    unfold Val.longofwords.
+    destruct v;
+      constructor; eauto;
+      inv H2; try constructor.
+    unfold erased_val in H3.
+    destruct v0; subst; auto;
+    constructor.
+  Qed.
+
+  (** ** Lemmas about erased values*)
+  Lemma erased_val_hiword:
+    forall v v',
+      erased_val v v' ->
+      erased_val (Val.hiword v) (Val.hiword v').
+  Proof.
+    intros;
+    destruct v; simpl; inv H; auto.
+  Qed.
+
+  Lemma erased_val_loword:
+    forall v v',
+      erased_val v v' ->
+      erased_val (Val.loword v) (Val.loword v').
+  Proof.
+    intros;
+    destruct v; simpl; inv H; auto.
+  Qed.
+
+  Lemma erased_val_cmp_bool:
+    forall c v1 v1',
+      v1 <> Vundef ->
+      erased_val v1 v1' ->
+      Val.cmp_bool c v1 Vzero = Val.cmp_bool c v1' Vzero.
+  Proof.
+    intros.
+    destruct v1; try congruence.
+  Qed.
+
+  Hint Resolve erased_val_hiword erased_val_loword : erased.
+
+End ValErasure.
+
+Module MemErasure.
+
+  (**  The erased memory is identical for
+       everything but permissions. *)
+  Local Notation "a # b" := (PMap.get b a) (at level 1).
+
+  Record erasedMem (m m': mem) :=
+    { perm_le:
+        forall b ofs k,
+          Mem.valid_block m' b -> 
+          (Mem.mem_access m')#b ofs k = Some Freeable;
+      erased_contents:
+        (Mem.mem_contents m') = (Mem.mem_contents m);
+      erased_nb: Mem.nextblock m = Mem.nextblock m'
+    }.
+
+  Lemma erasedMem_dilute_1:
+    forall m m',
+      erasedMem m m' ->
+      erasedMem (DryMachine.diluteMem m) m'.
+  Proof.
+    intros.
+    inversion H.
+    constructor; auto.
+  Qed.
+
+   Lemma mem_load_erased:
+    forall chunk m m' b ofs pmap v
+      (Hlt: permMapLt pmap (getMaxPerm m))
+      (Hload: Mem.load chunk (restrPermMap Hlt) b ofs = Some v)
+      (Herased: erasedMem m m'),
+      Mem.load chunk m' b ofs = Some v.
+  Proof.
+    intros.
+    inversion Herased.
+    assert (Hreadable := Mem.load_valid_access _ _ _ _ _ Hload).
+    destruct Hreadable.
+    assert (Hreadable': Mem.valid_access m' chunk b ofs Readable).
+    { split; auto.
+      intros ? ?.
+      unfold Mem.perm.
+      rewrite perm_le0.
+      simpl; constructor.
+      eapply mem_obs_eq.MemoryLemmas.load_valid_block in Hload.
+      unfold Mem.valid_block in *. simpl in *.
+      rewrite <- erased_nb0; auto.
+    }
+    Transparent Mem.load.
+    unfold Mem.load in *.
+    destruct (Mem.valid_access_dec m' chunk b ofs Readable);
+      try by exfalso.
+    destruct (Mem.valid_access_dec (restrPermMap Hlt) chunk b ofs Readable);
+      try by discriminate.
+    simpl in *.
+    rewrite erased_contents0; auto.
+    Opaque Mem.load.
+  Qed.
+
+  Lemma mem_store_erased:
+    forall chunk m m' b ofs pmap v m2
+      (Hv: v <> Vundef)
+      (Hlt: permMapLt pmap (getMaxPerm m))
+      (Hstore: Mem.store chunk (restrPermMap Hlt) b ofs v = Some m2)
+      (Herased: erasedMem m m'),
+    exists m2', Mem.store chunk m' b ofs v = Some m2'
+           /\ erasedMem m2 m2'.
+  Proof.
+    intros.
+    destruct Herased.
+    assert (Haccess := Mem.store_valid_access_3 _ _ _ _ _ _ Hstore).
+    assert (Hvalid := Mem.valid_access_valid_block
+                        _ _ _ _ (Mem.valid_access_implies
+                                   _ _ _ _ _ Nonempty Haccess ltac:(constructor))).
+    destruct Haccess.
+    assert (Haccess' : Mem.valid_access m' chunk b ofs Writable).
+    { split; auto.
+      intros ? ?.
+      unfold Mem.perm.
+      rewrite perm_le0.
+      simpl; constructor.
+      unfold Mem.valid_block in *. simpl in *.
+      rewrite <- erased_nb0; auto.
+    }
+    Transparent Mem.store.
+    unfold Mem.store in *.
+    destruct (Mem.valid_access_dec m' chunk b ofs Writable); try by exfalso.
+    destruct (Mem.valid_access_dec (restrPermMap Hlt) chunk b ofs Writable);
+      try by discriminate. simpl in Hstore.
+    inv Hstore.
+    eexists; split; eauto.
+    constructor; simpl; auto.
+    rewrite <- erased_contents0.
+    reflexivity.
+    Opaque Mem.store.
   Qed.
   
-  Hint Immediate erased_regs_refl erased_loader_refl
-       erased_val_list_refl : erased.
+End MemErasure.
 
-  Lemma erasedCores_refl:
-    forall c, erasedCores c c.
-  Proof with eauto with erased.
-    destruct c; simpl;
-    repeat split...
+Module Type CoreErasure (SEM: Semantics).
+  Import SEM ValErasure event_semantics.
+  
+  Parameter erasedCores : C -> C -> Prop.
+  Parameter erasedCores_refl: forall c, erasedCores c c.
+
+  Parameter at_external_erase:
+    forall c c' (Herase: erasedCores c c'),
+      match at_external Sem c, at_external Sem c' with
+      | Some (ef, sig, vs), Some (ef', sig', vs') =>
+        ef = ef' /\ sig = sig' /\ erased_val_list vs vs'
+      | None, None => True
+      | _, _ => False
+      end.
+
+  Parameter after_external_erase:
+    forall v v' c c' c2
+      (HeraseCores: erasedCores c c')
+      (HeraseVal: erased_val v v')
+      (Hafter_external: after_external SEM.Sem (Some v) c = Some c2),
+    exists c2',
+      after_external SEM.Sem (Some v') c' = Some c2' /\
+      erasedCores c2 c2'.
+  
+  Parameter erasure_initial_core:
+    forall ge v arg v' arg' c
+      (Hv: erased_val v v')
+      (Harg: erased_val arg arg')
+      (Hinit: initial_core Sem ge v [:: arg] = Some c),
+      initial_core Sem ge v' [:: arg'] = Some c.
+  
+End CoreErasure.
+
+Module ThreadPoolErasure (SEM: Semantics) (CE : CoreErasure SEM).
+
+  Import ValErasure CE.
+  
+  Definition erasedCtl c c' : Prop :=
+    match c, c' with
+    | Kinit vf arg, Kinit vf' arg' =>
+      erased_val vf vf' /\ erased_val arg arg'
+    | Krun c, Krun c' =>
+      erasedCores c c'
+    | Kblocked c, Kblocked c' =>
+      erasedCores c c'
+    | Kresume c arg, Kresume c' arg' =>
+      erasedCores c c' /\ arg = arg'
+    (*we don't use this and our semantics are strange*)
+    | _, _  => False
+    end.
+
+  Inductive erased_threadPool tp (tp' : ErasedMachine.ThreadPool.t) :=
+  | ErasedPool :
+      num_threads tp = ErasedMachine.ThreadPool.num_threads tp' ->
+      (forall i (cnti: containsThread tp i)
+         (cnti': ErasedMachine.ThreadPool.containsThread tp' i),
+          erasedCtl (getThreadC cnti)
+                    (ErasedMachine.ThreadPool.getThreadC cnti')) ->
+      erased_threadPool tp tp'.
+
+  Lemma erasedPool_contains:
+    forall tp1 tp1' 
+      (HerasedPool: erased_threadPool tp1 tp1') i,
+      containsThread tp1 i <-> ErasedMachine.ThreadPool.containsThread tp1' i.
+  Proof.
+    intros.
+    inversion HerasedPool.
+    unfold containsThread, ErasedMachine.ThreadPool.containsThread.
+    rewrite H.
+    split; auto.
   Qed.
 
-  Hint Immediate erasedCores_refl: erased.
-  
   Lemma erasedCtl_refl:
     forall c, erasedCtl c c.
   Proof with eauto with erased.
@@ -186,7 +301,7 @@ Module X86Erasure.
     forall tp tp' addr addr' rmap rmap',
       erased_threadPool tp tp' ->
       erased_threadPool (updLockSet tp addr rmap)
-                         (ErasedMachine.ThreadPool.updLockSet tp' addr' rmap').
+                        (ErasedMachine.ThreadPool.updLockSet tp' addr' rmap').
   Proof.
     intros.
     inversion H.
@@ -248,121 +363,71 @@ Module X86Erasure.
     forall tp tp' addr addr',
       erased_threadPool tp tp' ->
       erased_threadPool (remLockSet tp addr)
-                         (ErasedMachine.ThreadPool.remLockSet tp' addr').
+                        (ErasedMachine.ThreadPool.remLockSet tp' addr').
   Proof.
     intros.
     inversion H.
     constructor; auto.
   Qed.
 
-  Lemma mem_load_erased:
-    forall chunk m m' b ofs pmap v
-      (Hlt: permMapLt pmap (getMaxPerm m))
-      (Hload: Mem.load chunk (restrPermMap Hlt) b ofs = Some v)
-      (Herased: erasedMem m m'),
-      Mem.load chunk m' b ofs = Some v.
-  Proof.
-    intros.
-    inversion Herased.
-    assert (Hreadable := Mem.load_valid_access _ _ _ _ _ Hload).
-    destruct Hreadable.
-    assert (Hreadable': Mem.valid_access m' chunk b ofs Readable).
-    { split; auto.
-      intros ? ?.
-      unfold Mem.perm.
-      rewrite perm_le0.
-      simpl; constructor.
-    }
-    Transparent Mem.load.
-    unfold Mem.load in *.
-    destruct (Mem.valid_access_dec m' chunk b ofs Readable);
-      try by exfalso.
-    destruct (Mem.valid_access_dec (restrPermMap Hlt) chunk b ofs Readable);
-      try by discriminate.
-    simpl in *.
-    rewrite erased_contents0; auto.
-    Opaque Mem.load.
+  Hint Resolve erased_updLockSet erased_updThread
+       erased_addThread erased_remLockSet: erased.
+
+End ThreadPoolErasure.
+  
+(** ** Erasure from FineConc to X86-SC*)
+Module X86Erasure.
+
+  Require Import ccc26x86.Asm ccc26x86.Asm_coop.
+  Import event_semantics.
+      
+  Definition erased_reg (r:PregEq.t) (rs rs' : regset) : Prop :=
+    erased_val (Pregmap.get r rs) (Pregmap.get r rs').
+  
+  Definition erased_regs rs rs' : Prop :=
+    forall r, erased_reg r rs rs'.
+
+  Definition erased_loader (l l' : load_frame) : Prop :=
+    l = l'.
+
+  Definition erasedCores c c' :=
+    match c, c' with
+    | State rs loader, State rs' loader' =>
+      erased_regs rs rs' /\ erased_loader loader loader'
+    | Asm_CallstateIn vf args tys retty, Asm_CallstateIn vf' args' tys' retty' =>
+      vf = vf' /\ erased_val_list args args' /\
+      tys = tys' /\ retty = retty'
+    | Asm_CallstateOut ef vals rs loader, Asm_CallstateOut ef' vals' rs' loader' =>
+      ef = ef' /\ erased_val_list vals vals'
+      /\ erased_regs rs rs' /\ erased_loader loader loader'
+    | _, _ => False
+    end.
+ 
+  Lemma erased_regs_refl:
+    forall rs, erased_regs rs rs.
+  Proof with eauto with erased.
+    intros rs r;
+    unfold erased_reg...
   Qed.
 
-  Lemma mem_store_erased:
-    forall chunk m m' b ofs pmap v m2
-      (Hv: v <> Vundef)
-      (Hlt: permMapLt pmap (getMaxPerm m))
-      (Hstore: Mem.store chunk (restrPermMap Hlt) b ofs v = Some m2)
-      (Herased: erasedMem m m'),
-    exists m2', Mem.store chunk m' b ofs v = Some m2'
-           /\ erasedMem m2 m2'.
+  Lemma erased_loader_refl:
+    forall loader, erased_loader loader loader.
   Proof.
-    intros.
-    destruct Herased.
-    assert (Haccess := Mem.store_valid_access_3 _ _ _ _ _ _ Hstore).
-    destruct Haccess.
-    assert (Haccess' : Mem.valid_access m' chunk b ofs Writable).
-    { split; auto.
-      intros ? ?.
-      unfold Mem.perm.
-      rewrite perm_le0.
-      simpl; constructor.
-    }
-    Transparent Mem.store.
-    unfold Mem.store in *.
-    destruct (Mem.valid_access_dec m' chunk b ofs Writable); try by exfalso.
-    destruct (Mem.valid_access_dec (restrPermMap Hlt) chunk b ofs Writable);
-      try by discriminate. simpl in Hstore.
-    inv Hstore.
-    eexists; split; eauto.
-    constructor; simpl; auto.
-    rewrite <- erased_contents0.
-      reflexivity.
-    Opaque Mem.store.
+    unfold erased_loader; auto.
   Qed.
   
-  Hint Resolve erased_updLockSet erased_updThread
-       erased_addThread erased_remLockSet mem_store_erased: erased.
+  Hint Immediate erased_regs_refl erased_loader_refl
+       erased_val_list_refl : erased.
 
-  Lemma erased_val_list_decode:
-    forall vals vals' typs,
-      erased_val_list vals vals' ->
-      erased_val_list (decode_longs typs vals) (decode_longs typs vals').
-  Proof.
-    intros.
-    generalize dependent vals.
-    generalize dependent vals'.
-    induction typs; intros; simpl;
-    first by constructor.
-    destruct vals;
-      destruct a; inversion H; subst;
-      try constructor; eauto.
-    destruct vals; inversion H4; subst.
-    constructor.
-    unfold Val.longofwords.
-    destruct v;
-      constructor; eauto;
-      inv H2; try constructor.
-    unfold erased_val in H3.
-    destruct v0; subst; auto;
-    constructor.
+  Lemma erasedCores_refl:
+    forall c, erasedCores c c.
+  Proof with eauto with erased.
+    destruct c; simpl;
+    repeat split...
   Qed.
 
-  (** ** Lemmas about erased values*)
-  Lemma erased_val_hiword:
-    forall v v',
-      erased_val v v' ->
-      erased_val (Val.hiword v) (Val.hiword v').
-  Proof.
-    intros;
-    destruct v; simpl; inv H; auto.
-  Qed.
-
-  Lemma erased_val_loword:
-    forall v v',
-      erased_val v v' ->
-      erased_val (Val.loword v) (Val.loword v').
-  Proof.
-    intros;
-    destruct v; simpl; inv H; auto.
-  Qed.
-
+  Hint Immediate erasedCores_refl: erased.
+  
   Lemma erased_regs_set:
     forall rs rs' v v' r
       (Hrs_ren: erased_regs rs rs')
@@ -386,7 +451,7 @@ Module X86Erasure.
     induction regs; by reflexivity.
   Qed.
   
-  Hint Resolve erased_val_hiword erased_val_loword erased_regs_set : erased.
+  Hint Resolve erased_regs_set : erased.
 
   (** ** Result about at_external, after_external and initial_core *)
   Lemma at_external_erase:
@@ -477,7 +542,6 @@ Module X86Erasure.
     inv Harg; rewrite H0 H; simpl;
     auto.
   Qed.
-
 
   (** Simulation of synchronization steps between erased states*)
 
@@ -866,15 +930,7 @@ Module X86Erasure.
       inversion HerasePool; eauto.
   Qed.
 
-  Lemma erased_val_cmp_bool:
-    forall c v1 v1',
-      v1 <> Vundef ->
-      erased_val v1 v1' ->
-      Val.cmp_bool c v1 Vzero = Val.cmp_bool c v1' Vzero.
-  Proof.
-    intros.
-    destruct v1; try congruence.
-  Qed.
+ 
   
   Lemma haltStep_erasure:
     forall tp1 tp1' i
@@ -1015,10 +1071,57 @@ Module X86Safe.
                    (tp tp' tp'': FineConc.machine_state)
                    (tr tr' tr'': FineConc.event_trace)
                    (m m' m'' : mem),
-      FineConc.MachStep the_ge (i :: U, tr, tp) m (U, tr', tp') m' ->
-      fine_execution (U, tr', tp') m' (U', tr'', tp'') m'' ->
-      fine_execution (i :: U,tr,tp) m (U',tr'',tp'') m''.
-  
+      FineConc.MachStep the_ge (i :: U, tr, tp) m (U, tr ++ tr', tp') m' ->
+      fine_execution (U, tr ++ tr', tp') m' (U', tr ++ tr' ++ tr'', tp'') m'' ->
+      fine_execution (i :: U,tr,tp) m (U',tr ++ tr' ++ tr'',tp'') m''.
+
+  Lemma fstep_trace_irr:
+    forall U i tp m tp' m' tr tr'
+      (Hstep: FineConc.MachStep the_ge (i :: U, tr, tp) m (U, tr', tp') m'),
+    forall tr'', exists ev,
+        FineConc.MachStep the_ge (i :: U, tr'', tp) m (U, tr'' ++ ev, tp') m'.
+  Proof.
+    intros.
+    inversion Hstep; subst; simpl in *; subst; inv HschedN; pf_cleanup.
+    - exists [::]; erewrite cats0; econstructor; simpl; eauto.
+    - exists [::]; erewrite cats0; econstructor 2; simpl; eauto.
+    - exists (map [eta internal tid] ev); econstructor 3; simpl; eauto.
+    - exists [::]; erewrite cats0; econstructor 4; simpl; eauto.
+    - exists [:: external tid ev]; econstructor 5; simpl; eauto.
+    - exists [::]; erewrite cats0; econstructor 6; simpl; eauto.
+    - exists [::]; erewrite cats0; econstructor 7; simpl; eauto.
+  Qed.
+
+  Lemma fsafe_execution:
+    forall tpf mf U tr,
+      fsafe tpf mf U (size U).+1 ->
+      exists tpf' mf' tr',
+        fine_execution (U, tr, tpf) mf ([::], tr ++ tr', tpf') mf'.
+  Proof.
+    intros.
+    generalize dependent mf.
+    generalize dependent tpf.
+    generalize dependent tr.
+    induction U; intros.
+    do 2 eexists. exists [::].
+    erewrite cats0.
+    econstructor 1; eauto.
+    simpl in *.
+    inversion H; subst.
+    simpl in H0; by exfalso.
+    simpl in *.
+    assert (exists ev,
+               FineConc.MachStep the_ge ((a :: U), tr, tpf) mf
+                                 (U, tr ++ ev, tp') m')
+      by (eapply fstep_trace_irr; eauto).
+    destruct H0 as [ev Hstep].
+    specialize (IHU (tr ++ ev) _ _ H2).
+    destruct IHU as (tpf'' & mf'' & tr'' & Hexec).
+    rewrite <- catA in Hexec.
+    exists tpf'', mf'', (ev ++ tr'').
+    econstructor 2; eauto.
+  Qed.
+    
   (** The initial state of X86SC is an erasure of the initial state of
   the FineConc machine *)
   Lemma init_erasure:
@@ -1075,22 +1178,59 @@ Module X86Safe.
         econstructor; eauto.
   Qed.
 
-  Lemma fsafe_execution:
-    forall tpf mf U tr,
-      fsafe tpf mf U (size U).+1 ->
-      exists tpf' mf' tr',
-        fine_execution (U, tr, tpf) mf ([::], tr ++ tr', tpf') mf'.
-  Admitted.
-  
+  (** Safety of the X86SC machine*)
+  Lemma x86sc_safe:
+    forall sched tpsc tpf mf msc
+      (Hsafe: fsafe tpf mf sched (size sched).+1)
+      (HerasedPool: erased_threadPool tpf tpsc)
+      (HerasedMem: erasedMem mf msc),
+      sc_safe tpsc msc sched (size sched).+1.
+  Proof.
+    intro sched.
+    induction sched as [|i sched]; intros.
+    - simpl in *. inversion Hsafe;
+        eapply X86SC.HaltedSafe with (tr := tr);
+        simpl; auto.
+    - simpl in Hsafe.
+      inversion Hsafe; subst.
+      simpl in H; by exfalso.
+      simpl in *.
+      eapply sc_erasure in H0; eauto.
+      destruct H0 as (tpsc2' & msc2' & Hstep & HerasedPool' & HerasedMem').
+      econstructor 3; eauto.
+  Qed.
+
   (** Erasure from FineConc to X86-SC.*)
-  Conjecture x86sc_erasure:
+  Theorem x86sc_erasure:
     forall sched f arg U tpsc tpf m
       (Hmem: init_mem = Some m)
       (HinitSC: sc_init f arg = Some (U, [::], tpsc))
       (HinitF: tpf_init f arg = Some (U, [::], tpf))
-      (HsafeF: fsafe tpf m sched (size sched).+1),
-      sc_safe tpsc (ErasedMachine.diluteMem m) sched (size sched).+1.
-
+      (HsafeF: fsafe tpf (diluteMem m) sched (size sched).+1),
+      sc_safe tpsc (ErasedMachine.diluteMem m) sched (size sched).+1 /\
+      (forall tpf' mf' tr,
+          fine_execution (sched, [::], tpf) (diluteMem m) ([::], tr, tpf') mf' ->
+          exists tpsc' msc',
+            sc_execution (sched, [::], tpsc) (ErasedMachine.diluteMem m)
+                         ([::], tr, tpsc') msc' /\
+            erased_threadPool tpf' tpsc' /\ erasedMem mf' msc').
+  Proof.
+    intros.
+    assert (HpoolErase := init_erasure _ _ HinitSC HinitF).
+    assert (HmemErase : erasedMem (diluteMem m) (ErasedMachine.diluteMem m)).
+    { econstructor; eauto.
+      intros.
+      assert (Hvalid: Mem.valid_block m b)
+        by (unfold Mem.valid_block, ErasedMachine.diluteMem, erasePerm in *;
+             simpl in *; auto).
+      assert (Hperm:= erasePerm_V ofs k Hvalid).
+      unfold permission_at in Hperm; auto.
+    }
+    split; first by (eapply x86sc_safe; eauto).
+    intros.
+    eapply execution_sim; eauto.
+  Qed.
+    
   (** Competing Events *)
 
   Definition sameLocation ev1 ev2 :=
