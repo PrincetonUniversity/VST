@@ -18,9 +18,11 @@ Require Import Coq.Program.Program.
    compcert mem. This is used by BOTH
    Juicy machine and dry machine. *)
 Module Type Semantics.
+  Parameter F V : Type.
   Parameter G: Type.
   Parameter C: Type.
   Parameter Sem: EvSem G C.
+  Parameter getEnv : G -> Genv.t F V.
 End Semantics.
 
 Notation EXIT := 

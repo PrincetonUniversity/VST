@@ -586,7 +586,7 @@ Module Concur.
            destruct (AMap.E.eq_dec a (b,ofs)).
            + subst a. rewrite gsslockResUpdLock.
              intros ofs0 HH. rewrite gsolockResUpdLock.
-             apply F; auto.
+             apply F0; auto.
              intros AA. inversion AA. rewrite H0 in HH.
              destruct HH as [H1 H2]; clear - H1.
              omega.

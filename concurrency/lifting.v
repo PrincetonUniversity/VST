@@ -22,22 +22,22 @@ Require Import concurrency.dry_context.
 (** The Clight DryConc Machine*)
 Require Import concurrency.DryMachineSource.
 
-Module lifting.  
+Module lifting (SEMT: Semantics) (Machine: MachinesSig with Module SEM := SEMT).
   Section lifting.
     Import THE_DRY_MACHINE_SOURCE.
     Notation GS := (SEM.G).
-    Notation GT := (dry_context.SEM.G).    
+    Notation GT := (SEMT.G).
     Variable gT : GT.
     Variable gS : GS.
     
     Notation semS := (SEM.Sem).
-    Notation semT := (dry_context.SEM.Sem).
+    Notation semT := (SEMT.Sem).
 
-    Notation CT := (dry_context.SEM.C).
+    Notation CT := (SEMT.C).
     Notation CS := (SEM.C).
 
     Definition ge_inv (geS : GS) (geT : GT) :=
-      genvs_domain_eq (Clight.genv_genv geS) geT.
+      genvs_domain_eq (Clight.genv_genv geS) (SEMT.getEnv geT).
 
     Definition init_inv j (geS : GS) valsS mS (geT : GT) valsT mT :=
       Mem.mem_inj j mS mT /\
@@ -51,7 +51,7 @@ Module lifting.
     Lemma concur_sim main p (sch : mySchedule.schedule) :
       Wholeprog_sim
         (DMachineSem sch p)
-        (dry_context.DryConc.MachineSemantics sch p)
+        (Machine.DryConc.MachineSemantics sch p)
         gS gT main
         ge_inv init_inv halt_inv.
     Proof.

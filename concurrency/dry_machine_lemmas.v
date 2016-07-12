@@ -26,6 +26,7 @@ Require Import concurrency.dry_context.
 
 Global Notation "a # b" := (Maps.PMap.get b a) (at level 1).
 
+(** This file holds various results about the dry machine*)
 
 Module ThreadPoolWF (SEM: Semantics) (Machines: MachinesSig with Module SEM := SEM).
 
@@ -2253,6 +2254,32 @@ Module StepType (SEM : Semantics)
   Global Notation "cnt '@'  'E'" := (getStepType cnt = Concurrent) (at level 80).
   Global Notation "cnt '@'  'S'" := (getStepType cnt = Suspend) (at level 80).
   Global Notation "cnt '@'  'H'" := (getStepType cnt = Halted) (at level 80).
+
+  (** Solves absurd cases from fine-grained internal steps *)
+  Global Ltac absurd_internal Hstep :=
+    inversion Hstep; try inversion Htstep; subst; simpl in *;
+    try match goal with
+        | [H: Some _ = Some _ |- _] => inversion H; subst
+        end; pf_cleanup;
+    repeat match goal with
+           | [H: getThreadC ?Pf = _, Hint: ?Pf @ I |- _] =>
+             unfold getStepType in Hint;
+               rewrite H in Hint; simpl in Hint
+           | [H1: match ?Expr with _ => _ end = _,
+                  H2: ?Expr = _ |- _] => rewrite H2 in H1
+           | [H: threadHalted _ |- _] =>
+             inversion H; clear H; subst; simpl in *; pf_cleanup;
+             unfold  ThreadPool.SEM.Sem in *
+           | [H1: is_true (isSome (halted ?Sem ?C)),
+                  H2: match at_external _ _ with _ => _ end = _ |- _] =>
+             destruct (at_external_halted_excl Sem C) as [Hext | Hcontra];
+               [rewrite Hext in H2;
+                 destruct (halted Sem C) eqn:Hh;
+                 [discriminate | by exfalso] |
+                rewrite Hcontra in H1; by exfalso]
+           end; try discriminate; try (exfalso; by auto).
+  
+  
   Section StepType.
     Variable ge : G.
   Lemma internal_step_type :
@@ -2335,29 +2362,6 @@ Module StepType (SEM : Semantics)
       
   (** Proofs about [fmachine_step]*)
   Notation fmachine_step := ((corestep fine_semantics) ge).
-  (** Solves absurd cases from fine-grained internal steps *)
-  Ltac absurd_internal Hstep :=
-    inversion Hstep; try inversion Htstep; subst; simpl in *;
-    try match goal with
-        | [H: Some _ = Some _ |- _] => inversion H; subst
-        end; pf_cleanup;
-    repeat match goal with
-           | [H: getThreadC ?Pf = _, Hint: ?Pf @ I |- _] =>
-             unfold getStepType in Hint;
-               rewrite H in Hint; simpl in Hint
-           | [H1: match ?Expr with _ => _ end = _,
-                  H2: ?Expr = _ |- _] => rewrite H2 in H1
-           | [H: threadHalted _ |- _] =>
-             inversion H; clear H; subst; simpl in *; pf_cleanup;
-              unfold  ThreadPool.SEM.Sem in *
-           | [H1: is_true (isSome (halted ?Sem ?C)),
-                  H2: match at_external _ _ with _ => _ end = _ |- _] =>
-             destruct (at_external_halted_excl Sem C) as [Hext | Hcontra];
-               [rewrite Hext in H2;
-                 destruct (halted Sem C) eqn:Hh;
-                 [discriminate | by exfalso] |
-                rewrite Hcontra in H1; by exfalso]
-           end; try discriminate; try (exfalso; by auto).
   
   Lemma fstep_containsThread :
     forall tp tp' m m' i j U tr tr'
@@ -2510,11 +2514,6 @@ Module StepType (SEM : Semantics)
       try (by rewrite gsoThreadLPool).
   Qed.
   
-  Hint Resolve fmachine_step_compatible fmachine_step_invariant
-       fstep_containsThread fstep_containsThread' gsoLockSet_fstepI : fstep.
-
-  Hint Rewrite gsoThreadR_fstep permission_at_fstep : fstep.
-  
   Lemma fmachine_step_disjoint_val :
     forall tp tp' m m' i j U tr tr'
       (Hneq: i <> j)
@@ -2563,5 +2562,11 @@ Module StepType (SEM : Semantics)
     eapply Mem.store_valid_block_1; eauto.
   Qed.
   
+  End StepType.
 
+  Hint Resolve fmachine_step_compatible fmachine_step_invariant
+       fstep_containsThread fstep_containsThread' gsoLockSet_fstepI : fstep.
+
+  Hint Rewrite gsoThreadR_fstep permission_at_fstep : fstep.
+  
 End StepType.
