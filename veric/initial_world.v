@@ -1341,7 +1341,10 @@ Fixpoint prog_vars' {F V} (l: list (ident * globdef F V)) : list (ident * globva
 
 Definition prog_vars (p: program) := prog_vars' (prog_defs p).
 
-Definition no_locks phi := forall addr sh sh' z P, phi @ addr <> YES sh sh' (LK z) P.
+Definition no_locks phi :=
+  forall addr sh sh' z P,
+    phi @ addr <> YES sh sh' (LK z) P /\
+    phi @ addr <> YES sh sh' (CT z) P.
 
 Lemma initial_jm_without_locks prog m G n H H1 H2:
   no_locks (m_phi (initial_jm prog m G n H H1 H2)).
@@ -1353,7 +1356,8 @@ Proof.
   unfold compcert_rmaps.R.resource_at in E.
   unfold no_locks, "@"; intros.
   rewrite E.
-  destruct (access_at m addr); try congruence.
-  destruct p; try congruence.
-  destruct (proj1_sig (snd (unsquash (initial_core (Genv.globalenv prog) G n))) addr); try congruence.
+  destruct (access_at m addr); try (split; congruence).
+  destruct p; try (split; congruence).
+  destruct (proj1_sig (snd (unsquash (initial_core (Genv.globalenv prog) G n))) addr);
+    split; try congruence.
 Qed.

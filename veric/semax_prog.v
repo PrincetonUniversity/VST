@@ -1207,6 +1207,7 @@ Proof.
       unfold initial_core.
       apply level_make_rmap.
   - apply initial_jm_without_locks.
+  - apply initial_jm_without_locks.
 Qed.
 
 Definition Delta_types V G {C: compspecs} (tys : list type) : tycontext := 
