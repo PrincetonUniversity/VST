@@ -2213,15 +2213,18 @@ Module InternalSteps (SEM : Semantics) (SemAxioms: SemanticsAxioms SEM)
   End InternalSteps.
 End InternalSteps.
 
-Module StepType (SEM : Semantics) (SemAxioms: SemanticsAxioms SEM)
-       (Machine : MachinesSig with Module SEM := SEM).
+Module StepType (SEM : Semantics)
+       (SemAxioms: SemanticsAxioms SEM)
+       (Machine : MachinesSig with Module SEM := SEM)
+       (AsmContext : AsmContext SEM Machine ).
 
-  Import SEM event_semantics SemAxioms.
-  Import Machine DryMachine ThreadPool.
+  Import AsmContext Machine DryMachine ThreadPool.
+  Import SEM event_semantics SemAxioms. 
 
   Module StepLemmas := StepLemmas SEM Machine.
+  Module CoreLanguageDry := CoreLanguageDry SEM SemAxioms DryMachine.
   Module InternalSteps := InternalSteps SEM SemAxioms Machine.
-  Import InternalSteps StepLemmas event_semantics.
+  Import CoreLanguageDry InternalSteps StepLemmas event_semantics.
    (** Distinguishing the various step types of the concurrent machine *)
 
   Inductive StepType : Type :=
@@ -2332,7 +2335,6 @@ Module StepType (SEM : Semantics) (SemAxioms: SemanticsAxioms SEM)
       
   (** Proofs about [fmachine_step]*)
   Notation fmachine_step := ((corestep fine_semantics) ge).
-  Opaque at_external after_external halted.
   (** Solves absurd cases from fine-grained internal steps *)
   Ltac absurd_internal Hstep :=
     inversion Hstep; try inversion Htstep; subst; simpl in *;
@@ -2346,14 +2348,15 @@ Module StepType (SEM : Semantics) (SemAxioms: SemanticsAxioms SEM)
            | [H1: match ?Expr with _ => _ end = _,
                   H2: ?Expr = _ |- _] => rewrite H2 in H1
            | [H: threadHalted _ |- _] =>
-             inversion H; clear H; subst; simpl in *; pf_cleanup
+             inversion H; clear H; subst; simpl in *; pf_cleanup;
+              unfold  ThreadPool.SEM.Sem in *
            | [H1: is_true (isSome (halted ?Sem ?C)),
                   H2: match at_external _ _ with _ => _ end = _ |- _] =>
              destruct (at_external_halted_excl Sem C) as [Hext | Hcontra];
                [rewrite Hext in H2;
                  destruct (halted Sem C) eqn:Hh;
-                 [discriminate | rewrite Hh in H1; by exfalso] |
-                rewrite Hcontra in H1; exfalso; by auto]
+                 [discriminate | by exfalso] |
+                rewrite Hcontra in H1; by exfalso]
            end; try discriminate; try (exfalso; by auto).
   
   Lemma fstep_containsThread :
@@ -2391,7 +2394,6 @@ Module StepType (SEM : Semantics) (SemAxioms: SemanticsAxioms SEM)
       by eauto.
   Qed.
 
-  Context {cspec : corestepSpec}.
   Lemma fmachine_step_invariant:
     forall (tp tp' : thread_pool) m m' (i : nat) (pf : containsThread tp i) U tr tr'
       (Hcompatible: mem_compatible tp m)
@@ -2400,52 +2402,12 @@ Module StepType (SEM : Semantics) (SemAxioms: SemanticsAxioms SEM)
       invariant tp'.
   Proof.
     intros.
-    absurd_internal Hstep;
-      destruct Hinv as [Hno_race Hlock_pool]. 
-    - constructor;
-      try rewrite gsoThreadCLock;
-      try rewrite gsoThreadCLPool.
-      intros i j cnti' cntj' Hneq.
-      assert (cnti := @cntUpdateC' tid i tp (Krun c_new) Htid cnti').
-      assert (cntj := @cntUpdateC' tid j tp (Krun c_new) Htid cntj').
-      erewrite @gThreadCR with (cntj := cntj).
-      erewrite @gThreadCR with (cntj := cnti);
-        by auto.
-      intros i cnti'.
-      assert (cnti := @cntUpdateC' tid i tp (Krun c_new) Htid cnti');
-        by erewrite gThreadCR with (cntj := cnti).
-      intros.
-      assert (cnt0 := @cntUpdateC' tid i tp (Krun c_new) Htid cnt).
-      rewrite gThreadCR;
-        by eauto.
-      intros.
-      rewrite gsoThreadCLPool in H;
-        by eauto.
-      eauto.
-    - constructor.
-      intros i j cnti' cntj' Hneq.
-      assert (cnti := @cntUpdateC' tid i tp (Krun c) Htid cnti').
-      assert (cntj := @cntUpdateC' tid j tp (Krun c) Htid cntj').
-      erewrite @gThreadCR with (cntj := cntj).
-      erewrite @gThreadCR with (cntj := cnti);
-        by auto.
-      intros i cnti'.
-      assert (cnti := @cntUpdateC' tid i tp (Krun c) Htid cnti').
-      erewrite gsoThreadCLock;
-        by erewrite gThreadCR with (cntj := cnti).
-      intros.
-      assert (cnt0 := @cntUpdateC' tid i tp (Krun c) Htid cnt).
-      rewrite gThreadCR.
-      rewrite gsoThreadCLPool in H;
-        by eauto.
-      intros.
-      rewrite gsoThreadCLPool in H.
-      rewrite gsoThreadCLock;
-        by eauto.
-      eauto.
-      eapply Asm_event.asm_ev_ax1 in Hcorestep.
+    absurd_internal Hstep.
+    - apply updThreadC_invariant; auto.
+    - apply updThreadC_invariant; auto.
+    - eapply ev_step_ax1 in Hcorestep.
       eapply corestep_invariant;
-        by eauto.
+        by eauto.   
   Qed.
 
   Lemma fmachine_step_compatible:
@@ -2571,7 +2533,7 @@ Module StepType (SEM : Semantics) (SemAxioms: SemanticsAxioms SEM)
     intros.
     absurd_internal Hstep;
       try reflexivity;
-    apply Asm_event.asm_ev_ax1 in Hcorestep;
+    apply ev_step_ax1 in Hcorestep;
       eapply corestep_disjoint_val;
         by eauto.
   Qed.
@@ -2594,7 +2556,7 @@ Module StepType (SEM : Semantics) (SemAxioms: SemanticsAxioms SEM)
     inversion Hstep; subst; auto.
     inversion Htstep; subst.
     erewrite <- diluteMem_valid.
-    eapply ev_step_validblock; eauto.
+    eapply CoreLanguage.ev_step_validblock; eauto.
     inversion Htstep; subst; eauto.
     eapply Mem.store_valid_block_1; eauto.
     eapply Mem.store_valid_block_1; eauto.

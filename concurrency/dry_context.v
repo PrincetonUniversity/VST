@@ -28,7 +28,8 @@ Module Type MachinesSig.
 End MachinesSig.
 
 
-Module AsmContext (SEM : Semantics) (Machines : MachinesSig with Module SEM := SEM).
+Module Type AsmContext (SEM : Semantics)
+       (Machines : MachinesSig with Module SEM := SEM).
 
   Import Machines.
   Parameter initU: mySchedule.schedule.
@@ -55,6 +56,4 @@ Module AsmContext (SEM : Semantics) (Machines : MachinesSig with Module SEM := S
     SC.MachineSemantics initU None.
   
 End AsmContext.
-  
-  
 
