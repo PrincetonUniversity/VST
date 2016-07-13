@@ -313,7 +313,7 @@ else
 	@$(COQC) $(COQFLAGS) $*.v
 endif
 
-COQVERSION= 8.5pl1
+COQVERSION= 8.5pl1 or-else 8.5pl2
 COQV=$(shell $(COQC) -v)
 ifeq ("$(filter $(COQVERSION),$(COQV))","")
 $(error FAILURE: You need Coq $(COQVERSION) but you have this version: $(COQV))
