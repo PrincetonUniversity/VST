@@ -27,7 +27,7 @@ COMPCERT=compcert
 
 CC_TARGET=compcert/cfrontend/Clight.vo
 CC_DIRS= lib common cfrontend exportclight
-DIRS= msl sepcomp veric concurrency floyd progs sha linking fcf hmacfcf tweetnacl20140427 ccc26x86
+DIRS= msl sepcomp veric concurrency floyd progs sha linking fcf hmacfcf tweetnacl20140427 ccc26x86 hmacdrbg
 INCLUDE= $(foreach a,$(DIRS),$(if $(wildcard $(a)), -Q $(a) $(a))) -Q $(COMPCERT) compcert $(if $(MATHCOMP), -Q mathcomp $(MATHCOMP))
 #Replace the INCLUDE above with the following in order to build the linking target:
 #INCLUDE= $(foreach a,$(DIRS),$(if $(wildcard $(a)), -I $(a) -as $(a))) -R $(COMPCERT) -as compcert -I $(SSREFLECT)/src -R $(SSREFLECT)/theories -as Ssreflect \
@@ -243,13 +243,31 @@ HMAC_FILES= \
   verif_hmac_double.v verif_hmac_crypto.v protocol_spec_hmac.v
 
 FCF_FILES= \
-  Limit.v Blist.v StdNat.v Rat.v EqDec.v Fold.v Comp.v DetSem.v DistSem.v \
-  DistRules.v DistTacs.v ProgTacs.v GenTacs.v Crypto.v SemEquiv.v \
-  ProgramLogic.v RndNat.v Bernoulli.v FCF.v HasDups.v CompFold.v \
-  RepeatCore.v PRF_Encryption_IND_CPA.v PRF.v Array.v Encryption.v \
-  Asymptotic.v Admissibility.v RndInList.v OTP.v RndGrpElem.v \
-  GroupTheory.v WC_PolyTime.v RndListElem.v RndPerm.v NoDup_gen.v \
-  Hybrid.v OracleCompFold.v PRF_Convert.v
+  Admissibility.v Encryption.v NotationV1.v RndDup.v \
+  Array.v Encryption_2W.v NotationV2.v RndGrpElem.v \
+  Asymptotic.v  Encryption_PK.v OracleCompFold.v RndInList.v \
+  Bernoulli.v EqDec.v OracleHybrid.v RndListElem.v \
+  Blist.v ExpectedPolyTime.v OTP.v RndNat.v \
+  Class.v FCF.v PRF.v RndPerm.v \
+  Comp.v Fold.v PRF_Convert.v SemEquiv.v \
+  CompFold.v GenTacs.v PRG.v Sigma.v \
+  ConstructedFunc.v GroupTheory.v Procedure.v State.v \
+  Crypto.v HasDups.v ProgramLogic.v StdNat.v \
+  DetSem.v Hybrid.v ProgTacs.v Tactics.v \
+  DiffieHellman.v Limit.v PRP_PRF.v TwoWorldsEquiv.v \
+  DistRules.v ListHybrid.v RandPermSwitching.v WC_PolyTime.v \
+  DistSem.v Lognat.v Rat.v WC_PolyTime_old.v \
+  DistTacs.v NoDup_gen.v RepeatCore.v
+
+
+#FCF_FILES= \
+#  Limit.v Blist.v StdNat.v Rat.v EqDec.v Fold.v Comp.v DetSem.v DistSem.v \
+#  DistRules.v DistTacs.v ProgTacs.v GenTacs.v Crypto.v SemEquiv.v \
+#  ProgramLogic.v RndNat.v Bernoulli.v FCF.v HasDups.v CompFold.v \
+#  RepeatCore.v PRF_Encryption_IND_CPA.v PRF.v Array.v Encryption.v \
+#  Asymptotic.v Admissibility.v RndInList.v OTP.v RndGrpElem.v \
+#  GroupTheory.v WC_PolyTime.v RndListElem.v RndPerm.v NoDup_gen.v \
+#  Hybrid.v OracleCompFold.v PRF_Convert.v
 
 HMACFCF_FILES= \
   splitVector.v cAU.v hF.v HMAC_spec.v NMAC_to_HMAC.v \
@@ -273,6 +291,13 @@ TWEETNACL_FILES = \
   verif_fcore.v verif_crypto_core.v \
   verif_crypto_stream_salsa20_xor.v verif_crypto_stream.v
 
+HMACDRBG_FILES = \
+  entropy.v entropy_lemmas.v DRBG_functions.v HMAC_DRBG_algorithms.v \
+  HMAC256_DRBG_functional_prog.v HMAC_DRBG_pure_lemmas.v \
+  HMAC_DRBG_update.v \
+  mocked_md.v mocked_md_compspecs.v hmac_drbg.v hmac_drbg_compspecs.v \
+  verif_hmac_drbg_update.v verif_hmac_drbg_reseed.v
+
 # DRBG_Files = \
 #  hmac_drbg.v HMAC256_DRBG_functional_prog.v hmac_drbg_compspecs.v \
 #  entropy.v DRBG_functions.v HMAC_DRBG_algorithms.v spec_hmac_drbg.v \
@@ -294,7 +319,8 @@ FILES = \
  $(HMACFCF_FILES:%=hmacfcf/%) \
  $(HMACEQUIV_FILES:%=sha/%) \
  $(CCC26x86_FILES:%=ccc26x86/%) \
- $(TWEETNACL_FILES:%=tweetnacl20140427/%)
+ $(TWEETNACL_FILES:%=tweetnacl20140427/%) \
+ $(HMACDRBG_Files:%=hmacdrbg/%)
 #$(CONCUR_FILES:%=concurrency/%)
 # $(DRBG_FILES:%=verifiedDrbg/spec/%)
 
@@ -341,6 +367,7 @@ fcf:     .loadpath $(FCF_FILES:%.v=fcf/%.vo)
 hmacfcf: .loadpath $(HMACFCF_FILES:%.v=hmacfcf/%.vo)
 tweetnacl: .loadpath $(TWEETNACL_FILES:%.v=tweetnacl20140427/%.vo)
 hmac0: .loadpath sha/verif_hmac_init.vo sha/verif_hmac_cleanup.vo sha/verif_hmac_final.vo sha/verif_hmac_simple.vo  sha/verif_hmac_double.vo sha/verif_hmac_update.vo sha/verif_hmac_crypto.vo
+hmacdrbg:   .loadpath $(HMACDRBG_FILES:%.v=hmacdrbg/%.vo)
 # drbg: .loadpath $(DRBG_FILES:%.v=verifiedDrbg/%.vo)
 
 CGFLAGS =  -DCOMPCERT
