@@ -43,6 +43,10 @@ Module Type AsmContext (SEM : Semantics)
   
   Definition sc_semantics :=
     SC.MachineSemantics initU None.
+
+  Definition tpc_init f arg := initial_core coarse_semantics the_ge f arg.
+  Definition tpf_init f arg := initial_core fine_semantics the_ge f arg.
+  Definition sc_init f arg := initial_core sc_semantics the_ge f arg.
   
 End AsmContext.
 

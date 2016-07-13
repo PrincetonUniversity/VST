@@ -76,9 +76,6 @@ Module FineConcSafe (SEM : Semantics) (SemAxioms : SemanticsAxioms SEM)
   Import StepType.InternalSteps StepLemmas.
 
   Import MemoryWD ThreadPoolInjections event_semantics.
-  Definition tpc_init f arg := initial_core coarse_semantics the_ge f arg.
-  Definition tpf_init f arg := initial_core fine_semantics the_ge f arg.
-
  
   (** Excluded middle is required, but can be easily lifted*)
   Axiom em : ClassicalFacts.excluded_middle.

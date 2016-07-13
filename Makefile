@@ -155,7 +155,8 @@ CONCUR_FILES= \
   scheduler.v   semax_conc.v semax_to_juicy_machine.v \
   sepcomp.v seq_lemmas.v ssromega.v stack.v \
   threadPool.v threads_lemmas.v wf_lemmas.v \
-  x86_inj.v x86_safe.v x86_context.v fineConc_x86.v
+  x86_inj.v x86_safe.v x86_context.v fineConc_x86.v \
+  SC_erasure.v
 
 CCC26x86_FILES = \
   Archi.v Bounds.v Conventions1.v Conventions.v Ctypes.v \
