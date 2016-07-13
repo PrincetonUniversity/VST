@@ -41,6 +41,12 @@ Module ValErasure.
     | Vundef, _ => True
     | v1, v2 => v1 = v2
     end.
+
+  Definition erased_memval mv1 mv2 : Prop :=
+    match mv1, mv2 with
+    | Undef, _ => True
+    | mv1, mv2 => mv1 = mv2
+    end.
   
   Inductive erased_val_list : seq.seq val -> seq.seq val -> Prop :=
     erased_val_nil : erased_val_list [::] [::]
@@ -48,6 +54,13 @@ Module ValErasure.
       erased_val v v' ->
       erased_val_list vl vl' ->
       erased_val_list (v :: vl) (v' :: vl').
+
+  Inductive erased_memval_list : seq.seq memval -> seq.seq memval -> Prop :=
+    erased_memval_nil : erased_memval_list [::] [::]
+  | erased_memval_cons : forall (mv mv' : memval) (mvl mvl' : seq.seq memval),
+      erased_memval mv mv' ->
+      erased_memval_list mvl mvl' ->
+      erased_memval_list (mv :: mvl) (mv' :: mvl').
 
   Lemma erased_val_refl:
     forall v, erased_val v v.
@@ -124,12 +137,11 @@ End ValErasure.
 (** ** Memory Erasure*)
 Module MemErasure.
 
-  (** The erased memory is identical for everything but
-       permissions. *)
-  (** NOTE: There is an implicit hypothesis here, which is currently
-  true for the X86 semantics of compcert (and probably for
-  PPC). Undefined values are never stored in the memory. If this was
-  not true we would have to related the contents using [erased_val]*)
+  Import ValErasure.
+  
+  (** The values of the erased memory may be more defined and its
+       permissions are top.*)
+
   Local Notation "a # b" := (PMap.get b a) (at level 1).
 
   Record erasedMem (m m': mem) :=
@@ -137,10 +149,21 @@ Module MemErasure.
         forall b ofs k,
           Mem.valid_block m' b -> 
           (Mem.mem_access m')#b ofs k = Some Freeable;
-      erased_contents:
-        (Mem.mem_contents m') = (Mem.mem_contents m);
+      erased_contents: forall b ofs,
+          erased_memval (ZMap.get ofs ((Mem.mem_contents m) # b))
+                        (ZMap.get ofs ((Mem.mem_contents m') # b));
       erased_nb: Mem.nextblock m = Mem.nextblock m'
     }.
+
+  Lemma erasedMem_restr:
+    forall m m' pmap (Hlt: permMapLt pmap (getMaxPerm m)),
+      erasedMem m m' ->
+      erasedMem (restrPermMap Hlt) m'.
+  Proof.
+    intros.
+    inversion H.
+    constructor; auto.
+  Qed.
 
   Lemma erasedMem_dilute_1:
     forall m m',
@@ -152,12 +175,38 @@ Module MemErasure.
     constructor; auto.
   Qed.
 
-   Lemma mem_load_erased:
-    forall chunk m m' b ofs pmap v
-      (Hlt: permMapLt pmap (getMaxPerm m))
-      (Hload: Mem.load chunk (restrPermMap Hlt) b ofs = Some v)
+  Lemma getN_erasure:
+    forall m1 m2 b,
+      erasedMem m1 m2 ->
+      forall n ofs,
+        Mem.range_perm m1 b ofs (ofs + Z_of_nat n) Cur Readable ->
+        erased_memval_list
+                     (Mem.getN n ofs (m1.(Mem.mem_contents)#b))
+                     (Mem.getN n ofs (m2.(Mem.mem_contents)#b)).
+  Proof.
+    induction n; intros; simpl.
+    constructor.
+    rewrite inj_S in H0.
+    destruct H.
+    constructor.
+    eapply erased_contents0; eauto.
+    apply IHn. red; intros; apply H0; omega.
+  Qed.
+
+  Lemma decode_val_erasure:
+    forall vl1 vl2 chunk,
+      erased_memval_list vl1 vl2 ->
+      erased_val (decode_val chunk vl1) (decode_val chunk vl2).
+  Proof.
+    Admitted.
+  
+  Lemma mem_load_erased:
+    forall chunk m m' b ofs v
+      (Hload: Mem.load chunk m b ofs = Some v)
       (Herased: erasedMem m m'),
-      Mem.load chunk m' b ofs = Some v.
+    exists v',
+      Mem.load chunk m' b ofs = Some v' /\
+      erased_val v v'.
   Proof.
     intros.
     inversion Herased.
@@ -173,24 +222,79 @@ Module MemErasure.
       unfold Mem.valid_block in *. simpl in *.
       rewrite <- erased_nb0; auto.
     }
+    exists (decode_val chunk (Mem.getN (size_chunk_nat chunk) ofs
+                                  (m'.(Mem.mem_contents)#b))).
     Transparent Mem.load.
-    unfold Mem.load in *.
-    destruct (Mem.valid_access_dec m' chunk b ofs Readable);
-      try by exfalso.
-    destruct (Mem.valid_access_dec (restrPermMap Hlt) chunk b ofs Readable);
-      try by discriminate.
-    simpl in *.
-    rewrite erased_contents0; auto.
+    unfold Mem.load. split.
+    apply pred_dec_true; auto.
+    exploit Mem.load_result; eauto. intro. rewrite H1.
+    apply decode_val_erasure; auto.
+    apply getN_erasure; auto.
+    rewrite <- size_chunk_conv.
+    exploit Mem.load_valid_access; eauto. 
     Opaque Mem.load.
   Qed.
 
+  Lemma inj_bytes_erasure :
+    forall (bl : seq.seq byte),
+      erased_memval_list (inj_bytes bl) (inj_bytes bl).
+  Admitted.
+
+  Lemma inj_value_erasure :
+    forall (v1 v2 : val) (q : quantity),
+      erased_val v1 v2 ->
+      erased_memval_list (inj_value q v1) (inj_value q v2).
+  Admitted.
+
+  Lemma repeat_Undef_erasure_self :
+    forall (n : nat),
+      erased_memval_list (list_repeat n Undef) (list_repeat n Undef).
+  Admitted.
+
+  Lemma repeat_Undef_inject_encode_val :
+    forall (chunk : memory_chunk) (v : val),
+      erased_memval_list (list_repeat (size_chunk_nat chunk) Undef)
+                         (encode_val chunk v).
+  Admitted.
+
+  Lemma encode_val_erasure:
+    forall (v1 v2 : val) (chunk : memory_chunk),
+      erased_val v1 v2 ->
+      erased_memval_list (encode_val chunk v1)
+                   (encode_val chunk v2).
+  Proof.
+    intros. 
+    destruct v1; inversion H; subst; simpl; destruct chunk;
+    auto using inj_bytes_erasure,  inj_value_erasure, repeat_Undef_erasure_self,
+    repeat_Undef_inject_encode_val.    
+    unfold encode_val. destruct v2; apply inj_value_erasure; auto.
+    unfold encode_val. destruct v2; apply inj_value_erasure; auto.
+  Qed.
+
+  Lemma setN_erasure :
+    forall (vl1 vl2 : seq.seq memval),
+      erased_memval_list vl1 vl2 ->
+      forall (p : Z) (c1 c2 : ZMap.t memval),
+        (forall q : Z,
+            erased_memval (ZMap.get q c1) (ZMap.get q c2)) ->
+        forall q : Z,
+          erased_memval (ZMap.get q (Mem.setN vl1 p c1))
+                        (ZMap.get q (Mem.setN vl2 p c2)).
+  Proof.
+    induction 1; intros; simpl.
+    auto.
+    apply IHerased_memval_list; auto.
+    intros. erewrite ZMap.gsspec at 1. destruct (ZIndexed.eq q0 p). subst q0.
+    rewrite ZMap.gss. auto.
+    rewrite ZMap.gso. auto. unfold ZIndexed.t in *. omega.
+  Qed.
+  
   Lemma mem_store_erased:
-    forall chunk m m' b ofs pmap v m2
-      (Hv: v <> Vundef)
-      (Hlt: permMapLt pmap (getMaxPerm m))
-      (Hstore: Mem.store chunk (restrPermMap Hlt) b ofs v = Some m2)
-      (Herased: erasedMem m m'),
-    exists m2', Mem.store chunk m' b ofs v = Some m2'
+    forall chunk m m' b ofs v v' m2
+      (Hstore: Mem.store chunk m b ofs v = Some m2)
+      (Herased: erasedMem m m')
+      (Herased_val: erased_val v v') ,
+    exists m2', Mem.store chunk m' b ofs v' = Some m2'
            /\ erasedMem m2 m2'.
   Proof.
     intros.
@@ -209,27 +313,31 @@ Module MemErasure.
       unfold Mem.valid_block in *. simpl in *.
       rewrite <- erased_nb0; auto.
     }
-    Transparent Mem.store.
-    unfold Mem.store in *.
     destruct (Mem.valid_access_dec m' chunk b ofs Writable); try by exfalso.
-    destruct (Mem.valid_access_dec (restrPermMap Hlt) chunk b ofs Writable);
-      try by discriminate. simpl in Hstore.
-    inv Hstore.
-    eexists; split; eauto.
-    constructor; simpl; auto.
-    rewrite <- erased_contents0.
-    reflexivity.
-    Opaque Mem.store.
-  Qed.
-
-  Lemma erasedMem_restr:
-    forall m m' pmap (Hlt: permMapLt pmap (getMaxPerm m)),
-      erasedMem m m' ->
-      erasedMem (restrPermMap Hlt) m'.
-  Proof.
-    intros.
-    inversion H.
-    constructor; auto.
+    destruct (Mem.valid_access_store _ _ _ _ v' Haccess') as [m2' Hstore'].
+    exists m2'. split; auto.
+    constructor.
+    - intros.
+      assert (Heq1 := MemoryLemmas.mem_store_max _ _ _ _ _ _ Hstore' b0 ofs0).
+      assert (Heq2 := MemoryLemmas.mem_store_cur _ _ _ _ _ _ Hstore' b0 ofs0).
+      do 2 rewrite getMaxPerm_correct in Heq1.
+      do 2 rewrite getCurPerm_correct in Heq2.
+      unfold permission_at in *.
+      eapply Mem.store_valid_block_2 in H1; eauto.
+      destruct k;
+        [rewrite <- Heq1 | rewrite <- Heq2];
+        eauto.
+    - intros.
+      rewrite (Mem.store_mem_contents _ _ _ _ _ _ Hstore').
+      rewrite (Mem.store_mem_contents _ _ _ _ _ _ Hstore).
+      rewrite ! PMap.gsspec.
+      destruct (peq b0 b). subst b0.
+      apply setN_erasure.
+      apply encode_val_erasure; auto. intros. eauto.
+      eauto.
+    - erewrite Mem.nextblock_store with (m1 := m) by eauto.
+      erewrite Mem.nextblock_store with (m2 := m2') (m1 := m') by eauto.
+      eauto.
   Qed.
   
 End MemErasure.
@@ -437,6 +545,7 @@ Module SCErasure (SEM: Semantics)
       erased_threadPool tp2 tp2' /\ erasedMem m2 m2'.
   Proof with eauto with erased.
     intros.
+    Hint Resolve erasedMem_restr : erased.
     inversion HerasePool as [Hnum Hthreads].
     specialize (Hthreads _ cnti cnti').      
     inversion Hstep; subst;
@@ -447,11 +556,12 @@ Module SCErasure (SEM: Semantics)
     end; try (by exfalso);
     try match goal with
         | [H: Mem.load _ _ _ _ = Some _ |- _] =>
-          eapply mem_load_erased in H; eauto
+          eapply mem_load_erased in H; eauto with erased;
+          destruct Hload as [? [Hload ?]]
         end;
     try match goal with
         | [H: Mem.store _ _ _ _ _ = Some _ |- _] =>
-          eapply mem_store_erased in H; eauto;
+          eapply mem_store_erased in H; eauto with erased;
           destruct Hstore as [m2' [Hstore HerasedMem']]
         end;
     try match goal with
@@ -474,6 +584,7 @@ Module SCErasure (SEM: Semantics)
            | [H: erased_val_list _ _ |- _] =>
              inv H
            | [H: erased_val (Vptr _ _) _ |- _] => inv H
+           | [H:erased_val (Vint _) _ |- _] => inv H
            end; subst.
     - exists (ErasedMachine.ThreadPool.updThreadC cnti' (Kresume c0 Vundef)), m2'.
       split; [econstructor; eauto | split; eauto].
@@ -573,6 +684,27 @@ Module SCErasure (SEM: Semantics)
       split; [econstructor; eauto | split; eauto].
   Qed.
 
+  Global Ltac pf_cleanup :=
+    repeat match goal with
+           | [H1: invariant ?X, H2: invariant ?X |- _] =>
+             assert (H1 = H2) by (by eapply proof_irr);
+               subst H2
+           | [H1: mem_compatible ?TP ?M, H2: mem_compatible ?TP ?M |- _] =>
+             assert (H1 = H2) by (by eapply proof_irr);
+               subst H2
+           | [H1: is_true (leq ?X ?Y), H2: is_true (leq ?X ?Y) |- _] =>
+             assert (H1 = H2) by (by eapply proof_irr); subst H2
+           | [H1: containsThread ?TP ?M, H2: containsThread ?TP ?M |- _] =>
+             assert (H1 = H2) by (by eapply proof_irr); subst H2
+           | [H1: containsThread ?TP ?M,
+                  H2: containsThread (@updThreadC _ ?TP _ _) ?M |- _] =>
+             apply cntUpdateC' in H2;
+               assert (H1 = H2) by (by eapply cnt_irr); subst H2
+           | [H1: containsThread ?TP ?M,
+                  H2: containsThread (@updThread _ ?TP _ _ _) ?M |- _] =>
+             apply cntUpdate' in H2;
+               assert (H1 = H2) by (by eapply cnt_irr); subst H2
+           end.
   Lemma startStep_erasure:
     forall ge tp1 tp1' tp2 i
       (HerasePool: erased_threadPool tp1 tp1')

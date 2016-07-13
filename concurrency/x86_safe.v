@@ -247,6 +247,26 @@ Module X86CoreErasure <: CoreErasure X86SEM.
     destruct (rs r); tauto.
   Qed.
 
+  Lemma mem_erasure_idempotent:
+    forall m m',
+      erasedMem m m' ->
+      erasedMem m (erasePerm m').
+  Proof.
+  Admitted.
+
+  Lemma extcall_arguments_erasure:
+    forall m m' ef args rs rs' ev
+      (Hexternal: extcall_arguments rs m (ef_sig ef) args)
+      (Hexternal_ev: Asm_event.extcall_arguments_ev rs m (ef_sig ef) args ev)
+      (Hmem_obs_eq: erasedMem m m') 
+      (Hrs : erased_regs rs rs'),
+    exists args',
+      Asm_event.extcall_arguments_ev rs' m' (ef_sig ef) args' ev /\
+      extcall_arguments rs' m' (ef_sig ef) args' /\
+      erased_val_list args args'.
+  Proof.
+  Admitted.
+
   Lemma evstep_erase:
     forall ge c1 c1' c2 ev m1 m1' m2
       (HeraseCores: erasedCores c1 c1')
@@ -274,62 +294,101 @@ Module X86CoreErasure <: CoreErasure X86SEM.
              end.
       econstructor...
       admit.
-    + assert (Hpc' := get_reg_ren PC Hrs_ren H1).
-      destruct Hpc' as [v' [Hpc' Hpc_obs]].
-      inversion Hpc_obs; subst. rewrite <- H0 in Hpc_obs.
-      assert (Hargs' := extcall_arguments_ren _ H6 Hobs_eq Hrs_ren).
-      assert (Hfun := find_funct_ptr_ren Hfg Hge_wd Hincr Hpc_obs H2); subst b2.
-      destruct Hargs' as [args' [Hargs' Hval_obs']].
-      exists (Asm_CallstateOut ef args' rsF loaderF), mf, f.
-      unfold ren_incr, ren_separated.
+    + assert (Hpc' : rs1' PC = Vptr b Int.zero)
+          by (erewrite get_erased_reg in H1; eauto;
+              rewrite H1; discriminate).
+      assert (Hargs' := extcall_arguments_erasure _ H3 H8 HerasedMem Hrs).
+      destruct Hargs' as (args' & Hargs_ev' & Hargs' & Hargs_erasure).
+      exists (Asm_CallstateOut ef args' rs1' loader1'), m1'.
+      split. econstructor...
+      split. simpl; repeat split...
+      eapply mem_erasure_idempotent; eauto.
+    - destruct HeraseCores as (? & Herased_args & ? & ?).
+      subst.
+      inversion Hstep; subst.
+      destruct (Mem.alloc m1' 0 (4*z)) as [m2' stk'] eqn:Halloc'.
+
+      Lemma alloc_erasure:
+        forall m m' sz m2 m2' b b'
+          (Herased: erasedMem m m')
+          (Halloc: Mem.alloc m 0 sz = (m2, b))
+          (Halloc': Mem.alloc m' 0 sz = (m2', b')),
+          erasedMem m2 m2' /\ b = b'.
+      Admitted.
+      destruct (alloc_erasure HerasedMem H8 Halloc') as (HerasedMem2 & ?).
+      subst.      
+      assert (erased_regs
+                ((((Pregmap.init Vundef) # PC <- (Vptr f0 Int.zero)) # RA <- Vzero)
+                   # ESP <- (Vptr stk' Int.zero))
+                ((((Pregmap.init Vundef) # PC <- (Vptr f0 Int.zero)) # RA <- Vzero)
+                   # ESP <- (Vptr stk' Int.zero)))
+        by (eapply erased_regs_refl).
+      assert (load_frame.args_len_rec args0 tys0 = Some z).
+      { clear - Herased_args H3.
+        generalize dependent tys0.
+        generalize dependent args0.
+        generalize dependent z.
+        induction args; intros;
+        inversion Herased_args; subst.
+        simpl. destruct tys0; simpl in *; inv H3; auto.
+        destruct tys0. simpl in *.
+        discriminate.
+        simpl in *; destruct t; 
+        destruct (load_frame.args_len_rec args tys0) eqn:?;
+                 try discriminate;
+        try (specialize (IHargs _ _ H4 _ Heqo);
+              rewrite IHargs; auto);
+        destruct a; inv H1; try discriminate;
+        auto.
+      }
+
+      Lemma load_frame_store_nextblock:
+        forall m m2 stk args tys
+          (Hload_frame: load_frame.store_args m stk args tys = Some m2),
+          Mem.nextblock m2 = Mem.nextblock m.
+      Proof.
+      Admitted. (*already done*)
+
+      Lemma load_frame_store_args_erasure:
+        forall m m2 m' args args' T tys
+          (Hmem: erasedMem m m')
+          (Hargs: erased_val_list args args')
+          (Hload_frame: load_frame.store_args m stk args tys = Some m2)
+          (Hargs_ev: Asm_event.store_args_events stk args tys0 = Some T),
+        exists m2',
+          load_frame.store_args m' stk args' tys = Some m2' /\
+          load_frame.store_args stk args' tys = Some T /\
+          erasedMem m2 m'.
+      Proof.
+      Admitted.
+
+        Lemma extcall_arguments_erasure:
+    forall m m' ef args rs rs' ev
+      (Hexternal: extcall_arguments rs m (ef_sig ef) args)
+      (Hexternal_ev: Asm_event.extcall_arguments_ev rs m (ef_sig ef) args ev)
+      (Hmem_obs_eq: erasedMem m m') 
+      (Hrs : erased_regs rs rs'),
+    exists args',
+      Asm_event.extcall_arguments_ev rs' m' (ef_sig ef) args' ev /\
+      extcall_arguments rs' m' (ef_sig ef) args' /\
+      erased_val_list args args'.
+  Proof.
+  Admitted.
+      
+      assert (Hnb := load_frame_store_nextblock _ _ _ _ H9).
+      eapply load_frame_store_args_erasure in H9; eauto.
+      destruct H8 as [m2' [Hload_frame' Hobs_eq']].
+      assert (Hnb' := load_frame_store_nextblock _ _ _ _ Hload_frame').
+
+      exists (State ((((Pregmap.init Vundef) # PC <- (Vptr f1 Int.zero)) # RA <- Vzero)
+                  # ESP <- (Vptr stk' Int.zero)) (mk_load_frame stk' retty0)), m2', f'.
+      unfold Mem.valid_block in *.
+      rewrite Hnb Hnb'.
       repeat match goal with
-             | [|- _ /\ _] => split; auto
-             | [|- forall _, _] => intros
-             end; try (by congruence);
+             | [ |- _ /\ _] =>
+               split; simpl; eauto
+             end.
       econstructor; eauto.
-  - inversion Hcorestep; subst.
-    split; auto. split.
-    exists f; split; eauto using ren_domain_incr_refl.
-    intros f' Hdomain'.
-    simpl.
-    destruct Hwd.
-    split; first by (eapply extcall_arguments_valid; eauto with wd).
-    split...
-  - inversion Hcorestep; subst.
-    destruct Hwd.
-    assert (Hstk := Mem.valid_new_block _ _ _ _ _ H7).
-    eapply mem_valid_alloc in H7; eauto.
-    destruct H7. destruct H2 as [f' [Hincr' Hdomain']].
-    split.
-    eapply valid_val_list_incr in H0; eauto.
-    eapply load_frame_store_args_rec_valid with (f := f'); eauto.
-    split.
-    exists f'; split; eauto.
-    eapply load_frame_store_args_rec_domain...
-    intros f'' Hdomain''.
-    simpl.
-    erewrite (Hdomain' stk) in Hstk.
-    assert (domain_memren f' m')
-      by (eapply load_frame_store_args_rec_domain; eauto with wd).
-    assert (exists x, f'' stk = Some x).
-    { erewrite <- (H2 stk) in Hstk.
-      erewrite (Hdomain'' stk) in Hstk.
-      destruct (f'' stk); try by exfalso.
-      eexists; eauto. }
-    split.
-    intro r.
-    unfold Pregmap.get.
-    apply regset_wd_set; auto.
-    apply regset_wd_set; simpl; auto.
-    apply regset_wd_set; simpl.
-    apply Hincr' in H.
-    erewrite <- (H2 f0) in H.
-    erewrite (Hdomain'' f0) in H.
-    destruct (f'' f0); try by exfalso.
-    eexists; eauto.
-    intro r0. unfold Pregmap.get. rewrite Pregmap.gi.
-    simpl; auto.
-    destruct H3. rewrite H3. auto.
   - inversion Hcorestep; by exfalso.
   Qed.
 

@@ -23,7 +23,7 @@ Module Type MachinesSig.
   Module SC := FineMachine mySchedule ErasedMachine.
 
   Import DryMachine ThreadPool.
-  Ltac pf_cleanup :=
+  Global Ltac pf_cleanup :=
     repeat match goal with
            | [H1: invariant ?X, H2: invariant ?X |- _] =>
              assert (H1 = H2) by (by eapply proof_irr);

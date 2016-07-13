@@ -2343,7 +2343,6 @@ Qed.
   Qed.
   Opaque Mem.load.
 
-  (*TODO: The Proof. Should be same as above*)
   Lemma loadv_val_obs:
     forall (mc mf : mem) (f:memren)
       (vptr1 vptr2 : val) chunk v1
