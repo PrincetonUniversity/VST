@@ -573,29 +573,6 @@ Module SCErasure (SEM: Semantics)
       split; [econstructor; eauto | split; eauto].
   Qed.
 
-  (*TODO: move that in asm_context module and see if it works*)
- Ltac pf_cleanup :=
-    repeat match goal with
-           | [H1: invariant ?X, H2: invariant ?X |- _] =>
-             assert (H1 = H2) by (by eapply proof_irr);
-               subst H2
-           | [H1: mem_compatible ?TP ?M, H2: mem_compatible ?TP ?M |- _] =>
-             assert (H1 = H2) by (by eapply proof_irr);
-               subst H2
-           | [H1: is_true (leq ?X ?Y), H2: is_true (leq ?X ?Y) |- _] =>
-             assert (H1 = H2) by (by eapply proof_irr); subst H2
-           | [H1: containsThread ?TP ?M, H2: containsThread ?TP ?M |- _] =>
-             assert (H1 = H2) by (by eapply proof_irr); subst H2
-           | [H1: containsThread ?TP ?M,
-                  H2: containsThread (@updThreadC _ ?TP _ _) ?M |- _] =>
-             apply cntUpdateC' in H2;
-               assert (H1 = H2) by (by eapply cnt_irr); subst H2
-           | [H1: containsThread ?TP ?M,
-                  H2: containsThread (@updThread _ ?TP _ _ _) ?M |- _] =>
-             apply cntUpdate' in H2;
-               assert (H1 = H2) by (by eapply cnt_irr); subst H2
-           end.
-  
   Lemma startStep_erasure:
     forall ge tp1 tp1' tp2 i
       (HerasePool: erased_threadPool tp1 tp1')
@@ -1063,7 +1040,55 @@ Module SCErasure (SEM: Semantics)
   Qed.
 
 End SCErasure.
+
+(*TODO: Move to another file*)
+(** ** Spinlock well synchronized*)
+(*
+(** Competing Events *)
+
+  Definition sameLocation ev1 ev2 :=
+    match location ev1, location ev2 with
+    | Some (b1, ofs1, size1), Some (b2, ofs2, size2) =>
+      b1 = b2 /\ exists ofs, Intv.In ofs (ofs1, (ofs1 + Z.of_nat size1)%Z) /\
+                       Intv.In ofs (ofs2, (ofs2 + Z.of_nat size2)%Z)
+    | _,_ => False
+    end.
   
+  Definition competes (ev1 ev2 : machine_event) : Prop :=
+    thread_id ev1 <> thread_id ev2 /\
+    sameLocation ev1 ev2 /\
+    (is_internal ev1 ->
+     is_internal ev2 ->
+     action ev1 = Some Write \/ action ev2 = Some Write) /\
+    (is_external ev1 \/ is_external ev2 ->
+     action ev1 = Some Mklock \/ action ev1 = Some Freelock
+     \/ action ev2 = Some Mklock \/ action ev2 = Some Freelock).
+
+  (** Spinlock well synchronized*)
+  Definition spinlock_synchronized (tr : X86SC.event_trace) :=
+    forall i j ev1 ev2,
+      i < j ->
+      List.nth_error tr i = Some ev1 ->
+      List.nth_error tr j = Some ev2 ->
+      competes ev1 ev2 ->
+      exists u v eu ev,
+        i < u < v < j /\
+        List.nth_error tr u = Some eu /\
+        List.nth_error tr v = Some ev /\
+        action eu = Some Release /\ action ev = Some Acquire /\
+        location eu = location ev.
+
+  (** Spinlock clean *)
+  Definition spinlock_clean (tr : X86SC.event_trace) :=
+    forall i j evi evj,
+      i < j ->
+      List.nth_error tr i = Some evi ->
+      List.nth_error tr j = Some evj ->
+      action evi = Some Mklock ->
+      (~ exists u evu, i < u < j /\ List.nth_error tr u = Some evu /\
+                  action evu = Some Freelock /\ location evu = location evi) ->
+      sameLocation evj evi ->
+      action evj <> Some Write /\ action evj <> Some Read. *)
   
 
 

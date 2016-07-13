@@ -769,28 +769,6 @@ Module StepLemmas (SEM : Semantics)
                
   Import SEM event_semantics.
   Import Machine DryMachine DryConc ThreadPool.
-
-   Global Ltac pf_cleanup :=
-    repeat match goal with
-           | [H1: invariant ?X, H2: invariant ?X |- _] =>
-             assert (H1 = H2) by (by eapply proof_irr);
-               subst H2
-           | [H1: mem_compatible ?TP ?M, H2: mem_compatible ?TP ?M |- _] =>
-             assert (H1 = H2) by (by eapply proof_irr);
-               subst H2
-           | [H1: is_true (leq ?X ?Y), H2: is_true (leq ?X ?Y) |- _] =>
-             assert (H1 = H2) by (by eapply proof_irr); subst H2
-           | [H1: containsThread ?TP ?M, H2: containsThread ?TP ?M |- _] =>
-             assert (H1 = H2) by (by eapply proof_irr); subst H2
-           | [H1: containsThread ?TP ?M,
-                  H2: containsThread (@updThreadC _ ?TP _ _) ?M |- _] =>
-             apply cntUpdateC' in H2;
-               assert (H1 = H2) by (by eapply cnt_irr); subst H2
-           | [H1: containsThread ?TP ?M,
-                  H2: containsThread (@updThread _ ?TP _ _ _) ?M |- _] =>
-             apply cntUpdate' in H2;
-               assert (H1 = H2) by (by eapply cnt_irr); subst H2
-           end.
   
   Lemma updThreadC_compatible:
     forall (tp : thread_pool) m i (c : ctl)
