@@ -10,6 +10,7 @@ Require Import compcert.common.Values.
 
 Require Import msl.Coqlib2.
 Require Import msl.eq_dec.
+Require Import msl.seplog.
 Require Import veric.initial_world.
 Require Import veric.juicy_mem.
 Require Import veric.juicy_mem_lemmas.
@@ -25,6 +26,7 @@ Require Import veric.juicy_extspec.
 Require Import veric.tycontext.
 Require Import veric.semax_ext.
 Require Import veric.semax_ext_oracle.
+Require Import veric.res_predicates.
 Require Import sepcomp.semantics.
 Require Import sepcomp.step_lemmas.
 Require Import sepcomp.event_semantics.
@@ -45,8 +47,6 @@ Ltac eassert :=
 
 Ltac espec H := specialize (H ltac:(solve [eauto])).
 
-(* debugging *)
-Axiom HOLE : forall {A}, A.
 Open Scope string_scope.
 
 (*! Instantiation of modules *)
@@ -71,7 +71,7 @@ Qed.
 
 Inductive cohere_res_lock : forall (resv : option (option rmap)) (wetv : resource) (dryv : memval), Prop :=
 | cohere_notlock wetv dryv:
-    (forall  sh sh' z P, wetv <> YES sh sh' (LK z) P) ->
+    (forall sh sh' z P, wetv <> YES sh sh' (LK z) P) ->
     cohere_res_lock None wetv dryv
 | cohere_locked R wetv :
     islock_pred R wetv ->
@@ -81,28 +81,35 @@ Inductive cohere_res_lock : forall (resv : option (option rmap)) (wetv : resourc
     R phi ->
     cohere_res_lock (Some (Some phi)) wetv (Byte (Integers.Byte.one)).
 
-Definition lock_coherence lset (phi : rmap) (m : mem) :=
-  forall lock : Address.address,
-    cohere_res_lock
-      (@addressFiniteMap.AMap.find _ lock lset)
-      (phi @ lock)
-      (contents_at m lock).
+Definition LKspec_ext (R: pred rmap) : spec :=
+   fun (rsh sh: Share.t) (l: AV.address)  =>
+    allp (jam (adr_range_dec l lock_size)
+                         (jam (eq_dec l) 
+                            (yesat (SomeP nil (fun _ => R)) (LK lock_size) rsh sh)
+                            (CTat l rsh sh))
+                         (fun _ => TT)).
+
+Definition LK_at R sh :=
+  LKspec_ext R (Share.unrel Share.Lsh sh) (Share.unrel Share.Rsh sh).
+
+Definition load_at m loc := Mem.load Mint32 m (fst loc) (snd loc).
+
+Definition lock_coherence (lset : AMap.t (option rmap)) (phi : rmap) (m : mem) : Prop :=
+  forall loc : address,
+    match AMap.find loc lset with
+    | None =>
+      forall sh sh' z P,
+        phi @ loc <> YES sh sh' (LK z) P /\
+        phi @ loc <> YES sh sh' (CT z) P
+    | Some None =>
+      load_at m loc = Some (Vint Int.one) /\
+      exists sh R, LK_at R sh loc phi
+    | Some (Some unlockedphi) =>
+      load_at m loc = Some (Vint Int.one) /\
+      exists sh R, LK_at R sh loc phi /\ (later R) unlockedphi
+    end.
 
 (*! Joinability and coherence *)
-
-Definition mem_compatible_rmap := mem_compatible_with.
-
-(*Record mem_compatible_rmap (tp : JM.ThreadPool.t) (m : mem) (all_juice : rmap) : Prop :=
-  Build_mem_compatible_rmap
-  { juice_join : JM.join_all tp all_juice;
-    all_cohere : JM.mem_cohere' m all_juice;
-    loc_writable : JM.locks_writable all_juice;
-    loc_set_ok : JM.locks_correct (JM.ThreadPool.lockGuts tp) all_juice }.
-
-Lemma mem_compatible_forget {tp m phi} :
-  mem_compatible_rmap tp m phi -> JM.mem_compatible tp m.
-Proof. intros []; intros. hnf. econstructor; eauto. Qed.
-*)
 
 Lemma mem_compatible_forget {tp m phi} :
   mem_compatible_with tp m phi -> mem_compatible tp m.
@@ -298,8 +305,8 @@ Section Initial_State.
         destruct (snd (projT2 (projT2 spr))) as [jm' [D [H [A NL]]]]; unfold jm in *; clear jm; simpl in L |- *.
         pose proof (NL loc) as NL'.
         rewrite L in NL'.
-        exfalso; eapply NL'.
-        reflexivity.
+        edestruct NL as [lk ct].
+        destruct lk; eauto.
       + hnf.
         simpl.
         intros ? F.
@@ -314,17 +321,17 @@ Section Initial_State.
       intros b SPEC phi NECR FU.
       (* rewrite find_id_maketycontext_s. *)
       admit.
-    (* we need to relate the [jm] given by [semax_prog_rule]  *)
+      (* we need to relate the [jm] given by [semax_prog_rule]  *)
     
     - (*! lock coherence (no locks at first) *)
       intros lock.
       rewrite threadPool.find_empty.
-      constructor.
-      intros.
-      unfold jm.
-      match goal with |- context [proj1_sig ?x] => destruct x as (jm' & jmm & lev & S & nolock) end.
-      simpl.
-      apply nolock.
+      intros sh sh' z P; split; unfold jm;
+      match goal with
+        |- context [proj1_sig ?x] => destruct x as (jm' & jmm & lev & S & nolocks)
+      end; simpl.
+      + apply nolocks.
+      + apply nolocks.
     
     - (*! safety of the only thread *)
       intros i cnti ora.
@@ -565,6 +572,23 @@ Proof.
   - destruct R as [v [pp' [R H]]]. congruence.
 Qed.
 
+Lemma resource_decay_CT {b phi phi' loc rsh sh n} :
+  resource_decay b phi phi' ->
+  phi @ loc = YES rsh sh (CT n) NoneP ->
+  phi' @ loc = YES rsh sh (CT n) NoneP.
+Proof.
+  intros [L R] E.
+  specialize (R loc).
+  rewrite E in *.
+  destruct R as [N [R|[R|[R|R]]]].
+  - rewrite <- R.
+    unfold resource_fmap in *; f_equal.
+    apply preds_fmap_NoneP.
+  - destruct R as [sh' [v [v' [R H]]]]. simpl in R. congruence.
+  - destruct R as [v [v' R]]. specialize (N ltac:(auto)). congruence.
+  - destruct R as [v [pp' [R H]]]. congruence.
+Qed.
+
 Lemma resource_decay_LK_inv {b phi phi' loc rsh sh n pp'} :
   resource_decay b phi phi' ->
   phi' @ loc = YES rsh sh (LK n) pp' ->
@@ -583,6 +607,53 @@ Proof.
   - destruct R as [sh' [v [v' [R H]]]]; congruence.
   - destruct R as [v [v' R]]; congruence.
   - destruct R as [v [pp [R H]]]; congruence.
+Qed.
+
+Lemma resource_decay_identity {b phi phi' loc} :
+  resource_decay b phi phi' ->
+  (fst loc < b)%positive ->
+  identity (phi @ loc) ->
+  identity (phi' @ loc).
+Proof.
+  intros [lev RD] LT ID; specialize (RD loc).
+  destruct RD as [N [RD|[RD|[RD|RD]]]].
+  destruct (phi @ loc) as [t | t p k p0 | k p]; simpl in RD; try rewrite <- RD.
+  - auto.
+  - apply YES_not_identity in ID. tauto.
+  - apply PURE_identity.
+  - destruct RD as (? & sh & _ & E & _).
+    destruct (phi @ loc); simpl in E; try discriminate.
+    apply YES_not_identity in ID. tauto.
+  - destruct RD. auto with *.
+  - destruct RD as (? & ? & ? & ->).
+    apply NO_identity.
+Qed.
+
+Lemma resource_decay_LK_at {b phi phi' R sh loc} :
+  resource_decay b phi phi' ->
+  (fst loc < b)%positive ->
+  (LK_at R sh loc) phi ->
+  (LK_at (approx (level phi) R) sh loc) phi'.
+Proof.
+  intros RD LT LKAT loc'.
+  specialize (LKAT loc').
+  destruct (adr_range_dec loc lock_size loc') as [range|notrange]; swap 1 2.
+  - rewrite jam_false in *; auto.
+  - rewrite jam_true in *; auto.
+    destruct (eq_dec loc loc') as [<-|noteq].
+    + rewrite jam_true in *; auto.
+      destruct LKAT as [p E]; simpl in E.
+      apply (resource_decay_LK RD) in E.
+      eexists.
+      hnf.
+      rewrite E.
+      reflexivity.
+    + rewrite jam_false in *; auto.
+      destruct LKAT as [p E]; simpl in E.
+      eexists; simpl.
+      apply (resource_decay_CT RD) in E.
+      rewrite E.
+      reflexivity.
 Qed.
 
 Definition resource_is_lock r := exists rsh sh n pp, r = YES rsh sh (LK n) pp.
@@ -673,63 +744,94 @@ Proof.
   inversion LW.
 Qed.
 
+Lemma app_pred_age {R} {phi phi' : rmap} :
+  age phi phi' ->
+  app_pred R phi ->
+  app_pred R phi'.
+Proof.
+  destruct R as [R HR]; simpl.
+  apply HR.
+Qed.
+
+Lemma ontheboard {Phi Phi' phi phi' l z sh sh'} (R : mpred) :
+  level Phi = level phi ->
+  age Phi Phi' ->
+  age phi phi' ->
+  app_pred R phi ->
+  Phi  @ l = YES sh sh' (LK z) (SomeP nil (fun _ => R)) ->
+  app_pred (approx (S (level phi')) R) phi' /\
+  Phi' @ l = YES sh sh' (LK z) (SomeP nil (fun _ => approx (level Phi') R)).
+Proof.
+  intros L A Au SAT AT.
+  pose proof (app_pred_age Au SAT) as SAT'.
+  split.
+  - split.
+    + apply age_level in A; apply age_level in Au. omega.
+    + apply SAT'.
+  - apply (necR_YES _ Phi') in AT.
+    + rewrite AT.
+      reflexivity.
+    + constructor. assumption.
+Qed.
+
 Lemma resource_decay_lock_coherence {b phi phi' lset m} :
   resource_decay b phi phi' ->
+  lockSet_bound lset b ->
   lock_coherence lset phi m ->
-  lock_coherence  (AMap.map (Coqlib.option_map (age_to (level phi'))) lset) phi' m.
+  lock_coherence (AMap.map (Coqlib.option_map (age_to (level phi'))) lset) phi' m.
 Proof.
-  intros [L RD] LC loc.
+  intros rd BOUND LC loc; pose proof rd as rd'; destruct rd' as [L RD].
   specialize (LC loc).
   specialize (RD loc).
-  inversion LC as [wetv dryv A H H1 H2 | RI wetv IL H H1 H0 | RI phi0 wetv IL SAT H H2 H0]; subst.
-  
-  - rewrite AMap_find_map_None. 2:auto.
-    constructor 1.
-    intros sh sh' z pp E.
+  rewrite AMap_find_map_option_map.
+  destruct (AMap.find loc lset)
+    as [[unlockedphi | ] | ] eqn:Efind;
+    simpl option_map; cbv iota beta; swap 1 3.
+  - intros sh sh' z pp.
     destruct RD as [NN [R|[R|[[P [v R]]|R]]]].
-    + rewrite E in R.
-      destruct (phi @ loc); simpl in R; inversion R; subst.
-      eapply A; eauto.
-    + rewrite E in R.
-      destruct R as (?&?&?&?&?).
-      congruence.
-    + congruence.
-    + destruct R as (?&?&?&?).
-      congruence.
+    + split; intros E; rewrite E in *;
+        destruct (phi @ loc); try destruct k; simpl in R; try discriminate;
+          [ refine (proj1 (LC _ _ _ _) _); eauto
+          | refine (proj2 (LC _ _ _ _) _); eauto ].
+    + destruct R as (sh'' & v & v' & E & E'). split; congruence.
+    + split; congruence.
+    + destruct R as (sh'' & v & v' & R). split; congruence.
   
-  - erewrite AMap_find_map. 2:eauto.
-    constructor 2 with (approx (level phi') RI).
-    destruct IL as (?&?&?&E).
-    rewrite E in RD.
-    destruct RD as [NN [R|[R|[[P [v R]]|R]]]]; simpl in *.
-    + rewrite <-R.
-      repeat eexists.
-    + destruct R as (?&?&?&?&?).
-      congruence.
-    + espec NN. congruence.
-    + destruct R as (?&?&?&?).
-      congruence.
+  - assert (fst loc < b)%positive.
+    { apply BOUND.
+      rewrite Efind.
+      constructor. }
+    destruct LC as (dry & sh & R & lk); split; auto.
+    eapply resource_decay_LK_at in lk; eauto.
   
-  - erewrite AMap_find_map. 2:eauto.
-    constructor 3 with (approx (level phi') RI).
-    + destruct IL as (?&?&?&E).
-      rewrite E in RD.
-      destruct RD as [NN [R|[R|[[P [v R]]|R]]]]; simpl in *.
-      * rewrite <-R.
-        repeat eexists.
-      * destruct R as (?&?&?&?&?).
-        congruence.
-      * espec NN. congruence.
-      * destruct R as (?&?&?&?).
-        congruence.
-    + simpl.
-      split; auto.
-      (* hmm. it seems the phi0 in the lset should have been aged? *)
-      rewrite level_age_to. (* oh. level phi' < level phi'... *)
+  - assert (fst loc < b)%positive.
+    { apply BOUND.
+      rewrite Efind.
+      constructor. }
+    destruct LC as (dry & sh & R & lk & sat); split; auto.
+    exists sh, (approx (level phi) R); split.
+    + eapply resource_decay_LK_at in lk; eauto.
+    + (*
+      (* todo replace this awkward change with rewrite approx_approx' *)
+      change (((approx (S (level phi')) oo (approx (level phi))) R) (age_to (level phi') unlockedphi)).
+      (* courage, il faut réécrire tout ça avec age au lieu de necr, en gros *)
+      unfold "oo" in H0.
+      simpl in H0.
+       *)
+      (*
+    + assert (level unlockedphi = level phi) by admit (* add hypothesis to theorem *).
+      rewrite age_to_eq ; [ | congruence ].
+      exists R. split; auto.
+      eapply resource_decay_LK_at in lk; eauto.
+      (* what to do, now? *)
       admit.
-      admit.
-      (* need to age the resource invariant too? RI (age_to (level phi') phi0) *)
-      admit.
+    
+    + exists (approx (level phi) R). split; auto.
+      * eapply resource_decay_LK_at in lk; eauto.
+      * (* this is still not right *)
+        (* what to do, now? *)
+        admit.
+       *)
 Admitted.
 
 Lemma isSome_find_map addr f lset :
@@ -765,6 +867,7 @@ Section Simulation.
         n m ge i sch tp Phi ci ci' jmi'
         (gam : matchfunspec (filter_genv ge) Gamma Phi)
         (compat : mem_compatible_with tp m Phi)
+        (lock_bound : lockSet_bound (ThreadPool.lset tp) (Mem.nextblock m))
         (lock_coh : lock_coherence (ThreadPool.lset tp) Phi m)
         (safety : threads_safety Jspec' m ge tp Phi compat (S n))
         (wellformed : threads_wellformed tp)
@@ -846,7 +949,7 @@ Section Simulation.
               destruct (perm_of_res (ThreadPool.getThreadR cnti @ (b,ofs0))) as [[]|]; simpl.
               all:intros po; inversion po; subst; eauto.
             }
-            clear -compat IN.
+            clear -compat IN interval.
             apply po_trans with (perm_of_res (Phi @ (b, ofs0))).
             - destruct compat.
               destruct (lset_in_juice0 (b, ofs) IN) as (?&?&?&?).
@@ -964,7 +1067,7 @@ Section Simulation.
     (* now that mem_compatible_with is established, we move on to the
     invariant. *)
     
-(* getting the new global phi by replacing jmi with jmi' : possible
+    (* getting the new global phi by replacing jmi with jmi' : possible
 because resource_decay says the only new things are above nextblock.
 
 One should update all other threadR too? Just aging?
@@ -980,7 +1083,7 @@ prove that the other threads are safe with their new, aged, rmap.
 wellformed: ok
 
 unique: ok *)
-                                                                     
+    
     (* inversion juice_join as [tp0 PhiT PhiL r JT JL J H2 H3]; subst; clear juice_join. *)
     
     apply state_invariant_c with (PHI := Phi') (mcompat := compat').
@@ -997,6 +1100,7 @@ unique: ok *)
       }
       replace (level (m_phi jmi')) with (level Phi') by auto.
       apply (resource_decay_lock_coherence RD).
+      auto.
       (* now for the dry part, use the fact that the corestep didn't
       have permissions to modify locks? *)
       admit.
@@ -1312,20 +1416,30 @@ unique: ok *)
           
         (* next step depends on status of lock: *)
         pose proof (lock_coh (b, Int.unsigned ofs)) as lock_coh'.
-        inversion lock_coh' as [wetv dryv notlock H H1 H2 | R0 wetv isl' Elockset Ewet Edry | R0 phi wetv isl' SAT_R_Phi Elockset Ewet Edry].
+        destruct (AMap.find (elt:=option rmap) (b, Int.unsigned ofs) (ThreadPool.lset tp))
+          as [[unlockedphi|]|] eqn:Efind;
+          swap 1 3.
+        (* inversion lock_coh' as [wetv dryv notlock H H1 H2 | R0 wetv isl' Elockset Ewet Edry | R0 phi wetv isl' SAT_R_Phi Elockset Ewet Edry]. *)
         
-        - (* this is not even a lock *)
+        - (* None: that cannot be: there is no lock at that address *)
           exfalso.
-          clear -isl notlock.
-          destruct isl as [x [? [? ]]].
-          eapply notlock.
-          now eauto.
+          destruct isl as [x [? [? EPhi]]].
+          rewrite EPhi in lock_coh'.
+          eapply (proj1 (lock_coh' _ _ _ _)).
+          reflexivity.
         
-        - (* acquire fails *)
+        - (* Some None: lock is locked, so [acquire] fails. *)
+          destruct lock_coh' as [LOAD (sh' & R' & lk)].
           destruct isl as [sh [psh [z Ewetv]]].
-          subst wetv.
-          destruct isl' as [sh' [psh' [z' Eat]]].
-          rewrite Eat in Ewetv.
+          rewrite Ewetv in *.
+          
+          (* rewrite Eat in Ewetv. *)
+          specialize (lk (b, Int.unsigned ofs)).
+          rewrite jam_true in lk; swap 1 2.
+          { hnf. unfold lock_size in *; split; auto; omega. }
+          rewrite jam_true in lk; swap 1 2. now auto.
+          
+          (*
           injection Ewetv as -> -> -> Epr.
           apply inj_pair2 in Epr.
           assert (R0 = R). {
@@ -1424,6 +1538,9 @@ unique: ok *)
             * admit (* real stuff: it joins *).
             * reflexivity.
             * reflexivity.
+            *)
+          admit.
+        - admit.
       }
 
       { (* the case of release *) admit. }
