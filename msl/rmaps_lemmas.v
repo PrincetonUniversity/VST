@@ -183,6 +183,14 @@ Proof.
 intros; apply approx_oo_approx'; omega.
 Qed.
 
+Lemma approx_approx' n n' x :
+  (n' >= n)%nat -> approx n (approx n' x) = approx n x.
+Proof.
+  intro H.
+  change ((approx n oo approx n') x = approx n x).
+  apply equal_f, approx_oo_approx', H.
+Qed.
+
 Lemma resources_same_level:
    forall f phi,
      (forall l : AV.address, join_sub (f l) (phi @ l)) ->
