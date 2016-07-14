@@ -537,7 +537,7 @@ Module Concur.
              destruct (lockRes ds (b, ofs)) eqn:MAP; auto.
              intros ofs0 ineq.
              destruct (AMap.E.eq_dec a (b,ofs0)).
-             * subst a. apply G0 in ineq.
+             * subst a. apply G0 in ineq || apply G in ineq.
                    rewrite ineq in MAP; inversion MAP.
              * rewrite gsolockResUpdLock; auto.
        Qed.
