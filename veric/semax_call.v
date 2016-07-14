@@ -1753,7 +1753,22 @@ rewrite <-compose_assoc, approx_oo_approx'; auto. omega.
 * intros b fs ???.
 specialize (H4 b fs (m_phi jm')). 
 specialize (H4 Hnec); spec H4; auto.
-admit. (*pures_sub must go both ways*)
+destruct H2 as [H2 H2'].
+specialize (H2' (b,0)).
+destruct fs; simpl in *.
+destruct H6 as [b0 ?].
+destruct (m_phi m' @ (b,0)) eqn:?.
+eapply necR_NOx in Heqr; try apply H5. inversion2 H6 Heqr.
+eapply necR_YES in Heqr; try apply H5. inversion2 H6 Heqr.
+destruct H2' as [pp ?].
+rewrite H7.
+exists pp.
+assert (H9 := necR_PURE _ _ _ _ _ H5 Heqr).
+rewrite H6 in H9. inv H9.
+f_equal.
+pose proof (resource_at_approx (m_phi jm') (b,0)).
+rewrite H7 in H; simpl in H.
+injection H; intro. symmetry in H8. apply H8.
 }
 match type of H4' with ?A => match goal with |- ?B => replace B with A; auto end end.
 f_equal.
@@ -1800,7 +1815,7 @@ destruct H8 as (?&?&?).
 subst n'.
 rewrite level_juice_level_phi.
 destruct ret; destruct ret0; auto.
-Admitted.
+Qed.
 
 Lemma alloc_juicy_variables_age:
   forall {ge rho jm jm1 vl rho' jm' jm1'},
