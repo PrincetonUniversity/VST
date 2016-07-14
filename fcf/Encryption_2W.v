@@ -1,13 +1,16 @@
+(* Copyright 2012-2015 by Adam Petcher.				*
+ * Use of this source code is governed by the license described	*
+ * in the LICENSE file at the root of the source tree.		*)
 
 (* A "two worlds" style of definition for encryption and a proof that it is equivalent to the standard definition. *)
 
 Set Implicit Arguments.
 
-Require Import Crypto.
-Require Import Encryption.
-Require Import EfficientProcedure.
-Require Import TwoWorldsEquiv.
-Require Import Asymptotic.
+Require Import fcf.Crypto.
+Require Import fcf.Encryption.
+Require Import fcf.EfficientProcedure.
+Require Import fcf.TwoWorldsEquiv.
+Require Import fcf.Asymptotic.
 
 Section Encryption_SecretKey_2W.
 

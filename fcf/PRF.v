@@ -1,10 +1,13 @@
+(* Copyright 2012-2015 by Adam Petcher.				*
+ * Use of this source code is governed by the license described	*
+ * in the LICENSE file at the root of the source tree.		*)
 
 (* Definitions related to pseudoradom functions.  This file copies some items from ConstructedFunc.v, so we probably need to refactor this in the future. *)
 
 Set Implicit Arguments.
-Require Import FCF.
-Require Import CompFold. 
-Require Export Array.
+Require Import fcf.FCF.
+Require Import fcf.CompFold. 
+Require Export fcf.Array.
 
 Local Open Scope list_scope.
 Local Open Scope array_scope.
@@ -123,7 +126,7 @@ Section PRF_concrete.
                          
   Section PRF_NA_impl_NAI.
 
-    Require Export Hybrid.
+    Require Export fcf.Hybrid.
 
     Variable maxLists : nat.
     Hypothesis maxLists_correct : 
@@ -251,8 +254,8 @@ Section PRF_concrete.
   
 End PRF_concrete.
 
-Require Import Asymptotic.
-Require Import Admissibility.
+Require Import fcf.Asymptotic.
+Require Import fcf.Admissibility.
 
 Section PRF.
 

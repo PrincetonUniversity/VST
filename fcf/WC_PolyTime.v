@@ -1,9 +1,12 @@
+(* Copyright 2012-2015 by Adam Petcher.				*
+ * Use of this source code is governed by the license described	*
+ * in the LICENSE file at the root of the source tree.		*)
 
 
 Set Implicit Arguments.
 
-Require Import FCF.
-Require Import Admissibility.
+Require Import fcf.FCF.
+Require Import fcf.Admissibility.
 
 Local Open Scope nat_scope.
 
@@ -289,7 +292,7 @@ Ltac costtac_one :=
 
 Ltac costtac := repeat (costtac_one).
 
-Require Import Asymptotic.
+Require Import fcf.Asymptotic.
 
 Definition poly_time_nonuniform_oc(cost : FunctionCostModel)(A B C : nat -> Set)(c : forall n, OracleComp (A n) (B n) (C n)) := 
   exists (f : nat -> nat -> nat), 

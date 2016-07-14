@@ -4,13 +4,13 @@ Require Import List.
 Require Import compcert.lib.Integers.
 Require Import BinNums.
 Require Import sha.common_lemmas.
-Require Import HMAC_functional_prog.
-Require Import ByteBitRelations.
-Require Import hmac_pure_lemmas.
-Require Import HMAC_common_defs.
-Require Import HMAC_spec_list.
-Require Import HMAC_spec_abstract.
-Require Import HMAC_equivalence.
+Require Import sha.HMAC_functional_prog.
+Require Import sha.ByteBitRelations.
+Require Import sha.hmac_pure_lemmas.
+Require Import sha.HMAC_common_defs.
+Require Import sha.HMAC_spec_list.
+Require Import sha.HMAC_spec_abstract.
+Require Import sha.HMAC_equivalence.
 
 (*SHA_specific stuff
 Require Import SHA256.
@@ -60,19 +60,19 @@ Qed.
 (* A definition of a PRF in the form of a predicate. *)
 Set Implicit Arguments.
 
-Require Import FCF.
-Require Import PRF.
-Require Import NMAC_to_HMAC.
-Require Import hF.
-Require Import HMAC_PRF.
+Require Import fcf.FCF.
+Require Import fcf.PRF.
+Require Import hmacfcf.NMAC_to_HMAC.
+Require Import hmacfcf.hF.
+Require Import hmacfcf.HMAC_PRF.
 
 Module Type HMAC_is_PRF_Parameters (HF:HP.HASH_FUNCTION) (EQ: EQUIV_Inst HF).
   Parameter P : Blist -> Prop.
-  Parameter HP: forall m, P m -> NPeano.divide 8 (length m).
+  Parameter HP: forall m, P m -> NPeano.Nat.divide 8 (length m).
 
   Parameter splitAndPad_1to1: forall b1 b2 (B:EQ.splitAndPad_v b1 = EQ.splitAndPad_v b2)
-       (L1: NPeano.divide 8 (length b1))
-       (L2: NPeano.divide 8 (length b2)), b1 = b2.
+       (L1: NPeano.Nat.divide 8 (length b1))
+       (L2: NPeano.Nat.divide 8 (length b2)), b1 = b2.
 End HMAC_is_PRF_Parameters.
 
 Module HMAC_is_PRF (HF:HP.HASH_FUNCTION) (EQ: EQUIV_Inst HF) (PARS:HMAC_is_PRF_Parameters HF EQ).
@@ -119,11 +119,14 @@ Definition h_PRF (A : OracleComp (HMAC_Abstract.Message PARS.P) (Bvector EQ.c) b
                                   (HMAC_PRF.A_GHMAC EQ.p Message_eqdec (HMAC_Abstract.wrappedSAP _ _ EQ.splitAndPad_v) A)).
 
 (* We could make similar predicates for the other definitions, or just
-assume the inequalities*)
+assume the inequalities
 Definition h_star_WCR (A : OracleComp (HMAC_Abstract.Message PARS.P) (Bvector EQ.c) bool) epsilon := 
        cAU.Adv_WCR (list_EqDec (Bvector_EqDec (b EQ.c EQ.p)))
              (Bvector_EqDec (b EQ.c EQ.p)) (h_star_pad M.h_v EQ.fpad_v)
-       ({ 0 , 1 }^EQ.c) (au_F_A (A_GHMAC EQ.p Message_eqdec (HMAC_Abstract.wrappedSAP _ _ EQ.splitAndPad_v) A)) <= epsilon.
+       ({ 0 , 1 }^EQ.c) (au_F_A (A_GHMAC EQ.p Message_eqdec (HMAC_Abstract.wrappedSAP _ _ EQ.splitAndPad_v) A)) <= epsilon.*)
+Definition h_star_WCR (A : OracleComp (HMAC_Abstract.Message PARS.P) (Bvector EQ.c) bool) epsilon := cAU.Adv_WCR (list_EqDec (Bvector_EqDec (HMAC_spec.b EQ.c EQ.p))) (Bvector_EqDec EQ.c) (h_star EQ.p M.h_v) 
+  ({ 0 , 1 }^ EQ.c) (Y EQ.fpad_v (au_F_A (A_GHMAC EQ.p Message_eqdec (HMAC_Abstract.wrappedSAP EQ.c EQ.p EQ.splitAndPad_v) A))) <=
+epsilon.
 
 Definition dual_h_RKA (A : OracleComp (HMAC_Abstract.Message PARS.P) (Bvector EQ.c) bool) sigma:=
     RKA_Advantage _ _ _ ({ 0 , 1 }^b EQ.c EQ.p) ({ 0 , 1 }^EQ.c) (dual_f M.h_v) (BVxor (b EQ.c EQ.p))
@@ -141,7 +144,7 @@ Proof. unfold isPRF.
                               EQ.fpad_v M.opad_ne_ipad A_wf).
   rewrite ratAdd_comm. 
   apply ratAdd_leRat_compat.
-    apply ratAdd_leRat_compat. apply HH1. apply HH2.
+    apply ratAdd_leRat_compat. apply HH1. apply HH2. 
     apply HH3.
 Qed.
 End HMAC_is_PRF. 

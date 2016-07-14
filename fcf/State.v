@@ -1,14 +1,16 @@
+(* Copyright 2012-2015 by Adam Petcher.				*
+ * Use of this source code is governed by the license described	*
+ * in the LICENSE file at the root of the source tree.		*)
 (* This file contains an earlier version of state-related definitions.  The theory from this file should be moved to Procedure.v *)
 
 Set Implicit Arguments.
 
-Require Import Crypto.
-Require Import ProgramLogic_old.
+Require Import fcf.Crypto.
+Require Import fcf.ProgramLogic_old.
 
 
 Definition stateful_comp_spec (S D R: Set)(inv : S -> S -> Prop)(pre : (S * D) -> (S * D) -> Prop)(post : (S * R) -> (S * R) -> Prop)(c1 c2 : (S * D) -> Comp (S * R)):=
   comp_spec_old (fun a1 a2 => pre a1 a2 /\ inv (fst a1) (fst a2)) (fun b1 b2 => post b1 b2 /\ inv (fst b1) (fst b2)) c1 c2 .
-
 
 Section CompLoop.
 

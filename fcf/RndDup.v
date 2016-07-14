@@ -1,8 +1,11 @@
+(* Copyright 2012-2015 by Adam Petcher.				*
+ * Use of this source code is governed by the license described	*
+ * in the LICENSE file at the root of the source tree.		*)
 
 (* A basic argument about encountering a specific value in a list of randomly-generated values. *)
 
 Require Import MCF.
-Require Import CompFold.
+Require Import fcf.CompFold.
 
 Section RndDup.
 

@@ -4,26 +4,26 @@ Require Import List.
 Require Import compcert.lib.Integers.
 Require Import BinNums.
 Require Import sha.general_lemmas.
-Require Import ByteBitRelations.
-Require Import hmac_pure_lemmas.
-Require Import HMAC_common_defs.
-Require Import HMAC_spec_pad.
-Require Import HMAC_spec_concat.
-Require Import HMAC_spec_abstract.
+Require Import sha.ByteBitRelations.
+Require Import sha.hmac_pure_lemmas.
+Require Import sha.HMAC_common_defs.
+Require Import sha.HMAC_spec_pad.
+Require Import sha.HMAC_spec_concat.
+Require Import sha.HMAC_spec_abstract.
 
-Require Import Blist.
+Require Import fcf.Blist.
 
 Lemma of_length_proof_irrel {A:Set} n (l: list A) M: 
       Vector.to_list (@of_list_length _ n l M) = l.
 Proof. destruct M. apply Vector.to_list_of_list_opp. Qed.
 
-Require Import HMAC_functional_prog. (*Just for HMAC_FUN*)
+Require Import sha.HMAC_functional_prog. (*Just for HMAC_FUN*)
 
 Module Type EQUIV_Inst (HF:HP.HASH_FUNCTION).
 
 (*Section EQUIV.*)
   Parameter c:nat.
-  Parameter C: NPeano.divide 8 c.
+  Parameter C: NPeano.Nat.divide 8 c.
   Parameter p:nat.
   Definition b := (c+p)%nat.
   Parameter B: (0<b)%nat.
@@ -87,7 +87,7 @@ Module Type EQUIV_Inst (HF:HP.HASH_FUNCTION).
   Parameter D: (d * 32)%nat = b.
 
   Parameter gap:list Z -> list int.
-  Parameter GAP: forall bits, NPeano.divide d (length (gap (bitsToBytes bits))).
+  Parameter GAP: forall bits, NPeano.Nat.divide d (length (gap (bitsToBytes bits))).
   Parameter sap_gap: splitAndPad = fun bits => bytesToBits (intlist_to_Zlist (gap (bitsToBytes bits))).
 
   Parameter HASH: forall m, HF.Hash m = intlist_to_Zlist (hashblocks ir (gap m)).
@@ -202,7 +202,7 @@ Qed.
   apply BS_pos.
 Qed.
 
-Lemma Equivalence (P : Blist -> Prop) (HP: forall msg, P msg -> NPeano.divide 8 (length msg))
+Lemma Equivalence (P : Blist -> Prop) (HP: forall msg, P msg -> NPeano.Nat.divide 8 (length msg))
       (kv : Bvector EQ.b) (m : HMAC_Abstract.Message P):
       Vector.to_list (HMAC_spec.HMAC h_v EQ.iv_v (HMAC_Abstract.wrappedSAP _ _ EQ.splitAndPad_v)
                       EQ.fpad_v opad_v ipad_v kv m) = 

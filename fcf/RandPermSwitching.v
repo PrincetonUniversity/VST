@@ -1,9 +1,12 @@
+(* Copyright 2012-2015 by Adam Petcher.				*
+ * Use of this source code is governed by the license described	*
+ * in the LICENSE file at the root of the source tree.		*)
 
 Set Implicit Arguments.
 
-Require Import FCF.
-Require Import PRF.
-Require Import RndInList.
+Require Import fcf.FCF.
+Require Import fcf.PRF.
+Require Import fcf.RndInList.
 
 Local Open Scope list_scope.
 
@@ -364,7 +367,7 @@ Theorem oc_eventProb :
   eapply H2.
   eapply plus_le_compat; intuition.
 
-  Require Import RndInList.
+  Require Import fcf.RndInList.
   eapply le_trans.
   eapply (qam_count_gen' _ _ _ _ _ i).
   intuition.

@@ -1783,7 +1783,7 @@ freeze [0;1;2;4;5;6;7;8;9;10] FR_mcpy1.
     forward. forward.
     
     Exists (done + use_len).
-    entailer!.
+    Time entailer!.
     (*subst done_output. rewrite offset_offset_val. *) rewrite Z.sub_add_distr.
     repeat split(*; subst use_len*).
     rewrite Zmin_spec. destruct (zlt 32 (out_len - n*32)). omega. omega.
@@ -1795,22 +1795,26 @@ freeze [0;1;2;4;5;6;7;8;9;10] FR_mcpy1.
     clear H3 H4 H6 Hreseed_counter_in_range Hnon_empty_additional_should_reseed
        Hshould_reseed_non_empty_additional Hnon_empty_additional_contents 
        Hshould_reseed_get_entropy  H17 H16 .
-x
-    eapply (loop_closing_entailment). eassumption. (*Espec*) contents additional add_len output out_len ctx md_ctx'
+
+    eapply (loop_closing_entailment (*Espec*) contents additional (*add_len*)(Zlength contents) output out_len ctx md_ctx'
       key V reseed_counter entropy_len prediction_resistance reseed_interval kv
-      info_contents s) with (n:=n); assumption.
+      info_contents s) with (n:=n); try assumption; reflexivity.
 Admitted.  (*Time Qed. Does not terminate within 13h. Increased heap from 1.58GB to 1.66 GB *)
 
 Lemma Tarray_0_emp sh v c: data_at sh (Tarray tuchar 0 noattr) v c |--  emp.
-  unfold data_at. unfold field_at, data_at', at_offset; simpl.
-  unfold array_pred, unfold_reptype, aggregate_pred.array_pred. entailer.
-Qed. 
+Proof.
+  rewrite data_at_isptr; normalize. destruct c; simpl in *; try contradiction. clear Pc.
+  eapply derives_trans. apply data_at_memory_block.
+  simpl. entailer.
+Qed.
 Lemma Tarray_0_emp' sh c: field_compatible (Tarray tuchar 0 noattr) nil c ->
   emp |-- data_at sh (Tarray tuchar 0 noattr) nil c.
 Proof. intros.
-  unfold data_at. unfold field_at, data_at', at_offset; simpl.
+  unfold data_at. unfold field_at, (*data_at',*) at_offset; simpl.
+  entailer. exploit field_compatible_isptr. eassumption. intros.
+  destruct c; try contradiction. rewrite data_at_rec_eq. simpl.
   unfold array_pred, unfold_reptype, aggregate_pred.array_pred. simpl.
-  entailer.
+  entailer. 
 Qed. 
 
 Lemma body_hmac_drbg_reseed_steps6To8 Espec contents additional add_len output out_len
@@ -2018,7 +2022,7 @@ Proof. intros; abbreviate_semax.
   rewrite Zminus_diag. clear HRE H12 H14 H15.
   change (list_repeat (Z.to_nat 0) Vundef) with (@nil val).
   rewrite app_nil_r.
-  unfold hmac256drbgabs_common_mpreds.
+(*  unfold hmac256drbgabs_common_mpreds.*)
   thaw FRloop.
 (*  normalize.
   assert_PROP (isptr additional) as Hisptr_add by entailer!.*)
@@ -2034,20 +2038,140 @@ Proof. intros; abbreviate_semax.
     apply mpred_cond_correct.
   }
   thaw FR0. 
-  freeze [0;4;7] FR1.
-  (* mbedtls_hmac_drbg_update( ctx, additional, add_len ); *)
-  forward_call (if should_reseed then @nil Z else contents, additional, after_reseed_add_len, ctx, (hmac256drbgabs_to_state
-         (hmac256drbgabs_update_value after_update_state_abs
+  (*freeze [0;4;7] FR1.*)
+  freeze [0;4] FR1.
+
+ (* mbedtls_hmac_drbg_update( ctx, additional, add_len ); *)
+  forward_call (if should_reseed then @nil Z else contents, 
+                additional,
+                after_reseed_add_len, 
+                ctx,
+                hmac256drbgabs_to_state
+                 (hmac256drbgabs_update_value after_update_state_abs
+                   (fst
+                     (HMAC_DRBG_generate_helper_Z HMAC256 after_update_key
+                        after_update_value out_len))) initial_state, 
+                hmac256drbgabs_update_value after_update_state_abs
+                 (fst
+                     (HMAC_DRBG_generate_helper_Z HMAC256 after_update_key
+                        after_update_value out_len)), 
+                kv, info_contents).here
+  { rewrite sepcon_comm. repeat rewrite sepcon_assoc.
+    apply sepcon_derives. (* 2: cancel.*)
+    unfold mpred_passed_to_function (*, mpred_passed_to_frame, fold_right*).
+    clear Frame FR1. rewrite Heqafter_reseed_add_len. 
+    destruct should_reseed. 
+    { unfold mpred_passed_to_frame. rewrite H2 in *.
+      unfold field_compatible in Hfield_add. simpl in *. 
+      subst after_reseed_add_len; rewrite Hnon_empty_additional_contents in *.
+      clear Hnon_empty_additional_should_reseed Hshould_reseed_non_empty_additional.
+      subst non_empty_additional. subst initial_state_abs.
+      simpl in *. subst after_update_value. subst after_update_state_abs .  subst after_update_key. subst after_reseed_state_abs. subst add_len. apply derives_refl.
+    apply Tarray_0_emp'.
+    eapply field_compatible_array_smaller0. eassumption. omega.
+  
+  { (*subst after_update_state_abs after_reseed_add_len after_update_key after_update_value.*)
+    rewrite H2 in *; clear H2. unfold hmac256drbgabs_to_state. subst initial_state.
+    remember (hmac256drbgabs_update_value after_update_state_abs
             (fst
                (HMAC_DRBG_generate_helper_Z HMAC256 after_update_key
-                  after_update_value out_len))) initial_state), (hmac256drbgabs_update_value after_update_state_abs
-         (fst
-            (HMAC_DRBG_generate_helper_Z HMAC256 after_update_key
-               after_update_value out_len))), kv, info_contents).
-  { rewrite sepcon_comm. apply sepcon_derives. 2: cancel.
-    unfold mpred_passed_to_function(*, mpred_passed_to_frame, fold_right*).
+                  after_update_value out_len))) as QQQ.
+    destruct QQQ. unfold mpred_passed_to_frame. subst. thaw FR1. cancel.
+    remember ((prediction_resistance || (reseed_counter >? reseed_interval))%bool).
+    destruct b.
+    - simpl in *.
+ assert (XX: hmac256drbgabs_common_mpreds = 
+fun (final_state_abs : hmac256drbgabs) (old_state : hmac256drbgstate) 
+  (ctx : val) (info_contents : reptype t_struct_mbedtls_md_info) =>
+data_at Tsh t_struct_hmac256drbg_context_st
+  (hmac256drbgabs_to_state final_state_abs old_state) ctx *
+data_at Tsh t_struct_mbedtls_md_info info_contents
+  (hmac256drbgstate_md_info_pointer (hmac256drbgabs_to_state final_state_abs old_state)) *
+hmac256drbg_relate final_state_abs (hmac256drbgabs_to_state final_state_abs old_state)) by reflexivity.
+      rewrite XX in *. clear XX. simpl in *.
+     remember ((md_ctx',
+      (map Vint (map Int.repr V0),
+      (Vint (Int.repr reseed_counter0),
+      (Vint (Int.repr entropy_len0),
+      (Val.of_bool prediction_resistance0,
+      Vint (Int.repr reseed_interval0))))))). cancel.
+      rewrite   
+     : hmac256drbgabs ->.
+    simpl. hmac256drbgabs_common_mpreds.
+ initial_state) as QQQQ.
+    destruct (eq_dec after_reseed_add_len 0).
+    + rewrite Heqnon_empty_additional in *; clear Heqnon_empty_additional.
+      subst after_reseed_add_len after_update_state_abs.
+      destruct should_reseed.
+      - subst. simpl. thaw FR1. cancel.
+    destruct non_empty_additional. 
+    Focus 2. assert (contents = nil). { destruct contents; trivial. simpl in *. destruct should_reseed; try discriminate. 
+      
+    + rewrite Hnon_empty_additional_should_reseed in *; trivial; clear Hnon_empty_additional_should_reseed.
+      exfalso. clear - Hnon_empty_additional_contents Heqnon_empty_additional.
+      destruct contents; simpl in *. discriminate. rewrite if_false in Heqnon_empty_additional.
+      simpl in Heqnon_empty_additional; subst non_empty_additional.
+      subst initial_state. simpl.
+      remember ((hmac256drbgabs_update_value after_reseed_state_abs
+     (fst
+        (HMAC_DRBG_generate_helper_Z HMAC256
+           (hmac256drbgabs_key after_reseed_state_abs)
+           (hmac256drbgabs_value after_reseed_state_abs) out_len)))) as h.
+      remember (md_ctx',
+         (map Vint (map Int.repr V),
+         (Vint (Int.repr reseed_counter),
+         (Vint (Int.repr entropy_len),
+         (Val.of_bool prediction_resistance, Vint (Int.repr reseed_interval)))))) as Q.
+      rewrite sepcon_comm. simpl in *.
+      thaw FR1.
+       
+thaw FR1.
+    unfold mpred_passed_to_function (*, mpred_passed_to_frame, fold_right*).
+    rewrite Heqafter_reseed_add_len. 
+    rewrite sepcon_comm.
+(*    apply sepcon_derives.*)
+    { (*clear Frame.*) 
+      destruct should_reseed.
+      rewrite Hshould_reseed_non_empty_additional in *; trivial.
+      unfold mpred_passed_to_frame; simpl. subst initial_state; simpl.
+      rewrite Heqafter_update_value.
+      remember (
+               (HMAC_DRBG_generate_helper_Z HMAC256 after_update_key
+                  (hmac256drbgabs_value after_update_state_abs) out_len)).
+      (*destruct p as [p1 p2].*)
+      destruct (eq_dec after_reseed_add_len 0); try solve [inv Heqnon_empty_additional].
+      unfold hmac256drbgabs_to_state.
+      remember (hmac256drbgabs_update_value
+             after_update_state_abs 
+             (fst p)) as w.
+      destruct w. 
+unfold
+    hmacdrbg.spec_hmac_drbg.hmac256drbgabs_common_mpreds.  simpl.
+      remember (
+            (md_ctx',
+            (map Vint (map Int.repr V),
+            (Vint (Int.repr reseed_counter),
+            (Vint (Int.repr entropy_len),
+            (Val.of_bool prediction_resistance,
+            Vint (Int.repr reseed_interval))))))) as qq. remember (). 
+      remember (hmac256drbgabs_to_state
+            (hmac256drbgabs_update_value after_update_state_abs (fst p))
+            (md_ctx',
+            (map Vint (map Int.repr V),
+            (Vint (Int.repr reseed_counter),
+            (Vint (Int.repr entropy_len),
+            (Val.of_bool prediction_resistance,
+            Vint (Int.repr reseed_interval))))))).
+
+      unfold HMAC_DRBG_generate_helper_Z in Heqp. hmac256drbg_relate. hmac256drbgabs_common_mpreds.
+      rewrite Heqafter_update_value.  . (*2: apply derives_refl.*)
+    apply Tarray_0_emp'.
+    eapply field_compatible_array_smaller0. eassumption. omega.(* rewrite sepcon_comm. apply sepcon_derives. 2: solve [cancel].*)
+
+
+    unfold mpred_passed_to_function, mpred_passed_to_frame, fold_right.
     clear Frame FR1. rewrite Heqafter_reseed_add_len. 
-    destruct should_reseed. 2: apply derives_refl.
+    destruct should_reseed. (*2: apply derives_refl.*)
     apply Tarray_0_emp'.
     eapply field_compatible_array_smaller0. eassumption. omega.
   }

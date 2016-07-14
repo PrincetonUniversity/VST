@@ -3,8 +3,8 @@ Import ListNotations.
 Local Open Scope logic.
 
 Require Import hmacdrbg.hmac_drbg.
-Require Import hmacdrbg.spec_hmac_drbg.
 Require Import hmacdrbg.HMAC_DRBG_algorithms.
+Require Import hmacdrbg.spec_hmac_drbg.
 Require Import sha.HMAC256_functional_prog.
 Require Import sha.spec_sha.
 
@@ -824,7 +824,7 @@ Proof.
 
   (* info = md_ctx.md_info *)
   freeze [0;1;2;4;6] FR0.
-  Time forward. (*1220secs!!!*)
+  Time forward. (*8.5pl2: 1230secs*)
   remember initial_state as IS. (*destruct IS as [[initialStateA initialStateB] initialStateC].*)
   destruct IS as [md_ctx [V' [reseed_counter' [entropy_len' [prediction_resistance' reseed_interval']]]]].
   (*
@@ -856,7 +856,7 @@ Proof.
     forward.
     { 
       thaw FR1. thaw FR0.
-      entailer!. (*10mins*)
+      Time entailer!. (*8.5pl2: 1300secs *)
       assert (sizeof (*cenv_cs*) (tarray tuchar (Zlength contents)) > 0).
       { specialize (Zlength_nonneg contents); intros NN.
         simpl; rewrite Zmax_r. 2: omega.
@@ -969,9 +969,9 @@ Proof.
     (* pre conditions imply loop invariant *)
     thaw FR1. thaw FR0.
     unfold hmac256drbgabs_common_mpreds, hmac256drbgabs_to_state.
-    Time entailer!.
+    Time entailer!. (*8.5pl2: 1240secs *)
     Exists (hmac256drbgabs_key initial_state_abs) (hmac256drbgabs_value initial_state_abs) initial_state_abs.
-    destruct initial_state_abs. simpl. Time entailer!. (*20mins*)
+    destruct initial_state_abs. simpl. Time entailer!. (*Coq8.5pl2: 804 secs*)
   }
   {
     (* loop body *)

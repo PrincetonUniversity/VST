@@ -1,12 +1,15 @@
+(* Copyright 2012-2015 by Adam Petcher.				*
+ * Use of this source code is governed by the license described	*
+ * in the LICENSE file at the root of the source tree.		*)
 Set Implicit Arguments.
 
 (*Add LoadPath "../FCF".*)
 
-Require Import FCF.
-Require Import PRF.
-Require Import splitVector.
+Require Import fcf.FCF.
+Require Import fcf.PRF.
+Require Import hmacfcf.splitVector.
 
-Require Import HMAC_spec.
+Require Import hmacfcf.HMAC_spec.
 
 Section RelatedKeyAttack.
 
@@ -21,16 +24,23 @@ Section RelatedKeyAttack.
 
   Variable A : OracleComp (Phi_s * D) R bool.
 
-  Definition RKA_G0 :=
-    k <-$ RndK;
-    [b, _] <-$2 A _ _ (fun s p => [phi_s, x] <-2 p; ret (f (Phi phi_s k) x, tt)) tt;
-    ret b.
+  Definition RKA_F k (s : unit) p := 
+    [phi_s, x] <-2 p; ret (f (Phi phi_s k) x, tt).
 
   Definition RKA_randomFunc := @randomFunc (K * D) R RndR _.
 
+  Definition RKA_R k s p :=
+    [phi_s, x] <-2 p; (RKA_randomFunc s (Phi phi_s k, x)).
+
+  Definition RKA_G0 :=
+    k <-$ RndK;
+    [b, _] <-$2 A _ _ (RKA_F k) tt;
+    ret b.
+
+
   Definition RKA_G1 :=
     k <-$ RndK;
-    [b, _] <-$2 A _ _ (fun s p => [phi_s, x] <-2 p; (RKA_randomFunc s (Phi phi_s k, x))) nil;
+    [b, _] <-$2 A _ _ (RKA_R k) nil;
     ret b.
 
   Definition RKA_Advantage :=

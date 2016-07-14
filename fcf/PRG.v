@@ -1,9 +1,12 @@
+(* Copyright 2012-2015 by Adam Petcher.				*
+ * Use of this source code is governed by the license described	*
+ * in the LICENSE file at the root of the source tree.		*)
 (* Construction of a pseudorangom generator from a one-way permutations on bit vector with an associated hard core predicate. *)
 
 Set Implicit Arguments.
 
-Require Import FCF.
-Require Import SemEquiv.
+Require Import fcf.FCF.
+Require Import fcf.SemEquiv.
 
 Section OneWayPermutation.
 
@@ -22,7 +25,7 @@ Section OneWayPermutation.
     a <-$ A (f c);
     ret (eqb a c).
 
-  Definition OWP_Advantage := ratDistance (Pr[OWP_G]) (1 / (expnat 2 n)).
+  Definition OWP_Advantage := | (Pr[OWP_G])  - (1 / (2 ^ n)) |.
 
 End OneWayPermutation.
 
@@ -46,7 +49,7 @@ Section HardCorePredicate.
     g <-$ (A (f r) rb);
     ret g.
    
-  Definition HCP_Advantage := (ratDistance (Pr[HCP_G1]) (Pr[HCP_G2])).
+  Definition HCP_Advantage := | (Pr[HCP_G1]) - (Pr[HCP_G2]) | .
       
 End HardCorePredicate.
 
@@ -108,6 +111,7 @@ Section OWP_impl_HCP.
 
   Theorem OWP_HCP : 
     HCP_Advantage f' b A <= (OWP_Advantage f OWP_HCP_B).
+
   Abort.
 
 End OWP_impl_HCP.
@@ -131,7 +135,7 @@ Section PseudorandomGenerator.
     g <-$ (A r);
     ret g.
 
-  Definition PRG_Advantage := (ratDistance (Pr[PRG_G1]) (Pr[PRG_G2])).
+  Definition PRG_Advantage := | (Pr[PRG_G1]) - (Pr[PRG_G2]) |.
 End PseudorandomGenerator.
 
 Section OWP_HCP_Impl_PRG.
@@ -160,8 +164,9 @@ Section OWP_HCP_Impl_PRG.
     (A (b :: v)).
 
 
-  Require Import DetSem.
+  Require Import fcf.DetSem.
 
+  (* Something equivalent to the following is in the library already, right? *)
   Lemma rnd_concat_eq : forall (v : Bvector (S n)),
     evalDist ({0, 1} ^ (S n)) v ==
     evalDist (rb <-$ {0, 1}; r <-$ {0, 1} ^ n; ret (rb :: r)) v.
@@ -326,6 +331,7 @@ Section OWP_HCP_Impl_PRG.
     econstructor.
   Qed.
 
+
   Theorem OWP_HCP_PRG : 
     PRG_Advantage OWP_HCP_PRG_fun A <= (HCP_Advantage f b B).
 
@@ -337,6 +343,7 @@ Section OWP_HCP_Impl_PRG.
 
     eapply eqRat_trans.
     eapply evalDist_seq_eq.
+
     eapply rnd_concat_eq.
     intuition.
     eapply eqRat_refl.

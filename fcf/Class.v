@@ -1,9 +1,13 @@
+(* Copyright 2012-2015 by Adam Petcher.				*
+ * Use of this source code is governed by the license described	*
+ * in the LICENSE file at the root of the source tree.		*)
 
 Set Implicit Arguments.
 
-Require Import Crypto.
-Require Import Encryption.
-Require Import CompFold.
+Require Import fcf.Crypto.
+Require Import fcf.Encryption.
+Require Import fcf.CompFold.
+Require Import fcf.NotationV1. (*added by Lennart*)
 
 Section EncryptClassify.
 

@@ -1,21 +1,21 @@
 Require Import List.
-Require Import ByteBitRelations.
-Require Import hmac_pure_lemmas.
-Require Import HMAC_functional_prog.
-Require Import HMAC_spec_abstract.
-Require Import HMAC_equivalence.
+Require Import sha.ByteBitRelations.
+Require Import sha.hmac_pure_lemmas.
+Require Import sha.HMAC_functional_prog.
+Require Import sha.HMAC_spec_abstract.
+Require Import sha.HMAC_equivalence.
 
-Require Import HMAC_isPRF.
+Require Import sha.HMAC_isPRF.
 
-Require Import SHA256.
-Require Import pure_lemmas.
-Require Import HMAC256_functional_prog.
-Require Import sha_padding_lemmas.
-Require Import ShaInstantiation.
-Require Import hmac_common_lemmas.
-Require Import HMAC256_spec_pad.
-Require Import HMAC256_spec_list.
-Require Import HMAC256_equivalence.
+Require Import sha.SHA256.
+Require Import sha.pure_lemmas.
+Require Import sha.HMAC256_functional_prog.
+Require Import sha.sha_padding_lemmas.
+Require Import sha.ShaInstantiation.
+Require Import sha.hmac_common_lemmas.
+Require Import sha.HMAC256_spec_pad.
+Require Import sha.HMAC256_spec_list.
+Require Import sha.HMAC256_equivalence.
 
 Lemma splitAndPad_v_to_sha_splitandpad_blocks l:
    map Vector.to_list (splitAndPad_v l) = sha_splitandpad_blocks l.
@@ -28,8 +28,8 @@ Proof. intros. do 2 rewrite <- splitAndPad_v_to_sha_splitandpad_blocks.
 Qed. 
 
 Lemma splitAndPad_1to1 b1 b2 (B:splitAndPad_v b1 = splitAndPad_v b2)
-       (L1: NPeano.divide 8 (length b1))
-       (L2: NPeano.divide 8 (length b2)): b1 = b2.
+       (L1: NPeano.Nat.divide 8 (length b1))
+       (L2: NPeano.Nat.divide 8 (length b2)): b1 = b2.
 Proof. intros.
   apply splitAndPad_v_eq_inverse in B.
   unfold sha_splitandpad_blocks in B.
@@ -55,11 +55,11 @@ Qed.
 Module PARS256 <: HMAC_is_PRF_Parameters SHA256 EQ256.
 
   Parameter P : Blist -> Prop.
-  Parameter HP: forall m, P m -> NPeano.divide 8 (length m).
+  Parameter HP: forall m, P m -> NPeano.Nat.divide 8 (length m).
 
   Lemma splitAndPad_1to1: forall b1 b2 (B:EQ256.splitAndPad_v b1 = EQ256.splitAndPad_v b2)
-       (L1: NPeano.divide 8 (length b1))
-       (L2: NPeano.divide 8 (length b2)), b1 = b2.
+       (L1: NPeano.Nat.divide 8 (length b1))
+       (L2: NPeano.Nat.divide 8 (length b2)), b1 = b2.
    Proof. apply splitAndPad_1to1. Qed.
 End PARS256.
 
@@ -67,11 +67,11 @@ End PARS256.
 (* A definition of a PRF in the form of a predicate. *)
 Set Implicit Arguments.
 
-Require Import FCF.
-Require Import PRF.
-Require Import NMAC_to_HMAC.
-Require Import hF.
-Require Import HMAC_PRF.
+Require Import fcf.FCF.
+Require Import fcf.PRF.
+Require Import hmacfcf.NMAC_to_HMAC.
+Require Import hmacfcf.hF.
+Require Import hmacfcf.HMAC_PRF.
 
 Module PRFMod := HMAC_is_PRF SHA256 EQ256 PARS256.
 

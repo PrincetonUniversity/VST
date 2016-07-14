@@ -1,9 +1,12 @@
+(* Copyright 2012-2015 by Adam Petcher.				*
+ * Use of this source code is governed by the license described	*
+ * in the LICENSE file at the root of the source tree.		*)
 
 (* Definitions of asymptotic notions such as polynomial and negligible functions, and related theory. *)
 
 Set Implicit Arguments.
 
-Require Import StdNat.
+Require Import fcf.StdNat.
 
 Definition polynomial (f : nat -> nat) :=
     exists x c1 c2, forall n,
@@ -214,7 +217,7 @@ Theorem polynomial_mult :
 Qed.     
       
 
-Require Import Rat.
+Require Import fcf.Rat.
 Local Open Scope rat_scope.
 
 Definition negligible(f : nat -> Rat) :=
@@ -336,7 +339,7 @@ Qed.
 Local Open Scope nat_scope.
 Theorem double_log_plus_3_le_h : 
   forall y x,
-    y = log2 x ->
+    y = Nat.log2 x ->
     y >= 4 ->
     2 * y + 3 <= x.
   
@@ -350,7 +353,7 @@ Theorem double_log_plus_3_le_h :
   
   destruct (eq_nat_dec y 3).
   subst.
-  assert (x >= pow 2 4).
+  assert (x >= Nat.pow 2 4).
   rewrite H.
   eapply Nat.log2_spec.
   destruct (eq_nat_dec x 0).
@@ -399,12 +402,12 @@ Qed.
 
 Theorem S_log_square_lt_h : 
   forall y x,
-    y = log2 x ->
-    6 <= log2 x->
+    y = Nat.log2 x ->
+    6 <= Nat.log2 x->
     S y * S y <= x.
   
   induction y; intuition; simpl in *.
-  assert (y = log2 (div2 x)).
+  assert (y = Nat.log2 (div2 x)).
   symmetry.
   eapply log2_div2.
   trivial.
@@ -420,7 +423,7 @@ Theorem S_log_square_lt_h :
   rewrite H2.
   clear H2.
   
-  destruct (eq_nat_dec (log2 x) 6).
+  destruct (eq_nat_dec (Nat.log2 x) 6).
   
   assert (y = 5).
   assert (S y = 6).
@@ -429,7 +432,7 @@ Theorem S_log_square_lt_h :
   omega.
   rewrite H2.
   simpl.
-  assert (x >= pow 2 6).
+  assert (x >= Nat.pow 2 6).
   rewrite <- e.
   
   eapply Nat.log2_spec.
@@ -465,8 +468,8 @@ Qed.
 
 Theorem S_log_square_lt : 
   forall x, 
-    pow 2 6 <= x->
-    S (log2 x) * S (log2 x) <= x.
+    Nat.pow 2 6 <= x->
+    S (Nat.log2 x) * S (Nat.log2 x) <= x.
   
   intuition.
   eapply S_log_square_lt_h; trivial.
@@ -479,12 +482,12 @@ Qed.
 
 Theorem log_square_lt : 
   forall x, 
-    pow 2 6 <= x->
-    log2 x * log2 x < x.
+    Nat.pow 2 6 <= x->
+    Nat.log2 x * Nat.log2 x < x.
   
   intuition.
   
-  assert (log2 x < S (log2 x)).
+  assert (Nat.log2 x < S (Nat.log2 x)).
   omega.
   eapply lt_le_trans.
   
@@ -497,9 +500,9 @@ Qed.
 
 Theorem poly_lt_exp_ge_6 : 
   forall c x, 
-    x >= (pow 2 c) ->
-    x >= (pow 2 6) ->
-    pow x c < pow 2 x.
+    x >= (Nat.pow 2 c) ->
+    x >= (Nat.pow 2 6) ->
+    Nat.pow x c < Nat.pow 2 x.
   
   intuition.
   
@@ -522,7 +525,7 @@ Theorem poly_lt_exp_ge_6 :
   omega.
   rewrite <- H3.
 
-  assert (c <= log2 x).
+  assert (c <= Nat.log2 x).
   eapply (@Nat.pow_le_mono_r_iff 2).
   omega.
   rewrite <- H3.
@@ -551,10 +554,10 @@ Theorem poly_lt_exp_ge_6 :
   omega.
   omega.
   
-  assert (expnat x c < expnat (2 ^ S (log2 x)) c).
+  assert (expnat x c < expnat (2 ^ S (Nat.log2 x)) c).
   eapply Nat.pow_lt_mono_l.
   omega.
-  eapply log2_spec.
+  eapply Nat.log2_spec.
   omega.
   eapply lt_le_trans.
   eapply H4.
@@ -562,14 +565,14 @@ Theorem poly_lt_exp_ge_6 :
   rewrite <- Nat.pow_mul_r.
   eapply Nat.pow_le_mono_r.
   omega.
-  assert (c <= S (log2 x)).
+  assert (c <= S (Nat.log2 x)).
   eapply (@Nat.pow_le_mono_r_iff 2).
   omega.
   eapply le_trans.
   eapply H.
   
   eapply lt_le_weak.
-  eapply log2_spec.
+  eapply Nat.log2_spec.
   omega.
   
   eapply le_trans.

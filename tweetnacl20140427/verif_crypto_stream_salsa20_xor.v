@@ -1296,6 +1296,24 @@ Definition crypto_stream_salsa20_xor_spec :=
        SEP (Sigma_vector SV; ThirtyTwoByte K k;
             crypto_stream_xor_postsep b Nonce K mCont (Int64.unsigned b) nonce c m). 
 
+Definition Inv cInit mInit bInit k nonce x z Nonce K SV mcont zcont:=
+(EX rounds:nat, EX m:_, EX zbytesR:list byte, EX srbytes:list byte,
+ let r64 := (Z.of_nat rounds * 64)%Z in
+ let c := offset_val r64 cInit in
+ let b := Int64.sub bInit (Int64.repr r64) in
+  (PROP  (0 <= r64 <= Int64.unsigned bInit /\ null_or_offset mInit r64 m
+          /\ CONTENT SIGMA K mInit mcont zcont rounds zbytesR srbytes)
+   LOCAL  (lvar _x (Tarray tuchar 64 noattr) x;
+           lvar _z (Tarray tuchar 16 noattr) z; temp _c c; temp _m m;
+           temp _b (Vlong b); temp _n nonce; temp _k k; gvar _sigma SV)
+   SEP (data_at Tsh (Tarray tuchar 16 noattr) (Bl2VL zbytesR) z;
+     data_at_ Tsh (Tarray tuchar 64 noattr) x; Sigma_vector SV;
+     data_at Tsh (Tarray tuchar 16 noattr) (SixteenByte2ValList Nonce) nonce;
+     ThirtyTwoByte K k; 
+     data_at Tsh (Tarray tuchar  (Z.of_nat rounds * 64) noattr) (Bl2VL srbytes) cInit;
+     data_at_ Tsh (Tarray tuchar (Int64.unsigned bInit - Z.of_nat rounds * 64) noattr) c;
+     message_at mcont mInit))).
+
 Lemma crypto_stream_salsa20_xor_ok: semax_body SalsaVarSpecs SalsaFunSpecs
       f_crypto_stream_salsa20_tweet_xor
       crypto_stream_salsa20_xor_spec.
@@ -1426,23 +1444,6 @@ drop_LOCAL 0%nat. (*remove temp i*)
 (*Verification of loop while (b >=64) ...*)
 rename c into cInit. rename m into mInit. rename b into bInit. thaw FR2.
 
-Definition Inv cInit mInit bInit k nonce x z Nonce K SV mcont zcont:=
-(EX rounds:nat, EX m:_, EX zbytesR:list byte, EX srbytes:list byte,
- let r64 := (Z.of_nat rounds * 64)%Z in
- let c := offset_val r64 cInit in
- let b := Int64.sub bInit (Int64.repr r64) in
-  (PROP  (0 <= r64 <= Int64.unsigned bInit /\ null_or_offset mInit r64 m
-          /\ CONTENT SIGMA K mInit mcont zcont rounds zbytesR srbytes)
-   LOCAL  (lvar _x (Tarray tuchar 64 noattr) x;
-           lvar _z (Tarray tuchar 16 noattr) z; temp _c c; temp _m m;
-           temp _b (Vlong b); temp _n nonce; temp _k k; gvar _sigma SV)
-   SEP (data_at Tsh (Tarray tuchar 16 noattr) (Bl2VL zbytesR) z;
-     data_at_ Tsh (Tarray tuchar 64 noattr) x; Sigma_vector SV;
-     data_at Tsh (Tarray tuchar 16 noattr) (SixteenByte2ValList Nonce) nonce;
-     ThirtyTwoByte K k; 
-     data_at Tsh (Tarray tuchar  (Z.of_nat rounds * 64) noattr) (Bl2VL srbytes) cInit;
-     data_at_ Tsh (Tarray tuchar (Int64.unsigned bInit - Z.of_nat rounds * 64) noattr) c;
-     message_at mcont mInit))).
 
   remember ((Byte.zero, Byte.zero, Byte.zero, Byte.zero):QuadByte) as ZeroQuadByte.
   destruct Nonce as [[[N0 N1] N2] N3].
@@ -1757,5 +1758,5 @@ Exists x z. unfold tarray; entailer!.
 unfold crypto_stream_xor_postsep. cancel.
 destruct (Int64.eq bInit Int64.zero). trivial.
 Intros l. Exists l. apply andp_right; trivial.
-apply prop_right. exists zbytes. split; assumption. 
-Time Qed. (*102 secs*)
+apply prop_right. exists zbytes. split; assumption.
+Time Qed. (*102 secs; Coq8.5pl2:42secs*) 

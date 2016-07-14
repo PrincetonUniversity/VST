@@ -1,9 +1,12 @@
+(* Copyright 2012-2015 by Adam Petcher.				*
+ * Use of this source code is governed by the license described	*
+ * in the LICENSE file at the root of the source tree.		*)
 
 Set Implicit Arguments.
 
-Require Import FCF.
-Require Import CompFold.
-Require Import RndListElem.
+Require Import fcf.FCF.
+Require Import fcf.CompFold.
+Require Import fcf.RndListElem.
 Require Import Permutation.
 
 Local Open Scope list_scope.

@@ -1,15 +1,18 @@
+(* Copyright 2012-2015 by Adam Petcher.				*
+ * Use of this source code is governed by the license described	*
+ * in the LICENSE file at the root of the source tree.		*)
  (* Equivalance between the oracle machine semantics and the probabilistic semantics. *)
 
 Set Implicit Arguments.
 
-Require Import Comp.
-Require Import DetSem.
-Require Import DistSem.
-Require Import Rat.
+Require Import fcf.Comp.
+Require Import fcf.DetSem.
+Require Import fcf.DistSem.
+Require Import fcf.Rat.
 Require Import Arith.
-Require Import StdNat.
-Require Import Fold.
-Require Import Limit.
+Require Import fcf.StdNat.
+Require Import fcf.Fold.
+Require Import fcf.Limit.
 Require Import Permutation.
 
 Local Open Scope rat_scope.
@@ -846,79 +849,79 @@ Lemma evalDet_lowDistApprox_ls_not_done:
   
 Qed.
 
+Lemma low_tree_approx_same_h : forall n (A : Set)(eqd : eq_dec A)(c : Comp A)(t : DistApproxTree A) ls,
+                                 dat_correct_h c ls n t ->
+                                 forall a, 
+                                   well_formed_comp c ->
+                                   lowDistApprox_ls c a n ls (lowDistApproxFromTree eqd t a).
+  
+  induction 1; intuition; simpl in *.
+  
+  eapply evalDet_lowDistApprox_ls_done.
+  trivial.
+  
+  eapply evalDet_lowDistApprox_ls_not_done.
+  trivial.
+  intuition.
+  simpl in *.
+  intuition.
+  subst.
+  rewrite app_nil_r in *.
+  eauto.
+  
+  destruct (IHdat_correct_h1 a).
+  trivial.
+  destruct H3.
+  
+  destruct (IHdat_correct_h2 a).
+  trivial.
+  destruct H4.
+  
+  intuition.
+  
+  unfold lowDistApprox_ls.
+  econstructor. econstructor.
+  intuition.
+  simpl.
+  
+  eapply rel_map_app.
+  eapply rel_map_map.
+  eapply rel_map_eq.
+  eapply H5.
+  trivial.
+  intuition.
+  rewrite <- app_assoc in H11.
+  simpl in *.
+  trivial.
+  eapply rel_map_map.
+  eapply rel_map_eq.
+  eapply H3.
+  trivial.
+  intuition.
+  rewrite <- app_assoc in H11.
+  simpl in *.
+  trivial.
+  
+  eapply pred_count_app; eauto.
+  simpl.
+  rewrite <- H8.
+  rewrite <- H9.
+  repeat rewrite <- ratMult_num_den.
+  rewrite <- ratAdd_den_same.
+  eapply eqRat_terms.
+  repeat rewrite mult_1_r.
+  trivial.
+  unfold posnatMult, natToPosnat, posnatToNat.
+  rewrite mult_comm.
+  simpl.
+  trivial.
+Qed.
+
 Theorem low_tree_approx_same : forall n (A : Set)(eqd : eq_dec A)(c : Comp A)(t : DistApproxTree A),
   well_formed_comp c ->
   dat_correct c n t -> 
   forall a, 
     lowDistApprox c a n (lowDistApproxFromTree eqd t a).
-  
-  Lemma low_tree_approx_same_h : forall n (A : Set)(eqd : eq_dec A)(c : Comp A)(t : DistApproxTree A) ls,
-    dat_correct_h c ls n t ->
-    forall a, 
-      well_formed_comp c ->
-      lowDistApprox_ls c a n ls (lowDistApproxFromTree eqd t a).
-    
-    induction 1; intuition; simpl in *.
-    
-    eapply evalDet_lowDistApprox_ls_done.
-    trivial.
-    
-    eapply evalDet_lowDistApprox_ls_not_done.
-    trivial.
-    intuition.
-    simpl in *.
-    intuition.
-    subst.
-    rewrite app_nil_r in *.
-    eauto.
-    
-    destruct (IHdat_correct_h1 a).
-    trivial.
-    destruct H3.
-    
-    destruct (IHdat_correct_h2 a).
-    trivial.
-    destruct H4.
-    
-    intuition.
-    
-    unfold lowDistApprox_ls.
-    econstructor. econstructor.
-    intuition.
-    simpl.
-    
-    eapply rel_map_app.
-    eapply rel_map_map.
-    eapply rel_map_eq.
-    eapply H5.
-    trivial.
-    intuition.
-    rewrite <- app_assoc in H11.
-    simpl in *.
-    trivial.
-    eapply rel_map_map.
-    eapply rel_map_eq.
-    eapply H3.
-    trivial.
-    intuition.
-    rewrite <- app_assoc in H11.
-    simpl in *.
-    trivial.
-      
-    eapply pred_count_app; eauto.
-    simpl.
-    rewrite <- H8.
-    rewrite <- H9.
-    repeat rewrite <- ratMult_num_den.
-    rewrite <- ratAdd_den_same.
-    eapply eqRat_terms.
-    repeat rewrite mult_1_r.
-    trivial.
-    unfold posnatMult, natToPosnat, posnatToNat.
-    rewrite mult_comm.
-    simpl.
-    trivial.
-  Qed.
   
   intuition.
   
@@ -1326,12 +1329,12 @@ Lemma lowDistApproxFromTree_datMap_inv : forall (A B : Set)(eqda : eq_dec A)(eqd
   rewrite ratMult_assoc.
   rewrite (ratMult_comm (1/2)).
   rewrite <- ratMult_assoc.
-  trivial.
+  eapply H8.
   
   rewrite ratMult_assoc.
   rewrite (ratMult_comm (1/2)).
   rewrite <- ratMult_assoc.
-  trivial.
+  eauto.
 
   intuition.
   destruct (H1 b).
@@ -2832,7 +2835,7 @@ Qed.
 
 Lemma lowDistApprox_repeat_sqrt_div2_left_total : forall (A : Set)(c : Comp A)(P : A -> bool) a,
   well_formed_comp c ->
-  left_total (fun n => (lowDistApprox_repeat c P a (sqrt (div2 n)))).
+  left_total (fun n => (lowDistApprox_repeat c P a (Nat.sqrt (div2 n)))).
 
   unfold left_total.
   intuition.
@@ -2917,6 +2920,9 @@ Lemma datRepeat_left_total : forall n (A : Set)(eqd : eq_dec A)(t : DistApproxTr
 
   Grab Existential Variables.
   eapply P.
+
+  trivial.
+
 Qed.
 
 Lemma dat_exists_repeat2 : forall (A : Set)(c : Comp A)(P : A -> bool)(n : nat),
@@ -4077,7 +4083,7 @@ Qed.
 Lemma dat_better_repeat_sqrt : forall (A : Set) (c : Comp A)(P : A -> bool)(n : nat) (t1 t2 : DistApproxTree A),
   (exists a, In a (filter P (getSupport c))) ->
   dat_correct_repeat c P n t1 ->
-  dat_correct_repeat2 c P (sqrt (div2 n)) t2 -> 
+  dat_correct_repeat2 c P (Nat.sqrt (div2 n)) t2 -> 
   well_formed_comp c ->
   dat_better t1 t2.
 
@@ -4102,7 +4108,8 @@ Lemma dat_better_repeat_sqrt : forall (A : Set) (c : Comp A)(P : A -> bool)(n : 
   
   eapply le_trans.
   eapply plus_le_compat.
-  eapply sqrt_spec.
+  eapply Nat.sqrt_spec.
+  omega.
   eapply le_trans.
   eapply datCorrect_datDepth.
   eauto.
@@ -4132,7 +4139,7 @@ Lemma lowDistApprox_repeat_sqrt_le : forall n (A : Set)(c : Comp A)(P : A -> boo
   well_formed_comp c ->
   (exists a, In a (filter P (getSupport c))) ->
   lowDistApprox (Repeat c P) a n v1 ->
-  lowDistApprox_repeat c P a (sqrt (div2 n)) v2 -> 
+  lowDistApprox_repeat c P a (Nat.sqrt (div2 n)) v2 -> 
   n > 1 ->
   v2 <= v1.
 
@@ -4151,11 +4158,11 @@ Lemma lowDistApprox_repeat_sqrt_le : forall n (A : Set)(c : Comp A)(P : A -> boo
   Focus 2.
   eapply eqRat_impl_leRat.
   eapply low_tree_approx_same_inv.
-  eapply H5.
+  eapply H0.
   eapply H1.
   
   eapply lowDistApprox_dat_better_le.
-  eapply dat_correct_repeat_same in H5.
+  eapply dat_correct_repeat_same in H0.
   eapply dat_better_repeat_sqrt; eauto.
   eauto.
   econstructor; eauto.
@@ -5058,7 +5065,7 @@ Lemma lowDistApprox_limit_repeat : forall (A : Set)(c : Comp A)(P : A -> bool) a
   rat_inf_limit (lowDistApprox (Repeat c P) a) (evalDist (Repeat c P) a).
 
   intuition.
-  eapply (@rat_inf_limit_squeeze (fun n => (lowDistApprox_repeat c P a (sqrt (div2 n)))) (fun n => eqRat (evalDist (Repeat c P) a))).
+  eapply (@rat_inf_limit_squeeze (fun n => (lowDistApprox_repeat c P a (Nat.sqrt (div2 n)))) (fun n => eqRat (evalDist (Repeat c P) a))).
 
   eapply rat_inf_limit_mono.
   eapply lowDistApprox_repeat_limit; trivial.

@@ -4,21 +4,21 @@ Require Import fcf.Blist.
 
 Require Import sha.vst_lemmas.
 Require Import sha.hmac_pure_lemmas.
-Require Import ByteBitRelations.
+Require Import sha.ByteBitRelations.
 
 Require sha.sha.
 Require Import sha.SHA256.
 Local Open Scope logic.
 
 Require Import sha.spec_sha.
-Require Import sha_lemmas.
+Require Import sha.sha_lemmas.
 
 Require Import sha.HMAC_functional_prog.
 Require Import sha.HMAC256_functional_prog.
 Require Import sha.hmac_common_lemmas.
 Require Import sha.ShaInstantiation.
-Require Import HMAC256_equivalence.
-Require Import HMAC256_isPRF.
+Require Import sha.HMAC256_equivalence.
+Require Import sha.HMAC256_isPRF.
 
 Require Import sha.hmac.
 Require Import sha.spec_hmac.
@@ -27,7 +27,7 @@ Lemma key_vector l:
   length (bytesToBits (HMAC_SHA256.mkKey l)) = b.
 Proof. rewrite bytesToBits_len, hmac_common_lemmas.mkKey_length; reflexivity. Qed.
 
-Definition mkCont (l:list Z) : HMAC_spec_abstract.HMAC_Abstract.Message (fun x => x=bytesToBits l /\ NPeano.divide 8 (length x)).
+Definition mkCont (l:list Z) : HMAC_spec_abstract.HMAC_Abstract.Message (fun x => x=bytesToBits l /\ NPeano.Nat.divide 8 (length x)).
 eapply exist. split. reflexivity. 
 rewrite bytesToBits_len. exists (length l). trivial.
 Qed.

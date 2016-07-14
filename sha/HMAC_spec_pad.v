@@ -5,9 +5,9 @@ Require Import Coq.Program.Basics. (* for function composition: ∘ *)
 Require Import List. Import ListNotations.
 Require Import compcert.lib.Integers.
 Require Import sha.general_lemmas.
-Require Import hmac_pure_lemmas.
-Require Import ByteBitRelations.
-Require Import HMAC_common_defs.
+Require Import sha.hmac_pure_lemmas.
+Require Import sha.ByteBitRelations.
+Require Import sha.HMAC_common_defs.
 
 Local Open Scope program_scope.
 
@@ -145,7 +145,7 @@ Parameter HBS_eq : forall r msg : list int,
          end.
 End INST.
 
-Require Import HMAC_functional_prog. (*Just for HMAC_FUN*)
+Require Import sha.HMAC_functional_prog. (*Just for HMAC_FUN*)
 
 
 Module HMAC_Pad (HF:HP.HASH_FUNCTION) (I:INST).
@@ -273,7 +273,7 @@ Qed.
 
 Lemma equiv_pad shaiv shasplitandpad c p (B: (0< b c p)%nat) (DB32: (I.d*32 =b c p)%nat)
      ir (IVIR: shaiv = convert ir)
-       gap (GAP: forall bits, NPeano.divide I.d (length (gap (bitsToBytes bits))))
+       gap (GAP: forall bits, NPeano.Nat.divide I.d (length (gap (bitsToBytes bits))))
        (sap_gap: forall bits, shasplitandpad bits = bytesToBits (intlist_to_Zlist (gap (bitsToBytes bits))))
        HASH
        (HSH: forall (m:list Z), HASH m = intlist_to_Zlist (I.hashblocks ir (gap m))):
@@ -309,7 +309,7 @@ Qed.
 Theorem HMAC_pad_concrete splitandpad c p (B: (0< b c p)%nat) (BS: (HF.BlockSize * 8)%nat = b c p)
         (DB32: (I.d*32 =b c p)%nat)
          ir (*ie initial_regs*) gap (*ie generate_and_pad*)
-         (GAP: forall bits, NPeano.divide I.d (length (gap (bitsToBytes bits))))
+         (GAP: forall bits, NPeano.Nat.divide I.d (length (gap (bitsToBytes bits))))
          (sap_gap: forall bits, splitandpad bits = bytesToBits (intlist_to_Zlist (gap (bitsToBytes bits))))
          (HSH: forall (m:list Z), HF.Hash m = intlist_to_Zlist (I.hashblocks ir (gap m)))
          (K : list byte) (M H : list Z) (OP IP : Z)
@@ -353,7 +353,7 @@ Qed.
 Theorem HMAC_pad_concrete' splitandpad c p (B: (0< b c p)%nat) (BS: (HF.BlockSize * 8)%nat =b c p)
         (DB32: (I.d*32 =b c p)%nat)
          ir (*ie initial_regs*) gap (*ie generate_and_pad*)
-         (GAP: forall bits, NPeano.divide I.d (length (gap (bitsToBytes bits))))
+         (GAP: forall bits, NPeano.Nat.divide I.d (length (gap (bitsToBytes bits))))
          (sap_gap: splitandpad = fun bits => bytesToBits (intlist_to_Zlist (gap (bitsToBytes bits))))
          (HSH: forall (m:list Z), HF.Hash m = intlist_to_Zlist (I.hashblocks ir (gap m)))
          (K : list byte) (M : list Z) (OP IP : Z)

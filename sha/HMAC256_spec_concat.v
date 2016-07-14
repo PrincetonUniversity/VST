@@ -1,12 +1,12 @@
 Require Import List. Import ListNotations.
 Require Import sha.general_lemmas.
-Require Import ByteBitRelations.
-Require Import HMAC_spec_concat.
-Require Import HMAC_spec_pad.
+Require Import sha.ByteBitRelations.
+Require Import sha.HMAC_spec_concat.
+Require Import sha.HMAC_spec_pad.
 
 (*SHA256-specific files*)
-Require Import sha_padding_lemmas. (*for pad.*)
-Require Import ShaInstantiation.
+Require Import sha.sha_padding_lemmas. (*for pad.*)
+Require Import sha.ShaInstantiation.
 
 Lemma sha_splitandpad_fpad : forall (l m : Blist),
                   length l = b ->

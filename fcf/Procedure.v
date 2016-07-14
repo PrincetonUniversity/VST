@@ -1,3 +1,6 @@
+(* Copyright 2012-2015 by Adam Petcher.				*
+ * Use of this source code is governed by the license described	*
+ * in the LICENSE file at the root of the source tree.		*)
 
 (* Definitions and theory related to "procedures" -- functions that return computations and special forms of the same.  
 *)
@@ -6,7 +9,7 @@ Set Implicit Arguments.
 Unset Strict Implicit.
 
 Require Import MCF.
-Require Import CompFold.
+Require Import fcf.CompFold.
 (* Require Import ProgramLogic_old. *)
 
 Local Open Scope type_scope.
@@ -764,7 +767,7 @@ Definition DataTypeFamily := nat -> Set.
 Definition ProcedureFamily(A B : nat -> Type) := forall n, A n -> B n.
 Definition EfficiencyPredicate := forall (A B : nat -> Type), ProcedureFamily A B -> Prop.
 
-Require Import Asymptotic.
+Require Import fcf.Asymptotic.
 
 Record Adversary_2_concrete
   (D1 : Type)(R1 : Set)(D2 : Type)(R2 : Set) :={

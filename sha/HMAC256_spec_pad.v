@@ -3,17 +3,17 @@ Require Import msl.Axioms.
 Require Import compcert.lib.Coqlib.
 Require Import compcert.lib.Integers.
 Require Import sha.general_lemmas.
-Require Import ByteBitRelations.
-Require Import HMAC_common_defs.
-Require Import HMAC_spec_pad.
+Require Import sha.ByteBitRelations.
+Require Import sha.HMAC_common_defs.
+Require Import sha.HMAC_spec_pad.
 
 (*The sha-specific imports*)
-Require Import SHA256. 
-Require Import HMAC_functional_prog. 
-Require Import HMAC256_functional_prog.
-Require Import hmac_common_lemmas.
-Require Import sha_padding_lemmas. (*for pad_len_64_nat*)
-Require Import ShaInstantiation.
+Require Import sha.SHA256. 
+Require Import sha.HMAC_functional_prog. 
+Require Import sha.HMAC256_functional_prog.
+Require Import sha.hmac_common_lemmas.
+Require Import sha.sha_padding_lemmas. (*for pad_len_64_nat*)
+Require Import sha.ShaInstantiation.
 
 (*Derived lemmas
 Lemma front_equiv_SHA256 :
@@ -63,7 +63,7 @@ Proof.
   rewrite <- inputs_eq. apply pad_isbyteZ. trivial.
 Qed.
 
-Lemma gap_divide16 bits: NPeano.divide 16 (length (generate_and_pad' (bitsToBytes bits))).
+Lemma gap_divide16 bits: NPeano.Nat.divide 16 (length (generate_and_pad' (bitsToBytes bits))).
 Proof.
     unfold generate_and_pad'.
     destruct (pad_len_64_nat (bitsToBytes bits)).

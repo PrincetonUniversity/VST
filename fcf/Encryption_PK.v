@@ -1,7 +1,10 @@
+(* Copyright 2012-2015 by Adam Petcher.				*
+ * Use of this source code is governed by the license described	*
+ * in the LICENSE file at the root of the source tree.		*)
 (* Definitions for public key encryption. *)
 
 Set Implicit Arguments.
-Require Import Crypto.
+Require Import fcf.FCF.
 
 Local Open Scope rat_scope.
 

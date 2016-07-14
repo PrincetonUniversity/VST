@@ -1,11 +1,15 @@
+(* Copyright 2012-2015 by Adam Petcher.				*
+ * Use of this source code is governed by the license described	*
+ * in the LICENSE file at the root of the source tree.		*)
 (* An oracle machine semantics for computations. *)
 
 Set Implicit Arguments.
 
-Require Export Comp.
-Require Import Blist.
-Require Import Fold.
+Require Export fcf.Comp.
+Require Import fcf.Blist.
+Require Import fcf.Fold.
 Require Import Permutation.
+Require Import Omega.
 
 Local Open Scope list_scope. 
 Local Open Scope comp_scope.
@@ -45,19 +49,19 @@ Qed.
 (* a functional form of the small-step semantics*)
 Fixpoint evalDet_step(A : Set)(c : Comp A)(s : Blist) : comp_state A :=
   match c in Comp A return comp_state A with
-    | Ret _ pf a => cs_done a s
+    | Ret pf a => cs_done a s
     | Rnd n  => 
       match (shiftOut s n) with
         | Some (v, s') => cs_more (Ret (@Bvector_eq_dec n) v) s'
         | None => (@cs_eof (Bvector n))
       end
-    | Bind A B c1 c2 =>     
+    | Bind c1 c2 =>     
       match (evalDet_step c1 s) with
-        | cs_eof => (@cs_eof A)
+        | cs_eof _ => (@cs_eof _)
         | cs_done b s' => cs_more (c2 b) s'
         | cs_more c1' s' => cs_more (Bind c1' c2) s'
       end
-    | Repeat A c P =>
+    | Repeat c P =>
       cs_more (Bind c (fun a => if (P a) then (Ret (comp_eq_dec c) a) else (Repeat c P))) s
    end.
 
@@ -110,7 +114,7 @@ Theorem evalDet_steps_bind_more_h : forall(A B : Set) x y,
       | [|- evalDet_steps ?c ?c ] => econstructor
       | [H : evalDet_steps (evalDet_step ?c ?s) _ |- evalDet_steps (cs_more (Bind ?c _) ?s) _ ] => inversion H; clear H; subst
       | [H : (evalDet_step ?c ?s) = _ |- evalDet_steps (cs_more (Bind ?c _) ?s) _ ] => econstructor; simpl
-      | [|- context[match ?x with | cs_done _ _ => _ | cs_eof => _ | cs_more _ _ => _ end] ] => case_eq x; intuition
+      | [|- context[match ?x with | cs_done _ _ => _ | cs_eof _ => _ | cs_more _ _ => _ end] ] => case_eq x; intuition
 
     end.
 

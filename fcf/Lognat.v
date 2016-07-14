@@ -1,3 +1,6 @@
+(* Copyright 2012-2015 by Adam Petcher.				*
+ * Use of this source code is governed by the license described	*
+ * in the LICENSE file at the root of the source tree.		*)
 
 (* This file contains the definition of the base 2 logarithm function (rounded down) over natural numbers. *)
 
@@ -115,6 +118,7 @@ Qed.
 
 Definition lognat(n : nat) : (n <> 0) -> nat := 
   fun pf => (log2 (nat_to_pos pf)).
+
 
 Theorem lognat_prod_sum : forall(a : nat)(pf1 : (a <> 0))(pf2: (2 * a) <> 0),
   (S (lognat pf1)) = (lognat pf2).

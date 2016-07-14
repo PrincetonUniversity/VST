@@ -1,7 +1,10 @@
+(* Copyright 2012-2015 by Adam Petcher.				*
+ * Use of this source code is governed by the license described	*
+ * in the LICENSE file at the root of the source tree.		*)
 
 Set Implicit Arguments.
 
-Require Import FCF.
+Require Import fcf.FCF.
 
 Local Open Scope nat_scope.
 
@@ -446,6 +449,7 @@ Theorem qam_count :
 Qed.
 
 Local Transparent evalDist.
+
 Section RndInList.
   
   Variable eta : nat.
@@ -490,20 +494,9 @@ Section RndInList.
     eapply leRat_trans.
     Focus 2.
     eapply eqRat_impl_leRat.
-    
-    Theorem rat_num_S' : 
-      forall n d,
-        (RatIntro (S n) d == (RatIntro 1 d) + RatIntro n d)%rat.
-
-      intuition.
-      rattac.
-      rewrite mult_plus_distr_r.
-      f_equal.
-      eapply mult_assoc.
-    Qed.
 
     symmetry.
-    eapply rat_num_S'.
+    eapply rat_num_S.
     eapply ratAdd_leRat_compat.
     rewrite (@sumList_exactly_one _ a).
     eapply leRat_refl.
@@ -562,6 +555,99 @@ Section RndInList.
   Qed.
   
 End RndInList.
+
+Local Open Scope rat_scope.
+
+Theorem RndNat_eq_any : 
+  forall (eta : nat)(x : Bvector eta),
+    Pr  [a0 <-$ { 0 , 1 }^eta; ret (eqb x a0) ] == 1 / 2^eta.
+
+  intuition.
+  simpl.
+  rewrite (@sumList_exactly_one _ x).
+  rewrite eqbBvector_complete.
+  destruct (EqDec_dec bool_EqDec true true); intuition.
+  rewrite ratMult_1_r.
+  reflexivity.
+  eapply getAllBvectors_NoDup.
+  apply in_getAllBvectors.
+
+  intuition.
+  destruct (EqDec_dec bool_EqDec (eqbBvector x b) true); intuition.
+  apply eqbBvector_sound in e.
+  intuition.
+  eapply ratMult_0_r.
+
+Qed.
+
+Require Import fcf.CompFold.
+Local Opaque evalDist.
+
+Section FixedInRndList.
+  
+  Variable A : Set.
+  Variable eta : nat.
+
+  Theorem FixedInRndList_prob :
+    forall (ls : list A)(x : Bvector eta),
+      (Pr[lsR <-$ compMap _ (fun _ => {0, 1}^eta) ls; ret (if (in_dec (EqDec_dec _) x lsR) then true else false)
+      ] <= (length ls) / 2 ^ eta)%rat.
+
+    induction ls; intuition.
+    simpl.
+    comp_simp.
+    simpl.
+    rewrite evalDist_ret_0.
+    eapply rat0_le_all.
+    intuition.
+
+    simpl.
+    inline_first.
+    eapply leRat_trans.
+    eapply (evalDist_bind_event_le _ _ (fun z => eqb x z)).
+    eapply eqRat_impl_leRat.
+    apply RndNat_eq_any.
+    intuition.
+    
+    assert (Pr 
+   [lsR <-$
+    (lsb' <-$ compMap (Bvector_EqDec eta) (fun _ : A => { 0 , 1 }^eta) ls;
+     ret (a0 :: lsb')%list);
+    ret (if in_dec (EqDec_dec (Bvector_EqDec eta)) x lsR then true else false)
+   ] ==
+            Pr 
+   [lsR <-$ compMap (Bvector_EqDec eta) (fun _ : A => { 0 , 1 }^eta) ls;
+    ret (if in_dec (EqDec_dec (Bvector_EqDec eta)) x lsR then true else false)
+   ]).
+
+    inline_first.
+    comp_skip.
+
+    destruct (in_dec (EqDec_dec (Bvector_EqDec eta)) x (a0 :: x0)).
+    simpl in i.
+    intuition; subst.
+    rewrite eqb_refl in *.
+    discriminate.
+    destruct (in_dec (EqDec_dec (Bvector_EqDec eta)) x x0); intuition.
+    simpl in n; intuition.
+    destruct (in_dec (EqDec_dec (Bvector_EqDec eta)) x x0); intuition.
+
+    rewrite H1.
+    rewrite IHls.
+    reflexivity.
+    
+    eapply leRat_trans.
+    Focus 2.
+    eapply eqRat_impl_leRat.
+    symmetry.
+    cutrewrite (S (length ls) = 1 + (length ls))%nat.
+    apply ratAdd_num.
+    trivial.
+    reflexivity.
+  Qed.
+  
+End FixedInRndList.
+
 
 Section RndInAdaptive.
 

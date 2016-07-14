@@ -4,25 +4,25 @@ Require Import List.
 Require Import compcert.lib.Integers.
 Require Import BinNums.
 Require Import msl.Axioms. 
-Require Import Blist.
+Require Import fcf.Blist.
 
-Require Import ByteBitRelations.
-Require Import hmac_pure_lemmas.
+Require Import sha.ByteBitRelations.
+Require Import sha.hmac_pure_lemmas.
 Require Import sha.general_lemmas.
-Require Import HMAC_functional_prog.
-Require Import HMAC_common_defs.
-Require Import HMAC_spec_abstract.
-Require Import HMAC_equivalence.
+Require Import sha.HMAC_functional_prog.
+Require Import sha.HMAC_common_defs.
+Require Import sha.HMAC_spec_abstract.
+Require Import sha.HMAC_equivalence.
 
 (*SHA256-specific Modules*)
-Require Import common_lemmas.
-Require Import HMAC256_functional_prog.
-Require Import sha_padding_lemmas.
-Require Import ShaInstantiation.
-Require Import hmac_common_lemmas.
-Require Import HMAC256_spec_pad.
-Require Import HMAC256_spec_concat.
-Require Import HMAC256_spec_list. (*for toBlocks*)
+Require Import sha.common_lemmas.
+Require Import sha.HMAC256_functional_prog.
+Require Import sha.sha_padding_lemmas.
+Require Import sha.ShaInstantiation.
+Require Import sha.hmac_common_lemmas.
+Require Import sha.HMAC256_spec_pad.
+Require Import sha.HMAC256_spec_concat.
+Require Import sha.HMAC256_spec_list. (*for toBlocks*)
 
 (*
 Lemma of_length_proof_irrel {A:Set} n (l: list A) M: 
@@ -162,7 +162,7 @@ Lemma length_splitandpad_inner m :
      (splitAndPad_v m) (sha_splitandpad_blocks m).
 Proof. apply length_splitandpad_inner_aux. Qed.
 
-Lemma C: NPeano.divide 8 c.
+Lemma C: NPeano.Nat.divide 8 c.
   exists 32%nat. reflexivity.
 Qed.
 
@@ -231,7 +231,7 @@ Module EQ256 <: EQUIV_Inst SHA256.
   Lemma D: (d * 32)%nat = b. reflexivity. Qed.
 
   Definition gap:list Z -> list int := SHA256.generate_and_pad.
-  Lemma GAP: forall bits, NPeano.divide d (length (gap (bitsToBytes bits))).
+  Lemma GAP: forall bits, NPeano.Nat.divide d (length (gap (bitsToBytes bits))).
     intros. rewrite <- pad_compose_equal. apply gap_divide16. Qed.
 
   Lemma sap_gap: splitAndPad = fun bits => bytesToBits (intlist_to_Zlist (gap (bitsToBytes bits))).
@@ -268,7 +268,7 @@ End EQ256.
 Module EQ := HMAC_Equiv SHA256 EQ256.
 
 (* Note we're comparing to HP.HMAC_SHA256.HmacCore, not HMAC. *)
-Lemma Equivalence (P : Blist -> Prop) (HP: forall msg, P msg -> NPeano.divide 8 (length msg))
+Lemma Equivalence (P : Blist -> Prop) (HP: forall msg, P msg -> NPeano.Nat.divide 8 (length msg))
       (kv : Bvector b) (m : HMAC_Abstract.Message P):
       Vector.to_list (HMAC_spec.HMAC EQ.h_v iv_v (HMAC_Abstract.wrappedSAP _ _ splitAndPad_v)
                       fpad_v EQ.opad_v EQ.ipad_v kv m) = 

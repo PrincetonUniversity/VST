@@ -1,10 +1,15 @@
+(* Copyright 2012-2015 by Adam Petcher.				*
+ * Use of this source code is governed by the license described	*
+ * in the LICENSE file at the root of the source tree.		*)
 
 (* An argument that is used to prove that the "two worlds" style of security definition is equivalent to the "coin flipping" style. *)
 
 Set Implicit Arguments.
 
-Require Import Crypto.
-Require Import Asymptotic.
+Require Import fcf.Crypto.
+Require Import fcf.Asymptotic.
+Require Import fcf.NotationV1. (*added by Lennart*)
+Require Import fcf.GenTacs.
 
 Theorem evalDist_bool_support : 
   forall (c : Comp bool)(ls : list bool),
@@ -112,9 +117,11 @@ Theorem evalDist_bool_complement :
   intuition.
   
   eapply evalDist_le_1.
+(*Lennart: rest of proof unnecessary in Coq8.5pl1
   unfold eq_dec.
   eapply (EqDec_dec _).
   intuition.
+*)
 Qed.
 
 Theorem rndBool_bind : 

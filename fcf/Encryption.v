@@ -1,10 +1,13 @@
+(* Copyright 2012-2015 by Adam Petcher.				*
+ * Use of this source code is governed by the license described	*
+ * in the LICENSE file at the root of the source tree.		*)
 
 (* indistinguishability-based security definitions for encryption schemes. *)
 
 Set Implicit Arguments.
 Unset Strict Implicit.
-Require Import FCF.
-Require Import CompFold.
+Require Import fcf.FCF.
+Require Import fcf.CompFold.
 
 Local Open Scope type_scope.
 Local Open Scope comp_scope.
@@ -153,7 +156,7 @@ Section Encryption_SecretKey_concrete.
       rewrite <- evalDist_right_ident.
       comp_skip.
       comp_simp.
-      intuition.
+      reflexivity.
 
       comp_at comp_inline rightc 1%nat.
       comp_swap_r.
@@ -169,7 +172,7 @@ Section Encryption_SecretKey_concrete.
       rewrite <- evalDist_right_ident.
       comp_skip.
       comp_simp.
-      intuition.
+      reflexivity.
     Qed.                                                     
      
   End IND_CPA_SecretKey_O_concrete_3Proc.
@@ -211,7 +214,7 @@ Section Encryption_SecretKey_concrete.
     Definition IND_CPA_SecretKey_OI_Advantage := 
     | Pr[IND_CPA_SecretKey_OI_G0] - Pr[IND_CPA_SecretKey_OI_G1]  |.    
 
-  Require Export Hybrid.
+  Require Export fcf.Hybrid.
 
   Section IND_CPA_SecretKey_OI_impl_O.
 
@@ -287,12 +290,12 @@ Section Encryption_SecretKey_concrete.
       eapply leRat_trans.
       eapply Single_impl_ListHybrid.
       intuition.
+      
       wftac.
       eapply oc_comp_wf_inv.
       eauto.
       intuition.
-      eapply EncryptOracle_wf.
-      intuition.
+      unfold EncryptOracle; wftac.
       intuition.
       assert ((fun x => True) s').
       trivial.
@@ -300,6 +303,9 @@ Section Encryption_SecretKey_concrete.
       simpl.
       trivial.
       
+      Focus 4.
+      reflexivity.
+
       intuition.
       wftac.
       unfold EncryptNothingOracle.
@@ -314,8 +320,6 @@ Section Encryption_SecretKey_concrete.
       simpl.
       trivial.
       intuition.
-
-      eauto.
   
       intuition.
       eapply leRat_trans.
@@ -335,8 +339,6 @@ Section Encryption_SecretKey_concrete.
 
       repeat (try comp_skip; try reflexivity; comp_simp; inline_first).
 
-      reflexivity.
-      
     Qed.
 
   End  IND_CPA_SecretKey_OI_impl_O.
@@ -345,8 +347,8 @@ Section Encryption_SecretKey_concrete.
 
 End Encryption_SecretKey_concrete.
 
-Require Import Asymptotic.
-Require Import Admissibility.
+Require Import fcf.Asymptotic.
+Require Import fcf.Admissibility.
 
 Section Encryption_SecretKey.
 

@@ -1,16 +1,20 @@
+(* Copyright 2012-2015 by Adam Petcher.				*
+ * Use of this source code is governed by the license described	*
+ * in the LICENSE file at the root of the source tree.		*)
 
 (* Tactics used to manipulate and reason about distributions corresponding to computations. *)
 
 Set Implicit Arguments.
 
-Require Import Rat.
-Require Import Comp.
-Require Import DistRules.
-Require Import DistSem.
-Require Import StdNat.
-Require Import Fold.
-Require Import ProgramLogic.
-Require Import DistTacs.
+Require Import fcf.Rat.
+Require Import fcf.Comp.
+Require Import fcf.DistRules.
+Require Import fcf.DistSem.
+Require Import fcf.StdNat.
+Require Import fcf.Fold.
+Require Import fcf.ProgramLogic.
+Require Import fcf.DistTacs.
+Require Import fcf.NotationV1.
 
 Local Open Scope rat_scope.
 Local Open Scope comp_scope.
@@ -48,6 +52,13 @@ Ltac prog_simp_weak := repeat prog_simp_weak_1.
 
 Ltac prog_skip :=
       eapply comp_spec_seq; [eauto with inhabited | eauto with inhabited | (try eapply comp_spec_eq_refl; intuition) | intuition]; intuition; subst; prog_simp_weak; intuition.
+
+Ltac prog_skip_pred p :=
+      eapply (@comp_spec_seq _ _ p); [eauto with inhabited | eauto with inhabited | (eauto; try eapply comp_spec_eq_refl; intuition) | intuition]; intuition; subst; prog_simp_weak; intuition.
+
+Ltac prog_skip_eq :=
+  eapply comp_spec_seq_eq; [eauto with inhabited | eauto with inhabited | (eauto; try eapply comp_spec_eq_refl; intuition) | intuition]; intuition; subst; prog_simp_weak; intuition.
+
 
 Ltac prog_inline_l :=
   match goal with
@@ -121,3 +132,17 @@ Ltac prog_at tac side line :=
     | rightc => prog_at_r tac (line)%nat
   end.
 
+Ltac prog_transitivity := eapply comp_spec_eq_trans_l.
+
+Ltac prog_transitivity_r := eapply comp_spec_eq_trans_r.
+
+Ltac prog_symmetry :=
+  match goal with
+    | [|- comp_spec eq _ _ ] => eapply comp_spec_eq_symm
+  end.
+
+Ltac prog_ident_expand_l :=
+  prog_transitivity; [prog_symmetry; eapply comp_spec_right_ident | idtac].
+
+Ltac prog_ident_expand_r :=
+  prog_transitivity; [idtac | eapply comp_spec_right_ident].

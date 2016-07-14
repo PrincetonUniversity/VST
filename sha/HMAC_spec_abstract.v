@@ -4,10 +4,10 @@ Require Import Bvector.
 Require Import List.
 Require Import Arith.
 Require Import hmacfcf.HMAC_spec. (*The abstract spec*)
-Require Import hmac_pure_lemmas.
-Require Import ByteBitRelations.
-Require Import HMAC_common_defs.
-Require Import HMAC_spec_list.
+Require Import sha.hmac_pure_lemmas.
+Require Import sha.ByteBitRelations.
+Require Import sha.HMAC_common_defs.
+Require Import sha.HMAC_spec_list.
 
 Lemma split_eq: forall m (v2 : Bvector m) n (v1 : Bvector n),
       splitVector n m (Vector.append v1 v2)  = (v1, v2).

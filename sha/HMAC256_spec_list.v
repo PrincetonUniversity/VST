@@ -3,12 +3,14 @@ Require Import msl.Axioms. (*for extensionality*)
 Require Import Arith. 
 Require Import List. Import ListNotations.
 Require Import sha.general_lemmas.
-Require Import hmac_pure_lemmas.
-Require Import ByteBitRelations.
-Require Import HMAC_common_defs.
-Require Import HMAC_spec_list.
-Require Import HMAC_spec_concat.
-Require Import ShaInstantiation.
+Require Import sha.hmac_pure_lemmas.
+Require Import sha.ByteBitRelations.
+Require Import sha.HMAC_common_defs.
+Require Import sha.HMAC_spec_list.
+Require Import sha.HMAC_spec_concat.
+Require Import sha.ShaInstantiation.
+
+Require Import Omega.
 
 (*
 Definition ltb (n m:nat):bool := if beq_nat n m then false else leb n m.

@@ -1,18 +1,21 @@
+(* Copyright 2012-2015 by Adam Petcher.				*
+ * Use of this source code is governed by the license described	*
+ * in the LICENSE file at the root of the source tree.		*)
 
 (* This file contains two high level arguments:
 
   1) (DistSingle) When an adversary cannot distinguish two distributions when given one sample, then he cannot distinguish the distributions when given polynomially many samples.
 
-  2) (RepeatCore) When an adversary cannot distinguish two distributions when given a polynomial number of samples, he canno distinguish the distributions when given one sample from some "core" of the distributions that has polynomial size. 
+  2) (RepeatCore) When an adversary cannot distinguish two distributions when given a polynomial number of samples, he cannot distinguish the distributions when given one sample from some "core" of the distributions that has polynomial size. 
 
 *)
 
 Set Implicit Arguments.
 
-Require Import FCF.
-Require Import CompFold.
-Require Import RndNat.
-Require Export Hybrid.
+Require Import fcf.FCF.
+Require Import fcf.CompFold.
+Require Import fcf.RndNat.
+Require Export fcf.Hybrid.
 
 Local Open Scope list_scope.
 
@@ -329,7 +332,27 @@ Section DistSingle_impl_Mult.
     
   Qed.
 
-
+  Theorem compMap_computeHybrid_0_equiv : 
+    forall s_A a, 
+      Pr  [b <-$ compMap B_EqDec (fun _ : nat => (c2 a)) (forNats n); A2 s_A b ] ==
+      Pr  [x <-$ computeHybrid n 0 a; A2 s_A x ].
+    
+    intuition.
+    unfold computeHybrid.
+    unfold forNats.
+    fold forNats.
+    inline_first.
+    unfold compMap.
+    fold compMap.
+    comp_simp.
+    inline_first.
+    rewrite <- minus_n_O.
+    comp_skip.
+    comp_simp.
+    simpl.
+    intuition.
+  Qed.
+  
   Theorem DistSingle_impl_Mult : 
     DistMult_Adv _ c1 c2 A1 A2 n <= (n / 1) * (DistSingle_Adv c1 c2 B1 B2).
 
@@ -370,37 +393,9 @@ Section DistSingle_impl_Mult.
     eapply eqRat_impl_leRat.
     eapply ratDistance_eqRat_compat.
 
-    Theorem compMap_computeHybrid_0_equiv : 
-      forall s_A a, 
-      Pr  [b <-$ compMap B_EqDec (fun _ : nat => (c2 a)) (forNats n); A2 s_A b ] ==
-      Pr  [x <-$ computeHybrid n 0 a; A2 s_A x ].
-
-      intuition.
-      unfold computeHybrid.
-      unfold forNats.
-      fold forNats.
-      inline_first.
-      unfold compMap.
-      fold compMap.
-      comp_simp.
-      inline_first.
-      rewrite <- minus_n_O.
-      comp_skip.
-      comp_simp.
-      simpl.
-      intuition.
-    Qed.
-
     eapply evalDist_seq; intuition.
-    eapply eqRat_refl.
+    comp_simp.
 
-    Instance nzn : nz n.
-    
-    econstructor.
-    intuition.
-    Qed.
-
-    destruct x.
     eapply compMap_computeHybrid_0_equiv.
 
     Theorem compMap_computeHybrid_n_equiv : 
@@ -425,6 +420,10 @@ Section DistSingle_impl_Mult.
     eapply evalDist_seq; intuition.
     comp_simp.
     eapply compMap_computeHybrid_n_equiv.
+
+    Grab Existential Variables.
+    econstructor; intuition.
+
   Qed.
 
 End DistSingle_impl_Mult.
@@ -500,7 +499,7 @@ Section DistMult_impl_RepeatCore.
     comp_skip.
     comp_simp.
     simpl.
-    intuition.
+    reflexivity.
     rewrite H2.
     comp_skip.
     
@@ -674,6 +673,10 @@ Section DistMult_impl_RepeatCore.
      dist_compute.
      dist_compute.
      intuition.     
+
+     Grab Existential Variables.
+     intuition.
+
    Qed.
 
    Definition DM_RC_B2 s_A (b : list B) :=

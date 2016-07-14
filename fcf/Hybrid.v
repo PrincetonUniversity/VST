@@ -1,8 +1,11 @@
+(* Copyright 2012-2015 by Adam Petcher.				*
+ * Use of this source code is governed by the license described	*
+ * in the LICENSE file at the root of the source tree.		*)
 
 Set Implicit Arguments.
 
-Require Import FCF.
-Require Import CompFold.
+Require Import fcf.FCF.
+Require Import fcf.CompFold.
 
 Section DistSingle.
 

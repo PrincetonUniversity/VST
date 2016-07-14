@@ -1,9 +1,9 @@
 Set Implicit Arguments.
 
 Require Import List. (*Import ListNotations.*)
-Require Import ByteBitRelations.
-Require Import HMAC_common_defs.
-Require Import HMAC_spec_concat.
+Require Import sha.ByteBitRelations.
+Require Import sha.HMAC_common_defs.
+Require Import sha.HMAC_spec_concat.
 
 Module HMAC_List.
 

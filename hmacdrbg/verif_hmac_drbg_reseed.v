@@ -343,7 +343,7 @@ Proof.
     (*change (@data_at spec_sha.CompSpecs Tsh (tarray tuchar (@Zlength Z contents))
          (@map int val Vint (@map Z int Int.repr contents)) additional) with (@data_at hmac_drbg_compspecs.CompSpecs Tsh (tarray tuchar (@Zlength Z contents))
          (@map int val Vint (@map Z int Int.repr contents)) additional).*)
-    rewrite H1, SEED; entailer!. (*about 20mins or so...*) 
+    rewrite H1, SEED. Time entailer!. (*8.5pl2: 1230secs*) 
     my_thaw FR6. (*rewrite H1;*) cancel.
     erewrite data_at_complete_split with (A:=map Vint (map Int.repr entropy_bytes))
      (p:=Vptr b i)(*(offset:=entropy_len)*)
@@ -377,7 +377,7 @@ Proof.
     rewrite H11 in Heqnon_empty_additional; clear H11.
     forward.
     my_thaw FR6. 
-    assert_PROP (isptr additional) by entailer!. 
+    assert_PROP (isptr additional). { Time entailer!. (*8.5pl2: 1265secs *) }
     assert_PROP (contents = []).
     {
       destruct (eq_dec additional nullval); try discriminate. rewrite e in H11.
@@ -387,7 +387,7 @@ Proof.
     }
     apply andp_left2; rewrite H12, Zlength_nil, Zplus_0_r. 
     replace (384 - entropy_len - 0) with (384 - entropy_len) by omega.
-    old_go_lower. entailer!. (*>10mins*)
+    old_go_lower. Time entailer!. (*8.5pl2: 1240secs *) 
   }
 
   replace_SEP 0 (
@@ -475,6 +475,7 @@ Proof.
               (entropy_bytes ++ contents) key V).
   destruct p.  
   simpl. normalize. Time forward.
+    (*Coq8.5pl2: 1118.203 secs (247.609u,0.781s)*)
     (*takes 3597secs if HMAC256_DRBG_functional_prog.HMAC256_DRBG_update is opaque*)
     (*in VST1.6, this forward takes 1968.182 secs, without allocating a single KB of memory ;-) *)
     (*Coq8.5pl1: 1100secs*)
@@ -520,8 +521,8 @@ Proof.
   unfold hmac256drbgabs_hmac_drbg_update. rewrite <- Heqp.
   unfold HMAC256_DRBG_functional_prog.HMAC256_DRBG_update, HMAC_DRBG_update in Heqp.
   Time inv Heqp. (*6secs*)
-  Time entailer!. (*28secs; Coq8.5pl1: 1100secs*) apply derives_refl.
-Time Qed. (*97secs; Coq8.5pl1:52secs*)
+  Time entailer!. (*28secs; Coq8.5pl2: 1173secs Coq8.5pl1: 1100secs*) apply derives_refl.
+Time Qed. (*Coq8.5pl2: 64secs*)
 
 Lemma body_hmac_drbg_reseed: semax_body HmacDrbgVarSpecs HmacDrbgFunSpecs 
        f_mbedtls_hmac_drbg_reseed hmac_drbg_reseed_spec.
@@ -593,7 +594,7 @@ Proof.
     assert (Hlt: 256 <? Zlength contents = true) by (apply Z.ltb_lt; assumption).
     rewrite Hlt. simpl.
     unfold hmac256drbgabs_to_state.
-    entailer!. (*Coq8.5pl1: approx10mins*)
+    Time entailer!. (*Coq8.5pl2: 1220secs*)
   }
   {
     forward.
@@ -609,7 +610,7 @@ Proof.
    my_thaw FR2. my_thaw FR1.
     rewrite data_at__memory_block.
     change (sizeof (*cenv_cs*) (tarray tuchar 384)) with 384. 
-    Time entailer!. (*Coq8.5pl1:1100 secs*)
+    Time entailer!. (*Coq8.5pl2:1257 secs; Coq8.5pl1:1100 secs*)
   }
 
   freeze [1;2;3;4;5;6] FR3.
@@ -665,7 +666,7 @@ Proof.
     rewrite Z.gtb_ltb.
     destruct (Z.ltb_ge 256 (Zlength contents)) as [_ Y]; rewrite Y. 2: omega.
     entailer!.
-    my_thaw FR5. my_thaw FR4. simpl; entailer!. (*Coq8.5pl1: 20mins or so*)
+    my_thaw FR5. my_thaw FR4. simpl. Time entailer!. (*Coq8.5pl2:1260secs; Coq8.5pl1: 20mins or so*)
     rewrite data_at__memory_block. entailer!. clear FR2 FR1. 
     destruct seed; inv Pseed. unfold offset_val.
     rewrite <- repr_unsigned with (i:=i).
@@ -708,4 +709,4 @@ Proof.
   rewrite H9, H5, <- H1.
 
   apply body_hmac_drbg_reseed_TAIL with (s0:=s0); try assumption.
-Time Qed. (*62secs; Coq85pl1:42secs*)
+Time Qed. (*62secs; Coq85pl2:40secs*)

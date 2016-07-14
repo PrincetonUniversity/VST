@@ -1,12 +1,16 @@
+(* Copyright 2012-2015 by Adam Petcher.				*
+ * Use of this source code is governed by the license described	*
+ * in the LICENSE file at the root of the source tree.		*)
 (* Rules used to prove facts based on the distribution semantics *)
 
 Set Implicit Arguments.
 
-Require Import DistSem.
-Require Import Fold.
+Require Import fcf.DistSem.
+Require Import fcf.Fold.
 Require Import Permutation.
-Require Import SemEquiv.
-Require Import DetSem.
+Require Import fcf.SemEquiv.
+Require Import fcf.DetSem.
+Require Import fcf.NotationV1.
 
  
 Local Open Scope rat_scope.
@@ -2225,7 +2229,8 @@ Theorem repeat_fission' :
   rewrite <- evalDist_right_ident.
   eapply evalDist_seq_eq; intuition.
   rewrite evalDist_left_ident.
-  simpl; intuition.
+  simpl.
+  reflexivity.
   intuition.
   intuition.
   intuition.
@@ -2321,8 +2326,7 @@ Theorem repeat_fission' :
   eapply evalDist_seq_eq; intuition.
   rewrite evalDist_left_ident; intuition.
   simpl.
-  intuition.
- 
+  reflexivity.
 
   case_eq (P2 x); intuition.
   destruct (in_dec (EqDec_dec _) x (getSupport (Bind c f))).
@@ -2375,7 +2379,7 @@ Theorem prob_or_le_sum :
   intuition.
   destruct a; simpl.
   destruct (EqDec_dec bool_EqDec true true).
-  repeat rewrite ratMult_1_r.
+  rewrite ratMult_1_r.
   eapply ratMult_leRat_compat; intuition.
   eapply leRat_trans.
   eapply sumList_le.
@@ -2383,11 +2387,9 @@ Theorem prob_or_le_sum :
   eapply eqRat_impl_leRat.
   eapply ratMult_1_r.
   eapply evalDist_sum_le_1.
-  rewrite ratMult_1_r.
-  eapply ratMult_leRat_compat; intuition.
   
-  destruct ( EqDec_dec bool_EqDec false true).
-  discriminate.
+  intuition.
+
   rewrite ratMult_0_r.
   eapply rat0_le_all.
   

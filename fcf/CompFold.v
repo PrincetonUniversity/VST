@@ -1,8 +1,11 @@
+(* Copyright 2012-2015 by Adam Petcher.				*
+ * Use of this source code is governed by the license described	*
+ * in the LICENSE file at the root of the source tree.		*)
 
 (* Operations that fold and map a computation over a list, and related theory. *)
 
 Set Implicit Arguments.
-Require Import FCF.
+Require Import fcf.FCF.
 
 Local Open Scope list_scope.
 
@@ -1007,22 +1010,6 @@ Lemma list_pred_map_l'
   
 Qed.
 
-Lemma list_pred_symm : 
-  forall (A B : Set)(P : A -> B -> Prop) lsa lsb,
-    list_pred (fun b a => P a b) lsb lsa ->
-    list_pred P lsa lsb.
-  
-  induction lsa; inversion 1; intuition; simpl in *;
-  econstructor.
-  
-  subst.
-  trivial.
-  subst.
-  trivial.
-  eauto.
-  
-Qed.
-
 
 Theorem list_pred_rev : 
   forall (A B : Set)(lsa : list A)(lsb : list B) P,
@@ -1319,8 +1306,8 @@ Lemma compMap_app :
   rewrite <- evalDist_right_ident.
   comp_skip.
   simpl.
-  intuition.
-  
+  reflexivity.
+
   rewrite <- app_comm_cons.
   unfold compMap.
   fold compMap.
@@ -2522,6 +2509,10 @@ Theorem prob_sum_le :
   
   rewrite prob_or_le_sum.
   eapply ratAdd_leRat_compat; intuition.
+
+  Grab Existential Variables.
+  intuition.
+
 Qed.
 
 Theorem prob_sum_le_mult : 
@@ -2604,9 +2595,10 @@ Theorem Repeat_unroll_n :
   simpl.
   rewrite H2.
   simpl.
-  intuition.
+  reflexivity.
   rewrite IHn.
   comp_skip.
+  reflexivity.
   comp_simp.
   simpl.
   rewrite H2.

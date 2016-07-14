@@ -1,14 +1,17 @@
+(* Copyright 2012-2015 by Adam Petcher.				*
+ * Use of this source code is governed by the license described	*
+ * in the LICENSE file at the root of the source tree.		*)
 
 (* A theory of limits of a sequence *)
 
 Set Implicit Arguments.
 
 Require Import Arith.
-Require Import Fold.
+Require Import fcf.Fold.
 Require Import List.
 
-Require Import StdNat.
-Require Import Rat.
+Require Import fcf.StdNat.
+Require Import fcf.Rat.
 
 Section Limit.
 
@@ -1073,7 +1076,7 @@ Qed.
 Lemma rat_inf_limit_sqrt:
   forall (f : nat -> Rat -> Prop) (v : Rat),
     rat_inf_limit f v -> 
-    rat_inf_limit (fun n => f (sqrt n)) v.
+    rat_inf_limit (fun n => f (Nat.sqrt n)) v.
 
   intuition.
   eapply rat_inf_limit_mono.

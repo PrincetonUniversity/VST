@@ -1,10 +1,11 @@
+(* Copyright 2012-2015 by Adam Petcher.				*
+ * Use of this source code is governed by the license described	*
+ * in the LICENSE file at the root of the source tree.		*)
 
 
 (* Sampling an element from a finite cyclic group *)
-Require Import Crypto.
-Require Export GroupTheory.
-Require Import RndNat.
-Require Import ProgramLogic.
+Require Import fcf.FCF.
+Require Export fcf.GroupTheory.
 
 Local Open Scope group_scope.
 

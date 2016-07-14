@@ -1,8 +1,11 @@
+(* Copyright 2012-2015 by Adam Petcher.				*
+ * Use of this source code is governed by the license described	*
+ * in the LICENSE file at the root of the source tree.		*)
 (* A generic one-time pad that can be reused in other proofs. Also included are specializations for bit vectors and finite cyclic groups. *)
 
 Set Implicit Arguments.
 
-Require Import FCF.
+Require Import fcf.FCF.
 
 Definition D := evalDist.
 Definition dist_iso := evalDist_iso.
@@ -173,8 +176,8 @@ End xor_OTP.
 
 
 (* OTP for cyclic groups *)
-Require Import RndNat.
-Require Import RndGrpElem.
+Require Import fcf.RndNat.
+Require Import fcf.RndGrpElem.
 
 Local Open Scope group_scope.
 

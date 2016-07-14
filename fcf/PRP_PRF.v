@@ -1,11 +1,14 @@
+(* Copyright 2012-2015 by Adam Petcher.				*
+ * Use of this source code is governed by the license described	*
+ * in the LICENSE file at the root of the source tree.		*)
 (* The PRP PRF switching lemma.  This proof uses the outdated state-related definitions.  We need to update this proof to use the definitions and theory in Procedure.v *)
 
 Set Implicit Arguments.
 
-Require Import Crypto.
+Require Import fcf.Crypto.
 Require Import Permutation.
-Require Import ConstructedFunc.
-Require Import State.
+Require Import fcf.ConstructedFunc.
+Require Import fcf.State.
 
 Local Open Scope list_scope.
 Local Open Scope array_scope.

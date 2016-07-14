@@ -1,8 +1,11 @@
+(* Copyright 2012-2015 by Adam Petcher.				*
+ * Use of this source code is governed by the license described	*
+ * in the LICENSE file at the root of the source tree.		*)
 
 Set Implicit Arguments.
 
-Require Import FCF.
-Require Import CompFold.
+Require Import fcf.FCF.
+Require Import fcf.CompFold.
 
 Local Open Scope list_scope.
 
@@ -61,7 +64,7 @@ Theorem oc_compMap_eq :
   
 Qed.
 
-Require Import PRF.
+Require Import fcf.PRF.
 
 Theorem compMap_randomFunc_NoDup : 
   forall (A B C: Set){eqda : EqDec A}{eqdb : EqDec B}{eqdc : EqDec C}(ls : list A)(f : A -> B -> Comp C)(rndB : Comp B)(lsf : list (A * B)),
@@ -106,9 +109,77 @@ Theorem oc_compMap_wf :
   
   induction ls; intuition; simpl in *;
   econstructor; wftac; intuition.
-  econstructor. eauto.
+  
+Qed.
+
+
+Theorem compFold_oc_equiv_h : 
+  forall (A B S : Set)(eqdb : EqDec B)(eqds : EqDec S)(O : S -> A -> Comp (B * S))(lsa : list A)(initS : S)(lsb : list B),
+    comp_spec eq 
+              (compFold _
+                        (fun (acc : list B * S) (d : A) =>
+                           [rs, s]<-2 acc; z <-$ O s d; [r, s0]<-2 z; ret (rs ++ r :: nil, s0))
+                        (lsb, initS) lsa)
+              ([lsb', s'] <-$2 ((oc_compMap _ (fun a : A => query a) lsa) S _ O initS);
+              ret (lsb ++ lsb', s')).
+
+  induction lsa; intuition; simpl.
+  
+  fcf_inline_first.
+  fcf_simp.
+  rewrite app_nil_r.
+  fcf_spec_ret.
+
+  fcf_inline_first.
+  fcf_skip.
+  eapply comp_spec_eq_trans.
+  eapply IHlsa.
+  fcf_inline_first.
+  fcf_skip.
+  fcf_inline_first.
+  fcf_simp.
+  rewrite <- app_assoc.
+  simpl.
+  fcf_spec_ret.
+
+Qed.
+
+Theorem compFold_oc_equiv : 
+  forall (A B S : Set)(eqdb : EqDec B)(eqds : EqDec S)(O : S -> A -> Comp (B * S))(lsa : list A)(initS : S),
+    comp_spec eq 
+              (compFold _
+                        (fun (acc : list B * S) (d : A) =>
+                           [rs, s]<-2 acc; z <-$ O s d; [r, s0]<-2 z; ret (rs ++ r :: nil, s0))
+                        (nil, initS) lsa)
+              ((oc_compMap _ (fun a : A => query a) lsa) S _ O initS).
+
+  intuition.
+  eapply comp_spec_eq_trans.
+  eapply compFold_oc_equiv_h.
+  fcf_ident_expand_r.
+  fcf_skip.
+  simpl.
+  fcf_spec_ret.
+
+Qed.
+
+Theorem oc_compMap_qam :
+  forall (A B C D : Set)(eqdb : EqDec B)(c : A -> OracleComp C D B ) (ls : list A)(q : nat),
+    (forall a, queries_at_most (c a) q) ->
+    queries_at_most (oc_compMap _ c ls) (length ls * q)%nat.
+
+  induction ls; intuition; simpl in *.
+  econstructor.
+
+  econstructor.
+  auto.
+
   intuition.
   econstructor.
-  wftac.
-  
+  econstructor.
+  auto.
+  intuition.
+  econstructor.
+  omega.
+
 Qed.

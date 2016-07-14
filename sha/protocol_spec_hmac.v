@@ -342,8 +342,8 @@ Definition hmac_cleanup_spec :=
           LOCAL ()
           SEP(EMPTY c).
 
-Import ByteBitRelations.
-Import verif_hmac_crypto.
+Import sha.ByteBitRelations.
+Import sha.verif_hmac_crypto.
 
 Definition hmac_crypto_spec :=
   DECLARE _HMAC
@@ -376,10 +376,10 @@ Definition hmac_crypto_spec :=
               data_block shmd digest md;
               data_block Tsh (CONT MSG) msg; data_block Tsh (CONT KEY) (Vptr b i)).
 
-Require Import verif_hmac_final.
-Require Import verif_hmac_update.
-Require Import verif_hmac_init.
-Require Import verif_hmac_cleanup.
+Require Import sha.verif_hmac_final.
+Require Import sha.verif_hmac_update.
+Require Import sha.verif_hmac_init.
+Require Import sha.verif_hmac_cleanup.
 
 Lemma body_hmac_crypto: semax_body HmacVarSpecs HmacFunSpecs 
       f_HMAC hmac_crypto_spec.

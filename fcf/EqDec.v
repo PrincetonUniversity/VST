@@ -1,3 +1,6 @@
+(* Copyright 2012-2015 by Adam Petcher.				*
+ * Use of this source code is governed by the license described	*
+ * in the LICENSE file at the root of the source tree.		*)
 (* a type class and other definitions for decidable equality *)
 
 Set Implicit Arguments.
@@ -10,6 +13,9 @@ Class EqDec (A : Set) := {
   eqb : A -> A -> bool ;
   eqb_leibniz : forall x y, eqb x y = true <-> x = y 
 }.
+
+Infix "?=" := eqb (at level 70) : eq_scope.
+Infix "!=" := (fun x y => negb (eqb x y)) (at level 70) : eq_scope.
 
 Theorem eqb_refl : forall (A : Set)(pf : EqDec A)(a : A),
   eqb a a = true.
@@ -116,6 +122,26 @@ Theorem eqb_vector_refl :
 
 Qed.
 
+Theorem vector_fold_false : 
+  forall (A : Set)(f : A -> A -> bool)(n : nat)(v1 v2 : Vector.t A n),
+    Vector.fold_left2 (fun b a1 a2 => b && (f a1 a2)) false v1 v2 = false.
+  
+  induction n; intuition; simpl in *.
+  rewrite (vector_0 v1).
+  rewrite (vector_0 v2).
+  simpl.
+  trivial.
+  
+  destruct (vector_S v1).
+  destruct (vector_S v2).
+  destruct H.
+  destruct H0.
+  subst.
+  simpl.
+  eapply IHn.
+  
+Qed.
+
 Theorem eqb_vector_leibniz:
   forall (A : Set)(eqd : EqDec A)(n : nat)(v1 v2 : Vector.t A n),
     eqb_vector _ v1 v2 = true -> v1 = v2.
@@ -140,27 +166,6 @@ Theorem eqb_vector_leibniz:
   rewrite eqb_refl in H.
   eapply IHn.
   eapply H.
-
-  Theorem vector_fold_false : 
-    forall (A : Set)(f : A -> A -> bool)(n : nat)(v1 v2 : Vector.t A n),
-      Vector.fold_left2 (fun b a1 a2 => b && (f a1 a2)) false v1 v2 = false.
-
-    induction n; intuition; simpl in *.
-    rewrite (vector_0 v1).
-    rewrite (vector_0 v2).
-    simpl.
-    trivial.
-
-    destruct (vector_S v1).
-    destruct (vector_S v2).
-    destruct H.
-    destruct H0.
-    subst.
-    simpl.
-    eapply IHn.
-
-  Qed.
- 
   
   rewrite H0 in H.
   rewrite vector_fold_false in H.

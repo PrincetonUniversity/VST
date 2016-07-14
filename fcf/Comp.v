@@ -1,3 +1,6 @@
+(* Copyright 2012-2015 by Adam Petcher.				*
+ * Use of this source code is governed by the license described	*
+ * in the LICENSE file at the root of the source tree.		*)
 
 (* The syntax of computations.  *)
 
@@ -5,9 +8,9 @@ Set Implicit Arguments.
 
 Require Export Bvector.
 Require Export List.
-Require Export Blist.
-Require Export EqDec.
-Require Import Fold.
+Require Export fcf.Blist.
+Require Export fcf.EqDec.
+Require Import fcf.Fold.
 
 
 Inductive Comp : Set -> Type :=
@@ -58,7 +61,7 @@ Lemma comp_base_exists : forall (A : Set),
   eauto using Bvector_exists.
 Qed.
 
-Require Import EqDec. 
+(*Require Import EqDec. *)
 
 Lemma comp_EqDec : forall (A : Set),
   Comp A ->
@@ -137,10 +140,10 @@ Qed.
 
 Fixpoint getSupport(A : Set)(c : Comp A) : list A :=
   match c with
-    | Ret _ _ a => a :: nil
-    | Bind A' B' c1 c2 => getUnique (flatten (map (fun b => (getSupport (c2 b))) (getSupport c1))) (bind_eq_dec c1 c2)
+    | Ret _ a => a :: nil
+    | Bind c1 c2 => getUnique (flatten (map (fun b => (getSupport (c2 b))) (getSupport c1))) (bind_eq_dec c1 c2)
     | Rnd n => getAllBvectors n
-    | Repeat _ c1 P => (filter P (getSupport c1))
+    | Repeat c1 P => (filter P (getSupport c1))
   end.
 
 (* Only well-formed computations are guaranteed to terminate. *)
@@ -163,56 +166,31 @@ Inductive well_formed_comp : forall (A : Set), Comp A -> Prop :=
 
 Delimit Scope comp_scope with comp.
 
-Notation "'ret' v" := (Ret (EqDec_dec _) v)
-  (at level 75).
+Theorem lt_eq_false : 
+  forall n,
+    n < n -> False.
 
-Notation "{ 0 , 1 } ^ n" := (Rnd n)
-  (right associativity, at level 77) : comp_scope.
+  destruct n; intuition.
 
-Notation "{ 0 , 1 }" := (Bind (Rnd 1) (fun m => ret (Vector.hd m)))
-  (right associativity, at level 75) : comp_scope.
+Qed.
 
-Notation "x <-$ c1 ; c2" := (@Bind _ _ c1%comp (fun x => c2)) 
-  (right associativity, at level 81, c1 at next level) : comp_scope.
+Lemma length_nz_exists : forall (A : Type)(ls : list A),
+                           length ls > 0 ->
+                           exists a, In a ls.
+  
+  destruct ls; intuition; simpl in *.
+  exfalso.
+  eapply lt_eq_false; eauto.
+  
+  econstructor; eauto.
+Qed.
 
-
-Definition setLet(A : Set)(B : Type)(a : A)(f : A -> B) := f a.
-
-Notation "x <- e1 ; e2" := (setLet e1 (fun x => e2)) (right associativity, at level 81, e1 at next level) : comp_scope.
-
-Notation "[ x1 , x2 ] <-2 e1 ; c2" := (let '(x1, x2) := e1 in c2) (right associativity, at level 81, e1 at next level) : comp_scope.
-
-Notation "[ x1 , x2 , x3 ] <-3 e1 ; c2" := (let '(x1, x2, x3) := e1 in c2) (right associativity, at level 81, e1 at next level) : comp_scope.
-
-Notation "[ x1 , x2 , x3 , x4 ] <-4 e1 ; c2" := (let '(x1, x2, x3, x4) := e1 in c2) (right associativity, at level 81, e1 at next level) : comp_scope.
-
-Notation "[ x1 , x2 , x3 , x4 , x5 ] <-5 e1 ; c2" := (let '(x1, x2, x3, x4, x5) := e1 in c2) (right associativity, at level 81, e1 at next level) : comp_scope.
-
-Notation "[ x1 , x2 , x3 ] <-$3 c1 ; c2" := 
-  (Bind c1%comp (fun z => let '(x1, x2, x3) := z in c2)) (right associativity, at level 81, c1 at next level, only parsing) : comp_scope.
-
-Notation "[ x1 , x2 ] <-$2 c1 ; c2" := 
-  (Bind c1%comp (fun z => let '(x1, x2) := z in c2)) (right associativity, at level 81, c1 at next level, only parsing) : comp_scope.
-
-(*
-Notation "'do' x <-$ c1 'until' P ; c2" := (@Repeat _ _ c1 (fun x => P) (fun x => c2)) 
-  (right associativity, at level 71) : comp_scope.
-*)
 
 Theorem getSupport_length_nz : forall (A : Set)(c : Comp A),
   well_formed_comp c ->
   length (getSupport c) > 0.
   
   induction 1; intuition; simpl in *.
-  
-  Lemma length_nz_exists : forall (A : Type)(ls : list A),
-    length ls > 0 ->
-    exists a, In a ls.
-    
-    destruct ls; intuition; simpl in *.
-    omega.
-    econstructor; eauto.
-  Qed.
   
   apply length_getUnique_nz.
   apply length_nz_exists in IHwell_formed_comp.
@@ -305,17 +283,6 @@ Theorem getSupport_In_Ret :
 
 Qed.
 
-Ltac simp_in_support := 
-  unfold setLet in *;
-  match goal with
-    | [H : In _ (getSupport (Bind _ _)) |- _ ] =>
-      apply getSupport_Bind_In in H; destruct_exists; intuition
-    | [H : In _ (getSupport (if ?t then _ else _)) |- _ ] => let x := fresh "x" in remember t as x; destruct x
-    | [H : In _ (getSupport (ret _)) |- _ ] => apply getSupport_In_Ret in H; try pairInv; subst
-(*     | [H : false = inRange _ _ |- _] => symmetry in H *)
-    | [H : true = negb ?t |- _ ] => let x := fresh "x" in remember t as x; destruct x; simpl in H; try discriminate
-  end.
-
 
 Theorem getSupport_In_Seq :
   forall (A B : Set)(c : Comp A)(f : A -> Comp B) b a,
@@ -344,24 +311,6 @@ Definition maybeBind(A B : Type)(opt_a : option A)(f : A -> B) : option B :=
     | None => None
     | Some a => Some (f a)
   end.
-
-Notation "x <-? c1 ; c2" := (maybeBind c1 (fun x => (c2)))
-                              (right associativity, at level 81, c1 at next level) : comp_scope.
-
-Definition maybeBindComp(A B : Set)(eqdb : EqDec B)(c : Comp (option A))(f : A -> Comp B) : Comp (option B) :=
-  opt_a <-$ c;
-  match opt_a with
-    | None => ret None
-    | Some a => b <-$ (f a); ret (Some b)
-  end.
-
-
-Notation "x <-$? c1 ; c2" := 
-   (maybeBindComp _ (c1)%comp (fun x => (c2)%comp))
-                              (right associativity, at level 81, c1 at next level) : comp_scope.
-
-
-Infix "xor" := (BVxor _) (at level 30).
 
 Inductive OracleComp : Set -> Set -> Set -> Type :=
 | OC_Query : forall (A B : Set), A -> OracleComp A B B
@@ -399,18 +348,6 @@ Theorem oc_EqDec : forall (A B C: Set),  OracleComp A B C -> (A -> B) -> (A -> E
   intuition.
   
 Qed.
-
-
-Notation "x <--$ c1 ; c2" := (OC_Bind c1%comp (fun x => c2)) 
-  (right associativity, at level 81, c1 at next level) : comp_scope.
-
-Notation "[ x1 , x2 , x3 ] <--$3 c1 ; c2" := 
-  (OC_Bind c1%comp (fun z => let '(x1, x2, x3) := z in c2)) (right associativity, at level 81, c1 at next level, only parsing) : comp_scope.
-
-Notation "[ x1 , x2 ] <--$2 c1 ; c2" := 
-  (OC_Bind c1%comp (fun z => let '(x1, x2) := z in c2)) (right associativity, at level 81, c1 at next level, only parsing) : comp_scope.
-
-Notation "$ c" := (OC_Ret _ _ c) (at level 79) : comp_scope.
 
 
 Lemma well_formed_val_exists : 

@@ -1,8 +1,11 @@
+(* Copyright 2012-2015 by Adam Petcher.				*
+ * Use of this source code is governed by the license described	*
+ * in the LICENSE file at the root of the source tree.		*)
 
 Set Implicit Arguments.
 
-Require Import FCF.
-Require Import CompFold.
+Require Import fcf.FCF.
+Require Import fcf.CompFold.
 Local Open Scope list_scope.
 
 Fixpoint hasDups (A : Set)(eqd : EqDec A)(ls : list A) :=
@@ -51,6 +54,59 @@ Theorem hasDups_true_not_NoDup :
   
 Qed.
 
+Theorem hasDups_inj_equiv : 
+  forall (A B : Set)(eqda : EqDec A)(eqdb : EqDec B)(lsa : list A)(inj : A -> B),
+    (forall a1 a2, inj a1 = inj a2 -> a1 = a2) ->
+    hasDups _ lsa = hasDups _ (map inj lsa).
+  
+  induction lsa; intuition; simpl in *.
+  destruct (in_dec (EqDec_dec eqda) a lsa);
+    destruct (in_dec (EqDec_dec eqdb) (inj a) (map inj lsa));
+    intuition.
+  exfalso.
+  apply n.
+  apply in_map_iff.
+  econstructor.
+  intuition.
+  apply in_map_iff in i.
+  destruct i.
+  intuition.
+  apply H in H1.
+  subst.
+  intuition.
+Qed.
+
+Require Import Permutation.
+
+Theorem Permutation_hasDups : 
+  forall (A : Set)(eqd : EqDec A)(ls1 ls2 : list A),
+    Permutation ls1 ls2 ->
+    hasDups eqd ls1 = hasDups eqd ls2.
+  
+  intuition.
+  case_eq ( hasDups eqd ls1); intuition.
+  apply hasDups_true_not_NoDup in H0.
+  intuition.
+  case_eq (hasDups eqd ls2); intuition.
+  apply hasDups_false_NoDup in H1; intuition.
+  
+  exfalso.
+  eapply H0.
+  eapply permutation_NoDup.
+  eapply Permutation_sym.
+  eauto.
+  trivial.
+  
+  eapply hasDups_false_NoDup in H0; intuition.
+  case_eq (hasDups eqd ls2); intuition.
+  apply hasDups_true_not_NoDup in H1.
+  exfalso.
+  apply H1.
+  eapply permutation_NoDup;
+    eauto.
+     
+Qed.
+
 Section DupProb.
 
   Variable A B : Set.
@@ -59,7 +115,7 @@ Section DupProb.
 
   Theorem dupProb : 
     forall (ls : list A),
-      Pr[x <-$ compMap _ (fun _ => {0,1}^eta) ls; ret (hasDups _ x)] <= 
+      Pr[x <-$ compMap _ (fun _ => {0, 1}^eta) ls; ret (hasDups _ x)] <= 
       (length ls ^ 2 / 2 ^ eta).
 
     Local Opaque evalDist.
@@ -133,7 +189,7 @@ Section DupProb.
     rewrite ratAdd_comm.
     eapply ratAdd_leRat_compat.
 
-    Require Import RndInList.
+    Require Import fcf.RndInList.
 
     assert (
         Pr 

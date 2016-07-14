@@ -1,7 +1,10 @@
+(* Copyright 2012-2015 by Adam Petcher.				*
+ * Use of this source code is governed by the license described	*
+ * in the LICENSE file at the root of the source tree.		*)
 Set Implicit Arguments.
 
 Require Import List.
-Require Import Fold.
+Require Import fcf.Fold.
 
 Section In_gen.
   Variable A : Type.
@@ -208,7 +211,7 @@ Section NoDup_gen_map.
   
 End NoDup_gen_map.
 
-Require Import RepeatCore.
+Require Import fcf.RepeatCore.
 
 Lemma flatten_NoDup_gen : 
   forall (A : Set)(ls : list (list A)),

@@ -1,6 +1,9 @@
+(* Copyright 2012-2015 by Adam Petcher.				*
+ * Use of this source code is governed by the license described	*
+ * in the LICENSE file at the root of the source tree.		*)
 
-Require Import FCF.
-Require Import CompFold.
+Require Import fcf.FCF.
+Require Import fcf.CompFold.
 
 Local Open Scope list_scope.
 
@@ -307,7 +310,7 @@ Section ListHybrid.
 
 End ListHybrid.
 
-Require Import Encryption.
+Require Import fcf.Encryption.
 
 
 Section ListEncrypt.

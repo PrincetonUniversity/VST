@@ -1,7 +1,10 @@
+(* Copyright 2012-2015 by Adam Petcher.				*
+ * Use of this source code is governed by the license described	*
+ * in the LICENSE file at the root of the source tree.		*)
 
-Require Import DistTacs.
-Require Import ProgTacs.
-Require Import ProgramLogic.
+Require Import fcf.DistTacs.
+Require Import fcf.ProgTacs.
+Require Import fcf.ProgramLogic.
 
 Ltac inline_first :=
   repeat (dist_inline_first; prog_inline_first).

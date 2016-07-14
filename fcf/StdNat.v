@@ -1,3 +1,6 @@
+(* Copyright 2012-2015 by Adam Petcher.				*
+ * Use of this source code is governed by the license described	*
+ * in the LICENSE file at the root of the source tree.		*)
 (* Definitions and theory of natural numbers that is useful in cryptographi proofs. *)
 
 Set Implicit Arguments.
@@ -170,11 +173,12 @@ Theorem expnat_pos : forall x n,
 
 Qed.
 
-
 Lemma div2_le : forall n,
   le (div2 n) n.
   
-  intuition. apply Nat.div2_decr.
+  intuition.
+
+  eapply PeanoNat.Nat.div2_decr.
   omega.
   
 Qed.
@@ -582,7 +586,7 @@ Qed.
 
 Lemma sqrt_le_lin_gen : forall a b,
   (a <= b ->
-    Init.Nat.sqrt a <= b)%nat.
+    Nat.sqrt a <= b)%nat.
   
   intuition.
   eapply le_trans.
@@ -773,8 +777,8 @@ Qed.
 
 Theorem log2_div2 : 
   forall x y,
-    S y = Init.Nat.log2 x ->
-    Init.Nat.log2 (div2 x) = y.
+    S y = Nat.log2 x ->
+    Nat.log2 (div2 x) = y.
   
   intuition.
   specialize (Nat.log2_double); intuition.
@@ -807,7 +811,7 @@ Theorem log2_div2 :
 Qed.
 
 Lemma log2_0 : 
-  Init.Nat.log2 0 = 0.
+  Nat.log2 0 = 0.
   trivial.
 Qed.
 

@@ -1,10 +1,13 @@
+(* Copyright 2012-2015 by Adam Petcher.				*
+ * Use of this source code is governed by the license described	*
+ * in the LICENSE file at the root of the source tree.		*)
 
 (* Type classes and theory for groups, including finite cyclic groups. *)
 
 Set Implicit Arguments.
 
-Require Import Rat.
-Require Import StdNat.
+Require Import fcf.Rat.
+Require Import fcf.StdNat.
 
 Class Group_op(A : Set) := groupOp : A -> A -> A.
 Infix "*" := groupOp : group_scope.

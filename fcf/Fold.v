@@ -1,13 +1,16 @@
+(* Copyright 2012-2015 by Adam Petcher.				*
+ * Use of this source code is governed by the license described	*
+ * in the LICENSE file at the root of the source tree.		*)
 (* Additional facts about fold and special kinds of fold (e.g. iterated sums) *)
 
 Set Implicit Arguments.
 
-Require Import Rat.
+Require Import fcf.Rat.
 Require Import List.
 Require Import Permutation.
 Require Import Arith.
-Require Import EqDec.
-Require Import StdNat.
+Require Import fcf.EqDec.
+Require Import fcf.StdNat.
 Require Import Bool.
 
 Local Open Scope rat_scope.
@@ -3292,11 +3295,6 @@ Lemma sumList_distance_prod : forall (A : Set)(ls : list A)(f f1 f2 : A -> Rat),
   intuition.
   
   repeat rewrite sumList_cons.
-  eapply leRat_trans.
-  Focus 2.
-  eapply eqRat_impl_leRat.
-  rewrite sumList_cons.
-  eapply eqRat_refl.
   rewrite rat_distance_of_sum.
   eapply ratAdd_leRat_compat.
   eapply eqRat_impl_leRat.
@@ -5405,3 +5403,38 @@ Theorem list_pred_combine_l :
   
 Qed.
 
+Lemma list_pred_symm : 
+  forall (A B : Set)(P : A -> B -> Prop) lsa lsb,
+    list_pred (fun b a => P a b) lsb lsa ->
+    list_pred P lsa lsb.
+  
+  induction lsa; inversion 1; intuition; simpl in *;
+  econstructor.
+  
+  subst.
+  trivial.
+  subst.
+  trivial.
+  eauto.
+  
+Qed.
+
+Theorem list_pred_combine_r
+: forall (A B C : Set) (P1 : A -> B -> Prop) (P2 : A -> C -> Prop)
+         (lsa : list A) (lsb : list B) (lsc : list C),
+    list_pred P1 lsa lsb ->
+    list_pred P2 lsa lsc ->
+    list_pred (fun a p => P1 a (fst p) /\ P2 a (snd p))
+              lsa (combine lsb lsc).
+  
+  intuition.
+  eapply list_pred_symm.
+  eapply list_pred_impl.
+  eapply list_pred_combine_l.
+  eapply list_pred_symm.
+  eapply H.
+  eapply list_pred_symm.
+  eapply H0.
+  intuition.
+  
+Qed.

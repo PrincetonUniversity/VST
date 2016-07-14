@@ -1,12 +1,15 @@
+(* Copyright 2012-2015 by Adam Petcher.				*
+ * Use of this source code is governed by the license described	*
+ * in the LICENSE file at the root of the source tree.		*)
 
 Set Implicit Arguments.
 
-Require Import FCF.
-Require Import HMAC_spec.
-Require Import PRF.
-Require Import NMAC_to_HMAC.
-Require Import hF.
-Require Import GNMAC_PRF.
+Require Import fcf.FCF.
+Require Import hmacfcf.HMAC_spec.
+Require Import fcf.PRF.
+Require Import hmacfcf.NMAC_to_HMAC.
+Require Import hmacfcf.hF.
+Require Import hmacfcf.GNMAC_PRF.
 
 Section GHMAC_PRF.
 

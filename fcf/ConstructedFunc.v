@@ -1,15 +1,18 @@
+(* Copyright 2012-2015 by Adam Petcher.				*
+ * Use of this source code is governed by the license described	*
+ * in the LICENSE file at the root of the source tree.		*)
 (* A theory of constructed functions and permutations, including random functions and random permutations. *)
 
 Set Implicit Arguments.
-Require Import Crypto.
+Require Import fcf.Crypto.
 Require Import Permutation.
-Require Import CompFold. 
-Require Export Array.
+Require Import fcf.CompFold. 
+Require Export fcf.Array.
 
 Local Open Scope list_scope.
 Local Open Scope array_scope.
 
-Require Import State.
+Require Import fcf.State.
 
 Definition oracleMap(D R S: Set)(eqds : EqDec S)(eqdr : EqDec R)(oracle : (S * D) -> Comp (S * R))(s : S)(ds : list D) :=
   compFold _ (fun acc d => [s, rs] <-2 acc; [s, r] <-$2 oracle (s, d); ret (s, rs ++ r :: nil)) (s, nil) ds.

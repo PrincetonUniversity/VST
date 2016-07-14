@@ -1,9 +1,14 @@
+(* Copyright 2012-2015 by Adam Petcher.				*
+ * Use of this source code is governed by the license described	*
+ * in the LICENSE file at the root of the source tree.		*)
 Set Implicit Arguments.
 
 
 Require Import Bvector.
 Require Import List.
 Require Import Arith.
+
+Definition Blist := list bool.
 
 Fixpoint splitVector(A : Set)(n m : nat) : Vector.t A (n + m) -> (Vector.t A n * Vector.t A m) :=
   match n with

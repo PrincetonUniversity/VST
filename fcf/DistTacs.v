@@ -1,14 +1,18 @@
+(* Copyright 2012-2015 by Adam Petcher.				*
+ * Use of this source code is governed by the license described	*
+ * in the LICENSE file at the root of the source tree.		*)
 
 (* Tactics used to manipulate and reason about distributions corresponding to computations. *)
 
 Set Implicit Arguments.
 
-Require Import Rat.
-Require Import Comp.
-Require Import DistRules.
-Require Import DistSem.
-Require Import StdNat.
-Require Import Fold.
+Require Import fcf.Rat.
+Require Import fcf.Comp.
+Require Import fcf.DistRules.
+Require Import fcf.DistSem.
+Require Import fcf.StdNat.
+Require Import fcf.Fold.
+Require Import fcf.NotationV1.
 
 Local Open Scope rat_scope.
 Local Open Scope comp_scope.
@@ -38,6 +42,7 @@ Ltac wftac_one :=
     | [|- well_formed_comp (Rnd _) ] => eapply well_formed_Rnd
     | [|- well_formed_comp (let (_,_) := ?y in _ ) ] => destruct y
     | [|- well_formed_comp (if ?x then _ else _) ] => destruct x
+    | [|- @well_formed_oc _ _ _ _ ] => econstructor
   end.
   
 Ltac wftac :=
@@ -174,4 +179,16 @@ Ltac dist_compute_simp := simpl; unfold Fold.sumList; try rewrite <- ratAdd_0_l;
 
 Ltac dist_compute := repeat
   (dist_compute_simp; try dist_compute_1; try congruence; intuition).
+
+Ltac dist_transitivity :=
+  match goal with
+    | [|- _ == _] => eapply eqRat_trans
+    | [|- _ <= _] => eapply leRat_trans
+  end.
+
+Ltac dist_ident_expand_l :=
+   dist_transitivity; [try apply eqRat_impl_leRat; symmetry; eapply evalDist_right_ident | idtac].
+
+Ltac dist_ident_expand_r :=
+   dist_transitivity; [idtac | eapply evalDist_right_ident].
 

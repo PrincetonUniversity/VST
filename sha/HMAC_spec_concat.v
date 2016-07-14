@@ -1,9 +1,9 @@
 Set Implicit Arguments.
 
 Require Import List.
-Require Import ByteBitRelations. (*For InBlocks*)
-Require Import HMAC_common_defs.
-Require Import HMAC_spec_pad.
+Require Import sha.ByteBitRelations. (*For InBlocks*)
+Require Import sha.HMAC_common_defs.
+Require Import sha.HMAC_spec_pad.
 
 (*Parameter c:nat.
 Parameter p:nat.
@@ -78,7 +78,7 @@ Lemma h_star_eq :
   sha.HMAC_spec_pad.h_star = h_star.
 Proof. reflexivity. Qed.
 
-Theorem HMAC_concat_pad c p (C: NPeano.divide 8 c) B sap sap' fp
+Theorem HMAC_concat_pad c p (C: NPeano.Nat.divide 8 c) B sap sap' fp
         (sap_sap': forall l m, length l = (c+p)%nat ->
                           sap (l ++ m) = l ++ sap' m)
         (sap_appfpad: forall (l m : Blist),
