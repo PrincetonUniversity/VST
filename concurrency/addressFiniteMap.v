@@ -195,3 +195,13 @@ Proof.
   induction l as [| [addr a] l IHl]; simpl; auto.
   rewrite IHl; auto.
 Qed.
+
+Lemma AMap_find_map_option_map {A B} m (f : A -> B) k :
+  AMap.find k (AMap.map f m) =
+  option_map f (AMap.find k m).
+Proof.
+  destruct (AMap.find k m) eqn:E.
+  - apply AMap_find_map, E.
+  - apply AMap_find_map_None, E.
+Qed.
+
