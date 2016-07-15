@@ -97,16 +97,29 @@ Definition load_at m loc := Mem.load Mint32 m (fst loc) (snd loc).
 Definition lock_coherence (lset : AMap.t (option rmap)) (phi : rmap) (m : mem) : Prop :=
   forall loc : address,
     match AMap.find loc lset with
+    
+    (* not a lock *)
     | None =>
       forall sh sh' z P,
         phi @ loc <> YES sh sh' (LK z) P /\
         phi @ loc <> YES sh sh' (CT z) P
+    
+    (* locked lock *)
     | Some None =>
-      load_at m loc = Some (Vint Int.one) /\
+      load_at m loc = Some (Vint Int.zero) /\
       exists sh R, LK_at R sh loc phi
-    | Some (Some unlockedphi) =>
+    
+    (* unlocked lock *)
+    | Some (Some lockphi) =>
       load_at m loc = Some (Vint Int.one) /\
-      exists sh R, LK_at R sh loc phi /\ (later R) unlockedphi
+      exists sh (R : mpred),
+        LK_at R sh loc phi /\
+        (app_pred R (age_by 1 lockphi) \/ level phi = O)
+        (*/\
+        match age1 lockphi with
+        | Some p => app_pred R p
+        | None => Logic.True
+        end*)
     end.
 
 (*! Joinability and coherence *)
@@ -656,6 +669,45 @@ Proof.
       reflexivity.
 Qed.
 
+(* todo: maybe remove one of those lemmas *)
+
+Lemma resource_decay_LK_at' {b phi phi' R sh loc} :
+  resource_decay b phi phi' ->
+  (fst loc < b)%positive ->
+  (LK_at R sh loc) phi ->
+  (LK_at (approx (level phi') R) sh loc) phi'.
+Proof.
+  intros RD LT LKAT loc'.
+  specialize (LKAT loc').
+  destruct (adr_range_dec loc lock_size loc') as [range|notrange]; swap 1 2.
+  - rewrite jam_false in *; auto.
+  - rewrite jam_true in *; auto.
+    destruct (eq_dec loc loc') as [<-|noteq].
+    + rewrite jam_true in *; auto.
+      destruct LKAT as [p E]; simpl in E.
+      apply (resource_decay_LK RD) in E.
+      eexists.
+      hnf.
+      rewrite E.
+      f_equal.
+      simpl.
+      rewrite <- compose_assoc.
+      rewrite approx_oo_approx'. 2:apply RD.
+      f_equal.
+      extensionality.
+      unfold "oo".
+      change (approx (level phi')   (approx (level phi')  R))
+      with  ((approx (level phi') oo approx (level phi')) R).
+      rewrite approx_oo_approx.
+      reflexivity.
+    + rewrite jam_false in *; auto.
+      destruct LKAT as [p E]; simpl in E.
+      eexists; simpl.
+      apply (resource_decay_CT RD) in E.
+      rewrite E.
+      reflexivity.
+Qed.
+
 Definition resource_is_lock r := exists rsh sh n pp, r = YES rsh sh (LK n) pp.
 
 Definition same_locks phi1 phi2 := 
@@ -774,6 +826,24 @@ Proof.
     + constructor. assumption.
 Qed.
 
+Lemma level_age_by n {A} `{agA : ageable A} x : level (age_by n x) = (level x - n)%nat.
+Admitted.
+
+Definition age1' {A} `{agA : ageable A} : A -> A :=
+  fun x => match age1 x with Some y => y | None => x end.
+
+Definition age_by n {A} `{agA : ageable A} : A -> A := Nat.iter n age1'.
+
+Lemma age_by_age_by {A} `{agA : ageable A} n m x : age_by n (age_by m x) = age_by (n + m) x.
+Proof.
+  induction n; auto; simpl. rewrite IHn; auto.
+Qed.
+
+Lemma age_by_ind {A} `{agA : ageable A} (P : A -> Prop) : 
+  (forall x y, age x y -> P x -> P y) ->
+  forall x n, P x -> P (age_by n x).
+Admitted.
+
 Lemma resource_decay_lock_coherence {b phi phi' lset m} :
   resource_decay b phi phi' ->
   lockSet_bound lset b ->
@@ -809,29 +879,25 @@ Proof.
       rewrite Efind.
       constructor. }
     destruct LC as (dry & sh & R & lk & sat); split; auto.
-    exists sh, (approx (level phi) R); split.
-    + eapply resource_decay_LK_at in lk; eauto.
-    + (*
-      (* todo replace this awkward change with rewrite approx_approx' *)
-      change (((approx (S (level phi')) oo (approx (level phi))) R) (age_to (level phi') unlockedphi)).
-      (* courage, il faut réécrire tout ça avec age au lieu de necr, en gros *)
-      unfold "oo" in H0.
-      simpl in H0.
-       *)
-      (*
-    + assert (level unlockedphi = level phi) by admit (* add hypothesis to theorem *).
-      rewrite age_to_eq ; [ | congruence ].
-      exists R. split; auto.
-      eapply resource_decay_LK_at in lk; eauto.
-      (* what to do, now? *)
-      admit.
-    
-    + exists (approx (level phi) R). split; auto.
-      * eapply resource_decay_LK_at in lk; eauto.
-      * (* this is still not right *)
-        (* what to do, now? *)
-        admit.
-       *)
+    exists sh, (approx (level phi') R); split.
+    + eapply resource_decay_LK_at' in lk; eauto.
+    + match goal with |- ?a \/ ?b => cut (~b -> a) end.
+      { destruct (level phi'); auto. } intros Nz.
+      split.
+      * rewrite level_age_by.
+        rewrite level_age_to.
+        -- omega.
+        -- assert (level phi = level unlockedphi). admit (* todo in hypothesis *).
+           eauto with *.
+      * destruct sat as [sat | ?]; [ | omega ].
+        unfold age_to.
+        replace ageable.age_by with age_by by admit (* TODO remove this line *).
+        rewrite age_by_age_by.
+        rewrite plus_comm.
+        rewrite <-age_by_age_by.
+        apply age_by_ind.
+        { destruct R as [p h]. apply h. }
+        apply sat.
 Admitted.
 
 Lemma isSome_find_map addr f lset :
@@ -862,6 +928,7 @@ Section Simulation.
         (m, ge, (sch, jstate))
         (m', ge, (sch', jstate')).
   
+  (* Preservation lemma for core steps *)  
   Lemma invariant_thread_step
         {Z} (Jspec : juicy_ext_spec Z) Gamma
         n m ge i sch tp Phi ci ci' jmi'
@@ -1443,15 +1510,28 @@ unique: ok *)
           injection Ewetv as -> -> -> Epr.
           apply inj_pair2 in Epr.
           assert (R0 = R). {
-            assert (feq: forall A B (f g : A -> B), f = g -> forall x, f x = g x) by congruence.
+            assert (feq: forall A B (f g : A -> B), f = g ->
+              forall x, f x = g x) by congruence.
             apply (feq _ _ _ _ Epr tt).
           }
           subst R0; clear Epr.
+           *)
+          unfold canon.SEPx in PREC.
+          unfold fold_right in PREC.
+          rewrite seplog.sepcon_emp in PREC.
+          unfold lock_inv in PREC.
+          destruct PREC as (b0 & ofs0 & EQ & LKSPEC).
+          injection EQ as <- <-.
           exists (m, ge, (sch, tp))(* ; split *).
-          + (* taking the step *)
-            eapply state_step_c.
-            eapply JuicyMachine.sync_step; [ reflexivity | reflexivity | ].
-            eapply step_acqfail.
+          + apply state_step_c.
+            apply JuicyMachine.sync_step with
+            (Htid := cnti)
+              (Hcmpt := mem_compatible_forget compat)
+              (ev := Events.failacq (b, Int.intval (* replace with unsigned? *) ofs));
+              [ reflexivity (* schedPeek *)
+              | reflexivity (* schedSkip *)
+              | ].
+            eapply step_acqfail with (Hcompatible := mem_compatible_forget compat).
             * constructor.
             * apply Eci.
             * simpl.
@@ -1465,13 +1545,15 @@ unique: ok *)
                  auto.
               -- (* inversion safei; subst. *)
                  admit.
+                 (* design decision:
+                    - we can make 'safety' imply wellformedness of this signature
+                    - or we can add wellformed as an hypothesis of the program *)
                  (* see with andrew: should safety require signatures
                  to be exactly something?  Maybe it should be in
                  ext_spec_type, it'd be easy, maybe. *)
               -- admit (* another sig! *).
-              -- instantiate (2 := b).
-                 instantiate (1 := ofs).
-                 assert (L: length args = 1%nat) by admit. (* TODO discuss with andrew for where to add this requirement *)
+              -- assert (L: length args = 1%nat) by admit.
+                 (* TODO discuss with andrew for where to add this requirement *)
                  clear -PREB L.
                  unfold expr.eval_id in PREB.
                  unfold expr.force_val in PREB.
@@ -1486,19 +1568,71 @@ unique: ok *)
             * reflexivity.
             * reflexivity.
             * rewrite JuicyMachineLemmas.compatible_getThreadR_m_phi.
-              unfold pack_res_inv in *.
-              (*
-              etransitivity. admit.
-              etransitivity. apply Eat.
-              f_equal.*)
-              (* destruct args. *)
-              admit (* LKSIZE problem + joinsub things *).
+              specialize (LKSPEC (b, Int.unsigned ofs)).
+              simpl in LKSPEC.
+              if_tac in LKSPEC; swap 1 2.
+              { destruct H.
+                unfold lock_size; simpl.
+                split. reflexivity. omega. }
+              if_tac in LKSPEC; [ | congruence ].
+              destruct LKSPEC as (p & E).
+              pose proof (resource_at_join _ _ _ (b, Int.unsigned ofs) Join) as J.
+              rewrite E in J.
+              {
+                inversion J; subst.
+                - symmetry.
+                  unfold Int.unsigned in *.
+                  rewrite <-H7.
+                  replace z with LKSIZE.
+                  unfold pack_res_inv.
+                  f_equal.
+                  + admit (* again z / LKSIZE *).
+                  + admit (* evar dependencies *).
+                  + f_equal. extensionality x. unfold "oo".
+                    reflexivity.
+                  + admit (* again z / LKSIZE *).
+                - (* same work as above *)
+                  admit.
+              }
             * (* maybe we should write this in the invariant instead? *)
-              admit.
+              rewrite <-LOAD.
+              unfold load_at.
+              Transparent Mem.load.
+              unfold Mem.load.
+              unfold restrPermMap at 5.
+              simpl.
+              if_tac; if_tac; try reflexivity.
+              -- exfalso; clear -H H0.
+                 (* can we have a lemma saying that? assuming what?
+                    if we can't, that's pretty bad. *)
+                 admit.
+              -- exfalso; clear -H H0.
+                 (* same in other direction *)
+                 admit.
         
         - (* acquire succeeds *)
           destruct isl as [sh [psh [z Ewetv]]].
-          destruct isl' as [sh' [psh' [z' Eat]]].
+          destruct lock_coh' as [LOAD (sh' & R' & lk & sat)].
+          rewrite Ewetv in *.
+          
+          unfold canon.SEPx in PREC.
+          unfold fold_right in PREC.
+          rewrite seplog.sepcon_emp in PREC.
+          unfold lock_inv in PREC.
+          destruct PREC as (b0 & ofs0 & EQ & LKSPEC).
+          injection EQ as <- <-.
+          
+          (* rewrite Eat in Ewetv. *)
+          specialize (lk (b, Int.unsigned ofs)).
+          rewrite jam_true in lk; swap 1 2.
+          { hnf. unfold lock_size in *; split; auto; omega. }
+          rewrite jam_true in lk; swap 1 2. now auto.
+          assert (level Phi = S n).
+          { (* will be added to the invariant *) admit. }
+          destruct sat as [sat | sat]; [ | omega ].
+          
+          (* destruct isl' as [sh' [psh' [z' Eat]]]. *)
+          (*
           rewrite Eat in Ewetv.
           injection Ewetv as -> -> -> Epr.
           apply inj_pair2 in Epr.
@@ -1507,6 +1641,7 @@ unique: ok *)
             apply (feq _ _ _ _ Epr tt).
           }
           subst R0; clear Epr.
+           *)
           eexists (* TODO explicitely provide the state -- wait, how
           do I specify the non-join? is it thanks to Post? *).
           (* split. *)
@@ -1538,9 +1673,6 @@ unique: ok *)
             * admit (* real stuff: it joins *).
             * reflexivity.
             * reflexivity.
-            *)
-          admit.
-        - admit.
       }
 
       { (* the case of release *) admit. }
