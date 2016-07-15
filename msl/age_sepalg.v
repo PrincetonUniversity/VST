@@ -257,9 +257,9 @@ Lemma age_to_identy {A} `{asaA: Age_alg A}: forall k phi,
     identity phi -> identity (age_to k phi).
 Proof.
   intros k phi. unfold age_to. generalize (level phi - k); intros n; revert phi.
-  induction n; intros phi id; simpl; auto.
-  destruct (age1 phi) eqn:E; auto.
-  apply IHn. eapply age_identity; eauto.
+  induction n; intros phi id; simpl; auto. unfold age1'.
+  destruct (age1 (age_by n phi)) eqn:E; auto.
+  eapply age_identity. apply E. auto.
 Qed.
 
 Lemma age_comparable {A} {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A} {agA: ageable A}{asaA: Age_alg A}:

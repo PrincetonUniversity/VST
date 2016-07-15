@@ -940,25 +940,36 @@ auto.
 Qed.
 
 (* Apply [age1] n times (meaningful when [n <= level x] *)
-Fixpoint age_by n {A} `{agA : ageable A} (x : A) : A :=
-  match n with
-    O => x
-  | S n => match age1 x with Some y => age_by n y | None => x end
-  end.
 
-Lemma level_age_by k n {A} `{agA : ageable A} x : level x = k + n -> level (age_by k x) = n.
+Definition age1' {A} `{agA : ageable A} : A -> A :=
+  fun x => match age1 x with Some y => y | None => x end.
+
+Definition age_by n {A} `{agA : ageable A} : A -> A := Nat.iter n age1'.
+
+Lemma level_age1' {A} `{agA : ageable A} x : level (age1' x) = level x - 1.
 Proof.
-  revert x; induction k; intros x E; simpl.
-  - auto.
-  - destruct (age1 x) as [y|] eqn:F.
-    + apply IHk.
-      assert (level x = S (level y)). 2:omega.
-      eapply af_level2; eauto.
-      destruct agA; eauto.
-    + exfalso.
-      assert (level x = O). 2:omega.
-      eapply af_level1; eauto.
-      destruct agA; eauto.
+  unfold age1'. destruct (age1 x) eqn:E.
+  - apply age_level in E. omega.
+  - apply age1_level0 in E. omega.
+Qed.
+
+Lemma level_age_by n {A} `{agA : ageable A} x : level (age_by n x) = level x - n.
+Proof.
+  revert x; induction n; intros x; simpl.
+  - omega.
+  - simpl. rewrite level_age1'. rewrite IHn. omega.
+Qed.
+
+Lemma age_age_by n {A} `{agA : ageable A} (x y : A) : age x y -> age_by (S n) x = age_by n y.
+Proof.
+  intros E.
+  induction n.
+  - simpl.
+    unfold age1' in *.
+    rewrite E. auto.
+  - change (age1' (age_by (S n) x) = age_by (S n) y).
+    rewrite IHn.
+    reflexivity.
 Qed.
 
 (* Age [x] to the level [k] (meaningul when [k <= level x] *)
@@ -966,30 +977,24 @@ Definition age_to k {A} `{agA : ageable A} (x : A) : A := age_by (level x - k) x
 
 Lemma level_age_to k {A} `{agA : ageable A} x : k <= level x -> level (age_to k x) = k.
 Proof.
-  intros L.
-  apply level_age_by; omega.
+  intros L. unfold age_to.
+  rewrite level_age_by; omega.
 Qed.
 
 (* Proof techniques for age_to *)
-Lemma age_to_lt k {A} `{agA : ageable A} (x : A) : k < level x -> exists y, age1 x = Some y /\ age_to k x = age_to k y.
+Lemma age_to_lt k {A} `{agA : ageable A} (x : A) : k < level x -> exists y, age x y /\ age_to k x = age_to k y.
 Proof.
   intros L.
   destruct (age1 x) as [y|] eqn:Ex; swap 1 2.
   - rewrite age1_level0 in Ex. omega.
-  - exists y; intuition.
-    pose proof @af_level2 A level age1 (@age_facts _ agA) _ _ Ex as E.
-    unfold age_to; rewrite E.
-    remember (level y) as a.
-    destruct (lt_eq_lt_dec k a) as [[e|e]|e].
-    + replace (S a - k) with (S (a - k)) by auto with *.
-      simpl. rewrite Ex. auto.
-    + subst a.
-      rewrite <-e.
-      replace (S k - k) with 1 by auto with *.
-      replace (k - k) with 0 by auto with *.
-      simpl.
-      rewrite Ex; auto.
-    + omega.
+  - exists y; split; auto.
+    unfold age_to.
+    pose proof age_level _ _ Ex as E.
+    replace (level x - k) with (S (level y - k)) by omega.
+    generalize (level y - k).
+    clear E L.
+    intros.
+    apply age_age_by, Ex.
 Qed.
 
 Lemma age_to_eq k {A} `{agA : ageable A} (x : A) : k = level x -> age_to k x = x.
@@ -999,48 +1004,31 @@ Proof.
   reflexivity.
 Qed.
 
-Lemma age1_age_to n {A} `{agA : ageable A} x y : level x = S n -> age1 x = Some y -> age_to n x = y.
+Lemma age_age_to n {A} `{agA : ageable A} x y : level x = S n -> age x y -> age_to n x = y.
 Proof.
   intros E Y.
   assert (L : (n < level x)%nat) by omega.
-  destruct (age_to_lt n x L) as [y' [E' ->]].
-  assert (y' = y) by congruence. subst y'.
-  apply age_to_eq.
-  pose proof @af_level2 A level age1 (@age_facts _ agA) _ _ E'.
-  omega.
+  unfold age_to. rewrite E. replace (S n - n) with 1 by omega.
+  simpl. unfold age1'. rewrite Y. reflexivity.
 Qed.
 
-Lemma age_to_ageN n {A} `{agA : ageable A} (x : A) :
-  exists k, ageN k x = Some (age_to n x).
+Lemma age_by_ind {A} `{agA : ageable A} (P : A -> Prop) : 
+  (forall x y, age x y -> P x -> P y) ->
+  forall x n, P x -> P (age_by n x).
 Proof.
-  unfold age_to. generalize (level x - n); clear.
-  intros n; revert x; induction n; intros x.
-  - exists 0. reflexivity.
-  - simpl.
-    destruct (age1 x) as [ y | ] eqn:Ey; swap 1 2.
-    + exists 0; reflexivity.
-    + destruct (IHn y) as [k <-].
-      exists (S k).
-      unfold ageN.
-      simpl.
-      rewrite Ey.
-      auto.
+  intros IH x n.
+  unfold age_by.
+  induction n; intros Px.
+  - auto.
+  - simpl. unfold age1' at 1.
+    destruct (age1 (Nat.iter n age1' x)) as [y|] eqn:Ey; auto.
+    eapply IH; eauto.
 Qed.
 
 Lemma age_to_ind {A} `{agA : ageable A} (P : A -> Prop) : 
-  (forall x y, age1 x = Some y -> P x -> P y) ->
+  (forall x y, age x y -> P x -> P y) ->
   forall x n, P x -> P (age_to n x).
 Proof.
   intros IH x n.
-  destruct (age_to_ageN n x) as [k E].
-  revert E.
-  generalize (age_to n x).
-  revert x; clear n.
-  induction k.
-  - unfold ageN; simpl. congruence.
-  - intros x a E Px.
-    unfold ageN in E; simpl in E.
-    destruct (age1 x) as [ y | ] eqn:Ex. 2:discriminate.
-    apply IH in Ex; auto.
-    eapply IHk; eauto.
+  apply age_by_ind, IH.
 Qed.
