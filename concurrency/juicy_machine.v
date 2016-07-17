@@ -956,34 +956,17 @@ Qed.
         + inversion JTL. constructor.
     Qed.
 
-    Lemma perm_of_age:
-        forall rm age loc,
-          perm_of_res (age_to age rm @ loc) = perm_of_res (rm @ loc).
-      Proof.
-        intros.
-        unfold age_to.
-        pose (k:= (level rm - age)%coq_nat).
-        fold k.
-        generalize rm;
-        induction k.
-        - intros; simpl; reflexivity.
-        - intros rm0; simpl.
-          destruct (age1 rm0) eqn: old; try reflexivity.
-          rewrite IHk.
-          (*Tha case analisis begins:*)
-          destruct (rm0 @ loc)eqn:res.
-          + eapply age1_NO with (l:=loc) in old.
-            apply old in res; rewrite res; reflexivity.
-          + eapply age1_YES' with (l:=loc) in old.
-            assert (HH:exists P, rm0 @ loc = YES t0 p k0 P) by (exists p0; auto).
-            apply old in HH. destruct HH as [P HH]. rewrite HH.
-            reflexivity.
-          + eapply age1_PURE in old.
-            assert (HH: exists P, rm0 @ loc = PURE k0 P) by (exists p; auto).
-            apply old in HH. destruct HH as [P HH]; rewrite HH.
-            reflexivity.
-      Qed.
-
+    Lemma perm_of_age rm age loc :
+      perm_of_res (age_to age rm @ loc) = perm_of_res (rm @ loc).
+    Proof.
+      apply age_to_ind; [ | reflexivity].
+      intros x y A <- .
+      destruct (x @ loc) as [sh | rsh sh k p | k p] eqn:E.
+      - destruct (age1_NO x y loc sh A) as [[]_]; eauto.
+      - destruct (age1_YES' x y loc rsh sh k A) as [[p' ->] _]; eauto.
+      - destruct (age1_PURE x y loc k A) as [[p' ->] _]; eauto.
+    Qed.
+    
     Lemma almost_empty_perm: forall rm,
         almost_empty rm ->
         forall loc, Mem.perm_order'' (Some Nonempty) (perm_of_res (rm @ loc)).
