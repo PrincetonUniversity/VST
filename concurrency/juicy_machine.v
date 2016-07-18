@@ -1566,7 +1566,7 @@ Qed.
         
         - intros addr.
           destruct (age1_levelS _ _ E) as [n L].
-          eapply (age1_age_to n) in E; auto.
+          eapply (age_age_to n) in E; auto.
           rewrite <-E.
           rewrite perm_of_age.
           apply B.
