@@ -519,7 +519,112 @@ Lemma cl_step_unchanged_on ge c m c' m' b ofs :
   ~ Mem.perm m b ofs Cur Writable ->
   Maps.ZMap.get ofs (Maps.PMap.get b (Mem.mem_contents m)) =
   Maps.ZMap.get ofs (Maps.PMap.get b (Mem.mem_contents m')).
-Admitted.
+Proof.
+  intros step.
+  induction step
+    as [ ve te k m a1 a2 b0 ofs0 v2 v m' H H0 H1 H2 ASS | |
+         ve te k m optid a al tyagrs tyres cc vf vargs f m'  ve' le' H H0 H1 H2 H3 H4 NRV ALLOC H6 
+         | | | | | | | | | f ve te optexp optid k m v' m' ve' te'' k' H H0 FREE H2 H3 | | | ];
+    intros V NW; auto.
+  
+  - (* assign: some things are updated, but not the chunk in non-writable permission *)
+    inversion ASS; subst.
+    + inversion H4.
+      unfold Mem.store in *.
+      destruct (Mem.valid_access_dec m chunk b0 (Int.unsigned ofs0) Writable); [|discriminate].
+      injection H6 as <- ; clear ASS H4.
+      simpl.
+      destruct (eq_dec b b0) as [e|n]; swap 1 2.
+      * rewrite PMap.gso; auto.
+      * subst b0. rewrite PMap.gss.
+        generalize ((Mem.mem_contents m) !! b); intros t.
+        destruct v0 as [v0 align].
+        specialize (v0 ofs).
+        {
+          destruct (adr_range_dec (b, Int.unsigned ofs0) (size_chunk chunk) (b, ofs)) as [a|a].
+          - simpl in a; destruct a as [_ a]. 
+            espec v0.
+            tauto.
+          - simpl in a.
+            symmetry.
+            apply Mem.setN_outside.
+            rewrite encode_val_length.
+            replace (Z_of_nat (size_chunk_nat chunk)) with (size_chunk chunk); swap 1 2.
+            { unfold size_chunk_nat in *. rewrite Z2Nat.id; auto. destruct chunk; simpl; omega. }
+            assert (a' : ~ (Int.unsigned ofs0 <= ofs < Int.unsigned ofs0 + size_chunk chunk)) by intuition.
+            revert a'; clear.
+            generalize (Int.unsigned ofs0).
+            generalize (size_chunk chunk).
+            intros.
+            omega.
+        }
+    
+    + (* still the case of assignment (copying) *)
+      unfold Mem.storebytes in *.
+      destruct (Mem.range_perm_dec m b0 (Int.unsigned ofs0) (Int.unsigned ofs0 + Z.of_nat (Datatypes.length bytes)) Cur Writable); [ | discriminate ].
+      injection H8 as <-; clear ASS; simpl.
+      destruct (eq_dec b b0) as [e|n]; swap 1 2.
+      * rewrite PMap.gso; auto.
+      * subst b0. rewrite PMap.gss.
+        generalize ((Mem.mem_contents m) !! b); intros t.
+        specialize (r ofs).
+        {
+          destruct (adr_range_dec (b, Int.unsigned ofs0) (Z.of_nat (Datatypes.length bytes)) (b, ofs)) as [a|a].
+          - simpl in a; destruct a as [_ a]. 
+            espec r.
+            tauto.
+          - simpl in a.
+            symmetry.
+            apply Mem.setN_outside.
+            assert (a' : ~ (Int.unsigned ofs0 <= ofs < Int.unsigned ofs0 + Z.of_nat (Datatypes.length bytes))) by intuition.
+            revert a'; clear.
+            generalize (Int.unsigned ofs0).
+            intros.
+            omega.
+        }
+  
+  - (* internal call : things are allocated -- each time in a new block *)
+    clear -V ALLOC.
+    induction ALLOC. easy.
+    rewrite <-IHALLOC; swap 1 2.
+    + unfold Mem.alloc in *.
+      injection H as <- <-.
+      unfold Mem.valid_block in *.
+      simpl.
+      apply Plt_trans_succ.
+      auto.
+    + clear IHALLOC.
+      unfold Mem.alloc in *.
+      injection H as <- <- . simpl.
+      f_equal.
+      rewrite PMap.gso. auto.
+      unfold Mem.valid_block in *.
+      auto with *.
+  
+  - (* return: free_list *)
+    revert FREE NW V; clear.
+    generalize (blocks_of_env ge ve); intros l.
+    revert m m'; induction l as [| [[b' o] o'] l IHl]; intros m m'' E NW V.
+    + simpl. injection E as <- . easy.
+    + simpl in E.
+      destruct (Mem.free m b' o o') as [m' |] eqn:F.
+      2:discriminate.
+      specialize (IHl _ _ E).
+      unfold Mem.free in *.
+      if_tac in F. 2:discriminate.
+      injection F as <- .
+      rewrite <-IHl. easy.
+      * unfold Mem.perm in *.
+        unfold Mem.unchecked_free.
+        simpl.
+        rewrite PMap.gsspec.
+        if_tac; [ | easy ].
+        subst.
+        unfold Mem.range_perm in *.
+        destruct (zle o ofs); auto.
+        destruct (zlt ofs o'); simpl; auto.
+      * unfold Mem.unchecked_free, Mem.valid_block; simpl. auto.
+Qed.
 
 Lemma join_resource_decay b phi1 phi1' phi2 phi3 :
   resource_decay b phi1 phi1' ->
