@@ -854,7 +854,12 @@ Proof.
   intros [L RD] loc sh P PAT.
   specialize (RD loc).
   destruct RD as [N [RD|[RD|[RD|RD]]]].
-Admitted (* lazy todo *).
+  all: rewrite PAT in *; destruct (phi @ loc); simpl in *.
+  all: inversion RD; subst; eauto.
+  all: repeat match goal with H : ex _ |- _ => destruct H end.
+  all: repeat match goal with H : and _ _ |- _ => destruct H end.
+  all: discriminate.
+Qed.
 
 Lemma resource_decay_func_at' {b phi phi'} :
   resource_decay b phi phi' ->
