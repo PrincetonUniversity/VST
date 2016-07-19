@@ -163,7 +163,7 @@ Module X86WD.
     eauto with wd.
   Qed.
 
-   Lemma regset_comm:
+  Lemma regset_comm:
     forall (rs: Pregmap.t val) r r' v,
       (rs # r <- v) # r' <- v = (rs # r' <- v) # r <- v.
   Proof.
@@ -2014,38 +2014,6 @@ Module X86Inj <: CoreInjections X86SEM.
     unfold load_frame.store_args in *.
     eapply load_frame_store_args_rec_obs; eauto.
   Qed.
-
-  Lemma load_frame_store_args_rec_nextblock:
-    forall args m m2 stk ofs tys
-      (Hload_frame: load_frame.store_args_rec m stk ofs args tys = Some m2),
-      Mem.nextblock m2 = Mem.nextblock m.
-  Proof.
-    intro args.
-    induction args; intros; simpl in *.
-    destruct tys; inv Hload_frame; auto.
-    destruct tys; try discriminate;
-    destruct t0;
-    repeat match goal with
-           | [H: match ?Expr with _ => _ end = _ |- _] =>
-             destruct Expr eqn:?; try discriminate;
-               unfold load_frame.store_stack in *
-           | [H: Mem.storev _ _ _ _ = _ |- _] =>
-             eapply nextblock_storev in H
-           | [H: ?Expr = ?Expr2 |- context[?Expr2]] =>
-             rewrite <- H
-           end;
-    eauto.
-  Qed.
-  
-  Lemma load_frame_store_nextblock:
-    forall m m2 stk args tys
-      (Hload_frame: load_frame.store_args m stk args tys = Some m2),
-      Mem.nextblock m2 = Mem.nextblock m.
-  Proof.
-    intros.
-    unfold load_frame.store_args in *.
-    eapply load_frame_store_args_rec_nextblock; eauto.
-  Qed.
   
   Lemma corestep_obs_eq:
     forall (cc cf cc' : Asm_coop.state) (mc mf mc' : mem) f fg the_ge,
@@ -2144,10 +2112,10 @@ Module X86Inj <: CoreInjections X86SEM.
       }
       assert (Hobs_list: val_obs_list f' args args0)
         by (eauto using val_obs_list_incr).
-      assert (Hnb := load_frame_store_nextblock _ _ _ _ H8).
+      assert (Hnb := Asm_coop.load_frame_store_nextblock _ _ _ _ _ H8).
       eapply load_frame_store_args_obs in H8; eauto.
       destruct H8 as [m2' [Hload_frame' Hobs_eq']].
-      assert (Hnb' := load_frame_store_nextblock _ _ _ _ Hload_frame').
+      assert (Hnb' := Asm_coop.load_frame_store_nextblock _ _ _ _ _ Hload_frame').
 
       exists (State ((((Pregmap.init Vundef) # PC <- (Vptr f1 Int.zero)) # RA <- Vzero)
                   # ESP <- (Vptr stk' Int.zero)) (mk_load_frame stk' retty0)), m2', f'.

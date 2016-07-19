@@ -73,12 +73,27 @@ Module MemoryLemmas.
     reflexivity.
   Qed.
 
+  (*stronger version of val_at_alloc_1*)
+  Lemma val_at_alloc_3:
+    forall m m' sz nb b ofs
+      (Halloc: Mem.alloc m 0 sz = (m', nb))
+      (Hvalid: b <> nb),
+      Maps.ZMap.get ofs (Maps.PMap.get b (Mem.mem_contents m)) =
+      Maps.ZMap.get ofs (Maps.PMap.get b (Mem.mem_contents m')).
+  Proof.
+    intros.
+    unfold Mem.alloc in Halloc.
+    inv Halloc.
+    simpl.
+    rewrite Maps.PMap.gso; auto.
+  Qed.
+
   Lemma permission_at_alloc_1:
     forall m m' sz nb b ofs
       (Halloc: Mem.alloc m 0 sz = (m', nb))
       (Hvalid: Mem.valid_block m b),
-      permissions.permission_at m b ofs Cur =
-      permissions.permission_at m' b ofs Cur.
+    forall k, permissions.permission_at m b ofs k =
+         permissions.permission_at m' b ofs k.
   Proof.
     intros.
     Transparent Mem.alloc.
@@ -94,7 +109,7 @@ Module MemoryLemmas.
     forall m m' sz nb ofs
       (Halloc: Mem.alloc m 0 sz = (m', nb))
       (Hofs: (0 <= ofs < sz)%Z),
-      permissions.permission_at m' nb ofs Cur = Some Freeable.
+      forall k, permissions.permission_at m' nb ofs k = Some Freeable.
   Proof.
     intros.
     unfold Mem.alloc in Halloc.
@@ -110,7 +125,7 @@ Module MemoryLemmas.
     forall m m' sz nb ofs
       (Halloc: Mem.alloc m 0 sz = (m', nb))
       (Hofs: (ofs < 0 \/ ofs >= sz)%Z),
-      permissions.permission_at m' nb ofs Cur = None.
+      forall k, permissions.permission_at m' nb ofs k = None.
   Proof.
     intros.
     unfold Mem.alloc in Halloc.

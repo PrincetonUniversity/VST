@@ -827,21 +827,20 @@ Module MemErasure.
   Qed.
 
   Lemma getN_erasure:
-    forall m1 m2 b,
-      mem_erasure m1 m2 ->
-      forall n ofs,
-        Mem.range_perm m1 b ofs (ofs + Z_of_nat n) Cur Readable ->
-        memval_erasure_list
-                     (Mem.getN n ofs (m1.(Mem.mem_contents)#b))
-                     (Mem.getN n ofs (m2.(Mem.mem_contents)#b)).
+    forall m1 m2 b
+      (Herase: forall (b : positive) (ofs : ZIndexed.t),
+          memval_erasure (ZMap.get ofs (Mem.mem_contents m1) # b)
+                         (ZMap.get ofs (Mem.mem_contents m2) # b)),
+    forall n ofs,
+      memval_erasure_list
+        (Mem.getN n ofs (m1.(Mem.mem_contents)#b))
+        (Mem.getN n ofs (m2.(Mem.mem_contents)#b)).
   Proof.
     induction n; intros; simpl.
     constructor.
-    rewrite inj_S in H0.
-    destruct H.
     constructor.
-    eapply erased_contents0; eauto.
-    apply IHn. red; intros; apply H0; omega.
+    eapply Herase; eauto.
+    apply IHn.
   Qed.
 
   Lemma proj_bytes_erasure:
@@ -975,9 +974,7 @@ Module MemErasure.
     apply pred_dec_true; auto.
     exploit Mem.load_result; eauto. intro. rewrite H1.
     apply decode_val_erasure; auto.
-    apply getN_erasure; auto.
-    rewrite <- size_chunk_conv.
-    exploit Mem.load_valid_access; eauto. 
+    apply getN_erasure; auto. 
     Opaque Mem.load.
   Qed.
 
@@ -1206,8 +1203,7 @@ Module MemErasure.
     apply (perm_le Hmem_erasure) with (ofs := ofs') (k := Cur) in H.
     unfold Mem.perm. rewrite H. simpl; constructor.
     apply getN_erasure; auto.
-    destruct (zle 0 sz). rewrite nat_of_Z_eq; auto. omega.
-    rewrite nat_of_Z_neg. simpl. red; intros; omegaContradiction. omega.
+    destruct Hmem_erasure; auto.
     discriminate.
   Qed.
     
@@ -1229,7 +1225,286 @@ Module MemErasure.
   
   Hint Resolve mem_erasure_idempotent mem_erasure_dilute_1
        mem_erasure_restr: mem_erasure.
+
   
+ Record mem_erasure' (m m': mem) :=
+    { perm_le':
+        forall b ofs k,
+          Mem.valid_block m b->
+          Mem.perm_order'' ((Mem.mem_access m')#b ofs k)
+                           ((Mem.mem_access m)#b ofs k);
+      erased_contents': forall b ofs,
+          memval_erasure (ZMap.get ofs ((Mem.mem_contents m) # b))
+                         (ZMap.get ofs ((Mem.mem_contents m') # b));
+      erased_nb': Mem.nextblock m = Mem.nextblock m'
+    }.
+ 
+  Lemma mem_erasure'_erase:
+    forall m m',
+      mem_erasure' m m' ->
+      mem_erasure m (erasePerm m').
+  Proof.
+    intros.
+    destruct H.
+    constructor; auto.
+    intros.
+    unfold Mem.valid_block in H.
+    simpl in H.
+    eapply erasePerm_V in H; eauto.
+  Qed.
+    
+  Lemma alloc_erasure':
+    forall m m' sz m2 m2' b b'
+      (Herased: mem_erasure m m')
+      (Halloc: Mem.alloc m 0 sz = (m2, b))
+      (Halloc': Mem.alloc m' 0 sz = (m2', b')),
+      mem_erasure' m2 m2' /\ b = b'.
+  Proof.
+    intros.
+    destruct Herased.
+    assert (b = b').
+    { apply Mem.alloc_result in Halloc.
+      apply Mem.alloc_result in Halloc'.
+      subst; auto. }
+    subst.
+    split; auto.
+    constructor.
+    - intros.
+      destruct (Pos.eq_dec b b').
+      + subst.
+        destruct (Z_le_dec 0 ofs);
+          destruct (Z_lt_dec ofs sz).
+        * assert (Heq:=
+                    MemoryLemmas.permission_at_alloc_2 _ _ _ _ _ Halloc' ltac:(eauto)).
+          unfold permission_at in Heq.
+          specialize (Heq k).
+          rewrite Heq.
+          simpl.
+          destruct ((Mem.mem_access m2) # b' ofs k); constructor; auto.
+        * apply Znot_lt_ge in n.
+          assert (H1:= MemoryLemmas.permission_at_alloc_3 _ _ _ _ _ Halloc'
+                                                          ltac:(eauto)).
+          assert (H2:= MemoryLemmas.permission_at_alloc_3 _ _ _ _ _ Halloc ltac:(eauto)).
+          unfold permission_at in H1,H2.
+          specialize (H1 k). specialize (H2 k).
+          rewrite H1 H2.
+          simpl. auto.
+        * assert (ofs < 0)
+            by omega.
+          assert (H1:= MemoryLemmas.permission_at_alloc_3 _ _ _ _ ofs Halloc'
+                                                          ltac:(eauto)). 
+          assert (H2:= MemoryLemmas.permission_at_alloc_3 _ _ _ _ _ Halloc ltac:(eauto)).
+          unfold permission_at in H1,H2.
+          specialize (H1 k). specialize (H2 k).
+          rewrite H1 H2.
+          simpl. auto.
+        * assert (ofs < 0)
+            by omega.
+          assert (H1:= MemoryLemmas.permission_at_alloc_3 _ _ _ _ ofs Halloc'
+                                                          ltac:(eauto)). 
+          assert (H2:= MemoryLemmas.permission_at_alloc_3 _ _ _ _ _ Halloc ltac:(eauto)).
+          unfold permission_at in H1,H2.
+          specialize (H1 k). specialize (H2 k).
+          rewrite H1 H2.
+          simpl. auto.
+      + eapply Mem.valid_block_alloc_inv in H; eauto.
+        destruct H; try by exfalso.
+        unfold Mem.valid_block in H.
+        rewrite erased_nb0 in H.
+        assert (H2:= MemoryLemmas.permission_at_alloc_1 _ _ _ _ b ofs
+                                                        Halloc' ltac:(eauto)).
+        unfold permission_at in H2.
+        specialize (H2 k).
+        rewrite <-H2.
+        erewrite perm_le0; eauto. simpl.
+        destruct ((Mem.mem_access m2) # b ofs k); simpl; constructor.
+    - intros.
+      destruct (Pos.eq_dec b b'). subst.
+      erewrite MemoryLemmas.val_at_alloc_2 by eauto.
+      simpl; auto.      
+      erewrite <- MemoryLemmas.val_at_alloc_3 by eauto.
+      erewrite <- MemoryLemmas.val_at_alloc_3 with (m' := m2') by eauto.
+      eauto.
+    - apply Mem.nextblock_alloc in Halloc.
+      apply Mem.nextblock_alloc in Halloc'.
+      rewrite Halloc' Halloc erased_nb0.
+      reflexivity.
+  Qed.
+  
+  Lemma mem_free_erasure':
+    forall m m' sz m2 b
+      (Herased: mem_erasure m m')
+      (Hfree: Mem.free m b 0 sz = Some m2),
+    exists m2',
+      Mem.free m' b 0 sz = Some m2' /\
+      mem_erasure' m2 m2'.
+  Proof.
+    intros.
+    destruct Herased.
+    pose proof (Mem.free_range_perm _ _ _ _ _ Hfree) as Hperm.
+    assert (Hfree': Mem.range_perm m' b 0 sz Cur Freeable).
+    { intros ofs Hrange.
+      specialize (Hperm _ Hrange).
+      unfold Mem.perm.
+      assert (Mem.valid_block m' b).
+      { destruct (valid_block_dec m' b); auto.
+        unfold Mem.valid_block in *.
+        rewrite <- erased_nb0 in n.
+        apply Mem.nextblock_noaccess with (ofs := ofs) (k := Cur) in n.
+        unfold Mem.perm in Hperm. rewrite n in Hperm.
+        simpl in Hperm; by exfalso.
+      }
+      specialize (perm_le0 _ ofs Cur H).
+      rewrite perm_le0.
+      simpl; constructor.
+    }
+    apply Mem.range_perm_free in Hfree'.
+    destruct Hfree' as [m2' Hfree'].
+    eexists; split; eauto.
+    constructor.
+    - intros.
+      apply Mem.free_result in Hfree.
+      apply Mem.free_result in Hfree'.
+      subst.
+      simpl.
+      unfold Mem.unchecked_free, Mem.valid_block in *. simpl in H.
+      rewrite erased_nb0 in H.
+      destruct (Pos.eq_dec b b0); subst.
+      + do 2 rewrite Maps.PMap.gss.
+        match goal with
+        | [|- context[match ?Expr with | _ => _ end]] =>
+          destruct Expr
+        end; simpl; auto.
+        erewrite perm_le0 by eauto.
+        simpl. destruct ((Mem.mem_access m) # b0 ofs k); constructor.
+      + do 2 erewrite Maps.PMap.gso by auto.
+        erewrite perm_le0 by eauto.
+        simpl. destruct ((Mem.mem_access m) # b0 ofs k); constructor.
+    - intros.
+      erewrite <- MemoryLemmas.mem_free_contents by eauto.
+      erewrite <- MemoryLemmas.mem_free_contents with (m2 := m2') by eauto.
+      eauto.
+    - apply Mem.nextblock_free in Hfree.
+      apply Mem.nextblock_free in Hfree'.
+      rewrite Hfree Hfree'; auto.
+  Qed.
+
+  Lemma mem_store_erased':
+    forall chunk m m' b ofs v v' m2
+      (Hstore: Mem.store chunk m b ofs v = Some m2)
+      (Herased: mem_erasure' m m')
+      (Hval_erasure: val_erasure v v') ,
+    exists m2', Mem.store chunk m' b ofs v' = Some m2'
+           /\ mem_erasure' m2 m2'.
+  Proof.
+    intros.
+    destruct Herased.
+    assert (Haccess := Mem.store_valid_access_3 _ _ _ _ _ _ Hstore).
+    assert (Hvalid := Mem.valid_access_valid_block
+                        _ _ _ _ (Mem.valid_access_implies
+                                   _ _ _ _ _ Nonempty Haccess ltac:(constructor))).
+    destruct Haccess.
+    assert (Haccess' : Mem.valid_access m' chunk b ofs Writable).
+    { split; auto.
+      intros ? ?.
+      specialize (H _ H1).
+      unfold Mem.perm in *.
+      rewrite po_oo in H.
+      rewrite po_oo.
+      eapply po_trans; eauto.
+    }
+    destruct (Mem.valid_access_dec m' chunk b ofs Writable); try by exfalso.
+    destruct (Mem.valid_access_store _ _ _ _ v' Haccess') as [m2' Hstore'].
+    exists m2'. split; auto.
+    constructor.
+    - intros.
+      assert (Heq1 := MemoryLemmas.mem_store_max _ _ _ _ _ _ Hstore' b0 ofs0).
+      assert (Heq2 := MemoryLemmas.mem_store_cur _ _ _ _ _ _ Hstore' b0 ofs0).
+      assert (Heq3 := MemoryLemmas.mem_store_max _ _ _ _ _ _ Hstore b0 ofs0).
+      assert (Heq4 := MemoryLemmas.mem_store_cur _ _ _ _ _ _ Hstore b0 ofs0).
+      do 2 rewrite getMaxPerm_correct in Heq1.
+      do 2 rewrite getCurPerm_correct in Heq2.
+      do 2 rewrite getMaxPerm_correct in Heq3.
+      do 2 rewrite getCurPerm_correct in Heq4.
+      unfold permission_at in *.
+      eapply Mem.store_valid_block_2 in H1; eauto.
+      destruct k;
+        [rewrite <- Heq1, <- Heq3 | rewrite <- Heq2, <- Heq4];
+        eauto.
+    - intros.
+      rewrite (Mem.store_mem_contents _ _ _ _ _ _ Hstore').
+      rewrite (Mem.store_mem_contents _ _ _ _ _ _ Hstore).
+      rewrite ! PMap.gsspec.
+      destruct (peq b0 b). subst b0.
+      apply setN_erasure.
+      apply val_erasure_encode_val; auto. intros. eauto.
+      eauto.
+    - erewrite Mem.nextblock_store with (m1 := m) by eauto.
+      erewrite Mem.nextblock_store with (m2 := m2') (m1 := m') by eauto.
+      eauto.
+  Qed.
+
+  Lemma mem_storev_erased':
+    forall chunk m m' vptr v v' m2
+      (Hstore: Mem.storev chunk m vptr v = Some m2)
+      (Herased: mem_erasure' m m')
+      (Hval_erasure: val_erasure v v') ,
+    exists m2', Mem.storev chunk m' vptr v' = Some m2'
+           /\ mem_erasure' m2 m2'.
+  Proof.
+    intros.
+    destruct vptr; try discriminate.
+    simpl in *.
+    eapply mem_store_erased'; eauto.
+  Qed.
+
+  Lemma mem_loadv_erased' :
+    forall (chunk : memory_chunk) (m m' : mem) (vptr v : val)
+      (Hload: Mem.loadv chunk m vptr = Some v)
+      (Herased: mem_erasure' m m'),
+      exists v' : val, Mem.loadv chunk m' vptr = Some v' /\ val_erasure v v'.
+  Proof.
+    intros.
+    inversion Herased.
+    destruct vptr; try by discriminate.
+    simpl in Hload.
+    assert (Hreadable := Mem.load_valid_access _ _ _ _ _ Hload).
+    destruct Hreadable.
+    assert (Hreadable': Mem.valid_access m' chunk b(Int.unsigned i) Readable).
+    { split; auto.
+      intros ? ?.
+      eapply MemoryLemmas.load_valid_block in Hload.
+      specialize (H _ H1).
+      unfold Mem.perm in *.
+      rewrite po_oo in H.
+      rewrite po_oo.
+      eapply po_trans; eauto.
+    }
+    exists (decode_val chunk (Mem.getN (size_chunk_nat chunk) (Int.unsigned i)
+                                  (m'.(Mem.mem_contents)#b))).
+    Transparent Mem.load.
+    unfold Mem.load. split.
+    apply pred_dec_true; auto.
+    exploit Mem.load_result; eauto. intro. rewrite H1.
+    apply decode_val_erasure; auto.
+    apply getN_erasure; auto.
+    Opaque Mem.load.
+  Qed.
+                    
+  Lemma mem_erasure_erasure':
+    forall m m',
+      mem_erasure m m' ->
+      mem_erasure' m m'.
+  Proof.
+    intros. destruct H.
+    split; auto.
+    intros.
+    unfold Mem.valid_block in *.
+    rewrite erased_nb0 in H.
+    erewrite perm_le0 by eauto.
+    simpl. destruct ((Mem.mem_access m) # b ofs k); simpl; constructor.
+  Qed.
+    
 End MemErasure.
 
 (** Erasure of cores *)
