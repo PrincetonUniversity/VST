@@ -1222,6 +1222,33 @@ Proof.
   + tauto.
 Qed.
 
+Lemma mem_ext m1 m2 :
+  Mem.mem_contents m1 = Mem.mem_contents m2 ->
+  Mem.mem_access m1 = Mem.mem_access m2 ->
+  Mem.nextblock m1 = Mem.nextblock m2 ->
+  m1 = m2.
+Proof.
+  destruct m1, m2; simpl in *.
+  intros <- <- <- .
+  f_equal; apply proof_irr.
+Qed.
+
+Lemma PMap_ext {A} (m1 m2 : PMap.t A) :
+  (forall p, m1 !! p = m2 !! p) ->
+  m1 = m2.
+Proof.
+  intros E.
+  destruct m1 as [a1 t1], m2 as [a2 t2].
+Admitted.
+
+Lemma ZIndexed_index_surj p : { z : Z | ZIndexed.index z = p }.
+Proof.
+  destruct p.
+  exists (Z.neg p); reflexivity.
+  exists (Z.pos p); reflexivity.
+  exists Z0; reflexivity.
+Qed.
+
 Section Simulation.
   Variables
     (CS : compspecs)
@@ -1249,12 +1276,12 @@ Section Simulation.
         (compat : mem_compatible_with tp m Phi)
         (lock_bound : lockSet_block_bound (ThreadPool.lset tp) (Mem.nextblock m))
         (lock_coh : lock_coherence' tp Phi m compat)
-        (safety : threads_safety Jspec' m ge tp Phi compat (S n))
+        (safety : threads_safety Jspec m ge tp Phi compat (S n))
         (wellformed : threads_wellformed tp)
         (unique : threads_unique_Krun tp (i :: sch))
         (cnti : ThreadPool.containsThread tp i)
         (stepi : corestep (juicy_core_sem cl_core_sem) ge ci (personal_mem cnti (mem_compatible_forget compat)) ci' jmi')
-        (safei' : forall ora : OK_ty, jsafeN Jspec' ge n ora ci' jmi')
+        (safei' : forall ora : Z, jsafeN Jspec ge n ora ci' jmi')
         (Eci : ThreadPool.getThreadC cnti = Krun ci)
         (tp' := ThreadPool.updThread cnti (Krun ci') (m_phi jmi') : ThreadPool.t)
         (tp'' := age_tp_to (level jmi') tp')
@@ -1644,12 +1671,101 @@ unique: ok *)
       + easy.
     
     - (* safety *)
-      intros i0 cnti0 ora.
-      destruct (eq_dec i i0).
-      + (* for this threadshould be ok, if (jm_ of new Phi) is indeed jm_i' *)
+      intros j cntj ora.
+      destruct (eq_dec i j).
+      + subst j.
+        replace (Machine.getThreadC cntj) with (Krun ci').
+        * specialize (safei' ora).
+          revert safei'.
+          match goal with |- ?a -> ?b => cut (a = b) end. intros ->; auto.
+          f_equal.
+          unfold jm_ in *.
+          {
+            apply juicy_mem_ext.
+            - unfold personal_mem in *.
+              simpl.
+              match goal with |- _ = _ ?c => set (coh := c) end.
+              apply mem_ext.
+              
+              + apply PMap_ext; intros b.
+                apply PMap_ext; intros ofs.
+                destruct (ZIndexed_index_surj ofs) as [ofs' <-].
+                pose proof juicyRestrictContents coh (b, ofs') as H.
+                unfold contents_at in *.
+                unfold ZMap.get in *.
+                simpl fst in H; simpl snd in H.
+                apply H.
+              
+              + apply PMap_ext; intros b.
+                extensionality ofs k.
+                destruct k.
+                * pose proof juicyRestrictMax coh (b, ofs) as H.
+                  unfold max_access_at in *.
+                  simpl fst in H; simpl snd in H.
+                  apply H.
+                * pose proof juicyRestrictCurEq coh (b, ofs) as H.
+                  unfold access_at in *.
+                  simpl fst in H; simpl snd in H.
+                  rewrite H. clear H.
+                  unfold "oo".
+                  rewrite perm_of_age.
+                  match goal with |- context [ if ?e then _ else _ ] => destruct e eqn:E end.
+                  {
+                    clear.
+                    destruct jmi'; simpl.
+                    specialize (JMaccess (b, ofs)).
+                    apply JMaccess.
+                  }
+                  {
+                    (* ssreflect things *)
+                    exfalso.
+                    unfold eqtype.eq_op in *.
+                    unfold eqtype.Equality.op in *.
+                    unfold eqtype.Equality.class in *.
+                    unfold fintype.ordinal_eqType in *.
+                    unfold fintype.ordinal_eqMixin in *.
+                    unfold fintype.nat_of_ord in *.
+                    unfold eqtype.eq_op in *.
+                    unfold eqtype.Equality.class in *.
+                    unfold ssrnat.nat_eqType in *.
+                    simpl in E.
+                    clear -E.
+                    induction i; inversion E. auto.
+                  }
+              + apply juicyRestrictNextblock.
+            - rewrite compatible_getThreadR_m_phi.
+              simpl.
+              unfold "oo".
+              match goal with |- context [ if ?e then _ else _ ] => destruct e eqn:E end.
+              + rewrite age_to_eq; auto.
+              + exfalso.
+                (* ssreflect things again *)
+                unfold eqtype.eq_op in *.
+                unfold eqtype.Equality.op in *.
+                unfold eqtype.Equality.class in *.
+                unfold fintype.ordinal_eqType in *.
+                unfold fintype.ordinal_eqMixin in *.
+                unfold fintype.nat_of_ord in *.
+                unfold eqtype.eq_op in *.
+                unfold eqtype.Equality.class in *.
+                unfold ssrnat.nat_eqType in *.
+                simpl in E.
+                clear -E.
+                induction i; inversion E. auto.
+          }
+          
+        * Set Printing Implicit.
+          assert (REW: tp'' = (age_tp_to (level (m_phi jmi')) tp')) by reflexivity.
+          clearbody tp''.
+          subst tp''.
+          unshelve erewrite <- gtc_age with (age := (level (m_phi jmi'))); [ auto with * | ].
+          unfold tp'.
+          rewrite gssThreadCode.
+          reflexivity.
+      
+      + (* safety for other threads *)
         admit.
-      + (* for other threads: prove that their new personal_mem (with the new Phi'/m') still make them safe *)
-        admit.
+    
     - (* wellformedness *)
       intros i0 cnti0.
       destruct (eq_dec i i0) as [ <- | ii0].
