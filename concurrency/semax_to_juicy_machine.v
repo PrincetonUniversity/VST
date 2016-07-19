@@ -1237,8 +1237,7 @@ Lemma PMap_ext {A} (m1 m2 : PMap.t A) :
   (forall p, m1 !! p = m2 !! p) ->
   m1 = m2.
 Proof.
-  intros E.
-  destruct m1 as [a1 t1], m2 as [a2 t2].
+  (* those are only equal modulo additional subtree of default value *)
 Admitted.
 
 Lemma ZIndexed_index_surj p : { z : Z | ZIndexed.index z = p }.
@@ -1764,22 +1763,66 @@ unique: ok *)
           reflexivity.
       
       + (* safety for other threads *)
-        admit.
+        assert (REW: tp'' = (age_tp_to (level (m_phi jmi')) tp')) by reflexivity.
+        clearbody tp''.
+        subst tp''.
+        unshelve erewrite <- gtc_age with (age := (level (m_phi jmi'))); [ auto with * | ].
+        unfold tp' at 1.
+        unshelve erewrite gsoThreadCode; auto.
+        specialize (safety j cntj ora).
+        cut (forall q,
+                @jsafeN Z Jspec ge (S n) ora q (@jm_ tp m Phi j cntj compat) ->
+                @jsafeN Z Jspec ge n ora q (@jm_ (age_tp_to (level (m_phi jmi')) tp') (m_dry jmi') Phi' j cntj compat')).
+        now destruct (@Machine.getThreadC j tp cntj); auto. clear safety.
+        intros q SAFE.
+        assert (Safe: jsafeN Jspec ge n ora q (@jm_ tp m Phi j cntj compat))
+          by (apply safe_downward1; auto). clear SAFE.
+        assert (A: (@jm_ (age_tp_to (level (m_phi jmi')) tp') (m_dry jmi') Phi' j cntj compat')
+                   = age_to (level (m_phi jmi')) (@jm_ tp m Phi j cntj compat)).
+        { admit. }
+        rewrite A.
+        Lemma jsafeN_age_to Z Jspec ge ora q n l jm :
+          le n l ->
+          @jsafeN Z Jspec ge n ora q jm ->
+          @jsafeN Z Jspec ge n ora q (age_to l jm).
+        Admitted.
+        apply jsafeN_age_to.
+        Unset Printing Implicit.
+        * destruct RD as [LEV _].
+          (* before continuing here, must understand better the
+          relation between safeN index and levels *)
+          admit.
+        * apply Safe.
     
     - (* wellformedness *)
-      intros i0 cnti0.
-      destruct (eq_dec i i0) as [ <- | ii0].
-      + unfold tp'.
-        admit.
-        (* rewrite ThreadPool.gssThreadCode. *)
-        (* constructor. *)
-      + unfold tp'.
-        admit.
-        (* rewrite (@ThreadPool.gsoThreadCode _ _ tp ii0 cnti cnti0). *)
-        (* apply wellformed. *)
+      intros j cntj.
+      Set Printing Implicit.
+      assert (REW: tp'' = (age_tp_to (level (m_phi jmi')) tp')) by reflexivity.
+      clearbody tp''.
+      subst tp''.
+      unshelve erewrite <- gtc_age with (age := (level (m_phi jmi'))); [ auto with * | ].
+      unfold tp' at 1.
+      destruct (eq_dec i j) as [ <- | ij].
+      + unshelve erewrite gssThreadCode; auto.
+      + unshelve erewrite gsoThreadCode; auto.
+        specialize (wellformed j cntj).
+        destruct (@getThreadC j tp cntj); auto.
+    
     - (* uniqueness *)
-      intros notalone i0 cnti0' q ora Eci0.
-      admit (* more important things first *).
+      intros notalone j cntj q ora Ecj.
+      assert (REW: tp'' = (age_tp_to (level (m_phi jmi')) tp')) by reflexivity.
+      clearbody tp''.
+      subst tp''.
+      unshelve erewrite <- gtc_age with (age := (level (m_phi jmi'))) in Ecj; [ auto with * | auto with * | ].
+      specialize (unique notalone j).
+      destruct (eq_dec i j) as [ <- | ij].
+      + apply unique with (cnti := cntj) (q := ci); eauto.
+        unfold code in *.
+        rewrite <-Eci.
+        f_equal. apply proof_irr.
+      + unfold tp' in Ecj.
+        unshelve erewrite gsoThreadCode in Ecj; auto with *.
+        eapply unique; eauto.
   Admitted.
   
   Theorem progress Gamma n state :
