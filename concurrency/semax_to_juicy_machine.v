@@ -1202,6 +1202,26 @@ Proof.
   eapply compatible_threadRes_sub; eauto.
 Qed.
 
+Lemma lock_coherence_align lset Phi m b ofs :
+  lock_coherence lset Phi m ->
+  AMap.find (elt:=option rmap) (b, ofs) lset <> None ->
+  (align_chunk Mint32 | ofs).
+Proof.
+  intros lock_coh find.
+  specialize (lock_coh (b, ofs)).
+  destruct (AMap.find (elt:=option rmap) (b, ofs) lset) as [[o|]|].
+  + destruct lock_coh as [L _]; revert L; clear.
+    unfold load_at; simpl.
+    Transparent Mem.load.
+    unfold Mem.load.
+    if_tac. destruct H; auto. discriminate.
+  + destruct lock_coh as [L _]; revert L; clear.
+    unfold load_at; simpl.
+    unfold Mem.load.
+    if_tac. destruct H; auto. discriminate.
+  + tauto.
+Qed.
+
 Section Simulation.
   Variables
     (CS : compspecs)
@@ -1532,8 +1552,7 @@ unique: ok *)
               unfold LocksAndResources.lock_info in *.
               destruct (AMap.find (elt:=option rmap) (b, ofs) (lset tp)); auto.
           - (* basic alignment *)
-            unfold align_chunk in *.
-            admit (* will be added to the invariant *).
+            eapply lock_coherence_align; eauto.
         }
         
         destruct (Mem.valid_access_dec (restrPermMap W') Mint32 b ofs Readable) as [r'|n']; swap 1 2.
@@ -1559,8 +1578,7 @@ unique: ok *)
               destruct (AMap.find (elt:=option rmap) (b, ofs) (lset tp)); auto.
               simpl in E; inversion E.
           - (* basic alignment *)
-            unfold align_chunk in *.
-            admit (* will be added to the invariant *).
+            eapply lock_coherence_align; eauto.
         }
         
         f_equal.
