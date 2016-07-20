@@ -1222,6 +1222,117 @@ Proof.
   + tauto.
 Qed.
 
+Lemma PTree_xmap_ext (A B : Type) (f f' : positive -> A -> B) t :
+  (forall a, f a = f' a) ->
+  PTree.xmap f t = PTree.xmap f' t.
+Proof.
+  intros E.
+  induction t as [ | t1 IH1 [a|] t2 IH2 ].
+  - reflexivity.
+  - simpl.
+    extensionality p.
+    rewrite IH1, IH2, E.
+    reflexivity.
+  - simpl.
+    rewrite IH1, IH2.
+    reflexivity.
+Qed.
+
+Lemma juicyRestrictCur_ext m phi phi'
+      (coh : access_cohere' m phi)
+      (coh' : access_cohere' m phi')
+      (same : forall loc, perm_of_res (phi @ loc) = perm_of_res (phi' @ loc)) :
+  Mem.mem_access (juicyRestrict coh) =
+  Mem.mem_access (juicyRestrict coh').
+Proof.
+  unfold juicyRestrict in *.
+  unfold restrPermMap in *; simpl.
+  f_equal.
+  unfold PTree.map in *.
+  eapply equal_f.
+  apply PTree_xmap_ext.
+  intros b.
+  extensionality f ofs k.
+  destruct k; auto.
+  unfold juice2Perm in *.
+  unfold mapmap in *.
+  simpl.
+  unfold PTree.map in *.
+  eapply equal_f.
+  f_equal.
+  f_equal.
+  eapply equal_f.
+  apply PTree_xmap_ext.
+  intros.
+  extensionality c ofs0.
+  apply same.
+Qed.
+
+Lemma PTree_xmap_self A f (m : PTree.t A) i :
+  (forall p a, m ! p = Some a -> f (PTree.prev_append i p) a = a) ->
+  PTree.xmap f m i = m.
+Proof.
+  revert i.
+  induction m; intros i E.
+  - reflexivity.
+  - simpl.
+    f_equal.
+    + apply IHm1.
+      intros p a; specialize (E (xO p) a).
+      apply E.
+    + specialize (E xH).
+      destruct o eqn:Eo; auto.
+    + apply IHm2.
+      intros p a; specialize (E (xI p) a).
+      apply E.
+Qed.
+
+Lemma PTree_map_self (A : Type) (f : positive -> A -> A) t :
+  (forall b a, t ! b = Some a -> f b a = a) ->
+  PTree.map f t = t.
+Proof.
+  intros H.
+  apply PTree_xmap_self, H.
+Qed.
+
+Lemma juicyRestrictCur_unchanged m phi 
+      (coh : access_cohere' m phi)
+      (pres : forall loc, perm_of_res (phi @ loc) = access_at m loc) :
+  Mem.mem_access (juicyRestrict coh) = Mem.mem_access m.
+Proof.
+  unfold juicyRestrict in *.
+  unfold restrPermMap in *; simpl.
+  unfold access_at in *.
+  destruct (Mem.mem_access m) as (a, t) eqn:Eat.
+  simpl.
+  f_equal.
+  - extensionality ofs k.
+    destruct k. auto.
+    pose proof Mem_canonical_useful m as H.
+    rewrite Eat in H.
+    auto.
+  - apply PTree_xmap_self.
+    intros b f E.
+    extensionality ofs k.
+    destruct k; auto.
+    specialize (pres (b, ofs)).
+    unfold "!!" in pres.
+    simpl in pres.
+    rewrite E in pres.
+    rewrite <-pres.
+    simpl.
+    unfold juice2Perm in *.
+    unfold mapmap in *.
+    unfold "!!".
+    simpl.
+    rewrite Eat; simpl.
+    rewrite PTree.gmap.
+    rewrite PTree.gmap1.
+    rewrite E.
+    simpl.
+    reflexivity.
+Qed.
+
 Lemma mem_ext m1 m2 :
   Mem.mem_contents m1 = Mem.mem_contents m2 ->
   Mem.mem_access m1 = Mem.mem_access m2 ->
@@ -1233,19 +1344,22 @@ Proof.
   f_equal; apply proof_irr.
 Qed.
 
-Lemma PMap_ext {A} (m1 m2 : PMap.t A) :
-  (forall p, m1 !! p = m2 !! p) ->
-  m1 = m2.
-Proof.
-  (* those are only equal modulo additional subtree of default value *)
-Admitted.
-
 Lemma ZIndexed_index_surj p : { z : Z | ZIndexed.index z = p }.
 Proof.
   destruct p.
   exists (Z.neg p); reflexivity.
   exists (Z.pos p); reflexivity.
   exists Z0; reflexivity.
+Qed.
+
+Lemma eqtype_refl n i cnti cntj :
+  @eqtype.eq_op
+    (fintype.ordinal_eqType n)
+    (@fintype.Ordinal n i cntj)
+    (@fintype.Ordinal n i cnti)
+  = true.
+Proof.
+  compute; induction i; auto.
 Qed.
 
 Section Simulation.
@@ -1686,17 +1800,22 @@ unique: ok *)
               match goal with |- _ = _ ?c => set (coh := c) end.
               apply mem_ext.
               
-              + apply PMap_ext; intros b.
-                apply PMap_ext; intros ofs.
-                destruct (ZIndexed_index_surj ofs) as [ofs' <-].
-                pose proof juicyRestrictContents coh (b, ofs') as H.
-                unfold contents_at in *.
-                unfold ZMap.get in *.
-                simpl fst in H; simpl snd in H.
-                apply H.
+              + reflexivity.
               
-              + apply PMap_ext; intros b.
-                extensionality ofs k.
+              + rewrite juicyRestrictCur_unchanged.
+                * reflexivity.
+                * intros.
+                  unfold "oo".
+                  rewrite perm_of_age.
+                  rewrite eqtype_refl.
+                  unfold access_at in *.
+                  destruct jmi'; simpl.
+                  eauto.
+              
+              + reflexivity.
+            (* 
+            - 
+                intros b ofs k.
                 destruct k.
                 * pose proof juicyRestrictMax coh (b, ofs) as H.
                   unfold max_access_at in *.
@@ -1732,25 +1851,12 @@ unique: ok *)
                     induction i; inversion E. auto.
                   }
               + apply juicyRestrictNextblock.
+            *)
             - rewrite compatible_getThreadR_m_phi.
               simpl.
               unfold "oo".
-              match goal with |- context [ if ?e then _ else _ ] => destruct e eqn:E end.
-              + rewrite age_to_eq; auto.
-              + exfalso.
-                (* ssreflect things again *)
-                unfold eqtype.eq_op in *.
-                unfold eqtype.Equality.op in *.
-                unfold eqtype.Equality.class in *.
-                unfold fintype.ordinal_eqType in *.
-                unfold fintype.ordinal_eqMixin in *.
-                unfold fintype.nat_of_ord in *.
-                unfold eqtype.eq_op in *.
-                unfold eqtype.Equality.class in *.
-                unfold ssrnat.nat_eqType in *.
-                simpl in E.
-                clear -E.
-                induction i; inversion E. auto.
+              rewrite eqtype_refl.
+              rewrite age_to_eq; auto.
           }
           
         * Set Printing Implicit.
