@@ -1840,12 +1840,75 @@ Qed.
 
 Lemma identity_inflate_at_Gfun:
   forall n i f gev m G0 G loc m0,
+ list_norepet (map fst (G0 ++ G)) ->
+ Genv.find_symbol gev i = Some (nextblock m0) ->
  Genv.alloc_global gev m0 (i, Gfun f) = Some m ->
  In i (map fst G) ->
  (identity (inflate_initial_mem m0 (initial_core gev (G0 ++ G) n) @ loc) <->
  identity (inflate_initial_mem m (initial_core gev (G0 ++ G) n) @ loc)).
 Proof.
-Admitted. (* True because the initial_core will have a PURE at the address of the Gfun *)
+intros until m0. intros NR H8 ? ?.
+destruct (eq_dec loc (nextblock m0, 0)).
+*
+subst loc.
+unfold initial_core.
+unfold inflate_initial_mem.
+rewrite !resource_at_make_rmap.
+unfold inflate_initial_mem'.
+rewrite !resource_at_make_rmap.
+rewrite nextblock_access_empty 
+  by (apply Pos2Nat.inj_ge; omega).
+split; intros _; [ |apply NO_identity].
+unfold Genv.alloc_global in H.
+destruct (alloc m0 0 1) eqn:?.
+assert (H9: 0 <= 0 < 1) by (clear; omega).
+assert (H6 := alloc_result _ _ _ _ _ Heqp); subst b.
+assert (H1 := perm_drop_1 _ _ _ _ _ _ H 0 Cur H9).
+destruct (perm_mem_access _ _ _ _ H1) as [p [H4 H5]].
+assert (H2 := perm_drop_2 _ _ _ _ _ _ H 0 Cur p H9).
+rewrite H5.
+unfold perm in *.
+unfold access_at in H5. simpl in H5. destruct ((mem_access m) !! (nextblock m0) 0 Cur); inv H5.
+spec H2; [constructor | ].
+destruct p; try solve [inv H2].
+unfold initial_core'. simpl.
+rewrite Genv.find_invert_symbol with (id:=i) by auto.
+destruct (list_in_map_inv _ _ _ H0) as [[i' fd] [H10 H11]]; simpl in H10, H11.
+subst i'.
+rewrite find_id_i with (fs:=fd); auto.
+destruct fd.
+apply PURE_identity.
+apply in_app. right; auto.
+*
+clear NR.
+unfold initial_core.
+unfold inflate_initial_mem.
+rewrite !resource_at_make_rmap.
+unfold inflate_initial_mem'.
+rewrite !resource_at_make_rmap.
+pose proof (Pos.ltb_spec (fst loc) (nextblock m0)).
+destruct ((fst loc <? nextblock m0)%positive); inv H1.
+destruct (alloc_global_old _ _ _ _ H loc H2) as [? [? ?]].
+rewrite H4.
+rewrite H1; split; intro; auto.
+destruct loc as [b ofs]. simpl fst in *; simpl snd in *.
+rewrite (nextblock_access_empty m0) by (apply Pos.le_ge; auto).
+split; intros _; [ |apply NO_identity].
+replace (access_at m (b,ofs)) with (@None permission).
+apply NO_identity.
+symmetry.
+unfold Genv.alloc_global in H.
+destruct (alloc m0 0 1) eqn:?.
+assert (H6 := alloc_result _ _ _ _ _ Heqp); subst b0.
+clear - n0 H2 Heqp H.
+destruct (eq_block b (nextblock m0)). subst.
+assert (ofs<>0) by congruence.
+destruct (access_at m1 (nextblock m0,ofs)) eqn:?.
+apply mem_access_perm in Heqo.
+pose proof (perm_alloc_3 _ _ _ _ _ Heqp ofs Cur _ Heqo).
+omega.
+clear - H Heqo.
+Admitted. (* easy *)
 
 Lemma global_initializers:
   forall (prog: program) G m n rho,
@@ -1992,17 +2055,27 @@ rewrite Pos_to_nat_eq_S.
     apply list_disjoint_cons_right in H1; auto.
  - clear - H1'; intros; apply H1'. right; auto.
  -
-  clear - HACK H3 H1'.
+  clear - H2 FS HACK H3 H1'.
+(*
+  assert (NR: list_norepet (map fst (G0 ++ G))).  {
+    clear - H1' H2.
+    apply list_norepet_app in H2. destruct H2 as [? [? ?]].
+    rewrite map_app.  
+    apply list_norepet_app; split3; auto.
+*)
+    
+ 
   specialize (H1' i). simpl in H1'. spec H1'; [auto | ].
   destruct HACK as [? ? ].
   split. rewrite <- H.
   unfold inflate_initial_mem. repeat rewrite level_make_rmap. auto.
   intro; specialize (H0 loc).
   destruct H0.
-  clear - H0 H1 H3 H1'.
+  clear - H2 FS H0 H1 H3 H1'.
   split.
   rewrite <- H0.
-  clear - H3 H1'.
+  clear - H2 FS H3 H1'.
+  assert (list_norepet (map fst (G0 ++ G))) by admit.
   apply (identity_inflate_at_Gfun n i f); auto.
   intro.
   rewrite <- H1.
