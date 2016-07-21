@@ -1362,6 +1362,218 @@ Proof.
   compute; induction i; auto.
 Qed.
 
+Definition mem_lessdef m1 m2 :=
+  (forall b ofs len v,
+      Mem.loadbytes m1 b ofs len = Some v ->
+      exists v',
+        Mem.loadbytes m2 b ofs len = Some v' /\
+        list_forall2 memval_lessdef v v'
+  ) /\
+  (forall b ofs k p,
+      Mem.perm m1 b ofs k p ->
+      Mem.perm m2 b ofs k p) /\
+  Mem.nextblock m1 =
+  Mem.nextblock m2.
+
+Definition mem_equiv m1 m2 :=
+  Mem.loadbytes m1 = Mem.loadbytes m2 /\
+  Mem.perm m1 = Mem.perm m2 /\
+  Mem.nextblock m1 = Mem.nextblock m2.
+
+Lemma val_inject_antisym v1 v2 :
+  val_inject inject_id v1 v2 ->
+  val_inject inject_id v2 v1 ->
+  v1 = v2.
+Proof.
+  destruct v1, v2; intros A B; auto.
+  all: inversion A; subst; inversion B; try subst; try congruence.
+  unfold inject_id in *.
+  f_equal. congruence.
+  replace delta with 0%Z by congruence.
+  rewrite reptype_lemmas.int_add_repr_0_r.
+  congruence.
+Qed.
+
+Lemma memval_lessdef_antisym v1 v2 : memval_lessdef v1 v2 -> memval_lessdef v2 v1 -> v1 = v2.
+Proof.
+  destruct v1, v2; intros A B; auto.
+  all: inversion A; subst; inversion B; subst; try congruence.
+  f_equal. apply val_inject_antisym; auto.
+Qed.
+
+Lemma mem_lessdef_equiv m1 m2 : mem_lessdef m1 m2 -> mem_lessdef m2 m1 ->  mem_equiv m1 m2.
+Proof.
+  intros (L1 & P1 & N1) (L2 & P2 & N2); repeat split.
+  - clear -L1 L2.
+    extensionality b ofs z.
+    match goal with |- ?a = ?b => destruct a as [v1|] eqn:E1; destruct b as [v2|] eqn:E2 end;
+      try destruct (L1 _ _ _ _ E1) as (v2' & E1' & l1);
+      try destruct (L2 _ _ _ _ E2) as (v1' & E2' & l2);
+      try congruence.
+    assert (v1' = v1) by congruence; assert (v2' = v2) by congruence; subst; f_equal.
+    clear -l1 l2.
+    revert v2 l1 l2; induction v1; intros v2 l1 l2; inversion l1; subst; auto.
+    inversion l2; subst.
+    f_equal; auto.
+    apply memval_lessdef_antisym; auto.
+  - repeat extensionality.
+    apply prop_ext; split; auto.
+  - apply N1.
+Qed.
+
+Lemma mem_equiv_sym m1 m2 : mem_equiv m1 m2 -> mem_equiv m2 m1.
+Proof.
+  intros []; split; intuition.
+Qed.
+
+Lemma mem_equiv_lessdef m1 m2 : mem_equiv m1 m2 -> mem_lessdef m1 m2.
+Proof.
+  intros (L1 & P1 & N1); repeat split.
+  - rewrite L1; auto.
+    intros b ofs len v H.
+    exists v; intuition.
+    clear.
+    induction v; constructor; auto.
+    apply memval_lessdef_refl.
+  - rewrite P1; auto.
+  - rewrite N1; auto.
+Qed.
+
+Lemma cl_step_mem_lessdef_sim {ge c m1 c' m1' m2} :
+  mem_lessdef m1 m2 ->
+  @cl_step ge c m1 c' m1' ->
+  exists m2',
+    mem_lessdef m1' m2' /\
+    @cl_step ge c m2 c' m2'.
+Admitted.
+ 
+Lemma cl_step_mem_equiv_sim {ge c m1 c' m1' m2} :
+  mem_equiv m1 m2 ->
+  @cl_step ge c m1 c' m1' ->
+  exists m2',
+    mem_equiv m1' m2' /\
+    @cl_step ge c m2 c' m2'.
+Proof.
+  intros E S1.
+  pose proof mem_equiv_lessdef _ _ E as L12.
+  pose proof mem_equiv_lessdef _ _ (mem_equiv_sym _ _ E) as L21.
+  destruct (cl_step_mem_lessdef_sim L12 S1) as (m2' & L12' & S2).
+  destruct (cl_step_mem_lessdef_sim L21 S2) as (m1'' & L21' & S1').
+  exists m2'; split; auto.
+  apply mem_lessdef_equiv; auto.
+  cut (m1'' = m1'). intros <-; auto.
+  pose proof semax_lemmas.cl_corestep_fun' ge _ _ _ _ _ _ S1 S1'.
+  congruence.
+Qed.
+
+Definition juicy_mem_equiv jm1 jm2 := mem_equiv (m_dry jm1) (m_dry jm2) /\ m_phi jm1 = m_phi jm2.
+
+Lemma mem_equiv_juicy_mem_equiv jm1 m2 :
+  mem_equiv (m_dry jm1) m2 ->
+  exists jm2,
+    m_dry jm2 = m2 /\
+    juicy_mem_equiv jm1 jm2.
+Proof.
+  intros E.
+  refine (ex_intro _ (mkJuicyMem m2 (m_phi jm1) _ _ _ _) _); repeat (split; auto).
+  Unshelve.
+  all: destruct jm1 as [m1 phi Con Acc Max All]; simpl in *.
+  all: destruct E as (Load & Perm & Next).
+  - (* contents_cohere *)
+    intros rsh sh v loc pp e.
+    specialize (Con rsh  sh v loc pp e).
+    unfold contents_at in *.
+    admit.
+  
+  - (* access_cohere *)
+    intros loc.
+    specialize (Acc loc).
+    unfold access_at in *.
+    unfold Mem.mem_access in *.
+    unfold Mem.perm in *.
+    admit (* should be ok *).
+  
+  - (* max_access_cohere *)
+    intro loc.
+    admit.
+  
+  - (* alloc_cohere *)
+    hnf.
+    rewrite <-Next.
+    assumption.
+    (* I'll admit this for now. It should take less time to prove once
+    the new mem interface is there *)
+Admitted.
+
+Lemma juicy_step_mem_equiv_sim {ge c jm1 c' jm1' jm2} :
+  juicy_mem_equiv jm1 jm2 ->
+  corestep (juicy_core_sem cl_core_sem) ge c jm1 c' jm1' ->
+  exists jm2',
+    juicy_mem_equiv jm1' jm2' /\
+    corestep (juicy_core_sem cl_core_sem) ge c jm2 c' jm2'.
+Proof.
+  intros [Ed Ew] [step [rd lev]].
+  destruct (cl_step_mem_equiv_sim Ed step) as [m2' [Ed' Sd']].
+  destruct (mem_equiv_juicy_mem_equiv jm1' m2' Ed') as (jm2', (<-, [Hd Hw])).
+  exists jm2'.
+  split; split; auto. split.
+  - revert rd.
+    match goal with |- ?p -> ?q => cut (p=q); [intros ->; auto | ] end.
+    f_equal; auto.
+    apply Ed.
+  - repeat rewrite level_juice_level_phi in *.
+    congruence.
+Qed.
+
+Definition ext_spec_stable {M E Z} (R : M -> M -> Prop)
+           (spec : external_specification M E Z) :=
+  (forall e x b tl vl z m1 m2,
+    R m1 m2 ->
+    ext_spec_pre spec e x b tl vl z m1 ->
+    ext_spec_pre spec e x b tl vl z m2) /\
+  (forall e v m1 m2,
+    R m1 m2 ->
+    ext_spec_exit spec e v m1 ->
+    ext_spec_exit spec e v m2).
+
+Lemma jsafeN_equiv_sim {Z spec ge n z c jm1 jm2} :
+  juicy_mem_equiv jm1 jm2 ->
+  ext_spec_stable juicy_mem_equiv (JE_spec _ spec) ->
+  @jsafeN Z spec ge n z c jm1 ->
+  @jsafeN Z spec ge n z c jm2.
+Proof.
+  intros E [Spre Sexit] S1.
+  revert jm2 E.
+  induction S1 as
+      [ z c jm1
+      | n z c jm1 c' jm1' step safe IH
+      | n z c jm1 ef sig args x atex Pre Post
+      | n z c jm1 v Halt Exit ]; intros jm2 E.
+  
+  - constructor 1.
+  
+  - destruct (juicy_step_mem_equiv_sim E step) as (jm2' & E' & step').
+    econstructor 2; eauto.
+    apply IH, E'.
+  
+  - econstructor 3 with (x := x); eauto.
+    intros ret jm2' z' n' Hn [-> [lev pure]] post.
+    destruct (Post ret jm2' z' _ Hn) as (c' & atex' & safe'); auto.
+    + split; auto.
+      destruct E as [Ed Ew].
+      unfold juicy_safety.pures_eq in *.
+      unfold juicy_safety.pures_sub in *.
+      split.
+      * repeat rewrite level_juice_level_phi in *.
+        congruence.
+      * revert pure.
+        rewrite Ew.
+        auto.
+    + exists c'; split; auto.
+  
+  - econstructor 4; eauto.
+Qed.
+
 Section Simulation.
   Variables
     (CS : compspecs)
@@ -1369,6 +1581,57 @@ Section Simulation.
     (ext_link_inj : forall s1 s2, ext_link s1 = ext_link s2 -> s1 = s2).
 
   Definition Jspec' := (@OK_spec (Concurrent_Oracular_Espec CS ext_link)).
+  
+  Lemma Jspec'_juicy_mem_equiv : ext_spec_stable juicy_mem_equiv (JE_spec _ Jspec').
+  Proof.
+    split; [ | easy ].
+    intros e x b tl vl z m1 m2 E.
+    
+    unfold Jspec' in *.
+    destruct e as [name sg | | | | | | | | | | ].
+    all: try (exfalso; simpl in x; do 2 (if_tac in x; [ discriminate | ]); apply x).
+    
+    (* dependent destruction *)
+    revert x.
+    
+    simpl (ext_spec_pre _); simpl (ext_spec_type _); simpl (ext_spec_post _).
+    unfold funspecOracle2pre, funspecOracle2post.
+    unfold ext_spec_pre, ext_spec_post.
+    destruct (oi_eq_dec (Some (ext_link "acquire")) (ef_id ext_link (EF_external name sg))) as [Eacquire | Nacquire].
+    {
+      (** * the case of acquire *)
+      rewrite (proj2 E).
+      exact (fun x y => y).
+    }
+    
+    (* goal massaging for dependent destruction *)
+    change (
+      forall x :
+          ext_spec_type
+            (@OK_spec
+               {| OK_spec :=
+                   add_funspecsOracle_rec
+                     ext_link (@OK_ty (ok_void_spec (list rmap))) (@OK_spec (ok_void_spec (list rmap)))
+                     ((ext_link "release", release_oracular_spec) :: @nil (ident * funspecOracle Oracle)) |})
+              (EF_external name sg),
+        ext_spec_pre OK_spec (EF_external name sg) x b tl vl z m1 ->
+        ext_spec_pre OK_spec (EF_external name sg) x b tl vl z m2
+    ).
+    
+    simpl (ext_spec_pre _); simpl (ext_spec_type _); simpl (ext_spec_post _).
+    unfold funspecOracle2pre, funspecOracle2post.
+    unfold ext_spec_pre, ext_spec_post.
+    destruct (oi_eq_dec (Some (ext_link "release")) (ef_id ext_link (EF_external name sg))) as [Erelease | Nrelease].
+    {
+      (** * the case of release *)
+      rewrite (proj2 E).
+      exact (fun x y => y).
+    }
+    
+    (** * no more cases *)
+    simpl.
+    tauto.
+  Qed.
   
   Inductive state_step : cm_state -> cm_state -> Prop :=
   | state_step_empty_sched ge m jstate :
@@ -1408,6 +1671,7 @@ Section Simulation.
     
     destruct (compatible_threadRes_sub cnti JJ) as [EXT JEXT].
     destruct (join_all_resource_decay (Krun ci') (proj2 stepi) JJ) as [Phi' [J' [RD L]]].
+    
     assert (JEXT' : sepalg.join (m_phi jmi') EXT Phi'). {
       clear -JEXT J' JJ compat.
       rewrite <- (JuicyMachineLemmas.compatible_getThreadR_m_phi cnti (mem_compatible_forget compat)) in *.
@@ -1813,45 +2077,7 @@ unique: ok *)
                   eauto.
               
               + reflexivity.
-            (* 
-            - 
-                intros b ofs k.
-                destruct k.
-                * pose proof juicyRestrictMax coh (b, ofs) as H.
-                  unfold max_access_at in *.
-                  simpl fst in H; simpl snd in H.
-                  apply H.
-                * pose proof juicyRestrictCurEq coh (b, ofs) as H.
-                  unfold access_at in *.
-                  simpl fst in H; simpl snd in H.
-                  rewrite H. clear H.
-                  unfold "oo".
-                  rewrite perm_of_age.
-                  match goal with |- context [ if ?e then _ else _ ] => destruct e eqn:E end.
-                  {
-                    clear.
-                    destruct jmi'; simpl.
-                    specialize (JMaccess (b, ofs)).
-                    apply JMaccess.
-                  }
-                  {
-                    (* ssreflect things *)
-                    exfalso.
-                    unfold eqtype.eq_op in *.
-                    unfold eqtype.Equality.op in *.
-                    unfold eqtype.Equality.class in *.
-                    unfold fintype.ordinal_eqType in *.
-                    unfold fintype.ordinal_eqMixin in *.
-                    unfold fintype.nat_of_ord in *.
-                    unfold eqtype.eq_op in *.
-                    unfold eqtype.Equality.class in *.
-                    unfold ssrnat.nat_eqType in *.
-                    simpl in E.
-                    clear -E.
-                    induction i; inversion E. auto.
-                  }
-              + apply juicyRestrictNextblock.
-            *)
+            
             - rewrite compatible_getThreadR_m_phi.
               simpl.
               unfold "oo".
@@ -1859,8 +2085,7 @@ unique: ok *)
               rewrite age_to_eq; auto.
           }
           
-        * Set Printing Implicit.
-          assert (REW: tp'' = (age_tp_to (level (m_phi jmi')) tp')) by reflexivity.
+        * assert (REW: tp'' = (age_tp_to (level (m_phi jmi')) tp')) by reflexivity.
           clearbody tp''.
           subst tp''.
           unshelve erewrite <- gtc_age with (age := (level (m_phi jmi'))); [ auto with * | ].
@@ -1883,9 +2108,13 @@ unique: ok *)
         intros q SAFE.
         assert (Safe: jsafeN Jspec ge n ora q (@jm_ tp m Phi j cntj compat))
           by (apply safe_downward1; auto). clear SAFE.
+        
         assert (A: (@jm_ (age_tp_to (level (m_phi jmi')) tp') (m_dry jmi') Phi' j cntj compat')
                    = age_to (level (m_phi jmi')) (@jm_ tp m Phi j cntj compat)).
-        { admit. }
+        {
+          (* not true. should backtrack with mem_equiv *)
+          admit.
+        }
         rewrite A.
         Lemma jsafeN_age_to Z Jspec ge ora q n l jm :
           le n l ->
