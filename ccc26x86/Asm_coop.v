@@ -271,6 +271,7 @@ Proof.
     apply Asm_corestep_not_halted.
     apply Asm_at_external_halted_excl.
 Defined.
+
 End ASM_CORESEM.
 
 Section ASM_MEMSEM.
@@ -448,5 +449,34 @@ End ASM_MEMSEM.
 
 End ASM_MEM.
 
+Lemma load_frame_store_args_rec_nextblock:
+  forall args m m2 stk ofs tys
+    (Hload_frame: load_frame.store_args_rec m stk ofs args tys = Some m2),
+    Mem.nextblock m2 = Mem.nextblock m.
+Proof.
+  intro args.
+  induction args; intros; simpl in *.
+  destruct tys; inv Hload_frame; auto.
+  destruct tys; try discriminate;
+  destruct t;
+  repeat match goal with
+         | [H: match ?Expr with _ => _ end = _ |- _] =>
+           destruct Expr eqn:?; try discriminate;
+             unfold load_frame.store_stack in *
+         | [H: Mem.storev _ _ _ _ = _ |- _] =>
+           eapply nextblock_storev in H
+         | [H: ?Expr = ?Expr2 |- context[?Expr2]] =>
+           rewrite <- H
+         end;
+  eauto.
+Qed.
 
-
+Lemma load_frame_store_nextblock:
+  forall m m2 stk args tys
+    (Hload_frame: load_frame.store_args m stk args tys = Some m2),
+    Mem.nextblock m2 = Mem.nextblock m.
+Proof.
+  intros.
+  unfold load_frame.store_args in *.
+  eapply load_frame_store_args_rec_nextblock; eauto.
+Qed.

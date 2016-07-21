@@ -1329,7 +1329,14 @@ Qed.
     simpl;
       by reflexivity.
   Qed.
-    
+
+  Lemma updThread_lr_valid:
+   forall tp i (cnti: containsThread tp i) c' m',
+     lr_valid (lockRes tp) ->
+     lr_valid (lockRes (updThread cnti c' m')).
+  Proof.
+  Admitted.
+  
 End OrdinalPool.
   
 

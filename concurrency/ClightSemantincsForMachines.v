@@ -23,8 +23,11 @@ Require Import veric.Clightnew_coop.
 Require Import sepcomp.event_semantics.
 
 Module ClightSEM <: Semantics.
+  Definition F := fundef.
+  Definition V := type.
   Definition G := genv.
   Definition C := corestate.
+  Definition getEnv g := genv_genv g.
   Parameter CLN_evsem : EvSem G C.
   Parameter CLN_msem :
     msem CLN_evsem = CLN_memsem.

@@ -18,9 +18,11 @@ Require Import Coq.Program.Program.
    compcert mem. This is used by BOTH
    Juicy machine and dry machine. *)
 Module Type Semantics.
+  Parameter F V : Type.
   Parameter G: Type.
   Parameter C: Type.
   Parameter Sem: EvSem G C.
+  Parameter getEnv : G -> Genv.t F V.
 End Semantics.
 
 Notation EXIT := 
@@ -91,6 +93,8 @@ Module Type ThreadPoolSig.
   Parameter updLockSet : t -> address -> lock_info -> t.
   Parameter remLockSet : t -> address -> t.
   Parameter latestThread : t -> tid.
+
+  Parameter lr_valid : (address -> option lock_info) -> Prop.
   
   (*Proof Irrelevance of contains*)
   Axiom cnt_irr: forall t tid
@@ -322,6 +326,11 @@ Module Type ThreadPoolSig.
      (cnti': containsThread (addThread tp vf arg pmap) i),
      addThread (updThread cnti c' pmap') vf arg pmap =
      updThread cnti' c' pmap'.
+
+ Axiom updThread_lr_valid:
+   forall tp i (cnti: containsThread tp i) c' m',
+     lr_valid (lockRes tp) ->
+     lr_valid (lockRes (updThread cnti c' m')).
    
 End ThreadPoolSig.
 

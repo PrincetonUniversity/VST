@@ -69,12 +69,75 @@ Module Concur.
   
   Module mySchedule := ListScheduler NatTID.
 
-  Module DryMachineShell (SEM:Semantics)  <: ConcurrentMachineSig
-      with Module ThreadPool.TID:=mySchedule.TID
-      with Module ThreadPool.SEM:= SEM
+  (** The type of dry machines. This is basically the same as
+  [ConcurrentMachineSig] but resources are instantiated with dry
+  resources*)
+  Module Type DryMachineSig  (SEM: Semantics) <: ConcurrentMachineSig
       with Module ThreadPool.RES:= LocksAndResources
-      with Module Events.TID := mySchedule.TID.
+      with Module ThreadPool.TID:=mySchedule.TID.
+                                     
+     Declare Module Events : EventSig.
+     Module ThreadPool := OrdinalPool SEM LocksAndResources.
+     Import ThreadPool SEM.
+     Import event_semantics Events.
+     
+     (** Memories*)
+     Definition richMem: Type:= mem.
+     Definition dryMem: richMem -> mem:= id.
+     Definition diluteMem: mem -> mem := setMaxPerm.
+     
+     Notation thread_pool := (ThreadPool.t).
+     Notation perm_map := ThreadPool.RES.res.
 
+     (** The state respects the memory*)
+     Record mem_compatible' tp m : Prop :=
+       { compat_th :> forall {tid} (cnt: containsThread tp tid),
+             permMapLt (getThreadR cnt) (getMaxPerm m);
+         compat_lp : forall l pmap, lockRes tp l = Some pmap ->
+                               permMapLt pmap (getMaxPerm m);
+         compat_ls : permMapLt (lockSet tp) (getMaxPerm m)}.
+     
+     Definition mem_compatible tp m : Prop := mem_compatible' tp m.
+
+     (** Per-thread disjointness definition*)
+     Definition race_free (tp : thread_pool) :=
+       forall i j (cnti : containsThread tp i)
+         (cntj : containsThread tp j) (Hneq: i <> j),
+         permMapsDisjoint (getThreadR cnti)
+                          (getThreadR cntj).
+     
+     Record invariant' tp :=
+       { no_race : race_free tp;
+         lock_set_threads : forall i (cnt : containsThread tp i),
+             permMapsDisjoint (lockSet tp) (getThreadR cnt);
+         lock_res_threads : forall l pmap i (cnt : containsThread tp i),
+             lockRes tp l = Some pmap ->
+             permMapsDisjoint pmap (getThreadR cnt);
+         lock_res_set : forall l pmap,
+             lockRes tp l = Some pmap ->
+             permMapsDisjoint pmap (lockSet tp);
+         lockRes_valid: lr_valid (lockRes tp)
+       }.
+
+     Definition invariant := invariant'.
+     Parameter threadStep :
+       G ->
+       forall tid0 (ms : t) (m : mem),
+         containsThread ms tid0 ->
+         mem_compatible ms m -> t -> mem -> seq mem_event -> Prop.
+     Parameter syncStep :
+       G ->
+       forall tid0 (ms : t) (m : mem),
+         containsThread ms tid0 ->
+         mem_compatible ms m -> t -> mem -> sync_event -> Prop.
+     Parameter threadHalted :
+       forall tid0 (ms : t), containsThread ms tid0 -> Prop.
+     Parameter init_mach : option RES.res -> G -> val -> seq val -> option t.
+  
+  End DryMachineSig.
+  
+  Module DryMachineShell (SEM:Semantics)  <: DryMachineSig SEM.
+                                                           
      Module Events := Events.
      Module ThreadPool := ThreadPool SEM.
      Import ThreadPool.
@@ -83,7 +146,6 @@ Module Concur.
      
      Notation tid := NatTID.tid.
 
-     
      (** Memories*)
      Definition richMem: Type:= mem.
      Definition dryMem: richMem -> mem:= id.
@@ -109,9 +171,6 @@ Module Concur.
          permMapsDisjoint (getThreadR cnti)
                           (getThreadR cntj).
      
-     (*argh this invariant is such a pain, tried collecting everything
-    first, still a pain.
-      lol, what else do you want? *)
      Record invariant' tp :=
        { no_race : race_free tp;
          lock_set_threads : forall i (cnt : containsThread tp i),
@@ -527,7 +586,7 @@ Module Concur.
            destruct (AMap.E.eq_dec a (b,ofs)).
            + subst a. rewrite gsslockResUpdLock.
              intros ofs0 HH. rewrite gsolockResUpdLock.
-             apply F; auto.
+             apply F0 || apply F; auto.
              intros AA. inversion AA. rewrite H0 in HH.
              destruct HH as [H1 H2]; clear - H1.
              omega.
@@ -776,18 +835,5 @@ Module Concur.
      End DryMachineLemmas.
      
   End DryMachineShell.
-
-  (* Here I make the core semantics*)
-(*Declare Module SEM:Semantics.
-  Module DryMachine:= DryMachineShell SEM.
-  Module myCoarseSemantics :=
-    CoarseMachine mySchedule DryMachine.
-  Module myFineSemantics :=
-    FineMachine mySchedule  DryMachine.
-
-  Definition coarse_semantics:=
-    myCoarseSemantics.MachineSemantics.
-  Definition fine_semantics:=
-    myFineSemantics.MachineSemantics.*)
   
 End Concur.

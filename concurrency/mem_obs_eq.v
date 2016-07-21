@@ -1,6 +1,8 @@
+(** ** Memories equal up to alpha-renaming *)
+
 Require Import compcert.lib.Axioms.
 Require Import concurrency.sepcomp. Import SepComp.
-Require Import sepcomp.semantics_lemmas.
+Require Import sepcomp.val_casted.
 
 Require Import concurrency.pos.
 
@@ -13,9 +15,10 @@ Set Implicit Arguments.
   after Ssreflect eqtype.*)
 Require Import compcert.common.AST.
 Require Import compcert.common.Values. (*for val*)
-Require Import compcert.common.Globalenvs. 
+(* Require Import compcert.common.Globalenvs. *)
 Require Import compcert.common.Memory.
-Require Import compcert.common.Events.
+Require Import concurrency.memory_lemmas.
+(* Require Import compcert.common.Events. *)
 Require Import compcert.lib.Integers.
 
 Require Import Coq.ZArith.ZArith.
@@ -23,182 +26,6 @@ Require Import Coq.ZArith.ZArith.
 Require Import concurrency.threads_lemmas.
 Require Import concurrency.permissions.
 Require Import concurrency.dry_context.
-
-Global Notation "a # b" := (Maps.PMap.get b a) (at level 1).
-
-(** ** Various results about CompCert's memory model*)
-Module MemoryLemmas.
-
-  Transparent Mem.store.
-  (*TODO: see if we can reuse that for gsoMem_obs_eq.*)
-  (*TODO: maybe we don't need to open up the interface here*)
-  Lemma store_contents_other:
-    forall m m' b b' ofs ofs' v chunk
-      (Hstore: Mem.store chunk m b ofs v = Some m')
-      (Hstable: ~ Mem.perm m b' ofs' Cur Writable),
-      Maps.ZMap.get ofs' (Mem.mem_contents m') # b' =
-      Maps.ZMap.get ofs' (Mem.mem_contents m) # b'.
-  Proof.
-    intros.
-    erewrite Mem.store_mem_contents; eauto.
-    simpl.
-    destruct (Pos.eq_dec b b') as [Heq | Hneq];
-      [| by erewrite Maps.PMap.gso by auto].
-    subst b'.
-    rewrite Maps.PMap.gss.
-    destruct (Z_lt_le_dec ofs' ofs) as [Hlt | Hge].
-    erewrite Mem.setN_outside by (left; auto);
-      by reflexivity.
-    destruct (Z_lt_ge_dec
-                ofs' (ofs + (size_chunk chunk)))
-      as [Hlt | Hge'].
-    (* case the two addresses coincide - contradiction*)
-    apply Mem.store_valid_access_3 in Hstore.
-    unfold Mem.valid_access in Hstore. simpl in Hstore.
-    destruct Hstore as [Hcontra _].
-    unfold Mem.range_perm in Hcontra.
-    specialize (Hcontra ofs' (conj Hge Hlt));
-      by exfalso.
-    erewrite Mem.setN_outside by (right; rewrite size_chunk_conv in Hge';
-                                    by rewrite encode_val_length);
-      by auto.
-  Qed.
-
-  Transparent Mem.alloc.
-  
-  Lemma val_at_alloc_1:
-    forall m m' sz nb b ofs
-      (Halloc: Mem.alloc m 0 sz = (m', nb))
-      (Hvalid: Mem.valid_block m b),
-      Maps.ZMap.get ofs (Maps.PMap.get b (Mem.mem_contents m)) =
-      Maps.ZMap.get ofs (Maps.PMap.get b (Mem.mem_contents m')).
-  Proof.
-    intros.
-    unfold Mem.alloc in Halloc.
-    inv Halloc.
-    simpl.
-    rewrite Maps.PMap.gso; auto.
-    intro; subst. unfold Mem.valid_block in *.
-    eapply Plt_strict; eauto.
-  Qed.
-
-  Lemma val_at_alloc_2:
-    forall m m' sz nb ofs
-      (Halloc: Mem.alloc m 0 sz = (m', nb)),
-      Maps.ZMap.get ofs (Maps.PMap.get nb (Mem.mem_contents m')) = Undef.
-  Proof.
-    intros.
-    unfold Mem.alloc in Halloc.
-    inv Halloc.
-    simpl.
-    rewrite Maps.PMap.gss Maps.ZMap.gi.
-    reflexivity.
-  Qed.
-
-  Lemma permission_at_alloc_1:
-    forall m m' sz nb b ofs
-      (Halloc: Mem.alloc m 0 sz = (m', nb))
-      (Hvalid: Mem.valid_block m b),
-      permissions.permission_at m b ofs Cur =
-      permissions.permission_at m' b ofs Cur.
-  Proof.
-    intros.
-    Transparent Mem.alloc.
-    unfold Mem.alloc in Halloc.
-    inv Halloc.
-    unfold permissions.permission_at. simpl.
-    rewrite Maps.PMap.gso; auto.
-    intro; subst. unfold Mem.valid_block in *.
-    eapply Plt_strict; eauto.
-  Qed.
-
-  Lemma permission_at_alloc_2:
-    forall m m' sz nb ofs
-      (Halloc: Mem.alloc m 0 sz = (m', nb))
-      (Hofs: (0 <= ofs < sz)%Z),
-      permissions.permission_at m' nb ofs Cur = Some Freeable.
-  Proof.
-    intros.
-    unfold Mem.alloc in Halloc.
-    inv Halloc.
-    unfold permissions.permission_at. simpl.
-    rewrite Maps.PMap.gss.
-    rewrite if_true; auto.
-    destruct (zle 0 ofs), (zlt ofs sz); auto;
-    try omega.
-  Qed.
-
-  Lemma permission_at_alloc_3:
-    forall m m' sz nb ofs
-      (Halloc: Mem.alloc m 0 sz = (m', nb))
-      (Hofs: (ofs < 0 \/ ofs >= sz)%Z),
-      permissions.permission_at m' nb ofs Cur = None.
-  Proof.
-    intros.
-    unfold Mem.alloc in Halloc.
-    inv Halloc.
-    unfold permissions.permission_at. simpl.
-    rewrite Maps.PMap.gss.
-    rewrite if_false; auto.
-    apply negb_true_iff.
-    destruct (zle 0 ofs), (zlt ofs sz); auto;
-    omega.
-  Qed.
-
-  Lemma mem_free_contents:
-    forall m m2 sz b
-      (Hfree: Mem.free m b 0 sz = Some m2),
-    forall b' ofs,
-      Maps.ZMap.get ofs (Maps.PMap.get b' (Mem.mem_contents m)) =
-      Maps.ZMap.get ofs (Maps.PMap.get b' (Mem.mem_contents m2)).
-  Proof.
-    intros.
-    apply Mem.free_result in Hfree.
-    subst; unfold Mem.unchecked_free.
-    reflexivity.
-  Qed.
-
-  Lemma mem_store_max:
-    forall chunk b ofs v m m',
-      Mem.store chunk m b ofs v = Some m' ->
-      forall b' ofs',
-        (getMaxPerm m) # b' ofs' = (getMaxPerm m') # b' ofs'.
-  Proof.
-    intros.
-    unfold Mem.store in *.
-    destruct (Mem.valid_access_dec m chunk b ofs Writable); try discriminate.
-    inversion H; subst.
-    rewrite getMaxPerm_correct.
-    reflexivity.
-  Qed.
-
-  Lemma mem_store_cur:
-    forall chunk b ofs v m m',
-      Mem.store chunk m b ofs v = Some m' ->
-      forall b' ofs',
-        (getCurPerm m) # b' ofs' = (getCurPerm m') # b' ofs'.
-  Proof.
-    intros.
-    unfold Mem.store in *.
-    destruct (Mem.valid_access_dec m chunk b ofs Writable); try discriminate.
-    inversion H; subst.
-    rewrite getCurPerm_correct.
-    reflexivity.
-  Qed.
-
-  Lemma load_valid_block:
-    forall (m : mem) (b : block) ofs chunk v,
-      Mem.load chunk m b ofs = Some v ->
-      Mem.valid_block m b.
-  Proof.
-    intros m b ofs chunk v Hload.
-    apply Mem.load_valid_access in Hload.
-    apply Mem.valid_access_valid_block with (chunk:=chunk) (ofs:= ofs).
-    eapply Mem.valid_access_implies; eauto.
-    constructor.
-  Qed.
-  
-End MemoryLemmas.
 
 (** ** Block renamings*)
 Module Renamings.
@@ -1280,7 +1107,7 @@ Module MemoryWD.
 
 End MemoryWD.
 
-(** ** Injections on values*)
+(** ** Renamings on values*)
 Module ValObsEq.
 
   Import ValueWD MemoryWD Renamings MemoryLemmas.
@@ -2089,14 +1916,17 @@ Module ValObsEq.
   
 End ValObsEq.
   
-(** ** Injections between memories *)
+(** ** Renamings between memories *)
 Module MemObsEq.
 
-  Import ValObsEq SEM ValueWD MemoryWD Renamings MemoryLemmas.
+  Import ValObsEq ValueWD MemoryWD Renamings MemoryLemmas.
 
   (* A compcert injection would not work because it allows permissions to go up *)
-  (* Moreover, we require that undefined values are matched by the target memory,
-     unlike compcert injections *)
+  (* Moreover, we require that undefined values are matched by the
+     target memory, unlike compcert injections. Although the latter is
+     not neccessary and in retrospect may be a limiting factor. For
+     example we would be able to reuse this development for our final
+     erasure if we allowed undefined values to become more defined. *)
   
   (** Weak injection between memories *)
   Record weak_mem_obs_eq (f : memren) (mc mf : mem) :=
@@ -2128,7 +1958,7 @@ Module MemObsEq.
                         (Maps.ZMap.get ofs mf.(Mem.mem_contents)#b2)}.
 
   
-  (** Strong injection between memories *)
+  (** Renaming between memories *)
   Record mem_obs_eq (f : memren) (mc mf : mem) :=
     { weak_obs_eq : weak_mem_obs_eq f mc mf;
       strong_obs_eq : strong_mem_obs_eq f mc mf }.
@@ -2489,7 +2319,6 @@ Qed.
   Qed.
   
   Transparent Mem.load.
-  (*TODO: The proof. should be easy once we have the lemmas above*)
   Lemma load_val_obs:
     forall (mc mf : mem) (f:memren)
       (b1 b2 : block) chunk (ofs : Z) v1
@@ -2512,8 +2341,8 @@ Qed.
     rewrite <- size_chunk_conv.
     exploit Mem.load_valid_access; eauto. intros [A B]. auto.
   Qed.
+  Opaque Mem.load.
 
-  (*TODO: The Proof. Should be same as above*)
   Lemma loadv_val_obs:
     forall (mc mf : mem) (f:memren)
       (vptr1 vptr2 : val) chunk v1
@@ -2592,8 +2421,8 @@ Qed.
       eapply Mem.store_valid_block_1 in Hcontra; eauto.
       eapply Mem.store_valid_block_2 in H0; eauto.
       eapply Mem.store_valid_block_1; eauto.
-      assert (H1 := mem_store_cur _ _ _ _ _ Hstore b0 ofs0).
-      assert (H2 := mem_store_cur _ _ _ _ _ HstoreF b3 ofs0).
+      assert (H1 := mem_store_cur _ _ _ _ _ _ Hstore b0 ofs0).
+      assert (H2 := mem_store_cur _ _ _ _ _ _ HstoreF b3 ofs0).
       do 2 rewrite getCurPerm_correct in H1.
       do 2 rewrite getCurPerm_correct in H2.
       rewrite <- H1.
@@ -2603,8 +2432,8 @@ Qed.
     { destruct Hstrong_obs_eq.
       constructor.
       - intros.
-        assert (H1 := mem_store_cur _ _ _ _ _ Hstore b0 ofs0).
-        assert (H2 := mem_store_cur _ _ _ _ _ HstoreF b3 ofs0).
+        assert (H1 := mem_store_cur _ _ _ _ _ _ Hstore b0 ofs0).
+        assert (H2 := mem_store_cur _ _ _ _ _ _ HstoreF b3 ofs0).
         do 2 rewrite getCurPerm_correct in H1.
         do 2 rewrite getCurPerm_correct in H2.
         rewrite <- H1.
@@ -2828,6 +2657,7 @@ Qed.
         apply (val_obs_eq (strong_obs_eq Hmem_obs_eq)); auto.
         eapply Mem.perm_free_3; eauto.
   Qed.
+  Opaque Mem.free.
 
   Lemma valid_pointer_ren:
     forall f m m' b1 b2 ofs
@@ -2849,143 +2679,143 @@ Qed.
         by exfalso.
   Qed.
 
-Lemma val_obs_cmpu:
-        forall f v1 v2 v1' v2' m m' (comp : comparison)
-          (Hval_obs': val_obs f v2 v2')
-          (Hval_obs: val_obs f v1 v1')
-          (Hmem_obs_eq: mem_obs_eq f m m'),
-          val_obs f (Val.cmpu (Mem.valid_pointer m) comp v1 v2)
-                  (Val.cmpu (Mem.valid_pointer m') comp v1' v2').
-      Proof with eauto with val_renamings.
-        intros.
-        destruct v1, v1'; inversion Hval_obs;
-        inversion Hval_obs'; subst; simpl; eauto with val_renamings;
-        unfold Val.cmpu,Val.of_optbool, Val.cmpu_bool, Vtrue, Vfalse...
-        - destruct (Int.cmpu comp i0 i2)...
-        - assert (Int.eq i0 Int.zero &&
-                       (Mem.valid_pointer m b1 (Int.unsigned ofs)
-                        || Mem.valid_pointer m b1 (Int.unsigned ofs - 1))
-                = Int.eq i0 Int.zero &&
-                         (Mem.valid_pointer m' b2 (Int.unsigned ofs)
-                          || Mem.valid_pointer m' b2 (Int.unsigned ofs - 1))).
-           { destruct (Int.eq i0 Int.zero); simpl; try reflexivity.
-             erewrite valid_pointer_ren; eauto.
-             erewrite valid_pointer_ren with (ofs := (Int.unsigned ofs - 1)%Z);
-               eauto.
-           }
-           rewrite H.
-        repeat match goal with
-               | [|- context[match ?Expr with _ => _ end]] =>
-                 destruct Expr eqn:?
-               end...
-        - assert (Int.eq i1 Int.zero &&
-                         (Mem.valid_pointer m b (Int.unsigned i0)
-                          || Mem.valid_pointer m b (Int.unsigned i0 - 1))
-                = Int.eq i1 Int.zero &&
-                         (Mem.valid_pointer m' b0 (Int.unsigned i0)
-                          || Mem.valid_pointer m' b0 (Int.unsigned i0 - 1))).
-           { destruct (Int.eq i1 Int.zero); simpl; try reflexivity.
-             erewrite valid_pointer_ren; eauto.
-             erewrite valid_pointer_ren with (ofs := (Int.unsigned i0 - 1)%Z);
-               eauto.
-           }
-           rewrite H.
-        repeat match goal with
-               | [|- context[match ?Expr with _ => _ end]] =>
-                 destruct Expr eqn:?
-               end...
-        - assert (Hequiv: (eq_block b b3) <-> (eq_block b0 b4)).
-          { split.
-            - intros Heq.
-              destruct (eq_block b b3); subst.
-              + rewrite H4 in H0; inversion H0; subst.
-                destruct (eq_block b0 b0); auto.
-              + by exfalso.
-            - intros Heq.
-              destruct (eq_block b b3); subst.
-              + rewrite H4 in H0; inversion H0; subst.
-                destruct (eq_block b0 b0); auto.
-              + destruct (eq_block b0 b4); subst; auto.
-                assert (Hinjective := injective (weak_obs_eq Hmem_obs_eq)).
-                specialize (Hinjective _ _ _ H4 H0); subst.
-                  by exfalso.
-          }            
-          destruct (eq_block b b3) eqn:Hb;
-            destruct (eq_block b0 b4) eqn:Hb0; simpl in *; subst;
-          destruct Hequiv; try (by exfalso; eauto).
-          assert (Hif: (Mem.valid_pointer m b3 (Int.unsigned i0)
-                        || Mem.valid_pointer m b3 (Int.unsigned i0 - 1))
-                         &&
-                         (Mem.valid_pointer m b3 (Int.unsigned ofs0)
-                          || Mem.valid_pointer m b3 (Int.unsigned ofs0 - 1))
-                       =
-                       (Mem.valid_pointer m' b4 (Int.unsigned i0)
-                        || Mem.valid_pointer m' b4 (Int.unsigned i0 - 1))
-                         &&
-                         (Mem.valid_pointer m' b4 (Int.unsigned ofs0)
-                          || Mem.valid_pointer m' b4 (Int.unsigned ofs0 - 1))).
-          { erewrite valid_pointer_ren; eauto.
-            erewrite valid_pointer_ren with
-            (m := m) (b1:=b3) (ofs := (Int.unsigned i0 - 1)%Z); eauto.
-            erewrite valid_pointer_ren with
-            (m := m) (b1:=b3) (ofs := Int.unsigned ofs0); eauto.
-            erewrite valid_pointer_ren with
-            (m := m) (b1:=b3) (ofs := (Int.unsigned ofs0 - 1)%Z); eauto.
-          }
-          rewrite Hif.
-          repeat match goal with
-                 | [|- context[match ?Expr with _ => _ end]] =>
-                   destruct Expr eqn:?
-                 end...
-          erewrite valid_pointer_ren; eauto.
-          erewrite valid_pointer_ren with (b1 := b3); eauto.
-          repeat match goal with
-                 | [|- context[match ?Expr with _ => _ end]] =>
-                   destruct Expr eqn:?
-                 end...
-      Qed.      
-
-      Hint Resolve val_obs_cmpu : val_renamings.
-
-      Lemma mem_obs_eq_of_weak_strong:
-        forall m m' f pmap1 pmap1' pmap2 pmap2'
-          (Hlt1: permMapLt pmap1 (getMaxPerm m))
-          (Hlt2: permMapLt pmap2 (getMaxPerm m'))
-          (Hlt1': permMapLt pmap1' (getMaxPerm m))
-          (Hlt2': permMapLt pmap2' (getMaxPerm m'))
-          (Hstrong_obs: strong_mem_obs_eq f (restrPermMap Hlt1) (restrPermMap Hlt2))
-          (Hweak: weak_mem_obs_eq f (restrPermMap Hlt1') (restrPermMap Hlt2')),
-          mem_obs_eq f (restrPermMap Hlt1) (restrPermMap Hlt2).
-      Proof.
-        intros.
-        destruct Hweak.
-        constructor; auto.
-        constructor; intros.
-        - specialize (domain_invalid0 b).
-          erewrite restrPermMap_valid in H, domain_invalid0;
-            eauto.
-        - specialize (domain_valid0 b).
-          erewrite restrPermMap_valid in H, domain_valid0;
-            eauto.
-        - specialize (codomain_valid0 _ _ H);
-          erewrite restrPermMap_valid in *;
+  Lemma val_obs_cmpu:
+    forall f v1 v2 v1' v2' m m' (comp : comparison)
+      (Hval_obs': val_obs f v2 v2')
+      (Hval_obs: val_obs f v1 v1')
+      (Hmem_obs_eq: mem_obs_eq f m m'),
+      val_obs f (Val.cmpu (Mem.valid_pointer m) comp v1 v2)
+              (Val.cmpu (Mem.valid_pointer m') comp v1' v2').
+  Proof with eauto with val_renamings.
+    intros.
+    destruct v1, v1'; inversion Hval_obs;
+    inversion Hval_obs'; subst; simpl; eauto with val_renamings;
+    unfold Val.cmpu,Val.of_optbool, Val.cmpu_bool, Vtrue, Vfalse...
+    - destruct (Int.cmpu comp i0 i2)...
+    - assert (Int.eq i0 Int.zero &&
+                     (Mem.valid_pointer m b1 (Int.unsigned ofs)
+                      || Mem.valid_pointer m b1 (Int.unsigned ofs - 1))
+              = Int.eq i0 Int.zero &&
+                       (Mem.valid_pointer m' b2 (Int.unsigned ofs)
+                        || Mem.valid_pointer m' b2 (Int.unsigned ofs - 1))).
+      { destruct (Int.eq i0 Int.zero); simpl; try reflexivity.
+        erewrite valid_pointer_ren; eauto.
+        erewrite valid_pointer_ren with (ofs := (Int.unsigned ofs - 1)%Z);
           eauto.
-        - eauto.
-        - destruct Hstrong_obs as [Hpermeq _].
-          specialize (Hpermeq _ _ ofs Hrenaming).
-          rewrite Hpermeq;
-            apply po_refl.
-      Qed.
+      }
+      rewrite H.
+      repeat match goal with
+             | [|- context[match ?Expr with _ => _ end]] =>
+               destruct Expr eqn:?
+             end...
+    - assert (Int.eq i1 Int.zero &&
+                     (Mem.valid_pointer m b (Int.unsigned i0)
+                      || Mem.valid_pointer m b (Int.unsigned i0 - 1))
+              = Int.eq i1 Int.zero &&
+                       (Mem.valid_pointer m' b0 (Int.unsigned i0)
+                        || Mem.valid_pointer m' b0 (Int.unsigned i0 - 1))).
+      { destruct (Int.eq i1 Int.zero); simpl; try reflexivity.
+        erewrite valid_pointer_ren; eauto.
+        erewrite valid_pointer_ren with (ofs := (Int.unsigned i0 - 1)%Z);
+          eauto.
+      }
+      rewrite H.
+      repeat match goal with
+             | [|- context[match ?Expr with _ => _ end]] =>
+               destruct Expr eqn:?
+             end...
+    - assert (Hequiv: (eq_block b b3) <-> (eq_block b0 b4)).
+      { split.
+        - intros Heq.
+          destruct (eq_block b b3); subst.
+          + rewrite H4 in H0; inversion H0; subst.
+            destruct (eq_block b0 b0); auto.
+          + by exfalso.
+        - intros Heq.
+          destruct (eq_block b b3); subst.
+          + rewrite H4 in H0; inversion H0; subst.
+            destruct (eq_block b0 b0); auto.
+          + destruct (eq_block b0 b4); subst; auto.
+            assert (Hinjective := injective (weak_obs_eq Hmem_obs_eq)).
+            specialize (Hinjective _ _ _ H4 H0); subst.
+              by exfalso.
+      }            
+      destruct (eq_block b b3) eqn:Hb;
+        destruct (eq_block b0 b4) eqn:Hb0; simpl in *; subst;
+        destruct Hequiv; try (by exfalso; eauto).
+      assert (Hif: (Mem.valid_pointer m b3 (Int.unsigned i0)
+                    || Mem.valid_pointer m b3 (Int.unsigned i0 - 1))
+                     &&
+                     (Mem.valid_pointer m b3 (Int.unsigned ofs0)
+                      || Mem.valid_pointer m b3 (Int.unsigned ofs0 - 1))
+                   =
+                   (Mem.valid_pointer m' b4 (Int.unsigned i0)
+                    || Mem.valid_pointer m' b4 (Int.unsigned i0 - 1))
+                     &&
+                     (Mem.valid_pointer m' b4 (Int.unsigned ofs0)
+                      || Mem.valid_pointer m' b4 (Int.unsigned ofs0 - 1))).
+      { erewrite valid_pointer_ren; eauto.
+        erewrite valid_pointer_ren with
+        (m := m) (b1:=b3) (ofs := (Int.unsigned i0 - 1)%Z); eauto.
+        erewrite valid_pointer_ren with
+        (m := m) (b1:=b3) (ofs := Int.unsigned ofs0); eauto.
+        erewrite valid_pointer_ren with
+        (m := m) (b1:=b3) (ofs := (Int.unsigned ofs0 - 1)%Z); eauto.
+      }
+      rewrite Hif.
+      repeat match goal with
+             | [|- context[match ?Expr with _ => _ end]] =>
+               destruct Expr eqn:?
+             end...
+      erewrite valid_pointer_ren; eauto.
+      erewrite valid_pointer_ren with (b1 := b3); eauto.
+      repeat match goal with
+             | [|- context[match ?Expr with _ => _ end]] =>
+               destruct Expr eqn:?
+             end...
+  Qed.      
+
+  Hint Resolve val_obs_cmpu : val_renamings.
+
+  Lemma mem_obs_eq_of_weak_strong:
+    forall m m' f pmap1 pmap1' pmap2 pmap2'
+      (Hlt1: permMapLt pmap1 (getMaxPerm m))
+      (Hlt2: permMapLt pmap2 (getMaxPerm m'))
+      (Hlt1': permMapLt pmap1' (getMaxPerm m))
+      (Hlt2': permMapLt pmap2' (getMaxPerm m'))
+      (Hstrong_obs: strong_mem_obs_eq f (restrPermMap Hlt1) (restrPermMap Hlt2))
+      (Hweak: weak_mem_obs_eq f (restrPermMap Hlt1') (restrPermMap Hlt2')),
+      mem_obs_eq f (restrPermMap Hlt1) (restrPermMap Hlt2).
+  Proof.
+    intros.
+    destruct Hweak.
+    constructor; auto.
+    constructor; intros.
+    - specialize (domain_invalid0 b).
+      erewrite restrPermMap_valid in H, domain_invalid0;
+        eauto.
+    - specialize (domain_valid0 b).
+      erewrite restrPermMap_valid in H, domain_valid0;
+        eauto.
+    - specialize (codomain_valid0 _ _ H);
+      erewrite restrPermMap_valid in *;
+      eauto.
+    - eauto.
+    - destruct Hstrong_obs as [Hpermeq _].
+      specialize (Hpermeq _ _ ofs Hrenaming).
+      rewrite Hpermeq;
+        apply po_refl.
+  Qed.
       
 End MemObsEq.
 
-Import dry_context SEM mySchedule DryMachine DryMachine.ThreadPool event_semantics.
+Module Type CoreInjections (SEM: concurrent_machine.Semantics).
 
-Module Type CoreInjections.
+  Import ValObsEq ValueWD MemoryWD Renamings MemObsEq SEM event_semantics.
 
-  Import ValObsEq ValueWD MemoryWD Renamings MemObsEq.
-
+  (** Pointers in the core are well-defined *)
   Parameter core_wd : memren -> C -> Prop.
+  (** Pointers in the global env are well-defined *)
   Parameter ge_wd : memren -> G -> Prop.
   
   Parameter ge_wd_incr: forall f f' (g : G),
@@ -3029,12 +2859,13 @@ Module Type CoreInjections.
       core_wd f c'.
   
   Parameter initial_core_wd:
-    forall f vf arg c_new,
+    forall the_ge f vf arg c_new,
       initial_core Sem the_ge vf [:: arg] = Some c_new ->
       valid_val f arg ->
       ge_wd f the_ge ->
       core_wd f c_new.
-  
+
+  (** Renamings on cores *)
   Parameter core_inj: memren -> C -> C -> Prop.
 
   Parameter core_inj_ext: 
@@ -3076,7 +2907,7 @@ Module Type CoreInjections.
       end.
   
   Parameter core_inj_init:
-    forall vf vf' arg arg' c_new f fg
+    forall vf vf' arg arg' c_new f fg the_ge
       (Hf: val_obs_list f arg arg')
       (Hf': val_obs f vf vf')
       (Hfg: forall b1 b2, fg b1 = Some b2 -> b1 = b2)
@@ -3103,7 +2934,7 @@ Module Type CoreInjections.
       core_inj f'' c' c''.
 
   Parameter corestep_obs_eq:
-    forall cc cf cc' mc mf mc' f fg
+    forall cc cf cc' mc mf mc' f fg the_ge
       (Hobs_eq: mem_obs_eq f mc mf)
       (Hcode_eq: core_inj f cc cf)
       (Hfg: (forall b1 b2, fg b1 = Some b2 -> b1 = b2))
@@ -3138,7 +2969,7 @@ Module Type CoreInjections.
      cannot say anything about the codomain, i.e. that f' is an
      extension of f.*) 
   Parameter corestep_wd:
-    forall c m c' m' f fg
+    forall c m c' m' f fg the_ge
       (Hwd: core_wd f c)
       (Hmem_wd: valid_mem m)
       (Hge_wd: ge_wd fg the_ge)
@@ -3153,10 +2984,13 @@ Module Type CoreInjections.
   
 End CoreInjections.
 
-Module ThreadPoolInjections (CI: CoreInjections).
+Module ThreadPoolInjections (SEM: concurrent_machine.Semantics)
+       (Machines: MachinesSig with Module SEM := SEM)
+       (CI: CoreInjections SEM).
   
-  Import ValObsEq ValueWD MemoryWD Renamings CI concurrent_machine.
-  (** Injections on programs *)
+  Import ValObsEq ValueWD MemoryWD Renamings CI.
+  Import concurrent_machine Machines.DryMachine ThreadPool.
+  (** Renamings on Thread Pools *)
 
   (*not clear what should happen with vf. Normally it should be in the
 genv and hence should be mapped to itself, but let's not expose this

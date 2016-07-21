@@ -1,3 +1,5 @@
+(** DryConc to FineConc simulation*)
+
 Require Import compcert.lib.Axioms.
 
 Add LoadPath "../concurrency" as concurrency.
@@ -42,16 +44,26 @@ Require Import concurrency.permissions.
 Require Import concurrency.scheduler.
 Require Import concurrency.concurrent_machine.
 Require Import concurrency.dry_machine_lemmas concurrency.dry_context.
+Require Import concurrency.memory_lemmas.
 Require Import concurrency.mem_obs_eq.
 
-Import dry_context SEM mySchedule DryMachine DryMachine.ThreadPool.
+Module SimDefs (SEM: Semantics)
+       (SemAxioms: SemanticsAxioms SEM)
+       (Machine: MachinesSig with Module SEM := SEM)
+       (AsmContext: AsmContext SEM Machine)
+       (CI: CoreInjections SEM).
 
-Module SimDefs (CI: CoreInjections).
+  (* Step Imports*)
+  Module StepType := StepType SEM SemAxioms Machine AsmContext.
+  Import StepType StepType.InternalSteps.
 
-  Import mySchedule CoreLanguage InternalSteps.
-  Import MemObsEq ValObsEq MemoryLemmas StepType.
+  (* Memory Imports*)
+  Import MemObsEq ValObsEq MemoryLemmas.
   Import CI ValueWD MemoryWD Renamings.
-  Module ThreadPoolInjections := ThreadPoolInjections CI.
+
+  (* Machine and Context Imports*)
+  Import Machine DryMachine ThreadPool AsmContext dry_machine.Concur.mySchedule.
+  Module ThreadPoolInjections := ThreadPoolInjections SEM Machine CI.
   Import ThreadPoolInjections.
   
   Notation threadStep := (threadStep the_ge).
@@ -130,7 +142,7 @@ Module SimDefs (CI: CoreInjections).
         forall tid (pfc: containsThread tpc tid) (pff: containsThread tpf tid),
         exists tpc' mc', ren_incr f (fp _ pfc) /\
                     ([seq x <- xs | x == tid] = nil -> f = (fp _ pfc)) /\
-                    internal_execution ([seq x <- xs | x == tid])
+                    internal_execution the_ge ([seq x <- xs | x == tid])
                                        tpc mc tpc' mc' /\
                     (forall (pfc': containsThread tpc' tid)
                        (mem_compc': mem_compatible tpc' mc'),
@@ -234,45 +246,32 @@ Module SimDefs (CI: CoreInjections).
 End SimDefs.
 
 (** ** Proofs *)
-Module SimProofs (CI: CoreInjections).
-  Import mySchedule CoreLanguage InternalSteps.
-  Import ThreadPoolWF StepLemmas StepType.
-  Import ValueWD MemoryWD MemObsEq ValObsEq MemoryLemmas event_semantics Events.
-  Module ThreadPoolInjections := ThreadPoolInjections CI.
-  Module SimDefs := SimDefs CI.
-  Import SimDefs Renamings ThreadPoolInjections CI.
+Module SimProofs (SEM: Semantics)
+       (SemAxioms: SemanticsAxioms SEM)
+       (Machine: MachinesSig with Module SEM := SEM)
+       (AsmContext: AsmContext SEM Machine)
+       (CI: CoreInjections SEM).
+
+  Module SimDefs := SimDefs SEM SemAxioms Machine AsmContext CI.
+  Import SimDefs.
+  Import StepType StepType.InternalSteps StepType.StepLemmas.
+  Import CoreLanguage CoreLanguageDry SemAxioms.
+
+  (* Memory Imports*)
+  Import MemObsEq ValObsEq MemoryLemmas.
+  Import CI ValueWD MemoryWD Renamings.
+
+  (* Machine and Context Imports*)
+  Import Machine DryMachine ThreadPool AsmContext dry_machine.Concur.mySchedule.
+  Import ThreadPoolInjections.
+  Import event_semantics Events.
+
+  Module ThreadPoolWF := ThreadPoolWF SEM Machine.
+  
   Notation csafe := (DryConc.csafe).
-
-  Section SimProofs.
-  Opaque at_external after_external halted Sem.
-
-  (** Solves absurd cases from fine-grained internal steps *)
-  Ltac absurd_internal Hstep :=
-    inversion Hstep; try inversion Htstep; subst; simpl in *;
-    try match goal with
-        | [H: Some _ = Some _ |- _] => inversion H; subst
-        end; pf_cleanup;
-    repeat match goal with
-           | [H: getThreadC ?Pf = _, Hint: ?Pf @ I |- _] =>
-             unfold getStepType in Hint;
-               rewrite H in Hint; simpl in Hint
-           | [H1: match ?Expr with _ => _ end = _,
-                  H2: ?Expr = _ |- _] => rewrite H2 in H1
-           | [H: threadHalted _ |- _] =>
-             inversion H; clear H; subst; simpl in *; pf_cleanup
-           | [H1: is_true (isSome (halted ?Sem ?C)),
-                  H2: match at_external _ _ with _ => _ end = _ |- _] =>
-             destruct (at_external_halted_excl Sem C) as [Hext | Hcontra];
-               [rewrite Hext in H2;
-                 destruct (halted Sem C) eqn:Hh;
-                 rewrite Hh in H2;
-                 [discriminate | try (rewrite Hh in H1); by exfalso] |
-                rewrite Hcontra in H1; exfalso; by auto]
-           end; try discriminate; try (exfalso; by auto).
-
-  (** Assumptions on threadwise semantics*)
-  Context {cSpec : corestepSpec}.
-
+  Notation internal_step := (internal_step the_ge).
+  Notation internal_execution := (internal_execution the_ge).
+  
   Lemma ctlType_inj :
     forall c c' (f: memren)
       (Hinj: ctl_inj f c c'),
@@ -283,10 +282,10 @@ Module SimProofs (CI: CoreInjections).
     unfold ctlType in *;
     try assert (Hat_ext := core_inj_ext Hinj);
     try assert (Hhalted := core_inj_halted Hinj); auto.
-    destruct (at_external Sem c) as [[[? ?] ?]|]; simpl in *;
-    destruct (at_external Sem c0) as [[[? ?] ?]|]; simpl in *; auto;
+    destruct (at_external SEM.Sem c) as [[[? ?] ?]|]; simpl in *;
+    destruct (at_external SEM.Sem c0) as [[[? ?] ?]|]; simpl in *; auto;
     try (by exfalso).
-    destruct (halted Sem c), (halted Sem c0); by tauto.
+    destruct (halted SEM.Sem c), (halted SEM.Sem c0); by tauto.
   Qed.
 
   Lemma stepType_inj:
@@ -324,7 +323,7 @@ Module SimProofs (CI: CoreInjections).
     unfold getStepType in Hinternal.
     destruct (getThreadC pff) eqn:Hget; simpl in *;
     try discriminate.
-    destruct (at_external Sem c), (halted Sem c) eqn:?; try discriminate.
+    destruct (at_external SEM.Sem c), (halted SEM.Sem c) eqn:?; try discriminate.
     exists tr.
     split.
     intros.
@@ -380,10 +379,10 @@ Module SimProofs (CI: CoreInjections).
                     H2: ?Expr = _ |- _] =>
                rewrite H2 in H1
              end; try discriminate.
-      destruct (at_external_halted_excl Sem c) as [Hnot_ext | Hcontra].
+      destruct (at_external_halted_excl SEM.Sem c) as [Hnot_ext | Hcontra].
       rewrite Hnot_ext in Hstep_internal; try discriminate.
-      destruct (halted Sem c) eqn:Hhalted'; try by (rewrite Hhalted' in Hcant).
-      rewrite Hcontra in Hcant.
+      destruct (halted SEM.Sem c) eqn:Hhalted'; try discriminate.
+      rewrite Hcontra in Hcant;
         by auto.
     }
     destruct Hstep_internal' as [Hstep_internal' Heq]; subst.
@@ -913,7 +912,7 @@ Module SimProofs (CI: CoreInjections).
       rewrite Hat_external in Hat_externalF_spec.
       simpl in Hat_externalF_spec.
       destruct X as [[ef sig] val].
-      destruct (at_external Sem cf) as [[[ef' sig'] val']|] eqn:Hat_externalF;
+      destruct (at_external SEM.Sem cf) as [[[ef' sig'] val']|] eqn:Hat_externalF;
         try by exfalso.
       destruct Hat_externalF_spec as [? [? Harg_obs]]; subst.                         
       remember (updThreadC pff (Krun cf')) as tpf' eqn:Hupd.
@@ -1194,8 +1193,7 @@ Module SimProofs (CI: CoreInjections).
       pf_cleanup.
       rewrite Hcode in Hinternal. simpl in Hinternal.
       destruct (halted SEM.Sem c) eqn:Hhalt; try (by exfalso). 
-      rewrite Hhalt in Hinternal.
-      destruct (at_external Sem c);
+      destruct (at_external SEM.Sem c);
         by discriminate.
         by exfalso.
   Qed.
@@ -1443,7 +1441,8 @@ Module SimProofs (CI: CoreInjections).
           - by apply (injective (weak_obs_eq (obs_eq Htsimj))).
           - intros b1 b2 ofs.
             rewrite <- permission_at_fstep with
-            (Hcomp := (mem_compf Hsim)) (U := empty) (i := i) (pfi := pff)
+            (ge := the_ge) (Hcomp := (mem_compf Hsim)) (U := empty)
+                           (i := i) (pfi := pff)
                                         (pfj := pffj) (tr := tr) (tr' := tr')
                                         (Hcomp' := memCompF'); auto.
               by apply (perm_obs_weak (weak_obs_eq memObsEqj)).
@@ -1451,7 +1450,8 @@ Module SimProofs (CI: CoreInjections).
         constructor. (*strong_obs_eq proof *)
         { intros b1 b2 ofs.
           rewrite <- permission_at_fstep with
-          (Hcomp := (mem_compf Hsim)) (i := i) (U := empty) (pfi := pff) (tr := tr) (tr' := tr')
+          (Hcomp := (mem_compf Hsim)) (i := i) (U := empty) (ge := the_ge)
+                                      (pfi := pff) (tr := tr) (tr' := tr')
                                       (pfj := pffj) (Hcomp' := memCompF'); auto.
             by apply (perm_obs_strong (strong_obs_eq memObsEqj)).
         }
@@ -1640,17 +1640,17 @@ Module SimProofs (CI: CoreInjections).
         | [H: ~ containsThread _ _, H2: containsThread _ _ |- _] =>
           exfalso; by auto
         | [H: is_true (isSome (@halted _ _ _ _ _))  |- _] => 
-          destruct (at_external_halted_excl Sem c) as [Hnot_ext | Hcontra];
+          destruct (at_external_halted_excl SEM.Sem c) as [Hnot_ext | Hcontra];
             [rewrite Hnot_ext in Hsuspend;
-              destruct (halted Sem c); discriminate |
+              destruct (halted SEM.Sem c); discriminate |
              rewrite Hcontra in Hcant; by auto]
         end.
-    destruct (at_external Sem c) eqn:Hat_external.
+    destruct (at_external SEM.Sem c) eqn:Hat_external.
     apply ev_step_ax1 in Hcorestep.
     apply corestep_not_at_external in Hcorestep.
     rewrite Hcorestep in Hat_external;
       by discriminate.
-    destruct (halted Sem c); by discriminate.
+    destruct (halted SEM.Sem c); by discriminate.
       split; by auto.
   Qed.
 
@@ -1698,7 +1698,8 @@ Module SimProofs (CI: CoreInjections).
       simpl in Hcode_eq.
       destruct (getThreadC pf1j') as [c1' | | |] eqn:Hcodej'; try by exfalso.
       apply ev_step_ax1 in Hcorestep.
-      assert (H := corestep_obs_eq Hmem_obs_eq Hcode_eq Hfg Hge_wd Hge_incr Hcorestep).
+      assert (H := corestep_obs_eq _ _ Hmem_obs_eq Hcode_eq Hfg Hge_wd
+                                   Hge_incr Hcorestep).
       destruct H
         as (c2' & m2' & f' & Hcorestep' & Hcode_eq'
             & Hobs_eq & Hincr & Hseparated
@@ -1773,7 +1774,7 @@ Module SimProofs (CI: CoreInjections).
       assert (Hat_external_spec := core_inj_ext Hcode_eq).
       rewrite Hat_external in Hat_external_spec.
       destruct X as [[? ?] vs].
-      destruct (at_external Sem c1') as [[[? ?] ?] | ] eqn:Hat_external';
+      destruct (at_external SEM.Sem c1') as [[[? ?] ?] | ] eqn:Hat_external';
         try by exfalso.
       destruct Hat_external_spec as [? [? ?]]; subst.
       assert (Hvalid_val: match (Some (Vint Int.zero)) with
@@ -2107,9 +2108,9 @@ Module SimProofs (CI: CoreInjections).
         | [H: ~ containsThread _ _, H2: containsThread _ _ |- _] =>
           exfalso; by auto
         | [H: is_true (isSome (@halted _ _ _ _ _))  |- _] => 
-          destruct (at_external_halted_excl Sem c) as [Hnot_ext | Hcontra];
+          destruct (at_external_halted_excl SEM.Sem c) as [Hnot_ext | Hcontra];
             [rewrite Hnot_ext in Hsuspend;
-              destruct (halted Sem c); discriminate |
+              destruct (halted SEM.Sem c); discriminate |
              rewrite Hcontra in Hcant; by auto]
         end.
     destruct Hstrong_sim as [Hcode_eq memObsEq].
@@ -2120,7 +2121,7 @@ Module SimProofs (CI: CoreInjections).
     assert (Hat_external_spec := core_inj_ext Hcode_eq).
     rewrite Hat_external in Hat_external_spec.
     destruct X as [[? ?] ?].
-    destruct (at_external Sem c') as [[[? ?] ?]|] eqn:Hat_external';
+    destruct (at_external SEM.Sem c') as [[[? ?] ?]|] eqn:Hat_external';
       try by exfalso.
     destruct Hat_external_spec as [? [? ?]]; subst.
     exists (updThreadC pff (Kblocked c')).
@@ -2280,7 +2281,7 @@ Module SimProofs (CI: CoreInjections).
       apply ev_step_ax1 in Hcorestep.
       apply corestep_not_at_external in Hcorestep.
       rewrite Hcorestep in Hpop.
-      destruct (halted Sem c);
+      destruct (halted SEM.Sem c);
         destruct Hpop;
           by discriminate.
     - subst. do 2 eexists; split; eauto.
@@ -2963,7 +2964,8 @@ Module SimProofs (CI: CoreInjections).
                 unfold permission_at in Hpermj_mc''.
                 erewrite restrPermMap_Cur.
                 assert (Hdecay := internal_execution_decay).
-                specialize (Hdecay _ _ _ _ _ _ pfcj'' pfij memCompC'' Hcompij Hexecij).
+                specialize (Hdecay _ _ _ _ _ _ _ pfcj'' pfij memCompC''
+                                   Hcompij Hexecij).
 
                 specialize (Hdecay b1 ofs).
                 destruct Hdecay as [_ Hold].
@@ -3755,7 +3757,7 @@ Module SimProofs (CI: CoreInjections).
             by (intros; by do 2 rewrite restrPermMap_Cur).
 
           assert (Hvalid: Mem.valid_block mc bl1)
-            by (eapply lock_valid_block; eauto).
+            by (eapply ThreadPoolWF.lock_valid_block; eauto).
           specialize (HsimWeak _ pfc pff).
           apply (domain_valid HsimWeak) in Hvalid.
           destruct Hvalid as [bl2' Hfl0].
@@ -6923,7 +6925,7 @@ Module SimProofs (CI: CoreInjections).
         (* And now we can prove that cf is also at external *)
         assert (Hat_external_spec := core_inj_ext Hcore_inj).
         rewrite Hat_external in Hat_external_spec.
-        destruct (at_external Sem cf) as [[[? ?] vsf]|] eqn:Hat_externalF;
+        destruct (at_external SEM.Sem cf) as [[[? ?] vsf]|] eqn:Hat_externalF;
           try by exfalso.
         (* and moreover that it's the same external and their
         arguments are related by the injection*)
@@ -7486,7 +7488,7 @@ Module SimProofs (CI: CoreInjections).
       (* And now we can prove that cf is also at external *)
       assert (Hat_external_spec := core_inj_ext Hcore_inj).
       rewrite Hat_external in Hat_external_spec.
-      destruct (at_external Sem cf) as [[[? ?] vsf]|] eqn:Hat_externalF;
+      destruct (at_external SEM.Sem cf) as [[[? ?] vsf]|] eqn:Hat_externalF;
         try by exfalso.
       (* and moreover that it's the same external and their
         arguments are related by the injection*)
@@ -8078,7 +8080,7 @@ Module SimProofs (CI: CoreInjections).
       (* And now we can prove that cf is also at external *)
       assert (Hat_external_spec := core_inj_ext Hcore_inj).
       rewrite Hat_external in Hat_external_spec.
-      destruct (at_external Sem cf) as [[[? ?] vsf]|] eqn:Hat_externalF;
+      destruct (at_external SEM.Sem cf) as [[[? ?] vsf]|] eqn:Hat_externalF;
         try by exfalso.
       (* and moreover that it's the same external and their
         arguments are related by the injection*)
@@ -8392,7 +8394,7 @@ Module SimProofs (CI: CoreInjections).
                split.
                eapply addThread_internal_execution; eauto.
                apply updThread_internal_execution; eauto.
-               eapply invariant_decr;
+               eapply ThreadPoolWF.invariant_decr;
                  by eauto.
                eapply mem_compatible_add;
                  by eauto.
@@ -8709,7 +8711,7 @@ Module SimProofs (CI: CoreInjections).
       (* And now we can prove that cf is also at external *)
       assert (Hat_external_spec := core_inj_ext Hcore_inj).
       rewrite Hat_external in Hat_external_spec.
-      destruct (at_external Sem cf) as [[[? ?] vsf]|] eqn:Hat_externalF;
+      destruct (at_external SEM.Sem cf) as [[[? ?] vsf]|] eqn:Hat_externalF;
         try by exfalso.
       (* and moreover that it's the same external and their
         arguments are related by the injection*)
@@ -9275,7 +9277,7 @@ Module SimProofs (CI: CoreInjections).
       (* And now we can prove that cf is also at external *)
       assert (Hat_external_spec := core_inj_ext Hcore_inj).
       rewrite Hat_external in Hat_external_spec.
-      destruct (at_external Sem cf) as [[[? ?] vsf]|] eqn:Hat_externalF;
+      destruct (at_external SEM.Sem cf) as [[[? ?] vsf]|] eqn:Hat_externalF;
         try by exfalso.
       (* and moreover that it's the same external and their
         arguments are related by the injection*)
@@ -10124,7 +10126,7 @@ Module SimProofs (CI: CoreInjections).
       (* And now we can prove that cf is also at external *)
       assert (Hat_external_spec := core_inj_ext Hcore_inj).
       rewrite Hat_external in Hat_external_spec.
-      destruct (at_external Sem cf) as [[[? ?] vsf]|] eqn:Hat_externalF;
+      destruct (at_external SEM.Sem cf) as [[[? ?] vsf]|] eqn:Hat_externalF;
         try by exfalso.
       (* and moreover that it's the same external and their
         arguments are related by the injection*)
@@ -10156,5 +10158,4 @@ Module SimProofs (CI: CoreInjections).
 Qed.
       
   
-End SimProofs.
 End SimProofs.

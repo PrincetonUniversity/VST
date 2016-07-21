@@ -20,304 +20,63 @@ Require Import compcert.lib.Integers.
 
 Require Import Coq.ZArith.ZArith.
 
+Require Import concurrency.dry_machine_lemmas.
 Require Import concurrency.threads_lemmas.
 Require Import concurrency.permissions.
 Require Import concurrency.concurrent_machine.
 Require Import concurrency.mem_obs_eq.
-Require Import concurrency.x86_inj.
 Require Import concurrency.compcert_threads_lemmas.
 Require Import concurrency.dry_context.
 Require Import Coqlib.
 Require Import msl.Coqlib2.
 
-Import dry_context SEM mySchedule DryMachine DryMachine.ThreadPool.
-
 Set Bullet Behavior "None".
 Set Bullet Behavior "Strict Subproofs".
 
-(** ** Safety for FineConc (interleaving) semantics *)
-Module FineConcSafe.
+Module Type FineConcInitial (SEM : Semantics)
+       (Machine : MachinesSig with Module SEM := SEM)
+       (AsmContext : AsmContext SEM Machine)
+       (CI : CoreInjections SEM).
 
-  Module SimDefs := SimDefs X86Inj.
-  Module SimProofs := SimProofs X86Inj.
-  Import SimDefs SimProofs X86Inj dry_machine_lemmas.
-  Import Renamings MemObsEq ValObsEq ValueWD.
+  Import Renamings MemObsEq ValObsEq ValueWD MemoryWD
+         AsmContext CI event_semantics.
 
-  Section CSPEC.
-    Context {cspec: CoreLanguage.corestepSpec}.
-    
-    Import Asm Asm_coop event_semantics.
-
-
-    Lemma x86_corestep_fun:  corestep_fun Sem.
-    Proof.
-      hnf; intros.
-      inv H; inv H0;
-      repeat 
-        match goal with
-        | H: ?A = _, H':?A=_ |- _ => inversion2 H H' 
-        | H: ?A, H': ?A |- _ => clear H'
-        end;
-      try congruence; try now (split; auto).
-      pose proof (extcall_arguments_determ _ _ _ _ _ H3 H10).
-      subst args0; auto.
-    Qed.
-
-    Lemma mem_step_decay:
-      forall m m',
-        mem_step m m' ->
-        decay m m'.
-    Proof.
-      induction 1.
-      *
-        split; intros.
-        contradiction H0; clear H0.
-        eapply Mem.storebytes_valid_block_2; eauto.
-        right. intros.
-        apply Mem.storebytes_access in H.
-        rewrite H; auto.
-      *
-        split; intros.
-      +
-        assert (b=b').
-        pose proof (Mem.nextblock_alloc _ _ _ _ _ H).
-        apply Mem.alloc_result in H. subst.
-        unfold Mem.valid_block in *.
-        rewrite H2 in H1; clear H2.
-        apply Plt_succ_inv in H1. destruct H1; auto.
-        contradiction. subst b'. clear - H.
-        Transparent Mem.alloc. unfold Mem.alloc in H. Opaque Mem.alloc.
-        inv H. simpl.
-        destruct (base.range_dec lo ofs hi); [left | right]; intros.
-        rewrite PMap.gss. destruct (zle lo ofs); try omega. destruct (zlt ofs hi); try omega.
-        reflexivity.
-        rewrite PMap.gss.
-        destruct (zle lo ofs), (zlt ofs hi); try reflexivity.
-        omega.
-      +
-        assert (b<>b').
-        intro. subst b'. apply Mem.alloc_result in H. subst b.
-        unfold Mem.valid_block in H0. apply Plt_ne in H0.
-        contradiction H0; auto.
-        right. intro.
-        Transparent Mem.alloc. unfold Mem.alloc in H. Opaque Mem.alloc.
-        inv H. simpl.
-        erewrite PMap.gso by auto. auto.
-        *
-          revert m H; induction l; intros. inv H. apply decay_refl.
-          simpl in H. destruct a. destruct p. 
-          destruct (Mem.free m b z0 z) eqn:?H; inv H.
-          apply decay_trans with m0; [ | | eapply IHl; eauto].
-          eapply Mem.valid_block_free_1; eauto.
-          clear  - H0. rename m0 into m'. rename z0 into lo. rename z into hi.
-          Transparent Mem.free. unfold Mem.free in H0. Opaque Mem.free.
-          if_tac in H0; inv H0.
-          unfold Mem.unchecked_free; hnf; unfold Mem.valid_block; simpl.
-          split; intros; simpl. contradiction.
-          destruct (adr_range_dec (b,lo) (hi-lo) (b0,ofs)).
-          destruct a. subst b0. rewrite !PMap.gss. specialize (H ofs).
-          left; intro.
-          destruct (zle lo ofs); try omega. destruct (zlt ofs hi); try omega.
-          split; simpl; auto. spec H; [omega |].
-          hnf in H. match type of H with match ?A with _ => _ end => destruct A eqn:?H end; try contradiction.
-          assert (p=Freeable). inv H; auto. subst p. clear H.
-          destruct k; auto.
-          pose proof (Mem.access_max m b ofs).
-          rewrite H1 in H.
-          match goal with |- ?A = _ => destruct A; inv H end; auto.
-          clear H.
-          right. intros.
-          destruct (peq b b0); auto. subst b0. rewrite PMap.gss.
-          unfold adr_range in n.
-          assert (~ (lo <= ofs < hi)%Z) by (contradict n; split; auto; omega).
-          destruct (zle lo ofs); try reflexivity.
-          destruct (zlt ofs hi); try reflexivity. omega.
-          erewrite PMap.gso by auto. auto.
-        *
-          apply decay_trans with m''; auto.
-          apply mem_step_nextblock in H.
-          unfold Mem.valid_block; intros.
-          eapply Plt_Ple_trans; try apply H1. apply H.
-    Qed.
-
-    Lemma exec_load_same_mem:
-      forall ge ch m a rs rd rs' m',
-        exec_load ge ch m a rs rd = Next rs' m' ->
-        m=m'.
-    Proof.
-      intros.
-      unfold exec_load in H.
-      destruct (Mem.loadv ch m (eval_addrmode ge a rs)) eqn:?; inv H.
-      reflexivity.
-    Qed.
-
-    Lemma exec_store_obeys_cur_write:
-      forall ge ch m a rs rs0 d rs' m',
-        exec_store ge ch m a rs rs0 d = Next rs' m' ->
-        forall b ofs, 
-          Mem.valid_block m b ->
-          ~ Mem.perm m b ofs Cur Writable ->
-          ZMap.get ofs (PMap.get b (Mem.mem_contents m)) =
-          ZMap.get ofs (PMap.get b (Mem.mem_contents m')).
-    Proof.
-      intros.
-      unfold exec_store in H.
-      destruct (Mem.storev ch m (eval_addrmode ge a rs) (rs rs0)) eqn:?; inv H.
-      unfold Mem.storev in Heqo.
-      destruct (eval_addrmode ge a rs); inv Heqo.
-      symmetry;
-        eapply MemoryLemmas.store_contents_other; eauto.
-    Qed.
-
-    Lemma mem_step_obeys_cur_write:
-      forall m b ofs m',
-        Mem.valid_block m b ->
-        ~ Mem.perm m b ofs Cur Writable ->
-        mem_step m m' ->
-        ZMap.get ofs (PMap.get b (Mem.mem_contents m)) =
-        ZMap.get ofs (PMap.get b (Mem.mem_contents m')).
-    Proof.
-      intros.
-      induction H1.
-      *
-        revert m ofs0 H H0 H1; induction bytes; intros.
-        Transparent Mem.storebytes.
-        unfold Mem.storebytes in H1.
-        destruct (Mem.range_perm_dec m b0 ofs0
-                                     (ofs0 + Z.of_nat (length nil)) Cur Writable);
-          inv H1; simpl.
-        destruct (peq b b0). subst b0.
-        rewrite PMap.gss. auto.
-        rewrite PMap.gso; auto.
-        change (a::bytes) with ((a::nil)++bytes) in H1.
-        apply Mem.storebytes_split in H1.
-        destruct H1 as [m1 [? ?]].
-        etransitivity.
-        2: eapply IHbytes; try apply H2.
-        clear H2 IHbytes.
-        unfold Mem.storebytes in H1. 
-        Opaque Mem.storebytes.
-        destruct (Mem.range_perm_dec m b0 ofs0
-                                     (ofs0 + Z.of_nat (length (a :: nil))) Cur Writable);
-          inv H1; simpl.
-        destruct (peq b b0). subst b0.
-        rewrite PMap.gss.
-        destruct (zeq ofs0 ofs). subst.
-        contradiction H0. apply r. simpl. omega.
-        rewrite ZMap.gso; auto. 
-        rewrite PMap.gso; auto.
-        clear - H H1.
-        eapply Mem.storebytes_valid_block_1; eauto.
-        contradict H0. clear - H1 H0.
-        eapply Mem.perm_storebytes_2; eauto.
-      *
-        apply AllocContentsOther with (b':=b) in H1.
-        rewrite H1. auto. intro; subst.
-        apply Mem.alloc_result in H1; unfold Mem.valid_block in H.
-        subst. apply Plt_strict in H; auto.
-      *
-        revert m H H0 H1; induction l; simpl; intros.
-        inv H1; auto.
-        destruct a. destruct p.
-        destruct (Mem.free m b0 z0 z) eqn:?; inv H1.
-        rewrite <- (IHl m0); auto.
-        eapply free_contents; eauto.
-        intros [? ?]. subst b0. apply H0.
-        apply Mem.free_range_perm in Heqo.
-        specialize (Heqo ofs).
-        spec Heqo; [omega | ].
-        eapply Mem.perm_implies; eauto. constructor.
-        clear - H Heqo.
-        unfold Mem.valid_block in *.
-        apply Mem.nextblock_free in Heqo. rewrite Heqo.
-        auto.
-        clear - H0 Heqo.
-        contradict H0.
-        eapply Mem.perm_free_3; eauto.
-      *
-        assert (Mem.valid_block m'' b). {
-          apply mem_step_nextblock in H1_.
-          unfold Mem.valid_block in *.
-          eapply Plt_le_trans; eauto.
-        }
-        erewrite IHmem_step1 by auto. apply IHmem_step2; auto.
-        contradict H0.
-        clear - H H1_ H0.
-        revert H H0; induction H1_; intros.
-        eapply Mem.perm_storebytes_2; eauto.
-        pose proof (Mem.perm_alloc_inv _ _ _ _ _ H _ _ _ _ H1).
-        if_tac in H2; auto. subst b'.
-        pose proof (Mem.alloc_result _ _ _ _ _ H).
-        subst. apply Plt_strict in H0. contradiction.
-        eapply Mem.perm_free_list in H; try apply H1.
-        destruct H; auto.
-        eapply IHH1_1; auto. eapply IHH1_2; eauto.
-        apply mem_step_nextblock in H1_1.
-        unfold Mem.valid_block in *.
-        eapply Plt_le_trans; eauto.
-    Qed.
-
-    Instance x86Spec : CoreLanguage.corestepSpec.
-    Proof.
-      split.
-      intros m m' m'' ge c c' c'' Hstep Hstep'.
-      *
-        eapply x86_corestep_fun; eauto.
-      * 
-        intros.
-        hnf in Hstep. 
-        apply asm_mem_step in Hstep.
-        eapply mem_step_obeys_cur_write; auto.
-      * 
-        intros.
-        apply mem_step_decay.
-        apply asm_mem_step in H; auto.
-      *
-        intros.
-        apply mem_step_nextblock.
-        apply asm_mem_step in H; auto.
-    Qed.
-
-  End CSPEC.
-
-  Import MemoryWD SimDefs ThreadPoolInjections StepLemmas event_semantics.
-  Definition tpc_init f arg := initial_core coarse_semantics the_ge f arg.
-  Definition tpf_init f arg := initial_core fine_semantics the_ge f arg.
-
-  (** For now, we assume that the initial memory has no invalid
-pointers, but it should be provable*)
-  Axiom init_mem_wd:
+  (** The initial memory is well-defined*)
+  Parameter init_mem_wd:
     forall m, init_mem = Some m -> valid_mem m.
 
-  (** Also assuming that the initial core will be well-defined*)
-  Lemma init_core_wd:
+  (** The initial core is well-defined*)
+  Parameter init_core_wd:
     forall v args m (ARGS:valid_val_list (id_ren m) args),
       init_mem = Some m -> 
       match initial_core SEM.Sem the_ge v args with
       | Some c => core_wd (id_ren m) c
       | None => True
       end.
-  Proof. intros.
-    unfold initial_core. unfold SEM.Sem. simpl. unfold Asm_coop.Asm_initial_core.
-    destruct v; trivial. 
-    destruct (Int.eq_dec i Int.zero); trivial.
-    remember (Genv.find_funct_ptr the_ge b ) as d.
-    destruct d; trivial. destruct f; trivial.
-    remember (val_casted.val_has_type_list_func args (sig_args (Asm.fn_sig f))) as t.
-    destruct t; try solve [simpl; trivial].
-    rewrite andb_true_l.
-    remember (val_casted.vals_defined args ) as w.
-    destruct w; try solve [simpl; trivial].
-    rewrite andb_true_l.
-    remember (proj_sumbool (zlt (4 * (2 * Zlength args)) Int.max_unsigned)) as r.
-    destruct r; try solve [simpl; trivial]. simpl.
-    unfold init_mem in H.
-    split; trivial.
-    unfold id_ren, is_left. symmetry in Heqd.
-      specialize (Genv.find_funct_ptr_not_fresh _ _ H Heqd); intros.
-      remember (valid_block_dec m b). destruct s; simpl; trivial. contradiction.
-  Qed.
 
+  (** The initial global env is well-defined*)
+  Parameter the_ge_wd:
+    forall m,
+      init_mem = Some m ->
+      ge_wd (id_ren m) the_ge.
+  
+End FineConcInitial.
+
+(** ** Safety for FineConc (interleaving) semantics *)
+Module FineConcSafe (SEM : Semantics) (SemAxioms : SemanticsAxioms SEM)
+       (Machine : MachinesSig with Module SEM := SEM)
+       (AsmContext : AsmContext SEM Machine)
+       (CI : CoreInjections SEM)
+       (FineConcInitial: FineConcInitial SEM Machine AsmContext CI).
+
+  Module SimProofs := SimProofs SEM SemAxioms Machine AsmContext CI.
+  Import AsmContext SimProofs SimDefs Machine DryMachine.
+  Import Renamings MemObsEq ValObsEq ValueWD CI FineConcInitial ThreadPool.
+  Import SimDefs.StepType dry_machine.Concur.mySchedule.
+  Import StepType.InternalSteps StepLemmas.
+
+  Import MemoryWD ThreadPoolInjections event_semantics.
+ 
   (** Excluded middle is required, but can be easily lifted*)
   Axiom em : ClassicalFacts.excluded_middle.
 
@@ -332,7 +91,7 @@ pointers, but it should be provable*)
     unfold init_mach in H0.
     destruct (initial_core SEM.Sem the_ge v args) eqn:?, init_perm; try discriminate.
     inversion H0; subst.
-    simpl. (*split; auto.*)
+    simpl.
     specialize (init_core_wd v ARGS H). rewrite Heqo; trivial. 
   Qed.
   
@@ -360,39 +119,6 @@ defined*)
     destruct init_mem; try discriminate.
     eexists; reflexivity.
     destruct (initial_core SEM.Sem the_ge f arg); try discriminate.
-  Qed.
-
-  (** The global env is well-defined *)
-  Lemma the_ge_wd:
-    forall m,
-      init_mem = Some m ->
-      ge_wd (id_ren m) the_ge.
-  Proof.
-    intros. unfold init_mem in H.
-    unfold the_ge.
-    constructor.
-    - intros b Hfuns.
-      destruct ((Genv.genv_funs (Genv.globalenv the_program)) ! b) eqn:Hget;
-        try by exfalso.
-      apply Genv.genv_funs_range in Hget.
-      erewrite Genv.init_mem_genv_next in Hget by eauto.
-      apply id_ren_validblock in Hget.
-      rewrite Hget; auto.
-    - split; intros.
-      destruct ((Genv.genv_vars (Genv.globalenv the_program)) ! b) eqn:Hget;
-        try by exfalso.
-      apply Genv.genv_vars_range in Hget.
-      erewrite Genv.init_mem_genv_next in Hget by eauto.
-      apply id_ren_validblock in Hget.
-      rewrite Hget; auto.
-      unfold Senv.symbol_address in H0.
-      destruct (Senv.find_symbol (Genv.globalenv the_program) id) eqn:Hfind.
-      apply Senv.find_symbol_below in Hfind.
-      unfold Senv.nextblock in Hfind. simpl in Hfind.
-      erewrite Genv.init_mem_genv_next in Hfind by eauto.
-      unfold valid_val. rewrite <- H0.
-      apply id_ren_validblock in Hfind. eexists; eauto.
-      subst. simpl; auto.
   Qed.
 
   (** Simulation relation with id renaming for initial memory*)
@@ -595,16 +321,13 @@ defined*)
     - apply setMaxPerm_inv; auto.
     - apply init_mem_wd; auto.
     - eapply init_tp_wd; eauto.
-    - unfold the_ge.
-      eapply the_ge_wd; eauto.
+    - eapply the_ge_wd; eauto.
     - split; eauto with renamings.
       apply id_ren_correct.
     - simpl. tauto.
   Qed.
 
   (** Proof of safety of the FineConc machine*)
-
-  Import StepType.
 
   Notation fsafe := (FineConc.fsafe the_ge).
 
@@ -646,7 +369,7 @@ defined*)
     rewrite Hexternal in code_eq0.
     auto.
   Qed.
-  
+
   Lemma fine_safe:
     forall tpf tpc mf mc (g fg : memren) fp (xs : Sch) sched
       (Hsim: sim tpc mc tpf mf xs g fg fp (S (size sched))),
@@ -672,7 +395,7 @@ defined*)
         econstructor 3; simpl; eauto.
       + assert (~ List.In i xs)
           by (eapply at_external_not_in_xs; eauto).
-        pose proof (sim_external em [::] cnti Htype H Hsim) as Hsim'.
+        pose proof (sim_external [::] cnti Htype H Hsim) as Hsim'.
         destruct Hsim' as (? & ? & ? & ? & ? & ? & tr' & Hstep & Hsim'').
         specialize (IHsched _ _ _ _ _ _ _ Hsim'').
         specialize (Hstep sched).

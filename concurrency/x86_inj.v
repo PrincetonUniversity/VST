@@ -21,14 +21,15 @@ Require Import compcert.lib.Integers.
 Require Import Coq.ZArith.ZArith.
 Require Import concurrency.threads_lemmas.
 Require Import concurrency.mem_obs_eq.
+Require Import concurrency.memory_lemmas.
 Require Import ccc26x86.Asm ccc26x86.Asm_coop.
-Require Import concurrency.dry_context.
+Require Import concurrency.x86_context.
 
 Import ValObsEq Renamings event_semantics.
 
 (** ** Well defined X86 cores *)
 Module X86WD.
-  Import MemoryWD Genv SEM ValueWD.
+  Import MemoryWD Genv ValueWD.
   Section X86WD.
     Variable f: memren.
 
@@ -162,7 +163,7 @@ Module X86WD.
     eauto with wd.
   Qed.
 
-   Lemma regset_comm:
+  Lemma regset_comm:
     forall (rs: Pregmap.t val) r r' v,
       (rs # r <- v) # r' <- v = (rs # r' <- v) # r <- v.
   Proof.
@@ -336,9 +337,9 @@ Module X86WD.
   
 End X86WD.
 
-(** ** Injections on X86 cores *)
+(** ** Injections/Renamings on X86 cores *)
 
-Module X86Inj <: CoreInjections.
+Module X86Inj <: CoreInjections X86SEM.
     
 (** Injections on registers *)
 
@@ -656,7 +657,7 @@ Module X86Inj <: CoreInjections.
   Hint Resolve regset_ren_undef : reg_renamings.
    
   Lemma ge_wd_incr :
-    forall (f f' : memren) (g : SEM.G),
+    forall (f f' : memren) (g : X86SEM.G),
       ge_wd f g -> ren_domain_incr f f' -> ge_wd f' g.
   Proof with (eauto with renamings val_renamings).
     intros.
@@ -667,7 +668,7 @@ Module X86Inj <: CoreInjections.
   Qed.
 
   Lemma ge_wd_domain :
-    forall (f f' : memren) (m : mem) (g : SEM.G),
+    forall (f f' : memren) (m : mem) (g : X86SEM.G),
       ge_wd f g -> domain_memren f m -> domain_memren f' m -> ge_wd f' g.
   Proof.
     intros.
@@ -685,7 +686,7 @@ Module X86Inj <: CoreInjections.
   Qed.
     
   Lemma core_wd_incr :
-    forall (f f' : memren) (c : DryMachine.ThreadPool.code),
+    forall (f f' : memren) c,
       core_wd f c -> ren_domain_incr f f' -> core_wd f' c.
   Proof.
     intros.
@@ -703,7 +704,7 @@ Module X86Inj <: CoreInjections.
   Qed.
   
   Lemma core_wd_domain :
-    forall (f f' : memren) (m : mem) (c : DryMachine.ThreadPool.code),
+    forall (f f' : memren) (m : mem) c,
       core_wd f c ->
       domain_memren f m -> domain_memren f' m -> core_wd f' c.
   Proof.
@@ -723,11 +724,11 @@ Module X86Inj <: CoreInjections.
   Qed.
   
   Lemma at_external_wd :
-    forall (f : memren) (c : DryMachine.ThreadPool.code)
+    forall (f : memren) c
       (ef : external_function) (sig : signature) 
       (args : seq val),
       core_wd f c ->
-      at_external SEM.Sem c = Some (ef, sig, args) -> valid_val_list f args.
+      at_external X86SEM.Sem c = Some (ef, sig, args) -> valid_val_list f args.
   Proof.
     intros.
     unfold core_wd in H.
@@ -763,10 +764,10 @@ Module X86Inj <: CoreInjections.
   Lemma after_external_wd :
     forall (c c' : state) (f : memren) (ef : external_function)
       (sig : signature) (args : seq val) (ov : option val)
-      (Hat_external: at_external SEM.Sem c = Some (ef, sig, args))
+      (Hat_external: at_external X86SEM.Sem c = Some (ef, sig, args))
       (Hcore_wd: core_wd f c)
       (Hvalid_list: valid_val_list f args)
-      (Hafter_external: after_external SEM.Sem ov c = Some c')
+      (Hafter_external: after_external X86SEM.Sem ov c = Some c')
       (Hov: match ov with
             | Some v => valid_val f v
             | None => True
@@ -864,8 +865,8 @@ Module X86Inj <: CoreInjections.
   Qed.
   
   Lemma initial_core_wd :
-    forall (f : memren) (vf arg : val) (c_new : state),
-      initial_core SEM.Sem the_ge vf [:: arg] = Some c_new ->
+    forall the_ge (f : memren) (vf arg : val) (c_new : state),
+      initial_core X86SEM.Sem the_ge vf [:: arg] = Some c_new ->
       valid_val f arg -> ge_wd f the_ge -> core_wd f c_new.
   Proof.
     intros.
@@ -889,17 +890,17 @@ Module X86Inj <: CoreInjections.
   Qed.
     
   Lemma core_inj_ext :
-    forall (c c' : DryMachine.ThreadPool.code) (f : memren),
+    forall c c' (f : memren),
       core_inj f c c' ->
-      match at_external SEM.Sem c with
+      match at_external X86SEM.Sem c with
       | Some (ef, sig, vs) =>
-        match at_external SEM.Sem c' with
+        match at_external X86SEM.Sem c' with
         | Some (ef', sig', vs') =>
           ef = ef' /\ sig = sig' /\ val_obs_list f vs vs'
         | None => False
         end
       | None =>
-        match at_external SEM.Sem c' with
+        match at_external X86SEM.Sem c' with
         | Some _ => False
         | None => True
         end
@@ -926,17 +927,16 @@ Module X86Inj <: CoreInjections.
   Qed.
 
   Lemma core_inj_after_ext :
-    forall (c : DryMachine.ThreadPool.code) (cc : state)
-      (c' : DryMachine.ThreadPool.code) (ov1 : option val) 
+    forall c cc c' (ov1 : option val) 
       (f : memren),
       core_inj f c c' ->
       match ov1 with
       | Some v1 => valid_val f v1
       | None => True
       end ->
-      after_external SEM.Sem ov1 c = Some cc ->
+      after_external X86SEM.Sem ov1 c = Some cc ->
       exists (ov2 : option val) (cc' : state),
-        after_external SEM.Sem ov2 c' = Some cc' /\
+        after_external X86SEM.Sem ov2 c' = Some cc' /\
         core_inj f cc cc' /\
         match ov1 with
         | Some v1 =>
@@ -1032,16 +1032,16 @@ Module X86Inj <: CoreInjections.
   Qed.
 
   Lemma core_inj_halted :
-    forall (c c' : DryMachine.ThreadPool.code) (f : memren),
+    forall c c' (f : memren),
       core_inj f c c' ->
-      match halted SEM.Sem c with
+      match halted X86SEM.Sem c with
       | Some v =>
-        match halted SEM.Sem c' with
+        match halted X86SEM.Sem c' with
         | Some v' => val_obs f v v'
         | None => False
         end
       | None =>
-        match halted SEM.Sem c' with
+        match halted X86SEM.Sem c' with
         | Some _ => False
         | None => True
         end
@@ -1092,15 +1092,15 @@ Module X86Inj <: CoreInjections.
   Qed.
   
   Lemma core_inj_init :
-    forall vf vf' arg arg' c_new f fg
+    forall vf vf' arg arg' c_new f fg the_ge
       (Harg: val_obs_list f arg arg')
       (Hvf: val_obs f vf vf')
       (Hfg: forall b1 b2, fg b1 = Some b2 -> b1 = b2)
       (Hge_wd: ge_wd fg the_ge)
       (Hincr: ren_incr fg f)
-      (Hinit: initial_core SEM.Sem the_ge vf arg = Some c_new),
+      (Hinit: initial_core X86SEM.Sem the_ge vf arg = Some c_new),
       exists c_new' : state,
-        initial_core SEM.Sem the_ge vf' arg' = Some c_new' /\
+        initial_core X86SEM.Sem the_ge vf' arg' = Some c_new' /\
         core_inj f c_new c_new'.
   Proof.
     intros.
@@ -1142,7 +1142,7 @@ Module X86Inj <: CoreInjections.
   Qed.
   
   Lemma core_inj_id :
-    forall (c : DryMachine.ThreadPool.code) (f : memren),
+    forall c (f : memren),
       core_wd f c ->
       (forall b1 b2 : block, f b1 = Some b2 -> b1 = b2) -> core_inj f c c.
   Proof.
@@ -1165,7 +1165,7 @@ Module X86Inj <: CoreInjections.
   Qed.
 
   Lemma core_inj_trans :
-    forall (c c' c'' : DryMachine.ThreadPool.code) (f f' f'' : memren),
+    forall c c' c'' (f f' f'' : memren),
       core_inj f c c'' ->
       core_inj f' c c' ->
       (forall b b' b'' : block,
@@ -1560,7 +1560,7 @@ Module X86Inj <: CoreInjections.
         + erewrite <- val_at_alloc_1; eauto.
           erewrite <- val_at_alloc_1 with (m' := m2')
             by (eauto; eapply (codomain_valid (weak_obs_eq Hobs_eq)); eauto).
-          assert (Heq := permission_at_alloc_1 ofs Halloc v).
+          assert (Heq := permission_at_alloc_1 _ _ _ _ _ ofs Halloc v).
           unfold permissions.permission_at in Heq.
           pose proof (val_obs_eq (strong_obs_eq Hobs_eq) _ ofs Hrenaming).
           unfold Mem.perm in *.
@@ -2014,49 +2014,17 @@ Module X86Inj <: CoreInjections.
     unfold load_frame.store_args in *.
     eapply load_frame_store_args_rec_obs; eauto.
   Qed.
-
-  Lemma load_frame_store_args_rec_nextblock:
-    forall args m m2 stk ofs tys
-      (Hload_frame: load_frame.store_args_rec m stk ofs args tys = Some m2),
-      Mem.nextblock m2 = Mem.nextblock m.
-  Proof.
-    intro args.
-    induction args; intros; simpl in *.
-    destruct tys; inv Hload_frame; auto.
-    destruct tys; try discriminate;
-    destruct t0;
-    repeat match goal with
-           | [H: match ?Expr with _ => _ end = _ |- _] =>
-             destruct Expr eqn:?; try discriminate;
-               unfold load_frame.store_stack in *
-           | [H: Mem.storev _ _ _ _ = _ |- _] =>
-             eapply nextblock_storev in H
-           | [H: ?Expr = ?Expr2 |- context[?Expr2]] =>
-             rewrite <- H
-           end;
-    eauto.
-  Qed.
-  
-  Lemma load_frame_store_nextblock:
-    forall m m2 stk args tys
-      (Hload_frame: load_frame.store_args m stk args tys = Some m2),
-      Mem.nextblock m2 = Mem.nextblock m.
-  Proof.
-    intros.
-    unfold load_frame.store_args in *.
-    eapply load_frame_store_args_rec_nextblock; eauto.
-  Qed.
   
   Lemma corestep_obs_eq:
-    forall (cc cf cc' : Asm_coop.state) (mc mf mc' : mem) f fg,
+    forall (cc cf cc' : Asm_coop.state) (mc mf mc' : mem) f fg the_ge,
       mem_obs_eq f mc mf ->
       core_inj f cc cf ->
       (forall b1 b2, fg b1 = Some b2 -> b1 = b2) ->
       ge_wd fg the_ge ->
       ren_incr fg f ->
-      corestep SEM.Sem the_ge cc mc cc' mc' ->
+      corestep X86SEM.Sem the_ge cc mc cc' mc' ->
       exists (cf' : Asm_coop.state) (mf' : mem) (f' : Renamings.memren),
-        corestep SEM.Sem the_ge cf mf cf' mf' /\
+        corestep X86SEM.Sem the_ge cf mf cf' mf' /\
         core_inj f' cc' cf' /\
         mem_obs_eq f' mc' mf' /\
         ren_incr f f' /\
@@ -2076,7 +2044,8 @@ Module X86Inj <: CoreInjections.
          (forall b1 b2 : block, f b1 = Some b2 -> b1 = b2) ->
          forall b1 b2 : block, f' b1 = Some b2 -> b1 = b2).
   Proof with (eauto with renamings reg_renamings val_renamings).
-    intros cc cf cc' mc mf mc' f fg Hobs_eq Hcore_inj Hfg Hge_wd Hincr Hcorestep.
+   intros cc cf cc' mc mf mc' f fg the_ge
+          Hobs_eq Hcore_inj Hfg Hge_wd Hincr Hcorestep.
     destruct cc as [rs loader | |]; simpl in *;
     destruct cf as [rsF loaderF | |]; try by exfalso.
     - destruct Hcore_inj as [Hrs_ren Hloader_ren].
@@ -2143,10 +2112,10 @@ Module X86Inj <: CoreInjections.
       }
       assert (Hobs_list: val_obs_list f' args args0)
         by (eauto using val_obs_list_incr).
-      assert (Hnb := load_frame_store_nextblock _ _ _ _ H8).
+      assert (Hnb := Asm_coop.load_frame_store_nextblock _ _ _ _ _ H8).
       eapply load_frame_store_args_obs in H8; eauto.
       destruct H8 as [m2' [Hload_frame' Hobs_eq']].
-      assert (Hnb' := load_frame_store_nextblock _ _ _ _ Hload_frame').
+      assert (Hnb' := Asm_coop.load_frame_store_nextblock _ _ _ _ _ Hload_frame').
 
       exists (State ((((Pregmap.init Vundef) # PC <- (Vptr f1 Int.zero)) # RA <- Vzero)
                   # ESP <- (Vptr stk' Int.zero)) (mk_load_frame stk' retty0)), m2', f'.
@@ -2467,13 +2436,13 @@ Qed.
 interesting, but on the other hand all necessary lemmas, for store,
 alloc, etc. have been proved.*)
   Lemma corestep_wd:
-    forall c m c' m' f fg
+    forall c m c' m' f fg the_ge
       (Hwd: core_wd f c)
       (Hmem_wd: valid_mem m)
       (Hge_wd: ge_wd fg the_ge)
       (Hincr: ren_domain_incr fg f)
       (Hdomain: domain_memren f m)
-      (Hcorestep: corestep SEM.Sem the_ge c m c' m'),
+      (Hcorestep: corestep X86SEM.Sem the_ge c m c' m'),
       valid_mem m' /\
       (exists f', ren_domain_incr f f' /\ domain_memren f' m') /\
       forall f', domain_memren f' m' ->
@@ -2530,7 +2499,6 @@ alloc, etc. have been proved.*)
       destruct H3. rewrite H3. auto.
     - inversion Hcorestep; by exfalso.
   Qed.
-
         
 End X86Inj.    
 

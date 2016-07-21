@@ -1032,3 +1032,13 @@ Proof.
   intros IH x n.
   apply age_by_ind, IH.
 Qed.
+
+Lemma iter_iter n m {A} f (x : A) : Nat.iter n f (Nat.iter m f x) = Nat.iter (n + m) f x.
+Proof.
+  induction n; auto; simpl. rewrite IHn; auto.
+Qed.
+
+Lemma age_by_age_by n m  {A} `{agA : ageable A} (x : A) : age_by n (age_by m x) = age_by (n + m) x.
+Proof.
+  apply iter_iter.
+Qed.
