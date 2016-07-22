@@ -997,11 +997,16 @@ Proof.
     apply age_age_by, Ex.
 Qed.
 
-Lemma age_to_eq k {A} `{agA : ageable A} (x : A) : k = level x -> age_to k x = x.
+Lemma age_to_ge k {A} `{agA : ageable A} (x : A) : k >= level x -> age_to k x = x.
 Proof.
   intros E. unfold age_to.
-  rewrite <-E. replace (k - k) with 0 by auto with *.
+  replace (level x - k) with 0 by auto with *.
   reflexivity.
+Qed.
+
+Lemma age_to_eq k {A} `{agA : ageable A} (x : A) : k = level x -> age_to k x = x.
+Proof.
+  intros ->; apply age_to_ge, le_refl.
 Qed.
 
 Lemma age_age_to n {A} `{agA : ageable A} x y : level x = S n -> age x y -> age_to n x = y.
@@ -1031,6 +1036,23 @@ Lemma age_to_ind {A} `{agA : ageable A} (P : A -> Prop) :
 Proof.
   intros IH x n.
   apply age_by_ind, IH.
+Qed.
+
+Lemma age_to_ind_refined n {A} `{agA : ageable A} (P : A -> Prop) : 
+  (forall x y, age x y -> n <= level y -> P x -> P y) ->
+  forall x, P x -> P (age_to n x).
+Proof.
+  intros IH x Px.
+  assert (dec : n >= level x \/ n <= level x) by omega.
+  destruct dec as [Ge|Le].
+  - rewrite age_to_ge; auto.
+  - eapply (age_to_ind (fun x => n <= level x -> P x)); auto.
+    + intros x0 y H H0 H1.
+      eapply IH; eauto.
+      apply age_level in H.
+      apply H0.
+      omega.
+    + rewrite level_age_to; auto.
 Qed.
 
 Lemma iter_iter n m {A} f (x : A) : Nat.iter n f (Nat.iter m f x) = Nat.iter (n + m) f x.

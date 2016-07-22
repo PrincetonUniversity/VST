@@ -1046,7 +1046,7 @@ Proof.
   apply HR.
 Qed.
 
-Lemma ontheboard {Phi Phi' phi phi' l z sh sh'} (R : mpred) :
+Lemma age_yes_sat {Phi Phi' phi phi' l z sh sh'} (R : mpred) :
   level Phi = level phi ->
   age Phi Phi' ->
   age phi phi' ->
@@ -1067,6 +1067,7 @@ Proof.
     + constructor. assumption.
 Qed.
 
+(*
 (* todo remove those lemmas (they'll be in msl/ageable *)
 Lemma iter_iter n m {A} f (x : A) : Nat.iter n f (Nat.iter m f x) = Nat.iter (n + m) f x.
 Proof.
@@ -1090,6 +1091,7 @@ Proof.
     destruct (age1 (Nat.iter n age1' x)) as [y|] eqn:Ey; auto.
     eapply IH; eauto.
 Qed.
+*)
 
 Lemma resource_decay_lock_coherence {b phi phi' lset m} :
   resource_decay b phi phi' ->
@@ -1536,11 +1538,11 @@ Definition ext_spec_stable {M E Z} (R : M -> M -> Prop)
     ext_spec_exit spec e v m1 ->
     ext_spec_exit spec e v m2).
 
-Lemma jsafeN_equiv_sim {Z spec ge n z c jm1 jm2} :
+Lemma jsafeN_equiv_sim {Z Jspec ge n z c jm1 jm2} :
   juicy_mem_equiv jm1 jm2 ->
-  ext_spec_stable juicy_mem_equiv (JE_spec _ spec) ->
-  @jsafeN Z spec ge n z c jm1 ->
-  @jsafeN Z spec ge n z c jm2.
+  ext_spec_stable juicy_mem_equiv (JE_spec _ Jspec) ->
+  @jsafeN Z Jspec ge n z c jm1 ->
+  @jsafeN Z Jspec ge n z c jm2.
 Proof.
   intros E [Spre Sexit] S1.
   revert jm2 E.
@@ -1572,6 +1574,120 @@ Proof.
     + exists c'; split; auto.
   
   - econstructor 4; eauto.
+Qed.
+
+Lemma jstep_age_sim {G C} {csem : CoreSemantics G C mem} {ge c c' jm1 jm2 jm1'} :
+  age jm1 jm2 ->
+  jstep csem ge c jm1 c' jm1' ->
+  level jm2 <> O ->
+  exists jm2',
+    age jm1' jm2' /\
+    jstep csem ge c jm2 c' jm2'.
+Proof.
+  intros A [step [rd lev]] nz.
+  destruct (age1 jm1') as [jm2'|] eqn:E.
+  - exists jm2'. split; auto.
+    split; [|split]; auto.
+    + revert step.
+      match goal with |- ?a -> ?b => cut (a = b); [intros ->; auto | ] end.
+      f_equal; apply age_jm_dry; auto.
+    + eapply (age_resource_decay _ (m_phi jm1) (m_phi jm1')).
+      * revert rd.
+        match goal with |- ?a -> ?b => cut (a = b); [intros ->; auto | ] end.
+        f_equal. f_equal. apply age_jm_dry; auto.
+      * apply age_jm_phi; auto.
+      * apply age_jm_phi; auto.
+      * rewrite level_juice_level_phi in *. auto.
+    + apply age_level in E.
+      apply age_level in A.
+      omega.
+  - apply age1_level0 in E.
+    apply age_level in A.
+    omega.
+Qed.
+
+Lemma age_resource_at {phi phi' loc} :
+  age phi phi' ->
+  phi' @ loc = resource_fmap (approx (level phi')) (phi @ loc).
+Proof.
+  intros A.
+  rewrite <- (age1_resource_at _ _ A loc (phi @ loc)).
+  - reflexivity.
+  - rewrite resource_at_approx. reflexivity.
+Qed.
+
+Lemma pures_eq_unage {jm1 jm1' jm2}:
+  level jm1' >= level jm2 ->
+  age jm1 jm1' ->
+  juicy_safety.pures_eq jm1' jm2 ->
+  juicy_safety.pures_eq jm1 jm2.
+Proof.
+  intros L A [S P]; split; intros loc; [clear P; espec S | clear S; espec P ].
+  all:apply age_jm_phi in A.
+  all:repeat rewrite level_juice_level_phi in *.
+  all:unfold m_phi in *.
+  all:destruct jm1 as [_ p1 _ _ _ _].
+  all:destruct jm1' as [_ p1' _ _ _ _].
+  all:destruct jm2 as [_ p2 _ _ _ _].
+  - rewrite (age_resource_at A) in S.
+    destruct (p1 @ loc) eqn:E; auto.
+    simpl in S.
+    rewrite S.
+    rewrite preds_fmap_fmap.
+    rewrite approx_oo_approx'; auto.
+  
+  - destruct (p2 @ loc) eqn:E; auto.
+    revert P.
+    eapply age1_PURE. auto.
+Qed.
+
+Lemma jsafeN_age Z Jspec ge ora q n jm jmaged :
+  ext_spec_stable age (JE_spec _ Jspec) ->
+  age jm jmaged ->
+  le n (level jmaged) ->
+  @jsafeN Z Jspec ge n ora q jm ->
+  @jsafeN Z Jspec ge n ora q jmaged.
+Proof.
+  intros heredspec A L Safe; revert jmaged A L.
+  induction Safe as
+      [ z c jm
+      | n z c jm c' jm' step safe IH
+      | n z c jm ef sig args x atex Pre Post
+      | n z c jm v Halt Exit ]; intros jmaged A L.
+  - constructor 1.
+  - simpl in step.
+    destruct (jstep_age_sim A step ltac:(omega)) as [jmaged' [A' step']].
+    econstructor 2; eauto.
+    apply IH; eauto.
+    apply age_level in A'.
+    apply age_level in A.
+    destruct step as [_ [_ ?]].
+    omega.
+  - econstructor 3.
+    + eauto.
+    + eapply (proj1 heredspec); eauto.
+    + intros ret jm' z' n' H rel post.
+      destruct (Post ret jm' z' n' H) as (c' & atex' & safe'); eauto.
+      unfold juicy_safety.Hrel in *.
+      split;[|split]; try apply rel.
+      * apply age_level in A; omega.
+      * unshelve eapply (pures_eq_unage _ A), rel.
+        omega.
+  - econstructor 4. eauto.
+    eapply (proj2 heredspec); eauto.
+Qed.
+
+Lemma jsafeN_age_to Z Jspec ge ora q n l jm :
+  ext_spec_stable age (JE_spec _ Jspec) ->
+  le n l ->
+  @jsafeN Z Jspec ge n ora q jm ->
+  @jsafeN Z Jspec ge n ora q (age_to l jm).
+Proof.
+  intros Stable nl.
+  apply age_to_ind_refined.
+  intros x y H L.
+  apply jsafeN_age; auto.
+  omega.
 Qed.
 
 Section Simulation.
@@ -1633,6 +1749,107 @@ Section Simulation.
     tauto.
   Qed.
   
+  Lemma Jspec'_hered : ext_spec_stable age (JE_spec _ Jspec').
+  Proof.
+    split; [ | easy ].
+    intros e x b tl vl z m1 m2 A.
+    
+    unfold Jspec' in *.
+    destruct e as [name sg | | | | | | | | | | ].
+    all: try (exfalso; simpl in x; do 2 (if_tac in x; [ discriminate | ]); apply x).
+    
+    (* dependent destruction *)
+    revert x.
+    
+    simpl (ext_spec_pre _); simpl (ext_spec_type _); simpl (ext_spec_post _).
+    unfold funspecOracle2pre, funspecOracle2post.
+    unfold ext_spec_pre, ext_spec_post.
+    destruct (oi_eq_dec (Some (ext_link "acquire")) (ef_id ext_link (EF_external name sg))) as [Eacquire | Nacquire].
+    {
+      (** * the case of acquire *)
+      intros x.
+      intros (phi0 & phi1 & J & Pre & necr).
+      apply age_jm_phi in A.
+      destruct (age1_join2 (A := rmap) _ J A) as (phi0' & phi1' & J' & A0 & A1).
+      exists phi0', phi1'; split; auto.
+      split.
+      - destruct x as (p, ((((ok, ora), v), sh), R)); simpl in Pre |- *.
+        unfold canon.PROPx in *.
+        unfold fold_right in *.
+        unfold canon.LOCALx in *.
+        destruct Pre as [? Pre].
+        split; [ assumption | ].
+        clear -A0 Pre.
+        simpl in *.
+        split; [ apply Pre | ].
+        destruct Pre as [_ Pre].
+        unfold canon.SEPx in *.
+        simpl in *.
+        revert Pre.
+        match goal with |- app_pred ?a _ -> app_pred ?a _ => set (P := a) end.
+        destruct P as [P Hered].
+        apply Hered, A0.
+      
+      - econstructor 3.
+        + apply necr.
+        + constructor; auto.
+    }
+    
+    (* goal massaging for dependent destruction *)
+    change (
+      forall x :
+          ext_spec_type
+            (@OK_spec
+               {| OK_spec :=
+                   add_funspecsOracle_rec
+                     ext_link (@OK_ty (ok_void_spec (list rmap))) (@OK_spec (ok_void_spec (list rmap)))
+                     ((ext_link "release", release_oracular_spec) :: @nil (ident * funspecOracle Oracle)) |})
+              (EF_external name sg),
+        ext_spec_pre OK_spec (EF_external name sg) x b tl vl z m1 ->
+        ext_spec_pre OK_spec (EF_external name sg) x b tl vl z m2
+    ).
+    
+    simpl (ext_spec_pre _); simpl (ext_spec_type _); simpl (ext_spec_post _).
+    unfold funspecOracle2pre, funspecOracle2post.
+    unfold ext_spec_pre, ext_spec_post.
+    destruct (oi_eq_dec (Some (ext_link "release")) (ef_id ext_link (EF_external name sg))) as [Erelease | Nrelease].
+    {
+      (** * the case of release *)
+      intros x.
+      intros (phi0 & phi1 & J & Pre & necr).
+      apply age_jm_phi in A.
+      destruct (age1_join2 (A := rmap) _ J A) as (phi0' & phi1' & J' & A0 & A1).
+      exists phi0', phi1'; split; auto.
+      split.
+      - destruct x as (p, (((ora, v), sh), R)); simpl in Pre |- *.
+        unfold canon.PROPx in *.
+        unfold fold_right in *.
+        unfold canon.LOCALx in *.
+        destruct Pre as [? Pre].
+        split; [ assumption | ].
+        clear -A0 Pre.
+        simpl in *.
+        split; [ apply Pre | ].
+        destruct Pre as [_ Pre].
+        unfold canon.SEPx in *.
+        simpl in *.
+        rewrite seplog.sepcon_emp in *.
+        rewrite seplog.sepcon_emp in Pre.
+        revert Pre.
+        match goal with |- app_pred ?a _ -> app_pred ?a _ => set (P := a) end.
+        destruct P as [P Hered].
+        apply Hered, A0.
+      
+      - econstructor 3.
+        + apply necr.
+        + constructor; auto.
+    }
+    
+    (** * no more cases *)
+    simpl.
+    tauto.
+  Qed.
+  
   Inductive state_step : cm_state -> cm_state -> Prop :=
   | state_step_empty_sched ge m jstate :
       state_step
@@ -1648,6 +1865,8 @@ Section Simulation.
   Lemma invariant_thread_step
         {Z} (Jspec : juicy_ext_spec Z) Gamma
         n m ge i sch tp Phi ci ci' jmi'
+        (Stable : ext_spec_stable age Jspec)
+        (Stable' : ext_spec_stable juicy_mem_equiv Jspec)
         (gam : matchfunspec (filter_genv ge) Gamma Phi)
         (compat : mem_compatible_with tp m Phi)
         (lock_bound : lockSet_block_bound (ThreadPool.lset tp) (Mem.nextblock m))
@@ -2104,30 +2323,30 @@ unique: ok *)
         cut (forall q,
                 @jsafeN Z Jspec ge (S n) ora q (@jm_ tp m Phi j cntj compat) ->
                 @jsafeN Z Jspec ge n ora q (@jm_ (age_tp_to (level (m_phi jmi')) tp') (m_dry jmi') Phi' j cntj compat')).
-        now destruct (@Machine.getThreadC j tp cntj); auto. clear safety.
+        { now destruct (@Machine.getThreadC j tp cntj); auto. } clear safety.
         intros q SAFE.
         assert (Safe: jsafeN Jspec ge n ora q (@jm_ tp m Phi j cntj compat))
-          by (apply safe_downward1; auto). clear SAFE.
+          by (apply safe_downward1; auto); clear SAFE.
         
-        assert (A: (@jm_ (age_tp_to (level (m_phi jmi')) tp') (m_dry jmi') Phi' j cntj compat')
-                   = age_to (level (m_phi jmi')) (@jm_ tp m Phi j cntj compat)).
-        {
-          (* not true. should backtrack with mem_equiv *)
+        (** * Bring thread #j's level to #i's *)
+        pose (jmj' := age_to (level (m_phi jmi')) (@jm_ tp m Phi j cntj compat)).
+        assert (safej' : jsafeN Jspec ge n ora q jmj'). {
+          apply jsafeN_age_to.
+          - assumption.
+          - assert (S n = level Phi) by admit (* will be added to invariant *).
+            assert (level (m_phi jmi') = level Phi') by admit (* joinability *).
+            rewrite H0.
+            admit (* should be omega, but hidden parameters make it hard. *).
+          - assumption.
+        }
+        
+        (** * Then, prove the memories are juicy_mem_equiv *)
+        assert (E : juicy_mem_equiv  jmj' (jm_ cntj compat')). {
           admit.
         }
-        rewrite A.
-        Lemma jsafeN_age_to Z Jspec ge ora q n l jm :
-          le n l ->
-          @jsafeN Z Jspec ge n ora q jm ->
-          @jsafeN Z Jspec ge n ora q (age_to l jm).
-        Admitted.
-        apply jsafeN_age_to.
-        Unset Printing Implicit.
-        * destruct RD as [LEV _].
-          (* before continuing here, must understand better the
-          relation between safeN index and levels *)
-          admit.
-        * apply Safe.
+        
+        (** * Derive safety using @jsafeN_equiv_sim _ Jspec *)
+        apply (jsafeN_equiv_sim E); auto.
     
     - (* wellformedness *)
       intros j cntj.
