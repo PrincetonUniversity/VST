@@ -76,7 +76,7 @@ compute; congruence.
 Qed.
 
 Lemma denote_tc_igt_e:
-  forall i j m, app_pred (denote_tc_igt j (Vint i)) m ->
+  forall m i j, app_pred (denote_tc_igt j (Vint i)) m ->
         Int.ltu i j = true.
 Proof.
 intros.
@@ -84,21 +84,19 @@ hnf in H. destruct (Int.ltu i j); auto; contradiction.
 Qed.
 
 Lemma sem_cmp_pp_ip:
-  forall i b j m, 
-   app_pred (denote_tc_iszero (Vint i)) m \/ (denote_tc_iszero (Vptr b j)) m ->
+  forall m i b j, 
+   app_pred (denote_tc_iszero (Vint i)) m ->
   sem_cmp_pp Ceq true2 (Vint i) (Vptr b j) = Some Vfalse.
 Proof.
 intros.
-destruct H.
 hnf in H.
 unfold sem_cmp_pp.
 simpl.
 destruct (Int.eq i Int.zero); try contradiction; reflexivity.
-contradiction H.
 Qed.
 
 Lemma denote_tc_iszero_long_e:
- forall i m, 
+ forall m i, 
   app_pred (denote_tc_iszero (Vlong i)) m ->
   Int.eq (Int.repr (Int64.unsigned i)) Int.zero = true.
 Proof.
@@ -109,12 +107,11 @@ destruct (Int.eq (Int.repr (Int64.unsigned i)) Int.zero);
 Qed.
 
 Lemma sem_cmp_pp_pi:
-  forall i b j m, 
-   app_pred (denote_tc_iszero (Vptr b j)) m \/ (denote_tc_iszero (Vint i)) m ->
+  forall m i b j, 
+   app_pred (denote_tc_iszero (Vint i)) m ->
   sem_cmp_pp Ceq true2  (Vptr b j) (Vint i) = Some Vfalse.
 Proof.
 intros.
-destruct H; try contradiction.
 hnf in H.
 unfold sem_cmp_pp.
 simpl.
@@ -122,26 +119,23 @@ destruct (Int.eq i Int.zero); try contradiction; reflexivity.
 Qed.
 
 Lemma sem_cmp_pp_ip':
-  forall i b j m, 
-   app_pred (denote_tc_iszero (Vint i)) m \/ (denote_tc_iszero (Vptr b j)) m ->
+  forall m i b j, 
+   app_pred (denote_tc_iszero (Vint i)) m ->
   sem_cmp_pp Cne true2 (Vint i) (Vptr b j) = Some Vtrue.
 Proof.
 intros.
-destruct H.
 hnf in H.
 unfold sem_cmp_pp.
 simpl.
 destruct (Int.eq i Int.zero); try contradiction; reflexivity.
-contradiction H.
 Qed.
 
 Lemma sem_cmp_pp_pi':
-  forall i b j m, 
-   app_pred (denote_tc_iszero (Vptr b j)) m \/ (denote_tc_iszero (Vint i)) m ->
+  forall m i b j, 
+   app_pred (denote_tc_iszero (Vint i)) m ->
   sem_cmp_pp Cne true2  (Vptr b j) (Vint i) = Some Vtrue.
 Proof.
 intros.
-destruct H; try contradiction.
 hnf in H.
 unfold sem_cmp_pp.
 simpl.
@@ -230,6 +224,14 @@ subst i. rewrite Int.eq_true.
  destruct ii,ss; simpl; reflexivity.
 Qed.
 
+Lemma tc_bool_contradiction:
+  forall  {CS: compspecs}  m rho a,
+     (denote_tc_assert (tc_bool false a) rho) m -> False.
+Proof.
+intros.
+ apply tc_bool_e in H. inv H.
+Qed.
+
 Lemma typecheck_binop_sound:
 forall op {CS: compspecs} (Delta : tycontext) (rho : environ) m (e1 e2 : expr) (t : type)
    (IBR: denote_tc_assert (isBinOpResultType op e1 e2 t) rho m)
@@ -239,9 +241,11 @@ forall op {CS: compspecs} (Delta : tycontext) (rho : environ) m (e1 e2 : expr) (
      (eval_binop op (typeof e1) (typeof e2) (eval_expr e1 rho)
         (eval_expr e2 rho)) t = true.
 Proof.
-intros; destruct op;
-rewrite den_isBinOpR in IBR; simpl in IBR;
-try abstract (
+Time
+intros; 
+destruct op;
+ try abstract ( 
+  rewrite den_isBinOpR in IBR; simpl in IBR;
  unfold binarithType in IBR; 
  destruct (typeof e1) as [ | [ | | | ] [ | ] ? | [ | ] ? | [ | ] ? | | | | | ] eqn:TE1;
  try contradiction IBR;
@@ -249,9 +253,10 @@ try abstract (
  simpl in IBR; try contradiction IBR;
  rewrite ?TE1, ?TE2 in IBR; simpl in IBR; clear TE1 TE2;
  match type of IBR with context [@liftx] => unfold_lift in IBR | _ => idtac end;
- try simple apply tc_bool_e in IBR;
- destruct (eval_expr e1 rho); try discriminate TV1;
- destruct (eval_expr e2 rho); try discriminate TV2;
+ try simple apply tc_bool_e in IBR; try discriminate IBR;
+ destruct (eval_expr e1 rho); try discriminate TV1; clear TV1;
+ destruct (eval_expr e2 rho); try discriminate TV2; clear TV2;
+ clear - IBR;
  destruct t as [ | [ | | | ] [ | ] ? | [ | ] ? | [ | ] ? | | | | | ]; 
  try contradiction IBR; try discriminate IBR; 
  simpl; unfold Cop2.sem_div, Cop2.sem_mod, 
@@ -260,27 +265,42 @@ try abstract (
  repeat (let H := fresh in revert IBR; intros [IBR H]; 
                 try contradiction IBR;
                 try contradiction H;
-                try (simple apply tc_bool_e in IBR; try discriminate IBR);
-                try (simple apply denote_tc_nonzero_e in IBR;
-                      try rewrite IBR);
+                try (simple apply tc_bool_e in IBR; try discriminate IBR); 
+                try (simple apply denote_tc_nonzero_e in IBR; try rewrite IBR);
                 try (simple apply denote_tc_nodivover_e in H; try rewrite H);
                 try (simple apply tc_bool_e in H; try discriminate H));
-    try reflexivity;
-    try erewrite denote_tc_igt_e by eassumption;
+    try simple apply eq_refl;
     try rewrite Int64_eq_repr_signed32_nonzero by assumption;
     try rewrite Int64_eq_repr_unsigned32_nonzero by assumption;
-    try erewrite sem_cmp_pp_ip by eassumption;
-    try erewrite sem_cmp_pp_pi by eassumption;
-    try erewrite sem_cmp_pp_ip' by eassumption;
-    try erewrite sem_cmp_pp_pi' by eassumption;
-    try apply typecheck_val_of_bool;
-    try erewrite denote_tc_iszero_long_e by eassumption;
+    try rewrite (denote_tc_igt_e m) by assumption;
+    try rewrite (denote_tc_iszero_long_e m) by assumption;
+    try simple apply typecheck_val_of_bool;
     try simple apply sem_cmp_pp_pp;
     try simple apply sem_cmp_pp_pp';
     try (simple apply sem_cmp_pp_ppx; assumption);
     try (simple apply sem_cmp_pp_ppx'; assumption);
     try (simple apply sem_cmp_pp_ppy; assumption);
     try (simple apply sem_cmp_pp_ppy'; assumption);
-    reflexivity
+    try reflexivity
 ).
-Qed.
+
+
+Time Qed.
+
+(* Timings:
+The old way: 548.641 secs (176.375u,0.062s) for the 16 "abstract"s, then 24.546 secs for Qed.
+ 643,084 working set
+
+Currently : 473.437 sec
+Currently : 439.671
+Currently: 395.296
+Currently:  205.437 seconds
+
+
+
+*)
+
+
+
+
+
