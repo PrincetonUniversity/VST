@@ -139,6 +139,7 @@ Section effsemlemmas.
     assert (FWD:= effstep_fwd _ _ _ _ _ Step1).
     apply effstep_unchanged in Step1.
     split; intros.
+     eapply Ple_trans; [apply Step1 | apply Step2].
      apply orb_false_iff in H. destruct H.
      remember (valid_block_dec m1 b) as v.
      destruct v; simpl in *; try contradiction.
@@ -518,6 +519,7 @@ Proof. intros.
   destruct tv; inv STORE.
   unfold StoreEffect.
   split; intros.
+      rewrite (Mem.nextblock_store _ _ _ _ _ _ H0); apply Ple_refl.
       split; intros. eapply Mem.perm_store_1; eassumption.
       eapply Mem.perm_store_2; eassumption.
   rewrite (Mem.store_mem_contents _ _ _ _ _ _ H0). clear H0.

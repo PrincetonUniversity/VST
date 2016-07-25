@@ -241,7 +241,7 @@ Qed.
 Section Initial_State.
   Variables
     (CS : compspecs) (V : varspecs) (G : funspecs)
-    (ext_link : string -> ident) (prog : program)
+    (ext_link : string -> ident) (prog : Clight.program)
     (all_safe : semax_prog.semax_prog (Concurrent_Oracular_Espec CS ext_link) prog V G)
     (init_mem_not_none : Genv.init_mem prog <> None).
   
@@ -3195,7 +3195,7 @@ Section Safety.
     (G : funspecs)
     (ext_link : string -> ident)
     (ext_link_inj : forall s1 s2, ext_link s1 = ext_link s2 -> s1 = s2)
-    (prog : program)
+    (prog : Clight.program)
     (all_safe : semax_prog.semax_prog (Concurrent_Oracular_Espec CS ext_link) prog V G)
     (init_mem_not_none : Genv.init_mem prog <> None).
 

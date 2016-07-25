@@ -124,6 +124,7 @@ Lemma storebytes_unch_loc_unwritable b ofs: forall l m m' (L: Mem.storebytes m b
 Proof.
 intros.
 split; intros.
++ rewrite (Mem.nextblock_storebytes _ _ _ _ _ L); apply Ple_refl.
 + split; intros. 
   eapply Mem.perm_storebytes_1; eassumption.
   eapply Mem.perm_storebytes_2; eassumption.
@@ -144,8 +145,9 @@ Lemma unch_on_loc_not_writable_trans m1 m2 m3
         (F:mem_forward m1 m2):
      Mem.unchanged_on (loc_not_writable m1) m1 m3.
 Proof.
-  destruct Q as [Q1 Q2]. destruct W as [W1 W2].
+  destruct Q as [Q0 Q1 Q2]. destruct W as [W0 W1 W2].
   split; intros.
+  - eapply Ple_trans; eassumption.
   - cut (Mem.perm m2 b ofs k p <-> Mem.perm m3 b ofs k p).
       specialize (Q1 _ _ k p H H0). intuition.
     apply W1; clear W1. intros N. apply H. apply Q1; trivial. apply F; trivial.

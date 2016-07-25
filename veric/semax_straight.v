@@ -1481,14 +1481,14 @@ end.
 
 
 Lemma load_cast {CS: compspecs}: 
- forall (e1 : expr) (e2 : expr) (ch : memory_chunk) rho phi,
+ forall (e1 : expr) (e2 : expr) (ch : memory_chunk) rho phi m,
    tc_val (typeof e2) (eval_expr e2 rho) ->
    denote_tc_assert (isCastResultType (typeof e2) (typeof e1) e2)
      rho phi ->
    access_mode (typeof e1) = By_value ch ->
    Val.load_result ch
-     (force_val (Cop.sem_cast (eval_expr e2 rho) (typeof e2) (typeof e1))) =
-   force_val (Cop.sem_cast (eval_expr e2 rho) (typeof e2) (typeof e1)). 
+     (force_val (Cop.sem_cast (eval_expr e2 rho) (typeof e2) (typeof e1) m)) =
+   force_val (Cop.sem_cast (eval_expr e2 rho) (typeof e2) (typeof e1) m). 
 Proof.
 intros. 
 destruct ch; 
@@ -1583,7 +1583,8 @@ spec H2; [ eauto with typeclass_instances| ].
 spec H2; [ eauto with typeclass_instances | ].
 subst m7.
 exists w1; exists w3; split3; auto. hnf. apply necR_refl.
-apply address_mapsto_can_store with (v':=((force_val (Cop.sem_cast (eval_expr e2 rho) (typeof e2) (typeof e1))))) in H11.
+apply address_mapsto_can_store 
+   with (v':=((force_val (Cop.sem_cast (eval_expr e2 rho) (typeof e2) (typeof e1) (m_dry jm1))))) in H11.
 Focus 2.
 
 clear - TS TC HGG' WS TC2 TC2' TC4 TC3 TC3' TC1 Hmode.
@@ -1608,7 +1609,7 @@ rewrite <- (age_jm_dry Hage) in H2, He1.
 econstructor; try eassumption. 
 unfold tc_lvalue in TC1. simpl in TC1. 
 auto.
-instantiate (1:=(force_val (Cop.sem_cast (eval_expr e2 rho) (typeof e2) (typeof e1)))).
+instantiate (1:=(force_val (Cop.sem_cast (eval_expr e2 rho) (typeof e2) (typeof e1) (m_dry jm)))).
 rewrite cop2_sem_cast.
 eapply cast_exists; eauto. destruct TC4; auto.
 eapply Clight.assign_loc_value.
@@ -1647,7 +1648,7 @@ replace (core  (m_phi (store_juicy_mem _ _ _ _ _ _ H11))) with (core (m_phi jm1)
 rewrite <- corable_funassert.
 eapply pred_hereditary; eauto. apply age_jm_phi; auto.
 symmetry.
-forget (force_val (Cop.sem_cast (eval_expr e2 rho) (typeof e2) (typeof e1))) as v.
+forget (force_val (Cop.sem_cast (eval_expr e2 rho) (typeof e2) (typeof e1) (m_dry jm1))) as v.
 apply rmap_ext.
 do 2 rewrite level_core.
 rewrite <- level_juice_level_phi; rewrite level_store_juicy_mem.
@@ -1859,6 +1860,8 @@ split3; auto.
  * econstructor; try eassumption. 
     rewrite (age_jm_dry Hage); eauto.
     rewrite (age_jm_dry Hage); eauto.
+    replace (m_dry jm) with (m_dry jm1); [eassumption |].
+    symmetry; apply age_jm_dry; auto.
     simpl.
     eapply Clight.assign_loc_value.
     apply Hmode.
@@ -1889,23 +1892,23 @@ apply juicy_store_nodecay.
 }
 rewrite level_store_juicy_mem. apply age_level; auto.
 split.
-Focus 2.
+Focus 2. {
 rewrite corable_funassert.
 replace (core  (m_phi (store_juicy_mem _ _ _ _ _ _ H11))) with (core (m_phi jm1)).
 rewrite <- corable_funassert.
 eapply pred_hereditary; eauto. apply age_jm_phi; auto.
-symmetry.
-forget (force_val (Cop.sem_cast (eval_expr e2 rho) (typeof e2) (typeof e1))) as v.
 apply rmap_ext.
 do 2 rewrite level_core.
-rewrite <- level_juice_level_phi; rewrite level_store_juicy_mem.
+rewrite <- !level_juice_level_phi;
+  rewrite level_store_juicy_mem.
 reflexivity.
 intro loc.
 unfold store_juicy_mem.
-simpl. rewrite <- core_resource_at. unfold inflate_store. simpl.
-rewrite resource_at_make_rmap. rewrite <- core_resource_at.
+simpl. rewrite <- !core_resource_at. unfold inflate_store. simpl.
+rewrite resource_at_make_rmap.
  case_eq (m_phi jm1 @ loc); intros; auto.
  destruct k0; simpl; repeat rewrite core_YES; auto.
+} Unfocus.
 rewrite sepcon_comm.
 rewrite sepcon_assoc.
 eapply sepcon_derives; try apply AM; auto.

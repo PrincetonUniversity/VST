@@ -2965,7 +2965,7 @@ Proof.
   eapply storebytes_outside_inj; eauto.
   unfold inject_id; intros. inv H2. eapply H1; eauto. omega.
   intros. eauto using perm_storebytes_2. 
-Qed. 
+Qed.
 
 Theorem alloc_extends:
   forall m1 m2 lo1 hi1 b m1' lo2 hi2,
@@ -4258,6 +4258,8 @@ Section UNCHANGED_ON.
 Variable P: block -> Z -> Prop.
 
 Record unchanged_on (m_before m_after: mem) : Prop := mk_unchanged_on {
+  unchanged_on_nextblock:
+    Ple (nextblock m_before) (nextblock m_after);
   unchanged_on_perm:
     forall b ofs k p,
     P b ofs -> valid_block m_before b ->
@@ -4272,15 +4274,22 @@ Record unchanged_on (m_before m_after: mem) : Prop := mk_unchanged_on {
 Lemma unchanged_on_refl:
   forall m, unchanged_on m m.
 Proof.
-  intros; constructor; tauto.
+  intros; constructor. apply Ple_refl. tauto. tauto.
+Qed.
+
+Lemma valid_block_unchanged_on:
+  forall m m' b,
+  unchanged_on m m' -> valid_block m b -> valid_block m' b.
+Proof.
+  unfold valid_block; intros. apply unchanged_on_nextblock in H. xomega.
 Qed.
 
 Lemma perm_unchanged_on:
   forall m m' b ofs k p,
-  unchanged_on m m' -> P b ofs -> valid_block m b ->
+  unchanged_on m m' -> P b ofs ->
   perm m b ofs k p -> perm m' b ofs k p.
 Proof.
-  intros. destruct H. apply unchanged_on_perm0; auto.
+  intros. destruct H. apply unchanged_on_perm0; auto. eapply perm_valid_block; eauto. 
 Qed.
 
 Lemma perm_unchanged_on_2:
@@ -4289,6 +4298,17 @@ Lemma perm_unchanged_on_2:
   perm m' b ofs k p -> perm m b ofs k p.
 Proof.
   intros. destruct H. apply unchanged_on_perm0; auto.
+Qed.
+
+Lemma unchanged_on_trans:
+  forall m1 m2 m3, unchanged_on m1 m2 -> unchanged_on m2 m3 -> unchanged_on m1 m3.
+Proof.
+  intros; constructor.
+- apply Ple_trans with (nextblock m2); apply unchanged_on_nextblock; auto.
+- intros. transitivity (perm m2 b ofs k p); apply unchanged_on_perm; auto.
+  eapply valid_block_unchanged_on; eauto.
+- intros. transitivity (ZMap.get ofs (mem_contents m2)#b); apply unchanged_on_contents; auto.
+  eapply perm_unchanged_on; eauto. 
 Qed.
 
 Lemma loadbytes_unchanged_on_1:
@@ -4358,6 +4378,7 @@ Lemma store_unchanged_on:
   unchanged_on m m'.
 Proof.
   intros; constructor; intros.
+- rewrite (nextblock_store _ _ _ _ _ _ H). apply Ple_refl.
 - split; intros; eauto with mem.
 - erewrite store_mem_contents; eauto. rewrite PMap.gsspec.
   destruct (peq b0 b); auto. subst b0. apply setN_outside.
@@ -4374,6 +4395,7 @@ Lemma storebytes_unchanged_on:
   unchanged_on m m'.
 Proof.
   intros; constructor; intros.
+- rewrite (nextblock_storebytes _ _ _ _ _ H). apply Ple_refl.
 - split; intros. eapply perm_storebytes_1; eauto. eapply perm_storebytes_2; eauto.
 - erewrite storebytes_mem_contents; eauto. rewrite PMap.gsspec.
   destruct (peq b0 b); auto. subst b0. apply setN_outside.
@@ -4388,6 +4410,7 @@ Lemma alloc_unchanged_on:
   unchanged_on m m'.
 Proof.
   intros; constructor; intros.
+- rewrite (nextblock_alloc _ _ _ _ _ H). apply Ple_succ.
 - split; intros.
   eapply perm_alloc_1; eauto.
   eapply perm_alloc_4; eauto.
@@ -4403,6 +4426,7 @@ Lemma free_unchanged_on:
   unchanged_on m m'.
 Proof.
   intros; constructor; intros.
+- rewrite (nextblock_free _ _ _ _ _ H). apply Ple_refl.
 - split; intros.
   eapply perm_free_1; eauto.
   destruct (eq_block b0 b); auto. destruct (zlt ofs lo); auto. destruct (zle hi ofs); auto.
@@ -4412,7 +4436,38 @@ Proof.
   simpl. auto.
 Qed.
 
+Lemma drop_perm_unchanged_on:
+  forall m b lo hi p m',
+  drop_perm m b lo hi p = Some m' ->
+  (forall i, lo <= i < hi -> ~ P b i) ->
+  unchanged_on m m'.
+Proof.
+  intros; constructor; intros.
+- rewrite (nextblock_drop _ _ _ _ _ _ H). apply Ple_refl.
+- split; intros. eapply perm_drop_3; eauto.
+  destruct (eq_block b0 b); auto.
+  subst b0. 
+  assert (~ (lo <= ofs < hi)). { red; intros; eelim H0; eauto. }
+  right; omega.
+  eapply perm_drop_4; eauto. 
+- unfold drop_perm in H. 
+  destruct (range_perm_dec m b lo hi Cur Freeable); inv H; simpl. auto.
+Qed. 
+
 End UNCHANGED_ON.
+
+Lemma unchanged_on_implies:
+  forall (P Q: block -> Z -> Prop) m m',
+  unchanged_on P m m' ->
+  (forall b ofs, Q b ofs -> valid_block m b -> P b ofs) ->
+  unchanged_on Q m m'.
+Proof.
+  intros. destruct H. constructor; intros.
+- auto.
+- apply unchanged_on_perm0; auto. 
+- apply unchanged_on_contents0; auto. 
+  apply H0; auto. eapply perm_valid_block; eauto. 
+Qed.
 
 End Mem.
 

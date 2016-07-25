@@ -227,6 +227,15 @@ Definition loc_result (s: signature) : list mreg :=
   end.
 
 (** The result registers have types compatible with that given in the signature. *)
+Definition proj_sig_res' (s: signature) : list typ :=
+  (* This definition copied from CompCert2.6/common/Events.v;
+     it is no longer present in CompCert2.7/common/Events.v;
+     I don't know why. -- Andrew *)
+  match s.(sig_res) with
+  | Some Tlong => Tint :: Tint :: nil
+  | Some ty => ty :: nil
+  | None => Tint :: nil
+  end.
 
 Lemma loc_result_type:
   forall sig,

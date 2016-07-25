@@ -88,7 +88,7 @@ Inductive rel_r_value' {CS: compspecs} (rho: environ) (phi: rmap): r_value -> va
                  rel_r_value' rho phi (R_binop op a1 ta1 a2 ta2) v
  | rel_r_value'_cast: forall a ta v1 v ty,
                  rel_r_value' rho phi a v1 ->
-                 Cop.sem_cast v1 ta ty = Some v ->
+                 (forall m, Cop.sem_cast v1 ta ty m = Some v) ->
                  rel_r_value' rho phi (R_cast a ta ty) v
  | rel_r_value'_byref: forall a v1,
                  rel_l_value' rho phi a v1 ->
@@ -307,9 +307,9 @@ Proof.
 Qed.
 
 Lemma sem_cast_load_result:
- forall v1 t1 t2 v2 ch,
+ forall v1 t1 t2 v2 ch m,
   access_mode t1 = By_value ch ->
-   Cop.sem_cast v1 t2 t1 = Some v2 ->
+   Cop.sem_cast v1 t2 t1 m = Some v2 ->
   Val.load_result ch v2 = v2.
 Proof.
 intros.
@@ -322,6 +322,10 @@ inv H; try reflexivity;
  destruct v1; inv H0;
   try invSome;
  simpl;
+ try match goal with
+  | H: (if Mem.weak_valid_pointer ?M ?B ?X then _ else _) = _ |- _ =>
+      destruct (Mem.weak_valid_pointer M B X); inv H
+  end;
  try  rewrite Int.sign_ext_idem by omega;
  try  rewrite Int.zero_ext_idem by omega;
  try reflexivity;
@@ -395,7 +399,9 @@ apply (rel_LR_value'_sch _ rho phi
    specialize (H3 Mem.empty). specialize (H13 Mem.empty).
    congruence.
 * (* Ecast *)
-   specialize (H0 _ H7). congruence.
+   specialize (H0 _ H7).
+   specialize (H1 Mem.empty). specialize (H8 Mem.empty).
+   congruence.
 *  specialize (H0 _ H7).
    subst v0; clear H H7.
    generalize H1; intros [wx [wy [_ [? _]]]].

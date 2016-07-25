@@ -140,7 +140,7 @@ Inductive cl_step (ge: Clight.genv): forall (q: corestate) (m: mem) (q': coresta
      type_is_volatile (typeof a1) = false ->
       Clight.eval_lvalue ge ve te m a1 loc ofs ->
       Clight.eval_expr ge ve te m a2 v2 ->
-      Cop.sem_cast v2 (typeof a2) (typeof a1) = Some v ->
+      Cop.sem_cast v2 (typeof a2) (typeof a1) m = Some v ->
       Clight.assign_loc ge (typeof a1) m loc ofs v m' ->
       cl_step ge (State ve te (Kseq (Sassign a1 a2):: k)) m (State ve te k) m'
 
@@ -202,7 +202,8 @@ le' ->
       call_cont k = Kcall optid f ve' te' :: k' ->
       Mem.free_list m (Clight.blocks_of_env ge ve) = Some m' ->
       match optexp with None => v' = Vundef
-                                  | Some a => exists v, Clight.eval_expr ge ve te m a v /\ Cop.sem_cast v (typeof a) f.(fn_return) = Some v' 
+                                  | Some a => exists v, Clight.eval_expr ge ve te m a v 
+                                     /\ Cop.sem_cast v (typeof a) f.(fn_return) m = Some v' 
                             end ->
       match optid with None => True /\ te''=te'
                                 | Some id => True /\ te'' = PTree.set id v' te'

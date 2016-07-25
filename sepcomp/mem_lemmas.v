@@ -42,8 +42,9 @@ Lemma mem_unchanged_on_sub: forall (P Q: block -> BinInt.Z -> Prop) m m',
   (forall b ofs, P b ofs -> Q b ofs) -> 
   Mem.unchanged_on P m m'.
 Proof.
-intros until m'; intros [H1 H2] H3.
+intros until m'; intros [L H1 H2] H3.
 split; intros.
+auto.
 solve[apply (H1 b ofs k p (H3 b ofs H)); auto].
 solve[apply (H2 b ofs); auto]. 
 Qed.
@@ -53,8 +54,8 @@ Lemma mem_unchanged_on_sub_strong: forall (P Q: block -> BinInt.Z -> Prop) m m',
   (forall b ofs, Mem.valid_block m b -> P b ofs -> Q b ofs) -> 
   Mem.unchanged_on P m m'.
 Proof.
-intros until m'; intros [H1 H2] H3.
-split; intros.
+intros until m'; intros [L H1 H2] H3.
+split; intros. auto.
 solve[apply (H1 b ofs k p (H3 b ofs H0 H) H0)].
 apply (H2 b ofs); auto. apply H3; auto. 
 solve[eapply Mem.perm_valid_block; eauto].
@@ -331,6 +332,7 @@ mem_forward m1 m3 /\ Mem.unchanged_on P m1 m3.
 Proof. intros.
 split. eapply mem_forward_trans; eassumption.
 split; intros.
+  eapply Ple_trans; eapply Mem.unchanged_on_nextblock; eassumption.
   destruct H.
   destruct (unchanged_on_perm _ _ k p H3 H4).
   destruct H0. destruct (H1 _ H4).
@@ -910,6 +912,7 @@ Proof. intros.
       eapply Mem.load_unchanged_on; try eassumption.
       instantiate (1:= fun b ofs => True).
       split; intros.
+        rewrite (Mem.nextblock_storebytes _ _ _ _ _ H); apply Ple_refl.
         split; intros.
           eapply Mem.perm_storebytes_2; eassumption.
           eapply Mem.perm_storebytes_1; eassumption.
@@ -923,6 +926,7 @@ Proof. intros.
       eapply Mem.load_unchanged_on; try eassumption.
       instantiate (1:= fun b ofs => True).
       split; intros.
+        rewrite (Mem.nextblock_storebytes _ _ _ _ _ H); apply Ple_refl.
         split; intros.
           eapply Mem.perm_storebytes_1; eassumption.
           eapply Mem.perm_storebytes_2; eassumption.
@@ -940,6 +944,7 @@ Proof. intros.
       eapply Mem.loadbytes_unchanged_on; try eassumption.
       instantiate (1:= fun b ofs => True).
       split; intros.
+        rewrite (Mem.nextblock_storebytes _ _ _ _ _ H); apply Ple_refl.
         split; intros.
           eapply Mem.perm_storebytes_2; eassumption.
           eapply Mem.perm_storebytes_1; eassumption.
@@ -953,6 +958,7 @@ Proof. intros.
       eapply Mem.loadbytes_unchanged_on; try eassumption.
       instantiate (1:= fun b ofs => True).
       split; intros.
+        rewrite (Mem.nextblock_storebytes _ _ _ _ _ H); apply Ple_refl.
         split; intros.
           eapply Mem.perm_storebytes_1; eassumption.
           eapply Mem.perm_storebytes_2; eassumption.
@@ -1083,28 +1089,24 @@ split; intros.
   intros N; subst. eapply (Mem.fresh_block_alloc _ _ _ _ _ A H).
 Qed.
 
+(*
 Lemma unchanged_on_sym P m m' b:
   Mem.unchanged_on P m m' -> Mem.valid_block m b ->
   Mem.unchanged_on (fun bb z => P bb z /\ bb=b) m' m.
 Proof. intros.
   destruct H as [U1 U2].
-  split; intros; destruct H; subst b0.
-    split; intros; eapply U1; trivial.
+  split; intros; try (destruct H; subst b0).
+      split; intros; eapply U1; trivial.
     rewrite U2; trivial. eapply U1; trivial.
 Qed.
+*)
     
 Lemma loadbytes_unchanged_on (P : block -> Z -> Prop) m m' b ofs n:
   Mem.unchanged_on P m m' -> Mem.valid_block m b ->
   (forall i : Z, ofs <= i < ofs + n -> P b i) ->
   Mem.loadbytes m b ofs n = Mem.loadbytes m' b ofs n.
 Proof. intros.
-  remember (Mem.loadbytes m b ofs n) as d; symmetry in Heqd.
-  destruct d. symmetry. eapply Mem.loadbytes_unchanged_on; eassumption.
-  remember (Mem.loadbytes m' b ofs n) as q; symmetry in Heqq.
-  destruct q; trivial.
-  erewrite Mem.loadbytes_unchanged_on in Heqd; try eapply Heqq. discriminate.
-    eapply unchanged_on_sym; eassumption.
-    simpl; intros. split; auto.
+  symmetry. eapply Mem.loadbytes_unchanged_on_1; eauto. 
 Qed.
 
 Lemma loadbytes_alloc_unchanged m1 lo hi m2 b :
@@ -1617,11 +1619,27 @@ Proof. intros.
        destruct (VB _ _ _ BB). contradiction.
 Qed.
 
+Lemma mem_forward_nextblock:
+  forall m m', mem_forward m m' -> Ple  (Mem.nextblock m) (Mem.nextblock m').
+Proof.
+intros. hnf in H.
+unfold Mem.valid_block in H.
+pose proof (Ppred_Plt (Mem.nextblock m)).
+unfold Ple, Plt in *.
+destruct (peq (Mem.nextblock m) 1).
+rewrite e. apply Pos.le_1_l.
+specialize (H0 n).
+destruct (H _ H0) as [? _]; clear H.
+pose proof (Pos.succ_pred _ n).
+rewrite <- H; apply Pos.le_succ_l; auto.
+Qed.
+
 Lemma forward_unchanged_on: forall m m' (FWD: mem_forward m m')
            b ofs (NP: ~ Mem.perm m b ofs Max Nonempty),
      Mem.unchanged_on (fun b' ofs' => b' = b /\ ofs' = ofs) m m'.
 Proof. intros.
-split; intros. 
+split; intros.
+  apply mem_forward_nextblock; auto.
   destruct H; subst. 
   split; intros; elim NP. 
     eapply Mem.perm_max. 
@@ -1639,6 +1657,7 @@ Lemma unchanged_on_union:
       Mem.unchanged_on PQ m m'.
 Proof. intros.
   split; intros.
+    apply HP.
     destruct (HPQ _ _ H).
       eapply HP; eassumption.
       eapply HQ; eassumption.
@@ -1652,7 +1671,7 @@ Lemma unchanged_on_validblock: forall m m' (U V: Values.block -> Z -> Prop)
    Mem.unchanged_on V m m' -> Mem.unchanged_on U m m'.
   Proof. intros.
     destruct H.
-    split; intros. 
+    split; intros. auto.
        eapply unchanged_on_perm; try eassumption. eauto.
        eapply unchanged_on_contents; try eassumption. 
        apply Mem.perm_valid_block in H0. eauto.
@@ -1676,6 +1695,7 @@ Lemma unchanged_on_perm_intersection: forall m m' U (Fwd: mem_forward m m'),
     split; intros Hyp.
     split; intros; eapply Hyp; eauto. apply H. apply H.
     split; intros.
+   apply Hyp.
     remember (Mem.perm_dec m b ofs Max Nonempty).
       destruct s; clear Heqs.
          eapply Hyp; eauto.
@@ -1699,11 +1719,12 @@ Lemma unchanged_on_trans: forall m1 m2 m3 U
   Mem.unchanged_on U m1 m3.
 Proof. intros.
 split; intros.
+   eapply Ple_trans; [apply U1 | apply U2].
   split; intros.
     eapply U2; trivial. apply Fwd12; trivial.
     eapply U1; trivial.
   eapply U1; trivial. eapply U2; trivial. apply Fwd12; trivial.
-destruct U1 as [P1 V1]; destruct U2 as [P2 V2].
+destruct U1 as [_ P1 V1]; destruct U2 as [_ P2 V2].
   rewrite (V2 _ _ H).
     apply V1; trivial.
   apply P1; trivial. eapply Mem.perm_valid_block; eassumption.

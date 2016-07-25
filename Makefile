@@ -415,10 +415,9 @@ progs/dotprod.v: progs/dotprod.c
 	$(CLIGHTGEN) ${CGFLAGS} $<
 progs/string.v: progs/string.c
 	$(CLIGHTGEN) ${CGFLAGS} $<
-progs/even.v: progs/even.c
+progs/even.v: progs/even.c progs/odd.c
 	$(CLIGHTGEN) ${CGFLAGS} $<
-progs/odd.v: progs/odd.c
-	$(CLIGHTGEN) ${CGFLAGS} $<
+progs/odd.v: progs/even.v
 progs/field_loadstore.v: progs/field_loadstore.c
 	$(CLIGHTGEN) ${CGFLAGS} $<
 progs/merge.v: progs/merge.c

@@ -111,6 +111,61 @@ rewrite denote_tc_assert_iszero.
 destruct (eval_expr v rho); apply extend_prop.
 Qed.
 
+Lemma extend_valid_pointer':
+  forall a b, boxy extendM (valid_pointer' a b).
+Proof.
+intros.
+apply boxy_i; intros.
+apply extendM_refl.
+unfold valid_pointer' in *.
+simpl in *.
+destruct a; simpl in *; auto.
+forget (b0, Int.unsigned i + b) as p.
+destruct (w @ p) eqn:?H; try contradiction.
+destruct H as [w2 ?].
+apply (resource_at_join _ _ _ p) in H.
+rewrite H1 in H.
+inv H; auto.
+clear - H0 RJ.
+eapply join_nonidentity; eauto.
+destruct H as [w2 ?].
+apply (resource_at_join _ _ _ p) in H.
+rewrite H1 in H.
+inv H; auto.
+Qed.
+
+Lemma extend_tc_comparable:
+  forall {CS: compspecs} e1 e2 rho,
+ boxy extendM (denote_tc_assert (tc_comparable e1 e2) rho).
+Proof.
+intros.
+rewrite denote_tc_assert_comparable'.
+apply boxy_i; intros.
+apply extendM_refl.
+simpl in *.
+super_unfold_lift.
+unfold denote_tc_comparable in *.
+destruct (eval_expr e1 rho); auto;
+destruct (eval_expr e2 rho); auto.
+destruct H0; split; auto.
+destruct H1 as [H1|H1]; [left|right];
+apply (boxy_e _ _ (extend_valid_pointer' _ _) _ w' H H1).
+destruct H0; split; auto.
+destruct H1 as [H1|H1]; [left|right];
+apply (boxy_e _ _ (extend_valid_pointer' _ _) _ w' H H1).
+unfold comparable_ptrs in *.
+if_tac.
+destruct H0; split.
+destruct H0 as [?|?]; [left|right];
+apply (boxy_e _ _ (extend_valid_pointer' _ _) _ w' H H0).
+destruct H1 as [?|?]; [left|right];
+apply (boxy_e _ _ (extend_valid_pointer' _ _) _ w' H H1).
+destruct H0.
+split.
+apply (boxy_e _ _ (extend_valid_pointer' _ _) _ w' H H0).
+apply (boxy_e _ _ (extend_valid_pointer' _ _) _ w' H H1).
+Qed.
+
 Lemma extend_isCastResultType:
  forall {CS: compspecs} t t' v rho,
    boxy extendM (denote_tc_assert (isCastResultType t t' v) rho).
@@ -131,7 +186,8 @@ intros.
  try simple apply extend_tc_bool;
  try simple apply extend_tc_Zge;
  try simple apply extend_tc_Zle;
- try simple apply extend_tc_iszero.
+ try simple apply extend_tc_iszero;
+ try simple apply extend_tc_comparable.
 Qed.
 
 Lemma extend_tc_temp_id: forall {CS: compspecs} id ty Delta e rho, boxy extendM (tc_temp_id id ty Delta e rho). 
@@ -208,61 +264,6 @@ intros.
 rewrite denote_tc_assert_ilt'.
 simpl. unfold_lift.
 destruct (eval_expr e rho); try apply extend_prop.
-Qed.
-
-Lemma extend_valid_pointer':
-  forall a b, boxy extendM (valid_pointer' a b).
-Proof.
-intros.
-apply boxy_i; intros.
-apply extendM_refl.
-unfold valid_pointer' in *.
-simpl in *.
-destruct a; simpl in *; auto.
-forget (b0, Int.unsigned i + b) as p.
-destruct (w @ p) eqn:?H; try contradiction.
-destruct H as [w2 ?].
-apply (resource_at_join _ _ _ p) in H.
-rewrite H1 in H.
-inv H; auto.
-clear - H0 RJ.
-eapply join_nonidentity; eauto.
-destruct H as [w2 ?].
-apply (resource_at_join _ _ _ p) in H.
-rewrite H1 in H.
-inv H; auto.
-Qed.
-
-Lemma extend_tc_comparable:
-  forall {CS: compspecs} e1 e2 rho,
- boxy extendM (denote_tc_assert (tc_comparable e1 e2) rho).
-Proof.
-intros.
-rewrite denote_tc_assert_comparable'.
-apply boxy_i; intros.
-apply extendM_refl.
-simpl in *.
-super_unfold_lift.
-unfold denote_tc_comparable in *.
-destruct (eval_expr e1 rho); auto;
-destruct (eval_expr e2 rho); auto.
-destruct H0; split; auto.
-destruct H1 as [H1|H1]; [left|right];
-apply (boxy_e _ _ (extend_valid_pointer' _ _) _ w' H H1).
-destruct H0; split; auto.
-destruct H1 as [H1|H1]; [left|right];
-apply (boxy_e _ _ (extend_valid_pointer' _ _) _ w' H H1).
-unfold comparable_ptrs in *.
-if_tac.
-destruct H0; split.
-destruct H0 as [?|?]; [left|right];
-apply (boxy_e _ _ (extend_valid_pointer' _ _) _ w' H H0).
-destruct H1 as [?|?]; [left|right];
-apply (boxy_e _ _ (extend_valid_pointer' _ _) _ w' H H1).
-destruct H0.
-split.
-apply (boxy_e _ _ (extend_valid_pointer' _ _) _ w' H H0).
-apply (boxy_e _ _ (extend_valid_pointer' _ _) _ w' H H1).
 Qed.
 
 Lemma extend_tc_expr: forall {CS: compspecs} Delta e rho, boxy extendM (tc_expr Delta e rho)

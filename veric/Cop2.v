@@ -85,7 +85,7 @@ Definition sem_cast_f2bool (v : val) : option val :=
 Definition sem_cast_p2bool (v : val) : option val :=
  match v with
       | Vint i => Some (Vint (Cop.cast_int_int IBool Signed i))
-      | Vptr _ _ => None (* before CompCert 2.5: Some (Vint Int.one) *)
+      | Vptr _ _ => Some (Vint Int.one)
       | _ => None
       end.
 
@@ -501,12 +501,16 @@ Definition sem_add_pi {CS: compspecs} ty (v1 v2 : val) : option val :=
 match v1,v2 with
       | Vptr b1 ofs1, Vint n2 => 
         Some (Vptr b1 (Int.add ofs1 (Int.mul (Int.repr (sizeof ty)) n2)))
+      | Vint n1, Vint n2 =>
+        Some (Vint (Int.add n1 (Int.mul (Int.repr (sizeof ty)) n2)))
       | _,  _ => None
       end.
 Definition sem_add_ip  {CS: compspecs} ty (v1 v2 : val) : option val :=
  match v1,v2 with
       | Vint n1, Vptr b2 ofs2 => 
         Some (Vptr b2 (Int.add ofs2 (Int.mul (Int.repr (sizeof ty)) n1)))
+      | Vint n1, Vint n2 =>
+        Some (Vint (Int.add n2 (Int.mul (Int.repr (sizeof ty)) n1)))
       | _,  _ => None
       end.
  
@@ -515,6 +519,9 @@ match v1,v2 with
       | Vptr b1 ofs1, Vlong n2 => 
         let n2 := Int.repr (Int64.unsigned n2) in
         Some (Vptr b1 (Int.add ofs1 (Int.mul (Int.repr (sizeof ty)) n2)))
+      | Vint n1, Vlong n2 =>
+        let n2 := Int.repr (Int64.unsigned n2) in
+        Some (Vint (Int.add n1 (Int.mul (Int.repr (sizeof ty)) n2)))
       | _,  _ => None
       end.
 
@@ -523,6 +530,9 @@ match v1,v2 with
       | Vlong n1, Vptr b2 ofs2 => 
         let n1 := Int.repr (Int64.unsigned n1) in
         Some (Vptr b2 (Int.add ofs2 (Int.mul (Int.repr (sizeof ty)) n1)))
+      | Vlong n1, Vint n2 =>
+        let n1 := Int.repr (Int64.unsigned n1) in
+        Some (Vint (Int.add n2 (Int.mul (Int.repr (sizeof ty)) n1)))
       | _,  _ => None
       end.
 
@@ -549,6 +559,8 @@ Definition sem_sub_pi {CS: compspecs} ty (v1 v2 : val) : option val :=
 match v1,v2 with
       | Vptr b1 ofs1, Vint n2 => 
           Some (Vptr b1 (Int.sub ofs1 (Int.mul (Int.repr (sizeof ty)) n2)))
+      | Vint n1, Vint n2 =>
+          Some (Vint (Int.sub n1 (Int.mul (Int.repr (sizeof ty)) n2)))
       | _,  _ => None
       end.
 
@@ -557,6 +569,9 @@ Definition sem_sub_pl {CS: compspecs} ty (v1 v2 : val) : option val :=
       | Vptr b1 ofs1, Vlong n2 => 
           let n2 := Int.repr (Int64.unsigned n2) in
           Some (Vptr b1 (Int.sub ofs1 (Int.mul (Int.repr (sizeof ty)) n2)))
+      | Vint n1, Vlong n2 =>
+          let n2 := Int.repr (Int64.unsigned n2) in
+          Some (Vint (Int.sub n1 (Int.mul (Int.repr (sizeof ty)) n2)))
       | _,  _ => None
       end.
 
@@ -853,7 +868,7 @@ Arguments sem_binary_operation' CS op t1 t2 / valid_pointer v1 v2 : simpl nomatc
 Arguments sem_binary_operation CS op t1 t2 / m v1 v2 : simpl nomatch.
 Arguments sem_cmp_default c t1 t2 / v1 v2 : simpl nomatch.
 Arguments sem_binarith sem_int sem_long sem_float sem_single t1 t2 / v1 v2 : simpl nomatch.
-Arguments Cop.sem_cast v !t1 !t2 / .
+Arguments Cop.sem_cast v !t1 !t2 m / .
 
 
 

@@ -510,6 +510,24 @@ induction (prog_defs prog); intros. inv H. simpl in *.
 destruct a; destruct g. auto. simpl in H. destruct H; auto. left; congruence.
 Qed.
 
+Lemma find_funct_ptr_exists:
+  forall (p: program) id f,
+  list_norepet (prog_defs_names p) ->
+  In (id, Gfun f) (prog_defs p) ->
+  exists b,
+     Genv.find_symbol (Genv.globalenv p) id = Some b
+  /\ Genv.find_funct_ptr (Genv.globalenv p) b = Some f.
+Proof.
+intros.
+pose proof (prog_defmap_norepet _ _ _ H H0).
+destruct (proj1 (Genv.find_def_symbol _ _ _) H1) 
+  as [b [? ?]].
+exists b; split; auto.
+unfold Genv.find_funct_ptr.
+rewrite H3.
+auto.
+Qed.
+
 Lemma funassert_initial_core:
   forall (prog: program) ve te V G {C: compspecs} n, 
       list_norepet (prog_defs_names prog) ->
@@ -548,34 +566,11 @@ destruct a. destruct p.
 *)
  }
  destruct H2 as [f ?].
- destruct (Genv.find_funct_ptr_exists prog id f) as [b [? ?]]; auto.
+ destruct (find_funct_ptr_exists prog id f) as [b [? ?]]; auto.
  apply in_prog_funct_in_prog_defs; auto.
- unfold globalenv; simpl.
- rewrite H3.
- exists b.
- split.
- split.
- +
- unfold type_of_global.
- case_eq (Genv.find_var_info (Genv.globalenv prog) b); intros.
- repeat f_equal.
- elimtype False; clear - H H4 H5.
- contradiction (Genv.genv_funs_vars _ H4 H5); auto.
- unfold prog_funct, prog_defs_names in *.
- change (AST.prog_defs prog) with (prog_defs prog) in H.
- forget (prog_defs prog) as g.
- assert (In (id,fs) G). {
-   clear - H1.
-   simpl in H1. unfold make_tycontext_g in H1; simpl in H1.
-   revert H1;  induction G; simpl in *; intros.
-   rewrite PTree.gempty in H1; inv H1.
-   destruct a. simpl in *.
-   destruct (ident_eq i id). subst. 
-   rewrite PTree.gss in H1. inv H1. auto.
-   destruct (ident_eq i id). subst.
-   rewrite PTree.gss in H1. inv H1. auto.
-  right. rewrite PTree.gso in H1 by auto; auto.
- }
+ exists b. unfold fundef.
+ unfold globalenv. simpl. rewrite H3.
+ split; auto.
  unfold func_at. destruct fs as [f0 cc0 A a a0].
  unfold initial_core.
  hnf. rewrite resource_at_make_rmap.
@@ -618,7 +613,9 @@ unfold initial_core' in H3.
 if_tac in H3; [ | inv H3].
 simpl.
 simpl @fst in *.
-revert H3; case_eq (Genv.invert_symbol (Genv.globalenv prog) (loc')); intros;
+revert H3; case_eq (@Genv.invert_symbol fundef type
+         (@Genv.globalenv (Ctypes.fundef function) type
+            prog) loc'); intros;
   [ | congruence].
 revert H5; case_eq (find_id i G); intros; [| congruence].
 destruct f as [?f ?A ?a ?a]; inv H6.
@@ -646,12 +643,15 @@ unfold globalenv; simpl.
  }
  clear H4.
  destruct H6 as [f [H4 H4']].
- destruct (Genv.find_funct_ptr_exists prog i f) as [b [? ?]]; auto.
+ destruct (find_funct_ptr_exists prog i f) as [b [? ?]]; auto.
  apply in_prog_funct_in_prog_defs; auto.
+ unfold fundef in *.
  inversion2 H3 H6.
  case_eq (Genv.find_var_info (Genv.globalenv prog) loc'); intros.
  elimtype False; clear - H7 H6. 
- contradiction (Genv.genv_funs_vars _ H7 H6); auto.
+ unfold Genv.find_funct_ptr in H7.
+ unfold Genv.find_var_info in H6.
+ destruct (Genv.find_def (Genv.globalenv prog) loc'); try destruct g0; congruence.
  apply find_id_e in H5. apply in_map_fst in H5.
  clear - H5.
  revert H5; induction G; simpl; intro. contradiction.
@@ -666,7 +666,7 @@ Lemma prog_contains_prog_funct: forall prog: program,
           prog_contains (globalenv prog) (prog_funct prog).
 Proof.
   intros; intro; intros.
-  apply (Genv.find_funct_ptr_exists prog id f); auto.
+  apply (find_funct_ptr_exists prog id f); auto.
   unfold prog_funct in H0.
   change (AST.prog_defs prog) with (prog_defs prog).
   induction (prog_defs prog). inv H0.
@@ -715,17 +715,22 @@ apply in_map_iff in H2.
 destruct H2 as [[i' f] [? ?]]. subst id; exists f; auto.
 destruct H3 as [f ?].
 apply Genv.invert_find_symbol in H1.
-destruct (Genv.find_funct_ptr_exists prog id f) as [b [? ?]]; auto.
+destruct (find_funct_ptr_exists prog id f) as [b [? ?]]; auto.
 apply in_prog_funct_in_prog_defs; auto.
 inversion2 H1 H4.
 if_tac.
  destruct (IOK l) as [_ ?].
  unfold initial_core in H6. rewrite resource_at_make_rmap in H6.
   unfold initial_core' in H6. rewrite if_true in H6 by auto.
-  apply Genv.find_invert_symbol in H1. rewrite H1 in H6. rewrite H2 in H6. destruct fs.
-  destruct H6 as [? [? ?]]. rewrite H7. rewrite core_PURE; auto.
+  apply Genv.find_invert_symbol in H1.
+  unfold fundef in *; rewrite H1 in *.
+  rewrite H2 in *. destruct fs.
+  destruct H6 as [? [? ?]]. rewrite H7.
+  rewrite core_PURE; auto.
   destruct (access_at m l); try destruct p; try rewrite core_YES; try rewrite core_NO; auto.
- if_tac;   destruct (access_at m l); try destruct p; try rewrite core_YES; try rewrite core_NO; auto.
+  unfold fundef in *; rewrite H1,H2 in *.
+  if_tac;  destruct (access_at m l); try destruct p; try rewrite core_YES; try rewrite core_NO; auto.
+  unfold fundef in *; rewrite H1 in *.
  if_tac;   destruct (access_at m l); try destruct p; try rewrite core_YES; try rewrite core_NO; auto.
 Qed.
 
@@ -939,26 +944,20 @@ contradict H2.
 clear - H2. induction l; simpl; auto.
 destruct a. destruct g; simpl in *. destruct H2; auto. right; auto.
 apply IHl; auto.
-destruct (Genv.find_funct_ptr_exists prog id fd) as [b [? ?]]; auto.
+destruct (find_funct_ptr_exists prog id fd) as [b [? ?]]; auto.
 exists b.
 unfold globalenv; simpl Genv.find_symbol.
-rewrite H4.
-unfold type_of_global.
-unfold Genv.find_var_info.
-destruct ((Genv.genv_vars (Genv.globalenv prog)) ! b) eqn:?.
-elimtype False.
-unfold Genv.find_funct_ptr in H5.
-apply (Genv.genv_funs_vars (Genv.globalenv prog) H5 Heqo); auto.
 split; auto.
-simpl.
-destruct f; simpl. auto.
+unfold type_of_global.
+destruct f; simpl; auto.
 *
  unfold filter_genv.
  destruct (match_globvars_in' _ _ _ _ H0 H2) as [g [? [? TC]]].
  apply in_prog_vars_in_prog_defs in H3.
- destruct (Genv.find_var_exists _ _ _ H H3) as [b [? ?]].
- exists b. unfold globalenv; simpl Genv.find_symbol; rewrite H5.
- unfold type_of_global.
+ pose proof (prog_defmap_norepet _ _ _ H H3).
+destruct (proj1 (Genv.find_def_symbol _ _ _) H5) 
+  as [b [? ?]].
+ exists b. 
  split; auto.
 Qed.
 
@@ -1043,7 +1042,7 @@ Proof.
   apply compute_list_norepet_e in H0.
   assert (indefs: In (prog_main prog, Gfun f) (AST.prog_defs prog))
     by (apply in_prog_funct_in_prog_defs; auto).
-  pose proof (Genv.find_funct_ptr_exists prog (prog_main prog) f) as EXx.
+  pose proof (find_funct_ptr_exists prog (prog_main prog) f) as EXx.
   (* Genv.find_funct_ptr_exists is a Prop existential, we use constructive epsilon and
      decidability on a countable set to transform it to a Type existential *)
   assert (dec: forall x : positive,
@@ -1070,8 +1069,8 @@ Proof.
   destruct EXx as [b [? ?]]; auto.
   exists b.
   unfold semantics.initial_core; simpl.
-  rewrite H7.
-  if_tac;[|tauto]. clear H8.
+  unfold fundef in *; rewrite H7.
+  rewrite if_true by auto.
   unfold is_Internal in HInt.
   rewrite H6 in HInt.
   rewrite H7 in HInt.

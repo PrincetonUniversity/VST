@@ -154,9 +154,10 @@ Qed.
 Ltac unfold_cop2_sem_cmp :=
 unfold Cop2.sem_cmp, Cop2.sem_cmp_pp, Cop2.sem_cmp_pl, Cop2.sem_cmp_lp.
 
+
 Lemma bin_arith_relate :
-forall a b c d v1 v2 t1 t2, 
-Cop.sem_binarith a b c d v1 t1 v2 t2 =
+forall a b c d v1 v2 t1 t2 m, 
+Cop.sem_binarith a b c d v1 t1 v2 t2 m =
 sem_binarith a b c d t1 t2 v1 v2.
 Proof.
 intros. 
@@ -318,21 +319,16 @@ intros.
 unfold Cop.sem_binary_operation.
 unfold sem_binary_operation'.
 destruct b; auto;
-repeat match goal with 
-    |- ?op1 _ _ _ _ = ?op2 _ _ _ _ => unfold op1, op2; try solve [apply bin_arith_relate] 
-  | |- ?op1 _ _ _ _ _ = ?op2 _ _ _ _ _ => unfold op1, op2; try solve [apply bin_arith_relate] 
-  | |- ?op1 _ _ _ _ _ _ _ = ?op2 _ _ _ _ _ _ _ =>  unfold op1, op2; 
-                                                 try solve [apply bin_arith_relate]
-  | |- ?op1 _ _ _ _ _ _ _ = ?op2 _ _ _ _ _ _ => unfold op1, op2; try solve [apply bin_arith_relate]
-  | |- ?op1 _ _ _ _ _ _ = ?op2 _ _ _ _ _ _ =>  unfold op1, op2; 
-                                                 try solve [apply bin_arith_relate]
- end.
+try solve [apply bin_arith_relate];
+match goal with 
+    |- ?A = ?B => let opL := fresh in set (opL:=A);
+                         let opR := fresh in set (opR:=B);
+                         hnf in opL; hnf in opR; subst opL opR
+end.
 *
-unfold Cop.sem_add, sem_add.
-destruct (classify_add (typeof e1) (typeof e2)); try reflexivity. 
-  apply bin_arith_relate.
+destruct (classify_add (typeof e1) (typeof e2)); try reflexivity.
+apply bin_arith_relate.
 *
-unfold Cop.sem_sub, sem_sub.
  destruct (classify_sub (typeof e1) (typeof e2)); try reflexivity;
   apply bin_arith_relate.
 * destruct (classify_shift (typeof e1)(typeof e2)); try reflexivity; apply bin_arith_relate.
@@ -461,13 +457,24 @@ Qed.
 Opaque tc_andp.
 (** Equivalence of CompCert eval_expr and our function eval_expr on programs that typecheck **)
 
+Lemma comparable1:
+  forall b i m,
+  (denote_tc_comparable (Vptr b i) (Vint Int.zero)) (m_phi m) ->
+  Mem.weak_valid_pointer (m_dry m) b (Int.unsigned i) = true.
+Proof.
+intros.
+destruct H.
+apply weak_valid_pointer_dry in H0.
+apply H0.
+Qed.
+
 Lemma cop2_sem_cast : 
-    forall t1 t2 v, 
-   Cop.sem_cast v t1 t2 = sem_cast t1 t2 v.
+    forall t1 t2 v m, 
+   Cop.sem_cast v t1 t2 (m_dry m) = sem_cast t1 t2 v.
 intros. unfold Cop.sem_cast, sem_cast.
 destruct (classify_cast t1 t2);
 destruct v; destruct t1; destruct t2; auto.
-Qed.
+Admitted.
 
 Lemma isBinOpResultType_binop_stable: forall {CS: compspecs} b e1 e2 t rho phi,
   denote_tc_assert (isBinOpResultType b e1 e2 t) rho phi ->
@@ -487,17 +494,6 @@ Proof.
     try destruct H as [[_ ?] _];
     try solve [eapply denote_tc_assert_tc_bool; eauto].
     auto.
-Qed.
-
-Lemma comparable1:
-  forall b i m,
-  (denote_tc_comparable (Vptr b i) (Vint Int.zero)) (m_phi m) ->
-  Mem.weak_valid_pointer (m_dry m) b (Int.unsigned i) = true.
-Proof.
-intros.
-destruct H.
-apply weak_valid_pointer_dry in H0.
-apply H0.
 Qed.
 
 Lemma eval_both_relate:
@@ -690,7 +686,7 @@ destruct H3.
 unfold force_val1, force_val in *; super_unfold_lift; intuition.
 eapply Clight.eval_Ecast.
 eapply H5; auto.
-rewrite <- cop2_sem_cast in *.
+rewrite <- cop2_sem_cast with (m:=m) in *.
 destruct (Cop.sem_cast (eval_expr e rho) (typeof e) t). auto.
 inv TC. 
 
@@ -965,14 +961,6 @@ Lemma map_ptree_rel : forall id v te, Map.set id v (make_tenv te) = make_tenv (P
 intros. unfold Map.set. unfold make_tenv. extensionality. rewrite PTree.gsspec; auto.
 Qed.
 
-Lemma cop_2_sem_cast : forall t1 t2 e,
-Cop.sem_cast (e) t1 t2 = Cop2.sem_cast t1 t2 e.
-Proof.
-intros. unfold Cop.sem_cast, sem_cast.
-destruct t1 as [ | [ | | | ] | [ | ] | [ | ] | | | | | ]; 
-  destruct t2 as [ | [  | | | ] | [ | ] | [ | ] | | | | | ]; destruct e; simpl; auto.   
-Qed.
-
 Lemma cast_exists : forall {CS: compspecs} Delta e2 t rho phi
 (TC: typecheck_environ Delta rho), 
 denote_tc_assert (typecheck_expr Delta e2) rho phi ->
@@ -1181,10 +1169,10 @@ match from, to with
 | _, _ => false
 end. 
 
-Lemma cast_no_change : forall v from to,
+Lemma cast_no_change : forall v from to m,
 is_true (typecheck_val v from)  ->
 is_true (cast_no_val_change from to) ->
-Cop.sem_cast v from to = Some v. 
+Cop.sem_cast v from to m = Some v. 
 Proof. 
 intros. apply is_true_e in H. apply is_true_e in H0.
 destruct v; destruct from as [ | [ | | | ] [ | ] | [ | ] | [ | ] | | | | | ]; 

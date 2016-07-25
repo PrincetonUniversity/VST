@@ -69,11 +69,11 @@ Module MainSafety .
       (G : funspecs)
       (ext_link : string -> ident)
       (ext_link_inj : forall s1 s2, ext_link s1 = ext_link s2 -> s1 = s2)
-      (prog : program)
+      (prog : Ctypes.program _)
       (all_safe : semax_prog.semax_prog (Concurrent_Oracular_Espec CS ext_link) prog V G)
-      (init_mem_not_none : Genv.init_mem prog <> None)
+      (init_mem_not_none : Genv.init_mem (Ctypes.program_of_program prog) <> None)
       (x: block)
-      (block: (Genv.find_symbol (globalenv prog) (prog_main prog) = Some x)).
+      (block: (Genv.find_symbol (globalenv prog) (prog_main (Ctypes.program_of_program prog)) = Some x)).
 
     
     Definition js_initial n := initial_machine_state CS V G ext_link prog all_safe

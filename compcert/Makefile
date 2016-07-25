@@ -52,12 +52,14 @@ FLOCQ=\
 VLIB=Axioms.v Coqlib.v Intv.v Maps.v Heaps.v Lattice.v Ordered.v \
   Iteration.v Integers.v Archi.v Fappli_IEEE_extra.v Floats.v \
   Parmov.v UnionFind.v Wfsimpl.v \
-  Postorder.v FSetAVLplus.v IntvSets.v
+  Postorder.v FSetAVLplus.v IntvSets.v Decidableplus.v
 
 # Parts common to the front-ends and the back-end (in common/)
 
-COMMON=Errors.v AST.v Events.v Globalenvs.v Memdata.v Memtype.v Memory.v \
-  Values.v Smallstep.v Behaviors.v Switch.v Determinism.v Unityping.v
+COMMON=Errors.v AST.v Linking.v \
+  Events.v Globalenvs.v Memdata.v Memtype.v Memory.v \
+  Values.v Smallstep.v Behaviors.v Switch.v Determinism.v Unityping.v \
+  Separation.v
 
 # Back-end modules (in backend/, $(ARCH)/)
 
@@ -123,9 +125,10 @@ all:
 ifeq ($(HAS_RUNTIME_LIB),true)
 	$(MAKE) runtime
 endif
-ifeq ($(CCHECKLINK),true)
-	$(MAKE) cchecklink
+ifeq ($(CLIGHTGEN),true)
+	$(MAKE) clightgen
 endif
+
 
 proof: $(FILES:.v=.vo)
 
@@ -143,11 +146,6 @@ ccomp: .depend.extr compcert.ini driver/Version.ml FORCE
 	$(MAKE) -f Makefile.extr ccomp
 ccomp.byte: .depend.extr compcert.ini driver/Version.ml FORCE
 	$(MAKE) -f Makefile.extr ccomp.byte
-
-cchecklink: .depend.extr compcert.ini driver/Version.ml FORCE
-	$(MAKE) -f Makefile.extr cchecklink
-cchecklink.byte: .depend.extr compcert.ini driver/Version.ml FORCE
-	$(MAKE) -f Makefile.extr cchecklink.byte
 
 clightgen: .depend.extr compcert.ini exportclight/Clightdefs.vo driver/Version.ml FORCE
 	$(MAKE) -f Makefile.extr clightgen
@@ -169,7 +167,7 @@ documentation: doc/coq2html $(FILES)
 	cp doc/coq2html.css doc/coq2html.js doc/html/
 
 doc/coq2html: doc/coq2html.ml
-	ocamlopt -o doc/coq2html str.cmxa doc/coq2html.ml
+	ocamlopt -w +a-29 -o doc/coq2html str.cmxa doc/coq2html.ml
 
 doc/coq2html.ml: doc/coq2html.mll
 	ocamllex -q doc/coq2html.mll
@@ -196,8 +194,11 @@ latexdoc:
 compcert.ini: Makefile.config
 	(echo "stdlib_path=$(LIBDIR)"; \
          echo "prepro=$(CPREPRO)"; \
-         echo "asm=$(CASM)"; \
          echo "linker=$(CLINKER)"; \
+         echo "asm=$(CASM)"; \
+	 echo "prepro_options=$(CPREPRO_OPTIONS)";\
+	 echo "asm_options=$(CASM_OPTIONS)";\
+	 echo "linker_options=$(CLINKER_OPTIONS)";\
          echo "arch=$(ARCH)"; \
          echo "model=$(MODEL)"; \
          echo "abi=$(ABI)"; \
@@ -205,7 +206,6 @@ compcert.ini: Makefile.config
          echo "has_runtime_lib=$(HAS_RUNTIME_LIB)"; \
          echo "has_standard_headers=$(HAS_STANDARD_HEADERS)"; \
          echo "asm_supports_cfi=$(ASM_SUPPORTS_CFI)"; \
-         echo "advanced_debug=$(ADVANCED_DEBUG)"; \
          echo "struct_passing_style=$(STRUCT_PASSING)"; \
          echo "struct_return_style=$(STRUCT_RETURN)";) \
         > compcert.ini
@@ -228,10 +228,10 @@ install:
 	install -m 0755 ./ccomp $(BINDIR)
 	install -d $(SHAREDIR)
 	install -m 0644 ./compcert.ini $(SHAREDIR)
-ifeq ($(CCHECKLINK),true)
-	install -m 0755 ./cchecklink $(BINDIR)
-endif
 	$(MAKE) -C runtime install
+ifeq ($(CLIGHTGEN),true)
+	install -m 0755 ./clightgen $(BINDIR)
+endif
 
 clean:
 	rm -f $(patsubst %, %/*.vo, $(DIRS))
@@ -253,8 +253,13 @@ distclean:
 check-admitted: $(FILES)
 	@grep -w 'admit\|Admitted\|ADMITTED' $^ || echo "Nothing admitted."
 
+# Problems with coqchk (coq 8.5pl1):
+# Integers.Int.Z_mod_modulus_range takes forever to check
+# compcert.lib.Floats.Float.of_longu_from_words takes forever to check
+# compcert.backend.SelectDivproof.divs_mul_shift_2 takes forever to check
+
 check-proof: $(FILES)
-	$(COQCHK) Complements
+	$(COQCHK) -admit Integers -admit Floats -admit SelectDivproof Complements
 
 print-includes:
 	@echo $(COQINCLUDES)

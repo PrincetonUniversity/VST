@@ -150,6 +150,8 @@ Lemma malloc_Effect_unchOn: forall {F V : Type} (g : Genv.t F V)
 Proof. intros.
        simpl. inv EF.
        split; intros.
+          rewrite (Mem.nextblock_store _ _ _ _ _ _ H0).
+          rewrite (Mem.nextblock_alloc _ _ _ _ _ H). apply Ple_succ.
           unfold Mem.perm. rewrite (Mem.store_access _ _ _ _ _ _ H0).
           split; intros. 
             eapply Mem.perm_alloc_1; eassumption. 
@@ -687,6 +689,7 @@ destruct ef; simpl in *.
   - apply BLTmul in H; subst m'. apply Mem.unchanged_on_refl.
 + elim NOBS; trivial.
 + elim NOBS; trivial.
++ elim NOBS; trivial.
 + (*case EF_malloc*)
   eapply  malloc_Effect_unchOn. eassumption.
 + (*case EE_memcpy*)
@@ -776,6 +779,7 @@ destruct ef; simpl in *.
   - apply BLTadd in H; subst m'. apply mem_step_refl.
   - apply BLTsub in H; subst m'. apply mem_step_refl.
   - apply BLTmul in H; subst m'. apply mem_step_refl.
++ elim NOBS; trivial.
 + elim NOBS; trivial.
 + elim NOBS; trivial.
 + (*malloc*)
@@ -937,6 +941,7 @@ destruct ef; simpl in H0.
 +   (*EF_builtin*)
       eapply builtins_inject; try eassumption.
       eapply EFhelpersB; eassumption.
++   simpl in OBS; intuition.
 +   simpl in OBS; intuition.
 +   simpl in OBS; intuition.
 +  (*case EF_malloc*)

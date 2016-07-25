@@ -361,9 +361,9 @@ destruct g.
      eapply (mem_wd_drop _ _ _ _ _  _ GA).
     apply (H1 H). 
     apply (Mem.valid_new_block _ _ _ _ _ Heqmm).
-remember (Mem.alloc m0 0 (Genv.init_data_list_size (AST.gvar_init v)) ) as mm.
+remember (Mem.alloc m0 0 (init_data_list_size (AST.gvar_init v)) ) as mm.
   destruct mm. apply eq_sym in Heqmm.
-  remember (store_zeros m b 0 (Genv.init_data_list_size (AST.gvar_init v)))
+  remember (store_zeros m b 0 (init_data_list_size (AST.gvar_init v)))
            as d. 
   destruct d; inv GA; apply eq_sym in Heqd.
   remember (Genv.store_init_data_list ge m2 b 0 (AST.gvar_init v)) as dd.
@@ -391,11 +391,11 @@ destruct g.
     apply eq_sym in Heqd.
     apply (valid_genv_drop _ _ _ _ _ _ _ GA).
     apply (valid_genv_alloc _ _ _ _ _ _ Heqd H).
-remember (Mem.alloc m0 0 (Genv.init_data_list_size (AST.gvar_init v)) )
+remember (Mem.alloc m0 0 (init_data_list_size (AST.gvar_init v)) )
          as Alloc.
   destruct Alloc. apply eq_sym in HeqAlloc.
   remember (store_zeros m b 0 
-           (Genv.init_data_list_size (AST.gvar_init v))) as SZ. 
+           (init_data_list_size (AST.gvar_init v))) as SZ. 
   destruct SZ; inv GA; apply eq_sym in HeqSZ.
   remember (Genv.store_init_data_list ge m2 b 0 (AST.gvar_init v)) as Drop.
   destruct Drop; inv H1; apply eq_sym in HeqDrop.

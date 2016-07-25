@@ -632,7 +632,8 @@ match Cop.classify_cast tfrom tto with
 | Cop.cast_case_void => tc_noproof
 | Cop.cast_case_f2bool => tc_bool (is_float_type tfrom) (invalid_cast_result tfrom tto)
 | Cop.cast_case_s2bool => tc_bool (is_single_type tfrom) (invalid_cast_result tfrom tto)
-| Cop.cast_case_p2bool => tc_bool (is_int_type tfrom) (invalid_cast_result tfrom tto)
+| Cop.cast_case_p2bool => tc_andp (tc_comparable a (Econst_int Int.zero (Tint I32 Signed noattr)))
+                                                (tc_bool (orb (is_int_type tfrom) (is_pointer_type tfrom)) (invalid_cast_result tfrom tto))
       (* before CompCert 2.5: tc_bool (orb (is_int_type tfrom) (is_pointer_type tfrom)) (invalid_cast_result tfrom tto) *)
 | Cop.cast_case_l2bool => tc_bool (is_long_type tfrom) (invalid_cast_result tfrom tto)
 | _ => match tto with 

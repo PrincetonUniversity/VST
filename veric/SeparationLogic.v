@@ -872,7 +872,7 @@ intros. intros ? ?. econstructor; eauto. apply H; auto. apply H0; auto. Qed.
 
 Lemma rel_expr_cast: forall {CS: compspecs}  a1 v1 v ty P rho,
                  P |-- rel_expr a1 v1 rho ->
-                 Cop.sem_cast v1 (typeof a1) ty = Some v ->
+                 (forall m, Cop.sem_cast v1 (typeof a1) ty m = Some v) ->
                  P |-- rel_expr (Ecast a1 ty) v rho.
 Proof.
 intros. intros ? ?. econstructor; eauto. apply H; auto. Qed. 
@@ -906,7 +906,8 @@ Lemma rel_lvalue_local: forall {CS: compspecs} id ty b P rho,
                  P |-- !! (Map.get (ve_of rho) id = Some (b,ty)) ->
                  P |-- rel_lvalue (Evar id ty) (Vptr  b Int.zero) rho.
 Proof.
-intros. intros ? ?. constructor.  specialize (H _ H0). apply H. Qed.
+intros. intros ? ?. constructor.  specialize (H _ H0). apply H.
+Qed.
 
 Lemma rel_lvalue_global: forall {CS: compspecs} id ty b P rho,
               P |-- !! (Map.get (ve_of rho) id = None /\ Map.get (ge_of rho) id = Some b) ->

@@ -276,7 +276,8 @@ Lemma body_main:  semax_body Vprog Gprog f_main main_spec.
 Proof.
 name three _three.
 start_function.
-fold _list. fold noattr. fold t_struct_list. fold (tptr t_struct_list).
+change (Tstruct _ _) with t_struct_list.
+fold noattr. fold (tptr t_struct_list).
 eapply semax_pre; [
   eapply ENTAIL_trans; [ | apply (setup_globals Delta three); auto ] | ].
  entailer!.

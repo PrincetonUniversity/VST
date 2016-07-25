@@ -1603,7 +1603,6 @@ Module ValObsEq.
     intros.
     destruct v1; inversion Hval_obs; subst;
     simpl...
-    destruct (Int.ltu ofs Int.iwordsize)...
   Qed.
 
   Lemma val_obs_suboverflow:

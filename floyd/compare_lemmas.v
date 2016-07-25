@@ -44,7 +44,7 @@ Qed.
 Definition  binary_operation_to_comparison (op: binary_operation) :=
  match op with
  | Oeq => Some (@eq Z)
- | One => Some Zne
+ | Cop.One => Some Zne
  | Olt => Some Z.lt
  | Ole => Some Z.le
  | Ogt => Some Z.gt
@@ -121,7 +121,7 @@ Qed.
 Definition  binary_operation_to_opp_comparison (op: binary_operation) :=
  match op with
  | Oeq => Some Zne
- | One => Some (@eq Z)
+ | Cop.One => Some (@eq Z)
  | Olt => Some Z.ge
  | Ole => Some Z.gt
  | Ogt => Some Z.le
@@ -199,7 +199,7 @@ Qed.
 
 Lemma typed_false_One_nullval:
  forall  {cs: compspecs}  v t t',
-   local (`(typed_false tint) (`(eval_binop One (tptr t) (tptr t')) v `nullval)) |--
+   local (`(typed_false tint) (`(eval_binop Cop.One (tptr t) (tptr t')) v `nullval)) |--
     local (`(eq nullval) v).
 Proof.
 intros. 
@@ -213,7 +213,7 @@ Qed.
 
 Lemma typed_true_One_nullval:
  forall  {cs: compspecs}  v t t',
-   local (`(typed_true tint) (`(eval_binop One (tptr t) (tptr t')) v `nullval)) |--
+   local (`(typed_true tint) (`(eval_binop Cop.One (tptr t) (tptr t')) v `nullval)) |--
    local (`(ptr_neq nullval) v).
 Proof.
 intros.

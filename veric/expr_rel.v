@@ -37,7 +37,7 @@ Inductive rel_expr' {CS: compspecs} (rho: environ) (phi: rmap): expr -> val -> P
                  rel_expr' rho phi (Ebinop op a1 a2 ty) v
  | rel_expr'_cast: forall a v1 v ty,
                  rel_expr' rho phi a v1 ->
-                 Cop.sem_cast v1 (typeof a) ty = Some v ->
+                 (forall m, Cop.sem_cast v1 (typeof a) ty m = Some v) ->
                  rel_expr' rho phi (Ecast a ty) v
  | rel_expr'_sizeof: forall t ty,
                  complete_type cenv_cs t = true ->
@@ -215,10 +215,10 @@ Proof.
 Qed.
 
 Lemma sem_cast_load_result:
- forall v1 t1 t2 v2 ch,
+ forall v1 t1 t2 v2 ch m,
   access_mode t1 = By_value ch ->
 (*  Clight.eval_expr ge ve te m e2 v1 -> *)
-   Cop.sem_cast v1 t2 t1 = Some v2 ->
+   Cop.sem_cast v1 t2 t1 m = Some v2 ->
   Val.load_result ch v2 = v2.
 Proof.
 intros.
@@ -231,6 +231,10 @@ inv H; try reflexivity;
  destruct v1; inv H0;
   try invSome;
  simpl;
+ try match goal with
+  | H: (if Mem.weak_valid_pointer ?M ?B ?X then _ else _) = _ |- _ =>
+      destruct (Mem.weak_valid_pointer M B X); inv H
+  end;
  try  rewrite Int.sign_ext_idem by omega;
  try  rewrite Int.zero_ext_idem by omega;
  try reflexivity;
@@ -299,12 +303,12 @@ apply (rel_LR'_sch _ rho phi
    try match goal with H: rel_lvalue' _ _ _ _ |- _ => solve [inv H] end.
 * (* Eunop *)
    specialize (H0 _ H7). specialize (H8 Mem.empty). congruence.
-* (* Ebinnop *)
+* (* Ebinop *)
    specialize (H0 _ H10). specialize (H2 _ H12).
    specialize (H4 Mem.empty). specialize (H14 Mem.empty).
    congruence.
 * (* Ecast *)
-   specialize (H0 _ H5). congruence.
+   specialize (H0 _ H5). specialize (H1 Mem.empty). congruence.
 *  inversion2 H H6.
    specialize (H1 _ H7).
    subst v0.   clear H0 H7.

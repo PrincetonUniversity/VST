@@ -111,14 +111,15 @@ Qed.
 *)
 
 Lemma cast_val_is_casted:
-  forall v ty ty' v', sem_cast v ty ty' = Some v' -> val_casted v' ty'.
+  forall v ty ty' v' m, sem_cast v ty ty' m = Some v' -> val_casted v' ty'.
 Proof.
   unfold sem_cast; intros. destruct ty'; simpl in *.
 * (* void *)
   constructor.
 * (* int *)
   destruct i; destruct ty as [ | | | [ | ] | | | | | ]; 
-   simpl in H; try discriminate; destruct v; inv H.
+   simpl in H; try discriminate; destruct v; inv H;
+   try now constructor.
   constructor. apply (cast_int_int_idem I8 s).
   constructor. apply (cast_int_int_idem I8 s).
   destruct (cast_single_int s f); inv H1.   constructor. apply (cast_int_int_idem I8 s).
@@ -127,24 +128,21 @@ Proof.
   constructor. apply (cast_int_int_idem I16 s).
   destruct (cast_single_int s f); inv H1.   constructor. apply (cast_int_int_idem I16 s). 
   destruct (cast_float_int s f); inv H1.   constructor. apply (cast_int_int_idem I16 s). 
-  constructor. auto.
-  constructor.
-  constructor. auto.
-   destruct (cast_single_int s f); inv H1. constructor. auto.
+  destruct (cast_single_int s f); inv H1. constructor. auto.
   destruct (cast_float_int s f); inv H1. constructor. auto.
-  constructor. auto.
-  constructor.
-  constructor; auto.
-  constructor.
-  constructor; auto.
-  constructor; auto.
   constructor. simpl. destruct (Int.eq i0 Int.zero); auto.
   constructor. simpl. destruct (Int64.eq i Int64.zero); auto.
   constructor. simpl. destruct (Float32.cmp Ceq f Float32.zero); auto.
   constructor. simpl. destruct (Float.cmp Ceq f Float.zero); auto.
   constructor. simpl. destruct (Int.eq i Int.zero); auto.
+  destruct (Mem.weak_valid_pointer m b (Int.unsigned i)); inv H1.
+    constructor. simpl. destruct (Int.eq i Int.zero); auto.
   constructor. simpl. destruct (Int.eq i Int.zero); auto.
+  destruct (Mem.weak_valid_pointer m b (Int.unsigned i)); inv H1.
+    constructor. simpl. destruct (Int.eq i Int.zero); auto.
   constructor. simpl. destruct (Int.eq i Int.zero); auto.
+  destruct (Mem.weak_valid_pointer m b (Int.unsigned i)); inv H1.
+    constructor. simpl. destruct (Int.eq i Int.zero); auto.
 * (* long *)
   destruct ty as [ | | | [ | ] | | | | | ]; try discriminate.
   destruct v; inv H. constructor.
@@ -198,7 +196,7 @@ Proof.
 Qed.
 
 Lemma cast_val_casted:
-  forall v ty, val_casted v ty -> sem_cast v ty ty = Some v.
+  forall v ty m, val_casted v ty -> sem_cast v ty ty m = Some v.
 Proof.
   intros. inversion H; clear H; subst v ty; unfold sem_cast; simpl; auto.
   destruct sz; congruence.
@@ -459,6 +457,24 @@ destruct vl. intros; contradiction. intros [H H2]. simpl.
 destruct a; try solve[split; auto].
 destruct v; simpl; auto.
 Qed.
+
+(* decode_longs copied from CompCert2.6/common/Events.v;
+   no longer present in CompCert 2.7; don't know why. -- Andrew *)
+Fixpoint decode_longs (tyl: list typ) (vl: list val) : list val :=
+  match tyl with
+  | nil => nil
+  | AST.Tlong :: tys =>
+      match vl with
+      | v1 :: v2 :: vs => Val.longofwords v1 v2 :: decode_longs tys vs
+      | _ => nil
+      end
+  | ty :: tys =>
+      match vl with
+      | v1 :: vs => v1 :: decode_longs tys vs
+      | _ => nil
+      end
+  end.
+
 
 Lemma decode_encode_longs tyl vl : 
   Val.has_type_list vl tyl -> 

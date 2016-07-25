@@ -397,8 +397,9 @@ Lemma RGTgt_multicoreNOEFFECTS: forall mu m2 m2' (WD: SM_wd mu)
                 (exists b1 d, foreign_of mu b1 = Some(b2,d)) \/
                 (~ exists b1 d, foreign_of mu b1=Some (b2,d))),
             Mem.unchanged_on (local_out_of_reach nu m1) m2 m2'.
-Proof. intros. 
-split; intros b2; intros.
+Proof. intros.
+split; [ | intros b2; intros..].
+apply TgtHyp1.
 (*permissions*)
   destruct H.
   destruct (X1 _ H); clear X1.

@@ -464,8 +464,9 @@ Goal forall mu m1 m2 m2' (WD:SM_wd mu)
                   loc_out_of_reach (pub_of mu) m1 b ofs) m2 m2'),
 Mem.unchanged_on (local_out_of_reach mu m1) m2 m2'.
 intros.
-destruct U1 as [P1 C1]. destruct U2 as [P2 C2].
+destruct U1 as [L1 P1 C1]. destruct U2 as [L2 P2 C2].
 split; intros.
+  auto.
   clear C1 C2.
   specialize (P1 b ofs k p). specialize (P2 b ofs k p).
   remember (locBlocksTgt mu b) as d.
@@ -1798,7 +1799,7 @@ Proof.
     specialize (IHL _ H1 n1); clear H1.
       apply (Mem.perm_alloc_4 _ _ _ _ _ ALLOC) in H2; trivial. 
       destruct (Mem.alloc_unchanged_on (fun bb zz => True)
-         _ _ _ _ _ ALLOC) as [UP UC].
+         _ _ _ _ _ ALLOC) as [UL UP UC].
       rewrite UC in H4; trivial. 
         eapply REACH_cons; eassumption. 
 Qed.
@@ -2010,9 +2011,9 @@ remember (Genv.alloc_global (Genv.add_globals (Genv.add_global g a) defs) m0 a) 
      unfold Genv.find_symbol, Genv.genv_symb. simpl.
      rewrite PTree.gss. rewrite N. trivial. 
 simpl in *. 
-  remember (Mem.alloc m0 0 (Genv.init_data_list_size (gvar_init v))) as t.
+  remember (Mem.alloc m0 0 (init_data_list_size (gvar_init v))) as t.
   destruct t; inv Heqd. apply eq_sym in Heqt.
-  remember (store_zeros m2 b0 0 (Genv.init_data_list_size (gvar_init v))) as q.
+  remember (store_zeros m2 b0 0 (init_data_list_size (gvar_init v))) as q.
   destruct q; inv H1. apply eq_sym in Heqq.
   remember (Genv.store_init_data_list
          (Genv.add_globals (Genv.add_global g (i, Gvar v)) defs) m3 b0 0

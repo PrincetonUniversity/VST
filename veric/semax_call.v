@@ -597,7 +597,7 @@ generalize dependent bl. generalize dependent te'.
           (Cop.sem_cast
              (eval_expr e
                 (mkEnviron (filter_genv psi) (make_venv vx) (make_tenv tx)))
-             (typeof e) ty)).
+             (typeof e) ty (m_dry jm))).
         split. rewrite cop2_sem_cast. auto.
         right. rewrite cop2_sem_cast. eapply typecheck_val_sem_cast; eauto.
       - inv Heqp. destruct bl. inv TC2. inv H17. simpl in TC2.

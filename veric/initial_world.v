@@ -54,7 +54,7 @@ Lemma store_init_data_outside':
   forall F V (ge: Genv.t F V)  b a m p m',
   Genv.store_init_data ge m b p a = Some m' ->
   (forall b' ofs,
-    (b=b' /\ p <= ofs < p + Genv.init_data_size a) \/
+    (b=b' /\ p <= ofs < p + init_data_size a) \/
      contents_at m (b', ofs) = contents_at m' (b', ofs))
   /\ access_at m = access_at m'
   /\ max_access_at m = max_access_at m'
@@ -76,7 +76,7 @@ Lemma store_init_data_list_outside':
   forall F V (ge: Genv.t F V)  b il m p m',
   Genv.store_init_data_list ge m b p il = Some m' ->
   (forall b' ofs,
-    (b=b' /\ p <= ofs < p + Genv.init_data_list_size il) \/
+    (b=b' /\ p <= ofs < p + init_data_list_size il) \/
      contents_at m (b', ofs) = contents_at m' (b', ofs))
   /\ access_at m = access_at m'
   /\ max_access_at m = max_access_at m'
@@ -88,13 +88,13 @@ Proof.
   specialize (IHil _ _ _ H2).
   destruct IHil as [? [? [H1' ?]]].
   rewrite <- H3; rewrite <- H1; rewrite <- H1'; clear H3 H1 H1' H2. 
-  remember (Genv.init_data_list_size il) as n.
+  remember (init_data_list_size il) as n.
   assert (n >= 0).
   subst n; clear; induction il; simpl; try omega.
-  generalize (Genv.init_data_size_pos a); omega.
+  generalize (init_data_size_pos a); omega.
   clear il Heqn.
   apply store_init_data_outside' in H.
-  generalize (Genv.init_data_size_pos a); intro.
+  generalize (init_data_size_pos a); intro.
   destruct H as [? [? [Hma ?]]]; repeat split; auto.
   clear H3 H4.
   intros. specialize (H0 b' ofs); specialize (H b' ofs).
@@ -131,16 +131,16 @@ Lemma store_init_data_list_lem:
         Genv.store_init_data_list ge m b lo d = Some m' ->
     (* b > 0 -> *)
     forall w IOK IOK' P rsh,
-     ((P * VALspec_range (Genv.init_data_list_size d) rsh Share.top (b,lo))%pred
+     ((P * VALspec_range (init_data_list_size d) rsh Share.top (b,lo))%pred
              (m_phi (initial_mem m w IOK))) ->
-     ((P * VALspec_range (Genv.init_data_list_size d) rsh Share.top (b,lo))%pred
+     ((P * VALspec_range (init_data_list_size d) rsh Share.top (b,lo))%pred
               (m_phi (initial_mem m' w IOK'))).
 Proof.
 intros until 1. (* intro Hb;*) intros.
 destruct H0 as [m0 [m1 [H4 [H1 H2]]]].
 cut (exists m2, 
          join m0 m2 (m_phi (initial_mem m' w IOK')) /\
-         VALspec_range (Genv.init_data_list_size d) rsh Share.top (b,lo) m2); 
+         VALspec_range (init_data_list_size d) rsh Share.top (b,lo) m2); 
   [intros [m2 [H0 H3]] | ].
 exists m0; exists m2; split3; auto.
 rename H2 into H3.
@@ -155,7 +155,7 @@ assert (MA: max_access_at m = max_access_at m').
  inv H; auto. 
  invSome. apply store_access in H2;  unfold max_access_at; rewrite H2; auto.
 apply store_init_data_list_outside' in H.
-forget (Genv.init_data_list_size d) as N.
+forget (init_data_list_size d) as N.
 clear - H4  H3 (*Hb*) H MA.
 pose (f loc :=
    if adr_range_dec (b,lo) N loc
@@ -381,7 +381,7 @@ f_equal; extensionality x y; auto.
 Qed.
 
 Definition initblocksize (V: Type)  (a: ident * globvar V)  : (ident * Z) :=
- match a with (id,l) => (id , Genv.init_data_list_size (gvar_init l)) end.
+ match a with (id,l) => (id , init_data_list_size (gvar_init l)) end.
 
 Lemma initblocksize_name: forall V a id n, initblocksize V a = (id,n) -> fst a = id.
 Proof. destruct a; intros; simpl; inv H; auto.  Qed.
@@ -966,7 +966,7 @@ intros.
 unfold Genv.globalenv in H0.
 change (AST.prog_public prog) with (prog_public prog) in H0.
 change (AST.prog_defs prog) with (prog_defs prog) in H0.
-assert (RANGE: 0 <= Z.pos b - 1 < Zlength (rev (prog_defs prog))).
+assert (RANGE: 0 <= Z.pos b - 1 < Zlength (rev (prog_defs prog))). {
  rewrite <- (rev_involutive (prog_defs prog)) in H0.
  clear - H0.
  revert H0; induction (rev (prog_defs prog));  simpl Genv.find_symbol; intros.
@@ -985,29 +985,31 @@ assert (RANGE: 0 <= Z.pos b - 1 < Zlength (rev (prog_defs prog))).
  Opaque Z.sub. simpl. Transparent Z.sub.
  rewrite Genv.add_globals_app.
    simpl Genv.genv_next.
- forget (Genv.genv_next
-           (Genv.add_globals (Genv.empty_genv fundef type (prog_public prog)) (rev l))) as j.
- clear - IHl. replace (Z.pos (Pos.succ j) - 1) with (Z.succ (Z.pos j - 1)). omega.
+ match goal with |- context [Pos.succ ?J] => 
+  forget J as j 
+ end.
+ clear - IHl.
+ replace (Z.pos (Pos.succ j) - 1) with (Z.succ (Z.pos j - 1)). omega.
   unfold Z.succ.  rewrite Pos2Z.inj_succ.  omega.
  unfold Genv.add_global, Genv.find_symbol in IHl, H0. simpl in H0.
  rewrite PTree.gso in H0 by auto.
  apply IHl in H0.
  rewrite Zlength_cons. omega.
- (* end assert RANGE *)
+ }
  split.
  rewrite Zlength_correct in RANGE.
  rewrite rev_length in RANGE. omega.
- rewrite <- Clight_lemmas.list_norepet_rev in H. unfold prog_defs_names in H.
+ rewrite <- Clight_lemmas.list_norepet_rev in H.
+ unfold prog_defs_names in H.
  change (AST.prog_defs prog) with (prog_defs prog) in H.
-rewrite <- map_rev in H.
-rewrite add_globals_hack in H0; [ | apply H | rewrite rev_involutive; auto | auto ].
-rewrite map_rev in H0.
+ rewrite <- map_rev in H.
+ rewrite add_globals_hack in H0; [ | apply H | rewrite rev_involutive; auto | auto ].
+ rewrite map_rev in H0.
  rewrite nth_error_rev in H0.
  rewrite list_map_nth in H0.
- revert H0; 
- case_eq  (nth_error (prog_defs prog)
-          (length (map fst (prog_defs prog)) -
-           (length (rev (prog_defs prog)) - Pos.to_nat b) - 1)); intros.
+ match type of H0 with option_map _ ?A = _ =>
+   revert H0; case_eq A; intros
+ end.
  destruct p; simpl in H1. inv H1.
  exists g.
  rewrite <- H0. f_equal.
@@ -1173,7 +1175,7 @@ Proof.
  inv H; simpl in *.
  rewrite PMap.gss. repeat rewrite (PMap.gso _ _ NEQ). auto.
 
- forget (Genv.init_data_list_size (gvar_init v)) as N.
+ forget (init_data_list_size (gvar_init v)) as N.
  revert H; case_eq (alloc m 0 N); intros.
  invSome. invSome.
   Transparent alloc. unfold alloc in H. Opaque alloc.
@@ -1218,7 +1220,8 @@ rewrite resource_at_make_rmap.
 unfold initial_core'.
 simpl in *.
 if_tac; [ | rewrite core_NO; auto].
-case_eq (Genv.invert_symbol (Genv.globalenv prog) b); intros;  [ | rewrite core_NO; auto].
+case_eq (@Genv.invert_symbol fundef _ (Genv.globalenv prog) b);
+   intros;  try now (rewrite core_NO; auto).
 case_eq (find_id i G); intros; [ | rewrite core_NO; auto].
 apply Genv.invert_find_symbol in H2.
 pose proof (Genv.find_symbol_not_fresh _ _ Hm H2).
