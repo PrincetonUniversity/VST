@@ -1704,7 +1704,7 @@ Section Simulation.
     intros e x b tl vl z m1 m2 E.
     
     unfold Jspec' in *.
-    destruct e as [name sg | | | | | | | | | | ].
+    destruct e as [name sg | | | | | | | | | | | ].
     all: try (exfalso; simpl in x; do 2 (if_tac in x; [ discriminate | ]); apply x).
     
     (* dependent destruction *)
@@ -1755,7 +1755,7 @@ Section Simulation.
     intros e x b tl vl z m1 m2 A.
     
     unfold Jspec' in *.
-    destruct e as [name sg | | | | | | | | | | ].
+    destruct e as [name sg | | | | | | | | | | | ].
     all: try (exfalso; simpl in x; do 2 (if_tac in x; [ discriminate | ]); apply x).
     
     (* dependent destruction *)
