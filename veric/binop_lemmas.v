@@ -83,6 +83,18 @@ intros.
 hnf in H. destruct (Int.ltu i j); auto; contradiction.
 Qed.
 
+Lemma denote_tc_iszero_long_e:
+ forall m i, 
+  app_pred (denote_tc_iszero (Vlong i)) m ->
+  Int.eq (Int.repr (Int64.unsigned i)) Int.zero = true.
+Proof.
+intros.
+hnf in H.
+destruct (Int.eq (Int.repr (Int64.unsigned i)) Int.zero);
+  auto; contradiction.
+Qed.
+
+(*
 Lemma sem_cmp_pp_ip:
   forall m i b j, 
    app_pred (denote_tc_iszero (Vint i)) m ->
@@ -93,17 +105,6 @@ hnf in H.
 unfold sem_cmp_pp.
 simpl.
 destruct (Int.eq i Int.zero); try contradiction; reflexivity.
-Qed.
-
-Lemma denote_tc_iszero_long_e:
- forall m i, 
-  app_pred (denote_tc_iszero (Vlong i)) m ->
-  Int.eq (Int.repr (Int64.unsigned i)) Int.zero = true.
-Proof.
-intros.
-hnf in H.
-destruct (Int.eq (Int.repr (Int64.unsigned i)) Int.zero);
-  auto; contradiction.
 Qed.
 
 Lemma sem_cmp_pp_pi:
@@ -141,6 +142,7 @@ unfold sem_cmp_pp.
 simpl.
 destruct (Int.eq i Int.zero); try contradiction; reflexivity.
 Qed.
+*)
 
 Lemma sem_cmp_pp_pp:
   forall b i b0 i0 ii ss aa,
@@ -224,16 +226,8 @@ subst i. rewrite Int.eq_true.
  destruct ii,ss; simpl; reflexivity.
 Qed.
 
-Lemma tc_bool_contradiction:
-  forall  {CS: compspecs}  m rho a,
-     (denote_tc_assert (tc_bool false a) rho) m -> False.
-Proof.
-intros.
- apply tc_bool_e in H. inv H.
-Qed.
-
 Lemma typecheck_binop_sound:
-forall op {CS: compspecs} (Delta : tycontext) (rho : environ) m (e1 e2 : expr) (t : type)
+forall op {CS: compspecs} (rho : environ) m (e1 e2 : expr) (t : type)
    (IBR: denote_tc_assert (isBinOpResultType op e1 e2 t) rho m)
    (TV2: typecheck_val (eval_expr e2 rho) (typeof e2) = true)
    (TV1: typecheck_val (eval_expr e1 rho) (typeof e1) = true),
@@ -241,19 +235,20 @@ forall op {CS: compspecs} (Delta : tycontext) (rho : environ) m (e1 e2 : expr) (
      (eval_binop op (typeof e1) (typeof e2) (eval_expr e1 rho)
         (eval_expr e2 rho)) t = true.
 Proof.
-Time
-intros; 
+Time (* reduced from 548.6 sec to 192 sec *)
 destruct op;
- try abstract ( 
+try abstract ( 
+  intros; 
   rewrite den_isBinOpR in IBR; simpl in IBR;
  unfold binarithType in IBR; 
  destruct (typeof e1) as [ | [ | | | ] [ | ] ? | [ | ] ? | [ | ] ? | | | | | ] eqn:TE1;
  try contradiction IBR;
  destruct (typeof e2) as [ | [ | | | ] [ | ] ? | [ | ] ? | [ | ] ? | | | | | ] eqn:TE2;
- simpl in IBR; try contradiction IBR;
+ simpl in IBR;
  rewrite ?TE1, ?TE2 in IBR; simpl in IBR; clear TE1 TE2;
  match type of IBR with context [@liftx] => unfold_lift in IBR | _ => idtac end;
- try simple apply tc_bool_e in IBR; try discriminate IBR;
+ try contradiction IBR; 
+ try simple apply tc_bool_e in IBR;  try discriminate IBR; 
  destruct (eval_expr e1 rho); try discriminate TV1; clear TV1;
  destruct (eval_expr e2 rho); try discriminate TV2; clear TV2;
  clear - IBR;
@@ -270,10 +265,6 @@ destruct op;
                 try (simple apply denote_tc_nodivover_e in H; try rewrite H);
                 try (simple apply tc_bool_e in H; try discriminate H));
     try simple apply eq_refl;
-    try rewrite Int64_eq_repr_signed32_nonzero by assumption;
-    try rewrite Int64_eq_repr_unsigned32_nonzero by assumption;
-    try rewrite (denote_tc_igt_e m) by assumption;
-    try rewrite (denote_tc_iszero_long_e m) by assumption;
     try simple apply typecheck_val_of_bool;
     try simple apply sem_cmp_pp_pp;
     try simple apply sem_cmp_pp_pp';
@@ -281,24 +272,12 @@ destruct op;
     try (simple apply sem_cmp_pp_ppx'; assumption);
     try (simple apply sem_cmp_pp_ppy; assumption);
     try (simple apply sem_cmp_pp_ppy'; assumption);
-    try reflexivity
+    try (rewrite Int64_eq_repr_signed32_nonzero by assumption; reflexivity);
+    try (rewrite Int64_eq_repr_unsigned32_nonzero by assumption; reflexivity);
+    try (rewrite (denote_tc_igt_e m) by assumption; reflexivity);
+    try (rewrite (denote_tc_iszero_long_e m) by assumption; reflexivity)
 ).
-
-
-Time Qed.
-
-(* Timings:
-The old way: 548.641 secs (176.375u,0.062s) for the 16 "abstract"s, then 24.546 secs for Qed.
- 643,084 working set
-
-Currently : 473.437 sec
-Currently : 439.671
-Currently: 395.296
-Currently:  205.437 seconds
-
-
-
-*)
+Time Qed. (* 24.5 sec *)
 
 
 

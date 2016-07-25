@@ -156,35 +156,6 @@ Definition denote_tc_initialized id ty rho : mpred :=
 Definition denote_tc_isptr v : mpred :=
   prop (isptr v).
 
-(*
-
-Definition cmpu_bool (c: comparison) (v1 v2: val): option bool :=
-  match v1, v2 with
-  | Vint n1, Vint n2 =>
-      Some (Int.cmpu c n1 n2)
-  | Vint n1, Vptr b2 ofs2 =>
-      if Int.eq n1 Int.zero && weak_valid_ptr b2 (Int.unsigned ofs2)
-      then cmp_different_blocks c
-      else None
-  | Vptr b1 ofs1, Vptr b2 ofs2 =>
-      if eq_block b1 b2 then
-        if weak_valid_ptr b1 (Int.unsigned ofs1)
-           && weak_valid_ptr b2 (Int.unsigned ofs2)
-        then Some (Int.cmpu c ofs1 ofs2)
-        else None
-      else
-        if valid_ptr b1 (Int.unsigned ofs1)
-           && valid_ptr b2 (Int.unsigned ofs2)
-        then cmp_different_blocks c
-        else None
-  | Vptr b1 ofs1, Vint n2 =>
-      if Int.eq n2 Int.zero && weak_valid_ptr b1 (Int.unsigned ofs1)
-      then cmp_different_blocks c
-      else None
-  | _, _ => None
-  end.
-*)
-
 Definition comparable_ptrs v1 v2 : mpred :=
   if sameblock v1 v2
   then (andp (weak_valid_pointer v1) (weak_valid_pointer v2))
@@ -241,14 +212,6 @@ Lemma False_and: forall x, (False /\ x) = False.
 Proof.
 intros; apply prop_ext; intuition.
 Qed.
-
-(*
-Lemma typecheck_error_False:
-  forall msg, typecheck_error msg <-> False.
-Proof.
-split; intro; inv H.
-Qed.
-*)
 
 Lemma tc_andp_sound : forall {CS: compspecs} a1 a2 rho m, 
     denote_tc_assert  (tc_andp a1 a2) rho m <->  

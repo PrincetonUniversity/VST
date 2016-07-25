@@ -313,51 +313,20 @@ specialize (H2 H1).
 simpl eval_expr.
 unfold_lift.
 clear - H2 H0.
-(*assert (TV: forall b i s a, typecheck_val (Val.of_bool b) (Tint i s a) = true)
-  by (destruct b, i, s; reflexivity).
-*)
 unfold eval_unop, sem_unary_operation, force_val1.
-destruct u; simpl in *.
-* (* notbool case *) 
-unfold sem_notbool in *.
-super_unfold_lift; unfold eval_unop; simpl; unfold sem_notbool; simpl.
+destruct u; simpl in *;
+unfold sem_notbool, sem_notint, sem_neg, sem_absfloat in *;
+super_unfold_lift; simpl;
 destruct (typeof e) as [ | [ | | | ] [ | ] | | [ | ] | | | | | ];
  simpl in *; try contradiction;
- simpl;
  try (rewrite denote_tc_assert_andp in H0; destruct H0 as [H0 H0']);
  try contradiction H0;
- apply tc_bool_e in H0;
- destruct (eval_expr e rho) eqn:?; try solve [inv H2];
+ simple apply tc_bool_e in H0; try discriminate H0;
+ destruct (eval_expr e rho) eqn:?; try discriminate H2;
  try solve [apply typecheck_val_of_bool_int_type; auto];
  unfold sem_notbool_p; simpl force_val; try reflexivity;
  destruct t as [ | [ | | | ] [ | ] | | [ | ] | | | | | ]; inv H0;
-  try reflexivity.
-* (* notint case *)
-super_unfold_lift; unfold eval_unop; simpl; unfold sem_notint; simpl.
-destruct (typeof e) as [ | [ | | | ] [ | ] | | [ | ] | | | | | ];
-  try contradiction;
-  apply tc_bool_e in H0;
-   destruct (eval_expr e rho);
-   inversion H2; simpl; auto;
- destruct t  as [ | [ | | | ] [ | ] | | [ | ] | | | | | ];
-     inv H0; auto.
-* (* neg case *)
-super_unfold_lift; unfold eval_unop; simpl; unfold sem_neg; simpl.
-destruct (typeof e) as [ | [ | | | ] [ | ] | | [ | ] | | | | | ];
- try contradiction;
-  apply tc_bool_e in H0;
-   destruct (eval_expr e rho);
-   inversion H2; simpl; auto;
- destruct t  as [ | [ | | | ] [ | ] | | [ | ] | | | | | ];
-     inv H0; auto.
-* (* absfloat case *)
-super_unfold_lift; unfold eval_unop; simpl; unfold sem_absfloat; simpl.
- destruct (typeof e)as [ | [ | | | ] [ | ] | | [ | ] | | | | | ]; 
-   try contradiction; simpl;
-   apply tc_bool_e in H0; 
-   destruct t  as [ | | | [ | ] | | | | | ];  
-   inv H0;
-  destruct (eval_expr e rho); inv H2; simpl; auto.
+ try reflexivity.
 Qed.
 
 Lemma same_base_tc_val : forall v t1 t2,

@@ -50,38 +50,6 @@ match v with
       | _ => None
       end.
 
-(*
-Definition sem_cast_f2f (sz2: floatsize) (v : val) : option val :=
-match v with
-      | Vfloat f => Some (Vfloat (Cop.cast_float_float sz2 f))
-      | _ => None
-      end.
-
-Definition sem_cast_i2f si1 sz2 (v : val) : option val :=
-      match v with
-      | Vint i => Some (Vfloat (Cop.cast_int_float si1 sz2 i))
-      | _ => None
-      end.
-
-
-Definition sem_cast_f2i sz2 si2 (v : val) : option val :=
-match v with
-      | Vfloat f =>
-          match Cop.cast_float_int si2 f with
-          | Some i => Some (Vint (Cop.cast_int_int sz2 si2 i))
-          | None => None
-          end
-      | _ => None
-      end.
-
-Definition sem_cast_f2bool (v : val) : option val :=
-  match v with
-    | Vfloat f =>
-      Some(Vint(if Float.cmp Ceq f Float.zero then Int.zero else Int.one))
-    | _ => None
-  end.
-*)
-
 Definition sem_cast_p2bool (v : val) : option val :=
  match v with
       | Vint i => Some (Vint (Cop.cast_int_int IBool Signed i))
@@ -113,24 +81,6 @@ Definition sem_cast_l2bool (v : val) : option val :=
           Some(Vint(if Int64.eq n Int64.zero then Int.zero else Int.one))
       | _ => None
       end.
-
-(*
-Definition sem_cast_l2f si1 sz2 (v : val) : option val :=
- match v with
-      | Vlong i => Some (Vfloat (Cop.cast_long_float si1 sz2 i))
-      | _ => None
-      end.
-
-Definition sem_cast_f2l si2 (v : val) : option val :=
- match v with
-      | Vfloat f =>
-          match Cop.cast_float_long si2 f with
-          | Some i => Some (Vlong i)
-          | None => None
-          end
-      | _ => None
-      end.
-*)
 
 Definition sem_cast_struct id1 id2 (v : val) : option val :=
 match v with
