@@ -177,9 +177,14 @@ Qed.
 Definition threads_safety {Z} (Jspec : juicy_ext_spec Z) m ge tp PHI (mcompat : mem_compatible_with tp m PHI) n :=
   forall i (cnti : Machine.containsThread tp i) (ora : Z),
     match Machine.getThreadC cnti with
-    | Krun q
-    | Kblocked q
-    | Kresume q _ => semax.jsafeN Jspec ge n ora q (jm_ cnti mcompat)
+    | Krun c
+    | Kblocked c => semax.jsafeN Jspec ge n ora c (jm_ cnti mcompat)
+    | Kresume c v =>
+      forall c',
+        (* [v] is not used here. The problem is probably coming from
+           the definition of JuicyMachine.resume_thread'. *)
+        cl_after_external (Some (Vint Int.zero)) c = Some c' ->
+        semax.jsafeN Jspec ge n ora c' (jm_ cnti mcompat)
     | Kinit _ _ => Logic.True
     end.
 
@@ -234,7 +239,8 @@ Proof.
   - inversion mcompat as [A B C D E]; constructor.
     clear -lev A. *)
   intros i cnti ora; specialize (safety i cnti ora).
-  destruct (ThreadPool.getThreadC cnti); auto; apply safe_downward1, safety.
+  destruct (ThreadPool.getThreadC cnti); auto; try apply safe_downward1, safety.
+  intros c' E. apply safe_downward1, safety, E.
 Qed.
 
 Lemma state_invariant_sch_irr {Z} (Jspec : juicy_ext_spec Z) Gamma n m ge i sch sch' tp :
@@ -3183,7 +3189,8 @@ unique: ok *)
         eassert.
         * eapply safety; eauto.
         * destruct (ThreadPool.getThreadC cnti0) as [c|c|c v|v1 v2] eqn:Ec; auto;
-            intros Safe; try split; try eapply safe_downward1, Safe; intuition.
+            intros Safe; try split; try eapply safe_downward1, Safe.
+          intros c' E. eapply safe_downward1, Safe, E.
       + (* invariant about "only one Krun and it is scheduled": the
           bad schedule case is not possible *)
         intros H0 i0 cnti q ora H1.
@@ -3380,8 +3387,9 @@ unique: ok *)
                  ++ apply safe_downward1, safety.
                  ++ intros; apply ThreadPool.gThreadCR.
               -- unfold jm_ in *.
+                 intros c' E.
                  erewrite personal_mem_ext.
-                 ++ apply safe_downward1, safety.
+                 ++ apply safe_downward1, safety, E.
                  ++ intros; apply ThreadPool.gThreadCR.
               -- constructor.
           
@@ -3506,23 +3514,19 @@ unique: ok *)
           specialize (safety i cnti ora).
           rewrite Eci in safety.
           simpl.
-          simpl in safety.
           apply safe_downward1.
           change (jsafeN Jspec' ge (S n) ora c' (jm_ cnti0' compat')).
+          getThread_inv. injection H as -> -> .
+          specialize (safety c').
+          unfold SEM.Sem in *.
+          rewrite SEM.CLN_msem in *.
+          specialize (safety ltac:(eauto)).
           exact_eq safety.
           f_equal.
-          -- getThread_inv.
-             unfold SEM.Sem in *.
-             rewrite SEM.CLN_msem in *.
-             simpl in Hafter_external.
-             admit
-             (* TODO : change invariant or proof
-                because safety at this point should be about c', not c. *).
-             
-          -- unfold jm_ in *.
-             apply personal_mem_ext.
-             intros i0 cnti0 cnti'.
-             unshelve erewrite gThreadCR; auto.
+          unfold jm_ in *.
+          apply personal_mem_ext.
+          intros i0 cnti0 cnti'.
+          unshelve erewrite gThreadCR; auto.
         * assert (cnti0 : ThreadPool.containsThread tp i0) by auto.
           rewrite <- (@ThreadPool.gsoThreadCC _ _ tp ii0 ctn cnti0).
           specialize (safety i0 cnti0 ora).
@@ -3538,7 +3542,7 @@ unique: ok *)
              ++ intros; apply ThreadPool.gThreadCR.
           -- unfold jm_ in *.
              erewrite personal_mem_ext.
-             ++ apply safe_downward1, safety.
+             ++ intros c'' E; apply safe_downward1, safety, E.
              ++ intros; apply ThreadPool.gThreadCR.
           -- constructor.
       
