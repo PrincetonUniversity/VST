@@ -98,7 +98,7 @@ clear H4. clear H2. clear H.
 simpl in H0.
 repeat rewrite denote_tc_assert_andp in H0.
 destruct H0 as [[H0 E1] E2].
-apply (typecheck_binop_sound b Delta rho m e1 e2 t H0 (H3 E2) (H1 E1)).
+apply (typecheck_binop_sound b rho m e1 e2 t H0 (H3 E2) (H1 E1)).
 
 * (* cast *)
 eapply typecheck_cast_sound; eauto.
