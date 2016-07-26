@@ -43,7 +43,7 @@ Definition sha_update_loop_body :=
 
 Definition update_outer_if :=
      Sifthenelse
-        (Ebinop One (Etempvar _n tuint) (Econst_int (Int.repr 0) tint) tint)
+        (Ebinop Cop.One (Etempvar _n tuint) (Econst_int (Int.repr 0) tint) tint)
         (Ssequence
            (Sset _fragment
               (Ebinop Osub

@@ -384,10 +384,8 @@ clean_cvfiles:
 	rm $(CVFILES)
 
 ifdef CLIGHTGEN
-sha/hmac.v: sha/hmac.c
-	$(CLIGHTGEN) ${CGFLAGS} $<
-sha/sha.v: sha/sha.c
-	$(CLIGHTGEN) ${CGFLAGS} $<
+sha/sha.v sha/hmac.v: sha/sha.c sha/hmac.c
+	$(CLIGHTGEN) ${CGFLAGS} sha/sha.c sha/hmac.c
 # Is there a way to generate the next 5 rules automatically from C_FILES? 
 progs/revarray.v: progs/revarray.c
 	$(CLIGHTGEN) ${CGFLAGS} $<

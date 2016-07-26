@@ -10,7 +10,7 @@ Local Open Scope Z.
 Local Open Scope logic.
 
 Definition update_last_if :=
-  (Sifthenelse (Ebinop One (Etempvar _len tuint)
+  (Sifthenelse (Ebinop Cop.One (Etempvar _len tuint)
                                (Econst_int (Int.repr 0) tint) tint)
                   (Scall None
                     (Evar _memcpy (Tfunction

@@ -428,7 +428,7 @@ Lemma hmac_init_part1: forall
    data_at_ Tsh (tarray tuchar 64) (Vptr ckb ckoff); K_vector kv;
    initPre c k h1 l key))
   (Sifthenelse
-     (Ebinop One (Etempvar _key (tptr tuchar))
+     (Ebinop Cop.One (Etempvar _key (tptr tuchar))
         (Ecast (Econst_int (Int.repr 0) tint) (tptr tvoid)) tint)
      (Ssequence (Sset _reset (Econst_int (Int.repr 1) tint))
         (Ssequence (Sset _j (Econst_int (Int.repr 64) tint))
