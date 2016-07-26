@@ -3302,8 +3302,27 @@ unique: ok *)
       
       (* thread[i] is running and about to call an external: Krun (at_ex c) -> Kblocked c *)
       {
-(* PRESERVATION
-        - (* maintaining the invariant *)
+        inversion jmstep; subst; try inversion HschedN; subst tid;
+          unfold ThreadPool.containsThread, is_true in *;
+          try congruence.
+        
+        - (* not in Kinit *)
+          jmstep_inv. getThread_inv. congruence.
+        
+        - (* not in Kresume *)
+          jmstep_inv. getThread_inv. congruence.
+        
+        - (* not a corestep *)
+          jmstep_inv. getThread_inv. injection H as <-.
+          pose proof corestep_not_at_external _ _ _ _ _ _ Hcorestep.
+          rewrite Ejuicy_sem in *.
+          discriminate.
+        
+        - (* we are at an at_ex now *)
+          jmstep_inv. getThread_inv.
+          injection H as <-.
+          rename m' into m.
+          
           match goal with |- _ _ (_, _, (_, ?tp)) => set (tp' := tp) end.
           assert (compat' : mem_compatible_with tp' m Phi).
           {
@@ -3315,15 +3334,20 @@ unique: ok *)
             - apply MC.
             - intros b o H.
               apply (LW b o H).
-            (* - intros l sh psh P z H. *)
-            (*   apply (LW l sh psh P z H). *)
             - apply LC.
             - apply LJ.
           }
+          
           apply state_invariant_c with (PHI := Phi) (mcompat := compat').
+          + (* matchfunspec *)
+            assumption.
           
           + (* lock coherence *)
-            eauto.
+            unfold lock_coherence' in *.
+            exact_eq lock_coh.
+            f_equal.
+            f_equal.
+            apply proof_irr.
           
           + (* safety (same, except one thing is Kblocked instead of Krun) *)
             intros i0 cnti0' ora.
@@ -3343,7 +3367,7 @@ unique: ok *)
                  apply ThreadPool.gThreadCR.
             * assert (cnti0 : ThreadPool.containsThread tp i0) by auto.
               unfold tp'.
-              rewrite <- (@ThreadPool.gsoThreadCC _ _ tp ii0 cnti cnti0).
+              rewrite <- (@ThreadPool.gsoThreadCC _ _ tp ii0 ctn cnti0).
               specialize (safety i0 cnti0 ora).
               clear -safety.
               destruct (@ThreadPool.getThreadC i0 tp cnti0).
@@ -3371,7 +3395,7 @@ unique: ok *)
               congruence.
             * assert (cnti0 : ThreadPool.containsThread tp i0) by auto.
               unfold tp'.
-              rewrite <- (@ThreadPool.gsoThreadCC _ _ tp ii0 cnti cnti0).
+              rewrite <- (@ThreadPool.gsoThreadCC _ _ tp ii0 ctn cnti0).
               specialize (wellformed i0 cnti0).
               destruct (@ThreadPool.getThreadC i0 tp cnti0).
               -- constructor.
@@ -3390,410 +3414,167 @@ unique: ok *)
             * assert (cnti0 : ThreadPool.containsThread tp i0) by auto.
               unfold tp' in Eci0.
               clear safety wellformed.
-              rewrite <- (@ThreadPool.gsoThreadCC _ _ tp ii0 cnti cnti0) in Eci0.
+              rewrite <- (@gsoThreadCC _ _ tp ii0 ctn cnti0) in Eci0.
               destruct (unique notalone i cnti _ ora Eci).
               destruct (unique notalone i0 cnti0 q ora Eci0).
               congruence.
-*)
-admit.
+        
+        - (* not in Kblocked *)
+          jmstep_inv.
+          all: getThread_inv.
+          all: congruence.
+          
+        - (* not halted *)
+          jmstep_inv. getThread_inv.
+          injection H as <-.
+          erewrite at_external_not_halted in Hcant. discriminate.
+          unfold SEM.Sem in *.
+          rewrite SEM.CLN_msem.
+          simpl.
+          congruence.
       } (* end of Krun (at_ex c) -> Kblocked c *)
     } (* end of Krun *)
     
-    (* thread[i] is in Kblocked *)
-    {
-      (* goes to Kresume ci' according to the rules of syncStep  *)
+    (*thread[i] is in Kblocked *)
+    { (* only one possible jmstep, in fact divided into 6 sync steps *)
+      inversion jmstep; try inversion HschedN; subst tid;
+        unfold ThreadPool.containsThread, is_true in *;
+        try congruence; try subst;
+        try solve [jmstep_inv; getThread_inv; congruence].
       
-      destruct ci as [ve te k | ef sig args lid ve te k] eqn:Heqc.
+      simpl SCH.schedSkip in *.
+      jmstep_inv.
       
-      (* internal step: impossible, because in state Kblocked *)
-      {
-        exfalso.
-        pose proof (wellformed i cnti) as W.
-        rewrite Eci in W.
-        apply W.
-        reflexivity.
-      }
-      (* back to external step *)
+      - (* the case of acquire *)
+        admit.
       
-      (* paragraph below: ef has to be an EF_external *)
-      assert (Hef : match ef with EF_external _ _ => Logic.True | _ => False end).
-      {
-        pose proof (safety i cnti nil) as safe_i.
-        rewrite Eci in safe_i.
-        inversion safe_i; subst; [ now inversion H0; inversion H | | now inversion H ].
-        inversion H0; subst; [].
-        match goal with x : ext_spec_type _ _  |- _ => clear -x end.
-        now destruct e eqn:Ee; [ apply I | .. ];
-          simpl in x;
-          repeat match goal with
-                   _ : context [ oi_eq_dec ?x ?y ] |- _ =>
-                   destruct (oi_eq_dec x y); try discriminate; try tauto
-                 end.
-      }
-      assert (Ex : exists name sig, ef = EF_external name sig) by (destruct ef; eauto; tauto).
-      destruct Ex as (name & sg & ->); clear Hef.
+      - (* the case of release *)
+        admit.
       
-      (* paragraph below: ef has to be an EF_external with one of those 5 names *)
-      assert (which_primitive :
-                Some (ext_link "acquire") = (ef_id ext_link (EF_external name sg)) \/
-                Some (ext_link "release") = (ef_id ext_link (EF_external name sg)) \/
-                Some (ext_link "makelock") = (ef_id ext_link (EF_external name sg)) \/
-                Some (ext_link "freelock") = (ef_id ext_link (EF_external name sg)) \/
-                Some (ext_link "spawn") = (ef_id ext_link (EF_external name sg))).
-      {
-        pose proof (safety i cnti nil) as safe_i.
-        rewrite Eci in safe_i.
-        inversion safe_i; subst; [ now inversion H0; inversion H | | now inversion H ].
-        inversion H0; subst; [].
-        match goal with H : ext_spec_type _ _  |- _ => clear -H end.
-        simpl in *.
-        repeat match goal with
-                 _ : context [ oi_eq_dec ?x ?y ] |- _ =>
-                 destruct (oi_eq_dec x y); try injection e; auto
-               end.
-        tauto.
-      }
+      - (* the case of spawn *)
+        admit.
       
-      (* Before going any further, one needs to provide the first
-        rmap of the oracle.  Unfortunately, for that, we need to know
-        whether we're in an "acquire" external call or not. In
-        addition, in the case of an "acquire" we need to know the
-        arguments of the function (address+mpred) so that we can
-        provide the right rmap from the lock set.
-        |
-        Two solutions: either we use a dummy oracle to know those things (but
-        ... we need the oracle before that (FIX the spec OR [A]), or we write
-        it as a P\/~P and then we derive a contradiction (not sure we can do
-        that). *)
+      - (* the case of makelock *)
+        admit.
       
-      destruct which_primitive as
-          [ H_acquire | [ H_release | [ H_makelock | [ H_freelock | H_spawn ] ] ] ].
+      - (* the case of freelock *)
+        admit.
       
-      { (* the case of acquire *)
-        
-        (* using the safety to prepare the precondition *)
-        pose proof (safety i cnti nil) as safei.
-        rewrite Eci in safei.
-        unfold jsafeN, juicy_safety.safeN in safei.
-        inversion safei
-          as [ | n0 z c m0 c' m'' H0 H1 H H2 H3 H4
-               | n0 z c m0 e sig0 args0 x at_ex Pre SafePost H H3 H4 H5
-               | n0 z c m0 i0 H H0 H1 H2 H3 H4];
-          [ now inversion H0; inversion H | subst | now inversion H ].
-        subst.
-        simpl in at_ex. injection at_ex as <- <- <- .
-        hnf in x.
-        revert x Pre SafePost.
-        
-        (* dependent destruction *)
-        simpl (ext_spec_pre _); simpl (ext_spec_post _).
-        unfold funspecOracle2pre, funspecOracle2post.
-        unfold ext_spec_pre, ext_spec_post.
-        Local Notation "{| 'JE_spec ... |}" := {| JE_spec := _; JE_pre_hered := _; JE_post_hered := _; JE_exit_hered := _ |}.
-        destruct (oi_eq_dec (Some (ext_link "acquire")) (ef_id ext_link (EF_external name sg)))
-          as [Eef | Eef];
-          [ | now clear -Eef H_acquire; simpl in *; congruence ].
-        
-        intros (phix, ((((ok, oracle_x), vx), shx), Rx)) Pre. simpl in Pre.
-        destruct Pre as (phi0 & phi1 & Join & Precond & HnecR).
-        simpl (and _).
-        intros Post.
-        
-        (* relate lset to val *)
-        destruct Precond as [PREA [[PREB _] PREC]].
-        hnf in PREB.
-        assert (islock : exists b ofs, vx = Vptr b ofs /\ exists R, islock_pred R (phi0 @ (b, Int.unsigned ofs))). {
-          unfold canon.SEPx in PREC.
-          simpl in PREC.
-          rewrite seplog.sepcon_emp in PREC.
-          unfold lock_inv in PREC.
-          destruct PREC as (b & ofs & Evx & lk).
-          exists b, ofs. split. now apply Evx.
-          specialize (lk (b, Int.unsigned ofs)).
-          exists (approx (level phi0) (Interp Rx)).
-          simpl in lk.
-          if_tac in lk; swap 1 2. {
-            exfalso.
-            apply H.
-            unfold adr_range in *.
-            intuition.
-            unfold res_predicates.lock_size.
-            omega.
-          }
-          if_tac in lk; [ | tauto ].
-          destruct lk as [p lk].
-          rewrite lk.
-          do 3 eexists.
-          unfold compose.
-          reflexivity.
-        }
-        
-        assert (SUB : join_sub phi0 Phi). {
-          apply join_sub_trans with  (ThreadPool.getThreadR cnti).
-          - econstructor; eauto.
-          - apply compatible_threadRes_sub; eauto.
-            destruct compat; eauto.
-        }
-        destruct islock as [b [ofs [-> [R islock]]]].
-        pose proof (resource_at_join_sub _ _ (b, Int.unsigned ofs) SUB) as SUB'.
-        pose proof islock_pred_join_sub SUB' islock as isl.
-        
-        (* PLAN
-           - DONE: integrate the oracle in the semax_conc definitions
-           - DONE: sort out this dependent type problem
-           - DONE: exploit jsafeN_ to figure out which possible cases
-           - DONE: push the analysis through Krun/Kblocked/Kresume
-           - DONE: figure a wait out of the ext_link problem (the LOCK
-             should be a parameter of the whole thing)
-           - TODO: change the lock_coherence invariants to talk about
-             Mem.load instead of directly reading the values, since
-             this will be abstracted
-           - TODO: acquire-fail: still problems (see below)
-           - TODO: acquire-success: the invariant guarantees that the
-             rmap in the lockset satisfies the invariant.  We can give
-             this rmap as a first step to the oracle.  We again have
-             to recover the fact that all oracles after this step will
-             be fine as well.  (Let's write simulation lemmas about
-             this, probably)
-           - TODO: spawning: it introduces a new Kinit, change
-             invariant accordingly
-           - TODO release: this time, the jsafeN_ will explain how to
-             split the current rmap.
-           - TODO all the other primitives
-         *)
-        
-          
-        (* next step depends on status of lock: *)
-(*
-        pose proof (lock_coh (b, Int.unsigned ofs)) as lock_coh'.
-        inversion lock_coh' as [wetv dryv notlock H H1 H2 | R0 wetv isl' Elockset Ewet Edry | R0 phi wetv isl' SAT_R_Phi Elockset Ewet Edry].
-        
-        - (* this is not even a lock *)
-          exfalso.
-          clear -isl notlock.
-          destruct isl as [x [? [? ]]].
-          eapply notlock.
-          now eauto.
-        
-        - (* acquire fails *)
-          destruct isl as [sh [psh [z Ewetv]]].
-          subst wetv.
-          destruct isl' as [sh' [psh' [z' Eat]]].
-          rewrite Eat in Ewetv.
-          injection Ewetv as -> -> -> Epr.
-          apply inj_pair2 in Epr.
-          assert (R0 = R). {
-            assert (feq: forall A B (f g : A -> B), f = g -> forall x, f x = g x) by congruence.
-            apply (feq _ _ _ _ Epr tt).
-          }
-          subst R0; clear Epr.
-          exists (m, ge, (sch, tp))(* ; split *).
-          + (* taking the step *)
-            eapply state_step_c.
-            eapply JuicyMachine.sync_step; [ reflexivity | reflexivity | ].
-            eapply step_acqfail.
-            * constructor.
-            * apply Eci.
-            * simpl.
-              repeat f_equal.
-              -- simpl in H_acquire.
-                 injection H_acquire as Ee.
-                 apply ext_link_inj in Ee.
-                 rewrite <-Ee.
-                 reflexivity.
-              -- inversion safei; subst.
-                 admit. 2:admit.
-                 simpl in H0.
-                 injection H0 as <- <- <-.
-                 simpl in H1.
-                 admit.
-                 (* see with andrew: should safety require signatures
-                 to be exactly something?  Maybe it should be in
-                 ext_spec_type, it'd be easy, maybe. *)
-              -- admit (* another sig! *).
-              -- instantiate (2 := b).
-                 instantiate (1 := ofs).
-                 assert (L: length args = 1%nat) by admit. (* TODO discuss with andrew for where to add this requirement *)
-                 clear -PREB L.
-                 unfold expr.eval_id in PREB.
-                 unfold expr.force_val in PREB.
-                 match goal with H : context [Map.get ?a ?b] |- _ => destruct (Map.get a b) eqn:E end.
-                 subst v. 2: discriminate.
-                 pose  (gx := (filter_genv (symb2genv (Genv.genv_symb ge)))). fold gx in E.
-                 destruct args as [ | arg [ | ar args ]].
-                 ++ now inversion E.
-                 ++ inversion E. reflexivity.
-                 ++ inversion E. f_equal.
-                    inversion L.
-            * reflexivity.
-            * reflexivity.
-            * rewrite JuicyMachineLemmas.compatible_getThreadR_m_phi.
-              unfold pack_res_inv in *.
-              (*
-              etransitivity. admit.
-              etransitivity. apply Eat.
-              f_equal.*)
-              (* destruct args. *)
-              admit (* LKSIZE problem + joinsub things *).
-            * (* maybe we should write this in the invariant instead? *)
-              admit.
-(* PRESERVATION
-          + (* invariant (easy, same state than before) *)
-            apply state_invariant_c with (PHI := Phi) (mcompat := compat).
-            * eauto.
-            * intros i0 cnti0 ora.
-              specialize (safety i0 cnti0 ora).
-              destruct (ThreadPool.getThreadC cnti0); try apply safe_downward1; auto.
-            * eauto.
-            * (* uniqueness (if there is a Krun, then it would have
-              been schedule, but the scheduled thread was a Kblocked,
-              so no problem *)
-              admit (* more important things now *).
-*)
-        
-        - (* acquire succeeds *)
-          destruct isl as [sh [psh [z Ewetv]]].
-          destruct isl' as [sh' [psh' [z' Eat]]].
-          rewrite Eat in Ewetv.
-          injection Ewetv as -> -> -> Epr.
-          apply inj_pair2 in Epr.
-          assert (R0 = R). {
-            assert (feq: forall A B (f g : A -> B), f = g -> forall x, f x = g x) by congruence.
-            apply (feq _ _ _ _ Epr tt).
-          }
-          subst R0; clear Epr.
-          eexists (* TODO explicitely provide the state -- wait, how
-          do I specify the non-join? is it thanks to Post? *).
-          (* split. *)
-          + (* taking the step *)
-            eapply state_step_c.
-            eapply JuicyMachine.sync_step; [ reflexivity | reflexivity | ].
-            eapply step_acquire.
-            * now auto.
-            * eassumption.
-            * simpl.
-              repeat f_equal; [ | | | ].
-              -- simpl in H_acquire.
-                 injection H_acquire as Ee.
-                 apply ext_link_inj in Ee.
-                 rewrite <-Ee.
-                 reflexivity.
-              -- admit (* same problem above *).
-              -- admit (* same problem above *).
-              -- admit (* same problem above *).
-            * reflexivity.
-            * admit (* precondition? *).
-            * reflexivity.
-            * admit (* real stuff: load 1 *).
-            * admit (* real stuff: store 0 *).
-            * admit (* real stuff: lock is Some *).
-            * admit (* real stuff: it joins *).
-            * reflexivity.
-            * reflexivity.
-
-(* PRESERVATION 
-          + (* invariant is maintainted (should be the same global rmap) *)
-            (*
-            assert (
-                mem_compatible_with
-                  (ThreadPool.updLockSet
-                     (ThreadPool.updThread
-                        cnti
-                        (Kresume (ExtCall (EF_external name sg) sig args lid ve te k) Vundef)
-                        (m_phi ?jm')) (?b0, Int.intval ?ofs0) None)
-                  (m_dry ?jm')).
-             *)
-            eapply state_invariant_c with (PHI := Phi) (mcompat := _).
-            * (* TODO lock_coherence (hard) some work needed here *)
-              admit.
-            * (* TODO safety (hard) a lot of work needed here, using the oracle. *)
-              admit.
-            * (* wellformedness (symbol pushing) *)
-              admit.
-            * (* uniqueness (symbol pushing) *)
-              admit.
- *)
-      }
-
-      { (* the case of release *) admit. }
-      
-      { (* the case of makelock *) admit. }
-      
-      { (* the case of freelock *) admit. }
-      
-      { (* the case of spawn *) admit. }
+      - (* the case of acq-fail *)
+        admit.
     }
-    (* end of Kblocked *)
     
-    (* thread[i] is in Kresume *)
-    {
-      (* goes to Krun ci' with after_ex ci = ci'  *)
-      destruct ci as [ve te k | ef sig args lid ve te k] eqn:Heqc.
+    (*thread[i] is in Kresume *)
+    { (* again, only one possible case *)
+      inversion jmstep; try inversion HschedN; subst tid;
+        unfold ThreadPool.containsThread, is_true in *;
+        try congruence; try subst;
+        try solve [jmstep_inv; getThread_inv; congruence].
+      jmstep_inv.
+      rename m' into m.
+      assert (compat' : mem_compatible_with (updThreadC ctn (Krun c')) m Phi).
+      {
+        clear safety wellformed unique.
+        destruct compat as [JA MC LW LC LJ].
+        constructor; [ | | | | ].
+        - destruct JA as [tp phithreads philocks Phi jointhreads joinlocks join].
+          econstructor; eauto.
+        - apply MC.
+        - intros b o H.
+          apply (LW b o H).
+        - apply LC.
+        - apply LJ.
+      }
       
-      - (* contradiction: has to be an extcall *)
-        specialize (wellformed i cnti).
-        rewrite Eci in wellformed.
-        simpl in wellformed.
-        tauto.
+      apply state_invariant_c with (PHI := Phi) (mcompat := compat').
+      + (* matchfunspec *)
+        assumption.
       
-      - (* extcall *)
-        pose (ci':=
-                match lid with
-                | Some id => State ve (Maps.PTree.set id (Vint Int.zero) te) k
-                | None => State ve te k
-                end).
-        exists (m, ge, (i :: sch, ThreadPool.updThreadC cnti (Krun ci')))(* ; split *).
-        + (* taking the step Kresum->Krun *)
+      + (* lock coherence *)
+        unfold lock_coherence' in *.
+        exact_eq lock_coh.
+        f_equal.
+        f_equal.
+        apply proof_irr.
+      
+      + (* safety : the new c' is derived from "after_external", so
+           that's not so good? *)
+        intros i0 cnti0' ora.
+        destruct (eq_dec i i0) as [ii0 | ii0].
+        * subst i0.
+          rewrite ThreadPool.gssThreadCC.
+          specialize (safety i cnti ora).
+          rewrite Eci in safety.
+          simpl.
+          simpl in safety.
+          apply safe_downward1.
+          change (jsafeN Jspec' ge (S n) ora c' (jm_ cnti0' compat')).
+          exact_eq safety.
+          f_equal.
+          -- getThread_inv.
+             unfold SEM.Sem in *.
+             rewrite SEM.CLN_msem in *.
+             simpl in Hafter_external.
+             admit
+             (* TODO : change invariant or proof
+                because safety at this point should be about c', not c. *).
+             
+          -- unfold jm_ in *.
+             apply personal_mem_ext.
+             intros i0 cnti0 cnti'.
+             unshelve erewrite gThreadCR; auto.
+        * assert (cnti0 : ThreadPool.containsThread tp i0) by auto.
+          rewrite <- (@ThreadPool.gsoThreadCC _ _ tp ii0 ctn cnti0).
+          specialize (safety i0 cnti0 ora).
+          clear -safety.
+          destruct (@ThreadPool.getThreadC i0 tp cnti0).
+          -- unfold jm_ in *.
+             erewrite personal_mem_ext.
+             ++ apply safe_downward1, safety.
+             ++ intros; apply ThreadPool.gThreadCR.
+          -- unfold jm_ in *.
+             erewrite personal_mem_ext.
+             ++ apply safe_downward1, safety.
+             ++ intros; apply ThreadPool.gThreadCR.
+          -- unfold jm_ in *.
+             erewrite personal_mem_ext.
+             ++ apply safe_downward1, safety.
+             ++ intros; apply ThreadPool.gThreadCR.
+          -- constructor.
+      
+      + (* wellformed. *)
+        intros i0 cnti0'.
+        destruct (eq_dec i i0) as [ii0 | ii0].
+        * subst i0.
+          rewrite ThreadPool.gssThreadCC.
           constructor.
-          apply JuicyMachine.resume_step with (tid := i) (Htid := cnti).
-          * reflexivity.
-          * eapply mem_compatible_forget. eauto.
-          * eapply JuicyMachine.ResumeThread with (c := ci) (c' := ci').
-            -- subst. reflexivity.
-            -- subst. simpl. destruct lid; reflexivity.
-            -- rewrite Eci.
-               subst ci.
-               f_equal.
-               specialize (wellformed i cnti).
-               rewrite Eci in wellformed.
-               simpl in wellformed.
-               tauto.
-            -- constructor.
-            -- reflexivity.
-(* PRESERVATION
-        + (* invariant again. (roughly same as in Krun -> Kblocked,
-             but simpler.) *)
-          (* leaving this as a TODO as there is a good chance that the
-             invariant will change when proving Kblocked->Kresume *)
-          admit.
-*)
+        * assert (cnti0 : ThreadPool.containsThread tp i0) by auto.
+          rewrite <- (@ThreadPool.gsoThreadCC _ _ tp ii0 ctn cnti0).
+          specialize (wellformed i0 cnti0).
+          destruct (@ThreadPool.getThreadC i0 tp cnti0).
+          -- constructor.
+          -- apply wellformed.
+          -- apply wellformed.
+          -- constructor.
+             
+      + (* uniqueness *)
+        intros notalone i0 cnti0' q ora Eci0.
+        pose proof (unique notalone i0 cnti0' q ora) as unique'.
+        destruct (eq_dec i i0) as [ii0 | ii0].
+        * subst i0.
+          eauto.
+        * assert (cnti0 : ThreadPool.containsThread tp i0) by auto.
+          clear safety wellformed.
+          rewrite <- (@gsoThreadCC _ _ tp ii0 ctn cnti0) in Eci0.
+          destruct (unique notalone i0 cnti0 q ora Eci0).
+          congruence.
     }
-    (* end of Kresume *)
     
     (* thread[i] is in Kinit *)
     {
-      eexists(* ; split *).
-      - constructor.
-        apply JuicyMachine.start_step with (tid := i) (Htid := cnti).
-        + reflexivity.
-        + eapply mem_compatible_forget. eauto.
-        + eapply JuicyMachine.StartThread.
-          * apply Eci.
-          * simpl.
-            (* WE SAID THAT THIS SHOULD NOT BE IN THE MACHINE? *) 
-            (* Maybe this is impossible and I have to do all the spawn
-               work by myself. *)
-           admit.
-          * constructor.
-          * reflexivity.
-(*      - (* invariant: this complicates things quite a lot. I'll have
-           to put horrible things in my invariant?  We'll see
-           later. *)
-        admit.
-*)
+      (* still unclear how to handle safety of Kinit states *)
+      admit.
     }
-    (* end of Kinit *)
-*)
   Admitted.
 
   Lemma state_invariant_step Gamma n state :
