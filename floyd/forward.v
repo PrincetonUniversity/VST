@@ -993,7 +993,7 @@ Ltac do_compute_expr1 Delta Pre e :=
 
 Lemma typed_true_nullptr3:
   forall p, 
-  typed_true tint (force_val (sem_cmp_pp Ceq true2 p nullval)) ->
+  typed_true tint (force_val (sem_cmp_pp Ceq p nullval)) ->
   p=nullval.
 Proof.
 intros.
@@ -1005,7 +1005,7 @@ Qed.
 
 Lemma typed_false_nullptr3:
   forall p, 
-  typed_false tint (force_val (sem_cmp_pp Ceq true2 p nullval)) ->
+  typed_false tint (force_val (sem_cmp_pp Ceq p nullval)) ->
   p<>nullval.
 Proof.
 intros.
@@ -1018,7 +1018,7 @@ Qed.
 
 Lemma typed_true_nullptr4:
   forall p, 
-  typed_true tint (force_val (sem_cmp_pp Cne true2 p nullval)) ->
+  typed_true tint (force_val (sem_cmp_pp Cne p nullval)) ->
   p <> nullval.
 Proof.
 intros.
@@ -1031,7 +1031,7 @@ Qed.
 
 Lemma typed_false_nullptr4:
   forall p, 
-  typed_false tint (force_val (sem_cmp_pp Cne true2 p nullval)) ->
+  typed_false tint (force_val (sem_cmp_pp Cne p nullval)) ->
   p=nullval.
 Proof.
 intros.
@@ -1146,13 +1146,13 @@ Ltac do_repr_inj H :=
          | simple apply repr_inj_signed' in H; [ | repable_signed | repable_signed ]
          | simple apply repr_inj_unsigned' in H; [ | repable_signed | repable_signed ]
          | match type of H with
-            | typed_true _  (force_val (sem_cmp_pp Ceq true2 _ _)) =>
+            | typed_true _  (force_val (sem_cmp_pp Ceq _ _)) =>
                                     apply typed_true_nullptr3 in H
-            | typed_true _  (force_val (sem_cmp_pp Cne true2 _ _)) =>
+            | typed_true _  (force_val (sem_cmp_pp Cne _ _)) =>
                                     apply typed_true_nullptr4 in H
-            | typed_false _  (force_val (sem_cmp_pp Ceq true2 _ _)) =>
+            | typed_false _  (force_val (sem_cmp_pp Ceq _ _)) =>
                                     apply typed_false_nullptr3 in H
-            | typed_false _  (force_val (sem_cmp_pp Cne true2 _ _)) =>
+            | typed_false _  (force_val (sem_cmp_pp Cne _ _)) =>
                                     apply typed_false_nullptr4 in H
           end
          | apply typed_false_nullptr4 in H

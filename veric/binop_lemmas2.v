@@ -690,7 +690,7 @@ Lemma typecheck_val_sem_cmp:
  typecheck_numeric_val v2 t2 ->
 typecheck_val
   (force_val
-     (Cop2.sem_cmp op t1 t2 true2 v1 v2))
+     (Cop2.sem_cmp op t1 t2 v1 v2))
   (Tint i3 s3 a3) = true.
 Proof.
 destruct op; intros;
@@ -717,7 +717,7 @@ Lemma typecheck_val_cmp_eqne_ip:
  typecheck_val v2 (Tpointer t0 a0) = true ->
 typecheck_val
   (force_val
-     (Cop2.sem_cmp op t1 (Tpointer t0 a0) true2 v1 v2))
+     (Cop2.sem_cmp op t1 (Tpointer t0 a0) v1 v2))
   (Tint i2 s0 a1) = true.
 Proof.
 intros until 1; rename H into CMP; intros;
@@ -743,7 +743,7 @@ Lemma typecheck_val_cmp_eqne_pi:
  typecheck_val v2 (Tpointer t0 a0) = true ->
 typecheck_val
   (force_val
-     (Cop2.sem_cmp op (Tpointer t0 a0) t1 true2 v2 v1))
+     (Cop2.sem_cmp op (Tpointer t0 a0) t1 v2 v1))
   (Tint i2 s0 a1) = true.
 Proof.
 intros until 1; rename H into CMP; intros.

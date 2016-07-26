@@ -3,7 +3,7 @@ Require Import floyd.assert_lemmas.
 Require Export floyd.canon.
 Local Open Scope logic.
 
-Arguments sem_cmp c !t1 !t2 valid_pointer / v1 v2.  
+Arguments sem_cmp c !t1 !t2 / v1 v2.  
 
 (**** BEGIN experimental normalize (to replace the one in msl/log_normalize.v ****)
 
@@ -39,7 +39,7 @@ Qed.
 
 Lemma typed_false_cmp'':
   forall i j op e1 e2,
-   typed_false tint (force_val (sem_cmp op tint tint true2 e1  e2 )) ->
+   typed_false tint (force_val (sem_cmp op tint tint e1  e2 )) ->
    Vint (Int.repr i) = e1 ->
    Vint (Int.repr j) = e2 ->
    repable_signed i -> 
@@ -59,7 +59,7 @@ Qed.
 
 Lemma typed_true_cmp'':
   forall i j op e1 e2,
-   typed_true tint (force_val (sem_cmp op tint tint true2 e1  e2 )) ->
+   typed_true tint (force_val (sem_cmp op tint tint e1  e2 )) ->
    Vint (Int.repr i) = e1 ->
    Vint (Int.repr j) = e2 ->
    repable_signed i -> 
@@ -101,7 +101,7 @@ inv H.
 Qed.
 Lemma typed_false_cmp':
   forall op i j, 
-   typed_false tint (force_val (sem_cmp op tint tint true2 i j )) ->
+   typed_false tint (force_val (sem_cmp op tint tint i j )) ->
    Int.cmp (negate_comparison op) (force_int i) (force_int j) = true.
 Proof.
 intros.
@@ -116,7 +116,7 @@ Qed.
 
 Lemma typed_true_cmp':
   forall op i j, 
-   typed_true tint (force_val (sem_cmp op tint tint true2 i j)) ->
+   typed_true tint (force_val (sem_cmp op tint tint i j)) ->
    Int.cmp op (force_int i) (force_int j) = true.
 Proof.
 intros.

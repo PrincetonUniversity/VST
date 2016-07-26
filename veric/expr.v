@@ -223,10 +223,8 @@ match op with
   | _ => false
 end.
 
-Definition true2 (b : block) (i : Z) := true.
-
 Definition eval_binop {CS:compspecs} (op: Cop.binary_operation) (t1 t2 : type) :=
-       force_val2 (Cop2.sem_binary_operation'  op t1 t2 true2).
+       force_val2 (Cop2.sem_binary_operation'  op t1 t2).
 Arguments eval_binop CS op t1 t2 / v1 v2.
 
 Definition eval_cast (t1 t2 : type) :=
@@ -469,16 +467,6 @@ match op with
 | _ => tc_noproof
 end.
 
-(*
-Definition check_pl_long (Delta: tycontext) e2 op t e :=
-match op with 
-| Cop.Oeq | Cop.One => tc_andp 
-                         (tc_comparable Delta e2)
-                         (tc_bool (is_int_type t) (op_result_type e))
-| _ => tc_noproof
-end.
-*)
-
 Definition binarithType t1 t2 ty deferr reterr : tc_assert :=
  match Cop.classify_binarith t1 t2 with
   | Cop.bin_case_i sg =>  tc_bool (is_int32_type ty) reterr 
@@ -610,7 +598,7 @@ match op with
                                          && is_numeric_type (typeof a2)
                                           && is_int_type ty)
                                              deferr
-		    | Cop.cmp_case_pp => check_pp_int a1 a2 op ty e
+	                  | Cop.cmp_case_pp => check_pp_int a1 a2 op ty e
                     | Cop.cmp_case_pl => check_pp_int (Ecast a1 (Tint I32 Unsigned noattr)) a2 op ty e
                     | Cop.cmp_case_lp => check_pp_int (Ecast a2 (Tint I32 Unsigned noattr)) a1 op ty e
                    end

@@ -6,7 +6,7 @@ Local Open Scope logic.
 
 Lemma typed_true_nullptr:
  forall v t t',
-   typed_true tint (force_val (sem_cmp Ceq (tptr t) (tptr t') true2 v (Vint Int.zero))) ->
+   typed_true tint (force_val (sem_cmp Ceq (tptr t) (tptr t') v (Vint Int.zero))) ->
    v=nullval.
 Proof.
  intros.
@@ -317,7 +317,7 @@ Definition compare_pp op p q :=
 Lemma force_sem_cmp_pp: 
   forall op p q, 
   isptr p -> isptr q -> 
-  force_val (sem_cmp_pp op true2 p q) = 
+  force_val (sem_cmp_pp op p q) = 
    match op with
    | Ceq => Vint (if eq_dec p q then Int.one else Int.zero)
    | Cne => Vint (if eq_dec p q then Int.zero else Int.one)

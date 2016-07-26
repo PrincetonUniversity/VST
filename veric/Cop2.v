@@ -53,7 +53,7 @@ match v with
 Definition sem_cast_p2bool (v : val) : option val :=
  match v with
       | Vint i => Some (Vint (Cop.cast_int_int IBool Signed i))
-      | Vptr _ _ => Some (Vint Int.one)
+      | Vptr b ofs => Some Vone
       | _ => None
       end.
 
@@ -198,7 +198,7 @@ Definition sem_cast_s2l si2 (v: val) : option val :=
       | _ => None
       end.
 
-Definition sem_cast (t1 t2: type) : val -> option val :=
+Definition sem_cast (t1 t2: type): val -> option val :=
   match Cop.classify_cast t1 t2 with
   | Cop.cast_case_neutral => sem_cast_neutral
   | Cop.cast_case_i2i sz2 si2 => sem_cast_i2i sz2 si2      
@@ -434,7 +434,8 @@ Definition sem_binarith
     (sem_long: signedness -> int64 -> int64 -> option val)
     (sem_float: float -> float -> option val)
     (sem_single: float32 -> float32 -> option val)
-    (t1: type) (t2: type) : forall (v1: val) (v2: val), option val :=
+    (t1: type) (t2: type)
+   : forall (v1: val) (v2: val), option val :=
   let c := Cop.classify_binarith t1 t2 in
   let t := Cop.binarith_type c in
   match c with
@@ -486,21 +487,22 @@ match v1,v2 with
       | _,  _ => None
       end.
 
-Definition sem_add_default t1 t2 (v1 v2 : val) : option val :=
+Definition sem_add_default t1 t2(v1 v2 : val) : option val :=
 sem_binarith
         (fun sg n1 n2 => Some(Vint(Int.add n1 n2)))
         (fun sg n1 n2 => Some(Vlong(Int64.add n1 n2)))
         (fun n1 n2 => Some(Vfloat(Float.add n1 n2)))
         (fun n1 n2 => Some(Vsingle(Float32.add n1 n2)))
-        t1 t2 v1 v2.
+        t1 t2
+        v1 v2.
 
-Definition sem_add {CS: compspecs} (t1:type) (t2:type) :  val->val->option val :=
+Definition sem_add {CS: compspecs} (t1:type) (t2:type):  val->val->option val :=
   match Cop.classify_add t1 t2 with 
   | Cop.add_case_pi ty =>  sem_add_pi ty
   | Cop.add_case_ip ty => sem_add_ip ty   (**r integer plus pointer *)
   | Cop.add_case_pl ty => sem_add_pl ty   (**r pointer plus long *)
   | Cop.add_case_lp ty => sem_add_lp ty   (**r long plus pointer *)
-  | add_default => sem_add_default t1 t2      
+  | add_default => sem_add_default t1 t2
   end.
 
 (** *** Subtraction *)
@@ -550,7 +552,7 @@ Definition sem_sub {CS: compspecs} (t1:type) (t2:type) : val -> val -> option va
   | Cop.sub_case_pi ty => sem_sub_pi  ty  (**r pointer minus integer *)
   | Cop.sub_case_pl ty => sem_sub_pl  ty  (**r pointer minus long *)
   | Cop.sub_case_pp ty => sem_sub_pp ty       (**r pointer minus pointer *)
-  | sub_default => sem_sub_default t1 t2     
+  | sub_default => sem_sub_default t1 t2
   end.
  
 (** *** Multiplication, division, modulus *)
@@ -615,7 +617,7 @@ Definition sem_mod (t1:type) (t2:type) (v1:val)  (v2: val) : option val :=
     (fun n1 n2 => None)
     t1 t2 v1 v2.
 
-Definition sem_and (t1:type) (t2:type) (v1:val)  (v2: val) : option val :=
+Definition sem_and (t1:type) (t2:type) (v1:val) (v2: val) : option val :=
   sem_binarith
     (fun sg n1 n2 => Some(Vint(Int.and n1 n2)))
     (fun sg n1 n2 => Some(Vlong(Int64.and n1 n2)))
@@ -702,25 +704,24 @@ Definition sem_shr (t1:type) (t2:type) (v1:val) (v2: val)  : option val :=
 
 (** *** Comparisons *)
 
-Definition sem_cmp_pp c(valid_pointer : block -> Z -> bool) v1 v2 := 
-option_map Val.of_bool (Val.cmpu_bool valid_pointer c v1 v2).
+Definition true2 (b : block) (i : Z) := true.
 
-Definition weakv (valid_pointer': block ->Z -> bool) (b: block) (i: Z) : bool :=
- orb (valid_pointer' b i) (valid_pointer' b (i-1)).
+Definition sem_cmp_pp c v1 v2 := 
+option_map Val.of_bool (Val.cmpu_bool true2 c v1 v2).
 
-Definition sem_cmp_pl c (valid_pointer : block -> Z -> bool) v1 v2 :=
+Definition sem_cmp_pl c v1 v2 :=
  match v2 with
       | Vlong n2 => 
           let n2 := Int.repr (Int64.unsigned n2) in
-          option_map Val.of_bool (Val.cmpu_bool (weakv valid_pointer) c v1 (Vint n2))
+          option_map Val.of_bool (Val.cmpu_bool true2 c v1 (Vint n2))
       | _ => None
       end.
 
-Definition sem_cmp_lp c (valid_pointer : block -> Z -> bool) v1 v2   :=
+Definition sem_cmp_lp c v1 v2   :=
       match v1 with
       | Vlong n1 => 
           let n1 := Int.repr (Int64.unsigned n1) in
-          option_map Val.of_bool (Val.cmpu_bool (weakv valid_pointer) c (Vint n1) v2)
+          option_map Val.of_bool (Val.cmpu_bool true2 c (Vint n1) v2)
       | _ => None
       end.
 
@@ -736,14 +737,12 @@ Definition sem_cmp_default c t1 t2 :=
             Some(Val.of_bool(Float32.cmp c n1 n2)))
         t1 t2 .
 
-Definition sem_cmp (c:comparison)
-                  (t1: type) (t2: type) (valid_pointer : block -> Z -> bool) 
-                  : val -> val ->  option val :=
+Definition sem_cmp (c:comparison) (t1: type) (t2: type) : val -> val ->  option val :=
   match Cop.classify_cmp t1 t2 with
-  | Cop.cmp_case_pp => sem_cmp_pp c valid_pointer       
-  | Cop.cmp_case_pl => sem_cmp_pl c valid_pointer    
-  | Cop.cmp_case_lp => sem_cmp_lp c valid_pointer
-  | Cop.cmp_default => sem_cmp_default c t1 t2     
+  | Cop.cmp_case_pp => sem_cmp_pp c
+  | Cop.cmp_case_pl => sem_cmp_pl c
+  | Cop.cmp_case_lp => sem_cmp_lp c
+  | Cop.cmp_default => sem_cmp_default c t1 t2
   end.
 
 
@@ -761,31 +760,33 @@ Definition sem_unary_operation
 (*Removed memory from sem_cmp calls/args*)
 Definition sem_binary_operation'
     {CS: compspecs} (op: Cop.binary_operation)
-    (t1:type) (t2: type) (valid_pointer : block -> Z -> bool) : val -> val -> option val :=
+    (t1:type) (t2: type) : val -> val -> option val :=
   match op with
   | Cop.Oadd => sem_add t1 t2
   | Cop.Osub => sem_sub t1 t2
   | Cop.Omul => sem_mul t1 t2
   | Cop.Omod => sem_mod t1 t2
-  | Cop.Odiv => sem_div t1 t2 
+  | Cop.Odiv => sem_div t1 t2
   | Cop.Oand => sem_and t1 t2
-  | Cop.Oor  => sem_or t1 t2 
-  | Cop.Oxor  => sem_xor t1 t2 
-  | Cop.Oshl => sem_shl t1 t2 
-  | Cop.Oshr  => sem_shr t1 t2   
-  | Cop.Oeq => sem_cmp Ceq t1 t2 valid_pointer
-  | Cop.One => sem_cmp Cne t1 t2 valid_pointer
-  | Cop.Olt => sem_cmp Clt t1 t2 valid_pointer
-  | Cop.Ogt => sem_cmp Cgt t1 t2 valid_pointer
-  | Cop.Ole => sem_cmp Cle t1 t2 valid_pointer
-  | Cop.Oge => sem_cmp Cge t1 t2 valid_pointer
+  | Cop.Oor  => sem_or t1 t2
+  | Cop.Oxor  => sem_xor t1 t2
+  | Cop.Oshl => sem_shl t1 t2
+  | Cop.Oshr  => sem_shr t1 t2
+  | Cop.Oeq => sem_cmp Ceq t1 t2
+  | Cop.One => sem_cmp Cne t1 t2
+  | Cop.Olt => sem_cmp Clt t1 t2
+  | Cop.Ogt => sem_cmp Cgt t1 t2
+  | Cop.Ole => sem_cmp Cle t1 t2
+  | Cop.Oge => sem_cmp Cge t1 t2
   end.
 
+(*
 Definition sem_binary_operation {CS: compspecs} (op: Cop.binary_operation)
     (t1:type) (t2: type) (m : mem) : val -> val -> option val :=
 sem_binary_operation' op t1 t2 (Mem.valid_pointer m).
+*)
 
-Definition sem_incrdecr {CS: compspecs} (id: Cop.incr_or_decr) (ty: type) (v: val)  :=
+Definition sem_incrdecr {CS: compspecs} (id: Cop.incr_or_decr) (ty: type)  (valid_pointer : block -> Z -> bool)  (v: val)  :=
   match id with
   | Cop.Incr => sem_add ty type_int32s v (Vint Int.one) 
   | Decr => sem_sub ty type_int32s v (Vint Int.one) 
@@ -812,10 +813,10 @@ Arguments sem_sub CS t1 t2 / v1 v2 : simpl nomatch.
 Arguments sem_shift t1 t2 _ _  / v1 v2 : simpl nomatch.
 Arguments sem_shl t1 t2  / v1 v2 : simpl nomatch.
 Arguments sem_shr t1 t2  / v1 v2 : simpl nomatch.
-Arguments sem_cmp c t1 t2 / _ v1 v2 : simpl nomatch.
+Arguments sem_cmp c t1 t2 / v1 v2 : simpl nomatch.
 Arguments sem_unary_operation op ty / v : simpl nomatch.
-Arguments sem_binary_operation' CS op t1 t2 / valid_pointer v1 v2 : simpl nomatch.
-Arguments sem_binary_operation CS op t1 t2 / m v1 v2 : simpl nomatch.
+Arguments sem_binary_operation' CS op t1 t2 / v1 v2 : simpl nomatch.
+(*Arguments sem_binary_operation CS op t1 t2 / m v1 v2 : simpl nomatch.*)
 Arguments sem_cmp_default c t1 t2 / v1 v2 : simpl nomatch.
 Arguments sem_binarith sem_int sem_long sem_float sem_single t1 t2 / v1 v2 : simpl nomatch.
 Arguments Cop.sem_cast v !t1 !t2 m / .

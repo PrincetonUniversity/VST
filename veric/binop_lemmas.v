@@ -94,60 +94,10 @@ destruct (Int.eq (Int.repr (Int64.unsigned i)) Int.zero);
   auto; contradiction.
 Qed.
 
-(*
-Lemma sem_cmp_pp_ip:
-  forall m i b j, 
-   app_pred (denote_tc_iszero (Vint i)) m ->
-  sem_cmp_pp Ceq true2 (Vint i) (Vptr b j) = Some Vfalse.
-Proof.
-intros.
-hnf in H.
-unfold sem_cmp_pp.
-simpl.
-destruct (Int.eq i Int.zero); try contradiction; reflexivity.
-Qed.
-
-Lemma sem_cmp_pp_pi:
-  forall m i b j, 
-   app_pred (denote_tc_iszero (Vint i)) m ->
-  sem_cmp_pp Ceq true2  (Vptr b j) (Vint i) = Some Vfalse.
-Proof.
-intros.
-hnf in H.
-unfold sem_cmp_pp.
-simpl.
-destruct (Int.eq i Int.zero); try contradiction; reflexivity.
-Qed.
-
-Lemma sem_cmp_pp_ip':
-  forall m i b j, 
-   app_pred (denote_tc_iszero (Vint i)) m ->
-  sem_cmp_pp Cne true2 (Vint i) (Vptr b j) = Some Vtrue.
-Proof.
-intros.
-hnf in H.
-unfold sem_cmp_pp.
-simpl.
-destruct (Int.eq i Int.zero); try contradiction; reflexivity.
-Qed.
-
-Lemma sem_cmp_pp_pi':
-  forall m i b j, 
-   app_pred (denote_tc_iszero (Vint i)) m ->
-  sem_cmp_pp Cne true2  (Vptr b j) (Vint i) = Some Vtrue.
-Proof.
-intros.
-hnf in H.
-unfold sem_cmp_pp.
-simpl.
-destruct (Int.eq i Int.zero); try contradiction; reflexivity.
-Qed.
-*)
-
 Lemma sem_cmp_pp_pp:
   forall b i b0 i0 ii ss aa,
  typecheck_val
-  match sem_cmp_pp Ceq true2 (Vptr b i) (Vptr b0 i0) with
+  match sem_cmp_pp Ceq (Vptr b i) (Vptr b0 i0) with
   | Some v' => v'
   | None => Vundef
   end (Tint ii ss aa) = true.
@@ -160,7 +110,7 @@ Qed.
 Lemma sem_cmp_pp_pp':
   forall b i b0 i0 ii ss aa,
  typecheck_val
-  match sem_cmp_pp Cne true2 (Vptr b i) (Vptr b0 i0) with
+  match sem_cmp_pp Cne (Vptr b i) (Vptr b0 i0) with
   | Some v' => v'
   | None => Vundef
   end (Tint ii ss aa) = true.
@@ -174,7 +124,7 @@ Lemma sem_cmp_pp_ppx:
   forall b i i0 ii ss aa,
   i = Int.zero ->
  typecheck_val
-  match sem_cmp_pp Ceq true2 (Vint i)  (Vptr b i0)  with
+  match sem_cmp_pp Ceq (Vint i)  (Vptr b i0)  with
   | Some v' => v'
   | None => Vundef
   end (Tint ii ss aa) = true.
@@ -188,7 +138,7 @@ Lemma sem_cmp_pp_ppx':
   forall b i i0 ii ss aa,
   i = Int.zero ->
  typecheck_val
-  match sem_cmp_pp Cne true2 (Vint i)  (Vptr b i0)  with
+  match sem_cmp_pp Cne (Vint i)  (Vptr b i0)  with
   | Some v' => v'
   | None => Vundef
   end (Tint ii ss aa) = true.
@@ -202,7 +152,7 @@ Lemma sem_cmp_pp_ppy:
   forall b i i0 ii ss aa,
   i = Int.zero ->
  typecheck_val
-  match sem_cmp_pp Ceq true2 (Vptr b i0)  (Vint i)  with
+  match sem_cmp_pp Ceq (Vptr b i0)  (Vint i)  with
   | Some v' => v'
   | None => Vundef
   end (Tint ii ss aa) = true.
@@ -216,7 +166,7 @@ Lemma sem_cmp_pp_ppy':
   forall b i i0 ii ss aa,
   i = Int.zero ->
  typecheck_val
-  match sem_cmp_pp Cne true2  (Vptr b i0) (Vint i)  with
+  match sem_cmp_pp Cne (Vptr b i0) (Vint i)  with
   | Some v' => v'
   | None => Vundef
   end (Tint ii ss aa) = true.

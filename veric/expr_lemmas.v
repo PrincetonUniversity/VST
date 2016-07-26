@@ -270,7 +270,7 @@ Lemma comparable_relate:
          (m_phi m) ->
      option_map Val.of_bool
      (Val.cmpu_bool (Mem.valid_pointer (m_dry m)) op v1 v2) =
-     sem_cmp_pp op true2 v1 v2.
+     sem_cmp_pp op v1 v2.
 Proof.
 intros.
 unfold denote_tc_comparable in H.
@@ -313,7 +313,7 @@ Lemma tc_binaryop_relate : forall {CS: compspecs} b e1 e2 t rho m ,
 denote_tc_assert (isBinOpResultType b e1 e2 t) rho (m_phi m) ->
 Cop.sem_binary_operation cenv_cs b (eval_expr e1 rho) (typeof e1) (eval_expr e2 rho)
   (typeof e2) (m_dry m) =
-sem_binary_operation' b (typeof e1) (typeof e2) true2 (eval_expr e1 rho) (eval_expr e2 rho).
+sem_binary_operation' b (typeof e1) (typeof e2) (eval_expr e1 rho) (eval_expr e2 rho).
 Proof.
 intros.
 unfold Cop.sem_binary_operation.
@@ -324,13 +324,11 @@ match goal with
     |- ?A = ?B => let opL := fresh in set (opL:=A);
                          let opR := fresh in set (opR:=B);
                          hnf in opL; hnf in opR; subst opL opR
-end.
+end; rewrite ?bin_arith_relate.
 *
-destruct (classify_add (typeof e1) (typeof e2)); try reflexivity.
-apply bin_arith_relate.
+destruct (classify_add (typeof e1) (typeof e2)); reflexivity.
 *
- destruct (classify_sub (typeof e1) (typeof e2)); try reflexivity;
-  apply bin_arith_relate.
+ destruct (classify_sub (typeof e1) (typeof e2)); reflexivity.
 * destruct (classify_shift (typeof e1)(typeof e2)); try reflexivity; apply bin_arith_relate.
 * destruct (classify_shift (typeof e1)(typeof e2)); try reflexivity; apply bin_arith_relate.
 * unfold isBinOpResultType in H;
@@ -386,19 +384,15 @@ apply bin_arith_relate.
 * unfold isBinOpResultType in H; destruct (classify_cmp (typeof e1) (typeof e2));
      try destruct i; try destruct s; auto; try contradiction; simpl in H;
      try rewrite denote_tc_assert_andp in *; super_unfold_lift.
-      apply bin_arith_relate.
 * unfold isBinOpResultType in H; destruct (classify_cmp (typeof e1) (typeof e2));
      try destruct i; try destruct s; auto; try contradiction; simpl in H;
      try rewrite denote_tc_assert_andp in *; super_unfold_lift.
-      apply bin_arith_relate.
 * unfold isBinOpResultType in H; destruct (classify_cmp (typeof e1) (typeof e2));
      try destruct i; try destruct s; auto; try contradiction; simpl in H;
      try rewrite denote_tc_assert_andp in *; super_unfold_lift.
-      apply bin_arith_relate.
 * unfold isBinOpResultType in H; destruct (classify_cmp (typeof e1) (typeof e2));
      try destruct i; try destruct s; auto; try contradiction; simpl in H;
      try rewrite denote_tc_assert_andp in *; super_unfold_lift.
-      apply bin_arith_relate.
 Qed.
 
 Definition some_pt_type := Tpointer Tvoid noattr.
@@ -436,7 +430,7 @@ denote_tc_assert (typecheck_expr Delta e2) rho (m_phi m) ->
 denote_tc_assert (isBinOpResultType b e1 e2 t) rho (m_phi m) ->
 denote_tc_assert (typecheck_expr Delta e1) rho (m_phi m) ->
 None =
-sem_binary_operation' b  (typeof e1) (typeof e2) true2 (eval_expr e1 rho) (eval_expr e2 rho) ->
+sem_binary_operation' b  (typeof e1) (typeof e2) (eval_expr e1 rho) (eval_expr e2 rho) ->
 Clight.eval_expr ge ve te (m_dry m) e2 (eval_expr e2 rho) ->
 Clight.eval_expr ge ve te (m_dry m) e1 (eval_expr e1 rho) ->
 Clight.eval_expr ge ve te (m_dry m) (Ebinop b e1 e2 t) Vundef.
@@ -668,7 +662,7 @@ destruct H5 as [[H2 H3] H4].
 rename H7 into H5.
 super_unfold_lift.
 unfold eval_binop in *; super_unfold_lift; intuition. unfold force_val2, force_val.
-remember (sem_binary_operation' b (typeof e1) (typeof e2) true2 (eval_expr e1 rho) (eval_expr e2 rho)).
+remember (sem_binary_operation' b (typeof e1) (typeof e2) (eval_expr e1 rho) (eval_expr e2 rho)).
 destruct o. 
   + eapply Clight.eval_Ebinop. eapply H6; eauto.
     eapply H1; assumption.

@@ -224,7 +224,7 @@ Lemma pointer_cmp_eval {CS: compspecs}:
      (typeof e1) (eval_expr e2 rho) (typeof e2) (m_dry jm) =
   Some
      (force_val
-        (sem_binary_operation' cmp (typeof e1) (typeof e2) true2 
+        (sem_binary_operation' cmp (typeof e1) (typeof e2)
            (eval_expr e1 rho) (eval_expr e2 rho))). 
 Proof.
 intros until rho. intros ? ? BM ? N1 N2.  intros.
@@ -294,7 +294,7 @@ Lemma pointer_cmp_no_mem_bool_type {CS: compspecs}:
    typecheck_environ Delta rho ->
     is_int i3 s3
      (force_val
-        (sem_binary_operation' cmp (typeof e1) (typeof e2) true2
+        (sem_binary_operation' cmp (typeof e1) (typeof e2)
            (eval_expr e1 rho)
            (eval_expr e2 rho))).
 Proof.
