@@ -376,14 +376,11 @@ Proof.
  rewrite !denote_tc_assert_andp in H.
  super_unfold_lift.
  destruct H as [[? ?] ?].
- pose proof (typecheck_expr_sound _ _ _ _ H0 H).
  specialize (IHbl _ H3 H5).
- clear - IHbl H3 H H0 H1 H2 H4.
+ clear - IHbl H3 H H0 H1 H2.
  constructor 2 with (eval_expr a (construct_rho (filter_genv psi) vx tx)); auto.
  eapply eval_expr_relate; eauto.
- pose proof  (cast_exists Delta a _ _ _ H0 H H2).
-
-rewrite cop2_sem_cast.
+ rewrite cop2_sem_cast'; auto.
  apply (cast_exists Delta a _ _ _ H0 H H2).
 Qed.
 
@@ -598,8 +595,8 @@ generalize dependent bl. generalize dependent te'.
              (eval_expr e
                 (mkEnviron (filter_genv psi) (make_venv vx) (make_tenv tx)))
              (typeof e) ty (m_dry jm))).
-        split. rewrite cop2_sem_cast. auto.
-        right. rewrite cop2_sem_cast. eapply typecheck_val_sem_cast; eauto.
+        split. rewrite cop2_sem_cast'; auto.
+        right. rewrite cop2_sem_cast'; auto. eapply typecheck_val_sem_cast; eauto.
       - inv Heqp. destruct bl. inv TC2. inv H17. simpl in TC2.
         repeat (rewrite tc_andp_sound in TC2; simpl in TC2; super_unfold_lift).
         destruct TC2 as [[? ?] ?]. assert (i <> id). intro. subst.
@@ -3007,13 +3004,10 @@ Proof.
           destruct H6 as [_ ?].
           rewrite H6.
           super_unfold_lift.
-          rewrite cop2_sem_cast.
-          apply cast_exists with (Delta0 := Delta)(phi := m_phi jm); auto.
-          rewrite <- H6.
-          simpl in TC. 
           rewrite !denote_tc_assert_andp in TC.
-          simpl in *; super_unfold_lift.
-          destruct TC; auto.
+          destruct TC as [TC1 TC2]. rewrite H6 in TC2.
+          rewrite cop2_sem_cast' by auto.
+          apply cast_exists with (Delta0 := Delta)(phi := m_phi jm); auto.
         }
       * fold denote_tc_assert in TC.
         inv H9.
@@ -3039,14 +3033,12 @@ Proof.
           apply eval_expr_relate with (Delta0 := Delta); auto.
         }
         {
-          rewrite cop2_sem_cast.
+          simpl in H6; rewrite (call_cont_current_function H7) in H6.
+          destruct H6 as [_ ?].
+          rewrite !denote_tc_assert_andp in TC.
+          destruct TC as [TC1 TC2]. rewrite H6 in TC2.
+          rewrite cop2_sem_cast' by auto.
           apply cast_exists with (Delta0 := Delta)(phi := m_phi jm); auto.
-          destruct H3. simpl in H6.
-          rewrite (call_cont_current_function H7) in H6.
-          destruct H6 as [_ H6]; rewrite <- H6.
-          clear - TC.
-          simpl in TC.
-          rewrite denote_tc_assert_andp in TC; destruct TC; auto.
         }
   + intro.
     inv H7.

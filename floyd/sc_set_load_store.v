@@ -239,6 +239,7 @@ Lemma semax_SC_field_cast_load:
       (p: val) (v : val) (v' : reptype (nested_field_type t_root gfs0)) lr,
       typeof_temp Delta id = Some t ->
       type_is_by_value (typeof (nested_efield e1 efs tts)) = true ->
+      classify_cast (typeof (nested_efield e1 efs tts)) t <> cast_case_p2bool ->
       readable_share sh ->
       LR_of_type t_root = lr ->
       type_is_volatile (typeof (nested_efield e1 efs tts)) = false ->
@@ -263,13 +264,14 @@ Lemma semax_SC_field_cast_load:
               (LOCALx (temp id (eval_cast (typeof (nested_efield e1 efs tts)) t v) :: remove_localdef id Q)
                 (SEPx R)))).
 Proof.
-  intros until 7; pose proof I; intros.
+  intros until 2. intro H6. intros.
   eapply semax_extract_later_prop'; [exact H12 | clear H12; intro H12].
   eapply semax_extract_later_prop'; 
    [eapply derives_trans; [exact H9 | eapply typeof_nested_efield; eauto] | intro].
   assert (JMeq (valinject (nested_field_type t_root gfs) v) v)
     by (apply valinject_JMeq; rewrite H13; auto).
   eapply semax_max_path_field_cast_load_nth_ram.
+  1: eassumption.
   1: eassumption.
   1: eassumption.
   1: eassumption.

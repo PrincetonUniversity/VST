@@ -1199,6 +1199,7 @@ Qed.
 Lemma semax_cast_load {CS: compspecs}: 
 forall (Delta: tycontext) sh id P e1 t1 v2,
     typeof_temp Delta id = Some t1 ->
+   classify_cast (typeof e1) t1 <> cast_case_p2bool ->
     readable_share sh ->
    (forall rho, !! typecheck_environ Delta rho && P rho |-- mapsto sh (typeof e1) (eval_lvalue e1 rho) (v2 rho) * TT) ->
     semax Espec Delta 
@@ -1212,7 +1213,7 @@ forall (Delta: tycontext) sh id P e1 t1 v2,
                          (subst id old P rho)))).
 Proof.
 intros until v2.  
-intros Hid H_READABLE H99.
+intros Hid HCAST H_READABLE H99.
 replace (fun rho : environ => |> ((tc_lvalue Delta e1 rho && 
        (!! tc_val t1  (`(eval_cast (typeof e1) t1) v2 rho)) &&
        P rho)))
@@ -1274,8 +1275,8 @@ split; [split3 | ].
 * simpl.
    rewrite <- (age_jm_dry H); constructor; auto.
    apply Clight.eval_Ecast with (v2 rho);
-  [ | clear - TC3; unfold prop,eval_cast, force_val1 in TC3;
-     rewrite cop2_sem_cast; 
+  [ | clear - HCAST TC3; unfold prop,eval_cast, force_val1 in TC3;
+     rewrite cop2_sem_cast by (intro; contradiction);
     destruct (sem_cast (typeof e1) t1 (v2 rho)); try reflexivity; inv TC3].
    apply Clight.eval_Elvalue with b ofs; auto.
    destruct H0 as [H0 _].
@@ -1610,7 +1611,8 @@ econstructor; try eassumption.
 unfold tc_lvalue in TC1. simpl in TC1. 
 auto.
 instantiate (1:=(force_val (Cop.sem_cast (eval_expr e2 rho) (typeof e2) (typeof e1) (m_dry jm)))).
-rewrite cop2_sem_cast.
+rewrite (age_jm_dry Hage).
+rewrite cop2_sem_cast' by auto.
 eapply cast_exists; eauto. destruct TC4; auto.
 eapply Clight.assign_loc_value.
 apply Hmode.
@@ -1667,7 +1669,7 @@ destruct TC4 as [TC4 _].
 
 rewrite Hmode.
 rewrite He1'. 
-rewrite writable_share_right; try rewrite cop2_sem_cast; auto.
+rewrite writable_share_right; try rewrite cop2_sem_cast'; auto.
 rewrite NONVOL.
 rewrite if_true by auto.
 apply orp_right1.

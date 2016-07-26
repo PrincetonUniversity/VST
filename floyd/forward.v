@@ -1861,6 +1861,7 @@ Ltac load_tac :=   (* matches:  semax _ _ (Sset _ (Efield _ _ _)) _  *)
     eapply (semax_SC_field_cast_load Delta sh n) with (lr0 := lr) (t_root0 := t_root) (gfs2 := gfs0) (gfs3 := gfs1);
     [ reflexivity
     | reflexivity
+    | now (clear; let H := fresh in intro H; inversion H)
     | solve [subst sh; auto] (* readable share *)
     | reflexivity
     | reflexivity

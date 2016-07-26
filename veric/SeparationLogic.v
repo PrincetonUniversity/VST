@@ -1203,6 +1203,7 @@ Axiom semax_cast_load :
   forall {Espec: OracleKind}{CS: compspecs},
 forall (Delta: tycontext) sh id P e1 t1 (v2: environ -> val),
     typeof_temp Delta id = Some t1 ->
+    classify_cast (typeof e1) t1 <> cast_case_p2bool ->
     readable_share sh ->
     local (tc_environ Delta) && P |-- `(mapsto sh (typeof e1)) (eval_lvalue e1) v2 * TT ->
     @semax CS Espec Delta 

@@ -464,11 +464,32 @@ Qed.
 
 Lemma cop2_sem_cast : 
     forall t1 t2 v m, 
-   Cop.sem_cast v t1 t2 (m_dry m) = sem_cast t1 t2 v.
-intros. unfold Cop.sem_cast, sem_cast.
+ (classify_cast t1 t2 = cast_case_p2bool ->
+   denote_tc_comparable v (Vint Int.zero) (m_phi m) )->
+ Cop.sem_cast v t1 t2 (m_dry m) = sem_cast t1 t2 v.
+intros.
+ unfold Cop.sem_cast, sem_cast.
 destruct (classify_cast t1 t2);
-destruct v; destruct t1; destruct t2; auto.
-Admitted.
+destruct v; try reflexivity.
+specialize (H (eq_refl _)).
+do 4 red in H. destruct H as [_ H].
+apply weak_valid_pointer_dry in H.
+unfold Mem.weak_valid_pointer.
+rewrite H. reflexivity.
+Qed.
+
+Lemma cop2_sem_cast' : 
+    forall {CS: compspecs} t2 e rho m, 
+ (denote_tc_assert (isCastResultType (typeof e) t2 e) rho) (m_phi m) ->
+ Cop.sem_cast (eval_expr e rho) (typeof e) t2 (m_dry m) = 
+ sem_cast (typeof e) t2 (eval_expr e rho).
+Proof.
+intros.
+apply cop2_sem_cast.
+intro.
+rewrite isCastR,H0,denote_tc_assert_andp, denote_tc_assert_comparable' in H.
+apply H.
+Qed.
 
 Lemma isBinOpResultType_binop_stable: forall {CS: compspecs} b e1 e2 t rho phi,
   denote_tc_assert (isBinOpResultType b e1 e2 t) rho phi ->
@@ -680,10 +701,12 @@ destruct H3.
 unfold force_val1, force_val in *; super_unfold_lift; intuition.
 eapply Clight.eval_Ecast.
 eapply H5; auto.
-rewrite <- cop2_sem_cast with (m:=m) in *.
-destruct (Cop.sem_cast (eval_expr e rho) (typeof e) t). auto.
-inv TC. 
-
+revert TC.
+rewrite  <- cop2_sem_cast' with (m0:=m) by auto.
+intro.
+destruct (Cop.sem_cast (eval_expr e rho) 
+           (typeof e) t (m_dry m)); inv TC.
+auto.
 * (*Field*)
  assert (TC := typecheck_expr_sound _ _ _ _ H0 H3).
  clear H1; rename H3 into H1. 

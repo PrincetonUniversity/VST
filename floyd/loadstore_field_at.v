@@ -120,6 +120,7 @@ Lemma semax_max_path_field_cast_load_nth_ram:
       (p v: val) (v' : reptype (nested_field_type t_root gfs)) lr,
       typeof_temp Delta id = Some t ->
       type_is_by_value (typeof (nested_efield e1 efs tts)) = true ->
+      classify_cast (typeof (nested_efield e1 efs tts)) t <> cast_case_p2bool ->
       readable_share sh ->
       LR_of_type t_root = lr ->
       type_is_volatile (typeof (nested_efield e1 efs tts)) = false ->
@@ -141,7 +142,7 @@ Lemma semax_max_path_field_cast_load_nth_ram:
               (LOCALx (temp id (eval_cast (typeof (nested_efield e1 efs tts)) t v) :: remove_localdef id Q)
                 (SEPx R)))).
 Proof.
-  intros.
+  intros until 2. intro HCAST; intros.
   assert_PROP (typeof (nested_efield e1 efs tts) = nested_field_type t_root gfs).
   Focus 1. {
     eapply derives_trans; [exact H9 |].
@@ -161,7 +162,7 @@ Proof.
   } Unfocus.
   rewrite H10.
   eapply semax_cast_load_nth_ram; try eassumption;
-  [ idtac | idtac | apply andp_right].
+  [ idtac |  rewrite <- H10; eassumption | idtac | apply andp_right].
   + rewrite (add_andp _ _ H8), (add_andp _ _ H9).
     eapply derives_trans; [| apply eval_lvalue_nested_efield; eassumption].
     solve_andp.

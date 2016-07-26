@@ -79,6 +79,7 @@ Lemma semax_cast_load_37' :
   forall {Espec: OracleKind}{cs: compspecs} ,
 forall (Delta: tycontext) sh id P Q R e1 t1 (v2: val),
     typeof_temp Delta id = Some t1 ->
+    classify_cast (typeof e1) t1 <> cast_case_p2bool ->
     readable_share sh ->
       ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) |-- 
           (tc_lvalue Delta e1) &&
@@ -91,7 +92,7 @@ forall (Delta: tycontext) sh id P Q R e1 t1 (v2: val),
            (LOCALx (temp id (eval_cast (typeof e1) t1 v2) :: remove_localdef id Q)
              (SEPx R)))).
 Proof.
-  intros. rename H0 into H_READABLE; pose proof I.
+  intros until 1. intros HCAST H_READABLE H1. pose proof I.
   eapply semax_pre_post; [ | | apply semax_cast_load with (sh0:=sh)(v3:= `v2); auto].
   + instantiate (1:= PROPx P (LOCALx Q (SEPx R))).
     apply later_left2.
@@ -233,6 +234,7 @@ Lemma semax_cast_load_nth_ram :
     ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) |--
       local (`(eq p) (eval_lvalue e1)) ->
     nth_error R n = Some Pre ->
+    classify_cast t1 t2 <> cast_case_p2bool ->
     readable_share sh ->
     Pre |-- mapsto sh t1 p v * TT ->
     ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) |-- 
