@@ -1,6 +1,8 @@
 # See the file BUILD_ORGANIZATION for 
 # explanations of why this is the way it is
 
+default_target: msl veric floyd progs
+
 COMPCERT ?= compcert
 -include CONFIGURE
 #Note:  You can make a CONFIGURE file with the definition
@@ -44,9 +46,6 @@ endif
 
 ifeq ($(wildcard $(COMPCERT)/*/Clight.vo), )
 ifeq ($(COMPCERT), compcert)
- $(warning FIRST BUILD COMPCERT, by:  cd compcert; ./make   (use ./make and not just make))
- $(warning "or, link to an external compcert directory by creating a CONFIGURE file;")
- $(error " see the note in vst/Makefile.")
 else
  $(error FIRST BUILD COMPCERT, by:  cd $(COMPCERT); make clightgen)
 endif
@@ -91,7 +90,7 @@ MSL_FILES = \
   env.v corec.v Coqlib2.v sepalg_list.v rmaps.v rmaps_lemmas.v op_classes.v \
   simple_CCC.v seplog.v alg_seplog.v alg_seplog_direct.v log_normalize.v ramification_lemmas.v
 
-UPDATE_SEPCOMP_FILES = \
+SEPCOMP_FILES = \
   Address.v \
   step_lemmas.v \
   extspec.v \
@@ -112,32 +111,6 @@ UPDATE_SEPCOMP_FILES = \
   internal_diagram_trans.v \
   wholeprog_simulations.v \
   wholeprog_lemmas.v
-
-SEPCOMP_FILES= \
-  Address.v \
-  step_lemmas.v \
-  extspec.v \
-  FiniteMaps.v \
-  mem_lemmas.v mem_wd.v \
-  compiler_correctness.v \
-  core_semantics.v core_semantics_lemmas.v CoopCoreSem.v \
-  globalSep.v simulations.v \
-  simulations_lemmas.v full_composition.v \
-  structured_injections.v \
-  effect_semantics.v effect_simulations.v effect_simulations_lemmas.v \
-  rg_lemmas.v \
-  effect_properties.v \
-  arguments.v closed_safety.v compcert.v \
-  val_casted.v \
-  reach.v \
-  trace_semantics.v \
-  arguments.v \
-  nucular_semantics.v \
-  wholeprog_simulations.v \
-  wholeprog_lemmas.v \
-  barebones_simulations.v \
-  event_semantics.v
-  #safety_preservation.v \
 
 # what is:  erasure.v context.v context_equiv.v jstep.v 
 
@@ -310,7 +283,7 @@ C_FILES = reverse.c queue.c sumarray.c message.c insertionsort.c float.c nest3.c
 
 FILES = \
  $(MSL_FILES:%=msl/%) \
- $(UPDATE_SEPCOMP_FILES:%=sepcomp/%) \
+ $(SEPCOMP_FILES:%=sepcomp/%) \
  $(VERIC_FILES:%=veric/%) \
  $(FLOYD_FILES:%=floyd/%) \
  $(PROGS_FILES:%=progs/%) \
@@ -346,17 +319,43 @@ ifeq ("$(filter $(COQVERSION),$(COQV))","")
 $(error FAILURE: You need Coq $(COQVERSION) but you have this version: $(COQV))
 endif
 
-#compcert/%.vo: compcert/%.v
-#	()
 
-default_target: msl veric floyd progs
+$(COMPCERT)/lib/%.vo: $(COMPCERT)/lib/%.v
+	@
+$(COMPCERT)/common/%.vo: $(COMPCERT)/common/%.v
+	@
+$(COMPCERT)/cfrontend/%.vo: $(COMPCERT)/cfrontend/%.v
+	@
+$(COMPCERT)/exportclight/%.vo: $(COMPCERT)/exportclight/%.v
+	@
+$(COMPCERT)/flocq/Appli/%.vo: $(COMPCERT)/flocq/Appli/%.v
+	@
+$(COMPCERT)/flocq/Calc/%.vo: $(COMPCERT)/flocq/Calc/%.v
+	@
+$(COMPCERT)/flocq/Core/%.vo: $(COMPCERT)/flocq/Core/%.v
+	@
+$(COMPCERT)/flocq/Prop/%.vo: $(COMPCERT)/flocq/Prop/%.v
+	@
+$(COMPCERT)/flocq/%.vo: $(COMPCERT)/flocq/%.v
+	@
 
 all:     .loadpath version.vo $(FILES:.v=.vo)
 
+
+ifeq ($(COMPCERT), compcert)
+compcert: $(COMPCERT)/exportclight/Clightdefs.vo
+$(COMPCERT)/exportclight/Clightdefs.vo: 
+	cd $(COMPCERT) && $(MAKE) exportclight/Clightdefs.vo
+$(patsubst %.v,sepcomp/%.vo,$(SEPCOMP_FILES)): compcert
+$(patsubst %.v,veric/%.vo,$(VERIC_FILES)): compcert
+$(patsubst %.v,floyd/%.vo,$(FLOYD_FILES)): compcert
+msl/Coqlib2.vo: compcert
+endif
+
 msl:     .loadpath version.vo $(MSL_FILES:%.v=msl/%.vo)
-sepcomp: .loadpath $(CC_TARGET) $(UPDATE_SEPCOMP_FILES:%.v=sepcomp/%.vo)
+sepcomp: .loadpath $(CC_TARGET) $(SEPCOMP_FILES:%.v=sepcomp/%.vo)
 ccc26x86:   .loadpath $(CCC26x86_FILES:%.v=ccc26x86/%.vo)
-concurrency: .loadpath $(CC_TARGET) $(UPDATE_SEPCOMP_FILES:%.v=sepcomp/%.vo) $(CONCUR_FILES:%.v=concurrency/%.vo)
+concurrency: .loadpath $(CC_TARGET) $(SEPCOMP_FILES:%.v=sepcomp/%.vo) $(CONCUR_FILES:%.v=concurrency/%.vo)
 linking: .loadpath $(LINKING_FILES:%.v=linking/%.vo) 
 veric:   .loadpath $(VERIC_FILES:%.v=veric/%.vo)
 floyd:   .loadpath $(FLOYD_FILES:%.v=floyd/%.vo)
@@ -373,12 +372,11 @@ hmacdrbg:   .loadpath $(HMACDRBG_FILES:%.v=hmacdrbg/%.vo)
 
 CGFLAGS =  -DCOMPCERT
 
-CVFILES = progs/revarray.v progs/reverse.v progs/queue.v progs/sumarray.v \
-         progs/message.v progs/insertionsort.v progs/float.v progs/logical_compare.v \
-         progs/nest2.v progs/nest3.v progs/dotprod.v progs/string.v progs/even.v progs/odd.v \
-         progs/merge.v
+$(patsubst %.c,progs/%.vo,$(C_FILES)): compcert
 
 cvfiles: $(CVFILES)
+
+
 
 clean_cvfiles: 
 	rm $(CVFILES)
@@ -424,7 +422,7 @@ progs/append.v: progs/append.c
 	$(CLIGHTGEN) ${CGFLAGS} $<
 endif
 
-version.v:  VERSION $(MSL_FILES:%=msl/%) $(UPDATE_SEPCOMP_FILES:%=sepcomp/%) $(VERIC_FILES:%=veric/%) $(FLOYD_FILES:%=floyd/%)
+version.v:  VERSION $(MSL_FILES:%=msl/%) $(SEPCOMP_FILES:%=sepcomp/%) $(VERIC_FILES:%=veric/%) $(FLOYD_FILES:%=floyd/%)
 	sh util/make_version
 
 .loadpath: Makefile

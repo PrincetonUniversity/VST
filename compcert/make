@@ -1,3 +1,0 @@
-#
-make -f Makefile.clight $*
-

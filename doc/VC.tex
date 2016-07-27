@@ -36,7 +36,7 @@ Applying the Verified Software Toolchain\\
 to C programs}%
 
 \vskip50pt
-  \fontsize{14}{16}\selectfont\par\noindent{\itshape Version 1.6 \\ \today}
+  \fontsize{14}{16}\selectfont\par\noindent{\itshape Version 1.7 \\ \today}
 \vskip100pt
 \par
 \vskip10pt
@@ -155,14 +155,16 @@ The Verified Software Toolchain runs on Linux, Mac, or Windows.
 You will need to install:
 
 \begin{enumerate}
-\item Coq 8.4pl6, from coq.inria.fr.  Follow the standard installation instructions.
-\item CompCert 2.6, from compcert.inria.fr.
+\item Coq 8.5pl2, from coq.inria.fr.  Follow the standard installation instructions.
+\item CompCert 2.7.1, from compcert.inria.fr.
   You will want to build the \emph{clightgen} tool, using these commands:
   \textsf{./configure ia32-linux; make clightgen}.  You might replace
   ia32-linux with ia32-macosx or ia32-cygwin.  Verifiable C should work
   on other 32-bit architectures as well, but has not been extensively tested.
-\item VST 1.6, from vst.cs.princeton.edu, or else an appropriate
-   version from \href{https://github.com/PrincetonUniversity/VST}.
+\item VST 1.7, from vst.cs.princeton.edu, or else an appropriate
+  version from \href{https://github.com/PrincetonUniversity/VST}.
+  After unpacking, read the \textsc{build\_organization} file
+  (or simply \textsf{make -j}).
 \end{enumerate}  
 
 

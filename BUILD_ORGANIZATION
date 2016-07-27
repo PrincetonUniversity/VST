@@ -5,10 +5,7 @@ HOW TO BUILD:
   will tell you which versions are compatible.
 
 0a. Make sure you have the right version of CompCert.
-   VST (June 2016) currently uses CompCert 2.6 for Coq 8.5pl1, available here:
-   https://github.com/jhjourdan/CompCert/tree/coq8.5-compcert2.6
-   [Make sure you switch to this coq8.5-compcert2.6 branch!]
-   THIS IS NOT THE STANDARD CompCert 2.6 distribution, which is for Coq 8.4pl6.
+   VST 1.7 uses CompCert 2.7.1 for Coq 8.5pl2, available here.
 
 METHOD A [recommended]
 1. [If you will not need to run clightgen, then you can skip this step.]

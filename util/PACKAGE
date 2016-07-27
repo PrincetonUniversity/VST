@@ -14,7 +14,7 @@ cd vst-temp
 bash util/make_version
 rm -r sepcomp/submit*
 mv _CoqProject BUILD_ORGANIZATION HISTORY LICENSE Makefile pg README.md VERSION version.v ../vst
-mv compcert msl sepcomp veric floyd progs examples util sha ../vst
+mv compcert msl sepcomp veric floyd progs examples util ../vst
 mv doc/VC.pdf ../vst/doc
 cd ..
 touch vst/version.v # make it newest so "make" won't rebuild it

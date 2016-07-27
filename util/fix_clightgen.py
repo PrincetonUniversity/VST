@@ -1,3 +1,7 @@
+# THIS UTILITY IS NO LONGER NECESSARY;
+#  as of CompCert 2.7, the clightgen utility should be used with
+#  several .c files at once, and will make all their identifiers consistent.
+
 import os
 import sys
 import re
