@@ -1200,7 +1200,7 @@ Proof. intros.
        symmetry. apply HMAC_DRBG_generate_helper_Z_incremental_fst.  omega. trivial.
        omega. omega. exists n; trivial.
 Time Qed. (*22secs*) 
-
+(*
 Opaque hmac256drbgabs_value. 
 Opaque hmac256drbgabs_entropy_len. 
 Opaque hmac256drbgabs_reseed_interval.  
@@ -1220,7 +1220,7 @@ Opaque hmac256drbgabs_hmac_drbg_update.
 
 Opaque mbedtls_HMAC256_DRBG_generate_function.
 Opaque mbedtls_HMAC256_DRBG_reseed_function.
-
+*)
 Lemma loop_before_memcopy Espec contents additional add_len output out_len ctx 
       md_ctx' V' reseed_counter' entropy_len' prediction_resistance' 
       reseed_interval' key V reseed_counter entropy_len prediction_resistance 
@@ -1617,9 +1617,11 @@ forall
               (get_stream_result
                  (mbedtls_HMAC256_DRBG_generate_function s initial_state_abs
                     out_len contents)); K_vector kv))%assert))).
-Proof. intros. abbreviate_semax. Optimize Proof. Optimize Heap. (*Time Qed.*) unfold Delta, abbreviate.
+Proof. intros. 
+(*abbreviate_semax. Optimize Proof. Optimize Heap. (*Time Qed.*) unfold Delta, abbreviate.
 Opaque HMAC256.
-  unfold abbreviate in Delta_specs. (* admit. Time Qed.*) abbreviate_semax. 
+  unfold abbreviate in Delta_specs. (* admit. Time Qed.*)*)
+ abbreviate_semax. 
 freeze [0;1;2;4;5;6;7;8;9;10] FR_mcpy1.
     assert_PROP (field_compatible (tarray tuchar out_len) [] output) as Hfield_compat_output by entailer!.
     freeze [0;1] FR_mcpy2.
@@ -1799,6 +1801,7 @@ freeze [0;1;2;4;5;6;7;8;9;10] FR_mcpy1.
     eapply (loop_closing_entailment (*Espec*) contents additional (*add_len*)(Zlength contents) output out_len ctx md_ctx'
       key V reseed_counter entropy_len prediction_resistance reseed_interval kv
       info_contents s) with (n:=n); try assumption; reflexivity.
+Time Qed.doesnt terminate
 Admitted.  (*Time Qed. Does not terminate within 13h. Increased heap from 1.58GB to 1.66 GB *)
 
 Lemma Tarray_0_emp sh v c: data_at sh (Tarray tuchar 0 noattr) v c |--  emp.
