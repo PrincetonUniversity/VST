@@ -27,10 +27,10 @@ Lemma body_md_update: semax_body HmacDrbgVarSpecs HmacDrbgFunSpecs
        f_mbedtls_md_hmac_update md_update_spec.
 Proof.
   start_function.
-
+(*
   name ctx' _ctx.
   name input' _input.
-  name ilen' _ilen.
+  name ilen' _ilen.*)
   
   unfold md_relate; unfold convert_abs.
   destruct r as [r1 [r2 internal_r]].
@@ -44,6 +44,8 @@ Proof.
 
   (* HMAC_CTX * hmac_ctx = ctx->hmac_ctx; *)
   forward.
+assert (NAME:_HMAC_Update = hmac._HMAC_Update). admit.
+rewrite NAME.
 
   (* HMAC_Update(hmac_ctx, input, ilen); *)
   forward_call (key, internal_r, d, data, data1, kv).

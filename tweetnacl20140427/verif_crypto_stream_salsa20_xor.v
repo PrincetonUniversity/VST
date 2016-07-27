@@ -716,7 +716,7 @@ Lemma loop1 Espec F x z c mInit b nonce k m xbytes mbytes SV cLen
                       Sbreak)
                     (Ssequence
                       (Ssequence
-                        (Sifthenelse (Ebinop One (Etempvar _m (tptr tuchar))
+                        (Sifthenelse (Ebinop Cop.One (Etempvar _m (tptr tuchar))
                                        (Ecast (Econst_int (Int.repr 0) tint)
                                          (tptr tvoid)) tint)
                           (Sset 187%positive
@@ -959,7 +959,7 @@ Lemma loop2 Espec F x z c mInit m b nonce k xbytes mbytes SV
                       Sbreak)
                     (Ssequence
                       (Ssequence
-                        (Sifthenelse (Ebinop One (Etempvar _m (tptr tuchar))
+                        (Sifthenelse (Ebinop Cop.One (Etempvar _m (tptr tuchar))
                                        (Ecast (Econst_int (Int.repr 0) tint)
                                          (tptr tvoid)) tint)
                           (Sset 188%positive
@@ -994,7 +994,7 @@ Lemma loop2 Espec F x z c mInit m b nonce k xbytes mbytes SV
      (Ssequence
         (Ssequence
            (Sifthenelse
-              (Ebinop One (Etempvar _m (tptr tuchar))
+              (Ebinop Cop.One (Etempvar _m (tptr tuchar))
                  (Ecast (Econst_int (Int.repr 0) tint) (tptr tvoid)) tint)
               (Sset 187%positive
                  (Ecast

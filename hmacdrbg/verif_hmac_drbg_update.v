@@ -7,7 +7,8 @@ Require Import hmacdrbg.HMAC_DRBG_algorithms.
 Require Import hmacdrbg.spec_hmac_drbg.
 Require Import sha.HMAC256_functional_prog.
 Require Import sha.spec_sha.
-
+Require Import hmacdrbg.HMAC_DRBG_common_lemmas.
+ 
 Fixpoint HMAC_DRBG_update_round (HMAC: list Z -> list Z -> list Z) (provided_data K V: list Z) (round: nat): (list Z * list Z) :=
   match round with
     | O => (K, V)
@@ -66,10 +67,9 @@ Lemma HMAC_DRBG_update_round_incremental_Z:
                            (hmac256drbgabs_value initial_state_abs) (Z.to_nat (i + 1)).
 Proof.
   intros.
-  rewrite <- (Z2Nat.id i) at 1 2 by assumption.
-  rewrite Z2Nat.inj_add by (try assumption; try omega).
-  simpl.
-  apply HMAC_DRBG_update_round_incremental; assumption.
+  specialize (HMAC_DRBG_update_round_incremental _ _ _ _ _ H0); intros. clear H0.
+  rewrite (Z2Nat.id _ H) in H1. 
+  rewrite Z2Nat.inj_add; try assumption; omega.
 Qed.
 
 Section DRBG_Update_Loop.
@@ -303,7 +303,7 @@ semax
    SEP 
    (hmac256drbgabs_common_mpreds state_abs initial_state ctx info_contents;
    data_at_ Tsh (tarray tuchar 32) K;
-   data_at Tsh (tarray tuchar add_len) (map Vint (map Int.repr contents))
+   da_emp Tsh (tarray tuchar add_len) (map Vint (map Int.repr contents))
      additional; data_at_ Tsh (tarray tuchar 1) sep; K_vector kv))
   (Ssequence
      (Sassign
@@ -508,16 +508,17 @@ semax
             Forall general_lemmas.isbyteZ value0) &&
          hmac256drbgabs_common_mpreds final_state_abs initial_state ctx
            info_contents)); data_at_ Tsh (tarray tuchar 32) K;
-      data_at Tsh (tarray tuchar add_len) (map Vint (map Int.repr contents))
+      da_emp Tsh (tarray tuchar add_len) (map Vint (map Int.repr contents))
         additional; data_at_ Tsh (tarray tuchar 1) sep; K_vector kv))).
-Proof. intros. subst initial_state. simpl.
+Admitted.
+(*Proof. intros. subst initial_state. simpl.
     unfold hmac256drbgabs_common_mpreds. repeat flatten_sepcon_in_SEP. 
     (*unfold hmac256drbgabs_to_state. simpl.*)
     unfold hmac256drbgabs_to_state. simpl. destruct state_abs. simpl in *. subst key0 value.
     abbreviate_semax. Intros. 
     freeze [1;2;3;5;6] FR0.
-    assert_PROP (isptr ctx /\ isptr additional) as XX by entailer!.
-    destruct XX as [isptrCtx isptrAdditional].
+    rewrite data_at_isptr with (p:= ctx).
+    rewrite da_emp_isptrornull. normalize.
     unfold_data_at 1%nat. thaw FR0.
     freeze [7;8;9;10] OtherFields.
     rewrite (field_at_data_at _ _ [StructField _md_ctx]); simpl.
@@ -663,17 +664,26 @@ Proof. intros. subst initial_state. simpl.
          (reseed_counter',
          (entropy_len', (Val.of_bool prediction_resistance, reseed_interval')))))));
       (data_at_ Tsh (tarray tuchar (Zlength V)) K);*)
-      (data_at Tsh (tarray tuchar (Zlength contents))
+      (da_emp Tsh (tarray tuchar (Zlength contents))
           (map Vint (map Int.repr contents)) additional)) 
     ). (* 42 *)
-    {
-      
+    { 
       (* rounds = 2 case *)
       rewrite H1.
+      assert (isptr additional) as Hisptr_add.
+      { subst add_len. clear - H7 PNadditional Heqrounds Heqnon_empty_additional.
+        subst.
+        destruct (initial_world.EqDec_Z (Zlength contents) 0). discriminate .
+        destruct (base.EqDec_val additional nullval). discriminate.
+        destruct additional; simpl in *; try contradiction; subst. elim n0; trivial. trivial.
+      }
+      clear PNadditional.
+      destruct additional; try contradiction. clear additional.
+      rewrite da_emp_ptr. 
 
       (* mbedtls_md_hmac_update( &ctx->md_ctx, additional, add_len ); *)
       Time forward_call (key, field_address t_struct_hmac256drbg_context_st [StructField _md_ctx] ctx,
-                         md_ctx, additional, V ++ [i], contents, kv). (*LENB: 8=9.5, Naophat:  63 *)
+                         md_ctx, Vptr b i0, V ++ [i], contents, kv). (*LENB: 8=9.5, Naophat:  63 *)
       (*{
         (* prove the parameters match up *)
         entailer!.
@@ -693,16 +703,33 @@ Proof. intros. subst initial_state. simpl.
       (* prove the post condition of the if statement *)
       rewrite <- app_assoc.
       (*Intros v.
-      rewrite H10.*) rewrite H9.
+      rewrite H10.*) rewrite H9. rewrite da_emp_ptr.
       entailer!. (*subst add_len; trivial.*)
     }
     {
       (* rounds <> 2 case *)
+      assert (RNDS1: rounds = 1).
+      { subst rounds.
+        destruct non_empty_additional. elim H7; trivial. trivial. }
+      rewrite RNDS1 in *; clear H7 H4.
+      assert (NA: non_empty_additional = false).
+      { destruct non_empty_additional; try omega. trivial. }
+      rewrite NA in *. clear Heqrounds.
+      
+      forward. (*
+      assert (Add_NULL: additional = nullval).
+      { assert (rounds = 1). subst add_len. clear - H7 PNadditional Heqrounds Heqnon_empty_additional.
+        destruct additional; simpl in PNadditional; try contradiction.
+        + subst; reflexivity.
+        + subst.
+          destruct (initial_world.EqDec_Z (Zlength contents) 0). discriminate .
+        destruct (base.EqDec_val additional nullval). discriminate.
+        destruct additional; simpl in *; try contradiction; subst. elim n0; trivial. trivial.
+      }subst rounds.
       freeze [0;1;2;3;4] FR7.
-      forward.
+      forward.*)
       rewrite H1, H9.
       entailer!.
-      thaw FR7. cancel.
       destruct contents.
       + simpl. (*rewrite H1.*) apply derives_refl. 
       + (* contents not empty, which is a contradiction *)
@@ -712,7 +739,7 @@ Proof. intros. subst initial_state. simpl.
         destruct d as [Zlength_eq | Zlength_neq].
         - assert (0 <= Zlength l) by (apply Zlength_nonneg).
           destruct (Zlength l); [inversion Zlength_eq| omega | omega].
-        - destruct (base.EqDec_val additional nullval). rewrite e in isptrAdditional. contradiction.
+        - destruct (base.EqDec_val additional nullval). rewrite e in xx. contradiction.
           elim H7; trivial.
     }
     rewrite H9.
@@ -809,7 +836,7 @@ Proof. intros. subst initial_state. simpl.
     rewrite (field_at_data_at _ _ [StructField _md_ctx]);
     rewrite (field_at_data_at _ _ [StructField _V]). cancel.
 Time Qed. (*121secs, 1.67GB -> 1.75GB*)
-  
+  *)
 End DRBG_Update_Loop.
 
 Lemma body_hmac_drbg_update: semax_body HmacDrbgVarSpecs HmacDrbgFunSpecs 
@@ -821,18 +848,29 @@ Proof.
   name additional' _additional.*)
   rename lvar0 into sep.
   rename lvar1 into K.
+  abbreviate_semax.
+  destruct initial_state as [IS1 [IS2 [IS3 [IS4 [IS5 IS6]]]]].
+  rewrite da_emp_isptrornull. (*needed later*)
 
   (* info = md_ctx.md_info *)
-  freeze [0;1;2;4;6] FR0.
-  Time forward. (*8.5pl2: 1230secs*)
-  remember initial_state as IS. (*destruct IS as [[initialStateA initialStateB] initialStateC].*)
-  destruct IS as [md_ctx [V' [reseed_counter' [entropy_len' [prediction_resistance' reseed_interval']]]]].
-  (*
-  destruct IS as [md_ctx0' [V0' [reseed_counter0' [entropy_len0' [prediction_resistance0' reseed_interval0']]]]].
-   *)
+  destruct IS1 as [IS1a [IS1b IS1c]]. simpl.
+  rewrite data_at_isptr with (p:=ctx). 
+  unfold hmac256drbgstate_md_info_pointer. simpl.
+  rewrite data_at_isptr with (p:=IS1a). 
+  normalize.
+  freeze [0;1;2;4;6] FR0. 
+  freeze [0;2] FR1.
+
+  Time forward. (*8.5pl2: 3secs. BUT without doing the 2 lines
+     unfold hmac256drbgstate_md_info_pointer. simpl.
+     rewrite data_at_isptr with (p:=IS1a),
+     this
+     entailer takes 1230secs.
+     And when we leave the IS1a-data-at unfrozen (eg omit the construction of FR1), it also takes significantly more than 3 secs*)
+  thaw FR1.
 
   (* md_len = mbedtls_md_get_size( info ); *)
-  freeze [0;1;2] FR1.
+  freeze [0;1] FR1.
   forward_call tt.
 
   (*Intros md_len. LENB: replaced by the following*)
@@ -840,57 +878,53 @@ Proof.
 (*  remember (Vint (Int.repr (Z.of_nat SHA256.DigestLength))) as md_len.*)
 
   (* rounds = ( additional != NULL && add_len != 0 ) ? 2 : 1; *)
-  remember (if eq_dec add_len 0 then false else if eq_dec additional nullval then false else true) as non_empty_additional.
+(*  remember (if eq_dec add_len 0 then false else if eq_dec additional nullval then false else true) as non_empty_additional.*)
+  remember (andb (negb (eq_dec additional nullval)) (negb (eq_dec add_len 0))) as na.
+  freeze [0;1] FR2.
   forward_if (
       PROP  ()
       LOCAL  (temp _md_len (Vint (Int.repr 32)); lvar _K (tarray tuchar 32) K;
       temp _ctx ctx;
       lvar _sep (tarray tuchar 1) sep;
       temp _additional additional; temp _add_len (Vint (Int.repr add_len));
-      temp 225%positive (Val.of_bool non_empty_additional);
-(*      temp 140%positive (Val.of_bool non_empty_additional);*)
+      temp 225%positive (Val.of_bool na);
+(*      temp 225%positive (Val.of_bool non_empty_additional);*)
       gvar sha._K256 kv)
-      SEP  (FRZL (FR1))). 
+      SEP  (FRZL (FR2))). 
   {
     (* show that add_len <> 0 implies the post condition *)
     forward.
-    { 
-      thaw FR1. thaw FR0.
-      Time entailer!. (*8.5pl2: 1300secs *)
-      assert (sizeof (*cenv_cs*) (tarray tuchar (Zlength contents)) > 0).
-      { specialize (Zlength_nonneg contents); intros NN.
-        simpl; rewrite Zmax_r. 2: omega.
-        apply Z.le_lteq in NN; destruct NN. omega. omega. 
-      }
+    { entailer. destruct additional; try contradiction; simpl in PNadditional.
+      subst i; simpl. entailer!. (* simpl. *)
+      thaw FR2. thaw FR1. thaw FR0. normalize.
+      rewrite da_emp_ptr.
       apply denote_tc_comparable_split; auto 50 with valid_pointer.
       (* TODO regression, this should have solved it *) 
-      
       apply sepcon_valid_pointer1.
       apply sepcon_valid_pointer1.
       apply sepcon_valid_pointer1.
       apply sepcon_valid_pointer1.
       apply sepcon_valid_pointer2.
-(*      apply sepcon_valid_pointer2.*)
-      apply data_at_valid_ptr; auto. 
+      apply data_at_valid_ptr; auto.
+
+      simpl. clear - H4 H. rewrite Zmax_right; omega.
+    } 
+
+    { entailer!.
+      destruct additional; simpl in PNadditional; try contradiction.
+      subst i; simpl; trivial.
+      simpl. destruct (initial_world.EqDec_Z (Zlength contents) 0); trivial; omega.
     }
-    entailer!.
-    repeat rewrite Zlength_map in *.
-    rewrite if_false by trivial.
-    destruct additional; try contradiction.
-    {
-      unfold is_pointer_or_null in PNadditional. 
-      rewrite PNadditional, if_true by trivial; reflexivity.
-    }
-    reflexivity. 
-  }
+  } 
+  
 
   {
     (* show that add_len = 0 implies the post condition *)
     forward. 
-    entailer!. rewrite H4. reflexivity.
+    entailer!. rewrite H4. simpl. rewrite andb_false_r. reflexivity. 
   }
 
-  remember (update_rounds non_empty_additional) as rounds. unfold update_rounds in Heqrounds.
+  remember (update_rounds na) as rounds. unfold update_rounds in Heqrounds.
   forward_if ( PROP  ()
       LOCAL  (temp _md_len (Vint (Int.repr 32)); lvar _K (tarray tuchar 32) K;
       temp _ctx ctx;
@@ -900,7 +934,7 @@ Proof.
       temp 226%positive (Vint (Int.repr rounds));
       gvar sha._K256 kv
              )
-      SEP  (FRZL FR1) 
+      SEP  (FRZL FR2) 
   ).
   {
     (* non_empty_additional = true *)
@@ -917,6 +951,7 @@ Proof.
   drop_LOCAL 7%nat.
   remember (hmac256drbgabs_key initial_state_abs) as initial_key.
   remember (hmac256drbgabs_value initial_state_abs) as initial_value.
+
   (* verif_sha_final2.v, @exp (environ -> mpred) *)
   (* for ( sep_value = 0; sep_value < rounds; sep_value++ ) *)
   Time forward_for_simple_bound rounds (
@@ -948,36 +983,43 @@ Proof.
               /\ Zlength value = Z.of_nat SHA256.DigestLength
               /\ Forall general_lemmas.isbyteZ value
             ) &&
-           (hmac256drbgabs_common_mpreds final_state_abs initial_state ctx info_contents)
+           (hmac256drbgabs_common_mpreds final_state_abs 
+             (*initial_state*) ((IS1a,(IS1b,IS1c)),(IS2,(IS3,(IS4,(IS5,IS6)))))
+              ctx info_contents)
          );
         (* `(update_relate_final_state ctx final_state_abs); *)
         (data_at_ Tsh (tarray tuchar 32) K);
-        (data_at Tsh (tarray tuchar add_len) (map Vint (map Int.repr contents)) additional);
+        (da_emp Tsh (tarray tuchar add_len) (map Vint (map Int.repr contents)) additional);
         (data_at_ Tsh (tarray tuchar 1) sep );
         (K_vector kv)
          )
   ). (* 2 *)
   {
     (* Int.min_signed <= 0 <= rounds *)
-    rewrite Heqrounds; destruct non_empty_additional; auto.
+    rewrite Heqrounds; destruct na; auto.
   }
   {
     (* rounds <= Int.max_signed *)
-    rewrite Heqrounds; destruct non_empty_additional; auto.
+    rewrite Heqrounds; destruct na; auto.
   }
   {
     (* pre conditions imply loop invariant *)
-    thaw FR1. thaw FR0.
-    unfold hmac256drbgabs_common_mpreds, hmac256drbgabs_to_state.
-    Time entailer!. (*8.5pl2: 1240secs *)
+    entailer!. 
     Exists (hmac256drbgabs_key initial_state_abs) (hmac256drbgabs_value initial_state_abs) initial_state_abs.
-    destruct initial_state_abs. simpl. Time entailer!. (*Coq8.5pl2: 804 secs*)
+    destruct initial_state_abs. simpl. Time entailer!.
+    thaw FR2. thaw FR1. thaw FR0. cancel.
+    unfold hmac256drbgabs_common_mpreds, hmac256drbgabs_to_state. cancel.
+    unfold hmac256drbg_relate. entailer!. 
   }
   {
     (* loop body *)
 (*    change (`(eq (Vint (Int.repr rounds))) (eval_expr (Etempvar _rounds tint))) with (temp _rounds (Vint (Int.repr rounds))).*)
     Intros key value state_abs. 
-    eapply hmac_drbg_update_loop; eassumption. 
+    eapply hmac_drbg_update_loop; try eassumption. reflexivity.
+    rewrite Heqna. clear - PNadditional.
+    destruct additional; simpl in PNadditional; try contradiction.
+    subst; simpl. destruct (initial_world.EqDec_Z add_len 0); trivial.
+    simpl. destruct (initial_world.EqDec_Z add_len 0); trivial.
   }
 
   Intros key value final_state_abs.
@@ -991,6 +1033,59 @@ Proof.
   destruct initial_state_abs.
   rewrite HMAC_DRBG_update_concrete_correct.
   Time entailer!. (* 29 *)
+
+  rename H4 into Hupdate_rounds.
+  rename H7 into Hmetadata.
+  destruct final_state_abs; unfold hmac256drbgabs_metadata_same in Hmetadata. clear FR2 FR1 FR0.
+  destruct Hmetadata as [Hreseed_counter [Hentropy_len [Hpr Hrseed_interval]]]; subst.
+  replace (HMAC_DRBG_update_concrete HMAC256 contents key V) with (key0, V0). apply derives_refl.
+(*  cancel.*)
+  unfold hmac256drbgabs_key, hmac256drbgabs_value in Hupdate_rounds. 
+  rewrite Hupdate_rounds in *. unfold HMAC_DRBG_update_concrete.
+  f_equal. destruct additional; simpl in PNadditional; try contradiction.
+  + subst i; simpl.   
+    destruct contents; try reflexivity.
+    destruct (initial_world.EqDec_Z (Zlength (z :: contents)) 0); simpl; trivial.
+    apply Zlength_nil_inv in e; discriminate.
+  }
+  simpl.
+  destruct contents.
+  {
+    reflexivity.
+  }
+  { destruct (initial_world.EqDec_Z (Zlength (z :: contents)) 0); simpl; trivial.
+    apply Zlength_nil_inv in e; discriminate.
+  }
+SearchAbout Zlength 0.
+     rewrite Zlength_ in e. xomega.
+    destruct (eq_dec (Zlength (z :: contents)) 0) as [Zlength_eq | Zlength_neq].
+    rewrite Zlength_cons, Zlength_correct. simpl. in Zlength_eq; omega.
+    destruct (eq_dec additional nullval) as [additional_eq | additional_neq].
+    subst. repeat rewrite Zlength_map in H11; inversion H11 as [isptr_null H']; inversion isptr_null.
+    reflexivity.
+  } reflexivity.
+  replace (Z.to_nat
+        (if if eq_dec (Zlength contents) 0
+            then false
+            else if eq_dec additional nullval then false else true
+         then 2
+         else 1)) with (match contents with | [] => 1%nat | _ => 2%nat end).
+  reflexivity.
+  destruct contents.
+  {
+    reflexivity.
+  }
+  {
+    destruct (eq_dec (Zlength (z :: contents)) 0) as [Zlength_eq | Zlength_neq].
+    rewrite Zlength_cons, Zlength_correct in Zlength_eq; omega.
+    destruct (eq_dec additional nullval) as [additional_eq | additional_neq].
+    subst. repeat rewrite Zlength_map in H11; inversion H11 as [isptr_null H']; inversion isptr_null.
+    reflexivity.
+  }
+Time Qed. (*48secs*)
+
+
+
   rename H1 into Hupdate_rounds.
   rename H7 into Hmetadata.
   destruct final_state_abs; unfold hmac256drbgabs_metadata_same in Hmetadata. clear FR1.

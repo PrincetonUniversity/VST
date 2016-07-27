@@ -129,7 +129,7 @@ CONCUR_FILES= \
   sepcomp.v seq_lemmas.v ssromega.v stack.v \
   threadPool.v threads_lemmas.v wf_lemmas.v \
   x86_inj.v x86_safe.v x86_context.v fineConc_x86.v \
-  SC_erasure.v
+  SC_erasure.v sync_preds.v
 
 CCC26x86_FILES = \
   Archi.v Bounds.v Conventions1.v Conventions.v Ctypes.v \
@@ -169,7 +169,7 @@ VERIC_FILES= \
   semax.v semax_lemmas.v semax_call.v semax_straight.v semax_loop.v semax_congruence.v \
   initial_world.v initialize.v semax_prog.v semax_ext.v SeparationLogic.v SeparationLogicSoundness.v  \
   NullExtension.v SequentialClight.v superprecise.v jstep.v address_conflict.v valid_pointer.v coqlib4.v \
-  semax_ext_oracle.v
+  semax_ext_oracle.v mem_lessdef.v
 
 FLOYD_FILES= \
    coqlib3.v base.v proofauto.v computable_theorems.v \

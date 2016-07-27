@@ -27,10 +27,12 @@ Require Import veric.tycontext.
 Require Import veric.semax_ext.
 Require Import veric.semax_ext_oracle.
 Require Import veric.res_predicates.
+Require Import veric.mem_lessdef.
 Require Import sepcomp.semantics.
 Require Import sepcomp.step_lemmas.
 Require Import sepcomp.event_semantics.
 Require Import concurrency.semax_conc.
+Require Import concurrency.sync_preds.
 Require Import concurrency.juicy_machine.
 Require Import concurrency.concurrent_machine.
 Require Import concurrency.scheduler.
@@ -57,12 +59,6 @@ Ltac range_tac :=
     omega
   end.
 
-Ltac exact_eq H :=
-  revert H;
-  match goal with
-    |- ?p -> ?q => cut (p = q); [intros ->; auto | ]
-  end.
-
 Open Scope string_scope.
 
 (*! Instantiation of modules *)
@@ -76,14 +72,6 @@ Definition schedule := SCH.schedule.
 Definition cm_state := (Mem.mem * Clight.genv * (schedule * Machine.t))%type.
 
 (*! Coherence between locks in dry/wet memories and lock pool *)
-
-Definition islock_pred R r := exists sh sh' z, r = YES sh sh' (LK z) (SomeP nil (fun _ => R)).
-
-Lemma islock_pred_join_sub {r1 r2 R} : join_sub r1 r2 -> islock_pred R r1  -> islock_pred R r2.
-Proof.
-  intros [r0 J] [x [sh' [z ->]]].
-  inversion J; subst; eexists; eauto.
-Qed.
 
 Inductive cohere_res_lock : forall (resv : option (option rmap)) (wetv : resource) (dryv : memval), Prop :=
 | cohere_notlock wetv dryv:
@@ -711,246 +699,6 @@ Proof.
   - admit.
 Admitted.
 
-Lemma resource_decay_LK {b phi phi' loc rsh sh n pp} :
-  resource_decay b phi phi' ->
-  phi @ loc = YES rsh sh (LK n) pp ->
-  phi' @ loc = YES rsh sh (LK n) (preds_fmap (approx (level phi')) pp).
-Proof.
-  intros [L R] E.
-  specialize (R loc).
-  rewrite E in *.
-  destruct R as [N [R|[R|[R|R]]]].
-  - rewrite <- R.
-    reflexivity.
-  - destruct R as [sh' [v [v' [R H]]]]. simpl in R. congruence.
-  - destruct R as [v [v' R]]. specialize (N ltac:(auto)). congruence.
-  - destruct R as [v [pp' [R H]]]. congruence.
-Qed.
-
-Lemma resource_decay_CT {b phi phi' loc rsh sh n} :
-  resource_decay b phi phi' ->
-  phi @ loc = YES rsh sh (CT n) NoneP ->
-  phi' @ loc = YES rsh sh (CT n) NoneP.
-Proof.
-  intros [L R] E.
-  specialize (R loc).
-  rewrite E in *.
-  destruct R as [N [R|[R|[R|R]]]].
-  - rewrite <- R.
-    unfold resource_fmap in *; f_equal.
-    apply preds_fmap_NoneP.
-  - destruct R as [sh' [v [v' [R H]]]]. simpl in R. congruence.
-  - destruct R as [v [v' R]]. specialize (N ltac:(auto)). congruence.
-  - destruct R as [v [pp' [R H]]]. congruence.
-Qed.
-
-Lemma resource_decay_LK_inv {b phi phi' loc rsh sh n pp'} :
-  resource_decay b phi phi' ->
-  phi' @ loc = YES rsh sh (LK n) pp' ->
-  exists pp,
-    pp' = preds_fmap (approx (level phi')) pp /\
-    phi @ loc = YES rsh sh (LK n) pp.
-Proof.
-  intros [L R] E.
-  specialize (R loc).
-  rewrite E in *.
-  destruct R as [N [R|[R|[R|R]]]].
-  - destruct (phi @ loc); simpl in R; try discriminate.
-    eexists.
-    injection R. intros; subst.
-    split; reflexivity.
-  - destruct R as [sh' [v [v' [R H]]]]; congruence.
-  - destruct R as [v [v' R]]; congruence.
-  - destruct R as [v [pp [R H]]]; congruence.
-Qed.
-
-Lemma resource_decay_identity {b phi phi' loc} :
-  resource_decay b phi phi' ->
-  (fst loc < b)%positive ->
-  identity (phi @ loc) ->
-  identity (phi' @ loc).
-Proof.
-  intros [lev RD] LT ID; specialize (RD loc).
-  destruct RD as [N [RD|[RD|[RD|RD]]]].
-  destruct (phi @ loc) as [t | t p k p0 | k p]; simpl in RD; try rewrite <- RD.
-  - auto.
-  - apply YES_not_identity in ID. tauto.
-  - apply PURE_identity.
-  - destruct RD as (? & sh & _ & E & _).
-    destruct (phi @ loc); simpl in E; try discriminate.
-    apply YES_not_identity in ID. tauto.
-  - destruct RD. auto with *.
-  - destruct RD as (? & ? & ? & ->).
-    apply NO_identity.
-Qed.
-
-Lemma resource_decay_LK_at {b phi phi' R sh loc} :
-  resource_decay b phi phi' ->
-  (fst loc < b)%positive ->
-  (LK_at R sh loc) phi ->
-  (LK_at (approx (level phi) R) sh loc) phi'.
-Proof.
-  intros RD LT LKAT loc'.
-  specialize (LKAT loc').
-  destruct (adr_range_dec loc lock_size loc') as [range|notrange]; swap 1 2.
-  - rewrite jam_false in *; auto.
-  - rewrite jam_true in *; auto.
-    destruct (eq_dec loc loc') as [<-|noteq].
-    + rewrite jam_true in *; auto.
-      destruct LKAT as [p E]; simpl in E.
-      apply (resource_decay_LK RD) in E.
-      eexists.
-      hnf.
-      rewrite E.
-      reflexivity.
-    + rewrite jam_false in *; auto.
-      destruct LKAT as [p E]; simpl in E.
-      eexists; simpl.
-      apply (resource_decay_CT RD) in E.
-      rewrite E.
-      reflexivity.
-Qed.
-
-(* todo: maybe remove one of those lemmas *)
-
-Lemma resource_decay_LK_at' {b phi phi' R sh loc} :
-  resource_decay b phi phi' ->
-  (fst loc < b)%positive ->
-  (LK_at R sh loc) phi ->
-  (LK_at (approx (level phi') R) sh loc) phi'.
-Proof.
-  intros RD LT LKAT loc'.
-  specialize (LKAT loc').
-  destruct (adr_range_dec loc lock_size loc') as [range|notrange]; swap 1 2.
-  - rewrite jam_false in *; auto.
-  - rewrite jam_true in *; auto.
-    destruct (eq_dec loc loc') as [<-|noteq].
-    + rewrite jam_true in *; auto.
-      destruct LKAT as [p E]; simpl in E.
-      apply (resource_decay_LK RD) in E.
-      eexists.
-      hnf.
-      rewrite E.
-      f_equal.
-      simpl.
-      rewrite <- compose_assoc.
-      rewrite approx_oo_approx'. 2:apply RD.
-      f_equal.
-      extensionality.
-      unfold "oo".
-      change (approx (level phi')   (approx (level phi')  R))
-      with  ((approx (level phi') oo approx (level phi')) R).
-      rewrite approx_oo_approx.
-      reflexivity.
-    + rewrite jam_false in *; auto.
-      destruct LKAT as [p E]; simpl in E.
-      eexists; simpl.
-      apply (resource_decay_CT RD) in E.
-      rewrite E.
-      reflexivity.
-Qed.
-
-Lemma resource_decay_PURE {b phi phi'} :
-  resource_decay b phi phi' ->
-  forall loc sh P,
-    phi @ loc = PURE sh P ->
-    phi' @ loc = PURE sh (preds_fmap (approx (level phi')) P).
-Proof.
-  intros [L RD] loc sh P PAT.
-  specialize (RD loc).
-  destruct RD as [N [RD|[RD|[RD|RD]]]].
-  - rewrite PAT in RD; simpl in RD. rewrite RD; auto.
-  - rewrite PAT in RD; simpl in RD. destruct RD as (?&?&?&?&?). congruence.
-  - rewrite PAT in N. pose proof (N (proj1 RD)). congruence.
-  - rewrite PAT in RD; simpl in RD. destruct RD as (?&?&?&?). congruence.
-Qed.
-
-Lemma resource_decay_PURE_inv {b phi phi'} :
-  resource_decay b phi phi' ->
-  forall loc sh P',
-    phi' @ loc = PURE sh P' ->
-    exists P,
-      phi @ loc = PURE sh P /\
-      P' = preds_fmap (approx (level phi')) P.
-Proof.
-  intros [L RD] loc sh P PAT.
-  specialize (RD loc).
-  destruct RD as [N [RD|[RD|[RD|RD]]]].
-  all: rewrite PAT in *; destruct (phi @ loc); simpl in *.
-  all: inversion RD; subst; eauto.
-  all: repeat match goal with H : ex _ |- _ => destruct H end.
-  all: repeat match goal with H : and _ _ |- _ => destruct H end.
-  all: discriminate.
-Qed.
-
-Lemma resource_decay_func_at' {b phi phi'} :
-  resource_decay b phi phi' ->
-  forall loc fs,
-    seplog.func_at' fs loc phi ->
-    seplog.func_at' fs loc phi'.
-Proof.
-  intros RD loc [f cc A P Q] [pp E]; simpl.
-  rewrite (resource_decay_PURE RD _ _ _ E).
-  eexists. reflexivity.
-Qed.
-
-Lemma resource_decay_func_at'_inv {b phi phi'} :
-  resource_decay b phi phi' ->
-  forall loc fs,
-    seplog.func_at' fs loc phi' ->
-    seplog.func_at' fs loc phi.
-Proof.
-  intros RD loc [f cc A P Q] [pp E]; simpl.
-  destruct (resource_decay_PURE_inv RD _ _ _ E) as [pp' [Ephi E']].
-  pose proof resource_at_approx phi loc as H.
-  rewrite Ephi in H at 1. rewrite <-H.
-  eexists. reflexivity.
-Qed.
-
-Lemma hereditary_func_at' loc fs :
-  hereditary age (seplog.func_at' fs loc).
-Proof.
-  intros x y a; destruct fs as [f cc A P Q]; simpl.
-  intros [pp E].
-  destruct (proj1 (age1_PURE _ _ loc (FUN f cc) a)) as [pp' Ey]; eauto.
-  pose proof resource_at_approx y loc as H.
-  rewrite Ey in H at 1; simpl in H.
-  rewrite <-H.
-  exists pp'.
-  reflexivity.
-Qed.
-
-Lemma anti_hereditary_func_at' loc fs :
-  hereditary (fun x y => age y x) (seplog.func_at' fs loc).
-Proof.
-  intros x y a; destruct fs as [f cc A P Q]; simpl.
-  intros [pp E].
-  destruct (proj2 (age1_PURE _ _ loc (FUN f cc) a)) as [pp' Ey]; eauto.
-  pose proof resource_at_approx y loc as H.
-  rewrite Ey in H at 1; simpl in H.
-  rewrite <-H.
-  exists pp'.
-  reflexivity.
-Qed.
-
-Lemma hereditary_necR {phi phi' : rmap} {P} :
-  necR phi phi' ->
-  hereditary age P ->
-  P phi -> P phi'.
-Proof.
-  intros N H; induction N; auto.
-  apply H; auto.
-Qed.
-
-Lemma anti_hereditary_necR {phi phi' : rmap} {P} :
-  necR phi phi' ->
-  hereditary (fun x y => age y x) P ->
-  P phi' -> P phi.
-Proof.
-  intros N H; induction N; auto.
-  apply H; auto.
-Qed.
-
 Lemma resource_decay_matchfunspec {b phi phi' g Gamma} :
   resource_decay b phi phi' ->
   matchfunspec g Gamma phi ->
@@ -969,37 +717,6 @@ Proof.
   espec M.
   destruct M as (id & Hg & HGamma).
   exists id; split; auto.
-Qed.
-
-Definition resource_is_lock r := exists rsh sh n pp, r = YES rsh sh (LK n) pp.
-
-Definition same_locks phi1 phi2 := 
-  forall loc, resource_is_lock (phi1 @ loc) <-> resource_is_lock (phi2 @ loc).
-
-Definition resource_is_lock_sized n r := exists rsh sh pp, r = YES rsh sh (LK n) pp.
-
-Definition same_locks_sized phi1 phi2 := 
-  forall loc n, resource_is_lock_sized n (phi1 @ loc) <-> resource_is_lock_sized n (phi2 @ loc).
-
-Definition lockSet_block_bound lset b :=
-  forall loc, isSome (AMap.find (elt:=option rmap) loc lset) -> (fst loc < b)%positive.
-
-Lemma resource_decay_same_locks {b phi phi'} :
-  resource_decay b phi phi' -> same_locks phi phi'.
-Proof.
-  intros R loc; split; intros (rsh & sh & n & pp & E).
-  - repeat eexists. eapply resource_decay_LK in E; eauto.
-  - destruct (resource_decay_LK_inv R E) as [pp' [E' ->]].
-    repeat eexists.
-Qed.
-
-Lemma resource_decay_same_locks_sized {b phi phi'} :
-  resource_decay b phi phi' -> same_locks_sized phi phi'.
-Proof.
-  intros R loc n; split; intros (rsh & sh & pp & E).
-  - repeat eexists. eapply resource_decay_LK in E; eauto.
-  - destruct (resource_decay_LK_inv R E) as [pp' [E' ->]].
-    repeat eexists.
 Qed.
 
 Lemma same_locks_juicyLocks_in_lockSet phi phi' lset :
@@ -1059,62 +776,6 @@ Proof.
   inversion LW.
 Qed.
 
-Lemma app_pred_age {R} {phi phi' : rmap} :
-  age phi phi' ->
-  app_pred R phi ->
-  app_pred R phi'.
-Proof.
-  destruct R as [R HR]; simpl.
-  apply HR.
-Qed.
-
-Lemma age_yes_sat {Phi Phi' phi phi' l z sh sh'} (R : mpred) :
-  level Phi = level phi ->
-  age Phi Phi' ->
-  age phi phi' ->
-  app_pred R phi ->
-  Phi  @ l = YES sh sh' (LK z) (SomeP nil (fun _ => R)) ->
-  app_pred (approx (S (level phi')) R) phi' /\
-  Phi' @ l = YES sh sh' (LK z) (SomeP nil (fun _ => approx (level Phi') R)).
-Proof.
-  intros L A Au SAT AT.
-  pose proof (app_pred_age Au SAT) as SAT'.
-  split.
-  - split.
-    + apply age_level in A; apply age_level in Au. omega.
-    + apply SAT'.
-  - apply (necR_YES _ Phi') in AT.
-    + rewrite AT.
-      reflexivity.
-    + constructor. assumption.
-Qed.
-
-(*
-(* todo remove those lemmas (they'll be in msl/ageable *)
-Lemma iter_iter n m {A} f (x : A) : Nat.iter n f (Nat.iter m f x) = Nat.iter (n + m) f x.
-Proof.
-  induction n; auto; simpl. rewrite IHn; auto.
-Qed.
-
-Lemma age_by_age_by n m  {A} `{agA : ageable A} (x : A) : age_by n (age_by m x) = age_by (n + m) x.
-Proof.
-  apply iter_iter.
-Qed.
-
-Lemma age_by_ind {A} `{agA : ageable A} (P : A -> Prop) : 
-  (forall x y, age x y -> P x -> P y) ->
-  forall x n, P x -> P (age_by n x).
-Proof.
-  intros IH x n.
-  unfold age_by.
-  induction n; intros Px.
-  - auto.
-  - simpl. unfold age1' at 1.
-    destruct (age1 (Nat.iter n age1' x)) as [y|] eqn:Ey; auto.
-    eapply IH; eauto.
-Qed.
-*)
-
 Lemma resource_decay_lock_coherence {b phi phi' lset m} :
   resource_decay b phi phi' ->
   lockSet_block_bound lset b ->
@@ -1169,22 +830,6 @@ Proof.
         apply age_by_ind.
         { destruct R as [p h]. apply h. }
         apply sat.
-Qed.
-
-Lemma isSome_find_map addr f lset :
-  ssrbool.isSome (AMap.find (elt:=option rmap) addr (AMap.map f lset)) = 
-  ssrbool.isSome (AMap.find (elt:=option rmap) addr lset).
-Proof.
-  match goal with |- _ ?a = _ ?b => destruct a eqn:E; destruct b eqn:F end; try reflexivity.
-  - apply AMap_find_map_inv in E; destruct E as [x []]; congruence.
-  - rewrite (AMap_find_map _ _ _ o F) in E. discriminate.
-Qed.
-
-Lemma interval_adr_range b start length i :
-  Intv.In i (start, start + length) <->
-  adr_range (b, start) length (b, i).
-Proof.
-  compute; intuition.
 Qed.
 
 Import ThreadPool.
@@ -1357,17 +1002,6 @@ Proof.
     reflexivity.
 Qed.
 
-Lemma mem_ext m1 m2 :
-  Mem.mem_contents m1 = Mem.mem_contents m2 ->
-  Mem.mem_access m1 = Mem.mem_access m2 ->
-  Mem.nextblock m1 = Mem.nextblock m2 ->
-  m1 = m2.
-Proof.
-  destruct m1, m2; simpl in *.
-  intros <- <- <- .
-  f_equal; apply proof_irr.
-Qed.
-
 Lemma ZIndexed_index_surj p : { z : Z | ZIndexed.index z = p }.
 Proof.
   destruct p.
@@ -1384,217 +1018,6 @@ Lemma eqtype_refl n i cnti cntj :
   = true.
 Proof.
   compute; induction i; auto.
-Qed.
-
-Definition mem_lessdef m1 m2 :=
-  (forall b ofs len v,
-      Mem.loadbytes m1 b ofs len = Some v ->
-      exists v',
-        Mem.loadbytes m2 b ofs len = Some v' /\
-        list_forall2 memval_lessdef v v'
-  ) /\
-  (forall b ofs k p,
-      Mem.perm m1 b ofs k p ->
-      Mem.perm m2 b ofs k p) /\
-  Mem.nextblock m1 =
-  Mem.nextblock m2.
-
-Definition mem_equiv m1 m2 :=
-  Mem.loadbytes m1 = Mem.loadbytes m2 /\
-  Mem.perm m1 = Mem.perm m2 /\
-  Mem.nextblock m1 = Mem.nextblock m2.
-
-Lemma val_inject_antisym v1 v2 :
-  val_inject inject_id v1 v2 ->
-  val_inject inject_id v2 v1 ->
-  v1 = v2.
-Proof.
-  destruct v1, v2; intros A B; auto.
-  all: inversion A; subst; inversion B; try subst; try congruence.
-  unfold inject_id in *.
-  f_equal. congruence.
-  replace delta with 0%Z by congruence.
-  rewrite reptype_lemmas.int_add_repr_0_r.
-  congruence.
-Qed.
-
-Lemma memval_lessdef_antisym v1 v2 : memval_lessdef v1 v2 -> memval_lessdef v2 v1 -> v1 = v2.
-Proof.
-  destruct v1, v2; intros A B; auto.
-  all: inversion A; subst; inversion B; subst; try congruence.
-  f_equal. apply val_inject_antisym; auto.
-Qed.
-
-Lemma mem_lessdef_equiv m1 m2 : mem_lessdef m1 m2 -> mem_lessdef m2 m1 ->  mem_equiv m1 m2.
-Proof.
-  intros (L1 & P1 & N1) (L2 & P2 & N2); repeat split.
-  - clear -L1 L2.
-    extensionality b ofs z.
-    match goal with |- ?a = ?b => destruct a as [v1|] eqn:E1; destruct b as [v2|] eqn:E2 end;
-      try destruct (L1 _ _ _ _ E1) as (v2' & E1' & l1);
-      try destruct (L2 _ _ _ _ E2) as (v1' & E2' & l2);
-      try congruence.
-    assert (v1' = v1) by congruence; assert (v2' = v2) by congruence; subst; f_equal.
-    clear -l1 l2.
-    revert v2 l1 l2; induction v1; intros v2 l1 l2; inversion l1; subst; auto.
-    inversion l2; subst.
-    f_equal; auto.
-    apply memval_lessdef_antisym; auto.
-  - repeat extensionality.
-    apply prop_ext; split; auto.
-  - apply N1.
-Qed.
-
-Lemma mem_equiv_sym m1 m2 : mem_equiv m1 m2 -> mem_equiv m2 m1.
-Proof.
-  intros []; split; intuition.
-Qed.
-
-Lemma mem_equiv_lessdef m1 m2 : mem_equiv m1 m2 -> mem_lessdef m1 m2.
-Proof.
-  intros (L1 & P1 & N1); repeat split.
-  - rewrite L1; auto.
-    intros b ofs len v H.
-    exists v; intuition.
-    clear.
-    induction v; constructor; auto.
-    apply memval_lessdef_refl.
-  - rewrite P1; auto.
-  - rewrite N1; auto.
-Qed.
-
-Lemma cl_step_mem_lessdef_sim {ge c m1 c' m1' m2} :
-  mem_lessdef m1 m2 ->
-  @cl_step ge c m1 c' m1' ->
-  exists m2',
-    mem_lessdef m1' m2' /\
-    @cl_step ge c m2 c' m2'.
-Admitted.
- 
-Lemma cl_step_mem_equiv_sim {ge c m1 c' m1' m2} :
-  mem_equiv m1 m2 ->
-  @cl_step ge c m1 c' m1' ->
-  exists m2',
-    mem_equiv m1' m2' /\
-    @cl_step ge c m2 c' m2'.
-Proof.
-  intros E S1.
-  pose proof mem_equiv_lessdef _ _ E as L12.
-  pose proof mem_equiv_lessdef _ _ (mem_equiv_sym _ _ E) as L21.
-  destruct (cl_step_mem_lessdef_sim L12 S1) as (m2' & L12' & S2).
-  destruct (cl_step_mem_lessdef_sim L21 S2) as (m1'' & L21' & S1').
-  exists m2'; split; auto.
-  apply mem_lessdef_equiv; auto.
-  cut (m1'' = m1'). intros <-; auto.
-  pose proof semax_lemmas.cl_corestep_fun' ge _ _ _ _ _ _ S1 S1'.
-  congruence.
-Qed.
-
-Definition juicy_mem_equiv jm1 jm2 := mem_equiv (m_dry jm1) (m_dry jm2) /\ m_phi jm1 = m_phi jm2.
-
-Lemma mem_equiv_juicy_mem_equiv jm1 m2 :
-  mem_equiv (m_dry jm1) m2 ->
-  exists jm2,
-    m_dry jm2 = m2 /\
-    juicy_mem_equiv jm1 jm2.
-Proof.
-  intros E.
-  refine (ex_intro _ (mkJuicyMem m2 (m_phi jm1) _ _ _ _) _); repeat (split; auto).
-  Unshelve.
-  all: destruct jm1 as [m1 phi Con Acc Max All]; simpl in *.
-  all: destruct E as (Load & Perm & Next).
-  - (* contents_cohere *)
-    intros rsh sh v loc pp e.
-    specialize (Con rsh  sh v loc pp e).
-    unfold contents_at in *.
-    admit.
-  
-  - (* access_cohere *)
-    intros loc.
-    specialize (Acc loc).
-    unfold access_at in *.
-    unfold Mem.mem_access in *.
-    unfold Mem.perm in *.
-    admit (* should be ok *).
-  
-  - (* max_access_cohere *)
-    intro loc.
-    admit.
-  
-  - (* alloc_cohere *)
-    hnf.
-    rewrite <-Next.
-    assumption.
-    (* I'll admit this for now. It should take less time to prove once
-    the new mem interface is there *)
-Admitted.
-
-Lemma juicy_step_mem_equiv_sim {ge c jm1 c' jm1' jm2} :
-  juicy_mem_equiv jm1 jm2 ->
-  corestep (juicy_core_sem cl_core_sem) ge c jm1 c' jm1' ->
-  exists jm2',
-    juicy_mem_equiv jm1' jm2' /\
-    corestep (juicy_core_sem cl_core_sem) ge c jm2 c' jm2'.
-Proof.
-  intros [Ed Ew] [step [rd lev]].
-  destruct (cl_step_mem_equiv_sim Ed step) as [m2' [Ed' Sd']].
-  destruct (mem_equiv_juicy_mem_equiv jm1' m2' Ed') as (jm2', (<-, [Hd Hw])).
-  exists jm2'.
-  split; split; auto. split.
-  - exact_eq rd.
-    f_equal; auto.
-    apply Ed.
-  - repeat rewrite level_juice_level_phi in *.
-    congruence.
-Qed.
-
-Definition ext_spec_stable {M E Z} (R : M -> M -> Prop)
-           (spec : external_specification M E Z) :=
-  (forall e x b tl vl z m1 m2,
-    R m1 m2 ->
-    ext_spec_pre spec e x b tl vl z m1 ->
-    ext_spec_pre spec e x b tl vl z m2) /\
-  (forall e v m1 m2,
-    R m1 m2 ->
-    ext_spec_exit spec e v m1 ->
-    ext_spec_exit spec e v m2).
-
-Lemma jsafeN_equiv_sim {Z Jspec ge n z c jm1 jm2} :
-  juicy_mem_equiv jm1 jm2 ->
-  ext_spec_stable juicy_mem_equiv (JE_spec _ Jspec) ->
-  @jsafeN Z Jspec ge n z c jm1 ->
-  @jsafeN Z Jspec ge n z c jm2.
-Proof.
-  intros E [Spre Sexit] S1.
-  revert jm2 E.
-  induction S1 as
-      [ z c jm1
-      | n z c jm1 c' jm1' step safe IH
-      | n z c jm1 ef sig args x atex Pre Post
-      | n z c jm1 v Halt Exit ]; intros jm2 E.
-  
-  - constructor 1.
-  
-  - destruct (juicy_step_mem_equiv_sim E step) as (jm2' & E' & step').
-    econstructor 2; eauto.
-    apply IH, E'.
-  
-  - econstructor 3 with (x := x); eauto.
-    intros ret jm2' z' n' Hn [-> [lev pure]] post.
-    destruct (Post ret jm2' z' _ Hn) as (c' & atex' & safe'); auto.
-    + split; auto.
-      destruct E as [Ed Ew].
-      unfold juicy_safety.pures_eq in *.
-      unfold juicy_safety.pures_sub in *.
-      split.
-      * repeat rewrite level_juice_level_phi in *.
-        congruence.
-      * revert pure.
-        rewrite Ew.
-        auto.
-    + exists c'; split; auto.
-  
-  - econstructor 4; eauto.
 Qed.
 
 Lemma jstep_age_sim {G C} {csem : CoreSemantics G C mem} {ge c c' jm1 jm2 jm1'} :
@@ -1731,17 +1154,6 @@ Proof.
   - rewrite (age1_juicy_mem_None1 _ e). easy.
 Qed.
 
-Lemma join_YES_l {r1 r2 r3 sh1 sh1' k pp} :
-  sepalg.join r1 r2 r3 ->
-  r1 = YES sh1 sh1' k pp ->
-  exists sh3 sh3',
-    r3 = YES sh3 sh3' k pp.
-Proof.
-  intros J; inversion J; intros.
-  all:try congruence.
-  all:do 2 eexists; f_equal; try congruence.
-Qed.
-
 Lemma jstep_preserves_mem_equiv_on_other_threads m ge i j tp ci ci' jmi'
   (other : i <> j)
   (compat : mem_compatible tp m)
@@ -1753,6 +1165,58 @@ Lemma jstep_preserves_mem_equiv_on_other_threads m ge i j tp ci ci' jmi'
     (m_dry (@personal_mem j tp m cntj compat))
     (m_dry (@personal_mem j (age_tp_to (level (m_phi jmi')) tp') (m_dry jmi') cntj compat')).
 Admitted.
+
+Lemma lock_coh_bound tp m Phi
+      (compat : mem_compatible_with tp m Phi)
+      (coh : lock_coherence' tp Phi m compat) :
+  lockSet_block_bound (lset tp) (Mem.nextblock m).
+Proof.
+  intros loc find.
+  specialize (coh loc).
+  destruct (AMap.find (elt:=option rmap) loc (lset tp)) as [o|]; [ | inversion find ].
+  match goal with |- (?a < ?b)%positive => assert (D : (a >= b \/ a < b)%positive) by (zify; omega) end.
+  destruct D as [D|D]; auto. exfalso.
+  assert (AT : exists (sh : Share.t) (R : pred rmap), (LK_at R sh loc) Phi). {
+    destruct o.
+    - destruct coh as [LOAD (sh' & R' & lk & sat)]; eauto.
+    - destruct coh as [LOAD (sh' & R' & lk)]; eauto.
+  }
+  clear coh.
+  destruct AT as (sh & R & AT).
+  destruct compat.
+  destruct all_cohere0.
+  specialize (all_coh0 loc D).
+  specialize (AT loc).
+  destruct loc as (b, ofs).
+  simpl in AT.
+  if_tac in AT. 2:range_tac.
+  if_tac in AT. 2:tauto.
+  rewrite all_coh0 in AT.
+  destruct AT.
+  congruence.
+Qed.
+
+Lemma getThreadC_fun i tp cnti cnti' x y :
+  @getThreadC i tp cnti = x ->
+  @getThreadC i tp cnti' = y ->
+  x = y.
+Proof.
+  intros <- <-.
+  unfold getThreadC, containsThread in *.
+  repeat f_equal.
+  apply proof_irr.
+Qed.
+
+Lemma getThreadR_fun i tp cnti cnti' x y :
+  @getThreadR i tp cnti = x ->
+  @getThreadR i tp cnti' = y ->
+  x = y.
+Proof.
+  intros <- <-.
+  unfold getThreadR, containsThread in *.
+  repeat f_equal.
+  apply proof_irr.
+Qed.
 
 Section Simulation.
   Variables
@@ -3060,28 +2524,6 @@ unique: ok *)
     (* end of Kinit *)
   Admitted.
   
-  Lemma getThreadC_fun i tp cnti cnti' x y :
-    @getThreadC i tp cnti = x ->
-    @getThreadC i tp cnti' = y ->
-    x = y.
-  Proof.
-    intros <- <-.
-    unfold getThreadC, containsThread in *.
-    repeat f_equal.
-    apply proof_irr.
-  Qed.
-  
-  Lemma getThreadR_fun i tp cnti cnti' x y :
-    @getThreadR i tp cnti = x ->
-    @getThreadR i tp cnti' = y ->
-    x = y.
-  Proof.
-    intros <- <-.
-    unfold getThreadR, containsThread in *.
-    repeat f_equal.
-    apply proof_irr.
-  Qed.
-  
   Ltac jmstep_inv :=
     match goal with
     | H : JuicyMachine.start_thread _ _ _ |- _ => inversion H
@@ -3110,36 +2552,6 @@ unique: ok *)
     unfold SEM.Sem, SEM.CLN_evsem.
     rewrite SEM.CLN_msem.
     reflexivity.
-  Qed.
-  
-  Lemma lock_coh_bound tp m Phi
-        (compat : mem_compatible_with tp m Phi)
-        (coh : lock_coherence' tp Phi m compat) :
-    lockSet_block_bound (lset tp) (Mem.nextblock m).
-  Proof.
-    intros loc find.
-    specialize (coh loc).
-    destruct (AMap.find (elt:=option rmap) loc (lset tp)) as [o|]; [ | inversion find ].
-    match goal with |- (?a < ?b)%positive => assert (D : (a >= b \/ a < b)%positive) by (zify; omega) end.
-    destruct D as [D|D]; auto. exfalso.
-    assert (AT : exists (sh : Share.t) (R : pred rmap), (LK_at R sh loc) Phi). {
-      destruct o.
-      - destruct coh as [LOAD (sh' & R' & lk & sat)]; eauto.
-      - destruct coh as [LOAD (sh' & R' & lk)]; eauto.
-    }
-    clear coh.
-    destruct AT as (sh & R & AT).
-    destruct compat.
-    destruct all_cohere0.
-    specialize (all_coh0 loc D).
-    specialize (AT loc).
-    destruct loc as (b, ofs).
-    simpl in AT.
-    if_tac in AT. 2:range_tac.
-    if_tac in AT. 2:tauto.
-    rewrite all_coh0 in AT.
-    destruct AT.
-    congruence.
   Qed.
   
   Theorem preservation Gamma n state state' :
@@ -3791,8 +3203,8 @@ Section Safety.
     - econstructor 4; simpl; eauto.
   Qed.
   
-  (* [jmsafe] is used as a intermediary, eventually we'll prove
-  [csafe] directly *)
+  (* [jmsafe] is an intermediate result, we can probably prove [csafe]
+  directly *)
   
   Theorem safety_initial_state (sch : schedule) (n : nat) :
     JuicyMachine.csafe (globalenv prog) (sch, nil, initial_machine_state n) (proj1_sig init_mem) n.

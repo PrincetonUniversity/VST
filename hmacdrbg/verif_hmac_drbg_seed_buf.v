@@ -7,15 +7,15 @@ Require Import sha.HMAC256_functional_prog.
 Require Import sha.general_lemmas.
 Require Import sha.spec_sha.
 
-Require Import hmacdrbg.HMAC256_DRBG_functional_prog.
-Require Import hmacdrbg.hmac_drbg.
+Require Import hmacdrbg.entropy.
 Require Import hmacdrbg.DRBG_functions.
 Require Import hmacdrbg.HMAC_DRBG_algorithms.
+Require Import hmacdrbg.HMAC256_DRBG_functional_prog.
+Require Import hmacdrbg.hmac_drbg.
 Require Import hmacdrbg.HMAC_DRBG_pure_lemmas.
-Require Import hmacdrbg.HMAC_DRBG_common_lemmas.
 Require Import hmacdrbg.spec_hmac_drbg.
+Require Import hmacdrbg.HMAC_DRBG_common_lemmas.
 Require Import hmacdrbg.spec_hmac_drbg_pure_lemmas.
-Require Import hmacdrbg.entropy.
 Require Import hmacdrbg.entropy_lemmas.
 
 (*
@@ -62,24 +62,6 @@ Definition hmac_drbg_seed_buf_SPEC :=
 (*Opaque hmac_drbg_seed_buf_SPEC.*)
 
 Definition hmac_drbg_seed_buf_spec := (_mbedtls_hmac_drbg_seed_buf,hmac_drbg_seed_buf_SPEC).
-
-Lemma body_hmac_drbg_seed_buf: semax_body HmacDrbgVarSpecs HmacDrbgFunSpecs 
-      f_mbedtls_hmac_drbg_seed_buf hmac_drbg_seed_buf_spec. 
-Proof. unfold  hmac_drbg_seed_buf_spec. 
-Transparent  hmac_drbg_seed_buf_SPEC.
-unfold  hmac_drbg_seed_buf_SPEC.
-Opaque  hmac_drbg_seed_buf_SPEC.
-  start_function.
-  unfold_data_at 2%nat.
-  freeze [0;2;3;4;5;6;7;9] FR0.
-  
-  (*destruct initial_state_abs.
-  destruct initial_state as [md_ctx' [V' [reseed_counter' [entropy_len' [prediction_resistance' reseed_interval']]]]].*)
-  unfold hmac256drbg_relate.
-  normalize.
-  unfold hmac256drbgstate_md_info_pointer.
-  simpl.
-
 
 Definition mpred_passed_to_function (F: mpred) (cond: bool): mpred :=
   if cond then emp else F.
@@ -850,7 +832,7 @@ Proof. intros.
   apply sublist_hi_plus; omega.
 Qed.*)
 
-  Definition is_multiple (multiple base: Z) : Prop := exists i, multiple = (i * base)%Z.
+Definition is_multiple (multiple base: Z) : Prop := exists i, multiple = (i * base)%Z.
 
 
 Lemma loop_closing_entailment (*Espec*) contents additional add_len output out_len ctx md_ctx'
@@ -1840,21 +1822,28 @@ freeze [0;1;2;4;5;6;7;8;9;10] FR_mcpy1.
     eapply (loop_closing_entailment (*Espec*) contents additional (Zlength contents) output out_len ctx md_ctx'
       key V reseed_counter entropy_len prediction_resistance reseed_interval kv
       info_contents s) with (n:=n); try assumption; reflexivity.
-Time Qed.
+Time Qed.doesnt terminate.
 Admitted.  (*Time Qed. Does not terminate within 13h. Increased heap from 1.58GB to 1.66 GB 
              Coq8.5pl1: no termination in 17h either. heap usage 780MB *)
 
-Lemma Tarray_0_emp sh v c: data_at sh (Tarray tuchar 0 noattr) v c |--  emp.
-  unfold data_at. unfold field_at, data_at', at_offset; simpl.
-  unfold array_pred, unfold_reptype, aggregate_pred.array_pred. entailer.
-Qed. 
-Lemma Tarray_0_emp' sh c: field_compatible (Tarray tuchar 0 noattr) nil c ->
-  emp |-- data_at sh (Tarray tuchar 0 noattr) nil c.
-Proof. intros.
-  unfold data_at. unfold field_at, data_at', at_offset; simpl.
-  unfold array_pred, unfold_reptype, aggregate_pred.array_pred. simpl.
-  entailer.
-Qed. 
+Lemma body_hmac_drbg_seed_buf: semax_body HmacDrbgVarSpecs HmacDrbgFunSpecs 
+      f_mbedtls_hmac_drbg_seed_buf hmac_drbg_seed_buf_spec. 
+Proof. unfold  hmac_drbg_seed_buf_spec. 
+Transparent  hmac_drbg_seed_buf_SPEC.
+unfold  hmac_drbg_seed_buf_SPEC.
+Opaque  hmac_drbg_seed_buf_SPEC.
+  start_function.
+  unfold_data_at 2%nat.
+  freeze [0;2;3;4;5;6;7;9] FR0.
+  
+  (*destruct initial_state_abs.
+  destruct initial_state as [md_ctx' [V' [reseed_counter' [entropy_len' [prediction_resistance' reseed_interval']]]]].*)
+  unfold hmac256drbg_relate.
+  normalize.
+  unfold hmac256drbgstate_md_info_pointer.
+  simpl.
+
+xx
 
 Lemma body_hmac_drbg_reseed_steps6To8 Espec contents additional add_len output out_len
       ctx md_ctx' V' reseed_counter' entropy_len' prediction_resistance' reseed_interval' 
