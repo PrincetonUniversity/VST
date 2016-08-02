@@ -650,7 +650,7 @@ Module Parching <: ErasureSig.
         - 
           intros i HH. apply JSEM.JuicyMachineLemmas.cnt_age in HH.
           apply mtch_cnt; assumption.
-        - intros i HH. apply JSEM.JuicyMachineLemmas.cnt_age.
+        - intros i HH. apply @JSEM.JuicyMachineLemmas.cnt_age.
           apply mtch_cnt'; assumption.
         - intros i cnt cnt'.
           
@@ -3031,7 +3031,9 @@ Module Parching <: ErasureSig.
            auto.
            inversion MATCH. erewrite <- mtch_gtc0; eassumption.
          }
-         { 
+         {
+           admit.
+(*
            apply MTCH_age.
            apply MTCH_update.
            assumption.
@@ -3040,6 +3042,7 @@ Module Parching <: ErasureSig.
            rewrite <- HH.
            rewrite getCurPerm_correct.
            reflexivity.
+*)
          }
          {  assert (Hcmpt': DSEM.mem_compatible ds m) by
                (eapply MTCH_compat; eassumption).
@@ -3109,8 +3112,8 @@ Module Parching <: ErasureSig.
        Grab Existential Variables.
        - simpl. apply mtch_cnt. assumption.
        - assumption.
-       - simpl. eapply MTCH_cnt ; eauto.
-Qed.
+       - simpl. admit. eapply MTCH_cnt ; eauto.
+Admitted.
   
   Lemma core_diagram:
     forall (m : Mem.mem)  (U0 U U': schedule) rmap pmap 
