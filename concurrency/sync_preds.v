@@ -31,6 +31,7 @@ Require Import veric.mem_lessdef.
 Require Import sepcomp.semantics.
 Require Import sepcomp.step_lemmas.
 Require Import sepcomp.event_semantics.
+Require Import concurrency.coqlib5.
 Require Import concurrency.semax_conc.
 Require Import concurrency.juicy_machine.
 Require Import concurrency.concurrent_machine.
@@ -384,4 +385,138 @@ Proof.
   intros J; inversion J; intros.
   all:try congruence.
   all:do 2 eexists; f_equal; try congruence.
+Qed.
+
+Lemma age_resource_at {phi phi' loc} :
+  age phi phi' ->
+  phi' @ loc = resource_fmap (approx (level phi')) (phi @ loc).
+Proof.
+  intros A.
+  rewrite <- (age1_resource_at _ _ A loc (phi @ loc)).
+  - reflexivity.
+  - rewrite resource_at_approx. reflexivity.
+Qed.
+
+Lemma jstep_age_sim {G C} {csem : CoreSemantics G C mem} {ge c c' jm1 jm2 jm1'} :
+  age jm1 jm2 ->
+  jstep csem ge c jm1 c' jm1' ->
+  level jm2 <> O ->
+  exists jm2',
+    age jm1' jm2' /\
+    jstep csem ge c jm2 c' jm2'.
+Proof.
+  intros A [step [rd lev]] nz.
+  destruct (age1 jm1') as [jm2'|] eqn:E.
+  - exists jm2'. split; auto.
+    split; [|split]; auto.
+    + exact_eq step.
+      f_equal; apply age_jm_dry; auto.
+    + eapply (age_resource_decay _ (m_phi jm1) (m_phi jm1')).
+      * exact_eq rd.
+        f_equal. f_equal. apply age_jm_dry; auto.
+      * apply age_jm_phi; auto.
+      * apply age_jm_phi; auto.
+      * rewrite level_juice_level_phi in *. auto.
+    + apply age_level in E.
+      apply age_level in A.
+      omega.
+  - apply age1_level0 in E.
+    apply age_level in A.
+    omega.
+Qed.
+
+Lemma pures_eq_unage {jm1 jm1' jm2}:
+  ge (level jm1') (level jm2) ->
+  age jm1 jm1' ->
+  juicy_safety.pures_eq jm1' jm2 ->
+  juicy_safety.pures_eq jm1 jm2.
+Proof.
+  intros L A [S P]; split; intros loc; [clear P; espec S | clear S; espec P ].
+  all:apply age_jm_phi in A.
+  all:repeat rewrite level_juice_level_phi in *.
+  all:unfold m_phi in *.
+  all:destruct jm1 as [_ p1 _ _ _ _].
+  all:destruct jm1' as [_ p1' _ _ _ _].
+  all:destruct jm2 as [_ p2 _ _ _ _].
+  - rewrite (age_resource_at A) in S.
+    destruct (p1 @ loc) eqn:E; auto.
+    simpl in S.
+    rewrite S.
+    rewrite preds_fmap_fmap.
+    rewrite approx_oo_approx'; auto.
+  
+  - destruct (p2 @ loc) eqn:E; auto.
+    revert P.
+    eapply age1_PURE. auto.
+Qed.
+
+Lemma jsafeN_age Z Jspec ge ora q n jm jmaged :
+  ext_spec_stable age (JE_spec _ Jspec) ->
+  age jm jmaged ->
+  le n (level jmaged) ->
+  @jsafeN Z Jspec ge n ora q jm ->
+  @jsafeN Z Jspec ge n ora q jmaged.
+Proof.
+  intros heredspec A L Safe; revert jmaged A L.
+  induction Safe as
+      [ z c jm
+      | n z c jm c' jm' step safe IH
+      | n z c jm ef sig args x atex Pre Post
+      | n z c jm v Halt Exit ]; intros jmaged A L.
+  - constructor 1.
+  - simpl in step.
+    destruct (jstep_age_sim A step ltac:(omega)) as [jmaged' [A' step']].
+    econstructor 2; eauto.
+    apply IH; eauto.
+    apply age_level in A'.
+    apply age_level in A.
+    destruct step as [_ [_ ?]].
+    omega.
+  - econstructor 3.
+    + eauto.
+    + eapply (proj1 heredspec); eauto.
+    + intros ret jm' z' n' H rel post.
+      destruct (Post ret jm' z' n' H) as (c' & atex' & safe'); eauto.
+      unfold juicy_safety.Hrel in *.
+      split;[|split]; try apply rel.
+      * apply age_level in A; omega.
+      * unshelve eapply (pures_eq_unage _ A), rel.
+        omega.
+  - econstructor 4. eauto.
+    eapply (proj2 heredspec); eauto.
+Qed.
+
+Lemma jsafeN_age_to Z Jspec ge ora q n l jm :
+  ext_spec_stable age (JE_spec _ Jspec) ->
+  le n l ->
+  @jsafeN Z Jspec ge n ora q jm ->
+  @jsafeN Z Jspec ge n ora q (age_to l jm).
+Proof.
+  intros Stable nl.
+  apply age_to_ind_refined.
+  intros x y H L.
+  apply jsafeN_age; auto.
+  omega.
+Qed.
+
+Lemma m_dry_age_to n jm : m_dry (age_to n jm) = m_dry jm.
+Proof.
+  remember (m_dry jm) as m eqn:E; symmetry; revert E.
+  apply age_to_ind; auto.
+  intros x y H E ->. rewrite E; auto. clear E.
+  apply age_jm_dry; auto.
+Qed.
+
+Lemma m_phi_age_to n jm : m_phi (age_to n jm) = age_to n (m_phi jm).
+Proof.
+  unfold age_to.
+  rewrite level_juice_level_phi.
+  generalize (level (m_phi jm) - n)%nat; clear n.
+  intros n; induction n. reflexivity.
+  simpl. rewrite <- IHn.
+  clear IHn. generalize (age_by n jm); clear jm; intros jm.
+  unfold age1'.
+  destruct (age1 jm) as [jm'|] eqn:e.
+  - rewrite (age1_juicy_mem_Some _ _ e). easy.
+  - rewrite (age1_juicy_mem_None1 _ e). easy.
 Qed.

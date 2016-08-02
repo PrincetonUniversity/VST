@@ -10,6 +10,7 @@ Require Import msl.Coqlib2.
 Require Import msl.seplog.
 Require Import msl.sepalg.
 Require Import veric.mem_lessdef.
+Require Import concurrency.coqlib5.
 
 (** * Results on joining lists and the necessary algebras *)
 
@@ -19,6 +20,7 @@ Fixpoint joinlist {A} {JA : Join A} (l : list A) (x : A) :=
   | h :: l => exists y, joinlist l y /\ join h y x
   end.
 
+(* joinlist is injective (for non-empty lists) *)
 Lemma joinlist_inj {A} {JA : Join A} {PA : Perm_alg A} l r1 r2 :
   l <> nil ->
   joinlist l r1 ->
@@ -94,24 +96,6 @@ Proof.
     exists r, x2. eauto.
 Qed.
 
-Lemma oij {A}
-{JA : Join A}
-{PA : Perm_alg A}
-(a b c ab bc abc : A) :
-  join a b ab ->
-  join b c bc ->
-  join a bc abc ->
-  join ab c abc.
-Proof.
-  intros a_b b_c a_bc.
-  apply join_comm in b_c.
-  apply join_comm in a_bc.
-  destruct (join_assoc b_c a_bc) as (ab' & a_b' & ab_c).
-  apply join_comm in ab_c.
-  exact_eq ab_c; f_equal.
-  eapply join_eq; eauto.
-Qed.
-
 Lemma joinlist_merge {A} {JA : Join A} {PA : Perm_alg A} (a b c x : A) l :
   join a b c -> joinlist (a :: b :: l) x <-> joinlist (c :: l) x.
 Proof.
@@ -141,6 +125,12 @@ Fixpoint listoption_inv {A} (l : list (option A)) : list A :=
   | nil => nil
   end.
 
+Lemma map_listoption_inv {A B} (f : A -> B) (l : list (option A)) :
+  map f (listoption_inv l) = listoption_inv (map (option_map f) l).
+Proof.
+  induction l as [ | [a|] l]; simpl; f_equal; auto.
+Qed.
+
 Fixpoint all_but (i : nat) {A} (l : list A) : list A :=
   match i with
     O => tl l
@@ -152,12 +142,20 @@ Fixpoint all_but (i : nat) {A} (l : list A) : list A :=
   end.
 
 Lemma all_but_app {A} i (l l' : list A) :
-  i < List.length l ->
+  lt i (List.length l) ->
   all_but i (l ++ l') = all_but i l ++ l'.
 Proof.
   revert l l'; induction i; intros [ | x l ] l' len; simpl; auto.
   all: try solve [inversion len].
   f_equal. apply IHi. simpl in *; omega.
+Qed.
+
+Lemma all_but_map {A B} (f : A -> B) i l :
+  all_but i (map f l) = map f (all_but i l).
+Proof.
+  revert l; induction i; simpl.
+  - destruct l; auto.
+  - intros [|x l]; simpl; f_equal; auto.
 Qed.
 
 Lemma permutation_all_but {A} i (l : list A) x :

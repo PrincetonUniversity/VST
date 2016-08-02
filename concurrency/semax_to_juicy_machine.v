@@ -31,6 +31,7 @@ Require Import veric.mem_lessdef.
 Require Import sepcomp.semantics.
 Require Import sepcomp.step_lemmas.
 Require Import sepcomp.event_semantics.
+Require Import concurrency.coqlib5.
 Require Import concurrency.semax_conc.
 Require Import concurrency.sync_preds.
 Require Import concurrency.juicy_machine.
@@ -39,6 +40,7 @@ Require Import concurrency.scheduler.
 Require Import concurrency.addressFiniteMap.
 Require Import concurrency.permissions.
 Require Import concurrency.JuicyMachineModule.
+Require Import concurrency.join_lemmas.
 
 Set Bullet Behavior "Strict Subproofs".
 
@@ -46,8 +48,6 @@ Ltac eassert :=
   let mp := fresh "mp" in
   pose (mp := fun {goal Q : Type} (x : goal) (y : goal -> Q) => y x);
   eapply mp; clear mp.
-
-Ltac espec H := specialize (H ltac:(solve [eauto])).
 
 Ltac range_tac :=
   match goal with
@@ -66,6 +66,8 @@ Import THE_JUICY_MACHINE.
 Import JSEM.
 Module Machine :=THE_JUICY_MACHINE.JTP.
 Definition schedule := SCH.schedule.
+Import JuicyMachineLemmas.
+Import ThreadPool.
 
 (*+ Description of the invariant *)
 
@@ -231,6 +233,7 @@ Proof.
   intros c' E. apply safe_downward1, safety, E.
 Qed.
 
+(* Schedule irrelevance of the invariant *)
 Lemma state_invariant_sch_irr {Z} (Jspec : juicy_ext_spec Z) Gamma n m ge i sch sch' tp :
   state_invariant Jspec Gamma n (m, ge, (i :: sch, tp)) ->
   state_invariant Jspec Gamma n (m, ge, (i :: sch', tp)).
@@ -325,7 +328,7 @@ Section Initial_State.
         * constructor.
       + destruct (snd (projT2 (projT2 spr))) as [jm' [D H]]; unfold jm; clear jm; simpl.
         subst m.
-        apply JuicyMachineLemmas.mem_cohere'_juicy_mem.
+        apply mem_cohere'_juicy_mem.
       + intros b ofs.
         match goal with |- context [ssrbool.isSome ?x] => destruct x as [ phi | ] eqn:Ephi end; swap 1 2.
         { unfold is_true. simpl. congruence. } intros _.
@@ -561,7 +564,7 @@ Proof.
             rewrite encode_val_length.
             replace (Z_of_nat (size_chunk_nat chunk)) with (size_chunk chunk); swap 1 2.
             { unfold size_chunk_nat in *. rewrite Z2Nat.id; auto. destruct chunk; simpl; omega. }
-            assert (a' : ~ (Int.unsigned ofs0 <= ofs < Int.unsigned ofs0 + size_chunk chunk)) by intuition.
+            assert (a' : ~ (Int.unsigned ofs0 <= ofs < Int.unsigned ofs0 + size_chunk chunk)%Z) by intuition.
             revert a'; clear.
             generalize (Int.unsigned ofs0).
             generalize (size_chunk chunk).
@@ -586,7 +589,7 @@ Proof.
           - simpl in a.
             symmetry.
             apply Mem.setN_outside.
-            assert (a' : ~ (Int.unsigned ofs0 <= ofs < Int.unsigned ofs0 + Z.of_nat (Datatypes.length bytes))) by intuition.
+            assert (a' : ~ (Int.unsigned ofs0 <= ofs < Int.unsigned ofs0 + Z.of_nat (Datatypes.length bytes))%Z) by intuition.
             revert a'; clear.
             generalize (Int.unsigned ofs0).
             intros.
@@ -636,15 +639,109 @@ Proof.
       * unfold Mem.unchecked_free, Mem.valid_block; simpl. auto.
 Qed.
 
+Lemma join_resource_decay_S b phi1 phi1' phi2 phi2' phi3 :
+  resource_decay b phi1 phi1' ->
+  sepalg.join phi1 phi2 phi3 ->
+  level phi1 = S (level phi1') ->
+  age phi2 phi2' ->
+  exists phi3',
+    sepalg.join phi1' phi2' phi3' /\
+    resource_decay b phi3 phi3'.
+Proof.
+  intros [_ rd] j lev a.
+Admitted.
+
 Lemma join_resource_decay b phi1 phi1' phi2 phi3 :
   resource_decay b phi1 phi1' ->
-  level phi1 = S (level phi1') ->
   sepalg.join phi1 phi2 phi3 ->
   exists phi3',
-    sepalg.join phi1' phi2 phi3' /\
-    resource_decay b phi3 phi3' /\
-    level phi3 = S (level phi3').
+    sepalg.join phi1' (age_to (level phi1') phi2) phi3' /\
+    resource_decay b phi3 phi3'.
+Proof.
 Admitted.
+
+Lemma joinlist_age1' {A} `{agA : ageable A} {J : Join A} {_ : Age_alg A} {_ : Perm_alg A} (l : list A) (x : A) :
+  joinlist l x ->
+  joinlist (map age1' l) (age1' x).
+Proof.
+  revert x; induction l; intros x h.
+  - simpl in *. unfold age1'.
+    destruct (age1 x) eqn:E; auto.
+    eapply age_identity. apply E. apply h.
+  - destruct h as (y & h & j).
+    exists (age1' y); split. auto.
+    unfold age1'.
+    destruct (age1 a) eqn:Ea.
+    + destruct (age1_join _ j Ea) as (y' & z' & j' & -> & ->). auto.
+    + rewrite age1_level0 in Ea.
+      pose proof (join_level _ _ _ j).
+      assert (Ex : age1 x = None). apply age1_level0. intuition; congruence.
+      assert (Ey : age1 y = None). apply age1_level0. intuition; congruence.
+      rewrite Ex, Ey. auto.
+Qed.
+
+Lemma joinlist_age_to {A} `{agA : ageable A} {J : Join A} {_ : Age_alg A} {_ : Perm_alg A} n (l : list A) (x : A) :
+  joinlist l x ->
+  joinlist (map (age_to n) l) (age_to n x).
+Proof.
+  intros h.
+  unfold age_to at 2.
+  replace (map (age_to n) l) with (map (age_by (level x - n)) l).
+  - generalize (level x - n)%nat; clear n; intros n; induction n.
+    + exact_eq h; f_equal.
+      induction l; auto. rewrite IHl at 1. reflexivity.
+    + apply joinlist_age1' in IHn.
+      exact_eq IHn; f_equal. clear.
+      induction l; simpl; auto. f_equal; auto.
+  - revert x h; induction l; auto; intros y (x & h & j); simpl.
+    apply join_level in j.
+    f_equal.
+    + unfold age_to. do 2 f_equal. intuition.
+    + rewrite <-IHl with x; auto. do 3 f_equal. intuition.
+Qed.
+
+(* TODO delete these two at next compilation  *)
+Lemma map_listoption_inv {A B} (f : A -> B) (l : list (option A)) :
+  map f (listoption_inv l) = listoption_inv (map (option_map f) l).
+Proof.
+  induction l as [ | [a|] l]; simpl; f_equal; auto.
+Qed.
+Lemma all_but_map {A B} (f : A -> B) i l :
+  all_but i (map f l) = map f (all_but i l).
+Proof.
+  revert l; induction i; simpl.
+  - destruct l; auto.
+  - intros [|x l]; simpl; f_equal; auto.
+Qed.
+
+
+Lemma maps_age_to i tp :
+  maps (age_tp_to i tp) = map (age_to i) (maps tp).
+Proof.
+  destruct tp as [n th ph ls]; simpl.
+  unfold maps, getThreadsR, getLocksR in *.
+  rewrite map_app.
+  f_equal.
+  - apply map_compose.
+  - unfold lset.
+    rewrite AMap_map.
+    rewrite map_listoption_inv.
+    reflexivity.
+Qed.
+
+Lemma joinlist_resource_decay b phi1 phi1' l Phi :
+  resource_decay b phi1 phi1' ->
+  joinlist (phi1 :: l) Phi ->
+  exists Phi',
+    joinlist (phi1' :: (map (age_to (level phi1')) l)) Phi' /\
+    resource_decay b Phi Phi'.
+Proof.
+  intros rd (x & h & j).
+  destruct (join_resource_decay _ _ _ _ _ rd j) as (Phi' & j' & rd').
+  exists Phi'; split; auto.
+  exists (age_to (level phi1') x); split; auto.
+  apply joinlist_age_to, h.
+Qed.
 
 Lemma join_all_resource_decay {tp m Phi} c' {phi' i} {cnti : ThreadPool.containsThread tp i}:
   resource_decay (Mem.nextblock m) (ThreadPool.getThreadR cnti) phi' /\
@@ -653,8 +750,9 @@ Lemma join_all_resource_decay {tp m Phi} c' {phi' i} {cnti : ThreadPool.contains
   exists Phi',
     join_all (age_tp_to (level phi') (ThreadPool.updThread cnti c' phi')) Phi' /\
     resource_decay (Mem.nextblock m) Phi Phi' /\
-    level Phi = S (level Phi')
-.
+    level Phi = S (level Phi').
+Proof.
+  do 2 rewrite join_all_joinlist.
 Admitted.
 
 Definition mem_cohere := mem_cohere'.
@@ -663,12 +761,12 @@ Lemma mem_cohere_step m c c' jm jm' Phi (X : rmap) ge :
   sepalg.join (m_phi jm) X Phi ->
   corestep (juicy_core_sem cl_core_sem) ge c jm c' jm' ->
   exists Phi',
-    sepalg.join (m_phi jm') X Phi' /\
+    sepalg.join (m_phi jm') (age_to (level (m_phi jm')) X) Phi' /\
     mem_cohere (m_dry jm') Phi'.
 Proof.
   intros MC J C.
   destruct C as [step [RD L]].
-  destruct (join_resource_decay _ _ _ _ _ RD L J) as [Phi' [J' [RD' L']]].
+  destruct (join_resource_decay _ _ _ _ _ RD (* L *) J) as [Phi' [J' RD']].
   exists Phi'. split. apply J'.
   constructor.
   - intros sh rsh v loc pp AT.
@@ -681,7 +779,7 @@ Proof.
       (* specialize (cont_coh sh rsh v loc pp). *)
       admit.
     + (* all was in X *)
-      rewrite <-H in Jloc.
+(*      rewrite <-H in Jloc.
       inversion Jloc; subst.
       * symmetry in H7.
         pose proof cont_coh MC _ H7.
@@ -696,7 +794,7 @@ Proof.
       apply (JMcontents _ _ _ _ _ H).
   - admit.
   - admit.
-  - admit.
+  - admit. *)
 Admitted.
 
 Lemma resource_decay_matchfunspec {b phi phi' g Gamma} :
@@ -832,8 +930,26 @@ Proof.
         apply sat.
 Qed.
 
-Import ThreadPool.
-Import JuicyMachineLemmas.
+Lemma lock_coherence_age_to lset Phi m n :
+  lock_coherence lset Phi m ->
+  lock_coherence (AMap.map (option_map (age_to n)) lset) Phi m.
+Proof.
+  intros C loc; specialize (C loc).
+  rewrite AMap_find_map_option_map.
+  destruct (AMap.find (elt:=option rmap) loc lset) as [[o|]|];
+    simpl option_map;
+    cbv iota beta.
+  all:try solve [intuition].
+  destruct C as [B C]; split; auto. clear B.
+  destruct C as (sh & R & lk & sat).
+  exists sh, R; split. eauto.
+  destruct sat as [sat|?]; auto. left.
+  unfold age_to.
+  rewrite age_by_age_by, plus_comm, <-age_by_age_by.
+  revert sat.
+  apply age_by_ind.
+  apply (proj2_sig R).
+Qed.
 
 Lemma join_all_age_updThread_level tp i (cnti : ThreadPool.containsThread tp i) c phi Phi :
   join_all (age_tp_to (level phi) (ThreadPool.updThread cnti c phi)) Phi ->
@@ -844,7 +960,7 @@ Proof.
   rewrite <- (level_age_to n phi). 2:omega.
   apply rmap_join_sub_eq_level.
   assert (cnti' : containsThread (updThread cnti c phi) i) by eauto with *.
-  rewrite (JuicyMachineLemmas.cnt_age _ _ n) in cnti'.
+  rewrite (@cnt_age _ _ n) in cnti'.
   pose proof compatible_threadRes_sub cnti' J as H.
   unshelve erewrite <-getThreadR_age in H; eauto with *.
   rewrite gssThreadRes in H.
@@ -861,14 +977,28 @@ Proof.
   eapply compatible_lockRes_sub; eauto.
 Qed.
 
-Lemma join_all_level_phi tp Phi i (cnti : containsThread tp i) phi :
-  join_all tp Phi ->
-  getThreadR cnti = phi ->
-  level phi = level Phi.
+Lemma lset_range_perm m tp Phi b ofs
+  (compat : mem_compatible_with tp m Phi)
+  (Efind : AMap.find (elt:=option rmap) (b, ofs) (lset tp) <> None) :
+  Mem.range_perm
+    (restrPermMap (mem_compatible_locks_ltwritable (mem_compatible_forget compat)))
+    b ofs (ofs + size_chunk Mint32) Cur Writable.
 Proof.
-  intros J <-.
-  apply rmap_join_sub_eq_level.
-  eapply compatible_threadRes_sub; eauto.
+  unfold Mem.range_perm in *.
+  intros ofs0 range.
+  unfold Mem.perm in *.
+  pose proof restrPermMap_Cur as R.
+  unfold permission_at in *.
+  rewrite R.
+  erewrite lockSet_spec_2.
+  + constructor.
+  + eauto.
+  + unfold lockRes in *.
+    unfold lockGuts in *.
+    unfold LocksAndResources.lock_info in *.
+    destruct (AMap.find (elt:=option rmap) (b, ofs) (lset tp)).
+    * reflexivity.
+    * tauto.
 Qed.
 
 Lemma lock_coherence_align lset Phi m b ofs :
@@ -889,6 +1019,18 @@ Proof.
     unfold Mem.load.
     if_tac. destruct H; auto. discriminate.
   + tauto.
+Qed.
+
+Lemma lset_valid_access m m_any tp Phi b ofs
+  (compat : mem_compatible_with tp m Phi) :
+  lock_coherence (lset tp) Phi m_any ->
+  AMap.find (elt:=option rmap) (b, ofs) (lset tp) <> None ->
+  Mem.valid_access (restrPermMap (mem_compatible_locks_ltwritable (mem_compatible_forget compat))) Mint32 b ofs Writable.
+Proof.
+  intros C F.
+  split.
+  - eapply lset_range_perm; eauto.
+  - eapply lock_coherence_align; eauto.
 Qed.
 
 Lemma PTree_xmap_ext (A B : Type) (f f' : positive -> A -> B) t :
@@ -1020,140 +1162,6 @@ Proof.
   compute; induction i; auto.
 Qed.
 
-Lemma jstep_age_sim {G C} {csem : CoreSemantics G C mem} {ge c c' jm1 jm2 jm1'} :
-  age jm1 jm2 ->
-  jstep csem ge c jm1 c' jm1' ->
-  level jm2 <> O ->
-  exists jm2',
-    age jm1' jm2' /\
-    jstep csem ge c jm2 c' jm2'.
-Proof.
-  intros A [step [rd lev]] nz.
-  destruct (age1 jm1') as [jm2'|] eqn:E.
-  - exists jm2'. split; auto.
-    split; [|split]; auto.
-    + exact_eq step.
-      f_equal; apply age_jm_dry; auto.
-    + eapply (age_resource_decay _ (m_phi jm1) (m_phi jm1')).
-      * exact_eq rd.
-        f_equal. f_equal. apply age_jm_dry; auto.
-      * apply age_jm_phi; auto.
-      * apply age_jm_phi; auto.
-      * rewrite level_juice_level_phi in *. auto.
-    + apply age_level in E.
-      apply age_level in A.
-      omega.
-  - apply age1_level0 in E.
-    apply age_level in A.
-    omega.
-Qed.
-
-Lemma age_resource_at {phi phi' loc} :
-  age phi phi' ->
-  phi' @ loc = resource_fmap (approx (level phi')) (phi @ loc).
-Proof.
-  intros A.
-  rewrite <- (age1_resource_at _ _ A loc (phi @ loc)).
-  - reflexivity.
-  - rewrite resource_at_approx. reflexivity.
-Qed.
-
-Lemma pures_eq_unage {jm1 jm1' jm2}:
-  level jm1' >= level jm2 ->
-  age jm1 jm1' ->
-  juicy_safety.pures_eq jm1' jm2 ->
-  juicy_safety.pures_eq jm1 jm2.
-Proof.
-  intros L A [S P]; split; intros loc; [clear P; espec S | clear S; espec P ].
-  all:apply age_jm_phi in A.
-  all:repeat rewrite level_juice_level_phi in *.
-  all:unfold m_phi in *.
-  all:destruct jm1 as [_ p1 _ _ _ _].
-  all:destruct jm1' as [_ p1' _ _ _ _].
-  all:destruct jm2 as [_ p2 _ _ _ _].
-  - rewrite (age_resource_at A) in S.
-    destruct (p1 @ loc) eqn:E; auto.
-    simpl in S.
-    rewrite S.
-    rewrite preds_fmap_fmap.
-    rewrite approx_oo_approx'; auto.
-  
-  - destruct (p2 @ loc) eqn:E; auto.
-    revert P.
-    eapply age1_PURE. auto.
-Qed.
-
-Lemma jsafeN_age Z Jspec ge ora q n jm jmaged :
-  ext_spec_stable age (JE_spec _ Jspec) ->
-  age jm jmaged ->
-  le n (level jmaged) ->
-  @jsafeN Z Jspec ge n ora q jm ->
-  @jsafeN Z Jspec ge n ora q jmaged.
-Proof.
-  intros heredspec A L Safe; revert jmaged A L.
-  induction Safe as
-      [ z c jm
-      | n z c jm c' jm' step safe IH
-      | n z c jm ef sig args x atex Pre Post
-      | n z c jm v Halt Exit ]; intros jmaged A L.
-  - constructor 1.
-  - simpl in step.
-    destruct (jstep_age_sim A step ltac:(omega)) as [jmaged' [A' step']].
-    econstructor 2; eauto.
-    apply IH; eauto.
-    apply age_level in A'.
-    apply age_level in A.
-    destruct step as [_ [_ ?]].
-    omega.
-  - econstructor 3.
-    + eauto.
-    + eapply (proj1 heredspec); eauto.
-    + intros ret jm' z' n' H rel post.
-      destruct (Post ret jm' z' n' H) as (c' & atex' & safe'); eauto.
-      unfold juicy_safety.Hrel in *.
-      split;[|split]; try apply rel.
-      * apply age_level in A; omega.
-      * unshelve eapply (pures_eq_unage _ A), rel.
-        omega.
-  - econstructor 4. eauto.
-    eapply (proj2 heredspec); eauto.
-Qed.
-
-Lemma jsafeN_age_to Z Jspec ge ora q n l jm :
-  ext_spec_stable age (JE_spec _ Jspec) ->
-  le n l ->
-  @jsafeN Z Jspec ge n ora q jm ->
-  @jsafeN Z Jspec ge n ora q (age_to l jm).
-Proof.
-  intros Stable nl.
-  apply age_to_ind_refined.
-  intros x y H L.
-  apply jsafeN_age; auto.
-  omega.
-Qed.
-
-Lemma m_dry_age_to n jm : m_dry (age_to n jm) = m_dry jm.
-Proof.
-  remember (m_dry jm) as m eqn:E; symmetry; revert E.
-  apply age_to_ind; auto.
-  intros x y H E ->. rewrite E; auto. clear E.
-  apply age_jm_dry; auto.
-Qed.
-
-Lemma m_phi_age_to n jm : m_phi (age_to n jm) = age_to n (m_phi jm).
-Proof.
-  unfold age_to.
-  rewrite level_juice_level_phi.
-  generalize (level (m_phi jm) - n); clear n.
-  intros n; induction n. reflexivity.
-  simpl. rewrite <- IHn.
-  clear IHn. generalize (age_by n jm); clear jm; intros jm.
-  unfold age1'.
-  destruct (age1 jm) as [jm'|] eqn:e.
-  - rewrite (age1_juicy_mem_Some _ _ e). easy.
-  - rewrite (age1_juicy_mem_None1 _ e). easy.
-Qed.
-
 Lemma jstep_preserves_mem_equiv_on_other_threads m ge i j tp ci ci' jmi'
   (other : i <> j)
   (compat : mem_compatible tp m)
@@ -1217,6 +1225,33 @@ Proof.
   repeat f_equal.
   apply proof_irr.
 Qed.
+
+Lemma age_to_updThread i tp n c phi cnti cnti' :
+  age_tp_to n (@updThread i tp cnti c phi) =
+  @updThread i (age_tp_to n tp) cnti' c (age_to n phi).
+Proof.
+  destruct tp; simpl.
+  unfold updThread in *; simpl.
+  f_equal. extensionality j.
+  unfold "oo".
+  do 2 match goal with
+         |- context [if ?a then _ else _] =>
+         let E := fresh "E" in
+         destruct a eqn:E
+       end.
+  all:auto.
+  all:cut (true = false); [ congruence | ].
+  all:rewrite <-E, <-E0; repeat f_equal; apply proof_irr.
+Qed.
+
+Lemma resource_decay_join_identity b phi phi' e e' :
+  resource_decay b phi phi' ->
+  sepalg.joins phi e ->
+  sepalg.joins phi' e' ->
+  identity e ->
+  identity e' ->
+  e' = age_to (level phi') e.
+Admitted.
 
 Section Simulation.
   Variables
@@ -1402,42 +1437,101 @@ Section Simulation.
         (safety : threads_safety Jspec m ge tp Phi compat (S n))
         (wellformed : threads_wellformed tp)
         (unique : threads_unique_Krun tp (i :: sch))
-        (cnti : ThreadPool.containsThread tp i)
+        (cnti : containsThread tp i)
         (stepi : corestep (juicy_core_sem cl_core_sem) ge ci (personal_mem cnti (mem_compatible_forget compat)) ci' jmi')
         (safei' : forall ora : Z, jsafeN Jspec ge n ora ci' jmi')
-        (Eci : ThreadPool.getThreadC cnti = Krun ci)
-        (tp' := ThreadPool.updThread cnti (Krun ci') (m_phi jmi') : ThreadPool.t)
-        (tp'' := age_tp_to (level jmi') tp')
-        (cm' := (m_dry jmi', ge, (i :: sch, tp'')) : mem * genv * (list NatTID.tid * ThreadPool.t)) :
+        (Eci : getThreadC cnti = Krun ci)
+        (tp' := age_tp_to (level jmi') tp)
+        (tp'' := @updThread i tp' (cnt_age' cnti) (Krun ci') (m_phi jmi') : ThreadPool.t)
+        (* todo: AGE before updThread-ing *)
+        (cm' := (m_dry jmi', ge, (i :: sch, tp''))) :
     state_invariant Jspec Gamma n cm'.
   Proof.
     (* destruct stepi as [step decay]. *)
     (* destruct compat as [juice_join all_cohere loc_writable loc_set_ok]. *)
-    destruct compat as [JJ AC LW LJ JL] eqn:Ecompat. simpl in *.
+    destruct compat as [JJ AC LW LJ JL] eqn:Ecompat.
     rewrite <-Ecompat in *.
     
-    destruct (compatible_threadRes_sub cnti JJ) as [EXT JEXT].
-    destruct (join_all_resource_decay (Krun ci') (proj2 stepi) JJ) as [Phi' [J' [RD L]]].
+    (* getting new global rmap (Phi') *)
+    destruct (join_all_resource_decay (Krun ci') (proj2 stepi) JJ)
+      as [Phi' [J' [RD L]]].
     
-    assert (JEXT' : sepalg.join (m_phi jmi') EXT Phi'). {
-      clear -JEXT J' JJ compat.
-      rewrite <- (JuicyMachineLemmas.compatible_getThreadR_m_phi cnti (mem_compatible_forget compat)) in *.
-      pose proof compatible_threadRes_sub cnti JJ.
-      admit. (* cancellativity? or just list results *)
+    (* relating old (Phi) and new (Phi') through the remaining rmap *)
+    pose proof JJ as jj.
+    rewrite join_all_joinlist in jj.
+    rewrite (maps_getthread i tp cnti) in jj.
+    pose proof J' as jj'.
+    rewrite join_all_joinlist in jj'.
+    destruct jj as (ext & Hext & Jext).
+    unshelve erewrite age_to_updThread in jj'. apply cnt_age'; auto.
+    rewrite maps_updthread in jj'.
+    destruct jj' as (ext' & Hext' & Jext').
+    pose proof joinlist_age_to (level (m_phi jmi')) _ _ Hext as Hext_.
+    rewrite <-all_but_map in Hext_.
+    rewrite <-maps_age_to in Hext_.
+    
+    (* remaining rmap is "ext" before and "ext'" after, and they are equal up to age *)
+    assert (Eext' : ext' = age_to (level (m_phi jmi')) ext). {
+      assert (D : forall A {l : list A}, l = nil \/ l <> nil)
+        by (destruct l; [left|right]; congruence).
+      destruct (D _ (all_but i (maps (age_tp_to (level (m_phi jmi')) tp)))) as [N|N];swap 1 2.
+      - (* we have a proof of uniqueness of ext when the rest is not empty *)
+        unshelve eapply (joinlist_inj _ _ _ _ Hext' Hext_).
+        apply N.
+      - clear Ecompat.
+        (* when it's empty, we know that ext (and hence [age_to .. ext]) and ext' are identity *)
+        (* and they join with something that have the same PURE *)
+        eapply resource_decay_join_identity.
+        + apply (proj2 stepi).
+        + exists Phi. apply Jext.
+        + exists Phi'. exact_eq Jext'. f_equal. apply age_to_eq. easy.
+        + change (joinlist nil ext). exact_eq Hext. f_equal. clear -N.
+          rewrite maps_age_to in N. revert N.
+          destruct (maps tp) as [|? [|]]; destruct i; simpl; congruence || auto.
+        + change (joinlist nil ext'). exact_eq Hext'. f_equal. assumption.
     }
+    subst ext'.
+    
+    assert (jj'' : joinlist (maps (@updThread i tp' (cnt_age' cnti) (Krun ci') (m_phi jmi'))) Phi').
+    {
+      rewrite maps_updthread.
+      exists (age_to (level (m_phi jmi')) ext); split.
+      - unfold tp'.
+        rewrite maps_age_to.
+        rewrite all_but_map.
+        apply joinlist_age_to.
+        assumption.
+      - exact_eq Jext'. f_equal. apply age_to_eq; auto.
+    }
+    
+    (* pose proof (compatible_threadRes_sub cnti JJ). *)
+    (* destruct (compatible_threadRes_sub cnti JJ) as [EXT JEXT]. *)
+    
+    (* assert (JEXT' : sepalg.join (m_phi jmi') EXT Phi'). { *)
+    (*   clear -JEXT J' JJ compat. *)
+    (*   rewrite <- (compatible_getThreadR_m_phi cnti (mem_compatible_forget compat)) in *. *)
+    (*   pose proof compatible_threadRes_sub cnti JJ. *)
+    (*   admit. (* cancellativity? or just list results *) *)
+    (* } *)
     
     assert (compat' : mem_compatible_with tp'' (m_dry jmi') Phi').
     {
       constructor.
       - (* join_all (proved in lemma) *)
-        apply J'.
+        rewrite join_all_joinlist.
+        apply jj''.
       - (* cohere *)
         simpl in *.
-        erewrite <- JuicyMachineLemmas.compatible_getThreadR_m_phi in JEXT.
+        erewrite <- compatible_getThreadR_m_phi in Jext.
         destruct (mem_cohere_step
-                    m _ _ _ _ Phi EXT _ (ltac:(auto))
+                    m _ _ _ _ Phi ext _ (ltac:(auto))
                     (ltac:(eauto)) stepi) as [Phi'' [J'' MC]].
-        assert (Phi'' = Phi') by (eapply join_eq; eauto). subst Phi''.
+        assert (Phi'' = Phi'). {
+          eapply join_eq; eauto.
+          exact_eq Jext'; f_equal.
+          apply age_to_eq; auto.
+        }
+        subst Phi''.
         apply MC.
       
       - (* lockSet_Writable *)
@@ -1445,11 +1539,17 @@ Section Simulation.
         clear -LW stepi lock_coh lock_bound.
         destruct stepi as [step _]; simpl in step.
         intros b ofs IN.
+        unfold tp' in IN.
+        Lemma lset_age_tp_to n (tp : thread_pool) : lset (age_tp_to n tp) = AMap.map (option_map (age_to n)) (lset tp).
+        Proof.
+          destruct tp; reflexivity.
+        Qed.
+        rewrite lset_age_tp_to in IN.
         rewrite isSome_find_map in IN.
         specialize (LW b ofs IN).
         intros ofs0 interval.
-
-        (* the juicy memory don't help much because we care about Max
+        
+        (* the juicy memory doesn't help much because we care about Max
         here. There are several cases were no permission change, the
         only cases where they do are:
         (1) call_internal (alloc_variables m -> m1)
@@ -1593,6 +1693,8 @@ Section Simulation.
         + simpl.
           clear -LJ.
           intros loc sh psh P z H.
+          unfold tp'.
+          rewrite lset_age_tp_to.
           rewrite isSome_find_map.
           eapply LJ; eauto.
         
@@ -1603,12 +1705,14 @@ Section Simulation.
           apply lockSet_Writable_lockSet_block_bound.
           clear -LW.
           intros b ofs.
+          unfold tp'; rewrite lset_age_tp_to.
           rewrite isSome_find_map.
           apply LW.
         
         + clear -JL.
           unfold tp''.
           intros addr; simpl.
+          unfold tp'; rewrite lset_age_tp_to.
           rewrite isSome_find_map.
           apply JL.
     }
@@ -1650,7 +1754,9 @@ unique: ok *)
             (AMap.map (option_map (age_to (level Phi'))) (lset tp)) Phi'
             (restrPermMap (mem_compatible_locks_ltwritable (mem_compatible_forget compat')))).
       { intros A; exact_eq A.
-        f_equal. f_equal. f_equal. f_equal. auto. }
+        f_equal.
+        unfold tp'; rewrite lset_age_tp_to.
+        f_equal. f_equal. f_equal. auto. }
       (* done replacing *)
       
       (* operations on the lset: nothing happened *)
@@ -1685,49 +1791,27 @@ unique: ok *)
         Transparent Mem.load.
         unfold Mem.load in *.
         destruct (Mem.valid_access_dec (restrPermMap W) Mint32 b ofs Readable) as [r|n]; swap 1 2.
+        
         { (* can't be not readable *)
           destruct n.
-          unfold Mem.valid_access in *.
-          split.
-          - unfold Mem.range_perm in *.
-            intros ofs0 range.
-            unfold Mem.perm in *.
-            pose proof restrPermMap_Cur W b ofs0 as R.
-            unfold permission_at in *.
-            rewrite R.
-            erewrite lockSet_spec_2.
-            + constructor.
-            + eauto.
-            + unfold lockRes in *.
-              unfold lockGuts in *.
-              unfold LocksAndResources.lock_info in *.
-              destruct (AMap.find (elt:=option rmap) (b, ofs) (lset tp)); auto.
-          - (* basic alignment *)
-            eapply lock_coherence_align; eauto.
+          apply Mem.valid_access_implies with Writable.
+          - eapply lset_valid_access; eauto.
+          - constructor.
         }
         
         destruct (Mem.valid_access_dec (restrPermMap W') Mint32 b ofs Readable) as [r'|n']; swap 1 2.
         { (* can't be not readable *)
           destruct n'.
-          unfold Mem.valid_access in *.
           split.
-          - unfold Mem.range_perm in *.
-            intros ofs0 range.
-            unfold Mem.perm in *.
-            pose proof restrPermMap_Cur W' b ofs0 as R.
-            unfold permission_at in *.
-            rewrite R.
-            erewrite lockSet_spec_2.
+          - apply Mem.range_perm_implies with Writable.
+            + eapply lset_range_perm; eauto.
+              unfold tp''; simpl.
+              unfold tp'; rewrite lset_age_tp_to.
+              rewrite AMap_find_map_option_map.
+              destruct (AMap.find (elt:=option rmap) (b, ofs) (lset tp)).
+              * discriminate.
+              * tauto.
             + constructor.
-            + eauto.
-            + unfold lockRes in *.
-              unfold lockGuts in *.
-              unfold LocksAndResources.lock_info in *.
-              destruct (AMap.find (elt:=option rmap) (b, ofs) (lset tp'')) eqn:E; auto.
-              unfold tp'' in E; simpl in E.
-              erewrite AMap_find_map_option_map in E.
-              destruct (AMap.find (elt:=option rmap) (b, ofs) (lset tp)); auto.
-              simpl in E; inversion E.
           - (* basic alignment *)
             eapply lock_coherence_align; eauto.
         }
@@ -1816,8 +1900,8 @@ unique: ok *)
                 * reflexivity.
                 * intros.
                   unfold "oo".
-                  rewrite perm_of_age.
                   rewrite eqtype_refl.
+                  unfold tp'; simpl.
                   unfold access_at in *.
                   destruct jmi'; simpl.
                   eauto.
@@ -1828,22 +1912,25 @@ unique: ok *)
               simpl.
               unfold "oo".
               rewrite eqtype_refl.
-              rewrite age_to_eq; auto.
+              auto.
           }
           
-        * assert (REW: tp'' = (age_tp_to (level (m_phi jmi')) tp')) by reflexivity.
-          clearbody tp''.
+        * (* assert (REW: tp'' = (age_tp_to (level (m_phi jmi')) tp')) by reflexivity. *)
+          (* clearbody tp''. *)
           subst tp''.
-          unshelve erewrite <- gtc_age with (age := (level (m_phi jmi'))); [ auto with * | ].
-          unfold tp'.
-          rewrite gssThreadCode.
-          reflexivity.
+          Set Printing Implicit.
+          rewrite gssThreadCode. auto.
       
       + (* safety for other threads *)
-        assert (REW: tp'' = (age_tp_to (level (m_phi jmi')) tp')) by reflexivity.
-        clearbody tp''.
-        subst tp''.
-        unshelve erewrite <- gtc_age with (age := (level (m_phi jmi'))); [ auto with * | ].
+        (* assert (REW: tp'' = (age_tp_to (level (m_phi jmi')) tp')) by reflexivity. *)
+        (* clearbody tp''. *)
+        (* subst tp''. *)
+        (* unshelve erewrite <- gtc_age with (n := (level (m_phi jmi'))); [ auto with * | ]. *)
+        
+        (** * first adapt safety to age_to, then to the rest *)
+        admit.
+        (*
+        unfold tp'' at 1.
         unfold tp' at 1.
         unshelve erewrite gsoThreadCode; auto.
         specialize (safety j cntj ora).
@@ -1862,7 +1949,6 @@ unique: ok *)
           - assumption.
           - assert (S n = level Phi) by admit (* will be added to invariant *).
             assert (level (m_phi jmi') = level Phi') by admit (* joinability *).
-            rewrite H0.
             admit (* should be omega, but hidden parameters make it hard. *).
           - assumption.
         }
@@ -1874,6 +1960,7 @@ unique: ok *)
             rewrite m_dry_age_to.
             unfold jm_.
             eapply jstep_preserves_mem_equiv_on_other_threads; eauto.
+            eapply stepi.
           
           - unfold jmj'.
             unfold jm_ in *.
@@ -1887,27 +1974,31 @@ unique: ok *)
         
         (** * Derive safety using @jsafeN_equiv_sim _ Jspec *)
         apply (jsafeN_equiv_sim E); auto.
+         *)
     
     - (* wellformedness *)
       intros j cntj.
       Set Printing Implicit.
+      admit. (*
       assert (REW: tp'' = (age_tp_to (level (m_phi jmi')) tp')) by reflexivity.
       clearbody tp''.
       subst tp''.
-      unshelve erewrite <- gtc_age with (age := (level (m_phi jmi'))); [ auto with * | ].
+      unshelve erewrite <- gtc_age with (n := (level (m_phi jmi'))); [ auto with * | ].
       unfold tp' at 1.
       destruct (eq_dec i j) as [ <- | ij].
       + unshelve erewrite gssThreadCode; auto.
       + unshelve erewrite gsoThreadCode; auto.
         specialize (wellformed j cntj).
         destruct (@getThreadC j tp cntj); auto.
-    
+*)  
     - (* uniqueness *)
       intros notalone j cntj q ora Ecj.
+      admit.
+      (*
       assert (REW: tp'' = (age_tp_to (level (m_phi jmi')) tp')) by reflexivity.
       clearbody tp''.
       subst tp''.
-      unshelve erewrite <- gtc_age with (age := (level (m_phi jmi'))) in Ecj; [ auto with * | auto with * | ].
+      unshelve erewrite <- gtc_age with (n := (level (m_phi jmi'))) in Ecj; [ auto with * | auto with * | ].
       specialize (unique notalone j).
       destruct (eq_dec i j) as [ <- | ij].
       + apply unique with (cnti := cntj) (q := ci); eauto.
@@ -1917,6 +2008,7 @@ unique: ok *)
       + unfold tp' in Ecj.
         unshelve erewrite gsoThreadCode in Ecj; auto with *.
         eapply unique; eauto.
+*)
   Admitted.
   
   Theorem progress Gamma n state :
@@ -1993,8 +2085,8 @@ unique: ok *)
         }
         
         destruct next as (ci' & jmi' & stepi & safei').
-        pose (tp' := @ThreadPool.updThread i tp cnti (Krun ci') (m_phi jmi')).
-        pose (tp'' := age_tp_to (level jmi') tp').
+        pose (tp' := age_tp_to (level jmi') tp).
+        pose (tp'' := @ThreadPool.updThread i tp' (cnt_age' cnti) (Krun ci') (m_phi jmi')).
         pose (cm' := (m_dry jmi', ge, (i :: sch, tp''))).
         exists cm'.
         apply state_step_c; [].
@@ -2291,7 +2383,7 @@ unique: ok *)
                     inversion L.
             * reflexivity.
             * reflexivity.
-            * rewrite JuicyMachineLemmas.compatible_getThreadR_m_phi.
+            * rewrite compatible_getThreadR_m_phi. (* todo is this transparent enough to be identity? *)
               specialize (LKSPEC (b, Int.unsigned ofs)).
               simpl in LKSPEC.
               if_tac in LKSPEC; swap 1 2.
@@ -2370,7 +2462,14 @@ unique: ok *)
           Unset Printing Implicit.
           pose (m1 := restrPermMap (mem_compatible_locks_ltwritable (mem_compatible_forget compat))).
           assert (Hm' : exists m', Mem.store Mint32 m1 b (Int.intval ofs) (Vint Int.zero) = Some m'). {
-            admit.
+            unfold Mem.store in *.
+            destruct (Mem.valid_access_dec m1 Mint32 b (Int.intval ofs) Writable) as [N|N].
+            now eauto.
+            exfalso.
+            apply N; unfold m1; clear -Efind lock_coh.
+            eapply lset_valid_access; eauto.
+            unfold Int.unsigned in *.
+            congruence.
           }
           destruct Hm' as (m', Hm').
           
@@ -2855,7 +2954,7 @@ unique: ok *)
       } (* end of Krun (at_ex c) -> Kblocked c *)
     } (* end of Krun *)
     
-    (*thread[i] is in Kblocked *)
+    (* thread[i] is in Kblocked *)
     { (* only one possible jmstep, in fact divided into 6 sync steps *)
       inversion jmstep; try inversion HschedN; subst tid;
         unfold ThreadPool.containsThread, is_true in *;
@@ -2863,10 +2962,58 @@ unique: ok *)
         try solve [jmstep_inv; getThread_inv; congruence].
       
       simpl SCH.schedSkip in *.
+      match goal with |- _ _ _ (?M, _, (_, ?TP)) => set (tp_ := TP); set (m_ := M) end.
+      pose (compat_ := mem_compatible_with tp_ m_ Phi).
       jmstep_inv.
       
       - (* the case of acquire *)
-        admit.
+        assert (compat' : compat_). {
+          subst compat_ tp_ m_.
+          constructor.
+          - destruct compat as [J].
+            clear -J His_unlocked Hadd_lock_res.
+            rewrite join_all_joinlist in *.
+            rewrite maps_updlock1.
+            erewrite maps_getlock3 in J; eauto.
+Lemma maps_remLockSet_updThread i tp addr cnti c phi :
+  maps (remLockSet (@updThread i tp cnti c phi) addr) =
+  maps (@updThread i (remLockSet tp addr) cnti c phi).
+Proof.
+  reflexivity.
+Qed.
+            rewrite maps_remLockSet_updThread.
+            rewrite maps_updthread.
+            assert (pr:containsThread (remLockSet tp (b, Int.intval ofs)) i) by auto.
+            rewrite (maps_getthread i _ pr) in J.
+            rewrite gRemLockSetRes with (cnti := Htid) in J. clear pr.
+            revert Hadd_lock_res J.
+            generalize (getThreadR Htid) d_phi (m_phi jm').
+            generalize (all_but i (maps (remLockSet tp (b, Int.intval ofs)))).
+            unfold LocksAndResources.res in *.
+            clear.
+            intros l a b c j h.
+            rewrite Permutation.perm_swap in h.
+            admit (* next compilation: apply joinlist_merge *).
+          
+          - (* mem_cohere *)
+            admit.
+          
+          - (* lockSet_Writable *)
+            admit.
+          
+          - (* juicyLocks_in_lockSet *)
+            admit.
+          
+          - (* lockSet_in_juicyLocks *)
+            admit.
+        }
+        
+        eapply state_invariant_c with (PHI := Phi).
+        + auto.
+        + admit.
+        + admit.
+        + admit.
+        + admit.
       
       - (* the case of release *)
         admit.
