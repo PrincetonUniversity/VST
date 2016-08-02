@@ -522,7 +522,7 @@ Proof.
           apply Coqlib.proj_sumbool_true in F.
           auto.
         }
-        espec G.
+        autospec G.
         destruct (acc !! b ofs Cur) as [ [] | ]; inversion G; auto.
 Qed.
 
@@ -555,8 +555,8 @@ Proof.
         specialize (v0 ofs).
         {
           destruct (adr_range_dec (b, Int.unsigned ofs0) (size_chunk chunk) (b, ofs)) as [a|a].
-          - simpl in a; destruct a as [_ a]. 
-            espec v0.
+          - simpl in a; destruct a as [_ a].
+            autospec v0.
             tauto.
           - simpl in a.
             symmetry.
@@ -583,8 +583,8 @@ Proof.
         specialize (r ofs).
         {
           destruct (adr_range_dec (b, Int.unsigned ofs0) (Z.of_nat (Datatypes.length bytes)) (b, ofs)) as [a|a].
-          - simpl in a; destruct a as [_ a]. 
-            espec r.
+          - simpl in a; destruct a as [_ a].
+            autospec r.
             tauto.
           - simpl in a.
             symmetry.
@@ -812,7 +812,7 @@ Proof.
   apply (anti_hereditary_necR necr') in FUN; swap 1 2.
   { intros x y a. apply anti_hereditary_func_at', a. }
   apply (resource_decay_func_at'_inv RD) in FUN.
-  espec M.
+  autospec M.
   destruct M as (id & Hg & HGamma).
   exists id; split; auto.
 Qed.
@@ -869,7 +869,7 @@ Proof.
   specialize (LW ofs).
   assert (Intv.In ofs (ofs, (ofs + LKSIZE)%Z)).
   { split; simpl; unfold LKSIZE in *; simpl; omega. }
-  espec LW.
+  autospec LW.
   rewrite (Mem.nextblock_noaccess _ _ ofs Max L) in LW.
   inversion LW.
 Qed.
@@ -1632,7 +1632,7 @@ Section Simulation.
             symmetry.
             destruct (D b ofs0) as [A B].
             destruct (valid_block_dec mi b) as [v|n].
-            -- espec B.
+            -- autospec B.
                destruct B as [B|B].
                ++ destruct (B Cur). congruence.
                ++ specialize (B Max). congruence.
@@ -1642,7 +1642,7 @@ Section Simulation.
             symmetry.
             destruct (D b ofs0) as [A B].
             destruct (valid_block_dec mi b) as [v|n].
-            -- espec B.
+            -- autospec B.
                destruct B as [B|B].
                ++ destruct (B Cur); congruence.
                ++ specialize (B Max). congruence.
@@ -1661,7 +1661,7 @@ Section Simulation.
           specialize (D b ofs0).
           destruct D as [A B].
           destruct (valid_block_dec mi b) as [v|n].
-          * espec B.
+          * autospec B.
             destruct B as [B|B].
             -- destruct (B Max); congruence.
             -- specialize (B Max). congruence.
@@ -1669,20 +1669,20 @@ Section Simulation.
             congruence.
         
         + (* Max = Readable : impossible because Max >= Writable  *)
-          espec LW.
-          espec LW.
+          autospec LW.
+          autospec LW.
           rewrite Emax in LW.
           inversion LW.
         
         + (* Max = Nonempty : impossible because Max >= Writable  *)
-          espec LW.
-          espec LW.
+          autospec LW.
+          autospec LW.
           rewrite Emax in LW.
           inversion LW.
         
         + (* Max = none : impossible because Max >= Writable  *)
-          espec LW.
-          espec LW.
+          autospec LW.
+          autospec LW.
           rewrite Emax in LW.
           inversion LW.
       

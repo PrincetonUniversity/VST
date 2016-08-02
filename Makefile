@@ -129,7 +129,7 @@ CONCUR_FILES= \
   sepcomp.v seq_lemmas.v ssromega.v stack.v \
   threadPool.v threads_lemmas.v wf_lemmas.v \
   x86_inj.v x86_safe.v x86_context.v fineConc_x86.v \
-  SC_erasure.v sync_preds.v join_lemmas.v
+  SC_erasure.v sync_preds.v join_lemmas.v coqlib5.v
 
 CCC26x86_FILES = \
   Archi.v Bounds.v Conventions1.v Conventions.v Ctypes.v \

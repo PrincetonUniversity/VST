@@ -29,6 +29,7 @@ Require Import veric.semax_ext_oracle.
 Require Import sepcomp.semantics.
 Require Import sepcomp.step_lemmas.
 Require Import sepcomp.event_semantics.
+Require Import concurrency.coqlib5.
 Require Import concurrency.semax_conc.
 Require Import concurrency.juicy_machine.
 Require Import concurrency.concurrent_machine.
@@ -111,7 +112,7 @@ Module MainSafety .
              unfold ErasureProof.JTP.getThreadR;
                unfold ErasureProof.DTP.getThreadR; simpl.
              pose proof initial_invariant as INV.
-             do 7 espec INV.
+             do 7 autospec INV.
              specialize (INV n nil).
              remember (initial_state CS V G ext_link prog all_safe init_mem_not_none tid nil) as cm.
              destruct cm as ((m, ge), (sch, tp)).

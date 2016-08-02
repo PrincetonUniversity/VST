@@ -431,7 +431,7 @@ Lemma pures_eq_unage {jm1 jm1' jm2}:
   juicy_safety.pures_eq jm1' jm2 ->
   juicy_safety.pures_eq jm1 jm2.
 Proof.
-  intros L A [S P]; split; intros loc; [clear P; espec S | clear S; espec P ].
+  intros L A [S P]; split; intros loc; [clear P; autospec S | clear S; autospec P ].
   all:apply age_jm_phi in A.
   all:repeat rewrite level_juice_level_phi in *.
   all:unfold m_phi in *.
