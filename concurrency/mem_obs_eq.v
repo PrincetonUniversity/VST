@@ -2017,6 +2017,18 @@ Proof with eauto with renamings id_renamings val_renamings.
    *)
   destruct (valid_block_dec m b); simpl; tauto.
 Qed.
+
+(** If a memory [m] injects into a memory [m'] then [m'] is at least
+as big as [m] *)
+Lemma weak_mem_obs_eq_nextblock:
+  forall f m m'
+    (Hobs_eq: weak_mem_obs_eq f m m'),
+    (Mem.nextblock m <= Mem.nextblock m')%positive.
+Proof.
+  intros.
+  destruct Hobs_eq as [_ Hdomain Hcodomain Hinjective _].
+  
+  
   
   Definition max_inv mf := forall b ofs, Mem.valid_block mf b ->
                                     permission_at mf b ofs Max = Some Freeable.
