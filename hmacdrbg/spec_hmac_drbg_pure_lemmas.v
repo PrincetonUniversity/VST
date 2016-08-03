@@ -169,3 +169,63 @@ Proof.
   destruct a.
   reflexivity.
 Qed.
+
+Lemma isbyteZ_HMAC256 V K: Forall isbyteZ (HMAC256 V K).
+Proof. apply hmac_common_lemmas.isbyte_hmac. Qed.
+
+Lemma HMAC_DRBG_update_value l key V key' V' 
+  (P:(key', V') = HMAC_DRBG_update HMAC256 l key V):
+  Zlength V' = 32 /\ Forall isbyteZ V'.
+Proof. unfold HMAC_DRBG_update in P.
+  destruct l; inv P; split.
+  apply hmac_common_lemmas.HMAC_Zlength.
+  apply isbyteZ_HMAC256.
+  apply hmac_common_lemmas.HMAC_Zlength.
+  apply isbyteZ_HMAC256.
+Qed.
+
+Lemma Zlength_hmac256drbgabs_reseed_value abs s c
+  (HC: Zlength c >? 256 = false) (HV: Zlength (hmac256drbgabs_value abs)=32):
+  Zlength (hmac256drbgabs_value (hmac256drbgabs_reseed abs s c)) = 32.
+Proof. unfold hmac256drbgabs_reseed. destruct abs.
+  remember (mbedtls_HMAC256_DRBG_reseed_function s
+         (HMAC256DRBGabs key V reseed_counter entropy_len
+            prediction_resistance reseed_interval) c) as d.
+  destruct d; trivial.
+  destruct d as [[[[? ?] ?] ?] ?]; simpl.
+    unfold mbedtls_HMAC256_DRBG_reseed_function, HMAC256_DRBG_reseed_function, DRBG_reseed_function in Heqd.
+    rewrite andb_negb_r, HC in Heqd.
+    destruct (get_entropy 256 entropy_len entropy_len prediction_resistance s); inv Heqd.
+    remember (HMAC_DRBG_update HMAC256 (l1 ++ c) key V) as q.
+    destruct q; inv H0. eapply HMAC_DRBG_update_value; eassumption.
+Qed.
+
+Lemma isbyteZ_hmac256drbgabs_reseed_value abs s c
+  (HC: Zlength c >? 256 = false) (HV: Forall isbyteZ (hmac256drbgabs_value abs)):
+  Forall isbyteZ (hmac256drbgabs_value (hmac256drbgabs_reseed abs s c)).
+Proof. unfold hmac256drbgabs_reseed. destruct abs.
+  remember (mbedtls_HMAC256_DRBG_reseed_function s
+         (HMAC256DRBGabs key V reseed_counter entropy_len
+            prediction_resistance reseed_interval) c) as d.
+  destruct d; trivial.
+  destruct d as [[[[? ?] ?] ?] ?]; simpl.
+    unfold mbedtls_HMAC256_DRBG_reseed_function, HMAC256_DRBG_reseed_function, DRBG_reseed_function in Heqd.
+    rewrite andb_negb_r, HC in Heqd.
+    destruct (get_entropy 256 entropy_len entropy_len prediction_resistance s); inv Heqd.
+    remember (HMAC_DRBG_update HMAC256 (l1 ++ c) key V) as q.
+    destruct q; inv H0. eapply HMAC_DRBG_update_value; eassumption.
+Qed.
+
+Lemma Zlength_hmac256drbgabs_update_value abs c:
+  Zlength (hmac256drbgabs_value (hmac256drbgabs_hmac_drbg_update abs c)) = 32.
+Proof. unfold hmac256drbgabs_hmac_drbg_update. destruct abs.
+  remember (HMAC256_DRBG_update c key V) as d. 
+  destruct d; simpl. eapply HMAC_DRBG_update_value; eassumption.
+Qed.
+
+Lemma isbyteZ_hmac256drbgabs_update_value abs c:
+  Forall isbyteZ (hmac256drbgabs_value (hmac256drbgabs_hmac_drbg_update abs c)).
+Proof. unfold hmac256drbgabs_hmac_drbg_update. destruct abs.
+  remember (HMAC256_DRBG_update c key V) as d. 
+  destruct d; simpl. eapply HMAC_DRBG_update_value; eassumption.
+Qed.
