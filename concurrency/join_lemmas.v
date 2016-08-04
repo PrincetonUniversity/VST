@@ -193,6 +193,49 @@ Proof.
     constructor.
 Qed.
 
+Require Import msl.ageable.
+Require Import msl.age_sepalg.
+
+Lemma joinlist_age1' {A} `{agA : ageable A} {J : Join A} {_ : Age_alg A} {_ : Perm_alg A} (l : list A) (x : A) :
+  joinlist l x ->
+  joinlist (map age1' l) (age1' x).
+Proof.
+  revert x; induction l; intros x h.
+  - simpl in *. unfold age1'.
+    destruct (age1 x) eqn:E; auto.
+    eapply age_identity. apply E. apply h.
+  - destruct h as (y & h & j).
+    exists (age1' y); split. auto.
+    unfold age1'.
+    destruct (age1 a) eqn:Ea.
+    + destruct (age1_join _ j Ea) as (y' & z' & j' & -> & ->). auto.
+    + rewrite age1_level0 in Ea.
+      pose proof (join_level _ _ _ j).
+      assert (Ex : age1 x = None). apply age1_level0. intuition; congruence.
+      assert (Ey : age1 y = None). apply age1_level0. intuition; congruence.
+      rewrite Ex, Ey. auto.
+Qed.
+
+Lemma joinlist_age_to {A} `{agA : ageable A} {J : Join A} {_ : Age_alg A} {_ : Perm_alg A} n (l : list A) (x : A) :
+  joinlist l x ->
+  joinlist (map (age_to n) l) (age_to n x).
+Proof.
+  intros h.
+  unfold age_to at 2.
+  replace (map (age_to n) l) with (map (age_by (level x - n)) l).
+  - generalize (level x - n)%nat; clear n; intros n; induction n.
+    + exact_eq h; f_equal.
+      induction l; auto. rewrite IHl at 1. reflexivity.
+    + apply joinlist_age1' in IHn.
+      exact_eq IHn; f_equal. clear.
+      induction l; simpl; auto. f_equal; auto.
+  - revert x h; induction l; auto; intros y (x & h & j); simpl.
+    apply join_level in j.
+    f_equal.
+    + unfold age_to. do 2 f_equal. intuition.
+    + rewrite <-IHl with x; auto. do 3 f_equal. intuition.
+Qed.
+
 
 Require Import veric.compcert_rmaps.
 Require Import concurrency.juicy_machine.
@@ -614,3 +657,25 @@ Proof.
   symmetry.
   apply Permutation_cons_app; auto.
 Qed.
+
+Lemma maps_age_to i tp :
+  maps (age_tp_to i tp) = map (age_to i) (maps tp).
+Proof.
+  destruct tp as [n th ph ls]; simpl.
+  unfold maps, getThreadsR, getLocksR in *.
+  rewrite map_app.
+  f_equal.
+  - apply map_compose.
+  - unfold lset.
+    rewrite AMap_map.
+    rewrite map_listoption_inv.
+    reflexivity.
+Qed.
+
+Lemma maps_remLockSet_updThread i tp addr cnti c phi :
+  maps (remLockSet (@updThread i tp cnti c phi) addr) =
+  maps (@updThread i (remLockSet tp addr) cnti c phi).
+Proof.
+  reflexivity.
+Qed.
+
