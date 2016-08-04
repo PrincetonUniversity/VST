@@ -24,7 +24,36 @@ Tactic Notation "if_tac" simple_intropattern(H) "in" hyp(H1) "eq:" simple_introp
     destruct a as H eqn:E
   end.
 
-(** Auto-specializing a tactic *)
+(** Specializing a hypothesis with a newly created goal *)
+
+Tactic Notation "assert_specialize" hyp(H) :=
+  match type of H with
+    forall x : ?P, _ =>
+    let Htemp := fresh "Htemp" in
+    assert P as Htemp; [ | specialize (H Htemp); try clear Htemp ]
+  end.
+
+Tactic Notation "assert_specialize" hyp(H) "by" tactic(tac) :=
+  match type of H with
+    forall x : ?P, _ =>
+    let Htemp := fresh "Htemp" in
+    assert P as Htemp by tac; specialize (H Htemp); try clear Htemp
+  end.
+
+Tactic Notation "assert_specialize" hyp(H) "as" simple_intropattern(Hnew) :=
+  match type of H with
+    forall x : ?P, _ =>
+    assert P as Hnew; [ | specialize (H Hnew) ]
+  end.
+
+Tactic Notation "assert_specialize" hyp(H) "as" simple_intropattern(Hnew) "by" tactic(tac) :=
+  match type of H with
+    forall x : ?P, _ =>
+    assert P as Hnew by tac;
+    specialize (H Hnew)
+  end.
+
+(** Auto-specializing a hypothesis *)
 
 Ltac autospec H := specialize (H ltac:(solve [eauto])).
 
