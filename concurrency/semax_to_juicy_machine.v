@@ -702,21 +702,6 @@ Proof.
     + rewrite <-IHl with x; auto. do 3 f_equal. intuition.
 Qed.
 
-(* TODO delete these two at next compilation  *)
-Lemma map_listoption_inv {A B} (f : A -> B) (l : list (option A)) :
-  map f (listoption_inv l) = listoption_inv (map (option_map f) l).
-Proof.
-  induction l as [ | [a|] l]; simpl; f_equal; auto.
-Qed.
-Lemma all_but_map {A B} (f : A -> B) i l :
-  all_but i (map f l) = map f (all_but i l).
-Proof.
-  revert l; induction i; simpl.
-  - destruct l; auto.
-  - intros [|x l]; simpl; f_equal; auto.
-Qed.
-
-
 Lemma maps_age_to i tp :
   maps (age_tp_to i tp) = map (age_to i) (maps tp).
 Proof.
@@ -1230,6 +1215,13 @@ Proof.
   apply proof_irr.
 Qed.
 
+Lemma maps_remLockSet_updThread i tp addr cnti c phi :
+  maps (remLockSet (@updThread i tp cnti c phi) addr) =
+  maps (@updThread i (remLockSet tp addr) cnti c phi).
+Proof.
+  reflexivity.
+Qed.
+
 Lemma age_to_updThread i tp n c phi cnti cnti' :
   age_tp_to n (@updThread i tp cnti c phi) =
   @updThread i (age_tp_to n tp) cnti' c (age_to n phi).
@@ -1373,6 +1365,13 @@ Lemma resource_decay_join_identity b phi phi' e e' :
   identity e' ->
   e' = age_to (level phi') e.
 Admitted.
+
+Lemma jsafeN_downward {Z} {Jspec : juicy_ext_spec Z} {ge n z c jm} :
+  jsafeN Jspec ge (S n) z c jm ->
+  jsafeN Jspec ge n z c jm.
+Proof.
+  apply safe_downward1.
+Qed.
 
 Section Simulation.
   Variables
@@ -1553,6 +1552,7 @@ Section Simulation.
         (Stable' : ext_spec_stable juicy_mem_equiv Jspec)
         (gam : matchfunspec (filter_genv ge) Gamma Phi)
         (compat : mem_compatible_with tp m Phi)
+        (En : level Phi = S n)
         (lock_bound : lockSet_block_bound (ThreadPool.lset tp) (Mem.nextblock m))
         (lock_coh : lock_coherence' tp Phi m compat)
         (safety : threads_safety Jspec m ge tp Phi compat (S n))
@@ -1564,7 +1564,6 @@ Section Simulation.
         (Eci : getThreadC cnti = Krun ci)
         (tp' := age_tp_to (level jmi') tp)
         (tp'' := @updThread i tp' (cnt_age' cnti) (Krun ci') (m_phi jmi') : ThreadPool.t)
-        (* todo: AGE before updThread-ing *)
         (cm' := (m_dry jmi', ge, (i :: sch, tp''))) :
     state_invariant Jspec Gamma n cm'.
   Proof.
@@ -1576,9 +1575,6 @@ Section Simulation.
     rewrite <-Ecompat in *.
     pose proof J as J_; move J_ before J.
     rewrite join_all_joinlist in J_.
-    assert (En : level Phi = S n). {
-      admit (* will be in invariant *).
-    }
     pose proof J_ as J__.
     rewrite maps_getthread with (cnti := cnti) in J__.
     destruct J__ as (ext & Hext & Jext).
@@ -1626,17 +1622,6 @@ Section Simulation.
     rewrite maps_age_to, all_but_map in J''.
     pose proof J'' as J''_. destruct J''_ as (ext'' & Hext'' & Jext'').
     rewrite Eni'' in *.
-    (*
-    rewrite join_all_joinlist in jj'.
-    destruct jj as (ext & Hext & Jext).
-    unshelve erewrite age_to_updThread in jj'. apply cnt_age'; auto.
-    rewrite maps_updthread in jj'.
-    pose proof jj' as jj_.
-    destruct jj_ as (ext' & Hext' & Jext').
-    pose proof joinlist_age_to (level (m_phi jmi')) _ _ Hext as Hext_.
-    rewrite <-all_but_map in Hext_.
-    rewrite <-maps_age_to in Hext_.
-    *)
     assert (Eext'' : ext'' = age_to n ext). {
       destruct (coqlib3.nil_or_non_nil (map (age_to n) (all_but i (maps tp)))) as [N|N]; swap 1 2.
       - (* Uniqueness of [ext] : when the rest is not empty *)
@@ -1875,37 +1860,29 @@ Section Simulation.
     }
     (* end of proving mem_compatible_with *)
     
-    (* now that mem_compatible_with is established, we move on to the
-    invariant. *)
-    
-    (* getting the new global phi by replacing jmi with jmi' : possible
-because resource_decay says the only new things are above nextblock.
+    (* Now that mem_compatible_with is established, we move on to the
+       invariant. Two important parts:
 
-One should update all other threadR too? Just aging?
-
-lock_coherence : ok, but there is work to do: because locks are
-unchanged (no write permission) and no new lock have been allocated
-(hmm) nor freed.
-
-safety: current thread: we have its safety already, but we want to
-know it's the safety after taking the personal_mem.  We also have to
-prove that the other threads are safe with their new, aged, rmap.
-
-wellformed: ok
-
-unique: ok *)
-    
-    (* inversion juice_join as [tp0 PhiT PhiL r JT JL J H2 H3]; subst; clear juice_join. *)
+       1) lock coherence is maintained, because the thread step could
+          not affect locks in either kinds of memories
+       
+       2) safety is maintained: for thread #i (who just took a step),
+          safety of the new state follows from safety of the old
+          state. For thread #j != #i, we need to prove that the new
+          memory is [juicy_mem_equiv] to the old one, in the sense
+          that wherever [Cur] was readable the values have not
+          changed.
+    *)
     
     apply state_invariant_c with (PHI := Phi'') (mcompat := compat'').
     - (* matchfunspecs *)
       eapply resource_decay_matchfunspec; eauto.
     
-    - (* lock coherence: own rmap has changed, not clear how to prove it did not affect locks *)
+    - (* lock coherence: own rmap has changed, but we prove it did not affect locks *)
       unfold lock_coherence', tp''; simpl lset.
 
       (* replacing level (m_phi jmi') with level Phi' ... *)
-      assert (REW: level (m_phi jmi') = level Phi'') by congruence.
+      assert (level (m_phi jmi') = level Phi'') by congruence.
       cut (lock_coherence
             (AMap.map (option_map (age_to (level Phi''))) (lset tp)) Phi''
             (restrPermMap (mem_compatible_locks_ltwritable (mem_compatible_forget compat'')))).
@@ -2118,90 +2095,47 @@ unique: ok *)
             reflexivity.
         }
         
-        Set Printing Implicit.
         unshelve erewrite <-gtc_age; auto.
-        pose proof safety _ cntj' ora.
-        destruct (@getThreadC j tp cntj').
+        pose proof safety _ cntj' ora as safej.
         
-        * (* Krun *)
-          admit.
-        
-        * (* Kblocked *)
-          admit.
-        
-        * (* Kresume *)
-          admit.
-        
-        * (* Kinit *)
-          admit.
-        
-        (*
-        pose proof jsafeN_age_to.
-        assert (safej' : jsafeN Jspec ge n ora c jmj'). {
-          apply jsafeN_age_to.
-          - assumption.
-          - assert (S n = level Phi) by admit (* will be added to invariant *).
-            assert (level (m_phi jmi') = level Phi') by admit (* joinability *).
-            admit (* should be omega, but hidden parameters make it hard. *).
-          - assumption.
+        (* factoring all Krun / Kblocked / Kresume / Kinit cases in this one assert *)
+        assert (forall c, jsafeN Jspec ge (S n) ora c (jm_ cntj' compat) ->
+                     jsafeN Jspec ge n ora c (jm_ cntj compat'')) as othersafe.
+        {
+          intros c s.
+          apply jsafeN_downward in s.
+          apply jsafeN_age_to with (l := n) in s; auto.
+          refine (jsafeN_mem_equiv _ _ s); auto.
+          exact_eq E; f_equal.
+          unfold jmj'; f_equal. auto.
         }
-         *)
-        
-        (* safety for other threads *)
-        (* assert (REW: tp'' = (age_tp_to (level (m_phi jmi')) tp')) by reflexivity. *)
-        (* clearbody tp''. *)
-        (* subst tp''. *)
-        (* unshelve erewrite <- gtc_age with (n := (level (m_phi jmi'))); [ auto with * | ]. *)
-        
-        (** * first adapt safety to age_to, then to the rest *)
-        (*
-        specialize (safety j cntj ora).
-        cut (forall q,
-                @jsafeN Z Jspec ge (S n) ora q (@jm_ tp m Phi j cntj compat) ->
-                @jsafeN Z Jspec ge n ora q (@jm_ (age_tp_to (level (m_phi jmi')) tp') (m_dry jmi') Phi' j cntj compat')).
-        { now destruct (@Machine.getThreadC j tp cntj); auto. } clear safety.
-        intros q SAFE.
-        assert (Safe: jsafeN Jspec ge n ora q (@jm_ tp m Phi j cntj compat))
-          by (apply safe_downward1; auto); clear SAFE.
-        
-        (** * Derive safety using @jsafeN_equiv_sim _ Jspec *)
-        apply (jsafeN_equiv_sim E); auto.
-         *)
+  
+        destruct (@getThreadC j tp cntj') as [c | c | c v | v v0]; solve [auto].
     
     - (* wellformedness *)
       intros j cntj.
-      Set Printing Implicit.
-      admit. (*
-      assert (REW: tp'' = (age_tp_to (level (m_phi jmi')) tp')) by reflexivity.
-      clearbody tp''.
-      subst tp''.
-      unshelve erewrite <- gtc_age with (n := (level (m_phi jmi'))); [ auto with * | ].
-      unfold tp' at 1.
+      unfold tp'', tp'.
       destruct (eq_dec i j) as [ <- | ij].
       + unshelve erewrite gssThreadCode; auto.
       + unshelve erewrite gsoThreadCode; auto.
-        specialize (wellformed j cntj).
-        destruct (@getThreadC j tp cntj); auto.
-*)  
+        specialize (wellformed j). clear -wellformed.
+        assert_specialize wellformed by (destruct tp; auto).
+        unshelve erewrite <-gtc_age; auto.
+    
     - (* uniqueness *)
       intros notalone j cntj q ora Ecj.
-      admit.
-      (*
-      assert (REW: tp'' = (age_tp_to (level (m_phi jmi')) tp')) by reflexivity.
-      clearbody tp''.
-      subst tp''.
-      unshelve erewrite <- gtc_age with (n := (level (m_phi jmi'))) in Ecj; [ auto with * | auto with * | ].
-      specialize (unique notalone j).
+      hnf in unique.
+      assert_specialize unique by (destruct tp; apply notalone).
+      specialize (unique j).
       destruct (eq_dec i j) as [ <- | ij].
-      + apply unique with (cnti := cntj) (q := ci); eauto.
-        unfold code in *.
-        rewrite <-Eci.
-        f_equal. apply proof_irr.
-      + unfold tp' in Ecj.
-        unshelve erewrite gsoThreadCode in Ecj; auto with *.
-        eapply unique; eauto.
-*)
-  Admitted.
+      + apply unique with (cnti := cnti) (q := ci); eauto.
+      + assert_specialize unique by (destruct tp; auto).
+        apply unique with (q := q); eauto.
+        exact_eq Ecj. f_equal.
+        unfold tp'',  tp'.
+        unshelve erewrite gsoThreadCode; auto.
+        unshelve erewrite <-gtc_age; auto.
+  Qed.
   
   Theorem progress Gamma n state :
     state_invariant Jspec' Gamma (S n) state ->
@@ -2967,6 +2901,7 @@ unique: ok *)
         
         - (* here is the important part, the corestep *)
           jmstep_inv.
+          assert (En : level Phi = S n) by admit. (* will be in invariant *)
           eapply invariant_thread_step; eauto.
           + apply Jspec'_hered.
           + apply Jspec'_juicy_mem_equiv.
@@ -3167,12 +3102,6 @@ unique: ok *)
             rewrite join_all_joinlist in *.
             rewrite maps_updlock1.
             erewrite maps_getlock3 in J; eauto.
-Lemma maps_remLockSet_updThread i tp addr cnti c phi :
-  maps (remLockSet (@updThread i tp cnti c phi) addr) =
-  maps (@updThread i (remLockSet tp addr) cnti c phi).
-Proof.
-  reflexivity.
-Qed.
             rewrite maps_remLockSet_updThread.
             rewrite maps_updthread.
             assert (pr:containsThread (remLockSet tp (b, Int.intval ofs)) i) by auto.
