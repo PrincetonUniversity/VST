@@ -34,3 +34,18 @@ Proof.
   - apply age_to_ind. intros; rewrite <-IH; eauto.
   - apply age_to_ind_opp. intros; rewrite IH; eauto.
 Qed.
+
+Lemma age_by_necR {A} `{agA : ageable A} n x : necR x (age_by n x).
+Proof.
+  generalize (necR_refl x).
+  generalize x at 1 3; intros u.
+  apply age_by_ind; clear x.
+  intros x y a N.
+  constructor 3 with x; auto.
+  constructor; auto.
+Qed.
+
+Lemma age_to_necR {A} `{agA : ageable A} n x : necR x (age_to n x).
+Proof.
+  apply age_by_necR.
+Qed.

@@ -1657,4 +1657,176 @@ Lemma age_jm_phi: forall {jm jm'}, age jm jm' -> age (m_phi jm) (m_phi jm').
 Proof. intros; destruct (age1_juicy_mem_unpack _ _ H); auto. 
 Qed.
 
+(** * Results about aging in juicy memory conherence properties *)
 
+Lemma age1_YES'_1 {phi phi' l rsh sh k P} :
+  age1 phi = Some phi' ->
+  phi @ l = YES rsh sh k P ->
+  (exists P, phi' @ l = YES rsh sh k P).
+Proof.
+  intros A E.
+  apply (proj1 (age1_YES' phi phi' l rsh sh k A)).
+  eauto.
+Qed.
+
+Lemma age1_YES'_2 {phi phi' l rsh sh k P} :
+  age1 phi = Some phi' ->
+  phi' @ l = YES rsh sh k P ->
+  (exists P, phi @ l = YES rsh sh k P).
+Proof.
+  intros A E.
+  apply (proj2 (age1_YES' phi phi' l rsh sh k A)).
+  eauto.
+Qed.
+
+Lemma age1_PURE_2 {phi phi' l k P} :
+  age1 phi = Some phi' ->
+  phi' @ l = PURE k P ->
+  (exists P, phi @ l = PURE k P).
+Proof.
+  intros A E.
+  apply (proj2 (age1_PURE phi phi' l k A)).
+  eauto.
+Qed.
+
+Lemma perm_of_res_age x y loc :
+  age x y -> perm_of_res (x @ loc) = perm_of_res (y @ loc).
+Proof.
+  intros A.
+  destruct (x @ loc) as [sh | rsh sh k p | k p] eqn:E.
+  - destruct (age1_NO x y loc sh A) as [[]_]; eauto.
+  - destruct (age1_YES' x y loc rsh sh k A) as [[p' ->] _]; eauto.
+  - destruct (age1_PURE x y loc k A) as [[p' ->] _]; eauto.
+Qed.
+
+Lemma contents_cohere_age m : hereditary age (contents_cohere m).
+Proof.
+  intros x y E A.
+  intros rsh sh v loc pp H.
+  destruct (proj2 (age1_YES' _ _ loc rsh sh (VAL v) E)) as [pp' E'].
+  now eauto.
+  specialize (A rsh sh v loc _ E').
+  destruct A as [A ->]. split; auto.
+  apply (proj1 (age1_YES _ _ loc rsh sh (VAL v) E)) in E'.
+  congruence.
+Qed.
+
+Lemma access_cohere_age m : hereditary age (access_cohere m).
+Proof.
+  intros x y E B.
+  intros addr.
+  destruct (age1_levelS _ _ E) as [n L].
+  rewrite (B addr).
+  apply perm_of_res_age, E.
+Qed.
+
+Lemma max_access_cohere_age m : hereditary age (max_access_cohere m).
+Proof.
+  intros x y E C.
+  intros addr; specialize (C addr).
+  destruct (y @ addr) as [sh | sh p k pp | k p] eqn:AT.
+  - eapply (age1_NO x) in AT; auto.
+    rewrite AT in C; auto.
+  - destruct (age1_YES'_2 E AT) as [P Ex].
+    rewrite Ex in C.
+    auto.
+  - destruct (age1_PURE_2 E AT) as [P Ex].
+    rewrite Ex in C; auto.
+Qed.
+
+Lemma alloc_cohere_age m : hereditary age (alloc_cohere m).
+Proof.
+  intros x y E D.
+  intros loc G; specialize (D loc G).
+  eapply (age1_NO x); eauto.
+Qed.
+
+
+(** * Results in the opposite direction *)
+
+Definition unage {A} {_:ageable A} x y := age y x.
+
+Lemma unage_YES'_1 {phi phi' l rsh sh k P} :
+  age1 phi' = Some phi ->
+  phi @ l = YES rsh sh k P ->
+  (exists P, phi' @ l = YES rsh sh k P).
+Proof.
+  intros A E.
+  apply (proj2 (age1_YES' phi' phi l rsh sh k A)).
+  eauto.
+Qed.
+
+Lemma unage_YES'_2 {phi phi' l rsh sh k P} :
+  age1 phi' = Some phi ->
+  phi' @ l = YES rsh sh k P ->
+  (exists P, phi @ l = YES rsh sh k P).
+Proof.
+  intros A E.
+  apply (proj1 (age1_YES' phi' phi l rsh sh k A)).
+  eauto.
+Qed.
+
+Lemma unage_PURE_2 {phi phi' l k P} :
+  age1 phi' = Some phi ->
+  phi' @ l = PURE k P ->
+  (exists P, phi @ l = PURE k P).
+Proof.
+  intros A E.
+  apply (proj1 (age1_PURE phi' phi l k A)).
+  eauto.
+Qed.
+
+Lemma contents_cohere_unage m : hereditary unage (contents_cohere m).
+Proof.
+  intros x y E A.
+  intros rsh sh v loc pp H.
+  destruct (proj1 (age1_YES' _ _ loc rsh sh (VAL v) E)) as [pp' E'].
+  eauto.
+  specialize (A rsh sh v loc _ E').
+  destruct A as [A ->]. split; auto.
+  apply (proj2 (age1_YES _ _ loc rsh sh (VAL v) E)) in E'.
+  congruence.
+Qed.
+
+Lemma access_cohere_unage m : hereditary unage (access_cohere m).
+Proof.
+  intros x y E B.
+  intros addr.
+  destruct (age1_levelS _ _ E) as [n L].
+  rewrite (B addr).
+  symmetry.
+  apply perm_of_res_age, E.
+Qed.
+
+Lemma max_access_cohere_unage m : hereditary unage (max_access_cohere m).
+Proof.
+  intros x y E C.
+  intros addr; specialize (C addr).
+  destruct (x @ addr) as [sh | sh p k pp | k p] eqn:AT.
+  - eapply (age1_NO y) in AT; auto.
+    rewrite AT; auto.
+  - destruct (@age1_YES'_2 y x addr sh p k pp E AT) as [P ->].
+    auto.
+  - destruct (age1_PURE_2 E AT) as [P Ex].
+    rewrite Ex; auto.
+Qed.
+
+Lemma alloc_cohere_unage m : hereditary unage (alloc_cohere m).
+Proof.
+  intros x y E D.
+  intros loc G; specialize (D loc G).
+  eapply (age1_NO y); eauto.
+Qed.
+
+Lemma juicy_mem_unage jm' : { jm | age jm jm' }.
+Proof.
+  pose proof (rmap_unage_age (m_phi jm')) as A.
+  remember (rmap_unage (m_phi jm')) as phi.
+  unshelve eexists (mkJuicyMem (m_dry jm') phi _ _ _ _).
+  all: destruct jm' as [m phi' Co Ac Ma N]; simpl.
+  - eapply contents_cohere_unage; eauto.
+  - eapply access_cohere_unage; eauto.
+  - eapply max_access_cohere_unage; eauto.
+  - eapply alloc_cohere_unage; eauto.
+  - apply age1_juicy_mem_unpack''; auto.
+Qed.
