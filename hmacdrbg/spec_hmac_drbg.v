@@ -157,6 +157,40 @@ Definition md_final_spec :=
               (UNDER_SPEC.FULL key (snd (snd r)));
               (data_at Tsh t_struct_md_ctx_st r c);
               (data_at shmd (tarray tuchar (Zlength (HMAC256 data key))) (map Vint (map Int.repr (HMAC256 data key))) md)).
+(*
+Definition md_setup_spec :=
+  DECLARE _mbedtls_md_setup
+   WITH md_ctx : mdstate, c:val, h:val, info:val
+   PRE [ _ctx OF tptr (Tstruct _mbedtls_md_context_t noattr),
+         _md_info OF tptr (Tstruct _mbedtls_md_info_t noattr),
+         _hmac OF tint]
+       PROP () 
+       LOCAL (temp _md_info info; temp _ctx c; temp _hmac h)
+       SEP(data_at Tsh (Tstruct _mbedtls_md_context_t noattr) md_ctx c)
+  POST [ tint ] EX r:_,
+          PROP () 
+          LOCAL (temp ret_temp (Vint (Int.repr r)))
+          SEP( (!!(r=-20864) && data_at Tsh (Tstruct _mbedtls_md_context_t noattr) md_ctx c)
+            || (!!(r=0) && (EX p:_, memory_block Tsh (sizeof (Tstruct _hmac_ctx_st noattr)) p *
+                                    data_at Tsh (Tstruct _mbedtls_md_context_t noattr)
+                                      (fst md_ctx, (fst(snd md_ctx), p)) c))).*)
+Definition md_setup_spec :=
+  DECLARE _mbedtls_md_setup
+   WITH md_ctx : mdstate, c:val, h:val, info:val
+   PRE [ _ctx OF tptr (Tstruct _mbedtls_md_context_t noattr),
+         _md_info OF tptr (Tstruct _mbedtls_md_info_t noattr),
+         _hmac OF tint]
+       PROP () 
+       LOCAL (temp _md_info info; temp _ctx c; temp _hmac h)
+       SEP(data_at Tsh (Tstruct _mbedtls_md_context_t noattr) md_ctx c)
+  POST [ tint ] EX r:_,
+          PROP (r=0 \/ r=-20864) 
+          LOCAL (temp ret_temp (Vint (Int.repr r)))
+          SEP( 
+              if zeq r 0 then (EX p:_, !!field_compatible spec_hmac.t_struct_hmac_ctx_st [] p && memory_block Tsh (sizeof (Tstruct _hmac_ctx_st noattr)) p *
+                                    data_at Tsh (Tstruct _mbedtls_md_context_t noattr)
+                                      ((*fst md_ctx*)info, (fst(snd md_ctx), p)) c)
+              else data_at Tsh (Tstruct _mbedtls_md_context_t noattr) md_ctx c).
 (* end mocked_md *)
 
 Inductive hmac256drbgabs :=
@@ -433,7 +467,7 @@ Definition hmac_drbg_reseed_spec :=(_mbedtls_hmac_drbg_reseed, hmac_drbg_reseed_
 Definition reseedPOST rv contents additional add_len s
           initial_state_abs ctx
           info_contents kv (initial_state: reptype t_struct_hmac256drbg_context_st):=
-  if (add_len >? 256)
+  if ((zlt 256 add_len) || (zlt 384 (hmac256drbgabs_entropy_len initial_state_abs + add_len)))%bool
   then (!!(rv = Vint (Int.neg (Int.repr 5))) &&
        (da_emp Tsh (tarray tuchar add_len) (map Vint (map Int.repr contents)) additional *
          data_at Tsh t_struct_hmac256drbg_context_st initial_state ctx *
@@ -448,6 +482,8 @@ Definition reseedPOST rv contents additional add_len s
          Stream (get_stream_result (mbedtls_HMAC256_DRBG_reseed_function s initial_state_abs (*contents*)(contents_with_add additional add_len contents))) *
          spec_sha.K_vector kv)).
 
+(*384 equals MBEDTLS_HMAC_DRBG_MAX_SEED_INPUT*)
+
 Definition hmac_drbg_reseed_spec :=
   DECLARE _mbedtls_hmac_drbg_reseed
    WITH contents: list Z,
@@ -461,7 +497,12 @@ Definition hmac_drbg_reseed_spec :=
          0 <= add_len <= Int.max_unsigned;
          Zlength (hmac256drbgabs_value initial_state_abs) = 32 (*Z.of_nat SHA256.DigestLength*);
          add_len = Zlength contents;
-         hmac256drbgabs_entropy_len initial_state_abs = 32;
+         (*hmac256drbgabs_entropy_len initial_state_abs = 32*)
+         0 <= hmac256drbgabs_entropy_len initial_state_abs; 
+         hmac256drbgabs_entropy_len initial_state_abs+ Zlength contents < Int.modulus;
+         0 < hmac256drbgabs_entropy_len initial_state_abs + Zlength (contents_with_add additional add_len contents) < Int.modulus;
+(*         0 < hmac256drbgabs_entropy_len initial_state_abs + 
+             Zlength (contents_with_add additional add_len contents) <= 384;*)
          Forall isbyteZ (hmac256drbgabs_value initial_state_abs);
          Forall isbyteZ contents
        )
@@ -663,7 +704,11 @@ Definition hmac_drbg_generate_spec :=
          0 <= out_len <= Int.max_unsigned;
          Zlength (hmac256drbgabs_value initial_state_abs) = 32 (*Z.of_nat SHA256.DigestLength*);
          add_len = Zlength contents;
-         hmac256drbgabs_entropy_len initial_state_abs = 32;
+(*         hmac256drbgabs_entropy_len initial_state_abs = 32;*)
+         0 < hmac256drbgabs_entropy_len initial_state_abs; 
+(*         hmac256drbgabs_entropy_len initial_state_abs + 
+             Zlength (contents_with_add additional add_len contents) <= 384;*)
+         hmac256drbgabs_entropy_len initial_state_abs + Zlength contents <= 384;
          hmac256drbgabs_reseed_interval initial_state_abs = 10000;
          0 <= hmac256drbgabs_reseed_counter initial_state_abs <= Int.max_signed;
          Forall isbyteZ (hmac256drbgabs_value initial_state_abs);
@@ -829,13 +874,26 @@ Definition drbg_memset_spec := (_memset, snd spec_sha.memset_spec).
 Definition drbg_memcpy_spec := (_memcpy, snd spec_sha.memcpy_spec). 
 *)
 
+Definition malloc_spec :=
+  DECLARE _malloc
+   WITH n:Z
+   PRE [ 1%positive OF tuint ]
+       PROP (0 <= n <= Int.max_unsigned)
+       LOCAL (temp 1%positive (Vint (Int.repr n)))
+       SEP ()
+    POST [ tptr tvoid ] EX p:_,
+       PROP ()
+       LOCAL (temp ret_temp p)
+       SEP (if eq_dec p nullval then emp 
+            else (!!field_compatible spec_hmac.t_struct_hmac_ctx_st [] p && memory_block Tsh n p)).
+
 Definition HmacDrbgFunSpecs : funspecs := 
   hmac_drbg_update_spec::
   hmac_drbg_reseed_spec::
   hmac_drbg_generate_spec::
   get_entropy_spec::
-  md_reset_spec::md_final_spec::md_update_spec::md_starts_spec::
-  md_get_size_spec::
+  md_reset_spec::md_final_spec::md_update_spec::
+  md_starts_spec::md_setup_spec::md_get_size_spec::
   OPENSSL_HMAC_ABSTRACT_SPEC.hmac_update_spec::
   OPENSSL_HMAC_ABSTRACT_SPEC.hmac_final_spec::
   OPENSSL_HMAC_ABSTRACT_SPEC.hmac_reset_spec::
@@ -844,4 +902,4 @@ Definition HmacDrbgFunSpecs : funspecs :=
 (*memcpy_spec::memset_spec::*)
   sha256init_spec::sha256update_spec::sha256final_spec::(*SHA256_spec::*)
   HMAC_Init_spec:: HMAC_Update_spec::HMAC_Cleanup_spec::
-  HMAC_Final_spec:: HMAC_spec ::nil.
+  HMAC_Final_spec:: HMAC_spec :: malloc_spec::nil.

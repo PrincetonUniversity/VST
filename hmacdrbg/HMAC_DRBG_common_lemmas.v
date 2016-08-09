@@ -6,6 +6,13 @@ Require Import hmacdrbg.hmac_drbg.
 Require Import hmacdrbg.spec_hmac_drbg.
 Require Import sha.general_lemmas.
 
+Lemma Zgt_is_gt_bool_f: forall n m : Z, n <= m <-> (n >? m) = false.
+Proof. intros. specialize (Zgt_cases n m); intros.
+  remember ((n >? m)). destruct b.
+  + split; intros. omega. discriminate.
+  + split; intros; trivial.
+Qed.
+
 Lemma da_emp_isptrornull sh t v p :
    da_emp sh t v p = (!!is_pointer_or_null p) &&  da_emp sh t v p.
  Proof. unfold da_emp; apply pred_ext.

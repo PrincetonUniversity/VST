@@ -43,17 +43,38 @@ Lemma REST: forall (Espec : OracleKind) (contents : list Z) additional add_len c
   info_contents (s : ENTROPY.stream)
 (*Delta_specs := abbreviate : PTree.t funspec*)
   seed
-  (H : 0 <= Zlength contents <= Int.max_unsigned)
-  (H0 : Zlength
-       (hmac256drbgabs_value
-          (HMAC256DRBGabs key V reseed_counter entropy_len prediction_resistance
-             reseed_interval)) = 32)
+  (H : 0 <= add_len <= Int.max_unsigned)
+  (H0 : Zlength V = 32)
   (H1 : add_len = Zlength contents)
-  (H2 : entropy_len = 32)
-  (H3 : Forall general_lemmas.isbyteZ
-       (hmac256drbgabs_value
-          (HMAC256DRBGabs key V reseed_counter entropy_len prediction_resistance
-             reseed_interval)))
+  (contents' : list Z)
+  (Heqcontents' : contents' = contents_with_add additional add_len contents)
+  (ELc' : 0 < entropy_len + Zlength contents' (* <= 384*))
+(*  (ELc' : 0 < entropy_len + Zlength contents (* <= 384*))*)
+  (H3 : Forall general_lemmas.isbyteZ V)
+  (H4 : Forall general_lemmas.isbyteZ contents)
+  (H5 : map Vint (map Int.repr V) = V')
+  (H6 : Vint (Int.repr reseed_counter) = reseed_counter')
+  (H7 : Vint (Int.repr entropy_len) = entropy_len')
+  (H8 : Vint (Int.repr reseed_interval) = reseed_interval')
+  (H9 : Val.of_bool prediction_resistance = prediction_resistance')
+  (PNadditional : is_pointer_or_null additional)
+  (Pctx : isptr ctx)
+  (ELnonneg : 0 <= entropy_len)
+  (ZLc' : Zlength contents' = 0 \/ Zlength contents' = Zlength contents)
+  (*(H10 : zlt 256 add_len = false)
+  (H11 : zlt 384 (entropy_len + add_len) = false)*)
+  (Hfield : field_compatible (tarray tuchar 384) [] seed)
+  (AL256 : (add_len >? 256) = false)
+  (EAL384 : (entropy_len + add_len >? 384) = false)
+  (entropy_bytes : list Z)
+  (s0 : ENTROPY.stream)
+  (Heqentropy_result : ENTROPY.success entropy_bytes s0 = ENTROPY.get_bytes (Z.to_nat entropy_len) s),
+(*
+  (H : 0 <= Zlength contents <= Int.max_unsigned)
+  (H0 : Zlength V = 32)
+  (H1 : add_len = Zlength contents)
+  (H2 : (*32 <=*) 0 < entropy_len + Zlength (contents_with_add additional add_len contents) <= 384)
+  (H3 : Forall general_lemmas.isbyteZ V)
   (H4 : Forall general_lemmas.isbyteZ contents)
   (H5 : map Vint (map Int.repr V) = V')
   (H6 : Vint (Int.repr reseed_counter) = reseed_counter')
@@ -71,7 +92,7 @@ Lemma REST: forall (Espec : OracleKind) (contents : list Z) additional add_len c
 (*Delta := abbreviate : tycontext
 POSTCONDITION := abbreviate : ret_assert
 MORE_COMMANDS := abbreviate : statement*)
-  (Hentropy_bytes_length : Zlength (map Vint (map Int.repr entropy_bytes)) = 32),
+  (Hentropy_bytes_length : Zlength (map Vint (map Int.repr entropy_bytes)) = entropy_len),*)
 @semax hmac_drbg_compspecs.CompSpecs Espec
   (initialized_list [_entropy_len; 232%positive; 231%positive]
      (func_tycontext f_mbedtls_hmac_drbg_reseed HmacDrbgVarSpecs
@@ -135,29 +156,45 @@ MORE_COMMANDS := abbreviate : statement*)
                        (Tstruct _mbedtls_hmac_drbg_context noattr)) _reseed_counter tint)
                  (Econst_int (Int.repr 1) tint))
               (Sreturn (Some (Econst_int (Int.repr 0) tint)))))))
-  (frame_ret_assert
+ (frame_ret_assert
      (function_body_ret_assert tint
-        (EX ret_value : val,
-         PROP ( )
-         LOCAL (temp ret_temp ret_value)
-         SEP (reseedPOST ret_value contents additional add_len s
-                (HMAC256DRBGabs key V reseed_counter entropy_len prediction_resistance reseed_interval) ctx
-                info_contents kv
-                (md_ctx', (V', (reseed_counter', (entropy_len', (prediction_resistance', reseed_interval')))))))%assert)
-     (EX v : val, local (locald_denote (lvar _seed (tarray tuchar 384) v)) && ` (data_at_ Tsh (tarray tuchar 384) v))%assert).
+        (fun a : environ =>
+         EX x : val,
+         (PROP ( )
+          LOCAL (temp ret_temp x)
+          SEP (reseedPOST x contents additional add_len s
+                 (HMAC256DRBGabs key V reseed_counter entropy_len prediction_resistance reseed_interval) ctx
+                 info_contents kv
+                 (md_ctx',
+                 (V', (reseed_counter', (entropy_len', (prediction_resistance', reseed_interval'))))))) a))
+     (fun a : environ =>
+      EX x : val,
+      local (lvar_denote _seed (tarray tuchar 384) x) a && ` (data_at_ Tsh (tarray tuchar 384) x) a)).
 Proof.
-  intros. abbreviate_semax.
-
+  intros. 
+  assert (ZLbytes: Zlength entropy_bytes = entropy_len).
+    { eapply get_bytes_Zlength. omega. eassumption. } 
+  apply Zgt_is_gt_bool_f in EAL384. 
+  abbreviate_semax. 
+(*  remember (contents_with_add additional add_len contents) as contents'.
+  assert (ZLc': Zlength contents' = 0 \/ Zlength contents' = Zlength contents).
+    { subst contents'. unfold contents_with_add.
+      destruct (eq_dec add_len 0); simpl.
+        rewrite andb_false_r. left; apply Zlength_nil. 
+        destruct (base.EqDec_val additional nullval); simpl. left; apply Zlength_nil.
+        right; trivial.
+    } 
+*)
   freeze [0;(*2;*)4;5;6;7] FR6. freeze [1;2] SEED.
   
-  replace_SEP 0 (data_at Tsh (tarray tuchar 384)
+ replace_SEP 0 (data_at Tsh (tarray tuchar 384)
          ((map Vint
             (map Int.repr entropy_bytes)) ++ (list_repeat (Z.to_nat (384 - entropy_len)) (Vint Int.zero))) seed).
   {
     entailer!. thaw SEED; clear FR6. (*subst entropy_len.*) rewrite sepcon_emp.
     apply derives_refl'. symmetry. 
-    apply data_at_complete_split; auto.
-    rewrite Hentropy_bytes_length, Zlength_list_repeat; auto.
+    apply data_at_complete_split; repeat rewrite Zlength_map;
+    try rewrite (*Hentropy_bytes_length,*) Zlength_list_repeat; try rewrite Zplus_minus; trivial; omega.
   }
 
   (* seedlen = entropy_len; *)
@@ -165,7 +202,7 @@ Proof.
   forward.
 (*  remember (if eq_dec additional nullval then false else if eq_dec add_len 0 then false else true) as non_empty_additional.*)
   remember (andb (negb (eq_dec additional nullval)) (negb (eq_dec add_len 0))) as non_empty_additional.
-  remember (contents_with_add additional add_len contents) as contents'.
+ 
   forward_if (
       PROP  ()
       LOCAL  (temp _seedlen (Vint (Int.repr (entropy_len))); 
@@ -184,7 +221,7 @@ Proof.
       apply sepcon_valid_pointer2.
       apply data_at_valid_ptr; auto. }
   { (*nonnull additional*) 
-    destruct additional; simpl in PNadditional; try contradiction. subst i. elim H11; trivial. clear H11.
+    destruct additional; simpl in PNadditional; try contradiction. subst i. elim H2; trivial. clear H2.
     forward. entailer!. simpl. unfold  contents_with_add; simpl.
     destruct (initial_world.EqDec_Z (Zlength contents) 0).
     + rewrite e. simpl. split; reflexivity.
@@ -193,7 +230,7 @@ Proof.
        clear N. rewrite Int.unsigned_repr in H1. 2: omega. rewrite Int.unsigned_repr in H1; omega. 
   }
   { (*nullval additional*) 
-    rewrite H11 in *. 
+    rewrite H2 in *. 
     forward. entailer!. 
   }
   thaw FR7. 
@@ -212,7 +249,7 @@ Proof.
            (*FRZL FR8*)FRZL FR6;
        da_emp Tsh (tarray tuchar add_len) (map Vint (map Int.repr contents)) additional)). 
   +
-    rewrite H11 in Heqnon_empty_additional.
+    rewrite H2 in Heqnon_empty_additional.
     destruct additional; simpl in PNadditional; try contradiction.
     - subst i; simpl in *; discriminate.
     - destruct (eq_dec add_len 0); try discriminate. 
@@ -222,32 +259,30 @@ Proof.
     assert (contents' = contents).
     { subst contents'. unfold contents_with_add. simpl.
         destruct (initial_world.EqDec_Z add_len 0). omega. reflexivity. }
-    clear Heqcontents'; subst contents'. 
+    clear Heqcontents'; subst contents'. clear ZLc'. 
     replace_SEP 0 ((data_at Tsh (tarray tuchar entropy_len)
          (map Vint
             (map Int.repr entropy_bytes)) seed) * (data_at Tsh (tarray tuchar (384 - entropy_len))
          (list_repeat (Z.to_nat (384 - entropy_len)) (Vint Int.zero)) (offset_val entropy_len seed))).
     {
       entailer!.
-      replace (384 - 32) with 352 by omega.
-      apply derives_refl'; apply data_at_complete_split; auto.
-      rewrite Hentropy_bytes_length.
-      auto.
+      apply derives_refl'; apply data_at_complete_split; trivial; try omega.
+      rewrite Zlength_app in H10; rewrite H10; trivial.
+      repeat rewrite Zlength_map; trivial.
+      rewrite Zlength_list_repeat; omega. 
     } 
     flatten_sepcon_in_SEP. rewrite data_at_isptr with (p:=seed); Intros.
     apply isptrD in Pseed; destruct Pseed as [b [i SEED]]; rewrite SEED in *.
     change (offset_val entropy_len (Vptr b i)) with (Vptr b (Int.add i (Int.repr entropy_len))).
     assert_PROP (field_compatible (Tarray tuchar (384 - entropy_len) noattr) 
-          [] (Vptr b (Int.add i (Int.repr entropy_len)))).
-    { (*rewrite (data_at_data_at' Tsh (tarray tuchar (384 - entropy_len))
-        (list_repeat (Z.to_nat (384 - entropy_len)) (Vint Int.zero))
-        (Vptr b (Int.add i (Int.repr entropy_len)))).*) entailer!.  } 
+          [] (Vptr b (Int.add i (Int.repr entropy_len)))) as FC_el by entailer!. 
+    simpl in *.
     replace_SEP 1 (
       (data_at Tsh (tarray tuchar (Zlength contents))
          (list_repeat (Z.to_nat (Zlength contents)) (Vint Int.zero)) (Vptr b (Int.add i (Int.repr entropy_len)))) * 
       (data_at Tsh (tarray tuchar (384 - entropy_len - Zlength contents))
          (list_repeat (Z.to_nat (384 - entropy_len - Zlength contents)) (Vint Int.zero)) (offset_val (Zlength contents) (Vptr b (Int.add i (Int.repr entropy_len)))))).
-    {
+    { (*
       subst entropy_len.
       replace (384 - 32) with 352 by omega.
       remember (Vptr b (Int.add i (Int.repr 32))) as seed'.
@@ -267,8 +302,20 @@ Proof.
         rewrite <- Z2Nat.inj_add; try omega.
         replace (Zlength contents + (352 - Zlength contents)) with 352 by omega.
         reflexivity.
-      }
+      }*) 
+      remember (Vptr b (Int.add i (Int.repr entropy_len))) as seed'.
+      clear Heqseed'.
+      (*entailer!*) go_lower.   
+      apply derives_refl'. 
+      apply data_at_complete_split; try rewrite Zlength_list_repeat; try omega; auto.
+      + rewrite Zlength_list_repeat.
+        replace (Zlength contents + (384 - entropy_len - Zlength contents)) with (384 - entropy_len); trivial; omega.
+        omega.
+      + rewrite list_repeat_app, <- Z2Nat.inj_add. 
+        replace (Zlength contents + (384 - entropy_len - Zlength contents)) with (384 - entropy_len); trivial; omega.
+        omega. omega.
     }
+
     flatten_sepcon_in_SEP.
     replace_SEP 1 (memory_block Tsh (Zlength contents) (Vptr b (Int.add i (Int.repr entropy_len)))).
     { entailer!. replace (Zlength contents) with (sizeof (*cenv_cs*) (tarray tuchar (Zlength contents))) at 2.
@@ -295,11 +342,11 @@ Proof.
          (@map int val Vint (@map Z int Int.repr contents)) additional).*)
       clear POSTCONDITION. cancel. my_thaw FR6.
       rewrite H1; cancel.
-    }(*
+    }
     {
       (* prove the PROP clauses *)
       repeat split; auto; omega.
-    }*)
+    }
     (*Intros memcpy_vret. subst memcpy_vret.*)
     forward.
     change (fst (Tsh, Tsh)) with Tsh;
@@ -312,7 +359,7 @@ Proof.
     
 
     thaw FR6. rewrite (*H1,*) da_emp_ptr. normalize.
-    apply andp_right. apply prop_right. specialize (Zlength_nonneg contents). subst add_len; omega.
+    apply andp_right. apply prop_right. simpl. (*specialize (Zlength_nonneg contents).*) subst add_len; omega.
     cancel.
     erewrite data_at_complete_split with 
      (A:=map Vint (map Int.repr entropy_bytes))
@@ -321,29 +368,38 @@ Proof.
        map Vint (map Int.repr contents) ++
        list_repeat (Z.to_nat (384 - entropy_len - Zlength contents))
          (Vint Int.zero))). 
-    7: reflexivity.
+    7: solve[reflexivity].
     cancel.
-    6: reflexivity.
-    3: (*symmetry; assumption. *) solve[omega].
-    3: solve[rewrite Zlength_app; rewrite Zlength_list_repeat; try reflexivity; try omega].
-    3: solve[repeat rewrite Zlength_map; omega].
+    6: solve[reflexivity].
+    3: solve [repeat rewrite Zlength_map; omega].
+
+    3: solve [reflexivity].
+    3: solve [rewrite Zlength_app, Zlength_list_repeat; repeat rewrite Zlength_map; try omega].
+
     Focus 2. rewrite Zlength_app, (* <- H17, *) Zlength_list_repeat; try omega.
-             rewrite Hentropy_bytes_length, H2.
-             repeat rewrite Zlength_map.
-             assert (X: (32 + (Zlength contents + (384 - 32 - Zlength contents))) = 384) by omega.
+             repeat rewrite Zlength_map. rewrite ZLbytes(*, H2*).
+             assert (X: entropy_len + (Zlength contents + (384 - entropy_len - Zlength contents)) = 384) by omega.
              rewrite X; assumption.
+
+    rewrite Zlength_app; repeat rewrite Zlength_map; rewrite Zlength_list_repeat.
+    assert (X: Zlength contents + (384 - entropy_len - Zlength contents) = 384 - entropy_len) by omega.
+    rewrite X.
     erewrite data_at_complete_split with (AB:=map Vint (map Int.repr contents) ++
        list_repeat (Z.to_nat (384 - entropy_len - Zlength contents))
          (Vint Int.zero))
       (p:=(Vptr b (Int.add i (Int.repr entropy_len))))
       (A:= map Vint (map Int.repr contents)).
-    7: reflexivity. 3: reflexivity. 5: reflexivity. 4: reflexivity.
-    3: solve[rewrite Zlength_list_repeat; trivial; omega].
+    7: reflexivity. 3: reflexivity. 5: reflexivity. 
+    3: reflexivity. 3: solve [rewrite Zlength_list_repeat; repeat rewrite Zlength_map; try omega].
+
     unfold offset_val. rewrite Int.add_assoc, add_repr. repeat rewrite Zlength_map. cancel. (*apply derives_refl.*)
     repeat rewrite Zlength_map. rewrite Zlength_list_repeat; try omega.
-    assert (X:Zlength contents + (384 - entropy_len - Zlength contents) = 384 - entropy_len) by omega.
-    rewrite X; assumption. 
-  + rewrite H11 in Heqnon_empty_additional; clear H11.
+    apply derives_refl. 
+    rewrite Zlength_list_repeat; repeat rewrite Zlength_map; try omega. rewrite X; assumption.
+
+    omega.
+
+  + rewrite H2 in Heqnon_empty_additional; clear H2.
     forward.
     go_lower. normalize.
     assert (contents' = nil).
@@ -366,25 +422,14 @@ Proof.
     (data_at Tsh (tarray tuchar (384 - (entropy_len + Zlength contents'))) (list_repeat (Z.to_nat (384 - entropy_len - Zlength contents'))
             (Vint Int.zero)) (offset_val (entropy_len + Zlength contents') seed))
       ).
-  { assert (Arith: 0 <= 352 - Zlength contents').
-    { subst contents'; unfold contents_with_add; simpl.
-      remember ((negb (base.EqDec_val additional nullval) &&
-                negb (initial_world.EqDec_Z add_len 0))%bool) as r.
-      destruct r. 2: rewrite Zlength_nil; omega.
-      destruct (base.EqDec_val additional nullval); simpl in *; try discriminate.
-      destruct (initial_world.EqDec_Z add_len 0); simpl in *; try discriminate. omega.
-    }
+  { 
     clear Heqcontents'.
-    rewrite H2.
-    replace (384 - (32 + Zlength contents')) with (352 - Zlength contents') by omega.
-    replace (384 - 32) with 352 by omega.
     rewrite app_assoc.
     entailer!.
-    rewrite Zlength_app, Zlength_list_repeat in H11.
+    rewrite Zlength_app, Zlength_list_repeat in H2; try omega.
     apply derives_refl'.
     apply data_at_complete_split; repeat rewrite Zlength_list_repeat; try omega; auto;
-      (* rewrite Zlength_app;*)try rewrite H11; try rewrite Hentropy_bytes_length; repeat rewrite Zlength_map; auto.
-    trivial.
+      (* rewrite Zlength_app;*)try rewrite H2; try rewrite Hentropy_bytes_length; repeat rewrite Zlength_map; auto.
   }
   flatten_sepcon_in_SEP.
 
@@ -397,6 +442,7 @@ Proof.
   (*mbedtls_hmac_drbg_update( ctx, seed, seedlen )*)
   freeze [1;2;7] FR9.
   remember (entropy_len + Zlength contents') as ll.
+  repeat rewrite Zlength_map in Hentropy_bytes_length.
   forward_call (entropy_bytes ++ contents', seed, ll,
                 ctx, 
                 (md_ctx',
@@ -410,37 +456,23 @@ Proof.
     (* prove the SEP clauses match up *)
     destruct seed; simpl in Pseed; try contradiction.
     rewrite da_emp_ptr.
-    rewrite Zlength_app. repeat rewrite Zlength_map in Hentropy_bytes_length.
-    rewrite Hentropy_bytes_length. rewrite H2 in *.
-    normalize. apply andp_right. apply prop_right. simpl.
-      specialize (Zlength_nonneg contents'). intros.
-      rewrite Zmax_spec, if_false; omega. 
-    rewrite <- Heqll; cancel. 
-    unfold hmac256drbg_relate. rewrite H5, H6, H7, H8, H9. entailer!.
+    rewrite Zlength_app. 
+    rewrite ZLbytes. simpl. 
+    normalize. apply andp_right. apply prop_right. repeat split; trivial.
+      { omega. (*subst contents' add_len. unfold contents_with_add.
+        destruct (eq_dec (Zlength contents) 0); simpl in *.
+        + rewrite andb_false_r, Zlength_nil. rewrite e, Zplus_0_r in *.
+          destruct ZL
+          rewrite Z.max_r; omega.
+        + rewrite andb_true_r.
+          destruct (base.EqDec_val additional nullval); simpl in *. right. omega.*) }
+    rewrite <- Heqll, H5, H6, H7, H8, H9. cancel.
   }
   {
     (* prove the PROP clauses *)
-    rewrite H2 in *; rewrite int_max_unsigned_eq.
-    assert (Zlength contents' = 0 \/ Zlength contents' = Zlength contents).
-    { subst contents'. unfold contents_with_add.
-      destruct (eq_dec add_len 0); simpl.
-        rewrite andb_false_r. left; apply Zlength_nil. 
-        destruct (base.EqDec_val additional nullval); simpl. left; apply Zlength_nil.
-        right; trivial.
-    } 
-    repeat split; try omega.
-    { rewrite Zlength_app.
-      repeat rewrite Zlength_map in Hentropy_bytes_length. left. 
-      rewrite Hentropy_bytes_length. trivial.
-      (*change (Z.of_nat (Z.to_nat 32)) with 32.
-      reflexivity.*)
-    }(*
-    {
-      rewrite Zlength_app.
-      repeat rewrite Zlength_map in Hentropy_bytes_length. 
-      rewrite Hentropy_bytes_length. reflexivity.
-    }*)
-    { assumption. }
+    simpl in *. repeat split; trivial; try omega. (*
+    rewrite H2 in *;*) rewrite int_max_unsigned_eq. omega.
+    left; rewrite Zlength_app, ZLbytes; trivial.
     { apply isbyteZ_app; try assumption. 
       eapply get_bytes_isbyteZ; eauto. 
       subst contents'; unfold contents_with_add.
@@ -460,42 +492,32 @@ Proof.
          (map Int.repr entropy_bytes)) ++ (map Vint (map Int.repr contents') ++
        list_repeat (Z.to_nat (384 - entropy_len - Zlength contents'))
          (Vint Int.zero))) seed).
-  {
+  { (*
     subst entropy_len.
     replace (384 - 32) with 352 by omega.
-    replace (384 - (32 + Zlength contents')) with (352 - Zlength contents') by omega.
+    replace (384 - (32 + Zlength contents')) with (352 - Zlength contents') by omega.*)
     rewrite app_assoc.
     rewrite map_map.
     rewrite map_app.
     rewrite <- map_map.
     replace (map (fun x : Z => Vint (Int.repr x)) contents') with (map Vint (map Int.repr contents')) by (rewrite map_map; auto).
-    assert (Zlength contents' = 0 \/ Zlength contents' = Zlength contents).
-    { subst contents'. unfold contents_with_add.
-      destruct (eq_dec add_len 0); simpl.
-        rewrite andb_false_r. left; apply Zlength_nil. 
-        destruct (base.EqDec_val additional nullval); simpl. left; apply Zlength_nil.
-        right; trivial.
-    } 
     clear Heqcontents'. 
-    repeat rewrite Zlength_map in Hentropy_bytes_length.
-    rewrite Zlength_app, Hentropy_bytes_length.
+    rewrite Zlength_app, ZLbytes.
     entailer!.
     destruct seed; simpl in Pseed; try contradiction.
     rewrite da_emp_ptr. Intros.
     apply derives_refl'; symmetry; apply data_at_complete_split;
      repeat rewrite Zlength_list_repeat; try omega; auto; try rewrite Zlength_app; 
-     try rewrite Hentropy_bytes_length; repeat rewrite Zlength_map; auto.
-    rewrite Hentropy_bytes_length. replace (32 + Zlength contents' + (352 - Zlength contents')) with 384 by omega.
+     try rewrite ZLbytes; repeat rewrite Zlength_map; auto.
+     replace (Zlength entropy_bytes + Zlength contents' +
+      (384 - Zlength entropy_bytes - Zlength contents')) with 384 by omega.
      assumption.
-    rewrite Hentropy_bytes_length. trivial. 
   }
   
   (* ctx->reseed_counter = 1; *)
   my_thaw FR11.
   freeze [0;1] FR12. rewrite H5, H6, H7, H8, H9. 
   unfold hmac256drbgabs_to_state. simpl.
-  (*remember (HMAC256_DRBG_functional_prog.HMAC256_DRBG_update
-              (entropy_bytes ++ contents) key V).*)
   remember (HMAC256_DRBG_functional_prog.HMAC256_DRBG_update
             (contents_with_add seed ll
                (entropy_bytes ++ contents')) key V).
@@ -520,25 +542,40 @@ Proof.
 
   (* return 0 *)
   Time forward. (*5 secs*)
-  Exists seed (Vint (Int.repr 0)).
-  assert (ZL: Zlength contents >? 256 = false).
+  Exists seed (Vint (Int.repr 0)). normalize.
+  entailer!.
+
+  assert (ZL1: Zlength (contents_with_add additional (Zlength contents) contents) >? 256 = false). 
+  { clear - ZLc' AL256. destruct ZLc' as [ZLc' | ZLc']; rewrite ZLc'; trivial. }
+
+  apply Zgt_is_gt_bool_f in AL256.
+(*  apply Zgt_is_gt_bool_f in EAL384.*)
+  assert (Z: (zlt 256 (Zlength contents)
+       || zlt 384
+            (hmac256drbgabs_entropy_len
+               (HMAC256DRBGabs key V reseed_counter (Zlength entropy_bytes) prediction_resistance
+                  reseed_interval) + Zlength contents))%bool = false).
+  { destruct (zlt 256 (Zlength contents)); simpl; try omega.
+    destruct (zlt 384 (Zlength entropy_bytes + Zlength contents)); simpl; trivial. omega.
+  } 
+  unfold reseedPOST. rewrite Z.
+(*  assert (ZL: Zlength contents >? 256 = false).
   { clear -  H10. apply Zge_is_le_bool in H10.
     unfold Z.gtb. unfold Z.leb in H10. destruct (Zlength contents ?= 256); trivial. discriminate.
-  }
+  }*)
   entailer!.
-  unfold reseedPOST.
-  rewrite ZL. unfold return_value_relate_result. simpl.
-  rewrite andb_negb_r.
-  assert (ZL1: Zlength (contents_with_add additional (Zlength contents) contents) >? 256 = false). 
-  { clear - ZL. unfold contents_with_add.
-    destruct ((negb (eq_dec additional nullval) &&
-      negb (eq_dec (Zlength contents) 0))%bool); trivial.
-  }
-  rewrite ZL1(*, ZL*).
+  { unfold return_value_relate_result. simpl.
+    rewrite andb_negb_r, ZL1.
+    unfold get_entropy. rewrite <- Heqentropy_result. trivial. }
+(*  remember (mbedtls_HMAC256_DRBG_reseed_function s
+            (HMAC256DRBGabs key V reseed_counter (Zlength entropy_bytes) prediction_resistance reseed_interval)
+            (contents_with_add additional (Zlength contents) contents)).*)
+  simpl.
+  rewrite andb_negb_r, ZL1.
   unfold get_entropy. rewrite <- Heqentropy_result.
   remember (HMAC_DRBG_update HMAC256_functional_prog.HMAC256
               (entropy_bytes ++ contents_with_add additional (Zlength contents) contents) key V) as q.
-  destruct q. entailer!.
+  destruct q. normalize. 
   thaw FR12. thaw FR10. cancel. simpl. rewrite <- Heqp.
   unfold  hmac256drbgabs_common_mpreds. cancel.
   unfold get_entropy; rewrite <- Heqentropy_result. simpl. normalize. entailer!.
@@ -552,13 +589,13 @@ Proof.
   unfold HMAC256_DRBG_functional_prog.HMAC256_DRBG_update in Heqp.
   destruct seed; simpl in Pseed; try contradiction.
   unfold contents_with_add in Heqp at 1. simpl in Heqp.
-  destruct (initial_world.EqDec_Z
-                (32 + Zlength (contents_with_add additional (Zlength contents) contents)) 0); simpl in Heqp. 
+  destruct (initial_world.EqDec_Z (Zlength entropy_bytes +
+                 Zlength (contents_with_add additional (Zlength contents) contents)) 0); simpl in Heqp. 
   specialize (Zlength_nonneg (contents_with_add additional (Zlength contents) contents)).
   intros; omega.
 
-  rewrite <- Heqp in *. inv Heqq. cancel.
-Time Qed. (*Coq8.5pl2: 47secs*)
+  rewrite <- Heqp in *. inv Heqq. cancel. 
+Time Qed. (*Coq8.5pl2: 44secs*)
 
 Lemma body_hmac_drbg_reseed: semax_body HmacDrbgVarSpecs HmacDrbgFunSpecs 
        f_mbedtls_hmac_drbg_reseed hmac_drbg_reseed_spec.
@@ -571,14 +608,23 @@ Proof.
   Intros.
   rewrite da_emp_isptrornull. (*needed later*)
   rewrite data_at_isptr with (p:=ctx).
-  Intros. 
+  Intros. simpl in *. rename H3 into El2. 
 
   (* entropy_len = ctx->entropy_len *)
-  simpl in H2.
+  simpl in *.
+  remember (contents_with_add additional add_len contents) as contents'.
+  assert (ZLc': Zlength contents' = 0 \/ Zlength contents' = Zlength contents).
+    { subst contents'. unfold contents_with_add.
+      destruct (eq_dec add_len 0); simpl.
+        rewrite andb_false_r. left; apply Zlength_nil. 
+        destruct (base.EqDec_val additional nullval); simpl. left; apply Zlength_nil.
+        right; trivial.
+    } 
+
   freeze [0;1;3;4;5;6] FR1.
   forward. (*{ rewrite <- H7; entailer!. }*)
 
-  remember (if zlt 256 add_len then true else false) as add_len_too_high.
+  remember (orb (zlt 256 add_len) (zlt 384 (entropy_len + add_len))) as add_len_too_high.
 
   (* if (len > MBEDTLS_HMAC_DRBG_MAX_INPUT ||
         entropy_len + len > MBEDTLS_HMAC_DRBG_MAX_SEED_INPUT) *)
@@ -590,28 +636,15 @@ Proof.
       temp 231%positive (Val.of_bool add_len_too_high);
       gvar sha._K256 kv)
       SEP  (FRZL FR2)). 
-  {
-    rewrite zlt_true in Heqadd_len_too_high by assumption.
-    forward.
-    entailer!.    
-  }
-  {
-    rewrite zlt_false in Heqadd_len_too_high by assumption.
-    forward.
-    entailer!. clear FR2 FR1.
-(*      subst. *)
+  { forward. entailer!. }
+  { forward. entailer!. simpl.
       unfold Int.ltu; simpl.
       rewrite add_repr.
-      destruct (zlt (Int.unsigned (Int.repr 384))
-                    (Int.unsigned (Int.repr (32 + Zlength contents)))); try reflexivity.
-      exfalso. 
-      rewrite Int.unsigned_repr_eq in l.
-      rewrite Zmod_small in l by auto.
-      rewrite Int.unsigned_repr_eq, Zmod_small in l.
-      omega.
-      rewrite hmac_pure_lemmas.IntModulus32.
-      change (2 ^ 32) with 4294967296.
-      omega.
+      rewrite Int.unsigned_repr. 2: rewrite int_max_unsigned_eq; omega.
+      rewrite Int.unsigned_repr_eq, Zmod_small.
+      + destruct (zlt 384 (entropy_len + Zlength contents)); simpl; try reflexivity.
+      + omega.  (*rewrite hmac_pure_lemmas.IntModulus32.
+        change (2 ^ 32) with 4294967296. omega.*)
   }
 
   forward_if (PROP  (add_len_too_high = false)
@@ -621,28 +654,26 @@ Proof.
       gvar sha._K256 kv)
       SEP (FRZL FR2)
   ).
-  { rewrite H10 in *. if_tac in Heqadd_len_too_high; try discriminate.
-    forward.
-    Exists seed (Vint (Int.neg (Int.repr 5))). normalize. entailer!.
-    unfold reseedPOST. 
-    assert (ZL256:Zlength contents >? 256 = true).
-    { apply Zgt_is_gt_bool. omega. }
-    rewrite ZL256. normalize. 
+  { rewrite H3 in *. forward. 
+    Exists seed (Vint (Int.neg (Int.repr 5))). normalize. entailer!. 
+    unfold reseedPOST. simpl; rewrite <- Heqadd_len_too_high.
+    (*remember (zlt 256 (Zlength contents) || zlt 384 (entropy_len + Zlength contents))%bool as c.
+    destruct c; simpl in Heqadd_len_too_high; try discriminate.*)
+    normalize. apply andp_right. apply prop_right; repeat split; trivial.
     thaw FR2. thaw FR1. cancel.
-    unfold hmac256drbg_relate. entailer!. 
   }
   {
     forward.
     entailer!.
   }
-  Intros. rewrite H10 in *; clear H10 add_len_too_high.
-  if_tac in Heqadd_len_too_high; try discriminate. 
-(*  rewrite H1 in *; *)clear Heqadd_len_too_high.
+  Intros. rewrite H3 in *; clear H3 add_len_too_high.
+  symmetry in Heqadd_len_too_high; apply orb_false_iff in Heqadd_len_too_high; destruct Heqadd_len_too_high.
 
+(*
   assert (AL256: add_len >? 256 = false).
   { remember (add_len >? 256) as a. symmetry in Heqa.
     destruct a; trivial. apply Zgt_is_gt_bool in Heqa. omega. } 
-
+*)
   thaw FR2. thaw FR1. freeze [1;2;3;4;5;6] FR3.
   (* memset( seed, 0, MBEDTLS_HMAC_DRBG_MAX_SEED_INPUT ); *)
   forward_call (Tsh, seed, 384, Int.zero).
@@ -651,32 +682,57 @@ Proof.
     rewrite data_at__memory_block.
     change (sizeof (*cenv_cs*) (tarray tuchar 384)) with 384. 
     normalize. cancel.
-  }
-
+  } 
+  
+  assert (AL256: 256 >= add_len).
+  { destruct (zlt 256 add_len); try discriminate; trivial. }
+  assert (EL384 : 384 >= entropy_len + add_len).
+  { destruct ( zlt 384 (entropy_len + add_len)); try discriminate; trivial. }
+ 
+(*
+  destruct (zlt 384 (entropy_len + add_len) ); simpl in H11; try discriminate.
+  destruct (zlt 256 add_len); simpl in H10; try discriminate. clear H10 H11.*)
   (*freeze [1;2;3;4;5;6] FR3.*)
   assert_PROP (field_compatible (tarray tuchar 384) [] seed) as Hfield by entailer!.
   replace_SEP 0 ((data_at Tsh (tarray tuchar entropy_len)
          (list_repeat (Z.to_nat entropy_len) (Vint Int.zero)) seed) * (data_at Tsh (tarray tuchar (384 - entropy_len))
          (list_repeat (Z.to_nat (384 - entropy_len)) (Vint Int.zero)) (offset_val entropy_len seed))).
   {
-    subst entropy_len.
-    erewrite <- data_at_complete_split with (length:=384)(AB:=list_repeat (Z.to_nat 384) (Vint Int.zero)); trivial.
-    go_lower. apply derives_refl. 
+    (*subst entropy_len.*)
+    erewrite <- data_at_complete_split with (length:=384)(AB:=list_repeat (Z.to_nat 384) (Vint Int.zero)); repeat rewrite Zlength_list_repeat; trivial; try omega.
+    go_lower. apply derives_refl. rewrite Zplus_minus. assumption.
+    rewrite list_repeat_app. rewrite Z2Nat.inj_sub; try omega. rewrite le_plus_minus_r. trivial. apply Z2Nat.inj_le; try omega. 
   }
   flatten_sepcon_in_SEP.
   
   replace_SEP 0 (memory_block Tsh entropy_len seed).
   {
-    subst entropy_len.
-    go_lower. apply data_at_memory_block.
+    (*subst entropy_len.*)
+    go_lower. eapply derives_trans. apply data_at_memory_block. simpl. rewrite Z.max_r, Z.mul_1_l. trivial. omega.
   }
 
   (* get_entropy(seed, entropy_len ) *)
   thaw FR3. (*freeze [0;1;2;4;5;7] FR4.*) freeze [1;2;3;4;6;7] FR4.
   forward_call (Tsh, s, seed, entropy_len).
-  { subst entropy_len; auto.
+  { split. split; try omega. rewrite int_max_unsigned_eq. omega.
+    apply semax_call.writable_share_top.
+(*    
+    subst entropy_len; auto.*)
   }
-  Intros vret. rename H11 into ENT. 
+  Intros vret. rename H13 into ENT. 
+  assert (AL256': add_len >? 256 = false).
+  { remember (add_len >? 256) as d.
+    destruct d; symmetry in Heqd; trivial.
+    apply Zgt_is_gt_bool in Heqd.
+    destruct (zlt 256 add_len); try discriminate; omega.
+  }
+  assert (EAL256': (entropy_len + add_len)  >? 384 = false).
+  { remember (entropy_len + add_len >? 384) as d.
+    destruct d; symmetry in Heqd; trivial.
+    apply Zgt_is_gt_bool in Heqd.
+    destruct (zlt 384 (entropy_len + add_len)); try discriminate; omega.
+  }
+     
 
   (* if( get_entropy(seed, entropy_len ) != 0 ) *)
   freeze [0;1;2] FR5.
@@ -693,13 +749,21 @@ Proof.
     (* != 0 case *)
     forward.
     Exists seed (Vint (Int.neg (Int.repr (9)))). normalize. entailer!.
-    unfold reseedPOST.
-    rewrite AL256. unfold return_value_relate_result, get_entropy in ENT.
+    unfold reseedPOST. 
+    remember ((zlt 256 (Zlength contents)
+       || zlt 384
+            (hmac256drbgabs_entropy_len
+               (HMAC256DRBGabs key V reseed_counter entropy_len prediction_resistance
+                  reseed_interval) + Zlength contents))%bool) as z.
+    destruct z.
+    { exfalso. simpl in Heqz. rewrite H12, H3 in Heqz. inv Heqz. }
+    clear Heqz.
+    unfold return_value_relate_result, get_entropy in ENT.
     simpl in ENT.
-    remember (ENTROPY.get_bytes 32 s) as  GE.
+    remember (ENTROPY.get_bytes (Z.to_nat entropy_len) s) as  GE.
     destruct GE.
-    + inv ENT. simpl in H11. discriminate.
-    + thaw FR5. unfold get_entropy. change (Z.to_nat 32) with 32%nat. rewrite <- HeqGE.
+    + inv ENT. simpl in H13. discriminate.
+    + thaw FR5. unfold get_entropy. rewrite <- HeqGE.
       remember (mbedtls_HMAC256_DRBG_reseed_function s
             (HMAC256DRBGabs key V reseed_counter 32 prediction_resistance
                reseed_interval) (contents_with_add additional (Zlength contents) contents)) as M.
@@ -710,25 +774,27 @@ Proof.
       unfold DRBG_reseed_function in *. rewrite andb_negb_r in *.
       unfold return_value_relate_result in ENT.
       unfold get_entropy in *; simpl in *. rewrite <- HeqGE in *.
-      rewrite AL256 in *.
+      
+      rewrite AL256' in *.
       remember (Zlength (contents_with_add additional (Zlength contents) contents)) as ZLa.
       assert (ZLa256: ZLa >? 256 = false).
-      { unfold contents_with_add in HeqZLa.
-        subst ZLa. destruct ((negb (eq_dec additional nullval) && negb (eq_dec (Zlength contents) 0))%bool); trivial.
-      }
+      { destruct ZLc' as [PP | PP]; rewrite PP; trivial. } 
       rewrite ZLa256 in *. subst M r. normalize. simpl. cancel.
       unfold get_entropy. simpl. rewrite andb_negb_r, <- HeqGE.
       unfold hmac256drbgabs_common_mpreds. simpl. normalize.
       apply andp_right. apply prop_right. repeat split; trivial.
       thaw FR4. cancel.
-      rewrite data_at__memory_block. entailer!. clear H2. 
+      rewrite data_at__memory_block. entailer!. 
       destruct seed; inv Pseed. unfold offset_val.
-      rewrite <- repr_unsigned with (i:=i).
-      change (sizeof (tarray tuchar 384)) with (32 + (384 - 32)).
-      rewrite (memory_block_split Tsh b (Int.unsigned i) 32 (384 - 32)), add_repr; try omega.
+      rewrite <- repr_unsigned with (i:=i). 
+      assert (XX: sizeof (tarray tuchar 384) = entropy_len + (384 - entropy_len)).
+      { simpl. omega. }
+      rewrite XX.
+      rewrite (memory_block_split Tsh b (Int.unsigned i) entropy_len (384 - entropy_len)), add_repr; try omega.
       cancel.
-      apply data_at_memory_block. 
-      cbv; trivial.
+      eapply derives_trans. apply data_at_memory_block.
+          simpl. rewrite Z.max_r, Z.mul_1_l; try omega; trivial.
+      rewrite Zplus_minus. cbv; trivial.  
       assert (Int.unsigned i >= 0) by (pose proof (Int.unsigned_range i); omega).
       split. omega.
       clear - Hfield. red in Hfield; simpl in Hfield. omega.
@@ -736,7 +802,7 @@ Proof.
   {
     forward.
     entailer!. clear FR4 FR5. (*subst add_len.*)
-    apply negb_false_iff in H11. symmetry in H11; apply binop_lemmas2.int_eq_true in H11. 
+    apply negb_false_iff in H13. symmetry in H13; apply binop_lemmas2.int_eq_true in H13. 
     subst vret; split; trivial.  
   }
   Intros. subst vret. unfold return_value_relate_result in ENT.
@@ -752,15 +818,6 @@ Proof.
   clear ENT.
 
   rename l into entropy_bytes.
-
-  assert (Hentropy_bytes_length: Zlength (map Vint (map Int.repr entropy_bytes)) = 32).
-  {
-    repeat rewrite Zlength_map.
-    eapply get_bytes_Zlength.
-    omega.
-    subst entropy_len.
-    eassumption.
-  }
-  thaw FR5. thaw FR4. subst add_len.
-  apply REST with (s0:=s0); trivial. 
-Time Qed. (*Coq8.5pl2: 30secs*)
+  thaw FR5. thaw FR4.
+  eapply REST with (s0:=s0)(contents':=contents'); trivial. omega. 
+Time Qed. (*Coq8.5pl2: 24secs*)
