@@ -571,7 +571,7 @@ Qed.
         destruct ((snd (Mem.mem_access m)) ! b) eqn:search; simpl.
         - auto.
         - generalize (H (b, ofs)).
-          unfold max_access_at, PMap.get; simpl.
+          unfold max_access_at. unfold access_at. unfold PMap.get; simpl.
           rewrite search. rewrite Mem_canonical_useful.
           unfold perm_of_res. destruct ( r @ (b, ofs)).
           destruct (eq_dec t0 Share.bot); auto; simpl.
@@ -618,7 +618,7 @@ Qed.
     Lemma juicyRestrictCurEq:
       forall (phi : rmap) (m : mem) (coh : access_cohere' m phi)
      (loc : Address.address),
-        (access_at (juicyRestrict coh) loc) = (perm_of_res (phi @ loc)).
+        (access_at (juicyRestrict coh) loc) Cur = (perm_of_res (phi @ loc)).
     Proof.
       intros. unfold juicyRestrict.
       unfold access_at.
@@ -637,7 +637,7 @@ Qed.
       - simpl. rewrite PTree.gmap1 in THING.
         destruct (((Mem.mem_access m)#2) ! (loc#1)) eqn:HHH; simpl in THING; try solve[inversion THING].
         unfold access_cohere' in coh.
-        unfold max_access_at in coh. unfold PMap.get in coh.
+        unfold max_access_at, access_at in coh. unfold PMap.get in coh.
         generalize (coh loc).
         rewrite HHH; simpl.
         

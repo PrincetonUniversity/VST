@@ -57,19 +57,13 @@ Lemma store_init_data_outside':
     (b=b' /\ p <= ofs < p + init_data_size a) \/
      contents_at m (b', ofs) = contents_at m' (b', ofs))
   /\ access_at m = access_at m'
-  /\ max_access_at m = max_access_at m'
   /\ nextblock m = nextblock m'.
 Proof.
 intros.
-  unfold access_at, max_access_at, contents_at. simpl.
-  destruct a; simpl in H;
-  try (apply store_outside' in H; destruct H as [? [? ?]]; repeat split; auto; intros;
-        try (extensionality loc; congruence)).
- inv H; auto.
-  invSome.
-  apply store_outside' in H2; destruct H2 as [? [? ?]]; repeat split; auto.
-  extensionality; congruence.
-  extensionality; congruence.
+  unfold (*access_at,*) max_access_at (*, contents_at*). simpl.
+  destruct a; simpl in H; try apply store_outside' in H; auto.
+  inv H; auto.
+  invSome. apply store_outside' in H2; auto.
 Qed.
 
 Lemma store_init_data_list_outside':
@@ -79,15 +73,14 @@ Lemma store_init_data_list_outside':
     (b=b' /\ p <= ofs < p + init_data_list_size il) \/
      contents_at m (b', ofs) = contents_at m' (b', ofs))
   /\ access_at m = access_at m'
-  /\ max_access_at m = max_access_at m'
   /\ nextblock m = nextblock m'.
 Proof.
   induction il; simpl; intros.
   inv H; auto.
   invSome.
   specialize (IHil _ _ _ H2).
-  destruct IHil as [? [? [H1' ?]]].
-  rewrite <- H3; rewrite <- H1; rewrite <- H1'; clear H3 H1 H1' H2. 
+  destruct IHil as [? [? ?]].
+  rewrite <- H3; rewrite <- H1; clear H3 H1 H2. 
   remember (init_data_list_size il) as n.
   assert (n >= 0).
   subst n; clear; induction il; simpl; try omega.
@@ -95,7 +88,7 @@ Proof.
   clear il Heqn.
   apply store_init_data_outside' in H.
   generalize (init_data_size_pos a); intro.
-  destruct H as [? [? [Hma ?]]]; repeat split; auto.
+  destruct H as [? [? ?]]; repeat split; auto.
   clear H3 H4.
   intros. specialize (H0 b' ofs); specialize (H b' ofs).
   destruct H0.
@@ -145,15 +138,16 @@ cut (exists m2,
 exists m0; exists m2; split3; auto.
 rename H2 into H3.
 clear -  (*Hb*)  H H4 H3.
-assert (MA: max_access_at m = max_access_at m').
+assert (MA: max_access_at m = max_access_at m'). {
  clear - H.
  revert m lo H; induction d; simpl; intros. inv H; auto.
  invSome. apply IHd in H2. rewrite <- H2.
  clear - H.
- destruct a; simpl in H;
- try solve [apply store_access in H;  unfold max_access_at; rewrite H; auto].
+ unfold max_access_at. extensionality loc.
+ destruct a; simpl in H;  try rewrite (Memory.store_access _ _ _ _ _ _ H); auto.
  inv H; auto. 
- invSome. apply store_access in H2;  unfold max_access_at; rewrite H2; auto.
+ invSome.  rewrite (Memory.store_access _ _ _ _ _ _ H2); auto.
+ }
 apply store_init_data_list_outside' in H.
 forget (init_data_list_size d) as N.
 clear - H4  H3 (*Hb*) H MA.
@@ -213,7 +207,7 @@ revert H4.
 simpl; unfold inflate_initial_mem.
 repeat rewrite resource_at_make_rmap. unfold inflate_initial_mem'.
 rewrite <- H5.
-case_eq (access_at m (b,z')); intros; auto.
+case_eq (access_at m (b,z') Cur); intros; auto.
 destruct p; auto;
 try solve [f_equal; apply YES_inj in H4; congruence].
 destruct (w @ (b,z')); inv H4.
@@ -1158,7 +1152,6 @@ Lemma alloc_global_old:
   forall {F V} (ge: Genv.t F V) m iv m', Genv.alloc_global ge m iv = Some m' ->
        forall loc, (fst loc < nextblock m)%positive ->
         access_at m loc = access_at m' loc 
-        /\ max_access_at m loc = max_access_at m' loc 
        /\ contents_at m loc = contents_at m' loc.
 Proof.
  intros.
@@ -1166,6 +1159,7 @@ Proof.
  assert (NEQ: b <> nextblock m) by (intro Hx; inv Hx; xomega).
  unfold Genv.alloc_global in H. destruct iv.
  destruct g.
+*
  revert H; case_eq (alloc m 0 1); intros.
  unfold drop_perm in H1. 
  destruct (range_perm_dec m0 b0 0 1 Cur Freeable); inv H1.
@@ -1174,29 +1168,29 @@ Proof.
  Transparent alloc. unfold alloc in H. Opaque alloc.
  inv H; simpl in *.
  rewrite PMap.gss. repeat rewrite (PMap.gso _ _ NEQ). auto.
-
+*
  forget (init_data_list_size (gvar_init v)) as N.
  revert H; case_eq (alloc m 0 N); intros.
  invSome. invSome.
-  Transparent alloc. unfold alloc in H. Opaque alloc.
-  assert (access_at m (b,ofs) = access_at m0 (b,ofs) 
-          /\ max_access_at m (b,ofs) = max_access_at m0 (b,ofs) 
-          /\ contents_at m (b,ofs) = contents_at m0 (b,ofs)).
+ assert (access_at m (b,ofs) = access_at m0 (b,ofs) 
+          /\ contents_at m (b,ofs) = contents_at m0 (b,ofs)). {
  clear - H NEQ.
- inv H; 
- unfold contents_at, access_at, max_access_at in *; 
- simpl in *.
- repeat rewrite (PMap.gso _ _ NEQ). auto.
+ split. extensionality k. eapply alloc_access_other; try eassumption.
+ left. intro. subst b0. apply alloc_result in H. contradiction.
+ Transparent alloc. unfold alloc in H. Opaque alloc.
+ unfold contents_at. inv H. simpl.
+ rewrite PMap.gso by auto. auto.
+ }
  assert (b0=nextblock m) by (inv H; auto). subst b0.
- destruct H2  as [H2a [H2b H2c]]; rewrite H2a,H2b, H2c; clear H H2a H2b H2c.
+ unfold max_access_at.
+ destruct H2 as [H2a H2b]; rewrite H2a,H2b; clear H H2a H2b.
  rewrite <- (store_zeros_access _ _ _ _ _ H1).
- rewrite <- (store_zeros_max_access _ _ _ _ _ H1).
  apply store_zeros_contents1 with (loc:= (b,ofs)) in H1.
  2: simpl; congruence. rewrite H1; clear H1 m0.
  apply store_init_data_list_outside' in H4.
- destruct H4 as [? [? [Hma ?]]].
+ destruct H4 as [? [? ?]].
  specialize (H b ofs).  destruct H.
- destruct H; subst; congruence. unfold block in *; rewrite H; rewrite H1; rewrite Hma.
+ destruct H; subst; congruence. unfold block in *; rewrite H; rewrite H1.
  clear - H5 NEQ.
  unfold drop_perm in H5.
  destruct (range_perm_dec m2 (nextblock m) 0 N Cur Freeable); inv H5.
@@ -1307,7 +1301,7 @@ unfold Genv.alloc_global in H6.
 revert H6; case_eq (alloc m0 0 1); intros.
 unfold drop_perm in H6.
 destruct (range_perm_dec m1 b 0 1 Cur Freeable).
-unfold access_at, max_access_at; inv H6.
+unfold max_access_at, access_at; inv H6.
 simpl. apply alloc_result in H0. subst b.
 rewrite PMap.gss.
 simpl. auto.
@@ -1326,8 +1320,9 @@ pattern Pos.to_nat at 1; rewrite <- Z2Nat.inj_pos.
 rewrite Z2Pos.id by omega.
 rewrite Z2Nat.inj_succ by omega.
 rewrite Nat2Z.id. omega.
-destruct (alloc_global_old _ _ _ _ H6 (b,0)) as [? [? ?]]; auto.
-rewrite <- H9. rewrite <- H8.
+destruct (alloc_global_old _ _ _ _ H6 (b,0)) as [? ?]; auto.
+unfold max_access_at.
+rewrite <- H8.
 split; auto.
 Qed.
 
@@ -1337,6 +1332,50 @@ Definition initial_jm (prog: program) m (G: funspecs) (n: nat)
         (H2: match_fdecs (prog_funct prog) G) : juicy_mem :=
   initial_mem m (initial_core (Genv.globalenv prog) G n)
            (initial_core_ok _ _ _ m H1 H2 H).
+
+Lemma initial_jm_age (prog: program) m (G: funspecs) (n : nat)
+        (H: Genv.init_mem prog = Some m)
+        (H1: list_norepet (prog_defs_names prog))
+        (H2: match_fdecs (prog_funct prog) G) :
+age
+    (initial_mem m (initial_core (Genv.globalenv prog) G (S n)) (initial_core_ok _ _ _ m H1 H2 H))
+    (initial_mem m (initial_core (Genv.globalenv prog) G    n ) (initial_core_ok _ _ _ m H1 H2 H)).
+Proof.
+apply age1_juicy_mem_unpack''; [ | reflexivity].
+simpl.
+unfold inflate_initial_mem in *.
+match goal with |- context [ proj1_sig ?x ] => destruct x as (r & lev & bah); simpl end.
+match goal with |- context [ proj1_sig ?x ] => destruct x as (r' & lev' & bah'); simpl end.
+apply rmap_age_i.
+rewrite lev,lev'.
+unfold initial_core; simpl.
+rewrite !level_make_rmap. auto.
+intro loc.
+rewrite bah, bah'.
+unfold inflate_initial_mem'.
+destruct (access_at m loc Cur); [ | reflexivity].
+destruct p; unfold resource_fmap; f_equal; try apply preds_fmap_NoneP.
+unfold initial_core.
+rewrite !resource_at_make_rmap.
+unfold initial_core'.
+if_tac; auto.
+unfold fundef.
+destruct (Genv.invert_symbol (Genv.globalenv (program_of_program prog))
+        (fst loc)); auto.
+destruct (find_id i G); auto.
+destruct f; auto.
+f_equal.
+simpl.
+f_equal.
+change compcert_rmaps.R.rmap with rmap in *.
+rewrite lev'.
+unfold initial_core.
+rewrite level_make_rmap.
+rewrite <- compose_assoc.
+f_equal.
+apply approx_oo_approx'.
+omega.
+Qed.
 
 Fixpoint prog_vars' {F V} (l: list (ident * globdef F V)) : list (ident * globvar V) :=
  match l with nil => nil | (i,Gvar v)::r => (i,v):: prog_vars' r | _::r => prog_vars' r

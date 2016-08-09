@@ -1225,7 +1225,7 @@ Module Parching <: ErasureSig.
                move Hcompatible at bottom. specialize (Hcompatible' i Hi).
                inversion Hcompatible'.
                specialize (acc_coh (b0, ofs0)).
-               unfold max_access_at, PMap.get  in acc_coh; simpl in acc_coh.
+               unfold max_access_at, access_at, PMap.get  in acc_coh; simpl in acc_coh.
                rewrite valb0MEM in acc_coh.
                simpl in acc_coh.
                rewrite mtch_perm in acc_coh.
@@ -1250,7 +1250,7 @@ Module Parching <: ErasureSig.
                  apply Hcmpt' in His_unlocked.
                  inversion His_unlocked.
                  specialize (acc_coh0 (b0, ofs0)).
-                 unfold max_access_at, PMap.get  in acc_coh0; simpl in acc_coh0.
+                 unfold max_access_at, access_at, PMap.get  in acc_coh0; simpl in acc_coh0.
                  rewrite valb0MEM in acc_coh0.
                  rewrite JSEM.Mem_canonical_useful in acc_coh0.
                  destruct (perm_of_res (d_phi @ (b0, ofs0))); try solve[inversion acc_coh0].
@@ -1278,7 +1278,7 @@ Module Parching <: ErasureSig.
                                                 Hcmpt).
                    clear - acc_coh valb0MEM.
                    unfold JSEM.access_cohere' in acc_coh.
-                   unfold max_access_at in acc_coh.
+                   unfold max_access_at, access_at in acc_coh.
                    specialize (acc_coh (b0, ofs0)).
                    simpl in acc_coh.
                    unfold PMap.get in acc_coh. rewrite valb0MEM in acc_coh.
@@ -1292,7 +1292,7 @@ Module Parching <: ErasureSig.
                                                   Hcmpt).
                    clear - acc_coh valb0MEM.
                    unfold JSEM.access_cohere' in acc_coh.
-                   unfold max_access_at in acc_coh.
+                   unfold max_access_at, access_at in acc_coh.
                    specialize (acc_coh (b0, ofs0)).
                    simpl in acc_coh.
                    unfold PMap.get in acc_coh. rewrite valb0MEM in acc_coh.
@@ -1469,7 +1469,7 @@ Module Parching <: ErasureSig.
                apply JSEM.JuicyMachineLemmas.compatible_threadRes_cohere with (cnt:=Hi) in Hcohere'.
                inversion Hcohere'. unfold JSEM.access_cohere' in acc_coh.
                specialize (acc_coh (b0,ofs0)).
-               unfold max_access_at in acc_coh.
+               unfold max_access_at, access_at in acc_coh.
                unfold permission_at in the_cure.
                rewrite the_cure in acc_coh.
                Lemma po_None1: forall p, Mem.perm_order'' None p -> p = None.
@@ -1603,7 +1603,7 @@ Module Parching <: ErasureSig.
                 destruct ((snd (Mem.mem_access m)) ! b0) eqn:BB; inversion AA.
                 simpl in AA.
                 assert (MAA_none: max_access_at m (b0, ofs0) = None).
-                { unfold max_access_at.
+                { unfold max_access_at, access_at.
                   unfold PMap.get. rewrite BB.
                   simpl. apply JSEM.Mem_canonical_useful. }
                 replace ((DSEM.ThreadPool.getThreadR Htid') !! b0 ofs0) with (max_access_at m (b0, ofs0)).
@@ -2029,7 +2029,7 @@ Module Parching <: ErasureSig.
                apply compatible_threadRes_cohere with (cnt:=Hi) in Hcohere'.
                inversion Hcohere'. unfold JSEM.access_cohere' in acc_coh.
                specialize (acc_coh (b0,ofs0)).
-               unfold max_access_at in acc_coh.
+               unfold max_access_at, access_at in acc_coh.
                unfold permission_at in the_cure.
                rewrite the_cure in acc_coh.
                apply po_None1 in acc_coh.
@@ -2077,7 +2077,7 @@ Module Parching <: ErasureSig.
             apply compatible_threadRes_cohere with (cnt:=Hi) in Hcohere'.
             inversion Hcohere'. unfold JSEM.access_cohere' in acc_coh.
             specialize (acc_coh (b0,ofs0)).
-            unfold max_access_at in acc_coh.
+            unfold max_access_at, access_at in acc_coh.
             unfold permission_at in the_cure.
             rewrite the_cure in acc_coh.
             apply po_None1 in acc_coh.

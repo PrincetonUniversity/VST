@@ -180,15 +180,6 @@ repeat match goal with
  auto.
 Qed.
 
-
-Lemma perm_order'_dec_fiddle:
-  forall y x, y = Some x ->
-     proj_sumbool (Mem.perm_order'_dec y Nonempty) = true.
-Proof.
-intros. subst. simpl. 
-unfold Mem.perm_order_dec. destruct x; reflexivity.
-Qed.
-
 Lemma valid_pointer_dry:
   forall b ofs d m, app_pred (valid_pointer' (Vptr b ofs) d) (m_phi m) ->
            Mem.valid_pointer (m_dry m) b (Int.unsigned ofs + d) = true.
@@ -203,8 +194,6 @@ unfold access_at in H1.
 unfold perm_of_res in H1.
 simpl in H1. clear H0.
 rewrite if_false in H1.
-unfold Mem.valid_pointer.
-unfold Mem.perm_dec.
 assert (exists x, (Mem.mem_access (m_dry m)) !! b (Int.unsigned ofs + d) Cur = Some x).
 destruct ((Mem.mem_access (m_dry m)) !! b (Int.unsigned ofs + d) Cur); inv H1; eauto.
 destruct H0.

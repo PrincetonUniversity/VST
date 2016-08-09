@@ -97,6 +97,7 @@ SEPCOMP_FILES = \
   rg_lemmas.v \
   FiniteMaps.v \
   mem_lemmas.v mem_wd.v \
+  nucular_semantics.v \
   semantics.v semantics_lemmas.v \
   globalSep.v simulations.v \
   simulations_lemmas.v \
@@ -104,6 +105,7 @@ SEPCOMP_FILES = \
   effect_semantics.v effect_simulations.v effect_simulations_lemmas.v \
   effect_properties.v \
   event_semantics.v \
+  full_composition.v \
   closed_safety.v compcert.v \
   val_casted.v \
   reach.v \
@@ -160,7 +162,7 @@ LINKING_FILES= \
   finfun.v
 
 VERIC_FILES= \
-  base.v shares.v rmaps.v rmaps_lemmas.v compcert_rmaps.v Cop2.v juicy_base.v \
+  base.v Memory.v shares.v rmaps.v rmaps_lemmas.v compcert_rmaps.v Cop2.v juicy_base.v \
   tycontext.v lift.v expr.v expr2.v environ_lemmas.v binop_lemmas.v binop_lemmas2.v \
   expr_lemmas.v expr_lemmas2.v expr_lemmas3.v expr_rel.v xexpr_rel.v extend_tc.v \
   Clight_lemmas.v Clight_new.v Clightnew_coop.v Clight_sim.v \

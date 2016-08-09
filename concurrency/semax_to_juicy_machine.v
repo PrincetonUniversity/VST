@@ -966,7 +966,7 @@ Qed.
 
 Lemma juicyRestrictCur_unchanged m phi 
       (coh : access_cohere' m phi)
-      (pres : forall loc, perm_of_res (phi @ loc) = access_at m loc) :
+      (pres : forall loc, perm_of_res (phi @ loc) = access_at m loc Cur) :
   Mem.mem_access (juicyRestrict coh) = Mem.mem_access m.
 Proof.
   unfold juicyRestrict in *.
@@ -1512,7 +1512,7 @@ Section Simulation.
         assert (Emi: (Mem.mem_access mi) !! b ofs0 Max = (Mem.mem_access m) !! b ofs0 Max).
         {
           pose proof juicyRestrictMax (acc_coh (thread_mem_compatible (mem_compatible_forget compat) cnti)) (b, ofs0).
-          unfold max_access_at in *.
+          unfold max_access_at, access_at in *.
           simpl fst in H; simpl snd in H.
           rewrite H.
           reflexivity.

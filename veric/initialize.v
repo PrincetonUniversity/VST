@@ -507,11 +507,12 @@ Proof.
   contradiction n. clear - v H5.
   unfold range_perm, perm in *.
   destruct v; split; auto; intros.
-  apply (equal_f ) with (b,ofs) in H5. simpl in H5. rewrite H5; auto.
+  apply (equal_f ) with (b,ofs) in H5. apply equal_f with Cur in H5. simpl in H5.
+  rewrite H5; auto.
   contradiction n. clear - v H5.
   unfold range_perm, perm in *.
   destruct v; split; auto; intros.
-  apply (equal_f ) with (b,ofs) in H5. simpl in H5. rewrite <- H5; auto.
+  apply (equal_f ) with (b,ofs) in H5.  apply equal_f with Cur in H5. simpl in H5. rewrite <- H5; auto.
   simpl.
   pose proof (init_data_size_pos a0). 
   omega.
@@ -716,7 +717,7 @@ forall (ge: genv) (v : globvar type) (b : block) (m1 : mem')
    join w1 wf (beyond_block b (inflate_initial_mem m4 phi0)) ->
    (forall loc : address,
      if adr_range_dec (b, z) (init_data_size a) loc
-     then identity (wf @ loc) /\ access_at m4 loc = Some (Genv.perm_globvar v)
+     then identity (wf @ loc) /\ access_at m4 loc Cur = Some (Genv.perm_globvar v)
      else identity (w1 @ loc)) ->
    forall (VOL:  gvar_volatile v = false)
           (AL: initializer_aligned z a = true)
@@ -1009,7 +1010,7 @@ assert (forall loc, fst loc <> b -> identity (phi @ loc)).
    clear - H. Transparent alloc. inv H.  simpl. auto. Opaque alloc.
  destruct H5; unfold block in *; xomega.
  assert (forall loc, if adr_range_dec (b,0)  (init_data_list_size (gvar_init v)) loc
-                             then access_at m4 loc = Some (Genv.perm_globvar v)
+                             then access_at m4 loc Cur = Some (Genv.perm_globvar v)
                              else identity (phi @ loc)).
   intro. if_tac.
      destruct loc; destruct H4; subst b0.
@@ -1026,19 +1027,19 @@ assert (forall loc, fst loc <> b -> identity (phi @ loc)).
    simpl. rewrite if_true by (unfold block; xomega).
   unfold inflate_initial_mem.  rewrite resource_at_make_rmap.
   unfold inflate_initial_mem'.
-  replace (access_at m4 (b,z)) with (@None permission).
+  replace (access_at m4 (b,z) Cur) with (@None permission).
   apply NO_identity.
-  symmetry.  transitivity (access_at m3 (b,z)).
+  symmetry.  transitivity (access_at m3 (b,z) Cur).
   clear - H4 H2. unfold access_at; unfold drop_perm in H2.
    destruct (range_perm_dec m3 b 0 (init_data_list_size (gvar_init v)) Cur
          Freeable); inv H2. simpl. rewrite PMap.gss.
   unfold adr_range in H4. destruct (zle 0 z); auto.
    destruct (zlt z (init_data_list_size (gvar_init v)) ); auto.
   contradiction H4. split; auto.
-  transitivity (access_at m2 (b,z)).
+  transitivity (access_at m2 (b,z) Cur).
   apply store_init_data_list_outside' in H1.
   destruct H1 as [? [? ?]]; congruence.
-  transitivity (access_at m1 (b,z)).
+  transitivity (access_at m1 (b,z) Cur).
   clear - H0. erewrite store_zeros_access; eauto.
   clear - H H4. Transparent alloc. inv H. Opaque alloc. unfold access_at; simpl.
   rewrite PMap.gss. destruct (zle 0 z); auto.
@@ -1094,7 +1095,7 @@ assert (forall loc, fst loc <> b -> identity (phi @ loc)).
   destruct (join_assoc H7 (join_comm H5)) as [wf [? ?]].
   assert (forall loc, if adr_range_dec (b,init_data_list_size dl') (init_data_size a) loc
                                  then identity (wf @ loc) /\ 
-                                         access_at m4 loc = Some (Genv.perm_globvar v)
+                                         access_at m4 loc Cur = Some (Genv.perm_globvar v)
                                  else identity (w1 @ loc)).
      intro. specialize (H8 loc); specialize (H6 loc); specialize (H4 loc).
        apply (resource_at_join _ _ _ loc) in H9;
@@ -1215,7 +1216,7 @@ Qed.
 Lemma alloc_global_beyond2:
   forall {F V} (ge: Genv.t F V) m iv m', Genv.alloc_global ge m iv = Some m' ->
        forall loc, (fst loc > nextblock m)%positive ->
-        access_at m' loc = None.
+        access_at m' loc Cur = None.
 Proof.
  intros.
  destruct loc as [b ofs]; simpl in *.
@@ -1235,7 +1236,7 @@ Transparent alloc.
  apply store_zeros_access in H1.
  apply store_init_data_list_outside' in H4.
  destruct H4 as [? [? ?]]. rewrite H2 in H1.
- change (access_at m2 (b,ofs) = None).
+ change (access_at m2 (b,ofs) Cur = None).
  rewrite H1. unfold access_at; simpl.
  repeat rewrite PMap.gso by (intro Hx; inv Hx; xomega).
  apply nextblock_noaccess; xomega.
@@ -1243,7 +1244,7 @@ Qed.
 
 Lemma alloc_global_access:
  forall {F V} (ge: Genv.t F V) m i v m', Genv.alloc_global ge m (i, Gvar v) = Some m' ->
-  forall z, access_at m' (nextblock m, z) = 
+  forall z, access_at m' (nextblock m, z) Cur = 
                     if range_dec 0 z (init_data_list_size (gvar_init v)) 
                     then Some (Genv.perm_globvar v) else None.
 Proof.
@@ -1259,11 +1260,12 @@ apply store_zeros_access in H0.
 apply store_init_data_list_access in H3.
 rewrite H0 in H3. clear m1 H0.
 inv H. unfold access_at in H3. simpl in *.
-apply equal_f with (nextblock m, z) in H3.
+apply equal_f with (nextblock m, z) in H3. apply equal_f with Cur in H3.
 simpl in H3. rewrite PMap.gss in *.
 destruct (zle 0 z). simpl. destruct (zlt z N).
-simpl.
-rewrite if_true; auto. rewrite if_false; auto. intros [? ?]. xomega.
+simpl in *.
+rewrite if_true; auto. rewrite if_false; auto.
+ intros [? ?]. xomega.
 simpl. rewrite if_false by omega. 
 simpl in H3; auto.
 Qed.
@@ -1284,20 +1286,20 @@ Proof.
  unfold inflate_initial_mem.
  repeat rewrite resource_at_make_rmap.
  if_tac.
- destruct (alloc_global_old _ _ _ _ H _ H1) as [? [_ ?]];
+ destruct (alloc_global_old _ _ _ _ H _ H1) as [? ?];
  unfold inflate_initial_mem'; rewrite H2; rewrite H3; auto.
  destruct (eq_dec (fst loc) (nextblock m0)).
 Focus 2.
- assert (access_at m loc = None).
+ assert (access_at m loc Cur = None).
   eapply alloc_global_beyond2; try eassumption. unfold block in *; xomega.
- assert (access_at m0 loc = None).
+ assert (access_at m0 loc Cur = None).
   unfold access_at. apply nextblock_noaccess. auto.
  unfold inflate_initial_mem'; rewrite H2; rewrite H3; auto.
  rewrite core_NO; auto.
  (* End Focus 2*)
  clear H1.
  specialize (H0 (snd loc)).
- assert (access_at m0 loc = None).
+ assert (access_at m0 loc Cur = None).
   unfold access_at. apply nextblock_noaccess. rewrite <- e; xomega.
  unfold inflate_initial_mem' at 1. rewrite H1.
   unfold inflate_initial_mem'.
@@ -1529,8 +1531,8 @@ Proof.
  unfold inflate_initial_mem in *.
  rewrite resource_at_make_rmap in *.
  unfold inflate_initial_mem' in *.
- replace (access_at m0 (nextblock m0, 0)) with (@None permission) in *.
- replace (access_at m (nextblock m0, 0)) with (Some Nonempty) in *.
+ replace (access_at m0 (nextblock m0, 0) Cur) with (@None permission) in *.
+ replace (access_at m (nextblock m0, 0) Cur) with (Some Nonempty) in *.
  unfold initial_core in *. rewrite resource_at_make_rmap in *.
  unfold initial_core' in *.
  simpl in *.
@@ -1560,11 +1562,13 @@ Proof.
   destruct (eq_dec b (nextblock m0)).
   subst. repeat rewrite PMap.gss. assert (z<>0) by congruence.
   destruct (zle 0 z). simpl. destruct (zlt z 1); try omegaContradiction. simpl.
+  extensionality k.
   apply nextblock_noaccess. xomega.
    destruct (zlt z 1); try omegaContradiction. simpl.
+  extensionality k.
   apply nextblock_noaccess. xomega.
  rewrite PMap.gss. rewrite PMap.gso by auto. rewrite PMap.gso by auto. auto.
- case_eq (access_at m loc); auto.
+ case_eq (access_at m loc Cur); auto.
   unfold Genv.alloc_global in H.
   revert H; case_eq (alloc m0 0 1); intros. unfold drop_perm in H0.
   destruct (range_perm_dec m1 b 0 1 Cur Freeable); inv H0.
@@ -1752,11 +1756,11 @@ Proof.
  clear - z H0.
  unfold inflate_initial_mem; repeat rewrite resource_at_make_rmap.
  unfold inflate_initial_mem'.
- destruct (alloc_global_old _ _ _ _ H0 _ z) as [? [_ ?]]. rewrite H; rewrite H1; auto. 
+ destruct (alloc_global_old _ _ _ _ H0 _ z) as [? ?]. rewrite H; rewrite H1; auto. 
  unfold upto_block. rewrite only_blocks_at. rewrite if_false by auto.
  unfold inflate_initial_mem; repeat rewrite resource_at_make_rmap;
    unfold inflate_initial_mem'.
- replace (access_at m0 loc) with (@None permission).
+ replace (access_at m0 loc Cur) with (@None permission).
  clear.
  pose proof (core_identity (phi @ loc)).
  assert (identity (NO Share.bot)) by apply NO_identity.
@@ -1793,8 +1797,8 @@ unfold inflate_initial_mem'.
 destruct loc.
 destruct (plt b (nextblock m0)).
 *
-destruct (alloc_global_old gev _ _ _ H (b,z) p) as [? [? ?]].
-rewrite H0,H2. auto.
+destruct (alloc_global_old gev _ _ _ H (b,z) p) as [? ?].
+rewrite H0,H1. auto.
 *
 contradiction H9; clear H9.
 unfold inflate_initial_mem. simpl. rewrite !resource_at_make_rmap.
@@ -1875,8 +1879,8 @@ unfold inflate_initial_mem'.
   unfold access_at; rewrite nextblock_noaccess. apply NO_identity.
   simpl. apply Plt_strict.
   destruct (plt (fst loc) (nextblock m0)).
-  destruct (alloc_global_old _ _ _ _ H _ p) as [? [? ?]].
-  rewrite H1,H3. auto.
+  destruct (alloc_global_old _ _ _ _ H _ p) as [? ?].
+  rewrite H1,H2. auto.
   unfold access_at. rewrite nextblock_noaccess by auto.
   apply NO_identity.
 Qed.
@@ -1931,27 +1935,26 @@ unfold inflate_initial_mem'.
 rewrite !resource_at_make_rmap.
 pose proof (Pos.ltb_spec (fst loc) (nextblock m0)).
 destruct ((fst loc <? nextblock m0)%positive); inv H1.
-destruct (alloc_global_old _ _ _ _ H loc H2) as [? [? ?]].
-rewrite H4.
+destruct (alloc_global_old _ _ _ _ H loc H2) as [? ?].
+rewrite H3.
 rewrite H1; split; intro; auto.
 destruct loc as [b ofs]. simpl fst in *; simpl snd in *.
 rewrite (nextblock_access_empty m0) by (apply Pos.le_ge; auto).
 split; intros _; [ |apply NO_identity].
-replace (access_at m (b,ofs)) with (@None permission).
+replace (access_at m (b,ofs) Cur) with (@None permission).
 apply NO_identity.
 symmetry.
 unfold Genv.alloc_global in H.
 destruct (alloc m0 0 1) eqn:?.
 assert (H6 := alloc_result _ _ _ _ _ Heqp); subst b0.
 clear - n0 H2 Heqp H.
-destruct (eq_block b (nextblock m0)). subst.
-assert (ofs<>0) by congruence.
-destruct (access_at m1 (nextblock m0,ofs)) eqn:?.
-apply mem_access_perm in Heqo.
-pose proof (perm_alloc_3 _ _ _ _ _ Heqp ofs Cur _ Heqo).
-omega.
-clear - H Heqo.
-Admitted. (* easy *)
+assert (b <> nextblock m0 \/ ofs <> 0). {
+  destruct (eq_block b (nextblock m0)). subst. right. congruence. left; auto.
+}
+rewrite <- (access_drop_3 _ _ _ _ _ _ H) by (destruct H0; auto; right; omega).
+rewrite <- (alloc_access_other _ _ _ _ _ Heqp)by (destruct H0; auto; right; omega).
+apply nextblock_access_empty. zify; omega.
+Qed.
 
 Lemma global_initializers:
   forall (prog: program) G m n rho,

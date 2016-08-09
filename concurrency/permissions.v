@@ -1262,7 +1262,7 @@ Lemma restrPermMap_irr:
       max_access_at (restrPermMap Hlt) = max_access_at m.
   Proof.
     intros.
-    unfold max_access_at; simpl.
+    unfold max_access_at; simpl. unfold Memory.access_at.
     extensionality loc; simpl.
     unfold Maps.PMap.get at 1; simpl.
     rewrite Maps.PTree.gmap.

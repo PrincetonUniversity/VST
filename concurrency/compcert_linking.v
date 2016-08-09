@@ -929,6 +929,7 @@ move: H=>[H1]H2; split.
 by split=> //; move=> H3; move: {H2 H3}(H2 H3)=> STEP; exists M.
 case: H1=> [H1|[<- [H0 H1]]]=> //. 
 by move: (H2 H1)=> H3; apply: (effstep0_unchanged H3).
+apply Mem.unchanged_on_refl.
 Qed.
 
 Next Obligation.

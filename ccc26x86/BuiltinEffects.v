@@ -39,7 +39,9 @@ Lemma memcpy_Effect_unchOn: forall m bsrc osrc sz bytes bdst odst m'
                  m b z = false) m m'.
 Proof. intros.
   split; intros.
-    unfold Mem.perm. rewrite (Mem.storebytes_access _ _ _ _ _ ST). intuition.
+  rewrite (Mem.nextblock_storebytes _ _ _ _ _ ST); apply Ple_refl.
+   unfold Mem.perm.
+   rewrite (Mem.storebytes_access _ _ _ _ _ ST). intuition.
   unfold memcpy_Effect in H.
     rewrite (Mem.storebytes_mem_contents _ _ _ _ _ ST).
     destruct (valid_block_dec m b); simpl in *. rewrite andb_true_r in H; clear v.
@@ -960,8 +962,14 @@ destruct ef; simpl in H0.
       econstructor; eauto.
       econstructor. eapply restrictI_Some; eassumption.
       rewrite Int.add_zero. trivial.
-    split; unfold loc_unmapped; intros. unfold Mem.perm. 
-         rewrite (Mem.store_access _ _ _ _ _ _ H4).
+    split; unfold loc_unmapped; intros.
+       apply Ple_trans with (Mem.nextblock m').
+       rewrite (Mem.nextblock_alloc _ _ _ _ _ H3).
+       apply Plt_Ple; apply Plt_succ.
+       rewrite (Mem.nextblock_store _ _ _ _ _ _ H4).
+       apply Ple_refl.
+        unfold Mem.perm.
+        rewrite (Mem.store_access _ _ _ _ _ _ H4).
          split; intros.
          eapply Mem.perm_alloc_1; eassumption.
          eapply Mem.perm_alloc_4; try eassumption.
@@ -973,11 +981,18 @@ destruct ef; simpl in H0.
           intros N; subst; eapply (Mem.fresh_block_alloc _ _ _ _ _ H3 H5).
         intros N; subst; eapply (Mem.fresh_block_alloc _ _ _ _ _ H3 H5).
     split; unfold loc_out_of_reach; intros.
-         unfold Mem.perm. 
-         rewrite (Mem.store_access _ _ _ _ _ _ ST').
+         unfold Mem.perm.
+         apply Ple_trans with (Mem.nextblock tm').
+       rewrite (Mem.nextblock_alloc _ _ _ _ _ TALLOC).
+       apply Plt_Ple; apply Plt_succ.
+       rewrite (Mem.nextblock_store _ _ _ _ _ _ ST').
+       apply Ple_refl.
+      clear - ST' TALLOC H5.
          split; intros.
-         eapply Mem.perm_alloc_1; eassumption.
+         eapply Mem.perm_store_1; try eassumption.
+         eapply Mem.perm_alloc_1; try eassumption.
          eapply Mem.perm_alloc_4; try eassumption.
+         eapply Mem.perm_store_2; try eassumption.
          intros N; subst. eapply (Mem.fresh_block_alloc _ _ _ _ _ TALLOC H5).
       rewrite (Mem.store_mem_contents _ _ _ _ _ _ ST').
         apply Mem.perm_valid_block in H5.

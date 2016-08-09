@@ -221,7 +221,7 @@ Qed.
 Lemma valid_access_None: forall m ch b b' ofs ofs' p,
   Mem.valid_access m ch b ofs p 
   -> adr_range (b, ofs) (size_chunk ch) (b', ofs') 
-  -> access_at m (b', ofs') = None 
+  -> access_at m (b', ofs') Cur = None 
   -> False.
 Proof.
 unfold access_at, Mem.valid_access, Mem.perm, Mem.range_perm, Mem.perm, Mem.perm_order'.
@@ -814,7 +814,7 @@ Lemma store_outside':
   (forall b' ofs,
     (b=b' /\ z <= ofs < z + size_chunk ch) \/
      contents_at m (b', ofs) = contents_at m' (b', ofs))
-  /\ Mem.mem_access m = Mem.mem_access m'
+  /\ access_at m = access_at m'
   /\ Mem.nextblock m = Mem.nextblock m'.
 Proof.
 intros.
@@ -842,6 +842,8 @@ right.
 unfold contents_at; rewrite H0; clear H0.
 simpl.
 rewrite PMap.gso by auto. auto.
+unfold access_at.  extensionality loc k.
+f_equal.
 symmetry; eapply Mem.store_access; eauto.
 symmetry; eapply Mem.nextblock_store; eauto.
 Qed.
@@ -928,7 +930,7 @@ unfold yesat, yesat_raw in H4. destruct H4 as [pp H4].
 simpl in H4.
 rewrite H4.
 clear H0.
-assert (H0 : access_at m' (b0, ofs0) = None).
+assert (H0 : access_at m' (b0, ofs0) Cur = None).
   clear - H a.
   Transparent free.
   unfold free in H.
@@ -1041,7 +1043,7 @@ assert (~adr_range (b,lo) (hi-lo) loc).
   subst.
   destruct (perm_of_sh_pshare t p) as [p' H4].
   unfold perm_of_res in Ha. simpl in Ha. rewrite H4 in Ha.
-  assert (access_at m1 (nextblock m1, z) = None).
+  assert (access_at m1 (nextblock m1, z) Cur = None).
     unfold access_at; apply nextblock_noaccess; simpl; xomega.
   rewrite H0 in Ha; inv Ha.
 apply alloc_dry_unchanged_on with (m1:=m1)(m2:=m2) in H2; auto.
@@ -1087,7 +1089,7 @@ assert (~adr_range (b,lo) (hi-lo) loc).
   subst.
   destruct (perm_of_sh_pshare t p) as [p' H4].
   unfold perm_of_res in Ha; simpl in Ha; rewrite H4 in Ha.
-  assert (access_at m1 (nextblock m1, z) = None).
+  assert (access_at m1 (nextblock m1, z) Cur = None).
     unfold access_at. simpl. apply nextblock_noaccess. xomega.
   rewrite H2 in Ha; inv Ha.
 apply alloc_dry_unchanged_on with (m1:=m1)(m2:=m2) in H2; auto.
@@ -1102,8 +1104,9 @@ destruct loc as (b',ofs').
  simpl in H0. destruct k; try contradiction.
   destruct (perm_of_sh_pshare t p).
   rewrite H4 in Ha. simpl in *.
- destruct (access_at m1 (b', ofs')); try contradiction.
- rewrite <- H2. rewrite H3 by congruence.
+ rewrite <- H2.
+ destruct (access_at m1 (b', ofs') Cur); try contradiction.
+ rewrite H3 by congruence.
  reflexivity.
  inv Ha.
  simpl in H0.

@@ -134,7 +134,7 @@ Module MainSafety .
              destruct (JS n) as [[m phi CON ACC MAX All] [E HYPS]]; simpl.
              simpl in E. rewrite <-E.
              rewrite <-ACC.
-             unfold access_at in *.
+             unfold Memory.access_at in *.
              rewrite getCurPerm_correct.
              simpl.
              unfold permission_at in *.
