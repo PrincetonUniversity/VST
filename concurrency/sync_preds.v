@@ -1013,7 +1013,7 @@ Proof.
     specialize (LW b ofs Ef ofs0 Ran).
     unfold max_access_cohere in *.
     apply equal_f with (x := (b, ofs0)) in EMa.
-    unfold max_access_at in *.
+    unfold max_access_at, access_at in *.
     simpl in *.
     rewrite <-EMa.
     auto.
