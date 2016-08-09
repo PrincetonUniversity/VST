@@ -131,7 +131,7 @@ CONCUR_FILES= \
   sepcomp.v seq_lemmas.v ssromega.v stack.v \
   threadPool.v threads_lemmas.v wf_lemmas.v \
   x86_inj.v x86_safe.v x86_context.v fineConc_x86.v \
-  SC_erasure.v sync_preds.v
+  SC_erasure.v sync_preds.v join_lemmas.v coqlib5.v age_to.v
 
 CCC26x86_FILES = \
   Archi.v Bounds.v Conventions1.v Conventions.v Ctypes.v \
@@ -272,7 +272,7 @@ HMACDRBG_FILES = \
   HMAC256_DRBG_functional_prog.v HMAC_DRBG_pure_lemmas.v \
   HMAC_DRBG_update.v \
   mocked_md.v mocked_md_compspecs.v hmac_drbg.v hmac_drbg_compspecs.v \
-  verif_hmac_drbg_update.v verif_hmac_drbg_reseed.v
+  verif_hmac_drbg_update.v verif_hmac_drbg_reseed.v verif_hmac_drbg_generate.v
 
 # DRBG_Files = \
 #  hmac_drbg.v HMAC256_DRBG_functional_prog.v hmac_drbg_compspecs.v \

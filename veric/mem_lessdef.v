@@ -33,12 +33,6 @@ Require Import sepcomp.event_semantics.
 Require Import sepcomp.structured_injections.
 Require Import sepcomp.extspec.
 
-Ltac exact_eq H :=
-  revert H;
-  match goal with
-    |- ?p -> ?q => cut (p = q); [intros ->; auto | ]
-  end.
-
 Definition mem_lessdef m1 m2 :=
   (forall b ofs len v,
       Mem.loadbytes m1 b ofs len = Some v ->
@@ -171,8 +165,7 @@ Proof.
   destruct (mem_equiv_juicy_mem_equiv jm1' m2' Ed') as (jm2', (<-, [Hd Hw])).
   exists jm2'.
   split; split; auto. split.
-  - exact_eq rd.
-    f_equal; auto.
+  - cut (Mem.nextblock (m_dry jm1) = Mem.nextblock (m_dry jm2)). congruence.
     apply Ed.
   - repeat rewrite level_juice_level_phi in *.
     congruence.
@@ -189,7 +182,7 @@ Definition ext_spec_stable {M E Z} (R : M -> M -> Prop)
     ext_spec_exit spec e v m1 ->
     ext_spec_exit spec e v m2).
 
-Lemma jsafeN_equiv_sim {Z Jspec ge n z c jm1 jm2} :
+Lemma jsafeN_mem_equiv {Z Jspec ge n z c jm1 jm2} :
   juicy_mem_equiv jm1 jm2 ->
   ext_spec_stable juicy_mem_equiv (JE_spec _ Jspec) ->
   @jsafeN Z Jspec ge n z c jm1 ->
