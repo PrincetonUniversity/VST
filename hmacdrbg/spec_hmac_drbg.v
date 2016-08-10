@@ -412,11 +412,14 @@ Definition result_success {X} (result: ENTROPY.result X): Prop :=
     | ENTROPY.error _ _ => False
   end.
 
+Parameter ENT_CatErr: Z.
+Parameter ENT_CatErrAx: Vzero <> Vint (Int.repr ENT_CatErr)  /\ Int.repr ENT_CatErr <> Int.repr (-20864).
+
 Definition return_value_relate_result {X} (result: ENTROPY.result X) (ret_value: val): Prop :=
   match result with
     | ENTROPY.error e _ => match e with
-                             | ENTROPY.generic_error => ret_value <> Vzero
-                             | ENTROPY.catastrophic_error => ret_value = (Vint (Int.repr (-9)))
+                             | ENTROPY.generic_error => ret_value = Vint (Int.repr ENT_CatErr) (*WAS: ret_value <> Vzero*)
+                             | ENTROPY.catastrophic_error => ret_value = Vint (Int.repr (-9))
                            end
     | ENTROPY.success _ _ => ret_value = Vzero
   end.

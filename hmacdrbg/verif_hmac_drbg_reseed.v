@@ -413,7 +413,7 @@ Proof.
     apply prop_right. repeat split; trivial.
     do 2 rewrite map_nil. rewrite app_nil_l, Zminus_0_r. cancel.
 
-  + (*contiuation after conditional*)  
+  + (*continuation after conditional*)  
 
   replace_SEP 0 (
     (data_at Tsh (tarray tuchar (entropy_len + Zlength contents')) (map Vint
@@ -533,7 +533,7 @@ Proof.
    subst V' reseed_counter' entropy_len' reseed_interval' prediction_resistance'.
    clear - Heqp Heqentropy_result H10 H1 H2 H H0 H3 H4.
    freeze [1] FR13. thaw FR13.
-  Time forward. *)(*preceding forward with (an informaion-losing clear reduces time to 1100secs*)
+  Time forward. *)(*preceding forward with (an information-losing clear reduces time to 1100secs*)
     (*Coq8.5pl2: 1210.094 secs (336.421u,0.687s) *)
     (*takes 3597secs if HMAC256_DRBG_functional_prog.HMAC256_DRBG_update is opaque*)
     (*in VST1.6, this forward takes 1968.182 secs, without allocating a single KB of memory ;-) *)
@@ -809,12 +809,21 @@ Proof.
   (* now that we know entropy call succeeded, use that fact to simplify the SEP clause *)
   remember (entropy.ENTROPY.get_bytes (Z.to_nat entropy_len) s) as entropy_result.
   unfold entropy.get_entropy in ENT;
+  rewrite <- Heqentropy_result in ENT.
+  destruct entropy_result; [|
+  normalize;
+  simpl in ENT; destruct e; [inversion ENT | inversion ENT ]
+  (*assert (contra: False) by (apply ENT; reflexivity); inversion contra]*)
+  ].
+  Focus 2. destruct ENT_CatErrAx as [EC1 _]; elim EC1; trivial. 
+(*
+  unfold entropy.get_entropy in ENT;
   rewrite <- Heqentropy_result in ENT;
   destruct entropy_result; [|
   normalize;
   simpl in ENT; destruct e; [inversion ENT |
   assert (contra: False) by (apply ENT; reflexivity); inversion contra]
-  ].
+  ].*)
   clear ENT.
 
   rename l into entropy_bytes.
