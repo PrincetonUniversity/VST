@@ -80,7 +80,7 @@ assert ().
    temp _ctx c; temp _hmac h) 
       SEP (memory_block Tsh (sizeof (Tstruct _hmac_ctx_st noattr)) vret;
            data_at Tsh (Tstruct _mbedtls_md_context_t noattr) md_ctx c)).
-  { destruct (base.EqDec_val vret nullval).
+  { destruct (Memory.EqDec_val vret nullval).
     + subst vret; entailer!.
     + eapply derives_trans; try apply valid_pointer_weak.
       apply sepcon_valid_pointer1.
@@ -192,7 +192,7 @@ Proof.
       SEP (!!field_compatible spec_hmac.t_struct_hmac_ctx_st [] vret &&
            memory_block Tsh (sizeof (Tstruct _hmac_ctx_st noattr)) vret;
            data_at Tsh (Tstruct _mbedtls_md_context_t noattr) md_ctx c)).
-  { destruct (base.EqDec_val vret nullval).
+  { destruct (Memory.EqDec_val vret nullval).
     + subst vret; entailer!.
     + normalize. eapply derives_trans; try apply valid_pointer_weak.
       apply sepcon_valid_pointer1.

@@ -181,7 +181,7 @@ Proof.
     { subst contents'. unfold contents_with_add.
       destruct (eq_dec add_len 0); simpl.
         rewrite andb_false_r. left; apply Zlength_nil. 
-        destruct (base.EqDec_val additional nullval); simpl. left; apply Zlength_nil.
+        destruct (Memory.EqDec_val additional nullval); simpl. left; apply Zlength_nil.
         right; trivial.
     } 
 *)
@@ -406,7 +406,7 @@ Proof.
     { subst contents'. unfold contents_with_add.
       destruct (eq_dec add_len 0); simpl in *.
       + rewrite e in *. rewrite andb_false_r; trivial.
-      + destruct (base.EqDec_val additional nullval); simpl in *; trivial; discriminate. }
+      + destruct (Memory.EqDec_val additional nullval); simpl in *; trivial; discriminate. }
     clear Heqcontents'; subst contents'.
     rewrite Zlength_nil, Zplus_0_r. 
     apply andp_right.
@@ -465,7 +465,7 @@ Proof.
           destruct ZL
           rewrite Z.max_r; omega.
         + rewrite andb_true_r.
-          destruct (base.EqDec_val additional nullval); simpl in *. right. omega.*) }
+          destruct (Memory.EqDec_val additional nullval); simpl in *. right. omega.*) }
     rewrite <- Heqll, H5, H6, H7, H8, H9. cancel.
   }
   {
@@ -478,7 +478,7 @@ Proof.
       subst contents'; unfold contents_with_add.
       destruct (eq_dec add_len 0); simpl.
         rewrite andb_false_r. constructor. 
-      destruct (base.EqDec_val additional nullval); simpl. constructor. 
+      destruct (Memory.EqDec_val additional nullval); simpl. constructor. 
       trivial.
     }
   }
@@ -617,7 +617,7 @@ Proof.
     { subst contents'. unfold contents_with_add.
       destruct (eq_dec add_len 0); simpl.
         rewrite andb_false_r. left; apply Zlength_nil. 
-        destruct (base.EqDec_val additional nullval); simpl. left; apply Zlength_nil.
+        destruct (Memory.EqDec_val additional nullval); simpl. left; apply Zlength_nil.
         right; trivial.
     } 
 

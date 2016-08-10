@@ -1098,7 +1098,7 @@ Proof.
     destruct (initial_world.EqDec_Z (Zlength contents)  0); simpl. 
     + rewrite e. simpl. rewrite andb_false_r. reflexivity.
     + rewrite Int.eq_false; simpl. 
-      destruct (base.EqDec_val additional nullval); try reflexivity. contradiction. 
+      destruct (Memory.EqDec_val additional nullval); try reflexivity. contradiction. 
       intros N. assert (U: Int.unsigned (Int.repr (Zlength contents)) = Int.unsigned (Int.repr 0)). rewrite N; trivial. clear N.
       rewrite Int.unsigned_repr in U; trivial. rewrite U in n. elim n; trivial. 
   }
@@ -2039,7 +2039,7 @@ Transparent HMAC256_DRBG_generate_function.
            apply andp_right. apply prop_right. repeat split; trivial.
            rewrite sublist_firstn. cancel.
            unfold_data_at 1%nat. cancel.
-        ++ destruct (base.EqDec_val additional nullval); simpl in na, HeqCONT.
+        ++ destruct (Memory.EqDec_val additional nullval); simpl in na, HeqCONT.
            2: subst contents; elim n; apply Zlength_nil.
            subst na. simpl in *.
            inv HeqUPD. inv HeqAUSA. inv Heqq.
@@ -2056,7 +2056,7 @@ Transparent HMAC256_DRBG_generate_function.
        destruct Heqf as [Heqf1 Heqf2]. apply negb_true_iff in Heqf1. apply negb_true_iff in Heqf2.
        destruct (eq_dec additional nullval); try discriminate.
        destruct (eq_dec (Zlength contents) 0); try discriminate.
-       destruct (base.EqDec_val additional nullval). { subst additional. elim n; trivial. }
+       destruct (Memory.EqDec_val additional nullval). { subst additional. elim n; trivial. }
        destruct (initial_world.EqDec_Z (Zlength contents) 0); simpl in na. { omega. }
        subst na. simpl in HeqAUSA.
        unfold HMAC256_DRBG_update in *. subst stream1 contents.
@@ -2098,7 +2098,7 @@ Transparent HMAC256_DRBG_generate_function.
            apply andp_right. apply prop_right. repeat split; trivial.
            rewrite sublist_firstn. cancel.
            unfold_data_at 1%nat. cancel.
-        ++ destruct (base.EqDec_val additional nullval); simpl in na, HeqCONT.
+        ++ destruct (Memory.EqDec_val additional nullval); simpl in na, HeqCONT.
            2: subst contents; elim n; apply Zlength_nil.
            subst na. simpl in *.
            inv HeqUPD. inv HeqAUSA. inv Heqq.
@@ -2115,7 +2115,7 @@ Transparent HMAC256_DRBG_generate_function.
        destruct Heqf as [Heqf1 Heqf2]. apply negb_true_iff in Heqf1. apply negb_true_iff in Heqf2.
        destruct (eq_dec additional nullval); try discriminate.
        destruct (eq_dec (Zlength contents) 0); try discriminate.
-       destruct (base.EqDec_val additional nullval). { subst additional. elim n; trivial. }
+       destruct (Memory.EqDec_val additional nullval). { subst additional. elim n; trivial. }
        destruct (initial_world.EqDec_Z (Zlength contents) 0); simpl in na. { omega. }
        subst na. simpl in HeqAUSA.
        unfold HMAC256_DRBG_update in *. subst stream1 contents.
