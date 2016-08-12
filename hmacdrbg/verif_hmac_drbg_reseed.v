@@ -69,30 +69,6 @@ Lemma REST: forall (Espec : OracleKind) (contents : list Z) additional add_len c
   (entropy_bytes : list Z)
   (s0 : ENTROPY.stream)
   (Heqentropy_result : ENTROPY.success entropy_bytes s0 = ENTROPY.get_bytes (Z.to_nat entropy_len) s),
-(*
-  (H : 0 <= Zlength contents <= Int.max_unsigned)
-  (H0 : Zlength V = 32)
-  (H1 : add_len = Zlength contents)
-  (H2 : (*32 <=*) 0 < entropy_len + Zlength (contents_with_add additional add_len contents) <= 384)
-  (H3 : Forall general_lemmas.isbyteZ V)
-  (H4 : Forall general_lemmas.isbyteZ contents)
-  (H5 : map Vint (map Int.repr V) = V')
-  (H6 : Vint (Int.repr reseed_counter) = reseed_counter')
-  (H7 : Vint (Int.repr entropy_len) = entropy_len')
-  (H8 : Vint (Int.repr reseed_interval) = reseed_interval')
-  (H9 : Val.of_bool prediction_resistance = prediction_resistance')
-  (PNadditional : is_pointer_or_null additional)
-  (Pctx : isptr ctx)
-  (H10 : 256 >= Zlength contents)
-  (Hfield : field_compatible (tarray tuchar 384) [] seed)
-  (entropy_bytes : list Z)
-  (s0 : ENTROPY.stream)
-  (Heqentropy_result : ENTROPY.success entropy_bytes s0 =
-                    ENTROPY.get_bytes (Z.to_nat entropy_len) s)
-(*Delta := abbreviate : tycontext
-POSTCONDITION := abbreviate : ret_assert
-MORE_COMMANDS := abbreviate : statement*)
-  (Hentropy_bytes_length : Zlength (map Vint (map Int.repr entropy_bytes)) = entropy_len),*)
 @semax hmac_drbg_compspecs.CompSpecs Espec
   (initialized_list [_entropy_len; 232%positive; 231%positive]
      (func_tycontext f_mbedtls_hmac_drbg_reseed HmacDrbgVarSpecs
@@ -669,29 +645,19 @@ Proof.
   Intros. rewrite H3 in *; clear H3 add_len_too_high.
   symmetry in Heqadd_len_too_high; apply orb_false_iff in Heqadd_len_too_high; destruct Heqadd_len_too_high.
 
-(*
-  assert (AL256: add_len >? 256 = false).
-  { remember (add_len >? 256) as a. symmetry in Heqa.
-    destruct a; trivial. apply Zgt_is_gt_bool in Heqa. omega. } 
-*)
-  thaw FR2. thaw FR1. freeze [1;2;3;4;5;6] FR3.
-  (* memset( seed, 0, MBEDTLS_HMAC_DRBG_MAX_SEED_INPUT ); *)
-  forward_call (Tsh, seed, 384, Int.zero).
-  { 
-   (*my_thaw FR2. my_thaw FR1.*)
-    rewrite data_at__memory_block.
-    change (sizeof (*cenv_cs*) (tarray tuchar 384)) with 384. 
-    normalize. cancel.
-  } 
-  
   assert (AL256: 256 >= add_len).
   { destruct (zlt 256 add_len); try discriminate; trivial. }
   assert (EL384 : 384 >= entropy_len + add_len).
   { destruct ( zlt 384 (entropy_len + add_len)); try discriminate; trivial. }
- 
-(*
-  destruct (zlt 384 (entropy_len + add_len) ); simpl in H11; try discriminate.
-  destruct (zlt 256 add_len); simpl in H10; try discriminate. clear H10 H11.*)
+
+  thaw FR2. thaw FR1. freeze [1;2;3;4;5;6] FR3.
+  (* memset( seed, 0, MBEDTLS_HMAC_DRBG_MAX_SEED_INPUT ); *)
+  forward_call (Tsh, seed, 384, Int.zero).
+  { rewrite data_at__memory_block.
+    change (sizeof (*cenv_cs*) (tarray tuchar 384)) with 384. 
+    normalize. cancel.
+  } 
+
   (*freeze [1;2;3;4;5;6] FR3.*)
   assert_PROP (field_compatible (tarray tuchar 384) [] seed) as Hfield by entailer!.
   replace_SEP 0 ((data_at Tsh (tarray tuchar entropy_len)
@@ -707,8 +673,8 @@ Proof.
   
   replace_SEP 0 (memory_block Tsh entropy_len seed).
   {
-    (*subst entropy_len.*)
-    go_lower. eapply derives_trans. apply data_at_memory_block. simpl. rewrite Z.max_r, Z.mul_1_l. trivial. omega.
+    (*subst entropy_len.*) go_lower.
+     eapply derives_trans. apply data_at_memory_block. simpl. rewrite Z.max_r, Z.mul_1_l; trivial. 
   }
 
   (* get_entropy(seed, entropy_len ) *)
@@ -732,7 +698,6 @@ Proof.
     apply Zgt_is_gt_bool in Heqd.
     destruct (zlt 384 (entropy_len + add_len)); try discriminate; omega.
   }
-     
 
   (* if( get_entropy(seed, entropy_len ) != 0 ) *)
   freeze [0;1;2] FR5.
@@ -815,7 +780,7 @@ Proof.
   simpl in ENT; destruct e; [inversion ENT | inversion ENT ]
   (*assert (contra: False) by (apply ENT; reflexivity); inversion contra]*)
   ].
-  Focus 2. destruct ENT_CatErrAx as [EC1 _]; elim EC1; trivial. 
+  Focus 2. destruct ENT_GenErrAx as [EC1 _]; elim EC1; trivial. 
 (*
   unfold entropy.get_entropy in ENT;
   rewrite <- Heqentropy_result in ENT;

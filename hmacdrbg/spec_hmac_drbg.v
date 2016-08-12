@@ -35,6 +35,10 @@ Definition md_relate (h: HABS) (r:mdstate) :=
 
 Definition md_full (key: list Z) (r:mdstate) :=
   UNDER_SPEC.FULL key (snd (snd r)).
+
+Definition md_empty (r:mdstate) := 
+  UNDER_SPEC.EMPTY (snd (snd r)).
+
 (*
 Definition md_get_size_SPEC :=
    WITH u:unit
@@ -412,13 +416,13 @@ Definition result_success {X} (result: ENTROPY.result X): Prop :=
     | ENTROPY.error _ _ => False
   end.
 
-Parameter ENT_CatErr: Z.
-Parameter ENT_CatErrAx: Vzero <> Vint (Int.repr ENT_CatErr)  /\ Int.repr ENT_CatErr <> Int.repr (-20864).
+Parameter ENT_GenErr: Z.
+Parameter ENT_GenErrAx: Vzero <> Vint (Int.repr ENT_GenErr)  /\ Int.repr ENT_GenErr <> Int.repr (-20864).
 
 Definition return_value_relate_result {X} (result: ENTROPY.result X) (ret_value: val): Prop :=
   match result with
     | ENTROPY.error e _ => match e with
-                             | ENTROPY.generic_error => ret_value = Vint (Int.repr ENT_CatErr) (*WAS: ret_value <> Vzero*)
+                             | ENTROPY.generic_error => ret_value = Vint (Int.repr ENT_GenErr) (*WAS: ret_value <> Vzero*)
                              | ENTROPY.catastrophic_error => ret_value = Vint (Int.repr (-9))
                            end
     | ENTROPY.success _ _ => ret_value = Vzero
