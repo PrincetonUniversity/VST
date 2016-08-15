@@ -48,7 +48,7 @@ Proof. intros. rewrite (Entropy_addSuccess1 _ _ _ _ _ _ _ H H0). eexists; trivia
 Definition OptionalNonce: option (list Z) := None. (*The implementation takes nonce from entropy, using the el*3/2 calculation*)
 
 Parameter max_personalization_string_length: Z. (*NIST SP 800-90A, page 38, Table2: 2^35 bits; 
-         Our personalization nstring is a list of bytes, so have max length 2^32*)
+         Our personalization string is a list of bytes, so have max length 2^32*)
 Axiom max_personalization_string336: 336 <= max_personalization_string_length.
 
 Parameter prediction_resistance_supported: bool.
