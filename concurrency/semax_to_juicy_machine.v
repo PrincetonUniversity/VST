@@ -789,16 +789,6 @@ Proof.
   exists Z0; reflexivity.
 Qed.
 
-Lemma eqtype_refl n i cnti cntj :
-  @eqtype.eq_op
-    (fintype.ordinal_eqType n)
-    (@fintype.Ordinal n i cntj)
-    (@fintype.Ordinal n i cnti)
-  = true.
-Proof.
-  compute; induction i; auto.
-Qed.
-
 Lemma jstep_preserves_mem_equiv_on_other_threads m ge i j tp ci ci' jmi'
   (other : i <> j)
   (compat : mem_compatible tp m)
