@@ -211,7 +211,7 @@ Definition lock_coherence' tp PHI m (mcompat : mem_compatible_with tp m PHI) :=
 Inductive state_invariant {Z} (Jspec : juicy_ext_spec Z) Gamma (n : nat) : cm_state -> Prop :=
   | state_invariant_c
       (m : mem) (ge : genv) (sch : schedule) (tp : ThreadPool.t) (PHI : rmap)
-      (* (lev : level PHI = n) TODO add this back later *)
+      (lev : level PHI = n)
       (gamma : matchfunspec (filter_genv ge) Gamma PHI)
       (mcompat : mem_compatible_with tp m PHI)
       (lock_coh : lock_coherence' tp PHI m mcompat)
@@ -220,13 +220,49 @@ Inductive state_invariant {Z} (Jspec : juicy_ext_spec Z) Gamma (n : nat) : cm_st
       (uniqkrun :  threads_unique_Krun tp sch)
     : state_invariant Jspec Gamma n (m, ge, (sch, tp)).
 
+Lemma mem_compatible_with_age {n tp m phi} :
+  mem_compatible_with tp m phi ->
+  mem_compatible_with (age_tp_to n tp) m (age_to n phi).
+Proof.
+  intros [J AC LW LJ JL]; constructor.
+  - rewrite join_all_joinlist in *.
+    rewrite maps_age_to.
+    apply joinlist_age_to, J.
+  - apply mem_cohere_age_to; easy.
+  - apply lockSet_Writable_age; easy.
+  - apply juicyLocks_in_lockSet_age. easy.
+  - apply lockSet_in_juicyLocks_age. easy.
+Qed.
+
 Lemma state_invariant_S {Z} (Jspec : juicy_ext_spec Z) Gamma n m ge sch tp :
   state_invariant Jspec Gamma (S n) (m, ge, (sch, tp)) ->
-  state_invariant Jspec Gamma n (m, ge, (sch, (* age_tp_to n *) tp)).
+  state_invariant Jspec Gamma n (m, ge, (sch, age_tp_to n tp)).
 Proof.
   intros INV.
-  inversion INV as [m0 ge0 sch0 tp0 PHI (* lev *) gam mcompat lock_coh safety wellformed uniqkrun H0]; subst.
-  apply state_invariant_c with PHI mcompat; auto.
+  inversion INV as [m0 ge0 sch0 tp0 PHI lev gam compat LC safety wellformed uniqkrun H0]; subst.
+  apply state_invariant_c with (age_to n PHI) (mem_compatible_with_age compat); auto.
+  - apply level_age_to. omega.
+  - intros b fs phi necr fa.
+    refine (gam b fs phi _ _).
+    + apply necR_trans with (age_to n PHI); auto.
+      apply age_to_necR.
+    + auto.
+  - intros loc.
+    specialize (LC loc).
+    rewrite lset_age_tp_to.
+    rewrite AMap_find_map_option_map.
+    destruct (AMap.find (elt:=option rmap) loc (lset tp)) as [[lockphi | ] | ].
+    all: simpl option_map; cbv iota beta.
+    all: exact_eq LC.
+    all: f_equal.
+    + f_equal.      
+      (* that's an awful lot of aging, probably we don't really need it in such a lemma *)
+      
+(*      unfold mem_compatible_with_age.
+    match goal with
+      |- match ?w with ?ASD end => idtac
+    end.
+  destruct compat as [J MC LW JL LJ].
   (* unshelve eapply state_invariant_c with (age_to n PHI) _; auto.
   - inversion mcompat as [A B C D E]; constructor.
     clear -lev A. *)
@@ -234,6 +270,8 @@ Proof.
   destruct (ThreadPool.getThreadC cnti); auto; try apply safe_downward1, safety.
   intros c' E. apply safe_downward1, safety, E.
 Qed.
+ *)
+Admitted.
 
 (* Schedule irrelevance of the invariant *)
 Lemma state_invariant_sch_irr {Z} (Jspec : juicy_ext_spec Z) Gamma n m ge i sch sch' tp :
@@ -241,9 +279,9 @@ Lemma state_invariant_sch_irr {Z} (Jspec : juicy_ext_spec Z) Gamma n m ge i sch 
   state_invariant Jspec Gamma n (m, ge, (i :: sch', tp)).
 Proof.
   intros INV.
-  inversion INV as [m0 ge0 sch0 tp0 PHI gam mcompat lock_coh safety wellformed uniqkrun H0];
+  inversion INV as [m0 ge0 sch0 tp0 PHI lev gam compat lock_coh safety wellformed uniqkrun H0];
     subst m0 ge0 sch0 tp0.
-  refine (state_invariant_c Jspec Gamma n m ge (i :: sch') tp PHI gam mcompat lock_coh safety wellformed _).
+  refine (state_invariant_c Jspec Gamma n m ge (i :: sch') tp PHI lev gam compat lock_coh safety wellformed _).
   clear -uniqkrun.
   intros H i0 cnti q ora H0.
   destruct (uniqkrun H i0 cnti q ora H0) as [sch'' E].
@@ -315,9 +353,10 @@ Section Initial_State.
             set (a := m_phi jm).
             match goal with |- context [m_phi ?jm] => set (b := m_phi jm) end.
             replace b with a by reflexivity. clear. clearbody a.
-            unfold fintype.ord_enum, eqtype.insub, seq.iota in *.
+            reflexivity.
+            (* unfold fintype.ord_enum, eqtype.insub, seq.iota in *.
             simpl.
-            destruct ssrbool.idP as [F|F]. reflexivity. exfalso. auto.
+            destruct ssrbool.idP as [F|F]. reflexivity. exfalso. auto. *)
           }
           exists (core (m_phi jm)). {
             split.
@@ -347,8 +386,17 @@ Section Initial_State.
         intros ? F.
         inversion F.
     } (* end of mcompat *)
-
-    apply state_invariant_c with (PHI := m_phi jm) (mcompat := compat).
+    
+    assert (En : level (m_phi jm) = n). {
+      unfold jm; clear.
+      match goal with
+        |- context [proj1_sig ?x] => destruct x as (jm' & jmm & lev & S & nolocks)
+      end; simpl.
+      rewrite level_juice_level_phi in *.
+      auto.
+    }
+    
+    apply state_invariant_c with (PHI := m_phi jm) (mcompat := compat); auto.
     
     - pose proof semax_prog_entry_point (Concurrent_Oracular_Espec CS ext_link) V G prog.
       unfold matchfunspec in *.
@@ -450,15 +498,13 @@ Proof.
   do 2 rewrite join_all_joinlist.
 Admitted.
 
-Definition mem_cohere := mem_cohere'.
-
 Lemma mem_cohere_step c c' jm jm' Phi (X : rmap) ge :
-  mem_cohere (m_dry jm) Phi ->
+  mem_cohere' (m_dry jm) Phi ->
   sepalg.join (m_phi jm) X Phi ->
   corestep (juicy_core_sem cl_core_sem) ge c jm c' jm' ->
   exists Phi',
     sepalg.join (m_phi jm') (age_to (level (m_phi jm')) X) Phi' /\
-    mem_cohere (m_dry jm') Phi'.
+    mem_cohere' (m_dry jm') Phi'.
 Proof.
   intros MC J C.
   destruct C as [step [RD L]].
@@ -796,20 +842,6 @@ Proof.
   congruence.
 Qed.
 
-Lemma mem_compatible_with_age n tp m phi :
-  mem_compatible_with tp m phi ->
-  mem_compatible_with (age_tp_to n tp) m (age_to n phi).
-Proof.
-  intros [J AC LW LJ JL]; constructor.
-  - rewrite join_all_joinlist in *.
-    rewrite maps_age_to.
-    apply joinlist_age_to, J.
-  - apply mem_cohere_age_to; easy.
-  - apply lockSet_Writable_age; easy.
-  - apply juicyLocks_in_lockSet_age. easy.
-  - apply lockSet_in_juicyLocks_age. easy.
-Qed.
-
 Lemma same_except_cur_jm_ tp m phi i cnti compat :
   same_except_cur m (m_dry (@jm_ tp m phi i cnti compat)).
 Proof.
@@ -1134,9 +1166,8 @@ Section Simulation.
              Phi ext ge MC Jext stepi) as (Phi''_ & J''_ & MC''_).
         exact_eq MC''_.
         f_equal.
-        + intros _ ->. auto.
-        + rewrite Eni'' in J''_.
-          eapply join_eq; eauto.
+        rewrite Eni'' in J''_.
+        eapply join_eq; eauto.
       
       - (* lockSet_Writable *)
         simpl.
@@ -1335,7 +1366,7 @@ Section Simulation.
           changed.
     *)
     
-    apply state_invariant_c with (PHI := Phi'') (mcompat := compat'').
+    apply state_invariant_c with (PHI := Phi'') (mcompat := compat''); auto.
     - (* matchfunspecs *)
       eapply resource_decay_matchfunspec; eauto.
     
@@ -1604,7 +1635,7 @@ Section Simulation.
       state_step state state'.
   Proof.
     intros I.
-    inversion I as [m ge sch tp Phi gam compat lock_coh safety wellformed unique E]. rewrite <-E in *.
+    inversion I as [m ge sch tp Phi En gam compat lock_coh safety wellformed unique E]. rewrite <-E in *.
     destruct sch as [ | i sch ].
     
     (* empty schedule: we loop in the same state *)
@@ -1866,21 +1897,19 @@ Section Simulation.
            - DONE: push the analysis through Krun/Kblocked/Kresume
            - DONE: figure a wait out of the ext_link problem (the LOCK
              should be a parameter of the whole thing)
-           - TODO: change the lock_coherence invariants to talk about
+           - DONE: change the lock_coherence invariants to talk about
              Mem.load instead of directly reading the values, since
              this will be abstracted
            - TODO: acquire-fail: still problems (see below)
-           - TODO: acquire-success: the invariant guarantees that the
+           - DONE: acquire-success: the invariant guarantees that the
              rmap in the lockset satisfies the invariant.  We can give
              this rmap as a first step to the oracle.  We again have
              to recover the fact that all oracles after this step will
-             be fine as well.  (Let's write simulation lemmas about
-             this, probably)
+             be fine as well.
            - TODO: spawning: it introduces a new Kinit, change
              invariant accordingly
            - TODO release: this time, the jsafeN_ will explain how to
              split the current rmap.
-           - TODO all the other primitives
          *)
         
           
@@ -1909,16 +1938,6 @@ Section Simulation.
           { hnf. unfold lock_size in *; split; auto; omega. }
           rewrite jam_true in lk; swap 1 2. now auto.
           
-          (*
-          injection Ewetv as -> -> -> Epr.
-          apply inj_pair2 in Epr.
-          assert (R0 = R). {
-            assert (feq: forall A B (f g : A -> B), f = g ->
-              forall x, f x = g x) by congruence.
-            apply (feq _ _ _ _ Epr tt).
-          }
-          subst R0; clear Epr.
-           *)
           unfold canon.SEPx in PREC.
           unfold fold_right in PREC.
           rewrite seplog.sepcon_emp in PREC.
@@ -2247,10 +2266,11 @@ Section Simulation.
     state_invariant Jspec' Gamma n state'.
   Proof.
     intros STEP.
-    inversion STEP as [ | ge m m' sch sch' tp tp' jmstep E E'];
-      [ now apply state_invariant_S | ]; subst state state'; clear STEP.
+    inversion STEP as [ | ge m m' sch sch' tp tp' jmstep E E'].
+      admit. subst state state'; clear STEP.
+      (* [ now apply state_invariant_S | ]; subst state state'; clear STEP. *)
     intros INV.
-    inversion INV as [m0 ge0 sch0 tp0 Phi gam compat lock_coh safety wellformed unique E].
+    inversion INV as [m0 ge0 sch0 tp0 Phi lev gam compat lock_coh safety wellformed unique E].
     subst m0 ge0 sch0 tp0.
     
     destruct sch as [ | i sch ].
@@ -2283,6 +2303,7 @@ Section Simulation.
         unfold ThreadPool.containsThread, is_true in *;
         try congruence.
       apply state_invariant_c with (PHI := Phi) (mcompat := compat); auto.
+      + admit (* not right. will fix later with a different invariant *).
       + intros i0 cnti0 ora.
         specialize (safety i0 cnti0 ora); simpl in safety.
         eassert.
@@ -2446,6 +2467,8 @@ Section Simulation.
           }
           
           apply state_invariant_c with (PHI := Phi) (mcompat := compat').
+          + admit (* again, level problem *).
+          
           + (* matchfunspec *)
             assumption.
           
@@ -2576,9 +2599,10 @@ Section Simulation.
             clear.
             intros l a b c j h.
             rewrite Permutation.perm_swap in h.
-            admit (* next compilation: apply joinlist_merge *).
+            eapply joinlist_merge; eassumption.
           
-          - (* mem_cohere *)
+          - (* mem_cohere' *)
+            destruct compat as [J MC].
             admit.
           
           - (* lockSet_Writable *)
@@ -2592,6 +2616,7 @@ Section Simulation.
         }
         
         eapply state_invariant_c with (PHI := Phi).
+        + admit (* level *).
         + auto.
         + admit.
         + admit.
@@ -2637,6 +2662,8 @@ Section Simulation.
       }
       
       apply state_invariant_c with (PHI := Phi) (mcompat := compat').
+      + admit (* level *).
+      
       + (* matchfunspec *)
         assumption.
       

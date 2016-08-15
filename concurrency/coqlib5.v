@@ -1,3 +1,5 @@
+(* moved to coqlib4
+
 (** Additions to [if_tac]: when mature, move these upstream *)
 
 Tactic Notation "if_tac" "eq:" simple_intropattern(E) :=
@@ -91,3 +93,6 @@ Tactic Notation "rewr" constr(e) "in" hyp(H) :=
     E : e = _ |- _ => rewrite E in H 
   | E : _ = e |- _ => rewrite <-E in H
   end.
+
+
+*)

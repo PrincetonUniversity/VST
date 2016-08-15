@@ -430,6 +430,60 @@ Proof.
     omega.
 Qed.
 
+Lemma unage_resource_decay b phi1 phi2 phi1' phi2' :
+  resource_decay b phi1 phi2 ->
+  age phi1' phi1 ->
+  age phi2' phi2 ->
+  level phi1 = S (level phi2) ->
+  resource_decay b phi1' phi2'.
+Proof.
+  intros [lev12' rd] A1 A2 lev12.
+  split.
+  - apply age_level in A1.
+    apply age_level in A2.
+    omega.
+  - intros l; specialize (rd l).
+    destruct rd as [no rd].
+    split.
+    + rewrite (age1_NO _ _ _ _ A1).
+      assumption.
+    + destruct rd as [R|[R|[R|R]]].
+      * left.
+        clear no.
+        apply age_level in A1.
+        apply age_level in A2.
+        (* no reason that this would be true, we need one more level
+        of approximation *)
+Abort.
+
+Lemma jstep_unage_sim {G C} {csem : CoreSemantics G C mem} {ge c c' jm1 jm2 jm2'} :
+  age jm1 jm2 ->
+  jstep csem ge c jm2 c' jm2' ->
+  exists jm1',
+    age jm1' jm2' /\
+    jstep csem ge c jm1 c' jm1'.
+Proof.
+  intros A [step [rd lev]].
+  destruct (juicy_mem_unage jm2') as (jm1', A').
+  exists jm1'; split. assumption.
+  split; [|split]; auto; swap 2 3.
+  + exact_eq step.
+    f_equal; symmetry; apply age_jm_dry; auto.
+  + apply age_level in A.
+    apply age_level in A'.
+    omega.
+  (* this is were we need [unage_resource_decay] which is probably false *)
+  (*
+  + eapply (unage_resource_decay _ (m_phi jm2) (m_phi jm2')).
+    * exact_eq rd.
+      f_equal. f_equal. symmetry. apply age_jm_dry; auto.
+    * apply age_jm_phi; auto.
+    * apply age_jm_phi; auto.
+    * rewrite level_juice_level_phi in *. auto.
+Qed.
+  *)
+Abort.
+
 Lemma pures_eq_unage {jm1 jm1' jm2}:
   ge (level jm1') (level jm2) ->
   age jm1 jm1' ->
