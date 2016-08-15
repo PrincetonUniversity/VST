@@ -13,7 +13,7 @@ Definition HMAC_DRBG_update (HMAC: list Z -> list Z -> list Z) (provided_data K 
       let V := HMAC V K in
       (K, V)
   end.
-
+(*
 Fixpoint list_of_length (length: nat) (value: list Z): (list Z) :=
   match length with
     | O => []
@@ -23,6 +23,10 @@ Fixpoint list_of_length (length: nat) (value: list Z): (list Z) :=
 Definition initial_key: list Z := list_of_length 32 [0].
 
 Definition initial_value: list Z := list_of_length 32 [1].
+*)
+Definition initial_key: list Z := list_repeat 32 0.
+
+Definition initial_value: list Z := list_repeat 32 1.
 
 Definition HMAC_DRBG_instantiate_algorithm (HMAC: list Z -> list Z -> list Z) (entropy_input nonce personalization_string: list Z) (security_strength: Z): DRBG_working_state :=
   let seed_material := entropy_input ++ nonce ++ personalization_string in

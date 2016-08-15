@@ -18,44 +18,23 @@ Require Import hmacdrbg.spec_hmac_drbg.
 Require Import hmacdrbg.HMAC_DRBG_common_lemmas.
 Require Import hmacdrbg.spec_hmac_drbg_pure_lemmas.
 
+Lemma FALSE: False. Admitted. (*FOR THE ONE TEMPORARY ADMIT IN THIS PROOF*)
+
 (*TEMPORARRY FIX TO DEAL WITH NAME SPACES*)
 Axiom FINALNAME:_HMAC_Final = hmac._HMAC_Final. 
 Axiom UPDATENAME:_HMAC_Update = hmac._HMAC_Update. 
 Axiom INITNAME: _HMAC_Init = hmac._HMAC_Init. 
 Axiom CTX_Struct: Tstruct hmac_drbg._hmac_ctx_st noattr = spec_hmac.t_struct_hmac_ctx_st.
 
-(*
-Inductive md_any (r: mdstate): mpred :=
-  md_any_empty: md_empty r -> md_any r.
-| md_any_rep: forall h r, md_relate h r -> md_any r
-| md_any_full: forall k r, md_full k r -> md_any r.
-*)
+Axiom Entropy_addSuccess1: forall n m s s1 l1 s2 l2, 
+        ENTROPY.get_bytes n s = ENTROPY.success l1 s1 ->
+        ENTROPY.get_bytes m s1 = ENTROPY.success l2 s2 ->
+        ENTROPY.get_bytes (n+m) s = ENTROPY.success (l1++l2) s2.
 
-Lemma ReseedRes: forall X r v, @return_value_relate_result X r (Vint v) -> Int.eq v (Int.repr (-20864)) = false.
-Proof. intros.
-  unfold return_value_relate_result in H.
-  destruct r. inv H; reflexivity.
-  destruct e; inv H; try reflexivity.
-  apply Int.eq_false. eapply ENT_GenErrAx. 
-Qed.
-
-Definition preseed_relate rc pr ri (r : hmac256drbgstate):mpred:=
-    match r with
-     (md_ctx', (V', (reseed_counter', (entropy_len', (prediction_resistance', reseed_interval'))))) =>
-    md_empty md_ctx' &&
-    !! (map Vint (map Int.repr initial_key) = V' /\
-        Vint (Int.repr rc) = reseed_counter'(* /\
-        Vint (Int.repr entropy_len) = entropy_len'*) /\
-        Vint (Int.repr ri) = reseed_interval' /\
-        Val.of_bool pr = prediction_resistance')
-   end.
-
-Axiom Entropy_add: forall n m s s1 s2 x1 x2, ENTROPY.get_bytes n s = ENTROPY.success x1 s1 ->
-        ENTROPY.get_bytes m s1 = ENTROPY.success x2 s2 ->
-        exists x, ENTROPY.get_bytes (n+m) s = ENTROPY.success x s2.
-
-Axiom Entropy_addSuccess: forall n m s s1 x1, ENTROPY.get_bytes n s = ENTROPY.success x1 s1 ->
-        ENTROPY.get_bytes (n+m) s = ENTROPY.get_bytes m s1.
+Axiom Entropy_addSuccess2: forall n m s s1 l1 s2 e, 
+        ENTROPY.get_bytes n s = ENTROPY.success l1 s1 ->
+        ENTROPY.get_bytes m s1 = ENTROPY.error e s2 ->
+        ENTROPY.get_bytes (n+m) s = ENTROPY.error e s2.
 
 Axiom Entropy_addError: forall n m s s1 e, ENTROPY.get_bytes n s = ENTROPY.error e s1 ->
         ENTROPY.get_bytes (n+m) s = ENTROPY.error e s1.
@@ -64,9 +43,8 @@ Axiom Entropy_addError: forall n m s s1 e, ENTROPY.get_bytes n s = ENTROPY.error
 Goal forall n m s s1 s2 x1 x2, ENTROPY.get_bytes n s = ENTROPY.success x1 s1 ->
         ENTROPY.get_bytes m s1 = ENTROPY.success x2 s2 ->
         exists x, ENTROPY.get_bytes (n+m) s = ENTROPY.success x s2.
-Proof. intros. rewrite (Entropy_addSuccess _ _ _ _ _ H), H0. eexists; trivial. Qed.
+Proof. intros. rewrite (Entropy_addSuccess1 _ _ _ _ _ _ _ H H0). eexists; trivial. Qed.
 
-(*Parameter OptionalNonce: option (list Z).*)
 Definition OptionalNonce: option (list Z) := None. (*The implementation takes nonce from entropy, using the el*3/2 calculation*)
 
 Parameter max_personalization_string_length: Z. (*NIST SP 800-90A, page 38, Table2: 2^35 bits; 
@@ -95,6 +73,24 @@ Definition mbedtls_HMAC256_DRBG_init_function (entropy_stream: ENTROPY.stream)
 
 Definition entlen:Z := 32.
 
+(*
+Inductive md_any (r: mdstate): mpred :=
+  md_any_empty: md_empty r -> md_any r.
+| md_any_rep: forall h r, md_relate h r -> md_any r
+| md_any_full: forall k r, md_full k r -> md_any r.
+*)
+
+Definition preseed_relate rc pr ri (r : hmac256drbgstate):mpred:=
+    match r with
+     (md_ctx', (V', (reseed_counter', (entropy_len', (prediction_resistance', reseed_interval'))))) =>
+    md_empty md_ctx' &&
+    !! (map Vint (map Int.repr initial_key) = V' /\
+        Vint (Int.repr rc) = reseed_counter'(* /\
+        Vint (Int.repr entropy_len) = entropy_len'*) /\
+        Vint (Int.repr ri) = reseed_interval' /\
+        Val.of_bool pr = prediction_resistance')
+   end.
+ 
 Definition hmac_drbg_seed_spec :=
   DECLARE _mbedtls_hmac_drbg_seed
    WITH ctx: val, info:val, len: Z, data:val, Data: list Z,
@@ -137,11 +133,11 @@ Definition hmac_drbg_seed_spec :=
                      (Stream s * 
                      ( let CtxFinal:= ((info, (M2, p)), (list_repeat 32 (Vint Int.one), (Vint (Int.repr rc), 
                                        (Vint (Int.repr 48), (Val.of_bool pr, Vint (Int.repr 10000)))))) in
-                       let CTXFinal:= HMAC256DRBGabs initial_key (list_repeat 32 1) rc 48 pr 10000 in
+                       let CTXFinal:= HMAC256DRBGabs initial_key initial_value rc 48 pr 10000 in
                        data_at Tsh t_struct_hmac256drbg_context_st CtxFinal ctx *
                                      hmac256drbg_relate CTXFinal CtxFinal))
 
-                   else (*let myABS := HMAC256DRBGabs VV (list_repeat 32 1) rc 48 pr 10000
+                   else (*let myABS := HMAC256DRBGabs VV initial_value rc 48 pr 10000
                         in *) 
                         match mbedtls_HMAC256_DRBG_init_function s entlen pr (contents_with_add data (Zlength Data) Data)
                         with
@@ -152,7 +148,7 @@ Definition hmac_drbg_seed_spec :=
                               end) && (Stream ss * 
                                        let CtxFinal:= ((info, (M2, p)), (list_repeat 32 (Vint Int.one), (Vint (Int.repr rc), 
                                                 (Vint (Int.repr 48), (Val.of_bool pr, Vint (Int.repr 10000)))))) in
-                                       let CTXFinal:= HMAC256DRBGabs initial_key (list_repeat 32 1) rc 48 pr 10000 in
+                                       let CTXFinal:= HMAC256DRBGabs initial_key initial_value rc 48 pr 10000 in
                                        data_at Tsh t_struct_hmac256drbg_context_st CtxFinal ctx *
                                        hmac256drbg_relate CTXFinal CtxFinal))
                         | ENTROPY.success handle ss => !!(ret_value = Int.zero) && 
@@ -165,34 +161,19 @@ Definition hmac_drbg_seed_spec :=
                         end
                 end).
 
+Lemma ReseedRes: forall X r v, @return_value_relate_result X r (Vint v) -> Int.eq v (Int.repr (-20864)) = false.
+Proof. intros.
+  unfold return_value_relate_result in H.
+  destruct r. inv H; reflexivity.
+  destruct e; inv H; try reflexivity.
+  apply Int.eq_false. eapply ENT_GenErrAx. 
+Qed.
 
-(*let myABS := HMAC256DRBGabs VV (list_repeat 32 1) rc 48 pr 10000
-                      in match mbedtls_HMAC256_DRBG_reseed_function s myABS
-                                (contents_with_add data (Zlength Data) Data)
-                         with
-                         | ENTROPY.error e ss => 
-                            (!!(match e with
-                               | ENTROPY.generic_error => Vint ret_value = Vint (Int.repr ENT_GenErr)
-                               | ENTROPY.catastrophic_error => Vint ret_value = Vint (Int.repr (-9))
-                              end) && (Stream ss * 
-                                       let CtxFinal:= ((info, (M2, p)), (list_repeat 32 (Vint Int.one), (Vint (Int.repr rc), 
-                                                (Vint (Int.repr 48), (Val.of_bool pr, Vint (Int.repr 10000)))))) in
-                                       let CTXFinal:= HMAC256DRBGabs VV (list_repeat 32 1) rc 48 pr 10000 in
-                                       data_at Tsh t_struct_hmac256drbg_context_st CtxFinal ctx *
-                                       hmac256drbg_relate CTXFinal CtxFinal))
-                        | ENTROPY.success handle ss => !!(ret_value = Int.zero) && 
-                                    match handle with ((((newV, newK), newRC), newEL), newPR) =>
-                                      let CtxFinal := ((info, (M2, p)), (map Vint (map Int.repr newV), (Vint (Int.repr newRC), (Vint (Int.repr 32), (Val.of_bool newPR, Vint (Int.repr 10000)))))) in
-                                      let CTXFinal := HMAC256DRBGabs newK newV newRC 32 newPR 10000 in 
-                                    data_at Tsh t_struct_hmac256drbg_context_st CtxFinal ctx *
-                                    hmac256drbg_relate CTXFinal CtxFinal *
-                                    Stream ss end 
-                        end
-                end*)
+Lemma isbyteZ_initialKey: Forall isbyteZ initial_key. 
+Proof. apply Forall_list_repeat; split; omega. Qed.
 
 Opaque mbedtls_HMAC256_DRBG_reseed_function.
-
-Lemma FALSE: False. Admitted.
+Opaque initial_key. Opaque initial_value.
 
 Lemma body_hmac_drbg_seed: semax_body HmacDrbgVarSpecs HmacDrbgFunSpecs 
       f_mbedtls_hmac_drbg_seed hmac_drbg_seed_spec. 
@@ -241,11 +222,6 @@ Proof.
   thaw FR0. subst.
   (*rename H1 into ZL_VV. rename H2 into isbyteZ_VV.*)
   assert (ZL_VV: Zlength initial_key =32) by reflexivity.
-  assert (isbyteZ_VV: Forall isbyteZ initial_key). 
-  { unfold initial_key. simpl.
-    repeat constructor; try split; try omega.
-    (*even easier top prove once we use list_repeat in def of initial_key*) 
-  }
   thaw FIELDS. 
   freeze [3;4;5;6] FIELDS1.
   rewrite field_at_compatible'. Intros. rename H into FC_V.
@@ -264,8 +240,9 @@ Proof.
   { split; trivial. red. simpl. rewrite int_max_signed_eq (*, ZL_VV*). 
     split. trivial. split. omega. rewrite two_power_pos_equiv.
     replace (2^64) with 18446744073709551616. omega. reflexivity.
+    apply isbyteZ_initialKey.
   }
-  Intros.
+  Intros. clear H.
   
   (*call  memset( ctx->V, 0x01, md_size )*)
   freeze [0;1;3;4] FR3.
@@ -322,7 +299,7 @@ Proof.
   { rewrite mul_repr. simpl.
     rewrite Int.unsigned_repr. reflexivity. rewrite int_max_unsigned_eq; omega. }
   set (pr:= prediction_resistance_supported) in *.
-  set (myABS := HMAC256DRBGabs initial_key (list_repeat 32 1) rc 48 pr  10000) in *. 
+  set (myABS := HMAC256DRBGabs initial_key initial_value rc 48 pr  10000) in *. 
   assert (myST: exists ST:hmac256drbgstate, ST = 
     ((info, (M2, p)), (map Vint (list_repeat 32 Int.one), (Vint (Int.repr rc),
         (Vint (Int.repr 48), (Val.of_bool pr, Vint (Int.repr 10000))))))). eexists; reflexivity.
@@ -429,16 +406,9 @@ Opaque mbedtls_HMAC256_DRBG_reseed_function.
              destruct ENT1; try discriminate. change (32 / 2) with 16 in *.
              remember (ENTROPY.get_bytes (Z.to_nat 16) s0) as  ENT2; symmetry in HeqENT2.
              destruct ENT2; try discriminate.
-(*             destruct (Entropy_add _ _ _ _ _ _ _ HeqENT1 HeqENT2) as [x X].
-             rewrite <-Z2Nat.inj_add in X; try omega. change (32+16) with 48 in *.
-             rewrite X in HeqENT. discriminate.
-             exists s2; split; trivial.
-             exists s0; split; trivial.*)
-             specialize (Entropy_addSuccess _ 16 _ _ _ HeqENT1); intros XX. simpl in *; rewrite XX in *; clear XX. rewrite HeqENT2 in HeqENT; discriminate.
-             specialize (Entropy_addSuccess _ 16 _ _ _ HeqENT1); intros XX. simpl in *; rewrite XX in *; clear XX. rewrite HeqENT2 in HeqENT; inv HeqENT.
-               split; trivial.
-             specialize (Entropy_addError _ 16 _ _ _ HeqENT1); intros XX. simpl in *; rewrite XX in *; clear XX. inv HeqENT.
-             split; trivial. 
+             specialize (Entropy_addSuccess1 _ 16 _ _ _ _ _ HeqENT1 HeqENT2); intros XX. simpl in *; rewrite XX in *; clear XX; discriminate.
+             specialize (Entropy_addSuccess2 _ 16 _ _ _ _ _ HeqENT1 HeqENT2); intros XX. simpl in *; rewrite XX in *; clear XX. inv HeqENT. split; trivial.
+             specialize (Entropy_addError _ 16 _ _ _ HeqENT1); intros XX. simpl in *; rewrite XX in *; clear XX. inv HeqENT. split; trivial.
           ++ unfold get_entropy in *. clear - g0 HeqMRS HeqINIT. unfold entlen in *. 
              remember (ENTROPY.get_bytes (Z.to_nat 48) s) as ENT. destruct ENT; try discriminate. 
              inv HeqMRS.
@@ -446,39 +416,14 @@ Opaque mbedtls_HMAC256_DRBG_reseed_function.
              destruct ENT1; try discriminate. change (32 / 2) with 16 in *.
              remember (ENTROPY.get_bytes (Z.to_nat 16) s0) as  ENT2; symmetry in HeqENT2.
              destruct ENT2; try discriminate.
-(*             destruct (Entropy_add _ _ _ _ _ _ _ HeqENT1 HeqENT2) as [x X].
-             rewrite <-Z2Nat.inj_add in X; try omega. change (32+16) with 48 in *.
-             rewrite X in HeqENT. discriminate.
-             exists s2; split; trivial.
-             exists s0; split; trivial.*)
-             specialize (Entropy_addSuccess _ 16 _ _ _ HeqENT1); intros XX. simpl in *; rewrite XX in *; clear XX. rewrite HeqENT2 in HeqENT; discriminate.
-             specialize (Entropy_addSuccess _ 16 _ _ _ HeqENT1); intros XX. simpl in *; rewrite XX in *; clear XX. rewrite HeqENT2 in HeqENT; inv HeqENT.
-               split; trivial.
-             specialize (Entropy_addError _ 16 _ _ _ HeqENT1); intros XX. simpl in *; rewrite XX in *; clear XX. inv HeqENT.
-             split; trivial. 
-             (*unfold get_entropy, entlen in *. clear - g0 HeqMRS HeqINIT. 
-             remember (ENTROPY.get_bytes (Z.to_nat 48) s) as ENT. destruct ENT; try discriminate. 
-             inv HeqMRS.
-             remember (ENTROPY.get_bytes (Z.to_nat 32) s) as  ENT1; symmetry in HeqENT1.
-             destruct ENT1; try discriminate. change (32 / 2) with 16 in *.
-             remember (ENTROPY.get_bytes (Z.to_nat 16) s0) as  ENT2; symmetry in HeqENT2.
-             destruct ENT2; try discriminate.
-             destruct (Entropy_add _ _ _ _ _ _ _ HeqENT1 HeqENT2) as [x X].
-             rewrite <-Z2Nat.inj_add in X; try omega. change (32+16) with 48 in *.
-             rewrite X in HeqENT. discriminate.
-             exists s2; split; trivial.
-             exists s0; split; trivial.*)
+             specialize (Entropy_addSuccess1 _ 16 _ _ _ _ _ HeqENT1 HeqENT2); intros XX. simpl in *; rewrite XX in *; clear XX; discriminate.
+             specialize (Entropy_addSuccess2 _ 16 _ _ _ _ _ HeqENT1 HeqENT2); intros XX. simpl in *; rewrite XX in *; clear XX. inv HeqENT. split; trivial.
+             specialize (Entropy_addError _ 16 _ _ _ HeqENT1); intros XX. simpl in *; rewrite XX in *; clear XX. inv HeqENT. split; trivial.
           }
-          (*destruct ERR as [ss [SS EE]];*) destruct ERR as [SS EE]. rewrite SS in *. clear SS. subst e.
+          destruct ERR as [SS EE]. rewrite SS in *. clear SS. subst e.
           normalize.
           apply andp_right. apply prop_right; repeat split; trivial.
           cancel.
-        (*}
-        clear HeqINIT; subst INIT.
-        unfold hmac256drbgabs_common_mpreds, hmac256drbgstate_md_info_pointer; simpl. normalize.
-        Exists p. thaw OLD_MD. cancel. normalize. 
-        apply andp_right. apply prop_right; repeat split; trivial.
-        cancel.*)
   }
   { rename H into Hv. forward.
     go_lower. simpl in Hv. apply typed_false_of_bool in Hv. apply negb_false_iff in Hv.
@@ -527,42 +472,38 @@ Opaque mbedtls_HMAC256_DRBG_reseed_function.
              destruct ENT; inv HeqMRS.
              remember (ENTROPY.get_bytes (Z.to_nat 32) s) as ENT1. destruct ENT1.
              -- change (32/2) with 16. symmetry in HeqENT1.
-                specialize (Entropy_addSuccess _ 16 _ _ _ HeqENT1); intros XX; simpl in *.
-                rewrite XX in HeqENT; clear XX; inv HeqENT.
-                unfold HMAC256_DRBG_instantiate_algorithm, HMAC_DRBG_instantiate_algorithm.
-                symmetry in H5. rename l0 into l32. rename s0 into s32.
-                rename l into l32_16. rename s1 into s32_16.
-                remember (HMAC_DRBG_update HMAC256 (l32 ++ l32_16 ++ (contents_with_add data (Zlength Data) Data)) initial_key initial_value) as HMAC_B.
-                remember (HMAC_DRBG_update HMAC256 (l32_16 ++ contents_with_add data (Zlength Data) Data) initial_key
-                     [1; 1; 1; 1; 1; 1; 1; 1; 1; 1; 1; 1; 1; 1; 1; 1; 1; 1; 1; 1; 1; 1; 1; 1; 1; 1;
-                        1; 1; 1; 1; 1; 1]) as HMAC_A.
-                destruct HMAC_A as [HMAC_AK HMAC_AV]. 
-                destruct HMAC_B as [HMAC_BK HMAC_BV]. inv H4. 
-                exfalso. apply FALSE. (*Discrepancy in arguments to HMAC_DRBG_update!*)
+                remember (ENTROPY.get_bytes (Z.to_nat 16) s0) as ENT2. destruct ENT2.
+                ** symmetry in HeqENT2.
+                   specialize (Entropy_addSuccess1 _ 16 _ _ _ _ _ HeqENT1 HeqENT2); intros XX; simpl in *. 
+                   rewrite XX in HeqENT; clear XX; inv HeqENT.
+                   unfold HMAC256_DRBG_instantiate_algorithm, HMAC_DRBG_instantiate_algorithm.
+                   rewrite <- app_assoc in H4. 
+                   remember (HMAC_DRBG_update HMAC256 (l0 ++ l1 ++ contents_with_add data (Zlength Data) Data)
+                                initial_key initial_value) as q. 
+                   destruct q; inv H4; trivial.
+                ** symmetry in HeqENT2.
+                   specialize (Entropy_addSuccess2 _ 16 _ _ _ _ _ HeqENT1 HeqENT2); intros XX; simpl in *. 
+                   rewrite XX in HeqENT; clear XX; inv HeqENT.
              -- symmetry in HeqENT1.
                 specialize (Entropy_addError _ 16 _ _ _ HeqENT1); intros XX; simpl in *.
                 rewrite XX in *; clear XX; discriminate.
           ++ rewrite ZLc'256F in *. unfold entlen, get_entropy in *.
              remember (ENTROPY.get_bytes (Z.to_nat 32) s) as ENT32; symmetry in HeqENT32.
              destruct ENT32.
-             -- specialize (Entropy_addSuccess _ 16 _ _ _ HeqENT32); intros XX; simpl in *.
-                rewrite XX in *.
-                remember (ENTROPY.get_bytes 16 s1) as ENT32_16; symmetry in HeqENT32_16.
-                destruct ENT32_16; try discriminate. inv HeqMRS.
-                remember (HMAC_DRBG_update HMAC256 (l0 ++ contents_with_add data (Zlength Data) Data) initial_key
-          [1; 1; 1; 1; 1; 1; 1; 1; 1; 1; 1; 1; 1; 1; 1; 1; 1; 1; 1; 1; 1; 1; 1; 1; 1; 1; 1; 1;
-          1; 1; 1; 1]) as HMAC_A. 
-                destruct HMAC_A as [HMAC_AK HMAC_AV]. inv H4. 
-                unfold HMAC256_DRBG_instantiate_algorithm, HMAC_DRBG_instantiate_algorithm.
-                rename l into l32. rename s1 into s32.
-                rename l0 into l32_16. rename s2 into s32_16.
-                remember (HMAC_DRBG_update HMAC256 (l32 ++ l32_16 ++ (contents_with_add data (Zlength Data) Data)) initial_key initial_value) as HMAC_B.
-                destruct HMAC_B as [HMAC_BK HMAC_BV].
-                exfalso. apply FALSE. (*same discrepancy in arguments to HMAC_DRBG_update!*)
+             -- change (32/2) with 16 in *.
+                remember (ENTROPY.get_bytes (Z.to_nat 16) s1). destruct r; symmetry in Heqr.
+                ** specialize (Entropy_addSuccess1 _ 16 _ _ _ _ _ HeqENT32 Heqr); intros XX; simpl in *. 
+                   rewrite XX in HeqMRS; clear XX; inv HeqMRS.
+                   unfold HMAC256_DRBG_instantiate_algorithm, HMAC_DRBG_instantiate_algorithm.
+                   rewrite <- app_assoc in H4. 
+                   remember (HMAC_DRBG_update HMAC256 (l ++ l0 ++ contents_with_add data (Zlength Data) Data) initial_key initial_value) as q.
+                    destruct q; inv H4; trivial.
+                ** specialize (Entropy_addSuccess2 _ 16 _ _ _ _ _ HeqENT32 Heqr); intros XX; simpl in *. 
+                   rewrite XX in HeqMRS; clear XX; inv HeqMRS.
              -- specialize (Entropy_addError _ 16 _ _ _ HeqENT32); intros XX; simpl in *.
-                rewrite XX in *; discriminate.
+                rewrite XX in *; clear XX; discriminate.
   }
   rewrite H3 in *; clear H3. normalize.   
   apply andp_right. apply prop_right; repeat split; trivial. 
   unfold_data_at 1%nat. cancel.
-Time Qed. (*75.219 secs (59.734u,0.s) (successful)*)
+Time Qed. (*67.312 secs (53.125u,0.015s) (successful)*)
