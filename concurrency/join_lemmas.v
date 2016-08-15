@@ -10,7 +10,7 @@ Require Import msl.Coqlib2.
 Require Import msl.seplog.
 Require Import msl.sepalg.
 Require Import veric.mem_lessdef.
-Require Import concurrency.coqlib5.
+Require Import veric.coqlib4.
 
 (** * Results on joining lists and the necessary algebras *)
 
@@ -193,6 +193,57 @@ Proof.
     constructor.
 Qed.
 
+Lemma upd_lt {A} i x l : @upd i A x l <> None <-> lt i (length l).
+Proof.
+  revert i; induction l; intros i.
+  - split.
+    + destruct i; tauto.
+    + inversion 1.
+  - destruct i.
+    + simpl; split.
+      * auto with *.
+      * congruence.
+    + specialize (IHl i).
+      transitivity (lt i (length l)).
+      * rewrite <- IHl; clear IHl.
+        simpl. destruct (upd i x l); split; congruence.
+      * simpl; split; omega.
+Qed.
+
+Lemma upd_app_Some {A} i x (l1 l1' l2 : list A) :
+  upd i x l1 = Some l1' ->
+  upd i x (l1 ++ l2) = Some (l1' ++ l2).
+Proof.
+  revert i l1'; induction l1; intros i l1'.
+  - destruct i; simpl; congruence.
+  - destruct i; simpl.
+    + injection 1 as <-. reflexivity.
+    + destruct (upd i x l1) eqn:E. 2:congruence.
+      injection 1 as <-.
+      rewrite (IHl1 _ _ E).
+      reflexivity.
+Qed.
+
+Lemma upd_app_None {A} i x (l1 l2 : list A) :
+  upd i x l1 = None ->
+  upd i x (l1 ++ l2) =
+  option_map (app l1) (upd (i - length l1) x l2).
+Proof.
+Admitted.
+
+Lemma upd_rev {A} i x (l : list A) :
+  upd i x (rev l) = option_map (@rev A) (upd (length l - 1 - i) x l).
+Proof.
+  revert i; induction l; intros i; auto.
+  - destruct i; auto.
+  - simpl rev; simpl length.
+    replace (S (length l) - 1 - i)%nat with (S (length l - 1 - i)) by admit.
+    simpl.
+    destruct (upd (length l - 1 - i) x l) as [l'|] eqn:E.
+    + specialize (IHl i).
+      rewrite E in IHl.
+Admitted.
+
 Require Import msl.ageable.
 Require Import msl.age_sepalg.
 
@@ -260,54 +311,6 @@ Definition getLocksR tp := listoption_inv (map snd (AMap.elements (lset tp))).
 
 Definition maps tp := (getThreadsR tp ++ getLocksR tp)%list.
 
-Fixpoint atoi n := match n with O => nil | S n => n :: atoi n end.
-
-Lemma iota_spec n : seq.iota 0 n = seq.rev (atoi n).
-Proof.
-  induction n. reflexivity.
-  simpl.
-Admitted.
-
-(* ridiculously large proofs about simple things *)
-Lemma length_ord_enum n : seq.size (fintype.ord_enum n) = n.
-Proof.
-  unfold fintype.ord_enum in *.
-  rewrite iota_spec.
-  rewrite seq.size_pmap.
-  match goal with |- _ ?P ?L = _ => assert (len : seq.size L = n) end.
-  { rewrite seq.size_rev. induction n; simpl; auto. }
-  match goal with |- _ ?P ?L = _ => pose (p := P); assert (A : seq.all p L = true) end.
-  { rewrite seq.all_rev. clear len.
-    cut (forall m, le m n -> seq.all p (atoi m) = true). intuition.
-    intros m; induction m; intros le. auto.
-    simpl. rewrite IHm. 2:omega.
-    cut (p m = true). intros ->; auto.
-    unfold p. clear -le.
-    destruct (eqtype.insub m) eqn:E. reflexivity.
-    cut (n < S m). omega.
-    unfold eqtype.insub in *.
-    destruct ssrbool.idP . discriminate. clear E le.    
-    destruct (ssrnat.leq (S m) n) eqn:F. destruct n0. reflexivity.
-    pose proof @ssrnat.ltP m n.
-    inversion H. congruence.
-    omega.
-  }
-  fold p.
-  rewrite <-len at 2. clear len.
-  revert A. generalize (seq.rev (atoi n)).
-  intros l A.
-  pose proof seq.all_count p l as C.
-  rewrite A in C; symmetry in C.
-  rewrite <-ssrnat.eqnE in C.
-  clear -C.
-  match goal with
-    |- ?a = ?b => revert C; generalize b; generalize a
-  end; intros x y.
-  pose proof @ssrnat.eqnP x y.
-  intros E; rewrite E in H.
-  inversion H; auto.
-Qed.
-
 Lemma all_but_maps i tp (cnti : containsThread tp i) :
   all_but i (maps tp) = all_but i (getThreadsR tp) ++ getLocksR tp.
 Proof.
@@ -319,7 +322,7 @@ Proof.
   simpl in *.
   rewrite map_length.
   clear -cnti.
-  rewrite length_ord_enum.
+  rewrite length_enum.
   pose proof @ssrnat.ltP i n.
   rewrite cnti in H.
   inversion H; auto.
@@ -437,26 +440,96 @@ Proof.
   destruct (f a); rewrite IHl; reflexivity.
 Qed.
 
-Lemma nth_error_fintype i n :
-  forall pr : is_true (ssrnat.leq (S i) n),
-  nth_error (fintype.ord_enum n) i =
-  Some (fintype.Ordinal (n:=n) (m:=i) pr).
+(* Lemma nth_error_fintype i n : *)
+(*   forall pr : is_true (ssrnat.leq (S i) n), *)
+(*   nth_error (fintype.ord_enum n) i = *)
+(*   Some (fintype.Ordinal (n:=n) (m:=i) pr). *)
+(* Proof. *)
+(*   intros. *)
+(*   unfold fintype.ord_enum in *. *)
+(*   transitivity (@eqtype.insub nat (fun x : nat => ssrnat.leq (S x) n) (fintype.ordinal_subType n) i). *)
+(*   - assert (lt i n). *)
+(*     { pose proof @ssrnat.ltP i n. rewrite pr in H. inversion H; auto. } *)
+(*     assert (E : n = S i + (n - S i)) by omega. *)
+(*     set (k := n - S i). fold k in E. clearbody k. *)
+(*     subst n. clear H. *)
+(*     (* ? *) *)
+(*     admit. *)
+(*   - unfold eqtype.insub in *. *)
+(*     destruct ssrbool.idP; try tauto. *)
+(*     unfold eqtype.Sub, fintype.ordinal_subType. *)
+(*     repeat f_equal; apply proof_irr. *)
+(* Admitted. *)
+
+
+(* (@enum_from n m Hn) = n-1, n-2, ..., n+1-i *)
+                          
+Lemma minus_plus a b c : a - (b + c) = a - b - c.
 Proof.
-  intros.
-  unfold fintype.ord_enum in *.
-  transitivity (@eqtype.insub nat (fun x : nat => ssrnat.leq (S x) n) (fintype.ordinal_subType n) i).
-  - assert (lt i n).
-    { pose proof @ssrnat.ltP i n. rewrite pr in H. inversion H; auto. }
-    assert (E : n = S i + (n - S i)) by omega.
-    set (k := n - S i). fold k in E. clearbody k.
-    subst n. clear H.
-    (* ? *)
-    admit.
-  - unfold eqtype.insub in *.
-    destruct ssrbool.idP; try tauto.
-    unfold eqtype.Sub, fintype.ordinal_subType.
-    repeat f_equal; apply proof_irr.
-Admitted.
+  omega.
+Qed.
+
+Lemma nth_error_enum_from n m i Hn Hi :
+  i < n ->
+  nth_error (@enum_from n m Hn) i = Some (@fintype.Ordinal m (n - 1 - i) Hi).
+Proof.
+  revert i Hi;  induction n; intros i Hi Hin.
+  - simpl. inv Hin.
+  - destruct i.
+    + f_equal.
+      simpl minus in *.
+      revert Hi.
+      rewrite <-minus_n_O in *.
+      rewrite <-minus_n_O in *.
+      intros Hi.
+      simpl.
+      f_equal.
+      f_equal.
+      apply proof_irr.
+    + simpl minus in *.
+      revert Hi.
+      rewrite <-minus_n_O in *.
+      intros Hi.
+      simpl.
+      unshelve erewrite IHn.
+      * exact_eq Hi.
+        f_equal.
+        f_equal.
+        f_equal.
+        rewrite <-minus_plus.
+        reflexivity.
+      * f_equal.
+        rewrite <-minus_plus.
+        reflexivity.
+      * omega.
+Qed.
+
+Lemma nth_error_enum n i pr :
+  nth_error (enum n) i = Some (@fintype.Ordinal n i pr).
+Proof.
+  unfold enum.
+  rewrite initial_world.nth_error_rev; swap 1 2.
+  - rewrite length_enum_from.
+    apply (ssrbool.elimT ssrnat.leP pr).
+  - rewrite length_enum_from.
+    unshelve erewrite nth_error_enum_from.
+    + pose proof pr as H.
+      exact_eq H. do 2 f_equal.
+      pose proof (ssrbool.elimT ssrnat.leP pr).
+      omega.
+    + match goal with
+        |- Some (fintype.Ordinal (n:=n) (m:=n - 1 - (n - i - 1)) ?H) = _ =>
+        generalize H
+      end.
+      pose proof (ssrbool.elimT ssrnat.leP pr).
+      assert (R : n - 1 - (n - i - 1) = i) by omega.
+      rewrite R in *.
+      intros pr'.
+      do 2 f_equal.
+      apply proof_irr.
+    + pose proof (ssrbool.elimT ssrnat.leP pr).
+      omega.
+Qed.
 
 Lemma getThreadR_nth i tp cnti :
   nth_error (getThreadsR tp) i = Some (@getThreadR i tp cnti).
@@ -472,7 +545,7 @@ Proof.
   unfold containsThread in *.
   revert cnti.
   destruct tp as [n]; simpl. clear.
-  apply nth_error_fintype.
+  apply nth_error_enum.
 Qed.
 
 Lemma getThreadsR_but i tp cnti :
@@ -493,8 +566,44 @@ Proof.
   unfold updThreadR, getThreadsR.
   simpl.
   unfold containsThread in *.
-  destruct tp as [[n] thds phis]; simpl in *.
-  (* ?  why redundancy *)
+  destruct tp as [[n] thds phis lset]; simpl in *.
+  unfold LocksAndResources.res in *.
+  unfold enum.
+  clear thds lset.
+  rewrite map_rev.
+  rewrite map_rev.
+  rewrite upd_rev.
+  match goal with
+    |- _ = Some (?a ?x) =>
+    change (Some (a x)) with (option_map a (Some x))
+  end.
+  f_equal.
+  rewrite map_length.
+  rewrite length_enum_from.
+  Set Printing Implicit.
+  generalize (Nat.le_refl n) as pr.
+  rename n into m.
+  assert (Ei : i = (m - 1 - (m - 1 - i))). {
+    pose proof (ssrbool.elimT ssrnat.leP cnti).
+    unfold tid in *.
+    omega.
+  }
+  assert (cnti' : is_true (ssrnat.leq (S (m - 1 - (m - 1 - i))) m))
+    by congruence.
+  replace (@fintype.Ordinal m i cnti)
+  with (@fintype.Ordinal m (m - 1 - (m - 1 - i)) cnti')
+    by (revert cnti'; rewrite <-Ei; intros; f_equal; apply proof_irr).
+  clear cnti Ei. revert cnti'.
+  generalize (m - 1 - i); clear i; intros i.
+  generalize m at 1 3 6 12 13; intros n.
+  induction n; intros cnti Hnm.
+  Unset Printing Implicit.
+  
+  (* containsThread / fintype / default implicit arguments:
+    serious waste of time & burden of the output *)
+  
+  (* It feels like the next step is writing getThreadsR (updThreadR)
+  in terms of upd, but this is already what we're doing. pff *)
 Admitted.
 
 Lemma updThread_but i tp cnti c phi :
@@ -678,4 +787,3 @@ Lemma maps_remLockSet_updThread i tp addr cnti c phi :
 Proof.
   reflexivity.
 Qed.
-
