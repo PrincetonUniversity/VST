@@ -960,6 +960,7 @@ Module Parching <: ErasureSig.
                   Hadd_lock_res.
 
               inversion MATCH. erewrite <- mtch_perm.
+              instantiate(1:=Hi). (*Why am I needing this now. It wasn't the case before! *)
               rewrite (perm_inRangeOfLock _ _ _ _ _ _ _ _ HJcanwrite).
               exists (Some Writable); reflexivity.
               assumption.
@@ -982,6 +983,7 @@ Module Parching <: ErasureSig.
               apply (resource_at_join _ _ _ (b, ofs0)) in 
                   Hadd_lock_res.
               inversion MATCH. erewrite <- mtch_perm.
+              instantiate(1:=Hi).
               rewrite (perm_inRangeOfLock _ _ _ _ _ _ _ _ HJcanwrite).
               exists (Some Writable); reflexivity.
               assumption.
@@ -2949,8 +2951,6 @@ Module Parching <: ErasureSig.
         }
     }
     Grab Existential Variables.
-    assumption.
-    assumption.
     assumption.
     assumption.
   Qed.
