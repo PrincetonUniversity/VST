@@ -972,7 +972,8 @@ Proof.
         (contents_with_add additional (Zlength contents) contents))).
      unfold hmac256drbgabs_reseed in Heqh. rewrite <- HeqReseed in Heqh.
      destruct Reseed.
-     Focus 2. destruct e; try inv H9; elim H9; trivial. clear H9.
+     Focus 2. destruct e; try solve [inv H9]. 
+              destruct ENT_GenErrAx as [X _]. elim X; trivial. 
      destruct d as [[[[RSVal RSKey] aa] bb] cc].
      unfold (*hmac256drbgabs_reseed, *)postReseedCtx, postReseedKey, postReseedStream.
      subst initial_state_abs; rewrite <- HeqReseed. simpl. simpl in Heqh. subst h. 
