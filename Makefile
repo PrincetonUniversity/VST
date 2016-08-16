@@ -276,7 +276,7 @@ HMACDRBG_FILES = \
   HMAC_DRBG_common_lemmas.v  HMAC_DRBG_pure_lemmas.v \
   verif_hmac_drbg_update.v verif_hmac_drbg_reseed.v \
   verif_hmac_drbg_generate.v verif_hmac_drbg_seed_buf.v verif_mocked_md.v \
-  verif_hmac_drbg_seed.v verif_hmac_drbg_NISTseed.v
+  verif_hmac_drbg_seed.v verif_hmac_drbg_NISTseed.v verif_hmac_drbg_other.v
 
 # DRBG_Files = \
 #  hmac_drbg.v HMAC256_DRBG_functional_prog.v hmac_drbg_compspecs.v \

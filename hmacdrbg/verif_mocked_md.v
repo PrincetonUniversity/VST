@@ -31,30 +31,6 @@ Proof.
   apply H0. assumption. entailer!. entailer.
 Qed.*)
 
-Lemma FULL_isptr k q:
-  UNDER_SPEC.FULL k q = !!isptr q && UNDER_SPEC.FULL k q.
-Proof.
-unfold UNDER_SPEC.FULL. apply pred_ext; normalize.
-+ Exists h. entailer.
-  unfold spec_hmac.hmacstate_PreInitNull; normalize.
-  rewrite data_at_isptr. normalize. 
-+ Exists h. normalize.
-Qed.
-
-Lemma EMPTY_isptr q:
-  UNDER_SPEC.EMPTY q = !!isptr q && UNDER_SPEC.EMPTY q.
-Proof.
-unfold UNDER_SPEC.EMPTY. apply pred_ext; normalize.
-rewrite data_at__isptr. normalize. 
-Qed.
-
-Lemma REP_isptr abs q:
-  UNDER_SPEC.REP abs q = !!isptr q && UNDER_SPEC.REP abs q.
-Proof.
-unfold UNDER_SPEC.REP. apply pred_ext; normalize.
-+ Exists r. rewrite data_at_isptr with (p:=q). normalize.
-+ Exists r. normalize.
-Qed. 
 (*
 Lemma body_md_start: semax_body HmacDrbgVarSpecs (malloc_spec::HmacDrbgFunSpecs)
        f_mbedtls_md_hmac_starts md_starts_spec.
