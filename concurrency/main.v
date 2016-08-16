@@ -26,10 +26,10 @@ Require Import veric.juicy_extspec.
 Require Import veric.tycontext.
 Require Import veric.semax_ext.
 Require Import veric.semax_ext_oracle.
+Require Import veric.coqlib4.
 Require Import sepcomp.semantics.
 Require Import sepcomp.step_lemmas.
 Require Import sepcomp.event_semantics.
-Require Import concurrency.coqlib5.
 Require Import concurrency.semax_conc.
 Require Import concurrency.juicy_machine.
 Require Import concurrency.concurrent_machine.
