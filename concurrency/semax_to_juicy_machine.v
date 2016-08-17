@@ -858,6 +858,76 @@ Proof.
   apply safe_downward1.
 Qed.
 
+Lemma mem_cohere'_store m tp m' b ofs i Phi :
+  forall Hcmpt : mem_compatible tp m,
+    lockRes tp (b, Int.intval ofs) <> None ->
+    Mem.store
+      Mint32 (restrPermMap (mem_compatible_locks_ltwritable Hcmpt))
+      b (Int.intval ofs) (Vint i) = Some m' ->
+    mem_compatible_with tp m Phi (* redundant with Hcmpt, but easier *) ->
+    mem_cohere' m' Phi.
+Proof.
+  intros Hcmpt lock Hstore compat.
+  pose proof store_outside' _ _ _ _ _ _ Hstore as SO.
+  destruct compat as [J MC LW JL LJ].
+  destruct MC as [Co Ac Ma N].
+  split.
+  - intros sh sh' v (b', ofs') pp E.
+    specialize (Co sh sh' v (b', ofs') pp E).
+    destruct Co as [<- ->]. split; auto.
+    destruct SO as (Co1 & A1 & N1).
+    specialize (Co1 b' ofs').
+    destruct Co1 as [In|Out].
+    + exfalso (* because there is no lock at (b', ofs') *).
+      specialize (LJ (b, Int.intval ofs)).
+      unfold lockRes in *.
+      unfold LocksAndResources.lock_info in *.
+      destruct (AMap.find (elt:=option rmap) (b, Int.intval ofs) (lockGuts tp)).
+      2:tauto.
+      autospec LJ.
+      destruct LJ as (sh1 & sh1' & pp & EPhi).
+      destruct In as (<-, In).
+      destruct (eq_dec ofs' (Int.intval ofs)).
+      * subst ofs'.
+        congruence.
+      * pose (ii := (ofs' - Int.intval ofs)%Z).
+        assert (Hii : (0 < ii < LKSIZE)%Z).
+        { unfold ii; split. omega.
+          unfold LKSIZE, LKCHUNK, align_chunk, size_chunk in *.
+          omega. }
+        pose proof rmap_valid_e1 Phi b (Int.intval ofs) _ _ Hii sh1' as H.
+        assert_specialize H.
+        { rewrite EPhi. reflexivity. }
+        replace (Int.intval ofs + ii)%Z with ofs' in H by (unfold ii; omega).
+        rewrite E in H. simpl in H. congruence.
+        
+    + rewrite <-Out.
+      rewrite restrPermMap_contents.
+      auto.
+      
+  - intros loc.
+    replace (max_access_at m' loc)
+    with (max_access_at
+            (restrPermMap (mem_compatible_locks_ltwritable Hcmpt)) loc)
+    ; swap 1 2.
+    { unfold max_access_at in *.
+      destruct SO as (_ & -> & _). reflexivity. }
+    clear SO.
+    rewrite restrPermMap_max.
+    apply Ac.
+    
+  - cut (max_access_cohere (restrPermMap (mem_compatible_locks_ltwritable Hcmpt)) Phi).
+    { unfold max_access_cohere in *.
+      unfold max_access_at in *.
+      destruct SO as (_ & <- & <-). auto. }
+    intros loc; specialize (Ma loc).
+    rewrite restrPermMap_max. auto.
+
+  - unfold alloc_cohere in *.
+    destruct SO as (_ & _ & <-). auto.
+Qed.
+
+
 Section Simulation.
   Variables
     (CS : compspecs)
@@ -2040,8 +2110,6 @@ Section Simulation.
           rewrite jam_true in lk; swap 1 2.
           { hnf. unfold lock_size in *; split; auto; omega. }
           rewrite jam_true in lk; swap 1 2. now auto.
-          assert (level Phi = S n).
-          { (* will be added to the invariant *) admit. }
           destruct sat as [sat | sat]; [ | omega ].
           
           (* destruct isl' as [sh' [psh' [z' Eat]]]. *)
@@ -2600,7 +2668,11 @@ Section Simulation.
           
           - (* mem_cohere' *)
             destruct compat as [J MC].
-            admit.
+            clear safety lock_coh jmstep.
+            eapply mem_cohere'_store.
+            + rewrite His_unlocked. congruence.
+            + eauto.
+            + constructor; auto.
           
           - (* lockSet_Writable *)
             admit.

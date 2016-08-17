@@ -423,5 +423,3 @@ Section Safety.
   Qed.
   
 End Safety.
-
-Print Assumptions konigsafe.
