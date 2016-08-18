@@ -20,19 +20,7 @@ Proof.
   forward.
 Qed.
 
-(*replaced by reference to (new) lemmas FULL_isptr and REP_isptr
-Lemma derive_helper4: forall A B C D P, A  |-- !!P -> (A * B * C * D) |-- !!P.
-Proof.
-  intros.
-  specialize (saturate_aux20 A (B * C * D) P True).
-  intros.
-  eapply derives_trans with (Q:=!!(P /\ True)).
-  do 2 rewrite <- sepcon_assoc in H0.
-  apply H0. assumption. entailer!. entailer.
-Qed.*)
-
-(*
-Lemma body_md_start: semax_body HmacDrbgVarSpecs (malloc_spec::HmacDrbgFunSpecs)
+Lemma body_md_start: semax_body HmacDrbgVarSpecs (HmacDrbgFunSpecs)
        f_mbedtls_md_hmac_starts md_starts_spec.
 Proof.
   start_function. 
@@ -43,7 +31,8 @@ Proof.
   forward. 
 
   rewrite INITNAME, CTX_Struct.
-Check (r3, l, key, kv, b, i).
+forward_call (r3, l, key, kv).
+Admitted. (*Probem: have two specs for hmac_init in context - for different scenarios!
 Locate f_mbedtls_md_hmac_starts.
 unfold UNDER_SPEC.EMPTY.
 assert ().
@@ -165,13 +154,14 @@ Proof.
  
   forward_if (PROP () LOCAL (temp _sha_ctx vret; temp _md_info info; 
    temp _ctx c; temp _hmac h) 
-      SEP (!!(*field_compatible spec_hmac.t_struct_hmac_ctx_st [] vret*)
-              malloc_compatible (sizeof (Tstruct _hmac_ctx_st noattr)) vret &&
+      SEP (!!malloc_compatible (sizeof (Tstruct _hmac_ctx_st noattr)) vret &&
            memory_block Tsh (sizeof (Tstruct _hmac_ctx_st noattr)) vret;
+           FreeBLK (sizeof (Tstruct _hmac_ctx_st noattr)) vret *
            data_at Tsh (Tstruct _mbedtls_md_context_t noattr) md_ctx c)).
   { destruct (Memory.EqDec_val vret nullval).
     + subst vret; entailer!.
     + normalize. eapply derives_trans; try apply valid_pointer_weak.
+      apply sepcon_valid_pointer1.
       apply sepcon_valid_pointer1.
       apply memory_block_valid_ptr. apply top_share_nonidentity. omega.
       entailer!. 
@@ -186,5 +176,5 @@ Proof.
   rewrite memory_block_isptr. Intros.
   unfold_data_at 1%nat.
   forward. forward. Exists 0. simpl. entailer!. 
-  Exists vret. unfold_data_at 1%nat. entailer!. admit. (*needs insertion of field assignment in code*) 
-Admitted.
+  Exists vret. unfold_data_at 1%nat. entailer!. 
+Admitted. (*needs insertion of field assignment in code*) 

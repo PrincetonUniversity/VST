@@ -262,7 +262,7 @@ Definition hmac_drbg_seed_spec :=
             then data_at Tsh t_struct_hmac256drbg_context_st Ctx ctx *
                  preseed_relate dp rc pr_flag ri Ctx * Stream s
             else md_empty (fst Ctx) * 
-                 EX p:val, 
+                 EX p:val, FreeBLK (sizeof (Tstruct _hmac_ctx_st noattr)) p *
                  match (fst Ctx) with (M1, (M2, M3)) =>
                    if (zlt 256 (Zlength Data) || (zlt 384 (48 + Zlength Data)))%bool
                    then !!(ret_value = Int.repr (-5)) && 
@@ -321,8 +321,9 @@ Proof.
    LOCAL (temp _ret (Vint (Int.repr v)); temp 235%positive (Vint (Int.repr v));
    temp _ctx (Vptr b i); temp _md_info info; temp _len (Vint (Int.repr len));
    temp _custom data; gvar sha._K256 kv)
-   SEP ( (EX p : val, !!(*field_compatible spec_hmac.t_struct_hmac_ctx_st [] p*)
-                        malloc_compatible (sizeof (Tstruct _hmac_ctx_st noattr))p && memory_block Tsh (sizeof (Tstruct _hmac_ctx_st noattr)) p *
+   SEP ( (EX p : val, !!malloc_compatible (sizeof (Tstruct _hmac_ctx_st noattr)) p && 
+          memory_block Tsh (sizeof (Tstruct _hmac_ctx_st noattr)) p * 
+          FreeBLK (sizeof (Tstruct _hmac_ctx_st noattr)) p *
           data_at Tsh (Tstruct _mbedtls_md_context_t noattr) (info,(M2,p)) (Vptr b i));
          FRZL FR0)).
   { destruct Hv; try omega. rewrite if_false; trivial. clear H. subst v.
@@ -344,11 +345,11 @@ Proof.
   thaw FR0. subst.
   assert (ZL_VV: Zlength initial_key =32) by reflexivity.
   thaw FIELDS. 
-  freeze [3;4;5;6] FIELDS1.
+  freeze [4;5;6;7] FIELDS1.
   rewrite field_at_compatible'. Intros. rename H into FC_V.
   rewrite field_at_data_at. unfold field_address. simpl. rewrite if_true; trivial.
   rewrite <- ZL_VV.
-  freeze [0;4;5;6;8] FR2.
+  freeze [0;2;5;6;7;9] FR2.
   replace_SEP 1 (UNDER_SPEC.EMPTY p).
   { entailer. apply protocol_spec_hmac.OPENSSL_HMAC_ABSTRACT_SPEC.mkEmpty.
     clear - Pp MCp. destruct p; try contradiction. destruct MCp.
@@ -378,7 +379,7 @@ Proof.
   thaw FR3. thaw FR2. unfold md_relate. simpl.
   thaw FIELDS1. forward.
   freeze [0;4;5;6;7] FIELDS2.
-  freeze [0;1;2;3;4;5;6;7;8] ALLSEP.
+  freeze [0;1;2;3;4;5;6;7;8;9] ALLSEP.
 
   forward_if 
   (PROP ( )
@@ -422,7 +423,7 @@ Proof.
   destruct myST as [ST HST].
 
   freeze [0;1;2;3;4] FR_CTX.
-  freeze [3;5;6;7] KVStreamInfoData.
+  freeze [3;4;6;7;8] KVStreamInfoDataFreeBlk.
 
   (*NEXT INSTRUCTION: mbedtls_hmac_drbg_reseed( ctx, custom, len ) *)
   freeze [1;2;3] INI. 
@@ -430,7 +431,7 @@ Proof.
   replace_SEP 0 (
          data_at Tsh t_struct_hmac256drbg_context_st ST (Vptr b i) *
          hmac256drbg_relate myABS ST).
-  { go_lower. thaw INI. clear KVStreamInfoData. thaw FR_CTX.
+  { go_lower. thaw INI. clear KVStreamInfoDataFreeBlk. thaw FR_CTX.
     unfold_data_at 3%nat.
     subst ST; simpl. cancel. normalize.
     apply andp_right. apply prop_right. repeat split; trivial. apply IB1. split; omega. 
@@ -444,7 +445,7 @@ Proof.
   }
 
   clear INI.
-  thaw KVStreamInfoData. freeze [6] OLD_MD. 
+  thaw KVStreamInfoDataFreeBlk. freeze [3;7] OLD_MD. 
   forward_call (Data, data, Zlength Data, Vptr b i, ST, myABS, kv, Info, s).
   { unfold hmac256drbgstate_md_info_pointer.
     subst ST; simpl. cancel.
@@ -530,15 +531,15 @@ Proof.
   clear H.
   destruct d as [[[[newV newK] newRC] dd] newPR].
   unfold hmac256drbgabs_common_mpreds. simpl. subst ST. unfold hmac256drbgstate_md_info_pointer. simpl. Intros. 
-  unfold_data_at 1%nat. freeze [0;1;2;4;5;6;7;8;9;10;11] XX.
+  unfold_data_at 1%nat. freeze [0;1;2;4;5;6;7;8;9;10;11;12] ALLSEP.
   forward. forward.
   Exists Int.zero. simpl.
   apply andp_right. apply prop_right; trivial.
   apply andp_right. apply prop_right; split; trivial.
   symmetry in Heqd. apply orb_false_iff in Heqd. destruct Heqd as [Heqd1 Heqd2].
   destruct (zlt 256 (Zlength Data)); try discriminate. simpl in *. rewrite Heqd2.
-  thaw XX. thaw OLD_MD. cancel.
-  Exists p. normalize.
+  thaw ALLSEP. thaw OLD_MD. Exists p. cancel.
+  normalize.
   assert (ZLc'256F: Zlength (contents_with_add data (Zlength Data) Data) >? 256 = false).
       { destruct ZLc' as [HH | HH]; rewrite HH. reflexivity.
         apply Zgt_is_gt_bool_f. omega. } 

@@ -64,6 +64,20 @@ unfold UNDER_SPEC.REP. apply pred_ext; normalize.
 + Exists r. normalize.
 Qed. 
 
+Parameter FreeBLK : Z -> val -> mpred.
+Definition malloc_spec :=
+  DECLARE _malloc
+   WITH n:Z
+   PRE [ 1%positive OF tuint ]
+       PROP (0 <= n <= Int.max_unsigned)
+       LOCAL (temp 1%positive (Vint (Int.repr n)))
+       SEP ()
+    POST [ tptr tvoid ] EX p:_,
+       PROP ()
+       LOCAL (temp ret_temp p)
+       SEP (if eq_dec p nullval then emp 
+            else (!!malloc_compatible n p && (memory_block Tsh n p * FreeBLK n p))).
+
 
 (*
 Definition md_get_size_SPEC :=
@@ -217,9 +231,11 @@ Definition md_setup_spec :=
           PROP (r=0 \/ r=-20864) 
           LOCAL (temp ret_temp (Vint (Int.repr r)))
           SEP( 
-              if zeq r 0 then (EX p:_, !!(*field_compatible spec_hmac.t_struct_hmac_ctx_st [] p*)malloc_compatible (sizeof (Tstruct _hmac_ctx_st noattr)) p && memory_block Tsh (sizeof (Tstruct _hmac_ctx_st noattr)) p *
-                                    data_at Tsh (Tstruct _mbedtls_md_context_t noattr)
-                                      ((*fst md_ctx*)info, (fst(snd md_ctx), p)) c)
+              if zeq r 0
+              then (EX p:_, !!malloc_compatible (sizeof (Tstruct _hmac_ctx_st noattr)) p && 
+                              memory_block Tsh (sizeof (Tstruct _hmac_ctx_st noattr)) p *
+                              FreeBLK (sizeof (Tstruct _hmac_ctx_st noattr)) p *
+                              data_at Tsh (Tstruct _mbedtls_md_context_t noattr) (info, (fst(snd md_ctx), p)) c)
               else data_at Tsh (Tstruct _mbedtls_md_context_t noattr) md_ctx c).
 (* end mocked_md *)
 
@@ -1023,31 +1039,6 @@ Definition drbg_memset_spec :=
 Definition drbg_memset_spec := (_memset, snd spec_sha.memset_spec). 
 Definition drbg_memcpy_spec := (_memcpy, snd spec_sha.memcpy_spec). 
 *)
-(*
-Definition malloc_spec :=
-  DECLARE _malloc
-   WITH n:Z
-   PRE [ 1%positive OF tuint ]
-       PROP (0 <= n <= Int.max_unsigned)
-       LOCAL (temp 1%positive (Vint (Int.repr n)))
-       SEP ()
-    POST [ tptr tvoid ] EX p:_,
-       PROP ()
-       LOCAL (temp ret_temp p)
-       SEP (if eq_dec p nullval then emp 
-            else (!!field_compatible spec_hmac.t_struct_hmac_ctx_st [] p && memory_block Tsh n p)).*)
-Definition malloc_spec :=
-  DECLARE _malloc
-   WITH n:Z
-   PRE [ 1%positive OF tuint ]
-       PROP (0 <= n <= Int.max_unsigned)
-       LOCAL (temp 1%positive (Vint (Int.repr n)))
-       SEP ()
-    POST [ tptr tvoid ] EX p:_,
-       PROP ()
-       LOCAL (temp ret_temp p)
-       SEP (if eq_dec p nullval then emp 
-            else (!!malloc_compatible n p && memory_block Tsh n p)).
 
 Definition HmacDrbgFunSpecs : funspecs := 
   md_free_spec ::hmac_drbg_free_spec::md_free_spec::mbedtls_zeroize_spec::

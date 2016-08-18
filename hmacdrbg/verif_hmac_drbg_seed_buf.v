@@ -60,7 +60,7 @@ Definition hmac_drbg_seed_buf_spec :=
                               HMAC256DRBGabs key V RC EL PR RI 
                          => EX KEY:list Z, EX VAL:list Z, EX p:val,
                           !!(HMAC256_DRBG_update (contents_with_add data d_len Data) V (list_repeat 32 1) = (KEY, VAL))
-                             && md_full key mds *
+                             && md_full key mds * FreeBLK (sizeof (Tstruct _hmac_ctx_st noattr)) p *
                                 data_at Tsh t_struct_hmac256drbg_context_st ((info, (fst(snd mds), p)), (map Vint (map Int.repr VAL), (RC', (EL', (PR', RI'))))) ctx *
                                 hmac256drbg_relate (HMAC256DRBGabs KEY VAL RC EL PR RI) ((info, (fst(snd mds), p)), (map Vint (map Int.repr VAL), (RC', (EL', (PR', RI'))))) 
                         end))
@@ -91,9 +91,11 @@ Proof.
    LOCAL (temp _ret (Vint (Int.repr v)); temp 228%positive (Vint (Int.repr v)); 
    temp _ctx (Vptr b i); temp _md_info info; temp _data_len (Vint (Int.repr d_len)); 
    temp _data data; gvar sha._K256 kv)
-   SEP ( (EX p : val, !!malloc_compatible (sizeof (Tstruct _hmac_ctx_st noattr))p && memory_block Tsh (sizeof (Tstruct _hmac_ctx_st noattr)) p *
-          data_at Tsh (Tstruct _mbedtls_md_context_t noattr) (info,(M2,p)) (Vptr b i));
-         FRZL FR0)).
+   SEP ( (EX p : val, !!malloc_compatible (sizeof (Tstruct _hmac_ctx_st noattr))p && 
+            memory_block Tsh (sizeof (Tstruct _hmac_ctx_st noattr)) p *
+            FreeBLK (sizeof (Tstruct _hmac_ctx_st noattr)) p *
+            data_at Tsh (Tstruct _mbedtls_md_context_t noattr) (info,(M2,p)) (Vptr b i));
+            FRZL FR0)).
   { destruct Hv; try omega. rewrite if_false; trivial.
     forward. Exists (Vint (Int.repr (-20864))). 
     entailer!. thaw FR0. cancel. apply orp_right1. cancel.
@@ -107,14 +109,12 @@ Proof.
   forward_call tt.
  
   thaw FR0. unfold hmac256drbg_relate. destruct CTX. normalize.
-  thaw FIELDS. (*
-  assert_PROP (@field_compatible spec_hmac.CompSpecs spec_hmac.t_struct_hmac_ctx_st [] p).
-  { clear FC_P.*)
-  freeze [3;4;5;6] FIELDS1.
+  thaw FIELDS. 
+  freeze [4;5;6;7] FIELDS1.
   rewrite field_at_compatible'. Intros. rename H1 into FC_V.
   rewrite field_at_data_at. unfold field_address. simpl. rewrite if_true; trivial.
   rewrite <- H.
-  freeze [0;4;5;6] FR2.
+  freeze [0;2;5;6;7] FR2.
   replace_SEP 1 (UNDER_SPEC.EMPTY p).
   { entailer. apply protocol_spec_hmac.OPENSSL_HMAC_ABSTRACT_SPEC.mkEmpty.
     clear - Pp MCp. destruct p; try contradiction. destruct MCp.
@@ -144,7 +144,7 @@ Proof.
   } 
 
   thaw FR3. thaw FR2. unfold md_relate. simpl.
-  freeze [1;3;5;6;7] OTHER.
+  freeze [1;3;5;6;7;8] OTHER.
   freeze [1;2;3] INI.
 
   assert (exists xx:reptype t_struct_hmac256drbg_context_st, xx =
@@ -234,7 +234,7 @@ Definition hmac_drbg_seed_buf_spec2 :=
                               HMAC256DRBGabs key V RC EL PR RI 
                          => EX KEY:list Z, EX VAL:list Z, EX p:val,
                           !!(HMAC256_DRBG_update (contents_with_add data d_len Data) V (list_repeat 32 1) = (KEY, VAL))
-                             && md_full key mds *
+                             && md_full key mds * FreeBLK (sizeof (Tstruct _hmac_ctx_st noattr)) p *
                                 data_at Tsh t_struct_hmac256drbg_context_st ((info, (fst(snd mds), p)), (map Vint (map Int.repr VAL), (RC', (EL', (PR', RI'))))) ctx *
                                 hmac256drbg_relate (HMAC256DRBGabs KEY VAL RC EL PR RI) ((info, (fst(snd mds), p)), (map Vint (map Int.repr VAL), (RC', (EL', (PR', RI'))))) * 
                                data_at Tsh t_struct_mbedtls_md_info Info info *
@@ -268,7 +268,9 @@ Proof.
    LOCAL (temp _ret (Vint (Int.repr v)); temp 228%positive (Vint (Int.repr v)); 
    temp _ctx (Vptr b i); temp _md_info info; temp _data_len (Vint (Int.repr d_len)); 
    temp _data data; gvar sha._K256 kv)
-   SEP ( (EX p : val, !!malloc_compatible (sizeof (Tstruct _hmac_ctx_st noattr))p && memory_block Tsh (sizeof (Tstruct _hmac_ctx_st noattr)) p *
+   SEP ( (EX p : val, !!malloc_compatible (sizeof (Tstruct _hmac_ctx_st noattr))p &&
+            memory_block Tsh (sizeof (Tstruct _hmac_ctx_st noattr)) p *
+            FreeBLK (sizeof (Tstruct _hmac_ctx_st noattr)) p *
           data_at Tsh (Tstruct _mbedtls_md_context_t noattr) (info,(M2,p)) (Vptr b i));
          FRZL FR0)).
   { destruct Hv; try omega. rewrite if_false; trivial.
@@ -285,11 +287,11 @@ Proof.
  
   thaw FR0. unfold hmac256drbg_relate. destruct CTX. normalize.
   thaw FIELDS.
-  freeze [3;4;5;6] FIELDS1.
+  freeze [4;5;6;7] FIELDS1.
   rewrite field_at_compatible'. Intros. rename H1 into FC_V.
   rewrite field_at_data_at. unfold field_address. simpl. rewrite if_true; trivial.
   rewrite <- H.
-  freeze [0;4;5;6] FR2.
+  freeze [0;2;5;6;7] FR2.
   replace_SEP 1 (UNDER_SPEC.EMPTY p).
   { entailer. apply protocol_spec_hmac.OPENSSL_HMAC_ABSTRACT_SPEC.mkEmpty.
     clear - Pp MCp. destruct p; try contradiction. destruct MCp.
@@ -319,7 +321,7 @@ Proof.
   } 
 
   thaw FR3. thaw FR2. unfold md_relate. simpl.
-  freeze [1;3;5;6;7] OTHER.
+  freeze [1;3;5;6;7;8] OTHER.
   freeze [1;2;3] INI.
 
   assert (exists xx:reptype t_struct_hmac256drbg_context_st, xx =
@@ -363,8 +365,8 @@ Proof.
   apply orp_right2.
   unfold hmac256drbgabs_common_mpreds. 
   remember(HMAC256_DRBG_update (contents_with_add data d_len Data) V0
-             [1; 1; 1; 1; 1; 1; 1; 1; 1; 1; 1; 1; 1; 1; 1; 1; 1; 1; 1; 1; 1; 1;
-             1; 1; 1; 1; 1; 1; 1; 1; 1; 1]) as HH.
+    [1; 1; 1; 1; 1; 1; 1; 1; 1; 1; 1; 1; 1; 1; 1; 1; 1; 1; 1; 1; 1; 1; 1; 1;
+     1; 1; 1; 1; 1; 1; 1; 1]) as HH.
   destruct HH as [KEY VALUE]. simpl. normalize.
   Exists KEY. 
   apply andp_right. apply prop_right. intros N. inv N.
