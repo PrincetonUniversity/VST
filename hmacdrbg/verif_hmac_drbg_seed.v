@@ -123,8 +123,6 @@ Definition hmac_drbg_seed_spec :=
 
 Opaque mbedtls_HMAC256_DRBG_reseed_function.
 
-Lemma FALSE: False. Admitted.
-
 Lemma body_hmac_drbg_seed: semax_body HmacDrbgVarSpecs HmacDrbgFunSpecs 
       f_mbedtls_hmac_drbg_seed hmac_drbg_seed_spec. 
 Proof. 
@@ -150,8 +148,8 @@ Proof.
    LOCAL (temp _ret (Vint (Int.repr v)); temp 235%positive (Vint (Int.repr v));
    temp _ctx (Vptr b i); temp _md_info info; temp _len (Vint (Int.repr len));
    temp _custom data; gvar sha._K256 kv)
-   SEP ( (EX p : val, !!field_compatible spec_hmac.t_struct_hmac_ctx_st [] p && memory_block Tsh (sizeof (Tstruct _hmac_ctx_st noattr)) p *
-          data_at Tsh (Tstruct _mbedtls_md_context_t noattr) ((*M1*)info,(M2,p)) (Vptr b i));
+   SEP ( (EX p : val, !!malloc_compatible (sizeof (Tstruct _hmac_ctx_st noattr))p && memory_block Tsh (sizeof (Tstruct _hmac_ctx_st noattr)) p *
+          data_at Tsh (Tstruct _mbedtls_md_context_t noattr) (info,(M2,p)) (Vptr b i));
          FRZL FR0)).
   { destruct Hv; try omega. rewrite if_false; trivial. clear H. subst v.
     forward. simpl. Exists (Int.repr (-20864)). 
@@ -161,7 +159,7 @@ Proof.
     rewrite field_at_data_at. simpl.
     unfold field_address. rewrite if_true; simpl; trivial. rewrite int_add_repr_0_r; trivial. }
   { subst v. clear Hv. simpl. forward. entailer!. }
-  Intros. subst v. clear Hv. Intros p. rename H into FC_P.
+  Intros. subst v. clear Hv. Intros p. rename H into MCp.
 
   (*Alloction / md_setup succeeded. Now get md_size*)
   drop_LOCAL 0%nat.
@@ -178,9 +176,13 @@ Proof.
   rewrite <- ZL_VV.
   freeze [0;4;5;6;8] FR2.
   replace_SEP 1 (UNDER_SPEC.EMPTY p).
-  { entailer. apply protocol_spec_hmac.OPENSSL_HMAC_ABSTRACT_SPEC.mkEmpty. 
-    clear - FC_P. unfold field_compatible in *.
-    simpl in *. exfalso. apply FALSE. (*has contradiction in hypothesis - maybe malloc does not guarantee filed_compatible_at?? Or is it a compspecs issue*) }
+  { entailer. apply protocol_spec_hmac.OPENSSL_HMAC_ABSTRACT_SPEC.mkEmpty.
+    clear - Pp MCp. destruct p; try contradiction. destruct MCp.
+    repeat split; simpl in *; trivial.
+    + omega.
+    + unfold natural_alignment in H. unfold align_attr. simpl. 
+      destruct H. exists (x * 2)%Z. omega. 
+  }
   forward_call (Vptr b i, ((info,(M2,p)):mdstate), 32, VV, kv, b, Int.add i (Int.repr 12)).
   { rewrite ZL_VV, int_add_repr_0_r; simpl.
     apply prop_right; repeat split; trivial.

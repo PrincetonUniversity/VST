@@ -23,7 +23,6 @@ Opaque hmac256drbgabs_generate.
 Opaque HMAC256_DRBG_generate_function.
 Opaque mbedtls_HMAC256_DRBG_generate_function.
 
-
 Lemma while_loop_post_incremental_snd:
   forall key0 V0 n out_len,
     0 <= (n * 32)%Z <= out_len ->
@@ -568,7 +567,8 @@ Lemma entailment1: forall (contents : list Z) (additional output : val)
       false)
   (Hshould_reseed : (prediction_resistance || (reseed_counter >? reseed_interval))%bool =
                  true)
-  (F : (0 >? 256) = false)
+(*  (F : (0 >? 256) = false)*)
+  (F32 : (32 >? 32) = false)
   (return_value : int)
   (Hrv : negb (Int.eq return_value (Int.repr 0)) = true)
   (Hadd_lenb : (Zlength contents >? 256) = false)
@@ -633,7 +633,7 @@ Proof. intros. (* unfold hmac256drbgabs_common_mpreds, hmac256drbg_relate; norma
       Transparent HMAC256_DRBG_generate_function. unfold HMAC256_DRBG_generate_function in HeqMGen.
       unfold mbedtls_HMAC256_DRBG_reseed_function in HeqMRS.
       unfold DRBG_generate_function in HeqMGen.
-      rewrite Hout_lenb, ZLa, andb_negb_r, F in HeqMGen. 
+      rewrite Hout_lenb, ZLa, andb_negb_r, F32 in HeqMGen. 
       unfold DRBG_generate_function_helper in HeqMGen. rewrite <- HeqMRS in HeqMGen. subst Gen. simpl. normalize.
       destruct prediction_resistance; simpl in *.
       + rewrite ZLa in *. subst MGen.
@@ -641,7 +641,7 @@ Proof. intros. (* unfold hmac256drbgabs_common_mpreds, hmac256drbg_relate; norma
         apply andp_right. apply prop_right. repeat split; trivial.
         cancel. simpl. entailer!.
       + subst reseed_interval; rewrite Hshould_reseed, ZLa in *.
-        destruct (get_entropy 256 entropy_len entropy_len false s); try discriminate.
+        destruct (get_entropy 32(*256*) entropy_len entropy_len false s); try discriminate.
         inv HeqMRS. unfold return_value_relate_result; simpl.
         apply andp_right. apply prop_right. repeat split; trivial.
         cancel. entailer!. 
@@ -743,7 +743,7 @@ Proof.
       apply Z.ltb_lt.
       assumption.
     }
-    unfold generatePOST'. rewrite Hout_len; simpl. entailer!.
+    unfold generatePOST. rewrite Hout_len; simpl. entailer!.
     thaw FR0. cancel.
   }
   {
@@ -788,7 +788,7 @@ Proof.
       apply Z.ltb_lt.
       assumption.
     }
-    unfold generatePOST'. rewrite Hout_lenb, Hadd_lenb; simpl.
+    unfold generatePOST. rewrite Hout_lenb, Hadd_lenb; simpl.
     entailer!. 
     thaw FR2. cancel. 
   }
@@ -806,8 +806,8 @@ Proof.
     omega.
   }
   (*  subst add_len. *) rename H2 into AddlenC. clear H5.
-  unfold POSTCONDITION, abbreviate, generatePOST'. rewrite Hout_lenb, Hadd_lenb. abbreviate_semax.
-  assert (ZLa: Zlength (contents_with_add additional (Zlength contents) contents) >? 256 = false).
+  unfold POSTCONDITION, abbreviate, generatePOST. rewrite Hout_lenb, Hadd_lenb. abbreviate_semax.
+  assert (ZLa: Zlength (contents_with_add additional add_len contents) >? 256 = false).
      { unfold contents_with_add. if_tac. subst; trivial. rewrite Zlength_nil; trivial. }
 
   (*1. (aka VII and IX) Check reseed counter and PR*)
@@ -1297,8 +1297,8 @@ apply semax_pre with (P':=
       subst h. unfold hmac256drbgabs_reseed. rewrite <- HeqM. simpl. cancel. 
       unfold  postReseedCtx in CTX1. rewrite <- HeqM in CTX1. subst ctx1. cancel.
       { unfold mbedtls_HMAC256_DRBG_reseed_function, HMAC256_DRBG_reseed_function, DRBG_reseed_function in HeqM.
-        rewrite andb_negb_r, ZLa in HeqM. 
-        destruct (get_entropy 256 entropy_len entropy_len prediction_resistance s); inv HeqM. normalize. 
+        subst contents'. rewrite andb_negb_r, ZLa in HeqM. 
+        destruct (get_entropy 32(*256*) entropy_len entropy_len prediction_resistance s); inv HeqM. normalize. 
         remember(HMAC_DRBG_update HMAC256
            (l ++ contents_with_add additional (Zlength contents) contents) key V) as h.
         destruct h; inv H10. 
@@ -1920,7 +1920,8 @@ Require Import hamcdrbg_verif_gen_whilebody.
 Transparent  hmac256drbgabs_generate.
   unfold hmac256drbgabs_generate in Gen.
 Opaque hmac256drbgabs_generate.
-  assert (F: 0 >? 256 = false) by reflexivity.
+(*  assert (F: 0 >? 256 = false) by reflexivity.*)
+  assert (F32: 32 >? 32 = false) by reflexivity.
   simpl in HeqABS4.
   remember (HMAC256_DRBG_update (contents_with_add additional after_reseed_add_len contents) key0 V0) as UPD.
   destruct UPD; inv HeqABS4.
@@ -1952,12 +1953,12 @@ Transparent HMAC256_DRBG_generate_function.
 Opaque mbedtls_HMAC256_DRBG_generate_function.
 Opaque HMAC256_DRBG_generate_function.
       remember MGen as MGen'. subst MGen. subst contents'.
-      rewrite Hout_lenb, F, ZLa, andb_negb_r in HeqMGen'.
+      rewrite Hout_lenb, F32, ZLa, andb_negb_r in HeqMGen'.
       unfold DRBG_generate_function_helper in HeqMGen'.
       rewrite <- HeqMRES' in *.
       unfold HMAC256_DRBG_reseed_function, DRBG_reseed_function in HeqMRES'.
       rewrite andb_negb_r, ZLa in HeqMRES'.
-      remember( get_entropy 256 entropy_len entropy_len  prediction_resistance s) as ENT.
+      remember( get_entropy 32(*256*) entropy_len entropy_len  prediction_resistance s) as ENT.
       destruct ENT; inversion HeqMRES'; clear HeqMRES'. subst z0 b0 s0.
       unfold HMAC256_DRBG_update in HeqUPD.
       remember (HMAC_DRBG_update HMAC256 (l3 ++ contents_with_add additional (Zlength contents) contents) key V) as UPD'.
@@ -2008,21 +2009,21 @@ Opaque HMAC256_DRBG_generate_function.
     subst after_reseed_state_abs.
     unfold mbedtls_HMAC256_DRBG_reseed_function, HMAC256_DRBG_reseed_function, DRBG_reseed_function in MRES.
     remember MRES as MRES'. subst MRES.
-    rewrite andb_negb_r, ZLa in HeqMRES'.
-    remember (get_entropy 256 entropy_len entropy_len false s) as ENT.
+    subst contents'. rewrite andb_negb_r, ZLa in HeqMRES'.
+    remember (get_entropy 32(*256*) entropy_len entropy_len false s) as ENT.
     destruct ENT.
     - subst MRES'. 
       remember  MGen as MGen'. subst MGen.
 Transparent mbedtls_HMAC256_DRBG_generate_function.
 Transparent HMAC256_DRBG_generate_function.
       unfold mbedtls_HMAC256_DRBG_generate_function, HMAC256_DRBG_generate_function, DRBG_generate_function in HeqMGen'.
-      subst contents'. rewrite Hout_lenb, F, ZLa, andb_negb_r in HeqMGen'.
+      rewrite Hout_lenb, F32, ZLa, andb_negb_r in HeqMGen'.
       unfold DRBG_generate_function_helper in HeqMGen'. simpl in HeqMGen'.
       simpl in *. subst reseed_interval. rewrite H15 in HeqMGen'.
       remember (contents_with_add additional (Zlength contents) contents) as CONT.
       subst HLP. 
       destruct CONT.
-      * rewrite Zlength_nil, <- HeqENT, F in HeqMGen'.
+      * rewrite Zlength_nil, <- HeqENT in HeqMGen'. simpl in HeqMGen'.
         remember (HMAC_DRBG_generate_helper_Z HMAC256 key V out_len) as p. destruct p.
         remember (HMAC_DRBG_update HMAC256 [] key l2) as q. destruct q.
         subst MGen'. subst Gen.
@@ -2077,12 +2078,12 @@ Transparent HMAC256_DRBG_generate_function.
 Transparent mbedtls_HMAC256_DRBG_generate_function.
 Transparent HMAC256_DRBG_generate_function.
       unfold mbedtls_HMAC256_DRBG_generate_function, HMAC256_DRBG_generate_function, DRBG_generate_function in HeqMGen'.
-      subst contents'. rewrite Hout_lenb, F, ZLa, andb_negb_r in HeqMGen'.
+      rewrite Hout_lenb, (*F,*) ZLa, andb_negb_r in HeqMGen'.
       unfold DRBG_generate_function_helper in HeqMGen'. simpl in HeqMGen'.
       simpl in *. subst reseed_interval. rewrite H15 in HeqMGen'.
       remember (contents_with_add additional (Zlength contents) contents) as CONT.
       destruct CONT.
-      * rewrite Zlength_nil, <- HeqENT, F in HeqMGen'.
+      * rewrite Zlength_nil, <- HeqENT(*, F*) in HeqMGen'. simpl in HeqMGen'.
         remember (HMAC_DRBG_generate_helper_Z HMAC256 key V out_len) as p. destruct p.
         remember (HMAC_DRBG_update HMAC256 [] key l2) as q. destruct q.
         subst MGen'. subst Gen.

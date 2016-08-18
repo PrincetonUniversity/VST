@@ -13,22 +13,13 @@ Definition HMAC_DRBG_update (HMAC: list Z -> list Z -> list Z) (provided_data K 
       let V := HMAC V K in
       (K, V)
   end.
-(*
-Fixpoint list_of_length (length: nat) (value: list Z): (list Z) :=
-  match length with
-    | O => []
-    | S n => value ++ list_of_length n value
-  end.
 
-Definition initial_key: list Z := list_of_length 32 [0].
-
-Definition initial_value: list Z := list_of_length 32 [1].
-*)
 Definition initial_key: list Z := list_repeat 32 0.
 
 Definition initial_value: list Z := list_repeat 32 1.
 
-Definition HMAC_DRBG_instantiate_algorithm (HMAC: list Z -> list Z -> list Z) (entropy_input nonce personalization_string: list Z) (security_strength: Z): DRBG_working_state :=
+Definition HMAC_DRBG_instantiate_algorithm (HMAC: list Z -> list Z -> list Z)
+           (entropy_input nonce personalization_string: list Z) (security_strength: Z): DRBG_working_state :=
   let seed_material := entropy_input ++ nonce ++ personalization_string in
   let key := initial_key in
   let value := initial_value in
@@ -36,7 +27,8 @@ Definition HMAC_DRBG_instantiate_algorithm (HMAC: list Z -> list Z -> list Z) (e
   let reseed_counter := 1 in
   (value, key, reseed_counter).
 
-Definition HMAC_DRBG_reseed_algorithm (HMAC: list Z -> list Z -> list Z) (working_state: DRBG_working_state) (entropy_input additional_input: list Z): DRBG_working_state :=
+Definition HMAC_DRBG_reseed_algorithm (HMAC: list Z -> list Z -> list Z)
+           (working_state: DRBG_working_state) (entropy_input additional_input: list Z): DRBG_working_state :=
   match working_state with (v, key, _) =>
                            let seed_material := entropy_input ++ additional_input in
                            let (key, v) := HMAC_DRBG_update HMAC seed_material key v in
@@ -44,7 +36,8 @@ Definition HMAC_DRBG_reseed_algorithm (HMAC: list Z -> list Z -> list Z) (workin
                            (v, key, reseed_counter)
   end.
 
-Function HMAC_DRBG_generate_helper_Z (HMAC: list Z -> list Z -> list Z) (key v: list Z) (requested_number_of_bytes: Z) {measure Z.to_nat requested_number_of_bytes}: (list Z * list Z) :=
+Function HMAC_DRBG_generate_helper_Z (HMAC: list Z -> list Z -> list Z) (key v: list Z)
+          (requested_number_of_bytes: Z) {measure Z.to_nat requested_number_of_bytes}: (list Z * list Z) :=
   if 0 >=? requested_number_of_bytes then (v, [])
   else
     let len := 32%nat in
@@ -66,7 +59,9 @@ Proof.
   apply Z2Nat.inj_lt in H; omega.
 Defined.
 
-Definition HMAC_DRBG_generate_algorithm (HMAC: list Z -> list Z -> list Z) (reseed_interval: Z) (working_state: DRBG_working_state) (requested_number_of_bytes: Z) (additional_input: list Z): DRBG_generate_algorithm_result :=
+Definition HMAC_DRBG_generate_algorithm (HMAC: list Z -> list Z -> list Z) (reseed_interval: Z)
+           (working_state: DRBG_working_state) (requested_number_of_bytes: Z)
+           (additional_input: list Z): DRBG_generate_algorithm_result :=
   match working_state with (v, key, reseed_counter) =>
     if reseed_counter >? reseed_interval then generate_algorithm_reseed_required
     else

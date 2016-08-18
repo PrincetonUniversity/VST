@@ -217,7 +217,7 @@ Definition md_setup_spec :=
           PROP (r=0 \/ r=-20864) 
           LOCAL (temp ret_temp (Vint (Int.repr r)))
           SEP( 
-              if zeq r 0 then (EX p:_, !!field_compatible spec_hmac.t_struct_hmac_ctx_st [] p && memory_block Tsh (sizeof (Tstruct _hmac_ctx_st noattr)) p *
+              if zeq r 0 then (EX p:_, !!(*field_compatible spec_hmac.t_struct_hmac_ctx_st [] p*)malloc_compatible (sizeof (Tstruct _hmac_ctx_st noattr)) p && memory_block Tsh (sizeof (Tstruct _hmac_ctx_st noattr)) p *
                                     data_at Tsh (Tstruct _mbedtls_md_context_t noattr)
                                       ((*fst md_ctx*)info, (fst(snd md_ctx), p)) c)
               else data_at Tsh (Tstruct _mbedtls_md_context_t noattr) md_ctx c).
@@ -293,7 +293,7 @@ Definition hmac256drbgabs_of_state_handle (a: DRBG_state_handle) entropy_len res
 
 Definition hmac256drbgabs_to_state_handle (a: hmac256drbgabs): DRBG_state_handle :=
   match a with HMAC256DRBGabs key V reseed_counter entropy_len prediction_resistance reseed_interval =>
-               ((V, key, reseed_counter), 256 (* security strength, not used *), prediction_resistance)
+               ((V, key, reseed_counter), 32(*256*) (* security strength, not used *), prediction_resistance)
   end.
 
 Definition hmac256drbgstate_md_info_pointer (a: hmac256drbgstate): val := fst (fst a).
@@ -307,9 +307,7 @@ Definition hmac256drbgabs_to_state (a: hmac256drbgabs) (old: hmac256drbgstate):h
                match old with (md_ctx', _) =>
                             (md_ctx', (map Vint (map Int.repr V), (Vint (Int.repr reseed_counter), (Vint (Int.repr entropy_len), (Val.of_bool prediction_resistance, Vint (Int.repr reseed_interval))))))
                end
-  end
-.
-
+  end.
 
 Definition hmac256drbgabs_common_mpreds (final_state_abs: hmac256drbgabs) (old_state: hmac256drbgstate) (ctx: val) (info_contents: reptype t_struct_mbedtls_md_info): mpred :=
                   (data_at Tsh t_struct_hmac256drbg_context_st (hmac256drbgabs_to_state final_state_abs old_state) ctx) *
@@ -410,14 +408,19 @@ Definition hmac_drbg_update_spec :=
        SEP (
          hmac256drbgabs_common_mpreds
             (hmac256drbgabs_hmac_drbg_update initial_state_abs 
-               (*contents *)(contents_with_add additional add_len contents))
+               (contents_with_add additional add_len contents))
             initial_state ctx info_contents;
          da_emp Tsh (tarray tuchar (Zlength contents)) (map Vint (map Int.repr contents)) additional;
          K_vector kv).
 
-Definition mbedtls_HMAC256_DRBG_reseed_function (entropy_stream: ENTROPY.stream) (a:hmac256drbgabs) (additional_input: list Z): ENTROPY.result DRBG_state_handle :=
+Definition mbedtls_HMAC256_DRBG_reseed_function (entropy_stream: ENTROPY.stream) (a:hmac256drbgabs)
+           (additional_input: list Z): ENTROPY.result DRBG_state_handle :=
   match a with HMAC256DRBGabs key V reseed_counter entropy_len prediction_resistance reseed_interval =>
-               HMAC256_DRBG_reseed_function entropy_len entropy_len 256 entropy_stream ((V, key, reseed_counter), 256 (* security strength, not used *), prediction_resistance) prediction_resistance additional_input
+               let sec_strength:Z := 32 (*not used -- measured in bytes, since that's how the calculations in DRBG_instantiate_function work *) in
+               let state_handle: DRBG_state_handle := ((V, key, reseed_counter), sec_strength, prediction_resistance) in
+               let max_additional_input_length := 256 
+               in HMAC256_DRBG_reseed_function entropy_len entropy_len max_additional_input_length 
+                     entropy_stream state_handle prediction_resistance additional_input
   end.
 
 Definition hmac256drbgabs_reseed (a: hmac256drbgabs) (s: ENTROPY.stream) (additional_data: list Z) : hmac256drbgabs :=
@@ -427,8 +430,7 @@ Definition hmac256drbgabs_reseed (a: hmac256drbgabs) (s: ENTROPY.stream) (additi
                    HMAC256DRBGabs key' V' reseed_counter' entropy_len pr' reseed_interval
                  | ENTROPY.error _ _ => a
                end
-  end
-.
+  end.
 
 Definition get_stream_result {X} (result: ENTROPY.result X): ENTROPY.stream :=
   match result with
@@ -501,6 +503,7 @@ Definition reseedPOST rv contents additional add_len s
           initial_state_abs ctx
           info_contents kv (initial_state: reptype t_struct_hmac256drbg_context_st):=
   if ((zlt 256 add_len) || (zlt 384 (hmac256drbgabs_entropy_len initial_state_abs + add_len)))%bool
+(*  if ((zlt 256 (Zlength contents)) || (zlt 384 (hmac256drbgabs_entropy_len initial_state_abs + (Zlength contents))))%bool*)
   then (!!(rv = Vint (Int.neg (Int.repr 5))) &&
        (da_emp Tsh (tarray tuchar add_len) (map Vint (map Int.repr contents)) additional *
          data_at Tsh t_struct_hmac256drbg_context_st initial_state ctx *
@@ -530,6 +533,7 @@ Definition hmac_drbg_reseed_spec :=
          0 <= add_len <= Int.max_unsigned;
          Zlength (hmac256drbgabs_value initial_state_abs) = 32 (*Z.of_nat SHA256.DigestLength*);
          add_len = Zlength contents;
+(*         add_len = Zlength contents;*)
          (*hmac256drbgabs_entropy_len initial_state_abs = 32*)
          0 <= hmac256drbgabs_entropy_len initial_state_abs; 
          hmac256drbgabs_entropy_len initial_state_abs+ Zlength contents < Int.modulus;
@@ -594,9 +598,20 @@ Definition hmac_drbg_reseed_spec :=
          Stream (get_stream_result (mbedtls_HMAC256_DRBG_reseed_function s initial_state_abs contents));
          K_vector kv*)).*)
 
-Definition mbedtls_HMAC256_DRBG_generate_function (entropy_stream: ENTROPY.stream) (a:hmac256drbgabs) (requested_number_of_bytes: Z) (additional_input: list Z): ENTROPY.result (list Z * DRBG_state_handle) :=
+Definition mbedtls_HMAC256_DRBG_generate_function (entropy_stream: ENTROPY.stream) (a:hmac256drbgabs) 
+            (requested_number_of_bytes: Z) (additional_input: list Z): ENTROPY.result (list Z * DRBG_state_handle) :=
   match a with HMAC256DRBGabs key V reseed_counter entropy_len prediction_resistance reseed_interval =>
-               HMAC256_DRBG_generate_function (HMAC256_DRBG_reseed_function entropy_len entropy_len 256) 10000(* reseed_interval *) 1024 256 entropy_stream ((V, key, reseed_counter), 256 (* security strength, not used *), prediction_resistance) requested_number_of_bytes 0 (* security strength, not used *) prediction_resistance additional_input
+               HMAC256_DRBG_generate_function (HMAC256_DRBG_reseed_function entropy_len entropy_len 256) 
+                      10000(* reseed_interval *) 
+                      1024 (*max_number_of_bytes_per_request*)
+                      256 (*max_additional_input_length*) 
+                      entropy_stream
+                      ((V, key, reseed_counter), 
+                        32(*256*) (*max security strength in bytes, not used *), 
+                        prediction_resistance) 
+                      requested_number_of_bytes 
+                      32 (*requested security strength, not used *)
+                      prediction_resistance additional_input
   end.
 
 Definition hmac256drbgabs_generate (a: hmac256drbgabs) (s: ENTROPY.stream) (bytes: Z) (additional_data: list Z) : hmac256drbgabs :=
@@ -659,7 +674,7 @@ Definition hmac_drbg_generate_SPEC :=
 Opaque hmac_drbg_generate_SPEC.
 Definition hmac_drbg_generate_spec := ( _mbedtls_hmac_drbg_random_with_add, hmac_drbg_generate_SPEC).
 *)
-
+(*
 Definition generatePOST ret_value contents additional add_len output out_len ctx initial_state initial_state_abs kv info_contents s :=
 if out_len >? 1024
 then (!!(ret_value = Vint (Int.neg (Int.repr 3))) &&
@@ -689,9 +704,9 @@ else
          da_emp Tsh (tarray tuchar add_len) (map Vint (map Int.repr contents)) additional *
          Stream (get_stream_result (mbedtls_HMAC256_DRBG_generate_function s initial_state_abs out_len (*contents*)(contents_with_add additional add_len contents))) *
          K_vector kv)).
+*)
 
-
-Definition generatePOST' ret_value contents additional add_len output out_len ctx initial_state initial_state_abs kv info_contents s :=
+Definition generatePOST ret_value contents additional add_len output out_len ctx initial_state initial_state_abs kv info_contents s :=
 if out_len >? 1024
 then (!!(ret_value = Vint (Int.neg (Int.repr 3))) &&
        (data_at_ Tsh (tarray tuchar out_len) output *
@@ -737,6 +752,7 @@ Definition hmac_drbg_generate_spec :=
          0 <= out_len <= Int.max_unsigned;
          Zlength (hmac256drbgabs_value initial_state_abs) = 32 (*Z.of_nat SHA256.DigestLength*);
          add_len = Zlength contents;
+(*         add_len = Zlength contents;*)
 (*         hmac256drbgabs_entropy_len initial_state_abs = 32;*)
          0 < hmac256drbgabs_entropy_len initial_state_abs; 
 (*         hmac256drbgabs_entropy_len initial_state_abs + 
@@ -761,57 +777,8 @@ Definition hmac_drbg_generate_spec :=
        EX ret_value:_,
        PROP ()
        LOCAL (temp ret_temp ret_value)
-       SEP (generatePOST' ret_value contents additional add_len output out_len ctx initial_state initial_state_abs kv info_contents s).
+       SEP (generatePOST ret_value contents additional add_len output out_len ctx initial_state initial_state_abs kv info_contents s).
 
-(*
-Definition hmac_drbg_generate_spec :=
-  DECLARE _mbedtls_hmac_drbg_random_with_add
-   WITH contents: list Z,
-        additional: val, add_len: Z,
-        output: val, out_len: Z,
-        ctx: val, initial_state: hmac256drbgstate,
-        initial_state_abs: hmac256drbgabs,
-        kv: val, info_contents: md_info_state,
-        s: ENTROPY.stream
-    PRE [ _p_rng OF (tptr tvoid), _output OF (tptr tuchar), _out_len OF tuint, _additional OF (tptr tuchar), _add_len OF tuint ]
-       PROP (
-         0 <= add_len <= Int.max_unsigned;
-         0 <= out_len <= Int.max_unsigned;
-         Zlength (hmac256drbgabs_value initial_state_abs) = 32 (*Z.of_nat SHA256.DigestLength*);
-         add_len = Zlength contents;
-         hmac256drbgabs_entropy_len initial_state_abs = 32;
-         hmac256drbgabs_reseed_interval initial_state_abs = 10000;
-         0 <= hmac256drbgabs_reseed_counter initial_state_abs <= Int.max_signed;
-         Forall isbyteZ (hmac256drbgabs_value initial_state_abs);
-         Forall isbyteZ contents
-       )
-       LOCAL (temp _p_rng ctx; temp _output output; temp _out_len (Vint (Int.repr out_len)); 
-              temp _additional additional; temp _add_len (Vint (Int.repr add_len)); gvar sha._K256 kv)
-       SEP (
-         data_at_ Tsh (tarray tuchar out_len) output;
-         da_emp Tsh (tarray tuchar add_len) (map Vint (map Int.repr contents)) additional;
-         data_at Tsh t_struct_hmac256drbg_context_st initial_state ctx;
-         hmac256drbg_relate initial_state_abs initial_state;
-         data_at Tsh t_struct_mbedtls_md_info info_contents (hmac256drbgstate_md_info_pointer initial_state);
-         Stream s;
-         K_vector kv)
-    POST [ tint ]
-       EX ret_value:_,
-       PROP (
-           return_value_relate_result (mbedtls_HMAC256_DRBG_generate_function s initial_state_abs out_len contents) ret_value
-         )
-       LOCAL (temp ret_temp ret_value)
-       SEP (
-         match mbedtls_HMAC256_DRBG_generate_function s initial_state_abs out_len contents with
-            | ENTROPY.error _ _ => (data_at_ Tsh (tarray tuchar out_len) output)
-            | ENTROPY.success (bytes, _) _ => (data_at Tsh (tarray tuchar out_len) (map Vint (map Int.repr bytes)) output)
-         end;
-         hmac256drbgabs_common_mpreds (hmac256drbgabs_generate initial_state_abs s out_len contents) initial_state ctx info_contents;
-         da_emp Tsh (tarray tuchar add_len) (map Vint (map Int.repr contents)) additional;
-         Stream (get_stream_result (mbedtls_HMAC256_DRBG_generate_function s initial_state_abs out_len (*contents*)(contents_with_add additional add_len contents)));
-         K_vector kv
-       ).
-*)
 (*
 Definition get_entropy_SPEC :=
    WITH
@@ -920,7 +887,7 @@ Definition hmac_drbg_random_spec :=
        EX ret_value:_,
        PROP ()
        LOCAL (temp ret_temp ret_value)
-       SEP (generatePOST' ret_value nil nullval 0 output out_len ctx initial_state initial_state_abs kv info_contents s).
+       SEP (generatePOST ret_value nil nullval 0 output out_len ctx initial_state initial_state_abs kv info_contents s).
 
 Definition setPR_ABS res (a: hmac256drbgabs): hmac256drbgabs :=
   match a with HMAC256DRBGabs key V x el r reseed_interval => 
@@ -1056,7 +1023,7 @@ Definition drbg_memset_spec :=
 Definition drbg_memset_spec := (_memset, snd spec_sha.memset_spec). 
 Definition drbg_memcpy_spec := (_memcpy, snd spec_sha.memcpy_spec). 
 *)
-
+(*
 Definition malloc_spec :=
   DECLARE _malloc
    WITH n:Z
@@ -1068,7 +1035,19 @@ Definition malloc_spec :=
        PROP ()
        LOCAL (temp ret_temp p)
        SEP (if eq_dec p nullval then emp 
-            else (!!field_compatible spec_hmac.t_struct_hmac_ctx_st [] p && memory_block Tsh n p)).
+            else (!!field_compatible spec_hmac.t_struct_hmac_ctx_st [] p && memory_block Tsh n p)).*)
+Definition malloc_spec :=
+  DECLARE _malloc
+   WITH n:Z
+   PRE [ 1%positive OF tuint ]
+       PROP (0 <= n <= Int.max_unsigned)
+       LOCAL (temp 1%positive (Vint (Int.repr n)))
+       SEP ()
+    POST [ tptr tvoid ] EX p:_,
+       PROP ()
+       LOCAL (temp ret_temp p)
+       SEP (if eq_dec p nullval then emp 
+            else (!!malloc_compatible n p && memory_block Tsh n p)).
 
 Definition HmacDrbgFunSpecs : funspecs := 
   md_free_spec ::hmac_drbg_free_spec::md_free_spec::mbedtls_zeroize_spec::

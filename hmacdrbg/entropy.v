@@ -218,4 +218,5 @@ End OPTIONAL_ENTROPY.
 
 Module ENTROPY := OPTIONAL_ENTROPY.
 
-Definition get_entropy (security_strength min_length max_length: Z) (prediction_resistance: bool) s := ENTROPY.get_bytes (Z.to_nat min_length) s.
+Definition get_entropy (security_strength min_length max_length: Z) (prediction_resistance: bool) s := 
+           ENTROPY.get_bytes (Z.to_nat min_length) s.

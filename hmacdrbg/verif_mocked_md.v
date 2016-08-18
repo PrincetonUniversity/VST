@@ -165,7 +165,8 @@ Proof.
  
   forward_if (PROP () LOCAL (temp _sha_ctx vret; temp _md_info info; 
    temp _ctx c; temp _hmac h) 
-      SEP (!!field_compatible spec_hmac.t_struct_hmac_ctx_st [] vret &&
+      SEP (!!(*field_compatible spec_hmac.t_struct_hmac_ctx_st [] vret*)
+              malloc_compatible (sizeof (Tstruct _hmac_ctx_st noattr)) vret &&
            memory_block Tsh (sizeof (Tstruct _hmac_ctx_st noattr)) vret;
            data_at Tsh (Tstruct _mbedtls_md_context_t noattr) md_ctx c)).
   { destruct (Memory.EqDec_val vret nullval).
@@ -185,5 +186,5 @@ Proof.
   rewrite memory_block_isptr. Intros.
   unfold_data_at 1%nat.
   forward. forward. Exists 0. simpl. entailer!. 
-  Exists vret. unfold_data_at 1%nat. entailer!. admit. (*new spec-needs insertion of filed assignment in code*) 
+  Exists vret. unfold_data_at 1%nat. entailer!. admit. (*needs insertion of field assignment in code*) 
 Admitted.

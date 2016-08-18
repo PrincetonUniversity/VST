@@ -14,6 +14,8 @@ Require Import sha.protocol_spec_hmac.
 Require Import sha.general_lemmas.
 Require Import sha.HMAC256_functional_prog.
 
+Lemma isbyteZ_initialKey: Forall isbyteZ initial_key. 
+Proof. apply Forall_list_repeat; split; omega. Qed.
 
 Lemma hmac256drbgabs_hmac_drbg_update_any_prop_key:
   forall (P: list Z -> Prop) a additional_data,
@@ -83,7 +85,7 @@ Proof.
   destruct a; simpl.
   destruct ((prediction_resistance && negb prediction_resistance)%bool); auto.
   destruct (Zlength additional_data >? 256); auto.
-  destruct (get_entropy 256 entropy_len entropy_len prediction_resistance s); auto.
+  destruct (get_entropy 32(*256*) entropy_len entropy_len prediction_resistance s); auto.
   unfold HMAC_DRBG_update.
   unfold hmac256drbgabs_key.
   destruct (l ++ additional_data); auto.
@@ -99,7 +101,7 @@ Proof.
   destruct a; simpl.
   destruct ((prediction_resistance && negb prediction_resistance)%bool); auto.
   destruct (Zlength additional_data >? 256); auto.
-  destruct (get_entropy 256 entropy_len entropy_len prediction_resistance s); auto.
+  destruct (get_entropy 32(*256*) entropy_len entropy_len prediction_resistance s); auto.
   unfold HMAC_DRBG_update.
   unfold hmac256drbgabs_value.
   destruct (l ++ additional_data); auto.
@@ -195,7 +197,7 @@ Proof. unfold hmac256drbgabs_reseed. destruct abs.
   destruct d as [[[[? ?] ?] ?] ?]; simpl.
     unfold mbedtls_HMAC256_DRBG_reseed_function, HMAC256_DRBG_reseed_function, DRBG_reseed_function in Heqd.
     rewrite andb_negb_r, HC in Heqd.
-    destruct (get_entropy 256 entropy_len entropy_len prediction_resistance s); inv Heqd.
+    destruct (get_entropy 32(*256*) entropy_len entropy_len prediction_resistance s); inv Heqd.
     remember (HMAC_DRBG_update HMAC256 (l1 ++ c) key V) as q.
     destruct q; inv H0. eapply HMAC_DRBG_update_value; eassumption.
 Qed.
@@ -211,7 +213,7 @@ Proof. unfold hmac256drbgabs_reseed. destruct abs.
   destruct d as [[[[? ?] ?] ?] ?]; simpl.
     unfold mbedtls_HMAC256_DRBG_reseed_function, HMAC256_DRBG_reseed_function, DRBG_reseed_function in Heqd.
     rewrite andb_negb_r, HC in Heqd.
-    destruct (get_entropy 256 entropy_len entropy_len prediction_resistance s); inv Heqd.
+    destruct (get_entropy 32(*256*) entropy_len entropy_len prediction_resistance s); inv Heqd.
     remember (HMAC_DRBG_update HMAC256 (l1 ++ c) key V) as q.
     destruct q; inv H0. eapply HMAC_DRBG_update_value; eassumption.
 Qed.

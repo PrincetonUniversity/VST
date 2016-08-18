@@ -91,8 +91,8 @@ Proof.
    LOCAL (temp _ret (Vint (Int.repr v)); temp 228%positive (Vint (Int.repr v)); 
    temp _ctx (Vptr b i); temp _md_info info; temp _data_len (Vint (Int.repr d_len)); 
    temp _data data; gvar sha._K256 kv)
-   SEP ( (EX p : val, !!field_compatible spec_hmac.t_struct_hmac_ctx_st [] p && memory_block Tsh (sizeof (Tstruct _hmac_ctx_st noattr)) p *
-          data_at Tsh (Tstruct _mbedtls_md_context_t noattr) ((*M1*)info,(M2,p)) (Vptr b i));
+   SEP ( (EX p : val, !!malloc_compatible (sizeof (Tstruct _hmac_ctx_st noattr))p && memory_block Tsh (sizeof (Tstruct _hmac_ctx_st noattr)) p *
+          data_at Tsh (Tstruct _mbedtls_md_context_t noattr) (info,(M2,p)) (Vptr b i));
          FRZL FR0)).
   { destruct Hv; try omega. rewrite if_false; trivial.
     forward. Exists (Vint (Int.repr (-20864))). 
@@ -102,9 +102,7 @@ Proof.
   { subst v; clear Hv. rewrite if_true; trivial. 
     forward. entailer!. 
   }
-  Intros. subst v. clear Hv.
-
-  Intros p. rename H into FC_P.
+  Intros. subst v. clear Hv. Intros p. rename H into MCp.
 
   forward_call tt.
  
@@ -118,9 +116,13 @@ Proof.
   rewrite <- H.
   freeze [0;4;5;6] FR2.
   replace_SEP 1 (UNDER_SPEC.EMPTY p).
-  { entailer. apply protocol_spec_hmac.OPENSSL_HMAC_ABSTRACT_SPEC.mkEmpty. 
-    clear - FC_P. unfold field_compatible in *.
-    simpl in *. admit. (*has contradiction in hypothesis - maybe malloc does not guarantee filed_compatible_at?? Or is it a compspecs issue*) }
+  { entailer. apply protocol_spec_hmac.OPENSSL_HMAC_ABSTRACT_SPEC.mkEmpty.
+    clear - Pp MCp. destruct p; try contradiction. destruct MCp.
+    repeat split; simpl in *; trivial.
+    + omega.
+    + unfold natural_alignment in H. unfold align_attr. simpl. 
+      destruct H. exists (x * 2)%Z. omega. 
+  }
   forward_call (Vptr b i, (((*M1*)info,(M2,p)):mdstate), 32, V0, kv, b, Int.add i (Int.repr 12)).
   { rewrite H, int_add_repr_0_r; simpl.
     apply prop_right; repeat split; trivial.
@@ -153,7 +155,6 @@ Proof.
        (Val.of_bool prediction_resistance,
         (Vint (Int.repr reseed_interval)))))))). eexists; reflexivity.
   destruct H1 as [xx XX]. 
-
 
   replace_SEP 0
     (data_at Tsh t_struct_hmac256drbg_context_st xx (Vptr b i)).
@@ -196,7 +197,7 @@ Proof.
   Exists VALUE p. normalize. 
   apply andp_right. apply prop_right. repeat split; trivial. 
   cancel.
-Admitted.
+Time Qed. (*26.657 secs (26.656u,0.s) (successful)*)
 
 Definition hmac_drbg_seed_buf_spec2 :=
   DECLARE _mbedtls_hmac_drbg_seed_buf
@@ -267,20 +268,18 @@ Proof.
    LOCAL (temp _ret (Vint (Int.repr v)); temp 228%positive (Vint (Int.repr v)); 
    temp _ctx (Vptr b i); temp _md_info info; temp _data_len (Vint (Int.repr d_len)); 
    temp _data data; gvar sha._K256 kv)
-   SEP ( (EX p : val, !!field_compatible spec_hmac.t_struct_hmac_ctx_st [] p && memory_block Tsh (sizeof (Tstruct _hmac_ctx_st noattr)) p *
-          data_at Tsh (Tstruct _mbedtls_md_context_t noattr) ((*M1*)info,(M2,p)) (Vptr b i));
+   SEP ( (EX p : val, !!malloc_compatible (sizeof (Tstruct _hmac_ctx_st noattr))p && memory_block Tsh (sizeof (Tstruct _hmac_ctx_st noattr)) p *
+          data_at Tsh (Tstruct _mbedtls_md_context_t noattr) (info,(M2,p)) (Vptr b i));
          FRZL FR0)).
   { destruct Hv; try omega. rewrite if_false; trivial.
     forward. Exists (Vint (Int.repr (-20864))). 
-    entailer!. apply orp_right1. thaw FR0. cancel.
+    entailer!. thaw FR0. cancel. apply orp_right1. cancel.
     unfold_data_at 2%nat. thaw FIELDS. cancel. rewrite field_at_data_at. simpl.
     unfold field_address. rewrite if_true; simpl; trivial. rewrite int_add_repr_0_r; trivial. }
-  { subst v; clear Hv. rewrite if_true; trivial.
-    forward. entailer!.
+  { subst v; clear Hv. rewrite if_true; trivial. 
+    forward. entailer!. 
   }
-  Intros. subst v; clear Hv.
-
-  Intros p. rename H into FC_P.
+  Intros. subst v. clear Hv. Intros p. rename H into MCp.
 
   forward_call tt.
  
@@ -293,8 +292,12 @@ Proof.
   freeze [0;4;5;6] FR2.
   replace_SEP 1 (UNDER_SPEC.EMPTY p).
   { entailer. apply protocol_spec_hmac.OPENSSL_HMAC_ABSTRACT_SPEC.mkEmpty.
-    clear - FC_P. unfold field_compatible in *.
-    simpl in *. admit. (*has contradiction in hypothesis - maybe malloc does not guarantee filed_compatible_at??*) }
+    clear - Pp MCp. destruct p; try contradiction. destruct MCp.
+    repeat split; simpl in *; trivial.
+    + omega.
+    + unfold natural_alignment in H. unfold align_attr. simpl. 
+      destruct H. exists (x * 2)%Z. omega. 
+  }
   forward_call (Vptr b i, (((*M1*)info,(M2,p)):mdstate), 32, V0, kv, b, Int.add i (Int.repr 12)).
   { rewrite H, int_add_repr_0_r; simpl.
     apply prop_right; repeat split; trivial.
@@ -369,4 +372,4 @@ Proof.
   Exists VALUE p. normalize. 
   apply andp_right. apply prop_right. repeat split; trivial. 
   cancel.
-Admitted.
+Time Qed. (*27.702 secs (27.656u,0.s) successful*)
