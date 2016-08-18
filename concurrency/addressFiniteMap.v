@@ -1,19 +1,15 @@
+Require Import Coq.ZArith.ZArith.
+Require Import Coq.Structures.OrderedType.
 
 Require Import compcert.lib.Axioms.
 Require Import compcert.lib.Maps.
+Require Import compcert.lib.Coqlib.
 
-Require Import concurrency.sepcomp. Import SepComp.
+Require Import msl.eq_dec.
 Require Import sepcomp.semantics_lemmas.
-
-Require Import Coq.ZArith.ZArith.
-
-Require Import Structures.OrderedType.
-
+Require Import concurrency.sepcomp. Import SepComp.
 Require Import concurrency.permissions.
-
 Require Import concurrency.lksize.
-Import Address.
-Import Coqlib.
   
   
   Module MiniAddressOrdered <: MiniOrderedType.
@@ -205,3 +201,30 @@ Proof.
   - apply AMap_find_map_None, E.
 Qed.
 
+Instance EqDec_AMap_key : EqDec AMap.key.
+Proof.
+  compute.
+  change (forall a a' : positive * Z, {a = a'} + {a <> a'}).
+  repeat decide equality.
+Qed.
+
+Lemma AMap_find_add {A} m x (y : A) x' :
+  AMap.find x' (AMap.add x y m) =
+  if eq_dec x x' then Some y else AMap.find x' m.
+Proof.
+  pose proof AMap.add_1.
+  pose proof AMap.add_2.
+  pose proof AMap.add_3.
+  pose proof AMap.find_1.
+  pose proof AMap.find_2.
+  assert (SN : forall A, forall o : option A, (forall x, o <> Some x) <-> o = None).
+  { intros ? []; split; congruence. }
+  
+  destruct (eq_dec x x') as [d|d].
+  - eauto.
+  - destruct (AMap.find (elt:=A) x' m) eqn:E.
+    + eauto.
+    + rewrite <-SN in E |- *.
+      intros y' Ey'; eapply E.
+      eauto.
+Qed.

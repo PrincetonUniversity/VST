@@ -190,7 +190,7 @@ Definition threads_wellformed tp :=
     end.
 
 Definition threads_unique_Krun tp sch :=
-  (lt 1 tp.(ThreadPool.num_threads).(pos.n) -> forall i cnti q (ora : Z),
+  (lt 1 tp.(ThreadPool.num_threads).(pos.n) -> forall i cnti q,
       @ThreadPool.getThreadC i tp cnti = Krun q ->
       exists sch', sch = i :: sch').
 
@@ -285,8 +285,8 @@ Proof.
     subst m0 ge0 sch0 tp0.
   refine (state_invariant_c Jspec Gamma n m ge (i :: sch') tp PHI lev gam compat lock_coh safety wellformed _).
   clear -uniqkrun.
-  intros H i0 cnti q ora H0.
-  destruct (uniqkrun H i0 cnti q ora H0) as [sch'' E].
+  intros H i0 cnti q H0.
+  destruct (uniqkrun H i0 cnti q H0) as [sch'' E].
   injection E as <- <-.
   eauto.
 Qed.
@@ -790,19 +790,6 @@ Proof.
   exists (Z.pos p); reflexivity.
   exists Z0; reflexivity.
 Qed.
-
-Lemma jstep_preserves_mem_equiv_on_other_threads m ge i j tp ci ci' jmi'
-  (other : i <> j)
-  (compat : mem_compatible tp m)
-  cnti cntj
-  (tp' := age_tp_to (level (m_phi jmi')) tp)
-  (tp'' := @updThread i tp' (cnt_age' cnti) (Krun ci') (m_phi jmi') : thread_pool)
-  (stepi : @jstep genv corestate cl_core_sem ge ci (@personal_mem i tp m cnti compat) ci' jmi')
-  (compat': mem_compatible tp'' (m_dry jmi')) :
-  mem_equiv
-    (m_dry (@personal_mem j tp m cntj compat))
-    (m_dry (@personal_mem j tp'' (m_dry jmi') (cnt_age' cntj) compat')).
-Admitted.
 
 Lemma lock_coh_bound tp m Phi
       (compat : mem_compatible_with tp m Phi)
@@ -1677,7 +1664,7 @@ Section Simulation.
         unshelve erewrite <-gtc_age; auto.
     
     - (* uniqueness *)
-      intros notalone j cntj q ora Ecj.
+      intros notalone j cntj q Ecj.
       hnf in unique.
       assert_specialize unique by (destruct tp; apply notalone).
       specialize (unique j).
@@ -2376,9 +2363,9 @@ Section Simulation.
       *)
       + (* invariant about "only one Krun and it is scheduled": the
           bad schedule case is not possible *)
-        intros H0 i0 cnti q ora H1.
+        intros H0 i0 cnti q H1.
         exfalso.
-        specialize (unique H0 i0 cnti q ora H1).
+        specialize (unique H0 i0 cnti q H1).
         destruct unique as [sch' unique]; injection unique as <- <- .
         congruence.
     }
@@ -2599,8 +2586,8 @@ Section Simulation.
               -- constructor.
           
           + (* uniqueness *)
-            intros notalone i0 cnti0' q ora Eci0.
-            pose proof (unique notalone i0 cnti0' q ora) as unique'.
+            intros notalone i0 cnti0' q Eci0.
+            pose proof (unique notalone i0 cnti0' q) as unique'.
             destruct (eq_dec i i0) as [ii0 | ii0].
             * subst i0.
               unfold tp' in Eci0.
@@ -2610,8 +2597,8 @@ Section Simulation.
               unfold tp' in Eci0.
               clear safety wellformed.
               rewrite <- (@gsoThreadCC _ _ tp ii0 ctn cnti0) in Eci0.
-              destruct (unique notalone i cnti _ ora Eci).
-              destruct (unique notalone i0 cnti0 q ora Eci0).
+              destruct (unique notalone i cnti _ Eci).
+              destruct (unique notalone i0 cnti0 q Eci0).
               congruence.
         
         - (* not in Kblocked *)
@@ -2675,22 +2662,131 @@ Section Simulation.
             + constructor; auto.
           
           - (* lockSet_Writable *)
-            admit.
+            pose proof (loc_writable compat) as lw.
+            intros b' ofs' is; specialize (lw b' ofs').
+            destruct (eq_dec (b, Int.intval ofs) (b', ofs')).
+            + admit (* do something *).
+            + assert_specialize lw. {
+                simpl in is.
+                rewrite AMap_find_add in is.
+                if_tac in is. tauto. apply is.
+              }
+              intros ofs0 inter.
+              specialize (lw ofs0 inter).
+              exact_eq lw. f_equal.
+              set (m_ := restrPermMap _) in Hstore.
+              change (max_access_at m (b', ofs0) = max_access_at (m_dry jm') (b', ofs0)).
+              transitivity (max_access_at m_ (b', ofs0)).
+              * unfold m_.
+                rewrite restrPermMap_max.
+                reflexivity.
+              * pose proof store_outside' _ _ _ _ _ _ Hstore as SO.
+                unfold access_at in *.
+                destruct SO as (_ & SO & _).
+                apply equal_f with (x := (b', ofs0)) in SO.
+                apply equal_f with (x := Max) in SO.
+                apply SO.
           
           - (* juicyLocks_in_lockSet *)
-            admit.
+            pose proof jloc_in_set compat as jl.
+            intros loc sh1 sh1' pp z E.
+            specialize (jl loc sh1 sh1' pp z E).
+            simpl.
+            rewrite AMap_find_add.
+            if_tac. reflexivity. apply jl.
           
           - (* lockSet_in_juicyLocks *)
-            admit.
+            pose proof lset_in_juice compat as lj.
+            intros loc; specialize (lj loc).
+            simpl.
+            rewrite AMap_find_add.
+            if_tac; swap 1 2.
+            + apply lj. (* easy for other addresses *)
+            + intros _.
+              apply lj. subst loc.
+              unfold lockRes in *.
+              unfold LocksAndResources.lock_info in *.
+              rewrite His_unlocked.
+              reflexivity.
         }
         
-        eapply state_invariant_c with (PHI := Phi).
-        + assumption (* level *).
-        + auto.
-        + admit.
-        + admit.
-        + admit.
-        + admit.
+        apply state_invariant_c with (PHI := Phi) (mcompat := compat').
+        + (* level *)
+          assumption.
+        
+        + (* matchfunspec *)
+          auto.
+        
+        + (* lock coherence *)
+          intros loc.
+          simpl (AMap.find _ _).
+          rewrite AMap_find_add.
+          if_tac; swap 1 2.
+          
+          * (* not the current lock *)
+            specialize (lock_coh loc).
+            set (u := load_at _ _).
+            set (v := load_at _ _) in lock_coh.
+            assert (L : u = v); unfold u, v in *; clear u v.
+            {
+              admit.
+            }
+            exact_eq lock_coh.
+            destruct (AMap.find (elt:=option rmap) loc (lset tp)) as [[o|]|].
+            all:congruence.
+          
+          * (* current lock is acquired: load is indeed 0 *)
+            { subst loc.
+              split; swap 1 2.
+              - (* the rmap is unchanged (but we lose the SAT information) *)
+                specialize (lock_coh  (b, Int.intval ofs)).
+                unfold lockRes in *.
+                unfold LocksAndResources.lock_info in *.
+                unfold lockGuts in *.
+                rewrite His_unlocked in lock_coh.
+                destruct lock_coh as (H & ? & ? & lk & _).
+                eauto.
+              
+              - (* in dry : it is 0 *)
+                simpl.
+                admit.
+            }
+        
+        + (* safety *)
+          intros j lj ora.
+          specialize (safety j lj ora).
+          Set Printing Implicit.
+          unfold tp_.
+          unshelve erewrite gLockSetCode; auto.
+          destruct (eq_dec i j).
+          * subst j.
+            rewrite gssThreadCode.
+            replace lj with Htid in safety by apply proof_irr.
+            rewrite Hthread in safety.
+            (* use the "well formed" property to derive that this is an external call, and derive safety from this.  But the level has to be decreased, here. *)
+            admit.
+          
+          * unshelve erewrite gsoThreadCode; auto.
+            admit.
+            (* destruct (@getThreadC j tp lj). *)
+            (* use safety, but there are [personal_mem] things involved *)
+        
+        + (* well_formedness *)
+          intros j lj.
+          unfold tp_.
+          specialize (wellformed j lj).
+          unshelve erewrite gLockSetCode; auto.
+          destruct (eq_dec i j).
+          * subst j.
+            rewrite gssThreadCode.
+            replace lj with Htid in wellformed by apply proof_irr.
+            rewrite Hthread in wellformed.
+            auto.
+          * unshelve erewrite gsoThreadCode; auto.
+        
+        + (* uniqueness *)
+          intros notone j lj q.
+          admit.
       
       - (* the case of release *)
         admit.
@@ -2802,15 +2898,15 @@ Section Simulation.
           -- constructor.
              
       + (* uniqueness *)
-        intros notalone i0 cnti0' q ora Eci0.
-        pose proof (unique notalone i0 cnti0' q ora) as unique'.
+        intros notalone i0 cnti0' q Eci0.
+        pose proof (unique notalone i0 cnti0' q) as unique'.
         destruct (eq_dec i i0) as [ii0 | ii0].
         * subst i0.
           eauto.
         * assert (cnti0 : ThreadPool.containsThread tp i0) by auto.
           clear safety wellformed.
           rewrite <- (@gsoThreadCC _ _ tp ii0 ctn cnti0) in Eci0.
-          destruct (unique notalone i0 cnti0 q ora Eci0).
+          destruct (unique notalone i0 cnti0 q Eci0).
           congruence.
     }
     
