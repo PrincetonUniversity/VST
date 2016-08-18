@@ -672,6 +672,26 @@ Proof.
   - eapply lock_coherence_align; eauto.
 Qed.
 
+Lemma load_restrPermMap m tp Phi b ofs m_any
+  (compat : mem_compatible_with tp m Phi) :
+  lock_coherence (lset tp) Phi m_any ->
+  AMap.find (elt:=option rmap) (b, ofs) (lset tp) <> None ->
+  Mem.load
+    Mint32
+    (restrPermMap (mem_compatible_locks_ltwritable (mem_compatible_forget compat)))
+    b ofs =
+  Some (decode_val Mint32 (Mem.getN (size_chunk_nat Mint32) ofs (Mem.mem_contents m) !! b)).
+Proof.
+  intros lc e.
+  unfold Mem.load in *.
+  if_tac; auto.
+  exfalso.
+  apply H.
+  eapply Mem.valid_access_implies.
+  eapply lset_valid_access; eauto.
+  constructor.
+Qed.
+
 Lemma PTree_xmap_ext (A B : Type) (f f' : positive -> A -> B) t :
   (forall a, f a = f' a) ->
   PTree.xmap f t = PTree.xmap f' t.
@@ -2721,25 +2741,13 @@ Section Simulation.
           intros loc.
           simpl (AMap.find _ _).
           rewrite AMap_find_add.
-          if_tac; swap 1 2.
-          
-          * (* not the current lock *)
-            specialize (lock_coh loc).
-            set (u := load_at _ _).
-            set (v := load_at _ _) in lock_coh.
-            assert (L : u = v); unfold u, v in *; clear u v.
-            {
-              admit.
-            }
-            exact_eq lock_coh.
-            destruct (AMap.find (elt:=option rmap) loc (lset tp)) as [[o|]|].
-            all:congruence.
+          specialize (lock_coh loc).
+          if_tac.
           
           * (* current lock is acquired: load is indeed 0 *)
             { subst loc.
               split; swap 1 2.
               - (* the rmap is unchanged (but we lose the SAT information) *)
-                specialize (lock_coh  (b, Int.intval ofs)).
                 unfold lockRes in *.
                 unfold LocksAndResources.lock_info in *.
                 unfold lockGuts in *.
@@ -2751,6 +2759,21 @@ Section Simulation.
                 simpl.
                 admit.
             }
+          
+          * (* not the current lock *)
+            destruct (AMap.find (elt:=option rmap) loc (lset tp)) as [o|] eqn:Eo; swap 1 2.
+            now auto (* not even a lock *).
+            set (u := load_at _ _).
+            set (v := load_at _ _) in lock_coh.
+            assert (L : forall val, v = Some val -> u = Some val); unfold u, v in *; clear u v.
+            {
+              intros val.
+              unfold load_at in *.
+              clear lock_coh.
+              admit.
+              (* ask around *)
+            }
+            destruct o; split; intuition.
         
         + (* safety *)
           intros j lj ora.
@@ -2759,12 +2782,66 @@ Section Simulation.
           unfold tp_.
           unshelve erewrite gLockSetCode; auto.
           destruct (eq_dec i j).
-          * subst j.
-            rewrite gssThreadCode.
-            replace lj with Htid in safety by apply proof_irr.
-            rewrite Hthread in safety.
-            (* use the "well formed" property to derive that this is an external call, and derive safety from this.  But the level has to be decreased, here. *)
-            admit.
+          * {
+              (* use the "well formed" property to derive that this is
+              an external call, and derive safety from this.  But the
+              level has to be decreased, here. *)
+              subst j.
+              rewrite gssThreadCode.
+              replace lj with Htid in safety by apply proof_irr.
+              rewrite Hthread in safety.
+              specialize (wellformed i Htid).
+              rewrite Hthread in wellformed.
+              intros c' Ec'.
+              inversion safety as [ | ?????? step | ???????? ae Pre Post Safe | ????? Ha]; swap 2 3.
+              - (* not corestep *)
+                exfalso.
+                clear -Hat_external step.
+                apply corestep_not_at_external in step.
+                rewrite jstep.JuicyFSem.t_obligation_3 in step.
+                set (u := at_external _) in Hat_external.
+                set (v := at_external _) in step.
+                assert (u = v).
+                { unfold u, v. f_equal.
+                  unfold SEM.Sem in *.
+                  rewrite SEM.CLN_msem.
+                  reflexivity. }
+                congruence.
+              
+              - (* not halted *)
+                exfalso.
+                clear -Hat_external Ha.
+                assert (Ae : at_external SEM.Sem c <> None). congruence.
+                eapply at_external_not_halted in Ae.
+                unfold juicy_core_sem in *.
+                unfold cl_core_sem in *.
+                simpl in *.
+                unfold SEM.Sem in *.
+                rewrite SEM.CLN_msem in *.
+                simpl in *.
+                congruence.
+              
+              - (* at_external : we can now use safety *)
+                subst.
+                Unset Printing Implicit.
+                destruct Post with
+                  (ret := Some (Vint Int.zero))
+                  (m' := jm_ lj compat')
+                  (z' := ora) (n' := n) as (c'' & Ec'' & Safe').
+                + auto.
+                + hnf. (* ouch *) admit.
+                + (* ouch, we must satisfy the post condition *) admit.
+                + exact_eq Safe'.
+                  unfold jsafeN in *.
+                  unfold juicy_safety.safeN in *.
+                  f_equal.
+                  * (* this is the leveling problem *)
+                    admit.
+                  * cut (Some c'' = Some c'). injection 1; auto.
+                    rewrite <-Ec'', <-Ec'.
+                    unfold cl_core_sem; simpl.
+                    auto.
+            }
           
           * unshelve erewrite gsoThreadCode; auto.
             admit.
@@ -2786,7 +2863,16 @@ Section Simulation.
         
         + (* uniqueness *)
           intros notone j lj q.
-          admit.
+          specialize (unique notone j lj).
+          unfold tp_ in *.
+          unshelve erewrite gLockSetCode; auto.
+          destruct (eq_dec i j).
+          * subst j.
+            rewrite gssThreadCode.
+            admit.
+          * unshelve erewrite gsoThreadCode; auto.
+            (* seems redundant *)
+            admit.
       
       - (* the case of release *)
         admit.
