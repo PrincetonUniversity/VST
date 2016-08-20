@@ -80,18 +80,6 @@ Lemma data_at_weak_valid_ptr: forall (sh : Share.t) (t : type) (v : reptype t) (
 Proof. intros. 
 eapply derives_trans. 2: apply valid_pointer_weak. apply data_at_valid_ptr; trivial. Qed.
 
-Lemma sepcon_weak_valid_pointer2
-: forall (P Q : mpred) (p : val),
-    P |-- weak_valid_pointer p -> Q * P |-- weak_valid_pointer p.
-Proof.
-intros. unfold weak_valid_pointer in *.
-Admitted.
-Lemma sepcon_weak_valid_pointer1
-: forall (P Q : mpred) (p : val),
-    P |-- weak_valid_pointer p -> P * Q |-- weak_valid_pointer p.
-Proof. Admitted.
-Hint Resolve sepcon_weak_valid_pointer1 sepcon_weak_valid_pointer2 data_at_weak_valid_ptr: valid_pointer.
-
 Lemma sublist_app_exact1:
   forall X (A B: list X), sublist 0 (Zlength A) (A ++ B) = A.
 Proof.

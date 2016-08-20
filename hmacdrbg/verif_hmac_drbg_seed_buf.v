@@ -116,7 +116,7 @@ Proof.
   rewrite <- H.
   freeze [0;2;5;6;7] FR2.
   replace_SEP 1 (UNDER_SPEC.EMPTY p).
-  { entailer. apply protocol_spec_hmac.OPENSSL_HMAC_ABSTRACT_SPEC.mkEmpty.
+  { entailer. apply UNDER_SPEC.mkEmpty.
     clear - Pp MCp. destruct p; try contradiction. destruct MCp.
     repeat split; simpl in *; trivial.
     + omega.
@@ -173,7 +173,7 @@ Proof.
   replace_SEP 1 (hmac256drbg_relate (*(HMAC256DRBGabs V0 (list_repeat 32 1) reseed_counter entropy_len prediction_resistance reseed_interval)*) ABS xx).
   { entailer!. subst ABS; unfold md_full. simpl.
     apply andp_right. apply prop_right. repeat split; trivial. apply IB1. split; omega.
-    apply protocol_spec_hmac.OPENSSL_HMAC_ABSTRACT_SPEC.REP_FULL.
+    apply UNDER_SPEC.REP_FULL.
   }  
 
   forward_call (Data, data, d_len, Vptr b i, xx, ABS, kv, Info). 
@@ -293,7 +293,7 @@ Proof.
   rewrite <- H.
   freeze [0;2;5;6;7] FR2.
   replace_SEP 1 (UNDER_SPEC.EMPTY p).
-  { entailer. apply protocol_spec_hmac.OPENSSL_HMAC_ABSTRACT_SPEC.mkEmpty.
+  { entailer. apply UNDER_SPEC.mkEmpty.
     clear - Pp MCp. destruct p; try contradiction. destruct MCp.
     repeat split; simpl in *; trivial.
     + omega.
@@ -351,7 +351,7 @@ Proof.
   replace_SEP 1 (hmac256drbg_relate (*(HMAC256DRBGabs V0 (list_repeat 32 1) reseed_counter entropy_len prediction_resistance reseed_interval)*) ABS xx).
   { entailer!. subst ABS; unfold md_full. simpl.
     apply andp_right. apply prop_right. repeat split; trivial. apply IB1. split; omega.
-    apply protocol_spec_hmac.OPENSSL_HMAC_ABSTRACT_SPEC.REP_FULL.
+    apply UNDER_SPEC.REP_FULL.
   }  
 
   forward_call (Data, data, d_len, Vptr b i, xx, ABS, kv, Info). 

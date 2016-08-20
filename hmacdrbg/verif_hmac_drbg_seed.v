@@ -178,7 +178,7 @@ Proof.
   rewrite <- ZL_VV.
   freeze [0;2;5;6;7;9] FR2.
   replace_SEP 1 (UNDER_SPEC.EMPTY p).
-  { entailer. apply protocol_spec_hmac.OPENSSL_HMAC_ABSTRACT_SPEC.mkEmpty.
+  { entailer. apply UNDER_SPEC.mkEmpty.
     clear - Pp MCp. destruct p; try contradiction. destruct MCp.
     repeat split; simpl in *; trivial.
     + omega.
@@ -275,7 +275,7 @@ Proof.
     unfold field_address. rewrite if_true; simpl; trivial. rewrite int_add_repr_0_r. cancel.
     rewrite field_at_data_at. simpl.
     unfold field_address. rewrite if_true; simpl; trivial. cancel. 
-    apply protocol_spec_hmac.OPENSSL_HMAC_ABSTRACT_SPEC.REP_FULL.
+    apply UNDER_SPEC.REP_FULL.
   }
 
   clear INI.

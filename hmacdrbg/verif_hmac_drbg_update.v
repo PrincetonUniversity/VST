@@ -433,7 +433,7 @@ Proof. intros. simpl.
       temp _ctx ctx; lvar _K (tarray tuchar (Zlength V)) K;
       lvar _sep (tarray tuchar 1) sep; temp _additional additional;
       temp _add_len (Vint (Int.repr add_len)); gvar sha._K256 kv)
-      SEP  (md_relate (hABS key (V ++ [i] ++ (if na then contents else nil))) (*md_ctx*)(IS1a, (IS1b, IS1c));
+      SEP  (md_relate (UNDER_SPEC.hABS key (V ++ [i] ++ (if na then contents else nil))) (*md_ctx*)(IS1a, (IS1b, IS1c));
       (data_at Tsh t_struct_md_ctx_st (*md_ctx*)(IS1a, (IS1b, IS1c))
           (field_address t_struct_hmac256drbg_context_st
              [StructField _md_ctx] ctx));

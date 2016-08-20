@@ -201,7 +201,7 @@ Opaque initial_key. Opaque initial_value.
 
 Inductive deep_any:= 
   deep_any_empty: deep_any
-| deep_any_rep: forall h:HABS, deep_any
+| deep_any_rep: forall h:UNDER_SPEC.HABS, deep_any
 | deep_any_full: forall k:list Z, deep_any.
 
 Definition deep_interp (d:deep_any) (r: mdstate):mpred :=
@@ -215,9 +215,9 @@ Lemma deep_interp_empty d r: deep_interp d r |-- md_empty r.
 destruct d; simpl. trivial.
 + destruct h. simpl. 
   eapply derives_trans. 
-  apply protocol_spec_hmac.OPENSSL_HMAC_ABSTRACT_SPEC.REP_FULL. 
-  apply protocol_spec_hmac.OPENSSL_HMAC_ABSTRACT_SPEC.FULL_EMPTY.
-+ apply protocol_spec_hmac.OPENSSL_HMAC_ABSTRACT_SPEC.FULL_EMPTY.
+  apply UNDER_SPEC.REP_FULL. 
+  apply UNDER_SPEC.FULL_EMPTY.
++ apply UNDER_SPEC.FULL_EMPTY.
 Qed.  
 
 Definition preseed_relate d rc pr ri (r : hmac256drbgstate):mpred:=
@@ -351,7 +351,7 @@ Proof.
   rewrite <- ZL_VV.
   freeze [0;2;5;6;7;9] FR2.
   replace_SEP 1 (UNDER_SPEC.EMPTY p).
-  { entailer. apply protocol_spec_hmac.OPENSSL_HMAC_ABSTRACT_SPEC.mkEmpty.
+  { entailer. apply UNDER_SPEC.mkEmpty.
     clear - Pp MCp. destruct p; try contradiction. destruct MCp.
     repeat split; simpl in *; trivial.
     + omega.
@@ -441,7 +441,7 @@ Proof.
     rewrite field_at_data_at. simpl.
     unfold field_address. rewrite if_true; simpl; trivial. 
     rewrite int_add_repr_0_r; cancel.
-    apply protocol_spec_hmac.OPENSSL_HMAC_ABSTRACT_SPEC.REP_FULL.
+    apply UNDER_SPEC.REP_FULL.
   }
 
   clear INI.

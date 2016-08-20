@@ -12,6 +12,36 @@ Require Import hmacdrbg.HMAC_DRBG_common_lemmas.
 Require Import hmacdrbg.entropy.
 Require Import sha.general_lemmas.
 
+Lemma body_hmac_drbg_free: semax_body HmacDrbgVarSpecs (md_free_spec::mbedtls_zeroize_spec::HmacDrbgFunSpecs) 
+      f_mbedtls_hmac_drbg_free hmac_drbg_free_spec. 
+Proof. 
+  start_function. 
+  abbreviate_semax.
+  rewrite da_emp_isptrornull. Intros.
+  destruct ctx; try contradiction.
+  { (*ctx==null*)
+    simpl in *; subst i. rewrite da_emp_null; trivial.
+    forward_if (`FF).
+    + forward.
+    + inv H.
+    + apply semax_ff. 
+  }
+  { (*isptr ctx*)
+    rewrite da_emp_ptr. clear PNctx. Intros. simpl. rewrite if_false; try discriminate.
+    forward_if (PROP ( )
+       LOCAL (temp _ctx (Vptr b i))
+       SEP (data_at Tsh t_struct_hmac256drbg_context_st CTX (Vptr b i);
+            hmac256drbg_relate ABS CTX)).
+    + inv H.
+    + forward. entailer!.
+    + unfold_data_at 1%nat. destruct CTX as [C1 [C2 [C3 [C4 [C5 C6]]]]]. simpl.
+      freeze [1;2;3;4;5] FR. unfold hmac256drbg_relate. destruct ABS. normalize.
+      destruct C1 as [? [? ?]]. rewrite field_at_data_at. simpl.
+      unfold field_address. rewrite if_true. simpl. rewrite Int.add_zero.
+      unfold_data_at 1%nat. 
+      freeze [0;1;3;4] FR1. rewrite field_at_data_at. simpl.
+      unfold field_address. rewrite if_true. simpl. 
+Admitted. (*TODO: COMPLETE FREE*)
 Lemma body_hmac_drbg_random: semax_body HmacDrbgVarSpecs HmacDrbgFunSpecs
       f_mbedtls_hmac_drbg_random hmac_drbg_random_spec. 
 Proof. 
@@ -132,30 +162,4 @@ Proof.
   unfold_data_at 1%nat. forward. forward.
   unfold_data_at 1%nat. cancel.
 Qed. 
-Lemma body_hmac_drbg_free: semax_body HmacDrbgVarSpecs (md_free_spec::mbedtls_zeroize_spec::HmacDrbgFunSpecs) 
-      f_mbedtls_hmac_drbg_free hmac_drbg_free_spec. 
-Proof. 
-  start_function. 
-  abbreviate_semax.
-  rewrite da_emp_isptrornull. Intros.
-  destruct ctx; try contradiction.
-  { (*ctx==null*)
-    simpl in *; subst i. rewrite da_emp_null; trivial.
-    forward_if (`FF).
-    + forward.
-    + inv H.
-    + apply semax_ff. 
-  }
-  { (*isptr ctx*)
-    rewrite da_emp_ptr. clear PNctx. Intros. simpl. rewrite if_false; try discriminate.
-    forward_if (PROP ( )
-       LOCAL (temp _ctx (Vptr b i))
-       SEP (data_at Tsh t_struct_hmac256drbg_context_st CTX (Vptr b i);
-            hmac256drbg_relate ABS CTX)).
-    + inv H.
-    + forward. entailer!.
-    + unfold_data_at 1%nat. destruct CTX as [C1 [C2 [C3 [C4 [C5 C6]]]]]. simpl.
-      freeze [1;2;3;4;5] FR. unfold hmac256drbg_relate. destruct ABS. normalize.
-      destruct C1 as [? [? ?]]. unfold md_full. simpl. 
-Admitted. (*TODO: COMPLETE FREE*)
 
