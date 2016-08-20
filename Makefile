@@ -79,7 +79,7 @@ MSL_FILES = \
   knot.v knot_sa.v knot_prop.v \
   knot_lemmas.v knot_unique.v \
   knot_hered.v knot_hered_sa.v \
-  knot_full.v knot_shims.v \
+  knot_full.v knot_full_variant.v knot_shims.v \
   knot_sa_trivial.v \
   corable.v corable_direct.v \
   predicates_hered.v predicates_sl.v subtypes.v subtypes_sl.v \
