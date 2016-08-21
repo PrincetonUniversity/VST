@@ -90,7 +90,8 @@ Module ValErasure.
   Lemma val_erasure_list_decode:
     forall vals vals' typs,
       val_erasure_list vals vals' ->
-      val_erasure_list ( sepcomp.val_casted.decode_longs typs vals) ( sepcomp.val_casted.decode_longs typs vals').
+      val_erasure_list (val_casted.decode_longs typs vals)
+                       (val_casted.decode_longs typs vals').
   Proof.
     intros.
     generalize dependent vals.
@@ -1311,7 +1312,7 @@ Module MemErasure.
         destruct H; try by exfalso.
         unfold Mem.valid_block in H.
         rewrite erased_nb0 in H.
-        assert (H2:= MemoryLemmas.permission_at_alloc_1 _ _ _ _ b ofs
+        assert (H2:= MemoryLemmas.permission_at_alloc_1 _ _  0%Z sz _ b ofs
                                                         Halloc' ltac:(eauto)).
         unfold permission_at in H2.
         specialize (H2 k).
@@ -2358,55 +2359,6 @@ Module SCErasure (SEM: Semantics)
 
 End SCErasure.
 
-(*TODO: Move to another file*)
-(** ** Spinlock well synchronized*)
-(*
-(** Competing Events *)
-
-  Definition sameLocation ev1 ev2 :=
-    match location ev1, location ev2 with
-    | Some (b1, ofs1, size1), Some (b2, ofs2, size2) =>
-      b1 = b2 /\ exists ofs, Intv.In ofs (ofs1, (ofs1 + Z.of_nat size1)%Z) /\
-                       Intv.In ofs (ofs2, (ofs2 + Z.of_nat size2)%Z)
-    | _,_ => False
-    end.
-  
-  Definition competes (ev1 ev2 : machine_event) : Prop :=
-    thread_id ev1 <> thread_id ev2 /\
-    sameLocation ev1 ev2 /\
-    (is_internal ev1 ->
-     is_internal ev2 ->
-     action ev1 = Some Write \/ action ev2 = Some Write) /\
-    (is_external ev1 \/ is_external ev2 ->
-     action ev1 = Some Mklock \/ action ev1 = Some Freelock
-     \/ action ev2 = Some Mklock \/ action ev2 = Some Freelock).
-
-  (** Spinlock well synchronized*)
-  Definition spinlock_synchronized (tr : X86SC.event_trace) :=
-    forall i j ev1 ev2,
-      i < j ->
-      List.nth_error tr i = Some ev1 ->
-      List.nth_error tr j = Some ev2 ->
-      competes ev1 ev2 ->
-      exists u v eu ev,
-        i < u < v < j /\
-        List.nth_error tr u = Some eu /\
-        List.nth_error tr v = Some ev /\
-        action eu = Some Release /\ action ev = Some Acquire /\
-        location eu = location ev.
-
-  (** Spinlock clean *)
-  Definition spinlock_clean (tr : X86SC.event_trace) :=
-    forall i j evi evj,
-      i < j ->
-      List.nth_error tr i = Some evi ->
-      List.nth_error tr j = Some evj ->
-      action evi = Some Mklock ->
-      (~ exists u evu, i < u < j /\ List.nth_error tr u = Some evu /\
-                  action evu = Some Freelock /\ location evu = location evi) ->
-      sameLocation evj evi ->
-      action evj <> Some Write /\ action evj <> Some Read. *)
-  
 
 
 

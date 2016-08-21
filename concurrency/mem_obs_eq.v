@@ -1601,8 +1601,7 @@ Module ValObsEq.
       val_obs f (Val.ror v1 (Vint ofs)) (Val.ror v2 (Vint ofs)).
   Proof with eauto with val_renamings.
     intros.
-    destruct v1; inversion Hval_obs; subst;
-    simpl...
+    destruct v1; inversion Hval_obs; subst; simpl...
   Qed.
 
   Lemma val_obs_suboverflow:
@@ -2020,16 +2019,14 @@ Qed.
 
 (** If a memory [m] injects into a memory [m'] then [m'] is at least
 as big as [m] *)
+
 Lemma weak_mem_obs_eq_nextblock:
   forall f m m'
     (Hobs_eq: weak_mem_obs_eq f m m'),
     (Mem.nextblock m <= Mem.nextblock m')%positive.
 Proof.
-  intros.
-  destruct Hobs_eq as [_ Hdomain Hcodomain Hinjective _].
-  
-  
-  
+Admitted.
+    
   Definition max_inv mf := forall b ofs, Mem.valid_block mf b ->
                                     permission_at mf b ofs Max = Some Freeable.
 

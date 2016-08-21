@@ -89,8 +89,8 @@ Module MemoryLemmas.
   Qed.
 
   Lemma permission_at_alloc_1:
-    forall m m' sz nb b ofs
-      (Halloc: Mem.alloc m 0 sz = (m', nb))
+    forall m m' lo hi nb b ofs
+      (Halloc: Mem.alloc m lo hi = (m', nb))
       (Hvalid: Mem.valid_block m b),
     forall k, permissions.permission_at m b ofs k =
          permissions.permission_at m' b ofs k.
@@ -138,6 +138,56 @@ Module MemoryLemmas.
     omega.
   Qed.
 
+  Lemma permission_at_free_1 :
+    forall m m' (lo hi : Z) b b' ofs'
+      (Hfree: Mem.free m b lo hi = Some m')
+      (Hnon_freeable: ~ Mem.perm m b' ofs' Cur Freeable),
+    forall k : perm_kind,
+      permission_at m b' ofs' k = permission_at m' b' ofs' k.
+  Proof.
+    intros.
+    pose proof (Mem.free_result _ _ _ _ _ Hfree) as Hfree'.
+    subst.
+    unfold Mem.unchecked_free. unfold permission_at. simpl.
+    destruct (Pos.eq_dec b' b); subst.
+    - destruct (zle lo ofs' && zlt ofs' hi) eqn:Hintv.
+      + exfalso.
+        apply andb_true_iff in Hintv.
+        destruct Hintv as [Hle Hlt].
+        destruct (zle lo ofs'); simpl in *; auto.
+        destruct (zlt ofs' hi); simpl in *; auto.
+        apply Mem.free_range_perm in Hfree.
+        unfold Mem.range_perm in Hfree.
+        specialize (Hfree ofs' (conj l l0)).
+        auto.
+      + rewrite Maps.PMap.gss.
+        rewrite Hintv.
+        reflexivity.
+    - rewrite Maps.PMap.gso;
+      auto.
+  Qed.
+  
+  Lemma permission_at_free_list_1:
+    forall m m' l b ofs
+      (Hfree: Mem.free_list m l = Some m')
+      (Hnon_freeable: ~ Mem.perm m b ofs Cur Freeable),
+    forall k : perm_kind,
+      permission_at m b ofs k = permission_at m' b ofs k.
+  Proof.
+    intros m m' l.
+    generalize dependent m.
+    induction l; intros.
+    - simpl in Hfree; inv Hfree; reflexivity.
+    - simpl in Hfree. destruct a, p.
+      destruct (Mem.free m b0 z0 z) eqn:Hfree'; try discriminate.
+      pose proof Hfree' as Hfree''.
+      eapply permission_at_free_1 with (k := k) in Hfree'; eauto.
+      eapply permission_at_free_1 with (k := Cur) in Hfree''; eauto.
+      rewrite Hfree'. eapply IHl; eauto.
+      unfold Mem.perm in *. unfold permission_at in *.
+      rewrite <- Hfree''. assumption.
+  Qed.
+  
   Lemma mem_free_contents:
     forall m m2 sz b
       (Hfree: Mem.free m b 0 sz = Some m2),
@@ -165,6 +215,22 @@ Module MemoryLemmas.
     reflexivity.
   Qed.
 
+  Lemma mem_storebytes_cur :
+    forall b (ofs : Z) bytes (m m' : mem),
+      Mem.storebytes m b ofs bytes = Some m' ->
+      forall (b' : positive) (ofs' : Z),
+        (getCurPerm m) !! b' ofs' = (getCurPerm m') !! b' ofs'.
+  Proof.
+    intros.
+    Transparent Mem.storebytes.
+    unfold Mem.storebytes in *.
+    destruct (Mem.range_perm_dec m b ofs (ofs + Z.of_nat (length bytes)) Cur
+                                 Writable); try discriminate.
+    inversion H; subst.
+    do 2 rewrite getCurPerm_correct.
+    reflexivity.
+  Qed.
+
   Lemma mem_store_cur:
     forall chunk b ofs v m m',
       Mem.store chunk m b ofs v = Some m' ->
@@ -172,13 +238,10 @@ Module MemoryLemmas.
         (getCurPerm m) # b' ofs' = (getCurPerm m') # b' ofs'.
   Proof.
     intros.
-    unfold Mem.store in *.
-    destruct (Mem.valid_access_dec m chunk b ofs Writable); try discriminate.
-    inversion H; subst.
-    do 2 rewrite getCurPerm_correct.
-    reflexivity.
+    apply Mem.store_storebytes in H.
+    eapply mem_storebytes_cur; eauto.
   Qed.
-
+  
   Lemma load_valid_block:
     forall (m : mem) b ofs chunk v,
       Mem.load chunk m b ofs = Some v ->

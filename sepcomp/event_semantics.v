@@ -25,7 +25,7 @@ Fixpoint ev_elim (m:mem) (T: list mem_event) (m':mem):Prop :=
   match T with
    nil => m'=m
  | (Read b ofs n bytes :: R) => Mem.loadbytes m b ofs n = Some bytes /\ ev_elim m R m'
- | (Write b ofs bytes :: R) => exists m'', Mem.storebytes m b ofs bytes = Some m'' /\ ev_elim m'' R m'
+ | (Write b ofs bytes :: R) => exists m'', Mem.storebytes m b ofs bytes = Some m'' /\ ev_elim m'' R m' /\ bytes <> nil
  | (Alloc b lo hi :: R) => exists m'', Mem.alloc m lo hi = (m'',b) /\ ev_elim m'' R m'
  | (Free l :: R) => exists m'', Mem.free_list m l = Some m'' /\ ev_elim m'' R m'
   end.
@@ -77,7 +77,7 @@ induction T; simpl; intros.
 + subst. apply po_None. 
 + destruct a.
   - (*Store*)
-     destruct H as [m'' [SB EV]]. specialize (IHT _ _ EV); clear EV. 
+     destruct H as [m'' [SB [EV BYTES]]]. specialize (IHT _ _ EV); clear EV. 
      rewrite (Mem.storebytes_access _ _ _ _ _ SB) in *.
      eapply po_pmax_I; try eassumption.
      remember (eq_block b0 b && zle ofs0 ofs && zlt ofs (ofs0 + Zlength bytes)) as d.
@@ -137,8 +137,8 @@ Lemma ev_elim_app: forall T1 m1 m2 (EV1:ev_elim m1 T1 m2) T2 m3  (EV2: ev_elim m
 Proof.
   induction T1; simpl; intros; subst; trivial.
   destruct a.
-+ destruct EV1 as [mm [SB EV]]. specialize (IHT1 _ _ EV _ _ EV2).
-  exists mm; split; trivial.
++ destruct EV1 as [mm [SB [EV BYTES]]]. specialize (IHT1 _ _ EV _ _ EV2).
+  exists mm; split; trivial; split; trivial.
 + destruct EV1 as [LB EV]. specialize (IHT1 _ _ EV _ _ EV2).
   split; trivial.
 + destruct EV1 as [mm [AL EV]]. specialize (IHT1 _ _ EV _ _ EV2).
@@ -153,8 +153,8 @@ Proof.
   induction T1; simpl; intros.
 + exists m1; split; trivial.
 + destruct a.
-  - destruct EV1 as [mm [SB EV]]. destruct (IHT1 _ _ _ EV) as [m2 [EV1 EV2]].
-    exists m2; split; trivial. exists mm; split; trivial.
+  - destruct EV1 as [mm [SB [EV BYTES]]]. destruct (IHT1 _ _ _ EV) as [m2 [EV1 EV2]].
+    exists m2; split; trivial. exists mm; split; trivial; split; trivial.
   - destruct EV1 as [LB EV]. destruct (IHT1 _ _ _ EV) as [m2 [EV1 EV2]].
     exists m2; split; trivial. split; trivial.
   - destruct EV1 as [mm [AL EV]]. destruct (IHT1 _ _ _ EV) as [m2 [EV1 EV2]].
