@@ -73,7 +73,7 @@ COQDOC=$(COQBIN)coqdoc
 MSL_FILES = \
   Axioms.v Extensionality.v base.v eq_dec.v \
   ageable.v sepalg.v psepalg.v age_sepalg.v \
-  sepalg_generators.v functors.v sepalg_functors.v combiner_sa.v \
+  sepalg_generators.v functors.v functors_variant.v sepalg_functors.v combiner_sa.v \
   cross_split.v join_hom_lemmas.v cjoins.v \
   boolean_alg.v tree_shares.v shares.v pshares.v \
   knot.v knot_sa.v knot_prop.v \
