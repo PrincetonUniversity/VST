@@ -1,22 +1,19 @@
 Require Import msl.base.
 Require Import msl.ageable.
+Require msl.functors_variant.
+Import msl.functors_variant.MixVariantFunctor.
+Import msl.functors_variant.MixVariantFunctorLemmas.
 
 Module Type TY_FUNCTOR_FULL.
-  Parameter F : Type -> Type.
-  Parameter bimap : forall A B, (A -> B) -> (B -> A) -> F A -> F B.
-  Implicit Arguments bimap [A B].
-
-  Axiom bimap_id : forall A, bimap (id A) (id A) = id (F A).
-  Axiom bimap_comp : forall A B C (f1:B -> C) (g1:A -> B) (f2:C -> B) (g2:B -> A),
-    bimap f1 f2 oo bimap g1 g2 = bimap (f1 oo g1) (g2 oo f2).
+  Parameter F : functor.
 
   Parameter other : Type.
 
   Parameter Rel : forall A, F A -> F A -> Prop.
 
-  Parameter Rel_bimap : forall A B (f1:A->B) (f2:B->A) x y,
+  Parameter Rel_fmap : forall A B (f1: A->B) (f2:B->A) x y,
     Rel A x y ->
-    Rel B (bimap f1 f2 x) (bimap f1 f2 y).
+    Rel B (fmap F f1 f2 x) (fmap F f1 f2 y).
   Axiom Rel_refl : forall A x, Rel A x x.
   Axiom Rel_trans : forall A x y z,
     Rel A x y -> Rel A y z -> Rel A x z.
@@ -53,7 +50,7 @@ Module Type KNOT_FULL.
 
   Axiom squash_unsquash : forall k:knot, squash (unsquash k) = k.
   Axiom unsquash_squash : forall (n:nat) (f:F predicate),
-    unsquash (squash (n,f)) = (n, bimap (approx n) (approx n) f).
+    unsquash (squash (n,f)) = (n, fmap F (approx n) (approx n) f).
 
   Axiom approx_spec : forall n p ko,
     proj1_sig (approx n p) ko =
@@ -102,19 +99,10 @@ Module KnotFull (TF':TY_FUNCTOR_FULL) : KNOT_FULL with Module TF:=TF'.
     (x:projT1 Z) : guppy_step_ty Z :=
     exist (fun z => projT2 Z z) (x, fun _ => T_bot) (H x).
 
-(*
-  Definition guppy_step_prop (Z:guppy_ty) (xf:sinv_prod (guppy_step_ty Z)) :=
-    forall (k:F (guppy_step_ty Z) (guppy_step_ty Z))
-           (k':F (projT1 Z) (projT1 Z)) (o o':other) H,
-         ORel o o' ->
-         Rel (projT1 Z) (projT1 Z) (bimap (guppy_unage Z H) (guppy_age Z) k) k' ->
-         T_rel (snd xf (k,o)) (snd (proj1_sig (fst xf)) (k',o')).
-*)
-
   Definition guppy_step_prop (Z:guppy_ty) (xf:sinv_prod (guppy_step_ty Z)) :=
     (forall (k:F (guppy_step_ty Z)) (o:other) H,
          T_rel (snd xf (k,o))
-               (snd (proj1_sig (fst xf)) (bimap (guppy_age Z) (guppy_unage Z H) k,o))) /\
+               (snd (proj1_sig (fst xf)) (fmap F (guppy_age Z) (guppy_unage Z H) k,o))) /\
     (forall (k k':F (guppy_step_ty Z)) (o o':other),
          Rel (guppy_step_ty Z) k k' ->
          ORel o o' ->
@@ -165,7 +153,7 @@ Module KnotFull (TF':TY_FUNCTOR_FULL) : KNOT_FULL with Module TF:=TF'.
     match k with
       | existT _ 0 f => None
       | existT _ (S m) f => Some
-          (existT F_sinv m (bimap (sinv_age m) (sinv_unage m) f))
+          (existT F_sinv m (fmap F (sinv_age m) (sinv_unage m) f))
     end.
 
   Definition age_def x y := age1_def x = Some y.
@@ -321,10 +309,10 @@ Module KnotFull (TF':TY_FUNCTOR_FULL) : KNOT_FULL with Module TF:=TF'.
     clear o' H0 H1.
     induction H.
     hnf in H; simpl in H.
-    destruct x; simpl in H.
+    destruct x as [x f]; simpl in H.
     destruct x; try discriminate.
     assert (y =
-      (existT (F_sinv) x (bimap (sinv_age x) (sinv_unage x) f))).
+      (existT (F_sinv) x (fmap F (sinv_age x) (sinv_unage x) f))).
     inversion H; auto.
     subst y.
     unfold unstratify.
@@ -482,10 +470,10 @@ Module KnotFull (TF':TY_FUNCTOR_FULL) : KNOT_FULL with Module TF:=TF'.
     exist hered (unstratify n p) (unstratify_hered n p).
 
   Definition squash (x:nat * F predicate) : knot :=
-    match x with (n,f) => existT (F_sinv) n (bimap (strat n) (unstrat n) f) end.
+    match x with (n,f) => existT (F_sinv) n (fmap F (strat n) (unstrat n) f) end.
 
   Definition unsquash (k:knot) : nat * F predicate :=
-    match k with existT _ n f => (n, bimap (unstrat n) (strat n) f) end.
+    match k with existT _ n f => (n, fmap F (unstrat n) (strat n) f) end.
 
   Definition knot_level_def (k:knot) : nat :=
     fst (unsquash k).
@@ -579,36 +567,26 @@ Module KnotFull (TF':TY_FUNCTOR_FULL) : KNOT_FULL with Module TF:=TF'.
   Lemma squash_unsquash : forall k, squash (unsquash k) = k.
   Proof.
     intros.
-    destruct k; simpl.
+    destruct k as [n f]; simpl.
     f_equal.
-    change ((bimap (strat x) (unstrat x) oo (bimap (unstrat x) (strat x))) f = f).
-    rewrite bimap_comp.
+    change ((fmap F (strat n) (unstrat n) oo (fmap F (unstrat n) (strat n))) f = f).
+    rewrite fmap_comp.
     rewrite strat_unstrat.
-    rewrite bimap_id.
+    rewrite fmap_id.
     auto.
   Qed.
 
   Lemma unsquash_squash : forall n f,
-    unsquash (squash (n,f)) = (n, bimap (approx n) (approx n) f).
+    unsquash (squash (n,f)) = (n, fmap F (approx n) (approx n) f).
   Proof.
     intros.
     unfold unsquash, squash.
     f_equal.
-    change ((bimap (unstrat n) (strat n) oo (bimap (strat n) (unstrat n))) f = bimap (approx n) (approx n) f).
-    rewrite bimap_comp.
+    change ((fmap F (unstrat n) (strat n) oo (fmap F (strat n) (unstrat n))) f = fmap F (approx n) (approx n) f).
+    rewrite fmap_comp.
     rewrite unstrat_strat.
     auto.
   Qed.
-
-
-  Lemma bimap_bimap : forall A B C (f1:B->C) (g1:A->B) (f2:C->B) (g2:B -> A) x,
-    bimap f1 f2 (bimap g1 g2 x) = bimap (f1 oo g1) (g2 oo f2) x.
-  Proof.
-    intros.
-    rewrite <- bimap_comp.
-    auto.
-  Qed.
-
 
   Lemma strat_Sx_unstrat : forall x,
     sinv_unage x = strat (S x) oo unstrat x.
@@ -724,7 +702,7 @@ Module KnotFull (TF':TY_FUNCTOR_FULL) : KNOT_FULL with Module TF:=TF'.
 
     rewrite strat_Sx_unstrat.
     rewrite strat_unstrat_Sx.
-    rewrite <- bimap_comp.
+    rewrite <- fmap_comp.
     unfold compose.
     f_equal.
     subst k.
@@ -770,17 +748,17 @@ Module KnotFull (TF':TY_FUNCTOR_FULL) : KNOT_FULL with Module TF:=TF'.
     constructor.
 
     unfold knot_age1_def; unfold knot_level_def; simpl; intros x'.
-    case_eq (unsquash x'); intros.
-    destruct x'.
-    exists (squash (S x, TF'.bimap (unstrat x) (strat x) f0)).
+    destruct (unsquash x') as [n f] eqn:?H; intros.
+    destruct x' as [x f0].
+    exists (squash (S x, fmap F (unstrat x) (strat x) f0)).
     rewrite unsquash_squash.
     f_equal. f_equal.
     clear.
-    transitivity ((TF'.bimap (strat x) (unstrat x) oo TF'.bimap (approx (S x)) (approx (S x)) oo TF'.bimap (unstrat x) (strat x)) f0); auto.
-    do 2 rewrite TF'.bimap_comp.
+    transitivity ((fmap F (strat x) (unstrat x) oo fmap F (approx (S x)) (approx (S x)) oo fmap F (unstrat x) (strat x)) f0); auto.
+    do 2 rewrite fmap_comp.
     rewrite compose_assoc.
     replace (strat x oo approx (S x) oo unstrat x) with (@id (sinv x)).
-    rewrite TF'.bimap_id. auto.
+    rewrite fmap_id. auto.
     rewrite <- (strat_unstrat x).
     f_equal.
     extensionality a.
@@ -861,16 +839,16 @@ Module KnotFull (TF':TY_FUNCTOR_FULL) : KNOT_FULL with Module TF:=TF'.
     rewrite age1_eq.
     auto.
     eapply rt_trans; eauto.
-    destruct k'; destruct k''.
+    destruct k' as [x f], k'' as [x0 f0].
     unfold knot_rel, unsquash in H1.
     destruct H1; subst.
     constructor.
-    apply (Rel_bimap _ _ (strat x0) (unstrat x0)) in H3.
+    apply (Rel_fmap _ _ (strat x0) (unstrat x0)) in H3.
     change f with (id _ f).
     change f0 with (id _ f0).
-    rewrite <- bimap_id.
+    rewrite <- fmap_id.
     rewrite <- (strat_unstrat x0).
-    rewrite <- bimap_comp.
+    rewrite <- fmap_comp.
     auto.
     assumption.
 
@@ -889,7 +867,7 @@ Module KnotFull (TF':TY_FUNCTOR_FULL) : KNOT_FULL with Module TF:=TF'.
     apply Eqdep_dec.inj_pair2_eq_dec in H5; auto.
     apply Eqdep_dec.inj_pair2_eq_dec in H7; auto.
     subst.
-    apply Rel_bimap; auto.
+    apply Rel_fmap; auto.
     exact eq_nat_dec.
     exact eq_nat_dec.
   Qed.
@@ -934,7 +912,7 @@ Module KnotFull_Lemmas (K : KNOT_FULL).
   Proof.
     intros.
     remember (unsquash k).
-    destruct p.
+    destruct p as [n f].
     exists n.
     exists f.
     rewrite Heqp.
@@ -944,7 +922,7 @@ Module KnotFull_Lemmas (K : KNOT_FULL).
 
   Lemma unsquash_approx : forall k n Fp,
     unsquash k = (n, Fp) ->
-    Fp = bimap (approx n) (approx n) Fp.
+    Fp = fmap F (approx n) (approx n) Fp.
   Proof.
     intros.
     generalize H; intro.
@@ -1002,11 +980,4 @@ Module KnotFull_Lemmas (K : KNOT_FULL).
     elimtype False; omega.
   Qed.
 
-  Lemma bimap_bimap : forall A B C (f1:B->C) (g1:A->B) (f2:C->B) (g2:B -> A) x,
-    bimap f1 f2 (bimap g1 g2 x) = bimap (f1 oo g1) (g2 oo f2) x.
-  Proof.
-    intros.
-    rewrite <- bimap_comp.
-    auto.
-  Qed.
 End KnotFull_Lemmas.
