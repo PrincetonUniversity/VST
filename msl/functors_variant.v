@@ -23,8 +23,6 @@ Record functor : Type := Functor {
   functor_facts : functorFacts _functor fmap
 }.
 
-Coercion _functor: functor >-> Funclass.
-
 End CovariantFunctor.
 
 Module ContraVariantFunctor.
@@ -43,8 +41,6 @@ Record functor : Type := Functor {
   functor_facts : functorFacts _functor fmap
 }.
 
-Coercion _functor: functor >-> Funclass.
-
 End ContraVariantFunctor.
 
 Module MixVariantFunctor.
@@ -62,8 +58,6 @@ Record functor : Type := Functor {
   fmap : forall A B (f1 : A -> B) (f2 : B -> A), _functor A -> _functor B;
   functor_facts : functorFacts _functor fmap
 }.
-
-Coercion _functor: functor >-> Funclass.
 
 End MixVariantFunctor.
 
@@ -86,8 +80,6 @@ Record functor : Type := Functor {
   functor_facts : functorFacts _functor fmap
 }.
 
-Coercion _functor: functor >-> Funclass.
-
 End CovariantBiFunctor.
 
 Module CoContraVariantBiFunctor.
@@ -109,9 +101,18 @@ Record functor : Type := Functor {
   functor_facts : functorFacts _functor fmap
 }.
 
-Coercion _functor: functor >-> Funclass.
-
 End CoContraVariantBiFunctor.
+
+Coercion CovariantFunctor._functor:
+  CovariantFunctor.functor >-> Funclass.
+Coercion ContraVariantFunctor._functor:
+  ContraVariantFunctor.functor >-> Funclass.
+Coercion MixVariantFunctor._functor:
+  MixVariantFunctor.functor >-> Funclass.
+Coercion CovariantBiFunctor._functor:
+  CovariantBiFunctor.functor >-> Funclass.
+Coercion CoContraVariantBiFunctor._functor:
+  CoContraVariantBiFunctor.functor >-> Funclass.
 
 Module CovariantFunctorLemmas.
 
@@ -210,7 +211,7 @@ Definition CovariantFunctor_CovariantFunctor_compose
 (F1 F2: CovariantFunctor.functor):
   CovariantFunctor.functor.
   refine (@CovariantFunctor.Functor
-   (fun T => CovariantFunctor._functor F1 (CovariantFunctor._functor F2 T))
+   (fun T => F1 (F2 T))
    (fun A B f => CovariantFunctor.fmap F1 (CovariantFunctor.fmap F2 f)) _).
   constructor; intros; simpl.
   + rewrite !CovariantFunctorLemmas.fmap_id; auto.
@@ -222,8 +223,7 @@ Definition CovariantBiFunctor_CovariantFunctor_compose
 (F1 F2: CovariantFunctor.functor):
   CovariantFunctor.functor.
   refine (@CovariantFunctor.Functor
-   (fun T => CovariantBiFunctor._functor F
-      (CovariantFunctor._functor F1 T) (CovariantFunctor._functor F2 T))
+   (fun T => F (F1 T) (F2 T))
    (fun A B f => CovariantBiFunctor.fmap F
       (CovariantFunctor.fmap F1 f) (CovariantFunctor.fmap F2 f)) _). 
   constructor; intros; simpl.
@@ -326,7 +326,7 @@ Definition ffunc (F1: ContraVariantFunctor.functor) (F2: functor): functor :=
   F1.
 
 Goal forall (F1 : ContraVariantFunctor.functor) (F2: functor) (T: Type),
-  ffunc F1 F2 T = (ContraVariantFunctor._functor F1 T -> F2 T).
+  ffunc F1 F2 T = (F1 T -> F2 T).
 reflexivity.
 Qed.
 

@@ -1,6 +1,6 @@
 Require Import msl.base.
 Require Import msl.ageable.
-Require msl.functors_variant.
+Require Import msl.functors_variant.
 Import msl.functors_variant.MixVariantFunctor.
 Import msl.functors_variant.MixVariantFunctorLemmas.
 
