@@ -94,16 +94,32 @@ Definition free_spec :=
        LOCAL (temp 1%positive p)
        SEP (memory_block Tsh n p; FreeBLK n p)
     POST [ Tvoid ] 
+      EX vret:unit, PROP ()
+       LOCAL ()
        SEP (emp).
+(*TODO: if we write this as 
+Definition oldfree_spec :=
+  DECLARE _free
+   WITH p:_, n:_
+   PRE [ 1%positive OF tptr tvoid ]
+       PROP ()
+       LOCAL (temp 1%positive p)
+       SEP (memory_block Tsh n p; FreeBLK n p)
+    POST [ Tvoid ] 
+       SEP (emp).
+the proof of md_free breaks*)
 
 Definition md_free_spec :=
  DECLARE _mbedtls_md_free
-  WITH ctx:val
+  WITH ctx:val, r:mdstate
   PRE  [ _ctx OF tptr (Tstruct _mbedtls_md_context_t noattr) ]
-       PROP() LOCAL(temp _ctx ctx) 
-       SEP (UNDER_SPEC.EMPTY ctx; FreeBLK (sizeof (Tstruct _mbedtls_md_context_t noattr)) ctx)
-  POST [ Tvoid ] 
-    SEP (emp).
+       PROP() 
+       LOCAL(temp _ctx ctx) 
+       SEP (data_at Tsh t_struct_md_ctx_st r ctx;
+            UNDER_SPEC.EMPTY (snd (snd r)); 
+            FreeBLK (sizeof (Tstruct _hmac_ctx_st noattr)) (snd (snd r)))
+  POST [ tvoid ] 
+    SEP (data_at Tsh t_struct_md_ctx_st r ctx).
 
 Definition mbedtls_zeroize_spec :=
   DECLARE _mbedtls_zeroize
@@ -758,9 +774,26 @@ Definition hmac_drbg_free_spec :=
        LOCAL (temp _ctx ctx)
        SEP (da_emp Tsh t_struct_hmac256drbg_context_st CTX ctx;
             if Val.eq ctx nullval then emp else
-                hmac256drbg_relate ABS CTX)
+                 (hmac256drbg_relate ABS CTX *
+                 FreeBLK 324 (snd(snd (fst CTX)))))
+    POST [ tvoid ] 
+      EX vret:unit, PROP ()
+       LOCAL ()
+       SEP (if Val.eq ctx nullval then emp else data_block Tsh (list_repeat (Z.to_nat size_of_HMACDRBGCTX) 0) ctx).
+(*TODO: writing the spec like this breaks the proof of its body
+Definition hmac_drbg_free_spec :=
+  DECLARE _mbedtls_hmac_drbg_free
+   WITH ctx:val, CTX:hmac256drbgstate, ABS:_
+    PRE [_ctx OF tptr (Tstruct _mbedtls_hmac_drbg_context noattr) ]
+       PROP ( )
+       LOCAL (temp _ctx ctx)
+       SEP (da_emp Tsh t_struct_hmac256drbg_context_st CTX ctx;
+            if Val.eq ctx nullval then emp else
+                 (hmac256drbg_relate ABS CTX *
+                 FreeBLK 324 (snd(snd (fst CTX)))))
     POST [ tvoid ]
        SEP (if Val.eq ctx nullval then emp else data_block Tsh (list_repeat (Z.to_nat size_of_HMACDRBGCTX) 0) ctx).
+*)
 
 Definition HmacDrbgVarSpecs : varspecs := (sha._K256, tarray tuint 64)::nil.
 
@@ -818,7 +851,7 @@ Lemma hmac_init_merge:
 Proof. simpl. rewrite if_true; trivial. Qed.
 
 Definition HmacDrbgFunSpecs : funspecs := 
-  md_free_spec ::hmac_drbg_free_spec::md_free_spec::mbedtls_zeroize_spec::
+  free_spec :: md_free_spec ::hmac_drbg_free_spec::mbedtls_zeroize_spec::
   hmac_drbg_setReseedInterval_spec::hmac_drbg_setEntropyLen_spec::
   hmac_drbg_setPredictionResistance_spec::hmac_drbg_random_spec::hmac_drbg_init_spec::
   hmac_drbg_update_spec::

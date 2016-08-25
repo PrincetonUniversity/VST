@@ -231,6 +231,10 @@ Lemma mkEmpty v: field_compatible t_struct_hmac_ctx_st [] v ->
   memory_block Tsh (sizeof t_struct_hmac_ctx_st) v |-- EMPTY v.
 Proof. intros. unfold EMPTY. rewrite data_at__memory_block. entailer!. Qed.
 
+Lemma EmptyDissolve: forall v, 
+  EMPTY v |-- memory_block Tsh (sizeof t_struct_hmac_ctx_st) v .
+Proof. intros. unfold EMPTY. rewrite data_at__memory_block. entailer!. Qed.
+
 Lemma REP_FULL key data c: REP (hABS key data) c |-- FULL key c.
 Proof. unfold REP, FULL. Intros r.
   unfold hmacstate_PreInitNull. simpl in H.
