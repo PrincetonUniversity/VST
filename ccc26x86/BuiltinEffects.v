@@ -8,7 +8,7 @@ Require Import compcert.common.Memory.
 Require Import compcert.common.Events.
 Require Import compcert.common.Globalenvs.
 
-Require Import ccc26x86.Ctypes. (*for type and access_mode*)
+Require Import compcert.cfrontend.Ctypes. (*for type and access_mode*)
 Require Import sepcomp.mem_lemmas. (*needed for definition of valid_block_dec etc*)
 
 Require Import msl.Axioms.
@@ -267,15 +267,18 @@ Qed.
 
 (** * From SelectLongproof: Axiomatization of the helper functions *)
 
+(*Open Local Scope cminorsel_scope.*)
+Open Local Scope string_scope.
+
 Definition external_implements (name: string) (sg: signature) (vargs: list val) (vres: val) : Prop :=
   forall F V (ge: Genv.t F V) m,
-  external_call (EF_external name sg) ge vargs m E0 vres m.
+  external_call (EF_runtime name sg) ge vargs m E0 vres m.
 
 Definition builtin_implements (name: string) (sg: signature) (vargs: list val) (vres: val) : Prop :=
   forall F V (ge: Genv.t F V) m,
   external_call (EF_builtin name sg) ge vargs m E0 vres m.
 
-Definition i64_helpers_correct: Prop :=
+Axiom i64_helpers_correct :
     (forall x z, Val.longoffloat x = Some z -> external_implements "__i64_dtos" sig_f_l (x::nil) z)
  /\ (forall x z, Val.longuoffloat x = Some z -> external_implements "__i64_dtou" sig_f_l (x::nil) z)
  /\ (forall x z, Val.floatoflong x = Some z -> external_implements "__i64_stod" sig_l_f (x::nil) z)
@@ -294,10 +297,31 @@ Definition i64_helpers_correct: Prop :=
  /\ (forall x y, external_implements "__i64_shr" sig_li_l (x::y::nil) (Val.shrlu x y))
  /\ (forall x y, external_implements "__i64_sar" sig_li_l (x::y::nil) (Val.shrl x y)).
 
-Definition helper_declared {F V: Type} (ge: Genv.t (AST.fundef F) V) (id: ident) (name: string) (sg: signature) : Prop :=
+(*Does not typecheck 
+Definition helper_declared {F V: Type} (p: AST.program (AST.fundef F) V) (id: ident) (name: string) (sg: signature) : Prop :=
+  (prog_defmap p)!id = Some (Gfun (External (EF_runtime name sg))).
+
+Definition helper_functions_declared {F V: Type} (p: AST.program (AST.fundef F) V) (hf: helper_functions) : Prop :=
+     helper_declared p hf.(i64_dtos) "__i64_dtos" sig_f_l
+  /\ helper_declared p hf.(i64_dtou) "__i64_dtou" sig_f_l
+  /\ helper_declared p hf.(i64_stod) "__i64_stod" sig_l_f
+  /\ helper_declared p hf.(i64_utod) "__i64_utod" sig_l_f
+  /\ helper_declared p hf.(i64_stof) "__i64_stof" sig_l_s
+  /\ helper_declared p hf.(i64_utof) "__i64_utof" sig_l_s
+  /\ helper_declared p hf.(i64_sdiv) "__i64_sdiv" sig_ll_l
+  /\ helper_declared p hf.(i64_udiv) "__i64_udiv" sig_ll_l
+  /\ helper_declared p hf.(i64_smod) "__i64_smod" sig_ll_l
+  /\ helper_declared p hf.(i64_umod) "__i64_umod" sig_ll_l
+  /\ helper_declared p hf.(i64_shl) "__i64_shl" sig_li_l
+  /\ helper_declared p hf.(i64_shr) "__i64_shr" sig_li_l
+  /\ helper_declared p hf.(i64_sar) "__i64_sar" sig_li_l.
+*)
+
+(*In compccomp, we had:Definition helper_declared {F V: Type} (ge: Genv.t (AST.fundef F) V) (id: ident) (name: string) (sg: signature) : Prop :=
   exists b, Genv.find_symbol ge id = Some b
          /\ Genv.find_funct_ptr ge b = Some (External (EF_external name sg))
          /\ forall vargs m t vres m', external_call (EF_external name sg) ge vargs m t vres m' -> m=m'.
+
 
 Definition builtin_mem_refl (name: string) (sg: signature) : Prop :=
   forall F V (ge: Genv.t F V) vargs t vres m m',
@@ -321,7 +345,7 @@ Definition helper_functions_declared {F V: Type} (ge: Genv.t (AST.fundef F) V) (
   /\ builtin_mem_refl "__builtin_addl" sig_ll_l
   /\ builtin_mem_refl "__builtin_subl" sig_ll_l
   /\ builtin_mem_refl "__builtin_mull" sig_ii_l.
-
+*)
 Definition builtin_injects name sg:= forall {F V TF TV: Type} 
   (ge: Genv.t F V) (tge : Genv.t TF TV)
   (SymbPres : forall s, Genv.find_symbol tge s = Genv.find_symbol ge s)
@@ -339,7 +363,7 @@ Axiom Builtins_inject:
  builtin_injects"__builtin_addl" sig_ll_l /\
  builtin_injects "__builtin_subl" sig_ll_l /\
  builtin_injects "__builtin_mull"  sig_ii_l.
-
+(*
 Lemma builtins_inject: forall {F V TF TV: Type} 
   (ge: Genv.t (AST.fundef F) V) (tge : Genv.t (AST.fundef TF) TV) 
   (SymbPres : forall s, Genv.find_symbol tge s = Genv.find_symbol ge s)
@@ -727,7 +751,7 @@ Proof.
     apply Mem.loadbytes_length in H5.
     eapply Mem.storebytes_range_perm; eauto.
     rewrite H5, nat_of_Z_eq; omega.
-Qed.
+Qed.*)
 
 Lemma BuiltinEffect_valid_block:
     forall {F V:Type} ef (g : Genv.t F V) vargs m b z,
@@ -747,7 +771,7 @@ Definition isInlinedAssembly ef :=
 Context {F V: Type} (ge: Genv.t (AST.fundef F) V).
 Variable hf : helper_functions.
 
-Hypothesis HELPERS: helper_functions_declared ge hf.
+(*Hypothesis HELPERS: helper_functions_declared ge hf.
 Hypothesis helpers_correct: i64_helpers_correct.
 
 
@@ -800,7 +824,7 @@ destruct ef; simpl in *.
   elim NOBS; trivial.
 + (*debug_sem*)
   elim NOBS; trivial.
-Qed.
+Qed.*)
 End BUILTINS. 
 (*
 Lemma extcall_memcpy_ok:
@@ -905,7 +929,7 @@ Proof.
 - (* determ *)
   intros; inv H; inv H0. split. constructor. intros; split; congruence.
 Qed.
-*)
+
 (*takes the role of external_call_mem_inject
   Since inlinables write at most to vis, we use the
   Mem-Unchanged_on condition loc_out_of_reach, rather than
@@ -1571,3 +1595,4 @@ inv H; inv H0; trivial.
 Qed.
 *)
 End EC_DET.
+*)

@@ -160,8 +160,10 @@ Inductive asm_effstep: (block -> Z -> bool) ->
       rs' = nextinstr_nf 
              (set_res res vres
                (undef_regs (map preg_of (destroyed_by_builtin ef)) rs)) ->
-      E = BuiltinEffect ge ef (decode_longs (sig_args (ef_sig ef)) vargs) m ->
+(*in compcomp:      E = BuiltinEffect ge ef (decode_longs (sig_args (ef_sig ef)) vargs) m ->*)
+      E = BuiltinEffect ge ef vargs m ->
       asm_effstep E (State rs lf) m (State rs' lf) m'
+
   | asm_effexec_step_to_external:
       forall b ef args rs m lf,
       rs PC = Vptr b Int.zero ->
@@ -174,8 +176,9 @@ Inductive asm_effstep: (block -> Z -> bool) ->
       (OBS: EFisHelper (*hf*) callee),
       rs PC = Vptr b Int.zero ->
       Genv.find_funct_ptr ge b = Some (External callee) ->
-      external_call' callee ge args m t res m' ->
-      rs' = (set_regs (loc_external_result (ef_sig callee)) res rs) #PC <- (rs RA) ->
+      extcall_arguments rs m (ef_sig callee) args ->
+      external_call callee ge args m t res m' ->
+      rs' = (set_pair (loc_external_result (ef_sig callee)) res rs) #PC <- (rs RA) ->
       asm_effstep  (BuiltinEffect ge callee args m)
          (Asm_CallstateOut callee args rs lf) m (State rs' lf) m'
   (*NOTE [loader]*)
@@ -273,15 +276,18 @@ Proof. intros.
       destruct w; apply eq_sym in Heqw; inv H0.
       simpl. 
       split; intros. 
-        split; intros. 
-        eapply Mem.perm_store_1; try eassumption.
-        eapply Mem.perm_store_1; try eassumption.
-        eapply Mem.perm_alloc_1; eassumption.
-      apply (Mem.perm_store_2 _ _ _ _ _ _ Heqw) in H1.
-        apply (Mem.perm_store_2 _ _ _ _ _ _ Heqq) in H1.
-        eapply Mem.perm_alloc_4; try eassumption.
-         intros N; subst. apply Mem.fresh_block_alloc in Heqd. contradiction.
-      rewrite (Mem.store_mem_contents _ _ _ _ _ _ Heqw).
+      - rewrite (Mem.nextblock_store _ _ _ _ _ _ Heqw).
+        rewrite (Mem.nextblock_store _ _ _ _ _ _ Heqq).
+        rewrite (Mem.nextblock_alloc _ _ _ _ _ Heqd). xomega.
+      - split; intros. 
+        * eapply Mem.perm_store_1; try eassumption.
+          eapply Mem.perm_store_1; try eassumption.
+          eapply Mem.perm_alloc_1; eassumption.
+        * apply (Mem.perm_store_2 _ _ _ _ _ _ Heqw) in H1.
+          apply (Mem.perm_store_2 _ _ _ _ _ _ Heqq) in H1.
+          eapply Mem.perm_alloc_4; try eassumption.
+          intros N; subst. apply Mem.fresh_block_alloc in Heqd. contradiction.
+      - rewrite (Mem.store_mem_contents _ _ _ _ _ _ Heqw).
         rewrite (Mem.store_mem_contents _ _ _ _ _ _ Heqq).
         assert (BB: b0 <> b). intros N. subst. apply Mem.fresh_block_alloc in Heqd. apply Mem.perm_valid_block in H0. contradiction.
         rewrite PMap.gso; trivial. 
@@ -301,7 +307,7 @@ Proof. intros.
       intuition. unfold effect_instr in H0.
         rewrite <- Heqw, <- Heqd, <- Heqq, Heqt in H0. trivial.
 Qed.
-
+(*
 Lemma decode_longs_nil: forall tys, decode_longs tys nil = nil.
 induction tys. trivial.  simpl in *. destruct a; trivial. Qed.
 
@@ -343,7 +349,7 @@ Proof. intros.
       * rewrite Heqr in Heql. discriminate.
       * exfalso. rewrite Heql in Heqr. discriminate. 
 Qed.
-
+*)
 Lemma asmstep_effax1: forall (M : block -> Z -> bool) g c m c' m'
       (*(HF: helper_functions_declared g hf)*),
       asm_effstep g M c m c' m' ->

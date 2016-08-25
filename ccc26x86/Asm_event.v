@@ -395,26 +395,25 @@ Qed.
 Lemma extcall_arg_ev_determ rs m l u T (EAV:extcall_arg_ev rs m l u T) T' (EAV':extcall_arg_ev rs m l u T'): T=T'.
 Proof. inv EAV; inv EAV'; trivial. rewrite H5 in H0; inv H0. rewrite H8 in H3; inv H3. trivial. Qed.
 
-Inductive extcall_arguments_ev_aux: regset -> mem -> list loc -> list val -> list mem_event -> Prop :=
+Inductive extcall_arg_pair_ev (rs: regset) (m: mem): rpair loc -> val -> list mem_event -> Prop :=
+  | extcall_arg_ev_one: forall l v T,
+      extcall_arg_ev rs m l v T ->
+      extcall_arg_pair_ev rs m (One l) v T
+  | extcall_arg_ev_twolong: forall hi lo vhi vlo T1 T2,
+      extcall_arg_ev rs m hi vhi T1 ->
+      extcall_arg_ev rs m lo vlo T2 ->
+      extcall_arg_pair_ev rs m (Twolong hi lo) (Val.longofwords vhi vlo) (T1++T2).
+
+
+Inductive extcall_arguments_ev_aux: regset -> mem -> list (rpair loc) -> list val -> list mem_event -> Prop :=
   extcall_arguments_ev_nil: forall rs m, extcall_arguments_ev_aux rs m nil nil nil
 | extcall_arguments_ev_cons: forall rs m l locs v T1 vl T2 ,
-                         extcall_arg_ev rs m l v T1 ->
+                         extcall_arg_pair_ev rs m l v T1 ->
                          extcall_arguments_ev_aux rs m locs vl T2 -> 
                          extcall_arguments_ev_aux rs m (l::locs) (v::vl) (T1++T2).
 
 Definition extcall_arguments_ev (rs:regset) (m: mem) (sg:signature) (args: list val) (T: list mem_event): Prop :=
   extcall_arguments_ev_aux rs m (loc_arguments sg) args T.
-
-Lemma extcall_arguments_ev_aux_determ rs m: forall locs args T (EA: extcall_arguments_ev_aux rs m locs args T)
-      T' (EA': extcall_arguments_ev_aux rs m locs args T'), T=T'.
-Proof.
-  induction 1; simpl; intros; inv EA'; trivial. f_equal.
-  apply (extcall_arg_ev_determ _ _ _ _ _ H _ H7). eauto.
-Qed.
-
-Lemma extcall_arguments_ev_determ rs m sg args T (EA: extcall_arguments_ev rs m sg args T)
-      T' (EA': extcall_arguments_ev rs m sg args T'): T=T'.
-Proof. eapply extcall_arguments_ev_aux_determ; eassumption. Qed.
 
 Lemma extcall_arguments_extcall_arguments_ev rs m sg args: 
       extcall_arguments rs m sg args -> exists T, extcall_arguments_ev rs m sg args T.
@@ -422,9 +421,41 @@ Proof.
 unfold extcall_arguments, extcall_arguments_ev. remember (loc_arguments sg) as locs. clear Heqlocs.
 intros LF; induction LF.
 + exists nil; constructor.
-+ destruct IHLF as [T2 HT2]. destruct (extcall_arg_extcall_arg_ev _ _ _ _ H) as [T1 HT1].
-  exists (T1++T2). constructor; assumption.
++ destruct IHLF as [T2 HT2].
+  destruct H.
+  - destruct (extcall_arg_extcall_arg_ev _ _ _ _ H) as [T1 HT1].
+    exists (T1++T2). econstructor. econstructor. eassumption. eassumption.
+  - destruct (extcall_arg_extcall_arg_ev _ _ _ _ H) as [Thi Hhi].
+    destruct (extcall_arg_extcall_arg_ev _ _ _ _ H0) as [Tlo Hlo]. simpl.
+    exists ((Thi++Tlo)++T2). econstructor. econstructor. eassumption. eassumption. eassumption.
 Qed.
+
+Lemma extcall_arg_pair_ev_determ rs m: forall l v T1 (HT1: extcall_arg_pair_ev rs m l v T1)
+      T2 (HT2: extcall_arg_pair_ev rs m l v T2), T1=T2.
+Proof. intros.
+  induction HT1.
+  + inv HT2. eapply extcall_arg_ev_determ; eassumption.
+  + inv HT2.
+    inv H.
+    - inv H4. inv H0. inv H6. trivial. inv H6. rewrite H7 in H1. inv H1.
+      rewrite H5 in H10. inv H10. trivial.
+    - inv H4. rewrite H9 in H2. inv H2. rewrite H8 in H12. inv H12. f_equal.
+      inv H0. 
+      * inv H6; trivial.
+      * inv H6. rewrite H1 in H10. inv H10. rewrite H14 in H5. inv H5. trivial.
+Qed. 
+
+Lemma extcall_arguments_ev_aux_determ rs m: forall locs args T (EA: extcall_arguments_ev_aux rs m locs args T)
+      T' (EA': extcall_arguments_ev_aux rs m locs args T'), T=T'.
+Proof.
+  induction 1; simpl; intros; inv EA'; trivial. f_equal.
+  eapply extcall_arg_pair_ev_determ; eassumption.
+  eauto.
+Qed.
+
+Lemma extcall_arguments_ev_determ rs m sg args T (EA: extcall_arguments_ev rs m sg args T)
+      T' (EA': extcall_arguments_ev rs m sg args T'): T=T'.
+Proof. eapply extcall_arguments_ev_aux_determ; eassumption. Qed.
 
 Lemma extcall_arguments_ev_extcall_arguments rs m sg args T: 
       extcall_arguments_ev rs m sg args T -> extcall_arguments rs m sg args.
@@ -432,8 +463,10 @@ Proof.
 unfold extcall_arguments, extcall_arguments_ev. remember (loc_arguments sg) as locs. clear Heqlocs.
 intros LF; induction LF.
 + constructor.
-+ apply extcall_arg_ev_extcall_arg in H. 
-  constructor; assumption.
++ inv H.
+  - apply extcall_arg_ev_extcall_arg in H0. econstructor; eauto. constructor. trivial.
+  - apply extcall_arg_ev_extcall_arg in H0. apply extcall_arg_ev_extcall_arg in H1.
+    econstructor; eauto. constructor; trivial.
 Qed.
 
 Lemma extcall_arg_ev_elim rs m : forall l v T (EA: extcall_arg_ev rs m l v T), ev_elim m T m.
@@ -457,7 +490,10 @@ Lemma extcall_arguments_ev_aux_elim rs m:
       forall l args T (EA: extcall_arguments_ev_aux rs m l args T), ev_elim m T m.
 Proof. induction 1.
 + constructor.
-+ apply extcall_arg_ev_elim in H. eapply ev_elim_app; eassumption.
++ inv H.
+  - apply extcall_arg_ev_elim in H0. eapply ev_elim_app; eassumption.
+  - apply extcall_arg_ev_elim in H0. apply extcall_arg_ev_elim in H1.
+    rewrite <- app_assoc. eapply ev_elim_app. eassumption. eapply ev_elim_app; eassumption.
 Qed.
 
 Lemma extcall_arguments_ev_aux_elim_strong rs m:
@@ -469,13 +505,28 @@ Proof. induction 1.
   - intros. inv H. split; trivial. constructor. 
 + destruct IHEA as [IH1 IH2].
   split.
-  - apply extcall_arg_ev_elim in H. eapply ev_elim_app; eassumption.
-  - intros. destruct (extcall_arg_ev_elim_strong _ _ _ _ _ H) as [E1 HT1].
+  - inv H.
+    * apply extcall_arg_ev_elim in H0. eapply ev_elim_app; eassumption.
+    * apply extcall_arg_ev_elim in H0. apply extcall_arg_ev_elim in H1.
+      rewrite <- app_assoc. eapply ev_elim_app. eassumption. eapply ev_elim_app; eassumption.
+  - intros. (* destruct (extcall_arg_ev_elim_strong _ _ _ _ _ H) as [E1 HT1].*)
     apply ev_elim_split in H0; destruct H0 as [m2 [EV1 EV2]].
     destruct (IH2 _ _ EV2) as [MM EA2]; subst; clear IH2.
-    destruct (HT1 _ _ EV1) as [MM EA1]; subst.
+(*    destruct (HT1 _ _ EV1) as [MM EA1]; subst.
     split. trivial.
-    constructor; eassumption.
+    constructor; eassumption.*)
+    destruct H.
+    * destruct (extcall_arg_ev_elim_strong _ _ _ _ _ H) as [E1 HT1].
+      destruct (HT1 _ _ EV1) as [MM EA1]; subst.
+      split. trivial.
+      econstructor. econstructor. eassumption. eassumption.
+    * destruct (extcall_arg_ev_elim_strong _ _ _ _ _ H) as [Ehi Hhi]; clear H.
+      destruct (extcall_arg_ev_elim_strong _ _ _ _ _ H0) as [Elo Hlo]; clear H0.
+      apply ev_elim_split in EV1; destruct EV1 as [m3 [EV1 EV3]].
+      destruct (Hhi _ _ EV1) as [MHI EAhi]; subst; clear Hhi.
+      destruct (Hlo _ _ EV3) as [MLO EAlo]; subst; clear Hlo.
+      split. trivial.
+      econstructor. econstructor. eassumption. eassumption. eassumption.
 Qed.
 
 End EXTCALL_ARG_EVENT.
@@ -721,6 +772,7 @@ Inductive asm_ev_step ge : state -> mem -> list mem_event -> state -> mem -> Pro
       extcall_arguments rs m (ef_sig ef) args ->
       extcall_arguments_ev rs m (ef_sig ef) args T -> 
       asm_ev_step ge (State rs lf) m T (Asm_CallstateOut ef args rs lf) m
+
   | asm_ev_step_external: (*really, a helper-step*)
       False -> (*We don't support builtins/helpers/vload/vstore etc yet*)
       forall b callee args res rs m t rs' m' lf T
@@ -728,8 +780,9 @@ Inductive asm_ev_step ge : state -> mem -> list mem_event -> state -> mem -> Pro
       (OBS: EFisHelper (*hf*) callee),
       rs PC = Vptr b Int.zero ->
       Genv.find_funct_ptr ge b = Some (External callee) ->
-      external_call' callee ge args m t res m' ->
-      rs' = (set_regs (loc_external_result (ef_sig callee)) res rs) #PC <- (rs RA) ->
+      extcall_arguments rs m (ef_sig callee) args ->
+      external_call callee ge args m t res m' ->
+      rs' = (set_pair (loc_external_result (ef_sig callee)) res rs) #PC <- (rs RA) ->
       builtin_event  callee m args T ->
       asm_ev_step ge (Asm_CallstateOut callee args rs lf) m T (State rs' lf) m'
   (*NOTE [loader]*)

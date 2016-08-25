@@ -13,7 +13,7 @@ Require Import sepcomp.effect_semantics.
 
 Require Import Cop. (*for sem_cast*)
 Require Import Ctypes. (*for access_mode*)
-Require Import ccc26x86.Clight.
+Require Import compcert.cfrontend.Clight.
 Require Import ccc26x86.Clight_coop.
 Require Import ccc26x86.BuiltinEffects.
 
@@ -34,13 +34,14 @@ Lemma assign_loc_Effect_Sound: forall ge a m loc ofs v m'
                             loc ofs b z = false) m m'.
 Proof. intros. inv AL.
 inv H0.
-(*access_mode (typeof a) = By_value chunk*)
++ (*access_mode (typeof a) = By_value chunk*)
   split; intros.
-  (*perm*)
+  * rewrite (Mem.nextblock_store _ _ _ _ _ _ H2). xomega.
+  * (*perm*)
     split; intros.
     eapply Mem.perm_store_1; eassumption.
     eapply Mem.perm_store_2; eassumption.
-  (*memcontents*)
+  * (*memcontents*)
     rewrite (Mem.store_mem_contents _ _ _ _ _ _ H2).
     unfold assign_loc_Effect in H0; rewrite H in H0.
     destruct (eq_block loc b); subst; simpl in H0.
@@ -54,13 +55,14 @@ inv H0.
         omega.
       omega.
     rewrite PMap.gso; trivial. intros N; subst; apply n; trivial.
-(*access_mode (typeof a) = By_copy*)
++ (*access_mode (typeof a) = By_copy*)
   split; intros.
-  (*perm*)
+  * rewrite (Mem.nextblock_storebytes _ _ _ _ _ H4). xomega.
+  * (*perm*)
     split; intros.
     eapply Mem.perm_storebytes_1; eassumption.
     eapply Mem.perm_storebytes_2; eassumption.
-  (*memcontents*)
+  * (*memcontents*)
     rewrite (Mem.storebytes_mem_contents _ _ _ _ _ H4).
     unfold assign_loc_Effect in H5; rewrite H in H5.
     destruct (eq_block b loc); subst; simpl in H5.
@@ -125,7 +127,7 @@ Inductive clight_effstep (ge:genv): (block -> Z -> bool) ->
   | clight_effstep_assign:   forall f a1 a2 k e le m loc ofs v2 v m',
       eval_lvalue ge e le m a1 loc ofs ->
       eval_expr ge e le m a2 v2 ->
-      sem_cast v2 (typeof a2) (typeof a1) = Some v ->
+      sem_cast v2 (typeof a2) (typeof a1) m = Some v ->
       assign_loc ge (typeof a1) m loc ofs v m' ->
       clight_effstep ge (assign_loc_Effect ge (typeof a1) loc ofs)
         (CL_State f (Sassign a1 a2) k e le) m
@@ -203,13 +205,15 @@ Inductive clight_effstep (ge:genv): (block -> Z -> bool) ->
       clight_effstep ge (FreelistEffect m (blocks_of_env ge e))
         (CL_State f (Sreturn None) k e le) m
         (CL_Returnstate Vundef (call_cont k)) m'
+
   | clight_effstep_return_1: forall f a k e le m v v' m',
-      eval_expr ge e le m a v -> 
-      sem_cast v (typeof a) f.(fn_return) = Some v' ->
+      eval_expr ge e le m a v ->
+      sem_cast v (typeof a) f.(fn_return) m = Some v' ->
       Mem.free_list m (blocks_of_env ge e) = Some m' ->
       clight_effstep ge (FreelistEffect m (blocks_of_env ge e))
         (CL_State f (Sreturn (Some a)) k e le) m
         (CL_Returnstate v' (call_cont k)) m'
+
   | clight_effstep_skip_call: forall f k e le m m',
       is_call_cont k ->
       Mem.free_list m (blocks_of_env ge e) = Some m' ->
@@ -419,26 +423,28 @@ Proof. intros. inv H.
   clear H1. remember (fn_params f) as pars. clear Heqpars hf.
   generalize dependent m1. generalize dependent vargs.
   induction pars; simpl; intros.
-    inv H2. apply Mem.unchanged_on_refl.
-    inv H2. specialize (IHpars _ _ H7).
+  + inv H2. apply Mem.unchanged_on_refl.
+  + inv H2. specialize (IHpars _ _ H7).
     apply FRESH in H1. 
     eapply unchanged_on_trans; try eassumption;
       try (eapply assign_loc_forward; eassumption).
     clear H7 IHpars FRESH.
     inv H4.
-      inv H0.
+    - inv H0.
       split; intros.
-        split; intros. 
+      * rewrite (Mem.nextblock_store _ _ _ _ _ _ H3). xomega.
+      * split; intros. 
           eapply Mem.perm_store_1; eassumption.
           eapply Mem.perm_store_2; eassumption.
-      rewrite (Mem.store_mem_contents _ _ _ _ _ _ H3).
+      * rewrite (Mem.store_mem_contents _ _ _ _ _ _ H3).
         rewrite PMap.gso. trivial.
         destruct H0. intros N; subst. contradiction.
-    split; intros.
-      split; intros. 
+    - split; intros.
+      * rewrite (Mem.nextblock_storebytes _ _ _ _ _ H6). xomega.
+      * split; intros. 
         eapply Mem.perm_storebytes_1; eassumption.
         eapply Mem.perm_storebytes_2; eassumption.
-      rewrite (Mem.storebytes_mem_contents _ _ _ _ _ H6).
+      * rewrite (Mem.storebytes_mem_contents _ _ _ _ _ H6).
         rewrite PMap.gso. trivial.
         destruct H4. intros N; subst. contradiction.
 Qed.

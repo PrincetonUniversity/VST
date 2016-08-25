@@ -261,7 +261,6 @@ Lemma val_valid_ror m u v: val_valid u m -> val_valid v m ->
       val_valid (Val.ror u v) m.
 Proof. intros. unfold Val.ror.
   destruct u; destruct v; simpl; trivial.
-  destruct (Int.ltu i0 Int.iwordsize); simpl; trivial.
 Qed.
 
 Lemma val_valid_addf m u v: val_valid u m -> val_valid v m ->
@@ -437,12 +436,14 @@ Lemma extcall_arguments_valid rs m: regmap_valid m rs ->
 Proof. 
 unfold extcall_arguments. intros.
 remember (loc_arguments sg) as tys. clear Heqtys.
-induction H1; simpl; intros; constructor; eauto. 
+induction H1; simpl; intros; constructor; eauto.
 inv H1; simpl in *.
-  apply H.
-unfold Val.add in H4. 
++ inv H3. apply H.
+  unfold Val.add in H4. 
   destruct (rs ESP); simpl in *; try discriminate. 
-  apply mem_wd_load in H4; trivial.
+  eapply mem_wd_load. apply H4. trivial.
++ red. remember (Val.longofwords vhi vlo) as v. destruct v; trivial.
+  unfold Val.longofwords in Heqv. destruct vhi; try discriminate. destruct vlo; try discriminate.
 Qed.
 
 Lemma store_args_rec_fwd: forall tys args m stk mm n,
@@ -694,6 +695,7 @@ Proof. intros.
   eapply loadbytes_valid; eassumption.
 Qed.
 *)
+(*
 Lemma regmap_valid_set_regs m: forall res L rs,
    regmap_valid m rs -> vals_valid m L ->
    regmap_valid m (set_regs res L rs).
@@ -703,7 +705,7 @@ destruct L; simpl; trivial.
   inv H0. simpl.
   eapply IHres; trivial.
   apply regmap_valid_assign; trivial. 
-Qed. 
+Qed. *)
 (*
 Lemma vals_valid_i64helpers {F V: Type} (ge: Genv.t F V)
       hf m vals t v m' name sg: forall   
