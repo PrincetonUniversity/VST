@@ -207,6 +207,29 @@ End CoContraVariantBiFunctorLemmas.
 
 Module GeneralFunctorGenerator.
 
+Definition CovariantFunctor_MixVariantFunctor (F: CovariantFunctor.functor):
+  MixVariantFunctor.functor.
+  refine (@MixVariantFunctor.Functor
+   (fun T => F T)
+   (fun A B f _ => CovariantFunctor.fmap F f) _).
+  constructor; intros; simpl.
+  + apply CovariantFunctor.ff_id, CovariantFunctor.functor_facts.
+  + apply CovariantFunctor.ff_comp, CovariantFunctor.functor_facts.
+Defined.
+
+Definition CoContraVariantBiFunctor_MixVariantFunctor
+ (F: CoContraVariantBiFunctor.functor):
+  MixVariantFunctor.functor.
+  refine (@MixVariantFunctor.Functor
+   (fun T => F T T)
+   (fun A B f g => CoContraVariantBiFunctor.fmap F f g) _).
+  constructor; intros; simpl.
+  + apply CoContraVariantBiFunctor.ff_id,
+          CoContraVariantBiFunctor.functor_facts.
+  + apply CoContraVariantBiFunctor.ff_comp,
+          CoContraVariantBiFunctor.functor_facts.
+Defined.
+
 Definition CovariantFunctor_CovariantFunctor_compose
 (F1 F2: CovariantFunctor.functor):
   CovariantFunctor.functor.
@@ -383,6 +406,13 @@ End SubsetFunctor.
 *)
 
 End CovariantFunctorGenerator.
+
+Module MixVariantFunctorGenerator.
+
+Import MixVariantFunctor.
+Import MixVariantFunctorLemmas.
+
+End MixVariantFunctorGenerator.
 
 Unset Implicit Arguments.
 

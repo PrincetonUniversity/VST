@@ -4,30 +4,106 @@
  *)
 
 Require Import msl.base.
+Require Import msl.functors_variant.
 Require msl.knot.
-Require msl.knot_full.
+Require msl.knot_full_variant.
 
 Require Import msl.ageable.
 Require Import msl.predicates_hered.
 
-Module Type KNOT_INPUT__HERED_PROP_OTH_REL.
+Module Type KNOT_INPUT__COCONTRAVARIANT_HERED_T_OTH_REL.
+  Import CoContraVariantBiFunctor.
+  Parameter F : functor.
 
-  Parameter F : Type -> Type.
-  Parameter fmap : forall {A B}, (A->B) -> F A -> F B.
+  Parameter other : Type.
 
-  Axiom fmap_id : forall A, fmap (id A) = id (F A).
-  Axiom fmap_comp : forall A B C (f:B->C) (g:A->B),
-    fmap f oo fmap g = fmap (f oo g).
+  Parameter Rel : forall A B, F A B -> F A B -> Prop.
+
+  Parameter Rel_fmap : forall A B C D (f:A->B) (s:C->D) x y,
+    Rel A D x y ->
+    Rel B C (fmap F f s x) (fmap F f s y).
+  Axiom Rel_refl : forall A B x, Rel A B x x.
+  Axiom Rel_trans : forall A B x y z,
+    Rel A B x y -> Rel A B y z -> Rel A B x z.
+
+  Parameter ORel : other -> other -> Prop.
+  Axiom ORel_refl : reflexive other ORel.
+  Axiom ORel_trans : transitive other ORel.
+
+  Parameter T:Type.
+  Parameter T_bot:T.
+
+  Parameter T_rel : T -> T -> Prop.  
+  Parameter T_rel_bot : forall x, T_rel T_bot x.
+  Parameter T_rel_refl : forall x, T_rel x x.
+  Parameter T_rel_trans : transitive T T_rel.
+
+End KNOT_INPUT__COCONTRAVARIANT_HERED_T_OTH_REL.
+
+Module Type KNOT__COCONTRAVARIANT_HERED_T_OTH_REL.
+  Import CoContraVariantBiFunctor.
+  Declare Module KI: KNOT_INPUT__COCONTRAVARIANT_HERED_T_OTH_REL.
+  Import KI.
+
+  Parameter knot:Type.
+  Parameter ageable_knot : ageable knot.
+  Existing Instance ageable_knot.
+
+  Parameter hered : (knot * other -> T) -> Prop.
+  Definition predicate := { p:knot * other -> T | hered p }.
+
+  Parameter squash : (nat * F predicate predicate) -> knot.
+  Parameter unsquash : knot -> (nat * F predicate predicate).
+
+  Parameter approx : nat -> predicate -> predicate.
+
+  Axiom squash_unsquash : forall k:knot, squash (unsquash k) = k.
+  Axiom unsquash_squash : forall (n:nat) (f:F predicate predicate),
+    unsquash (squash (n,f)) = (n, fmap F (approx n) (approx n) f).
+
+  Axiom approx_spec : forall n p ko,
+    proj1_sig (approx n p) ko =
+     if (le_gt_dec n (level (fst ko))) then T_bot else proj1_sig p ko.
+
+  Definition knot_rel (k1 k2:knot) :=
+    let (n,f) := unsquash k1 in
+    let (n',f') := unsquash k2 in
+    n = n' /\ Rel predicate predicate f f'.
+
+  Axiom knot_age1 : forall k:knot,
+    age1 k = 
+    match unsquash k with
+    | (O,_) => None
+    | (S n,x) => Some (squash (n,x))
+    end.
+
+  Axiom knot_level : forall k:knot,
+    level k = fst (unsquash k).
+
+  Axiom hered_spec : forall p,
+    hered p =
+    (forall k k' k'' o o',
+      clos_refl_trans _ age k k' ->
+      knot_rel  k' k'' ->
+      ORel o o' ->
+      T_rel (p (k,o)) (p (k'',o'))).
+
+End KNOT__COCONTRAVARIANT_HERED_T_OTH_REL.
+
+Module Type KNOT_INPUT__COVARIANT_HERED_PROP_OTH_REL.
+
+  Import CovariantFunctor.
+  Parameter F : functor.
 
   Parameter other : Type.
 
   Parameter Rel : forall A, F A -> F A -> Prop.
   Parameter Rel_fmap : forall A B (f:A->B) x y,
-    Rel A x y -> Rel B (fmap f x) (fmap f y).
+    Rel A x y -> Rel B (fmap F f x) (fmap F f y).
 
   Parameter Rel_unfmap : forall A B (f:A->B) x y,
-    Rel B (fmap f x) y ->
-      exists y', Rel A x y' /\ fmap f y' = y.
+    Rel B (fmap F f x) y ->
+      exists y', Rel A x y' /\ fmap F f y' = y.
 
   Axiom Rel_refl : forall A x, Rel A x x.
   Axiom Rel_trans : forall A x y z,
@@ -37,10 +113,11 @@ Module Type KNOT_INPUT__HERED_PROP_OTH_REL.
   Axiom ORel_refl : reflexive other ORel.
   Axiom ORel_trans : transitive other ORel.
 
-End KNOT_INPUT__HERED_PROP_OTH_REL.
+End KNOT_INPUT__COVARIANT_HERED_PROP_OTH_REL.
 
-Module Type KNOT__HERED_PROP_OTH_REL.
-  Declare Module KI : KNOT_INPUT__HERED_PROP_OTH_REL.
+Module Type KNOT__COVARIANT_HERED_PROP_OTH_REL.
+  Import CovariantFunctor.
+  Declare Module KI : KNOT_INPUT__COVARIANT_HERED_PROP_OTH_REL.
   Import KI.
 
   Parameter knot : Type.
@@ -64,7 +141,7 @@ Module Type KNOT__HERED_PROP_OTH_REL.
   Axiom squash_unsquash : forall x,
     squash (unsquash x) = x.
   Axiom unsquash_squash : forall n x',
-    unsquash (squash (n,x')) = (n, fmap (approx n) x').
+    unsquash (squash (n,x')) = (n, fmap F (approx n) x').
 
   (* Definition of the expandM modality *)
   
@@ -93,11 +170,11 @@ Module Type KNOT__HERED_PROP_OTH_REL.
 
   (* Convenience lemmas, provable from the above interface *)
   Axiom fmap_fmap : forall A B C (f:B->C) (g:A->B) x,
-    fmap f (fmap g x) = fmap (f oo g) x.
+    fmap F f (fmap F g x) = fmap F (f oo g) x.
 
   Axiom fmap_id' : forall A (f:A->A),
     (forall x, f x = x) ->
-    fmap f = id (F A).
+    fmap F f = id (F A).
 
   Axiom unsquash_inj : forall k1 k2,
     unsquash k1 = unsquash k2 ->
@@ -109,7 +186,7 @@ Module Type KNOT__HERED_PROP_OTH_REL.
 
   Axiom unsquash_approx : forall k n Fp,
     unsquash k = (n, Fp) ->
-    Fp = KI.fmap (approx n) Fp.
+    Fp = fmap F (approx n) Fp.
   Implicit Arguments unsquash_approx [k n Fp].
   
   Axiom approx_approx1 : forall m n,
@@ -117,8 +194,7 @@ Module Type KNOT__HERED_PROP_OTH_REL.
 
   Axiom approx_approx2 : forall m n,
     approx n = approx (m+n) oo approx n.
-End KNOT__HERED_PROP_OTH_REL.
-
+End KNOT__COVARIANT_HERED_PROP_OTH_REL.
 
 Module Type KNOT_INPUT__HERED_PROP_OTH.
 
@@ -270,9 +346,108 @@ Module Type KNOT__HERED_PROP.
 
 End KNOT__HERED_PROP.
 
+Module Knot_CoContraVariantHeredTOthRel
+  (KI': KNOT_INPUT__COCONTRAVARIANT_HERED_T_OTH_REL):
+  KNOT__COCONTRAVARIANT_HERED_T_OTH_REL with Module KI:=KI'.
 
-Module Knot_HeredPropOthRel (KI':KNOT_INPUT__HERED_PROP_OTH_REL)
-  : KNOT__HERED_PROP_OTH_REL with Module KI:=KI'.
+  Import MixVariantFunctor.
+  Import MixVariantFunctorLemmas.
+  Import GeneralFunctorGenerator.
+  Module KI:=KI'.
+
+  Module Input.
+
+    Definition F : functor :=
+      CoContraVariantBiFunctor_MixVariantFunctor KI.F.
+
+    Definition other := KI.other.
+
+    Definition Rel (A: Type): F A -> F A -> Prop :=
+      KI.Rel A A.
+
+    Definition Rel_fmap (A B: Type): forall (f1: A->B) (f2:B->A) x y,
+      Rel A x y ->
+      Rel B (fmap F f1 f2 x) (fmap F f1 f2 y) :=
+    KI.Rel_fmap A B B A.
+
+    Definition Rel_refl (A: Type): forall x, Rel A x x :=
+      KI.Rel_refl A A.
+
+    Definition Rel_trans (A: Type): forall x y z,
+      Rel A x y -> Rel A y z -> Rel A x z :=
+      KI.Rel_trans A A.
+
+    Definition ORel: other -> other -> Prop := KI.ORel.
+    Definition ORel_refl := KI.ORel_refl.
+    Definition ORel_trans := KI.ORel_trans.
+
+    Definition T := KI.T.
+    Definition T_bot := KI.T_bot.
+
+    Definition T_rel := KI.T_rel.
+    Definition T_rel_bot := KI.T_rel_bot.
+    Definition T_rel_refl := KI.T_rel_refl.
+    Definition T_rel_trans := KI.T_rel_trans.
+
+  End Input.
+
+  Module K := knot_full_variant.KnotFull(Input).
+  Module KL := knot_full_variant.KnotFull_Lemmas(K).
+
+  Definition knot: Type := K.knot.
+  Definition ageable_knot: ageable knot := K.ageable_knot.
+  Existing Instance ageable_knot.
+
+  Definition hered : (knot * KI.other -> KI.T) -> Prop := K.hered.
+  Definition predicate := { p:knot * KI.other -> KI.T | hered p }.
+
+  Definition squash : (nat * KI.F predicate predicate) -> knot := K.squash.
+  Definition unsquash : knot -> (nat * KI.F predicate predicate) := K.unsquash.
+
+  Definition approx : nat -> predicate -> predicate := K.approx.
+
+  Definition squash_unsquash : forall k:knot, squash (unsquash k) = k
+    := K.squash_unsquash.
+  Definition unsquash_squash : forall (n:nat) (f:KI.F predicate predicate),
+    unsquash (squash (n,f)) =
+     (n, CoContraVariantBiFunctor.fmap KI.F (approx n) (approx n) f)
+    := K.unsquash_squash.
+
+  Definition approx_spec : forall n p ko,
+    proj1_sig (approx n p) ko =
+     if (le_gt_dec n (level (fst ko))) then KI.T_bot else proj1_sig p ko
+    := K.approx_spec.
+
+  Definition knot_rel (k1 k2:knot) :=
+    let (n,f) := unsquash k1 in
+    let (n',f') := unsquash k2 in
+    n = n' /\ KI.Rel predicate predicate f f'.
+
+  Definition knot_age1 : forall k:knot,
+    age1 k = 
+    match unsquash k with
+    | (O,_) => None
+    | (S n,x) => Some (squash (n,x))
+    end
+    := K.knot_age1.
+
+  Definition knot_level : forall k:knot,
+    level k = fst (unsquash k)
+    := K.knot_level.
+
+  Definition hered_spec : forall p,
+    hered p =
+    (forall k k' k'' o o',
+      clos_refl_trans _ age k k' ->
+      knot_rel  k' k'' ->
+      KI.ORel o o' ->
+      KI.T_rel (p (k,o)) (p (k'',o')))
+    := K.hered_spec.
+
+End Knot_CoContraVariantHeredTOthRel.
+
+Module Knot_CovariantHeredPropOthRel (KI':KNOT_INPUT__COVARIANT_HERED_PROP_OTH_REL)
+  : KNOT__COVARIANT_HERED_PROP_OTH_REL with Module KI:=KI'.
 
   Module KI:=KI'.
 
