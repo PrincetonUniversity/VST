@@ -56,8 +56,6 @@ module P = struct
   let one = Coq_xH
   let succ = Pos.succ
   let pred = Pos.pred
-  let add = Pos.add
-  let sub = Pos.sub
   let eq x y = (Pos.compare x y = Eq)
   let lt x y = (Pos.compare x y = Lt)
   let gt x y = (Pos.compare x y = Gt)
@@ -86,7 +84,7 @@ module P = struct
       if n = 0l
       then assert false
       else Coq_xO (of_int32 (Int32.shift_right_logical n 1))
-    else 
+    else
       if n = 1l
       then Coq_xH
       else Coq_xI (of_int32 (Int32.shift_right_logical n 1))
@@ -101,13 +99,11 @@ module P = struct
       if n = 0L
       then assert false
       else Coq_xO (of_int64 (Int64.shift_right_logical n 1))
-    else 
+    else
       if n = 1L
       then Coq_xH
       else Coq_xI (of_int64 (Int64.shift_right_logical n 1))
 
-  let (+) = add
-  let (-) = sub
   let (=) = eq
   let (<) = lt
   let (<=) = le
@@ -124,11 +120,6 @@ module N = struct
 
   let zero = N0
   let one = Npos Coq_xH
-  let succ = N.succ
-  let pred = N.pred
-  let add = N.add
-  let sub = N.sub
-  let mul = N.mul
   let eq x y = (N.compare x y = Eq)
   let lt x y = (N.compare x y = Lt)
   let gt x y = (N.compare x y = Gt)
@@ -157,9 +148,6 @@ module N = struct
   let of_int64 n =
     if n = 0L then N0 else Npos (P.of_int64 n)
 
-  let (+) = add
-  let (-) = sub
-  let ( * ) = mul
   let (=) = eq
   let (<) = lt
   let (<=) = le
@@ -281,8 +269,10 @@ let coqint_of_camlint64 : int64 -> Integers.Int64.int = Z.of_uint64
 
 (* Atoms (positive integers representing strings) *)
 
-let atom_of_string = (Hashtbl.create 17 : (string, positive) Hashtbl.t)
-let string_of_atom = (Hashtbl.create 17 : (positive, string) Hashtbl.t)
+type atom = positive
+
+let atom_of_string = (Hashtbl.create 17 : (string, atom) Hashtbl.t)
+let string_of_atom = (Hashtbl.create 17 : (atom, string) Hashtbl.t)
 let next_atom = ref Coq_xH
 
 let intern_string s =
@@ -294,7 +284,6 @@ let intern_string s =
     Hashtbl.add atom_of_string s a;
     Hashtbl.add string_of_atom a s;
     a
-
 let extern_atom a =
   try
     Hashtbl.find string_of_atom a
@@ -306,15 +295,25 @@ let first_unused_ident () = !next_atom
 (* Strings *)
 
 let camlstring_of_coqstring (s: char list) =
-  let r = String.create (List.length s) in
+  let r = Bytes.create (List.length s) in
   let rec fill pos = function
   | [] -> r
-  | c :: s -> r.[pos] <- c; fill (pos + 1) s
-  in fill 0 s
+  | c :: s -> Bytes.set r pos c; fill (pos + 1) s
+  in Bytes.to_string (fill 0 s)
 
 let coqstring_of_camlstring s =
   let rec cstring accu pos =
     if pos < 0 then accu else cstring (s.[pos] :: accu) (pos - 1)
+  in cstring [] (String.length s - 1)
+
+let coqstring_uppercase_ascii_of_camlstring s =
+  let rec cstring accu pos =
+    if pos < 0 then accu else
+    let d = if s.[pos] >= 'a' && s.[pos] <= 'z' then
+      Char.chr (Char.code s.[pos] - 32)
+    else
+      s.[pos] in
+    cstring (d :: accu) (pos - 1)
   in cstring [] (String.length s - 1)
 
 (* Floats *)

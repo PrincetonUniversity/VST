@@ -17,12 +17,10 @@
 
 open Format
 open Camlcoq
-open Datatypes
-open Values
 open AST
-open Ctypes
-open Cop
-open Clight
+open !Ctypes
+open !Cop
+open !Clight
 
 (* Options, lists, pairs *)
 
@@ -50,20 +48,17 @@ let print_list fn p l =
 exception Not_an_identifier
 
 let sanitize s =
-  let s' = String.create (String.length s) in
+  let s' = Bytes.create (String.length s) in
   for i = 0 to String.length s - 1 do
-    s'.[i] <-
-      match s.[i] with
+    Bytes.set  s' i
+    (match String.get s i with
       | 'A'..'Z' | 'a'..'z' | '0'..'9' | '_' as c -> c
       | ' ' | '$' -> '_'
-      | _ -> raise Not_an_identifier
+      | _ -> raise Not_an_identifier)
   done;
-  s'
-
-module StringSet = Set.Make(String)
+  Bytes.to_string s'
 
 let temp_names : (ident, string) Hashtbl.t = Hashtbl.create 17
-let all_temp_names : StringSet.t ref = ref StringSet.empty
 
 let ident p id =
   try
@@ -76,41 +71,35 @@ let ident p id =
   with Not_found ->
     fprintf p "%ld%%positive" (P.to_int32 id)
 
+let iter_hashtbl_sorted (h: ('a, string) Hashtbl.t) (f: 'a * string -> unit) =
+  List.iter f
+    (List.fast_sort (fun (k1, d1) (k2, d2) -> String.compare d1 d2)
+      (Hashtbl.fold (fun k d accu -> (k, d) :: accu) h []))
+
 let define_idents p =
-  Hashtbl.iter
-    (fun id name ->
+  iter_hashtbl_sorted
+    string_of_atom
+    (fun (id, name) ->
       try
         fprintf p "Definition _%s : ident := %ld%%positive.@ "
                   (sanitize name) (P.to_int32 id)
       with Not_an_identifier ->
-        ())
-    string_of_atom;
-  Hashtbl.iter
-    (fun id name ->
+        ());
+  iter_hashtbl_sorted
+    temp_names
+    (fun (id, name) ->
       fprintf p "Definition %s : ident := %ld%%positive.@ "
-                name (P.to_int32 id))
-    temp_names;
+                name (P.to_int32 id));
   fprintf p "@ "
 
-let rec find_temp_name name counter =
-  let name' =
-    if counter = 0 then name ^ "'" else sprintf "%s'%d" name counter in
-  if StringSet.mem name' !all_temp_names
-  then find_temp_name name (counter + 1)
-  else name'
+let name_temporary t =
+  let t1 = P.to_int t and t0 = P.to_int (first_unused_ident ()) in
+  if t1 >= t0 && not (Hashtbl.mem temp_names t)
+  then Hashtbl.add temp_names t (sprintf "_t'%d" (t1 - t0 + 1))
 
-let name_temporary t v =
-  (* Try to give "t" a name that is the name of "v" with a prime
-     plus a number to disambiguate if needed. *)
-  if not (Hashtbl.mem string_of_atom t || Hashtbl.mem temp_names t) then begin
-    try
-      let vname = "_" ^ sanitize (Hashtbl.find string_of_atom v) in
-      let tname = find_temp_name vname 0 in
-      Hashtbl.add temp_names t tname;
-      all_temp_names := StringSet.add tname !all_temp_names
-    with Not_found | Not_an_identifier ->
-      ()
-  end
+let name_opt_temporary = function
+  | None -> ()
+  | Some id -> name_temporary id
 
 (* Numbers *)
 
@@ -206,7 +195,8 @@ and typlist p = function
 and callconv p cc =
   if cc = cc_default
   then fprintf p "cc_default"
-  else fprintf p "{|cc_vararg:=%b; cc_unproto:=%b; cc_structret:=%b|}" cc.cc_vararg cc.cc_unproto cc.cc_structret
+  else fprintf p "{|cc_vararg:=%b; cc_unproto:=%b; cc_structret:=%b|}"
+                  cc.cc_vararg cc.cc_unproto cc.cc_structret
 
 (* External functions *)
 
@@ -233,39 +223,39 @@ let name_of_chunk = function
   | Many64 -> "Many64"
 
 let signatur p sg =
-  fprintf p "@[<hov 2>(mksignature@ %a@ %a@ %a)@]" 
+  fprintf p "@[<hov 2>(mksignature@ %a@ %a@ %a)@]"
      (print_list asttype) sg.sig_args
-     (print_option asttype) sg.sig_res 
+     (print_option asttype) sg.sig_res
      callconv sg.sig_cc
 
-let assertions = ref ([]: (ident * typ list) list)
+let assertions = ref ([]: (string * typ list) list)
 
 let external_function p = function
   | EF_external(name, sg) ->
-      fprintf p "@[<hov 2>(EF_external %a@ %a)@]" ident name signatur sg
+      fprintf p "@[<hov 2>(EF_external %a@ %a)@]" coqstring name signatur sg
   | EF_builtin(name, sg) ->
-      fprintf p "@[<hov 2>(EF_builtin %a@ %a)@]" ident name signatur sg
+      fprintf p "@[<hov 2>(EF_builtin %a@ %a)@]" coqstring name signatur sg
+  | EF_runtime(name, sg) ->
+      fprintf p "@[<hov 2>(EF_runtime %a@ %a)@]" coqstring name signatur sg
   | EF_vload chunk ->
       fprintf p "(EF_vload %s)" (name_of_chunk chunk)
   | EF_vstore chunk ->
       fprintf p "(EF_vstore %s)" (name_of_chunk chunk)
-  | EF_vload_global(chunk, id, ofs) ->
-      fprintf p "(EF_vload_global %s %a %a)" (name_of_chunk chunk) ident id coqint ofs
-  | EF_vstore_global(chunk, id, ofs) ->
-      fprintf p "(EF_vstore_global %s %a %a)" (name_of_chunk chunk) ident id coqint ofs
   | EF_malloc -> fprintf p "EF_malloc"
   | EF_free -> fprintf p "EF_free"
   | EF_memcpy(sz, al) ->
       fprintf p "(EF_memcpy %ld %ld)" (Z.to_int32 sz) (Z.to_int32 al)
-  | EF_annot(text, targs) -> 
-      assertions := (text, targs) :: !assertions;
-      fprintf p "(EF_annot %ld%%positive %a)" (P.to_int32 text) (print_list asttype) targs
+  | EF_annot(text, targs) ->
+      assertions := (camlstring_of_coqstring text, targs) :: !assertions;
+      fprintf p "(EF_annot %a %a)" coqstring text (print_list asttype) targs
   | EF_annot_val(text, targ) ->
-      assertions := (text, [targ]) :: !assertions;
-      fprintf p "(EF_annot_val %ld%%positive %a)" (P.to_int32 text) asttype targ
+      assertions := (camlstring_of_coqstring text, [targ]) :: !assertions;
+      fprintf p "(EF_annot_val %a %a)" coqstring text asttype targ
+  | EF_debug(kind, text, targs) ->
+      fprintf p "(EF_debug %ld%%positive %ld%%positive %a)" (P.to_int32 kind) (P.to_int32 text) (print_list asttype) targs
   | EF_inline_asm(text, sg, clob) ->
-      fprintf p "@[<hov 2>(EF_inline_asm %ld%%positive@ %a@ %a)@]"
-              (P.to_int32 text)
+      fprintf p "@[<hov 2>(EF_inline_asm %a@ %a@ %a)@]"
+              coqstring text
               signatur sg
               (print_list coqstring) clob
 
@@ -341,7 +331,7 @@ let rec stmt p = function
         (print_option ident) optid expr e1 (print_list expr) el
   | Sbuiltin(optid, ef, tyl, el) ->
       fprintf p "@[<hov 2>(Sbuiltin %a@ %a@ %a@ %a)@]"
-        (print_option ident) optid 
+        (print_option ident) optid
         external_function ef
         typlist tyl
         (print_list expr) el
@@ -410,14 +400,14 @@ let print_variable p (id, v) =
 
 let print_globdef p (id, gd) =
   match gd with
-  | Gfun(Internal f) -> print_function p (id, f)
-  | Gfun(External _) -> ()
+  | Gfun(Ctypes.Internal f) -> print_function p (id, f)
+  | Gfun(Ctypes.External _) -> ()
   | Gvar v -> print_variable p (id, v)
 
 let print_ident_globdef p = function
-  | (id, Gfun(Internal f)) -> 
+  | (id, Gfun(Ctypes.Internal f)) ->
       fprintf p "(%a, Gfun(Internal f_%s))" ident id (extern_atom id)
-  | (id, Gfun(External(ef, targs, tres, cc))) ->
+  | (id, Gfun(Ctypes.External(ef, targs, tres, cc))) ->
       fprintf p "@[<hov 2>(%a,@ @[<hov 2>Gfun(External %a@ %a@ %a@ %a))@]@]"
         ident id external_function ef typlist targs typ tres callconv cc
   | (id, Gvar v) ->
@@ -452,14 +442,14 @@ let print_assertion p (txt, targs) =
        | Str.Text s -> Text s
        | Str.Delim "%%" -> Text "%"
        | Str.Delim s -> Param(int_of_string(String.sub s 1 (String.length s - 1))))
-      (Str.full_split re_annot_param (extern_atom txt)) in
+      (Str.full_split re_annot_param txt) in
   let max_param = ref 0 in
   List.iter
     (function
      | Text _ -> ()
      | Param n -> max_param := max n !max_param)
     frags;
-  fprintf p "  | %ld%%positive, " (P.to_int32 txt);
+  fprintf p "  | \"%s\"%%string, " txt;
   list_iteri
     (fun i targ -> fprintf p "_x%d :: " (i + 1))
     targs;
@@ -474,8 +464,8 @@ let print_assertion p (txt, targs) =
 
 let print_assertions p =
   if !assertions <> [] then begin
-    fprintf p "Definition assertions (id: ident) args : Prop :=@ ";
-    fprintf p "  match id, args with@ ";
+    fprintf p "Definition assertions (txt: string) args : Prop :=@ ";
+    fprintf p "  match txt, args with@ ";
     List.iter (print_assertion p) !assertions;
     fprintf p "  | _, _ => False@ ";
     fprintf p "  end.@ @ "
@@ -483,20 +473,73 @@ let print_assertions p =
 
 (* The prologue *)
 
-let prologue = "\
-Require Import Clightdefs.
-
-Local Open Scope Z_scope.
-
+let prologue = "\n\
+Require Import Clightdefs.\n\
+\
+Local Open Scope Z_scope.\n\
+\
 "
+
+(* Naming the compiler-generated temporaries occurring in the program *)
+
+let rec name_expr = function
+  | Evar(id, t) -> ()
+  | Etempvar(id, t) -> name_temporary id
+  | Ederef(a1, t) -> name_expr a1
+  | Efield(a1, f, t) -> name_expr a1
+  | Econst_int(n, t) -> ()
+  | Econst_float(n, t) -> ()
+  | Econst_long(n, t) -> ()
+  | Econst_single(n, t) -> ()
+  | Eunop(op, a1, t) -> name_expr a1
+  | Eaddrof(a1, t) -> name_expr a1
+  | Ebinop(op, a1, a2, t) -> name_expr a1; name_expr a2
+  | Ecast(a1, t) -> name_expr a1
+  | Esizeof(t1, t) -> ()
+  | Ealignof(t1, t) -> ()
+
+let rec name_stmt = function
+  | Sskip -> ()
+  | Sassign(e1, e2) -> name_expr e1; name_expr e2
+  | Sset(id, e2) -> name_temporary id; name_expr e2
+  | Scall(optid, e1, el) ->
+      name_opt_temporary optid; name_expr e1; List.iter name_expr el
+  | Sbuiltin(optid, ef, tyl, el) ->
+      name_opt_temporary optid; List.iter name_expr el
+  | Ssequence(s1, s2) -> name_stmt s1; name_stmt s2
+  | Sifthenelse(e, s1, s2) -> name_expr e; name_stmt s1; name_stmt s2
+  | Sloop(s1, s2) -> name_stmt s1; name_stmt s2
+  | Sbreak -> ()
+  | Scontinue -> ()
+  | Sswitch(e, cases) -> name_expr e; name_lblstmts cases
+  | Sreturn (Some e) -> name_expr e
+  | Sreturn None -> ()
+  | Slabel(lbl, s1) -> name_stmt s1
+  | Sgoto lbl -> ()
+
+and name_lblstmts = function
+  | LSnil -> ()
+  | LScons(lbl, s, ls) -> name_stmt s; name_lblstmts ls
+
+let name_function f =
+  List.iter (fun (id, ty) -> name_temporary id) f.fn_temps;
+  name_stmt f.fn_body
+
+let name_globdef (id, g) =
+  match g with
+  | Gfun(Ctypes.Internal f) -> name_function f
+  | _ -> ()
+
+let name_program p =
+  List.iter name_globdef p.Ctypes.prog_defs
 
 (* All together *)
 
 let print_program p prog =
+  Hashtbl.clear temp_names;
+  name_program prog;
   fprintf p "@[<v 0>";
   fprintf p "%s" prologue;
-  Hashtbl.clear temp_names;
-  all_temp_names := StringSet.empty;
   define_idents p;
   List.iter (print_globdef p) prog.prog_defs;
   fprintf p "Definition composites : list composite_definition :=@ ";
@@ -512,4 +555,3 @@ let print_program p prog =
   fprintf p "|}.@ ";
   print_assertions p;
   fprintf p "@]@."
-
