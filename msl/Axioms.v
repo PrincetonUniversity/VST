@@ -46,3 +46,5 @@ Proof.
   exact (ClassicalFacts.ext_prop_dep_proof_irrel_cic prop_ext).
 Qed.
 Implicit Arguments proof_irr.
+
+

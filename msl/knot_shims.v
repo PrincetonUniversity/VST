@@ -160,7 +160,7 @@ Module Type KNOT__COVARIANT_HERED_PROP_OTH_REL.
   (* Definitions of the "ageable" operations *)
   Axiom knot_level : forall (k:knot),
     level k = fst (unsquash k).
-   
+
   Axiom knot_age1 : forall (k:knot),
     age1 k =
     match unsquash k with
@@ -449,47 +449,29 @@ End Knot_CoContraVariantHeredTOthRel.
 Module Knot_CovariantHeredPropOthRel (KI':KNOT_INPUT__COVARIANT_HERED_PROP_OTH_REL)
   : KNOT__COVARIANT_HERED_PROP_OTH_REL with Module KI:=KI'.
 
+  Import CoContraVariantBiFunctor.
+  Import CoContraVariantBiFunctorLemmas.
+  Import GeneralFunctorGenerator.
   Module KI:=KI'.
 
   Module Input.
-    Definition F (A B:Type) := KI.F B.
-    Definition bimap {A B C D} (s:A -> B) (f:C -> D) (x:F B C) : F A D :=
-      KI.fmap f x.
-
-    Lemma bimap_id : forall A B, bimap (id A) (id B) = id (F A B).
-    Proof.
-      intros; unfold bimap; extensionality.
-      rewrite KI.fmap_id; auto.  
-    Qed.
-
-    Lemma bimap_comp : forall A B C D E F (f:B -> C) (g:A -> B) (s:F -> E) (t:E -> D),
-      bimap s f oo bimap t g = bimap (t oo s) (f oo g).
-    Proof.
-      intros; unfold bimap; extensionality.
-      rewrite <- KI.fmap_comp; auto.
-    Qed.
+    Definition F: functor :=
+      GeneralFunctorGenerator.CovariantFunctor_CoContraVariantBiFunctor KI.F.
 
     Definition other := KI.other.
-    
-    Definition Rel (A B:Type) := KI.Rel B.
 
-    Lemma Rel_bimap : forall A B C D (f:A->B) (s:C->D) x y,
-      Rel D A x y ->
-      Rel C B (bimap s f x) (bimap s f y).
-    Proof.
-      unfold Rel, bimap; intros; subst; auto.
-      apply KI.Rel_fmap; auto.
-    Qed.
-    
-    Lemma Rel_refl : forall A B x, Rel A B x x.
-    Proof.
-      intros; apply KI.Rel_refl.
-    Qed.
-    Lemma Rel_trans : forall A B x y z,
-      Rel A B x y -> Rel A B y z -> Rel A B x z.
-    Proof.
-      intros; eapply KI.Rel_trans; eauto.
-    Qed.
+    Definition Rel (A B: Type): F A B -> F A B -> Prop := KI.Rel A.
+
+    Definition Rel_fmap (A B C D: Type): forall (f:A->B) (s:C->D) x y,
+      Rel A D x y ->
+      Rel B C (fmap F f s x) (fmap F f s y)
+      := fun f _ => KI.Rel_fmap A B f.
+
+    Definition Rel_refl (A B: Type): forall x, Rel A B x x := KI.Rel_refl A.
+
+    Definition Rel_trans (A B: Type): forall x y z,
+      Rel A B x y -> Rel A B y z -> Rel A B x z
+      := KI.Rel_trans A.
 
     Definition ORel := KI.ORel.
     Definition ORel_refl := KI.ORel_refl.
@@ -515,8 +497,8 @@ Module Knot_CovariantHeredPropOthRel (KI':KNOT_INPUT__COVARIANT_HERED_PROP_OTH_R
     Qed.
   End Input.
 
-  Module K := knot_full.KnotFull(Input).
-  Module KL := knot_full.KnotFull_Lemmas(K).
+  Module K := Knot_CoContraVariantHeredTOthRel(Input).
+(*  Module KL := knot_full.KnotFull_Lemmas(K). *)
   
   Definition knot := K.knot.
   Definition ageable_knot := K.ageable_knot.
@@ -527,7 +509,12 @@ Module Knot_CovariantHeredPropOthRel (KI':KNOT_INPUT__COVARIANT_HERED_PROP_OTH_R
 
   Definition expandR : relation (knot * KI.other) :=
     fun x y => K.knot_rel (fst x) (fst y) /\ KI.ORel (snd x) (snd y).
-
+Print modality.
+Print pred.
+Locate boxy.
+Print boxy.
+Print box.
+Locate box.
   Lemma valid_rel_expandR : valid_rel expandR.
   Proof.
     split; hnf; intros.
@@ -539,21 +526,18 @@ Module Knot_CovariantHeredPropOthRel (KI':KNOT_INPUT__COVARIANT_HERED_PROP_OTH_R
     hnf in H0.
     simpl in H.
     rewrite K.knot_age1 in H.
-    case_eq (K.unsquash yk); intros.
-    rewrite H2 in H.
-    rewrite H2 in H0.
+    destruct (K.unsquash yk) as [n f] eqn:?H; intros.
     destruct n; try discriminate.
     inv H.
     destruct z as [zk zo].
     simpl in H0.
-    case_eq (K.unsquash zk); intros.
-    rewrite H in H0.
+    destruct (K.unsquash zk) as [n0 f0] eqn:?H; intros.
     destruct H0; subst n0.
     simpl in H1.
     exists (K.squash (n,f0),zo).
     split; simpl; auto.
     hnf; repeat rewrite K.unsquash_squash; split; auto.
-    apply Input.Rel_bimap; auto.
+    apply Input.Rel_fmap; auto.
     hnf; simpl.
     rewrite K.knot_age1.
     rewrite H.
@@ -566,14 +550,13 @@ Module Knot_CovariantHeredPropOthRel (KI':KNOT_INPUT__COVARIANT_HERED_PROP_OTH_R
     hnf in H0; simpl in H0.
     rewrite K.knot_age1 in H0.
     destruct z as [zk zo]; simpl in *.
-    case_eq (K.unsquash zk); intros.
-    rewrite H2 in H0.
+    destruct (K.unsquash zk) as [n f] eqn:?H; intros.
     destruct n; try discriminate.
     inv H0.
     hnf in H.
     rewrite K.unsquash_squash in H.
-    case_eq (K.unsquash xk); intros.
-    rewrite H0 in H; destruct H; subst.
+    destruct (K.unsquash xk) as [n0 f0] eqn:?H; intros.
+    destruct H; subst.
     destruct (KI.Rel_unfmap _ _ _ _ _ H3)
       as [z [? ?]].
     subst f0.

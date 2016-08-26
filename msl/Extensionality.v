@@ -93,3 +93,12 @@ intros.
 subst.
 rewrite (proof_irr Hx Hy); auto.
 Qed.
+
+Lemma exist_ext' : forall A F (x y:@sig A F),
+  proj1_sig x = proj1_sig y -> x = y.
+Proof.
+  intros.
+  destruct x; destruct y; simpl in *.
+  subst x0.
+  replace f0 with f by apply proof_irr; auto.
+Qed.

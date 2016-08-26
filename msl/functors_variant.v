@@ -217,6 +217,17 @@ Definition CovariantFunctor_MixVariantFunctor (F: CovariantFunctor.functor):
   + apply CovariantFunctor.ff_comp, CovariantFunctor.functor_facts.
 Defined.
 
+Definition CovariantFunctor_CoContraVariantBiFunctor
+ (F: CovariantFunctor.functor):
+  CoContraVariantBiFunctor.functor.
+  refine (@CoContraVariantBiFunctor.Functor
+   (fun T1 T2 => F T1)
+   (fun A B C D f _ => CovariantFunctor.fmap F f) _).
+  constructor; intros; simpl.
+  + apply CovariantFunctor.ff_id, CovariantFunctor.functor_facts.
+  + apply CovariantFunctor.ff_comp, CovariantFunctor.functor_facts.
+Defined.
+
 Definition CoContraVariantBiFunctor_MixVariantFunctor
  (F: CoContraVariantBiFunctor.functor):
   MixVariantFunctor.functor.
