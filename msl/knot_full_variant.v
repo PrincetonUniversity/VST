@@ -890,6 +890,123 @@ Module KnotFull (TF':TY_FUNCTOR_FULL) : KNOT_FULL with Module TF:=TF'.
 
 End KnotFull.
 
+Module KnotFullLemmas1.
+
+Class Input: Type := {
+  knot: Type;
+  Fpred: Type;
+  squash: nat * Fpred -> knot;
+  unsquash: knot -> nat * Fpred;
+  approxF: nat -> Fpred -> Fpred;
+  squash_unsquash : forall k:knot, squash (unsquash k) = k;
+  unsquash_squash : forall (n:nat) (f:Fpred),
+    unsquash (squash (n,f)) = (n, approxF n f)
+}.
+
+Class Output (input: Input): Prop := {
+  unsquash_inj : forall k1 k2,
+    unsquash k1 = unsquash k2 ->
+    k1 = k2;
+  squash_surj : forall k, exists n, exists Fp,
+    squash (n, Fp) = k;
+  unsquash_approx : forall k n Fp,
+    unsquash k = (n, Fp) ->
+    Fp = approxF n Fp
+}.
+
+Lemma Proof (kli: Input): Output kli.
+Proof.
+  constructor.
+  + intros.
+    rewrite <- (squash_unsquash k1).
+    rewrite <- (squash_unsquash k2).
+    rewrite H.
+    trivial.
+  + intros.
+    remember (unsquash k).
+    destruct p as [n f].
+    exists n.
+    exists f.
+    rewrite Heqp.
+    rewrite squash_unsquash.
+    trivial.
+  + intros.
+    generalize H; intro.
+    rewrite <- (squash_unsquash k) in H.
+    rewrite H0 in H.
+    rewrite unsquash_squash in H.
+    inversion H.
+    rewrite H2.
+    symmetry.
+    trivial.
+Qed.
+
+End KnotFullLemmas1.
+
+Module KnotFullLemmas2.
+
+Class Input: Type := {
+  knot: Type;
+  other: Type;
+  T: Type;
+  t0: T;
+  ageable_knot : ageable knot;
+  hered : (knot * other -> T) -> Prop;
+  predicate: Type := { p:knot * other -> T | hered p };
+  approx : nat -> predicate -> predicate;
+  approx_spec : forall n p ko,
+    proj1_sig (approx n p) ko =
+     if (le_gt_dec n (level (fst ko))) then t0 else proj1_sig p ko
+}.
+
+Class Output (input: Input): Prop := {
+  pred_ext : forall (p1 p2:predicate),
+    (forall x, proj1_sig p1 x = proj1_sig p2 x) ->
+    p1 = p2;
+  approx_approx1 : forall m n,
+    approx n = approx n oo approx (m+n);
+  approx_approx2 : forall m n,
+    approx n = approx (m+n) oo approx n
+}.
+
+Lemma Proof (kli: Input): Output kli.
+Proof.
+  assert
+   (forall p1 p2 : predicate,
+    (forall x : knot * other, proj1_sig p1 x = proj1_sig p2 x) -> p1 = p2)
+  as pred_ext;
+  [| constructor; auto].
+  + intros.
+    destruct p1 as [p1 Hp1]; destruct p2 as [p2 Hp2].
+    simpl in *.
+    assert (p1 = p2).
+    extensionality x; auto.
+    subst p2.
+    replace Hp2 with Hp1; auto.
+    apply proof_irr.
+  + intros.
+    extensionality p.
+    apply pred_ext.
+    intros [k o].
+    unfold compose.
+    repeat rewrite approx_spec.
+    simpl.
+    destruct (le_gt_dec n (level k)); auto.
+    destruct (le_gt_dec (m+n) (level k)); auto.
+    elimtype False; omega.
+  + intros.
+    extensionality p.
+    apply pred_ext.
+    intros [k o].
+    unfold compose.
+    repeat rewrite approx_spec.
+    simpl.
+    destruct (le_gt_dec (m+n) (level k)); auto.
+    destruct (le_gt_dec n (level k)); auto.
+    elimtype False; omega.
+Qed.
+
+End KnotFullLemmas2.
 
 Module KnotFull_Lemmas (K : KNOT_FULL).
   Import K.TF.
@@ -899,40 +1016,30 @@ Module KnotFull_Lemmas (K : KNOT_FULL).
     unsquash k1 = unsquash k2 ->
     k1 = k2.
   Proof.
-    intros.
-    rewrite <- (squash_unsquash k1).
-    rewrite <- (squash_unsquash k2).
-    rewrite H.
-    trivial.
+    apply
+     (@KnotFullLemmas1.unsquash_inj
+       (KnotFullLemmas1.Build_Input _ _ _ _ _ squash_unsquash unsquash_squash)),
+     (KnotFullLemmas1.Proof).
   Qed.
   Implicit Arguments unsquash_inj.
 
   Lemma squash_surj : forall k, exists n, exists Fp,
     squash (n, Fp) = k.
   Proof.
-    intros.
-    remember (unsquash k).
-    destruct p as [n f].
-    exists n.
-    exists f.
-    rewrite Heqp.
-    rewrite squash_unsquash.
-    trivial.
+    apply
+     (@KnotFullLemmas1.squash_surj
+       (KnotFullLemmas1.Build_Input _ _ _ _ _ squash_unsquash unsquash_squash)),
+     (KnotFullLemmas1.Proof).
   Qed.
 
   Lemma unsquash_approx : forall k n Fp,
     unsquash k = (n, Fp) ->
     Fp = fmap F (approx n) (approx n) Fp.
   Proof.
-    intros.
-    generalize H; intro.
-    rewrite <- (squash_unsquash k) in H.
-    rewrite H0 in H.
-    rewrite unsquash_squash in H.
-    inversion H.
-    rewrite H2.
-    symmetry.
-    trivial.
+    apply
+     (@KnotFullLemmas1.unsquash_approx
+       (KnotFullLemmas1.Build_Input _ _ _ _ _ squash_unsquash unsquash_squash)),
+     (KnotFullLemmas1.Proof).
   Qed.
   Implicit Arguments unsquash_approx.
   
@@ -940,44 +1047,28 @@ Module KnotFull_Lemmas (K : KNOT_FULL).
     (forall x, proj1_sig p1 x = proj1_sig p2 x) ->
     p1 = p2.
   Proof.
-    intros.
-    destruct p1 as [p1 Hp1]; destruct p2 as [p2 Hp2].
-    simpl in *.
-    assert (p1 = p2).
-    extensionality x; auto.
-    subst p2.
-    replace Hp2 with Hp1; auto.
-    apply proof_irr.
+    apply
+     (@KnotFullLemmas2.pred_ext
+       (KnotFullLemmas2.Build_Input _ _ _ _ _ _ _ approx_spec)),
+     (KnotFullLemmas2.Proof).
   Qed.
 
   Lemma approx_approx1 : forall m n,
     approx n = approx n oo approx (m+n).
   Proof.
-    intros.
-    extensionality p.
-    apply pred_ext.
-    intros [k o].
-    unfold compose.
-    repeat rewrite approx_spec.
-    simpl.
-    destruct (le_gt_dec n (level k)); auto.
-    destruct (le_gt_dec (m+n) (level k)); auto.
-    elimtype False; omega.
+    apply
+     (@KnotFullLemmas2.approx_approx1
+       (KnotFullLemmas2.Build_Input _ _ _ _ _ _ _ approx_spec)),
+     (KnotFullLemmas2.Proof).
   Qed.
 
   Lemma approx_approx2 : forall m n,
     approx n = approx (m+n) oo approx n.
   Proof.
-    intros.
-    extensionality p.
-    apply pred_ext.
-    intros [k o].
-    unfold compose.
-    repeat rewrite approx_spec.
-    simpl.
-    destruct (le_gt_dec (m+n) (level k)); auto.
-    destruct (le_gt_dec n (level k)); auto.
-    elimtype False; omega.
+    apply
+     (@KnotFullLemmas2.approx_approx2
+       (KnotFullLemmas2.Build_Input _ _ _ _ _ _ _ approx_spec)),
+     (KnotFullLemmas2.Proof).
   Qed.
 
 End KnotFull_Lemmas.
