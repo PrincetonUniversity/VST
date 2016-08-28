@@ -73,6 +73,7 @@ int mbedtls_md_setup( mbedtls_md_context_t *ctx, const mbedtls_md_info_t *md_inf
         return MBEDTLS_ERR_MD_ALLOC_FAILED;
     }
     ctx->hmac_ctx = sha_ctx;
+    ctx->md_info = md_info;
     return 0;
 }
 
@@ -110,7 +111,9 @@ int get_entropy(unsigned char*, size_t);
 
 /* Implementation that should never be optimized out by the compiler */
 static void mbedtls_zeroize( void *v, size_t n ) {
-    volatile unsigned char *p = v; while( n-- ) *p++ = 0;
+//    volatile unsigned char *p = v; while( n-- ) *p++ = 0;
+// TODO: wrie paragraph justifying elimination of "volatile"
+    unsigned char *p = v; while( n-- ) *p++ = 0;
 }
 
 /*

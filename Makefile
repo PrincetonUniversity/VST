@@ -134,13 +134,13 @@ CONCUR_FILES= \
   SC_erasure.v sync_preds.v join_lemmas.v coqlib5.v age_to.v
 
 CCC26x86_FILES = \
-  Archi.v Bounds.v Conventions1.v Conventions.v Ctypes.v \
-  Locations.v Op.v Ordered.v Stacklayout.v Linear.v LTL.v \
+  Archi.v Bounds.v Conventions1.v Conventions.v Separation.v \
+  Decidableplus.v Locations.v Op.v Ordered.v Stacklayout.v Linear.v LTL.v \
   Machregs.v Asm.v \
   Switch.v Cminor.v \
   I64Helpers.v BuiltinEffects.v load_frame.v Asm_coop.v Asm_eff.v \
   Asm_nucular.v Asm_event.v \
-  Clight.v Clight_coop.v Clight_eff.v
+  Clight_coop.v Clight_eff.v
 
 LINKING_FILES= \
   sepcomp.v \

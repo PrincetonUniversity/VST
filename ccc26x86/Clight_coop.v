@@ -12,7 +12,7 @@ Require Import Smallstep.
 Require Import Ctypes.
 Require Import Cop.
 
-Require Import ccc26x86.Clight. 
+Require Import compcert.cfrontend.Clight. 
 Require Import sepcomp.mem_lemmas.
 
 Require Import sepcomp.semantics.
@@ -88,7 +88,8 @@ Inductive clight_corestep: CL_core -> mem-> CL_core -> mem -> Prop :=
   | clight_corestep_assign:   forall f a1 a2 k e le m loc ofs v2 v m',
       eval_lvalue ge e le m a1 loc ofs ->
       eval_expr ge e le m a2 v2 ->
-      sem_cast v2 (typeof a2) (typeof a1) = Some v ->
+      sem_cast v2 (typeof a2) (typeof a1) m = Some v ->
+      assign_loc ge (typeof a1) m loc ofs v m' ->
       assign_loc ge (typeof a1) m loc ofs v m' ->
       clight_corestep (CL_State f (Sassign a1 a2) k e le) m
         (CL_State f Sskip k e le) m'
@@ -154,12 +155,14 @@ Inductive clight_corestep: CL_core -> mem-> CL_core -> mem -> Prop :=
       Mem.free_list m (blocks_of_env ge e) = Some m' ->
       clight_corestep (CL_State f (Sreturn None) k e le) m
         (CL_Returnstate Vundef (call_cont k)) m'
+
   | clight_corestep_return_1: forall f a k e le m v v' m',
-      eval_expr ge e le m a v -> 
-      sem_cast v (typeof a) f.(fn_return) = Some v' ->
+      eval_expr ge e le m a v ->
+      sem_cast v (typeof a) f.(fn_return) m = Some v' ->
       Mem.free_list m (blocks_of_env ge e) = Some m' ->
       clight_corestep (CL_State f (Sreturn (Some a)) k e le) m
         (CL_Returnstate v' (call_cont k)) m'
+
   | clight_corestep_skip_call: forall f k e le m m',
       is_call_cont k ->
       Mem.free_list m (blocks_of_env ge e) = Some m' ->
@@ -295,6 +298,30 @@ destruct op; simpl in *.
   - destruct v1; inv SUO; trivial.
 Qed.
 
+Lemma ple_cast v0 v1 t1 t2 m:
+      Some v0 = sem_cast v1 t1 t2 m -> forall mm, perm_lesseq m mm ->
+      Some v0 = sem_cast v1 t1 t2 mm.
+Proof. intros. unfold sem_cast in *.
+destruct (classify_cast t1 t2); try solve [destruct v1; try discriminate; trivial].
+destruct v1; try discriminate; trivial.
+remember (Mem.weak_valid_pointer m b (Int.unsigned i)) as p.
+destruct p; try discriminate. symmetry in Heqp. 
+erewrite ple_weak_valid_pointer; trivial; eassumption.
+Qed.
+
+Lemma ple_sem_binarith si sl sf ss v1 t1 v2 t2 m v
+  (SB: sem_binarith si sl sf ss v1 t1 v2 t2 m = Some v)
+  mm (PLE: perm_lesseq m mm):
+  sem_binarith si sl sf ss v1 t1 v2 t2 mm = Some v.
+Proof.
+  unfold sem_binarith in *.
+  remember (sem_cast v1 t1 (binarith_type (classify_binarith t1 t2)) m) as cast1.
+  destruct cast1; try discriminate.
+  remember (sem_cast v2 t2 (binarith_type (classify_binarith t1 t2)) m) as cast2.   destruct cast2; try discriminate.
+  rewrite <- (ple_cast _ _ _ _ _ Heqcast1 _ PLE).
+  rewrite <- (ple_cast _ _ _ _ _ Heqcast2 _ PLE); trivial.
+Qed.
+
 Lemma ple_sem_cmp op v1 t1 v2 t2 m v (CMP: sem_cmp op v1 t1 v2 t2 m = Some v) m1 (PLE : perm_lesseq m m1):
       sem_cmp op v1 t1 v2 t2 m1 = Some v.
 Proof. unfold sem_cmp in *. destruct (classify_cmp t1 t2); try discriminate.
@@ -341,12 +368,35 @@ Proof. unfold sem_cmp in *. destruct (classify_cmp t1 t2); try discriminate.
     symmetry in Heqq. rewrite (ple_valid_pointer _ _ _ Heqq _ PLE); simpl; trivial.
     remember (Mem.valid_pointer m b (Int.unsigned i0 - 1)) as r. destruct r; inv H1.
     symmetry in Heqr. rewrite (ple_valid_pointer _ _ _ Heqr _ PLE), orb_true_r; simpl; trivial.
-  - destruct v1; destruct v2; inv CMP; simpl; trivial.
+  - eapply ple_sem_binarith; eassumption. 
 Qed.
 
 Lemma ple_binop g op v1 t1 v2 t2 m v (SBO: sem_binary_operation g op v1 t1 v2 t2 m = Some v)
       m1 (PLE : perm_lesseq m m1): sem_binary_operation g op v1 t1 v2 t2 m1 = Some v.
-Proof. destruct op; simpl in *; trivial; eapply ple_sem_cmp; eassumption. Qed.
+Proof. destruct op; simpl in *; trivial.
++ unfold sem_add in *. destruct (classify_add t1 t2); trivial.
+  eapply ple_sem_binarith; eassumption. 
++ unfold sem_sub in *. destruct (classify_sub t1 t2); trivial.
+  eapply ple_sem_binarith; eassumption. 
++ unfold sem_mul in *.
+  eapply ple_sem_binarith; eassumption. 
++ unfold sem_div in *. 
+  eapply ple_sem_binarith; eassumption. 
++ unfold sem_mod in *. 
+  eapply ple_sem_binarith; eassumption. 
++ unfold sem_and in *. 
+  eapply ple_sem_binarith; eassumption. 
++ unfold sem_or in *. 
+  eapply ple_sem_binarith; eassumption. 
++ unfold sem_xor in *.
+  eapply ple_sem_binarith; eassumption. 
++ eapply ple_sem_cmp; eassumption.
++ eapply ple_sem_cmp; eassumption.
++ eapply ple_sem_cmp; eassumption.
++ eapply ple_sem_cmp; eassumption.
++ eapply ple_sem_cmp; eassumption.
++ eapply ple_sem_cmp; eassumption.
+Qed.
 
 Lemma ple_deref_loc t m loc ofs v (D:deref_loc t m loc ofs v) m1 (PLE : perm_lesseq m m1):
       deref_loc t m1 loc ofs v.
@@ -366,7 +416,32 @@ Proof.
 apply eval_expr_lvalue_ind; simpl; intros; try solve [econstructor; eauto].
 + econstructor; eauto. eapply ple_unop; eassumption.
 + econstructor; eauto. eapply ple_binop; eassumption.
++ econstructor; eauto. symmetry. symmetry in H1.  eapply ple_cast; eassumption.
 + econstructor. eauto. eapply ple_deref_loc; eassumption.
+Qed.
+
+Lemma ple_eval_expr g e le m: 
+      forall a v (EE:eval_expr g e le m a v) mm
+      (PLE : perm_lesseq m mm), eval_expr g e le mm a v.
+Proof. 
+induction a; simpl; intros; inv EE; simpl; try solve [constructor; trivial]; try solve [inv H].
++ econstructor.
+   eapply ple_eval_evallvalue; eassumption. 
+   eapply ple_deref_loc; eassumption.
++ econstructor.
+   eapply ple_eval_evallvalue; eassumption. 
+   eapply ple_deref_loc; eassumption.
++ econstructor.
+   eapply ple_eval_evallvalue; eassumption. 
++ econstructor; eauto.
+   eapply ple_unop; eassumption. 
++ econstructor; eauto. 
+   eapply ple_binop; eassumption. 
++ econstructor; eauto.
+    symmetry. symmetry in H3. eapply ple_cast; eassumption.
++ econstructor.
+   eapply ple_eval_evallvalue; eassumption. 
+   eapply ple_deref_loc; eassumption.
 Qed.
 
 Lemma ple_eval_exprlist g e le: forall al tyargs vargs m (EE:eval_exprlist g e le m al tyargs vargs) m1
@@ -374,7 +449,10 @@ Lemma ple_eval_exprlist g e le: forall al tyargs vargs m (EE:eval_exprlist g e l
 Proof. 
 induction al; simpl; intros; inv EE.
 + constructor.
-+ econstructor; try eassumption. eapply ple_eval_evallvalue; eassumption. eauto.
++ econstructor. 
+  eapply ple_eval_expr; eassumption.
+  symmetry. symmetry in H2. eapply ple_cast; eassumption.
+  eauto.
 Qed.
 
 Lemma ple_assign_loc g t loc ofs v m m' (A:assign_loc g t m loc ofs v m')  
@@ -403,6 +481,7 @@ Proof.
   econstructor; try eassumption.
    eapply ple_eval_evallvalue; eassumption.
    eapply ple_eval_evallvalue; eassumption.
+   symmetry. symmetry in H1. eapply ple_cast; eassumption.
 + exists m1; split; trivial. econstructor. eapply ple_eval_evallvalue; eassumption.
 + exists m1; split; trivial. econstructor; try eassumption.  eapply ple_eval_evallvalue; eassumption. eapply ple_eval_exprlist; eassumption. 
 + exists m1; split; trivial. econstructor; try eassumption. eapply ple_eval_evallvalue; eassumption.
@@ -420,6 +499,7 @@ Proof.
 + exploit ple_freelist; try eassumption.
   intros [mm [MMF MM]].
   eexists mm; split; trivial. econstructor; try eassumption. eapply ple_eval_evallvalue; eassumption.
+  symmetry. symmetry in H0. eapply ple_cast; eassumption.
 + exploit ple_freelist; try eassumption.
   intros [mm [MMF MM]].
   eexists mm; split; trivial. econstructor; try eassumption.
@@ -441,8 +521,8 @@ eapply Build_MemSem with (csem := @CL_core_sem FE).
   + destruct H2.
     - simpl in H3.
       eapply mem_step_storebytes.
-      apply Mem.store_storebytes; apply H3.
-    - eapply mem_step_storebytes. apply H7.
+      apply Mem.store_storebytes; eassumption.
+    - eapply mem_step_storebytes; eassumption.
 (*  + eapply extcall_mem_step; eassumption.*)
   + eapply mem_step_freelist; eassumption.
   + eapply mem_step_freelist; eassumption.

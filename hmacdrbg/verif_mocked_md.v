@@ -13,19 +13,36 @@ Axiom UPDATENAME:_HMAC_Update = hmac._HMAC_Update.
 Axiom INITNAME: _HMAC_Init = hmac._HMAC_Init. 
 Axiom CTX_Struct: Tstruct _hmac_ctx_st noattr = spec_hmac.t_struct_hmac_ctx_st.
 
-(*Axioms CS: hmac_drbg_compspecs.CompSpecs = spec_hmac.CompSpecs.*)
+Axiom EmptyDissolve: forall v, 
+  UNDER_SPEC.EMPTY v |-- memory_block Tsh (sizeof spec_hmac.t_struct_hmac_ctx_st) v .
+(*Provable in the implementation of UNDERSPEC, but currently not exposed in the interface*)
+
+Eval compute in (sizeof (Tstruct _hmac_ctx_st noattr)).
 
 Lemma body_md_free: semax_body HmacDrbgVarSpecs HmacDrbgFunSpecs
        f_mbedtls_md_free md_free_spec.
 Proof.
-  start_function. (*
-  unfold UNDER_SPEC.EMPTY. rewrite <- CS.
-  assert_PROP(field_compatible spec_hmac.t_struct_hmac_ctx_st [] ctx) as FC by entailer.
-  rewrite data_at__isptr. Intros.
+  start_function. rewrite data_at_isptr. Intros.
   destruct ctx; try contradiction. clear Pctx.
-  unfold data_at_. unfold field_at_. simpl. 
-  rewrite field_at_data_at.*)
-Admitted. 
+  unfold_data_at 1%nat. destruct r as [r1 [r2 r3]]. simpl.
+  rewrite EMPTY_isptr. Intros. destruct r3; try contradiction. clear Pr3.
+  forward. (*
+  replace_SEP 3 (memory_block Tsh 324 (Vptr b0 i0)).
+  { entailer!. eapply derives_trans. apply EmptyDissolve. 
+    rewrite <- CTX_Struct. simpl. trivial. }*)
+freeze [0;1;2] FR1.
+forward_seq. 
+(*TODO: FLOYD: forward_call (Vptr b0 i0, 324) fails here*)
+eapply (semax_call_id00_wow (Vptr b0 i0, 324) [FRZL FR1]); trivial; try reflexivity.
++ entailer!. 
++ entailer!. constructor. constructor. constructor. 
++ entailer!. constructor. 
++ simpl. cancel. 
+  eapply derives_trans. apply EmptyDissolve. 
+    rewrite <- CTX_Struct. simpl. trivial.
++ Intros v. simpl. forward. thaw FR1.
+  unfold_data_at 1%nat. cancel.
+Qed.
 
 Lemma body_md_get_size: semax_body HmacDrbgVarSpecs HmacDrbgFunSpecs
        f_mbedtls_md_get_size md_get_size_spec.

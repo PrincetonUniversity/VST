@@ -100,8 +100,9 @@ Inductive asm_step: state -> mem -> state -> mem -> Prop :=
       (OBS: EFisHelper (*hf*) callee),
       rs PC = Vptr b Int.zero ->
       Genv.find_funct_ptr ge b = Some (External callee) ->
-      external_call' callee ge args m t res m' ->
-      rs' = (set_regs (loc_external_result (ef_sig callee)) res rs) #PC <- (rs RA) ->
+      extcall_arguments rs m (ef_sig callee) args ->
+      external_call callee ge args m t res m' ->
+      rs' = (set_pair (loc_external_result (ef_sig callee)) res rs) #PC <- (rs RA) ->
       asm_step (Asm_CallstateOut callee args rs lf) m (State rs' lf) m'
   (*NOTE [loader]*)
   | asm_exec_initialize_call: 
@@ -172,7 +173,7 @@ Definition Asm_at_external (c: state):
       else None
   | _ => None
   end.
-
+(*In compcomp, had encode_long
 Definition Asm_after_external (vret: option val)(c: state) : option state :=
   match c with 
     Asm_CallstateOut ef args rs lf => 
@@ -182,6 +183,20 @@ Definition Asm_after_external (vret: option val)(c: state) : option state :=
                       lf)
        | Some res => Some (State ((set_regs (loc_external_result (ef_sig ef)) 
                                (encode_long (sig_res (ef_sig ef)) res) rs) #PC <- (rs RA))
+                          lf) 
+      end
+  | _ => None
+  end.
+*)
+Definition Asm_after_external (vret: option val)(c: state) : option state :=
+  match c with 
+    Asm_CallstateOut ef args rs lf => 
+      match vret with
+         None => Some (State ((set_pair (loc_external_result (ef_sig ef)) 
+                               Vundef rs) #PC <- (rs RA))
+                      lf)
+       | Some res => Some (State ((set_pair (loc_external_result (ef_sig ef)) 
+                               res rs) #PC <- (rs RA))
                           lf) 
       end
   | _ => None
