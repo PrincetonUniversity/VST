@@ -168,14 +168,7 @@ Module Type KNOT__COVARIANT_HERED_PROP_OTH_REL.
     | (S n,x) => Some (squash (n,x))
     end.
 
-  (* Convenience lemmas, provable from the above interface *)
-  Axiom fmap_fmap : forall A B C (f:B->C) (g:A->B) x,
-    fmap F f (fmap F g x) = fmap F (f oo g) x.
-
-  Axiom fmap_id' : forall A (f:A->A),
-    (forall x, f x = x) ->
-    fmap F f = id (F A).
-
+(* Convenience lemmas, provable from the above interface *)
   Axiom unsquash_inj : forall k1 k2,
     unsquash k1 = unsquash k2 ->
     k1 = k2.
@@ -186,7 +179,7 @@ Module Type KNOT__COVARIANT_HERED_PROP_OTH_REL.
 
   Axiom unsquash_approx : forall k n Fp,
     unsquash k = (n, Fp) ->
-    Fp = fmap F (approx n) Fp.
+    Fp = fmap KI.F (approx n) Fp.
   Implicit Arguments unsquash_approx [k n Fp].
   
   Axiom approx_approx1 : forall m n,
@@ -194,6 +187,7 @@ Module Type KNOT__COVARIANT_HERED_PROP_OTH_REL.
 
   Axiom approx_approx2 : forall m n,
     approx n = approx (m+n) oo approx n.
+
 End KNOT__COVARIANT_HERED_PROP_OTH_REL.
 
 Module Type KNOT_INPUT__HERED_PROP_OTH.
@@ -446,15 +440,82 @@ Module Knot_CoContraVariantHeredTOthRel
 
 End Knot_CoContraVariantHeredTOthRel.
 
+Module KnotLemmas_CoContraVariantHeredTOthRel
+  (K: KNOT__COCONTRAVARIANT_HERED_T_OTH_REL).
+  Import CoContraVariantBiFunctor.
+  Import K.KI.
+  Import K.
+
+  Lemma unsquash_inj : forall k1 k2,
+    unsquash k1 = unsquash k2 ->
+    k1 = k2.
+  Proof.
+    apply
+     (@knot_full_variant.KnotFullLemmas1.unsquash_inj
+       (knot_full_variant.KnotFullLemmas1.Build_Input _ _ _ _ _ squash_unsquash unsquash_squash)),
+     (knot_full_variant.KnotFullLemmas1.Proof).
+  Qed.
+  Implicit Arguments unsquash_inj.
+
+  Lemma squash_surj : forall k, exists n, exists Fp,
+    squash (n, Fp) = k.
+  Proof.
+    apply
+     (@knot_full_variant.KnotFullLemmas1.squash_surj
+       (knot_full_variant.KnotFullLemmas1.Build_Input _ _ _ _ _ squash_unsquash unsquash_squash)),
+     (knot_full_variant.KnotFullLemmas1.Proof).
+  Qed.
+
+  Lemma unsquash_approx : forall k n Fp,
+    unsquash k = (n, Fp) ->
+    Fp = fmap F (approx n) (approx n) Fp.
+  Proof.
+    apply
+     (@knot_full_variant.KnotFullLemmas1.unsquash_approx
+       (knot_full_variant.KnotFullLemmas1.Build_Input _ _ _ _ _ squash_unsquash unsquash_squash)),
+     (knot_full_variant.KnotFullLemmas1.Proof).
+  Qed.
+  Implicit Arguments unsquash_approx.
+  
+  Lemma pred_ext : forall (p1 p2:predicate),
+    (forall x, proj1_sig p1 x = proj1_sig p2 x) ->
+    p1 = p2.
+  Proof.
+    apply
+     (@knot_full_variant.KnotFullLemmas2.pred_ext
+       (knot_full_variant.KnotFullLemmas2.Build_Input _ _ _ _ _ _ _ approx_spec)),
+     (knot_full_variant.KnotFullLemmas2.Proof).
+  Qed.
+
+  Lemma approx_approx1 : forall m n,
+    approx n = approx n oo approx (m+n).
+  Proof.
+    apply
+     (@knot_full_variant.KnotFullLemmas2.approx_approx1
+       (knot_full_variant.KnotFullLemmas2.Build_Input _ _ _ _ _ _ _ approx_spec)),
+     (knot_full_variant.KnotFullLemmas2.Proof).
+  Qed.
+
+  Lemma approx_approx2 : forall m n,
+    approx n = approx (m+n) oo approx n.
+  Proof.
+    apply
+     (@knot_full_variant.KnotFullLemmas2.approx_approx2
+       (knot_full_variant.KnotFullLemmas2.Build_Input _ _ _ _ _ _ _ approx_spec)),
+     (knot_full_variant.KnotFullLemmas2.Proof).
+  Qed.
+
+End KnotLemmas_CoContraVariantHeredTOthRel.
+
 Module Knot_CovariantHeredPropOthRel (KI':KNOT_INPUT__COVARIANT_HERED_PROP_OTH_REL)
   : KNOT__COVARIANT_HERED_PROP_OTH_REL with Module KI:=KI'.
 
-  Import CoContraVariantBiFunctor.
-  Import CoContraVariantBiFunctorLemmas.
-  Import GeneralFunctorGenerator.
   Module KI:=KI'.
 
   Module Input.
+    Import CoContraVariantBiFunctor.
+    Import CoContraVariantBiFunctorLemmas.
+    Import GeneralFunctorGenerator.
     Definition F: functor :=
       GeneralFunctorGenerator.CovariantFunctor_CoContraVariantBiFunctor KI.F.
 
@@ -497,8 +558,11 @@ Module Knot_CovariantHeredPropOthRel (KI':KNOT_INPUT__COVARIANT_HERED_PROP_OTH_R
     Qed.
   End Input.
 
+  Import CovariantFunctor.
+  Import CovariantFunctorLemmas.
+
   Module K := Knot_CoContraVariantHeredTOthRel(Input).
-(*  Module KL := knot_full.KnotFull_Lemmas(K). *)
+  Module KL := KnotLemmas_CoContraVariantHeredTOthRel(K).
   
   Definition knot := K.knot.
   Definition ageable_knot := K.ageable_knot.
@@ -509,12 +573,7 @@ Module Knot_CovariantHeredPropOthRel (KI':KNOT_INPUT__COVARIANT_HERED_PROP_OTH_R
 
   Definition expandR : relation (knot * KI.other) :=
     fun x y => K.knot_rel (fst x) (fst y) /\ KI.ORel (snd x) (snd y).
-Print modality.
-Print pred.
-Locate boxy.
-Print boxy.
-Print box.
-Locate box.
+
   Lemma valid_rel_expandR : valid_rel expandR.
   Proof.
     split; hnf; intros.
@@ -570,8 +629,7 @@ Locate box.
     rewrite K.unsquash_squash.
     rewrite H0.
     f_equal.
-    rewrite KL.bimap_bimap.
-    unfold Input.bimap.
+    rewrite CoContraVariantBiFunctorLemmas.fmap_app.
     change (S n0) with (1 + n0).
     rewrite <- KL.approx_approx1.
     auto.
@@ -581,7 +639,6 @@ Locate box.
     rewrite K.unsquash_squash; split; auto.
     hnf.
     rewrite (KL.unsquash_approx H2).
-    unfold Input.bimap.
     apply KI.Rel_fmap; auto.
   Qed.
 
@@ -701,28 +758,19 @@ Locate box.
     simpl; auto.
   Qed.
 
-  Lemma exist_ext : forall A F (x y:@sig A F),
-    proj1_sig x = proj1_sig y -> x = y.
-  Proof.
-    intros.
-    destruct x; destruct y; simpl in *.
-    subst x0.
-    replace f0 with f by apply proof_irr; auto.
-  Qed.
-
   Lemma p2p' : forall p, predicate2pred (pred2predicate p) = p.
   Proof.
     intros.
-    apply exist_ext.
+    apply exist_ext'.
     apply pred_ext; hnf; simpl; auto.
   Qed.
 
   Definition squash (nf:(nat * KI.F assert)) : knot :=
-    K.squash (fst nf, KI.fmap pred2predicate (snd nf)).
+    K.squash (fst nf, fmap KI.F pred2predicate (snd nf)).
 
   Definition unsquash (k:knot) : (nat * KI.F assert) :=
     let (n,f) := K.unsquash k in
-      (n, KI.fmap predicate2pred f).
+      (n, fmap KI.F predicate2pred f).
 
   Program Definition approx (n:nat) (p:assert) : assert :=
     fun k => level (fst k) < n /\ p k.
@@ -778,52 +826,34 @@ Locate box.
     intros; simpl; auto.
   Qed.
 
-  Lemma fmap_fmap : forall A B C (f:B->C) (g:A->B) x,
-    KI.fmap f (KI.fmap g x) = KI.fmap (f oo g) x.
-  Proof.
-    intros.
-    rewrite <- KI.fmap_comp.
-    auto.
-  Qed.
-
-  Lemma fmap_id' : forall A (f:A->A),
-    (forall x, f x = x) ->
-    KI.fmap f = id _.
-  Proof.
-    intros.
-    replace f with (id A).
-    apply KI.fmap_id.
-    extensionality; auto.
-  Qed.
-
   Lemma squash_unsquash : forall x,
     squash (unsquash x) = x.
   Proof.
     intros.
     unfold squash, unsquash.
     case_eq (K.unsquash x); simpl; intros.
-    rewrite fmap_fmap.
-    rewrite fmap_id'.
-    unfold id.
-    apply KL.unsquash_inj.
-    rewrite K.unsquash_squash.
-    rewrite H.
-    f_equal.
-    symmetry.
-    apply (KL.unsquash_approx H).
-    unfold compose; intros.
-    apply p2p.
+    rewrite fmap_app.
+    replace (pred2predicate oo predicate2pred) with (@id K.predicate).
+    + rewrite fmap_id.
+      unfold id.
+      apply KL.unsquash_inj.
+      rewrite K.unsquash_squash.
+      rewrite H.
+      f_equal.
+      symmetry.
+      apply (KL.unsquash_approx H).
+    + unfold id, compose; extensionality. 
+      symmetry; apply p2p.
   Qed.
 
   Lemma unsquash_squash : forall n x',
-    unsquash (squash (n,x')) = (n, KI.fmap (approx n) x').
+    unsquash (squash (n,x')) = (n, fmap KI.F (approx n) x').
   Proof.
     intros.
     unfold unsquash, squash.
     rewrite K.unsquash_squash; simpl.
     f_equal.
-    unfold Input.bimap.
-    repeat rewrite fmap_fmap.
+    repeat rewrite fmap_app.
     f_equal.
     unfold compose.
     extensionality p; simpl.
@@ -870,31 +900,13 @@ Locate box.
     simpl.
     f_equal.
     f_equal.
-    rewrite fmap_fmap.
-    rewrite fmap_id'.
+    rewrite fmap_app.
+    replace (pred2predicate oo predicate2pred) with (@id K.predicate).
+    rewrite fmap_id.
     auto.
-    intro; unfold compose.
-    apply p2p.
+    extensionality; unfold compose, id.
+    symmetry; apply p2p.
   Qed.
-
-(*
-  Lemma knot_unage : forall (k:knot),
-    unage k =
-    let (n,x) := unsquash k in squash (S n,x).
-  Proof.
-    intros; simpl.
-    unfold unsquash, squash.
-    rewrite K.knot_unage.
-    destruct (K.unsquash k).
-    simpl.
-    do 2 f_equal.
-    rewrite fmap_fmap.
-    rewrite fmap_id'.
-    auto.
-    intro; unfold compose.
-    apply p2p.
-  Qed.
-*)
 
   Lemma knot_level : forall (k:knot),
     level k = fst (unsquash k).
@@ -906,67 +918,6 @@ Locate box.
     auto.
   Qed.
 
-
-  (* Lemmas *)
-
-  Lemma unsquash_inj : forall k1 k2,
-    unsquash k1 = unsquash k2 ->
-    k1 = k2.
-  Proof.
-    intros.
-    rewrite <- (squash_unsquash k1).
-    rewrite <- (squash_unsquash k2).
-    rewrite H.
-    trivial.
-  Qed.
-  Implicit Arguments unsquash_inj.
-  
-  Lemma squash_surj : forall k, exists n, exists Fp,
-    squash (n, Fp) = k.
-  Proof.
-    intros.
-    remember (unsquash k).
-    destruct p.
-    exists n.
-    exists f.
-    rewrite Heqp.
-    rewrite squash_unsquash.
-    trivial.
-  Qed.
-
-  Lemma unsquash_approx : forall k n Fp,
-    unsquash k = (n, Fp) ->
-    Fp = KI.fmap (approx n) Fp.
-  Proof.
-    intros.
-    generalize H; intro.
-    rewrite <- (squash_unsquash k) in H.
-    rewrite H0 in H.
-    rewrite unsquash_squash in H.
-    inversion H.
-    rewrite H2.
-    symmetry.
-    trivial.
-  Qed.
-  Implicit Arguments unsquash_approx [k n Fp].
-  
-  Lemma approx_approx1 : forall m n,
-    approx n = approx n oo approx (m+n).
-  Proof.
-    intros; extensionality p.
-    apply exist_ext.
-    apply pred_ext; intros [k o]; simpl; intuition.
-  Qed.
-
-  Lemma approx_approx2 : forall m n,
-    approx n = approx (m+n) oo approx n.
-  Proof.
-    intros; extensionality p.
-    apply exist_ext.
-    apply pred_ext; intros [k o]; simpl; intuition.
-  Qed.
-
- 
   Definition knot_rel (k1 k2:knot) :=
     let (n,f) := unsquash k1 in
     let (n',f') := unsquash k2 in
@@ -988,24 +939,74 @@ Locate box.
     split; simpl; auto.
     hnf in H0; hnf.
     unfold unsquash in H0.
-    destruct (K.unsquash k).
-    destruct (K.unsquash k').
+    destruct (K.unsquash k) as [n f].
+    destruct (K.unsquash k') as [n0 f0].
     intuition; subst.
     hnf.
     change f with (id (KI.F K.predicate) f).
-    rewrite <- KI.fmap_id.
+    rewrite <- fmap_id.
     change f0 with (id (KI.F K.predicate) f0).
-    rewrite <- KI.fmap_id.
+    rewrite <- fmap_id.
     assert (id _ = pred2predicate oo predicate2pred).
     extensionality; unfold id, compose; rewrite p2p; auto.
     rewrite H.
-    rewrite <- KI.fmap_comp.
+    rewrite <- fmap_comp.
     unfold compose.
     apply KI.Rel_fmap; auto.
   Qed.
 
-End Knot_HeredPropOthRel.
+(* Lemmas *)  
+  Lemma unsquash_inj : forall k1 k2,
+    unsquash k1 = unsquash k2 ->
+    k1 = k2.
+  Proof.
+    apply
+     (@knot_full_variant.KnotFullLemmas1.unsquash_inj
+       (knot_full_variant.KnotFullLemmas1.Build_Input _ _ _ _ _ squash_unsquash unsquash_squash)),
+     (knot_full_variant.KnotFullLemmas1.Proof).
+  Qed.
+  Implicit Arguments unsquash_inj.
 
+  Lemma squash_surj : forall k, exists n, exists Fp,
+    squash (n, Fp) = k.
+  Proof.
+    apply
+     (@knot_full_variant.KnotFullLemmas1.squash_surj
+       (knot_full_variant.KnotFullLemmas1.Build_Input _ _ _ _ _ squash_unsquash unsquash_squash)),
+     (knot_full_variant.KnotFullLemmas1.Proof).
+  Qed.
+
+  Lemma unsquash_approx : forall k n Fp,
+    unsquash k = (n, Fp) ->
+    Fp = fmap KI.F (approx n) Fp.
+  Proof.
+    apply
+     (@knot_full_variant.KnotFullLemmas1.unsquash_approx
+       (knot_full_variant.KnotFullLemmas1.Build_Input _ _ _ _ _ squash_unsquash unsquash_squash)),
+     (knot_full_variant.KnotFullLemmas1.Proof).
+  Qed.
+  Implicit Arguments unsquash_approx.
+
+  Lemma approx_approx1 : forall m n,
+    approx n = approx n oo approx (m+n).
+  Proof.
+    intros; extensionality p.
+    apply exist_ext'.
+    unfold assert in *.
+    simpl.
+    apply pred_ext; intros [k o]; simpl; intuition.
+  Qed.
+
+  Lemma approx_approx2 : forall m n,
+    approx n = approx (m+n) oo approx n.
+  Proof.
+    intros; extensionality p.
+    apply exist_ext.
+    apply pred_ext; intros [k o]; simpl; intuition.
+  Qed.
+  Implicit Arguments unsquash_inj.
+
+End Knot_CovariantHeredPropOthRel.
 
 Module Knot_HeredPropOth (KI':KNOT_INPUT__HERED_PROP_OTH)
   : KNOT__HERED_PROP_OTH with Module KI:=KI'.
