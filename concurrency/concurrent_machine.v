@@ -914,11 +914,14 @@ Module Events  <: EventSig
   Inductive act : Type :=
   | Read : act
   | Write : act
+  | Alloc : act
+  | Free : act
   | Release : act
   | Acquire : act
   | Mklock : act
   | Freelock : act
-  | Failacq : act.
+  | Failacq : act
+  | Spawn : act.
 
   Definition is_internal ev :=
     match ev with
@@ -932,22 +935,23 @@ Module Events  <: EventSig
     | _ => false
     end.
   
-  Definition action ev : option act :=
+  Definition action ev : act :=
     match ev with
     | internal _ mev =>
       match mev with
-      | event_semantics.Write _ _ _ => Some Write
-      | event_semantics.Read _ _ _ _ => Some Read
-      | _ => None
+      | event_semantics.Write _ _ _ => Write
+      | event_semantics.Read _ _ _ _ => Read
+      | event_semantics.Alloc _ _ _ => Alloc
+      | event_semantics.Free _ => Free
       end
     | external _ sev =>
       match sev with
-      | release _ => Some Release
-      | acquire _ => Some Acquire
-      | mklock _ => Some Mklock
-      | freelock _ => Some Freelock
-      | failacq _ => Some Failacq
-      | _ => None (*should spawn also compete?*)
+      | release _ => Release
+      | acquire _ => Acquire
+      | mklock _ => Mklock
+      | freelock _ => Freelock
+      | failacq _ => Failacq
+      | spawn _ => Spawn
       end
     end.
   
