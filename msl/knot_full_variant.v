@@ -4,7 +4,7 @@ Require Import msl.functors_variant.
 Import msl.functors_variant.MixVariantFunctor.
 Import msl.functors_variant.MixVariantFunctorLemmas.
 
-Module Type TY_FUNCTOR_FULL.
+Module Type KNOT_INPUT__MIXVARIANT_HERED_T_OTH_REL.
   Parameter F : functor.
 
   Parameter other : Type.
@@ -30,11 +30,11 @@ Module Type TY_FUNCTOR_FULL.
   Parameter T_rel_refl : forall x, T_rel x x.
   Parameter T_rel_trans : transitive T T_rel.
 
-End TY_FUNCTOR_FULL.
+End KNOT_INPUT__MIXVARIANT_HERED_T_OTH_REL.
 
-Module Type KNOT_FULL.
-  Declare Module TF:TY_FUNCTOR_FULL.
-  Import TF.
+Module Type KNOT__MIXVARIANT_HERED_T_OTH_REL.
+  Declare Module KI: KNOT_INPUT__MIXVARIANT_HERED_T_OTH_REL.
+  Import KI.
 
   Parameter knot:Type.
   Parameter ageable_knot : ageable knot.
@@ -79,11 +79,12 @@ Module Type KNOT_FULL.
       ORel o o' ->
       T_rel (p (k,o)) (p (k'',o'))).
 
-End KNOT_FULL.
+End KNOT__MIXVARIANT_HERED_T_OTH_REL.
 
-Module KnotFull (TF':TY_FUNCTOR_FULL) : KNOT_FULL with Module TF:=TF'.
-  Module TF:=TF'.
-  Import TF.
+Module Knot_MixVariantHeredTOthRel (KI':KNOT_INPUT__MIXVARIANT_HERED_T_OTH_REL) :
+  KNOT__MIXVARIANT_HERED_T_OTH_REL with Module KI:=KI'.
+  Module KI := KI'.
+  Import KI.
 
   Definition sinv_prod X := prod X (F X * other -> T).
 
@@ -888,9 +889,9 @@ Module KnotFull (TF':TY_FUNCTOR_FULL) : KNOT_FULL with Module TF:=TF'.
     intros; reflexivity.
   Qed.
 
-End KnotFull.
+End Knot_MixVariantHeredTOthRel.
 
-Module KnotFullLemmas1.
+Module KnotLemmas1.
 
 Class Input: Type := {
   knot: Type;
@@ -941,9 +942,9 @@ Proof.
     trivial.
 Qed.
 
-End KnotFullLemmas1.
+End KnotLemmas1.
 
-Module KnotFullLemmas2.
+Module KnotLemmas2.
 
 Class Input: Type := {
   knot: Type;
@@ -1006,10 +1007,10 @@ Proof.
     elimtype False; omega.
 Qed.
 
-End KnotFullLemmas2.
+End KnotLemmas2.
 
-Module KnotFull_Lemmas (K : KNOT_FULL).
-  Import K.TF.
+Module KnotLemmas_MixVariantHeredTOthRel (K : KNOT__MIXVARIANT_HERED_T_OTH_REL).
+  Import K.KI.
   Import K.
 
   Lemma unsquash_inj : forall k1 k2,
@@ -1017,9 +1018,9 @@ Module KnotFull_Lemmas (K : KNOT_FULL).
     k1 = k2.
   Proof.
     apply
-     (@KnotFullLemmas1.unsquash_inj
-       (KnotFullLemmas1.Build_Input _ _ _ _ _ squash_unsquash unsquash_squash)),
-     (KnotFullLemmas1.Proof).
+     (@KnotLemmas1.unsquash_inj
+       (KnotLemmas1.Build_Input _ _ _ _ _ squash_unsquash unsquash_squash)),
+     (KnotLemmas1.Proof).
   Qed.
   Implicit Arguments unsquash_inj.
 
@@ -1027,9 +1028,9 @@ Module KnotFull_Lemmas (K : KNOT_FULL).
     squash (n, Fp) = k.
   Proof.
     apply
-     (@KnotFullLemmas1.squash_surj
-       (KnotFullLemmas1.Build_Input _ _ _ _ _ squash_unsquash unsquash_squash)),
-     (KnotFullLemmas1.Proof).
+     (@KnotLemmas1.squash_surj
+       (KnotLemmas1.Build_Input _ _ _ _ _ squash_unsquash unsquash_squash)),
+     (KnotLemmas1.Proof).
   Qed.
 
   Lemma unsquash_approx : forall k n Fp,
@@ -1037,9 +1038,9 @@ Module KnotFull_Lemmas (K : KNOT_FULL).
     Fp = fmap F (approx n) (approx n) Fp.
   Proof.
     apply
-     (@KnotFullLemmas1.unsquash_approx
-       (KnotFullLemmas1.Build_Input _ _ _ _ _ squash_unsquash unsquash_squash)),
-     (KnotFullLemmas1.Proof).
+     (@KnotLemmas1.unsquash_approx
+       (KnotLemmas1.Build_Input _ _ _ _ _ squash_unsquash unsquash_squash)),
+     (KnotLemmas1.Proof).
   Qed.
   Implicit Arguments unsquash_approx.
   
@@ -1048,27 +1049,453 @@ Module KnotFull_Lemmas (K : KNOT_FULL).
     p1 = p2.
   Proof.
     apply
-     (@KnotFullLemmas2.pred_ext
-       (KnotFullLemmas2.Build_Input _ _ _ _ _ _ _ approx_spec)),
-     (KnotFullLemmas2.Proof).
+     (@KnotLemmas2.pred_ext
+       (KnotLemmas2.Build_Input _ _ _ _ _ _ _ approx_spec)),
+     (KnotLemmas2.Proof).
   Qed.
 
   Lemma approx_approx1 : forall m n,
     approx n = approx n oo approx (m+n).
   Proof.
     apply
-     (@KnotFullLemmas2.approx_approx1
-       (KnotFullLemmas2.Build_Input _ _ _ _ _ _ _ approx_spec)),
-     (KnotFullLemmas2.Proof).
+     (@KnotLemmas2.approx_approx1
+       (KnotLemmas2.Build_Input _ _ _ _ _ _ _ approx_spec)),
+     (KnotLemmas2.Proof).
   Qed.
 
   Lemma approx_approx2 : forall m n,
     approx n = approx (m+n) oo approx n.
   Proof.
     apply
-     (@KnotFullLemmas2.approx_approx2
-       (KnotFullLemmas2.Build_Input _ _ _ _ _ _ _ approx_spec)),
-     (KnotFullLemmas2.Proof).
+     (@KnotLemmas2.approx_approx2
+       (KnotLemmas2.Build_Input _ _ _ _ _ _ _ approx_spec)),
+     (KnotLemmas2.Proof).
   Qed.
 
-End KnotFull_Lemmas.
+End KnotLemmas_MixVariantHeredTOthRel.
+
+Module Type KNOT_FULL_INPUT.
+  Declare Module K0: KNOT__MIXVARIANT_HERED_T_OTH_REL.
+  Import K0.
+  Parameter predicate: Type.
+  Parameter p2kp: predicate -> K0.predicate.
+  Parameter kp2p: K0.predicate -> predicate.
+
+  Axiom p2kp2p: kp2p oo p2kp = @id _.
+  Axiom kp2p2kp: p2kp oo kp2p = @id _.
+End KNOT_FULL_INPUT.
+
+Module Type KNOT_FULL.
+  Declare Module KI: KNOT_FULL_INPUT.
+  Import KI.
+  Import KI.K0.KI.
+
+  Parameter knot:Type.
+  Parameter ageable_knot : ageable knot.
+  Existing Instance ageable_knot.
+  Definition predicate: Type := KI.predicate.
+
+  Parameter squash : (nat * F predicate) -> knot.
+  Parameter unsquash : knot -> (nat * F predicate).
+
+  Parameter approx : nat -> predicate -> predicate.
+
+  Axiom squash_unsquash : forall k:knot, squash (unsquash k) = k.
+  Axiom unsquash_squash : forall (n:nat) (f:F predicate),
+    unsquash (squash (n,f)) = (n, fmap F (approx n) (approx n) f).
+
+  Axiom approx_spec : forall n p ko,
+    proj1_sig (p2kp (approx n (kp2p p))) ko =
+     if (le_gt_dec n (level (fst ko))) then T_bot else proj1_sig p ko.
+
+  Axiom knot_age1 : forall k:knot,
+    age1 k = 
+    match unsquash k with
+    | (O,_) => None
+    | (S n,x) => Some (squash (n,x))
+    end.
+
+  Axiom knot_level : forall k:knot,
+    level k = fst (unsquash k).
+
+End KNOT_FULL.
+
+Module Type KNOT_FULL_LEMMAS.
+  Declare Module K: KNOT_FULL.
+  Import K.
+
+  Axiom unsquash_inj : forall k1 k2,
+    unsquash k1 = unsquash k2 ->
+    k1 = k2.
+  Implicit Arguments unsquash_inj.
+  
+  Axiom squash_surj : forall k, exists n, exists Fp,
+    squash (n, Fp) = k.
+
+  Axiom unsquash_approx : forall k n Fp,
+    unsquash k = (n, Fp) ->
+    Fp = fmap K.KI.K0.KI.F (approx n) (approx n) Fp.
+  Implicit Arguments unsquash_approx [k n Fp].
+  
+  Axiom approx_approx1 : forall m n,
+    approx n = approx n oo approx (m+n).
+
+  Axiom approx_approx2 : forall m n,
+    approx n = approx (m+n) oo approx n.
+
+End KNOT_FULL_LEMMAS.
+
+Module KnotFull (KI': KNOT_FULL_INPUT): KNOT_FULL with Module KI:=KI'.
+
+  Import MixVariantFunctor.
+  Module KI:=KI'.
+
+  Definition knot: Type := KI.K0.knot.
+  Definition ageable_knot : ageable knot := KI.K0.ageable_knot.
+  Existing Instance ageable_knot.
+  Definition knot_rel: knot -> knot -> Prop := KI.K0.knot_rel.
+  Definition predicate: Type := KI.predicate.
+
+  Definition squash : (nat * KI.K0.KI.F predicate) -> knot :=
+    fun k => KI.K0.squash (fst k, fmap KI.K0.KI.F KI.p2kp KI.kp2p (snd k)).
+
+  Definition unsquash : knot -> (nat * KI.K0.KI.F predicate) :=
+    fun k => let (n, f) := KI.K0.unsquash k in
+      (n, fmap KI.K0.KI.F KI.kp2p KI.p2kp f).
+
+  Definition approx : nat -> predicate -> predicate :=
+    fun n => KI.kp2p oo KI.K0.approx n oo KI.p2kp.
+
+  Lemma squash_unsquash : forall k:knot, squash (unsquash k) = k.
+  Proof.
+    intros; unfold squash, unsquash.
+    destruct (KI.K0.unsquash k) as [n f] eqn:?H; simpl.
+    rewrite fmap_app, KI.kp2p2kp, fmap_id.
+    unfold id.
+    rewrite <- H; apply KI.K0.squash_unsquash.
+  Qed.
+
+  Lemma unsquash_squash : forall (n:nat) (f:KI.K0.KI.F predicate),
+    unsquash (squash (n,f)) = (n, fmap KI.K0.KI.F (approx n) (approx n) f).
+  Proof.
+    intros; unfold squash, unsquash, approx; simpl.
+    rewrite KI.K0.unsquash_squash, !fmap_app, compose_assoc.
+    auto.
+  Qed.
+
+  Lemma approx_spec : forall n p ko,
+    proj1_sig (KI.p2kp (approx n (KI.kp2p p))) ko =
+     if (le_gt_dec n (level (fst ko))) then KI.K0.KI.T_bot else proj1_sig p ko.
+  Proof.
+    intros.
+    rewrite <- KI.K0.approx_spec.
+    unfold approx.
+    pattern (KI.K0.approx n) at 2.
+    rewrite <- (id_unit1 _ _ (KI.K0.approx n)), <- KI.kp2p2kp.
+    pattern (KI.K0.approx n) at 2.
+    rewrite <- (id_unit2 _ _ (KI.K0.approx n)), <- KI.kp2p2kp.
+    reflexivity.
+  Qed.
+
+  Lemma knot_age1 : forall k:knot,
+    age1 k = 
+    match unsquash k with
+    | (O,_) => None
+    | (S n,x) => Some (squash (n,x))
+    end.
+  Proof.
+    intros.
+    unfold squash, unsquash.
+    rewrite KI.K0.knot_age1.
+    destruct (KI.K0.unsquash k) as [n f] eqn:?H.
+    destruct n; auto.
+    f_equal; simpl.
+    rewrite fmap_app, KI.kp2p2kp, fmap_id.
+    auto.
+  Qed.
+
+  Lemma knot_level: forall k:knot, level k = fst (unsquash k).
+  Proof.
+    intros.
+    unfold unsquash.
+    rewrite KI.K0.knot_level.
+    destruct (KI.K0.unsquash k) as [n f]; auto.
+  Qed.
+
+End KnotFull.
+
+Module KnotFullLemmas (K: KNOT_FULL).
+  Import K.KI.K0.KI.
+  Import K.
+
+  Lemma unsquash_inj : forall k1 k2,
+    unsquash k1 = unsquash k2 ->
+    k1 = k2.
+  Proof.
+    apply
+     (@KnotLemmas1.unsquash_inj
+       (KnotLemmas1.Build_Input _ _ _ _ _ squash_unsquash unsquash_squash)),
+     (KnotLemmas1.Proof).
+  Qed.
+  Implicit Arguments unsquash_inj.
+
+  Lemma squash_surj : forall k, exists n, exists Fp,
+    squash (n, Fp) = k.
+  Proof.
+    apply
+     (@KnotLemmas1.squash_surj
+       (KnotLemmas1.Build_Input _ _ _ _ _ squash_unsquash unsquash_squash)),
+     (KnotLemmas1.Proof).
+  Qed.
+
+  Lemma unsquash_approx : forall k n Fp,
+    unsquash k = (n, Fp) ->
+    Fp = fmap F (approx n) (approx n) Fp.
+  Proof.
+    apply
+     (@KnotLemmas1.unsquash_approx
+       (KnotLemmas1.Build_Input _ _ _ _ _ squash_unsquash unsquash_squash)),
+     (KnotLemmas1.Proof).
+  Qed.
+  Implicit Arguments unsquash_approx.
+
+  Lemma pred_ext : forall (p1 p2:predicate),
+    (forall x, proj1_sig (K.KI.p2kp p1) x = proj1_sig (K.KI.p2kp p2) x) ->
+    p1 = p2.
+  Proof.
+    intros.
+    change (p1 = p2) with (id K.KI.predicate p1 = id K.KI.predicate p2).
+    rewrite <- K.KI.p2kp2p; unfold compose.
+    destruct (KI.p2kp p1) as [pp1 Hp1]; destruct (KI.p2kp p2) as [pp2 Hp2].
+    simpl in *.
+    assert (pp1 = pp2).
+    extensionality x; auto.
+    subst pp2.
+    replace Hp2 with Hp1; auto.
+    apply proof_irr.
+  Qed.
+
+  Lemma approx_approx1 : forall m n,
+    approx n = approx n oo approx (m+n).
+  Proof.
+    intros.
+    extensionality p.
+    apply pred_ext.
+    intros [k o].
+    unfold compose.
+    change (approx (m + n) p) with (id K.KI.predicate (approx (m + n) p)).
+    change p with (id K.KI.predicate p).
+    rewrite <- K.KI.p2kp2p.
+    unfold compose.
+    repeat rewrite approx_spec.
+    simpl.
+    destruct (le_gt_dec n (level k)); auto.
+    destruct (le_gt_dec (m+n) (level k)); auto.
+    elimtype False; omega.
+  Qed.
+
+  Lemma approx_approx2 : forall m n,
+    approx n = approx (m+n) oo approx n.
+  Proof.
+    intros.
+    extensionality p.
+    apply pred_ext.
+    intros [k o].
+    unfold compose.
+    change (approx n p) with (id K.KI.predicate (approx n p)) at 2.
+    change p with (id K.KI.predicate p).
+    rewrite <- K.KI.p2kp2p.
+    unfold compose.
+    repeat rewrite approx_spec.
+    simpl.
+    destruct (le_gt_dec (m+n) (level k)); auto.
+    destruct (le_gt_dec n (level k)); auto.
+    elimtype False; omega.
+  Qed.
+
+End KnotFullLemmas.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+(*
+Module Type KNOT_FULL_INPUT.
+  Parameter F : functor.
+
+  Parameter other : Type.
+
+  Parameter Rel : forall A, F A -> F A -> Prop.
+
+  Parameter Rel_fmap : forall A B (f1: A->B) (f2:B->A) x y,
+    Rel A x y ->
+    Rel B (fmap F f1 f2 x) (fmap F f1 f2 y).
+  Axiom Rel_refl : forall A x, Rel A x x.
+  Axiom Rel_trans : forall A x y z,
+    Rel A x y -> Rel A y z -> Rel A x z.
+
+  Parameter ORel : other -> other -> Prop.
+  Axiom ORel_refl : reflexive other ORel.
+  Axiom ORel_trans : transitive other ORel.
+
+  Parameter T:Type.
+  Parameter T_bot:T.
+
+  Parameter T_rel : T -> T -> Prop.  
+  Parameter T_rel_bot : forall x, T_rel T_bot x.
+  Parameter T_rel_refl : forall x, T_rel x x.
+  Parameter T_rel_trans : transitive T T_rel.
+
+  Parameter Pred: forall K: Type, ageable K -> (K -> K -> Prop) -> Type.
+
+  Parameter Pred2predicate: forall {K agK KRel},
+    Pred K agK KRel ->
+    { p: K * other -> T | 
+      (forall k k' k'' o o',
+      clos_refl_trans _ age k k' ->
+      KRel k' k'' ->
+      ORel o o' ->
+      T_rel (p (k,o)) (p (k'',o'))) }.
+
+  Parameter predicate2Pred: forall {K agK} {KRel: K -> K -> Prop},
+    { p: K * other -> T | 
+      (forall (k k' k'': K) o o',
+      clos_refl_trans _ age k k' ->
+      KRel k' k'' ->
+      ORel o o' ->
+      T_rel (p (k,o)) (p (k'',o'))) } ->
+    Pred K agK KRel.
+
+  Axiom P2p2P: forall K agK KRel (P: Pred K agK KRel),
+    predicate2Pred (Pred2predicate P) = P.
+
+  Axiom p2P2p: forall K agK KRel p,
+    Pred2predicate (@predicate2Pred K agK KRel p) = p.
+
+End KNOT_FULL_INPUT.
+
+Module Type KNOT_FULL.
+  Declare Module KI: KNOT_FULL_INPUT.
+  Import KI.
+
+  Parameter knot:Type.
+  Parameter ageable_knot : ageable knot.
+  Existing Instance ageable_knot.
+  Parameter knot_rel: knot -> knot -> Prop.
+
+  Definition predicate: Type := Pred knot ageable_knot knot_rel.
+
+  Parameter squash : (nat * F predicate) -> knot.
+  Parameter unsquash : knot -> (nat * F predicate).
+
+  Parameter approx : nat -> predicate -> predicate.
+
+  Axiom squash_unsquash : forall k:knot, squash (unsquash k) = k.
+  Axiom unsquash_squash : forall (n:nat) (f:F predicate),
+    unsquash (squash (n,f)) = (n, fmap F (approx n) (approx n) f).
+
+  Axiom approx_spec : forall n p ko,
+    proj1_sig (Pred2predicate (approx n (predicate2Pred p))) ko =
+     if (le_gt_dec n (level (fst ko))) then T_bot else proj1_sig p ko.
+
+  Axiom knot_rel_spec: forall (k1 k2:knot),
+     knot_rel k1 k2 =
+    let (n,f) := unsquash k1 in
+    let (n',f') := unsquash k2 in
+    n = n' /\ Rel predicate f f'.
+
+  Axiom knot_age1 : forall k:knot,
+    age1 k = 
+    match unsquash k with
+    | (O,_) => None
+    | (S n,x) => Some (squash (n,x))
+    end.
+
+  Axiom knot_level : forall k:knot,
+    level k = fst (unsquash k).
+
+End KNOT_FULL.
+
+Module KnotFull (KI': KNOT_FULL_INPUT): KNOT_FULL with Module KI:=KI'.
+
+  Import MixVariantFunctor.
+  Module KI:=KI'.
+
+  Module Input.
+    Definition F: functor := KI.F.
+    Definition other: Type := KI.other.
+    Definition Rel: forall (A:Type), KI.F A -> KI.F A -> Prop := KI.Rel.
+
+    Definition Rel_fmap : forall A B (f1: A->B) (f2:B->A) x y,
+      Rel A x y ->
+      Rel B (fmap F f1 f2 x) (fmap F f1 f2 y)
+      := KI.Rel_fmap.
+
+    Definition Rel_refl : forall A x, Rel A x x := KI.Rel_refl.
+
+    Definition Rel_trans : forall A x y z,
+      Rel A x y -> Rel A y z -> Rel A x z
+      := KI.Rel_trans.
+
+    Definition ORel := KI.ORel.
+    Definition ORel_refl := KI.ORel_refl.
+    Definition ORel_trans := KI.ORel_trans.
+
+    Definition T := KI.T.
+    Definition T_bot: T := KI.T_bot.
+    Definition T_rel : T -> T -> Prop := KI.T_rel.
+    Definition T_rel_bot : forall x, T_rel T_bot x := KI.T_rel_bot.
+    Definition T_rel_refl : forall x, T_rel x x := KI.T_rel_refl.
+    Definition T_rel_trans : transitive T T_rel := KI.T_rel_trans.
+  End Input.
+
+  Module K := Knot_MixVariantHeredTOthRel(Input).
+  Module KL := KnotLemmas_MixVariantHeredTOthRel(K).
+
+  Definition knot: Type := K.knot.
+  Definition ageable_knot : ageable knot := K.ageable_knot.
+  Existing Instance ageable_knot.
+  Definition knot_rel: knot -> knot -> Prop := K.knot_rel.
+  Definition predicate: Type := KI.Pred knot ageable_knot knot_rel.
+
+  Definition squash : (nat * KI.F predicate) -> knot :=
+    fun k => K.squash (fst k, fmap KI.F KI.Pred2predicate KI.predicate2Pred (snd k)).
+
+  Parameter unsquash : knot -> (nat * F predicate).
+
+  Parameter approx : nat -> predicate -> predicate.
+
+  Axiom squash_unsquash : forall k:knot, squash (unsquash k) = k.
+  Axiom unsquash_squash : forall (n:nat) (f:F predicate),
+    unsquash (squash (n,f)) = (n, fmap F (approx n) (approx n) f).
+
+  Axiom approx_spec : forall n p ko,
+    proj1_sig (Pred2predicate (approx n (predicate2Pred p))) ko =
+     if (le_gt_dec n (level (fst ko))) then T_bot else proj1_sig p ko.
+
+  Axiom knot_rel_spec: forall (k1 k2:knot),
+     knot_rel k1 k2 =
+    let (n,f) := unsquash k1 in
+    let (n',f') := unsquash k2 in
+    n = n' /\ Rel predicate f f'.
+
+  Axiom knot_age1 : forall k:knot,
+    age1 k = 
+    match unsquash k with
+    | (O,_) => None
+    | (S n,x) => Some (squash (n,x))
+    end.
+
+  Axiom knot_level : forall k:knot,
+    level k = fst (unsquash k).
+
+*)
