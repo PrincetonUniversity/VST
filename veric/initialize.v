@@ -2025,10 +2025,17 @@ Proof.
    forget (prog_funct' vl) as fs. intro.
    induction SAME_IDS. auto. simpl. intuition.
   }
+  assert (NRG: list_norepet (map fst G)). {
+     clear - SAME_IDS H2.
+     eapply match_fdecs_norepet; eauto.
+     apply list_norepet_prog_funct'; auto.
+  }
   clear SAME_IDS Heqgev.
   change (map fst vl) with (map fst (@nil (ident*funspec)) ++ map fst vl) in H2.
   change G with (nil++G).
-  forget (@nil (ident*funspec)) as G0.
+  set (G0 := @nil (ident*funspec)) in *.
+  change G with (G0++G) in NRG.
+  clearbody G0.
   move H2 after H. move H1 after H.
 
   assert (H3: forall phi, hackfun (inflate_initial_mem m (initial_core gev (G0++G) n)) phi ->
@@ -2040,7 +2047,7 @@ Proof.
   } Unfocus.
   intros. rename H3 into HACK; revert phi HACK.
                      (* The purpose of going through hackfun is doing this induction. *)
-  revert H m G0 G H2 H0 H1 H1'; induction vl; intros.
+  revert H m G0 G NRG H2 H0 H1 H1'; induction vl; intros.
   + apply resource_at_empty2.
     intro l. apply proj2 in HACK; specialize (HACK l).
     unfold inflate_initial_mem in HACK|-*.
@@ -2107,27 +2114,17 @@ rewrite Pos_to_nat_eq_S.
     apply list_disjoint_cons_right in H1; auto.
  - clear - H1'; intros; apply H1'. right; auto.
  -
-  clear - H2 FS HACK H3 H1'.
-(*
-  assert (NR: list_norepet (map fst (G0 ++ G))).  {
-    clear - H1' H2.
-    apply list_norepet_app in H2. destruct H2 as [? [? ?]].
-    rewrite map_app.  
-    apply list_norepet_app; split3; auto.
-*)
-    
- 
+  clear - NRG H2 FS HACK H3 H1'.
   specialize (H1' i). simpl in H1'. spec H1'; [auto | ].
   destruct HACK as [? ? ].
   split. rewrite <- H.
   unfold inflate_initial_mem. repeat rewrite level_make_rmap. auto.
   intro; specialize (H0 loc).
   destruct H0.
-  clear - H2 FS H0 H1 H3 H1'.
+  clear - NRG H2 FS H0 H1 H3 H1'.
   split.
   rewrite <- H0.
-  clear - H2 FS H3 H1'.
-  assert (list_norepet (map fst (G0 ++ G))) by admit.
+  clear - NRG H2 FS H3 H1'.
   apply (identity_inflate_at_Gfun n i f); auto.
   intro.
   rewrite <- H1.
@@ -2136,7 +2133,7 @@ rewrite Pos_to_nat_eq_S.
   contradict H.
   eapply alloc_global_identity_lemma3; eauto.
 * (* Gvar case *)
-  specialize (IHvl m0 G0 G). 
+  specialize (IHvl m0 G0 G NRG).
   spec IHvl. { clear - H2. apply list_norepet_app.  apply list_norepet_app in H2.
       destruct H2 as [? [? ?]].  inv H0.  split3; auto. simpl in H1.
     apply list_disjoint_cons_right in H1; auto.
@@ -2215,4 +2212,4 @@ pose proof (init_data_list_lem {| genv_genv := gev; genv_cenv := cenv |} m0 v m1
  apply readable_splice_extern.
  apply IHvl; auto.
  eapply another_hackfun_lemma; eauto.
-Admitted.
+Qed.
