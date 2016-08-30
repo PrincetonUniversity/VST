@@ -1957,11 +1957,6 @@ simpl.
  destruct (in_dec ident_eq j (map fst params)); auto.
 Qed.
 
-Lemma writable_share_top: writable_share Share.top.
-Proof.
-apply Share.contains_Rsh_e. apply top_correct'.
-Qed.
-
 Lemma juicy_mem_alloc_block:
  forall jm n jm2 b F,
    juicy_mem_alloc jm 0 n = (jm2, b) ->

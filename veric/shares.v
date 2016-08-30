@@ -10,7 +10,7 @@ Definition nonempty_share (sh: share) :=
 Definition readable_share (sh: share) :=
        nonempty_share (Share.glb Share.Rsh sh).
 Definition writable_share (sh: share) := 
-       Share.unrel Share.Rsh sh = Share.top.
+    join_sub Share.Rsh sh.
 
 Lemma readable_share_dec:
   forall sh, {readable_share sh}+{~ readable_share sh}.
@@ -23,13 +23,41 @@ Defined.
 
 Lemma writable_share_dec: forall sh, {writable_share sh} + {~ writable_share sh}.
 Proof.
-  intros.
-  unfold writable_share.
-  apply Share.EqDec_share.
+  unfold writable_share. intros.
+  destruct (Share.EqDec_share (Share.glb Share.Rsh sh) Share.Rsh); [left|right].
+*
+  exists (Share.glb Share.Lsh sh).
+  split.
+  -
+  rewrite <- Share.glb_assoc.
+  rewrite (Share.glb_commute Share.Rsh).
+  unfold Share.Rsh, Share.Lsh.
+  destruct (Share.split Share.top) eqn:?. simpl.
+  apply Share.split_disjoint in Heqp. rewrite Heqp.
+  rewrite Share.glb_commute, Share.glb_bot. auto.
+  -
+  apply Share.distrib_spec with Share.Rsh.
+  rewrite <- Share.lub_assoc. rewrite Share.lub_idem.
+  rewrite Share.distrib2.
+  rewrite Share.lub_commute.
+  destruct (Share.split Share.top) eqn:?.
+  unfold Share.Lsh, Share.Rsh at 1.
+  rewrite Heqp. simpl.
+  rewrite (Share.split_together _ _ _ Heqp).
+  rewrite Share.glb_commute, Share.glb_top. auto.
+  rewrite Share.glb_absorb. rewrite e. auto.
+*
+  contradict n.
+  destruct n as [a [? ?]].
+  subst sh.
+  rewrite Share.glb_absorb. auto.
 Qed.
 
 Lemma writable_share_right: forall sh, writable_share sh -> Share.unrel Share.Rsh sh = Share.top.
-Proof.  auto. 
+Proof.
+ intros.
+ apply Share.contains_Rsh_e.
+ apply H.
 Qed.
 
 Lemma writable_readable:
@@ -38,7 +66,15 @@ Proof.
 unfold writable_share, readable_share.
 intros.
 intro.
-Admitted. (* share hacking *)
+destruct H as [a ?].
+destruct H.
+subst sh. 
+rewrite Share.glb_absorb in H0.
+clear - H0. unfold Share.Rsh in H0.
+destruct (Share.split Share.top) eqn:?. simpl in H0.
+apply split_nontrivial' in Heqp; auto.
+apply top_share_nonidentity in Heqp. auto.
+Qed.
 
 Lemma readable_share_top:
   readable_share Share.top.
@@ -56,6 +92,7 @@ Hint Resolve writable_readable.
 
 Lemma unrel_bot:
  forall sh, Share.unrel sh Share.bot = Share.bot.
+Proof.
 Admitted. (* share hacking *)
 
 Lemma top_pfullshare: forall psh, pshare_sh psh = Share.top -> psh = pfullshare.
@@ -98,27 +135,56 @@ Qed.
 
 Lemma writable_share_top: writable_share Tsh.
 Proof.
-apply Share.contains_Rsh_e. apply top_correct'.
+red.
+exists Share.Lsh.
+apply join_comm.
+unfold Share.Lsh, Share.Rsh, Tsh.
+destruct (Share.split Share.top) eqn:?. simpl.
+apply split_join; auto.
 Qed.
 Hint Resolve writable_share_top.
 
 Lemma writable_readable_share:
  forall sh, writable_share sh -> readable_share sh.
 Proof.
-unfold writable_share, readable_share.
-intros.
-intro.
-Admitted. (* share hacking *)
+apply writable_readable; auto.
+Qed.
 Hint Resolve writable_readable_share.
 
 Definition Ews (* extern_write_share *) := Share.splice extern_retainer Tsh.
 
+Lemma glb_Rsh_rel_Lsh_sh:
+ forall sh,
+  Share.glb Share.Rsh (Share.rel Share.Lsh sh) = Share.bot.
+Proof.
+intros.
+destruct (Share.split Share.top) eqn:?.
+unfold Share.Rsh, Share.Lsh. rewrite Heqp; simpl.
+rewrite Share.glb_commute.
+destruct (rel_join t t t0 _ (split_join _ _ _ Heqp)).
+clear - H.
+pose proof (rel_leq t t0).
+rewrite <- leq_join_sub in H0.
+rewrite Share.ord_spec1 in H0.
+rewrite H0 in H.
+rewrite <- Share.glb_assoc in H.
+rewrite <- Share.rel_preserves_glb in H.
+Admitted.
+
 Lemma writable_Ews: writable_share Ews.
 Proof.
-hnf; intros.
-unfold Ews,  extern_retainer.
-apply Share.unrel_splice_R.
+unfold writable_share, Ews, extern_retainer.
+unfold Share.splice.
+exists (Share.rel Share.Lsh Share.Lsh).
+unfold Tsh.
+rewrite Share.rel_top1.
+split.
+*
+ apply glb_Rsh_rel_Lsh_sh.
+*
+rewrite Share.lub_commute. auto.
 Qed.
+
 Hint Resolve writable_Ews.
 
 Definition Ers (* Extern read share *) := 
@@ -126,16 +192,15 @@ Definition Ers (* Extern read share *) :=
 
 Lemma readable_nonidentity: forall sh, readable_share sh -> sepalg.nonidentity sh.
 Proof.
-Admitted. (* share hacking *)
+intros.
+do 2 red in H.
+red in H|-*. contradict H.
+apply identity_share_bot in H. subst.
+rewrite Share.glb_bot.
+apply bot_identity.
+Qed.
 
 Hint Resolve readable_nonidentity.
-
-Lemma misc_share_lemma1:
-  forall sh, 
-  Share.lub (Share.rel Share.Lsh (Share.unrel Share.Lsh sh))
-      (Share.rel Share.Rsh (Share.unrel Share.Rsh sh)) 
-   = sh.
-Admitted.
 
 Lemma sub_glb_bot:
   forall r a c : share,
@@ -155,7 +220,13 @@ Qed.
 Lemma glb_split: forall sh,
  Share.glb (fst (Share.split sh)) (snd (Share.split sh)) = Share.bot.
 Proof.
-Admitted.  (* share hacking *)
+intros.
+destruct (Share.split sh) eqn:?H.
+simpl.
+apply split_join in H.
+destruct H.
+auto.
+Qed.
 
 Lemma right_nonempty_readable:
   forall rsh sh, sepalg.nonidentity sh <-> 
@@ -163,13 +234,33 @@ Lemma right_nonempty_readable:
 Proof.
 intros.
 unfold readable_share, Share.splice.
-rewrite Share.distrib1.
-rewrite <- (Share.rel_top1 Share.Rsh) at 2.
-rewrite <- Share.rel_preserves_glb.
-rewrite (Share.glb_commute Share.top).
-rewrite Share.glb_top.
-(* red in H. red. red. contradict H. *)
-Admitted.
+unfold nonempty_share,nonidentity.
+assert (identity sh <-> identity (Share.glb Share.Rsh (Share.lub (Share.rel Share.Lsh rsh) (Share.rel Share.Rsh sh))));
+  [ | intuition].
+split; intro.
+*
+apply identity_share_bot in H. subst.
+rewrite Share.rel_bot1.
+rewrite Share.lub_bot.
+rewrite glb_Rsh_rel_Lsh_sh.
+apply bot_identity.
+*
+rewrite Share.distrib1 in H.
+rewrite glb_Rsh_rel_Lsh_sh in H.
+rewrite Share.lub_commute, Share.lub_bot in H.
+assert (identity (Share.glb (Share.rel Share.Rsh Share.top) (Share.rel Share.Rsh sh)))
+  by (rewrite Share.rel_top1; auto).
+clear H.
+rewrite <- Share.rel_preserves_glb in H0.
+rewrite Share.glb_commute, Share.glb_top in H0.
+apply rel_nontrivial in H0.
+destruct H0; auto.
+unfold Share.Rsh in H.
+destruct (Share.split Share.top) eqn:?; simpl in *.
+apply split_nontrivial' in Heqp; auto.
+apply top_share_nonidentity in Heqp.
+contradiction.
+Qed.
 
 Lemma Lsh_nonidentity:   sepalg.nonidentity Share.Lsh.
 Proof.
@@ -180,36 +271,6 @@ pose proof (Share.split_nontrivial _ _ _ Heqp).
 spec H;[auto | ].
 apply Share.nontrivial in H. auto.
 Qed.
-
-Lemma sub_unrel_bot:
-  forall r a c : share,
-    sepalg.join_sub a c ->
-    Share.unrel r c = Share.bot ->
-    Share.unrel r a = Share.bot.
-Admitted.
-
-Lemma share_unrel_lub:
-  forall a b r : Share.t,
-  Share.glb a b = Share.bot ->
-  Share.glb (Share.unrel r a) (Share.unrel r b) = Share.bot ->
-  Share.unrel r (Share.lub a b) = Share.lub (Share.unrel r a) (Share.unrel r b).
-Admitted. (* share hacking *)
-
-Lemma share_splice_lub: 
-forall (a b : Share.t) (sh : share),
-Share.glb a b = Share.bot ->
-Share.glb (Share.splice a sh) (Share.unrel Share.Lsh b) = Share.bot ->
-Share.splice (Share.lub a b) sh =
-Share.lub (Share.splice a sh) (Share.unrel Share.Lsh b).
-Admitted. (* share hacking *)
-
-Lemma share_splice_lub': 
-forall (a b : Share.t) (sh : share),
-Share.glb a b = Share.bot ->
-Share.glb (Share.unrel Share.Lsh a) (Share.splice b sh) = Share.bot ->
-Share.splice (Share.lub a b) sh =
-Share.lub (Share.unrel Share.Lsh a) (Share.splice b sh).
-Admitted. (* share hacking *)
 
 Lemma join_splice:
   forall a1 a2 a3 b1 b2 b3,
