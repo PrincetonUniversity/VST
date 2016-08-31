@@ -952,18 +952,18 @@ Class Input: Type := {
   T: Type;
   t0: T;
   ageable_knot : ageable knot;
-  hered : (knot * other -> T) -> Prop;
-  predicate: Type := { p:knot * other -> T | hered p };
+  predicate: Type;
+  p2p: predicate -> (knot * other -> T);
   approx : nat -> predicate -> predicate;
+  pred_ext : forall (p1 p2:predicate),
+    (forall x, p2p p1 x = p2p p2 x) ->
+    p1 = p2;
   approx_spec : forall n p ko,
-    proj1_sig (approx n p) ko =
-     if (le_gt_dec n (level (fst ko))) then t0 else proj1_sig p ko
+    p2p (approx n p) ko =
+     if (le_gt_dec n (level (fst ko))) then t0 else p2p p ko
 }.
 
 Class Output (input: Input): Prop := {
-  pred_ext : forall (p1 p2:predicate),
-    (forall x, proj1_sig p1 x = proj1_sig p2 x) ->
-    p1 = p2;
   approx_approx1 : forall m n,
     approx n = approx n oo approx (m+n);
   approx_approx2 : forall m n,
@@ -972,19 +972,7 @@ Class Output (input: Input): Prop := {
 
 Lemma Proof (kli: Input): Output kli.
 Proof.
-  assert
-   (forall p1 p2 : predicate,
-    (forall x : knot * other, proj1_sig p1 x = proj1_sig p2 x) -> p1 = p2)
-  as pred_ext;
-  [| constructor; auto].
-  + intros.
-    destruct p1 as [p1 Hp1]; destruct p2 as [p2 Hp2].
-    simpl in *.
-    assert (p1 = p2).
-    extensionality x; auto.
-    subst p2.
-    replace Hp2 with Hp1; auto.
-    apply proof_irr.
+  constructor.
   + intros.
     extensionality p.
     apply pred_ext.
@@ -1048,10 +1036,14 @@ Module KnotLemmas_MixVariantHeredTOthRel (K : KNOT__MIXVARIANT_HERED_T_OTH_REL).
     (forall x, proj1_sig p1 x = proj1_sig p2 x) ->
     p1 = p2.
   Proof.
-    apply
-     (@KnotLemmas2.pred_ext
-       (KnotLemmas2.Build_Input _ _ _ _ _ _ _ approx_spec)),
-     (KnotLemmas2.Proof).
+    intros.
+    destruct p1 as [p1 Hp1]; destruct p2 as [p2 Hp2].
+    simpl in *.
+    assert (p1 = p2).
+    extensionality x; auto.
+    subst p2.
+    replace Hp2 with Hp1; auto.
+    apply proof_irr.
   Qed.
 
   Lemma approx_approx1 : forall m n,
@@ -1059,7 +1051,7 @@ Module KnotLemmas_MixVariantHeredTOthRel (K : KNOT__MIXVARIANT_HERED_T_OTH_REL).
   Proof.
     apply
      (@KnotLemmas2.approx_approx1
-       (KnotLemmas2.Build_Input _ _ _ _ _ _ _ approx_spec)),
+       (KnotLemmas2.Build_Input _ _ _ _ _ _ _ _ pred_ext approx_spec)),
      (KnotLemmas2.Proof).
   Qed.
 
@@ -1068,14 +1060,15 @@ Module KnotLemmas_MixVariantHeredTOthRel (K : KNOT__MIXVARIANT_HERED_T_OTH_REL).
   Proof.
     apply
      (@KnotLemmas2.approx_approx2
-       (KnotLemmas2.Build_Input _ _ _ _ _ _ _ approx_spec)),
+       (KnotLemmas2.Build_Input _ _ _ _ _ _ _ _ pred_ext approx_spec)),
      (KnotLemmas2.Proof).
   Qed.
 
 End KnotLemmas_MixVariantHeredTOthRel.
 
-Module Type KNOT_FULL_INPUT.
-  Declare Module K0: KNOT__MIXVARIANT_HERED_T_OTH_REL.
+Module Type KNOT_FULL_OUTPUT.
+  Declare Module KI: KNOT_INPUT__MIXVARIANT_HERED_T_OTH_REL.
+  Declare Module K0: KNOT__MIXVARIANT_HERED_T_OTH_REL with Module KI := KI.
   Import K0.
   Parameter predicate: Type.
   Parameter p2kp: predicate -> K0.predicate.
@@ -1083,17 +1076,18 @@ Module Type KNOT_FULL_INPUT.
 
   Axiom p2kp2p: kp2p oo p2kp = @id _.
   Axiom kp2p2kp: p2kp oo kp2p = @id _.
-End KNOT_FULL_INPUT.
+End KNOT_FULL_OUTPUT.
 
 Module Type KNOT_FULL.
-  Declare Module KI: KNOT_FULL_INPUT.
+  Declare Module KI: KNOT_INPUT__MIXVARIANT_HERED_T_OTH_REL.
+  Declare Module KO: KNOT_FULL_OUTPUT with Module KI := KI.
   Import KI.
-  Import KI.K0.KI.
+  Import KO.
 
-  Parameter knot:Type.
-  Parameter ageable_knot : ageable knot.
+  Definition knot : Type := KO.K0.knot.
+  Definition ageable_knot : ageable knot := KO.K0.ageable_knot.
   Existing Instance ageable_knot.
-  Definition predicate: Type := KI.predicate.
+  Definition predicate: Type := KO.predicate.
 
   Parameter squash : (nat * F predicate) -> knot.
   Parameter unsquash : knot -> (nat * F predicate).
@@ -1105,8 +1099,10 @@ Module Type KNOT_FULL.
     unsquash (squash (n,f)) = (n, fmap F (approx n) (approx n) f).
 
   Axiom approx_spec : forall n p ko,
-    proj1_sig (p2kp (approx n (kp2p p))) ko =
-     if (le_gt_dec n (level (fst ko))) then T_bot else proj1_sig p ko.
+    proj1_sig (KO.p2kp (approx n p)) ko =
+     if (le_gt_dec n (level (fst ko)))
+     then KI.T_bot
+     else proj1_sig (KO.p2kp p) ko.
 
   Axiom knot_age1 : forall k:knot,
     age1 k = 
@@ -1117,6 +1113,14 @@ Module Type KNOT_FULL.
 
   Axiom knot_level : forall k:knot,
     level k = fst (unsquash k).
+
+  Definition knot_rel (k1 k2:knot) :=
+    let (n,f) := unsquash k1 in
+    let (n',f') := unsquash k2 in
+    n = n' /\ KI.Rel predicate f f'.
+
+  Axiom knot_rel_spec: forall k1 k2: knot,
+    knot_rel k1 k2 = KO.K0.knot_rel k1 k2.
 
 End KNOT_FULL.
 
@@ -1134,7 +1138,7 @@ Module Type KNOT_FULL_LEMMAS.
 
   Axiom unsquash_approx : forall k n Fp,
     unsquash k = (n, Fp) ->
-    Fp = fmap K.KI.K0.KI.F (approx n) (approx n) Fp.
+    Fp = fmap KI.F (approx n) (approx n) Fp.
   Implicit Arguments unsquash_approx [k n Fp].
   
   Axiom approx_approx1 : forall m n,
@@ -1145,55 +1149,58 @@ Module Type KNOT_FULL_LEMMAS.
 
 End KNOT_FULL_LEMMAS.
 
-Module KnotFull (KI': KNOT_FULL_INPUT): KNOT_FULL with Module KI:=KI'.
+Module KnotFull
+  (KI': KNOT_INPUT__MIXVARIANT_HERED_T_OTH_REL)
+  (KO': KNOT_FULL_OUTPUT with Module KI := KI'):
+  KNOT_FULL with Module KI := KI' with Module KO:=KO'.
 
   Import MixVariantFunctor.
   Module KI:=KI'.
+  Module KO:=KO'.
 
-  Definition knot: Type := KI.K0.knot.
-  Definition ageable_knot : ageable knot := KI.K0.ageable_knot.
+  Definition knot: Type := KO.K0.knot.
+  Definition ageable_knot : ageable knot := KO.K0.ageable_knot.
   Existing Instance ageable_knot.
-  Definition knot_rel: knot -> knot -> Prop := KI.K0.knot_rel.
-  Definition predicate: Type := KI.predicate.
+  Definition predicate: Type := KO.predicate.
 
-  Definition squash : (nat * KI.K0.KI.F predicate) -> knot :=
-    fun k => KI.K0.squash (fst k, fmap KI.K0.KI.F KI.p2kp KI.kp2p (snd k)).
+  Definition squash : (nat * KI.F predicate) -> knot :=
+    fun k => KO.K0.squash (fst k, fmap KI.F KO.p2kp KO.kp2p (snd k)).
 
-  Definition unsquash : knot -> (nat * KI.K0.KI.F predicate) :=
-    fun k => let (n, f) := KI.K0.unsquash k in
-      (n, fmap KI.K0.KI.F KI.kp2p KI.p2kp f).
+  Definition unsquash : knot -> (nat * KI.F predicate) :=
+    fun k => let (n, f) := KO.K0.unsquash k in
+      (n, fmap KI.F KO.kp2p KO.p2kp f).
 
   Definition approx : nat -> predicate -> predicate :=
-    fun n => KI.kp2p oo KI.K0.approx n oo KI.p2kp.
+    fun n => KO.kp2p oo KO.K0.approx n oo KO.p2kp.
 
   Lemma squash_unsquash : forall k:knot, squash (unsquash k) = k.
   Proof.
     intros; unfold squash, unsquash.
-    destruct (KI.K0.unsquash k) as [n f] eqn:?H; simpl.
-    rewrite fmap_app, KI.kp2p2kp, fmap_id.
+    destruct (KO.K0.unsquash k) as [n f] eqn:?H; simpl.
+    rewrite fmap_app, KO.kp2p2kp, fmap_id.
     unfold id.
-    rewrite <- H; apply KI.K0.squash_unsquash.
+    rewrite <- H; apply KO.K0.squash_unsquash.
   Qed.
 
-  Lemma unsquash_squash : forall (n:nat) (f:KI.K0.KI.F predicate),
-    unsquash (squash (n,f)) = (n, fmap KI.K0.KI.F (approx n) (approx n) f).
+  Lemma unsquash_squash : forall (n:nat) (f:KI.F predicate),
+    unsquash (squash (n,f)) = (n, fmap KI.F (approx n) (approx n) f).
   Proof.
     intros; unfold squash, unsquash, approx; simpl.
-    rewrite KI.K0.unsquash_squash, !fmap_app, compose_assoc.
+    rewrite KO.K0.unsquash_squash, !fmap_app, compose_assoc.
     auto.
   Qed.
 
   Lemma approx_spec : forall n p ko,
-    proj1_sig (KI.p2kp (approx n (KI.kp2p p))) ko =
-     if (le_gt_dec n (level (fst ko))) then KI.K0.KI.T_bot else proj1_sig p ko.
+    proj1_sig (KO.p2kp (approx n p)) ko =
+     if (le_gt_dec n (level (fst ko)))
+     then KI.T_bot
+     else proj1_sig (KO.p2kp p) ko.
   Proof.
     intros.
-    rewrite <- KI.K0.approx_spec.
+    rewrite <- KO.K0.approx_spec.
     unfold approx.
-    pattern (KI.K0.approx n) at 2.
-    rewrite <- (id_unit1 _ _ (KI.K0.approx n)), <- KI.kp2p2kp.
-    pattern (KI.K0.approx n) at 2.
-    rewrite <- (id_unit2 _ _ (KI.K0.approx n)), <- KI.kp2p2kp.
+    pattern (KO.K0.approx n) at 2.
+    rewrite <- (id_unit2 _ _ (KO.K0.approx n)), <- KO.kp2p2kp.
     reflexivity.
   Qed.
 
@@ -1206,11 +1213,11 @@ Module KnotFull (KI': KNOT_FULL_INPUT): KNOT_FULL with Module KI:=KI'.
   Proof.
     intros.
     unfold squash, unsquash.
-    rewrite KI.K0.knot_age1.
-    destruct (KI.K0.unsquash k) as [n f] eqn:?H.
+    rewrite KO.K0.knot_age1.
+    destruct (KO.K0.unsquash k) as [n f] eqn:?H.
     destruct n; auto.
     f_equal; simpl.
-    rewrite fmap_app, KI.kp2p2kp, fmap_id.
+    rewrite fmap_app, KO.kp2p2kp, fmap_id.
     auto.
   Qed.
 
@@ -1218,14 +1225,36 @@ Module KnotFull (KI': KNOT_FULL_INPUT): KNOT_FULL with Module KI:=KI'.
   Proof.
     intros.
     unfold unsquash.
-    rewrite KI.K0.knot_level.
-    destruct (KI.K0.unsquash k) as [n f]; auto.
+    rewrite KO.K0.knot_level.
+    destruct (KO.K0.unsquash k) as [n f]; auto.
+  Qed.
+
+  Definition knot_rel (k1 k2:knot) :=
+    let (n,f) := unsquash k1 in
+    let (n',f') := unsquash k2 in
+    n = n' /\ KI.Rel predicate f f'.
+
+  Lemma knot_rel_spec: forall k1 k2: knot,
+    knot_rel k1 k2 = KO.K0.knot_rel k1 k2.
+  Proof.
+    intros.
+    unfold knot_rel, KO.K0.knot_rel, unsquash.
+    destruct (KO.K0.unsquash k1) as [n1 f1].
+    destruct (KO.K0.unsquash k2) as [n2 f2].
+    f_equal.
+    apply prop_ext.
+    split; intros.
+    + pose proof KI.Rel_fmap _ _ KO.p2kp KO.kp2p _ _ H.
+      rewrite !fmap_app, KO.kp2p2kp, fmap_id in H0.
+      auto.
+    + pose proof KI.Rel_fmap _ _ KO.kp2p KO.p2kp _ _ H.
+      auto.
   Qed.
 
 End KnotFull.
 
 Module KnotFullLemmas (K: KNOT_FULL).
-  Import K.KI.K0.KI.
+  Import K.KI.
   Import K.
 
   Lemma unsquash_inj : forall k1 k2,
@@ -1260,13 +1289,13 @@ Module KnotFullLemmas (K: KNOT_FULL).
   Implicit Arguments unsquash_approx.
 
   Lemma pred_ext : forall (p1 p2:predicate),
-    (forall x, proj1_sig (K.KI.p2kp p1) x = proj1_sig (K.KI.p2kp p2) x) ->
+    (forall x, proj1_sig (K.KO.p2kp p1) x = proj1_sig (K.KO.p2kp p2) x) ->
     p1 = p2.
   Proof.
     intros.
-    change (p1 = p2) with (id K.KI.predicate p1 = id K.KI.predicate p2).
-    rewrite <- K.KI.p2kp2p; unfold compose.
-    destruct (KI.p2kp p1) as [pp1 Hp1]; destruct (KI.p2kp p2) as [pp2 Hp2].
+    change (p1 = p2) with (id K.KO.predicate p1 = id K.KO.predicate p2).
+    rewrite <- K.KO.p2kp2p; unfold compose.
+    destruct (KO.p2kp p1) as [pp1 Hp1]; destruct (KO.p2kp p2) as [pp2 Hp2].
     simpl in *.
     assert (pp1 = pp2).
     extensionality x; auto.
@@ -1278,39 +1307,21 @@ Module KnotFullLemmas (K: KNOT_FULL).
   Lemma approx_approx1 : forall m n,
     approx n = approx n oo approx (m+n).
   Proof.
-    intros.
-    extensionality p.
-    apply pred_ext.
-    intros [k o].
-    unfold compose.
-    change (approx (m + n) p) with (id K.KI.predicate (approx (m + n) p)).
-    change p with (id K.KI.predicate p).
-    rewrite <- K.KI.p2kp2p.
-    unfold compose.
-    repeat rewrite approx_spec.
-    simpl.
-    destruct (le_gt_dec n (level k)); auto.
-    destruct (le_gt_dec (m+n) (level k)); auto.
-    elimtype False; omega.
+    apply
+     (@KnotLemmas2.approx_approx1
+       (KnotLemmas2.Build_Input _ _ _ _ _ _
+         (@proj1_sig _ _ oo K.KO.p2kp) _ pred_ext approx_spec)),
+     (KnotLemmas2.Proof).
   Qed.
 
   Lemma approx_approx2 : forall m n,
     approx n = approx (m+n) oo approx n.
   Proof.
-    intros.
-    extensionality p.
-    apply pred_ext.
-    intros [k o].
-    unfold compose.
-    change (approx n p) with (id K.KI.predicate (approx n p)) at 2.
-    change p with (id K.KI.predicate p).
-    rewrite <- K.KI.p2kp2p.
-    unfold compose.
-    repeat rewrite approx_spec.
-    simpl.
-    destruct (le_gt_dec (m+n) (level k)); auto.
-    destruct (le_gt_dec n (level k)); auto.
-    elimtype False; omega.
+    apply
+     (@KnotLemmas2.approx_approx2
+       (KnotLemmas2.Build_Input _ _ _ _ _ _
+         (@proj1_sig _ _ oo K.KO.p2kp) _ pred_ext approx_spec)),
+     (KnotLemmas2.Proof).
   Qed.
 
 End KnotFullLemmas.
