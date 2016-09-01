@@ -32,9 +32,6 @@ Inductive ksafe (st:ST) U: nat -> Prop :=
 CoInductive safe st U: Prop:=
   | csft_step: forall st' U', STEP st U st' U' -> (forall U'', valid st' U'' -> safe st' U'') -> safe st U.
 
-Definition closed (P:ST -> SCH -> Prop):=
-  forall st U1 U2, P st U1 -> valid st U2 -> P st U2.
-
 Definition SST:= ST -> Prop.
 Definition is_in (st:ST)(P:SST):= P st. 
 (*Notation enth:= (List.nth_error).*)
@@ -50,13 +47,6 @@ Definition R := RRR (fun st st' U => exists U', STEP st U st' U') valid.
    (forall st U, st  \In P -> valid st U -> exists st' U', STEP st U st' U' /\ st' \In P') ->
    (forall st',  st' \In P' -> exists st U U', STEP st U st' U' /\ st \In P /\ valid st U ) ->
    R P P'.*)
-   
-Inductive R' (P P': ST -> SCH -> Prop): Prop:=
-|blah' :
-    (forall st U, P st U -> exists st' U', STEP st U st' U' /\ P' st' U') ->
-    (forall st' U', P' st' U' -> exists U st, P st U /\ STEP st U st' U') ->
-    closed P' ->
-          R' P P'.
 
 (*Definition R (st st': (ST * (ST -> SCH -> Prop))): Prop:= R' (fst st) (snd st) (fst st') (snd st').*)
 
