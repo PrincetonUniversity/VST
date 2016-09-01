@@ -130,6 +130,16 @@ Definition lock_coherence (lset : AMap.t (option rmap)) (phi : rmap) (m : mem) :
         end*)
     end.
 
+Definition far (ofs1 ofs2 : Z) := (Z.abs (ofs1 - ofs2) >= 4)%Z.
+
+Definition lock_sparsity {A} (lset : AMap.t A) : Prop :=
+  forall loc1 loc2,
+    AMap.find loc1 lset <> None ->
+    AMap.find loc2 lset <> None ->
+    loc1 = loc2 \/
+    fst loc1 <> fst loc2 \/
+    (fst loc1 = fst loc2 /\ far (snd loc1) (snd loc2)).
+
 (*! Joinability and coherence *)
 
 Lemma mem_compatible_forget {tp m phi} :
@@ -214,6 +224,7 @@ Inductive state_invariant {Z} (Jspec : juicy_ext_spec Z) Gamma (n : nat) : cm_st
       (lev : level PHI = n)
       (gamma : matchfunspec (filter_genv ge) Gamma PHI)
       (mcompat : mem_compatible_with tp m PHI)
+      (lock_sparse : lock_sparsity (lset tp))
       (lock_coh : lock_coherence' tp PHI m mcompat)
       (safety : threads_safety Jspec m ge tp PHI mcompat n)
       (wellformed : threads_wellformed tp)
@@ -281,9 +292,9 @@ Lemma state_invariant_sch_irr {Z} (Jspec : juicy_ext_spec Z) Gamma n m ge i sch 
   state_invariant Jspec Gamma n (m, ge, (i :: sch', tp)).
 Proof.
   intros INV.
-  inversion INV as [m0 ge0 sch0 tp0 PHI lev gam compat lock_coh safety wellformed uniqkrun H0];
+  inversion INV as [m0 ge0 sch0 tp0 PHI lev gam compat sparse lock_coh safety wellformed uniqkrun H0];
     subst m0 ge0 sch0 tp0.
-  refine (state_invariant_c Jspec Gamma n m ge (i :: sch') tp PHI lev gam compat lock_coh safety wellformed _).
+  refine (state_invariant_c Jspec Gamma n m ge (i :: sch') tp PHI lev gam compat sparse lock_coh safety wellformed _).
   clear -uniqkrun.
   intros H i0 cnti q H0.
   destruct (uniqkrun H i0 cnti q H0) as [sch'' E].
@@ -407,6 +418,11 @@ Section Initial_State.
       (* rewrite find_id_maketycontext_s. *)
       admit.
       (* we need to relate the [jm] given by [semax_prog_rule]  *)
+    
+    - (*! lock sparsity (no locks at first) *)
+      intros l1 l2.
+      rewrite threadPool.find_empty.
+      tauto.
     
     - (*! lock coherence (no locks at first) *)
       intros lock.
@@ -1116,6 +1132,7 @@ Section Simulation.
         (compat : mem_compatible_with tp m Phi)
         (En : level Phi = S n)
         (lock_bound : lockSet_block_bound (ThreadPool.lset tp) (Mem.nextblock m))
+        (sparse : lock_sparsity (lset tp))
         (lock_coh : lock_coherence' tp Phi m compat)
         (safety : threads_safety Jspec m ge tp Phi compat (S n))
         (wellformed : threads_wellformed tp)
@@ -1440,6 +1457,25 @@ Section Simulation.
       eapply resource_decay_matchfunspec; eauto.
     
     - (* lock coherence: own rmap has changed, but we prove it did not affect locks *)
+      unfold tp''; simpl.
+      unfold tp'; simpl.
+      
+      Lemma lock_sparsity_age_to tp n :
+        lock_sparsity (lset tp) -> 
+        lock_sparsity (lset (age_tp_to n tp)).
+      Proof.
+        destruct tp as [A B C lset0]; simpl.
+        intros S l1 l2 E1 E2; apply (S l1 l2).
+        - rewrite AMap_find_map_option_map in E1.
+          unfold LocksAndResources.lock_info in *.
+          destruct (AMap.find (elt:=option rmap) l1 lset0); congruence || tauto.
+        - rewrite AMap_find_map_option_map in E2.
+          unfold LocksAndResources.lock_info in *.
+          destruct (AMap.find (elt:=option rmap) l2 lset0); congruence || tauto.
+      Qed.
+      apply lock_sparsity_age_to. auto.
+    
+    - (* lock coherence: own rmap has changed, but we prove it did not affect locks *)
       unfold lock_coherence', tp''; simpl lset.
 
       (* replacing level (m_phi jmi') with level Phi' ... *)
@@ -1728,7 +1764,7 @@ Section Simulation.
       state_step state state'.
   Proof.
     intros I.
-    inversion I as [m ge sch tp Phi En gam compat lock_coh safety wellformed unique E]. rewrite <-E in *.
+    inversion I as [m ge sch tp Phi En gam compat sparse lock_coh safety wellformed unique E]. rewrite <-E in *.
     destruct sch as [ | i sch ].
     
     (* empty schedule: we loop in the same state *)
@@ -2362,7 +2398,7 @@ Section Simulation.
     (* apply state_invariant_S *)
     subst state state'; clear STEP.
     intros INV.
-    inversion INV as [m0 ge0 sch0 tp0 Phi lev gam compat lock_coh safety wellformed unique E].
+    inversion INV as [m0 ge0 sch0 tp0 Phi lev gam compat sparse lock_coh safety wellformed unique E].
     subst m0 ge0 sch0 tp0.
     
     destruct sch as [ | i sch ].
@@ -2567,6 +2603,9 @@ Section Simulation.
           
           + (* matchfunspec *)
             assumption.
+          
+          + (* lock sparsity *)
+            auto.
           
           + (* lock coherence *)
             unfold lock_coherence' in *.
@@ -2779,6 +2818,48 @@ Section Simulation.
         
         + (* matchfunspec *)
           auto.
+        
+          Ltac cleanup :=
+            unfold lockRes in *;
+            unfold LocksAndResources.lock_info in *;
+            unfold lockGuts in *.
+        
+        + (* lock sparsity *)
+          unfold tp_ in *.
+          simpl.
+          cleanup.
+          Definition lset_same_support {A} (lset1 lset2 : AMap.t A) :=
+            forall loc,
+              AMap.find loc lset1 = None <->
+              AMap.find loc lset2 = None.
+          
+          Lemma sparsity_same_support {A} (lset1 lset2 : AMap.t A) :
+            lset_same_support lset1 lset2 ->
+            lock_sparsity lset1 ->
+            lock_sparsity lset2.
+          Proof.
+            intros same sparse l1 l2.
+            specialize (sparse l1 l2).
+            rewrite <-(same l1).
+            rewrite <-(same l2).
+            auto.
+          Qed.
+          
+          Lemma same_support_change_lock {A} (lset : AMap.t A) l x :
+            AMap.find l lset <> None ->
+            lset_same_support lset (AMap.add l x lset).
+          Proof.
+            intros E l'.
+            rewrite AMap_find_add.
+            if_tac.
+            - split; congruence.
+            - tauto.
+          Qed.
+          
+          eapply sparsity_same_support with (lset tp); auto.
+          apply same_support_change_lock.
+          cleanup.
+          rewrite His_unlocked. congruence.
         
         + (* lock coherence *)
           intros loc.
@@ -3007,6 +3088,9 @@ Section Simulation.
       
       + (* matchfunspec *)
         assumption.
+      
+      + (* lock sparsity *)
+        auto.
       
       + (* lock coherence *)
         unfold lock_coherence' in *.
