@@ -171,49 +171,18 @@ Module Type KNOT__COVARIANT_HERED_PROP_OTH_REL.
 
 End KNOT__COVARIANT_HERED_PROP_OTH_REL.
 
-Module Type KNOT_LEMMAS__COVARIANT_HERED_PROP_OTH_REL.
-  Declare Module KI: KNOT_INPUT__COVARIANT_HERED_PROP_OTH_REL.
-  Declare Module K: KNOT__COVARIANT_HERED_PROP_OTH_REL with Module KI := KI.
+Module Type KNOT_INPUT__COVARIANT_HERED_PROP_OTH.
+
   Import CovariantFunctor.
-  Import KI.
-  Import K.
-
-  Axiom unsquash_inj : forall k1 k2,
-    unsquash k1 = unsquash k2 ->
-    k1 = k2.
-  Implicit Arguments unsquash_inj.
-  
-  Axiom squash_surj : forall k, exists n, exists Fp,
-    squash (n, Fp) = k.
-
-  Axiom unsquash_approx : forall k n Fp,
-    unsquash k = (n, Fp) ->
-    Fp = fmap KI.F (approx n) Fp.
-  Implicit Arguments unsquash_approx [k n Fp].
-  
-  Axiom approx_approx1 : forall m n,
-    approx n = approx n oo approx (m+n).
-
-  Axiom approx_approx2 : forall m n,
-    approx n = approx (m+n) oo approx n.
-
-End KNOT_LEMMAS__COVARIANT_HERED_PROP_OTH_REL.
-
-Module Type KNOT_INPUT__HERED_PROP_OTH.
-
-  Parameter F : Type -> Type.
-  Parameter fmap : forall {A B}, (A->B) -> F A -> F B.
-
-  Axiom fmap_id : forall A, fmap (id A) = id (F A).
-  Axiom fmap_comp : forall A B C (f:B->C) (g:A->B),
-    fmap f oo fmap g = fmap (f oo g).
-
+  Parameter F : functor.
   Parameter other : Type.
 
-End KNOT_INPUT__HERED_PROP_OTH.
+End KNOT_INPUT__COVARIANT_HERED_PROP_OTH.
 
-Module Type KNOT__HERED_PROP_OTH.
-  Declare Module KI : KNOT_INPUT__HERED_PROP_OTH.
+Module Type KNOT__COVARIANT_HERED_PROP_OTH.
+  Declare Module KI : KNOT_INPUT__COVARIANT_HERED_PROP_OTH.
+  Import CovariantFunctor.
+  Import CovariantFunctorLemmas.
   Import KI.
 
   Parameter knot : Type.
@@ -234,7 +203,7 @@ Module Type KNOT__HERED_PROP_OTH.
   Axiom squash_unsquash : forall x,
     squash (unsquash x) = x.
   Axiom unsquash_squash : forall n x',
-    unsquash (squash (n,x')) = (n, fmap (approx n) x').
+    unsquash (squash (n,x')) = (n, fmap F (approx n) x').
 
 
   (* Definitions of the "ageable" operations *)
@@ -247,15 +216,7 @@ Module Type KNOT__HERED_PROP_OTH.
     | (O,_) => None
     | (S n,x) => Some (squash (n,x))
     end.
-
-  (* Convenience lemmas, provable from the above interface *)
-  Axiom fmap_fmap : forall A B C (f:B->C) (g:A->B) x,
-    fmap f (fmap g x) = fmap (f oo g) x.
-
-  Axiom fmap_id' : forall A (f:A->A),
-    (forall x, f x = x) ->
-    fmap f = id (F A).
-
+(*
   Axiom unsquash_inj : forall k1 k2,
     unsquash k1 = unsquash k2 ->
     k1 = k2.
@@ -274,22 +235,21 @@ Module Type KNOT__HERED_PROP_OTH.
 
   Axiom approx_approx2 : forall m n,
     approx n = approx (m+n) oo approx n.
-End KNOT__HERED_PROP_OTH.
+*)
+End KNOT__COVARIANT_HERED_PROP_OTH.
 
 
-Module Type KNOT_INPUT__HERED_PROP.
+Module Type KNOT_INPUT__COVARIANT_HERED_PROP.
 
-  Parameter F : Type -> Type.
-  Parameter fmap : forall {A B}, (A->B) -> F A -> F B.
+  Import CovariantFunctor.
+  Parameter F : functor.
 
-  Axiom fmap_id : forall A, fmap (id A) = id (F A).
-  Axiom fmap_comp : forall A B C (f:B->C) (g:A->B),
-    fmap f oo fmap g = fmap (f oo g).
+End KNOT_INPUT__COVARIANT_HERED_PROP.
 
-End KNOT_INPUT__HERED_PROP.
-
-Module Type KNOT__HERED_PROP.
-  Declare Module KI : KNOT_INPUT__HERED_PROP.
+Module Type KNOT__COVARIANT_HERED_PROP.
+  Declare Module KI : KNOT_INPUT__COVARIANT_HERED_PROP.
+  Import CovariantFunctor.
+  Import CovariantFunctorLemmas.
   Import KI.
 
   Parameter knot : Type.
@@ -307,7 +267,7 @@ Module Type KNOT__HERED_PROP.
   Axiom squash_unsquash : forall x,
     squash (unsquash x) = x.
   Axiom unsquash_squash : forall n x',
-    unsquash (squash (n,x')) = (n, fmap (approx n) x').
+    unsquash (squash (n,x')) = (n, fmap F (approx n) x').
   
   (* Definitions of the "ageable" operations *)
   Axiom knot_level : forall (k:knot),
@@ -319,15 +279,8 @@ Module Type KNOT__HERED_PROP.
     | (O,_) => None
     | (S n,x) => Some (squash (n,x))
     end.
-
+(*
   (* Convenience lemmas, provable from the above interface *)
-  Axiom fmap_fmap : forall A B C (f:B->C) (g:A->B) x,
-    fmap f (fmap g x) = fmap (f oo g) x.
-
-  Axiom fmap_id' : forall A (f:A->A),
-    (forall x, f x = x) ->
-    fmap f = id (F A).
-
   Axiom unsquash_inj : forall k1 k2,
     unsquash k1 = unsquash k2 ->
     k1 = k2.
@@ -346,8 +299,51 @@ Module Type KNOT__HERED_PROP.
 
   Axiom approx_approx2 : forall m n,
     approx n = approx (m+n) oo approx n.
+*)
+End KNOT__COVARIANT_HERED_PROP.
 
-End KNOT__HERED_PROP.
+Module Type KNOT_INPUT__MIXVARIANT_HERED_PROP.
+
+  Import MixVariantFunctor.
+  Parameter F : functor.
+
+End KNOT_INPUT__MIXVARIANT_HERED_PROP.
+
+Module Type KNOT__MIXVARIANT_HERED_PROP.
+  Declare Module KI : KNOT_INPUT__MIXVARIANT_HERED_PROP.
+  Import MixVariantFunctor.
+  Import MixVariantFunctorLemmas.
+  Import KI.
+
+  Parameter knot : Type.
+  
+  Parameter ageable_knot : ageable knot.
+  Existing Instance ageable_knot.
+
+  Parameter squash : (nat * F (pred knot)) -> knot.
+  Parameter unsquash : knot -> (nat * F (pred knot)).
+
+  Parameter approx : nat -> pred knot -> pred knot.
+  Axiom approx_spec : forall n p k,
+    approx n p k = (level k < n /\ p k).
+
+  Axiom squash_unsquash : forall x,
+    squash (unsquash x) = x.
+  Axiom unsquash_squash : forall n x',
+    unsquash (squash (n,x')) = (n, fmap F (approx n) (approx n) x').
+  
+  (* Definitions of the "ageable" operations *)
+  Axiom knot_level : forall (k:knot),
+    level k = fst (unsquash k).
+   
+  Axiom knot_age1 : forall (k:knot),
+    age1 k =
+    match unsquash k with
+    | (O,_) => None
+    | (S n,x) => Some (squash (n,x))
+    end.
+
+End KNOT__MIXVARIANT_HERED_PROP.
 
 Module Knot_CoContraVariantHeredTOthRel
   (KI': KNOT_INPUT__COCONTRAVARIANT_HERED_T_OTH_REL):
@@ -684,7 +680,7 @@ Module Knot_CovariantHeredPropOthRel (KI':KNOT_INPUT__COVARIANT_HERED_PROP_OTH_R
 
   Definition assert := { p:pred (K0.knot * KI.other) | boxy expandM p }.
 
-  Module Output<: knot_full_variant.KNOT_FULL_OUTPUT with Module KI := Input.
+  Module Output <: knot_full_variant.KNOT_FULL_OUTPUT with Module KI := Input.
     Module KI := Input.
     Module K0 := K0.
     Definition predicate: Type := assert.
@@ -910,45 +906,33 @@ Module KnotLemmas_CovariantHeredPropOthRel
 
 End KnotLemmas_CovariantHeredPropOthRel.
 
-Module Knot_HeredPropOth (KI':KNOT_INPUT__HERED_PROP_OTH)
-  : KNOT__HERED_PROP_OTH with Module KI:=KI'.
+Module Knot_CovariantHeredPropOth (KI':KNOT_INPUT__COVARIANT_HERED_PROP_OTH)
+  : KNOT__COVARIANT_HERED_PROP_OTH with Module KI:=KI'.
 
+  Import MixVariantFunctor.
+  Import MixVariantFunctorLemmas.
+  Import GeneralFunctorGenerator.
   Module KI:=KI'.
 
   Module Input.
-    Definition F (A B:Type) := KI.F B.
-    Definition bimap {A B C D} (s:A -> B) (f:C -> D) (x:F B C) : F A D :=
-      KI.fmap f x.
-
-    Lemma bimap_id : forall A B, bimap (id A) (id B) = id (F A B).
-    Proof.
-      intros; unfold bimap; extensionality.
-      rewrite KI.fmap_id; auto.  
-    Qed.
-
-    Lemma bimap_comp : forall A B C D E F (f:B -> C) (g:A -> B) (s:F -> E) (t:E -> D),
-      bimap s f oo bimap t g = bimap (t oo s) (f oo g).
-    Proof.
-      intros; unfold bimap; extensionality.
-      rewrite <- KI.fmap_comp; auto.
-    Qed.
-
+    Definition F: functor := CovariantFunctor_MixVariantFunctor KI.F.
     Definition other := KI.other.
     
-    Definition Rel A B := @eq (F A B).
-    Lemma Rel_bimap : forall A B C D (f:A->B) (s:C->D) x y,
-      Rel D A x y ->
-      Rel C B (bimap s f x) (bimap s f y).
+    Definition Rel A := @eq (F A).
+    Lemma Rel_fmap : forall A B (f:A -> B) (s:B -> A) x y,
+      Rel A x y ->
+      Rel B (fmap F f s x) (fmap F f s y).
     Proof.
-      unfold Rel, bimap; intuition; subst; auto.
+      unfold Rel; intuition; subst; auto.
     Qed.
-    Lemma Rel_refl : forall A B x, Rel A B x x.
+
+    Lemma Rel_refl : forall A x, Rel A x x.
     Proof.
       intros; hnf; auto.
     Qed.
 
-    Lemma Rel_trans : forall A B x y z,
-      Rel A B x y -> Rel A B y z -> Rel A B x z.
+    Lemma Rel_trans : forall A x y z,
+      Rel A x y -> Rel A y z -> Rel A x z.
     Proof.
       unfold Rel; intuition congruence.
     Qed.
@@ -983,21 +967,17 @@ Module Knot_HeredPropOth (KI':KNOT_INPUT__HERED_PROP_OTH)
     Qed.
   End Input.
 
-  Module K := knot_full.KnotFull(Input).
-  Module KL := knot_full.KnotFull_Lemmas(K).
-  
-  Definition knot := K.knot.
-  Definition ageable_knot := K.ageable_knot.
-  Existing Instance ageable_knot.
-
-  Definition ag_knot_other := ag_prod knot KI.other ageable_knot.
+  Module K0 := knot_full_variant.Knot_MixVariantHeredTOthRel(Input).
+  Module KL0 := knot_full_variant.KnotLemmas_MixVariantHeredTOthRel(K0).
+  Existing Instance K0.ageable_knot.
+  Definition ag_knot_other := ag_prod K0.knot KI.other K0.ageable_knot.
   Existing Instance ag_knot_other.
 
-  Lemma hered_hereditary : forall (p:knot*KI.other -> Prop),
-    K.hered p <-> hereditary age p.
+  Lemma hered_hereditary : forall (p: K0.knot*KI.other -> Prop),
+    K0.hered p <-> hereditary age p.
   Proof.
     intros; split; repeat intro.
-    rewrite K.hered_spec in H.
+    rewrite K0.hered_spec in H.
     hnf in H0.
     simpl in H0.
     destruct a; destruct a'.
@@ -1011,19 +991,19 @@ Module Knot_HeredPropOth (KI':KNOT_INPUT__HERED_PROP_OTH)
     apply rt_step; auto.
     spec H.
     hnf.
-    destruct (K.unsquash k0); split; auto.
+    destruct (K0.unsquash k0); split; auto.
     hnf; auto.
     apply H; auto.
     hnf; auto.
     rewrite H2 in H0; discriminate.
 
-    rewrite K.hered_spec; intros.
+    rewrite K0.hered_spec; intros.
     assert (k' = k'').
-    apply KL.unsquash_inj.
+    apply KL0.unsquash_inj.
     hnf in H1.
     hnf in H2; subst o'.
-    destruct (K.unsquash k').
-    destruct (K.unsquash k'').
+    destruct (K0.unsquash k').
+    destruct (K0.unsquash k'').
     destruct H1; hnf in H2.
     subst; auto.
     subst k''.
@@ -1036,201 +1016,64 @@ Module Knot_HeredPropOth (KI':KNOT_INPUT__HERED_PROP_OTH)
     eapply H; eauto.
     hnf; simpl.
     hnf in H0.
-    unfold knot, ageable_knot in *.
     rewrite H0; auto.
     auto.
     eauto.
   Qed.
 
-  Program Definition pred2predicate (p:pred (knot*KI.other)) : K.predicate := p.
-  Next Obligation.
-    destruct p as [p H]; simpl.
-    rewrite hered_hereditary; auto.
-  Qed.
+  Module Output <: knot_full_variant.KNOT_FULL_OUTPUT with Module KI := Input.
+    Module KI := Input.
+    Module K0 := K0.
 
-  Program Definition predicate2pred (p:K.predicate) : pred (knot*KI.other) := p.
-  Next Obligation.
-    destruct p as [p Hp]; simpl.
-    assert (hereditary age p).
-    rewrite <- hered_hereditary; auto.
-    eapply H1; eauto.
-  Qed.
+    Definition predicate : Type := pred (K0.knot * KI.other).
+    Definition p2kp: predicate -> K0.predicate := sig_sig_iff' hered_hereditary.
+    Definition kp2p: K0.predicate -> predicate := sig_sig_iff hered_hereditary.
 
-  Lemma p2p : forall p, pred2predicate (predicate2pred p) = p.
-  Proof.
-    intros.
-    apply KL.pred_ext; intros.
-    simpl; auto.
-  Qed.
+    Definition p2kp2p: kp2p oo p2kp = id _ := sig_sig_iff_iff'_id _.
+    Definition kp2p2kp: p2kp oo kp2p = id _ := sig_sig_iff'_iff_id _.
+  End Output.
 
-  Lemma p2p' : forall p, predicate2pred (pred2predicate p) = p.
-  Proof.
-    intros.
-    apply pred_ext; hnf; simpl; auto.
-  Qed.
+  Module K := knot_full_variant.KnotFull(Input)(Output).
 
-  Definition squash (nf:(nat * KI.F (pred (knot*KI.other)))) : knot :=
-    K.squash (fst nf, KI.fmap pred2predicate (snd nf)).
-
-  Definition unsquash (k:knot) : (nat * KI.F (pred (knot*KI.other))) :=
-    let (n,f) := K.unsquash k in
-      (n, KI.fmap predicate2pred f).
-
-  Program Definition approx (n:nat) (p:pred (knot*KI.other)) : pred (knot*KI.other) :=
-    fun k => level (fst k) < n /\ p k.
-  Next Obligation.
-    simpl in *.
-    rewrite K.knot_level.
-    hnf in H.
-    simpl in H.
-    rewrite K.knot_age1 in H.
-    unfold Input.F, Input.other in *.
-    case_eq (K.unsquash a0); intros.
-    rewrite H0 in H.
-    destruct n0; try discriminate.
-    rewrite K.knot_level in H1.
-    rewrite H0 in H1.
-    simpl in *.
-    inv H.
-    simpl.
-    rewrite K.unsquash_squash.
-    simpl.
-    omega.
-  Qed.
+  Definition knot := K.knot.
+  Definition ageable_knot := K.ageable_knot.
+  Definition squash: (nat * KI.F (pred (knot*KI.other))) -> knot := K.squash.
+  Definition unsquash: knot -> (nat * KI.F (pred (knot*KI.other))) := K.unsquash.
+  Definition approx: nat -> pred (knot*KI.other) -> pred (knot*KI.other) :=
+    K.approx.
 
   Lemma approx_spec : forall n p k,
     approx n p k = (level (fst k) < n /\ p k).
   Proof.
-    intros; simpl; auto.
-  Qed.
-
-  Lemma fmap_fmap : forall A B C (f:B->C) (g:A->B) x,
-    KI.fmap f (KI.fmap g x) = KI.fmap (f oo g) x.
-  Proof.
     intros.
-    rewrite <- KI.fmap_comp.
-    auto.
-  Qed.
-
-  Lemma fmap_id' : forall A (f:A->A),
-    (forall x, f x = x) ->
-    KI.fmap f = id _.
-  Proof.
-    intros.
-    replace f with (id A).
-    apply KI.fmap_id.
-    extensionality; auto.
-  Qed.
-
-  Lemma squash_unsquash : forall x,
-    squash (unsquash x) = x.
-  Proof.
-    intros.
-    unfold squash, unsquash.
-    case_eq (K.unsquash x); simpl; intros.
-    rewrite fmap_fmap.
-    rewrite fmap_id'.
-    unfold id.
-    apply KL.unsquash_inj.
-    rewrite K.unsquash_squash.
-    rewrite H.
-    f_equal.
-    symmetry.
-    apply (KL.unsquash_approx H).
-    unfold compose; intros.
-    apply p2p.
-  Qed.
-
-  Lemma unsquash_squash : forall n x',
-    unsquash (squash (n,x')) = (n, KI.fmap (approx n) x').
-  Proof.
-    intros.
-    unfold unsquash, squash.
-    rewrite K.unsquash_squash; simpl.
-    f_equal.
-    unfold Input.bimap.
-    repeat rewrite fmap_fmap.
-    f_equal.
-    unfold compose.
-    extensionality p; simpl.
-    apply pred_ext; hnf; simpl; intros.
-    rewrite K.approx_spec in H.
-    simpl in *.
-    unfold unsquash.
-    rewrite K.knot_level in H.
-    rewrite K.knot_level.
-    unfold Input.F, Input.other, knot in *.
-    destruct (K.unsquash (fst a)); intros.
-    simpl in *; auto.
-    destruct (le_gt_dec n n0).
-    elim H.
-    split; auto.
-
-    rewrite K.approx_spec; intuition.
-    rewrite K.knot_level.
-    rewrite K.knot_level in H0.
-    unfold unsquash in *.
-    unfold Input.F, Input.other, knot in *.
-    simpl in *.
-    destruct (K.unsquash (fst a)).
-    simpl in *.
-    destruct (le_gt_dec n n0); auto.
-    hnf; omega.
-  Qed.
-
-  Lemma knot_age1 : forall (k:knot),
-    age1 k =
-    match unsquash k with
-    | (O,_) => None
-    | (S n,x) => Some (squash (n,x))
+    apply prop_ext.
+    pose proof K.approx_spec n p k.
+    match goal with
+    | _: ?A = _ |- ?B <-> _ => change B with A
     end.
-  Proof.
-    intro; simpl.
-    rewrite K.knot_age1.
-    unfold unsquash.
-    destruct (K.unsquash k).
-    destruct n; auto.
-    unfold squash.
-    f_equal.
-    simpl.
-    f_equal.
-    f_equal.
-    rewrite fmap_fmap.
-    rewrite fmap_id'.
-    auto.
-    intro; unfold compose.
-    apply p2p.
+    rewrite H.
+    match goal with
+    | |- (if le_gt_dec _ ?A then _ else _) <-> (?B < _ /\ _) =>
+            change B with A; remember A as TMP eqn:HHH; clear HHH
+    end.
+    destruct (le_gt_dec n TMP).
+    + split.
+      - intros [].
+      - intros [? ?]; omega.
+    + split.
+      - intros; split; [omega | auto].
+      - intros [? ?]; auto.
   Qed.
 
-(*
-  Lemma knot_unage : forall (k:knot),
-    unage k =
-    let (n,x) := unsquash k in squash (S n,x).
-  Proof.
-    intros; simpl.
-    unfold unsquash, squash.
-    rewrite K.knot_unage.
-    destruct (K.unsquash k).
-    simpl.
-    do 2 f_equal.
-    rewrite fmap_fmap.
-    rewrite fmap_id'.
-    auto.
-    intro; unfold compose.
-    apply p2p.
-  Qed.
-*)
+  Definition squash_unsquash := K.squash_unsquash.
 
-  Lemma knot_level : forall (k:knot),
-    level k = fst (unsquash k).
-  Proof.
-    intros.
-    rewrite K.knot_level.
-    unfold unsquash.
-    destruct (K.unsquash k).
-    auto.
-  Qed.
+  Definition unsquash_squash := K.unsquash_squash.
 
+  Definition knot_age1 := K.knot_age1.
+
+  Definition knot_level := K.knot_level.
+
+End Knot_CovariantHeredPropOth.
 
   (* Lemmas *)
 

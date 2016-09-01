@@ -71,7 +71,7 @@ COQDEP=$(COQBIN)coqdep $(DEPFLAGS)
 COQDOC=$(COQBIN)coqdoc
 
 MSL_FILES = \
-  Axioms.v Extensionality.v base.v eq_dec.v sig_isomorphism \
+  Axioms.v Extensionality.v base.v eq_dec.v sig_isomorphism.v \
   ageable.v sepalg.v psepalg.v age_sepalg.v \
   sepalg_generators.v functors.v functors_variant.v sepalg_functors.v combiner_sa.v \
   cross_split.v join_hom_lemmas.v cjoins.v \
